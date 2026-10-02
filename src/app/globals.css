@@ -1,0 +1,464 @@
+@import "tailwindcss";
+
+/* 阅读顺序：颜色 → 页面 / Logo → 人物三层 → 表单 → SCROLL → 响应式。
+   DOM 与这些类名的对应关系见 home-experience.tsx；参数索引见 docs/code-study.md。 */
+/* 全局色板；--line 的 .42 是下划线透明度。--muted 当前预留，没有直接用于首页。 */
+:root {
+  --graphite: #10100f;
+  --warm-white: #f0e9dd;
+  --muted: #a8a195;
+  --gold: #bea478;
+  --line: rgba(240, 233, 221, .42);
+}
+
+/* border-box 让 width 包含 padding / border；清除默认 body 边距，控件继承页面字体。 */
+* {
+  box-sizing: border-box;
+}
+html {
+  background: var(--graphite);
+}
+body {
+  margin: 0;
+  color: var(--warm-white);
+  font-family: "Avenir Next", "Segoe UI", "PingFang SC", sans-serif;
+}
+button,
+input {
+  font: inherit;
+}
+/* 保留键盘可见焦点，不能仅靠 hover 表示可操作。 */
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 4px;
+}
+
+/* 页面存在滚动空间，但滚动距离不驱动动画进度；固定 Logo 位于舞台上层。 */
+.home-page {
+  min-height: 155vh;
+  background: var(--graphite);
+}
+.home-header {
+  position: fixed;
+  z-index: 5;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: center;
+  height: 88px;
+  padding: 0 clamp(24px, 4.2vw, 68px);
+  pointer-events: none;
+}
+.home-logo {
+  color: var(--warm-white);
+  font-size: clamp(23px, 2vw, 29px);
+  font-weight: 720;
+  letter-spacing: -.075em;
+  line-height: 1;
+  opacity: .78;
+  transition: opacity 350ms ease;
+}
+.home-logo span {
+  color: var(--gold);
+}
+.home-page[data-phase="LOGIN_READY"] .home-logo,
+.home-page[data-phase="FINAL_TRANSITION"] .home-logo,
+.home-page[data-phase="FINAL"] .home-logo {
+  opacity: 1;
+}
+
+/* sticky 舞台固定在视口顶部；vh 是兼容值，支持 svh 时使用稳定的小视口高度。
+   三层径向光从上到下为暖金中心光、宽幅暖光、右下 petrol；最后是石墨底色。 */
+.home-scroll {
+  height: 155vh;
+}
+.home-stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
+  isolation: isolate;
+  background: radial-gradient(ellipse 42% 58% at 50% 43%, rgba(190, 164, 120, .11), transparent 85%), radial-gradient(ellipse 78% 85% at 50% 55%, rgba(190, 164, 120, .035), transparent 85%), radial-gradient(ellipse 65% 70% at 78% 76%, rgba(20, 49, 45, .16), transparent 85%), var(--graphite);
+}
+/* 此变量只供桌面 SCROLL 定位；人物实际大小由 .body-frame img.height 控制。
+   修改桌面图片高度后同步此值，以及低高度 @media 中的值。 */
+.home-stage {
+  --figure-height: min(89.6svh, 1176px);
+}
+/* 外层：figure-motion.ts 写入像素 / 角度变量，只移动人物，不带动 Login 或 Logo。 */
+.figure-motion {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  transform-origin: 50% 32%;
+  transform: perspective(1600px) translate3d(var(--figure-x, 0px), var(--figure-y, 0px), 0) rotateX(var(--figure-rx, 0deg)) rotateY(var(--figure-ry, 0deg));
+}
+/* 中层：隔离的人物合成组。inset: 0 铺满父层，但所有帧仍各自居中。 */
+.body-sequence {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  isolation: isolate;
+}
+/* 帧先在透明组内按互补权重相加，再与舞台合成，避免交叠中点变暗。 */
+/* 帧层：先居中，再应用 frame-config.ts 的独立平移 / 缩放；CSS 变换从右往左作用。
+   不给正常换帧加 opacity transition，短交叠已经由 home-timeline.ts 精确计算。 */
+.body-frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max-content;
+  height: max-content;
+  transform: translate(-50%, -50%) translate(var(--frame-x-desktop), var(--frame-y-desktop)) scale(var(--frame-scale-desktop));
+  transform-origin: center;
+  will-change: opacity;
+  mix-blend-mode: plus-lighter;
+}
+/* 图片按统一高度、原始宽高比显示；scale 是进一步的逐帧校准，不会拉伸图片。 */
+.body-frame img {
+  display: block;
+  width: auto;
+  height: 89.6vh;
+  height: 89.6svh;
+  max-height: 1176px;
+  user-select: none;
+}
+/* 解码 / 客户端接管前先显示首帧；之后 1–12 的透明度由 renderProgress 直接写入。 */
+.body-frame-intro {
+  opacity: 0;
+}
+.body-frame-intro:first-child {
+  opacity: 1;
+}
+.body-frame-final {
+  opacity: 0;
+}
+/* Enter 后 CSS 接管最终过渡；!important 覆盖第 12 帧残留的内联 opacity: 1。
+   --final-duration 由 HomeExperience 提供，普通为 700ms，reduced motion 为 240ms。 */
+.home-page[data-phase="FINAL_TRANSITION"] .body-frame-intro,
+.home-page[data-phase="FINAL"] .body-frame-intro {
+  opacity: 0 !important;
+  transition: opacity var(--final-duration) ease;
+}
+.home-page[data-phase="FINAL_TRANSITION"] .body-frame-final,
+.home-page[data-phase="FINAL"] .body-frame-final {
+  animation: final-presence var(--final-duration) ease both;
+}
+.home-page[data-phase="FINAL_TRANSITION"] .body-frame-final img,
+.home-page[data-phase="FINAL"] .body-frame-final img {
+  animation: final-settle var(--final-duration) ease both;
+}
+/* 外框只做透明度，图片自身做缩放 / 模糊，避免覆盖逐帧对齐 transform。 */
+@keyframes final-presence {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes final-settle {
+  from {
+    transform: scale(.98);
+    filter: blur(3px);
+  }
+  to {
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+/* top 指表单中心高度，因为 translateY 含 -50%；增大 top 会整体下移。
+   --login-opacity / --login-y 由同一转身进度控制，不另加独立入场计时。 */
+.login-overlay {
+  position: absolute;
+  z-index: 2;
+  top: 64%;
+  left: 50%;
+  width: min(340px, calc(100vw - 48px));
+  opacity: var(--login-opacity, 0);
+  transform: translate(-50%, calc(-50% + var(--login-y, 16px)));
+  will-change: opacity, transform;
+}
+.login-overlay[inert] {
+  pointer-events: none;
+}
+.login-form {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 24px 12px;
+}
+/* 烟色衬底渐隐到舞台，稳定尾部上方文字的对比度，不勾出卡片边界。 */
+/* ::before 生成视觉层，不增加表单 DOM；负 inset 向四周扩展，mask 让边缘透明。
+   backdrop-filter 模糊背后人物，文字本身不被模糊；isolation 保住衬底的局部层级。 */
+.login-form::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -24px -40px;
+  pointer-events: none;
+  background: rgba(28, 26, 22, .82);
+  backdrop-filter: blur(10px);
+  mask-image: radial-gradient(ellipse 50% 50% at center, #000 55%, rgba(0, 0, 0, .85) 72%, transparent 100%);
+}
+/* 标签、输入值和 ENTER 分别控制；输入的 16px 字号与标签的 12px 不要混淆。 */
+.login-form label {
+  margin: 0 0 3px;
+  color: var(--warm-white);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .04em;
+  line-height: 1.25;
+}
+.login-form input {
+  width: 100%;
+  height: 34px;
+  margin: 0 0 20px;
+  padding: 3px 0 7px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: var(--warm-white);
+  font-size: 16px;
+  transition: border-color 180ms ease;
+}
+.login-form input:hover,
+.login-form input:focus {
+  border-bottom-color: var(--gold);
+}
+.login-form input:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 4px;
+}
+.login-form button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 44px;
+  padding: 0 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--gold);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  cursor: pointer;
+  transition: color 180ms ease, opacity 180ms ease;
+}
+/* ::after 是 ENTER 下方的短细线；currentColor 跟随按钮当前文字颜色。 */
+.login-form button::after {
+  content: "";
+  position: absolute;
+  bottom: 5px;
+  left: 0;
+  width: 42px;
+  height: 1px;
+  background: currentColor;
+  opacity: .72;
+}
+.login-form button:hover:not(:disabled) {
+  color: var(--warm-white);
+}
+.login-form button:disabled {
+  opacity: .8;
+  cursor: not-allowed;
+}
+
+/* SCROLL 默认隐藏；下方设备条件 + INTRO / 图片就绪条件共同打开。
+   left 随人物高度定位，并用 clamp 留在屏幕内；它是视觉引导，没有点击行为。
+   visibility 延后 120ms 关闭，给 opacity 留出淡出的时间。 */
+.scroll-hint {
+  position: absolute;
+  z-index: 2;
+  top: calc(50% - var(--figure-height) * .11);
+  left: clamp(24px, calc(50% + var(--figure-height) * .14 + 32px), calc(100% - 104px));
+  display: none;
+  align-items: center;
+  gap: 10px;
+  width: 72px;
+  color: var(--gold);
+  font-size: 9px;
+  letter-spacing: .18em;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 120ms ease-out, visibility 0s linear 120ms;
+}
+.scroll-hint-mouse {
+  position: relative;
+  display: block;
+  flex: 0 0 14px;
+  width: 14px;
+  height: 20px;
+  border: 1px solid currentColor;
+  border-radius: 7px;
+}
+.scroll-hint-wheel {
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  width: 2px;
+  height: 4px;
+  border-radius: 1px;
+  background: currentColor;
+  animation: scroll-wheel 1.6s ease-in-out infinite paused;
+}
+@keyframes scroll-wheel {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: .75;
+  }
+  55% {
+    transform: translateY(3px);
+    opacity: .25;
+  }
+}
+/* 桌面精细指针才显示鼠标图标；首屏常驻，不记录“曾经操作过”的状态。 */
+@media (min-width: 701px) and (hover: hover) and (pointer: fine) {
+  .scroll-hint {
+    display: flex;
+  }
+  .home-page[data-phase="INTRO"][data-images-ready="true"] .scroll-hint {
+    opacity: .55;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+  .home-page[data-phase="INTRO"][data-images-ready="true"] .scroll-hint-wheel {
+    animation-play-state: running;
+  }
+}
+/* 加载 / 失败文字独立保留；键盘入口平时裁成 1px，聚焦后恢复可见的操作区域。 */
+.image-status {
+  position: absolute;
+  z-index: 2;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--gold);
+  font-size: 11px;
+  opacity: .65;
+}
+.keyboard-entry {
+  position: absolute;
+  z-index: 3;
+  bottom: 48px;
+  left: 50%;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+  padding: 0;
+}
+.keyboard-entry:focus-visible {
+  width: auto;
+  min-width: 44px;
+  height: 44px;
+  padding: 8px 16px;
+  overflow: visible;
+  clip-path: none;
+  transform: translateX(-50%);
+  background: var(--graphite);
+  color: var(--warm-white);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* 手机 / 窄屏：覆盖同名属性，未写出的属性继续继承基础规则。
+   .body-frame 改读 mobile 校准变量；宽度断点也要与 HomeExperience 的能力查询对应。 */
+@media (max-width: 700px) {
+  .home-header {
+    height: 68px;
+    padding: 0 20px;
+  }
+  .home-stage {
+    min-height: 0;
+    background: radial-gradient(ellipse 76% 54% at 50% 40%, rgba(190, 164, 120, .11), transparent 85%), radial-gradient(ellipse 100% 85% at 50% 55%, rgba(190, 164, 120, .035), transparent 85%), radial-gradient(ellipse 100% 65% at 86% 78%, rgba(20, 49, 45, .16), transparent 85%), var(--graphite);
+  }
+  .body-frame {
+    transform: translate(-50%, -50%) translate(var(--frame-x-mobile), var(--frame-y-mobile)) scale(var(--frame-scale-mobile));
+  }
+  .body-frame img {
+    height: 73.44vh;
+    height: 73.44svh;
+  }
+  .login-overlay {
+    top: 67%;
+    width: min(320px, calc(100vw - 40px));
+  }
+  .login-form {
+    padding: 16px 20px 10px;
+  }
+  .login-form input {
+    margin-bottom: 18px;
+  }
+  .image-status {
+    bottom: max(10px, env(safe-area-inset-bottom));
+  }
+}
+
+/* 高度条件可与宽度条件同时成立；写在后面的规则在同等优先级下覆盖前面的值。
+   例如 320×568 的人物图片最终用 78.4svh，而非前面手机规则的 73.44svh。 */
+@media (max-height: 640px) {
+  .home-stage {
+    --figure-height: min(78.4svh, 1176px);
+  }
+  .body-frame img {
+    height: 78.4svh;
+  }
+  .login-overlay {
+    top: 66%;
+  }
+  .login-form {
+    padding-top: 12px;
+    padding-bottom: 8px;
+  }
+  .login-form input {
+    margin-bottom: 12px;
+  }
+}
+
+/* 极低高度继续下移 / 压缩表单；这里没有再改人物高度。 */
+@media (max-height: 480px) {
+  .login-overlay {
+    top: 70%;
+  }
+  .login-form {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .login-form input {
+    height: 28px;
+    margin-bottom: 10px;
+  }
+}
+
+/* CSS 停用提示和最终缩放；JS 同时改用首尾淡入淡出并关闭鼠标联动。 */
+@media (prefers-reduced-motion: reduce) {
+  .home-logo,
+  .scroll-hint,
+  .login-form input,
+  .login-form button {
+    transition-duration: 0ms;
+    transition-delay: 0ms;
+  }
+  .scroll-hint-wheel {
+    animation: none;
+  }
+  .home-page[data-phase="FINAL_TRANSITION"] .body-frame-final img,
+  .home-page[data-phase="FINAL"] .body-frame-final img {
+    animation: none;
+  }
+}

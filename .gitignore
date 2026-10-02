@@ -1,0 +1,38 @@
+# Personal and generated data
+/data/imports/*
+!/data/imports/README.md
+/data/exports/*
+!/data/exports/README.md
+*.xlsx
+*.xls
+*.csv
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies and generated output
+node_modules/
+vendor/
+dist/
+build/
+coverage/
+.cache/
+.next/
+*.tsbuildinfo
+# Next.js 自动生成的类型入口，运行开发服务或构建时重新生成
+next-env.d.ts
+target/
+
+# Local tooling
+.aws/
+.agents/
+.codex/
+.DS_Store
+Thumbs.db
+*.log
+# Windows 下载来源附带文件，不属于人物素材
+*:Zone.Identifier
