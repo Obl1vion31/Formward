@@ -3,6 +3,7 @@
 !/data/imports/README.md
 /data/exports/*
 !/data/exports/README.md
+/data/postgres/storage/
 *.xlsx
 *.xls
 *.csv

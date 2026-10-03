@@ -124,17 +124,11 @@ async function verifyFigureInteraction() {
     await phase(page, "FINAL_TRANSITION");
     await assertCentred(page);
     await page.mouse.move(40, 40, { steps: 3 });
-    await phase(page, "FINAL");
-    await moveAndRead(page, 1300, 100);
-    await assertCentred(page); // 输入框仍有焦点时，最终状态也保持居中。
-    await page.locator("#email").blur();
-    await assertCentred(page);
-    assert.ok((await moveAndRead(page, 1400, 80)).x < -0.5, "FINAL 接收新鼠标输入恢复半幅联动");
-    await page.locator("#password").focus();
-    await page.waitForTimeout(210);
-    await assertCentred(page);
-    await page.locator("#password").blur();
-    results.push({ test: "提交：快速 Enter 从中心开始、倒放解除锁定、FINAL 按焦点恢复" });
+    await page.waitForURL("**/dashboard");
+    results.push({ test: "提交：快速 Enter 从中心开始，认证后播放动画再进入主页" });
+
+    await page.goto(baseUrl);
+    await page.waitForSelector('.home-page[data-images-ready="true"]');
 
     assert.ok((await moveAndRead(page, 1300, 120)).x < -0.5);
     await page.mouse.move(-10, -10);
@@ -189,6 +183,7 @@ async function startRecording(page) {
     window.addEventListener("wheel", mark, { once: true });
     const sample = () => {
       if (!window.animationRecording) return;
+      if (!document.querySelector(".home-stage")) { window.animationRecording = false; return; }
       window.animationSamples.push({
         time: performance.now(),
         phase: document.querySelector("main").dataset.phase,
@@ -509,21 +504,18 @@ try {
   await page.locator('button[type="submit"]').click();
   await phase(page, "FINAL_TRANSITION");
   await page.mouse.wheel(0, -120);
-  await phase(page, "FINAL");
+  await page.waitForURL("**/dashboard");
   const finalSamples = (await finishRecording(page)).samples.filter((sample) => sample.phase === "FINAL_TRANSITION");
   assert.ok(finalSamples.length > 10);
   assert.ok(finalSamples.every((sample) => Math.abs(sample.weights[11] + sample.final - 1) < 0.025), "最终动画也必须保持互补权重");
-  assert.equal((await snapshot(page)).final, 1);
-  assert.equal((await snapshot(page)).frames[11], 0);
-  results.push({ test: "D：Enter 单独触发 12 → 13" });
-  if (process.env.FORMWARD_BROWSER_ARTIFACTS) await page.screenshot({ path: process.env.FORMWARD_BROWSER_ARTIFACTS + "/final.png" });
+  results.push({ test: "D：认证成功后 Enter 触发 12 → 13，动画结束进入主页" });
+  if (process.env.FORMWARD_BROWSER_ARTIFACTS) await page.screenshot({ path: process.env.FORMWARD_BROWSER_ARTIFACTS + "/dashboard.png" });
   await page.mouse.wheel(0, -300);
   await page.mouse.wheel(0, 300);
   await page.waitForTimeout(250);
-  assert.equal((await snapshot(page)).phase, "FINAL");
-  assert.equal((await snapshot(page)).final, 1);
-  results.push({ test: "E：FINAL 不被滚动回退" });
-  await page.reload();
+  assert.equal(new URL(page.url()).pathname, "/dashboard");
+  results.push({ test: "E：主页不会因滚动返回登录动画" });
+  await page.goto(baseUrl);
   await page.waitForSelector('.home-page[data-images-ready="true"]');
   assert.equal((await snapshot(page)).progress, 0);
   results.push({ test: "刷新重置为 Frame 1" });
@@ -572,9 +564,8 @@ try {
   await reduced.page.locator("#email").fill("preview@example.test");
   await reduced.page.locator("#password").fill("fictional-preview-password");
   await reduced.page.locator('button[type="submit"]').click();
-  await phase(reduced.page, "FINAL");
-  assert.equal((await snapshot(reduced.page)).final, 1);
-  results.push({ test: "reduced motion：双向交互和最终态" });
+  await reduced.page.waitForURL("**/dashboard");
+  results.push({ test: "reduced motion：双向交互、最终动画结束后进入主页" });
   await reduced.context.close();
 
   // 冷启动拦截全部图片请求：验证预加载、decode 门槛、排队手势和后续零新增请求。

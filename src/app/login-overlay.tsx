@@ -8,34 +8,36 @@ type LoginOverlayProps = {
   overlayRef: RefObject<HTMLDivElement | null>;
   accessible: boolean;
   canSubmit: boolean;
-  onEnter: () => void;
+  pending: boolean;
+  error: string | null;
+  onEnter: (email: string, password: string) => Promise<void>;
   onInputFocus: () => void;
   onInputBlur: () => void;
 };
 
-export function LoginOverlay({ overlayRef, accessible, canSubmit, onEnter, onInputFocus, onInputBlur }: LoginOverlayProps) {
+export function LoginOverlay({ overlayRef, accessible, canSubmit, pending, error, onEnter, onInputFocus, onInputBlur }: LoginOverlayProps) {
   // 受控输入：value 来源于 state，onChange 更新 state；倒放不会卸载组件，因此值保留。
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // 当前仅检查非空，email.trim() 去掉首尾空白；不是账号验证或密码正确性验证。
+  // 非空只控制按钮；真实凭据由服务端认证。密码不进入 localStorage 或公开资源。
   const canEnter = canSubmit && email.trim().length > 0 && password.length > 0;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    // 拦截浏览器默认提交与页面刷新；当前只通知父级播放最终过渡，没有网络请求。
+    // 父级负责认证和动画顺序；失败仍停留在可重试的 Frame 12。
     event.preventDefault();
-    if (canEnter) onEnter();
+    if (canEnter) void onEnter(email, password);
   }
 
   return (
     // inert 禁止交互和 Tab 聚焦；aria-hidden 同时从辅助技术中隐藏不可用的表单。
     <div className="login-overlay" ref={overlayRef} inert={!accessible} aria-hidden={!accessible}>
-      {/* noValidate 跳过浏览器原生 email 格式校验；autoComplete="off" 是对浏览器的提示。 */}
-      <form className="login-form" aria-label="登录" onSubmit={handleSubmit} autoComplete="off" noValidate>
+      <form className="login-form" aria-label="登录" onSubmit={handleSubmit} aria-busy={pending} noValidate>
         <label htmlFor="email">Email</label>
-        <input id="email" type="email" name="email" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} onFocus={onInputFocus} onBlur={onInputBlur} autoComplete="off" />
+        <input id="email" type="email" name="email" inputMode="email" value={email} disabled={!canSubmit} onChange={(event) => setEmail(event.target.value)} onFocus={onInputFocus} onBlur={onInputBlur} autoComplete="username" aria-describedby={error ? "login-error" : undefined} />
         <label htmlFor="password">Password</label>
-        <input id="password" type="password" name="password" value={password} onChange={(event) => setPassword(event.target.value)} onFocus={onInputFocus} onBlur={onInputBlur} autoComplete="off" />
-        <button type="submit" disabled={!canEnter}><span>ENTER</span></button>
+        <input id="password" type="password" name="password" value={password} disabled={!canSubmit} onChange={(event) => setPassword(event.target.value)} onFocus={onInputFocus} onBlur={onInputBlur} autoComplete="current-password" aria-describedby={error ? "login-error" : undefined} />
+        <button type="submit" disabled={!canEnter}><span>{pending ? "VERIFYING…" : "ENTER"}</span></button>
+        {error && <p className="login-error" id="login-error" role="alert">{error}</p>}
       </form>
     </div>
   );

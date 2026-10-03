@@ -3,6 +3,8 @@
 // 首页交互总控：React 管阶段，rAF 管连续数值，CSS 管画面样式。
 // 从 JSX 的 .home-stage 结构开始读，再沿 requestDirection → renderProgress 理解转身。
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
+import { signIn } from "@/features/auth/client";
 import { BodySequence } from "./body-sequence";
 import { PRE_LOGIN_FRAMES } from "./frame-config";
 import { HomeHeader } from "./home-header";
@@ -12,9 +14,12 @@ import { LoginOverlay } from "./login-overlay";
 import { useDirectionTrigger } from "./use-direction-trigger";
 
 // phase 表示交互阶段，不等于帧序号；FORWARD_ANIMATING 内部会依次经过 1–12。
-type Phase = "INTRO" | "FORWARD_ANIMATING" | "LOGIN_READY" | "REVERSE_ANIMATING" | "FINAL_TRANSITION" | "FINAL";
+type Phase = "INTRO" | "FORWARD_ANIMATING" | "LOGIN_READY" | "REVERSE_ANIMATING" | "AUTHENTICATING" | "FINAL_TRANSITION" | "FINAL";
 
 export default function HomeExperience() {
+  const router = useRouter();
+  const loginAbortRef = useRef<AbortController | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
   // DOM ref 找到实际元素；控制器 ref 保存独立时钟，避免在每次 React 渲染时重新创建。
   const stageRef = useRef<HTMLDivElement>(null);
   const motionLayerRef = useRef<HTMLDivElement>(null);
@@ -31,7 +36,6 @@ export default function HomeExperience() {
   const focusLoginRef = useRef(false);
   // ref 在事件内立即生效；state 让 React 渲染 data-phase。二者由 changePhase 一起更新。
   const phaseRef = useRef<Phase>("INTRO");
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timelineRef = useRef<ReturnType<typeof createProgressTimeline> | null>(null);
   const targetProgressRef = useRef<TargetProgress>(0);
   const imagesReadyRef = useRef(false);
@@ -164,7 +168,7 @@ export default function HomeExperience() {
 
   const requestDirection = useCallback((target: TargetProgress) => {
     // 所有滚轮、触控与键盘意图统一到这里，最终态直接拒绝方向变化。
-    if (phaseRef.current === "FINAL_TRANSITION" || phaseRef.current === "FINAL") return;
+    if (["AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phaseRef.current)) return;
     // 先记住最新目标：解码尚未完成时先不播放，就绪后执行最近一次意图。
     targetProgressRef.current = target;
     if (target === 0) focusLoginRef.current = false;
@@ -200,21 +204,38 @@ export default function HomeExperience() {
       active = false;
       timeline.cancel();
       timelineRef.current = null;
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      loginAbortRef.current?.abort();
     };
   }, [changePhase, renderProgress, requestDirection, updateMotion]);
 
-  // 停在背面时仍监听倒放；只有进入最终过渡后才关闭方向输入。
-  useDirectionTrigger(requestDirection, phase !== "FINAL_TRANSITION" && phase !== "FINAL");
+  // 停在背面时仍监听倒放；认证开始后暂停，失败回到表单时恢复。
+  useDirectionTrigger(requestDirection, !["AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phase));
 
-  function enter() {
-    // 防止重复提交。先确保外层归零，再切阶段；CSS 接管 12 → 13 的透明度和缩放。
+  async function enter(email: string, password: string) {
+    // ref 同步锁住重复提交和方向输入；只有服务端验证成功才播放最终动画。
     if (phaseRef.current !== "LOGIN_READY" || !imagesReadyRef.current) return;
     timelineRef.current?.cancel();
     motionRef.current?.reset();
+    setLoginError(null);
+    changePhase("AUTHENTICATING");
+    const controller = new AbortController();
+    loginAbortRef.current = controller;
+    const result = await signIn(email, password, controller.signal);
+    if (controller.signal.aborted) return;
+    loginAbortRef.current = null;
+    if (!result.success) {
+      setLoginError(result.message);
+      changePhase("LOGIN_READY");
+      return;
+    }
     changePhase("FINAL_TRANSITION");
-    // 该计时只标记最终阶段完成，不负责逐帧渲染；时长要与下面 --final-duration 一致。
-    timeoutRef.current = setTimeout(() => changePhase("FINAL"), reducedMotion ? 240 : FINAL_DURATION_MS);
+  }
+
+  function finishTransition(event: React.AnimationEvent<HTMLDivElement>) {
+    // 使用实际 CSS 动画完成事件，不把网络时长或 React 提交延迟算作动画播放。
+    if (event.animationName !== "final-presence" || phaseRef.current !== "FINAL_TRANSITION") return;
+    changePhase("FINAL");
+    router.replace("/dashboard");
   }
 
   function revealLogin() {
@@ -235,8 +256,7 @@ export default function HomeExperience() {
     updateMotion();
   }
 
-  // 表单在最终阶段仍可聚焦 / 编辑，但 canSubmit 只在 LOGIN_READY 为真。
-  const accessible = phase === "LOGIN_READY" || phase === "FINAL_TRANSITION" || phase === "FINAL";
+  const accessible = ["LOGIN_READY", "AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phase);
 
   return (
     <main className="home-page" data-phase={phase} data-reduced-motion={reducedMotion} data-images-ready={imagesReady}
@@ -245,8 +265,8 @@ export default function HomeExperience() {
       <section className="home-scroll" aria-label="Formward 登录入口">
         <div className="home-stage" ref={stageRef}>
           {/* 只有人物套在运动层里；表单、提示和状态信息是它的兄弟节点。 */}
-          <div className="figure-motion" ref={motionLayerRef}><BodySequence /></div>
-          <LoginOverlay overlayRef={overlayRef} accessible={accessible} canSubmit={phase === "LOGIN_READY"} onEnter={enter} onInputFocus={focusInput} onInputBlur={blurInput} />
+          <div className="figure-motion" ref={motionLayerRef} onAnimationEnd={finishTransition}><BodySequence /></div>
+          <LoginOverlay overlayRef={overlayRef} accessible={accessible} canSubmit={phase === "LOGIN_READY"} pending={phase === "AUTHENTICATING"} error={loginError} onEnter={enter} onInputFocus={focusInput} onInputBlur={blurInput} />
           {/* SCROLL 由 CSS 的 INTRO + images-ready 条件控制；每次返回首屏都会显示。 */}
           <div className="scroll-hint" aria-hidden="true"><span className="scroll-hint-mouse"><span className="scroll-hint-wheel" /></span><span>SCROLL</span></div>
           {/* 加载提示独立于 SCROLL；role=status 让辅助技术知道加载 / 失败结果。 */}

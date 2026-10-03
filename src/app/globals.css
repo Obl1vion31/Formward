@@ -271,6 +271,67 @@ input:focus-visible {
   opacity: .8;
   cursor: not-allowed;
 }
+.login-error {
+  margin: 6px 0 0;
+  color: #efc4a9;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* 主页沿用入口的石墨与哑金，用留白和文字组织真实的账号与空状态。 */
+.dashboard-page {
+  min-height: 100svh;
+  padding: 0 clamp(24px, 6vw, 96px);
+  background: radial-gradient(ellipse at 80% 5%, rgba(190, 164, 120, .06), transparent 60%), var(--graphite);
+}
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 108px;
+  border-bottom: 1px solid rgba(240, 233, 221, .12);
+}
+.dashboard-logo {
+  color: var(--warm-white);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -.04em;
+  text-decoration: none;
+}
+.dashboard-logo span { color: var(--gold); }
+.dashboard-account {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.dashboard-account button {
+  min-height: 44px;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  color: var(--gold);
+  cursor: pointer;
+}
+.dashboard-account button:disabled { opacity: .6; }
+.dashboard-account [role="alert"] { display: block; color: #efc4a9; }
+.dashboard-content { max-width: 1100px; margin: 0 auto; padding: clamp(68px, 12vh, 132px) 0 64px; }
+.dashboard-eyebrow { margin: 0 0 24px; color: var(--gold); font-size: 12px; letter-spacing: .12em; }
+.dashboard-content h1 { margin: 0; font-weight: 400; font-size: clamp(32px, 4.4vw, 64px); line-height: 1.35; letter-spacing: -.03em; }
+.dashboard-intro { margin: 28px 0 0; color: var(--muted); font-size: 15px; line-height: 1.8; }
+.dashboard-modules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 36px; margin-top: clamp(64px, 12vh, 120px); }
+.dashboard-modules article { padding-top: 24px; border-top: 1px solid rgba(190, 164, 120, .35); }
+.dashboard-modules h2 { margin: 0 0 12px; font-size: 19px; font-weight: 500; }
+.dashboard-modules p { margin: 0 0 32px; color: var(--muted); font-size: 13px; line-height: 1.8; }
+.dashboard-modules span { color: var(--gold); font-size: 11px; }
+@media (max-width: 700px) {
+  .dashboard-header { align-items: flex-start; flex-direction: column; gap: 8px; padding: 24px 0 16px; }
+  .dashboard-account { width: 100%; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+  .dashboard-modules { grid-template-columns: 1fr; gap: 32px; }
+  .dashboard-modules p { margin-bottom: 16px; }
+}
 
 /* SCROLL 默认隐藏；下方设备条件 + INTRO / 图片就绪条件共同打开。
    left 随人物高度定位，并用 clamp 留在屏幕内；它是视觉引导，没有点击行为。

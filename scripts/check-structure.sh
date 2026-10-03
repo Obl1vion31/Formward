@@ -21,8 +21,9 @@ while IFS= read -r -d '' directory; do
     failed=1
   fi
 done < <(
-  # -prune 跳过依赖、缓存和工具目录；其他自有目录都需要非空 README。
+  # -prune 跳过依赖、缓存、数据库生成 storage 和 Drizzle 快照；其他自有目录都需要非空 README。
   find "$project_root" \
+    \( -type d \( -path "$project_root/data/postgres/storage" -o -path "$project_root/drizzle/meta" \) -prune \) -o \
     \( -type d \( \
       -name .git -o \
       -name .agents -o \
