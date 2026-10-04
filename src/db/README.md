@@ -6,7 +6,7 @@
 
 ## 当前内容
 
-- `client.ts`：通过 postgres.js 连接 Neon 或本机 PostgreSQL，按服务端进程复用连接池。
+- `client.ts`：通过 postgres.js 连接 Neon 或本机 PostgreSQL，按服务端进程复用连接池。创建连接池时将 Node 的单地址自动选择尝试时限设为至少 1000ms，保留进程已有的更长设置；数据库连接时限为 15 秒。
 - `schema.ts`：Better Auth 的 users、accounts、sessions、verifications 表，邮箱与凭据唯一约束、user_id 外键和时间字段。
 
 ## 维护约定

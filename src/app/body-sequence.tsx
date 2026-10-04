@@ -1,10 +1,11 @@
 import Image from "next/image";
 import type { CSSProperties } from "react";
 import { FINAL_FRAME, FRAME_CONFIG, PRE_LOGIN_FRAMES, type FigureFrame } from "./frame-config";
+import { TURN_VIDEO_SRC, VIDEO_TRANSFORM } from "./turn-video";
 
 // 将 TypeScript 配置传给 CSS 自定义属性；globals.css 的 transform 读取这些值。
 // CSSProperties 的类型断言用于接受 --frame-* 属性，不会改动这些数值。
-function frameStyle(frame: FigureFrame): CSSProperties {
+function frameStyle(frame: Pick<FigureFrame, "desktop" | "mobile">): CSSProperties {
   return {
     "--frame-scale-desktop": frame.desktop.scale,
     "--frame-x-desktop": frame.desktop.x,
@@ -15,12 +16,11 @@ function frameStyle(frame: FigureFrame): CSSProperties {
   } as CSSProperties;
 }
 
-// 一次挂载全部 13 张图片，之后只改变透明度，不在播放时切换 src 或创建图片。
-// 图片组是装饰画面：aria-hidden 与空 alt 避免屏幕阅读器重复朗读 13 张图。
+// 静态首尾保留鼠标联动及最终衔接；视频在透明 Canvas 中绘制，不露出黑色矩形。
 export function BodySequence() {
   return (
     <div className="body-sequence" aria-hidden="true">
-      {/* index 从 0 开始，对应 1.png；data-intro-frame 供父组件和测试定位帧节点。 */}
+      {/* 两个端点分别为原来的 1.png 和 12.png。 */}
       {PRE_LOGIN_FRAMES.map((path, index) => (
         <div
           className="body-frame body-frame-intro"
@@ -33,7 +33,11 @@ export function BodySequence() {
           <Image src={FRAME_CONFIG[path].image} alt="" preload />
         </div>
       ))}
-      {/* 最终帧独立放在末尾，没有 data-intro-frame，不参加 1–12 的 rAF 权重更新。 */}
+      <div className="body-frame body-frame-intro body-frame-video" data-turn-video style={frameStyle(VIDEO_TRANSFORM)}>
+        <canvas width={960} height={1440} />
+      </div>
+      <video className="turn-video-source" src={TURN_VIDEO_SRC} width={960} height={1440} preload="auto" muted playsInline tabIndex={-1} />
+      {/* 最终帧不参与转身时间线，继续由 Enter 和认证结果触发。 */}
       <div
         className="body-frame body-frame-final"
         data-frame-path={FINAL_FRAME}

@@ -23,6 +23,7 @@ async function newPage(options = {}) {
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('.home-page[data-images-ready="true"]');
+  await page.evaluate(() => document.fonts.ready);
   return { context, page };
 }
 
@@ -37,6 +38,8 @@ async function snapshot(page) {
     frames: [...document.querySelectorAll("[data-intro-frame]")].map((node) => Number(getComputedStyle(node).opacity)),
     final: Number(getComputedStyle(document.querySelector(".body-frame-final")).opacity),
     login: Number(getComputedStyle(document.querySelector(".login-overlay")).opacity),
+    intro: Number(getComputedStyle(document.querySelector(".home-intro-backdrop")).opacity),
+    introVisibility: getComputedStyle(document.querySelector(".home-intro-backdrop")).visibility,
   }));
 }
 
@@ -189,8 +192,12 @@ async function startRecording(page) {
         phase: document.querySelector("main").dataset.phase,
         progress: Number(document.querySelector(".home-stage").dataset.animationProgress),
         weights: [...document.querySelectorAll("[data-intro-frame]")].map((node) => Number(getComputedStyle(node).opacity)),
+        video: Number(getComputedStyle(document.querySelector("[data-turn-video]")).opacity),
+        videoFrame: Number(document.querySelector("[data-turn-video]").dataset.videoFrame),
         final: Number(getComputedStyle(document.querySelector(".body-frame-final")).opacity),
         login: Number(getComputedStyle(document.querySelector(".login-overlay")).opacity),
+        intro: Number(getComputedStyle(document.querySelector(".home-intro-backdrop")).opacity),
+        introVisibility: getComputedStyle(document.querySelector(".home-intro-backdrop")).visibility,
       });
       requestAnimationFrame(sample);
     };
@@ -206,63 +213,50 @@ async function finishRecording(page) {
   });
 }
 
-// 检查帧序、相邻交叠和权重，而不是仅判断最终有没有显示背面。
+// 同时检查真实解码的帧号和显示权重，不能只验证 DOM 进度到达终点。
 function verifySequence(recording, reverse = false) {
   const seen = [];
   for (const sample of recording.samples) {
     assert.equal(sample.final, 0, "滚动永远不显示 Frame 13");
-    const active = sample.weights.flatMap((value, index) => value > 0.001 ? [index] : []);
-    assert.ok(active.length <= 2);
-    if (active.length === 2) assert.equal(active[1] - active[0], 1);
-    const dominant = sample.weights.indexOf(Math.max(...sample.weights));
-    if (seen.at(-1) !== dominant) seen.push(dominant);
+    assert.ok(Math.abs(sample.weights[0] + sample.weights[1] + sample.video - 1) < 0.01);
+    if (sample.progress >= 0.4) {
+      assert.equal(sample.intro, 0, "转身前 200ms 后，封面标题完全隐藏");
+      assert.equal(sample.introVisibility, "hidden", "隐藏标题同时移出辅助技术");
+    }
+    if (sample.video > 0.1 && seen.at(-1) !== sample.videoFrame) seen.push(sample.videoFrame);
   }
-  assert.deepEqual(seen, Array.from({ length: 12 }, (_, index) => reverse ? 11 - index : index));
+  assert.ok(seen.length >= 8, "半秒内实际视频至少显示 8 个不同帧，实际 " + seen.length);
+  assert.ok(seen.every((value, index) => index === 0 || (reverse ? value < seen[index - 1] : value > seen[index - 1])), "实际解码沿正确方向前进");
   const ready = recording.samples.find((sample) => sample.phase === (reverse ? "INTRO" : "LOGIN_READY") && sample.time >= recording.inputAt);
-  assert.ok(ready, "采样应包含最终状态");
-  assert.ok(recording.endpointAt !== null, "应直接记录游标到达端点的时刻");
+  assert.ok(ready);
+  assert.ok(recording.samples.some((sample) => sample.intro > 0 && sample.intro < 1), "封面背景实际经过淡入淡出，不能直接跳变");
+  assert.equal(ready.intro, reverse ? 1 : 0, "返回首屏恢复标题，登录阶段隐藏标题");
   const duration = recording.endpointAt - recording.inputAt;
-  assert.ok(duration >= 425 && duration <= 480, "完整时间线应在 425ms 加浏览器采样间隔内结束，实际 " + duration);
+  assert.ok(duration >= 500 && duration <= 650, "2 倍速视频应在半秒加浏览器采样间隔内完成，实际 " + duration);
+  results.push({ test: reverse ? "真实倒放帧" : "真实正放帧", displayedFrames: seen.length });
   return Math.round(duration);
 }
 
-// 在浏览器中注入同一份时间线编译产物的时长参数；页面没有额外的速度开关。
 async function verifySpeedProfiles(page) {
   const trials = await page.evaluate(async (moduleUrl) => {
-    const { createProgressTimeline, frameWeights, loginReveal } = await import(moduleUrl);
-    const frames = [...document.querySelectorAll("[data-intro-frame]")];
-    const login = document.querySelector(".login-overlay");
+    const { createProgressTimeline } = await import(moduleUrl);
     const trials = [];
-    for (const duration of [400, 425, 450]) {
+    for (const duration of [475, 500, 525]) {
       const samples = [];
       const startedAt = performance.now();
       await new Promise((complete) => {
-        const timeline = createProgressTimeline((progress) => {
-          const weights = frameWeights(progress, frames.length);
-          frames.forEach((frame, index) => { frame.style.opacity = String(weights[index]); });
-          login.style.setProperty("--login-opacity", String(loginReveal(progress)));
-          login.style.setProperty("--login-y", (1 - loginReveal(progress)) * 16 + "px");
-          samples.push({ time: performance.now(), progress, weights });
-        }, complete, duration);
+        const timeline = createProgressTimeline((progress) => samples.push({ time: performance.now(), progress }), complete, duration);
         timeline.playTo(1);
       });
-      const seen = [0];
-      for (const sample of samples) {
-        const dominant = sample.weights.indexOf(Math.max(...sample.weights));
-        if (seen.at(-1) !== dominant) seen.push(dominant);
-      }
-      trials.push({ duration, measuredMs: samples.at(-1).time - startedAt, seen, intervals: samples.slice(1).map((sample, index) => sample.time - samples[index].time) });
+      trials.push({ duration, measuredMs: samples.at(-1).time - startedAt, progress: samples.at(-1).progress });
     }
-    frames.forEach((frame, index) => { frame.style.opacity = String(index === 0 ? 1 : 0); });
-    login.style.removeProperty("--login-opacity");
-    login.style.removeProperty("--login-y");
     return trials;
   }, timelineModule);
   for (const trial of trials) {
-    assert.deepEqual(trial.seen, Array.from({ length: 12 }, (_, index) => index));
-    assert.ok(trial.measuredMs >= trial.duration && trial.measuredMs < trial.duration + 55);
+    assert.equal(trial.progress, 1);
+    assert.ok(trial.measuredMs >= trial.duration && trial.measuredMs < trial.duration + 100);
   }
-  results.push({ test: "三档时长：真实浏览器顺序与播放时间", trials: trials.map(({ duration, measuredMs, intervals }) => ({ durationMs: duration, measuredMs: Math.round(measuredMs), medianRafMs: Number([...intervals].sort((a, b) => a - b)[Math.floor(intervals.length / 2)].toFixed(2)) })) });
+  results.push({ test: "三档时长：真实浏览器连续时间线", trials });
 }
 
 // 将文档中的原图标记换算为实际显示坐标；Alpha 边缘只用于检查裁切。
@@ -272,7 +266,7 @@ async function verifyFrameAlignment(name, width, height) {
   try {
     const geometry = await page.evaluate((markers) => {
       const poses = [...document.querySelectorAll("[data-intro-frame] img")].map((image, index) => {
-        const row = markers[index];
+        const row = markers[index === 0 ? 0 : 11];
         const rect = image.getBoundingClientRect();
         const [width, height] = row.size;
         const centre = [(row.neck[0] + row.waist[0]) / 2, (row.neck[1] + row.waist[1]) / 2];
@@ -303,11 +297,58 @@ async function verifyFrameAlignment(name, width, height) {
     assert.equal(geometry.arrowCount, 0);
     if (width > 700) {
       assert.equal(geometry.hint.visibility, "visible");
-      assert.equal(geometry.hint.text, "SCROLL");
-      assert.ok(geometry.hint.x - geometry.poses[0].bounds.right >= 30, "提示与人物横向分离");
+      assert.equal(geometry.hint.text, "SCROLL TO ENTER");
+      assert.ok(geometry.poses[0].bounds.left - geometry.hint.right >= 30, "左下角提示与人物横向分离");
       assert.ok(geometry.hint.right <= width - 24 && geometry.hint.top > 0 && geometry.hint.bottom < height);
     } else assert.equal(geometry.hint.display, "none");
     const ref = geometry.poses[0];
+    const backdrop = await page.locator(".home-intro-backdrop").evaluate((node) => ({
+      lang: node.lang,
+      opacity: Number(getComputedStyle(node).opacity),
+      visibility: getComputedStyle(node).visibility,
+      pointerEvents: getComputedStyle(node).pointerEvents,
+      layer: Number(getComputedStyle(node).zIndex),
+      arc: getComputedStyle(node.querySelector("svg")).display,
+      labels: [...node.querySelectorAll(".home-principle")].map((label) => {
+        const rect = label.getBoundingClientRect();
+        const title = label.querySelector(".home-principle-title");
+        const detail = label.querySelector(".home-principle-detail");
+        const headingRect = title.getBoundingClientRect();
+        return { title: title.textContent, detail: detail.textContent, titleY: headingRect.top + headingRect.height / 2, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, fits: label.scrollWidth <= label.clientWidth + 1 };
+      }),
+      anchors: [...node.querySelectorAll(".home-orbit-node")].filter((marker) => getComputedStyle(marker).display !== "none").map((marker, index) => {
+        const rect = marker.getBoundingClientRect();
+        const leader = node.querySelectorAll(".home-orbit-leader")[index];
+        const point = leader.getPointAtLength(leader.getTotalLength());
+        const end = new DOMPoint(point.x, point.y).matrixTransform(leader.getScreenCTM());
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, endX: end.x, endY: end.y };
+      }),
+    }));
+    assert.equal(backdrop.lang, "en");
+    assert.equal(backdrop.opacity, 1);
+    assert.equal(backdrop.visibility, "visible");
+    assert.equal(backdrop.pointerEvents, "none");
+    assert.ok(backdrop.layer < 0, "文案位于人物下层");
+    assert.deepEqual(backdrop.labels.map((label) => label.title), ["Discipline", "Drive", "Effortless"]);
+    assert.deepEqual(backdrop.labels.map((label) => label.detail), ["Nutrition", "Build yourself", "AI logging"]);
+    if (width > 700) {
+      for (const [index, anchor] of backdrop.anchors.entries()) {
+        assert.ok(Math.hypot(anchor.x - anchor.endX, anchor.y - anchor.endY) <= 1, "轨迹引线在响应式布局中保持连接节点");
+        assert.ok(Math.abs(backdrop.labels[index].titleY - anchor.y) <= 1, "标题沿节点对齐");
+      }
+    }
+    for (const label of backdrop.labels) {
+      assert.ok(label.fits && label.left >= 0 && label.right <= width && label.top >= 0 && label.bottom <= height, name + " 文案不能裁切或溢出");
+      assert.ok(label.right <= ref.bounds.left || label.left >= ref.bounds.right || label.bottom <= ref.bounds.top || label.top >= ref.bounds.bottom, name + " 文案不能被人物遮挡");
+      if (geometry.hint.visibility === "visible") assert.ok(label.right <= geometry.hint.x || label.left >= geometry.hint.right || label.bottom <= geometry.hint.top || label.top >= geometry.hint.bottom, "文案避开 SCROLL");
+    }
+    if (width <= 700) {
+      assert.equal(backdrop.arc, "none");
+      await page.locator(".keyboard-entry").focus();
+      const entry = await page.locator(".keyboard-entry").boundingBox();
+      assert.ok(entry.y + entry.height + 4 <= Math.min(...backdrop.labels.map((label) => label.top)), "手机键盘入口位于词组上方");
+      await page.locator(".keyboard-entry").evaluate((node) => node.blur());
+    }
     const residuals = geometry.poses.map((pose) => {
       const delta = [pose.head - ref.head, pose.centreY - ref.centreY, pose.torsoHeight - ref.torsoHeight, pose.tail - ref.tail];
       const factor = geometry.baseHeight / 806.4;
@@ -321,7 +362,7 @@ async function verifyFrameAlignment(name, width, height) {
       return Math.sqrt(delta.reduce((sum, value, i) => sum + [8, 8, 6, 1][i] * value * value, 0) / 23);
     });
     if (process.env.FORMWARD_BROWSER_ARTIFACTS) await page.screenshot({ path: process.env.FORMWARD_BROWSER_ARTIFACTS + "/" + name + "-intro-interaction.png" });
-    results.push({ test: name + "：12 帧校准、无裁切与提示布局", maxWeightedRmsPx: Number(Math.max(...residuals).toFixed(2)) });
+    results.push({ test: name + "：首尾校准、无裁切、英文标题与提示布局", maxWeightedRmsPx: Number(Math.max(...residuals).toFixed(2)) });
   } finally {
     await context.close();
   }
@@ -334,17 +375,18 @@ async function verifyCrossfadePixels(page, variant, pairs, checkOriginal = false
   await page.locator(".scroll-hint").evaluate((node) => { node.style.visibility = "hidden"; });
   await figure.evaluate((node) => {
     assertBrowser(getComputedStyle(node).isolation === "isolate", "人物层必须隔离背景");
-    assertBrowser([...node.children].every((frame) => getComputedStyle(frame).mixBlendMode === "plus-lighter"), "所有人物帧必须使用同一种合成方式");
+    assertBrowser([...node.querySelectorAll(".body-frame")].every((frame) => getComputedStyle(frame).mixBlendMode === "plus-lighter"), "所有人物帧必须使用同一种合成方式");
     function assertBrowser(condition, message) { if (!condition) throw new Error(message); }
+    window.crossfadeOriginalOpacities = [...node.querySelectorAll(".body-frame")].map((frame) => frame.style.opacity);
     window.crossfadePixelImages = new Map();
   });
 
   async function weights(from, to, blend) {
     await figure.evaluate((node, { from, to, blend }) => {
-      [...node.children].forEach((frame, index) => {
+      [...node.querySelectorAll(".body-frame")].forEach((frame, index) => {
         frame.style.opacity = String(index === from ? 1 - blend : index === to ? blend : 0);
       });
-      const active = [...node.children].filter((frame) => Number(getComputedStyle(frame).opacity) > 0.001);
+      const active = [...node.querySelectorAll(".body-frame")].filter((frame) => Number(getComputedStyle(frame).opacity) > 0.001);
       if (active.length > 2) throw new Error("人物不能同时显示三帧");
     }, { from, to, blend });
   }
@@ -401,7 +443,7 @@ async function verifyCrossfadePixels(page, variant, pairs, checkOriginal = false
     await saveReference("background", await screenshot());
     for (const index of new Set(pairs.flat())) {
       await weights(index, -1, 0);
-      await saveReference(index, await screenshot());
+      await saveReference(index, await screenshot(index === 2 ? "video-frame" : undefined));
     }
     for (const [from, to] of pairs) {
       for (const blend of [0.25, 0.5, 0.75]) {
@@ -413,7 +455,7 @@ async function verifyCrossfadePixels(page, variant, pairs, checkOriginal = false
       }
     }
     if (checkOriginal) {
-      await figure.evaluate((node) => [...node.children].forEach((frame) => { frame.style.mixBlendMode = "normal"; }));
+      await figure.evaluate((node) => [...node.querySelectorAll(".body-frame")].forEach((frame) => { frame.style.mixBlendMode = "normal"; }));
       const [from, to] = pairs[0];
       await weights(from, to, 0.5);
       const sample = await compare(from, to, 0.5, await screenshot("normal50"));
@@ -421,8 +463,8 @@ async function verifyCrossfadePixels(page, variant, pairs, checkOriginal = false
       originalBlendError = Number(sample.meanRgbError.toFixed(3));
     }
   } finally {
-    await figure.evaluate((node) => [...node.children].forEach((frame) => frame.style.removeProperty("mix-blend-mode")));
-    await weights(0, -1, 0);
+    await figure.evaluate((node) => [...node.querySelectorAll(".body-frame")].forEach((frame) => frame.style.removeProperty("mix-blend-mode")));
+    await figure.evaluate((node) => [...node.querySelectorAll(".body-frame")].forEach((frame, index) => { frame.style.opacity = window.crossfadeOriginalOpacities[index]; }));
     await page.evaluate(() => { delete window.crossfadePixelImages; });
     await page.locator(".scroll-hint").evaluate((node) => { node.style.removeProperty("visibility"); });
   }
@@ -435,18 +477,31 @@ try {
     await verifyFrameAlignment(name, width, height);
   }
   const { context, page } = await newPage();
-  assert.equal(await page.locator(".body-frame img").count(), 13);
-  assert.equal(await page.locator('link[rel="preload"][as="image"]').count(), 13);
+  assert.equal(await page.locator(".body-frame img").count(), 3);
+  assert.equal(await page.locator('link[rel="preload"][as="image"]').count(), 3);
   assert.ok(await page.locator(".body-frame img").evaluateAll((images) => images.every((image) => image.complete && image.naturalWidth > 0)));
   assert.equal((await snapshot(page)).progress, 0);
+  assert.equal(await page.locator("video").getAttribute("src"), "/videos/golden-turn-1s.mp4?v=6");
+  const alpha = await page.locator(".body-frame-video canvas").evaluate((source) => {
+    const copy = document.createElement("canvas");
+    copy.width = source.width; copy.height = source.height;
+    const ctx = copy.getContext("2d");
+    ctx.drawImage(source, 0, 0);
+    const pixels = ctx.getImageData(0, 0, copy.width, copy.height).data;
+    const corners = [0, copy.width - 1, (copy.height - 1) * copy.width, copy.width * copy.height - 1].map((index) => pixels[index * 4 + 3]);
+    return { corners, visible: [...pixels].filter((_, index) => index % 4 === 3 && pixels[index] > 200).length };
+  });
+  assert.deepEqual(alpha.corners, [0, 0, 0, 0], "视频黑底必须透明，不能遮盖舞台");
+  assert.ok(alpha.visible > 1000, "透明化后保留人物实体");
+  results.push({ test: "视频透明合成：黑底透明、人物保留" });
   await verifySpeedProfiles(page);
-  const adjacentPairs = Array.from({ length: 12 }, (_, index) => [index, index + 1]);
+  const adjacentPairs = [[0, 2], [0, 1], [1, 3]];
   await verifyCrossfadePixels(page, "desktop", adjacentPairs, true);
   await page.locator(".figure-motion").evaluate((node) => {
     node.style.setProperty("--figure-x", "-6px"); node.style.setProperty("--figure-y", "4px");
     node.style.setProperty("--figure-rx", "0.3deg"); node.style.setProperty("--figure-ry", "0.6deg");
   });
-  await verifyCrossfadePixels(page, "desktop-parallax", [[0, 1], [4, 5], [10, 11]]);
+  await verifyCrossfadePixels(page, "desktop-parallax", adjacentPairs);
   await page.locator(".figure-motion").evaluate((node) => ["x", "y", "rx", "ry"].forEach((key) => node.style.setProperty("--figure-" + key, key.length === 1 ? "0px" : "0deg")));
 
   await startRecording(page);
@@ -455,8 +510,11 @@ try {
   await page.evaluate(() => new Promise(requestAnimationFrame));
   const forwardRecording = await finishRecording(page);
   const forward = verifySequence(forwardRecording);
+  await page.waitForFunction(() => document.querySelector("[data-turn-video]").dataset.videoFrame === "59");
+  await verifyCrossfadePixels(page, "video-end", [[2, 1], [1, 3]]);
   assert.ok(forwardRecording.samples.filter((sample) => sample.progress <= 0.6).every((sample) => sample.login === 0), "表单在转身前段保持隐藏");
   assert.equal((await snapshot(page)).login, 1);
+  assert.equal((await snapshot(page)).introVisibility, "hidden");
   assert.equal(await page.locator('button[type="submit"]').isEnabled(), false);
   results.push({ test: "A：单次下滚完整正放", durationMs: forward });
   if (process.env.FORMWARD_BROWSER_ARTIFACTS) await page.screenshot({ path: process.env.FORMWARD_BROWSER_ARTIFACTS + "/login-ready.png" });
@@ -507,7 +565,7 @@ try {
   await page.waitForURL("**/dashboard");
   const finalSamples = (await finishRecording(page)).samples.filter((sample) => sample.phase === "FINAL_TRANSITION");
   assert.ok(finalSamples.length > 10);
-  assert.ok(finalSamples.every((sample) => Math.abs(sample.weights[11] + sample.final - 1) < 0.025), "最终动画也必须保持互补权重");
+  assert.ok(finalSamples.every((sample) => Math.abs(sample.weights[1] + sample.final - 1) < 0.025), "最终动画也必须保持互补权重");
   results.push({ test: "D：认证成功后 Enter 触发 12 → 13，动画结束进入主页" });
   if (process.env.FORMWARD_BROWSER_ARTIFACTS) await page.screenshot({ path: process.env.FORMWARD_BROWSER_ARTIFACTS + "/dashboard.png" });
   await page.mouse.wheel(0, -300);
@@ -544,7 +602,7 @@ try {
   await swipe(730, 640);
   await phase(mobile.page, "LOGIN_READY");
   await assertCentred(mobile.page);
-  assert.equal((await snapshot(mobile.page)).frames[11], 1);
+  assert.equal((await snapshot(mobile.page)).frames[1], 1);
   if (process.env.FORMWARD_BROWSER_ARTIFACTS) await mobile.page.screenshot({ path: process.env.FORMWARD_BROWSER_ARTIFACTS + "/mobile-login-ready.png" });
   await swipe(650, 740);
   await phase(mobile.page, "INTRO");
@@ -554,11 +612,16 @@ try {
   await mobile.context.close();
 
   const reduced = await newPage({ reducedMotion: "reduce" });
-  await verifyCrossfadePixels(reduced.page, "reduced", [[0, 11], [11, 12]]);
+  await verifyCrossfadePixels(reduced.page, "reduced", [[0, 1], [1, 3]]);
+  await startRecording(reduced.page);
   await reduced.page.mouse.wheel(0, 80);
   await phase(reduced.page, "LOGIN_READY");
+  const reducedRecording = await finishRecording(reduced.page);
+  assert.ok(reducedRecording.samples.some((sample) => sample.progress > 0.4 && sample.progress < 1 && sample.intro > 0), "reduced motion 封面背景随整个 180ms 过渡淡出");
+  assert.equal((await snapshot(reduced.page)).introVisibility, "hidden");
   await reduced.page.mouse.wheel(0, -80);
   await phase(reduced.page, "INTRO");
+  assert.equal((await snapshot(reduced.page)).intro, 1);
   await reduced.page.mouse.wheel(0, 80);
   await phase(reduced.page, "LOGIN_READY");
   await reduced.page.locator("#email").fill("preview@example.test");
@@ -587,36 +650,66 @@ try {
   await coldPage.waitForFunction(() => document.querySelector(".home-stage")?.hasAttribute("data-animation-progress"));
   await coldPage.mouse.move(400, 200);
   assert.equal(await coldPage.locator(".scroll-hint").evaluate((node) => getComputedStyle(node).visibility), "hidden", "解码前暂不显示提示");
+  assert.equal((await snapshot(coldPage)).introVisibility, "hidden", "解码前不显示封面背景");
   await coldPage.mouse.wheel(0, 80);
   assert.equal((await snapshot(coldPage)).progress, 0);
   await coldPage.waitForFunction(() => document.querySelector('main[data-images-ready="false"]'));
-  assert.equal(pending.length, 13, "首次手势前已请求全部 13 张图");
+  assert.equal(pending.length, 3, "首次手势前已请求全部 3 张图");
   await coldContext.unroute("**/_next/image?**");
   await phase(coldPage, "LOGIN_READY");
-  assert.equal(await coldPage.evaluate(() => new Set(window.figureDecodes).size), 13, "全部实际人物图片完成 decode");
+  assert.equal(await coldPage.evaluate(() => new Set(window.figureDecodes).size), 3, "全部实际人物图片完成 decode");
   const sources = await coldPage.locator(".body-frame img").evaluateAll((images) => images.map((image) => image.currentSrc));
   await coldPage.mouse.wheel(0, -80);
   await phase(coldPage, "INTRO");
+  assert.equal((await snapshot(coldPage)).intro, 1, "冷启动排队播放后倒放，恢复背景标题");
   assert.equal(await coldPage.locator(".scroll-hint").evaluate((node) => getComputedStyle(node).visibility), "visible", "加载期间有操作，返回首屏仍显示提示");
   await coldPage.mouse.wheel(0, 80);
   await phase(coldPage, "LOGIN_READY");
-  assert.equal(imageRequests.length, 13, "就绪后的动画不新增图片请求");
+  assert.equal(imageRequests.length, 3, "就绪后的动画不新增图片请求");
   assert.deepEqual(await coldPage.locator(".body-frame img").evaluateAll((images) => images.map((image) => image.currentSrc)), sources);
-  results.push({ test: "冷启动：13 张实际图片解码、待执行手势、播放中无新增请求" });
+  results.push({ test: "冷启动：3 张实际图片解码、待执行手势、播放中无新增请求" });
   await coldContext.close();
+
+  const videoContext = await browser.newContext();
+  const videoRoutes = [];
+  await videoContext.route("**/videos/golden-turn-1s.mp4?*", (route) => { videoRoutes.push(route); });
+  const videoPage = await videoContext.newPage();
+  await videoPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+  await videoPage.waitForFunction(() => document.querySelector(".home-stage")?.hasAttribute("data-animation-progress"));
+  await videoPage.mouse.wheel(0, 80);
+  await videoPage.waitForTimeout(250);
+  assert.equal((await snapshot(videoPage)).progress, 0, "视频未就绪时不能启动时间线");
+  assert.equal((await snapshot(videoPage)).introVisibility, "hidden");
+  assert.ok(videoRoutes.length > 0);
+  await videoContext.unroute("**/videos/golden-turn-1s.mp4?*");
+  await phase(videoPage, "LOGIN_READY");
+  await videoContext.close();
+  results.push({ test: "视频冷启动：就绪前保持首帧，就绪后执行排队方向" });
+
+  const failedVideoContext = await browser.newContext();
+  await failedVideoContext.route("**/videos/golden-turn-1s.mp4?*", (route) => route.abort());
+  const failedVideoPage = await failedVideoContext.newPage();
+  await failedVideoPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+  await failedVideoPage.getByRole("status").filter({ hasText: "动画加载失败" }).waitFor();
+  await failedVideoPage.mouse.wheel(0, 80);
+  assert.equal((await snapshot(failedVideoPage)).progress, 0);
+  assert.equal((await snapshot(failedVideoPage)).introVisibility, "hidden");
+  await failedVideoContext.close();
+  results.push({ test: "视频加载失败：停在原始首帧并显示提示" });
 
   // 失败分支也独立验收：人物停在首帧，状态信息不会因鼠标或滚轮操作被隐藏。
   const failedContext = await browser.newContext();
   await failedContext.route("**/_next/image?**", (route) => route.abort());
   const failedPage = await failedContext.newPage();
   await failedPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
-  await failedPage.getByRole("status").filter({ hasText: "图片加载失败" }).waitFor();
+  await failedPage.getByRole("status").filter({ hasText: "动画加载失败" }).waitFor();
   await failedPage.mouse.move(400, 200);
   await failedPage.mouse.wheel(0, 80);
-  assert.equal(await failedPage.getByRole("status").textContent(), "图片加载失败，请刷新重试");
+  assert.equal(await failedPage.getByRole("status").textContent(), "动画加载失败，请刷新重试");
   assert.equal((await snapshot(failedPage)).progress, 0);
+  assert.equal((await snapshot(failedPage)).introVisibility, "hidden");
   await assertCentred(failedPage);
-  results.push({ test: "图片失败：状态信息持续显示，人物保持首帧" });
+  results.push({ test: "动画失败：状态信息持续显示，人物保持首帧" });
   await failedContext.close();
   assert.deepEqual(errors, []);
   console.log(JSON.stringify(results, null, 2));

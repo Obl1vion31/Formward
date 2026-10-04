@@ -6,14 +6,16 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from "re
 import { useRouter } from "next/navigation";
 import { signIn } from "@/features/auth/client";
 import { BodySequence } from "./body-sequence";
-import { PRE_LOGIN_FRAMES } from "./frame-config";
 import { HomeHeader } from "./home-header";
+import { HomeIntroBackdrop } from "./home-intro-backdrop";
+import { heroMono, heroSans } from "./hero-font";
 import { createFigureMotion } from "./figure-motion";
-import { createProgressTimeline, FINAL_DURATION_MS, frameWeights, loginReveal, type TargetProgress } from "./home-timeline";
+import { createProgressTimeline, FINAL_DURATION_MS, turnFrameWeights, loginReveal, introReveal, type TargetProgress } from "./home-timeline";
+import { createTurnVideo } from "./turn-video";
 import { LoginOverlay } from "./login-overlay";
 import { useDirectionTrigger } from "./use-direction-trigger";
 
-// phase 表示交互阶段，不等于帧序号；FORWARD_ANIMATING 内部会依次经过 1–12。
+// phase 表示交互阶段，不等于帧序号；FORWARD_ANIMATING 内部沿半秒播放时间轴前进（一秒源视频的 2 倍速）。
 type Phase = "INTRO" | "FORWARD_ANIMATING" | "LOGIN_READY" | "REVERSE_ANIMATING" | "AUTHENTICATING" | "FINAL_TRANSITION" | "FINAL";
 
 export default function HomeExperience() {
@@ -32,6 +34,9 @@ export default function HomeExperience() {
   // “输入框现在有焦点”和“本轮登录已开始填写”是两件事；失焦不解除 formLockedRef。
   const inputFocusedRef = useRef(false);
   const frameNodesRef = useRef<HTMLElement[]>([]);
+  const videoLayerRef = useRef<HTMLElement | null>(null);
+  const videoRef = useRef<ReturnType<typeof createTurnVideo> | null>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const focusLoginRef = useRef(false);
   // ref 在事件内立即生效；state 让 React 渲染 data-phase。二者由 changePhase 一起更新。
@@ -47,7 +52,7 @@ export default function HomeExperience() {
   const [imageError, setImageError] = useState(false);
 
   const updateMotion = useCallback((settleMs = 100) => {
-    // 先检查设备、解码和系统偏好，再按阶段选择 1、0.5 或 0 倍幅度。
+    // 先检查设备、素材就绪和系统偏好，再按阶段选择 1、0.5 或 0 倍幅度。
     // 默认 100ms 用于开始转身；输入聚焦传 180ms，能力关闭传 0 立即归零。
     const phase = phaseRef.current;
     const allowed = mouseEnabledRef.current && pageActiveRef.current && imagesReadyRef.current && !reducedMotionRef.current;
@@ -145,19 +150,22 @@ export default function HomeExperience() {
   }, [phase]);
 
   const renderProgress = useCallback((animationProgress: number) => {
-    // 两个显示系统共用同一个进度：人物透明度由 frameWeights 算，表单由 loginReveal 算。
+    // 视频、原始静态端点与表单共用同一进度；鼠标运动保持在独立外层。
     // 直接写 style 避免为每个 rAF 触发整个组件树渲染。
     const overlay = overlayRef.current;
     if (!overlay) return;
 
     const frames = frameNodesRef.current;
     const reduced = reducedMotionRef.current;
-    const weights = frameWeights(animationProgress, PRE_LOGIN_FRAMES.length, reduced);
-
-    frames.forEach((frame, index) => {
-      const weight = weights[index] ?? 0;
-      frame.style.opacity = String(weight);
-    });
+    const intro = introReveal(animationProgress, reduced);
+    backdropRef.current?.style.setProperty("--intro-opacity", String(intro));
+    // visibility 同步移出辅助技术；不用额外 CSS transition，避免中途反向时出现滞后。
+    backdropRef.current?.style.setProperty("--intro-visibility", intro > 0 ? "visible" : "hidden");
+    const [first, video, last] = turnFrameWeights(animationProgress, reduced);
+    if (frames[0]) frames[0].style.opacity = String(first);
+    if (frames[1]) frames[1].style.opacity = String(last);
+    if (videoLayerRef.current) videoLayerRef.current.style.opacity = String(video);
+    if (!reduced) videoRef.current?.render(animationProgress);
 
     // 此属性供调试和浏览器验收读取；不是通过读滚动条得到的进度。
     stageRef.current?.setAttribute("data-animation-progress", String(animationProgress));
@@ -181,16 +189,23 @@ export default function HomeExperience() {
   useEffect(() => {
     // 一次拿到已挂载的帧 DOM；最终帧不带此属性，因而不会被 rAF 覆盖透明度。
     frameNodesRef.current = Array.from(stageRef.current?.querySelectorAll<HTMLElement>("[data-intro-frame]") ?? []);
+    const source = stageRef.current?.querySelector<HTMLVideoElement>("video");
+    const canvas = stageRef.current?.querySelector<HTMLCanvasElement>("canvas");
+    const layer = stageRef.current?.querySelector<HTMLElement>("[data-turn-video]");
+    if (!source || !canvas || !layer) return;
+    videoLayerRef.current = layer;
+    const video = createTurnVideo(source, canvas, layer);
+    videoRef.current = video;
     const timeline = createProgressTimeline(renderProgress, (target) => {
       changePhase(target === 1 ? "LOGIN_READY" : "INTRO");
     });
     timelineRef.current = timeline;
     renderProgress(0);
-    // 解码实际显示的 Next.js 图片（包括缓存命中），全部完成后才允许播放。
+    // 三张实际静态图与视频全部就绪后才允许播放。
     const images = Array.from(stageRef.current?.querySelectorAll<HTMLImageElement>(".body-frame img") ?? []);
     let active = true;
     imagesReadyRef.current = false;
-    Promise.all(images.map((image) => image.decode())).then(() => {
+    Promise.all([...images.map((image) => image.decode()), video.ready]).then(() => {
       // Promise 不能直接取消；active 防止组件卸载后再写状态或启动动画。
       if (!active) return;
       imagesReadyRef.current = true;
@@ -203,6 +218,8 @@ export default function HomeExperience() {
     return () => {
       active = false;
       timeline.cancel();
+      video.dispose();
+      videoRef.current = null;
       timelineRef.current = null;
       loginAbortRef.current?.abort();
     };
@@ -259,18 +276,19 @@ export default function HomeExperience() {
   const accessible = ["LOGIN_READY", "AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phase);
 
   return (
-    <main className="home-page" data-phase={phase} data-reduced-motion={reducedMotion} data-images-ready={imagesReady}
+    <main className={`home-page ${heroSans.variable} ${heroMono.variable}`} data-phase={phase} data-reduced-motion={reducedMotion} data-images-ready={imagesReady}
       style={{ "--final-duration": `${reducedMotion ? 240 : FINAL_DURATION_MS}ms` } as CSSProperties}>
       <HomeHeader />
       <section className="home-scroll" aria-label="Formward 登录入口">
         <div className="home-stage" ref={stageRef}>
+          <HomeIntroBackdrop backdropRef={backdropRef} />
           {/* 只有人物套在运动层里；表单、提示和状态信息是它的兄弟节点。 */}
           <div className="figure-motion" ref={motionLayerRef} onAnimationEnd={finishTransition}><BodySequence /></div>
           <LoginOverlay overlayRef={overlayRef} accessible={accessible} canSubmit={phase === "LOGIN_READY"} pending={phase === "AUTHENTICATING"} error={loginError} onEnter={enter} onInputFocus={focusInput} onInputBlur={blurInput} />
           {/* SCROLL 由 CSS 的 INTRO + images-ready 条件控制；每次返回首屏都会显示。 */}
-          <div className="scroll-hint" aria-hidden="true"><span className="scroll-hint-mouse"><span className="scroll-hint-wheel" /></span><span>SCROLL</span></div>
+          <div className="scroll-hint" aria-hidden="true"><span className="scroll-hint-track"><span className="scroll-hint-wheel" /></span><span>SCROLL TO ENTER</span></div>
           {/* 加载提示独立于 SCROLL；role=status 让辅助技术知道加载 / 失败结果。 */}
-          {!imagesReady && <div className="image-status" role="status">{imageError ? "图片加载失败，请刷新重试" : "正在加载"}</div>}
+          {!imagesReady && <div className="image-status" role="status">{imageError ? "动画加载失败，请刷新重试" : "正在加载"}</div>}
           <button className="keyboard-entry" type="button" onClick={revealLogin} inert={phase !== "INTRO"} aria-hidden={phase !== "INTRO"}>进入登录</button>
         </div>
       </section>

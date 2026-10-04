@@ -1,12 +1,6 @@
-// 单位均为毫秒。总时长与下方 11 个段长之和必须一致，参数变化后同步调整测试。
-export const PRE_LOGIN_DURATION_MS = 425;
-// 交叠包含在段长内，不额外加到 425ms 上；过长会增加两个人物轮廓的重影。
-export const FRAME_OVERLAP_MS = 16;
-// 每次换帧的完整段长：启动快，中段最快，最后三段逐渐收住。
-export const FRAME_INTERVALS_MS = [38, 36, 34, 32, 30, 30, 32, 38, 45, 52, 58] as const;
-const FRAME_TIMES_MS = [0];
-// 累积节点为 0、38、74、108……425；每个节点对应下一帧完全显示的时刻。
-for (const interval of FRAME_INTERVALS_MS) FRAME_TIMES_MS.push(FRAME_TIMES_MS.at(-1)! + interval);
+// 一秒源视频按 2 倍速完整转身；两端交叠同样缩短一半，保留进度比例。
+export const PRE_LOGIN_DURATION_MS = 500;
+export const ENDPOINT_BLEND_MS = 40;
 export const FINAL_DURATION_MS = 700;
 export const REDUCED_DURATION_MS = 180;
 
@@ -18,56 +12,29 @@ function clamp01(value: number) {
 }
 
 function smoothstep(value: number) {
-  // 3t²−2t³ 在两端速度为零，只用于短交叠和表单浮现，不改变整段播放速度。
+  // 3t²−2t³ 在两端速度为零，只用于端点交叠和表单浮现，不改变整段播放速度。
   const t = clamp01(value);
   return t * t * (3 - 2 * t);
 }
 
-// 进度是线性时间游标；节奏由帧节点决定，反向沿同一时间轴返回。
-export function frameWeights(animationProgress: number, count: number, reducedMotion = false): number[] {
-  if (count < 1) return [];
-  if (count === 1) return [1];
-
+// 三个权重分别用于原始首帧、视频与原始尾帧，正倒放共用同一映射。
+export function turnFrameWeights(animationProgress: number, reducedMotion = false): [number, number, number] {
   const progress = clamp01(animationProgress);
-  const weights = Array<number>(count).fill(0);
-  if (reducedMotion) {
-    // 减少动态效果时只混合首尾；中间 10 张仍已加载，但不显示连续转身。
-    weights[0] = 1 - progress;
-    weights[count - 1] = progress;
-    return weights;
-  }
-
-  if (progress === 1) {
-    // 终点单独处理，避免寻找 time 之后的节点时超出数组。
-    weights[count - 1] = 1;
-    return weights;
-  }
-
-  // 将归一化游标映射到基准时间轴。测试注入不同播放时长时，帧节奏比例保持相同。
-  const time = progress * PRE_LOGIN_DURATION_MS;
-  const calibratedSequence = count === FRAME_TIMES_MS.length;
-  const uniformInterval = PRE_LOGIN_DURATION_MS / (count - 1);
-  // 当前 12 帧使用显式节点；其他帧数自动退回等间隔兼容映射。
-  const currentFrameIndex = calibratedSequence
-    ? FRAME_TIMES_MS.findIndex((end) => end > time) - 1
-    : Math.floor(progress * (count - 1));
-  const nextFrameIndex = Math.min(currentFrameIndex + 1, count - 1);
-  const end = calibratedSequence ? FRAME_TIMES_MS[nextFrameIndex] : uniformInterval * nextFrameIndex;
-  const interval = calibratedSequence ? FRAME_INTERVALS_MS[currentFrameIndex] : uniformInterval;
-  const overlap = Math.min(FRAME_OVERLAP_MS, interval);
-  // 段尾才交叠：以首段为例，0–22ms 停留，22–38ms 混合 Frame 1 与 Frame 2。
-  // 未进入交叠时 smoothstep 会把负值截为 0，当前帧保持全亮。
-  const blend = smoothstep((time - (end - overlap)) / overlap);
-
-  // 两个透明度互补，总和为 1；正确的像素相加还依赖 CSS 的隔离组和 plus-lighter。
-  weights[currentFrameIndex] = 1 - blend;
-  if (nextFrameIndex !== currentFrameIndex) weights[nextFrameIndex] = blend;
-  return weights;
+  if (reducedMotion) return [1 - progress, 0, progress];
+  const edge = ENDPOINT_BLEND_MS / PRE_LOGIN_DURATION_MS;
+  const first = 1 - smoothstep(progress / edge);
+  const last = smoothstep((progress - (1 - edge)) / edge);
+  return [first, 1 - first - last, last];
 }
 
 // 转身的最后 40% 进度才显现表单，让背部先展开；倒放使用同一映射。
 export function loginReveal(animationProgress: number): number {
   return smoothstep((animationProgress - 0.6) / 0.4);
+}
+
+// 封面标题在转身前 40%（200ms）退出，倒放时连续恢复；简化模式沿全程淡出。
+export function introReveal(animationProgress: number, reducedMotion = false): number {
+  return 1 - (reducedMotion ? clamp01(animationProgress) : smoothstep(animationProgress / 0.4));
 }
 
 export function createProgressTimeline(

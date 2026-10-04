@@ -59,6 +59,14 @@ pnpm dev
 
 本机数据库和 Neon 互相独立。切换连接串不会自动迁移账号；需要在目标数据库执行 migration 并创建内部账号。不要把开发数据库服务暴露为正式网络数据库。
 
+## 数据库连接超时
+
+登录日志中若出现 `AggregateError`、`ETIMEDOUT` 和 `syscall: connect`，说明 TCP 连接尚未建立。这个阶段尚未执行账号查询或密码验证。Node 自动尝试域名的 IPv4 / IPv6 地址时，默认每个地址只等待 250ms；跨区域网络延迟接近这个值、IPv6 不可用时，可能提前放弃仍可连通的 IPv4 地址。[Node.js 网络连接说明](https://nodejs.org/download/release/v24.20.0/docs/api/net.html#netsetdefaultautoselectfamilyattempttimeoutvalue)
+
+`src/db/client.ts` 在创建连接池时，将服务进程的默认单地址尝试时限设为至少 1000ms。网站、migration 和账号脚本使用同一入口，进程已有的更长设置会保留；数据库连接时限仍为 15 秒。这是 Node 的进程级设置，也适用于该进程内其他使用默认自动地址选择的 TCP 连接。
+
+修改连接代码或 `.env.local` 后重启 `pnpm dev`，让进程缓存的认证实例和连接池重新建立。若仍超时，检查 Neon 域名解析和到 5432 端口的网络访问；仅增加数据库的 `connect_timeout` 不会改变 Node 的单地址尝试时限。
+
 ## 验证
 
 运行 lint、typecheck、`pnpm test` 和 production build。认证集成测试使用独立内存 PostgreSQL 和虚构账号；`pnpm test:browser` 也自行启动隔离的数据库和 production 测试服务，覆盖登录、动画顺序、跨账号访问、退出和手机模式。浏览器环境准备见 [tests/README.md](../tests/README.md)。测试不连接 `.env.local` 指向的数据库。
