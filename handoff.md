@@ -1,100 +1,57 @@
 # Formward 项目交接
 
-更新日期：2026-10-04。仓库：`/home/obl1vion/projects/Formward`；分支：`main`；远程：[Obl1vion31/Formward](https://github.com/Obl1vion31/Formward)。
+更新日期：2026-10-06。仓库：/home/obl1vion/projects/Formward；分支：main；远程：[Obl1vion31/Formward](https://github.com/Obl1vion31/Formward)。
 
-## 下一次开始时先做什么
+## 当前优先事项
 
-1. 阅读本文件、根目录 `README.md`、`AGENTS.md`；检查 `git status --short` 与最近提交，保留用户已有改动。
-2. 查看 `docs/status.md` 获取实现与验证详情，`docs/interface.md` 获取当前页面设计；修改前阅读目标目录最近的 `README.md`。
-3. Next.js 当前为 16.3.7，写代码前查阅 `node_modules/next/dist/docs/` 中相关指南，不直接套用旧版本 API。
-4. 根据用户的新指令继续。当前实现已完成技术验收，最新 Hero 视觉尚待用户实际体验与反馈，不能把技术验收写成用户已认可设计。
+身体记录已实现来源区分、历史缺测估计、晨晚连线和紧凑回看界面，并已处理指定账号的真实数据。功能、数据库、生产构建、开发和生产桌面／手机浏览器检查通过；最终界面观感仍由用户查看认可。首页现阶段收尾，后续业务重点仍是身体记录的网页写入与纠正。用户要求本轮全部完成后，将当前代码和文档提交并上传 GitHub。
 
-## 最新用户要求与实现
+页面顺序为指标切换、仅实测的最新空腹与 7 日摘要、晨晚趋势、按需日期信息栏、最近 10 个日期。沿用黑底、暖白、金色、冷蓝。高值在上，最小纵轴跨度 3 kg／3 个百分点。晨间金色主线、较淡蓝色晚间线默认都显示；估计默认显示，菱形节点及经过估计端点的虚线与实测圆点／实线区分。完整历史、来源、精确或占位时间、BMI 和预测区间在原生 dialog 抽屉中。
 
-用户希望保留中央金色人物、深色背景与神秘感，将 Hero 从插画加普通网页文字提升为克制、现代、具有 editorial / luxury digital product 气质的整体品牌视觉。人物始终是绝对中心，文字弱于人物、大量留白，三组文字要与环形轨迹形成关系。
+## 已确认规则
 
-当前页面文案全部使用英文，三组含义与排版为：
+- 日期为 7D／30D／90D／全部／自定义，默认截至最新归属日的 30D。自定义校验日期，长区间只生成少量刻度，单日居中。
+- 当前值与 7 日摘要仅统计真实、已选定的空腹代表记录，独立于图表历史区间及估计开关。窗口包含截止日和前 6 天；首末差不足两天留空，均值按实际有值日期并显示实测覆盖天数；体脂变化用百分点。
+- 真实性与录入入口分开：recordKind 为 observed／estimated；entryChannel 为 api／manual／development_backend。历史实测标“开发后台加入”，估计标“开发阶段录入”。原始采集方式、导入批次和执行者审计保留；AI 代执行不把用户提供的秤读数变成估计。
+- 实测设备按用户提供信息标“普通蓝牙体重秤”，连接应用为 OKOK；品牌、型号和外部同步系统未知，不编造。估计不标为秤测量。
+- 用户允许两条新增实测使用占位钟点：晨间 08:00、晚间 20:00，timePrecision 为 assumed、UTC 时刻为空，详情注明“时间为占位”，原始报告的真实时间仍为空。普通日期／时段来源和历史估计为 day_period。
+- 用户确认补全范围为 2026-09-09 至 10-04（含），体重与体脂都补，采用日期趋势加实测残差波动。训练阶段为 09-09 至 10-06；本轮仅历史回顾性补全，10-06 晚间缺测不填。
+- 四个独立一元线性模型只训练真实、有效、已选定的每日晨间空腹／晚间数据。训练窗口最多 28 天、至少 3 条；保存样本快照、版本、系数、残差方差和双侧 95% Student-t 单次预测区间。点估计不加随机噪声，区间向外舍入，样本不足保留缺项。
+- 实测优先，未解决真实候选也不填估计；后续补录或恢复实测在事务中软删除同段估计并留审计。有有效同段记录时不能恢复估计覆盖它。估计不参与训练、实测摘要或未来热量关联。
+- 晚间全部非空腹，来源 evening_rule；白天空腹必须明确确认。按当地钟点，00:00–05:59 归前一天晚间、06:00–17:59 当天白天、18:00 起当天晚间。原始当地时间、实际日期、当次时区及分析归属分别保留，旅行不重新分类旧记录。
+- 图、表、详情共用查看候选；持久代表选择待实现。关闭晚间只影响图；关闭估计影响图、最近记录和日期栏，完整历史仍保留全部。未补全缺口为极淡同色点线，未解决候选处断开；涉及估计的差值注明“估计差值”。
+- 当前重复实测组按用户授权保留较早一条，其余软删除；不在未来导入或页面读取时自动清理。所有来源修正、补全均在显式授权维护时执行。
 
-| 主标题 | 微小辅助标签 | 用户希望传达的含义 |
-| --- | --- | --- |
-| Discipline | Nutrition | 控制饮食的自律，关注热量盈余方向 |
-| Drive | Build yourself | 塑造自己、自驱力与持续向前 |
-| Effortless | AI logging | AI 接入帮助实现零负担记录；不限于某种 AI agent |
+## 数据与代码状态
 
-用户多次要求精简，不希望堆满产品说明；零负担是 AI 方向的核心表达。当前选用 Effortless 作为主标题、AI logging 作为微标签，不额外放解释段落。首页展示产品方向，并不代表记录或 AI 功能已经实现。
+指定账号当前有效 55 条：28 条实测（7 条晨间空腹、21 条晚间）、27 条估计（21 个晨间、6 个晚间），覆盖 28 个归属日。一条重复晚间实测保持软删除。新增两条用户提供实测；原有 27 条包含软删除记录的来源已补标，原始测量字段、删除状态和原 TSV 内容已逐字段／摘要核对保留。重复补全请求新增和修改均为 0。
 
-Hero 当前实现：
+measurements、measurement_imports、measurement_events 保存记录、批次和审计。0001_broken_moira_mactaggert.sql 保留原样；0002_complete_lockjaw.sql 已在实际数据库执行，新增真实性、录入入口、设备、连接应用及估计模型，约束有效估计时段唯一和占位时间不生成 UTC。
 
-- 本地 Manrope 330 字重标题，桌面字号 `clamp(24px, 2.25vw, 34px)`；IBM Plex Mono 400 微标签为 9px、大写样式。暖 ivory 标题 `#c7bcaa`，暖金标签 `#aa9574`；表单与 Logo 沿用原有字体。
-- Discipline 在左侧，Drive 与 Effortless 在右侧。三组标题与轨迹节点共用锚点、垂直对齐；静态细弧线与短引线连接节点。没有卡片、说明段落或装饰编号。
-- 桌面 SCROLL TO ENTER 在左下角，与 Discipline 共用 7% 左边距，配细轨道和小动标。仅 INTRO、素材就绪和桌面细指针设备显示；倒放回首屏恢复，reduced motion 动标静止。
-- 手机在底部安全区上方横排三组文字，用细轴连接三个节点，标题 14px、微标签 8.5px。键盘入口获焦时位于文字上方。
-- 背景独立于人物视差和透明合成；转身前 200ms 淡出，倒放最后 200ms 恢复，登录与认证阶段隐藏。
+- src/features/measurements/records.ts：统一校验、事务导入、日期时段实测写入、账号锁、实测替代估计、账号隔离查询。
+- estimation.ts、completion.ts：四个纯趋势模型与预测区间、账号快照预览、来源修正、新实测和估计事务写入、请求幂等。
+- days.ts、trend.ts、summary.ts：实测优先、候选选择、晨晚差、最近日期、日历窗口、正常纵轴、晨晚线与估计线、仅实测摘要。
+- measurements-view.tsx 与 CSS Module：指标／日期、无框摘要、趋势、预测区间、紧凑日期栏、最近记录和历史抽屉。
+- maintenance.ts 与 scripts/maintain-measurements.mts：条件修正、实测候选清理、软删除／恢复；scripts/complete-measurements.mts：私有 JSON 的补全预览／写入。
+- src/features/imports/measurements.ts 与 scripts/import-measurements.mts：四列 TSV 预览、授权导入、重复跳过、冲突整批回滚。
 
-用户最新要求是写本交接文件，并将当前全部项目改动提交到 GitHub。
+脚本用法及 JSON 字段见 [维护目录](scripts/README.md)，统计口径与产品边界见 [身体指标记录](docs/measurements.md)。
 
-## 人物与视频：已接入 v6、两倍速
+## 验证与接手
 
-- 当前原始素材为 `public/videos/golden-turn-1s-v6.mp4`，一秒、60 帧；保留原文件，不修改上传素材。
-- `scripts/prepare-turn-video.sh` 使用 FFmpeg 生成 `golden-turn-1s.mp4`，960×1440、逐帧关键帧、faststart。页面引用带 `?v=6` 的播放文件。
-- 页面在 500ms 内完成转身，通过同一时间游标正放、倒放和中途反向；使用视频寻帧，不使用负 playbackRate。未完成的寻帧合并至最新目标。
-- 静态首尾仍使用原来的 `1.png`、`12.png`，保留原有尺寸、对齐与鼠标联动。两端各 40ms 混合视频和静态图。黑底通过 WebGL 转为透明 Canvas。
-- 登录成功后的 `12.png` → `13.png` 独立，仍为 700ms；收到实际动画结束事件后才进入 `/dashboard`。reduced motion 转身为 180ms 静态交叠、最终过渡为 240ms。
-- 人物帧使用隔离组与互补 `plus-lighter` 合成，避免交叠变暗。修改时必须复核透明背景、端点衔接、倒放、反向和第 13 张。
+lint、typecheck、87 项单元／集成测试、production build 通过。覆盖正常、无效、重复与并发、跨账号、事务回滚、时区／夏令时、占位时间、来源独立、实测替代估计、模型固定解析基准、区间、样本不足、摘要和候选一致性。
 
-## 登录与数据库：已实现并修复连接超时
+开发和生产隔离 HTTP／浏览器验收通过，覆盖 1440×1000、390×844、320×740、844×390、触控与 reduced motion：晨晚实线／估计虚线与菱形、预测区间、来源及占位时间、仅实测摘要、日期切换、非法／单日区间、最近 10 日、候选同步和空状态。无客户端异常或页面横向溢出，390px 手机默认主要内容约 1.5 屏以内。历史抽屉首次打开、连续重开、双向 Tab、Escape／遮罩／按钮关闭、焦点返回与滚动恢复通过；保留 Strict Mode 下忽略过期 close 事件的修复。
 
-- Better Auth + Drizzle + PostgreSQL / Neon：内部邮箱密码登录、会话、退出、受保护 `/dashboard` 已实现。公开注册关闭，密码保存 scrypt 哈希。
-- 用户曾报告登录查询 `AggregateError / ETIMEDOUT`。诊断为 Node 自动尝试 IPv4 / IPv6 时，默认单地址 250ms 接近跨区域网络延迟；问题发生在 TCP 连接阶段。
-- `src/db/client.ts` 将进程默认单地址尝试时限设为至少 1000ms，保留已有更长设置；连接时限仍为 15 秒。此前连续三次新建真实 Neon 只读连接通过，未读取账号内容或写入真实数据库。
-- 修改数据库连接或 `.env.local` 后要重启开发服务，更新缓存的认证实例和连接池。连接尝试设置是 Node 进程级的。
-- `.env.local` 存放真实配置，被 Git 忽略；接手时保留已有值，不将密码、连接串或 secret 写入文档和提交。配置指南见 `docs/auth-setup.md`。
-- 登录先验证账号，再播放最终动画；认证中禁止重复提交和方向输入，失败回表单允许重试。首次聚焦输入框后人物回中并锁定整个登录阶段，倒放返回首屏才解除。
+浏览器用虚构数据库，开发模式另用临时源码副本与独立端口，不影响用户已有 3000 服务。截图在 /tmp/formward-measurements-visual/，含 desktop-estimated-trends.png、mobile-390-30-days.png 及各视口抽屉。复现入口见 [测试目录](tests/README.md)。完整首页视觉验收来自前序工作，本轮没有重新运行完整首页视觉套件。
 
-## 关键代码与文档
+真实数据仅在被 Git 忽略的 data/imports 与 data/exports 中。当前报告包括 measurements-before-completion-2026-10-06.json、measurements-completion-request-2026-10-06.json、measurements-completion-preview-2026-10-06.json、measurements-completion-result-2026-10-06.json；原始文件和此前导入／维护报告保留。不要把实际数值、账号、原始文件、报告或配置提交 GitHub／放入 public，也不要复制为测试样本。
 
-| 位置 | 用途 |
-| --- | --- |
-| `src/app/home-intro-backdrop.tsx` | 三组英文文案、共享锚点、轨迹与节点 |
-| `src/app/hero-font.ts`、`public/fonts/` | 本地字体定义、资源与完整许可证 |
-| `src/app/globals.css` | Hero 排版、舞台、SCROLL、表单与响应式规则 |
-| `src/app/home-experience.tsx` | 状态协调、时间线、焦点锁定、认证与导航 |
-| `src/app/home-timeline.ts` | 500ms 游标、端点权重、背景淡出和 Login 显现 |
-| `src/app/turn-video.ts` | 视频寻帧、透明合成、视频端点校准与清理 |
-| `src/app/frame-config.ts`、`docs/frame-calibration.md` | 原始静态端点配置及人物校准依据 |
-| `src/app/figure-motion.ts` | 人物反向鼠标位移、倾转、暂停和回中 |
-| `src/db/client.ts`、`src/features/auth/` | 数据库连接与统一认证能力 |
-| `docs/code-study.md` | 中文代码阅读指南与修改位置速查 |
-| `docs/product.md`、`docs/milestones.md` | 产品边界与后续业务顺序 |
+开始前读根 README、AGENTS 和最近 README，检查 git status 并保留无关变更。环境为 Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7；写 Next.js 代码前读 node_modules/next/dist/docs/ 对应指南。配置在 .env.local，不打印密钥。已有 3000 开发服务，不启动第二个同目录实例或擅自关闭；尚无正式部署。typecheck 与 build 顺序运行，避免构建重生成 .next/types 并发冲突。
 
-`src/app` 只处理入口与页面，业务规则放在 `src/features`，数据库集中在 `src/db`。网页与未来 AI API 共用 feature 函数。每个项目维护目录需要 README；不要提前创建复杂架构分层。
+## 后续顺序
 
-## 当前验证与本地运行
-
-使用 Node.js 24.21.0、pnpm 9.15.9。开发命令为 `pnpm dev`，访问 `http://localhost:3000` 或 `http://127.0.0.1:3000`。已有服务时先检查端口；其他转发域名需要更新 `next.config.ts` 的 `allowedDevOrigins` 并重启。
-
-本次代码通过 `pnpm lint`、`pnpm typecheck`、`pnpm test`（41 项）和 `pnpm build`。完整 production 浏览器验收通过，覆盖真实认证、手势、焦点、冷启动、素材失败、reduced motion 和四种视口；标题、节点及 SCROLL 布局截图已复核。39 组交叠像素检查最大平均 RGB 误差为 0.635/255，低于 2/255。
-
-最新浏览器实测：500ms 时间线约 517ms；正放 / 倒放含事件与采样延迟约 540ms / 524ms，分别采样到 16 / 16 个不同解码帧。视频源有 60 帧，实际可见帧数取决于解码性能与刷新率；未做 120Hz 实机验证。
-
-浏览器测试 `pnpm test:browser` 自行启动隔离的内存 PostgreSQL 与 production 服务，使用虚构账号，环境准备见 `tests/README.md`。测试工具仅临时安装在 `/tmp`，没有新增项目依赖。当前工作区复现命令如下；换机器或 `/tmp` 被清理后需重新准备对应路径：
-
-```bash
-env LD_LIBRARY_PATH=/tmp/formward-browser-check/runtime/usr/lib/x86_64-linux-gnu \
-  PLAYWRIGHT_BROWSERS_PATH=/tmp/formward-browser-check/browsers \
-  PLAYWRIGHT_MODULE=/tmp/formward-browser-check/node_modules/playwright/index.mjs \
-  FORMWARD_BROWSER_ARTIFACTS=/tmp/formward-browser-check/hero-artifacts \
-  FORMWARD_VISUAL_CHECK=1 pnpm test:browser
-```
-
-最新截图在 `/tmp/formward-browser-check/hero-artifacts/`，桌面、手机、窄屏、横屏文件名分别为 `desktop-intro-interaction.png`、`mobile-intro-interaction.png`、`compact-intro-interaction.png`、`landscape-intro-interaction.png`。这些是本机临时验收产物；GitHub 中的源码与素材可重现页面。
-
-## 尚未实现与下一步边界
-
-- 最新 Hero 视觉等待用户反馈，后续调整优先保留人物、深色背景、留白、英文短文案与轨迹关系。
-- `/dashboard` 当前只有账号及业务模块空状态。身体指标、饮食、运动、趋势、Excel 导入、AI API 和可撤销 AI Token 尚未实现，按 `docs/milestones.md` 推进。
-- AI 零负担记录是产品方向，不在站内提前增加聊天窗口或绑定某类 agent。热量盈余不能直接等同于摄入减已记录运动消耗。
-- 多实例部署前，需要将进程内存登录限流改为共享存储。当前没有完成正式部署。
-- 私有导入数据在被忽略的 `data/imports/`，`public/` 仅存公开素材。健康记录始终按 `user_id` 校验归属，数据库结构通过版本化 Drizzle migration 演进。
-
-有新进展时重写本文件对应段落、同步主题文档，保持说明与当前代码一致。
+1. 用户查看实际身体记录，按反馈调整观感和统计展示。
+2. 网页新增、修改、归属纠正、持久代表选择、删除／恢复及导入；复用已有 feature，白天空腹单独确认。
+3. 正式 AI API 与可撤销令牌，网页和 API 共用 feature。令牌只存摘要，由验证身份确定 user_id 和 scope；历史变更需要真实用户确认。
+4. 饮食、运动、全天消耗与热量关联，以及按实际来源评估设备连接。D 日实测晨晚差和 D+1 日实测空腹变化可对照 D 日盈余，缺项不计算、不把体重差换成热量或确定因果。

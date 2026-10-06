@@ -8,9 +8,10 @@ import { signIn } from "@/features/auth/client";
 import { BodySequence } from "./body-sequence";
 import { HomeHeader } from "./home-header";
 import { HomeIntroBackdrop } from "./home-intro-backdrop";
-import { heroMono, heroSans } from "./hero-font";
+import { heroMono } from "./hero-font";
+import { createOrbitRenderer } from "./home-orbit";
 import { createFigureMotion } from "./figure-motion";
-import { createProgressTimeline, FINAL_DURATION_MS, turnFrameWeights, loginReveal, introReveal, type TargetProgress } from "./home-timeline";
+import { createProgressTimeline, FINAL_DURATION_MS, turnFrameWeights, loginReveal, type TargetProgress } from "./home-timeline";
 import { createTurnVideo } from "./turn-video";
 import { LoginOverlay } from "./login-overlay";
 import { useDirectionTrigger } from "./use-direction-trigger";
@@ -37,6 +38,7 @@ export default function HomeExperience() {
   const videoLayerRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<ReturnType<typeof createTurnVideo> | null>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
+  const orbitRef = useRef<ReturnType<typeof createOrbitRenderer> | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const focusLoginRef = useRef(false);
   // ref 在事件内立即生效；state 让 React 渲染 data-phase。二者由 changePhase 一起更新。
@@ -157,10 +159,7 @@ export default function HomeExperience() {
 
     const frames = frameNodesRef.current;
     const reduced = reducedMotionRef.current;
-    const intro = introReveal(animationProgress, reduced);
-    backdropRef.current?.style.setProperty("--intro-opacity", String(intro));
-    // visibility 同步移出辅助技术；不用额外 CSS transition，避免中途反向时出现滞后。
-    backdropRef.current?.style.setProperty("--intro-visibility", intro > 0 ? "visible" : "hidden");
+    orbitRef.current?.render(animationProgress, reduced);
     const [first, video, last] = turnFrameWeights(animationProgress, reduced);
     if (frames[0]) frames[0].style.opacity = String(first);
     if (frames[1]) frames[1].style.opacity = String(last);
@@ -192,7 +191,10 @@ export default function HomeExperience() {
     const source = stageRef.current?.querySelector<HTMLVideoElement>("video");
     const canvas = stageRef.current?.querySelector<HTMLCanvasElement>("canvas");
     const layer = stageRef.current?.querySelector<HTMLElement>("[data-turn-video]");
-    if (!source || !canvas || !layer) return;
+    const backdrop = backdropRef.current;
+    if (!source || !canvas || !layer || !backdrop) return;
+    const orbit = createOrbitRenderer(backdrop);
+    orbitRef.current = orbit;
     videoLayerRef.current = layer;
     const video = createTurnVideo(source, canvas, layer);
     videoRef.current = video;
@@ -218,12 +220,19 @@ export default function HomeExperience() {
     return () => {
       active = false;
       timeline.cancel();
+      orbit.dispose();
+      orbitRef.current = null;
       video.dispose();
       videoRef.current = null;
       timelineRef.current = null;
       loginAbortRef.current?.abort();
     };
   }, [changePhase, renderProgress, requestDirection, updateMotion]);
+
+  useEffect(() => {
+    // 系统偏好动态变化时立即重画当前进度，不等待下一次方向输入。
+    renderProgress(timelineRef.current?.getProgress() ?? 0);
+  }, [reducedMotion, renderProgress]);
 
   // 停在背面时仍监听倒放；认证开始后暂停，失败回到表单时恢复。
   useDirectionTrigger(requestDirection, !["AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phase));
@@ -276,7 +285,7 @@ export default function HomeExperience() {
   const accessible = ["LOGIN_READY", "AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phase);
 
   return (
-    <main className={`home-page ${heroSans.variable} ${heroMono.variable}`} data-phase={phase} data-reduced-motion={reducedMotion} data-images-ready={imagesReady}
+    <main className={`home-page ${heroMono.variable}`} data-phase={phase} data-reduced-motion={reducedMotion} data-images-ready={imagesReady}
       style={{ "--final-duration": `${reducedMotion ? 240 : FINAL_DURATION_MS}ms` } as CSSProperties}>
       <HomeHeader />
       <section className="home-scroll" aria-label="Formward 登录入口">

@@ -2,11 +2,11 @@
 
 ## 目的
 
-保存首页英文标题与微小标签使用的本地字体。`src/app/hero-font.ts` 通过 `next/font/local` 加载，浏览器和构建过程都不依赖外部字体服务。
+保存首页微标签及滚动提示使用的本地字体，以及保留的公开字体素材。`src/app/hero-font.ts` 通过 `next/font/local` 加载 IBM Plex Mono；主标题继承 Logo 的系统字体体系。浏览器和构建不依赖外部字体服务。
 
 ## 内容与来源
 
-- `manrope-latin-variable.woff2`：Manrope 的 Latin 可变字体，字重范围 300–500，用于 Discipline、Drive、Effortless。
+- `manrope-latin-variable.woff2`：Manrope Latin 可变字体，字重范围 300–500，保留为公开素材，当前页面不加载。
 - `ibm-plex-mono-latin-regular.woff2`：IBM Plex Mono 的 Latin 正体 400，用于辅助标签和滚动提示。
 - `manrope-OFL.txt`、`ibm-plex-mono-OFL.txt`：对应字体的完整许可证，保持原文。
 
@@ -14,4 +14,4 @@
 
 ## 维护约定
 
-新增字重、字符集或替换字体时，同步更新加载定义、来源和许可证。字体只应用于首页 Hero 的英文排版，表单和其他页面沿用自己的字体体系。
+新增字重、字符集或替换字体时，同步更新加载定义、来源和许可证。当前只为微标签及滚动提示加载 IBM Plex Mono，主标题、Logo、表单和其他页面沿用系统字体。

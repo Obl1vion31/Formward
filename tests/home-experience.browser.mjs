@@ -40,6 +40,7 @@ async function snapshot(page) {
     login: Number(getComputedStyle(document.querySelector(".login-overlay")).opacity),
     intro: Number(getComputedStyle(document.querySelector(".home-intro-backdrop")).opacity),
     introVisibility: getComputedStyle(document.querySelector(".home-intro-backdrop")).visibility,
+    orbitAngle: Number(document.querySelector(".home-intro-backdrop").dataset.orbitAngle),
   }));
 }
 
@@ -198,6 +199,11 @@ async function startRecording(page) {
         login: Number(getComputedStyle(document.querySelector(".login-overlay")).opacity),
         intro: Number(getComputedStyle(document.querySelector(".home-intro-backdrop")).opacity),
         introVisibility: getComputedStyle(document.querySelector(".home-intro-backdrop")).visibility,
+        orbitAngle: Number(document.querySelector(".home-intro-backdrop").dataset.orbitAngle),
+        titleOpacity: Number(getComputedStyle(document.querySelector(".home-orbit-scene-start .home-principle-title")).opacity),
+        startOpacity: Number(getComputedStyle(document.querySelector(".home-orbit-scene-start")).opacity),
+        endOpacity: Number(getComputedStyle(document.querySelector(".home-orbit-scene-end")).opacity),
+        startNodes: [...document.querySelectorAll(".home-orbit-scene-start .home-orbit-node")].map((node) => [node.style.left, node.style.top]),
       });
       requestAnimationFrame(sample);
     };
@@ -219,18 +225,18 @@ function verifySequence(recording, reverse = false) {
   for (const sample of recording.samples) {
     assert.equal(sample.final, 0, "滚动永远不显示 Frame 13");
     assert.ok(Math.abs(sample.weights[0] + sample.weights[1] + sample.video - 1) < 0.01);
-    if (sample.progress >= 0.4) {
-      assert.equal(sample.intro, 0, "转身前 200ms 后，封面标题完全隐藏");
-      assert.equal(sample.introVisibility, "hidden", "隐藏标题同时移出辅助技术");
-    }
+    assert.equal(sample.intro, 1, "转身及登录阶段保留轨道构图");
+    assert.equal(sample.introVisibility, "visible");
+    assert.ok(Math.abs(sample.orbitAngle - 150 * sample.progress) < 0.001, "文字和人物共享同一进度");
     if (sample.video > 0.1 && seen.at(-1) !== sample.videoFrame) seen.push(sample.videoFrame);
   }
   assert.ok(seen.length >= 8, "半秒内实际视频至少显示 8 个不同帧，实际 " + seen.length);
   assert.ok(seen.every((value, index) => index === 0 || (reverse ? value < seen[index - 1] : value > seen[index - 1])), "实际解码沿正确方向前进");
   const ready = recording.samples.find((sample) => sample.phase === (reverse ? "INTRO" : "LOGIN_READY") && sample.time >= recording.inputAt);
   assert.ok(ready);
-  assert.ok(recording.samples.some((sample) => sample.intro > 0 && sample.intro < 1), "封面背景实际经过淡入淡出，不能直接跳变");
-  assert.equal(ready.intro, reverse ? 1 : 0, "返回首屏恢复标题，登录阶段隐藏标题");
+  assert.ok(recording.samples.some((sample) => sample.titleOpacity > 0.78 && sample.titleOpacity < 0.94), "实际运动中经过连续的明暗变化");
+  assert.ok(new Set(recording.samples.map((sample) => JSON.stringify(sample.startNodes))).size >= 8, "真实文字节点沿轨道经过多个位置");
+  assert.equal(ready.orbitAngle, reverse ? 0 : 150, "正倒放完成后轨道停在对应端点");
   const duration = recording.endpointAt - recording.inputAt;
   assert.ok(duration >= 500 && duration <= 650, "2 倍速视频应在半秒加浏览器采样间隔内完成，实际 " + duration);
   results.push({ test: reverse ? "真实倒放帧" : "真实正放帧", displayedFrames: seen.length });
@@ -309,16 +315,18 @@ async function verifyFrameAlignment(name, width, height) {
       pointerEvents: getComputedStyle(node).pointerEvents,
       layer: Number(getComputedStyle(node).zIndex),
       arc: getComputedStyle(node.querySelector("svg")).display,
-      labels: [...node.querySelectorAll(".home-principle")].map((label) => {
+      labels: [...node.querySelectorAll(".home-orbit-scene-start .home-principle")].map((label) => {
         const rect = label.getBoundingClientRect();
         const title = label.querySelector(".home-principle-title");
         const detail = label.querySelector(".home-principle-detail");
         const headingRect = title.getBoundingClientRect();
-        return { title: title.textContent, detail: detail.textContent, titleY: headingRect.top + headingRect.height / 2, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, fits: label.scrollWidth <= label.clientWidth + 1 };
+        const matrix = new DOMMatrix(getComputedStyle(label).transform);
+        return { title: title.textContent, detail: detail.textContent, titleY: headingRect.top + headingRect.height / 2, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, fits: label.scrollWidth <= label.clientWidth + 1, font: getComputedStyle(title).fontFamily, upright: matrix.a > 0 && matrix.d > 0 && matrix.b === 0 && matrix.c === 0 };
       }),
-      anchors: [...node.querySelectorAll(".home-orbit-node")].filter((marker) => getComputedStyle(marker).display !== "none").map((marker, index) => {
+      logoFont: getComputedStyle(document.querySelector(".home-logo")).fontFamily,
+      anchors: [...node.querySelectorAll(".home-orbit-scene-start .home-orbit-node")].filter((marker) => getComputedStyle(marker).display !== "none").map((marker, index) => {
         const rect = marker.getBoundingClientRect();
-        const leader = node.querySelectorAll(".home-orbit-leader")[index];
+        const leader = node.querySelectorAll(".home-orbit-scene-start .home-orbit-leader")[index];
         const point = leader.getPointAtLength(leader.getTotalLength());
         const end = new DOMPoint(point.x, point.y).matrixTransform(leader.getScreenCTM());
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, endX: end.x, endY: end.y };
@@ -329,8 +337,11 @@ async function verifyFrameAlignment(name, width, height) {
     assert.equal(backdrop.visibility, "visible");
     assert.equal(backdrop.pointerEvents, "none");
     assert.ok(backdrop.layer < 0, "文案位于人物下层");
-    assert.deepEqual(backdrop.labels.map((label) => label.title), ["Discipline", "Drive", "Effortless"]);
-    assert.deepEqual(backdrop.labels.map((label) => label.detail), ["Nutrition", "Build yourself", "AI logging"]);
+    assert.deepEqual(backdrop.labels.map((label) => label.title), ["Discipline", "Drive", "Effortless logging"]);
+    assert.deepEqual(backdrop.labels.map((label) => label.detail), ["Nutrition", "Build yourself", "AI-powered"]);
+    assert.ok(backdrop.labels.every((label) => label.font === backdrop.logoFont && label.upright), "主标题与 Logo 同字体，保持正向可读");
+    const accessible = await page.locator(".home-intro-backdrop").ariaSnapshot();
+    assert.equal(accessible.split("Effortless logging").length - 1, 1, "辅助技术只读取一份文案");
     if (width > 700) {
       for (const [index, anchor] of backdrop.anchors.entries()) {
         assert.ok(Math.hypot(anchor.x - anchor.endX, anchor.y - anchor.endY) <= 1, "轨迹引线在响应式布局中保持连接节点");
@@ -362,10 +373,65 @@ async function verifyFrameAlignment(name, width, height) {
       return Math.sqrt(delta.reduce((sum, value, i) => sum + [8, 8, 6, 1][i] * value * value, 0) / 23);
     });
     if (process.env.FORMWARD_BROWSER_ARTIFACTS) await page.screenshot({ path: process.env.FORMWARD_BROWSER_ARTIFACTS + "/" + name + "-intro-interaction.png" });
+    await page.keyboard.press("PageDown");
+    await phase(page, "LOGIN_READY");
+    const endLayout = await page.locator(".home-orbit-scene-start").evaluate((node) => ({
+      labels: [...node.querySelectorAll(".home-principle")].map((label) => {
+        const rect = label.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, detailOpacity: Number(getComputedStyle(label.querySelector(".home-principle-detail")).opacity) };
+      }),
+      nodes: [...node.querySelectorAll(".home-orbit-node")].map((marker) => ({ x: parseFloat(marker.style.left), y: parseFloat(marker.style.top) })),
+      form: (() => { const rect = document.querySelector(".login-overlay").getBoundingClientRect(); return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }; })(),
+    }));
+    if (width > 700) {
+      assert.ok(endLayout.nodes[0].x > 70 && endLayout.nodes[0].y < 45, "Discipline 停在右上");
+      assert.ok(endLayout.nodes[1].x > 60 && endLayout.nodes[1].y > 65, "Drive 停在右下");
+      assert.ok(endLayout.nodes[2].x < 30, "Effortless logging 停在左侧");
+    }
+    for (const label of endLayout.labels) {
+      assert.ok(label.left >= 0 && label.right <= width && label.top >= 0 && label.bottom <= height, name + " 终点文案不裁切");
+      assert.ok(label.detailOpacity >= 0.83, "登录时微标签保持可读");
+      const body = geometry.poses[1].bounds;
+      const form = endLayout.form;
+      assert.ok(label.right <= body.left || label.left >= body.right || label.bottom <= body.top || label.top >= body.bottom, name + " 终点文案避开人物");
+      assert.ok(label.right <= form.left || label.left >= form.right || label.bottom <= form.top || label.top >= form.bottom, name + " 终点文案避开表单");
+    }
+    if (width <= 700) assert.deepEqual(endLayout.labels.map(({ left, right, top, bottom }) => ({ left, right, top, bottom })), backdrop.labels.map(({ left, right, top, bottom }) => ({ left, right, top, bottom })), "手机文字保持底部排布");
+    if (process.env.FORMWARD_BROWSER_ARTIFACTS) await page.screenshot({ path: process.env.FORMWARD_BROWSER_ARTIFACTS + "/" + name + "-orbit-login.png" });
     results.push({ test: name + "：首尾校准、无裁切、英文标题与提示布局", maxWeightedRmsPx: Number(Math.max(...residuals).toFixed(2)) });
   } finally {
     await context.close();
   }
+}
+
+// 停在登录终点时改变视口和系统偏好，重排构图不能重置人物或产生额外旋转。
+async function verifyOrbitResize() {
+  const { page, context } = await newPage();
+  try {
+    await page.mouse.wheel(0, 80);
+    await phase(page, "LOGIN_READY");
+    const before = await page.locator(".home-orbit-scene-start .home-principle").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().toJSON()));
+    for (const viewport of [{ width: 1600, height: 1000 }, { width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+      await page.setViewportSize(viewport);
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.equal((await snapshot(page)).orbitAngle, 150);
+      assert.equal((await snapshot(page)).phase, "LOGIN_READY");
+      const labels = await page.locator(".home-orbit-scene-start .home-principle").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().toJSON()));
+      assert.ok(labels.every((rect) => rect.left >= 0 && rect.right <= viewport.width && rect.top >= 0 && rect.bottom <= viewport.height), "改变视口后文字仍完整可见");
+    }
+    const after = await page.locator(".home-orbit-scene-start .home-principle").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().toJSON()));
+    assert.deepEqual(after, before, "恢复桌面视口后恢复同一终点构图");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.waitForSelector('main[data-reduced-motion="true"]');
+    assert.equal(await page.locator(".home-orbit-scene-start").evaluate((node) => Number(getComputedStyle(node).opacity)), 0);
+    assert.equal(await page.locator(".home-orbit-scene-end").evaluate((node) => Number(getComputedStyle(node).opacity)), 1);
+    const reducedEnd = await page.locator(".home-orbit-scene-end .home-principle").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().toJSON()));
+    assert.deepEqual(reducedEnd, before, "动态切换 reduced motion 保留同一终点");
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.waitForSelector('main[data-reduced-motion="false"]');
+    assert.equal((await snapshot(page)).orbitAngle, 150);
+    results.push({ test: "轨道：登录终点跨视口重排、动态 reduced motion 和恢复桌面构图" });
+  } finally { await context.close(); }
 }
 
 // 使用浏览器真实截图作为两端参考，独立检查合成后的像素，而非透明度之和。
@@ -476,6 +542,7 @@ try {
   for (const [name, width, height] of [["desktop", 1440, 900], ["mobile", 390, 844], ["compact", 320, 568], ["landscape", 844, 390]]) {
     await verifyFrameAlignment(name, width, height);
   }
+  await verifyOrbitResize();
   const { context, page } = await newPage();
   assert.equal(await page.locator(".body-frame img").count(), 3);
   assert.equal(await page.locator('link[rel="preload"][as="image"]').count(), 3);
@@ -514,7 +581,7 @@ try {
   await verifyCrossfadePixels(page, "video-end", [[2, 1], [1, 3]]);
   assert.ok(forwardRecording.samples.filter((sample) => sample.progress <= 0.6).every((sample) => sample.login === 0), "表单在转身前段保持隐藏");
   assert.equal((await snapshot(page)).login, 1);
-  assert.equal((await snapshot(page)).introVisibility, "hidden");
+  assert.equal((await snapshot(page)).introVisibility, "visible");
   assert.equal(await page.locator('button[type="submit"]').isEnabled(), false);
   results.push({ test: "A：单次下滚完整正放", durationMs: forward });
   if (process.env.FORMWARD_BROWSER_ARTIFACTS) await page.screenshot({ path: process.env.FORMWARD_BROWSER_ARTIFACTS + "/login-ready.png" });
@@ -617,8 +684,10 @@ try {
   await reduced.page.mouse.wheel(0, 80);
   await phase(reduced.page, "LOGIN_READY");
   const reducedRecording = await finishRecording(reduced.page);
-  assert.ok(reducedRecording.samples.some((sample) => sample.progress > 0.4 && sample.progress < 1 && sample.intro > 0), "reduced motion 封面背景随整个 180ms 过渡淡出");
-  assert.equal((await snapshot(reduced.page)).introVisibility, "hidden");
+  assert.ok(reducedRecording.samples.some((sample) => sample.startOpacity > 0 && sample.endOpacity > 0), "reduced motion 在 180ms 内交叠两套静态构图");
+  assert.ok(reducedRecording.samples.every((sample) => Math.abs(sample.startOpacity + sample.endOpacity - 1) < 0.001));
+  assert.ok(reducedRecording.samples.every((sample) => JSON.stringify(sample.startNodes) === JSON.stringify(reducedRecording.samples[0].startNodes)), "reduced motion 不进行空间旋转");
+  assert.equal((await snapshot(reduced.page)).introVisibility, "visible");
   await reduced.page.mouse.wheel(0, -80);
   await phase(reduced.page, "INTRO");
   assert.equal((await snapshot(reduced.page)).intro, 1);

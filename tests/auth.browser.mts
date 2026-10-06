@@ -108,6 +108,8 @@ try {
   assert.match(await login.page.locator("#login-error").textContent() || "", /邮箱或密码不正确/);
   assert.equal(new URL(login.page.url()).pathname, "/");
   assert.equal(await login.page.locator("main").getAttribute("data-phase"), "LOGIN_READY");
+  assert.equal(await login.page.locator(".home-intro-backdrop").getAttribute("data-orbit-angle"), "150", "认证失败仍保留轨道终点");
+  assert.equal(await login.page.locator(".home-intro-backdrop").evaluate((node: Element) => getComputedStyle(node).visibility), "visible");
   assert.equal(await login.page.locator(".body-frame-final").evaluate((node: Element) => Number(getComputedStyle(node).opacity)), 0);
   console.log("通过：错误密码保持 Frame 12，不播放最终动画，可以重试。");
 
@@ -129,11 +131,14 @@ try {
   await login.page.mouse.wheel(0, -100);
   assert.equal(submissions, 1);
   assert.equal(await login.page.locator("main").getAttribute("data-phase"), "AUTHENTICATING");
+  assert.equal(await login.page.locator(".home-intro-backdrop").getAttribute("data-orbit-angle"), "150", "认证中轨道保持静止");
   assert.equal(await login.page.locator(".body-frame-final").evaluate((node: Element) => Number(getComputedStyle(node).opacity)), 0);
   release();
   await login.page.waitForSelector('main[data-phase="FINAL_TRANSITION"]');
   assert.equal(new URL(login.page.url()).pathname, "/");
   await login.page.waitForTimeout(200);
+  const orbitOpacity = await login.page.locator(".home-intro-backdrop").evaluate((node: Element) => Number(getComputedStyle(node).opacity));
+  assert.ok(orbitOpacity > 0 && orbitOpacity < 1, "认证成功后轨道随最终人物动画淡出");
   assert.equal(new URL(login.page.url()).pathname, "/", "700ms 动画尚未结束时不能提前导航");
   const combined = await login.page.evaluate(() => [...document.querySelectorAll("[data-intro-frame], .body-frame-final")].reduce((sum, node) => sum + Number(getComputedStyle(node).opacity), 0));
   assert.ok(Math.abs(combined - 1) < .05);

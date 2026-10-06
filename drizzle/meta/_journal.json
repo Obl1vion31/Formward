@@ -8,6 +8,20 @@
       "when": 1791001297362,
       "tag": "0000_flat_hawkeye",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791178610874,
+      "tag": "0001_broken_moira_mactaggert",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791271865990,
+      "tag": "0002_complete_lockjaw",
+      "breakpoints": true
     }
   ]
 }

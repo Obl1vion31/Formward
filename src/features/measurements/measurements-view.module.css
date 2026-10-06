@@ -1,0 +1,186 @@
+.workspace, .drawer {
+  --body-ink: #f0e9dd;
+  --body-muted: #a8a195;
+  --body-gold: #bea478;
+  --body-blue: #93adb5;
+  --body-rule: rgba(240, 233, 221, .12);
+  color: var(--body-ink);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.workspace { width: min(1120px, 100%); margin: 0 auto; padding: 20px 0 32px; }
+.heading { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+.heading h1, .empty h1 { margin: 0; font-size: 18px; font-weight: 500; letter-spacing: .02em; }
+.workspace button, .drawer button { appearance: none; background: none; border: 0; color: var(--body-muted); font: inherit; cursor: pointer; min-height: 44px; }
+.workspace button:hover, .drawer button:hover { color: var(--body-ink); }
+.metricTabs { display: flex; gap: 24px; }
+.metricTabs button { padding: 8px 0; font-size: 15px; border-bottom: 2px solid transparent; }
+.metricTabs button[aria-pressed="true"] { color: var(--body-ink); border-bottom-color: var(--body-gold); }
+.summary { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1.1fr; align-items: end; gap: 24px; padding: 24px 0 28px; border-bottom: 1px solid var(--body-rule); }
+.summary > div > span { color: var(--body-muted); font-size: 13px; }
+.summary strong { display: block; margin: 9px 0 7px; font-size: 28px; font-weight: 400; line-height: 1.1; letter-spacing: -.035em; white-space: nowrap; }
+.summary .current strong { font-size: 48px; }
+.summary strong small { margin-left: 6px; color: var(--body-muted); font-size: 13px; letter-spacing: 0; }
+.summary p { margin: 0; color: var(--body-muted); font-size: 12px; line-height: 1.5; }
+.chartPanel { padding: 12px 0 16px; }
+.chartToolbar, .chartControls, .rangeTabs { display: flex; align-items: center; }
+.chartToolbar { justify-content: space-between; gap: 16px; padding-bottom: 12px; }
+.chartControls { gap: 16px; flex-wrap: wrap; }
+.rangeCaption { color: var(--body-muted); font-size: 13px; white-space: nowrap; }
+.rangeCaption > span { padding: 0 4px; }
+.rangeTabs { gap: 3px; }
+.rangeTabs button { padding: 6px 10px; font-size: 13px; white-space: nowrap; }
+.rangeTabs button[aria-pressed="true"] { color: var(--body-ink); background: rgba(240, 233, 221, .06); border-radius: 4px; }
+.rangeTabs button:last-child { display: flex; align-items: center; gap: 6px; }
+.toggle { display: flex; align-items: center; gap: 9px; min-height: 44px; color: var(--body-muted); font-size: 12px; cursor: pointer; white-space: nowrap; }
+.toggle input { appearance: none; position: relative; width: 28px; height: 16px; margin: 0; border: 1px solid #716f68; border-radius: 12px; background: transparent; cursor: pointer; }
+.toggle input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--body-muted); }
+.toggle input:checked { border-color: var(--body-blue); background: rgba(147, 173, 181, .16); }
+.toggle input:checked::after { left: 15px; background: var(--body-blue); }
+.calendar { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; padding: 4px 0 16px; }
+.calendar label { display: grid; gap: 8px; font-size: 12px; color: var(--body-muted); }
+.calendar input, .choice select { background: #10100f; color: var(--body-ink); border: 1px solid var(--body-rule); border-radius: 4px; padding: 9px 10px; min-height: 40px; font: inherit; color-scheme: dark; }
+.calendar button { padding: 0 12px; }
+.calendar button[type="submit"] { color: var(--body-gold); }
+.calendar p { width: 100%; margin: 0; color: #efc4a9; font-size: 13px; }
+.plotViewport { width: 100%; min-width: 0; }
+.plot { display: block; width: 100%; height: 252px; overflow: visible; }
+.grid { stroke: var(--body-rule); stroke-width: .6; }
+.axis { fill: var(--body-muted); font: 12px ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.pairLine { stroke: var(--body-blue); stroke-width: .65; opacity: .23; pointer-events: none; }
+.selectedDayLine { stroke: var(--body-muted); stroke-width: .65; opacity: .2; stroke-dasharray: 2 5; pointer-events: none; }
+.dayLine { stroke: var(--body-gold); stroke-width: 1.7; pointer-events: none; }
+.nightLine { stroke: var(--body-blue); stroke-width: 1.1; opacity: .55; pointer-events: none; }
+.gapLine { stroke-width: 1; stroke-dasharray: 1 6; stroke-linecap: round; opacity: .3; pointer-events: none; }
+.estimateLine { stroke-dasharray: 4 5; opacity: .5; }
+.estimatePoint { fill: #10100f; stroke-width: 1.2; pointer-events: none; }
+.dayEstimate { stroke: var(--body-gold); }
+.nightEstimate { stroke: var(--body-blue); }
+.predictionRange { color: var(--body-muted); font-size: 12px; line-height: 1.5; margin: 6px 0 0; overflow-wrap: anywhere; }
+.dayPoint { fill: var(--body-gold); stroke: #10100f; stroke-width: 1; pointer-events: none; }
+.nightPoint { fill: #10100f; stroke: var(--body-blue); stroke-width: 1.4; pointer-events: none; }
+.hitTarget { fill: transparent; cursor: pointer; }
+.selectedPoint { fill: none; stroke: var(--body-ink); stroke-width: .7; pointer-events: none; }
+.plot g[role="button"] { outline: none; }
+.plot g[role="button"]:focus-visible .hitTarget { fill: rgba(190, 164, 120, .12); stroke: var(--body-ink); stroke-width: .8; }
+.emptyChart { fill: var(--body-muted); font-size: 14px; }
+.plotFooter { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 26px; padding-left: 48px; }
+.legend { display: flex; align-items: center; gap: 20px; color: var(--body-muted); font-size: 12px; white-space: nowrap; }
+.legend span { display: flex; gap: 8px; align-items: center; }
+.legend i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.dayDot { background: var(--body-gold); }
+.nightDot { border: 1px solid var(--body-blue); }
+.legend .estimateDot { border: 1px solid var(--body-muted); border-radius: 0; transform: rotate(45deg); }
+.plotHint { color: var(--body-muted); font-size: 12px; line-height: 1.5; text-align: right; }
+.dayPanel { display: flex; align-items: center; gap: 32px; padding: 14px 0; border-top: 1px solid var(--body-rule); border-bottom: 1px solid var(--body-rule); }
+.dayHeading h2 { margin: 0 0 4px; font-size: 14px; font-weight: 500; }
+.dayHeading > span { color: var(--body-muted); font-size: 12px; }
+.readings { display: flex; flex: 1; gap: 36px; }
+.reading > span, .difference > span { color: var(--body-muted); font-size: 12px; }
+.reading strong, .difference strong { display: block; margin-top: 5px; font-size: 20px; font-weight: 400; white-space: nowrap; }
+.reading strong { color: var(--body-gold); }
+.evening strong { color: var(--body-blue); }
+.reading strong small { color: var(--body-muted); font-size: 12px; margin-left: 5px; }
+.difference strong { font-size: 17px; line-height: 24px; }
+.dayActions { display: flex; align-items: center; gap: 12px; }
+.dayActions button:first-child { color: var(--body-gold); white-space: nowrap; font-size: 13px; }
+.dayActions button:last-child { width: 32px; font-size: 22px; }
+.history { width: min(720px, 100%); margin-top: 18px; }
+.sectionTitle { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 0 0 8px; }
+.sectionTitle h2 { margin: 0; font-size: 16px; font-weight: 500; }
+.sectionTitle > span { color: var(--body-muted); font-size: 12px; }
+.history table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.history th, .history td { height: 40px; padding: 0 12px; border-bottom: 1px solid rgba(240, 233, 221, .06); text-align: right; font-weight: 400; white-space: nowrap; }
+.history th:first-child { text-align: left; padding-left: 0; }
+.history th:last-child, .history td:last-child { padding-right: 0; }
+.history thead th { height: 38px; color: var(--body-muted); font-size: 12px; }
+.history th small, .history td small { color: var(--body-muted); font-size: 12px; }
+.history td small { display: block; line-height: 1.15; }
+.history tbody tr[data-selected="true"] { background: rgba(190, 164, 120, .035); }
+.history tbody th button { padding: 0; min-height: 36px; color: inherit; font-size: 14px; }
+.history tbody th button[aria-pressed="true"] { color: var(--body-gold); }
+.history tbody th small { margin-left: 16px; }
+.dayValue { color: var(--body-gold); }
+.nightValue { color: var(--body-blue); }
+.missing { color: var(--body-muted); }
+.fullHistory { display: flex; align-items: center; gap: 12px; margin-top: 8px; padding: 0; color: var(--body-gold) !important; font-size: 13px !important; }
+.emptyHistory { margin: 20px 0; color: var(--body-muted); }
+.drawer { position: fixed; inset: 0 0 0 auto; margin: 0; padding: 0; width: min(620px, 100%); max-width: 100%; height: 100dvh; max-height: 100dvh; border: 0; border-left: 1px solid var(--body-rule); background: #151513; font-family: inherit; }
+.drawer[open] { display: flex; flex-direction: column; }
+.drawer::backdrop { background: rgba(0, 0, 0, .55); }
+.drawerHeader { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 24px 28px 20px; border-bottom: 1px solid var(--body-rule); }
+.drawerHeader h2 { margin: 0; font-size: 18px; font-weight: 500; }
+.drawerHeader p { margin: 6px 0 0; color: var(--body-muted); font-size: 13px; }
+.drawerHeader button { width: 44px; font-size: 26px; }
+.drawerContent { overflow-y: auto; overscroll-behavior: contain; padding: 8px 28px 32px; flex: 1; }
+.historyDay { border-bottom: 1px solid var(--body-rule); }
+.historyDay > summary { display: flex; justify-content: space-between; align-items: center; gap: 16px; cursor: pointer; padding: 20px 0; list-style: none; }
+.historyDay > summary::-webkit-details-marker { display: none; }
+.historyDay > summary::after { content: "+"; color: var(--body-muted); }
+.historyDay[open] > summary::after { content: "−"; }
+.historyDay > summary > span { display: flex; gap: 22px; margin-left: auto; }
+.historyDay summary small { color: var(--body-muted); font-size: 12px; }
+.dayDetails { padding: 16px 0; }
+.dayDetails h3 { margin: 8px 0 12px; color: var(--body-muted); font-size: 13px; font-weight: 400; }
+.choice { display: grid; gap: 8px; font-size: 13px; color: var(--body-muted); margin-bottom: 24px; }
+.choice select { min-width: 0; width: 100%; background: #151513; }
+.rawRecord { padding: 18px 0; border-top: 1px solid var(--body-rule); }
+.rawRecord > header { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 14px; }
+.rawRecord header > span { color: var(--body-muted); font-size: 12px; }
+.rawRecord dl { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; margin: 20px 0 0; }
+.rawRecord dt { color: var(--body-muted); font-size: 12px; }
+.rawRecord dd { margin: 6px 0 0; font-size: 14px; overflow-wrap: anywhere; }
+.workspace button:focus-visible, .workspace input:focus-visible, .drawer button:focus-visible, .drawer select:focus-visible, .historyDay summary:focus-visible { outline: 2px solid var(--body-gold); outline-offset: 3px; }
+.empty { width: min(1120px, 100%); margin: 0 auto; padding: 40px 0; }
+.empty p { font-size: 14px; color: #a8a195; margin-top: 24px; }
+@media (max-width: 900px) {
+  .chartToolbar { flex-wrap: wrap; gap: 4px; }
+  .chartControls { justify-content: space-between; width: 100%; }
+  .dayPanel { flex-wrap: wrap; gap: 14px 24px; }
+  .dayHeading { flex: 1; }
+  .dayActions { order: 2; }
+  .readings { order: 3; width: 100%; flex-basis: 100%; }
+}
+@media (max-width: 600px) {
+  .workspace { padding: 14px 0 24px; }
+  .heading { gap: 12px; }
+  .metricTabs { gap: 18px; }
+  .metricTabs button { font-size: 14px; }
+  .summary { grid-template-columns: 1fr 1fr; gap: 18px 16px; padding: 18px 0 20px; }
+  .summary > div > span { font-size: 12px; }
+  .summary .current strong { font-size: clamp(30px, 9.75vw, 38px); }
+  .summary strong { font-size: 25px; }
+  .summary strong small { font-size: 12px; }
+  .summary p { font-size: 12px; }
+  .chartControls { flex-wrap: wrap; gap: 0 10px; }
+  .rangeTabs { gap: 1px; }
+  .rangeTabs button { padding: 6px 5px; font-size: 12px; }
+  .rangeTabs button:last-child { gap: 4px; }
+  .rangeTabs button:last-child svg { width: 14px; }
+  .toggle { margin-left: auto; gap: 6px; }
+  .chartToolbar { padding-bottom: 6px; }
+  .plot { height: 230px; }
+  .plotFooter { flex-wrap: wrap; gap: 4px; padding-left: 0; }
+  .plotHint { width: 100%; min-height: 18px; text-align: left; }
+  .plotHint:empty { display: none; }
+  .legend { gap: 14px; }
+  .calendar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; }
+  .calendar label { min-width: 0; }
+  .calendar input { min-width: 0; width: 100%; padding: 8px 4px; }
+  .calendar p { grid-column: 1 / -1; }
+  .readings { justify-content: space-between; gap: 10px; }
+  .readings > .reading { min-width: 0; flex: 1; }
+  .reading > span, .difference > span { font-size: 11px; }
+  .reading strong { font-size: 19px; }
+  .difference strong { font-size: 15px; }
+  .sectionTitle > span { font-size: 11px; }
+  .history th, .history td { height: 36px; padding: 0 6px; font-size: 13px; }
+  .history tbody th button { min-height: 34px; font-size: 13px; }
+  .history tbody th small { margin-left: 6px; font-size: 11px; }
+  .history thead th { height: 36px; font-size: 12px; }
+  .history thead small { display: none; }
+  .drawerHeader { padding: 18px 20px; }
+  .drawerContent { padding: 4px 20px 24px; }
+  .historyDay > summary { font-size: 13px; }
+  .historyDay > summary > span { gap: 12px; }
+}

@@ -1,4 +1,5 @@
-import { boolean, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { boolean, check, date, index, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 // 属性遵循 Better Auth 的命名，SQL 字段统一使用 snake_case。
 export const user = pgTable("users", {
@@ -49,3 +50,77 @@ export const verification = pgTable("verifications", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [index("verifications_identifier_idx").on(table.identifier)]);
+
+export const measurementImport = pgTable("measurement_imports", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  fileDigest: text("file_digest").notNull(),
+  sourceLabel: text("source_label").notNull(),
+  captureChannel: text("capture_channel").notNull(),
+  status: text("status").notNull().default("completed"),
+  insertedCount: integer("inserted_count").notNull(),
+  skippedCount: integer("skipped_count").notNull(),
+  createdBy: text("created_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [uniqueIndex("measurement_imports_user_digest_idx").on(table.userId, table.fileDigest)]);
+
+export const measurement = pgTable("measurements", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  sourceLocalTime: text("source_local_time").notNull(),
+  localDate: date("local_date").notNull(),
+  // 无来源时区时不伪造 UTC 时刻；本地时间仍可用于晨晚归属。
+  occurredAt: timestamp("occurred_at", { withTimezone: true }),
+  timezone: text("timezone"),
+  utcOffsetMinutes: integer("utc_offset_minutes"),
+  timePrecision: text("time_precision").notNull().default("second"),
+  analysisDate: date("analysis_date").notNull(),
+  period: text("period", { enum: ["daytime", "evening"] }).notNull(),
+  assignmentMethod: text("assignment_method").notNull(),
+  assignmentRuleVersion: text("assignment_rule_version").notNull(),
+  fasting: boolean("fasting"),
+  fastingSource: text("fasting_source"),
+  weightKg: numeric("weight_kg", { precision: 7, scale: 2 }).notNull(),
+  bmi: numeric("bmi", { precision: 7, scale: 2 }),
+  bodyFatPercent: numeric("body_fat_percent", { precision: 5, scale: 2 }),
+  sourceType: text("source_type").notNull(),
+  recordKind: text("record_kind", { enum: ["observed", "estimated"] }).notNull().default("observed"),
+  entryChannel: text("entry_channel", { enum: ["api", "manual", "development_backend"] }),
+  deviceName: text("device_name"),
+  companionApp: text("companion_app"),
+  estimation: jsonb("estimation").$type<import("../features/measurements/estimation").EstimationMetadata>(),
+  sourceSystem: text("source_system"),
+  sourceRecordId: text("source_record_id"),
+  importId: text("import_id").references(() => measurementImport.id),
+  sourceRow: integer("source_row"),
+  originalValues: jsonb("original_values").$type<Record<string, string | null>>().notNull(),
+  deduplicationKey: text("deduplication_key").notNull(),
+  createdBy: text("created_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+}, (table) => [
+  uniqueIndex("measurements_user_dedup_idx").on(table.userId, table.deduplicationKey),
+  uniqueIndex("measurements_active_estimate_idx").on(table.userId, table.analysisDate, table.period).where(sql`${table.recordKind} = 'estimated' AND ${table.deletedAt} IS NULL`),
+  index("measurements_user_analysis_date_idx").on(table.userId, table.analysisDate),
+  check("measurements_weight_valid", sql`${table.weightKg} > 0`),
+  check("measurements_bmi_valid", sql`${table.bmi} IS NULL OR ${table.bmi} > 0`),
+  check("measurements_body_fat_valid", sql`${table.bodyFatPercent} IS NULL OR ${table.bodyFatPercent} BETWEEN 0 AND 100`),
+  check("measurements_period_valid", sql`${table.period} IN ('daytime', 'evening')`),
+  check("measurements_instant_has_timezone", sql`${table.occurredAt} IS NULL OR ${table.timezone} IS NOT NULL`),
+  check("measurements_kind_valid", sql`${table.recordKind} IN ('observed', 'estimated')`),
+  check("measurements_channel_valid", sql`${table.entryChannel} IS NULL OR ${table.entryChannel} IN ('api', 'manual', 'development_backend')`),
+  check("measurements_estimation_valid", sql`(${table.recordKind} = 'estimated' AND ${table.estimation} IS NOT NULL AND ${table.occurredAt} IS NULL) OR (${table.recordKind} = 'observed' AND ${table.estimation} IS NULL)`),
+  check("measurements_assumed_time_valid", sql`${table.timePrecision} NOT IN ('assumed', 'day_period') OR ${table.occurredAt} IS NULL`),
+]);
+
+export const measurementEvent = pgTable("measurement_events", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  measurementId: text("measurement_id").notNull().references(() => measurement.id),
+  action: text("action").notNull(),
+  actorType: text("actor_type").notNull(),
+  actorId: text("actor_id").notNull(),
+  snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index("measurement_events_user_record_idx").on(table.userId, table.measurementId)]);

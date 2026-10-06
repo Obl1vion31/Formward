@@ -3,6 +3,36 @@ import test from "node:test";
 import { createProgressTimeline, turnFrameWeights, PRE_LOGIN_DURATION_MS, ENDPOINT_BLEND_MS, REDUCED_DURATION_MS, loginReveal } from "./home-timeline.ts";
 import { videoFrameIndex, createVideoScrubber } from "./turn-video.ts";
 import { listenForDirectionIntent } from "./use-direction-trigger.ts";
+import { orbitPose, ORBIT_TURN_DEGREES } from "./home-orbit.ts";
+
+test("空间轨道转动 150°，终点为右上、右下和左侧，并保持标签可读", () => {
+  const [discipline, drive, logging] = [0, 1, 2].map((index) => orbitPose(index, 1));
+  assert.ok(discipline.x > 0.7 && discipline.y < 0.45);
+  assert.ok(drive.x > 0.6 && drive.y > 0.65);
+  assert.ok(logging.x < 0.3);
+  for (let index = 0; index < 3; index++) {
+    const start = orbitPose(index, 0);
+    const end = orbitPose(index, 1);
+    assert.equal(end.angle - start.angle, ORBIT_TURN_DEGREES);
+    assert.ok(end.titleOpacity < start.titleOpacity);
+    assert.ok(end.detailOpacity >= 0.84, "微标签不随标题一起过度减弱");
+    assert.deepEqual(orbitPose(index, -1), start);
+    assert.deepEqual(orbitPose(index, 2), end);
+  }
+  assert.ok(drive.scale < discipline.scale, "远处更小，呈现纵深");
+});
+
+test("轨道复用人物游标，途中反向保持当前位置，完整倒放恢复初始构图", (t) => {
+  const browser = browserClock(t);
+  const timeline = createProgressTimeline(() => {}, () => {});
+  timeline.playTo(1);
+  browser.advance(200);
+  const before = [0, 1, 2].map((index) => orbitPose(index, timeline.getProgress()));
+  timeline.playTo(0);
+  assert.deepEqual([0, 1, 2].map((index) => orbitPose(index, timeline.getProgress())), before);
+  browser.advance(400);
+  assert.deepEqual([0, 1, 2].map((index) => orbitPose(index, timeline.getProgress())), [0, 1, 2].map((index) => orbitPose(index, 0)));
+});
 
 // 在 Node 中模拟浏览器事件与 rAF，不需要真实等待 500ms。
 // advance(time) 执行一次待处理帧，elapse(time) 只走时间，便于测试两帧之间的输入。

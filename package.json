@@ -12,12 +12,14 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test --test-isolation=none src/app/*.test.mjs src/features/auth/*.test.ts",
+    "test": "node --import tsx --test --test-isolation=none src/app/*.test.mjs src/features/auth/*.test.ts src/features/measurements/*.test.ts",
     "db:local": "pglite-server --db=./data/postgres/storage --host=127.0.0.1 --port=5432 --max-connections=10",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file=.env.local --import tsx scripts/migrate.mts",
     "account:create": "node --env-file=.env.local --import tsx scripts/create-account.mts",
-    "test:browser": "node --import tsx tests/auth.browser.mts"
+    "test:browser": "node --import tsx tests/auth.browser.mts",
+    "test:measurements-http": "node --import tsx tests/measurements.http.mts",
+    "test:measurements-browser": "FORMWARD_MEASUREMENTS_BROWSER=1 node --import tsx tests/measurements.http.mts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.7.7",

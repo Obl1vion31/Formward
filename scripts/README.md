@@ -6,10 +6,15 @@
 
 ## 当前入口
 
+- `complete-measurements.mts`：通过 measurements feature 为指定账号预览／写入历史来源标记、用户提供的实测和缺测估计。格式：`node --env-file=.env.local --import tsx scripts/complete-measurements.mts 私有请求JSON --preview|--write 预览摘要`。JSON 包含 `userId` 与 `request`，后者包含 `operationId`、补全 `range`、最多 28 天的 `trainingRange`、`deviceName`、`companionApp` 和实测 `records`；日期为 YYYY-MM-DD，时段为 daytime／evening，指标为十进制字符串，未知 BMI 为空，空腹显式确认。占位时间可用 `assumedTime: HH:mm`，存储为 assumed、UTC 为空；完全未知时间仅存日期时段。预览绑定当前账号快照，写入须已授权，重复请求幂等；真实数值和模型报告放在被 Git 忽略的私有目录。脚本审计记录 AI 代执行，数值是否实测与执行者分别保存。
+
+- `maintain-measurements.mts`：指定内部账号，预览当前晚间条件修正及同日同时段候选；按真实发生时间保留较早一条，其他软删除，可按记录恢复。格式：`node --env-file=.env.local --import tsx scripts/maintain-measurements.mts 账号邮箱 --preview`；核对后用 `--write 预览摘要` 执行已授权操作，用 `--restore 记录ID` 恢复。摘要绑定账号当前记录，数据改变须重新预览；事务保存前后快照、操作者和时间，重复执行幂等。工具不会在导入或页面加载时自动运行。
+
 - `prepare-turn-video.sh`：使用 FFmpeg 将 v6 原始一秒转身视频生成 960×1440、逐帧关键帧的播放文件，不覆盖原始视频。
 - `check-structure.sh`：检查所有项目自有目录是否包含非空 README。
 - `migrate.mts`：使用 DATABASE_MIGRATION_URL 或 DATABASE_URL 执行版本化 Drizzle migration。
 - `create-account.mts`：交互式读取邮箱和隐藏密码，调用认证 feature 创建内部账号；重复执行保留原密码。
+- `import-measurements.mts`：只读预览四列体脂秤 TSV，明确目标账号后通过 measurements feature 事务写入。默认不写入，`--write` 仅用于用户已授权并核对预览的样本；时区和白天空腹标记不得猜测。格式：`node --env-file=.env.local --import tsx scripts/import-measurements.mts 文件路径 账号邮箱 --preview|--write IANA时区 [--daytime-fasting]`。同文件重试及重新排序的相同记录不会重复写入，冲突回滚整批。
 
 账号创建与数据库维护工具的用途见 [代码阅读指南](../docs/code-study.md)。脚本中的中文注释供需要查看实现细节时参考。
 

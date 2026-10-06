@@ -32,11 +32,6 @@ export function loginReveal(animationProgress: number): number {
   return smoothstep((animationProgress - 0.6) / 0.4);
 }
 
-// 封面标题在转身前 40%（200ms）退出，倒放时连续恢复；简化模式沿全程淡出。
-export function introReveal(animationProgress: number, reducedMotion = false): number {
-  return 1 - (reducedMotion ? clamp01(animationProgress) : smoothstep(animationProgress / 0.4));
-}
-
 export function createProgressTimeline(
   onProgress: (animationProgress: number) => void,
   onComplete: (targetProgress: TargetProgress) => void,

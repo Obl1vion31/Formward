@@ -83,24 +83,42 @@ input:focus-visible {
   isolation: isolate;
   background: radial-gradient(ellipse 42% 58% at 50% 43%, rgba(190, 164, 120, .11), transparent 85%), radial-gradient(ellipse 78% 85% at 50% 55%, rgba(190, 164, 120, .035), transparent 85%), radial-gradient(ellipse 65% 70% at 78% 76%, rgba(20, 49, 45, .16), transparent 85%), var(--graphite);
 }
-/* 封面层在舞台隔离组内、人物下面；只接收时间线透明度，不跟随鼠标。 */
+/* 轨道图层在人物下面，不跟随鼠标；节点和文字由人物的同一时间游标驱动。 */
 .home-intro-backdrop {
-  --hero-title-size: clamp(24px, 2.25vw, 34px);
+  --hero-title-size: clamp(24px, 2.1vw, 32px);
   position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: var(--intro-opacity, 1);
-  visibility: var(--intro-visibility, visible);
 }
-/* 素材就绪才展示；登录及认证阶段持续隐藏，加载 / 错误提示保留自己的位置。 */
+/* 加载 / 失败时隐藏；登录与认证保留终点，成功后的最终过渡才退出。 */
 .home-page[data-images-ready="false"] .home-intro-backdrop,
-.home-page[data-phase="LOGIN_READY"] .home-intro-backdrop,
-.home-page[data-phase="AUTHENTICATING"] .home-intro-backdrop,
-.home-page[data-phase="FINAL_TRANSITION"] .home-intro-backdrop,
 .home-page[data-phase="FINAL"] .home-intro-backdrop {
   opacity: 0;
   visibility: hidden;
+}
+.home-page[data-phase="FINAL_TRANSITION"] .home-intro-backdrop {
+  animation: orbit-exit var(--final-duration) ease both;
+}
+@keyframes orbit-exit {
+  from { opacity: 1; }
+  to { opacity: 0; visibility: hidden; }
+}
+.home-orbit-scene {
+  position: absolute;
+  inset: 0;
+}
+.home-orbit-scene-start {
+  opacity: var(--orbit-start-opacity, 1);
+  visibility: var(--orbit-start-visibility, visible);
+}
+.home-orbit-scene-end {
+  opacity: 0;
+  visibility: hidden;
+}
+.home-page[data-reduced-motion="true"] .home-orbit-scene-end {
+  opacity: var(--orbit-end-opacity, 0);
+  visibility: var(--orbit-end-visibility, hidden);
 }
 .home-intro-arc {
   position: absolute;
@@ -111,16 +129,17 @@ input:focus-visible {
   stroke: var(--gold);
   stroke-width: .8px;
 }
-.home-orbit {
-  opacity: .14;
+.home-orbit-front {
+  opacity: calc(.16 * var(--orbit-track-opacity, 1));
+}
+.home-orbit-back {
+  opacity: calc(.075 * var(--orbit-track-opacity, 1));
 }
 .home-orbit-leader {
-  opacity: .3;
+  opacity: calc(.3 * var(--orbit-track-opacity, 1));
 }
 .home-orbit-node {
   position: absolute;
-  top: var(--node-y);
-  left: var(--node-x);
   width: 5px;
   height: 5px;
   border: 1px solid var(--hero-label);
@@ -131,24 +150,25 @@ input:focus-visible {
 }
 .home-principle {
   position: absolute;
-  top: var(--node-y);
-  left: calc(var(--node-x) + 4%);
-  width: min(14.5vw, 220px);
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(22vw, 240px);
   margin: 0;
   color: var(--hero-ink);
-  font-family: var(--font-hero-sans), sans-serif;
   font-size: var(--hero-title-size);
-  font-weight: 330;
-  letter-spacing: -.04em;
-  line-height: 1.2;
-  transform: translateY(calc(var(--hero-title-size) * -.6));
-}
-.home-principle-discipline {
-  left: 7%;
+  font-weight: 400;
+  letter-spacing: .015em;
+  line-height: 1.3;
+  transform-origin: 0 0;
+  transform: translate3d(var(--label-x, 0px), var(--label-y, 0px), 0) scale(var(--label-scale, 1));
 }
 .home-principle-title,
 .home-principle-detail {
   display: block;
+}
+.home-principle-title {
+  opacity: var(--title-opacity, 1);
 }
 .home-principle-detail {
   margin-top: 10px;
@@ -159,6 +179,7 @@ input:focus-visible {
   letter-spacing: .13em;
   line-height: 1.4;
   text-transform: uppercase;
+  opacity: var(--detail-opacity, 1);
 }
 /* 外层：figure-motion.ts 写入像素 / 角度变量，只移动人物，不带动 Login 或 Logo。 */
 .figure-motion {
@@ -360,14 +381,14 @@ input:focus-visible {
 .dashboard-page {
   min-height: 100svh;
   padding: 0 clamp(24px, 6vw, 96px);
-  background: radial-gradient(ellipse at 80% 5%, rgba(190, 164, 120, .06), transparent 60%), var(--graphite);
+  background: var(--graphite);
 }
 .dashboard-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  min-height: 108px;
+  min-height: 84px;
   border-bottom: 1px solid rgba(240, 233, 221, .12);
 }
 .dashboard-logo {
@@ -392,27 +413,21 @@ input:focus-visible {
   background: transparent;
   color: var(--gold);
   cursor: pointer;
+  white-space: nowrap;
 }
 .dashboard-account button:disabled { opacity: .6; }
 .dashboard-account [role="alert"] { display: block; color: #efc4a9; }
-.dashboard-content { max-width: 1100px; margin: 0 auto; padding: clamp(68px, 12vh, 132px) 0 64px; }
-.dashboard-eyebrow { margin: 0 0 24px; color: var(--gold); font-size: 12px; letter-spacing: .12em; }
-.dashboard-content h1 { margin: 0; font-weight: 400; font-size: clamp(32px, 4.4vw, 64px); line-height: 1.35; letter-spacing: -.03em; }
-.dashboard-intro { margin: 28px 0 0; color: var(--muted); font-size: 15px; line-height: 1.8; }
-.dashboard-modules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 36px; margin-top: clamp(64px, 12vh, 120px); }
-.dashboard-modules article { padding-top: 24px; border-top: 1px solid rgba(190, 164, 120, .35); }
-.dashboard-modules h2 { margin: 0 0 12px; font-size: 19px; font-weight: 500; }
-.dashboard-modules p { margin: 0 0 32px; color: var(--muted); font-size: 13px; line-height: 1.8; }
-.dashboard-modules span { color: var(--gold); font-size: 11px; }
 @media (max-width: 700px) {
-  .dashboard-header { align-items: flex-start; flex-direction: column; gap: 8px; padding: 24px 0 16px; }
-  .dashboard-account { width: 100%; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
-  .dashboard-modules { grid-template-columns: 1fr; gap: 32px; }
-  .dashboard-modules p { margin-bottom: 16px; }
+  .dashboard-page { padding: 0 20px; }
+  .dashboard-header { gap: 16px; min-height: 72px; }
+  .dashboard-logo { font-size: 23px; }
+  .dashboard-account { min-width: 0; gap: 12px; font-size: 12px; }
+  .dashboard-account > span { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dashboard-account button { flex-shrink: 0; }
 }
 
 /* SCROLL 默认隐藏；下方设备条件 + INTRO / 图片就绪条件共同打开。
-   与左侧标题共用 7% 边距，固定在左下角；它是视觉引导，没有点击行为。
+   固定在左下角，7% 左边距；它是视觉引导，没有点击行为。
    visibility 延后 120ms 关闭，给 opacity 留出淡出的时间。 */
 .scroll-hint {
   position: absolute;
@@ -527,14 +542,22 @@ input:focus-visible {
   }
   .home-intro-backdrop {
     --hero-title-size: 14px;
+  }
+  .home-orbit-scene-start {
     inset: auto 20px calc(16px + env(safe-area-inset-bottom));
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: start;
     gap: 12px;
+    opacity: 1;
+    visibility: visible;
+  }
+  .home-page[data-reduced-motion="true"] .home-orbit-scene-end,
+  .home-orbit-scene-end {
+    display: none;
   }
   /* 小屏用横轴连接三个等距节点，仍与标题共用同一排版系统。 */
-  .home-intro-backdrop::before {
+  .home-orbit-scene-start::before {
     content: "";
     position: absolute;
     top: 2px;
@@ -552,11 +575,15 @@ input:focus-visible {
     top: auto;
     left: auto;
     width: auto;
+    max-width: none;
     padding-top: 17px;
-    line-height: 1.25;
+    line-height: 1.3;
     text-align: center;
     white-space: nowrap;
     transform: none;
+  }
+  .home-principle-title {
+    opacity: var(--mobile-title-opacity, 1);
   }
   .home-principle::before {
     content: "";
@@ -575,10 +602,11 @@ input:focus-visible {
     margin-top: 6px;
     font-size: 8.5px;
     letter-spacing: .06em;
+    opacity: var(--mobile-detail-opacity, 1);
   }
   /* 键盘入口获焦后位于三个词组上方，安全区同时作用于入口和背景。 */
   .keyboard-entry:focus-visible {
-    bottom: calc(90px + env(safe-area-inset-bottom));
+    bottom: calc(110px + env(safe-area-inset-bottom));
   }
   .body-frame {
     transform: translate(-50%, -50%) translate(var(--frame-x-mobile), var(--frame-y-mobile)) scale(var(--frame-scale-mobile));

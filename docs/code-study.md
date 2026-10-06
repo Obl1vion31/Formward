@@ -2,7 +2,7 @@
 
 这份指南帮助你看到文件名和一小段代码，就能判断它负责什么、对应页面上的什么，以及想调整它时该去哪里。阅读时以正在运行的页面为参照，按需要查找相关部分。
 
-内容按当前源码整理，核对日期为 2026 年 10 月 4 日。
+内容按当前源码整理，核对日期为 2026 年 10 月 5 日。
 
 - [项目现在有哪些功能](#current-features)
 - [页面上的内容对应哪些代码](#page-map)
@@ -18,13 +18,13 @@
 | 你能看到或使用的内容 | 当前作用 |
 | --- | --- |
 | 首页人物与 SCROLL 提示 | 引导用户向下滚动，人物转身后出现登录表单 |
-| 封面的 Discipline、Drive、Effortless 和微小标签 | 沿轨迹节点表达饮食自律、自驱力与 AI 轻松记录的产品方向；转身时淡出，倒放恢复 |
+| 封面的 Discipline、Drive、Effortless logging 和微小标签 | 表达自律、自驱力与 AI 驱动的零负担记录；桌面沿空间轨道转动，登录后停在终点，手机保留底部排布 |
 | Email、Password 与 ENTER | 输入账号，提交登录，显示认证进度或错误提示 |
 | 人物随鼠标轻微移动 | 桌面首页的视觉反馈；开始填写后人物回到中间并保持固定 |
-| 登录后的 `/dashboard` | 显示当前账号、退出按钮，以及饮食、运动、身体指标的“即将开放”提示 |
+| 登录后的 `/dashboard` | 显示当前账号、退出按钮；有测量数据时显示最新空腹摘要、主趋势、最近记录与历史抽屉，无数据时显示简短空状态 |
 | 数据库与内部账号工具 | 保存账号和登录会话，供管理员创建内部账号 |
 
-饮食、运动、身体指标记录、Excel 导入和 AI API 尚未实现。相关目录中的 README 说明后续职责，不能据此认定功能已经可用。详细进度见 [项目当前状态](status.md)。
+身体测量支持四列 TSV 预览、维护脚本导入、账号隔离查询与回看。维护脚本支持条件修正与软删除／恢复；手动新增、编辑、网页删除／恢复、饮食、运动、通用 Excel 导入和正式 AI API 尚未实现。详细进度见 [项目当前状态](status.md)。
 
 <a id="page-map"></a>
 
@@ -39,7 +39,7 @@
 | 访问路径 | 页面入口 | 显示什么 |
 | --- | --- | --- |
 | `/` | [src/app/page.tsx](../src/app/page.tsx) | 首页人物、提示和登录表单 |
-| `/dashboard` | [src/app/dashboard/page.tsx](../src/app/dashboard/page.tsx) | 验证登录后显示账号与业务模块提示 |
+| `/dashboard` | [src/app/dashboard/page.tsx](../src/app/dashboard/page.tsx) | 验证登录后查询自己的测量并显示身体记录；无记录时显示简短空状态 |
 
 **组件**是用代码组织的一块界面，可以包含文字、图片、输入框和交互。例如 `LoginOverlay` 就是整块登录表单，里面有邮箱框、密码框、ENTER 和错误提示；`HomeHeader` 是 Logo 那一块；`HomeExperience` 则组织整个首页。
 
@@ -121,8 +121,9 @@ flowchart TD
 | 文件与组件 | 负责什么、识别线索 | 修改会影响什么 |
 | --- | --- | --- |
 | [home-header.tsx](../src/app/home-header.tsx) 中的 `HomeHeader` | 显示 `formward` 和圆点；搜索 `formward` | 首页 Logo 的文字与内容；字号和位置另看 CSS |
-| [home-intro-backdrop.tsx](../src/app/home-intro-backdrop.tsx) 中的 `HomeIntroBackdrop` | 显示三组标题、Nutrition / Build yourself / AI logging 标签与轨迹节点 | 英文文案及共享锚点看 `principles`，SVG 形状看 `home-orbit`，字号看 `.home-principle`，淡出进度看 `introReveal` |
-| [hero-font.ts](../src/app/hero-font.ts) | 加载本地 Manrope 和 IBM Plex Mono，提供 Hero 字体变量 | 标题和微标签的字体；字体资源、来源与许可证在 `public/fonts/`，不改变表单默认字体 |
+| [home-intro-backdrop.tsx](../src/app/home-intro-backdrop.tsx) 中的 `HomeIntroBackdrop` | 显示三组标题与 Nutrition / Build yourself / AI-powered 标签，提供静态交叠场景 | 文案看 `principles`，投影与移动看 `home-orbit.ts`，字号及最终淡出看 CSS |
+| [home-orbit.ts](../src/app/home-orbit.ts) | 用人物进度计算倾斜轨道、节点、引线、文字位置和远近明暗 | `ORBIT_TURN_DEGREES` 为 150；`orbitPose` 管空间投影，`createOrbitRenderer` 管 DOM 更新、尺寸测量和清理 |
+| [hero-font.ts](../src/app/hero-font.ts) | 加载本地 IBM Plex Mono，供微标签与 SCROLL 使用 | 主标题继承 Logo 的系统字体；本地字体资源、来源与许可证在 `public/fonts/` |
 | [body-sequence.tsx](../src/app/body-sequence.tsx) 中的 `BodySequence` | 准备静态首尾、视频 Canvas 和独立最终图；搜索 `PRE_LOGIN_FRAMES`、`FINAL_FRAME` | 人物图片的显示结构；素材配置另看 `frame-config.ts` |
 | [login-overlay.tsx](../src/app/login-overlay.tsx) 中的 `LoginOverlay` | 邮箱框、密码框、ENTER、验证进度和错误提示；搜索 `Email`、`Password`、`VERIFYING…` | 表单内容、输入和提交行为；外观另看 CSS |
 
@@ -151,13 +152,13 @@ CSS 文件也包含动画的视觉效果，例如登录成功后人物缩放和�
 | Hero 两级文字颜色 | `--hero-ink`、`--hero-label` | `#c7bcaa` 暖 ivory 标题；`#aa9574` 暖金微标签与滚动提示 |
 | 页面深色底色 | `--graphite` | `#10100f`，供页面背景使用 |
 | 人物背后的暖光 | `.home-stage`、`radial-gradient` | 控制首页光区的位置、范围和强弱 |
-| 封面英文排版与轨迹 | `.home-intro-backdrop`、`.home-principle`、`.home-principle-detail`、`.home-orbit-node` | 控制两级文字、共享节点对齐、细引线和手机底部轴线；锚点数值在 `principles` 中 |
+| 封面英文排版与轨迹 | `.home-orbit-scene`、`.home-principle`、`.home-principle-detail`、`.home-orbit-node` | 控制两级文字、空间场景静态交叠、细引线和手机底部轴线；空间坐标由 `home-orbit.ts` 计算 |
 | Logo 的位置与字号 | `.home-header`、`.home-logo` | 前者控制位置和边距，后者控制字号、粗细等 |
 | 人物整体大小 | `.body-frame img` | 控制图片显示高度，影响全部人物帧 |
 | 登录框位置与宽度 | `.login-overlay` | 控制整块表单放在哪里、有多宽 |
 | 输入框文字与下划线 | `.login-form input`、`--line` | 控制输入文字大小、输入框尺寸和线条外观 |
 | ENTER 字号与短下划线 | `.login-form button`、`.login-form button::after` | 控制提交按钮的文字和装饰线 |
-| SCROLL 的位置与外观 | `.scroll-hint`、`.scroll-hint-track` | 控制左下角提示文字、细轨道及动标；与 Discipline 共用左边距 |
+| SCROLL 的位置与外观 | `.scroll-hint`、`.scroll-hint-track` | 控制左下角提示文字、细轨道及动标，左边距为 7% |
 
 这里 `.home-logo`、`.login-overlay` 等是样式规则的名称。在界面代码中看到 `className="login-overlay"`，就可以去 CSS 搜索 `.login-overlay`，找到这块登录表单的外观设置。
 
@@ -181,7 +182,7 @@ CSS 中以 `@media` 开头的部分为不同屏幕或系统偏好提供调整。
 
 | 文件 | 负责什么 | 代码识别线索 | 修改影响 |
 | --- | --- | --- | --- |
-| [home-timeline.ts](../src/app/home-timeline.ts) | 转身播放时间、视频与静态端点混合、背景退出及表单出现进度 | `PRE_LOGIN_DURATION_MS` 当前为 500 毫秒；`introReveal` 控制前 200 毫秒背景淡出；`loginReveal` 控制末段表单出现 | 正放、倒放的节奏及背景、表单显现时机 |
+| [home-timeline.ts](../src/app/home-timeline.ts) | 转身播放时间、视频与静态端点混合及表单出现进度 | `PRE_LOGIN_DURATION_MS` 当前为 500 毫秒；`loginReveal` 控制末段表单出现，轨道直接读取同一游标 | 正放、倒放的节奏、文字同步与表单显现时机 |
 | [use-direction-trigger.ts](../src/app/use-direction-trigger.ts) | 判断滚轮、触摸和键盘是在要求正放还是倒放 | `WHEEL_THRESHOLD_PX`、`TOUCH_THRESHOLD_PX` | 操作多大幅度才触发播放 |
 | [figure-motion.ts](../src/app/figure-motion.ts) | 人物随鼠标轻微移动、倾转和停止后的回中 | `createFigureMotion`、`RETURN_DURATION_MS` | 鼠标反馈幅度和回稳速度 |
 | `home-experience.tsx` | 按当前阶段启动、暂停上述行为 | `updateMotion`、`requestDirection`、`enter` | 播放、填写和认证之间如何衔接 |
@@ -271,7 +272,7 @@ PostgreSQL 是保存记录的数据库，Neon 提供托管 PostgreSQL 的服务�
 | 想调整什么 | 先找哪里、搜索什么 | 改后看什么 |
 | --- | --- | --- |
 | 浏览器标签标题 | `layout.tsx` 的 `metadata.title`；主页标题看 `dashboard/page.tsx` | 首页与主页各自的标签文字 |
-| 默认字体 | `globals.css` 的 `body`、`font-family` | Logo、表单和主页文字是否合适 |
+| 默认字体 | `globals.css` 的 `body`、`font-family` | Logo、Hero 主标题、表单和主页文字是否合适 |
 | Logo 字号 | `globals.css` 的 `.home-logo` | 桌面与手机大小；主页 Logo 另看 `.dashboard-logo` |
 | 首页 Logo 文字 | `home-header.tsx` 的 `formward` | 首页文字；主页有自己的 Logo 内容 |
 | 金色元素的颜色 | `globals.css` 的 `--gold`、`--hero-label` | 前者影响 Logo 圆点、ENTER 和主页；后者影响 Hero 微标签与 SCROLL |
@@ -279,7 +280,8 @@ PostgreSQL 是保存记录的数据库，Neon 提供托管 PostgreSQL 的服务�
 | Email、Password、ENTER 等文案 | `login-overlay.tsx` 中对应文字 | 默认、验证中、错误三种显示情况 |
 | 人物整体大小 | `globals.css` 的 `.body-frame img`、`.body-frame canvas` | 人物是否被裁切，轨迹文字和 SCROLL 是否与人物重叠 |
 | 只修正某张人物图的位置 | `frame-config.ts` 中对应图片的 `FRAME_CONFIG` | 正放、倒放时头顶和躯干是否跳动 |
-| 转身播放速度 | `home-timeline.ts` 的 `PRE_LOGIN_DURATION_MS` | 正放、倒放、中途反向及表单出现时机 |
+| 转身播放速度 | `home-timeline.ts` 的 `PRE_LOGIN_DURATION_MS` | 正放、倒放、中途反向、轨道同步及表单出现时机 |
+| 文字轨道与旋转角度 | `home-orbit.ts` 的 `ORBIT_TURN_DEGREES` 和投影参数 | 终点方位、远近层次、引线连接以及四种视口中的可读性 |
 | 多大滚动幅度才开始转身 | `use-direction-trigger.ts` 的 `WHEEL_THRESHOLD_PX` | 小幅滚动、明确滚动和反向操作 |
 | 鼠标联动和回中速度 | `figure-motion.ts` 的 `move`、`RETURN_DURATION_MS` | 移动、停止、移出页面和开始输入 |
 | 登录成功后何时跳转 | `home-experience.tsx` 的 `finishTransition` | 动画完成后才进入主页，失败时保留表单 |
@@ -313,3 +315,11 @@ PostgreSQL 是保存记录的数据库，Neon 提供托管 PostgreSQL 的服务�
 | 页面、业务和数据库代码如何分工 | [轻量架构](architecture.md) |
 | 后续健康记录的归属、来源和单位要求 | [数据模型](data-model.md) |
 | 当前实现和待办 | [项目当前状态](status.md) |
+
+## 身体记录的日期与维护
+
+`src/features/measurements/trend.ts` 处理纯日历区间、正常纵轴、自适应刻度与空腹端点连线。`days.ts` 将候选统一用于配对与最近记录，`summary.ts` 从全部记录计算最新空腹状态和稀疏 7 日首末差／均值。`measurements-view.tsx` 负责 7D／30D／90D／全部／自定义、空腹主图、按需日期信息栏和历史抽屉。晨晚默认连线，估计菱形及经过它的虚线与实测区分；未补全缺口用极淡同色点线，没有移动均线或逐日空表。`estimation.ts` 拟合四个独立趋势及 95% 预测区间，`completion.ts` 绑定账号预览并事务写入，`scripts/complete-measurements.mts` 是私有维护入口。摘要只统计实测，来源、录入入口和执行审计分别保留。
+
+`records.ts` 在统一校验中将晚间标为非空腹，白天空腹仍须确认。`maintenance.ts` 与 `scripts/maintain-measurements.mts` 提供绑定账号快照的历史修正、保留较早候选与软删除／恢复，事件保存前后快照及操作者。维护主动运行，不在读取或导入时暗改历史。
+
+`pnpm test:measurements-browser` 复用隔离数据库的 HTTP 测试服务，验证指标和区间切换、正常纵轴、稀疏摘要、候选一致性、页面长度及手机触控和抽屉焦点；环境与截图复现见 `tests/README.md`。

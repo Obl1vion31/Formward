@@ -2,13 +2,17 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/features/auth/server";
+import { getDatabase } from "@/db/client";
+import { listMeasurements } from "@/features/measurements/records";
+import { MeasurementsView } from "@/features/measurements/measurements-view";
 import { LogoutButton } from "./logout-button";
 
-export const metadata: Metadata = { title: "Formward · 主页" };
+export const metadata: Metadata = { title: "Formward · 身体记录" };
 
 export default async function DashboardPage() {
   const user = await currentUser(await headers());
   if (!user) redirect("/");
+  const records = await listMeasurements(getDatabase(), user.id);
 
   return (
     <main className="dashboard-page">
@@ -16,16 +20,14 @@ export default async function DashboardPage() {
         <a className="dashboard-logo" href="/dashboard" aria-label="Formward 主页">formward<span>.</span></a>
         <div className="dashboard-account"><span>{user.email}</span><LogoutButton /></div>
       </header>
-      <section className="dashboard-content" aria-labelledby="dashboard-title">
-        <p className="dashboard-eyebrow">你的 Formward</p>
-        <h1 id="dashboard-title">每一次记录，<br />都让方向更清晰。</h1>
-        <p className="dashboard-intro">在这里记录饮食、运动与身体变化，回看自己的进展。</p>
-        <div className="dashboard-modules">
-          <article><h2>饮食</h2><p>记录每日摄入与餐次。</p><span>即将开放</span></article>
-          <article><h2>运动</h2><p>留下每次训练与活动。</p><span>即将开放</span></article>
-          <article><h2>身体指标</h2><p>追踪测量与阶段变化。</p><span>即将开放</span></article>
-        </div>
-      </section>
+      <MeasurementsView records={records.map((row) => ({
+        id: row.id, analysisDate: row.analysisDate, localDate: row.localDate, period: row.period,
+        weightKg: row.weightKg, bodyFatPercent: row.bodyFatPercent, bmi: row.bmi,
+        fasting: row.fasting, sourceLocalTime: row.sourceLocalTime, timezone: row.timezone,
+        sourceType: row.sourceType, sourceSystem: row.sourceSystem, sourceRecordId: row.sourceRecordId,
+        recordKind: row.recordKind, entryChannel: row.entryChannel, deviceName: row.deviceName,
+        companionApp: row.companionApp, estimation: row.estimation, timePrecision: row.timePrecision,
+      }))} />
     </main>
   );
 }

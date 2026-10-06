@@ -6,13 +6,15 @@
 
 ## 当前验证入口
 
-- `pnpm test` 使用 Node.js 24 内置测试运行器，执行 41 项测试：32 项动画、9 项认证。时间线覆盖 500ms 正倒放、中途反向、方向阈值、惯性、两端各 40ms 的视频 / 静态混合、60 帧索引、异步寻帧合并及清理、reduced motion；475 / 500 / 525ms 以模拟 60Hz、120Hz 时钟验证线性游标。
+- `pnpm test` 使用 Node.js 24 内置测试运行器，执行动画与轨道、认证、身体测量测试。测量另覆盖线性模型解析基准、预测区间向外舍入、样本不足、估计不参与训练、真实替代估计、来源与写入入口独立、占位时间不生成 UTC、补全预览／幂等及整批回滚；也覆盖当地 06:00／18:00 边界、跨月跨年、时区与夏令时、白天空腹确认、晚间非空腹规则、缺项、多次测量、维护预览绑定、幂等修正／软删除／恢复、事务回滚、重复与并发重试、重新排序导入及跨账号访问。时间线覆盖 500ms 正倒放、中途反向、方向阈值、惯性、两端各 40ms 的视频 / 静态混合、60 帧索引、异步寻帧合并及清理、reduced motion；475 / 500 / 525ms 以模拟 60Hz、120Hz 时钟验证线性游标。
 - `figure-motion.test.mjs` 验证原有鼠标位移、倾转、跟随、回中、暂停恢复和焦点锁定。模拟时钟不代表实机高刷新率验收。
 - `home-experience.browser.mjs` 对 production 首页检查提示、视差、焦点锁定、键盘、手机触控、能力降级、四种视口的静态端点校准与裁切、视频透明合成、实际解码的正倒放帧及中途反向、首尾和最终交叠、reduced motion、三张静态图及视频的冷启动与加载失败。输入为虚构账号，默认访问 `http://127.0.0.1:3000`，可用 `FORMWARD_BASE_URL` 指定。
+- `pnpm test:measurements-browser` 在同一隔离 production 服务上运行 `measurements.browser.mjs`，验证体重／体脂正常纵轴、稀疏 7 日摘要与覆盖天数、7D／30D／90D／全部／自定义／单日、晨晚折线、估计菱形／虚线与 95% 预测区间、仅实测摘要、来源及占位时间、极淡同色缺测桥、最近 10 个记录日、候选图表／表格／详情一致性和空状态；检查历史抽屉焦点、Escape／遮罩关闭、滚动恢复和触控，默认桌面与 390px 手机主要内容不超过约 1.5 屏。覆盖 1440×1000、390×844、320×740、844×390 视口及 reduced motion；收集客户端异常，检查页面无横向溢出，保存虚构数据截图。
+- `pnpm test:measurements-http` 在 production build 后使用独立内存数据库、虚构测量与内部账号验证实际 `/dashboard`：未登录重定向、已登录的摘要／空腹主趋势／最近记录及归属和来源展示数据、跨午夜归属、多次候选、跨账号参数无效及无记录空状态。此入口不需要浏览器，不读取真实 `.env.local` 数据库；不将 HTTP 渲染验收当作浏览器交互或视觉验收。
 
 校准读取 `docs/frame-calibration.md` 的 JSON 标记，检查实际 CSS 变换后的原始首尾。视频验收直接记录已绘制的帧号，确认正倒放沿正确方向显示多个实际帧；不只检查 DOM 进度，也不将浏览器丢帧误称为完整 60fps。透明合成读取 Canvas Alpha，要求四角全透明且人物仍可见。首尾停留检查原图、原有鼠标幅度与焦点锁定，第 12 → 13 张继续独立验收。
 
-四种视口在本地字体就绪后检查 Discipline、Drive、Effortless 与 Nutrition、Build yourself、AI logging 的两级英文排版，确认位于人物下层、不裁切或被人物遮挡、避开左下角 SCROLL TO ENTER。桌面检查引线端点与节点连接、标题沿节点对齐；手机隐藏大弧线，用细轴连接三个节点，键盘入口获焦时位于文字上方。真实转身采样确认背景实际淡出、前 200ms 后隐藏并移出辅助技术、倒放恢复；reduced motion 随全程 180ms 淡出。冷启动与加载失败时背景隐藏。轨迹使用静态 SVG 和 CSS，字体由本站提供，不增加外部字体请求。
+四种视口在字体就绪后检查 Discipline / Nutrition、Drive / Build yourself、Effortless logging / AI-powered 的排版及登录终点，确认主标题与 Logo 同系统字体、文字朝向读者、节点与引线连接、不裁切，停留画面避开人物、SCROLL 和表单。真实转身采样检查轨道角度始终等于人物进度乘 150°，连续经过多个节点位置；登录与认证停留终点，成功后随最终人物动画淡出。手机维持底部三列，键盘入口位于词组上方；reduced motion 交叠两套静态构图，不进行空间旋转，辅助技术只读取一份文案。另检查登录终点跨视口重排和动态 reduced motion，加载及失败时隐藏背景。轨迹使用 SVG、CSS 与现有 rAF，不增加外部字体请求或动画依赖。
 
 截图像素检查在桌面、手机、reduced motion、最大视差及视频尾端覆盖视频 / 静态与 12 → 13 的 39 组交叠。两端完整截图按 25%、50%、75% 加权，比较实际人物区域，平均 RGB 误差上限为 2/255；临时恢复 `normal` 作为变暗反例。视频尾端单独检查，避免将首帧解码画面误作最后一帧。截图使用浏览器 Canvas 解码，无新增项目依赖。
 
@@ -27,6 +29,21 @@ FORMWARD_VISUAL_CHECK=1 PLAYWRIGHT_MODULE=/tmp/formward-browser-check/node_modul
 
 运行环境需提供 Chromium 所需的系统库。`FORMWARD_BROWSER_ARTIFACTS` 可指定已存在的截图目录，包含桌面、手机的登录态及人物合成对照截图；截图包含虚构测试输入，不放入 `public/`。视觉布局另需人工复核桌面、手机、窄屏和横屏的肩背展示、人物裁切、表单边缘与文字可读性。
 
+
+身体记录浏览器检查复用上述临时 Playwright。先构建，然后运行：
+
+```bash
+PLAYWRIGHT_MODULE=/tmp/formward-browser-check/node_modules/playwright/index.mjs PLAYWRIGHT_BROWSERS_PATH=/tmp/formward-browser-check/browsers pnpm test:measurements-browser
+```
+
+开发模式额外检查 Strict Mode 的 effect 重放，包括“查看全部”首次打开及连续重开后保持可见、日期详情与抽屉关闭。该入口在临时源码副本、独立端口与虚构数据库运行，不读取真实 `.env.local`，不占用或重启已有 3000 服务；退出时清理测试服务与临时副本，无须先构建：
+
+```bash
+FORMWARD_MEASUREMENTS_DEV=1 PLAYWRIGHT_MODULE=/tmp/formward-browser-check/node_modules/playwright/index.mjs PLAYWRIGHT_BROWSERS_PATH=/tmp/formward-browser-check/browsers pnpm test:measurements-browser
+```
+
+默认截图在 `/tmp/formward-measurements-visual/`，可用 `FORMWARD_MEASUREMENTS_ARTIFACTS` 指定私有目录。本轮系统缺少 libnspr4、libnss3 和中文字体，临时下载 Ubuntu 的 `libnspr4`、`libnss3`、`fonts-noto-cjk` 包并解压到 `/tmp/formward-browser-check/system/root`；运行时另设 `LD_LIBRARY_PATH=/tmp/formward-browser-check/system/root/usr/lib/x86_64-linux-gnu`、`FONTCONFIG_FILE=/tmp/formward-browser-check/system/fonts.conf`。字体配置引用系统字体及解压后的 Noto CJK，并将缓存置于临时目录。这些工具不属于应用运行依赖。
+
 ## 认证与浏览器隔离
 
 `src/features/auth/auth.test.ts` 使用独立的内存 PostgreSQL，执行同一 Drizzle migration，覆盖正确登录、错误密码、未知账号、无效输入、关闭注册、重复及并发创建、跨账号身份、过期与撤销、重复退出、CSRF 来源、HTTPS cookie 和限流。
@@ -40,7 +57,7 @@ FORMWARD_VISUAL_CHECK=1 PLAYWRIGHT_MODULE=/tmp/formward-browser-check/node_modul
 - 账号之间不能访问彼此数据。
 - AI Token 可以撤销，重复请求不会创建重复记录。
 - 汇总只统计有效饮食和已完成运动。
-- 缺失数据保持为空。
+- 实测缺项为空；显式授权估计独立标记、不参与实测摘要，补录实测优先。
 - Excel 导入拦截异常体脂、计划运动和重复来源行。
 - 导入事务失败时不留下部分数据。
 
