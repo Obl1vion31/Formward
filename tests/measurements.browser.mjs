@@ -37,6 +37,52 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     const ticks = await chartFor(page).locator("text").evaluateAll((nodes) => nodes.filter((node) => node.getAttribute("text-anchor") === "end").map((node) => Number(node.textContent)));
     assert.ok(ticks[0] - ticks.at(-1) >= 3, "避免夸大微小波动");
   }
+  async function assertStableEveningToggle(page, checked, touch = false) {
+    const probe = await chartFor(page).locator('svg[role="group"]').evaluateHandle(async (plot) => {
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const panel = plot.closest("section");
+      const snapshots = [];
+      const capture = () => {
+        const current = panel.querySelector('svg[role="group"]');
+        snapshots.push({
+          samePlot: current === plot,
+          width: current.viewBox.baseVal.width,
+          left: current.getBoundingClientRect().left,
+          points: [...current.querySelectorAll('[data-period="daytime"][data-point-id]')].map((node) => [node.dataset.pointId, Number(node.querySelector("circle").getAttribute("cx"))]),
+        });
+      };
+      capture();
+      const observer = new MutationObserver(capture);
+      observer.observe(panel, { childList: true, subtree: true, attributes: true, attributeFilter: ["viewBox", "cx"] });
+      return { snapshots, capture, observer };
+    });
+    try {
+      const toggle = page.getByLabel("晚间数据", { exact: true });
+      if (touch) await toggle.tap();
+      else await toggle.setChecked(checked);
+      assert.equal(await toggle.isChecked(), checked);
+      const snapshots = await probe.evaluate(async ({ snapshots, capture, observer }) => {
+        for (let frame = 0; frame < 4; frame++) {
+          await new Promise(requestAnimationFrame);
+          capture();
+        }
+        observer.disconnect();
+        return snapshots;
+      });
+      const baseline = snapshots[0];
+      const sizes = snapshots.map(({ samePlot, width, left }) => ({ samePlot, width, left }));
+      assert.ok(snapshots.every((sample) => sample.samePlot), `晚间切换保留图表实例，避免默认宽度闪帧：${JSON.stringify(sizes)}`);
+      for (const sample of snapshots) {
+        assert.equal(sample.width, baseline.width, "切换过程 SVG 坐标宽度保持稳定");
+        assert.equal(sample.left, baseline.left, "切换过程图表不横移");
+        assert.deepEqual(sample.points, baseline.points, "切换过程晨间点横坐标保持稳定");
+      }
+      assert.equal(await chartFor(page).locator('[data-point-id][data-period="evening"]').count() > 0, checked);
+    } finally {
+      await probe.evaluate(({ observer }) => observer.disconnect());
+      await probe.dispose();
+    }
+  }
   try {
     const { context, page } = await loggedInPage({ width: 1440, height: 1000 });
     const chart = chartFor(page), recent = recentFor(page), detail = detailFor(page), summary = summaryFor(page);
@@ -56,6 +102,22 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.equal(await detail.count(), 0);
     assert.equal(await page.locator('input[type="date"]').count(), 0);
     assert.equal(await page.getByLabel("晚间数据", { exact: true }).isChecked(), true);
+    for (const checked of [false, true, false, true]) await assertStableEveningToggle(page, checked);
+    const measuredPlot = await chart.locator('svg[role="group"]').elementHandle();
+    const fullWidth = await measuredPlot.evaluate((plot) => plot.viewBox.baseVal.width);
+    for (const width of [1100, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.waitForFunction(() => {
+        const plot = document.querySelector('section[aria-label="身体指标趋势"] svg[role="group"]');
+        return Math.abs(plot.viewBox.baseVal.width - Math.max(240, plot.parentElement.getBoundingClientRect().width)) < .1;
+      });
+      assert.equal(await measuredPlot.evaluate((plot) => plot.isConnected), true, "窗口缩放保留图表实例");
+      const resizedWidth = await measuredPlot.evaluate((plot) => plot.viewBox.baseVal.width);
+      if (width === 1100) assert.ok(resizedWidth < fullWidth, "容器变窄时更新测量宽度");
+      else assert.equal(resizedWidth, fullWidth, "恢复窗口后恢复正确宽度");
+    }
+    await measuredPlot.dispose();
+    console.log("通过：晚间连续切换保留图表实例、宽度及晨间横坐标，窗口缩放正常更新宽度。");
     assert.equal(await page.getByLabel("估计补全", { exact: true }).isChecked(), true);
     assert.ok(await chart.locator('[data-point-id][data-period="evening"]').count() > 0);
     const body = await page.textContent("body");
@@ -210,6 +272,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     for (const [width, height] of [[390, 844], [320, 740], [844, 390]]) {
       const mobile = await loggedInPage({ width, height }, first, { isMobile: true, hasTouch: true, reducedMotion: "reduce" });
       await chartFor(mobile.page).locator('[data-point-id]').first().waitFor();
+      for (const checked of [false, true, false, true]) await assertStableEveningToggle(mobile.page, checked, true);
       assert.equal(await mobile.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${width}px 页面不横向溢出`);
       assert.equal(await recentFor(mobile.page).locator("tbody tr").count(), 10);
       await mobile.page.screenshot({ path: `${artifacts}/mobile-${width}-30-days.png`, fullPage: true });

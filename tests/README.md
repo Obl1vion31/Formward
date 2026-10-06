@@ -44,6 +44,8 @@ FORMWARD_MEASUREMENTS_DEV=1 PLAYWRIGHT_MODULE=/tmp/formward-browser-check/node_m
 
 默认截图在 `/tmp/formward-measurements-visual/`，可用 `FORMWARD_MEASUREMENTS_ARTIFACTS` 指定私有目录。本轮系统缺少 libnspr4、libnss3 和中文字体，临时下载 Ubuntu 的 `libnspr4`、`libnss3`、`fonts-noto-cjk` 包并解压到 `/tmp/formward-browser-check/system/root`；运行时另设 `LD_LIBRARY_PATH=/tmp/formward-browser-check/system/root/usr/lib/x86_64-linux-gnu`、`FONTCONFIG_FILE=/tmp/formward-browser-check/system/fonts.conf`。字体配置引用系统字体及解压后的 Noto CJK，并将缓存置于临时目录。这些工具不属于应用运行依赖。
 
+晚间开关的布局回归在桌面、手机和横屏连续开关，使用 `MutationObserver` 及后续渲染帧检查 SVG 实例、坐标宽度、左边界和晨间点横坐标，覆盖切换中间状态。另检查窗口缩放后宽度随容器更新；不锁定晚间数据改变后可合理变化的纵轴范围。
+
 ## 认证与浏览器隔离
 
 `src/features/auth/auth.test.ts` 使用独立的内存 PostgreSQL，执行同一 Drizzle migration，覆盖正确登录、错误密码、未知账号、无效输入、关闭注册、重复及并发创建、跨账号身份、过期与撤销、重复退出、CSRF 来源、HTTPS cookie 和限流。

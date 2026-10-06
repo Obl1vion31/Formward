@@ -123,7 +123,7 @@ export function MeasurementsView({ records }: { records: MeasurementDisplay[] })
         <button type="submit">应用</button><button type="button" onClick={() => { setCalendarOpen(false); calendarButton.current?.focus(); }}>取消</button>
         {rangeError && <p role="alert">{rangeError}</p>}
       </form>}
-      <TrendPlot key={`${range.start}:${range.end}:${metric}:${showEvening}`} records={visibleRecords} metric={metric} showEvening={showEvening} interval={range} selectedDate={activeDate} onSelect={setSelectedDate} choices={choices} />
+      <TrendPlot records={visibleRecords} metric={metric} showEvening={showEvening} interval={range} selectedDate={activeDate} onSelect={setSelectedDate} choices={choices} />
     </section>
     {selected && <section className={styles.dayPanel} aria-label="所选日期测量详情">
       <div className={styles.dayHeading}><h2>{displayDate(selected.date)}</h2><span>{weekday(selected.date)}</span></div>
@@ -260,7 +260,7 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, onSel
 }) {
   const viewport = useRef<HTMLDivElement>(null);
   const [viewportWidth, setViewportWidth] = useState(0);
-  const [hint, setHint] = useState("");
+  const [hintRecordId, setHintRecordId] = useState<string | null>(null);
   useEffect(() => {
     const observer = new ResizeObserver(([entry]) => setViewportWidth(entry.contentRect.width));
     observer.observe(viewport.current!);
@@ -274,6 +274,8 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, onSel
   const y = (value: string | null) => 22 + (scale?.position(Number(value)) ?? .5) * 190;
   const ticks = measurementDateTicks(interval, width < 500 ? 4 : width < 900 ? 6 : 8);
   const unit = unitFor(metric);
+  const pointLabel = (row: MeasurementDisplay) => `${row.analysisDate} · ${row.period === "daytime" ? "空腹" : "晚间非空腹"} · ${row[metric]} ${unit} · ${row.recordKind === "estimated" ? `${estimateLabel(row.estimation)} · ${estimateBasisLabel(row, metric)}` : "实测"}`;
+  const hintedRecord = points.find((row) => row.id === hintRecordId);
   const selectKey = (event: React.KeyboardEvent, date: string) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(date); } };
 
   return <>
@@ -287,8 +289,8 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, onSel
         {segments.map(({ a, b, period, estimated, missingDayCount }) => <line key={`${a.id}:${b.id}`} data-segment={estimated ? "estimated" : missingDayCount ? "gap" : "continuous"} data-period={period} x1={x(a.analysisDate)} y1={y(a[metric])} x2={x(b.analysisDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} ${estimated ? styles.estimateLine : missingDayCount ? styles.gapLine : ""}`} />)}
         {[...points].sort((a, b) => Number(a.period === "daytime") - Number(b.period === "daytime")).map((row) => {
           const estimated = row.recordKind === "estimated";
-          const label = `${row.analysisDate} · ${row.period === "daytime" ? "空腹" : "晚间非空腹"} · ${row[metric]} ${unit} · ${estimated ? `${estimateLabel(row.estimation)} · ${estimateBasisLabel(row, metric)}` : "实测"}`;
-          return <g key={row.id} data-point-id={row.id} data-date={row.analysisDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.analysisDate === selectedDate} onMouseEnter={() => setHint(label)} onMouseLeave={() => setHint("")} onFocus={() => setHint(label)} onBlur={() => setHint("")} onClick={() => onSelect(row.analysisDate)} onKeyDown={(event) => selectKey(event, row.analysisDate)}>
+          const label = pointLabel(row);
+          return <g key={row.id} data-point-id={row.id} data-date={row.analysisDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.analysisDate === selectedDate} onMouseEnter={() => setHintRecordId(row.id)} onMouseLeave={() => setHintRecordId(null)} onFocus={() => setHintRecordId(row.id)} onBlur={() => setHintRecordId(null)} onClick={() => onSelect(row.analysisDate)} onKeyDown={(event) => selectKey(event, row.analysisDate)}>
             <title>{`${recordTimeLabel(row)} · ${label}`}</title><circle cx={x(row.analysisDate)} cy={y(row[metric])} r="14" className={styles.hitTarget} />
             {row.analysisDate === selectedDate && <circle cx={x(row.analysisDate)} cy={y(row[metric])} r="8" className={styles.selectedPoint} />}
             {estimated ? <path d={`M ${x(row.analysisDate)} ${y(row[metric]) - 4} l 4 4 l -4 4 l -4 -4 Z`} className={`${styles.estimatePoint} ${row.period === "daytime" ? styles.dayEstimate : styles.nightEstimate}`} /> : <circle cx={x(row.analysisDate)} cy={y(row[metric])} r={row.period === "daytime" ? "4" : "3.2"} className={row.period === "daytime" ? styles.dayPoint : styles.nightPoint} />}
@@ -297,6 +299,6 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, onSel
         {!points.length && <text x={width / 2} y="118" textAnchor="middle" className={styles.emptyChart}>{`此区间暂无${showEvening ? "" : "空腹"}${metricName(metric)}记录`}</text>}
       </svg>
     </div>
-    <div className={styles.plotFooter}><div className={styles.legend}><span><i className={styles.dayDot} />晨间空腹</span>{showEvening && <span><i className={styles.nightDot} />晚间 · 非空腹</span>}{points.some((row) => row.recordKind === "estimated") && <span><i className={styles.estimateDot} />虚线 · 估计</span>}</div><output className={styles.plotHint} aria-live="polite">{hint}</output></div>
+    <div className={styles.plotFooter}><div className={styles.legend}><span><i className={styles.dayDot} />晨间空腹</span>{showEvening && <span><i className={styles.nightDot} />晚间 · 非空腹</span>}{points.some((row) => row.recordKind === "estimated") && <span><i className={styles.estimateDot} />虚线 · 估计</span>}</div><output className={styles.plotHint} aria-live="polite">{hintedRecord ? pointLabel(hintedRecord) : ""}</output></div>
   </>;
 }
