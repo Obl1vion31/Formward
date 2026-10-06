@@ -5,6 +5,8 @@ import { buildMeasurementDays, recentMeasurementDays, type DailyMeasurement } fr
 import { measurementSummary } from "./summary";
 import { calendarOrdinal, measurementDateTicks, measurementRange, measurementTrend, metricDifference, normalScale, type MeasurementInterval, type MeasurementMetric, type MeasurementRange } from "./trend";
 import styles from "./measurements-view.module.css";
+import { estimateLabel, estimateBasisLabel as metadataBasisLabel, estimateCalculation } from "./estimate-explanation";
+import { isInitializationEstimate } from "./estimation";
 import type { EstimationMetadata } from "./estimation";
 
 export type MeasurementDisplay = DailyMeasurement & {
@@ -138,8 +140,8 @@ export function MeasurementsView({ records }: { records: MeasurementDisplay[] })
         <thead><tr><th scope="col">日期</th><th scope="col">晨间</th><th scope="col" title="晚间 · 非空腹">晚间<small> · 非空腹</small></th><th scope="col">差值{metric === "bodyFatPercent" && <small> · 百分点</small>}</th></tr></thead>
         <tbody>{recent.map((day) => <tr key={day.date} data-selected={day.date === activeDate}>
           <th scope="row"><button type="button" aria-label={`查看 ${day.date}`} aria-pressed={day.date === activeDate} onClick={() => setSelectedDate(day.date)}><time dateTime={day.date}>{shortDate(day.date)}</time><small>{weekday(day.date)}</small></button></th>
-          <td className={styles.dayValue}>{day.daytimeRecord?.[metric] ?? (day.daytime.length > 1 ? "待选择" : <Missing />)}{day.daytimeRecord?.recordKind === "estimated" && <small>估计</small>}{day.daytimeRecord && day.daytimeRecord.fasting !== true && <small>{fastingLabel(day.daytimeRecord)}</small>}</td>
-          <td className={styles.nightValue}>{day.eveningRecord?.[metric] ?? (day.evening.length > 1 ? "待选择" : <Missing />)}{day.eveningRecord?.recordKind === "estimated" && <small>估计</small>}</td>
+          <td className={styles.dayValue}>{day.daytimeRecord?.recordKind === "estimated" ? <button className={styles.estimateValue} aria-label={`查看 ${day.date} 晨间估计依据`} onClick={() => setDrawer(day.date)}>{day.daytimeRecord[metric]}<small>{estimateLabel(day.daytimeRecord.estimation)}</small></button> : day.daytimeRecord?.[metric] ?? (day.daytime.length > 1 ? "待选择" : <Missing />)}{day.daytimeRecord && day.daytimeRecord.fasting !== true && <small>{fastingLabel(day.daytimeRecord)}</small>}</td>
+          <td className={styles.nightValue}>{day.eveningRecord?.recordKind === "estimated" ? <button className={styles.estimateValue} aria-label={`查看 ${day.date} 晚间估计依据`} onClick={() => setDrawer(day.date)}>{day.eveningRecord[metric]}<small>{estimateLabel(day.eveningRecord.estimation)}</small></button> : day.eveningRecord?.[metric] ?? (day.evening.length > 1 ? "待选择" : <Missing />)}</td>
           <td>{formatDifference(metricDifference(day.daytimeRecord, day.eveningRecord, metric), metric, false) ?? <Missing />}</td>
         </tr>)}</tbody>
       </table> : <p className={styles.emptyHistory}>此区间暂无记录。</p>}
@@ -150,32 +152,31 @@ export function MeasurementsView({ records }: { records: MeasurementDisplay[] })
 }
 
 function Missing() { return <span aria-label="未记录" className={styles.missing}>—</span>; }
-function estimateBasisLabel(row: MeasurementDisplay, metric: MeasurementMetric) {
-  const metadata = row.estimation;
-  if (!metadata) return "历史估计";
-  if (metadata.method === "linear-trend-v1") return "历史趋势估计（旧版本）";
-  const prediction = metadata[metric];
-  if (!prediction) return "未估计";
-  return { "same-day-morning": "同日晨间实测 + 历史典型晨晚差", "same-day-evening": "同日晚间实测 − 历史典型晨晚差",
-    "morning-trend": "此前真实晨间空腹趋势", "morning-trend-plus-difference": "晨间空腹趋势 + 历史典型晨晚差" }[prediction.basis];
-}
-function estimationSamples(row: MeasurementDisplay, metric: MeasurementMetric) {
-  const metadata = row.estimation;
-  if (!metadata || !metadata[metric]) return "未估计";
-  if (metadata.method === "linear-trend-v1") return `${metadata[metric]!.model.sampleCount} 条真实记录`;
-  const prediction = metadata[metric]!;
-  return `${prediction.anchor ? "同日实测 1 条 · " : ""}晨间趋势 ${prediction.trend?.sampleCount ?? 0} 日 · 真实配对 ${prediction.typicalDifference?.samples.length ?? 0} 日`;
-}
+function estimateBasisLabel(row: MeasurementDisplay, metric: MeasurementMetric) { return metadataBasisLabel(row.estimation, metric); }
 function EstimationDetails({ row }: { row: MeasurementDisplay }) {
   const metadata = row.estimation;
   if (!metadata) return null;
-  const range = metadata.method === "morning-baseline-v2" ? metadata.historyRange : metadata.trainingRange;
-  return <><div><dt>估计方法</dt><dd>{metadata.method === "morning-baseline-v2" ? "晨间基准 + 个人典型晨晚差" : "历史趋势估计（旧版本）"}</dd></div>
-    <div><dt>历史参考</dt><dd>{displayDate(range.start)} — {displayDate(range.end)}</dd></div>
-    {(["weightKg", "bodyFatPercent"] as const).filter((metric) => metadata[metric] !== null).map((metric) => <div key={metric}><dt>{metricName(metric)}依据</dt><dd>{estimateBasisLabel(row, metric)}<br /><span>实测样本：{estimationSamples(row, metric)}</span></dd></div>)}</>;
+  const legacy = metadata.method === "linear-trend-v1";
+  const range = legacy ? metadata.trainingRange : metadata.historyRange;
+  const initialized = isInitializationEstimate(metadata);
+  return <><div><dt>估计方法</dt><dd>{initialized ? "历史初始化估计" : legacy ? "历史趋势估计（旧版本）" : "正常估计 · 晨间基准"}</dd></div>
+    <div><dt>规则版本</dt><dd>{metadata.method}</dd></div>
+    <div><dt>历史参考</dt><dd>{displayDate(range.start)} — {displayDate(range.end)}{!initialized && !legacy && <><br />此前 28 天；晨间趋势至少 3 日、最多 7 日，最新实测距目标不超过 7 天</>}</dd></div>
+    {"generatedAt" in metadata && <div><dt>生成时间</dt><dd>{metadata.generatedAt.replace("T", " ").slice(0, 19)} UTC</dd></div>}
+    {initialized && <><div><dt>初始化批次</dt><dd>{metadata.batchId}</dd></div><div className={styles.calculation}><dt>历史初始化说明</dt><dd>本次初始化允许使用后续已经存在的真实历史记录。历史结果已冻结，补录只替换对应实测指标。</dd></div></>}
+    {(["weightKg", "bodyFatPercent"] as const).filter(metric => metadata[metric] !== null).map(metric => {
+      if (metadata.method === "linear-trend-v1") return <div key={metric}><dt>{metricName(metric)}依据</dt><dd>{metadata[metric]!.model.sampleCount} 条历史真实记录</dd></div>;
+      const prediction = metadata[metric]!, calculation = estimateCalculation(prediction, row.analysisDate, metric);
+      return <div className={styles.calculation} key={metric}><dt>{metricName(metric)}依据</dt><dd>{estimateBasisLabel(row, metric)}
+        <p className={styles.formula}>{calculation.formula}</p>
+        {calculation.notes.map(note => <p className={styles.estimateNote} key={note}>{note}</p>)}
+        {initialized && <p className={styles.estimateNote}>此指标实际使用目标日期之后的数据：{prediction.usesFutureData ? "是" : "否"}</p>}
+        <details className={styles.references}><summary>查看真实参考记录（{calculation.references.length} 条）</summary><ul>{calculation.references.map((reference, index) => <li key={index}>{reference}</li>)}</ul></details>
+      </dd></div>;
+    })}</>;
 }
 function sourceLabel(row: MeasurementDisplay) {
-  if (row.recordKind === "estimated") return "系统趋势估计";
+  if (row.recordKind === "estimated") return isInitializationEstimate(row.estimation) ? "历史初始化估计" : "系统趋势估计";
   return row.entryChannel === "development_backend" ? "开发后台加入" : row.entryChannel === "manual" ? "人为录入" : row.entryChannel === "api" ? "API 写入" : row.sourceSystem ?? (row.sourceType === "import" ? "导入 · 来源系统未提供" : row.sourceType === "manual" ? "手动记录" : row.sourceType);
 }
 function recordTimeLabel(row: MeasurementDisplay) { return `${row.sourceLocalTime}${row.timePrecision === "assumed" ? " · 时间为占位" : row.timePrecision === "day_period" ? " · 仅日期与时段" : ""}`; }
@@ -187,7 +188,7 @@ function CalendarIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><rect x="3.5" y="5" width="17" height="16" rx="2" /><path d="M7 2v6M17 2v6M4 11h16" /></svg>;
 }
 function CompactReading({ label, row, metric, evening = false }: { label: string; row: MeasurementDisplay | null; metric: MeasurementMetric; evening?: boolean }) {
-  return <div className={evening ? `${styles.reading} ${styles.evening}` : styles.reading}><span>{label}{row?.recordKind === "estimated" && " · 估计"}</span><strong>{row?.[metric] ?? "—"}<small>{unitFor(metric)}</small></strong></div>;
+  return <div className={evening ? `${styles.reading} ${styles.evening}` : styles.reading}><span>{label}{row?.recordKind === "estimated" && ` · ${estimateLabel(row.estimation)}`}</span><strong>{row?.[metric] ?? "—"}<small>{unitFor(metric)}</small></strong></div>;
 }
 
 function HistoryDrawer({ view, days, metric, choices, onChoose, onClose }: {
@@ -226,7 +227,7 @@ function HistoryDrawer({ view, days, metric, choices, onChoose, onClose }: {
     <header className={styles.drawerHeader}><div><h2 id="measurement-drawer-title">{selected ? displayDate(selected.date) : "完整历史"}</h2><p>{selected ? weekday(selected.date) : `${days.length} 个记录日 · ${days.flatMap((day) => day.records).filter((row) => row.recordKind !== "estimated").length} 条实测 · ${days.flatMap((day) => day.records).filter((row) => row.recordKind === "estimated").length} 条估计`}</p></div><button type="button" autoFocus aria-label="关闭历史抽屉" onClick={() => dialog.current?.close()}>×</button></header>
     <div className={styles.drawerContent}>
       {selected ? <DayDetails day={selected} metric={metric} choices={choices} onChoose={onChoose} /> : days.map((day) => <details className={styles.historyDay} key={day.date}>
-        <summary><time dateTime={day.date}>{displayDate(day.date)}</time><span><span className={styles.dayValue}>{day.daytimeRecord?.[metric] ?? "—"}{day.daytimeRecord?.recordKind === "estimated" && <small> 估计</small>}</span><span className={styles.nightValue}>{day.eveningRecord?.[metric] ?? "—"}{day.eveningRecord?.recordKind === "estimated" && <small> 估计</small>}</span>{day.needsSelection && <small>待选择</small>}</span></summary>
+        <summary><time dateTime={day.date}>{displayDate(day.date)}</time><span><span className={styles.dayValue}>{day.daytimeRecord?.[metric] ?? "—"}{day.daytimeRecord?.recordKind === "estimated" && <small> {estimateLabel(day.daytimeRecord.estimation)}</small>}</span><span className={styles.nightValue}>{day.eveningRecord?.[metric] ?? "—"}{day.eveningRecord?.recordKind === "estimated" && <small> {estimateLabel(day.eveningRecord.estimation)}</small>}</span>{day.needsSelection && <small>待选择</small>}</span></summary>
         <DayDetails day={day} metric={metric} choices={choices} onChoose={onChoose} />
       </details>)}
     </div>
@@ -246,7 +247,7 @@ function DayDetails({ day, metric, choices, onChoose }: {
     </label>)}
     <h3>记录详情</h3>
     {[...day.records].sort((a, b) => b.sourceLocalTime.localeCompare(a.sourceLocalTime)).map((row) => <article className={styles.rawRecord} key={row.id}>
-      <header><time dateTime={row.timePrecision === "second" ? row.sourceLocalTime.replace(" ", "T") : row.localDate}>{recordTimeLabel(row)}</time><span>{row.period === "daytime" ? "白天" : "晚间"} · {fastingLabel(row)} · {row.recordKind === "estimated" ? "估计值" : "真实测量"}</span></header>
+      <header><time dateTime={row.timePrecision === "second" ? row.sourceLocalTime.replace(" ", "T") : row.localDate}>{recordTimeLabel(row)}</time><span>{row.period === "daytime" ? "白天" : "晚间"} · {fastingLabel(row)} · {row.recordKind === "estimated" ? estimateLabel(row.estimation) : "真实测量"}</span></header>
       <dl><div><dt>体重</dt><dd>{row.weightKg === null ? "—" : `${row.weightKg} kg`}</dd></div><div><dt>体脂率</dt><dd>{row.bodyFatPercent === null ? "—" : `${row.bodyFatPercent} %`}</dd></div><div><dt>BMI</dt><dd>{row.bmi ?? "—"}</dd></div><div><dt>归属日</dt><dd>{displayDate(row.analysisDate)}</dd></div><div><dt>时区</dt><dd>{row.timezone ?? "未提供"}</dd></div><div><dt>来源</dt><dd>{sourceLabel(row)}</dd></div>{row.deviceName && <div><dt>设备</dt><dd>{row.deviceName}</dd></div>}{row.companionApp && <div><dt>连接应用</dt><dd>{row.companionApp}</dd></div>}{row.sourceSystem && <div><dt>来源系统</dt><dd>{row.sourceSystem}</dd></div>}{row.sourceRecordId && <div><dt>来源记录</dt><dd>{row.sourceRecordId}</dd></div>}<EstimationDetails row={row} /></dl>
       {row.estimation && <p className={styles.estimateNote}>用于辅助趋势，非实际测量。</p>}
     </article>)}
@@ -286,7 +287,7 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, onSel
         {segments.map(({ a, b, period, estimated, missingDayCount }) => <line key={`${a.id}:${b.id}`} data-segment={estimated ? "estimated" : missingDayCount ? "gap" : "continuous"} data-period={period} x1={x(a.analysisDate)} y1={y(a[metric])} x2={x(b.analysisDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} ${estimated ? styles.estimateLine : missingDayCount ? styles.gapLine : ""}`} />)}
         {[...points].sort((a, b) => Number(a.period === "daytime") - Number(b.period === "daytime")).map((row) => {
           const estimated = row.recordKind === "estimated";
-          const label = `${row.analysisDate} · ${row.period === "daytime" ? "空腹" : "晚间非空腹"} · ${row[metric]} ${unit} · ${estimated ? `估计 · ${estimateBasisLabel(row, metric)}` : "实测"}`;
+          const label = `${row.analysisDate} · ${row.period === "daytime" ? "空腹" : "晚间非空腹"} · ${row[metric]} ${unit} · ${estimated ? `${estimateLabel(row.estimation)} · ${estimateBasisLabel(row, metric)}` : "实测"}`;
           return <g key={row.id} data-point-id={row.id} data-date={row.analysisDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.analysisDate === selectedDate} onMouseEnter={() => setHint(label)} onMouseLeave={() => setHint("")} onFocus={() => setHint(label)} onBlur={() => setHint("")} onClick={() => onSelect(row.analysisDate)} onKeyDown={(event) => selectKey(event, row.analysisDate)}>
             <title>{`${recordTimeLabel(row)} · ${label}`}</title><circle cx={x(row.analysisDate)} cy={y(row[metric])} r="14" className={styles.hitTarget} />
             {row.analysisDate === selectedDate && <circle cx={x(row.analysisDate)} cy={y(row[metric])} r="8" className={styles.selectedPoint} />}

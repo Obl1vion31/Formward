@@ -2,7 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { measurement, measurementEvent } from "../../db/schema";
-import { lockMeasurementOwner, supersedeEstimates } from "./records";
+import { lockMeasurementOwner } from "./records";
+import { getInitializationBatch, isFrozenDate } from "./initialization";
 import { refreshMeasurementDates } from "./estimate-records";
 
 type MeasurementRow = typeof measurement.$inferSelect;
@@ -79,9 +80,10 @@ export async function restoreMeasurement(db: Database, input: { userId: string; 
     if (!before) throw new Error("记录不存在或不属于当前账号。");
     if (before.deletedAt === null) return { restored: false };
     if (before.recordKind === "estimated") {
+      if (isFrozenDate(await getInitializationBatch(tx, input.userId), before.analysisDate)) throw new Error("冻结历史不能恢复旧估计。");
       const active = await tx.select().from(measurement).where(and(eq(measurement.userId, input.userId), eq(measurement.analysisDate, before.analysisDate), eq(measurement.period, before.period), isNull(measurement.deletedAt)));
       if (active.length > 1 || active.some((row) => row.recordKind === "estimated" || row.fasting !== (before.period === "daytime") || (before.weightKg !== null && row.weightKg !== null) || (before.bodyFatPercent !== null && row.bodyFatPercent !== null))) throw new Error("该时段已有有效记录，不能恢复估计值覆盖真实指标。");
-    } else await supersedeEstimates(tx, input, before.analysisDate, before.period);
+    }
     const [after] = await tx.update(measurement).set({ deletedAt: null, updatedAt: new Date(), ...(before.period === "evening" ? { fasting: false, fastingSource: "evening_rule" } : {}) })
       .where(and(eq(measurement.userId, input.userId), eq(measurement.id, input.id))).returning();
     await tx.insert(measurementEvent).values({

@@ -71,7 +71,7 @@
 .dayDot { background: var(--body-gold); }
 .nightDot { border: 1px solid var(--body-blue); }
 .legend .estimateDot { border: 1px solid var(--body-muted); border-radius: 0; transform: rotate(45deg); }
-.plotHint { color: var(--body-muted); font-size: 12px; line-height: 1.5; text-align: right; }
+.plotHint { color: var(--body-muted); font-size: 12px; line-height: 1.5; height: 18px; min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
 .dayPanel { display: flex; align-items: center; gap: 32px; padding: 14px 0; border-top: 1px solid var(--body-rule); border-bottom: 1px solid var(--body-rule); }
 .dayHeading h2 { margin: 0 0 4px; font-size: 14px; font-weight: 500; }
 .dayHeading > span { color: var(--body-muted); font-size: 12px; }
@@ -161,8 +161,8 @@
   .chartToolbar { padding-bottom: 6px; }
   .plot { height: 230px; }
   .plotFooter { flex-wrap: wrap; gap: 4px; padding-left: 0; }
-  .plotHint { width: 100%; min-height: 18px; text-align: left; }
-  .plotHint:empty { display: none; }
+  .plotHint { width: 100%; flex-basis: 100%; min-height: 18px; text-align: left; }
+  .plotHint:empty { visibility: hidden; }
   .legend { gap: 14px; }
   .calendar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; }
   .calendar label { min-width: 0; }
@@ -184,3 +184,12 @@
   .historyDay > summary { font-size: 13px; }
   .historyDay > summary > span { gap: 12px; }
 }
+
+.calculation { grid-column: 1 / -1; }
+.formula { margin: 10px 0; color: var(--body-ink); font-variant-numeric: tabular-nums; line-height: 1.6; }
+.references { margin-top: 12px; color: var(--body-muted); font-size: 12px; line-height: 1.6; }
+.references summary { cursor: pointer; min-height: 44px; display: list-item; padding: 12px 0; }
+.references summary:focus-visible { outline: 2px solid var(--body-gold); outline-offset: 3px; }
+.references ul { padding-left: 18px; }
+.workspace .estimateValue { color: inherit; min-height: 34px; width: 100%; padding: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.history .estimateValue small { white-space: normal; font-size: 11px; }

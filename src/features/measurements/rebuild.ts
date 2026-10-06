@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { measurement, measurementImport } from "../../db/schema";
 import { buildHistoricalEstimates, ESTIMATION_METHOD } from "./estimation";
+import { assertUnfrozenRange } from "./initialization";
 import { insertEstimate, supersedeEstimates } from "./estimate-records";
 import { lockMeasurementOwner, type MeasurementActor } from "./records";
 import { calendarOrdinal, type MeasurementInterval } from "./trend";
@@ -28,6 +29,7 @@ function preview(rows: MeasurementRow[], userId: string, request: EstimationRebu
 export async function previewEstimationRebuild(db: Database, userId: string, input: EstimationRebuildRequest) {
   if (!userId?.trim()) throw new Error("缺少经过验证的账号。");
   const request = normalize(input), rows = await db.select().from(measurement).where(eq(measurement.userId, userId));
+  await assertUnfrozenRange(db, userId, request.range);
   const result = preview(rows, userId, request);
   const [batch] = await db.select({ id: measurementImport.id }).from(measurementImport).where(and(eq(measurementImport.userId, userId), eq(measurementImport.fileDigest, result.requestKey)));
   return { ...result, alreadyApplied: !!batch };
@@ -40,6 +42,7 @@ export async function applyEstimationRebuild(db: Database, input: MeasurementAct
     await lockMeasurementOwner(tx, input.userId);
     const [prior] = await tx.select().from(measurementImport).where(and(eq(measurementImport.userId, input.userId), eq(measurementImport.fileDigest, requestKey)));
     if (prior) return { importId: prior.id, removed: 0, inserted: 0, warnings: [], repeated: true };
+    await assertUnfrozenRange(tx, input.userId, request.range);
     const rows = await tx.select().from(measurement).where(eq(measurement.userId, input.userId)).for("update");
     const result = preview(rows, input.userId, request);
     if (result.digest !== input.digest) throw new Error("记录已变化，请重新预览；没有写入。");

@@ -17,39 +17,39 @@
 - 真实性与录入入口分开：recordKind 为 observed／estimated；entryChannel 为 api／manual／development_backend。历史实测标“开发后台加入”，估计标“系统趋势估计”。原始采集方式、导入批次和执行者审计保留；AI 代执行不把用户提供的秤读数变成估计。
 - 实测设备按用户提供信息标“普通蓝牙体重秤”，连接应用为 OKOK；品牌、型号和外部同步系统未知，不编造。估计不标为秤测量。
 - 准确实测时间用 measuredAt 校验并保存；可确认原占位／日期时段时间，原始输入保留并写前后审计。未知时间为 day_period，显式授权占位为 assumed，两者 UTC 为空。最新晨间准确时间已确认，凌晨实测按测量地当地时间归前一日晚间。
-- 体重与体脂都使用 morning-baseline-v2，按自身真实晨间空腹趋势和真实同日晨晚差独立补缺，不加入饮食、热量、水分或运动变量。
-- 每个目标日只取其此前 28 天真实数据，按测量归属日判断先后；差值至少 3 组真实同日配对取中位数，允许负值。晨间线性趋势取最近最多 7 个晨间日，至少 3 日且距最近晨间不超过 7 天。样本不足、条件不明、未解决候选或无效结果留空；估计和未来实测不入模。
+- 体重与体脂独立；正常 morning-baseline-v3 和一次性 historical-initialization-v1 分开，按真实晨间空腹趋势和真实同日晨晚差补缺，不加入饮食、热量、水分或运动变量。
+- 正常模式每个目标日只取其此前 28 天真实数据，按测量归属日判断先后；差值至少 3 组真实同日配对取中位数，允许负值。晨间线性趋势取最近最多 7 个晨间日，至少 3 日且距最近晨间不超过 7 天。样本不足、条件不明、未解决候选或无效结果留空；估计和未来实测不入正常模型。只有晚间但配对不足时，新增符合门槛的晨间趋势备用并注明原因。
 - 同日有晨间实测则加典型差值推晚间；只有晚间实测则减差值反推晨间；双缺测先拟合晨间再推晚间。趋势足够而配对不足时仅补晨间。保留两位小数、明确估计标签与依据，不计算或展示预测区间。
-- 实测与估计按指标优先，可同时展示真实体重与估计体脂。相同真实体重可补录原来为空的体脂／BMI，已知真实值不同仍拒绝覆盖。实测新增、导入、补录、恢复和条件修正只刷新当天；更晚日期的普通新增不改历史估计。估计不参与实测摘要、晨晚差或未来热量关联。
-- 用户已授权重建 2026-09-09 至 10-04 的全部旧估计，已完成：27 条旧估计软删除、12 条新估计有效，其余证据不足留空。普通补全保留已有估计，显式重建绑定账号快照、保留审计且不改真实来源。
+- 实测与估计按指标优先，可同时展示真实体重与估计体脂。相同真实体重可补录原来为空的体脂／BMI，已知真实值不同仍拒绝覆盖。冻结范围外实测新增、导入、补录、恢复和条件修正只刷新当天；初始化冻结范围内仅替代对应时段非空指标，其他指标及另一时段保持；更晚日期的普通新增不改历史估计。估计不参与实测摘要、晨晚差或未来热量关联。
+- 用户确认一次性初始化 2026-09-09 至 10-06：全范围真实配对中位差，相邻晨间线性插值；边界在目标前后 28 天内选最近 3 个晨间回归，最近实测距目标不超过 7 天，允许向前外推。初始化可用已存在的后续实测，估计不回灌。12 条旧估计软删除、27 条初始化估计有效，范围完全冻结，空缺也不再自动补。每账号只能完成一次，重复返回原报告；普通补全跳过冻结范围，重建／恢复旧估计不得覆盖它。
 - 晚间全部非空腹，来源 evening_rule；白天空腹必须明确确认。按当地钟点，00:00–05:59 归前一天晚间、06:00–17:59 当天白天、18:00 起当天晚间。原始当地时间、实际日期、当次时区及分析归属分别保留，旅行不重新分类旧记录。
 - 图、表、详情共用查看候选；持久代表选择待实现。关闭晚间只影响图；关闭估计影响图、最近记录和日期栏，完整历史仍保留全部。未补全缺口为极淡同色点线，未解决候选处断开；晨晚差仅显示真实同日、条件明确的配对，其余留空。
 - 当前重复实测组按用户授权保留较早一条，其余软删除；不在未来导入或页面读取时自动清理。来源修正和历史重建在显式授权维护时执行；页面读取不生成估计。
 
 ## 数据与代码状态
 
-指定账号当前有效 41 条：29 条实测（7 条晨间空腹、22 条晚间）、12 条估计（11 个晨间、1 个晚间），覆盖 23 个有记录归属日。一条重复晚间实测保持软删除。用户最新两条实测已写入：确认原晨间准确时间并新增跨午夜晚间，数值与输入核对一致。重建前后真实记录及范围外记录逐字段一致，当前没有有效旧版估计；原始文件与私有备份保留。
+指定账号当前有效 56 条：29 条实测（7 条晨间空腹、22 条晚间）、27 条历史初始化估计（21 个晨间、6 个晚间），覆盖 28 个归属日。一条重复晚间实测保持软删除。用户最新两条实测已写入：确认原晨间准确时间并新增跨午夜晚间，数值与输入核对一致。初始化前后真实记录及范围外记录逐字段一致，当前有效估计均为 historical-initialization-v1；原始文件与私有备份保留。
 
-measurements、measurement_imports、measurement_events 保存记录、批次和审计。0001_broken_moira_mactaggert.sql 保留原样；0002_complete_lockjaw.sql 已在实际数据库执行，新增真实性、录入入口、设备、连接应用及估计模型，约束有效估计时段唯一和占位时间不生成 UTC。0003_pretty_mister_sinister.sql 已执行，估计体重可空，真实记录仍必有体重，估计至少有一项指标。
+measurements、measurement_imports、measurement_events 保存记录、批次和审计。0001_broken_moira_mactaggert.sql 保留原样；0002_complete_lockjaw.sql 已在实际数据库执行，新增真实性、录入入口、设备、连接应用及估计模型，约束有效估计时段唯一和占位时间不生成 UTC。0003_pretty_mister_sinister.sql 已执行，估计体重可空，真实记录仍必有体重，估计至少有一项指标。0004_dapper_valeria_richards.sql 已执行，初始化元数据与报告保存在批次，部分唯一索引保证每账号仅初始化一次。
 
 - src/features/measurements/records.ts：统一校验、事务导入、日期时段实测写入、账号锁、实测替代估计、账号隔离查询。
-- estimation.ts、completion.ts：晨间基准及个人中位差、账号快照预览、来源修正、空缺补全和请求幂等；estimate-records.ts 负责同日刷新，rebuild.ts 负责显式历史重建。
+- estimation.ts、completion.ts：晨间基准及个人中位差、账号快照预览、来源修正、空缺补全和请求幂等；estimate-records.ts 负责同日刷新与冻结指标替代，rebuild.ts 负责冻结外正常重建；initialization.ts 负责独立初始化、报告与冻结保护，estimate-explanation.ts 提供算式与样本说明。
 - days.ts、trend.ts、summary.ts：实测优先、候选选择、晨晚差、最近日期、日历窗口、正常纵轴、晨晚线与估计线、仅实测摘要。
 - measurements-view.tsx 与 CSS Module：指标／日期、无框摘要、趋势、估计依据、紧凑日期栏、最近记录和历史抽屉。
-- maintenance.ts 与 scripts/maintain-measurements.mts：条件修正、实测候选清理、软删除／恢复；scripts/complete-measurements.mts：私有 JSON 的补全预览／写入；scripts/rebuild-measurement-estimates.mts：只重建指定账号与范围估计。
+- maintenance.ts 与 scripts/maintain-measurements.mts：条件修正、实测候选清理、软删除／恢复；scripts/complete-measurements.mts：私有 JSON 的补全预览／写入；scripts/rebuild-measurement-estimates.mts：只重建冻结外正常估计；scripts/initialize-measurement-history.mts：一次性初始化预览／执行及私有报告。
 - src/features/imports/measurements.ts 与 scripts/import-measurements.mts：四列 TSV 预览、授权导入、重复跳过、冲突整批回滚。
 
 脚本用法及 JSON 字段见 [维护目录](scripts/README.md)，统计口径与产品边界见 [身体指标记录](docs/measurements.md)。
 
 ## 验证与接手
 
-lint、typecheck、101 项单元／集成测试、production build 通过。覆盖正常、无效、重复与并发、跨账号、事务回滚、时区／夏令时、占位时间、来源独立、实测替代估计、四种估计情况、中位差、近期门槛、历史稳定、指标独立、准确时间确认、显式重建、样本不足、摘要和候选一致性。
+lint、typecheck、112 项单元／集成测试、production build 通过。覆盖初始化插值／外推与来源快照、冻结与按指标实测替代、普通估计备用路径、正常、无效、重复与并发、跨账号、事务回滚、时区／夏令时、占位时间、来源独立、实测替代估计、四种估计情况、中位差、近期门槛、历史稳定、指标独立、准确时间确认、显式重建、样本不足、摘要和候选一致性。
 
 开发和生产隔离 HTTP／浏览器验收通过，覆盖 1440×1000、390×844、320×740、844×390、触控与 reduced motion：晨晚实线／估计虚线与菱形、估计依据、指标独立真实性、真实配对差值、来源及时间精度、仅实测摘要、日期切换、非法／单日区间、最近 10 日、候选同步和空状态。无客户端异常或页面横向溢出，390px 手机默认主要内容约 1.5 屏以内。历史抽屉首次打开、连续重开、双向 Tab、Escape／遮罩／按钮关闭、焦点返回与滚动恢复通过；保留 Strict Mode 下忽略过期 close 事件的修复。
 
-浏览器用虚构数据库，开发模式另用临时源码副本与独立端口，不影响用户已有 3000 服务。身体记录截图在 /tmp/formward-measurements-visual/，含 desktop-estimated-trends.png、mobile-390-30-days.png 及各视口抽屉。复现入口见 [测试目录](tests/README.md)。首页完整 production 验收覆盖字体加载与角色分工、单行同级主词、标注连接及左右对齐、四种视口、动态重排、正倒放与中途反向、reduced motion、键盘／触屏、认证失败及成功顺序、冷启动／加载失败和 39 组人物交叠像素检查。登录底线的默认／hover／focus 状态、焦点框、尺寸稳定和倒放后输入保留均通过；当前首页截图在 /tmp/formward-editorial-visual/。
+浏览器用虚构数据库，开发模式另用临时源码副本与独立端口，不影响用户已有 3000 服务。身体记录截图在 /tmp/formward-initialization-visual/ 和 /tmp/formward-initialization-visual-dev/，含初始化插值与外推、算式／参考记录及未来数据说明；含 desktop-estimated-trends.png、mobile-390-30-days.png 及各视口抽屉。复现入口见 [测试目录](tests/README.md)。首页完整 production 验收覆盖字体加载与角色分工、单行同级主词、标注连接及左右对齐、四种视口、动态重排、正倒放与中途反向、reduced motion、键盘／触屏、认证失败及成功顺序、冷启动／加载失败和 39 组人物交叠像素检查。登录底线的默认／hover／focus 状态、焦点框、尺寸稳定和倒放后输入保留均通过；当前首页截图在 /tmp/formward-editorial-visual/。
 
-真实数据仅在被 Git 忽略的 data/imports 与 data/exports 中。当前报告包括 measurements-before-morning-baseline-2026-10-07.json、measurements-latest-request-2026-10-07.json、measurements-morning-baseline-preview-2026-10-07.json 和 measurements-morning-baseline-result-2026-10-07.json；原始文件和此前导入／维护报告保留。不要把实际数值、账号、原始文件、报告或配置提交 GitHub／放入 public，也不要复制为测试样本。
+真实数据仅在被 Git 忽略的 data/imports 与 data/exports 中。当前报告包括 measurements-before-initialization-2026-10-07.json、measurements-history-initialization-2026-10-07.json、同名 .preview.json、.report.json、.report.md 和 .result.json（逐字段核对后的记录快照）；原始文件和此前导入／维护报告保留。不要把实际数值、账号、原始文件、报告或配置提交 GitHub／放入 public，也不要复制为测试样本。
 
 开始前读根 README、AGENTS 和最近 README，检查 git status 并保留无关变更。环境为 Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7；写 Next.js 代码前读 node_modules/next/dist/docs/ 对应指南。配置在 .env.local，不打印密钥。已有 3000 开发服务，不启动第二个同目录实例或擅自关闭；尚无正式部署。typecheck 与 build 顺序运行，避免构建重生成 .next/types 并发冲突。隔离浏览器测试监听本地临时端口。Playwright、Chromium、缺少的系统库和中文字体仅放在 /tmp，测试字体配置保留系统 generic family 别名并加入临时 CJK 字体，不增加项目依赖。
 

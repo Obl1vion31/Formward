@@ -49,8 +49,8 @@ test("预览只读；补全来源与占位时间独立保存，原始实测保�
   assert.equal(reported.originalValues.reportedTime, null); assert.equal(reported.originalValues.assumedTime, "08:00");
   for (const row of rows.filter((row) => row.recordKind === "estimated")) {
     assert.equal(row.timePrecision, "day_period"); assert.equal(row.occurredAt, null); assert.equal(row.bmi, null); assert.equal(row.deviceName, null);
-    assert.equal(row.estimation!.method, "morning-baseline-v2");
-    if (row.estimation!.method !== "morning-baseline-v2") throw new Error("预期新模型");
+    assert.equal(row.estimation!.method, "morning-baseline-v3");
+    if (row.estimation!.method !== "morning-baseline-v3") throw new Error("预期新模型");
     assert.equal(row.estimation!.weightKg!.trend!.sampleCount, 3);
     assert.ok(row.estimation!.weightKg!.trend!.samples.every((sample) => sample.date < row.analysisDate && rows.some((actual) => actual.id === sample.id && actual.recordKind === "observed")));
   }

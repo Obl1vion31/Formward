@@ -62,7 +62,11 @@ export const measurementImport = pgTable("measurement_imports", {
   skippedCount: integer("skipped_count").notNull(),
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [uniqueIndex("measurement_imports_user_digest_idx").on(table.userId, table.fileDigest)]);
+  initializationMetadata: jsonb("initialization_metadata").$type<import("../features/measurements/initialization").InitializationBatchMetadata>(),
+}, (table) => [
+  uniqueIndex("measurement_imports_user_digest_idx").on(table.userId, table.fileDigest),
+  uniqueIndex("measurement_imports_user_initialization_idx").on(table.userId).where(sql`${table.initializationMetadata} IS NOT NULL`),
+]);
 
 export const measurement = pgTable("measurements", {
   id: text("id").primaryKey(),

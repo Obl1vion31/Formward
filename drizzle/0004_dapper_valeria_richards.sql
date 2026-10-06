@@ -1,0 +1,2 @@
+ALTER TABLE "measurement_imports" ADD COLUMN "initialization_metadata" jsonb;--> statement-breakpoint
+CREATE UNIQUE INDEX "measurement_imports_user_initialization_idx" ON "measurement_imports" USING btree ("user_id") WHERE "measurement_imports"."initialization_metadata" IS NOT NULL;

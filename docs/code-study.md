@@ -319,7 +319,7 @@ PostgreSQL 是保存记录的数据库，Neon 提供托管 PostgreSQL 的服务�
 
 ## 身体记录的日期与维护
 
-`src/features/measurements/trend.ts` 处理纯日历区间、正常纵轴、自适应刻度与空腹端点连线。`days.ts` 将候选统一用于配对与最近记录，`summary.ts` 从全部记录计算最新空腹状态和稀疏 7 日首末差／均值。`measurements-view.tsx` 负责 7D／30D／90D／全部／自定义、空腹主图、按需日期信息栏和历史抽屉。晨晚默认连线，估计菱形及经过它的虚线与实测区分；未补全缺口用极淡同色点线，没有移动均线或逐日空表。`estimation.ts` 按指标使用真实晨间线性趋势与此前 28 天真实同日配对的中位差，不使用未来或估计值，证据不足留空。`estimate-records.ts` 在实测批次后只更新当天估计，`completion.ts` 保留其他历史估计，`rebuild.ts` 提供绑定快照的显式重建。对应私有维护入口见 `scripts/README.md`。摘要只统计实测，来源、录入入口和执行审计分别保留。
+`src/features/measurements/trend.ts` 处理纯日历区间、正常纵轴、自适应刻度与空腹端点连线。`days.ts` 将候选统一用于配对与最近记录，`summary.ts` 从全部记录计算最新空腹状态和稀疏 7 日首末差／均值。`measurements-view.tsx` 负责 7D／30D／90D／全部／自定义、空腹主图、按需日期信息栏和历史抽屉。晨晚默认连线，估计菱形及经过它的虚线与实测区分；未补全缺口用极淡同色点线，没有移动均线或逐日空表。`estimation.ts` 正常模式仅用此前 28 天真实晨间回归和配对中位差，晚间有实测而配对不足时可降级晨间趋势；独立初始化入口允许范围内后续真实记录、相邻晨间插值和受限边界外推。`initialization.ts` 负责一次性批次、真实来源快照、报告与冻结范围；`estimate-records.ts` 在冻结范围仅替代实际补录指标，其他估计保持。`completion.ts` 跳过冻结日期，`rebuild.ts` 禁止重建冻结范围；`estimate-explanation.ts` 提供详情算式和样本列表。对应私有维护入口见 `scripts/README.md`。摘要只统计实测，来源、录入入口和执行审计分别保留。
 
 `records.ts` 在统一校验中将晚间标为非空腹，白天空腹仍须确认。`maintenance.ts` 与 `scripts/maintain-measurements.mts` 提供绑定账号快照的历史修正、保留较早候选与软删除／恢复，事件保存前后快照及操作者。维护主动运行，不在读取或导入时暗改历史。
 

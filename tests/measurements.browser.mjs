@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
 
 // 由 measurements.http.mts 提供独立数据库、虚构账号和开发／production 服务。
-export async function checkMeasurementsBrowser({ baseURL, first, second }) {
+export async function checkMeasurementsBrowser({ baseURL, first, second, initializedAccount }) {
   const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
   const browser = await chromium.launch({ headless: true });
   const artifacts = process.env.FORMWARD_MEASUREMENTS_ARTIFACTS ?? "/tmp/formward-measurements-visual";
@@ -79,7 +79,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second }) {
     await detail.getByRole("button", { name: "详情", exact: true }).click();
     const estimationDrawer = page.getByRole("dialog");
     assert.match(await estimationDrawer.textContent(), /系统趋势估计/);
-    assert.match(await estimationDrawer.textContent(), /实测样本/);
+    assert.match(await estimationDrawer.textContent(), /真实晨晚配对日的中位数/);
     await page.keyboard.press("Escape");
     await estimationDrawer.waitFor({ state: "hidden" });
     await detail.getByRole("button", { name: "关闭日期详情", exact: true }).click();
@@ -184,7 +184,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second }) {
     const fullHistoryButton = page.getByRole("button", { name: "查看全部", exact: false });
     await fullHistoryButton.click();
     await drawer.waitFor();
-    assert.equal(await drawer.locator("details").count(), 19, "全历史抽屉不受图区间限制");
+    assert.equal(await drawer.locator("details:has(> summary time[datetime])").count(), 19, "全历史抽屉不受图区间限制");
     await drawer.locator('details:has(> summary time[datetime="2025-07-10"]) > summary').click();
     assert.match(await drawer.textContent(), /2025-07-11 00:30:00/);
     for (let step = 0; step < 20; step++) {
@@ -255,6 +255,40 @@ export async function checkMeasurementsBrowser({ baseURL, first, second }) {
       assert.equal(await mobile.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
       await mobile.context.close();
     }
+    for (const width of [1440, 390, 320]) {
+      const initialized = await loggedInPage({ width, height: width === 1440 ? 1000 : 844 }, initializedAccount);
+      const initializedChart = chartFor(initialized.page);
+      const point = initializedChart.locator('[data-date="2025-08-06"][data-period="daytime"]');
+      assert.match(await point.getAttribute("aria-label"), /历史初始化估计.*线性插值/);
+      await point.focus(); await initialized.page.keyboard.press("Enter");
+      await detailFor(initialized.page).getByRole("button", { name: "详情", exact: true }).click();
+      const modal = initialized.page.getByRole("dialog");
+      assert.match(await modal.textContent(), /历史初始化估计/);
+      assert.match(await modal.textContent(), /允许使用后续已经存在的真实历史记录/);
+      assert.match(await modal.textContent(), /80.00.*82.00.*1\/2.*81.00/s);
+      assert.match(await modal.textContent(), /此指标实际使用目标日期之后的数据：是/);
+      await modal.getByText("查看真实参考记录（2 条）", { exact: true }).first().click();
+      assert.match(await modal.textContent(), /2025-08-05 晨间空腹实测：80.00/);
+      assert.equal(await initialized.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      await initialized.page.screenshot({ path: `${artifacts}/initialization-${width}-calculation.png` });
+      await initialized.page.keyboard.press("Escape");
+      await initialized.page.locator("dialog").waitFor({ state: "detached" });
+      const direct = recentFor(initialized.page).getByRole("button", { name: "查看 2025-08-06 晨间估计依据", exact: true });
+      await direct.focus(); await initialized.page.keyboard.press("Enter");
+      await modal.waitFor();
+      await initialized.page.keyboard.press("Escape");
+      await initialized.page.locator("dialog").waitFor({ state: "detached" });
+      await initializedChart.locator('[data-date="2025-08-04"][data-period="daytime"]').focus();
+      await initialized.page.keyboard.press("Enter");
+      await detailFor(initialized.page).getByRole("button", { name: "详情", exact: true }).click();
+      assert.match(await modal.textContent(), /受限线性外推/);
+      assert.match(await modal.textContent(), /3 个真实晨间日/);
+      await initialized.page.keyboard.press("Escape");
+      await initialized.page.locator("dialog").waitFor({ state: "detached" });
+      await initialized.context.close();
+      console.log(`通过：${width}px 初始化插值／外推详情与键盘访问。`);
+    }
+    console.log("通过：初始化标签、插值／外推算式、实测列表、未来数据说明及键盘访问。");
     const empty = await loggedInPage({ width: 390, height: 844 }, second);
     assert.match(await empty.page.textContent("body"), /暂无测量记录/);
     assert.equal(await chartFor(empty.page).count(), 0);
