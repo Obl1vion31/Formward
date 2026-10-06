@@ -2,15 +2,15 @@
 
 /* 阅读顺序：颜色 → 页面 / Logo → 封面背景 → 人物三层 → 表单 → SCROLL → 响应式。
    DOM 与这些类名的对应关系见 home-experience.tsx；参数索引见 docs/code-study.md。 */
-/* 全局色板；Hero 标题使用暖 ivory，微小标签使用低饱和暖金。 */
+/* 全局色板；概念词使用暖灰白，微标签使用哑金，轨道收为极淡棕金。 */
 :root {
   --graphite: #10100f;
   --warm-white: #f0e9dd;
   --muted: #a8a195;
   --gold: #bea478;
-  --hero-ink: #c7bcaa;
+  --hero-ink: #d0c8ba;
   --hero-label: #aa9574;
-  --line: rgba(240, 233, 221, .42);
+  --hero-track: #77664d;
 }
 
 /* border-box 让 width 包含 padding / border；清除默认 body 边距，控件继承页面字体。 */
@@ -85,7 +85,7 @@ input:focus-visible {
 }
 /* 轨道图层在人物下面，不跟随鼠标；节点和文字由人物的同一时间游标驱动。 */
 .home-intro-backdrop {
-  --hero-title-size: clamp(24px, 2.1vw, 32px);
+  --hero-title-size: clamp(20px, 1.68vw, 26px);
   position: absolute;
   inset: 0;
   z-index: -1;
@@ -126,7 +126,7 @@ input:focus-visible {
   width: 100%;
   height: 100%;
   fill: none;
-  stroke: var(--gold);
+  stroke: var(--hero-track);
   stroke-width: .8px;
 }
 .home-orbit-front {
@@ -156,16 +156,22 @@ input:focus-visible {
   max-width: min(22vw, 240px);
   margin: 0;
   color: var(--hero-ink);
+  font-family: var(--font-hero-display), Georgia, serif;
   font-size: var(--hero-title-size);
   font-weight: 400;
-  letter-spacing: .015em;
-  line-height: 1.3;
+  font-optical-sizing: auto;
+  letter-spacing: .035em;
+  line-height: 1.2;
   transform-origin: 0 0;
   transform: translate3d(var(--label-x, 0px), var(--label-y, 0px), 0) scale(var(--label-scale, 1));
 }
 .home-principle-title,
 .home-principle-detail {
   display: block;
+  width: max-content;
+  white-space: nowrap;
+  /* 复用轨道的方向权重，连续从左对齐过渡到右对齐，不在中轴突然跳变。 */
+  transform: translateX(calc((var(--label-width, 0px) - 100%) * var(--annotation-side, 0)));
 }
 .home-principle-title {
   opacity: var(--title-opacity, 1);
@@ -320,7 +326,8 @@ input:focus-visible {
   margin: 0 0 20px;
   padding: 3px 0 7px;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  /* 透明边框保留尺寸；静止画面不让两条横线切过液态尾部。 */
+  border-bottom: 1px solid transparent;
   border-radius: 0;
   outline: none;
   background: transparent;
@@ -328,8 +335,8 @@ input:focus-visible {
   font-size: 16px;
   transition: border-color 180ms ease;
 }
-.login-form input:hover,
-.login-form input:focus {
+.login-form input:hover:not(:disabled),
+.login-form input:focus:not(:disabled) {
   border-bottom-color: var(--gold);
 }
 .login-form input:focus-visible {
@@ -564,7 +571,8 @@ input:focus-visible {
     left: calc((100% - 24px) / 6);
     right: calc((100% - 24px) / 6);
     height: 1px;
-    background: rgba(190, 164, 120, .18);
+    background: var(--hero-track);
+    opacity: .18;
   }
   .home-intro-arc,
   .home-orbit-node {
@@ -577,9 +585,14 @@ input:focus-visible {
     width: auto;
     max-width: none;
     padding-top: 17px;
-    line-height: 1.3;
+    line-height: 1.2;
     text-align: center;
     white-space: nowrap;
+    transform: none;
+  }
+  .home-principle-title,
+  .home-principle-detail {
+    width: auto;
     transform: none;
   }
   .home-principle-title {

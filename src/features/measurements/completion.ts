@@ -3,9 +3,10 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { measurement, measurementEvent, measurementImport } from "../../db/schema";
 import { buildHistoricalEstimates } from "./estimation";
+import { insertEstimate, refreshMeasurementDates } from "./estimate-records";
 import type { DailyMeasurement } from "./days";
 import { calendarOrdinal, type MeasurementInterval } from "./trend";
-import { insertReportedMeasurement, lockMeasurementOwner, supersedeEstimates, validateReportedMeasurement, type MeasurementActor, type ReportedMeasurement } from "./records";
+import { insertReportedMeasurement, lockMeasurementOwner, resolveReportedMeasurement, validateReportedMeasurement, type MeasurementActor, type ReportedMeasurement } from "./records";
 
 export type HistoricalCompletionRequest = {
   operationId: string;
@@ -31,19 +32,30 @@ function projectRows(rows: MeasurementRow[], request: ReturnType<typeof normaliz
   const additions: ReturnType<typeof validateReportedMeasurement>[] = [];
   for (const record of request.records) {
     const samePeriod = rows.filter((row) => row.recordKind === "observed" && row.analysisDate === record.analysisDate && row.period === record.period);
-    if (samePeriod.some((row) => (row.deletedAt === null && row.weightKg === record.weightKg && (record.bodyFatPercent === null || row.bodyFatPercent === record.bodyFatPercent) && (record.bmi === null || row.bmi === record.bmi)) || row.deduplicationKey === record.deduplicationKey)) continue;
-    if (samePeriod.some((row) => row.deletedAt === null)) throw new Error("新实测对应时段已有不同数值，请先核对。");
+    const resolution = resolveReportedMeasurement(samePeriod, record);
+    if (resolution.kind === "duplicate") continue;
     additions.push(record);
-    projected.push({ ...record, id: `reported:${record.deduplicationKey}`, recordKind: "observed" });
+    if (resolution.kind === "supplement") {
+      const index = projected.findIndex(row => row.id === resolution.row.id);
+      projected[index] = { ...projected[index], bodyFatPercent: resolution.row.bodyFatPercent ?? record.bodyFatPercent };
+    } else projected.push({ ...record, id: `reported:${record.deduplicationKey}`, recordKind: "observed" });
   }
-  const predicted = buildHistoricalEstimates(projected, request.range, request.trainingRange);
+  const affectedDates = new Set(additions.map(row => row.analysisDate));
+  const refreshed = projected.filter(row => row.recordKind !== "estimated" || !affectedDates.has(row.analysisDate));
+  const predicted = buildHistoricalEstimates(refreshed, request.range);
+  for (const date of affectedDates) {
+    const sameDay = buildHistoricalEstimates(refreshed, { start: date, end: date }, { preserveExisting: false });
+    for (const estimate of sameDay.estimates) if (!predicted.estimates.some(row => row.analysisDate === estimate.analysisDate && row.period === estimate.period)) predicted.estimates.push(estimate);
+    predicted.warnings.push(...sameDay.warnings);
+  }
+  predicted.warnings = [...new Set(predicted.warnings)];
   const annotateIds = rows.filter((row) => row.recordKind === "observed" && row.analysisDate >= request.trainingRange.start && row.analysisDate <= request.trainingRange.end && (row.entryChannel !== "development_backend" || row.deviceName !== request.deviceName || row.companionApp !== request.companionApp)).map((row) => row.id);
   return { additions, annotateIds, ...predicted };
 }
 
 function makePreview(rows: MeasurementRow[], userId: string, request: ReturnType<typeof normalizeRequest>) {
   const result = projectRows(rows, request);
-  return { requestKey: hash(["historical-completion-v1", userId, request]), digest: hash([userId, request, [...rows].sort((a, b) => a.id.localeCompare(b.id))]), ...result };
+  return { requestKey: hash(["historical-completion-v2", userId, request]), digest: hash([userId, request, [...rows].sort((a, b) => a.id.localeCompare(b.id))]), ...result };
 }
 
 export async function previewHistoricalCompletion(db: Database, userId: string, input: HistoricalCompletionRequest) {
@@ -59,11 +71,11 @@ export async function previewHistoricalCompletion(db: Database, userId: string, 
 export async function applyHistoricalCompletion(db: Database, input: MeasurementActor & { request: HistoricalCompletionRequest; digest: string }) {
   if (!input.userId?.trim() || input.actorId !== input.userId || !/^[a-f0-9]{64}$/.test(input.digest)) throw new Error("补全操作者或预览摘要无效。");
   const request = normalizeRequest(input.request);
-  const requestKey = hash(["historical-completion-v1", input.userId, request]);
+  const requestKey = hash(["historical-completion-v2", input.userId, request]);
   return db.transaction(async (tx) => {
     await lockMeasurementOwner(tx, input.userId);
     const [prior] = await tx.select().from(measurementImport).where(and(eq(measurementImport.userId, input.userId), eq(measurementImport.fileDigest, requestKey)));
-    if (prior) return { importId: prior.id, observedInserted: 0, estimatesInserted: 0, annotated: 0, repeated: true };
+    if (prior) return { importId: prior.id, observedInserted: 0, observedUpdated: 0, estimatesInserted: 0, annotated: 0, repeated: true };
     const rows = await tx.select().from(measurement).where(eq(measurement.userId, input.userId)).for("update");
     const preview = makePreview(rows, input.userId, request);
     if (preview.digest !== input.digest) throw new Error("记录已变化，请重新预览；没有写入。");
@@ -73,23 +85,17 @@ export async function applyHistoricalCompletion(db: Database, input: Measurement
       const [after] = await tx.update(measurement).set({ entryChannel: "development_backend", deviceName: request.deviceName, companionApp: request.companionApp, updatedAt: new Date() }).where(and(eq(measurement.userId, input.userId), eq(measurement.id, id))).returning();
       await tx.insert(measurementEvent).values({ id: randomUUID(), userId: input.userId, measurementId: id, action: "update", actorType: input.actorType ?? "development_backend", actorId: input.actorId, snapshot: { before, after, reason: "user_confirmed_provenance", operationDigest: input.digest, importId: batch.id } });
     }
-    let observedInserted = 0;
-    for (const record of preview.additions) if (await insertReportedMeasurement(tx, input, record, batch.id, { entryChannel: "development_backend", deviceName: request.deviceName, companionApp: request.companionApp })) observedInserted++;
-    const active = await tx.select().from(measurement).where(and(eq(measurement.userId, input.userId), isNull(measurement.deletedAt)));
-    const { estimates, warnings } = buildHistoricalEstimates(active, request.range, request.trainingRange);
-    for (const prediction of estimates) {
-      await supersedeEstimates(tx, input, prediction.analysisDate, prediction.period, "estimate_replaced");
-      const [row] = await tx.insert(measurement).values({ id: randomUUID(), userId: input.userId,
-        ...prediction, recordKind: "estimated", entryChannel: "development_backend", sourceType: "estimate", sourceSystem: null,
-        sourceLocalTime: prediction.analysisDate, localDate: prediction.analysisDate, timePrecision: "day_period", timezone: null, occurredAt: null,
-        assignmentMethod: "estimated_target", assignmentRuleVersion: "reported-period-v1", fasting: prediction.period === "daytime",
-        fastingSource: prediction.period === "daytime" ? "estimated_target" : "evening_rule", importId: batch.id,
-        originalValues: { analysisDate: prediction.analysisDate, period: prediction.period, weightKg: null, bodyFatPercent: null, reportedTime: null },
-        deduplicationKey: hash(["historical-estimate-v1", requestKey, prediction.analysisDate, prediction.period]), createdBy: input.actorId,
-      }).returning();
-      await tx.insert(measurementEvent).values({ id: randomUUID(), userId: input.userId, measurementId: row.id, action: "estimate", actorType: input.actorType ?? "development_backend", actorId: input.actorId, snapshot: { after: row, operationDigest: input.digest, importId: batch.id } });
+    let observedInserted = 0, observedUpdated = 0;
+    const affectedDates: string[] = [];
+    for (const record of preview.additions) {
+      const row = await insertReportedMeasurement(tx, input, record, batch.id, { entryChannel: "development_backend", deviceName: request.deviceName, companionApp: request.companionApp });
+      if (row) { if (row.writeKind === "inserted") observedInserted++; else observedUpdated++; affectedDates.push(row.analysisDate); }
     }
-    await tx.update(measurementImport).set({ insertedCount: observedInserted + estimates.length, skippedCount: request.records.length - observedInserted }).where(and(eq(measurementImport.userId, input.userId), eq(measurementImport.id, batch.id)));
-    return { importId: batch.id, observedInserted, estimatesInserted: estimates.length, annotated: preview.annotateIds.length, warnings, repeated: false };
+    const refreshed = await refreshMeasurementDates(tx, input, affectedDates, { operationKey: batch.id, importId: batch.id, reason: "same_day_observed_refresh" });
+    const active = await tx.select().from(measurement).where(and(eq(measurement.userId, input.userId), isNull(measurement.deletedAt)));
+    const { estimates, warnings } = buildHistoricalEstimates(active, request.range);
+    for (const prediction of estimates) await insertEstimate(tx, input, prediction, { operationKey: batch.id, importId: batch.id, reason: "explicit_historical_completion" });
+    await tx.update(measurementImport).set({ insertedCount: observedInserted + refreshed.inserted + estimates.length, skippedCount: request.records.length - observedInserted - observedUpdated }).where(and(eq(measurementImport.userId, input.userId), eq(measurementImport.id, batch.id)));
+    return { importId: batch.id, observedInserted, observedUpdated, estimatesInserted: refreshed.inserted + estimates.length, annotated: preview.annotateIds.length, warnings, repeated: false };
   });
 }

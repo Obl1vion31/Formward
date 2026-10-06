@@ -18,7 +18,7 @@
 | 你能看到或使用的内容 | 当前作用 |
 | --- | --- |
 | 首页人物与 SCROLL 提示 | 引导用户向下滚动，人物转身后出现登录表单 |
-| 封面的 Discipline、Drive、Effortless logging 和微小标签 | 表达自律、自驱力与 AI 驱动的零负担记录；桌面沿空间轨道转动，登录后停在终点，手机保留底部排布 |
+| 封面的 Discipline、Drive、Effortless 和微小标签 | Newsreader 概念词衔接雕塑与产品 UI，表达自律、自驱力与 AI 记录；桌面沿空间轨道转动，登录后停在终点，手机保留底部排布 |
 | Email、Password 与 ENTER | 输入账号，提交登录，显示认证进度或错误提示 |
 | 人物随鼠标轻微移动 | 桌面首页的视觉反馈；开始填写后人物回到中间并保持固定 |
 | 登录后的 `/dashboard` | 显示当前账号、退出按钮；有测量数据时显示最新空腹摘要、主趋势、最近记录与历史抽屉，无数据时显示简短空状态 |
@@ -121,9 +121,9 @@ flowchart TD
 | 文件与组件 | 负责什么、识别线索 | 修改会影响什么 |
 | --- | --- | --- |
 | [home-header.tsx](../src/app/home-header.tsx) 中的 `HomeHeader` | 显示 `formward` 和圆点；搜索 `formward` | 首页 Logo 的文字与内容；字号和位置另看 CSS |
-| [home-intro-backdrop.tsx](../src/app/home-intro-backdrop.tsx) 中的 `HomeIntroBackdrop` | 显示三组标题与 Nutrition / Build yourself / AI-powered 标签，提供静态交叠场景 | 文案看 `principles`，投影与移动看 `home-orbit.ts`，字号及最终淡出看 CSS |
-| [home-orbit.ts](../src/app/home-orbit.ts) | 用人物进度计算倾斜轨道、节点、引线、文字位置和远近明暗 | `ORBIT_TURN_DEGREES` 为 150；`orbitPose` 管空间投影，`createOrbitRenderer` 管 DOM 更新、尺寸测量和清理 |
-| [hero-font.ts](../src/app/hero-font.ts) | 加载本地 IBM Plex Mono，供微标签与 SCROLL 使用 | 主标题继承 Logo 的系统字体；本地字体资源、来源与许可证在 `public/fonts/` |
+| [home-intro-backdrop.tsx](../src/app/home-intro-backdrop.tsx) 中的 `HomeIntroBackdrop` | 显示三组单行主词与 NUTRITION / BUILD YOURSELF / AI LOGGING 标签，提供静态交叠场景 | 文案看 `principles`，投影与移动看 `home-orbit.ts`，字号及最终淡出看 CSS |
+| [home-orbit.ts](../src/app/home-orbit.ts) | 用人物进度计算倾斜轨道、节点、上方引线、下方文字、镜像对齐和远近明暗 | `ORBIT_TURN_DEGREES` 为 150；`orbitPose` 管空间投影，`createOrbitRenderer` 缓存完整标注尺寸，连续插值对齐并更新 DOM，最后清理 |
+| [hero-font.ts](../src/app/hero-font.ts) | 加载本地 Newsreader 概念词和 IBM Plex Mono 微标签及 SCROLL | Logo 与产品 UI 保持系统 sans serif；本地字体资源、来源与许可证在 `public/fonts/` |
 | [body-sequence.tsx](../src/app/body-sequence.tsx) 中的 `BodySequence` | 准备静态首尾、视频 Canvas 和独立最终图；搜索 `PRE_LOGIN_FRAMES`、`FINAL_FRAME` | 人物图片的显示结构；素材配置另看 `frame-config.ts` |
 | [login-overlay.tsx](../src/app/login-overlay.tsx) 中的 `LoginOverlay` | 邮箱框、密码框、ENTER、验证进度和错误提示；搜索 `Email`、`Password`、`VERIFYING…` | 表单内容、输入和提交行为；外观另看 CSS |
 
@@ -135,7 +135,7 @@ SCROLL 文字、动画加载提示和“进入登录”的键盘按钮直接写�
 
 ### “样式”和“布局”具体指什么
 
-样式包含你肉眼看到的颜色、字体、字号、尺寸、位置、间距、背景和视觉效果。例如“ENTER 是金色文字”“邮箱输入框下面有一条线”“人物在屏幕中间”都属于外观规则。
+样式包含你肉眼看到的颜色、字体、字号、尺寸、位置、间距、背景和视觉效果。例如“ENTER 是金色文字”“邮箱输入框聚焦时才显现底线”“人物在屏幕中间”都属于外观规则。
 
 布局说的是元素的位置和排列，例如 Logo 在左上方、人物居中、登录框在人物尾部前方、邮箱框在密码框上方。当前这些规则主要写在 [globals.css](../src/app/globals.css)。
 
@@ -149,14 +149,14 @@ CSS 文件也包含动画的视觉效果，例如登录成功后人物缩放和�
 | --- | --- | --- |
 | 默认字体和文字颜色 | `body`、`font-family`、`--warm-white` | 默认使用 Avenir Next、Segoe UI、苹方等可用字体；会影响沿用默认设置的文字 |
 | 多处共用的金色 | `--gold` | `#bea478`，用于 Logo 圆点、ENTER 和轨迹等引用它的元素；改这里会一起变色 |
-| Hero 两级文字颜色 | `--hero-ink`、`--hero-label` | `#c7bcaa` 暖 ivory 标题；`#aa9574` 暖金微标签与滚动提示 |
+| Hero 文字与轨道颜色 | `--hero-ink`、`--hero-label`、`--hero-track` | `#d0c8ba` 暖灰白概念词；`#aa9574` 哑金微标签与滚动提示；`#77664d` 棕金轨道 |
 | 页面深色底色 | `--graphite` | `#10100f`，供页面背景使用 |
 | 人物背后的暖光 | `.home-stage`、`radial-gradient` | 控制首页光区的位置、范围和强弱 |
 | 封面英文排版与轨迹 | `.home-orbit-scene`、`.home-principle`、`.home-principle-detail`、`.home-orbit-node` | 控制两级文字、空间场景静态交叠、细引线和手机底部轴线；空间坐标由 `home-orbit.ts` 计算 |
 | Logo 的位置与字号 | `.home-header`、`.home-logo` | 前者控制位置和边距，后者控制字号、粗细等 |
 | 人物整体大小 | `.body-frame img` | 控制图片显示高度，影响全部人物帧 |
 | 登录框位置与宽度 | `.login-overlay` | 控制整块表单放在哪里、有多宽 |
-| 输入框文字与下划线 | `.login-form input`、`--line` | 控制输入文字大小、输入框尺寸和线条外观 |
+| 输入框文字与底线 | `.login-form input`、`:hover:not(:disabled)`、`:focus:not(:disabled)` | 底线默认透明，悬停或聚焦时显现；保留 1px 占位与键盘焦点框，尺寸不改变 |
 | ENTER 字号与短下划线 | `.login-form button`、`.login-form button::after` | 控制提交按钮的文字和装饰线 |
 | SCROLL 的位置与外观 | `.scroll-hint`、`.scroll-hint-track` | 控制左下角提示文字、细轨道及动标，左边距为 7% |
 
@@ -272,7 +272,8 @@ PostgreSQL 是保存记录的数据库，Neon 提供托管 PostgreSQL 的服务�
 | 想调整什么 | 先找哪里、搜索什么 | 改后看什么 |
 | --- | --- | --- |
 | 浏览器标签标题 | `layout.tsx` 的 `metadata.title`；主页标题看 `dashboard/page.tsx` | 首页与主页各自的标签文字 |
-| 默认字体 | `globals.css` 的 `body`、`font-family` | Logo、Hero 主标题、表单和主页文字是否合适 |
+| 默认字体 | `globals.css` 的 `body`、`font-family` | Logo、表单和主页文字是否合适；首页概念词单独使用 Newsreader |
+| 首页概念词字体与字号 | `hero-font.ts`、`.home-principle`、`--hero-title-size` | Newsreader 正体 400、自动光学尺寸、0.035em 字距；桌面 20–26px，手机 14px；三个主词均为单行同级 |
 | Logo 字号 | `globals.css` 的 `.home-logo` | 桌面与手机大小；主页 Logo 另看 `.dashboard-logo` |
 | 首页 Logo 文字 | `home-header.tsx` 的 `formward` | 首页文字；主页有自己的 Logo 内容 |
 | 金色元素的颜色 | `globals.css` 的 `--gold`、`--hero-label` | 前者影响 Logo 圆点、ENTER 和主页；后者影响 Hero 微标签与 SCROLL |
@@ -318,7 +319,7 @@ PostgreSQL 是保存记录的数据库，Neon 提供托管 PostgreSQL 的服务�
 
 ## 身体记录的日期与维护
 
-`src/features/measurements/trend.ts` 处理纯日历区间、正常纵轴、自适应刻度与空腹端点连线。`days.ts` 将候选统一用于配对与最近记录，`summary.ts` 从全部记录计算最新空腹状态和稀疏 7 日首末差／均值。`measurements-view.tsx` 负责 7D／30D／90D／全部／自定义、空腹主图、按需日期信息栏和历史抽屉。晨晚默认连线，估计菱形及经过它的虚线与实测区分；未补全缺口用极淡同色点线，没有移动均线或逐日空表。`estimation.ts` 拟合四个独立趋势及 95% 预测区间，`completion.ts` 绑定账号预览并事务写入，`scripts/complete-measurements.mts` 是私有维护入口。摘要只统计实测，来源、录入入口和执行审计分别保留。
+`src/features/measurements/trend.ts` 处理纯日历区间、正常纵轴、自适应刻度与空腹端点连线。`days.ts` 将候选统一用于配对与最近记录，`summary.ts` 从全部记录计算最新空腹状态和稀疏 7 日首末差／均值。`measurements-view.tsx` 负责 7D／30D／90D／全部／自定义、空腹主图、按需日期信息栏和历史抽屉。晨晚默认连线，估计菱形及经过它的虚线与实测区分；未补全缺口用极淡同色点线，没有移动均线或逐日空表。`estimation.ts` 按指标使用真实晨间线性趋势与此前 28 天真实同日配对的中位差，不使用未来或估计值，证据不足留空。`estimate-records.ts` 在实测批次后只更新当天估计，`completion.ts` 保留其他历史估计，`rebuild.ts` 提供绑定快照的显式重建。对应私有维护入口见 `scripts/README.md`。摘要只统计实测，来源、录入入口和执行审计分别保留。
 
 `records.ts` 在统一校验中将晚间标为非空腹，白天空腹仍须确认。`maintenance.ts` 与 `scripts/maintain-measurements.mts` 提供绑定账号快照的历史修正、保留较早候选与软删除／恢复，事件保存前后快照及操作者。维护主动运行，不在读取或导入时暗改历史。
 

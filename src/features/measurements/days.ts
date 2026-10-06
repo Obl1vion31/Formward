@@ -4,21 +4,29 @@ export type DailyMeasurement = {
   id: string;
   analysisDate: string;
   period: MeasurementPeriod;
-  weightKg: string;
+  weightKg: string | null;
   bodyFatPercent: string | null;
   fasting: boolean | null;
   sourceLocalTime: string;
   recordKind?: "observed" | "estimated";
 };
 
+/** 晨晚差只能来自同归属日的真实、条件明确的配对。 */
+export function isRealMeasurementPair(daytime: DailyMeasurement | null, evening: DailyMeasurement | null) {
+  return !!daytime && !!evening && daytime.analysisDate === evening.analysisDate
+    && daytime.period === "daytime" && evening.period === "evening"
+    && daytime.fasting === true && evening.fasting === false
+    && daytime.recordKind !== "estimated" && evening.recordKind !== "estimated";
+}
+
 export function measurementWeightDifference(daytime: DailyMeasurement | null, evening: DailyMeasurement | null) {
-  return daytime && evening
+  return isRealMeasurementPair(daytime, evening) && daytime?.weightKg != null && evening?.weightKg != null
     ? (Math.round(Number(evening.weightKg) * 100) - Math.round(Number(daytime.weightKg) * 100)) / 100
     : null;
 }
 
 /** 同时段多次测量先保留候选，不擅自取平均、最低值或最后一条。 */
-export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], choices: Record<string, string> = {}) {
+export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], choices: Record<string, string> = {}, metric: "weightKg" | "bodyFatPercent" = "weightKg") {
   const groups = new Map<string, { date: string; daytime: T[]; evening: T[] }>();
   for (const record of records) {
     const group = groups.get(record.analysisDate) ?? { date: record.analysisDate, daytime: [], evening: [] };
@@ -26,22 +34,31 @@ export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], c
     groups.set(record.analysisDate, group);
   }
   return [...groups.values()].sort((a, b) => b.date.localeCompare(a.date)).map((group) => {
+    const allRecords = [...group.daytime, ...group.evening];
+    const estimates = allRecords.filter((row) => row.recordKind === "estimated");
     for (const period of ["daytime", "evening"] as const) {
       if (group[period].some((row) => row.recordKind !== "estimated")) group[period] = group[period].filter((row) => row.recordKind !== "estimated");
     }
-    const pick = (period: MeasurementPeriod) => group[period].find((row) => row.id === choices[`${group.date}:${period}`])
-      ?? (group[period].length === 1 ? group[period][0] : null);
+    const pick = (period: MeasurementPeriod) => {
+      const candidates = group[period];
+      const observed = candidates.filter((row) => row.recordKind !== "estimated");
+      const selected = observed.find((row) => row.id === choices[`${group.date}:${period}`])
+        ?? (observed.length === 1 ? observed[0] : null);
+      if (observed.length && !selected) return null;
+      if (selected && (selected[metric] !== null || selected.fasting !== (period === "daytime"))) return selected;
+      return estimates.find((row) => row.period === period && row[metric] !== null) ?? selected;
+    };
     const daytime = pick("daytime");
     const evening = pick("evening");
     return {
-      ...group, daytimeRecord: daytime, eveningRecord: evening,
+      ...group, records: allRecords, daytimeRecord: daytime, eveningRecord: evening,
       weightDifferenceKg: measurementWeightDifference(daytime, evening),
-      needsSelection: (group.daytime.length > 1 && !daytime) || (group.evening.length > 1 && !evening),
+      needsSelection: (["daytime", "evening"] as const).some((period) => group[period].filter((row) => row.recordKind !== "estimated").length > 1 && !group[period].some((row) => row.recordKind !== "estimated" && row.id === choices[`${group.date}:${period}`])),
     };
   });
 }
 
 /** 只显示有测量的归属日，空白日期仍由趋势的日历坐标表达。 */
-export function recentMeasurementDays<T extends DailyMeasurement>(records: T[], interval: { start: string; end: string }, choices: Record<string, string> = {}, limit = 10) {
-  return buildMeasurementDays(records.filter((row) => row.analysisDate >= interval.start && row.analysisDate <= interval.end), choices).slice(0, limit);
+export function recentMeasurementDays<T extends DailyMeasurement>(records: T[], interval: { start: string; end: string }, choices: Record<string, string> = {}, limit = 10, metric: "weightKg" | "bodyFatPercent" = "weightKg") {
+  return buildMeasurementDays(records.filter((row) => row.analysisDate >= interval.start && row.analysisDate <= interval.end), choices, metric).slice(0, limit);
 }

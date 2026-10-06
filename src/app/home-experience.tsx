@@ -8,7 +8,7 @@ import { signIn } from "@/features/auth/client";
 import { BodySequence } from "./body-sequence";
 import { HomeHeader } from "./home-header";
 import { HomeIntroBackdrop } from "./home-intro-backdrop";
-import { heroMono } from "./hero-font";
+import { heroDisplay, heroMono } from "./hero-font";
 import { createOrbitRenderer } from "./home-orbit";
 import { createFigureMotion } from "./figure-motion";
 import { createProgressTimeline, FINAL_DURATION_MS, turnFrameWeights, loginReveal, type TargetProgress } from "./home-timeline";
@@ -285,7 +285,7 @@ export default function HomeExperience() {
   const accessible = ["LOGIN_READY", "AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phase);
 
   return (
-    <main className={`home-page ${heroMono.variable}`} data-phase={phase} data-reduced-motion={reducedMotion} data-images-ready={imagesReady}
+    <main className={`home-page ${heroDisplay.variable} ${heroMono.variable}`} data-phase={phase} data-reduced-motion={reducedMotion} data-images-ready={imagesReady}
       style={{ "--final-duration": `${reducedMotion ? 240 : FINAL_DURATION_MS}ms` } as CSSProperties}>
       <HomeHeader />
       <section className="home-scroll" aria-label="Formward 登录入口">

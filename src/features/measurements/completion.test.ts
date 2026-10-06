@@ -31,13 +31,13 @@ after(async () => { await pg.close(); });
 test("预览只读；补全来源与占位时间独立保存，原始实测保留，写入审计完整", async () => {
   const preview = await previewHistoricalCompletion(db, owner, request);
   assert.equal(preview.additions.length, 2);
-  assert.equal(preview.estimates.length, 6);
+  assert.equal(preview.estimates.length, 2);
   assert.equal(preview.annotateIds.length, 6);
   assert.equal((await listMeasurements(db, owner)).length, 6);
   const result = await applyHistoricalCompletion(db, { userId: owner, actorId: owner, actorType: "ai", request, digest: preview.digest });
-  assert.deepEqual([result.observedInserted, result.estimatesInserted, result.annotated], [2, 6, 6]);
+  assert.deepEqual([result.observedInserted, result.estimatesInserted, result.annotated], [2, 2, 6]);
   const rows = await listMeasurements(db, owner);
-  assert.equal(rows.length, 14);
+  assert.equal(rows.length, 10);
   for (const original of originals) {
     const row = rows.find((row) => row.id === original.id)!;
     assert.deepEqual([row.weightKg, row.bodyFatPercent, row.sourceLocalTime, row.originalValues, row.sourceType, row.createdAt], [original.weightKg, original.bodyFatPercent, original.sourceLocalTime, original.originalValues, original.sourceType, original.createdAt]);
@@ -49,11 +49,13 @@ test("预览只读；补全来源与占位时间独立保存，原始实测保�
   assert.equal(reported.originalValues.reportedTime, null); assert.equal(reported.originalValues.assumedTime, "08:00");
   for (const row of rows.filter((row) => row.recordKind === "estimated")) {
     assert.equal(row.timePrecision, "day_period"); assert.equal(row.occurredAt, null); assert.equal(row.bmi, null); assert.equal(row.deviceName, null);
-    assert.equal(row.estimation!.weightKg.model.sampleCount, 4);
-    assert.ok(row.estimation!.weightKg.model.samples.every((sample) => rows.some((actual) => actual.id === sample.id && actual.recordKind === "observed")));
+    assert.equal(row.estimation!.method, "morning-baseline-v2");
+    if (row.estimation!.method !== "morning-baseline-v2") throw new Error("预期新模型");
+    assert.equal(row.estimation!.weightKg!.trend!.sampleCount, 3);
+    assert.ok(row.estimation!.weightKg!.trend!.samples.every((sample) => sample.date < row.analysisDate && rows.some((actual) => actual.id === sample.id && actual.recordKind === "observed")));
   }
   const events = await db.select().from(schema.measurementEvent);
-  assert.equal(events.filter((event) => event.action === "estimate").length, 6);
+  assert.equal(events.filter((event) => event.action === "estimate").length, 2);
   assert.equal(events.filter((event) => event.action === "estimate")[0].actorType, "ai");
 });
 
@@ -82,8 +84,8 @@ test("无效范围、数值、时段及预览后修改拒绝写入", async () =>
 });
 
 test("审计失败时整个补录回滚，随后 API 实测替代估计且不可恢复覆盖实测", async () => {
-  const estimate = (await listMeasurements(db, owner)).find((row) => row.analysisDate === "2024-01-02" && row.period === "daytime")!;
-  const actual = { analysisDate: "2024-01-02", period: "daytime" as const, weightKg: "79.85", bodyFatPercent: "24.8", fasting: true };
+  const estimate = (await listMeasurements(db, owner)).find((row) => row.analysisDate === "2024-01-06" && row.period === "daytime")!;
+  const actual = { analysisDate: "2024-01-06", period: "daytime" as const, weightKg: "79.85", bodyFatPercent: "24.8", fasting: true };
   const batchCount = (await db.select().from(schema.measurementImport)).length;
   await pg.exec("CREATE FUNCTION reject_estimate_delete() RETURNS trigger AS $$ BEGIN IF NEW.action = 'delete' THEN RAISE EXCEPTION 'fictional audit failure'; END IF; RETURN NEW; END; $$ LANGUAGE plpgsql; CREATE TRIGGER reject_estimate_delete BEFORE INSERT ON measurement_events FOR EACH ROW EXECUTE FUNCTION reject_estimate_delete();");
   try { await assert.rejects(saveReportedMeasurements(db, { userId: owner, actorId: owner, requestKey: "b".repeat(64), entryChannel: "api", records: [actual] })); }
@@ -99,7 +101,7 @@ test("审计失败时整个补录回滚，随后 API 实测替代估计且不可
 });
 
 test("历史补全事务中估计审计失败也不留下新批次或来源变更", async () => {
-  const changedRequest = { ...request, operationId: "fictional-rollback", deviceName: "另一个虚构设备", records: [] };
+  const changedRequest = { ...request, operationId: "fictional-rollback", deviceName: "另一个虚构设备", range: { start: "2024-01-08", end: "2024-01-08" }, trainingRange: { start: "2024-01-01", end: "2024-01-08" }, records: [] };
   const preview = await previewHistoricalCompletion(db, owner, changedRequest);
   const before = await listMeasurements(db, owner);
   const batches = (await db.select().from(schema.measurementImport)).length;

@@ -320,16 +320,23 @@ async function verifyFrameAlignment(name, width, height) {
         const title = label.querySelector(".home-principle-title");
         const detail = label.querySelector(".home-principle-detail");
         const headingRect = title.getBoundingClientRect();
+        const detailRect = detail.getBoundingClientRect();
+        const titleStyle = getComputedStyle(title);
         const matrix = new DOMMatrix(getComputedStyle(label).transform);
-        return { title: title.textContent, detail: detail.textContent, titleY: headingRect.top + headingRect.height / 2, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, fits: label.scrollWidth <= label.clientWidth + 1, font: getComputedStyle(title).fontFamily, upright: matrix.a > 0 && matrix.d > 0 && matrix.b === 0 && matrix.c === 0 };
+        return { title: title.textContent, detail: detail.textContent, heading: headingRect.toJSON(), caption: detailRect.toJSON(), side: Number(label.style.getPropertyValue("--annotation-side")), left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, fits: label.scrollWidth <= label.clientWidth + 1, font: titleStyle.fontFamily, fontSize: parseFloat(titleStyle.fontSize), lineHeight: parseFloat(titleStyle.lineHeight), weight: titleStyle.fontWeight, detailFont: getComputedStyle(detail).fontFamily, upright: matrix.a > 0 && matrix.d > 0 && matrix.b === 0 && matrix.c === 0 };
       }),
       logoFont: getComputedStyle(document.querySelector(".home-logo")).fontFamily,
+      displayFont: getComputedStyle(node).getPropertyValue("--font-hero-display").trim(),
+      monoFont: getComputedStyle(node).getPropertyValue("--font-hero-mono").trim(),
+      displayLoaded: [...document.fonts].some((font) => font.status === "loaded" && font.family.replaceAll('"', "") === getComputedStyle(node).getPropertyValue("--font-hero-display").trim().replaceAll('"', "")),
       anchors: [...node.querySelectorAll(".home-orbit-scene-start .home-orbit-node")].filter((marker) => getComputedStyle(marker).display !== "none").map((marker, index) => {
         const rect = marker.getBoundingClientRect();
         const leader = node.querySelectorAll(".home-orbit-scene-start .home-orbit-leader")[index];
         const point = leader.getPointAtLength(leader.getTotalLength());
         const end = new DOMPoint(point.x, point.y).matrixTransform(leader.getScreenCTM());
-        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, endX: end.x, endY: end.y };
+        const start = leader.getPointAtLength(0);
+        const edge = new DOMPoint(start.x, start.y).matrixTransform(leader.getScreenCTM());
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, endX: end.x, endY: end.y, edgeX: edge.x };
       }),
     }));
     assert.equal(backdrop.lang, "en");
@@ -337,15 +344,25 @@ async function verifyFrameAlignment(name, width, height) {
     assert.equal(backdrop.visibility, "visible");
     assert.equal(backdrop.pointerEvents, "none");
     assert.ok(backdrop.layer < 0, "文案位于人物下层");
-    assert.deepEqual(backdrop.labels.map((label) => label.title), ["Discipline", "Drive", "Effortless logging"]);
-    assert.deepEqual(backdrop.labels.map((label) => label.detail), ["Nutrition", "Build yourself", "AI-powered"]);
-    assert.ok(backdrop.labels.every((label) => label.font === backdrop.logoFont && label.upright), "主标题与 Logo 同字体，保持正向可读");
+    assert.deepEqual(backdrop.labels.map((label) => label.title), ["Discipline", "Drive", "Effortless"]);
+    assert.deepEqual(backdrop.labels.map((label) => label.detail), ["NUTRITION", "BUILD YOURSELF", "AI LOGGING"]);
+    assert.ok(backdrop.displayLoaded, "概念词使用已加载的本地 Newsreader");
+    const fontFamily = (value) => value.replaceAll('"', "").replaceAll("'", "").split(",")[0].trim();
+    assert.ok(backdrop.labels.every((label) => fontFamily(label.font) === fontFamily(backdrop.displayFont) && label.font !== backdrop.logoFont && label.upright), "概念词与 Logo 分属两套字体，保持正向可读");
+    assert.ok(backdrop.labels.every((label) => fontFamily(label.detailFont) === fontFamily(backdrop.monoFont)), "副标签保留本地 IBM Plex Mono");
+    assert.equal(new Set(backdrop.labels.map((label) => label.fontSize)).size, 1, "三个主词保持同一级别");
+    assert.ok(backdrop.labels.every((label) => label.weight === "400" && label.heading.height < label.lineHeight * 1.1), "三个主词均为单行正体");
+    assert.ok(backdrop.labels.every((label) => width <= 700 ? label.fontSize === 14 : label.fontSize >= 20 && label.fontSize <= 26), "桌面主词缩小，手机保持可读字号");
     const accessible = await page.locator(".home-intro-backdrop").ariaSnapshot();
-    assert.equal(accessible.split("Effortless logging").length - 1, 1, "辅助技术只读取一份文案");
+    assert.equal(accessible.split("Effortless").length - 1, 1, "辅助技术只读取一份文案");
     if (width > 700) {
       for (const [index, anchor] of backdrop.anchors.entries()) {
         assert.ok(Math.hypot(anchor.x - anchor.endX, anchor.y - anchor.endY) <= 1, "轨迹引线在响应式布局中保持连接节点");
-        assert.ok(Math.abs(backdrop.labels[index].titleY - anchor.y) <= 1, "标题沿节点对齐");
+        const label = backdrop.labels[index];
+        assert.ok(Math.abs(label.top - anchor.y - 12) <= 1, "两级文字统一位于节点水平线下方 12px");
+        const textEdge = label.side > 0.5 ? label.right : label.left;
+        assert.ok(Math.abs(Math.abs(textEdge - anchor.edgeX) - 12) <= 1, "引线与最近文字边缘保持 12px 间隔");
+        assert.ok(Math.abs((label.side > 0.5 ? label.heading.right - label.caption.right : label.heading.left - label.caption.left)) <= 1, "两级文字按节点方向镜像对齐");
       }
     }
     for (const label of backdrop.labels) {
@@ -378,7 +395,9 @@ async function verifyFrameAlignment(name, width, height) {
     const endLayout = await page.locator(".home-orbit-scene-start").evaluate((node) => ({
       labels: [...node.querySelectorAll(".home-principle")].map((label) => {
         const rect = label.getBoundingClientRect();
-        return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, detailOpacity: Number(getComputedStyle(label.querySelector(".home-principle-detail")).opacity) };
+        const heading = label.querySelector(".home-principle-title").getBoundingClientRect();
+        const caption = label.querySelector(".home-principle-detail").getBoundingClientRect();
+        return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, heading: heading.toJSON(), caption: caption.toJSON(), side: Number(label.style.getPropertyValue("--annotation-side")), detailOpacity: Number(getComputedStyle(label.querySelector(".home-principle-detail")).opacity) };
       }),
       nodes: [...node.querySelectorAll(".home-orbit-node")].map((marker) => ({ x: parseFloat(marker.style.left), y: parseFloat(marker.style.top) })),
       form: (() => { const rect = document.querySelector(".login-overlay").getBoundingClientRect(); return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }; })(),
@@ -386,7 +405,10 @@ async function verifyFrameAlignment(name, width, height) {
     if (width > 700) {
       assert.ok(endLayout.nodes[0].x > 70 && endLayout.nodes[0].y < 45, "Discipline 停在右上");
       assert.ok(endLayout.nodes[1].x > 60 && endLayout.nodes[1].y > 65, "Drive 停在右下");
-      assert.ok(endLayout.nodes[2].x < 30, "Effortless logging 停在左侧");
+      assert.ok(endLayout.nodes[2].x < 30, "Effortless 停在左侧");
+      for (const label of endLayout.labels) {
+        assert.ok(Math.abs(label.side > 0.5 ? label.heading.right - label.caption.right : label.heading.left - label.caption.left) <= 1, "登录终点保持镜像标注结构");
+      }
     }
     for (const label of endLayout.labels) {
       assert.ok(label.left >= 0 && label.right <= width && label.top >= 0 && label.bottom <= height, name + " 终点文案不裁切");
@@ -432,6 +454,59 @@ async function verifyOrbitResize() {
     assert.equal((await snapshot(page)).orbitAngle, 150);
     results.push({ test: "轨道：登录终点跨视口重排、动态 reduced motion 和恢复桌面构图" });
   } finally { await context.close(); }
+}
+
+// 默认底线退场后仍要能发现、聚焦和填写字段；键盘与触屏都不依赖 hover。
+async function verifyLoginFields() {
+  const { page, context } = await newPage();
+  const border = (id) => page.locator(id).evaluate((node) => getComputedStyle(node).borderBottomColor);
+  try {
+    await page.keyboard.press("PageDown");
+    await phase(page, "LOGIN_READY");
+    await page.mouse.move(30, 30);
+    const initialBounds = await page.locator("#email").boundingBox();
+    assert.equal(await border("#email"), "rgba(0, 0, 0, 0)");
+    assert.equal(await border("#password"), "rgba(0, 0, 0, 0)");
+    assert.equal(await page.locator("#email").evaluate((node) => getComputedStyle(node).fontFamily), await page.locator(".home-logo").evaluate((node) => getComputedStyle(node).fontFamily), "登录字段保持产品 UI 字体");
+    if (process.env.FORMWARD_BROWSER_ARTIFACTS) await page.screenshot({ path: process.env.FORMWARD_BROWSER_ARTIFACTS + "/desktop-login-idle.png" });
+    await page.locator("#email").hover();
+    await page.waitForTimeout(200);
+    assert.equal(await border("#email"), "rgb(190, 164, 120)");
+    assert.equal(await border("#password"), "rgba(0, 0, 0, 0)", "悬停仅增强当前字段");
+    assert.deepEqual(await page.locator("#email").boundingBox(), initialBounds, "底线显示不改变输入框尺寸");
+    await page.mouse.move(30, 30);
+    await page.waitForTimeout(200);
+    assert.equal(await border("#email"), "rgba(0, 0, 0, 0)");
+    await page.keyboard.press("Tab");
+    assert.equal(await page.locator("#email").evaluate((node) => document.activeElement === node), true);
+    await page.waitForTimeout(200);
+    assert.equal(await border("#email"), "rgb(190, 164, 120)");
+    assert.equal(await page.locator("#email").evaluate((node) => getComputedStyle(node).outlineStyle), "solid", "键盘焦点保留清晰外框");
+    await page.locator("#email").fill("preview@example.test");
+    await page.locator("#password").fill("fictional-preview-password");
+    await page.locator("#password").blur();
+    await page.waitForTimeout(200);
+    await page.keyboard.press("PageUp");
+    await phase(page, "INTRO");
+    await page.keyboard.press("PageDown");
+    await phase(page, "LOGIN_READY");
+    assert.equal(await page.locator("#email").inputValue(), "preview@example.test");
+    assert.equal(await page.locator("#password").inputValue(), "fictional-preview-password");
+    assert.equal(await border("#email"), "rgba(0, 0, 0, 0)");
+    assert.equal(await border("#password"), "rgba(0, 0, 0, 0)");
+    results.push({ test: "登录字段：默认隐藏底线、局部悬停、键盘焦点、尺寸稳定及倒放后保留输入" });
+  } finally { await context.close(); }
+
+  const mobile = await newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
+  try {
+    await mobile.page.keyboard.press("PageDown");
+    await phase(mobile.page, "LOGIN_READY");
+    assert.equal(await mobile.page.locator("#email").evaluate((node) => getComputedStyle(node).borderBottomColor), "rgba(0, 0, 0, 0)");
+    await mobile.page.locator('label[for="email"]').tap();
+    assert.equal(await mobile.page.locator("#email").evaluate((node) => document.activeElement === node && getComputedStyle(node).borderBottomColor === "rgb(190, 164, 120)"), true, "触屏点击标签即可聚焦并显现底线");
+    assert.equal(await mobile.page.locator("#email").evaluate((node) => getComputedStyle(node).transitionDuration), "0s", "reduced motion 不播放底线过渡");
+    results.push({ test: "登录字段：触屏无需悬停，reduced motion 聚焦即时显现" });
+  } finally { await mobile.context.close(); }
 }
 
 // 使用浏览器真实截图作为两端参考，独立检查合成后的像素，而非透明度之和。
@@ -543,6 +618,7 @@ try {
     await verifyFrameAlignment(name, width, height);
   }
   await verifyOrbitResize();
+  await verifyLoginFields();
   const { context, page } = await newPage();
   assert.equal(await page.locator(".body-frame img").count(), 3);
   assert.equal(await page.locator('link[rel="preload"][as="image"]').count(), 3);

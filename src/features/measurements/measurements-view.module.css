@@ -56,7 +56,7 @@
 .estimatePoint { fill: #10100f; stroke-width: 1.2; pointer-events: none; }
 .dayEstimate { stroke: var(--body-gold); }
 .nightEstimate { stroke: var(--body-blue); }
-.predictionRange { color: var(--body-muted); font-size: 12px; line-height: 1.5; margin: 6px 0 0; overflow-wrap: anywhere; }
+.estimateNote { color: var(--body-muted); font-size: 12px; line-height: 1.5; margin: 6px 0 0; overflow-wrap: anywhere; }
 .dayPoint { fill: var(--body-gold); stroke: #10100f; stroke-width: 1; pointer-events: none; }
 .nightPoint { fill: #10100f; stroke: var(--body-blue); stroke-width: 1.4; pointer-events: none; }
 .hitTarget { fill: transparent; cursor: pointer; }

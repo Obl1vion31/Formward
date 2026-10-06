@@ -63,7 +63,7 @@ export function createOrbitRenderer(root: HTMLDivElement) {
     labels: Array.from(scene.querySelectorAll<HTMLParagraphElement>(".home-principle")),
     nodes: Array.from(scene.querySelectorAll<HTMLSpanElement>(".home-orbit-node")),
     leaders: Array.from(scene.querySelectorAll<SVGPathElement>(".home-orbit-leader")),
-    sizes: [] as { width: number; titleHeight: number }[],
+    sizes: [] as { width: number; height: number }[],
   }));
   let width = 0;
   let height = 0;
@@ -95,16 +95,18 @@ export function createOrbitRenderer(root: HTMLDivElement) {
         : Math.max(labelX, width / 2 + formWidth / 2 + 24);
       labelX += (safeX - labelX) * smoothstep((value - 0.6) / 0.4);
       labelX = Math.min(width - margin - scaledWidth, Math.max(margin, labelX));
-      const labelY = nodeY - size.titleHeight * pose.scale / 2;
+      // 引线在上、两级文字在下；完整标注参与视口避让，间距使用舞台像素。
+      const labelY = Math.min(height - margin - size.height * pose.scale, Math.max(margin, nodeY + 12));
       label.style.setProperty("--label-x", `${labelX}px`);
       label.style.setProperty("--label-y", `${labelY}px`);
       label.style.setProperty("--label-scale", String(pose.scale));
+      label.style.setProperty("--annotation-side", String(leftSide));
       label.style.setProperty("--title-opacity", String(pose.titleOpacity));
       label.style.setProperty("--detail-opacity", String(pose.detailOpacity));
       const node = group.nodes[index];
       node.style.left = `${pose.x * 100}%`;
       node.style.top = `${pose.y * 100}%`;
-      const leaderX = leftSide > 0.5 ? labelX + scaledWidth + 12 : labelX - 12;
+      const leaderX = labelX - 12 + (scaledWidth + 24) * leftSide;
       group.leaders[index].setAttribute("d", `M${leaderX} ${nodeY}H${nodeX}`);
     });
   }
@@ -131,10 +133,11 @@ export function createOrbitRenderer(root: HTMLDivElement) {
     height = root.clientHeight;
     formWidth = root.parentElement?.querySelector<HTMLElement>(".login-overlay")?.offsetWidth ?? 340;
     for (const group of scenes) {
-      group.sizes = group.labels.map((label) => ({
-        width: label.offsetWidth,
-        titleHeight: label.querySelector<HTMLElement>(".home-principle-title")!.offsetHeight,
-      }));
+      group.sizes = group.labels.map((label) => {
+        const size = { width: label.offsetWidth, height: label.offsetHeight };
+        label.style.setProperty("--label-width", `${size.width}px`);
+        return size;
+      });
     }
     drawScene(scenes[1], 1);
     render(progress, reduced);
@@ -143,7 +146,7 @@ export function createOrbitRenderer(root: HTMLDivElement) {
   const observer = new ResizeObserver(measure);
   observer.observe(root);
   measure();
-  // 本地微标签字体就绪后再测量；无逐帧 layout 读取，卸载后不再写 DOM。
+  // 两套本地字体就绪后再测量；无逐帧 layout 读取，卸载后不再写 DOM。
   void document.fonts.ready.then(measure);
   return { render, dispose() { disposed = true; observer.disconnect(); } };
 }

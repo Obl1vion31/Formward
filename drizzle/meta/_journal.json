@@ -22,6 +22,13 @@
       "when": 1791271865990,
       "tag": "0002_complete_lockjaw",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791304074146,
+      "tag": "0003_pretty_mister_sinister",
+      "breakpoints": true
     }
   ]
 }

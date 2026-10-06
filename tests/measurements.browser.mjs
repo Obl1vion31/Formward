@@ -67,16 +67,18 @@ export async function checkMeasurementsBrowser({ baseURL, first, second }) {
     assert.ok(await chart.locator('[data-segment="continuous"]').count() > 0);
     assert.ok(await chart.locator('[data-segment="estimated"]').count() > 0);
     const estimate = chart.locator('[data-kind="estimated"][data-date="2025-07-11"][data-period="evening"]');
-    assert.match(await estimate.getAttribute("aria-label"), /估计.*95% 预测区间/);
+    assert.match(await estimate.getAttribute("aria-label"), /估计.*同日晨间实测/);
     assert.equal(await estimate.locator("path").count(), 1);
     const estimateStyle = await chart.locator('[data-segment="estimated"]').first().evaluate((node) => getComputedStyle(node).strokeDasharray);
     assert.notEqual(estimateStyle, "none");
     await page.screenshot({ path: `${artifacts}/desktop-estimated-trends.png`, fullPage: true });
     await estimate.click();
-    assert.match(await detail.textContent(), /估计.*95% 预测区间/s);
+    assert.match(await detail.textContent(), /估计/s);
+    assert.ok(!(await detail.textContent()).includes("预测区间"));
+    assert.match(await detail.locator('div[class*="difference"]').textContent(), /晨晚差—/);
     await detail.getByRole("button", { name: "详情", exact: true }).click();
     const estimationDrawer = page.getByRole("dialog");
-    assert.match(await estimationDrawer.textContent(), /开发阶段录入/);
+    assert.match(await estimationDrawer.textContent(), /系统趋势估计/);
     assert.match(await estimationDrawer.textContent(), /实测样本/);
     await page.keyboard.press("Escape");
     await estimationDrawer.waitFor({ state: "hidden" });
@@ -127,6 +129,18 @@ export async function checkMeasurementsBrowser({ baseURL, first, second }) {
     assert.match(await summary.locator('[data-summary="average"]').textContent(), /25.12.*3\/7 天/);
     assert.match(await summary.locator('[data-summary="companion"]').textContent(), /74.60.*kg/);
     assert.equal(await chart.locator('[data-point-id][data-date="2025-07-11"]').count(), 0);
+    await page.getByLabel("估计补全", { exact: true }).check();
+    const fatEstimate = chart.locator('[data-point-id][data-date="2025-07-11"][data-period="daytime"][data-kind="estimated"]');
+    assert.equal(await fatEstimate.count(), 1, "真实体重存在时仍展示独立估计体脂");
+    await fatEstimate.click();
+    assert.match(await detail.textContent(), /估计/);
+    assert.ok(!(await detail.textContent()).includes("估计差值"));
+    await page.getByRole("button", { name: "体重", exact: true }).click();
+    assert.equal(await chart.locator('[data-point-id][data-date="2025-07-11"][data-period="daytime"][data-kind="observed"]').count(), 1);
+    assert.equal(await chart.locator('[data-point-id][data-date="2025-07-11"][data-period="daytime"][data-kind="estimated"]').count(), 0);
+    await page.getByRole("button", { name: "体脂率", exact: true }).click();
+    await page.getByLabel("估计补全", { exact: true }).uncheck();
+    await recent.getByRole("button", { name: "查看 2025-07-10", exact: true }).click();
     await assertNormalAxis(page);
     await page.getByLabel("晚间数据", { exact: true }).uncheck();
     assert.equal(await chart.locator('[data-point-id][data-period="evening"]').count(), 0);
@@ -170,8 +184,8 @@ export async function checkMeasurementsBrowser({ baseURL, first, second }) {
     const fullHistoryButton = page.getByRole("button", { name: "查看全部", exact: false });
     await fullHistoryButton.click();
     await drawer.waitFor();
-    assert.equal(await drawer.locator("details").count(), 16, "全历史抽屉不受图区间限制");
-    await drawer.locator("details").filter({ hasText: "2025.07.10" }).locator("summary").click();
+    assert.equal(await drawer.locator("details").count(), 19, "全历史抽屉不受图区间限制");
+    await drawer.locator('details:has(> summary time[datetime="2025-07-10"]) > summary').click();
     assert.match(await drawer.textContent(), /2025-07-11 00:30:00/);
     for (let step = 0; step < 20; step++) {
       await page.keyboard.press("Tab");
@@ -191,7 +205,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second }) {
     await drawer.waitFor({ state: "hidden" });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await context.close();
-    console.log("通过：桌面实测摘要、晨晚折线、估计虚线和预测区间、来源标注、候选同步与历史抽屉。");
+    console.log("通过：桌面实测摘要、晨晚折线、估计虚线和依据、来源标注、候选同步与历史抽屉。");
 
     for (const [width, height] of [[390, 844], [320, 740], [844, 390]]) {
       const mobile = await loggedInPage({ width, height }, first, { isMobile: true, hasTouch: true, reducedMotion: "reduce" });
@@ -220,11 +234,11 @@ export async function checkMeasurementsBrowser({ baseURL, first, second }) {
       await mobileDrawer.getByRole("button", { name: "关闭历史抽屉", exact: true }).tap();
       await mobileDrawer.waitFor({ state: "hidden" });
       await chartFor(mobile.page).locator('[data-point-id][data-date="2025-07-09"][data-period="daytime"][data-kind="estimated"]').tap();
-      assert.match(await detailFor(mobile.page).textContent(), /95% 预测区间/);
-      assert.equal(await mobile.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, "估计区间详情不撑宽手机页面");
+      assert.match(await detailFor(mobile.page).textContent(), /估计/);
+      assert.equal(await mobile.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, "估计详情不撑宽手机页面");
       await detailFor(mobile.page).getByRole("button", { name: "详情", exact: true }).tap();
       await mobileDrawer.waitFor();
-      assert.match(await mobileDrawer.textContent(), /开发阶段录入/);
+      assert.match(await mobileDrawer.textContent(), /系统趋势估计/);
       await mobileDrawer.getByRole("button", { name: "关闭历史抽屉", exact: true }).tap();
       await mobileDrawer.waitFor({ state: "hidden" });
       await chartFor(mobile.page).locator('[data-point-id][data-date="2025-07-14"][data-period="daytime"]').tap();

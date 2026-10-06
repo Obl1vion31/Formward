@@ -1,0 +1,2 @@
+ALTER TABLE "measurements" ALTER COLUMN "weight_kg" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "measurements" ADD CONSTRAINT "measurements_metric_presence" CHECK (("measurements"."record_kind" = 'observed' AND "measurements"."weight_kg" IS NOT NULL) OR ("measurements"."record_kind" = 'estimated' AND ("measurements"."weight_kg" IS NOT NULL OR "measurements"."body_fat_percent" IS NOT NULL)));

@@ -1,9 +1,9 @@
 import { Fragment, type RefObject } from "react";
 
 const principles = [
-  { id: "discipline", title: "Discipline", detail: "Nutrition" },
-  { id: "drive", title: "Drive", detail: "Build yourself" },
-  { id: "ai", title: "Effortless logging", detail: "AI-powered" },
+  { id: "discipline", title: "Discipline", detail: "NUTRITION" },
+  { id: "drive", title: "Drive", detail: "BUILD YOURSELF" },
+  { id: "ai", title: "Effortless", detail: "AI LOGGING" },
 ];
 
 // 两套视觉构图用于 reduced motion 的静态交叠；屏幕阅读器只读取一份文案。
@@ -11,7 +11,7 @@ const principles = [
 export function HomeIntroBackdrop({ backdropRef }: { backdropRef: RefObject<HTMLDivElement | null> }) {
   return (
     <div className="home-intro-backdrop" ref={backdropRef} lang="en">
-      <p className="sr-only">Discipline: Nutrition. Drive: Build yourself. Effortless logging: AI-powered.</p>
+      <p className="sr-only">Discipline: Nutrition. Drive: Build yourself. Effortless: AI logging.</p>
       {["start", "end"].map((scene) => (
         <div className={`home-orbit-scene home-orbit-scene-${scene}`} data-orbit-scene={scene} key={scene} aria-hidden="true">
           <svg className="home-intro-arc" viewBox="0 0 1440 900" preserveAspectRatio="none" focusable="false">
@@ -23,7 +23,7 @@ export function HomeIntroBackdrop({ backdropRef }: { backdropRef: RefObject<HTML
             <Fragment key={id}>
               <span className="home-orbit-node" />
               <p className={`home-principle home-principle-${id}`}>
-                <span className="home-principle-title">{id === "ai" ? <>Effortless{" "}<br />logging</> : title}</span>
+                <span className="home-principle-title">{title}</span>
                 <span className="home-principle-detail">{detail}</span>
               </p>
             </Fragment>

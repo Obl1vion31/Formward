@@ -1,4 +1,4 @@
-import { buildMeasurementDays, type DailyMeasurement } from "./days";
+import { buildMeasurementDays, isRealMeasurementPair, type DailyMeasurement } from "./days";
 
 export type MeasurementMetric = "weightKg" | "bodyFatPercent";
 export type MeasurementRange = "7d" | "30d" | "90d" | "all" | "custom";
@@ -37,7 +37,7 @@ export function measurementDateTicks(interval: MeasurementInterval, maximum = 7)
 export function metricDifference(daytime: DailyMeasurement | null, evening: DailyMeasurement | null, metric: MeasurementMetric) {
   const morning = daytime?.[metric];
   const night = evening?.[metric];
-  return morning != null && night != null ? (Math.round(Number(night) * 100) - Math.round(Number(morning) * 100)) / 100 : null;
+  return isRealMeasurementPair(daytime, evening) && morning != null && night != null ? (Math.round(Number(night) * 100) - Math.round(Number(morning) * 100)) / 100 : null;
 }
 
 /** SVG 坐标向下增长：高值对应较小 position；两种指标的最小跨度均为 3。 */
@@ -56,7 +56,7 @@ export function normalScale(values: number[]) {
 }
 
 export function measurementTrend<T extends DailyMeasurement>(records: T[], metric: MeasurementMetric, showEvening: boolean, choices: Record<string, string> = {}) {
-  const days = buildMeasurementDays(records, choices).reverse();
+  const days = buildMeasurementDays(records, choices, metric).reverse();
   const morning = days.map((day) => day.daytimeRecord)
     .filter((row): row is T => row !== null && row.fasting === true && row[metric] !== null);
   const evening = showEvening ? days.map((day) => day.eveningRecord).filter((row): row is T => row !== null && row[metric] !== null) : [];
@@ -66,6 +66,6 @@ export function measurementTrend<T extends DailyMeasurement>(records: T[], metri
     return unresolved ? [] : [{ a, b, period, estimated: a.recordKind === "estimated" || b.recordKind === "estimated", missingDayCount: calendarOrdinal(b.analysisDate) - calendarOrdinal(a.analysisDate) - 1 }];
   });
   const segments = [...connect(morning, "daytime"), ...connect(evening, "evening")];
-  const pairs = showEvening ? days.filter((day) => day.daytimeRecord?.fasting === true && day.daytimeRecord[metric] !== null && day.eveningRecord && day.eveningRecord[metric] !== null) : [];
+  const pairs = showEvening ? days.filter((day) => metricDifference(day.daytimeRecord, day.eveningRecord, metric) !== null) : [];
   return { points: [...morning, ...evening], segments, pairs };
 }
