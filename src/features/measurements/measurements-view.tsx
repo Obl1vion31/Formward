@@ -250,11 +250,17 @@ function MeasurementInspector({ view, days, metric, choices, showEstimates, onCh
     const node = dialog.current!;
     const previousFocus = document.activeElement;
     const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    const paddingRight = Number.parseFloat(window.getComputedStyle(document.body).paddingRight) || 0;
     node.showModal();
+    // 锁定滚动会移除占位滚动条；保留它原本占用的宽度，避免背景内容重新居中。
+    if (scrollbarWidth > 0) document.body.style.paddingRight = `${paddingRight + scrollbarWidth}px`;
     document.body.style.overflow = "hidden";
     return () => {
       node.close();
       document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
       if (previousFocus instanceof HTMLElement || previousFocus instanceof SVGElement) previousFocus.focus();
     };
   }, []);

@@ -4,7 +4,8 @@ import { mkdir } from "node:fs/promises";
 // 由 measurements.http.mts 提供独立数据库、虚构账号和开发／production 服务。
 export async function checkMeasurementsBrowser({ baseURL, first, second, initializedAccount }) {
   const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
-  const browser = await chromium.launch({ headless: true });
+  // 保留真实滚动条，覆盖 Inspector 锁定页面滚动时的宽度变化。
+  const browser = await chromium.launch({ headless: true, ignoreDefaultArgs: ["--hide-scrollbars"] });
   const artifacts = process.env.FORMWARD_MEASUREMENTS_ARTIFACTS ?? "/tmp/formward-measurements-visual";
   await mkdir(artifacts, { recursive: true });
   const errors = [];
@@ -152,7 +153,58 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       await probe.dispose();
     }
   }
+  async function assertStableInspector() {
+    const { context, page: scrolled } = await loggedInPage({ width: 1440, height: 700 });
+    try {
+      await chartFor(scrolled).locator('[data-point-id]').first().waitFor();
+      const measure = () => scrolled.evaluate(() => {
+        const box = selector => { const rect = document.querySelector(selector).getBoundingClientRect(); return { left: rect.left, width: rect.width }; };
+        const plot = document.querySelector('section[aria-label="身体指标趋势"] svg[role="group"]');
+        return { header: box('.dashboard-header'), summary: box('section[aria-label="最新空腹摘要"]'), chart: box('section[aria-label="身体指标趋势"]'), table: box('section[aria-label="最近记录"] table'),
+          plotWidth: plot.viewBox.baseVal.width, points: [...plot.querySelectorAll('[data-point-id]')].map(node => [node.dataset.pointId, node.querySelector('circle').getAttribute('cx')]) };
+      });
+      const gutter = await scrolled.evaluate(() => innerWidth - document.documentElement.clientWidth);
+      assert.ok(gutter > 0, "回归场景必须存在占位滚动条，不能被 headless 默认隐藏");
+      const plot = await chartFor(scrolled).locator('svg[role="group"]').elementHandle();
+      for (const width of [1440, 1100]) {
+        const padding = width === 1100 ? "12px" : "";
+        await scrolled.evaluate(padding => { document.body.style.paddingRight = padding; }, padding);
+        await scrolled.setViewportSize({ width, height: 700 });
+        await scrolled.waitForFunction(() => {
+          const plot = document.querySelector('section[aria-label="身体指标趋势"] svg[role="group"]');
+          return Math.abs(plot.viewBox.baseVal.width - plot.parentElement.getBoundingClientRect().width) < .1;
+        });
+        for (const trigger of [
+          chartFor(scrolled).locator('[data-date="2025-07-08"][data-period="daytime"]'),
+          chartFor(scrolled).locator('[data-date="2025-07-09"][data-period="daytime"]'),
+          recentFor(scrolled).getByRole("button", { name: "查看 2025-07-08", exact: true }),
+          scrolled.getByRole("button", { name: "查看全部", exact: false }),
+        ]) {
+          await trigger.scrollIntoViewIfNeeded();
+          const before = await measure();
+          await trigger.click();
+          const modal = scrolled.getByRole('dialog');
+          await modal.waitFor();
+          for (let frame = 0; frame < 4; frame++) {
+            await scrolled.evaluate(() => new Promise(requestAnimationFrame));
+            assert.deepEqual(await measure(), before, "打开 Inspector 时页头、摘要、图表、表格和点坐标保持不变");
+          }
+          assert.equal(await plot.evaluate(node => node.isConnected), true, "打开 Inspector 保留图表实例");
+          await scrolled.keyboard.press('Escape');
+          await scrolled.locator('dialog').waitFor({ state: 'detached' });
+          await scrolled.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+          assert.deepEqual(await measure(), before, "关闭 Inspector 时页面不横移或改变图表宽度");
+          assert.equal(await scrolled.evaluate(() => document.body.style.paddingRight), padding, "关闭后恢复原始页面内边距，包括已有非零内边距");
+        }
+      }
+      await plot.dispose();
+    } finally {
+      await context.close();
+    }
+    console.log("通过：原生占位滚动条下，实测／估计／日期／历史 Inspector 连续开关不改变页面横向位置与图表尺寸。");
+  }
   try {
+    await assertStableInspector();
     const { context, page } = await loggedInPage({ width: 1440, height: 1000 });
     const chart = chartFor(page), recent = recentFor(page), detail = detailFor(page), summary = summaryFor(page);
     await chart.locator('[data-point-id]').first().waitFor();
@@ -415,8 +467,12 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
         assert.ok(layout.height <= layout.viewport * 1.5, `手机默认主要阅读内容不超过约 1.5 屏：${JSON.stringify(layout)}`);
       }
       const densePoint = chartFor(mobile.page).locator('[data-point-id][data-date="2025-07-09"][data-period="daytime"][data-kind="estimated"]');
+      const beforeInspector = await chartFor(mobile.page).boundingBox();
       await densePoint.tap();
       const denseModal = await assertSimpleEstimate(mobile.page);
+      const duringInspector = await chartFor(mobile.page).boundingBox();
+      assert.equal(duringInspector.x, beforeInspector.x, "手机打开 Inspector 时图表不横移");
+      assert.equal(duringInspector.width, beforeInspector.width, "手机打开 Inspector 时不增加多余留白");
       assert.match(await denseModal.innerText(), /2025.07.09/, "30D 密集点点击仍命中指定日期");
       assert.equal(await denseModal.getByRole("heading", { name: "2025.07.09", exact: true }).count(), 1);
       await mobile.page.keyboard.press("Escape");
@@ -467,7 +523,8 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       assert.equal(await observedModal.getByText("设备", { exact: true }).count(), 0, "未知设备不占空行");
       await initialized.page.screenshot({ path: `${artifacts}/initialization-${width}-observed.png` });
       await initialized.page.keyboard.press("Escape");
-      await observedModal.waitFor({ state: "hidden" });
+      // 原生 close 先隐藏 dialog；等待 React 清理完成，避免焦点恢复覆盖下一次键盘操作。
+      await initialized.page.locator("dialog").waitFor({ state: "detached" });
       const point = initializedChart.locator('[data-date="2025-08-06"][data-period="daytime"]');
       assert.match(await point.getAttribute("aria-label"), /估计.*晨间趋势插值/);
       await point.focus(); await initialized.page.keyboard.press("Enter");

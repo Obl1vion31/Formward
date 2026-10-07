@@ -14,6 +14,8 @@
 
 趋势图在晚间／估计开关、指标与日期变化时保留组件实例和已测量宽度，TrendPlot 不使用随显示条件变化的 key。重新挂载会先以默认 960px 绘制，再由 ResizeObserver 校正，造成切换瞬间压缩；浏览器反例捕捉到 1120 → 960 → 1120。当前只在容器实际缩放时更新测量宽度。悬停／聚焦提示按记录标识从当前可见点和指标生成，隐藏点不留下旧提示。
 
+Inspector 打开时锁定背景滚动，同时保留滚动条实际占用的宽度，关闭恢复原有 overflow 和右侧内边距。原生 15px 滚动条消失曾使居中内容向右移动 7.5px；当前页头、摘要、图表和表格在打开／关闭时保持原位。手机与浮动滚动条不增加留白，连续开关与开发 Strict Mode 重放不累积补偿。
+
 ## 已确认规则
 
 - 日期为 7D／30D／90D／全部／自定义，默认截至最新归属日的 30D。自定义校验日期，长区间只生成少量刻度，单日居中。
@@ -47,11 +49,13 @@ measurements、measurement_imports、measurement_events 保存记录、批次和
 
 ## 验证与接手
 
+原生占位滚动条下的 Inspector 布局回归通过，覆盖 1440×700、1100×700 和已有非零页面内边距：实测、估计、日期及完整历史连续打开／关闭，页头、摘要、图表、表格的横向位置与宽度、SVG 实例及点坐标保持不变。手机与横屏不增加留白。浏览器测试保留 Chromium headless 默认隐藏的滚动条；键盘重开在 dialog 卸载及焦点恢复完成后进行。
+
 lint、typecheck、118 项单元／集成测试、production build 通过。覆盖初始化插值／外推与来源快照、冻结与按指标实测替代、普通估计备用路径、正常、无效、重复与并发、跨账号、事务回滚、时区／夏令时、占位时间、来源独立、实测替代估计、四种估计情况、中位差、近期门槛、历史稳定、指标独立、准确时间确认、显式重建、样本不足、摘要和候选一致性；用户说明另覆盖样本日数与追溯行数独立、负差值、舍入、插值比例、趋势备用、体脂百分点、旧版／缺失依据兼容、快照只读及内部完整算式保留。
 
 开发和生产隔离 HTTP／浏览器验收通过，覆盖 1440×1000、1100×1000、390×844、320×740、844×390、触控与 reduced motion：晨晚实线／估计虚线与菱形、估计依据、指标独立真实性、真实配对差值、来源及时间精度、仅实测摘要、日期切换、非法／单日区间、最近 10 日、候选同步和空状态。实测与估计共用 Inspector，验证相同主读数字号、日期／状态与记录信息；图表点、表格数值及待选择单元格直接进入对应记录或时段候选。详情正确对应所点时段／指标，常规视口首屏显示数值、依据、真实样本日数和辅助趋势提示，参考默认折叠，界面无工程元数据；规则入口说明两种模式，关闭估计仍可读。Inspector 内切换指标不改变页面趋势；实测缺失体脂不混入另一条估计，跨午夜显示实际时间与归属日，未知设备／时区不占空行。查看候选不设置代表，明确选择后图表、表格与摘要同步；完整历史返回恢复展开、滚动和焦点。四列与图表等宽，全体行与表头对齐，固定比例不受估计标签影响；桌面及手机截图已复核。晚间连续开关使用 MutationObserver 和后续渲染帧检查，SVG 实例、宽度、左边界和晨间横坐标保持稳定；规则展开和窗口 1440 → 1100 → 1440 缩放检查通过。密集 30D 和接近的晨晚点直接点击正确，Enter／Space、历史抽屉首次打开、连续重开、双向 Tab、Escape／遮罩／按钮关闭、焦点返回与滚动恢复通过；保留 Strict Mode 下忽略过期 close 事件的修复。无客户端异常或页面横向溢出，390px 手机默认主要内容约 1.5 屏以内。
 
-浏览器用虚构数据库，开发模式另用临时源码副本与独立端口，不影响用户已有 3000 服务。当前身体记录截图在 /tmp/formward-inspector-development/ 和 /tmp/formward-inspector-production/，含 desktop-estimated-trends.png、mobile-390-30-days.png、mobile-320-30-days.png、desktop-single-estimate.png、mobile-390-details-drawer.png、mobile-390-single-estimate.png、rules-1440.png、rules-390.png、初始化实测／插值依据与参考列表及各视口 Inspector。复现入口见 [测试目录](tests/README.md)。首页完整 production 验收覆盖字体加载与角色分工、单行同级主词、标注连接及左右对齐、四种视口、动态重排、正倒放与中途反向、reduced motion、键盘／触屏、认证失败及成功顺序、冷启动／加载失败和 39 组人物交叠像素检查。登录底线的默认／hover／focus 状态、焦点框、尺寸稳定和倒放后输入保留均通过；首页验收截图路径为 /tmp/formward-editorial-visual/。
+浏览器用虚构数据库，开发模式另用临时源码副本与独立端口，不影响用户已有 3000 服务。当前身体记录截图在 /tmp/formward-scrollbar-development/ 和 /tmp/formward-scrollbar-production/，含 desktop-estimated-trends.png、mobile-390-30-days.png、mobile-320-30-days.png、desktop-single-estimate.png、mobile-390-details-drawer.png、mobile-390-single-estimate.png、rules-1440.png、rules-390.png、初始化实测／插值依据与参考列表及各视口 Inspector。复现入口见 [测试目录](tests/README.md)。首页完整 production 验收覆盖字体加载与角色分工、单行同级主词、标注连接及左右对齐、四种视口、动态重排、正倒放与中途反向、reduced motion、键盘／触屏、认证失败及成功顺序、冷启动／加载失败和 39 组人物交叠像素检查。登录底线的默认／hover／focus 状态、焦点框、尺寸稳定和倒放后输入保留均通过；首页验收截图路径为 /tmp/formward-editorial-visual/。
 
 真实数据仅在被 Git 忽略的 data/imports 与 data/exports 中。当前报告包括 measurements-before-initialization-2026-10-07.json、measurements-history-initialization-2026-10-07.json、同名 .preview.json、.report.json、.report.md 和 .result.json（逐字段核对后的记录快照）；原始文件和此前导入／维护报告保留。不要把实际数值、账号、原始文件、报告或配置提交 GitHub／放入 public，也不要复制为测试样本。
 
