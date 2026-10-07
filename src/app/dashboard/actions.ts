@@ -8,6 +8,7 @@ import { listMeasurements, type MeasurementActor } from "@/features/measurements
 import { estimateMeasurementCell, listMeasurementDates, measurementDisplay, saveMeasurementDay, type EstimateCellInput, type SaveMeasurementDayInput } from "@/features/measurements/editing";
 import type { EntryResult } from "@/features/measurements/entry-state";
 import type { Database } from "@/db/client";
+import { listMeasurementSources } from "@/features/measurements/sources";
 
 async function perform(work: (db: Database, actor: MeasurementActor) => Promise<string>): Promise<EntryResult> {
   const user = await currentUser(await headers());
@@ -17,8 +18,9 @@ async function perform(work: (db: Database, actor: MeasurementActor) => Promise<
     const message = await work(db, { userId: user.id, actorId: user.id, actorType: "user" });
     const records = await listMeasurements(db, user.id);
     const dates = await listMeasurementDates(db, user.id);
+    const sources = await listMeasurementSources(db, user.id);
     revalidatePath("/dashboard");
-    return { ok: true, records: records.map(measurementDisplay), dates, message };
+    return { ok: true, records: records.map(measurementDisplay), dates, sources, message };
   } catch (error) {
     // 数据库错误可能含 SQL 和数值，只把业务校验消息返回给本账号。
     return { ok: false, error: error instanceof Error && !["query", "code", "cause"].some(key => key in error) ? error.message : "操作未完成，请稍后重试。" };

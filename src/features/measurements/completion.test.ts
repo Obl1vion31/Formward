@@ -14,7 +14,7 @@ const db = drizzle(pg, { schema });
 const owner = "fictional-completion-owner", other = "fictional-completion-other";
 const request: HistoricalCompletionRequest = {
   operationId: "fictional-history", range: { start: "2024-01-01", end: "2024-01-06" }, trainingRange: { start: "2024-01-01", end: "2024-01-07" },
-  deviceName: "虚构蓝牙秤", companionApp: "虚构应用", records: [
+  deviceLabel: "虚构蓝牙秤-虚构应用", records: [
     { analysisDate: "2024-01-07", period: "daytime", weightKg: "79.2", bodyFatPercent: "24.2", fasting: true, timezone: "Asia/Shanghai", assumedTime: "08:00" },
     { analysisDate: "2024-01-07", period: "evening", weightKg: "80.2", bodyFatPercent: "24.8", fasting: false, timezone: "Asia/Shanghai", assumedTime: "20:00" },
   ],
@@ -23,7 +23,7 @@ let originals: Awaited<ReturnType<typeof listMeasurements>>;
 before(async () => {
   await migrate(db, { migrationsFolder: "./drizzle" });
   await db.insert(schema.user).values([{ id: owner, name: "虚构用户", email: "completion@example.test" }, { id: other, name: "虚构其他用户", email: "completion-other@example.test" }]);
-  await saveImportedMeasurements(db, { userId: owner, actorId: owner, fileDigest: "a".repeat(64), sourceLabel: "fictional.tsv", captureChannel: "file", records: [1, 3, 5].flatMap((day) => (["daytime", "evening"] as const).map((period, index) => ({ sourceLocalTime: `2024-01-0${day} ${period === "daytime" ? "08" : "20"}:00:00`, weightKg: (80 - day / 10 + index).toFixed(2), bodyFatPercent: (25 - day / 10 + index / 2).toFixed(2), bmi: "25.00", sourceRow: day * 2 + index, fasting: period === "daytime", fastingSource: "user_confirmed" as const, timezone: "Asia/Shanghai" }))) });
+  await saveImportedMeasurements(db, { userId: owner, actorId: owner, fileDigest: "a".repeat(64), sourceLabel: "fictional.tsv", captureChannel: "file", records: [1, 3, 5].flatMap((day) => (["daytime", "evening"] as const).map((period, index) => ({ sourceLocalTime: `2024-01-0${day} ${period === "daytime" ? "08" : "20"}:00:00`, weightKg: (80 - day / 10 + index).toFixed(2), bodyFatPercent: (25 - day / 10 + index / 2).toFixed(2), sourceRow: day * 2 + index, fasting: period === "daytime", fastingSource: "user_confirmed" as const, timezone: "Asia/Shanghai" }))) });
   originals = await listMeasurements(db, owner);
 });
 after(async () => { await pg.close(); });
@@ -42,13 +42,13 @@ test("预览只读；补全来源与占位时间独立保存，原始实测保�
     const row = rows.find((row) => row.id === original.id)!;
     assert.deepEqual([row.weightKg, row.bodyFatPercent, row.sourceLocalTime, row.originalValues, row.sourceType, row.createdAt], [original.weightKg, original.bodyFatPercent, original.sourceLocalTime, original.originalValues, original.sourceType, original.createdAt]);
     assert.equal(row.recordKind, "observed"); assert.equal(row.entryChannel, "development_backend");
-    assert.equal(row.deviceName, request.deviceName);
+    assert.equal(row.deviceLabel, request.deviceLabel);
   }
   const reported = rows.find((row) => row.analysisDate === "2024-01-07" && row.period === "daytime")!;
   assert.equal(reported.recordKind, "observed"); assert.equal(reported.timePrecision, "assumed"); assert.equal(reported.occurredAt, null);
   assert.equal(reported.originalValues.reportedTime, null); assert.equal(reported.originalValues.assumedTime, "08:00");
   for (const row of rows.filter((row) => row.recordKind === "estimated")) {
-    assert.equal(row.timePrecision, "day_period"); assert.equal(row.occurredAt, null); assert.equal(row.bmi, null); assert.equal(row.deviceName, null);
+    assert.equal(row.timePrecision, "day_period"); assert.equal(row.occurredAt, null); assert.equal(row.deviceLabel, null);
     assert.equal(row.estimation!.method, "morning-baseline-v3");
     if (row.estimation!.method !== "morning-baseline-v3") throw new Error("预期新模型");
     assert.equal(row.estimation!.weightKg!.trend!.sampleCount, 3);
@@ -101,7 +101,7 @@ test("审计失败时整个补录回滚，随后 API 实测替代估计且不可
 });
 
 test("历史补全事务中估计审计失败也不留下新批次或来源变更", async () => {
-  const changedRequest = { ...request, operationId: "fictional-rollback", deviceName: "另一个虚构设备", range: { start: "2024-01-08", end: "2024-01-08" }, trainingRange: { start: "2024-01-01", end: "2024-01-08" }, records: [] };
+  const changedRequest = { ...request, operationId: "fictional-rollback", deviceLabel: "另一个虚构设备", range: { start: "2024-01-08", end: "2024-01-08" }, trainingRange: { start: "2024-01-01", end: "2024-01-08" }, records: [] };
   const preview = await previewHistoricalCompletion(db, owner, changedRequest);
   const before = await listMeasurements(db, owner);
   const batches = (await db.select().from(schema.measurementImport)).length;

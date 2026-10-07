@@ -8,7 +8,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
   const close = async () => { await page.getByRole("button", { name: "关闭记录详情" }).click(); await page.locator("dialog").waitFor({ state: "detached" }); };
   const save = async () => { await form().getByRole("button", { name: "保存录入", exact: true }).click(); await form().getByRole("status").waitFor(); assert.equal(await form().getByRole("alert").count(), 0); };
   const openToday = async () => {
-    await page.locator(`section[aria-label="最近记录"] tr[data-date="${today}"]`).getByRole("button", { name: `编辑 ${today}`, exact: true }).click();
+    await page.locator(`section[aria-label="最近记录"] tr[data-date="${today}"]`).getByRole("button", { name: new RegExp(`^(录入|编辑) ${today}$`) }).click();
     await form().waitFor();
     await page.waitForFunction(() => document.querySelector("dialog")?.dataset.motion === "open");
   };
@@ -27,16 +27,26 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     });
     assert.equal(decoration.line, "underline"); assert.equal(decoration.offset, "4px"); assert.ok(decoration.height >= 44);
     assert.equal(await missing().count(), 4);
-    assert.equal(await form().getByRole("textbox").count(), 4, "每日四项直接输入，BMI 默认折叠");
+    assert.equal(await form().getByRole("textbox").count(), 4, "每日四项直接输入，无 BMI 表单");
     for (const cell of await missing().all()) {
       assert.equal(await cell.locator("input + button").count(), 1, "估算紧贴每个空项输入框");
     }
+    assert.equal(await form().getByRole("combobox", { name: "晨间数据来源" }).inputValue(), "虚构默认秤-应用");
+    assert.equal(await form().getByRole("combobox", { name: "晚间数据来源" }).inputValue(), "虚构默认秤-应用");
+    assert.equal(await form().getByText("BMI", { exact: false }).count(), 0);
     await page.screenshot({ path: `${artifacts}/entry-desktop-form.png` });
     await close();
     await openToday();
     assert.equal(await missing().count(), 4, "关闭表单不产生测量");
     await form().getByRole("textbox", { name: "晨间体重", exact: true }).fill("70.20");
     assert.equal(await form().getByRole("button", { name: "估算晚间体重" }).isDisabled(), true, "先保存实测草稿，再估算");
+    const morningSource = form().getByRole("combobox", { name: "晨间数据来源" });
+    await morningSource.fill("");
+    await form().getByRole("button", { name: "保存录入", exact: true }).click();
+    await form().getByRole("alert").waitFor();
+    assert.match(await form().getByRole("alert").innerText(), /数据来源/);
+    assert.equal(await form().getByRole("textbox", { name: "晨间体重", exact: true }).inputValue(), "70.20");
+    await morningSource.fill("虚构晨间新来源");
     await save();
     assert.equal(await missing().count(), 3);
     assert.equal(await form().locator('[data-entry-cell="daytime:weightKg"][data-kind="observed"]').count(), 1);
@@ -46,6 +56,14 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     assert.equal(await missing().count(), 3, "再次进入表格编辑保留剩余三项");
     assert.equal(await form().getByRole("textbox", { name: "晨间体重", exact: true }).inputValue(), "70.20", "编辑直接呈现已保存实测");
     await form().getByRole("textbox", { name: "晚间体脂率", exact: true }).fill("20.60");
+    const eveningSource = form().getByRole("combobox", { name: "晚间数据来源" });
+    assert.equal(await eveningSource.inputValue(), "虚构晨间新来源", "空时段默认最近成功使用的来源");
+    await eveningSource.fill("虚构默认"); await eveningSource.press("ArrowDown");
+    assert.equal(await eveningSource.getAttribute("aria-expanded"), "true");
+    await eveningSource.press("Escape"); assert.equal(await eveningSource.getAttribute("aria-expanded"), "false");
+    assert.equal(await page.locator("dialog").count(), 1, "来源 Escape 只关闭建议");
+    await eveningSource.press("ArrowDown"); await eveningSource.press("Enter");
+    assert.equal(await eveningSource.inputValue(), "虚构默认秤-应用");
     await save();
     assert.equal(await missing().count(), 2, "晚间仅体脂独立保存");
     await form().getByRole("button", { name: "估算晚间体重", exact: true }).click();
@@ -54,6 +72,11 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     assert.equal(await missing().count(), 1, "只估算所点指标，晨间体脂仍为空");
     await close(); await page.reload(); await openToday();
     assert.equal(await missing().count(), 1, "估计算作已填");
+    assert.equal(await form().getByRole("combobox", { name: "晨间数据来源" }).inputValue(), "虚构晨间新来源");
+    assert.equal(await form().getByRole("combobox", { name: "晚间数据来源" }).inputValue(), "虚构默认秤-应用");
+    await form().getByRole("combobox", { name: "晨间数据来源" }).fill("虚构仅改来源");
+    await save();
+    assert.equal(await form().getByRole("textbox", { name: "晨间体重" }).inputValue(), "70.20");
     await close();
     await page.locator(`section[aria-label="身体指标趋势"] [data-date="${today}"][data-period="evening"][data-kind="estimated"]`).click();
     await page.getByRole("article", { name: "记录详情" }).waitFor();
@@ -99,7 +122,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     console.log("通过：完整历史每批加载 50 个日期，已到达较早漏记日期。");
     const blank = history.locator(`details:has(> summary time[datetime="${blankDate}"])`);
     await blank.locator("summary").click();
-    await blank.getByRole("button", { name: `编辑 ${blankDate}`, exact: true }).click();
+    await blank.getByRole("button", { name: `补录 ${blankDate}`, exact: true }).click();
     await form().waitFor(); assert.equal(await missing().count(), 4);
     await form().getByRole("textbox", { name: "晨间体脂率", exact: true }).fill("21.20");
     await save();
@@ -127,7 +150,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
 
     for (const width of [390, 320]) {
       const mobile = await loggedInPage({ width, height: 844 }, entryAccount, { isMobile: true, hasTouch: true });
-      await mobile.page.locator(`section[aria-label="最近记录"] tr[data-date="${today}"]`).getByRole("button", { name: `编辑 ${today}`, exact: true }).tap();
+      await mobile.page.locator(`section[aria-label="最近记录"] tr[data-date="${today}"]`).getByRole("button", { name: new RegExp(`^(录入|编辑) ${today}$`) }).tap();
       const mobileForm = mobile.page.getByRole("form", { name: "当天四项录入" });
       await mobileForm.waitFor();
       await mobile.page.waitForFunction(() => document.querySelector("dialog")?.dataset.motion === "open");
@@ -141,6 +164,13 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
       });
       assert.equal(layout.pageOverflow, false); assert.equal(layout.formOverflow, false);
       assert.ok(layout.heights.every(height => height >= 44), "移动端所有表单操作保持触控尺寸");
+      const overview = mobile.page.getByRole("region", { name: "当天晨晚概览" });
+      const overviewRect = await overview.boundingBox();
+      assert.ok(overviewRect.y >= 0 && overviewRect.y + overviewRect.height < 844, "手机首屏显示完整晨晚概览");
+      const source = mobileForm.getByRole("combobox", { name: "晨间数据来源" });
+      await source.fill("虚构默认");
+      await mobileForm.getByRole("option", { name: "虚构默认秤-应用" }).tap();
+      assert.equal(await source.inputValue(), "虚构默认秤-应用");
       await mobile.page.screenshot({ path: `${artifacts}/entry-mobile-${width}.png` });
       await mobile.page.getByRole("button", { name: "← 返回身体记录", exact: true }).tap();
       await mobile.page.locator("dialog").waitFor({ state: "detached" });
@@ -153,7 +183,14 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
       const cells = await rows.evaluateAll(nodes => nodes.map(node => ({ height: node.getBoundingClientRect().height, count: node.cells.length, overflow: [...node.cells].some(cell => cell.scrollWidth > cell.clientWidth + 1) })));
       assert.ok(cells.every(row => row.count === 5 && !row.overflow && row.height === cells[0].height), "连续空行与闰年日期仍五列对齐，无单元格溢出");
       await mobile.page.screenshot({ path: `${artifacts}/calendar-mobile-${width}.png`, fullPage: true });
-      await rows.filter({ has: mobile.page.locator('time[datetime="2024-02-29"]') }).getByRole("button", { name: "编辑 2024-02-29", exact: true }).tap();
+      const blankLeap = rows.filter({ has: mobile.page.locator('time[datetime="2024-02-29"]') });
+      await blankLeap.getByRole("button", { name: "查看 2024-02-29", exact: true }).tap();
+      await mobile.page.getByRole("region", { name: "当天晨晚概览" }).waitFor();
+      assert.equal(await mobileForm.count(), 0, "空日期查看保留空概览，不自动录入");
+      assert.equal(await mobile.page.locator('[data-period-details][open]').count(), 0);
+      await mobile.page.getByRole("button", { name: "关闭记录详情" }).tap();
+      await mobile.page.locator("dialog").waitFor({ state: "detached" });
+      await blankLeap.getByRole("button", { name: "补录 2024-02-29", exact: true }).tap();
       await mobileForm.waitFor();
       assert.equal(await mobileForm.locator('[data-entry-cell][data-kind="missing"]').count(), 4);
       await mobile.context.close();

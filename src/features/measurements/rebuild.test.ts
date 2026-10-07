@@ -93,7 +93,7 @@ test("体脂缺项显式估计；实测恢复不重算，补录仅替代对应�
 test("按时间导入不自动补估计，并保持账户隔离", async () => {
   const owner = await setup("import-auto"), other = await setup("import-other");
   const otherBefore = await listMeasurements(db, other);
-  await saveImportedMeasurements(db, { userId: owner, actorId: owner, fileDigest: "f".repeat(64), sourceLabel: "fictional.tsv", captureChannel: "file", records: [{ sourceLocalTime: "2024-01-04 08:00:00", weightKg: "68.27", bmi: null, bodyFatPercent: null, sourceRow: 2, fasting: true, fastingSource: "user_confirmed" }] });
+  await saveImportedMeasurements(db, { userId: owner, actorId: owner, fileDigest: "f".repeat(64), sourceLabel: "fictional.tsv", captureChannel: "file", records: [{ sourceLocalTime: "2024-01-04 08:00:00", weightKg: "68.27", bodyFatPercent: null, sourceRow: 2, fasting: true, fastingSource: "user_confirmed" }] });
   const rows = await listMeasurements(db, owner);
   assert.ok(!rows.some(r => r.analysisDate === "2024-01-04" && r.recordKind === "estimated"));
   assert.deepEqual(await listMeasurements(db, other), otherBefore);

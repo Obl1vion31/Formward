@@ -69,7 +69,7 @@ test("无效日期、单位数值、表头和未经确认的空腹条件拒绝�
   }));
   assert.equal((await listMeasurements(db, userId)).length, count);
   const missing = previewMeasurementTsv(`${header}\n2025-05-10 12:00:00\t75.00\t\t`).records[0];
-  assert.equal(missing.bmi, null);
+  assert.equal(Object.hasOwn(missing, "bmi"), false);
   assert.equal(missing.bodyFatPercent, null);
   assert.equal(missing.fasting, null);
 });

@@ -21,7 +21,7 @@ async function owner(name: string, seed = false) {
   if (seed) await saveReportedMeasurements(db, { ...actor, requestKey: randomUUID().replaceAll("-", "").padEnd(64, "a"), entryChannel: "manual", records: [1, 2, 3].flatMap(day => entryPeriods.map(period => ({ analysisDate: `2024-04-0${day}`, period, weightKg: (70 + day / 10 + (period === "evening" ? .5 : 0)).toFixed(2), bodyFatPercent: (20 + day / 10 + (period === "evening" ? .4 : 0)).toFixed(2), fasting: period === "daytime" }))) });
   return actor;
 }
-const input = (date: string, periods: SaveMeasurementDayInput["periods"]): SaveMeasurementDayInput => ({ date, periods, timezone: "Asia/Shanghai", operationId: randomUUID() });
+const input = (date: string, periods: SaveMeasurementDayInput["periods"]): SaveMeasurementDayInput => ({ date, periods: Object.fromEntries(Object.entries(periods).map(([period, edit]) => [period, { deviceLabel: "虚构体重秤", ...edit }])), timezone: "Asia/Shanghai", operationId: randomUUID() });
 
 test("四项全部 15 种非空组合都可保存，补填仅合并剩余指标，不自动估计", async () => {
   const actor = await owner("combinations");
@@ -132,11 +132,11 @@ test("单项估算保留其他空项，按指标合并依据；补录实测只�
 
 test("历史编辑保留准确时间和来源；显式清空与遗漏区分，不能清空整条测量", async () => {
   const actor = await owner("precise-edit"), date = "2024-04-04";
-  await saveReportedMeasurements(db, { ...actor, requestKey: "e".repeat(64), entryChannel: "api", records: [{ analysisDate: date, period: "daytime", weightKg: "70.00", bodyFatPercent: "20.00", bmi: "23.00", fasting: true, measuredAt: `${date} 08:30:00`, timezone: "Asia/Shanghai" }] });
+  await saveReportedMeasurements(db, { ...actor, requestKey: "e".repeat(64), entryChannel: "api", records: [{ analysisDate: date, period: "daytime", weightKg: "70.00", bodyFatPercent: "20.00", fasting: true, measuredAt: `${date} 08:30:00`, timezone: "Asia/Shanghai" }] });
   const original = (await listMeasurements(db, actor.userId))[0];
   await saveMeasurementDay(db, actor, { ...input(date, { daytime: { recordId: original.id, version: original.updatedAt.toISOString(), weightKg: "70.10" } }), timezone: "America/New_York" });
   let current = (await listMeasurements(db, actor.userId))[0];
-  for (const field of ["bodyFatPercent", "bmi", "fasting", "sourceLocalTime", "localDate", "analysisDate", "period", "timezone", "occurredAt", "utcOffsetMinutes", "timePrecision", "sourceType", "entryChannel", "originalValues", "createdBy", "createdAt"] as const) assert.deepEqual(current[field], original[field], field);
+  for (const field of ["bodyFatPercent", "fasting", "sourceLocalTime", "localDate", "analysisDate", "period", "timezone", "occurredAt", "utcOffsetMinutes", "timePrecision", "sourceType", "entryChannel", "originalValues", "createdBy", "createdAt"] as const) assert.deepEqual(current[field], original[field], field);
   await saveMeasurementDay(db, actor, input(date, { daytime: { recordId: current.id, version: current.updatedAt.toISOString(), weightKg: null } }));
   current = (await listMeasurements(db, actor.userId))[0];
   assert.equal(current.weightKg, null); assert.equal(current.bodyFatPercent, "20.00");
@@ -190,7 +190,7 @@ test("无效、跨账号、旧版本、请求键内容冲突及并发重试均�
   await assert.rejects(saveMeasurementDay(db, actor, input(row.analysisDate, { daytime: edit })), /已变化/);
   await assert.rejects(saveMeasurementDay(db, actor, input("invalid-date", { daytime: { weightKg: "70" } })));
   await assert.rejects(saveMeasurementDay(db, actor, input("2024-04-05", { daytime: { weightKg: "abc" } })));
-  await assert.rejects(saveMeasurementDay(db, actor, input("2024-04-05", { daytime: { bmi: "23.00" } })), /至少/);
+  await assert.rejects(saveMeasurementDay(db, actor, input("2024-04-05", { daytime: { deviceLabel: "虚构体重秤" } })), /至少/);
   assert.equal((await listMeasurements(db, actor.userId)).length, 1);
 });
 

@@ -9,13 +9,13 @@ export type EntryPeriod = typeof entryPeriods[number];
 export type EntryCell = { period: EntryPeriod; metric: MeasurementMetric };
 export type MeasurementDateDisplay = { date: string; reminderSkipped: boolean };
 export type MeasurementDisplay = DailyMeasurement & {
-  bmi: string | null; timezone: string | null; localDate: string;
+  timezone: string | null; localDate: string;
   sourceType: string; sourceSystem: string | null; sourceRecordId: string | null;
   recordKind: "observed" | "estimated"; entryChannel: "api" | "manual" | "development_backend" | null;
-  deviceName: string | null; companionApp: string | null; estimation: EstimationMetadata | null;
+  deviceLabel: string | null; estimation: EstimationMetadata | null;
   timePrecision: string; updatedAt: string;
 };
-export type EntryResult = { ok: true; records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; message: string } | { ok: false; error: string };
+export type EntryResult = { ok: true; records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; message: string } | { ok: false; error: string };
 export type MeasurementActions = {
   save: (input: SaveMeasurementDayInput) => Promise<EntryResult>;
   estimate: (input: EstimateCellInput) => Promise<EntryResult>;
@@ -43,4 +43,8 @@ export function measurementEntryState<T extends DailyMeasurement>(records: T[], 
 
 export function missingMeasurementCells(records: DailyMeasurement[], date: string, choices: Record<string, string> = {}): EntryCell[] {
   return measurementEntryState(records, date, choices).flatMap(group => entryMetrics.filter(metric => group.fields[metric].kind === "missing").map(metric => ({ period: group.period, metric })));
+}
+
+export function measurementDayAction(records: DailyMeasurement[], date: string, today: string) {
+  return records.some(row => row.analysisDate === date && row.recordKind !== "estimated") ? "编辑" : date === today ? "录入" : "补录";
 }

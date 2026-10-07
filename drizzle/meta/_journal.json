@@ -43,6 +43,13 @@
       "when": 1791379070452,
       "tag": "0005_medical_beyonder",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791391899932,
+      "tag": "0006_living_tarantula",
+      "breakpoints": true
     }
   ]
 }

@@ -34,11 +34,11 @@ const events = () => db.select().from(schema.measurementEvent).where(eq(schema.m
 
 test("晚间及凌晨统一非空腹，白天仍须明确确认，不接受伪造来源或无效状态", () => {
   for (const time of ["2025-07-10 18:00:00", "2025-07-11 05:59:59"]) {
-    const record = validateImportedMeasurement({ sourceLocalTime: time, weightKg: "75.00", bmi: null, bodyFatPercent: null, sourceRow: 2, fasting: true, fastingSource: "user_confirmed" });
+    const record = validateImportedMeasurement({ sourceLocalTime: time, weightKg: "75.00", bodyFatPercent: null, sourceRow: 2, fasting: true, fastingSource: "user_confirmed" });
     assert.equal(record.fasting, false);
     assert.equal(record.fastingSource, "evening_rule");
   }
-  assert.throws(() => validateImportedMeasurement({ sourceLocalTime: "2025-07-10 11:00:00", weightKg: "75.00", bmi: null, bodyFatPercent: null, sourceRow: 2, fasting: false, fastingSource: "evening_rule" }));
+  assert.throws(() => validateImportedMeasurement({ sourceLocalTime: "2025-07-10 11:00:00", weightKg: "75.00", bodyFatPercent: null, sourceRow: 2, fasting: false, fastingSource: "evening_rule" }));
   assert.equal(previewMeasurementTsv(contents).records[0].fasting, null);
   const record = previewMeasurementTsv(contents).records[1];
   assert.throws(() => validateImportedMeasurement({ ...record, fasting: "false" as unknown as boolean }));

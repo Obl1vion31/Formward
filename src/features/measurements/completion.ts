@@ -9,23 +9,24 @@ import type { DailyMeasurement } from "./days";
 import { calendarOrdinal, type MeasurementInterval } from "./trend";
 import { insertReportedMeasurement, lockMeasurementOwner, resolveReportedMeasurement, validateReportedMeasurement, type MeasurementActor, type ReportedMeasurement } from "./records";
 
+import { rememberMeasurementSource, validateDeviceLabel } from "./sources";
+
 export type HistoricalCompletionRequest = {
   operationId: string;
   range: MeasurementInterval;
   trainingRange: MeasurementInterval;
-  deviceName: string;
-  companionApp: string;
+  deviceLabel: string;
   records: ReportedMeasurement[];
 };
 type MeasurementRow = typeof measurement.$inferSelect;
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
 function normalizeRequest(input: HistoricalCompletionRequest) {
-  if (!input.operationId?.trim() || input.operationId.length > 120 || !input.deviceName?.trim() || input.deviceName.length > 200 || !input.companionApp?.trim() || input.companionApp.length > 100 || !Array.isArray(input.records) || input.records.length > 56) throw new Error("历史补全请求无效。");
+  if (!input.operationId?.trim() || input.operationId.length > 120 || !Array.isArray(input.records) || input.records.length > 56) throw new Error("历史补全请求无效。");
   if (calendarOrdinal(input.range.start) > calendarOrdinal(input.range.end) || calendarOrdinal(input.trainingRange.start) > calendarOrdinal(input.trainingRange.end) || calendarOrdinal(input.trainingRange.end) - calendarOrdinal(input.trainingRange.start) > 27 || input.range.start < input.trainingRange.start || input.range.end > input.trainingRange.end) throw new Error("补全范围须位于最多 28 天的训练阶段内。");
   const records = input.records.map(validateReportedMeasurement).sort((a, b) => a.deduplicationKey.localeCompare(b.deduplicationKey));
   if (records.some((row) => row.analysisDate < input.trainingRange.start || row.analysisDate > input.trainingRange.end) || new Set(records.map((row) => `${row.analysisDate}:${row.period}`)).size !== records.length) throw new Error("新实测须位于训练阶段内，每时段最多提供一条。");
-  return { operationId: input.operationId.trim(), range: { start: input.range.start, end: input.range.end }, trainingRange: { start: input.trainingRange.start, end: input.trainingRange.end }, deviceName: input.deviceName.trim(), companionApp: input.companionApp.trim(), records };
+  return { operationId: input.operationId.trim(), range: { start: input.range.start, end: input.range.end }, trainingRange: { start: input.trainingRange.start, end: input.trainingRange.end }, deviceLabel: validateDeviceLabel(input.deviceLabel), records };
 }
 
 function projectRows(rows: MeasurementRow[], request: ReturnType<typeof normalizeRequest>, frozenRange?: MeasurementInterval) {
@@ -58,7 +59,7 @@ function projectRows(rows: MeasurementRow[], request: ReturnType<typeof normaliz
     predicted.warnings.push(...sameDay.warnings);
   }
   predicted.warnings = [...new Set(predicted.warnings)];
-  const annotateIds = rows.filter((row) => row.recordKind === "observed" && row.analysisDate >= request.trainingRange.start && row.analysisDate <= request.trainingRange.end && (row.entryChannel !== "development_backend" || row.deviceName !== request.deviceName || row.companionApp !== request.companionApp)).map((row) => row.id);
+  const annotateIds = rows.filter((row) => row.recordKind === "observed" && row.analysisDate >= request.trainingRange.start && row.analysisDate <= request.trainingRange.end && (row.entryChannel !== "development_backend" || row.deviceLabel !== request.deviceLabel)).map((row) => row.id);
   return { additions, annotateIds, ...predicted };
 }
 
@@ -94,13 +95,14 @@ export async function applyHistoricalCompletion(db: Database, input: Measurement
     const [batch] = await tx.insert(measurementImport).values({ id: randomUUID(), userId: input.userId, fileDigest: requestKey, sourceLabel: `历史来源与估计补全 · ${request.operationId}`, captureChannel: "development_backend", insertedCount: 0, skippedCount: 0, createdBy: input.actorId }).returning();
     for (const id of preview.annotateIds) {
       const before = rows.find((row) => row.id === id)!;
-      const [after] = await tx.update(measurement).set({ entryChannel: "development_backend", deviceName: request.deviceName, companionApp: request.companionApp, updatedAt: new Date() }).where(and(eq(measurement.userId, input.userId), eq(measurement.id, id))).returning();
+      const [after] = await tx.update(measurement).set({ entryChannel: "development_backend", deviceLabel: request.deviceLabel, updatedAt: new Date() }).where(and(eq(measurement.userId, input.userId), eq(measurement.id, id))).returning();
       await tx.insert(measurementEvent).values({ id: randomUUID(), userId: input.userId, measurementId: id, action: "update", actorType: input.actorType ?? "development_backend", actorId: input.actorId, snapshot: { before, after, reason: "user_confirmed_provenance", operationDigest: input.digest, importId: batch.id } });
     }
+    if (preview.annotateIds.length || preview.additions.length) await rememberMeasurementSource(tx, input.userId, request.deviceLabel);
     let observedInserted = 0, observedUpdated = 0;
     const affectedDates: string[] = [];
     for (const record of preview.additions) {
-      const row = await insertReportedMeasurement(tx, input, record, batch.id, { entryChannel: "development_backend", deviceName: request.deviceName, companionApp: request.companionApp });
+      const row = await insertReportedMeasurement(tx, input, record, batch.id, { entryChannel: "development_backend", deviceLabel: request.deviceLabel });
       if (row) { if (row.writeKind === "inserted") observedInserted++; else observedUpdated++; affectedDates.push(row.analysisDate); }
     }
     const refreshed = await refreshMeasurementDates(tx, input, affectedDates, { operationKey: batch.id, importId: batch.id, reason: "same_day_observed_refresh" });

@@ -42,6 +42,15 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     }
     assert.equal(new Set(layout.heights).size, 1, "完整、部分和空白日期共用行高");
     assert.equal(layout.headings.length, 5);
+    const operations = await recentFor(page).locator("tbody tr td:last-child").evaluateAll(cells => cells.map(cell => {
+      const buttons = [...cell.querySelectorAll("button")];
+      return { text: buttons.map(button => button.textContent), rects: buttons.map(button => { const box = button.getBoundingClientRect(); return { y: box.y, height: box.height, right: box.right, left: box.left }; }), overflow: cell.scrollWidth > cell.clientWidth + 1 };
+    }));
+    for (const item of operations) {
+      assert.equal(item.text[0], "查看"); assert.equal(item.text.length, 2); assert.ok(item.rects.every(rect => rect.height >= 44)); assert.equal(item.overflow, false);
+      if (page.viewportSize().width <= 600) assert.ok(item.rects[1].y >= item.rects[0].y + 44, "手机操作上下排列");
+      else assert.equal(item.rects[0].y, item.rects[1].y, "桌面操作同排");
+    }
     assert.ok(!(await recentFor(page).innerText()).includes("历史初始化估计"), "最近记录仅使用短估计标识");
   }
   async function assertRecordInspector(page, kind = "observed", metric = "weightKg") {
@@ -51,9 +60,9 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.equal(await modal.getByRole("article", { name: "记录详情", exact: true }).count(), 1, "始终只呈现当前记录");
     assert.equal(await modal.locator("[data-inspector-record]").getAttribute("data-kind"), kind);
     assert.equal(await modal.locator("[data-record-value]").getAttribute("data-record-value"), metric);
-    assert.match(await modal.locator("header").first().innerText(), /\d{4}\.\d{2}\.\d{2}.*周.*(?:实测|估计)/s);
+    assert.match(await modal.locator("header").first().innerText(), /\d{4}\.\d{2}\.\d{2}.*周.*晨间／晚间/s);
     assert.equal(await modal.getByRole("heading", { name: "记录信息", exact: true }).count(), 1);
-    assert.equal(await modal.getByRole("navigation", { name: "当天时段", exact: true }).count(), 1);
+    assert.equal(await modal.getByRole("region", { name: "当天晨晚概览", exact: true }).count(), 1);
     assert.doesNotMatch(await modal.innerText(), /规则版本|初始化批次|生成时间|historical-initialization|morning-baseline|UUID|历史初始化说明|最小二乘/);
     assert.equal(await modal.getByRole("region", { name: "估计依据", exact: true }).count(), kind === "estimated" ? 1 : 0);
     const primary = await modal.locator('[data-record-value] strong').evaluate(node => ({ size: getComputedStyle(node).fontSize, weight: getComputedStyle(node).fontWeight }));
@@ -70,10 +79,10 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.match(text, /基于 \d+ 个真实/);
     assert.match(text, /用于辅助趋势，并非实际测量/);
     assert.doesNotMatch(text, /规则版本|初始化批次|生成时间|历史参考|historical-initialization|morning-baseline|UUID|历史初始化说明|最小二乘/);
-    assert.equal(await modal.locator('details[open]').count(), 0, "参考记录默认折叠");
-    const essential = await modal.locator('[class*="estimateDisclaimer"]').boundingBox();
+    assert.equal(await modal.locator('details[class*="references"][open]').count(), 0, "参考记录默认折叠");
+    const essential = await modal.getByRole('region', { name: '当天晨晚概览' }).boundingBox();
     const box = await modal.boundingBox();
-    if (page.viewportSize().height >= 740) assert.ok(essential.y + essential.height <= box.y + box.height, "常规视口核心依据与辅助趋势说明无需滚动即可看到");
+    if (page.viewportSize().height >= 740) assert.ok(essential.y + essential.height <= box.y + box.height, "常规视口晨晚概览首屏可见");
     return modal;
   }
   async function assertEstimateRules(page) {
@@ -378,15 +387,18 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     await pendingButton.click();
     await drawer.waitFor();
     assert.equal(await drawer.locator('[data-record-value]').count(), 0, "待选择单元格直接进入对应时段候选");
-    assert.equal(await drawer.getByRole("navigation", { name: "当天时段" }).getByRole("button", { name: "晚间", exact: false }).getAttribute("aria-pressed"), "true");
+    assert.equal(await drawer.locator('[data-period-details="evening"]').getAttribute("open"), "");
     await page.keyboard.press("Escape");
     await drawer.waitFor({ state: "hidden" });
     assert.equal(await pendingButton.evaluate(node => node === document.activeElement), true);
     const dateButton = recent.getByRole("button", { name: "查看 2025-07-10", exact: true });
     await dateButton.click();
+    assert.equal(await drawer.getByRole("article", { name: "记录详情" }).count(), 0, "日期查看先展示晨晚概览，详情折叠");
+    await drawer.locator('[data-period-details="daytime"] > summary').click();
     await assertRecordInspector(page);
     assert.match(await drawer.locator('[data-record-value]').innerText(), /75.23/);
-    await drawer.getByRole("navigation", { name: "当天时段" }).getByRole("button", { name: "晚间", exact: false }).click();
+    await drawer.locator('[data-period-details="daytime"] > summary').click();
+    await drawer.locator('[data-period-details="evening"] > summary').click();
     assert.equal(await drawer.locator('[data-record-value]').count(), 0, "多候选不擅自选择代表");
     await drawer.getByRole("button", { name: /2025-07-11 00:30:00/ }).click();
     await assertRecordInspector(page);
@@ -396,7 +408,6 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.match(await drawer.innerText(), /开发后台加入/);
     assert.equal(await chart.locator('[data-point-id][data-date="2025-07-10"][data-period="evening"]').count(), 0, "查看候选不设置代表记录");
     assert.equal(await page.evaluate(() => document.body.style.overflow), "hidden");
-    await drawer.locator('details[class*="recordNavigation"] > summary').click();
     await drawer.getByLabel("晚间代表记录").selectOption({ label: "2025-07-10 20:10:00 · 75.80 kg" });
     assert.match(await drawer.locator('[data-record-value]').innerText(), /75.80/);
     await page.keyboard.press("Escape");
@@ -418,7 +429,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     await fatEstimate.click();
     const fatModal = await assertSimpleEstimate(page, "bodyFatPercent");
     assert.match(await fatModal.innerText(), /体脂率.*近期晨间趋势/s);
-    assert.ok(!(await fatModal.innerText()).includes("74.80 kg"), "估计体脂不混入同条实测体重的依据");
+    assert.ok(!(await fatModal.getByRole("article", { name: "记录详情" }).innerText()).includes("74.80 kg"), "估计体脂依据与同日实测概览独立");
     await page.keyboard.press("Escape");
     await fatModal.waitFor({ state: "hidden" });
     await chart.locator('[data-point-id][data-date="2025-07-11"][data-period="evening"][data-kind="estimated"]').click();
@@ -475,7 +486,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     await single.focus();
     await page.keyboard.press("Enter");
     await assertRecordInspector(page);
-    assert.match(await drawer.innerText(), /2025.07.14.*时间为占位/s);
+    assert.match(await drawer.innerText(), /2025.07.14.*测量时间\s*无/s);
     await page.keyboard.press("Escape");
     await drawer.waitFor({ state: "hidden" });
     assert.equal(await single.evaluate(node => node === document.activeElement), true, "实测直接查看后返回图表点");
@@ -569,8 +580,8 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       await mobileDrawer.waitFor({ state: "hidden" });
       await chartFor(mobile.page).locator('[data-point-id][data-date="2025-07-14"][data-period="daytime"]').tap();
       await assertRecordInspector(mobile.page);
-      assert.match(await mobileDrawer.innerText(), /时间为占位/);
-      assert.match(await mobileDrawer.locator('header').first().innerText(), /实测/);
+      assert.match(await mobileDrawer.getByRole("region", { name: "记录信息" }).innerText(), /测量时间\s*无/);
+      assert.match(await mobileDrawer.getByRole("region", { name: "当天晨晚概览" }).innerText(), /实测/);
       await mobileDrawer.getByRole("button", { name: "关闭记录详情", exact: true }).tap();
       await mobileDrawer.waitFor({ state: "hidden" });
       await mobile.page.getByRole("button", { name: "全部", exact: true }).tap();
@@ -586,9 +597,9 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       await assertRecentLayout(initialized.page);
       await initializedChart.locator('[data-date="2025-08-05"][data-period="daytime"][data-kind="observed"]').click();
       const observedModal = await assertRecordInspector(initialized.page);
-      assert.match(await observedModal.innerText(), /API 写入.*仅记录日期与时段/s);
-      assert.equal(await observedModal.getByText("时区", { exact: true }).count(), 0, "未知时区不编造值");
-      assert.equal(await observedModal.getByText("设备", { exact: true }).count(), 0, "未知设备不占空行");
+      assert.match(await observedModal.innerText(), /API 写入.*测量时间\s*无/s);
+      assert.match(await observedModal.getByRole("region", { name: "记录信息" }).innerText(), /时区\s*无/);
+      assert.match(await observedModal.getByRole("region", { name: "记录信息" }).innerText(), /设备\s*无/);
       await initialized.page.screenshot({ path: `${artifacts}/initialization-${width}-observed.png` });
       await initialized.page.keyboard.press("Escape");
       // 原生 close 先隐藏 dialog；等待 React 清理完成，避免焦点恢复覆盖下一次键盘操作。
@@ -631,7 +642,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     const empty = await loggedInPage({ width: 390, height: 844 }, second);
     await recentFor(empty.page).locator('tbody tr').first().waitFor();
     assert.equal(await empty.page.locator("dialog").count(), 0);
-    await recentFor(empty.page).locator('tbody tr').first().getByRole("button", { name: /^编辑 / }).click();
+    await recentFor(empty.page).locator('tbody tr').first().getByRole("button", { name: /^(录入|补录) / }).click();
     await empty.page.getByRole("form", { name: "当天四项录入" }).waitFor();
     assert.equal(await empty.page.locator('[data-entry-cell][data-kind="missing"]').count(), 4);
     await empty.page.getByRole("button", { name: "关闭记录详情" }).click();

@@ -15,7 +15,7 @@
 .workspace button:hover, .drawer button:hover { color: var(--body-ink); }
 .historyFooter { display: flex; justify-content: space-between; align-items: center; }
 .rowActions { display: flex; justify-content: flex-end; align-items: center; gap: 16px; }
-.rowActions button { min-width: 44px; padding: 0; font-size: 12px; color: var(--body-gold); }
+.rowActions button { min-width: 32px; padding: 0; font-size: 12px; color: var(--body-gold); }
 .drawer .editRecord { padding: 0; color: var(--body-gold); border-bottom: 1px solid var(--body-gold); margin-bottom: 16px; }
 .entryIntroduction { margin: 10px 0 24px; }
 .entryIntroduction p { margin: 0 0 6px; font-size: 18px; color: var(--body-ink); }
@@ -36,10 +36,6 @@
 .entryCandidate { display: grid; gap: 8px; color: var(--body-muted); font-size: 12px; }
 .entryForm select { background: #151513; color: var(--body-ink); border: 0; border-bottom: 1px solid var(--body-rule); font: inherit; min-height: 44px; min-width: 0; width: 100%; }
 .entryCondition { color: var(--body-muted); font-size: 12px; margin: 0; min-height: 44px; display: flex; align-items: center; }
-.entryMore { border-top: 1px solid var(--body-rule); margin: 22px 0 0; color: var(--body-muted); font-size: 12px; }
-.entryMore summary { cursor: pointer; min-height: 44px; align-content: center; }
-.entryMore > div { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
-.entryMore input { border-bottom: 1px solid var(--body-rule); font-size: 18px; }
 .entryFooter { display: flex; align-items: center; gap: 24px; padding: 16px 0 4px; }
 .entryFooter button { padding: 0; font-size: 13px; }
 .drawer .saveEntry { color: var(--body-gold); padding: 0; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
@@ -50,8 +46,8 @@
   .entryGroups { grid-template-columns: 1fr; gap: 24px; }
   .entryCell { margin-bottom: 14px; }
   .entryIntroduction { margin-bottom: 20px; }
-  .entryMore { margin-top: 16px; }
-  .rowActions { gap: 10px; }
+  .rowActions { flex-direction: column; gap: 0; align-items: stretch; }
+  .rowActions button { min-width: 0; width: 100%; }
 }
 .summary { display: grid; grid-template-columns: 1.3fr 1.3fr repeat(4, 1fr); align-items: end; gap: 20px; padding: 24px 0 28px; border-bottom: 1px solid var(--body-rule); }
 .summary > div > span { color: var(--body-muted); font-size: 13px; }
@@ -296,4 +292,30 @@
   .recordReading strong { font-size: 36px; }
   .recordInfo dl { gap: 16px 18px; }
   .recordEntry strong { font-size: 16px; }
+}
+
+.sourceInput { position: relative; margin-top: 8px; color: var(--body-ink); }
+.sourceInput > label { display: flex; justify-content: space-between; gap: 8px; color: var(--body-muted); font-size: 12px; }
+.sourceInput label small { font-size: 11px; }
+.entryForm .sourceInput input { border-bottom: 1px solid var(--body-rule); font-size: 13px; }
+.sourceInput ul { position: absolute; z-index: 2; width: 100%; max-height: 176px; overflow-y: auto; margin: 0; padding: 0; list-style: none; background: #20201c; border: 1px solid var(--body-rule); box-shadow: 0 8px 24px rgba(0, 0, 0, .25); }
+.sourceInput li { min-height: 44px; align-content: center; padding: 8px 12px; font-size: 13px; overflow-wrap: anywhere; cursor: pointer; }
+.sourceInput li:hover, .sourceInput li[aria-selected="true"] { background: rgba(190, 164, 120, .12); }
+.dayOverview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; flex-shrink: 0; padding: 16px 28px 18px; border-bottom: 1px solid var(--body-rule); }
+.dayOverview h3 { font-weight: 400; font-size: 13px; margin: 0 0 10px; }
+.overviewReading { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin-top: 9px; align-items: baseline; }
+.overviewReading > span { color: var(--body-muted); font-size: 11px; }
+.overviewReading strong { font-size: 23px; line-height: 1.15; font-weight: 400; white-space: nowrap; }
+.overviewReading small { color: var(--body-muted); font-size: 10px; }
+.overviewReading strong small { margin-left: 4px; }
+.overviewReading > small { grid-column: 2; text-align: right; }
+.periodDetails { border-bottom: 1px solid var(--body-rule); }
+.periodDetails > summary { min-height: 44px; padding: 12px 0; cursor: pointer; color: var(--body-ink); }
+.periodDetails > summary small { color: var(--body-muted); margin-left: 8px; font-size: 12px; }
+.periodDetails .recordDetails { padding-top: 8px; }
+@media (max-width: 600px) {
+  .dayOverview { padding: 14px 20px 16px; gap: 20px; }
+  .overviewReading { grid-template-columns: 1fr; gap: 3px; }
+  .overviewReading strong { font-size: 23px; }
+  .overviewReading > small { grid-column: 1; text-align: left; }
 }

@@ -86,13 +86,11 @@ export const measurement = pgTable("measurements", {
   fasting: boolean("fasting"),
   fastingSource: text("fasting_source"),
   weightKg: numeric("weight_kg", { precision: 7, scale: 2 }),
-  bmi: numeric("bmi", { precision: 7, scale: 2 }),
   bodyFatPercent: numeric("body_fat_percent", { precision: 5, scale: 2 }),
   sourceType: text("source_type").notNull(),
   recordKind: text("record_kind", { enum: ["observed", "estimated"] }).notNull().default("observed"),
   entryChannel: text("entry_channel", { enum: ["api", "manual", "development_backend"] }),
-  deviceName: text("device_name"),
-  companionApp: text("companion_app"),
+  deviceLabel: text("device_label"),
   estimation: jsonb("estimation").$type<import("../features/measurements/estimation").EstimationMetadata>(),
   sourceSystem: text("source_system"),
   sourceRecordId: text("source_record_id"),
@@ -110,7 +108,6 @@ export const measurement = pgTable("measurements", {
   index("measurements_user_analysis_date_idx").on(table.userId, table.analysisDate),
   check("measurements_weight_valid", sql`${table.weightKg} > 0`),
   check("measurements_metric_presence", sql`${table.weightKg} IS NOT NULL OR ${table.bodyFatPercent} IS NOT NULL`),
-  check("measurements_bmi_valid", sql`${table.bmi} IS NULL OR ${table.bmi} > 0`),
   check("measurements_body_fat_valid", sql`${table.bodyFatPercent} IS NULL OR ${table.bodyFatPercent} BETWEEN 0 AND 100`),
   check("measurements_period_valid", sql`${table.period} IN ('daytime', 'evening')`),
   check("measurements_instant_has_timezone", sql`${table.occurredAt} IS NULL OR ${table.timezone} IS NOT NULL`),
@@ -118,6 +115,18 @@ export const measurement = pgTable("measurements", {
   check("measurements_channel_valid", sql`${table.entryChannel} IS NULL OR ${table.entryChannel} IN ('api', 'manual', 'development_backend')`),
   check("measurements_estimation_valid", sql`(${table.recordKind} = 'estimated' AND ${table.estimation} IS NOT NULL AND ${table.occurredAt} IS NULL) OR (${table.recordKind} = 'observed' AND ${table.estimation} IS NULL)`),
   check("measurements_assumed_time_valid", sql`${table.timePrecision} NOT IN ('assumed', 'day_period') OR ${table.occurredAt} IS NULL`),
+]);
+
+// 名称是建议列表；测量保留名称快照，不能通过改建议联动修改历史。
+export const measurementSource = pgTable("measurement_sources", {
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
+}, table => [
+  uniqueIndex("measurement_sources_user_label_idx").on(table.userId, table.label),
+  index("measurement_sources_user_last_used_idx").on(table.userId, table.lastUsedAt),
+  check("measurement_sources_label_valid", sql`length(${table.label}) BETWEEN 1 AND 300 AND ${table.label} = btrim(${table.label})`),
 ]);
 
 // 空白日期与提醒偏好独立于测量事实，不能参与实测统计。

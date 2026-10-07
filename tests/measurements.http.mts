@@ -38,7 +38,7 @@ const entryOwner = await provisionAccount(db, entryAccount);
 await db.update(schema.user).set({ createdAt: new Date("2024-02-27T00:00:00Z") }).where(eq(schema.user.id, entryOwner.id));
 const today = localMeasurementDate(new Date(), "Asia/Shanghai");
 const priorDate = (offset: number) => new Date(Date.parse(`${today}T00:00:00Z`) - offset * 86_400_000).toISOString().slice(0, 10);
-await saveReportedMeasurements(db, { userId: entryOwner.id, actorId: entryOwner.id, requestKey: "8".repeat(64), entryChannel: "api", records: [3, 2, 1].flatMap(offset => [
+await saveReportedMeasurements(db, { userId: entryOwner.id, actorId: entryOwner.id, requestKey: "8".repeat(64), entryChannel: "api", deviceLabel: "虚构默认秤-应用", records: [3, 2, 1].flatMap(offset => [
   { analysisDate: priorDate(offset), period: "daytime" as const, weightKg: "70.00", bodyFatPercent: "20.00", fasting: true },
   { analysisDate: priorDate(offset), period: "evening" as const, weightKg: "70.50", bodyFatPercent: "20.40", fasting: false },
 ]) });
@@ -64,7 +64,7 @@ const preview = previewMeasurementTsv(fixtureTsv, "Asia/Shanghai", true);
 await saveImportedMeasurements(db, { userId: owner.id, actorId: owner.id, fileDigest: preview.fileDigest, sourceLabel: "fictional-http.tsv", captureChannel: "file", records: preview.records });
 const completionRequest: HistoricalCompletionRequest = {
   operationId: "fictional-browser-completion", range: { start: "2025-07-01", end: "2025-07-13" }, trainingRange: { start: "2025-06-17", end: "2025-07-14" },
-  deviceName: "虚构蓝牙体重秤", companionApp: "虚构连接应用", records: [
+  deviceLabel: "虚构蓝牙体重秤-虚构连接应用", records: [
     { analysisDate: "2025-07-14", period: "daytime", weightKg: "74.60", bodyFatPercent: "24.90", fasting: true, timezone: "Asia/Shanghai", assumedTime: "08:00" },
     { analysisDate: "2025-07-14", period: "evening", weightKg: "75.10", bodyFatPercent: "25.20", fasting: false, timezone: "Asia/Shanghai", assumedTime: "20:00" },
   ],

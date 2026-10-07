@@ -139,7 +139,7 @@ test("未来新增保持历史；补晨间体重只移除对应估计，体脂�
 test("普通补全跳过冻结日期，重建与恢复旧估计被阻止，实测恢复按指标替代", async () => {
   const owner = await setup("entrypoints"); const result = await perform(owner);
   const before = await recordsFor(owner);
-  const request = { operationId: "fictional-completion", range: { start: date(6), end: date(6) }, trainingRange: range, deviceName: "fictional-scale", companionApp: "fictional-app", records: [reported(6, "daytime", "81.25")] };
+  const request = { operationId: "fictional-completion", range: { start: date(6), end: date(6) }, trainingRange: range, deviceLabel: "fictional-scale-fictional-app", records: [reported(6, "daytime", "81.25")] };
   const preview = await previewHistoricalCompletion(db, owner, request);
   assert.equal(preview.estimates.length, 0);
   await applyHistoricalCompletion(db, { userId: owner, actorId: owner, request, digest: preview.digest });
@@ -159,7 +159,7 @@ test("普通补全跳过冻结日期，重建与恢复旧估计被阻止，实�
 test("导入冻历史只替代真实指标，空缺也保持冻结", async () => {
   const owner = await setup("import"); await perform(owner);
   const before = await recordsFor(owner);
-  await saveImportedMeasurements(db, { userId: owner, actorId: owner, fileDigest: "c".repeat(64), sourceLabel: "fictional.tsv", captureChannel: "file", records: [{ sourceLocalTime: `${date(6)} 08:00:00`, weightKg: "81.25", bmi: null, bodyFatPercent: null, sourceRow: 2, fasting: true, fastingSource: "user_confirmed" }] });
+  await saveImportedMeasurements(db, { userId: owner, actorId: owner, fileDigest: "c".repeat(64), sourceLabel: "fictional.tsv", captureChannel: "file", records: [{ sourceLocalTime: `${date(6)} 08:00:00`, weightKg: "81.25", bodyFatPercent: null, sourceRow: 2, fasting: true, fastingSource: "user_confirmed" }] });
   assert.deepEqual((await recordsFor(owner)).find(r => r.analysisDate === date(6) && r.period === "evening"), before.find(r => r.analysisDate === date(6) && r.period === "evening"));
   const empty = "fictional-initialization-empty";
   await db.insert(schema.user).values({ id: empty, name: "虚构用户", email: "empty@example.test" });
