@@ -2,16 +2,18 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { buildMeasurementDays, recentMeasurementDays } from "./days";
+import { measurementCalendarPage, measurementCalendarRange } from "./calendar";
 import { measurementSummary } from "./summary";
 import { calendarOrdinal, measurementDateTicks, measurementRange, measurementTrend, metricDifference, normalScale, type MeasurementInterval, type MeasurementMetric, type MeasurementRange } from "./trend";
 import styles from "./measurements-view.module.css";
 import { estimateModeLabel, estimateUserExplanation } from "./estimate-explanation";
-import { localMeasurementDate, missingMeasurementCells, type EntryResult, type MeasurementActions, type MeasurementDateDisplay, type MeasurementDisplay } from "./entry-state";
-import { MeasurementEntry, MeasurementDateForm } from "./measurement-entry";
+import { localMeasurementDate, type EntryResult, type MeasurementActions, type MeasurementDateDisplay, type MeasurementDisplay } from "./entry-state";
+import { MeasurementEntry } from "./measurement-entry";
 export type { MeasurementDisplay } from "./entry-state";
 
 type MeasurementDay = ReturnType<typeof buildMeasurementDays<MeasurementDisplay>>[number];
-type DrawerView = { kind: "entry"; date: string; reminder?: boolean } | { kind: "create" } | { kind: "history" } | { kind: "day"; date: string; period?: "daytime" | "evening" } | { kind: "record"; recordId: string; metric: MeasurementMetric };
+type DrawerView = { kind: "entry"; date: string; editing?: boolean } | { kind: "history" } | { kind: "day"; date: string; period?: "daytime" | "evening"; metric: MeasurementMetric } | { kind: "record"; recordId: string; metric: MeasurementMetric };
+const metrics = ["weightKg", "bodyFatPercent"] as const;
 const ranges: { value: MeasurementRange; label: string }[] = [{ value: "7d", label: "7D" }, { value: "30d", label: "30D" }, { value: "90d", label: "90D" }, { value: "all", label: "全部" }];
 const weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const displayDate = (date: string) => date.replaceAll("-", ".");
@@ -20,21 +22,20 @@ const weekday = (date: string) => weekdays[new Date(calendarOrdinal(date) * 86_4
 const unitFor = (metric: MeasurementMetric) => metric === "weightKg" ? "kg" : "%";
 const metricName = (metric: MeasurementMetric) => metric === "weightKg" ? "体重" : "体脂率";
 
-export function MeasurementsView({ records: initialRecords, dates: initialDates, actions }: { records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; actions: MeasurementActions }) {
+export function MeasurementsView({ records: initialRecords, dates: initialDates, accountCreatedAt, actions }: { records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; accountCreatedAt: string; actions: MeasurementActions }) {
   const [snapshot, setSnapshot] = useState({ records: initialRecords, dates: initialDates });
   const { records, dates } = snapshot;
   const [today, setToday] = useState("");
   const [timezone, setTimezone] = useState("");
-  const reminderChecked = useRef("");
   useEffect(() => {
     const update = () => { setToday(localMeasurementDate()); setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone); };
     update(); const timer = window.setInterval(update, 60_000); document.addEventListener("visibilitychange", update);
     return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", update); };
   }, []);
   const dateCatalog = [...new Set([...dates.map(row => row.date), ...(today ? [today] : [])])];
-  const recordedDates = [...records.map(row => row.analysisDate), ...dateCatalog].sort();
-  const latestDate = recordedDates.at(-1) ?? "";
-  const earliestDate = recordedDates[0] ?? "";
+  const catalog = measurementCalendarRange(today, localMeasurementDate(new Date(accountCreatedAt), timezone || "UTC"), records.map(row => row.analysisDate), dateCatalog);
+  const latestDate = catalog.end;
+  const earliestDate = catalog.start;
   const [mode, setMode] = useState<MeasurementRange>("30d");
   const [customRange, setCustomRange] = useState<MeasurementInterval>({ start: earliestDate, end: latestDate });
   const [draftRange, setDraftRange] = useState(customRange);
@@ -42,31 +43,22 @@ export function MeasurementsView({ records: initialRecords, dates: initialDates,
   const [rangeError, setRangeError] = useState("");
   const calendarButton = useRef<HTMLButtonElement>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [metric, setMetric] = useState<MeasurementMetric>("weightKg");
   const [showEvening, setShowEvening] = useState(true);
   const [showEstimates, setShowEstimates] = useState(true);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [drawer, setDrawer] = useState<DrawerView | null>(null);
-  useEffect(() => {
-    if (!today || drawer || reminderChecked.current === today) return;
-    const frame = window.requestAnimationFrame(() => {
-      reminderChecked.current = today;
-      if (!dates.find(row => row.date === today)?.reminderSkipped && missingMeasurementCells(records, today, choices).length) setDrawer({ kind: "entry", date: today, reminder: true });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [today, drawer, records, dates, choices]);
   function updated(result: Extract<EntryResult, { ok: true }>) { setSnapshot({ records: result.records, dates: result.dates }); }
-  if (!latestDate) return <section className={styles.empty}><h1>身体记录</h1><p>暂无测量记录。</p><button type="button" disabled>录入今天</button></section>;
+  if (!latestDate) return <section className={styles.empty}><h1>身体记录</h1><p>暂无测量记录。</p></section>;
 
   const range = measurementRange(latestDate, mode, mode === "custom" ? customRange : { start: earliestDate, end: latestDate });
   const displayedRecords = records.filter((row) => showEstimates || row.recordKind !== "estimated");
   const visibleRecords = displayedRecords.filter((row) => row.analysisDate >= range.start && row.analysisDate <= range.end);
-  const allDays = buildMeasurementDays(records, choices, metric, dateCatalog);
-  const recent = recentMeasurementDays(displayedRecords, range, choices, 10, metric, dateCatalog);
+  const recentInterval = { start: range.start > catalog.start ? range.start : catalog.start, end: range.end < catalog.end ? range.end : catalog.end };
+  const recent = recentMeasurementDays(displayedRecords, recentInterval, choices);
+  const fatDays = new Map(recentMeasurementDays(displayedRecords, recentInterval, choices, 10, "bodyFatPercent").map(day => [day.date, day]));
   const activeDate = selectedDate && selectedDate >= range.start && selectedDate <= range.end ? selectedDate : null;
-  const summary = measurementSummary(records, metric, choices);
-  const unit = unitFor(metric);
+  const summaries = metrics.map(metric => ({ metric, ...measurementSummary(records, metric, choices) }));
 
   function selectRange(nextMode: MeasurementRange, nextInterval = customRange) {
     const next = measurementRange(latestDate, nextMode, nextMode === "custom" ? nextInterval : { start: earliestDate, end: latestDate });
@@ -77,46 +69,36 @@ export function MeasurementsView({ records: initialRecords, dates: initialDates,
   function chooseRecord(date: string, period: "daytime" | "evening", id: string) {
     setChoices((previous) => ({ ...previous, [`${date}:${period}`]: id }));
   }
-  function inspectRecord(row: MeasurementDisplay) {
+  function inspectRecord(row: MeasurementDisplay, metric: MeasurementMetric) {
     setSelectedDate(row.analysisDate);
     setDrawer({ kind: "record", recordId: row.id, metric });
   }
-  function inspectDay(date: string, period?: "daytime" | "evening") {
+  function inspectDay(date: string, period?: "daytime" | "evening", metric: MeasurementMetric = "weightKg") {
     setSelectedDate(date);
-    setDrawer(records.some(row => row.analysisDate === date) ? { kind: "day", date, period } : { kind: "entry", date });
+    setDrawer(records.some(row => row.analysisDate === date) ? { kind: "day", date, period, metric } : { kind: "entry", date });
   }
 
   return <section className={styles.workspace} aria-labelledby="body-records-title">
     <div className={styles.heading}>
       <h1 id="body-records-title">身体记录</h1>
-      <button type="button" className={styles.todayEntry} onClick={() => { reminderChecked.current = today; setDrawer({ kind: "entry", date: today }); }}>录入今天</button>
-      <div className={styles.metricTabs} aria-label="趋势指标">
-        <button type="button" aria-pressed={metric === "weightKg"} onClick={() => setMetric("weightKg")}>体重</button>
-        <button type="button" aria-pressed={metric === "bodyFatPercent"} onClick={() => setMetric("bodyFatPercent")}>体脂率</button>
-      </div>
     </div>
-    {!records.length && <p className={styles.emptyHistory}>暂无测量记录。可以直接录入今天的数据。</p>}
+    {!records.length && <p className={styles.emptyHistory}>暂无测量记录。点击日期行的编辑开始记录。</p>}
     <section className={styles.summary} aria-label="最新空腹摘要">
-      <div className={styles.current} data-summary="current">
-        <span>当前{metricName(metric)}</span>
-        <strong>{summary.current?.[metric] ?? "—"}<small>{unit}</small></strong>
+      {summaries.map(summary => <div key={summary.metric} className={styles.current} data-summary="current" data-metric={summary.metric}>
+        <span>当前{metricName(summary.metric)}</span>
+        <strong>{summary.current?.[summary.metric] ?? "—"}<small>{unitFor(summary.metric)}</small></strong>
         <p>{summary.current ? <>晨间空腹 · <time dateTime={summary.current.analysisDate}>{displayDate(summary.current.analysisDate)}</time></> : "暂无空腹记录"}</p>
-      </div>
-      <div data-summary="change">
-        <span>7 日内变化</span>
-        <strong>{formatDifference(summary.change, metric, false) ?? "—"}<small>{metric === "weightKg" ? "kg" : "百分点"}</small></strong>
+      </div>)}
+      {summaries.map(summary => <div key={summary.metric} data-summary="change" data-metric={summary.metric}>
+        <span>{metricName(summary.metric)} · 7 日变化</span>
+        <strong>{formatDifference(summary.change, summary.metric, false) ?? "—"}<small>{summary.metric === "weightKg" ? "kg" : "百分点"}</small></strong>
         <p>{summary.changeStart ? `${shortDate(summary.changeStart)} — ${shortDate(summary.end!)}` : "不足 2 个记录日"}</p>
-      </div>
-      <div data-summary="average">
-        <span>7 日均值</span>
-        <strong>{summary.average?.toFixed(2) ?? "—"}<small>{unit}</small></strong>
+      </div>)}
+      {summaries.map(summary => <div key={summary.metric} data-summary="average" data-metric={summary.metric}>
+        <span>{metricName(summary.metric)} · 7 日均值</span>
+        <strong>{summary.average?.toFixed(2) ?? "—"}<small>{unitFor(summary.metric)}</small></strong>
         <p>{summary.coverage}/7 天{summary.end && ` · 截至 ${shortDate(summary.end)}`}</p>
-      </div>
-      <div data-summary="companion">
-        <span>当前{metricName(summary.companionMetric)}</span>
-        <strong>{summary.companion?.[summary.companionMetric] ?? "—"}<small>{unitFor(summary.companionMetric)}</small></strong>
-        <p>{summary.companion ? `晨间空腹 · ${displayDate(summary.companion.analysisDate)}` : "暂无空腹记录"}</p>
-      </div>
+      </div>)}
     </section>
     <section className={styles.chartPanel} aria-label="身体指标趋势">
       <div className={styles.chartToolbar}>
@@ -152,35 +134,45 @@ export function MeasurementsView({ records: initialRecords, dates: initialDates,
         <button type="submit">应用</button><button type="button" onClick={() => { setCalendarOpen(false); calendarButton.current?.focus(); }}>取消</button>
         {rangeError && <p role="alert">{rangeError}</p>}
       </form>}
-      <TrendPlot records={visibleRecords} metric={metric} showEvening={showEvening} interval={range} selectedDate={activeDate} onInspect={inspectRecord} choices={choices} />
+      {metrics.map(metric => <div className={styles.metricPlot} key={metric} data-chart-metric={metric}>
+        <h2>{metricName(metric)}<small>{unitFor(metric)}</small></h2>
+        <TrendPlot records={visibleRecords} metric={metric} showEvening={showEvening} interval={range} selectedDate={activeDate} onInspect={row => inspectRecord(row, metric)} choices={choices} />
+      </div>)}
     </section>
     <section className={styles.history} aria-label="最近记录">
-      <div className={styles.sectionTitle}><h2>最近记录</h2><span>{metric === "weightKg" ? "kg · 实测晨晚差" : "% · 差值为百分点"}</span></div>
+      <div className={styles.sectionTitle}><h2>最近记录</h2><span>● 实测 · ◇ 估计 · 实测晨晚差</span></div>
       {recent.length ? <table>
-        <colgroup><col className={styles.dateColumn} /><col className={styles.readingColumn} /><col className={styles.readingColumn} /><col className={styles.differenceColumn} /></colgroup>
-        <thead><tr><th scope="col">日期</th><th scope="col">晨间</th><th scope="col" title="晚间 · 非空腹">晚间<small> · 非空腹</small></th><th scope="col">差值{metric === "bodyFatPercent" && <small> · 百分点</small>}</th></tr></thead>
+        <colgroup><col className={styles.dateColumn} /><col className={styles.readingColumn} /><col className={styles.readingColumn} /><col className={styles.differenceColumn} /><col className={styles.actionColumn} /></colgroup>
+        <thead><tr><th scope="col">日期</th><th scope="col">晨间</th><th scope="col" title="晚间 · 非空腹">晚间<small> · 非空腹</small></th><th scope="col">差值</th><th scope="col">操作</th></tr></thead>
         <tbody>{recent.map((day) => <tr data-date={day.date} key={day.date} data-selected={day.date === activeDate}>
-          <th scope="row"><button type="button" aria-label={`查看 ${day.date}`} aria-pressed={day.date === activeDate} onClick={() => inspectDay(day.date)}><time dateTime={day.date}>{shortDate(day.date)}</time><small>{weekday(day.date)}</small></button>{((day.date === today && missingMeasurementCells(records, today, choices).length > 0) || !day.records.length) && <div className={styles.rowActions}><button type="button" aria-label={`录入 ${day.date}`} onClick={() => setDrawer({ kind: "entry", date: day.date })}>录入</button><button type="button" aria-label={`估算 ${day.date}`} onClick={() => setDrawer({ kind: "entry", date: day.date })}>估算</button></div>}</th>
-          <td className={styles.dayValue}><TableReading row={day.daytimeRecord} metric={metric} pendingLabel={day.daytime.length > 1 ? `查看 ${day.date} 白天候选记录` : null} onInspect={inspectRecord} onInspectCandidates={() => inspectDay(day.date, "daytime")} />{day.daytimeRecord && day.daytimeRecord.fasting !== true && <small>{fastingLabel(day.daytimeRecord)}</small>}</td>
-          <td className={styles.nightValue}><TableReading row={day.eveningRecord} metric={metric} pendingLabel={day.evening.length > 1 ? `查看 ${day.date} 晚间候选记录` : null} onInspect={inspectRecord} onInspectCandidates={() => inspectDay(day.date, "evening")} /></td>
-          <td>{formatDifference(metricDifference(day.daytimeRecord, day.eveningRecord, metric), metric, false) ?? <Missing />}</td>
+          <th scope="row"><button type="button" aria-label={`查看 ${day.date}`} aria-pressed={day.date === activeDate} onClick={() => inspectDay(day.date)}><time dateTime={day.date}>{shortDate(day.date)}</time><small>{weekday(day.date)}</small></button></th>
+          {(["daytime", "evening"] as const).map(period => <td key={period} className={period === "daytime" ? styles.dayValue : styles.nightValue}>{metrics.map(metric => {
+            const metricDay = metric === "weightKg" ? day : fatDays.get(day.date)!;
+            const row = period === "daytime" ? metricDay.daytimeRecord : metricDay.eveningRecord;
+            return <div className={styles.tableLine} key={metric} data-table-metric={metric}><TableReading row={row} metric={metric} pendingLabel={metricDay[period].length > 1 ? `查看 ${day.date} ${period === "daytime" ? "白天" : "晚间"}${metricName(metric)}候选记录` : null} onInspect={row => inspectRecord(row, metric)} onInspectCandidates={() => inspectDay(day.date, period, metric)} /></div>;
+          })}</td>)}
+          <td>{metrics.map(metric => { const metricDay = metric === "weightKg" ? day : fatDays.get(day.date)!; return <div className={styles.tableLine} key={metric} data-difference-metric={metric}>{formatDifference(metricDifference(metricDay.daytimeRecord, metricDay.eveningRecord, metric), metric, false) ?? <Missing />}<small>{metric === "weightKg" ? "kg" : "百分点"}</small></div>; })}</td>
+          <td><DayActions date={day.date} onEntry={editing => setDrawer({ kind: "entry", date: day.date, editing })} /></td>
         </tr>)}</tbody>
       </table> : <p className={styles.emptyHistory}>此区间暂无记录。</p>}
-      <div className={styles.historyFooter}><button type="button" className={styles.fullHistory} onClick={() => setDrawer({ kind: "history" })}>查看全部 <span aria-hidden="true">↗</span></button><button type="button" className={styles.addDate} onClick={() => setDrawer({ kind: "create" })}>＋ 新增日期</button></div>
+      <div className={styles.historyFooter}><button type="button" className={styles.fullHistory} onClick={() => setDrawer({ kind: "history" })}>查看全部 <span aria-hidden="true">↗</span></button></div>
     </section>
-    {drawer && <MeasurementInspector view={drawer} records={records} today={today} timezone={timezone} actions={actions} onUpdated={updated} onDateCreated={date => { if (date < range.start || date > range.end) { setCustomRange({ start: date, end: date }); setMode("custom"); } setSelectedDate(date); }} days={allDays} metric={metric} choices={choices} showEstimates={showEstimates} onChoose={chooseRecord} onClose={() => setDrawer(null)} />}
+    {drawer && <MeasurementInspector view={drawer} records={records} timezone={timezone} actions={actions} onUpdated={updated} catalog={catalog} choices={choices} showEstimates={showEstimates} onChoose={chooseRecord} onClose={() => setDrawer(null)} />}
   </section>;
 }
 
 function Missing() { return <span aria-label="未记录" className={styles.missing}>—</span>; }
+function DayActions({ date, onEntry }: { date: string; onEntry: (editing: boolean) => void }) {
+  return <div className={styles.rowActions}><button type="button" aria-label={`编辑 ${date}`} onClick={() => onEntry(true)}>编辑</button></div>;
+}
 function TableReading({ row, metric, pendingLabel, onInspect, onInspectCandidates }: {
   row: MeasurementDisplay | null; metric: MeasurementMetric; pendingLabel: string | null;
   onInspect: (row: MeasurementDisplay) => void; onInspectCandidates: () => void;
 }) {
   if (!row) return pendingLabel ? <button type="button" className={styles.tableReading} aria-label={pendingLabel} onClick={onInspectCandidates}>待选择</button> : <Missing />;
   if (row[metric] === null) return <Missing />;
-  return <button type="button" className={styles.tableReading} aria-label={`查看 ${row.analysisDate} ${periodLabel(row)}${row.recordKind === "estimated" ? "估计依据" : "实测记录"}`} onClick={() => onInspect(row)}>
-    {row[metric]}{row.recordKind === "estimated" && <small><span aria-hidden="true">◇ </span>估计</small>}
+  return <button type="button" className={styles.tableReading} data-kind={row.recordKind} aria-label={`查看 ${row.analysisDate} ${periodLabel(row)}${metricName(metric)}${row.recordKind === "estimated" ? "估计依据" : "实测记录"}`} onClick={() => onInspect(row)}>
+    <span className={styles.readingStatus} title={row.recordKind === "estimated" ? "估计" : "实测"} aria-hidden="true">{row.recordKind === "estimated" ? "◇" : "●"}</span>{row[metric]}<small>{unitFor(metric)}</small>
   </button>;
 }
 function RecordDetails({ row, metric, onMetric }: { row: MeasurementDisplay; metric: MeasurementMetric; onMetric: (metric: MeasurementMetric) => void }) {
@@ -233,49 +225,78 @@ function CalendarIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><rect x="3.5" y="5" width="17" height="16" rx="2" /><path d="M7 2v6M17 2v6M4 11h16" /></svg>;
 }
 type InspectorSelection = { date: string; recordId: string | null; metric: MeasurementMetric; period?: "daytime" | "evening" };
-function MeasurementInspector({ view, records, today, timezone, actions, onUpdated, onDateCreated, days, metric, choices, showEstimates, onChoose, onClose }: {
-  view: DrawerView; records: MeasurementDisplay[]; today: string; timezone: string; actions: MeasurementActions;
-  onUpdated: (result: Extract<EntryResult, { ok: true }>) => void; onDateCreated: (date: string) => void; days: MeasurementDay[]; metric: MeasurementMetric; choices: Record<string, string>; showEstimates: boolean;
+function MeasurementInspector({ view, records, timezone, actions, onUpdated, catalog, choices, showEstimates, onChoose, onClose }: {
+  view: DrawerView; records: MeasurementDisplay[]; timezone: string; actions: MeasurementActions;
+  onUpdated: (result: Extract<EntryResult, { ok: true }>) => void; catalog: MeasurementInterval; choices: Record<string, string>; showEstimates: boolean;
   onChoose: (date: string, period: "daytime" | "evening", id: string) => void; onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const historyPosition = useRef({ scroll: 0, trigger: null as HTMLElement | null });
-  const [editor, setEditor] = useState<{ date: string; editing: boolean; reminder?: boolean } | null>(() => view.kind === "entry" ? { date: view.date, editing: false, reminder: view.reminder } : null);
+  const [editor, setEditor] = useState<{ date: string; editing: boolean } | null>(() => view.kind === "entry" ? { date: view.date, editing: !!view.editing } : null);
+  const [historyLimit, setHistoryLimit] = useState(50);
+  const historyDates = measurementCalendarPage(catalog, historyLimit);
+  const historySet = new Set(historyDates);
+  const days = buildMeasurementDays(records.filter(row => historySet.has(row.analysisDate)), choices, "weightKg", historyDates);
+  const historyFat = new Map(buildMeasurementDays(records.filter(row => historySet.has(row.analysisDate)), choices, "bodyFatPercent", historyDates).map(day => [day.date, day]));
+  const totalDays = calendarOrdinal(catalog.end) - calendarOrdinal(catalog.start) + 1;
   const [editorChoices, setEditorChoices] = useState<Record<string, string>>({});
   const includeEstimates = view.kind === "history" || showEstimates;
   const [active, setActive] = useState<InspectorSelection | null>(() => {
-    if (view.kind === "history" || view.kind === "create") return null;
-    if (view.kind === "entry") return { date: view.date, recordId: null, metric };
+    if (view.kind === "history") return null;
+    if (view.kind === "entry") return { date: view.date, recordId: null, metric: "weightKg" };
     if (view.kind === "record") {
-      const row = days.flatMap(day => day.records).find(row => row.id === view.recordId);
+      const row = records.find(row => row.id === view.recordId);
       return { date: row?.analysisDate ?? "", recordId: view.recordId, metric: view.metric };
     }
-    const records = days.find(day => day.date === view.date)?.records.filter(row => includeEstimates || row.recordKind !== "estimated") ?? [];
-    const day = buildMeasurementDays(records, choices, metric)[0];
+    const day = buildMeasurementDays(records.filter(row => row.analysisDate === view.date && (includeEstimates || row.recordKind !== "estimated")), choices, view.metric)[0];
     const representative = view.period ? view.period === "daytime" ? day?.daytimeRecord : day?.eveningRecord : day?.daytimeRecord ?? day?.eveningRecord;
-    return { date: view.date, recordId: representative?.id ?? null, metric, period: view.period };
+    return { date: view.date, recordId: representative?.id ?? null, metric: view.metric, period: view.period };
   });
-  const activeDay = active ? buildMeasurementDays(days.find(day => day.date === active.date)?.records.filter(row => includeEstimates || row.recordKind !== "estimated") ?? [], choices, active.metric)[0] : null;
+  const activeDay = active ? buildMeasurementDays(records.filter(row => row.analysisDate === active.date && (includeEstimates || row.recordKind !== "estimated")), choices, active.metric, [active.date])[0] : null;
   const row = activeDay?.records.find(row => row.id === active?.recordId);
-  const navigationKey = editor ? `entry:${editor.date}` : view.kind === "create" ? "create" : active ? `${active.date}:${active.recordId ?? active.period ?? "candidates"}` : "history";
+  const navigationKey = editor ? `entry:${editor.date}` : active ? `${active.date}:${active.recordId ?? active.period ?? "candidates"}` : "history";
+  const closing = useRef(false);
+  const closeTimer = useRef<number | null>(null);
+  const closeCallback = useRef(onClose);
+  useEffect(() => { closeCallback.current = onClose; }, [onClose]);
+  function requestClose() {
+    if (closing.current) return;
+    closing.current = true;
+    const node = dialog.current!;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { closeCallback.current(); return; }
+    node.dataset.motion = "closing";
+    // animationend 是正常退出路径，计时器覆盖动画被取消或浏览器未派发事件。
+    closeTimer.current = window.setTimeout(() => closeCallback.current(), 280);
+  }
   useEffect(() => {
     const node = dialog.current!;
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const reduceMotion = () => {
+      if (!motion.matches) return;
+      if (closing.current) closeCallback.current();
+      else node.dataset.motion = "open";
+    };
     const previousFocus = document.activeElement;
     const previousOverflow = document.body.style.overflow;
     const previousPaddingRight = document.body.style.paddingRight;
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     const paddingRight = Number.parseFloat(window.getComputedStyle(document.body).paddingRight) || 0;
     node.showModal();
+    closing.current = false;
+    node.dataset.motion = motion.matches ? "open" : "opening";
+    motion.addEventListener("change", reduceMotion);
     // 锁定滚动会移除占位滚动条；保留它原本占用的宽度，避免背景内容重新居中。
     if (scrollbarWidth > 0) document.body.style.paddingRight = `${paddingRight + scrollbarWidth}px`;
     document.body.style.overflow = "hidden";
     return () => {
+      motion.removeEventListener("change", reduceMotion);
+      if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
       node.close();
       document.body.style.overflow = previousOverflow;
       document.body.style.paddingRight = previousPaddingRight;
-      if (previousFocus instanceof HTMLElement || previousFocus instanceof SVGElement) previousFocus.focus();
+      if (previousFocus instanceof HTMLElement || previousFocus instanceof SVGElement) previousFocus.focus({ preventScroll: true });
     };
   }, []);
   useEffect(() => {
@@ -287,7 +308,7 @@ function MeasurementInspector({ view, records, today, timezone, actions, onUpdat
       heading.current?.focus({ preventScroll: true });
     }
   }, [navigationKey]);
-  function inspectFromHistory(day: MeasurementDay, row: MeasurementDisplay, trigger: HTMLElement) {
+  function inspectFromHistory(day: MeasurementDay, row: MeasurementDisplay, trigger: HTMLElement, metric: MeasurementMetric = "weightKg") {
     historyPosition.current = { scroll: content.current!.scrollTop, trigger };
     setActive({ date: day.date, recordId: row.id, metric });
   }
@@ -298,9 +319,13 @@ function MeasurementInspector({ view, records, today, timezone, actions, onUpdat
     }
     onUpdated(result);
   }
-  return <dialog ref={dialog} className={styles.drawer} aria-labelledby="measurement-drawer-title" onClose={(event) => {
+  return <dialog ref={dialog} className={styles.drawer} aria-labelledby="measurement-drawer-title" onCancel={event => { event.preventDefault(); requestClose(); }} onAnimationEnd={event => {
+    if (event.target !== event.currentTarget || event.nativeEvent.pseudoElement || event.animationName !== window.getComputedStyle(event.currentTarget).animationName) return;
+    if (closing.current) { if (closeTimer.current !== null) window.clearTimeout(closeTimer.current); closeCallback.current(); }
+    else event.currentTarget.dataset.motion = "open";
+  }} onClose={(event) => {
     // Strict Mode 清理时的 close 事件可能在再次 showModal 后送达；只同步真正关闭的状态。
-    if (!event.currentTarget.open) onClose();
+    if (!event.currentTarget.open) requestClose();
   }} onKeyDown={(event) => {
     if (event.key !== "Tab") return;
     const collapsed = [...event.currentTarget.querySelectorAll('details:not([open])')];
@@ -313,21 +338,22 @@ function MeasurementInspector({ view, records, today, timezone, actions, onUpdat
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   }} onClick={(event) => {
     const box = event.currentTarget.getBoundingClientRect();
-    if (event.target === event.currentTarget && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom)) dialog.current?.close();
+    if (event.target === event.currentTarget && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom)) requestClose();
   }}>
     <header className={styles.drawerHeader}><div>
       {!editor && view.kind === "history" && active && <button type="button" className={styles.historyBack} onClick={() => setActive(null)}>← 返回完整历史</button>}
-      <h2 ref={heading} tabIndex={-1} id="measurement-drawer-title">{editor ? displayDate(editor.date) : view.kind === "create" ? "新增日期" : active ? displayDate(active.date) || "记录详情" : "完整历史"}</h2>
-      <p>{editor ? `${weekday(editor.date)} · 体重与体脂 · 晨间／晚间` : view.kind === "create" ? "添加空白记录日" : active ? <>{active.date && weekday(active.date)}{row && <> · {periodLabel(row)}{row.recordKind !== "estimated" && ` · ${fastingLabel(row)}`} · <span>{row.recordKind === "estimated" ? "◇ 估计" : "实测"}</span></>}</> : `${days.length} 个记录日 · ${days.flatMap(day => day.records).filter(row => row.recordKind !== "estimated").length} 条实测 · ${days.flatMap(day => day.records).filter(row => row.recordKind === "estimated").length} 条估计`}</p>
-    </div><button type="button" autoFocus aria-label="关闭记录详情" onClick={() => dialog.current?.close()}>×</button></header>
+      <h2 ref={heading} tabIndex={-1} id="measurement-drawer-title">{editor ? displayDate(editor.date) : active ? displayDate(active.date) || "记录详情" : "完整历史"}</h2>
+      <p>{editor ? `${weekday(editor.date)} · 体重与体脂 · 晨间／晚间` : active ? <>{active.date && weekday(active.date)}{row && <> · {periodLabel(row)}{row.recordKind !== "estimated" && ` · ${fastingLabel(row)}`} · <span>{row.recordKind === "estimated" ? "◇ 估计" : "实测"}</span></>}</> : `${totalDays} 个日期 · ${records.filter(row => row.recordKind !== "estimated").length} 条实测 · ${records.filter(row => row.recordKind === "estimated").length} 条估计`}</p>
+    </div><button type="button" autoFocus aria-label="关闭记录详情" onClick={requestClose}>×</button></header>
     <div ref={content} className={styles.drawerContent}>
-      {editor && <><button type="button" className={styles.historyBack} onClick={() => { if (view.kind === "entry" || view.kind === "create") onClose(); else setEditor(null); }}>← {view.kind === "entry" || view.kind === "create" ? "返回身体记录" : "返回记录详情"}</button><MeasurementEntry key={editor.date} date={editor.date} today={today} timezone={timezone} records={records} choices={{ ...choices, ...editorChoices }} actions={actions} editing={editor.editing} reminder={editor.reminder} onUpdated={entryUpdated} onChoose={(date, period, id) => setEditorChoices(previous => ({ ...previous, [`${date}:${period}`]: id }))} onClose={onClose} /></>}
-      {!editor && view.kind === "create" && <MeasurementDateForm today={today} actions={actions} onUpdated={onUpdated} onCreated={date => { onDateCreated(date); setEditor({ date, editing: false }); }} />}
-      {!editor && view.kind === "history" && <div hidden={active !== null}>
+      {editor && <><button type="button" className={styles.historyBack} onClick={() => { if (view.kind === "entry") requestClose(); else setEditor(null); }}>← {view.kind === "entry" ? "返回身体记录" : active ? "返回记录详情" : "返回完整历史"}</button><MeasurementEntry key={editor.date} date={editor.date} timezone={timezone} records={records} choices={{ ...choices, ...editorChoices }} actions={actions} editing={editor.editing} onUpdated={entryUpdated} onChoose={(date, period, id) => setEditorChoices(previous => ({ ...previous, [`${date}:${period}`]: id }))} /></>}
+      {view.kind === "history" && <div hidden={active !== null || editor !== null}>
         {days.map(day => <details className={styles.historyDay} key={day.date}>
-          <summary><time dateTime={day.date}>{displayDate(day.date)}</time><span><span className={styles.dayValue}>{day.daytimeRecord?.[metric] ?? "—"}{day.daytimeRecord?.recordKind === "estimated" && <small> ◇ 估计</small>}</span><span className={styles.nightValue}>{day.eveningRecord?.[metric] ?? "—"}{day.eveningRecord?.recordKind === "estimated" && <small> ◇ 估计</small>}</span>{day.needsSelection && <small>待选择</small>}</span></summary>
-          {day.records.length ? <RecordList day={day} metric={metric} onInspect={(row, trigger) => inspectFromHistory(day, row, trigger)} /> : <button type="button" onClick={() => setEditor({ date: day.date, editing: false })}>录入或估算</button>}
+          <summary><time dateTime={day.date}>{displayDate(day.date)}</time><span>{(["daytime", "evening"] as const).map(period => <span key={period} className={period === "daytime" ? styles.dayValue : styles.nightValue}>{metrics.map(metric => { const metricDay = metric === "weightKg" ? day : historyFat.get(day.date)!; const row = period === "daytime" ? metricDay.daytimeRecord : metricDay.eveningRecord; return <span className={styles.historyReading} key={metric}>{row?.[metric] ?? "—"} <small>{unitFor(metric)}{row?.recordKind === "estimated" && " ◇"}</small></span>; })}</span>)}</span></summary>
+          {day.records.length > 0 && <RecordList day={day} metric="weightKg" onInspect={(row, trigger, metric) => inspectFromHistory(day, row, trigger, metric)} />}
+          <DayActions date={day.date} onEntry={editing => { historyPosition.current = { scroll: content.current!.scrollTop, trigger: document.activeElement as HTMLElement }; setEditor({ date: day.date, editing }); }} />
         </details>)}
+        {historyLimit < totalDays && <button type="button" className={styles.loadHistory} onClick={() => setHistoryLimit(limit => limit + 50)}>加载更早日期</button>}
       </div>}
       {!editor && active && activeDay && <>
         <nav className={styles.periodNavigation} aria-label="当天时段">
@@ -343,26 +369,28 @@ function MeasurementInspector({ view, records, today, timezone, actions, onUpdat
         {row ? <RecordDetails key={row.id} row={row} metric={active.metric} onMetric={metric => setActive({ ...active, metric })} /> : <p className={styles.emptyHistory}>选择一条记录查看；查看候选不会改变趋势图中的代表记录。</p>}
         {row ? activeDay.records.length > 1 && <details className={styles.recordNavigation}>
           <summary>当天记录（{activeDay.records.length} 条）{activeDay.needsSelection && <span> · 代表待选择</span>}</summary>
-          <RecordList day={activeDay} metric={active.metric} activeId={row.id} onInspect={row => setActive({ ...active, recordId: row.id })} />
+          <RecordList day={activeDay} metric={active.metric} activeId={row.id} onInspect={(row, _trigger, metric) => setActive({ ...active, recordId: row.id, metric })} />
           <RepresentativeChoices day={activeDay} metric={active.metric} choices={choices} onChoose={(date, period, id) => { onChoose(date, period, id); setActive({ ...active, recordId: id || null, period }); }} />
         </details> : <>
-          <RecordList day={activeDay} metric={active.metric} period={active.period} onInspect={row => setActive({ ...active, recordId: row.id })} />
+          <RecordList day={activeDay} metric={active.metric} period={active.period} onInspect={(row, _trigger, metric) => setActive({ ...active, recordId: row.id, metric })} />
           <RepresentativeChoices day={activeDay} metric={active.metric} choices={choices} onChoose={(date, period, id) => { onChoose(date, period, id); setActive({ ...active, recordId: id || null, period }); }} />
         </>}
       </>}
-      {!editor && active && !activeDay && view.kind !== "create" && <p className={styles.emptyHistory}>此记录已不可用。</p>}
+      {!editor && active && !activeDay && <p className={styles.emptyHistory}>此记录已不可用。</p>}
     </div>
   </dialog>;
 }
 function RecordList({ day, metric, activeId, period, onInspect }: {
   day: MeasurementDay; metric: MeasurementMetric; activeId?: string; period?: "daytime" | "evening";
-  onInspect: (row: MeasurementDisplay, trigger: HTMLElement) => void;
+  onInspect: (row: MeasurementDisplay, trigger: HTMLElement, metric: MeasurementMetric) => void;
 }) {
   return <div className={styles.recordList} aria-label="当天记录列表">
-    {[...day.records].filter(row => !period || row.period === period).sort((a, b) => a.period.localeCompare(b.period) || a.sourceLocalTime.localeCompare(b.sourceLocalTime) || a.recordKind.localeCompare(b.recordKind)).map(row => <button type="button" key={row.id} className={styles.recordEntry} aria-pressed={row.id === activeId} onClick={event => onInspect(row, event.currentTarget)}>
+    {[...day.records].filter(row => !period || row.period === period).sort((a, b) => a.period.localeCompare(b.period) || a.sourceLocalTime.localeCompare(b.sourceLocalTime) || a.recordKind.localeCompare(b.recordKind)).map(row => {
+      const availableMetric = row[metric] === null ? metric === "weightKg" ? "bodyFatPercent" : "weightKg" : metric;
+      return <button type="button" key={row.id} className={styles.recordEntry} aria-pressed={row.id === activeId} onClick={event => onInspect(row, event.currentTarget, availableMetric)}>
       <span>{periodLabel(row)} · {row.recordKind === "estimated" ? "◇ 估计" : "实测"}<small>{row.recordKind === "estimated" ? estimateModeLabel(row.estimation) : recordTimeLabel(row)}</small></span>
-      <strong className={row.period === "daytime" ? styles.dayValue : styles.nightValue}>{row[metric] ?? "—"} <small>{unitFor(metric)}</small></strong>
-    </button>)}
+      <strong className={row.period === "daytime" ? styles.dayValue : styles.nightValue}>{row[availableMetric] ?? "—"} <small>{unitFor(availableMetric)}</small></strong>
+    </button>; })}
   </div>;
 }
 function RepresentativeChoices({ day, metric, choices, onChoose }: {

@@ -13,12 +13,9 @@
 .heading h1, .empty h1 { margin: 0; font-size: 18px; font-weight: 500; letter-spacing: .02em; }
 .workspace button, .drawer button { appearance: none; background: none; border: 0; color: var(--body-muted); font: inherit; cursor: pointer; min-height: 44px; }
 .workspace button:hover, .drawer button:hover { color: var(--body-ink); }
-.metricTabs { display: flex; gap: 24px; }
-.heading .todayEntry { margin-left: auto; color: var(--body-gold); border-bottom: 1px solid var(--body-gold); font-size: 13px; padding: 0; }
 .historyFooter { display: flex; justify-content: space-between; align-items: center; }
-.history .addDate { margin: 8px 0 0 auto; padding: 0; font-size: 12px; color: var(--body-gold); }
-.rowActions { display: flex; gap: 12px; }
-.history tbody th .rowActions button { font-size: 11px; color: var(--body-muted); min-height: 44px; }
+.rowActions { display: flex; justify-content: flex-end; align-items: center; gap: 16px; }
+.rowActions button { min-width: 44px; padding: 0; font-size: 12px; color: var(--body-gold); }
 .drawer .editRecord { padding: 0; color: var(--body-gold); border-bottom: 1px solid var(--body-gold); margin-bottom: 16px; }
 .entryIntroduction { margin: 10px 0 24px; }
 .entryIntroduction p { margin: 0 0 6px; font-size: 18px; color: var(--body-ink); }
@@ -30,13 +27,13 @@
 .entryCell > label { display: flex; justify-content: space-between; color: var(--body-muted); font-size: 12px; margin-bottom: 6px; }
 .entryCell small { font-size: 11px; color: var(--body-muted); }
 .entryInputRow { display: flex; align-items: center; gap: 12px; min-height: 44px; border-bottom: 1px solid var(--body-rule); }
-.entryForm input, .dateEntryForm input { appearance: none; min-width: 0; width: 100%; min-height: 44px; background: transparent; color: inherit; border: 0; border-radius: 0; font: inherit; }
+.entryForm input { appearance: none; min-width: 0; width: 100%; min-height: 44px; background: transparent; color: inherit; border: 0; border-radius: 0; font: inherit; }
 .entryInputRow input { font-size: 26px; letter-spacing: -.02em; }
 .entryInputRow input::placeholder { color: var(--body-muted); font-size: 14px; letter-spacing: 0; }
 .entryInputRow .estimateAction { padding: 0 4px; flex: 0 0 auto; min-width: 44px; font-size: 12px; color: inherit; }
 .entryRecorded { display: flex; flex: 1; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 26px; }
 .entryReference { display: block; margin-top: 6px; line-height: 1.5; }
-.entryFasting, .entryCandidate { display: grid; gap: 8px; color: var(--body-muted); font-size: 12px; }
+.entryCandidate { display: grid; gap: 8px; color: var(--body-muted); font-size: 12px; }
 .entryForm select { background: #151513; color: var(--body-ink); border: 0; border-bottom: 1px solid var(--body-rule); font: inherit; min-height: 44px; min-width: 0; width: 100%; }
 .entryCondition { color: var(--body-muted); font-size: 12px; margin: 0; min-height: 44px; display: flex; align-items: center; }
 .entryMore { border-top: 1px solid var(--body-rule); margin: 22px 0 0; color: var(--body-muted); font-size: 12px; }
@@ -45,13 +42,9 @@
 .entryMore input { border-bottom: 1px solid var(--body-rule); font-size: 18px; }
 .entryFooter { display: flex; align-items: center; gap: 24px; padding: 16px 0 4px; }
 .entryFooter button { padding: 0; font-size: 13px; }
-.drawer .saveEntry { color: var(--body-gold); border-bottom: 1px solid var(--body-gold); padding: 0; }
-.entryForm button:disabled, .dateEntryForm button:disabled { opacity: .4; cursor: default; }
+.drawer .saveEntry { color: var(--body-gold); padding: 0; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.entryForm button:disabled { opacity: .4; cursor: default; }
 .entryError { color: #d7aa9b; font-size: 13px; line-height: 1.6; }
-.dateEntryForm { margin-top: 24px; }
-.dateEntryForm label { color: var(--body-muted); font-size: 13px; }
-.dateEntryForm input { display: block; border-bottom: 1px solid var(--body-rule); color-scheme: dark; margin: 8px 0 20px; }
-.dateEntryForm p { color: var(--body-muted); font-size: 13px; line-height: 1.6; }
 @media (max-width: 600px) {
   .heading { gap: 10px; }
   .entryGroups { grid-template-columns: 1fr; gap: 24px; }
@@ -60,14 +53,12 @@
   .entryMore { margin-top: 16px; }
   .rowActions { gap: 10px; }
 }
-.metricTabs button { padding: 8px 0; font-size: 15px; border-bottom: 2px solid transparent; }
-.metricTabs button[aria-pressed="true"] { color: var(--body-ink); border-bottom-color: var(--body-gold); }
-.summary { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1.1fr; align-items: end; gap: 24px; padding: 24px 0 28px; border-bottom: 1px solid var(--body-rule); }
+.summary { display: grid; grid-template-columns: 1.3fr 1.3fr repeat(4, 1fr); align-items: end; gap: 20px; padding: 24px 0 28px; border-bottom: 1px solid var(--body-rule); }
 .summary > div > span { color: var(--body-muted); font-size: 13px; }
-.summary strong { display: block; margin: 9px 0 7px; font-size: 28px; font-weight: 400; line-height: 1.1; letter-spacing: -.035em; white-space: nowrap; }
+.summary strong { display: block; margin: 9px 0 7px; font-size: clamp(22px, 2vw, 28px); font-weight: 400; line-height: 1.1; letter-spacing: -.035em; white-space: nowrap; }
 .summary .current strong { font-size: 48px; }
 .summary strong small { margin-left: 6px; color: var(--body-muted); font-size: 13px; letter-spacing: 0; }
-.summary p { margin: 0; color: var(--body-muted); font-size: 12px; line-height: 1.5; }
+.summary p { min-height: 36px; margin: 0; color: var(--body-muted); font-size: 12px; line-height: 1.5; }
 .chartPanel { padding: 12px 0 16px; }
 .chartToolbar, .chartControls, .rangeTabs { display: flex; align-items: center; }
 .chartToolbar { justify-content: space-between; gap: 16px; padding-bottom: 12px; }
@@ -131,8 +122,11 @@
 .sectionTitle h2 { margin: 0; font-size: 16px; font-weight: 500; }
 .sectionTitle > span { color: var(--body-muted); font-size: 12px; }
 .history table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; }
-.dateColumn, .readingColumn, .differenceColumn { width: 25%; }
-.history th, .history td { height: 44px; padding: 0 12px; border-bottom: 1px solid rgba(240, 233, 221, .06); text-align: right; font-weight: 400; white-space: nowrap; }
+.dateColumn { width: 18%; }
+.readingColumn { width: 24%; }
+.differenceColumn { width: 18%; }
+.actionColumn { width: 16%; }
+.history th, .history td { height: 88px; padding: 0 12px; border-bottom: 1px solid rgba(240, 233, 221, .06); text-align: right; font-weight: 400; white-space: nowrap; }
 .history th:first-child { text-align: left; padding-left: 0; }
 .history th:last-child, .history td:last-child { padding-right: 0; }
 .history thead th { height: 38px; color: var(--body-muted); font-size: 12px; }
@@ -141,7 +135,7 @@
 .history tbody tr[data-selected="true"] { background: rgba(190, 164, 120, .035); }
 .history tbody th button { padding: 0; min-height: 44px; color: inherit; font-size: 14px; }
 .history tbody th button[aria-pressed="true"] { color: var(--body-gold); }
-.history tbody th small { margin-left: 16px; }
+.history tbody th small { display: block; margin-top: 4px; }
 .dayValue { color: var(--body-gold); }
 .nightValue { color: var(--body-blue); }
 .missing { color: var(--body-muted); }
@@ -149,7 +143,18 @@
 .emptyHistory { margin: 20px 0; color: var(--body-muted); }
 .drawer { position: fixed; inset: 0 0 0 auto; margin: 0; padding: 0; width: min(620px, 100%); max-width: 100%; height: 100dvh; max-height: 100dvh; border: 0; border-left: 1px solid var(--body-rule); background: #151513; font-family: inherit; }
 .drawer[open] { display: flex; flex-direction: column; }
-.drawer::backdrop { background: rgba(0, 0, 0, .55); }
+.drawer::backdrop { background: linear-gradient(90deg, rgba(0, 0, 0, .18), rgba(0, 0, 0, .68)); }
+.drawer[data-motion="opening"] { animation: inspector-in 320ms cubic-bezier(.22, 1, .36, 1) both; }
+.drawer[data-motion="opening"]::backdrop { animation: inspector-shade-in 320ms ease-out both; }
+.drawer[data-motion="closing"] { animation: inspector-out 240ms cubic-bezier(.4, 0, 1, 1) both; }
+.drawer[data-motion="closing"]::backdrop { animation: inspector-shade-out 240ms ease-in both; }
+@keyframes inspector-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes inspector-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes inspector-shade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes inspector-shade-out { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .drawer[data-motion], .drawer[data-motion]::backdrop { animation: none; }
+}
 .drawerHeader { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 24px 28px 20px; border-bottom: 1px solid var(--body-rule); }
 .drawerHeader h2 { margin: 0; font-size: 18px; font-weight: 500; }
 .drawerHeader p { margin: 6px 0 0; color: var(--body-muted); font-size: 13px; }
@@ -208,12 +213,25 @@
 .references summary { cursor: pointer; min-height: 44px; display: list-item; padding: 12px 0; }
 .references ul { padding-left: 18px; }
 .references li { margin: 8px 0; }
-.workspace .tableReading { color: inherit; min-height: 44px; width: 100%; padding: 4px 0; text-align: right; font-variant-numeric: tabular-nums; }
-.history .tableReading small { white-space: nowrap; font-size: 10px; margin-top: 3px; }
+.tableLine { display: flex; justify-content: flex-end; align-items: center; gap: 5px; height: 44px; }
+.workspace .tableReading { display: inline-flex; justify-content: flex-end; align-items: center; gap: 5px; color: inherit; min-height: 44px; width: 100%; padding: 0; text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
+.history .tableLine small { display: inline; font-size: 11px; }
+.readingStatus { font-size: 8px; color: var(--body-muted); }
+.tableReading[data-kind="estimated"] .readingStatus { font-size: 12px; }
+.metricPlot { padding: 12px 0 16px; }
+.metricPlot + .metricPlot { border-top: 1px solid var(--body-rule); }
+.metricPlot h2 { display: flex; align-items: baseline; gap: 8px; font-size: 15px; font-weight: 500; margin: 0 0 6px; }
+.metricPlot h2 small { font-weight: 400; color: var(--body-muted); font-size: 12px; }
+.historyReading { display: block; line-height: 1.7; }
+.drawer .loadHistory { width: 100%; color: var(--body-gold); margin-top: 16px; }
 .tableReading:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .workspace button:focus-visible, .workspace input:focus-visible, .drawer button:focus-visible, .drawer input:focus-visible, .drawer select:focus-visible, .drawer summary:focus-visible { outline: 2px solid var(--body-gold); outline-offset: 3px; }
 .empty { width: min(1120px, 100%); margin: 0 auto; padding: 40px 0; }
 .empty p { font-size: 14px; color: #a8a195; margin-top: 24px; }
+@media (max-width: 1100px) and (min-width: 601px) {
+  .summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .summary .current { grid-column: span 2; }
+}
 @media (max-width: 900px) {
   .chartToolbar { flex-wrap: wrap; gap: 4px; }
   .chartControls { justify-content: space-between; width: 100%; }
@@ -221,14 +239,12 @@
 @media (max-width: 600px) {
   .workspace { padding: 14px 0 8px; }
   .heading { gap: 12px; }
-  .metricTabs { gap: 18px; }
-  .metricTabs button { font-size: 14px; }
   .summary { grid-template-columns: 1fr 1fr; gap: 12px 16px; padding: 14px 0 16px; }
   .summary > div > span { font-size: 12px; }
   .summary .current strong { font-size: clamp(30px, 9.75vw, 38px); }
   .summary strong { font-size: 25px; margin: 6px 0 4px; }
   .summary strong small { font-size: 12px; }
-  .summary p { font-size: 12px; }
+  .summary p { min-height: 0; font-size: 12px; }
   .chartToolbar { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 6px; padding-bottom: 4px; }
   .rangeCaption { font-size: 11px; }
   .rangeFull { display: none; }
@@ -259,10 +275,16 @@
   .sectionTitle { padding-bottom: 4px; }
   .history { margin-top: 12px; }
   .fullHistory { margin-top: 4px; }
-  .history .addDate { margin-top: 4px; }
-  .dateColumn { width: 28%; }
-  .differenceColumn { width: 22%; }
-  .history th, .history td { height: 44px; padding: 0 6px; font-size: 13px; }
+  .dateColumn { width: 20%; }
+  .readingColumn { width: 25%; }
+  .differenceColumn { width: 14%; }
+  .actionColumn { width: 16%; }
+  .history .rowActions { gap: 0; }
+  .workspace .tableReading { font-size: 12px; gap: 2px; }
+  .history .tableLine small { font-size: 9px; }
+  .history td:nth-child(4) .tableLine { flex-direction: column; justify-content: center; gap: 2px; }
+  .tableReading[data-kind="estimated"] .readingStatus { font-size: 10px; }
+  .history th, .history td { height: 88px; padding: 0 6px; font-size: 13px; }
   .history tbody th button { min-height: 44px; font-size: 13px; text-align: left; }
   .history tbody th small { display: block; margin: 3px 0 0; font-size: 10px; }
   .history thead th { height: 32px; font-size: 12px; }

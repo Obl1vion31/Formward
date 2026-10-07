@@ -22,7 +22,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     await page.evaluate(() => document.fonts.ready);
     return { context, page };
   }
-  const chartFor = (page) => page.locator('section[aria-label="身体指标趋势"]');
+  const chartFor = (page, metric = "weightKg") => page.locator(`[data-chart-metric="${metric}"]`);
   const recentFor = (page) => page.locator('section[aria-label="最近记录"]');
   const detailFor = (page) => page.locator('section[aria-label="所选日期测量详情"]');
   const summaryFor = (page) => page.locator('section[aria-label="最新空腹摘要"]');
@@ -32,7 +32,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       const box = node => { const rect = node.getBoundingClientRect(); return { left: rect.left, right: rect.right, width: rect.width }; };
       return { chart: box(chart), recent: box(section), table: box(section.querySelector("table")),
         headings: [...section.querySelectorAll("thead th")].map(box), rows: [...section.querySelectorAll("tbody tr")].map(row => [...row.cells].map(box)),
-        ratios: innerWidth <= 600 ? [.28, .25, .25, .22] : [.25, .25, .25, .25] };
+        heights: [...section.querySelectorAll("tbody tr")].map(row => row.getBoundingClientRect().height), ratios: innerWidth <= 600 ? [.20, .25, .25, .14, .16] : [.18, .24, .24, .18, .16] };
     });
     assert.ok(Math.abs(layout.chart.width - layout.recent.width) < 1, "最近记录与图表区域等宽");
     assert.ok(Math.abs(layout.chart.left - layout.table.left) < 1 && Math.abs(layout.chart.right - layout.table.right) < 1, "表格铺满内容区域");
@@ -40,11 +40,14 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       assert.ok(Math.abs(cell.left - layout.headings[index].left) < 1 && Math.abs(cell.right - layout.headings[index].right) < 1, "所有表头与数据共用列边界");
       assert.ok(Math.abs(cell.width / layout.table.width - layout.ratios[index]) < .01, "固定列宽不受实测与估计标签影响");
     }
+    assert.equal(new Set(layout.heights).size, 1, "完整、部分和空白日期共用行高");
+    assert.equal(layout.headings.length, 5);
     assert.ok(!(await recentFor(page).innerText()).includes("历史初始化估计"), "最近记录仅使用短估计标识");
   }
   async function assertRecordInspector(page, kind = "observed", metric = "weightKg") {
     const modal = page.getByRole("dialog");
     await modal.waitFor();
+    await page.waitForFunction(() => document.querySelector("dialog")?.dataset.motion === "open");
     assert.equal(await modal.getByRole("article", { name: "记录详情", exact: true }).count(), 1, "始终只呈现当前记录");
     assert.equal(await modal.locator("[data-inspector-record]").getAttribute("data-kind"), kind);
     assert.equal(await modal.locator("[data-record-value]").getAttribute("data-record-value"), metric);
@@ -101,17 +104,17 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     await page.getByLabel("结束日期", { exact: true }).fill(end);
     await page.getByRole("button", { name: "应用", exact: true }).click();
   }
-  async function assertNormalAxis(page) {
-    const points = await chartFor(page).locator('[data-point-id]').evaluateAll((nodes) => nodes.map((node) => ({ value: Number(node.dataset.value), y: Number(node.querySelector("circle").getAttribute("cy")) })));
+  async function assertNormalAxis(page, metric = "weightKg") {
+    const points = await chartFor(page, metric).locator('[data-point-id]').evaluateAll((nodes) => nodes.map((node) => ({ value: Number(node.dataset.value), y: Number(node.querySelector("circle").getAttribute("cy")) })));
     points.sort((a, b) => a.value - b.value);
     assert.ok(points.at(-1).y < points[0].y, "较高数值在上");
-    const ticks = await chartFor(page).locator("text").evaluateAll((nodes) => nodes.filter((node) => node.getAttribute("text-anchor") === "end").map((node) => Number(node.textContent)));
+    const ticks = await chartFor(page, metric).locator("text").evaluateAll((nodes) => nodes.filter((node) => node.getAttribute("text-anchor") === "end").map((node) => Number(node.textContent)));
     assert.ok(ticks[0] - ticks.at(-1) >= 3, "避免夸大微小波动");
   }
   async function assertStableEveningToggle(page, checked, touch = false) {
     const probe = await chartFor(page).locator('svg[role="group"]').evaluateHandle(async (plot) => {
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      const panel = plot.closest("section");
+      const panel = plot.closest("[data-chart-metric]");
       const snapshots = [];
       const capture = () => {
         const current = panel.querySelector('svg[role="group"]');
@@ -148,11 +151,62 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
         assert.equal(sample.left, baseline.left, "切换过程图表不横移");
         assert.deepEqual(sample.points, baseline.points, "切换过程晨间点横坐标保持稳定");
       }
-      assert.equal(await chartFor(page).locator('[data-point-id][data-period="evening"]').count() > 0, checked);
+      for (const metric of ["weightKg", "bodyFatPercent"]) assert.equal(await chartFor(page, metric).locator('[data-point-id][data-period="evening"]').count() > 0, checked, "共用晚间开关同步控制双图");
     } finally {
       await probe.evaluate(({ observer }) => observer.disconnect());
       await probe.dispose();
     }
+  }
+  async function assertUnifiedOverview(page) {
+    const summaries = summaryFor(page).locator("[data-summary]");
+    assert.equal(await summaries.count(), 6, "当前体重／体脂及各自变化／均值同时展示");
+    const values = await summaries.evaluateAll(nodes => nodes.map(node => {
+      const box = node.getBoundingClientRect();
+      return { width: box.width, top: box.top, font: getComputedStyle(node.querySelector("strong")).fontSize, visible: box.width > 0 };
+    }));
+    assert.ok(values.every(value => value.visible));
+    assert.equal(values[0].width, values[1].width, "两个当前值等宽");
+    assert.equal(values[0].font, values[1].font, "两个当前值同样突出");
+    assert.equal(values[0].top, values[1].top, "手机第一行保留两个当前值");
+    const plots = page.locator('[data-chart-metric] svg');
+    assert.equal(await plots.count(), 2);
+    const axes = await plots.evaluateAll(nodes => nodes.map(node => [...node.querySelectorAll('text[text-anchor="end"]')].map(tick => tick.textContent)));
+    assert.notDeepEqual(axes[0], axes[1], "两张图纵轴独立");
+    const ticks = await plots.evaluateAll(nodes => nodes.map(node => [...node.querySelectorAll('text[text-anchor="middle"][y="242"]')].map(tick => tick.textContent)));
+    assert.deepEqual(ticks[0], ticks[1], "两张图共用日期范围");
+    const centered = await page.locator('section[aria-labelledby="body-records-title"]').evaluate(node => {
+      const rect = node.getBoundingClientRect(); return Math.abs((rect.left + rect.right) / 2 - document.documentElement.clientWidth / 2);
+    });
+    assert.ok(centered < 1, "身体记录正文居中");
+    assert.equal(await page.getByRole("button", { name: "录入今天", exact: true }).count(), 0);
+    assert.equal(await page.locator("dialog").count(), 0, "不自动弹出录入面板");
+    assert.equal(await page.getByRole("button", { name: /新增日期/ }).count(), 0);
+  }
+  async function motionProbe(page) {
+    return page.evaluateHandle(() => {
+      const samples = []; let frame;
+      const capture = () => {
+        const node = document.querySelector("dialog");
+        if (node) {
+          const style = getComputedStyle(node), box = node.getBoundingClientRect();
+          samples.push({ phase: node.dataset.motion, x: box.x, opacity: Number(getComputedStyle(node, "::backdrop").opacity),
+            duration: style.animationDuration, overflow: document.body.style.overflow });
+        }
+        frame = requestAnimationFrame(capture);
+      };
+      capture();
+      return { samples, stop: () => cancelAnimationFrame(frame) };
+    });
+  }
+  function assertMotion(samples) {
+    const opening = samples.filter(sample => sample.phase === "opening"), closing = samples.filter(sample => sample.phase === "closing");
+    assert.ok(opening.length >= 3 && closing.length >= 3, "逐帧捕捉滑入与退出");
+    assert.ok(opening[0].x > opening.at(-1).x + 20, "面板从右向左滑入");
+    assert.ok(closing.at(-1).x > closing[0].x + 20, "关闭向右收回");
+    assert.ok(opening.at(-1).opacity > opening[0].opacity, "背景遮罩同步淡入");
+    assert.ok(closing.at(-1).opacity < closing[0].opacity, "退出同步淡出");
+    assert.ok(opening.every(sample => sample.duration === "0.32s"));
+    assert.ok(closing.every(sample => sample.duration === "0.24s" && sample.overflow === "hidden"), "退出完成前保留滚动锁定");
   }
   async function assertStableInspector() {
     const { context, page: scrolled } = await loggedInPage({ width: 1440, height: 700 });
@@ -183,6 +237,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
         ]) {
           await trigger.scrollIntoViewIfNeeded();
           const before = await measure();
+          const probe = await motionProbe(scrolled);
           await trigger.click();
           const modal = scrolled.getByRole('dialog');
           await modal.waitFor();
@@ -191,9 +246,12 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
             assert.deepEqual(await measure(), before, "打开 Inspector 时页头、摘要、图表、表格和点坐标保持不变");
           }
           assert.equal(await plot.evaluate(node => node.isConnected), true, "打开 Inspector 保留图表实例");
+          await scrolled.waitForFunction(() => document.querySelector("dialog")?.dataset.motion === "open");
           await scrolled.keyboard.press('Escape');
           await scrolled.locator('dialog').waitFor({ state: 'detached' });
           await scrolled.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+          const samples = await probe.evaluate(({ samples, stop }) => { stop(); return samples; });
+          assertMotion(samples); await probe.dispose();
           assert.deepEqual(await measure(), before, "关闭 Inspector 时页面不横移或改变图表宽度");
           assert.equal(await scrolled.evaluate(() => document.body.style.paddingRight), padding, "关闭后恢复原始页面内边距，包括已有非零内边距");
         }
@@ -213,9 +271,11 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     }
     await assertStableInspector();
     const { context, page } = await loggedInPage({ width: 1440, height: 1000 });
-    const chart = chartFor(page), recent = recentFor(page), detail = detailFor(page), summary = summaryFor(page);
+    let chart = chartFor(page);
+    const recent = recentFor(page), detail = detailFor(page), summary = summaryFor(page);
     await chart.locator('[data-point-id]').first().waitFor();
     await assertRecentLayout(page);
+    await assertUnifiedOverview(page);
     await assertEstimateRules(page);
     // 首次挂载和再次打开都必须保持可见，覆盖开发 Strict Mode 的 effect 重放。
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -253,9 +313,9 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.ok(await chart.locator('[data-point-id][data-period="evening"]').count() > 0);
     const body = await page.textContent("body");
     assert.ok(!body.includes("把一天的变化") && !body.includes("正在开发中") && !body.includes("缺测连接") && !body.includes("每天的晨晚对比"));
-    assert.match(await summary.locator('[data-summary="current"]').textContent(), /74.60.*2025.07.14/);
-    assert.match(await summary.locator('[data-summary="change"]').textContent(), /-1.60/);
-    assert.match(await summary.locator('[data-summary="average"]').textContent(), /75.21.*4\/7 天/);
+    assert.match(await summary.locator('[data-summary="current"][data-metric="weightKg"]').textContent(), /74.60.*2025.07.14/);
+    assert.match(await summary.locator('[data-summary="change"][data-metric="weightKg"]').textContent(), /-1.60/);
+    assert.match(await summary.locator('[data-summary="average"][data-metric="weightKg"]').textContent(), /75.21.*4\/7 天/);
     await assertNormalAxis(page);
     assert.ok(await chart.locator('[data-segment="continuous"]').count() > 0);
     assert.ok(await chart.locator('[data-segment="estimated"]').count() > 0);
@@ -280,14 +340,14 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     await estimationDrawer.waitFor({ state: "hidden" });
     assert.equal(await estimate.evaluate(node => node === document.activeElement), true, "估计抽屉关闭后焦点返回图表点");
     assert.equal(await detail.count(), 0, "无需日期信息栏中转");
-    await recent.getByRole("button", { name: "查看 2025-07-11 晚间估计依据", exact: true }).click();
+    await recent.getByRole("button", { name: "查看 2025-07-11 晚间体重估计依据", exact: true }).click();
     await assertSimpleEstimate(page);
     assert.match(await estimationDrawer.innerText(), /日常估计/);
     await page.keyboard.press("Escape");
     await estimationDrawer.waitFor({ state: "hidden" });
     const measuredSummary = await summary.textContent();
     await page.getByLabel("估计补全", { exact: true }).uncheck();
-    assert.equal(await chart.locator('[data-kind="estimated"]').count(), 0);
+    assert.equal(await page.locator('[data-chart-metric] [data-kind="estimated"]').count(), 0, "共用估计开关同步控制双图");
     assert.equal(await summary.textContent(), measuredSummary);
     const gap = chart.locator('[data-segment="gap"]').first();
     assert.ok(await chart.locator('[data-segment="gap"]').count() > 0);
@@ -295,14 +355,14 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.notEqual(bridge.dash, "none");
     assert.ok(bridge.opacity <= .3);
     assert.equal(bridge.stroke, await chart.locator('[data-segment="continuous"]').first().evaluate((node) => getComputedStyle(node).stroke));
-    assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight * 1.5), "默认桌面主要阅读内容不超过约 1.5 屏");
+    assert.equal(await page.locator("[data-chart-metric]").count(), 2, "双图常驻，允许自然增长");
     await page.screenshot({ path: `${artifacts}/desktop-30-days.png`, fullPage: true });
 
     await page.getByLabel("晚间数据", { exact: true }).check();
     assert.ok(await chart.locator('[data-point-id][data-period="evening"]').count() > 0);
     assert.ok(await chart.locator('[data-segment][data-period="evening"]').count() > 0);
     assert.ok(await chart.locator('[data-pair]').count() > 0);
-    await recent.getByRole("button", { name: "查看 2025-07-08 晨间实测记录", exact: true }).click();
+    await recent.getByRole("button", { name: "查看 2025-07-08 晨间体重实测记录", exact: true }).click();
     const drawer = await assertRecordInspector(page);
     assert.match(await drawer.locator('[data-record-value]').innerText(), /76.20.*kg/s);
     assert.match(await drawer.innerText(), /虚构蓝牙体重秤.*虚构连接应用/s);
@@ -311,10 +371,10 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     await assertRecordInspector(page, "observed", "bodyFatPercent");
     assert.equal(await drawer.locator('[data-inspector-record]').getAttribute('data-inspector-record'), recordId, "切换指标保持同条记录");
     assert.match(await drawer.locator('[data-record-value]').innerText(), /25.20.*%/s);
-    assert.equal(await page.getByRole("button", { name: "体重", exact: true }).getAttribute("aria-pressed"), "true", "详情内查看另一指标不改变页面趋势指标");
+    assert.equal(await chartFor(page).count(), 1, "详情内切换指标保持双图");
     await page.keyboard.press("Escape");
     await drawer.waitFor({ state: "hidden" });
-    const pendingButton = recent.getByRole("button", { name: "查看 2025-07-10 晚间候选记录", exact: true });
+    const pendingButton = recent.getByRole("button", { name: "查看 2025-07-10 晚间体重候选记录", exact: true });
     await pendingButton.click();
     await drawer.waitFor();
     assert.equal(await drawer.locator('[data-record-value]').count(), 0, "待选择单元格直接进入对应时段候选");
@@ -345,12 +405,12 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.equal(await chart.locator('[data-point-id][data-date="2025-07-10"][data-period="evening"]').count(), 1);
     assert.equal(await dateButton.evaluate(node => node === document.activeElement), true, "关闭后返回日期入口");
     assert.notEqual(await page.evaluate(() => document.body.style.overflow), "hidden");
-    await page.getByRole("button", { name: "体脂率", exact: true }).click();
+    chart = chartFor(page, "bodyFatPercent");
     assert.match(await recent.locator("tbody tr").filter({ has: page.getByRole("button", { name: "查看 2025-07-10", exact: true }) }).innerText(), /\+0.35/);
-    assert.match(await summary.locator('[data-summary="current"]').textContent(), /24.90/);
-    assert.match(await summary.locator('[data-summary="change"]').textContent(), /-0.30.*百分点/);
-    assert.match(await summary.locator('[data-summary="average"]').textContent(), /25.12.*3\/7 天/);
-    assert.match(await summary.locator('[data-summary="companion"]').textContent(), /74.60.*kg/);
+    assert.match(await summary.locator('[data-summary="current"][data-metric="bodyFatPercent"]').textContent(), /24.90/);
+    assert.match(await summary.locator('[data-summary="change"][data-metric="bodyFatPercent"]').textContent(), /-0.30.*百分点/);
+    assert.match(await summary.locator('[data-summary="average"][data-metric="bodyFatPercent"]').textContent(), /25.12.*3\/7 天/);
+    assert.match(await summary.locator('[data-summary="current"][data-metric="weightKg"]').textContent(), /74.60.*kg/);
     assert.equal(await chart.locator('[data-point-id][data-date="2025-07-11"]').count(), 0);
     await page.getByLabel("估计补全", { exact: true }).check();
     const fatEstimate = chart.locator('[data-point-id][data-date="2025-07-11"][data-period="daytime"][data-kind="estimated"]');
@@ -367,7 +427,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     await page.keyboard.press("Escape");
     await fatModal.waitFor({ state: "hidden" });
     assert.equal(await detail.count(), 0);
-    await page.getByRole("button", { name: "体重", exact: true }).click();
+    chart = chartFor(page);
     assert.equal(await chart.locator('[data-point-id][data-date="2025-07-11"][data-period="daytime"][data-kind="observed"]').count(), 1);
     assert.equal(await chart.locator('[data-point-id][data-date="2025-07-11"][data-period="daytime"][data-kind="estimated"]').count(), 0);
     await chart.locator('[data-point-id][data-date="2025-07-11"][data-period="daytime"][data-kind="observed"]').click();
@@ -376,18 +436,18 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.equal(await drawer.getByRole("button", { name: "查看体脂率记录值", exact: true }).count(), 0, "实测缺失体脂不混入另一条记录的估计体脂");
     await page.keyboard.press("Escape");
     await drawer.waitFor({ state: "hidden" });
-    await page.getByRole("button", { name: "体脂率", exact: true }).click();
+    chart = chartFor(page, "bodyFatPercent");
     await page.getByLabel("估计补全", { exact: true }).uncheck();
-    await assertNormalAxis(page);
+    await assertNormalAxis(page, "bodyFatPercent");
     await page.getByLabel("晚间数据", { exact: true }).uncheck();
     assert.equal(await chart.locator('[data-point-id][data-period="evening"]').count(), 0);
     assert.match(await recent.locator("tbody tr").filter({ has: page.getByRole("button", { name: "查看 2025-07-10", exact: true }) }).innerText(), /\+0.35/);
-    await page.getByRole("button", { name: "体重", exact: true }).click();
+    chart = chartFor(page);
     await page.getByRole("button", { name: "7D", exact: true }).click();
     assert.equal(await recent.locator("tbody tr").count(), 7);
     await page.screenshot({ path: `${artifacts}/desktop-7-days.png`, fullPage: true });
     await page.getByRole("button", { name: "90D", exact: true }).click();
-    assert.match(await chart.textContent(), /2025.04.16.*2025.07.14/s);
+    assert.match(await page.locator('section[aria-label="身体指标趋势"]').textContent(), /2025.04.16.*2025.07.14/s);
     assert.equal(await recent.locator("tbody tr").count(), 10);
     await page.getByRole("button", { name: "全部", exact: true }).click();
     assert.equal(await chart.locator('[data-point-id][data-date="2024-12-01"]').count(), 1);
@@ -400,7 +460,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.equal(await detail.count(), 0, "页面不再保留日期详情中间层");
     assert.equal(await summary.textContent(), originalSummary, "摘要始终反映最新状态");
     await applyCustom(page, "2025-07-15", "2025-07-14");
-    assert.match(await chart.getByRole("alert").textContent(), /起始日期不能晚于结束日期/);
+    assert.match(await page.locator('section[aria-label="身体指标趋势"]').getByRole("alert").textContent(), /起始日期不能晚于结束日期/);
     assert.equal(await recent.locator("tbody tr").count(), 2, "错误区间不应用");
     await page.getByRole("button", { name: "取消", exact: true }).click();
     await applyCustom(page, "2025-08-01", "2025-08-10");
@@ -427,7 +487,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     const fullHistoryButton = page.getByRole("button", { name: "查看全部", exact: false });
     await fullHistoryButton.click();
     await drawer.waitFor();
-    assert.equal(await drawer.locator("details:has(> summary time[datetime])").count(), 19, "全历史抽屉不受图区间限制");
+    assert.equal(await drawer.locator("details:has(> summary time[datetime])").count(), 50, "全历史按 50 个日历日期展示，不受图区间限制");
     await drawer.locator('details:has(> summary time[datetime="2025-07-10"]) > summary').click();
     assert.match(await drawer.innerText(), /2025-07-11 00:30:00/);
     const historyScroll = await drawer.locator('div[class*="drawerContent"]').evaluate(node => node.scrollTop);
@@ -464,6 +524,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       const mobile = await loggedInPage({ width, height }, first, { isMobile: true, hasTouch: true, reducedMotion: "reduce" });
       await chartFor(mobile.page).locator('[data-point-id]').first().waitFor();
       await assertRecentLayout(mobile.page);
+      await assertUnifiedOverview(mobile.page);
       await assertEstimateRules(mobile.page);
       for (const checked of [false, true, false, true]) await assertStableEveningToggle(mobile.page, checked, true);
       assert.equal(await mobile.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${width}px 页面不横向溢出`);
@@ -471,7 +532,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       await mobile.page.screenshot({ path: `${artifacts}/mobile-${width}-30-days.png`, fullPage: true });
       if (width === 390) {
         const layout = await mobile.page.evaluate(() => ({ height: document.documentElement.scrollHeight, viewport: innerHeight, sections: [...document.querySelectorAll('main > header, main > section > section')].map((node) => ({ label: node.getAttribute('aria-label'), height: node.getBoundingClientRect().height })) }));
-        assert.ok(layout.height <= layout.viewport * 1.5, `手机默认主要阅读内容不超过约 1.5 屏：${JSON.stringify(layout)}`);
+        assert.ok(layout.height > layout.viewport, "双图与两指标记录允许页面自然变长");
       }
       const densePoint = chartFor(mobile.page).locator('[data-point-id][data-date="2025-07-09"][data-period="daytime"][data-kind="estimated"]');
       const beforeInspector = await chartFor(mobile.page).boundingBox();
@@ -545,7 +606,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       await initialized.page.screenshot({ path: `${artifacts}/initialization-${width}-calculation.png` });
       await initialized.page.keyboard.press("Escape");
       await initialized.page.locator("dialog").waitFor({ state: "detached" });
-      const direct = recentFor(initialized.page).getByRole("button", { name: "查看 2025-08-06 晨间估计依据", exact: true });
+      const direct = recentFor(initialized.page).getByRole("button", { name: "查看 2025-08-06 晨间体重估计依据", exact: true });
       await direct.focus(); await initialized.page.keyboard.press("Enter");
       await assertSimpleEstimate(initialized.page);
       assert.match(await modal.innerText(), /81.00/);
@@ -568,9 +629,13 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     }
     console.log("通过：统一实测／估计 Inspector、直接点击、独立候选与历史返回、历史补全／日常估计来源、插值／趋势依据、真实样本列表、统一规则与宽幅表格。");
     const empty = await loggedInPage({ width: 390, height: 844 }, second);
+    await recentFor(empty.page).locator('tbody tr').first().waitFor();
+    assert.equal(await empty.page.locator("dialog").count(), 0);
+    await recentFor(empty.page).locator('tbody tr').first().getByRole("button", { name: /^编辑 / }).click();
     await empty.page.getByRole("form", { name: "当天四项录入" }).waitFor();
     assert.equal(await empty.page.locator('[data-entry-cell][data-kind="missing"]').count(), 4);
     await empty.page.getByRole("button", { name: "关闭记录详情" }).click();
+    await empty.page.locator("dialog").waitFor({ state: "detached" });
     assert.match(await empty.page.textContent("body"), /暂无测量记录/);
     assert.equal(await chartFor(empty.page).count(), 1);
     await empty.context.close();

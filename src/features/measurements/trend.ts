@@ -1,22 +1,10 @@
 import { buildMeasurementDays, isRealMeasurementPair, type DailyMeasurement } from "./days";
+import { addCalendarDays, calendarOrdinal } from "./calendar";
+export { addCalendarDays, calendarOrdinal } from "./calendar";
 
 export type MeasurementMetric = "weightKg" | "bodyFatPercent";
 export type MeasurementRange = "7d" | "30d" | "90d" | "all" | "custom";
 export type MeasurementInterval = { start: string; end: string };
-const DAY_MS = 86_400_000;
-
-/** UTC 仅用于日历运算；归属日不受浏览器时区或夏令时影响。 */
-export function calendarOrdinal(date: string) {
-  const stamp = Date.parse(`${date}T00:00:00Z`);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(stamp) || new Date(stamp).toISOString().slice(0, 10) !== date) {
-    throw new Error("日期无效。");
-  }
-  return stamp / DAY_MS;
-}
-
-export function addCalendarDays(date: string, offset: number) {
-  return new Date((calendarOrdinal(date) + offset) * DAY_MS).toISOString().slice(0, 10);
-}
 
 export function measurementRange(anchor: string, mode: MeasurementRange, interval?: MeasurementInterval): MeasurementInterval {
   const result = mode === "all" || mode === "custom" ? interval : {

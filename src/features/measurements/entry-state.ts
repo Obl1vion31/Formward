@@ -19,8 +19,6 @@ export type EntryResult = { ok: true; records: MeasurementDisplay[]; dates: Meas
 export type MeasurementActions = {
   save: (input: SaveMeasurementDayInput) => Promise<EntryResult>;
   estimate: (input: EstimateCellInput) => Promise<EntryResult>;
-  createDate: (date: string) => Promise<EntryResult>;
-  skipReminder: (date: string, timezone: string) => Promise<EntryResult>;
 };
 
 export function localMeasurementDate(now = new Date(), timezone?: string) {

@@ -7,7 +7,7 @@ import { listMeasurements } from "@/features/measurements/records";
 import { MeasurementsView } from "@/features/measurements/measurements-view";
 import { LogoutButton } from "./logout-button";
 import { listMeasurementDates, measurementDisplay } from "@/features/measurements/editing";
-import { createDateAction, estimateCellAction, saveDayAction, skipReminderAction } from "./actions";
+import { estimateCellAction, saveDayAction } from "./actions";
 
 export const metadata: Metadata = { title: "Formward · 身体记录" };
 
@@ -25,7 +25,7 @@ export default async function DashboardPage() {
         <a className="dashboard-logo" href="/dashboard" aria-label="Formward 主页">formward<span>.</span></a>
         <div className="dashboard-account"><span>{user.email}</span><LogoutButton /></div>
       </header>
-      <MeasurementsView records={records.map(measurementDisplay)} dates={dates} actions={{ save: saveDayAction, estimate: estimateCellAction, createDate: createDateAction, skipReminder: skipReminderAction }} />
+      <MeasurementsView records={records.map(measurementDisplay)} dates={dates} accountCreatedAt={user.createdAt.toISOString()} actions={{ save: saveDayAction, estimate: estimateCellAction }} />
     </main>
   );
 }

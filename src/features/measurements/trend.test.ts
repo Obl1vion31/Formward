@@ -98,11 +98,16 @@ test("候选不参与主线与差值，不越过待选择日连线，选择后�
   assert.equal(measurementTrend([], "weightKg", true).points.length, 0);
 });
 
-test("最近记录只取当前区间有记录的最新 10 个归属日，不为缺测补行", () => {
+test("最近记录取当前区间最新 10 个日历日，漏记昨日与连续缺测保持空值", () => {
   const records = Array.from({ length: 12 }, (_, index) => row(String(index), addCalendarDays("2025-01-01", index * 2), "evening"));
   const recent = recentMeasurementDays(records, measurementRange("2025-01-23", "30d"));
   assert.equal(recent.length, 10);
   assert.equal(recent[0].date, "2025-01-23");
-  assert.equal(recent.at(-1)?.date, "2025-01-05");
-  assert.equal(recentMeasurementDays(records, { start: "2025-01-24", end: "2025-01-25" }).length, 0);
+  assert.equal(recent.at(-1)?.date, "2025-01-14");
+  assert.equal(recent[1].date, "2025-01-22");
+  assert.deepEqual(recent[1].records, []);
+  assert.equal(recent[1].daytimeRecord, null);
+  const blank = recentMeasurementDays(records, { start: "2025-01-24", end: "2025-01-25" });
+  assert.equal(blank.length, 2);
+  assert.ok(blank.every(day => !day.records.length && day.weightDifferenceKg === null));
 });

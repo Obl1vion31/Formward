@@ -86,6 +86,8 @@ export async function saveMeasurementDay(db: Database, actor: MeasurementActor, 
       const values = { weightKg: before?.weightKg ?? null, bodyFatPercent: before?.bodyFatPercent ?? null, bmi: before?.bmi ?? null, fasting: before?.fasting ?? null };
       for (const field of ["weightKg", "bodyFatPercent", "bmi", "fasting"] as const) if (Object.hasOwn(edit, field)) Object.assign(values, { [field]: edit[field] });
       const valid = validateReportedMeasurement({ analysisDate: input.date, period, ...values, timezone: input.timezone });
+      // 晨间表单只接收空腹实测，也不能把旧的非空腹／未知记录静默改为空腹。
+      if (period === "daytime" && (valid.fasting !== true || (before && before.fasting !== true))) throw new Error("晨间只记录空腹测量；原记录非空腹或条件未确认时保持只读。");
       if (before) {
         const [after] = await tx.update(measurement).set({ weightKg: valid.weightKg, bodyFatPercent: valid.bodyFatPercent, bmi: valid.bmi, fasting: valid.fasting, fastingSource: valid.fastingSource, updatedAt: new Date(Math.max(Date.now(), before.updatedAt.getTime() + 1)) }).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, before.id))).returning();
         await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: after.id, action: "update", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { before, after, reason: "manual_measurement_edit", importId: batch.id } });

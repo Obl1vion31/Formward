@@ -5,6 +5,7 @@ import { cp, mkdtemp, rm, symlink } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { eq } from "drizzle-orm";
 import { PGlite } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { drizzle } from "drizzle-orm/pglite";
@@ -34,12 +35,14 @@ const initializedAccount = { email: "initialized-http@example.test", password: "
 const initializedOwner = await provisionAccount(db, initializedAccount);
 const entryAccount = { email: "entry-http@example.test", password: "fictional-entry-password" };
 const entryOwner = await provisionAccount(db, entryAccount);
+await db.update(schema.user).set({ createdAt: new Date("2024-02-27T00:00:00Z") }).where(eq(schema.user.id, entryOwner.id));
 const today = localMeasurementDate(new Date(), "Asia/Shanghai");
 const priorDate = (offset: number) => new Date(Date.parse(`${today}T00:00:00Z`) - offset * 86_400_000).toISOString().slice(0, 10);
 await saveReportedMeasurements(db, { userId: entryOwner.id, actorId: entryOwner.id, requestKey: "8".repeat(64), entryChannel: "api", records: [3, 2, 1].flatMap(offset => [
   { analysisDate: priorDate(offset), period: "daytime" as const, weightKg: "70.00", bodyFatPercent: "20.00", fasting: true },
   { analysisDate: priorDate(offset), period: "evening" as const, weightKg: "70.50", bodyFatPercent: "20.40", fasting: false },
 ]) });
+await saveReportedMeasurements(db, { userId: entryOwner.id, actorId: entryOwner.id, requestKey: "7".repeat(64), entryChannel: "api", records: [4, 5].map(offset => ({ analysisDate: priorDate(offset), period: "daytime" as const, weightKg: "71.00", bodyFatPercent: null, fasting: offset === 4 ? null : false })) });
 const owner = await provisionAccount(db, first);
 await provisionAccount(db, second);
 const fixtureTsv = [

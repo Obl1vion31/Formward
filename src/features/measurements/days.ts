@@ -1,4 +1,5 @@
 import type { MeasurementPeriod } from "./assignment";
+import { measurementCalendarPage } from "./calendar";
 
 export type DailyMeasurement = {
   id: string;
@@ -59,7 +60,9 @@ export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], c
   });
 }
 
-/** 只显示有测量或明确提供的日期，不按整个区间自动补空行。 */
-export function recentMeasurementDays<T extends DailyMeasurement>(records: T[], interval: { start: string; end: string }, choices: Record<string, string> = {}, limit = 10, metric: "weightKg" | "bodyFatPercent" = "weightKg", dates: string[] = []) {
-  return buildMeasurementDays(records.filter((row) => row.analysisDate >= interval.start && row.analysisDate <= interval.end), choices, metric, dates.filter(date => date >= interval.start && date <= interval.end)).slice(0, limit);
+/** 当前区间内最新的日历日，空行仅在展示时推导。 */
+export function recentMeasurementDays<T extends DailyMeasurement>(records: T[], interval: { start: string; end: string }, choices: Record<string, string> = {}, limit = 10, metric: "weightKg" | "bodyFatPercent" = "weightKg") {
+  const dates = measurementCalendarPage(interval, limit);
+  const visible = new Set(dates);
+  return buildMeasurementDays(records.filter(row => visible.has(row.analysisDate)), choices, metric, dates);
 }

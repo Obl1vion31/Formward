@@ -63,6 +63,51 @@ test("只录体脂参与体脂实测统计，体重保持未知；旧实测入�
   assert.equal(after.length, 1); assert.equal(after[0].bodyFatPercent, "21.00"); assert.equal(after[0].weightKg, "70.40");
 });
 
+test("晨间录入必须空腹，非空腹／未知／遗漏条件整日回滚，正常与重复写入保持", async () => {
+  const actor = await owner("fasting-only");
+  for (const fasting of [false, null, undefined]) {
+    await assert.rejects(saveMeasurementDay(db, actor, input("2024-04-04", { daytime: { weightKg: "70.00", ...(fasting === undefined ? {} : { fasting }) }, evening: { bodyFatPercent: "20.00" } })), /晨间只记录空腹/);
+    assert.deepEqual(await listMeasurements(db, actor.userId), []);
+    assert.deepEqual(await listMeasurementDates(db, actor.userId), []);
+  }
+  const request = input("2024-04-04", { daytime: { bodyFatPercent: "20.00", fasting: true } });
+  await saveMeasurementDay(db, actor, request);
+  assert.equal((await saveMeasurementDay(db, actor, request)).repeated, true);
+  const original = (await listMeasurements(db, actor.userId))[0];
+  for (const fasting of [false, null]) await assert.rejects(saveMeasurementDay(db, actor, input(original.analysisDate, { daytime: { recordId: original.id, version: original.updatedAt.toISOString(), fasting } })), /晨间只记录空腹/);
+  assert.deepEqual((await listMeasurements(db, actor.userId))[0], original);
+});
+
+test("旧非空腹／未知晨间保持原样，不能通过新表单改值或变为空腹，晚间仍可录入", async () => {
+  const actor = await owner("legacy-fasting");
+  for (const [index, fasting] of [false, null].entries()) {
+    const date = `2024-04-0${index + 4}`;
+    await saveReportedMeasurements(db, { ...actor, requestKey: String(index + 1).repeat(64), entryChannel: "api", records: [{ analysisDate: date, period: "daytime", weightKg: "70.00", bodyFatPercent: null, fasting }] });
+    const original = (await listMeasurements(db, actor.userId)).find(row => row.analysisDate === date)!;
+    for (const change of [{ weightKg: "71.00" }, { weightKg: "71.00", fasting: true }]) await assert.rejects(saveMeasurementDay(db, actor, input(date, { daytime: { recordId: original.id, version: original.updatedAt.toISOString(), ...change } })), /保持只读/);
+    await saveMeasurementDay(db, actor, input(date, { evening: { weightKg: "71.00" } }));
+    assert.deepEqual((await listMeasurements(db, actor.userId)).find(row => row.id === original.id), original);
+  }
+});
+
+test("先估晚间只保存晚间，后填晨间不改已有估计；先保存晨间则以实测加典型差", async () => {
+  const actor = await owner("estimate-order", true);
+  await estimateMeasurementCell(db, actor, { date: "2024-04-04", period: "evening", metric: "weightKg", operationId: randomUUID() });
+  const estimate = (await listMeasurements(db, actor.userId)).find(row => row.analysisDate === "2024-04-04")!;
+  assert.equal(estimate.weightKg, "70.90");
+  assert.ok(estimate.estimation?.method === "morning-baseline-v3");
+  assert.equal(estimate.estimation.weightKg?.basis, "morning-trend-plus-difference");
+  assert.equal((await listMeasurements(db, actor.userId)).some(row => row.analysisDate === "2024-04-04" && row.period === "daytime"), false);
+  await saveMeasurementDay(db, actor, input("2024-04-04", { daytime: { weightKg: "80.00", fasting: true } }));
+  assert.deepEqual((await listMeasurements(db, actor.userId)).find(row => row.id === estimate.id), estimate);
+  await saveMeasurementDay(db, actor, input("2024-04-05", { daytime: { weightKg: "70.20", fasting: true } }));
+  await estimateMeasurementCell(db, actor, { date: "2024-04-05", period: "evening", metric: "weightKg", operationId: randomUUID() });
+  const anchored = (await listMeasurements(db, actor.userId)).find(row => row.analysisDate === "2024-04-05" && row.period === "evening")!;
+  assert.equal(anchored.weightKg, "70.70");
+  assert.ok(anchored.estimation?.method === "morning-baseline-v3");
+  assert.equal(anchored.estimation.weightKg?.basis, "same-day-morning");
+});
+
 test("单项估算保留其他空项，按指标合并依据；补录实测只替代对应估计", async () => {
   const actor = await owner("cell", true), date = "2024-04-04";
   const request = { date, period: "evening" as const, metric: "weightKg" as const, operationId: randomUUID() };
@@ -152,7 +197,7 @@ test("无效、跨账号、旧版本、请求键内容冲突及并发重试均�
 test("审计失败整日回滚；估算不足不填零；多个候选不视为空白", async () => {
   const actor = await owner("rollback");
   await pg.exec("CREATE FUNCTION reject_entry_audit() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'fictional entry failure'; END; $$ LANGUAGE plpgsql; CREATE TRIGGER reject_entry_audit BEFORE INSERT ON measurement_events FOR EACH ROW EXECUTE FUNCTION reject_entry_audit();");
-  try { await assert.rejects(saveMeasurementDay(db, actor, input("2024-04-04", { daytime: { weightKg: "70" }, evening: { bodyFatPercent: "20" } }))); }
+  try { await assert.rejects(saveMeasurementDay(db, actor, input("2024-04-04", { daytime: { weightKg: "70", fasting: true }, evening: { bodyFatPercent: "20" } }))); }
   finally { await pg.exec("DROP TRIGGER reject_entry_audit ON measurement_events; DROP FUNCTION reject_entry_audit();"); }
   assert.deepEqual(await listMeasurements(db, actor.userId), []); assert.deepEqual(await listMeasurementDates(db, actor.userId), []);
   const estimate = await estimateMeasurementCell(db, actor, { date: "2024-04-04", period: "daytime", metric: "weightKg", operationId: randomUUID() });
