@@ -24,6 +24,60 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
   const recentFor = (page) => page.locator('section[aria-label="最近记录"]');
   const detailFor = (page) => page.locator('section[aria-label="所选日期测量详情"]');
   const summaryFor = (page) => page.locator('section[aria-label="最新空腹摘要"]');
+  async function assertRecentLayout(page) {
+    const layout = await recentFor(page).evaluate((section) => {
+      const chart = document.querySelector('section[aria-label="身体指标趋势"]');
+      const box = node => { const rect = node.getBoundingClientRect(); return { left: rect.left, right: rect.right, width: rect.width }; };
+      return { chart: box(chart), recent: box(section), table: box(section.querySelector("table")),
+        headings: [...section.querySelectorAll("thead th")].map(box), rows: [...section.querySelectorAll("tbody tr")].map(row => [...row.cells].map(box)),
+        ratios: innerWidth <= 600 ? [.28, .25, .25, .22] : [.25, .25, .25, .25] };
+    });
+    assert.ok(Math.abs(layout.chart.width - layout.recent.width) < 1, "最近记录与图表区域等宽");
+    assert.ok(Math.abs(layout.chart.left - layout.table.left) < 1 && Math.abs(layout.chart.right - layout.table.right) < 1, "表格铺满内容区域");
+    for (const row of layout.rows) for (const [index, cell] of row.entries()) {
+      assert.ok(Math.abs(cell.left - layout.headings[index].left) < 1 && Math.abs(cell.right - layout.headings[index].right) < 1, "所有表头与数据共用列边界");
+      assert.ok(Math.abs(cell.width / layout.table.width - layout.ratios[index]) < .01, "固定列宽不受实测与估计标签影响");
+    }
+    assert.ok(!(await recentFor(page).innerText()).includes("历史初始化估计"), "最近记录仅使用短估计标识");
+  }
+  async function assertSimpleEstimate(page, metric = "weightKg") {
+    const modal = page.getByRole("dialog");
+    await modal.waitFor();
+    assert.equal(await modal.locator("[data-estimate-value]").count(), 1, "直接点击仅显示所选指标和记录");
+    assert.equal(await modal.locator("[data-estimate-value]").getAttribute("data-estimate-value"), metric);
+    const text = await modal.innerText();
+    assert.match(text, /估计.*依据/s);
+    assert.match(text, /基于 \d+ 个真实/);
+    assert.match(text, /用于辅助趋势，并非实际测量/);
+    assert.doesNotMatch(text, /规则版本|初始化批次|生成时间|历史参考|historical-initialization|morning-baseline|UUID|历史初始化说明|最小二乘/);
+    assert.equal(await modal.locator('details[open]').count(), 0, "参考记录默认折叠");
+    const essential = await modal.locator('[class*="estimateDisclaimer"]').boundingBox();
+    const box = await modal.boundingBox();
+    if (page.viewportSize().height >= 740) assert.ok(essential.y + essential.height <= box.y + box.height, "常规视口核心依据与辅助趋势说明无需滚动即可看到");
+    return modal;
+  }
+  async function assertEstimateRules(page) {
+    const button = page.getByRole("button", { name: "估算规则", exact: true });
+    const plot = await chartFor(page).locator('svg[role="group"]').elementHandle();
+    const width = await plot.evaluate(node => node.viewBox.baseVal.width);
+    assert.equal(await button.getAttribute("aria-expanded"), "false");
+    await button.click();
+    const rules = page.getByRole("region", { name: "估算规则", exact: true });
+    await rules.waitFor();
+    assert.match(await rules.innerText(), /历史初始化.*前后真实测量.*结果固定.*日常估计.*目标日期之前.*真实测量始终优先.*实测统计/s);
+    assert.doesNotMatch(await rules.innerText(), /historical-initialization|morning-baseline|批次|UUID/);
+    const summary = await summaryFor(page).textContent();
+    await page.getByLabel("估计补全", { exact: true }).uncheck();
+    assert.equal(await button.isVisible(), true, "关闭估计后仍可阅读规则");
+    assert.equal(await summaryFor(page).textContent(), summary, "实测摘要独立于规则与估计开关");
+    await page.getByLabel("估计补全", { exact: true }).check();
+    await page.screenshot({ path: `${artifacts}/rules-${page.viewportSize().width}.png`, fullPage: true });
+    await button.click();
+    await rules.waitFor({ state: "detached" });
+    assert.equal(await plot.evaluate(node => node.isConnected && node === document.querySelector('section[aria-label="身体指标趋势"] svg[role="group"]')), true);
+    assert.equal(await plot.evaluate(node => node.viewBox.baseVal.width), width, "展开规则保留图表实例与宽度");
+    await plot.dispose();
+  }
   async function applyCustom(page, start, end) {
     await page.getByRole("button", { name: "自定义日期", exact: true }).click();
     await page.getByLabel("起始日期", { exact: true }).fill(start);
@@ -87,6 +141,8 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     const { context, page } = await loggedInPage({ width: 1440, height: 1000 });
     const chart = chartFor(page), recent = recentFor(page), detail = detailFor(page), summary = summaryFor(page);
     await chart.locator('[data-point-id]').first().waitFor();
+    await assertRecentLayout(page);
+    await assertEstimateRules(page);
     // 首次挂载和再次打开都必须保持可见，覆盖开发 Strict Mode 的 effect 重放。
     for (let attempt = 0; attempt < 3; attempt++) {
       await page.getByRole("button", { name: "查看全部", exact: false }).click();
@@ -115,6 +171,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       const resizedWidth = await measuredPlot.evaluate((plot) => plot.viewBox.baseVal.width);
       if (width === 1100) assert.ok(resizedWidth < fullWidth, "容器变窄时更新测量宽度");
       else assert.equal(resizedWidth, fullWidth, "恢复窗口后恢复正确宽度");
+      await assertRecentLayout(page);
     }
     await measuredPlot.dispose();
     console.log("通过：晚间连续切换保留图表实例、宽度及晨间横坐标，窗口缩放正常更新宽度。");
@@ -135,13 +192,20 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.notEqual(estimateStyle, "none");
     await page.screenshot({ path: `${artifacts}/desktop-estimated-trends.png`, fullPage: true });
     await estimate.click();
+    const estimationDrawer = await assertSimpleEstimate(page);
+    assert.equal(await estimationDrawer.getByRole("heading", { name: "晚间 · 估计", exact: true }).count(), 1);
+    assert.match(await estimationDrawer.innerText(), /当日晨间实测：74.80 kg/);
+    assert.match(await estimationDrawer.innerText(), /真实晨晚配对日/);
+    await page.screenshot({ path: `${artifacts}/desktop-single-estimate.png` });
+    await page.keyboard.press("Escape");
+    await estimationDrawer.waitFor({ state: "hidden" });
+    assert.equal(await estimate.evaluate(node => node === document.activeElement), true, "估计抽屉关闭后焦点返回图表点");
     assert.match(await detail.textContent(), /估计/s);
     assert.ok(!(await detail.textContent()).includes("预测区间"));
     assert.match(await detail.locator('div[class*="difference"]').textContent(), /晨晚差—/);
-    await detail.getByRole("button", { name: "详情", exact: true }).click();
-    const estimationDrawer = page.getByRole("dialog");
-    assert.match(await estimationDrawer.textContent(), /系统趋势估计/);
-    assert.match(await estimationDrawer.textContent(), /真实晨晚配对日的中位数/);
+    await detail.getByRole("button", { name: "查看 2025-07-11 晚间估计依据", exact: true }).click();
+    await assertSimpleEstimate(page);
+    assert.match(await estimationDrawer.innerText(), /日常估计/);
     await page.keyboard.press("Escape");
     await estimationDrawer.waitFor({ state: "hidden" });
     await detail.getByRole("button", { name: "关闭日期详情", exact: true }).click();
@@ -195,6 +259,16 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     const fatEstimate = chart.locator('[data-point-id][data-date="2025-07-11"][data-period="daytime"][data-kind="estimated"]');
     assert.equal(await fatEstimate.count(), 1, "真实体重存在时仍展示独立估计体脂");
     await fatEstimate.click();
+    const fatModal = await assertSimpleEstimate(page, "bodyFatPercent");
+    assert.match(await fatModal.innerText(), /体脂率.*近期晨间趋势/s);
+    assert.ok(!(await fatModal.innerText()).includes("74.80 kg"), "估计体脂不混入同条实测体重的依据");
+    await page.keyboard.press("Escape");
+    await fatModal.waitFor({ state: "hidden" });
+    await chart.locator('[data-point-id][data-date="2025-07-11"][data-period="evening"][data-kind="estimated"]').click();
+    await assertSimpleEstimate(page, "bodyFatPercent");
+    assert.match(await fatModal.innerText(), /个人典型晨晚差：.*个百分点/);
+    await page.keyboard.press("Escape");
+    await fatModal.waitFor({ state: "hidden" });
     assert.match(await detail.textContent(), /估计/);
     assert.ok(!(await detail.textContent()).includes("估计差值"));
     await page.getByRole("button", { name: "体重", exact: true }).click();
@@ -272,6 +346,8 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     for (const [width, height] of [[390, 844], [320, 740], [844, 390]]) {
       const mobile = await loggedInPage({ width, height }, first, { isMobile: true, hasTouch: true, reducedMotion: "reduce" });
       await chartFor(mobile.page).locator('[data-point-id]').first().waitFor();
+      await assertRecentLayout(mobile.page);
+      await assertEstimateRules(mobile.page);
       for (const checked of [false, true, false, true]) await assertStableEveningToggle(mobile.page, checked, true);
       assert.equal(await mobile.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `${width}px 页面不横向溢出`);
       assert.equal(await recentFor(mobile.page).locator("tbody tr").count(), 10);
@@ -280,6 +356,13 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
         const layout = await mobile.page.evaluate(() => ({ height: document.documentElement.scrollHeight, viewport: innerHeight, sections: [...document.querySelectorAll('main > header, main > section > section')].map((node) => ({ label: node.getAttribute('aria-label'), height: node.getBoundingClientRect().height })) }));
         assert.ok(layout.height <= layout.viewport * 1.5, `手机默认主要阅读内容不超过约 1.5 屏：${JSON.stringify(layout)}`);
       }
+      const densePoint = chartFor(mobile.page).locator('[data-point-id][data-date="2025-07-09"][data-period="daytime"][data-kind="estimated"]');
+      await densePoint.tap();
+      const denseModal = await assertSimpleEstimate(mobile.page);
+      assert.match(await denseModal.innerText(), /2025.07.09/, "30D 密集点点击仍命中指定日期");
+      assert.equal(await denseModal.getByRole("heading", { name: "晨间 · 估计", exact: true }).count(), 1);
+      await mobile.page.keyboard.press("Escape");
+      await denseModal.waitFor({ state: "hidden" });
       await mobile.page.getByRole("button", { name: "7D", exact: true }).click();
       await mobile.page.waitForFunction(() => {
         const plot = document.querySelector('section[aria-label="身体指标趋势"] svg[role="group"]');
@@ -297,11 +380,11 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       await mobileDrawer.getByRole("button", { name: "关闭历史抽屉", exact: true }).tap();
       await mobileDrawer.waitFor({ state: "hidden" });
       await chartFor(mobile.page).locator('[data-point-id][data-date="2025-07-09"][data-period="daytime"][data-kind="estimated"]').tap();
+      await assertSimpleEstimate(mobile.page);
       assert.match(await detailFor(mobile.page).textContent(), /估计/);
       assert.equal(await mobile.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, "估计详情不撑宽手机页面");
-      await detailFor(mobile.page).getByRole("button", { name: "详情", exact: true }).tap();
-      await mobileDrawer.waitFor();
-      assert.match(await mobileDrawer.textContent(), /系统趋势估计/);
+      assert.match(await mobileDrawer.textContent(), /日常估计/);
+      await mobile.page.screenshot({ path: `${artifacts}/mobile-${width}-single-estimate.png` });
       await mobileDrawer.getByRole("button", { name: "关闭历史抽屉", exact: true }).tap();
       await mobileDrawer.waitFor({ state: "hidden" });
       await chartFor(mobile.page).locator('[data-point-id][data-date="2025-07-14"][data-period="daytime"]').tap();
@@ -321,15 +404,14 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     for (const width of [1440, 390, 320]) {
       const initialized = await loggedInPage({ width, height: width === 1440 ? 1000 : 844 }, initializedAccount);
       const initializedChart = chartFor(initialized.page);
+      await assertRecentLayout(initialized.page);
       const point = initializedChart.locator('[data-date="2025-08-06"][data-period="daytime"]');
-      assert.match(await point.getAttribute("aria-label"), /历史初始化估计.*线性插值/);
+      assert.match(await point.getAttribute("aria-label"), /估计.*晨间趋势插值/);
       await point.focus(); await initialized.page.keyboard.press("Enter");
-      await detailFor(initialized.page).getByRole("button", { name: "详情", exact: true }).click();
-      const modal = initialized.page.getByRole("dialog");
-      assert.match(await modal.textContent(), /历史初始化估计/);
-      assert.match(await modal.textContent(), /允许使用后续已经存在的真实历史记录/);
+      const modal = await assertSimpleEstimate(initialized.page);
+      assert.match(await modal.textContent(), /历史补全/);
       assert.match(await modal.textContent(), /80.00.*82.00.*1\/2.*81.00/s);
-      assert.match(await modal.textContent(), /此指标实际使用目标日期之后的数据：是/);
+      assert.match(await modal.innerText(), /基于 2 个真实晨间日/);
       await modal.getByText("查看真实参考记录（2 条）", { exact: true }).first().click();
       assert.match(await modal.textContent(), /2025-08-05 晨间空腹实测：80.00/);
       assert.equal(await initialized.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
@@ -338,20 +420,26 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       await initialized.page.locator("dialog").waitFor({ state: "detached" });
       const direct = recentFor(initialized.page).getByRole("button", { name: "查看 2025-08-06 晨间估计依据", exact: true });
       await direct.focus(); await initialized.page.keyboard.press("Enter");
-      await modal.waitFor();
+      await assertSimpleEstimate(initialized.page);
+      assert.match(await modal.innerText(), /81.00/);
+      await initialized.page.keyboard.press("Escape");
+      await initialized.page.locator("dialog").waitFor({ state: "detached" });
+      assert.equal(await direct.evaluate(node => node === document.activeElement), true, "单值详情焦点返回表格触发按钮");
+      await initialized.page.keyboard.press("Space");
+      await assertSimpleEstimate(initialized.page);
       await initialized.page.keyboard.press("Escape");
       await initialized.page.locator("dialog").waitFor({ state: "detached" });
       await initializedChart.locator('[data-date="2025-08-04"][data-period="daytime"]').focus();
       await initialized.page.keyboard.press("Enter");
-      await detailFor(initialized.page).getByRole("button", { name: "详情", exact: true }).click();
-      assert.match(await modal.textContent(), /受限线性外推/);
+      await assertSimpleEstimate(initialized.page);
+      assert.match(await modal.textContent(), /历史边界趋势推算/);
       assert.match(await modal.textContent(), /3 个真实晨间日/);
       await initialized.page.keyboard.press("Escape");
       await initialized.page.locator("dialog").waitFor({ state: "detached" });
       await initialized.context.close();
       console.log(`通过：${width}px 初始化插值／外推详情与键盘访问。`);
     }
-    console.log("通过：初始化标签、插值／外推算式、实测列表、未来数据说明及键盘访问。");
+    console.log("通过：单值估计详情、历史补全／日常估计来源、插值／趋势依据、真实样本列表、统一规则与宽幅表格。");
     const empty = await loggedInPage({ width: 390, height: 844 }, second);
     assert.match(await empty.page.textContent("body"), /暂无测量记录/);
     assert.equal(await chartFor(empty.page).count(), 0);
