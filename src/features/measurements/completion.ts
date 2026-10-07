@@ -38,7 +38,7 @@ function projectRows(rows: MeasurementRow[], request: ReturnType<typeof normaliz
     additions.push(record);
     if (resolution.kind === "supplement") {
       const index = projected.findIndex(row => row.id === resolution.row.id);
-      projected[index] = { ...projected[index], bodyFatPercent: resolution.row.bodyFatPercent ?? record.bodyFatPercent };
+      projected[index] = { ...projected[index], weightKg: resolution.row.weightKg ?? record.weightKg, bodyFatPercent: resolution.row.bodyFatPercent ?? record.bodyFatPercent };
     } else projected.push({ ...record, id: `reported:${record.deduplicationKey}`, recordKind: "observed" });
   }
   const affectedDates = new Set(additions.map(row => row.analysisDate));

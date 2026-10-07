@@ -8,18 +8,21 @@ import { buildHistoricalEstimates, isInitializationEstimate, type HistoricalEsti
 export async function supersedeEstimates(tx: MeasurementTransaction, actor: MeasurementActor, analysisDate: string, period: "daytime" | "evening", reason = "observed_replaces_estimate") {
   const before = await tx.select().from(measurement).where(and(eq(measurement.userId, actor.userId), eq(measurement.analysisDate, analysisDate), eq(measurement.period, period), eq(measurement.recordKind, "estimated"), isNull(measurement.deletedAt)));
   const frozen = isFrozenDate(await getInitializationBatch(tx, actor.userId), analysisDate);
-  const observed = frozen ? await tx.select().from(measurement).where(and(eq(measurement.userId, actor.userId), eq(measurement.analysisDate, analysisDate), eq(measurement.period, period), eq(measurement.recordKind, "observed"), isNull(measurement.deletedAt))) : [];
+  const observed = await tx.select().from(measurement).where(and(eq(measurement.userId, actor.userId), eq(measurement.analysisDate, analysisDate), eq(measurement.period, period), eq(measurement.recordKind, "observed"), isNull(measurement.deletedAt)));
   let deleted = 0;
   for (const row of before) {
     let replacement: Partial<typeof measurement.$inferInsert> = { deletedAt: new Date(), updatedAt: new Date() };
-    if (frozen) {
-      if (!isInitializationEstimate(row.estimation)) throw new Error("冻结范围内不能修改非初始化估计。");
+    if (frozen || reason === "observed_replaces_estimate") {
+      if (frozen && !isInitializationEstimate(row.estimation)) throw new Error("冻结范围内不能修改非初始化估计。");
       const weightReplaced = row.weightKg !== null && observed.some(real => real.weightKg !== null);
       const fatReplaced = row.bodyFatPercent !== null && observed.some(real => real.bodyFatPercent !== null);
       if (!weightReplaced && !fatReplaced) continue;
       const weightKg = weightReplaced ? null : row.weightKg, bodyFatPercent = fatReplaced ? null : row.bodyFatPercent;
       // 两个指标都替代时保留旧快照软删除；部分替代仅移除对应指标。
-      if (weightKg !== null || bodyFatPercent !== null) replacement = { weightKg, bodyFatPercent, estimation: { ...row.estimation, weightKg: weightReplaced ? null : row.estimation.weightKg, bodyFatPercent: fatReplaced ? null : row.estimation.bodyFatPercent }, updatedAt: new Date() };
+      const metadata = row.estimation;
+      if (weightKg !== null || bodyFatPercent !== null) replacement = { weightKg, bodyFatPercent, estimation: metadata ? metadata.method === "linear-trend-v1"
+        ? { ...metadata, weightKg: weightReplaced ? null : metadata.weightKg, bodyFatPercent: fatReplaced ? null : metadata.bodyFatPercent }
+        : { ...metadata, weightKg: weightReplaced ? null : metadata.weightKg, bodyFatPercent: fatReplaced ? null : metadata.bodyFatPercent } : null, updatedAt: new Date() };
     }
     const [after] = await tx.update(measurement).set(replacement).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, row.id))).returning();
     await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: row.id, action: after.deletedAt ? "delete" : "update", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { before: row, after, reason: frozen ? "observed_replaces_initialized_metric" : reason } });
@@ -29,11 +32,11 @@ export async function supersedeEstimates(tx: MeasurementTransaction, actor: Meas
 }
 
 /** 调用方必须已锁定归属账号，并与实测及审计使用同一事务。 */
-export async function insertEstimate(tx: MeasurementTransaction, actor: MeasurementActor, prediction: HistoricalEstimate, context: { operationKey: string; importId?: string; reason: string }) {
+export async function insertEstimate(tx: MeasurementTransaction, actor: MeasurementActor, prediction: HistoricalEstimate, context: { operationKey: string; importId?: string; reason: string; entryChannel?: "manual" | "api" | "development_backend" }) {
   const frozen = isFrozenDate(await getInitializationBatch(tx, actor.userId), prediction.analysisDate);
   if (frozen) throw new Error("历史初始化范围已冻结，不能新增估计。");
   const [row] = await tx.insert(measurement).values({
-    id: randomUUID(), userId: actor.userId, ...prediction, recordKind: "estimated", sourceType: "estimate", entryChannel: "development_backend",
+    id: randomUUID(), userId: actor.userId, ...prediction, recordKind: "estimated", sourceType: "estimate", entryChannel: context.entryChannel ?? "development_backend",
     sourceLocalTime: prediction.analysisDate, localDate: prediction.analysisDate, timePrecision: "day_period", occurredAt: null, timezone: null,
     assignmentMethod: "estimated_target", assignmentRuleVersion: prediction.estimation.method, fasting: prediction.period === "daytime",
     fastingSource: prediction.period === "daytime" ? "estimated_target" : "evening_rule", importId: context.importId,

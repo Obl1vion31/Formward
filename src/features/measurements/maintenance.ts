@@ -4,7 +4,7 @@ import type { Database } from "../../db/client";
 import { measurement, measurementEvent } from "../../db/schema";
 import { lockMeasurementOwner } from "./records";
 import { getInitializationBatch, isFrozenDate } from "./initialization";
-import { refreshMeasurementDates } from "./estimate-records";
+import { supersedeEstimates } from "./estimate-records";
 
 type MeasurementRow = typeof measurement.$inferSelect;
 
@@ -66,7 +66,7 @@ export async function applyMeasurementMaintenance(db: Database, input: { userId:
       id: randomUUID(), userId: input.userId, measurementId: row.id, action: "delete", actorType: "user", actorId: input.actorId,
       snapshot: { before: before.get(row.id), after: row, reason: "keep_earliest_in_period", operationDigest: input.digest, retainedId: preview.duplicates.find((group) => group.deleteIds.includes(row.id))!.keepId },
     })));
-    await refreshMeasurementDates(tx, input, [...changed, ...deleted].filter((row) => row.recordKind === "observed").map((row) => row.analysisDate), { operationKey: input.digest, reason: "same_day_maintenance_refresh" });
+    for (const row of changed) if (row.recordKind === "observed") await supersedeEstimates(tx, input, row.analysisDate, row.period);
     return { eveningUpdated: changed.length, deleted: deleted.length, repeated: false };
   });
 }
@@ -90,7 +90,7 @@ export async function restoreMeasurement(db: Database, input: { userId: string; 
       id: randomUUID(), userId: input.userId, measurementId: after.id, action: "restore", actorType: "user", actorId: input.actorId,
       snapshot: { before, after, reason: "user_restore" },
     });
-    if (after.recordKind === "observed") await refreshMeasurementDates(tx, input, [after.analysisDate], { operationKey: randomUUID(), reason: "same_day_restore_refresh" });
+    if (after.recordKind === "observed") await supersedeEstimates(tx, input, after.analysisDate, after.period);
     return { restored: true };
   });
 }

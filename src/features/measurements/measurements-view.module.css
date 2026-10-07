@@ -14,6 +14,52 @@
 .workspace button, .drawer button { appearance: none; background: none; border: 0; color: var(--body-muted); font: inherit; cursor: pointer; min-height: 44px; }
 .workspace button:hover, .drawer button:hover { color: var(--body-ink); }
 .metricTabs { display: flex; gap: 24px; }
+.heading .todayEntry { margin-left: auto; color: var(--body-gold); border-bottom: 1px solid var(--body-gold); font-size: 13px; padding: 0; }
+.historyFooter { display: flex; justify-content: space-between; align-items: center; }
+.history .addDate { margin: 8px 0 0 auto; padding: 0; font-size: 12px; color: var(--body-gold); }
+.rowActions { display: flex; gap: 12px; }
+.history tbody th .rowActions button { font-size: 11px; color: var(--body-muted); min-height: 44px; }
+.drawer .editRecord { padding: 0; color: var(--body-gold); border-bottom: 1px solid var(--body-gold); margin-bottom: 16px; }
+.entryIntroduction { margin: 10px 0 24px; }
+.entryIntroduction p { margin: 0 0 6px; font-size: 18px; color: var(--body-ink); }
+.entryIntroduction span, .entryHint { color: var(--body-muted); font-size: 12px; line-height: 1.7; }
+.entryGroups { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.entryGroups fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
+.entryGroups legend { padding: 0 0 14px; font-size: 14px; }
+.entryCell { margin-bottom: 22px; }
+.entryCell > label { display: flex; justify-content: space-between; color: var(--body-muted); font-size: 12px; margin-bottom: 6px; }
+.entryCell small { font-size: 11px; color: var(--body-muted); }
+.entryInputRow { display: flex; align-items: center; gap: 12px; min-height: 44px; border-bottom: 1px solid var(--body-rule); }
+.entryForm input, .dateEntryForm input { appearance: none; min-width: 0; width: 100%; min-height: 44px; background: transparent; color: inherit; border: 0; border-radius: 0; font: inherit; }
+.entryInputRow input { font-size: 26px; letter-spacing: -.02em; }
+.entryInputRow input::placeholder { color: var(--body-muted); font-size: 14px; letter-spacing: 0; }
+.entryInputRow .estimateAction { padding: 0 4px; flex: 0 0 auto; min-width: 44px; font-size: 12px; color: inherit; }
+.entryRecorded { display: flex; flex: 1; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 26px; }
+.entryReference { display: block; margin-top: 6px; line-height: 1.5; }
+.entryFasting, .entryCandidate { display: grid; gap: 8px; color: var(--body-muted); font-size: 12px; }
+.entryForm select { background: #151513; color: var(--body-ink); border: 0; border-bottom: 1px solid var(--body-rule); font: inherit; min-height: 44px; min-width: 0; width: 100%; }
+.entryCondition { color: var(--body-muted); font-size: 12px; margin: 0; min-height: 44px; display: flex; align-items: center; }
+.entryMore { border-top: 1px solid var(--body-rule); margin: 22px 0 0; color: var(--body-muted); font-size: 12px; }
+.entryMore summary { cursor: pointer; min-height: 44px; align-content: center; }
+.entryMore > div { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.entryMore input { border-bottom: 1px solid var(--body-rule); font-size: 18px; }
+.entryFooter { display: flex; align-items: center; gap: 24px; padding: 16px 0 4px; }
+.entryFooter button { padding: 0; font-size: 13px; }
+.drawer .saveEntry { color: var(--body-gold); border-bottom: 1px solid var(--body-gold); padding: 0; }
+.entryForm button:disabled, .dateEntryForm button:disabled { opacity: .4; cursor: default; }
+.entryError { color: #d7aa9b; font-size: 13px; line-height: 1.6; }
+.dateEntryForm { margin-top: 24px; }
+.dateEntryForm label { color: var(--body-muted); font-size: 13px; }
+.dateEntryForm input { display: block; border-bottom: 1px solid var(--body-rule); color-scheme: dark; margin: 8px 0 20px; }
+.dateEntryForm p { color: var(--body-muted); font-size: 13px; line-height: 1.6; }
+@media (max-width: 600px) {
+  .heading { gap: 10px; }
+  .entryGroups { grid-template-columns: 1fr; gap: 24px; }
+  .entryCell { margin-bottom: 14px; }
+  .entryIntroduction { margin-bottom: 20px; }
+  .entryMore { margin-top: 16px; }
+  .rowActions { gap: 10px; }
+}
 .metricTabs button { padding: 8px 0; font-size: 15px; border-bottom: 2px solid transparent; }
 .metricTabs button[aria-pressed="true"] { color: var(--body-ink); border-bottom-color: var(--body-gold); }
 .summary { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1.1fr; align-items: end; gap: 24px; padding: 24px 0 28px; border-bottom: 1px solid var(--body-rule); }
@@ -165,7 +211,7 @@
 .workspace .tableReading { color: inherit; min-height: 44px; width: 100%; padding: 4px 0; text-align: right; font-variant-numeric: tabular-nums; }
 .history .tableReading small { white-space: nowrap; font-size: 10px; margin-top: 3px; }
 .tableReading:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
-.workspace button:focus-visible, .workspace input:focus-visible, .drawer button:focus-visible, .drawer select:focus-visible, .drawer summary:focus-visible { outline: 2px solid var(--body-gold); outline-offset: 3px; }
+.workspace button:focus-visible, .workspace input:focus-visible, .drawer button:focus-visible, .drawer input:focus-visible, .drawer select:focus-visible, .drawer summary:focus-visible { outline: 2px solid var(--body-gold); outline-offset: 3px; }
 .empty { width: min(1120px, 100%); margin: 0 auto; padding: 40px 0; }
 .empty p { font-size: 14px; color: #a8a195; margin-top: 24px; }
 @media (max-width: 900px) {
@@ -213,6 +259,7 @@
   .sectionTitle { padding-bottom: 4px; }
   .history { margin-top: 12px; }
   .fullHistory { margin-top: 4px; }
+  .history .addDate { margin-top: 4px; }
   .dateColumn { width: 28%; }
   .differenceColumn { width: 22%; }
   .history th, .history td { height: 44px; padding: 0 6px; font-size: 13px; }

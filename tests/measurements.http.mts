@@ -15,6 +15,7 @@ import { saveImportedMeasurements, saveReportedMeasurements } from "../src/featu
 import { applyHistoricalCompletion, previewHistoricalCompletion, type HistoricalCompletionRequest } from "../src/features/measurements/completion";
 import { applyHistoricalInitialization, previewHistoricalInitialization } from "../src/features/measurements/initialization";
 import * as schema from "../src/db/schema";
+import { localMeasurementDate } from "../src/features/measurements/entry-state";
 
 // 完全隔离的 HTTP 验收；开发模式另用临时源码副本，不影响用户的 3000 服务。
 const development = process.env.FORMWARD_MEASUREMENTS_DEV === "1";
@@ -31,6 +32,14 @@ const first = { email: "measurement-http@example.test", password: "fictional-htt
 const second = { email: "other-http@example.test", password: "fictional-http-password-second" };
 const initializedAccount = { email: "initialized-http@example.test", password: "fictional-initialized-password" };
 const initializedOwner = await provisionAccount(db, initializedAccount);
+const entryAccount = { email: "entry-http@example.test", password: "fictional-entry-password" };
+const entryOwner = await provisionAccount(db, entryAccount);
+const today = localMeasurementDate(new Date(), "Asia/Shanghai");
+const priorDate = (offset: number) => new Date(Date.parse(`${today}T00:00:00Z`) - offset * 86_400_000).toISOString().slice(0, 10);
+await saveReportedMeasurements(db, { userId: entryOwner.id, actorId: entryOwner.id, requestKey: "8".repeat(64), entryChannel: "api", records: [3, 2, 1].flatMap(offset => [
+  { analysisDate: priorDate(offset), period: "daytime" as const, weightKg: "70.00", bodyFatPercent: "20.00", fasting: true },
+  { analysisDate: priorDate(offset), period: "evening" as const, weightKg: "70.50", bodyFatPercent: "20.40", fasting: false },
+]) });
 const owner = await provisionAccount(db, first);
 await provisionAccount(db, second);
 const fixtureTsv = [
@@ -140,7 +149,7 @@ try {
   console.log("通过：跨账号参数不能读到测量，无记录账号仍显示空状态。");
   if (process.env.FORMWARD_MEASUREMENTS_BROWSER === "1") {
     const { checkMeasurementsBrowser } = await import("./measurements.browser.mjs");
-    await checkMeasurementsBrowser({ baseURL, first, second, initializedAccount });
+    await checkMeasurementsBrowser({ baseURL, first, second, initializedAccount, entryAccount, today });
   }
 } finally {
   if (child.exitCode === null && !child.signalCode) {

@@ -33,7 +33,7 @@ type PreviousMorningMetadata = BaselineMetadata & { method: "morning-baseline-v2
 /** 历史快照只读兼容，新估计不计算预测区间。 */
 export type LegacyEstimationMetadata = {
   method: "linear-trend-v1"; confidenceLevel: .95; trainingRange: MeasurementInterval;
-  weightKg: { value: string; lower: string; upper: string; model: LinearMeasurementModel & { sumSquaredDates: number; residualVariance: number; criticalValue: number } };
+  weightKg: { value: string; lower: string; upper: string; model: LinearMeasurementModel & { sumSquaredDates: number; residualVariance: number; criticalValue: number } } | null;
   bodyFatPercent: LegacyEstimationMetadata["weightKg"] | null;
 };
 export type EstimationMetadata = MorningEstimationMetadata | InitializationEstimationMetadata | PreviousMorningMetadata | LegacyEstimationMetadata;

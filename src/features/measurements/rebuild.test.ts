@@ -33,11 +33,12 @@ async function rebuild(userId: string, start: string, end: string) {
   return applyEstimationRebuild(db, { userId, actorId: userId, request, digest: preview.digest });
 }
 
-test("实测新增自动补齐同日；未来新增和普通重试不改历史快照", async () => {
+test("实测新增不自动估计；明确重建及后续补录保留其他指标快照", async () => {
   const owner = await setup("automatic");
   await write(owner, [record(4, "daytime", "68.27", "23.27")]);
   await write(owner, [record(5, "evening", "69.17", "24.60")]);
-  await rebuild(owner, "2024-01-06", "2024-01-06");
+  assert.equal((await listMeasurements(db, owner)).filter(row => row.recordKind === "estimated").length, 0);
+  await rebuild(owner, "2024-01-04", "2024-01-06");
   const before = (await listMeasurements(db, owner)).filter(row => row.recordKind === "estimated");
   assert.equal(before.find(r => r.analysisDate === "2024-01-04")!.weightKg, "68.86");
   assert.equal(before.find(r => r.analysisDate === "2024-01-05")!.weightKg, "68.58");
@@ -49,17 +50,19 @@ test("实测新增自动补齐同日；未来新增和普通重试不改历史�
   await write(owner, [record(6, "daytime", "68.27", null)]);
   const after = await listMeasurements(db, owner);
   assert.deepEqual(after.filter(r => r.recordKind === "estimated" && r.analysisDate < "2024-01-06"), before.filter(r => r.analysisDate < "2024-01-06"));
-  assert.equal(after.find(r => r.analysisDate === "2024-01-06" && r.period === "evening")!.weightKg, "68.86");
+  assert.deepEqual(after.find(r => r.analysisDate === "2024-01-06" && r.period === "evening"), before.find(r => r.analysisDate === "2024-01-06" && r.period === "evening"));
   const sameDay = buildMeasurementDays(after).find(d => d.date === "2024-01-06")!;
   assert.equal(sameDay.daytimeRecord!.weightKg, "68.27");
   assert.equal(sameDay.daytimeRecord!.recordKind, "observed");
   assert.equal(buildMeasurementDays(after, {}, "bodyFatPercent").find(d => d.date === "2024-01-06")!.daytimeRecord!.recordKind, "estimated");
-  assert.ok(before.filter(r => r.analysisDate === "2024-01-06").every(r => !after.some(a => a.id === r.id)));
+  assert.ok(before.filter(r => r.analysisDate === "2024-01-06").every(r => after.some(a => a.id === r.id)));
 });
 
-test("体脂缺项独立存储，实测补录与恢复重算同日，重复恢复幂等", async () => {
+test("体脂缺项显式估计；实测恢复不重算，补录仅替代对应指标", async () => {
   const owner = await setup("partial");
   await write(owner, [record(4, "daytime", "68.27", null), record(4, "evening", "69.17", "24.60")]);
+  assert.equal((await listMeasurements(db, owner)).filter(row => row.recordKind === "estimated").length, 0);
+  await rebuild(owner, "2024-01-04", "2024-01-04");
   const before = await listMeasurements(db, owner);
   const actual = before.find(r => r.analysisDate === "2024-01-04" && r.period === "daytime" && r.recordKind === "observed")!;
   const estimate = before.find(r => r.analysisDate === "2024-01-04" && r.recordKind === "estimated")!;
@@ -68,7 +71,7 @@ test("体脂缺项独立存储，实测补录与恢复重算同日，重复恢�
   await db.update(schema.measurement).set({ deletedAt: new Date() }).where(eq(schema.measurement.id, actual.id));
   assert.equal((await restoreMeasurement(db, { userId: owner, actorId: owner, id: actual.id })).restored, true);
   const rows = await listMeasurements(db, owner);
-  assert.ok(!rows.some(r => r.id === estimate.id));
+  assert.deepEqual(rows.find(r => r.id === estimate.id), estimate);
   const restored = rows.find(r => r.id === actual.id)!;
   assert.deepEqual([restored.weightKg, restored.bodyFatPercent, restored.originalValues], [actual.weightKg, null, actual.originalValues]);
   const eventsBefore = (await db.select().from(schema.measurementEvent)).length;
@@ -87,12 +90,12 @@ test("体脂缺项独立存储，实测补录与恢复重算同日，重复恢�
   assert.ok(update.snapshot.before && update.snapshot.after && update.snapshot.reportedValues);
 });
 
-test("按时间导入同样补齐当天并绑定真实来源，账户隔离", async () => {
+test("按时间导入不自动补估计，并保持账户隔离", async () => {
   const owner = await setup("import-auto"), other = await setup("import-other");
   const otherBefore = await listMeasurements(db, other);
   await saveImportedMeasurements(db, { userId: owner, actorId: owner, fileDigest: "f".repeat(64), sourceLabel: "fictional.tsv", captureChannel: "file", records: [{ sourceLocalTime: "2024-01-04 08:00:00", weightKg: "68.27", bmi: null, bodyFatPercent: null, sourceRow: 2, fasting: true, fastingSource: "user_confirmed" }] });
   const rows = await listMeasurements(db, owner);
-  assert.equal(rows.find(r => r.analysisDate === "2024-01-04" && r.period === "evening")!.weightKg, "68.86");
+  assert.ok(!rows.some(r => r.analysisDate === "2024-01-04" && r.recordKind === "estimated"));
   assert.deepEqual(await listMeasurements(db, other), otherBefore);
 });
 
@@ -136,10 +139,11 @@ test("预览后变化、无效范围和审计失败不留下部分重建", async
   assert.equal((await db.select().from(schema.measurementImport)).length, batches);
 });
 
-test("数据库只允许估计缺体重，拒绝无指标估计和无体重实测", async () => {
+test("数据库允许仅体脂实测，拒绝两项主要指标均为空", async () => {
   const owner = await setup("metric-presence");
   const template = (await listMeasurements(db, owner))[0];
-  await assert.rejects(db.insert(schema.measurement).values({ ...template, id: randomUUID(), weightKg: null, deduplicationKey: randomUUID() }));
+  await db.insert(schema.measurement).values({ ...template, id: randomUUID(), weightKg: null, deduplicationKey: randomUUID() });
+  await assert.rejects(db.insert(schema.measurement).values({ ...template, id: randomUUID(), weightKg: null, bodyFatPercent: null, deduplicationKey: randomUUID() }));
   await rebuild(owner, "2024-01-04", "2024-01-04");
   const estimate = (await listMeasurements(db, owner)).find(r => r.recordKind === "estimated")!;
   await assert.rejects(db.insert(schema.measurement).values({ ...estimate, id: randomUUID(), analysisDate: "2024-01-05", weightKg: null, bodyFatPercent: null, deduplicationKey: randomUUID() }));

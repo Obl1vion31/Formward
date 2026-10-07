@@ -6,13 +6,18 @@ import { getDatabase } from "@/db/client";
 import { listMeasurements } from "@/features/measurements/records";
 import { MeasurementsView } from "@/features/measurements/measurements-view";
 import { LogoutButton } from "./logout-button";
+import { listMeasurementDates, measurementDisplay } from "@/features/measurements/editing";
+import { createDateAction, estimateCellAction, saveDayAction, skipReminderAction } from "./actions";
 
 export const metadata: Metadata = { title: "Formward · 身体记录" };
 
 export default async function DashboardPage() {
   const user = await currentUser(await headers());
   if (!user) redirect("/");
-  const records = await listMeasurements(getDatabase(), user.id);
+  const db = getDatabase();
+  // 本地 PGlite 使用单连接多路复用，按顺序读取以保持结果与查询对应。
+  const records = await listMeasurements(db, user.id);
+  const dates = await listMeasurementDates(db, user.id);
 
   return (
     <main className="dashboard-page">
@@ -20,14 +25,7 @@ export default async function DashboardPage() {
         <a className="dashboard-logo" href="/dashboard" aria-label="Formward 主页">formward<span>.</span></a>
         <div className="dashboard-account"><span>{user.email}</span><LogoutButton /></div>
       </header>
-      <MeasurementsView records={records.map((row) => ({
-        id: row.id, analysisDate: row.analysisDate, localDate: row.localDate, period: row.period,
-        weightKg: row.weightKg, bodyFatPercent: row.bodyFatPercent, bmi: row.bmi,
-        fasting: row.fasting, sourceLocalTime: row.sourceLocalTime, timezone: row.timezone,
-        sourceType: row.sourceType, sourceSystem: row.sourceSystem, sourceRecordId: row.sourceRecordId,
-        recordKind: row.recordKind, entryChannel: row.entryChannel, deviceName: row.deviceName,
-        companionApp: row.companionApp, estimation: row.estimation, timePrecision: row.timePrecision,
-      }))} />
+      <MeasurementsView records={records.map(measurementDisplay)} dates={dates} actions={{ save: saveDayAction, estimate: estimateCellAction, createDate: createDateAction, skipReminder: skipReminderAction }} />
     </main>
   );
 }

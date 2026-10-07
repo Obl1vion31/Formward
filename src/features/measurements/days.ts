@@ -26,13 +26,14 @@ export function measurementWeightDifference(daytime: DailyMeasurement | null, ev
 }
 
 /** 同时段多次测量先保留候选，不擅自取平均、最低值或最后一条。 */
-export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], choices: Record<string, string> = {}, metric: "weightKg" | "bodyFatPercent" = "weightKg") {
+export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], choices: Record<string, string> = {}, metric: "weightKg" | "bodyFatPercent" = "weightKg", dates: string[] = []) {
   const groups = new Map<string, { date: string; daytime: T[]; evening: T[] }>();
   for (const record of records) {
     const group = groups.get(record.analysisDate) ?? { date: record.analysisDate, daytime: [], evening: [] };
     group[record.period].push(record);
     groups.set(record.analysisDate, group);
   }
+  for (const date of dates) if (!groups.has(date)) groups.set(date, { date, daytime: [], evening: [] });
   return [...groups.values()].sort((a, b) => b.date.localeCompare(a.date)).map((group) => {
     const allRecords = [...group.daytime, ...group.evening];
     const estimates = allRecords.filter((row) => row.recordKind === "estimated");
@@ -58,7 +59,7 @@ export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], c
   });
 }
 
-/** 只显示有测量的归属日，空白日期仍由趋势的日历坐标表达。 */
-export function recentMeasurementDays<T extends DailyMeasurement>(records: T[], interval: { start: string; end: string }, choices: Record<string, string> = {}, limit = 10, metric: "weightKg" | "bodyFatPercent" = "weightKg") {
-  return buildMeasurementDays(records.filter((row) => row.analysisDate >= interval.start && row.analysisDate <= interval.end), choices, metric).slice(0, limit);
+/** 只显示有测量或明确提供的日期，不按整个区间自动补空行。 */
+export function recentMeasurementDays<T extends DailyMeasurement>(records: T[], interval: { start: string; end: string }, choices: Record<string, string> = {}, limit = 10, metric: "weightKg" | "bodyFatPercent" = "weightKg", dates: string[] = []) {
+  return buildMeasurementDays(records.filter((row) => row.analysisDate >= interval.start && row.analysisDate <= interval.end), choices, metric, dates.filter(date => date >= interval.start && date <= interval.end)).slice(0, limit);
 }

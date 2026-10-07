@@ -63,6 +63,7 @@ export const measurementImport = pgTable("measurement_imports", {
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   initializationMetadata: jsonb("initialization_metadata").$type<import("../features/measurements/initialization").InitializationBatchMetadata>(),
+  requestDigest: text("request_digest"),
 }, (table) => [
   uniqueIndex("measurement_imports_user_digest_idx").on(table.userId, table.fileDigest),
   uniqueIndex("measurement_imports_user_initialization_idx").on(table.userId).where(sql`${table.initializationMetadata} IS NOT NULL`),
@@ -108,7 +109,7 @@ export const measurement = pgTable("measurements", {
   uniqueIndex("measurements_active_estimate_idx").on(table.userId, table.analysisDate, table.period).where(sql`${table.recordKind} = 'estimated' AND ${table.deletedAt} IS NULL`),
   index("measurements_user_analysis_date_idx").on(table.userId, table.analysisDate),
   check("measurements_weight_valid", sql`${table.weightKg} > 0`),
-  check("measurements_metric_presence", sql`(${table.recordKind} = 'observed' AND ${table.weightKg} IS NOT NULL) OR (${table.recordKind} = 'estimated' AND (${table.weightKg} IS NOT NULL OR ${table.bodyFatPercent} IS NOT NULL))`),
+  check("measurements_metric_presence", sql`${table.weightKg} IS NOT NULL OR ${table.bodyFatPercent} IS NOT NULL`),
   check("measurements_bmi_valid", sql`${table.bmi} IS NULL OR ${table.bmi} > 0`),
   check("measurements_body_fat_valid", sql`${table.bodyFatPercent} IS NULL OR ${table.bodyFatPercent} BETWEEN 0 AND 100`),
   check("measurements_period_valid", sql`${table.period} IN ('daytime', 'evening')`),
@@ -118,6 +119,18 @@ export const measurement = pgTable("measurements", {
   check("measurements_estimation_valid", sql`(${table.recordKind} = 'estimated' AND ${table.estimation} IS NOT NULL AND ${table.occurredAt} IS NULL) OR (${table.recordKind} = 'observed' AND ${table.estimation} IS NULL)`),
   check("measurements_assumed_time_valid", sql`${table.timePrecision} NOT IN ('assumed', 'day_period') OR ${table.occurredAt} IS NULL`),
 ]);
+
+// 空白日期与提醒偏好独立于测量事实，不能参与实测统计。
+export const measurementDay = pgTable("measurement_days", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  analysisDate: date("analysis_date").notNull(),
+  reminderSkippedAt: timestamp("reminder_skipped_at", { withTimezone: true }),
+  createdBy: text("created_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+}, table => [uniqueIndex("measurement_days_user_date_idx").on(table.userId, table.analysisDate)]);
 
 export const measurementEvent = pgTable("measurement_events", {
   id: text("id").primaryKey(),

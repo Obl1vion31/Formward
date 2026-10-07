@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
 
 // 由 measurements.http.mts 提供独立数据库、虚构账号和开发／production 服务。
-export async function checkMeasurementsBrowser({ baseURL, first, second, initializedAccount }) {
+export async function checkMeasurementsBrowser({ baseURL, first, second, initializedAccount, entryAccount, today }) {
   const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
   // 保留真实滚动条，覆盖 Inspector 锁定页面滚动时的宽度变化。
   const browser = await chromium.launch({ headless: true, ignoreDefaultArgs: ["--hide-scrollbars"] });
@@ -11,11 +11,12 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
   const errors = [];
   let ip = 100;
   async function loggedInPage(viewport, credentials = first, options = {}) {
-    const context = await browser.newContext({ viewport, ...options });
+    const context = await browser.newContext({ viewport, timezoneId: "Asia/Shanghai", ...options });
     const response = await context.request.post(`${baseURL}/api/auth/sign-in/email`, { headers: { Origin: baseURL, "x-forwarded-for": `192.0.2.${ip++}` }, data: credentials });
     assert.equal(response.status(), 200);
     const page = await context.newPage();
     page.on("pageerror", (error) => errors.push(error.message));
+    await page.clock.setFixedTime(new Date(`${credentials === initializedAccount ? "2025-08-13" : credentials === entryAccount ? today : "2025-07-14"}T12:00:00+08:00`));
     await page.goto(`${baseURL}/dashboard`);
     await page.getByRole("heading", { name: "身体记录", exact: true }).waitFor();
     await page.evaluate(() => document.fonts.ready);
@@ -204,6 +205,12 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     console.log("通过：原生占位滚动条下，实测／估计／日期／历史 Inspector 连续开关不改变页面横向位置与图表尺寸。");
   }
   try {
+    if (process.env.FORMWARD_MEASUREMENTS_ENTRY_ONLY === "1") {
+      const { checkMeasurementEntry } = await import("./measurements-entry.browser.mjs");
+      await checkMeasurementEntry({ loggedInPage, entryAccount, today, artifacts, baseURL });
+      assert.deepEqual(errors, [], "无客户端异常");
+      return;
+    }
     await assertStableInspector();
     const { context, page } = await loggedInPage({ width: 1440, height: 1000 });
     const chart = chartFor(page), recent = recentFor(page), detail = detailFor(page), summary = summaryFor(page);
@@ -561,9 +568,14 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     }
     console.log("通过：统一实测／估计 Inspector、直接点击、独立候选与历史返回、历史补全／日常估计来源、插值／趋势依据、真实样本列表、统一规则与宽幅表格。");
     const empty = await loggedInPage({ width: 390, height: 844 }, second);
+    await empty.page.getByRole("form", { name: "当天四项录入" }).waitFor();
+    assert.equal(await empty.page.locator('[data-entry-cell][data-kind="missing"]').count(), 4);
+    await empty.page.getByRole("button", { name: "关闭记录详情" }).click();
     assert.match(await empty.page.textContent("body"), /暂无测量记录/);
-    assert.equal(await chartFor(empty.page).count(), 0);
+    assert.equal(await chartFor(empty.page).count(), 1);
     await empty.context.close();
+    const { checkMeasurementEntry } = await import("./measurements-entry.browser.mjs");
+    await checkMeasurementEntry({ loggedInPage, entryAccount, today, artifacts, baseURL });
     assert.deepEqual(errors, [], "无客户端异常");
     console.log(`通过：390px、320px、横屏、reduced motion、触控与空状态；虚构数据截图位于 ${artifacts}。`);
   } finally {
