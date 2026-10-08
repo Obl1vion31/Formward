@@ -16,7 +16,7 @@ AI Token 只存不可逆摘要，原文仅创建时返回一次；30 天有效�
 
 相同实测跳过，缺项可补，不同已知值显示冲突并阻止整次操作。修改已有数值或来源需要明确 recordId 和 version；未知不猜、不补零。晨间严格空腹，旧非空腹／未知晨间只读，晚间固定非空腹。新实测来源必填，准确时间与原始输入保持；单项估算保存依据、样本不足为空，冻结历史只允许补实测。确认使用现有 editing 写入和估算函数，健康记录、来源、批次、审计和 confirmed 状态同一事务。新记录入口 api、操作者 ai；改旧记录保留原入口，审计链接令牌、操作、确认账号和时间。
 
-`ai_tokens` 与 `measurement_operations` 由新 migration 0008_aspiring_thunderbolt_ross.sql 创建，既有 migration 不改。所有账号读取与写入校验 user_id。当前结构 11 张业务／认证表，测量仍为 30 列，详见 [数据库字典](docs/database.md)。真实数据与私有备份只在被 Git 忽略的 data/imports、data/exports；测试只用虚构数据。不得打印密钥、提交原文件或报告、放进 public。
+`ai_tokens` 与 `measurement_operations` 由新 migration 0008_aspiring_thunderbolt_ross.sql 创建，既有 migration 不改。所有账号读取与写入校验 user_id。0008 已在真实数据库执行，新增两张表为空，原有九张表的全部数据和字段逐项核对不变；备份 database-before-ai-2026-10-08.json 与报告 ai-migration-verification-2026-10-08.json 保存在私有 data/exports。当前结构 11 张业务／认证表，测量仍为 30 列，详见 [数据库字典](docs/database.md)。真实数据与私有备份只在被 Git 忽略的 data/imports、data/exports；测试只用虚构数据。不得打印密钥、提交原文件或报告、放进 public。
 
 ## 已确认规则
 
@@ -36,7 +36,7 @@ AI Token 只存不可逆摘要，原文仅创建时返回一次；30 天有效�
 
 ## 验证与运行
 
-运行 lint、typecheck、单元／集成测试和 production build；AI 隔离浏览器验证令牌一次展示、HTTP 助手、预览／网页确认／刷新、重复／冲突／来源修改、账号隔离与撤销，并检查桌面／390px／320px。实际数据库 migration 前保存私有完整备份，之后核对既有九张表逐字段不变。当前最终检查结果与 migration 执行状态见 docs/status.md。
+lint、typecheck、155 项单元／集成测试和 production build 已通过；隔离开发 AI 与生产完整身体记录／AI 浏览器回归已通过。AI 隔离浏览器验证令牌一次展示、HTTP 助手、预览／网页确认／刷新、重复／冲突／来源修改、账号隔离与撤销，并检查桌面／390px／320px。实际数据库 migration 前已保存私有完整备份，之后确认既有九张表逐字段不变。当前最终检查结果与 migration 执行状态见 docs/status.md。
 
 本地 Codex 试验先在交互终端运行 `pnpm ai:setup`，隐藏输入令牌，保存被 Git 忽略的 0600 .env.ai.local；`pnpm ai:request` 只走 HTTP，不读数据库配置、不输出令牌。没有用户提供的真实测量时只在隔离虚构账号演示，不写入用户健康记录。外部 AI 无法访问工作区 localhost 时，需要后续可达的服务地址。
 
