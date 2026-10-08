@@ -424,12 +424,44 @@ input:focus-visible {
 }
 .dashboard-account button:disabled { opacity: .6; }
 .dashboard-account [role="alert"] { display: block; color: #efc4a9; }
+.dashboard-ai-link { color: var(--gold); text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; white-space: nowrap; }
+.ai-page { max-width: 900px; margin: 0 auto; padding: 32px 0 64px; color: var(--warm-white); line-height: 1.7; }
+.ai-page a { color: var(--gold); }
+.ai-page h1 { font-size: clamp(26px, 4vw, 36px); margin: 16px 0 8px; font-weight: 500; }
+.ai-page h2 { font-size: 19px; margin: 0 0 10px; font-weight: 500; }
+.ai-page p { margin: 10px 0; }
+.ai-lead, .ai-muted { color: var(--muted); }
+.ai-section { margin: 32px 0; padding-top: 24px; border-top: 1px solid rgba(240, 233, 221, .12); }
+.ai-token-form { display: flex; align-items: end; flex-wrap: wrap; gap: 16px; margin-top: 24px; }
+.ai-token-form label { display: grid; gap: 8px; flex: 1 1 220px; }
+.ai-page input, .ai-page select { min-height: 44px; width: 100%; min-width: 0; border: 1px solid rgba(240, 233, 221, .24); border-radius: 4px; padding: 10px 12px; background: var(--graphite); color: var(--warm-white); font: inherit; }
+.ai-button { min-height: 44px; padding: 10px 16px; border: 1px solid var(--gold); border-radius: 4px; background: transparent; color: var(--gold); font: inherit; cursor: pointer; white-space: nowrap; }
+.ai-secondary { border-color: rgba(240, 233, 221, .24); color: var(--warm-white); }
+.ai-button:disabled { opacity: .45; cursor: default; }
+.ai-page :focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+.ai-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.ai-secret { margin-top: 24px; padding: 20px; background: rgba(172, 137, 80, .08); border: 1px solid rgba(172, 137, 80, .32); }
+.ai-secret input { margin-top: 12px; font-family: monospace; }
+.ai-list { list-style: none; margin: 20px 0 0; padding: 0; }
+.ai-list li { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 1px solid rgba(240, 233, 221, .1); }
+.ai-list li > div { min-width: 0; overflow-wrap: anywhere; }
+.ai-list li > span { flex-shrink: 0; white-space: nowrap; }
+.ai-list strong, .ai-list div span { display: block; }
+.ai-list div span { color: var(--muted); font-size: 13px; }
+.ai-instructions { font: inherit; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; margin: 16px 0; color: var(--muted); }
+.ai-page details { margin-top: 16px; }
+.ai-page summary { min-height: 44px; cursor: pointer; color: var(--gold); }
+.ai-page code { overflow-wrap: anywhere; }
+.ai-error { color: #efc4a9; }
+.ai-comparison { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.ai-comparison th, .ai-comparison td { padding: 12px 8px; border-bottom: 1px solid rgba(240, 233, 221, .12); text-align: left; overflow-wrap: anywhere; font-weight: 400; }
+.ai-comparison th { color: var(--muted); }
 @media (max-width: 700px) {
   .dashboard-page { padding: 0 20px; }
   .dashboard-header { gap: 16px; min-height: 72px; }
   .dashboard-logo { font-size: 23px; }
   .dashboard-account { min-width: 0; gap: 12px; font-size: 12px; }
-  .dashboard-account > span { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dashboard-account > span { max-width: clamp(44px, 18vw, 130px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dashboard-account button { flex-shrink: 0; }
 }
 

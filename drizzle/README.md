@@ -7,3 +7,5 @@
 `0006_living_tarantula.sql` 将设备和连接应用合并为 device_label、保存来源合并审计，移除 BMI 列和约束，测量主表为 31 列；新增四列 measurement_sources，按账号／来源唯一并按最近使用检索。旧原始输入、审计、去重键、冻结依据及日期／提醒状态保留。执行前先保存私有一致性备份；当前账号未知来源的授权补齐通过独立 feature／维护脚本完成。完整结构见 [数据库字典](../docs/database.md)。
 
 `0007_strong_omega_sentinel.sql` 合并两列日期为唯一 record_date，测量主表 30 列；日期与提醒表同步命名。原 analysis_date 的分组值保持，local_date 由原始当地时间读取。迁移先锁定测量表并检查实际日期可完整恢复，不一致则拒绝；保留所有数值、准确时间、时区、指纹、原始输入、审计、初始化依据与提醒状态。执行前保存私有一致性备份，执行后逐字段核对。
+
+`0008_aspiring_thunderbolt_ross.sql` 新增 ai_tokens 和 measurement_operations，分别保存可撤销令牌摘要与有时限的网页确认预览，不修改既有九张表。令牌与操作均关联账号，operationId 按账号唯一，状态／权限有数据库约束。执行前备份并在执行后核对旧表逐字段不变。

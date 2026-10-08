@@ -57,6 +57,13 @@
       "when": 1791437835726,
       "tag": "0007_strong_omega_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791441323348,
+      "tag": "0008_aspiring_thunderbolt_ross",
+      "breakpoints": true
     }
   ]
 }

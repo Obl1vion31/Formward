@@ -2,7 +2,7 @@
 
 ## 目的
 
-负责内部邮箱密码登录、Session、当前用户和退出。网页入口与 HTTP 认证接口使用同一 Better Auth 配置；AI Personal Access Token 尚未接入。
+负责内部邮箱密码登录、Session、当前用户和退出。网页入口与 HTTP 认证接口使用同一 Better Auth 配置；独立可撤销 AI Token。
 
 ## 当前内容
 
@@ -14,4 +14,6 @@
 
 ## 维护约定
 
-身份来自已验证的会话 cookie，不能采用客户端提交的 user_id。未来 AI Token 必须单独鉴权、只保存不可逆摘要，并最终映射到同一 user_id。内部账号通过 `pnpm account:create` 创建；数据库和配置说明见 [接入指南](../../../docs/auth-setup.md)。
+身份来自已验证的会话 cookie，不能采用客户端提交的 user_id。AI Token 独立 Bearer 鉴权、只保存不可逆摘要，映射到同一 user_id。内部账号通过 `pnpm account:create` 创建；数据库和配置说明见 [接入指南](../../../docs/auth-setup.md)。
+
+`ai-tokens.ts` 提供 30 天 read／write 令牌创建、列表、撤销和即时鉴权，原文只创建时返回，列表不含摘要或原文。`ai-access.tsx` 提供令牌表单、复制说明和最近身体操作；用户数据和确认由 measurements feature 处理。

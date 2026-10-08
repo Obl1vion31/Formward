@@ -25,7 +25,7 @@ export async function supersedeEstimates(tx: MeasurementTransaction, actor: Meas
         : { ...metadata, weightKg: weightReplaced ? null : metadata.weightKg, bodyFatPercent: fatReplaced ? null : metadata.bodyFatPercent } : null, updatedAt: new Date() };
     }
     const [after] = await tx.update(measurement).set(replacement).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, row.id))).returning();
-    await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: row.id, action: after.deletedAt ? "delete" : "update", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { before: row, after, reason: frozen ? "observed_replaces_initialized_metric" : reason } });
+    await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: row.id, action: after.deletedAt ? "delete" : "update", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { ai: actor.aiContext, before: row, after, reason: frozen ? "observed_replaces_initialized_metric" : reason } });
     if (after.deletedAt) deleted++;
   }
   return deleted;
@@ -45,7 +45,7 @@ export async function insertEstimate(tx: MeasurementTransaction, actor: Measurem
     createdBy: actor.actorId,
   }).returning();
   await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: row.id, action: "estimate", actorType: actor.actorType ?? "user", actorId: actor.actorId,
-    snapshot: { after: row, reason: context.reason, operationKey: context.operationKey, importId: context.importId } });
+    snapshot: { ai: actor.aiContext, after: row, reason: context.reason, operationKey: context.operationKey, importId: context.importId } });
   return row;
 }
 

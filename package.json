@@ -19,7 +19,9 @@
     "account:create": "node --env-file=.env.local --import tsx scripts/create-account.mts",
     "test:browser": "node --import tsx tests/auth.browser.mts",
     "test:measurements-http": "node --import tsx tests/measurements.http.mts",
-    "test:measurements-browser": "FORMWARD_MEASUREMENTS_BROWSER=1 node --import tsx tests/measurements.http.mts"
+    "test:measurements-browser": "FORMWARD_MEASUREMENTS_BROWSER=1 node --import tsx tests/measurements.http.mts",
+    "ai:setup": "node --import tsx scripts/ai-setup.mts",
+    "ai:request": "node --import tsx scripts/ai-request.mts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.7.7",

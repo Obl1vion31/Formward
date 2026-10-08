@@ -16,6 +16,7 @@
 - `frame-calibration.md`：首页静态人物测量、离线拟合方式，以及视频首尾与静态端点的校准。
 - `design-reference.md`：MacroFactor 调研与 Formward 的 PC 端设计方向。
 - `architecture.md`：轻量 Next.js 模块化单体边界。
+- `ai-api.md`：身体记录 AI 令牌、HTTP 协议、网页预览确认和本地 Codex 试验步骤。
 - `auth-setup.md`：Neon 配置、数据库 migration、内部账号创建、登录顺序与验证。
 - `database.md`：数据库连接流程、逻辑关系图、全部物理字段与索引／约束字典、维护入口。
 - `data-model.md`：核心数据、来源信息和外部生态扩展原则。

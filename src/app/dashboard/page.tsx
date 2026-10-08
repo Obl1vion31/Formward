@@ -5,7 +5,7 @@ import { currentUser } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { listMeasurements } from "@/features/measurements/records";
 import { MeasurementsView } from "@/features/measurements/measurements-view";
-import { LogoutButton } from "./logout-button";
+import { DashboardHeader } from "./header";
 import { listMeasurementDates, measurementDisplay } from "@/features/measurements/editing";
 import { estimateCellAction, saveDayAction } from "./actions";
 import { listMeasurementSources } from "@/features/measurements/sources";
@@ -23,10 +23,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="dashboard-page">
-      <header className="dashboard-header">
-        <a className="dashboard-logo" href="/dashboard" aria-label="Formward 主页">formward<span>.</span></a>
-        <div className="dashboard-account"><span>{user.email}</span><LogoutButton /></div>
-      </header>
+      <DashboardHeader email={user.email} />
       <MeasurementsView records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ save: saveDayAction, estimate: estimateCellAction }} />
     </main>
   );

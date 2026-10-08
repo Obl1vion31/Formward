@@ -150,3 +150,36 @@ export const measurementEvent = pgTable("measurement_events", {
   snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [index("measurement_events_user_record_idx").on(table.userId, table.measurementId)]);
+
+export const aiToken = pgTable("ai_tokens", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  prefix: text("prefix").notNull(),
+  permission: text("permission", { enum: ["read", "write"] }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+}, table => [index("ai_tokens_user_idx").on(table.userId), check("ai_tokens_permission_valid", sql`${table.permission} IN ('read', 'write')`)]);
+
+export const measurementOperation = pgTable("measurement_operations", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  tokenId: text("token_id").notNull().references(() => aiToken.id),
+  operationId: text("operation_id").notNull(),
+  requestDigest: text("request_digest").notNull(),
+  snapshotDigest: text("snapshot_digest").notNull(),
+  payload: jsonb("payload").$type<import("../features/measurements/ai-operations").AiMeasurementInput>().notNull(),
+  preview: jsonb("preview").$type<import("../features/measurements/ai-operations").OperationPreview>().notNull(),
+  status: text("status", { enum: ["pending", "confirmed", "cancelled"] }).notNull().default("pending"),
+  result: jsonb("result").$type<{ message: string; saved: number }>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+}, table => [
+  uniqueIndex("measurement_operations_user_request_idx").on(table.userId, table.operationId),
+  index("measurement_operations_user_created_idx").on(table.userId, table.createdAt),
+  check("measurement_operations_status_valid", sql`${table.status} IN ('pending', 'confirmed', 'cancelled')`),
+]);

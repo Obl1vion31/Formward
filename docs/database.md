@@ -1,6 +1,6 @@
 # 数据库连接与字段字典
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前有 9 张业务／认证表；`measurements` 为 30 列，`measurement_sources` 为 4 列。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前有 11 张业务／认证表；`measurements` 为 30 列，`measurement_sources` 为 4 列。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 
@@ -20,6 +20,9 @@
 erDiagram
     users ||--o{ accounts : credentials
     users ||--o{ sessions : login
+    users ||--o{ ai_tokens : ai_access
+    users ||--o{ measurement_operations : previews
+    ai_tokens ||--o{ measurement_operations : submitted
     users ||--o{ measurements : owns
     users ||--o{ measurement_days : calendar
     users ||--o{ measurement_imports : operations
@@ -33,7 +36,48 @@ erDiagram
 
 ## 物理字段
 
-以下类型来自 Drizzle 快照。非空字段的“无空值”表示数据库拒绝 NULL，不代表 feature 接受任意内容。timestamp 均带时区。未知业务数值使用 NULL；JSON 快照及审计保持原始内容。未来 AI 访问令牌表尚未建立，AI 令牌只保存不可逆摘要，不能复用网页登录会话令牌。
+以下类型来自 Drizzle 快照。非空字段的“无空值”表示数据库拒绝 NULL，不代表 feature 接受任意内容。timestamp 均带时区。未知业务数值使用 NULL；JSON 快照及审计保持原始内容。AI 令牌保存在 ai_tokens，只保存不可逆摘要，不能复用网页登录会话令牌。
+
+### `ai_tokens`
+
+由 `0008_aspiring_thunderbolt_ross.sql` 创建；完整令牌仅生成时返回，不持久保存。
+
+| 字段 | 类型 | 含义 |
+| --- | --- | --- |
+| id | text PK | 令牌 ID |
+| user_id | text FK | 所属账号，关联 users |
+| name | text | 用户填写的名称 |
+| token_hash | text UNIQUE | 随机令牌的 SHA-256 摘要 |
+| prefix | text | 列表显示前缀，不用于鉴权 |
+| permission | text | read／write，数据库 check；write 包含查询与提交预览 |
+| created_at | timestamptz | 创建时间 |
+| expires_at | timestamptz | 30 天到期 |
+| last_used_at | timestamptz nullable | 最近有效使用时间 |
+| revoked_at | timestamptz nullable | 撤销时间，鉴权即时检查 |
+
+user_id 有索引，令牌只通过完整随机原文摘要查找并映射账号。创建／撤销锁定所属 users，与确认操作串行。
+
+### `measurement_operations`
+
+由同一 migration 创建，记录待确认内容，不是实测事实。
+
+| 字段 | 类型 | 含义 |
+| --- | --- | --- |
+| id | text PK | 操作 ID，用于状态与网页链接 |
+| user_id | text FK | 所属账号 |
+| token_id | text FK | 发起令牌，关联 ai_tokens |
+| operation_id | text | 客户端稳定请求 ID，按账号唯一 |
+| request_digest | text | 规范化请求摘要，重试须同内容和令牌 |
+| snapshot_digest | text | 身体记录及初始化冻结依据快照摘要 |
+| payload | jsonb | 单日修改／单项估算的规范化请求 |
+| preview | jsonb | 前后值、重复／冲突、估算依据及可确认标记 |
+| status | text | pending／confirmed／cancelled，数据库 check |
+| result | jsonb nullable | 确认后的消息与保存数量 |
+| created_at | timestamptz | 预览创建时间 |
+| expires_at | timestamptz | 15 分钟到期，过期状态由读取推导 |
+| confirmed_at | timestamptz nullable | 用户网页确认时间 |
+
+(user_id, operation_id) 唯一，(user_id, created_at) 索引用于最近提交。读取、取消和确认校验归属；确认复核发起令牌有效性及快照，在同一事务应用共享业务函数并保存审计和结果。旧九张表结构与已有数据不由本 migration 修改。AI 审计上下文保存在 measurement_events.snapshot.ai，包含 tokenId、operationId（此表 id）、confirmedBy 和 confirmedAt。
 
 ### `accounts`
 
@@ -198,7 +242,7 @@ erDiagram
 | --- | --- | --- | --- | --- |
 | `id` | `text` | 无空值 | 稳定记录标识 | `认证 feature／measurements feature 创建` |
 | `user_id` | `text` | 无空值 | 所属账号；读写必须用已验证身份限定 | `认证／measurements feature` |
-| `token` | `text` | 无空值 | 网页登录会话令牌；由 Better Auth 管理，独立于未来 AI Token | `Better Auth` |
+| `token` | `text` | 无空值 | 网页登录会话令牌；由 Better Auth 管理，独立于 AI Token | `Better Auth` |
 | `expires_at` | `timestamp with time zone` | 无空值 | 到期时间 | `Better Auth` |
 | `ip_address` | `text` | 可空：未提供／不适用，具体见用途 | 会话来源 IP；空值表示未提供 | `Better Auth` |
 | `user_agent` | `text` | 可空：未提供／不适用，具体见用途 | 会话客户端信息；空值表示未提供 | `Better Auth` |

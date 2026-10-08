@@ -47,6 +47,8 @@ const initializedAccount = { email: "initialized-http@example.test", password: "
 const initializedOwner = await provisionAccount(db, initializedAccount);
 const entryAccount = { email: "entry-http@example.test", password: "fictional-entry-password" };
 const entryOwner = await provisionAccount(db, entryAccount);
+const aiAccount = { email: "ai-http@example.test", password: "fictional-ai-browser-password" };
+await provisionAccount(db, aiAccount);
 await db.update(schema.user).set({ createdAt: new Date("2024-02-27T00:00:00Z") }).where(eq(schema.user.id, entryOwner.id));
 const today = localMeasurementDate(new Date(), "Asia/Shanghai");
 const priorDate = (offset: number) => new Date(Date.parse(`${today}T00:00:00Z`) - offset * 86_400_000).toISOString().slice(0, 10);
@@ -163,13 +165,17 @@ try {
   assert.ok(!otherHtml.includes("74.80"));
   assert.ok(otherHtml.includes("暂无测量记录"));
   console.log("通过：跨账号参数不能读到测量，无记录账号仍显示空状态。");
-  if (process.env.FORMWARD_MEASUREMENTS_BROWSER === "1") {
+  if (process.env.FORMWARD_MEASUREMENTS_BROWSER === "1" && process.env.FORMWARD_AI_ONLY !== "1") {
     const { checkMeasurementsBrowser } = await import("./measurements.browser.mjs");
     const refreshSource = development ? async (date: string, deviceLabel: string) => {
       const row = (await listMeasurements(db, entryOwner.id)).find(row => row.recordDate === date && row.period === "daytime")!;
       await saveMeasurementDay(db, { userId: entryOwner.id, actorId: entryOwner.id }, { date, timezone: "Asia/Shanghai", operationId: crypto.randomUUID(), periods: { daytime: { recordId: row.id, version: row.updatedAt.toISOString(), deviceLabel } } });
     } : undefined;
     await checkMeasurementsBrowser({ baseURL, first, second, initializedAccount, entryAccount, today, refreshSource });
+  }
+  if (process.env.FORMWARD_MEASUREMENTS_BROWSER === "1") {
+    const { checkAiAccessBrowser } = await import("./ai-access.browser.mjs");
+    await checkAiAccessBrowser({ baseURL, account: aiAccount, other: second, date: today });
   }
 } finally {
   if (child.exitCode === null && !child.signalCode) {

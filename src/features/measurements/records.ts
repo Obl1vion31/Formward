@@ -10,7 +10,7 @@ import { rememberMeasurementSource, validateDeviceLabel } from "./sources";
 export { supersedeEstimates } from "./estimate-records";
 
 export type MeasurementTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
-export type MeasurementActor = { userId: string; actorId: string; actorType?: "user" | "ai" | "development_backend" };
+export type MeasurementActor = { userId: string; actorId: string; actorType?: "user" | "ai" | "development_backend"; aiContext?: { tokenId: string; operationId: string; confirmedBy: string; confirmedAt: string } };
 export type EntryChannel = "api" | "manual" | "development_backend";
 
 /** 所有测量写入锁定归属账号，避免实测补录与估计生成并发留下重复时段。 */
@@ -244,13 +244,13 @@ export async function insertReportedMeasurement(tx: MeasurementTransaction, acto
       ...(confirmedTime ? { sourceLocalTime: record.sourceLocalTime, occurredAt: record.occurredAt, timezone: record.timezone, utcOffsetMinutes: record.utcOffsetMinutes, timePrecision: "second" } : {}),
     }).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, before.id))).returning();
     await supersedeEstimates(tx, actor, after.recordDate, after.period);
-    await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: after.id, action: "update", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { before, after, reportedValues: record.originalValues, provenance, importId, reason: confirmedTime ? "reported_exact_time" : "reported_missing_metrics" } });
+    await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: after.id, action: "update", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { ai: actor.aiContext, before, after, reportedValues: record.originalValues, provenance, importId, reason: confirmedTime ? "reported_exact_time" : "reported_missing_metrics" } });
     if (after.deviceLabel) await rememberMeasurementSource(tx, actor.userId, after.deviceLabel);
     return { ...after, writeKind: "updated" as const };
   }
   const [row] = await tx.insert(measurement).values({ id: randomUUID(), userId: actor.userId, ...record, ...provenance, recordKind: "observed", sourceType: "manual", sourceSystem: null, importId, createdBy: actor.actorId }).returning();
   await supersedeEstimates(tx, actor, row.recordDate, row.period);
-  await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: row.id, action: "create", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { after: row, reason: "user_reported_measurement" } });
+  await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: row.id, action: "create", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { ai: actor.aiContext, after: row, reason: "user_reported_measurement" } });
   if (row.deviceLabel) await rememberMeasurementSource(tx, actor.userId, row.deviceLabel);
   return { ...row, writeKind: "inserted" as const };
 }

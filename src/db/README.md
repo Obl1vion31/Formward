@@ -13,6 +13,8 @@
 
 Feature 可以直接使用 Drizzle。数据库结构变化必须生成 `drizzle/` migration，并分别在开发、测试和生产环境执行。
 
-运行配置与账号创建见 [数据库与账号接入](../../docs/auth-setup.md)。身体记录与导入已建表；饮食、运动和 AI Token 尚未建表。测量缺少时区时 UTC 时刻为空；来源指标缺项不补零，软删除字段供后续恢复入口使用。OAuth 登录未启用，account 的 OAuth 字段保持空值。
+运行配置与账号创建见 [数据库与账号接入](../../docs/auth-setup.md)。身体记录与导入已建表；饮食和运动尚未建表。测量缺少时区时 UTC 时刻为空；来源指标缺项不补零，软删除字段供后续恢复入口使用。OAuth 登录未启用，account 的 OAuth 字段保持空值。
 
 `measurement_sources` 仅保存账号、历史来源名称、创建与最近使用时间；账号／名称唯一。测量以 `device_label` 保存独立名称快照，不通过外键联动历史。主表 30 列，BMI 仅可留在原文件及既有输入／审计快照。完整连接流程、关系图、字段、约束和维护入口见 [数据库字典](../../docs/database.md)。
+
+`ai_tokens` 保存不可逆令牌摘要、权限、过期／使用／撤销状态；`measurement_operations` 保存发起令牌、请求／快照摘要、预览、15 分钟到期时间和确认结果，所有读取和确认校验 user_id。结构由 0008_aspiring_thunderbolt_ross.sql 演进，不改变旧表或健康数据。
