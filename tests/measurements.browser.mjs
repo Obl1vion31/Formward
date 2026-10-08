@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
 
 // 由 measurements.http.mts 提供独立数据库、虚构账号和开发／production 服务。
-export async function checkMeasurementsBrowser({ baseURL, first, second, initializedAccount, entryAccount, today }) {
+export async function checkMeasurementsBrowser({ baseURL, first, second, initializedAccount, entryAccount, today, refreshSource }) {
   const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
   // 保留真实滚动条，覆盖 Inspector 锁定页面滚动时的宽度变化。
   const browser = await chromium.launch({ headless: true, ignoreDefaultArgs: ["--hide-scrollbars"] });
@@ -274,7 +274,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
   try {
     if (process.env.FORMWARD_MEASUREMENTS_ENTRY_ONLY === "1") {
       const { checkMeasurementEntry } = await import("./measurements-entry.browser.mjs");
-      await checkMeasurementEntry({ loggedInPage, entryAccount, today, artifacts, baseURL });
+      await checkMeasurementEntry({ loggedInPage, entryAccount, today, artifacts, baseURL, refreshSource });
       assert.deepEqual(errors, [], "无客户端异常");
       return;
     }
@@ -404,7 +404,8 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     await assertRecordInspector(page);
     assert.match(await drawer.innerText(), /2025-07-11 00:30:00/);
     assert.match(await drawer.innerText(), /Asia\/Shanghai/);
-    assert.match(await drawer.innerText(), /归属日.*2025.07.10 · 晚间/s);
+    assert.doesNotMatch(await drawer.innerText(), /归属日/);
+    assert.match(await drawer.innerText(), /2025.07.10/);
     assert.match(await drawer.innerText(), /开发后台加入/);
     assert.equal(await chart.locator('[data-point-id][data-date="2025-07-10"][data-period="evening"]').count(), 0, "查看候选不设置代表记录");
     assert.equal(await page.evaluate(() => document.body.style.overflow), "hidden");
@@ -505,7 +506,8 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     const historicalEntry = drawer.getByRole("button", { name: /2025-07-11 00:30:00/ });
     await historicalEntry.click();
     await assertRecordInspector(page);
-    assert.match(await drawer.innerText(), /75.85.*归属日.*2025.07.10/s);
+    assert.match(await drawer.innerText(), /75.85/s);
+    assert.doesNotMatch(await drawer.innerText(), /归属日/);
     assert.equal(await page.locator('dialog').count(), 1, "历史与记录在同一个 dialog 中导航");
     await drawer.getByRole("button", { name: "返回完整历史", exact: false }).click();
     assert.equal(await drawer.locator('details:has(> summary time[datetime="2025-07-10"])').getAttribute("open"), "");
@@ -651,7 +653,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.equal(await chartFor(empty.page).count(), 1);
     await empty.context.close();
     const { checkMeasurementEntry } = await import("./measurements-entry.browser.mjs");
-    await checkMeasurementEntry({ loggedInPage, entryAccount, today, artifacts, baseURL });
+    await checkMeasurementEntry({ loggedInPage, entryAccount, today, artifacts, baseURL, refreshSource });
     assert.deepEqual(errors, [], "无客户端异常");
     console.log(`通过：390px、320px、横屏、reduced motion、触控与空状态；虚构数据截图位于 ${artifacts}。`);
   } finally {

@@ -3,7 +3,7 @@ import { measurementCalendarPage } from "./calendar";
 
 export type DailyMeasurement = {
   id: string;
-  analysisDate: string;
+  recordDate: string;
   period: MeasurementPeriod;
   weightKg: string | null;
   bodyFatPercent: string | null;
@@ -14,7 +14,7 @@ export type DailyMeasurement = {
 
 /** 晨晚差只能来自同归属日的真实、条件明确的配对。 */
 export function isRealMeasurementPair(daytime: DailyMeasurement | null, evening: DailyMeasurement | null) {
-  return !!daytime && !!evening && daytime.analysisDate === evening.analysisDate
+  return !!daytime && !!evening && daytime.recordDate === evening.recordDate
     && daytime.period === "daytime" && evening.period === "evening"
     && daytime.fasting === true && evening.fasting === false
     && daytime.recordKind !== "estimated" && evening.recordKind !== "estimated";
@@ -30,9 +30,9 @@ export function measurementWeightDifference(daytime: DailyMeasurement | null, ev
 export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], choices: Record<string, string> = {}, metric: "weightKg" | "bodyFatPercent" = "weightKg", dates: string[] = []) {
   const groups = new Map<string, { date: string; daytime: T[]; evening: T[] }>();
   for (const record of records) {
-    const group = groups.get(record.analysisDate) ?? { date: record.analysisDate, daytime: [], evening: [] };
+    const group = groups.get(record.recordDate) ?? { date: record.recordDate, daytime: [], evening: [] };
     group[record.period].push(record);
-    groups.set(record.analysisDate, group);
+    groups.set(record.recordDate, group);
   }
   for (const date of dates) if (!groups.has(date)) groups.set(date, { date, daytime: [], evening: [] });
   return [...groups.values()].sort((a, b) => b.date.localeCompare(a.date)).map((group) => {
@@ -64,5 +64,5 @@ export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], c
 export function recentMeasurementDays<T extends DailyMeasurement>(records: T[], interval: { start: string; end: string }, choices: Record<string, string> = {}, limit = 10, metric: "weightKg" | "bodyFatPercent" = "weightKg") {
   const dates = measurementCalendarPage(interval, limit);
   const visible = new Set(dates);
-  return buildMeasurementDays(records.filter(row => visible.has(row.analysisDate)), choices, metric, dates);
+  return buildMeasurementDays(records.filter(row => visible.has(row.recordDate)), choices, metric, dates);
 }

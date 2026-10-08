@@ -73,13 +73,12 @@ export const measurement = pgTable("measurements", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   sourceLocalTime: text("source_local_time").notNull(),
-  localDate: date("local_date").notNull(),
   // 无来源时区时不伪造 UTC 时刻；本地时间仍可用于晨晚归属。
   occurredAt: timestamp("occurred_at", { withTimezone: true }),
   timezone: text("timezone"),
   utcOffsetMinutes: integer("utc_offset_minutes"),
   timePrecision: text("time_precision").notNull().default("second"),
-  analysisDate: date("analysis_date").notNull(),
+  recordDate: date("record_date").notNull(),
   period: text("period", { enum: ["daytime", "evening"] }).notNull(),
   assignmentMethod: text("assignment_method").notNull(),
   assignmentRuleVersion: text("assignment_rule_version").notNull(),
@@ -104,8 +103,8 @@ export const measurement = pgTable("measurements", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 }, (table) => [
   uniqueIndex("measurements_user_dedup_idx").on(table.userId, table.deduplicationKey),
-  uniqueIndex("measurements_active_estimate_idx").on(table.userId, table.analysisDate, table.period).where(sql`${table.recordKind} = 'estimated' AND ${table.deletedAt} IS NULL`),
-  index("measurements_user_analysis_date_idx").on(table.userId, table.analysisDate),
+  uniqueIndex("measurements_active_estimate_idx").on(table.userId, table.recordDate, table.period).where(sql`${table.recordKind} = 'estimated' AND ${table.deletedAt} IS NULL`),
+  index("measurements_user_record_date_idx").on(table.userId, table.recordDate),
   check("measurements_weight_valid", sql`${table.weightKg} > 0`),
   check("measurements_metric_presence", sql`${table.weightKg} IS NOT NULL OR ${table.bodyFatPercent} IS NOT NULL`),
   check("measurements_body_fat_valid", sql`${table.bodyFatPercent} IS NULL OR ${table.bodyFatPercent} BETWEEN 0 AND 100`),
@@ -133,13 +132,13 @@ export const measurementSource = pgTable("measurement_sources", {
 export const measurementDay = pgTable("measurement_days", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
-  analysisDate: date("analysis_date").notNull(),
+  recordDate: date("record_date").notNull(),
   reminderSkippedAt: timestamp("reminder_skipped_at", { withTimezone: true }),
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
-}, table => [uniqueIndex("measurement_days_user_date_idx").on(table.userId, table.analysisDate)]);
+}, table => [uniqueIndex("measurement_days_user_date_idx").on(table.userId, table.recordDate)]);
 
 export const measurementEvent = pgTable("measurement_events", {
   id: text("id").primaryKey(),

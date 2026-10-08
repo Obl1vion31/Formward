@@ -15,8 +15,8 @@ const owner = "fictional-completion-owner", other = "fictional-completion-other"
 const request: HistoricalCompletionRequest = {
   operationId: "fictional-history", range: { start: "2024-01-01", end: "2024-01-06" }, trainingRange: { start: "2024-01-01", end: "2024-01-07" },
   deviceLabel: "虚构蓝牙秤-虚构应用", records: [
-    { analysisDate: "2024-01-07", period: "daytime", weightKg: "79.2", bodyFatPercent: "24.2", fasting: true, timezone: "Asia/Shanghai", assumedTime: "08:00" },
-    { analysisDate: "2024-01-07", period: "evening", weightKg: "80.2", bodyFatPercent: "24.8", fasting: false, timezone: "Asia/Shanghai", assumedTime: "20:00" },
+    { recordDate: "2024-01-07", period: "daytime", weightKg: "79.2", bodyFatPercent: "24.2", fasting: true, timezone: "Asia/Shanghai", assumedTime: "08:00" },
+    { recordDate: "2024-01-07", period: "evening", weightKg: "80.2", bodyFatPercent: "24.8", fasting: false, timezone: "Asia/Shanghai", assumedTime: "20:00" },
   ],
 };
 let originals: Awaited<ReturnType<typeof listMeasurements>>;
@@ -44,7 +44,7 @@ test("预览只读；补全来源与占位时间独立保存，原始实测保�
     assert.equal(row.recordKind, "observed"); assert.equal(row.entryChannel, "development_backend");
     assert.equal(row.deviceLabel, request.deviceLabel);
   }
-  const reported = rows.find((row) => row.analysisDate === "2024-01-07" && row.period === "daytime")!;
+  const reported = rows.find((row) => row.recordDate === "2024-01-07" && row.period === "daytime")!;
   assert.equal(reported.recordKind, "observed"); assert.equal(reported.timePrecision, "assumed"); assert.equal(reported.occurredAt, null);
   assert.equal(reported.originalValues.reportedTime, null); assert.equal(reported.originalValues.assumedTime, "08:00");
   for (const row of rows.filter((row) => row.recordKind === "estimated")) {
@@ -52,7 +52,7 @@ test("预览只读；补全来源与占位时间独立保存，原始实测保�
     assert.equal(row.estimation!.method, "morning-baseline-v3");
     if (row.estimation!.method !== "morning-baseline-v3") throw new Error("预期新模型");
     assert.equal(row.estimation!.weightKg!.trend!.sampleCount, 3);
-    assert.ok(row.estimation!.weightKg!.trend!.samples.every((sample) => sample.date < row.analysisDate && rows.some((actual) => actual.id === sample.id && actual.recordKind === "observed")));
+    assert.ok(row.estimation!.weightKg!.trend!.samples.every((sample) => sample.date < row.recordDate && rows.some((actual) => actual.id === sample.id && actual.recordKind === "observed")));
   }
   const events = await db.select().from(schema.measurementEvent);
   assert.equal(events.filter((event) => event.action === "estimate").length, 2);
@@ -84,8 +84,8 @@ test("无效范围、数值、时段及预览后修改拒绝写入", async () =>
 });
 
 test("审计失败时整个补录回滚，随后 API 实测替代估计且不可恢复覆盖实测", async () => {
-  const estimate = (await listMeasurements(db, owner)).find((row) => row.analysisDate === "2024-01-06" && row.period === "daytime")!;
-  const actual = { analysisDate: "2024-01-06", period: "daytime" as const, weightKg: "79.85", bodyFatPercent: "24.8", fasting: true };
+  const estimate = (await listMeasurements(db, owner)).find((row) => row.recordDate === "2024-01-06" && row.period === "daytime")!;
+  const actual = { recordDate: "2024-01-06", period: "daytime" as const, weightKg: "79.85", bodyFatPercent: "24.8", fasting: true };
   const batchCount = (await db.select().from(schema.measurementImport)).length;
   await pg.exec("CREATE FUNCTION reject_estimate_delete() RETURNS trigger AS $$ BEGIN IF NEW.action = 'delete' THEN RAISE EXCEPTION 'fictional audit failure'; END IF; RETURN NEW; END; $$ LANGUAGE plpgsql; CREATE TRIGGER reject_estimate_delete BEFORE INSERT ON measurement_events FOR EACH ROW EXECUTE FUNCTION reject_estimate_delete();");
   try { await assert.rejects(saveReportedMeasurements(db, { userId: owner, actorId: owner, requestKey: "b".repeat(64), entryChannel: "api", records: [actual] })); }
@@ -94,7 +94,7 @@ test("审计失败时整个补录回滚，随后 API 实测替代估计且不可
   assert.equal((await getMeasurement(db, owner, estimate.id))!.recordKind, "estimated");
   const result = await saveReportedMeasurements(db, { userId: owner, actorId: owner, requestKey: "b".repeat(64), entryChannel: "api", records: [actual] });
   assert.equal(result.inserted, 1); assert.equal(await getMeasurement(db, owner, estimate.id), null);
-  const row = (await listMeasurements(db, owner)).find((row) => row.analysisDate === actual.analysisDate && row.period === "daytime")!;
+  const row = (await listMeasurements(db, owner)).find((row) => row.recordDate === actual.recordDate && row.period === "daytime")!;
   assert.equal(row.recordKind, "observed"); assert.equal(row.entryChannel, "api"); assert.equal(row.occurredAt, null); assert.equal(row.timePrecision, "day_period");
   await assert.rejects(restoreMeasurement(db, { userId: owner, actorId: owner, id: estimate.id }), /已有有效记录/);
   assert.equal((await saveReportedMeasurements(db, { userId: owner, actorId: owner, requestKey: "b".repeat(64), entryChannel: "api", records: [actual] })).repeated, true);
@@ -110,4 +110,24 @@ test("历史补全事务中估计审计失败也不留下新批次或来源变�
   finally { await pg.exec("DROP TRIGGER reject_estimate_insert ON measurement_events; DROP FUNCTION reject_estimate_insert();"); }
   assert.deepEqual(await listMeasurements(db, owner), before);
   assert.equal((await db.select().from(schema.measurementImport)).length, batches);
+});
+
+test("日期合并后识别旧版本真实指纹，重复维护不重写事实、来源或审计", async () => {
+  const userId = "fictional-legacy-completion-owner";
+  await db.insert(schema.user).values({ id: userId, name: "虚构旧批次用户", email: "legacy-completion@example.test" });
+  const legacyRequest: HistoricalCompletionRequest = { operationId: "fictional-legacy-completion", range: { start: "2024-04-01", end: "2024-04-04" }, trainingRange: { start: "2024-04-01", end: "2024-04-04" }, deviceLabel: "虚构旧来源", records: [
+    { recordDate: "2024-04-01", period: "daytime", weightKg: "70", bodyFatPercent: null, fasting: true },
+    { recordDate: "2024-04-02", period: "daytime", weightKg: "71", bodyFatPercent: null, fasting: true, assumedTime: "08:00", timezone: "Asia/Shanghai" },
+    { recordDate: "2024-04-03", period: "evening", weightKg: "72", bodyFatPercent: null, fasting: false, measuredAt: "2024-04-04 00:30:00", timezone: "Asia/Shanghai" },
+  ] };
+  // 由迁移前实现生成，覆盖未知时间、占位时间和准确跨午夜时间。
+  await db.insert(schema.measurementImport).values({ id: "fictional-old-completion", userId, fileDigest: "9380412e7e339c6e852d8463957a57e61fdc587d1b51659689d2729477bda8b3", sourceLabel: "虚构旧维护", captureChannel: "development_backend", insertedCount: 0, skippedCount: 0, createdBy: userId });
+  const preview = await previewHistoricalCompletion(db, userId, legacyRequest);
+  assert.equal(preview.alreadyApplied, true);
+  const before = await db.select().from(schema.measurementImport).where(eq(schema.measurementImport.userId, userId));
+  const result = await applyHistoricalCompletion(db, { userId, actorId: userId, request: legacyRequest, digest: preview.digest });
+  assert.equal(result.repeated, true); assert.equal(result.importId, "fictional-old-completion");
+  assert.deepEqual(await db.select().from(schema.measurementImport).where(eq(schema.measurementImport.userId, userId)), before);
+  assert.deepEqual(await listMeasurements(db, userId), []);
+  assert.deepEqual(await db.select().from(schema.measurementEvent).where(eq(schema.measurementEvent.userId, userId)), []);
 });

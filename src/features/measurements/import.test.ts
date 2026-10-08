@@ -40,8 +40,8 @@ test("导入保留真实时间、当地归属与原始指标，白天空腹须�
   const evening = rows.find((row) => row.period === "evening")!;
   const daytime = rows.find((row) => row.period === "daytime")!;
   assert.equal(evening.sourceLocalTime, "2025-05-11 00:30:00");
-  assert.equal(evening.localDate, "2025-05-11");
-  assert.equal(evening.analysisDate, "2025-05-10");
+  assert.equal(evening.sourceLocalTime.slice(0, 10), "2025-05-11");
+  assert.equal(evening.recordDate, "2025-05-10");
   assert.equal(evening.occurredAt?.toISOString(), "2025-05-10T16:30:00.000Z");
   assert.equal(evening.timezone, "Asia/Shanghai");
   assert.equal(evening.utcOffsetMinutes, 480);

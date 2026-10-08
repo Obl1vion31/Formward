@@ -7,7 +7,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { eq } from "drizzle-orm";
 import * as schema from "../../db/schema";
 import { saveMeasurementDay, type SaveMeasurementDayInput } from "./editing";
-import { listMeasurements, saveReportedMeasurements } from "./records";
+import { listMeasurements, parseReportedMeasurement, saveReportedMeasurements } from "./records";
 import { fillMissingMeasurementSources, listMeasurementSources } from "./sources";
 import { measurementDayAction } from "./entry-state";
 
@@ -20,6 +20,18 @@ async function owner() {
   return { userId: id, actorId: id };
 }
 const input = (periods: SaveMeasurementDayInput["periods"], date = "2024-04-04") => ({ date, timezone: "Asia/Shanghai", periods, operationId: randomUUID() });
+
+test("旧私有日期请求只在入口转换，冲突拒绝且原始输入不改写", () => {
+  const legacy = { analysisDate: "2024-04-04", period: "evening", weightKg: "70", bodyFatPercent: null, fasting: false, bmi: "23" };
+  const snapshot = structuredClone(legacy);
+  const parsed = parseReportedMeasurement(legacy);
+  assert.equal(parsed.recordDate, "2024-04-04");
+  assert.ok(!("analysisDate" in parsed)); assert.ok(!("bmi" in parsed));
+  assert.deepEqual(legacy, snapshot);
+  assert.deepEqual(parseReportedMeasurement({ ...legacy, recordDate: legacy.analysisDate }), parsed);
+  assert.throws(() => parseReportedMeasurement({ ...legacy, recordDate: "2024-04-05" }), /不一致/);
+  for (const value of [null, [], {}, { ...legacy, analysisDate: "2024-02-30" }]) assert.throws(() => parseReportedMeasurement(value));
+});
 
 test("实测来源必填，来源不能单独创建测量；无效与整日失败不留下建议", async () => {
   const actor = await owner();
@@ -40,13 +52,13 @@ test("晨晚独立来源、名称去空白与最近排序；只改来源保留�
   assert.equal(rows.find(row => row.period === "daytime")!.deviceLabel, "虚构晨间秤-应用");
   assert.equal(rows.find(row => row.period === "evening")!.deviceLabel, "虚构晚间秤");
   const preciseDate = "2024-04-05";
-  await saveReportedMeasurements(db, { ...actor, requestKey: "1".repeat(64), entryChannel: "api", deviceLabel: "虚构晨间秤-应用", records: [{ analysisDate: preciseDate, period: "daytime", fasting: true, weightKg: "70.20", bodyFatPercent: null, measuredAt: `${preciseDate} 08:30:00`, timezone: "Asia/Shanghai" }] });
-  const before = (await listMeasurements(db, actor.userId)).find(row => row.analysisDate === preciseDate)!;
+  await saveReportedMeasurements(db, { ...actor, requestKey: "1".repeat(64), entryChannel: "api", deviceLabel: "虚构晨间秤-应用", records: [{ recordDate: preciseDate, period: "daytime", fasting: true, weightKg: "70.20", bodyFatPercent: null, measuredAt: `${preciseDate} 08:30:00`, timezone: "Asia/Shanghai" }] });
+  const before = (await listMeasurements(db, actor.userId)).find(row => row.recordDate === preciseDate)!;
   await saveMeasurementDay(db, actor, input({ daytime: { recordId: before.id, version: before.updatedAt.toISOString(), deviceLabel: "新虚构来源" } }, preciseDate));
   rows = await listMeasurements(db, actor.userId);
   const after = rows.find(row => row.id === before.id)!;
   for (const field of Object.keys(before) as (keyof typeof before)[]) if (field !== "deviceLabel" && field !== "updatedAt") assert.deepEqual(after[field], before[field], field);
-  assert.equal(rows.find(row => row.analysisDate === "2024-04-04" && row.period === "daytime")!.deviceLabel, "虚构晨间秤-应用", "名称快照不联动历史");
+  assert.equal(rows.find(row => row.recordDate === "2024-04-04" && row.period === "daytime")!.deviceLabel, "虚构晨间秤-应用", "名称快照不联动历史");
   assert.equal((await listMeasurementSources(db, actor.userId))[0], "新虚构来源");
   const events = await db.select().from(schema.measurementEvent).where(eq(schema.measurementEvent.measurementId, before.id));
   assert.equal(events.at(-1)!.actorId, actor.userId);
@@ -76,7 +88,7 @@ test("来源历史写入失败回滚测量、批次和审计；授权补齐仅�
   assert.deepEqual(await listMeasurements(db, actor.userId), []);
   assert.deepEqual(await listMeasurementSources(db, actor.userId), []);
   assert.deepEqual(await db.select().from(schema.measurementEvent).where(eq(schema.measurementEvent.userId, actor.userId)), []);
-  for (const target of [actor, other]) await saveReportedMeasurements(db, { ...target, requestKey: "2".repeat(64), entryChannel: "development_backend", records: [{ analysisDate: "2024-04-04", period: "evening", weightKg: "70", bodyFatPercent: null, fasting: false }] });
+  for (const target of [actor, other]) await saveReportedMeasurements(db, { ...target, requestKey: "2".repeat(64), entryChannel: "development_backend", records: [{ recordDate: "2024-04-04", period: "evening", weightKg: "70", bodyFatPercent: null, fasting: false }] });
   const before = (await listMeasurements(db, actor.userId))[0];
   assert.equal((await fillMissingMeasurementSources(db, actor, "虚构已确认秤-应用")).updated, 1);
   assert.equal((await fillMissingMeasurementSources(db, actor, "虚构已确认秤-应用")).updated, 0);
@@ -87,7 +99,7 @@ test("来源历史写入失败回滚测量、批次和审计；授权补齐仅�
 
 test("操作列覆盖今天、过去、部分实测、仅体脂及估计共存", () => {
   const date = "2024-04-04";
-  const row = { id: "fictional", analysisDate: date, period: "evening" as const, weightKg: null, bodyFatPercent: "20", fasting: false, sourceLocalTime: date, recordKind: "estimated" as "estimated" | "observed" };
+  const row = { id: "fictional", recordDate: date, period: "evening" as const, weightKg: null, bodyFatPercent: "20", fasting: false, sourceLocalTime: date, recordKind: "estimated" as "estimated" | "observed" };
   assert.equal(measurementDayAction([], date, date), "录入");
   assert.equal(measurementDayAction([], date, "2024-04-05"), "补录");
   assert.equal(measurementDayAction([row], date, date), "录入");

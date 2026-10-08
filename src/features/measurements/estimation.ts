@@ -38,7 +38,7 @@ export type LegacyEstimationMetadata = {
 };
 export type EstimationMetadata = MorningEstimationMetadata | InitializationEstimationMetadata | PreviousMorningMetadata | LegacyEstimationMetadata;
 export type HistoricalEstimate = {
-  analysisDate: string; period: "daytime" | "evening"; weightKg: string | null; bodyFatPercent: string | null;
+  recordDate: string; period: "daytime" | "evening"; weightKg: string | null; bodyFatPercent: string | null;
   estimation: MorningEstimationMetadata | InitializationEstimationMetadata;
 };
 export type EstimationOutcome = {
@@ -67,7 +67,7 @@ export function fitMeasurementModel(samples: Sample[]): LinearMeasurementModel |
 export function predictMeasurement(model: LinearMeasurementModel, date: string) {
   return model.meanValue + model.slope * (calendarOrdinal(date) - model.meanDate);
 }
-function sample(row: DailyMeasurement, metric: MeasurementMetric): Sample { return { id: row.id, date: row.analysisDate, value: row[metric]! }; }
+function sample(row: DailyMeasurement, metric: MeasurementMetric): Sample { return { id: row.id, date: row.recordDate, value: row[metric]! }; }
 function realPairs(records: DailyMeasurement[], metric: MeasurementMetric): PairSample[] {
   return buildMeasurementDays(records.filter(row => row.recordKind !== "estimated")).flatMap(day => {
     const morning = day.daytimeRecord, evening = day.eveningRecord;
@@ -82,7 +82,7 @@ function typicalDifference(samples: PairSample[]): TypicalDifference | null {
   return { value: ordered.length % 2 ? ordered[middle] : (ordered[middle - 1] + ordered[middle]) / 2, samples };
 }
 export function typicalMorningEveningDifference(records: DailyMeasurement[], date: string, metric: MeasurementMetric) {
-  return typicalDifference(realPairs(records.filter(row => row.analysisDate >= addCalendarDays(date, -ESTIMATION_POLICY.lookbackDays) && row.analysisDate < date), metric));
+  return typicalDifference(realPairs(records.filter(row => row.recordDate >= addCalendarDays(date, -ESTIMATION_POLICY.lookbackDays) && row.recordDate < date), metric));
 }
 function morningSamples(records: DailyMeasurement[], metric: MeasurementMetric) {
   return buildMeasurementDays(records.filter(row => row.recordKind !== "estimated")).map(day => day.daytimeRecord)
@@ -90,7 +90,7 @@ function morningSamples(records: DailyMeasurement[], metric: MeasurementMetric) 
 }
 /** 只读取此前真实晨间；估计和未来值不会回灌。 */
 function morningTrend(records: DailyMeasurement[], date: string, metric: MeasurementMetric) {
-  const samples = morningSamples(records.filter(row => row.analysisDate >= addCalendarDays(date, -ESTIMATION_POLICY.lookbackDays) && row.analysisDate < date), metric).slice(0, ESTIMATION_POLICY.maximumMorningSamples);
+  const samples = morningSamples(records.filter(row => row.recordDate >= addCalendarDays(date, -ESTIMATION_POLICY.lookbackDays) && row.recordDate < date), metric).slice(0, ESTIMATION_POLICY.maximumMorningSamples);
   if (!samples.length || calendarOrdinal(date) - calendarOrdinal(samples[0].date) > ESTIMATION_POLICY.maximumTrendGapDays) return null;
   return fitMeasurementModel(samples);
 }
@@ -120,7 +120,7 @@ type InitializationContext = { batchId: string; sourceDigest: string };
 function buildEstimates(records: DailyMeasurement[], range: MeasurementInterval, options: BuildOptions, initialization?: InitializationContext) {
   const span = calendarOrdinal(range.end) - calendarOrdinal(range.start);
   if (span < 0 || span > 365) throw new Error("补全范围须为顺序有效且不超过 366 天的日期区间。");
-  const observed = records.filter(row => row.recordKind !== "estimated" && (!initialization || (row.analysisDate >= range.start && row.analysisDate <= range.end)));
+  const observed = records.filter(row => row.recordKind !== "estimated" && (!initialization || (row.recordDate >= range.start && row.recordDate <= range.end)));
   const days = new Map(buildMeasurementDays(observed).map(day => [day.date, day]));
   const estimates: HistoricalEstimate[] = [], warnings: string[] = [], outcomes: EstimationOutcome[] = [];
   const generatedAt = options.generatedAt ?? new Date().toISOString();
@@ -136,7 +136,7 @@ function buildEstimates(records: DailyMeasurement[], range: MeasurementInterval,
         return !candidates.length || (candidates.length === 1 && !!row && row.fasting === (period === "daytime") && row[metric] === null);
       };
       const morningReal = usable(morning, true), eveningReal = usable(evening, false);
-      const pairs = realPairs(initialization ? observed : observed.filter(row => row.analysisDate >= addCalendarDays(date, -ESTIMATION_POLICY.lookbackDays) && row.analysisDate < date), metric);
+      const pairs = realPairs(initialization ? observed : observed.filter(row => row.recordDate >= addCalendarDays(date, -ESTIMATION_POLICY.lookbackDays) && row.recordDate < date), metric);
       const delta = typicalDifference(pairs);
       let baseline: number | null = morningReal ? Number(morning![metric]) : null;
       let trend: LinearMeasurementModel | null = null, interpolation: LinearInterpolation | null = null, extrapolation = false;
@@ -174,14 +174,14 @@ function buildEstimates(records: DailyMeasurement[], range: MeasurementInterval,
       }
     }
     for (const period of ["daytime", "evening"] as const) {
-      if (options.preserveExisting !== false && records.some(row => row.recordKind === "estimated" && row.analysisDate === date && row.period === period)) continue;
+      if (options.preserveExisting !== false && records.some(row => row.recordKind === "estimated" && row.recordDate === date && row.period === period)) continue;
       const prediction = result[period];
       if (!prediction.weightKg && !prediction.bodyFatPercent) continue;
       const common = { generatedAt, ...prediction };
       const estimation: HistoricalEstimate["estimation"] = initialization
         ? { ...common, method: INITIALIZATION_METHOD, mode: "historical-initialization", historyRange: range, policy: INITIALIZATION_POLICY, ...initialization, frozen: true }
         : { ...common, method: ESTIMATION_METHOD, mode: "normal", historyRange: { start: addCalendarDays(date, -ESTIMATION_POLICY.lookbackDays), end: addCalendarDays(date, -1) }, policy: ESTIMATION_POLICY };
-      estimates.push({ analysisDate: date, period, weightKg: prediction.weightKg?.value ?? null, bodyFatPercent: prediction.bodyFatPercent?.value ?? null, estimation });
+      estimates.push({ recordDate: date, period, weightKg: prediction.weightKg?.value ?? null, bodyFatPercent: prediction.bodyFatPercent?.value ?? null, estimation });
     }
   }
   return { estimates, warnings, outcomes };

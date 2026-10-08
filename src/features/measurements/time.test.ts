@@ -7,7 +7,7 @@ test("相同当地钟点在不同测量地具有相同归属、不同 UTC 时刻
   const local = "2025-07-10 01:15:00";
   assert.equal(resolveMeasurementTime(local, "Asia/Shanghai").occurredAt?.toISOString(), "2025-07-09T17:15:00.000Z");
   assert.equal(resolveMeasurementTime(local, "America/New_York").occurredAt?.toISOString(), "2025-07-10T05:15:00.000Z");
-  assert.equal(assignMeasurement(local).analysisDate, "2025-07-09");
+  assert.equal(assignMeasurement(local).recordDate, "2025-07-09");
   assert.equal(resolveMeasurementTime(local, "America/Los_Angeles").utcOffsetMinutes, -420);
 });
 

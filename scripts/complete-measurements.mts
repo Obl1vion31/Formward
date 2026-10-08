@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { createDatabase } from "../src/db/client";
 import { applyHistoricalCompletion, previewHistoricalCompletion, type HistoricalCompletionRequest } from "../src/features/measurements/completion";
+import { parseReportedMeasurement } from "../src/features/measurements/records";
 
 const [path, mode = "--preview", digest] = process.argv.slice(2);
 if (!path || !["--preview", "--write"].includes(mode) || (mode === "--write" && !digest) || (mode === "--preview" && digest)) throw new Error("用法：node --env-file=.env.local --import tsx scripts/complete-measurements.mts 私有请求JSON --preview|--write 预览摘要");
@@ -10,7 +11,7 @@ const input = JSON.parse(await readFile(path, "utf8")) as { userId: string; requ
 const legacy = input.request as HistoricalCompletionRequest & { deviceName?: string; companionApp?: string };
 input.request = { operationId: legacy.operationId, range: legacy.range, trainingRange: legacy.trainingRange,
   deviceLabel: legacy.deviceLabel ?? [legacy.deviceName, legacy.companionApp].filter(Boolean).join("-"),
-  records: legacy.records.map(({ analysisDate, period, weightKg, bodyFatPercent, fasting, timezone, assumedTime, measuredAt }) => ({ analysisDate, period, weightKg, bodyFatPercent, fasting, timezone, assumedTime, measuredAt })) };
+  records: legacy.records.map(parseReportedMeasurement) };
 const database = createDatabase(process.env.DATABASE_URL);
 try {
   const result = mode === "--preview" ? await previewHistoricalCompletion(database.db, input.userId, input.request)

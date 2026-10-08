@@ -18,7 +18,7 @@ import { restoreMeasurement } from "./maintenance";
 const date = (day: number) => `2024-01-${String(day).padStart(2, "0")}`;
 const range = { start: date(3), end: date(13) }, generatedAt = "2024-02-01T00:00:00.000Z";
 function row(day: number, period: "daytime" | "evening", weightKg: string, bodyFatPercent: string | null): DailyMeasurement {
-  return { id: `${day}:${period}`, analysisDate: date(day), period, weightKg, bodyFatPercent, recordKind: "observed", fasting: period === "daytime", sourceLocalTime: date(day) };
+  return { id: `${day}:${period}`, recordDate: date(day), period, weightKg, bodyFatPercent, recordKind: "observed", fasting: period === "daytime", sourceLocalTime: date(day) };
 }
 const real = [row(5, "daytime", "80.00", "24.00"), row(5, "evening", "81.00", "24.40"), row(7, "daytime", "82.00", "25.00"), row(7, "evening", "83.00", "25.40"), row(12, "daytime", "83.00", "26.00"), row(12, "evening", "85.00", "26.60")];
 const initialize = (records = real, targetRange = range) => buildInitializationEstimates(records, targetRange, { batchId: "fictional-batch", sourceDigest: "a".repeat(64) }, generatedAt);
@@ -26,7 +26,7 @@ const initialize = (records = real, targetRange = range) => buildInitializationE
 test("初始化用全范围真实配对反推早期晨间；正常模式不使用后续数据", () => {
   const records = [...real, row(3, "evening", "85.00", "26.00")];
   const estimates = initialize(records).estimates;
-  const morning = estimates.find(r => r.analysisDate === date(3) && r.period === "daytime")!;
+  const morning = estimates.find(r => r.recordDate === date(3) && r.period === "daytime")!;
   assert.equal(morning.weightKg, "84.00"); assert.equal(morning.bodyFatPercent, "25.60");
   assert.ok(isInitializationEstimate(morning.estimation));
   assert.equal(morning.estimation.weightKg!.typicalDifference!.samples.length, 3);
@@ -39,7 +39,7 @@ test("初始化用全范围真实配对反推早期晨间；正常模式不使�
 
 test("相邻晨间插值按日历距离，边界最近三个样本回归，指标独立", () => {
   const estimates = initialize().estimates;
-  const at = (day: number, period: string) => estimates.find(r => r.analysisDate === date(day) && r.period === period)!;
+  const at = (day: number, period: string) => estimates.find(r => r.recordDate === date(day) && r.period === period)!;
   assert.equal(at(6, "daytime").weightKg, "81.00"); assert.equal(at(6, "evening").weightKg, "82.00");
   assert.equal(at(6, "daytime").bodyFatPercent, "24.50"); assert.equal(at(6, "evening").bodyFatPercent, "24.90");
   assert.equal(at(8, "daytime").weightKg, "82.20");
@@ -47,7 +47,7 @@ test("相邻晨间插值按日历距离，边界最近三个样本回归，指�
   assert.equal(at(4, "daytime").estimation.weightKg!.extrapolation, true);
   assert.deepEqual(at(4, "daytime").estimation.weightKg!.trend!.samples.map(r => r.date), [date(5), date(7), date(12)]);
   assert.equal(at(13, "daytime").estimation.weightKg!.usesFutureData, false);
-  const partial = initialize([...real, row(8, "daytime", "82.50", null)]).estimates.find(r => r.analysisDate === date(8) && r.period === "daytime")!;
+  const partial = initialize([...real, row(8, "daytime", "82.50", null)]).estimates.find(r => r.recordDate === date(8) && r.period === "daytime")!;
   assert.equal(partial.weightKg, null); assert.equal(partial.bodyFatPercent, "25.20");
 });
 
@@ -55,12 +55,12 @@ test("初始化忽略范围外实测和已有估计；两点插值可用，配�
   const noise = [...real, row(1, "daytime", "900.00", "90.00"), row(14, "daytime", "900.00", "90.00"), { ...row(6, "daytime", "900.00", "90.00"), recordKind: "estimated" as const }];
   assert.deepEqual(initialize(noise), initialize());
   const two = initialize(real.slice(0, 4));
-  assert.equal(two.estimates.find(r => r.analysisDate === date(6))!.weightKg, "81.00");
-  assert.ok(!two.estimates.some(r => r.analysisDate === date(4)));
-  assert.ok(!two.estimates.some(r => r.analysisDate === date(6) && r.period === "evening"));
+  assert.equal(two.estimates.find(r => r.recordDate === date(6))!.weightKg, "81.00");
+  assert.ok(!two.estimates.some(r => r.recordDate === date(4)));
+  assert.ok(!two.estimates.some(r => r.recordDate === date(6) && r.period === "evening"));
   assert.ok(two.outcomes.find(r => r.date === date(6) && r.period === "evening")!.reason?.includes("不足 3 日"));
   assert.equal(initialize(real, { start: date(20), end: date(20) }).estimates.length, 0);
-  const oversizedGap = [row(1, "daytime", "80.00", null), { ...row(31, "daytime", "82.00", null), analysisDate: "2024-02-01" }];
+  const oversizedGap = [row(1, "daytime", "80.00", null), { ...row(31, "daytime", "82.00", null), recordDate: "2024-02-01" }];
   assert.equal(initialize(oversizedGap, { start: date(1), end: "2024-02-01" }).estimates.length, 0);
 });
 
@@ -85,13 +85,13 @@ test("中位差保留第三位小数，算式明确显示最终舍入", () => {
 const pg = new PGlite(), db = drizzle(pg, { schema });
 before(async () => { await migrate(db, { migrationsFolder: "./drizzle" }); });
 after(async () => { await pg.close(); });
-function reported(day: number, period: "daytime" | "evening", weightKg: string, bodyFatPercent: string | null = null): ReportedMeasurement { return { analysisDate: date(day), period, weightKg, bodyFatPercent, fasting: period === "daytime" }; }
+function reported(day: number, period: "daytime" | "evening", weightKg: string, bodyFatPercent: string | null = null): ReportedMeasurement { return { recordDate: date(day), period, weightKg, bodyFatPercent, fasting: period === "daytime" }; }
 async function write(owner: string, records: ReportedMeasurement[]) { return saveReportedMeasurements(db, { userId: owner, actorId: owner, requestKey: randomUUID().replaceAll("-", "").repeat(2), entryChannel: "api", records }); }
 async function recordsFor(owner: string) { return (await listMeasurements(db, owner)).sort((a, b) => a.id.localeCompare(b.id)); }
 async function setup(name: string) {
   const owner = `fictional-initialization-${name}`;
   await db.insert(schema.user).values({ id: owner, name: "虚构用户", email: `${name}@example.test` });
-  await write(owner, real.map(r => reported(Number(r.analysisDate.slice(-2)), r.period, r.weightKg!, r.bodyFatPercent)));
+  await write(owner, real.map(r => reported(Number(r.recordDate.slice(-2)), r.period, r.weightKg!, r.bodyFatPercent)));
   const request = { operationId: "fictional-normal-rebuild", range: { start: date(13), end: date(13) } }, preview = await previewEstimationRebuild(db, owner, request);
   await applyEstimationRebuild(db, { userId: owner, actorId: owner, request, digest: preview.digest });
   return owner;
@@ -111,9 +111,9 @@ test("独立初始化批次替换旧估计，报告追溯实际来源，真实�
   assert.equal(result.report.generatedRecords.length, 16); assert.equal(result.report.replacedEstimates.length, 2);
   assert.equal(result.report.outcomes.filter(r => r.status === "missing").length, 0);
   assert.deepEqual(after.filter(r => r.recordKind === "observed"), before.filter(r => r.recordKind === "observed"));
-  assert.deepEqual(after.filter(r => r.analysisDate > range.end), before.filter(r => r.analysisDate > range.end));
+  assert.deepEqual(after.filter(r => r.recordDate > range.end), before.filter(r => r.recordDate > range.end));
   assert.deepEqual(await recordsFor(other), otherBefore);
-  assert.ok(after.filter(r => r.recordKind === "estimated" && r.analysisDate <= range.end).every(r => isInitializationEstimate(r.estimation) && r.estimation.batchId === result.importId && r.assignmentRuleVersion === "historical-initialization-v1"));
+  assert.ok(after.filter(r => r.recordKind === "estimated" && r.recordDate <= range.end).every(r => isInitializationEstimate(r.estimation) && r.estimation.batchId === result.importId && r.assignmentRuleVersion === "historical-initialization-v1"));
   const [batch] = await db.select().from(schema.measurementImport).where(eq(schema.measurementImport.id, result.importId));
   assert.deepEqual(batch.initializationMetadata!.report, result.report);
   assert.match(initializationReportMarkdown(result.report), /真实晨间趋势（相邻插值）/);
@@ -124,14 +124,14 @@ test("未来新增保持历史；补晨间体重只移除对应估计，体脂�
   const owner = await setup("frozen"); await perform(owner);
   const before = await recordsFor(owner);
   await write(owner, [reported(14, "daytime", "70.00", "15.00"), reported(14, "evening", "90.00", "35.00")]);
-  assert.deepEqual((await recordsFor(owner)).filter(r => r.analysisDate <= range.end), before);
-  const morningBefore = before.find(r => r.analysisDate === date(6) && r.period === "daytime")!;
+  assert.deepEqual((await recordsFor(owner)).filter(r => r.recordDate <= range.end), before);
+  const morningBefore = before.find(r => r.recordDate === date(6) && r.period === "daytime")!;
   await write(owner, [reported(6, "daytime", "81.25")]);
   const after = await recordsFor(owner), morningAfter = after.find(r => r.id === morningBefore.id)!;
   assert.equal(morningAfter.weightKg, null); assert.equal(morningAfter.bodyFatPercent, morningBefore.bodyFatPercent);
   assert.ok(isInitializationEstimate(morningAfter.estimation)); assert.equal(morningAfter.estimation.weightKg, null);
   assert.deepEqual(morningAfter.estimation.bodyFatPercent, morningBefore.estimation!.bodyFatPercent);
-  assert.deepEqual(after.filter(r => r.analysisDate <= range.end && !(r.analysisDate === date(6) && r.period === "daytime")), before.filter(r => !(r.analysisDate === date(6) && r.period === "daytime")));
+  assert.deepEqual(after.filter(r => r.recordDate <= range.end && !(r.recordDate === date(6) && r.period === "daytime")), before.filter(r => !(r.recordDate === date(6) && r.period === "daytime")));
   await write(owner, [reported(6, "daytime", "81.25", "24.70")]);
   assert.ok(!(await recordsFor(owner)).some(r => r.id === morningBefore.id));
 });
@@ -144,23 +144,23 @@ test("普通补全跳过冻结日期，重建与恢复旧估计被阻止，实�
   assert.equal(preview.estimates.length, 0);
   await applyHistoricalCompletion(db, { userId: owner, actorId: owner, request, digest: preview.digest });
   let after = await recordsFor(owner);
-  assert.equal(after.find(r => r.analysisDate === date(6) && r.recordKind === "estimated" && r.period === "daytime")!.bodyFatPercent, "24.50");
-  assert.deepEqual(after.find(r => r.analysisDate === date(6) && r.period === "evening"), before.find(r => r.analysisDate === date(6) && r.period === "evening"));
+  assert.equal(after.find(r => r.recordDate === date(6) && r.recordKind === "estimated" && r.period === "daytime")!.bodyFatPercent, "24.50");
+  assert.deepEqual(after.find(r => r.recordDate === date(6) && r.period === "evening"), before.find(r => r.recordDate === date(6) && r.period === "evening"));
   await assert.rejects(previewEstimationRebuild(db, owner, { operationId: "blocked", range }), /冻结/);
   await assert.rejects(restoreMeasurement(db, { userId: owner, actorId: owner, id: result.report.replacedEstimates[0].id }), /冻结/);
-  const observed = after.find(r => r.analysisDate === date(6) && r.recordKind === "observed")!;
+  const observed = after.find(r => r.recordDate === date(6) && r.recordKind === "observed")!;
   await db.update(schema.measurement).set({ deletedAt: new Date() }).where(eq(schema.measurement.id, observed.id));
   await restoreMeasurement(db, { userId: owner, actorId: owner, id: observed.id });
   after = await recordsFor(owner);
-  assert.equal(after.find(r => r.analysisDate === date(6) && r.recordKind === "estimated" && r.period === "daytime")!.bodyFatPercent, "24.50");
-  assert.deepEqual(after.find(r => r.analysisDate === date(6) && r.period === "evening"), before.find(r => r.analysisDate === date(6) && r.period === "evening"));
+  assert.equal(after.find(r => r.recordDate === date(6) && r.recordKind === "estimated" && r.period === "daytime")!.bodyFatPercent, "24.50");
+  assert.deepEqual(after.find(r => r.recordDate === date(6) && r.period === "evening"), before.find(r => r.recordDate === date(6) && r.period === "evening"));
 });
 
 test("导入冻历史只替代真实指标，空缺也保持冻结", async () => {
   const owner = await setup("import"); await perform(owner);
   const before = await recordsFor(owner);
   await saveImportedMeasurements(db, { userId: owner, actorId: owner, fileDigest: "c".repeat(64), sourceLabel: "fictional.tsv", captureChannel: "file", records: [{ sourceLocalTime: `${date(6)} 08:00:00`, weightKg: "81.25", bodyFatPercent: null, sourceRow: 2, fasting: true, fastingSource: "user_confirmed" }] });
-  assert.deepEqual((await recordsFor(owner)).find(r => r.analysisDate === date(6) && r.period === "evening"), before.find(r => r.analysisDate === date(6) && r.period === "evening"));
+  assert.deepEqual((await recordsFor(owner)).find(r => r.recordDate === date(6) && r.period === "evening"), before.find(r => r.recordDate === date(6) && r.period === "evening"));
   const empty = "fictional-initialization-empty";
   await db.insert(schema.user).values({ id: empty, name: "虚构用户", email: "empty@example.test" });
   const initialized = await perform(empty);

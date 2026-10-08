@@ -1,6 +1,8 @@
 # 数据库连接与字段字典
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前有 9 张业务／认证表；`measurements` 为 31 列，`measurement_sources` 为 4 列。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前有 9 张业务／认证表；`measurements` 为 30 列，`measurement_sources` 为 4 列。
+
+`0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 
 ## 连接与演进流程
 
@@ -64,13 +66,12 @@ erDiagram
 | --- | --- | --- | --- | --- |
 | `id` | `text` | 无空值 | 稳定记录标识 | `认证 feature／measurements feature 创建` |
 | `user_id` | `text` | 无空值 | 所属账号；读写必须用已验证身份限定 | `认证／measurements feature` |
-| `source_local_time` | `text` | 无空值 | 原始当地时间；day_period 只含归属日期，assumed 含占位钟点，均不能当准确时间 | `records.ts／导入／准确时间维护` |
-| `local_date` | `date` | 无空值 | 实际发生地日历日期；跨午夜可与分析日不同 | `records.ts／assignment.ts` |
+| `source_local_time` | `text` | 无空值 | 原始当地时间；day_period 只含记录日期，assumed 含占位钟点，均不能当准确时间 | `records.ts／导入／准确时间维护` |
 | `occurred_at` | `timestamp with time zone` | 可空：未提供／不适用，具体见用途 | 准确测量的 UTC 时刻；未知时区或占位／日期时段／估计时为空 | `records.ts／time.ts` |
 | `timezone` | `text` | 可空：未提供／不适用，具体见用途 | 当次 IANA 时区；空值表示未知，不用当前所在地改旧数据 | `records.ts／time.ts` |
 | `utc_offset_minutes` | `integer` | 可空：未提供／不适用，具体见用途 | 当次相对 UTC 的分钟偏移；空值表示没有准确时刻或未知 | `time.ts` |
 | `time_precision` | `text` | 无空值；默认 'second' | second 为准确时间；day_period 为日期时段；assumed 为明确授权占位 | `records.ts／估计 feature` |
-| `analysis_date` | `date` | 无空值 | 晨晚分析归属日；日历空白日期独立保存 | `records.ts／editing.ts／assignment.ts` |
+| `record_date` | `date` | 无空值 | 唯一记录日期，用于日历、晨晚配对和估计；凌晨仍放前一天晚间 | `records.ts／editing.ts／assignment.ts` |
 | `period` | `text` | 无空值 | daytime 或 evening；当地凌晨按前日晚间归属 | `assignment.ts／records.ts` |
 | `assignment_method` | `text` | 无空值 | 归属方式，例如 clock、user_period、estimated_target | `assignment.ts／records.ts／estimate-records.ts` |
 | `assignment_rule_version` | `text` | 无空值 | 归属规则版本，旧记录不自动重分组 | `assignment.ts／records.ts／estimate-records.ts` |
@@ -98,8 +99,8 @@ erDiagram
 
 - 主键：`id`。
 - 唯一索引 `measurements_user_dedup_idx`：`user_id, deduplication_key`。
-- 唯一索引 `measurements_active_estimate_idx`：`user_id, analysis_date, period`；条件 `"measurements"."record_kind" = 'estimated' AND "measurements"."deleted_at" IS NULL`。
-- 索引 `measurements_user_analysis_date_idx`：`user_id, analysis_date`。
+- 唯一索引 `measurements_active_estimate_idx`：`user_id, record_date, period`；条件 `"measurements"."record_kind" = 'estimated' AND "measurements"."deleted_at" IS NULL`。
+- 索引 `measurements_user_record_date_idx`：`user_id, record_date`。
 - 外键 `measurements_user_id_users_id_fk`：`user_id` → `users.id`；删除规则 `cascade`。
 - 外键 `measurements_import_id_measurement_imports_id_fk`：`import_id` → `measurement_imports.id`；删除规则 `no action`。
 - 检查 `measurements_weight_valid`：`"measurements"."weight_kg" > 0`。
@@ -118,7 +119,7 @@ erDiagram
 | --- | --- | --- | --- | --- |
 | `id` | `text` | 无空值 | 稳定记录标识 | `认证 feature／measurements feature 创建` |
 | `user_id` | `text` | 无空值 | 所属账号；读写必须用已验证身份限定 | `认证／measurements feature` |
-| `analysis_date` | `date` | 无空值 | 晨晚分析归属日；日历空白日期独立保存 | `records.ts／editing.ts／assignment.ts` |
+| `record_date` | `date` | 无空值 | 唯一记录日期，用于日历、晨晚配对和估计；凌晨仍放前一天晚间 | `records.ts／editing.ts／assignment.ts` |
 | `reminder_skipped_at` | `timestamp with time zone` | 可空：未提供／不适用，具体见用途 | 既有当天停止提醒时刻；空值表示未停止，当前网页不暴露开关 | `editing.ts 内部兼容函数` |
 | `created_by` | `text` | 无空值 | 创建操作者标识，与来源真实性分开 | `各写入 feature` |
 | `created_at` | `timestamp with time zone` | 无空值；默认 now() | 创建时间；不是测量时间 | `创建记录时由数据库／feature 写入` |
@@ -128,7 +129,7 @@ erDiagram
 约束与索引：
 
 - 主键：`id`。
-- 唯一索引 `measurement_days_user_date_idx`：`user_id, analysis_date`。
+- 唯一索引 `measurement_days_user_date_idx`：`user_id, record_date`。
 - 外键 `measurement_days_user_id_users_id_fk`：`user_id` → `users.id`；删除规则 `cascade`。
 
 ### `measurement_events`
@@ -260,6 +261,6 @@ Drizzle migrator 在业务 schema 外建立此表，保存已执行版本；不�
 
 测量至少有体重或体脂之一；体重必须为正，体脂在 0–100 范围。实测 estimation 为空，估计 estimation 非空且 UTC 时刻为空；day_period／assumed 同样不生成 UTC。有效估计按账号、日期和时段唯一；软删除记录仍占去重键，重导不能复活。初始化批次按账号部分唯一，即使冻结范围内仍有空缺也不能重新初始化。来源建议按账号与 label 唯一，最近使用索引用于本账号排序；所有历史名称与使用时间只在成功实测事务里更新。
 
-来源必填是网页实测 feature 的校验，不把新约束强行套到未知历史来源；旧晨间条件未知／非空腹记录仍只读。仅改来源保留原录入入口、准确时间与数值，并保存修改者和时间。来源不会触发估算或重建冻结历史。
+来源输入只回显保存值，未知值留空，历史建议不自动填入；来源必填是网页实测 feature 的校验，不把新约束强行套到未知历史来源；旧晨间条件未知／非空腹记录仍只读。仅改来源保留原录入入口、准确时间与数值，并保存修改者和时间。来源不会触发估算或重建冻结历史。
 
-运行 `pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm build` 后，在隔离虚构数据库执行开发与 production 浏览器验收。`migration.test.ts` 以旧 schema 验证 33→31 列、设备合并、快照保留、旧文件重导和软删除；`sources.test.ts` 覆盖必填、晨晚来源、最近排序、仅来源编辑、回滚、幂等、跨账号与按钮状态。完整运行方式见 [测试目录](../tests/README.md)。
+运行 `pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm build` 后，在隔离虚构数据库执行开发与 production 浏览器验收。`migration.test.ts` 以旧 schema 验证 33→30 列、设备合并、快照保留、旧文件重导和软删除；`sources.test.ts` 覆盖必填、晨晚来源、最近排序、仅来源编辑、回滚、幂等、跨账号与按钮状态。完整运行方式见 [测试目录](../tests/README.md)。

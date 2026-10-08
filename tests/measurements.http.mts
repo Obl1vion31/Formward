@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { cp, mkdtemp, rm, symlink } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -12,7 +12,8 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { provisionAccount } from "../src/features/auth/provision";
 import { previewMeasurementTsv } from "../src/features/imports/measurements";
-import { saveImportedMeasurements, saveReportedMeasurements } from "../src/features/measurements/records";
+import { listMeasurements, saveImportedMeasurements, saveReportedMeasurements } from "../src/features/measurements/records";
+import { saveMeasurementDay } from "../src/features/measurements/editing";
 import { applyHistoricalCompletion, previewHistoricalCompletion, type HistoricalCompletionRequest } from "../src/features/measurements/completion";
 import { applyHistoricalInitialization, previewHistoricalInitialization } from "../src/features/measurements/initialization";
 import * as schema from "../src/db/schema";
@@ -25,6 +26,17 @@ const serverDirectory = development ? await mkdtemp(join(tmpdir(), "formward-mea
 if (development) {
   await Promise.all(["src", "package.json", "pnpm-lock.yaml", "tsconfig.json", "next-env.d.ts", "next.config.ts", "postcss.config.mjs", "AGENTS.md"].map((name) => cp(join(projectRoot, name), join(serverDirectory, name), { recursive: true })));
   await Promise.all(["node_modules", "public"].map((name) => symlink(join(projectRoot, name), join(serverDirectory, name), "dir")));
+  // 测试刷新控制只写入临时源码副本，不给产品增加测试入口。
+  await writeFile(join(serverDirectory, "src/app/dashboard/test-refresh.tsx"), `"use client";
+import { useRouter } from "next/navigation";
+export function TestRefresh({ revision }: { revision: string }) {
+  const router = useRouter();
+  return <button hidden data-test-refresh data-revision={revision} onClick={() => router.refresh()}>测试刷新</button>;
+}
+`);
+  const pagePath = join(serverDirectory, "src/app/dashboard/page.tsx");
+  const pageSource = await readFile(pagePath, "utf8");
+  await writeFile(pagePath, `import { TestRefresh } from "./test-refresh";\n${pageSource.replace('<main className="dashboard-page">', '<main className="dashboard-page"><TestRefresh revision={records.map(row => row.updatedAt.toISOString()).join(",")} />')}`);
 }
 const pg = new PGlite();
 const db = drizzle(pg, { schema });
@@ -39,10 +51,11 @@ await db.update(schema.user).set({ createdAt: new Date("2024-02-27T00:00:00Z") }
 const today = localMeasurementDate(new Date(), "Asia/Shanghai");
 const priorDate = (offset: number) => new Date(Date.parse(`${today}T00:00:00Z`) - offset * 86_400_000).toISOString().slice(0, 10);
 await saveReportedMeasurements(db, { userId: entryOwner.id, actorId: entryOwner.id, requestKey: "8".repeat(64), entryChannel: "api", deviceLabel: "虚构默认秤-应用", records: [3, 2, 1].flatMap(offset => [
-  { analysisDate: priorDate(offset), period: "daytime" as const, weightKg: "70.00", bodyFatPercent: "20.00", fasting: true },
-  { analysisDate: priorDate(offset), period: "evening" as const, weightKg: "70.50", bodyFatPercent: "20.40", fasting: false },
+  { recordDate: priorDate(offset), period: "daytime" as const, weightKg: "70.00", bodyFatPercent: "20.00", fasting: true },
+  { recordDate: priorDate(offset), period: "evening" as const, weightKg: "70.50", bodyFatPercent: "20.40", fasting: false },
 ]) });
-await saveReportedMeasurements(db, { userId: entryOwner.id, actorId: entryOwner.id, requestKey: "7".repeat(64), entryChannel: "api", records: [4, 5].map(offset => ({ analysisDate: priorDate(offset), period: "daytime" as const, weightKg: "71.00", bodyFatPercent: null, fasting: offset === 4 ? null : false })) });
+await saveReportedMeasurements(db, { userId: entryOwner.id, actorId: entryOwner.id, requestKey: "7".repeat(64), entryChannel: "api", records: [4, 5].map(offset => ({ recordDate: priorDate(offset), period: "daytime" as const, weightKg: "71.00", bodyFatPercent: null, fasting: offset === 4 ? null : false })) });
+await saveReportedMeasurements(db, { userId: entryOwner.id, actorId: entryOwner.id, requestKey: "6".repeat(64), entryChannel: "api", records: [{ recordDate: priorDate(6), period: "evening", weightKg: "70.70", bodyFatPercent: null, fasting: false, measuredAt: `${priorDate(6)} 20:30:00`, timezone: "Asia/Shanghai" }] });
 const owner = await provisionAccount(db, first);
 await provisionAccount(db, second);
 const fixtureTsv = [
@@ -65,15 +78,15 @@ await saveImportedMeasurements(db, { userId: owner.id, actorId: owner.id, fileDi
 const completionRequest: HistoricalCompletionRequest = {
   operationId: "fictional-browser-completion", range: { start: "2025-07-01", end: "2025-07-13" }, trainingRange: { start: "2025-06-17", end: "2025-07-14" },
   deviceLabel: "虚构蓝牙体重秤-虚构连接应用", records: [
-    { analysisDate: "2025-07-14", period: "daytime", weightKg: "74.60", bodyFatPercent: "24.90", fasting: true, timezone: "Asia/Shanghai", assumedTime: "08:00" },
-    { analysisDate: "2025-07-14", period: "evening", weightKg: "75.10", bodyFatPercent: "25.20", fasting: false, timezone: "Asia/Shanghai", assumedTime: "20:00" },
+    { recordDate: "2025-07-14", period: "daytime", weightKg: "74.60", bodyFatPercent: "24.90", fasting: true, timezone: "Asia/Shanghai", assumedTime: "08:00" },
+    { recordDate: "2025-07-14", period: "evening", weightKg: "75.10", bodyFatPercent: "25.20", fasting: false, timezone: "Asia/Shanghai", assumedTime: "20:00" },
   ],
 };
 const completionPreview = await previewHistoricalCompletion(db, owner.id, completionRequest);
 await applyHistoricalCompletion(db, { userId: owner.id, actorId: owner.id, request: completionRequest, digest: completionPreview.digest });
 await saveReportedMeasurements(db, { userId: initializedOwner.id, actorId: initializedOwner.id, requestKey: "9".repeat(64), entryChannel: "api", records: [5, 7, 12].flatMap((day, index) => [
-  { analysisDate: `2025-08-${String(day).padStart(2, "0")}`, period: "daytime" as const, weightKg: ["80.00", "82.00", "83.00"][index], bodyFatPercent: ["24.00", "25.00", "26.00"][index], fasting: true },
-  { analysisDate: `2025-08-${String(day).padStart(2, "0")}`, period: "evening" as const, weightKg: ["81.00", "83.00", "85.00"][index], bodyFatPercent: ["24.40", "25.40", "26.60"][index], fasting: false },
+  { recordDate: `2025-08-${String(day).padStart(2, "0")}`, period: "daytime" as const, weightKg: ["80.00", "82.00", "83.00"][index], bodyFatPercent: ["24.00", "25.00", "26.00"][index], fasting: true },
+  { recordDate: `2025-08-${String(day).padStart(2, "0")}`, period: "evening" as const, weightKg: ["81.00", "83.00", "85.00"][index], bodyFatPercent: ["24.40", "25.40", "26.60"][index], fasting: false },
 ]) });
 const initializationRequest = { operationId: "fictional-browser-initialization", range: { start: "2025-08-03", end: "2025-08-13" } };
 const initializationPreview = await previewHistoricalInitialization(db, initializedOwner.id, initializationRequest);
@@ -152,7 +165,11 @@ try {
   console.log("通过：跨账号参数不能读到测量，无记录账号仍显示空状态。");
   if (process.env.FORMWARD_MEASUREMENTS_BROWSER === "1") {
     const { checkMeasurementsBrowser } = await import("./measurements.browser.mjs");
-    await checkMeasurementsBrowser({ baseURL, first, second, initializedAccount, entryAccount, today });
+    const refreshSource = development ? async (date: string, deviceLabel: string) => {
+      const row = (await listMeasurements(db, entryOwner.id)).find(row => row.recordDate === date && row.period === "daytime")!;
+      await saveMeasurementDay(db, { userId: entryOwner.id, actorId: entryOwner.id }, { date, timezone: "Asia/Shanghai", operationId: crypto.randomUUID(), periods: { daytime: { recordId: row.id, version: row.updatedAt.toISOString(), deviceLabel } } });
+    } : undefined;
+    await checkMeasurementsBrowser({ baseURL, first, second, initializedAccount, entryAccount, today, refreshSource });
   }
 } finally {
   if (child.exitCode === null && !child.signalCode) {

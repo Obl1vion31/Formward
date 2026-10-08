@@ -11,9 +11,9 @@ import { SourceInput } from "./source-input";
 type Draft = Record<EntryPeriod, { weightKg: string; bodyFatPercent: string; deviceLabel: string }>;
 const periodName = (period: EntryPeriod) => period === "daytime" ? "晨间" : "晚间";
 const metricName = (metric: MeasurementMetric) => metric === "weightKg" ? "体重" : "体脂率";
-function makeDraft(records: MeasurementDisplay[], date: string, choices: Record<string, string>, sources: string[]): Draft {
+function makeDraft(records: MeasurementDisplay[], date: string, choices: Record<string, string>): Draft {
   return Object.fromEntries(measurementEntryState(records, date, choices).map(group => [group.period, {
-    weightKg: group.observed?.weightKg ?? "", bodyFatPercent: group.observed?.bodyFatPercent ?? "", deviceLabel: group.observed?.deviceLabel ?? sources[0] ?? "",
+    weightKg: group.observed?.weightKg ?? "", bodyFatPercent: group.observed?.bodyFatPercent ?? "", deviceLabel: group.observed?.deviceLabel ?? "",
   }])) as Draft;
 }
 
@@ -22,13 +22,21 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
   editing?: boolean; onUpdated: (result: Extract<EntryResult, { ok: true }>) => void;
   onChoose: (date: string, period: EntryPeriod, id: string) => void;
 }) {
-  const [draft, setDraft] = useState(() => makeDraft(records, date, choices, sources));
+  const [baseRecords, setBaseRecords] = useState(records);
+  const [lastRecords, setLastRecords] = useState(records);
+  const [draft, setDraft] = useState(() => makeDraft(records, date, choices));
   const [busy, setBusy] = useState(false), [message, setMessage] = useState(""), [error, setError] = useState("");
   const request = useRef({ signature: "", id: "" });
   const groups = measurementEntryState(records, date, choices).map(group => ({ ...group, blocked: group.period === "daytime" && !!group.observed && group.observed.fasting !== true }));
   const remaining = missingMeasurementCells(records, date, choices).length;
-  const baseline = makeDraft(records, date, choices, sources);
+  const baseline = makeDraft(baseRecords, date, choices);
   const dirty = groups.some(group => !group.pending && !group.blocked && (entryMetrics.some(field => draft[group.period][field] !== baseline[group.period][field]) || (!!group.observed && draft[group.period].deviceLabel !== baseline[group.period].deviceLabel)));
+  const hasDraft = (["daytime", "evening"] as const).some(period => [...entryMetrics, "deviceLabel" as const].some(field => draft[period][field] !== baseline[period][field]));
+  // 新服务端快照只更新干净表单；草稿继续绑定开始编辑时的版本。
+  if (records !== lastRecords) {
+    setLastRecords(records);
+    if (!hasDraft && !busy) { setBaseRecords(records); setDraft(makeDraft(records, date, choices)); }
+  }
   function setField(period: EntryPeriod, field: keyof Draft[EntryPeriod], value: string) {
     setDraft(previous => ({ ...previous, [period]: { ...previous[period], [field]: value } })); setMessage(""); setError("");
   }
@@ -42,7 +50,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
     try {
       const result = await work();
       if (!result.ok) { setError(result.error); return; }
-      onUpdated(result); setDraft(makeDraft(result.records, date, choices, result.sources)); setMessage(result.message);
+      onUpdated(result); setBaseRecords(result.records); setDraft(makeDraft(result.records, date, choices)); setMessage(result.message);
       request.current = { signature: "", id: "" };
     } catch { setError("网络连接未完成，请重试。已输入的数值仍保留。"); }
     finally { setBusy(false); }
@@ -58,7 +66,8 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       if (!Object.keys(change).length) continue;
       change.deviceLabel = draft[group.period].deviceLabel.trim();
       change.fasting = group.period === "daytime";
-      if (group.observed) { change.recordId = group.observed.id; change.version = group.observed.updatedAt; }
+      const original = measurementEntryState(baseRecords, date, choices).find(item => item.period === group.period)!.observed;
+      if (original) { change.recordId = original.id; change.version = original.updatedAt; }
       periods[group.period] = change;
     }
     const payload = { date, timezone, periods };
@@ -73,7 +82,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       {groups.map(group => <fieldset key={group.period} className={group.period === "daytime" ? styles.dayValue : styles.nightValue} disabled={busy || group.blocked}>
         <legend>{group.blocked ? `白天 · ${group.observed?.fasting === false ? "非空腹" : "空腹未确认"}` : `${periodName(group.period)} · ${group.period === "daytime" ? "空腹" : "非空腹"}`}</legend>
         {group.pending ? <label className={styles.entryCandidate}>已有 {group.candidates.length} 条实测，请先选择记录
-          <select aria-label={`录入${periodName(group.period)}候选记录`} value="" onChange={event => { onChoose(date, group.period, event.target.value); const nextChoices = { ...choices, [`${date}:${group.period}`]: event.target.value }; const next = makeDraft(records, date, nextChoices, sources); setDraft(previous => ({ ...previous, [group.period]: next[group.period] })); }}>
+          <select aria-label={`录入${periodName(group.period)}候选记录`} value="" onChange={event => { onChoose(date, group.period, event.target.value); const nextChoices = { ...choices, [`${date}:${group.period}`]: event.target.value }; const next = makeDraft(records, date, nextChoices); setBaseRecords(previous => [...previous.filter(row => !(row.recordDate === date && row.period === group.period)), ...records.filter(row => row.recordDate === date && row.period === group.period)]); setDraft(previous => ({ ...previous, [group.period]: next[group.period] })); }}>
             <option value="">选择已有记录</option>{group.candidates.map(row => <option key={row.id} value={row.id}>{row.sourceLocalTime} · {row.weightKg ?? "—"} kg · {row.bodyFatPercent ?? "—"}%</option>)}
           </select>
         </label> : <>

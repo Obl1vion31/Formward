@@ -23,7 +23,7 @@ export type SaveMeasurementDayInput = { date: string; timezone: string | null; p
 export type EstimateCellInput = { date: string; period: EntryPeriod; metric: MeasurementMetric; operationId: string };
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 export function measurementDisplay(row: typeof measurement.$inferSelect): MeasurementDisplay {
-  return { id: row.id, analysisDate: row.analysisDate, localDate: row.localDate, period: row.period,
+  return { id: row.id, recordDate: row.recordDate, period: row.period,
     weightKg: row.weightKg, bodyFatPercent: row.bodyFatPercent, fasting: row.fasting,
     sourceLocalTime: row.sourceLocalTime, timezone: row.timezone, sourceType: row.sourceType,
     sourceSystem: row.sourceSystem, sourceRecordId: row.sourceRecordId, recordKind: row.recordKind,
@@ -51,13 +51,13 @@ async function startOperation(tx: MeasurementTransaction, actor: MeasurementActo
 
 async function ensureDate(tx: MeasurementTransaction, actor: MeasurementActor, date: string, skip = false) {
   const now = new Date();
-  await tx.insert(measurementDay).values({ id: randomUUID(), userId: actor.userId, analysisDate: date, createdBy: actor.actorId, reminderSkippedAt: skip ? now : null })
-    .onConflictDoUpdate({ target: [measurementDay.userId, measurementDay.analysisDate], set: { deletedAt: null, updatedAt: now, ...(skip ? { reminderSkippedAt: now } : {}) } });
+  await tx.insert(measurementDay).values({ id: randomUUID(), userId: actor.userId, recordDate: date, createdBy: actor.actorId, reminderSkippedAt: skip ? now : null })
+    .onConflictDoUpdate({ target: [measurementDay.userId, measurementDay.recordDate], set: { deletedAt: null, updatedAt: now, ...(skip ? { reminderSkippedAt: now } : {}) } });
 }
 export async function listMeasurementDates(db: Database, userId: string) {
   if (!userId?.trim()) throw new Error("缺少经过验证的账号。");
   const rows = await db.select().from(measurementDay).where(and(eq(measurementDay.userId, userId), isNull(measurementDay.deletedAt)));
-  return rows.map(row => ({ date: row.analysisDate, reminderSkipped: row.reminderSkippedAt !== null }));
+  return rows.map(row => ({ date: row.recordDate, reminderSkipped: row.reminderSkippedAt !== null }));
 }
 export async function createMeasurementDate(db: Database, actor: MeasurementActor, date: string) {
   requireActor(actor); calendarOrdinal(date);
@@ -83,11 +83,11 @@ export async function saveMeasurementDay(db: Database, actor: MeasurementActor, 
       if (!edit) continue;
       if (!entryMetrics.some(metric => Object.hasOwn(edit, metric)) && !Object.hasOwn(edit, "deviceLabel") && !Object.hasOwn(edit, "fasting")) throw new Error("请选择要保存的指标。");
       const [before] = edit.recordId ? await tx.select().from(measurement).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, edit.recordId), isNull(measurement.deletedAt))) : [];
-      if (edit.recordId && (!before || before.recordKind !== "observed" || before.analysisDate !== input.date || before.period !== period)) throw new Error("记录不存在或不属于当前日期时段。");
+      if (edit.recordId && (!before || before.recordKind !== "observed" || before.recordDate !== input.date || before.period !== period)) throw new Error("记录不存在或不属于当前日期时段。");
       if (before && before.updatedAt.toISOString() !== edit.version) throw new Error("记录已变化，请刷新后重新编辑。");
       const values = { weightKg: before?.weightKg ?? null, bodyFatPercent: before?.bodyFatPercent ?? null, fasting: before?.fasting ?? null };
       for (const field of ["weightKg", "bodyFatPercent", "fasting"] as const) if (Object.hasOwn(edit, field)) Object.assign(values, { [field]: edit[field] });
-      const valid = validateReportedMeasurement({ analysisDate: input.date, period, ...values, timezone: input.timezone });
+      const valid = validateReportedMeasurement({ recordDate: input.date, period, ...values, timezone: input.timezone });
       // 晨间表单只接收空腹实测，也不能把旧的非空腹／未知记录静默改为空腹。
       if (period === "daytime" && (valid.fasting !== true || (before && before.fasting !== true))) throw new Error("晨间只记录空腹测量；原记录非空腹或条件未确认时保持只读。");
       const deviceLabel = validateDeviceLabel(Object.hasOwn(edit, "deviceLabel") ? edit.deviceLabel : before?.deviceLabel);
@@ -96,7 +96,7 @@ export async function saveMeasurementDay(db: Database, actor: MeasurementActor, 
         await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: after.id, action: "update", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { before, after, reason: "manual_measurement_edit", importId: batch.id } });
         if (before.weightKg !== valid.weightKg || before.bodyFatPercent !== valid.bodyFatPercent) await supersedeEstimates(tx, actor, input.date, period);
       } else {
-        const prior = await tx.select().from(measurement).where(and(eq(measurement.userId, actor.userId), eq(measurement.analysisDate, input.date), eq(measurement.period, period), eq(measurement.recordKind, "observed"), isNull(measurement.deletedAt)));
+        const prior = await tx.select().from(measurement).where(and(eq(measurement.userId, actor.userId), eq(measurement.recordDate, input.date), eq(measurement.period, period), eq(measurement.recordKind, "observed"), isNull(measurement.deletedAt)));
         if (prior.length) throw new Error("该时段已有实测，请刷新并选择要编辑的记录。");
         await insertReportedMeasurement(tx, actor, valid, batch.id, { entryChannel: "manual", deviceLabel });
       }
@@ -120,7 +120,7 @@ export async function estimateMeasurementCell(db: Database, actor: MeasurementAc
     const initialization = await getInitializationBatch(tx, actor.userId);
     if (isFrozenDate(initialization, input.date)) throw new Error("历史补全已固定，可补录实测，不再新增估计。");
     const records = await tx.select().from(measurement).where(and(eq(measurement.userId, actor.userId), isNull(measurement.deletedAt)));
-    const samePeriod = records.filter(row => row.analysisDate === input.date && row.period === input.period);
+    const samePeriod = records.filter(row => row.recordDate === input.date && row.period === input.period);
     if (samePeriod.some(row => row[input.metric] !== null)) throw new Error("该指标已有数值，请刷新查看；没有覆盖。");
     const calculated = buildHistoricalEstimates(records, { start: input.date, end: input.date }, { preserveExisting: false });
     const prediction = calculated.estimates.find(row => row.period === input.period);

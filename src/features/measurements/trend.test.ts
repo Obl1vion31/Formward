@@ -4,7 +4,7 @@ import { buildMeasurementDays, recentMeasurementDays, type DailyMeasurement } fr
 import { addCalendarDays, calendarOrdinal, measurementDateTicks, measurementRange, measurementTrend, metricDifference, normalScale } from "./trend";
 
 const row = (id: string, date: string, period: "daytime" | "evening", weightKg = "75.00", bodyFatPercent: string | null = "25.00"): DailyMeasurement => ({
-  id, analysisDate: date, period, weightKg, bodyFatPercent, fasting: period === "daytime", sourceLocalTime: `${date} ${period === "daytime" ? "11" : "20"}:00:00`,
+  id, recordDate: date, period, weightKg, bodyFatPercent, fasting: period === "daytime", sourceLocalTime: `${date} ${period === "daytime" ? "11" : "20"}:00:00`,
 });
 
 test("两指标高值在上，跨度至少为 3，单点与极值都留在刻度内", () => {

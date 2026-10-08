@@ -9,7 +9,7 @@ export type EntryPeriod = typeof entryPeriods[number];
 export type EntryCell = { period: EntryPeriod; metric: MeasurementMetric };
 export type MeasurementDateDisplay = { date: string; reminderSkipped: boolean };
 export type MeasurementDisplay = DailyMeasurement & {
-  timezone: string | null; localDate: string;
+  timezone: string | null;
   sourceType: string; sourceSystem: string | null; sourceRecordId: string | null;
   recordKind: "observed" | "estimated"; entryChannel: "api" | "manual" | "development_backend" | null;
   deviceLabel: string | null; estimation: EstimationMetadata | null;
@@ -29,7 +29,7 @@ export function localMeasurementDate(now = new Date(), timezone?: string) {
 /** 候选未确定时要求选择已有记录，不能把它当空值再次录入。 */
 export function measurementEntryState<T extends DailyMeasurement>(records: T[], date: string, choices: Record<string, string> = {}) {
   return entryPeriods.map(period => {
-    const rows = records.filter(row => row.analysisDate === date && row.period === period);
+    const rows = records.filter(row => row.recordDate === date && row.period === period);
     const observed = rows.filter(row => row.recordKind !== "estimated");
     const selected = observed.find(row => row.id === choices[`${date}:${period}`]) ?? (observed.length === 1 ? observed[0] : null);
     const pending = observed.length > 1 && !selected;
@@ -46,5 +46,5 @@ export function missingMeasurementCells(records: DailyMeasurement[], date: strin
 }
 
 export function measurementDayAction(records: DailyMeasurement[], date: string, today: string) {
-  return records.some(row => row.analysisDate === date && row.recordKind !== "estimated") ? "编辑" : date === today ? "录入" : "补录";
+  return records.some(row => row.recordDate === date && row.recordKind !== "estimated") ? "编辑" : date === today ? "录入" : "补录";
 }

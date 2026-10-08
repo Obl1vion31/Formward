@@ -11,8 +11,8 @@ if (!file || (mode && mode !== "--write" && mode !== "--preview") || (mode === "
   throw new Error("用法：node --env-file=.env.local --import tsx scripts/import-measurements.mts 文件路径 [账号邮箱] [--preview|--write] [IANA时区] [--daytime-fasting]");
 }
 const preview = previewMeasurementTsv(await readFile(file, "utf8"), timezone ?? null, fastingFlag === "--daytime-fasting");
-console.table(preview.records.map(({ sourceLocalTime, analysisDate, period, weightKg }) => ({
-  原始当地时间: sourceLocalTime, 归属日: analysisDate, 时段: period === "daytime" ? "白天" : "晚间", 体重: weightKg,
+console.table(preview.records.map(({ sourceLocalTime, recordDate, period, weightKg }) => ({
+  原始当地时间: sourceLocalTime, 记录日期: recordDate, 时段: period === "daytime" ? "白天" : "晚间", 体重: weightKg,
 })));
 console.log(`${preview.records.length} 条；时区：${timezone ?? "未知"}；白天空腹：${fastingFlag ? "用户已确认" : "未知"}。`);
 if (mode === "--write") {

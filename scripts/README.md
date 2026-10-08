@@ -27,3 +27,5 @@
 配置读取 `.env.local`，不把账号密码放在命令行参数、源码或公开文件中。账号创建和数据库接入步骤见 [接入指南](../docs/auth-setup.md)。后续导入预览和数据一致性检查也调用正式 feature，不复制业务规则。
 
 旧补全私有请求的拆分设备字段仅在 `complete-measurements.mts` 入口转换为 deviceLabel；旧 BMI 被忽略，原文件不改写。当前 feature 及新维护请求只使用合并来源。数据库字段及迁移检查见 [数据库字典](../docs/database.md)。
+
+测量维护请求的日期使用 `recordDate`；旧私有 JSON 的 `analysisDate` 在读取入口兼容，双字段不同则拒绝，原文件不改写。旧补全请求指纹仍返回原批次；结构迁移前的预览须重新生成。

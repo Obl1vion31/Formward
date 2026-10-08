@@ -10,7 +10,7 @@ const options = { generatedAt, preserveExisting: false };
 const range = { start: "2024-01-04", end: "2024-01-04" };
 function row(day: number, period: "daytime" | "evening", weightKg: string | null, bodyFatPercent: string | null): DailyMeasurement {
   const date = `2024-01-${String(day).padStart(2, "0")}`;
-  return { id: `${day}:${period}`, analysisDate: date, period, weightKg, bodyFatPercent, fasting: period === "daytime", sourceLocalTime: `${date} ${period === "daytime" ? "08" : "20"}:00:00`, recordKind: "observed" };
+  return { id: `${day}:${period}`, recordDate: date, period, weightKg, bodyFatPercent, fasting: period === "daytime", sourceLocalTime: `${date} ${period === "daytime" ? "08" : "20"}:00:00`, recordKind: "observed" };
 }
 function history() {
   return [1, 2, 3].flatMap((day) => [row(day, "daytime", (68 + (day - 1) / 10).toFixed(2), (23 + (day - 1) / 10).toFixed(2)),
@@ -91,7 +91,7 @@ test("每个指标独立补缺；实测体重不受估计体脂影响，关闭�
   const real = [...history(), row(4, "daytime", "68.27", null), row(4, "evening", "69.17", "24.60")];
   const estimated = buildHistoricalEstimates(real, range, options).estimates;
   assert.deepEqual(estimated.map(r => [r.period, r.weightKg, r.bodyFatPercent]), [["daytime", null, "24.40"]]);
-  const rows = [...real, ...estimated.map((r, i) => ({ ...r, id: `estimate:${i}`, fasting: r.period === "daytime", sourceLocalTime: r.analysisDate, recordKind: "estimated" as const }))];
+  const rows = [...real, ...estimated.map((r, i) => ({ ...r, id: `estimate:${i}`, fasting: r.period === "daytime", sourceLocalTime: r.recordDate, recordKind: "estimated" as const }))];
   assert.equal(buildMeasurementDays(rows)[0].daytimeRecord!.recordKind, "observed");
   assert.equal(buildMeasurementDays(rows, {}, "bodyFatPercent")[0].daytimeRecord!.recordKind, "estimated");
   assert.equal(buildMeasurementDays(real, {}, "bodyFatPercent")[0].daytimeRecord!.bodyFatPercent, null);

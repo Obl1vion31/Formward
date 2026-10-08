@@ -16,7 +16,7 @@ export type InitializationReport = {
   batchId: string; operationId: string; mode: "historical-initialization"; ruleVersion: typeof INITIALIZATION_METHOD;
   range: MeasurementInterval; generatedAt: string; sourceDigest: string;
   sourceSnapshot: SourceSnapshot[]; outcomes: EstimationOutcome[]; replacedEstimates: ReplacedSnapshot[];
-  generatedRecords: (HistoricalEstimate & { id: string })[]; warnings: string[];
+  generatedRecords: ((HistoricalEstimate | (Omit<HistoricalEstimate, "recordDate"> & { analysisDate: string })) & { id: string })[]; warnings: string[];
 };
 export type InitializationBatchMetadata = {
   mode: "historical-initialization"; ruleVersion: typeof INITIALIZATION_METHOD; frozen: true;
@@ -43,10 +43,10 @@ function normalize(request: HistoricalInitializationRequest) {
 function preview(rows: MeasurementRow[], userId: string, request: HistoricalInitializationRequest, batchId: string, generatedAt: string) {
   const active = rows.filter(row => row.deletedAt === null);
   const inRange = (date: string) => date >= request.range.start && date <= request.range.end;
-  const sourceSnapshot: SourceSnapshot[] = active.filter(row => row.recordKind === "observed" && inRange(row.analysisDate)).sort((a, b) => a.id.localeCompare(b.id)).map(row => ({ id: row.id, date: row.analysisDate, period: row.period, fasting: row.fasting, weightKg: row.weightKg, bodyFatPercent: row.bodyFatPercent, sourceLocalTime: row.sourceLocalTime }));
+  const sourceSnapshot: SourceSnapshot[] = active.filter(row => row.recordKind === "observed" && inRange(row.recordDate)).sort((a, b) => a.id.localeCompare(b.id)).map(row => ({ id: row.id, date: row.recordDate, period: row.period, fasting: row.fasting, weightKg: row.weightKg, bodyFatPercent: row.bodyFatPercent, sourceLocalTime: row.sourceLocalTime }));
   const sourceDigest = hash(sourceSnapshot);
   const result = buildInitializationEstimates(active, request.range, { batchId, sourceDigest }, generatedAt);
-  const replacedEstimates: ReplacedSnapshot[] = active.filter(row => row.recordKind === "estimated" && inRange(row.analysisDate)).map(row => ({ id: row.id, date: row.analysisDate, period: row.period, weightKg: row.weightKg, bodyFatPercent: row.bodyFatPercent, estimation: row.estimation }));
+  const replacedEstimates: ReplacedSnapshot[] = active.filter(row => row.recordKind === "estimated" && inRange(row.recordDate)).map(row => ({ id: row.id, date: row.recordDate, period: row.period, weightKg: row.weightKg, bodyFatPercent: row.bodyFatPercent, estimation: row.estimation }));
   return { ...result, sourceSnapshot, sourceDigest, replacedEstimates,
     requestKey: hash([INITIALIZATION_METHOD, userId, request]), digest: hash([INITIALIZATION_METHOD, userId, request, [...rows].sort((a, b) => a.id.localeCompare(b.id))]) };
 }

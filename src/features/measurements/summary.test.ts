@@ -4,7 +4,7 @@ import { measurementSummary } from "./summary";
 import type { DailyMeasurement } from "./days";
 
 const row = (id: string, date: string, weightKg: string, bodyFatPercent: string | null = "25.00"): DailyMeasurement => ({
-  id, analysisDate: date, period: "daytime", weightKg, bodyFatPercent, fasting: true, sourceLocalTime: `${date} 11:00:00`,
+  id, recordDate: date, period: "daytime", weightKg, bodyFatPercent, fasting: true, sourceLocalTime: `${date} 11:00:00`,
 });
 
 test("7 日摘要以最新空腹日为截止，按实际记录日首末和均值计算，缺测不补零", () => {

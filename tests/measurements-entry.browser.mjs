@@ -1,12 +1,21 @@
 import assert from "node:assert/strict";
 
 // 仅使用 HTTP 验收建立的虚构账号，检查表格录入及真实／估计写入顺序。
-export async function checkMeasurementEntry({ loggedInPage, entryAccount, today, artifacts, baseURL }) {
+export async function checkMeasurementEntry({ loggedInPage, entryAccount, today, artifacts, baseURL, refreshSource }) {
   const { page, context } = await loggedInPage({ width: 1440, height: 1000 }, entryAccount);
   const form = () => page.getByRole("form", { name: "当天四项录入" });
   const missing = () => form().locator('[data-entry-cell][data-kind="missing"]');
   const close = async () => { await page.getByRole("button", { name: "关闭记录详情" }).click(); await page.locator("dialog").waitFor({ state: "detached" }); };
-  const save = async () => { await form().getByRole("button", { name: "保存录入", exact: true }).click(); await form().getByRole("status").waitFor(); assert.equal(await form().getByRole("alert").count(), 0); };
+  const save = async () => {
+    // 模拟用户主动选择建议；空输入本身不会获得来源。
+    for (const period of ["晨间", "晚间"]) {
+      const source = form().getByRole("combobox", { name: `${period}数据来源` });
+      const fields = form().getByRole("textbox", { name: new RegExp(`^${period}`) });
+      if (await source.isEnabled() && !(await source.inputValue()) && (await fields.evaluateAll(nodes => nodes.some(node => node.value)))) {
+        await source.focus(); await source.press("ArrowDown"); await source.press("Enter");
+      }
+    }
+    await form().getByRole("button", { name: "保存录入", exact: true }).click(); await form().getByRole("status").waitFor(); assert.equal(await form().getByRole("alert").count(), 0); };
   const openToday = async () => {
     await page.locator(`section[aria-label="最近记录"] tr[data-date="${today}"]`).getByRole("button", { name: new RegExp(`^(录入|编辑) ${today}$`) }).click();
     await form().waitFor();
@@ -31,10 +40,18 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     for (const cell of await missing().all()) {
       assert.equal(await cell.locator("input + button").count(), 1, "估算紧贴每个空项输入框");
     }
-    assert.equal(await form().getByRole("combobox", { name: "晨间数据来源" }).inputValue(), "虚构默认秤-应用");
-    assert.equal(await form().getByRole("combobox", { name: "晚间数据来源" }).inputValue(), "虚构默认秤-应用");
-    assert.equal(await form().getByText("BMI", { exact: false }).count(), 0);
+    assert.equal(await form().getByRole("combobox", { name: "晨间数据来源" }).inputValue(), "");
+    assert.equal(await form().getByRole("combobox", { name: "晚间数据来源" }).inputValue(), "");
+    assert.equal(await form().getByRole("listbox").count(), 0);
     await page.screenshot({ path: `${artifacts}/entry-desktop-form.png` });
+    const suggestion = form().getByRole("combobox", { name: "晨间数据来源" });
+    await suggestion.click();
+    assert.equal(await form().getByRole("option", { name: "虚构默认秤-应用" }).count(), 1);
+    assert.equal(await suggestion.inputValue(), "", "打开历史建议不填入值");
+    await page.screenshot({ path: `${artifacts}/entry-source-suggestions-desktop.png` });
+    await suggestion.press("ArrowDown"); await suggestion.press("Enter");
+    assert.equal(await form().getByRole("button", { name: "保存录入", exact: true }).isDisabled(), true, "只选来源不能新建测量");
+    assert.equal(await form().getByText("BMI", { exact: false }).count(), 0);
     await close();
     await openToday();
     assert.equal(await missing().count(), 4, "关闭表单不产生测量");
@@ -57,7 +74,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     assert.equal(await form().getByRole("textbox", { name: "晨间体重", exact: true }).inputValue(), "70.20", "编辑直接呈现已保存实测");
     await form().getByRole("textbox", { name: "晚间体脂率", exact: true }).fill("20.60");
     const eveningSource = form().getByRole("combobox", { name: "晚间数据来源" });
-    assert.equal(await eveningSource.inputValue(), "虚构晨间新来源", "空时段默认最近成功使用的来源");
+    assert.equal(await eveningSource.inputValue(), "", "空时段保持空白，最近来源仅作建议");
     await eveningSource.fill("虚构默认"); await eveningSource.press("ArrowDown");
     assert.equal(await eveningSource.getAttribute("aria-expanded"), "true");
     await eveningSource.press("Escape"); assert.equal(await eveningSource.getAttribute("aria-expanded"), "false");
@@ -94,6 +111,77 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     assert.equal(await page.locator("dialog").count(), 0, "刷新及部分保存后都不弹出提醒");
     await openToday(); assert.equal(await missing().count(), 1, "表格入口仍可补录");
     await close();
+    // 已有实测缺来源时保持空白，选建议后可仅保存来源，准确时间不变。
+    const unknownDate = new Date(Date.parse(`${today}T00:00:00Z`) - 6 * 86_400_000).toISOString().slice(0, 10);
+    const unknownRow = page.locator(`section[aria-label="最近记录"] tr[data-date="${unknownDate}"]`);
+    await unknownRow.getByRole("button", { name: `编辑 ${unknownDate}`, exact: true }).click();
+    const unknownSource = form().getByRole("combobox", { name: "晚间数据来源" });
+    assert.equal(await unknownSource.inputValue(), "", "未知来源不使用历史来源填充");
+    await unknownSource.click();
+    assert.ok(await form().getByRole("option").count() > 0);
+    assert.equal(await unknownSource.inputValue(), "");
+    await unknownSource.fill("虚构默认"); await unknownSource.press("ArrowDown"); await unknownSource.press("Enter");
+    assert.equal(await form().getByRole("button", { name: "保存录入", exact: true }).isEnabled(), true);
+    await save(); await close();
+    await unknownRow.getByRole("button", { name: `查看 ${unknownDate} 晚间体重实测记录`, exact: true }).click();
+    const unknownInfo = page.getByRole("article", { name: "记录详情" }).getByRole("region", { name: "记录信息" });
+    assert.match(await unknownInfo.innerText(), /虚构默认秤-应用/);
+    assert.match(await unknownInfo.innerText(), new RegExp(`${unknownDate} 20:30:00`));
+    await close(); await page.reload();
+    await unknownRow.getByRole("button", { name: `编辑 ${unknownDate}`, exact: true }).click();
+    assert.equal(await unknownSource.inputValue(), "虚构默认秤-应用", "刷新后回显已保存来源");
+    await close();
+
+    // 第二个页面修改记录，第一页面的草稿仍绑定旧版本，失败保留输入。
+    await openToday();
+    const staleSource = form().getByRole("combobox", { name: "晨间数据来源" });
+    await staleSource.fill("虚构未保存草稿");
+    const concurrent = await loggedInPage({ width: 1440, height: 1000 }, entryAccount);
+    try {
+      await concurrent.page.locator(`tr[data-date="${today}"]`).getByRole("button", { name: `编辑 ${today}`, exact: true }).click();
+      const concurrentForm = concurrent.page.getByRole("form", { name: "当天四项录入" });
+      await concurrentForm.getByRole("combobox", { name: "晨间数据来源" }).fill("虚构另一页面来源");
+      await concurrentForm.getByRole("button", { name: "保存录入", exact: true }).click();
+      await concurrentForm.getByRole("status").waitFor();
+      await form().getByRole("button", { name: "保存录入", exact: true }).click();
+      await form().getByRole("alert").waitFor();
+      assert.match(await form().getByRole("alert").innerText(), /记录已变化/);
+      assert.equal(await staleSource.inputValue(), "虚构未保存草稿");
+    } finally { await concurrent.context.close(); }
+    await close(); await page.reload(); await openToday();
+    assert.equal(await staleSource.inputValue(), "虚构另一页面来源");
+    await close();
+    console.log("通过：空来源仅提供历史建议、仅来源保存、详情／刷新一致与并发冲突保留草稿。");
+    if (refreshSource) {
+      await openToday();
+      const refreshedInput = form().getByRole("combobox", { name: "晨间数据来源" });
+      const refresh = async label => {
+        const revision = await page.locator('[data-test-refresh]').getAttribute("data-revision");
+        await refreshSource(today, label);
+        await page.evaluate(() => document.querySelector('[data-test-refresh]').click());
+        await page.waitForFunction(old => document.querySelector('[data-test-refresh]').dataset.revision !== old, revision);
+      };
+      await refresh("虚构服务端刷新来源");
+      await page.waitForFunction(() => document.querySelector('[aria-label="晨间数据来源"]').value === "虚构服务端刷新来源");
+      await refreshedInput.fill("虚构刷新前草稿");
+      await refresh("虚构刷新后保存来源");
+      assert.equal(await refreshedInput.inputValue(), "虚构刷新前草稿", "刷新不覆盖未保存草稿");
+      await form().getByRole("button", { name: "保存录入", exact: true }).click();
+      await form().getByRole("alert").waitFor();
+      assert.match(await form().getByRole("alert").innerText(), /记录已变化/);
+      assert.equal(await refreshedInput.inputValue(), "虚构刷新前草稿");
+      await close(); await openToday();
+      assert.equal(await refreshedInput.inputValue(), "虚构刷新后保存来源");
+      await close();
+      await unknownRow.getByRole("button", { name: `编辑 ${unknownDate}`, exact: true }).click();
+      const unsavedSource = form().getByRole("combobox", { name: "晨间数据来源" });
+      await unsavedSource.fill("虚构未保存来源");
+      await refresh("虚构仅来源草稿刷新");
+      assert.equal(await unsavedSource.inputValue(), "虚构未保存来源", "来源先填、数值未填时也保留草稿");
+      assert.equal(await form().getByRole("button", { name: "保存录入", exact: true }).isDisabled(), true, "仅来源草稿不新建测量");
+      await close();
+      console.log("通过：服务端新快照更新干净表单，保留草稿且不提升草稿的编辑版本。");
+    }
     for (const offset of [4, 5]) {
       const date = new Date(Date.parse(`${today}T00:00:00Z`) - offset * 86_400_000).toISOString().slice(0, 10);
       await page.locator(`section[aria-label="最近记录"] tr[data-date="${date}"]`).getByRole("button", { name: `编辑 ${date}`, exact: true }).click();
@@ -192,7 +280,11 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
       await mobile.page.locator("dialog").waitFor({ state: "detached" });
       await blankLeap.getByRole("button", { name: "补录 2024-02-29", exact: true }).tap();
       await mobileForm.waitFor();
+      await mobile.page.waitForFunction(() => document.querySelector("dialog")?.dataset.motion === "open");
       assert.equal(await mobileForm.locator('[data-entry-cell][data-kind="missing"]').count(), 4);
+      assert.equal(await mobileForm.getByRole("combobox", { name: "晨间数据来源" }).inputValue(), "");
+      assert.equal(await mobileForm.getByRole("combobox", { name: "晚间数据来源" }).inputValue(), "");
+      await mobile.page.screenshot({ path: `${artifacts}/entry-blank-mobile-${width}.png` });
       await mobile.context.close();
     }
     await page.getByRole("button", { name: "30D", exact: true }).click();

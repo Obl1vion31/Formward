@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { measurement, measurementEvent, measurementImport } from "../../db/schema";
 import { buildHistoricalEstimates } from "./estimation";
@@ -21,11 +21,24 @@ export type HistoricalCompletionRequest = {
 type MeasurementRow = typeof measurement.$inferSelect;
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
+// 保留旧批次幂等身份；这里只生成旧格式指纹，不恢复旧业务字段或改写历史。
+function completionKeys(userId: string, request: ReturnType<typeof normalizeRequest>) {
+  const legacy = { ...request, records: request.records.map(row => ({
+    analysisDate: row.recordDate, localDate: row.sourceLocalTime.slice(0, 10), period: row.period, sourceLocalTime: row.sourceLocalTime,
+    timezone: row.timezone, occurredAt: row.occurredAt, utcOffsetMinutes: row.utcOffsetMinutes, timePrecision: row.timePrecision,
+    assignmentMethod: row.assignmentMethod, assignmentRuleVersion: row.assignmentRuleVersion, fasting: row.fasting, fastingSource: row.fastingSource,
+    weightKg: row.weightKg, bodyFatPercent: row.bodyFatPercent, deduplicationKey: row.deduplicationKey,
+    originalValues: { analysisDate: row.originalValues.recordDate, period: row.originalValues.period, reportedTime: row.originalValues.reportedTime,
+      assumedTime: row.originalValues.assumedTime, weightKg: row.originalValues.weightKg, bodyFatPercent: row.originalValues.bodyFatPercent },
+  })) };
+  return [hash(["historical-completion-v3", userId, request]), hash(["historical-completion-v2", userId, legacy])] as const;
+}
+
 function normalizeRequest(input: HistoricalCompletionRequest) {
   if (!input.operationId?.trim() || input.operationId.length > 120 || !Array.isArray(input.records) || input.records.length > 56) throw new Error("历史补全请求无效。");
   if (calendarOrdinal(input.range.start) > calendarOrdinal(input.range.end) || calendarOrdinal(input.trainingRange.start) > calendarOrdinal(input.trainingRange.end) || calendarOrdinal(input.trainingRange.end) - calendarOrdinal(input.trainingRange.start) > 27 || input.range.start < input.trainingRange.start || input.range.end > input.trainingRange.end) throw new Error("补全范围须位于最多 28 天的训练阶段内。");
   const records = input.records.map(validateReportedMeasurement).sort((a, b) => a.deduplicationKey.localeCompare(b.deduplicationKey));
-  if (records.some((row) => row.analysisDate < input.trainingRange.start || row.analysisDate > input.trainingRange.end) || new Set(records.map((row) => `${row.analysisDate}:${row.period}`)).size !== records.length) throw new Error("新实测须位于训练阶段内，每时段最多提供一条。");
+  if (records.some((row) => row.recordDate < input.trainingRange.start || row.recordDate > input.trainingRange.end) || new Set(records.map((row) => `${row.recordDate}:${row.period}`)).size !== records.length) throw new Error("新实测须位于训练阶段内，每时段最多提供一条。");
   return { operationId: input.operationId.trim(), range: { start: input.range.start, end: input.range.end }, trainingRange: { start: input.trainingRange.start, end: input.trainingRange.end }, deviceLabel: validateDeviceLabel(input.deviceLabel), records };
 }
 
@@ -33,7 +46,7 @@ function projectRows(rows: MeasurementRow[], request: ReturnType<typeof normaliz
   const projected: DailyMeasurement[] = rows.filter((row) => row.deletedAt === null);
   const additions: ReturnType<typeof validateReportedMeasurement>[] = [];
   for (const record of request.records) {
-    const samePeriod = rows.filter((row) => row.recordKind === "observed" && row.analysisDate === record.analysisDate && row.period === record.period);
+    const samePeriod = rows.filter((row) => row.recordKind === "observed" && row.recordDate === record.recordDate && row.period === record.period);
     const resolution = resolveReportedMeasurement(samePeriod, record);
     if (resolution.kind === "duplicate") continue;
     additions.push(record);
@@ -42,12 +55,12 @@ function projectRows(rows: MeasurementRow[], request: ReturnType<typeof normaliz
       projected[index] = { ...projected[index], weightKg: resolution.row.weightKg ?? record.weightKg, bodyFatPercent: resolution.row.bodyFatPercent ?? record.bodyFatPercent };
     } else projected.push({ ...record, id: `reported:${record.deduplicationKey}`, recordKind: "observed" });
   }
-  const affectedDates = new Set(additions.map(row => row.analysisDate));
+  const affectedDates = new Set(additions.map(row => row.recordDate));
   const frozen = (date: string) => !!frozenRange && date >= frozenRange.start && date <= frozenRange.end;
   const refreshed = projected.flatMap(row => {
-    if (row.recordKind !== "estimated" || !affectedDates.has(row.analysisDate)) return [row];
-    if (!frozen(row.analysisDate)) return [];
-    const actual = projected.filter(real => real.recordKind !== "estimated" && real.analysisDate === row.analysisDate && real.period === row.period);
+    if (row.recordKind !== "estimated" || !affectedDates.has(row.recordDate)) return [row];
+    if (!frozen(row.recordDate)) return [];
+    const actual = projected.filter(real => real.recordKind !== "estimated" && real.recordDate === row.recordDate && real.period === row.period);
     const remaining = { ...row, weightKg: actual.some(real => real.weightKg !== null) ? null : row.weightKg, bodyFatPercent: actual.some(real => real.bodyFatPercent !== null) ? null : row.bodyFatPercent };
     return remaining.weightKg !== null || remaining.bodyFatPercent !== null ? [remaining] : [];
   });
@@ -55,17 +68,17 @@ function projectRows(rows: MeasurementRow[], request: ReturnType<typeof normaliz
   for (const date of affectedDates) {
     if (frozen(date)) continue;
     const sameDay = buildHistoricalEstimates(refreshed, { start: date, end: date }, { preserveExisting: false });
-    for (const estimate of sameDay.estimates) if (!predicted.estimates.some(row => row.analysisDate === estimate.analysisDate && row.period === estimate.period)) predicted.estimates.push(estimate);
+    for (const estimate of sameDay.estimates) if (!predicted.estimates.some(row => row.recordDate === estimate.recordDate && row.period === estimate.period)) predicted.estimates.push(estimate);
     predicted.warnings.push(...sameDay.warnings);
   }
   predicted.warnings = [...new Set(predicted.warnings)];
-  const annotateIds = rows.filter((row) => row.recordKind === "observed" && row.analysisDate >= request.trainingRange.start && row.analysisDate <= request.trainingRange.end && (row.entryChannel !== "development_backend" || row.deviceLabel !== request.deviceLabel)).map((row) => row.id);
+  const annotateIds = rows.filter((row) => row.recordKind === "observed" && row.recordDate >= request.trainingRange.start && row.recordDate <= request.trainingRange.end && (row.entryChannel !== "development_backend" || row.deviceLabel !== request.deviceLabel)).map((row) => row.id);
   return { additions, annotateIds, ...predicted };
 }
 
 function makePreview(rows: MeasurementRow[], userId: string, request: ReturnType<typeof normalizeRequest>, frozenRange?: MeasurementInterval) {
   const result = projectRows(rows, request, frozenRange);
-  return { requestKey: hash(["historical-completion-v2", userId, request]), digest: hash([userId, request, frozenRange, [...rows].sort((a, b) => a.id.localeCompare(b.id))]), ...result };
+  return { requestKey: completionKeys(userId, request)[0], digest: hash([userId, request, frozenRange, [...rows].sort((a, b) => a.id.localeCompare(b.id))]), ...result };
 }
 
 export async function previewHistoricalCompletion(db: Database, userId: string, input: HistoricalCompletionRequest) {
@@ -74,7 +87,8 @@ export async function previewHistoricalCompletion(db: Database, userId: string, 
   const rows = await db.select().from(measurement).where(eq(measurement.userId, userId));
   const initialization = await getInitializationBatch(db, userId);
   const preview = makePreview(rows, userId, request, initialization?.initializationMetadata?.range);
-  const [batch] = await db.select({ id: measurementImport.id }).from(measurementImport).where(and(eq(measurementImport.userId, userId), eq(measurementImport.fileDigest, preview.requestKey)));
+  const keys = completionKeys(userId, request);
+  const [batch] = await db.select({ id: measurementImport.id }).from(measurementImport).where(and(eq(measurementImport.userId, userId), or(eq(measurementImport.fileDigest, keys[0]), eq(measurementImport.fileDigest, keys[1]))));
   return { ...preview, alreadyApplied: Boolean(batch) };
 }
 
@@ -82,10 +96,10 @@ export async function previewHistoricalCompletion(db: Database, userId: string, 
 export async function applyHistoricalCompletion(db: Database, input: MeasurementActor & { request: HistoricalCompletionRequest; digest: string }) {
   if (!input.userId?.trim() || input.actorId !== input.userId || !/^[a-f0-9]{64}$/.test(input.digest)) throw new Error("补全操作者或预览摘要无效。");
   const request = normalizeRequest(input.request);
-  const requestKey = hash(["historical-completion-v2", input.userId, request]);
+  const [requestKey, legacyKey] = completionKeys(input.userId, request);
   return db.transaction(async (tx) => {
     await lockMeasurementOwner(tx, input.userId);
-    const [prior] = await tx.select().from(measurementImport).where(and(eq(measurementImport.userId, input.userId), eq(measurementImport.fileDigest, requestKey)));
+    const [prior] = await tx.select().from(measurementImport).where(and(eq(measurementImport.userId, input.userId), or(eq(measurementImport.fileDigest, requestKey), eq(measurementImport.fileDigest, legacyKey))));
     if (prior) return { importId: prior.id, observedInserted: 0, observedUpdated: 0, estimatesInserted: 0, annotated: 0, repeated: true };
     const rows = await tx.select().from(measurement).where(eq(measurement.userId, input.userId)).for("update");
     const initialization = await getInitializationBatch(tx, input.userId);
@@ -103,7 +117,7 @@ export async function applyHistoricalCompletion(db: Database, input: Measurement
     const affectedDates: string[] = [];
     for (const record of preview.additions) {
       const row = await insertReportedMeasurement(tx, input, record, batch.id, { entryChannel: "development_backend", deviceLabel: request.deviceLabel });
-      if (row) { if (row.writeKind === "inserted") observedInserted++; else observedUpdated++; affectedDates.push(row.analysisDate); }
+      if (row) { if (row.writeKind === "inserted") observedInserted++; else observedUpdated++; affectedDates.push(row.recordDate); }
     }
     const refreshed = await refreshMeasurementDates(tx, input, affectedDates, { operationKey: batch.id, importId: batch.id, reason: "same_day_observed_refresh" });
     const active = await tx.select().from(measurement).where(and(eq(measurement.userId, input.userId), isNull(measurement.deletedAt)));

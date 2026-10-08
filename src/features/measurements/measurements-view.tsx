@@ -22,9 +22,10 @@ const weekday = (date: string) => weekdays[new Date(calendarOrdinal(date) * 86_4
 const unitFor = (metric: MeasurementMetric) => metric === "weightKg" ? "kg" : "%";
 const metricName = (metric: MeasurementMetric) => metric === "weightKg" ? "体重" : "体脂率";
 
-export function MeasurementsView({ records: initialRecords, dates: initialDates, sources: initialSources, accountCreatedAt, actions }: { records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; accountCreatedAt: string; actions: MeasurementActions }) {
-  const [snapshot, setSnapshot] = useState({ records: initialRecords, dates: initialDates, sources: initialSources });
-  const { records, dates, sources } = snapshot;
+export function MeasurementsView({ records: serverRecords, dates: serverDates, sources: serverSources, accountCreatedAt, actions }: { records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; accountCreatedAt: string; actions: MeasurementActions }) {
+  const [actionResult, setActionResult] = useState<(Extract<EntryResult, { ok: true }> & { base: MeasurementDisplay[] }) | null>(null);
+  // 保存结果即时反馈；新的服务端快照抵达后接管，不能长期保留首次加载数据。
+  const { records, dates, sources } = actionResult?.base === serverRecords ? actionResult : { records: serverRecords, dates: serverDates, sources: serverSources };
   const [today, setToday] = useState("");
   const [timezone, setTimezone] = useState("");
   useEffect(() => {
@@ -33,7 +34,7 @@ export function MeasurementsView({ records: initialRecords, dates: initialDates,
     return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", update); };
   }, []);
   const dateCatalog = [...new Set([...dates.map(row => row.date), ...(today ? [today] : [])])];
-  const catalog = measurementCalendarRange(today, localMeasurementDate(new Date(accountCreatedAt), timezone || "UTC"), records.map(row => row.analysisDate), dateCatalog);
+  const catalog = measurementCalendarRange(today, localMeasurementDate(new Date(accountCreatedAt), timezone || "UTC"), records.map(row => row.recordDate), dateCatalog);
   const latestDate = catalog.end;
   const earliestDate = catalog.start;
   const [mode, setMode] = useState<MeasurementRange>("30d");
@@ -48,12 +49,12 @@ export function MeasurementsView({ records: initialRecords, dates: initialDates,
   const [rulesOpen, setRulesOpen] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [drawer, setDrawer] = useState<DrawerView | null>(null);
-  function updated(result: Extract<EntryResult, { ok: true }>) { setSnapshot({ records: result.records, dates: result.dates, sources: result.sources }); }
+  function updated(result: Extract<EntryResult, { ok: true }>) { setActionResult({ ...result, base: serverRecords }); }
   if (!latestDate) return <section className={styles.empty}><h1>身体记录</h1><p>暂无测量记录。</p></section>;
 
   const range = measurementRange(latestDate, mode, mode === "custom" ? customRange : { start: earliestDate, end: latestDate });
   const displayedRecords = records.filter((row) => showEstimates || row.recordKind !== "estimated");
-  const visibleRecords = displayedRecords.filter((row) => row.analysisDate >= range.start && row.analysisDate <= range.end);
+  const visibleRecords = displayedRecords.filter((row) => row.recordDate >= range.start && row.recordDate <= range.end);
   const recentInterval = { start: range.start > catalog.start ? range.start : catalog.start, end: range.end < catalog.end ? range.end : catalog.end };
   const recent = recentMeasurementDays(displayedRecords, recentInterval, choices);
   const fatDays = new Map(recentMeasurementDays(displayedRecords, recentInterval, choices, 10, "bodyFatPercent").map(day => [day.date, day]));
@@ -70,7 +71,7 @@ export function MeasurementsView({ records: initialRecords, dates: initialDates,
     setChoices((previous) => ({ ...previous, [`${date}:${period}`]: id }));
   }
   function inspectRecord(row: MeasurementDisplay, metric: MeasurementMetric) {
-    setSelectedDate(row.analysisDate);
+    setSelectedDate(row.recordDate);
     setDrawer({ kind: "record", recordId: row.id, metric });
   }
   function inspectDay(date: string, period?: "daytime" | "evening", metric: MeasurementMetric = "weightKg") {
@@ -87,7 +88,7 @@ export function MeasurementsView({ records: initialRecords, dates: initialDates,
       {summaries.map(summary => <div key={summary.metric} className={styles.current} data-summary="current" data-metric={summary.metric}>
         <span>当前{metricName(summary.metric)}</span>
         <strong>{summary.current?.[summary.metric] ?? "—"}<small>{unitFor(summary.metric)}</small></strong>
-        <p>{summary.current ? <>晨间空腹 · <time dateTime={summary.current.analysisDate}>{displayDate(summary.current.analysisDate)}</time></> : "暂无空腹记录"}</p>
+        <p>{summary.current ? <>晨间空腹 · <time dateTime={summary.current.recordDate}>{displayDate(summary.current.recordDate)}</time></> : "暂无空腹记录"}</p>
       </div>)}
       {summaries.map(summary => <div key={summary.metric} data-summary="change" data-metric={summary.metric}>
         <span>{metricName(summary.metric)} · 7 日变化</span>
@@ -172,14 +173,14 @@ function TableReading({ row, metric, pendingLabel, onInspect, onInspectCandidate
 }) {
   if (!row) return pendingLabel ? <button type="button" className={styles.tableReading} aria-label={pendingLabel} onClick={onInspectCandidates}>待选择</button> : <Missing />;
   if (row[metric] === null) return <Missing />;
-  return <button type="button" className={styles.tableReading} data-kind={row.recordKind} aria-label={`查看 ${row.analysisDate} ${periodLabel(row)}${metricName(metric)}${row.recordKind === "estimated" ? "估计依据" : "实测记录"}`} onClick={() => onInspect(row)}>
+  return <button type="button" className={styles.tableReading} data-kind={row.recordKind} aria-label={`查看 ${row.recordDate} ${periodLabel(row)}${metricName(metric)}${row.recordKind === "estimated" ? "估计依据" : "实测记录"}`} onClick={() => onInspect(row)}>
     <span className={styles.readingStatus} title={row.recordKind === "estimated" ? "估计" : "实测"} aria-hidden="true">{row.recordKind === "estimated" ? "◇" : "●"}</span>{row[metric]}<small>{unitFor(metric)}</small>
   </button>;
 }
 function RecordDetails({ row, metric, onMetric }: { row: MeasurementDisplay; metric: MeasurementMetric; onMetric: (metric: MeasurementMetric) => void }) {
   const estimated = row.recordKind === "estimated";
   const otherMetric = metric === "weightKg" ? "bodyFatPercent" : "weightKg";
-  const explanation = estimated ? estimateUserExplanation(row.estimation, row.analysisDate, metric) : null;
+  const explanation = estimated ? estimateUserExplanation(row.estimation, row.recordDate, metric) : null;
   return <article className={styles.recordDetails} data-inspector-record={row.id} data-kind={row.recordKind} aria-label="记录详情">
     <p className={styles.recordMetric}>{metricName(metric)}</p>
     <p className={`${styles.recordReading} ${row.period === "daytime" ? styles.dayValue : styles.nightValue}`} data-record-value={metric} data-estimate-value={estimated ? metric : undefined}>
@@ -202,7 +203,6 @@ function RecordDetails({ row, metric, onMetric }: { row: MeasurementDisplay; met
         <div><dt>来源</dt><dd>{sourceLabel(row)}</dd></div>
         <div><dt>测量时间</dt><dd>{estimated ? "无" : recordTimeLabel(row)}</dd></div>
         <div><dt>时区</dt><dd>{row.timezone ?? "无"}</dd></div>
-        {!estimated && row.localDate !== row.analysisDate && <div><dt>归属日</dt><dd>{displayDate(row.analysisDate)} · {periodLabel(row)}</dd></div>}
         <div><dt>设备</dt><dd>{estimated ? "无" : row.deviceLabel ?? "无"}</dd></div>
         {!estimated && row.sourceSystem && row.sourceSystem !== sourceLabel(row) && <div><dt>来源系统</dt><dd>{row.sourceSystem}</dd></div>}
       </dl>
@@ -236,8 +236,8 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
   const [historyLimit, setHistoryLimit] = useState(50);
   const historyDates = measurementCalendarPage(catalog, historyLimit);
   const historySet = new Set(historyDates);
-  const days = buildMeasurementDays(records.filter(row => historySet.has(row.analysisDate)), choices, "weightKg", historyDates);
-  const historyFat = new Map(buildMeasurementDays(records.filter(row => historySet.has(row.analysisDate)), choices, "bodyFatPercent", historyDates).map(day => [day.date, day]));
+  const days = buildMeasurementDays(records.filter(row => historySet.has(row.recordDate)), choices, "weightKg", historyDates);
+  const historyFat = new Map(buildMeasurementDays(records.filter(row => historySet.has(row.recordDate)), choices, "bodyFatPercent", historyDates).map(day => [day.date, day]));
   const totalDays = calendarOrdinal(catalog.end) - calendarOrdinal(catalog.start) + 1;
   const [editorChoices, setEditorChoices] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<string[]>(() => view.kind === "record" ? [records.find(row => row.id === view.recordId)?.period ?? "daytime"] : view.kind === "day" && view.period ? [view.period] : []);
@@ -246,13 +246,13 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
     if (view.kind === "entry") return { date: view.date, recordId: null, metric: "weightKg" };
     if (view.kind === "record") {
       const row = records.find(row => row.id === view.recordId);
-      return { date: row?.analysisDate ?? "", recordId: view.recordId, metric: view.metric, period: row?.period };
+      return { date: row?.recordDate ?? "", recordId: view.recordId, metric: view.metric, period: row?.period };
     }
-    const day = buildMeasurementDays(records.filter(row => row.analysisDate === view.date), choices, view.metric)[0];
+    const day = buildMeasurementDays(records.filter(row => row.recordDate === view.date), choices, view.metric)[0];
     const representative = view.period ? view.period === "daytime" ? day?.daytimeRecord : day?.eveningRecord : day?.daytimeRecord ?? day?.eveningRecord;
     return { date: view.date, recordId: view.period ? representative?.id ?? null : null, metric: view.metric, period: view.period };
   });
-  const activeDay = active ? buildMeasurementDays(records.filter(row => row.analysisDate === active.date), choices, active.metric, [active.date])[0] : null;
+  const activeDay = active ? buildMeasurementDays(records.filter(row => row.recordDate === active.date), choices, active.metric, [active.date])[0] : null;
   const row = activeDay?.records.find(row => row.id === active?.recordId);
   const navigationKey = editor ? `entry:${editor.date}` : active ? `${active.date}:${active.recordId ?? active.period ?? "candidates"}` : "history";
   const closing = useRef(false);
@@ -312,7 +312,7 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
   }
   function entryUpdated(result: Extract<EntryResult, { ok: true }>) {
     if (active && row?.recordKind === "estimated") {
-      const replacement = result.records.find(candidate => candidate.recordKind === "observed" && candidate.analysisDate === active.date && candidate.period === row.period && candidate[active.metric] !== null);
+      const replacement = result.records.find(candidate => candidate.recordKind === "observed" && candidate.recordDate === active.date && candidate.period === row.period && candidate[active.metric] !== null);
       if (replacement) setActive({ ...active, recordId: replacement.id });
     }
     onUpdated(result);
@@ -376,7 +376,7 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
   </dialog>;
 }
 function DayOverview({ date, records, choices }: { date: string; records: MeasurementDisplay[]; choices: Record<string, string> }) {
-  const days = metrics.map(metric => buildMeasurementDays(records.filter(row => row.analysisDate === date), choices, metric, [date])[0]);
+  const days = metrics.map(metric => buildMeasurementDays(records.filter(row => row.recordDate === date), choices, metric, [date])[0]);
   return <section className={styles.dayOverview} aria-label="当天晨晚概览">
     {(["daytime", "evening"] as const).map(period => <div key={period} className={period === "daytime" ? styles.dayValue : styles.nightValue} data-overview-period={period}>
       <h3>{period === "daytime" ? "晨间" : "晚间"}</h3>
@@ -432,15 +432,15 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, onIns
   const x = (date: string) => span ? 48 + (calendarOrdinal(date) - calendarOrdinal(interval.start)) / span * (width - 72) : (width + 24) / 2;
   const scale = points.length ? normalScale(points.map((row) => Number(row[metric]))) : null;
   const y = (value: string | null) => 22 + (scale?.position(Number(value)) ?? .5) * 190;
-  const pointDays = [...new Set(points.map(row => row.analysisDate))].sort();
+  const pointDays = [...new Set(points.map(row => row.recordDate))].sort();
   const hitColumns = new Map(pointDays.map((date, index) => [date, {
     left: index ? (x(pointDays[index - 1]) + x(date)) / 2 : 0,
     right: index < pointDays.length - 1 ? (x(date) + x(pointDays[index + 1])) / 2 : width,
   }]));
-  const pointByPeriod = new Map(points.map(row => [`${row.analysisDate}:${row.period}`, row]));
+  const pointByPeriod = new Map(points.map(row => [`${row.recordDate}:${row.period}`, row]));
   const ticks = measurementDateTicks(interval, width < 500 ? 4 : width < 900 ? 6 : 8);
   const unit = unitFor(metric);
-  const pointLabel = (row: MeasurementDisplay) => `${row.analysisDate} · ${row.period === "daytime" ? "空腹" : "晚间非空腹"} · ${row[metric]} ${unit} · ${row.recordKind === "estimated" ? `估计 · ${estimateUserExplanation(row.estimation, row.analysisDate, metric).method}` : "实测"}`;
+  const pointLabel = (row: MeasurementDisplay) => `${row.recordDate} · ${row.period === "daytime" ? "空腹" : "晚间非空腹"} · ${row[metric]} ${unit} · ${row.recordKind === "estimated" ? `估计 · ${estimateUserExplanation(row.estimation, row.recordDate, metric).method}` : "实测"}`;
   const hintedRecord = points.find((row) => row.id === hintRecordId);
   const activate = (row: MeasurementDisplay) => onInspect(row);
   const selectKey = (event: React.KeyboardEvent, row: MeasurementDisplay) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(row); } };
@@ -453,27 +453,27 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, onIns
         {ticks.map((date) => <text key={date} x={x(date)} y="242" textAnchor="middle" className={styles.axis}>{date.slice(5).replace("-", "/")}</text>)}
         {selectedDate && <line x1={x(selectedDate)} x2={x(selectedDate)} y1="14" y2="218" className={styles.selectedDayLine} />}
         {pairs.map((day) => <line data-pair={day.date} key={day.date} x1={x(day.date)} x2={x(day.date)} y1={y(day.daytimeRecord![metric])} y2={y(day.eveningRecord![metric])} className={styles.pairLine} />)}
-        {segments.map(({ a, b, period, estimated, missingDayCount }) => <line key={`${a.id}:${b.id}`} data-segment={estimated ? "estimated" : missingDayCount ? "gap" : "continuous"} data-period={period} x1={x(a.analysisDate)} y1={y(a[metric])} x2={x(b.analysisDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} ${estimated ? styles.estimateLine : missingDayCount ? styles.gapLine : ""}`} />)}
+        {segments.map(({ a, b, period, estimated, missingDayCount }) => <line key={`${a.id}:${b.id}`} data-segment={estimated ? "estimated" : missingDayCount ? "gap" : "continuous"} data-period={period} x1={x(a.recordDate)} y1={y(a[metric])} x2={x(b.recordDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} ${estimated ? styles.estimateLine : missingDayCount ? styles.gapLine : ""}`} />)}
         {[...points].sort((a, b) => Number(a.period === "daytime") - Number(b.period === "daytime")).map((row) => {
           const estimated = row.recordKind === "estimated";
           const label = pointLabel(row);
           // 相邻日期与同日晨晚点各用中线划分点击区域，避免透明命中区遮住另一条记录。
-          const companion = pointByPeriod.get(`${row.analysisDate}:${row.period === "daytime" ? "evening" : "daytime"}`);
+          const companion = pointByPeriod.get(`${row.recordDate}:${row.period === "daytime" ? "evening" : "daytime"}`);
           const ownY = y(row[metric]), companionY = companion ? y(companion[metric]) : null;
           const midpoint = companionY === null ? null : (ownY + companionY) / 2;
           const coincident = companionY === ownY;
-          const column = hitColumns.get(row.analysisDate)!;
-          const clipLeft = coincident && row.period === "evening" ? x(row.analysisDate) : column.left;
-          const clipRight = coincident && row.period === "daytime" ? x(row.analysisDate) : column.right;
+          const column = hitColumns.get(row.recordDate)!;
+          const clipLeft = coincident && row.period === "evening" ? x(row.recordDate) : column.left;
+          const clipRight = coincident && row.period === "daytime" ? x(row.recordDate) : column.right;
           const clipTop = midpoint !== null && !coincident && ownY > companionY! ? midpoint : 0;
           const clipBottom = midpoint !== null && !coincident && ownY < companionY! ? midpoint : 252;
           const clipId = `${plotId}-${row.id}`;
-          return <g key={row.id} data-point-id={row.id} data-date={row.analysisDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.analysisDate === selectedDate} aria-haspopup={estimated ? "dialog" : undefined} onMouseEnter={() => setHintRecordId(row.id)} onMouseLeave={() => setHintRecordId(null)} onFocus={() => setHintRecordId(row.id)} onBlur={() => setHintRecordId(null)} onClick={() => activate(row)} onKeyDown={(event) => selectKey(event, row)}>
+          return <g key={row.id} data-point-id={row.id} data-date={row.recordDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.recordDate === selectedDate} aria-haspopup={estimated ? "dialog" : undefined} onMouseEnter={() => setHintRecordId(row.id)} onMouseLeave={() => setHintRecordId(null)} onFocus={() => setHintRecordId(row.id)} onBlur={() => setHintRecordId(null)} onClick={() => activate(row)} onKeyDown={(event) => selectKey(event, row)}>
             <title>{estimated ? label : `${recordTimeLabel(row)} · ${label}`}</title>
             <defs><clipPath id={clipId}><rect x={clipLeft} y={clipTop} width={clipRight - clipLeft} height={clipBottom - clipTop} /></clipPath></defs>
-            <circle cx={x(row.analysisDate)} cy={ownY} r="14" className={styles.hitTarget} clipPath={`url(#${clipId})`} />
-            {row.analysisDate === selectedDate && <circle cx={x(row.analysisDate)} cy={y(row[metric])} r="8" className={styles.selectedPoint} />}
-            {estimated ? <path d={`M ${x(row.analysisDate)} ${y(row[metric]) - 4} l 4 4 l -4 4 l -4 -4 Z`} className={`${styles.estimatePoint} ${row.period === "daytime" ? styles.dayEstimate : styles.nightEstimate}`} /> : <circle cx={x(row.analysisDate)} cy={y(row[metric])} r={row.period === "daytime" ? "4" : "3.2"} className={row.period === "daytime" ? styles.dayPoint : styles.nightPoint} />}
+            <circle cx={x(row.recordDate)} cy={ownY} r="14" className={styles.hitTarget} clipPath={`url(#${clipId})`} />
+            {row.recordDate === selectedDate && <circle cx={x(row.recordDate)} cy={y(row[metric])} r="8" className={styles.selectedPoint} />}
+            {estimated ? <path d={`M ${x(row.recordDate)} ${y(row[metric]) - 4} l 4 4 l -4 4 l -4 -4 Z`} className={`${styles.estimatePoint} ${row.period === "daytime" ? styles.dayEstimate : styles.nightEstimate}`} /> : <circle cx={x(row.recordDate)} cy={y(row[metric])} r={row.period === "daytime" ? "4" : "3.2"} className={row.period === "daytime" ? styles.dayPoint : styles.nightPoint} />}
           </g>;
         })}
         {!points.length && <text x={width / 2} y="118" textAnchor="middle" className={styles.emptyChart}>{`此区间暂无${showEvening ? "" : "空腹"}${metricName(metric)}记录`}</text>}

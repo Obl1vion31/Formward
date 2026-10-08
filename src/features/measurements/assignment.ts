@@ -4,7 +4,7 @@ export const ASSIGNMENT_RULE_VERSION = "06-18-v1";
 
 export type MeasurementAssignment = {
   localDate: string;
-  analysisDate: string;
+  recordDate: string;
   period: MeasurementPeriod;
   assignmentMethod: "clock_rule" | "manual";
   assignmentRuleVersion: string;
@@ -13,7 +13,7 @@ export type MeasurementAssignment = {
 /** 按来源的本地时间分组；不转换时区、不修改原始发生时间，也不推断空腹。 */
 export function assignMeasurement(
   sourceLocalTime: string,
-  override?: { analysisDate: string; period: MeasurementPeriod },
+  override?: { recordDate: string; period: MeasurementPeriod },
 ): MeasurementAssignment {
   const match = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/.exec(sourceLocalTime);
   if (!match) throw new Error("测量时间须包含有效日期和时分秒。");
@@ -24,7 +24,7 @@ export function assignMeasurement(
     throw new Error("测量时间超出有效范围。");
   }
   if (override) {
-    parseLocalDate(override.analysisDate);
+    parseLocalDate(override.recordDate);
     if (override.period !== "daytime" && override.period !== "evening") {
       throw new Error("测量时段须为白天或晚间。");
     }
@@ -33,11 +33,11 @@ export function assignMeasurement(
     };
   }
   // UTC 仅用于纯日历减一天；这里的 Date 不代表实际测量的 UTC 时刻。
-  const analysisDate = hour < 6
+  const recordDate = hour < 6
     ? new Date(day.getTime() - 86_400_000).toISOString().slice(0, 10)
     : localDate;
   return {
-    localDate, analysisDate, period: hour < 6 || hour >= 18 ? "evening" : "daytime",
+    localDate, recordDate, period: hour < 6 || hour >= 18 ? "evening" : "daytime",
     assignmentMethod: "clock_rule", assignmentRuleVersion: ASSIGNMENT_RULE_VERSION,
   };
 }

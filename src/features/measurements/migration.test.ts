@@ -10,7 +10,7 @@ import { previewMeasurementTsv } from "../imports/measurements";
 import { saveImportedMeasurements } from "./records";
 import { fillMissingMeasurementSources } from "./sources";
 
-test("旧 schema 升级保留时间、冻结依据、指纹与审计，合并设备且主表为 31 列；旧／新文件重导不冲突或复活", async () => {
+test("旧 schema 升级保留时间、冻结依据、指纹与审计，合并设备且主表为 30 列且只有记录日期；旧／新文件重导不冲突或复活", async () => {
   const pg = new PGlite(), db = drizzle(pg, { schema });
   try {
     for (const file of (await readdir("drizzle")).filter(file => /^000[0-5]_.*\.sql$/.test(file)).sort()) await pg.exec(await readFile(`drizzle/${file}`, "utf8"));
@@ -25,10 +25,11 @@ test("旧 schema 升级保留时间、冻结依据、指纹与审计，合并设
       ["deleted", "fictional-owner", null, null, "observed", true],
       ["estimate", "fictional-owner", null, null, "estimated", false],
       ["other", "fictional-other", null, null, "observed", false],
+      ["midnight", "fictional-owner", null, null, "observed", false],
     ] as const) {
-      const time = id === "paired" ? "2024-04-04 08:00:00" : id === "deleted" ? "2024-04-04 09:00:00" : "2024-04-04 20:00:00";
+      const time = id === "midnight" ? "2024-04-05 00:30:00" : id === "paired" ? "2024-04-04 08:00:00" : id === "deleted" ? "2024-04-04 09:00:00" : "2024-04-04 20:00:00";
       await pg.query(`INSERT INTO measurements(id,user_id,source_local_time,local_date,occurred_at,timezone,utc_offset_minutes,time_precision,analysis_date,period,assignment_method,assignment_rule_version,fasting,fasting_source,weight_kg,bmi,body_fat_percent,source_type,record_kind,entry_channel,device_name,companion_app,estimation,source_system,source_record_id,original_values,deduplication_key,created_by,deleted_at)
-        VALUES ($1,$2,$3,'2024-04-04',$4,'Asia/Shanghai',480,$5,'2024-04-04',$6,'clock','fictional-v1',true,'user_confirmed',$7,23,20,'import',$8,'development_backend',$9,$10,$11,'fictional-external',$12,$13,$14,$2,$15)`,
+        VALUES ($1,$2,$3,left($3::text,10)::date,$4,'Asia/Shanghai',480,$5,'2024-04-04',$6,'clock','fictional-v1',true,'user_confirmed',$7,23,20,'import',$8,'development_backend',$9,$10,$11,'fictional-external',$12,$13,$14,$2,$15)`,
       [id, owner, time, kind === "estimated" ? null : "2024-04-04T00:00:00Z", kind === "estimated" ? "day_period" : "second", id === "paired" || id === "deleted" ? "daytime" : "evening", id === "deleted" ? "71.00" : "70.00", kind, device, app,
         kind === "estimated" ? JSON.stringify({ method: "historical-initialization-v1", weightKg: { fictionalEvidence: true } }) : null, id, JSON.stringify({ sourceLocalTime: time, weightKg: "70.00", bmi: "23.00", bodyFatPercent: "20.00" }), id === "paired" ? oldKey : id, deleted ? "2024-04-05T00:00:00Z" : null]);
     }
@@ -37,21 +38,28 @@ test("旧 schema 升级保留时间、冻结依据、指纹与审计，合并设
     const before = (await pg.query<Record<string, unknown>>("SELECT * FROM measurements ORDER BY id")).rows;
     const oldEvent = (await pg.query("SELECT * FROM measurement_events WHERE id='old-event'")).rows[0];
     const frozen = (await pg.query("SELECT * FROM measurement_imports")).rows;
-    const days = (await pg.query("SELECT * FROM measurement_days")).rows;
+    const days = (await pg.query<Record<string, unknown>>("SELECT * FROM measurement_days")).rows;
     await pg.exec(await readFile("drizzle/0006_living_tarantula.sql", "utf8"));
+    await pg.exec(await readFile("drizzle/0007_strong_omega_sentinel.sql", "utf8"));
     const columns = (await pg.query<{ column_name: string }>("SELECT column_name FROM information_schema.columns WHERE table_name='measurements'")).rows.map(row => row.column_name);
-    assert.equal(columns.length, 31);
-    for (const field of ["bmi", "device_name", "companion_app"]) assert.ok(!columns.includes(field));
+    assert.equal(columns.length, 30);
+    for (const field of ["bmi", "device_name", "companion_app", "local_date", "analysis_date"]) assert.ok(!columns.includes(field));
     assert.equal((await db.select().from(schema.measurement).where(eq(schema.measurement.id, "paired")))[0].deviceLabel, "虚构秤-虚构应用");
     assert.equal((await db.select().from(schema.measurement).where(eq(schema.measurement.id, "device-only")))[0].deviceLabel, "虚构另一秤");
     assert.equal((await db.select().from(schema.measurement).where(eq(schema.measurement.id, "app-only")))[0].deviceLabel, "虚构另一应用");
+    assert.ok(columns.includes("record_date"));
+    const midnight = (await db.select().from(schema.measurement).where(eq(schema.measurement.id, "midnight")))[0];
+    assert.equal(midnight.recordDate, "2024-04-04");
+    assert.equal(midnight.sourceLocalTime, "2024-04-05 00:30:00");
     for (const old of before) {
       const current = (await pg.query<Record<string, unknown>>("SELECT * FROM measurements WHERE id=$1", [old.id])).rows[0];
-      for (const [field, value] of Object.entries(old)) if (!["bmi", "device_name", "companion_app"].includes(field)) assert.deepEqual(current[field], value, `${old.id}:${field}`);
+      for (const [field, value] of Object.entries(old)) if (!["bmi", "device_name", "companion_app", "local_date", "analysis_date"].includes(field)) assert.deepEqual(current[field], value, `${old.id}:${field}`);
+      assert.deepEqual(current.record_date, old.analysis_date);
+      assert.equal((old.local_date as Date).toISOString().slice(0, 10), old.source_local_time?.toString().slice(0, 10));
     }
     assert.deepEqual((await pg.query("SELECT * FROM measurement_events WHERE id='old-event'")).rows[0], oldEvent);
     assert.deepEqual((await pg.query("SELECT * FROM measurement_imports")).rows, frozen);
-    assert.deepEqual((await pg.query("SELECT * FROM measurement_days")).rows, days);
+    assert.deepEqual((await pg.query<Record<string, unknown>>("SELECT * FROM measurement_days")).rows, days.map(({ analysis_date, ...row }) => ({ ...row, record_date: analysis_date })));
     assert.equal((await pg.query("SELECT * FROM measurement_events WHERE snapshot->>'reason'='schema_device_label_merge'")).rows.length, 3);
     await fillMissingMeasurementSources(db, { userId: "fictional-owner", actorId: "fictional-owner" }, "虚构已确认秤-应用");
     assert.equal((await db.select().from(schema.measurement).where(eq(schema.measurement.id, "other")))[0].deviceLabel, null);
@@ -70,5 +78,16 @@ test("旧 schema 升级保留时间、冻结依据、指纹与审计，合并设
     const fatOnly = previewMeasurementTsv("测量时间\t体重(kg)\t体脂率(%)\n2024-04-05 20:00:00\t\t20", "Asia/Shanghai");
     assert.equal(fatOnly.records[0].weightKg, null);
     assert.equal((await saveImportedMeasurements(db, { userId: "fictional-other", actorId: "fictional-other", sourceLabel: "fictional.tsv", captureChannel: "file", ...fatOnly })).inserted, 1);
+  } finally { await pg.close(); }
+});
+
+test("无法从原时间恢复实际日期时停止迁移，旧列与记录保持", async () => {
+  const pg = new PGlite();
+  try {
+    for (const file of (await readdir("drizzle")).filter(file => /^000[0-6]_.*\.sql$/.test(file)).sort()) await pg.exec(await readFile(`drizzle/${file}`, "utf8"));
+    await pg.exec("INSERT INTO users(id,name,email) VALUES ('fictional-invalid-date','虚构用户','invalid-date@example.test'); INSERT INTO measurements(id,user_id,source_local_time,local_date,analysis_date,period,assignment_method,assignment_rule_version,weight_kg,source_type,original_values,deduplication_key,created_by) VALUES ('fictional-invalid','fictional-invalid-date','2024-04-05 00:30:00','2024-04-04','2024-04-04','evening','manual','fictional-v1',70,'manual','{}','fictional-invalid','fictional-invalid-date');");
+    const before = (await pg.query("SELECT * FROM measurements")).rows;
+    await assert.rejects(pg.exec(await readFile("drizzle/0007_strong_omega_sentinel.sql", "utf8")), /迁移已停止/);
+    assert.deepEqual((await pg.query("SELECT * FROM measurements")).rows, before);
   } finally { await pg.close(); }
 });

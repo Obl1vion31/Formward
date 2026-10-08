@@ -16,7 +16,7 @@ function previewRows(rows: MeasurementRow[], userId: string) {
   const groups = new Map<string, MeasurementRow[]>();
   for (const row of rows) {
     if (row.recordKind === "estimated") continue;
-    const key = `${row.analysisDate}:${row.period}`;
+    const key = `${row.recordDate}:${row.period}`;
     groups.set(key, [...(groups.get(key) ?? []), row]);
   }
   const duplicates = [...groups.values()].filter((group) => group.length > 1).map((group) => {
@@ -66,7 +66,7 @@ export async function applyMeasurementMaintenance(db: Database, input: { userId:
       id: randomUUID(), userId: input.userId, measurementId: row.id, action: "delete", actorType: "user", actorId: input.actorId,
       snapshot: { before: before.get(row.id), after: row, reason: "keep_earliest_in_period", operationDigest: input.digest, retainedId: preview.duplicates.find((group) => group.deleteIds.includes(row.id))!.keepId },
     })));
-    for (const row of changed) if (row.recordKind === "observed") await supersedeEstimates(tx, input, row.analysisDate, row.period);
+    for (const row of changed) if (row.recordKind === "observed") await supersedeEstimates(tx, input, row.recordDate, row.period);
     return { eveningUpdated: changed.length, deleted: deleted.length, repeated: false };
   });
 }
@@ -80,8 +80,8 @@ export async function restoreMeasurement(db: Database, input: { userId: string; 
     if (!before) throw new Error("记录不存在或不属于当前账号。");
     if (before.deletedAt === null) return { restored: false };
     if (before.recordKind === "estimated") {
-      if (isFrozenDate(await getInitializationBatch(tx, input.userId), before.analysisDate)) throw new Error("冻结历史不能恢复旧估计。");
-      const active = await tx.select().from(measurement).where(and(eq(measurement.userId, input.userId), eq(measurement.analysisDate, before.analysisDate), eq(measurement.period, before.period), isNull(measurement.deletedAt)));
+      if (isFrozenDate(await getInitializationBatch(tx, input.userId), before.recordDate)) throw new Error("冻结历史不能恢复旧估计。");
+      const active = await tx.select().from(measurement).where(and(eq(measurement.userId, input.userId), eq(measurement.recordDate, before.recordDate), eq(measurement.period, before.period), isNull(measurement.deletedAt)));
       if (active.length > 1 || active.some((row) => row.recordKind === "estimated" || row.fasting !== (before.period === "daytime") || (before.weightKg !== null && row.weightKg !== null) || (before.bodyFatPercent !== null && row.bodyFatPercent !== null))) throw new Error("该时段已有有效记录，不能恢复估计值覆盖真实指标。");
     }
     const [after] = await tx.update(measurement).set({ deletedAt: null, updatedAt: new Date(), ...(before.period === "evening" ? { fasting: false, fastingSource: "evening_rule" } : {}) })
@@ -90,7 +90,7 @@ export async function restoreMeasurement(db: Database, input: { userId: string; 
       id: randomUUID(), userId: input.userId, measurementId: after.id, action: "restore", actorType: "user", actorId: input.actorId,
       snapshot: { before, after, reason: "user_restore" },
     });
-    if (after.recordKind === "observed") await supersedeEstimates(tx, input, after.analysisDate, after.period);
+    if (after.recordKind === "observed") await supersedeEstimates(tx, input, after.recordDate, after.period);
     return { restored: true };
   });
 }

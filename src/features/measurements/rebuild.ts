@@ -22,7 +22,7 @@ function preview(rows: MeasurementRow[], userId: string, request: EstimationRebu
   return {
     requestKey: hash(["estimate-rebuild", ESTIMATION_METHOD, userId, request]),
     digest: hash(["estimate-rebuild", ESTIMATION_METHOD, userId, request, [...rows].sort((a, b) => a.id.localeCompare(b.id))]),
-    removedIds: active.filter((row) => row.recordKind === "estimated" && row.analysisDate >= request.range.start && row.analysisDate <= request.range.end).map((row) => row.id),
+    removedIds: active.filter((row) => row.recordKind === "estimated" && row.recordDate >= request.range.start && row.recordDate <= request.range.end).map((row) => row.id),
     ...buildHistoricalEstimates(active, request.range, { preserveExisting: false }),
   };
 }
@@ -48,7 +48,7 @@ export async function applyEstimationRebuild(db: Database, input: MeasurementAct
     if (result.digest !== input.digest) throw new Error("记录已变化，请重新预览；没有写入。");
     const [batch] = await tx.insert(measurementImport).values({ id: randomUUID(), userId: input.userId, fileDigest: requestKey, sourceLabel: `晨间基准估计重建 · ${request.operationId}`, captureChannel: "development_backend", insertedCount: result.estimates.length, skippedCount: 0, createdBy: input.actorId }).returning();
     let removed = 0;
-    for (const row of rows.filter((row) => result.removedIds.includes(row.id))) removed += await supersedeEstimates(tx, input, row.analysisDate, row.period, "explicit_estimate_rebuild");
+    for (const row of rows.filter((row) => result.removedIds.includes(row.id))) removed += await supersedeEstimates(tx, input, row.recordDate, row.period, "explicit_estimate_rebuild");
     for (const prediction of result.estimates) await insertEstimate(tx, input, prediction, { operationKey: batch.id, importId: batch.id, reason: "explicit_estimate_rebuild" });
     return { importId: batch.id, removed, inserted: result.estimates.length, warnings: result.warnings, repeated: false };
   });
