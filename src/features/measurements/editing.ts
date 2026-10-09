@@ -10,6 +10,8 @@ import { getInitializationBatch, isFrozenDate } from "./initialization";
 import { entryMetrics, entryPeriods, localMeasurementDate, type EntryPeriod, type MeasurementDisplay } from "./entry-state";
 
 import { rememberMeasurementSource, validateDeviceLabel } from "./sources";
+import { resolveMeasurementTime } from "./time";
+import { timezoneLabel, validateMeasurementTimezone } from "./timezone";
 
 export type PeriodEdit = {
   recordId?: string;
@@ -18,6 +20,7 @@ export type PeriodEdit = {
   bodyFatPercent?: string | null;
   deviceLabel?: string | null;
   fasting?: boolean | null;
+  timezone?: string | null;
 };
 export type SaveMeasurementDayInput = { date: string; timezone: string | null; periods: Partial<Record<EntryPeriod, PeriodEdit>>; operationId: string };
 export type EstimateCellInput = { date: string; period: EntryPeriod; metric: MeasurementMetric; operationId: string };
@@ -25,7 +28,7 @@ const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(valu
 export function measurementDisplay(row: typeof measurement.$inferSelect): MeasurementDisplay {
   return { id: row.id, recordDate: row.recordDate, period: row.period,
     weightKg: row.weightKg, bodyFatPercent: row.bodyFatPercent, fasting: row.fasting,
-    sourceLocalTime: row.sourceLocalTime, timezone: row.timezone, sourceType: row.sourceType,
+    sourceLocalTime: row.sourceLocalTime, timezone: row.timezone, timezoneLabel: timezoneLabel(row.timezone, row.recordDate, row.utcOffsetMinutes), utcOffsetMinutes: row.utcOffsetMinutes, sourceType: row.sourceType,
     sourceSystem: row.sourceSystem, sourceRecordId: row.sourceRecordId, recordKind: row.recordKind,
     entryChannel: row.entryChannel, deviceLabel: row.deviceLabel,
     estimation: row.estimation, timePrecision: row.timePrecision, updatedAt: row.updatedAt.toISOString() };
@@ -34,7 +37,7 @@ function requireActor(actor: MeasurementActor) {
   if (!actor.userId?.trim() || actor.actorId !== actor.userId) throw new Error("操作者与账号不一致。");
 }
 function validateTimezone(timezone: string | null) {
-  if (timezone !== null) try { new Intl.DateTimeFormat("en", { timeZone: timezone }).format(); } catch { throw new Error("时区无效。"); }
+  validateMeasurementTimezone(timezone);
 }
 
 async function startOperation(tx: MeasurementTransaction, actor: MeasurementActor, operationId: string, payload: unknown) {
@@ -77,13 +80,17 @@ export async function prepareMeasurementDay(tx: MeasurementTransaction, actor: M
   for (const period of entryPeriods) {
     const edit = input.periods[period];
     if (!edit) continue;
-    if (!entryMetrics.some(metric => Object.hasOwn(edit, metric)) && !Object.hasOwn(edit, "deviceLabel") && !Object.hasOwn(edit, "fasting")) throw new Error("请选择要保存的指标。");
+    if (!entryMetrics.some(metric => Object.hasOwn(edit, metric)) && !["deviceLabel", "fasting", "timezone"].some(field => Object.hasOwn(edit, field))) throw new Error("请选择要保存的指标。");
     const [before] = edit.recordId ? await tx.select().from(measurement).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, edit.recordId), isNull(measurement.deletedAt))) : [];
     if (edit.recordId && (!before || before.recordKind !== "observed" || before.recordDate !== input.date || before.period !== period)) throw new Error("记录不存在或不属于当前日期时段。");
     if (before && before.updatedAt.toISOString() !== edit.version) throw new Error("记录已变化，请刷新后重新编辑。");
     const values = { weightKg: before?.weightKg ?? null, bodyFatPercent: before?.bodyFatPercent ?? null, fasting: before?.fasting ?? null };
     for (const field of ["weightKg", "bodyFatPercent", "fasting"] as const) if (Object.hasOwn(edit, field)) Object.assign(values, { [field]: edit[field] });
-    const valid = validateReportedMeasurement({ recordDate: input.date, period, ...values, timezone: input.timezone });
+    const timezone = Object.hasOwn(edit, "timezone") ? edit.timezone! : before ? before.timezone : input.timezone;
+    const valid = validateReportedMeasurement({ recordDate: input.date, period, ...values, timezone });
+    const time = before && Object.hasOwn(edit, "timezone") && before.timezone !== timezone
+      ? before.timePrecision === "second" ? resolveMeasurementTime(before.sourceLocalTime, timezone) : { timezone, occurredAt: null, utcOffsetMinutes: null }
+      : null;
     // 晨间表单只接收空腹实测，也不能把旧的非空腹／未知记录静默改为空腹。
     if (period === "daytime" && (valid.fasting !== true || (before && before.fasting !== true))) throw new Error("晨间只记录空腹测量；原记录非空腹或条件未确认时保持只读。");
     const deviceLabel = validateDeviceLabel(Object.hasOwn(edit, "deviceLabel") ? edit.deviceLabel : before?.deviceLabel);
@@ -91,7 +98,7 @@ export async function prepareMeasurementDay(tx: MeasurementTransaction, actor: M
       const prior = await tx.select().from(measurement).where(and(eq(measurement.userId, actor.userId), eq(measurement.recordDate, input.date), eq(measurement.period, period), eq(measurement.recordKind, "observed"), isNull(measurement.deletedAt)));
       if (prior.length) throw new Error("该时段已有实测，请刷新并选择要编辑的记录。");
     }
-    plans.push({ period, before, valid, deviceLabel });
+    plans.push({ period, before, valid, deviceLabel, time });
   }
   return plans;
 }
@@ -105,9 +112,9 @@ export async function saveMeasurementDay(db: Database, actor: MeasurementActor, 
     const batch = await startOperation(tx, actor, input.operationId, ["save", input.date, input.timezone, input.periods]);
     if (batch.repeated) return { repeated: true, saved: 0 };
     let saved = 0;
-    for (const { period, before, valid, deviceLabel } of await prepareMeasurementDay(tx, actor, input)) {
+    for (const { period, before, valid, deviceLabel, time } of await prepareMeasurementDay(tx, actor, input)) {
       if (before) {
-        const [after] = await tx.update(measurement).set({ weightKg: valid.weightKg, bodyFatPercent: valid.bodyFatPercent, deviceLabel, fasting: valid.fasting, fastingSource: valid.fastingSource, updatedAt: new Date(Math.max(Date.now(), before.updatedAt.getTime() + 1)) }).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, before.id))).returning();
+        const [after] = await tx.update(measurement).set({ weightKg: valid.weightKg, bodyFatPercent: valid.bodyFatPercent, deviceLabel, fasting: valid.fasting, fastingSource: valid.fastingSource, ...(time ?? {}), updatedAt: new Date(Math.max(Date.now(), before.updatedAt.getTime() + 1)) }).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, before.id))).returning();
         await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: after.id, action: "update", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { ai: actor.aiContext, before, after, reason: actor.actorType === "ai" ? "ai_measurement_edit" : "manual_measurement_edit", importId: batch.id } });
         if (before.weightKg !== valid.weightKg || before.bodyFatPercent !== valid.bodyFatPercent) await supersedeEstimates(tx, actor, input.date, period);
       } else {

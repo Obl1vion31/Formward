@@ -10,6 +10,7 @@ import { listMeasurements, saveReportedMeasurements } from "./records";
 import { entryMetrics, entryPeriods, localMeasurementDate, missingMeasurementCells } from "./entry-state";
 import { applyHistoricalInitialization, previewHistoricalInitialization } from "./initialization";
 import { measurementSummary } from "./summary";
+import { eq } from "drizzle-orm";
 
 const pg = new PGlite(), db = drizzle(pg, { schema });
 before(async () => { await migrate(db, { migrationsFolder: "./drizzle" }); });
@@ -142,6 +143,32 @@ test("历史编辑保留准确时间和来源；显式清空与遗漏区分，�
   assert.equal(current.weightKg, null); assert.equal(current.bodyFatPercent, "20.00");
   await assert.rejects(saveMeasurementDay(db, actor, input(date, { daytime: { recordId: current.id, version: current.updatedAt.toISOString(), bodyFatPercent: null } })), /至少/);
   assert.deepEqual((await listMeasurements(db, actor.userId))[0], current, "无效清空事务不改变数据");
+});
+
+test("网页仅修改 API 实测时区，数值与原始时间保持，版本和账号隔离生效", async () => {
+  const actor = await owner("timezone-only"), other = await owner("timezone-other"), date = "2024-04-04";
+  await saveReportedMeasurements(db, { ...actor, requestKey: "a".repeat(64), entryChannel: "api", deviceLabel: "虚构 API 秤", records: [
+    { recordDate: date, period: "daytime", weightKg: "70.20", bodyFatPercent: "20.10", fasting: true },
+    { recordDate: date, period: "evening", weightKg: "70.80", bodyFatPercent: "20.30", fasting: false, measuredAt: "2024-04-05 00:30:00", timezone: "Asia/Shanghai" },
+  ] });
+  const before = await listMeasurements(db, actor.userId), morning = before.find(row => row.period === "daytime")!, evening = before.find(row => row.period === "evening")!;
+  const request: SaveMeasurementDayInput = { date, timezone: null, operationId: randomUUID(), periods: {
+    daytime: { recordId: morning.id, version: morning.updatedAt.toISOString(), timezone: "+08:00" },
+    evening: { recordId: evening.id, version: evening.updatedAt.toISOString(), timezone: "+07:00" },
+  } };
+  await assert.rejects(saveMeasurementDay(db, other, request), /不属于/);
+  await assert.rejects(saveMeasurementDay(db, actor, { ...request, operationId: randomUUID(), periods: { daytime: { ...request.periods.daytime, timezone: "+14:15" } } }), /时区/);
+  assert.deepEqual(await listMeasurements(db, actor.userId), before);
+  await saveMeasurementDay(db, actor, request); assert.equal((await saveMeasurementDay(db, actor, request)).repeated, true);
+  const after = await listMeasurements(db, actor.userId);
+  for (const row of before) for (const field of ["weightKg", "bodyFatPercent", "fasting", "sourceLocalTime", "recordDate", "period", "deviceLabel", "entryChannel", "originalValues", "timePrecision"] as const) assert.deepEqual(after.find(item => item.id === row.id)![field], row[field], field);
+  const updatedMorning = after.find(row => row.id === morning.id)!, updatedEvening = after.find(row => row.id === evening.id)!;
+  assert.equal(updatedMorning.timezone, "+08:00"); assert.equal(updatedMorning.occurredAt, null); assert.equal(updatedMorning.utcOffsetMinutes, null);
+  assert.equal(updatedEvening.timezone, "+07:00"); assert.equal(updatedEvening.occurredAt!.toISOString(), "2024-04-04T17:30:00.000Z"); assert.equal(updatedEvening.utcOffsetMinutes, 420);
+  await assert.rejects(saveMeasurementDay(db, actor, { ...request, operationId: randomUUID() }), /记录已变化/);
+  const events = await db.select().from(schema.measurementEvent).where(eq(schema.measurementEvent.measurementId, morning.id));
+  assert.equal(events.filter(event => event.action === "update").length, 1);
+  assert.equal(events.find(event => event.action === "update")!.actorType, "user");
 });
 
 test("初始化冻结仍禁止估算，允许仅体脂补录，保留体重及另一时段快照", async () => {

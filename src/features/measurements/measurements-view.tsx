@@ -9,6 +9,8 @@ import styles from "./measurements-view.module.css";
 import { estimateModeLabel, estimateUserExplanation } from "./estimate-explanation";
 import { localMeasurementDate, measurementDayAction, type EntryResult, type MeasurementActions, type MeasurementDateDisplay, type MeasurementDisplay } from "./entry-state";
 import { MeasurementEntry } from "./measurement-entry";
+import { lockPageScroll } from "@/components/scroll-lock";
+import { timezoneLabel } from "./timezone";
 export type { MeasurementDisplay } from "./entry-state";
 
 type MeasurementDay = ReturnType<typeof buildMeasurementDays<MeasurementDisplay>>[number];
@@ -202,7 +204,7 @@ function RecordDetails({ row, metric, onMetric }: { row: MeasurementDisplay; met
       <dl>
         <div><dt>来源</dt><dd>{sourceLabel(row)}</dd></div>
         <div><dt>测量时间</dt><dd>{estimated ? "无" : recordTimeLabel(row)}</dd></div>
-        <div><dt>时区</dt><dd>{row.timezone ?? "无"}</dd></div>
+        <div><dt>时区</dt><dd>{row.timezoneLabel ?? timezoneLabel(row.timezone, row.recordDate, row.utcOffsetMinutes)}</dd></div>
         <div><dt>设备</dt><dd>{estimated ? "无" : row.deviceLabel ?? "无"}</dd></div>
         {!estimated && row.sourceSystem && row.sourceSystem !== sourceLabel(row) && <div><dt>来源系统</dt><dd>{row.sourceSystem}</dd></div>}
       </dl>
@@ -277,23 +279,16 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
       else node.dataset.motion = "open";
     };
     const previousFocus = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    const previousPaddingRight = document.body.style.paddingRight;
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    const paddingRight = Number.parseFloat(window.getComputedStyle(document.body).paddingRight) || 0;
     node.showModal();
+    const unlock = lockPageScroll();
     closing.current = false;
     node.dataset.motion = motion.matches ? "open" : "opening";
     motion.addEventListener("change", reduceMotion);
-    // 锁定滚动会移除占位滚动条；保留它原本占用的宽度，避免背景内容重新居中。
-    if (scrollbarWidth > 0) document.body.style.paddingRight = `${paddingRight + scrollbarWidth}px`;
-    document.body.style.overflow = "hidden";
     return () => {
       motion.removeEventListener("change", reduceMotion);
       if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
       node.close();
-      document.body.style.overflow = previousOverflow;
-      document.body.style.paddingRight = previousPaddingRight;
+      unlock();
       if (previousFocus instanceof HTMLElement || previousFocus instanceof SVGElement) previousFocus.focus({ preventScroll: true });
     };
   }, []);

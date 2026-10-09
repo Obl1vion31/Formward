@@ -7,6 +7,14 @@ import { buildMeasurementDays } from "./days";
 import { measurementSummary } from "./summary";
 import { calendarOrdinal, measurementTrend, metricDifference } from "./trend";
 import { estimateUserExplanation } from "./estimate-explanation";
+import { systemMeasurementTimezone, timezoneLabel, validateMeasurementTimezone } from "./timezone";
+import { localMeasurementDate } from "./entry-state";
+
+export function aiRequestTimezone(request: Request) {
+  const timezone = request.headers.get("x-formward-timezone") ?? systemMeasurementTimezone();
+  validateMeasurementTimezone(timezone);
+  return timezone;
+}
 
 export function safeAiError(error: unknown) {
   if (error instanceof ApiError) return { status: error.status, error: { code: error.code, message: error.message } };
@@ -38,12 +46,13 @@ export async function readAiJson(request: Request) {
     const { done, value } = await reader.read();
     if (done) break;
     bytes += value.byteLength;
-    if (bytes > 16384) { await reader.cancel(); throw new ApiError(413, "invalid_input", "单次操作内容过大。"); }
+    if (bytes > 65536) { await reader.cancel(); throw new ApiError(413, "invalid_input", "单次操作内容超过 64 KiB。"); }
     chunks.push(value);
   }
   try { return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown; } catch { throw new ApiError(400, "invalid_input", "JSON 格式无效。"); }
 }
-export async function queryAiMeasurements(db: Database, userId: string, params: URLSearchParams) {
+export async function queryAiMeasurements(db: Database, userId: string, params: URLSearchParams, timezone = systemMeasurementTimezone()) {
+  validateMeasurementTimezone(timezone);
   if ([...params.keys()].some(key => !["from", "to", "choices"].includes(key)) || ["from", "to", "choices"].some(key => params.getAll(key).length > 1)) throw new ApiError(400, "invalid_input", "查询仅支持 from、to 和 choices。");
   const from = params.get("from"), to = params.get("to");
   if (from) calendarOrdinal(from); if (to) calendarOrdinal(to);
@@ -59,6 +68,6 @@ export async function queryAiMeasurements(db: Database, userId: string, params: 
     summary: measurementSummary(all, metric, choices), trend: measurementTrend(records, metric, true, choices),
     days: buildMeasurementDays(records, choices, metric, dates.filter(row => visible(row.date)).map(row => row.date)).map(day => ({ date: day.date, needsSelection: day.needsSelection, daytime: day.daytimeRecord, evening: day.eveningRecord, candidates: { daytime: day.daytime, evening: day.evening }, difference: metricDifference(day.daytimeRecord, day.eveningRecord, metric) })),
   }]));
-  return { units: { weightKg: "kg", bodyFatPercent: "%", bodyFatDifference: "percentage_points" }, range: { from, to }, records: records.map(row => ({ ...row, estimateExplanation: row.estimation ? { weightKg: estimateUserExplanation(row.estimation, row.recordDate, "weightKg"), bodyFatPercent: estimateUserExplanation(row.estimation, row.recordDate, "bodyFatPercent") } : null })), dates: dates.filter(row => visible(row.date)), sources, analyses,
+  return { context: { timezone, timezoneLabel: timezoneLabel(timezone), localDate: localMeasurementDate(new Date(), timezone) }, units: { weightKg: "kg", bodyFatPercent: "%", bodyFatDifference: "percentage_points" }, range: { from, to }, records: records.map(row => ({ ...row, estimateExplanation: row.estimation ? { weightKg: estimateUserExplanation(row.estimation, row.recordDate, "weightKg"), bodyFatPercent: estimateUserExplanation(row.estimation, row.recordDate, "bodyFatPercent") } : null })), dates: dates.filter(row => visible(row.date)), sources, analyses,
     rules: "晨间只接受明确空腹实测；摘要仅统计实测。多候选须明确选择，choices 仅影响本次查询。未知值为 null。" };
 }

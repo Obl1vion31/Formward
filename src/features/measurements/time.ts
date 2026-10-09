@@ -1,12 +1,14 @@
 import { assignMeasurement } from "./assignment";
+import { validateMeasurementTimezone } from "./timezone";
 
-/** 解析每次测量的 IANA 时区；夏令时重复钟点须附原始偏移，缺失钟点拒绝。 */
+/** 解析每次测量的地区或固定偏移时区；夏令时重复钟点须附原始偏移。 */
 export function resolveMeasurementTime(sourceLocalTime: string, timezone: string | null, utcOffsetMinutes?: number) {
   assignMeasurement(sourceLocalTime);
   if (timezone === null) {
     if (utcOffsetMinutes !== undefined) throw new Error("偏移量须与来源时区一起提供。");
     return { occurredAt: null, timezone: null, utcOffsetMinutes: null };
   }
+  validateMeasurementTimezone(timezone);
   let formatter: Intl.DateTimeFormat;
   try {
     formatter = new Intl.DateTimeFormat("en-CA", {
@@ -14,7 +16,7 @@ export function resolveMeasurementTime(sourceLocalTime: string, timezone: string
       year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
     });
   } catch {
-    throw new Error("来源时区无效，须使用 IANA 时区名称。");
+    throw new Error("来源时区无效，须使用固定偏移或 IANA 时区名称。");
   }
   if (utcOffsetMinutes !== undefined && (!Number.isInteger(utcOffsetMinutes) || Math.abs(utcOffsetMinutes) > 840)) {
     throw new Error("来源 UTC 偏移量无效。");

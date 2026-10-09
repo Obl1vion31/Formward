@@ -1,22 +1,31 @@
 # Formward 项目交接
 
-更新日期：2026-10-08。仓库：/home/obl1vion/projects/Formward；分支：main；远程：[Obl1vion31/Formward](https://github.com/Obl1vion31/Formward)。
+更新日期：2026-10-09。仓库：/home/obl1vion/projects/Formward；分支：main；远程：[Obl1vion31/Formward](https://github.com/Obl1vion31/Formward)。
 
 ## 当前接手重点
 
-用户授权先实现简单的身体记录 AI 接入，范围是目前身体记录界面的全部已实现能力：晨晚体重／体脂、来源、历史详情、摘要／趋势／候选分析、历史编辑及逐项估算。用户把令牌、接口和确认细节交给开发者决定，入口放在邮箱右侧。当前先在本工作区用 Codex 和正式 HTTP API 试验，不绑定模型供应商，不需要上传项目源码；其他尚未实现模块继续后置。
+全站等待反馈已实现并完成开发／生产浏览器验证：按钮立即反馈，等待超过 200ms 显示虚化背景与居中动画／动作文字。保存、时区修改、估算、AI 审核、令牌、认证、首页必要素材和站内导航共用；快速操作不闪现遮罩，多个来源全部结束才收起，失败保留输入且不自动重试。加载层覆盖 Inspector，阻止重复提交和背景操作，结束后恢复滚动与可用焦点；窄屏与减少动态效果已适配。
 
-已提供 `/dashboard/ai`、30 天可撤销 read／write 令牌、一次性原文和可复制接入说明。`GET /api/v1/measurements` 查询，`POST /api/v1/measurement-operations` 生成预览，`GET /api/v1/measurement-operations/{id}` 查询状态；公开 OpenAPI 在 `/api/v1/openapi.json`。所有 AI 写入先生成 15 分钟网页预览，再由用户登录核对前后值后确认。完整使用步骤见 [AI 接入](docs/ai-api.md)。
+批量身体记录 AI 审核已实现：一次提交多条，一个完整链接逐行修改／确认／取消，顶部全部确认／批量修改／取消剩余。单行确认立即保存；修改支持日期、晨晚、数值、来源、空腹和时区，先更新预览再确认。时区显示 GMT+8（东八区）等，页面与 AI 审核只提供整数小时选择，每次新录入自动采用当次系统时区，无须用户重复提供，审核页仍可修改；已有记录补缺／修改省略时保留原时区。当前仍在本工作区用 Codex 和正式 HTTP API 试验，不绑定模型供应商；其他尚未实现模块后置。
 
-时区编辑仍暂缓，后续偏好为晨晚各自来源下方添加时区、新增默认系统时区、编辑优先已保存时区；不自动改写历史。来源输入继续只回显已保存值，未填为空，点击只展示本账号历史建议。数据库唯一日期是 record_date，凌晨继续归前日晚间。
+`/dashboard/ai` 提供 30 天可撤销 read／write 令牌、一次性原文、接入说明与最近提交的逐行数量。`GET /api/v1/measurements` 查询，`POST /api/v1/measurement-operations` 支持 kind=batch，items 内为 save_record 或 estimate_cell，最多 100 条／64 KiB；兼容旧 save_day／estimate_cell 请求和链接。`GET /api/v1/measurement-operations/{id}` 返回 revision、稳定行 ID、草稿／原始候选、行状态和 counts；公开 OpenAPI 在 `/api/v1/openapi.json`。所有写入须网页登录确认。完整步骤见 [AI 接入](docs/ai-api.md)。
+
+AI 审核时区在来源下方，固定偏移选择存为 +08:00，旧 IANA 保持，界面按测量日期／准确偏移显示 GMT 标签。本地 HTTP 助手每次读取系统偏移并发送 X-Formward-Timezone，API 新记录省略时区时自动带入；其他客户端未传请求头时读取服务系统偏移。查询 context 返回本次时区与当地日期。默认值只进入首次审核草稿，原始 payload 保留，后续刷新与重试不会覆盖；明确值或 null 优先。审核仍保留采用设备时区按钮，显式 null 为未指定。显式历史修改保留当地钟点与 record_date，准确时间才重算 UTC，day_period／assumed 不补钟点。常规四项录入／编辑表单已接入晨晚独立整数时区选择与采用系统时区按钮；新记录默认设备当前偏移，已有记录回显原时区，未知保持未指定。支持只改时区保存或显式清空，草稿参与刷新／并发保护，不能新建空测量。来源输入继续只回显已保存值，未填为空，点击只展示本账号历史建议；凌晨继续归前日晚间。
 
 ## 实现与数据约定
 
+加载反馈的维护入口与边界：
+
+- `src/components/page-loading.tsx` 提供根布局中的 Provider、原生 modal dialog 和路由后备；Context／hook 位于 `page-loading-state.ts`，保持组件模块可独立 Fast Refresh。每个操作拥有独立加载标识，出错或卸载只清理自己的状态。
+- `src/components/loading-link.tsx` 用 Next.js 的 `useLinkStatus` 跟踪实际站内导航；`scroll-lock.ts` 管理 Inspector 与加载层的叠加锁，按实际滚动条宽度补偿一次，最后一个锁释放后恢复原样式。
+- dashboard layout 与页面继续验证身份，`currentPageUser` 只在单次服务端渲染内复用，Server Actions 单独验证。身体／AI 设置页在身份校验后用显式 Suspense 等待数据；审核页先校验操作归属，保持未登录重定向与不存在／跨账号的 404。当前没有自动 `loading.tsx` 边界，不能把身份或归属校验移入会提前输出页面的后备中。
+- 异步 Server Action 在 transition 中等待实际结果与刷新提交；登录验证后仍先完成原有最终动画，再导航，退出仍完整导航以重置会话缓存。同步筛选、详情展开、复制和后台预取不触发全屏等待层。
+
 AI Token 只存不可逆摘要，原文仅创建时返回一次；30 天有效、即时撤销，read 只能查，write 能查和提交预览。网页确认仍需当前登录会话；cookie 不能代替 API Bearer，AI 不能自填 confirmed:true 绕过确认。AI 操作绑定账号、发起令牌、请求内容和健康快照，数据变化、过期或撤销后拒绝旧预览。同请求及重复确认幂等，不同内容／令牌不能复用 operationId。
 
-相同实测跳过，缺项可补，不同已知值显示冲突并阻止整次操作。修改已有数值或来源需要明确 recordId 和 version；未知不猜、不补零。晨间严格空腹，旧非空腹／未知晨间只读，晚间固定非空腹。新实测来源必填，准确时间与原始输入保持；单项估算保存依据、样本不足为空，冻结历史只允许补实测。确认使用现有 editing 写入和估算函数，健康记录、来源、批次、审计和 confirmed 状态同一事务。新记录入口 api、操作者 ai；改旧记录保留原入口，审计链接令牌、操作、确认账号和时间。
+相同实测跳过，缺项可补，冲突／无效行阻止整批保存但不阻止其他有效行单独确认。历史数值、来源或时区编辑需 recordId+version，网页冲突可明确选择历史对象。原始 AI payload 不变，preview JSON 保存行草稿／状态／结果；revision 拒绝跨页覆盖，本地草稿可保留并加载最新审核。单行保存更新快照并重新预览剩余行；修改／刷新续期 15 分钟；取消剩余不撤销已保存。晨间严格空腹、旧条件只读、晚间非空腹、来源必填与未知空值保持。估算只用已保存实测，整批估算先保存以保持展示依据，样本不足跳过，冻结历史只允许实测。健康记录、来源、批次、审计和行状态共用 editing 事务，失败回滚；新记录入口 api、操作者 ai，历史保留原入口与原始输入，审计记录 originalInput、reviewedInput、editedBy 和确认上下文。
 
-`ai_tokens` 与 `measurement_operations` 由新 migration 0008_aspiring_thunderbolt_ross.sql 创建，既有 migration 不改。所有账号读取与写入校验 user_id。0008 已在真实数据库执行，新增两张表为空，原有九张表的全部数据和字段逐项核对不变；备份 database-before-ai-2026-10-08.json 与报告 ai-migration-verification-2026-10-08.json 保存在私有 data/exports。当前结构 11 张业务／认证表，测量仍为 30 列，详见 [数据库字典](docs/database.md)。真实数据与私有备份只在被 Git 忽略的 data/imports、data/exports；测试只用虚构数据。不得打印密钥、提交原文件或报告、放进 public。
+`ai_tokens` 与 `measurement_operations` 由 0008 创建，0009_supreme_imperial_guard.sql 增加审核 revision 和混合状态，既有 migration 不改。0009 已在实际数据库执行，迁移前后私有全库备份与 ai-review-migration-verification-2026-10-09.json 核对全部旧业务／认证字段和值不变，操作仅增加 revision=1。当前 11 张业务／认证表，测量仍为 30 列，详见 [数据库字典](docs/database.md)。真实数据、原始文件与私有备份仅在被 Git 忽略的 data/imports、data/exports；测试用虚构数据，不代用户确认真实健康操作。不得打印密钥或公开报告。
 
 ## 已确认规则
 
@@ -36,16 +45,17 @@ AI Token 只存不可逆摘要，原文仅创建时返回一次；30 天有效�
 
 ## 验证与运行
 
-lint、typecheck、155 项单元／集成测试和 production build 已通过；隔离开发 AI 与生产完整身体记录／AI 浏览器回归已通过。AI 隔离浏览器验证令牌一次展示、HTTP 助手、预览／网页确认／刷新、重复／冲突／来源修改、账号隔离与撤销，并检查桌面／390px／320px。实际数据库 migration 前已保存私有完整备份，之后确认既有九张表逐字段不变。当前最终检查结果与 migration 执行状态见 docs/status.md。
+`pnpm lint`、`pnpm typecheck`、`pnpm test`（172 项）和 `pnpm build` 已通过。最终开发浏览器完成身体记录／AI／加载完整回归，生产完成身体记录／AI／加载回归及最终加载复验；认证浏览器另验证错误密码、防重复、原有最终动画时序、账号隔离和退出。批量与时区检查覆盖逐行／整批保存、审核版本、无效纠正、取消保留已保存、事务回滚、估算依据、历史时区、HTTP 助手、兼容链接和跨页冲突保留输入。
+
+`tests/page-loading.browser.mjs` 随 `tests/measurements.http.mts` 运行，`FORMWARD_LOADING_ONLY=1` 可仅执行加载验收。测试拦截真实请求，覆盖 200ms 延迟、快速失败无遮罩、并发等待、Inspector 上层阻挡与键盘限制、失败保留草稿、滚动锁恢复、返回／前进、素材失败，以及 1440／390／320px 和减少动态效果。开发测试在虚构登录上下文中预热所需路由，并在创建草稿前稳定编译版本，避免 Next.js HMR 重连造成整页刷新；生产保留完整站内导航流程。维护测试时保持这种隔离，不为测试改动生产加载行为。结果和 migration 状态见 [当前状态](docs/status.md)，复现命令见 [测试说明](tests/README.md)；测试始终用虚构账号，不代替用户确认真实操作。
 
 本地 Codex 试验先在交互终端运行 `pnpm ai:setup`，隐藏输入令牌，保存被 Git 忽略的 0600 .env.ai.local；`pnpm ai:request` 只走 HTTP，不读数据库配置、不输出令牌。没有用户提供的真实测量时只在隔离虚构账号演示，不写入用户健康记录。外部 AI 无法访问工作区 localhost 时，需要后续可达的服务地址。
 
-Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7；改 Next 代码前读 node_modules/next/dist/docs/ 对应指南。修改前读根 README、AGENTS 和最近 README，保留无关变更，每个项目自有目录需 README。typecheck 与 build 顺序运行，避免 .next/types 生成冲突。已有 3000 开发服务，不启动第二个同目录实例或擅自关闭；暂无外部部署。浏览器开发测试在临时副本和独立端口，生产测试使用构建产物；虚构数据库完全隔离，Playwright／Chromium／系统库／字体均在 /tmp，不增加项目依赖。截图路径 /tmp/formward-ai-development 与 /tmp/formward-ai-production。
+Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7；改 Next 代码前读 node_modules/next/dist/docs/ 对应指南。修改前读根 README、AGENTS 和最近 README，保留无关变更，每个项目自有目录需 README。typecheck 与 build 顺序运行，避免 .next/types 生成冲突。已有 3000 开发服务，不启动第二个同目录实例或擅自关闭；暂无外部部署。浏览器开发测试在临时副本和独立端口，生产测试使用构建产物；虚构数据库完全隔离，Playwright／Chromium／系统库／字体均在 /tmp，不增加项目依赖。最新加载截图位于 /tmp/formward-loading-development 与 /tmp/formward-loading-production；整数时区编辑截图位于 /tmp/formward-entry-timezone-development 与 /tmp/formward-entry-timezone-production，均不提交 Git。
 
 ## 后续探索
 
-- 时区输入：晨晚各一项，来源下方；新增默认设备时区、旧记录回显已保存值。
-- 批量导入确认：AI 整理 Excel／截图／口述为候选，整批展示重复、冲突与影响，用户网页确认。用户提供数据文件，不用给项目源码或仓库文件夹。
+- 文件解析导入：AI 整理 Excel／截图／口述为已支持的 batch 候选，继续使用统一审核，用户提供数据文件，无须项目源码。
 - 外部 AI 客户端、HTTPS 部署、MCP 等协同方式按实际需要探索，当前先跑通本地 HTTP。
 - 归属与准确时间修正、持久代表选择、网页删除／恢复和导入复用现有 feature；历史条件修正必须明确确认。
 - 饮食、运动、全天消耗、热量关联与设备连接后置。D 日晨晚差及 D+1 日空腹变化可对照 D 日盈余，缺项不计算，不把体重差当热量或确定因果。

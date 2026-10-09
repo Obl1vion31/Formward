@@ -49,6 +49,8 @@ const entryAccount = { email: "entry-http@example.test", password: "fictional-en
 const entryOwner = await provisionAccount(db, entryAccount);
 const aiAccount = { email: "ai-http@example.test", password: "fictional-ai-browser-password" };
 await provisionAccount(db, aiAccount);
+const loadingAccount = { email: "loading-http@example.test", password: "fictional-loading-browser-password" };
+await provisionAccount(db, loadingAccount);
 await db.update(schema.user).set({ createdAt: new Date("2024-02-27T00:00:00Z") }).where(eq(schema.user.id, entryOwner.id));
 const today = localMeasurementDate(new Date(), "Asia/Shanghai");
 const priorDate = (offset: number) => new Date(Date.parse(`${today}T00:00:00Z`) - offset * 86_400_000).toISOString().slice(0, 10);
@@ -165,7 +167,7 @@ try {
   assert.ok(!otherHtml.includes("74.80"));
   assert.ok(otherHtml.includes("暂无测量记录"));
   console.log("通过：跨账号参数不能读到测量，无记录账号仍显示空状态。");
-  if (process.env.FORMWARD_MEASUREMENTS_BROWSER === "1" && process.env.FORMWARD_AI_ONLY !== "1") {
+  if (process.env.FORMWARD_MEASUREMENTS_BROWSER === "1" && process.env.FORMWARD_AI_ONLY !== "1" && process.env.FORMWARD_LOADING_ONLY !== "1") {
     const { checkMeasurementsBrowser } = await import("./measurements.browser.mjs");
     const refreshSource = development ? async (date: string, deviceLabel: string) => {
       const row = (await listMeasurements(db, entryOwner.id)).find(row => row.recordDate === date && row.period === "daytime")!;
@@ -173,10 +175,17 @@ try {
     } : undefined;
     await checkMeasurementsBrowser({ baseURL, first, second, initializedAccount, entryAccount, today, refreshSource });
   }
-  if (process.env.FORMWARD_MEASUREMENTS_BROWSER === "1") {
+  if (process.env.FORMWARD_MEASUREMENTS_BROWSER === "1" && process.env.FORMWARD_LOADING_ONLY !== "1") {
     const { checkAiAccessBrowser } = await import("./ai-access.browser.mjs");
     await checkAiAccessBrowser({ baseURL, account: aiAccount, other: second, date: today });
   }
+  if (process.env.FORMWARD_MEASUREMENTS_BROWSER === "1" && process.env.FORMWARD_AI_ONLY !== "1") {
+    const { checkPageLoadingBrowser } = await import("./page-loading.browser.mjs");
+    await checkPageLoadingBrowser({ baseURL, account: loadingAccount, date: today });
+  }
+} catch (error) {
+  console.log("测试服务诊断：", logs.split("\n").filter(line => /Fast Refresh|full reload|Error:|error|Warning|warning/i.test(line)).slice(-15));
+  throw error;
 } finally {
   if (child.exitCode === null && !child.signalCode) {
     child.kill("SIGTERM");

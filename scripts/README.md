@@ -30,4 +30,4 @@
 
 测量维护请求的日期使用 `recordDate`；旧私有 JSON 的 `analysisDate` 在读取入口兼容，双字段不同则拒绝，原文件不改写。旧补全请求指纹仍返回原批次；结构迁移前的预览须重新生成。
 
-`ai-setup.mts`（pnpm ai:setup）在交互终端隐藏读取令牌，写入 0600 的私有 .env.ai.local，不覆盖已有配置。`ai-request.mts`（pnpm ai:request GET /measurements 或 POST /measurement-operations 私有请求.json）只用该配置调用正式 HTTP API，不读取数据库或打印令牌，不跟随重定向，仅允许 HTTPS／本机 HTTP。用法与确认流程见 [AI 接入](../docs/ai-api.md)。
+`ai-setup.mts`（pnpm ai:setup）在交互终端隐藏读取令牌，写入 0600 的私有 .env.ai.local，不覆盖已有配置。`ai-request.mts`（pnpm ai:request GET /measurements 或 POST /measurement-operations 私有请求.json）只用该配置调用正式 HTTP API，每次自动读取系统时区并发送 X-Formward-Timezone 请求头，私有请求文件保持原样，不读取数据库或打印令牌，不跟随重定向，仅允许 HTTPS／本机 HTTP。用法与确认流程见 [AI 接入](../docs/ai-api.md)。

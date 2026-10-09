@@ -1,0 +1,3 @@
+ALTER TABLE "measurement_operations" DROP CONSTRAINT "measurement_operations_status_valid";--> statement-breakpoint
+ALTER TABLE "measurement_operations" ADD COLUMN "revision" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE "measurement_operations" ADD CONSTRAINT "measurement_operations_status_valid" CHECK ("measurement_operations"."status" IN ('pending', 'partially_confirmed', 'confirmed', 'completed', 'cancelled'));

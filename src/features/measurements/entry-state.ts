@@ -10,6 +10,8 @@ export type EntryCell = { period: EntryPeriod; metric: MeasurementMetric };
 export type MeasurementDateDisplay = { date: string; reminderSkipped: boolean };
 export type MeasurementDisplay = DailyMeasurement & {
   timezone: string | null;
+  timezoneLabel?: string;
+  utcOffsetMinutes?: number | null;
   sourceType: string; sourceSystem: string | null; sourceRecordId: string | null;
   recordKind: "observed" | "estimated"; entryChannel: "api" | "manual" | "development_backend" | null;
   deviceLabel: string | null; estimation: EstimationMetadata | null;

@@ -2,7 +2,7 @@
 
 // 首页交互总控：React 管阶段，rAF 管连续数值，CSS 管画面样式。
 // 从 JSX 的 .home-stage 结构开始读，再沿 requestDirection → renderProgress 理解转身。
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "@/features/auth/client";
 import { BodySequence } from "./body-sequence";
@@ -15,6 +15,7 @@ import { createProgressTimeline, FINAL_DURATION_MS, turnFrameWeights, loginRevea
 import { createTurnVideo } from "./turn-video";
 import { LoginOverlay } from "./login-overlay";
 import { useDirectionTrigger } from "./use-direction-trigger";
+import { usePageLoading } from "@/components/page-loading-state";
 
 // phase 表示交互阶段，不等于帧序号；FORWARD_ANIMATING 内部沿半秒播放时间轴前进（一秒源视频的 2 倍速）。
 type Phase = "INTRO" | "FORWARD_ANIMATING" | "LOGIN_READY" | "REVERSE_ANIMATING" | "AUTHENTICATING" | "FINAL_TRANSITION" | "FINAL";
@@ -52,6 +53,10 @@ export default function HomeExperience() {
   const [reducedMotion, setReducedMotion] = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [navigating, startNavigation] = useTransition();
+  usePageLoading({ active: !imagesReady && !imageError, label: "正在加载登录页面…" });
+  usePageLoading({ active: phase === "AUTHENTICATING", label: "正在验证登录…" });
+  usePageLoading({ active: navigating, label: "正在加载身体记录…" });
 
   const updateMotion = useCallback((settleMs = 100) => {
     // 先检查设备、素材就绪和系统偏好，再按阶段选择 1、0.5 或 0 倍幅度。
@@ -261,7 +266,7 @@ export default function HomeExperience() {
     // 使用实际 CSS 动画完成事件，不把网络时长或 React 提交延迟算作动画播放。
     if (event.animationName !== "final-presence" || phaseRef.current !== "FINAL_TRANSITION") return;
     changePhase("FINAL");
-    router.replace("/dashboard");
+    startNavigation(() => router.replace("/dashboard"));
   }
 
   function revealLogin() {

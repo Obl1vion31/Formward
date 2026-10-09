@@ -173,7 +173,8 @@ export const measurementOperation = pgTable("measurement_operations", {
   snapshotDigest: text("snapshot_digest").notNull(),
   payload: jsonb("payload").$type<import("../features/measurements/ai-operations").AiMeasurementInput>().notNull(),
   preview: jsonb("preview").$type<import("../features/measurements/ai-operations").OperationPreview>().notNull(),
-  status: text("status", { enum: ["pending", "confirmed", "cancelled"] }).notNull().default("pending"),
+  revision: integer("revision").notNull().default(1),
+  status: text("status", { enum: ["pending", "partially_confirmed", "confirmed", "completed", "cancelled"] }).notNull().default("pending"),
   result: jsonb("result").$type<{ message: string; saved: number }>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
@@ -181,5 +182,5 @@ export const measurementOperation = pgTable("measurement_operations", {
 }, table => [
   uniqueIndex("measurement_operations_user_request_idx").on(table.userId, table.operationId),
   index("measurement_operations_user_created_idx").on(table.userId, table.createdAt),
-  check("measurement_operations_status_valid", sql`${table.status} IN ('pending', 'confirmed', 'cancelled')`),
+  check("measurement_operations_status_valid", sql`${table.status} IN ('pending', 'partially_confirmed', 'confirmed', 'completed', 'cancelled')`),
 ]);

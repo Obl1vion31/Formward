@@ -4,13 +4,14 @@ import type { Database } from "../../db/client";
 import { measurement, measurementEvent, measurementImport, user } from "../../db/schema";
 import { assignMeasurement } from "./assignment";
 import { resolveMeasurementTime } from "./time";
+import { validateMeasurementTimezone } from "./timezone";
 import { calendarOrdinal } from "./trend";
 import { supersedeEstimates } from "./estimate-records";
 import { rememberMeasurementSource, validateDeviceLabel } from "./sources";
 export { supersedeEstimates } from "./estimate-records";
 
 export type MeasurementTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
-export type MeasurementActor = { userId: string; actorId: string; actorType?: "user" | "ai" | "development_backend"; aiContext?: { tokenId: string; operationId: string; confirmedBy: string; confirmedAt: string } };
+export type MeasurementActor = { userId: string; actorId: string; actorType?: "user" | "ai" | "development_backend"; aiContext?: { tokenId: string; operationId: string; confirmedBy: string; confirmedAt: string; review?: Record<string, unknown> } };
 export type EntryChannel = "api" | "manual" | "development_backend";
 
 /** 所有测量写入锁定归属账号，避免实测补录与估计生成并发留下重复时段。 */
@@ -203,7 +204,7 @@ export function validateReportedMeasurement(input: ReportedMeasurement) {
     if (assignment.period !== input.period || assignment.recordDate !== input.recordDate) throw new Error("占位时间与明确时段不一致。");
     resolveMeasurementTime(sourceLocalTime, timezone);
   } else if (timezone) {
-    try { new Intl.DateTimeFormat("en", { timeZone: timezone }).format(); } catch { throw new Error("来源时区无效。"); }
+    validateMeasurementTimezone(timezone);
   }
   const weightKg = input.weightKg === null ? null : validateDecimal(input.weightKg, "体重", 0, 99999.99, false);
   const bodyFatPercent = input.bodyFatPercent === null ? null : validateDecimal(input.bodyFatPercent, "体脂率", 0, 100, true);

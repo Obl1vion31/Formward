@@ -2,11 +2,13 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { signOut } from "@/features/auth/client";
+import { usePageLoading } from "@/components/page-loading-state";
 
 export function LogoutButton() {
   const lock = useRef(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(false);
+  usePageLoading({ active: pending, label: "正在退出登录…" });
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (lock.current) return;

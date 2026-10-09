@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 // 在根布局引入一次，全站即可使用 globals.css 中的类名和颜色变量。
 import "./globals.css";
+import { PageLoadingProvider } from "@/components/page-loading";
 
 // 浏览器标签标题及页面描述；不是首页人物旁显示的正文。
 export const metadata: Metadata = {
@@ -15,7 +16,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body><PageLoadingProvider>{children}</PageLoadingProvider></body>
     </html>
   );
 }

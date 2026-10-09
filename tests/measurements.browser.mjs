@@ -403,7 +403,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     await drawer.getByRole("button", { name: /2025-07-11 00:30:00/ }).click();
     await assertRecordInspector(page);
     assert.match(await drawer.innerText(), /2025-07-11 00:30:00/);
-    assert.match(await drawer.innerText(), /Asia\/Shanghai/);
+    assert.match(await drawer.innerText(), /GMT\+8（东八区）/);
     assert.doesNotMatch(await drawer.innerText(), /归属日/);
     assert.match(await drawer.innerText(), /2025.07.10/);
     assert.match(await drawer.innerText(), /开发后台加入/);
@@ -600,7 +600,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       await initializedChart.locator('[data-date="2025-08-05"][data-period="daytime"][data-kind="observed"]').click();
       const observedModal = await assertRecordInspector(initialized.page);
       assert.match(await observedModal.innerText(), /API 写入.*测量时间\s*无/s);
-      assert.match(await observedModal.getByRole("region", { name: "记录信息" }).innerText(), /时区\s*无/);
+      assert.match(await observedModal.getByRole("region", { name: "记录信息" }).innerText(), /时区\s*未指定/);
       assert.match(await observedModal.getByRole("region", { name: "记录信息" }).innerText(), /设备\s*无/);
       await initialized.page.screenshot({ path: `${artifacts}/initialization-${width}-observed.png` });
       await initialized.page.keyboard.press("Escape");

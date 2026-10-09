@@ -29,6 +29,80 @@ button,
 input {
   font: inherit;
 }
+
+/* 全站等待反馈：实际请求超过 200ms 后打开 top layer，不改变正文布局。 */
+.page-loading-dialog {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--warm-white);
+  overflow: hidden;
+}
+.page-loading-dialog[open],
+.page-loading-fallback {
+  display: grid;
+  place-items: center;
+}
+.page-loading-dialog::backdrop,
+.page-loading-fallback {
+  background: rgba(16, 16, 15, .46);
+  backdrop-filter: blur(6px);
+}
+.page-loading-fallback {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  padding: 24px;
+  animation: page-loading-appear 140ms ease-out 200ms both;
+}
+.page-loading-fallback[hidden] {
+  display: none;
+}
+.page-loading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  max-width: 100%;
+  padding: 28px 32px;
+  border: 1px solid rgba(190, 164, 120, .16);
+  border-radius: 12px;
+  background: rgba(16, 16, 15, .90);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, .20);
+  animation: page-loading-appear 140ms ease-out both;
+}
+.page-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(190, 164, 120, .20);
+  border-top-color: var(--gold);
+  border-right-color: var(--gold);
+  border-radius: 50%;
+  animation: page-loading-spin 900ms linear infinite;
+}
+.page-loading-message {
+  margin: 0;
+  color: var(--warm-white);
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+  outline: none;
+}
+@keyframes page-loading-spin { to { transform: rotate(360deg); } }
+@keyframes page-loading-appear { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .page-loading-spinner,
+  .page-loading-indicator { animation: none; }
+  .page-loading-fallback { animation-duration: 0s; }
+}
 /* 保留键盘可见焦点，不能仅靠 hover 表示可操作。 */
 button:focus-visible,
 input:focus-visible {
@@ -456,6 +530,52 @@ input:focus-visible {
 .ai-comparison { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .ai-comparison th, .ai-comparison td { padding: 12px 8px; border-bottom: 1px solid rgba(240, 233, 221, .12); text-align: left; overflow-wrap: anywhere; font-weight: 400; }
 .ai-comparison th { color: var(--muted); }
+.ai-review-page { max-width: 1120px; }
+.ai-review-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin: 28px 0; }
+.ai-review-heading h1 { margin: 4px 0 8px; }
+.ai-eyebrow { font-size: 11px; letter-spacing: .16em; color: var(--gold); }
+.ai-review-total { display: grid; flex-shrink: 0; text-align: right; color: var(--muted); font-size: 12px; }
+.ai-review-total strong { font-size: 48px; font-weight: 400; color: var(--warm-white); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.ai-review-toolbar { border-block: 1px solid rgba(240, 233, 221, .2); padding: 16px 0; margin-top: 24px; }
+.ai-review-progress { font-variant-numeric: tabular-nums; }
+.ai-review-toolbar .ai-muted, .ai-review-refresh { font-size: 13px; }
+.ai-review-refresh { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.ai-review-item { padding: 28px 0; border-bottom: 1px solid rgba(240, 233, 221, .16); }
+.ai-review-items { margin-bottom: 32px; }
+.ai-item-heading { display: flex; gap: 16px; align-items: baseline; }
+.ai-item-heading > div { min-width: 0; flex: 1; }
+.ai-item-heading h2 { margin: 0; font-size: 20px; font-variant-numeric: tabular-nums; }
+.ai-item-heading p { margin: 2px 0; font-size: 13px; }
+.ai-item-number { font-size: 13px; color: var(--gold); font-variant-numeric: tabular-nums; }
+.ai-item-status { color: var(--gold); font-size: 13px; white-space: nowrap; }
+.ai-review-item[data-item-status="cancelled"] .ai-item-status, .ai-review-item[data-item-status="skipped"] .ai-item-status { color: var(--muted); }
+.ai-review-item > p, .ai-evidence { font-size: 14px; }
+.ai-review-item .ai-comparison th:first-child { width: 20%; }
+.ai-row-actions { justify-content: flex-end; }
+.ai-draft { margin-top: 20px; padding: 20px; background: rgba(190, 164, 120, .04); border-inline-start: 2px solid var(--gold); }
+.ai-draft-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.ai-draft-grid label { display: grid; gap: 6px; min-width: 0; font-size: 14px; }
+.ai-draft-wide { grid-column: 1 / -1; }
+.ai-timezone-field { display: flex; gap: 12px; align-items: end; }
+.ai-timezone-field label { flex: 1; }
+.ai-draft-grid .ai-fasting { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; }
+.ai-fasting input { width: 20px; height: 20px; min-height: 20px; flex-shrink: 0; accent-color: var(--gold); }
+.ai-draft > p { font-size: 13px; }
+@media (max-width: 600px) {
+  .ai-review-heading { gap: 12px; }
+  .ai-review-total strong { font-size: 36px; }
+  .ai-item-heading { gap: 10px; flex-wrap: wrap; }
+  .ai-item-heading h2 { font-size: 17px; }
+  .ai-item-heading > div { flex-basis: calc(100% - 34px); }
+  .ai-item-status { margin-inline-start: 28px; }
+  .ai-review-item .ai-comparison { font-size: 13px; }
+  .ai-review-item .ai-comparison th, .ai-review-item .ai-comparison td { padding: 10px 4px; }
+  .ai-review-item .ai-comparison th:first-child { width: 23%; }
+  .ai-draft { padding: 14px 12px; }
+  .ai-draft-grid { grid-template-columns: minmax(0, 1fr); }
+  .ai-timezone-field { align-items: stretch; flex-direction: column; }
+  .ai-row-actions { justify-content: flex-start; gap: 8px; }
+}
 @media (max-width: 700px) {
   .dashboard-page { padding: 0 20px; }
   .dashboard-header { gap: 16px; min-height: 72px; }

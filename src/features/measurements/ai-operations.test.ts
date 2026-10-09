@@ -1,18 +1,19 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { and, eq } from "drizzle-orm";
 import * as schema from "../../db/schema";
 import { authenticateAi, createAiToken, listAiTokens, revokeAiToken, type AiIdentity } from "../auth/ai-tokens";
-import { decideAiMeasurementOperation, getAiMeasurementOperation, parseAiMeasurementInput, submitAiMeasurementOperation } from "./ai-operations";
-import { aiApiResponse, aiConfirmationUrl, queryAiMeasurements, readAiJson } from "./ai-api";
+import { decideAiMeasurementOperation, getAiMeasurementOperation, parseAiMeasurementInput, reviewAiMeasurementOperation, submitAiMeasurementOperation, type ReviewInput } from "./ai-operations";
+import { aiApiResponse, aiConfirmationUrl, aiRequestTimezone, queryAiMeasurements, readAiJson } from "./ai-api";
 import { listMeasurements, saveReportedMeasurements } from "./records";
 import { entryMetrics, entryPeriods } from "./entry-state";
 import { saveMeasurementDay } from "./editing";
 import { applyHistoricalInitialization, previewHistoricalInitialization } from "./initialization";
+import { systemMeasurementTimezone, timezoneLabel, timezoneOptions, validateMeasurementTimezone } from "./timezone";
 
 const pg = new PGlite(), db = drizzle(pg, { schema });
 before(async () => { await migrate(db, { migrationsFolder: "./drizzle" }); });
@@ -28,6 +29,228 @@ async function owner(permission: "read" | "write" = "write", seed = false) {
 const input = (periods: unknown = { daytime: { weightKg: "70.2", fasting: true, deviceLabel: "虚构秤" } }, date = "2024-04-04") => ({ kind: "save_day", operationId: randomUUID(), date, periods });
 const confirm = (identity: AiIdentity, id: string) => decideAiMeasurementOperation(db, identity.userId, id, "confirm");
 const rejects = (promise: Promise<unknown>, code: string) => assert.rejects(promise, error => error instanceof Error && "code" in error && error.code === code);
+const realItem = (date = "2024-05-01", patch: Record<string, unknown> = {}): ReviewInput => ({ kind: "save_record", date, period: "evening", weightKg: "70.20", deviceLabel: "虚构审核秤", ...patch } as ReviewInput);
+const batch = (items: ReviewInput[]) => ({ kind: "batch", operationId: randomUUID(), items });
+
+test("查询提供本次系统时区与当地日期，客户端时区优先且无效值拒绝", async () => {
+  const { userId } = await owner();
+  assert.equal(aiRequestTimezone(new Request("http://localhost")), systemMeasurementTimezone());
+  const timezone = aiRequestTimezone(new Request("http://localhost", { headers: { "X-Formward-Timezone": "+05:45" } }));
+  const result = await queryAiMeasurements(db, userId, new URLSearchParams(), timezone);
+  assert.equal(result.context.timezone, "+05:45"); assert.equal(result.context.timezoneLabel, "GMT+5:45"); assert.match(result.context.localDate, /^\d{4}-\d{2}-\d{2}$/);
+  for (const invalid of ["", "+14:15", "not-a-timezone"]) assert.throws(() => aiRequestTimezone(new Request("http://localhost", { headers: { "X-Formward-Timezone": invalid } })));
+});
+
+test("批量新录入每次自动采用系统时区，明确值优先；重试冻结默认且原始请求不变", async () => {
+  const { userId, identity } = await owner(), request = batch([realItem()]);
+  const first = await submitAiMeasurementOperation(db, identity, request, "+08:00");
+  assert.equal(first.items[0].input.kind === "save_record" && first.items[0].input.timezone, "+08:00");
+  assert.equal(first.items[0].preview.rows[0].after?.timezoneLabel, "GMT+8（东八区）");
+  assert.equal(Object.hasOwn(first.items[0].originalInput, "timezone"), false); assert.equal(Object.hasOwn(request.items[0], "timezone"), false);
+  assert.deepEqual(await listMeasurements(db, userId), []);
+  const repeated = await submitAiMeasurementOperation(db, identity, request, "+07:00");
+  assert.equal(repeated.id, first.id); assert.deepEqual(repeated.items, first.items);
+  const fresh = await submitAiMeasurementOperation(db, identity, batch([realItem("2024-05-02"), realItem("2024-05-03", { timezone: "+05:45" }), realItem("2024-05-04", { timezone: null })]), "+07:00");
+  assert.deepEqual(fresh.items.map(item => item.preview.rows[0].after?.timezone), ["+07:00", "+05:45", null]);
+  await reviewAiMeasurementOperation(db, userId, fresh.id, { kind: "confirm", revision: 1 });
+  assert.deepEqual((await listMeasurements(db, userId)).sort((a, b) => a.recordDate.localeCompare(b.recordDate)).map(row => row.timezone), ["+07:00", "+05:45", null]);
+});
+
+test("单日默认时区在逐行刷新和修改后保留，省略与显式 null 的重试内容不同", async () => {
+  const { userId, identity } = await owner(), request = input();
+  const first = await submitAiMeasurementOperation(db, identity, request, "+08:00");
+  assert.equal(first.items[0].preview.rows[0].after?.timezone, "+08:00");
+  await rejects(submitAiMeasurementOperation(db, identity, { ...request, timezone: null }, "+07:00"), "request_conflict");
+  let review = await reviewAiMeasurementOperation(db, userId, first.id, { kind: "refresh", revision: 1 });
+  review = await reviewAiMeasurementOperation(db, userId, first.id, { kind: "update", revision: review.revision, changes: [{ itemId: review.items[0].id, input: { ...review.items[0].input, timezone: "+07:00" } as ReviewInput }] });
+  assert.equal((await submitAiMeasurementOperation(db, identity, request, "+05:30")).items[0].preview.rows[0].after?.timezone, "+07:00");
+  await reviewAiMeasurementOperation(db, userId, first.id, { kind: "confirm", revision: review.revision });
+  assert.equal((await listMeasurements(db, userId))[0].timezone, "+07:00");
+  const explicitNull = await submitAiMeasurementOperation(db, identity, { ...input(undefined, "2024-04-05"), timezone: null }, "+08:00");
+  assert.equal(explicitNull.items[0].preview.rows[0].after?.timezone, null);
+});
+
+test("新录入采用系统时区，已有记录补缺与来源修改保留原时区和未知值", async () => {
+  const { userId, identity, actor } = await owner();
+  for (const [date, timezone] of [["2024-05-01", "+07:00"], ["2024-05-02", null]] as const) await saveMeasurementDay(db, actor, { date, timezone, operationId: randomUUID(), periods: { evening: { weightKg: "70.20", deviceLabel: "虚构旧秤" } } });
+  const records = await listMeasurements(db, userId), known = records.find(row => row.recordDate === "2024-05-01")!;
+  const review = await submitAiMeasurementOperation(db, identity, batch([
+    { kind: "save_record", date: known.recordDate, period: "evening", recordId: known.id, version: known.updatedAt.toISOString(), deviceLabel: "虚构新来源" },
+    { kind: "save_record", date: "2024-05-02", period: "evening", bodyFatPercent: "20.10" },
+    realItem("2024-05-03"),
+  ]), "+08:00");
+  assert.deepEqual(review.items.map(item => item.preview.rows[0].after?.timezone), ["+07:00", null, "+08:00"]);
+  await reviewAiMeasurementOperation(db, userId, review.id, { kind: "confirm", revision: 1 });
+  assert.deepEqual((await listMeasurements(db, userId)).sort((a, b) => a.recordDate.localeCompare(b.recordDate)).map(row => row.timezone), ["+07:00", null, "+08:00"]);
+});
+
+test("旧单日操作内容摘要仍可重试，已有预览不重新补系统时区", async () => {
+  const { userId, identity } = await owner(), request = { ...input(), timezone: null };
+  const first = await submitAiMeasurementOperation(db, identity, request);
+  const preview = structuredClone(first.preview); delete preview.defaultTimezone;
+  // 旧版预览的 after 不包含时区字段，但 resolved 保留写入时的时区。
+  for (const row of preview.rows) if (row.after) { delete row.after.timezone; delete row.after.timezoneLabel; }
+  await db.update(schema.measurementOperation).set({ preview, requestDigest: createHash("sha256").update(JSON.stringify(parseAiMeasurementInput(request))).digest("hex") }).where(eq(schema.measurementOperation.id, first.id));
+  const repeated = await submitAiMeasurementOperation(db, identity, request, "+07:00");
+  assert.equal(repeated.id, first.id); assert.equal(repeated.items[0].input.kind === "save_record" && repeated.items[0].input.timezone, null);
+  const refreshed = await reviewAiMeasurementOperation(db, userId, first.id, { kind: "refresh", revision: first.revision });
+  assert.equal(refreshed.items[0].preview.rows[0].after?.timezone, null);
+  await reviewAiMeasurementOperation(db, userId, first.id, { kind: "confirm", revision: refreshed.revision });
+  assert.equal((await listMeasurements(db, userId))[0].timezone, null);
+});
+
+test("跨日批量一个链接，草稿不写健康记录；逐条幂等保存、取消剩余保留已保存", async () => {
+  const { userId, identity } = await owner(), request = batch([realItem(), realItem("2024-05-02"), realItem("2024-05-03")]);
+  const initial = await submitAiMeasurementOperation(db, identity, request);
+  assert.equal(initial.items.length, 3); assert.equal(initial.counts.pending, 3); assert.equal((await listMeasurements(db, userId)).length, 0);
+  assert.deepEqual((await submitAiMeasurementOperation(db, identity, request)).items.map(item => item.id), initial.items.map(item => item.id));
+  const action = { kind: "confirm" as const, revision: initial.revision, itemIds: [initial.items[0].id] };
+  const results = await Promise.all([reviewAiMeasurementOperation(db, userId, initial.id, action), reviewAiMeasurementOperation(db, userId, initial.id, action)]);
+  assert.ok(results.every(result => result.status === "partially_confirmed")); assert.equal((await listMeasurements(db, userId)).length, 1);
+  const cancelled = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "cancel", revision: results[0].revision });
+  assert.equal(cancelled.status, "completed"); assert.equal(cancelled.counts.saved, 1); assert.equal(cancelled.counts.cancelled, 2);
+  assert.equal((await listMeasurements(db, userId)).length, 1);
+  assert.equal((await reviewAiMeasurementOperation(db, userId, initial.id, action)).counts.saved, 1);
+  const [stored] = await db.select().from(schema.measurementOperation).where(eq(schema.measurementOperation.id, initial.id));
+  assert.deepEqual(stored.payload, parseAiMeasurementInput(request));
+});
+
+test("旧单日双时段链接逐行确认只保存所选时段，余下可整体确认", async () => {
+  const { userId, identity } = await owner(), initial = await submitAiMeasurementOperation(db, identity, input({ daytime: { weightKg: "70.20", fasting: true, deviceLabel: "虚构晨秤" }, evening: { bodyFatPercent: "20.20", deviceLabel: "虚构晚秤" } }));
+  const part = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: initial.revision, itemIds: [initial.items[1].id] });
+  assert.equal(part.status, "partially_confirmed"); assert.deepEqual((await listMeasurements(db, userId)).map(row => row.period), ["evening"]);
+  const done = await decideAiMeasurementOperation(db, userId, initial.id, "confirm");
+  assert.equal(done.status, "confirmed"); assert.equal(done.counts.saved, 2); assert.equal((await listMeasurements(db, userId)).length, 2);
+});
+
+test("旧单日顶层默认时区只用于新记录，逐行保存和更新补缺草稿不改历史时区", async () => {
+  const { userId, identity, actor } = await owner();
+  await saveMeasurementDay(db, actor, { date: "2024-04-04", operationId: randomUUID(), timezone: "+07:00", periods: { daytime: { weightKg: "70.20", fasting: true, deviceLabel: "虚构历史秤" } } });
+  const initial = await submitAiMeasurementOperation(db, identity, { ...input({ daytime: { bodyFatPercent: "20.10", fasting: true }, evening: { bodyFatPercent: "20.20", deviceLabel: "虚构新秤" } }), timezone: "+08:00" });
+  assert.equal(Object.hasOwn(initial.items[0].input, "timezone"), false);
+  let current = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: 1, itemIds: [initial.items[1].id] });
+  assert.equal(current.items[0].preview.canConfirm, true); assert.equal(current.items[0].preview.rows[0].after!.timezone, "+07:00");
+  current = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "update", revision: current.revision, changes: [{ itemId: initial.items[0].id, input: { ...initial.items[0].input, bodyFatPercent: "20.30" } as ReviewInput }] });
+  await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: current.revision });
+  const records = await listMeasurements(db, userId);
+  assert.equal(records.find(row => row.period === "daytime")!.timezone, "+07:00"); assert.equal(records.find(row => row.period === "daytime")!.bodyFatPercent, "20.30");
+  assert.equal(records.find(row => row.period === "evening")!.timezone, "+08:00");
+});
+
+test("批量业务错误留在行内，阻止整批但允许有效行保存；编辑与原始内容分别审计", async () => {
+  const { userId, identity } = await owner(), initial = await submitAiMeasurementOperation(db, identity, batch([realItem(), realItem("2024-05-02", { weightKg: "-1", deviceLabel: null })]));
+  assert.equal(initial.counts.issues, 1); assert.equal(initial.items[1].preview.rows[0].state, "invalid");
+  await rejects(reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: initial.revision }), "no_changes");
+  const part = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: initial.revision, itemIds: [initial.items[0].id] });
+  const fixed = realItem("2024-05-03", { period: "daytime", weightKg: "69.80", bodyFatPercent: "19.20", fasting: true, deviceLabel: "人工核对来源", timezone: "+08:00" });
+  const updated = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "update", revision: part.revision, changes: [{ itemId: initial.items[1].id, input: fixed }] });
+  assert.equal(updated.counts.issues, 0); assert.equal((await listMeasurements(db, userId)).length, 1);
+  assert.equal(updated.items[1].preview.rows[0].after?.timezoneLabel, "GMT+8（东八区）");
+  const done = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: updated.revision });
+  assert.equal(done.status, "confirmed");
+  const row = (await listMeasurements(db, userId)).find(row => row.recordDate === fixed.date)!;
+  assert.equal(row.weightKg, "69.80"); assert.equal(row.timezone, "+08:00"); assert.equal(row.occurredAt, null); assert.equal(row.utcOffsetMinutes, null);
+  const [event] = await db.select().from(schema.measurementEvent).where(eq(schema.measurementEvent.measurementId, row.id));
+  const review = (event.snapshot.ai as { review: { originalInput: unknown; reviewedInput: unknown; editedBy: { userId: string } } }).review;
+  assert.deepEqual(review.originalInput, initial.items[1].originalInput); assert.deepEqual(review.reviewedInput, fixed); assert.equal(review.editedBy.userId, userId);
+});
+
+test("审核版本、跨账号和行归属验证，取消／保存终态不能再编辑", async () => {
+  const first = await owner(), other = await owner(), initial = await submitAiMeasurementOperation(db, first.identity, batch([realItem(), realItem("2024-05-02")]));
+  await rejects(reviewAiMeasurementOperation(db, other.userId, initial.id, { kind: "refresh", revision: 1 }), "not_found");
+  await rejects(reviewAiMeasurementOperation(db, first.userId, initial.id, { kind: "confirm", revision: 1, itemIds: [randomUUID()] }), "not_found");
+  const action = { kind: "update" as const, revision: 1, changes: [{ itemId: initial.items[0].id, input: realItem("2024-05-01", { weightKg: "71.00" }) }] };
+  const concurrent = await Promise.allSettled([reviewAiMeasurementOperation(db, first.userId, initial.id, action), reviewAiMeasurementOperation(db, first.userId, initial.id, action)]);
+  assert.equal(concurrent.filter(result => result.status === "fulfilled").length, 1);
+  const current = await getAiMeasurementOperation(db, first.userId, initial.id);
+  await rejects(reviewAiMeasurementOperation(db, first.userId, initial.id, { kind: "confirm", revision: 1 }), "review_changed");
+  const cancelled = await reviewAiMeasurementOperation(db, first.userId, initial.id, { kind: "cancel", revision: current.revision, itemIds: [initial.items[0].id] });
+  await rejects(reviewAiMeasurementOperation(db, first.userId, initial.id, { ...action, revision: cancelled.revision }), "closed_item");
+  assert.equal((await listMeasurements(db, first.userId)).length, 0);
+  const wrong = await submitAiMeasurementOperation(db, other.identity, batch([realItem("2024-05-02", { recordId: initial.id, version: new Date().toISOString() })]));
+  assert.equal(wrong.counts.issues, 1); assert.equal(wrong.items[0].preview.rows[0].before, null);
+});
+
+test("同批重复目标需处理，取消其中一行重新预览；重复实测和不足估算跳过", async () => {
+  const { userId, identity } = await owner(), initial = await submitAiMeasurementOperation(db, identity, batch([realItem(), realItem()]));
+  assert.equal(initial.counts.issues, 2);
+  const unique = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "cancel", revision: initial.revision, itemIds: [initial.items[1].id] });
+  assert.equal(unique.items[0].preview.canConfirm, true);
+  await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: unique.revision });
+  const duplicate = await submitAiMeasurementOperation(db, identity, batch([realItem(), { kind: "estimate_cell", date: "2024-05-02", period: "evening", metric: "weightKg" }]));
+  assert.equal(duplicate.status, "completed"); assert.equal(duplicate.counts.skipped, 2);
+  assert.equal((await listMeasurements(db, userId)).length, 1);
+  await rejects(submitAiMeasurementOperation(db, identity, batch([])), "invalid_input");
+  await rejects(submitAiMeasurementOperation(db, identity, batch(Array.from({ length: 101 }, () => realItem()))), "invalid_input");
+  await rejects(submitAiMeasurementOperation(db, identity, { kind: "batch", operationId: randomUUID(), items: [{ ...realItem(), userId: "other" }] }), "invalid_input");
+});
+
+test("过期和外部变化须刷新，自己逐行保存不使剩余预览失效；撤销令牌只允许取消", async () => {
+  const { userId, identity, actor } = await owner(), initial = await submitAiMeasurementOperation(db, identity, batch([realItem(), realItem("2024-05-02")]));
+  await db.update(schema.measurementOperation).set({ expiresAt: new Date(0) }).where(eq(schema.measurementOperation.id, initial.id));
+  await rejects(reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: 1 }), "expired");
+  let current = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "refresh", revision: 1 });
+  assert.ok(Date.parse(current.expiresAt) > Date.now());
+  await saveMeasurementDay(db, actor, { date: "2024-06-01", timezone: null, operationId: randomUUID(), periods: { evening: { weightKg: "80.00", deviceLabel: "外部虚构秤" } } });
+  await rejects(reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: current.revision }), "stale_preview");
+  current = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "refresh", revision: current.revision });
+  current = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: current.revision, itemIds: [initial.items[0].id] });
+  assert.equal(current.counts.pending, 1);
+  await revokeAiToken(db, userId, identity.tokenId);
+  for (const kind of ["confirm", "refresh"] as const) await rejects(reviewAiMeasurementOperation(db, userId, initial.id, { kind, revision: current.revision }), "invalid_token");
+  await rejects(reviewAiMeasurementOperation(db, userId, initial.id, { kind: "update", revision: current.revision, changes: [{ itemId: initial.items[1].id, input: realItem("2024-05-04") }] }), "invalid_token");
+  current = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "cancel", revision: current.revision });
+  assert.equal(current.counts.saved, 1); assert.equal(current.counts.cancelled, 1);
+});
+
+test("整批第二条审计失败回滚前一条健康写入、来源、审计和状态", async () => {
+  const { userId, identity } = await owner(), initial = await submitAiMeasurementOperation(db, identity, batch([realItem(), realItem("2024-05-02")]));
+  await pg.exec("CREATE FUNCTION reject_second_review() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF (NEW.snapshot->'after'->>'recordDate') = '2024-05-02' THEN RAISE EXCEPTION 'fictional review audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_second_review BEFORE INSERT ON measurement_events FOR EACH ROW EXECUTE FUNCTION reject_second_review();");
+  try { await assert.rejects(reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: 1 })); }
+  finally { await pg.exec("DROP TRIGGER reject_second_review ON measurement_events; DROP FUNCTION reject_second_review();"); }
+  assert.equal((await listMeasurements(db, userId)).length, 0);
+  assert.equal((await db.select().from(schema.measurementSource).where(eq(schema.measurementSource.userId, userId))).length, 0);
+  assert.equal((await getAiMeasurementOperation(db, userId, initial.id)).revision, 1);
+  assert.equal((await getAiMeasurementOperation(db, userId, initial.id)).counts.saved, 0);
+  assert.equal((await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: 1 })).counts.saved, 2);
+});
+
+test("混合估算按审核时依据保存，不读取同批未确认实测；单项未知仍为空", async () => {
+  const { userId, identity } = await owner("write", true);
+  const initial = await submitAiMeasurementOperation(db, identity, batch([realItem("2024-04-04", { period: "daytime", weightKg: "80.00", fasting: true }), { kind: "estimate_cell", date: "2024-04-04", period: "evening", metric: "weightKg" }]));
+  const predicted = initial.items[1].preview.rows[0].after!.weightKg;
+  assert.equal(initial.counts.issues, 0);
+  await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: 1 });
+  const estimated = (await listMeasurements(db, userId)).find(row => row.recordDate === "2024-04-04" && row.recordKind === "estimated")!;
+  assert.equal(estimated.weightKg, predicted); assert.equal(estimated.bodyFatPercent, null);
+});
+
+test("历史时区只能显式改，准确钟点保留并重算 UTC；日期时段不补钟点", async () => {
+  const { userId, identity, actor } = await owner();
+  await saveReportedMeasurements(db, { ...actor, requestKey: randomUUID().replaceAll("-", "").padEnd(64, "b"), entryChannel: "manual", deviceLabel: "虚构准确时间秤", records: [{ recordDate: "2024-04-04", period: "evening", weightKg: "70.20", bodyFatPercent: null, fasting: false, measuredAt: "2024-04-05 00:30:00", timezone: "Asia/Shanghai" }] });
+  const before = (await listMeasurements(db, userId))[0];
+  let preview = await submitAiMeasurementOperation(db, identity, batch([realItem("2024-04-04", { recordId: before.id, version: before.updatedAt.toISOString(), timezone: "+07:00" })]));
+  assert.equal(preview.items[0].preview.rows[0].before?.timezoneLabel, "GMT+8（东八区）"); assert.equal(preview.items[0].preview.rows[0].after?.timezoneLabel, "GMT+7（东七区）");
+  await reviewAiMeasurementOperation(db, userId, preview.id, { kind: "confirm", revision: 1 });
+  const after = (await listMeasurements(db, userId))[0];
+  assert.equal(after.sourceLocalTime, before.sourceLocalTime); assert.equal(after.recordDate, before.recordDate); assert.equal(after.occurredAt!.toISOString(), "2024-04-04T17:30:00.000Z"); assert.equal(after.utcOffsetMinutes, 420); assert.deepEqual(after.originalValues, before.originalValues); assert.equal(after.entryChannel, "manual");
+  preview = await submitAiMeasurementOperation(db, identity, batch([realItem("2024-05-01", { timezone: null })])); await reviewAiMeasurementOperation(db, userId, preview.id, { kind: "confirm", revision: 1 });
+  const unknown = (await listMeasurements(db, userId)).find(row => row.recordDate === "2024-05-01")!;
+  assert.equal(unknown.timezone, null);
+  preview = await submitAiMeasurementOperation(db, identity, batch([{ kind: "save_record", date: unknown.recordDate, period: "evening", recordId: unknown.id, version: unknown.updatedAt.toISOString(), timezone: "+08:00" }]));
+  await reviewAiMeasurementOperation(db, userId, preview.id, { kind: "confirm", revision: 1 });
+  const changed = (await listMeasurements(db, userId)).find(row => row.id === unknown.id)!;
+  assert.equal(changed.timezone, "+08:00"); assert.equal(changed.sourceLocalTime, unknown.sourceLocalTime); assert.equal(changed.occurredAt, null); assert.equal(changed.utcOffsetMinutes, null);
+  assert.equal(timezoneLabel(changed.timezone, changed.recordDate), "GMT+8（东八区）");
+});
+
+test("GMT 固定偏移支持半小时与一刻钟，地区历史偏移按测量日显示", () => {
+  assert.equal(timezoneLabel("+05:30"), "GMT+5:30"); assert.equal(timezoneLabel("+05:45"), "GMT+5:45"); assert.equal(timezoneLabel("-03:30"), "GMT-3:30");
+  assert.equal(timezoneLabel(null), "未指定"); assert.equal(timezoneLabel("America/New_York", "2025-01-01"), "GMT-5（西五区）"); assert.equal(timezoneLabel("America/New_York", "2025-07-01"), "GMT-4（西四区）"); assert.match(timezoneLabel("America/New_York", "2025-11-02"), /GMT-5.*GMT-4/);
+  assert.equal(timezoneOptions.length, 27); assert.ok(timezoneOptions.every(option => option.value.endsWith(":00")));
+  for (const option of timezoneOptions) validateMeasurementTimezone(option.value);
+  for (const value of ["+15:00", "-13:00", "+08:05", "+08:99", "GMT+8", "invalid-zone"]) assert.throws(() => validateMeasurementTimezone(value));
+});
 
 test("令牌只存摘要，列表不泄漏原文；无效、过期、撤销、只读、跨账号拒绝", async () => {
   const first = await owner(), second = await owner(), read = await owner("read");
@@ -163,7 +386,7 @@ test("HTTP feature 仅 Bearer 鉴权，拒绝坏 JSON／过大内容，不返回
   const { identity, token } = await owner();
   const response = await aiApiResponse(new Request("http://localhost/api/v1/measurements", { headers: { Cookie: "fictional_session=abc" } }), db, false, async () => ({})); assert.equal(response.status, 401); assert.equal(response.headers.get("cache-control"), "no-store");
   const failure = await aiApiResponse(new Request("http://localhost/api/v1/measurements", { headers: { Authorization: `Bearer ${token.rawToken}` } }), db, false, async () => { throw Object.assign(new Error("SELECT private_data"), { query: "secret SQL" }); }); assert.equal(failure.status, 500); assert.ok(!(await failure.text()).includes("SELECT"));
-  for (const body of ["{", "x".repeat(16385)]) await assert.rejects(readAiJson(new Request("http://localhost", { method: "POST", headers: { "Content-Type": "application/json" }, body })));
+  for (const body of ["{", "x".repeat(65537)]) await assert.rejects(readAiJson(new Request("http://localhost", { method: "POST", headers: { "Content-Type": "application/json" }, body })));
   await rejects(queryAiMeasurements(db, identity.userId, new URLSearchParams({ user_id: "other" })), "invalid_input");
   assert.equal(aiConfirmationUrl(new Request("http://localhost:3000/api/v1/measurement-operations", { headers: { Host: "127.0.0.1:4567" } }), "/dashboard/ai/operations/fictional"), "http://127.0.0.1:4567/dashboard/ai/operations/fictional");
 });

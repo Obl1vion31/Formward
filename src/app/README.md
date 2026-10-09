@@ -11,7 +11,9 @@
 ## 当前入口
 
 - `page.tsx` 让 `/` 显示 `HomeExperience` 提供的人物、提示和登录体验。
-- `dashboard/actions.ts` 对四项保存、逐项估算、新增空白日期和停止当天提醒验证当前会话，再调用 measurements feature，返回最新账号快照。
+- `layout.tsx` 挂载全站加载管理；保存、认证和页面导航超过 200ms 显示虚化背景与居中提示，真实完成或失败后收起。路由加载与业务操作共用组件，既有首页最终动画保持独立。
+- `dashboard/layout.tsx` 在页面流之前检查当前身份，未登录正常重定向。身体记录与 AI 设置页在身份校验后以 Suspense 覆盖数据等待；审核页先校验 operation 归属，保持不存在或跨账号的 404，导航等待由 LoadingLink 跟踪。页面仍逐次校验当前身份，不能只依赖会被复用的 layout。
+- `dashboard/actions.ts` 对四项保存与逐项估算验证当前会话，再调用 measurements feature，返回最新账号快照。
 - `dashboard/page.tsx` 验证当前会话后调用 measurements feature 查询自己的测量；有记录时显示最新空腹与 7 日摘要、正常纵轴的晨晚折线及明确标记的估计补全、7D／30D／90D／全部／自定义、最近记录和历史抽屉，没有记录时提供今日四项录入、空行和空趋势。业务校验、日期规则和专用界面位于 `src/features/measurements`，页面不直接写 SQL 或计算晨晚差。
 - `home-intro-backdrop.tsx` 显示单行同级的 Discipline / NUTRITION、Drive / BUILD YOURSELF、Effortless / AI LOGGING。视觉首尾场景用于 reduced motion 的静态交叠，辅助技术只读取一份文案。手机使用底部三列与细轴；键盘入口获焦时位于文字上方。加载及失败时隐藏，登录与认证保留终点，成功后的最终过渡退出。
 - `home-orbit.ts` 以人物进度计算 150° 倾斜椭圆投影、节点、引线、轻微缩放及明暗。标注文字在节点水平线下方 12px，引线与文字边缘间隔 12px；左右对齐及引线方向连续插值。ResizeObserver 与字体就绪后缓存完整标注尺寸，正常模式直接更新 DOM，不另开动画时钟或逐帧读取布局；文字始终面向读者。

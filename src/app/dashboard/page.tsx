@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { Suspense } from "react";
+import { RouteLoading } from "@/components/page-loading";
 import { redirect } from "next/navigation";
-import { currentUser } from "@/features/auth/server";
+import { currentPageUser } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { listMeasurements } from "@/features/measurements/records";
 import { MeasurementsView } from "@/features/measurements/measurements-view";
@@ -13,8 +14,12 @@ import { listMeasurementSources } from "@/features/measurements/sources";
 export const metadata: Metadata = { title: "Formward · 身体记录" };
 
 export default async function DashboardPage() {
-  const user = await currentUser(await headers());
+  const user = await currentPageUser();
   if (!user) redirect("/");
+  return <Suspense fallback={<RouteLoading />}><DashboardContent user={user} /></Suspense>;
+}
+
+async function DashboardContent({ user }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>> }) {
   const db = getDatabase();
   // 本地 PGlite 使用单连接多路复用，按顺序读取以保持结果与查询对应。
   const records = await listMeasurements(db, user.id);

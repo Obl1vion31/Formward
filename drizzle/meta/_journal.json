@@ -64,6 +64,13 @@
       "when": 1791441323348,
       "tag": "0008_aspiring_thunderbolt_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791533068498,
+      "tag": "0009_supreme_imperial_guard",
+      "breakpoints": true
     }
   ]
 }

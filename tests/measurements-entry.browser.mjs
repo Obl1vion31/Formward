@@ -42,6 +42,13 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     }
     assert.equal(await form().getByRole("combobox", { name: "晨间数据来源" }).inputValue(), "");
     assert.equal(await form().getByRole("combobox", { name: "晚间数据来源" }).inputValue(), "");
+    assert.equal(await form().getByRole("combobox", { name: "晨间时区", exact: true }).inputValue(), "+08:00");
+    assert.equal(await form().getByRole("combobox", { name: "晚间时区", exact: true }).inputValue(), "+08:00");
+    assert.equal(await form().getByRole("combobox", { name: "晨间时区", exact: true }).locator("option").count(), 28, "仅提供未指定及 27 个整点时区");
+    await form().getByRole("combobox", { name: "晨间时区", exact: true }).selectOption("+07:00");
+    assert.equal(await form().getByRole("button", { name: "保存录入", exact: true }).isDisabled(), true, "只改时区不能新建空测量");
+    await form().getByRole("button", { name: "晨间采用系统时区", exact: true }).click();
+    assert.equal(await form().getByRole("combobox", { name: "晨间时区", exact: true }).inputValue(), "+08:00");
     assert.equal(await form().getByRole("listbox").count(), 0);
     await page.screenshot({ path: `${artifacts}/entry-desktop-form.png` });
     const suggestion = form().getByRole("combobox", { name: "晨间数据来源" });
@@ -64,6 +71,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     assert.match(await form().getByRole("alert").innerText(), /数据来源/);
     assert.equal(await form().getByRole("textbox", { name: "晨间体重", exact: true }).inputValue(), "70.20");
     await morningSource.fill("虚构晨间新来源");
+    await form().getByRole("combobox", { name: "晨间时区", exact: true }).selectOption("+07:00");
     await save();
     assert.equal(await missing().count(), 3);
     assert.equal(await form().locator('[data-entry-cell="daytime:weightKg"][data-kind="observed"]').count(), 1);
@@ -72,6 +80,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     await page.reload(); await openToday();
     assert.equal(await missing().count(), 3, "再次进入表格编辑保留剩余三项");
     assert.equal(await form().getByRole("textbox", { name: "晨间体重", exact: true }).inputValue(), "70.20", "编辑直接呈现已保存实测");
+    assert.equal(await form().getByRole("combobox", { name: "晨间时区", exact: true }).inputValue(), "+07:00", "编辑回显新录入时选择的时区");
     await form().getByRole("textbox", { name: "晚间体脂率", exact: true }).fill("20.60");
     const eveningSource = form().getByRole("combobox", { name: "晚间数据来源" });
     assert.equal(await eveningSource.inputValue(), "", "空时段保持空白，最近来源仅作建议");
@@ -111,12 +120,35 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     assert.equal(await page.locator("dialog").count(), 0, "刷新及部分保存后都不弹出提醒");
     await openToday(); assert.equal(await missing().count(), 1, "表格入口仍可补录");
     await close();
+    // API 历史测量允许只改晨晚时区，不要求重输数值；清空和采用系统时区同样可保存。
+    const apiDate = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+    const apiRow = page.locator(`section[aria-label="最近记录"] tr[data-date="${apiDate}"]`);
+    await apiRow.getByRole("button", { name: `编辑 ${apiDate}`, exact: true }).click();
+    const morningTimezone = form().getByRole("combobox", { name: "晨间时区", exact: true }), eveningTimezone = form().getByRole("combobox", { name: "晚间时区", exact: true });
+    assert.equal(await morningTimezone.inputValue(), ""); assert.equal(await eveningTimezone.inputValue(), "", "原 API 未指定时区保持空白");
+    const readings = await form().getByRole("textbox").evaluateAll(nodes => nodes.map(node => node.value));
+    await morningTimezone.selectOption("+08:00"); await eveningTimezone.selectOption("+07:00");
+    assert.equal(await form().getByRole("button", { name: "保存录入", exact: true }).isEnabled(), true, "只改已有记录时区可保存");
+    await save(); assert.deepEqual(await form().getByRole("textbox").evaluateAll(nodes => nodes.map(node => node.value)), readings);
+    await close(); await page.reload();
+    await apiRow.getByRole("button", { name: `查看 ${apiDate} 晨间体重实测记录`, exact: true }).click();
+    const apiInfo = page.getByRole("article", { name: "记录详情" }).getByRole("region", { name: "记录信息" });
+    assert.match(await apiInfo.innerText(), /GMT\+8（东八区）/); assert.match(await apiInfo.innerText(), /API/);
+    await page.getByRole("dialog").getByRole("button", { name: "编辑", exact: true }).click();
+    assert.equal(await morningTimezone.inputValue(), "+08:00"); assert.equal(await eveningTimezone.inputValue(), "+07:00");
+    await morningTimezone.selectOption(""); await form().getByRole("button", { name: "晚间采用系统时区", exact: true }).click();
+    await save(); assert.equal(await morningTimezone.inputValue(), ""); assert.equal(await eveningTimezone.inputValue(), "+08:00");
+    await morningTimezone.selectOption("+08:00"); await save();
+    await page.screenshot({ path: `${artifacts}/entry-timezone-api-desktop.png` });
+    await close();
+    console.log("通过：新录入默认系统时区、明确覆盖、API 晨晚独立仅改时区、详情／刷新一致、清空与采用系统时区。");
     // 已有实测缺来源时保持空白，选建议后可仅保存来源，准确时间不变。
     const unknownDate = new Date(Date.parse(`${today}T00:00:00Z`) - 6 * 86_400_000).toISOString().slice(0, 10);
     const unknownRow = page.locator(`section[aria-label="最近记录"] tr[data-date="${unknownDate}"]`);
     await unknownRow.getByRole("button", { name: `编辑 ${unknownDate}`, exact: true }).click();
     const unknownSource = form().getByRole("combobox", { name: "晚间数据来源" });
     assert.equal(await unknownSource.inputValue(), "", "未知来源不使用历史来源填充");
+    assert.equal(await form().getByRole("combobox", { name: "晚间时区", exact: true }).inputValue(), "Asia/Shanghai", "旧地区时区回显原值");
     await unknownSource.click();
     assert.ok(await form().getByRole("option").count() > 0);
     assert.equal(await unknownSource.inputValue(), "");
@@ -136,6 +168,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     await openToday();
     const staleSource = form().getByRole("combobox", { name: "晨间数据来源" });
     await staleSource.fill("虚构未保存草稿");
+    await form().getByRole("combobox", { name: "晨间时区", exact: true }).selectOption("+06:00");
     const concurrent = await loggedInPage({ width: 1440, height: 1000 }, entryAccount);
     try {
       await concurrent.page.locator(`tr[data-date="${today}"]`).getByRole("button", { name: `编辑 ${today}`, exact: true }).click();
@@ -147,6 +180,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
       await form().getByRole("alert").waitFor();
       assert.match(await form().getByRole("alert").innerText(), /记录已变化/);
       assert.equal(await staleSource.inputValue(), "虚构未保存草稿");
+      assert.equal(await form().getByRole("combobox", { name: "晨间时区", exact: true }).inputValue(), "+06:00", "并发冲突保留时区草稿");
     } finally { await concurrent.context.close(); }
     await close(); await page.reload(); await openToday();
     assert.equal(await staleSource.inputValue(), "虚构另一页面来源");
@@ -180,6 +214,14 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
       assert.equal(await unsavedSource.inputValue(), "虚构未保存来源", "来源先填、数值未填时也保留草稿");
       assert.equal(await form().getByRole("button", { name: "保存录入", exact: true }).isDisabled(), true, "仅来源草稿不新建测量");
       await close();
+      await openToday();
+      const timezoneDraft = form().getByRole("combobox", { name: "晨间时区", exact: true });
+      await timezoneDraft.selectOption("+06:00");
+      await refresh("虚构仅时区草稿刷新");
+      assert.equal(await timezoneDraft.inputValue(), "+06:00", "刷新不覆盖仅时区草稿");
+      await form().getByRole("button", { name: "保存录入", exact: true }).click(); await form().getByRole("alert").waitFor();
+      assert.match(await form().getByRole("alert").innerText(), /记录已变化/); assert.equal(await timezoneDraft.inputValue(), "+06:00");
+      await close();
       console.log("通过：服务端新快照更新干净表单，保留草稿且不提升草稿的编辑版本。");
     }
     for (const offset of [4, 5]) {
@@ -189,6 +231,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
       assert.match(await form().innerText(), /原记录非空腹或空腹条件未确认，保留只读/);
       assert.equal(await form().getByRole("textbox", { name: "晨间体重", exact: true }).count(), 0);
       assert.equal(await form().getByRole("textbox", { name: "晨间体脂率", exact: true }).count(), 0);
+      assert.equal(await form().getByRole("combobox", { name: "晨间时区", exact: true }).isDisabled(), true);
       assert.equal(await form().getByRole("textbox", { name: "晚间体重", exact: true }).isEnabled(), true);
       await close();
     }

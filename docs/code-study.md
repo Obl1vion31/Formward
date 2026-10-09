@@ -2,7 +2,7 @@
 
 这份指南帮助你看到文件名和一小段代码，就能判断它负责什么、对应页面上的什么，以及想调整它时该去哪里。阅读时以正在运行的页面为参照，按需要查找相关部分。
 
-内容按当前源码整理，核对日期为 2026 年 10 月 5 日。
+内容按当前源码整理，核对日期为 2026 年 10 月 9 日。
 
 - [项目现在有哪些功能](#current-features)
 - [页面上的内容对应哪些代码](#page-map)
@@ -47,7 +47,9 @@
 
 ### `layout.tsx`：页面共用的文档结构和配置
 
-[打开 layout.tsx](../src/app/layout.tsx)。它目前负责三件事：加载 `globals.css`、提供默认浏览器标签标题和页面描述、把当前页面内容放进 HTML 文档。
+[打开 layout.tsx](../src/app/layout.tsx)。它负责加载 `globals.css`、提供默认浏览器标签标题和页面描述、把当前页面内容放进 HTML 文档，并挂载共享的 PageLoadingProvider。
+
+全站加载组件在 [page-loading.tsx](../src/components/page-loading.tsx)，Context／usePageLoading 在 components/page-loading-state.ts：页面与 feature 绑定真实 active／动作文字，超过 200ms 后才显示居中模态层。站内链接使用 [loading-link.tsx](../src/components/loading-link.tsx)，身体记录与 AI 设置页在身份校验后以 Suspense 显示 RouteLoading 后备；dashboard/layout.tsx 和各页面继续校验登录，审核页先校验归属以保留 404。加载层和 Inspector 使用 [scroll-lock.ts](../src/components/scroll-lock.ts) 的共享滚动锁，只有最后一层关闭才恢复。外观搜索 globals.css 的 `.page-loading-`，浏览器测试在 tests/page-loading.browser.mjs。
 
 源码中的这一段，是判断标题用途的线索：
 
@@ -125,7 +127,7 @@ flowchart TD
 | [home-orbit.ts](../src/app/home-orbit.ts) | 用人物进度计算倾斜轨道、节点、上方引线、下方文字、镜像对齐和远近明暗 | `ORBIT_TURN_DEGREES` 为 150；`orbitPose` 管空间投影，`createOrbitRenderer` 缓存完整标注尺寸，连续插值对齐并更新 DOM，最后清理 |
 | [hero-font.ts](../src/app/hero-font.ts) | 加载本地 Newsreader 概念词和 IBM Plex Mono 微标签及 SCROLL | Logo 与产品 UI 保持系统 sans serif；本地字体资源、来源与许可证在 `public/fonts/` |
 | [body-sequence.tsx](../src/app/body-sequence.tsx) 中的 `BodySequence` | 准备静态首尾、视频 Canvas 和独立最终图；搜索 `PRE_LOGIN_FRAMES`、`FINAL_FRAME` | 人物图片的显示结构；素材配置另看 `frame-config.ts` |
-| [login-overlay.tsx](../src/app/login-overlay.tsx) 中的 `LoginOverlay` | 邮箱框、密码框、ENTER、验证进度和错误提示；搜索 `Email`、`Password`、`VERIFYING…` | 表单内容、输入和提交行为；外观另看 CSS |
+| [login-overlay.tsx](../src/app/login-overlay.tsx) 中的 `LoginOverlay` | 邮箱框、密码框、ENTER、验证进度和错误提示；搜索 `Email`、`Password`、`正在验证…` | 表单内容、输入和提交行为；外观另看 CSS |
 
 SCROLL 文字、动画加载提示和“进入登录”的键盘按钮直接写在 `home-experience.tsx` 中，可搜索它们显示的文字。
 
@@ -241,7 +243,7 @@ React 组织界面组件；TypeScript 描述数据类型并帮助检查代码；
 | [认证客户端 client.ts](../src/features/auth/client.ts) | 在浏览器发送登录和退出请求；`signIn`、`signOut` | 请求、等待超时和中文错误反馈 |
 | [认证 API 的 route.ts](../src/app/api/auth/[...all]/route.ts) | 接收 `/api/auth/` 下的认证请求，交给认证功能；`getAuth().handler` | HTTP 请求入口与服务不可用时的响应 |
 | [auth.ts](../src/features/auth/auth.ts) | 配置 Better Auth 并获取当前用户；`createAuth`、`currentUser` | 登录规则、会话期限、允许发起认证请求的网站地址、每分钟允许尝试登录的次数 |
-| [server.ts](../src/features/auth/server.ts) | 给服务器页面提供 `getAuth`、`currentUser`；浏览器组件通过认证客户端发送请求 | 页面怎样取得认证功能，并让数据库和密钥相关代码留在服务器端 |
+| [server.ts](../src/features/auth/server.ts) | 提供 `getAuth`、`currentUser` 和仅同次页面请求复用的 `currentPageUser`；浏览器组件通过认证客户端发送请求 | 页面怎样取得认证功能，并让数据库和密钥相关代码留在服务器端 |
 | [主页 page.tsx](../src/app/dashboard/page.tsx) | 先验证用户，再显示主页；`currentUser`、`redirect` | 未登录时的跳转、账号和主页内容 |
 | [logout-button.tsx](../src/app/dashboard/logout-button.tsx) | 显示退出按钮并调用 `signOut` | 退出进度、失败提示和成功后的返回 |
 

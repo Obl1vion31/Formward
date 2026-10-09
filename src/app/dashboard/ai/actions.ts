@@ -5,7 +5,7 @@ import { currentUser } from "@/features/auth/server";
 import { createAiToken, revokeAiToken } from "@/features/auth/ai-tokens";
 import { getDatabase } from "@/db/client";
 import { safeAiError } from "@/features/measurements/ai-api";
-import { decideAiMeasurementOperation } from "@/features/measurements/ai-operations";
+import { decideAiMeasurementOperation, getAiMeasurementOperation, reviewAiMeasurementOperation, type ReviewAction } from "@/features/measurements/ai-operations";
 
 async function perform<T>(work: (userId: string) => Promise<T>) {
   const user = await currentUser(await headers());
@@ -24,4 +24,10 @@ export async function revokeTokenAction(id: string) {
 }
 export async function decideOperationAction(id: string, decision: "confirm" | "cancel") {
   return perform(userId => decideAiMeasurementOperation(getDatabase(), userId, id, decision));
+}
+export async function reviewOperationAction(id: string, action: ReviewAction) {
+  return perform(userId => reviewAiMeasurementOperation(getDatabase(), userId, id, action));
+}
+export async function loadOperationAction(id: string) {
+  return perform(userId => getAiMeasurementOperation(getDatabase(), userId, id));
 }

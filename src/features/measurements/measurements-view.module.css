@@ -35,6 +35,10 @@
 .entryReference { display: block; margin-top: 6px; line-height: 1.5; }
 .entryCandidate { display: grid; gap: 8px; color: var(--body-muted); font-size: 12px; }
 .entryForm select { background: #151513; color: var(--body-ink); border: 0; border-bottom: 1px solid var(--body-rule); font: inherit; min-height: 44px; min-width: 0; width: 100%; }
+.entryTimezone { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; margin-top: 18px; }
+.entryTimezone > label { grid-column: 1 / -1; color: var(--body-muted); font-size: 12px; }
+.entryTimezone select { font-size: 13px; }
+.entryTimezone button { padding: 0; font-size: 12px; }
 .entryCondition { color: var(--body-muted); font-size: 12px; margin: 0; min-height: 44px; display: flex; align-items: center; }
 .entryFooter { display: flex; align-items: center; gap: 24px; padding: 16px 0 4px; }
 .entryFooter button { padding: 0; font-size: 13px; }

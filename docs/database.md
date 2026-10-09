@@ -59,7 +59,7 @@ user_id 有索引，令牌只通过完整随机原文摘要查找并映射账号
 
 ### `measurement_operations`
 
-由同一 migration 创建，记录待确认内容，不是实测事实。
+由 0008 创建，0009 增加审核版本和混合状态，记录待确认内容，不是实测事实。
 
 | 字段 | 类型 | 含义 |
 | --- | --- | --- |
@@ -69,15 +69,16 @@ user_id 有索引，令牌只通过完整随机原文摘要查找并映射账号
 | operation_id | text | 客户端稳定请求 ID，按账号唯一 |
 | request_digest | text | 规范化请求摘要，重试须同内容和令牌 |
 | snapshot_digest | text | 身体记录及初始化冻结依据快照摘要 |
-| payload | jsonb | 单日修改／单项估算的规范化请求 |
-| preview | jsonb | 前后值、重复／冲突、估算依据及可确认标记 |
-| status | text | pending／confirmed／cancelled，数据库 check |
+| payload | jsonb | 不可变的批量／兼容单日／单项原始请求，幂等摘要绑定此内容 |
+| preview | jsonb | 前后值、冲突、估算依据；items 内保存稳定行 ID、原始内容、当前草稿、编辑者与逐行状态／结果 |
+| revision | integer | 默认 1，网页修改／刷新／确认／取消递增，拒绝旧版本覆盖 |
+| status | text | pending／partially_confirmed／confirmed／completed／cancelled，数据库 check |
 | result | jsonb nullable | 确认后的消息与保存数量 |
 | created_at | timestamptz | 预览创建时间 |
-| expires_at | timestamptz | 15 分钟到期，过期状态由读取推导 |
-| confirmed_at | timestamptz nullable | 用户网页确认时间 |
+| expires_at | timestamptz | 15 分钟到期，更新／刷新续期；尚有待处理行时由读取推导 expired |
+| confirmed_at | timestamptz nullable | 最近一次行保存的网页确认时间 |
 
-(user_id, operation_id) 唯一，(user_id, created_at) 索引用于最近提交。读取、取消和确认校验归属；确认复核发起令牌有效性及快照，在同一事务应用共享业务函数并保存审计和结果。旧九张表结构与已有数据不由本 migration 修改。AI 审计上下文保存在 measurement_events.snapshot.ai，包含 tokenId、operationId（此表 id）、confirmedBy 和 confirmedAt。
+(user_id, operation_id) 唯一，(user_id, created_at) 索引用于最近提交。读取、修改、取消和确认校验归属；修改／刷新／确认复核令牌有效性，确认另复核快照、有效期和审核版本。单行确认立即写入，整批确认同一事务；取消不撤销已保存行。AI 审计保存在 measurement_events.snapshot.ai，包含 tokenId、operationId（此表 id）、confirmedBy、confirmedAt；可编辑审核另保存 review 的行 ID、审核版本、originalInput、reviewedInput 与 editedBy。旧单日／单项 JSON 使用兼容适配，不改原 payload。0009 不改健康表与已有健康数据。
 
 ### `accounts`
 

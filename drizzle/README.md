@@ -9,3 +9,5 @@
 `0007_strong_omega_sentinel.sql` 合并两列日期为唯一 record_date，测量主表 30 列；日期与提醒表同步命名。原 analysis_date 的分组值保持，local_date 由原始当地时间读取。迁移先锁定测量表并检查实际日期可完整恢复，不一致则拒绝；保留所有数值、准确时间、时区、指纹、原始输入、审计、初始化依据与提醒状态。执行前保存私有一致性备份，执行后逐字段核对。
 
 `0008_aspiring_thunderbolt_ross.sql` 新增 ai_tokens 和 measurement_operations，分别保存可撤销令牌摘要与有时限的网页确认预览，不修改既有九张表。令牌与操作均关联账号，operationId 按账号唯一，状态／权限有数据库约束。执行前备份并在执行后核对旧表逐字段不变。
+
+`0009_supreme_imperial_guard.sql` 在 measurement_operations 增加默认 1 的 revision，状态约束支持 partially_confirmed 与 completed，供一个链接逐行／整批编辑确认。草稿与行结果沿用 preview JSON，原 payload 与请求摘要保持。既有操作增加 revision 默认值，其他列及健康表保持；迁移前备份，迁移后核对。

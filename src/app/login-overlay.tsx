@@ -36,7 +36,7 @@ export function LoginOverlay({ overlayRef, accessible, canSubmit, pending, error
         <input id="email" type="email" name="email" inputMode="email" value={email} disabled={!canSubmit} onChange={(event) => setEmail(event.target.value)} onFocus={onInputFocus} onBlur={onInputBlur} autoComplete="username" aria-describedby={error ? "login-error" : undefined} />
         <label htmlFor="password">Password</label>
         <input id="password" type="password" name="password" value={password} disabled={!canSubmit} onChange={(event) => setPassword(event.target.value)} onFocus={onInputFocus} onBlur={onInputBlur} autoComplete="current-password" aria-describedby={error ? "login-error" : undefined} />
-        <button type="submit" disabled={!canEnter}><span>{pending ? "VERIFYING…" : "ENTER"}</span></button>
+        <button type="submit" disabled={!canEnter}><span>{pending ? "正在验证…" : "ENTER"}</span></button>
         {error && <p className="login-error" id="login-error" role="alert">{error}</p>}
       </form>
     </div>
