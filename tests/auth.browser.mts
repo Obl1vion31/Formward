@@ -182,6 +182,10 @@ try {
   console.log("通过：手机 reduced motion 完成 240ms 动画后跳转，主页不横向溢出。");
   assert.deepEqual(errors, []);
 
+  const loading = spawn(process.execPath, ["tests/home-loading.browser.mjs"], { env: { ...process.env, FORMWARD_BASE_URL: baseURL }, stdio: "inherit" });
+  const [loadingCode] = await once(loading, "exit");
+  assert.equal(loadingCode, 0, "手机视频等待与静态登录回归通过");
+
   if (process.env.FORMWARD_VISUAL_CHECK === "1") {
     const visual = spawn(process.execPath, ["tests/home-experience.browser.mjs"], { env: { ...process.env, FORMWARD_BASE_URL: baseURL }, stdio: "inherit" });
     const [code] = await once(visual, "exit");

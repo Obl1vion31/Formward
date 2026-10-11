@@ -1,5 +1,13 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, date, index, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, check, date, index, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+
+// 登录前按来源和入口计数，不属于用户健康数据；所有服务实例共用。
+export const rateLimit = pgTable("rate_limits", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+}, table => [index("rate_limits_last_request_idx").on(table.lastRequest)]);
 
 // 属性遵循 Better Auth 的命名，SQL 字段统一使用 snake_case。
 export const user = pgTable("users", {

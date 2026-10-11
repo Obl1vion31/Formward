@@ -26,6 +26,8 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 
 `BETTER_AUTH_URL` 是用户实际访问网站的地址。本机开发允许同端口的 localhost 和 127.0.0.1；其他端口、转发域名或正式域名要更新此变量并重启服务。HTTPS 地址会启用 Secure cookie。
 
+正式网站为 [https://formward-ten.vercel.app](https://formward-ten.vercel.app)，通过 Vercel 托管并使用现有 Neon。生产变量与本机配置独立；完整步骤见 [公网 HTTPS 部署](deployment.md)。登录限流使用数据库 rate_limits，多实例共享每分钟五次登录计数；此表由 0010 migration 创建，不修改账号或健康记录。
+
 ## 建表与创建账号
 
 在仓库根目录执行：

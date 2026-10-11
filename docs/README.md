@@ -18,6 +18,7 @@
 - `architecture.md`：轻量 Next.js 模块化单体边界。
 - `ai-api.md`：身体记录 AI 令牌、HTTP 协议、网页预览确认和本地 Codex 试验步骤。
 - `auth-setup.md`：Neon 配置、数据库 migration、内部账号创建、登录顺序与验证。
+- `deployment.md`：Vercel 公网 HTTPS、正式地址、生产环境变量、共享限流和发布验收。
 - `database.md`：数据库连接流程、逻辑关系图、全部物理字段与索引／约束字典、维护入口。
 - `data-model.md`：核心数据、来源信息和外部生态扩展原则。
 - `measurements.md`：身体记录的当前导入与回看、当地晨晚归属、空腹确认、数据库／界面／AI 接口方案，以及当天晨晚差和次晨变化的热量关联。

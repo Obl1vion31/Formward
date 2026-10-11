@@ -2,4 +2,6 @@
 
 公开接口协议，不含用户数据或令牌；内容由 measurements feature 定义。
 
+servers.url 在请求时由 feature 生成完整地址，公网使用 BETTER_AUTH_URL 的正式 HTTPS 域名，本机保留实际回环地址。
+
 维护时同步接口文档与隔离测试，新业务规则留在 feature。

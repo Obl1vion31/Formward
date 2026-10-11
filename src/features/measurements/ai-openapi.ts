@@ -1,3 +1,5 @@
+import { siteOrigin } from "../auth/site-url";
+
 const json = (schema: unknown) => ({ "application/json": { schema } });
 const reference = (name: string) => ({ $ref: `#/components/schemas/${name}` });
 const nullableString = { type: ["string", "null"] };
@@ -5,8 +7,8 @@ const decimal = { type: ["string", "null"], pattern: "^\\d+(\\.\\d{1,2})?$", des
 const date = { type: "string", format: "date" };
 const operationId = { type: "string", pattern: "^[a-zA-Z0-9-]{8,120}$", description: "每次新操作唯一；同请求重试复用，不同内容或令牌不能复用。" };
 const period = { type: "string", enum: ["daytime", "evening"] };
-const timezone = { ...nullableString, description: "新记录省略时每次自动采用系统时区：X-Formward-Timezone 优先，否则读取 Formward 服务系统时区。明确提供可覆盖默认值，审核页仍可修改。建议固定偏移 +08:00（网页 GMT+8／东八区），界面选择项仅含 GMT-12 至 GMT+14 的整数小时，兼容已有非整点偏移与 IANA 名称。已有记录省略保留，显式 null 保持未指定／清空。历史修改仅通过 PeriodEdit 或 SaveRecord 的 timezone 生效，保留当地钟点；只有原准确时间才重算 UTC。" };
-const systemTimezoneHeader = { name: "X-Formward-Timezone", in: "header", required: false, schema: { type: "string" }, description: "客户端每次读取设备系统时区，传 +08:00 等固定偏移或 IANA 名称；pnpm ai:request 自动发送。未传则采用 Formward 服务所在系统时区。只作为新记录默认值，重试保留第一次预览的时区。" };
+const timezone = { ...nullableString, description: "新记录省略时每次自动采用系统时区：X-Formward-Timezone 优先，否则采用 FORMWARD_TIMEZONE 配置地区的当前偏移，未配置时读取服务系统时区。明确提供可覆盖默认值，审核页仍可修改。建议固定偏移 +08:00（网页 GMT+8／东八区），界面选择项仅含 GMT-12 至 GMT+14 的整数小时，兼容已有非整点偏移与 IANA 名称。已有记录省略保留，显式 null 保持未指定／清空。历史修改仅通过 PeriodEdit 或 SaveRecord 的 timezone 生效，保留当地钟点；只有原准确时间才重算 UTC。" };
+const systemTimezoneHeader = { name: "X-Formward-Timezone", in: "header", required: false, schema: { type: "string" }, description: "客户端每次读取设备系统时区，传 +08:00 等固定偏移或 IANA 名称；pnpm ai:request 自动发送。未传则采用服务配置的 FORMWARD_TIMEZONE，未配置时读取服务系统时区。只作为新记录默认值，重试保留第一次预览的时区。" };
 const editProperties = { recordId: { type: "string", description: "修改已有字段、来源或时区时明确指定；须与 version 同时提供。" }, version: { type: "string", format: "date-time", description: "GET 返回的 updatedAt，原样提交。" }, weightKg: decimal, bodyFatPercent: decimal, fasting: { type: ["boolean", "null"], description: "晨间仅 true；旧非空腹／未知晨间只读，晚间固定 false。" }, deviceLabel: { ...nullableString, minLength: 1, maxLength: 300, description: "用户提供的来源名称，新实测必填；既有记录省略保留。" }, timezone };
 const metric = { type: "string", enum: ["weightKg", "bodyFatPercent"] };
 const responses = {
@@ -25,7 +27,7 @@ export const measurementOpenApi = {
     "/measurements": { get: { operationId: "queryMeasurements", summary: "查询本账号记录、来源、摘要、趋势与逐日分析", parameters: [
       systemTimezoneHeader, { name: "from", in: "query", schema: date }, { name: "to", in: "query", schema: date },
       { name: "choices", in: "query", schema: { type: "string" }, description: "URL 编码 JSON：{\"YYYY-MM-DD:daytime\":\"recordId\"}。必须是本账号对应时段实测，仅影响本次分析。" },
-    ], responses: { ...responses, "200": { description: "记录与逐日／趋势按区间筛选；摘要读取全历史，与网页一致。未知为 null，估计不进入实测摘要。体重单位 kg、体脂 %、体脂差值为百分点。", content: json({ type: "object", required: ["context", "records", "sources", "analyses", "units", "dates"], properties: { context: { type: "object", required: ["timezone", "timezoneLabel", "localDate"], properties: { timezone: { type: "string" }, timezoneLabel: { type: "string" }, localDate: date }, description: "本次系统时区与当地日期；客户端请求头优先，否则读取服务系统。" }, records: { type: "array", items: reference("Measurement") }, sources: { type: "array", items: { type: "string" } }, dates: { type: "array", items: { type: "object" } }, analyses: { type: "object", description: "weightKg 和 bodyFatPercent 各含 summary、trend、days；同用网页业务函数。" }, units: { type: "object" }, range: { type: "object" }, rules: { type: "string" } } }) } } } },
+    ], responses: { ...responses, "200": { description: "记录与逐日／趋势按区间筛选；摘要读取全历史，与网页一致。未知为 null，估计不进入实测摘要。体重单位 kg、体脂 %、体脂差值为百分点。", content: json({ type: "object", required: ["context", "records", "sources", "analyses", "units", "dates"], properties: { context: { type: "object", required: ["timezone", "timezoneLabel", "localDate"], properties: { timezone: { type: "string" }, timezoneLabel: { type: "string" }, localDate: date }, description: "本次系统时区与当地日期；客户端请求头优先，否则采用配置地区的当前偏移，未配置时读取服务系统。" }, records: { type: "array", items: reference("Measurement") }, sources: { type: "array", items: { type: "string" } }, dates: { type: "array", items: { type: "object" } }, analyses: { type: "object", description: "weightKg 和 bodyFatPercent 各含 summary、trend、days；同用网页业务函数。" }, units: { type: "object" }, range: { type: "object" }, rules: { type: "string" } } }) } } } },
     "/measurement-operations": { post: { operationId: "submitMeasurementOperation", summary: "提交跨日批量或兼容单日／单项预览，返回一个审核链接", parameters: [systemTimezoneHeader], description: "batch 最多 100 条、64 KiB。新实测来源必填，晨间明确 fasting:true。不同已知值需要 recordId+version；重复跳过、缺项补充。批量业务错误留在对应行，阻止整批保存，有效行仍可单独保存；网页支持修改并更新预览。单行确认立即保存，取消剩余不撤销已保存行。新记录省略时区时自动采用当次系统时区，明确值或 null 优先；已有记录省略保留。未知测量时间不虚构。估算只用已保存实测。", requestBody: { required: true, content: { "application/json": { schema: { oneOf: [reference("Batch"), reference("SaveDay"), reference("EstimateCell")] }, examples: { fictionalBatch: { summary: "虚构格式示例，不代表用户数据", value: { kind: "batch", operationId: "fictional-example-0001", items: [{ kind: "save_record", date: "2024-04-04", period: "daytime", weightKg: "70.20", bodyFatPercent: "20.10", fasting: true, deviceLabel: "虚构体重秤", timezone: "+08:00" }, { kind: "save_record", date: "2024-04-05", period: "evening", bodyFatPercent: "20.30", deviceLabel: "虚构体重秤" }] } } } } } }, responses: { ...responses, "413": { description: "请求超过 64 KiB。" }, "415": { description: "需要 application/json。" } } } },
     "/measurement-operations/{id}": { get: { operationId: "getMeasurementOperation", summary: "查询本账号操作预览与最终状态", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }], responses } },
   },
@@ -44,3 +46,7 @@ export const measurementOpenApi = {
     Error: { type: "object", properties: { error: { type: "object", properties: { code: { type: "string" }, message: { type: "string" } } } } },
   } },
 };
+
+export function measurementOpenApiForRequest(request: Request) {
+  return { ...measurementOpenApi, servers: [{ url: `${siteOrigin(request)}/api/v1` }] };
+}

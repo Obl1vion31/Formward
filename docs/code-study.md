@@ -173,7 +173,7 @@ CSS 中以 `@media` 开头的部分为不同屏幕或系统偏好提供调整。
 | 想理解或调整什么 | 对应位置 | 识别线索与影响 |
 | --- | --- | --- |
 | 人物本身的姿态、轮廓和清晰度 | [public/images](../public/images/README.md) 中的 PNG | `1.png`、`12.png` 用于静态停留，`13.png` 用于最终画面；转身内容来自 `public/videos/` |
-| 转身视频与黑底透明化 | [turn-video.ts](../src/app/turn-video.ts)、[公开视频](../public/videos/README.md) | 寻帧、端点校准和 Canvas 合成；更换素材后检查两端衔接 |
+| 转身视频与黑底透明化 | [turn-video.ts](../src/app/turn-video.ts)、[公开视频](../public/videos/README.md) | 寻帧、端点校准和 Canvas 去黑／宽幅暗光晕抑制；静音内联播放唤醒解码，当前帧后暂停；4 秒超时使用静态过渡，手势重试成功在端点恢复；更换素材后检查两端衔接 |
 | 哪些静态图片参与显示 | [frame-config.ts](../src/app/frame-config.ts) | `PRE_LOGIN_FRAMES` 和 `FINAL_FRAME`；改动会影响播放素材 |
 | 某一张图与其他图的位置或大小不一致 | 同一文件的 `FRAME_CONFIG` | 每张图有 `desktop`、`mobile` 配置，`scale` 表示缩放，`x`、`y` 表示位置修正 |
 | 所有人物图一起放大或缩小 | `globals.css` 的 `.body-frame img`、`.body-frame canvas` | 改显示高度，并核对人物与轨迹文字、左下角提示是否相互遮挡 |

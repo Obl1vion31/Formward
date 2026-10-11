@@ -29,6 +29,7 @@ next-env.d.ts
 target/
 
 # Local tooling
+.vercel/
 .aws/
 .agents/
 .codex/

@@ -14,8 +14,9 @@ export function validateMeasurementTimezone(value: string | null) {
 export function offsetTimezone(minutes: number) {
   return `${minutes < 0 ? "-" : "+"}${String(Math.floor(Math.abs(minutes) / 60)).padStart(2, "0")}:${String(Math.abs(minutes) % 60).padStart(2, "0")}`;
 }
-export function systemMeasurementTimezone(now = new Date()) {
-  return offsetTimezone(-now.getTimezoneOffset());
+export function systemMeasurementTimezone(now = new Date(), timezone?: string) {
+  if (timezone !== undefined) validateMeasurementTimezone(timezone);
+  return offsetTimezone(timezone === undefined ? -now.getTimezoneOffset() : offsetAt(timezone, now));
 }
 export function gmtOffsetLabel(minutes: number) {
   const hours = Math.floor(Math.abs(minutes) / 60), remainder = Math.abs(minutes) % 60;

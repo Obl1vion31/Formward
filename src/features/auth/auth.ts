@@ -20,6 +20,7 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
     session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24, cookieCache: { enabled: false } },
     rateLimit: {
       enabled: config.rateLimit ?? true,
+      storage: "database",
       window: 60,
       max: 100,
       customRules: { "/sign-in/email": { window: 60, max: 5 } },

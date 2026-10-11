@@ -1,16 +1,28 @@
 # Formward 项目交接
 
-更新日期：2026-10-09。仓库：/home/obl1vion/projects/Formward；分支：main；远程：[Obl1vion31/Formward](https://github.com/Obl1vion31/Formward)。
+更新日期：2026-10-12。仓库：/home/obl1vion/projects/Formward；分支：main；远程：[Obl1vion31/Formward](https://github.com/Obl1vion31/Formward)。
 
 ## 当前接手重点
 
+以下三项是下一步工作，尚未完成；以用户最新的手机实机反馈为验收依据。
+
+1. **手机界面光晕**：人物周围一大圈黄色光晕仍然存在，用户明确反馈“特别丑，而且很杂乱”。需要继续定位并清理大范围黄色光影，检查舞台背景、视频素材和透明合成的共同效果。现有近黑像素检查通过不能代表这个视觉问题已解决，必须在手机／iPhone 微信内置浏览器核对首、中、末帧的实际观感。
+2. **手机端交互方式**：手机需要独立交互，进入登录应支持手指向下滑，或者直接点击一下。当前手机沿用上滑进入、下滑倒放的方式需要调整；进入流程不应要求先额外轻点唤醒视频再上滑。桌面滚轮交互按桌面场景维护，手机点击表单和提交按钮不能误触人物转身。用户已明确没有不流畅问题，不另行修改动画速度。
+3. **AI 接入主线改为插件／MCP**：用户反馈当前界面已经没有 GPT Actions 模式，下一步优先使用插件或自定义 MCP 服务器，重点是 MCP。先核对用户实际可用入口的连接方式和身份验证要求，再设计公网 HTTPS MCP 接入；当前已经实现 HTTP API 和 OpenAPI，MCP 服务尚未实现。MCP 复用现有 feature 函数及账号归属校验，保持可撤销授权、写入先预览与网页登录确认，不使用网页登录密码或数据库凭据作为 AI 授权。
+
+## 已实现与上线状态
+
+iPhone／微信的登录素材不再无限等待：静音内联 play 主动唤醒解码，视频元素保留裁切的 1px 布局；当前帧可绘制后立即暂停，转由时间线寻帧，不等 canplaythrough。视频失败、WebGL 不可用或等待超过 4 秒采用 180ms 静态首尾过渡，仍可登录；触摸／点击／按键可在超时后重试，成功仅在端点恢复完整动画，避免中途跳画面。桌面静态模式保留终点概念词。三张静态图仍需解码，正常 500ms 双向转身与认证后的 700ms／240ms 过渡保持。183 项测试、生产构建、认证与完整首页视觉回归通过；浏览器加载回归覆盖仅当前帧、play 才解码、手势限制与超时恢复、请求挂起、下载失败、WebGL 不可用、桌面静态文字和表单重试。用户已确认手机完整转身可见且流畅。视频透明合成已加入柔和亮度阈值抑制暗背景，首／中／末帧像素检查确认近黑背景透明、人物亮部保留；手机实机的大圈黄色光晕仍未解决。系统开启减少动态效果时仍采用静态过渡。
+
+公网 HTTPS 已部署到 Vercel Hobby，正式地址为 [Formward](https://formward-ten.vercel.app)，[OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 可由外部 AI 获取。当前线上部署为 dpl_38gykTML1NEcV9s2kP7hVqieLJHe，包含手机视频唤醒、手势恢复与暗背景阈值处理，公网七个媒体／登录场景和桌面／手机首中末帧透明合成检查已通过。继续使用原 Neon 数据库与原内部账号，通过 CLI 手动发布，没有关联 Git 自动部署；函数在 cle1。生产数据库与认证 secret 只保存在平台 Production Secret，data 和环境文件不上传。公网确认链接固定采用配置的 HTTPS 根地址，登录限流改为数据库共享存储。部署配置、更新和故障处理见 [部署说明](docs/deployment.md)。AI 后续接入按上述插件／MCP 主线推进；普通聊天仅获得网址不会自动接入。
+
 全站等待反馈已实现并完成开发／生产浏览器验证：按钮立即反馈，等待超过 200ms 显示虚化背景与居中动画／动作文字。保存、时区修改、估算、AI 审核、令牌、认证、首页必要素材和站内导航共用；快速操作不闪现遮罩，多个来源全部结束才收起，失败保留输入且不自动重试。加载层覆盖 Inspector，阻止重复提交和背景操作，结束后恢复滚动与可用焦点；窄屏与减少动态效果已适配。
 
-批量身体记录 AI 审核已实现：一次提交多条，一个完整链接逐行修改／确认／取消，顶部全部确认／批量修改／取消剩余。单行确认立即保存；修改支持日期、晨晚、数值、来源、空腹和时区，先更新预览再确认。时区显示 GMT+8（东八区）等，页面与 AI 审核只提供整数小时选择，每次新录入自动采用当次系统时区，无须用户重复提供，审核页仍可修改；已有记录补缺／修改省略时保留原时区。当前仍在本工作区用 Codex 和正式 HTTP API 试验，不绑定模型供应商；其他尚未实现模块后置。
+批量身体记录 AI 审核已实现：一次提交多条，一个完整链接逐行修改／确认／取消，顶部全部确认／批量修改／取消剩余。单行确认立即保存；修改支持日期、晨晚、数值、来源、空腹和时区，先更新预览再确认。时区显示 GMT+8（东八区）等，页面与 AI 审核只提供整数小时选择，每次新录入自动采用当次系统时区，无须用户重复提供，审核页仍可修改；已有记录补缺／修改省略时保留原时区。正式 HTTP API 已可公网访问，不绑定模型供应商；其他尚未实现模块后置。
 
 `/dashboard/ai` 提供 30 天可撤销 read／write 令牌、一次性原文、接入说明与最近提交的逐行数量。`GET /api/v1/measurements` 查询，`POST /api/v1/measurement-operations` 支持 kind=batch，items 内为 save_record 或 estimate_cell，最多 100 条／64 KiB；兼容旧 save_day／estimate_cell 请求和链接。`GET /api/v1/measurement-operations/{id}` 返回 revision、稳定行 ID、草稿／原始候选、行状态和 counts；公开 OpenAPI 在 `/api/v1/openapi.json`。所有写入须网页登录确认。完整步骤见 [AI 接入](docs/ai-api.md)。
 
-AI 审核时区在来源下方，固定偏移选择存为 +08:00，旧 IANA 保持，界面按测量日期／准确偏移显示 GMT 标签。本地 HTTP 助手每次读取系统偏移并发送 X-Formward-Timezone，API 新记录省略时区时自动带入；其他客户端未传请求头时读取服务系统偏移。查询 context 返回本次时区与当地日期。默认值只进入首次审核草稿，原始 payload 保留，后续刷新与重试不会覆盖；明确值或 null 优先。审核仍保留采用设备时区按钮，显式 null 为未指定。显式历史修改保留当地钟点与 record_date，准确时间才重算 UTC，day_period／assumed 不补钟点。常规四项录入／编辑表单已接入晨晚独立整数时区选择与采用系统时区按钮；新记录默认设备当前偏移，已有记录回显原时区，未知保持未指定。支持只改时区保存或显式清空，草稿参与刷新／并发保护，不能新建空测量。来源输入继续只回显已保存值，未填为空，点击只展示本账号历史建议；凌晨继续归前日晚间。
+AI 审核时区在来源下方，固定偏移选择存为 +08:00，旧 IANA 保持，界面按测量日期／准确偏移显示 GMT 标签。本地 HTTP 助手每次读取系统偏移并发送 X-Formward-Timezone，API 新记录省略时区时自动带入；其他客户端未传请求头时优先读取 FORMWARD_TIMEZONE 配置地区的当次偏移，未配置才读取服务系统偏移。Vercel 保留 TZ，生产使用 FORMWARD_TIMEZONE=Asia/Shanghai，默认 +08:00；明确值或客户端请求头仍可覆盖。查询 context 返回本次时区与当地日期。默认值只进入首次审核草稿，原始 payload 保留，后续刷新与重试不会覆盖；明确值或 null 优先。审核仍保留采用设备时区按钮，显式 null 为未指定。显式历史修改保留当地钟点与 record_date，准确时间才重算 UTC，day_period／assumed 不补钟点。常规四项录入／编辑表单已接入晨晚独立整数时区选择与采用系统时区按钮；新记录默认设备当前偏移，已有记录回显原时区，未知保持未指定。支持只改时区保存或显式清空，草稿参与刷新／并发保护，不能新建空测量。来源输入继续只回显已保存值，未填为空，点击只展示本账号历史建议；凌晨继续归前日晚间。
 
 ## 实现与数据约定
 
@@ -25,7 +37,7 @@ AI Token 只存不可逆摘要，原文仅创建时返回一次；30 天有效�
 
 相同实测跳过，缺项可补，冲突／无效行阻止整批保存但不阻止其他有效行单独确认。历史数值、来源或时区编辑需 recordId+version，网页冲突可明确选择历史对象。原始 AI payload 不变，preview JSON 保存行草稿／状态／结果；revision 拒绝跨页覆盖，本地草稿可保留并加载最新审核。单行保存更新快照并重新预览剩余行；修改／刷新续期 15 分钟；取消剩余不撤销已保存。晨间严格空腹、旧条件只读、晚间非空腹、来源必填与未知空值保持。估算只用已保存实测，整批估算先保存以保持展示依据，样本不足跳过，冻结历史只允许实测。健康记录、来源、批次、审计和行状态共用 editing 事务，失败回滚；新记录入口 api、操作者 ai，历史保留原入口与原始输入，审计记录 originalInput、reviewedInput、editedBy 和确认上下文。
 
-`ai_tokens` 与 `measurement_operations` 由 0008 创建，0009_supreme_imperial_guard.sql 增加审核 revision 和混合状态，既有 migration 不改。0009 已在实际数据库执行，迁移前后私有全库备份与 ai-review-migration-verification-2026-10-09.json 核对全部旧业务／认证字段和值不变，操作仅增加 revision=1。当前 11 张业务／认证表，测量仍为 30 列，详见 [数据库字典](docs/database.md)。真实数据、原始文件与私有备份仅在被 Git 忽略的 data/imports、data/exports；测试用虚构数据，不代用户确认真实健康操作。不得打印密钥或公开报告。
+`ai_tokens` 与 `measurement_operations` 由 0008 创建，0009_supreme_imperial_guard.sql 增加审核 revision 和混合状态，既有 migration 不改。0009 已在实际数据库执行，迁移前后私有全库备份与 ai-review-migration-verification-2026-10-09.json 核对全部旧业务／认证字段和值不变，操作仅增加 revision=1。0010_shared_auth_rate_limits.sql 已在实际数据库执行，新增 rate_limits 共享限流表；迁移前后 database-before-public-deployment-2026-10-12.json／database-after-public-deployment-2026-10-12.json 和 public-deployment-migration-verification-2026-10-12.json 确认原有 11 张表的全部字段和值不变，迁移账本新增一次。当前 12 张业务／认证／限流表，测量仍为 30 列，详见 [数据库字典](docs/database.md)。真实数据、原始文件与私有备份仅在被 Git 忽略的 data/imports、data/exports；测试用虚构数据，不代用户确认真实健康操作。不得打印密钥或公开报告。
 
 ## 已确认规则
 
@@ -45,17 +57,19 @@ AI Token 只存不可逆摘要，原文仅创建时返回一次；30 天有效�
 
 ## 验证与运行
 
-`pnpm lint`、`pnpm typecheck`、`pnpm test`（172 项）和 `pnpm build` 已通过。最终开发浏览器完成身体记录／AI／加载完整回归，生产完成身体记录／AI／加载回归及最终加载复验；认证浏览器另验证错误密码、防重复、原有最终动画时序、账号隔离和退出。批量与时区检查覆盖逐行／整批保存、审核版本、无效纠正、取消保留已保存、事务回滚、估算依据、历史时区、HTTP 助手、兼容链接和跨页冲突保留输入。
+`pnpm lint`、`pnpm typecheck`、`pnpm test`（183 项）和 `pnpm build` 已通过。公网发布前在 /tmp/formward-deployment-check 隔离副本顺序完成 typecheck／production build，随后认证与完整身体记录／AI／加载生产浏览器回归通过；新增测试覆盖多实例共享限流、并发原子计数、固定公网 HTTPS 链接与云端时区默认。最终开发浏览器完成身体记录／AI／加载完整回归，生产完成身体记录／AI／加载回归及最终加载复验；认证浏览器另验证错误密码、防重复、原有最终动画时序、账号隔离和退出。批量与时区检查覆盖逐行／整批保存、审核版本、无效纠正、取消保留已保存、事务回滚、估算依据、历史时区、HTTP 助手、兼容链接和跨页冲突保留输入。
 
 `tests/page-loading.browser.mjs` 随 `tests/measurements.http.mts` 运行，`FORMWARD_LOADING_ONLY=1` 可仅执行加载验收。测试拦截真实请求，覆盖 200ms 延迟、快速失败无遮罩、并发等待、Inspector 上层阻挡与键盘限制、失败保留草稿、滚动锁恢复、返回／前进、素材失败，以及 1440／390／320px 和减少动态效果。开发测试在虚构登录上下文中预热所需路由，并在创建草稿前稳定编译版本，避免 Next.js HMR 重连造成整页刷新；生产保留完整站内导航流程。维护测试时保持这种隔离，不为测试改动生产加载行为。结果和 migration 状态见 [当前状态](docs/status.md)，复现命令见 [测试说明](tests/README.md)；测试始终用虚构账号，不代替用户确认真实操作。
 
-本地 Codex 试验先在交互终端运行 `pnpm ai:setup`，隐藏输入令牌，保存被 Git 忽略的 0600 .env.ai.local；`pnpm ai:request` 只走 HTTP，不读数据库配置、不输出令牌。没有用户提供的真实测量时只在隔离虚构账号演示，不写入用户健康记录。外部 AI 无法访问工作区 localhost 时，需要后续可达的服务地址。
+正式域名已验证首页 200、HTTP 自动转 HTTPS、OpenAPI 200 且 servers.url 为正式 HTTPS API、未登录 dashboard 307 返回首页、无令牌／无效令牌 401、无会话 get-session 为 null，以及私有路径 404。1440×900 和 390×844 的公网浏览器素材加载、键盘进入登录、字体／视频与无溢出通过，没有客户端异常、请求失败或 HTTP 错误；上线验收期间 Runtime Logs 无 error。报告在 /tmp/formward-public-browser-verification.json；真实账号登录与外部 AI 的令牌调用由用户完成，不写真实健康数据。上述自动检查不代表手机大圈黄色光晕或新交互已验收。
 
-Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7；改 Next 代码前读 node_modules/next/dist/docs/ 对应指南。修改前读根 README、AGENTS 和最近 README，保留无关变更，每个项目自有目录需 README。typecheck 与 build 顺序运行，避免 .next/types 生成冲突。已有 3000 开发服务，不启动第二个同目录实例或擅自关闭；暂无外部部署。浏览器开发测试在临时副本和独立端口，生产测试使用构建产物；虚构数据库完全隔离，Playwright／Chromium／系统库／字体均在 /tmp，不增加项目依赖。最新加载截图位于 /tmp/formward-loading-development 与 /tmp/formward-loading-production；整数时区编辑截图位于 /tmp/formward-entry-timezone-development 与 /tmp/formward-entry-timezone-production，均不提交 Git。
+本地 Codex 试验先在交互终端运行 `pnpm ai:setup`，隐藏输入令牌，保存被 Git 忽略的 0600 .env.ai.local；`pnpm ai:request` 只走 HTTP，不读数据库配置、不输出令牌。没有用户提供的真实测量时只在隔离虚构账号演示，不写入用户健康记录。外部 AI 使用正式 HTTPS 域名；本机 HTTP 助手可将 FORMWARD_AI_BASE_URL 配置为正式域名，令牌从对应账号的“AI 接入”创建。
+
+Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7；改 Next 代码前读 node_modules/next/dist/docs/ 对应指南。修改前读根 README、AGENTS 和最近 README，保留无关变更，每个项目自有目录需 README。typecheck 与 build 顺序运行，避免 .next/types 生成冲突。已有 3000 开发服务，不启动第二个同目录实例或擅自关闭；正式 Vercel 地址独立运行，部署不覆盖本机 .env.local 或 .next。浏览器开发测试在临时副本和独立端口，生产测试使用构建产物；虚构数据库完全隔离，Playwright／Chromium／系统库／字体均在 /tmp，不增加项目依赖。最新加载截图位于 /tmp/formward-loading-development 与 /tmp/formward-loading-production；整数时区编辑截图位于 /tmp/formward-entry-timezone-development 与 /tmp/formward-entry-timezone-production，均不提交 Git。
 
 ## 后续探索
 
 - 文件解析导入：AI 整理 Excel／截图／口述为已支持的 batch 候选，继续使用统一审核，用户提供数据文件，无须项目源码。
-- 外部 AI 客户端、HTTPS 部署、MCP 等协同方式按实际需要探索，当前先跑通本地 HTTP。
+- 插件／公网 MCP 接入为当前 AI 优先项，按用户实际可用入口确定连接和授权方案，复用现有 HTTP API／feature 与预览确认规则；具体接手顺序见本文开头。
 - 归属与准确时间修正、持久代表选择、网页删除／恢复和导入复用现有 feature；历史条件修正必须明确确认。
 - 饮食、运动、全天消耗、热量关联与设备连接后置。D 日晨晚差及 D+1 日空腹变化可对照 D 日盈余，缺项不计算，不把体重差当热量或确定因果。

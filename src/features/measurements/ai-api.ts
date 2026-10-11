@@ -1,5 +1,6 @@
 import type { Database } from "../../db/client";
 import { ApiError, authenticateAi, type AiIdentity } from "../auth/ai-tokens";
+import { siteOrigin } from "../auth/site-url";
 import { listMeasurements } from "./records";
 import { listMeasurementDates, measurementDisplay } from "./editing";
 import { listMeasurementSources } from "./sources";
@@ -10,8 +11,8 @@ import { estimateUserExplanation } from "./estimate-explanation";
 import { systemMeasurementTimezone, timezoneLabel, validateMeasurementTimezone } from "./timezone";
 import { localMeasurementDate } from "./entry-state";
 
-export function aiRequestTimezone(request: Request) {
-  const timezone = request.headers.get("x-formward-timezone") ?? systemMeasurementTimezone();
+export function aiRequestTimezone(request: Request, configuredTimezone = process.env.FORMWARD_TIMEZONE) {
+  const timezone = request.headers.get("x-formward-timezone") ?? systemMeasurementTimezone(new Date(), configuredTimezone);
   validateMeasurementTimezone(timezone);
   return timezone;
 }
@@ -32,10 +33,7 @@ export async function aiApiResponse(request: Request, db: Database, write: boole
   }
 }
 export function aiConfirmationUrl(request: Request, path: string) {
-  // Next 的内部 request.url 可能使用 localhost；保留实际请求 Host，避免丢失 127.0.0.1 的会话。
-  const url = new URL(request.url);
-  url.host = request.headers.get("host") ?? url.host;
-  return new URL(path, url).href;
+  return new URL(path, siteOrigin(request)).href;
 }
 export async function readAiJson(request: Request) {
   if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) throw new ApiError(415, "invalid_input", "请使用 application/json。");

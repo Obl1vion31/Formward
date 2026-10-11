@@ -11,6 +11,8 @@
 
 ## 维护约定
 
+`rate_limits` 是登录前按来源与认证入口维护的共享限流状态，包含 id、唯一 key、count 和毫秒 last_request；没有健康数据或用户归属。Better Auth 负责原子计数与过期清理，0010 migration 仅新增此表。
+
 Feature 可以直接使用 Drizzle。数据库结构变化必须生成 `drizzle/` migration，并分别在开发、测试和生产环境执行。
 
 运行配置与账号创建见 [数据库与账号接入](../../docs/auth-setup.md)。身体记录与导入已建表；饮食和运动尚未建表。测量缺少时区时 UTC 时刻为空；来源指标缺项不补零，软删除字段供后续恢复入口使用。OAuth 登录未启用，account 的 OAuth 字段保持空值。

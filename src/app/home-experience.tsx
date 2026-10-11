@@ -48,11 +48,13 @@ export default function HomeExperience() {
   const targetProgressRef = useRef<TargetProgress>(0);
   const imagesReadyRef = useRef(false);
   const reducedMotionRef = useRef(false);
+  const staticTurnRef = useRef(false);
   // 这些低频 state 影响 JSX；每一帧的进度和鼠标坐标不放在 state 里。
   const [phase, setPhase] = useState<Phase>("INTRO");
   const [reducedMotion, setReducedMotion] = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [staticTurn, setStaticTurn] = useState(false);
   const [navigating, startNavigation] = useTransition();
   usePageLoading({ active: !imagesReady && !imageError, label: "正在加载登录页面…" });
   usePageLoading({ active: phase === "AUTHENTICATING", label: "正在验证登录…" });
@@ -163,7 +165,7 @@ export default function HomeExperience() {
     if (!overlay) return;
 
     const frames = frameNodesRef.current;
-    const reduced = reducedMotionRef.current;
+    const reduced = reducedMotionRef.current || staticTurnRef.current;
     orbitRef.current?.render(animationProgress, reduced);
     const [first, video, last] = turnFrameWeights(animationProgress, reduced);
     if (frames[0]) frames[0].style.opacity = String(first);
@@ -187,7 +189,7 @@ export default function HomeExperience() {
     if (!imagesReadyRef.current || !timelineRef.current) return;
     if ((target === 0 && phaseRef.current === "INTRO") || (target === 1 && phaseRef.current === "LOGIN_READY")) return;
     changePhase(target === 1 ? "FORWARD_ANIMATING" : "REVERSE_ANIMATING");
-    timelineRef.current.playTo(target, reducedMotionRef.current);
+    timelineRef.current.playTo(target, reducedMotionRef.current || staticTurnRef.current);
   }, [changePhase]);
 
   useEffect(() => {
@@ -203,19 +205,52 @@ export default function HomeExperience() {
     videoLayerRef.current = layer;
     const video = createTurnVideo(source, canvas, layer);
     videoRef.current = video;
+    let active = true;
+    let videoRecovered = false;
+    let retrying = false;
+    function recoverVideo() {
+      if (!active || !videoRecovered || !staticTurnRef.current) return;
+      const progress = timeline.getProgress();
+      // 只在静态端点恢复视频，避免切换途中突然更换人物画面或表单位置。
+      if (progress !== 0 && progress !== 1) return;
+      staticTurnRef.current = false;
+      setStaticTurn(false);
+      renderProgress(progress);
+    }
     const timeline = createProgressTimeline(renderProgress, (target) => {
       changePhase(target === 1 ? "LOGIN_READY" : "INTRO");
+      recoverVideo();
     });
     timelineRef.current = timeline;
     renderProgress(0);
-    // 三张实际静态图与视频全部就绪后才允许播放。
+    // 静态图仍需解码；视频是可选装饰，失败或手机预加载超时后采用静态过渡。
     const images = Array.from(stageRef.current?.querySelectorAll<HTMLImageElement>(".body-frame img") ?? []);
-    let active = true;
     imagesReadyRef.current = false;
-    Promise.all([...images.map((image) => image.decode()), video.ready]).then(() => {
+    staticTurnRef.current = false;
+    const turnReady = video.ready.catch(() => {
+      if (!active) return;
+      staticTurnRef.current = true;
+      setStaticTurn(true);
+    });
+    function retryVideo() {
+      if (!active || !staticTurnRef.current || retrying || source!.error || reducedMotionRef.current) return;
+      if (!["INTRO", "FORWARD_ANIMATING", "REVERSE_ANIMATING", "LOGIN_READY"].includes(phaseRef.current)) return;
+      retrying = true;
+      // 在手势处理器内同步调用 play；即使已采用静态兜底，也允许手机稍后恢复解码。
+      video.retry().then(() => {
+        videoRecovered = true;
+        recoverVideo();
+      }).catch(() => {
+        // 重试仍失败时继续使用已开放的登录表单。
+      }).finally(() => { retrying = false; });
+    }
+    const gestures = ["touchend", "click", "keydown"];
+    gestures.forEach(event => source.ownerDocument.addEventListener(event, retryVideo));
+    Promise.all([...images.map((image) => image.decode()), turnReady]).then(() => {
       // Promise 不能直接取消；active 防止组件卸载后再写状态或启动动画。
       if (!active) return;
       imagesReadyRef.current = true;
+      renderProgress(0);
       updateMotion();
       setImagesReady(true);
       if (targetProgressRef.current === 1) requestDirection(1);
@@ -224,6 +259,7 @@ export default function HomeExperience() {
     });
     return () => {
       active = false;
+      gestures.forEach(event => source.ownerDocument.removeEventListener(event, retryVideo));
       timeline.cancel();
       orbit.dispose();
       orbitRef.current = null;
@@ -290,7 +326,7 @@ export default function HomeExperience() {
   const accessible = ["LOGIN_READY", "AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phase);
 
   return (
-    <main className={`home-page ${heroDisplay.variable} ${heroMono.variable}`} data-phase={phase} data-reduced-motion={reducedMotion} data-images-ready={imagesReady}
+    <main className={`home-page ${heroDisplay.variable} ${heroMono.variable}`} data-phase={phase} data-reduced-motion={reducedMotion} data-images-ready={imagesReady} data-turn-mode={staticTurn ? "static" : "video"}
       style={{ "--final-duration": `${reducedMotion ? 240 : FINAL_DURATION_MS}ms` } as CSSProperties}>
       <HomeHeader />
       <section className="home-scroll" aria-label="Formward 登录入口">

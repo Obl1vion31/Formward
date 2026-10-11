@@ -71,6 +71,13 @@
       "when": 1791533068498,
       "tag": "0009_supreme_imperial_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791738122201,
+      "tag": "0010_shared_auth_rate_limits",
+      "breakpoints": true
     }
   ]
 }

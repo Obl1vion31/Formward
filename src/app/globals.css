@@ -190,7 +190,8 @@ input:focus-visible {
   opacity: 0;
   visibility: hidden;
 }
-.home-page[data-reduced-motion="true"] .home-orbit-scene-end {
+.home-page[data-reduced-motion="true"] .home-orbit-scene-end,
+.home-page[data-turn-mode="static"] .home-orbit-scene-end {
   opacity: var(--orbit-end-opacity, 0);
   visibility: var(--orbit-end-visibility, hidden);
 }
@@ -313,7 +314,14 @@ input:focus-visible {
   opacity: 0;
 }
 .turn-video-source {
-  display: none;
+  /* 保留实际布局尺寸以便移动浏览器解码；页面画面由透明 Canvas 提供。 */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  pointer-events: none;
 }
 /* Enter 后 CSS 接管最终过渡；!important 覆盖第 12 帧残留的内联 opacity: 1。
    --final-duration 由 HomeExperience 提供，普通为 700ms，reduced motion 为 240ms。 */
@@ -712,6 +720,7 @@ input:focus-visible {
     visibility: visible;
   }
   .home-page[data-reduced-motion="true"] .home-orbit-scene-end,
+  .home-page[data-turn-mode="static"] .home-orbit-scene-end,
   .home-orbit-scene-end {
     display: none;
   }

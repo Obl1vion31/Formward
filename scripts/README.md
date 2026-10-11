@@ -15,7 +15,7 @@
 - `maintain-measurements.mts`：指定内部账号，预览当前晚间条件修正及同日同时段候选；按真实发生时间保留较早一条，其他软删除，可按记录恢复。格式：`node --env-file=.env.local --import tsx scripts/maintain-measurements.mts 账号邮箱 --preview`；核对后用 `--write 预览摘要` 执行已授权操作，用 `--restore 记录ID` 恢复。摘要绑定账号当前记录，数据改变须重新预览；事务保存前后快照、操作者和时间，重复执行幂等。工具不会在导入或页面加载时自动运行。
 
 - `prepare-turn-video.sh`：使用 FFmpeg 将 v6 原始一秒转身视频生成 960×1440、逐帧关键帧的播放文件，不覆盖原始视频。
-- `check-structure.sh`：检查所有项目自有目录是否包含非空 README。
+- `check-structure.sh`：检查所有项目自有目录是否包含非空 README；工具生成并被忽略的 .vercel 项目关联目录与依赖、缓存一起跳过。
 - `backup-database.mts`：在结构迁移前导出 public／drizzle 全表及字段信息；repeatable read 只读事务，私有 JSON 权限 0600、拒绝覆盖。用法：`node --env-file=.env.local --import tsx scripts/backup-database.mts data/exports/私有备份.json`。备份含认证与健康数据，保持 Git 忽略，恢复按对应版本结构及外键顺序进行。
 - `fill-measurement-sources.mts`：仅用于已授权的账号未知实测来源补齐。私有请求 JSON 为 `{ userId, deviceLabel }`；用法：`node --env-file=.env.local --import tsx scripts/fill-measurement-sources.mts data/exports/私有请求.json --preview|--write`。写入前保存目标实测私有快照，只改未知来源及修改时间，审计保存前后内容；估计、已知来源、测量时间、数值和删除状态保持。
 - `migrate.mts`：使用 DATABASE_MIGRATION_URL 或 DATABASE_URL 执行版本化 Drizzle migration。

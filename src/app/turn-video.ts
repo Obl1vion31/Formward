@@ -2,6 +2,7 @@
 export const TURN_VIDEO_SRC = "/videos/golden-turn-1s.mp4?v=6";
 export const VIDEO_FRAME_COUNT = 60;
 export const VIDEO_FPS = 60;
+export const VIDEO_READY_TIMEOUT_MS = 4000;
 
 // 视频有额外留白，按头顶、躯干和尾滴匹配原来的 1.png / 12.png。
 export const VIDEO_TRANSFORM = {
@@ -73,8 +74,11 @@ function createTransparentRenderer(video: HTMLVideoElement, canvas: HTMLCanvasEl
     varying vec2 uv;
     void main() {
       vec3 rgb = texture2D(frame, uv).rgb;
-      float alpha = min(1.0, max(rgb.r, max(rgb.g, rgb.b)) * 8.0);
-      gl_FragColor = alpha > 0.0 ? vec4(rgb / alpha, alpha) : vec4(0.0);
+      float brightness = max(rgb.r, max(rgb.g, rgb.b));
+      float alpha = min(1.0, brightness * 8.0);
+      // 压掉黑底中的宽幅暗光晕和压缩杂色，保留明亮人物与柔和轮廓。
+      float matte = smoothstep(0.04, 0.14, brightness);
+      gl_FragColor = alpha > 0.0 ? vec4(rgb / alpha, alpha * matte) : vec4(0.0);
     }
   `);
   gl.linkProgram(program);
@@ -108,22 +112,50 @@ function createTransparentRenderer(video: HTMLVideoElement, canvas: HTMLCanvasEl
   };
 }
 
-function waitForVideo(video: HTMLVideoElement, signal: AbortSignal) {
+// 手机浏览器未必触发 canplaythrough；有可绘制的当前帧即可初始化。
+// 装饰动画不能无限阻挡登录，预加载受限时由首页采用静态过渡。
+export function waitForVideo(video: HTMLVideoElement, signal: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
+    const events = ["loadeddata", "canplay", "canplaythrough", "progress", "playing", "timeupdate"];
+    const gestures = ["touchend", "click", "keydown"];
+    let settled = false;
     const clean = () => {
-      video.removeEventListener("canplaythrough", ready);
+      settled = true;
+      clearTimeout(timer);
+      events.forEach(event => video.removeEventListener(event, ready));
+      gestures.forEach(event => video.ownerDocument.removeEventListener(event, activate));
       video.removeEventListener("error", failed);
       signal.removeEventListener("abort", aborted);
+      video.pause();
     };
-    const ready = () => { clean(); resolve(); };
+    const ready = () => { if (video.readyState < 2) return; clean(); resolve(); };
     const failed = () => { clean(); reject(new Error("视频加载失败")); };
     const aborted = () => { clean(); reject(new DOMException("已取消", "AbortError")); };
+    // iPhone 可能只预加载 metadata；主动静音播放才能唤醒解码，首帧可用后立即暂停。
+    // 微信或低电量模式拒绝自动播放时，在真实触摸／点击／按键处理器内直接重试。
+    const activate = () => {
+      if (settled) return;
+      video.muted = true;
+      video.defaultMuted = true;
+      video.playsInline = true;
+      video.setAttribute("webkit-playsinline", "");
+      video.play()?.then(() => {
+        if (settled) video.pause();
+        else ready();
+      }).catch(() => {
+        // 自动播放拒绝不等于素材损坏；继续等待用户手势或限时兜底。
+        if (!settled) ready();
+      });
+    };
+    const timer = setTimeout(() => { clean(); reject(new Error("视频预加载超时")); }, VIDEO_READY_TIMEOUT_MS);
     if (signal.aborted) return aborted();
     if (video.error) return failed();
-    if (video.readyState >= 4) return ready();
-    video.addEventListener("canplaythrough", ready);
+    if (video.readyState >= 2) return ready();
+    events.forEach(event => video.addEventListener(event, ready));
+    gestures.forEach(event => video.ownerDocument.addEventListener(event, activate));
     video.addEventListener("error", failed);
     signal.addEventListener("abort", aborted, { once: true });
+    activate();
   });
 }
 
@@ -131,19 +163,30 @@ export function createTurnVideo(video: HTMLVideoElement, canvas: HTMLCanvasEleme
   const controller = new AbortController();
   let renderer: ReturnType<typeof createTransparentRenderer> | undefined;
   let scrubber: ReturnType<typeof createVideoScrubber> | undefined;
-  const ready = waitForVideo(video, controller.signal).then(() => {
-    if (controller.signal.aborted) return;
-    renderer = createTransparentRenderer(video, canvas);
-    renderer.draw();
-    layer.dataset.videoFrame = "0";
-    scrubber = createVideoScrubber(video, (index) => {
-      renderer?.draw();
-      layer.dataset.videoFrame = String(index);
-    });
-  });
+  let attempt: Promise<void> | undefined;
+  function prepare(): Promise<void> {
+    if (scrubber) return Promise.resolve();
+    if (attempt) return attempt;
+    attempt = waitForVideo(video, controller.signal).then(() => {
+      if (controller.signal.aborted) return;
+      renderer = createTransparentRenderer(video, canvas);
+      renderer.draw();
+      layer.dataset.videoFrame = "0";
+      scrubber = createVideoScrubber(video, (index) => {
+        renderer?.draw();
+        layer.dataset.videoFrame = String(index);
+      });
+    }).catch((error: unknown) => {
+      renderer?.dispose();
+      renderer = undefined;
+      throw error;
+    }).finally(() => { attempt = undefined; });
+    return attempt;
+  }
 
   return {
-    ready,
+    ready: prepare(),
+    retry: prepare,
     render(progress: number) {
       scrubber?.render(progress);
       // 校准随进度平滑变化；手机由同一桌面比例继承。

@@ -1,6 +1,6 @@
 # 数据库连接与字段字典
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前有 11 张业务／认证表；`measurements` 为 30 列，`measurement_sources` 为 4 列。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前有 12 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 4 列。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 
@@ -37,6 +37,19 @@ erDiagram
 ## 物理字段
 
 以下类型来自 Drizzle 快照。非空字段的“无空值”表示数据库拒绝 NULL，不代表 feature 接受任意内容。timestamp 均带时区。未知业务数值使用 NULL；JSON 快照及审计保持原始内容。AI 令牌保存在 ai_tokens，只保存不可逆摘要，不能复用网页登录会话令牌。
+
+### `rate_limits`
+
+由 `0010_shared_auth_rate_limits.sql` 创建，保存登录前的服务限流状态，不是用户健康数据。Better Auth 按可信代理提供的来源与入口生成 key，多个服务实例原子计数。
+
+| 字段 | 类型 | 含义 |
+| --- | --- | --- |
+| id | text PK | 限流状态标识 |
+| key | text UNIQUE | 来源与认证入口的限流键 |
+| count | integer | 当前窗口请求计数 |
+| last_request | bigint | 最后请求的 Unix 毫秒时间 |
+
+last_request 有索引，支持认证存储清理过期计数。限流表不关联用户，因为认证前尚无可信用户身份。
 
 ### `ai_tokens`
 

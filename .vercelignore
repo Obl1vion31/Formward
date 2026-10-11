@@ -1,0 +1,20 @@
+# 私有数据、凭据和本机工具不进入远程构建。
+data/
+.env
+.env.*
+*.pem
+*.key
+.git/
+.aws/
+.agents/
+.codex/
+.vercel/
+node_modules/
+.next/
+next-env.d.ts
+coverage/
+*.tsbuildinfo
+*.log
+*.xlsx
+*.xls
+*.csv

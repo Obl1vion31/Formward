@@ -29,6 +29,7 @@ done < <(
       -name .agents -o \
       -name .codex -o \
       -name .aws -o \
+      -name .vercel -o \
       -name node_modules -o \
       -name vendor -o \
       -name dist -o \

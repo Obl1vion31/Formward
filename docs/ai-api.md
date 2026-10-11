@@ -12,7 +12,7 @@
 4. 打开响应中的 `confirmationUrl`，在 Formward 登录、逐行核对前后值。可修改并更新预览，再逐行确认保存，或一次保存全部剩余记录。
 5. 运行 `pnpm ai:request GET /measurement-operations/操作ID` 检查每行结果和数量。
 
-助手只通过 HTTP 使用私有配置，不读取数据库配置或打印令牌，不跟随重定向。仅允许 HTTPS 或本机 HTTP。Formward 令牌不是模型服务的 API Key，也不需要网页登录密码。远程 AI 访问不了工作区 localhost 时，需要可访问的服务地址；当前没有外部部署或模型供应商集成。
+助手只通过 HTTP 使用私有配置，不读取数据库配置或打印令牌，不跟随重定向。仅允许 HTTPS 或本机 HTTP。Formward 令牌不是模型服务的 API Key，也不需要网页登录密码。公网地址为 `https://formward-ten.vercel.app`，OpenAPI 为 `https://formward-ten.vercel.app/api/v1/openapi.json`，外部 AI 可使用此地址和访问令牌。部署维护见 [公网 HTTPS 部署](deployment.md)；当前实现为 HTTP API 与 OpenAPI；后续优先按用户实际可用的插件／自定义 MCP 入口接入，MCP 服务尚未实现，最新要求见 [项目交接](../handoff.md)。
 
 ## HTTP 协议
 
@@ -101,7 +101,7 @@ AI 以 `items[].status` 和 `counts` 报告事实，不能把部分保存、取�
 
 界面和查询响应增加 `timezoneLabel`，显示 `GMT+8（东八区）`、`GMT+7（东七区）`，半小时／一刻钟用 `GMT+5:30`、`GMT+5:45`。时区选择只提供 GMT-12 至 GMT+14 的 27 个整点选项，存为 `+08:00` 等固定偏移。旧非整点偏移仍按原值显示。旧 IANA 值不自动转换；标签按准确记录的原偏移，或日期时段当天的地区偏移计算，跨夏令时当天显示两个可能偏移。未知显示“未指定”。
 
-每次新录入自动采用当次系统时区，无须用户重复填写。`pnpm ai:request` 每次读取所在设备的系统偏移并发送 `X-Formward-Timezone`，不改写私有请求文件。其他客户端可传相同请求头；未传则使用 Formward 服务所在系统的当前偏移。`GET /measurements` 的 `context` 返回 `timezone`、`timezoneLabel` 和 `localDate`，供 AI 读取本次默认值。
+每次新录入自动采用当次系统时区，无须用户重复填写。`pnpm ai:request` 每次读取所在设备的系统偏移并发送 `X-Formward-Timezone`，不改写私有请求文件。其他客户端可传相同请求头；未传则采用 FORMWARD_TIMEZONE 配置地区的当次偏移，未配置才读取服务系统偏移。公网服务配置 Asia/Shanghai，默认 +08:00，不依赖平台固定的 UTC 时区。`GET /measurements` 的 `context` 返回 `timezone`、`timezoneLabel` 和 `localDate`，供 AI 读取本次默认值。无法发送自定义请求头的客户端可在候选 timezone 中明确提供时区。
 
 新记录省略 `timezone` 时由 API 自动带入，明确值优先；显式 null 保持未指定。审核页回显自动采用的时区，仍可选择其他时区或点击“采用设备时区”，然后更新预览、确认。身体记录页面的常规编辑也支持晨晚独立修改时区，选择后点击“保存录入”，无需重输体重和体脂。已有记录补缺或修改省略时区时保留原值，历史时区变更须明确指定记录与版本。`preview.defaultTimezone` 保存本次默认值；自动填入只进入审核草稿，原始请求保留。刷新、后续逐行保存和相同 operationId 重试保留首次预览／用户修改后的时区，下一次新操作重新读取系统时区。
 

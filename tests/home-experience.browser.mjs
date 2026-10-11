@@ -612,6 +612,55 @@ async function verifyCrossfadePixels(page, variant, pairs, checkOriginal = false
   results.push({ test: variant + "：真实截图交叠像素检查", comparisons, worstMeanRgbError: Number(worstMeanRgbError.toFixed(3)), ...(originalBlendError === undefined ? {} : { originalBlendError }) });
 }
 
+async function verifyVideoMatte(page) {
+  const samples = await page.evaluate(async () => {
+    const video = document.querySelector("video");
+    const rendered = document.querySelector(".body-frame-video canvas");
+    const source = document.createElement("canvas");
+    const copy = document.createElement("canvas");
+    source.width = copy.width = rendered.width;
+    source.height = copy.height = rendered.height;
+    const original = source.getContext("2d", { willReadFrequently: true });
+    const transparent = copy.getContext("2d", { willReadFrequently: true });
+    async function seek(time) {
+      if (Math.abs(video.currentTime - time) < 0.0001) return;
+      await new Promise(resolve => { video.addEventListener("seeked", resolve, { once: true }); video.currentTime = time; });
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+    const samples = [];
+    for (const time of [0.05 / 60, 0.5, 59.05 / 60]) {
+      await seek(time);
+      original.drawImage(video, 0, 0);
+      transparent.clearRect(0, 0, copy.width, copy.height);
+      transparent.drawImage(rendered, 0, 0);
+      const raw = original.getImageData(0, 0, source.width, source.height).data;
+      const actual = transparent.getImageData(0, 0, copy.width, copy.height).data;
+      let darkPixels = 0, opaquePixels = 0, haloPixels = 0, lostBodyPixels = 0;
+      for (let offset = 0; offset < raw.length; offset += 4) {
+        const brightness = Math.max(raw[offset], raw[offset + 1], raw[offset + 2]);
+        // 非零近黑像素包含视频宽幅光晕和压缩杂色；只检查角落无法发现这个问题。
+        if (brightness >= 2 && brightness <= 8) {
+          darkPixels++;
+          if (actual[offset + 3] > 2) haloPixels++;
+        }
+        if (brightness >= 64) {
+          opaquePixels++;
+          if (actual[offset + 3] < 250) lostBodyPixels++;
+        }
+      }
+      samples.push({ time, darkPixels, opaquePixels, haloPixels, lostBodyPixels });
+    }
+    await seek(0.05 / 60);
+    return samples;
+  });
+  for (const sample of samples) {
+    assert.ok(sample.darkPixels > 1000 && sample.opaquePixels > 1000, "必须包含实际暗光晕与人物像素");
+    assert.equal(sample.haloPixels, 0, "人物周围的暗光晕必须透明，不能形成大圈");
+    assert.equal(sample.lostBodyPixels, 0, "人物亮部不能被去光晕处理挖空");
+  }
+  results.push({ test: "视频首中末帧：宽幅暗光晕透明、人物实体保留", samples });
+}
+
 try {
   await verifyFigureInteraction();
   for (const [name, width, height] of [["desktop", 1440, 900], ["mobile", 390, 844], ["compact", 320, 568], ["landscape", 844, 390]]) {
@@ -637,6 +686,7 @@ try {
   assert.deepEqual(alpha.corners, [0, 0, 0, 0], "视频黑底必须透明，不能遮盖舞台");
   assert.ok(alpha.visible > 1000, "透明化后保留人物实体");
   results.push({ test: "视频透明合成：黑底透明、人物保留" });
+  await verifyVideoMatte(page);
   await verifySpeedProfiles(page);
   const adjacentPairs = [[0, 2], [0, 1], [1, 3]];
   await verifyCrossfadePixels(page, "desktop", adjacentPairs, true);
@@ -835,12 +885,13 @@ try {
   await failedVideoContext.route("**/videos/golden-turn-1s.mp4?*", (route) => route.abort());
   const failedVideoPage = await failedVideoContext.newPage();
   await failedVideoPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
-  await failedVideoPage.getByRole("status").filter({ hasText: "动画加载失败" }).waitFor();
+  await failedVideoPage.waitForSelector('main[data-images-ready="true"][data-turn-mode="static"]');
   await failedVideoPage.mouse.wheel(0, 80);
-  assert.equal((await snapshot(failedVideoPage)).progress, 0);
-  assert.equal((await snapshot(failedVideoPage)).introVisibility, "hidden");
+  await phase(failedVideoPage, "LOGIN_READY");
+  assert.equal((await snapshot(failedVideoPage)).progress, 1);
+  assert.equal(await failedVideoPage.locator("#email").isVisible(), true);
   await failedVideoContext.close();
-  results.push({ test: "视频加载失败：停在原始首帧并显示提示" });
+  results.push({ test: "视频加载失败：静态首尾过渡仍能进入登录" });
 
   // 失败分支也独立验收：人物停在首帧，状态信息不会因鼠标或滚轮操作被隐藏。
   const failedContext = await browser.newContext();
