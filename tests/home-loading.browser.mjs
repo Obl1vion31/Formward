@@ -8,9 +8,9 @@ const errors = [];
 const results = [];
 
 try {
-  for (const scenario of ["current-frame", "play-required", "gesture-required", "blocked-video", "failed-video", "no-webgl", "desktop-failed-video"]) {
-    const desktop = scenario === "desktop-failed-video";
-    const context = await browser.newContext({ viewport: { width: desktop ? 1440 : 390, height: desktop ? 900 : 844 }, isMobile: !desktop, hasTouch: true });
+  for (const scenario of ["current-frame", "play-required", "gesture-required", "blocked-video", "failed-video", "no-webgl", "desktop-failed-video", "mobile-static", "mobile-reduced", "mobile-landscape"]) {
+    const desktop = !scenario.startsWith("mobile-");
+    const context = await browser.newContext({ viewport: { width: scenario === "mobile-landscape" ? 844 : desktop ? 1440 : 390, height: scenario === "mobile-landscape" ? 390 : desktop ? 900 : 844 }, isMobile: !desktop, hasTouch: !desktop, reducedMotion: scenario === "mobile-reduced" ? "reduce" : "no-preference" });
     if (scenario === "current-frame") {
       await context.addInitScript(() => {
         const descriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "readyState");
@@ -62,12 +62,38 @@ try {
     page.on("pageerror", error => errors.push(error.message));
     await page.goto(baseURL, { waitUntil: "domcontentloaded" });
     await page.waitForSelector('main[data-images-ready="true"]', { timeout: 15000 });
+    if (!desktop) {
+      assert.equal(await page.locator("video").count(), 0, "手机不挂载或请求视频");
+      assert.equal(await page.locator("main").getAttribute("data-turn-mode"), "static");
+      await page.waitForFunction(() => !document.querySelector("dialog[open]"));
+      await page.locator(".home-stage").tap({ position: { x: 12, y: 110 } });
+      await page.waitForSelector('main[data-phase="LOGIN_READY"]');
+      await page.locator("#email").fill("fictional@example.test");
+      await page.locator("#password").fill("fictional-password");
+      await page.locator(".home-stage").tap({ position: { x: 12, y: 110 } });
+      assert.equal(await page.locator("main").getAttribute("data-phase"), "LOGIN_READY", "登录后背景点击不会返回");
+      await page.getByRole("button", { name: "返回初始画面", exact: true }).click();
+      await page.waitForSelector('main[data-phase="INTRO"]');
+      await page.locator(".home-stage").tap({ position: { x: 12, y: 110 } });
+      await page.waitForSelector('main[data-phase="LOGIN_READY"]');
+      assert.equal(await page.locator("#email").inputValue(), "fictional@example.test");
+      assert.equal(await page.locator("#password").inputValue(), "fictional-password");
+      assert.equal(await page.locator(".home-stage").evaluate(node => getComputedStyle(node).backgroundImage), "none");
+      assert.equal(await page.locator(".body-frame-intro").first().evaluate(node => getComputedStyle(node).mixBlendMode), "normal");
+      await page.locator('button[type="submit"]').click();
+      await page.locator("#login-error").waitFor();
+      assert.equal(loginRequests, 1);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      await page.screenshot({ path: `/tmp/formward-${scenario}.png` });
+      results.push({ engine, scenario, turnMode: "static", loginRequests });
+      await context.close(); continue;
+    }
     const videoScenario = ["current-frame", "play-required", "gesture-required"].includes(scenario);
     if (!videoScenario || scenario === "gesture-required") assert.equal(await page.locator("main").getAttribute("data-turn-mode"), "static", scenario);
     else if (engine === "chromium") assert.equal(await page.locator("main").getAttribute("data-turn-mode"), "video", "当前帧即可使用视频，不等待 canplaythrough");
     await page.waitForFunction(() => !document.querySelector("dialog[open]"));
     if (scenario === "gesture-required") {
-      await page.locator(".home-stage").tap({ position: { x: 10, y: 100 } });
+      await page.locator(".home-stage").click({ position: { x: 10, y: 100 } });
       await page.waitForSelector('main[data-turn-mode="video"]', { timeout: 8000 });
       assert.equal(await page.locator("main").getAttribute("data-phase"), "INTRO", "手势恢复不改变当前端点");
     }
@@ -76,26 +102,20 @@ try {
       const layer = document.querySelector("[data-turn-video]");
       new MutationObserver(() => window.turnFrames.push(Number(layer.dataset.videoFrame))).observe(layer, { attributes: true, attributeFilter: ["data-video-frame"] });
     });
-    await page.evaluate(() => {
-      const target = document.querySelector(".home-stage");
-      const touch = y => new Touch({ identifier: 1, target, clientX: 190, clientY: y });
-      target.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, touches: [touch(600)] }));
-      target.dispatchEvent(new TouchEvent("touchmove", { bubbles: true, touches: [touch(450)] }));
-      target.dispatchEvent(new TouchEvent("touchend", { bubbles: true, touches: [] }));
-    });
+    await page.mouse.wheel(0, 80);
     await page.waitForSelector('main[data-phase="LOGIN_READY"]');
     if (videoScenario && engine === "chromium") {
       assert.equal(await page.evaluate(() => window.turnFrames.some(frame => frame > 0 && frame < 59)), true, "转身展示真实视频中间帧");
       assert.equal(await page.locator("video").evaluate(video => video.paused), true, "唤醒后暂停，避免自行播放与寻帧冲突");
     }
-    if (desktop) {
+    if (desktop && await page.locator("main").getAttribute("data-turn-mode") === "static") {
       const orbit = await page.locator(".home-orbit-scene-end").evaluate(node => ({ opacity: getComputedStyle(node).opacity, visibility: getComputedStyle(node).visibility }));
       assert.equal(orbit.visibility, "visible");
       assert.equal(orbit.opacity, "1");
     }
     await page.locator("#email").fill("fictional@example.test");
     await page.locator("#password").fill("fictional-password");
-    await page.locator('button[type="submit"]').tap();
+    await page.locator('button[type="submit"]').click();
     await page.locator("#login-error").waitFor();
     assert.equal(loginRequests, 1);
     assert.equal(await page.locator("main").getAttribute("data-phase"), "LOGIN_READY");
@@ -104,7 +124,7 @@ try {
     await context.close();
   }
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ passed: "手机视频加载、超时与静态登录回归", results }, null, 2));
+  console.log(JSON.stringify({ passed: "桌面视频降级与手机点击静态登录回归", results }, null, 2));
 } finally {
   await browser.close();
 }

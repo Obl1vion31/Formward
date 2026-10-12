@@ -2,7 +2,28 @@
 
 接口覆盖晨晚体重／体脂、来源、时区、记录详情与历史、候选分析、摘要与趋势、历史编辑及单项显式估算。网页和 API 使用同一 measurements feature。饮食、运动、文件导入、删除／恢复、准确测量时间和历史归属纠正尚未接入。
 
-## 授权与本地使用
+## ChatGPT 与其他 MCP 客户端
+
+在用户当前使用的 ChatGPT「插件 → 添加自定义 MCP」入口，填写服务器地址 `https://formward-ten.vercel.app/api/mcp`，认证方式选择 OAuth。添加后跳转到 Formward 登录，在授权页核对客户端名称和权限，点击“允许连接”。其他支持远程 Streamable HTTP 和 OAuth 的大模型客户端使用同一地址。界面的名称和可用入口以客户端当前账号为准。
+
+服务已发布到上述正式地址，部署维护见 [公网部署](deployment.md)。连接后可以查询自己的记录、提交录入／修改／估算预览，再打开返回的 `confirmationUrl` 登录确认。仅把网站网址发给聊天模型不会建立 MCP 连接。
+
+| 工具 | 输入与行为 | 权限 |
+| --- | --- | --- |
+| `get_profile` | 返回已连接账号的稳定标识与显示名称 | `profile` |
+| `query_measurements` | 可选 from／to、choices、timezone；返回本账号记录、单位、来源、实测／估计、摘要、趋势与时区上下文 | `measurements:read` |
+| `submit_measurement_operation` | operationId、1–100 条 items、可选 timezone；生成预览并返回网页审核链接 | `measurements:write` |
+| `get_measurement_operation` | 提交返回的 id；查询逐行状态、数量和确认链接 | `measurements:read` |
+
+工具定义提供名称、说明、JSON Schema、权限和操作提示，MCP 客户端把这些说明交给模型决定调用哪个工具及填写哪些参数。模型获取业务结果，账号密码和令牌由客户端及授权流程管理。网页、HTTP API 与 MCP 调用同一 feature，不分别维护健康规则。
+
+OAuth 使用授权码 + S256 PKCE，授权码有效 5 分钟；访问令牌有效 1 小时，刷新令牌轮换，账号连接最多 30 天。支持 CIMD 客户端元数据发现与 DCR 动态注册，兼容当前及 2025 MCP 协议。访问令牌校验签名、issuer、resource audience、到期时间，以及数据库中本账号的连接、当前同意与权限。刷新后连接标识保持，重复请求及审核归属稳定。
+
+登录后的“AI 接入”展示客户端、权限、授权／最近使用时间与状态，可随时撤销。撤销立即阻止访问、续期及未确认预览；重新授权创建新连接，不恢复旧连接的预览。OAuth 凭据和客户端密钥按摘要保存，JWT 签名私钥加密保存；不要把网页登录密码或数据库凭据交给模型。
+
+公开发现入口为 `/.well-known/oauth-protected-resource/api/mcp` 和 `/.well-known/oauth-authorization-server/api/auth`，公开 JWKS 在 `/api/auth/jwks`。发现信息和工具定义不含健康数据；未授权 MCP 请求返回 401 和 OAuth discovery challenge，默认同时请求账号识别、续期和身体读写范围，客户端可明确申请较小范围。
+
+## 手动令牌与本地 HTTP 使用
 
 登录后点击邮箱右侧“AI 接入”，填写令牌名称并选择“查询与提交操作”或“只读”。令牌有效 30 天，原文仅创建时显示一次，可随时撤销。数据库只保存不可逆摘要；丢失时撤销并创建新令牌。页面提供 API 地址、公开 OpenAPI、可复制接入说明和最近 20 次提交及逐条处理数量。
 
@@ -12,7 +33,7 @@
 4. 打开响应中的 `confirmationUrl`，在 Formward 登录、逐行核对前后值。可修改并更新预览，再逐行确认保存，或一次保存全部剩余记录。
 5. 运行 `pnpm ai:request GET /measurement-operations/操作ID` 检查每行结果和数量。
 
-助手只通过 HTTP 使用私有配置，不读取数据库配置或打印令牌，不跟随重定向。仅允许 HTTPS 或本机 HTTP。Formward 令牌不是模型服务的 API Key，也不需要网页登录密码。公网地址为 `https://formward-ten.vercel.app`，OpenAPI 为 `https://formward-ten.vercel.app/api/v1/openapi.json`，外部 AI 可使用此地址和访问令牌。部署维护见 [公网 HTTPS 部署](deployment.md)；当前实现为 HTTP API 与 OpenAPI；后续优先按用户实际可用的插件／自定义 MCP 入口接入，MCP 服务尚未实现，最新要求见 [项目交接](../handoff.md)。
+助手只通过 HTTP 使用私有配置，不读取数据库配置或打印令牌，不跟随重定向。仅允许 HTTPS 或本机 HTTP。Formward 令牌不是模型服务的 API Key，也不需要网页登录密码。公网地址为 `https://formward-ten.vercel.app`，OpenAPI 为 `https://formward-ten.vercel.app/api/v1/openapi.json`，外部 AI 可使用此地址和访问令牌。部署维护见 [公网 HTTPS 部署](deployment.md)；HTTP API 保持独立手动令牌鉴权；OAuth 连接使用上述 MCP 入口。
 
 ## HTTP 协议
 
@@ -79,9 +100,9 @@
 - 修改支持日期、晨晚、体重、体脂、来源、空腹条件和实测时区；估算支持改日期／时段，指标保持单项。历史日期／时段变化不迁移原记录，清除旧目标身份后重新预览新目标。
 - 修改后先“更新预览”或“更新全部预览”，核对新的前后值，再保存。编辑期间禁止确认旧预览。放弃修改只丢弃本地未更新输入。
 
-预览有效 15 分钟，更新或刷新预览重新计时。确认验证当前会话归属、发起令牌、审核 revision 和健康快照；外部数据变化或到期须刷新并重新核对，令牌失效须重新授权和提交。自己保存一行会更新快照并重新预览剩余行。跨页面版本冲突保留本地输入，可“加载最新审核，保留输入”后重新更新；不会直接覆盖另一个页面。
+预览有效 15 分钟，更新或刷新预览重新计时。确认验证当前会话归属、发起令牌或 OAuth 连接、审核 revision 和健康快照；外部数据变化或到期须刷新并重新核对，令牌失效须重新授权和提交。自己保存一行会更新快照并重新预览剩余行。跨页面版本冲突保留本地输入，可“加载最新审核，保留输入”后重新更新；不会直接覆盖另一个页面。
 
-API 没有确认或编辑端点，不接受 `confirmed:true`。原始 AI 请求不可变；网页草稿、版本、行结果存入预览。相同请求重试复用 operationId 和原始内容，新内容或令牌必须用新 ID。已处理行再次确认返回结果，不重复写入。
+API 没有确认或编辑端点，不接受 `confirmed:true`。原始 AI 请求不可变；网页草稿、版本、行结果存入预览。相同请求重试复用 operationId 和原始内容，新内容或授权连接必须用新 ID。已处理行再次确认返回结果，不重复写入。
 
 | 状态 | 含义 |
 | --- | --- |
@@ -107,4 +128,4 @@ AI 以 `items[].status` 和 `counts` 报告事实，不能把部分保存、取�
 
 显式历史修改保留 `sourceLocalTime` 与 recordDate：准确时间重算 UTC，未知钟点继续为 day_period／assumed，UTC 与准确偏移为空。
 
-健康记录、来源历史、写入批次、审计和行结果同一事务。新记录 entryChannel 为 api、actorType 为 ai；历史编辑保留原入口和原始输入。审计关联 tokenId、操作、确认人／时间，并保存行 ID、审核版本、原始候选、用户审核草稿和编辑者／时间。审计失败整体回滚。
+健康记录、来源历史、写入批次、审计和行结果同一事务。新记录 entryChannel 为 api、actorType 为 ai；历史编辑保留原入口和原始输入。审计关联 tokenId 或 oauthConnectionId、操作、确认人／时间，并保存行 ID、审核版本、原始候选、用户审核草稿和编辑者／时间。审计失败整体回滚。

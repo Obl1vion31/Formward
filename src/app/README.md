@@ -10,6 +10,8 @@
 
 ## 当前入口
 
+- `api/mcp/` 提供 OAuth 保护的 MCP HTTP 入口，`.well-known/` 转发公开授权发现，`oauth/` 提供签名请求对应的登录与授权页；业务规则位于 auth、mcp 与 measurements feature。
+- 手机首屏点击直接到第 12 张，登录后只通过顶部返回回首帧并保留输入；不使用下滑、不下载转身视频。手机判断和图表默认 7D 共用 `components/use-mobile-mode.ts`，桌面图表仍默认 30D。
 - `page.tsx` 让 `/` 显示 `HomeExperience` 提供的人物、提示和登录体验。
 - `layout.tsx` 挂载全站加载管理；保存、认证和页面导航超过 200ms 显示虚化背景与居中提示，真实完成或失败后收起。路由加载与业务操作共用组件，既有首页最终动画保持独立。
 - `dashboard/layout.tsx` 在页面流之前检查当前身份，未登录正常重定向。身体记录与 AI 设置页在身份校验后以 Suspense 覆盖数据等待；审核页先校验 operation 归属，保持不存在或跨账号的 404，导航等待由 LoadingLink 跟踪。页面仍逐次校验当前身份，不能只依赖会被复用的 layout。
@@ -19,14 +21,14 @@
 - `home-orbit.ts` 以人物进度计算 150° 倾斜椭圆投影、节点、引线、轻微缩放及明暗。标注文字在节点水平线下方 12px，引线与文字边缘间隔 12px；左右对齐及引线方向连续插值。ResizeObserver 与字体就绪后缓存完整标注尺寸，正常模式直接更新 DOM，不另开动画时钟或逐帧读取布局；文字始终面向读者。
 - `hero-font.ts` 通过 `next/font/local` 提供 Newsreader 正体 400 和 IBM Plex Mono 400。主词使用 Newsreader、自动光学尺寸、0.035em 字距与 1.2 行高；桌面字号为 `clamp(20px, 1.68vw, 26px)`，手机为 14px。微标签及滚动提示使用 IBM Plex Mono，Logo 与产品 UI 沿用系统 sans serif。资源和许可证在 `public/fonts/`。
 - `home-experience.tsx` 协调 INTRO、FORWARD_ANIMATING、LOGIN_READY、REVERSE_ANIMATING、AUTHENTICATING、FINAL_TRANSITION、FINAL 状态，等待静态图解码并同步表单，视频失败／预加载超时使用静态首尾过渡。SCROLL 提示随 INTRO 状态显示，每次回到首屏都恢复；人物运动由独立外层承载，播放期间暂停，输入框首次聚焦后回中并锁定整个登录阶段，倒放回首屏或进入 FINAL 才解除。
-- `turn-video.ts` 管理 60 帧视频的异步寻帧、WebGL 透明合成与宽幅暗光晕去除、端点大小与位置以及资源清理；主动静音内联播放唤醒手机解码，当前帧可绘制后暂停，每次最多等待 4 秒。自动播放被拒绝时支持触摸／点击／按键重试；播放文件由原始视频生成，视频目录保存制作说明。
+- `turn-video.ts` 管理 60 帧视频的异步寻帧、WebGL 透明合成与宽幅暗光晕去除、端点大小与位置以及资源清理；桌面主动静音内联播放唤醒解码，当前帧可绘制后暂停，每次最多等待 4 秒。自动播放被拒绝时支持触摸／点击／按键重试；播放文件由原始视频生成，视频目录保存制作说明。
 - `figure-motion.ts` 用独立 rAF 控制反向位移与朝鼠标倾转，按实际时间平滑跟随，停止 180ms 后用 600ms 回中；归稳后取消 rAF。首屏幅度为水平 6px、垂直 4px、倾转 0.6° / 0.3°；Frame 12 未填写时与 Frame 13 输入框无焦点时为半幅。触屏、窄屏、reduced motion、页面隐藏和失焦时关闭。
-- `use-direction-trigger.ts` 持续监听滚轮、触控和键盘方向；滚轮累计 44px、触控累计 40px 后选择目标端点。惯性不重启播放，进入最终过渡后移除监听。
-- `home-timeline.ts` 用 rAF 控制 500ms 连续时间游标，正倒放及中途反向复用同一进度。`turnFrameWeights` 在首尾各 40ms 混合视频与原始静态端点，Login 在最后 200ms 淡入并上移 16px。轨道读取同一进度；reduced motion 为 180ms 静态首尾交叠。
+- `use-direction-trigger.ts` 在桌面监听滚轮和键盘方向；滚轮累计 44px、触控累计 40px 后选择目标端点。惯性不重启播放，进入最终过渡后移除监听。
+- `home-timeline.ts` 的 jumpTo 供手机直接切换端点，取消旧时钟并同步图层与阶段；桌面用 rAF 控制 500ms 连续时间游标，正倒放及中途反向复用同一进度。`turnFrameWeights` 在首尾各 40ms 混合视频与原始静态端点，Login 在最后 200ms 淡入并上移 16px。轨道读取同一进度；reduced motion 为 180ms 静态首尾交叠。
 - `frame-config.ts` 只导入运行时使用的 1、12、13，保存原有桌面、移动端校准；`PRE_LOGIN_FRAMES` 包含两个静态端点，`FINAL_FRAME` 保持独立。
-- `body-sequence.tsx` 预加载三张静态图与转身视频，叠放静态端点、透明视频 Canvas 和最终图。视频来源元素保留 1px 布局并裁切，避免 display:none 限制手机解码。静态图解码后等待视频当前帧；视频失败／超时不阻止登录，手势重试成功只在端点恢复完整动画，加载期间保留最近方向。
+- `body-sequence.tsx` 预加载三张静态图；仅确认桌面模式后加载转身视频，手机不创建视频或 Canvas。叠放静态端点、透明视频 Canvas 和最终图。视频来源元素保留 1px 布局并裁切，避免 display:none 限制手机解码。静态图解码后等待视频当前帧；视频失败／超时不阻止登录，手势重试成功只在端点恢复完整动画，加载期间保留最近方向。
 - `login-overlay.tsx` 显示 Email、Password 和 `ENTER`，保留本轮输入并报告焦点，显示认证进度与中文错误。首次聚焦在 180ms 内回中，切换字段或失焦不解除 LOGIN_READY 的锁定。Frame 12 就绪且两项非空后，Enter 先在 AUTHENTICATING 验证账号，禁用输入和重复提交；失败恢复 LOGIN_READY，成功播放 700ms 的 12 → 13，实际动画结束后导航到 `/dashboard`。
-- `globals.css` 定义石墨舞台、暖金环境光、petrol 层次、Newsreader 暖灰白概念词、哑金微标签、棕金轨道、手机底部网格、烟色登录衬底及最终过渡。输入底线默认透明，只有可操作字段 hover / focus 时显现，键盘保留焦点框。左下角 SCROLL 只在素材就绪的桌面 INTRO 显示，倒放回首屏恢复。人物组仍使用隔离的 `plus-lighter` 合成，文字和轨道不参与人物像素混合。
+- `globals.css` 定义石墨舞台、暖金环境光、petrol 层次、Newsreader 暖灰白概念词、哑金微标签、棕金轨道、手机底部网格、烟色登录衬底及最终过渡。输入底线默认透明，只有可操作字段 hover / focus 时显现，键盘保留焦点框。左下角 SCROLL 只在素材就绪的桌面 INTRO 显示，倒放回首屏恢复。桌面人物组使用隔离的 `plus-lighter` 合成；手机使用 normal、纯石墨背景、点击提示与顶部返回，文字和轨道不参与人物像素混合。
 - `home-media.test.mjs` 验证视频当前帧判定、无后续事件的预加载超时、静音唤醒与暂停、自动播放拒绝及触摸／超时后恢复、错误／取消与监听清理；手机加载回归见 `tests/home-loading.browser.mjs`。
 - `home-timeline.test.mjs` 验证半秒时间线、端点权重、视频索引与异步寻帧合并，覆盖模拟 60/120Hz、双向手势、中途反向、惯性和 reduced motion。实际视频帧、截图合成及移动端验收见 `tests/home-experience.browser.mjs`。
 - `figure-motion.test.mjs` 验证模拟 60/120Hz 跟随与归稳、幅度上限、暂停与恢复、聚焦回中、立即归零和清理。`pnpm test` 用 Node.js 24 内置测试运行器执行两个测试文件，不需要额外框架。

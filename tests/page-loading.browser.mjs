@@ -230,7 +230,12 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     await page.goBack(); await ready(); await page.goForward(); await ready();
     const failedAssets = await holdNext(request => request.url().includes("/videos/golden-turn-1s.mp4"));
     await page.goto(baseURL, { waitUntil: "domcontentloaded" }); await failedAssets.wait(); await assertLoading("正在加载登录页面…");
-    await failedAssets.release("abort"); await ready(); await page.getByText("动画加载失败，请刷新重试", { exact: true }).waitFor();
+    await failedAssets.release("abort"); await page.waitForSelector('main[data-images-ready="true"][data-turn-mode="static"]'); await ready();
+    await page.mouse.wheel(0, 80); await page.waitForSelector('main[data-phase="LOGIN_READY"]');
+    assert.equal(await page.getByLabel("Email", { exact: true }).isEditable(), true, "视频失败后静态登录仍可使用");
+    const failedImage = await holdNext(request => request.url().includes("/_next/image?"));
+    await page.goto(baseURL, { waitUntil: "domcontentloaded" }); await failedImage.wait(); await assertLoading("正在加载登录页面…");
+    await failedImage.release("abort"); await ready(); await page.getByText("动画加载失败，请刷新重试", { exact: true }).waitFor();
     assert.deepEqual(errors, []);
     console.log("通过：加载延迟、真实保存／估算／审核／导航／登录、最上层遮罩、失败草稿、滚动锁、窄屏与减少动态效果。");
   } catch (error) {

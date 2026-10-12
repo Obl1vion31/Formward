@@ -90,6 +90,19 @@ function setupTimeline(t) {
   return { browser, timeline, progress, completed };
 }
 
+test("点击切换端点立即完成，取消进行中的播放且不会被后续 rAF 恢复", t => {
+  const { browser, timeline, progress, completed } = setupTimeline(t);
+  timeline.playTo(1); browser.advance(120);
+  timeline.jumpTo(1);
+  assert.equal(timeline.getProgress(), 1);
+  assert.deepEqual(completed, [1]);
+  browser.advance(900);
+  assert.equal(progress.at(-1), 1);
+  timeline.jumpTo(0);
+  assert.equal(timeline.getProgress(), 0);
+  assert.deepEqual(completed, [1, 0]);
+});
+
 test("一次下滚后无后续输入，500ms 内按 2 倍速经过视频的 60 帧", (t) => {
   const { browser, timeline, completed } = setupTimeline(t);
   browser.wheel(60);

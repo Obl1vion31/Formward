@@ -92,5 +92,12 @@ export function createProgressTimeline(
     frame = requestAnimationFrame(tick);
   }
 
-  return { playTo, cancel, getProgress: () => animationProgress };
+  function jumpTo(target: TargetProgress) {
+    cancel();
+    animationProgress = target;
+    targetProgress = target;
+    onProgress(target);
+    onComplete(target);
+  }
+  return { playTo, jumpTo, cancel, getProgress: () => animationProgress };
 }

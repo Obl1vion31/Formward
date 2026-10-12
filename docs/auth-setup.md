@@ -72,3 +72,9 @@ pnpm dev
 ## 验证
 
 运行 lint、typecheck、`pnpm test` 和 production build。认证集成测试使用独立内存 PostgreSQL 和虚构账号；`pnpm test:browser` 也自行启动隔离的数据库和 production 测试服务，覆盖登录、动画顺序、跨账号访问、退出和手机模式。浏览器环境准备见 [tests/README.md](../tests/README.md)。测试不连接 `.env.local` 指向的数据库。
+
+## MCP OAuth 配置
+
+完成 0011_mcp_oauth.sql migration 后，现有 BETTER_AUTH_SECRET、BETTER_AUTH_URL 与数据库配置即可启用 OAuth Provider，无须给每个客户端手动设置共享 secret。正式 URL 必须是外部可访问的 HTTPS 根地址；MCP resource／JWT audience 固定为该根地址的 `/api/mcp`。网页仍用已有内部邮箱密码，授权页仅在官方签名请求下显示。
+
+客户端通过 CIMD 或 DCR 注册、授权码 + S256 PKCE 获取账号授权，1 小时访问令牌与最多 30 天连接、轮换刷新。用户在“AI 接入”撤销连接。OAuth 数据表属于私有认证数据，数据库备份包含这些内容；不要把 JWKS 私钥、令牌摘要或客户端密钥截图公开。完整客户端接入见 [AI 接入](ai-api.md)。

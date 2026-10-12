@@ -11,7 +11,7 @@ import { rememberMeasurementSource, validateDeviceLabel } from "./sources";
 export { supersedeEstimates } from "./estimate-records";
 
 export type MeasurementTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
-export type MeasurementActor = { userId: string; actorId: string; actorType?: "user" | "ai" | "development_backend"; aiContext?: { tokenId: string; operationId: string; confirmedBy: string; confirmedAt: string; review?: Record<string, unknown> } };
+export type MeasurementActor = { userId: string; actorId: string; actorType?: "user" | "ai" | "development_backend"; aiContext?: { tokenId?: string | null; oauthConnectionId?: string | null; operationId: string; confirmedBy: string; confirmedAt: string; review?: Record<string, unknown> } };
 export type EntryChannel = "api" | "manual" | "development_backend";
 
 /** 所有测量写入锁定归属账号，避免实测补录与估计生成并发留下重复时段。 */

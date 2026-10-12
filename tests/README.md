@@ -12,11 +12,13 @@
 - `pnpm test:measurements-browser` 使用虚构数据库、独立端口与 Chromium 验证正文居中、六项摘要同时可见、当前值等宽同字号、双图共用筛选与独立纵轴、估计虚线／菱形、按指标实测优先、真实配对差值、来源和时间精度、候选选择及完整历史返回。五列表格逐行检查列边界、统一行高、操作位置；各日期常驻查看与状态操作，没有独立今日入口、跳过按钮、晨间条件选择器或自动弹窗。覆盖最近 10 个日历日、漏记昨日、连续空日、闰年与跨月、无测量账号、部分保存／仅体脂、实测与估计共存、每批 50 日期历史加载与补录、旧非空腹／未知晨间只读、草稿禁用估算、保存按钮下划线及会话失效保留草稿。Inspector 逐帧验证 320ms 滑入、240ms 退出、遮罩渐变、退出前保持滚动锁定、完成后恢复焦点及原内边距；页头、摘要、双图及表格不横移。保留键盘循环、Escape／遮罩／按钮／录入返回关闭、Strict Mode 重放、减少动态效果及触控。覆盖 1440×1000、1100×1000、390×844、320×740、844×390，双图常驻允许自然变长；收集客户端异常并检查无横向溢出，截图仅保存虚构数据。
 - `pnpm test:measurements-http` 在 production build 后使用独立内存数据库、虚构测量与内部账号验证实际 `/dashboard`：未登录重定向、已登录的摘要／空腹主趋势／最近记录及归属和来源展示数据、跨午夜归属、多次候选、跨账号参数无效及无记录空状态。此入口不需要浏览器，不读取真实 `.env.local` 数据库；不将 HTTP 渲染验收当作浏览器交互或视觉验收。
 
+手机／触屏横屏进入登录不创建 video 或 Canvas；首屏轻触直接到尾帧，背景和滑动不返回，顶部返回保留输入，默认 7D 与手动 30D／跨视口保持均有回归。
+
 校准读取 `docs/frame-calibration.md` 的 JSON 标记，检查实际 CSS 变换后的原始首尾。视频验收直接记录已绘制的帧号，确认正倒放沿正确方向显示多个实际帧；不只检查 DOM 进度，也不将浏览器丢帧误称为完整 60fps。透明合成读取 Canvas Alpha，要求四角全透明且人物仍可见。首尾停留检查原图、原有鼠标幅度与焦点锁定，第 12 → 13 张继续独立验收。
 
 四种视口在字体就绪后检查 Discipline / NUTRITION、Drive / BUILD YOURSELF、Effortless / AI LOGGING 的排版及登录终点：本地 Newsreader 已加载、主词与 Logo 分属两套字体、三个主词单行同级、IBM Plex Mono 副标签、文字朝向读者、节点与引线连接。检查文字顶部距节点水平线 12px、引线距文字边缘 12px、左右镜像对齐；停留画面避开人物、SCROLL 和表单，无裁切。真实转身采样检查轨道角度始终等于人物进度乘 150°，连续经过多个节点位置；登录与认证停留终点，成功后随最终人物动画淡出。手机维持底部三列，键盘入口位于词组上方；reduced motion 交叠两套静态构图，不进行空间旋转，辅助技术只读取一份文案。另检查登录终点跨视口重排和动态 reduced motion，加载及失败时隐藏背景。登录字段覆盖默认透明底线、局部 hover 增强、键盘 Tab 焦点框、尺寸稳定、倒放后保留输入，以及触屏点击标签显现和 reduced motion 即时变化。轨迹使用 SVG、CSS 与现有 rAF，不增加外部字体请求或动画依赖。
 
-截图像素检查在桌面、手机、reduced motion、最大视差及视频尾端覆盖视频 / 静态与 12 → 13 的 39 组交叠。两端完整截图按 25%、50%、75% 加权，比较实际人物区域，平均 RGB 误差上限为 2/255；临时恢复 `normal` 作为变暗反例。视频尾端单独检查，避免将首帧解码画面误作最后一帧。截图使用浏览器 Canvas 解码，无新增项目依赖。
+截图像素检查在桌面、reduced motion、最大视差及视频尾端覆盖视频 / 静态与 12 → 13 的交叠；手机另检查静态正常合成、纯石墨背景与实际登录完成时序。两端完整截图按 25%、50%、75% 加权，比较实际人物区域，平均 RGB 误差上限为 2/255；临时恢复 `normal` 作为变暗反例。视频尾端单独检查，避免将首帧解码画面误作最后一帧。截图使用浏览器 Canvas 解码，无新增项目依赖。
 
 Playwright 可临时安装到 `/tmp`，不修改项目依赖。先完成 production build，再运行自带独立数据库和测试服务的入口：
 
@@ -56,13 +58,13 @@ FORMWARD_MEASUREMENTS_DEV=1 PLAYWRIGHT_MODULE=/tmp/formward-browser-check/node_m
 
 ## 认证与浏览器隔离
 
-`home-media.test.mjs` 验证 readyState=2 的当前帧可用、metadata 等待、4 秒超时、静音唤醒／首帧后暂停、自动播放拒绝与触摸重试、超时后重新初始化，以及错误／取消清理。`home-loading.browser.mjs` 随认证入口运行，覆盖当前帧但无 canplaythrough、必须调用 play 才解码、手势播放限制且超时后恢复、请求挂起、下载失败、WebGL 不可用与桌面静态概念词。使用原生视频检查中间帧与暂停，均可进入登录、提交并在失败后继续编辑。认证请求被拦截，不向真实账号发送测试密码。可设置 FORMWARD_HOME_BROWSER=webkit 使用临时安装的 WebKit 执行该加载回归；模拟浏览器不代替真实 iPhone／微信验收。
+`home-media.test.mjs` 验证 readyState=2 的当前帧可用、metadata 等待、4 秒超时、静音唤醒／首帧后暂停、自动播放拒绝与触摸重试、超时后重新初始化，以及错误／取消清理。`home-loading.browser.mjs` 随认证入口运行，覆盖当前帧但无 canplaythrough、必须调用 play 才解码、手势播放限制且超时后恢复、请求挂起、下载失败、WebGL 不可用与桌面静态概念词。手机另覆盖正常／减少动态效果／触屏横屏的纯静态点击入口，不下载视频。使用桌面原生视频检查中间帧与暂停，均可进入登录、提交并在失败后继续编辑。认证请求被拦截，不向真实账号发送测试密码。可设置 FORMWARD_HOME_BROWSER=webkit 使用临时安装的 WebKit 执行该加载回归；模拟浏览器不代替真实 iPhone／微信验收。
 
 `src/features/auth/auth.test.ts` 使用独立的内存 PostgreSQL，执行同一 Drizzle migration，覆盖正确登录、错误密码、未知账号、无效输入、关闭注册、重复及并发创建、跨账号身份、过期与撤销、重复退出、CSRF 来源、HTTPS cookie 和限流。数据库限流另验证多个认证实例共享计数、重建实例保持计数、不同来源独立、窗口过期恢复，以及跨实例并发仅五次进入登录校验。
 
 `src/features/auth/site-url.test.ts` 验证公网确认链接和 OpenAPI 使用配置的 HTTPS 根地址、忽略伪造 Host 与代理内部地址、本机回环地址兼容和错误配置拒绝；同时验证 FORMWARD_TIMEZONE 云端默认偏移、客户端请求头优先及无效时区拒绝。公网发布前的构建与生产认证／身体记录／AI／加载浏览器回归在临时源码副本运行，保持已有 3000 服务和真实数据库隔离，发布步骤见 [部署说明](../docs/deployment.md)。
 
-`auth.browser.mts` 自行建立内存 PostgreSQL socket 服务、虚构账号和独立端口的 Next.js production 服务，覆盖受保护主页、失败重试、认证期间防重复、实际动画结束早于导航、刷新会话、跨账号退出与手机 reduced motion。测试不读取或写入 `.env.local` 的真实数据库。默认运行认证与手机加载检查；`FORMWARD_VISUAL_CHECK=1` 再执行 `home-experience.browser.mjs` 的完整手势、校准与像素回归。不要对真实 Neon 数据库运行需要虚构账号的视觉脚本。
+`auth.browser.mts` 自行建立内存 PostgreSQL socket 服务、虚构账号和独立端口的 Next.js production 服务，覆盖受保护主页、失败重试、认证期间防重复、实际动画结束早于导航、刷新会话、跨账号退出与手机 reduced motion。测试不读取或写入 `.env.local` 的真实数据库。默认运行认证、媒体降级、手机静态点击／顶部返回／输入保持与 OAuth 浏览器检查；`FORMWARD_VISUAL_CHECK=1` 再执行 `home-experience.browser.mjs` 的完整手势、校准与像素回归。不要对真实 Neon 数据库运行需要虚构账号的视觉脚本。
 
 浏览器环境缺少系统库时，需要补齐 Chromium 依赖；截图中的中文需要 CJK 字体。可在临时目录下载并解压系统库，通过 LD_LIBRARY_PATH 提供给浏览器，不必修改项目运行依赖。
 
@@ -92,3 +94,9 @@ FORMWARD_MEASUREMENTS_DEV=1 PLAYWRIGHT_MODULE=/tmp/formward-browser-check/node_m
 AI 验收：`ai-operations.test.ts` 覆盖令牌鉴权／撤销／过期／权限／账号隔离、15 种四项组合、仅体脂／补缺／重复／冲突、历史与来源修改、请求内容绑定、确认快照／令牌复核、取消／过期／并发、估算依据／不足／冻结及审计回滚。批量另验证跨日稳定行 ID、旧双时段逐行保存、无效行可纠正、原始请求不可变、人工草稿审计、审核版本 CAS、终态保护、重复目标、逐行幂等、取消剩余保留已保存、第二行失败整批回滚、混合估算不读取同批草稿，以及历史时区显式修改／准确钟点和 UTC／未知不补钟点、GMT 半小时／一刻钟和夏令时标签。
 
 `ai-access.browser.mjs` 随身体浏览器测试运行，验证令牌一次展示、本地 HTTP 助手、兼容旧预览、整批确认、跨日多行、修改后更新预览、逐行立即保存、取消无效行、批量修改与剩余整体保存、每次读取系统时区的 HTTP 助手（GMT+7／GMT+5:45）、省略时区自动带入、跨时区重试保留首次预览、GMT 时区选择和显式采用设备时区、多页面版本冲突保留输入、刷新／重试、跨账号与撤销。覆盖 1440／390／320px 查看和编辑无横向溢出，收集客户端异常。只运行 AI 时设置 `FORMWARD_AI_ONLY=1`；开发模式 `FORMWARD_MEASUREMENTS_DEV=1` 使用临时源码副本，生产模式在构建后运行；均为虚构账号／数据库，不写真实健康数据。截图目录可分别设为 /tmp/formward-ai-development 与 /tmp/formward-ai-production。
+
+MCP／OAuth 验收：`src/features/auth/oauth.test.ts` 使用实际 HTTP Provider 和 SDK 的当前／2025 协议，覆盖 discovery、CIMD／DCR 声明、签名授权、明确拒绝、无效回调／native 可变回环端口、S256 PKCE、签名／issuer／audience／期限、轮换刷新／重放、稳定连接、只读、重复请求、跨账号与撤销。未授权不返回工具／健康记录，网页登录 cookie／原 HTTP 令牌不能代替 MCP OAuth。
+
+`tests/oauth.browser.mjs` 随 `pnpm test:browser` 运行，使用虚构客户端及现有独立 fixture，手机登录 → 同意 → SDK MCP 提交 → 网页确认 → 状态查询 → 设置页撤销 → 401。回调网址在浏览器拦截，不实际发送到外部虚构主机；截图仅包含虚构账号。真实 ChatGPT／iPhone／微信验收仍由用户完成。
+
+首页完整像素回归使用软件 ANGLE（--use-angle=swiftshader）。当前临时 Chromium 的默认视频纹理上传在无 GPU 环境会给黑底边缘添加绿色像素，已用原始 video／Canvas 与软件后端对照定位；测试仍严格校验 Alpha、人物实体与交叠误差，不修改产品合成或素材。

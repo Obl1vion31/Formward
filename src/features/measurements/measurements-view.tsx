@@ -11,6 +11,7 @@ import { localMeasurementDate, measurementDayAction, type EntryResult, type Meas
 import { MeasurementEntry } from "./measurement-entry";
 import { lockPageScroll } from "@/components/scroll-lock";
 import { timezoneLabel } from "./timezone";
+import { useMobileMode } from "@/components/use-mobile-mode";
 export type { MeasurementDisplay } from "./entry-state";
 
 type MeasurementDay = ReturnType<typeof buildMeasurementDays<MeasurementDisplay>>[number];
@@ -25,6 +26,7 @@ const unitFor = (metric: MeasurementMetric) => metric === "weightKg" ? "kg" : "%
 const metricName = (metric: MeasurementMetric) => metric === "weightKg" ? "体重" : "体脂率";
 
 export function MeasurementsView({ records: serverRecords, dates: serverDates, sources: serverSources, accountCreatedAt, actions }: { records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; accountCreatedAt: string; actions: MeasurementActions }) {
+  const mobileMode = useMobileMode();
   const [actionResult, setActionResult] = useState<(Extract<EntryResult, { ok: true }> & { base: MeasurementDisplay[] }) | null>(null);
   // 保存结果即时反馈；新的服务端快照抵达后接管，不能长期保留首次加载数据。
   const { records, dates, sources } = actionResult?.base === serverRecords ? actionResult : { records: serverRecords, dates: serverDates, sources: serverSources };
@@ -39,7 +41,8 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const catalog = measurementCalendarRange(today, localMeasurementDate(new Date(accountCreatedAt), timezone || "UTC"), records.map(row => row.recordDate), dateCatalog);
   const latestDate = catalog.end;
   const earliestDate = catalog.start;
-  const [mode, setMode] = useState<MeasurementRange>("30d");
+  const [selectedMode, setMode] = useState<MeasurementRange | null>(null);
+  const mode = selectedMode ?? (mobileMode ? "7d" : "30d");
   const [customRange, setCustomRange] = useState<MeasurementInterval>({ start: earliestDate, end: latestDate });
   const [draftRange, setDraftRange] = useState(customRange);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -103,7 +106,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
         <p>{summary.coverage}/7 天{summary.end && ` · 截至 ${shortDate(summary.end)}`}</p>
       </div>)}
     </section>
-    <section className={styles.chartPanel} aria-label="身体指标趋势">
+    <section className={styles.chartPanel} aria-label="身体指标趋势" data-range={mode} style={{ visibility: mobileMode === null ? "hidden" : undefined }}>
       <div className={styles.chartToolbar}>
         <span className={styles.rangeCaption} title={`${displayDate(range.start)} — ${displayDate(range.end)}`}>
           <span className={styles.rangeFull}>{displayDate(range.start)} — {displayDate(range.end)}</span>

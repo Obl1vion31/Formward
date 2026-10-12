@@ -2,55 +2,33 @@
 
 更新日期：2026-10-12。仓库：/home/obl1vion/projects/Formward；分支：main；远程：[Obl1vion31/Formward](https://github.com/Obl1vion31/Formward)。
 
-## 当前接手重点
+## 当前完成范围
 
-以下三项尚未完成。用户已指定明天（2026-10-13）优先实现 MCP + OAuth 账号连接；手机光晕和交互问题继续保留，以用户最新的手机实机反馈为验收依据。
+MCP + OAuth 与手机调整已在仓库实现，MCP 地址为 `https://formward-ten.vercel.app/api/mcp`。用户确认的入口是 ChatGPT「插件 → 添加自定义 MCP」，采用 OAuth；手机采用点击进入登录和顶部返回按钮，曲线默认 7D，桌面保持 30D。
 
-1. **手机界面光晕**：人物周围一大圈黄色光晕仍然存在，用户明确反馈“特别丑，而且很杂乱”。需要继续定位并清理大范围黄色光影，检查舞台背景、视频素材和透明合成的共同效果。现有近黑像素检查通过不能代表这个视觉问题已解决，必须在手机／iPhone 微信内置浏览器核对首、中、末帧的实际观感。
-2. **手机端交互方式**：手机需要独立交互，进入登录应支持手指向下滑，或者直接点击一下。当前手机沿用上滑进入、下滑倒放的方式需要调整；进入流程不应要求先额外轻点唤醒视频再上滑。桌面滚轮交互按桌面场景维护，手机点击表单和提交按钮不能误触人物转身。用户已明确没有不流畅问题，不另行修改动画速度。
-3. **MCP + OAuth 账号连接**：明天的首要任务。目标是类似 Canva 的使用体验：在 ChatGPT 中连接 Formward 插件／自定义 MCP 服务器，登录 Formward 并授权，然后通过聊天查询自己的记录、提交写入预览。用户反馈当前界面已经没有 GPT Actions 模式，因此优先走实际可用的插件／自定义 MCP 入口。当前已有公网 HTTPS 网站、HTTP API、OpenAPI 和手动创建的 AI 访问令牌；MCP 服务与 OAuth 账号连接均尚未实现，公网网站本身不会自动成为 MCP 服务。
+- MCP 提供 get_profile、query_measurements、submit_measurement_operation、get_measurement_operation，复用既有查询、预览、网页确认、归属与审计。不提供直接确认保存工具。
+- OAuth Provider 支持授权码 + S256 PKCE、CIMD／DCR、1 小时访问令牌、轮换刷新及最多 30 天账号连接。签名、issuer、audience、期限、连接／同意／权限全部校验；撤销立即拒绝访问、续期和旧预览。刷新沿用稳定连接，重新授权不恢复旧预览。手动 HTTP 令牌保持兼容。
+- `/oauth/login` 与 `/oauth/consent` 提供登录、已有会话继续、明确允许或拒绝。`/dashboard/ai` 提供地址复制、连接列表与撤销，继续管理原令牌和身体操作。
+- 手机不加载转身视频，仅使用原始 1／12／13 PNG；首屏提示点击，立即到登录尾帧。纯石墨背景、normal 合成去掉彩色舞台光影。登录后点击背景或滑动不返回，顶部返回关闭键盘并保留输入，认证时禁用。桌面正倒放和认证最终动画保留。
+- 手机／触屏横屏默认 7D，桌面默认 30D；用户手动切换后跨视口和数据刷新保持选择。
 
-## 明日工作：MCP + OAuth 账号连接（2026-10-13）
+## 发布状态与接手顺序
 
-1. 核对用户实际可用的 ChatGPT 插件／自定义 MCP 入口及最新官方要求，采用公网 HTTPS MCP 服务、直接服务器 URL 和 OAuth 身份验证。具体 MCP 路径在实现时确定；现有 Vercel 公网部署可作为服务基础。
-2. 实现 OAuth 登录、授权与账号连接：用户在 Formward 登录并明确授权，AI 使用可撤销的访问令牌。每次 MCP 调用按有效令牌识别账号、校验权限与数据归属，不把网页登录密码或数据库凭据交给 AI；现有手动令牌不能视为已实现 OAuth。
-3. 实现首批 MCP 工具：身体记录查询、写入预览提交和操作状态查询，复用现有 feature 函数、归属校验、来源审计与重复请求保护。写入继续先预览，再由用户在登录网页明确确认保存；账号连接不等于取消写入确认。
-4. 用虚构账号验证完整流程：连接插件 → 登录并授权 → 聊天查询／提交预览 → 网页确认 → 查询结果；同时覆盖无效或过期授权、重复请求、撤销后拒绝访问和跨账号隔离。完成相应认证测试及 lint、typecheck、test、production build，再手动发布到 Vercel 并用用户实际入口验收。当前 GitHub 推送不会自动部署。
+正式网站为 [Formward](https://formward-ten.vercel.app)，使用现有 Vercel Hobby／Neon、原内部账号、Node.js 24 和函数 cle1。通过 CLI 手动发布，Git 推送不会自动部署。
 
-MCP 负责 AI 工具调用，OAuth 负责账号授权，插件／应用负责在 ChatGPT 中提供连接和使用入口。首批范围是接通已实现的身体记录能力；饮食、运动等尚未实现的业务继续后置。相关使用说明和部署文档随实现更新。
+MCP 与手机新版本已发布，当前部署为 dpl_AGcvAbavcwhgWppttCEGS6EMmayA。0011_mcp_oauth.sql 已在真实数据库执行，旧 12 张表全部旧字段和值保持，私有迁移前后备份和核对报告已保存。HTTPS discovery／PKCE／CIMD／JWKS、401 challenge、私有路径及桌面／手机／320px／触屏横屏／减少动态效果均通过，无客户端异常；Runtime Logs 没有 error 记录。用户可在 ChatGPT 自定义 MCP 填正式 URL 和 OAuth、登录并授权，检查查询和预览确认，以及 iPhone／微信观感；SDK 与模拟手机检查不等同于真实客户端验收。
 
-## 已实现与上线状态
+0011 新增 9 张 OAuth／JWKS 表，schema 总计 21 张；measurement_operations 新增 oauth_connection_id，token_id 可空且恰有一个凭据非空。测量主表仍为 30 列。0011 及更早 migration 已共享，不修改。生产 secret 只保存在平台与本地私有配置，不执行覆盖 .env.local 的 env pull；data 和环境文件不上传。
 
-iPhone／微信的登录素材不再无限等待：静音内联 play 主动唤醒解码，视频元素保留裁切的 1px 布局；当前帧可绘制后立即暂停，转由时间线寻帧，不等 canplaythrough。视频失败、WebGL 不可用或等待超过 4 秒采用 180ms 静态首尾过渡，仍可登录；触摸／点击／按键可在超时后重试，成功仅在端点恢复完整动画，避免中途跳画面。桌面静态模式保留终点概念词。三张静态图仍需解码，正常 500ms 双向转身与认证后的 700ms／240ms 过渡保持。183 项测试、生产构建、认证与完整首页视觉回归通过；浏览器加载回归覆盖仅当前帧、play 才解码、手势限制与超时恢复、请求挂起、下载失败、WebGL 不可用、桌面静态文字和表单重试。用户已确认手机完整转身可见且流畅。视频透明合成已加入柔和亮度阈值抑制暗背景，首／中／末帧像素检查确认近黑背景透明、人物亮部保留；手机实机的大圈黄色光晕仍未解决。系统开启减少动态效果时仍采用静态过渡。
+## 数据与界面边界
 
-公网 HTTPS 已部署到 Vercel Hobby，正式地址为 [Formward](https://formward-ten.vercel.app)，[OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 可由外部 AI 获取。当前线上部署为 dpl_38gykTML1NEcV9s2kP7hVqieLJHe，包含手机视频唤醒、手势恢复与暗背景阈值处理，公网七个媒体／登录场景和桌面／手机首中末帧透明合成检查已通过。继续使用原 Neon 数据库与原内部账号，通过 CLI 手动发布，没有关联 Git 自动部署；函数在 cle1。生产数据库与认证 secret 只保存在平台 Production Secret，data 和环境文件不上传。公网确认链接固定采用配置的 HTTPS 根地址，登录限流改为数据库共享存储。部署配置、更新和故障处理见 [部署说明](docs/deployment.md)。AI 后续接入按上述插件／MCP 主线推进；普通聊天仅获得网址不会自动接入。
+所有 AI 写入先预览、经网页登录明确确认。批量最多 100 条／64 KiB，预览 15 分钟；原始请求不可变，单行可修改／确认／取消，整批事务保存剩余有效行。审核 revision、健康快照和发起凭据保护写入，重复请求／确认幂等。每次新记录采用系统时区，界面提供整数 GMT 选择，历史修改省略时区保持原值；未知值为空，不猜来源。
 
-全站等待反馈已实现并完成开发／生产浏览器验证：按钮立即反馈，等待超过 200ms 显示虚化背景与居中动画／动作文字。保存、时区修改、估算、AI 审核、令牌、认证、首页必要素材和站内导航共用；快速操作不闪现遮罩，多个来源全部结束才收起，失败保留输入且不自动重试。加载层覆盖 Inspector，阻止重复提交和背景操作，结束后恢复滚动与可用焦点；窄屏与减少动态效果已适配。
-
-批量身体记录 AI 审核已实现：一次提交多条，一个完整链接逐行修改／确认／取消，顶部全部确认／批量修改／取消剩余。单行确认立即保存；修改支持日期、晨晚、数值、来源、空腹和时区，先更新预览再确认。时区显示 GMT+8（东八区）等，页面与 AI 审核只提供整数小时选择，每次新录入自动采用当次系统时区，无须用户重复提供，审核页仍可修改；已有记录补缺／修改省略时保留原时区。正式 HTTP API 已可公网访问，不绑定模型供应商；其他尚未实现模块后置。
-
-`/dashboard/ai` 提供 30 天可撤销 read／write 令牌、一次性原文、接入说明与最近提交的逐行数量。`GET /api/v1/measurements` 查询，`POST /api/v1/measurement-operations` 支持 kind=batch，items 内为 save_record 或 estimate_cell，最多 100 条／64 KiB；兼容旧 save_day／estimate_cell 请求和链接。`GET /api/v1/measurement-operations/{id}` 返回 revision、稳定行 ID、草稿／原始候选、行状态和 counts；公开 OpenAPI 在 `/api/v1/openapi.json`。所有写入须网页登录确认。完整步骤见 [AI 接入](docs/ai-api.md)。
-
-AI 审核时区在来源下方，固定偏移选择存为 +08:00，旧 IANA 保持，界面按测量日期／准确偏移显示 GMT 标签。本地 HTTP 助手每次读取系统偏移并发送 X-Formward-Timezone，API 新记录省略时区时自动带入；其他客户端未传请求头时优先读取 FORMWARD_TIMEZONE 配置地区的当次偏移，未配置才读取服务系统偏移。Vercel 保留 TZ，生产使用 FORMWARD_TIMEZONE=Asia/Shanghai，默认 +08:00；明确值或客户端请求头仍可覆盖。查询 context 返回本次时区与当地日期。默认值只进入首次审核草稿，原始 payload 保留，后续刷新与重试不会覆盖；明确值或 null 优先。审核仍保留采用设备时区按钮，显式 null 为未指定。显式历史修改保留当地钟点与 record_date，准确时间才重算 UTC，day_period／assumed 不补钟点。常规四项录入／编辑表单已接入晨晚独立整数时区选择与采用系统时区按钮；新记录默认设备当前偏移，已有记录回显原时区，未知保持未指定。支持只改时区保存或显式清空，草稿参与刷新／并发保护，不能新建空测量。来源输入继续只回显已保存值，未填为空，点击只展示本账号历史建议；凌晨继续归前日晚间。
-
-## 实现与数据约定
-
-加载反馈的维护入口与边界：
-
-- `src/components/page-loading.tsx` 提供根布局中的 Provider、原生 modal dialog 和路由后备；Context／hook 位于 `page-loading-state.ts`，保持组件模块可独立 Fast Refresh。每个操作拥有独立加载标识，出错或卸载只清理自己的状态。
-- `src/components/loading-link.tsx` 用 Next.js 的 `useLinkStatus` 跟踪实际站内导航；`scroll-lock.ts` 管理 Inspector 与加载层的叠加锁，按实际滚动条宽度补偿一次，最后一个锁释放后恢复原样式。
-- dashboard layout 与页面继续验证身份，`currentPageUser` 只在单次服务端渲染内复用，Server Actions 单独验证。身体／AI 设置页在身份校验后用显式 Suspense 等待数据；审核页先校验操作归属，保持未登录重定向与不存在／跨账号的 404。当前没有自动 `loading.tsx` 边界，不能把身份或归属校验移入会提前输出页面的后备中。
-- 异步 Server Action 在 transition 中等待实际结果与刷新提交；登录验证后仍先完成原有最终动画，再导航，退出仍完整导航以重置会话缓存。同步筛选、详情展开、复制和后台预取不触发全屏等待层。
-
-AI Token 只存不可逆摘要，原文仅创建时返回一次；30 天有效、即时撤销，read 只能查，write 能查和提交预览。网页确认仍需当前登录会话；cookie 不能代替 API Bearer，AI 不能自填 confirmed:true 绕过确认。AI 操作绑定账号、发起令牌、请求内容和健康快照，数据变化、过期或撤销后拒绝旧预览。同请求及重复确认幂等，不同内容／令牌不能复用 operationId。
-
-相同实测跳过，缺项可补，冲突／无效行阻止整批保存但不阻止其他有效行单独确认。历史数值、来源或时区编辑需 recordId+version，网页冲突可明确选择历史对象。原始 AI payload 不变，preview JSON 保存行草稿／状态／结果；revision 拒绝跨页覆盖，本地草稿可保留并加载最新审核。单行保存更新快照并重新预览剩余行；修改／刷新续期 15 分钟；取消剩余不撤销已保存。晨间严格空腹、旧条件只读、晚间非空腹、来源必填与未知空值保持。估算只用已保存实测，整批估算先保存以保持展示依据，样本不足跳过，冻结历史只允许实测。健康记录、来源、批次、审计和行状态共用 editing 事务，失败回滚；新记录入口 api、操作者 ai，历史保留原入口与原始输入，审计记录 originalInput、reviewedInput、editedBy 和确认上下文。
-
-`ai_tokens` 与 `measurement_operations` 由 0008 创建，0009_supreme_imperial_guard.sql 增加审核 revision 和混合状态，既有 migration 不改。0009 已在实际数据库执行，迁移前后私有全库备份与 ai-review-migration-verification-2026-10-09.json 核对全部旧业务／认证字段和值不变，操作仅增加 revision=1。0010_shared_auth_rate_limits.sql 已在实际数据库执行，新增 rate_limits 共享限流表；迁移前后 database-before-public-deployment-2026-10-12.json／database-after-public-deployment-2026-10-12.json 和 public-deployment-migration-verification-2026-10-12.json 确认原有 11 张表的全部字段和值不变，迁移账本新增一次。当前 12 张业务／认证／限流表，测量仍为 30 列，详见 [数据库字典](docs/database.md)。真实数据、原始文件与私有备份仅在被 Git 忽略的 data/imports、data/exports；测试用虚构数据，不代用户确认真实健康操作。不得打印密钥或公开报告。
+全站真实等待超过 200ms 显示虚化背景与动作提示，失败保留输入。记录表最近 10 个日历日、完整历史每批 50 日期；四项可独立录入与估算，晨间固定空腹，晚间非空腹。来源历史、维护、冻结初始化与准确时间规则见 [身体记录](docs/measurements.md)、[数据库字典](docs/database.md)；私有备份、报告和原文件保留，不对真实账号写测试健康数据。
 
 ## 已确认规则
 
-- 日期为 7D／30D／90D／全部／自定义，默认截至记录、已保存日期及浏览器当地今天中最晚日的 30D。自定义校验日期，长区间只生成少量刻度，单日居中。
+- 日期为 7D／30D／90D／全部／自定义，默认截至记录、已保存日期及浏览器当地今天中最晚日：桌面 30D，手机／触屏 7D；手动选择保持。自定义校验日期，长区间只生成少量刻度，单日居中。
 - 当前值与 7 日摘要仅统计真实、已选定的空腹代表记录，独立于图表历史区间及估计开关。窗口包含截止日和前 6 天；首末差不足两天留空，均值按实际有值日期并显示实测覆盖天数；体脂变化用百分点。
 - 真实性与录入入口分开：recordKind 为 observed／estimated；entryChannel 为 api／manual／development_backend。历史实测标“开发后台加入”，估计标“系统趋势估计”。原始采集方式、导入批次和执行者审计保留；AI 代执行不把用户提供的秤读数变成估计。
 - 实测设备来源按用户提供信息标“普通蓝牙体重秤-OKOK”；品牌、型号和外部同步系统未知，不编造。估计不标为秤测量。
@@ -66,19 +44,20 @@ AI Token 只存不可逆摘要，原文仅创建时返回一次；30 天有效�
 
 ## 验证与运行
 
-`pnpm lint`、`pnpm typecheck`、`pnpm test`（183 项）和 `pnpm build` 已通过。公网发布前在 /tmp/formward-deployment-check 隔离副本顺序完成 typecheck／production build，随后认证与完整身体记录／AI／加载生产浏览器回归通过；新增测试覆盖多实例共享限流、并发原子计数、固定公网 HTTPS 链接与云端时区默认。最终开发浏览器完成身体记录／AI／加载完整回归，生产完成身体记录／AI／加载回归及最终加载复验；认证浏览器另验证错误密码、防重复、原有最终动画时序、账号隔离和退出。批量与时区检查覆盖逐行／整批保存、审核版本、无效纠正、取消保留已保存、事务回滚、估算依据、历史时区、HTTP 助手、兼容链接和跨页冲突保留输入。
+lint、typecheck、191 项单元／集成测试、结构检查与本地／Vercel production build 已通过，覆盖完整 OAuth HTTP 与当前／2025 SDK、签名请求、错误 PKCE／issuer／audience／期限、刷新轮换与重放、权限、重复请求、跨账号、撤销及旧授权码。隔离浏览器已通过手机授权 → MCP 预览 → 网页确认 → 状态查询 → 即时撤销；完整首页和身体／HTTP AI／加载回归均已通过，最终结果见 [当前状态](docs/status.md)。
 
-`tests/page-loading.browser.mjs` 随 `tests/measurements.http.mts` 运行，`FORMWARD_LOADING_ONLY=1` 可仅执行加载验收。测试拦截真实请求，覆盖 200ms 延迟、快速失败无遮罩、并发等待、Inspector 上层阻挡与键盘限制、失败保留草稿、滚动锁恢复、返回／前进、素材失败，以及 1440／390／320px 和减少动态效果。开发测试在虚构登录上下文中预热所需路由，并在创建草稿前稳定编译版本，避免 Next.js HMR 重连造成整页刷新；生产保留完整站内导航流程。维护测试时保持这种隔离，不为测试改动生产加载行为。结果和 migration 状态见 [当前状态](docs/status.md)，复现命令见 [测试说明](tests/README.md)；测试始终用虚构账号，不代替用户确认真实操作。
+Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7。先读根 README、AGENTS 与最近 README，改 Next 代码前读 node_modules/next/dist/docs 对应指南。typecheck 与 build 顺序执行。测试使用独立端口及虚构 PGlite，不读真实数据库；查询按顺序执行以兼容 PGlite socket。维护目录均需 README。
 
-正式域名已验证首页 200、HTTP 自动转 HTTPS、OpenAPI 200 且 servers.url 为正式 HTTPS API、未登录 dashboard 307 返回首页、无令牌／无效令牌 401、无会话 get-session 为 null，以及私有路径 404。1440×900 和 390×844 的公网浏览器素材加载、键盘进入登录、字体／视频与无溢出通过，没有客户端异常、请求失败或 HTTP 错误；上线验收期间 Runtime Logs 无 error。报告在 /tmp/formward-public-browser-verification.json；真实账号登录与外部 AI 的令牌调用由用户完成，不写真实健康数据。上述自动检查不代表手机大圈黄色光晕或新交互已验收。
+浏览器工具仅在 /tmp，复现见 [测试说明](tests/README.md)。手机静态及授权截图为 /tmp/formward-mobile-static.png、/tmp/formward-mobile-reduced.png、/tmp/formward-mobile-landscape.png、/tmp/formward-oauth-consent-mobile.png；均为虚构数据，不放入 public 或提交 Git。
 
-本地 Codex 试验先在交互终端运行 `pnpm ai:setup`，隐藏输入令牌，保存被 Git 忽略的 0600 .env.ai.local；`pnpm ai:request` 只走 HTTP，不读数据库配置、不输出令牌。没有用户提供的真实测量时只在隔离虚构账号演示，不写入用户健康记录。外部 AI 使用正式 HTTPS 域名；本机 HTTP 助手可将 FORMWARD_AI_BASE_URL 配置为正式域名，令牌从对应账号的“AI 接入”创建。
+## 当前待用户验收
 
-Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7；改 Next 代码前读 node_modules/next/dist/docs/ 对应指南。修改前读根 README、AGENTS 和最近 README，保留无关变更，每个项目自有目录需 README。typecheck 与 build 顺序运行，避免 .next/types 生成冲突。已有 3000 开发服务，不启动第二个同目录实例或擅自关闭；正式 Vercel 地址独立运行，部署不覆盖本机 .env.local 或 .next。浏览器开发测试在临时副本和独立端口，生产测试使用构建产物；虚构数据库完全隔离，Playwright／Chromium／系统库／字体均在 /tmp，不增加项目依赖。最新加载截图位于 /tmp/formward-loading-development 与 /tmp/formward-loading-production；整数时区编辑截图位于 /tmp/formward-entry-timezone-development 与 /tmp/formward-entry-timezone-production，均不提交 Git。
+- 手机／iPhone 微信首尾画面的光影与排版，轻触进入登录、顶部返回、输入保留，以及登录时无误触返回。
+- 手机曲线默认 7D、桌面默认 30D，手动选择后保持。
+- ChatGPT 实际自定义 MCP 连接、OAuth 登录授权、查询和撤销；提交用户提供的真实记录先生成预览，核对后由用户在网页确认。
 
-## 后续探索
+## 后续功能
 
-- 文件解析导入：AI 整理 Excel／截图／口述为已支持的 batch 候选，继续使用统一审核，用户提供数据文件，无须项目源码。
-- MCP + OAuth 账号连接是 2026-10-13 的首要任务，通过插件／自定义 MCP 入口实现登录授权后的聊天操作，复用现有 feature 与预览确认规则；具体范围和接手顺序见本文开头。
-- 归属与准确时间修正、持久代表选择、网页删除／恢复和导入复用现有 feature；历史条件修正必须明确确认。
-- 饮食、运动、全天消耗、热量关联与设备连接后置。D 日晨晚差及 D+1 日空腹变化可对照 D 日盈余，缺项不计算，不把体重差当热量或确定因果。
+准确时间与归属修正、持久代表选择、网页删除／恢复及导入复用既有 feature。饮食、运动、全天消耗、热量关联与设备连接后置；不把体重差直接当热量或确定因果。MCP 首批仅接通现有身体记录能力。
+
+私有 migration 备份与核对报告位于 data/exports/database-before-mcp-oauth-2026-10-12.json、database-after-mcp-oauth-2026-10-12.json、mcp-oauth-migration-verification-2026-10-12.json；公网上线报告在 /tmp/formward-public-mcp-http.json、/tmp/formward-public-mcp-browser.json，手机首尾截图在 /tmp/formward-public-mcp-mobile-intro.png 与 /tmp/formward-public-mcp-mobile-login.png。

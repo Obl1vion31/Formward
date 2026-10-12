@@ -106,12 +106,12 @@ flowchart TD
   H --> S[SCROLL、加载提示、键盘进入登录按钮]
 ```
 
-例如，一次下滚后需要同时发生“人物转身、SCROLL 隐藏、登录框出现”；点击 ENTER 后需要“暂时禁止重复提交、显示验证进度、根据结果播放动画或显示错误”。这些协调工作在这里。
+例如，桌面一次下滚、手机点击首屏后需要同时发生“人物转身、SCROLL 隐藏、登录框出现”；点击 ENTER 后需要“暂时禁止重复提交、显示验证进度、根据结果播放动画或显示错误”。这些协调工作在这里。
 
 | 在代码里看到的名字 | 代表的工作 | 什么时候需要看 |
 | --- | --- | --- |
 | `phase` | 当前处于首屏、转身、等待输入、认证或最终过渡中的哪个阶段 | 某个阶段的显示或按钮状态不对 |
-| `requestDirection` | 接收正放或倒放的选择 | 滚动后该向哪个方向播放 |
+| `requestDirection` | 桌面选择正倒放，手机通过 jumpTo 切换首尾 | 滚动、点击进入或顶部返回的行为 |
 | `enter` | 发起登录并根据认证结果决定下一步 | 验证中、失败重试、成功后的行为 |
 | `finishTransition` | 最终动画结束后进入 `/dashboard` | 登录成功后何时跳转 |
 | `focusInput` | 开始填写时让人物回中并保持固定 | 输入时人物是否继续移动 |
@@ -189,7 +189,7 @@ CSS 中以 `@media` 开头的部分为不同屏幕或系统偏好提供调整。
 | [figure-motion.ts](../src/app/figure-motion.ts) | 人物随鼠标轻微移动、倾转和停止后的回中 | `createFigureMotion`、`RETURN_DURATION_MS` | 鼠标反馈幅度和回稳速度 |
 | `home-experience.tsx` | 按当前阶段启动、暂停上述行为 | `updateMotion`、`requestDirection`、`enter` | 播放、填写和认证之间如何衔接 |
 
-滚轮在这里用来选择播放方向，达到触发条件后动画会自行播放。触发阈值控制“多容易开始”，播放时长控制“开始后多快完成”。
+手机点击首屏立即显示登录，顶部返回保留输入；不创建转身视频，也不监听滑动方向。设备判断由 `components/use-mobile-mode.ts` 共用，身体图表默认手机 7D／桌面 30D，手动选择后保持。桌面滚轮在这里用来选择播放方向，达到触发条件后动画会自行播放。触发阈值控制“多容易开始”，播放时长控制“开始后多快完成”。
 
 转身总时长控制播放速度，当前一秒源视频按 2 倍速在 500 毫秒内完成，代码中对应 `PRE_LOGIN_DURATION_MS`，视频帧率与帧数位于 `turn-video.ts`。登录成功后的 12 → 13 过渡另用 `FINAL_DURATION_MS`，当前为 700 毫秒；它与滚动转身是两段不同动画。
 
@@ -330,3 +330,9 @@ PostgreSQL 是保存记录的数据库，Neon 提供托管 PostgreSQL 的服务�
 `records.ts` 在统一校验中将晚间标为非空腹，白天空腹仍须确认。`maintenance.ts` 与 `scripts/maintain-measurements.mts` 提供绑定账号快照的历史修正、保留较早候选与软删除／恢复，事件保存前后快照及操作者。维护主动运行，不在读取或导入时暗改历史。
 
 `pnpm test:measurements-browser` 复用隔离数据库的 HTTP 测试服务，验证正文居中、六项摘要、双图筛选和独立纵轴、五列对齐、日历空行与 50 日历史加载、查看与状态操作、空腹规则、候选一致性、自然页面长度、手机触控与 Inspector 逐帧动效和焦点；环境与截图复现见 `tests/README.md`。
+
+## MCP 与 OAuth
+
+`src/features/auth/auth.ts` 提供 OAuth Provider；`oauth-pages.ts` 验证授权请求签名，`oauth-form.tsx` 展示登录授权。`src/app/.well-known/` 转发发现信息，`src/app/api/mcp/route.ts` 是薄 HTTP 入口，工具定义及每请求身份在 `src/features/mcp/server.ts`。
+
+OAuth JWT 的签名、issuer、audience、期限先由官方中间件验证，再由 `oauth-connections.ts` 校验账号连接及当前同意。身体写入仍调用原 `ai-operations.ts` 生成预览，确认使用网页会话，审计关联 tokenId 或 oauthConnectionId。0011 migration 增加官方 OAuth 表和稳定连接，不复制健康规则。修改时检查正常授权、错误 PKCE、刷新、只读、重复请求、跨账号及撤销，并运行 OAuth 与原 HTTP 浏览器回归。

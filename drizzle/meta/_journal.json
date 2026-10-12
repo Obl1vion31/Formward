@@ -78,6 +78,13 @@
       "when": 1791738122201,
       "tag": "0010_shared_auth_rate_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791776757812,
+      "tag": "0011_mcp_oauth",
+      "breakpoints": true
     }
   ]
 }

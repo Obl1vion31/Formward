@@ -1,6 +1,6 @@
 # 数据库连接与字段字典
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前有 12 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 4 列。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 21 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 4 列。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 
@@ -21,6 +21,13 @@ erDiagram
     users ||--o{ accounts : credentials
     users ||--o{ sessions : login
     users ||--o{ ai_tokens : ai_access
+    users ||--o{ oauth_connections : authorizes
+    oauth_client ||--o{ oauth_connections : connects
+    oauth_connections o|--o{ measurement_operations : submitted
+    oauth_client ||--o{ oauth_consent : permissions
+    users ||--o{ oauth_refresh_token : refreshes
+    oauth_client ||--o{ oauth_client_resource : resources
+    oauth_resource ||--o{ oauth_client_resource : allowed
     users ||--o{ measurement_operations : previews
     ai_tokens ||--o{ measurement_operations : submitted
     users ||--o{ measurements : owns
@@ -72,15 +79,16 @@ user_id 有索引，令牌只通过完整随机原文摘要查找并映射账号
 
 ### `measurement_operations`
 
-由 0008 创建，0009 增加审核版本和混合状态，记录待确认内容，不是实测事实。
+由 0008 创建，0009 增加审核版本和混合状态，0011 增加 OAuth 连接归属，记录待确认内容，不是实测事实。
 
 | 字段 | 类型 | 含义 |
 | --- | --- | --- |
 | id | text PK | 操作 ID，用于状态与网页链接 |
 | user_id | text FK | 所属账号 |
-| token_id | text FK | 发起令牌，关联 ai_tokens |
+| token_id | text FK nullable | 手动发起令牌，关联 ai_tokens |
+| oauth_connection_id | text FK nullable | OAuth 发起连接，关联 oauth_connections |
 | operation_id | text | 客户端稳定请求 ID，按账号唯一 |
-| request_digest | text | 规范化请求摘要，重试须同内容和令牌 |
+| request_digest | text | 规范化请求摘要，重试须同内容和发起凭据 |
 | snapshot_digest | text | 身体记录及初始化冻结依据快照摘要 |
 | payload | jsonb | 不可变的批量／兼容单日／单项原始请求，幂等摘要绑定此内容 |
 | preview | jsonb | 前后值、冲突、估算依据；items 内保存稳定行 ID、原始内容、当前草稿、编辑者与逐行状态／结果 |
@@ -91,7 +99,190 @@ user_id 有索引，令牌只通过完整随机原文摘要查找并映射账号
 | expires_at | timestamptz | 15 分钟到期，更新／刷新续期；尚有待处理行时由读取推导 expired |
 | confirmed_at | timestamptz nullable | 最近一次行保存的网页确认时间 |
 
-(user_id, operation_id) 唯一，(user_id, created_at) 索引用于最近提交。读取、修改、取消和确认校验归属；修改／刷新／确认复核令牌有效性，确认另复核快照、有效期和审核版本。单行确认立即写入，整批确认同一事务；取消不撤销已保存行。AI 审计保存在 measurement_events.snapshot.ai，包含 tokenId、operationId（此表 id）、confirmedBy、confirmedAt；可编辑审核另保存 review 的行 ID、审核版本、originalInput、reviewedInput 与 editedBy。旧单日／单项 JSON 使用兼容适配，不改原 payload。0009 不改健康表与已有健康数据。
+(user_id, operation_id) 唯一，(user_id, created_at) 索引用于最近提交。读取、修改、取消和确认校验归属；token_id／oauth_connection_id 恰有一个非空，由数据库 CHECK 约束；修改／刷新／确认复核对应令牌或连接有效性，确认另复核快照、有效期和审核版本。单行确认立即写入，整批确认同一事务；取消不撤销已保存行。AI 审计保存在 measurement_events.snapshot.ai，包含 tokenId 或 oauthConnectionId、operationId（此表 id）、confirmedBy、confirmedAt；可编辑审核另保存 review 的行 ID、审核版本、originalInput、reviewedInput 与 editedBy。旧单日／单项 JSON 使用兼容适配，不改原 payload。0009 不改健康表与已有健康数据。
+
+### OAuth Provider 与账号连接
+
+以下 9 张表由 `0011_mcp_oauth.sql` 创建。官方插件管理协议表，Formward 管理稳定连接；均属于私有认证数据。授权码摘要和临时签名状态沿用 verifications。真实数据库执行状态见 [项目交接](../handoff.md)。
+
+#### `oauth_connections`
+
+Formward 的稳定账号连接。user_id／client_id 索引，关联用户及客户端；30 天到期、按账号锁定创建／撤销；刷新不改变归属，重新授权不恢复旧审核。
+
+| 字段 | 类型 | 空值／默认值 | 含义 |
+| --- | --- | --- | --- |
+| `id` | `text` | 非空 | 稳定标识／主键 |
+| `user_id` | `text` | 非空 | 归属账号；用户授权场景必须校验 |
+| `client_id` | `text` | 非空 | 注册客户端标识，关联 oauth_client.client_id |
+| `scopes` | `text[]` | 非空；默认 '{}' | 实际授权范围 |
+| `created_at` | `timestamp with time zone` | 非空；默认 now() | 创建时间 |
+| `authorized_at` | `timestamp with time zone` | 可空 | 首次令牌成功签发时间；空值为待授权，不展示为有效连接 |
+| `expires_at` | `timestamp with time zone` | 非空 | 到期时间 |
+| `last_used_at` | `timestamp with time zone` | 可空 | 最近成功 MCP 访问时间 |
+| `revoked_at` | `timestamp with time zone` | 可空 | 用户撤销时间，保留连接与审计 |
+
+#### `oauth_client`
+
+CIMD／DCR 注册客户端及官方协议配置；client_id 唯一，user_id 有索引。服务仅开放 authorization_code 与 refresh_token，普通客户端不能跳过用户同意。
+
+| 字段 | 类型 | 空值／默认值 | 含义 |
+| --- | --- | --- | --- |
+| `id` | `text` | 非空 | 稳定标识／主键 |
+| `client_id` | `text` | 非空 | 注册客户端标识，关联 oauth_client.client_id |
+| `client_secret` | `text` | 可空 | 客户端密钥摘要；公开客户端可空 |
+| `client_discovery_id` | `text` | 可空 | CIMD 元数据文档标识 |
+| `disabled` | `boolean` | 可空；默认 False | 是否停用；停用客户端立即拒绝访问 |
+| `skip_consent` | `boolean` | 可空 | 跳过同意配置；普通注册客户端不允许跳过 |
+| `enable_end_session` | `boolean` | 可空 | 客户端会话结束能力预留 |
+| `subject_type` | `text` | 可空 | subject 类型 |
+| `scopes` | `text[]` | 可空 | 实际授权范围 |
+| `client_credentials_scopes` | `text[]` | 可空；默认 '{}' | client credentials 预留权限；本服务不启用此 grant |
+| `user_id` | `text` | 可空 | 归属账号；用户授权场景必须校验 |
+| `created_at` | `timestamp with time zone` | 可空 | 创建时间 |
+| `updated_at` | `timestamp with time zone` | 可空 | 更新时间 |
+| `name` | `text` | 可空 | 客户端／资源显示名称 |
+| `uri` | `text` | 可空 | 客户端网址 |
+| `icon` | `text` | 可空 | 客户端图标地址 |
+| `contacts` | `text[]` | 可空 | 联系人信息 |
+| `tos` | `text` | 可空 | 服务条款网址 |
+| `policy` | `text` | 可空 | 隐私政策网址 |
+| `software_id` | `text` | 可空 | 软件标识 |
+| `software_version` | `text` | 可空 | 软件版本 |
+| `software_statement` | `text` | 可空 | 签名软件声明预留 |
+| `redirect_uris` | `text[]` | 非空 | 允许的 OAuth 回调地址 |
+| `post_logout_redirect_uris` | `text[]` | 可空 | 注销回调预留 |
+| `backchannel_logout_uri` | `text` | 可空 | 后端注销回调预留 |
+| `backchannel_logout_session_required` | `boolean` | 可空 | 后端注销会话要求预留 |
+| `token_endpoint_auth_method` | `text` | 可空 | token 端点客户端认证方式 |
+| `application_type` | `text` | 可空 | 客户端类型；native 支持回环可变端口 |
+| `jwks` | `text` | 可空 | 客户端公开 JWK 元数据 |
+| `jwks_uri` | `text` | 可空 | 客户端公钥文档地址 |
+| `grant_types` | `text[]` | 可空 | 允许的授权类型 |
+| `response_types` | `text[]` | 可空 | 允许的响应类型 |
+| `require_p_k_c_e` | `boolean` | 可空 | 要求 PKCE；注册客户端强制启用 |
+| `dpop_bound_access_tokens` | `boolean` | 可空；默认 False | DPoP 令牌绑定预留 |
+| `reference_id` | `text` | 可空 | 授权引用；本服务使用 oauth_connections.id，刷新保持 |
+| `metadata` | `jsonb` | 可空 | 官方插件扩展元数据 |
+
+#### `oauth_resource`
+
+官方 OAuth 资源配置；identifier 唯一，本服务固定为配置根地址下的 /api/mcp。
+
+| 字段 | 类型 | 空值／默认值 | 含义 |
+| --- | --- | --- | --- |
+| `id` | `text` | 非空 | 稳定标识／主键 |
+| `identifier` | `text` | 非空 | OAuth resource URI，唯一；本服务为正式 /api/mcp |
+| `name` | `text` | 非空 | 客户端／资源显示名称 |
+| `access_token_ttl` | `integer` | 可空 | 访问令牌秒数，本服务 3600 |
+| `refresh_token_ttl` | `integer` | 可空 | 刷新令牌秒数，最多 30 天 |
+| `signing_algorithm` | `text` | 可空 | 签名算法配置 |
+| `signing_key_id` | `text` | 可空 | 签名公钥标识 |
+| `allowed_scopes` | `text[]` | 可空 | 资源允许的权限 |
+| `custom_claims` | `jsonb` | 可空 | 自定义 JWT 声明配置 |
+| `dpop_bound_access_tokens_required` | `boolean` | 可空；默认 False | 是否要求 DPoP；当前不要求 |
+| `disabled` | `boolean` | 可空；默认 False | 是否停用；停用客户端立即拒绝访问 |
+| `created_at` | `timestamp with time zone` | 可空 | 创建时间 |
+| `updated_at` | `timestamp with time zone` | 可空 | 更新时间 |
+| `policy_version` | `integer` | 可空；默认 1 | 资源策略版本 |
+| `metadata` | `jsonb` | 可空 | 官方插件扩展元数据 |
+
+#### `oauth_client_resource`
+
+客户端与资源允许关系；client_id／resource_id 联合唯一，双方外键删除级联。
+
+| 字段 | 类型 | 空值／默认值 | 含义 |
+| --- | --- | --- | --- |
+| `id` | `text` | 非空 | 稳定标识／主键 |
+| `client_id` | `text` | 非空 | 注册客户端标识，关联 oauth_client.client_id |
+| `resource_id` | `text` | 非空 | 资源 identifier 外键 |
+| `metadata` | `jsonb` | 可空 | 官方插件扩展元数据 |
+| `created_at` | `timestamp with time zone` | 可空 | 创建时间 |
+
+#### `oauth_consent`
+
+用户明确同意的范围，按账号、客户端、稳定 reference_id 校验；撤销连接删除对应同意，不只依赖 JWT 到期。
+
+| 字段 | 类型 | 空值／默认值 | 含义 |
+| --- | --- | --- | --- |
+| `id` | `text` | 非空 | 稳定标识／主键 |
+| `client_id` | `text` | 非空 | 注册客户端标识，关联 oauth_client.client_id |
+| `user_id` | `text` | 可空 | 归属账号；用户授权场景必须校验 |
+| `reference_id` | `text` | 可空 | 授权引用；本服务使用 oauth_connections.id，刷新保持 |
+| `resources` | `text[]` | 可空 | 授权资源列表 |
+| `requested_user_info_claims` | `text[]` | 可空 | 请求的用户信息字段 |
+| `scopes` | `text[]` | 非空 | 实际授权范围 |
+| `created_at` | `timestamp with time zone` | 非空 | 创建时间 |
+| `updated_at` | `timestamp with time zone` | 非空 | 更新时间 |
+
+#### `oauth_refresh_token`
+
+摘要刷新凭据及轮换／重放状态。客户端、账号、授权码有索引；轮换保留稳定 reference_id，重放拒绝并撤销家族。
+
+| 字段 | 类型 | 空值／默认值 | 含义 |
+| --- | --- | --- | --- |
+| `id` | `text` | 非空 | 稳定标识／主键 |
+| `token` | `text` | 非空 | 不可逆令牌摘要，唯一；不保存原文 |
+| `client_id` | `text` | 非空 | 注册客户端标识，关联 oauth_client.client_id |
+| `session_id` | `text` | 可空 | 签发时的网页登录会话，注销后可为空 |
+| `user_id` | `text` | 非空 | 归属账号；用户授权场景必须校验 |
+| `reference_id` | `text` | 可空 | 授权引用；本服务使用 oauth_connections.id，刷新保持 |
+| `authorization_code_id` | `text` | 可空 | 授权码摘要引用，用于令牌家族追踪 |
+| `resources` | `text[]` | 可空 | 授权资源列表 |
+| `requested_user_info_claims` | `text[]` | 可空 | 请求的用户信息字段 |
+| `expires_at` | `timestamp with time zone` | 非空 | 到期时间 |
+| `created_at` | `timestamp with time zone` | 非空 | 创建时间 |
+| `revoked` | `timestamp with time zone` | 可空 | 撤销时间 |
+| `rotated_at` | `timestamp with time zone` | 可空 | 刷新令牌轮换时间 |
+| `rotation_replay_response` | `text` | 可空 | 刷新短窗口重放响应预留；本服务重放间隔为 0 |
+| `rotation_replay_expires_at` | `timestamp with time zone` | 可空 | 短窗口重放到期时间预留 |
+| `auth_time` | `timestamp with time zone` | 可空 | 原始登录认证时间 |
+| `confirmation` | `jsonb` | 可空 | 持有者绑定信息预留，本服务不强制 DPoP |
+| `scopes` | `text[]` | 非空 | 实际授权范围 |
+
+#### `oauth_access_token`
+
+官方插件的 opaque token／刷新关联结构；本服务主要签发 JWT，访问时仍复核当前连接。摘要 token 唯一，客户端、账号、会话、授权码及刷新记录有索引。
+
+| 字段 | 类型 | 空值／默认值 | 含义 |
+| --- | --- | --- | --- |
+| `id` | `text` | 非空 | 稳定标识／主键 |
+| `token` | `text` | 非空 | 不可逆令牌摘要，唯一；不保存原文 |
+| `client_id` | `text` | 非空 | 注册客户端标识，关联 oauth_client.client_id |
+| `session_id` | `text` | 可空 | 签发时的网页登录会话，注销后可为空 |
+| `user_id` | `text` | 可空 | 归属账号；用户授权场景必须校验 |
+| `reference_id` | `text` | 可空 | 授权引用；本服务使用 oauth_connections.id，刷新保持 |
+| `authorization_code_id` | `text` | 可空 | 授权码摘要引用，用于令牌家族追踪 |
+| `resources` | `text[]` | 可空 | 授权资源列表 |
+| `requested_user_info_claims` | `text[]` | 可空 | 请求的用户信息字段 |
+| `refresh_id` | `text` | 可空 | 对应刷新令牌记录外键 |
+| `expires_at` | `timestamp with time zone` | 非空 | 到期时间 |
+| `created_at` | `timestamp with time zone` | 非空 | 创建时间 |
+| `revoked` | `timestamp with time zone` | 可空 | 撤销时间 |
+| `confirmation` | `jsonb` | 可空 | 持有者绑定信息预留，本服务不强制 DPoP |
+| `scopes` | `text[]` | 非空 | 实际授权范围 |
+
+#### `oauth_client_assertion`
+
+客户端签名 assertion 的已用标识及到期时间，用于防重放，不是用户健康数据。
+
+| 字段 | 类型 | 空值／默认值 | 含义 |
+| --- | --- | --- | --- |
+| `id` | `text` | 非空 | 稳定标识／主键 |
+| `expires_at` | `timestamp with time zone` | 非空 | 到期时间 |
+
+#### `jwks`
+
+JWT 签名公私钥。私钥由 Better Auth 加密保存，公开端点只返回公钥；不能将数据库备份当公开 JWKS。
+
+| 字段 | 类型 | 空值／默认值 | 含义 |
+| --- | --- | --- | --- |
+| `id` | `text` | 非空 | 稳定标识／主键 |
+| `public_key` | `text` | 非空 | 公开 JWK，允许 JWKS 端点提供 |
+| `private_key` | `text` | 非空 | 加密签名私钥，仅认证服务可读 |
+| `created_at` | `timestamp with time zone` | 非空 | 创建时间 |
+| `expires_at` | `timestamp with time zone` | 可空 | 到期时间 |
+| `alg` | `text` | 可空 | 密钥算法 |
+| `crv` | `text` | 可空 | 密钥曲线 |
 
 ### `accounts`
 
@@ -102,9 +293,9 @@ user_id 有索引，令牌只通过完整随机原文摘要查找并映射账号
 | `account_id` | `text` | 无空值 | 提供方的账号标识；内部凭据由认证管理 | `Better Auth` |
 | `provider_id` | `text` | 无空值 | 登录提供方标识 | `Better Auth` |
 | `password` | `text` | 可空：未提供／不适用，具体见用途 | 安全密码哈希；空值表示无密码凭据 | `auth/provision.ts／Better Auth` |
-| `access_token` | `text` | 可空：未提供／不适用，具体见用途 | OAuth 授权令牌；未启用 OAuth 时为空，不是 AI Token | `Better Auth` |
-| `refresh_token` | `text` | 可空：未提供／不适用，具体见用途 | OAuth 刷新令牌；未启用时为空 | `Better Auth` |
-| `id_token` | `text` | 可空：未提供／不适用，具体见用途 | OAuth 身份令牌；未启用时为空 | `Better Auth` |
+| `access_token` | `text` | 可空：未提供／不适用，具体见用途 | 第三方身份登录提供方令牌；当前为空，不是 Formward OAuth Provider 或 AI Token | `Better Auth` |
+| `refresh_token` | `text` | 可空：未提供／不适用，具体见用途 | 第三方身份登录刷新令牌；当前为空 | `Better Auth` |
+| `id_token` | `text` | 可空：未提供／不适用，具体见用途 | 第三方身份登录身份令牌；当前为空 | `Better Auth` |
 | `access_token_expires_at` | `timestamp with time zone` | 可空：未提供／不适用，具体见用途 | OAuth 访问授权到期时间；空值表示无授权 | `Better Auth` |
 | `refresh_token_expires_at` | `timestamp with time zone` | 可空：未提供／不适用，具体见用途 | OAuth 刷新授权到期时间；空值表示无授权 | `Better Auth` |
 | `scope` | `text` | 可空：未提供／不适用，具体见用途 | OAuth 授权范围；空值表示无授权 | `Better Auth` |

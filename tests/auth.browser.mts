@@ -84,7 +84,8 @@ try {
     page.on("pageerror", (error: Error) => errors.push(error.message));
     await page.goto(baseURL);
     await page.waitForSelector('main[data-images-ready="true"]');
-    await page.mouse.wheel(0, 80);
+    if (await page.locator("main").getAttribute("data-mobile") === "true") await page.locator(".home-stage").tap({ position: { x: 12, y: 110 } });
+    else await page.mouse.wheel(0, 80);
     await page.waitForSelector('main[data-phase="LOGIN_READY"]');
     return { context, page };
   }
@@ -177,6 +178,10 @@ try {
   assert.ok(reducedTimings.ended - reducedTimings.started >= 200 && reducedTimings.ended - reducedTimings.started < 650);
   assert.ok(reducedTimings.dashboardRequested >= reducedTimings.ended);
   assert.equal(await mobile.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  assert.equal(await mobile.page.locator('[aria-label="身体指标趋势"]').getAttribute("data-range"), "7d");
+  await mobile.page.getByRole("button", { name: "30D", exact: true }).click();
+  await mobile.page.setViewportSize({ width: 844, height: 390 });
+  assert.equal(await mobile.page.locator('[aria-label="身体指标趋势"]').getAttribute("data-range"), "30d");
   await mobile.page.screenshot({ path: "/tmp/formward-dashboard-mobile.png" });
   await mobile.context.close();
   console.log("通过：手机 reduced motion 完成 240ms 动画后跳转，主页不横向溢出。");
@@ -184,7 +189,11 @@ try {
 
   const loading = spawn(process.execPath, ["tests/home-loading.browser.mjs"], { env: { ...process.env, FORMWARD_BASE_URL: baseURL }, stdio: "inherit" });
   const [loadingCode] = await once(loading, "exit");
-  assert.equal(loadingCode, 0, "手机视频等待与静态登录回归通过");
+  assert.equal(loadingCode, 0, "桌面媒体等待与手机静态登录回归通过");
+
+  const oauth = spawn(process.execPath, ["tests/oauth.browser.mjs"], { env: { ...process.env, FORMWARD_BASE_URL: baseURL, FORMWARD_OAUTH_TEST_EMAIL: first.email, FORMWARD_OAUTH_TEST_PASSWORD: first.password }, stdio: "inherit" });
+  const [oauthCode] = await once(oauth, "exit");
+  assert.equal(oauthCode, 0, "OAuth 网页授权与 MCP 完整流程通过");
 
   if (process.env.FORMWARD_VISUAL_CHECK === "1") {
     const visual = spawn(process.execPath, ["tests/home-experience.browser.mjs"], { env: { ...process.env, FORMWARD_BASE_URL: baseURL }, stdio: "inherit" });

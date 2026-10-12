@@ -116,7 +116,7 @@ export async function submitAiMeasurementOperation(db: Database, identity: AiIde
     const [prior] = await tx.select().from(measurementOperation).where(and(eq(measurementOperation.userId, identity.userId), eq(measurementOperation.operationId, input.operationId)));
     if (prior) {
       const legacyRequest = !prior.preview.defaultTimezone && prior.requestDigest === hash(input);
-      if ((prior.requestDigest !== requestDigest && !legacyRequest) || prior.tokenId !== identity.tokenId) throw new ApiError(409, "request_conflict", "同一 operationId 不能用于不同内容或不同令牌。");
+      if ((prior.requestDigest !== requestDigest && !legacyRequest) || prior.tokenId !== (identity.tokenId ?? null) || prior.oauthConnectionId !== (identity.oauthConnectionId ?? null)) throw new ApiError(409, "request_conflict", "同一 operationId 不能用于不同内容或不同令牌。");
       return { ...operationDisplay(prior), repeated: true };
     }
     validateMeasurementTimezone(defaultTimezone);
@@ -130,7 +130,7 @@ export async function submitAiMeasurementOperation(db: Database, identity: AiIde
     const candidate = input.kind === "save_day" && !Object.hasOwn(raw as object, "timezone") ? { ...input, timezone: defaultTimezone } : input;
     const preview = items ? combinedPreview(input.kind, items) : await previewOperation(tx, identity.userId, candidate as SingleInput, current.records);
     preview.defaultTimezone = defaultTimezone;
-    const [row] = await tx.insert(measurementOperation).values({ id: randomUUID(), userId: identity.userId, tokenId: identity.tokenId, operationId: input.operationId, requestDigest, snapshotDigest: current.digest, payload: input, preview, ...(items ? { status: reviewStatus(items) } : {}), expiresAt: new Date(Date.now() + 15 * 60000) }).returning();
+    const [row] = await tx.insert(measurementOperation).values({ id: randomUUID(), userId: identity.userId, tokenId: identity.tokenId ?? null, oauthConnectionId: identity.oauthConnectionId ?? null, operationId: input.operationId, requestDigest, snapshotDigest: current.digest, payload: input, preview, ...(items ? { status: reviewStatus(items) } : {}), expiresAt: new Date(Date.now() + 15 * 60000) }).returning();
     return { ...operationDisplay(row), repeated: false };
   });
 }
@@ -153,10 +153,10 @@ export async function decideAiMeasurementOperation(db: Database, userId: string,
     if (row.status !== "pending") return operationDisplay(row);
     if (decision === "cancel") { const [cancelled] = await tx.update(measurementOperation).set({ status: "cancelled" }).where(eq(measurementOperation.id, id)).returning(); return operationDisplay(cancelled); }
     if (row.expiresAt.getTime() <= Date.now()) throw new ApiError(410, "expired", "预览已过期，请让 AI 重新提交。" );
-    await requireActiveAiToken(tx, { userId, tokenId: row.tokenId, permission: "write" }, true);
+    await requireActiveAiToken(tx, row.oauthConnectionId ? { userId, oauthConnectionId: row.oauthConnectionId, permission: "write" } : { userId, tokenId: row.tokenId!, permission: "write" }, true);
     if (!row.preview.canConfirm) throw new ApiError(409, "no_changes", row.preview.message);
     if ((await snapshot(tx, userId)).digest !== row.snapshotDigest) throw new ApiError(409, "stale_preview", "身体记录已变化，请让 AI 查询后重新生成预览。" );
-    const confirmedAt = new Date(), actor = { userId, actorId: userId, actorType: "ai" as const, aiContext: { tokenId: row.tokenId, operationId: row.id, confirmedBy: userId, confirmedAt: confirmedAt.toISOString() } };
+    const confirmedAt = new Date(), actor = { userId, actorId: userId, actorType: "ai" as const, aiContext: { ...(row.oauthConnectionId ? { oauthConnectionId: row.oauthConnectionId } : { tokenId: row.tokenId! }), operationId: row.id, confirmedBy: userId, confirmedAt: confirmedAt.toISOString() } };
     // Drizzle 的嵌套事务使用 savepoint，外层失败时写入和审计一起回滚。
     const transactionalDb = tx as unknown as Database;
     let result: { message: string; saved: number };
@@ -288,7 +288,7 @@ export async function reviewAiMeasurementOperation(db: Database, userId: string,
     if ((action.kind === "confirm" || action.kind === "cancel") && targeted.every(item => item.status !== "pending")) return operationDisplay(row);
     if (!items.some(item => item.status === "pending")) throw new ApiError(409, "closed_review", "本次审核已完成，请提交新的操作。");
     if (row.revision !== action.revision) throw new ApiError(409, "review_changed", "审核内容已在另一个页面变化，请加载最新审核；未保存输入仍保留。");
-    if (action.kind !== "cancel") await requireActiveAiToken(tx, { userId, tokenId: row.tokenId, permission: "write" }, true);
+    if (action.kind !== "cancel") await requireActiveAiToken(tx, row.oauthConnectionId ? { userId, oauthConnectionId: row.oauthConnectionId, permission: "write" } : { userId, tokenId: row.tokenId!, permission: "write" }, true);
     const current = await snapshot(tx, userId);
     if (action.kind === "confirm") {
       if (row.expiresAt.getTime() <= Date.now()) throw new ApiError(410, "expired", "预览已过期，请点击刷新预览后重新核对。");
@@ -299,7 +299,7 @@ export async function reviewAiMeasurementOperation(db: Database, userId: string,
       // 估算先保存，保持所展示的实测依据；同批草稿不参与估算。
       selected.sort((a, b) => Number(b.input.kind === "estimate_cell") - Number(a.input.kind === "estimate_cell"));
       for (const item of selected) {
-        const actor = { userId, actorId: userId, actorType: "ai" as const, aiContext: { tokenId: row.tokenId, operationId: row.id, confirmedBy: userId, confirmedAt,
+        const actor = { userId, actorId: userId, actorType: "ai" as const, aiContext: { ...(row.oauthConnectionId ? { oauthConnectionId: row.oauthConnectionId } : { tokenId: row.tokenId! }), operationId: row.id, confirmedBy: userId, confirmedAt,
           review: { itemId: item.id, revision: row.revision, originalInput: item.originalInput, reviewedInput: item.input, ...(item.editedBy ? { editedBy: item.editedBy } : {}) } } };
         const requestId = `ai-${row.id}-${item.id}`, transactionalDb = tx as unknown as Database;
         if (item.input.kind === "save_record") {

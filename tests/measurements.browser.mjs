@@ -536,6 +536,11 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     for (const [width, height] of [[390, 844], [320, 740], [844, 390]]) {
       const mobile = await loggedInPage({ width, height }, first, { isMobile: true, hasTouch: true, reducedMotion: "reduce" });
       await chartFor(mobile.page).locator('[data-point-id]').first().waitFor();
+      assert.equal(await mobile.page.getByRole("button", { name: "7D", exact: true }).getAttribute("aria-pressed"), "true", "手机与触屏横屏默认 7 日");
+      assert.equal(await recentFor(mobile.page).locator("tbody tr").count(), 7);
+      await mobile.page.getByRole("button", { name: "30D", exact: true }).tap();
+      await mobile.page.waitForFunction(() => [...document.querySelectorAll('[data-chart-metric] svg[role="group"]')].every(plot => Math.abs(plot.viewBox.baseVal.width - plot.getBoundingClientRect().width) < 1));
+      await mobile.page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       await assertRecentLayout(mobile.page);
       await assertUnifiedOverview(mobile.page);
       await assertEstimateRules(mobile.page);
@@ -595,6 +600,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     }
     for (const width of [1440, 390, 320]) {
       const initialized = await loggedInPage({ width, height: width === 1440 ? 1000 : 844 }, initializedAccount);
+      await initialized.page.getByRole("button", { name: "30D", exact: true }).click();
       const initializedChart = chartFor(initialized.page);
       await assertRecentLayout(initialized.page);
       await initializedChart.locator('[data-date="2025-08-05"][data-period="daytime"][data-kind="observed"]').click();

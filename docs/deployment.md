@@ -1,8 +1,8 @@
 # 公网 HTTPS 部署
 
-Formward 使用 Vercel 托管 Next.js，继续连接现有 Neon PostgreSQL。正式域名为 [https://formward-ten.vercel.app](https://formward-ten.vercel.app)，公开协议位于 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json)，AI API 基础地址为 `https://formward-ten.vercel.app/api/v1`。
+Formward 使用 Vercel 托管 Next.js，继续连接现有 Neon PostgreSQL。正式域名为 [https://formward-ten.vercel.app](https://formward-ten.vercel.app)，公开协议位于 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json)，AI API 基础地址为 `https://formward-ten.vercel.app/api/v1`，MCP 为 `https://formward-ten.vercel.app/api/mcp`。MCP／OAuth 与手机调整已发布；当前部署为 `dpl_AGcvAbavcwhgWppttCEGS6EMmayA`，0011 migration 已执行。
 
-网页通过内部账号登录，AI 接口通过独立 Bearer 令牌鉴权。公开协议不含健康数据或令牌。AI 提交只生成预览，保存仍由用户在网页登录确认；完整格式见 [AI 接入](ai-api.md)。
+网页通过内部账号登录，MCP 通过 OAuth Bearer，HTTP API 通过独立手动令牌鉴权。公开协议不含健康数据或令牌。AI 提交只生成预览，保存仍由用户在网页登录确认；完整格式见 [AI 接入](ai-api.md)。
 
 ## 平台配置
 
@@ -38,7 +38,7 @@ Vercel 保留 TZ 变量，因此使用应用级 FORMWARD_TIMEZONE 定义 HTTP AP
 
 发布前运行 lint、typecheck、unit/integration test 和 production build，以及受影响的认证／AI 浏览器检查。已有 3000 开发服务时，在私有临时源码副本中构建和运行浏览器检查，使用独立端口和虚构数据库，不覆盖正在运行的 `.next`。
 
-有新增 migration 时，先保存私有数据库备份，再执行已纳入版本控制的 migration，随后核对既有表和字段。构建命令不执行 migration；数据库演进见 [数据库字典](database.md)。限流表由 `0010_shared_auth_rate_limits.sql` 创建。跨区域备份连接较慢时可为 Node 加 `--network-family-autoselection-attempt-timeout=1000`，与应用连接入口的单地址尝试时限一致。
+有新增 migration 时，先保存私有数据库备份，再执行已纳入版本控制的 migration，随后核对既有表和字段。构建命令不执行 migration；数据库演进见 [数据库字典](database.md)。限流表由 `0010_shared_auth_rate_limits.sql` 创建。MCP／OAuth 需要先执行 `0011_mcp_oauth.sql`，创建 9 张 OAuth／JWKS 表及稳定审核凭据归属；migration 前后核对全部旧字段和值，允许新增 nullable oauth_connection_id，既有操作仍绑定原令牌。跨区域备份连接较慢时可为 Node 加 `--network-family-autoselection-attempt-timeout=1000`，与应用连接入口的单地址尝试时限一致。
 
 在关联项目的仓库根目录运行：
 
@@ -50,9 +50,11 @@ vercel deploy --prod
 
 ## 上线验收与故障处理
 
-正式域名已通过 HTTP 转 HTTPS、首页和 OpenAPI、未登录重定向、缺失／无效令牌 401、无会话响应与私有路径 404 检查。1440×900／390×844 公网浏览器确认素材就绪、字体与视频加载、键盘进入登录、无横向溢出和无客户端异常。上线检查期间 Runtime Logs 无 error。完整认证、录入、AI 与加载回归在隔离虚构数据库执行；真实账号登录与定制 GPT 的授权调用由用户完成。
+正式域名已通过 HTTP 转 HTTPS、首页、OAuth discovery／PKCE／CIMD、公钥无私钥、MCP 缺失／无效令牌 401 + challenge、OpenAPI、未登录重定向、无会话响应、关闭公开 JWT 签发入口与私有路径 404。1440×900、390×844、320×740、844×390 与减少动态效果的公网浏览器确认桌面视频、手机无视频、纯石墨／normal、点击／顶部返回、输入保持、无横向溢出和无客户端异常；测试登录请求在浏览器中拦截。上线检查期间 Runtime Logs 没有 error 记录。完整认证、录入、AI 与加载回归在隔离虚构数据库执行；真实账号登录与 ChatGPT／其他 MCP 客户端连接由用户完成。
 
-手机媒体初始化的公网回归覆盖当前帧、play 才解码、手势限制与超时恢复、视频请求挂起、下载失败、WebGL 不可用和桌面静态概念词；成功恢复时能绘制视频中间帧，失败仍可提交登录并重试。测试认证请求在浏览器中拦截，不发送到真实数据库。用户已确认手机完整转身可见且流畅；公网桌面／手机首、中、末帧检查确认近黑背景透明、人物亮部保留，但手机实机仍有一大圈黄色光晕，视觉问题未解决。当前手机仍为上滑进入，下一步需改为手指向下滑或单次点击，接手要求见 [项目交接](../handoff.md)；系统减少动态效果开启时保持首尾静态过渡。
+手机新实现只加载原始透明 PNG，不创建转身视频。验收首屏提示、点击立即进入、登录背景不返回、顶部返回保留输入、认证中禁用返回，以及纯石墨背景／normal 合成。横屏触屏仍使用手机模式，曲线默认 7D；桌面仍默认 30D，保留视频与滚轮。iPhone／微信实际观感由用户检查。
+
+OAuth discovery 与 JWKS 200、resource／issuer／端点使用正式 HTTPS、未授权 MCP POST 返回 401 + WWW-Authenticate、不缓存响应均已验证。完整真实登录、同意、SDK 工具调用、预览确认、刷新及撤销已在虚构数据库测试；用户在自己的 ChatGPT 入口最终连接，不向真实账号提交测试健康记录。
 
 - 正式域名的首页和图片／字体／视频正常加载，证书有效；OpenAPI 返回完整正式 API 地址。
 - 未登录访问 dashboard 重定向到首页；没有令牌、无效或撤销令牌访问数据 API 返回 401，不接受网页登录 cookie 替代。
@@ -61,4 +63,6 @@ vercel deploy --prod
 
 更新失败时正式域名继续指向上一成功版本；已发布版本出现问题时在平台回滚到先前验证过的部署。新增限流表可以保留，不通过回滚业务代码删除已有数据或修改历史 migration。首次发布没有旧版本可回滚时，修复配置或构建后重新发布。
 
-部署完成后，用户可在“AI 接入”创建可撤销令牌，现有 HTTP API 与 OpenAPI 供外部客户端或后续适配复用。用户反馈当前界面没有 GPT Actions 模式，下一步优先插件／MCP，先核对实际入口支持的连接方式和身份验证要求；当前 MCP 服务尚未实现。普通聊天仅获得网站链接不会自动建立接口授权。
+部署完成后，用户在 ChatGPT「插件 → 添加自定义 MCP」填写 `/api/mcp` 正式完整 URL 和 OAuth，登录 Formward 并明确授权；其他兼容客户端使用同一入口。连接可在“AI 接入”撤销。HTTP API、OpenAPI 和手动令牌继续使用。具体步骤见 [AI 接入](ai-api.md)。普通聊天仅获得网站链接不会建立账号连接。
+
+0011 已共享，不再修改。迁移前后私有备份为 data/exports/database-before-mcp-oauth-2026-10-12.json 与 database-after-mcp-oauth-2026-10-12.json，核对报告为 mcp-oauth-migration-verification-2026-10-12.json；旧 12 张表的全部旧字段和值保持，measurement_operations 仅增加 nullable 连接字段并放宽 token_id，账本新增一次。公网上线报告在 /tmp/formward-public-mcp-http.json、/tmp/formward-public-mcp-browser.json，不包含真实健康记录或凭据。

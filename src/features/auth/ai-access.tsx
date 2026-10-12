@@ -5,13 +5,14 @@ import { LoadingLink } from "@/components/loading-link";
 import type { createAiToken, listAiTokens } from "./ai-tokens";
 import type { listAiMeasurementOperations } from "../measurements/ai-operations";
 import { aiInstructions, operationStatusLabels } from "../measurements/ai-instructions";
+import type { listOauthConnections } from "./oauth-connections";
 const subscribeOrigin = () => () => {};
 const currentOrigin = () => window.location.origin;
 const serverOrigin = () => "";
 type Tokens = Awaited<ReturnType<typeof listAiTokens>>;
 type Created = Awaited<ReturnType<typeof createAiToken>>;
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
-export function AiAccess({ tokens, operations, create, revoke }: { tokens: Tokens; operations: Awaited<ReturnType<typeof listAiMeasurementOperations>>; create: (name: string, permission: "read" | "write") => Promise<Result<Created>>; revoke: (id: string) => Promise<Result<{ id: string }>> }) {
+export function AiAccess({ tokens, operations, connections, create, revoke, revokeConnection }: { tokens: Tokens; operations: Awaited<ReturnType<typeof listAiMeasurementOperations>>; connections: Awaited<ReturnType<typeof listOauthConnections>>; create: (name: string, permission: "read" | "write") => Promise<Result<Created>>; revoke: (id: string) => Promise<Result<{ id: string }>>; revokeConnection: (id: string) => Promise<Result<{ id: string }>> }) {
   const baseURL = useSyncExternalStore(subscribeOrigin, currentOrigin, serverOrigin);
   const [created, setCreated] = useState<Created | null>(null), [error, setError] = useState(""), [working, setWorking] = useState(false), [notice, setNotice] = useState("");
   const [transitionPending, startTransition] = useTransition(), busy = working || transitionPending;
@@ -32,6 +33,9 @@ export function AiAccess({ tokens, operations, create, revoke }: { tokens: Token
   return <section className="ai-page" aria-labelledby="ai-title">
     <LoadingLink href="/dashboard" className="ai-back">← 身体记录</LoadingLink>
     <h1 id="ai-title">AI 接入</h1><p className="ai-lead">让你使用的 AI 查询身体记录，并提交需要你确认的录入、修改或估算。</p>
+    <section className="ai-section"><h2>MCP 账号连接</h2><p>在 ChatGPT 的“插件 → 添加自定义 MCP”中填写下面的地址，选择 OAuth，然后登录 Formward 并授权。其他支持远程 MCP 和 OAuth 的客户端也可以使用。</p><div className="ai-secret"><input aria-label="MCP 服务器地址" readOnly value={baseURL ? `${baseURL}/api/mcp` : ""} /><button className="ai-button" disabled={!baseURL} type="button" onClick={() => void copy(`${baseURL}/api/mcp`)}>复制 MCP 地址</button></div><p>账号连接后，AI 写入仍需在审核网页确认。连接最长有效 30 天，撤销后立即停止访问。</p>
+      <ul className="ai-list">{connections.map(connection => <li key={connection.id}><div><strong>{connection.name || "MCP 客户端"}</strong><span>{connection.scopes.includes("measurements:write") ? "查询与提交预览" : "只读"} · {connection.revokedAt ? "已撤销" : connection.expired ? "已过期" : "已连接"}</span><span>最近使用：{connection.lastUsedAt ? `${new Date(connection.lastUsedAt).toISOString().replace("T", " ").slice(0, 16)} UTC` : "尚未调用"}</span></div><button type="button" className="ai-button ai-secondary" disabled={busy || Boolean(connection.revokedAt)} onClick={() => perform("正在撤销账号连接…", async () => { const result = await revokeConnection(connection.id); if (!result.ok) setError(result.error); }, connection.id)}>{busyTokenId === connection.id ? "正在撤销…" : "撤销连接"}</button></li>)}</ul>{!connections.length && <p>尚无已授权客户端。</p>}
+    </section>
     <section className="ai-section"><h2>访问令牌</h2><p>有效期 30 天，可随时撤销。原始令牌仅在创建时显示，请保存到你使用的 AI 的私有配置。</p>
       <form className="ai-token-form" aria-busy={busy} onSubmit={event => { event.preventDefault(); const form = event.currentTarget, data = new FormData(form); perform("正在创建访问令牌…", async () => { const result = await create(String(data.get("name")), data.get("permission") as "read" | "write"); if (result.ok) { setCreated(result.data); form.reset(); } else setError(result.error); }); }}>
         <label>令牌名称<input name="name" required disabled={busy} maxLength={100} placeholder="例如：本地 Codex" /></label>

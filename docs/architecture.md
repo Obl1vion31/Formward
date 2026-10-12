@@ -18,7 +18,7 @@ Next.js 页面、布局、Server Actions 和 Route Handlers。入口负责身份
 
 ### `src/features`
 
-按用户功能组织代码：`auth`、`meals`、`activities`、`measurements`、`dashboard` 和 `imports`。网页与 AI API 必须调用相同的 feature 函数。
+按用户功能组织代码：`auth`、`mcp`、`meals`、`activities`、`measurements`、`dashboard` 和 `imports`。网页与 AI API 必须调用相同的 feature 函数。
 
 ### `src/db`
 
@@ -41,7 +41,7 @@ features 可以组合其他 feature 的公开函数
 db 不依赖页面或 feature
 ```
 
-- 页面和 AI API 不直接复制计算规则。
+- 页面、HTTP AI API 和 MCP 工具不直接复制计算规则；MCP 只适配协议与已验证的 OAuth 身份，授权管理在 auth。
 - Dashboard 调用饮食、运动和测量功能获取事实，再生成汇总。
 - 导入先解析为候选记录，再调用对应 feature 写入。
 - 外部连接器进入相应 feature，不直接向业务表任意写入。

@@ -12,7 +12,8 @@ const landmarks = JSON.parse(calibrationDoc.match(/```json\n([\s\S]*?)\n```/)[1]
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 // 测试连接已经启动的服务，不负责启动 Next.js；环境变量允许选择端口和临时截图目录。
 const baseUrl = process.env.FORMWARD_BASE_URL ?? "http://127.0.0.1:3000";
-const browser = await chromium.launch({ headless: true });
+// 无 GPU 的环境用软件 ANGLE，避免默认视频纹理上传在边缘产生额外绿像素。
+const browser = await chromium.launch({ headless: true, args: ["--use-angle=swiftshader"] });
 const errors = [];
 const results = [];
 
@@ -390,7 +391,8 @@ async function verifyFrameAlignment(name, width, height) {
       return Math.sqrt(delta.reduce((sum, value, i) => sum + [8, 8, 6, 1][i] * value * value, 0) / 23);
     });
     if (process.env.FORMWARD_BROWSER_ARTIFACTS) await page.screenshot({ path: process.env.FORMWARD_BROWSER_ARTIFACTS + "/" + name + "-intro-interaction.png" });
-    await page.keyboard.press("PageDown");
+    if (await page.locator('.home-page[data-mobile="true"]').count()) await page.locator(".home-stage").click({ position: { x: 12, y: 110 } });
+    else await page.keyboard.press("PageDown");
     await phase(page, "LOGIN_READY");
     const endLayout = await page.locator(".home-orbit-scene-start").evaluate((node) => ({
       labels: [...node.querySelectorAll(".home-principle")].map((label) => {
@@ -499,7 +501,7 @@ async function verifyLoginFields() {
 
   const mobile = await newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
   try {
-    await mobile.page.keyboard.press("PageDown");
+    await mobile.page.locator(".home-stage").tap({ position: { x: 12, y: 110 } });
     await phase(mobile.page, "LOGIN_READY");
     assert.equal(await mobile.page.locator("#email").evaluate((node) => getComputedStyle(node).borderBottomColor), "rgba(0, 0, 0, 0)");
     await mobile.page.locator('label[for="email"]').tap();
@@ -674,6 +676,11 @@ try {
   assert.ok(await page.locator(".body-frame img").evaluateAll((images) => images.every((image) => image.complete && image.naturalWidth > 0)));
   assert.equal((await snapshot(page)).progress, 0);
   assert.equal(await page.locator("video").getAttribute("src"), "/videos/golden-turn-1s.mp4?v=6");
+  await page.waitForFunction(() => {
+    const video = document.querySelector("video");
+    return !video.seeking && video.currentTime < 0.01 && document.querySelector("[data-turn-video]").dataset.videoFrame === "0";
+  });
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const alpha = await page.locator(".body-frame-video canvas").evaluate((source) => {
     const copy = document.createElement("canvas");
     copy.width = source.width; copy.height = source.height;
@@ -722,11 +729,18 @@ try {
 
   await startRecording(page);
   await page.mouse.wheel(0, 80);
-  await page.waitForFunction(() => Number(document.querySelector(".home-stage").dataset.animationProgress) > 0.4);
-  const middle = await snapshot(page);
-  await page.mouse.wheel(0, -80);
-  await phase(page, "REVERSE_ANIMATING");
-  assert.ok((await snapshot(page)).progress > 0.2, "反向不能重置到起点");
+  // 在浏览器帧内发出方向事件，避免软件 GPU 下两次跨进程 RPC 消耗掉剩余转身时间。
+  const middle = await page.evaluate(() => new Promise(resolve => {
+    function reverseAtMiddle() {
+      const progress = Number(document.querySelector(".home-stage").dataset.animationProgress);
+      if (progress <= 0.4) return requestAnimationFrame(reverseAtMiddle);
+      const login = Number(getComputedStyle(document.querySelector(".login-overlay")).opacity);
+      window.dispatchEvent(new WheelEvent("wheel", { deltaY: -80, cancelable: true }));
+      resolve({ progress, login, after: Number(document.querySelector(".home-stage").dataset.animationProgress) });
+    }
+    reverseAtMiddle();
+  }));
+  assert.ok(middle.after >= middle.progress && middle.after < 0.85, "反向从当前时刻接续，不能跳到端点");
   await phase(page, "INTRO");
   const reversedSamples = (await finishRecording(page)).samples;
   assert.ok(Math.max(...reversedSamples.map((sample) => sample.progress)) < 0.85);
@@ -737,11 +751,16 @@ try {
   await page.mouse.wheel(0, 80);
   await phase(page, "LOGIN_READY");
   await page.mouse.wheel(0, -80);
-  await page.waitForFunction(() => Number(document.querySelector(".home-stage").dataset.animationProgress) < 0.6);
-  const reverseMiddle = await snapshot(page);
-  await page.mouse.wheel(0, 80);
-  await phase(page, "FORWARD_ANIMATING");
-  assert.ok((await snapshot(page)).progress >= reverseMiddle.progress - 0.15);
+  const reverseMiddle = await page.evaluate(() => new Promise(resolve => {
+    function forwardAtMiddle() {
+      const progress = Number(document.querySelector(".home-stage").dataset.animationProgress);
+      if (progress >= 0.6) return requestAnimationFrame(forwardAtMiddle);
+      window.dispatchEvent(new WheelEvent("wheel", { deltaY: 80, cancelable: true }));
+      resolve({ progress, after: Number(document.querySelector(".home-stage").dataset.animationProgress) });
+    }
+    forwardAtMiddle();
+  }));
+  assert.ok(reverseMiddle.after <= reverseMiddle.progress && reverseMiddle.after > 0.15, "倒放中途正放沿当前时刻接续");
   await phase(page, "LOGIN_READY");
   results.push({ test: "倒放中途立即正放" });
 
@@ -785,7 +804,7 @@ try {
 
   const mobile = await newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   assert.equal(await mobile.page.locator(".scroll-hint").evaluate((node) => getComputedStyle(node).display), "none");
-  await verifyCrossfadePixels(mobile.page, "mobile", adjacentPairs);
+  assert.equal(await mobile.page.locator("video").count(), 0);
   const session = await mobile.context.newCDPSession(mobile.page);
   async function swipe(fromY, toY) {
     await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: 195, y: fromY }] });
@@ -793,14 +812,18 @@ try {
     await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   }
   await swipe(730, 640);
+  assert.equal((await snapshot(mobile.page)).phase, "INTRO", "手机滑动不触发转身");
+  await mobile.page.locator(".home-stage").tap({ position: { x: 12, y: 110 } });
   await phase(mobile.page, "LOGIN_READY");
   await assertCentred(mobile.page);
   assert.equal((await snapshot(mobile.page)).frames[1], 1);
   if (process.env.FORMWARD_BROWSER_ARTIFACTS) await mobile.page.screenshot({ path: process.env.FORMWARD_BROWSER_ARTIFACTS + "/mobile-login-ready.png" });
   await swipe(650, 740);
+  assert.equal((await snapshot(mobile.page)).phase, "LOGIN_READY", "登录后滑动不返回");
+  await mobile.page.getByRole("button", { name: "返回初始画面", exact: true }).click();
   await phase(mobile.page, "INTRO");
   assert.equal((await snapshot(mobile.page)).login, 0);
-  results.push({ test: "手机：原生单次上滑正放、下滑倒放" });
+  results.push({ test: "手机：点击进入、顶部返回，滑动不改变阶段" });
   if (process.env.FORMWARD_BROWSER_ARTIFACTS) await mobile.page.screenshot({ path: process.env.FORMWARD_BROWSER_ARTIFACTS + "/mobile-intro.png" });
   await mobile.context.close();
 

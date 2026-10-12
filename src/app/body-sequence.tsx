@@ -17,7 +17,7 @@ function frameStyle(frame: Pick<FigureFrame, "desktop" | "mobile">): CSSProperti
 }
 
 // 静态首尾保留鼠标联动及最终衔接；视频在透明 Canvas 中绘制，不露出黑色矩形。
-export function BodySequence() {
+export function BodySequence({ mobileMode }: { mobileMode: boolean | null }) {
   return (
     <div className="body-sequence" aria-hidden="true">
       {/* 两个端点分别为原来的 1.png 和 12.png。 */}
@@ -33,10 +33,10 @@ export function BodySequence() {
           <Image src={FRAME_CONFIG[path].image} alt="" preload />
         </div>
       ))}
-      <div className="body-frame body-frame-intro body-frame-video" data-turn-video style={frameStyle(VIDEO_TRANSFORM)}>
+      {mobileMode === false && <><div className="body-frame body-frame-intro body-frame-video" data-turn-video style={frameStyle(VIDEO_TRANSFORM)}>
         <canvas width={960} height={1440} />
       </div>
-      <video className="turn-video-source" src={TURN_VIDEO_SRC} width={960} height={1440} preload="auto" muted playsInline tabIndex={-1} />
+      <video className="turn-video-source" src={TURN_VIDEO_SRC} width={960} height={1440} preload="auto" muted playsInline tabIndex={-1} /></>}
       {/* 最终帧不参与转身时间线，继续由 Enter 和认证结果触发。 */}
       <div
         className="body-frame body-frame-final"

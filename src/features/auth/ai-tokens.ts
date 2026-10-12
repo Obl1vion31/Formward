@@ -3,11 +3,10 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { aiToken } from "../../db/schema";
 import { lockMeasurementOwner, type MeasurementTransaction } from "../measurements/records";
+import { ApiError, type AiIdentity, type ManualAiIdentity } from "./ai-identity";
+import { requireOauthConnection } from "./oauth-connections";
+export { ApiError, type AiIdentity } from "./ai-identity";
 
-export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string) { super(message); }
-}
-export type AiIdentity = { userId: string; tokenId: string; permission: "read" | "write" };
 const digest = (token: string) => createHash("sha256").update(token).digest("hex");
 function publicToken(row: typeof aiToken.$inferSelect) {
   return { id: row.id, name: row.name, prefix: row.prefix, permission: row.permission,
@@ -34,12 +33,17 @@ export async function revokeAiToken(db: Database, userId: string, id: string) {
   });
 }
 export async function requireActiveAiToken(tx: MeasurementTransaction, identity: AiIdentity, write = false) {
+  if (identity.oauthConnectionId) {
+    if (write && identity.permission !== "write") throw new ApiError(403, "read_only", "只读授权不能提交操作。");
+    return requireOauthConnection(tx, identity.userId, identity.oauthConnectionId, write);
+  }
+  if (!identity.tokenId) throw new ApiError(401, "invalid_token", "令牌无效。");
   const [row] = await tx.select().from(aiToken).where(and(eq(aiToken.id, identity.tokenId), eq(aiToken.userId, identity.userId)));
   if (!row || row.revokedAt || row.expiresAt.getTime() <= Date.now()) throw new ApiError(401, "invalid_token", "令牌无效、已过期或已撤销。");
   if (write && row.permission !== "write") throw new ApiError(403, "read_only", "只读令牌不能提交操作。");
   return row;
 }
-export async function authenticateAi(db: Database, authorization: string | null, write = false): Promise<AiIdentity> {
+export async function authenticateAi(db: Database, authorization: string | null, write = false): Promise<ManualAiIdentity> {
   const match = /^Bearer (fw_ai_[A-Za-z0-9_-]{43})$/.exec(authorization ?? "");
   if (!match) throw new ApiError(401, "invalid_token", "请提供有效的 Bearer 令牌。");
   return db.transaction(async tx => {

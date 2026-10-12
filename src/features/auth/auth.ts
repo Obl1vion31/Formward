@@ -2,6 +2,13 @@ import { betterAuth } from "better-auth/minimal";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { getDatabase, type Database } from "../../db/client";
 import * as schema from "../../db/schema";
+import { jwt } from "better-auth/plugins";
+import { APIError } from "better-auth/api";
+import { mcp } from "@better-auth/mcp";
+import { cimd } from "@better-auth/cimd";
+import { fetchClientMetadataResource } from "@better-auth/cimd/node";
+import { getOAuthProviderState } from "@better-auth/oauth-provider";
+import { OAUTH_SCOPES, oauthAccessClaims, oauthConnectionReference } from "./oauth-connections";
 
 export function createAuth(db: Database, config: { secret: string; baseURL: string; rateLimit?: boolean }) {
   if (config.secret.length < 32) throw new Error("BETTER_AUTH_SECRET 需要至少 32 个随机字符。");
@@ -26,6 +33,42 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
       customRules: { "/sign-in/email": { window: 60, max: 5 } },
     },
     advanced: { cookiePrefix: "formward", useSecureCookies: url.protocol === "https:" },
+    disabledPaths: ["/token"],
+    plugins: [
+      jwt(),
+      mcp({
+        resource: new URL("/api/mcp", url).href,
+        loginPage: "/oauth/login",
+        consentPage: "/oauth/consent",
+        scopes: OAUTH_SCOPES,
+        grantTypes: ["authorization_code", "refresh_token"],
+        allowDynamicClientRegistration: true,
+        allowUnauthenticatedClientRegistration: true,
+        clientRegistrationRequirePKCE: true,
+        clientRegistrationDefaultScopes: OAUTH_SCOPES,
+        accessTokenExpiresIn: 3600,
+        refreshTokenExpiresIn: 30 * 86400,
+        refreshTokenReuseInterval: 0,
+        codeExpiresIn: 300,
+        storeTokens: "hashed",
+        postLogin: {
+          page: "/oauth/consent",
+          shouldRedirect: async () => false,
+          consentReferenceId: async ({ user }) => {
+            const state = await getOAuthProviderState();
+            const clientId = new URLSearchParams(state?.query).get("client_id");
+            if (!clientId || !user) throw new APIError("BAD_REQUEST", { error: "invalid_request" });
+            return oauthConnectionReference(db, user.id, clientId);
+          },
+        },
+        extensions: [{ claims: { accessToken: async ({ user, client, referenceId, scopes }) => {
+          if (!user) throw new APIError("BAD_REQUEST", { error: "invalid_grant" });
+          try { return await oauthAccessClaims(db, user.id, client.clientId, referenceId, scopes); }
+          catch { throw new APIError("BAD_REQUEST", { error: "invalid_grant", error_description: "账号授权已失效，请重新连接。" }); }
+        } } }],
+      }),
+      cimd({ fetchClientMetadataResource, metadataProfile: "mcp-2026-07-28" }),
+    ],
   });
 }
 

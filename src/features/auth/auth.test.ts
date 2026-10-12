@@ -12,12 +12,13 @@ import * as schema from "../../db/schema";
 const pg = new PGlite();
 const db = drizzle(pg, { schema });
 const baseURL = "http://localhost:3000";
-const auth = createAuth(db, { secret: "fictional-test-secret-at-least-32-characters", baseURL, rateLimit: false });
+let auth: ReturnType<typeof createAuth>;
 const credentials = { email: "first@example.test", password: "fictional-password-first" };
 const other = { email: "second@example.test", password: "fictional-password-second" };
 
 before(async () => {
   await migrate(db, { migrationsFolder: "./drizzle" });
+  auth = createAuth(db, { secret: "fictional-test-secret-at-least-32-characters", baseURL, rateLimit: false });
   await provisionAccount(db, credentials);
   await provisionAccount(db, other);
 });

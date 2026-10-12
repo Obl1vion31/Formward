@@ -698,14 +698,14 @@ input:focus-visible {
 
 /* 手机 / 窄屏：覆盖同名属性，未写出的属性继续继承基础规则。
    .body-frame 改读 mobile 校准变量；宽度断点也要与 HomeExperience 的能力查询对应。 */
-@media (max-width: 700px) {
+@media (max-width: 700px), (hover: none) and (pointer: coarse) {
   .home-header {
     height: 68px;
     padding: 0 20px;
   }
   .home-stage {
     min-height: 0;
-    background: radial-gradient(ellipse 76% 54% at 50% 40%, rgba(190, 164, 120, .11), transparent 85%), radial-gradient(ellipse 100% 85% at 50% 55%, rgba(190, 164, 120, .035), transparent 85%), radial-gradient(ellipse 100% 65% at 86% 78%, rgba(20, 49, 45, .16), transparent 85%), var(--graphite);
+    background: var(--graphite);
   }
   .home-intro-backdrop {
     --hero-title-size: 14px;
@@ -856,3 +856,25 @@ input:focus-visible {
     animation: none;
   }
 }
+
+/* OAuth 登录与同意页面沿用站内石墨底色、哑金操作和清晰表单。 */
+.oauth-page { min-height: 100svh; display: grid; place-items: center; padding: 32px 20px; background: var(--graphite); }
+.oauth-card { width: min(480px, 100%); color: var(--warm-white); }
+.oauth-card .home-logo { display: inline-block; text-decoration: none; margin-bottom: 40px; }
+.oauth-card h1 { font-size: 26px; font-weight: 500; margin: 0 0 20px; }
+.oauth-card p, .oauth-card li { font-size: 14px; line-height: 1.8; color: #b9b2a8; }
+.oauth-card ul { padding-left: 20px; margin: 20px 0; }
+.oauth-card li + li { margin-top: 10px; }
+.oauth-form { margin-top: 24px; display: grid; gap: 20px; }
+.oauth-form label { display: grid; gap: 8px; font-size: 13px; }
+.oauth-form input { width: 100%; font: inherit; font-size: 16px; color: var(--warm-white); background: transparent; border: 0; border-bottom: 1px solid #4b473e; border-radius: 0; padding: 10px 0; }
+.oauth-actions { display: flex; gap: 24px; align-items: center; }
+.oauth-form .oauth-error { color: #e5a3a0; }
+
+/* 手机点击只切换静态端点；原 PNG 的透明通道采用普通合成，避免彩色背景与加色叠加。 */
+.home-page[data-mobile="true"], .home-page[data-mobile="true"] .home-scroll { min-height: 100svh; height: 100svh; }
+.home-page[data-mobile="true"] .home-stage { position: relative; background: var(--graphite); }
+.home-page[data-mobile="true"] .body-frame { mix-blend-mode: normal; }
+.home-return { margin-left: auto; pointer-events: auto; min-width: 64px; min-height: 44px; padding: 8px 12px; border: 0; background: transparent; color: var(--warm-white); font: inherit; font-size: 13px; }
+.home-return:disabled { opacity: .4; }
+.tap-hint { position: absolute; z-index: 2; bottom: calc(108px + env(safe-area-inset-bottom)); left: 0; right: 0; margin: 0; text-align: center; font-size: 12px; letter-spacing: .1em; color: #b9b2a8; pointer-events: none; }

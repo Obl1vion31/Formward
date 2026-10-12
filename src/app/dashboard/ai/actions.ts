@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { currentUser } from "@/features/auth/server";
 import { createAiToken, revokeAiToken } from "@/features/auth/ai-tokens";
 import { getDatabase } from "@/db/client";
+import { revokeOauthConnection } from "@/features/auth/oauth-connections";
 import { safeAiError } from "@/features/measurements/ai-api";
 import { decideAiMeasurementOperation, getAiMeasurementOperation, reviewAiMeasurementOperation, type ReviewAction } from "@/features/measurements/ai-operations";
 
@@ -21,6 +22,9 @@ export async function createTokenAction(name: string, permission: "read" | "writ
 }
 export async function revokeTokenAction(id: string) {
   return perform(async userId => { await revokeAiToken(getDatabase(), userId, id); return { id }; });
+}
+export async function revokeConnectionAction(id: string) {
+  return perform(async userId => { await revokeOauthConnection(getDatabase(), userId, id); return { id }; });
 }
 export async function decideOperationAction(id: string, decision: "confirm" | "cancel") {
   return perform(userId => decideAiMeasurementOperation(getDatabase(), userId, id, decision));

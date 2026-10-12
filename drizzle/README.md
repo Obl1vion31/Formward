@@ -13,3 +13,5 @@
 `0008_aspiring_thunderbolt_ross.sql` 新增 ai_tokens 和 measurement_operations，分别保存可撤销令牌摘要与有时限的网页确认预览，不修改既有九张表。令牌与操作均关联账号，operationId 按账号唯一，状态／权限有数据库约束。执行前备份并在执行后核对旧表逐字段不变。
 
 `0009_supreme_imperial_guard.sql` 在 measurement_operations 增加默认 1 的 revision，状态约束支持 partially_confirmed 与 completed，供一个链接逐行／整批编辑确认。草稿与行结果沿用 preview JSON，原 payload 与请求摘要保持。既有操作增加 revision 默认值，其他列及健康表保持；迁移前备份，迁移后核对。
+
+`0011_mcp_oauth.sql` 创建官方 OAuth 客户端／资源／授权／摘要令牌／JWKS 与 Formward oauth_connections，共新增 9 张表；measurement_operations 增加 oauth_connection_id，token_id 可空并用 CHECK 保证两者恰有一个非空。旧操作保留原 token_id，健康表与值不变；执行前私有备份，执行后核对，已共享后不再修改。

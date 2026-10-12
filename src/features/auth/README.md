@@ -20,3 +20,11 @@
 `ai-tokens.ts` 提供 30 天 read／write 令牌创建、列表、撤销和即时鉴权，原文只创建时返回，列表不含摘要或原文。`ai-access.tsx` 提供令牌表单、复制说明和最近身体操作；用户数据和确认由 measurements feature 处理。
 
 登录验证、退出与令牌创建／撤销绑定实际异步状态，按钮立即变字并防止重复提交，超过 200ms 使用 components 的全站模态加载层。认证成功先收起提示，完成首页既有最终动画后才导航；失败显示原错误并保留输入。站内页面入口使用 LoadingLink，协议文件仍为普通链接；后台预取和本地展开不触发遮罩。
+
+## MCP OAuth
+
+`auth.ts` 配置 JWT、MCP OAuth Provider 与 CIMD，提供授权码 + S256 PKCE、轮换刷新、客户端元数据发现与动态注册。凭据和客户端密钥保存摘要，JWT 私钥加密保存。公开 signJWT／网页登录取 JWT 入口关闭，访问令牌只从有效 OAuth 授权签发。
+
+`oauth-connections.ts` 保存稳定连接、权限、期限与撤销；撤销立即阻止 MCP、续期和旧审核。`ai-identity.ts` 统一手动令牌与 OAuth 身份，measurements 不另写授权逻辑。`oauth-pages.ts` 验证签名 query，`oauth-form.tsx` 展示登录／继续／同意／拒绝，不信任客户端账号标识。`ai-access.tsx` 同时提供 MCP 地址、连接管理及原手动令牌。设置页按顺序读取列表以兼容 PGlite socket。
+
+`oauth.test.ts` 使用实际 OAuth HTTP 和两代 SDK 客户端覆盖发现、签名请求、PKCE、刷新轮换、幂等、网页确认、只读、跨账号、到期、伪造签名和撤销。`tests/oauth.browser.mjs` 验证手机登录授权及完整预览确认／撤销流程，均使用虚构数据库。
