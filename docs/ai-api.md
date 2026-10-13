@@ -1,6 +1,6 @@
-# 身体记录 AI 接入
+# 身体与饮食 AI 接入
 
-接口覆盖晨晚体重／体脂、来源、时区、记录详情与历史、候选分析、摘要与趋势、历史编辑及单项显式估算。网页和 API 使用同一 measurements feature。饮食、运动、文件导入、删除／恢复、准确测量时间和历史归属纠正尚未接入。
+接口覆盖晨晚体重／体脂、来源、时区、记录详情与历史、候选分析、摘要与趋势、历史编辑及单项显式估算。网页和 API 使用同一 measurements feature。饮食、食材及其删除／恢复已接入；运动、通用文件导入及身体记录的网页删除／恢复、准确测量时间和历史归属纠正尚未接入。
 
 ## ChatGPT 与其他 MCP 客户端
 
@@ -14,6 +14,10 @@
 | `query_measurements` | 可选 from／to、choices、timezone；返回本账号记录、单位、来源、实测／估计、摘要、趋势与时区上下文 | `measurements:read` |
 | `submit_measurement_operation` | operationId、1–100 条 items、可选 timezone；生成预览并返回网页审核链接 | `measurements:write` |
 | `get_measurement_operation` | 提交返回的 id；查询逐行状态、数量和确认链接 | `measurements:read` |
+| `search_foods` | q搜索食材及规格／营养／版本 | `meals:read` |
+| `query_meals` | from／to查询餐次及每日已记录合计 | `meals:read` |
+| `submit_meal_operation` | operationId、actions生成饮食／食材预览 | `meals:write` |
+| `get_meal_operation` | id查询饮食审核状态 | `meals:read` |
 
 工具定义提供名称、说明、JSON Schema、权限和操作提示，MCP 客户端把这些说明交给模型决定调用哪个工具及填写哪些参数。模型获取业务结果，账号密码和令牌由客户端及授权流程管理。网页、HTTP API 与 MCP 调用同一 feature，不分别维护健康规则。
 
@@ -82,7 +86,7 @@ OAuth 使用授权码 + S256 PKCE，授权码有效 5 分钟；访问令牌有�
 }
 ```
 
-体重单位 kg，体脂率 %，数值为最多两位小数的字符串。日期必须明确为 YYYY-MM-DD，相对日期先确认用户所在地日期。晨间须明确确认空腹 `fasting:true`，旧非空腹／未知晨间只读；晚间固定非空腹。新实测 `deviceLabel` 必填，未提供的字段省略，不能擅自沿用历史来源。未知不猜、不填 0。省略字段保留已有值，显式数值 null 才清空，每条实测至少一个主要指标非空。
+体重单位 kg，体脂率 %，数值为最多两位小数的字符串。日期必须明确为 YYYY-MM-DD，相对日期先确认用户所在地日期。晨间须明确确认空腹 `fasting:true`，旧非空腹／未知晨间只读；晚间固定非空腹。新实测来源须由用户提供，或明确确认不填写；缺少来源时 AI 先询问实际设备／应用名称或是否留空，可列出查询返回的 `sources` 供选择，不能擅自沿用，也不能用“ChatGPT 手动提供”“设备未注明”等描述代填。确认不填时传 `deviceLabel: null` 与 `sourceUnspecifiedConfirmed: true`；该字段只能是布尔值，与非空来源同时提供为 true 会阻止保存。已有记录省略来源保持原值，主动清空须同样确认。其他未提供字段省略。未知不猜、不填 0。省略字段保留已有值，显式数值 null 才清空，每条实测至少一个主要指标非空。
 
 修改已有值、来源或时区，在对应 `save_record` 项提供 `recordId` 和查询返回的 `updatedAt` 作为 `version`。同值跳过，缺项可补；不同已有值产生行内冲突，网页修改时须明确选择历史记录。批量形状错误会拒绝请求；业务无效值留在对应行，供用户纠正。批内重复目标产生冲突，修改目标或取消其中一行后重新预览。
 
@@ -90,9 +94,11 @@ OAuth 使用授权码 + S256 PKCE，授权码有效 5 分钟；访问令牌有�
 
 兼容原 `save_day` 请求：`{kind:"save_day",operationId,date,periods:{daytime:{...},evening:{...}},timezone?}`；历史编辑字段在对应时段内。兼容独立 `estimate_cell` 请求，在估算项外再提供 operationId。已有单日／单项链接使用同一个可编辑审核页。
 
+提交与状态响应中的 `needsUserInput` 列出待核对的 `itemId`、日期、时段、字段、错误码和提示；来源缺失的错误码为 `source_confirmation_required`。AI 应说明并询问待补项；有未解决问题的行不可确认。缺来源也可先保留为待修改预览，用户在网页补填或直接留空后更新预览，再确认保存。原请求和审核草稿分别保留，来源留空确认进入审计。
+
 ## 一个链接审核整批
 
-顶部显示总数、已保存／待确认／已取消／已跳过数量，并提供“全部确认保存”“批量修改”“取消剩余”。每行列出日期、时段、前后数值、来源、空腹条件、GMT 时区和估算依据，以及“确认保存”“修改”“取消”。
+顶部显示总数、已保存／待确认／已取消／已跳过数量，并提供“全部确认保存”“批量修改”“取消剩余”。每行列出日期、时段、前后数值、来源、空腹条件、GMT 时区和估算依据，以及“确认保存”“修改”“取消”。来源编辑与身体录入共用简洁来源输入，点击输入框直接展开全部建议，保留现有文字，输入时再筛选；留空后点击更新预览即可提交 null 和留空标记，无需复选框。建议旁“×”直接移除本账号建议，保留当前输入和已有记录，失败保留建议。旧记录保留原来源不恢复建议，明确再次使用并成功保存新记录或来源修改后恢复。
 
 - 单行确认立即保存该行，其他行继续待处理。刷新或重新打开链接保留已保存、已取消和草稿结果。
 - 全部确认在一个事务保存剩余有效行；有冲突或无效行时禁用整批保存，有效行仍可单独保存。
@@ -129,3 +135,7 @@ AI 以 `items[].status` 和 `counts` 报告事实，不能把部分保存、取�
 显式历史修改保留 `sourceLocalTime` 与 recordDate：准确时间重算 UTC，未知钟点继续为 day_period／assumed，UTC 与准确偏移为空。
 
 健康记录、来源历史、写入批次、审计和行结果同一事务。新记录 entryChannel 为 api、actorType 为 ai；历史编辑保留原入口和原始输入。审计关联 tokenId 或 oauthConnectionId、操作、确认人／时间，并保存行 ID、审核版本、原始候选、用户审核草稿和编辑者／时间。审计失败整体回滚。
+
+## 饮食接口
+
+MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation，分别使用meals:read／meals:write；已有身体连接需重新授权。HTTP提供GET /foods?q=、GET /meals?from=&to=、POST /meal-operations、GET /meal-operations/{id}，公开协议1.4.0。输入operationId、actions；save_meal含date、mealType、items，已有食材用foodId＋foodVersion、同单位quantity，新食材可用foodDraft。杂只估未单列的剩余食物，whole整餐估算须为唯一项。标签与成分表需依据，未知null。确认链接为/dashboard/meals/review/{id}，15分钟有效，原请求与修订草稿独立；正式保存仅网页登录确认，权限撤销即时阻止。结构、初始化和实例定位见[饮食记录](meals.md)。

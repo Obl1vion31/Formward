@@ -1,0 +1,73 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { createServer } from "node:net";
+import { mkdir, writeFile } from "node:fs/promises";
+import { PGlite } from "@electric-sql/pglite";
+import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
+import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
+import * as schema from "../src/db/schema";
+import { provisionAccount } from "../src/features/auth/provision";
+import { createAiToken } from "../src/features/auth/ai-tokens";
+import { stageMealInitialization } from "../src/features/imports/meals";
+
+async function freePort() { const server = createServer(); server.listen(0, "127.0.0.1"); await once(server, "listening"); const port = (server.address() as { port: number }).port; await new Promise<void>(r => server.close(() => r())); return port; }
+const pg = new PGlite(), db = drizzle(pg, { schema }), dbPort = await freePort(), port = await freePort(), baseURL = `http://127.0.0.1:${port}`;
+await migrate(db, { migrationsFolder: "./drizzle" });
+const account = { email: "meals-browser@example.test", password: "fictional-meals-password" }, other = { email: "meals-other@example.test", password: "fictional-other-password" };
+const owner = await provisionAccount(db, { ...account, name: "虚构饮食用户" }), second = await provisionAccount(db, { ...other, name: "虚构其他用户" });
+const dateAt = (offset: number) => new Date(Date.now() + 8 * 3600000 + offset * 86400000).toISOString().slice(0, 10), today = dateAt(0);
+const header = "日期\t餐次\t食物 / 餐食\t记录状态\t蛋白质 (g)\t脂肪 (g)\t碳水 (g)\t热量 (kcal)\t备注";
+const tsv = `${header}\n${dateAt(-3)}\t午餐\t虚构牛肉与米饭\t正常记录\t25\t12\t50\t440\t整餐估算\n${dateAt(-1)}\t加餐\t虚构果汁\t正常记录\t0\t0\t15\t60\t\n${today}\t午餐\t虚构混合餐\t正常记录\t30\t15\t65\t520\t`;
+const initial = await stageMealInitialization(db, owner.id, tsv, "fictional.tsv"), token = await createAiToken(db, owner.id, "虚构HTTP", "write"), otherToken = await createAiToken(db, second.id, "虚构其他HTTP", "read");
+const socket = new PGLiteSocketServer({ db: pg, host: "127.0.0.1", port: dbPort }); await socket.start();
+const child = spawn("pnpm", ["start", "--hostname", "127.0.0.1", "--port", String(port)], { env: { ...process.env, DATABASE_URL: `postgresql://postgres:postgres@127.0.0.1:${dbPort}/postgres?max=1`, BETTER_AUTH_URL: baseURL, BETTER_AUTH_SECRET: "fictional-meals-browser-secret-of-more-than-32-characters", FORMWARD_TIMEZONE: "Asia/Shanghai", PORT: String(port), NODE_ENV: "production" }, detached: true, stdio: ["ignore", "pipe", "pipe"] });
+let logs = ""; child.stdout.on("data", d => { logs += d; }); child.stderr.on("data", d => { logs += d; });
+let browser: { close(): Promise<void> } | undefined;
+let debugPage: { screenshot(options: unknown): Promise<unknown>; content(): Promise<string> } | undefined;
+try {
+  for (let i = 0; i < 80; i++) { if (child.exitCode !== null) throw new Error("隔离服务退出"); try { if ((await fetch(baseURL)).ok) break; } catch {} await new Promise(r => setTimeout(r, 250)); }
+  const protocol = await (await fetch(`${baseURL}/api/v1/openapi.json`)).json(); assert.ok(protocol.paths["/meal-operations"]); assert.ok(protocol.components.schemas.MealInput);
+  const headers = { authorization: `Bearer ${token.rawToken}`, "content-type": "application/json" };
+  const currentMeals = async () => { const response = await fetch(`${baseURL}/api/v1/meals`, { headers }); assert.equal(response.status, 200); return await response.json() as { meals: import("../src/features/meals/model").MealView[] }; };
+  const read = await fetch(`${baseURL}/api/v1/meals`, { headers }); assert.equal(read.status, 200); assert.equal((await read.json()).meals.length, 0);
+  assert.equal((await fetch(`${baseURL}/api/v1/meal-operations/${initial.id}`, { headers: { authorization: `Bearer ${otherToken.rawToken}` } })).status, 404);
+  const input = { operationId: randomUUID(), actions: [{ kind: "save_meal", date: today, mealType: "早餐", items: [{ kind: "misc", name: "杂", sourceKind: "estimated", nutrition: { caloriesKcal: "50", proteinG: "0", carbsG: "12", fatG: "0" } }] }] };
+  const submission = await fetch(`${baseURL}/api/v1/meal-operations`, { method: "POST", headers, body: JSON.stringify(input) }); assert.equal(submission.status, 200); const preview = await submission.json(); assert.equal(preview.status, "pending"); assert.ok(preview.confirmationUrl.includes("/dashboard/meals/review/"));
+  const retry = await (await fetch(`${baseURL}/api/v1/meal-operations`, { method: "POST", headers, body: JSON.stringify(input) })).json(); assert.equal(retry.id, preview.id);
+  assert.equal((await fetch(`${baseURL}/api/v1/meal-operations`, { method: "POST", headers: { authorization: `Bearer ${otherToken.rawToken}`, "content-type": "application/json" }, body: JSON.stringify(input) })).status, 403);
+  const modulePath = process.env.PLAYWRIGHT_MODULE ?? "/tmp/formward-browser-check/node_modules/playwright/index.mjs";
+  const { chromium } = await import(modulePath); const activeBrowser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--use-angle=swiftshader"] });
+  browser = activeBrowser;
+  const context = await activeBrowser.newContext({ locale:"zh-CN", viewport: { width: 1440, height: 1100 } }), page = await context.newPage(), errors: string[] = [];
+  debugPage=page;
+  page.on("pageerror", (e: Error) => errors.push(e.message));
+  const signIn = await context.request.post(`${baseURL}/api/auth/sign-in/email`, { data: account, headers: { Origin: baseURL } }); assert.equal(signIn.status(), 200);
+  await page.goto(`${baseURL}/dashboard/meals`); await page.getByRole("heading", { name: "饮食记录", exact: true }).waitFor();
+  await page.getByRole("link", { name: /历史初始化/ }).click(); await page.getByRole("heading", { name: "确认历史初始化" }).waitFor();
+  assert.equal(await page.getByText("来源：初始化 · 整餐估算", { exact: true }).count(), 3);
+  await page.getByRole("button", { name: "确认并保存", exact: true }).click(); await page.getByRole("status").filter({ hasText: "已保存3项" }).waitFor();
+  assert.equal((await currentMeals()).meals.length, 3);
+  await page.getByRole("link", { name: "饮食记录", exact: true }).click(); await page.getByRole("button", { name: "食材库", exact: true }).click(); await page.getByRole("button", { name: /添加食材/ }).click();
+  let dialog = page.getByRole("dialog"); await dialog.getByLabel("食材／产品名称", { exact: true }).fill("虚构蛋白食物"); await dialog.getByLabel("品牌（可选）", { exact: true }).fill("虚构品牌"); await dialog.getByLabel("单位", { exact: true }).fill("包");
+  for (const [label, value] of [["热量", "84"], ["蛋白质", "10"], ["碳水", "2"], ["脂肪", "1"]]) await dialog.getByLabel(label, { exact: true }).fill(value);
+  await dialog.getByLabel("依据／备注", { exact: true }).fill("虚构标签转录：每包营养"); await dialog.getByRole("button", { name: "保存食材", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
+  await page.getByRole("button", { name: "饮食", exact: true }).click(); await page.getByRole("button", { name: /记录一餐/ }).click(); dialog = page.getByRole("dialog"); await dialog.getByLabel("餐次", { exact: true }).fill("晚餐");
+  for (const [label, value] of [["热量", "60"], ["蛋白质", "3"], ["碳水", "10"], ["脂肪", "1"]]) await dialog.getByLabel(label, { exact: true }).fill(value);
+  await dialog.getByRole("button", { name: /添加食物/ }).click(); await dialog.getByLabel("食物名称", { exact: true }).fill("虚构蛋白"); await dialog.getByRole("button", { name: /^虚构蛋白食物/ }).click(); await dialog.getByLabel("数量", { exact: true }).nth(1).fill("2");
+  await dialog.getByRole("button", { name: "保存餐次", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
+  let state = await currentMeals(); const dinner = state.meals.find(m => m.mealType === "晚餐")!; assert.equal(dinner.totals.values.caloriesKcal, "228.0000"); assert.equal(dinner.items.length, 2);
+  const article = page.locator("article").filter({ has: page.getByRole("heading", { name: "晚餐", exact: true }) }); await article.getByRole("button", { name: "编辑", exact: true }).click(); dialog = page.getByRole("dialog"); await dialog.getByLabel("餐次备注", { exact: true }).fill("虚构修改备注"); await dialog.getByRole("button", { name: "保存餐次", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
+  state = await currentMeals(); assert.equal(state.meals.find(m => m.id === dinner.id)?.notes, "虚构修改备注");
+  await article.getByRole("button", { name: "删除", exact: true }).click(); await page.getByRole("status").waitFor(); await page.getByRole("button", { name: "已删除", exact: true }).click(); await page.getByRole("button", { name: "恢复", exact: true }).click(); await page.getByRole("button", { name: "恢复", exact: true }).waitFor({state:"hidden"}); await page.getByRole("button", { name: "返回有效记录", exact: true }).click();
+  assert.equal((await currentMeals()).meals.find(m => m.id === dinner.id)?.deletedAt, null);
+  await page.getByRole("button", { name: "自定义", exact: true }).click(); await page.getByLabel("开始", { exact: true }).fill(dateAt(-3)); await page.getByLabel("结束", { exact: true }).fill(today); assert.ok((await page.locator(`[data-date="${dateAt(-2)}"]`).textContent())?.includes("未记录"));
+  const screenshots = "/tmp/formward-meals-visual"; await mkdir(screenshots, { recursive: true }); await page.screenshot({ path: `${screenshots}/desktop.png`, fullPage: true });
+  await page.setViewportSize({ width: 320, height: 850 }); assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)); await page.screenshot({ path: `${screenshots}/mobile-320.png`, fullPage: true });
+  await page.getByRole("button", { name: /记录一餐/ }).click(); await page.getByRole("dialog").waitFor(); await page.getByRole("dialog").evaluate(async (node: HTMLElement) => { await Promise.all(node.getAnimations().map(a => a.finished.catch(() => {}))); }); assert.ok(await page.getByRole("dialog").evaluate((node: HTMLElement) => node.scrollWidth <= node.clientWidth + 1)); await page.screenshot({ path: `${screenshots}/editor-320.png` }); await page.getByRole("button", { name: "关闭编辑", exact: true }).click(); await page.getByRole("dialog").waitFor({ state: "hidden" });
+  const otherContext = await activeBrowser.newContext(); await otherContext.request.post(`${baseURL}/api/auth/sign-in/email`, { data: other, headers: { Origin: baseURL } }); const otherPage = await otherContext.newPage(); const cross = await otherPage.goto(`${baseURL}${initial.confirmationPath}`); assert.equal(cross!.status(), 404); await otherPage.goto(`${baseURL}/dashboard/meals`); assert.ok(!(await otherPage.content()).includes("虚构混合餐"));
+  assert.deepEqual(errors, []); await context.close(); await otherContext.close(); console.log("通过：饮食HTTP权限／幂等、初始化确认、食材录入复用、食物加杂汇总、编辑删除恢复、缺记录、320px与跨账号隔离；截图仅含虚构数据。");
+} catch (error) { if(debugPage) { await debugPage.screenshot({path:"/tmp/formward-meals-failure.png",fullPage:true}); await writeFile("/tmp/formward-meals-failure.html",await debugPage.content()); } await writeFile("/tmp/formward-meals-server-failure.log",logs); console.error(logs.split("\n").filter(l => /error|Error|warning/i.test(l)).slice(-8).join("\n")); throw error; }
+finally { await browser?.close(); if (child.exitCode === null) { process.kill(-child.pid!,"SIGTERM"); const timeout = setTimeout(() => { try { process.kill(-child.pid!,"SIGKILL"); } catch {} }, 5000); await once(child, "exit"); clearTimeout(timeout); } await socket.stop(); await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r)); await pg.close(); }

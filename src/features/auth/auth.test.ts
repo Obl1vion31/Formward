@@ -8,6 +8,7 @@ import { verifyPassword } from "better-auth/crypto";
 import { createAuth, currentUser } from "./auth";
 import { provisionAccount } from "./provision";
 import * as schema from "../../db/schema";
+import { createDatabase } from "../../db/client";
 
 const pg = new PGlite();
 const db = drizzle(pg, { schema });
@@ -23,6 +24,15 @@ before(async () => {
   await provisionAccount(db, other);
 });
 after(async () => { await pg.close(); });
+
+test("连接池默认三条连接，显式 max=1 兼容 PGlite；无效配置不建立连接", async () => {
+  for (const [suffix, max] of [["", 3], ["?max=1", 1], ["?max=4", 4]] as const) {
+    const database = createDatabase(`postgresql://fictional:fictional@127.0.0.1:65535/formward_test_pool${suffix}`);
+    assert.equal(database.db.$client.options.max, max);
+    await database.close();
+  }
+  for (const value of ["", "0", "-1", "1.5", "invalid"]) assert.throws(() => createDatabase(`postgresql://fictional:fictional@127.0.0.1:65535/formward_test_pool?max=${value}`), /正整数/);
+});
 
 async function request(path: string, body?: object, cookie?: string, instance = auth, origin = baseURL) {
   return instance.handler(new Request(`${baseURL}/api/auth/${path}`, {

@@ -29,7 +29,14 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const mobileMode = useMobileMode();
   const [actionResult, setActionResult] = useState<(Extract<EntryResult, { ok: true }> & { base: MeasurementDisplay[] }) | null>(null);
   // 保存结果即时反馈；新的服务端快照抵达后接管，不能长期保留首次加载数据。
-  const { records, dates, sources } = actionResult?.base === serverRecords ? actionResult : { records: serverRecords, dates: serverDates, sources: serverSources };
+  const { records, dates, sources: snapshotSources } = actionResult?.base === serverRecords ? actionResult : { records: serverRecords, dates: serverDates, sources: serverSources };
+  const [sourceResult, setSourceResult] = useState<{ base: string[]; sources: string[] } | null>(null);
+  const sources = sourceResult?.base === serverSources ? sourceResult.sources : snapshotSources;
+  const sourceActions: MeasurementActions = { ...actions, removeSource: async label => {
+    const result = await actions.removeSource(label);
+    if (result.ok) setSourceResult({ base: serverSources, sources: result.sources });
+    return result;
+  } };
   const [today, setToday] = useState("");
   const [timezone, setTimezone] = useState("");
   useEffect(() => {
@@ -54,7 +61,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const [rulesOpen, setRulesOpen] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [drawer, setDrawer] = useState<DrawerView | null>(null);
-  function updated(result: Extract<EntryResult, { ok: true }>) { setActionResult({ ...result, base: serverRecords }); }
+  function updated(result: Extract<EntryResult, { ok: true }>) { setSourceResult(null); setActionResult({ ...result, base: serverRecords }); }
   if (!latestDate) return <section className={styles.empty}><h1>身体记录</h1><p>暂无测量记录。</p></section>;
 
   const range = measurementRange(latestDate, mode, mode === "custom" ? customRange : { start: earliestDate, end: latestDate });
@@ -163,7 +170,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
       </table> : <p className={styles.emptyHistory}>此区间暂无记录。</p>}
       <div className={styles.historyFooter}><button type="button" className={styles.fullHistory} onClick={() => setDrawer({ kind: "history" })}>查看全部 <span aria-hidden="true">↗</span></button></div>
     </section>
-    {drawer && <MeasurementInspector view={drawer} records={records} sources={sources} today={today} timezone={timezone} actions={actions} onUpdated={updated} catalog={catalog} choices={choices} onChoose={chooseRecord} onClose={() => setDrawer(null)} />}
+    {drawer && <MeasurementInspector view={drawer} records={records} sources={sources} today={today} timezone={timezone} actions={sourceActions} onUpdated={updated} catalog={catalog} choices={choices} onChoose={chooseRecord} onClose={() => setDrawer(null)} />}
   </section>;
 }
 

@@ -8,12 +8,13 @@ import { and, eq } from "drizzle-orm";
 import * as schema from "../../db/schema";
 import { authenticateAi, createAiToken, listAiTokens, revokeAiToken, type AiIdentity } from "../auth/ai-tokens";
 import { decideAiMeasurementOperation, getAiMeasurementOperation, parseAiMeasurementInput, reviewAiMeasurementOperation, submitAiMeasurementOperation, type ReviewInput } from "./ai-operations";
-import { aiApiResponse, aiConfirmationUrl, aiRequestTimezone, queryAiMeasurements, readAiJson } from "./ai-api";
+import { aiApiResponse, aiConfirmationUrl, aiRequestTimezone, queryAiMeasurements, readAiJson, safeAiError } from "./ai-api";
 import { listMeasurements, saveReportedMeasurements } from "./records";
 import { entryMetrics, entryPeriods } from "./entry-state";
 import { saveMeasurementDay } from "./editing";
 import { applyHistoricalInitialization, previewHistoricalInitialization } from "./initialization";
 import { systemMeasurementTimezone, timezoneLabel, timezoneOptions, validateMeasurementTimezone } from "./timezone";
+import { listMeasurementSources, MeasurementSourceError, removeMeasurementSource } from "./sources";
 
 const pg = new PGlite(), db = drizzle(pg, { schema });
 before(async () => { await migrate(db, { migrationsFolder: "./drizzle" }); });
@@ -31,6 +32,54 @@ const confirm = (identity: AiIdentity, id: string) => decideAiMeasurementOperati
 const rejects = (promise: Promise<unknown>, code: string) => assert.rejects(promise, error => error instanceof Error && "code" in error && error.code === code);
 const realItem = (date = "2024-05-01", patch: Record<string, unknown> = {}): ReviewInput => ({ kind: "save_record", date, period: "evening", weightKg: "70.20", deviceLabel: "虚构审核秤", ...patch } as ReviewInput);
 const batch = (items: ReviewInput[]) => ({ kind: "batch", operationId: randomUUID(), items });
+
+test("AI 缺来源返回可编辑待补信息，明确留空后网页确认；原请求保持、重试和审计归属受保护", async () => {
+  const { userId, identity } = await owner();
+  const request = batch([{ kind: "save_record", date: "2024-05-01", period: "daytime", weightKg: "70.00", fasting: true }]);
+  const initial = await submitAiMeasurementOperation(db, identity, request);
+  assert.equal(initial.preview.canConfirm, false);
+  assert.deepEqual(initial.needsUserInput.map(issue => [issue.itemId, issue.field, issue.code]), [[initial.items[0].id, "deviceLabel", "source_confirmation_required"]]);
+  assert.deepEqual((await getAiMeasurementOperation(db, userId, initial.id)).needsUserInput, initial.needsUserInput);
+  await rejects(confirm(identity, initial.id), "no_changes");
+  let reviewed = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "update", revision: 1, changes: [{ itemId: initial.items[0].id, input: { ...request.items[0], deviceLabel: null, sourceUnspecifiedConfirmed: true } as ReviewInput }] });
+  assert.equal(reviewed.preview.canConfirm, true); assert.deepEqual(reviewed.needsUserInput, []);
+  assert.deepEqual(reviewed.items[0].originalInput, request.items[0]);
+  assert.equal((await submitAiMeasurementOperation(db, identity, request)).id, initial.id);
+  await rejects(submitAiMeasurementOperation(db, identity, { ...request, items: [reviewed.items[0].input] }), "request_conflict");
+  reviewed = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: reviewed.revision });
+  assert.equal(reviewed.counts.saved, 1);
+  const record = (await listMeasurements(db, userId))[0]; assert.equal(record.deviceLabel, null); assert.equal(record.entryChannel, "api");
+  assert.deepEqual(await listMeasurementSources(db, userId), []);
+  const [event] = await db.select().from(schema.measurementEvent).where(eq(schema.measurementEvent.measurementId, record.id));
+  assert.equal(event.snapshot.sourceUnspecifiedConfirmed, true);
+  const audit = event.snapshot.ai as { confirmedBy: string; review: { reviewedInput: { sourceUnspecifiedConfirmed: boolean }; originalInput: ReviewInput } };
+  assert.equal(audit.confirmedBy, userId); assert.equal(audit.review.reviewedInput.sourceUnspecifiedConfirmed, true); assert.deepEqual(audit.review.originalInput, request.items[0]);
+});
+
+test("兼容单日缺来源和批量有效行，来源留空确认类型与矛盾受校验", async () => {
+  assert.equal(safeAiError(new MeasurementSourceError()).error.code, "source_confirmation_required");
+  assert.match(safeAiError(new MeasurementSourceError()).error.message, /填写数据来源/);
+  const { userId, identity } = await owner();
+  const legacy = await submitAiMeasurementOperation(db, identity, input({ daytime: { weightKg: "70", fasting: true } }));
+  assert.equal(legacy.needsUserInput[0].field, "deviceLabel"); assert.equal(legacy.items[0].preview.canConfirm, false);
+  const mixed = await submitAiMeasurementOperation(db, identity, batch([realItem("2024-05-01", { deviceLabel: null }), realItem("2024-05-02"), realItem("2024-05-03", { sourceUnspecifiedConfirmed: true })]));
+  assert.equal(mixed.counts.issues, 2); assert.equal(mixed.needsUserInput.length, 2);
+  const saved = await reviewAiMeasurementOperation(db, userId, mixed.id, { kind: "confirm", revision: 1, itemIds: [mixed.items[1].id] });
+  assert.equal(saved.counts.saved, 1); assert.equal(saved.needsUserInput.length, 2);
+  for (const value of [null, "true", 1]) await rejects(submitAiMeasurementOperation(db, identity, batch([realItem("2024-05-04", { deviceLabel: null, sourceUnspecifiedConfirmed: value })])), "invalid_input");
+});
+
+test("AI 查询移除来源后同步建议，删除建议不使预览过期；确认旧来源不会恢复建议", async () => {
+  const { userId, identity, actor } = await owner();
+  await saveMeasurementDay(db, actor, { date: "2024-05-01", timezone: "+08:00", operationId: randomUUID(), periods: { evening: { weightKg: "70", deviceLabel: "虚构删除建议" } } });
+  const before = (await listMeasurements(db, userId))[0];
+  const preview = await submitAiMeasurementOperation(db, identity, batch([{ kind: "save_record", date: before.recordDate, period: "evening", recordId: before.id, version: before.updatedAt.toISOString(), bodyFatPercent: "20" }]));
+  await removeMeasurementSource(db, actor, "虚构删除建议");
+  assert.deepEqual((await queryAiMeasurements(db, userId, new URLSearchParams())).sources, []);
+  await reviewAiMeasurementOperation(db, userId, preview.id, { kind: "confirm", revision: preview.revision });
+  assert.equal((await listMeasurements(db, userId))[0].deviceLabel, "虚构删除建议");
+  assert.deepEqual(await listMeasurementSources(db, userId), []);
+});
 
 test("查询提供本次系统时区与当地日期，客户端时区优先且无效值拒绝", async () => {
   const { userId } = await owner();
@@ -306,9 +355,9 @@ test("仅体脂、缺项补充、完全重复、冲突与带版本历史／来�
   assert.equal((await listMeasurements(db, userId))[0].weightKg, null);
 });
 
-test("输入不接受用户伪造、确认绕过、数字类型和无效／未知空腹，新来源必填", async () => {
+test("输入不接受用户伪造、确认绕过、数字类型和无效／未知空腹", async () => {
   const { identity } = await owner();
-  for (const request of [{ ...input(), confirmed: true }, { ...input(), userId: "other" }, { ...input(), date: "昨日" }, input({ daytime: { weightKg: 70, fasting: true, deviceLabel: "秤" } }), input({ daytime: { weightKg: "70", deviceLabel: "秤" } }), input({ daytime: { weightKg: "70", fasting: false, deviceLabel: "秤" } }), input({ daytime: { weightKg: "70", fasting: true } }), input({ evening: { weightKg: "0", deviceLabel: "秤" } }), input({ evening: { bodyFatPercent: "101", deviceLabel: "秤" } }), input({ daytime: null }), input({ daytime: { recordId: "missing", weightKg: "70" } })]) await assert.rejects(submitAiMeasurementOperation(db, identity, request));
+  for (const request of [{ ...input(), confirmed: true }, { ...input(), userId: "other" }, { ...input(), date: "昨日" }, input({ daytime: { weightKg: 70, fasting: true, deviceLabel: "秤" } }), input({ daytime: { weightKg: "70", deviceLabel: "秤" } }), input({ daytime: { weightKg: "70", fasting: false, deviceLabel: "秤" } }), input({ evening: { weightKg: "0", deviceLabel: "秤" } }), input({ evening: { bodyFatPercent: "101", deviceLabel: "秤" } }), input({ daytime: null }), input({ daytime: { recordId: "missing", weightKg: "70" } })]) await assert.rejects(submitAiMeasurementOperation(db, identity, request));
   assert.deepEqual(await listMeasurements(db, identity.userId), []);
   assert.equal(parseAiMeasurementInput(input({ evening: { weightKg: "70", deviceLabel: " 秤 " } })).kind, "save_day");
 });

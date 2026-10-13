@@ -57,7 +57,7 @@ pnpm dev
 
 ## 本机离线开发
 
-没有 Neon 时可在一个终端运行 `pnpm db:local`，保持服务运行，并使用 `postgresql://postgres:postgres@127.0.0.1:5432/postgres` 作为本机 DATABASE_URL，再执行 migration 和账号创建命令。这个 PGlite 开发数据库持久化在被 Git 忽略的 `data/postgres/storage/`，只监听本机。
+没有 Neon 时可在一个终端运行 `pnpm db:local`，保持服务运行，并使用 `postgresql://postgres:postgres@127.0.0.1:5432/postgres?max=1` 作为本机 DATABASE_URL，再执行 migration 和账号创建命令。max=1 限制其单会话协议并发，Neon 默认连接池仍为 3。这个 PGlite 开发数据库持久化在被 Git 忽略的 `data/postgres/storage/`，只监听本机。
 
 本机数据库和 Neon 互相独立。切换连接串不会自动迁移账号；需要在目标数据库执行 migration 并创建内部账号。不要把开发数据库服务暴露为正式网络数据库。
 

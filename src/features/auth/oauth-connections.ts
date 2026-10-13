@@ -7,8 +7,10 @@ import { ApiError } from "./ai-identity";
 
 export const READ_SCOPE = "measurements:read";
 export const WRITE_SCOPE = "measurements:write";
+export const MEALS_READ_SCOPE = "meals:read";
+export const MEALS_WRITE_SCOPE = "meals:write";
 export const CONNECTION_CLAIM = "https://formward.app/oauth_connection";
-export const OAUTH_SCOPES = ["openid", "profile", "email", "offline_access", READ_SCOPE, WRITE_SCOPE];
+export const OAUTH_SCOPES = ["openid", "profile", "email", "offline_access", READ_SCOPE, WRITE_SCOPE, MEALS_READ_SCOPE, MEALS_WRITE_SCOPE];
 
 // 此函数在经过 OAuth Provider 校验的授权上下文中调用，不接受 AI 提交的账号标识。
 export async function oauthConnectionReference(db: Database, userId: string, clientId: string) {
@@ -22,7 +24,7 @@ export async function oauthConnectionReference(db: Database, userId: string, cli
   });
 }
 
-export async function requireOauthConnection(tx: Pick<Database, "select">, userId: string, id: string, write: boolean | null = false) {
+export async function requireOauthConnection(tx: Pick<Database, "select">, userId: string, id: string, write: boolean | null = false, domain: "measurements" | "meals" = "measurements") {
   const [row] = await tx.select().from(oauthConnection).where(and(eq(oauthConnection.id, id), eq(oauthConnection.userId, userId)));
   if (!row || !row.authorizedAt || row.revokedAt || row.expiresAt.getTime() <= Date.now()) throw new ApiError(401, "invalid_token", "账号连接无效、已过期或已撤销，请重新授权。");
   const [client] = await tx.select().from(oauthClient).where(eq(oauthClient.clientId, row.clientId));
@@ -30,7 +32,7 @@ export async function requireOauthConnection(tx: Pick<Database, "select">, userI
   const [consent] = await tx.select().from(oauthConsent).where(and(eq(oauthConsent.userId, userId), eq(oauthConsent.clientId, row.clientId), eq(oauthConsent.referenceId, row.id)));
   if (!consent) throw new ApiError(401, "invalid_token", "账号授权已撤销，请重新连接。");
   const scopes = row.scopes.filter(scope => consent.scopes.includes(scope));
-  if (write !== null && !scopes.includes(write ? WRITE_SCOPE : READ_SCOPE)) throw new ApiError(403, "read_only", "当前授权不包含这项操作，请重新授权。");
+  if (write !== null && !scopes.includes(domain === "meals" ? (write ? MEALS_WRITE_SCOPE : MEALS_READ_SCOPE) : (write ? WRITE_SCOPE : READ_SCOPE))) throw new ApiError(403, "read_only", "当前授权不包含这项操作，请重新授权。");
   return { ...row, scopes };
 }
 

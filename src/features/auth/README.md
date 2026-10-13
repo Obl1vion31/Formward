@@ -28,3 +28,5 @@
 `oauth-connections.ts` 保存稳定连接、权限、期限与撤销；撤销立即阻止 MCP、续期和旧审核。`ai-identity.ts` 统一手动令牌与 OAuth 身份，measurements 不另写授权逻辑。`oauth-pages.ts` 验证签名 query，`oauth-form.tsx` 展示登录／继续／同意／拒绝，不信任客户端账号标识。`ai-access.tsx` 同时提供 MCP 地址、连接管理及原手动令牌。设置页按顺序读取列表以兼容 PGlite socket。
 
 `oauth.test.ts` 使用实际 OAuth HTTP 和两代 SDK 客户端覆盖发现、签名请求、PKCE、刷新轮换、幂等、网页确认、只读、跨账号、到期、伪造签名和撤销。`tests/oauth.browser.mjs` 验证手机登录授权及完整预览确认／撤销流程，均使用虚构数据库。
+
+饮食OAuth使用meals:read／meals:write，与身体权限独立；原连接需重新授权。owner-lock.ts为新增业务共用账号行锁。requireActiveAiToken及requireOauthConnection按业务域复核授权，旧身体调用保留默认域。AI设置同时列出身体与饮食审核，手动令牌仍为统一read／write。

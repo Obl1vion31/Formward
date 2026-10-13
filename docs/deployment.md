@@ -1,6 +1,6 @@
 # 公网 HTTPS 部署
 
-Formward 使用 Vercel 托管 Next.js，继续连接现有 Neon PostgreSQL。正式域名为 [https://formward-ten.vercel.app](https://formward-ten.vercel.app)，公开协议位于 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json)，AI API 基础地址为 `https://formward-ten.vercel.app/api/v1`，MCP 为 `https://formward-ten.vercel.app/api/mcp`。MCP／OAuth 与手机调整已发布；当前部署为 `dpl_AGcvAbavcwhgWppttCEGS6EMmayA`，0011 migration 已执行。
+Formward 使用 Vercel 托管 Next.js，继续连接现有 Neon PostgreSQL。正式域名为 [https://formward-ten.vercel.app](https://formward-ten.vercel.app)，公开协议位于 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json)，AI API 基础地址为 `https://formward-ten.vercel.app/api/v1`，MCP 为 `https://formward-ten.vercel.app/api/mcp`。来源确认／建议管理、MCP／OAuth 与手机调整已发布；当前部署为 `dpl_4NK3G9GXn4kfcPWNKjC8saaZ6Msa`，0012 migration 已执行。
 
 网页通过内部账号登录，MCP 通过 OAuth Bearer，HTTP API 通过独立手动令牌鉴权。公开协议不含健康数据或令牌。AI 提交只生成预览，保存仍由用户在网页登录确认；完整格式见 [AI 接入](ai-api.md)。
 
@@ -66,3 +66,9 @@ OAuth discovery 与 JWKS 200、resource／issuer／端点使用正式 HTTPS、�
 部署完成后，用户在 ChatGPT「插件 → 添加自定义 MCP」填写 `/api/mcp` 正式完整 URL 和 OAuth，登录 Formward 并明确授权；其他兼容客户端使用同一入口。连接可在“AI 接入”撤销。HTTP API、OpenAPI 和手动令牌继续使用。具体步骤见 [AI 接入](ai-api.md)。普通聊天仅获得网站链接不会建立账号连接。
 
 0011 已共享，不再修改。迁移前后私有备份为 data/exports/database-before-mcp-oauth-2026-10-12.json 与 database-after-mcp-oauth-2026-10-12.json，核对报告为 mcp-oauth-migration-verification-2026-10-12.json；旧 12 张表的全部旧字段和值保持，measurement_operations 仅增加 nullable 连接字段并放宽 token_id，账本新增一次。公网上线报告在 /tmp/formward-public-mcp-http.json、/tmp/formward-public-mcp-browser.json，不包含真实健康记录或凭据。
+
+来源建议管理使用 0012 migration 新增删除时间与操作者，执行前后私有一致性备份和核对确认 21 张既有业务表旧字段和值保持。当前 OpenAPI 1.3.0 提供 sourceUnspecifiedConfirmed 与 needsUserInput，来源补填／直接留空保存、点击来源输入框展开全部建议、桌面／320px 手机的“×”移除与草稿保留已在隔离 production 浏览器通过。正式网站需要用户刷新后核对真实 ChatGPT 的来源询问；现有来源由用户选择移除建议或编辑记录。
+
+当前发布 dpl_4NK3G9GXn4kfcPWNKjC8saaZ6Msa 已 Ready 并绑定正式域名；公网协议、来源字段、OAuth resource discovery、MCP 未授权 challenge、登录保护与私有备份路径 404 通过，当前部署 Runtime Logs error 查询为 0 条。核对报告仅保存在 /tmp，不公开健康数据或凭据。
+
+饮食页面与MCP／HTTP的当前发布为dpl_4NK3G9GXn4kfcPWNKjC8saaZ6Msa，正式入口[饮食记录](https://formward-ten.vercel.app/dashboard/meals)。0013已迁移，原21表字段和值核对一致；初始化预览及备份保持私有。已有MCP连接需刷新工具并重新授权饮食权限。

@@ -234,7 +234,7 @@ export function resolveReportedMeasurement(prior: (typeof measurement.$inferSele
   return { kind: "insert" as const, row: null };
 }
 
-export async function insertReportedMeasurement(tx: MeasurementTransaction, actor: MeasurementActor, record: ReturnType<typeof validateReportedMeasurement>, importId: string, provenance: { entryChannel: EntryChannel; deviceLabel?: string | null }) {
+export async function insertReportedMeasurement(tx: MeasurementTransaction, actor: MeasurementActor, record: ReturnType<typeof validateReportedMeasurement>, importId: string, provenance: { entryChannel: EntryChannel; deviceLabel?: string | null; sourceUnspecifiedConfirmed?: boolean }) {
   const prior = await tx.select().from(measurement).where(and(eq(measurement.userId, actor.userId), eq(measurement.recordKind, "observed"), eq(measurement.recordDate, record.recordDate), eq(measurement.period, record.period)));
   const resolution = resolveReportedMeasurement(prior, record);
   if (resolution.kind === "duplicate") return null;
@@ -249,10 +249,11 @@ export async function insertReportedMeasurement(tx: MeasurementTransaction, acto
     if (after.deviceLabel) await rememberMeasurementSource(tx, actor.userId, after.deviceLabel);
     return { ...after, writeKind: "updated" as const };
   }
-  const [row] = await tx.insert(measurement).values({ id: randomUUID(), userId: actor.userId, ...record, ...provenance, recordKind: "observed", sourceType: "manual", sourceSystem: null, importId, createdBy: actor.actorId }).returning();
+  const { sourceUnspecifiedConfirmed, ...recordProvenance } = provenance;
+  const [row] = await tx.insert(measurement).values({ id: randomUUID(), userId: actor.userId, ...record, ...recordProvenance, recordKind: "observed", sourceType: "manual", sourceSystem: null, importId, createdBy: actor.actorId }).returning();
   await supersedeEstimates(tx, actor, row.recordDate, row.period);
-  await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: row.id, action: "create", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { ai: actor.aiContext, after: row, reason: "user_reported_measurement" } });
-  if (row.deviceLabel) await rememberMeasurementSource(tx, actor.userId, row.deviceLabel);
+  await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: row.id, action: "create", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { ai: actor.aiContext, after: row, ...(sourceUnspecifiedConfirmed !== undefined ? { sourceUnspecifiedConfirmed } : {}), reason: "user_reported_measurement" } });
+  if (row.deviceLabel) await rememberMeasurementSource(tx, actor.userId, row.deviceLabel, true);
   return { ...row, writeKind: "inserted" as const };
 }
 

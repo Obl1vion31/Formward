@@ -32,10 +32,10 @@ export async function revokeAiToken(db: Database, userId: string, id: string) {
     if (!row && !(await tx.select({ id: aiToken.id }).from(aiToken).where(and(eq(aiToken.userId, userId), eq(aiToken.id, id)))).length) throw new ApiError(404, "not_found", "令牌不存在。");
   });
 }
-export async function requireActiveAiToken(tx: MeasurementTransaction, identity: AiIdentity, write = false) {
+export async function requireActiveAiToken(tx: MeasurementTransaction, identity: AiIdentity, write = false, domain: "measurements" | "meals" = "measurements") {
   if (identity.oauthConnectionId) {
     if (write && identity.permission !== "write") throw new ApiError(403, "read_only", "只读授权不能提交操作。");
-    return requireOauthConnection(tx, identity.userId, identity.oauthConnectionId, write);
+    return requireOauthConnection(tx, identity.userId, identity.oauthConnectionId, write, domain);
   }
   if (!identity.tokenId) throw new ApiError(401, "invalid_token", "令牌无效。");
   const [row] = await tx.select().from(aiToken).where(and(eq(aiToken.id, identity.tokenId), eq(aiToken.userId, identity.userId)));

@@ -8,7 +8,7 @@ import { listMeasurements } from "@/features/measurements/records";
 import { MeasurementsView } from "@/features/measurements/measurements-view";
 import { DashboardHeader } from "./header";
 import { listMeasurementDates, measurementDisplay } from "@/features/measurements/editing";
-import { estimateCellAction, saveDayAction } from "./actions";
+import { estimateCellAction, removeSourceAction, saveDayAction } from "./actions";
 import { listMeasurementSources } from "@/features/measurements/sources";
 
 export const metadata: Metadata = { title: "Formward · 身体记录" };
@@ -29,7 +29,7 @@ async function DashboardContent({ user }: { user: NonNullable<Awaited<ReturnType
   return (
     <main className="dashboard-page">
       <DashboardHeader email={user.email} />
-      <MeasurementsView records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ save: saveDayAction, estimate: estimateCellAction }} />
+      <MeasurementsView records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ save: saveDayAction, estimate: estimateCellAction, removeSource: removeSourceAction }} />
     </main>
   );
 }

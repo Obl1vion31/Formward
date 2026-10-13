@@ -15,3 +15,9 @@
 `0009_supreme_imperial_guard.sql` 在 measurement_operations 增加默认 1 的 revision，状态约束支持 partially_confirmed 与 completed，供一个链接逐行／整批编辑确认。草稿与行结果沿用 preview JSON，原 payload 与请求摘要保持。既有操作增加 revision 默认值，其他列及健康表保持；迁移前备份，迁移后核对。
 
 `0011_mcp_oauth.sql` 创建官方 OAuth 客户端／资源／授权／摘要令牌／JWKS 与 Formward oauth_connections，共新增 9 张表；measurement_operations 增加 oauth_connection_id，token_id 可空并用 CHECK 保证两者恰有一个非空。旧操作保留原 token_id，健康表与值不变；执行前私有备份，执行后核对，已共享后不再修改。
+
+`0012_measurement_source_preferences.sql` 在 measurement_sources 增加 nullable deleted_at／deleted_by 及操作者外键，保留原字段与建议名称。列表只读有效建议，删除采用本账号幂等软删除；明确再次使用并成功保存后恢复，旧记录保留来源不会恢复。测量主表、健康数据、账号和既有审核请求不变。已在共享环境执行，不再修改；后续变化新增 migration。
+
+`0013_meals.sql`新增饮食六表、数值约束、账号组合外键及请求／来源去重索引。生成后将新表的唯一索引置于组合外键之前，确保首次安装可执行；meta保持对应schema。已有身体、认证表不作结构或数据修改，总计27表。
+
+0013已在共享环境执行，后续结构变更创建新migration，保留本文件与快照。迁移前后私有备份核对确认原21表字段和值一致，新增六表；初始化预览通过独立维护入口创建。

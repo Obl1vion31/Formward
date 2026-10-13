@@ -108,7 +108,7 @@ await new Promise<void>((resolve) => probe.close(() => resolve()));
 const baseURL = `http://127.0.0.1:${port}`;
 const child = spawn(process.execPath, [join(projectRoot, "node_modules/next/dist/bin/next"), development ? "dev" : "start", ...(development ? ["--webpack"] : []), "--hostname", "127.0.0.1", "--port", String(port)], {
   cwd: serverDirectory,
-  env: { ...process.env, NODE_ENV: development ? "development" : "production", DATABASE_URL: `postgresql://postgres:postgres@${socket.getServerConn()}/postgres`, BETTER_AUTH_SECRET: "fictional-http-secret-at-least-32-characters", BETTER_AUTH_URL: baseURL },
+  env: { ...process.env, NODE_ENV: development ? "development" : "production", DATABASE_URL: `postgresql://postgres:postgres@${socket.getServerConn()}/postgres?max=1`, BETTER_AUTH_SECRET: "fictional-http-secret-at-least-32-characters", BETTER_AUTH_URL: baseURL },
   stdio: ["ignore", "pipe", "pipe"],
 });
 let logs = "";

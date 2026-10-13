@@ -18,9 +18,11 @@ export type MeasurementDisplay = DailyMeasurement & {
   timePrecision: string; updatedAt: string;
 };
 export type EntryResult = { ok: true; records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; message: string } | { ok: false; error: string };
+export type SourceRemovalResult = { ok: true; sources: string[] } | { ok: false; error: string };
 export type MeasurementActions = {
   save: (input: SaveMeasurementDayInput) => Promise<EntryResult>;
   estimate: (input: EstimateCellInput) => Promise<EntryResult>;
+  removeSource: (label: string) => Promise<SourceRemovalResult>;
 };
 
 export function localMeasurementDate(now = new Date(), timezone?: string) {

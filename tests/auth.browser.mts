@@ -30,7 +30,7 @@ const baseURL = `http://127.0.0.1:${port}`;
 const child = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)], {
   env: {
     ...process.env,
-    DATABASE_URL: `postgresql://postgres:postgres@${socket.getServerConn()}/postgres`,
+    DATABASE_URL: `postgresql://postgres:postgres@${socket.getServerConn()}/postgres?max=1`,
     BETTER_AUTH_SECRET: "fictional-browser-secret-at-least-32-characters",
     BETTER_AUTH_URL: baseURL,
   },

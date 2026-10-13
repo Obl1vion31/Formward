@@ -46,7 +46,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
     setLastRecords(records);
     if (!hasDraft && !busy) { const timezone = systemMeasurementTimezone(); setDefaultTimezone(timezone); setBaseRecords(records); setDraft(makeDraft(records, date, choices, timezone)); }
   }
-  function setField(period: EntryPeriod, field: keyof Draft[EntryPeriod], value: string) {
+  function setField<Field extends keyof Draft[EntryPeriod]>(period: EntryPeriod, field: Field, value: Draft[EntryPeriod][Field]) {
     setDraft(previous => ({ ...previous, [period]: { ...previous[period], [field]: value } })); setMessage(""); setError("");
   }
   function operationId(payload: unknown) {
@@ -76,10 +76,12 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       if (group.pending || group.blocked) continue;
       const change: PeriodEdit = {};
       for (const field of ["weightKg", "bodyFatPercent"] as const) if (draft[group.period][field] !== baseline[group.period][field]) change[field] = draft[group.period][field].trim() || null;
-      if (group.observed && draft[group.period].deviceLabel !== baseline[group.period].deviceLabel) change.deviceLabel = draft[group.period].deviceLabel.trim();
+      if (group.observed && draft[group.period].deviceLabel !== baseline[group.period].deviceLabel) change.deviceLabel = draft[group.period].deviceLabel.trim() || null;
       if (group.observed && draft[group.period].timezone !== baseline[group.period].timezone) change.timezone = draft[group.period].timezone || null;
       if (!Object.keys(change).length) continue;
-      change.deviceLabel = draft[group.period].deviceLabel.trim();
+      if (!group.observed) change.deviceLabel = draft[group.period].deviceLabel.trim() || null;
+      // 用户保存空来源即确认留空；省略已有来源仍保留原值。
+      if (change.deviceLabel === null) change.sourceUnspecifiedConfirmed = true;
       change.fasting = group.period === "daytime";
       const original = measurementEntryState(baseRecords, date, choices).find(item => item.period === group.period)!.observed;
       if (original) { change.recordId = original.id; change.version = original.updatedAt; }
@@ -116,7 +118,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
               {editable && cell.kind === "estimated" && <small className={styles.entryReference}>原估计 {cell.value} · 请填写真实读数</small>}
             </div>;
           })}
-          <SourceInput label={`${periodName(group.period)}数据来源`} value={draft[group.period].deviceLabel} sources={sources} onChange={value => setField(group.period, "deviceLabel", value)} />
+          <SourceInput label={`${periodName(group.period)}数据来源`} value={draft[group.period].deviceLabel} sources={sources} onChange={value => setField(group.period, "deviceLabel", value)} removeSource={actions.removeSource} disabled={busy || group.blocked} />
           <div className={styles.entryTimezone}>
             <label htmlFor={`entry-${group.period}-timezone`}>时区</label>
             <select id={`entry-${group.period}-timezone`} aria-label={`${periodName(group.period)}时区`} value={draft[group.period].timezone} onChange={event => setField(group.period, "timezone", event.target.value)}>

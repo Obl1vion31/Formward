@@ -41,6 +41,10 @@ test("旧 schema 升级保留时间、冻结依据、指纹与审计，合并设
     const days = (await pg.query<Record<string, unknown>>("SELECT * FROM measurement_days")).rows;
     await pg.exec(await readFile("drizzle/0006_living_tarantula.sql", "utf8"));
     await pg.exec(await readFile("drizzle/0007_strong_omega_sentinel.sql", "utf8"));
+    const oldSources = (await pg.query<Record<string, unknown>>("SELECT * FROM measurement_sources ORDER BY user_id,label")).rows;
+    await pg.exec(await readFile("drizzle/0012_measurement_source_preferences.sql", "utf8"));
+    const migratedSources = (await pg.query<Record<string, unknown>>("SELECT * FROM measurement_sources ORDER BY user_id,label")).rows;
+    assert.deepEqual(migratedSources, oldSources.map(row => ({ ...row, deleted_at: null, deleted_by: null })));
     const columns = (await pg.query<{ column_name: string }>("SELECT column_name FROM information_schema.columns WHERE table_name='measurements'")).rows.map(row => row.column_name);
     assert.equal(columns.length, 30);
     for (const field of ["bmi", "device_name", "companion_app", "local_date", "analysis_date"]) assert.ok(!columns.includes(field));

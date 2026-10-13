@@ -79,11 +79,11 @@ FORMWARD_MEASUREMENTS_DEV=1 PLAYWRIGHT_MODULE=/tmp/formward-browser-check/node_m
 
 ## 维护约定
 
-`page-loading.browser.mjs` 随身体浏览器入口使用独立账号运行，拦截并延迟实际 Server Action、页面和认证请求，覆盖 200ms 延迟、重复提交、保存／估算／审核／令牌／登录／导航、失败保留输入、编辑弹窗上方的原生模态层、共享滚动锁、320px 和减少动态效果。快速失败检查不会闪现遮罩。`FORMWARD_LOADING_ONLY=1` 只运行 HTTP 与加载验收；开发模式继续使用临时源码和独立端口，不占用 3000，生产模式在构建后运行。截图可用 FORMWARD_MEASUREMENTS_ARTIFACTS 指定私有临时目录。
+`page-loading.browser.mjs` 随身体浏览器入口使用独立账号运行，拦截并延迟实际 Server Action、页面和认证请求，覆盖 200ms 延迟、重复提交、保存／估算／审核／令牌／登录／导航、失败保留输入、编辑弹窗上方的原生模态层、共享滚动锁、320px 和减少动态效果。慢请求通过真实网络失败验证输入保留与模态层恢复；来源留空本身允许保存。快速失败检查不会闪现遮罩。`FORMWARD_LOADING_ONLY=1` 只运行 HTTP 与加载验收；开发模式继续使用临时源码和独立端口，不占用 3000，生产模式在构建后运行。截图可用 FORMWARD_MEASUREMENTS_ARTIFACTS 指定私有临时目录。
 
 开发验收先编译所需入口，并在多页面草稿检查前重新建立当前编译版本的连接。Next.js 16.3.7 的开发 WebSocket 在重新同步时若编译 hash 不同会主动整页重载，不能把冷编译触发的重载当作业务状态更新。生产验收不预热或重新载入审核页，完整验证从站内 Link 进入、修改与保存的流程。
 
-不同改动应检查哪些场景、各检查命令能确认什么，见 [代码阅读指南](../docs/code-study.md)。浏览器环境准备和完整验收范围以本文为准，源码中的注释供需要查看测试实现时参考。
+功能对应的源码与检查命令概览见 [架构与代码索引](../docs/code-study.md)。浏览器环境准备和完整验收范围以本文为准，源码中的注释供需要查看测试实现时参考。
 
 测试使用虚构或脱敏数据。只有出现真实测试内容时才创建更细的测试目录。
 
@@ -100,3 +100,9 @@ MCP／OAuth 验收：`src/features/auth/oauth.test.ts` 使用实际 HTTP Provide
 `tests/oauth.browser.mjs` 随 `pnpm test:browser` 运行，使用虚构客户端及现有独立 fixture，手机登录 → 同意 → SDK MCP 提交 → 网页确认 → 状态查询 → 设置页撤销 → 401。回调网址在浏览器拦截，不实际发送到外部虚构主机；截图仅包含虚构账号。真实 ChatGPT／iPhone／微信验收仍由用户完成。
 
 首页完整像素回归使用软件 ANGLE（--use-angle=swiftshader）。当前临时 Chromium 的默认视频纹理上传在无 GPU 环境会给黑底边缘添加绿色像素，已用原始 video／Canvas 与软件后端对照定位；测试仍严格校验 Alpha、人物实体与交叠误差，不修改产品合成或素材。
+
+来源管理回归覆盖身体录入与 AI 审核的共同输入：来源标签与输入框、已有文字／不匹配草稿时点击展开全部历史、清空与文字筛选、新实测及来源清空直接保存为 null、旧 AI 留空请求重新填写来源、320px 删除按钮完整可见、鼠标／触屏／方向键选择及“×”移除、失败保留建议与草稿、来源补填或直接留空保存，无额外复选框或历史入口。sources.test.ts 覆盖幂等软删除、账号隔离、旧记录编辑不恢复、明确再次使用恢复与留空审计；AI／OAuth 测试验证 needsUserInput、来源确认字段、请求内容绑定与网页确认。migration.test.ts 验证 0012 新列为空且原建议与健康快照保持。
+
+隔离 HTTP 与认证浏览器 fixture 的连接串固定 max=1：PGlite 的多连接 multiplexer 无法可靠保持并发未命名 statement，可能产生 bind 参数数量错误。单连接仅约束模拟数据库，保留真实页面预取、导航和并发审核请求；生产 Neon 默认连接池仍为 3。
+
+饮食单元／PGlite集成在src/features/meals/meals.test.ts，覆盖单位换算、食物加杂、整餐互斥、未知与零、初始化重试、版本与快照、授权撤销、跨账号、删除恢复。oauth.test.ts用真实MCP验证饮食独立权限。pnpm test:meals-browser使用独立PGlite和端口、虚构账号与餐次，覆盖HTTP、审核、食材复用、编辑删除恢复、缺日期和320px；截图在/tmp/formward-meals-visual。先执行production build，浏览器工具按本文件已有环境配置提供。

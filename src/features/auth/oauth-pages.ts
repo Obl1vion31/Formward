@@ -3,9 +3,9 @@ import { verifyOAuthQueryParams } from "@better-auth/oauth-provider";
 import type { Database } from "../../db/client";
 import { oauthClient } from "../../db/schema";
 import type { createAuth } from "./auth";
-import { OAUTH_SCOPES, READ_SCOPE, WRITE_SCOPE } from "./oauth-connections";
+import { OAUTH_SCOPES, READ_SCOPE, WRITE_SCOPE, MEALS_READ_SCOPE, MEALS_WRITE_SCOPE } from "./oauth-connections";
 
-export const oauthScopeLabels: Record<string, string> = { openid: "识别你的账号", profile: "读取账号显示名称", email: "读取账号邮箱", offline_access: "自动续期这次连接", [READ_SCOPE]: "查询身体记录和审核状态", [WRITE_SCOPE]: "提交录入、修改或估算预览（保存仍需网页确认）" };
+export const oauthScopeLabels: Record<string, string> = { openid: "识别你的账号", profile: "读取账号显示名称", email: "读取账号邮箱", offline_access: "自动续期这次连接", [READ_SCOPE]: "查询身体记录和审核状态", [WRITE_SCOPE]: "提交身体记录预览（保存仍需网页确认）", [MEALS_READ_SCOPE]: "查询饮食、食材和审核状态", [MEALS_WRITE_SCOPE]: "提交饮食与食材预览（保存仍需网页确认）" };
 
 export async function oauthPageRequest(db: Database, auth: ReturnType<typeof createAuth>, query: string) {
   if (query.length > 16384 || !await verifyOAuthQueryParams(query, (await auth.$context).secret)) return null;

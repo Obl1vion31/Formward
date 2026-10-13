@@ -9,7 +9,7 @@ import { insertEstimate, supersedeEstimates } from "./estimate-records";
 import { getInitializationBatch, isFrozenDate } from "./initialization";
 import { entryMetrics, entryPeriods, localMeasurementDate, type EntryPeriod, type MeasurementDisplay } from "./entry-state";
 
-import { rememberMeasurementSource, validateDeviceLabel } from "./sources";
+import { rememberMeasurementSource, resolveMeasurementSource } from "./sources";
 import { resolveMeasurementTime } from "./time";
 import { timezoneLabel, validateMeasurementTimezone } from "./timezone";
 
@@ -19,6 +19,7 @@ export type PeriodEdit = {
   weightKg?: string | null;
   bodyFatPercent?: string | null;
   deviceLabel?: string | null;
+  sourceUnspecifiedConfirmed?: boolean;
   fasting?: boolean | null;
   timezone?: string | null;
 };
@@ -93,12 +94,12 @@ export async function prepareMeasurementDay(tx: MeasurementTransaction, actor: M
       : null;
     // 晨间表单只接收空腹实测，也不能把旧的非空腹／未知记录静默改为空腹。
     if (period === "daytime" && (valid.fasting !== true || (before && before.fasting !== true))) throw new Error("晨间只记录空腹测量；原记录非空腹或条件未确认时保持只读。");
-    const deviceLabel = validateDeviceLabel(Object.hasOwn(edit, "deviceLabel") ? edit.deviceLabel : before?.deviceLabel);
+    const deviceLabel = resolveMeasurementSource(edit, before);
     if (!before) {
       const prior = await tx.select().from(measurement).where(and(eq(measurement.userId, actor.userId), eq(measurement.recordDate, input.date), eq(measurement.period, period), eq(measurement.recordKind, "observed"), isNull(measurement.deletedAt)));
       if (prior.length) throw new Error("该时段已有实测，请刷新并选择要编辑的记录。");
     }
-    plans.push({ period, before, valid, deviceLabel, time });
+    plans.push({ period, before, valid, deviceLabel, time, sourceUnspecifiedConfirmed: edit.sourceUnspecifiedConfirmed === true });
   }
   return plans;
 }
@@ -112,15 +113,15 @@ export async function saveMeasurementDay(db: Database, actor: MeasurementActor, 
     const batch = await startOperation(tx, actor, input.operationId, ["save", input.date, input.timezone, input.periods]);
     if (batch.repeated) return { repeated: true, saved: 0 };
     let saved = 0;
-    for (const { period, before, valid, deviceLabel, time } of await prepareMeasurementDay(tx, actor, input)) {
+    for (const { period, before, valid, deviceLabel, time, sourceUnspecifiedConfirmed } of await prepareMeasurementDay(tx, actor, input)) {
       if (before) {
         const [after] = await tx.update(measurement).set({ weightKg: valid.weightKg, bodyFatPercent: valid.bodyFatPercent, deviceLabel, fasting: valid.fasting, fastingSource: valid.fastingSource, ...(time ?? {}), updatedAt: new Date(Math.max(Date.now(), before.updatedAt.getTime() + 1)) }).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, before.id))).returning();
-        await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: after.id, action: "update", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { ai: actor.aiContext, before, after, reason: actor.actorType === "ai" ? "ai_measurement_edit" : "manual_measurement_edit", importId: batch.id } });
+        await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: after.id, action: "update", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { ai: actor.aiContext, before, after, sourceUnspecifiedConfirmed, reason: actor.actorType === "ai" ? "ai_measurement_edit" : "manual_measurement_edit", importId: batch.id } });
         if (before.weightKg !== valid.weightKg || before.bodyFatPercent !== valid.bodyFatPercent) await supersedeEstimates(tx, actor, input.date, period);
       } else {
-        await insertReportedMeasurement(tx, actor, valid, batch.id, { entryChannel: actor.actorType === "ai" ? "api" : "manual", deviceLabel });
+        await insertReportedMeasurement(tx, actor, valid, batch.id, { entryChannel: actor.actorType === "ai" ? "api" : "manual", deviceLabel, sourceUnspecifiedConfirmed });
       }
-      await rememberMeasurementSource(tx, actor.userId, deviceLabel);
+      if (deviceLabel) await rememberMeasurementSource(tx, actor.userId, deviceLabel, !before || before.deviceLabel !== deviceLabel);
       saved++;
     }
     await ensureDate(tx, actor, input.date);

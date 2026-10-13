@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, check, date, index, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, check, date, foreignKey, index, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 // 登录前按来源和入口计数，不属于用户健康数据；所有服务实例共用。
 export const rateLimit = pgTable("rate_limits", {
@@ -130,6 +130,8 @@ export const measurementSource = pgTable("measurement_sources", {
   label: text("label").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  deletedBy: text("deleted_by").references(() => user.id),
 }, table => [
   uniqueIndex("measurement_sources_user_label_idx").on(table.userId, table.label),
   index("measurement_sources_user_last_used_idx").on(table.userId, table.lastUsedAt),
@@ -338,3 +340,35 @@ export const measurementOperation = pgTable("measurement_operations", {
   index("measurement_operations_user_created_idx").on(table.userId, table.createdAt),
   check("measurement_operations_status_valid", sql`${table.status} IN ('pending', 'partially_confirmed', 'confirmed', 'completed', 'cancelled')`),
 ]);
+
+const nutritionColumns = () => ({ caloriesKcal: numeric("calories_kcal", { precision: 14, scale: 4 }), proteinG: numeric("protein_g", { precision: 14, scale: 4 }), carbsG: numeric("carbs_g", { precision: 14, scale: 4 }), fatG: numeric("fat_g", { precision: 14, scale: 4 }) });
+export const food = pgTable("foods", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),
+  name: text("name").notNull(), brand: text("brand"), preparation: text("preparation"), identityKey: text("identity_key").notNull(),
+  baseQuantity: numeric("base_quantity", { precision: 14, scale: 4 }).notNull(), unit: text("unit").notNull(), ...nutritionColumns(),
+  sourceKind: text("source_kind").notNull(), basis: text("basis"), evidenceUrl: text("evidence_url"),
+  version: integer("version").notNull().default(1), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(), deletedAt: timestamp("deleted_at", { withTimezone: true }),
+}, t => [uniqueIndex("foods_owner_identity_idx").on(t.userId, t.identityKey), uniqueIndex("foods_owner_id_idx").on(t.userId, t.id), check("foods_quantity_valid", sql`${t.baseQuantity}>0`), check("foods_nutrition_valid", sql`(${t.caloriesKcal} IS NULL OR ${t.caloriesKcal}>=0) AND (${t.proteinG} IS NULL OR ${t.proteinG}>=0) AND (${t.carbsG} IS NULL OR ${t.carbsG}>=0) AND (${t.fatG} IS NULL OR ${t.fatG}>=0)`), check("foods_source_valid", sql`${t.sourceKind} IN ('label','composition_table','estimated','unknown')`)]);
+export const mealImport = pgTable("meal_imports", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), fileDigest: text("file_digest").notNull(), sourceLabel: text("source_label").notNull(),
+  originalRows: jsonb("original_rows").$type<Record<string, string>[]>().notNull(), decisions: jsonb("decisions").$type<Record<string, unknown>>().notNull(),
+  createdBy: text("created_by").notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+}, t => [uniqueIndex("meal_imports_owner_digest_idx").on(t.userId, t.fileDigest), uniqueIndex("meal_imports_owner_id_idx").on(t.userId, t.id)]);
+export const meal = pgTable("meals", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), localDate: date("local_date").notNull(), mealType: text("meal_type").notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }), timezone: text("timezone"), notes: text("notes"), source: text("source").notNull(), sourceSystem: text("source_system"), sourceRecordId: text("source_record_id"), syncStatus: text("sync_status").notNull().default("local"),
+  importId: text("import_id"), sourceRow: integer("source_row"), version: integer("version").notNull().default(1), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(), deletedAt: timestamp("deleted_at", { withTimezone: true }),
+}, t => [uniqueIndex("meals_owner_id_idx").on(t.userId, t.id), uniqueIndex("meals_owner_source_idx").on(t.userId, t.sourceSystem, t.sourceRecordId), index("meals_owner_date_idx").on(t.userId, t.localDate), foreignKey({ columns: [t.userId, t.importId], foreignColumns: [mealImport.userId, mealImport.id] }), check("meals_source_valid", sql`${t.source} IN ('manual','ai','initialization')`), check("meals_time_valid", sql`${t.occurredAt} IS NULL OR ${t.timezone} IS NOT NULL`)]);
+export const mealItem = pgTable("meal_items", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), mealId: text("meal_id").notNull(), position: integer("position").notNull(), kind: text("kind").notNull(), name: text("name").notNull(),
+  quantity: numeric("quantity", { precision: 14, scale: 4 }), unit: text("unit"), foodId: text("food_id"), foodSnapshot: jsonb("food_snapshot").$type<import("../features/meals/model").FoodView>(), ...nutritionColumns(),
+  sourceKind: text("source_kind").notNull(), basis: text("basis"), evidenceUrl: text("evidence_url"), deletedAt: timestamp("deleted_at", { withTimezone: true }),
+}, t => [foreignKey({ columns: [t.userId, t.mealId], foreignColumns: [meal.userId, meal.id] }), foreignKey({ columns: [t.userId, t.foodId], foreignColumns: [food.userId, food.id] }), index("meal_items_owner_meal_idx").on(t.userId, t.mealId), check("meal_items_quantity_valid", sql`${t.quantity} IS NULL OR ${t.quantity}>0`), check("meal_items_kind_valid", sql`${t.kind} IN ('food','misc','whole')`), check("meal_items_nutrition_valid", sql`(${t.caloriesKcal} IS NULL OR ${t.caloriesKcal}>=0) AND (${t.proteinG} IS NULL OR ${t.proteinG}>=0) AND (${t.carbsG} IS NULL OR ${t.carbsG}>=0) AND (${t.fatG} IS NULL OR ${t.fatG}>=0)`)]);
+export const mealOperation = pgTable("meal_operations", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), operationId: text("operation_id").notNull(), origin: text("origin").notNull(), tokenId: text("token_id").references(() => aiToken.id), oauthConnectionId: text("oauth_connection_id").references(() => oauthConnection.id), importId: text("import_id"),
+  requestDigest: text("request_digest").notNull(), snapshotDigest: text("snapshot_digest").notNull(), payload: jsonb("payload").$type<import("../features/meals/model").MealInput>().notNull(), draft: jsonb("draft").$type<import("../features/meals/model").MealInput>().notNull(), preview: jsonb("preview").$type<import("../features/meals/model").PreviewRow[]>().notNull(),
+  revision: integer("revision").notNull().default(1), status: text("status").notNull().default("pending"), result: jsonb("result").$type<{ saved: number; message: string }>(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), expiresAt: timestamp("expires_at", { withTimezone: true }), confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+}, t => [uniqueIndex("meal_operations_owner_request_idx").on(t.userId, t.operationId), index("meal_operations_owner_created_idx").on(t.userId, t.createdAt), foreignKey({ columns: [t.userId, t.importId], foreignColumns: [mealImport.userId, mealImport.id] }), check("meal_operations_credential_valid", sql`(${t.origin}='ai' AND num_nonnulls(${t.tokenId},${t.oauthConnectionId})=1 AND ${t.importId} IS NULL) OR (${t.origin}='manual' AND num_nonnulls(${t.tokenId},${t.oauthConnectionId},${t.importId})=0) OR (${t.origin}='initialization' AND num_nonnulls(${t.tokenId},${t.oauthConnectionId})=0 AND ${t.importId} IS NOT NULL)`), check("meal_operations_status_valid", sql`${t.status} IN ('pending','confirmed','cancelled')`)]);
+export const mealEvent = pgTable("meal_events", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), recordId: text("record_id").notNull(), recordType: text("record_type").notNull(), operationId: text("operation_id").notNull().references(() => mealOperation.id), actorType: text("actor_type").notNull(), actorId: text("actor_id").notNull(), confirmedBy: text("confirmed_by").notNull(), snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [index("meal_events_owner_record_idx").on(t.userId, t.recordId)]);

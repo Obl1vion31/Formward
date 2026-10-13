@@ -298,13 +298,15 @@
   .recordEntry strong { font-size: 16px; }
 }
 
-.sourceInput { position: relative; margin-top: 8px; color: var(--body-ink); }
-.sourceInput > label { display: flex; justify-content: space-between; gap: 8px; color: var(--body-muted); font-size: 12px; }
-.sourceInput label small { font-size: 11px; }
+.sourceInput { --body-ink: #f0e9dd; --body-muted: #a8a195; --body-rule: rgba(240, 233, 221, .12); position: relative; min-width: 0; margin-top: 8px; color: var(--body-ink); }
+.sourceInput > label { display: block; color: var(--body-muted); font-size: 12px; }
 .entryForm .sourceInput input { border-bottom: 1px solid var(--body-rule); font-size: 13px; }
-.sourceInput ul { position: absolute; z-index: 2; width: 100%; max-height: 176px; overflow-y: auto; margin: 0; padding: 0; list-style: none; background: #20201c; border: 1px solid var(--body-rule); box-shadow: 0 8px 24px rgba(0, 0, 0, .25); }
-.sourceInput li { min-height: 44px; align-content: center; padding: 8px 12px; font-size: 13px; overflow-wrap: anywhere; cursor: pointer; }
-.sourceInput li:hover, .sourceInput li[aria-selected="true"] { background: rgba(190, 164, 120, .12); }
+.sourceOptions { position: absolute; z-index: 3; width: 100%; max-height: 176px; overflow-y: auto; margin: 0; padding: 0; background: #20201c; border: 1px solid var(--body-rule); box-shadow: 0 8px 24px rgba(0, 0, 0, .25); }
+.sourceOptions > div { display: grid; grid-template-columns: minmax(0, 1fr) 44px; }
+.sourceOption { min-height: 44px; align-content: center; padding: 8px 12px; font-size: 13px; overflow-wrap: anywhere; cursor: pointer; }
+.sourceOptions [role="gridcell"]:hover, .sourceOptions [aria-selected="true"] { background: rgba(190, 164, 120, .12); }
+.sourceOptions button { appearance: none; width: 44px; min-height: 44px; padding: 0; background: none; border: 0; color: var(--body-ink); font: inherit; font-size: 22px; cursor: pointer; }
+.sourceEmpty { grid-column: 1 / -1; padding: 12px; color: var(--body-muted); font-size: 12px; line-height: 1.6; }
 .dayOverview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; flex-shrink: 0; padding: 16px 28px 18px; border-bottom: 1px solid var(--body-rule); }
 .dayOverview h3 { font-weight: 400; font-size: 13px; margin: 0 0 10px; }
 .overviewReading { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin-top: 9px; align-items: baseline; }

@@ -3,7 +3,7 @@ import { ApiError, authenticateAi, type AiIdentity } from "../auth/ai-tokens";
 import { siteOrigin } from "../auth/site-url";
 import { listMeasurements } from "./records";
 import { listMeasurementDates, measurementDisplay } from "./editing";
-import { listMeasurementSources } from "./sources";
+import { listMeasurementSources, MeasurementSourceError } from "./sources";
 import { buildMeasurementDays } from "./days";
 import { measurementSummary } from "./summary";
 import { calendarOrdinal, measurementTrend, metricDifference } from "./trend";
@@ -18,6 +18,7 @@ export function aiRequestTimezone(request: Request, configuredTimezone = process
 }
 
 export function safeAiError(error: unknown) {
+  if (error instanceof MeasurementSourceError) return { status: 400, error: { code: error.code, message: error.message } };
   if (error instanceof ApiError) return { status: error.status, error: { code: error.code, message: error.message } };
   if (error instanceof Error && !["query", "code", "cause"].some(key => key in error)) return { status: 400, error: { code: "invalid_input", message: error.message } };
   return { status: 500, error: { code: "unavailable", message: "操作未完成，请稍后重试。" } };
@@ -67,5 +68,5 @@ export async function queryAiMeasurements(db: Database, userId: string, params: 
     days: buildMeasurementDays(records, choices, metric, dates.filter(row => visible(row.date)).map(row => row.date)).map(day => ({ date: day.date, needsSelection: day.needsSelection, daytime: day.daytimeRecord, evening: day.eveningRecord, candidates: { daytime: day.daytime, evening: day.evening }, difference: metricDifference(day.daytimeRecord, day.eveningRecord, metric) })),
   }]));
   return { context: { timezone, timezoneLabel: timezoneLabel(timezone), localDate: localMeasurementDate(new Date(), timezone) }, units: { weightKg: "kg", bodyFatPercent: "%", bodyFatDifference: "percentage_points" }, range: { from, to }, records: records.map(row => ({ ...row, estimateExplanation: row.estimation ? { weightKg: estimateUserExplanation(row.estimation, row.recordDate, "weightKg"), bodyFatPercent: estimateUserExplanation(row.estimation, row.recordDate, "bodyFatPercent") } : null })), dates: dates.filter(row => visible(row.date)), sources, analyses,
-    rules: "晨间只接受明确空腹实测；摘要仅统计实测。多候选须明确选择，choices 仅影响本次查询。未知值为 null。" };
+    rules: "晨间只接受明确空腹实测；摘要仅统计实测。多候选须明确选择，choices 仅影响本次查询。未知值为 null。测量来源须由用户提供；未提供先询问补填或明确留空，不能用 ChatGPT／手动提供／设备未注明等代填。sources 只供用户选择，不擅自沿用；明确留空使用 deviceLabel:null 和 sourceUnspecifiedConfirmed:true。" };
 }

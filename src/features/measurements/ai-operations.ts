@@ -9,12 +9,14 @@ import { lockMeasurementOwner, validateDecimal, type MeasurementTransaction } fr
 import { calendarOrdinal } from "./trend";
 import { entryMetrics, entryPeriods } from "./entry-state";
 import { systemMeasurementTimezone, timezoneLabel, validateMeasurementTimezone } from "./timezone";
+import { MeasurementSourceError } from "./sources";
 
 type SingleInput = ({ kind: "save_day" } & SaveMeasurementDayInput) | ({ kind: "estimate_cell" } & EstimateCellInput);
 export type ReviewInput = ({ kind: "save_record"; date: string; period: "daytime" | "evening" } & PeriodEdit) | { kind: "estimate_cell"; date: string; period: "daytime" | "evening"; metric: "weightKg" | "bodyFatPercent" };
 export type AiMeasurementInput = SingleInput | { kind: "batch"; operationId: string; items: ReviewInput[] };
 type PreviewRow = { period: "daytime" | "evening"; state: "new" | "edit" | "supplement" | "duplicate" | "conflict" | "estimate" | "invalid"; before: Record<string, unknown> | null; after: Record<string, unknown> | null; message: string; replacedEstimates?: Record<string, unknown>[] };
-export type OperationPreview = { date: string; kind: AiMeasurementInput["kind"]; canConfirm: boolean; rows: PreviewRow[]; message: string; defaultTimezone?: string; resolved?: SaveMeasurementDayInput; explanation?: ReturnType<typeof estimateUserExplanation>; items?: ReviewItem[] };
+type InputIssue = { field: string; code: string; message: string; period?: "daytime" | "evening" };
+export type OperationPreview = { date: string; kind: AiMeasurementInput["kind"]; canConfirm: boolean; rows: PreviewRow[]; message: string; needsUserInput?: InputIssue[]; defaultTimezone?: string; resolved?: SaveMeasurementDayInput; explanation?: ReturnType<typeof estimateUserExplanation>; items?: ReviewItem[] };
 export type ReviewItem = { id: string; input: ReviewInput; originalInput: ReviewInput; status: "pending" | "confirmed" | "cancelled" | "skipped"; preview: OperationPreview; editedBy?: { userId: string; at: string }; result?: { saved: number; message: string; confirmedAt: string } };
 export type ReviewAction = { revision: number } & (
   { kind: "update"; changes: { itemId: string; input: ReviewInput }[] } |
@@ -22,6 +24,7 @@ export type ReviewAction = { revision: number } & (
 );
 const hash = (data: unknown) => createHash("sha256").update(JSON.stringify(data)).digest("hex");
 const fields = ["weightKg", "bodyFatPercent", "deviceLabel", "fasting", "timezone"] as const;
+const inputFields = [...fields, "sourceUnspecifiedConfirmed"] as const;
 function object(value: unknown, allowed: string[]): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some(key => !allowed.includes(key))) throw new ApiError(400, "invalid_input", "请求包含无效或不支持的字段。");
   return value as Record<string, unknown>;
@@ -49,14 +52,14 @@ export function parseAiMeasurementInput(value: unknown): AiMeasurementInput {
   const parsed: SaveMeasurementDayInput["periods"] = {};
   for (const period of entryPeriods) {
     if (!Object.hasOwn(periods, period)) continue;
-    const edit = object(periods[period], ["recordId", "version", ...fields]);
+    const edit = object(periods[period], ["recordId", "version", ...inputFields]);
     if (!fields.some(field => Object.hasOwn(edit, field))) throw new ApiError(400, "invalid_input", "请选择要保存的字段。");
     if ((edit.recordId === undefined) !== (edit.version === undefined) || (edit.recordId !== undefined && (typeof edit.recordId !== "string" || typeof edit.version !== "string"))) throw new ApiError(400, "invalid_input", "历史编辑须同时提供 recordId 和 version。");
     const canonical: PeriodEdit = {};
-    for (const field of ["recordId", "version", ...fields] as const) {
+    for (const field of ["recordId", "version", ...inputFields] as const) {
       if (!Object.hasOwn(edit, field)) continue;
       const item = edit[field];
-      if (field === "fasting" ? item !== null && typeof item !== "boolean" : item !== null && typeof item !== "string") throw new ApiError(400, "invalid_input", `${field} 类型无效；数值使用十进制字符串。`);
+      if (field === "sourceUnspecifiedConfirmed" ? typeof item !== "boolean" : field === "fasting" ? item !== null && typeof item !== "boolean" : item !== null && typeof item !== "string") throw new ApiError(400, "invalid_input", `${field} 类型无效；数值使用十进制字符串。`);
       Object.assign(canonical, { [field]: entryMetrics.includes(field as never) && item !== null ? validateDecimal(item as string, field === "weightKg" ? "体重" : "体脂率", 0, field === "weightKg" ? 99999.99 : 100, field !== "weightKg") : field === "deviceLabel" && typeof item === "string" ? item.trim() : item });
     }
     parsed[period] = canonical;
@@ -76,7 +79,7 @@ async function previewOperation(tx: MeasurementTransaction, userId: string, inpu
       rows: [{ period: input.period, state: "estimate", before: null, after: plan.prediction ? { [input.metric]: plan.prediction[input.metric], recordKind: "estimated" } : null, message: plan.prediction ? "只保存这一项，其他空项保持空白。" : plan.message }],
       ...(plan.prediction ? { explanation: estimateUserExplanation(plan.prediction.estimation, input.date, input.metric) } : {}) };
   }
-  const resolved: SaveMeasurementDayInput = { ...input, periods: {} }, rows: PreviewRow[] = [];
+  const resolved: SaveMeasurementDayInput = { ...input, periods: {} }, rows: PreviewRow[] = [], needsUserInput: InputIssue[] = [];
   for (const period of entryPeriods) {
     const requested = input.periods[period];
     if (!requested) continue;
@@ -91,7 +94,13 @@ async function previewOperation(tx: MeasurementTransaction, userId: string, inpu
       edit = { ...requested, recordId: target.id, version: target.updatedAt.toISOString() };
       state = matching ? "duplicate" : "supplement";
     }
-    const [plan] = await prepareMeasurementDay(tx, actor, { ...resolved, periods: { [period]: edit } });
+    const plan = await prepareMeasurementDay(tx, actor, { ...resolved, periods: { [period]: edit } }).then(plans => plans[0]).catch(error => {
+      if (!(error instanceof MeasurementSourceError)) throw error;
+      needsUserInput.push({ field: error.field, code: error.code, message: error.message, period });
+      rows.push({ period, state: "invalid", before: active.length === 1 ? measurementDisplay(active[0]) : null, after: requested, message: error.message });
+      return null;
+    });
+    if (!plan) continue;
     if (!plan.before && samePeriod.some(row => row.deletedAt && row.deduplicationKey === plan.valid.deduplicationKey)) {
       rows.push({ period, state: "duplicate", before: null, after: null, message: "相同记录曾被删除，本接口不会恢复它。" }); continue;
     }
@@ -100,12 +109,13 @@ async function previewOperation(tx: MeasurementTransaction, userId: string, inpu
     rows.push({ period, state, before: plan.before ? measurementDisplay(plan.before) : null, after: { weightKg: plan.valid.weightKg, bodyFatPercent: plan.valid.bodyFatPercent, fasting: plan.valid.fasting, deviceLabel: plan.deviceLabel, timezone: plan.valid.timezone, timezoneLabel: timezoneLabel(plan.valid.timezone, input.date, plan.time ? plan.time.utcOffsetMinutes : plan.before?.utcOffsetMinutes) }, replacedEstimates, message: state === "duplicate" ? "已记录相同内容，将跳过。" : state === "supplement" ? "补充缺失字段，保留已有值。" : state === "edit" ? "修改明确指定的历史记录。" : "新增实测，其他未知项保持空白。" });
     if (state !== "duplicate") resolved.periods[period] = edit;
   }
-  const conflict = rows.some(row => row.state === "conflict"), hasChanges = Object.keys(resolved.periods).length > 0;
-  return { date: input.date, kind: input.kind, rows, resolved, canConfirm: !conflict && hasChanges, message: conflict ? "存在冲突，整次操作不会保存。请澄清后重新提交。" : hasChanges ? "请核对日期、时段、数值与来源，确认后保存。" : "内容已记录，无需重复保存。" };
+  const conflict = rows.some(row => row.state === "conflict" || row.state === "invalid"), hasChanges = Object.keys(resolved.periods).length > 0;
+  return { date: input.date, kind: input.kind, rows, resolved, ...(needsUserInput.length ? { needsUserInput } : {}), canConfirm: !conflict && hasChanges, message: needsUserInput.length ? needsUserInput[0].message : conflict ? "存在冲突，整次操作不会保存。请澄清后重新提交。" : hasChanges ? "请核对日期、时段、数值与来源，确认后保存。" : "内容已记录，无需重复保存。" };
 }
 export function operationDisplay(row: typeof measurementOperation.$inferSelect) {
   const items = operationItems(row), counts = reviewCounts(items), status = !counts.pending && row.status === "pending" ? reviewStatus(items) : row.status;
   return { id: row.id, operationId: row.operationId, revision: row.revision, items, counts, status: counts.pending && ["pending", "partially_confirmed"].includes(status) && row.expiresAt.getTime() <= Date.now() ? "expired" : status,
+    needsUserInput: items.filter(item => item.status === "pending" && !item.preview.canConfirm).flatMap(item => (item.preview.needsUserInput ?? [{ field: "record", code: "review_required", message: item.preview.message }]).map(issue => ({ itemId: item.id, date: item.input.date, period: item.input.period, ...issue }))),
     preview: row.preview, result: row.result, createdAt: row.createdAt.toISOString(), expiresAt: row.expiresAt.toISOString(), confirmedAt: row.confirmedAt?.toISOString() ?? null,
     confirmationPath: `/dashboard/ai/operations/${row.id}` };
 }
@@ -174,7 +184,7 @@ export async function decideAiMeasurementOperation(db: Database, userId: string,
 
 /** 批量请求只拒绝不受支持的形状；业务错误保留在对应行供用户纠正。 */
 function parseReviewInput(raw: unknown): ReviewInput {
-  const item = object(raw, ["kind", "date", "period", "metric", "recordId", "version", ...fields]);
+  const item = object(raw, ["kind", "date", "period", "metric", "recordId", "version", ...inputFields]);
   if (typeof item.date !== "string" || item.date.length > 120 || !entryPeriods.includes(item.period as never)) throw new ApiError(400, "invalid_input", "每条记录须有日期和晨晚时段。");
   if (item.kind === "estimate_cell") {
     object(item, ["kind", "date", "period", "metric"]);
@@ -182,13 +192,13 @@ function parseReviewInput(raw: unknown): ReviewInput {
     return { kind: "estimate_cell", date: item.date, period: item.period as ReviewInput["period"], metric: item.metric as "weightKg" | "bodyFatPercent" };
   }
   if (item.kind !== "save_record") throw new ApiError(400, "invalid_input", "批量项须为 save_record 或 estimate_cell。");
-  object(item, ["kind", "date", "period", "recordId", "version", ...fields]);
+  object(item, ["kind", "date", "period", "recordId", "version", ...inputFields]);
   if ((item.recordId === undefined) !== (item.version === undefined) || (item.recordId !== undefined && (typeof item.recordId !== "string" || typeof item.version !== "string"))) throw new ApiError(400, "invalid_input", "历史编辑须同时提供 recordId 和 version。");
   const result: ReviewInput = { kind: "save_record", date: item.date, period: item.period as ReviewInput["period"] };
-  for (const key of ["recordId", "version", ...fields] as const) {
+  for (const key of ["recordId", "version", ...inputFields] as const) {
     if (!Object.hasOwn(item, key)) continue;
     let value = item[key];
-    if (key === "fasting" ? value !== null && typeof value !== "boolean" : value !== null && typeof value !== "string") throw new ApiError(400, "invalid_input", `${key} 类型无效。`);
+    if (key === "sourceUnspecifiedConfirmed" ? typeof value !== "boolean" : key === "fasting" ? value !== null && typeof value !== "boolean" : value !== null && typeof value !== "string") throw new ApiError(400, "invalid_input", `${key} 类型无效。`);
     if (typeof value === "string" && value.length > (key === "deviceLabel" ? 300 : 120)) throw new ApiError(400, "invalid_input", "字段内容过长。");
     if (entryMetrics.includes(key as never) && typeof value === "string") {
       try { value = validateDecimal(value, key === "weightKg" ? "体重" : "体脂率", 0, key === "weightKg" ? 99999.99 : 100, key !== "weightKg"); } catch { /* 保留错误数值供预览编辑。 */ }
@@ -225,7 +235,7 @@ function operationItems(row: typeof measurementOperation.$inferSelect): ReviewIt
       ? { ...originalInput, timezone: (single.after?.timezone ?? preview.resolved?.timezone ?? null) as string | null } : originalInput;
     const skipped = single?.state === "duplicate" || (input.kind === "estimate_cell" && !single?.after);
     return { id: String(index), input, originalInput, status: skipped ? "skipped" : row.status === "confirmed" ? "confirmed" : row.status === "cancelled" ? "cancelled" : "pending",
-      preview: { ...preview, rows: single ? [single] : [], ...(preview.resolved ? { resolved: { ...preview.resolved, periods: preview.resolved.periods[input.period] ? { [input.period]: preview.resolved.periods[input.period] } : {} } } : {}), canConfirm: !!single && !["duplicate", "conflict", "invalid"].includes(single.state) && !!single.after },
+      preview: { ...preview, rows: single ? [single] : [], ...(preview.needsUserInput ? { needsUserInput: preview.needsUserInput.filter(issue => !issue.period || issue.period === input.period) } : {}), ...(preview.resolved ? { resolved: { ...preview.resolved, periods: preview.resolved.periods[input.period] ? { [input.period]: preview.resolved.periods[input.period] } : {} } } : {}), canConfirm: !!single && !["duplicate", "conflict", "invalid"].includes(single.state) && !!single.after },
       ...(row.status === "confirmed" && !skipped ? { result: { saved: 1, message: row.result?.message ?? "已保存。", confirmedAt: row.confirmedAt!.toISOString() } } : {}) };
   });
 }

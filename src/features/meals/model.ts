@@ -1,0 +1,75 @@
+import { z } from "zod";
+
+export const metrics = ["caloriesKcal", "proteinG", "carbsG", "fatG"] as const;
+export type Metric = typeof metrics[number];
+export const metricLabels: Record<Metric, string> = { caloriesKcal: "热量", proteinG: "蛋白质", carbsG: "碳水", fatG: "脂肪" };
+export const sourceLabels = { label: "营养标签", composition_table: "成分表", estimated: "预估", unknown: "未知", initialization: "初始化" };
+export const decimal = z.string().regex(/^\d{1,7}(?:\.\d{1,4})?$/).refine(v => Number(v) <= 1000000, "数值超出范围");
+export const nutritionSchema = z.object({ caloriesKcal: decimal.nullable(), proteinG: decimal.nullable(), carbsG: decimal.nullable(), fatG: decimal.nullable() }).strict();
+export type Nutrition = z.infer<typeof nutritionSchema>;
+export const emptyNutrition = (): Nutrition => ({ caloriesKcal: null, proteinG: null, carbsG: null, fatG: null });
+const text = (max: number) => z.string().trim().max(max).refine(v => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(v), "文字包含无效字符");
+const source = z.enum(["label", "composition_table", "estimated", "unknown"]);
+const evidence = z.string().max(2000).url().refine(v => /^https?:\/\//.test(v), "来源链接须为 HTTP 或 HTTPS").nullable().optional();
+export const foodDraftSchema = z.object({
+  id: z.string().uuid().optional(), version: z.number().int().positive().optional(),
+  name: text(200).min(1), brand: text(200).nullable().optional(), preparation: text(200).nullable().optional(),
+  baseQuantity: decimal.refine(v => Number(v) > 0, "基准数量须大于0"), unit: text(30).min(1),
+  nutrition: nutritionSchema, sourceKind: source, basis: text(4000).nullable().optional(), evidenceUrl: evidence,
+}).strict();
+export type FoodDraft = z.infer<typeof foodDraftSchema>;
+export const itemSchema = z.object({
+  kind: z.enum(["food", "misc", "whole"]), name: text(200).min(1),
+  quantity: decimal.refine(v => Number(v) > 0, "食用量须大于0").nullable().optional(), unit: text(30).nullable().optional(),
+  foodId: z.string().uuid().optional(), foodVersion: z.number().int().positive().optional(), foodDraft: foodDraftSchema.optional(),
+  nutrition: nutritionSchema.optional(), sourceKind: source.default("estimated"), basis: text(4000).nullable().optional(), evidenceUrl: evidence,
+}).strict();
+export type ItemDraft = z.infer<typeof itemSchema>;
+export const mealDraftSchema = z.object({
+  id: z.string().uuid().optional(), version: z.number().int().positive().optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), mealType: text(50).min(1),
+  timezone: text(100).nullable().optional(), occurredAt: z.string().datetime({ offset: true }).nullable().optional(),
+  notes: text(12000).nullable().optional(), items: z.array(itemSchema).min(1).max(50), allowDuplicate: z.boolean().optional(),
+}).strict();
+export type MealDraft = z.infer<typeof mealDraftSchema>;
+export const actionSchema = z.discriminatedUnion("kind", [
+  mealDraftSchema.extend({ kind: z.literal("save_meal") }), foodDraftSchema.extend({ kind: z.literal("save_food") }),
+  ...(["delete_meal", "restore_meal", "delete_food", "restore_food"] as const).map(kind => z.object({ kind: z.literal(kind), id: z.string().uuid(), version: z.number().int().positive() }).strict()),
+]);
+export type MealAction = z.infer<typeof actionSchema>;
+export const operationSchema = z.object({ operationId: z.string().regex(/^[a-zA-Z0-9-]{8,120}$/), actions: z.array(actionSchema).min(1).max(100) }).strict();
+export type MealInput = z.infer<typeof operationSchema>;
+export type FoodView = FoodDraft & { id: string; version: number; deletedAt: string | null };
+export type ItemView = ItemDraft & { nutrition: Nutrition; foodSnapshot?: FoodView; sourceKind: ItemDraft["sourceKind"] };
+export type Totals = { values: Nutrition; incomplete: Record<Metric, boolean> };
+export type MealView = Omit<MealDraft, "items"> & { id: string; version: number; items: ItemView[]; totals: Totals; source: "manual" | "ai" | "initialization"; deletedAt: string | null };
+export type MealSnapshot = { meals: MealView[]; foods: FoodView[] };
+export type PreviewRow = { action: MealAction; food?: FoodView; meal?: MealView; error?: string; duplicateIds: string[]; warnings: string[] };
+export type MealOperationView = { id: string; revision: number; status: string; origin: string; rows: PreviewRow[]; canConfirm: boolean; createdAt: string; expiresAt: string | null; confirmationPath: string; result: { saved: number; message: string } | null };
+export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
+
+// 用整数保留四位小数，数量换算仅在最终落库时舍入。
+export function scaled(value: string, quantity: string, base: string) {
+  const integer = (v: string) => BigInt(v.split(".")[0]) * BigInt(10000) + BigInt((v.split(".")[1] ?? "").padEnd(4, "0"));
+  const numerator = integer(value) * integer(quantity), divisor = integer(base);
+  const units = (numerator + divisor / BigInt(2)) / divisor;
+  return `${units / BigInt(10000)}.${String(units % BigInt(10000)).padStart(4, "0")}`;
+}
+export function nutritionFor(food: FoodDraft, quantity: string): Nutrition {
+  return Object.fromEntries(metrics.map(metric => [metric, food.nutrition[metric] === null ? null : scaled(food.nutrition[metric]!, quantity, food.baseQuantity)])) as Nutrition;
+}
+export function sumNutrition(rows: Nutrition[]): Totals {
+  const values = emptyNutrition(), incomplete = {} as Record<Metric, boolean>;
+  for (const metric of metrics) {
+    const known = rows.flatMap(row => row[metric] === null ? [] : [Math.round(Number(row[metric]) * 10000)]);
+    values[metric] = known.length ? (known.reduce((a, b) => a + b, 0) / 10000).toFixed(4) : null;
+    incomplete[metric] = rows.length > 0 && known.length !== rows.length;
+  }
+  return { values, incomplete };
+}
+export function dailyTotals(meals: MealView[]) {
+  const groups = new Map<string, MealView[]>();
+  for (const meal of meals.filter(m => !m.deletedAt)) groups.set(meal.date, [...(groups.get(meal.date) ?? []), meal]);
+  return [...groups].sort(([a], [b]) => b.localeCompare(a)).map(([date, rows]) => ({ date, meals: rows, totals: sumNutrition(rows.flatMap(m => m.items.map(i => i.nutrition))) }));
+}
+export function formatNutrition(value: string | null, metric: Metric) { return value === null ? "—" : Number(value).toLocaleString("zh-CN", { maximumFractionDigits: metric === "caloriesKcal" ? 0 : 1 }); }

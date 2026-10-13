@@ -121,8 +121,8 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     assert.equal(saveGate.count, 1, "慢请求也不会重复提交");
     assert.equal(await page.locator("dialog[open]").count(), 2, "加载层叠在原编辑弹窗上");
     assert.deepEqual(await page.evaluate(() => ({ padding: document.body.style.paddingRight, left: document.querySelector(".dashboard-header").getBoundingClientRect().left })), before, "嵌套滚动锁不重复补偿");
-    await saveGate.release(); await ready();
-    await form.getByRole("alert").waitFor(); assert.match(await form.getByRole("alert").innerText(), /数据来源/);
+    await saveGate.release("abort"); await ready();
+    await form.getByRole("alert").waitFor(); assert.match(await form.getByRole("alert").innerText(), /网络连接未完成/);
     assert.equal(await form.getByLabel("晚间体重", { exact: true }).inputValue(), "70.30");
     assert.equal(await page.evaluate(() => document.body.style.overflow), "hidden", "加载结束后仍保留编辑弹窗的滚动锁");
     await form.getByLabel("晚间数据来源", { exact: true }).fill("虚构加载测试秤");
@@ -177,18 +177,18 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
       await page.reload(); await page.getByRole("heading", { name: "审核身体记录", exact: true }).waitFor(); await ready();
     }
     await row.getByRole("button", { name: "修改", exact: true }).click();
-    await row.getByLabel("测量来源").fill("虚构保留输入");
+    await row.getByLabel("测量来源", { exact: true }).fill("虚构保留输入");
     const otherPage = await context.newPage(); otherPage.on("pageerror", error => errors.push(error.message));
     try {
       await otherPage.goto(batch.confirmationUrl);
       const otherRow = otherPage.locator(`[data-item-id="${batch.items[1].id}"]`);
       await otherRow.getByRole("button", { name: "修改", exact: true }).click();
-      await otherRow.getByLabel("测量来源").fill("虚构另一页面来源");
+      await otherRow.getByLabel("测量来源", { exact: true }).fill("虚构另一页面来源");
       await otherRow.getByRole("button", { name: "更新预览", exact: true }).click();
       await otherRow.getByText("虚构另一页面来源", { exact: true }).waitFor();
       await slowAction("正在更新预览…", () => row.getByRole("button", { name: "更新预览", exact: true }).click());
       await slowAction("正在加载最新审核…", () => page.getByRole("button", { name: "加载最新审核，保留输入", exact: true }).click());
-      assert.equal(await row.getByLabel("测量来源").inputValue(), "虚构保留输入");
+      assert.equal(await row.getByLabel("测量来源", { exact: true }).inputValue(), "虚构保留输入");
       await slowAction("正在更新预览…", () => row.getByRole("button", { name: "更新预览", exact: true }).click());
     } finally { await otherPage.close(); }
     await slowAction("正在刷新预览…", () => page.getByRole("button", { name: "刷新预览", exact: true }).click());

@@ -7,14 +7,6 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
   const missing = () => form().locator('[data-entry-cell][data-kind="missing"]');
   const close = async () => { await page.getByRole("button", { name: "关闭记录详情" }).click(); await page.locator("dialog").waitFor({ state: "detached" }); };
   const save = async () => {
-    // 模拟用户主动选择建议；空输入本身不会获得来源。
-    for (const period of ["晨间", "晚间"]) {
-      const source = form().getByRole("combobox", { name: `${period}数据来源` });
-      const fields = form().getByRole("textbox", { name: new RegExp(`^${period}`) });
-      if (await source.isEnabled() && !(await source.inputValue()) && (await fields.evaluateAll(nodes => nodes.some(node => node.value)))) {
-        await source.focus(); await source.press("ArrowDown"); await source.press("Enter");
-      }
-    }
     await form().getByRole("button", { name: "保存录入", exact: true }).click(); await form().getByRole("status").waitFor(); assert.equal(await form().getByRole("alert").count(), 0); };
   const openToday = async () => {
     await page.locator(`section[aria-label="最近记录"] tr[data-date="${today}"]`).getByRole("button", { name: new RegExp(`^(录入|编辑) ${today}$`) }).click();
@@ -42,6 +34,8 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     }
     assert.equal(await form().getByRole("combobox", { name: "晨间数据来源" }).inputValue(), "");
     assert.equal(await form().getByRole("combobox", { name: "晚间数据来源" }).inputValue(), "");
+    assert.equal(await form().getByRole("checkbox").count(), 0, "来源留空不需要额外勾选");
+    assert.equal(await form().getByRole("button", { name: /数据来源历史来源/ }).count(), 0, "直接点输入框，不增加历史来源按钮");
     assert.equal(await form().getByRole("combobox", { name: "晨间时区", exact: true }).inputValue(), "+08:00");
     assert.equal(await form().getByRole("combobox", { name: "晚间时区", exact: true }).inputValue(), "+08:00");
     assert.equal(await form().getByRole("combobox", { name: "晨间时区", exact: true }).locator("option").count(), 28, "仅提供未指定及 27 个整点时区");
@@ -49,13 +43,21 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     assert.equal(await form().getByRole("button", { name: "保存录入", exact: true }).isDisabled(), true, "只改时区不能新建空测量");
     await form().getByRole("button", { name: "晨间采用系统时区", exact: true }).click();
     assert.equal(await form().getByRole("combobox", { name: "晨间时区", exact: true }).inputValue(), "+08:00");
-    assert.equal(await form().getByRole("listbox").count(), 0);
+    assert.equal(await form().getByRole("grid").count(), 0);
     await page.screenshot({ path: `${artifacts}/entry-desktop-form.png` });
     const suggestion = form().getByRole("combobox", { name: "晨间数据来源" });
     await suggestion.click();
-    assert.equal(await form().getByRole("option", { name: "虚构默认秤-应用" }).count(), 1);
+    assert.equal(await form().getByRole("gridcell", { name: "虚构默认秤-应用", exact: true }).count(), 1);
     assert.equal(await suggestion.inputValue(), "", "打开历史建议不填入值");
     await page.screenshot({ path: `${artifacts}/entry-source-suggestions-desktop.png` });
+    await suggestion.fill("虚构未保存描述");
+    await suggestion.press("Escape"); await suggestion.click();
+    assert.equal(await suggestion.inputValue(), "虚构未保存描述", "展开全部历史来源保留未匹配的草稿");
+    assert.equal(await form().getByRole("button", { name: "移除来源建议 虚构默认秤-应用", exact: true }).isVisible(), true, "已有文字不隐藏其他历史来源的 ×");
+    await suggestion.fill("虚构未匹配筛选");
+    await suggestion.click();
+    assert.equal(await form().getByRole("gridcell", { name: "虚构默认秤-应用", exact: true }).isVisible(), true, "再次点击输入框可查看全部建议");
+    await suggestion.click();
     await suggestion.press("ArrowDown"); await suggestion.press("Enter");
     assert.equal(await form().getByRole("button", { name: "保存录入", exact: true }).isDisabled(), true, "只选来源不能新建测量");
     assert.equal(await form().getByText("BMI", { exact: false }).count(), 0);
@@ -66,10 +68,11 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     assert.equal(await form().getByRole("button", { name: "估算晚间体重" }).isDisabled(), true, "先保存实测草稿，再估算");
     const morningSource = form().getByRole("combobox", { name: "晨间数据来源" });
     await morningSource.fill("");
-    await form().getByRole("button", { name: "保存录入", exact: true }).click();
-    await form().getByRole("alert").waitFor();
-    assert.match(await form().getByRole("alert").innerText(), /数据来源/);
+    await save();
+    assert.equal(await morningSource.inputValue(), "", "新实测来源留空直接保存，不自动采用历史建议");
     assert.equal(await form().getByRole("textbox", { name: "晨间体重", exact: true }).inputValue(), "70.20");
+    await close(); await page.reload(); await openToday();
+    assert.equal(await morningSource.inputValue(), "", "刷新后来源继续为空");
     await morningSource.fill("虚构晨间新来源");
     await form().getByRole("combobox", { name: "晨间时区", exact: true }).selectOption("+07:00");
     await save();
@@ -150,7 +153,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     assert.equal(await unknownSource.inputValue(), "", "未知来源不使用历史来源填充");
     assert.equal(await form().getByRole("combobox", { name: "晚间时区", exact: true }).inputValue(), "Asia/Shanghai", "旧地区时区回显原值");
     await unknownSource.click();
-    assert.ok(await form().getByRole("option").count() > 0);
+    assert.ok(await form().getByRole("grid", { name: "晚间数据来源历史建议" }).getByRole("gridcell").count() > 0);
     assert.equal(await unknownSource.inputValue(), "");
     await unknownSource.fill("虚构默认"); await unknownSource.press("ArrowDown"); await unknownSource.press("Enter");
     assert.equal(await form().getByRole("button", { name: "保存录入", exact: true }).isEnabled(), true);
@@ -162,7 +165,51 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     await close(); await page.reload();
     await unknownRow.getByRole("button", { name: `编辑 ${unknownDate}`, exact: true }).click();
     assert.equal(await unknownSource.inputValue(), "虚构默认秤-应用", "刷新后回显已保存来源");
+    await unknownSource.fill("   "); await save(); await close(); await page.reload();
+    await unknownRow.getByRole("button", { name: `查看 ${unknownDate} 晚间体重实测记录`, exact: true }).click();
+    assert.ok(!(await unknownInfo.innerText()).includes("虚构默认秤-应用"), "清空已有来源直接保存为空");
+    assert.match(await unknownInfo.innerText(), new RegExp(`${unknownDate} 20:30:00`), "清空来源保留准确测量时间");
     await close();
+    await unknownRow.getByRole("button", { name: `编辑 ${unknownDate}`, exact: true }).click();
+    assert.equal(await unknownSource.inputValue(), "");
+    assert.equal(await form().getByRole("textbox", { name: "晚间体重", exact: true }).inputValue(), "70.70");
+    await unknownSource.click();
+    await form().getByRole("gridcell", { name: "虚构默认秤-应用", exact: true }).click();
+    await save();
+    await close();
+    console.log("通过：来源输入无额外控件、新实测直接留空保存、已有来源清空及重新填写，数值与准确时间保持。");
+
+    // 移除建议只改建议列表，当前草稿、已保存来源和另一时段的输入都保留。
+    await openToday();
+    const sourceDraft = form().getByRole("combobox", { name: "晨间数据来源" });
+    await form().getByRole("textbox", { name: "晨间体脂率", exact: true }).fill("21.35");
+    await sourceDraft.fill("虚构未匹配删除草稿");
+    await sourceDraft.click();
+    await form().getByRole("button", { name: "移除来源建议 虚构晨间新来源", exact: true }).click();
+    await page.waitForFunction(() => ![...document.querySelectorAll('[aria-label^="移除来源建议"]')].some(node => node.getAttribute('aria-label') === '移除来源建议 虚构晨间新来源'));
+    assert.equal(await sourceDraft.inputValue(), "虚构未匹配删除草稿");
+    assert.equal(await form().getByRole("textbox", { name: "晨间体脂率", exact: true }).inputValue(), "21.35");
+    assert.equal(await form().getByRole("combobox", { name: "晚间数据来源" }).inputValue(), "虚构默认秤-应用");
+    await sourceDraft.fill("虚构仅改来源"); await sourceDraft.press("ArrowDown"); await sourceDraft.press("ArrowRight"); await sourceDraft.press("Enter");
+    await page.waitForFunction(() => ![...document.querySelectorAll('[aria-label^="移除来源建议"]')].some(node => node.getAttribute('aria-label') === '移除来源建议 虚构仅改来源'));
+    assert.equal(await sourceDraft.inputValue(), "虚构仅改来源", "移除当前名称的建议不清空输入");
+    await close(); await page.reload(); await openToday();
+    assert.equal(await sourceDraft.inputValue(), "虚构仅改来源", "建议删除保持历史记录上的名称快照");
+    assert.equal(await form().getByRole("textbox", { name: "晨间体脂率", exact: true }).inputValue(), "", "移除操作未提交数值草稿");
+    await sourceDraft.fill("");
+    assert.equal(await form().getByRole("button", { name: "移除来源建议 虚构晨间新来源", exact: true }).count(), 0);
+    assert.equal(await form().getByRole("button", { name: "移除来源建议 虚构仅改来源", exact: true }).count(), 0);
+    const rejectRemoval = async route => { if (route.request().method() === "POST") await route.fulfill({ status: 500, contentType: "text/plain", body: "fictional source removal failure" }); else await route.continue(); };
+    await page.route("**/dashboard", rejectRemoval);
+    try {
+      await form().getByRole("button", { name: "移除来源建议 虚构默认秤-应用", exact: true }).click();
+      await form().getByRole("alert").filter({ hasText: "移除未完成" }).waitFor();
+      await sourceDraft.click();
+      assert.equal(await form().getByRole("gridcell", { name: "虚构默认秤-应用", exact: true }).count(), 1);
+      assert.equal(await sourceDraft.inputValue(), "");
+    } finally { await page.unroute("**/dashboard", rejectRemoval); }
+    await close();
+    console.log("通过：来源建议鼠标／键盘移除、刷新持久化、名称快照与数值草稿保留、失败保留建议。");
 
     // 第二个页面修改记录，第一页面的草稿仍绑定旧版本，失败保留输入。
     await openToday();
@@ -300,8 +347,19 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
       assert.ok(overviewRect.y >= 0 && overviewRect.y + overviewRect.height < 844, "手机首屏显示完整晨晚概览");
       const source = mobileForm.getByRole("combobox", { name: "晨间数据来源" });
       await source.fill("虚构默认");
-      await mobileForm.getByRole("option", { name: "虚构默认秤-应用" }).tap();
+      await mobileForm.getByRole("gridcell", { name: "虚构默认秤-应用", exact: true }).tap();
       assert.equal(await source.inputValue(), "虚构默认秤-应用");
+      if (width === 320) {
+        await source.fill("虚构触屏未匹配草稿");
+        await source.tap();
+        await mobile.page.screenshot({ path: `${artifacts}/entry-source-history-mobile-${width}.png` });
+        const removeButton = mobileForm.getByRole("button", { name: "移除来源建议 虚构默认秤-应用", exact: true });
+        const removeRect = await removeButton.boundingBox();
+        assert.ok(removeRect.x >= 0 && removeRect.x + removeRect.width <= width, "320px 历史来源的 × 完整位于屏幕内");
+        await removeButton.tap();
+        await mobile.page.waitForFunction(() => !document.querySelector('[aria-label="移除来源建议 虚构默认秤-应用"]'));
+        assert.equal(await source.inputValue(), "虚构触屏未匹配草稿", "触屏移除保留当前输入");
+      }
       await mobile.page.screenshot({ path: `${artifacts}/entry-mobile-${width}.png` });
       await mobile.page.getByRole("button", { name: "← 返回身体记录", exact: true }).tap();
       await mobile.page.locator("dialog").waitFor({ state: "detached" });
@@ -328,6 +386,15 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
       assert.equal(await mobileForm.getByRole("combobox", { name: "晨间数据来源" }).inputValue(), "");
       assert.equal(await mobileForm.getByRole("combobox", { name: "晚间数据来源" }).inputValue(), "");
       await mobile.page.screenshot({ path: `${artifacts}/entry-blank-mobile-${width}.png` });
+      if (width === 320) {
+        await mobileForm.getByRole("textbox", { name: "晨间体脂率", exact: true }).fill("16.30");
+        await mobileForm.getByRole("button", { name: "保存录入", exact: true }).tap();
+        await mobileForm.getByRole("status").waitFor();
+        assert.equal(await mobileForm.getByRole("alert").count(), 0);
+        assert.equal(await mobileForm.getByRole("textbox", { name: "晨间体脂率", exact: true }).inputValue(), "16.30");
+        assert.equal(await mobileForm.getByRole("combobox", { name: "晨间数据来源" }).inputValue(), "");
+        console.log("通过：320px 手机直接点击来源选择／移除建议与留空保存。");
+      }
       await mobile.context.close();
     }
     await page.getByRole("button", { name: "30D", exact: true }).click();

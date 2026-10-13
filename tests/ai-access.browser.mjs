@@ -79,7 +79,7 @@ export async function checkAiAccessBrowser({ baseURL, account, other, date }) {
     assert.equal(await page.locator(".ai-review-item").count(), 4); assert.equal(await page.getByRole("button", { name: "全部确认保存" }).isDisabled(), true);
     await row(0).getByRole("button", { name: "修改", exact: true }).click();
     assert.equal(await row(0).getByLabel("时区", { exact: true }).inputValue(), "+08:00");
-    await row(0).getByLabel("体重（kg）").fill("69.80"); await row(0).getByLabel("测量来源").fill("人工核对批量秤"); await row(0).getByLabel("时区", { exact: true }).selectOption("+07:00");
+    await row(0).getByLabel("体重（kg）").fill("69.80"); await row(0).getByLabel("测量来源", { exact: true }).fill("人工核对批量秤"); await row(0).getByLabel("时区", { exact: true }).selectOption("+07:00");
     await row(0).getByLabel("日期", { exact: true }).fill(nextDate(5)); await row(0).getByLabel("时段", { exact: true }).selectOption("daytime"); await row(0).getByLabel("确认这次晨间测量为空腹").check();
     assert.equal((await read()).length, 2); assert.equal(await row(1).getByRole("button", { name: "确认保存", exact: true }).isDisabled(), true);
     await row(0).getByRole("button", { name: "更新预览", exact: true }).click(); await row(0).getByText("人工核对批量秤", { exact: true }).waitFor();
@@ -87,16 +87,16 @@ export async function checkAiAccessBrowser({ baseURL, account, other, date }) {
     await row(2).getByRole("button", { name: "取消", exact: true }).click(); await page.locator(`[data-item-id="${submitted.items[2].id}"][data-item-status="cancelled"]`).waitFor();
     await row(0).getByRole("button", { name: "确认保存", exact: true }).click(); await page.getByRole("status").filter({ hasText: "已保存 1 · 待确认 2" }).waitFor();
     assert.equal((await read()).length, 3); await page.reload(); assert.equal(await row(0).getByRole("button").count(), 0);
-    await row(1).getByRole("button", { name: "修改", exact: true }).click(); await row(1).getByLabel("测量来源").fill("保留的未提交草稿");
+    await row(1).getByRole("button", { name: "修改", exact: true }).click(); await row(1).getByLabel("测量来源", { exact: true }).fill("保留的未提交草稿");
     // 同会话另一个页面改审核内容，旧页面不能覆盖，加载最新后保留本地输入。
     const otherPage = await context.newPage();
     try {
       await otherPage.goto(submitted.confirmationUrl); const last = otherPage.locator(`[data-item-id="${submitted.items[3].id}"]`);
       await last.getByRole("button", { name: "修改", exact: true }).click(); await last.getByLabel("体脂率（%）").fill("21.00"); await last.getByRole("button", { name: "更新预览", exact: true }).click(); await last.getByText("21.00%", { exact: true }).waitFor();
       await row(1).getByRole("button", { name: "更新预览", exact: true }).click(); await page.getByRole("alert").filter({ hasText: "另一个页面" }).waitFor();
-      assert.equal(await row(1).getByLabel("测量来源").inputValue(), "保留的未提交草稿");
+      assert.equal(await row(1).getByLabel("测量来源", { exact: true }).inputValue(), "保留的未提交草稿");
       await page.getByRole("button", { name: "加载最新审核，保留输入" }).click(); await page.getByRole("button", { name: "加载最新审核，保留输入" }).waitFor({ state: "hidden" });
-      assert.equal(await row(1).getByLabel("测量来源").inputValue(), "保留的未提交草稿");
+      assert.equal(await row(1).getByLabel("测量来源", { exact: true }).inputValue(), "保留的未提交草稿");
     } finally { await otherPage.close(); }
     await page.getByRole("button", { name: "批量修改", exact: true }).click();
     for (const index of [1, 3]) await row(index).getByRole("button", { name: "采用设备时区" }).click();
@@ -109,6 +109,60 @@ export async function checkAiAccessBrowser({ baseURL, account, other, date }) {
     assert.equal(batchSaved.find(record => record.recordDate === nextDate(5)).weightKg, "69.80"); assert.equal(batchSaved.find(record => record.recordDate === nextDate(5)).timezone, "+07:00"); assert.equal(batchSaved.find(record => record.recordDate === nextDate(5)).fasting, true); assert.equal(batchSaved.find(record => record.recordDate === nextDate(5)).period, "daytime");
     assert.ok(batchSaved.filter(record => [nextDate(2), nextDate(4)].includes(record.recordDate)).every(record => record.timezone === "+08:00"));
     assert.ok(!batchSaved.some(record => record.recordDate === nextDate(3))); await page.reload(); assert.equal(await page.getByRole("button", { name: "确认保存", exact: true }).count(), 0);
+    // 审核页与身体录入共用历史建议；清空后可重新选择，移除建议保留草稿。
+    const missingSource = await post({ kind: "batch", operationId: crypto.randomUUID(), items: [{ kind: "save_record", date: nextDate(6), period: "evening", weightKg: "71.20" }] });
+    assert.equal(missingSource.needsUserInput[0].field, "deviceLabel");
+    await page.goto(missingSource.confirmationUrl);
+    const sourceRow = page.locator(`[data-item-id="${missingSource.items[0].id}"]`);
+    assert.equal(await sourceRow.getByRole("button", { name: "确认保存", exact: true }).isDisabled(), true);
+    await sourceRow.getByRole("button", { name: "修改", exact: true }).click();
+    const sourceInput = sourceRow.getByRole("combobox", { name: "测量来源", exact: true });
+    assert.equal(await sourceRow.getByLabel("确认不填写测量来源").count(), 0);
+    assert.equal(await sourceRow.getByRole("button", { name: "测量来源历史来源", exact: true }).count(), 0);
+    assert.ok((await sourceRow.innerText()).includes("留空后更新预览"));
+    for (const width of [1440, 390, 320]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await sourceInput.fill("虚构代填描述");
+      await sourceInput.click();
+      assert.equal(await sourceInput.inputValue(), "虚构代填描述", "直接点输入框展开全部建议并保留草稿");
+      assert.equal(await sourceRow.getByRole("button", { name: "移除来源建议 虚构 AI 晚间秤", exact: true }).isVisible(), true);
+      await sourceRow.getByRole("gridcell", { name: "虚构 AI 晚间秤", exact: true }).click();
+      assert.equal(await sourceInput.inputValue(), "虚构 AI 晚间秤");
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      await sourceInput.press("Escape"); await sourceInput.click();
+      assert.equal(await sourceInput.getAttribute("aria-expanded"), "true", "已聚焦输入框再次点击也展开建议");
+    }
+    await sourceRow.getByLabel("体重（kg）").fill("72.34"); await sourceInput.fill("");
+    await sourceRow.getByRole("button", { name: "移除来源建议 虚构修改来源", exact: true }).click();
+    await page.waitForFunction(() => !document.querySelector('[aria-label="移除来源建议 虚构修改来源"]'));
+    assert.equal(await sourceRow.getByLabel("体重（kg）").inputValue(), "72.34");
+    assert.equal(await sourceInput.inputValue(), "");
+    const afterRemoval = await fetch(`${baseURL}/api/v1/measurements`, { headers: { Authorization: `Bearer ${token}` } }).then(response => response.json());
+    assert.ok(!afterRemoval.sources.includes("虚构修改来源"));
+    assert.ok(afterRemoval.records.some(record => record.deviceLabel === "虚构修改来源"), "建议删除不联动已保存来源");
+    await sourceRow.getByRole("button", { name: "更新预览", exact: true }).click();
+    await page.waitForFunction(itemId => { const row = document.querySelector(`[data-item-id="${itemId}"]`); return [...(row?.querySelectorAll('button') ?? [])].some(button => button.textContent === '确认保存' && !button.disabled); }, missingSource.items[0].id);
+    assert.equal(await sourceRow.getByRole("button", { name: "确认保存", exact: true }).isEnabled(), true);
+    await page.screenshot({ path: `${artifacts}/ai-source-unspecified-mobile.png`, fullPage: true });
+    await sourceRow.getByRole("button", { name: "确认保存", exact: true }).click();
+    await page.getByRole("status").filter({ hasText: "已保存 1 · 待确认 0" }).waitFor();
+    assert.equal((await read()).find(record => record.recordDate === nextDate(6)).deviceLabel, null);
+    const explicitEmpty = await post({ kind: "batch", operationId: crypto.randomUUID(), items: [{ kind: "save_record", date: nextDate(7), period: "evening", weightKg: "71.30", deviceLabel: null, sourceUnspecifiedConfirmed: true }] });
+    await page.goto(explicitEmpty.confirmationUrl); await page.getByRole("button", { name: "修改", exact: true }).click();
+    assert.equal(await page.getByRole("combobox", { name: "测量来源", exact: true }).inputValue(), "", "旧留空请求回显空来源");
+    await page.getByRole("combobox", { name: "测量来源", exact: true }).click();
+    await page.getByRole("gridcell", { name: "虚构 AI 晚间秤", exact: true }).click();
+    await page.getByRole("button", { name: "更新预览", exact: true }).click();
+    await page.getByRole("button", { name: "确认保存", exact: true }).click(); await page.getByRole("status").filter({ hasText: "已保存 1 · 待确认 0" }).waitFor();
+    assert.equal((await read()).find(record => record.recordDate === nextDate(7)).deviceLabel, "虚构 AI 晚间秤");
+    const untouchedEmpty = await post({ kind: "batch", operationId: crypto.randomUUID(), items: [{ kind: "save_record", date: nextDate(8), period: "evening", weightKg: "71.40" }] });
+    assert.equal(untouchedEmpty.needsUserInput[0].code, "source_confirmation_required", "API 缺来源仍需先询问");
+    await page.goto(untouchedEmpty.confirmationUrl); await page.getByRole("button", { name: "修改", exact: true }).click();
+    await page.getByRole("button", { name: "更新预览", exact: true }).click();
+    await page.getByRole("button", { name: "确认保存", exact: true }).click();
+    await page.getByRole("status").filter({ hasText: "已保存 1 · 待确认 0" }).waitFor();
+    assert.equal((await read()).find(record => record.recordDate === nextDate(8)).deviceLabel, null, "空来源不操作输入框也可更新并保存");
+    console.log("通过：AI 来源输入无额外控件、点击展开全部建议、1440／390／320px 无溢出、移除保留草稿、直接留空与旧留空请求重新填写。");
     const otherContext = await browser.newContext();
     try { await otherContext.request.post(`${baseURL}/api/auth/sign-in/email`, { headers: { Origin: baseURL, "x-forwarded-for": "192.0.2.202" }, data: other }); assert.equal((await otherContext.request.get(preview.confirmationUrl)).status(), 404); } finally { await otherContext.close(); }
     await page.goto(`${baseURL}/dashboard/ai`); await page.getByRole("heading", { name: "AI 接入", exact: true }).waitFor();

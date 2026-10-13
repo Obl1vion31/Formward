@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "../../db/schema";
 import { saveMeasurementDay, type SaveMeasurementDayInput } from "./editing";
 import { listMeasurements, parseReportedMeasurement, saveReportedMeasurements } from "./records";
-import { fillMissingMeasurementSources, listMeasurementSources } from "./sources";
+import { fillMissingMeasurementSources, listMeasurementSources, removeMeasurementSource, resolveMeasurementSource } from "./sources";
 import { measurementDayAction } from "./entry-state";
 
 const pg = new PGlite(), db = drizzle(pg, { schema });
@@ -33,7 +33,7 @@ test("旧私有日期请求只在入口转换，冲突拒绝且原始输入不�
   for (const value of [null, [], {}, { ...legacy, analysisDate: "2024-02-30" }]) assert.throws(() => parseReportedMeasurement(value));
 });
 
-test("实测来源必填，来源不能单独创建测量；无效与整日失败不留下建议", async () => {
+test("未确认留空时来源必填，来源不能单独创建测量；无效与整日失败不留下建议", async () => {
   const actor = await owner();
   for (const deviceLabel of [undefined, null, "", " ", "x".repeat(301), "bad\nsource"]) {
     await assert.rejects(saveMeasurementDay(db, actor, input({ daytime: { weightKg: "70", fasting: true, deviceLabel } })), /数据来源/);
@@ -43,6 +43,63 @@ test("实测来源必填，来源不能单独创建测量；无效与整日失�
   assert.deepEqual(await listMeasurementSources(db, actor.userId), []);
   assert.deepEqual(await listMeasurements(db, actor.userId), []);
   assert.deepEqual(await db.select().from(schema.measurementImport).where(eq(schema.measurementImport.userId, actor.userId)), []);
+});
+
+test("来源须补填或明确留空，旧未知来源省略保留；留空确认保存审计且不生成建议", async () => {
+  assert.equal(resolveMeasurementSource({}, { deviceLabel: null }), null);
+  assert.throws(() => resolveMeasurementSource({ deviceLabel: null }, { deviceLabel: "虚构秤" }), /确认/);
+  assert.throws(() => resolveMeasurementSource({ deviceLabel: "虚构秤", sourceUnspecifiedConfirmed: true }), /取消/);
+  assert.throws(() => resolveMeasurementSource({ sourceUnspecifiedConfirmed: true }), /null/);
+  const actor = await owner();
+  const request = input({ daytime: { weightKg: "70", fasting: true, deviceLabel: null, sourceUnspecifiedConfirmed: true } });
+  await saveMeasurementDay(db, actor, request);
+  assert.equal((await saveMeasurementDay(db, actor, request)).repeated, true);
+  const before = (await listMeasurements(db, actor.userId))[0];
+  assert.equal(before.deviceLabel, null);
+  assert.deepEqual(await listMeasurementSources(db, actor.userId), []);
+  const events = await db.select().from(schema.measurementEvent).where(eq(schema.measurementEvent.userId, actor.userId));
+  assert.equal(events[0].snapshot.sourceUnspecifiedConfirmed, true);
+  assert.equal(events[0].actorId, actor.userId);
+  await saveMeasurementDay(db, actor, input({ daytime: { recordId: before.id, version: before.updatedAt.toISOString(), bodyFatPercent: "20" } }));
+  const after = (await listMeasurements(db, actor.userId))[0];
+  assert.equal(after.deviceLabel, null); assert.equal(after.bodyFatPercent, "20.00");
+  await assert.rejects(saveMeasurementDay(db, actor, input({ evening: { deviceLabel: null, sourceUnspecifiedConfirmed: true } })), /至少/);
+});
+
+test("移除建议持久化且幂等、保留健康快照并隔离账号；旧记录编辑不恢复，明确新使用恢复", async () => {
+  const actor = await owner(), other = await owner(), label = "虚构可移除秤";
+  for (const target of [actor, other]) await saveMeasurementDay(db, target, input({ evening: { weightKg: "70", deviceLabel: label } }));
+  const before = (await listMeasurements(db, actor.userId))[0];
+  assert.deepEqual(await removeMeasurementSource(db, actor, label), []);
+  const [removed] = await db.select().from(schema.measurementSource).where(eq(schema.measurementSource.userId, actor.userId));
+  assert.ok(removed.deletedAt); assert.equal(removed.deletedBy, actor.actorId);
+  await removeMeasurementSource(db, actor, label);
+  assert.deepEqual((await db.select().from(schema.measurementSource).where(eq(schema.measurementSource.userId, actor.userId)))[0], removed);
+  assert.deepEqual((await listMeasurements(db, actor.userId))[0], before);
+  assert.deepEqual(await listMeasurementSources(db, other.userId), [label]);
+  await assert.rejects(removeMeasurementSource(db, { ...actor, actorId: other.userId }, label), /不一致/);
+  await saveMeasurementDay(db, actor, input({ evening: { recordId: before.id, version: before.updatedAt.toISOString(), timezone: "+07:00", deviceLabel: label } }));
+  assert.deepEqual(await listMeasurementSources(db, actor.userId), []);
+  await saveMeasurementDay(db, actor, input({ evening: { weightKg: "71", deviceLabel: label } }, "2024-04-05"));
+  assert.deepEqual(await listMeasurementSources(db, actor.userId), [label]);
+  assert.equal((await listMeasurements(db, other.userId))[0].timezone, "Asia/Shanghai");
+});
+
+test("已有来源清空需明确确认，修改名称可恢复建议；留空确认和第二时段失败整体回滚", async () => {
+  const actor = await owner();
+  await saveMeasurementDay(db, actor, input({ evening: { weightKg: "70", deviceLabel: "虚构旧名称" } }));
+  let record = (await listMeasurements(db, actor.userId))[0];
+  const edit = { recordId: record.id, version: record.updatedAt.toISOString(), deviceLabel: null };
+  await assert.rejects(saveMeasurementDay(db, actor, input({ evening: edit })), /确认/);
+  await saveMeasurementDay(db, actor, input({ evening: { ...edit, sourceUnspecifiedConfirmed: true } }));
+  record = (await listMeasurements(db, actor.userId))[0]; assert.equal(record.deviceLabel, null);
+  await removeMeasurementSource(db, actor, "虚构旧名称");
+  await saveMeasurementDay(db, actor, input({ evening: { recordId: record.id, version: record.updatedAt.toISOString(), deviceLabel: "虚构旧名称" } }));
+  assert.deepEqual(await listMeasurementSources(db, actor.userId), ["虚构旧名称"]);
+  const before = await listMeasurements(db, actor.userId);
+  await assert.rejects(saveMeasurementDay(db, actor, input({ daytime: { weightKg: "70", fasting: true, deviceLabel: null, sourceUnspecifiedConfirmed: true }, evening: { weightKg: "invalid", deviceLabel: "虚构失败来源" } }, "2024-04-06")));
+  assert.deepEqual(await listMeasurements(db, actor.userId), before);
+  assert.deepEqual(await listMeasurementSources(db, actor.userId), ["虚构旧名称"]);
 });
 
 test("晨晚独立来源、名称去空白与最近排序；只改来源保留原始录入方式、时间和值", async () => {

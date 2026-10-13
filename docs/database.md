@@ -1,6 +1,6 @@
 # 数据库连接与字段字典
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 21 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 4 列。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 27 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 
@@ -433,12 +433,15 @@ JWT 签名公私钥。私钥由 Better Auth 加密保存，公开端点只返回
 | `label` | `text` | 无空值 | 账号内唯一历史来源名称，去首尾空白，长度 1–300；记录保存自己的快照 | `sources.ts，仅实测成功事务写入` |
 | `created_at` | `timestamp with time zone` | 无空值；默认 now() | 创建时间；不是测量时间 | `创建记录时由数据库／feature 写入` |
 | `last_used_at` | `timestamp with time zone` | 无空值；默认 now() | 最近成功用于实测的时间；草稿、失败和估计不更新 | `sources.ts` |
+| `deleted_at` | `timestamp with time zone` | 可空：建议有效 | 移除建议的时间；仅过滤历史建议，不联动测量名称快照 | `sources.ts／网页来源输入` |
+| `deleted_by` | `text` | 可空：建议有效 | 移除建议的已验证账号标识，外键关联 users.id | `sources.ts／网页登录身份` |
 
 约束与索引：
 
 - 唯一索引 `measurement_sources_user_label_idx`：`user_id, label`。
 - 索引 `measurement_sources_user_last_used_idx`：`user_id, last_used_at`。
 - 外键 `measurement_sources_user_id_users_id_fk`：`user_id` → `users.id`；删除规则 `cascade`。
+- 外键 `measurement_sources_deleted_by_users_id_fk`：`deleted_by` → `users.id`；删除规则 `no action`。
 - 检查 `measurement_sources_label_valid`：`length("measurement_sources"."label") BETWEEN 1 AND 300 AND "measurement_sources"."label" = btrim("measurement_sources"."label")`。
 
 ### `sessions`
@@ -510,6 +513,14 @@ Drizzle migrator 在业务 schema 外建立此表，保存已执行版本；不�
 
 测量至少有体重或体脂之一；体重必须为正，体脂在 0–100 范围。实测 estimation 为空，估计 estimation 非空且 UTC 时刻为空；day_period／assumed 同样不生成 UTC。有效估计按账号、日期和时段唯一；软删除记录仍占去重键，重导不能复活。初始化批次按账号部分唯一，即使冻结范围内仍有空缺也不能重新初始化。来源建议按账号与 label 唯一，最近使用索引用于本账号排序；所有历史名称与使用时间只在成功实测事务里更新。
 
-来源输入只回显保存值，未知值留空，历史建议不自动填入；来源必填是网页实测 feature 的校验，不把新约束强行套到未知历史来源；旧晨间条件未知／非空腹记录仍只读。仅改来源保留原录入入口、准确时间与数值，并保存修改者和时间。来源不会触发估算或重建冻结历史。
+来源输入只回显保存值，未知值留空，历史建议不自动填入；网页新实测及主动清空可直接留空保存，由网页提交 sourceUnspecifiedConfirmed:true；API 客户端仍须先询问并明确确认，省略来源的旧记录编辑保持原值；留空保存为 null 并进入审计，建议不创建占位名称；旧晨间条件未知／非空腹记录仍只读。仅改来源保留原录入入口、准确时间与数值，并保存修改者和时间。来源不会触发估算或重建冻结历史。
 
-运行 `pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm build` 后，在隔离虚构数据库执行开发与 production 浏览器验收。`migration.test.ts` 以旧 schema 验证 33→30 列、设备合并、快照保留、旧文件重导和软删除；`sources.test.ts` 覆盖必填、晨晚来源、最近排序、仅来源编辑、回滚、幂等、跨账号与按钮状态。完整运行方式见 [测试目录](../tests/README.md)。
+运行 `pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm build` 后，在隔离虚构数据库执行开发与 production 浏览器验收。`migration.test.ts` 以旧 schema 验证 33→30 列、设备合并、快照保留、旧文件重导和软删除；`sources.test.ts` 覆盖补填／明确留空、晨晚来源、最近排序、仅来源编辑、建议软删除／恢复、回滚、幂等、跨账号与按钮状态。0012 仅增加建议删除时间和操作者，旧健康字段和值保留。完整运行方式见 [测试目录](../tests/README.md)。
+
+## 饮食表与关系
+
+0013新增六表，数据库共27表。foods保存名称、品牌／规格、base_quantity、unit、四项nullable numeric(14,4)、source_kind、basis／evidence_url、version和软删除；同账号标准化identity_key唯一。meals保存账号、local_date、餐名、可选时刻／时区、备注、入口来源、原始来源标识、同步状态、导入及版本。meal_items保存position、food／misc／whole、名称／数量／单位、food_snapshot、独立四项营养和依据；user_id与meal_id／food_id组合外键保证同账号。
+
+meal_imports保存file_digest、source_label、原始行、参考热量决策、created_by与确认时间；账号／文件摘要唯一。meal_operations保存operation_id、manual／ai／initialization入口、对应令牌或OAuth或import_id、原payload与draft、preview、snapshot_digest、request_digest、revision、pending／confirmed／cancelled状态、到期及结果；只有AI操作有15分钟有效期且恰有一个凭据。meal_events保存record_id／type、operation_id、actor_type／id、confirmed_by、前后快照和时间。
+
+食材与导入的账号／id唯一索引先于组合外键创建；source_record_id保护初始化重试，原21表结构不修改。单餐／每日合计从有效餐项派生，初始化whole不创建食材库条目。原文件及报告保持私有，操作路径见[饮食记录](meals.md)。

@@ -1,0 +1,26 @@
+"use client";
+import { useRef, useState, useTransition } from "react";
+import { LoadingLink } from "@/components/loading-link";
+import { usePageLoading } from "@/components/page-loading-state";
+import { EditorDialog, FoodEditor, MealEditor } from "./meals-view";
+import { metrics, metricLabels, formatNutrition, type FoodView, type MealAction, type MealOperationView, type Result } from "./model";
+import styles from "./meals.module.css";
+type OpResult = Promise<Result<MealOperationView>>;
+export function MealReview({ operation, foods, decide, refresh, edit }: { operation: MealOperationView; foods: FoodView[]; decide: (id: string, revision: number, decision: "confirm" | "cancel") => OpResult; refresh: (id: string, revision: number) => OpResult; edit: (id: string, revision: number, index: number, action: MealAction) => OpResult }) {
+  const [local, setLocal] = useState<MealOperationView | null>(null), [base, setBase] = useState(operation);
+  if (operation !== base) { setBase(operation); setLocal(null); }
+  const op = local ?? operation, [editing, setEditing] = useState<number | null>(null), [error, setError] = useState(""), [working, setWorking] = useState(false), [pending, startTransition] = useTransition(), busy = pending || working;
+  const guard = useRef(false); usePageLoading({ active: busy, label: "正在更新饮食审核…" });
+  async function perform(work: () => OpResult) { if (guard.current) return; guard.current = true; setWorking(true); setError(""); try { const result = await work(); if (result.ok) { setLocal(result.data); setEditing(null); } else setError(result.error); } catch { setError("审核未完成，请重试，输入已保留。"); } finally { guard.current = false; setWorking(false); } }
+  const active = op.status === "pending" || op.status === "expired", action = editing === null ? null : op.rows[editing]?.action;
+  return <section className={styles.workspace}><LoadingLink className={styles.reviewLink} href="/dashboard/meals">← 饮食记录</LoadingLink><div className={styles.heading}><h1>{op.origin === "initialization" ? "确认历史初始化" : "确认饮食记录"}</h1><span>{op.status === "confirmed" ? "已保存" : op.status === "cancelled" ? "已取消" : op.status === "expired" ? "已过期" : "待确认"}</span></div><p className={styles.hint}>{op.rows.length}项 · {op.origin === "initialization" ? "整餐估算，食物组成保留在备注；确认后写入你的账号。" : "核对食物、营养与来源后保存。"}{op.expiresAt && ` · 有效至 ${new Date(op.expiresAt).toLocaleString("zh-CN")}`}</p>
+    {op.rows.map((row, index) => <article className={styles.reviewRow} key={index}><div className={styles.heading}><h2>{row.meal ? `${row.meal.date} · ${row.meal.mealType}` : row.food ? row.food.name : `第${index + 1}项`}</h2>{active && ["save_meal", "save_food"].includes(row.action.kind) && <button onClick={() => { setError(""); setEditing(index); }}>修改</button>}</div><p className={styles.hint}>{row.action.kind.startsWith("delete") ? "将软删除，可恢复" : row.action.kind.startsWith("restore") ? "将恢复记录" : row.meal?.source === "initialization" ? "来源：初始化 · 整餐估算" : "待保存"}</p>
+      {(row.meal || row.food) && <div className={styles.compactMetrics}>{metrics.map(m => <div key={m}><span>{metricLabels[m]}</span><strong>{formatNutrition(row.meal?.totals.values[m] ?? row.food?.nutrition[m] ?? null, m)}<small>{m === "caloriesKcal" ? "kcal" : "g"}</small></strong></div>)}</div>}
+      {row.meal && <>{row.meal.items.filter(i => i.kind !== "whole").map((i, n) => <p className={styles.notes} key={n}>{i.name} {i.quantity ? `${Number(i.quantity)}${i.unit ?? ""}` : ""} · {i.basis ?? (i.sourceKind === "estimated" ? "预估" : i.sourceKind === "label" ? "标签" : "成分数据")}</p>)}<p className={styles.notes}>{row.meal.notes}</p></>}{row.food?.basis && <p className={styles.notes}>{row.food.basis}</p>}
+      {row.warnings.map(w => <p className={styles.hint} key={w}>{w}</p>)}{row.error && <p className={styles.error} role="alert">{row.error}</p>}
+    </article>)}
+    {error && <p role="alert" className={styles.error}>{error}</p>}{op.result && <p role="status">{op.result.message}</p>}
+    {active && <div className={styles.reviewActions}><button disabled={busy || !op.canConfirm || op.status === "expired"} onClick={() => startTransition(async () => { await perform(() => decide(op.id, op.revision, "confirm")); })}>{busy ? "正在处理…" : "确认并保存"}</button><button disabled={busy} onClick={() => startTransition(async () => { await perform(() => refresh(op.id, op.revision)); })}>刷新预览</button><button disabled={busy} onClick={() => startTransition(async () => { await perform(() => decide(op.id, op.revision, "cancel")); })}>取消这次提交</button></div>}
+    {action && editing !== null && <EditorDialog title="修改饮食预览" close={() => { if (!busy) { setEditing(null); setError(""); } }} busy={busy}>{action.kind === "save_meal" ? <MealEditor submitLabel="更新预览" historicalFoods={op.rows[editing].meal?.items.flatMap(i => i.foodSnapshot ? [i.foodSnapshot] : []) ?? []} initial={action} foods={foods} error={error || op.rows[editing].error || ""} busy={busy} save={async draft => { await perform(() => edit(op.id, op.revision, editing, { kind: "save_meal", ...draft })); }} /> : action.kind === "save_food" ? <FoodEditor submitLabel="更新预览" initial={action} error={error} busy={busy} save={async draft => { await perform(() => edit(op.id, op.revision, editing, { ...draft, kind: "save_food" })); }} /> : null}</EditorDialog>}
+  </section>;
+}

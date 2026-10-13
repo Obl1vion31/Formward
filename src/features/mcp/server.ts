@@ -7,7 +7,11 @@ import { oauthConnection, user } from "../../db/schema";
 import type { createAuth } from "../auth/auth";
 import { siteOrigin } from "../auth/site-url";
 import { ApiError, type AiIdentity } from "../auth/ai-identity";
-import { CONNECTION_CLAIM, READ_SCOPE, WRITE_SCOPE, requireOauthConnection } from "../auth/oauth-connections";
+import { CONNECTION_CLAIM, READ_SCOPE, WRITE_SCOPE, MEALS_READ_SCOPE, MEALS_WRITE_SCOPE, requireOauthConnection } from "../auth/oauth-connections";
+import { operationSchema } from "../meals/model";
+import { searchFoods, submitMealOperation, getMealOperation, displayMealOperation } from "../meals/records";
+import { queryMeals } from "../meals/ai-api";
+import { mealAiInstructions } from "../meals/ai-openapi";
 import { aiConfirmationUrl, queryAiMeasurements, safeAiError } from "../measurements/ai-api";
 import { getAiMeasurementOperation, submitAiMeasurementOperation } from "../measurements/ai-operations";
 import { systemMeasurementTimezone, validateMeasurementTimezone } from "../measurements/timezone";
@@ -15,7 +19,7 @@ import { systemMeasurementTimezone, validateMeasurementTimezone } from "../measu
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("记录日期 YYYY-MM-DD，包含边界日期");
 const period = z.enum(["daytime", "evening"]).describe("daytime 为晨间空腹；evening 为晚间非空腹");
 const nullableText = z.string().nullable().optional();
-const saveRecord = z.object({ kind: z.literal("save_record"), date, period, recordId: z.string().optional(), version: z.string().optional(), weightKg: nullableText.describe("kg 十进制字符串；未知为 null"), bodyFatPercent: nullableText.describe("百分比十进制字符串；未知为 null"), deviceLabel: nullableText.describe("用户提供的真实设备／应用来源名称"), fasting: z.boolean().nullable().optional(), timezone: nullableText.describe("当次 +08:00 等偏移或 IANA 时区；省略新记录采用默认时区，旧记录保留原值") }).strict();
+const saveRecord = z.object({ kind: z.literal("save_record"), date, period, recordId: z.string().optional(), version: z.string().optional(), weightKg: nullableText.describe("kg 十进制字符串；未知为 null"), bodyFatPercent: nullableText.describe("百分比十进制字符串；未知为 null"), sourceUnspecifiedConfirmed: z.boolean().optional().describe("仅在用户明确同意不填写来源时为 true，同时 deviceLabel 为 null；未回答不能代确认"), deviceLabel: nullableText.describe("用户提供并确认的真实设备／应用来源名称。未提供时先询问，不能用 ChatGPT 手动提供、设备未注明等描述代填。用户明确不填时传 null 和 sourceUnspecifiedConfirmed=true"), fasting: z.boolean().nullable().optional(), timezone: nullableText.describe("当次 +08:00 等偏移或 IANA 时区；省略新记录采用默认时区，旧记录保留原值") }).strict();
 const estimateCell = z.object({ kind: z.literal("estimate_cell"), date, period, metric: z.enum(["weightKg", "bodyFatPercent"]) }).strict();
 const outputSchema = z.object({}).catchall(z.unknown());
 
@@ -26,7 +30,7 @@ function toolPolicy(scopes: string[], readOnly: boolean, profile = false) {
 
 export function createFormwardMcp(db: Database, identity: AiIdentity, grantedScopes: string[], request: Request) {
   const resource = new URL("/api/mcp", siteOrigin(request)).href;
-  const server = new McpServer({ name: "Formward", version: "1.0.0" }, { instructions: "查询自己的身体记录时使用 query_measurements。新录入、历史修改、估算都只通过 submit_measurement_operation 生成预览，将 confirmationUrl 完整提供给用户，等待用户在 Formward 网页确认。不要声称预览已经保存。未知值为 null，实测与估计必须区分，不把体重差解释为确定的热量或因果。重复提交沿用相同 operationId。" });
+  const server = new McpServer({ name: "Formward", version: "1.1.0" }, { instructions: "查询自己的身体记录时使用 query_measurements。身体记录的新录入、历史修改、估算通过 submit_measurement_operation 生成预览，将 confirmationUrl 完整提供给用户，等待用户在 Formward 网页确认。不要声称预览已经保存。未知值为 null，实测与估计必须区分，不把体重差解释为确定的热量或因果。重复提交沿用相同 operationId。用户未提供测量来源时，先询问实际设备／应用来源或是否确认不填写；可以列出查询返回的历史 sources 供选择，不能擅自沿用，也不能把 ChatGPT／手动提供当作测量来源。用户明确留空时传 deviceLabel:null 和 sourceUnspecifiedConfirmed:true。响应 needsUserInput 非空时说明待补信息，询问用户或让其在网页补填，不能把有问题的预览说成可直接保存。" + mealAiInstructions });
   async function execute(scopes: string[], work: () => Promise<Record<string, unknown>>) {
     try {
       if (scopes.some(scope => !grantedScopes.includes(scope))) throw new ApiError(403, "insufficient_scope", "当前账号连接缺少权限，请重新授权。");
@@ -49,7 +53,7 @@ export function createFormwardMcp(db: Database, identity: AiIdentity, grantedSco
     if (args.from) params.set("from", args.from); if (args.to) params.set("to", args.to); if (args.choices) params.set("choices", JSON.stringify(args.choices));
     return queryAiMeasurements(db, identity.userId, params, args.timezone ?? systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
   }));
-  server.registerTool("submit_measurement_operation", { title: "提交身体记录审核", description: "将用户提供的录入、带 recordId+version 的历史修改或显式估算提交为待审核预览，最多 100 条、64 KiB。数值使用十进制字符串，来源必填，晨间须 fasting=true。重复请求必须沿用同一 operationId，不能用同一 ID 改内容。返回 confirmationUrl 后要求用户登录网页确认；此工具不会保存健康记录。", inputSchema: z.object({ operationId: z.string().regex(/^[a-zA-Z0-9-]{8,120}$/).describe("为本次请求生成唯一标识，重试保持不变"), items: z.array(z.discriminatedUnion("kind", [saveRecord, estimateCell])).min(1).max(100), timezone: z.string().optional().describe("新记录默认使用的用户时区，未提供时采用服务器配置") }).strict(), ...toolPolicy([WRITE_SCOPE], false) }, args => execute([WRITE_SCOPE], async () => {
+  server.registerTool("submit_measurement_operation", { title: "提交身体记录审核", description: "将用户提供的录入、带 recordId+version 的历史修改或显式估算提交为待审核预览，最多 100 条、64 KiB。数值使用十进制字符串，晨间须 fasting=true。提交前先确认来源：用户提供实际名称，或明确同意不填写，使用 deviceLabel:null 和 sourceUnspecifiedConfirmed:true；用户未回答则先询问，不能创造占位来源。重复请求必须沿用同一 operationId，不能用同一 ID 改内容。返回 confirmationUrl 后要求用户登录网页确认；此工具不会保存健康记录。", inputSchema: z.object({ operationId: z.string().regex(/^[a-zA-Z0-9-]{8,120}$/).describe("为本次请求生成唯一标识，重试保持不变"), items: z.array(z.discriminatedUnion("kind", [saveRecord, estimateCell])).min(1).max(100), timezone: z.string().optional().describe("新记录默认使用的用户时区，未提供时采用服务器配置") }).strict(), ...toolPolicy([WRITE_SCOPE], false) }, args => execute([WRITE_SCOPE], async () => {
     const input = { kind: "batch", operationId: args.operationId, items: args.items };
     if (Buffer.byteLength(JSON.stringify(input)) > 65536) throw new ApiError(413, "invalid_input", "单次操作内容超过 64 KiB。");
     const timezone = args.timezone ?? systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE); validateMeasurementTimezone(timezone);
@@ -57,6 +61,10 @@ export function createFormwardMcp(db: Database, identity: AiIdentity, grantedSco
     return { ...result, confirmationUrl: aiConfirmationUrl(request, result.confirmationPath) };
   }));
   server.registerTool("get_measurement_operation", { title: "查询审核结果", description: "按提交返回的 id 查询当前账号的审核状态、逐行结果与数量。confirmed/completed 中的 counts 才表示已保存或已取消；pending 表示仍等待网页确认。", inputSchema: z.object({ id: z.string() }).strict(), ...toolPolicy([READ_SCOPE], true) }, args => execute([READ_SCOPE], async () => getAiMeasurementOperation(db, identity.userId, args.id)));
+  server.registerTool("search_foods", { title: "查找食材规格", description: "搜索当前账号的食物名称、品牌和做法，返回稳定id、version、基准数量、单位、营养及来源。查询后再引用，不猜产品或标识。", inputSchema: z.object({ q: z.string().max(200).optional() }).strict(), ...toolPolicy([MEALS_READ_SCOPE], true) }, args => execute([MEALS_READ_SCOPE], async () => ({ foods: await searchFoods(db, identity.userId, args.q) })));
+  server.registerTool("query_meals", { title: "查询饮食记录", description: "查询本账号餐次、营养明细及每日已记录摄入合计。未知null，缺项标不完整，没有记录不代表零摄入。", inputSchema: z.object({ from: date.optional(), to: date.optional() }).strict(), ...toolPolicy([MEALS_READ_SCOPE], true) }, args => execute([MEALS_READ_SCOPE], async () => queryMeals(db, identity.userId, new URLSearchParams(Object.entries(args)))));
+  server.registerTool("submit_meal_operation", { title: "提交饮食审核", description: mealAiInstructions, inputSchema: operationSchema, ...toolPolicy([MEALS_WRITE_SCOPE], false) }, args => execute([MEALS_WRITE_SCOPE], async () => { const operation = await submitMealOperation(db, { userId: identity.userId, origin: "ai", identity }, args); return { ...operation, confirmationUrl: aiConfirmationUrl(request, operation.confirmationPath) }; }));
+  server.registerTool("get_meal_operation", { title: "查询饮食审核结果", description: "pending为待确认，confirmed才已保存；只查询本账号操作。", inputSchema: z.object({ id: z.string().uuid() }).strict(), ...toolPolicy([MEALS_READ_SCOPE], true) }, args => execute([MEALS_READ_SCOPE], async () => { const operation = displayMealOperation(await getMealOperation(db, identity.userId, args.id)); return { ...operation, confirmationUrl: aiConfirmationUrl(request, operation.confirmationPath) }; }));
   return server;
 }
 
@@ -68,11 +76,11 @@ export function createMcpEndpoint(db: Database, auth: ReturnType<typeof createAu
     const connection = await requireOauthConnection(db, claims.sub, id, null);
     if (connection.clientId !== claims.client_id) throw new ApiError(401, "invalid_token", "账号连接不匹配。");
     const scopes = typeof claims.scope === "string" ? claims.scope.split(" ") : [];
-    const identity: AiIdentity = { userId: claims.sub, oauthConnectionId: id, permission: scopes.includes(WRITE_SCOPE) && connection.scopes.includes(WRITE_SCOPE) ? "write" : "read" };
+    const identity: AiIdentity = { userId: claims.sub, oauthConnectionId: id, permission: [WRITE_SCOPE, MEALS_WRITE_SCOPE].some(scope => scopes.includes(scope) && connection.scopes.includes(scope)) ? "write" : "read" };
     await db.update(oauthConnection).set({ lastUsedAt: new Date() }).where(and(eq(oauthConnection.id, id), eq(oauthConnection.userId, identity.userId)));
     const handler = createMcpHandler(() => createFormwardMcp(db, identity, scopes.filter(scope => connection.scopes.includes(scope)), request), { legacy: "stateless", maxRequestBodySize: 131072 });
     return handler.fetch(request);
-  }, { resource, challengeScopes: ["openid", "profile", "offline_access", READ_SCOPE, WRITE_SCOPE] });
+  }, { resource, challengeScopes: ["openid", "profile", "offline_access", READ_SCOPE, WRITE_SCOPE, MEALS_READ_SCOPE, MEALS_WRITE_SCOPE] });
   return async (request: Request) => {
     try {
       const response = await protectedHandler(request);

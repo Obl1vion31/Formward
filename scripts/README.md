@@ -22,7 +22,7 @@
 - `create-account.mts`：交互式读取邮箱和隐藏密码，调用认证 feature 创建内部账号；重复执行保留原密码。
 - `import-measurements.mts`：只读预览三列 TSV 并兼容旧四列，明确目标账号后通过 measurements feature 事务写入。默认不写入，`--write` 仅用于用户已授权并核对预览的样本；时区和白天空腹标记不得猜测。格式：`node --env-file=.env.local --import tsx scripts/import-measurements.mts 文件路径 账号邮箱 --preview|--write IANA时区 [--daytime-fasting]`。同文件重试及重新排序的相同记录不会重复写入，冲突回滚整批。
 
-账号创建与数据库维护工具的用途见 [代码阅读指南](../docs/code-study.md)。脚本中的中文注释供需要查看实现细节时参考。
+脚本与业务模块的对应位置见 [架构与代码索引](../docs/code-study.md)，具体入口和用途以本文为准。脚本中的中文注释供需要查看实现细节时参考。
 
 配置读取 `.env.local`，不把账号密码放在命令行参数、源码或公开文件中。账号创建和数据库接入步骤见 [接入指南](../docs/auth-setup.md)。后续导入预览和数据一致性检查也调用正式 feature，不复制业务规则。
 
@@ -31,3 +31,5 @@
 测量维护请求的日期使用 `recordDate`；旧私有 JSON 的 `analysisDate` 在读取入口兼容，双字段不同则拒绝，原文件不改写。旧补全请求指纹仍返回原批次；结构迁移前的预览须重新生成。
 
 `ai-setup.mts`（pnpm ai:setup）在交互终端隐藏读取令牌，写入 0600 的私有 .env.ai.local，不覆盖已有配置。`ai-request.mts`（pnpm ai:request GET /measurements 或 POST /measurement-operations 私有请求.json）只用该配置调用正式 HTTP API，每次自动读取系统时区并发送 X-Formward-Timezone 请求头，私有请求文件保持原样，不读取数据库或打印令牌，不跟随重定向，仅允许 HTTPS／本机 HTTP。用法与确认流程见 [AI 接入](../docs/ai-api.md)。
+
+`preview-meals.mts`只读解析私有饮食TSV，可用--reference采用私有参考热量；--email已有账号--stage仅创建网页初始化预览，不保存正式餐次。命令为pnpm meals:preview，确认规则见[饮食记录](../docs/meals.md)。

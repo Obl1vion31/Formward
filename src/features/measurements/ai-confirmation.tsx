@@ -5,6 +5,8 @@ import { LoadingLink } from "@/components/loading-link";
 import type { operationDisplay, ReviewAction, ReviewInput, ReviewItem } from "./ai-operations";
 import { operationStatusLabels } from "./ai-instructions";
 import { offsetTimezone, timezoneLabel, timezoneOptions } from "./timezone";
+import { SourceInput } from "./source-input";
+import type { SourceRemovalResult } from "./entry-state";
 
 type Operation = ReturnType<typeof operationDisplay>;
 const subscribeClock = (notify: () => void) => { const timer = setInterval(notify, 1000); return () => clearInterval(timer); };
@@ -30,6 +32,9 @@ function inputFromDraft(item: ReviewItem, draft: Draft): ReviewInput {
   if (item.input.kind === "estimate_cell") return { ...item.input, date: draft.date, period: draft.period };
   const input = { ...item.input, date: draft.date, period: draft.period }, baseline = draftFor(item);
   for (const field of ["weightKg", "bodyFatPercent", "deviceLabel", "timezone"] as const) if (draft[field] !== baseline[field]) input[field] = draft[field].trim() || null;
+  // 仅用户更新预览时确认当前空来源；填写来源清除旧请求的留空标记。
+  if (!draft.deviceLabel.trim()) { input.deviceLabel = null; input.sourceUnspecifiedConfirmed = true; }
+  else delete input.sourceUnspecifiedConfirmed;
   if (draft.fasting !== baseline.fasting || draft.period !== baseline.period) input.fasting = draft.period === "evening" ? false : draft.fasting;
   if (draft.date !== baseline.date || draft.period !== baseline.period) { delete input.recordId; delete input.version; }
   else if (draft.recordId) { input.recordId = draft.recordId; input.version = draft.version; }
@@ -41,7 +46,7 @@ function Explanation({ item }: { item: ReviewItem }) {
   if (!explanation) return null;
   return <details className="ai-evidence"><summary>查看估算依据与不确定性</summary><p>{explanation.method}</p>{explanation.basis.map((line, index) => <p key={index}>{line}</p>)}{explanation.formula && <p>{explanation.formula}</p>}{explanation.sampleSummary.map((line, index) => <p key={index}>{line}</p>)}{explanation.fallbackNote && <p>{explanation.fallbackNote}</p>}<details><summary>实测参考</summary>{explanation.references.map((line, index) => <p key={index}>{line}</p>)}</details><p>估计只辅助趋势，不代表实测，不参与实测摘要；结果存在不确定性。</p></details>;
 }
-function DraftForm({ item, draft, change, busy, updating, save, close }: { item: ReviewItem; draft: Draft; change: (draft: Draft) => void; busy: boolean; updating: boolean; save: () => void; close: () => void }) {
+function DraftForm({ item, draft, change, busy, updating, save, close, sources, removeSource }: { item: ReviewItem; draft: Draft; change: (draft: Draft) => void; busy: boolean; updating: boolean; save: () => void; close: () => void; sources: string[]; removeSource: (label: string) => Promise<SourceRemovalResult> }) {
   const options = candidates(item), set = (patch: Partial<Draft>) => change({ ...draft, ...patch });
   const isRecord = item.input.kind === "save_record", sameTarget = draft.date === item.input.date && draft.period === item.input.period;
   return <form className="ai-draft" onSubmit={event => { event.preventDefault(); save(); }}>
@@ -52,7 +57,7 @@ function DraftForm({ item, draft, change, busy, updating, save, close }: { item:
         {!!options.length && sameTarget && <label className="ai-draft-wide">要修改的历史记录<select aria-label="要修改的历史记录" value={draft.recordId} disabled={busy} onChange={event => { const record = options.find(record => record.id === event.target.value); set({ recordId: event.target.value, version: String(record?.updatedAt ?? "") }); }}><option value="">未选择历史记录</option>{options.map(record => <option key={String(record.id)} value={String(record.id)}>{display(record.weightKg, " kg")} · {display(record.bodyFatPercent, "%")} · {display(record.deviceLabel)} · {String(record.id).slice(0, 8)}</option>)}</select></label>}
         <label>体重（kg）<input type="text" inputMode="decimal" value={draft.weightKg} onChange={event => set({ weightKg: event.target.value })} disabled={busy} placeholder="未知留空" /></label>
         <label>体脂率（%）<input type="text" inputMode="decimal" value={draft.bodyFatPercent} onChange={event => set({ bodyFatPercent: event.target.value })} disabled={busy} placeholder="未知留空" /></label>
-        <label className="ai-draft-wide">测量来源<input value={draft.deviceLabel} onChange={event => set({ deviceLabel: event.target.value })} disabled={busy} placeholder="填写实际使用的设备或来源" maxLength={300} /></label>
+        <div className="ai-draft-wide"><SourceInput label="测量来源" value={draft.deviceLabel} sources={sources} onChange={value => set({ deviceLabel: value })} removeSource={removeSource} disabled={busy} /></div>
         <div className="ai-draft-wide ai-timezone-field"><label>时区<select aria-label="时区" value={draft.timezone} onChange={event => set({ timezone: event.target.value })} disabled={busy}><option value="">未指定</option>{draft.timezone && !timezoneOptions.some(option => option.value === draft.timezone) && <option value={draft.timezone}>{timezoneLabel(draft.timezone, draft.date)}（保留原时区）</option>}{timezoneOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button className="ai-button ai-secondary" type="button" disabled={busy} onClick={() => set({ timezone: offsetTimezone(-new Date().getTimezoneOffset()) })}>采用设备时区</button></div>
         {draft.period === "daytime" ? <label className="ai-fasting ai-draft-wide"><input type="checkbox" checked={draft.fasting} onChange={event => set({ fasting: event.target.checked })} disabled={busy} />确认这次晨间测量为空腹</label> : <p className="ai-muted ai-draft-wide">晚间固定为非空腹。</p>}
       </>}
@@ -62,7 +67,10 @@ function DraftForm({ item, draft, change, busy, updating, save, close }: { item:
   </form>;
 }
 type ReviewResult = { ok: true; data: Operation } | { ok: false; error: string };
-export function AiConfirmation({ operation: initial, review, load }: { operation: Operation; review: (id: string, action: ReviewAction) => Promise<ReviewResult>; load: (id: string) => Promise<ReviewResult> }) {
+export function AiConfirmation({ operation: initial, review, load, sources: initialSources, removeSource }: { operation: Operation; review: (id: string, action: ReviewAction) => Promise<ReviewResult>; load: (id: string) => Promise<ReviewResult>; sources: string[]; removeSource: (label: string) => Promise<SourceRemovalResult> }) {
+  const [sourceResult, setSourceResult] = useState<{ base: string[]; sources: string[] } | null>(null);
+  const sources = sourceResult?.base === initialSources ? sourceResult.sources : initialSources;
+  async function removeSuggestion(label: string) { const result = await removeSource(label); if (result.ok) setSourceResult({ base: initialSources, sources: result.sources }); return result; }
   const [updated, setUpdated] = useState<Operation | null>(null), [drafts, setDrafts] = useState<Record<string, Draft>>({}), [error, setError] = useState(""), [busy, startTransition] = useTransition();
   const [pendingAction, setPendingAction] = useState<{ kind: ReviewAction["kind"] | "load"; ids?: string[] } | null>(null);
   const labels = { confirm: "正在保存记录…", cancel: "正在取消待处理记录…", update: "正在更新预览…", refresh: "正在刷新预览…", load: "正在加载最新审核…" };
@@ -112,9 +120,10 @@ export function AiConfirmation({ operation: initial, review, load }: { operation
     </div>
     <div className="ai-review-items">{operation.items.map((item, index) => {
       const row = item.preview.rows[0], input = item.input, terminal = item.status !== "pending";
+      const sourceIssue = !terminal && item.preview.needsUserInput?.some(issue => issue.field === "deviceLabel");
       return <article className="ai-review-item" key={item.id} aria-labelledby={`item-${item.id}`} data-item-id={item.id} data-item-status={item.status}>
         <header className="ai-item-heading"><span className="ai-item-number">{String(index + 1).padStart(2, "0")}</span><div><h2 id={`item-${item.id}`}>{input.date} · {input.period === "daytime" ? "晨间" : "晚间"}</h2><p className="ai-muted">{row ? names[row.state] : "身体记录"}{input.kind === "estimate_cell" ? ` · ${input.metric === "weightKg" ? "体重" : "体脂率"}` : ""}</p></div><span className="ai-item-status">{states[item.status]}</span></header>
-        <p className={!terminal && !item.preview.canConfirm ? "ai-error" : "ai-muted"}>{item.result?.message ?? row?.message ?? item.preview.message}</p>
+        <p className={!terminal && !item.preview.canConfirm ? "ai-error" : "ai-muted"}>{item.result?.message ?? (sourceIssue ? "请核对来源，可填写或留空后更新预览。" : row?.message ?? item.preview.message)}</p>
         <table className="ai-comparison"><thead><tr><th>字段</th><th>当前值</th><th>{item.status === "confirmed" ? "已保存值" : "预览值"}</th></tr></thead><tbody>{fields.filter(field => input.kind !== "estimate_cell" || field.key === input.metric).map(field => {
           const shown = (values: Record<string, unknown> | null | undefined) => field.key === "timezone" ? String(values?.timezoneLabel ?? timezoneLabel(values?.timezone as string | null, input.date, values?.utcOffsetMinutes as number | null)) : display(values?.[field.key], field.unit);
           return <tr key={field.key}><th>{field.label}</th><td>{shown(row?.before)}</td><td>{row?.after && !Object.hasOwn(row.after, field.key) ? "未提交" : shown(row?.after)}</td></tr>;
@@ -122,7 +131,7 @@ export function AiConfirmation({ operation: initial, review, load }: { operation
         {!!row?.before?.candidates && <p className="ai-muted">同一时段有多个实测。点击修改，明确选择要改的历史记录。</p>}
         {!!row?.replacedEstimates?.length && <p className="ai-muted">此次实测会替代该时段已有的对应指标估计。</p>}
         <Explanation item={item} />
-        {drafts[item.id] ? <DraftForm item={item} draft={drafts[item.id]} change={draft => setDrafts(current => ({ ...current, [item.id]: draft }))} busy={busy} updating={processing("update", item.id)} save={() => update([item.id])} close={() => removeDrafts([item.id])} /> : !terminal && <div className="ai-actions ai-row-actions"><button className="ai-button" disabled={busy || editing || expired || !item.preview.canConfirm} onClick={() => submit({ kind: "confirm", revision: operation.revision, itemIds: [item.id] })}>{processing("confirm", item.id) ? "正在保存…" : "确认保存"}</button><button className="ai-button ai-secondary" disabled={busy} onClick={() => edit(item)}>修改</button><button className="ai-button ai-secondary" disabled={busy} onClick={() => submit({ kind: "cancel", revision: operation.revision, itemIds: [item.id] })}>{processing("cancel", item.id) ? "正在取消…" : "取消"}</button></div>}
+        {drafts[item.id] ? <DraftForm item={item} draft={drafts[item.id]} change={draft => setDrafts(current => ({ ...current, [item.id]: draft }))} busy={busy} updating={processing("update", item.id)} save={() => update([item.id])} close={() => removeDrafts([item.id])} sources={sources} removeSource={removeSuggestion} /> : !terminal && <div className="ai-actions ai-row-actions"><button className="ai-button" disabled={busy || editing || expired || !item.preview.canConfirm} onClick={() => submit({ kind: "confirm", revision: operation.revision, itemIds: [item.id] })}>{processing("confirm", item.id) ? "正在保存…" : "确认保存"}</button><button className="ai-button ai-secondary" disabled={busy} onClick={() => edit(item)}>修改</button><button className="ai-button ai-secondary" disabled={busy} onClick={() => submit({ kind: "cancel", revision: operation.revision, itemIds: [item.id] })}>{processing("cancel", item.id) ? "正在取消…" : "取消"}</button></div>}
       </article>;
     })}</div>
     <LoadingLink href="/dashboard">回到身体记录</LoadingLink>

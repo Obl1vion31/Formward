@@ -6,9 +6,10 @@ import { currentUser } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { listMeasurements, type MeasurementActor } from "@/features/measurements/records";
 import { estimateMeasurementCell, listMeasurementDates, measurementDisplay, saveMeasurementDay, type EstimateCellInput, type SaveMeasurementDayInput } from "@/features/measurements/editing";
-import type { EntryResult } from "@/features/measurements/entry-state";
+import type { EntryResult, SourceRemovalResult } from "@/features/measurements/entry-state";
 import type { Database } from "@/db/client";
-import { listMeasurementSources } from "@/features/measurements/sources";
+import { listMeasurementSources, removeMeasurementSource } from "@/features/measurements/sources";
+import { safeAiError } from "@/features/measurements/ai-api";
 
 async function perform(work: (db: Database, actor: MeasurementActor) => Promise<string>): Promise<EntryResult> {
   const user = await currentUser(await headers());
@@ -23,7 +24,7 @@ async function perform(work: (db: Database, actor: MeasurementActor) => Promise<
     return { ok: true, records: records.map(measurementDisplay), dates, sources, message };
   } catch (error) {
     // 数据库错误可能含 SQL 和数值，只把业务校验消息返回给本账号。
-    return { ok: false, error: error instanceof Error && !["query", "code", "cause"].some(key => key in error) ? error.message : "操作未完成，请稍后重试。" };
+    return { ok: false, error: safeAiError(error).error.message };
   }
 }
 export async function saveDayAction(input: SaveMeasurementDayInput) {
@@ -31,4 +32,13 @@ export async function saveDayAction(input: SaveMeasurementDayInput) {
 }
 export async function estimateCellAction(input: EstimateCellInput) {
   return perform(async (db, actor) => (await estimateMeasurementCell(db, actor, input)).message);
+}
+export async function removeSourceAction(label: string): Promise<SourceRemovalResult> {
+  const user = await currentUser(await headers());
+  if (!user) return { ok: false, error: "登录已失效，请重新登录。" };
+  try {
+    const sources = await removeMeasurementSource(getDatabase(), { userId: user.id, actorId: user.id, actorType: "user" }, label);
+    revalidatePath("/dashboard"); revalidatePath("/dashboard/ai/operations/[id]", "page");
+    return { ok: true, sources };
+  } catch (error) { return { ok: false, error: safeAiError(error).error.message }; }
 }
