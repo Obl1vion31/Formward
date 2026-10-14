@@ -99,11 +99,11 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
   try {
     if (process.env.FORMWARD_MEASUREMENTS_DEV === "1") {
       // 先编译入口。Next 16 开发连接重同步时会把冷编译的新 hash 视作重启并整页重载。
-      for (const path of ["/", "/dashboard", "/dashboard/ai", "/dashboard/ai/operations/00000000-0000-4000-8000-000000000000", "/api/v1/openapi.json", "/api/v1/measurements", "/api/v1/measurement-operations"]) {
+      for (const path of ["/", "/dashboard/measurements", "/dashboard/ai", "/dashboard/ai/operations/00000000-0000-4000-8000-000000000000", "/api/v1/openapi.json", "/api/v1/measurements", "/api/v1/measurement-operations"]) {
         await context.request.get(`${baseURL}${path}`);
       }
     }
-    await page.goto(`${baseURL}/dashboard`);
+    await page.goto(`${baseURL}/dashboard/measurements`);
     await page.getByRole("heading", { name: "身体记录", exact: true }).waitFor(); await ready();
     assert.equal(await page.locator("dialog").count(), 0);
     await page.locator(`tr[data-date="${date}"]`).getByRole("button", { name: `录入 ${date}`, exact: true }).click();
@@ -156,9 +156,9 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     await page.goto(`${baseURL}/dashboard/ai`); await page.getByRole("heading", { name: "AI 接入", exact: true }).waitFor(); await ready();
     await page.getByLabel("令牌名称").fill("虚构交叠请求");
     const overlapping = await holdNext(actionRequest);
-    const overlappingNavigation = await holdNext(request => request.method() === "GET" && new URL(request.url()).pathname === "/dashboard" && request.headers()["rsc"] === "1" && !request.headers()["next-router-prefetch"]);
+    const overlappingNavigation = await holdNext(request => request.method() === "GET" && new URL(request.url()).pathname === "/dashboard/measurements" && request.headers()["rsc"] === "1" && !request.headers()["next-router-prefetch"]);
     await page.getByRole("button", { name: "创建令牌", exact: true }).click(); await overlapping.wait();
-    await page.getByRole("link", { name: "Formward 主页", exact: true }).evaluate(node => node.click());
+    await page.getByRole("link", { name: "身体记录", exact: true }).evaluate(node => node.click());
     await overlappingNavigation.wait(); await assertLoading("正在加载页面…");
     await overlapping.release("abort"); await page.waitForTimeout(100);
     assert.equal(await loading().count(), 1, "仍有待处理导航时不关闭模态层");
@@ -226,7 +226,7 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     assert.equal(new URL(page.url()).pathname, "/", "认证完成先展示原最终动画");
     await dashboard.wait(); await loading().waitFor();
     assert.match(await loading().innerText(), /正在加载(身体记录|页面)…/);
-    await dashboard.release(); await page.getByRole("heading", { name: "身体记录", exact: true }).waitFor(); await ready();
+    await dashboard.release(); await page.getByRole("heading", { name: "今日概况", exact: true }).waitFor(); await ready();
     await page.goBack(); await ready(); await page.goForward(); await ready();
     const failedAssets = await holdNext(request => request.url().includes("/videos/golden-turn-1s.mp4"));
     await page.goto(baseURL, { waitUntil: "domcontentloaded" }); await failedAssets.wait(); await assertLoading("正在加载登录页面…");

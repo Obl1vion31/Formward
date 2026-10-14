@@ -1,6 +1,6 @@
 # 公网 HTTPS 部署
 
-Formward 使用 Vercel 托管 Next.js，继续连接现有 Neon PostgreSQL。正式域名为 [https://formward-ten.vercel.app](https://formward-ten.vercel.app)，公开协议位于 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json)，AI API 基础地址为 `https://formward-ten.vercel.app/api/v1`，MCP 为 `https://formward-ten.vercel.app/api/mcp`。来源确认／建议管理、MCP／OAuth 与手机调整已发布；当前部署为 `dpl_4NK3G9GXn4kfcPWNKjC8saaZ6Msa`，0012 migration 已执行。
+Formward 使用 Vercel 托管 Next.js，继续连接现有 Neon PostgreSQL。正式域名为 [https://formward-ten.vercel.app](https://formward-ten.vercel.app)，公开协议位于 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json)，AI API 基础地址为 `https://formward-ten.vercel.app/api/v1`，MCP 为 `https://formward-ten.vercel.app/api/mcp`。当前部署为 `dpl_dVss144LB3QQeQDreq76kTS87RNy`，READY并绑定正式域名，生产协议OpenAPI1.5.0／MCP1.2.0。数据库已执行0014 migration；今日概况、独立身体入口、营养柱图及原图功能均已发布，Private Blob仅关联Production并使用OIDC。
 
 网页通过内部账号登录，MCP 通过 OAuth Bearer，HTTP API 通过独立手动令牌鉴权。公开协议不含健康数据或令牌。AI 提交只生成预览，保存仍由用户在网页登录确认；完整格式见 [AI 接入](ai-api.md)。
 
@@ -23,6 +23,7 @@ Formward 使用 Vercel 托管 Next.js，继续连接现有 Neon PostgreSQL。正
 | `BETTER_AUTH_URL` | `https://formward-ten.vercel.app` |
 | `FORMWARD_TIMEZONE` | `Asia/Shanghai` |
 | `ENABLE_EXPERIMENTAL_COREPACK` | `1` |
+| `BLOB_STORE_ID` | 连接Private Blob后平台自动配置；SDK使用当前部署的OIDC凭据 |
 
 不把真实数据库配置复制到 Preview。生产变量不使用 NEXT_PUBLIC_ 前缀；不上传环境文件，也不运行会覆盖本机 `.env.local` 的 env pull。新增或修改平台变量后需要重新部署。
 
@@ -67,8 +68,24 @@ OAuth discovery 与 JWKS 200、resource／issuer／端点使用正式 HTTPS、�
 
 0011 已共享，不再修改。迁移前后私有备份为 data/exports/database-before-mcp-oauth-2026-10-12.json 与 database-after-mcp-oauth-2026-10-12.json，核对报告为 mcp-oauth-migration-verification-2026-10-12.json；旧 12 张表的全部旧字段和值保持，measurement_operations 仅增加 nullable 连接字段并放宽 token_id，账本新增一次。公网上线报告在 /tmp/formward-public-mcp-http.json、/tmp/formward-public-mcp-browser.json，不包含真实健康记录或凭据。
 
-来源建议管理使用 0012 migration 新增删除时间与操作者，执行前后私有一致性备份和核对确认 21 张既有业务表旧字段和值保持。当前 OpenAPI 1.3.0 提供 sourceUnspecifiedConfirmed 与 needsUserInput，来源补填／直接留空保存、点击来源输入框展开全部建议、桌面／320px 手机的“×”移除与草稿保留已在隔离 production 浏览器通过。正式网站需要用户刷新后核对真实 ChatGPT 的来源询问；现有来源由用户选择移除建议或编辑记录。
+来源建议管理使用 0012 migration 新增删除时间与操作者，执行前后私有一致性备份和核对确认 21 张既有业务表旧字段和值保持。OpenAPI 提供 sourceUnspecifiedConfirmed 与 needsUserInput，来源补填／直接留空保存、点击来源输入框展开全部建议、桌面／320px 手机的“×”移除与草稿保留已在隔离 production 浏览器通过。真实 ChatGPT 的来源询问由用户在客户端核对；现有来源由用户选择移除建议或编辑记录。
 
-当前发布 dpl_4NK3G9GXn4kfcPWNKjC8saaZ6Msa 已 Ready 并绑定正式域名；公网协议、来源字段、OAuth resource discovery、MCP 未授权 challenge、登录保护与私有备份路径 404 通过，当前部署 Runtime Logs error 查询为 0 条。核对报告仅保存在 /tmp，不公开健康数据或凭据。
+当前发布的公网OpenAPI1.5.0、原图协议、OAuth resource discovery、MCP 未授权 challenge、三个主页面登录保护及私有备份路径404通过。生产临时虚构账号已验证实际OIDC上传、相同图片重复复用、原图字节一致与private/no-store、无效文件及来源拒绝、跨账号404、未登录401和存储原始地址匿名403。浏览器检查今日概况、身体、饮食及320px上传预览，无横向溢出或客户端异常。测试图片、账号与会话已清理，不向已有账号写测试健康记录；本地测试临时Development存储权限已关闭，最终仅Production。当前部署Runtime error查询返回0条，查询区间无排除片段。
 
-饮食页面与MCP／HTTP的当前发布为dpl_4NK3G9GXn4kfcPWNKjC8saaZ6Msa，正式入口[饮食记录](https://formward-ten.vercel.app/dashboard/meals)。0013已迁移，原21表字段和值核对一致；初始化预览及备份保持私有。已有MCP连接需刷新工具并重新授权饮食权限。
+验收报告仅保存在/tmp/formward-public-http.json、formward-public-image-check.json、formward-private-blob-smoke.json和formward-production-runtime.jsonl，虚构截图位于/tmp/formward-public-visual；不公开健康数据或凭据。正式入口为[今日概况](https://formward-ten.vercel.app/dashboard)、[身体记录](https://formward-ten.vercel.app/dashboard/measurements)和[饮食记录](https://formward-ten.vercel.app/dashboard/meals)。初始化预览及备份保持私有，正式保存由用户网页登录确认。已有MCP连接需刷新工具，缺饮食权限时重新授权。
+
+## 饮食原图存储
+
+为本项目创建并连接Private模式的Vercel Blob，使用[私有存储](https://vercel.com/docs/vercel-blob/private-storage)，不得使用Public模式。当前SDK为@vercel/blob 2.8.1。配置步骤：
+
+1. 在Vercel打开项目formward，进入Storage，选择Create Storage → Blob → Continue，将access设为Private，例如命名formward-meal-images。
+2. 确认存储连接到formward项目，生产连接选择Production。若从团队Storage创建，需要再Connect Project；本项目的Preview不连接真实健康存储。
+3. 在Settings → Environment Variables检查Production包含BLOB_STORE_ID。当前Vercel使用自动轮换的OIDC凭据，@vercel/blob 2.8.1直接支持；生产无需手动添加BLOB_READ_WRITE_TOKEN。平台可能同时添加BLOB_WEBHOOK_PUBLIC_KEY；本应用未使用Blob webhook，保留平台配置即可。变量不使用NEXT_PUBLIC_前缀。
+4. 本地测试使用与存储关联环境一致的OIDC权限，或在存储支持静态凭据时将BLOB_READ_WRITE_TOKEN填入本机被忽略的.env.local。仅关联Production／Preview时，本地Development OIDC会被平台拒绝。保留其他既有变量；不运行覆盖整个.env.local的env pull，不提交、打印或在聊天中发送凭据。
+5. 修改环境变量后重新部署。配置存储本身不会更新当前正式网站；本项目按上方CLI流程发布仓库代码。
+
+单张4 MiB、最多8张；Hobby配额以[Vercel用量说明](https://vercel.com/docs/vercel-blob/usage-and-pricing)为准，超过配额时上传明确失败，不自动升级付费。
+
+0014_meal_images已执行，已核对原27张业务／认证表的全部旧字段和值保持，新增两张空原图表及nullable amount_decision，旧食量决策为null，migration账本只增加一次。私有一致性备份为data/exports/database-before-meal-images-2026-10-14.json与database-after-meal-images-2026-10-14.json，核对报告为meal-images-migration-verification-2026-10-14.json；均为0600且被Git及部署忽略。0014已共享，不再修改。
+
+原图通过/api/meal-images/[id]校验当前账号后流式返回，private/no-store避免共享缓存；没有存储配置时原图上传明确失败，草稿可重试。实际ChatGPT刷新工具后验证files传输、原图长期回看、修改及撤销；生产发布与真实数据确认分别由用户明确决定。

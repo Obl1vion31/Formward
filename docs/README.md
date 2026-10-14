@@ -16,13 +16,13 @@
 - `frame-calibration.md`：首页静态人物测量、离线拟合方式，以及视频首尾与静态端点的校准。
 - `design-reference.md`：MacroFactor 调研与 Formward 的 PC 端设计方向。
 - `architecture.md`：轻量 Next.js 模块化单体边界。
-- `ai-api.md`：身体记录 MCP + OAuth、AI 令牌、HTTP 协议、网页预览确认和本地 Codex 试验步骤。
+- `ai-api.md`：身体与饮食 MCP + OAuth、原图传输、AI 令牌、HTTP 协议、网页预览确认和本地 Codex 试验步骤。
 - `auth-setup.md`：Neon 配置、数据库 migration、内部账号创建、登录顺序与验证。
 - `deployment.md`：Vercel 公网 HTTPS、正式地址、生产环境变量、共享限流和发布验收。
 - `database.md`：数据库连接流程、逻辑关系图、全部物理字段与索引／约束字典、维护入口。
 - `data-model.md`：核心数据、来源信息和外部生态扩展原则。
 - `measurements.md`：身体记录的当前导入与回看、当地晨晚归属、空腹确认、数据库／界面／AI 接口方案，以及当天晨晚差和次晨变化的热量关联。
-- [饮食记录](meals.md)：整餐初始化、食物与杂、食材库、营养计算和 AI 审核定位。
+- [饮食记录](meals.md)：今天／历史柱图、整餐初始化、食物与杂、食材预设、油酱、营养计算、原图和 AI 审核定位。
 - `excel-import.md`：现有工作簿的迁移流程。
 
 ## 维护约定

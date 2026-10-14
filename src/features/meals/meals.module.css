@@ -12,8 +12,6 @@
 .tabs { display: flex; gap: 24px; margin: 14px 0 12px; border-bottom: 1px solid var(--rule); }
 .tabs button { padding-inline: 0; }
 .tabs button[aria-pressed="true"] { color: var(--ink); border-bottom: 1px solid var(--gold); }
-.daySelector { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
-.daySelector span { color: var(--muted); font-size: 12px; margin-left: auto; }
 .workspace input, .drawer input, .drawer select, .drawer textarea, .toolbar input { min-width: 0; min-height: 44px; background: transparent; border: 0; border-bottom: 1px solid var(--rule); border-radius: 0; color: var(--ink); font: inherit; color-scheme: dark; padding: 8px 0; }
 .workspace input[type="date"] { width: 145px; }
 .summary { display: grid; grid-template-columns: repeat(4,1fr); padding: 28px 0; gap: 24px; border-bottom: 1px solid var(--rule); }
@@ -32,23 +30,12 @@
 .chart { width: 100%; height: 230px; display: block; overflow: visible; }
 .grid { stroke: var(--rule); stroke-width: .7; }
 .axis { fill: var(--muted); font: 12px ui-monospace,monospace; }
-.line { stroke: var(--gold); stroke-width: 1.7; }
-.point { fill: var(--gold); stroke: var(--gold); stroke-width: 1.5; }
-.point[data-incomplete="true"] { fill: #10100f; }
-.hit { fill: transparent; cursor: pointer; }
 .chart g[role="button"]:focus-visible .hit { stroke: var(--ink); stroke-width: 1; }
 .chartEmpty { height: 230px; display: grid; place-items: center; color: var(--muted); font-size: 13px; }
 .tableHeading { display: flex; justify-content: space-between; align-items: center; padding: 18px 0 6px; }
 .tableHeading h2 { margin: 0; font-size: 14px; font-weight: 500; }
 .tableHeading button { font-size: 12px; }
-.day { border-bottom: 1px solid var(--rule); }
-.dayRow { display: grid; grid-template-columns: 1.7fr repeat(4,1fr) 26px; width: 100%; align-items: center; gap: 12px; text-align: right; }
-.workspace button.dayRow { padding: 18px 0; min-height: 72px; color: var(--ink); }
-.dayRow > span:first-child { text-align: left; }
-.dayRow small { display: block; font-size: 11px; color: var(--muted); margin-top: 5px; }
-.columnLabels { color: var(--muted); font-size: 12px; padding: 10px 0; border-bottom: 1px solid var(--rule); }
-.columnLabels small { display: inline; }
-.chevron { color: var(--gold); }
+.workspace button
 .dayMeals { padding: 0 18px 12px; border-inline-start: 1px solid rgba(190,164,120,.3); margin-bottom: 14px; }
 .meal { padding-block: 14px; border-bottom: 1px solid var(--rule); }
 .meal:last-child { border-bottom: 0; }
@@ -111,9 +98,29 @@
 @keyframes drawerOut { from { transform: translateX(0); } to { transform: translateX(100%); } }
 @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes backdropOut { from { opacity: 1; } to { opacity: 0; } }
-@media(max-width:600px) { .summary { gap: 16px; grid-template-columns: 1fr 1fr; } .summary strong { font-size: 36px; } .toolbar { gap: 6px; } .rangeTabs { margin-left: auto; gap: 0; } .metricTabs { width: 100%; justify-content: space-between; } .dayRow { gap: 4px; grid-template-columns: 1.7fr repeat(4,1fr) 14px; font-size: 12px; } .columnLabels { font-size: 10px; } .columnLabels small { display: block; } .dayRow > span:first-child { font-size: 11px; } .dayMeals { padding-inline: 10px 0; } .compactMetrics { gap: 6px; } .compactMetrics strong { font-size: 16px; } .compactMetrics small { display: block; margin-left: 0; font-size: 10px; } .foodRow { gap: 10px; } .foodRow > .actions { flex-direction: column; gap: 0; } .drawerContent { padding: 22px 20px; } .chart { height: 195px; } .heading { gap: 10px; } .daySelector { gap: 6px; } .reviewActions { gap: 8px; flex-wrap: wrap; } }
+@media(max-width:600px) { .summary { gap: 16px; grid-template-columns: 1fr 1fr; } .summary strong { font-size: 36px; } .toolbar { gap: 6px; } .rangeTabs { margin-left: auto; gap: 0; } .metricTabs { width: 100%; justify-content: space-between; }   .dayMeals { padding-inline: 10px 0; } .compactMetrics { gap: 6px; } .compactMetrics strong { font-size: 16px; } .compactMetrics small { display: block; margin-left: 0; font-size: 10px; } .foodRow { gap: 10px; } .foodRow > .actions { flex-direction: column; gap: 0; } .drawerContent { padding: 22px 20px; } .chart { height: 195px; } .heading { gap: 10px; } .reviewActions { gap: 8px; flex-wrap: wrap; } }
 @media(prefers-reduced-motion:reduce) { .drawer, .drawer::backdrop, .drawer[data-closing="true"], .drawer[data-closing="true"]::backdrop { animation: none; } }
 
 .workspace a:focus-visible, .workspace summary:focus-visible, .drawer select:focus-visible, .drawer textarea:focus-visible, .drawer summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
 
 @media (max-width:700px) { .axis { font-size: 14px; } }
+.todayHeading { display:flex; justify-content:space-between; gap:16px; margin-top:20px; color:var(--muted); font-size:12px; }
+.barViewport { width:100%; overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain; }
+.barLegend { display:flex; flex-wrap:wrap; gap:20px; padding:12px 0 4px; color:var(--muted); font-size:12px; }
+.barLegend span { display:inline-flex; gap:7px; align-items:center; }
+.barLegend i { width:8px; height:8px; }
+.bar { pointer-events:none; }
+.bar[data-incomplete="true"] { fill-opacity:.45; stroke:currentColor; stroke-dasharray:2 2; }
+.barHit { fill:transparent; }
+.chart g[role="button"] { cursor:pointer; }
+.chart g[role="button"]:focus-visible { outline:none; }
+.chart g[role="button"]:focus-visible .barHit { fill:rgba(240,233,221,.08); stroke:var(--gold); stroke-width:1; }
+.barHint { min-height:20px; margin:4px 0; font-size:12px; color:var(--muted); white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+.photos { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
+.photos a { display:block; color:var(--muted); font-size:11px; text-decoration:none; }
+.photos img { display:block; width:76px; height:76px; object-fit:cover; border:1px solid var(--rule); margin-bottom:4px; }
+.photoFields { margin:20px 0; }
+.photoFields input[type="file"] { font-size:12px; max-width:100%; }
+.photoReview { padding:16px 0!important; border-top:1px solid var(--rule)!important; }
+.presetList { margin-top:32px; border-top:1px solid var(--rule); padding-top:20px; }
+.presetList h2 { font-size:15px; font-weight:500; }

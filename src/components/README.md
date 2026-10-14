@@ -11,4 +11,6 @@
 维护时只接入真实异步状态，操作内容和错误处理留在对应 feature。颜色与减少动态效果规则在 app/globals.css，浏览器验收在 tests/page-loading.browser.mjs。
 
 
+`use-local-today.ts` 根据设备时区显示今天，每分钟及页面重新可见时更新，服务端日期只用于一致的初始水合。
+
 `use-mobile-mode.ts` 用 useSyncExternalStore 共用窄屏／粗指针触屏判断，覆盖触屏横屏；服务端快照为 null，避免水合时先显示桌面 30 日图或请求手机不需要的视频。设备模式变化后，已手动选择的图表区间保持。

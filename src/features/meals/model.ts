@@ -11,17 +11,19 @@ export const emptyNutrition = (): Nutrition => ({ caloriesKcal: null, proteinG: 
 const text = (max: number) => z.string().trim().max(max).refine(v => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(v), "文字包含无效字符");
 const source = z.enum(["label", "composition_table", "estimated", "unknown"]);
 const evidence = z.string().max(2000).url().refine(v => /^https?:\/\//.test(v), "来源链接须为 HTTP 或 HTTPS").nullable().optional();
+const imageIds = z.array(z.string().uuid()).max(8).refine(ids => new Set(ids).size === ids.length, "照片不能重复引用").optional();
+export const photoReviewSchema = z.object({ dateConfirmed: z.boolean(), mealTypeConfirmed: z.boolean(), identityConfirmed: z.boolean(), amountConfirmed: z.boolean(), cookingConfirmed: z.boolean(), questions: z.array(text(500).min(1)).max(20).default([]) }).strict();
 export const foodDraftSchema = z.object({
   id: z.string().uuid().optional(), version: z.number().int().positive().optional(),
   name: text(200).min(1), brand: text(200).nullable().optional(), preparation: text(200).nullable().optional(),
   baseQuantity: decimal.refine(v => Number(v) > 0, "基准数量须大于0"), unit: text(30).min(1),
-  nutrition: nutritionSchema, sourceKind: source, basis: text(4000).nullable().optional(), evidenceUrl: evidence,
+  imageIds, nutrition: nutritionSchema, sourceKind: source, basis: text(4000).nullable().optional(), evidenceUrl: evidence,
 }).strict();
 export type FoodDraft = z.infer<typeof foodDraftSchema>;
 export const itemSchema = z.object({
   kind: z.enum(["food", "misc", "whole"]), name: text(200).min(1),
   quantity: decimal.refine(v => Number(v) > 0, "食用量须大于0").nullable().optional(), unit: text(30).nullable().optional(),
-  foodId: z.string().uuid().optional(), foodVersion: z.number().int().positive().optional(), foodDraft: foodDraftSchema.optional(),
+  amountDecision: z.enum(["provided", "estimate_accepted", "unknown_accepted"]).optional(), foodId: z.string().uuid().optional(), foodVersion: z.number().int().positive().optional(), foodDraft: foodDraftSchema.optional(),
   nutrition: nutritionSchema.optional(), sourceKind: source.default("estimated"), basis: text(4000).nullable().optional(), evidenceUrl: evidence,
 }).strict();
 export type ItemDraft = z.infer<typeof itemSchema>;
@@ -29,7 +31,7 @@ export const mealDraftSchema = z.object({
   id: z.string().uuid().optional(), version: z.number().int().positive().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), mealType: text(50).min(1),
   timezone: text(100).nullable().optional(), occurredAt: z.string().datetime({ offset: true }).nullable().optional(),
-  notes: text(12000).nullable().optional(), items: z.array(itemSchema).min(1).max(50), allowDuplicate: z.boolean().optional(),
+  imageIds, photoReview: photoReviewSchema.optional(), notes: text(12000).nullable().optional(), items: z.array(itemSchema).min(1).max(50), allowDuplicate: z.boolean().optional(),
 }).strict();
 export type MealDraft = z.infer<typeof mealDraftSchema>;
 export const actionSchema = z.discriminatedUnion("kind", [
@@ -44,8 +46,8 @@ export type ItemView = ItemDraft & { nutrition: Nutrition; foodSnapshot?: FoodVi
 export type Totals = { values: Nutrition; incomplete: Record<Metric, boolean> };
 export type MealView = Omit<MealDraft, "items"> & { id: string; version: number; items: ItemView[]; totals: Totals; source: "manual" | "ai" | "initialization"; deletedAt: string | null };
 export type MealSnapshot = { meals: MealView[]; foods: FoodView[] };
-export type PreviewRow = { action: MealAction; food?: FoodView; meal?: MealView; error?: string; duplicateIds: string[]; warnings: string[] };
-export type MealOperationView = { id: string; revision: number; status: string; origin: string; rows: PreviewRow[]; canConfirm: boolean; createdAt: string; expiresAt: string | null; confirmationPath: string; result: { saved: number; message: string } | null };
+export type PreviewRow = { action: MealAction; food?: FoodView; meal?: MealView; error?: string; duplicateIds: string[]; warnings: string[]; needsUserInput?: string[] };
+export type MealOperationView = { id: string; revision: number; status: string; origin: string; rows: PreviewRow[]; canConfirm: boolean; needsUserInput?: { index: number; questions: string[] }[]; createdAt: string; expiresAt: string | null; confirmationPath: string; result: { saved: number; message: string } | null };
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
 // 用整数保留四位小数，数量换算仅在最终落库时舍入。

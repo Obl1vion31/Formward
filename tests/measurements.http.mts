@@ -27,14 +27,14 @@ if (development) {
   await Promise.all(["src", "package.json", "pnpm-lock.yaml", "tsconfig.json", "next-env.d.ts", "next.config.ts", "postcss.config.mjs", "AGENTS.md"].map((name) => cp(join(projectRoot, name), join(serverDirectory, name), { recursive: true })));
   await Promise.all(["node_modules", "public"].map((name) => symlink(join(projectRoot, name), join(serverDirectory, name), "dir")));
   // 测试刷新控制只写入临时源码副本，不给产品增加测试入口。
-  await writeFile(join(serverDirectory, "src/app/dashboard/test-refresh.tsx"), `"use client";
+  await writeFile(join(serverDirectory, "src/app/dashboard/measurements/test-refresh.tsx"), `"use client";
 import { useRouter } from "next/navigation";
 export function TestRefresh({ revision }: { revision: string }) {
   const router = useRouter();
   return <button hidden data-test-refresh data-revision={revision} onClick={() => router.refresh()}>测试刷新</button>;
 }
 `);
-  const pagePath = join(serverDirectory, "src/app/dashboard/page.tsx");
+  const pagePath = join(serverDirectory, "src/app/dashboard/measurements/page.tsx");
   const pageSource = await readFile(pagePath, "utf8");
   await writeFile(pagePath, `import { TestRefresh } from "./test-refresh";\n${pageSource.replace('<main className="dashboard-page">', '<main className="dashboard-page"><TestRefresh revision={records.map(row => row.updatedAt.toISOString()).join(",")} />')}`);
 }
@@ -124,7 +124,7 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   assert.ok(ready, `${development ? "development" : "production"} 测试服务启动`);
-  const guarded = await fetch(`${baseURL}/dashboard`, { redirect: "manual" });
+  const guarded = await fetch(`${baseURL}/dashboard/measurements`, { redirect: "manual" });
   assert.equal(guarded.status, 307);
   assert.ok((guarded.headers.get("location") ?? "").endsWith("/"));
   console.log("通过：未登录不能读取身体记录。");
@@ -137,7 +137,7 @@ try {
     return response.headers.getSetCookie().map((cookie) => cookie.split(";")[0]).join("; ");
   }
   const firstCookie = await login(first, "192.0.2.71");
-  const populated = await fetch(`${baseURL}/dashboard?user_id=someone-else`, { headers: { Cookie: firstCookie } });
+  const populated = await fetch(`${baseURL}/dashboard/measurements?user_id=someone-else`, { headers: { Cookie: firstCookie } });
   assert.equal(populated.status, 200);
   const html = await populated.text();
   assert.ok(html.includes("身体记录"));
@@ -159,7 +159,7 @@ try {
   console.log("通过：有记录账号显示摘要、空腹主趋势、最近记录及归属／来源展示数据。");
 
   const secondCookie = await login(second, "192.0.2.72");
-  const other = await fetch(`${baseURL}/dashboard?user_id=${owner.id}`, { headers: { Cookie: secondCookie } });
+  const other = await fetch(`${baseURL}/dashboard/measurements?user_id=${owner.id}`, { headers: { Cookie: secondCookie } });
   const otherHtml = await other.text();
   assert.equal(other.status, 200);
   assert.ok(otherHtml.includes(second.email));

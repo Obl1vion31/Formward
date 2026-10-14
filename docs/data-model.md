@@ -105,3 +105,5 @@ deleted_at
 ## 饮食事实
 
 Food为用户自己的单位基准规格；Meal为一次进食，MealItem保存具体食物、剩余杂或唯一整餐估算及当时的营养快照。初始化来源为initialization、整餐估算，具体组成写备注。每日汇总派生，未知null，热量独立保存。MealImport保存原行、参考数值决策和批次；MealOperation保存原请求、修订、快照、权限及确认状态；MealEvent记录操作者、确认账号和前后值。组合外键校验归属，具体规则见[饮食记录](meals.md)。
+
+饮食原图保存到私有对象存储，meal_images保存账号、内容摘要、来源文件与操作者；meal_image_links使用组合外键关联同账号餐次或食材，原图不随软删除销毁。草稿imageIds与photoReview随原始请求、修订与审计保存；人工确认解决待核对信息。食量明确未知时保留食材快照及null营养，amount_decision记录用户选择。

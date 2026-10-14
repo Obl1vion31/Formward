@@ -1,6 +1,10 @@
 # 项目当前状态
 
-更新日期：2026 年 10 月 13 日。新会话先读 [项目交接](../handoff.md)。本文件描述当前仓库与正式发布状态。
+更新日期：2026 年 10 月 14 日。新会话先读 [项目交接](../handoff.md)。本文件描述当前仓库与正式发布状态。
+
+## 仓库与生产
+
+今日总览、独立身体入口、今天优先饮食及三色并列柱图、基础食材和饮食原图／AI核对已正式发布，部署为dpl_dVss144LB3QQeQDreq76kTS87RNy，READY并绑定正式域名。生产数据库已执行0014，现有29张业务／认证表；迁移前后私有备份核对确认原27表旧字段和值保持，新增两张原图表及nullable食量决策列。Private Blob仅关联Production，实际OIDC上传与原图读取已验证；真实ChatGPT文件传输仍待客户端验收。
 
 ## 当前产品决定
 
@@ -16,7 +20,7 @@
 
 ## 已实现
 
-- MCP + OAuth：`/api/mcp` 提供身体与饮食共八个工具，查询／预览／状态分别复用 measurements 与 meals feature，饮食具有独立权限。授权码 + S256 PKCE、CIMD 与 DCR、1 小时 JWT、轮换刷新和最多 30 天连接。签名、issuer、resource audience、期限、账号／连接／同意／权限全部验证；刷新保持稳定连接，撤销立即阻止调用、续期、未兑换授权码和旧预览。HTTP API／手动令牌继续兼容。
+- MCP + OAuth：`/api/mcp` 提供身体与饮食共九个工具，查询／预览／状态分别复用 measurements 与 meals feature，饮食具有独立权限。授权码 + S256 PKCE、CIMD 与 DCR、1 小时 JWT、轮换刷新和最多 30 天连接。签名、issuer、resource audience、期限、账号／连接／同意／权限全部验证；刷新保持稳定连接，撤销立即阻止调用、续期、未兑换授权码和旧预览。HTTP API／手动令牌继续兼容。
 - 授权界面：独立登录／继续授权与逐项权限同意页，只接受官方签名请求。AI 接入设置展示 MCP 地址、ChatGPT 连接步骤、客户端权限／状态／最近使用与撤销，同时保留原令牌和审核列表。
 - 手机登录：原始静态 1／12／13 PNG，纯石墨背景与 normal 合成，去掉彩色舞台光影；不加载视频，首屏点击直接到登录尾帧，不使用滑动。背景点击不返回，顶部返回保留输入并关闭键盘，认证中禁用。横屏触屏仍使用此模式。
 - 桌面首页：本地 Newsreader／IBM Plex Mono、150° 同步轨道、原素材与校准、鼠标视差和焦点锁定、500ms 正倒放、静态媒体兜底和认证后 700ms／240ms 最终过渡。
@@ -24,13 +28,13 @@
 - 来源确认与建议管理：身体录入／AI 审核共用简洁来源输入，点击输入框直接展开全部建议并保留现有文字，输入时筛选，支持键盘／触屏选择；“×”移除本账号建议并保留草稿和历史快照。网页新实测或主动清空可直接留空保存，自动提交 sourceUnspecifiedConfirmed:true 与 deviceLabel:null；API 客户端仍须先询问确认留空；留空审计、不生成建议。旧记录保留来源不恢复建议，明确再次使用并成功保存新记录或来源修改后恢复。MCP／HTTP 返回 needsUserInput 并要求先询问，禁止以录入渠道代填。
 - AI 批量审核：最多 100 条／64 KiB，原始请求不可变，预览 15 分钟，单行修改／确认／取消、整批事务确认剩余有效行。审核 revision、健康快照、归属与发起凭据保护写入；原始候选、网页草稿、操作者、确认时间和 tokenId／oauthConnectionId 审计保留。
 - 全站加载反馈：实际等待超过 200ms 显示原生 dialog、虚化背景与动作文字，快速操作不闪现，失败保留输入，阻止重复提交并与 Inspector 共用滚动锁。
-- 数据与维护：Neon／PGlite、Drizzle、内部账号 scrypt 哈希、7 天会话、跨实例数据库限流。schema 总计 27 张表、测量主表 30 列；0011 新增 OAuth 表并给审核操作增加连接归属；0012 来源建议增加 nullable deleted_at／deleted_by，保留旧字段和值。健康记录保留来源、准确时间、时区、未知空值与软删除；来源修正、初始化冻结、重建、维护／导入与私有报告已有 feature／脚本。
+- 数据与维护：Neon／PGlite、Drizzle、内部账号 scrypt 哈希、7 天会话、跨实例数据库限流。schema 总计 29 张表、测量主表 30 列；0011 新增 OAuth 表并给审核操作增加连接归属；0012 来源建议增加 nullable deleted_at／deleted_by，保留旧字段和值。健康记录保留来源、准确时间、时区、未知空值与软删除；来源修正、初始化冻结、重建、维护／导入与私有报告已有 feature／脚本。
 
 ## 公网状态
 
 [Formward](https://formward-ten.vercel.app) 已使用 Vercel Hobby／原 Neon、原内部账号、Node.js 24、函数 cle1；通过 CLI 手动发布，未关联 Git 自动部署。公开 HTTP API 与 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 可用，确认链接固定正式 HTTPS，生产默认时区 Asia/Shanghai。
 
-来源只保留标签与输入框，点击后显示全部建议和右侧“×”，保留来源文字与草稿；输入时再筛选，无历史或匹配时显示提示。网页留空直接保存或更新预览，无需额外勾选。来源确认与建议管理、MCP／OAuth 与手机版本已发布，当前部署为 dpl_4NK3G9GXn4kfcPWNKjC8saaZ6Msa。0012 已在真实数据库执行，21 张既有业务表全部旧字段和值保持，来源建议仅增加两列空删除状态；迁移前后私有备份与核对报告已保存。公网 discovery／PKCE／CIMD／JWKS、MCP 401 challenge、HTTPS／私有路径及桌面／手机／320px／触屏横屏／减少动态效果均通过，无客户端异常，Runtime Logs 没有 error 记录。当前发布的公网 OpenAPI 1.4.0、来源确认和 needsUserInput 字段、OAuth resource discovery、MCP 401 challenge、未登录跳转与私有备份路径 404 已通过；新部署 Runtime Logs error 查询为 0 条。真实 ChatGPT 的来源询问与 iPhone／微信观感仍由用户核对。
+来源只保留标签与输入框，点击后显示全部建议和右侧“×”，保留来源文字与草稿；输入时再筛选，无历史或匹配时显示提示。网页留空直接保存或更新预览，无需额外勾选。来源确认与建议管理、MCP／OAuth 与手机版本已发布。0012 已在真实数据库执行，21 张既有业务表全部旧字段和值保持，来源建议仅增加两列空删除状态；迁移前后私有备份与核对报告已保存。discovery／PKCE／CIMD／JWKS、MCP 401 challenge、HTTPS／私有路径及桌面／手机／320px／触屏横屏／减少动态效果验收通过，无客户端异常。当前公网OpenAPI1.5.0、来源确认和needsUserInput字段、OAuth resource discovery、MCP 401 challenge、未登录跳转与私有备份路径404通过；本次部署验收窗口Runtime error查询返回0条。真实ChatGPT的来源询问与iPhone／微信观感仍由用户核对。
 
 ## 代码入口与维护位置
 
@@ -59,7 +63,7 @@
 | `src/features/auth/server.ts`、`auth.ts`、`client.ts` | 服务端身份验证、统一 Better Auth 配置和浏览器认证请求。 |
 | `src/features/auth/provision.ts`、`scripts/create-account.mts` | 内部账号创建、scrypt 哈希、事务与重复保护。 |
 | `src/db/schema.ts`、`drizzle/`、`scripts/migrate.mts` | PostgreSQL 表、版本化 migration 与执行入口。 |
-| `src/app/dashboard/page.tsx` | 受保护的主页与当前账号，调用 measurements feature 查询自己的数据；退出调用正式认证接口。 |
+| `src/app/dashboard/page.tsx` | 受保护的今日概况，顺序查询饮食与身体，调用dashboard feature汇总；退出调用正式认证接口。 |
 | `src/features/measurements/assignment.ts`、`time.ts` | 当地晨晚归属、每条时区、UTC 偏移与夏令时校验。 |
 | `src/features/measurements/records.ts`、`days.ts`、`trend.ts` | 数值与空腹条件、晚间规则、事务写入、账号隔离、配对、最近记录、日期窗口、正常纵轴及空腹线。 |
 | `src/features/measurements/maintenance.ts`、`scripts/maintain-measurements.mts` | 绑定账号快照的条件修正、候选清理、软删除／恢复及事件。 |
@@ -74,7 +78,7 @@
 
 ## 验证结果
 
-lint、typecheck、217 项单元／集成测试、目录结构检查与本地／Vercel production build 通过。OAuth 测试通过实际 HTTP Provider 与当前／2025 SDK 客户端，覆盖签名登录、明确拒绝、回调校验（包括 native 可变回环端口）、PKCE、刷新轮换／重放、只读、重复／跨账号、错误签名／issuer／audience／到期和即时撤销；公开 JWT 签发入口拒绝访问。
+当前仓库lint、typecheck、225项单元／集成测试、目录结构检查、本地与Vercel production build通过。OAuth 测试通过实际 HTTP Provider 与当前／2025 SDK 客户端，覆盖签名登录、明确拒绝、回调校验（包括 native 可变回环端口）、PKCE、刷新轮换／重放、只读、重复／跨账号、错误签名／issuer／audience／到期和即时撤销；公开 JWT 签发入口拒绝访问。
 
 隔离浏览器已通过手机 OAuth 登录 → 同意 → MCP 提交 → 网页确认 → 状态查询 → 即时撤销，手机点击／顶部返回／输入保持、不下载视频、7D 默认与手动切换。完整首页、身体记录、原 HTTP AI、全站加载回归均通过；加载回归另验证视频失败采用静态登录、必要图片失败显示刷新提示。
 
@@ -86,8 +90,16 @@ lint、typecheck、217 项单元／集成测试、目录结构检查与本地／
 
 ## 饮食模块
 
-饮食页面与身体并列导航，每日四项摄入、切换指标趋势、日期餐次、食材库及编辑删除恢复已实现。初始化每行一餐、整餐估算和原备注；后续明确食物与剩余杂相加。0013新增六表，原身体规则保持；MCP四个饮食工具与HTTP接口复用同一feature，OAuth独立饮食权限、版本／快照保护及网页登录确认。定位见[饮食记录](meals.md)。
+饮食页面默认今天四项摄入、今天餐次及营养素／热量柱图，历史从图表或抽屉查看；食材库、预设、原图及编辑删除恢复已实现。初始化每行一餐、整餐估算和原备注；后续明确食物与剩余杂相加。0013新增六表，原身体规则保持；MCP五个饮食工具与HTTP接口复用同一feature，OAuth独立饮食权限、版本／快照保护及网页登录确认。定位见[饮食记录](meals.md)。
 
-饮食验证：217项单元／集成测试、lint、typecheck与production build通过。隔离浏览器覆盖HTTP权限与重试、初始化确认、食材复用、食物加杂、编辑删除恢复、缺日期、320px与跨账号；身体录入／来源／AI审核／加载回归也通过。0013已执行，迁移前后核对原21表字段与值一致，新增六表；真实45餐只创建待确认预览，正式保存由网页登录确认。原文件、参考资料、目标账号与预览均在忽略版本控制的data目录，截图仅含虚构数据。
+饮食验证：225项单元／集成测试、lint、typecheck与production build通过。隔离浏览器覆盖HTTP权限与重试、初始化确认、食材复用、食物加杂、编辑删除恢复、缺日期、320px与跨账号；身体录入／来源／AI审核／加载回归也通过。0013已执行，迁移前后核对原21表字段与值一致，新增六表；真实初始化的正式保存由网页登录确认。原文件、参考资料、目标账号与预览均在忽略版本控制的data目录，截图仅含虚构数据。
 
-当前饮食部署为dpl_4NK3G9GXn4kfcPWNKjC8saaZ6Msa，READY并已绑定正式域名；公网OpenAPI1.4.0、meals:read／meals:write、未登录保护与私有文件404通过，上传源码与本地匹配、无私有data或环境文件，Runtime error为0。45餐预览pending、canConfirm=true，全部whole／initialization，食材库和正式餐次均未提前写入。
+生产OpenAPI1.5.0包含饮食原图入口，MCP1.2.0共9个工具。meals:read／meals:write、未登录保护与私有文件404通过，发布源码不含私有data或环境文件；初始化的即时状态以登录审核页为准，agent未代确认真实记录。
+
+## 当前仓库验收
+
+225项单元／集成测试、lint、typecheck、目录结构检查、git diff --check和最终production build通过，新增上传后数据库写入失败时不依赖静态令牌的文件清理回归。隔离浏览器饮食回归覆盖总览与详情跳转、三色并列柱、历史选择不改变今天摘要、包装图片补传及食材快照、旧餐项编辑、删除恢复、320px和跨账号读取；隔离图片传输使用虚构原图及模拟存储。
+
+身体／来源／AI／加载完整浏览器回归通过，首次可见图表逐帧检查实际宽度及固定高度（桌面252px、窄屏206px），覆盖390px、320px、触屏横屏及减少动态效果。虚构截图在/tmp/formward-meals-visual和/tmp/formward-measurements-visual，测试日志在/tmp/formward-*-browser.log。
+
+生产原图验收通过独立虚构账号进行实际OIDC上传、字节一致、重复、无效文件／来源、跨账号与匿名拒绝，三个主页面及320px照片预览无横向溢出或客户端异常；私有存储原始地址匿名返回403。测试图片、账号与会话已清理；临时Development权限已关闭，存储仅Production且环境变量标记为敏感。Runtime error查询返回0条。报告在/tmp/formward-public-http.json、formward-public-image-check.json、formward-private-blob-smoke.json和formward-production-runtime.jsonl，虚构截图在/tmp/formward-public-visual。实际ChatGPT文件参数及真实手机仍待用户验收。

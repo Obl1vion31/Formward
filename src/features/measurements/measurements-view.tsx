@@ -113,7 +113,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
         <p>{summary.coverage}/7 天{summary.end && ` · 截至 ${shortDate(summary.end)}`}</p>
       </div>)}
     </section>
-    <section className={styles.chartPanel} aria-label="身体指标趋势" data-range={mode} style={{ visibility: mobileMode === null ? "hidden" : undefined }}>
+    <section className={styles.chartPanel} aria-label="身体指标趋势" data-range={mode} style={{ visibility: mobileMode === null || !today ? "hidden" : undefined }}>
       <div className={styles.chartToolbar}>
         <span className={styles.rangeCaption} title={`${displayDate(range.start)} — ${displayDate(range.end)}`}>
           <span className={styles.rangeFull}>{displayDate(range.start)} — {displayDate(range.end)}</span>
@@ -432,7 +432,7 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, onIns
     return () => observer.disconnect();
   }, []);
   const { points, segments, pairs } = measurementTrend(records, metric, showEvening, choices);
-  const width = Math.max(240, viewportWidth || 960);
+  const width = Math.max(240, viewportWidth);
   const span = calendarOrdinal(interval.end) - calendarOrdinal(interval.start);
   const x = (date: string) => span ? 48 + (calendarOrdinal(date) - calendarOrdinal(interval.start)) / span * (width - 72) : (width + 24) / 2;
   const scale = points.length ? normalScale(points.map((row) => Number(row[metric]))) : null;
@@ -452,7 +452,7 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, onIns
 
   return <>
     <div className={styles.plotViewport} ref={viewport}>
-      <svg className={styles.plot} width={width} height={252} viewBox={`0 0 ${width} 252`} role="group" aria-label={`${metricName(metric)}趋势，数值越高位置越高`}>
+      <svg className={styles.plot} style={{ visibility: viewportWidth > 0 ? undefined : "hidden" }} width={width} height={252} viewBox={`0 0 ${width} 252`} role="group" aria-label={`${metricName(metric)}趋势，数值越高位置越高`}>
         <title>{`${metricName(metric)}趋势`}</title>
         {scale?.ticks.map((value) => <g key={value}><line x1="48" x2={width - 24} y1={y(String(value))} y2={y(String(value))} className={styles.grid} /><text x="37" y={y(String(value)) + 4} textAnchor="end" className={styles.axis}>{value.toFixed(1)}</text></g>)}
         {ticks.map((date) => <text key={date} x={x(date)} y="242" textAnchor="middle" className={styles.axis}>{date.slice(5).replace("-", "/")}</text>)}

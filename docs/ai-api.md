@@ -14,6 +14,7 @@
 | `query_measurements` | 可选 from／to、choices、timezone；返回本账号记录、单位、来源、实测／估计、摘要、趋势与时区上下文 | `measurements:read` |
 | `submit_measurement_operation` | operationId、1–100 条 items、可选 timezone；生成预览并返回网页审核链接 | `measurements:write` |
 | `get_measurement_operation` | 提交返回的 id；查询逐行状态、数量和确认链接 | `measurements:read` |
+| `import_meal_images` | files私有保存原图，返回附件id，不保存正式餐次 | `meals:write` |
 | `search_foods` | q搜索食材及规格／营养／版本 | `meals:read` |
 | `query_meals` | from／to查询餐次及每日已记录合计 | `meals:read` |
 | `submit_meal_operation` | operationId、actions生成饮食／食材预览 | `meals:write` |
@@ -26,6 +27,14 @@ OAuth 使用授权码 + S256 PKCE，授权码有效 5 分钟；访问令牌有�
 登录后的“AI 接入”展示客户端、权限、授权／最近使用时间与状态，可随时撤销。撤销立即阻止访问、续期及未确认预览；重新授权创建新连接，不恢复旧连接的预览。OAuth 凭据和客户端密钥按摘要保存，JWT 签名私钥加密保存；不要把网页登录密码或数据库凭据交给模型。
 
 公开发现入口为 `/.well-known/oauth-protected-resource/api/mcp` 和 `/.well-known/oauth-authorization-server/api/auth`，公开 JWKS 在 `/api/auth/jwks`。发现信息和工具定义不含健康数据；未授权 MCP 请求返回 401 和 OAuth discovery challenge，默认同时请求账号识别、续期和身体读写范围，客户端可明确申请较小范围。
+
+## 饮食照片与补问
+
+import_meal_images（meals:write）接收顶层files，工具声明_meta["openai/fileParams"]。每项包含download_url、file_id，可选mime_type、file_name，返回稳定附件id。HTTP对应POST /api/v1/meal-images；网页提供会话保护的补传和读取。最多8张、每张4 MiB，JPEG／PNG／WebP原图私有保存，临时下载地址不作为长期照片链接。字段机制见[OpenAI官方说明](https://developers.openai.com/plugins/reference#define-file-inputs)。
+
+先识别、查询已有食材，再集中问日期、餐次、身份、实际食用量和额外油酱；只传图片不能默认日期或餐次。整份须确认全部吃完并有已知规格。餐次／食材用imageIds关联原图；照片AI餐次的photoReview核对字段和questions决定needsUserInput，未解决禁止确认，网页可补传、逐项修改并更新预览。模型不得自行代确认。食量未知先询问，再由用户接受估算或明确未知。包装识别保留名称、品牌、规格、标签单位及照片。规则见[饮食记录](meals.md)。
+
+search_foods返回foods和presets，后者仅供foodDraft／save_food采用；query_meals增加可选timezone，context.localDate用于相对日期。新工具沿用饮食权限，已有饮食连接刷新工具列表即可，缺饮食权限的身体连接仍须重新授权。
 
 ## 手动令牌与本地 HTTP 使用
 

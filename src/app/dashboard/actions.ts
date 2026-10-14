@@ -20,7 +20,7 @@ async function perform(work: (db: Database, actor: MeasurementActor) => Promise<
     const records = await listMeasurements(db, user.id);
     const dates = await listMeasurementDates(db, user.id);
     const sources = await listMeasurementSources(db, user.id);
-    revalidatePath("/dashboard");
+    revalidatePath("/dashboard"); revalidatePath("/dashboard/measurements");
     return { ok: true, records: records.map(measurementDisplay), dates, sources, message };
   } catch (error) {
     // 数据库错误可能含 SQL 和数值，只把业务校验消息返回给本账号。
@@ -38,7 +38,7 @@ export async function removeSourceAction(label: string): Promise<SourceRemovalRe
   if (!user) return { ok: false, error: "登录已失效，请重新登录。" };
   try {
     const sources = await removeMeasurementSource(getDatabase(), { userId: user.id, actorId: user.id, actorType: "user" }, label);
-    revalidatePath("/dashboard"); revalidatePath("/dashboard/ai/operations/[id]", "page");
+    revalidatePath("/dashboard"); revalidatePath("/dashboard/measurements"); revalidatePath("/dashboard/ai/operations/[id]", "page");
     return { ok: true, sources };
   } catch (error) { return { ok: false, error: safeAiError(error).error.message }; }
 }

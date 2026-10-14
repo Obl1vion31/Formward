@@ -1,0 +1,15 @@
+.workspace { width: min(1120px,100%); margin: auto; padding: 20px 0 40px; color: #f0e9dd; font-variant-numeric: tabular-nums; }
+.heading, .sectionHeading { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.heading h1 { font-size: 18px; font-weight: 500; margin: 0; }
+.heading time, .section p, .energy { color: #a8a195; font-size: 12px; line-height: 1.8; }
+.section { padding: 32px 0; border-bottom: 1px solid rgba(240,233,221,.12); }
+.section h2 { font-size: 15px; font-weight: 500; margin: 0; }
+.sectionHeading a { color: #bea478; text-decoration: none; font-size: 13px; min-height: 44px; display: flex; align-items: center; white-space: nowrap; }
+.nutrition { display: grid; grid-template-columns: repeat(4,1fr); gap: 24px; margin-top: 24px; }
+.body { display: grid; grid-template-columns: repeat(2,1fr); gap: 24px; margin-top: 24px; }
+.nutrition span, .body span { color: #a8a195; font-size: 13px; }
+.nutrition strong, .body strong { display: block; font-size: clamp(30px,3.6vw,44px); font-weight: 400; margin: 10px 0; }
+.workspace small { font-size: 12px; color: #a8a195; margin-left: 6px; }
+.energy { margin-top: 24px; }
+.workspace a:focus-visible { outline: 1px solid #bea478; outline-offset: 4px; }
+@media(max-width:600px) { .nutrition { grid-template-columns: repeat(2,1fr); } .section { padding: 24px 0; } }

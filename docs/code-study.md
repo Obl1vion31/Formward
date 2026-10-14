@@ -43,7 +43,7 @@ flowchart LR
 | 数据库与结构演进 | [src/db](../src/db/README.md)、[drizzle](../drizzle/README.md) | 连接、表结构、版本化 migration |
 | 管理与验证工具 | [scripts](../scripts/README.md)、[tests](../tests/README.md) | 账号创建、导入、历史维护、迁移与浏览器验收 |
 
-`features/meals`已实现饮食与食材库，`features/activities`和`features/dashboard`目前只有职责说明。当前 `/dashboard` 是身体记录页面，折线图和记录表应到 `features/measurements` 查找。
+`features/meals` 实现饮食、食材、照片及审核；`features/dashboard` 聚合今日概况；`features/activities` 仍只有职责说明。`/dashboard` 是今日概况，身体双图与记录表在 `/dashboard/measurements` 和 `features/measurements`。
 
 <a id="ui-map"></a>
 
@@ -54,7 +54,8 @@ flowchart LR
 | 页面 / 路径 | 页面入口 | 主要界面组件 | 样式位置 |
 | --- | --- | --- | --- |
 | 首页与登录 `/` | [app/page.tsx](../src/app/page.tsx) | [home-experience.tsx](../src/app/home-experience.tsx) 组装体验；[login-overlay.tsx](../src/app/login-overlay.tsx) 提供登录框 | `globals.css` 的 `.home-*`、`.login-*` |
-| 身体记录 `/dashboard` | [dashboard/page.tsx](../src/app/dashboard/page.tsx) | [measurements-view.tsx](../src/features/measurements/measurements-view.tsx) 组装摘要、双图、记录表和详情面板 | [measurements-view.module.css](../src/features/measurements/measurements-view.module.css)；页头使用 `globals.css` |
+| 今日概况 `/dashboard` | [dashboard/page.tsx](../src/app/dashboard/page.tsx) | [overview-view.tsx](../src/features/dashboard/overview-view.tsx) 展示摄入与最新实测 | `overview.module.css` |
+| 身体记录 `/dashboard/measurements` | [measurements/page.tsx](../src/app/dashboard/measurements/page.tsx) | [measurements-view.tsx](../src/features/measurements/measurements-view.tsx) 组装摘要、双图、记录表和详情面板 | [measurements-view.module.css](../src/features/measurements/measurements-view.module.css)；页头使用 `globals.css` |
 | 录入 / 编辑面板 | 在身体记录页面中打开 | [measurement-entry.tsx](../src/features/measurements/measurement-entry.tsx) 提供表单；[source-input.tsx](../src/features/measurements/source-input.tsx) 提供来源输入与建议列表 | `measurements-view.module.css` |
 | AI 接入 `/dashboard/ai` | [ai/page.tsx](../src/app/dashboard/ai/page.tsx) | [ai-access.tsx](../src/features/auth/ai-access.tsx) 展示令牌、OAuth 连接和审核请求 | `globals.css` 的 `.ai-*` |
 | AI 审核 `/dashboard/ai/operations/[id]` | [operations/[id]/page.tsx](../src/app/dashboard/ai/operations/[id]/page.tsx) | [ai-confirmation.tsx](../src/features/measurements/ai-confirmation.tsx) 展示前后值、修改与确认；复用 `source-input.tsx` | `globals.css` 的 `.ai-*`；来源输入使用 CSS Module |
@@ -194,4 +195,6 @@ Vercel 托管同一个 Next.js 应用，页面、Server Actions 和 `app/api` �
 
 ## 饮食定位
 
-饮食页面在[dashboard/meals/page.tsx](../src/app/dashboard/meals/page.tsx)，保存与审核入口在[actions.ts](../src/app/dashboard/meals/actions.ts)。[meals-view.tsx](../src/features/meals/meals-view.tsx)包含摘要、NutritionChart、餐次表、MealEditor／FoodEditor／EditorDialog；[meals.module.css](../src/features/meals/meals.module.css)控制间距、颜色与抽屉。营养换算／每日汇总在[model.ts](../src/features/meals/model.ts)，预览、确认事务、食材快照、版本与审计在[records.ts](../src/features/meals/records.ts)，[meal-review.tsx](../src/features/meals/meal-review.tsx)提供统一审核界面。AI由MCP server及HTTP调用这些函数；历史TSV由[imports/meals.ts](../src/features/imports/meals.ts)解析为整餐预览，网页确认后进入同一写入路径。规则与接口见[饮食记录](meals.md)。
+饮食页面在[dashboard/meals/page.tsx](../src/app/dashboard/meals/page.tsx)，保存与审核入口在[actions.ts](../src/app/dashboard/meals/actions.ts)。[meals-view.tsx](../src/features/meals/meals-view.tsx)包含今天摘要、NutritionChart并列柱图、历史抽屉、MealEditor／FoodEditor／EditorDialog；[meals.module.css](../src/features/meals/meals.module.css)控制间距、颜色与抽屉。营养换算／每日汇总在[model.ts](../src/features/meals/model.ts)，预览、确认事务、食材快照、版本与审计在[records.ts](../src/features/meals/records.ts)，[meal-review.tsx](../src/features/meals/meal-review.tsx)提供统一审核界面。AI由MCP server及HTTP调用这些函数；历史TSV由[imports/meals.ts](../src/features/imports/meals.ts)解析为整餐预览，网页确认后进入同一写入路径。规则与接口见[饮食记录](meals.md)。
+
+饮食照片由 [images.ts](../src/features/meals/images.ts) 校验、下载和私有保存；MCP import_meal_images 与 HTTP POST /api/v1/meal-images 返回稳定附件ID。网页上传／读取位于 [api/meal-images](../src/app/api/meal-images/README.md)，photos.tsx 提供共用上传与回看，food-presets.ts 固定 USDA 参考规格。图片关联与 photoReview 核对在 records.ts，确认后保留在审计和历史快照。

@@ -200,14 +200,14 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     assert.equal(await form().getByRole("button", { name: "移除来源建议 虚构晨间新来源", exact: true }).count(), 0);
     assert.equal(await form().getByRole("button", { name: "移除来源建议 虚构仅改来源", exact: true }).count(), 0);
     const rejectRemoval = async route => { if (route.request().method() === "POST") await route.fulfill({ status: 500, contentType: "text/plain", body: "fictional source removal failure" }); else await route.continue(); };
-    await page.route("**/dashboard", rejectRemoval);
+    await page.route("**/dashboard/measurements", rejectRemoval);
     try {
       await form().getByRole("button", { name: "移除来源建议 虚构默认秤-应用", exact: true }).click();
       await form().getByRole("alert").filter({ hasText: "移除未完成" }).waitFor();
       await sourceDraft.click();
       assert.equal(await form().getByRole("gridcell", { name: "虚构默认秤-应用", exact: true }).count(), 1);
       assert.equal(await sourceDraft.inputValue(), "");
-    } finally { await page.unroute("**/dashboard", rejectRemoval); }
+    } finally { await page.unroute("**/dashboard/measurements", rejectRemoval); }
     await close();
     console.log("通过：来源建议鼠标／键盘移除、刷新持久化、名称快照与数值草稿保留、失败保留建议。");
 

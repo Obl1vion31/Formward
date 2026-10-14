@@ -9,7 +9,7 @@ import type { MealInput, MealAction } from "@/features/meals/model";
 async function perform<T>(work: (userId: string) => Promise<T>) {
   const user = await currentUser(await headers());
   if (!user) return { ok: false as const, error: "登录已失效，请重新登录。" };
-  try { const data = await work(user.id); revalidatePath("/dashboard/meals", "layout"); revalidatePath("/dashboard/ai"); return { ok: true as const, data }; }
+  try { const data = await work(user.id); revalidatePath("/dashboard/meals", "layout"); revalidatePath("/dashboard/ai"); revalidatePath("/dashboard"); return { ok: true as const, data }; }
   catch(error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }
 export async function saveMealAction(input: MealInput) { return perform(async userId => {

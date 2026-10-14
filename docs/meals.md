@@ -1,48 +1,33 @@
 # 饮食记录
 
-## 记录与汇总
+## 今天、历史与汇总
 
-`/dashboard/meals` 与身体记录并列导航。每日摘要显示已记录热量、蛋白质、碳水、脂肪；趋势图切换指标，支持7D／30D／90D／全部／自定义。桌面默认30D，窄屏及触屏默认7D。日期表展开餐次，支持新增、编辑、软删除及恢复。无记录不等于零摄入，缺项只显示已知合计并标记不完整。
+/dashboard/meals 默认显示设备时区的今天、四项摄入及今天餐次，日期跨日刷新。记录一餐默认今天；历史通过柱图或历史记录抽屉选择日期、补录、编辑、删除／恢复。顶部摘要始终今天。营养素默认每天三根并列柱（蛋白质暖黄、碳水暖白、脂肪柔红），g纵轴从零起；热量独立kcal柱图。保留7D／30D／90D／全部／自定义，触屏7D、桌面30D，长区间横向浏览。无记录不是零，缺项仅显示已知合计。
 
-| 餐项 | 内容 | 统计 |
-| --- | --- | --- |
-| food | 具体食物，引用食材库或直接填实际食用营养 | 各项相加 |
-| misc | 杂：未单列的剩余食物，描述写备注 | 只计剩余；只有杂时代表整餐 |
-| whole | 整餐估算，具体组成写备注 | 必须是本餐唯一项 |
+food为具体食物，misc只估未单列的剩余，每餐最多一个；whole为唯一整餐项。初始化一行一餐，whole／initialization及原备注，未知品牌和地点留空，不提前创建食材。饮食统计日期按用户指定，不套用身体凌晨规则。
 
-每餐只能有一个杂项。AI分析照片先识别已单列食物，再估剩余，避免重复计算整餐。每日合计来自有效餐次的餐项，不保存独立每日事实。显式热量独立保存，不强制用三大营养素反算；未知null，真实零值可为0。
+## 食材与油酱
 
-历史初始化一行一餐，每餐保存一个whole及已有四项营养，具体食物和原备注放在餐次备注；来源统一初始化、显示整餐估算。未知品牌和地点留空，初始化不创建未经核实的食材库条目。日期按原表保存，凌晨不套用身体记录的前一天规则；未知钟点不生成UTC。以后准确发生时间与时区同时提供时须与餐次当地日期一致。
+食材保存名称、品牌／规格做法、基准数量／单位、四项营养、来源及多张照片。标签和成分表须有转录或来源链接；营养依据独立于AI／人工入口。数量按同单位基准换算；每100g规格不能凭图片变成一份。热量独立保存，未知null，历史快照不随食材更新改变。
 
-## 食材与营养依据
+基础食材有鸡胸肉、去皮鸡腿肉、牛里脊、全蛋、养殖大西洋三文鱼和熟白米饭，均明确生熟、部位及无额外油酱。数据来自[USDA SR Legacy 2018官方JSON](https://fdc.nal.usda.gov/download-datasets/)，具体FDC标识及来源在food-presets.ts；只读预设通过采用／foodDraft确认加入本账号，不把预设伪装成用户已有食材。
 
-食材库保存名称、可选品牌／规格做法、营养基准数量与单位、四项营养、依据文字和来源链接。单位可为只、块、包、碗、份、g、ml，例如每1包、每1只、每100g。选择后按同单位数量换算，保留四位小数。餐项保存当时的营养和规格快照；食材更新不自动改变历史，历史修正食量仍使用原基准。
+纯食材、实际摄入烹饪油、蘸酱分别列food。先问本次做法与用量，再接受明确估算或未知；锅中投入的油不等于全部吃下，已包含油酱的成品或整餐不再叠加。amountDecision区分provided、estimate_accepted、unknown_accepted。明确未知食材量保留关联及null营养，不默认一份。
 
-依据为label（标签）、composition_table（成分表）、estimated（预估）、unknown（未知）。标签和成分表须附文字转录或HTTP(S)来源链接。营养依据独立于AI／人工入口，不以录入工具代替真实依据。
+## 图片与AI审核
 
-同账号名称、品牌、做法、基准数量和单位标准化后识别同规格；重复新增要求选择已有项或恢复。相似名称供搜索核对，不自动合并。相同日期和餐次允许多次进食；完全相同内容提示重复，明确另一次进食可仍然新增。停用与删除可恢复，历史引用保留。
+流程：识别→查库→集中补问→带图预览→网页登录确认。缺日期、餐次、食物身份或实际食用量先问；已明确的信息不重复问。完整包装／一盘须确认实际吃了多少。包装录入核对品牌、每100g／每份／整包及kJ／kcal，保留标签转录、换算依据和原图。
 
-## 代码和接口
+原图最多8张、每张4 MiB，支持JPEG／PNG／WebP。MCP import_meal_images或HTTP POST /api/v1/meal-images接受ChatGPT文件引用，私有保存后返回id；餐次、食材及foodDraft使用imageIds。原图不进入64 KiB营养请求，也不存入public。网页录入和审核可补传，显示缩略图并查看原图。下载失败／临时地址过期保留草稿并明确重试。服务器仅下载受支持的ChatGPT HTTPS文件域名，不接收任意内网地址。
 
-| 定位 | 职责 |
-| --- | --- |
-| [model.ts](../src/features/meals/model.ts) | 校验、营养换算、单餐／每日合计 |
-| [records.ts](../src/features/meals/records.ts) | 归属查询、预览、版本与快照保护、确认事务、审计 |
-| [meals-view.tsx](../src/features/meals/meals-view.tsx)、[meals.module.css](../src/features/meals/meals.module.css) | 摘要、NutritionChart、餐次表、食材库、MealEditor／FoodEditor／EditorDialog |
-| [meal-review.tsx](../src/features/meals/meal-review.tsx) | 初始化与AI审核、修订、刷新、确认及取消 |
-| [imports/meals.ts](../src/features/imports/meals.ts)、[preview-meals.mts](../scripts/preview-meals.mts) | TSV只读解析、参考热量采用、初始化预览 |
+照片AI餐次需photoReview：dateConfirmed、mealTypeConfirmed、identityConfirmed、amountConfirmed、cookingConfirmed和questions。只有用户明确提供／核对时标true；未解决问题返回needsUserInput并阻止确认。网页修改可逐项核对后更新预览。模型的事实判断仍需实际ChatGPT验收，正式保存始终通过网页登录明确确认。
 
-MCP提供search_foods、query_meals、submit_meal_operation、get_meal_operation。HTTP对应GET foods、GET meals、POST meal-operations、GET meal-operations/{id}，协议为 `/api/v1/openapi.json`。写入action支持save_food、save_meal及delete／restore meal／food；编辑携带id＋version。引用已有食材使用foodId＋foodVersion、quantity和同unit，不另传nutrition；新食材可先save_food或在food餐项内提交foodDraft，一起预览与事务确认。
+图片及关联带user_id，数据库组合外键和feature均校验归属。内容摘要保护重复上传，原图在编辑及软删除恢复后保留；附件移除不销毁审计引用的原图。
 
-OAuth使用meals:read／meals:write，旧身体授权须重新授权取得新增权限；手动令牌沿用read／write。AI预览15分钟有效，初始化预览持续保存。刷新重新核对当前快照；授权撤销或过期阻止旧预览保存。原请求不可变、修订草稿独立，revision防覆盖，operationId绑定请求与授权并保护重试。正式保存仅由当前账号登录网页确认。
+## 接口、代码与上线
 
-## 初始化维护
+网页、HTTP、MCP调用同一feature。model.ts管校验换算；records.ts管归属、重复、预览、确认、版本和审计；images.ts管原图；photos.tsx为共用界面；food-presets.ts及presets.tsx为基础规格；meals-view.tsx为今天、柱图与历史，meal-review.tsx为审核。
 
-```sh
-pnpm meals:preview data/imports/私有饮食.tsv
-pnpm meals:preview data/imports/私有饮食.tsv --reference data/exports/私有参考.json --email 已有账号邮箱 --stage
-```
+save_food／save_meal与删除恢复兼容原协议，附件和核对字段为新增可选字段。search_foods／GET foods返回用户foods和只读presets；query_meals可传timezone，context返回当地日期。AI预览15分钟，初始化长期保留；revision和健康快照防覆盖，撤销阻止保存，相同operationId保护重试。
 
-默认只读核对；stage创建确认预览。参考JSON为date、mealType、description、caloriesKcal数组，仅匹配同日期、餐名与描述，用于采用标签或旧Excel显式热量，差异保留在导入批次，原文件和原值不变。同文件与参考资料重试复用批次。资料存私有data目录，测试仅用虚构数据。
-
-机器接口及授权见[AI接入](ai-api.md)，结构与维护见[数据库字典](database.md)。
+生产使用Vercel私有Blob，配置见[部署说明](deployment.md)。部署应用前备份数据库并执行0014_meal_images migration；旧初始化和记录无需补照片。公网部署状态见[交接](../handoff.md)。

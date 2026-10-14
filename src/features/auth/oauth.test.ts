@@ -129,7 +129,7 @@ test("现代与旧 MCP 客户端发现工具、查询、提交预览、网页确
   for (const mode of ["legacy", "auto"] as const) {
     const client = await mcpClient(connected.tokens.access_token, mode);
     try {
-      const tools = await client.listTools(); assert.deepEqual(tools.tools.map(tool => tool.name).sort(), ["get_meal_operation", "get_measurement_operation", "get_profile", "query_meals", "query_measurements", "search_foods", "submit_meal_operation", "submit_measurement_operation"]);
+      const tools = await client.listTools(); assert.deepEqual(tools.tools.map(tool => tool.name).sort(), ["get_meal_operation", "get_measurement_operation", "get_profile", "import_meal_images", "query_meals", "query_measurements", "search_foods", "submit_meal_operation", "submit_measurement_operation"]);
       const profile = await client.callTool({ name: "get_profile", arguments: {} }); assert.equal((profile.structuredContent as Record<string, unknown>)?.id, connected.userId);
       const input = { operationId: randomUUID(), items: [{ kind: "save_record", date: mode === "legacy" ? "2024-06-01" : "2024-06-02", period: "evening", weightKg: "70.20", deviceLabel: "虚构 MCP 秤" }] };
       const result = await client.callTool({ name: "submit_measurement_operation", arguments: input }); assert.ok(!result.isError);

@@ -134,6 +134,6 @@ export function AiConfirmation({ operation: initial, review, load, sources: init
         {drafts[item.id] ? <DraftForm item={item} draft={drafts[item.id]} change={draft => setDrafts(current => ({ ...current, [item.id]: draft }))} busy={busy} updating={processing("update", item.id)} save={() => update([item.id])} close={() => removeDrafts([item.id])} sources={sources} removeSource={removeSuggestion} /> : !terminal && <div className="ai-actions ai-row-actions"><button className="ai-button" disabled={busy || editing || expired || !item.preview.canConfirm} onClick={() => submit({ kind: "confirm", revision: operation.revision, itemIds: [item.id] })}>{processing("confirm", item.id) ? "正在保存…" : "确认保存"}</button><button className="ai-button ai-secondary" disabled={busy} onClick={() => edit(item)}>修改</button><button className="ai-button ai-secondary" disabled={busy} onClick={() => submit({ kind: "cancel", revision: operation.revision, itemIds: [item.id] })}>{processing("cancel", item.id) ? "正在取消…" : "取消"}</button></div>}
       </article>;
     })}</div>
-    <LoadingLink href="/dashboard">回到身体记录</LoadingLink>
+    <LoadingLink href="/dashboard/measurements">回到身体记录</LoadingLink>
   </section>;
 }

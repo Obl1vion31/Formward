@@ -17,9 +17,18 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     const page = await context.newPage();
     page.on("pageerror", (error) => errors.push(error.message));
     await page.clock.setFixedTime(new Date(`${credentials === initializedAccount ? "2025-08-13" : credentials === entryAccount ? today : "2025-07-14"}T12:00:00+08:00`));
-    await page.goto(`${baseURL}/dashboard`);
+    await page.addInitScript(()=>{
+      window.formwardFirstChartFrames=[];
+      function sample(){const plots=[...document.querySelectorAll('[data-chart-metric] svg[role="group"]')].filter(svg=>getComputedStyle(svg).visibility==="visible");
+        if(plots.length)window.formwardFirstChartFrames.push(plots.map(svg=>({width:svg.getBoundingClientRect().width,viewBoxWidth:svg.viewBox.baseVal.width,height:svg.getBoundingClientRect().height})));
+        if(window.formwardFirstChartFrames.length<8)requestAnimationFrame(sample);
+      }requestAnimationFrame(sample);
+    });
+    await page.goto(`${baseURL}/dashboard/measurements`);
     await page.getByRole("heading", { name: "身体记录", exact: true }).waitFor();
     await page.evaluate(() => document.fonts.ready);
+    await page.waitForFunction(()=>window.formwardFirstChartFrames?.length>=8);
+    assert.ok(await page.evaluate(()=>window.formwardFirstChartFrames.every(frame=>frame.every(plot=>Math.abs(plot.width-plot.viewBoxWidth)<1&&Math.abs(plot.height-(innerWidth<=600?206:252))<1))),"首次可见帧即使用实际宽度和固定高度，没有小图放大");
     return { context, page };
   }
   const chartFor = (page, metric = "weightKg") => page.locator(`[data-chart-metric="${metric}"]`);

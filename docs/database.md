@@ -1,6 +1,6 @@
 # 数据库连接与字段字典
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 27 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 29 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 
@@ -519,8 +519,16 @@ Drizzle migrator 在业务 schema 外建立此表，保存已执行版本；不�
 
 ## 饮食表与关系
 
-0013新增六表，数据库共27表。foods保存名称、品牌／规格、base_quantity、unit、四项nullable numeric(14,4)、source_kind、basis／evidence_url、version和软删除；同账号标准化identity_key唯一。meals保存账号、local_date、餐名、可选时刻／时区、备注、入口来源、原始来源标识、同步状态、导入及版本。meal_items保存position、food／misc／whole、名称／数量／单位、food_snapshot、独立四项营养和依据；user_id与meal_id／food_id组合外键保证同账号。
+0013定义六张饮食表，0014增加两张原图表及meal_items.amount_decision，数据库共29表。foods保存名称、品牌／规格、base_quantity、unit、四项nullable numeric(14,4)、source_kind、basis／evidence_url、version和软删除；同账号标准化identity_key唯一。meals保存账号、local_date、餐名、可选时刻／时区、备注、入口来源、原始来源标识、同步状态、导入及版本。meal_items保存position、food／misc／whole、名称／数量／单位、food_snapshot、独立四项营养和依据；user_id与meal_id／food_id组合外键保证同账号。
 
 meal_imports保存file_digest、source_label、原始行、参考热量决策、created_by与确认时间；账号／文件摘要唯一。meal_operations保存operation_id、manual／ai／initialization入口、对应令牌或OAuth或import_id、原payload与draft、preview、snapshot_digest、request_digest、revision、pending／confirmed／cancelled状态、到期及结果；只有AI操作有15分钟有效期且恰有一个凭据。meal_events保存record_id／type、operation_id、actor_type／id、confirmed_by、前后快照和时间。
 
 食材与导入的账号／id唯一索引先于组合外键创建；source_record_id保护初始化重试，原21表结构不修改。单餐／每日合计从有效餐项派生，初始化whole不创建食材库条目。原文件及报告保持私有，操作路径见[饮食记录](meals.md)。
+
+### 原图与关联
+
+meal_images：id、user_id、pathname、sha256、mime_type、byte_size、file_name、source、source_file_id、created_by、created_at。账号／内容摘要唯一，账号／id唯一；JPEG／PNG／WebP，1–4194304字节。pathname只由服务端生成，指向私有Blob。
+
+meal_image_links：id、user_id、image_id、meal_id、food_id、position。meal_id／food_id恰有一项，账号／目标／图片唯一；三项组合外键保证图片、餐次、食材归属一致。原图不随软删除销毁；修改关联后的旧附件仍在不可变请求与审计中追溯。
+
+meal_items.amount_decision 可为provided、estimate_accepted、unknown_accepted或null，区分食量提供、接受估算、明确未知和旧记录未注明。明确未知的食材引用保留food_snapshot，营养不换算。0014仅新增表和nullable列，既有营养与记录保持。

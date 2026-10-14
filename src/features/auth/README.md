@@ -17,7 +17,7 @@
 
 身份来自已验证的会话 cookie，不能采用客户端提交的 user_id。AI Token 独立 Bearer 鉴权、只保存不可逆摘要，映射到同一 user_id。内部账号通过 `pnpm account:create` 创建；数据库和配置说明见 [接入指南](../../../docs/auth-setup.md)。
 
-`ai-tokens.ts` 提供 30 天 read／write 令牌创建、列表、撤销和即时鉴权，原文只创建时返回，列表不含摘要或原文。`ai-access.tsx` 提供令牌表单、复制说明和最近身体操作；用户数据和确认由 measurements feature 处理。
+`ai-tokens.ts` 提供 30 天 read／write 令牌创建、列表、撤销和即时鉴权，原文只创建时返回，列表不含摘要或原文。`ai-access.tsx` 提供令牌表单、复制说明和最近身体／饮食操作，返回今日概况；用户数据与确认由各业务feature处理。
 
 登录验证、退出与令牌创建／撤销绑定实际异步状态，按钮立即变字并防止重复提交，超过 200ms 使用 components 的全站模态加载层。认证成功先收起提示，完成首页既有最终动画后才导航；失败显示原错误并保留输入。站内页面入口使用 LoadingLink，协议文件仍为普通链接；后台预取和本地展开不触发遮罩。
 
