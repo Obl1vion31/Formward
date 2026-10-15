@@ -527,8 +527,14 @@ meal_imports保存file_digest、source_label、原始行、参考热量决策、
 
 ### 原图与关联
 
-meal_images：id、user_id、pathname、sha256、mime_type、byte_size、file_name、source、source_file_id、created_by、created_at。账号／内容摘要唯一，账号／id唯一；JPEG／PNG／WebP，1–4194304字节。pathname只由服务端生成，指向私有Blob。
+meal_images：id、user_id、pathname、sha256、mime_type、byte_size、file_name、source、source_file_id、created_by、created_at。账号／内容摘要唯一，账号／id唯一；JPEG／PNG／WebP，1–20971520字节。pathname只由服务端生成，指向私有Blob。
 
 meal_image_links：id、user_id、image_id、meal_id、food_id、position。meal_id／food_id恰有一项，账号／目标／图片唯一；三项组合外键保证图片、餐次、食材归属一致。原图不随软删除销毁；修改关联后的旧附件仍在不可变请求与审计中追溯。
 
 meal_items.amount_decision 可为provided、estimate_accepted、unknown_accepted或null，区分食量提供、接受估算、明确未知和旧记录未注明。明确未知的食材引用保留food_snapshot，营养不换算。0014仅新增表和nullable列，既有营养与记录保持。
+
+### 饮食审核说明
+
+meal_items.review_explanation为可空JSONB，包含identity、amount、cooking、nutrition四项可选说明，每项保存source、basis和可选uncertainty。source可为user、label、food_library、composition_table、estimate或unknown。旧记录为null，不倒推依据。0015新增此列并扩大原图大小约束，表数保持29。
+
+meal_operations.payload／draft保存可选expectedImageCount，preview中的missingImages与确认能力由实际附件派生。用户网页登录选择缺图保存时，meal_events.snapshot记录confirmedWithoutImages及missingImages，不将模型选择当作人工确认。

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { measurementCalendarPage, measurementCalendarRange } from "./calendar";
+import { measurementNeedsEntry } from "./entry-state";
 import { recentMeasurementDays } from "./days";
 
 test("日历从账号、已有记录或已保存日期中的最早日补齐，保留已有日期", () => {
@@ -25,4 +26,15 @@ test("历史按 50 日期分页，边界没有重复或漏日，极长区间仅�
   assert.deepEqual(measurementCalendarPage(interval, 50, 150), []);
   assert.equal(measurementCalendarPage({ start: "1000-01-01", end: "9999-12-31" }, 50).length, 50);
   assert.deepEqual(measurementCalendarPage({ start: "2025-03-04", end: "2025-03-01" }, 10), []);
+});
+
+
+test("待补录不包括已填估计，部分缺项和未选候选仍需处理",()=>{
+ const date="2024-03-02",base={recordDate:date,weightKg:"70",bodyFatPercent:"20",sourceLocalTime:date};
+ const full=[{...base,id:"m",period:"daytime" as const,fasting:true,recordKind:"observed" as const},{...base,id:"e",period:"evening" as const,fasting:false,recordKind:"observed" as const}];
+ assert.equal(measurementNeedsEntry(full,date),false);
+ assert.equal(measurementNeedsEntry([{...full[0],bodyFatPercent:null},full[1]],date),true);
+ assert.equal(measurementNeedsEntry(full.map(row=>({...row,recordKind:"estimated" as const})),date),false);
+ const candidates=[...full,{...full[0],id:"m2"}];assert.equal(measurementNeedsEntry(candidates,date),true);
+ assert.equal(measurementNeedsEntry(candidates,date,{[date+":daytime"]:"m"}),false);
 });

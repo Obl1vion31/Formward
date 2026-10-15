@@ -6,7 +6,7 @@
 
 `loading-link.tsx` 包装 Next.js Link，通过其后代的 useLinkStatus 登记实际导航等待；保留预取、新标签和下载语义，预取与即时页面操作不显示加载层。程序导航使用 useTransition，再将 pending 交给共享加载组件。
 
-`scroll-lock.ts` 为 Inspector 和加载层共用滚动锁。首次锁定保存原 overflow／paddingRight 并补偿实际滚动条宽度；最后一层释放时恢复，不重复叠加，也不因一层提前关闭而解除其他层。
+`scroll-lock.ts` 为 Inspector 和加载层共用滚动锁。首次锁定保存 html／body 原 overflow 和 body paddingRight，仅补偿 body 实际释放的宽度；Dashboard 已预留稳定 gutter 时不重复补偿；最后一层释放时恢复，不重复叠加，也不因一层提前关闭而解除其他层。
 
 维护时只接入真实异步状态，操作内容和错误处理留在对应 feature。颜色与减少动态效果规则在 app/globals.css，浏览器验收在 tests/page-loading.browser.mjs。
 

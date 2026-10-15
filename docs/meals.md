@@ -2,32 +2,48 @@
 
 ## 今天、历史与汇总
 
-/dashboard/meals 默认显示设备时区的今天、四项摄入及今天餐次，日期跨日刷新。记录一餐默认今天；历史通过柱图或历史记录抽屉选择日期、补录、编辑、删除／恢复。顶部摘要始终今天。营养素默认每天三根并列柱（蛋白质暖黄、碳水暖白、脂肪柔红），g纵轴从零起；热量独立kcal柱图。保留7D／30D／90D／全部／自定义，触屏7D、桌面30D，长区间横向浏览。无记录不是零，缺项仅显示已知合计。
+`/dashboard/meals` 默认显示设备时区的今天、四项摄入及今天餐次，跨日刷新。记录一餐默认今天；历史通过柱图或历史记录抽屉选择日期、补录、编辑、删除／恢复。顶部摘要始终是今天，今日概况保持当天事实汇总。
 
-food为具体食物，misc只估未单列的剩余，每餐最多一个；whole为唯一整餐项。初始化一行一餐，whole／initialization及原备注，未知品牌和地点留空，不提前创建食材。饮食统计日期按用户指定，不套用身体凌晨规则。
+营养素每天一根三色堆叠柱：蛋白质暖黄、碳水暖白、脂肪柔红。三段连续堆叠，日期之间留空隙；纵轴从零起，柱高为三大营养素的已知克数合计，不能解释为热量。热量用独立 kcal 柱图。图例、鼠标悬停／键盘聚焦显示具体营养素、合计和热量，点击打开当天餐次；手机直接点击。保留 7D／30D／90D／全部／自定义，触屏默认 7D、桌面默认 30D，长区间横向浏览。无记录留空，缺项只显示已知合计。
+
+`food` 为具体食物，`misc` 只估未单列的剩余，每餐最多一个；`whole` 是唯一整餐项。初始化一行一餐，保留 whole／initialization 及原备注，未知品牌和地点为空，不提前创建食材。饮食日期按用户指定，不套用身体凌晨规则。
 
 ## 食材与油酱
 
-食材保存名称、品牌／规格做法、基准数量／单位、四项营养、来源及多张照片。标签和成分表须有转录或来源链接；营养依据独立于AI／人工入口。数量按同单位基准换算；每100g规格不能凭图片变成一份。热量独立保存，未知null，历史快照不随食材更新改变。
+食材库直接列有效食材，名称、简短规格和实际基准数量常驻；蛋白质、碳水化合物、脂肪、热量按列对齐。营养值按该食材真实基准展示，不能把每包营养伪装成每 100g。依据、备注、来源和照片放在详情；删除记录放入次级“最近删除”，可恢复，底层软删除与历史快照保持。
 
-基础食材有鸡胸肉、去皮鸡腿肉、牛里脊、全蛋、养殖大西洋三文鱼和熟白米饭，均明确生熟、部位及无额外油酱。数据来自[USDA SR Legacy 2018官方JSON](https://fdc.nal.usda.gov/download-datasets/)，具体FDC标识及来源在food-presets.ts；只读预设通过采用／foodDraft确认加入本账号，不把预设伪装成用户已有食材。
+基础食材为鸡胸肉、去皮鸡腿肉、牛里脊、全蛋、养殖大西洋三文鱼和熟白米饭。界面只保留去皮去骨、生重／熟重、每 100g 等必要规格，不常驻额外油酱的冗长说明；原始数据与预设身份保持，避免重复采用及改变历史。数据来自 [USDA SR Legacy 官方资料](https://fdc.nal.usda.gov/download-datasets/)，标识及来源在 `food-presets.ts`。预设通过采用／foodDraft 确认加入本账号。
 
-纯食材、实际摄入烹饪油、蘸酱分别列food。先问本次做法与用量，再接受明确估算或未知；锅中投入的油不等于全部吃下，已包含油酱的成品或整餐不再叠加。amountDecision区分provided、estimate_accepted、unknown_accepted。明确未知食材量保留关联及null营养，不默认一份。
+同单位按基准换算，每 100g 不能凭图片变成一份。热量独立保存，未知为 null，历史快照不随食材更新改变。标签及成分表须保存转录或来源链接。
 
-## 图片与AI审核
+纯食材、实际吃下的烹饪油、蘸酱分别记录。先核对做法与用量，再接受明确估算或未知；锅中投入的油不等于全部吃下，成品或整餐已经含油酱时不叠加。`amountDecision` 区分 provided、estimate_accepted、unknown_accepted；明确未知食量保留关联和 null 营养，不默认一份。
 
-流程：识别→查库→集中补问→带图预览→网页登录确认。缺日期、餐次、食物身份或实际食用量先问；已明确的信息不重复问。完整包装／一盘须确认实际吃了多少。包装录入核对品牌、每100g／每份／整包及kJ／kcal，保留标签转录、换算依据和原图。
+## 图片上传与恢复
 
-原图最多8张、每张4 MiB，支持JPEG／PNG／WebP。MCP import_meal_images或HTTP POST /api/v1/meal-images接受ChatGPT文件引用，私有保存后返回id；餐次、食材及foodDraft使用imageIds。原图不进入64 KiB营养请求，也不存入public。网页录入和审核可补传，显示缩略图并查看原图。下载失败／临时地址过期保留草稿并明确重试。服务器仅下载受支持的ChatGPT HTTPS文件域名，不接收任意内网地址。
+每餐／食材最多 8 张、单张 20 MiB，支持原始 JPEG／PNG／WebP，不自动压缩。所有原图保存在 Private Blob，通过账号鉴权回看，不进入 public、Git 或营养 JSON 请求体。
 
-照片AI餐次需photoReview：dateConfirmed、mealTypeConfirmed、identityConfirmed、amountConfirmed、cookingConfirmed和questions。只有用户明确提供／核对时标true；未解决问题返回needsUserInput并阻止确认。网页修改可逐项核对后更新预览。模型的事实判断仍需实际ChatGPT验收，正式保存始终通过网页登录明确确认。
+MCP `import_meal_images` 和 HTTP `POST /api/v1/meal-images` 接受 ChatGPT files 引用，立即下载临时地址后私有保存，返回稳定 ID。最多两个下载并发，临时网络／5xx 最多重试一次，批次有截止时间；返回 complete／partial／failed、images、expectedImageCount 以及逐图 failures（index、code、stage、retryable、requestId）。部分成功保留已保存附件，只重试失败项。临时地址过期明确返回 image_url_expired，不能反复重用失效地址；服务端只下载允许的 ChatGPT HTTPS 文件域名，不接收任意外部／内网地址。
 
-图片及关联带user_id，数据库组合外键和feature均校验归属。内容摘要保护重复上传，原图在编辑及软删除恢复后保留；附件移除不销毁审计引用的原图。
+网页使用 prepare → 短期 OIDC 预签名 → 浏览器直传私有 Blob → complete 登记。大图不经过 Vercel Function 请求体；凭据限定账号、随机路径、SHA-256、真实类型、大小和 10 分钟有效期，完成后核对实际字节，重复原图复用 ID。SDK 预签名流程不依赖 webhook。旧 multipart 客户端只兼容 4 MiB，需刷新使用新版直传。
 
-## 接口、代码与上线
+网页显示进度、已完成缩略图、错误和“重试未完成照片”。失败保留输入与上传预期；“稍后补传”只清除上传阻断，保留缺图标识。餐次／食材 `expectedImageCount` 大于实际附件数时正常确认禁用，用户可补传后更新预览，或明确点击“先保存文字记录”；这个决定和缺图数进入审计，AI 不能自行忽略缺图保存。
 
-网页、HTTP、MCP调用同一feature。model.ts管校验换算；records.ts管归属、重复、预览、确认、版本和审计；images.ts管原图；photos.tsx为共用界面；food-presets.ts及presets.tsx为基础规格；meals-view.tsx为今天、柱图与历史，meal-review.tsx为审核。
+内容摘要、user_id、组合外键和 feature 校验保护重复及归属。编辑、软删除恢复、食材快照与审计保留原图；移除附件不销毁审计引用。
 
-save_food／save_meal与删除恢复兼容原协议，附件和核对字段为新增可选字段。search_foods／GET foods返回用户foods和只读presets；query_meals可传timezone，context返回当地日期。AI预览15分钟，初始化长期保留；revision和健康快照防覆盖，撤销阻止保存，相同operationId保护重试。
+## AI 录入与审核
 
-生产使用Vercel私有Blob，配置见[部署说明](deployment.md)。部署应用前备份数据库并执行0014_meal_images migration；旧初始化和记录无需补照片。公网部署状态见[交接](../handoff.md)。
+流程：上传原图 → 识别 → 查已有食材 → 集中核对必要信息 → 带图预览 → 网页确认。缺日期、餐次、身份或实际食用量先问，明确的信息不重复问。包装／一盘须确认实际吃下多少；标签核对品牌、每 100g／每份／整包、kJ／kcal，并保留转录及换算依据。用户明确接受的生重、油酱估算写入依据，不继续伪装成未解决问题。
+
+照片 AI 餐次 `photoReview` 包括 dateConfirmed、mealTypeConfirmed、identityConfirmed、amountConfirmed、cookingConfirmed 和 questions；未解决信息返回 needsUserInput 并阻止保存，缺图本身不替代这些事实核对。网页可逐项修改后更新预览。
+
+审核常驻日期、餐次、食物数、分项／整餐／剩余合并方式、每项数量和四项营养。区分引用已有食材、确认后新增入库及直接记录，避免把预览解析出的临时 ID 当成已有食材。展开“查看估算依据与来源”可查看食物识别、份量、油酱与营养分别来自用户、标签、食材库、成分表、估算或未知，附可核实说明、来源与不确定性；旧记录只展示已有依据，不补造详细推理。
+
+保存后审核显示“已保存”和结果，移除待确认与确认按钮。客户端按操作 ID、revision 和终态更新，旧 pending 响应不能覆盖完成状态；可加载最新审核状态，页面刷新仍从数据库读取。待确认入口只列实际未过期的 pending 操作，独立未处理提交不会因为另一条已保存而消失。15 分钟预览、凭据撤销、归属、版本、快照和幂等保护保持。
+
+## 代码与维护
+
+网页、HTTP、MCP 复用同一 feature。`model.ts` 管 schema 与换算，`records.ts` 管事务／预览／确认，`images.ts` 管下载与私有存储，`image-upload.ts` 管直传凭据和登记，`photos.tsx` 管上传／回看，`review-details.tsx` 管营养明细与依据，`meal-review.tsx` 管审核状态，`meals-view.tsx` 管今天／图表／历史，`presets.tsx` 管食材表格。
+
+仪表盘根滚动容器预留 scrollbar-gutter；共用弹窗锁定 html／body，仅补偿实际释放的滚动条宽度，切页和弹窗不改变内容横向位置。窄屏表格在局部横向浏览，不撑宽页面。
+
+数据库通过 `0015_meal_review_images.sql` 增加 nullable review_explanation，并把原图大小约束提高至 20 MiB。既有 migration 不修改，旧记录不补造依据或原图预期。备份、发布与验收见 [部署说明](deployment.md)，当前状态见 [交接](../handoff.md)。

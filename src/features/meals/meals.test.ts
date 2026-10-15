@@ -133,3 +133,13 @@ test("参考热量仅格式差异不报调整，取消后的并发重试只保�
   const userId = await owner(), first = await stageMealInitialization(db, userId, tsv, "虚构.tsv"); await decideMealOperation(db, userId, first.id, first.revision, "cancel");
   const results = await Promise.all([stageMealInitialization(db, userId, tsv, "虚构.tsv"), stageMealInitialization(db, userId, tsv, "虚构.tsv")]); assert.equal(results[0].id, results[1].id);
 });
+
+test("缺图须网页登录明确选择，无图保存审计、审核终态及说明保留",async()=>{
+ const userId=await owner(),explanation={amount:{source:"estimate" as const,basis:"虚构份量估100g",uncertainty:"图片份量存在误差"}};
+ const op=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[lunch({expectedImageCount:1,items:[{kind:"food",name:"虚构牛排",quantity:"100",unit:"g",sourceKind:"estimated",nutrition:n("120","20","0","4"),reviewExplanation:explanation}]})]});
+ assert.equal(op.missingImages,1);await assert.rejects(decideMealOperation(db,userId,op.id,op.revision,"confirm"),/照片/);
+ const saved=await decideMealOperation(db,userId,op.id,op.revision,"confirm",true);assert.equal(saved.status,"confirmed");assert.equal(saved.canConfirm,false);assert.match(saved.result!.message,/文字/);
+ assert.deepEqual((await readMealSnapshot(db,userId)).meals[0].items[0].reviewExplanation,explanation);
+ const events=await db.select().from(schema.mealEvent).where(eq(schema.mealEvent.userId,userId));assert.equal(events[0].snapshot.confirmedWithoutImages,true);
+ const repeated=await decideMealOperation(db,userId,op.id,op.revision,"confirm",true);assert.equal(repeated.revision,saved.revision);assert.equal((await readMealSnapshot(db,userId)).meals.length,1);
+});

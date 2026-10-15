@@ -7,7 +7,7 @@ import { measurementSummary } from "./summary";
 import { calendarOrdinal, measurementDateTicks, measurementRange, measurementTrend, metricDifference, normalScale, type MeasurementInterval, type MeasurementMetric, type MeasurementRange } from "./trend";
 import styles from "./measurements-view.module.css";
 import { estimateModeLabel, estimateUserExplanation } from "./estimate-explanation";
-import { localMeasurementDate, measurementDayAction, type EntryResult, type MeasurementActions, type MeasurementDateDisplay, type MeasurementDisplay } from "./entry-state";
+import { localMeasurementDate, measurementDayAction, measurementNeedsEntry, type EntryResult, type MeasurementActions, type MeasurementDateDisplay, type MeasurementDisplay } from "./entry-state";
 import { MeasurementEntry } from "./measurement-entry";
 import { lockPageScroll } from "@/components/scroll-lock";
 import { timezoneLabel } from "./timezone";
@@ -67,8 +67,8 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const range = measurementRange(latestDate, mode, mode === "custom" ? customRange : { start: earliestDate, end: latestDate });
   const displayedRecords = records.filter((row) => showEstimates || row.recordKind !== "estimated");
   const visibleRecords = displayedRecords.filter((row) => row.recordDate >= range.start && row.recordDate <= range.end);
-  const recentInterval = { start: range.start > catalog.start ? range.start : catalog.start, end: range.end < catalog.end ? range.end : catalog.end };
-  const recent = recentMeasurementDays(displayedRecords, recentInterval, choices);
+  const recentInterval = { start: catalog.start, end: today || catalog.end };
+  const recent = recentMeasurementDays(displayedRecords, recentInterval, choices).filter(day => day.date === today || (!dates.some(row => row.date === day.date && row.reminderSkipped) && measurementNeedsEntry(records, day.date, choices)));
   const fatDays = new Map(recentMeasurementDays(displayedRecords, recentInterval, choices, 10, "bodyFatPercent").map(day => [day.date, day]));
   const activeDate = selectedDate && selectedDate >= range.start && selectedDate <= range.end ? selectedDate : null;
   const summaries = metrics.map(metric => ({ metric, ...measurementSummary(records, metric, choices) }));
@@ -299,7 +299,8 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
       if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
       node.close();
       unlock();
-      if (previousFocus instanceof HTMLElement || previousFocus instanceof SVGElement) previousFocus.focus({ preventScroll: true });
+      if ((previousFocus instanceof HTMLElement || previousFocus instanceof SVGElement) && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
+      else document.querySelector<HTMLButtonElement>('section[aria-label="最近记录"] button[class*="fullHistory"]')?.focus({preventScroll:true});
     };
   }, []);
   useEffect(() => {

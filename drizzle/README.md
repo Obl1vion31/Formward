@@ -23,3 +23,5 @@
 0013已在共享环境执行，后续结构变更创建新migration，保留本文件与快照。迁移前后私有备份核对确认原21表字段和值一致，新增六表；初始化预览通过独立维护入口创建。
 
 0014_meal_images 增加私有原图及同账号餐次／食材关联，meal_items增加nullable amount_decision；组合外键依赖的唯一索引先建立。共享migration保持原样，新版本上线前备份并执行此迁移。
+
+0015_meal_review_images增加nullable meal_items.review_explanation并将meal_images_size_valid改为1–20971520字节；不修改原列和值，不补造旧审核依据。共享环境执行前备份，之后核对旧字段与迁移账本。

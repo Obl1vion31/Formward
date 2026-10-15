@@ -124,3 +124,36 @@
 .photoReview { padding:16px 0!important; border-top:1px solid var(--rule)!important; }
 .presetList { margin-top:32px; border-top:1px solid var(--rule); padding-top:20px; }
 .presetList h2 { font-size:15px; font-weight:500; }
+
+.composition { margin-top: 20px; }
+.compositionSummary { margin: 0 0 12px; color: var(--ink); font-size: 13px; }
+.nutritionTableViewport, .foodTableViewport { overflow-x: auto; max-width: 100%; overscroll-behavior-x: contain; }
+.nutritionTable, .foodTable { width: 100%; border-collapse: collapse; text-align: right; font-size: 13px; }
+.nutritionTable { min-width: 460px; }
+.foodTable { min-width: 660px; }
+.nutritionTable th, .nutritionTable td, .foodTable th, .foodTable td { padding: 12px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; font-weight: 400; }
+.nutritionTable thead th, .foodTable thead th { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.nutritionTable th:first-child, .foodTable th:first-child { text-align: left; padding-left: 0; min-width: 160px; }
+.nutritionTable th strong, .foodTable th strong { display: block; font-weight: 500; }
+.nutritionTable th span, .nutritionTable th small, .foodTable th span { display: block; margin-top: 5px; font-size: 11px; line-height: 1.6; color: var(--muted); }
+.nutritionTable thead small, .foodTable thead small { display: block; margin-top: 4px; }
+.foodTable td { white-space: nowrap; }
+.foodTable th:first-child { width: 32%; }
+.foodTable details { margin-top: 8px; font-size: 11px; color: var(--muted); }
+.foodTable details p { max-width: 380px; }
+.foodTable summary { cursor: pointer; min-height: 30px; }
+.foodTable a, .evidence a { color: var(--gold); }
+.foodTable .actions { justify-content: flex-end; }
+.foodTable .actions button { font-size: 12px; white-space: nowrap; }
+.evidence { margin: 18px 0; font-size: 12px; line-height: 1.8; }
+.evidence summary { color: var(--gold); cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 10px; }
+.evidence summary::after { content: "＋"; }
+.evidence[open] > summary::after { content: "−"; }
+.evidence section { padding: 10px 0; border-top: 1px solid var(--rule); }
+.evidence h3 { font-size: 13px; font-weight: 500; }
+.evidence strong { font-weight: 500; }
+.evidence p { overflow-wrap: anywhere; }
+.deletedFoods { margin-top: 28px; color: var(--muted); font-size: 12px; }
+.deletedFoods > summary { cursor: pointer; min-height: 44px; padding: 12px 0; }
+.workspace .loadLatest { font-size: 12px; color: var(--muted); margin-top: 16px; }
+@media(max-width:600px) { .foodTable th:first-child { min-width: 155px; } .nutritionTable th:first-child { min-width: 145px; } .reviewRow .heading { align-items: flex-start; } .reviewRow .heading button { flex-shrink: 0; font-size: 12px; } }

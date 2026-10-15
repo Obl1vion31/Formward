@@ -5,7 +5,8 @@ import { LoadingLink } from "@/components/loading-link";
 import type { createAiToken, listAiTokens } from "./ai-tokens";
 import type { listAiMeasurementOperations } from "../measurements/ai-operations";
 import { aiInstructions, operationStatusLabels } from "../measurements/ai-instructions";
-import type { MealOperationView } from "../meals/model";
+import { mealOperationStatus, type MealOperationView } from "../meals/model";
+import { useOperationClock } from "../meals/use-operation-clock";
 import type { listOauthConnections } from "./oauth-connections";
 const subscribeOrigin = () => () => {};
 const currentOrigin = () => window.location.origin;
@@ -14,6 +15,7 @@ type Tokens = Awaited<ReturnType<typeof listAiTokens>>;
 type Created = Awaited<ReturnType<typeof createAiToken>>;
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 export function AiAccess({ tokens, operations, mealOperations = [], connections, create, revoke, revokeConnection }: { tokens: Tokens; mealOperations?: MealOperationView[]; operations: Awaited<ReturnType<typeof listAiMeasurementOperations>>; connections: Awaited<ReturnType<typeof listOauthConnections>>; create: (name: string, permission: "read" | "write") => Promise<Result<Created>>; revoke: (id: string) => Promise<Result<{ id: string }>>; revokeConnection: (id: string) => Promise<Result<{ id: string }>> }) {
+  const now = useOperationClock();
   const baseURL = useSyncExternalStore(subscribeOrigin, currentOrigin, serverOrigin);
   const [created, setCreated] = useState<Created | null>(null), [error, setError] = useState(""), [working, setWorking] = useState(false), [notice, setNotice] = useState("");
   const [transitionPending, startTransition] = useTransition(), busy = working || transitionPending;
@@ -49,6 +51,6 @@ export function AiAccess({ tokens, operations, mealOperations = [], connections,
     </section>
     {error && <p role="alert" className="ai-error">{error}</p>}{notice && <p role="status">{notice}</p>}
     <section className="ai-section"><h2>给 AI 的接入说明</h2><p>把 API 地址、令牌和下面的说明配置到能发送 HTTP 请求的 AI 客户端。</p><p>API 地址：<code>{baseURL}/api/v1</code> · <a href="/api/v1/openapi.json">接口协议</a></p><button className="ai-button" disabled={!baseURL} onClick={() => void copy(aiInstructions(baseURL))}>复制接入说明</button><details><summary>查看流程与请求格式</summary><pre className="ai-instructions">{aiInstructions(baseURL)}</pre></details></section>
-    <section className="ai-section"><h2>最近提交</h2><p>身体记录支持逐行审核；饮食与食材整批核对保存。AI 预览有效 15 分钟，初始化预览持续保存，刷新后重新核对。</p><ul className="ai-list">{operations.map(operation => <li key={operation.id}><div><LoadingLink href={operation.confirmationPath}>{operation.preview.date} · {operation.preview.kind === "batch" ? "批量身体记录" : operation.preview.kind === "save_day" ? "身体记录" : "单项估算"}</LoadingLink><span>{operation.counts.total} 条 · 已保存 {operation.counts.saved} · 待处理 {operation.counts.pending} · 已取消 {operation.counts.cancelled} · 已跳过 {operation.counts.skipped}</span></div><span>{operationStatusLabels[operation.status]}</span></li>)}</ul>{mealOperations.map(operation => <li key={operation.id}><div><LoadingLink href={operation.confirmationPath}>{operation.origin === "initialization" ? "饮食初始化" : "饮食记录"} · {operation.rows.length} 项</LoadingLink><span>{operation.canConfirm ? "可核对并保存" : "请修正待补信息"}</span></div><span>{operationStatusLabels[operation.status]}</span></li>)}{!operations.length && !mealOperations.length && <p>还没有 AI 提交的操作。</p>}</section>
+    <section className="ai-section"><h2>最近提交</h2><p>身体记录支持逐行审核；饮食与食材整批核对保存。AI 预览有效 15 分钟，初始化预览持续保存，刷新后重新核对。</p><ul className="ai-list">{operations.map(operation => <li key={operation.id}><div><LoadingLink href={operation.confirmationPath}>{operation.preview.date} · {operation.preview.kind === "batch" ? "批量身体记录" : operation.preview.kind === "save_day" ? "身体记录" : "单项估算"}</LoadingLink><span>{operation.counts.total} 条 · 已保存 {operation.counts.saved} · 待处理 {operation.counts.pending} · 已取消 {operation.counts.cancelled} · 已跳过 {operation.counts.skipped}</span></div><span>{operationStatusLabels[operation.status]}</span></li>)}</ul>{mealOperations.map(operation => <li key={operation.id}><div><LoadingLink href={operation.confirmationPath}>{operation.origin === "initialization" ? "饮食初始化" : "饮食记录"} · {operation.rows.length} 项</LoadingLink><span>{mealOperationStatus(operation,now)==="confirmed" ? "本次提交已保存" : mealOperationStatus(operation,now)==="cancelled" ? "本次提交已取消" : mealOperationStatus(operation,now)==="expired" ? "预览过期，打开后刷新" : operation.canConfirmWithoutImages ? "照片未齐，可补传或先保存文字" : operation.canConfirm ? "可核对并保存" : "有信息需要核对"}</span></div><span>{operationStatusLabels[mealOperationStatus(operation,now)]}</span></li>)}{!operations.length && !mealOperations.length && <p>还没有 AI 提交的操作。</p>}</section>
   </section>;
 }

@@ -125,8 +125,9 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     await close();
     // API 历史测量允许只改晨晚时区，不要求重输数值；清空和采用系统时区同样可保存。
     const apiDate = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
-    const apiRow = page.locator(`section[aria-label="最近记录"] tr[data-date="${apiDate}"]`);
-    await apiRow.getByRole("button", { name: `编辑 ${apiDate}`, exact: true }).click();
+    const openApiRecord = async () => { await page.locator(`section[aria-label="身体指标趋势"] [data-chart-metric="weightKg"] [data-date="${apiDate}"][data-period="daytime"][data-kind="observed"]`).click(); await page.getByRole("article", { name: "记录详情" }).waitFor(); };
+    assert.equal(await page.locator(`section[aria-label="最近记录"] tr[data-date="${apiDate}"]`).count(), 0, "完整历史记录从图表或完整历史进入");
+    await openApiRecord(); await page.getByRole("dialog").getByRole("button", { name: "编辑", exact: true }).click();
     const morningTimezone = form().getByRole("combobox", { name: "晨间时区", exact: true }), eveningTimezone = form().getByRole("combobox", { name: "晚间时区", exact: true });
     assert.equal(await morningTimezone.inputValue(), ""); assert.equal(await eveningTimezone.inputValue(), "", "原 API 未指定时区保持空白");
     const readings = await form().getByRole("textbox").evaluateAll(nodes => nodes.map(node => node.value));
@@ -134,7 +135,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     assert.equal(await form().getByRole("button", { name: "保存录入", exact: true }).isEnabled(), true, "只改已有记录时区可保存");
     await save(); assert.deepEqual(await form().getByRole("textbox").evaluateAll(nodes => nodes.map(node => node.value)), readings);
     await close(); await page.reload();
-    await apiRow.getByRole("button", { name: `查看 ${apiDate} 晨间体重实测记录`, exact: true }).click();
+    await openApiRecord();
     const apiInfo = page.getByRole("article", { name: "记录详情" }).getByRole("region", { name: "记录信息" });
     assert.match(await apiInfo.innerText(), /GMT\+8（东八区）/); assert.match(await apiInfo.innerText(), /API/);
     await page.getByRole("dialog").getByRole("button", { name: "编辑", exact: true }).click();

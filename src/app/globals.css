@@ -20,6 +20,10 @@
 html {
   background: var(--graphite);
 }
+html:has(.dashboard-page) { scrollbar-gutter: stable; }
+@supports not (scrollbar-gutter: stable) {
+  html:has(.dashboard-page) { overflow-y: scroll; }
+}
 body {
   margin: 0;
   color: var(--warm-white);
