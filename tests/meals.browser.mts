@@ -84,6 +84,52 @@ try {
   assert.equal(new Set(segments.map((s:{x:number})=>s.x)).size,1);assert.equal(segments.length,3);
   for(let i=1;i<segments.length;i++)assert.ok(Math.abs(segments[i].y+segments[i].h-segments[i-1].y)<.01);
   await page.getByRole("button",{name:"食材库",exact:true}).click();await page.setViewportSize({width:320,height:850});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1));await page.setViewportSize({width:1440,height:1100});await page.getByRole("button",{name:"饮食",exact:true}).click();
+  const expectedDayEnergy=state.meals.filter(m=>m.date===today&&!m.deletedAt).reduce((sum,m)=>sum+Number(m.totals.values.caloriesKcal??0),0);
+  await mkdir("/tmp/formward-meals-visual",{recursive:true});
+  for(const size of [1440,390,320]) {
+    await page.setViewportSize({width:size,height:1000});
+    for(const days of [7,30,90]) {
+      await page.getByRole("button",{name:days+"D",exact:true}).click();
+      const chart=page.getByRole("group",{name:/柱状图/});
+      await page.waitForFunction(()=>{const svg=document.querySelector('svg[aria-label*="柱状图"]')!;return Math.abs(svg.getBoundingClientRect().width-Number(svg.getAttribute("viewBox")!.split(" ")[2]))<1;});
+      assert.equal(await chart.locator('[data-bar-date]').count(),days);
+      assert.equal(await chart.locator('[data-date-tick]').count(),days===7?7:1);
+      assert.ok(await chart.evaluate((node:Element)=>{const parent=node.parentElement!;return parent.scrollWidth<=parent.clientWidth+1;}),"所有范围固定宽度");
+      await chart.locator(`[data-bar-date="${today}"]`).focus();
+      assert.ok((await page.locator('[data-chart-readout]').innerText()).includes(String(expectedDayEnergy)),"精确读取当日热量");
+      await page.keyboard.press("ArrowLeft");
+      assert.equal(await page.locator('[data-chart-readout]').getAttribute('data-chart-readout'),dateAt(-1));
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1));
+    }
+    await page.getByRole("button",{name:"食材库",exact:true}).click();
+    await page.getByRole('button',{name:'虚构蛋白食物详情',exact:true}).click();
+    const foodDetail=page.getByRole('dialog',{name:'食材详情',exact:true});
+    await foodDetail.getByText('虚构标签转录：每包营养',{exact:true}).waitFor();
+    assert.ok(await foodDetail.evaluate((node:HTMLElement)=>node.scrollWidth<=node.clientWidth+1));
+    await foodDetail.getByRole('button',{name:'关闭编辑',exact:true}).click();await foodDetail.waitFor({state:'hidden'});
+    await page.screenshot({path:`/tmp/formward-meals-visual/library-${size}.png`,fullPage:true});
+    await page.getByRole("button",{name:"饮食",exact:true}).click();
+    await page.locator(`[data-bar-date="${today}"]`).click();
+    const history=page.getByRole('dialog',{name:'历史饮食记录',exact:true});
+    await history.getByRole('cell',{name:'2包',exact:true}).waitFor();
+    assert.ok(await history.evaluate((node:HTMLElement)=>node.scrollWidth<=node.clientWidth+1));
+    await history.getByRole('button',{name:'虚构蛋白食物详情',exact:true}).click();
+    await history.getByText('引用食材库 · 营养标签',{exact:true}).waitFor();
+    await history.screenshot({path:`/tmp/formward-meals-visual/history-${size}.png`});
+    await history.getByRole('button',{name:'关闭编辑',exact:true}).click();await history.waitFor({state:'hidden'});
+  }
+  await page.getByRole('button',{name:'食材库',exact:true}).click();
+  await page.getByRole('button',{name:'鸡胸肉详情',exact:true}).click();
+  await page.getByRole('dialog',{name:'食材详情',exact:true}).getByRole('button',{name:'采用',exact:true}).click();
+  const presetEditor=page.getByRole('dialog',{name:'食材规格',exact:true});
+  assert.equal(await presetEditor.getByLabel('食材／产品名称',{exact:true}).inputValue(),'鸡胸肉');
+  await presetEditor.getByRole('button',{name:'关闭编辑',exact:true}).click();await presetEditor.waitFor({state:'hidden'});
+  await page.getByRole('button',{name:'饮食',exact:true}).click();
+  await page.setViewportSize({width:1440,height:1100});
+  await page.getByRole('button',{name:'热量',exact:true}).click();
+  await page.getByRole('button',{name:'7D',exact:true}).click();
+  assert.ok(await page.locator('[class*="barValue"]').count()>0,'热量柱顶直接显示数字');
+  await page.getByRole('button',{name:'营养素',exact:true}).click();
   const todaySummary=await page.locator('[class*="summary"]').first().innerText();
   await page.locator(`[data-bar-date="${dateAt(-3)}"]`).click();await page.locator("dialog:not(.page-loading-dialog)").waitFor();assert.equal(await page.getByLabel("查看日期",{exact:true}).inputValue(),dateAt(-3));assert.equal(await page.locator('[class*="summary"]').first().innerText(),todaySummary);await page.getByRole("button",{name:"回到今天",exact:true}).click();await page.locator("dialog:not(.page-loading-dialog)").waitFor({state:"hidden"});
   const screenshots = "/tmp/formward-meals-visual"; await mkdir(screenshots, { recursive: true }); await page.screenshot({ path: `${screenshots}/desktop.png`, fullPage: true });
@@ -94,9 +140,9 @@ try {
   assert.equal(missingPreview.canConfirm, false); assert.equal(missingPreview.canConfirmWithoutImages, true);
   await page.goto(`${baseURL}${missingPreview.confirmationPath}`); await page.getByRole("heading", { name: "确认饮食记录", exact: true }).waitFor();
   assert.equal(await page.getByRole("button", { name: "确认并保存", exact: true }).isDisabled(), true);
-  await page.getByText("查看估算依据与来源", { exact: true }).click(); await page.getByText("按用户接受的 330g 生重估算", { exact: false }).waitFor();
+  await page.getByRole("button", { name: "虚构牛排详情", exact: true }).click(); await page.getByText("按用户接受的 330g 生重估算", { exact: false }).waitFor();
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
-  assert.ok(await page.evaluate(() => { const actions = document.querySelector('[class*="reviewActions"]')!, evidence = document.querySelector('[class*="reviewRow"] details')!; return actions.getBoundingClientRect().top >= evidence.getBoundingClientRect().bottom; }), "审核操作不遮挡展开依据");
+  assert.ok(await page.evaluate(() => { const actions = document.querySelector('[class*="reviewActions"]')!, evidence = document.querySelector('[class*="itemEvidenceRow"]')!; return actions.getBoundingClientRect().top >= evidence.getBoundingClientRect().bottom; }), "审核操作不遮挡展开依据");
   await page.screenshot({ path: `${screenshots}/review-missing-320.png`, fullPage: true });
   await page.getByRole("button", { name: "先保存文字记录", exact: true }).click(); await page.getByRole("status").filter({ hasText: "已保存" }).waitFor();
   assert.equal(await page.getByRole("button", { name: "确认并保存", exact: true }).count(), 0); assert.equal(await page.getByText("待确认", { exact: true }).count(), 0);

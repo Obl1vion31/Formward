@@ -10,6 +10,7 @@ import { createAiToken, authenticateAi, revokeAiToken } from "../auth/ai-tokens"
 import { nutritionFor, sumNutrition, dailyTotals, type FoodDraft, type MealAction, type Nutrition } from "./model";
 import { submitMealOperation, decideMealOperation, reviseMealOperation, readMealSnapshot, getMealOperation, searchFoods } from "./records";
 import { previewMealTsv, stageMealInitialization } from "../imports/meals";
+import { previewMealTextCorrection, applyMealTextCorrection } from "./text-maintenance";
 import { queryMeals } from "./ai-api";
 const pg = new PGlite(), db = drizzle(pg, { schema });
 before(async () => { await migrate(db, { migrationsFolder: "./drizzle" }); });
@@ -142,4 +143,62 @@ test("缺图须网页登录明确选择，无图保存审计、审核终态及�
  assert.deepEqual((await readMealSnapshot(db,userId)).meals[0].items[0].reviewExplanation,explanation);
  const events=await db.select().from(schema.mealEvent).where(eq(schema.mealEvent.userId,userId));assert.equal(events[0].snapshot.confirmedWithoutImages,true);
  const repeated=await decideMealOperation(db,userId,op.id,op.revision,"confirm",true);assert.equal(repeated.revision,saved.revision);assert.equal((await readMealSnapshot(db,userId)).meals.length,1);
+});
+
+async function textCorrectionFixture() {
+  const userId=await owner();
+  await save(userId,[{kind:"save_food",...product({preparation:"虚构鸡肉面（不含饮料）",basis:"虚构照片估算，不含饮料"})}]);
+  const f=(await searchFoods(db,userId))[0];
+  await save(userId,[lunch({items:[{kind:"food",name:f.name,foodId:f.id,foodVersion:f.version,quantity:"2",unit:f.unit,sourceKind:f.sourceKind}]})]);
+  const before=await readMealSnapshot(db,userId),m=before.meals[0];
+  const [item]=await db.select().from(schema.mealItem).where(eq(schema.mealItem.mealId,m.id));
+  const request={operationId:randomUUID(),foodId:f.id,foodVersion:f.version,preparation:{before:f.preparation!,after:"虚构鸡肉面"},basis:{before:f.basis!,after:"根据虚构照片估算鸡肉和面条"},items:[{id:item.id,mealId:m.id,mealVersion:m.version}]};
+  return {userId,before,request,item};
+}
+test("说明修正只改指定文字与版本，旧请求、旧餐项、营养和份量保持并留AI审计，重试幂等",async()=>{
+  const {userId,before,request,item}=await textCorrectionFixture();
+  const originals=await db.select().from(schema.mealOperation).where(eq(schema.mealOperation.userId,userId));
+  const imageId=randomUUID();
+  await db.insert(schema.mealImage).values({id:imageId,userId,pathname:"private/fictional-text-test.png",sha256:"a".repeat(64),mimeType:"image/png",byteSize:68,fileName:"虚构照片.png",source:"manual",createdBy:userId});
+  await db.insert(schema.mealImageLink).values({id:randomUUID(),userId,imageId,mealId:before.meals[0].id,position:0});
+  const preview=await previewMealTextCorrection(db,userId,request);
+  assert.equal((await readMealSnapshot(db,userId)).foods[0].version,1);
+  const result=await applyMealTextCorrection(db,userId,request,preview.digest),after=await readMealSnapshot(db,userId);
+  assert.equal(result.repeated,false);assert.equal(after.foods[0].preparation,request.preparation.after);
+  assert.deepEqual(after.foods[0].nutrition,before.foods[0].nutrition);assert.equal(after.foods[0].baseQuantity,before.foods[0].baseQuantity);
+  assert.deepEqual(after.meals[0].items[0].nutrition,before.meals[0].items[0].nutrition);assert.equal(after.meals[0].items[0].quantity,before.meals[0].items[0].quantity);
+  assert.equal(after.meals[0].items[0].foodSnapshot?.basis,request.basis.after);assert.equal(after.meals[0].version,2);assert.deepEqual(after.meals[0].imageIds,[imageId]);
+  const [old]=await db.select().from(schema.mealItem).where(eq(schema.mealItem.id,item.id));assert.ok(old.deletedAt);assert.equal(old.basis,item.basis);assert.deepEqual(old.foodSnapshot,item.foodSnapshot);
+  for(const original of originals)assert.deepEqual(await getMealOperation(db,userId,original.id),original);
+  const events=await db.select().from(schema.mealEvent).where(eq(schema.mealEvent.operationId,result.id));assert.equal(events.length,2);assert.ok(events.every(e=>e.actorType==="ai"&&e.actorId==="codex"&&e.confirmedBy===userId));
+  assert.deepEqual(await applyMealTextCorrection(db,userId,request,preview.digest),{id:result.id,repeated:true});
+  assert.deepEqual(await readMealSnapshot(db,userId),after);
+  await reject(applyMealTextCorrection(db,userId,{...request,basis:{...request.basis,after:"其他内容"}},preview.digest),"operation_conflict");
+});
+test("说明修正拒绝跨账号、过期预览、原文或版本冲突及身份碰撞",async()=>{
+  const {userId,before,request}=await textCorrectionFixture(),other=await owner();
+  await reject(previewMealTextCorrection(db,other,request),"not_found");
+  await reject(previewMealTextCorrection(db,userId,{...request,items:[{...request.items[0],mealVersion:99}]}),"version_conflict");
+  await reject(previewMealTextCorrection(db,userId,{...request,basis:{...request.basis,before:"不匹配"}}),"version_conflict");
+  await reject(applyMealTextCorrection(db,userId,request,"outdated"),"version_conflict");
+  assert.deepEqual(await readMealSnapshot(db,userId),before);
+  await save(userId,[{kind:"save_food",...product({preparation:request.preparation.after})}]);
+  await reject(previewMealTextCorrection(db,userId,request),"duplicate_food");
+});
+test("说明修正审计失败时食材、餐项版本和软删除整批回滚",async()=>{
+  const {userId,before,request,item}=await textCorrectionFixture(),preview=await previewMealTextCorrection(db,userId,request);
+  await pg.exec("CREATE FUNCTION reject_text_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.snapshot->>'origin' = 'text-maintenance' THEN RAISE EXCEPTION 'fictional audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_text_audit BEFORE INSERT ON meal_events FOR EACH ROW EXECUTE FUNCTION reject_text_audit();");
+  try {await assert.rejects(applyMealTextCorrection(db,userId,request,preview.digest));}finally{await pg.exec("DROP TRIGGER reject_text_audit ON meal_events; DROP FUNCTION reject_text_audit();");}
+  assert.deepEqual(await readMealSnapshot(db,userId),before);
+  const [old]=await db.select().from(schema.mealItem).where(eq(schema.mealItem.id,item.id));assert.equal(old.deletedAt,null);
+});
+
+test("仅修正明确指定的餐次备注时不改食材、餐项或其营养版本",async()=>{
+  const {userId,before,request}=await textCorrectionFixture();
+  const edit={...request,preparation:{before:request.preparation.before,after:request.preparation.before},basis:{before:request.basis.before,after:request.basis.before},notes:[{mealId:before.meals[0].id,mealVersion:1,before:null,after:"只描述实际鸡肉和面条"}]};
+  const preview=await previewMealTextCorrection(db,userId,edit);assert.equal(preview.foodChanged,false);
+  await reject(previewMealTextCorrection(db,userId,{...edit,notes:[{...edit.notes[0],before:"不存在的原文"}]}),"version_conflict");
+  await applyMealTextCorrection(db,userId,edit,preview.digest);
+  const after=await readMealSnapshot(db,userId);assert.deepEqual(after.foods,before.foods);assert.deepEqual(after.meals[0].items,before.meals[0].items);
+  assert.equal(after.meals[0].version,2);assert.equal(after.meals[0].notes,edit.notes[0].after);
 });

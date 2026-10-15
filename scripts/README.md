@@ -33,3 +33,5 @@
 `ai-setup.mts`（pnpm ai:setup）在交互终端隐藏读取令牌，写入 0600 的私有 .env.ai.local，不覆盖已有配置。`ai-request.mts`（pnpm ai:request GET /measurements 或 POST /measurement-operations 私有请求.json）只用该配置调用正式 HTTP API，每次自动读取系统时区并发送 X-Formward-Timezone 请求头，私有请求文件保持原样，不读取数据库或打印令牌，不跟随重定向，仅允许 HTTPS／本机 HTTP。用法与确认流程见 [AI 接入](../docs/ai-api.md)。
 
 `preview-meals.mts`只读解析私有饮食TSV，可用--reference采用私有参考热量；--email已有账号--stage仅创建网页初始化预览，不保存正式餐次。命令为pnpm meals:preview，确认规则见[饮食记录](../docs/meals.md)。
+
+`correct-meal-text.mts` 仅执行已获授权的说明文字修正，业务事务在 meals feature。私有 JSON 包含 `{ userId, request: { operationId, foodId, foodVersion, preparation: { before, after }, basis: { before, after }, items: [{ id, mealId, mealVersion }], notes?: [{ mealId, mealVersion, before, after }] } }`。格式：`node --env-file=.env.local --import tsx scripts/correct-meal-text.mts data/exports/私有请求.json --preview|--write 预览摘要`。预览输出摘要与目标数量，详细差异保存在同名 `.preview.json`；写入前备份 `.before.json`，结果及当前快照存入 `.result.json`，均为 0600。只修正匹配原文及版本的食材、当前餐项、说明快照或明确指定的餐次备注；仅备注变化时不改食材和餐项版本，不修改营养、份量、照片、原始请求或历史审计；旧餐项软删除留存，审计记录 AI 代执行者及用户授权。重试幂等，任一冲突或审计失败整批回滚，不按关键词批量清理。
