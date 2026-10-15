@@ -1,0 +1,56 @@
+"use client";
+import { useRef, useState } from "react";
+import { decimal, emptyNutrition, foodSpecification, formatNutrition, metricLabels, metrics, nutritionFor, sumNutrition, type FoodView, type ItemDraft, type MealDraft } from "./model";
+import { NutritionFields, SourceFields } from "./nutrition-fields";
+import { PhotoFields } from "./photos";
+import styles from "./meals.module.css";
+const freeItem = (): ItemDraft => ({kind:"food",name:"",quantity:null,unit:null,sourceKind:"estimated",nutrition:emptyNutrition()});
+export function MealEditor({ initial, foods, historicalFoods = [], submitLabel = "保存餐次", error, busy, save }: { initial: MealDraft; foods: FoodView[]; historicalFoods?: FoodView[]; submitLabel?: string; error: string; busy: boolean; save: (input: MealDraft, allowMissingImages?: boolean) => Promise<void> }) {
+  const [draft,setDraft]=useState<MealDraft>(()=>({...structuredClone(initial),items:initial.items.map(item=>({...structuredClone(item),kind:"food"}))}));
+  const [query,setQuery]=useState(""),[step,setStep]=useState<"picker"|"entry">(initial.items.length?"entry":"picker"),[replacing,setReplacing]=useState<number|null>(null);
+  const [uploading,setUploading]=useState(false),[photoError,setPhotoError]=useState(""),[textOnly,setTextOnly]=useState(false);
+  const quantities=useRef<(HTMLInputElement|null)[]>([]);
+  function itemFood(item:ItemDraft){return item.foodId?historicalFoods.find(food=>food.id===item.foodId&&food.version===item.foodVersion)??foods.find(food=>food.id===item.foodId):item.foodDraft;}
+  function values(item:ItemDraft){const food=itemFood(item);return food?item.quantity&&decimal.safeParse(item.quantity).success&&Number(item.quantity)>0?nutritionFor(food,item.quantity):emptyNutrition():item.nutrition??emptyNutrition();}
+  function setItem(index:number,next:ItemDraft){setDraft(previous=>({...previous,items:previous.items.map((item,n)=>{
+    if(n!==index)return item;
+    if(next.quantity!==item.quantity||next.unit!==item.unit)next={...next,reviewExplanation:{...next.reviewExplanation,amount:{source:"user",basis:next.quantity?`填写食用量：${Number(next.quantity)}${next.unit??""}`:"保留未知食用量。"}}};
+    if(JSON.stringify(next.nutrition)!==JSON.stringify(item.nutrition)&&next.nutrition)next={...next,reviewExplanation:{...next.reviewExplanation,nutrition:{source:"user",basis:"手动填写本次摄入的营养。"}}};
+    return next;
+  })}));}
+  function choose(food:FoodView){
+    const next:ItemDraft={kind:"food",name:food.name,foodId:food.id,foodVersion:food.version,quantity:null,unit:food.unit,sourceKind:food.sourceKind};
+    const index=replacing??draft.items.length;
+    setDraft(previous=>({...previous,items:replacing===null?[...previous.items,next]:previous.items.map((item,n)=>n===replacing?next:item)}));
+    setReplacing(null);setStep("entry");requestAnimationFrame(()=>quantities.current[index]?.focus());
+  }
+  function addFree(){setDraft(previous=>({...previous,items:[...previous.items,freeItem()]}));setStep("entry");setReplacing(null);}
+  const results=foods.filter(food=>!food.deletedAt&&`${food.name} ${food.brand??""} ${food.preparation??""}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const totals=sumNutrition(draft.items.map(values));
+  return <form className={`${styles.form} ${styles.mealForm}`} aria-busy={busy} onSubmit={event=>{event.preventDefault();if(!draft.items.length)return;void save(draft,textOnly);}}><fieldset disabled={busy||uploading}>
+    <div className={styles.formColumns}><label>日期<input type="date" required value={draft.date} onChange={event=>setDraft({...draft,date:event.target.value,occurredAt:null})}/></label><label>餐次<input aria-label="餐次" required maxLength={50} list="meal-types" value={draft.mealType} onChange={event=>setDraft({...draft,mealType:event.target.value})}/><datalist id="meal-types">{["早餐","午餐","晚餐","加餐","夜宵"].map(name=><option key={name}>{name}</option>)}</datalist></label></div>
+    <div className={styles.entryPaths}><button type="button" aria-pressed={step==="picker"} onClick={()=>{setStep("picker");setReplacing(null);}}>从食材库添加</button><button type="button" onClick={addFree}>自由填写</button>{draft.items.length>0&&<button type="button" className={styles.returnToMeal} onClick={()=>setStep("entry")}>本餐 {draft.items.length} 项 →</button>}</div>
+    <div className={styles.mealColumns} data-step={step}>
+      <section className={styles.foodPicker} aria-label="选择食材库"><h3>食材库</h3><label>搜索食材<input type="search" placeholder="名称、品牌或规格" value={query} onChange={event=>setQuery(event.target.value)}/></label>{replacing!==null&&<p className={styles.hint}>选择后替换当前食材，请重新填写用量。<button type="button" onClick={()=>{setReplacing(null);setStep("entry");}}>取消更换</button></p>}
+        <div className={styles.pickerResults}>{results.map(food=><button type="button" key={food.id} aria-label={`选择 ${food.name}`} onClick={()=>choose(food)}><span><strong>{food.name}</strong><small>{[food.brand,foodSpecification(food.preparation)].filter(Boolean).join(" · ")}</small></span><span className={styles.pickerNutrition}>每 {Number(food.baseQuantity)}{food.unit}<strong>{formatNutrition(food.nutrition.caloriesKcal,"caloriesKcal")} kcal</strong><small>蛋白 {formatNutrition(food.nutrition.proteinG,"proteinG")}g · 碳水 {formatNutrition(food.nutrition.carbsG,"carbsG")}g · 脂肪 {formatNutrition(food.nutrition.fatG,"fatG")}g</small></span></button>)}{!results.length&&<p className={styles.hint}>没有匹配的食材，可以自由填写本次摄入。</p>}</div>
+      </section>
+      <section className={styles.mealEntry} aria-label="本餐录入"><h3>本餐记录</h3>{!draft.items.length&&<p className={styles.hint}>从左侧选择食材，或自由填写一项。</p>}
+        {draft.items.map((item,index)=>{const food=itemFood(item),nutrition=values(item);return <section className={styles.itemEditor} key={index}>
+          <div className={styles.itemTop}>{food?<div><strong>{food.name}</strong><p className={styles.hint}>每 {Number(food.baseQuantity)}{food.unit}{food.preparation&&` · ${foodSpecification(food.preparation)}`}</p></div>:<span className={styles.hint}>自由填写 · 本次实际摄入</span>}<button type="button" onClick={()=>{setDraft({...draft,items:draft.items.filter((_,n)=>n!==index)});setReplacing(null);}}>移除 ×</button></div>
+          {food?<><div className={styles.amountInput}><label>食用量（{food.unit}）<input ref={node=>{quantities.current[index]=node;}} aria-label={`食用量（${food.unit}）`} type="number" min="0.0001" max="1000000" step="0.0001" inputMode="decimal" required={item.amountDecision!=="unknown_accepted"} placeholder={food.unit==="g"?"填写克数":"如 0.5、0.8、1"} value={item.quantity??""} onChange={event=>setItem(index,{...item,quantity:event.target.value||null,amountDecision:event.target.value?"provided":undefined})}/></label><span>{food.unit}</span><button type="button" onClick={()=>{setReplacing(index);setStep("picker");}}>更换食材</button></div>{!item.quantity&&<label className={styles.checkbox}><input type="checkbox" checked={item.amountDecision==="unknown_accepted"} onChange={event=>setItem(index,{...item,amountDecision:event.target.checked?"unknown_accepted":undefined})}/>保留未知用量</label>}</>:<><label>食物名称<input required maxLength={200} value={item.name} placeholder="食物或餐食名称" onChange={event=>setItem(index,{...item,name:event.target.value})}/></label><div className={styles.formColumns}><label>分量（可选）<input type="number" min="0.0001" step="0.0001" value={item.quantity??""} onChange={event=>setItem(index,{...item,quantity:event.target.value||null})}/></label><label>单位<input value={item.unit??""} placeholder="g／份／杯" onChange={event=>setItem(index,{...item,unit:event.target.value||null})}/></label></div></>}
+          <NutritionFields value={nutrition} readOnly={Boolean(food)} change={next=>setItem(index,{...item,nutrition:next})}/>
+          {!food&&<SourceFields value={item} change={fields=>setItem(index,{...item,...fields})} detailed={submitLabel==="更新预览"}/>}
+          {food&&item.amountDecision==="estimate_accepted"&&<label>食用量估算依据<textarea value={item.basis??""} onChange={event=>setItem(index,{...item,basis:event.target.value||null})}/></label>}
+          {item.foodDraft&&<details><summary>新食材规格</summary><div className={styles.formColumns}><label>营养对应数量<input type="number" min="0.0001" step="0.0001" value={item.foodDraft.baseQuantity} onChange={event=>setItem(index,{...item,foodDraft:{...item.foodDraft!,baseQuantity:event.target.value}})}/></label><label>基准单位<input value={item.foodDraft.unit} onChange={event=>setItem(index,{...item,unit:event.target.value,foodDraft:{...item.foodDraft!,unit:event.target.value}})}/></label></div><NutritionFields value={item.foodDraft.nutrition} change={next=>setItem(index,{...item,foodDraft:{...item.foodDraft!,nutrition:next}})}/><SourceFields value={item.foodDraft} change={fields=>setItem(index,{...item,foodDraft:{...item.foodDraft!,...fields}})} detailed/></details>}
+        </section>;})}
+        {draft.items.length>0&&<div className={styles.mealTotal} aria-label="本餐合计"><h3>本餐合计</h3><div className={styles.compactMetrics}>{metrics.map(metric=><div key={metric}><span>{metricLabels[metric]}</span><strong>{formatNutrition(totals.values[metric],metric)}<small>{metric==="caloriesKcal"?"kcal":"g"}</small></strong>{totals.incomplete[metric]&&<small>部分</small>}</div>)}</div></div>}
+        <label>餐次备注<textarea aria-label="餐次备注" rows={3} maxLength={12000} value={draft.notes??""} placeholder="补充食物、份量或做法" onChange={event=>setDraft({...draft,notes:event.target.value||null})}/></label>
+        <PhotoFields expectedCount={draft.expectedImageCount} onExpected={expectedImageCount=>setDraft(previous=>({...previous,expectedImageCount}))} ids={draft.imageIds??[]} change={imageIds=>setDraft(previous=>({...previous,imageIds}))} busy={busy} onBusy={setUploading} onError={setPhotoError}/>
+        {draft.photoReview&&<fieldset className={styles.photoReview}><legend>照片信息核对</legend>{draft.photoReview.questions.length>0&&<p className={styles.error}>{draft.photoReview.questions.join("；")}</p>}{([['dateConfirmed','日期'],['mealTypeConfirmed','餐次'],['identityConfirmed','食物与做法'],['amountConfirmed','实际食用量'],['cookingConfirmed','油和酱料']] as const).map(([key,label])=><label className={styles.checkbox} key={key}><input type="checkbox" checked={draft.photoReview![key]} onChange={event=>setDraft({...draft,photoReview:{...draft.photoReview!,[key]:event.target.checked}})}/>已核对{label}</label>)}{draft.photoReview.questions.length>0&&<label className={styles.checkbox}><input type="checkbox" onChange={event=>{if(event.target.checked)setDraft({...draft,photoReview:{...draft.photoReview!,questions:[]}});}}/>已解决待核对问题</label>}</fieldset>}
+        {(error.includes("相同")||draft.allowDuplicate)&&<label className={styles.checkbox}><input type="checkbox" checked={Boolean(draft.allowDuplicate)} onChange={event=>setDraft({...draft,allowDuplicate:event.target.checked})}/>这是另一次进食，仍然新增</label>}
+        {submitLabel!=="更新预览"&&(draft.expectedImageCount??0)>(draft.imageIds?.length??0)&&<label className={styles.checkbox}><input type="checkbox" checked={textOnly} onChange={event=>setTextOnly(event.target.checked)}/>照片尚未全部保存，先保存文字记录</label>}
+        {error&&<p className={styles.error} role="alert">{error}</p>}<button disabled={!draft.items.length||uploading||(Boolean(photoError)&&!textOnly)} className={styles.save} type="submit">{busy?"正在处理…":submitLabel}</button>
+      </section>
+    </div>
+  </fieldset></form>;
+}

@@ -10,7 +10,7 @@ import { readMealSnapshot } from "@/features/meals/records";
 import { OverviewView } from "@/features/dashboard/overview-view";
 import { RouteLoading } from "@/components/page-loading";
 import { DashboardHeader } from "./header";
-export const metadata = { title: "Formward · 今日概况" };
+export const metadata = { title: "Formward · 总览" };
 export default async function DashboardPage() {
  const user = await currentPageUser(); if (!user) redirect("/");
  return <Suspense fallback={<RouteLoading/>}><Content user={user}/></Suspense>;

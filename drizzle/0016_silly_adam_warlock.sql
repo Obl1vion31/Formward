@@ -1,0 +1,2 @@
+ALTER TABLE "foods" DROP CONSTRAINT "foods_source_valid";--> statement-breakpoint
+ALTER TABLE "foods" ADD CONSTRAINT "foods_source_valid" CHECK ("foods"."source_kind" IN ('label','composition_table','reference','estimated','unknown'));

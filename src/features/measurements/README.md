@@ -45,3 +45,5 @@ Inspector 锁定页面滚动时，预留稳定滚动条空间，仅将锁定前�
 `timezone.ts` 统一固定偏移校验、GMT／东西区标签和 27 个整点选择项（GMT-12 至 GMT+14），兼容历史非整点偏移与 IANA；按测量日期与准确偏移显示，未知为“未指定”。AI 新录入省略时区时每次自动采用系统时区，客户端请求头优先，FORMWARD_TIMEZONE 配置地区的当前偏移为后备，未配置时读取服务系统偏移；查询 context 提供本次时区与当地日期。默认值只加入首次审核草稿，原始请求保留，刷新与重试不重新覆盖；已有记录补缺／修改省略时保留原时区，明确值或 null 优先。审核仍可修改时区，保留当地钟点与记录日期，仅准确时间重算 UTC。标签缓存有界，不改变存储或历史归属。
 
 公网审核链接与 OpenAPI 完整地址由 auth/site-url.ts 按 BETTER_AUTH_URL 生成，忽略代理内部 HTTP 与请求 Host。部署与调用方式见 [公网 HTTPS 部署](../../../docs/deployment.md)。
+
+总览可通过合法 ?date=YYYY-MM-DD 打开对应日期 Inspector；calendar.ts 的 linkedDate 复用真实日历校验，普通入口不自动弹窗。身体与饮食 Inspector 共用 use-backdrop-dismiss，内容拖到遮罩松开不关闭，仅主指针从真实遮罩按下、抬起且小幅移动才关闭；原关闭按钮、Escape、忙碌保护、焦点和滚动锁保留。

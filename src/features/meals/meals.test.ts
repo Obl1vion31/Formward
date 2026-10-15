@@ -10,6 +10,7 @@ import { createAiToken, authenticateAi, revokeAiToken } from "../auth/ai-tokens"
 import { nutritionFor, sumNutrition, dailyTotals, type FoodDraft, type MealAction, type Nutrition } from "./model";
 import { submitMealOperation, decideMealOperation, reviseMealOperation, readMealSnapshot, getMealOperation, searchFoods } from "./records";
 import { previewMealTsv, stageMealInitialization } from "../imports/meals";
+import { previewFoodMaintenance, applyFoodMaintenance } from "./food-maintenance";
 import { previewMealTextCorrection, applyMealTextCorrection } from "./text-maintenance";
 import { queryMeals } from "./ai-api";
 const pg = new PGlite(), db = drizzle(pg, { schema });
@@ -201,4 +202,43 @@ test("仅修正明确指定的餐次备注时不改食材、餐项或其营养�
   await applyMealTextCorrection(db,userId,edit,preview.digest);
   const after=await readMealSnapshot(db,userId);assert.deepEqual(after.foods,before.foods);assert.deepEqual(after.meals[0].items,before.meals[0].items);
   assert.equal(after.meals[0].version,2);assert.equal(after.meals[0].notes,edit.notes[0].after);
+});
+
+test("手动合并来源无需长篇说明，旧标签与成分表校验保持，小数勺数准确换算",async()=>{
+ const userId=await owner();await save(userId,[{kind:"save_food",...product({name:"虚构乳清",baseQuantity:"1",unit:"勺",sourceKind:"reference",basis:null,nutrition:n("120","24","3","1.5")})}]);
+ const f=(await searchFoods(db,userId))[0];assert.equal(nutritionFor(f,"0.5").caloriesKcal,"60.0000");assert.deepEqual(nutritionFor(f,"0.8"),n("96.0000","19.2000","2.4000","1.2000"));
+ await save(userId,[lunch({items:[{kind:"food",name:f.name,foodId:f.id,foodVersion:f.version,quantity:"0.8",unit:"勺",sourceKind:"reference"}]})]);
+ const old=(await readMealSnapshot(db,userId)).meals[0];assert.equal(old.items[0].unit,"勺");assert.equal(old.totals.values.caloriesKcal,"96.0000");
+ const other=await owner();await reject(submitMealOperation(db,{userId:other,origin:"manual"},{operationId:randomUUID(),actions:[lunch({items:[{kind:"food",name:f.name,foodId:f.id,foodVersion:f.version,quantity:"1",unit:"勺",sourceKind:"reference"}]})]}).then(op=>{if(op.rows[0].error)throw Object.assign(new Error(op.rows[0].error),{code:"not_found"});}),"not_found");
+ const invalid=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_food",...product({sourceKind:"composition_table",basis:null})}]});assert.equal(invalid.canConfirm,false);
+});
+test("更新食材当前计量规格不改已有餐次的克数或营养快照",async()=>{
+ const userId=await owner();await save(userId,[{kind:"save_food",...product({baseQuantity:"30.4",unit:"g",nutrition:n("120")})}]);const f=(await searchFoods(db,userId))[0];
+ await save(userId,[lunch({items:[{kind:"food",name:f.name,foodId:f.id,foodVersion:f.version,quantity:"15.2",unit:"g",sourceKind:f.sourceKind}]})]);
+ const original=(await readMealSnapshot(db,userId)).meals[0];await save(userId,[{kind:"save_food",...product({id:f.id,version:f.version,baseQuantity:"1",unit:"勺",nutrition:n("120")})}]);
+ const state=await readMealSnapshot(db,userId);assert.deepEqual(state.meals[0],original);assert.equal(state.foods[0].unit,"勺");
+ await save(userId,[lunch({id:original.id,version:original.version,items:original.items.map(({foodSnapshot,nutrition,...item})=>{void foodSnapshot;void nutrition;return item;}),notes:"仅修改备注"})]);
+ const edited=(await readMealSnapshot(db,userId)).meals[0];assert.equal(edited.items[0].unit,"g");assert.equal(edited.totals.values.caloriesKcal,"60.0000");
+});
+
+test("食材维护更新当前单位及说明，历史营养、克数快照和原始操作保留，重试幂等",async()=>{
+ const {userId,before}=await textCorrectionFixture(),f=before.foods[0];
+ const originalOps=await db.select().from(schema.mealOperation).where(eq(schema.mealOperation.userId,userId));
+ const request={operationId:randomUUID(),changes:[{id:f.id,version:f.version,preparation:"虚构简短规格",basis:"虚构标签每勺营养",baseQuantity:"1",unit:"勺"}]};
+ const preview=await previewFoodMaintenance(db,userId,request),result=await applyFoodMaintenance(db,userId,request,preview.digest),after=await readMealSnapshot(db,userId);
+ assert.equal(after.foods[0].unit,"勺");assert.deepEqual(after.foods[0].nutrition,f.nutrition);
+ const item=after.meals[0].items[0],old=before.meals[0].items[0];assert.deepEqual(item.nutrition,old.nutrition);assert.equal(item.quantity,old.quantity);assert.equal(item.unit,old.unit);assert.equal(item.foodSnapshot?.unit,old.foodSnapshot?.unit);assert.equal(item.foodSnapshot?.version,old.foodSnapshot?.version);assert.equal(item.foodSnapshot?.basis,"虚构标签每勺营养");assert.deepEqual(after.meals[0].totals,before.meals[0].totals);
+ for(const op of originalOps)assert.deepEqual(await getMealOperation(db,userId,op.id),op);
+ assert.deepEqual(await applyFoodMaintenance(db,userId,request,preview.digest),{id:result.id,repeated:true});
+ const events=await db.select().from(schema.mealEvent).where(eq(schema.mealEvent.operationId,result.id));assert.equal(events.length,2);assert.ok(events.every(event=>event.actorType==="ai"));
+});
+test("食材维护拒绝无效单位、旧预览、跨账号，审计失败整批回滚",async()=>{
+ const {userId,before}=await textCorrectionFixture(),f=before.foods[0],request={operationId:randomUUID(),changes:[{id:f.id,version:f.version,preparation:"简短",basis:"虚构依据"}]};
+ await reject(previewFoodMaintenance(db,await owner(),request),"not_found");
+ await reject(applyFoodMaintenance(db,userId,request,"expired"),"version_conflict");
+ await assert.rejects(previewFoodMaintenance(db,userId,{...request,changes:[{...request.changes[0],baseQuantity:"0"}]}));
+ const preview=await previewFoodMaintenance(db,userId,request);
+ await pg.exec("CREATE FUNCTION reject_food_maintenance() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.snapshot->>'origin' = 'food-maintenance' THEN RAISE EXCEPTION 'fictional audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_food_maintenance BEFORE INSERT ON meal_events FOR EACH ROW EXECUTE FUNCTION reject_food_maintenance();");
+ try{await assert.rejects(applyFoodMaintenance(db,userId,request,preview.digest));}finally{await pg.exec("DROP TRIGGER reject_food_maintenance ON meal_events; DROP FUNCTION reject_food_maintenance();");}
+ assert.deepEqual(await readMealSnapshot(db,userId),before);
 });

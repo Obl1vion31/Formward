@@ -49,7 +49,7 @@ export function MealReview({ operation, foods, decide, refresh, edit, load }: { 
         <button disabled={busy} onClick={() => startTransition(async () => { await perform(() => refresh(op.id, op.revision)); })}>刷新预览</button><button disabled={busy} onClick={() => startTransition(async () => { await perform(() => decide(op.id, op.revision, "cancel")); })}>取消这次提交</button>
       </div></>}
     <button disabled={busy} className={styles.loadLatest} onClick={() => startTransition(async () => { await perform(() => load(op.id)); })}>加载最新审核状态</button>
-    {action && editing !== null && <EditorDialog title="修改饮食预览" close={() => { if (!busy) { setEditing(null); setError(""); } }} busy={busy}>
+    {action && editing !== null && <EditorDialog wide={action.kind === "save_meal"} title="修改饮食预览" close={() => { if (!busy) { setEditing(null); setError(""); } }} busy={busy}>
       {action.kind === "save_meal" ? <MealEditor submitLabel="更新预览" historicalFoods={op.rows[editing].meal?.items.flatMap(i => i.foodSnapshot ? [i.foodSnapshot] : []) ?? []} initial={(action.imageIds?.length || action.expectedImageCount) && !action.photoReview ? { ...action, photoReview: { dateConfirmed: false, mealTypeConfirmed: false, identityConfirmed: false, amountConfirmed: false, cookingConfirmed: false, questions: [] } } : action} foods={foods} error={error || op.rows[editing].error || ""} busy={busy} save={async draft => { await perform(() => edit(op.id, op.revision, editing, { kind: "save_meal", ...draft })); }} /> : action.kind === "save_food" ? <FoodEditor submitLabel="更新预览" initial={action} error={error} busy={busy} save={async draft => { await perform(() => edit(op.id, op.revision, editing, { ...draft, kind: "save_food" })); }} /> : null}
     </EditorDialog>}
   </section>;

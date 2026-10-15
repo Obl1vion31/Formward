@@ -47,11 +47,11 @@ export async function previewMealTextCorrection(db: Database, userId: string, ra
   const prepared = await prepare(db,userId,raw);
   return {digest:prepared.digest,foodId:prepared.entry.id,items:prepared.changes.map(item=>item.id),preparation:prepared.request.preparation,basis:prepared.request.basis,notes:prepared.request.notes,foodChanged:prepared.foodChanged};
 }
-function foodAction(record: FoodView): MealAction {
+export function foodAction(record: FoodView): MealAction {
   const {id,version,name,brand,preparation,baseQuantity,unit,nutrition,sourceKind,basis,evidenceUrl,imageIds}=record;
   return {kind:"save_food",id,version,name,brand,preparation,baseQuantity,unit,nutrition,sourceKind,basis,evidenceUrl,imageIds};
 }
-function mealAction(record: MealView): MealAction {
+export function mealAction(record: MealView): MealAction {
   const {id,version,date,mealType,timezone,occurredAt,notes,imageIds}=record;
   return {kind:"save_meal",id,version,date,mealType,timezone,occurredAt,notes,imageIds,items:record.items.map(item=>{
     const {kind,name,quantity,unit,amountDecision,reviewExplanation,foodId,foodVersion,sourceKind,basis,evidenceUrl,nutrition}=item;

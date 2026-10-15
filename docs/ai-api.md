@@ -147,5 +147,5 @@ AI 以 `items[].status` 和 `counts` 报告事实，不能把部分保存、取�
 
 ## 饮食接口
 
-MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation，分别使用meals:read／meals:write；已有身体连接需重新授权。HTTP提供GET /foods?q=、GET /meals?from=&to=、POST /meal-operations、GET /meal-operations/{id}，公开协议1.4.0。输入operationId、actions；save_meal含date、mealType、items，已有食材用foodId＋foodVersion、同单位quantity，新食材可用foodDraft。杂只估未单列的剩余食物，whole整餐估算须为唯一项。标签与成分表需依据，未知null。确认链接为/dashboard/meals/review/{id}，15分钟有效，原请求与修订草稿独立；正式保存仅网页登录确认，权限撤销即时阻止。结构、初始化和实例定位见[饮食记录](meals.md)。
+MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation，分别使用meals:read／meals:write；已有身体连接需重新授权。HTTP提供GET /foods?q=、GET /meals?from=&to=、POST /meal-operations、GET /meal-operations/{id}，公开协议1.7.0。输入operationId、actions；save_meal含date、mealType、items，已有食材用foodId＋foodVersion、同单位quantity，新食材可用foodDraft。杂只估未单列的剩余食物，whole整餐估算须为唯一项。AI 标签与成分表需依据，未知null；手动合并来源 reference 为标签／成分表，旧来源继续兼容。新手动自由项用 kind:food，营养直接表示本次摄入，分量不再次相乘。确认链接为/dashboard/meals/review/{id}，15分钟有效，原请求与修订草稿独立；正式保存仅网页登录确认，权限撤销即时阻止。结构、初始化和实例定位见[饮食记录](meals.md)。
 \n照片上传需先实际调用import_meal_images，再提交imageIds及expectedImageCount；失败也保留预期张数并说明具体错误。canConfirm表示正常确认可用，canConfirmWithoutImages表示可由用户选择先保存文字。补传与无图保存选择仅在登录网页完成，API没有代确认入口。每项食物可提交reviewExplanation，分别说明identity、amount、cooking、nutrition的来源、basis及uncertainty；已有basis和食材快照继续兼容。

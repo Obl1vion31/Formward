@@ -25,3 +25,5 @@
 0014_meal_images 增加私有原图及同账号餐次／食材关联，meal_items增加nullable amount_decision；组合外键依赖的唯一索引先建立。共享migration保持原样，新版本上线前备份并执行此迁移。
 
 0015_meal_review_images增加nullable meal_items.review_explanation并将meal_images_size_valid改为1–20971520字节；不修改原列和值，不补造旧审核依据。共享环境执行前备份，之后核对旧字段与迁移账本。
+
+0016_silly_adam_warlock 仅扩展 foods_source_valid，接受 reference（手动合并的标签／成分表），继续接受原 label／composition_table／estimated／unknown。没有新增列或数据回填，迁移前后核对所有旧表字段和值以及账本；旧 migration 保持。

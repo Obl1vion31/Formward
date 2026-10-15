@@ -13,3 +13,60 @@
 .energy { margin-top: 24px; }
 .workspace a:focus-visible { outline: 1px solid #bea478; outline-offset: 4px; }
 @media(max-width:600px) { .nutrition { grid-template-columns: repeat(2,1fr); } .section { padding: 24px 0; } }
+.trends { padding-top:28px; }
+.trendToolbar { display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
+.trendToolbar h2 { font-size:15px; font-weight:500; margin:0 auto 0 0; }
+.ranges { display:flex; align-items:center; gap:8px; }
+.ranges button { appearance:none; background:none; border:0; padding:8px; min-height:44px; color:#a8a195; cursor:pointer; font:inherit; font-size:13px; }
+.ranges button[aria-pressed="true"] { color:#f0e9dd; background:rgba(240,233,221,.06); border-radius:4px; }
+.estimateToggle { display:flex; align-items:center; gap:6px; color:#a8a195; font-size:12px; min-height:44px; }
+.estimateToggle input { accent-color:#bea478; }
+.caption { color:#a8a195; font-size:12px; line-height:1.8; }
+.customRange { display:flex; gap:24px; padding:16px 0; }
+.customRange label { display:grid; gap:8px; color:#a8a195; font-size:12px; }
+.customRange input { color:#f0e9dd; background:none; border:0; border-bottom:1px solid rgba(240,233,221,.12); padding:8px 0; min-width:0; color-scheme:dark; font:inherit; }
+.dayReadout { display:grid; grid-template-columns:1fr 1fr 1fr; gap:28px; min-height:108px; padding:18px 0; border-block:1px solid rgba(240,233,221,.12); margin:18px 0; }
+.dayReadout > div { min-width:0; }
+.dayReadout > div > span, .dayReadout time { display:block; color:#a8a195; font-size:12px; line-height:1.8; }
+.dayReadout > div > strong { display:block; font-size:26px; font-weight:400; margin-top:8px; }
+.dayReadout > div > span > span { display:block; margin-top:8px; }
+.dayReadout strong { color:#f0e9dd; font-size:18px; font-weight:400; white-space:nowrap; }
+.dayReadout em, .dayDetails em { color:#a8a195; font-style:normal; font-size:11px; margin-left:6px; }
+.linkedPlots { min-height:690px; }
+.plot { padding:8px 0; }
+.plot h3 { font-size:13px; font-weight:400; margin:6px 0 0; }
+.plot h3 small { color:#a8a195; font-size:11px; }
+.plot svg { display:block; width:100%; height:auto; overflow:hidden; }
+.grid { stroke:rgba(240,233,221,.12); stroke-width:.7; }
+.axis { fill:#a8a195; font:11px ui-monospace,monospace; }
+.plotHit { fill:transparent; cursor:pointer; }
+.plotData, .valueLabel, .crosshair { pointer-events:none; }
+.crosshair { stroke:rgba(240,233,221,.25); stroke-dasharray:3 4; }
+.valueLabel { fill:#f0e9dd; font:11px ui-monospace,monospace; }
+.plot g:focus-visible { outline:none; }
+.plot g:focus-visible .plotHit { fill:rgba(240,233,221,.07); stroke:#bea478; stroke-width:1; }
+.dayDetails { font-size:13px; line-height:1.8; }
+.dayDetails h3 { font-weight:500; margin:24px 0 12px; }
+.dayDetails > span { display:flex; gap:20px; flex-wrap:wrap; }
+.dayDetails > span > span { white-space:nowrap; }
+.dayDetails small { color:#a8a195; margin-left:5px; }
+.dayDetails strong { font-weight:400; }
+.dayDetails article { padding:14px 0; border-bottom:1px solid rgba(240,233,221,.12); }
+.dayDetails h4 { margin:0; font-size:14px; font-weight:500; display:flex; justify-content:space-between; gap:16px; }
+.dayDetails a { display:inline-flex; align-items:center; color:#bea478; font-size:12px; min-height:44px; }
+@media(max-width:600px) {
+ .trendToolbar { gap:4px 10px; }
+ .ranges { gap:0; }
+ .estimateToggle { width:100%; }
+ .dayReadout { grid-template-columns:1fr 1fr; gap:16px; }
+ .dayReadout > div:first-child { grid-column:1 / -1; display:grid; grid-template-columns:1fr auto; align-items:center; }
+ .dayReadout > div:first-child > strong { grid-column:2; grid-row:1 / 3; margin-top:0; }
+ .dayReadout strong { font-size:16px; }
+ .dayReadout > div:first-child > strong { font-size:24px; }
+ .customRange { gap:14px; }
+ .customRange label { flex:1; min-width:0; }
+ .customRange input { width:100%; }
+ .linkedPlots { min-height:640px; }
+}
+
+.bodyChange { display:inline-block; white-space:nowrap; }

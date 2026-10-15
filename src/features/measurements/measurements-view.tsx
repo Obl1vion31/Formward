@@ -1,4 +1,5 @@
 "use client";
+import { useBackdropDismiss } from "@/components/use-backdrop-dismiss";
 
 import { useEffect, useId, useRef, useState } from "react";
 import { buildMeasurementDays, recentMeasurementDays } from "./days";
@@ -25,7 +26,7 @@ const weekday = (date: string) => weekdays[new Date(calendarOrdinal(date) * 86_4
 const unitFor = (metric: MeasurementMetric) => metric === "weightKg" ? "kg" : "%";
 const metricName = (metric: MeasurementMetric) => metric === "weightKg" ? "体重" : "体脂率";
 
-export function MeasurementsView({ records: serverRecords, dates: serverDates, sources: serverSources, accountCreatedAt, actions }: { records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; accountCreatedAt: string; actions: MeasurementActions }) {
+export function MeasurementsView({ records: serverRecords, dates: serverDates, sources: serverSources, accountCreatedAt, actions, initialDate = null }: { records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; accountCreatedAt: string; actions: MeasurementActions; initialDate?:string|null }) {
   const mobileMode = useMobileMode();
   const [actionResult, setActionResult] = useState<(Extract<EntryResult, { ok: true }> & { base: MeasurementDisplay[] }) | null>(null);
   // 保存结果即时反馈；新的服务端快照抵达后接管，不能长期保留首次加载数据。
@@ -55,12 +56,12 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [rangeError, setRangeError] = useState("");
   const calendarButton = useRef<HTMLButtonElement>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(initialDate);
   const [showEvening, setShowEvening] = useState(true);
   const [showEstimates, setShowEstimates] = useState(true);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
-  const [drawer, setDrawer] = useState<DrawerView | null>(null);
+  const [drawer, setDrawer] = useState<DrawerView | null>(initialDate ? {kind:"day",date:initialDate,metric:"weightKg"} : null);
   function updated(result: Extract<EntryResult, { ok: true }>) { setSourceResult(null); setActionResult({ ...result, base: serverRecords }); }
   if (!latestDate) return <section className={styles.empty}><h1>身体记录</h1><p>暂无测量记录。</p></section>;
 
@@ -323,7 +324,8 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
     }
     onUpdated(result);
   }
-  return <dialog ref={dialog} className={styles.drawer} aria-labelledby="measurement-drawer-title" onCancel={event => { event.preventDefault(); requestClose(); }} onAnimationEnd={event => {
+  const backdrop = useBackdropDismiss(requestClose);
+  return <dialog {...backdrop} ref={dialog} className={styles.drawer} aria-labelledby="measurement-drawer-title" onCancel={event => { event.preventDefault(); requestClose(); }} onAnimationEnd={event => {
     if (event.target !== event.currentTarget || event.nativeEvent.pseudoElement || event.animationName !== window.getComputedStyle(event.currentTarget).animationName) return;
     if (closing.current) { if (closeTimer.current !== null) window.clearTimeout(closeTimer.current); closeCallback.current(); }
     else event.currentTarget.dataset.motion = "open";
@@ -340,9 +342,6 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
     const first = controls[0], last = controls.at(-1);
     if (event.shiftKey && (document.activeElement === first || document.activeElement === heading.current)) { event.preventDefault(); last?.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-  }} onClick={(event) => {
-    const box = event.currentTarget.getBoundingClientRect();
-    if (event.target === event.currentTarget && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom)) requestClose();
   }}>
     <header className={styles.drawerHeader}><div>
       {!editor && view.kind === "history" && active && <button type="button" className={styles.historyBack} onClick={() => setActive(null)}>← 返回完整历史</button>}

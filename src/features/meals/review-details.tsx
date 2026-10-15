@@ -6,13 +6,13 @@ const foodMetrics = ["proteinG", "carbsG", "fatG"] as const;
 const evidenceSources = { user: "用户提供", label: "标签转录", food_library: "食材库", composition_table: "成分表", estimate: "估算", unknown: "未知" };
 export function NutritionTable({ items, actions, saved = false }: { items: ItemView[]; actions?: ItemDraft[]; saved?: boolean }) {
   const [expanded, setExpanded] = useState<number | null>(null), id = useId();
-  const whole = items.some(item => item.kind === "whole"), foods = items.filter(item => item.kind === "food").length, misc = items.some(item => item.kind === "misc");
+  const library=items.filter((item,index)=>item.foodId||actions?.[index]?.foodDraft).length;
   return <div className={styles.composition}>
-    <p className={styles.compositionSummary}>{whole ? "整餐合并估算 · 具体组成见备注" : foods + " 项食物分别记录" + (misc ? " · 剩余食物合并为 1 项" : "")}</p>
+    <p className={styles.compositionSummary}>{items.length} 项记录 · 食材库 {library} 项 · 自由填写 {items.length-library} 项</p>
     <div className={styles.nutritionTableViewport}><table className={styles.nutritionTable}><thead><tr><th scope="col">食物</th><th scope="col">份量</th><th scope="col">热量（kcal）</th>{foodMetrics.map(metric => <th scope="col" key={metric}>{metricLabels[metric]}（g）</th>)}<th scope="col">详情</th></tr></thead><tbody>
       {items.map((item, index) => {
         const input = actions?.[index] ?? item;
-        const provenance = input.foodDraft ? saved ? "本次新增入库" : "确认后加入食材库" : input.foodId ? "引用食材库" : item.kind === "whole" ? "整餐估算" : item.kind === "misc" ? "剩余合并" : "直接记录";
+        const provenance = input.foodDraft ? saved ? "本次新增入库" : "确认后加入食材库" : input.foodId ? "引用食材库" : "自由填写";
         return <Fragment key={index}><tr>
           <th scope="row" className={styles.rowName}><strong>{item.name}</strong></th>
           <td className={styles.rowAmount}>{item.quantity ? (item.amountDecision === "estimate_accepted" ? "约 " : "") + Number(item.quantity) + (item.unit ?? "") : "份量未知"}</td>

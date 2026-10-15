@@ -226,7 +226,7 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     assert.equal(new URL(page.url()).pathname, "/", "认证完成先展示原最终动画");
     await dashboard.wait(); await loading().waitFor();
     assert.match(await loading().innerText(), /正在加载(身体记录|页面)…/);
-    await dashboard.release(); await page.getByRole("heading", { name: "今日概况", exact: true }).waitFor(); await ready();
+    await dashboard.release(); await page.getByRole("heading", { name: "总览", exact: true }).waitFor(); await ready();
     await page.goBack(); await ready(); await page.goForward(); await ready();
     const failedAssets = await holdNext(request => request.url().includes("/videos/golden-turn-1s.mp4"));
     await page.goto(baseURL, { waitUntil: "domcontentloaded" }); await failedAssets.wait(); await assertLoading("正在加载登录页面…");

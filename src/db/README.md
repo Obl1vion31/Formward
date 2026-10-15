@@ -28,3 +28,5 @@ OAuth Provider 的客户端、资源、授权同意、摘要令牌、刷新轮�
 0013_meals.sql新增foods、meals、meal_items、meal_imports、meal_operations和meal_events；schema总计27表，既有21表结构与值保留。食材按同单位基准换算；餐项保留营养与食材快照，初始化整餐估算与杂使用同一汇总。组合外键校验餐项／食材／导入的账号归属，先创建唯一索引再添加组合外键。原请求、修订草稿、审核revision、授权、导入原行与审计独立保存。字段与流程见[饮食记录](../../docs/meals.md)。
 
 0015_meal_review_images只将meal_images大小约束扩大到20 MiB，并为meal_items新增nullable review_explanation JSONB；旧值不回填。身份／份量／油酱／营养依据分别保存来源、说明和不确定性；用户在审核页修正数值时更新对应说明，原始AI内容留在审计。expectedImageCount保存在操作JSON，不改变历史事实。缺图保存的明确选择记录在meal_events快照。
+
+0016_silly_adam_warlock 只扩展 foods_source_valid 接受 reference，供手动“标签／成分表”使用；旧来源、旧表和值保持，不新增表。当前食材规格可独立演进，历史餐项继续读取自己的营养、用量、单位、基准和版本快照。

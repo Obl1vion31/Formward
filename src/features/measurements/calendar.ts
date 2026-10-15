@@ -24,3 +24,9 @@ export function measurementCalendarPage(interval: { start: string; end: string }
   const count = Math.max(0, Math.min(limit, calendarOrdinal(interval.end) - calendarOrdinal(interval.start) + 1 - offset));
   return Array.from({ length: count }, (_, index) => addCalendarDays(interval.end, -offset - index));
 }
+
+/** 详情链接只接受一个真实日历日期；无效输入保持默认入口。 */
+export function linkedDate(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  try { calendarOrdinal(value); return value; } catch { return null; }
+}
