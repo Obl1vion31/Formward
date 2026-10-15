@@ -2,7 +2,7 @@
 
 正式域名为 [Formward](https://formward-ten.vercel.app)，Next.js 由 Vercel Hobby 托管，数据库沿用 Neon PostgreSQL。AI 使用正式 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 或 `https://formward-ten.vercel.app/api/mcp`，不能使用受 Deployment Protection 保护的单次部署／预览地址。
 
-当前协议为 OpenAPI 1.6.0／MCP 1.3.0，共 9 个工具；数据库已执行 0015，29 张业务／认证表及迁移账本。正式版本包含 20 MiB 私有原图、浏览器直传、缺图审核、营养明细／可展开依据、每日三色堆叠图、食材简表和滚动条稳定处理。今日概况保持原样。
+当前正式部署为 `dpl_9LpwwFimjG4iGt6Fh3j7PUL69voH`，READY 并绑定正式域名。当前协议为 OpenAPI 1.6.0／MCP 1.3.0，共 9 个工具；数据库已执行 0015，29 张业务／认证表及迁移账本。正式版本包含 20 MiB 私有原图、浏览器直传、缺图审核、营养明细／可展开依据、每日三色堆叠图、食材简表和滚动条稳定处理。今日概况保持原样。
 
 ## 平台与变量
 
@@ -65,6 +65,8 @@ vercel deploy --prod
 正式原图验收使用虚构文件与临时账号，测试结束删除仅属于这些测试的附件、Blob、账号与会话，不写真实餐次或修改既有健康记录。Runtime Logs 查错误与上传诊断，但不打印 URL、文件名、健康内容或凭据。既有账号的独立待确认预览不能因另一提交保存成功而自动取消。
 
 部署成功后验证正式别名实际指向 READY 版本，再更新交接。失败时别名保留上一个成功部署；需要回滚时保留新增 nullable 列和约束，不删除数据或修改旧 migration。ChatGPT 已有连接需刷新工具列表，以获取 20 MiB、expectedImageCount 和详细依据协议；只在缺饮食权限时重新授权。真实手机／微信观感与用户原图最终复测由用户完成。
+
+最终正式部署的 Runtime error 查询返回 0 条，查询区间无排除片段，报告在 `/tmp/formward-production-meal-review-errors-final.jsonl`。正式别名的 OpenAPI 1.6.0、OAuth metadata、登录保护和私有备份 404 均已复核。
 
 当前部署标识及上线验收记录见 [项目交接](../handoff.md)，产品与测试范围见 [当前状态](status.md)。
 

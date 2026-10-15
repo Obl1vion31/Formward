@@ -10,7 +10,7 @@
 
 ## 仓库与生产
 
-正式地址 [Formward](https://formward-ten.vercel.app)，当前部署 `dpl_5ifL9gpCtGRf7Z272X9kqQ6XMeDi`，READY 并绑定正式域名；OpenAPI 1.6.0，MCP 1.3.0／9 工具。Vercel CLI 手动发布，Git 推送不会自动部署。Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7。
+正式地址 [Formward](https://formward-ten.vercel.app)，当前部署 `dpl_9LpwwFimjG4iGt6Fh3j7PUL69voH`，READY 并绑定正式域名；OpenAPI 1.6.0，MCP 1.3.0／9 工具。Vercel CLI 手动发布，Git 推送不会自动部署。Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7。
 
 数据库已执行 0015，29 张业务／认证表及 Drizzle 账本。0015 只增加 nullable `meal_items.review_explanation` 和 20 MiB 大小约束；旧迁移、原记录与初始化保持。迁移前后核对 29 张表的全部旧字段和值一致、旧说明为空、账本只新增一次。私有备份及报告位于 `data/exports/database-{before,after}-meal-review-2026-10-15.json` 和 `meal-review-migration-verification-2026-10-15.json`，0600，Git／部署忽略。
 
@@ -45,7 +45,7 @@ app 只负责入口，features 负责业务，db 集中 schema；网页、HTTP�
 
 lint、typecheck、231 项单元／集成测试、结构检查、git diff --check、本机与 Vercel production build 通过。饮食浏览器覆盖真实页面保存／刷新终态、缺图文字保存且不重复、展开依据、三色堆叠几何、食材复用、图片、编辑删除恢复、原生滚动条反复切换、320px 与跨账号。身体／来源／AI／加载层回归使用虚构账号、隔离 PGlite 和独立 production 服务；截图与报告仅在 `/tmp`。
 
-真实 GPT 大图及重复上传已验证，虚构附件已清理，没有创建真实餐次。正式浏览器大图及完整 20 MiB 有效 PNG 上传、字节一致、重复、来源／匿名保护、320px 稳定均通过；虚构账号、会话、附件及 Blob 已清理，存储恢复仅 Production 和敏感标记，详见部署验收记录。公开协议、登录保护、OAuth metadata、MCP 401 challenge、私有备份 404 已通过。
+真实 GPT 大图及重复上传已验证，虚构附件已清理，没有创建真实餐次。正式浏览器大图及完整 20 MiB 有效 PNG 上传、字节一致、重复、来源／匿名保护、320px 稳定均通过；虚构账号、会话、附件及 Blob 已清理，存储恢复仅 Production 和敏感标记，详见部署验收记录。公开协议、登录保护、OAuth metadata、MCP 401 challenge、私有备份 404 已通过；最终部署 Runtime error 查询 0 条，无排除片段。
 
 接下来只需用户在 ChatGPT 刷新工具列表，使用原照片重试，核对图片回看、分项食物、估算依据与确认结果；旧连接只有缺饮食权限时才需重新授权。真实 iPhone／微信与跨日观感继续由用户核对。若再次失败，按返回的 requestId 和逐图错误码定位，不再仅凭 GPT 文案猜测。
 
