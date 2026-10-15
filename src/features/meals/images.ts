@@ -30,7 +30,9 @@ export function imageMime(bytes: Uint8Array) {
 export function validateImageDownloadUrl(value: string) {
   const url = new URL(value);
   const allowed = ["oaiusercontent.com", "chatgptusercontent.com", "openai.com"];
-  if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443") || !allowed.some(host => url.hostname === host || url.hostname.endsWith("." + host))) {
+  // 实际 ChatGPT fileParams 使用的 Azure 账号只精确匹配，不放开共享云后缀。
+  const azureFileHost = url.hostname === "oaisdmntprnznorth.blob.core.windows.net";
+  if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443") || (!azureFileHost && !allowed.some(host => url.hostname === host || url.hostname.endsWith("." + host)))) {
     imageDiagnostic("download", "image_url", { hostname: url.hostname });
     throw new ApiError(400, "image_url", "ChatGPT 文件下载域名暂不支持，请重新传入原图；错误码 image_url。");
   }

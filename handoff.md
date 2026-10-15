@@ -18,7 +18,7 @@ Private Blob 仅连接 Production，使用 BLOB_STORE_ID 和平台 OIDC，无生
 
 ## 问题定位与结果
 
-用户当时的 GPT 只说“照片暂未成功上传，可以网页补传”，没有具体错误响应或原图可追查。已通过实际 GPT 连接复现：68 字节虚构 PNG 成功，5,072,913 字节有效 PNG 被旧版 4 MiB 上限以 image_size 拒绝。新版同一大图上传返回 complete；重复上传复用相同 ID，私有字节核对一致。这个证据确认旧上限的问题，但不能断言用户当时的图片必然是同一原因。
+用户当时的 GPT 只说“照片暂未成功上传，可以网页补传”，没有具体错误响应或原图可追查。已通过实际 GPT 连接复现：68 字节虚构 PNG 成功，5,072,913 字节有效 PNG 被旧版 4 MiB 上限以 image_size 拒绝。新版同一大图上传返回 complete；重复上传复用相同 ID，私有字节核对一致。这个证据确认旧上限的问题，但不能断言用户当时的图片必然是同一原因。后续午餐照片的真实日志明确定位 image_url：ChatGPT 传入 oaisdmntprnznorth.blob.core.windows.net，原域名列表拒绝后尚未下载；现精确允许这一 Azure 账号并逐跳校验，不放开云共享后缀。晚餐按用户要求保持不关联照片，没有改写或代确认真实餐次。
 
 新版返回 complete／partial／failed、成功附件、失败 index／code／stage／retryable／requestId；最多两张并行，临时网络／5xx 重试一次，批次有截止时间。日志仅记录工具名、参数形状、错误码、阶段、字节数及请求标识，不输出文件名、健康数据、下载 URL、签名或凭据。原图、引用、权限和撤销继续复用同一 feature。
 
@@ -43,7 +43,7 @@ app 只负责入口，features 负责业务，db 集中 schema；网页、HTTP�
 
 ## 验证与接手顺序
 
-lint、typecheck、231 项单元／集成测试、结构检查、git diff --check、本机与 Vercel production build 通过。饮食浏览器覆盖真实页面保存／刷新终态、缺图文字保存且不重复、展开依据、三色堆叠几何、食材复用、图片、编辑删除恢复、原生滚动条反复切换、320px 与跨账号。身体／来源／AI／加载层回归使用虚构账号、隔离 PGlite 和独立 production 服务；截图与报告仅在 `/tmp`。
+lint、typecheck、232 项单元／集成测试、结构检查、git diff --check、本机与 Vercel production build 通过。饮食浏览器覆盖真实页面保存／刷新终态、缺图文字保存且不重复、展开依据、三色堆叠几何、食材复用、图片、编辑删除恢复、原生滚动条反复切换、320px 与跨账号。身体／来源／AI／加载层回归使用虚构账号、隔离 PGlite 和独立 production 服务；截图与报告仅在 `/tmp`。
 
 真实 GPT 大图及重复上传已验证，虚构附件已清理，没有创建真实餐次。正式浏览器大图及完整 20 MiB 有效 PNG 上传、字节一致、重复、来源／匿名保护、320px 稳定均通过；虚构账号、会话、附件及 Blob 已清理，存储恢复仅 Production 和敏感标记，详见部署验收记录。公开协议、登录保护、OAuth metadata、MCP 401 challenge、私有备份 404 已通过；最终部署 Runtime error 查询 0 条，无排除片段。
 
