@@ -16,11 +16,11 @@
 
 ## 仓库与生产
 
-正式地址 [Formward](https://formward-ten.vercel.app)。本轮发布与数据库核对进行中，当前线上仍为 `dpl_Fh6oPesSLUGUaN3dKtudBL2qi36M`，OpenAPI 1.6.0／MCP 1.3.0，数据库 0015。本轮代码为 OpenAPI 1.7.0／MCP 1.4.0（9 工具），新增 0016 扩展 foods_source_valid 接受 reference，无新增列或数据回填。完成发布后必须更新本段。
+正式地址 [Formward](https://formward-ten.vercel.app)，当前部署 `dpl_oJX625LV8btqaLeCGfhc6i8uEktz`，READY 并绑定正式域名，功能提交 `66ab4bf`。OpenAPI 1.7.0／MCP 1.4.0（9 工具），数据库已执行 0016，仅扩展 foods_source_valid 接受 reference，无新增列或回填。
 
 Vercel CLI 手动发布，没有 Git 自动部署。Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7。数据库 29 张业务／认证表及 Drizzle 账本；迁移前一致性备份，迁移后核对旧字段和值。新 migration 先纳入版本控制，共享 migration 不修改。
 
-本轮私有食材请求／预览位于 `data/exports/food-editor-cleanup-2026-10-16*`。所有真实备份／报告为 0600，Git 和部署忽略；不得输出、提交或放入 public。维护入口为 scripts/maintain-foods.mts／features/meals/food-maintenance.ts，绑定账号、ID、版本、关联餐次快照和摘要，事务、审计、幂等及失败回滚已覆盖测试，不新增公开维护 API。
+本轮已完成迁移与指定食材修正：2 项当前食材、3 餐匹配的说明快照，历史数值、单位、基准、原餐项和旧审计核对保留。私有请求／前后快照位于 `data/exports/food-editor-cleanup-2026-10-16*`，营养／用量核对见 `food-editor-verification-2026-10-16.json`；全库备份为 `database-{before-overview,after-overview-migration,after-overview-foods}-2026-10-16.json`，报告为 `overview-{migration,storage}-verification-2026-10-16.json`。迁移核对 29 张既有表字段和值一致，账本仅新增一次；维护核对 21 张其他表一致，旧操作／事件全部保留，只新增 1 个已确认维护操作和 5 条审计事件。所有真实备份／报告为 0600，Git 和部署忽略；不得输出、提交或放入 public。维护入口为 scripts/maintain-foods.mts／features/meals/food-maintenance.ts，绑定账号、ID、版本、关联餐次快照和摘要，事务、审计、幂等及失败回滚已覆盖测试，不新增公开维护 API。
 
 Private Blob 仅 Production，通过 BLOB_STORE_ID 和平台 OIDC，无生产静态令牌。网页 prepare → 预签名直传 → complete，大图不经过 Function 请求体，不依赖 webhook；旧 multipart 只兼容 4 MiB。原图最多 8 张，每张 20 MiB，JPEG／PNG／WebP 原字节。
 
@@ -46,8 +46,10 @@ app 只负责入口，features 业务，db 集中 schema；网页、HTTP、MCP �
 
 ## 验证与接手
 
-244 项单元／集成测试、lint、typecheck 和 production build 通过。本轮浏览器检查与正式发布核对进行中；完成后补齐结果，不能把未执行检查写成通过。重点覆盖 1440／390／320px 三图日期联动、D／D+1 读数、固定宽度、两种录入和单位联动、拖选到外部不关闭、真实遮罩仍关闭、日期跳转及既有照片／审核／跨账号。
+244 项单元／集成测试、lint、typecheck、本机和 Vercel production build、目录结构及 git diff --check 通过。饮食浏览器覆盖 1440／390／320px、7D／30D／90D 三图联动、D／D+1 读数、固定宽度、两种录入／单位、拖选保护与真实遮罩关闭、日期跳转、照片／审核／跨账号；身体／来源／AI／加载层完整回归通过。本机使用独立 PGlite 和虚构数据，截图在 /tmp。
+
+正式站同样完成三种宽度／范围、三图联动、双栏与手机草稿、自由项不重复乘分量、拖选保留及真实遮罩关闭、详情／采用与切页稳定检查，客户端异常 0，未保存测试健康记录，虚构账号／会话已清理。正式别名确认当前 READY 部署，实际加载新版 JS／CSS；OpenAPI、OAuth metadata、公钥、MCP 401 challenge、登录保护与私有报告 404 通过。报告 `/tmp/formward-overview-production.json`、`formward-overview-final-http.json`、`formward-overview-final-inspect.log`；当前部署 Runtime error 查询 0 条，无排除区间，见 `/tmp/formward-overview-runtime-errors.jsonl`。
 
 用户在 ChatGPT 刷新工具列表后使用原照片重试；旧连接仅缺饮食权限时重新授权。午餐真实原图仍需重新传入，失败按 requestId 与逐图错误码定位。真实 iPhone／微信与跨日观感由用户核对。
 
-身体准确时间／归属网页纠正、持久代表选择、网页导入／删除恢复、运动、消耗、目标和设备连接属于后续范围；总览历史联动本轮已纳入，不得再次误写为不扩展总览。
+身体准确时间／归属网页纠正、持久代表选择、网页导入／删除恢复、运动、消耗、目标和设备连接属于后续范围；总览历史联动已完成，后续保持已确定的日期与数据口径。

@@ -2,7 +2,7 @@
 
 正式域名为 [Formward](https://formward-ten.vercel.app)，Next.js 由 Vercel Hobby 托管，数据库沿用 Neon PostgreSQL。AI 使用正式 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 或 `https://formward-ten.vercel.app/api/mcp`，不能使用受 Deployment Protection 保护的单次部署／预览地址。
 
-当前正式部署为 `dpl_Fh6oPesSLUGUaN3dKtudBL2qi36M`，READY 并绑定正式域名。当前协议为 OpenAPI 1.6.0／MCP 1.3.0，共 9 个工具；数据库已执行 0015，29 张业务／认证表及迁移账本。正式版本包含 20 MiB 私有原图、浏览器直传、缺图审核、营养明细／可展开依据、每日三色堆叠图、食材紧凑表格／详情抽屉、所有范围固定宽度与直接读数的饮食图表、历史食物默认展开和滚动条稳定处理。今日概况保持原样。
+当前正式部署为 `dpl_oJX625LV8btqaLeCGfhc6i8uEktz`，READY 并绑定正式域名，功能提交 `66ab4bf`。OpenAPI 1.7.0／MCP 1.4.0，共 9 工具；数据库已执行 0016，29 张业务／认证表及迁移账本。正式版提供历史总览三图联动、单色 kcal 柱和可选连线、两种手动录入／单位联动、精简食材详情及 Inspector 拖选保护，保留既有私有原图、审核终态和滚动条稳定处理。
 
 ## 平台与变量
 
@@ -40,7 +40,7 @@ Hobby 配额遵守 [Blob 用量规则](https://vercel.com/docs/vercel-blob/usage
 
 修改前读根 README、AGENTS 和对应 README、当前 Next.js 本地文档。发布前运行 lint、typecheck、unit/integration test、production build、结构检查及受影响浏览器检查。浏览器使用独立 PGlite、端口和虚构账号；同一个 `.next` 构建目录不同时用于构建和正在运行的浏览器服务。
 
-新增 migration 先提交版本控制，再保存私有一致性备份、执行和核对旧字段／值。构建不自动迁移，旧共享 migration 不修改。0015 只增加 nullable meal_items.review_explanation，并将 meal_images_size_valid 提高至 20 MiB；旧记录不补造依据。
+新增 migration 先提交版本控制，再保存私有一致性备份、执行和核对旧字段／值。构建不自动迁移，共享 migration 不修改。0016 仅扩展 foods_source_valid 接受 reference，继续兼容旧来源，无新增列或回填；0015 的 nullable review_explanation 与 20 MiB 约束保持。
 
 ```bash
 node --network-family-autoselection-attempt-timeout=1000 --env-file=.env.local --import tsx scripts/backup-database.mts data/exports/私有备份.json
@@ -48,11 +48,14 @@ pnpm db:migrate
 vercel deploy --prod
 ```
 
-备份与迁移优先 DATABASE_MIGRATION_URL；直连不可达而 pooler 可用时，可在该进程将 DATABASE_MIGRATION_URL 设为既有 DATABASE_URL，保留 prepare:false，不改本机凭据文件。0015 前后已核对原 29 张表全部旧字段和值一致，旧 review_explanation 全为 null，账本只新增一次。备份及报告：
+备份与迁移优先 DATABASE_MIGRATION_URL；直连不可达而 pooler 可用时，可在该进程将其设为既有 DATABASE_URL，保留 prepare:false，不改凭据文件。0016 前后已核对 29 张既有表字段和值一致，账本仅新增一次；指定食材维护核对历史营养／用量／基准／快照版本、原餐项与旧审计保留。当前备份及报告：
 
-- `data/exports/database-before-meal-review-2026-10-15.json`
-- `data/exports/database-after-meal-review-2026-10-15.json`
-- `data/exports/meal-review-migration-verification-2026-10-15.json`
+- `data/exports/database-before-overview-2026-10-16.json`
+- `data/exports/database-after-overview-migration-2026-10-16.json`
+- `data/exports/database-after-overview-foods-2026-10-16.json`
+- `data/exports/overview-migration-verification-2026-10-16.json`
+- `data/exports/overview-storage-verification-2026-10-16.json`
+- `data/exports/food-editor-cleanup-2026-10-16*` 和 `food-editor-verification-2026-10-16.json`
 
 以上文件权限 0600，Git 与部署忽略。0013／0014 等较早迁移的私有备份与报告保留，不改共享迁移。`.vercelignore` 排除 data、环境文件、凭据、Git、本机工具、依赖和构建缓存。
 
@@ -66,7 +69,7 @@ vercel deploy --prod
 
 部署成功后验证正式别名实际指向 READY 版本，再更新交接。失败时别名保留上一个成功部署；需要回滚时保留新增 nullable 列和约束，不删除数据或修改旧 migration。ChatGPT 已有连接需刷新工具列表，以获取 20 MiB、expectedImageCount 和详细依据协议；只在缺饮食权限时重新授权。真实手机／微信观感与用户原图最终复测由用户完成。
 
-最终正式部署的 Runtime error 查询返回 0 条，查询区间无排除片段，报告在 `/tmp/formward-azure-region-errors.jsonl`。正式别名的 OpenAPI 1.6.0、OAuth metadata、登录保护和私有备份 404 均已复核。
+当前正式部署的 Runtime error 查询返回 0 条，无排除区间，报告在 `/tmp/formward-overview-runtime-errors.jsonl`。正式别名的 OpenAPI 1.7.0／reference、OAuth metadata、公钥、MCP POST 未认证 401 challenge、三页登录保护和私有报告 404 均已复核，见 `/tmp/formward-overview-final-http.json`。
 
 当前部署标识及上线验收记录见 [项目交接](../handoff.md)，产品与测试范围见 [当前状态](status.md)。
 
@@ -76,6 +79,6 @@ vercel deploy --prod
 
 生产检查已确认nznorth和westus两个实际地区地址均通过域名校验并进入下载阶段；不存在的虚构样本返回image_url_expired，其他命名族仍返回image_url。临时账号与令牌已清理，报告在/tmp/formward-azure-url-check.json；该检查不代表用户午餐原图已上传，真实午餐仍需GPT重新传入。
 
-饮食清晰度线上验收使用独立虚构账号，覆盖 1440／390／320px 的 7D／30D／90D 固定宽度与日期刻度、详情／采用和页签位置稳定，客户端异常为 0；未保存测试食材或餐次，虚构账号与会话已清理。报告在 `/tmp/formward-clarity-production.json`，截图在 `/tmp/formward-clarity-production/`。已授权的真实说明修正仅由内部脚本执行，有私有备份与前后审计；营养、份量、照片和其他记录保持，未新增 migration 或公开接口。
+正式站验收使用独立虚构账号，覆盖 1440／390／320px 的 7D／30D／90D 三图联动与固定宽度、单色 kcal 柱、双栏录入、手机草稿保留、自由营养不重复乘分量、拖选保护与真实遮罩关闭、详情／采用和页签稳定，客户端异常 0。未保存测试食材或餐次，虚构账号／会话已清理；报告 `/tmp/formward-overview-production.json`，截图 `/tmp/formward-overview-production/`。已授权真实说明及当前计量规格修正通过内部 feature 事务执行，有私有备份、摘要、幂等与前后审计，历史营养和单位保持。
 
-最终正式别名已核对为 READY；实际加载的客户端 JS／CSS 包含新版饮食组件与样式，首页／OpenAPI／登录保护／私有报告隔离检查通过，报告为 `/tmp/formward-clarity-final-http.json`。
+正式别名已确认指向当前 READY 部署，inspect 结果为 `/tmp/formward-overview-final-inspect.log`；实际加载的客户端 JS／CSS 已核对包含新版录入和图表组件，不以本机 chunk 哈希推断远程构建产物。
