@@ -76,7 +76,7 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     });
     assert.equal(layers.top, true, "遮罩处于包括编辑弹窗在内的最上层");
     assert.equal(layers.blur, "blur(6px)"); assert.equal(layers.within, true); assert.equal(layers.focus, true);
-    assert.ok(Math.abs(layers.width - page.viewportSize().width) < 1 && Math.abs(layers.height - page.viewportSize().height) < 1);
+    assert.ok(Math.abs(layers.width - page.viewportSize().width) < 1 && Math.abs(layers.height - page.viewportSize().height) < 1, JSON.stringify({ layers, viewport: page.viewportSize() }));
     await page.keyboard.press("Escape"); await page.keyboard.press("Tab"); await page.mouse.click(4, 4);
     assert.equal(await loading().count(), 1, "Escape、Tab 和背景点击不能关闭等待或操作背景");
     if (file) await page.screenshot({ path: `${artifacts}/${file}.png` });

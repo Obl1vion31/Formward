@@ -19,9 +19,14 @@ function LoadingDialog({ label }: { label: string }) {
     const node = dialog.current!;
     const previousFocus = document.activeElement;
     const unlock = lockPageScroll();
+    // 原生滚动条预留可能缩小 vw，top layer 仍须覆盖整个视口。
+    const resize = () => { node.style.width = `${window.innerWidth}px`; };
+    resize();
+    window.addEventListener("resize", resize);
     node.showModal();
     node.querySelector<HTMLElement>(".page-loading-message")?.focus({ preventScroll: true });
     return () => {
+      window.removeEventListener("resize", resize);
       node.close();
       unlock();
       if ((previousFocus instanceof HTMLElement || previousFocus instanceof SVGElement) && previousFocus.isConnected && !previousFocus.matches(":disabled, [inert]")) {

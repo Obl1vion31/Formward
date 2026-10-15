@@ -313,8 +313,8 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     await page.getByLabel("起始日期", { exact: true }).fill(blankDate);
     await page.getByLabel("结束日期", { exact: true }).fill(blankDate);
     await page.getByRole("button", { name: "应用", exact: true }).click();
-    const blankRow = page.locator(`section[aria-label="最近记录"] tr[data-date="${blankDate}"]`);
-    await blankRow.getByRole("button", { name: `查看 ${blankDate} 晨间体脂率实测记录`, exact: true }).click();
+    assert.equal(await page.locator(`section[aria-label="最近记录"] tr[data-date="${blankDate}"]`).count(), 0, "图表筛选不改变今天与待补录列表");
+    await page.locator(`section[aria-label="身体指标趋势"] [data-chart-metric="bodyFatPercent"] [data-date="${blankDate}"][data-period="daytime"][data-kind="observed"]`).click();
     const detail = page.getByRole("article", { name: "记录详情", exact: true });
     await detail.waitFor();
     const infoBefore = await detail.getByRole("region", { name: "记录信息" }).innerText();
@@ -369,18 +369,24 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
       await mobile.page.getByLabel("结束日期", { exact: true }).fill("2024-03-02");
       await mobile.page.getByRole("button", { name: "应用", exact: true }).click();
       const rows = mobile.page.locator('section[aria-label="最近记录"] tbody tr');
-      assert.deepEqual(await rows.evaluateAll(nodes => nodes.map(node => node.dataset.date)), ["2024-03-02", "2024-03-01", "2024-02-29", "2024-02-28", "2024-02-27"]);
+      const recentDates = await rows.evaluateAll(nodes => nodes.map(node => node.dataset.date));
+      assert.equal(recentDates[0], today); assert.ok(recentDates.every(date => date > "2024-03-02"), "历史图表不改变近期待补录日期");
       const cells = await rows.evaluateAll(nodes => nodes.map(node => ({ height: node.getBoundingClientRect().height, count: node.cells.length, overflow: [...node.cells].some(cell => cell.scrollWidth > cell.clientWidth + 1) })));
       assert.ok(cells.every(row => row.count === 5 && !row.overflow && row.height === cells[0].height), "连续空行与闰年日期仍五列对齐，无单元格溢出");
       await mobile.page.screenshot({ path: `${artifacts}/calendar-mobile-${width}.png`, fullPage: true });
-      const blankLeap = rows.filter({ has: mobile.page.locator('time[datetime="2024-02-29"]') });
-      await blankLeap.getByRole("button", { name: "查看 2024-02-29", exact: true }).tap();
+      const openLeapHistory = async () => {
+        await mobile.page.getByRole("button", { name: "查看全部", exact: false }).tap();
+        const leapHistory = mobile.page.getByRole("dialog");
+        for (let batch = 0; !(await leapHistory.locator('summary time[datetime="2024-02-29"]').count()); batch++) { assert.ok(batch < 25); await leapHistory.getByRole("button", { name: "加载更早日期", exact: true }).click(); }
+        const leapDay = leapHistory.locator('details:has(> summary time[datetime="2024-02-29"])'); await leapDay.locator("summary").click(); return leapDay;
+      };
+      const blankLeap = await openLeapHistory(); await blankLeap.getByRole("button", { name: "查看 2024-02-29", exact: true }).tap();
       await mobile.page.getByRole("region", { name: "当天晨晚概览" }).waitFor();
       assert.equal(await mobileForm.count(), 0, "空日期查看保留空概览，不自动录入");
       assert.equal(await mobile.page.locator('[data-period-details][open]').count(), 0);
       await mobile.page.getByRole("button", { name: "关闭记录详情" }).tap();
       await mobile.page.locator("dialog").waitFor({ state: "detached" });
-      await blankLeap.getByRole("button", { name: "补录 2024-02-29", exact: true }).tap();
+      const leapEntry = await openLeapHistory(); await leapEntry.getByRole("button", { name: "补录 2024-02-29", exact: true }).tap();
       await mobileForm.waitFor();
       await mobile.page.waitForFunction(() => document.querySelector("dialog")?.dataset.motion === "open");
       assert.equal(await mobileForm.locator('[data-entry-cell][data-kind="missing"]').count(), 4);

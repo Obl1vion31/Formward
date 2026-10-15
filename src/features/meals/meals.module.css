@@ -92,7 +92,7 @@
 .drawer .save { color: var(--gold); padding-inline: 0; text-decoration: underline; text-underline-offset: 4px; }
 .reviewRow { border-bottom: 1px solid var(--rule); padding: 22px 0; }
 .reviewRow h2 { font-size: 15px; margin: 0; font-weight: 500; }
-.reviewActions { position: sticky; bottom: 0; background: #10100f; padding: 14px 0; display: flex; gap: 20px; border-top: 1px solid var(--rule); }
+.reviewActions { padding: 14px 0; display: flex; flex-wrap: wrap; gap: 20px; border-top: 1px solid var(--rule); }
 .reviewActions button:first-child { color: var(--gold); }
 @keyframes drawerIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
 @keyframes drawerOut { from { transform: translateX(0); } to { transform: translateX(100%); } }

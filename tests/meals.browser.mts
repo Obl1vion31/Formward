@@ -96,6 +96,7 @@ try {
   assert.equal(await page.getByRole("button", { name: "确认并保存", exact: true }).isDisabled(), true);
   await page.getByText("查看估算依据与来源", { exact: true }).click(); await page.getByText("按用户接受的 330g 生重估算", { exact: false }).waitFor();
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
+  assert.ok(await page.evaluate(() => { const actions = document.querySelector('[class*="reviewActions"]')!, evidence = document.querySelector('[class*="reviewRow"] details')!; return actions.getBoundingClientRect().top >= evidence.getBoundingClientRect().bottom; }), "审核操作不遮挡展开依据");
   await page.screenshot({ path: `${screenshots}/review-missing-320.png`, fullPage: true });
   await page.getByRole("button", { name: "先保存文字记录", exact: true }).click(); await page.getByRole("status").filter({ hasText: "已保存" }).waitFor();
   assert.equal(await page.getByRole("button", { name: "确认并保存", exact: true }).count(), 0); assert.equal(await page.getByText("待确认", { exact: true }).count(), 0);
