@@ -10,7 +10,7 @@
 
 ## 仓库与生产
 
-正式地址 [Formward](https://formward-ten.vercel.app)，当前部署 `dpl_AVq1tUVotcUNUkmSYK5yxNvr9gX4`，READY 并绑定正式域名；OpenAPI 1.6.0，MCP 1.3.0／9 工具。Vercel CLI 手动发布，Git 推送不会自动部署。Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7。
+正式地址 [Formward](https://formward-ten.vercel.app)，当前部署 `dpl_FytkJGJrq96zQjnGBygb3zd1hToB`，READY 并绑定正式域名；OpenAPI 1.6.0，MCP 1.3.0／9 工具。Vercel CLI 手动发布，Git 推送不会自动部署。Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7。
 
 数据库已执行 0015，29 张业务／认证表及 Drizzle 账本。0015 只增加 nullable `meal_items.review_explanation` 和 20 MiB 大小约束；旧迁移、原记录与初始化保持。迁移前后核对 29 张表的全部旧字段和值一致、旧说明为空、账本只新增一次。私有备份及报告位于 `data/exports/database-{before,after}-meal-review-2026-10-15.json` 和 `meal-review-migration-verification-2026-10-15.json`，0600，Git／部署忽略。
 
@@ -18,7 +18,7 @@ Private Blob 仅连接 Production，使用 BLOB_STORE_ID 和平台 OIDC，无生
 
 ## 问题定位与结果
 
-用户当时的 GPT 只说“照片暂未成功上传，可以网页补传”，没有具体错误响应或原图可追查。已通过实际 GPT 连接复现：68 字节虚构 PNG 成功，5,072,913 字节有效 PNG 被旧版 4 MiB 上限以 image_size 拒绝。新版同一大图上传返回 complete；重复上传复用相同 ID，私有字节核对一致。这个证据确认旧上限的问题，但不能断言用户当时的图片必然是同一原因。午餐照片的真实日志明确定位 image_url：ChatGPT先后传入oaisdmntprnznorth.blob.core.windows.net与oaisdmntprwestus.blob.core.windows.net，原列表未覆盖地区变体，尚未下载即被拒绝。当前按oaisdmntpr账号前缀、24位账号名上限及完整Azure后缀兼容地区变体，重定向逐跳验证，其他命名族／额外子域／伪装后缀仍拒绝。数据库复核该次晚餐照片已在用户确认后关联，午餐仍无图；“尚未关联”文案与当前状态不同，排查没有改写、删除或代确认真实记录。
+用户当时的 GPT 只说“照片暂未成功上传，可以网页补传”，没有具体错误响应或原图可追查。已通过实际 GPT 连接复现：68 字节虚构 PNG 成功，5,072,913 字节有效 PNG 被旧版 4 MiB 上限以 image_size 拒绝。新版同一大图上传返回 complete；重复上传复用相同 ID，私有字节核对一致。这个证据确认旧上限的问题，但不能断言用户当时的图片必然是同一原因。午餐照片的真实日志明确定位 image_url：ChatGPT先后传入oaisdmntprnznorth.blob.core.windows.net与oaisdmntprwestus.blob.core.windows.net，原列表未覆盖地区变体，尚未下载即被拒绝。当前按oaisdmntpr账号前缀、24位账号名上限及完整Azure后缀兼容地区变体，重定向逐跳验证，其他命名族／额外子域／伪装后缀仍拒绝。生产虚构地址检查确认nznorth和westus均进入下载阶段，临时账号与令牌已清理；没有保存用户午餐原图。数据库复核该次晚餐照片已在用户确认后关联，午餐仍无图；“尚未关联”文案与当前状态不同，排查没有改写、删除或代确认真实记录。
 
 新版返回 complete／partial／failed、成功附件、失败 index／code／stage／retryable／requestId；最多两张并行，临时网络／5xx 重试一次，批次有截止时间。日志仅记录工具名、参数形状、错误码、阶段、字节数及请求标识，不输出文件名、健康数据、下载 URL、签名或凭据。原图、引用、权限和撤销继续复用同一 feature。
 
