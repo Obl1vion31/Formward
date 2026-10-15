@@ -35,12 +35,16 @@ test("原图重复保存幂等，跨账号读取和关联拒绝，组合外键�
  const op=await submitMealOperation(db,{userId:other,origin:"manual"},{operationId:randomUUID(),actions:[action([image.id])]});assert.equal(op.canConfirm,false);await reject(decideMealOperation(db,other,op.id,op.revision,"confirm"),"review_required");
  await assert.rejects(db.insert(schema.mealImageLink).values({id:randomUUID(),userId:other,imageId:image.id,mealId:randomUUID(),position:0}));
 });
-test("ChatGPT 实际 Azure 文件直连与重定向可保存，共享云其他账号及伪装地址仍拒绝",async()=>{
+test("ChatGPT Azure 文件支持跨地区直连与重定向，其他命名族及伪装地址仍拒绝",async()=>{
  const host="oaisdmntprnznorth.blob.core.windows.net",url=`https://${host}/fictional/input.png?sig=fictional-signature&se=2099-01-01`,start="https://files.oaiusercontent.com/fictional";
  assert.equal(validateImageDownloadUrl(url).href,url);
- for(const invalid of [`http://${host}/a`,`https://user:pass@${host}/a`,`https://${host}:8443/a`,`https://${host}.evil.test/a`,`https://evil.${host}/a`,`https://another-account.blob.core.windows.net/a`])assert.throws(()=>validateImageDownloadUrl(invalid));
+ for(const account of ["oaisdmntprnznorth","oaisdmntprwestus","oaisdmntpreastus2","oaisdmntprswedencentral"])assert.equal(validateImageDownloadUrl(`https://${account}.blob.core.windows.net/input.png`).hostname,`${account}.blob.core.windows.net`);
+ for(const invalid of [`http://${host}/a`,`https://user:pass@${host}/a`,`https://${host}:8443/a`,`https://${host}.evil.test/a`,`https://evil.${host}/a`,`https://another-account.blob.core.windows.net/a`,`https://fakeoaisdmntprwestus.blob.core.windows.net/a`,`https://oaisdmntpr${"a".repeat(15)}.blob.core.windows.net/a`])assert.throws(()=>validateImageDownloadUrl(invalid));
  const fetched:string[]=[],fetcher:typeof fetch=async(input)=>{const target=String(input);fetched.push(target);return target===start?new Response(null,{status:302,headers:{location:url}}):new Response(png);};
  assert.deepEqual(Buffer.from(await downloadMealImage(start,fetcher)),png);assert.deepEqual(fetched,[start,url]);
+ const west="https://oaisdmntprwestus.blob.core.windows.net/fictional/input.png?sig=fictional-signature";
+ const regional:typeof fetch=async(input)=>String(input)===url?new Response(null,{status:307,headers:{location:west}}):new Response(png);
+ assert.deepEqual(Buffer.from(await downloadMealImage(url,regional)),png);
  await reject(downloadMealImage(url,async()=>new Response(null,{status:302,headers:{location:"https://another-account.blob.core.windows.net/a"}})),"image_url");
  const id=await owner(),token=await createAiToken(db,id,"虚构Azure照片令牌","write"),identity=await authenticateAi(db,`Bearer ${token.rawToken}`);
  const imported=await importMealImages(db,identity,{files:[{download_url:url,file_id:"file-fictional-azure"}]},{download:async(value)=>downloadMealImage(value,fetcher),save:async(database,userId,bytes,metadata)=>saveMealImage(database,userId,bytes,metadata,store)});

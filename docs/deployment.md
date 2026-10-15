@@ -72,4 +72,4 @@ vercel deploy --prod
 
 正式原图验收已通过：真实 GPT 上传 5,072,913 字节有效 PNG、重复复用相同附件、原始字节一致；临时虚构账号的浏览器直传同一大图、完整 20 MiB 有效 PNG、重复、超过上限拒绝、来源校验、匿名读取拒绝、private/no-store 和 320px 切换稳定均通过。测试未保存餐次，虚构附件、Blob、账号与会话已清理；最终存储为 Private、仅 Production、敏感标记保持。验收报告在 `/tmp/formward-production-image-review-check.json`，虚构截图在 `/tmp/formward-production-images-visual`，公开 HTTP 报告在 `/tmp/formward-public-meal-review-http.json`；均不提交 Git。真实 GPT 验证用过的虚构附件也已核对原图后单独清理。
 
-原图下载兼容实际ChatGPT使用的oaisdmntprnznorth.blob.core.windows.net，按完整主机名精确匹配且重定向逐跳验证。生产虚构地址检查确认该账号已进入下载阶段（不存在的样本返回image_url_expired），其他Azure账号仍返回image_url；没有上传或关联用户照片。临时测试账号／令牌已清理，报告在/tmp/formward-azure-url-check.json。原用户临时文件地址未保留，午餐原图需由GPT重新传入并按已有餐次审核关联；晚餐按用户要求保持无图。
+原图下载兼容ChatGPT的oaisdmntpr地区存储账号，限定账号前缀、24位长度上限和完整blob.core.windows.net后缀；nznorth／westus等地区及重定向共用这一校验。其他账号命名族、额外子域、伪装后缀、非HTTPS、用户信息和异常端口仍拒绝。真实晚餐上传已在用户确认后关联；午餐仍需重新传入原图，已有餐次不得重复新增，排查未修改真实记录。生产检查使用虚构账号与不存在的文件地址，区分域名拒绝和已进入下载阶段，不冒充真实午餐已上传。

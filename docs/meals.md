@@ -22,7 +22,7 @@
 
 每餐／食材最多 8 张、单张 20 MiB，支持原始 JPEG／PNG／WebP，不自动压缩。所有原图保存在 Private Blob，通过账号鉴权回看，不进入 public、Git 或营养 JSON 请求体。
 
-MCP `import_meal_images` 和 HTTP `POST /api/v1/meal-images` 接受 ChatGPT files 引用，立即下载临时地址后私有保存，返回稳定 ID。最多两个下载并发，临时网络／5xx 最多重试一次，批次有截止时间；返回 complete／partial／failed、images、expectedImageCount 以及逐图 failures（index、code、stage、retryable、requestId）。部分成功保留已保存附件，只重试失败项。临时地址过期明确返回 image_url_expired，不能反复重用失效地址；服务端只下载允许的 ChatGPT HTTPS 文件域名，不接收任意外部／内网地址。除 oaiusercontent.com、chatgptusercontent.com、openai.com 的文件域名外，兼容实际 ChatGPT 传入的 oaisdmntprnznorth.blob.core.windows.net；Azure 账号按完整主机名精确匹配，重定向每一跳重复校验，不开放整个 blob.core.windows.net 共享后缀。
+MCP `import_meal_images` 和 HTTP `POST /api/v1/meal-images` 接受 ChatGPT files 引用，立即下载临时地址后私有保存，返回稳定 ID。最多两个下载并发，临时网络／5xx 最多重试一次，批次有截止时间；返回 complete／partial／failed、images、expectedImageCount 以及逐图 failures（index、code、stage、retryable、requestId）。部分成功保留已保存附件，只重试失败项。成功附件仍须加入对应餐次预览；已有餐次查询 id/version 后保留原内容更新。预览包含原图时应说明等待网页确认，确认后查询最新审核／餐次再报告关联状态，不把确认前文案当成实时状态。临时地址过期明确返回 image_url_expired，不能反复重用失效地址；服务端只下载允许的 ChatGPT HTTPS 文件域名，不接收任意外部／内网地址。除 oaiusercontent.com、chatgptusercontent.com、openai.com 的文件域名外，兼容 ChatGPT 的 oaisdmntpr 地区存储账号，例如 oaisdmntprnznorth.blob.core.windows.net 和 oaisdmntprwestus.blob.core.windows.net；Azure 账号名限 24 位小写字母／数字，限定完整前缀及 blob.core.windows.net 后缀。重定向每一跳重复校验，拒绝其他命名族、额外子域和伪装后缀。
 
 网页使用 prepare → 短期 OIDC 预签名 → 浏览器直传私有 Blob → complete 登记。大图不经过 Vercel Function 请求体；凭据限定账号、随机路径、SHA-256、真实类型、大小和 10 分钟有效期，完成后核对实际字节，重复原图复用 ID。SDK 预签名流程不依赖 webhook。旧 multipart 客户端只兼容 4 MiB，需刷新使用新版直传。
 
