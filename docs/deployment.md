@@ -2,7 +2,7 @@
 
 正式域名为 [Formward](https://formward-ten.vercel.app)，Next.js 由 Vercel Hobby 托管，数据库沿用 Neon PostgreSQL。AI 使用正式 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 或 `https://formward-ten.vercel.app/api/mcp`，不能使用受 Deployment Protection 保护的单次部署／预览地址。
 
-当前正式部署为 `dpl_sJcN4ET7ysdY7Ck6Do67ABXJ2S1Y`，READY 并绑定正式域名。当前协议为 OpenAPI 1.6.0／MCP 1.3.0，共 9 个工具；数据库已执行 0015，29 张业务／认证表及迁移账本。正式版本包含 20 MiB 私有原图、浏览器直传、缺图审核、营养明细／可展开依据、每日三色堆叠图、食材紧凑表格／详情抽屉、所有范围固定宽度与直接读数的饮食图表、历史食物默认展开和滚动条稳定处理。今日概况保持原样。
+当前正式部署为 `dpl_Fh6oPesSLUGUaN3dKtudBL2qi36M`，READY 并绑定正式域名。当前协议为 OpenAPI 1.6.0／MCP 1.3.0，共 9 个工具；数据库已执行 0015，29 张业务／认证表及迁移账本。正式版本包含 20 MiB 私有原图、浏览器直传、缺图审核、营养明细／可展开依据、每日三色堆叠图、食材紧凑表格／详情抽屉、所有范围固定宽度与直接读数的饮食图表、历史食物默认展开和滚动条稳定处理。今日概况保持原样。
 
 ## 平台与变量
 
@@ -77,3 +77,5 @@ vercel deploy --prod
 生产检查已确认nznorth和westus两个实际地区地址均通过域名校验并进入下载阶段；不存在的虚构样本返回image_url_expired，其他命名族仍返回image_url。临时账号与令牌已清理，报告在/tmp/formward-azure-url-check.json；该检查不代表用户午餐原图已上传，真实午餐仍需GPT重新传入。
 
 饮食清晰度线上验收使用独立虚构账号，覆盖 1440／390／320px 的 7D／30D／90D 固定宽度与日期刻度、详情／采用和页签位置稳定，客户端异常为 0；未保存测试食材或餐次，虚构账号与会话已清理。报告在 `/tmp/formward-clarity-production.json`，截图在 `/tmp/formward-clarity-production/`。已授权的真实说明修正仅由内部脚本执行，有私有备份与前后审计；营养、份量、照片和其他记录保持，未新增 migration 或公开接口。
+
+最终正式别名已核对为 READY；实际加载的客户端 JS／CSS 包含新版饮食组件与样式，首页／OpenAPI／登录保护／私有报告隔离检查通过，报告为 `/tmp/formward-clarity-final-http.json`。
