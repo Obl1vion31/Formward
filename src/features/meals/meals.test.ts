@@ -12,7 +12,8 @@ import { submitMealOperation, decideMealOperation, reviseMealOperation, readMeal
 import { previewMealTsv, stageMealInitialization } from "../imports/meals";
 import { previewFoodMaintenance, applyFoodMaintenance } from "./food-maintenance";
 import { previewMealTextCorrection, applyMealTextCorrection } from "./text-maintenance";
-import { queryMeals } from "./ai-api";
+import { queryMeals, queryFoods } from "./ai-api";
+import { foodLibraryRules, foodDescriptionProblem } from "./food-description";
 const pg = new PGlite(), db = drizzle(pg, { schema });
 before(async () => { await migrate(db, { migrationsFolder: "./drizzle" }); });
 after(async () => { await pg.close(); });
@@ -22,6 +23,49 @@ const lunch = (patch: Partial<Extract<MealAction, { kind: "save_meal" }>> = {}):
 async function owner() { const userId = randomUUID(); await db.insert(schema.user).values({ id: userId, name: "虚构饮食用户", email: `${userId}@example.test` }); return userId; }
 async function save(userId: string, actions: MealAction[]) { const op = await submitMealOperation(db, { userId, origin: "manual" }, { operationId: randomUUID(), actions }); assert.equal(op.canConfirm, true, op.rows.map(r => r.error).join(";")); await decideMealOperation(db, userId, op.id, op.revision, "confirm"); return op; }
 const reject = (work: Promise<unknown>, code: string) => assert.rejects(work, e => e instanceof Error && "code" in e && e.code === code);
+
+test("食材说明保留分项分析，个人餐次与泛化提醒在预览前拒绝，可用原标识纠正文案", async () => {
+  const userId=await owner(),operationId=randomUUID();
+  const analysis="组成：虚构熟面250g、酱100g、肉120g。\n计算：采用虚构参考密度分项换算并求和，整份约900kcal；肉类配比未知。";
+  for(const basis of ["用户2024-08-01午餐吃过该面","与早前用户深夜牛排保持相似基准","熟重不可直接套用，必须调整","本次实际摄入半份"]){
+    await reject(submitMealOperation(db,{userId,origin:"manual"},{operationId,actions:[{kind:"save_food",...product({basis})}]}),"food_description");
+  }
+  await reject(submitMealOperation(db,{userId,origin:"manual"},{operationId,actions:[lunch({items:[{kind:"food",name:"虚构面",quantity:"1",unit:"包",sourceKind:"estimated",foodDraft:product({basis:"用户要求加入食材库"})}]})]}),"food_description");
+  assert.equal((await db.select().from(schema.mealOperation).where(eq(schema.mealOperation.userId,userId))).length,0);
+  const op=await submitMealOperation(db,{userId,origin:"manual"},{operationId,actions:[{kind:"save_food",...product({basis:analysis})}]});assert.equal(op.canConfirm,true);
+  await decideMealOperation(db,userId,op.id,op.revision,"confirm");assert.equal((await searchFoods(db,userId))[0].basis,analysis);
+  await save(userId,[lunch({notes:"用户今天吃了半份",items:[{kind:"food",name:"虚构自由记录",sourceKind:"estimated",basis:"用户接受本次分量估算",nutrition:n()}]})]);
+  assert.equal((await readMealSnapshot(db,userId)).meals[0].notes,"用户今天吃了半份");
+});
+
+test("食材查询在实时结果附当前说明规则，基础来源无泛化提醒", async () => {
+  const userId=await owner();await save(userId,[{kind:"save_food",...product()}]);
+  const result=await queryFoods(db,userId);assert.equal(result.foodLibraryRules,foodLibraryRules);assert.equal(result.foods.length,1);assert.equal(result.presets.length,6);
+  assert.ok(result.presets.every(food=>!foodDescriptionProblem(food)));
+  assert.deepEqual((await queryFoods(db,await owner())).foods,[]);
+});
+
+test("旧预览确认也检查食材说明，既有完成请求仍可幂等重试", async () => {
+  const userId=await owner(),raw={operationId:randomUUID(),actions:[{kind:"save_food" as const,...product()}]};
+  const op=await submitMealOperation(db,{userId,origin:"manual"},raw);
+  const legacy={...raw,actions:[{...raw.actions[0],basis:"用户当天吃过该食物"}]};
+  await db.update(schema.mealOperation).set({draft:legacy}).where(eq(schema.mealOperation.id,op.id));
+  await reject(decideMealOperation(db,userId,op.id,op.revision,"confirm"),"food_description");assert.equal((await readMealSnapshot(db,userId)).foods.length,0);
+  const revised=await reviseMealOperation(db,userId,op.id,op.revision,raw.actions);await decideMealOperation(db,userId,op.id,revised.revision,"confirm");
+  await db.update(schema.mealOperation).set({draft:legacy}).where(eq(schema.mealOperation.id,op.id));
+  assert.equal((await submitMealOperation(db,{userId,origin:"manual"},raw)).status,"confirmed");
+  assert.equal((await decideMealOperation(db,userId,op.id,revised.revision,"confirm")).status,"confirmed");
+});
+
+test("仅修正食材库说明时完整保留历史餐项及个人餐次语境", async () => {
+  const userId=await owner();await save(userId,[{kind:"save_food",...product()}]);
+  const f=(await searchFoods(db,userId))[0];
+  await save(userId,[lunch({notes:"用户当天实际食用半包",items:[{kind:"food",name:f.name,foodId:f.id,foodVersion:f.version,quantity:"0.5",unit:f.unit,sourceKind:f.sourceKind}]})]);
+  const before=await readMealSnapshot(db,userId),request={operationId:randomUUID(),updateMealDescriptions:false,changes:[{id:f.id,version:f.version,preparation:f.preparation!,basis:"虚构标签来源与实际规格"}]};
+  const preview=await previewFoodMaintenance(db,userId,request);assert.equal(preview.affectedMeals,0);
+  await applyFoodMaintenance(db,userId,request,preview.digest);const after=await readMealSnapshot(db,userId);
+  assert.deepEqual(after.meals,before.meals);assert.deepEqual(after.foods[0].nutrition,before.foods[0].nutrition);assert.equal(after.foods[0].basis,"虚构标签来源与实际规格");
+});
 
 test("每份和每100g换算支持小数，显式热量独立于三大营养素", () => {
   assert.deepEqual(nutritionFor(product(), "2"), n("220.0000", "42.0000", "4.0000", "6.0000"));

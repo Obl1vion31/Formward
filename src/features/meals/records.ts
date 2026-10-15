@@ -9,6 +9,7 @@ import { calendarOrdinal } from "../measurements/trend";
 import { validateMeasurementTimezone } from "../measurements/timezone";
 import { localMeasurementDate } from "../measurements/entry-state";
 import { emptyNutrition, metrics, nutritionFor, operationSchema, sumNutrition, missingMealImages, type FoodDraft, type FoodView, type ItemDraft, type ItemView, type MealAction, type MealInput, type MealOperationView, type MealSnapshot, type MealView, type Nutrition, type PreviewRow } from "./model";
+import { foodDescriptionProblem } from "./food-description";
 
 export type MealActor = { userId: string; origin: "manual" | "ai" | "initialization"; identity?: AiIdentity; importId?: string };
 // PostgreSQL jsonb会重排对象字段；请求和保存后的原始快照使用相同的稳定摘要。
@@ -24,6 +25,15 @@ function parse(raw: unknown): MealInput {
   if (!result.success) throw new ApiError(400, "invalid_input", `饮食数据无效：${result.error.issues[0]?.path.join(".")} ${result.error.issues[0]?.message}`);
   if (Buffer.byteLength(JSON.stringify(result.data)) > 65536) throw new ApiError(413, "invalid_input", "单次操作最多64 KiB，请分批提交。");
   return result.data;
+}
+function validateFoodDescriptions(input: MealInput) {
+  for (const action of input.actions) {
+    const foods = action.kind === "save_food" ? [action] : action.kind === "save_meal" ? action.items.flatMap(item => item.foodDraft ? [item.foodDraft] : []) : [];
+    for (const food of foods) {
+      const problem = foodDescriptionProblem(food);
+      if (problem) throw new ApiError(400, "food_description", problem);
+    }
+  }
 }
 const norm = (s?: string | null) => (s ?? "").normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
 export const foodIdentity = (f: FoodDraft) => digest([norm(f.name), norm(f.brand), norm(f.preparation), Number(f.baseQuantity), norm(f.unit)]);
@@ -164,6 +174,7 @@ export async function submitMealOperation(db: Database, actor: MealActor, raw: u
       if (prior.requestDigest !== hash || prior.origin !== actor.origin || prior.tokenId !== (actor.identity?.tokenId ?? null) || prior.oauthConnectionId !== (actor.identity?.oauthConnectionId ?? null) || prior.importId !== (actor.importId ?? null)) throw new ApiError(409, "request_conflict", "同一请求标识不能用于不同内容或授权。");
       return { ...displayMealOperation(prior), repeated: true };
     }
+    validateFoodDescriptions(input);
     const state = await readMealSnapshot(tx, actor.userId), preview = prepareMealActions(input, state, actor.origin);
     await validatePreviewImages(tx,actor.userId,preview);
     const [row] = await tx.insert(mealOperation).values({ id: randomUUID(), userId: actor.userId, operationId: input.operationId, origin: actor.origin, tokenId: actor.identity?.tokenId ?? null, oauthConnectionId: actor.identity?.oauthConnectionId ?? null, importId: actor.importId ?? null, requestDigest: hash, snapshotDigest: stateDigest(state), payload: input, draft: input, preview, expiresAt: actor.origin === "ai" ? new Date(Date.now() + 15 * 60000) : null }).returning();
@@ -176,6 +187,7 @@ export async function reviseMealOperation(db: Database, userId: string, id: stri
     if (row.status !== "pending" || row.revision !== revision) throw new ApiError(409, "version_conflict", "审核已改变，请重新打开。");
     await checkCredential(tx, row);
     const input = parse({ operationId: row.draft.operationId, actions: actions ?? row.draft.actions });
+    validateFoodDescriptions(input);
     const state = await readMealSnapshot(tx, userId), preview = prepareMealActions(input, state, row.origin as MealActor["origin"]);
     await validatePreviewImages(tx,userId,preview);
     const [updated] = await tx.update(mealOperation).set({ draft: input, preview, snapshotDigest: stateDigest(state), revision: row.revision + 1, expiresAt: row.origin === "ai" ? new Date(Date.now() + 15 * 60000) : null }).where(eq(mealOperation.id, row.id)).returning();
@@ -218,6 +230,7 @@ export async function decideMealOperation(db: Database, userId: string, id: stri
     }
     await checkCredential(tx, op);
     if (op.expiresAt && op.expiresAt < new Date()) throw new ApiError(409, "expired", "预览已过期，请刷新预览后确认。");
+    validateFoodDescriptions(op.draft);
     await validatePreviewImages(tx,userId,op.preview);
     if (op.preview.some(r => r.error)) throw new ApiError(400, "review_required", "请先修正预览中的问题。");
     const missingImages = missingMealImages(op.preview);

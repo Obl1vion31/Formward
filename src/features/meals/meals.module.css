@@ -181,9 +181,8 @@
 .itemEvidence p { margin:8px 0; overflow-wrap:anywhere; }
 .itemEvidence a, .foodDetails a { color:var(--gold); }
 .foodDetails h3 { font-size:18px; font-weight:500; }
-.foodDetails dl { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; padding:18px 0; border-block:1px solid var(--rule); }
-.foodDetails dt { color:var(--muted); font-size:12px; }
-.foodDetails dd { margin:8px 0 0; font-size:16px; white-space:nowrap; }
+.foodAnalysis { padding:18px 0; border-top:1px solid var(--rule); margin-top:20px; }
+.foodAnalysis h4 { font-size:13px; font-weight:500; margin:0 0 12px; }
 @container(max-width:700px) {
   .foodTable, .foodTable tbody, .nutritionTable, .nutritionTable tbody { display:block; min-width:0; }
   .foodTable thead, .nutritionTable thead { display:none; }
@@ -211,7 +210,6 @@
   .chartReadout { align-items:flex-start; gap:10px; }
   .chartMacros { gap:16px; flex-wrap:wrap; justify-content:flex-end; }
   .chartMacros strong { font-size:16px; }
-  .foodDetails dl { grid-template-columns:repeat(2,1fr); }
 }
 @media(max-width:400px) {
   .chartReadout { display:block; }

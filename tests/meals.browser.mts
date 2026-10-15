@@ -14,6 +14,7 @@ import { createAiToken } from "../src/features/auth/ai-tokens";
 import { saveMealImage } from "../src/features/meals/images";
 import { saveMeasurementDay } from "../src/features/measurements/editing";
 import { stageMealInitialization } from "../src/features/imports/meals";
+import { submitMealOperation, decideMealOperation } from "../src/features/meals/records";
 
 async function freePort() { const server = createServer(); server.listen(0, "127.0.0.1"); await once(server, "listening"); const port = (server.address() as { port: number }).port; await new Promise<void>(r => server.close(() => r())); return port; }
 const pg = new PGlite(), db = drizzle(pg, { schema }), dbPort = await freePort(), port = await freePort(), baseURL = `http://127.0.0.1:${port}`;
@@ -23,6 +24,8 @@ const owner = await provisionAccount(db, { ...account, name: "虚构饮食用户
 const dateAt = (offset: number) => new Date(Date.now() + 8 * 3600000 + offset * 86400000).toISOString().slice(0, 10), today = dateAt(0);
 const header = "日期\t餐次\t食物 / 餐食\t记录状态\t蛋白质 (g)\t脂肪 (g)\t碳水 (g)\t热量 (kcal)\t备注";
 const tsv = `${header}\n${dateAt(-3)}\t午餐\t虚构牛肉与米饭\t正常记录\t25\t12\t50\t440\t整餐估算\n${dateAt(-1)}\t加餐\t虚构果汁\t正常记录\t0\t0\t15\t60\t\n${today}\t午餐\t虚构混合餐\t正常记录\t30\t15\t65\t520\t`;
+const foodAnalysis="组成：虚构熟面约250g、酱约100g、肉约120g。\n汇总：整份估计800–1000 kcal，取900 kcal。";
+const foodFixture=await submitMealOperation(db,{userId:owner.id,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_food",name:"虚构组合餐",baseQuantity:"1",unit:"份",sourceKind:"estimated",basis:foodAnalysis,nutrition:{caloriesKcal:"900",proteinG:"40",carbsG:"90",fatG:"42"}}]});await decideMealOperation(db,owner.id,foodFixture.id,foodFixture.revision,"confirm");
 const initial = await stageMealInitialization(db, owner.id, tsv, "fictional.tsv"), token = await createAiToken(db, owner.id, "虚构HTTP", "write"), otherToken = await createAiToken(db, second.id, "虚构其他HTTP", "read");
 const fictionalPng=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j6WQAAAAASUVORK5CYII=","base64");
 const image=await saveMealImage(db,owner.id,fictionalPng,{fileName:"虚构包装.png",source:"manual",actorId:owner.id},async()=>{});
@@ -36,6 +39,7 @@ try {
   for (let i = 0; i < 80; i++) { if (child.exitCode !== null) throw new Error("隔离服务退出"); try { if ((await fetch(baseURL)).ok) break; } catch {} await new Promise(r => setTimeout(r, 250)); }
   const protocol = await (await fetch(`${baseURL}/api/v1/openapi.json`)).json(); assert.ok(protocol.paths["/meal-operations"]); assert.ok(protocol.components.schemas.MealInput);
   const headers = { authorization: `Bearer ${token.rawToken}`, "content-type": "application/json" };
+  const foodSearch=await (await fetch(`${baseURL}/api/v1/foods`,{headers})).json();assert.ok(foodSearch.foodLibraryRules.includes("组成与分量"));
   const currentMeals = async () => { const response = await fetch(`${baseURL}/api/v1/meals`, { headers }); assert.equal(response.status, 200); return await response.json() as { meals: import("../src/features/meals/model").MealView[] }; };
   const read = await fetch(`${baseURL}/api/v1/meals`, { headers }); assert.equal(read.status, 200); assert.equal((await read.json()).meals.length, 0);
   assert.equal((await fetch(`${baseURL}/api/v1/meal-operations/${initial.id}`, { headers: { authorization: `Bearer ${otherToken.rawToken}` } })).status, 404);
@@ -115,7 +119,7 @@ try {
   await page.getByRole('group',{name:'每日摄入趋势图',exact:true}).locator(`[data-overview-date="${today}"]`).click();
   const dayDetail=page.getByRole('dialog',{name:today+' · 当日记录',exact:true});await dayDetail.getByText('虚构蛋白食物',{exact:true}).waitFor();
   await dayDetail.getByRole('link',{name:'查看身体记录 →',exact:true}).click();
-  const bodyDrawer=page.locator('dialog:not(.page-loading-dialog)');await bodyDrawer.waitFor();
+  const bodyDrawer=page.locator('dialog[aria-labelledby="measurement-drawer-title"]');await bodyDrawer.waitFor();
   await dragOutsideKeepsOpen(bodyDrawer,bodyDrawer.locator('h2'));
   const bodyBox=await bodyDrawer.boundingBox();await page.mouse.click(Math.max(10,bodyBox!.x-40),100);await bodyDrawer.waitFor({state:'hidden'});
   await page.getByRole('link',{name:'总览',exact:true}).click();await page.getByRole('heading',{name:'总览',exact:true}).waitFor();
@@ -155,9 +159,17 @@ try {
     await page.getByRole('button',{name:'虚构蛋白食物详情',exact:true}).click();
     const foodDetail=page.getByRole('dialog',{name:'食材详情',exact:true});
     await foodDetail.getByText('虚构标签转录：每包营养',{exact:true}).waitFor();
+    assert.equal(await foodDetail.locator('dl').count(),0,'详情不重复营养四项');
+    await foodDetail.getByRole('heading',{name:'数据来源',exact:true}).waitFor();
     assert.ok(await foodDetail.evaluate((node:HTMLElement)=>node.scrollWidth<=node.clientWidth+1));
     if(size===1440){await dragOutsideKeepsOpen(foodDetail,foodDetail.locator('h3'));const panel=await foodDetail.boundingBox();await page.mouse.click(panel!.x-40,100);}else await foodDetail.getByRole('button',{name:'关闭编辑',exact:true}).click();
     await foodDetail.waitFor({state:'hidden'});
+    await page.getByRole('button',{name:'虚构组合餐详情',exact:true}).click();
+    const analysisDetail=page.getByRole('dialog',{name:'食材详情',exact:true});
+    await analysisDetail.getByRole('heading',{name:'估算分析',exact:true}).waitFor();assert.ok((await analysisDetail.innerText()).includes('熟面约250g'));
+    assert.equal(await analysisDetail.locator('dl').count(),0);assert.ok(await analysisDetail.evaluate((node:HTMLElement)=>node.scrollWidth<=node.clientWidth+1));
+    await analysisDetail.screenshot({path:`/tmp/formward-meals-visual/food-analysis-${size}.png`});
+    await analysisDetail.getByRole('button',{name:'关闭编辑',exact:true}).click();await analysisDetail.waitFor({state:'hidden'});
 
     await page.screenshot({path:`/tmp/formward-meals-visual/library-${size}.png`,fullPage:true});
     await page.getByRole("button",{name:"饮食",exact:true}).click();

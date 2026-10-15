@@ -245,6 +245,10 @@ test("饮食独立OAuth权限通过真实MCP预览确认，身体旧授权须重
   const payload = () => ({ operationId: randomUUID(), actions: [{ kind: "save_meal", date: "2024-10-01", mealType: "午餐", notes: randomUUID(), items: [{ kind: "misc", name: "杂", sourceKind: "estimated", nutrition: { caloriesKcal: "400", proteinG: "20", carbsG: "50", fatG: "12" } }] }] });
   try {
     const search = await client.callTool({ name: "search_foods", arguments: {} }); assert.ok(!search.isError);
+    assert.match((search.structuredContent as {foodLibraryRules:string}).foodLibraryRules,/组成与分量/);
+    const definitions=await client.listTools();assert.match(definitions.tools.find(tool=>tool.name==="submit_meal_operation")!.description!,/不倒推或编造精确克数/);
+    const bad=await client.callTool({name:"submit_meal_operation",arguments:{operationId:randomUUID(),actions:[{kind:"save_food",name:"虚构说明食材",baseQuantity:"100",unit:"g",nutrition:{caloriesKcal:"100",proteinG:"10",carbsG:"5",fatG:"4"},sourceKind:"estimated",basis:"用户今天吃过，熟重不可直接套用"}]}});
+    assert.equal(bad.isError,true);assert.equal((bad.structuredContent as {error:{code:string}}).error.code,"food_description");
     const deniedBody = await client.callTool({ name: "query_measurements", arguments: {} }); assert.equal(deniedBody.isError, true);
     const result = await client.callTool({ name: "submit_meal_operation", arguments: payload() }); assert.ok(!result.isError, JSON.stringify(result.structuredContent));
     const op = result.structuredContent as { id: string; revision: number; status: string; confirmationUrl: string }; assert.equal(op.status, "pending"); assert.match(op.confirmationUrl, /\/dashboard\/meals\/review\//);

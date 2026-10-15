@@ -8,7 +8,7 @@ import { lockOwner } from "../auth/owner-lock";
 import { foodDraftSchema,type FoodView,type MealView,type MealInput,type PreviewRow } from "./model";
 import { readMealSnapshot,digest,foodIdentity } from "./records";
 import { foodAction,mealAction } from "./text-maintenance";
-const schema=z.object({operationId:z.string().regex(/^[a-zA-Z0-9-]{8,120}$/),changes:z.array(z.object({id:z.string().uuid(),version:z.number().int().positive(),name:z.string().trim().min(1).max(200).optional(),preparation:z.string().max(200),basis:z.string().max(4000),baseQuantity:z.string().optional(),unit:z.string().optional()}).strict()).min(1).max(50)}).strict();
+const schema=z.object({operationId:z.string().regex(/^[a-zA-Z0-9-]{8,120}$/),updateMealDescriptions:z.boolean().optional(),changes:z.array(z.object({id:z.string().uuid(),version:z.number().int().positive(),name:z.string().trim().min(1).max(200).optional(),preparation:z.string().max(200),basis:z.string().max(4000),baseQuantity:z.string().optional(),unit:z.string().optional()}).strict()).min(1).max(50)}).strict();
 export type FoodMaintenance=z.infer<typeof schema>;
 async function prepare(db:Pick<Database,"select">,userId:string,raw:unknown){
  const request=schema.parse(raw),before=await readMealSnapshot(db,userId),ids=new Set(request.changes.map(change=>change.id));
@@ -23,7 +23,7 @@ async function prepare(db:Pick<Database,"select">,userId:string,raw:unknown){
  });
  const identities=[...before.foods.filter(entry=>!ids.has(entry.id)),...afterFoods].map(entry=>foodIdentity(entry));
  if(new Set(identities).size!==identities.length)throw new ApiError(409,"duplicate_food","更新规格与已有食材冲突。");
- const affected=before.meals.filter(record=>!record.deletedAt&&record.items.some(item=>item.foodId&&ids.has(item.foodId)));
+ const affected=request.updateMealDescriptions===false?[]:before.meals.filter(record=>!record.deletedAt&&record.items.some(item=>item.foodId&&ids.has(item.foodId)));
  return {request,before,afterFoods,affected,digest:digest({request,foods:before.foods.filter(entry=>ids.has(entry.id)),meals:affected})};
 }
 export async function previewFoodMaintenance(db:Database,userId:string,raw:unknown){
@@ -55,8 +55,8 @@ export async function applyFoodMaintenance(db:Database,userId:string,raw:unknown
   }
   const actions=[...plan.afterFoods.map(foodAction),...changedMeals.map(mealAction)],payload:MealInput={operationId:request.operationId,actions},id=randomUUID();
   const preview:PreviewRow[]=[...plan.afterFoods.map((record,index)=>({action:actions[index],food:record,duplicateIds:[],warnings:[]})),...changedMeals.map((record,index)=>({action:actions[plan.afterFoods.length+index],meal:record,duplicateIds:[],warnings:[]}))];
-  await tx.insert(mealOperation).values({id,userId,operationId:request.operationId,origin:"manual",requestDigest,snapshotDigest:plan.digest,payload,draft:payload,preview,status:"confirmed",confirmedAt:now,result:{saved:actions.length,message:"已精简食材说明并更新指定计量规格，历史营养与食用量保持。"}});
-  for(const record of [...plan.afterFoods,...changedMeals])await tx.insert(mealEvent).values({id:randomUUID(),userId,recordId:record.id,recordType:plan.afterFoods.some(entry=>entry.id===record.id)?"food":"meal",operationId:id,actorType:"ai",actorId:"codex",confirmedBy:userId,snapshot:{origin:"food-maintenance",reason:"用户授权精简客观说明并按标签调整当前计量规格；历史数值与原始请求保留。",request,before:[...plan.before.foods,...plan.before.meals].find(entry=>entry.id===record.id),after:record}});
+  await tx.insert(mealOperation).values({id,userId,operationId:request.operationId,origin:"manual",requestDigest,snapshotDigest:plan.digest,payload,draft:payload,preview,status:"confirmed",confirmedAt:now,result:{saved:actions.length,message:"已更新指定食材说明与规格，历史营养与食用量保持。"}});
+  for(const record of [...plan.afterFoods,...changedMeals])await tx.insert(mealEvent).values({id:randomUUID(),userId,recordId:record.id,recordType:plan.afterFoods.some(entry=>entry.id===record.id)?"food":"meal",operationId:id,actorType:"ai",actorId:"codex",confirmedBy:userId,snapshot:{origin:"food-maintenance",reason:"用户授权整理食材客观说明与估算依据；仅按指定请求更新当前规格，历史数值与原始请求保留。",request,before:[...plan.before.foods,...plan.before.meals].find(entry=>entry.id===record.id),after:record}});
   return {id,repeated:false};
  });
 }

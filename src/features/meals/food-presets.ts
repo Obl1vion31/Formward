@@ -13,7 +13,7 @@ export const foodPresets: FoodDraft[] = [
       "fatG": "2.62"
     },
     "sourceKind": "composition_table",
-    "basis": "USDA FoodData Central · SR Legacy 2018 · FDC 171077 · 每100g。Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw。参考成分不代表本次食物精确实测；部位、生熟、脂肪含量须核对。",
+    "basis": "USDA FoodData Central · SR Legacy 2018 · FDC 171077 · 每100g。Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw。",
     "evidenceUrl": "https://fdc.nal.usda.gov/food-details/171077/nutrients"
   },
   {
@@ -28,7 +28,7 @@ export const foodPresets: FoodDraft[] = [
       "fatG": "4.12"
     },
     "sourceKind": "composition_table",
-    "basis": "USDA FoodData Central · SR Legacy 2018 · FDC 173627 · 每100g。Chicken, broilers or fryers, dark meat, thigh, meat only, raw。参考成分不代表本次食物精确实测；部位、生熟、脂肪含量须核对。",
+    "basis": "USDA FoodData Central · SR Legacy 2018 · FDC 173627 · 每100g。Chicken, broilers or fryers, dark meat, thigh, meat only, raw。",
     "evidenceUrl": "https://fdc.nal.usda.gov/food-details/173627/nutrients"
   },
   {
@@ -43,7 +43,7 @@ export const foodPresets: FoodDraft[] = [
       "fatG": "5.74"
     },
     "sourceKind": "composition_table",
-    "basis": "USDA FoodData Central · SR Legacy 2018 · FDC 171767 · 每100g。Beef, loin, tenderloin steak, boneless, separable lean only, trimmed to 0\" fat, all grades, raw。参考成分不代表本次食物精确实测；部位、生熟、脂肪含量须核对。",
+    "basis": "USDA FoodData Central · SR Legacy 2018 · FDC 171767 · 每100g。Beef, loin, tenderloin steak, boneless, separable lean only, trimmed to 0\" fat, all grades, raw。",
     "evidenceUrl": "https://fdc.nal.usda.gov/food-details/171767/nutrients"
   },
   {
@@ -58,7 +58,7 @@ export const foodPresets: FoodDraft[] = [
       "fatG": "9.51"
     },
     "sourceKind": "composition_table",
-    "basis": "USDA FoodData Central · SR Legacy 2018 · FDC 171287 · 每100g。Egg, whole, raw, fresh。参考成分不代表本次食物精确实测；部位、生熟、脂肪含量须核对。",
+    "basis": "USDA FoodData Central · SR Legacy 2018 · FDC 171287 · 每100g。Egg, whole, raw, fresh。",
     "evidenceUrl": "https://fdc.nal.usda.gov/food-details/171287/nutrients"
   },
   {
@@ -73,7 +73,7 @@ export const foodPresets: FoodDraft[] = [
       "fatG": "13.4"
     },
     "sourceKind": "composition_table",
-    "basis": "USDA FoodData Central · SR Legacy 2018 · FDC 175167 · 每100g。Fish, salmon, Atlantic, farmed, raw。参考成分不代表本次食物精确实测；部位、生熟、脂肪含量须核对。",
+    "basis": "USDA FoodData Central · SR Legacy 2018 · FDC 175167 · 每100g。Fish, salmon, Atlantic, farmed, raw。",
     "evidenceUrl": "https://fdc.nal.usda.gov/food-details/175167/nutrients"
   },
   {
@@ -88,7 +88,7 @@ export const foodPresets: FoodDraft[] = [
       "fatG": "0.28"
     },
     "sourceKind": "composition_table",
-    "basis": "USDA FoodData Central · SR Legacy 2018 · FDC 168878 · 每100g。Rice, white, long-grain, regular, enriched, cooked。参考成分不代表本次食物精确实测；部位、生熟、脂肪含量须核对。",
+    "basis": "USDA FoodData Central · SR Legacy 2018 · FDC 168878 · 每100g。Rice, white, long-grain, regular, enriched, cooked。",
     "evidenceUrl": "https://fdc.nal.usda.gov/food-details/168878/nutrients"
   }
 ];

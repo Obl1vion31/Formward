@@ -118,3 +118,5 @@ image-upload.test.ts验证20 MiB直传凭据的正常、篡改、过期、跨账
 总览与录入回归复用 `pnpm test:meals-browser`：1440／390／320px 的 7D／30D／90D 三图同 x 坐标与选中日、D 日摄入和 D+1 日空腹、当日只读详情及带 date 参数跳转；两种录入、搜索、单位联动、自由项本次营养及文字拖到遮罩后草稿保留。身体／饮食 Inspector 真实遮罩点击仍关闭。截图在 `/tmp/formward-overview-visual/` 和 `/tmp/formward-overview-meal-editor.png`。
 
 `meals/migration.test.ts` 从 0015 数据验证 0016 兼容旧来源、允许 reference 且拒绝非法枚举；`meals.test.ts` 覆盖小数勺换算、旧克数快照编辑、当前规格维护的数值保留、版本／摘要／跨账号、幂等与审计失败回滚。`dashboard/model.test.ts` 覆盖真实日历、零值／未知、独立指标、估计与重复候选筛选。
+
+食材分析回归覆盖 MCP／HTTP 实时 foodLibraryRules、明确个人背景／泛化提醒在预览前拒绝且可原标识重试、餐次备注仍保留个人语境，以及 updateMealDescriptions:false 不触及任何历史餐项。饮食浏览器在 1440／390／320px 验证来源与估算分析、分项克数完整显示、详情不重复营养四项且不溢出，截图 food-analysis-*.png 位于原私有 /tmp 目录。

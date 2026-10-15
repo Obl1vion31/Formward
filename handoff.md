@@ -10,9 +10,11 @@
 
 手动录入只有食材库／自由填写。桌面宽双栏左侧搜索列表、右侧本餐多项；手机全宽选择／填写分步，保留草稿。食材用自身单位填写克数、小数勺／份，选择或更换后清空用量，不默认 1g。自由项营养是本次实际摄入，分量可选，不再次相乘，支持多项。手动依据只有标签／成分表（reference）和直接预估，AI 细分来源保留。旧 misc／whole 仍兼容，展示为自由填写，用户编辑后的新版本统一为 food，不批量重写历史。
 
-食材名称、规格与详情只说明实际组成、分量／单位、成分和热量，无标签时写简短估算依据，不写上传背景或无关排除项。ON 当前基准改为每 1 勺（约 30.4g），标签营养不变；Pasta Express 精简组成与依据。历史食用克数、单位、营养、基准和快照版本保持，原始请求与旧审计保留。维护只同步与旧来源完全匹配的当前快照文字，保留旧餐项并写入新审计。
+食材名称、规格与详情只说明实际组成、分量／单位、成分和热量，估算食材保留成分分量、来源与计算及汇总结果，不写上传背景或无关排除项。ON 当前基准改为每 1 勺（约 30.4g），标签营养不变；Pasta Express 保留各组食材的估计克数、整份估算范围和采用基准。历史食用克数、单位、营养、基准和快照版本保持，原始请求与旧审计保留。维护可以同步完全匹配旧来源的当前快照；食材库独立文案维护指定 updateMealDescriptions:false，保留全部个人餐次和历史快照，新增审计。
 
 身体和饮食 Inspector 共用遮罩手势判断：从内容拖选到外部松开不关闭，只有主指针从真实遮罩按下、抬起且小幅移动才关闭。关闭按钮、Escape、忙碌保护、焦点和滚动锁保留。合法 ?date=YYYY-MM-DD 打开对应日期；普通入口不自动弹窗。
+
+食材详情不重复列表已有的四项营养，以“估算分析”／“数据来源”为主体。估算按组成分量 → 参考来源与计算 → 汇总结果保留可核实分析，未保存的分项数据不补造。食材文本禁止个人食用日期、上传／纠错背景和“不可直接套用／必须调整”等泛化提醒；这些在建立新预览前由 feature 检查，返回 food_description 后可纠正文案并沿用 operationId。餐次个人备注保持。MCP search_foods 与 HTTP GET /foods 每次实时附 foodLibraryRules，不只依赖缓存的工具说明。
 
 ## 仓库与生产
 
@@ -20,9 +22,11 @@
 
 Vercel CLI 手动发布，没有 Git 自动部署。Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7。数据库 29 张业务／认证表及 Drizzle 账本；迁移前一致性备份，迁移后核对旧字段和值。新 migration 先纳入版本控制，共享 migration 不修改。
 
-本轮已完成迁移与指定食材修正：2 项当前食材、3 餐匹配的说明快照，历史数值、单位、基准、原餐项和旧审计核对保留。私有请求／前后快照位于 `data/exports/food-editor-cleanup-2026-10-16*`，营养／用量核对见 `food-editor-verification-2026-10-16.json`；全库备份为 `database-{before-overview,after-overview-migration,after-overview-foods}-2026-10-16.json`，报告为 `overview-{migration,storage}-verification-2026-10-16.json`。迁移核对 29 张既有表字段和值一致，账本仅新增一次；维护核对 21 张其他表一致，旧操作／事件全部保留，只新增 1 个已确认维护操作和 5 条审计事件。所有真实备份／报告为 0600，Git 和部署忽略；不得输出、提交或放入 public。维护入口为 scripts/maintain-foods.mts／features/meals/food-maintenance.ts，绑定账号、ID、版本、关联餐次快照和摘要，事务、审计、幂等及失败回滚已覆盖测试，不新增公开维护 API。
+总览版本已完成迁移与指定食材修正：2 项当前食材、3 餐匹配的说明快照，历史数值、单位、基准、原餐项和旧审计核对保留。私有请求／前后快照位于 `data/exports/food-editor-cleanup-2026-10-16*`，营养／用量核对见 `food-editor-verification-2026-10-16.json`；全库备份为 `database-{before-overview,after-overview-migration,after-overview-foods}-2026-10-16.json`，报告为 `overview-{migration,storage}-verification-2026-10-16.json`。迁移核对 29 张既有表字段和值一致，账本仅新增一次；维护核对 21 张其他表一致，旧操作／事件全部保留，只新增 1 个已确认维护操作和 5 条审计事件。所有真实备份／报告为 0600，Git 和部署忽略；不得输出、提交或放入 public。维护入口为 scripts/maintain-foods.mts／features/meals/food-maintenance.ts，绑定账号、ID、版本、关联餐次快照和摘要，事务、审计、幂等及失败回滚已覆盖测试，不新增公开维护 API。
 
 Private Blob 仅 Production，通过 BLOB_STORE_ID 和平台 OIDC，无生产静态令牌。网页 prepare → 预签名直传 → complete，大图不经过 Function 请求体，不依赖 webhook；旧 multipart 只兼容 4 MiB。原图最多 8 张，每张 20 MiB，JPEG／PNG／WebP 原字节。
+
+食材分析专项已修正 4 项当前食材：Pasta 恢复原有分项克数与整体估算区间，Oyster Blade／鸡胸肉／鸡腿肉只保留食品规格与来源。updateMealDescriptions:false 保留全部餐次、历史快照和营养值。私有请求／前后快照为 data/exports/food-analysis-correction-2026-10-16*，全库备份 database-{before,after}-food-analysis-2026-10-16.json，数值与餐次核对 food-analysis-verification-2026-10-16.json，均为 0600、Git／部署忽略。
 
 ## 既有上传与审核要求
 
@@ -46,7 +50,7 @@ app 只负责入口，features 业务，db 集中 schema；网页、HTTP、MCP �
 
 ## 验证与接手
 
-244 项单元／集成测试、lint、typecheck、本机和 Vercel production build、目录结构及 git diff --check 通过。饮食浏览器覆盖 1440／390／320px、7D／30D／90D 三图联动、D／D+1 读数、固定宽度、两种录入／单位、拖选保护与真实遮罩关闭、日期跳转、照片／审核／跨账号；身体／来源／AI／加载层完整回归通过。本机使用独立 PGlite 和虚构数据，截图在 /tmp。
+248 项单元／集成测试、lint、typecheck、本机和 Vercel production build、目录结构及 git diff --check 通过。饮食浏览器覆盖 1440／390／320px、7D／30D／90D 三图联动、D／D+1 读数、固定宽度、两种录入／单位、拖选保护与真实遮罩关闭、日期跳转、照片／审核／跨账号；身体／来源／AI／加载层完整回归通过。本机使用独立 PGlite 和虚构数据，截图在 /tmp。
 
 正式站同样完成三种宽度／范围、三图联动、双栏与手机草稿、自由项不重复乘分量、拖选保留及真实遮罩关闭、详情／采用与切页稳定检查，客户端异常 0，未保存测试健康记录，虚构账号／会话已清理。正式别名确认当前 READY 部署，实际加载新版 JS／CSS；OpenAPI、OAuth metadata、公钥、MCP 401 challenge、登录保护与私有报告 404 通过。报告 `/tmp/formward-overview-production.json`、`formward-overview-final-http.json`、`formward-overview-final-inspect.log`；当前部署 Runtime error 查询 0 条，无排除区间，见 `/tmp/formward-overview-runtime-errors.jsonl`。
 
