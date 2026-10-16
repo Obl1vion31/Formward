@@ -4,6 +4,8 @@
 
 ## 当前用户决定与实现
 
+食材详情不重复列表已有的四项营养，以“估算分析”／“数据来源”为主体。估算按组成分量 → 参考来源与计算 → 汇总结果保留可核实分析，未保存的分项数据不补造。食材文本禁止个人食用日期、上传／纠错背景和“不可直接套用／必须调整”等泛化提醒；这些在建立／修改预览和确认写入时由 feature 检查，返回 food_description 后可纠正文案并沿用 operationId。餐次个人备注保持。MCP search_foods 与 HTTP GET /foods 每次实时附 foodLibraryRules，不只依赖缓存的工具说明。
+
 首页已按历史总览方案实现，名称为“总览”。保留今天四项摄入、餐次数、最新真实空腹体重／体脂与 7 日变化，下方增加体重 kg、体脂 %、每日摄入 kcal 三图联动，共用日期范围、x 坐标和选中日。三图按真实日期对齐，读数分别显示 D 日摄入、D 日空腹与 D+1 日空腹，不把次晨曲线前移、不补零。默认只显示真实空腹，开关仅显示已有估计（空心点／虚线），不生成估计，多候选不自动挑选。7D／30D／90D／全部／自定义固定宽度，桌面默认 30D、手机默认 7D。点击日期打开只读详情并可跳转带 date 参数的身体／饮食页。消耗、盈余和训练仍暂缓。
 
 饮食图已改为单色冷蓝 #7F9EAF 热量柱，纵轴 kcal，蛋白质／碳水／脂肪只在读数区显示 g；短区间柱顶显示数值，所有范围固定适配宽度，长范围只显示当前日期与完整起止范围。可选顶点连线默认关闭，缺日或不完整合计断开。
@@ -14,11 +16,9 @@
 
 身体和饮食 Inspector 共用遮罩手势判断：从内容拖选到外部松开不关闭，只有主指针从真实遮罩按下、抬起且小幅移动才关闭。关闭按钮、Escape、忙碌保护、焦点和滚动锁保留。合法 ?date=YYYY-MM-DD 打开对应日期；普通入口不自动弹窗。
 
-食材详情不重复列表已有的四项营养，以“估算分析”／“数据来源”为主体。估算按组成分量 → 参考来源与计算 → 汇总结果保留可核实分析，未保存的分项数据不补造。食材文本禁止个人食用日期、上传／纠错背景和“不可直接套用／必须调整”等泛化提醒；这些在建立新预览前由 feature 检查，返回 food_description 后可纠正文案并沿用 operationId。餐次个人备注保持。MCP search_foods 与 HTTP GET /foods 每次实时附 foodLibraryRules，不只依赖缓存的工具说明。
-
 ## 仓库与生产
 
-正式地址 [Formward](https://formward-ten.vercel.app)，当前部署 `dpl_oJX625LV8btqaLeCGfhc6i8uEktz`，READY 并绑定正式域名，功能提交 `66ab4bf`。OpenAPI 1.7.0／MCP 1.4.0（9 工具），数据库已执行 0016，仅扩展 foods_source_valid 接受 reference，无新增列或回填。
+正式地址 [Formward](https://formward-ten.vercel.app)，当前部署 `dpl_9JtB8eZXtYi78Fe3VDDAtNbLBEKW`，READY 并绑定正式域名，功能提交 `7e5cb33`。OpenAPI 1.7.1／MCP 1.4.1（9 工具），数据库已执行 0016，仅扩展 foods_source_valid 接受 reference，无新增列或回填。
 
 Vercel CLI 手动发布，没有 Git 自动部署。Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7。数据库 29 张业务／认证表及 Drizzle 账本；迁移前一致性备份，迁移后核对旧字段和值。新 migration 先纳入版本控制，共享 migration 不修改。
 
@@ -26,7 +26,7 @@ Vercel CLI 手动发布，没有 Git 自动部署。Node.js 24.21.0、pnpm 9.15.
 
 Private Blob 仅 Production，通过 BLOB_STORE_ID 和平台 OIDC，无生产静态令牌。网页 prepare → 预签名直传 → complete，大图不经过 Function 请求体，不依赖 webhook；旧 multipart 只兼容 4 MiB。原图最多 8 张，每张 20 MiB，JPEG／PNG／WebP 原字节。
 
-食材分析专项已修正 4 项当前食材：Pasta 恢复原有分项克数与整体估算区间，Oyster Blade／鸡胸肉／鸡腿肉只保留食品规格与来源。updateMealDescriptions:false 保留全部餐次、历史快照和营养值。私有请求／前后快照为 data/exports/food-analysis-correction-2026-10-16*，全库备份 database-{before,after}-food-analysis-2026-10-16.json，数值与餐次核对 food-analysis-verification-2026-10-16.json，均为 0600、Git／部署忽略。
+食材分析专项已修正 4 项当前食材：Pasta 恢复原有分项克数与整体估算区间，Oyster Blade／鸡胸肉／鸡腿肉只保留食品规格与来源。updateMealDescriptions:false 保留全部餐次、历史快照和营养值。私有请求／前后快照为 data/exports/food-analysis-correction-2026-10-16*，全库备份 database-{before,after}-food-analysis-2026-10-16.json，数值与餐次核对 food-analysis-verification-2026-10-16.json，全库核对 food-analysis-storage-verification-2026-10-16.json，27 张其他表与旧操作／审计保持，仅新增 1 个维护操作和 4 条事件。牛排规格保留原来的“可能保留中央筋膜”措辞，另有 food-analysis-cut-specification-2026-10-16* 及 food-analysis-cut-verification-2026-10-16.json，独立核对营养和全部餐次快照保持；均为 0600、Git／部署忽略。
 
 ## 既有上传与审核要求
 
@@ -57,3 +57,6 @@ app 只负责入口，features 业务，db 集中 schema；网页、HTTP、MCP �
 用户在 ChatGPT 刷新工具列表后使用原照片重试；旧连接仅缺饮食权限时重新授权。午餐真实原图仍需重新传入，失败按 requestId 与逐图错误码定位。真实 iPhone／微信与跨日观感由用户核对。
 
 身体准确时间／归属网页纠正、持久代表选择、网页导入／删除恢复、运动、消耗、目标和设备连接属于后续范围；总览历史联动已完成，后续保持已确定的日期与数据口径。
+
+
+食材分析正式站验收通过：OpenAPI 1.7.1、实时 foodLibraryRules、个人背景拒绝和原 operationId 纠正重试，以及 1440／390／320px 数据来源详情、无重复营养表、无泛化提醒与无溢出，客户端异常 0。仅创建虚构预览，未保存测试食材／餐次，账号／会话／令牌／预览均清理。报告 /tmp/formward-food-analysis-production.json，公开入口／登录保护／私有文件隔离见 /tmp/formward-food-analysis-final-http.json；正式别名 inspect 为当前 READY 版本，见 /tmp/formward-food-analysis-final-inspect.log；Runtime error 查询期间 0 条、无排除区间，见 /tmp/formward-food-analysis-runtime-errors.jsonl。自定义 MCP 工具定义更新后在连接详情 Refresh，再开新对话；无法仅凭生成文案判定旧对话缓存版本，刷新不会修改库内旧数据。
