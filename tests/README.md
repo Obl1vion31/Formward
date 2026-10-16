@@ -115,7 +115,7 @@ image-upload.test.ts验证20 MiB直传凭据的正常、篡改、过期、跨账
 
 饮食清晰度验收覆盖 1440／390／320px 的 7D、30D、90D 固定宽度、日期刻度策略、直接读数与方向键、历史食物默认展开、食材详情和营养值不溢出。说明修正集成覆盖指定原文／版本校验、营养及份量和照片保持、原始请求／旧餐项保留、AI 审计、幂等、跨账号、身份冲突及审计失败整批回滚。
 
-总览与录入回归复用 `pnpm test:meals-browser`：1440／390／320px 的 7D／30D／90D 三图同 x 坐标与选中日、D 日摄入和 D+1 日空腹、当日只读详情及带 date 参数跳转；两种录入、搜索、单位联动、自由项本次营养及文字拖到遮罩后草稿保留。身体／饮食 Inspector 真实遮罩点击仍关闭。截图在 `/tmp/formward-overview-visual/` 和 `/tmp/formward-overview-meal-editor.png`。
+总览与录入回归复用 `pnpm test:meals-browser`：1440／1100／390／320px 的7／30／90D两轴统一图、当天摄入／晨重／晚重／差值、只读详情及带日期跳转；左侧搜索／拖拽、右侧逐行表格、常驻空白行、单位默认值和自由项本次营养，以及拖选到遮罩保留草稿。身体／饮食 Inspector 真实遮罩点击仍关闭。截图在 `/tmp/formward-overview-visual/` 和 `/tmp/formward-overview-meal-editor.png`。
 
 `meals/migration.test.ts` 从 0015 数据验证 0016 兼容旧来源、允许 reference 且拒绝非法枚举；`meals.test.ts` 覆盖小数勺换算、旧克数快照编辑、当前规格维护的数值保留、版本／摘要／跨账号、幂等与审计失败回滚。`dashboard/model.test.ts` 覆盖真实日历、零值／未知、独立指标、估计与重复候选筛选。
 

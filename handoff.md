@@ -1,62 +1,58 @@
 # Formward 项目交接
 
-更新日期：2026-10-16。目录 `/home/obl1vion/projects/Formward`，分支 main。先读本文、根 README、AGENTS 及目标目录最近 README；修改 Next.js 前阅读 node_modules/next/dist/docs/ 对应指南。
+更新日期：2026-10-16。仓库 `/home/obl1vion/projects/Formward`，main。先读根README、AGENTS、本文与目标目录最近README；Next.js改动先读node_modules/next/dist/docs/对应指南。
 
 ## 当前用户决定与实现
 
-食材详情不重复列表已有的四项营养，以“估算分析”／“数据来源”为主体。估算按组成分量 → 参考来源与计算 → 汇总结果保留可核实分析，未保存的分项数据不补造。食材文本禁止个人食用日期、上传／纠错背景和“不可直接套用／必须调整”等泛化提醒；这些在建立／修改预览和确认写入时由 feature 检查，返回 food_description 后可纠正文案并沿用 operationId。餐次个人备注保持。MCP search_foods 与 HTTP GET /foods 每次实时附 foodLibraryRules，不只依赖缓存的工具说明。
+首页以一张图统一每日摄入 kcal、相对区间首个有效晨重的变化 kg、同日晚重减晨重的带符号差值 kg。蓝色摄入柱用左轴；金色晨重线与红色晨晚差柱共用右轴，晨重基准标日期和真实 kg。默认30D且显示已有估计；估计用虚线／纹理，不生成估计，缺日留空、多候选不擅选。7D／30D／90D／全部／自定义均固定宽度，支持悬停、聚焦、方向键和日期详情跳转。图下身体卡显示最近真实晨间或晚间体重及日期，摄入卡显示今天和“预算未设置”，整卡进入详情。Logo回总览，详情有返回入口，页头不重复列三个模块。
 
-首页已按历史总览方案实现，名称为“总览”。保留今天四项摄入、餐次数、最新真实空腹体重／体脂与 7 日变化，下方增加体重 kg、体脂 %、每日摄入 kcal 三图联动，共用日期范围、x 坐标和选中日。三图按真实日期对齐，读数分别显示 D 日摄入、D 日空腹与 D+1 日空腹，不把次晨曲线前移、不补零。默认只显示真实空腹，开关仅显示已有估计（空心点／虚线），不生成估计，多候选不自动挑选。7D／30D／90D／全部／自定义固定宽度，桌面默认 30D、手机默认 7D。点击日期打开只读详情并可跳转带 date 参数的身体／饮食页。消耗、盈余和训练仍暂缓。
+饮食每日柱从下到上为P蛋白质 #365E78、C碳水 #6C96B3、F脂肪 #AFCDDE；按4P:4C:9F能量占比分配已记录kcal，总高度不变、不重写原值。宏量缺项／全零时只显示总热量及占比不完整。字母仅在宽高容许时显示，读数包含kcal、g和占比。7／30／90天固定宽度，日期间留白；短范围柱顶数字，长范围只显示当前日与完整范围，连线默认关闭。
 
-饮食图已改为单色冷蓝 #7F9EAF 热量柱，纵轴 kcal，蛋白质／碳水／脂肪只在读数区显示 g；短区间柱顶显示数值，所有范围固定适配宽度，长范围只显示当前日期与完整起止范围。可选顶点连线默认关闭，缺日或不完整合计断开。
+记录一餐左侧为搜索、整餐／食材筛选和可点击／拖拽卡片，右侧是常驻本餐合计及名称／用量／kcal／P／C／F小表格。始终保留一个空白行自由填写，空白不保存；桌面双击或Enter编辑、Tab移动，手机轻点并保留选择／本餐分步。份／勺等计数默认1，重量／体积／未知单位留空；换食材重新按单位设置。库营养只读换算，自由项为本次营养不乘分量。新餐按设备小时建议餐次，编辑旧餐不覆盖。依据、规格、备注、照片、事实核对、缺图／重复／忙碌与失败保留草稿继续可用。
 
-手动录入只有食材库／自由填写。桌面宽双栏左侧搜索列表、右侧本餐多项；手机全宽选择／填写分步，保留草稿。食材用自身单位填写克数、小数勺／份，选择或更换后清空用量，不默认 1g。自由项营养是本次实际摄入，分量可选，不再次相乘，支持多项。手动依据只有标签／成分表（reference）和直接预估，AI 细分来源保留。旧 misc／whole 仍兼容，展示为自由填写，用户编辑后的新版本统一为 food，不批量重写历史。
-
-食材名称、规格与详情只说明实际组成、分量／单位、成分和热量，估算食材保留成分分量、来源与计算及汇总结果，不写上传背景或无关排除项。ON 当前基准改为每 1 勺（约 30.4g），标签营养不变；Pasta Express 保留各组食材的估计克数、整份估算范围和采用基准。历史食用克数、单位、营养、基准和快照版本保持，原始请求与旧审计保留。维护可以同步完全匹配旧来源的当前快照；食材库独立文案维护指定 updateMealDescriptions:false，保留全部个人餐次和历史快照，新增审计。
-
-身体和饮食 Inspector 共用遮罩手势判断：从内容拖选到外部松开不关闭，只有主指针从真实遮罩按下、抬起且小幅移动才关闭。关闭按钮、Escape、忙碌保护、焦点和滚动锁保留。合法 ?date=YYYY-MM-DD 打开对应日期；普通入口不自动弹窗。
+最近删除统一显示食材库和餐次，可逐条恢复或永久删除。普通删除可恢复，永久删除仅限已删、本账号且版本匹配的条目，界面明确确认名称和不可恢复。删食材断开所有版本food_id，保留数量、原单位、营养、food_snapshot和照片，受影响餐次递增版本并审计；无可用快照拒绝删除。餐项查询返回id，编辑以originalItemId引用同餐同版本快照；不接受客户端营养快照，不能把已删食材加入新餐。删餐移除全部子项和当前图片关联，原始导入／操作／审计／原图仍保留；没有Blob垃圾清理或隐私擦除。本功能为独立网页Action和feature事务，不增加MCP永久删除工具。
 
 ## 仓库与生产
 
-正式地址 [Formward](https://formward-ten.vercel.app)，当前部署 `dpl_9JtB8eZXtYi78Fe3VDDAtNbLBEKW`，READY 并绑定正式域名，功能提交 `7e5cb33`。OpenAPI 1.7.1／MCP 1.4.1（9 工具），数据库已执行 0016，仅扩展 foods_source_valid 接受 reference，无新增列或回填。
+正式地址 [Formward](https://formward-ten.vercel.app)，当前 READY 部署 `dpl_FjJvchTHhfULjJGbeCHjUio9EksM`，功能提交 `0c6c539`。OpenAPI 1.8.0／MCP 1.5.0，共9工具；数据库0017，29张业务／认证表加Drizzle账本。Vercel CLI手动发布，Git不会自动部署。Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。
 
-Vercel CLI 手动发布，没有 Git 自动部署。Node.js 24.21.0、pnpm 9.15.9、Next.js 16.3.7。数据库 29 张业务／认证表及 Drizzle 账本；迁移前一致性备份，迁移后核对旧字段和值。新 migration 先纳入版本控制，共享 migration 不修改。
+0017仅为foods新增category（meal／ingredient，NOT NULL默认ingredient，CHECK），旧字段与记录保留，账本仅新增1次。已授权将Pasta Express和KL套餐两条当前记录标为meal，其他7条为ingredient；不修改营养、单位、说明或任何历史餐次。全库核对27张其他表以及全部既有操作／审计保持，仅新增1个维护操作和2条事件。
 
-总览版本已完成迁移与指定食材修正：2 项当前食材、3 餐匹配的说明快照，历史数值、单位、基准、原餐项和旧审计核对保留。私有请求／前后快照位于 `data/exports/food-editor-cleanup-2026-10-16*`，营养／用量核对见 `food-editor-verification-2026-10-16.json`；全库备份为 `database-{before-overview,after-overview-migration,after-overview-foods}-2026-10-16.json`，报告为 `overview-{migration,storage}-verification-2026-10-16.json`。迁移核对 29 张既有表字段和值一致，账本仅新增一次；维护核对 21 张其他表一致，旧操作／事件全部保留，只新增 1 个已确认维护操作和 5 条审计事件。所有真实备份／报告为 0600，Git 和部署忽略；不得输出、提交或放入 public。维护入口为 scripts/maintain-foods.mts／features/meals/food-maintenance.ts，绑定账号、ID、版本、关联餐次快照和摘要，事务、审计、幂等及失败回滚已覆盖测试，不新增公开维护 API。
+私有备份／报告均0600，Git与部署忽略，不输出健康值或凭据：
 
-Private Blob 仅 Production，通过 BLOB_STORE_ID 和平台 OIDC，无生产静态令牌。网页 prepare → 预签名直传 → complete，大图不经过 Function 请求体，不依赖 webhook；旧 multipart 只兼容 4 MiB。原图最多 8 张，每张 20 MiB，JPEG／PNG／WebP 原字节。
+- `data/exports/database-before-unified-overview-2026-10-16.json`
+- `data/exports/database-after-unified-migration-2026-10-16.json`
+- `data/exports/database-after-unified-categories-2026-10-16.json`
+- `data/exports/unified-migration-verification-2026-10-16.json`
+- `data/exports/food-categories-2026-10-16*`、`food-categories-verification-2026-10-16.json`
+- `data/exports/unified-categories-storage-verification-2026-10-16.json`
 
-食材分析专项已修正 4 项当前食材：Pasta 恢复原有分项克数与整体估算区间，Oyster Blade／鸡胸肉／鸡腿肉只保留食品规格与来源。updateMealDescriptions:false 保留全部餐次、历史快照和营养值。私有请求／前后快照为 data/exports/food-analysis-correction-2026-10-16*，全库备份 database-{before,after}-food-analysis-2026-10-16.json，数值与餐次核对 food-analysis-verification-2026-10-16.json，全库核对 food-analysis-storage-verification-2026-10-16.json，27 张其他表与旧操作／审计保持，仅新增 1 个维护操作和 4 条事件。牛排规格保留原来的“可能保留中央筋膜”措辞，另有 food-analysis-cut-specification-2026-10-16* 及 food-analysis-cut-verification-2026-10-16.json，独立核对营养和全部餐次快照保持；均为 0600、Git／部署忽略。
+分类和说明维护通过scripts/maintain-foods.mts／food-maintenance.ts指定账号、ID／版本及摘要，updateMealDescriptions:false保持历史餐项。较早的food-editor-cleanup、food-analysis-correction、food-analysis-cut-specification私有请求／结果和database-before／after-food-analysis备份仍保留，历史营养、克数／勺数和原始请求／审计不改。ON当前每1勺约30.4g；Pasta保留原成分估计克数及汇总区间；牛排保留“可能保留中央筋膜”的原不确定措辞。
 
-## 既有上传与审核要求
+## 原图与审核
 
-旧连接已复现 5,072,913 字节有效虚构 PNG 被原 4 MiB 上限拒绝，新版同图及完整 20 MiB 浏览器直传、重复、私有字节核对均通过；用户最初原图和具体响应未保留，不能断言当时只因大小失败。后续午餐真实日志明确 image_url：oaisdmntprnznorth／westus 地区账号未被旧列表覆盖；当前按 oaisdmntpr 前缀、24 位长度及完整 blob.core.windows.net 后缀兼容，重定向逐跳校验，其他命名族／额外子域／伪装后缀拒绝。生产虚构地址均进入下载阶段，用户午餐原图没有恢复。
+原图最多8张、每张20MiB，JPEG／PNG／WebP原字节。网页OIDC预签名直传Private Blob，大图不经过Function；旧multipart只兼容4MiB。Production-only存储用BLOB_STORE_ID和平台OIDC，无静态令牌。MCP立即下载ChatGPT临时URL，逐图返回complete／partial／failed、code／stage／retryable／requestId；最多两张并行，临时错误一次重试，部分成功保留。
 
-用户该次晚餐照片已在确认后关联，午餐仍缺图；排查未修改、删除或代确认真实餐次。“尚未关联”只是确认前文案，不代表当前数据库状态。已有餐次补图需按 id/version 更新，不重复新增。
+旧4MiB限制曾用有效5,072,913字节虚构PNG复现，新版20MiB通过；用户最初原图／响应未保留，不能认定当时单一原因。后来午餐日志明确image_url，ChatGPT的oaisdmntprnznorth／westus地区账号被旧列表拒绝；当前限定oaisdmntpr前缀、最多24位小写账号名和完整blob.core.windows.net后缀，逐跳验证重定向。其他账号族、额外子域与伪装后缀拒绝。日志不写健康内容、文件名、URL、签名或凭据。
 
-上传逐图返回 complete／partial／failed、index／code／stage／retryable／requestId；最多两张并行，临时网络／5xx 重试一次并有批次截止。日志只留工具名、参数形状、字节数和错误阶段／标识，不输出健康数据、文件名、下载地址或凭据。
+用户该次晚餐图确认后已关联，午餐仍缺原图；不能恢复过期地址，需用户原图重试。已有餐次补图按id／version更新，不新增重复餐。expectedImageCount保留预期，缺图仅经网页登录明确选择先保存文字并审计；photoReview事实问题仍须核对，AI不能代确认。保存后按ID／revision／终态更新，旧pending不能覆盖已保存；其他独立pending不自动取消。
 
-expectedImageCount 保留缺图预期；可补传，或用户明确选择先保存文字并进入审计，AI 不能自行忽略缺图或事实核对。审核保存后按 ID／revision／终态更新，旧 pending 响应不覆盖已保存；另一份独立 pending 不会自动取消。旧依据只显示已保存事实来源和估算依据，不补造隐藏思维链。
+## 业务与界面约定
 
-## 界面与数据约定
+食材详情不重复四项营养，保留组成／各成分分量 → 来源与计算 → 汇总结果。未保存的分项不补造；不写个人餐次日期、上传／纠错背景、泛化生熟提醒或无关排除清单，个人备注留餐次。food-description.ts在创建／修订／确认食材时检查，food_description后可纠正并沿用operationId，已完成请求幂等不受新规则阻断。search_foods和HTTP查询实时附foodLibraryRules。工具定义改变后刷新ChatGPT连接并开新对话，刷新不会整理旧数据。
 
-食材库紧凑显示标准营养列，数字与单位同行，右侧详情打开只读抽屉，已删除记录次级入口可恢复；六项 USDA 基础预设不改身份。餐项优先名称、份量和热量，详情展开来源／不确定性，历史食物默认展开。身体最近记录显示今天与最近 10 日待补录／待选择，独立于图表筛选，完整历史每批 50 日期。根滚动容器预留 gutter，弹窗只补偿实际释放宽度，切换页签／Inspector 不横移，320px 不溢出。
+手动依据只有reference（标签／成分表）和estimated，AI及旧label／composition_table／unknown保留；旧misc／whole兼容，用户编辑后统一food，不批量改写历史。食材分类独立于餐项kind，基础预设／采用代码与入口已移除，已入库食材保留。
 
-app 只负责入口，features 业务，db 集中 schema；网页、HTTP、MCP 共用规则。user_id 隔离，未知 null，软删除、版本、快照、幂等和审计保持。AI 正式写入仍需网页登录确认，预览 15 分钟、撤销即时生效。
+身体晨间空腹／晚间非空腹、凌晨归前日晚间；普通保存不估算，normal morning-baseline-v3和historical-initialization-v1冻结规则保持。身体详情晨晚差只取真实配对，总览可显示已有估计的差值，不解释为确定热量因果。来源建议删除不改历史，网页来源可留空，AI需核对实际来源或明确留空。
 
-身体体重／体脂独立，摘要只取真实空腹代表；晨间空腹、晚间非空腹，凌晨 00:00–05:59 归前日晚间。普通保存不自动估算，normal morning-baseline-v3 只用此前真实数据，historical-initialization-v1 冻结范围保持，实测补录只替代对应指标。来源建议删除不影响历史，网页来源可留空，AI 必须核对实际来源或明确留空。
+身体和饮食Inspector共用遮罩手势：内容拖选到外部松开不关闭，真实遮罩小幅按下／抬起才关闭。Escape、焦点、忙碌保护与滚动锁保留；根滚动gutter防切页横移。合法date参数打开指定日期，普通入口不自动弹窗。app仅入口，features共享业务，db集中schema；未知null、user_id隔离、版本／快照／幂等／审计，AI正式保存仍需网页登录确认。
 
-定位见[页面方案](docs/interface.md)、[代码索引](docs/code-study.md)、[饮食规则](docs/meals.md)、[身体规则](docs/measurements.md)、[数据库](docs/database.md)、[部署](docs/deployment.md)。
+## 验证与后续
 
-## 验证与接手
+257项单元／集成测试、lint、typecheck、production build、目录结构与git diff --check通过。饮食／总览浏览器覆盖1440／1100／390／320px、7／30／90D、统一图、模块入口、表格／拖拽／单位、分类、删除恢复／永久删除、删食材后旧餐编辑、照片与缺图审核及跨账号。身体／来源／AI／加载反馈回归通过；AI验收等待客户端本地日期就绪后检查完整今天行。所有本机验收使用独立PGlite、端口和虚构数据。
 
-248 项单元／集成测试、lint、typecheck、本机和 Vercel production build、目录结构及 git diff --check 通过。饮食浏览器覆盖 1440／390／320px、7D／30D／90D 三图联动、D／D+1 读数、固定宽度、两种录入／单位、拖选保护与真实遮罩关闭、日期跳转、照片／审核／跨账号；身体／来源／AI／加载层完整回归通过。本机使用独立 PGlite 和虚构数据，截图在 /tmp。
+正式站虚构账号验收覆盖四种宽度、三个区间、统一图与入口卡、三色图、表格双击／触屏轻点／拖拽、默认用量、分类、恢复／永久删除、旧餐按原克数修改，客户端异常0；虚构健康记录、操作、账号、会话和令牌均已清理。报告 `/tmp/formward-unified-production.json`，截图 `/tmp/formward-unified-production/`；公开入口、协议字段、OAuth metadata／公钥、MCP401challenge、登录保护和私有文件404见 `/tmp/formward-unified-final-http.json`；正式别名inspect见 `/tmp/formward-unified-final-inspect.log`，运行时错误检查见 `/tmp/formward-unified-runtime-errors.jsonl`。
 
-正式站同样完成三种宽度／范围、三图联动、双栏与手机草稿、自由项不重复乘分量、拖选保留及真实遮罩关闭、详情／采用与切页稳定检查，客户端异常 0，未保存测试健康记录，虚构账号／会话已清理。正式别名确认当前 READY 部署，实际加载新版 JS／CSS；OpenAPI、OAuth metadata、公钥、MCP 401 challenge、登录保护与私有报告 404 通过。报告 `/tmp/formward-overview-production.json`、`formward-overview-final-http.json`、`formward-overview-final-inspect.log`；当前部署 Runtime error 查询 0 条，无排除区间，见 `/tmp/formward-overview-runtime-errors.jsonl`。
+真实iPhone／微信观感、用户原照片重试仍由用户最终核对。后续范围为身体准确时间／归属网页纠正、持久代表选择、身体网页删除恢复／导入，以及运动、消耗、目标和设备连接；本轮不做预算设置或消耗模块。
 
-用户在 ChatGPT 刷新工具列表后使用原照片重试；旧连接仅缺饮食权限时重新授权。午餐真实原图仍需重新传入，失败按 requestId 与逐图错误码定位。真实 iPhone／微信与跨日观感由用户核对。
-
-身体准确时间／归属网页纠正、持久代表选择、网页导入／删除恢复、运动、消耗、目标和设备连接属于后续范围；总览历史联动已完成，后续保持已确定的日期与数据口径。
-
-
-食材分析正式站验收通过：OpenAPI 1.7.1、实时 foodLibraryRules、个人背景拒绝和原 operationId 纠正重试，以及 1440／390／320px 数据来源详情、无重复营养表、无泛化提醒与无溢出，客户端异常 0。仅创建虚构预览，未保存测试食材／餐次，账号／会话／令牌／预览均清理。报告 /tmp/formward-food-analysis-production.json，公开入口／登录保护／私有文件隔离见 /tmp/formward-food-analysis-final-http.json；正式别名 inspect 为当前 READY 版本，见 /tmp/formward-food-analysis-final-inspect.log；Runtime error 查询期间 0 条、无排除区间，见 /tmp/formward-food-analysis-runtime-errors.jsonl。自定义 MCP 工具定义更新后在连接详情 Refresh，再开新对话；无法仅凭生成文案判定旧对话缓存版本，刷新不会修改库内旧数据。
+定位见[界面](docs/interface.md)、[代码索引](docs/code-study.md)、[饮食](docs/meals.md)、[身体](docs/measurements.md)、[数据库](docs/database.md)、[部署](docs/deployment.md)。

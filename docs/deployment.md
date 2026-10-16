@@ -2,7 +2,7 @@
 
 正式域名为 [Formward](https://formward-ten.vercel.app)，Next.js 由 Vercel Hobby 托管，数据库沿用 Neon PostgreSQL。AI 使用正式 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 或 `https://formward-ten.vercel.app/api/mcp`，不能使用受 Deployment Protection 保护的单次部署／预览地址。
 
-当前正式部署为 `dpl_9JtB8eZXtYi78Fe3VDDAtNbLBEKW`，READY 并绑定正式域名，功能提交 `7e5cb33`。OpenAPI 1.7.1／MCP 1.4.1，共 9 工具；数据库已执行 0016，29 张业务／认证表及迁移账本。正式版提供历史总览三图联动、单色 kcal 柱和可选连线、两种手动录入／单位联动、保留成分分量与计算依据的食材详情、实时说明规则／写入检查及 Inspector 拖选保护，保留既有私有原图、审核终态和滚动条稳定处理。
+正式地址 [Formward](https://formward-ten.vercel.app)，当前 READY 部署 `dpl_FjJvchTHhfULjJGbeCHjUio9EksM`，功能提交 `0c6c539`。OpenAPI 1.8.0／MCP 1.5.0，共9工具；数据库0017，29张业务／认证表加Drizzle账本。Vercel CLI手动发布，Git不会自动部署。Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。 正式版提供统一总览、P／C／F堆叠、逐行表格录入与拖拽、整餐／食材分类、最近删除及历史快照保留。
 
 ## 平台与变量
 
@@ -40,7 +40,7 @@ Hobby 配额遵守 [Blob 用量规则](https://vercel.com/docs/vercel-blob/usage
 
 修改前读根 README、AGENTS 和对应 README、当前 Next.js 本地文档。发布前运行 lint、typecheck、unit/integration test、production build、结构检查及受影响浏览器检查。浏览器使用独立 PGlite、端口和虚构账号；同一个 `.next` 构建目录不同时用于构建和正在运行的浏览器服务。
 
-新增 migration 先提交版本控制，再保存私有一致性备份、执行和核对旧字段／值。构建不自动迁移，共享 migration 不修改。0016 仅扩展 foods_source_valid 接受 reference，继续兼容旧来源，无新增列或回填；0015 的 nullable review_explanation 与 20 MiB 约束保持。
+新增 migration 先提交版本控制，再保存私有一致性备份、执行和核对旧字段／值。构建不自动迁移，共享 migration 不修改。0017仅增加foods.category默认ingredient与CHECK；0016 reference来源、0015可展开依据和20MiB约束保持。
 
 ```bash
 node --network-family-autoselection-attempt-timeout=1000 --env-file=.env.local --import tsx scripts/backup-database.mts data/exports/私有备份.json
@@ -48,16 +48,22 @@ pnpm db:migrate
 vercel deploy --prod
 ```
 
-备份与迁移优先 DATABASE_MIGRATION_URL；直连不可达而 pooler 可用时，可在该进程将其设为既有 DATABASE_URL，保留 prepare:false，不改凭据文件。0016 前后已核对 29 张既有表字段和值一致，账本仅新增一次；指定食材维护核对历史营养／用量／基准／快照版本、原餐项与旧审计保留。当前备份及报告：
+备份与迁移优先DATABASE_MIGRATION_URL；直连不可达而pooler可用时，在单次进程内使用DATABASE_URL，不改凭据文件。
 
-- `data/exports/database-before-overview-2026-10-16.json`
-- `data/exports/database-after-overview-migration-2026-10-16.json`
-- `data/exports/database-after-overview-foods-2026-10-16.json`
-- `data/exports/overview-migration-verification-2026-10-16.json`
-- `data/exports/overview-storage-verification-2026-10-16.json`
-- `data/exports/food-editor-cleanup-2026-10-16*` 和 `food-editor-verification-2026-10-16.json`
+0017仅为foods新增category（meal／ingredient，NOT NULL默认ingredient，CHECK），旧字段与记录保留，账本仅新增1次。已授权将Pasta Express和KL套餐两条当前记录标为meal，其他7条为ingredient；不修改营养、单位、说明或任何历史餐次。全库核对27张其他表以及全部既有操作／审计保持，仅新增1个维护操作和2条事件。
 
-以上文件权限 0600，Git 与部署忽略。0013／0014 等较早迁移的私有备份与报告保留，不改共享迁移。`.vercelignore` 排除 data、环境文件、凭据、Git、本机工具、依赖和构建缓存。
+私有备份／报告均0600，Git与部署忽略，不输出健康值或凭据：
+
+- `data/exports/database-before-unified-overview-2026-10-16.json`
+- `data/exports/database-after-unified-migration-2026-10-16.json`
+- `data/exports/database-after-unified-categories-2026-10-16.json`
+- `data/exports/unified-migration-verification-2026-10-16.json`
+- `data/exports/food-categories-2026-10-16*`、`food-categories-verification-2026-10-16.json`
+- `data/exports/unified-categories-storage-verification-2026-10-16.json`
+
+分类和说明维护通过scripts/maintain-foods.mts／food-maintenance.ts指定账号、ID／版本及摘要，updateMealDescriptions:false保持历史餐项。较早的food-editor-cleanup、food-analysis-correction、food-analysis-cut-specification私有请求／结果和database-before／after-food-analysis备份仍保留，历史营养、克数／勺数和原始请求／审计不改。ON当前每1勺约30.4g；Pasta保留原成分估计克数及汇总区间；牛排保留“可能保留中央筋膜”的原不确定措辞。
+
+.vercelignore排除data、环境文件、凭据、Git、本机工具、依赖和构建缓存。
 
 ## 验收与维护
 
@@ -67,22 +73,10 @@ vercel deploy --prod
 
 正式原图验收使用虚构文件与临时账号，测试结束删除仅属于这些测试的附件、Blob、账号与会话，不写真实餐次或修改既有健康记录。Runtime Logs 查错误与上传诊断，但不打印 URL、文件名、健康内容或凭据。既有账号的独立待确认预览不能因另一提交保存成功而自动取消。
 
-部署成功后验证正式别名实际指向 READY 版本，再更新交接。失败时别名保留上一个成功部署；需要回滚时保留新增 nullable 列和约束，不删除数据或修改旧 migration。ChatGPT 已有连接需刷新工具列表，以获取 20 MiB、expectedImageCount 和详细依据协议；只在缺饮食权限时重新授权。真实手机／微信观感与用户原图最终复测由用户完成。
+部署成功后验证正式别名实际指向 READY 版本，再更新交接。失败时别名保留上一个成功部署；需要回滚时保留已发布的新列和约束，不删除数据或修改旧 migration。ChatGPT 已有连接需刷新工具列表，以获取分类、历史餐项引用、20 MiB、expectedImageCount 和详细依据协议；只在缺饮食权限时重新授权。真实手机／微信观感与用户原图最终复测由用户完成。
 
-当前部署 Runtime error 查询期间为 0 条、无排除区间，见 `/tmp/formward-food-analysis-runtime-errors.jsonl`。正式别名的 OpenAPI 1.7.1、OAuth metadata、公钥、MCP POST 401 challenge、三页登录保护及私有文件 404 已核对，见 `/tmp/formward-food-analysis-final-http.json`。
+当前部署的Runtime与公开入口检查见handoff.md，不以本机资源hash推断线上版本。实际核对正式别名READY、协议字段和浏览器行为。保留版本绑定、私有备份、审计与回滚；真实原图及手机体验由用户最终核对。
 
-当前部署标识及上线验收记录见 [项目交接](../handoff.md)，产品与测试范围见 [当前状态](status.md)。
+食材客观分析规则、照片逐项失败和缺图审核要求见docs/meals.md，正式站使用独立虚构账号验收并清理。
 
-正式原图验收已通过：真实 GPT 上传 5,072,913 字节有效 PNG、重复复用相同附件、原始字节一致；临时虚构账号的浏览器直传同一大图、完整 20 MiB 有效 PNG、重复、超过上限拒绝、来源校验、匿名读取拒绝、private/no-store 和 320px 切换稳定均通过。测试未保存餐次，虚构附件、Blob、账号与会话已清理；最终存储为 Private、仅 Production、敏感标记保持。验收报告在 `/tmp/formward-production-image-review-check.json`，虚构截图在 `/tmp/formward-production-images-visual`，公开 HTTP 报告在 `/tmp/formward-public-meal-review-http.json`；均不提交 Git。真实 GPT 验证用过的虚构附件也已核对原图后单独清理。
-
-原图下载兼容ChatGPT的oaisdmntpr地区存储账号，限定账号前缀、24位长度上限和完整blob.core.windows.net后缀；nznorth／westus等地区及重定向共用这一校验。其他账号命名族、额外子域、伪装后缀、非HTTPS、用户信息和异常端口仍拒绝。真实晚餐上传已在用户确认后关联；午餐仍需重新传入原图，已有餐次不得重复新增，排查未修改真实记录。生产检查使用虚构账号与不存在的文件地址，区分域名拒绝和已进入下载阶段，不冒充真实午餐已上传。
-
-生产检查已确认nznorth和westus两个实际地区地址均通过域名校验并进入下载阶段；不存在的虚构样本返回image_url_expired，其他命名族仍返回image_url。临时账号与令牌已清理，报告在/tmp/formward-azure-url-check.json；该检查不代表用户午餐原图已上传，真实午餐仍需GPT重新传入。
-
-正式站验收使用独立虚构账号，覆盖 1440／390／320px 的 7D／30D／90D 三图联动与固定宽度、单色 kcal 柱、双栏录入、手机草稿保留、自由营养不重复乘分量、拖选保护与真实遮罩关闭、详情／采用和页签稳定，客户端异常 0。未保存测试食材或餐次，虚构账号／会话已清理；报告 `/tmp/formward-overview-production.json`，截图 `/tmp/formward-overview-production/`。已授权真实说明及当前计量规格修正通过内部 feature 事务执行，有私有备份、摘要、幂等与前后审计，历史营养和单位保持。
-
-正式别名已确认指向当前 READY 部署，inspect 结果为 `/tmp/formward-overview-final-inspect.log`；实际加载的客户端 JS／CSS 已核对包含新版录入和图表组件，不以本机 chunk 哈希推断远程构建产物。
-
-食材说明发布验收：本机 248 项测试、饮食浏览器及 production build 通过；正式站验证实时 foodLibraryRules、food_description 拒绝、原 operationId 纠正重试、1440／390／320px 来源详情不重复四项营养且无泛化提醒／溢出，客户端异常 0。报告 `/tmp/formward-food-analysis-production.json`；仅创建虚构预览，未保存测试食材或餐次，账号／会话／令牌／预览均清理。正式别名当前 READY，见 `/tmp/formward-food-analysis-final-inspect.log`；Runtime error 查询期间 0 条、无排除区间，见 `/tmp/formward-food-analysis-runtime-errors.jsonl`。
-
-本次没有新 migration。说明维护只更新 4 项食材库文本，Pasta 恢复已保存的分项分量与估算范围，全部个人餐次、历史营养和快照保持。私有备份为 data/exports/database-{before,after}-food-analysis-2026-10-16.json；请求／结果为 food-analysis-correction-2026-10-16*，核对报告为 food-analysis-{verification,storage-verification}-2026-10-16.json。原牛排部位的不确定措辞单独保留，见 food-analysis-cut-specification-2026-10-16* 和 food-analysis-cut-verification-2026-10-16.json。均为 0600、Git／部署忽略，不公开提供。
+当前正式验收报告为/tmp/formward-unified-production.json及/tmp/formward-unified-final-http.json，四种宽度／三个区间、表格／拖拽／分类／恢复／永久删除和旧餐编辑通过，虚构记录与账号清理完成。部署和Runtime检查见handoff.md。
