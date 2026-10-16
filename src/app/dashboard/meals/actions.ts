@@ -29,3 +29,9 @@ export async function editMealPreviewAction(id: string, revision: number, index:
   if (!Number.isInteger(index) || index<0 || index>=actions.length) throw new Error("审核条目不存在。");
   actions[index]=action; return reviseMealOperation(db,userId,id,revision,actions);
 }); }
+
+export async function permanentlyDeleteAction(input: import("@/features/meals/recently-deleted").PermanentDeletion) { return perform(async userId => {
+  const { permanentlyDeleteMealRecord } = await import("@/features/meals/recently-deleted");
+  const db = getDatabase(), result = await permanentlyDeleteMealRecord(db,userId,input);
+  return { snapshot:await readMealSnapshot(db,userId),message:result.message };
+}); }

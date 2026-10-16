@@ -39,13 +39,13 @@ const norm = (s?: string | null) => (s ?? "").normalize("NFKC").trim().toLowerCa
 export const foodIdentity = (f: FoodDraft) => digest([norm(f.name), norm(f.brand), norm(f.preparation), Number(f.baseQuantity), norm(f.unit)]);
 const nutrients = (row: { caloriesKcal: string | null; proteinG: string | null; carbsG: string | null; fatG: string | null }): Nutrition => Object.fromEntries(metrics.map(m => [m, row[m]])) as Nutrition;
 export async function readMealSnapshot(db: Pick<Database, "select">, userId: string): Promise<MealSnapshot> {
-  const foods = (await db.select().from(food).where(eq(food.userId, userId)).orderBy(desc(food.updatedAt))).map(row => ({ id: row.id, version: row.version, name: row.name, brand: row.brand, preparation: row.preparation, baseQuantity: row.baseQuantity, unit: row.unit, nutrition: nutrients(row), sourceKind: row.sourceKind as FoodDraft["sourceKind"], basis: row.basis, evidenceUrl: row.evidenceUrl, deletedAt: row.deletedAt?.toISOString() ?? null }));
+  const foods = (await db.select().from(food).where(eq(food.userId, userId)).orderBy(desc(food.updatedAt))).map(row => ({ id: row.id, version: row.version, category: row.category as FoodDraft["category"], name: row.name, brand: row.brand, preparation: row.preparation, baseQuantity: row.baseQuantity, unit: row.unit, nutrition: nutrients(row), sourceKind: row.sourceKind as FoodDraft["sourceKind"], basis: row.basis, evidenceUrl: row.evidenceUrl, deletedAt: row.deletedAt?.toISOString() ?? null }));
   const meals = await db.select().from(meal).where(eq(meal.userId, userId)).orderBy(desc(meal.localDate), desc(meal.createdAt), asc(meal.sourceRow), asc(meal.id));
   const items = await db.select().from(mealItem).where(and(eq(mealItem.userId, userId), isNull(mealItem.deletedAt))).orderBy(mealItem.position);
   const links = await db.select().from(mealImageLink).where(eq(mealImageLink.userId,userId)).orderBy(mealImageLink.position);
   for (const f of foods) Object.assign(f,{imageIds:links.filter(l=>l.foodId===f.id).map(l=>l.imageId)});
   return { foods, meals: meals.map(row => {
-    const entries: ItemView[] = items.filter(i => i.mealId === row.id).map(i => ({ kind: i.kind as ItemDraft["kind"], name: i.name, quantity: i.quantity, amountDecision:(i.amountDecision??undefined) as ItemDraft["amountDecision"], ...(i.reviewExplanation ? { reviewExplanation: i.reviewExplanation } : {}), unit: i.unit, ...(i.foodId ? { foodId: i.foodId, foodVersion: i.foodSnapshot?.version, foodSnapshot: i.foodSnapshot ?? undefined } : {}), nutrition: nutrients(i), sourceKind: i.sourceKind as ItemDraft["sourceKind"], basis: i.basis, evidenceUrl: i.evidenceUrl }));
+    const entries: ItemView[] = items.filter(i => i.mealId === row.id).map(i => ({ id: i.id, kind: i.kind as ItemDraft["kind"], name: i.name, quantity: i.quantity, amountDecision:(i.amountDecision??undefined) as ItemDraft["amountDecision"], ...(i.reviewExplanation ? { reviewExplanation: i.reviewExplanation } : {}), unit: i.unit, ...(i.foodId ? { foodId: i.foodId, foodVersion: i.foodSnapshot?.version } : {}), ...(i.foodSnapshot ? { foodSnapshot: i.foodSnapshot } : {}), nutrition: nutrients(i), sourceKind: i.sourceKind as ItemDraft["sourceKind"], basis: i.basis, evidenceUrl: i.evidenceUrl }));
     return { imageIds:links.filter(l=>l.mealId===row.id).map(l=>l.imageId), id: row.id, version: row.version, date: row.localDate, mealType: row.mealType, timezone: row.timezone, occurredAt: row.occurredAt?.toISOString() ?? null, notes: row.notes, items: entries, totals: sumNutrition(entries.map(i => i.nutrition)), source: row.source as MealView["source"], deletedAt: row.deletedAt?.toISOString() ?? null };
   }) };
 }
@@ -63,27 +63,28 @@ function prepareFood(input: FoodDraft, state: MealSnapshot): FoodView {
   if (old && old.version !== input.version) throw new ApiError(409, "version_conflict", "食材已被修改，请刷新后重试。");
   const duplicate = state.foods.find(f => f.id !== input.id && foodIdentity(f) === foodIdentity(input));
   if (duplicate) throw new ApiError(409, "duplicate_food", `已有同规格食材“${duplicate.name}”，请选择已有条目${duplicate.deletedAt ? "或恢复它" : ""}。`);
-  return { ...input, imageIds:input.imageIds ?? old?.imageIds ?? [], id: old?.id ?? randomUUID(), version: (old?.version ?? 0) + 1, deletedAt: null };
+  return { ...input, category: input.category ?? old?.category ?? "ingredient", imageIds:input.imageIds ?? old?.imageIds ?? [], id: old?.id ?? randomUUID(), version: (old?.version ?? 0) + 1, deletedAt: null };
 }
 function prepareItem(input: ItemDraft, state: MealSnapshot, previous?: ItemView): ItemView {
   if(input.amountDecision==="estimate_accepted"&&!input.basis?.trim())throw new ApiError(400,"amount_basis_required","请填写已接受的食用量估算依据。");
   if(input.amountDecision==="unknown_accepted"&&input.quantity)throw new ApiError(400,"invalid_input","明确未知食用量时quantity须为null。");
   if (input.foodId && input.foodDraft) throw new ApiError(400, "invalid_input", "请选择已有食材或新食材中的一种。");
   if (input.kind !== "food" && (input.foodId || input.foodDraft)) throw new ApiError(400, "invalid_input", "杂和整餐估算直接填写营养，不引用食材库。");
-  if (input.foodId || input.foodDraft) {
+  const archived = previous?.foodSnapshot && !previous.foodId && !input.foodDraft && (!input.foodId || input.foodId === previous.foodSnapshot.id);
+  if (input.foodId || input.foodDraft || archived) {
     if (input.nutrition) throw new ApiError(400, "invalid_input", "食材库营养会自动换算，无需另填餐项营养。");
     if (input.foodDraft?.id) throw new ApiError(400, "invalid_input", "已有食材请使用foodId引用。");
-    const historical = previous?.foodSnapshot && previous.foodId === input.foodId && previous.foodSnapshot.version === input.foodVersion ? previous.foodSnapshot : undefined;
-    const entry = input.foodId ? historical ?? state.foods.find(f => f.id === input.foodId && !f.deletedAt) : prepareFood(input.foodDraft!, state);
+    const historical = previous?.foodSnapshot && (previous.foodId === input.foodId || archived) && (archived || previous.foodSnapshot.version === input.foodVersion) ? previous.foodSnapshot : undefined;
+    const entry = archived ? historical : input.foodId ? historical ?? state.foods.find(f => f.id === input.foodId && !f.deletedAt) : prepareFood(input.foodDraft!, state);
     if (!entry) throw new ApiError(404, "not_found", "食材不属于当前账号或已停用。");
-    if (input.foodId && entry.version !== input.foodVersion) throw new ApiError(409, "version_conflict", "食材规格已更新，请重新选择。");
+    if (input.foodId && !archived && entry.version !== input.foodVersion) throw new ApiError(409, "version_conflict", "食材规格已更新，请重新选择。");
     if ((!input.quantity && input.amountDecision !== "unknown_accepted") || input.unit !== entry.unit) throw new ApiError(400, "unit_required", `请选择食用量，单位须为“${entry.unit}”。`);
     const nutrition = input.quantity ? nutritionFor(entry, input.quantity) : emptyNutrition();
     if (Object.values(nutrition).some(v => v !== null && Number(v) > 1000000)) throw new ApiError(400, "invalid_input", "换算结果超出有效范围。");
-    return { ...input, name: entry.name, foodId: entry.id, foodVersion: entry.version, foodSnapshot: entry, nutrition, sourceKind: entry.sourceKind, basis: input.amountDecision==="estimate_accepted"?input.basis:entry.basis, evidenceUrl: entry.evidenceUrl };
+    return { ...input, id: previous?.id, name: entry.name, foodId: archived ? undefined : entry.id, foodVersion: archived ? undefined : entry.version, foodSnapshot: entry, nutrition, sourceKind: entry.sourceKind, basis: input.amountDecision==="estimate_accepted"?input.basis:entry.basis, evidenceUrl: entry.evidenceUrl };
   }
   evidenceValid(input);
-  return { ...input, nutrition: input.nutrition ?? emptyNutrition() };
+  return { ...input, id: previous?.id, nutrition: input.nutrition ?? emptyNutrition() };
 }
 function mealFingerprint(m: Pick<MealView, "date" | "mealType" | "notes" | "items">) {
   return digest([m.date, norm(m.mealType), norm(m.notes), m.items.map(i => [i.kind, norm(i.name), i.quantity == null ? null : Number(i.quantity), norm(i.unit), metrics.map(k => i.nutrition[k] === null ? null : Number(i.nutrition[k]))])]);
@@ -107,7 +108,9 @@ export function prepareMealActions(input: MealInput, state: MealSnapshot, origin
         if (action.items.some(i => i.kind === "whole") && action.items.length !== 1) throw new ApiError(400, "whole_meal_conflict", "整餐估算须独立记录，不能再叠加具体食物。");
         if (action.items.filter(i => i.kind === "misc").length > 1) throw new ApiError(400, "invalid_input", "每餐使用一个杂项，合并剩余食物的描述。");
         const items = action.items.map(i => {
-          const entry = prepareItem(i, working, old?.items.find(previous => previous.foodId === i.foodId && previous.foodVersion === i.foodVersion));
+          const previous = i.originalItemId ? old?.items.find(item => item.id === i.originalItemId) : old?.items.find(item => i.foodId && (item.foodId === i.foodId || (!item.foodId && item.foodSnapshot?.id === i.foodId)) && item.foodSnapshot?.version === i.foodVersion);
+          if (i.originalItemId && !previous) throw new ApiError(400, "invalid_item", "餐项不属于当前餐次或版本，请刷新后重试。");
+          const entry = prepareItem(i, working, previous);
           if (entry.foodDraft && entry.foodSnapshot) working.foods.push(entry.foodSnapshot);
           return entry;
         });
@@ -212,7 +215,7 @@ async function writeImageLinks(tx:Transaction,userId:string,record:{id:string;im
   if(record.imageIds?.length) await tx.insert(mealImageLink).values(record.imageIds.map((imageId,position)=>({id:randomUUID(),userId,imageId,position,...(isFood?{foodId:record.id}:{mealId:record.id})})));
 }
 async function writeFood(tx: Transaction, userId: string, f: FoodView) {
-  const values = { name: f.name, brand: f.brand ?? null, preparation: f.preparation ?? null, identityKey: foodIdentity(f), baseQuantity: f.baseQuantity, unit: f.unit, ...f.nutrition, sourceKind: f.sourceKind, basis: f.basis ?? null, evidenceUrl: f.evidenceUrl ?? null, version: f.version, deletedAt: f.deletedAt ? new Date(f.deletedAt) : null, updatedAt: new Date() };
+  const values = { category: f.category ?? "ingredient", name: f.name, brand: f.brand ?? null, preparation: f.preparation ?? null, identityKey: foodIdentity(f), baseQuantity: f.baseQuantity, unit: f.unit, ...f.nutrition, sourceKind: f.sourceKind, basis: f.basis ?? null, evidenceUrl: f.evidenceUrl ?? null, version: f.version, deletedAt: f.deletedAt ? new Date(f.deletedAt) : null, updatedAt: new Date() };
   const [old] = await tx.select().from(food).where(and(eq(food.userId, userId), eq(food.id, f.id)));
   if (old) await tx.update(food).set(values).where(and(eq(food.id, f.id), eq(food.userId, userId)));
   else await tx.insert(food).values({ id: f.id, userId, ...values });

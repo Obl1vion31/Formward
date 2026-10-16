@@ -18,12 +18,14 @@ export type ReviewExplanation = z.infer<typeof reviewExplanationSchema>;
 export const photoReviewSchema = z.object({ dateConfirmed: z.boolean(), mealTypeConfirmed: z.boolean(), identityConfirmed: z.boolean(), amountConfirmed: z.boolean(), cookingConfirmed: z.boolean(), questions: z.array(text(500).min(1)).max(20).default([]) }).strict();
 export const foodDraftSchema = z.object({
   id: z.string().uuid().optional(), version: z.number().int().positive().optional(),
+  category: z.enum(["meal", "ingredient"]).optional(),
   name: text(200).min(1), brand: text(200).nullable().optional(), preparation: text(200).nullable().optional(),
   baseQuantity: decimal.refine(v => Number(v) > 0, "基准数量须大于0"), unit: text(30).min(1),
   imageIds, expectedImageCount: z.number().int().min(0).max(8).optional(), nutrition: nutritionSchema, sourceKind: source, basis: text(4000).nullable().optional(), evidenceUrl: evidence,
 }).strict();
 export type FoodDraft = z.infer<typeof foodDraftSchema>;
 export const itemSchema = z.object({
+  originalItemId: z.string().uuid().optional(),
   kind: z.enum(["food", "misc", "whole"]), name: text(200).min(1),
   quantity: decimal.refine(v => Number(v) > 0, "食用量须大于0").nullable().optional(), unit: text(30).nullable().optional(),
   amountDecision: z.enum(["provided", "estimate_accepted", "unknown_accepted"]).optional(), foodId: z.string().uuid().optional(), foodVersion: z.number().int().positive().optional(), foodDraft: foodDraftSchema.optional(),
@@ -45,7 +47,7 @@ export type MealAction = z.infer<typeof actionSchema>;
 export const operationSchema = z.object({ operationId: z.string().regex(/^[a-zA-Z0-9-]{8,120}$/), actions: z.array(actionSchema).min(1).max(100) }).strict();
 export type MealInput = z.infer<typeof operationSchema>;
 export type FoodView = FoodDraft & { id: string; version: number; deletedAt: string | null };
-export type ItemView = ItemDraft & { nutrition: Nutrition; foodSnapshot?: FoodView; sourceKind: ItemDraft["sourceKind"] };
+export type ItemView = ItemDraft & { id?: string; nutrition: Nutrition; foodSnapshot?: FoodView; sourceKind: ItemDraft["sourceKind"] };
 export type Totals = { values: Nutrition; incomplete: Record<Metric, boolean> };
 export type MealView = Omit<MealDraft, "items"> & { id: string; version: number; items: ItemView[]; totals: Totals; source: "manual" | "ai" | "initialization"; deletedAt: string | null };
 export type MealSnapshot = { meals: MealView[]; foods: FoodView[] };
@@ -92,3 +94,20 @@ export function dailyTotals(meals: MealView[]) {
   return [...groups].sort(([a], [b]) => b.localeCompare(a)).map(([date, rows]) => ({ date, meals: rows, totals: sumNutrition(rows.flatMap(m => m.items.map(i => i.nutrition))) }));
 }
 export function formatNutrition(value: string | null, metric: Metric) { return value === null ? "—" : Number(value).toLocaleString("zh-CN", { maximumFractionDigits: metric === "caloriesKcal" ? 0 : 1 }); }
+
+/** 计数单位默认一份；重量、体积及未知单位由用户明确填写。 */
+export function defaultFoodQuantity(unit: string): string | null {
+  return /^(份|勺|只|个|颗|枚|片|包|盒|瓶|杯|碗|袋|块|条|粒|scoops?|servings?)$/i.test(unit.trim()) ? "1" : null;
+}
+export function suggestedMealType(hour: number) {
+  return hour < 5 || hour >= 22 ? "夜宵" : hour < 10 ? "早餐" : hour < 14 ? "午餐" : hour < 17 ? "加餐" : "晚餐";
+}
+export const macroColors = { proteinG: "#365E78", carbsG: "#6C96B3", fatG: "#AFCDDE" };
+/** 宏量能量占比仅用于图形分配，柱高始终等于已记录 kcal。 */
+export function macroEnergy(totals: Totals | undefined) {
+  const keys = ["proteinG", "carbsG", "fatG"] as const;
+  if (!totals || totals.values.caloriesKcal === null || keys.some(k => totals.values[k] === null || totals.incomplete[k])) return null;
+  const weighted = keys.map(k => Number(totals.values[k]) * (k === "fatG" ? 9 : 4)), sum = weighted.reduce((a,b) => a+b, 0);
+  if (!sum) return null;
+  return keys.map((metric,index) => ({ metric, ratio: weighted[index]/sum, calories: Number(totals.values.caloriesKcal) * weighted[index]/sum }));
+}

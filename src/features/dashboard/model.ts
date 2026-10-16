@@ -14,6 +14,9 @@ export type OverviewDay = {
   meals: MealView[];
   nutrition: ReturnType<typeof dailyTotals>[number]["totals"] | null;
   body: Record<"weightKg"|"bodyFatPercent", MeasurementDisplay | null>;
+  evening: MeasurementDisplay | null;
+  weightDifferenceKg: number | null;
+  differenceEstimated: boolean;
   ambiguous: Record<"weightKg"|"bodyFatPercent", boolean>;
 };
 
@@ -31,6 +34,20 @@ export function overviewDays(meals:MealView[],records:MeasurementDisplay[],dates
       ambiguous[metric]=!!day&&day.daytime.filter(record=>record.recordKind!=="estimated").length>1;
     }
     const day=nutrition.get(date);
-    return {date,meals:day?.meals??[],nutrition:day?.totals??null,body,ambiguous};
+    const evening = weight.get(date)?.eveningRecord;
+    const validEvening = evening?.fasting === false && evening.weightKg !== null ? evening : null;
+    const morning = body.weightKg;
+    const difference = morning && validEvening ? (Math.round(Number(validEvening.weightKg)*100)-Math.round(Number(morning.weightKg)*100))/100 : null;
+    return {date,meals:day?.meals??[],nutrition:day?.totals??null,body,ambiguous,evening:validEvening,weightDifferenceKg:difference,differenceEstimated:!!(difference!==null&&(morning?.recordKind==="estimated"||validEvening?.recordKind==="estimated"))};
   });
+}
+
+export function overviewWeightSeries(days: OverviewDay[]) {
+  const baseline = days.find(day => day.body.weightKg !== null)?.body.weightKg ?? null;
+  return { baseline, points: days.map(day => ({ day, relativeKg: baseline && day.body.weightKg ? (Math.round(Number(day.body.weightKg.weightKg)*100)-Math.round(Number(baseline.weightKg)*100))/100 : null })) };
+}
+/** 回填保存时间不影响“最近一次”；晨晚均可，估计不进入摘要。 */
+export function latestRealWeight(records: MeasurementDisplay[], today: string) {
+  return records.filter(record => record.recordKind !== "estimated" && record.weightKg !== null && record.recordDate <= today)
+    .sort((a,b) => b.recordDate.localeCompare(a.recordDate) || Number(b.period==="evening")-Number(a.period==="evening") || b.sourceLocalTime.localeCompare(a.sourceLocalTime) || b.id.localeCompare(a.id))[0] ?? null;
 }

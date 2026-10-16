@@ -1,7 +1,6 @@
 "use client";
 import type { ReactNode } from "react";
-import { searchFoodPresets } from "./food-presets";
-import { foodSpecification, formatNutrition, sourceLabels, type FoodDraft, type FoodView, type Metric } from "./model";
+import { foodSpecification, formatNutrition, sourceLabels, type FoodDraft, type Metric } from "./model";
 import { ImageGallery } from "./photos";
 import styles from "./meals.module.css";
 const columns: Metric[] = ["proteinG", "carbsG", "fatG", "caloriesKcal"];
@@ -12,8 +11,4 @@ export function FoodTable<T extends FoodDraft>({ foods, actions, details }: { fo
 }
 export function FoodDetails({ food }: { food: FoodDraft }) {
   return <section className={styles.foodDetails}><h3>{food.name}</h3><p className={styles.notes}>{[food.brand,foodSpecification(food.preparation)].filter(Boolean).join(" · ")}</p><p>每 {Number(food.baseQuantity)}{food.unit} · {sourceLabels[food.sourceKind]}</p>{food.basis&&<div className={styles.foodAnalysis}><h4>{food.sourceKind==="estimated"?"估算分析":"数据来源"}</h4><p className={styles.notes}>{food.basis}</p></div>}{food.evidenceUrl&&<a href={food.evidenceUrl} target="_blank" rel="noreferrer">查看来源 ↗</a>}<ImageGallery ids={food.imageIds}/></section>;
-}
-export function FoodPresets({ query, foods, adopt, details }: { query: string; foods: FoodView[]; adopt: (draft: FoodDraft) => void; details: (draft: FoodDraft) => void }) {
-  const rows = searchFoodPresets(query).filter(p => !foods.some(f => !f.deletedAt && f.name === p.name && f.preparation === p.preparation));
-  return rows.length ? <section className={styles.presetList}><h2>基础食材</h2><p className={styles.hint}>采用后加入自己的食材库。</p><FoodTable foods={rows} details={details} actions={f => <button onClick={() => adopt(f)}>采用</button>} /></section> : null;
 }

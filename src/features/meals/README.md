@@ -1,7 +1,15 @@
 # 饮食记录
 
-负责今天摄入、每日热量柱图、历史餐次抽屉、食材库、基础食材预设、原图与AI网页审核。model.ts 管校验与换算；food-description.ts 管食材分析说明规则和新写入检查，ai-api.ts 的 queryFoods 为 MCP／HTTP 返回实时规则；records.ts 管归属、事务、版本、快照、确认和审计；meal-editor.tsx 提供食材库／自由填写两种入口，桌面双栏搜索、手机分步并保留草稿；nutrition-fields.tsx 共用营养输入和两类手动依据；image-upload.ts 管限账号／路径／摘要的短期凭据、OIDC预签名直传及幂等登记；nutrition-chart.tsx 管固定宽度 kcal 柱图、直接读数和默认关闭的连线；review-details.tsx 展示紧凑食物明细与逐项详情；text-maintenance.ts 和 food-maintenance.ts 仅供已授权说明／当前规格修正的内部事务、版本、幂等与审计；images.ts 管原图下载、类型／大小校验、重复保护与私有 Blob；photos.tsx 共用上传及原图回看；food-presets.ts 固定六项 USDA 参考规格。
+负责今天摄入、P／C／F 每日 kcal 堆叠图、历史餐次、整餐／食材库、最近删除、私有原图与 AI 网页审核。model.ts 集中校验、单位换算、图形占比和餐次建议；records.ts 共用网页／HTTP／MCP 的预览、确认、归属、版本、历史快照和审计；recently-deleted.ts 提供网页专用永久删除事务；food-description.ts 管食材客观分析规则，queryFoods 实时返回规则及兼容的 presets:[]。
 
-手动新餐项统一 kind:food，有 foodId／foodDraft 为食材，否则自由填写；自由项的营养是本次实际摄入，不再次乘分量。食材用自身单位换算，小数勺／份和克数均支持，选择或更换食材不预填用量。手动依据只有 reference（标签／成分表）和 estimated，AI 及历史 label／composition_table／unknown 仍兼容；原 misc／whole 保留，用户编辑后的新版本统一为 food。0016 只扩展食材来源约束。历史营养、用量和计量快照不随当前食材规格改变。
+餐次编辑桌面左侧为可搜索、按整餐／食材筛选的卡片，点击或拖入右侧小表格；手机保留选择／本餐分步。右侧顶部常驻合计，每项一行：名称、用量、kcal、P、C、F、操作，并常驻一行空白自由填写。桌面双击或 Enter 编辑、Tab 移动，触屏轻点；食材营养自动换算只读，自由项营养是本次摄入，不再次乘分量。份／勺等计数单位默认 1，重量、体积和未知单位留空；更换食材按新单位重新设置。新餐次按设备时间建议早餐／午餐／加餐／晚餐／夜宵，可手改，旧餐不覆盖。依据、新食材规格、备注和照片按需展开，上传／缺图／重复／审核保护保留。
 
-网页、MCP、HTTP 和初始化共用业务。未知值 null，额外油酱单列，整餐估算不能叠加其他项；AI照片待核对信息阻止保存；expectedImageCount保留附件预期，缺图只有网页登录明确选择先保存文字才允许，选择进入审计。canConfirm只表示正常确认可用，canConfirmWithoutImages表示还可选择先保存文字。保存终态不能再次确认，旧响应不覆盖新revision。下载允许既有OpenAI文件域名及ChatGPT使用的oaisdmntpr地区存储账号；Azure限定账号前缀、最多24位账号名及完整blob.core.windows.net后缀，重定向逐跳验证，拒绝其他命名族、额外子域和伪装后缀。原图最多8张、每张20 MiB，JPEG／PNG／WebP，经认证入口提供，不进入 public 或 Git。Vercel部署通过BLOB_STORE_ID及平台OIDC访问私有存储，本地可使用对应权限或静态凭据。上传后事务失败时按原路径清理文件，存储／清理函数可在隔离测试中替换。规则和接口见[饮食记录](../../../docs/meals.md)。
+每日一根三色 kcal 堆叠柱，由下到上为 P 蛋白质 #365E78、C 碳水 #6C96B3、F 脂肪 #AFCDDE。按 4P:4C:9F 能量占比分配已记录热量，柱总高保持原 kcal，不重算保存值；宏量缺项或全部为零时只画总热量并注明占比不完整。容得下才标 P／C／F，读数列出 kcal、克数和占比。日期之间留白，固定宽度无横向滚动，短区间柱顶显示数值，长区间只显示选中日期和完整范围，可选连线默认关闭。
+
+食材 category 为 meal（整餐）或 ingredient（食材），0017 为旧行增加默认 ingredient；可按版本与摘要授权修正指定条目分类，历史快照不变。移除基础预设和采用入口，已加入的食材继续保留。手动新餐项 kind:food，AI 及旧 misc／whole 继续兼容。手动依据 reference／estimated，AI 的 label／composition_table／unknown 保留。food-maintenance.ts 和 text-maintenance.ts 仅用于已授权的私有维护。
+
+最近删除统一包含食材库与餐次，支持逐条恢复或永久删除。普通删除仍可恢复；永久删除只对已删除且版本匹配的本账号条目执行，并要求含名称的明确确认。食材永久删除时断开全部版本餐项的 food_id，保留营养、数量、原单位 food_snapshot 与原图，递增受影响餐次版本并审计；缺少可用快照则拒绝。旧餐通过查询返回的 item.id 作为 originalItemId 编辑，服务端在同一餐次／版本解析历史快照；不接受客户端营养快照。永久删除餐次物理移除其餐项和当前图片关联。原始导入、操作、审计和原图继续保留，不实现 Blob 清理或隐私擦除。网页专用事务具备归属、状态、版本、幂等、账号锁和失败回滚，不开放 MCP 永久删除工具。
+
+meal-editor.tsx 管表格与选择，nutrition-fields.tsx 管营养与依据，nutrition-chart.tsx 管固定宽度图，presets.tsx 仅保留食材表格／详情，review-details.tsx 管紧凑审核与逐项依据，meal-review.tsx 管审核终态。估算分析保留成分分量、来源／计算及汇总，不写个人餐次背景、泛化提醒或无关排除清单。
+
+images.ts 管原图下载与存储，image-upload.ts 管限账号／路径／摘要的短期 OIDC 直传，photos.tsx 共用上传与回看。最多8张、每张20 MiB，JPEG／PNG／WebP，不进 public／Git。允许既有 OpenAI 文件域名及限定 oaisdmntpr 账号、24位长度与完整 blob.core.windows.net 后缀，逐跳验证重定向。expectedImageCount 保留缺图预期，AI photoReview 待核对阻止保存，只有网页登录明确选择才可先保存文字并审计。终态不能再次确认，旧 pending 不能覆盖新 revision。存储失败与上传后事务失败的清理、重试、原图归属仍覆盖隔离测试。完整规则见[饮食记录](../../../docs/meals.md)。

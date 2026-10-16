@@ -156,13 +156,14 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     await page.goto(`${baseURL}/dashboard/ai`); await page.getByRole("heading", { name: "AI 接入", exact: true }).waitFor(); await ready();
     await page.getByLabel("令牌名称").fill("虚构交叠请求");
     const overlapping = await holdNext(actionRequest);
-    const overlappingNavigation = await holdNext(request => request.method() === "GET" && new URL(request.url()).pathname === "/dashboard/measurements" && request.headers()["rsc"] === "1" && !request.headers()["next-router-prefetch"]);
+    const overlappingNavigation = await holdNext(request => request.method() === "GET" && new URL(request.url()).pathname === "/dashboard" && request.headers()["rsc"] === "1" && !request.headers()["next-router-prefetch"]);
     await page.getByRole("button", { name: "创建令牌", exact: true }).click(); await overlapping.wait();
-    await page.getByRole("link", { name: "身体记录", exact: true }).evaluate(node => node.click());
+    await page.getByRole("link", { name: "Formward 主页", exact: true }).evaluate(node => node.click());
     await overlappingNavigation.wait(); await assertLoading("正在加载页面…");
     await overlapping.release("abort"); await page.waitForTimeout(100);
     assert.equal(await loading().count(), 1, "仍有待处理导航时不关闭模态层");
-    await overlappingNavigation.release(); await page.getByRole("heading", { name: "身体记录", exact: true }).waitFor(); await ready();
+    await overlappingNavigation.release(); await page.getByRole("heading", { name: "总览", exact: true }).waitFor(); await ready();
+    await page.getByRole("link",{name:"身体记录",exact:true}).click();await page.getByRole("heading",{name:"身体记录",exact:true}).waitFor();await ready();
     const batch = await post([item(1), item(2)]);
     await page.goto(`${baseURL}/dashboard/ai`); await page.getByRole("heading", { name: "AI 接入", exact: true }).waitFor(); await ready();
     const reviewNavigation = await holdNext(request => request.method() === "GET" && new URL(request.url()).pathname === batch.confirmationPath && request.headers()["rsc"] === "1" && !request.headers()["next-router-prefetch"]);

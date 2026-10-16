@@ -28,3 +28,16 @@ test("总览实测与已存估计按指标区分，多候选不擅选，晚间�
 test("详情链接校验真实日历日期，数组及异常输入不打开错误日期",()=>{
  assert.equal(linkedDate("2024-02-29"),"2024-02-29");for(const date of ["2023-02-29","2024-13-01","today",["2024-03-01"],undefined])assert.equal(linkedDate(date),null);
 });
+
+import { latestRealWeight, overviewWeightSeries } from "./model";
+test("统一总览保留带符号晨晚差，估计仅展示，区间首个晨重为基准",()=>{
+ const rows=[observed("2024-03-01"),observed("2024-03-01",{id:"e1",period:"evening",fasting:false,weightKg:"71.2"}),observed("2024-03-03",{weightKg:"69.6"}),observed("2024-03-03",{id:"e3",period:"evening",fasting:false,weightKg:"69.1",recordKind:"estimated"})];
+ const days=overviewDays([],rows,["2024-02-29","2024-03-01","2024-03-02","2024-03-03"],true),series=overviewWeightSeries(days);
+ assert.equal(series.baseline?.recordDate,"2024-03-01");assert.deepEqual(series.points.map(row=>row.relativeKg),[null,0,null,-.4]);assert.deepEqual(days.map(day=>day.weightDifferenceKg),[null,1.2,null,-.5]);assert.equal(days[3].differenceEstimated,true);
+ assert.equal(overviewDays([],rows,["2024-03-03"],false)[0].weightDifferenceKg,null);
+ assert.equal(overviewWeightSeries(overviewDays([],rows,["2024-03-03"],true)).points[0].relativeKg,0);
+});
+test("身体卡片按测量日期晨晚取最新实测，回填更新时间不改变顺序",()=>{
+ const early=observed("2024-03-01",{updatedAt:"2024-04-01"}),morning=observed("2024-03-02"),evening=observed("2024-03-02",{id:"e",period:"evening",fasting:false,sourceLocalTime:"2024-03-02 20:00:00"}),estimate=observed("2024-03-03",{recordKind:"estimated"});
+ assert.equal(latestRealWeight([early,morning,evening,estimate],"2024-03-03")?.id,"e");assert.equal(latestRealWeight([estimate],"2024-03-03"),null);
+});

@@ -54,7 +54,7 @@ flowchart LR
 | 页面 / 路径 | 页面入口 | 主要界面组件 | 样式位置 |
 | --- | --- | --- | --- |
 | 首页与登录 `/` | [app/page.tsx](../src/app/page.tsx) | [home-experience.tsx](../src/app/home-experience.tsx) 组装体验；[login-overlay.tsx](../src/app/login-overlay.tsx) 提供登录框 | `globals.css` 的 `.home-*`、`.login-*` |
-| 总览 `/dashboard` | [dashboard/page.tsx](../src/app/dashboard/page.tsx) | [overview-view.tsx](../src/features/dashboard/overview-view.tsx) 展示今天摄入与最新实测，overview-trend.tsx 提供三图历史联动 | `overview.module.css` |
+| 总览 `/dashboard` | [dashboard/page.tsx](../src/app/dashboard/page.tsx) | [overview-view.tsx](../src/features/dashboard/overview-view.tsx) 展示统一历史图与身体／摄入入口卡片，overview-trend.tsx 提供两轴摄入／晨重／晨晚差联动 | `overview.module.css` |
 | 身体记录 `/dashboard/measurements` | [measurements/page.tsx](../src/app/dashboard/measurements/page.tsx) | [measurements-view.tsx](../src/features/measurements/measurements-view.tsx) 组装摘要、双图、记录表和详情面板 | [measurements-view.module.css](../src/features/measurements/measurements-view.module.css)；页头使用 `globals.css` |
 | 录入 / 编辑面板 | 在身体记录页面中打开 | [measurement-entry.tsx](../src/features/measurements/measurement-entry.tsx) 提供表单；[source-input.tsx](../src/features/measurements/source-input.tsx) 提供来源输入与建议列表 | `measurements-view.module.css` |
 | AI 接入 `/dashboard/ai` | [ai/page.tsx](../src/app/dashboard/ai/page.tsx) | [ai-access.tsx](../src/features/auth/ai-access.tsx) 展示令牌、OAuth 连接和审核请求 | `globals.css` 的 `.ai-*` |
@@ -195,6 +195,8 @@ Vercel 托管同一个 Next.js 应用，页面、Server Actions 和 `app/api` �
 
 ## 饮食定位
 
-饮食页面在[dashboard/meals/page.tsx](../src/app/dashboard/meals/page.tsx)，保存与审核入口在[actions.ts](../src/app/dashboard/meals/actions.ts)。[meals-view.tsx](../src/features/meals/meals-view.tsx)包含今天摘要、NutritionChart每日 kcal 柱图、历史抽屉和 FoodEditor／EditorDialog；meal-editor.tsx 提供食材库／自由填写两种录入，nutrition-fields.tsx 共用营养与依据；[meals.module.css](../src/features/meals/meals.module.css)控制间距、颜色与抽屉。营养换算／每日汇总在[model.ts](../src/features/meals/model.ts)，预览、确认事务、食材快照、版本与审计在[records.ts](../src/features/meals/records.ts)，[meal-review.tsx](../src/features/meals/meal-review.tsx)提供统一审核界面，review-details.tsx呈现分项／合并方式、库引用及可展开说明，image-upload.ts提供OIDC私有直传及摘要校验。AI由MCP server及HTTP调用这些函数；历史TSV由[imports/meals.ts](../src/features/imports/meals.ts)解析为整餐预览，网页确认后进入同一写入路径。规则与接口见[饮食记录](meals.md)。
+饮食页面在[dashboard/meals/page.tsx](../src/app/dashboard/meals/page.tsx)，保存与审核入口在[actions.ts](../src/app/dashboard/meals/actions.ts)。[meals-view.tsx](../src/features/meals/meals-view.tsx)包含今天摘要、NutritionChart每日 kcal 柱图、历史抽屉和 FoodEditor／EditorDialog；meal-editor.tsx 提供左侧搜索／拖拽、右侧逐行表格和常驻空白行，nutrition-fields.tsx 共用营养与依据；[meals.module.css](../src/features/meals/meals.module.css)控制间距、颜色与抽屉。营养换算／每日汇总在[model.ts](../src/features/meals/model.ts)，预览、确认事务、食材快照、版本与审计在[records.ts](../src/features/meals/records.ts)，[meal-review.tsx](../src/features/meals/meal-review.tsx)提供统一审核界面，review-details.tsx呈现分项／合并方式、库引用及可展开说明，image-upload.ts提供OIDC私有直传及摘要校验。AI由MCP server及HTTP调用这些函数；历史TSV由[imports/meals.ts](../src/features/imports/meals.ts)解析为整餐预览，网页确认后进入同一写入路径。规则与接口见[饮食记录](meals.md)。
 
-饮食照片由 [images.ts](../src/features/meals/images.ts) 校验、下载和私有保存；MCP import_meal_images 与 HTTP POST /api/v1/meal-images 返回稳定附件ID。网页上传／读取位于 [api/meal-images](../src/app/api/meal-images/README.md)，photos.tsx 提供共用上传与回看，food-presets.ts 固定 USDA 参考规格。图片关联与 photoReview 核对在 records.ts，确认后保留在审计和历史快照。
+饮食照片由 [images.ts](../src/features/meals/images.ts) 校验、下载和私有保存；MCP import_meal_images 与 HTTP POST /api/v1/meal-images 返回稳定附件ID。网页上传／读取位于 [api/meal-images](../src/app/api/meal-images/README.md)，photos.tsx 提供共用上传与回看。图片关联与 photoReview 核对在 records.ts，确认后保留在审计和历史快照。
+
+总览 model.ts 提供晨晚差、相对晨重和最新真实体重，overview-trend.tsx 绘制两轴统一图。饮食永久删除入口为 actions.ts → recently-deleted.ts；事务解除食材关联并保留历史快照，返回 item.id 用于 originalItemId 编辑。foods.category 由0017演进，基础预设代码已移除。

@@ -225,41 +225,70 @@
 .lineToggle { display:inline-flex; align-items:center; gap:6px; margin-left:auto; cursor:pointer; }
 .lineToggle input { min-height:0; accent-color:#7F9EAF; }
 .wideDrawer { width:min(1200px,calc(100% - 48px)); }
-.mealColumns { display:grid; grid-template-columns:minmax(0,1fr) minmax(340px,.85fr); gap:36px; }
-.mealColumns h3 { font-size:14px; font-weight:500; margin:12px 0 20px; }
-.entryPaths { display:flex; align-items:center; gap:20px; border-bottom:1px solid var(--rule); margin:0 0 18px; }
-.entryPaths button { padding-inline:0; color:var(--gold); }
-.returnToMeal { display:none; }
-.foodPicker { min-width:0; border-right:1px solid var(--rule); padding-right:28px; position:sticky; top:0; align-self:start; background:#151513; }
+.mealColumns { display:grid; grid-template-columns:minmax(220px,.75fr) minmax(0,1.65fr); gap:28px; }
+.mealColumns h3 { font-size:14px; font-weight:500; margin:12px 0 16px; }
+.entryPaths { display:none; }
+.foodPicker { min-width:0; border-right:1px solid var(--rule); padding-right:24px; position:sticky; top:0; align-self:start; background:#151513; }
 .pickerResults { max-height:65dvh; overflow:auto; scrollbar-gutter:stable; }
-.pickerResults > button { display:flex; width:100%; align-items:flex-start; justify-content:space-between; gap:20px; text-align:left; padding:16px 4px 16px 0; border-bottom:1px solid var(--rule); }
+.pickerResults > button { display:flex; width:100%; align-items:center; justify-content:space-between; gap:12px; text-align:left; padding:12px 6px 12px 0; border-bottom:1px solid var(--rule); cursor:grab; }
+.pickerResults > button:active { cursor:grabbing; }
 .pickerResults > button > span:first-child { min-width:0; flex:1; }
 .pickerResults strong { display:block; color:var(--ink); font-weight:500; line-height:1.6; }
-.pickerResults small { display:block; color:var(--muted); font-size:11px; line-height:1.7; margin-top:4px; }
-.pickerResults > button > span:first-child small { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-.pickerNutrition { flex:0 0 42%; color:var(--muted); font-size:12px; }
+.pickerResults small { display:block; color:var(--muted); font-size:11px; line-height:1.7; margin-top:3px; }
+.pickerResults > button > span:first-child small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .mealEntry { min-width:0; }
-.mealEntry .itemEditor:first-of-type { margin-top:0; }
-.mealEntry .itemTop > div { min-width:0; flex:1; }
-.mealEntry .itemTop > span { flex:1; }
-.mealEntry .itemTop > button { margin-top:0; }
-.mealEntry .itemTop strong { font-weight:500; line-height:1.6; }
-.amountInput { display:flex; align-items:center; gap:14px; }
-.amountInput label { flex:1; }
-.amountInput > span { color:var(--ink); }
-.amountInput button { font-size:12px; white-space:nowrap; }
 .sourceChoices { display:flex!important; gap:20px; flex-wrap:wrap; }
 .sourceChoices legend { color:var(--muted); font-size:12px; margin-bottom:12px; }
 .sourceChoices label { display:flex; align-items:center; gap:7px; margin-bottom:0; min-height:44px; cursor:pointer; }
 .sourceChoices input { width:16px; min-height:16px; accent-color:var(--gold); }
-.mealTotal { border-top:1px solid var(--rule); margin:20px 0; padding-top:10px; }
+.mealTotal { border-bottom:1px solid var(--rule); margin:0 0 16px; padding:0 0 16px; position:sticky; top:-22px; background:#151513; z-index:1; }
+.mealTotal .compactMetrics { margin:0; }
+.mealTotal .compactMetrics strong { font-size:20px; }
+.mealSheet { border:1px solid var(--rule); border-radius:4px; margin-bottom:24px; padding:0 8px; }
+.mealSheet[data-dragging="true"] { border-color:var(--gold); background:rgba(190,164,120,.05); }
+.entryTable { width:100%; table-layout:fixed; border-collapse:collapse; font-size:13px; }
+.entryTable th { text-align:right; font-size:11px; font-weight:400; color:var(--muted); padding:12px 4px; }
+.entryTable th:first-child { text-align:left; width:27%; }
+.entryTable th:nth-child(2) { width:17%; }
+.entryTable th:last-child { width:13%; }
+.entryTable td { padding:4px; border-top:1px solid var(--rule); text-align:right; vertical-align:middle; }
+.entryTable .entryName { text-align:left; overflow-wrap:anywhere; }
+.entryName .cell { color:var(--ink); }
+.entryName strong { font-size:13px; font-weight:500; display:block; }
+.entryName small { display:block; color:var(--muted); font-size:10px; margin-top:4px; }
+.entryTable .cell { display:block; width:100%; min-height:36px; text-align:inherit; padding:6px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+.entryTable input { min-height:36px; width:100%; padding:6px 0; font-size:13px; text-align:inherit; }
+.entryTable input::-webkit-inner-spin-button { appearance:none; }
+.entryTable input { appearance:textfield; }
+.entryQuantity .cell,.entryQuantity input { display:inline-block; width:calc(100% - 22px); }
+.entryQuantity > small { color:var(--muted); font-size:10px; margin-left:4px; }
+.entryActions { white-space:nowrap; }
+.entryTable .entryActions button { min-height:36px; font-size:11px; padding:4px; }
+.calculated { color:var(--blue); }
+.rowDetail { border-bottom:1px solid var(--rule); margin-bottom:24px; padding:0 0 16px; }
+.categoryTabs { display:flex; gap:16px; margin:0 0 8px; }
+.categoryTabs button { padding-inline:0; font-size:12px; }
+.categoryTabs button[aria-pressed="true"] { color:var(--gold); }
+.tabs .trashEntry { margin-left:auto; font-size:12px; }
+.macroLegend { display:flex; flex-wrap:wrap; gap:12px 20px; font-size:11px; color:var(--muted); margin:16px 0 4px; }
+.macroLegend span { display:flex; align-items:center; gap:6px; }
+.macroLegend i { width:12px; height:8px; }
+.stackLetter { font:10px ui-monospace,monospace; pointer-events:none; }
 @media(max-width:960px) {
  .wideDrawer { width:100%; }
  .mealColumns { display:block; }
- .mealColumns[data-step="picker"] .mealEntry, .mealColumns[data-step="entry"] .foodPicker { display:none; }
- .foodPicker { border:0; padding:0; position:static; }
- .pickerResults { max-height:none; }
- .returnToMeal { display:block; margin-left:auto; }
- .entryPaths { gap:16px; flex-wrap:wrap; }
+ .mealColumns[data-step="picker"] .mealEntry,.mealColumns[data-step="entry"] .foodPicker { display:none; }
+ .foodPicker { border:0; padding:0; position:static; }.pickerResults { max-height:none; }
+ .entryPaths { display:flex; gap:20px; margin-bottom:12px; border-bottom:1px solid var(--rule); }.entryPaths button { padding-inline:0; font-size:12px; }.entryPaths button[aria-pressed="true"] { color:var(--gold); }
 }
-@media(max-width:400px) { .pickerResults > button { display:block; } .pickerNutrition { display:block; margin-top:8px; } .pickerNutrition strong, .pickerNutrition small { display:inline; margin-left:8px; } }
+@media(max-width:600px) {
+ .entryTable,.entryTable tbody { display:block; }.entryTable thead { display:none; }
+ .entryTable tr { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px 8px; padding:12px 0; border-bottom:1px solid var(--rule); }
+ .entryTable tr:last-child { border-bottom:0; }.entryTable td { border:0; padding:0; min-width:0; }
+ .entryTable .entryName { grid-column:1/3; grid-row:1; }.entryTable .entryQuantity { grid-column:3; grid-row:1; }.entryTable .entryActions { grid-column:4; grid-row:1; }
+ .entryTable td[data-nutrient] { display:flex; align-items:center; text-align:left; gap:5px; }
+ .entryTable td[data-nutrient]::before { content:attr(data-label); font-size:10px; color:var(--muted); }
+ .entryTable td[data-nutrient] input,.entryTable td[data-nutrient] .cell { min-width:0; flex:1; }
+ .mealTotal { top:-22px; }.mealTotal .compactMetrics { gap:12px; }.mealTotal .compactMetrics strong { font-size:18px; }
+ .mealTotal .compactMetrics span,.mealTotal small { font-size:11px; }.mealTotal .compactMetrics small { margin-left:3px; }
+}

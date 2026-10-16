@@ -5,10 +5,9 @@ import { calendarOrdinal } from "../measurements/trend";
 import { localMeasurementDate } from "../measurements/entry-state";
 import { validateMeasurementTimezone } from "../measurements/timezone";
 import { readMealSnapshot, searchFoods } from "./records";
-import { searchFoodPresets } from "./food-presets";
 import { foodLibraryRules } from "./food-description";
 export async function queryFoods(db: Database, userId: string, query = "") {
-  return { foods: await searchFoods(db, userId, query), presets: searchFoodPresets(query), foodLibraryRules };
+  return { foods: await searchFoods(db, userId, query), presets: [] as import("./model").FoodDraft[], foodLibraryRules };
 }
 export async function queryMeals(db: Database, userId: string, params: URLSearchParams) {
   if ([...params.keys()].some(k => !["from", "to", "timezone"].includes(k)) || ["from", "to", "timezone"].some(k => params.getAll(k).length > 1)) throw new ApiError(400, "invalid_input", "查询仅支持from、to日期和timezone。");

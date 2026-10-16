@@ -519,7 +519,7 @@ Drizzle migrator 在业务 schema 外建立此表，保存已执行版本；不�
 
 ## 饮食表与关系
 
-0013定义六张饮食表，0014增加两张原图表及meal_items.amount_decision，数据库共29表。0016只扩展foods_source_valid接受reference（手动标签／成分表），旧label／composition_table／estimated／unknown保留且不回填。foods保存名称、品牌／规格、base_quantity、unit、四项nullable numeric(14,4)、source_kind、basis／evidence_url、version和软删除；同账号标准化identity_key唯一。meals保存账号、local_date、餐名、可选时刻／时区、备注、入口来源、原始来源标识、同步状态、导入及版本。meal_items保存position、food／misc／whole、名称／数量／单位、food_snapshot、独立四项营养和依据；user_id与meal_id／food_id组合外键保证同账号。
+0013定义六张饮食表，0014增加两张原图表及meal_items.amount_decision，数据库共29表。0016只扩展foods_source_valid接受reference（手动标签／成分表），旧label／composition_table／estimated／unknown保留且不回填。0017增加foods.category（meal／ingredient，NOT NULL默认ingredient，CHECK）；旧列、营养和历史JSON不变。foods保存名称、品牌／规格、base_quantity、unit、四项nullable numeric(14,4)、source_kind、basis／evidence_url、version和软删除；同账号标准化identity_key唯一。meals保存账号、local_date、餐名、可选时刻／时区、备注、入口来源、原始来源标识、同步状态、导入及版本。meal_items保存position、food／misc／whole、名称／数量／单位、food_snapshot、独立四项营养和依据；user_id与meal_id／food_id组合外键保证同账号。
 
 meal_imports保存file_digest、source_label、原始行、参考热量决策、created_by与确认时间；账号／文件摘要唯一。meal_operations保存operation_id、manual／ai／initialization入口、对应令牌或OAuth或import_id、原payload与draft、preview、snapshot_digest、request_digest、revision、pending／confirmed／cancelled状态、到期及结果；只有AI操作有15分钟有效期且恰有一个凭据。meal_events保存record_id／type、operation_id、actor_type／id、confirmed_by、前后快照和时间。
 
@@ -538,3 +538,5 @@ meal_items.amount_decision 可为provided、estimate_accepted、unknown_accepted
 meal_items.review_explanation为可空JSONB，包含identity、amount、cooking、nutrition四项可选说明，每项保存source、basis和可选uncertainty。source可为user、label、food_library、composition_table、estimate或unknown。旧记录为null，不倒推依据。0015新增此列并扩大原图大小约束，表数保持29。
 
 meal_operations.payload／draft保存可选expectedImageCount，preview中的missingImages与确认能力由实际附件派生。用户网页登录选择缺图保存时，meal_events.snapshot记录confirmedWithoutImages及missingImages，不将模型选择当作人工确认。
+
+永久删除仅由已鉴权网页调用 feature 事务。删除 food 前清除当前 image_links、将全部版本 meal_items.food_id 置空，原 food_snapshot、数值和原图保持；受影响 meal.version 递增并写审计。删 meal 先删全部子项和当前链接。审计及原操作保留，operation_id 保持有效；归属、已软删除状态、版本、重复请求和审计失败回滚在事务内校验。

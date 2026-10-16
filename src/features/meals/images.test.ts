@@ -91,7 +91,7 @@ test("食用量估算独立于标签营养依据，须说明估算依据",async(
 test("旧餐项未注明食量决策时读取省略字段，编辑可正常保存",async()=>{
  const id=await owner(),op=await submitMealOperation(db,{userId:id,origin:"manual"},{operationId:randomUUID(),actions:[action([])]});await decideMealOperation(db,id,op.id,op.revision,"confirm");
  const m=(await readMealSnapshot(db,id)).meals[0];assert.equal(m.items[0].amountDecision,undefined);
- const edit=await submitMealOperation(db,{userId:id,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_meal",id:m.id,version:m.version,date:m.date,mealType:m.mealType,items:m.items,notes:"修改旧餐项备注"}]});assert.equal(edit.canConfirm,true,edit.rows[0].error);await decideMealOperation(db,id,edit.id,edit.revision,"confirm");assert.equal((await readMealSnapshot(db,id)).meals[0].notes,"修改旧餐项备注");
+ const edit=await submitMealOperation(db,{userId:id,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_meal",id:m.id,version:m.version,date:m.date,mealType:m.mealType,items:m.items.map(({id,...item})=>({...item,originalItemId:id})),notes:"修改旧餐项备注"}]});assert.equal(edit.canConfirm,true,edit.rows[0].error);await decideMealOperation(db,id,edit.id,edit.revision,"confirm");assert.equal((await readMealSnapshot(db,id)).meals[0].notes,"修改旧餐项备注");
 });
 
 test("GPT多图导入保留成功项并明确逐文件失败，重试不重复附件", async () => {

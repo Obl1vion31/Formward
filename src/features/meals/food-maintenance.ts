@@ -8,7 +8,7 @@ import { lockOwner } from "../auth/owner-lock";
 import { foodDraftSchema,type FoodView,type MealView,type MealInput,type PreviewRow } from "./model";
 import { readMealSnapshot,digest,foodIdentity } from "./records";
 import { foodAction,mealAction } from "./text-maintenance";
-const schema=z.object({operationId:z.string().regex(/^[a-zA-Z0-9-]{8,120}$/),updateMealDescriptions:z.boolean().optional(),changes:z.array(z.object({id:z.string().uuid(),version:z.number().int().positive(),name:z.string().trim().min(1).max(200).optional(),preparation:z.string().max(200),basis:z.string().max(4000),baseQuantity:z.string().optional(),unit:z.string().optional()}).strict()).min(1).max(50)}).strict();
+const schema=z.object({operationId:z.string().regex(/^[a-zA-Z0-9-]{8,120}$/),updateMealDescriptions:z.boolean().optional(),changes:z.array(z.object({id:z.string().uuid(),version:z.number().int().positive(),name:z.string().trim().min(1).max(200).optional(),category:z.enum(["meal","ingredient"]).optional(),preparation:z.string().max(200),basis:z.string().max(4000),baseQuantity:z.string().optional(),unit:z.string().optional()}).strict()).min(1).max(50)}).strict();
 export type FoodMaintenance=z.infer<typeof schema>;
 async function prepare(db:Pick<Database,"select">,userId:string,raw:unknown){
  const request=schema.parse(raw),before=await readMealSnapshot(db,userId),ids=new Set(request.changes.map(change=>change.id));
@@ -38,7 +38,7 @@ export async function applyFoodMaintenance(db:Database,userId:string,raw:unknown
   if(previous){if(previous.requestDigest!==requestDigest||previous.status!=="confirmed")throw new ApiError(409,"operation_conflict","操作标识已被其他请求使用。");return {id:previous.id,repeated:true};}
   const plan=await prepare(tx,userId,request);if(plan.digest!==expectedDigest)throw new ApiError(409,"version_conflict","预览已改变，请重新核对。");
   const now=new Date(),changedMeals:MealView[]=[];
-  for(const updated of plan.afterFoods)await tx.update(food).set({name:updated.name,preparation:updated.preparation,basis:updated.basis,baseQuantity:updated.baseQuantity,unit:updated.unit,identityKey:foodIdentity(updated),version:updated.version,updatedAt:now}).where(and(eq(food.userId,userId),eq(food.id,updated.id)));
+  for(const updated of plan.afterFoods)await tx.update(food).set({category:updated.category??"ingredient",name:updated.name,preparation:updated.preparation,basis:updated.basis,baseQuantity:updated.baseQuantity,unit:updated.unit,identityKey:foodIdentity(updated),version:updated.version,updatedAt:now}).where(and(eq(food.userId,userId),eq(food.id,updated.id)));
   for(const before of plan.affected){
    let changed=false;
    const items=before.items.map(item=>{
@@ -56,7 +56,7 @@ export async function applyFoodMaintenance(db:Database,userId:string,raw:unknown
   const actions=[...plan.afterFoods.map(foodAction),...changedMeals.map(mealAction)],payload:MealInput={operationId:request.operationId,actions},id=randomUUID();
   const preview:PreviewRow[]=[...plan.afterFoods.map((record,index)=>({action:actions[index],food:record,duplicateIds:[],warnings:[]})),...changedMeals.map((record,index)=>({action:actions[plan.afterFoods.length+index],meal:record,duplicateIds:[],warnings:[]}))];
   await tx.insert(mealOperation).values({id,userId,operationId:request.operationId,origin:"manual",requestDigest,snapshotDigest:plan.digest,payload,draft:payload,preview,status:"confirmed",confirmedAt:now,result:{saved:actions.length,message:"已更新指定食材说明与规格，历史营养与食用量保持。"}});
-  for(const record of [...plan.afterFoods,...changedMeals])await tx.insert(mealEvent).values({id:randomUUID(),userId,recordId:record.id,recordType:plan.afterFoods.some(entry=>entry.id===record.id)?"food":"meal",operationId:id,actorType:"ai",actorId:"codex",confirmedBy:userId,snapshot:{origin:"food-maintenance",reason:"用户授权整理食材客观说明与估算依据；仅按指定请求更新当前规格，历史数值与原始请求保留。",request,before:[...plan.before.foods,...plan.before.meals].find(entry=>entry.id===record.id),after:record}});
+  for(const record of [...plan.afterFoods,...changedMeals])await tx.insert(mealEvent).values({id:randomUUID(),userId,recordId:record.id,recordType:plan.afterFoods.some(entry=>entry.id===record.id)?"food":"meal",operationId:id,actorType:"ai",actorId:"codex",confirmedBy:userId,snapshot:{origin:"food-maintenance",reason:"用户授权更新指定食材分类、客观说明或规格，历史数值与原始请求保留。",request,before:[...plan.before.foods,...plan.before.meals].find(entry=>entry.id===record.id),after:record}});
   return {id,repeated:false};
  });
 }

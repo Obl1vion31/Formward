@@ -34,7 +34,7 @@ import_meal_images（meals:write）接收顶层files，工具声明_meta["openai
 
 先识别、查询已有食材，再集中问日期、餐次、身份、实际食用量和额外油酱；只传图片不能默认日期或餐次。整份须确认全部吃完并有已知规格。餐次／食材用imageIds关联原图；照片AI餐次的photoReview核对字段和questions决定needsUserInput，未解决禁止确认，网页可补传、逐项修改并更新预览。模型不得自行代确认。食量未知先询问，再由用户接受估算或明确未知。包装识别保留名称、品牌、规格、标签单位及照片。规则见[饮食记录](meals.md)。
 
-search_foods返回foods和presets，后者仅供foodDraft／save_food采用；query_meals增加可选timezone，context.localDate用于相对日期。新工具沿用饮食权限，已有饮食连接刷新工具列表即可，缺饮食权限的身体连接仍须重新授权。
+search_foods返回foods及兼容的presets:[]，不提供基础预设采用；query_meals增加可选timezone，context.localDate用于相对日期。新工具沿用饮食权限，已有饮食连接刷新工具列表即可，缺饮食权限的身体连接仍须重新授权。
 
 ## 手动令牌与本地 HTTP 使用
 
@@ -147,8 +147,10 @@ AI 以 `items[].status` 和 `counts` 报告事实，不能把部分保存、取�
 
 ## 饮食接口
 
-MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation，分别使用meals:read／meals:write；已有身体连接需重新授权。HTTP提供GET /foods?q=、GET /meals?from=&to=、POST /meal-operations、GET /meal-operations/{id}，公开协议1.7.1。输入operationId、actions；save_meal含date、mealType、items，已有食材用foodId＋foodVersion、同单位quantity，新食材可用foodDraft。杂只估未单列的剩余食物，whole整餐估算须为唯一项。AI 标签与成分表需依据，未知null；手动合并来源 reference 为标签／成分表，旧来源继续兼容。新手动自由项用 kind:food，营养直接表示本次摄入，分量不再次相乘。确认链接为/dashboard/meals/review/{id}，15分钟有效，原请求与修订草稿独立；正式保存仅网页登录确认，权限撤销即时阻止。结构、初始化和实例定位见[饮食记录](meals.md)。
+MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation，分别使用meals:read／meals:write；已有身体连接需重新授权。HTTP提供GET /foods?q=、GET /meals?from=&to=、POST /meal-operations、GET /meal-operations/{id}，公开协议1.8.0。输入operationId、actions；save_meal含date、mealType、items，已有食材用foodId＋foodVersion、同单位quantity，新食材可用foodDraft。杂只估未单列的剩余食物，whole整餐估算须为唯一项。AI 标签与成分表需依据，未知null；手动合并来源 reference 为标签／成分表，旧来源继续兼容。新手动自由项用 kind:food，营养直接表示本次摄入，分量不再次相乘。确认链接为/dashboard/meals/review/{id}，15分钟有效，原请求与修订草稿独立；正式保存仅网页登录确认，权限撤销即时阻止。结构、初始化和实例定位见[饮食记录](meals.md)。
 \n照片上传需先实际调用import_meal_images，再提交imageIds及expectedImageCount；失败也保留预期张数并说明具体错误。canConfirm表示正常确认可用，canConfirmWithoutImages表示可由用户选择先保存文字。补传与无图保存选择仅在登录网页完成，API没有代确认入口。每项食物可提交reviewExplanation，分别说明identity、amount、cooking、nutrition的来源、basis及uncertainty；已有basis和食材快照继续兼容。
 
 
 食材查询实时返回 foodLibraryRules；估算说明保留成分分量、参考来源／计算和汇总结果，不只重复营养表，也不写个人餐次背景或泛化使用提醒。新 save_food／foodDraft 不合规则在创建预览前返回 food_description，AI 应改写文案后沿用 operationId 重试，无需为文案再询问使用者。餐次个人备注及既有食材引用保持。自定义 MCP 的工具定义更新后，按 [OpenAI 官方说明](https://developers.openai.com/plugins/deploy/connect-chatgpt#refresh-metadata) 刷新连接并开启新对话；刷新不会修正已保存在 Formward 的文字。
+
+食材可选 category:meal／ingredient，新条目省略为 ingredient，省略更新保留原分类；查询返回分类。餐项查询返回稳定 id，编辑时以 originalItemId 引用同一餐次／版本原项。食材已永久删除的旧餐项不传 foodId 或 nutrition，服务端沿用原快照按同单位 quantity 换算；不能将已删食材用于新餐。永久删除只在网页最近删除提供，不新增 MCP 工具或 HTTP 写接口。

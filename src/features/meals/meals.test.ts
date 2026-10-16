@@ -40,7 +40,7 @@ test("食材说明保留分项分析，个人餐次与泛化提醒在预览前�
 
 test("食材查询在实时结果附当前说明规则，基础来源无泛化提醒", async () => {
   const userId=await owner();await save(userId,[{kind:"save_food",...product()}]);
-  const result=await queryFoods(db,userId);assert.equal(result.foodLibraryRules,foodLibraryRules);assert.equal(result.foods.length,1);assert.equal(result.presets.length,6);
+  const result=await queryFoods(db,userId);assert.equal(result.foodLibraryRules,foodLibraryRules);assert.equal(result.foods.length,1);assert.equal(result.presets.length,0);
   assert.ok(result.presets.every(food=>!foodDescriptionProblem(food)));
   assert.deepEqual((await queryFoods(db,await owner())).foods,[]);
 });
@@ -261,7 +261,7 @@ test("更新食材当前计量规格不改已有餐次的克数或营养快照",
  await save(userId,[lunch({items:[{kind:"food",name:f.name,foodId:f.id,foodVersion:f.version,quantity:"15.2",unit:"g",sourceKind:f.sourceKind}]})]);
  const original=(await readMealSnapshot(db,userId)).meals[0];await save(userId,[{kind:"save_food",...product({id:f.id,version:f.version,baseQuantity:"1",unit:"勺",nutrition:n("120")})}]);
  const state=await readMealSnapshot(db,userId);assert.deepEqual(state.meals[0],original);assert.equal(state.foods[0].unit,"勺");
- await save(userId,[lunch({id:original.id,version:original.version,items:original.items.map(({foodSnapshot,nutrition,...item})=>{void foodSnapshot;void nutrition;return item;}),notes:"仅修改备注"})]);
+ await save(userId,[lunch({id:original.id,version:original.version,items:original.items.map(({id,foodSnapshot,nutrition,...item})=>{void foodSnapshot;void nutrition;return {...item,originalItemId:id};}),notes:"仅修改备注"})]);
  const edited=(await readMealSnapshot(db,userId)).meals[0];assert.equal(edited.items[0].unit,"g");assert.equal(edited.totals.values.caloriesKcal,"60.0000");
 });
 
@@ -285,4 +285,66 @@ test("食材维护拒绝无效单位、旧预览、跨账号，审计失败整�
  await pg.exec("CREATE FUNCTION reject_food_maintenance() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.snapshot->>'origin' = 'food-maintenance' THEN RAISE EXCEPTION 'fictional audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_food_maintenance BEFORE INSERT ON meal_events FOR EACH ROW EXECUTE FUNCTION reject_food_maintenance();");
  try{await assert.rejects(applyFoodMaintenance(db,userId,request,preview.digest));}finally{await pg.exec("DROP TRIGGER reject_food_maintenance ON meal_events; DROP FUNCTION reject_food_maintenance();");}
  assert.deepEqual(await readMealSnapshot(db,userId),before);
+});
+
+import { permanentlyDeleteMealRecord } from "./recently-deleted";
+import { defaultFoodQuantity, suggestedMealType, macroEnergy, operationSchema } from "./model";
+test("分类可选且不改变旧请求摘要，省略更新保留原分类", async()=>{
+ const userId=await owner(),request={operationId:randomUUID(),actions:[{kind:"save_food" as const,...product({category:"meal"})}]};
+ assert.equal("category" in operationSchema.parse({operationId:randomUUID(),actions:[{kind:"save_food",...product()}]}).actions[0],false);
+ await save(userId,request.actions);let f=(await searchFoods(db,userId))[0];assert.equal(f.category,"meal");
+ const {category,...legacy}=f;void category;const {deletedAt,...draft}=legacy;void deletedAt;
+ await save(userId,[{kind:"save_food",...draft}]);f=(await searchFoods(db,userId))[0];assert.equal(f.category,"meal");
+ const cross=await submitMealOperation(db,{userId:await owner(),origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_food",...draft,category:"meal"}]});assert.equal(cross.canConfirm,false);
+});
+test("计数默认一份，重量和未知单位留空；餐次按小时建议",()=>{
+ for(const unit of ["份","勺","包","只","scoop"])assert.equal(defaultFoodQuantity(unit),"1");
+ for(const unit of ["g","克","kg","ml","毫升","未知"])assert.equal(defaultFoodQuantity(unit),null);
+ assert.deepEqual([0,5,10,14,17,22].map(suggestedMealType),["夜宵","早餐","午餐","加餐","晚餐","夜宵"]);
+});
+test("三色堆叠按4P4C9F分配已记录热量，缺项与零分开",()=>{
+ const totals=sumNutrition([n("1000","30","40","10")]),stack=macroEnergy(totals)!;
+ assert.equal(stack.length,3);assert.ok(Math.abs(stack.reduce((sum,row)=>sum+row.calories,0)-1000)<1e-8);assert.equal(stack[0].ratio,120/370);
+ assert.equal(macroEnergy(sumNutrition([n("1000",null,"40","10")])),null);
+ assert.equal(macroEnergy(sumNutrition([n("1000","0","0","0")])),null);
+ assert.equal(macroEnergy(sumNutrition([n("0","30","40","10")]))!.reduce((s,r)=>s+r.calories,0),0);
+});
+test("永久删除食材保留所有版本的营养和原规格，历史编辑可换算且新餐不能引用",async()=>{
+ const userId=await owner(),imageId=randomUUID();await db.insert(schema.mealImage).values({id:imageId,userId,pathname:"fictional/purge.png",sha256:randomUUID(),mimeType:"image/png",byteSize:1,fileName:"虚构照片",source:"manual",createdBy:userId});await save(userId,[{kind:"save_food",...product({baseQuantity:"100",unit:"g",imageIds:[imageId]})}]);let f=(await searchFoods(db,userId))[0];
+ const linked=()=>lunch({items:[{kind:"food",name:f.name,foodId:f.id,foodVersion:f.version,quantity:"50",unit:"g",sourceKind:f.sourceKind}]});
+ await save(userId,[linked(),{...linked(),mealType:"晚餐"} as MealAction]);
+ let before=await readMealSnapshot(db,userId);const first=before.meals[0];
+ await save(userId,[lunch({id:first.id,version:first.version,notes:"虚构修改",items:first.items.map(i=>({originalItemId:i.id,kind:"food",name:i.name,foodId:i.foodId,foodVersion:i.foodVersion,quantity:i.quantity,unit:i.unit,sourceKind:i.sourceKind}))})]);
+ await save(userId,[{kind:"save_food",...product({id:f.id,version:f.version,baseQuantity:"1",unit:"勺",nutrition:n("200")})}]);f=(await searchFoods(db,userId))[0];
+ const activeRequest={operationId:randomUUID(),recordType:"food" as const,id:f.id,version:f.version};await reject(permanentlyDeleteMealRecord(db,userId,activeRequest),"state_conflict");
+ await save(userId,[{kind:"delete_food",id:f.id,version:f.version}]);before=await readMealSnapshot(db,userId);f=before.foods[0];
+ const pending=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[lunch({date:"2024-08-02"})]});
+ const allBefore=await db.select().from(schema.mealItem).where(eq(schema.mealItem.userId,userId)),request={...activeRequest,version:f.version};
+ await reject(permanentlyDeleteMealRecord(db,await owner(),request),"not_found");
+ assert.equal((await permanentlyDeleteMealRecord(db,userId,request)).repeated,false);assert.equal((await permanentlyDeleteMealRecord(db,userId,request)).repeated,true);
+ await reject(decideMealOperation(db,userId,pending.id,pending.revision,"confirm"),"snapshot_changed");
+ const after=await readMealSnapshot(db,userId);assert.equal(after.foods.length,0);assert.equal(after.meals[0].items[0].foodSnapshot?.imageIds?.[0],imageId);assert.equal((await db.select().from(schema.mealImage).where(eq(schema.mealImage.id,imageId))).length,1);
+ for(const m of after.meals){const old=before.meals.find(row=>row.id===m.id)!;assert.deepEqual(m.totals,old.totals);assert.equal(m.version,old.version+1);assert.equal(m.items[0].foodId,undefined);assert.deepEqual(m.items[0].foodSnapshot,old.items[0].foodSnapshot);}
+ const allAfter=await db.select().from(schema.mealItem).where(eq(schema.mealItem.userId,userId));assert.deepEqual(allAfter,allBefore.map(item=>({...item,foodId:null})));
+ const m=after.meals[0],i=m.items[0];
+ await save(userId,[lunch({id:m.id,version:m.version,items:[{originalItemId:i.id,kind:"food",name:i.name,quantity:"25",unit:"g",sourceKind:i.sourceKind}]})]);
+ const edited=(await readMealSnapshot(db,userId)).meals.find(row=>row.id===m.id)!;assert.equal(edited.totals.values.caloriesKcal,"27.5000");assert.equal(edited.items[0].foodSnapshot?.unit,"g");assert.equal(edited.items[0].foodId,undefined);
+ const wrongItem=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[lunch({date:"2024-08-03",items:[{originalItemId:edited.items[0].id,kind:"food",name:i.name,quantity:"1",unit:"g",sourceKind:"estimated"}]})]});assert.equal(wrongItem.canConfirm,false);
+ const invalid=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[linked()]});assert.equal(invalid.canConfirm,false);
+ await reject(permanentlyDeleteMealRecord(db,userId,{...request,operationId:randomUUID()}),"not_found");
+});
+test("永久删除餐次移除所有子项与关联，重复安全、不能恢复",async()=>{
+ const userId=await owner();await save(userId,[lunch()]);let m=(await readMealSnapshot(db,userId)).meals[0];await save(userId,[{kind:"delete_meal",id:m.id,version:m.version}]);m=(await readMealSnapshot(db,userId)).meals[0];
+ const request={operationId:randomUUID(),recordType:"meal" as const,id:m.id,version:m.version};await reject(permanentlyDeleteMealRecord(db,userId,{...request,version:m.version+1}),"version_conflict");
+ await permanentlyDeleteMealRecord(db,userId,request);assert.equal((await readMealSnapshot(db,userId)).meals.length,0);assert.equal((await db.select().from(schema.mealItem).where(eq(schema.mealItem.userId,userId))).length,0);
+ assert.equal((await permanentlyDeleteMealRecord(db,userId,request)).repeated,true);const op=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"restore_meal",id:m.id,version:m.version}]});assert.equal(op.canConfirm,false);
+ const events=await db.select().from(schema.mealEvent).where(eq(schema.mealEvent.recordId,m.id));assert.ok(events.some(event=>event.snapshot.permanentDeletion===true));
+});
+test("永久删除拒绝不完整快照并在审计失败时完整回滚",async()=>{
+ const userId=await owner();await save(userId,[{kind:"save_food",...product()}]);let f=(await searchFoods(db,userId))[0];await save(userId,[lunch({items:[{kind:"food",name:f.name,foodId:f.id,foodVersion:f.version,quantity:"1",unit:f.unit,sourceKind:f.sourceKind}]})]);await save(userId,[{kind:"delete_food",id:f.id,version:f.version}]);f=(await readMealSnapshot(db,userId)).foods[0];
+ const [item]=await db.select().from(schema.mealItem).where(eq(schema.mealItem.userId,userId)),request={operationId:randomUUID(),recordType:"food" as const,id:f.id,version:f.version};
+ await db.update(schema.mealItem).set({foodSnapshot:null}).where(eq(schema.mealItem.id,item.id));await reject(permanentlyDeleteMealRecord(db,userId,request),"snapshot_required");await db.update(schema.mealItem).set({foodSnapshot:item.foodSnapshot}).where(eq(schema.mealItem.id,item.id));
+ const before=await readMealSnapshot(db,userId);
+ await pg.exec("CREATE FUNCTION fail_permanent_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.snapshot->>'permanentDeletion' = 'true' THEN RAISE EXCEPTION 'fictional audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_permanent_event BEFORE INSERT ON meal_events FOR EACH ROW EXECUTE FUNCTION fail_permanent_audit();");
+ try{await assert.rejects(permanentlyDeleteMealRecord(db,userId,request));assert.deepEqual(await readMealSnapshot(db,userId),before);assert.equal((await db.select().from(schema.mealOperation).where(eq(schema.mealOperation.operationId,request.operationId))).length,0);}finally{await pg.exec("DROP TRIGGER reject_permanent_event ON meal_events; DROP FUNCTION fail_permanent_audit();");}
 });

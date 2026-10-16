@@ -25,11 +25,12 @@ const dateAt = (offset: number) => new Date(Date.now() + 8 * 3600000 + offset * 
 const header = "日期\t餐次\t食物 / 餐食\t记录状态\t蛋白质 (g)\t脂肪 (g)\t碳水 (g)\t热量 (kcal)\t备注";
 const tsv = `${header}\n${dateAt(-3)}\t午餐\t虚构牛肉与米饭\t正常记录\t25\t12\t50\t440\t整餐估算\n${dateAt(-1)}\t加餐\t虚构果汁\t正常记录\t0\t0\t15\t60\t\n${today}\t午餐\t虚构混合餐\t正常记录\t30\t15\t65\t520\t`;
 const foodAnalysis="组成：虚构熟面约250g、酱约100g、肉约120g。\n汇总：整份估计800–1000 kcal，取900 kcal。";
-const foodFixture=await submitMealOperation(db,{userId:owner.id,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_food",name:"虚构组合餐",baseQuantity:"1",unit:"份",sourceKind:"estimated",basis:foodAnalysis,nutrition:{caloriesKcal:"900",proteinG:"40",carbsG:"90",fatG:"42"}}]});await decideMealOperation(db,owner.id,foodFixture.id,foodFixture.revision,"confirm");
+const foodFixture=await submitMealOperation(db,{userId:owner.id,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_food",category:"meal",name:"虚构组合餐",baseQuantity:"1",unit:"份",sourceKind:"estimated",basis:foodAnalysis,nutrition:{caloriesKcal:"900",proteinG:"40",carbsG:"90",fatG:"42"}}]});await decideMealOperation(db,owner.id,foodFixture.id,foodFixture.revision,"confirm");
 const initial = await stageMealInitialization(db, owner.id, tsv, "fictional.tsv"), token = await createAiToken(db, owner.id, "虚构HTTP", "write"), otherToken = await createAiToken(db, second.id, "虚构其他HTTP", "read");
 const fictionalPng=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j6WQAAAAASUVORK5CYII=","base64");
 const image=await saveMealImage(db,owner.id,fictionalPng,{fileName:"虚构包装.png",source:"manual",actorId:owner.id},async()=>{});
 for(const [offset,weight,fat] of [[-3,"70","20"],[-1,"70.4","20.2"],[0,"70.1","20.1"]] as const)await saveMeasurementDay(db,{userId:owner.id,actorId:owner.id},{operationId:randomUUID(),date:dateAt(offset),timezone:"Asia/Shanghai",periods:{daytime:{weightKg:weight,bodyFatPercent:fat,fasting:true,deviceLabel:"虚构秤"}}});
+await saveMeasurementDay(db,{userId:owner.id,actorId:owner.id},{operationId:randomUUID(),date:dateAt(-1),timezone:"Asia/Shanghai",periods:{evening:{weightKg:"71.0",bodyFatPercent:null,fasting:false,deviceLabel:"虚构秤"}}});
 const socket = new PGLiteSocketServer({ db: pg, host: "127.0.0.1", port: dbPort }); await socket.start();
 const child = spawn("pnpm", ["start", "--hostname", "127.0.0.1", "--port", String(port)], { env: { ...process.env, DATABASE_URL: `postgresql://postgres:postgres@127.0.0.1:${dbPort}/postgres?max=1`, BETTER_AUTH_URL: baseURL, BETTER_AUTH_SECRET: "fictional-meals-browser-secret-of-more-than-32-characters", FORMWARD_TIMEZONE: "Asia/Shanghai", PORT: String(port), NODE_ENV: "production" }, detached: true, stdio: ["ignore", "pipe", "pipe"] });
 let logs = ""; child.stdout.on("data", d => { logs += d; }); child.stderr.on("data", d => { logs += d; });
@@ -71,7 +72,7 @@ try {
   assert.equal(await page.getByText("待保存",{exact:true}).count(),0);
   await page.reload();await page.getByRole("status").filter({hasText:"已保存3项"}).waitFor();
   assert.equal((await currentMeals()).meals.length, 3);
-  await page.getByRole("link", { name: "饮食记录", exact: true }).click(); await page.waitForURL("**/dashboard/meals");await page.getByRole("heading",{name:"饮食记录",exact:true}).waitFor();const beforeTab=await page.locator(".dashboard-header").evaluate((node:Element)=>{const r=node.getBoundingClientRect();return {x:r.x,width:r.width};});
+  await page.getByRole("link", { name: "← 饮食记录", exact: true }).click(); await page.waitForURL("**/dashboard/meals");await page.getByRole("heading",{name:"饮食记录",exact:true}).waitFor();const beforeTab=await page.locator(".dashboard-header").evaluate((node:Element)=>{const r=node.getBoundingClientRect();return {x:r.x,width:r.width};});
   for(let i=0;i<3;i++){await page.getByRole("button",{name:"食材库",exact:true}).click();await page.locator(".dashboard-header").waitFor();await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));const box=await page.locator(".dashboard-header").evaluate((node:Element)=>{const r=node.getBoundingClientRect();return {x:r.x,width:r.width};});assert.ok(Math.abs(box!.x-beforeTab!.x)<.5);assert.ok(Math.abs(box!.width-beforeTab!.width)<.5);await page.getByRole("button",{name:"饮食",exact:true}).click();}
   await page.getByRole("button",{name:"食材库",exact:true}).click();assert.equal(await page.getByRole("button",{name:"已停用",exact:true}).count(),0);
   assert.ok(await page.getByRole("columnheader",{name:/蛋白质/}).count()>0);
@@ -82,13 +83,18 @@ try {
   await dialog.getByText("补充说明（可选）",{exact:true}).click();
   await dialog.getByLabel("依据／备注", { exact: true }).fill("虚构标签转录：每包营养"); await dialog.getByRole("button", { name: "保存食材", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
   await page.getByRole("button", { name: "饮食", exact: true }).click(); await page.getByRole("button", { name: /记录一餐/ }).click(); dialog = page.locator("dialog:not(.page-loading-dialog)"); await dialog.getByLabel("餐次", { exact: true }).fill("晚餐");
-  await dialog.getByRole("button",{name:"自由填写",exact:true}).click();await dialog.getByLabel("食物名称",{exact:true}).fill("虚构配餐");
-  for (const [label, value] of [["热量", "60"], ["蛋白质", "3"], ["碳水", "10"], ["脂肪", "1"]]) await dialog.getByLabel(label, { exact: true }).fill(value);
-  await dialog.getByRole("button",{name:"从食材库添加",exact:true}).click();
+  await dialog.getByLabel("自由填写食物名称",{exact:true}).fill("虚构配餐");
+  for (const [label,value] of [["热量 1","60"],["蛋白质 1","3"],["碳水 1","10"],["脂肪 1","1"]]) await dialog.getByLabel(label,{exact:true}).fill(value);
   await dialog.getByLabel("搜索食材",{exact:true}).fill("虚构蛋白");
   await dialog.getByRole("button",{name:"选择 虚构蛋白食物",exact:true}).click();
-  assert.equal(await dialog.getByLabel("食用量（包）",{exact:true}).inputValue(),"");
-  await dialog.getByLabel("食用量（包）",{exact:true}).fill("2");
+  if(await dialog.getByRole("button",{name:"食用量（包）",exact:true}).count())await dialog.getByRole("button",{name:"食用量（包）",exact:true}).dblclick();
+  assert.equal(await dialog.getByLabel("食用量（包）",{exact:true}).inputValue(),"1");
+  await dialog.getByLabel("食用量（包）",{exact:true}).fill("2");await page.keyboard.press("Enter");
+  await dialog.getByLabel("搜索食材",{exact:true}).fill("虚构组合");
+  await dialog.getByRole("button",{name:"选择 虚构组合餐",exact:true}).dragTo(dialog.getByRole("table",{name:"本餐食物表",exact:true}));
+  await dialog.getByRole("button",{name:"移除 虚构组合餐",exact:true}).click();
+  assert.equal(await dialog.locator('[data-blank-row="true"]').count(),1);
+  assert.equal(await dialog.getByRole("button",{name:"自由填写",exact:true}).count(),0);
   await dialog.getByLabel('餐次备注',{exact:true}).fill('虚构拖选文字');
   await dragOutsideKeepsOpen(dialog,dialog.getByLabel('餐次备注',{exact:true}));
   assert.equal(await dialog.getByLabel('餐次备注',{exact:true}).inputValue(),'虚构拖选文字');
@@ -98,45 +104,46 @@ try {
 
   await dialog.getByRole("button", { name: "保存餐次", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
   let state = await currentMeals();
-  await page.getByRole("link",{name:"总览",exact:true}).click();await page.getByRole("heading",{name:"总览",exact:true}).waitFor();
-  assert.ok((await page.locator('section[aria-label="今日饮食"]').innerText()).includes("2 餐已记录"));
+  await page.getByRole("link",{name:"Formward 主页",exact:true}).click();await page.getByRole("heading",{name:"总览",exact:true}).waitFor();
+  assert.ok((await page.getByRole("link",{name:"饮食记录",exact:true}).innerText()).includes("2 餐已记录"));
+  assert.equal(await page.getByRole("button",{name:"30D",exact:true}).getAttribute("aria-pressed"),"true");assert.equal(await page.getByLabel("显示已有估计",{exact:true}).isChecked(),true);
   await mkdir("/tmp/formward-overview-visual",{recursive:true});
-  for(const width of [1440,390,320]){
+  for(const width of [1440,1100,390,320]){
     await page.setViewportSize({width,height:1000});
     for(const days of [7,30,90]){
       await page.getByRole('button',{name:days+'D',exact:true}).click();
-      const plots=page.getByRole('group',{name:/趋势图$/});assert.equal(await plots.count(),3);
+      const plots=page.getByRole('group',{name:'摄入与体重总览图',exact:true});assert.equal(await plots.count(),1);
       await plots.first().locator(`[data-overview-date="${dateAt(-1)}"]`).focus();
       const positions=await page.locator('[data-crosshair-date]').evaluateAll((nodes:Element[])=>nodes.map(node=>node.getAttribute('x1')));
       assert.equal(new Set(positions).size,1);assert.equal(await page.getByLabel('日期对照',{exact:true}).getAttribute('data-selected-date'),dateAt(-1));
-      const readout=await page.getByLabel('日期对照',{exact:true}).innerText();assert.ok(readout.includes('70.40')&&readout.includes('70.10'));
+      const readout=await page.getByLabel('日期对照',{exact:true}).innerText();assert.ok(readout.includes('70.4')&&readout.includes('71')&&readout.includes('+0.6'));
       assert.ok(await plots.first().evaluate((node:Element)=>Math.abs(node.getBoundingClientRect().width-Number(node.getAttribute('viewBox')!.split(' ')[2]))<1));
     }
     await page.screenshot({path:`/tmp/formward-overview-visual/overview-${width}.png`,fullPage:true});
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   }
   await page.setViewportSize({width:1440,height:1100});
-  await page.getByRole('group',{name:'每日摄入趋势图',exact:true}).locator(`[data-overview-date="${today}"]`).click();
+  await page.getByRole('group',{name:'摄入与体重总览图',exact:true}).locator(`[data-overview-date="${today}"]`).click();
   const dayDetail=page.getByRole('dialog',{name:today+' · 当日记录',exact:true});await dayDetail.getByText('虚构蛋白食物',{exact:true}).waitFor();
   await dayDetail.getByRole('link',{name:'查看身体记录 →',exact:true}).click();
   const bodyDrawer=page.locator('dialog[aria-labelledby="measurement-drawer-title"]');await bodyDrawer.waitFor();
   await dragOutsideKeepsOpen(bodyDrawer,bodyDrawer.locator('h2'));
   const bodyBox=await bodyDrawer.boundingBox();await page.mouse.click(Math.max(10,bodyBox!.x-40),100);await bodyDrawer.waitFor({state:'hidden'});
-  await page.getByRole('link',{name:'总览',exact:true}).click();await page.getByRole('heading',{name:'总览',exact:true}).waitFor();
-  await page.getByRole('group',{name:'每日摄入趋势图',exact:true}).locator(`[data-overview-date="${today}"]`).click();
+  await page.getByRole('link',{name:'Formward 主页',exact:true}).click();await page.getByRole('heading',{name:'总览',exact:true}).waitFor();
+  await page.getByRole('group',{name:'摄入与体重总览图',exact:true}).locator(`[data-overview-date="${today}"]`).click();
   await dayDetail.getByRole('link',{name:'查看饮食记录 →',exact:true}).click();
   await page.getByRole('dialog',{name:'历史饮食记录',exact:true}).waitFor();assert.equal(await page.getByLabel('查看日期',{exact:true}).inputValue(),today);
   await page.getByRole('button',{name:'关闭编辑',exact:true}).click();await page.getByRole('dialog',{name:'历史饮食记录',exact:true}).waitFor({state:'hidden'});
-  await page.getByRole('link',{name:'总览',exact:true}).click();await page.getByRole('heading',{name:'总览',exact:true}).waitFor();
-  await page.getByRole("link",{name:"饮食详情 →",exact:true}).click();await page.getByRole("heading",{name:"饮食记录",exact:true}).waitFor(); const dinner = state.meals.find(m => m.mealType === "晚餐")!; assert.equal(dinner.totals.values.caloriesKcal, "228.0000"); assert.equal(dinner.items.length, 2);assert.deepEqual(dinner.items.find(i=>i.foodId)?.foodSnapshot?.imageIds,[image.id]);
+  await page.getByRole('link',{name:'Formward 主页',exact:true}).click();await page.getByRole('heading',{name:'总览',exact:true}).waitFor();
+  await page.getByRole("link",{name:"饮食记录",exact:true}).click();await page.getByRole("heading",{name:"饮食记录",exact:true}).waitFor(); const dinner = state.meals.find(m => m.mealType === "晚餐")!; assert.equal(dinner.totals.values.caloriesKcal, "228.0000"); assert.equal(dinner.items.length, 2);assert.deepEqual(dinner.items.find(i=>i.foodId)?.foodSnapshot?.imageIds,[image.id]);
   const article = page.locator("article").filter({ has: page.getByRole("heading", { name: "晚餐", exact: true }) }); await article.getByRole("button", { name: "编辑", exact: true }).click(); dialog = page.locator("dialog:not(.page-loading-dialog)"); await dialog.getByLabel("餐次备注", { exact: true }).fill("虚构修改备注"); await dialog.getByRole("button", { name: "保存餐次", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
   state = await currentMeals(); assert.equal(state.meals.find(m => m.id === dinner.id)?.notes, "虚构修改备注");
-  await article.getByRole("button", { name: "删除", exact: true }).click(); await page.getByRole("status").waitFor(); await page.getByRole("button", { name: "历史记录 →", exact: true }).click(); await page.getByRole("button", { name: "已删除", exact: true }).click(); await page.getByRole("button", { name: "恢复", exact: true }).click(); await page.getByRole("button", { name: "恢复", exact: true }).waitFor({state:"hidden"}); await page.getByRole("button", { name: "回到今天", exact: true }).click(); await page.locator("dialog:not(.page-loading-dialog)").waitFor({state:"hidden"});
+  await article.getByRole("button", { name: "删除", exact: true }).click(); await page.getByRole("status").waitFor(); await page.getByRole("button", { name: "最近删除", exact: true }).click(); await page.getByRole("button", { name: "恢复", exact: true }).click(); await page.getByRole("button", { name: "恢复", exact: true }).waitFor({state:"hidden"}); await page.getByRole('dialog',{name:'最近删除',exact:true}).getByRole('button',{name:'关闭编辑',exact:true}).click();await page.getByRole('dialog',{name:'最近删除',exact:true}).waitFor({state:'hidden'});
   assert.equal((await currentMeals()).meals.find(m => m.id === dinner.id)?.deletedAt, null);
-  await page.getByRole("button", { name: "自定义", exact: true }).click(); await page.getByLabel("开始", { exact: true }).fill(dateAt(-3)); await page.getByLabel("结束", { exact: true }).fill(today); assert.equal(await page.locator(`[data-bar-date="${dateAt(-2)}"] rect[data-metric]`).count(),0); assert.equal(await page.locator("rect[data-metric=caloriesKcal]").count(),3);
-  assert.equal(await page.locator("rect[data-metric=proteinG]").count(),0);
+  await page.getByRole("button", { name: "自定义", exact: true }).click(); await page.getByLabel("开始", { exact: true }).fill(dateAt(-3)); await page.getByLabel("结束", { exact: true }).fill(today); assert.equal(await page.locator(`[data-bar-date="${dateAt(-2)}"] rect[data-metric]`).count(),0); assert.equal(await page.locator("rect[data-metric=caloriesKcal]").count(),0);
+  assert.equal(await page.locator("rect[data-metric=proteinG]").count(),3);
   await page.getByLabel("连线",{exact:true}).check();assert.ok(await page.locator('[data-energy-line]').count());
-  const calorieBar=page.locator(`[data-bar-date="${today}"] rect[data-metric]`);assert.equal(await calorieBar.getAttribute('fill'),'#7F9EAF');
+  const calorieBar=page.locator(`[data-bar-date="${today}"] rect[data-metric="proteinG"]`);assert.equal(await calorieBar.getAttribute('fill'),'#365E78');
   await page.getByRole("button",{name:"食材库",exact:true}).click();await page.setViewportSize({width:320,height:850});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1));await page.setViewportSize({width:1440,height:1100});await page.getByRole("button",{name:"饮食",exact:true}).click();
   const expectedDayEnergy=state.meals.filter(m=>m.date===today&&!m.deletedAt).reduce((sum,m)=>sum+Number(m.totals.values.caloriesKcal??0),0);
   await mkdir("/tmp/formward-meals-visual",{recursive:true});
@@ -183,11 +190,9 @@ try {
     await history.getByRole('button',{name:'关闭编辑',exact:true}).click();await history.waitFor({state:'hidden'});
   }
   await page.getByRole('button',{name:'食材库',exact:true}).click();
-  await page.getByRole('button',{name:'鸡胸肉详情',exact:true}).click();
-  await page.getByRole('dialog',{name:'食材详情',exact:true}).getByRole('button',{name:'采用',exact:true}).click();
-  const presetEditor=page.getByRole('dialog',{name:'食材规格',exact:true});
-  assert.equal(await presetEditor.getByLabel('食材／产品名称',{exact:true}).inputValue(),'鸡胸肉');
-  await presetEditor.getByRole('button',{name:'关闭编辑',exact:true}).click();await presetEditor.waitFor({state:'hidden'});
+  assert.equal(await page.getByText('采用后加入自己的食材库。',{exact:true}).count(),0);
+  await page.getByRole('button',{name:'整餐',exact:true}).click();assert.equal(await page.getByRole('button',{name:'虚构组合餐详情',exact:true}).count(),1);assert.equal(await page.getByRole('button',{name:'虚构蛋白食物详情',exact:true}).count(),0);
+  await page.getByRole('button',{name:'全部',exact:true}).click();
   await page.getByRole('button',{name:'饮食',exact:true}).click();
   await page.setViewportSize({width:1440,height:1100});
   await page.getByRole('button',{name:'7D',exact:true}).click();
@@ -197,6 +202,25 @@ try {
   const screenshots = "/tmp/formward-meals-visual"; await mkdir(screenshots, { recursive: true }); await page.screenshot({ path: `${screenshots}/desktop.png`, fullPage: true });
   await page.setViewportSize({ width: 320, height: 850 }); assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)); await page.screenshot({ path: `${screenshots}/mobile-320.png`, fullPage: true });
   await page.getByRole("button", { name: /记录一餐/ }).click(); await page.locator("dialog:not(.page-loading-dialog)").waitFor(); await page.locator("dialog:not(.page-loading-dialog)").evaluate(async (node: HTMLElement) => { await Promise.all(node.getAnimations().map(a => a.finished.catch(() => {}))); }); assert.ok(await page.locator("dialog:not(.page-loading-dialog)").evaluate((node: HTMLElement) => node.scrollWidth <= node.clientWidth + 1)); await page.screenshot({ path: `${screenshots}/editor-320.png` }); await page.getByRole("button", { name: "关闭编辑", exact: true }).click(); await page.locator("dialog:not(.page-loading-dialog)").waitFor({ state: "hidden" });
+  await page.setViewportSize({width:1440,height:1100});
+  await page.getByRole('button',{name:'食材库',exact:true}).click();
+  await page.getByRole('row').filter({has:page.getByText('虚构蛋白食物',{exact:true})}).getByRole('button',{name:'删除',exact:true}).click();
+  await page.getByRole('button',{name:'最近删除',exact:true}).click();
+  let trash=page.getByRole('dialog',{name:'最近删除',exact:true});await trash.getByRole('button',{name:'永久删除',exact:true}).click();
+  await page.getByRole('dialog',{name:'永久删除',exact:true}).getByRole('button',{name:'确认永久删除',exact:true}).click();
+  await page.getByRole('dialog',{name:'永久删除',exact:true}).waitFor({state:'hidden'});await trash.getByText('最近删除为空。',{exact:true}).waitFor();
+  await trash.getByRole('button',{name:'关闭编辑',exact:true}).click();await trash.waitFor({state:'hidden'});
+  await page.getByRole('button',{name:'饮食',exact:true}).click();
+  await article.getByRole('button',{name:'编辑',exact:true}).click();dialog=page.getByRole('dialog',{name:'编辑餐次',exact:true});
+  await dialog.getByText('历史规格 · 每 1包',{exact:true}).waitFor();
+  await dialog.getByRole('button',{name:'食用量（包）',exact:true}).dblclick();await dialog.getByLabel('食用量（包）',{exact:true}).fill('1');await page.keyboard.press('Enter');
+  await dialog.getByRole('button',{name:'保存餐次',exact:true}).click();await dialog.waitFor({state:'hidden'});
+  assert.equal((await currentMeals()).meals.find(m=>m.id===dinner.id)?.totals.values.caloriesKcal,'144.0000');
+  await article.getByRole('button',{name:'删除',exact:true}).click();await page.getByRole('button',{name:'最近删除',exact:true}).click();trash=page.getByRole('dialog',{name:'最近删除',exact:true});
+  await trash.getByRole('button',{name:'永久删除',exact:true}).click();await page.getByRole('dialog',{name:'永久删除',exact:true}).getByRole('button',{name:'确认永久删除',exact:true}).click();await page.getByRole('dialog',{name:'永久删除',exact:true}).waitFor({state:'hidden'});
+  await trash.getByText('最近删除为空。',{exact:true}).waitFor();await trash.getByRole('button',{name:'关闭编辑',exact:true}).click();await trash.waitFor({state:'hidden'});
+  assert.ok(!(await currentMeals()).meals.some(m=>m.id===dinner.id));
+  await page.setViewportSize({width:320,height:850});
   const missingInput = { operationId: randomUUID(), actions: [{ kind: "save_meal", date: today, mealType: "虚构缺图加餐", expectedImageCount: 1, photoReview: { dateConfirmed: true, mealTypeConfirmed: true, identityConfirmed: true, amountConfirmed: true, cookingConfirmed: true, questions: [] }, items: [{ kind: "food", name: "虚构牛排", quantity: "330", unit: "g", amountDecision: "estimate_accepted", sourceKind: "estimated", basis: "虚构估算依据", reviewExplanation: { amount: { source: "estimate", basis: "按用户接受的 330g 生重估算", uncertainty: "若为熟重需修正" } }, nutrition: { caloriesKcal: "600", proteinG: "60", carbsG: "0", fatG: "40" } }] }] };
   const missingResponse = await fetch(`${baseURL}/api/v1/meal-operations`, { method: "POST", headers, body: JSON.stringify(missingInput) }); assert.equal(missingResponse.status, 200); const missingPreview = await missingResponse.json();
   assert.equal(missingPreview.canConfirm, false); assert.equal(missingPreview.canConfirmWithoutImages, true);
@@ -213,6 +237,6 @@ try {
   const otherContext = await activeBrowser.newContext(); await otherContext.request.post(`${baseURL}/api/auth/sign-in/email`, { data: other, headers: { Origin: baseURL } }); const otherPage = await otherContext.newPage(); const cross = await otherPage.goto(`${baseURL}${initial.confirmationPath}`); assert.equal(cross!.status(), 404); await otherPage.goto(`${baseURL}/dashboard/meals`); assert.ok(!(await otherPage.content()).includes("虚构混合餐"));
   assert.equal((await otherContext.request.get(`${baseURL}/api/meal-images/${image.id}`)).status(),404);
   assert.equal((await fetch(`${baseURL}/api/meal-images/${image.id}`)).status,401);
-  assert.deepEqual(errors, []); await context.close(); await otherContext.close(); console.log("通过：饮食HTTP权限／幂等、初始化确认、食材录入复用、食物加杂汇总、编辑删除恢复、缺记录、320px与跨账号隔离；截图仅含虚构数据。");
+  assert.deepEqual(errors, []); await context.close(); await otherContext.close(); console.log("通过：饮食HTTP权限／幂等、初始化确认、食材录入复用、逐行表格／拖拽、整餐分类、删除恢复及永久删除／历史编辑、缺记录、320px与跨账号隔离；截图仅含虚构数据。");
 } catch (error) { if(debugPage) { await debugPage.screenshot({path:"/tmp/formward-meals-failure.png",fullPage:true}); await writeFile("/tmp/formward-meals-failure.html",await debugPage.content()); } await writeFile("/tmp/formward-meals-server-failure.log",logs); console.error(logs.split("\n").filter(l => /error|Error|warning/i.test(l)).slice(-8).join("\n")); throw error; }
 finally { await browser?.close(); if (child.exitCode === null) { process.kill(-child.pid!,"SIGTERM"); const timeout = setTimeout(() => { try { process.kill(-child.pid!,"SIGKILL"); } catch {} }, 5000); await once(child, "exit"); clearTimeout(timeout); } await socket.stop(); await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r)); await pg.close(); }

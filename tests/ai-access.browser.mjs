@@ -52,7 +52,9 @@ export async function checkAiAccessBrowser({ baseURL, account, other, date }) {
     await page.getByRole("button", { name: "全部确认保存", exact: true }).click(); await page.getByRole("status").filter({ hasText: "已保存 2 · 待确认 0" }).waitFor();
     await page.reload(); assert.equal(await page.getByRole("button", { name: "确认保存", exact: true }).count(), 0);
     const saved = await fetch(`${baseURL}/api/v1/measurements`, { headers: { Authorization: `Bearer ${token}` } }); const records = (await saved.json()).records; assert.equal(records.length, 2); assert.ok(records.every(row => row.entryChannel === "api"));
-    await page.goto(`${baseURL}/dashboard/measurements`); await page.getByRole("heading", { name: "身体记录", exact: true }).waitFor(); assert.ok((await page.locator('section[aria-label="最近记录"]').innerText()).includes("70.20"));
+    await page.goto(`${baseURL}/dashboard/measurements`); await page.getByRole("heading", { name: "身体记录", exact: true }).waitFor();
+    // 完整的今天行在客户端本地日期就绪后显示。
+    await page.waitForFunction(()=>document.querySelector('section[aria-label="最近记录"]')?.textContent.includes("70.20"));
     const repeated = await post(payload); assert.equal(repeated.id, preview.id); assert.equal(repeated.status, "confirmed");
     const duplicate = await post({ ...payload, operationId: crypto.randomUUID() }); assert.ok(duplicate.preview.rows.every(row => row.state === "duplicate"));
     const conflict = await post({ ...payload, operationId: crypto.randomUUID(), periods: { daytime: { ...payload.periods.daytime, weightKg: "71.00" } } }); assert.equal(conflict.preview.canConfirm, false);
