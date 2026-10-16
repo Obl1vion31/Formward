@@ -27,3 +27,5 @@
 0015_meal_review_images增加nullable meal_items.review_explanation并将meal_images_size_valid改为1–20971520字节；不修改原列和值，不补造旧审核依据。共享环境执行前备份，之后核对旧字段与迁移账本。
 
 0016_silly_adam_warlock 仅扩展 foods_source_valid，接受 reference（手动合并的标签／成分表），继续接受原 label／composition_table／estimated／unknown。没有新增列或数据回填，迁移前后核对所有旧表字段和值以及账本；旧 migration 保持。
+
+0017_dry_pandemic 新增 foods.category，默认 ingredient，CHECK 仅接受 meal／ingredient。旧记录分类随后通过指定账号、ID／版本／摘要的授权维护完成，不改营养、单位及历史快照。没有新增表，共29张业务／认证表。

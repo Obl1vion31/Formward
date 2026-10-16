@@ -30,3 +30,5 @@ OAuth Provider 的客户端、资源、授权同意、摘要令牌、刷新轮�
 0015_meal_review_images只将meal_images大小约束扩大到20 MiB，并为meal_items新增nullable review_explanation JSONB；旧值不回填。身份／份量／油酱／营养依据分别保存来源、说明和不确定性；用户在审核页修正数值时更新对应说明，原始AI内容留在审计。expectedImageCount保存在操作JSON，不改变历史事实。缺图保存的明确选择记录在meal_events快照。
 
 0016_silly_adam_warlock 只扩展 foods_source_valid 接受 reference，供手动“标签／成分表”使用；旧来源、旧表和值保持，不新增表。当前食材规格可独立演进，历史餐项继续读取自己的营养、用量、单位、基准和版本快照。
+
+0017_dry_pandemic 为 foods 新增 category text NOT NULL DEFAULT ingredient，CHECK 仅允许 meal／ingredient；旧字段、营养、单位和历史 JSON 不变。食材物理删除先由 feature 解除所有历史 meal_items.food_id 外键并保留 food_snapshot。

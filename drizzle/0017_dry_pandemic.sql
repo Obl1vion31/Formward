@@ -1,0 +1,2 @@
+ALTER TABLE "foods" ADD COLUMN "category" text DEFAULT 'ingredient' NOT NULL;--> statement-breakpoint
+ALTER TABLE "foods" ADD CONSTRAINT "foods_category_valid" CHECK ("foods"."category" IN ('meal','ingredient'));
