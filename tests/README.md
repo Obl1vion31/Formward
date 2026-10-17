@@ -128,4 +128,4 @@ image-upload.test.ts验证20 MiB直传凭据的正常、篡改、过期、跨账
 
 `src/features/records/operations.test.ts` 使用隔离 PGlite 覆盖三类全部7种组合、草稿不写事实、独立入库／摄入、批内 foodRef 多餐复用、内嵌新食材展开、前后快照、失效与撤销、跨账号、父子审核版本、原请求、幂等与中途失败整批回滚。`oauth.test.ts` 通过真实 MCP／OAuth 验证混合工具和单类旧授权拒绝跨域写入。
 
-`pnpm test:records-browser` 自建虚构账号、PGlite、独立端口和 production 服务，不读取真实数据库。先运行 `pnpm build`，按本文既有 Playwright／系统库环境执行。覆盖1440／1100／390／320px、底部按钮可见、草稿编辑、跨页冲突保留输入、取消食材仍保存摄入、缺图逐项明确选择、图片前后对照、成功勾和自动返回、两个PFC口径及7／30／90D共同零点。截图保存在 `/tmp/formward-records-visual/`，不进入 public 或 Git。AI、饮食及 OAuth 浏览器入口也使用统一确认语义。
+`pnpm test:records-browser` 自建虚构账号、PGlite、独立端口和 production 服务，不读取真实数据库。先运行 `pnpm build`，按本文既有 Playwright／系统库环境执行。服务端固定TZ=UTC，浏览器使用Asia/Shanghai，收集页面错误以检查跨时区初始渲染一致性。覆盖1440／1100／390／320px、底部按钮可见、草稿编辑、跨页冲突保留输入、取消食材仍保存摄入、缺图逐项明确选择、图片前后对照、成功勾和自动返回、两个PFC口径及7／30／90D共同零点。截图保存在 `/tmp/formward-records-visual/`，不进入 public 或 Git。AI、饮食及 OAuth 浏览器入口也使用统一确认语义。
