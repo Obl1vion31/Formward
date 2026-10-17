@@ -6,7 +6,7 @@
 
 代码支持身体、摄入和食材混合提交，一次审核，逐项核对／修改／取消只更新草稿，底部统一事务保存。三类独立取舍，取消入库仍保留本餐营养规格与对应图片；图片修改展示前后对照。手机底部吸附操作栏，新增不显示空值比较，依据与技术信息折叠。保存成功显示勾，2秒返回总览；旧链接与已有部分结果兼容。总览红蓝柱居中、共用零点，负差值向下，并为摄入保留足够的正向绘图区。
 
-仓库协议为 OpenAPI 1.9.0／MCP 1.6.0，共11工具；0018_sudden_silverclaw 仅新增 record_operations，schema 共30张业务／认证表。共享数据库仍为0017，统一审核代码尚未部署；发布前须备份并执行0018，再部署兼容代码。
+仓库与正式站协议为 OpenAPI 1.9.0／MCP 1.6.0，共11工具；共享数据库已执行0018_sudden_silverclaw，仅新增 record_operations，共30张业务／认证表。统一审核与图表调整已上线。
 
 首页以一张图统一每日摄入 kcal、相对区间首个有效晨重的变化 kg、同日晚重减晨重的带符号差值 kg。蓝色摄入柱用左轴；金色晨重线与红色晨晚差柱共用右轴，晨重基准标日期和真实 kg。默认30D且显示已有估计；估计用虚线／纹理，不生成估计，缺日留空、多候选不擅选。7D／30D／90D／全部／自定义均固定宽度，支持悬停、聚焦、方向键和日期详情跳转。图下身体卡显示最近真实晨间或晚间体重及日期，摄入卡显示今天和“预算未设置”，整卡进入详情。Logo回总览，详情有返回入口，页头不重复列三个模块。
 
@@ -18,12 +18,19 @@
 
 ## 仓库与生产
 
-正式地址 [Formward](https://formward-ten.vercel.app)，线上已验证 READY 部署 `dpl_FjJvchTHhfULjJGbeCHjUio9EksM`，功能提交 `0c6c539`。线上协议 OpenAPI 1.8.0／MCP 1.5.0，共9工具；数据库0017，29张业务／认证表加Drizzle账本。Vercel CLI手动发布，Git不会自动部署。Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。
+正式地址 [Formward](https://formward-ten.vercel.app)，线上已验证 READY 部署 `dpl_H7ZYobeL2c8cQVRy82ZWFU6GSAPQ`，功能提交 `d83ea8e`，时区修复 `0cd9245`。线上协议 OpenAPI 1.9.0／MCP 1.6.0，共11工具；数据库0018，30张业务／认证表加Drizzle账本。Vercel CLI手动发布，Git不会自动部署。Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。
+
+0018先提交再备份并执行，迁移前后逐表摘要核对通过：29张既有业务／认证表的全部字段和值保持，Drizzle账本仅新增0018对应记录，新表初始为空。线上验收结束再备份核对，全部结构及30张表的行值保持，仅正常认证限流数据变化，虚构记录清理完成，既有健康记录、原始请求与审计保持。生产密钥不可从Vercel下载，迁移使用已有本机生产数据库凭据，单次进程采用pooler；生产环境变量与Private Blob配置保持。
 
 0017仅为foods新增category（meal／ingredient，NOT NULL默认ingredient，CHECK），旧字段与记录保留，账本仅新增1次。已授权将Pasta Express和KL套餐两条当前记录标为meal，其他7条为ingredient；不修改营养、单位、说明或任何历史餐次。全库核对27张其他表以及全部既有操作／审计保持，仅新增1个维护操作和2条事件。
 
 私有备份／报告均0600，Git与部署忽略，不输出健康值或凭据：
 
+- `data/exports/database-before-record-review-2026-10-17.json`
+- `data/exports/database-after-record-review-migration-2026-10-17.json`
+- `data/exports/record-review-migration-verification-2026-10-17.json`
+- `data/exports/database-after-record-review-production-2026-10-17.json`
+- `data/exports/record-review-production-storage-verification-2026-10-17.json`
 - `data/exports/database-before-unified-overview-2026-10-16.json`
 - `data/exports/database-after-unified-migration-2026-10-16.json`
 - `data/exports/database-after-unified-categories-2026-10-16.json`
@@ -53,9 +60,9 @@
 
 ## 验证与后续
 
-275项单元／集成测试、lint、typecheck、production build、目录结构与git diff --check通过。统一审核专项、饮食、身体、AI、加载反馈和认证／OAuth浏览器回归通过；统一专项覆盖1440／1100／390／320px、双PFC口径、共同零点、图片对照、独立取舍、成功自动返回，以及旧身体链接多次操作和跨页草稿保护。截图位于 /tmp/formward-records-visual/；测试均使用独立数据库和虚构账号。饮食／总览浏览器覆盖1440／1100／390／320px、7／30／90D、统一图、模块入口、表格／拖拽／单位、分类、删除恢复／永久删除、删食材后旧餐编辑、照片与缺图审核及跨账号。身体／来源／AI／加载反馈回归通过；AI验收等待客户端本地日期就绪后检查完整今天行。所有本机验收使用独立PGlite、端口和虚构数据。
+275项单元／集成测试、lint、typecheck、production build、目录结构与git diff --check通过。审核时间首屏采用统一UTC，客户端就绪后按设备时区显示；服务器UTC／浏览器Asia/Shanghai的隔离回归通过，正式站水合错误0。统一审核专项、饮食、身体、AI、加载反馈和认证／OAuth浏览器回归通过；统一专项覆盖1440／1100／390／320px、双PFC口径、共同零点、图片对照、独立取舍、成功自动返回，以及旧身体链接多次操作和跨页草稿保护。截图位于 /tmp/formward-records-visual/；测试均使用独立数据库和虚构账号。饮食／总览浏览器覆盖1440／1100／390／320px、7／30／90D、统一图、模块入口、表格／拖拽／单位、分类、删除恢复／永久删除、删食材后旧餐编辑、照片与缺图审核及跨账号。身体／来源／AI／加载反馈回归通过；AI验收等待客户端本地日期就绪后检查完整今天行。所有本机验收使用独立PGlite、端口和虚构数据。
 
-正式站虚构账号验收覆盖四种宽度、三个区间、统一图与入口卡、三色图、表格双击／触屏轻点／拖拽、默认用量、分类、恢复／永久删除、旧餐按原克数修改，客户端异常0；虚构健康记录、操作、账号、会话和令牌均已清理。报告 `/tmp/formward-unified-production.json`，截图 `/tmp/formward-unified-production/`；公开入口、协议字段、OAuth metadata／公钥、MCP401challenge、登录保护和私有文件404见 `/tmp/formward-unified-final-http.json`；正式别名inspect见 `/tmp/formward-unified-final-inspect.log`，运行时错误检查见 `/tmp/formward-unified-runtime-errors.jsonl`。
+正式站使用两组虚构账号验收，覆盖1440／1100／390／320px、7／30／90D、身体／摄入／食材混合审核、草稿修改／核对／取舍、跨页版本冲突、取消入库保留摄入快照、统一保存与2秒返回、两种PFC比例、红蓝柱中心及共同零点、旧身体链接重复操作和跨账号保护。客户端异常0，虚构健康记录、操作、账号、会话和令牌均已清理。报告 `/tmp/formward-record-review-production.json`，截图 `/tmp/formward-record-review-production/`；公开入口、OpenAPI1.9.0、OAuth发现／公钥、MCP401challenge、登录保护、私有路径404和原图匿名401见 `/tmp/formward-record-review-final-http.json`；正式别名READY见 `/tmp/formward-record-review-final-inspect.log`。运行时error／fatal和请求5xx均0，报告分别为 `/tmp/formward-record-review-runtime-errors.jsonl`、`/tmp/formward-record-review-server-errors.jsonl`。
 
 真实iPhone／微信观感、用户原照片重试仍由用户最终核对。后续范围为身体准确时间／归属网页纠正、持久代表选择、身体网页删除恢复／导入，以及运动、消耗、目标和设备连接；本轮不做预算设置或消耗模块。
 

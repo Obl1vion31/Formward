@@ -5,7 +5,7 @@ Formward为Next.js16.3.7／React／TypeScript模块化单体，Node.js24.21.0、
 
 代码支持身体、摄入和食材混合提交，一次审核，逐项核对／修改／取消只更新草稿，底部统一事务保存。三类独立取舍，取消入库仍保留本餐营养规格与对应图片；图片修改展示前后对照。手机底部吸附操作栏，新增不显示空值比较，依据与技术信息折叠。保存成功显示勾，2秒返回总览；旧链接与已有部分结果兼容。总览红蓝柱居中、共用零点，负差值向下，并为摄入保留足够的正向绘图区。
 
-仓库协议为 OpenAPI 1.9.0／MCP 1.6.0，共11工具；0018_sudden_silverclaw 仅新增 record_operations，schema 共30张业务／认证表。共享数据库仍为0017，统一审核代码尚未部署；发布前须备份并执行0018，再部署兼容代码。
+仓库与正式站协议为 OpenAPI 1.9.0／MCP 1.6.0，共11工具；共享数据库已执行0018_sudden_silverclaw，仅新增 record_operations，共30张业务／认证表。统一审核与图表调整已上线。
 
 
 ## 产品状态
@@ -24,7 +24,9 @@ Formward为Next.js16.3.7／React／TypeScript模块化单体，Node.js24.21.0、
 
 ## 数据、原图和审核
 
-正式地址 [Formward](https://formward-ten.vercel.app)，线上已验证 READY 部署 `dpl_FjJvchTHhfULjJGbeCHjUio9EksM`，功能提交 `0c6c539`。线上协议 OpenAPI 1.8.0／MCP 1.5.0，共9工具；数据库0017，29张业务／认证表加Drizzle账本。Vercel CLI手动发布，Git不会自动部署。Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。
+正式地址 [Formward](https://formward-ten.vercel.app)，线上已验证 READY 部署 `dpl_H7ZYobeL2c8cQVRy82ZWFU6GSAPQ`，功能提交 `d83ea8e`，时区修复 `0cd9245`。线上协议 OpenAPI 1.9.0／MCP 1.6.0，共11工具；数据库0018，30张业务／认证表加Drizzle账本。Vercel CLI手动发布，Git不会自动部署。Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。
+
+0018迁移前后私有一致性备份与逐表摘要核对通过：29张既有业务／认证表的字段和值全部保持，仅新增统一审核表和1条Drizzle账本记录。线上验收后再次核对，全部结构及30张表的行值保持，仅正常认证限流数据变化；既有健康记录、原始请求与审计保持，虚构记录清理完成。备份与报告定位见交接，均0600、Git／部署忽略。
 
 0017只增加foods.category默认ingredient及CHECK，已核对29张既有表旧列和值；指定2条整餐分类维护保留全部历史和营养，新增1操作／2审计。完整私有备份和报告定位见交接，均0600、Git／部署忽略。
 
@@ -38,8 +40,8 @@ AI写入15分钟预览后网页登录确认，按归属／版本／revision／�
 
 ## 验证与后续
 
-275项单元／集成测试、lint、typecheck、production build、目录结构与git diff --check通过。统一审核专项、饮食、身体、AI、加载反馈和认证／OAuth浏览器回归通过；统一专项覆盖1440／1100／390／320px、双PFC口径、共同零点、图片对照、独立取舍、成功自动返回，以及旧身体链接多次操作和跨页草稿保护。截图位于 /tmp/formward-records-visual/；测试均使用独立数据库和虚构账号。饮食／总览浏览器覆盖1440／1100／390／320px、7／30／90D、统一图、模块入口、表格／拖拽／单位、分类、删除恢复／永久删除、删食材后旧餐编辑、照片与缺图审核及跨账号。身体／来源／AI／加载反馈回归通过；AI验收等待客户端本地日期就绪后检查完整今天行。所有本机验收使用独立PGlite、端口和虚构数据。
+275项单元／集成测试、lint、typecheck、production build、目录结构与git diff --check通过。审核时间首屏采用统一UTC，客户端就绪后按设备时区显示；服务器UTC／浏览器Asia/Shanghai的隔离回归通过，正式站水合错误0。统一审核专项、饮食、身体、AI、加载反馈和认证／OAuth浏览器回归通过；统一专项覆盖1440／1100／390／320px、双PFC口径、共同零点、图片对照、独立取舍、成功自动返回，以及旧身体链接多次操作和跨页草稿保护。截图位于 /tmp/formward-records-visual/；测试均使用独立数据库和虚构账号。饮食／总览浏览器覆盖1440／1100／390／320px、7／30／90D、统一图、模块入口、表格／拖拽／单位、分类、删除恢复／永久删除、删食材后旧餐编辑、照片与缺图审核及跨账号。身体／来源／AI／加载反馈回归通过；AI验收等待客户端本地日期就绪后检查完整今天行。所有本机验收使用独立PGlite、端口和虚构数据。
 
-正式站虚构账号验收覆盖四种宽度、三个区间、统一图与入口卡、三色图、表格双击／触屏轻点／拖拽、默认用量、分类、恢复／永久删除、旧餐按原克数修改，客户端异常0；虚构健康记录、操作、账号、会话和令牌均已清理。报告 `/tmp/formward-unified-production.json`，截图 `/tmp/formward-unified-production/`；公开入口、协议字段、OAuth metadata／公钥、MCP401challenge、登录保护和私有文件404见 `/tmp/formward-unified-final-http.json`；正式别名inspect见 `/tmp/formward-unified-final-inspect.log`，运行时错误检查见 `/tmp/formward-unified-runtime-errors.jsonl`。
+正式站使用两组虚构账号验收，覆盖1440／1100／390／320px、7／30／90D、身体／摄入／食材混合审核、草稿修改／核对／取舍、跨页版本冲突、取消入库保留摄入快照、统一保存与2秒返回、两种PFC比例、红蓝柱中心及共同零点、旧身体链接重复操作和跨账号保护。客户端异常0，虚构健康记录、操作、账号、会话和令牌均已清理。报告 `/tmp/formward-record-review-production.json`，截图 `/tmp/formward-record-review-production/`；公开入口、OpenAPI1.9.0、OAuth发现／公钥、MCP401challenge、登录保护、私有路径404和原图匿名401见 `/tmp/formward-record-review-final-http.json`；正式别名READY见 `/tmp/formward-record-review-final-inspect.log`。运行时error／fatal和请求5xx均0，报告分别为 `/tmp/formward-record-review-runtime-errors.jsonl`、`/tmp/formward-record-review-server-errors.jsonl`。
 
 身体归属与准确时间网页纠正、持久代表选择、身体删除恢复／导入，以及运动、消耗、目标、预算设置和设备连接留后续。真实手机观感及用户缺失原图仍需最终核对。
