@@ -4,7 +4,7 @@ import { LoadingLink } from "@/components/loading-link";
 import { lockPageScroll } from "@/components/scroll-lock";
 import { usePageLoading } from "@/components/page-loading-state";
 import { useMobileMode } from "@/components/use-mobile-mode";
-import { dailyTotals, suggestedMealType, mealOperationStatus, emptyNutrition, formatNutrition, metricLabels, metrics, type FoodDraft, type MealAction,  type MealInput, type MealOperationView, type MealSnapshot, type MealView, type Metric,  type Result, type Totals } from "./model";
+import { dailyTotals, suggestedMealType, mealOperationStatus, emptyNutrition, formatNutrition, metricLabels, metrics, type FoodDraft, type MealAction,  type MealInput, type MacroMode, type MealOperationView, type MealSnapshot, type MealView, type Metric,  type Result, type Totals } from "./model";
 import { useLocalToday } from "@/components/use-local-today";
 import { FoodDetails, FoodTable } from "./presets";
 import { ImageGallery, PhotoFields } from "./photos";
@@ -33,6 +33,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, pur
   const range=rangeChoice??(mobile?"7":"30"),[customFrom,setCustomFrom]=useState(""),[customTo,setCustomTo]=useState(today);
   const [editing,setEditing]=useState<MealAction|null>(null),[showDeleted,setShowDeleted]=useState(false),[foodQuery,setFoodQuery]=useState("");
   const [foodCategory,setFoodCategory]=useState("all"),[purgeTarget,setPurgeTarget]=useState<{id:string;version:number;recordType:"meal"|"food";name:string}|null>(null);
+  const [macroMode,setMacroMode]=useState<MacroMode>("grams");
   const [viewingFood,setViewingFood]=useState<FoodDraft|null>(null);
   const [error,setError]=useState(""),[notice,setNotice]=useState(""),[pending,startTransition]=useTransition(),[busy,setBusy]=useState(false);
   const busyRef=useRef(false),request=useRef<{data:string;id:string}|null>(null);
@@ -66,7 +67,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, pur
       <MetricValues totals={chosen?.totals??{values:emptyNutrition(),incomplete:{caloriesKcal:false,proteinG:false,carbsG:false,fatG:false}}}/>
       <section className={styles.trend} aria-label="饮食趋势"><div className={styles.toolbar}><h2 className={styles.trendTitle}>每日摄入 <small>kcal</small></h2><div className={styles.rangeTabs}>{[["7","7D"],["30","30D"],["90","90D"],["all","全部"],["custom","自定义"]].map(([value,label])=><button key={value} aria-pressed={range===value} onClick={()=>setRange(value)}>{label}</button>)}</div></div>
         {range==="custom"&&<div className={styles.toolbar}><label>开始<input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}/></label><label>结束<input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}/></label></div>}
-        {validRange?<NutritionChart key={`${from}:${to}`} dates={dates} groups={groups} select={date=>{setSelectedDate(date);setShowDeleted(false);setHistoryOpen(true);}}/>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}
+        {validRange?<NutritionChart key={`${from}:${to}`} dates={dates} groups={groups} mode={macroMode} setMode={setMacroMode} select={date=>{setSelectedDate(date);setShowDeleted(false);setHistoryOpen(true);}}/>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}
         <p className={styles.hint}>仅统计已记录摄入；无记录日期留空，缺项显示已知合计。点击柱图查看当天餐次。</p></section>
       <div className={styles.tableHeading}><h2>今天的餐次</h2><button onClick={()=>{setSelectedDate(today);setShowDeleted(false);setHistoryOpen(true);}}>历史记录 →</button></div>
       <MealList meals={chosen?.meals??[]} busy={busy} edit={editMeal} remove={m=>execute({kind:"delete_meal",id:m.id,version:m.version})}/>

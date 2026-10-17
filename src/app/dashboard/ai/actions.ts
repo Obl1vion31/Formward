@@ -35,3 +35,10 @@ export async function reviewOperationAction(id: string, action: ReviewAction) {
 export async function loadOperationAction(id: string) {
   return perform(userId => getAiMeasurementOperation(getDatabase(), userId, id));
 }
+
+export async function reviewRecordAction(id: string, source: "body" | "meal" | undefined, action: import("@/features/records/model").RecordReviewAction) {
+  return perform(async userId => { const { reviewRecordOperation } = await import("@/features/records/operations"); const result = await reviewRecordOperation(getDatabase(), userId, id, action, source); revalidatePath("/dashboard/meals"); return result; });
+}
+export async function loadRecordReviewAction(id: string, source?: "body" | "meal") {
+  return perform(async userId => { const { loadRecordReview } = await import("@/features/records/operations"); return loadRecordReview(getDatabase(), userId, id, source); });
+}

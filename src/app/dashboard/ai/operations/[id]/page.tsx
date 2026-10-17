@@ -3,16 +3,17 @@ import { notFound, redirect } from "next/navigation";
 import { currentPageUser } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { ApiError } from "@/features/auth/ai-tokens";
-import { getAiMeasurementOperation } from "@/features/measurements/ai-operations";
-import { AiConfirmation } from "@/features/measurements/ai-confirmation";
+import { loadRecordReview } from "@/features/records/operations";
+import { RecordReview } from "@/features/records/record-review";
 import { DashboardHeader } from "../../../header";
-import { loadOperationAction, reviewOperationAction } from "../../actions";
+import { loadRecordReviewAction, reviewRecordAction } from "../../actions";
 import { listMeasurementSources } from "@/features/measurements/sources";
 import { removeSourceAction } from "../../../actions";
-export const metadata: Metadata = { title: "Formward · 确认身体记录", referrer: "no-referrer" };
+export const metadata: Metadata = { title: "Formward · 确认记录", referrer: "no-referrer" };
 export default async function OperationPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await currentPageUser(); if (!user) redirect("/");
-  const operation = await getAiMeasurementOperation(getDatabase(), user.id, (await params).id).catch(error => { if (error instanceof ApiError && error.status === 404) notFound(); throw error; });
+  const id = (await params).id;
+  const operation = await loadRecordReview(getDatabase(), user.id, id).catch(error => { if (error instanceof ApiError && error.status === 404) notFound(); throw error; });
   const sources = await listMeasurementSources(getDatabase(), user.id);
-  return <main className="dashboard-page"><DashboardHeader email={user.email} /><AiConfirmation operation={operation} review={reviewOperationAction} load={loadOperationAction} sources={sources} removeSource={removeSourceAction} /></main>;
+  return <main className="dashboard-page"><DashboardHeader email={user.email} /><RecordReview operation={operation} review={reviewRecordAction.bind(null, id, undefined)} load={loadRecordReviewAction.bind(null, id, undefined)} sources={sources} removeSource={removeSourceAction} /></main>;
 }

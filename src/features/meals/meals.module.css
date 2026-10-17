@@ -292,3 +292,8 @@
  .mealTotal { top:-22px; }.mealTotal .compactMetrics { gap:12px; }.mealTotal .compactMetrics strong { font-size:18px; }
  .mealTotal .compactMetrics span,.mealTotal small { font-size:11px; }.mealTotal .compactMetrics small { margin-left:3px; }
 }
+
+.macroMode { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:10px 0; font-size:12px; }
+.macroMode button { min-height:36px; padding:4px 10px; border:1px solid var(--rule); border-radius:4px; }
+.macroMode button[aria-pressed="true"] { color:var(--gold); border-color:var(--gold); }
+.macroMode span { color:var(--muted); }

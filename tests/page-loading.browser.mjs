@@ -46,7 +46,7 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
         let timer;
         try { await Promise.race([seen, new Promise((_, reject) => { timer = setTimeout(() => reject(timeoutError), 20000); })]); }
         catch (error) {
-          error.message += `\n${JSON.stringify({ requests: requests.slice(-12), busy: await page.locator(".ai-review-page").getAttribute("aria-busy").catch(() => null), buttons: await page.locator(".ai-review-page button").allTextContents() })}`;
+          error.message += `\n${JSON.stringify({ requests: requests.slice(-12), busy: await page.locator('[aria-label="统一记录确认"]').getAttribute("aria-busy").catch(() => null), buttons: await page.locator('[aria-label="统一记录确认"] button').allTextContents() })}`;
           throw error;
         }
         finally { clearTimeout(timer); }
@@ -168,40 +168,42 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     await page.goto(`${baseURL}/dashboard/ai`); await page.getByRole("heading", { name: "AI 接入", exact: true }).waitFor(); await ready();
     const reviewNavigation = await holdNext(request => request.method() === "GET" && new URL(request.url()).pathname === batch.confirmationPath && request.headers()["rsc"] === "1" && !request.headers()["next-router-prefetch"]);
     await page.locator(`a[href="${batch.confirmationPath}"]`).click(); await reviewNavigation.wait(); await assertLoading("正在加载页面…");
-    await reviewNavigation.release(); await page.getByRole("heading", { name: "审核身体记录", exact: true }).waitFor(); await ready();
-    const row = page.locator(`[data-item-id="${batch.items[0].id}"]`);
-    await row.getByRole("button", { name: "修改", exact: true }).click(); await row.getByLabel("体重（kg）").fill("72.10");
-    await slowAction("正在更新预览…", () => row.getByRole("button", { name: "更新预览", exact: true }).click(), "loading-review-update");
-    assert.ok((await row.innerText()).includes("72.10 kg"));
+    await reviewNavigation.release(); await page.getByRole("heading", { name: "确认记录", exact: true }).waitFor(); await ready();
+    const row = page.locator(`[data-review-key="${batch.items[0].id}"]`);
+    const editor = page.getByRole("dialog", {name:"修改待保存内容",exact:true});
+    await row.getByRole("button", { name: "修改", exact: true }).click(); await editor.getByLabel("体重（kg）").fill("72.10");
+    await slowAction("正在处理记录审核…", () => editor.getByRole("button", { name: "更新预览", exact: true }).click(), "loading-review-update");
+    assert.ok((await row.innerText()).includes("72.1kg"));
     if (process.env.FORMWARD_MEASUREMENTS_DEV === "1") {
       // 写草稿前用当前编译 hash 建立开发连接；生产继续验证从 Link 进入的完整流程。
-      await page.reload(); await page.getByRole("heading", { name: "审核身体记录", exact: true }).waitFor(); await ready();
+      await page.reload(); await page.getByRole("heading", { name: "确认记录", exact: true }).waitFor(); await ready();
     }
     await row.getByRole("button", { name: "修改", exact: true }).click();
-    await row.getByLabel("测量来源", { exact: true }).fill("虚构保留输入");
+    await editor.getByLabel("测量来源", { exact: true }).fill("虚构保留输入");
     const otherPage = await context.newPage(); otherPage.on("pageerror", error => errors.push(error.message));
     try {
       await otherPage.goto(batch.confirmationUrl);
-      const otherRow = otherPage.locator(`[data-item-id="${batch.items[1].id}"]`);
+      const otherRow = otherPage.locator(`[data-review-key="${batch.items[1].id}"]`);
       await otherRow.getByRole("button", { name: "修改", exact: true }).click();
-      await otherRow.getByLabel("测量来源", { exact: true }).fill("虚构另一页面来源");
-      await otherRow.getByRole("button", { name: "更新预览", exact: true }).click();
+      await otherPage.getByRole("dialog",{name:"修改待保存内容",exact:true}).getByLabel("测量来源", { exact: true }).fill("虚构另一页面来源");
+      await otherPage.getByRole("dialog",{name:"修改待保存内容",exact:true}).getByRole("button", { name: "更新预览", exact: true }).click();
       await otherRow.getByText("虚构另一页面来源", { exact: true }).waitFor();
-      await slowAction("正在更新预览…", () => row.getByRole("button", { name: "更新预览", exact: true }).click());
-      await slowAction("正在加载最新审核…", () => page.getByRole("button", { name: "加载最新审核，保留输入", exact: true }).click());
-      assert.equal(await row.getByLabel("测量来源", { exact: true }).inputValue(), "虚构保留输入");
-      await slowAction("正在更新预览…", () => row.getByRole("button", { name: "更新预览", exact: true }).click());
+      await slowAction("正在处理记录审核…", () => editor.getByRole("button", { name: "更新预览", exact: true }).click());
+      await slowAction("正在处理记录审核…", () => page.getByRole("button", { name: "加载最新状态，保留输入", exact: true }).click());
+      assert.equal(await editor.getByLabel("测量来源", { exact: true }).inputValue(), "虚构保留输入");
+      await slowAction("正在处理记录审核…", () => editor.getByRole("button", { name: "更新预览", exact: true }).click());
     } finally { await otherPage.close(); }
-    await slowAction("正在刷新预览…", () => page.getByRole("button", { name: "刷新预览", exact: true }).click());
-    await slowAction("正在保存记录…", () => row.getByRole("button", { name: "确认保存", exact: true }).click());
-    await page.getByRole("status").filter({ hasText: "已保存 1 · 待确认 1" }).waitFor();
-    await slowAction("正在取消待处理记录…", () => page.getByRole("button", { name: "取消剩余", exact: true }).click());
-    await page.getByRole("status").filter({ hasText: "已保存 1 · 待确认 0 · 已取消 1" }).waitFor();
+    await page.getByText("审核信息与刷新",{exact:true}).click();
+    await slowAction("正在处理记录审核…", () => page.getByRole("button", { name: "刷新预览", exact: true }).click());
+    await slowAction("正在处理记录审核…", () => row.getByRole("button", { name: "确认本项", exact: true }).click());
+    await slowAction("正在处理记录审核…", () => page.locator(`[data-review-key="${batch.items[1].id}"]`).getByRole("button", {name:"取消",exact:true}).click());
+    await slowAction("正在处理记录审核…", () => page.getByRole("button", {name:"确认并全部保存",exact:true}).click());
+    await page.getByRole("heading",{name:"已保存",exact:true}).waitFor(); await page.waitForURL(`${baseURL}/dashboard`);
     const secondBatch = await post([item(3), item(4)]);
-    await page.goto(secondBatch.confirmationUrl); await page.getByRole("heading", { name: "审核身体记录", exact: true }).waitFor(); await ready();
-    await slowAction("正在取消待处理记录…", () => page.locator(`[data-item-id="${secondBatch.items[0].id}"]`).getByRole("button", { name: "取消", exact: true }).click());
-    await slowAction("正在保存记录…", () => page.getByRole("button", { name: "全部确认保存", exact: true }).click());
-    await page.getByRole("status").filter({ hasText: "已保存 1 · 待确认 0 · 已取消 1" }).waitFor();
+    await page.goto(secondBatch.confirmationUrl); await page.getByRole("heading", { name: "确认记录", exact: true }).waitFor(); await ready();
+    await slowAction("正在处理记录审核…", () => page.locator(`[data-review-key="${secondBatch.items[0].id}"]`).getByRole("button", { name: "取消", exact: true }).click());
+    await slowAction("正在处理记录审核…", () => page.getByRole("button", { name: "确认并全部保存", exact: true }).click());
+    await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
     await page.goto(`${baseURL}/dashboard/ai`); await page.getByRole("heading", { name: "AI 接入", exact: true }).waitFor(); await ready();
     await slowAction("正在撤销访问令牌…", () => page.getByRole("button", { name: "撤销", exact: true }).click());
     assert.equal(await page.getByRole("button", { name: "撤销", exact: true }).isDisabled(), true);
@@ -240,7 +242,7 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     assert.deepEqual(errors, []);
     console.log("通过：加载延迟、真实保存／估算／审核／导航／登录、最上层遮罩、失败草稿、滚动锁、窄屏与减少动态效果。");
   } catch (error) {
-    console.log("加载验收诊断：", { warnings, requests: requests.slice(-8), buttons: await page.locator(".ai-review-page button").allTextContents() });
+    console.log("加载验收诊断：", { warnings, requests: requests.slice(-8), buttons: await page.locator('[aria-label="统一记录确认"] button').allTextContents() });
     throw error;
   } finally {
     await Promise.allSettled([...gates].map(gate => gate.release("abort")));

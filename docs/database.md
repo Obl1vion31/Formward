@@ -1,6 +1,6 @@
 # 数据库连接与字段字典
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 29 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 30 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 
@@ -99,7 +99,7 @@ user_id 有索引，令牌只通过完整随机原文摘要查找并映射账号
 | expires_at | timestamptz | 15 分钟到期，更新／刷新续期；尚有待处理行时由读取推导 expired |
 | confirmed_at | timestamptz nullable | 最近一次行保存的网页确认时间 |
 
-(user_id, operation_id) 唯一，(user_id, created_at) 索引用于最近提交。读取、修改、取消和确认校验归属；token_id／oauth_connection_id 恰有一个非空，由数据库 CHECK 约束；修改／刷新／确认复核对应令牌或连接有效性，确认另复核快照、有效期和审核版本。单行确认立即写入，整批确认同一事务；取消不撤销已保存行。AI 审计保存在 measurement_events.snapshot.ai，包含 tokenId 或 oauthConnectionId、operationId（此表 id）、confirmedBy、confirmedAt；可编辑审核另保存 review 的行 ID、审核版本、originalInput、reviewedInput 与 editedBy。旧单日／单项 JSON 使用兼容适配，不改原 payload。0009 不改健康表与已有健康数据。
+(user_id, operation_id) 唯一，(user_id, created_at) 索引用于最近提交。读取、修改、取消和确认校验归属；token_id／oauth_connection_id 恰有一个非空，由数据库 CHECK 约束；修改／刷新／确认复核对应令牌或连接有效性，确认另复核快照、有效期和审核版本。身体 feature 保留旧逐行确认能力供兼容；当前网页逐项核对只更新统一草稿，底部确认在同一事务保存所选内容，旧已保存行不重复写入。AI 审计保存在 measurement_events.snapshot.ai，包含 tokenId 或 oauthConnectionId、operationId（此表 id）、confirmedBy、confirmedAt；可编辑审核另保存 review 的行 ID、审核版本、originalInput、reviewedInput 与 editedBy。旧单日／单项 JSON 使用兼容适配，不改原 payload。0009 不改健康表与已有健康数据。
 
 ### OAuth Provider 与账号连接
 
@@ -540,3 +540,22 @@ meal_items.review_explanation为可空JSONB，包含identity、amount、cooking�
 meal_operations.payload／draft保存可选expectedImageCount，preview中的missingImages与确认能力由实际附件派生。用户网页登录选择缺图保存时，meal_events.snapshot记录confirmedWithoutImages及missingImages，不将模型选择当作人工确认。
 
 永久删除仅由已鉴权网页调用 feature 事务。删除 food 前清除当前 image_links、将全部版本 meal_items.food_id 置空，原 food_snapshot、数值和原图保持；受影响 meal.version 递增并写审计。删 meal 先删全部子项和当前链接。审计及原操作保留，operation_id 保持有效；归属、已软删除状态、版本、重复请求和审计失败回滚在事务内校验。
+
+
+## 统一审核批次 record_operations
+
+0018 新增统一批次，不改身体、饮食及认证旧表和值。字段如下：
+
+| 字段 | 类型 | 用途 |
+| --- | --- | --- |
+| id / user_id | text | 批次主键及归属账号 |
+| operation_id / request_digest | text | 本账号请求幂等键及不可变内容摘要 |
+| payload | jsonb | 原始混合请求 |
+| draft | jsonb | 稳定项目 key、当前／原始输入、核对／排除／已保存状态、人工编辑者与时间 |
+| measurement_operation_id / meal_operation_id | text nullable | 既有身体／饮食子操作外键 |
+| measurement_revision / meal_revision | integer nullable | 父批次采用的子审核版本，防止旧链接并发改写后直接确认 |
+| revision | integer | 从1递增的统一审核版本 |
+| status | text | pending、confirmed、cancelled、completed |
+| created_at / confirmed_at | timestamptz | 创建时间及可空确认时间 |
+
+(user_id, operation_id) 唯一；两个子操作标识各自唯一，账号／创建时间用于最近提交。旧链接 GET 只读，首次审核写操作在账号锁下幂等建立关联批次。事实写入复用子 feature，在父事务中一起确认和审计；子审核失败时全部回滚。饮食 preview 的 excluded 与 review 为服务端生成，审计记录统一操作／项目标识、原始与人工核对内容。取消食材入库时餐项保留 food_snapshot，不产生 food_id 外键，也不接受客户端伪造营养快照。

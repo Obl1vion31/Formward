@@ -127,6 +127,13 @@
       "when": 1792127900732,
       "tag": "0017_dry_pandemic",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792222112644,
+      "tag": "0018_sudden_silverclaw",
+      "breakpoints": true
     }
   ]
 }

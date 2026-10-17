@@ -15,6 +15,7 @@ import { decideMealOperation, readMealSnapshot } from "../meals/records";
 import { oauthPageRequest } from "./oauth-pages";
 import { createMcpEndpoint } from "../mcp/server";
 import { listMeasurements } from "../measurements/records";
+import { reviewRecordOperation } from "../records/operations";
 import { reviewAiMeasurementOperation } from "../measurements/ai-operations";
 
 const pg = new PGlite(), db = drizzle(pg, { schema });
@@ -129,7 +130,7 @@ test("现代与旧 MCP 客户端发现工具、查询、提交预览、网页确
   for (const mode of ["legacy", "auto"] as const) {
     const client = await mcpClient(connected.tokens.access_token, mode);
     try {
-      const tools = await client.listTools(); assert.deepEqual(tools.tools.map(tool => tool.name).sort(), ["get_meal_operation", "get_measurement_operation", "get_profile", "import_meal_images", "query_meals", "query_measurements", "search_foods", "submit_meal_operation", "submit_measurement_operation"]);
+      const tools = await client.listTools(); assert.deepEqual(tools.tools.map(tool => tool.name).sort(), ["get_meal_operation", "get_measurement_operation", "get_profile", "get_record_operation", "import_meal_images", "query_meals", "query_measurements", "search_foods", "submit_meal_operation", "submit_measurement_operation", "submit_record_operation"]);
       const profile = await client.callTool({ name: "get_profile", arguments: {} }); assert.equal((profile.structuredContent as Record<string, unknown>)?.id, connected.userId);
       const input = { operationId: randomUUID(), items: [{ kind: "save_record", date: mode === "legacy" ? "2024-06-01" : "2024-06-02", period: "evening", weightKg: "70.20", deviceLabel: "虚构 MCP 秤" }] };
       const result = await client.callTool({ name: "submit_measurement_operation", arguments: input }); assert.ok(!result.isError);
@@ -264,4 +265,21 @@ test("饮食独立OAuth权限通过真实MCP预览确认，身体旧授权须重
   try { assert.equal((await oldClient.callTool({ name: "query_meals", arguments: {} })).isError, true); } finally { await oldClient.close(); }
   const readonly = await connect(credentials, ["openid", "profile", "offline_access", MEALS_READ_SCOPE]), readClient = await mcpClient(readonly.tokens.access_token);
   try { assert.equal((await readClient.callTool({ name: "submit_meal_operation", arguments: payload() })).isError, true); } finally { await readClient.close(); }
+});
+
+
+test("统一MCP使用真实OAuth混合提交，单类旧授权不能跨域写入，确认后幂等查询", async () => {
+  const items = [{key:"body",kind:"save_record",date:"2025-01-04",period:"evening",weightKg:"72.10",deviceLabel:"虚构混合秤"},{key:"meal",kind:"save_meal",date:"2025-01-04",mealType:"虚构混合午餐",items:[{kind:"food",name:"虚构食品",sourceKind:"estimated",nutrition:{caloriesKcal:"150",proteinG:"10",carbsG:"20",fatG:"3"}}]}];
+  const old = await connect(), oldClient = await mcpClient(old.tokens.access_token);
+  try { assert.equal((await oldClient.callTool({name:"submit_record_operation",arguments:{operationId:randomUUID(),items}})).isError,true); } finally { await oldClient.close(); }
+  const connected = await connect(credentials,[...fullScopes,MEALS_READ_SCOPE,MEALS_WRITE_SCOPE]), client = await mcpClient(connected.tokens.access_token);
+  try {
+    const raw = {operationId:randomUUID(),items}, response=await client.callTool({name:"submit_record_operation",arguments:raw});
+    assert.ok(!response.isError,JSON.stringify(response.structuredContent));
+    const operation=response.structuredContent as {id:string;revision:number;status:string;canConfirm:boolean;confirmationUrl:string};
+    assert.equal(operation.status,"pending");assert.equal(operation.canConfirm,true);assert.match(operation.confirmationUrl,/dashboard\/ai\/operations/);
+    assert.equal(((await client.callTool({name:"submit_record_operation",arguments:raw})).structuredContent as Record<string,unknown>)?.id,operation.id);
+    await reviewRecordOperation(db,connected.userId,operation.id,{kind:"confirm",revision:operation.revision});
+    assert.equal(((await client.callTool({name:"get_record_operation",arguments:{id:operation.id}})).structuredContent as Record<string,unknown>)?.status,"confirmed");
+  } finally { await client.close(); }
 });

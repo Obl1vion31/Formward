@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { checkUnifiedReview } from "./record-review.browser.mjs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -43,128 +44,40 @@ export async function checkAiAccessBrowser({ baseURL, account, other, date }) {
       assert.equal(retried.id, submitted.id); assert.equal(retried.items[0].preview.rows[0].after.timezone, "+07:00");
       await page.goto(submitted.confirmationUrl); await page.getByRole("button", { name: "修改", exact: true }).click();
       assert.equal(await page.getByLabel("时区", { exact: true }).inputValue(), "+07:00");
-      await page.getByRole("button", { name: "放弃本行修改", exact: true }).click(); await page.getByRole("button", { name: "取消剩余", exact: true }).click();
-      await page.getByText(`${date} · 已取消`, { exact: true }).waitFor();
+      await page.getByRole("button", { name: "放弃本行修改", exact: true }).click();
+      await page.getByText("审核信息与刷新", {exact:true}).click(); await page.getByRole("button", { name: "取消本次提交", exact: true }).click();
+      await page.getByRole("heading", {name:"已取消",exact:true}).waitFor();
     } finally { await rm(local, { recursive: true, force: true }); }
-    await page.goto(preview.confirmationUrl); await page.getByRole("heading", { name: "审核身体记录", exact: true }).waitFor();
-    assert.ok((await page.innerText("main")).includes("70.20 kg")); assert.ok((await page.innerText("main")).includes("20.10%"));
-    await page.screenshot({ path: `${artifacts}/ai-confirmation-desktop.png`, fullPage: true });
-    await page.getByRole("button", { name: "全部确认保存", exact: true }).click(); await page.getByRole("status").filter({ hasText: "已保存 2 · 待确认 0" }).waitFor();
-    await page.reload(); assert.equal(await page.getByRole("button", { name: "确认保存", exact: true }).count(), 0);
-    const saved = await fetch(`${baseURL}/api/v1/measurements`, { headers: { Authorization: `Bearer ${token}` } }); const records = (await saved.json()).records; assert.equal(records.length, 2); assert.ok(records.every(row => row.entryChannel === "api"));
-    await page.goto(`${baseURL}/dashboard/measurements`); await page.getByRole("heading", { name: "身体记录", exact: true }).waitFor();
-    // 完整的今天行在客户端本地日期就绪后显示。
-    await page.waitForFunction(()=>document.querySelector('section[aria-label="最近记录"]')?.textContent.includes("70.20"));
-    const repeated = await post(payload); assert.equal(repeated.id, preview.id); assert.equal(repeated.status, "confirmed");
-    const duplicate = await post({ ...payload, operationId: crypto.randomUUID() }); assert.ok(duplicate.preview.rows.every(row => row.state === "duplicate"));
-    const conflict = await post({ ...payload, operationId: crypto.randomUUID(), periods: { daytime: { ...payload.periods.daytime, weightKg: "71.00" } } }); assert.equal(conflict.preview.canConfirm, false);
-    await page.goto(conflict.confirmationUrl); assert.equal(await page.getByRole("button", { name: "全部确认保存" }).isDisabled(), true);
-    await page.getByRole("button", { name: "修改", exact: true }).click(); await page.getByLabel("要修改的历史记录").selectOption(records.find(record => record.period === "daytime").id);
-    await page.getByRole("button", { name: "更新预览", exact: true }).click(); await page.getByText("修改明确指定的历史记录。", { exact: true }).waitFor();
-    assert.equal((await fetch(`${baseURL}/api/v1/measurements`, { headers: { Authorization: `Bearer ${token}` } }).then(response => response.json())).records.find(record => record.period === "daytime").weightKg, "70.20");
-    await page.getByRole("button", { name: "取消剩余" }).click(); await page.getByText(`${date} · 已取消`, { exact: true }).waitFor();
-    const edit = await post({ ...payload, operationId: crypto.randomUUID(), periods: { daytime: { recordId: records.find(row => row.period === "daytime").id, version: records.find(row => row.period === "daytime").updatedAt, deviceLabel: "虚构修改来源" } } });
-    await page.setViewportSize({ width: 390, height: 844 }); await page.goto(edit.confirmationUrl); await page.getByRole("heading", { name: "审核身体记录", exact: true }).waitFor();
-    assert.ok((await page.innerText("main")).includes("虚构修改来源")); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-    await page.screenshot({ path: `${artifacts}/ai-confirmation-mobile.png`, fullPage: true });
-    await page.getByRole("button", { name: "确认保存", exact: true }).click(); await page.getByRole("status").filter({ hasText: "已保存 1 · 待确认 0" }).waitFor();
+    await page.goto(preview.confirmationUrl); await page.getByRole("heading", { name: "确认记录", exact: true }).waitFor();
+    await page.getByRole("button", { name: "确认并全部保存", exact: true }).click(); await page.getByRole("heading", { name: "已保存", exact: true }).waitFor();
+    await page.waitForURL(`${baseURL}/dashboard`);
     const read = async () => (await (await fetch(`${baseURL}/api/v1/measurements`, { headers: { Authorization: `Bearer ${token}` } })).json()).records;
-    const nextDate = days => new Date(Date.parse(`${date}T12:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
-    const submitted = await post({ kind: "batch", operationId: crypto.randomUUID(), items: [
-      { kind: "save_record", date: nextDate(1), period: "evening", weightKg: "70.50", deviceLabel: "虚构批量秤" },
-      { kind: "save_record", date: nextDate(2), period: "daytime", weightKg: "70.00", bodyFatPercent: "20.00", fasting: true, deviceLabel: "虚构批量秤" },
-      { kind: "save_record", date: nextDate(3), period: "evening", weightKg: "-1", deviceLabel: "虚构批量秤" },
-      { kind: "save_record", date: nextDate(4), period: "evening", weightKg: "71.00", deviceLabel: "虚构批量秤" },
-    ] });
-    await page.setViewportSize({ width: 1440, height: 1000 }); await page.goto(submitted.confirmationUrl);
-    const row = index => page.locator(`[data-item-id="${submitted.items[index].id}"]`);
-    assert.equal(await page.locator(".ai-review-item").count(), 4); assert.equal(await page.getByRole("button", { name: "全部确认保存" }).isDisabled(), true);
-    await row(0).getByRole("button", { name: "修改", exact: true }).click();
-    assert.equal(await row(0).getByLabel("时区", { exact: true }).inputValue(), "+08:00");
-    await row(0).getByLabel("体重（kg）").fill("69.80"); await row(0).getByLabel("测量来源", { exact: true }).fill("人工核对批量秤"); await row(0).getByLabel("时区", { exact: true }).selectOption("+07:00");
-    await row(0).getByLabel("日期", { exact: true }).fill(nextDate(5)); await row(0).getByLabel("时段", { exact: true }).selectOption("daytime"); await row(0).getByLabel("确认这次晨间测量为空腹").check();
-    assert.equal((await read()).length, 2); assert.equal(await row(1).getByRole("button", { name: "确认保存", exact: true }).isDisabled(), true);
-    await row(0).getByRole("button", { name: "更新预览", exact: true }).click(); await row(0).getByText("人工核对批量秤", { exact: true }).waitFor();
-    assert.ok((await row(0).innerText()).includes("GMT+7（东七区）")); assert.equal((await read()).length, 2);
-    await row(2).getByRole("button", { name: "取消", exact: true }).click(); await page.locator(`[data-item-id="${submitted.items[2].id}"][data-item-status="cancelled"]`).waitFor();
-    await row(0).getByRole("button", { name: "确认保存", exact: true }).click(); await page.getByRole("status").filter({ hasText: "已保存 1 · 待确认 2" }).waitFor();
-    assert.equal((await read()).length, 3); await page.reload(); assert.equal(await row(0).getByRole("button").count(), 0);
-    await row(1).getByRole("button", { name: "修改", exact: true }).click(); await row(1).getByLabel("测量来源", { exact: true }).fill("保留的未提交草稿");
-    // 同会话另一个页面改审核内容，旧页面不能覆盖，加载最新后保留本地输入。
-    const otherPage = await context.newPage();
-    try {
-      await otherPage.goto(submitted.confirmationUrl); const last = otherPage.locator(`[data-item-id="${submitted.items[3].id}"]`);
-      await last.getByRole("button", { name: "修改", exact: true }).click(); await last.getByLabel("体脂率（%）").fill("21.00"); await last.getByRole("button", { name: "更新预览", exact: true }).click(); await last.getByText("21.00%", { exact: true }).waitFor();
-      await row(1).getByRole("button", { name: "更新预览", exact: true }).click(); await page.getByRole("alert").filter({ hasText: "另一个页面" }).waitFor();
-      assert.equal(await row(1).getByLabel("测量来源", { exact: true }).inputValue(), "保留的未提交草稿");
-      await page.getByRole("button", { name: "加载最新审核，保留输入" }).click(); await page.getByRole("button", { name: "加载最新审核，保留输入" }).waitFor({ state: "hidden" });
-      assert.equal(await row(1).getByLabel("测量来源", { exact: true }).inputValue(), "保留的未提交草稿");
-    } finally { await otherPage.close(); }
-    await page.getByRole("button", { name: "批量修改", exact: true }).click();
-    for (const index of [1, 3]) await row(index).getByRole("button", { name: "采用设备时区" }).click();
-    assert.equal(await row(1).getByLabel("时区", { exact: true }).inputValue(), "+08:00");
-    for (const width of [1440, 390, 320]) { await page.setViewportSize({ width, height: 1000 }); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); await page.screenshot({ path: `${artifacts}/ai-batch-edit-${width}.png`, fullPage: true }); }
-    await page.getByRole("button", { name: "更新全部预览", exact: true }).click(); await row(1).getByText("保留的未提交草稿", { exact: true }).waitFor();
-    assert.equal((await read()).length, 3);
-    await page.getByRole("button", { name: "全部确认保存", exact: true }).click(); await page.getByRole("status").filter({ hasText: "已保存 3 · 待确认 0 · 已取消 1" }).waitFor();
-    const batchSaved = await read(); assert.equal(batchSaved.length, 5);
-    assert.equal(batchSaved.find(record => record.recordDate === nextDate(5)).weightKg, "69.80"); assert.equal(batchSaved.find(record => record.recordDate === nextDate(5)).timezone, "+07:00"); assert.equal(batchSaved.find(record => record.recordDate === nextDate(5)).fasting, true); assert.equal(batchSaved.find(record => record.recordDate === nextDate(5)).period, "daytime");
-    assert.ok(batchSaved.filter(record => [nextDate(2), nextDate(4)].includes(record.recordDate)).every(record => record.timezone === "+08:00"));
-    assert.ok(!batchSaved.some(record => record.recordDate === nextDate(3))); await page.reload(); assert.equal(await page.getByRole("button", { name: "确认保存", exact: true }).count(), 0);
-    // 审核页与身体录入共用历史建议；清空后可重新选择，移除建议保留草稿。
-    const missingSource = await post({ kind: "batch", operationId: crypto.randomUUID(), items: [{ kind: "save_record", date: nextDate(6), period: "evening", weightKg: "71.20" }] });
-    assert.equal(missingSource.needsUserInput[0].field, "deviceLabel");
-    await page.goto(missingSource.confirmationUrl);
-    const sourceRow = page.locator(`[data-item-id="${missingSource.items[0].id}"]`);
-    assert.equal(await sourceRow.getByRole("button", { name: "确认保存", exact: true }).isDisabled(), true);
-    await sourceRow.getByRole("button", { name: "修改", exact: true }).click();
-    const sourceInput = sourceRow.getByRole("combobox", { name: "测量来源", exact: true });
-    assert.equal(await sourceRow.getByLabel("确认不填写测量来源").count(), 0);
-    assert.equal(await sourceRow.getByRole("button", { name: "测量来源历史来源", exact: true }).count(), 0);
-    assert.ok((await sourceRow.innerText()).includes("留空后更新预览"));
-    for (const width of [1440, 390, 320]) {
-      await page.setViewportSize({ width, height: 1000 });
-      await sourceInput.fill("虚构代填描述");
-      await sourceInput.click();
-      assert.equal(await sourceInput.inputValue(), "虚构代填描述", "直接点输入框展开全部建议并保留草稿");
-      assert.equal(await sourceRow.getByRole("button", { name: "移除来源建议 虚构 AI 晚间秤", exact: true }).isVisible(), true);
-      await sourceRow.getByRole("gridcell", { name: "虚构 AI 晚间秤", exact: true }).click();
-      assert.equal(await sourceInput.inputValue(), "虚构 AI 晚间秤");
-      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-      await sourceInput.press("Escape"); await sourceInput.click();
-      assert.equal(await sourceInput.getAttribute("aria-expanded"), "true", "已聚焦输入框再次点击也展开建议");
+    assert.equal((await read()).length,2);
+    assert.equal((await post(payload)).status,"confirmed");
+    const nextDate = days => new Date(Date.parse(`${date}T12:00:00Z`) + days * 86400000).toISOString().slice(0,10);
+    // 缺来源、历史建议移除与空来源保存沿用原业务约定。
+    const missing = await post({kind:"batch",operationId:crypto.randomUUID(),items:[{kind:"save_record",date:nextDate(6),period:"evening",weightKg:"71.20"}]});
+    assert.equal(missing.needsUserInput[0].field,"deviceLabel");
+    await page.goto(missing.confirmationUrl); await page.getByRole("button",{name:"修改",exact:true}).click();
+    const editor=page.getByRole("dialog",{name:"修改待保存内容",exact:true}),source=editor.getByRole("combobox",{name:"测量来源",exact:true});
+    assert.equal(await editor.getByLabel("确认不填写测量来源").count(),0);
+    for(const width of [1440,390,320]){
+      await page.setViewportSize({width,height:1000});await source.fill("保留的来源草稿");await source.click();
+      assert.equal(await source.inputValue(),"保留的来源草稿");
+      await editor.getByRole("gridcell",{name:"虚构 AI 晚间秤",exact:true}).click();
+      assert.equal(await source.inputValue(),"虚构 AI 晚间秤");
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     }
-    await sourceRow.getByLabel("体重（kg）").fill("72.34"); await sourceInput.fill("");
-    await sourceRow.getByRole("button", { name: "移除来源建议 虚构修改来源", exact: true }).click();
-    await page.waitForFunction(() => !document.querySelector('[aria-label="移除来源建议 虚构修改来源"]'));
-    assert.equal(await sourceRow.getByLabel("体重（kg）").inputValue(), "72.34");
-    assert.equal(await sourceInput.inputValue(), "");
-    const afterRemoval = await fetch(`${baseURL}/api/v1/measurements`, { headers: { Authorization: `Bearer ${token}` } }).then(response => response.json());
-    assert.ok(!afterRemoval.sources.includes("虚构修改来源"));
-    assert.ok(afterRemoval.records.some(record => record.deviceLabel === "虚构修改来源"), "建议删除不联动已保存来源");
-    await sourceRow.getByRole("button", { name: "更新预览", exact: true }).click();
-    await page.waitForFunction(itemId => { const row = document.querySelector(`[data-item-id="${itemId}"]`); return [...(row?.querySelectorAll('button') ?? [])].some(button => button.textContent === '确认保存' && !button.disabled); }, missingSource.items[0].id);
-    assert.equal(await sourceRow.getByRole("button", { name: "确认保存", exact: true }).isEnabled(), true);
-    await page.screenshot({ path: `${artifacts}/ai-source-unspecified-mobile.png`, fullPage: true });
-    await sourceRow.getByRole("button", { name: "确认保存", exact: true }).click();
-    await page.getByRole("status").filter({ hasText: "已保存 1 · 待确认 0" }).waitFor();
-    assert.equal((await read()).find(record => record.recordDate === nextDate(6)).deviceLabel, null);
-    const explicitEmpty = await post({ kind: "batch", operationId: crypto.randomUUID(), items: [{ kind: "save_record", date: nextDate(7), period: "evening", weightKg: "71.30", deviceLabel: null, sourceUnspecifiedConfirmed: true }] });
-    await page.goto(explicitEmpty.confirmationUrl); await page.getByRole("button", { name: "修改", exact: true }).click();
-    assert.equal(await page.getByRole("combobox", { name: "测量来源", exact: true }).inputValue(), "", "旧留空请求回显空来源");
-    await page.getByRole("combobox", { name: "测量来源", exact: true }).click();
-    await page.getByRole("gridcell", { name: "虚构 AI 晚间秤", exact: true }).click();
-    await page.getByRole("button", { name: "更新预览", exact: true }).click();
-    await page.getByRole("button", { name: "确认保存", exact: true }).click(); await page.getByRole("status").filter({ hasText: "已保存 1 · 待确认 0" }).waitFor();
-    assert.equal((await read()).find(record => record.recordDate === nextDate(7)).deviceLabel, "虚构 AI 晚间秤");
-    const untouchedEmpty = await post({ kind: "batch", operationId: crypto.randomUUID(), items: [{ kind: "save_record", date: nextDate(8), period: "evening", weightKg: "71.40" }] });
-    assert.equal(untouchedEmpty.needsUserInput[0].code, "source_confirmation_required", "API 缺来源仍需先询问");
-    await page.goto(untouchedEmpty.confirmationUrl); await page.getByRole("button", { name: "修改", exact: true }).click();
-    await page.getByRole("button", { name: "更新预览", exact: true }).click();
-    await page.getByRole("button", { name: "确认保存", exact: true }).click();
-    await page.getByRole("status").filter({ hasText: "已保存 1 · 待确认 0" }).waitFor();
-    assert.equal((await read()).find(record => record.recordDate === nextDate(8)).deviceLabel, null, "空来源不操作输入框也可更新并保存");
-    console.log("通过：AI 来源输入无额外控件、点击展开全部建议、1440／390／320px 无溢出、移除保留草稿、直接留空与旧留空请求重新填写。");
+    await editor.getByLabel("体重（kg）").fill("72.34");await source.fill("");
+    await editor.getByRole("button",{name:"移除来源建议 虚构 AI 晚间秤",exact:true}).click();
+    await page.waitForFunction(()=>!document.querySelector('[aria-label="移除来源建议 虚构 AI 晚间秤"]'));
+    assert.equal(await editor.getByLabel("体重（kg）").inputValue(),"72.34");assert.equal(await source.inputValue(),"");
+    await editor.getByRole("button",{name:"更新预览",exact:true}).click();await editor.waitFor({state:"hidden"});
+    assert.equal((await read()).length,2);
+    await page.getByRole("button",{name:"确认并全部保存",exact:true}).click();await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
+    assert.equal((await read()).find(record=>record.recordDate===nextDate(6)).deviceLabel,null);
+    await page.waitForURL(`${baseURL}/dashboard`);
+    await checkUnifiedReview({baseURL,context,page,token,date,artifacts});
     const otherContext = await browser.newContext();
     try { await otherContext.request.post(`${baseURL}/api/auth/sign-in/email`, { headers: { Origin: baseURL, "x-forwarded-for": "192.0.2.202" }, data: other }); assert.equal((await otherContext.request.get(preview.confirmationUrl)).status(), 404); } finally { await otherContext.close(); }
     await page.goto(`${baseURL}/dashboard/ai`); await page.getByRole("heading", { name: "AI 接入", exact: true }).waitFor();
@@ -172,6 +85,6 @@ export async function checkAiAccessBrowser({ baseURL, account, other, date }) {
     await page.getByRole("button", { name: "撤销", exact: true }).click(); await page.getByText("令牌已撤销。", { exact: true }).waitFor();
     assert.equal((await fetch(`${baseURL}/api/v1/measurements`, { headers: { Authorization: `Bearer ${token}` } })).status, 401);
     const spec = await fetch(`${baseURL}/api/v1/openapi.json`); assert.equal(spec.status, 200); assert.equal((await spec.json()).openapi, "3.1.0");
-    assert.deepEqual(errors, []); console.log("通过：AI 令牌与 HTTP 助手 → 兼容单日确认 → 跨日批量修改／逐行保存／取消／整体保存 → GMT 时区／跨页版本冲突保留草稿／跨账号／撤销，1440／390／320px 无溢出。");
+    assert.deepEqual(errors, []); console.log("通过：AI 令牌与 HTTP 助手 → 兼容单日确认 → 混合批次修改／草稿核对／取消／统一保存 → GMT 时区／跨页版本冲突保留草稿／跨账号／撤销，1440／390／320px 无溢出。");
   } catch (error) { console.log("AI 页面诊断：", { errors, alerts: await page.getByRole("alert").allTextContents(), pathname: new URL(page.url()).pathname }); throw error; } finally { await context.close(); await browser.close(); }
 }

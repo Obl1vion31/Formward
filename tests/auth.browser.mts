@@ -178,10 +178,10 @@ try {
   assert.ok(reducedTimings.ended - reducedTimings.started >= 200 && reducedTimings.ended - reducedTimings.started < 650);
   assert.ok(reducedTimings.dashboardRequested >= reducedTimings.ended);
   assert.equal(await mobile.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-  assert.equal(await mobile.page.locator('[aria-label="身体指标趋势"]').getAttribute("data-range"), "7d");
-  await mobile.page.getByRole("button", { name: "30D", exact: true }).click();
+  assert.equal(await mobile.page.getByRole("button", {name:"30D",exact:true}).getAttribute("aria-pressed"), "true");
+  await mobile.page.getByRole("button", { name: "7D", exact: true }).click();
   await mobile.page.setViewportSize({ width: 844, height: 390 });
-  assert.equal(await mobile.page.locator('[aria-label="身体指标趋势"]').getAttribute("data-range"), "30d");
+  assert.equal(await mobile.page.getByRole("button", {name:"7D",exact:true}).getAttribute("aria-pressed"), "true");
   await mobile.page.screenshot({ path: "/tmp/formward-dashboard-mobile.png" });
   await mobile.context.close();
   console.log("通过：手机 reduced motion 完成 240ms 动画后跳转，主页不横向溢出。");

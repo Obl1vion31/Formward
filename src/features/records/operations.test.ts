@@ -1,0 +1,172 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { after, before, test } from "node:test";
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
+import { eq } from "drizzle-orm";
+import * as schema from "../../db/schema";
+import { authenticateAi, createAiToken, revokeAiToken } from "../auth/ai-tokens";
+import { submitAiMeasurementOperation, reviewAiMeasurementOperation } from "../measurements/ai-operations";
+import { submitMealOperation, readMealSnapshot, reviseMealOperation } from "../meals/records";
+import { macroDistribution, sumNutrition } from "../meals/model";
+import { submitRecordOperation, reviewRecordOperation, loadRecordReview, getRecordOperation } from "./operations";
+
+import type { RecordReviewView } from "./model";
+
+const pg = new PGlite(), db = drizzle(pg, { schema });
+before(async () => { await migrate(db, { migrationsFolder: "./drizzle" }); });
+after(async () => { await pg.close(); });
+const nutrition = { caloriesKcal: "200", proteinG: "20", carbsG: "10", fatG: "8" };
+const body = { key: "body", kind: "save_record", date: "2024-08-01", period: "daytime", weightKg: "70", fasting: true, deviceLabel: "虚构秤" } as const;
+const food = { key: "food", kind: "save_food", name: "虚构食品", baseQuantity: "100", unit: "g", nutrition, sourceKind: "estimated", basis: "虚构成分数据" } as const;
+const meal = { key: "meal", kind: "save_meal", date: "2024-08-01", mealType: "午餐", items: [{ kind: "food", name: "虚构食品", quantity: "50", unit: "g", nutrition, sourceKind: "estimated" }] } as const;
+async function owner() {
+  const userId = randomUUID(); await db.insert(schema.user).values({ id: userId, email: `${userId}@example.test`, name: "虚构统一审核用户" });
+  const token = await createAiToken(db, userId, "虚构令牌", "write"), identity = await authenticateAi(db, `Bearer ${token.rawToken}`);
+  return { userId, identity, token };
+}
+const input = (items: unknown[]) => ({ operationId: randomUUID(), items });
+const reject = (work: Promise<unknown>, code: string) => assert.rejects(work, (error: unknown) => !!error && typeof error === "object" && "code" in error && error.code === code);
+
+test("克数与能量比例分别计算，热量未知不影响克数百分比，零与缺项不造比例", () => {
+  const totals = sumNutrition([{ caloriesKcal: "3500", proteinG: "127", carbsG: "354", fatG: "182" }]);
+  const grams = macroDistribution(totals)!, energy = macroDistribution(totals, "energy")!;
+  assert.ok(Math.abs(grams[2].ratio - 182 / 663) < 1e-12);
+  assert.ok(Math.abs(energy[2].ratio - 1638 / 3562) < 1e-12);
+  assert.equal(grams.reduce((sum, segment) => sum + segment.calories, 0), 3500);
+  assert.ok(macroDistribution(sumNutrition([{ ...nutrition, caloriesKcal: null }])));
+  assert.equal(macroDistribution(sumNutrition([{ ...nutrition, fatG: null }])), null);
+  assert.equal(macroDistribution(sumNutrition([{ ...nutrition, proteinG: "0", carbsG: "0", fatG: "0" }])), null);
+});
+
+for (let mask = 1; mask <= 7; mask++) test(`三类内容任意组合 ${mask}，草稿不写事实，统一确认幂等`, async () => {
+  const { userId, identity } = await owner(), raw = input([body, meal, food].filter((_, index) => mask & (1 << index)));
+  let operation: RecordReviewView = await submitRecordOperation(db, identity, raw);
+  assert.equal((await readMealSnapshot(db, userId)).meals.length, 0);
+  assert.equal((await db.select().from(schema.measurement).where(eq(schema.measurement.userId, userId))).length, 0);
+  assert.equal((await submitRecordOperation(db, identity, raw)).id, operation.id);
+  operation = await reviewRecordOperation(db, userId, operation.id, { kind: "check", revision: operation.revision, keys: [operation.rows[0].key] });
+  assert.equal(operation.rows[0].checked, true);
+  assert.equal((await readMealSnapshot(db, userId)).foods.length, 0);
+  operation = await reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: operation.revision });
+  assert.equal(operation.status, "confirmed");
+  const snapshot = await readMealSnapshot(db, userId);
+  assert.equal(snapshot.meals.length, mask & 2 ? 1 : 0); assert.equal(snapshot.foods.length, mask & 4 ? 1 : 0);
+  assert.equal((await db.select().from(schema.measurement).where(eq(schema.measurement.userId, userId))).length, mask & 1 ? 1 : 0);
+  assert.equal((await reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: 1 })).status, "confirmed");
+});
+
+test("同批新食材只入库一次，多餐复用；取消食材仍保留每餐快照和营养", async () => {
+  for (const excludeFood of [false, true]) {
+    const { userId, identity } = await owner();
+    const linked = { ...meal, items: [{ kind: "food", name: food.name, foodRef: food.key, quantity: "50", unit: "g", sourceKind: "estimated" }] };
+    let operation: RecordReviewView = await submitRecordOperation(db, identity, input([food, linked, { ...linked, key: "dinner", mealType: "晚餐" }]));
+    assert.ok(operation.rows.every(row => !row.meal?.error), operation.rows.map(row => row.meal?.error).join(";"));
+    if (excludeFood) operation = await reviewRecordOperation(db, userId, operation.id, { kind: "exclude", revision: operation.revision, keys: [food.key] });
+    operation = await reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: operation.revision });
+    const snapshot = await readMealSnapshot(db, userId); assert.equal(snapshot.foods.length, excludeFood ? 0 : 1); assert.equal(snapshot.meals.length, 2);
+    for (const saved of snapshot.meals) { assert.equal(Number(saved.totals.values.caloriesKcal), 100); assert.equal(saved.items[0].foodSnapshot?.baseQuantity, "100"); assert.equal(!!saved.items[0].foodId, !excludeFood); }
+  }
+});
+
+test("只入库不保存摄入，排除可恢复；内嵌新食材自动展开", async () => {
+  const { userId, identity } = await owner(); const { key, kind, ...draft } = food; void key; void kind;
+  let operation: RecordReviewView = await submitRecordOperation(db, identity, input([{ ...meal, items: [{ kind: "food", name: food.name, foodDraft: draft, quantity: "50", unit: "g", sourceKind: "estimated" }] }]));
+  assert.equal(operation.rows.length, 2);
+  operation = await reviewRecordOperation(db, userId, operation.id, { kind: "exclude", revision: operation.revision, keys: [meal.key] });
+  operation = await reviewRecordOperation(db, userId, operation.id, { kind: "restore", revision: operation.revision, keys: [meal.key] });
+  operation = await reviewRecordOperation(db, userId, operation.id, { kind: "exclude", revision: operation.revision, keys: [meal.key] });
+  await reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: operation.revision });
+  const snapshot = await readMealSnapshot(db, userId); assert.equal(snapshot.foods.length, 1); assert.equal(snapshot.meals.length, 0);
+});
+
+test("修改清除核对标记，原请求不变，食材修改联动本餐预览", async () => {
+  const { userId, identity } = await owner(), linked = { ...meal, items: [{ kind: "food", name: food.name, foodRef: food.key, quantity: "50", unit: "g", sourceKind: "estimated" }] };
+  const raw = input([food, linked]); let operation: RecordReviewView = await submitRecordOperation(db, identity, raw);
+  operation = await reviewRecordOperation(db, userId, operation.id, { kind: "check", revision: operation.revision, keys: [food.key, meal.key] });
+  const { key, ...action } = food;
+  operation = await reviewRecordOperation(db, userId, operation.id, { kind: "update", revision: operation.revision, key, action: { ...action, nutrition: { ...nutrition, caloriesKcal: "400" } } });
+  assert.ok(operation.rows.every(row => !row.checked)); assert.equal(Number(operation.rows.find(row => row.key === meal.key)?.meal?.meal?.totals.values.caloriesKcal), 200);
+  const [stored] = await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.id, operation.id)); assert.deepEqual(stored.payload, raw);
+});
+
+test("第二类写入审计失败，身体、饮食及终态整个事务回滚", async () => {
+  const { userId, identity } = await owner(), operation = await submitRecordOperation(db, identity, input([body, meal]));
+  await pg.exec(`CREATE FUNCTION fail_record_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.user_id = '${userId}' THEN RAISE EXCEPTION 'fictional failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER fail_record_audit BEFORE INSERT ON meal_events FOR EACH ROW EXECUTE FUNCTION fail_record_audit();`);
+  try { await assert.rejects(reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: operation.revision })); }
+  finally { await pg.exec("DROP TRIGGER fail_record_audit ON meal_events; DROP FUNCTION fail_record_audit();"); }
+  assert.equal((await readMealSnapshot(db, userId)).meals.length, 0);
+  assert.equal((await db.select().from(schema.measurement).where(eq(schema.measurement.userId, userId))).length, 0);
+  assert.equal((await loadRecordReview(db, userId, operation.id)).status, "pending");
+  await reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: operation.revision });
+});
+
+test("跨账号、重复内容冲突、重复key、无效项目、撤销授权与并发审核保护", async () => {
+  const ownerA = await owner(), ownerB = await owner(), raw = input([body, meal]);
+  let operation: RecordReviewView = await submitRecordOperation(db, ownerA.identity, raw);
+  await reject(loadRecordReview(db, ownerB.userId, operation.id), "not_found");
+  await reject(getRecordOperation(db, ownerB.identity, operation.id), "not_found");
+  await reject(reviewRecordOperation(db, ownerB.userId, operation.id, { kind: "confirm", revision: 1 }), "not_found");
+  await reject(submitRecordOperation(db, ownerA.identity, { ...raw, items: [body] }), "request_conflict");
+  await reject(submitRecordOperation(db, ownerA.identity, input([body, body])), "invalid_input");
+  operation = await reviewRecordOperation(db, ownerA.userId, operation.id, { kind: "check", revision: 1, keys: [body.key] });
+  await reject(reviewRecordOperation(db, ownerA.userId, operation.id, { kind: "confirm", revision: 1 }), "review_changed");
+  await revokeAiToken(db, ownerA.userId, ownerA.token.token.id);
+  await assert.rejects(reviewRecordOperation(db, ownerA.userId, operation.id, { kind: "confirm", revision: operation.revision }));
+  let invalid: RecordReviewView = await submitRecordOperation(db, ownerB.identity, input([{ ...body, weightKg: "wrong" }, meal]));
+  await reject(reviewRecordOperation(db, ownerB.userId, invalid.id, { kind: "confirm", revision: 1 }), "review_required");
+  invalid = await reviewRecordOperation(db, ownerB.userId, invalid.id, { kind: "exclude", revision: 1, keys: [body.key] });
+  await reviewRecordOperation(db, ownerB.userId, invalid.id, { kind: "confirm", revision: invalid.revision });
+});
+
+test("旧链接读取不写批次，首次核对采用统一草稿，旧身体已保存行不重复写入", async () => {
+  const { userId, identity } = await owner();
+  const bodyOperation = await submitAiMeasurementOperation(db, identity, { kind: "batch", operationId: randomUUID(), items: [{ ...body, key: undefined }, { ...body, date: "2024-08-02", key: undefined }].map(({ key, ...rest }) => { void key; return rest; }) });
+  const partial = await reviewAiMeasurementOperation(db, userId, bodyOperation.id, { kind: "confirm", revision: bodyOperation.revision, itemIds: [bodyOperation.items[0].id] });
+  let review = await loadRecordReview(db, userId, partial.id);
+  assert.equal((await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.userId, userId))).length, 0);
+  review = await reviewRecordOperation(db, userId, partial.id, {kind:"check",revision:review.revision,keys:[partial.items[1].id]});
+  assert.equal((await loadRecordReview(db,userId,partial.id)).id,review.id);
+  review = await reviewRecordOperation(db, userId, partial.id, { kind: "confirm", revision: review.revision }); assert.equal(review.status, "confirmed");
+  assert.equal((await db.select().from(schema.measurement).where(eq(schema.measurement.userId, userId))).length, 2);
+  const legacyMeal = await submitMealOperation(db, { userId, origin: "ai", identity }, { operationId: randomUUID(), actions: [{ ...meal, key: undefined }].map(({ key, ...rest }) => { void key; return rest; }) });
+  review = await loadRecordReview(db, userId, legacyMeal.id, "meal");
+  review = await reviewRecordOperation(db, userId, legacyMeal.id, { kind: "check", revision: review.revision, keys: [review.rows[0].key] }, "meal");
+  assert.equal((await readMealSnapshot(db, userId)).meals.length, 0);
+  await reviewRecordOperation(db, userId, legacyMeal.id, { kind: "confirm", revision: review.revision }, "meal");
+  assert.equal((await readMealSnapshot(db, userId)).meals.length, 1);
+  const pending = await submitAiMeasurementOperation(db, identity, {kind:"batch",operationId:randomUUID(),items:[{kind:"save_record",date:"2024-08-03",period:"evening",weightKg:"71",deviceLabel:"虚构秤"},{kind:"save_record",date:"2024-08-04",period:"evening",weightKg:"72",deviceLabel:"虚构秤"}]});
+  await reviewAiMeasurementOperation(db,userId,pending.id,{kind:"confirm",revision:pending.revision,itemIds:[pending.items[0].id]});
+  const cancelled = await reviewRecordOperation(db,userId,pending.id,{kind:"cancel",revision:1});
+  assert.equal(cancelled.status,"cancelled");assert.equal(cancelled.saved,1);assert.equal(cancelled.rows.filter(row=>row.persisted).length,1);
+});
+
+test("独立修改子审核后父批次拒绝旧确认，刷新后方可保存", async () => {
+  const { userId, identity } = await owner(); let operation: RecordReviewView = await submitRecordOperation(db, identity, input([meal]));
+  const [row] = await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.id, operation.id));
+  await reviseMealOperation(db, userId, row.mealOperationId!, operation.mealOperation!.revision);
+  await reject(reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: operation.revision }), "review_changed");
+  operation = await reviewRecordOperation(db, userId, operation.id, { kind: "refresh", revision: operation.revision });
+  await reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: operation.revision });
+});
+
+test("混合预览过期时整体回滚，刷新后可保存；全重复身体记录无需再次确认", async () => {
+  const { userId, identity } = await owner(); let operation: RecordReviewView = await submitRecordOperation(db, identity, input([body, meal]));
+  const [row] = await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.id, operation.id));
+  await db.update(schema.mealOperation).set({ expiresAt: new Date(0) }).where(eq(schema.mealOperation.id, row.mealOperationId!));
+  await reject(reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: operation.revision }), "expired");
+  assert.equal((await db.select().from(schema.measurement).where(eq(schema.measurement.userId, userId))).length, 0);
+  operation = await reviewRecordOperation(db, userId, operation.id, { kind: "refresh", revision: operation.revision });
+  await reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: operation.revision });
+  const duplicate = await submitRecordOperation(db, identity, input([body])); assert.equal(duplicate.status, "completed"); assert.equal(duplicate.canConfirm, false);
+});
+
+test("未知批内食材引用明确阻止保存，可取消错误餐次独立入库", async () => {
+  const { userId, identity } = await owner();
+  let operation: RecordReviewView = await submitRecordOperation(db, identity, input([food, { ...meal, items: [{ kind: "food", name: food.name, quantity: "50", unit: "g", foodRef: "unknown", sourceKind: "estimated" }] }]));
+  assert.equal(operation.canConfirm, false); assert.ok(operation.needsUserInput.some(issue => issue.key === "meal"));
+  operation = await reviewRecordOperation(db, userId, operation.id, { kind: "exclude", revision: operation.revision, keys: [meal.key] });
+  await reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: operation.revision });
+  const snapshot = await readMealSnapshot(db, userId); assert.equal(snapshot.foods.length, 1); assert.equal(snapshot.meals.length, 0);
+});

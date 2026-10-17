@@ -1,0 +1,66 @@
+.workspace { --rule:rgba(240,233,221,.12); max-width:1120px; margin:28px auto 0; font-size:14px; }
+.heading,.sectionHeading,.rowHeading { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.heading h1 { font-size:26px; margin:0; font-weight:500; }
+.heading > span,.label { color:var(--muted); font-size:12px; }
+.section { margin-top:24px; }
+.sectionHeading { border-bottom:1px solid var(--rule); }
+.sectionHeading h2 { font-size:17px; font-weight:500; margin:10px 0; }
+.row { padding:14px 0; border-bottom:1px solid var(--rule); scroll-margin-bottom:100px; }
+.rowHeading { align-items:flex-start; }
+.rowHeading > div:first-child { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; }
+.rowHeading h3 { font-size:15px; font-weight:500; margin:0; }
+.row[data-excluded="true"] { opacity:.6; }
+.actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.workspace button { cursor:pointer; background:none; border:0; color:inherit; font:inherit; padding:4px 8px; min-height:44px; }
+.workspace button:disabled { opacity:.4; cursor:default; }
+.workspace button:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+.bodyValues { display:flex; flex-wrap:wrap; gap:8px 24px; margin:10px 0 0; }
+.bodyValues > div { display:flex; gap:8px; align-items:baseline; }
+.bodyValues dt { color:var(--muted); font-size:12px; }
+.bodyValues dd { margin:0; }
+.bodyValues strong,.foodLine strong { font-weight:500; }
+.bodyValues del { color:var(--muted); }
+.foodLine { display:grid; grid-template-columns:minmax(100px,1fr) auto auto; gap:4px 16px; padding-top:8px; }
+.foodLine small { grid-column:1/-1; color:var(--muted); }
+.recordContent p { margin:8px 0; }
+.nutrients { display:flex; gap:6px 16px; flex-wrap:wrap; }
+.comparison { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:12px; }
+.comparison > div { min-width:0; }
+.images { margin-top:8px; }
+.images img,.comparison img { max-height:88px; }
+.evidence { color:var(--muted); margin-top:12px; font-size:12px; }
+.evidence summary { cursor:pointer; min-height:32px; display:list-item; align-content:center; }
+.error { color:#e2a49c; font-size:13px; overflow-wrap:anywhere; }
+.textOnly { display:flex; gap:8px; align-items:center; font-size:12px; min-height:44px; }
+.textOnly input { width:18px; height:18px; accent-color:var(--gold); }
+.footer { position:sticky; bottom:0; z-index:10; background:var(--graphite); border-top:1px solid var(--rule); display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:18px; padding:12px 0 calc(12px + env(safe-area-inset-bottom)); }
+.footer > div { display:grid; gap:4px; }
+.footer strong { font-size:14px; font-weight:500; }
+.footer small { color:var(--muted); font-size:12px; }
+.footer > div > button { padding:0; min-height:24px; font-size:12px; text-align:left; color:#e2a49c; }
+.footer .save { background:var(--gold); color:#171714; border-radius:4px; padding:10px 18px; font-weight:500; white-space:nowrap; }
+.success { min-height:55vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px; }
+.success h1,.success p { margin:0; }
+.success p { color:var(--muted); font-size:14px; }
+.check { color:var(--gold); font-size:52px; }
+@media(max-width:600px) {
+  .workspace { margin-top:18px; font-size:13px; line-height:1.35; }
+  .heading h1 { font-size:22px; }
+  .section { margin-top:16px; }
+  .sectionHeading h2 { font-size:16px; margin:6px 0; }
+  .row { padding:8px 0; }
+  .rowHeading { gap:4px; flex-wrap:wrap; }
+  .rowHeading > div:first-child { flex:1 1 100%; }
+  .rowHeading h3 { font-size:14px; margin:0; }
+  .actions { gap:0 6px; }
+  .actions button { padding:0 8px; font-size:12px; }
+  .bodyValues { gap:6px 14px; margin-top:4px; }
+  .foodLine { grid-template-columns:minmax(0,1fr) auto auto; gap:4px 8px; padding-top:6px; }
+  .foodLine strong { overflow-wrap:anywhere; }
+  .comparison { gap:10px; grid-template-columns:minmax(0,1fr); margin-top:8px; }
+  .evidence { margin-top:6px; }
+  .footer { margin-top:12px; gap:8px; padding-top:8px; }
+  .footer strong { font-size:12px; }
+  .footer small { font-size:10px; }
+  .footer .save { padding:8px 12px; font-size:13px; }
+}

@@ -34,7 +34,7 @@ export function OverviewTrend({meals,records,today}:{meals:MealView[];records:Me
  <div><span>晚重 − 晨重</span><strong>{signed(day?.weightDifferenceKg??null)}<small>kg</small></strong>{day?.differenceEstimated&&<em>含估计</em>}</div>
  </div>
  <CombinedPlot days={days} selected={selected} inspect={setInspected} open={date=>{setInspected(date);setOpened(date);}}/>
- <p className={styles.caption}>{baseline?`晨重变化以 ${baseline.recordDate} 的 ${Number(baseline.weightKg)} kg 为基准。`:"区间内暂无晨间体重。"}右轴为 kg；纹理柱和虚线含已有估计。缺记录留空，点击日期查看详情。</p>
+ <p className={styles.caption}>{baseline?`晨重变化以 ${baseline.recordDate} 的 ${Number(baseline.weightKg)} kg 为基准。`:"区间内暂无晨间体重。"}红蓝柱共用零点，右轴为 kg；纹理柱和虚线含已有估计。缺记录留空，点击日期查看详情。</p>
  </>}
  {dialogDay&&<EditorDialog title={`${dialogDay.date} · 当日记录`} close={()=>setOpened(null)} busy={false}><div className={styles.dayDetails}>
  <h3>当天身体记录</h3><p>晨间 <WeightReading record={dialogDay.body.weightKg}/></p><p>晚间 <WeightReading record={dialogDay.evening}/></p><p>晚重 − 晨重 {signed(dialogDay.weightDifferenceKg)} kg{dialogDay.differenceEstimated?" · 含估计":""}</p><LoadingLink href={`/dashboard/measurements?date=${dialogDay.date}`}>查看身体记录 →</LoadingLink>
@@ -46,9 +46,9 @@ function CombinedPlot({days,selected,inspect,open}:{days:OverviewDay[];selected:
  const container=useRef<HTMLDivElement>(null),[width,setWidth]=useState(0),pattern=useId();
  useEffect(()=>{const observer=new ResizeObserver(([entry])=>setWidth(entry.contentRect.width));observer.observe(container.current!);return()=>observer.disconnect();},[]);
  const {points}=overviewWeightSeries(days),w=width||280,left=48,right=44,top=28,bottom=266,slot=(w-left-right)/days.length,x=(index:number)=>left+(index+.5)*slot;
- const maxKcal=Math.max(1,...days.map(day=>Number(day.nutrition?.values.caloriesKcal??0)))*1.15,kcalY=(value:number)=>bottom-value/maxKcal*(bottom-top);
+ const maxKcal=Math.max(1,...days.map(day=>Number(day.nutrition?.values.caloriesKcal??0)))*1.15,kcalY=(value:number)=>zero-value/maxKcal*(zero-top);
  const kgValues=points.flatMap(({day,relativeKg})=>[relativeKg,day.weightDifferenceKg].filter((v):v is number=>v!==null));
- const min=Math.min(0,...kgValues),max=Math.max(0,...kgValues),padding=Math.max(.15,(max-min)*.15),low=min-padding,high=max+padding,kgY=(value:number)=>bottom-(value-low)/(high-low)*(bottom-top),zero=kgY(0),barWidth=Math.min(19,slot*.34);
+ const min=Math.min(0,...kgValues),max=Math.max(0,...kgValues),padding=Math.max(.15,(max-min)*.15),low=min-padding,high=Math.max(max+padding,-low*1.5),kgY=(value:number)=>bottom-(value-low)/(high-low)*(bottom-top),zero=kgY(0),barWidth=Math.min(30,slot*.68),redWidth=barWidth*.48;
  return <div ref={container} className={styles.plot}><svg viewBox={`0 0 ${w} 310`} style={{visibility:width?undefined:"hidden"}} role="group" aria-label="摄入与体重总览图">
  <defs><pattern id={pattern} width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="#C07B77"/><path d="M0 5L5 0" stroke="#151513" strokeWidth="1.4"/></pattern></defs>
  <text x={left-8} y="14" textAnchor="end" className={styles.axis}>kcal</text><text x={w-right+8} y="14" className={styles.axis}>kg</text>
@@ -61,8 +61,8 @@ function CombinedPlot({days,selected,inspect,open}:{days:OverviewDay[];selected:
  const next=event.key==="ArrowLeft"?index-1:event.key==="ArrowRight"?index+1:event.key==="Home"?0:event.key==="End"?days.length-1:null;
  if(next!==null){event.preventDefault();event.currentTarget.parentElement?.querySelectorAll<SVGGElement>("[data-overview-date]")[Math.max(0,Math.min(days.length-1,next))]?.focus();}
  }}><rect x={left+index*slot} y={top} width={slot} height={bottom-top} className={styles.plotHit}/>
- {calories!==null&&calories!==undefined&&<rect data-overview-value={calories} data-series="calories" x={x(index)-barWidth-1} y={kcalY(Number(calories))} width={barWidth} height={bottom-kcalY(Number(calories))} fill="#6C96B3" opacity={day.nutrition?.incomplete.caloriesKcal?.5:.85} className={styles.plotData}/>}
- {delta!==null&&<rect data-series="difference" data-overview-value={delta} data-estimated={day.differenceEstimated} x={x(index)+1} y={Math.min(zero,kgY(delta))} width={barWidth} height={Math.max(1,Math.abs(kgY(delta)-zero))} fill={day.differenceEstimated?`url(#${pattern})`:"#C07B77"} className={styles.plotData}/>}
+ {calories!==null&&calories!==undefined&&<rect data-overview-value={calories} data-series="calories" x={x(index)-barWidth/2} y={kcalY(Number(calories))} width={barWidth} height={zero-kcalY(Number(calories))} fill="#6C96B3" opacity={day.nutrition?.incomplete.caloriesKcal?.5:.85} className={styles.plotData}/>}
+ {delta!==null&&<rect data-series="difference" data-overview-value={delta} data-estimated={day.differenceEstimated} x={x(index)-redWidth/2} y={Math.min(zero,kgY(delta))} width={redWidth} height={Math.max(1,Math.abs(kgY(delta)-zero))} fill={day.differenceEstimated?`url(#${pattern})`:"#C07B77"} className={styles.plotData}/>}
  {relativeKg!==null&&<>{previous?.relativeKg!==null&&previous?.relativeKg!==undefined&&<line x1={x(index-1)} x2={x(index)} y1={kgY(previous.relativeKg)} y2={kgY(relativeKg)} stroke="#BEA478" strokeWidth="1.8" strokeDasharray={estimated||previous.day.body.weightKg?.recordKind==="estimated"?"4 4":undefined} className={styles.plotData}/>}<circle data-series="weight" data-overview-value={day.body.weightKg?.weightKg} data-relative-kg={relativeKg} data-kind={day.body.weightKg?.recordKind} cx={x(index)} cy={kgY(relativeKg)} r={days.length>90?1.5:2.5} fill={estimated?"#151513":"#BEA478"} stroke="#BEA478" className={styles.plotData}/></>}
  {days.length<=7&&<text x={x(index)} y="294" textAnchor="middle" className={styles.axis}>{slot>=46?day.date.slice(5):day.date.slice(8)}</text>}
  </g>;

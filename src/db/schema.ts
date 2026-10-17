@@ -384,3 +384,14 @@ export const mealImageLink = pgTable("meal_image_links", {
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), imageId: text("image_id").notNull(),
   mealId: text("meal_id"), foodId: text("food_id"), position: integer("position").notNull(),
 }, t => [foreignKey({columns:[t.userId,t.imageId],foreignColumns:[mealImage.userId,mealImage.id]}), foreignKey({columns:[t.userId,t.mealId],foreignColumns:[meal.userId,meal.id]}), foreignKey({columns:[t.userId,t.foodId],foreignColumns:[food.userId,food.id]}), check("meal_image_links_target_valid",sql`num_nonnulls(${t.mealId},${t.foodId})=1`), uniqueIndex("meal_image_links_meal_idx").on(t.userId,t.mealId,t.imageId), uniqueIndex("meal_image_links_food_idx").on(t.userId,t.foodId,t.imageId)]);
+
+// 一个审核批次关联既有业务操作；事实写入仍由对应 feature 完成。
+export const recordOperation = pgTable("record_operations", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), operationId: text("operation_id").notNull(),
+  measurementRevision: integer("measurement_revision"), mealRevision: integer("meal_revision"),
+  requestDigest: text("request_digest").notNull(), payload: jsonb("payload").$type<import("../features/records/model").RecordInput>().notNull(),
+  draft: jsonb("draft").$type<import("../features/records/model").RecordItem[]>().notNull(),
+  measurementOperationId: text("measurement_operation_id").references(() => measurementOperation.id), mealOperationId: text("meal_operation_id").references(() => mealOperation.id),
+  revision: integer("revision").notNull().default(1), status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+}, t => [uniqueIndex("record_operations_owner_request_idx").on(t.userId,t.operationId), uniqueIndex("record_operations_measurement_idx").on(t.measurementOperationId), uniqueIndex("record_operations_meal_idx").on(t.mealOperationId), index("record_operations_owner_created_idx").on(t.userId,t.createdAt), check("record_operations_status_valid", sql`${t.status} IN ('pending','confirmed','cancelled','completed')`)]);

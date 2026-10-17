@@ -2,6 +2,20 @@
 
 接口覆盖晨晚体重／体脂、来源、时区、记录详情与历史、候选分析、摘要与趋势、历史编辑及单项显式估算。网页和 API 使用同一 measurements feature。饮食、食材及其删除／恢复已接入；运动、通用文件导入及身体记录的网页删除／恢复、准确测量时间和历史归属纠正尚未接入。
 
+## 混合记录接口
+
+MCP 1.6.0 提供11个工具，新增 `submit_record_operation`／`get_record_operation`；HTTP 为 `POST /api/v1/record-operations` 和 `GET /api/v1/record-operations/{id}`。支持只提交一类或任意组合，最多100项（包含展开的新食材）、64 KiB，统一链接 `/dashboard/ai/operations/{id}`。原单类接口和链接保持兼容，确认只能由登录网页执行。
+
+请求为 `{ operationId, timezone?, items }`，每项包含唯一 `key` 和既有 `save_record`、`estimate_cell`、`save_meal`、`save_food` 或饮食删除／恢复字段。餐项通过 `foodRef` 引用同批 `save_food.key`，不同时提供 `foodId`、`foodDraft` 或 `nutrition`；内嵌 `foodDraft` 兼容并自动展开。以下仅为虚构格式：
+
+```json
+{"operationId":"fictional-mixed-example","items":[{"key":"body","kind":"save_record","date":"2024-08-01","period":"daytime","weightKg":"70.2","fasting":true,"deviceLabel":"虚构秤"},{"key":"food","kind":"save_food","name":"虚构食品","baseQuantity":"100","unit":"g","nutrition":{"caloriesKcal":"200","proteinG":"20","carbsG":"10","fatG":"8"},"sourceKind":"estimated"},{"key":"meal","kind":"save_meal","date":"2024-08-01","mealType":"午餐","items":[{"kind":"food","name":"虚构食品","foodRef":"food","quantity":"50","unit":"g","sourceKind":"estimated"}]}]}
+```
+
+返回 `status`、`rows`、`canConfirm`、按项目汇总的 `needsUserInput`、审核版本及确认链接。`pending` 是草稿，`confirmed` 表示所选记录已保存，`cancelled` 为取消，`completed` 表示无需保存。缺图仍须用户逐项明确选择先保存文字；`needsUserInput` 不得被 AI 当作已确认。重复请求复用原 `operationId` 和内容，改变内容或授权时拒绝复用。
+
+混合写入按所含内容检查 `measurements:write` 和 `meals:write`，查询批次检查对应读取权限；工具元数据声明这两类既有权限，不自动扩展旧连接。纯身体或纯饮食连接也可继续使用原单类工具。
+
 ## ChatGPT 与其他 MCP 客户端
 
 在用户当前使用的 ChatGPT「插件 → 添加自定义 MCP」入口，填写服务器地址 `https://formward-ten.vercel.app/api/mcp`，认证方式选择 OAuth。添加后跳转到 Formward 登录，在授权页核对客户端名称和权限，点击“允许连接”。其他支持远程 Streamable HTTP 和 OAuth 的大模型客户端使用同一地址。界面的名称和可用入口以客户端当前账号为准。
@@ -43,7 +57,7 @@ search_foods返回foods及兼容的presets:[]，不提供基础预设采用；qu
 1. 在工作区交互终端运行 `pnpm ai:setup`，输入地址和隐藏输入的令牌。配置写入权限 0600、被 Git 忽略的 `.env.ai.local`，拒绝覆盖已有文件。
 2. 运行 `pnpm ai:request GET /measurements`，或把接入说明交给能发送 HTTP 请求的 AI，让它先查询。
 3. 把真实提供的候选内容整理为私有 `data/exports/` JSON，再运行 `pnpm ai:request POST /measurement-operations data/exports/请求.json`。
-4. 打开响应中的 `confirmationUrl`，在 Formward 登录、逐行核对前后值。可修改并更新预览，再逐行确认保存，或一次保存全部剩余记录。
+4. 打开响应中的 `confirmationUrl`，在 Formward 登录、逐行核对前后值。可修改并更新预览，逐项确认仅标记草稿，最后在底部统一保存未取消内容。
 5. 运行 `pnpm ai:request GET /measurement-operations/操作ID` 检查每行结果和数量。
 
 助手只通过 HTTP 使用私有配置，不读取数据库配置或打印令牌，不跟随重定向。仅允许 HTTPS 或本机 HTTP。Formward 令牌不是模型服务的 API Key，也不需要网页登录密码。公网地址为 `https://formward-ten.vercel.app`，OpenAPI 为 `https://formward-ten.vercel.app/api/v1/openapi.json`，外部 AI 可使用此地址和访问令牌。部署维护见 [公网 HTTPS 部署](deployment.md)；HTTP API 保持独立手动令牌鉴权；OAuth 连接使用上述 MCP 入口。
@@ -99,7 +113,7 @@ search_foods返回foods及兼容的presets:[]，不提供基础预设采用；qu
 
 修改已有值、来源或时区，在对应 `save_record` 项提供 `recordId` 和查询返回的 `updatedAt` 作为 `version`。同值跳过，缺项可补；不同已有值产生行内冲突，网页修改时须明确选择历史记录。批量形状错误会拒绝请求；业务无效值留在对应行，供用户纠正。批内重复目标产生冲突，修改目标或取消其中一行后重新预览。
 
-估算项仅保存所选 metric，不自动填另一空项。依据只读取已保存实测，同批未确认实测不参与。整批确认先保存估算，使结果与审核依据一致；逐行保存实测后，会重算剩余待确认估算的预览。样本不足跳过并保持空白；冻结历史拒绝新增估计。
+估算项仅保存所选 metric，不自动填另一空项。依据只读取已保存实测，同批未确认实测不参与。整批确认先保存估算，使结果与审核依据一致；审核草稿中的实测不会作为同批估算依据。样本不足跳过并保持空白；冻结历史拒绝新增估计。
 
 兼容原 `save_day` 请求：`{kind:"save_day",operationId,date,periods:{daytime:{...},evening:{...}},timezone?}`；历史编辑字段在对应时段内。兼容独立 `estimate_cell` 请求，在估算项外再提供 operationId。已有单日／单项链接使用同一个可编辑审核页。
 
@@ -107,31 +121,9 @@ search_foods返回foods及兼容的presets:[]，不提供基础预设采用；qu
 
 ## 一个链接审核整批
 
-顶部显示总数、已保存／待确认／已取消／已跳过数量，并提供“全部确认保存”“批量修改”“取消剩余”。每行列出日期、时段、前后数值、来源、空腹条件、GMT 时区和估算依据，以及“确认保存”“修改”“取消”。来源编辑与身体录入共用简洁来源输入，点击输入框直接展开全部建议，保留现有文字，输入时再筛选；留空后点击更新预览即可提交 null 和留空标记，无需复选框。建议旁“×”直接移除本账号建议，保留当前输入和已有记录，失败保留建议。旧记录保留原来源不恢复建议，明确再次使用并成功保存新记录或来源修改后恢复。
+统一审核页按身体状况、摄入记录、食材库记录排列，只显示本次内容。新增直接展示内容，修改显示原值与新值；新增图片贴近对应记录，变更图片展示前后对照。逐项确认只标记已核对，修改先更新草稿，取消可恢复；整体核对后也可直接点击底部“确认并全部保存”。所选内容在一个数据库事务中保存，失败保留输入并整体回滚。手机压缩信息间距，底部吸附按钮保留安全区；依据、备注和审核技术信息折叠。保存成功显示勾，2秒后返回总览，保留立即返回入口；重新打开已完成链接不自动跳转。
 
-- 单行确认立即保存该行，其他行继续待处理。刷新或重新打开链接保留已保存、已取消和草稿结果。
-- 全部确认在一个事务保存剩余有效行；有冲突或无效行时禁用整批保存，有效行仍可单独保存。
-- 取消剩余或取消一行只处理待确认行，不撤销已保存记录。
-- 修改支持日期、晨晚、体重、体脂、来源、空腹条件和实测时区；估算支持改日期／时段，指标保持单项。历史日期／时段变化不迁移原记录，清除旧目标身份后重新预览新目标。
-- 修改后先“更新预览”或“更新全部预览”，核对新的前后值，再保存。编辑期间禁止确认旧预览。放弃修改只丢弃本地未更新输入。
-
-预览有效 15 分钟，更新或刷新预览重新计时。确认验证当前会话归属、发起令牌或 OAuth 连接、审核 revision 和健康快照；外部数据变化或到期须刷新并重新核对，令牌失效须重新授权和提交。自己保存一行会更新快照并重新预览剩余行。跨页面版本冲突保留本地输入，可“加载最新审核，保留输入”后重新更新；不会直接覆盖另一个页面。
-
-API 没有确认或编辑端点，不接受 `confirmed:true`。原始 AI 请求不可变；网页草稿、版本、行结果存入预览。相同请求重试复用 operationId 和原始内容，新内容或授权连接必须用新 ID。已处理行再次确认返回结果，不重复写入。
-
-| 状态 | 含义 |
-| --- | --- |
-| 行 `pending` | 尚未保存，可能需要纠正 |
-| 行 `confirmed` | 该行已保存 |
-| 行 `cancelled`／`skipped` | 该行取消／无需写入 |
-| 操作 `pending` | 有待处理行，尚未保存 |
-| 操作 `partially_confirmed` | 部分已保存，仍有待处理 |
-| 操作 `confirmed` | 应保存的行已保存，可能另有跳过行 |
-| 操作 `completed` | 混合保存／取消终态，或全部跳过 |
-| 操作 `cancelled` | 未保存且待处理行均取消 |
-| 操作 `expired` | 尚有待处理行，预览已过期；已保存行仍有效 |
-
-AI 以 `items[].status` 和 `counts` 报告事实，不能把部分保存、取消或全部跳过宣称为整批已保存。
+来源编辑与身体录入共用来源输入，点击展开本账号历史建议，支持移除；来源可填写或直接留空后更新预览，历史快照不受建议移除影响。已有部分保存的旧审核保留原结果，剩余内容统一确认，不重复写入。
 
 ## 时区与审计
 
@@ -139,7 +131,7 @@ AI 以 `items[].status` 和 `counts` 报告事实，不能把部分保存、取�
 
 每次新录入自动采用当次系统时区，无须用户重复填写。`pnpm ai:request` 每次读取所在设备的系统偏移并发送 `X-Formward-Timezone`，不改写私有请求文件。其他客户端可传相同请求头；未传则采用 FORMWARD_TIMEZONE 配置地区的当次偏移，未配置才读取服务系统偏移。公网服务配置 Asia/Shanghai，默认 +08:00，不依赖平台固定的 UTC 时区。`GET /measurements` 的 `context` 返回 `timezone`、`timezoneLabel` 和 `localDate`，供 AI 读取本次默认值。无法发送自定义请求头的客户端可在候选 timezone 中明确提供时区。
 
-新记录省略 `timezone` 时由 API 自动带入，明确值优先；显式 null 保持未指定。审核页回显自动采用的时区，仍可选择其他时区或点击“采用设备时区”，然后更新预览、确认。身体记录页面的常规编辑也支持晨晚独立修改时区，选择后点击“保存录入”，无需重输体重和体脂。已有记录补缺或修改省略时区时保留原值，历史时区变更须明确指定记录与版本。`preview.defaultTimezone` 保存本次默认值；自动填入只进入审核草稿，原始请求保留。刷新、后续逐行保存和相同 operationId 重试保留首次预览／用户修改后的时区，下一次新操作重新读取系统时区。
+新记录省略 `timezone` 时由 API 自动带入，明确值优先；显式 null 保持未指定。审核页回显自动采用的时区，仍可选择其他时区或点击“采用设备时区”，然后更新预览、确认。身体记录页面的常规编辑也支持晨晚独立修改时区，选择后点击“保存录入”，无需重输体重和体脂。已有记录补缺或修改省略时区时保留原值，历史时区变更须明确指定记录与版本。`preview.defaultTimezone` 保存本次默认值；自动填入只进入审核草稿，原始请求保留。刷新和相同 operationId 重试保留首次预览／用户修改后的时区，下一次新操作重新读取系统时区。
 
 显式历史修改保留 `sourceLocalTime` 与 recordDate：准确时间重算 UTC，未知钟点继续为 day_period／assumed，UTC 与准确偏移为空。
 
@@ -147,7 +139,7 @@ AI 以 `items[].status` 和 `counts` 报告事实，不能把部分保存、取�
 
 ## 饮食接口
 
-MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation，分别使用meals:read／meals:write；已有身体连接需重新授权。HTTP提供GET /foods?q=、GET /meals?from=&to=、POST /meal-operations、GET /meal-operations/{id}，公开协议1.8.0。输入operationId、actions；save_meal含date、mealType、items，已有食材用foodId＋foodVersion、同单位quantity，新食材可用foodDraft。杂只估未单列的剩余食物，whole整餐估算须为唯一项。AI 标签与成分表需依据，未知null；手动合并来源 reference 为标签／成分表，旧来源继续兼容。新手动自由项用 kind:food，营养直接表示本次摄入，分量不再次相乘。确认链接为/dashboard/meals/review/{id}，15分钟有效，原请求与修订草稿独立；正式保存仅网页登录确认，权限撤销即时阻止。结构、初始化和实例定位见[饮食记录](meals.md)。
+MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation，分别使用meals:read／meals:write；已有身体连接需重新授权。HTTP提供GET /foods?q=、GET /meals?from=&to=、POST /meal-operations、GET /meal-operations/{id}，公开协议1.9.0。输入operationId、actions；save_meal含date、mealType、items，已有食材用foodId＋foodVersion、同单位quantity，新食材可用foodDraft。杂只估未单列的剩余食物，whole整餐估算须为唯一项。AI 标签与成分表需依据，未知null；手动合并来源 reference 为标签／成分表，旧来源继续兼容。新手动自由项用 kind:food，营养直接表示本次摄入，分量不再次相乘。确认链接为/dashboard/meals/review/{id}，15分钟有效，原请求与修订草稿独立；正式保存仅网页登录确认，权限撤销即时阻止。结构、初始化和实例定位见[饮食记录](meals.md)。
 \n照片上传需先实际调用import_meal_images，再提交imageIds及expectedImageCount；失败也保留预期张数并说明具体错误。canConfirm表示正常确认可用，canConfirmWithoutImages表示可由用户选择先保存文字。补传与无图保存选择仅在登录网页完成，API没有代确认入口。每项食物可提交reviewExplanation，分别说明identity、amount、cooking、nutrition的来源、basis及uncertainty；已有basis和食材快照继续兼容。
 
 

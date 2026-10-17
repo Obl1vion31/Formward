@@ -32,3 +32,5 @@ OAuth Provider 的客户端、资源、授权同意、摘要令牌、刷新轮�
 0016_silly_adam_warlock 只扩展 foods_source_valid 接受 reference，供手动“标签／成分表”使用；旧来源、旧表和值保持，不新增表。当前食材规格可独立演进，历史餐项继续读取自己的营养、用量、单位、基准和版本快照。
 
 0017_dry_pandemic 为 foods 新增 category text NOT NULL DEFAULT ingredient，CHECK 仅允许 meal／ingredient；旧字段、营养、单位和历史 JSON 不变。食材物理删除先由 feature 解除所有历史 meal_items.food_id 外键并保留 food_snapshot。
+
+0018 新增 record_operations 统一审核批次，关联身体／饮食子操作及其审核版本，保存不可变混合请求与人工草稿。共有30张业务／认证表；旧表和值保持。字段、索引和事务规则见数据库字典。

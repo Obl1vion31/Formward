@@ -26,6 +26,7 @@ export const foodDraftSchema = z.object({
 export type FoodDraft = z.infer<typeof foodDraftSchema>;
 export const itemSchema = z.object({
   originalItemId: z.string().uuid().optional(),
+  foodRef: z.string().min(1).max(120).optional(),
   kind: z.enum(["food", "misc", "whole"]), name: text(200).min(1),
   quantity: decimal.refine(v => Number(v) > 0, "食用量须大于0").nullable().optional(), unit: text(30).nullable().optional(),
   amountDecision: z.enum(["provided", "estimate_accepted", "unknown_accepted"]).optional(), foodId: z.string().uuid().optional(), foodVersion: z.number().int().positive().optional(), foodDraft: foodDraftSchema.optional(),
@@ -51,7 +52,7 @@ export type ItemView = ItemDraft & { id?: string; nutrition: Nutrition; foodSnap
 export type Totals = { values: Nutrition; incomplete: Record<Metric, boolean> };
 export type MealView = Omit<MealDraft, "items"> & { id: string; version: number; items: ItemView[]; totals: Totals; source: "manual" | "ai" | "initialization"; deletedAt: string | null };
 export type MealSnapshot = { meals: MealView[]; foods: FoodView[] };
-export type PreviewRow = { action: MealAction; food?: FoodView; meal?: MealView; error?: string; duplicateIds: string[]; warnings: string[]; needsUserInput?: string[] };
+export type PreviewRow = { excluded?: boolean; before?: FoodView | MealView; review?: { itemId: string; operationId: string; originalInput: unknown; reviewedInput: unknown; editedBy?: { userId: string; at: string } }; action: MealAction; food?: FoodView; meal?: MealView; error?: string; duplicateIds: string[]; warnings: string[]; needsUserInput?: string[] };
 export type MealOperationView = { id: string; revision: number; status: string; origin: string; rows: PreviewRow[]; canConfirm: boolean; canConfirmWithoutImages?: boolean; missingImages?: number; needsUserInput?: { index: number; questions: string[] }[]; createdAt: string; expiresAt: string | null; confirmationPath: string; result: { saved: number; message: string } | null };
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -60,6 +61,7 @@ export function mealOperationStatus(op: Pick<MealOperationView, "status" | "expi
 }
 export function missingMealImages(rows: PreviewRow[]) {
   return rows.reduce((count, row) => {
+    if (row.excluded) return count;
     if(row.action.kind!=="save_meal"&&row.action.kind!=="save_food")return count;
     const saved=row.meal?.imageIds?.length??row.food?.imageIds?.length??row.action.imageIds?.length??0;
     return count+Math.max(0,(row.action.expectedImageCount??0)-saved);
@@ -103,11 +105,14 @@ export function suggestedMealType(hour: number) {
   return hour < 5 || hour >= 22 ? "夜宵" : hour < 10 ? "早餐" : hour < 14 ? "午餐" : hour < 17 ? "加餐" : "晚餐";
 }
 export const macroColors = { proteinG: "#365E78", carbsG: "#6C96B3", fatG: "#AFCDDE" };
-/** 宏量能量占比仅用于图形分配，柱高始终等于已记录 kcal。 */
-export function macroEnergy(totals: Totals | undefined) {
+export type MacroMode = "grams" | "energy";
+/** 分段口径可切换，展示高度仍归一到已记录 kcal，不改写营养事实。 */
+export function macroDistribution(totals: Totals | undefined, mode: MacroMode = "grams") {
   const keys = ["proteinG", "carbsG", "fatG"] as const;
-  if (!totals || totals.values.caloriesKcal === null || keys.some(k => totals.values[k] === null || totals.incomplete[k])) return null;
-  const weighted = keys.map(k => Number(totals.values[k]) * (k === "fatG" ? 9 : 4)), sum = weighted.reduce((a,b) => a+b, 0);
+  if (!totals || keys.some(k => totals.values[k] === null || totals.incomplete[k])) return null;
+  const weighted = keys.map(k => Number(totals.values[k]) * (mode === "grams" ? 1 : k === "fatG" ? 9 : 4)), sum = weighted.reduce((a,b) => a+b, 0);
   if (!sum) return null;
-  return keys.map((metric,index) => ({ metric, ratio: weighted[index]/sum, calories: Number(totals.values.caloriesKcal) * weighted[index]/sum }));
+  return keys.map((metric,index) => ({ metric, ratio: weighted[index]/sum, calories: Number(totals.values.caloriesKcal ?? 0) * weighted[index]/sum }));
 }
+/** 旧调用保留能量口径。 */
+export const macroEnergy = (totals: Totals | undefined) => totals?.values.caloriesKcal == null ? null : macroDistribution(totals, "energy");

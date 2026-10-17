@@ -12,6 +12,7 @@
 - `activities/`：运动记录。
 - `measurements/`：身体测量。
 - `dashboard/`：汇总与趋势。
+- `records/`：身体、摄入和食材的统一审核草稿与事务协调。
 - `imports/`：Excel 导入。
 
 ## 维护约定

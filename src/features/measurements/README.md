@@ -40,10 +40,4 @@ Inspector 锁定页面滚动时，预留稳定滚动条空间，仅将锁定前�
 
 `sources.ts` 管理账号历史来源、归属校验的幂等软删除、明确再次使用时恢复、实测事务中的最近使用时间和授权缺失来源补齐。共享校验要求新记录或主动清空时补填来源或 sourceUnspecifiedConfirmed:true；既有记录省略来源保持。`migration.test.ts` 验证旧结构升级与旧文件重导，`sources.test.ts` 验证来源规则、回滚、幂等与账号隔离。数据库完整字段、索引和关系见 [数据库字典](../../../docs/database.md)。
 
-`ai-operations.ts` 支持最多 100 条、64 KiB 的跨日 batch，兼容 save_day／estimate_cell 与旧确认链接。不可变原始请求与审核草稿分别保存，稳定行 ID、revision、账号快照及 15 分钟有效期保护逐行立即保存与整批事务；错误行保留供纠正，取消剩余不撤销已保存行。`ai-api.ts` 组合本账号查询及安全 HTTP 响应，`ai-openapi.ts`／`ai-instructions.ts` 定义协议与说明。`ai-confirmation.tsx` 展示每行前后值、冲突与估算依据，提供批量／逐行修改、更新预览、确认及取消，跨页冲突可加载最新审核并保留输入。预览与确认共用 editing，审计关联 AI 原始候选、用户草稿、编辑者和确认上下文。具体范围见 [AI 接入](../../../docs/ai-api.md)。
-
-`timezone.ts` 统一固定偏移校验、GMT／东西区标签和 27 个整点选择项（GMT-12 至 GMT+14），兼容历史非整点偏移与 IANA；按测量日期与准确偏移显示，未知为“未指定”。AI 新录入省略时区时每次自动采用系统时区，客户端请求头优先，FORMWARD_TIMEZONE 配置地区的当前偏移为后备，未配置时读取服务系统偏移；查询 context 提供本次时区与当地日期。默认值只加入首次审核草稿，原始请求保留，刷新与重试不重新覆盖；已有记录补缺／修改省略时保留原时区，明确值或 null 优先。审核仍可修改时区，保留当地钟点与记录日期，仅准确时间重算 UTC。标签缓存有界，不改变存储或历史归属。
-
-公网审核链接与 OpenAPI 完整地址由 auth/site-url.ts 按 BETTER_AUTH_URL 生成，忽略代理内部 HTTP 与请求 Host。部署与调用方式见 [公网 HTTPS 部署](../../../docs/deployment.md)。
-
-总览可通过合法 ?date=YYYY-MM-DD 打开对应日期 Inspector；calendar.ts 的 linkedDate 复用真实日历校验，普通入口不自动弹窗。身体与饮食 Inspector 共用 use-backdrop-dismiss，内容拖到遮罩松开不关闭，仅主指针从真实遮罩按下、抬起且小幅移动才关闭；原关闭按钮、Escape、忙碌保护、焦点和滚动锁保留。
+`ai-operations.ts` 保留身体预览、稳定行标识、版本、15分钟有效期和事务规则，供统一审核及旧接口共用。网页审核由 records feature 负责，逐项确认只标记草稿，底部统一保存；`ai-confirmation.tsx` 仅保留身体编辑器、来源输入及估算依据。原始请求不变，审计关联原始候选、人工草稿及确认上下文。具体协议见 [AI 接入](../../../docs/ai-api.md)。

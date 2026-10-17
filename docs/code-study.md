@@ -195,8 +195,10 @@ Vercel 托管同一个 Next.js 应用，页面、Server Actions 和 `app/api` �
 
 ## 饮食定位
 
-饮食页面在[dashboard/meals/page.tsx](../src/app/dashboard/meals/page.tsx)，保存与审核入口在[actions.ts](../src/app/dashboard/meals/actions.ts)。[meals-view.tsx](../src/features/meals/meals-view.tsx)包含今天摘要、NutritionChart每日 kcal 柱图、历史抽屉和 FoodEditor／EditorDialog；meal-editor.tsx 提供左侧搜索／拖拽、右侧逐行表格和常驻空白行，nutrition-fields.tsx 共用营养与依据；[meals.module.css](../src/features/meals/meals.module.css)控制间距、颜色与抽屉。营养换算／每日汇总在[model.ts](../src/features/meals/model.ts)，预览、确认事务、食材快照、版本与审计在[records.ts](../src/features/meals/records.ts)，[meal-review.tsx](../src/features/meals/meal-review.tsx)提供统一审核界面，review-details.tsx呈现分项／合并方式、库引用及可展开说明，image-upload.ts提供OIDC私有直传及摘要校验。AI由MCP server及HTTP调用这些函数；历史TSV由[imports/meals.ts](../src/features/imports/meals.ts)解析为整餐预览，网页确认后进入同一写入路径。规则与接口见[饮食记录](meals.md)。
+饮食页面在[dashboard/meals/page.tsx](../src/app/dashboard/meals/page.tsx)，保存与审核入口在[actions.ts](../src/app/dashboard/meals/actions.ts)。[meals-view.tsx](../src/features/meals/meals-view.tsx)包含今天摘要、NutritionChart每日 kcal 柱图、历史抽屉和 FoodEditor／EditorDialog；meal-editor.tsx 提供左侧搜索／拖拽、右侧逐行表格和常驻空白行，nutrition-fields.tsx 共用营养与依据；[meals.module.css](../src/features/meals/meals.module.css)控制间距、颜色与抽屉。营养换算／每日汇总在[model.ts](../src/features/meals/model.ts)，预览、确认事务、食材快照、版本与审计在[records.ts](../src/features/meals/records.ts)，[record-review.tsx](../src/features/records/record-review.tsx)提供统一审核界面，review-details.tsx呈现分项／合并方式、库引用及可展开说明，image-upload.ts提供OIDC私有直传及摘要校验。AI由MCP server及HTTP调用这些函数；历史TSV由[imports/meals.ts](../src/features/imports/meals.ts)解析为整餐预览，网页确认后进入同一写入路径。规则与接口见[饮食记录](meals.md)。
 
 饮食照片由 [images.ts](../src/features/meals/images.ts) 校验、下载和私有保存；MCP import_meal_images 与 HTTP POST /api/v1/meal-images 返回稳定附件ID。网页上传／读取位于 [api/meal-images](../src/app/api/meal-images/README.md)，photos.tsx 提供共用上传与回看。图片关联与 photoReview 核对在 records.ts，确认后保留在审计和历史快照。
 
 总览 model.ts 提供晨晚差、相对晨重和最新真实体重，overview-trend.tsx 绘制两轴统一图。饮食永久删除入口为 actions.ts → recently-deleted.ts；事务解除食材关联并保留历史快照，返回 item.id 用于 originalItemId 编辑。foods.category 由0017演进，基础预设代码已移除。
+
+统一记录由 `src/features/records` 协调身体与饮食子操作，`record_operations` 保存原请求、草稿与父子审核版本。`submit_record_operation`／`get_record_operation` 和 `/api/v1/record-operations` 只创建预览或读状态；网页逐项核对只更新草稿，底部一次事务确认。饮食图口径在 MealsView 保存，NutritionChart 在克数／能量间同步切换分段与百分比；总览红蓝柱共用水平中心与零点。

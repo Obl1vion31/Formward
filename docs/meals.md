@@ -4,7 +4,7 @@
 
 `/dashboard/meals` 默认显示设备时区的今天、四项摄入及今天餐次，跨日刷新。记录一餐默认今天；历史通过柱图或抽屉选择日期、补录、编辑、删除／恢复。顶部摘要始终是今天；合法 `?date=YYYY-MM-DD` 直接打开对应历史，非法日期忽略。总览将摄入、晨重变化与晨晚差放在同一图。
 
-每日一根三色 kcal 堆叠柱，由下到上为 P 蛋白质 #365E78、C 碳水 #6C96B3、F 脂肪 #AFCDDE。按 4P:4C:9F 能量占比分配已记录热量，柱总高保持原 kcal，不重算保存值；宏量缺项或全部为零时只画总热量并注明占比不完整。容得下才标 P／C／F，读数列出 kcal、克数和占比。日期之间留白，固定宽度无横向滚动，短区间柱顶显示数值，长区间只显示选中日期和完整范围，可选连线默认关闭。 支持 7D／30D／90D／全部／自定义，饮食页手机默认7D、桌面30D；悬停／聚焦和方向键选日，点击查看餐次。无记录留空，未知不补零。
+每日一根三色 kcal 堆叠柱，由下到上为 P 蛋白质 #365E78、C 碳水 #6C96B3、F 脂肪 #AFCDDE。默认按 P:C:F 克数占比分段，可切换 4P:4C:9F 能量占比；百分比与三色分段同步切换，柱总高始终为已记录 kcal，不改写原值。切换日期和区间保留口径，重新进入默认克数。宏量缺项或全部为零时只画总热量并注明占比不完整。容得下才标 P／C／F，读数列出 kcal、克数和占比。日期之间留白，固定宽度无横向滚动，短区间柱顶显示数值，长区间只显示选中日期和完整范围，可选连线默认关闭。 支持 7D／30D／90D／全部／自定义，饮食页手机默认7D、桌面30D；悬停／聚焦和方向键选日，点击查看餐次。无记录留空，未知不补零。
 
 手动只提供食材库／自由填写两种入口。新餐项统一 `kind:food`，有 foodId／foodDraft 为食材库，否则为自由填写；自由项四项营养是本次实际摄入，分量可选，不再次相乘，可添加多项。旧 misc／whole 继续接受并保留，界面归为自由填写，用户编辑后的新版本统一为 food，不批量重写历史。AI 原有细分协议保持：misc 只估未单列剩余、每餐最多一个，whole 为唯一整餐项。初始化仍一行一餐，保留 whole／initialization 及原备注，未知品牌和地点为空，不提前创建食材。饮食日期按用户指定，不套用身体凌晨规则。
 
@@ -44,7 +44,7 @@ MCP `import_meal_images` 和 HTTP `POST /api/v1/meal-images` 接受 ChatGPT file
 
 ## 代码与维护
 
-网页、HTTP、MCP 复用同一 feature。`model.ts` 管 schema 与换算，`records.ts` 管事务／预览／确认，`images.ts` 管下载与私有存储，`image-upload.ts` 管直传凭据和登记，`photos.tsx` 管上传／回看，`review-details.tsx` 管营养明细与依据，`meal-review.tsx` 管审核状态，`meals-view.tsx` 管今天／历史，`meal-editor.tsx` 管两种录入与单位联动，`nutrition-fields.tsx` 管营养及手动依据，`nutrition-chart.tsx` 管固定宽度图表与读数，`presets.tsx` 管食材表格／详情。
+网页、HTTP、MCP 复用同一 feature。`model.ts` 管 schema 与换算，`records.ts` 管事务／预览／确认，`images.ts` 管下载与私有存储，`image-upload.ts` 管直传凭据和登记，`photos.tsx` 管上传／回看，`review-details.tsx` 管营养明细与依据，`records/record-review.tsx` 管统一审核状态，`meals-view.tsx` 管今天／历史，`meal-editor.tsx` 管两种录入与单位联动，`nutrition-fields.tsx` 管营养及手动依据，`nutrition-chart.tsx` 管固定宽度图表与读数，`presets.tsx` 管食材表格／详情。
 
 饮食和身体 Inspector 共用遮罩手势判断，拖选内容到外部不关闭。仪表盘根滚动容器预留 scrollbar-gutter；共用弹窗锁定 html／body，仅补偿实际释放的滚动条宽度，切页和弹窗不改变内容横向位置。食材表格和餐项按容器宽度转成紧凑行，数字与单位保持同行；历史抽屉直接展开食物，餐名旁显示热量、不重复四格汇总，备注和来源按需查看，不撑宽页面。
 
