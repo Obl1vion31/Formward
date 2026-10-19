@@ -18,7 +18,7 @@ Next.js 页面、布局、Server Actions 和 Route Handlers。入口负责身份
 
 ### `src/features`
 
-按用户功能组织代码：`auth`、`mcp`、`meals`、`activities`、`measurements`、`dashboard` 和 `imports`。网页与 AI API 必须调用相同的 feature 函数。
+按用户功能组织代码：`auth`、`mcp`、`meals`、`activities`、`measurements`、`records`、`dashboard` 和 `imports`。`records` 协调身体与饮食子操作的统一审核，事实规则仍由对应 feature 实现；`activities` 当前只有职责说明。网页与 AI API 必须调用相同的 feature 函数。
 
 ### `src/db`
 

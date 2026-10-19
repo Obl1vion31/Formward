@@ -94,7 +94,7 @@ tests/            跨功能与端到端测试
 
 修改前阅读 `AGENTS.md` 和目标目录中距离文件最近的 `README.md`，以 `docs/architecture.md` 为代码边界，以 `docs/data-model.md` 为数据语义。当前可运行 `pnpm lint`、`pnpm typecheck`、`pnpm test` 和 `pnpm build`；认证与浏览器测试使用独立的虚构数据，运行方法见 `tests/README.md`。
 
-想了解项目全局或快速定位修改位置，可查看 [架构与代码索引](docs/code-study.md)。索引先介绍整体架构与核心模块，再列出界面组成、功能与 API 对应文件、关键数据流及 Vercel／数据库配置入口。
+想从整体理解项目并定位修改位置，可查看 [架构与代码学习指南](docs/code-study.md)。指南先解释系统关系，再展开前端、后端和数据库，通过完整操作连接文件与数据，并整理当前问题、设计取舍、学习自检和后续修改顺序。
 
 ## 私有文件
 

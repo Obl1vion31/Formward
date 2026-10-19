@@ -16,30 +16,75 @@
 
 ## 逻辑关系
 
+业务对象与物理表的对应方法、全部 30 张表的用途分组，见 [Code Study 的数据库地图](code-study.md#database-map)。下图按健康业务和身份授权分别展示主要物理外键；为便于阅读，省略部分重复的 `user_id` 连线。`o|` 表示可选的单个关联，`o{` 表示零到多个。完整字段、组合外键和检查约束以本文字典及 [schema.ts](../src/db/schema.ts) 为准。
+
+### 健康事实、审核与图片
+
 ```mermaid
 erDiagram
-    users ||--o{ accounts : credentials
-    users ||--o{ sessions : login
-    users ||--o{ ai_tokens : ai_access
-    users ||--o{ oauth_connections : authorizes
-    oauth_client ||--o{ oauth_connections : connects
-    oauth_connections o|--o{ measurement_operations : submitted
-    oauth_client ||--o{ oauth_consent : permissions
-    users ||--o{ oauth_refresh_token : refreshes
-    oauth_client ||--o{ oauth_client_resource : resources
-    oauth_resource ||--o{ oauth_client_resource : allowed
-    users ||--o{ measurement_operations : previews
-    ai_tokens ||--o{ measurement_operations : submitted
-    users ||--o{ measurements : owns
-    users ||--o{ measurement_days : calendar
-    users ||--o{ measurement_imports : operations
-    users ||--o{ measurement_events : audit
-    users ||--o{ measurement_sources : suggestions
-    measurement_imports o|--o{ measurements : batch
-    measurements ||--o{ measurement_events : changes
+    users ||--o{ measurements : user_id
+    users ||--o{ measurement_days : user_id
+    users ||--o{ measurement_sources : user_id
+    users ||--o{ measurement_imports : user_id
+    users ||--o{ measurement_operations : user_id
+    users ||--o{ record_operations : user_id
+    users ||--o{ foods : user_id
+    users ||--o{ meals : user_id
+    measurement_imports o|--o{ measurements : import_id
+    measurements ||--o{ measurement_events : measurement_id
+    record_operations o|--o| measurement_operations : body_review
+    record_operations o|--o| meal_operations : meal_review
+    meal_imports o|--o{ meals : import_id
+    meal_imports o|--o{ meal_operations : import_id
+    meals ||--o{ meal_items : meal_id
+    foods o|--o{ meal_items : food_id
+    meal_operations ||--o{ meal_events : operation_id
+    meal_images ||--o{ meal_image_links : image_id
+    meals o|--o{ meal_image_links : meal_id
+    foods o|--o{ meal_image_links : food_id
 ```
 
-`verifications` 按验证对象 identifier 管理，未设用户外键。`measurement_sources` 不是记录的外键：测量保存 label 文本快照，修改某条记录来源不会改其他历史记录。`created_by`、`actor_id` 等操作者快照保留文本标识，不是数据归属外键；真正归属由 `user_id` 校验。体重单位固定 kg，体脂固定 %；外部原值、来源标识和批次状态独立保存。
+需要与图同时理解的规则：
+
+- `record_operations` 的身体／饮食子操作都可空，每个非空子操作最多关联一个父批次；父子审核版本另外校验。审核确认后才改变正式健康事实，图中的外键本身不代表已经保存。
+- `meal_items` 对 `meals`、`foods`，`meal_image_links` 对图片、餐次、食材，以及餐次／饮食操作对导入的关联使用账号组合外键；部分身体批次、审核与凭据关联使用单 ID 外键，其账号一致性还需 feature 校验。不能从图上的连线推断所有归属都由数据库自动保证。
+- `meal_image_links.meal_id` 与 `food_id` 恰有一个非空；图片元数据保存在 `meal_images`，原文件在 Private Blob。
+- `measurement_days` 保存日期／提醒，`measurement_sources` 保存名称建议；两者均没有外键连接具体测量。测量以 `device_label` 保存来源文本快照，移除建议不会修改历史测量。
+- `meal_items.food_snapshot` 是当时食材规格的 JSON 快照，与当前 `foods` 分别保留；食材永久删除可以解除 `food_id`，历史营养和快照继续存在。
+- `meal_events.record_id` 配合 `record_type` 表达被修改对象，没有到 `meals`／`foods` 的外键；事件通过 `operation_id` 关联饮食操作。身体操作与测量之间的审核依据也包含在 JSON 和审计中，不是图中省略的一条直接事实外键。
+
+### 登录、AI 凭据与 OAuth
+
+```mermaid
+erDiagram
+    users ||--o{ accounts : user_id
+    users ||--o{ sessions : user_id
+    users ||--o{ ai_tokens : user_id
+    users o|--o{ oauth_client : user_id
+    users ||--o{ oauth_connections : user_id
+    oauth_client ||--o{ oauth_connections : client_id
+    oauth_client ||--o{ oauth_client_resource : client_id
+    oauth_resource ||--o{ oauth_client_resource : resource_id
+    oauth_client ||--o{ oauth_consent : client_id
+    users o|--o{ oauth_consent : user_id
+    oauth_client ||--o{ oauth_refresh_token : client_id
+    users ||--o{ oauth_refresh_token : user_id
+    sessions o|--o{ oauth_refresh_token : session_id
+    oauth_client ||--o{ oauth_access_token : client_id
+    users o|--o{ oauth_access_token : user_id
+    sessions o|--o{ oauth_access_token : session_id
+    oauth_refresh_token o|--o{ oauth_access_token : refresh_id
+    ai_tokens o|--o{ measurement_operations : token_id
+    oauth_connections o|--o{ measurement_operations : oauth_connection_id
+    ai_tokens o|--o{ meal_operations : token_id
+    oauth_connections o|--o{ meal_operations : oauth_connection_id
+```
+
+身体 AI 操作的 `token_id`／`oauth_connection_id` 恰有一个非空；饮食操作按 `origin` 校验手动、AI 或初始化对应的凭据与导入关系。OAuth 的 `client_id` 引用客户端业务标识 `oauth_client.client_id`，资源关联引用 `oauth_resource.identifier`，不应一律理解成关联对应表的 `id`。
+
+下列基础设施表没有图中的用户外键：`verifications` 按 `identifier` 管理验证状态；`rate_limits` 保存认证前来源与入口限流；`oauth_client_assertion` 保存协议断言的期限；`jwks` 保存签名密钥。它们与图中表合计为当前 30 张应用表。迁移账本 `drizzle.__drizzle_migrations` 另由工具管理。
+
+`created_by`、`actor_id` 等操作者快照保留文本标识，不是数据归属外键；真正归属由可信身份与 `user_id` 校验。体重单位固定 kg，体脂固定 %；外部原值、来源标识和批次状态独立保存。
 
 ## 物理字段
 
