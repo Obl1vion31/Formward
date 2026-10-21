@@ -4,7 +4,7 @@
 
 ## 用户确定的口径
 
-静息与活动直接相加，活动数字原样使用；全天总消耗覆盖最终总数，活动合计覆盖明细。不要再次引入活动扣静息或普通日常活动估算。未知留空、明确无活动才填0。公式资料默认当天生效，回溯须展示影响日期并确认。体重回退与完整规则见[消耗文档](docs/energy.md)。
+静息与活动直接相加，活动数字原样使用；全天总消耗覆盖最终总数，活动合计覆盖明细。不要再次引入活动扣静息或普通日常活动估算。未启用默认零的账号未知留空；启用后从指定日期对未录活动按0，已有未知热量明细保持未知。公式资料默认当天生效，回溯须展示影响日期并确认。体重回退与完整规则见[消耗文档](docs/energy.md)。
 
 总览仅保留一张综合图：D日浅蓝摄入、浅红最终消耗、金色盈余三柱并排，暖白线显示D+1晨重−D晨重。严格相邻日配对，缺记录或候选未决留空；估计开关只展示已有数据。标题与日期紧邻，图例和读数收紧，保留区间、键盘和日期详情；移除晨重基准、晨晚差及实现说明，身体详情保持原有规则。
 
@@ -23,7 +23,7 @@
 
 ## 验证
 
-288项单元／集成通过，包括0019迁移保持30旧表原字段值、权限撤销、跨账号、版本、重复和混合事务回滚。production build通过。统一审核专项已通过1440／1100／390／320px，含消耗混合确认、摄入占比、旧链接与草稿保护，客户端异常0。消耗专项、饮食、身体／来源／AI／加载反馈及认证／OAuth浏览器回归均通过；消耗专项包含四种宽度、优先级覆盖、编辑恢复、历史资料确认、正负柱、相邻晨重、键盘和减少动态效果。
+290项单元／集成通过，包括0019迁移保持30旧表原字段值、权限撤销、跨账号、版本、重复和混合事务回滚。production build通过。统一审核专项已通过1440／1100／390／320px，含消耗混合确认、摄入占比、旧链接与草稿保护，客户端异常0。消耗专项、饮食、身体／来源／AI／加载反馈及认证／OAuth浏览器回归均通过；消耗专项包含四种宽度、优先级覆盖、编辑恢复、历史资料确认、正负柱、相邻晨重、键盘和减少动态效果。
 
 测试使用独立PGlite、独立端口及虚构账号，不读`.env.local`真实数据库。Playwright位于`/tmp/formward-browser-check`；环境准备见tests/README.md。截图不进public，消耗截图`/tmp/formward-energy-visual/`、统一审核`/tmp/formward-records-visual/`。同一.next不同时构建和运行测试服务。
 
@@ -44,3 +44,14 @@ Private Blob保持Production-only，通过BLOB_STORE_ID与平台OIDC使用，无
 正式站使用两组虚构账号通过消耗录入、覆盖清空、活动编辑、删除恢复、公式资料回溯、身体／饮食／消耗混合确认、正负柱、相邻晨重、键盘、减少动态效果及1440／1100／390／320px验收，客户端异常0。所有虚构账号及所属事实、操作、审计、令牌和会话已清理。再次备份核对29张既有非限流表的原值保持、5新表为空，只有正常认证限流状态变化；全部字段结构和迁移账本与迁移后备份一致。
 
 报告`/tmp/formward-energy-production.json`、`/tmp/formward-energy-final-http.json`；READY核对`/tmp/formward-energy-inspect.log`。Runtime error／fatal和请求5xx均0，见`/tmp/formward-energy-runtime-errors.jsonl`与`/tmp/formward-energy-server-errors.jsonl`。私有终验备份`data/exports/database-after-energy-production-2026-10-22.json`、核对`data/exports/energy-production-verification-2026-10-22.json`均0600并忽略提交。正式功能提交7af5bdd；交接文档提交独立于运行代码，Git推送不触发发布。
+
+
+## 日常默认值与公式对照
+
+当前READY部署`dpl_9EzsQGNQB5resJpqztfmviHWUWvH`，功能提交`68b9a29`，数据库0020、36张应用表。消耗按账号支持平均静息的生效日期、未录活动默认零的起始日期；默认值不会生成每日实测，也不影响未启用的其他账号。网页资料填写与独立公式对照保留，公式不替换采用值。日活动估算有activeEstimated和notes，写入共用审核、版本、软删除恢复与审计。
+
+290项自动测试、lint、typecheck、production build及消耗四种宽度浏览器验收通过。正式站虚构账号通过默认值、公式对照、估算标记和API验收，客户端异常0；虚构数据已清理。0020迁移核对35旧表原字段和值保持。发布后再次核对既有健康数据和全部字段保持，仅新增用户明确请求的1份统一pending及1份消耗子pending（11项），以及正常限流和请求令牌使用时间；没有代用户确认。个人请求与预览仅在私有data/exports，不写入仓库文档。
+
+当前连接的Formward插件仍缓存旧schema，消耗新字段被连接器参数校验拒绝；本轮通过已有同账号write令牌的正式HTTP入口生成预览，不修改OAuth权限或替代网页确认。后续连接器刷新后再使用新动作。
+
+私有备份：database-before-energy-defaults-2026-10-22.json、database-after-energy-defaults-migration-2026-10-22.json、database-after-energy-defaults-production-2026-10-22.json；核对energy-defaults-migration-verification-2026-10-22.json和energy-defaults-production-verification-2026-10-22.json，均在data/exports、0600。正式交互报告`/tmp/formward-energy-default-production.json`，READY核对`/tmp/formward-energy-default-inspect.log`。

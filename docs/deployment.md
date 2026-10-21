@@ -2,7 +2,7 @@
 
 正式域名为 [Formward](https://formward-ten.vercel.app)，Next.js 由 Vercel Hobby 托管，数据库沿用 Neon PostgreSQL。AI 使用正式 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 或 `https://formward-ten.vercel.app/api/mcp`，不能使用受 Deployment Protection 保护的单次部署／预览地址。
 
-正式地址[Formward](https://formward-ten.vercel.app)，当前READY部署`dpl_FDwUtfYN638BABnP2LoM6A5hUhR5`，功能提交`7af5bdd`。OpenAPI1.10.0／MCP1.7.0，共12工具；数据库0019，35张应用表加Drizzle账本。Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。静息＋活动按原值使用，全天总量可覆盖；综合图采用摄入／消耗／盈余三柱与相邻次晨差，四类图共用原生动效。
+正式地址[Formward](https://formward-ten.vercel.app)，当前READY部署`dpl_9EzsQGNQB5resJpqztfmviHWUWvH`，功能提交`68b9a29`。OpenAPI1.10.0／MCP1.7.0，共12工具；数据库0020，36张应用表加Drizzle账本。Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。静息＋活动按原值使用，全天总量可覆盖；综合图采用摄入／消耗／盈余三柱与相邻次晨差，四类图共用原生动效。
 
 ## 平台与变量
 
@@ -100,3 +100,6 @@ Vercel的生产敏感变量不能下载，env pull的[SENSITIVE]占位符不能�
 正式站使用两组虚构账号通过消耗录入、覆盖清空、活动编辑、删除恢复、公式资料回溯、身体／饮食／消耗混合确认、正负柱、相邻晨重、键盘、减少动态效果及1440／1100／390／320px验收，客户端异常0。所有虚构账号及所属事实、操作、审计、令牌和会话已清理。再次备份核对29张既有非限流表的原值保持、5新表为空，只有正常认证限流状态变化；全部字段结构和迁移账本与迁移后备份一致。
 
 正式交互报告`/tmp/formward-energy-production.json`；终验备份`data/exports/database-after-energy-production-2026-10-22.json`及`data/exports/energy-production-verification-2026-10-22.json`均0600。Runtime error／fatal及请求5xx为0，日志在`/tmp/formward-energy-runtime-errors.jsonl`和`/tmp/formward-energy-server-errors.jsonl`。
+
+
+日常默认值版本0020在已提交后执行，新增energy_defaults和日记录active_estimated／notes，35旧表原字段和值保持。290项自动测试、lint、typecheck、build和四种宽度消耗浏览器验收通过。正式站虚构账号验证默认值、公式对照、估算标记及API，异常0，虚构数据清理完成。终验核对既有健康数据和全库字段保持，仅保留用户请求的统一／消耗待审核批次，以及正常限流／请求令牌使用时间。私有备份与核对定位见交接。
