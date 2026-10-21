@@ -2,7 +2,7 @@
 
 正式域名为 [Formward](https://formward-ten.vercel.app)，Next.js 由 Vercel Hobby 托管，数据库沿用 Neon PostgreSQL。AI 使用正式 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 或 `https://formward-ten.vercel.app/api/mcp`，不能使用受 Deployment Protection 保护的单次部署／预览地址。
 
-正式地址 [Formward](https://formward-ten.vercel.app)，当前 READY 部署 `dpl_H7ZYobeL2c8cQVRy82ZWFU6GSAPQ`，功能提交 `d83ea8e`，时区修复 `0cd9245`。OpenAPI 1.9.0／MCP 1.6.0，共11工具；数据库0018，30张业务／认证表加Drizzle账本。Vercel CLI手动发布，Git不会自动部署。Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。正式版提供身体／摄入／食材混合审核、独立取舍与底部统一保存、2秒返回总览、居中共零点的红蓝柱、可切换克数／能量比例的P／C／F分段，以及逐行表格、拖拽、分类、最近删除及历史快照保留。
+正式地址[Formward](https://formward-ten.vercel.app)，当前READY部署`dpl_FDwUtfYN638BABnP2LoM6A5hUhR5`，功能提交`7af5bdd`。OpenAPI1.10.0／MCP1.7.0，共12工具；数据库0019，35张应用表加Drizzle账本。Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。静息＋活动按原值使用，全天总量可覆盖；综合图采用摄入／消耗／盈余三柱与相邻次晨差，四类图共用原生动效。
 
 ## 平台与变量
 
@@ -40,7 +40,7 @@ Hobby 配额遵守 [Blob 用量规则](https://vercel.com/docs/vercel-blob/usage
 
 修改前读根 README、AGENTS 和对应 README、当前 Next.js 本地文档。发布前运行 lint、typecheck、unit/integration test、production build、结构检查及受影响浏览器检查。浏览器使用独立 PGlite、端口和虚构账号；同一个 `.next` 构建目录不同时用于构建和正在运行的浏览器服务。
 
-新增 migration 先提交版本控制，再保存私有一致性备份、执行和核对旧字段／值。构建不自动迁移，共享 migration 不修改。0018只新增record_operations，迁移前后核对29张既有业务／认证表全部字段和值保持，账本仅新增对应1次，新表初始为空；0017食材分类、0016 reference来源、0015可展开依据和20MiB约束保持。
+新增 migration 先提交版本控制，再保存私有一致性备份、执行和核对旧字段／值。构建不自动迁移，共享 migration 不修改。0019新增5张消耗相关表和统一审核2个可空关联字段；迁移前后核对30张旧表全部原字段和值保持，账本仅新增对应1次，新表初始为空。0017食材分类、0016 reference来源、0015可展开依据和20MiB约束保持。
 
 ```bash
 node --network-family-autoselection-attempt-timeout=1000 --env-file=.env.local --import tsx scripts/backup-database.mts data/exports/私有备份.json
@@ -52,7 +52,7 @@ vercel deploy --prod
 
 Vercel的生产敏感变量不能下载，env pull的[SENSITIVE]占位符不能用于连接。发布维护使用已有本机生产数据库凭据，并通过既有迁移账本和备份核对目标；不覆盖.env.local或生产环境变量。
 
-正式站验收结束再次备份与核对：全部结构及30张表的行值保持，仅正常认证限流数据变化；虚构记录全部清理，既有健康记录、原始请求和审计保持。
+正式站验收结束再次备份与核对：全部结构及35张表的行值保持，仅正常认证限流数据变化；虚构记录全部清理，既有健康记录、原始请求和审计保持。
 
 0017仅为foods新增category（meal／ingredient，NOT NULL默认ingredient，CHECK），旧字段与记录保留，账本仅新增1次。已授权将Pasta Express和KL套餐两条当前记录标为meal，其他7条为ingredient；不修改营养、单位、说明或任何历史餐次。全库核对27张其他表以及全部既有操作／审计保持，仅新增1个维护操作和2条事件。
 
@@ -89,3 +89,14 @@ Vercel的生产敏感变量不能下载，env pull的[SENSITIVE]占位符不能�
 食材客观分析规则、照片逐项失败和缺图审核要求见docs/meals.md，正式站使用独立虚构账号验收并清理。
 
 当前正式验收报告为 `/tmp/formward-record-review-production.json` 和 `/tmp/formward-record-review-final-http.json`：四种宽度／三个区间、混合审核与草稿并发、独立取消入库保留摄入、统一保存与自动返回、双PFC口径、共同零点、旧链接重复操作和跨账号保护均通过，客户端异常0，两组虚构账号及记录清理完成。正式别名READY见 `/tmp/formward-record-review-final-inspect.log`，运行时error／fatal与请求5xx均0，分别见 `/tmp/formward-record-review-runtime-errors.jsonl`、`/tmp/formward-record-review-server-errors.jsonl`。审核时间首屏统一UTC，再切设备时区，UTC服务端／东八区浏览器回归及正式站均无水合错误。
+
+
+## 当前消耗版本验收
+
+本次已完成lint、typecheck、288项单元／集成、production build、目录README和文档链接检查。独立数据库的消耗、统一审核、饮食、身体及认证／OAuth浏览器回归通过；消耗覆盖1440／1100／390／320px、总量覆盖、未知与零、活动编辑、删除恢复、资料回溯确认、正负柱、相邻次晨、键盘及减少动态效果。
+
+0019迁移前后备份为`data/exports/database-before-energy-2026-10-22.json`、`data/exports/database-after-energy-migration-2026-10-22.json`，核对报告`data/exports/energy-migration-verification-2026-10-22.json`；均0600。30张旧表原字段及值保持，5张新表初始为空，账本仅增1条。正式别名READY见`/tmp/formward-energy-inspect.log`，13项公开入口和保护检查见`/tmp/formward-energy-final-http.json`；正式站虚构账号交互验收、清理和最终数据核对均完成，见[交接](../handoff.md)。
+
+正式站使用两组虚构账号通过消耗录入、覆盖清空、活动编辑、删除恢复、公式资料回溯、身体／饮食／消耗混合确认、正负柱、相邻晨重、键盘、减少动态效果及1440／1100／390／320px验收，客户端异常0。所有虚构账号及所属事实、操作、审计、令牌和会话已清理。再次备份核对29张既有非限流表的原值保持、5新表为空，只有正常认证限流状态变化；全部字段结构和迁移账本与迁移后备份一致。
+
+正式交互报告`/tmp/formward-energy-production.json`；终验备份`data/exports/database-after-energy-production-2026-10-22.json`及`data/exports/energy-production-verification-2026-10-22.json`均0600。Runtime error／fatal及请求5xx为0，日志在`/tmp/formward-energy-runtime-errors.jsonl`和`/tmp/formward-energy-server-errors.jsonl`。

@@ -22,10 +22,16 @@ Formward采用Next.js16.3.7、React、TypeScript、Node.js24.21.0与pnpm9.15.9�
 
 ## 验证与发布状态
 
-本次288项单元／集成测试通过，涵盖计算优先级、原样活动值、公式与体重回退、未知／零、相邻晨重、重复、归属、版本、授权撤销、事务回滚及删除恢复。production build通过；统一审核浏览器回归覆盖1440／1100／390／320px，客户端异常0。消耗专项及其余回归结果以交接中的最新完成记录为准。
+本次288项单元／集成测试通过，涵盖计算优先级、原样活动值、公式与体重回退、未知／零、相邻晨重、重复、归属、版本、授权撤销、事务回滚及删除恢复。production build通过；统一审核浏览器回归覆盖1440／1100／390／320px，客户端异常0。消耗专项、饮食、身体／来源／AI／加载反馈和认证／OAuth浏览器回归均通过。
 
 正式地址为[Formward](https://formward-ten.vercel.app)。发布通过Vercel CLI手动执行，Git推送不自动部署；正式迁移、备份和发布验收状态以[交接](../handoff.md)及[部署说明](deployment.md)为准，不能把本地通过等同于已上线。
 
 ## 维护范围
 
 这轮完成后以维护和体验优化为主，不扩展训练计划、预算或佳明自动同步。身体准确时间／归属的网页纠正、持久代表选择、身体网页删除恢复／通用导入尚未接入；维护脚本能力不等于网页入口。真实手机／微信观感和用户原图仍需用户使用时核对。
+
+## 正式验收结果
+
+正式站使用两组虚构账号通过消耗录入、覆盖清空、活动编辑、删除恢复、公式资料回溯、身体／饮食／消耗混合确认、正负柱、相邻晨重、键盘、减少动态效果及1440／1100／390／320px验收，客户端异常0。所有虚构账号及所属事实、操作、审计、令牌和会话已清理。再次备份核对29张既有非限流表的原值保持、5新表为空，只有正常认证限流状态变化；全部字段结构和迁移账本与迁移后备份一致。
+
+报告`/tmp/formward-energy-production.json`、`/tmp/formward-energy-final-http.json`；READY核对`/tmp/formward-energy-inspect.log`。Runtime error／fatal和请求5xx均0，见`/tmp/formward-energy-runtime-errors.jsonl`与`/tmp/formward-energy-server-errors.jsonl`。私有终验备份`data/exports/database-after-energy-production-2026-10-22.json`、核对`data/exports/energy-production-verification-2026-10-22.json`均0600并忽略提交。正式功能提交7af5bdd；交接文档提交独立于运行代码，Git推送不触发发布。

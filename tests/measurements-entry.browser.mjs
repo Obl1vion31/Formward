@@ -137,7 +137,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     await close(); await page.reload();
     await openApiRecord();
     const apiInfo = page.getByRole("article", { name: "记录详情" }).getByRole("region", { name: "记录信息" });
-    assert.match(await apiInfo.innerText(), /GMT\+8（东八区）/); assert.match(await apiInfo.innerText(), /API/);
+    assert.match(await apiInfo.innerText(), /GMT\+8（东八区）/); assert.match(await apiInfo.innerText(), /外部录入/);
     await page.getByRole("dialog").getByRole("button", { name: "编辑", exact: true }).click();
     assert.equal(await morningTimezone.inputValue(), "+08:00"); assert.equal(await eveningTimezone.inputValue(), "+07:00");
     await morningTimezone.selectOption(""); await form().getByRole("button", { name: "晚间采用系统时区", exact: true }).click();

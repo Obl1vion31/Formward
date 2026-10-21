@@ -43,7 +43,7 @@ OAuth 使用授权码 + S256 PKCE，授权码有效 5 分钟；访问令牌有�
 
 登录后的“AI 接入”展示客户端、权限、授权／最近使用时间与状态，可随时撤销。撤销立即阻止访问、续期及未确认预览；重新授权创建新连接，不恢复旧连接的预览。OAuth 凭据和客户端密钥按摘要保存，JWT 签名私钥加密保存；不要把网页登录密码或数据库凭据交给模型。
 
-公开发现入口为 `/.well-known/oauth-protected-resource/api/mcp` 和 `/.well-known/oauth-authorization-server/api/auth`，公开 JWKS 在 `/api/auth/jwks`。发现信息和工具定义不含健康数据；未授权 MCP 请求返回 401 和 OAuth discovery challenge，默认同时请求账号识别、续期和身体读写范围，客户端可明确申请较小范围。
+公开发现入口为 `/.well-known/oauth-protected-resource/api/mcp` 和 `/.well-known/oauth-authorization-server/api/auth`，公开 JWKS 在 `/api/auth/jwks`。发现信息和工具定义不含健康数据；未授权 MCP 请求返回 401 和 OAuth discovery challenge，默认同时请求账号识别、续期和身体／饮食／消耗读写范围，客户端可明确申请较小范围。
 
 ## 饮食照片与补问
 
