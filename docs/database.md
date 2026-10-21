@@ -1,6 +1,6 @@
 # 数据库连接与字段字典
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 35 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 36 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 
@@ -16,7 +16,7 @@
 
 ## 逻辑关系
 
-业务对象与物理表的对应方法、全部 35 张表的用途分组，见 [Code Study 的数据库地图](code-study.md#database-map)。下图按健康业务和身份授权分别展示主要物理外键；为便于阅读，省略部分重复的 `user_id` 连线。`o|` 表示可选的单个关联，`o{` 表示零到多个。完整字段、组合外键和检查约束以本文字典及 [schema.ts](../src/db/schema.ts) 为准。
+业务对象与物理表的对应方法、全部 36 张表的用途分组，见 [Code Study 的数据库地图](code-study.md#database-map)。下图按健康业务和身份授权分别展示主要物理外键；为便于阅读，省略部分重复的 `user_id` 连线。`o|` 表示可选的单个关联，`o{` 表示零到多个。完整字段、组合外键和检查约束以本文字典及 [schema.ts](../src/db/schema.ts) 为准。
 
 ### 健康事实、审核与图片
 
@@ -82,7 +82,7 @@ erDiagram
 
 身体 AI 操作的 `token_id`／`oauth_connection_id` 恰有一个非空；饮食操作按 `origin` 校验手动、AI 或初始化对应的凭据与导入关系。OAuth 的 `client_id` 引用客户端业务标识 `oauth_client.client_id`，资源关联引用 `oauth_resource.identifier`，不应一律理解成关联对应表的 `id`。
 
-下列基础设施表没有图中的用户外键：`verifications` 按 `identifier` 管理验证状态；`rate_limits` 保存认证前来源与入口限流；`oauth_client_assertion` 保存协议断言的期限；`jwks` 保存签名密钥。它们与图中表合计为当前 35 张应用表。迁移账本 `drizzle.__drizzle_migrations` 另由工具管理。
+下列基础设施表没有图中的用户外键：`verifications` 按 `identifier` 管理验证状态；`rate_limits` 保存认证前来源与入口限流；`oauth_client_assertion` 保存协议断言的期限；`jwks` 保存签名密钥。它们与图中表合计为当前 36 张应用表。迁移账本 `drizzle.__drizzle_migrations` 另由工具管理。
 
 `created_by`、`actor_id` 等操作者快照保留文本标识，不是数据归属外键；真正归属由可信身份与 `user_id` 校验。体重单位固定 kg，体脂固定 %；外部原值、来源标识和批次状态独立保存。
 
@@ -633,3 +633,10 @@ meal_operations.payload／draft保存可选expectedImageCount，preview中的mis
 `energy_events`字段：`id text PK`、`user_id text FK`、`operation_id text`、`record_id text`、`record_type text`、`actor_type text`、`actor_id text`、`confirmed_by text FK users`、`snapshot jsonb`、`created_at timestamptz DEFAULT now`，均非空。账号／操作组合外键指向energy_operations，账号／record_id索引。snapshot包含originalInput、最终action、before、after；保存来源、操作者、确认者和时间，事实与审计同一事务。删除保留事实和事件，恢复递增版本，不提供物理删除接口。
 
 最终消耗与公式依据由`energyDays`派生，未建另一份每日合计表。读写关系与数值示例见[热量消耗](energy.md)。
+
+
+## 日常消耗默认值
+
+`energy_defaults`使用消耗身份公共字段id、user_id、version、deleted_at、created_at、updated_at。专有字段为`resting_from date NOT NULL`、`resting_kcal numeric(14,4) NULL`、`zero_activity_from date NULL`；有效user_id唯一，静息非负，版本正数。账号自行启用，默认空表；读取不生成每日事实。保存／软删除／恢复同样记录到energy_operations／energy_events。
+
+`energy_days.active_estimated boolean NOT NULL DEFAULT false`标记活动合计估算；`notes text NULL`保存初始化依据等备注。0020仅新增上述结构，既有字段和值保持，不批量修改历史或其他账号。数值、日期范围和有效性见[消耗规则](energy.md)。

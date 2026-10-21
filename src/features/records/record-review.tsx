@@ -41,14 +41,14 @@ function MealContent({ row }: { row: RecordRow }) {
 function EnergyContent({ row }: { row: RecordRow }) {
   const before = row.energy?.before, after = row.energy?.after;
   if (!after) return null;
-  const fields = [["date", "日期"], ["name", "活动"], ["restingKcal", "静息 · kcal"], ["activeKcal", "活动合计 · kcal"], ["totalKcal", "全天总消耗 · kcal"], ["caloriesKcal", "活动热量 · kcal"], ["durationMinutes", "时长 · 分钟"], ["completed", "已完成"], ["effectiveFrom", "生效日期"], ["heightCm", "身高 · cm"], ["birthDate", "出生日期"], ["sex", "公式性别参数"]];
+  const fields = [["restingFrom", "平均静息生效日期"], ["zeroActivityFrom", "未录活动按零起始日期"], ["activeEstimated", "活动为估算"], ["notes", "备注"], ["date", "日期"], ["name", "活动"], ["restingKcal", "静息 · kcal"], ["activeKcal", "活动合计 · kcal"], ["totalKcal", "全天总消耗 · kcal"], ["caloriesKcal", "活动热量 · kcal"], ["durationMinutes", "时长 · 分钟"], ["completed", "已完成"], ["effectiveFrom", "生效日期"], ["heightCm", "身高 · cm"], ["birthDate", "出生日期"], ["sex", "公式性别参数"]];
   const content = after as unknown as Record<string, unknown>, prior = before as unknown as Record<string, unknown> | undefined;
   const display = (key: string, data: unknown) => data == null ? "未填写" : key === "sex" ? data === "male" ? "男性" : "女性" : typeof data === "boolean" ? data ? "是" : "否" : String(data);
   return <><dl className={styles.bodyValues}>{fields.filter(([key]) => key in after && (before ? content[key] !== prior?.[key] : content[key] != null)).map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{before && <><del>{display(key, prior?.[key])}</del> → </>}<strong>{display(key, content[key])}</strong></dd></div>)}</dl>{"sourceSystem" in after && after.sourceSystem && <details className={styles.evidence}><summary>来源</summary><p>{after.sourceSystem} · {after.timezone}</p></details>}</>;
 }
 function title(row: RecordRow) {
   const action = row.action;
-  if (isEnergy(action)) { const record = row.energy?.after ?? row.energy?.before; return action.kind === "save_energy_profile" ? `${action.effectiveFrom} · 公式资料` : "date" in action ? `${action.date} · ${action.kind === "save_activity" ? action.name : "每日消耗"}` : record && "effectiveFrom" in record ? `${record.effectiveFrom} · 公式资料` : record && "name" in record ? `${record.date} · ${record.name}` : record && "date" in record ? `${record.date} · 消耗` : "消耗记录"; }
+  if (isEnergy(action)) { const record = row.energy?.after ?? row.energy?.before; return action.kind === "save_energy_defaults" ? `${action.restingFrom} · 日常默认值` : action.kind === "save_energy_profile" ? `${action.effectiveFrom} · 公式资料` : "date" in action ? `${action.date} · ${action.kind === "save_activity" ? action.name : "每日消耗"}` : record && "effectiveFrom" in record ? `${record.effectiveFrom} · 公式资料` : record && "name" in record ? `${record.date} · ${record.name}` : record && "date" in record ? `${record.date} · 消耗` : "消耗记录"; }
   if (isBody(action)) return `${action.date} · ${action.period === "daytime" ? "晨间" : "晚间"}`;
   if (action.kind === "save_meal") return `${action.date} · ${action.mealType}`;
   return row.meal?.food?.name ?? (action.kind === "save_food" ? action.name : row.meal?.meal ? `${row.meal.meal.date} · ${row.meal.meal.mealType}` : "记录");

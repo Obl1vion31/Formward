@@ -123,3 +123,32 @@ test("消耗审计失败回滚同批身体、饮食与所有终态", async () =>
   assert.equal((await db.select().from(schema.meal).where(eq(schema.meal.userId, userId))).length, 0);
   assert.equal((await getRecordOperation(db, identity, op.id)).status, "pending");
 });
+
+
+test("日常默认值按日期和账号启用，单日覆盖优先，未知活动不被默认零掩盖", () => {
+  const defaults = [{ id: randomUUID(), version: 1, deletedAt: null, restingFrom: date, restingKcal: "2058", zeroActivityFrom: "2024-08-02" }];
+  assert.equal(energyDays({ ...emptyEnergy(), defaults }, [], ["2024-07-31"])[0].restingKcal, null);
+  assert.equal(energyDays({ ...emptyEnergy(), defaults }, [], [date])[0].activeKcal, null);
+  const future = energyDays({ ...emptyEnergy(), defaults }, [], ["2024-08-02"])[0];
+  assert.equal(Number(future.totalKcal), 2058); assert.equal(future.activeSource, "default-zero"); assert.equal(future.restingSource, "average");
+  const unknown = energyDays({ ...emptyEnergy(), defaults, activities: [activity({ date: "2024-08-02", caloriesKcal: null })] }, [], ["2024-08-02"])[0]; assert.equal(unknown.totalKcal, null);
+  const explicit = energyDays({ ...emptyEnergy(), defaults, days: [day({ restingKcal: "1800", activeKcal: "300", totalKcal: "2400" })] }, [], [date])[0]; assert.equal(Number(explicit.totalKcal), 2400); assert.equal(explicit.restingSource, "record");
+  assert.equal(energyDays(emptyEnergy(), [], [date])[0].activeKcal, null);
+});
+test("初始化活动估算与备注保存、可编辑，日常默认值经审核才生效且按账号隔离", async () => {
+  const a = await owner(), b = await owner();
+  const op = await submitRecordOperation(db, a.identity, { operationId: randomUUID(), items: [{ key: "defaults", kind: "save_energy_defaults", restingFrom: date, restingKcal: "2058", zeroActivityFrom: date }, { key: "day", kind: "save_energy_day", date, activeKcal: "200", activeEstimated: true, notes: "虚构初始化估算" }] });
+  assert.equal((await readEnergySnapshot(db, a.userId)).defaults?.length, 0);
+  await reviewRecordOperation(db, a.userId, op.id, { kind: "confirm", revision: op.revision });
+  const state = await readEnergySnapshot(db, a.userId); assert.equal(state.defaults?.length, 1); assert.equal(state.days[0].activeEstimated, true); assert.equal(state.days[0].notes, "虚构初始化估算");
+  assert.equal(Number(energyDays(state, [], [date])[0].totalKcal), 2258); assert.equal(energyDays(state, [], [date])[0].estimated, true);
+  assert.equal((await readEnergySnapshot(db, b.userId)).defaults?.length, 0);
+  const foreign = state.defaults![0]; assert.ok(planEnergyActions([{ kind: "save_energy_defaults", ...foreign, restingKcal: "2100" }], await readEnergySnapshot(db, b.userId))[0].error);
+  assert.ok(planEnergyActions([{ kind: "save_energy_defaults", restingFrom: date, restingKcal: "2100", zeroActivityFrom: date }], state)[0].error);
+  assert.ok(planEnergyActions([{ kind: "save_energy_defaults", id: foreign.id, version: 99, restingFrom: date, restingKcal: "2100", zeroActivityFrom: date }], state)[0].error);
+  const removed = await submitEnergyOperation(db, { userId: a.userId, origin: "manual" }, { operationId: randomUUID(), actions: [{ kind: "delete_energy_defaults", id: foreign.id, version: foreign.version }] }); await decideEnergyOperation(db, a.userId, removed.id, removed.revision, "confirm");
+  assert.equal(energyDays(await readEnergySnapshot(db, a.userId), [], [date])[0].restingKcal, null);
+  const deleted = (await readEnergySnapshot(db, a.userId)).defaults![0];
+  const restore = await submitEnergyOperation(db, { userId: a.userId, origin: "manual" }, { operationId: randomUUID(), actions: [{ kind: "restore_energy_defaults", id: deleted.id, version: deleted.version }] }); await decideEnergyOperation(db, a.userId, restore.id, restore.revision, "confirm");
+  assert.equal(Number(energyDays(await readEnergySnapshot(db, a.userId), [], [date])[0].restingKcal), 2058);
+});

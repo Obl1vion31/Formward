@@ -25,6 +25,8 @@
 
 读完后，你应该能回答四件事：页面由谁组成；首次显示和后续交互有什么不同；一次保存经过哪些文件；数据最终存在哪里。
 
+阅读时要分清**代码名称、文件路径和职责说明**。例如 `PageLoadingProvider` 是源码中的组件函数名，`src/components/page-loading.tsx` 是定义它的文件，“统一等待反馈”是对它职责的中文说明。组件与文件并非一一对应：一个文件可以定义多个组件。第 2 章会把饮食页的每个组件名与定义文件对上。
+
 <a id="architecture-map"></a>
 
 ## 1. 先认识网页背后的参与者
@@ -126,48 +128,63 @@ function MealTitle({ name }: { name: string }) {
 
 上面像 HTML 的写法叫 **JSX**；在 TypeScript 文件里使用时，文件后缀通常是 `.tsx`。构建工具会把它处理成运行所需的 JavaScript。浏览器不会直接把仓库里的 `.tsx` 当 HTML 文件打开。
 
+回到真实项目，`MealsView` 也是组件函数名，定义在 [src/features/meals/meals-view.tsx](../src/features/meals/meals-view.tsx) 中。同一文件还定义了 `MealList` 和 `EditorDialog`。所以，看到组件名后，要找的是“哪个文件定义了这个函数”，不能直接假定存在 `MealList.tsx` 这样的同名文件。
+
+还要区分**框架约定的文件名**与**开发者起的函数名**。Next.js 按目录和 `page.tsx`、`layout.tsx` 等文件名识别页面与布局，并使用文件默认导出的组件。`MealsPage`、`RootLayout`、`DashboardLayout` 是本项目为这些函数起的名字；`PageLoadingProvider` 则是项目自己定义、由其他组件引入使用的组件。名字里的 Page、Layout、Provider 帮助表达用途，实际行为要看定义和使用位置。
+
 ### 2.2 先看饮食页的组成，不追执行顺序
 
-访问 `/dashboard/meals` 时，可以把界面理解成下面的嵌套结构：
+访问 `/dashboard/meals` 时，可以把界面理解成下面的嵌套结构。**树里的英文名称都是真实组件函数名，括号里是定义文件相对于仓库根目录的路径。** 中文职责和可点击的文件链接在下一节逐项列出。
 
 ```text
-RootLayout：整个站点的 html / body 外壳
-└─ PageLoadingProvider：为页面提供统一等待反馈
-   └─ DashboardLayout：验证登录，然后容纳当前页面
-      └─ MealsPage / Content：饮食页入口和内容组装
-         ├─ DashboardHeader：Logo、邮箱、AI 接入等
-         └─ MealsView：饮食页面的交互区域
-            ├─ NutritionChart：每日摄入图
-            ├─ MealList：餐次及食物明细
-            ├─ FoodTable / FoodDetails：切到食材库时显示
-            └─ EditorDialog：打开编辑时显示的弹窗
-               └─ MealEditor：本餐输入表格
-                  ├─ NutritionFields / SourceFields：按需出现的字段
-                  └─ PhotoFields：照片选择、上传和回看
+RootLayout（src/app/layout.tsx）
+└─ PageLoadingProvider（src/components/page-loading.tsx）
+   └─ DashboardLayout（src/app/dashboard/layout.tsx）
+      └─ MealsPage（src/app/dashboard/meals/page.tsx）
+         └─ Content（src/app/dashboard/meals/page.tsx，同文件中的另一个组件）
+            ├─ DashboardHeader（src/app/dashboard/header.tsx）
+            └─ MealsView（src/features/meals/meals-view.tsx）
+               ├─ NutritionChart（src/features/meals/nutrition-chart.tsx）
+               ├─ MealList（src/features/meals/meals-view.tsx）
+               ├─ FoodTable（src/features/meals/presets.tsx）
+               └─ EditorDialog（src/features/meals/meals-view.tsx，按用途显示不同弹窗）
+                  ├─ FoodDetails（src/features/meals/presets.tsx，食材详情弹窗内）
+                  └─ MealEditor（src/features/meals/meal-editor.tsx，餐次编辑弹窗内）
+                     ├─ NutritionFields（src/features/meals/nutrition-fields.tsx）
+                     ├─ SourceFields（src/features/meals/nutrition-fields.tsx）
+                     └─ PhotoFields（src/features/meals/photos.tsx）
 ```
 
-这个树表示**谁容纳谁**，不是程序按从上到下的顺序逐一执行。某些区域按条件出现；餐次明细还复用其他组件，树里只列学习主线需要的部分。
+这个树表示**谁容纳谁**，不是程序按从上到下的顺序逐一执行。某些区域按条件出现；`FoodDetails` 对应食材详情弹窗，`MealEditor` 对应餐次编辑弹窗。树里只列学习主线需要的部分，省略了 HTML 容器、React 的 `Suspense` 等外层，以及其他弹窗内容。
+
+`MealsPage` 是页面入口组件，`Content` 是同文件里负责取数和组装内容的另一个组件。这里没有名为 `MealsPageContent` 的函数；定位时应写成 `src/app/dashboard/meals/page.tsx → Content`，因为其他页面也可以有各自的 `Content`。
 
 另外，`DashboardLayout` 当前只做登录检查并返回子页面，页头是页面自己放进去的。不能因为名字里有 Layout，就假定它一定画了导航栏。
 
 ### 2.3 每一块具体在哪个文件
 
-下面所有链接都指向当前仓库。文件名相同但目录不同，代表不同文件。
+下面按树里的代码名称查定义。所有链接都指向当前仓库；文件名相同但目录不同，代表不同文件。同一文件出现在多行，表示它定义了多个组件。
 
-| 你想找到的部分 | 真实文件 | 它收到或使用什么 | 它负责什么 |
+| 组件函数名 | 定义所在的真实文件 | 它收到或使用什么 | 它负责什么 |
 | --- | --- | --- | --- |
-| 全站最外层 | [app/layout.tsx](../src/app/layout.tsx) | 当前页面 `children` | 输出 `html`／`body`，接入全局样式和等待层 |
-| 登录后区域的公共检查 | [dashboard/layout.tsx](../src/app/dashboard/layout.tsx) | 当前访问的登录状态、子页面 | 未登录返回首页，已登录显示子页面 |
-| 饮食网址对应的页面 | [meals/page.tsx](../src/app/dashboard/meals/page.tsx) | 当前账号、网址里的可选日期 | 读取数据，将数据和保存入口交给 `MealsView` |
-| 页头 | [header.tsx](../src/app/dashboard/header.tsx) | 当前账号邮箱 | 显示页头与页面入口 |
-| 饮食主交互区 | [meals-view.tsx](../src/features/meals/meals-view.tsx) | 餐次／食材数据、日期、保存函数 | 管理日期、页签、弹窗、保存等待和结果；同文件定义 `MealList`、`EditorDialog` |
-| 摄入图 | [nutrition-chart.tsx](../src/features/meals/nutrition-chart.tsx) | 日期、每日合计、显示方式等 | 绘制柱图并响应选择 |
-| 本餐编辑器 | [meal-editor.tsx](../src/features/meals/meal-editor.tsx) | 初始草稿、食材库、保存回调 | 搜索和选择食材、修改用量、编辑本餐 |
-| 营养和依据输入 | [nutrition-fields.tsx](../src/features/meals/nutrition-fields.tsx) | 当前字段值、修改回调 | 组合输入字段 |
-| 食材库表格和详情 | [presets.tsx](../src/features/meals/presets.tsx) | 食材及查看操作 | 显示当前食材库；文件名不代表仍有基础预设采用功能 |
-| 照片输入与展示 | [photos.tsx](../src/features/meals/photos.tsx) | 照片编号、上传状态、修改回调 | 上传照片，按受保护地址展示图片 |
-| 饮食局部样式 | [meals.module.css](../src/features/meals/meals.module.css) | 组件使用的样式类名 | 控制本功能的布局、颜色、间距等 |
-| 全局样式 | [globals.css](../src/app/globals.css) | 全站使用的颜色变量和类名 | 提供全局外观及首页等区域样式 |
+| `RootLayout` | [src/app/layout.tsx](../src/app/layout.tsx) | 当前页面 `children` | 全站外壳；输出 `html`／`body`，接入全局样式和等待层 |
+| `PageLoadingProvider` | [src/components/page-loading.tsx](../src/components/page-loading.tsx) | `children`、后代组件登记的等待任务 | 提供共享等待状态，按任务状态显示全局等待提示 |
+| `DashboardLayout` | [src/app/dashboard/layout.tsx](../src/app/dashboard/layout.tsx) | 当前访问的登录状态、子页面 | 登录后区域的公共检查；未登录返回首页，已登录返回子页面 |
+| `MealsPage` | [src/app/dashboard/meals/page.tsx](../src/app/dashboard/meals/page.tsx) | 登录状态、网址里的可选日期 | 页面默认导出的入口组件；检查登录，将账号和日期交给 `Content` |
+| `Content` | [src/app/dashboard/meals/page.tsx](../src/app/dashboard/meals/page.tsx) | `MealsPage` 传来的账号和日期 | 同文件内的组件；读取餐次、食材和审核操作，组装页头与 `MealsView` |
+| `DashboardHeader` | [src/app/dashboard/header.tsx](../src/app/dashboard/header.tsx) | 当前账号邮箱、当前网址 | 显示 Logo、邮箱、AI 接入和退出等入口 |
+| `MealsView` | [src/features/meals/meals-view.tsx](../src/features/meals/meals-view.tsx) | 餐次／食材数据、日期、保存函数 | 管理日期、页签、弹窗、保存等待和结果 |
+| `NutritionChart` | [src/features/meals/nutrition-chart.tsx](../src/features/meals/nutrition-chart.tsx) | 日期、每日合计、显示方式等 | 绘制每日摄入柱图并响应选择 |
+| `MealList` | [src/features/meals/meals-view.tsx](../src/features/meals/meals-view.tsx) | 餐次、忙碌状态、编辑／删除回调 | 同文件内的组件；显示餐次及食物明细 |
+| `FoodTable` | [src/features/meals/presets.tsx](../src/features/meals/presets.tsx) | 食材、查看详情和操作回调 | 显示食材库表格；文件名不代表仍有基础预设采用功能 |
+| `FoodDetails` | [src/features/meals/presets.tsx](../src/features/meals/presets.tsx) | 选中的食材 | 显示食材规格、营养依据和照片 |
+| `EditorDialog` | [src/features/meals/meals-view.tsx](../src/features/meals/meals-view.tsx) | 标题、关闭回调、忙碌状态、`children` | 提供弹窗外壳；具体内容由使用它的位置传入 |
+| `MealEditor` | [src/features/meals/meal-editor.tsx](../src/features/meals/meal-editor.tsx) | 初始草稿、食材库、保存回调 | 搜索和选择食材、修改用量、编辑本餐 |
+| `NutritionFields` | [src/features/meals/nutrition-fields.tsx](../src/features/meals/nutrition-fields.tsx) | 营养数值、修改回调、只读状态 | 组合热量、蛋白质、碳水、脂肪输入字段 |
+| `SourceFields` | [src/features/meals/nutrition-fields.tsx](../src/features/meals/nutrition-fields.tsx) | 来源与依据、修改回调 | 组合营养依据选择、补充说明和来源链接字段 |
+| `PhotoFields` | [src/features/meals/photos.tsx](../src/features/meals/photos.tsx) | 照片编号、上传状态、修改回调 | 提供照片选择、上传和回看 |
+
+与这些组件并列使用的样式文件还有 [src/features/meals/meals.module.css](../src/features/meals/meals.module.css) 和 [src/app/globals.css](../src/app/globals.css)：前者控制饮食区域的布局和外观，后者提供全局样式。它们是 CSS 文件，表中的名称则是 `.tsx` 文件内的组件函数。
 
 `children` 是 React 用来接收“放在这个组件里面的内容”的属性名。根布局可以像一个画框，当前页面是框里的画；切换页面并不意味着把画框重新写一份。
 
@@ -184,7 +201,29 @@ RootLayout：整个站点的 html / body 外壳
 
 例如“表格太挤”通常从编辑器结构与 CSS 并列查看；“用量改为 150g 后热量算错”要看编辑器提供的用量和计算函数；“保存报错”才继续追服务端调用。它们不是同一种问题。
 
-`import` 表示这个文件使用另一个文件导出的内容。它本身不等于发出网络请求。`@/features/...` 中的 `@/` 是项目配置的路径简写，对应 `src/`；`./model` 则表示同目录下的 `model.ts`。
+在代码里辨认一个组件，可以依次找**定义、引入、使用**。以真实的 `PageLoadingProvider` 为例：
+
+1. 打开 [src/components/page-loading.tsx](../src/components/page-loading.tsx)，搜索 `export function PageLoadingProvider`。这里是定义：函数体写明它怎样管理等待状态、显示内容。`export` 表示其他文件可以引入它。
+2. 打开 [src/app/layout.tsx](../src/app/layout.tsx)，会看到下面的引入语句：
+
+   ```tsx
+   import { PageLoadingProvider } from "@/components/page-loading";
+   ```
+
+   左边是引入的组件名，右边是定义文件的路径简写。这里的 `@/` 对应 `src/`，所以能找到 `src/components/page-loading.tsx`。
+3. 同一根布局文件的返回内容里有下面这段使用代码：
+
+   ```tsx
+   <body><PageLoadingProvider>{children}</PageLoadingProvider></body>
+   ```
+
+   它表示根布局使用这个组件，并把当前子页面作为 `children` 传进去。要理解等待反馈内部怎样工作，再回到第 1 步的定义文件。
+
+`MealList` 则是在 `meals-view.tsx` 内用 `function MealList` 定义、由同文件使用的组件，不需要从另一个文件引入。饮食页的 `Content` 同理；搜索 `async function Content` 可以找到它。`export default` 表示文件的默认导出，`MealsPage`、`RootLayout` 和 `DashboardLayout` 都采用这种写法。
+
+用编辑器阅读时，可以先打开第 2.3 节给出的文件，再搜索对应的函数名；编辑器支持时，也可以在组件使用处选择“转到定义”。这样能区分“在哪里定义”和“在哪里被使用”，也能避免被其他文件中的同名 `Content` 混淆。
+
+`import` 本身不等于发出网络请求。`./model` 这样的相对路径表示同目录下的 `model.ts`；和上面的 `@/` 一样，它用于定位代码文件。
 
 样式也是通过名字连接的：组件里的 `className` 对应 HTML 的 `class`。饮食组件先引入 `meals.module.css` 为 `styles`，再用 `className={styles.meal}` 选择其中的 `.meal` 规则。这样的文件叫 **CSS Module**，构建工具会处理类名，减少不同区域的同名样式相互干扰。CSS 控制这块界面的外观，不是负责读取下一份业务数据的函数。
 
@@ -205,7 +244,7 @@ RootLayout：整个站点的 html / body 外壳
 
 这里有两个不同层次的 `save`：`MealEditor` 的 `save` 是 `MealsView` 提供的浏览器回调；`MealsView` 收到的 `save` 对应页面传下来的服务端保存入口。第 4 章会把它们连起来。
 
-**试着回答**：饮食表格布局与换算分别去哪里找？关闭未保存的编辑框后，能否期待刷新还能看到草稿？答案在第 2.4、2.5 节；完整失败情况在第 4.6 节。
+**试着回答**：`MealsPage` 和 `Content` 是两个文件还是同文件中的两个组件？`MealList` 定义在哪里？饮食表格布局与换算分别去哪里找？关闭未保存的编辑框后，能否期待刷新还能看到草稿？答案在第 2.2–2.5 节；完整失败情况在第 4.6 节。
 
 <a id="lifecycle-map"></a>
 
@@ -656,6 +695,8 @@ flowchart LR
 | 5. 显示合计 | 首次内容准备及浏览器更新 | [activities/model.ts](../src/features/activities/model.ts) 的 `energyDays` | 保存的分项、覆盖值和资料 | 按优先级计算，不另存一份合计 | 消耗和总览图 |
 | 6. AI另一入口 | 服务端及网页登录 | `query_energy`／`submit_record_operation` → 同一feature | 授权与items | 先预览，网页登录确认才存事实 | 同样的表与图 |
 
+“日常默认值”可以保存平均静息和“从某天起未录活动按0”。它是一份账号规则，读取时用于补没有单日值的日期，不是每天生成新的实测；其他账号不自动使用。初始化估算活动另有标记和备注。网页的“静息公式对照”独立比较公式和当前采用值，不会把平均静息改掉。
+
 公式资料是身高、出生日期和公式性别参数。它帮助在未填静息时估算，不要求先填它才允许记录热量。公式先找当天空腹实测，再看已有当天估计，再找过去30日晨重；信息不够就空着，不会偷偷替你造一条身体记录。未知用空值，明确没有活动才填0。“来源与依据”展开后才显示使用哪天体重和算式。完整规则见[热量消耗](energy.md)。
 
 **试着回答**：全天总数3100和跑步800会不会再加一次？答：不会，总数覆盖。为什么删掉活动后可能显示空白？答：没有活动记录不能证明活动消耗为0。
@@ -835,7 +876,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 
 ## 10. 数据表查阅：知道用途，比背字段重要
 
-### 10.1 当前全部 35 张表
+### 10.1 当前全部 36 张表
 
 下表按 [schema.ts](../src/db/schema.ts) 中的物理表名分组。这里描述代码声明，实际某个环境执行了哪些迁移，要查看该环境的账本。
 
@@ -846,10 +887,10 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 | OAuth，9 张 | `oauth_client`、`oauth_resource`、`oauth_client_resource`、`oauth_refresh_token`、`oauth_access_token`、`oauth_consent`、`oauth_client_assertion`、`jwks`、`oauth_connections` | 外部客户端、授权资源、用户同意、令牌更新、签名密钥与稳定连接 |
 | 身体，6 张 | `measurements`、`measurement_days`、`measurement_sources`、`measurement_imports`、`measurement_operations`、`measurement_events` | 测量事实、日期／提醒、来源建议、批次、审核与变更记录 |
 | 饮食与图片，8 张 | `foods`、`meals`、`meal_items`、`meal_imports`、`meal_operations`、`meal_events`、`meal_images`、`meal_image_links` | 食材、餐次、餐项、导入、审核、变更与图片元数据／关联 |
-| 消耗与活动，5 张 | `energy_profiles`、`energy_days`、`activities`、`energy_operations`、`energy_events` | 按日期生效的资料、日录入、活动、预览和变更审计 |
+| 消耗与活动，6 张 | `energy_profiles`、`energy_days`、`activities`、`energy_operations`、`energy_events`、`energy_defaults` | 按日期生效的资料、日录入、活动、预览和变更审计 |
 | 统一审核，1 张 | `record_operations` | 一次混合请求、人工草稿、身体／饮食／消耗子操作关联和审核版本 |
 
-`drizzle.__drizzle_migrations` 是迁移工具的执行账本，不计入上述 35 张应用表。目标、训练计划和设备自动同步不在本轮实现范围。
+`drizzle.__drizzle_migrations` 是迁移工具的执行账本，不计入上述 36 张应用表。目标、训练计划和设备自动同步不在本轮实现范围。
 
 所有个人健康记录都按账号归属读取和写入；登录前的限流、协议资源等基础设施表有自己的标识规则，不能因为它们没有健康数据的 `user_id` 就直接认定有缺陷。
 

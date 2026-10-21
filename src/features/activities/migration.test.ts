@@ -19,6 +19,11 @@ test("消耗迁移保留30张旧表字段值，仅增加5张表和可空关联",
       assert.deepEqual(after, prior.get(table), table);
     }
     assert.equal((await pg.query("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'")).rows.length, 35);
+    const oldDays = (await pg.query("SELECT * FROM energy_days")).rows;
+    await pg.exec(await readFile("drizzle/0020_strange_meteorite.sql", "utf8"));
+    assert.equal((await pg.query("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'")).rows.length, 36);
+    assert.deepEqual((await pg.query("SELECT * FROM energy_defaults")).rows, []);
+    assert.deepEqual((await pg.query("SELECT id,user_id,local_date,resting_kcal,active_kcal,total_kcal FROM energy_days")).rows, oldDays);
     await assert.rejects(pg.exec("INSERT INTO energy_days(id,user_id,local_date,timezone,resting_kcal) VALUES ('bad','energy-migration-owner','2024-08-01','Asia/Shanghai',-1)"));
   } finally { await pg.close(); }
 });

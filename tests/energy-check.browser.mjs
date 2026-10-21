@@ -22,6 +22,16 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
   let historicalConfirmation = false; page.once("dialog", async prompt => { historicalConfirmation = true; assert.match(prompt.message(), /生效/); await prompt.accept(); }); await save(); assert.ok(historicalConfirmation);
   await edit({ "静息 · kcal": "2000", "活动合计 · kcal": "800" });
   const result = await api(); assert.equal(Number(result.days[0].totalKcal), 2800);
+  // 默认值按账号保存；不用为每天建立虚构的零活动明细。
+  await page.getByRole("button", { name: "日常默认值", exact: true }).click();
+  await dialog().getByLabel("平均静息生效日期", { exact: true }).fill(previous(today, -60)); await dialog().getByLabel("平均静息 · kcal", { exact: true }).fill("2100");
+  page.once("dialog", prompt => prompt.accept()); await save();
+  await edit({ "静息 · kcal": "", "活动合计 · kcal": "" });
+  await todayRow.locator("summary").click(); await todayRow.getByRole("button", { name: "删除活动", exact: true }).click();
+  await page.getByRole("status").filter({ hasText: "已保存" }).waitFor(); assert.match((await summary.innerText()).replaceAll(",", ""), /总消耗\s*2100/); assert.match((await summary.innerText()).replaceAll(",", ""), /活动\s*0/);
+  await page.getByText("静息公式对照", { exact: true }).click(); assert.match(await page.getByText(/公式估算.*kcal／天/).innerText(), /175 cm/);
+  await page.getByRole("button", { name: "记录当天", exact: true }).click(); await dialog().getByLabel("活动合计 · kcal", { exact: true }).fill("200"); await dialog().getByLabel("活动合计为估算", { exact: true }).check(); await dialog().getByLabel("备注", { exact: true }).fill("虚构初始化估算"); await save();
+  assert.match(await todayRow.innerText(), /活动估计/);
   // 同一份请求同时预览身体、饮食和消耗，确认之前不改变事实。
   const old = previous(today, -40), next = previous(today, -39);
   const payload = { operationId: randomUUID(), items: [

@@ -394,11 +394,14 @@ const energySourceColumns = () => ({
   timezone: text("timezone").notNull(), sourceSystem: text("source_system"), sourceRecordId: text("source_record_id"),
   sourceOccurredAt: timestamp("source_occurred_at", { withTimezone: true }), sourceUnit: text("source_unit").notNull().default("kcal"), syncStatus: text("sync_status").notNull().default("confirmed"),
 });
+export const energyDefault = pgTable("energy_defaults", {
+  ...energyIdentityColumns(), restingFrom: date("resting_from").notNull(), restingKcal: numeric("resting_kcal", { precision: 14, scale: 4 }), zeroActivityFrom: date("zero_activity_from"),
+}, t => [uniqueIndex("energy_defaults_owner_idx").on(t.userId).where(sql`${t.deletedAt} IS NULL`), check("energy_defaults_valid", sql`(${t.restingKcal} IS NULL OR ${t.restingKcal}>=0) AND ${t.version}>0`)]);
 export const energyProfile = pgTable("energy_profiles", {
   ...energyIdentityColumns(), effectiveFrom: date("effective_from").notNull(), heightCm: numeric("height_cm", { precision: 7, scale: 4 }).notNull(), birthDate: date("birth_date").notNull(), sex: text("sex").notNull(),
 }, t => [uniqueIndex("energy_profiles_owner_date_idx").on(t.userId, t.effectiveFrom).where(sql`${t.deletedAt} IS NULL`), check("energy_profiles_valid", sql`${t.heightCm}>0 AND ${t.heightCm}<=300 AND ${t.sex} IN ('male','female') AND ${t.birthDate}<${t.effectiveFrom} AND ${t.version}>0`)]);
 export const energyDay = pgTable("energy_days", {
-  ...energyIdentityColumns(), ...energySourceColumns(), date: date("local_date").notNull(), restingKcal: numeric("resting_kcal", { precision: 14, scale: 4 }), activeKcal: numeric("active_kcal", { precision: 14, scale: 4 }), totalKcal: numeric("total_kcal", { precision: 14, scale: 4 }),
+  ...energyIdentityColumns(), ...energySourceColumns(), activeEstimated: boolean("active_estimated").notNull().default(false), notes: text("notes"), date: date("local_date").notNull(), restingKcal: numeric("resting_kcal", { precision: 14, scale: 4 }), activeKcal: numeric("active_kcal", { precision: 14, scale: 4 }), totalKcal: numeric("total_kcal", { precision: 14, scale: 4 }),
 }, t => [uniqueIndex("energy_days_owner_date_idx").on(t.userId,t.date).where(sql`${t.deletedAt} IS NULL`), check("energy_days_values_valid", sql`(${t.restingKcal} IS NULL OR ${t.restingKcal}>=0) AND (${t.activeKcal} IS NULL OR ${t.activeKcal}>=0) AND (${t.totalKcal} IS NULL OR ${t.totalKcal}>=0) AND ${t.version}>0 AND ${t.sourceUnit}='kcal' AND ${t.syncStatus}='confirmed'`)]);
 export const activity = pgTable("activities", {
   ...energyIdentityColumns(), ...energySourceColumns(), date: date("local_date").notNull(), name: text("name").notNull(), durationMinutes: numeric("duration_minutes", { precision: 14, scale: 4 }), caloriesKcal: numeric("calories_kcal", { precision: 14, scale: 4 }), completed: boolean("completed").notNull().default(true),

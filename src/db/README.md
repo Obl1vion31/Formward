@@ -35,4 +35,6 @@ OAuth Provider 的客户端、资源、授权同意、摘要令牌、刷新轮�
 
 0018 新增 record_operations 统一审核批次，关联身体／饮食子操作及其审核版本，保存不可变混合请求与人工草稿。0018结构有30张业务／认证表；旧表和值保持。字段、索引和事务规则见数据库字典。
 
-0019新增energy_profiles、energy_days、activities、energy_operations、energy_events，并为record_operations增加可空消耗关联及revision；当前共35张表。归属组合外键在唯一索引建立后添加；有效日记录／资料生效日期按账号唯一。字段与优先级见[消耗文档](../../docs/energy.md)和[数据库字典](../../docs/database.md)。
+0019新增energy_profiles、energy_days、activities、energy_operations、energy_events，并为record_operations增加可空消耗关联及revision；0019结构共35张表。归属组合外键在唯一索引建立后添加；有效日记录／资料生效日期按账号唯一。字段与优先级见[消耗文档](../../docs/energy.md)和[数据库字典](../../docs/database.md)。
+
+0020增加energy_defaults和energy_days.active_estimated／notes，当前36张应用表。默认值仅在账号明确保存后生效；旧字段值保持，原日记录新增列为false／NULL。默认规则写入复用消耗操作和审计，不创建每日事实。

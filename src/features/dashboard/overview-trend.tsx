@@ -18,7 +18,7 @@ function WeightReading({ record }: { record: MeasurementDisplay | null }) {
 }
 export function OverviewTrend({ meals, records, today, energy = emptyEnergy() }: { meals: MealView[]; records: MeasurementDisplay[]; today: string; energy?: EnergySnapshot }) {
   const [mode, setMode] = useState("30"), [custom, setCustom] = useState({ from: addCalendarDays(today, -29), to: today }), [inspected, setInspected] = useState(today), [estimates, setEstimates] = useState(true), [opened, setOpened] = useState<string | null>(null);
-  const earliest = [today, ...dailyTotals(meals).map(day => day.date), ...records.map(record => record.recordDate), ...energy.days.filter(day => !day.deletedAt).map(day => day.date), ...energy.activities.filter(activity => !activity.deletedAt).map(activity => activity.date)].filter(date => date <= today).sort()[0];
+  const earliest = [today, ...(energy.defaults ?? []).filter(row => !row.deletedAt).map(row => row.restingFrom), ...dailyTotals(meals).map(day => day.date), ...records.map(record => record.recordDate), ...energy.days.filter(day => !day.deletedAt).map(day => day.date), ...energy.activities.filter(activity => !activity.deletedAt).map(activity => activity.date)].filter(date => date <= today).sort()[0];
   const from = mode === "all" ? earliest : mode === "custom" ? custom.from : addCalendarDays(today, 1 - Number(mode)), to = mode === "custom" ? custom.to : today;
   let dates: string[] = [];
   try { const length = calendarOrdinal(to) - calendarOrdinal(from) + 1; if (length > 0 && length <= 3661) dates = Array.from({ length }, (_, index) => addCalendarDays(from, index)); } catch {}
