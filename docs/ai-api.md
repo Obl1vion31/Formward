@@ -1,10 +1,10 @@
 # 身体与饮食 AI 接入
 
-接口覆盖晨晚体重／体脂、来源、时区、记录详情与历史、候选分析、摘要与趋势、历史编辑及单项显式估算。网页和 API 使用同一 measurements feature。饮食、食材及其删除／恢复已接入；运动、通用文件导入及身体记录的网页删除／恢复、准确测量时间和历史归属纠正尚未接入。
+接口覆盖晨晚体重／体脂、来源、时区、记录详情与历史、候选分析、摘要与趋势、历史编辑及单项显式估算。网页和 API 使用同一 measurements feature。饮食、食材及其删除／恢复已接入；通用文件导入及身体记录的网页删除／恢复、准确测量时间和历史归属纠正尚未接入。
 
 ## 混合记录接口
 
-MCP 1.6.0 提供11个工具，新增 `submit_record_operation`／`get_record_operation`；HTTP 为 `POST /api/v1/record-operations` 和 `GET /api/v1/record-operations/{id}`。支持只提交一类或任意组合，最多100项（包含展开的新食材）、64 KiB，统一链接 `/dashboard/ai/operations/{id}`。原单类接口和链接保持兼容，确认只能由登录网页执行。
+MCP 1.7.0 提供12个工具，新增 `submit_record_operation`／`get_record_operation`；HTTP 为 `POST /api/v1/record-operations` 和 `GET /api/v1/record-operations/{id}`。支持只提交一类或任意组合，最多100项（包含展开的新食材）、64 KiB，统一链接 `/dashboard/ai/operations/{id}`。原单类接口和链接保持兼容，确认只能由登录网页执行。
 
 请求为 `{ operationId, timezone?, items }`，每项包含唯一 `key` 和既有 `save_record`、`estimate_cell`、`save_meal`、`save_food` 或饮食删除／恢复字段。餐项通过 `foodRef` 引用同批 `save_food.key`，不同时提供 `foodId`、`foodDraft` 或 `nutrition`；内嵌 `foodDraft` 兼容并自动展开。以下仅为虚构格式：
 
@@ -14,7 +14,7 @@ MCP 1.6.0 提供11个工具，新增 `submit_record_operation`／`get_record_ope
 
 返回 `status`、`rows`、`canConfirm`、按项目汇总的 `needsUserInput`、审核版本及确认链接。`pending` 是草稿，`confirmed` 表示所选记录已保存，`cancelled` 为取消，`completed` 表示无需保存。缺图仍须用户逐项明确选择先保存文字；`needsUserInput` 不得被 AI 当作已确认。重复请求复用原 `operationId` 和内容，改变内容或授权时拒绝复用。
 
-混合写入按所含内容检查 `measurements:write` 和 `meals:write`，查询批次检查对应读取权限；工具元数据声明这两类既有权限，不自动扩展旧连接。纯身体或纯饮食连接也可继续使用原单类工具。
+混合写入按所含内容检查 `measurements:write`、`meals:write` 和 `energy:write`，查询批次检查对应读取权限；工具元数据只声明当前已授予的相关权限，不自动扩展旧连接。纯身体或纯饮食连接也可继续使用原单类工具。
 
 ## ChatGPT 与其他 MCP 客户端
 
@@ -24,6 +24,9 @@ MCP 1.6.0 提供11个工具，新增 `submit_record_operation`／`get_record_ope
 
 | 工具 | 输入与行为 | 权限 |
 | --- | --- | --- |
+| `query_energy` | from／to／timezone查询最终消耗、分项、活动及公式依据 | `energy:read` |
+| `submit_record_operation` | items混合预览，返回统一确认链接 | 按内容检查对应write权限 |
+| `get_record_operation` | 查询混合审核状态 | 按内容检查对应read权限 |
 | `get_profile` | 返回已连接账号的稳定标识与显示名称 | `profile` |
 | `query_measurements` | 可选 from／to、choices、timezone；返回本账号记录、单位、来源、实测／估计、摘要、趋势与时区上下文 | `measurements:read` |
 | `submit_measurement_operation` | operationId、1–100 条 items、可选 timezone；生成预览并返回网页审核链接 | `measurements:write` |
@@ -121,7 +124,7 @@ search_foods返回foods及兼容的presets:[]，不提供基础预设采用；qu
 
 ## 一个链接审核整批
 
-统一审核页按身体状况、摄入记录、食材库记录排列，只显示本次内容。新增直接展示内容，修改显示原值与新值；新增图片贴近对应记录，变更图片展示前后对照。逐项确认只标记已核对，修改先更新草稿，取消可恢复；整体核对后也可直接点击底部“确认并全部保存”。所选内容在一个数据库事务中保存，失败保留输入并整体回滚。手机压缩信息间距，底部吸附按钮保留安全区；依据、备注和审核技术信息折叠。保存成功显示勾，2秒后返回总览，保留立即返回入口；重新打开已完成链接不自动跳转。
+统一审核页按身体状况、摄入记录、食材库记录和消耗记录排列，只显示本次内容。新增直接展示内容，修改显示原值与新值；新增图片贴近对应记录，变更图片展示前后对照。逐项确认只标记已核对，修改先更新草稿，取消可恢复；整体核对后也可直接点击底部“确认并全部保存”。所选内容在一个数据库事务中保存，失败保留输入并整体回滚。手机压缩信息间距，底部吸附按钮保留安全区；依据、备注和审核技术信息折叠。保存成功显示勾，2秒后返回总览，保留立即返回入口；重新打开已完成链接不自动跳转。
 
 来源编辑与身体录入共用来源输入，点击展开本账号历史建议，支持移除；来源可填写或直接留空后更新预览，历史快照不受建议移除影响。已有部分保存的旧审核保留原结果，剩余内容统一确认，不重复写入。
 
@@ -139,10 +142,12 @@ search_foods返回foods及兼容的presets:[]，不提供基础预设采用；qu
 
 ## 饮食接口
 
-MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation，分别使用meals:read／meals:write；已有身体连接需重新授权。HTTP提供GET /foods?q=、GET /meals?from=&to=、POST /meal-operations、GET /meal-operations/{id}，公开协议1.9.0。输入operationId、actions；save_meal含date、mealType、items，已有食材用foodId＋foodVersion、同单位quantity，新食材可用foodDraft。杂只估未单列的剩余食物，whole整餐估算须为唯一项。AI 标签与成分表需依据，未知null；手动合并来源 reference 为标签／成分表，旧来源继续兼容。新手动自由项用 kind:food，营养直接表示本次摄入，分量不再次相乘。确认链接为/dashboard/meals/review/{id}，15分钟有效，原请求与修订草稿独立；正式保存仅网页登录确认，权限撤销即时阻止。结构、初始化和实例定位见[饮食记录](meals.md)。
+MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation，分别使用meals:read／meals:write；已有身体连接需重新授权。HTTP提供GET /foods?q=、GET /meals?from=&to=、POST /meal-operations、GET /meal-operations/{id}，公开协议1.10.0。输入operationId、actions；save_meal含date、mealType、items，已有食材用foodId＋foodVersion、同单位quantity，新食材可用foodDraft。杂只估未单列的剩余食物，whole整餐估算须为唯一项。AI 标签与成分表需依据，未知null；手动合并来源 reference 为标签／成分表，旧来源继续兼容。新手动自由项用 kind:food，营养直接表示本次摄入，分量不再次相乘。确认链接为/dashboard/meals/review/{id}，15分钟有效，原请求与修订草稿独立；正式保存仅网页登录确认，权限撤销即时阻止。结构、初始化和实例定位见[饮食记录](meals.md)。
 \n照片上传需先实际调用import_meal_images，再提交imageIds及expectedImageCount；失败也保留预期张数并说明具体错误。canConfirm表示正常确认可用，canConfirmWithoutImages表示可由用户选择先保存文字。补传与无图保存选择仅在登录网页完成，API没有代确认入口。每项食物可提交reviewExplanation，分别说明identity、amount、cooking、nutrition的来源、basis及uncertainty；已有basis和食材快照继续兼容。
 
 
 食材查询实时返回 foodLibraryRules；估算说明保留成分分量、参考来源／计算和汇总结果，不只重复营养表，也不写个人餐次背景或泛化使用提醒。新 save_food／foodDraft 不合规则在创建预览前返回 food_description，AI 应改写文案后沿用 operationId 重试，无需为文案再询问使用者。餐次个人备注及既有食材引用保持。自定义 MCP 的工具定义更新后，按 [OpenAI 官方说明](https://developers.openai.com/plugins/deploy/connect-chatgpt#refresh-metadata) 刷新连接并开启新对话；刷新不会修正已保存在 Formward 的文字。
 
 食材可选 category:meal／ingredient，新条目省略为 ingredient，省略更新保留原分类；查询返回分类。餐项查询返回稳定 id，编辑时以 originalItemId 引用同一餐次／版本原项。食材已永久删除的旧餐项不传 foodId 或 nutrition，服务端沿用原快照按同单位 quantity 换算；不能将已删食材用于新餐。永久删除只在网页最近删除提供，不新增 MCP 工具或 HTTP 写接口。
+
+消耗查询为GET /api/v1/energy与MCP query_energy，统一提交支持每日消耗、活动及公式资料的保存／软删除／恢复。OAuth独立energy:read／energy:write，旧连接须重新授权；手动令牌沿用read／write。规则、字段及虚构例子见[消耗文档](energy.md)。

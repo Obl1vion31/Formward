@@ -1,4 +1,5 @@
 "use client";
+import { useChartMotion } from "@/components/use-chart-motion";
 import { useBackdropDismiss } from "@/components/use-backdrop-dismiss";
 
 import { useEffect, useId, useRef, useState } from "react";
@@ -226,7 +227,7 @@ function RecordDetails({ row, metric, onMetric }: { row: MeasurementDisplay; met
 function periodLabel(row: Pick<MeasurementDisplay, "period" | "fasting">) { return row.period === "evening" ? "晚间" : row.fasting === false || row.fasting === null ? "白天" : "晨间"; }
 function sourceLabel(row: MeasurementDisplay) {
   if (row.recordKind === "estimated") return `系统估计 · ${estimateModeLabel(row.estimation)}`;
-  return row.entryChannel === "development_backend" ? "开发后台加入" : row.entryChannel === "manual" ? "手动录入" : row.entryChannel === "api" ? "API 写入" : row.sourceSystem ?? (row.sourceType === "import" ? "导入 · 来源系统未提供" : row.sourceType === "manual" ? "手动录入" : row.sourceType);
+  return row.entryChannel === "development_backend" ? "维护录入" : row.entryChannel === "manual" ? "手动录入" : row.entryChannel === "api" ? "外部录入" : row.sourceSystem ?? (row.sourceType === "import" ? "导入 · 来源系统未提供" : row.sourceType === "manual" ? "手动录入" : row.sourceType);
 }
 function recordTimeLabel(row: MeasurementDisplay) { return row.timePrecision === "second" ? row.sourceLocalTime : "无"; }
 function formatDifference(value: number | null, metric: MeasurementMetric, withUnit = true) {
@@ -432,6 +433,7 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, onIns
     return () => observer.disconnect();
   }, []);
   const { points, segments, pairs } = measurementTrend(records, metric, showEvening, choices);
+  useChartMotion(viewport, viewportWidth ? `${metric}:${showEvening}:${interval.start}:${interval.end}:${JSON.stringify(choices)}:${records.map(record => `${record.id}:${record.updatedAt}`).join("|")}` : "pending");
   const width = Math.max(240, viewportWidth);
   const span = calendarOrdinal(interval.end) - calendarOrdinal(interval.start);
   const x = (date: string) => span ? 48 + (calendarOrdinal(date) - calendarOrdinal(interval.start)) / span * (width - 72) : (width + 24) / 2;
@@ -458,7 +460,7 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, onIns
         {ticks.map((date) => <text key={date} x={x(date)} y="242" textAnchor="middle" className={styles.axis}>{date.slice(5).replace("-", "/")}</text>)}
         {selectedDate && <line x1={x(selectedDate)} x2={x(selectedDate)} y1="14" y2="218" className={styles.selectedDayLine} />}
         {pairs.map((day) => <line data-pair={day.date} key={day.date} x1={x(day.date)} x2={x(day.date)} y1={y(day.daytimeRecord![metric])} y2={y(day.eveningRecord![metric])} className={styles.pairLine} />)}
-        {segments.map(({ a, b, period, estimated, missingDayCount }) => <line key={`${a.id}:${b.id}`} data-segment={estimated ? "estimated" : missingDayCount ? "gap" : "continuous"} data-period={period} x1={x(a.recordDate)} y1={y(a[metric])} x2={x(b.recordDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} ${estimated ? styles.estimateLine : missingDayCount ? styles.gapLine : ""}`} />)}
+        {segments.map(({ a, b, period, estimated, missingDayCount }) => <line data-chart-line key={`${a.id}:${b.id}`} data-segment={estimated ? "estimated" : missingDayCount ? "gap" : "continuous"} data-period={period} x1={x(a.recordDate)} y1={y(a[metric])} x2={x(b.recordDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} ${estimated ? styles.estimateLine : missingDayCount ? styles.gapLine : ""}`} />)}
         {[...points].sort((a, b) => Number(a.period === "daytime") - Number(b.period === "daytime")).map((row) => {
           const estimated = row.recordKind === "estimated";
           const label = pointLabel(row);

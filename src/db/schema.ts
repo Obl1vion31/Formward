@@ -385,13 +385,41 @@ export const mealImageLink = pgTable("meal_image_links", {
   mealId: text("meal_id"), foodId: text("food_id"), position: integer("position").notNull(),
 }, t => [foreignKey({columns:[t.userId,t.imageId],foreignColumns:[mealImage.userId,mealImage.id]}), foreignKey({columns:[t.userId,t.mealId],foreignColumns:[meal.userId,meal.id]}), foreignKey({columns:[t.userId,t.foodId],foreignColumns:[food.userId,food.id]}), check("meal_image_links_target_valid",sql`num_nonnulls(${t.mealId},${t.foodId})=1`), uniqueIndex("meal_image_links_meal_idx").on(t.userId,t.mealId,t.imageId), uniqueIndex("meal_image_links_food_idx").on(t.userId,t.foodId,t.imageId)]);
 
+const energyIdentityColumns = () => ({
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),
+  version: integer("version").notNull().default(1), deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+const energySourceColumns = () => ({
+  timezone: text("timezone").notNull(), sourceSystem: text("source_system"), sourceRecordId: text("source_record_id"),
+  sourceOccurredAt: timestamp("source_occurred_at", { withTimezone: true }), sourceUnit: text("source_unit").notNull().default("kcal"), syncStatus: text("sync_status").notNull().default("confirmed"),
+});
+export const energyProfile = pgTable("energy_profiles", {
+  ...energyIdentityColumns(), effectiveFrom: date("effective_from").notNull(), heightCm: numeric("height_cm", { precision: 7, scale: 4 }).notNull(), birthDate: date("birth_date").notNull(), sex: text("sex").notNull(),
+}, t => [uniqueIndex("energy_profiles_owner_date_idx").on(t.userId, t.effectiveFrom).where(sql`${t.deletedAt} IS NULL`), check("energy_profiles_valid", sql`${t.heightCm}>0 AND ${t.heightCm}<=300 AND ${t.sex} IN ('male','female') AND ${t.birthDate}<${t.effectiveFrom} AND ${t.version}>0`)]);
+export const energyDay = pgTable("energy_days", {
+  ...energyIdentityColumns(), ...energySourceColumns(), date: date("local_date").notNull(), restingKcal: numeric("resting_kcal", { precision: 14, scale: 4 }), activeKcal: numeric("active_kcal", { precision: 14, scale: 4 }), totalKcal: numeric("total_kcal", { precision: 14, scale: 4 }),
+}, t => [uniqueIndex("energy_days_owner_date_idx").on(t.userId,t.date).where(sql`${t.deletedAt} IS NULL`), check("energy_days_values_valid", sql`(${t.restingKcal} IS NULL OR ${t.restingKcal}>=0) AND (${t.activeKcal} IS NULL OR ${t.activeKcal}>=0) AND (${t.totalKcal} IS NULL OR ${t.totalKcal}>=0) AND ${t.version}>0 AND ${t.sourceUnit}='kcal' AND ${t.syncStatus}='confirmed'`)]);
+export const activity = pgTable("activities", {
+  ...energyIdentityColumns(), ...energySourceColumns(), date: date("local_date").notNull(), name: text("name").notNull(), durationMinutes: numeric("duration_minutes", { precision: 14, scale: 4 }), caloriesKcal: numeric("calories_kcal", { precision: 14, scale: 4 }), completed: boolean("completed").notNull().default(true),
+}, t => [index("activities_owner_date_idx").on(t.userId,t.date), uniqueIndex("activities_owner_source_idx").on(t.userId,t.sourceSystem,t.sourceRecordId).where(sql`${t.sourceSystem} IS NOT NULL AND ${t.sourceRecordId} IS NOT NULL AND ${t.deletedAt} IS NULL`), check("activities_values_valid", sql`length(trim(${t.name}))>0 AND (${t.durationMinutes} IS NULL OR ${t.durationMinutes}>=0) AND (${t.caloriesKcal} IS NULL OR ${t.caloriesKcal}>=0) AND ${t.version}>0 AND ${t.sourceUnit}='kcal' AND ${t.syncStatus}='confirmed'`)]);
+export const energyOperation = pgTable("energy_operations", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), operationId: text("operation_id").notNull(), origin: text("origin").notNull(),
+  tokenId: text("token_id").references(() => aiToken.id), oauthConnectionId: text("oauth_connection_id").references(() => oauthConnection.id),
+  requestDigest: text("request_digest").notNull(), snapshotDigest: text("snapshot_digest").notNull(), payload: jsonb("payload").$type<import("../features/activities/model").EnergyInput>().notNull(), draft: jsonb("draft").$type<import("../features/activities/model").EnergyInput>().notNull(), preview: jsonb("preview").$type<import("../features/activities/model").EnergyPreview[]>().notNull(),
+  revision: integer("revision").notNull().default(1), status: text("status").notNull().default("pending"), expiresAt: timestamp("expires_at", { withTimezone: true }), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+}, t => [uniqueIndex("energy_operations_owner_request_idx").on(t.userId,t.operationId), uniqueIndex("energy_operations_owner_id_idx").on(t.userId,t.id), check("energy_operations_valid", sql`${t.origin} IN ('manual','ai') AND ${t.status} IN ('pending','confirmed','cancelled') AND ${t.revision}>0 AND ((${t.origin}='manual' AND ${t.tokenId} IS NULL AND ${t.oauthConnectionId} IS NULL) OR (${t.origin}='ai' AND num_nonnulls(${t.tokenId},${t.oauthConnectionId})=1))`)]);
+export const energyEvent = pgTable("energy_events", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), operationId: text("operation_id").notNull(), recordId: text("record_id").notNull(), recordType: text("record_type").notNull(), actorType: text("actor_type").notNull(), actorId: text("actor_id").notNull(), confirmedBy: text("confirmed_by").notNull().references(() => user.id), snapshot: jsonb("snapshot").$type<{ originalInput: import("../features/activities/model").EnergyAction; action: import("../features/activities/model").EnergyAction; before: import("../features/activities/model").EnergyRecord | null; after: import("../features/activities/model").EnergyRecord }>().notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [foreignKey({columns:[t.userId,t.operationId],foreignColumns:[energyOperation.userId,energyOperation.id]}), index("energy_events_owner_record_idx").on(t.userId,t.recordId)]);
+
 // 一个审核批次关联既有业务操作；事实写入仍由对应 feature 完成。
 export const recordOperation = pgTable("record_operations", {
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), operationId: text("operation_id").notNull(),
-  measurementRevision: integer("measurement_revision"), mealRevision: integer("meal_revision"),
+  measurementRevision: integer("measurement_revision"), mealRevision: integer("meal_revision"), energyRevision: integer("energy_revision"),
   requestDigest: text("request_digest").notNull(), payload: jsonb("payload").$type<import("../features/records/model").RecordInput>().notNull(),
   draft: jsonb("draft").$type<import("../features/records/model").RecordItem[]>().notNull(),
-  measurementOperationId: text("measurement_operation_id").references(() => measurementOperation.id), mealOperationId: text("meal_operation_id").references(() => mealOperation.id),
+  measurementOperationId: text("measurement_operation_id").references(() => measurementOperation.id), mealOperationId: text("meal_operation_id").references(() => mealOperation.id), energyOperationId: text("energy_operation_id"),
   revision: integer("revision").notNull().default(1), status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
-}, t => [uniqueIndex("record_operations_owner_request_idx").on(t.userId,t.operationId), uniqueIndex("record_operations_measurement_idx").on(t.measurementOperationId), uniqueIndex("record_operations_meal_idx").on(t.mealOperationId), index("record_operations_owner_created_idx").on(t.userId,t.createdAt), check("record_operations_status_valid", sql`${t.status} IN ('pending','confirmed','cancelled','completed')`)]);
+}, t => [foreignKey({columns:[t.userId,t.energyOperationId],foreignColumns:[energyOperation.userId,energyOperation.id]}), uniqueIndex("record_operations_energy_idx").on(t.energyOperationId), uniqueIndex("record_operations_owner_request_idx").on(t.userId,t.operationId), uniqueIndex("record_operations_measurement_idx").on(t.measurementOperationId), uniqueIndex("record_operations_meal_idx").on(t.mealOperationId), index("record_operations_owner_created_idx").on(t.userId,t.createdAt), check("record_operations_status_valid", sql`${t.status} IN ('pending','confirmed','cancelled','completed')`)]);

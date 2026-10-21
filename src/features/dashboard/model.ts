@@ -1,53 +1,55 @@
 import { buildMeasurementDays } from "../measurements/days";
 import { dailyTotals, emptyNutrition, type MealView } from "../meals/model";
 import { measurementSummary } from "../measurements/summary";
+import { addCalendarDays } from "../measurements/calendar";
 import type { MeasurementDisplay } from "../measurements/entry-state";
-export function overview(meals: MealView[], records: MeasurementDisplay[], today: string) {
-  const day = dailyTotals(meals).find(row => row.date === today);
-  return { today, mealCount: day?.meals.length ?? 0, nutrition: day?.totals ?? { values: emptyNutrition(), incomplete: { caloriesKcal: false, proteinG: false, carbsG: false, fatG: false } },
+import { emptyEnergy, energyDays, type EnergyDay, type EnergySnapshot } from "../activities/model";
+
+export function overview(meals: MealView[], records: MeasurementDisplay[], today: string, snapshot: EnergySnapshot = emptyEnergy()) {
+  const day = dailyTotals(meals).find(row => row.date === today), energy = energyDays(snapshot, records, [today])[0];
+  const nutrition = day?.totals ?? { values: emptyNutrition(), incomplete: { caloriesKcal: false, proteinG: false, carbsG: false, fatG: false } };
+  return { today, mealCount: day?.meals.length ?? 0, nutrition, energy,
     body: (["weightKg", "bodyFatPercent"] as const).map(metric => ({ metric, ...measurementSummary(records.filter(row => row.recordDate <= today), metric) })),
-    energyBalance: null, activities: null };
+    energyBalance: nutrition.values.caloriesKcal !== null && !nutrition.incomplete.caloriesKcal && energy.totalKcal !== null ? difference(nutrition.values.caloriesKcal, energy.totalKcal, 10000) : null,
+    activities: energy.activities };
 }
-
+const difference = (a: string, b: string, precision: number) => (Math.round(Number(a) * precision) - Math.round(Number(b) * precision)) / precision;
 export type OverviewDay = {
-  date: string;
-  meals: MealView[];
+  date: string; nextDate: string; meals: MealView[];
   nutrition: ReturnType<typeof dailyTotals>[number]["totals"] | null;
-  body: Record<"weightKg"|"bodyFatPercent", MeasurementDisplay | null>;
-  evening: MeasurementDisplay | null;
-  weightDifferenceKg: number | null;
-  differenceEstimated: boolean;
-  ambiguous: Record<"weightKg"|"bodyFatPercent", boolean>;
+  morning: MeasurementDisplay | null; nextMorning: MeasurementDisplay | null;
+  weightChangeKg: number | null; differenceEstimated: boolean; ambiguous: boolean;
+  energy: EnergyDay; energyBalance: number | null;
 };
-
-/** 只聚合已有记录；营养和测量都不补零，多候选不自动挑选。 */
-export function overviewDays(meals:MealView[],records:MeasurementDisplay[],dates:string[],showEstimates=false):OverviewDay[] {
-  const nutrition=new Map(dailyTotals(meals).map(day=>[day.date,day]));
-  const visible=showEstimates?records:records.filter(record=>record.recordKind!=="estimated");
-  const weight=new Map(buildMeasurementDays(visible,{},"weightKg").map(day=>[day.date,day]));
-  const fat=new Map(buildMeasurementDays(visible,{},"bodyFatPercent").map(day=>[day.date,day]));
-  return dates.map(date=>{
-    const body={weightKg:null,bodyFatPercent:null} as OverviewDay["body"],ambiguous={weightKg:false,bodyFatPercent:false};
-    for(const metric of ["weightKg","bodyFatPercent"] as const){
-      const day=(metric==="weightKg"?weight:fat).get(date),record=day?.daytimeRecord;
-      if(record?.fasting===true&&record[metric]!==null)body[metric]=record;
-      ambiguous[metric]=!!day&&day.daytime.filter(record=>record.recordKind!=="estimated").length>1;
-    }
-    const day=nutrition.get(date);
-    const evening = weight.get(date)?.eveningRecord;
-    const validEvening = evening?.fasting === false && evening.weightKg !== null ? evening : null;
-    const morning = body.weightKg;
-    const difference = morning && validEvening ? (Math.round(Number(validEvening.weightKg)*100)-Math.round(Number(morning.weightKg)*100))/100 : null;
-    return {date,meals:day?.meals??[],nutrition:day?.totals??null,body,ambiguous,evening:validEvening,weightDifferenceKg:difference,differenceEstimated:!!(difference!==null&&(morning?.recordKind==="estimated"||validEvening?.recordKind==="estimated"))};
+/** D日摄入/消耗对应D+1晨重减D晨重；不跨缺日、不生成身体估计。 */
+export function overviewDays(meals: MealView[], records: MeasurementDisplay[], dates: string[], showEstimates = false, snapshot: EnergySnapshot = emptyEnergy(), asOf?: string): OverviewDay[] {
+  const nutrition = new Map(dailyTotals(meals).map(day => [day.date, day]));
+  const visible = records.filter(record => (!asOf || record.recordDate <= asOf) && (showEstimates || record.recordKind !== "estimated"));
+  const mornings = new Map(buildMeasurementDays(visible, {}, "weightKg").map(day => [day.date, day]));
+  const energy = energyDays(snapshot, records.filter(record => !asOf || record.recordDate <= asOf), dates);
+  const morning = (date: string) => { const record = mornings.get(date)?.daytimeRecord; return record?.fasting === true && record.weightKg !== null ? record : null; };
+  return dates.map((date, index) => {
+    const nextDate = addCalendarDays(date, 1), current = morning(date), next = morning(nextDate), day = nutrition.get(date), expenditure = energy[index];
+    const ambiguous = [date, nextDate].some(date => (mornings.get(date)?.daytime.filter(record => record.recordKind !== "estimated").length ?? 0) > 1);
+    return { date, nextDate, meals: day?.meals ?? [], nutrition: day?.totals ?? null, morning: current, nextMorning: next,
+      weightChangeKg: !ambiguous && current?.weightKg != null && next?.weightKg != null ? difference(next.weightKg, current.weightKg, 100) : null,
+      differenceEstimated: !!(current && next && (current.recordKind === "estimated" || next.recordKind === "estimated")), ambiguous, energy: expenditure,
+      energyBalance: day?.totals.values.caloriesKcal != null && !day.totals.incomplete.caloriesKcal && expenditure.totalKcal !== null ? difference(day.totals.values.caloriesKcal, expenditure.totalKcal, 10000) : null };
   });
 }
-
-export function overviewWeightSeries(days: OverviewDay[]) {
-  const baseline = days.find(day => day.body.weightKg !== null)?.body.weightKg ?? null;
-  return { baseline, points: days.map(day => ({ day, relativeKg: baseline && day.body.weightKg ? (Math.round(Number(day.body.weightKg.weightKg)*100)-Math.round(Number(baseline.weightKg)*100))/100 : null })) };
-}
-/** 回填保存时间不影响“最近一次”；晨晚均可，估计不进入摘要。 */
 export function latestRealWeight(records: MeasurementDisplay[], today: string) {
   return records.filter(record => record.recordKind !== "estimated" && record.weightKg !== null && record.recordDate <= today)
     .sort((a,b) => b.recordDate.localeCompare(a.recordDate) || Number(b.period==="evening")-Number(a.period==="evening") || b.sourceLocalTime.localeCompare(a.sourceLocalTime) || b.id.localeCompare(a.id))[0] ?? null;
+}
+export function latestMorningWeight(records: MeasurementDisplay[], today: string) {
+  return latestRealWeight(records.filter(record => record.period === "daytime" && record.fasting === true), today);
+}
+/** 两个数值轴共享位置，不将kcal与kg互相换算。 */
+export function overviewScale(days: OverviewDay[]) {
+  const calories = days.flatMap(day => [day.nutrition?.values.caloriesKcal, day.energy.totalKcal, day.energyBalance].filter((value): value is string | number => value !== null && value !== undefined).map(Number));
+  const changes = days.flatMap(day => day.weightChangeKg === null ? [] : [day.weightChangeKg]);
+  const positiveRatio = .7, negativeRatio = 1 - positiveRatio;
+  const kcalHigh = Math.max(1, ...calories, ...calories.map(value => -value * positiveRatio / negativeRatio)) * 1.12;
+  const kgHigh = Math.max(.05, ...changes, ...changes.map(value => -value * positiveRatio / negativeRatio)) * 1.15;
+  return { positiveRatio, kcalHigh, kcalLow: -kcalHigh * negativeRatio / positiveRatio, kgHigh, kgLow: -kgHigh * negativeRatio / positiveRatio };
 }

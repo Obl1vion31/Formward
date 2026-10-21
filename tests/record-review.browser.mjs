@@ -15,6 +15,7 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
     { key: "food", kind: "save_food", name: "虚构混合审核食品", baseQuantity: "100", unit: "g", sourceKind: "estimated", basis: "虚构组成与营养，仅用于测试", nutrition: { caloriesKcal: "3500", proteinG: "127", carbsG: "354", fatG: "182" }, ...(images[0] ? { imageIds: [images[0]] } : {}) },
     { key: "meal", kind: "save_meal", date, mealType: "虚构统一晚餐", items: [{ kind: "food", name: "虚构混合审核食品", foodRef: "food", quantity: "100", unit: "g", sourceKind: "estimated" }], ...(images[1] ? { imageIds: [images[1]], expectedImageCount: 2, photoReview } : {}) },
   ];
+  items.push({ key: "energy", kind: "save_energy_day", date, restingKcal: "2000", activeKcal: "800" });
   const operation = await post(items), beforeMeals = (await readMeals()).length;
   const row = key => page.locator(`[data-review-key="${key}"]`), save = () => page.getByRole("button", { name: "确认并全部保存", exact: true });
   await page.goto(operation.confirmationUrl); await page.getByRole("heading", { name: "确认记录", exact: true }).waitFor();
@@ -66,13 +67,17 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
     await page.setViewportSize({ width, height: 844 });
     for (const days of [7, 30, 90]) {
       await page.getByRole("button", { name: `${days}D`, exact: true }).click();
-      const chart = page.getByRole("group", { name: "摄入与体重总览图", exact: true });
+      const chart = page.getByRole("group", { name: "摄入、消耗、盈余与次晨体重变化", exact: true });
       const values = await chart.locator(`[data-overview-date="${date}"]`).evaluate(group => {
-        const calories = group.querySelector('[data-series="calories"]'), delta = group.querySelector('[data-series="difference"]');
+        const intake = group.querySelector('[data-series="intake"]'), expenditure = group.querySelector('[data-series="expenditure"]'), balance = group.querySelector('[data-series="balance"]');
         const n = (node, key) => Number(node.getAttribute(key));
-        return { caloriesCenter: n(calories, "x") + n(calories, "width") / 2, deltaCenter: n(delta, "x") + n(delta, "width") / 2, base: n(calories, "y") + n(calories, "height"), deltaTop: n(delta, "y"), deltaWidth: n(delta, "width"), caloriesWidth: n(calories, "width") };
+        const zero = n(group.closest("svg").querySelector("[data-overview-zero]"), "y1");
+        return { intake: n(intake,"data-overview-value"), expenditure: n(expenditure,"data-overview-value"), balance: n(balance,"data-overview-value"), centers: [intake,expenditure,balance].map(node=>n(node,"x")+n(node,"width")/2), balanceTop:n(balance,"y"), balanceBottom:n(balance,"y")+n(balance,"height"), zero };
       });
-      assert.ok(Math.abs(values.caloriesCenter - values.deltaCenter) < .01); assert.ok(Math.abs(values.base - values.deltaTop) < .01, "负差值从共同零点向下"); assert.ok(values.deltaWidth < values.caloriesWidth);
+      assert.equal(values.expenditure,2800); assert.equal(values.balance,values.intake-2800);
+      assert.ok(values.centers[0]<values.centers[1]&&values.centers[1]<values.centers[2]);
+      assert.ok(Math.abs((values.balance < 0 ? values.balanceTop : values.balanceBottom)-values.zero)<.01);
+
     }
     await page.screenshot({ path: `${artifacts}/overview-${width}.png`, fullPage: true });
   }
@@ -94,5 +99,5 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
     await page.goto(updated.confirmationUrl); await page.getByText("修改前图片", { exact: true }).waitFor(); await page.getByText("修改后图片", { exact: true }).waitFor();
     await page.screenshot({ path: `${artifacts}/photo-comparison.png`, fullPage: true });
   }
-  console.log("通过：混合审核、草稿编辑与核对、取消入库后保留摄入、统一事务保存与自动返回、两种比例切换、共同零点；1440／1100／390／320px。");
+  console.log("通过：混合审核、草稿编辑与核对、取消入库后保留摄入、统一事务保存与自动返回、消耗混合确认、两种比例切换、正负盈余与次晨对齐；1440／1100／390／320px。");
 }

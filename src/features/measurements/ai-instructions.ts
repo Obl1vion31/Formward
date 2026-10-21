@@ -1,7 +1,8 @@
 import { recordAiInstructions } from "../records/ai-openapi";
 import { mealAiInstructions } from "../meals/ai-openapi";
+import { energyAiInstructions } from "../activities/ai-openapi";
 export function aiInstructions(baseURL: string) {
-  return `${recordAiInstructions}\n${mealAiInstructions}\n\n你已获得 Formward 身体与饮食 API 的访问权限。
+  return `${recordAiInstructions}\n${mealAiInstructions}\n${energyAiInstructions}\n\n你已获得 Formward 健康记录 API 的访问权限。
 API 地址：${baseURL}/api/v1
 接口协议：${baseURL}/api/v1/openapi.json
 鉴权：Authorization: Bearer <用户提供的令牌>。令牌只用于请求，不放在 URL、输出、报告或公开文件里。

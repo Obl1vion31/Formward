@@ -22,7 +22,7 @@ const unitFor = (metric: Metric) => metric === "caloriesKcal" ? "kcal" : "g";
 const dateNumber = (d: string) => Date.parse(`${d}T00:00:00Z`) / 86400000;
 const dateAt = (n: number) => new Date(n * 86400000).toISOString().slice(0, 10);
 function MetricValues({ totals, compact = false }: { totals: Totals; compact?: boolean }) {
-  return <div className={compact ? styles.compactMetrics : styles.summary}>{metrics.map(metric => <div key={metric}><span>{metricLabels[metric]}</span><strong>{formatNutrition(totals.values[metric], metric)}<small>{unitFor(metric)}</small></strong>{!compact && <p>{totals.incomplete[metric] ? "已知合计 · 数据不完整" : "已记录摄入"}</p>}{compact && totals.incomplete[metric] && <small>部分</small>}</div>)}</div>;
+  return <div className={compact ? styles.compactMetrics : styles.summary}>{metrics.map(metric => <div key={metric}><span>{metricLabels[metric]}</span><strong>{formatNutrition(totals.values[metric], metric)}<small>{unitFor(metric)}</small></strong>{!compact && totals.incomplete[metric] && <p>部分</p>}{compact && totals.incomplete[metric] && <small>部分</small>}</div>)}</div>;
 }
 export function MealsView({ snapshot, today: initialToday, operations, save, purge, initialDate = null }: { snapshot: MealSnapshot; today: string; operations: MealOperationView[]; save: SaveMeals; purge: (input: import("./recently-deleted").PermanentDeletion) => ReturnType<SaveMeals>; initialDate?: string|null }) {
   const today=useLocalToday(initialToday), now=useOperationClock();
@@ -68,7 +68,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, pur
       <section className={styles.trend} aria-label="饮食趋势"><div className={styles.toolbar}><h2 className={styles.trendTitle}>每日摄入 <small>kcal</small></h2><div className={styles.rangeTabs}>{[["7","7D"],["30","30D"],["90","90D"],["all","全部"],["custom","自定义"]].map(([value,label])=><button key={value} aria-pressed={range===value} onClick={()=>setRange(value)}>{label}</button>)}</div></div>
         {range==="custom"&&<div className={styles.toolbar}><label>开始<input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}/></label><label>结束<input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}/></label></div>}
         {validRange?<NutritionChart key={`${from}:${to}`} dates={dates} groups={groups} mode={macroMode} setMode={setMacroMode} select={date=>{setSelectedDate(date);setShowDeleted(false);setHistoryOpen(true);}}/>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}
-        <p className={styles.hint}>仅统计已记录摄入；无记录日期留空，缺项显示已知合计。点击柱图查看当天餐次。</p></section>
+        </section>
       <div className={styles.tableHeading}><h2>今天的餐次</h2><button onClick={()=>{setSelectedDate(today);setShowDeleted(false);setHistoryOpen(true);}}>历史记录 →</button></div>
       <MealList meals={chosen?.meals??[]} busy={busy} edit={editMeal} remove={m=>execute({kind:"delete_meal",id:m.id,version:m.version})}/>
     </>:<>

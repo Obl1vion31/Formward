@@ -104,32 +104,32 @@ try {
   await dialog.getByRole("button", { name: "保存餐次", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
   let state = await currentMeals();
   await page.getByRole("link",{name:"Formward 主页",exact:true}).click();await page.getByRole("heading",{name:"总览",exact:true}).waitFor();
-  assert.ok((await page.getByRole("link",{name:"饮食记录",exact:true}).innerText()).includes("2 餐已记录"));
-  assert.equal(await page.getByRole("button",{name:"30D",exact:true}).getAttribute("aria-pressed"),"true");assert.equal(await page.getByLabel("显示已有估计",{exact:true}).isChecked(),true);
+  assert.ok((await page.getByRole("link",{name:"饮食记录",exact:true}).innerText()).includes("2 餐"));
+  assert.equal(await page.getByRole("button",{name:"30D",exact:true}).getAttribute("aria-pressed"),"true");assert.equal(await page.getByLabel("显示体重估计",{exact:true}).isChecked(),true);
   await mkdir("/tmp/formward-overview-visual",{recursive:true});
   for(const width of [1440,1100,390,320]){
     await page.setViewportSize({width,height:1000});
     for(const days of [7,30,90]){
       await page.getByRole('button',{name:days+'D',exact:true}).click();
-      const plots=page.getByRole('group',{name:'摄入与体重总览图',exact:true});assert.equal(await plots.count(),1);
+      const plots=page.getByRole('group',{name:'摄入、消耗、盈余与次晨体重变化',exact:true});assert.equal(await plots.count(),1);
       await plots.first().locator(`[data-overview-date="${dateAt(-1)}"]`).focus();
       const positions=await page.locator('[data-crosshair-date]').evaluateAll((nodes:Element[])=>nodes.map(node=>node.getAttribute('x1')));
       assert.equal(new Set(positions).size,1);assert.equal(await page.getByLabel('日期对照',{exact:true}).getAttribute('data-selected-date'),dateAt(-1));
-      const readout=await page.getByLabel('日期对照',{exact:true}).innerText();assert.ok(readout.includes('70.4')&&readout.includes('71')&&readout.includes('+0.6'));
+      const readout=await page.getByLabel('日期对照',{exact:true}).innerText();assert.ok(['摄入','消耗','盈余','次晨变化'].every(label=>readout.includes(label)));
       assert.ok(await plots.first().evaluate((node:Element)=>Math.abs(node.getBoundingClientRect().width-Number(node.getAttribute('viewBox')!.split(' ')[2]))<1));
     }
     await page.screenshot({path:`/tmp/formward-overview-visual/overview-${width}.png`,fullPage:true});
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   }
   await page.setViewportSize({width:1440,height:1100});
-  await page.getByRole('group',{name:'摄入与体重总览图',exact:true}).locator(`[data-overview-date="${today}"]`).click();
+  await page.getByRole('group',{name:'摄入、消耗、盈余与次晨体重变化',exact:true}).locator(`[data-overview-date="${today}"]`).click();
   const dayDetail=page.getByRole('dialog',{name:today+' · 当日记录',exact:true});await dayDetail.getByText('虚构蛋白食物',{exact:true}).waitFor();
   await dayDetail.getByRole('link',{name:'查看身体记录 →',exact:true}).click();
   const bodyDrawer=page.locator('dialog[aria-labelledby="measurement-drawer-title"]');await bodyDrawer.waitFor();
   await dragOutsideKeepsOpen(bodyDrawer,bodyDrawer.locator('h2'));
   const bodyBox=await bodyDrawer.boundingBox();await page.mouse.click(Math.max(10,bodyBox!.x-40),100);await bodyDrawer.waitFor({state:'hidden'});
   await page.getByRole('link',{name:'Formward 主页',exact:true}).click();await page.getByRole('heading',{name:'总览',exact:true}).waitFor();
-  await page.getByRole('group',{name:'摄入与体重总览图',exact:true}).locator(`[data-overview-date="${today}"]`).click();
+  await page.getByRole('group',{name:'摄入、消耗、盈余与次晨体重变化',exact:true}).locator(`[data-overview-date="${today}"]`).click();
   await dayDetail.getByRole('link',{name:'查看饮食记录 →',exact:true}).click();
   await page.getByRole('dialog',{name:'历史饮食记录',exact:true}).waitFor();assert.equal(await page.getByLabel('查看日期',{exact:true}).inputValue(),today);
   await page.getByRole('button',{name:'关闭编辑',exact:true}).click();await page.getByRole('dialog',{name:'历史饮食记录',exact:true}).waitFor({state:'hidden'});

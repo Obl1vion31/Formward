@@ -415,7 +415,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.match(await drawer.innerText(), /GMT\+8（东八区）/);
     assert.doesNotMatch(await drawer.innerText(), /归属日/);
     assert.match(await drawer.innerText(), /2025.07.10/);
-    assert.match(await drawer.innerText(), /开发后台加入/);
+    assert.match(await drawer.innerText(), /维护录入/);
     assert.equal(await chart.locator('[data-point-id][data-date="2025-07-10"][data-period="evening"]').count(), 0, "查看候选不设置代表记录");
     assert.equal(await page.evaluate(() => document.body.style.overflow), "hidden");
     await drawer.getByLabel("晚间代表记录").selectOption({ label: "2025-07-10 20:10:00 · 75.80 kg" });
@@ -614,7 +614,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       await assertRecentLayout(initialized.page);
       await initializedChart.locator('[data-date="2025-08-05"][data-period="daytime"][data-kind="observed"]').click();
       const observedModal = await assertRecordInspector(initialized.page);
-      assert.match(await observedModal.innerText(), /API 写入.*测量时间\s*无/s);
+      assert.match(await observedModal.innerText(), /外部录入.*测量时间\s*无/s);
       assert.match(await observedModal.getByRole("region", { name: "记录信息" }).innerText(), /时区\s*未指定/);
       assert.match(await observedModal.getByRole("region", { name: "记录信息" }).innerText(), /设备\s*无/);
       await initialized.page.screenshot({ path: `${artifacts}/initialization-${width}-observed.png` });

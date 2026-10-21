@@ -13,7 +13,7 @@ async function perform<T>(work: (userId: string) => Promise<T>) {
   if (!user) return { ok: false as const, error: "登录已失效，请重新登录。" };
   try {
     const data = await work(user.id);
-    revalidatePath("/dashboard/ai", "layout"); revalidatePath("/dashboard"); revalidatePath("/dashboard/measurements");
+    revalidatePath("/dashboard/ai", "layout"); revalidatePath("/dashboard"); revalidatePath("/dashboard/energy"); revalidatePath("/dashboard/measurements");
     return { ok: true as const, data };
   } catch (error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }

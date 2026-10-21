@@ -9,12 +9,16 @@ import { getAiMeasurementOperation, reviewAiMeasurementOperation, submitAiMeasur
 import { systemMeasurementTimezone } from "../measurements/timezone";
 import { decideMealOperation, digest, displayMealOperation, getMealOperation, prepareMealActions, readMealSnapshot, reviseMealOperation, submitMealOperation, type MealPlanner } from "../meals/records";
 import { type MealAction, type MealInput, type PreviewRow, type MealSnapshot } from "../meals/model";
-import { category, isBody, recordInputSchema, recordItemSchema, type RecordAction, type RecordInput, type RecordItem, type RecordReviewAction, type RecordReviewView, type RecordRow } from "./model";
+import { category, isBody, isEnergy, recordInputSchema, recordItemSchema, type RecordAction, type RecordInput, type RecordItem, type RecordReviewAction, type RecordReviewView, type RecordRow } from "./model";
+
+import { submitEnergyOperation, getEnergyOperation, displayEnergyOperation, reviseEnergyOperation, decideEnergyOperation } from "../activities/records";
+import type { EnergyAction } from "../activities/model";
 
 type Stored = typeof recordOperation.$inferSelect;
 type Source = "body" | "meal";
 
-const mealItems = (items: RecordItem[]) => items.filter(item => !isBody(item.action));
+const mealItems = (items: RecordItem[]) => items.filter(item => !isBody(item.action) && !isEnergy(item.action));
+const energyItems = (items: RecordItem[]) => items.filter(item => isEnergy(item.action));
 const mealInput = (id: string, items: RecordItem[]): MealInput => ({ operationId: id, actions: mealItems(items).map(item => item.action as MealAction) });
 
 /** 内嵌新食材展开成可独立取舍的一项；引用只在本批次解析。 */
@@ -107,30 +111,34 @@ async function legacy(db: Database, userId: string, id: string, source: Source):
     status = meal.status; createdAt = meal.createdAt;
   }
   const payload: RecordInput = { operationId: `legacy-${id}`, items: draft.map(item => ({ key: item.key, ...item.action })) };
-  return { id, userId, operationId: payload.operationId, payload, requestDigest: digest(payload), draft, revision: 1, status, createdAt, confirmedAt: null, measurementOperationId: source === "body" ? id : null, mealOperationId: source === "meal" ? id : null, measurementRevision: source === "body" ? (await getAiMeasurementOperation(db, userId, id)).revision : null, mealRevision: source === "meal" ? (await getMealOperation(db, userId, id)).revision : null };
+  return { id, userId, operationId: payload.operationId, payload, requestDigest: digest(payload), draft, revision: 1, status, createdAt, confirmedAt: null, measurementOperationId: source === "body" ? id : null, mealOperationId: source === "meal" ? id : null, energyOperationId: null, energyRevision: null, measurementRevision: source === "body" ? (await getAiMeasurementOperation(db, userId, id)).revision : null, mealRevision: source === "meal" ? (await getMealOperation(db, userId, id)).revision : null };
 }
 async function view(db: Database, row: Stored): Promise<RecordReviewView> {
   const body = row.measurementOperationId ? await getAiMeasurementOperation(db, row.userId, row.measurementOperationId) : null;
   const meal = row.mealOperationId ? displayMealOperation(await getMealOperation(db, row.userId, row.mealOperationId)) : undefined;
+  const energy = row.energyOperationId ? displayEnergyOperation(await getEnergyOperation(db, row.userId, row.energyOperationId)) : undefined;
   const snapshot = await readMealSnapshot(db, row.userId);
   const needsBody = row.draft.some(item => isBody(item.action) && !item.excluded && !item.persisted && body?.items.find(candidate => candidate.id === item.measurementItemId)?.status === "pending");
-  const needsMeal = row.draft.some(item => !isBody(item.action) && !item.excluded && !item.persisted);
-  const expirations = [needsBody ? body?.expiresAt : null, needsMeal ? meal?.expiresAt : null].filter((value): value is string => !!value).sort();
+  const needsMeal = mealItems(row.draft).some(item => !item.excluded && !item.persisted);
+  const needsEnergy = energyItems(row.draft).some(item => !item.excluded && !item.persisted);
+  const expirations = [needsBody ? body?.expiresAt : null, needsMeal ? meal?.expiresAt : null, needsEnergy ? energy?.expiresAt : null].filter((value): value is string => !!value).sort();
   const rows: RecordRow[] = row.draft.map(item => {
-      const bodyRow = body?.items.find(candidate => candidate.id === item.measurementItemId);
-      const index = mealItems(row.draft).findIndex(candidate => candidate.key === item.key);
-      const mealRow = meal?.rows.find(candidate => candidate.review?.itemId === item.key) ?? (meal?.rows.some(candidate => candidate.review) ? undefined : meal?.rows[index]);
-      const targetId = "id" in item.action ? item.action.id : undefined;
-      const before = mealRow?.before ?? (targetId ? [...snapshot.foods, ...snapshot.meals].find(record => record.id === targetId) : undefined);
-      return { ...item, persisted: item.persisted || bodyRow?.status === "confirmed" || (!!meal && meal.status === "confirmed" && !item.excluded && !isBody(item.action)), ...(bodyRow ? { body: bodyRow } : {}), ...(mealRow ? { meal: { ...mealRow, before } } : {}) };
-    });
+    const bodyRow = body?.items.find(candidate => candidate.id === item.measurementItemId);
+    const index = mealItems(row.draft).findIndex(candidate => candidate.key === item.key);
+    const mealRow = meal?.rows.find(candidate => candidate.review?.itemId === item.key) ?? (meal?.rows.some(candidate => candidate.review) ? undefined : meal?.rows[index]);
+    const energyRow = energy?.rows[energyItems(row.draft).findIndex(candidate => candidate.key === item.key)];
+    const targetId = "id" in item.action ? item.action.id : undefined;
+    const before = mealRow?.before ?? (targetId ? [...snapshot.foods, ...snapshot.meals].find(record => record.id === targetId) : undefined);
+    const persisted = item.persisted || bodyRow?.status === "confirmed" || (!!meal && meal.status === "confirmed" && !item.excluded && !isBody(item.action) && !isEnergy(item.action)) || (!!energy && energy.status === "confirmed" && !item.excluded && isEnergy(item.action));
+    return { ...item, persisted, ...(bodyRow ? { body: bodyRow } : {}), ...(mealRow ? { meal: { ...mealRow, before } } : {}), ...(energyRow ? { energy: energyRow } : {}) };
+  });
   const pending = rows.filter(item => !item.excluded && !item.persisted && item.body?.status !== "skipped");
   const needsUserInput = pending.flatMap(item => {
-    const questions = [...(isBody(item.action) ? item.body?.preview.canConfirm ? [] : item.body?.preview.needsUserInput?.map(issue => issue.message) ?? [item.body?.preview.message ?? "身体记录需要核对。"] : item.meal?.needsUserInput?.length ? item.meal.needsUserInput : item.meal?.error ? [item.meal.error] : [])];
+    const questions = isBody(item.action) ? item.body?.preview.canConfirm ? [] : item.body?.preview.needsUserInput?.map(issue => issue.message) ?? [item.body?.preview.message ?? "身体记录需要核对。"] : isEnergy(item.action) ? item.energy?.error ? [item.energy.error] : !item.energy ? ["消耗记录需要核对。"] : [] : item.meal?.needsUserInput?.length ? [...item.meal.needsUserInput] : item.meal?.error ? [item.meal.error] : [];
     if ((item.action.kind === "save_meal" || item.action.kind === "save_food") && (item.action.expectedImageCount ?? 0) > (item.meal?.meal?.imageIds?.length ?? item.meal?.food?.imageIds?.length ?? 0)) questions.push("照片未齐，请补传或由用户在网页明确选择先保存文字。");
     return questions.length ? [{ key: item.key, questions }] : [];
   });
-  return { id: row.id, revision: row.revision, status: row.status, createdAt: row.createdAt.toISOString(), expiresAt: expirations[0] ?? null, confirmationPath: `/dashboard/ai/operations/${row.id}`, foods: snapshot.foods.filter(food => !food.deletedAt), mealOperation: meal, rows, needsUserInput, canConfirm: row.status === "pending" && pending.length > 0 && !needsUserInput.length && (!expirations[0] || Date.parse(expirations[0]) > Date.now()), saved: rows.filter(item => item.persisted).length };
+  return { id: row.id, revision: row.revision, status: row.status, createdAt: row.createdAt.toISOString(), expiresAt: expirations[0] ?? null, confirmationPath: `/dashboard/ai/operations/${row.id}`, foods: snapshot.foods.filter(food => !food.deletedAt), mealOperation: meal, energyOperation: energy, rows, needsUserInput, canConfirm: row.status === "pending" && pending.length > 0 && !needsUserInput.length && (!expirations[0] || Date.parse(expirations[0]) > Date.now()), saved: rows.filter(item => item.persisted).length };
 }
 export async function loadRecordReview(db: Database, userId: string, id: string, source?: Source) {
   const row = await find(db, userId, id, source);
@@ -147,7 +155,8 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
   return db.transaction(async tx => {
     await lockOwner(tx, identity.userId); const connection = tx as unknown as Database;
     if (input.items.some(item => item.kind === "save_record" || item.kind === "estimate_cell")) await requireActiveAiToken(tx, identity, true);
-    if (input.items.some(item => item.kind !== "save_record" && item.kind !== "estimate_cell")) await requireActiveAiToken(tx, identity, true, "meals");
+    if (input.items.some(item => item.kind !== "save_record" && item.kind !== "estimate_cell" && !isEnergy(item))) await requireActiveAiToken(tx, identity, true, "meals");
+    if (input.items.some(isEnergy)) await requireActiveAiToken(tx, identity, true, "energy");
     const [prior] = await tx.select().from(recordOperation).where(and(eq(recordOperation.userId, identity.userId), eq(recordOperation.operationId, input.operationId)));
     if (prior) {
       if (prior.requestDigest !== digest(input)) throw new ApiError(409, "request_conflict", "同一 operationId 不能替换内容。");
@@ -157,13 +166,19 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
         const original = await tx.select().from(measurementOperation).where(eq(measurementOperation.id, prior.measurementOperationId));
         if (original[0]?.tokenId !== (identity.tokenId ?? null) || original[0]?.oauthConnectionId !== (identity.oauthConnectionId ?? null)) throw new ApiError(409, "request_conflict", "不能替换提交授权。");
       }
+      if (prior.energyOperationId) {
+        const original = await getEnergyOperation(connection, identity.userId, prior.energyOperationId);
+        if (original.tokenId !== (identity.tokenId ?? null) || original.oauthConnectionId !== (identity.oauthConnectionId ?? null)) throw new ApiError(409, "request_conflict", "不能替换提交授权。");
+      }
       return { ...await view(connection, prior), repeated: true };
     }
     const id = randomUUID(), items = normalize(input), bodies = items.filter(item => isBody(item.action));
     const body = bodies.length ? await submitAiMeasurementOperation(connection, identity, { kind: "batch", operationId: `records-${id}`, items: bodies.map(item => item.action) }, input.timezone ?? timezone) : null;
     bodies.forEach((item, index) => { item.measurementItemId = body!.items[index].id; item.action = body!.items[index].input; });
+    for (const item of energyItems(items)) if (item.action.kind === "save_energy_day" || item.action.kind === "save_activity") item.action = { ...item.action, timezone: item.action.timezone ?? input.timezone ?? timezone };
+    const energy = energyItems(items).length ? await submitEnergyOperation(connection, { userId: identity.userId, origin: "ai", identity }, { operationId: `records-${id}`, actions: energyItems(items).map(item => item.action) }) : null;
     const meal = mealItems(items).length ? await submitMealOperation(connection, { userId: identity.userId, origin: "ai", identity }, mealInput(`records-${id}`, items), planner(items, id)) : null;
-    const [row] = await tx.insert(recordOperation).values({ id, userId: identity.userId, operationId: input.operationId, requestDigest: digest(input), payload: input, draft: items, measurementOperationId: body?.id, mealOperationId: meal?.id, measurementRevision: body?.revision, mealRevision: meal?.revision, status: !meal && body && !body.counts.pending ? "completed" : "pending" }).returning();
+    const [row] = await tx.insert(recordOperation).values({ id, userId: identity.userId, operationId: input.operationId, requestDigest: digest(input), payload: input, draft: items, measurementOperationId: body?.id, mealOperationId: meal?.id, measurementRevision: body?.revision, mealRevision: meal?.revision, energyOperationId: energy?.id, energyRevision: energy?.revision, status: !meal && !energy && body && !body.counts.pending ? "completed" : "pending" }).returning();
     return { ...await view(connection, row), repeated: false };
   });
 }
@@ -187,11 +202,12 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
     for (const item of items) if (before.rows.find(current => current.key === item.key)?.persisted) item.persisted = true;
     const bodyRevision = row.measurementOperationId ? (await getAiMeasurementOperation(connection, userId, row.measurementOperationId)).revision : null;
     const mealRevision = row.mealOperationId ? (await getMealOperation(connection, userId, row.mealOperationId)).revision : null;
-    if (action.kind !== "refresh" && action.kind !== "cancel" && (bodyRevision !== row.measurementRevision || mealRevision !== row.mealRevision)) throw new ApiError(409, "review_changed", "子审核内容已变化，请刷新预览后重新核对。");
+    const energyRevision = row.energyOperationId ? (await getEnergyOperation(connection, userId, row.energyOperationId)).revision : null;
+    if (action.kind !== "refresh" && action.kind !== "cancel" && (bodyRevision !== row.measurementRevision || mealRevision !== row.mealRevision || energyRevision !== row.energyRevision)) throw new ApiError(409, "review_changed", "子审核内容已变化，请刷新预览后重新核对。");
     if (action.kind === "confirm") {
       const selected = before.rows.filter(item => !item.excluded && !item.persisted && item.body?.status !== "skipped");
       if (!selected.length) throw new ApiError(400, "no_changes", "没有待保存内容。");
-      if (selected.some(item => isBody(item.action) ? !item.body?.preview.canConfirm : !item.meal || item.meal.error || item.meal.needsUserInput?.length)) throw new ApiError(400, "review_required", "请修改或取消仍需核对的项目。");
+      if (selected.some(item => isBody(item.action) ? !item.body?.preview.canConfirm : isEnergy(item.action) ? !item.energy || item.energy.error : !item.meal || item.meal.error || item.meal.needsUserInput?.length)) throw new ApiError(400, "review_required", "请修改或取消仍需核对的项目。");
       const missingKeys = selected.filter(item => item.meal && (item.action.kind === "save_meal" || item.action.kind === "save_food") && (item.action.expectedImageCount ?? 0) > (item.meal.meal?.imageIds?.length ?? item.meal.food?.imageIds?.length ?? 0)).map(item => item.key);
       if (missingKeys.some(key => !action.allowMissingImageKeys?.includes(key))) throw new ApiError(400, "images_required", "请补传照片，或在对应项明确选择先保存文字。");
       if (row.measurementOperationId) {
@@ -203,12 +219,17 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
       }
       if (row.mealOperationId) {
         const meal = await getMealOperation(connection, userId, row.mealOperationId);
-        await decideMealOperation(connection, userId, meal.id, meal.revision, selected.some(item => !isBody(item.action)) ? "confirm" : "cancel", missingKeys.length > 0);
+        await decideMealOperation(connection, userId, meal.id, meal.revision, selected.some(item => !isBody(item.action) && !isEnergy(item.action)) ? "confirm" : "cancel", missingKeys.length > 0);
+      }
+      if (row.energyOperationId) {
+        const energy = await getEnergyOperation(connection, userId, row.energyOperationId);
+        await decideEnergyOperation(connection, userId, energy.id, energy.revision, selected.some(item => isEnergy(item.action)) ? "confirm" : "cancel");
       }
       for (const item of items) if (selected.some(selected => selected.key === item.key)) item.persisted = true;
     } else if (action.kind === "cancel") {
       if (row.measurementOperationId) { const body = await getAiMeasurementOperation(connection, userId, row.measurementOperationId); if (body.counts.pending) await reviewAiMeasurementOperation(connection, userId, body.id, { kind: "cancel", revision: body.revision }); }
       if (row.mealOperationId) { const meal = await getMealOperation(connection, userId, row.mealOperationId); if (meal.status === "pending") await decideMealOperation(connection, userId, meal.id, meal.revision, "cancel"); }
+      if (row.energyOperationId) { const energy = await getEnergyOperation(connection, userId, row.energyOperationId); if (energy.status === "pending") await decideEnergyOperation(connection, userId, energy.id, energy.revision, "cancel"); }
       for (const item of items) if (!item.persisted) item.excluded = true;
     } else {
       if (action.kind === "update") {
@@ -232,20 +253,25 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
         const meal = await getMealOperation(connection, userId, row.mealOperationId);
         if (meal.status === "pending") await reviseMealOperation(connection, userId, meal.id, meal.revision, mealInput(meal.draft.operationId, items).actions, planner(items, row.id));
       }
+      if (row.energyOperationId && action.kind !== "check") {
+        const energy = await getEnergyOperation(connection, userId, row.energyOperationId), entries = energyItems(items);
+        if (energy.status === "pending") await reviseEnergyOperation(connection, userId, energy.id, energy.revision, entries.map(item => item.action as EnergyAction), entries.flatMap((item,index) => item.excluded ? [index] : []));
+      }
       if (action.kind === "refresh") for (const item of items) item.checked = false;
     }
     const latestBody = row.measurementOperationId ? await getAiMeasurementOperation(connection, userId, row.measurementOperationId) : null;
     const latestBodyRevision = latestBody?.revision ?? null;
     for (const item of items) { const child = latestBody?.items.find(child => child.id === item.measurementItemId); if (child) item.action = child.input; }
     const latestMealRevision = row.mealOperationId ? (await getMealOperation(connection, userId, row.mealOperationId)).revision : null;
-    const [updated] = await tx.update(recordOperation).set({ measurementRevision: latestBodyRevision, mealRevision: latestMealRevision, draft: items, revision: row.revision + 1, status: action.kind === "confirm" ? "confirmed" : action.kind === "cancel" ? "cancelled" : "pending", ...(action.kind === "confirm" ? { confirmedAt: new Date() } : {}) }).where(eq(recordOperation.id, row.id)).returning();
+    const latestEnergyRevision = row.energyOperationId ? (await getEnergyOperation(connection, userId, row.energyOperationId)).revision : null;
+    const [updated] = await tx.update(recordOperation).set({ energyRevision: latestEnergyRevision, measurementRevision: latestBodyRevision, mealRevision: latestMealRevision, draft: items, revision: row.revision + 1, status: action.kind === "confirm" ? "confirmed" : action.kind === "cancel" ? "cancelled" : "pending", ...(action.kind === "confirm" ? { confirmedAt: new Date() } : {}) }).where(eq(recordOperation.id, row.id)).returning();
     return view(connection, updated);
   });
 }
 
 export async function listRecordOperations(db: Database, userId: string) {
   const rows = await db.select().from(recordOperation).where(eq(recordOperation.userId, userId)).orderBy(desc(recordOperation.createdAt)).limit(30);
-  return rows.map(row => ({ id: row.id, status: row.status, count: row.draft.length, createdAt: row.createdAt.toISOString(), measurementOperationId: row.measurementOperationId, mealOperationId: row.mealOperationId, confirmationPath: `/dashboard/ai/operations/${row.id}` }));
+  return rows.map(row => ({ id: row.id, status: row.status, count: row.draft.length, createdAt: row.createdAt.toISOString(), measurementOperationId: row.measurementOperationId, mealOperationId: row.mealOperationId, energyOperationId: row.energyOperationId, confirmationPath: `/dashboard/ai/operations/${row.id}` }));
 }
 
 export async function getRecordOperation(db: Database, identity: AiIdentity, id: string) {
@@ -253,6 +279,7 @@ export async function getRecordOperation(db: Database, identity: AiIdentity, id:
   if (!row) throw new ApiError(404, "not_found", "操作不存在。");
   if (row.measurementOperationId) await requireActiveAiToken(db as unknown as Parameters<typeof requireActiveAiToken>[0], identity, false);
   if (row.mealOperationId) await requireActiveAiToken(db as unknown as Parameters<typeof requireActiveAiToken>[0], identity, false, "meals");
+  if (row.energyOperationId) await requireActiveAiToken(db as unknown as Parameters<typeof requireActiveAiToken>[0], identity, false, "energy");
   // 查询与提交返回相同结果，调用端仍须以 status 判定是否正式保存。
   return view(db, row);
 }

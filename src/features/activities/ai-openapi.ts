@@ -1,0 +1,6 @@
+import { z } from "zod";
+import { energyActionSchema, energyActionSchemas } from "./model";
+const keyed = z.union(energyActionSchemas.map(schema => schema.extend({ key: z.string().regex(/^[a-zA-Z0-9_-]{1,120}$/) })));
+export const energySchemas = { EnergyAction: z.toJSONSchema(energyActionSchema), RecordEnergyItem: z.toJSONSchema(keyed) };
+export const energyAiInstructions = "消耗查询使用query_energy。静息、活动原样记录，不拆分或扣除静息；用户说静息2000、跑步800，就计2800。用户另填全天总消耗时直接采用该总数；活动合计优先于活动明细，不额外估算日常活动。通过submit_record_operation提交save_energy_day(restingKcal/activeKcal/totalKcal)、save_activity(name/durationMinutes/caloriesKcal/completed)、save_energy_profile(effectiveFrom/heightCm/birthDate/sex)。数字使用十进制字符串；已有记录先查id与version，省略保留、null清空，未知不补零。来源只填真实提供的信息。公式资料与所有写入仍需网页登录确认，不能代确认；可与身体和饮食合并提交。";
+export const energyPaths = { "/energy": { get: { operationId: "queryEnergy", summary: "查询静息、活动与总消耗", description: energyAiInstructions, parameters: [{ name: "from", in: "query", schema: { type: "string", format: "date" } }, { name: "to", in: "query", schema: { type: "string", format: "date" } }, { name: "timezone", in: "query", schema: { type: "string" } }], responses: { "200": { description: "本账号记录、每日计算与公式依据；未知为null" }, "400": { description: "查询参数无效" }, "401": { description: "令牌无效" } } } } };

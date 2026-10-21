@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test --test-isolation=none src/app/*.test.mjs src/features/auth/*.test.ts src/features/measurements/*.test.ts src/features/meals/*.test.ts src/features/dashboard/*.test.ts src/features/records/*.test.ts",
+    "test": "node --import tsx --test --test-isolation=none src/app/*.test.mjs src/features/auth/*.test.ts src/features/measurements/*.test.ts src/features/meals/*.test.ts src/features/dashboard/*.test.ts src/features/records/*.test.ts src/features/activities/*.test.ts",
     "db:local": "pglite-server --db=./data/postgres/storage --host=127.0.0.1 --port=5432 --max-connections=10",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file=.env.local --import tsx scripts/migrate.mts",
@@ -24,7 +24,8 @@
     "ai:request": "node --import tsx scripts/ai-request.mts",
     "test:records-browser": "node --import tsx tests/records.browser.mts",
     "test:meals-browser": "node --import tsx tests/meals.browser.mts",
-    "meals:preview": "node --env-file=.env.local --import tsx scripts/preview-meals.mts"
+    "meals:preview": "node --env-file=.env.local --import tsx scripts/preview-meals.mts",
+    "test:energy-browser": "node --import tsx tests/energy.browser.mts"
   },
   "dependencies": {
     "@better-auth/cimd": "1.7.7",

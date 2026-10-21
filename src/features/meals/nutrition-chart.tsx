@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { dailyTotals, macroColors, macroDistribution, formatNutrition, metricLabels, type Metric, type MacroMode } from "./model";
+import { useChartMotion } from "@/components/use-chart-motion";
 import styles from "./meals.module.css";
 
 const calorieColor = "#7F9EAF";
@@ -15,6 +16,7 @@ export function NutritionChart({ dates, groups, select, mode, setMode }: { dates
     const node = viewport.current!, observer = new ResizeObserver(([entry]) => setContainerWidth(entry.contentRect.width));
     observer.observe(node); return () => observer.disconnect();
   }, []);
+  useChartMotion(viewport, containerWidth ? `${dates[0]}:${dates.at(-1)}:${mode}:${connected}:${groups.map(group => `${group.date}:${JSON.stringify(group.totals)}`).join("|")}` : "pending");
   const width = containerWidth || 280, left = 54, right = 10, slot = (width - left - right) / dates.length;
   const sum = (date: string) => shown.reduce((total, metric) => total + Number(byDate.get(date)?.values[metric] ?? 0), 0);
   const max = Math.max(1, ...dates.map(sum)) * 1.16, y = (value: number) => 184 - value / max * 150;
@@ -30,7 +32,7 @@ export function NutritionChart({ dates, groups, select, mode, setMode }: { dates
       <div><time dateTime={inspected}>{inspected.replaceAll("-", ".")}</time><strong>{formatNutrition(totals?.values.caloriesKcal ?? null, "caloriesKcal")}<small>kcal</small></strong><span>{!totals ? "未记录" : totals.incomplete.caloriesKcal ? "已知合计 · 不完整" : "总热量"}</span></div>
       <div className={styles.chartMacros}>{macros.map(metric => <span key={metric}>{metricLabels[metric]}<strong>{formatNutrition(totals?.values[metric] ?? null, metric)}<small>g</small></strong>{totals?.incomplete[metric] && <small>部分</small>}{distribution&&<small>{Number((distribution.find(segment=>segment.metric===metric)!.ratio*100).toFixed(1))}%</small>}</span>)}</div>
     </div>
-    <div className={styles.macroMode} role="group" aria-label="营养占比口径">{([["grams","克数占比"],["energy","能量占比"]] as const).map(([value,label])=><button key={value} aria-pressed={mode===value} onClick={()=>setMode(value)}>{label}</button>)}<span>柱高为 kcal · 分段按{mode==="grams"?"克数":"能量"}占比</span></div>
+    <div className={styles.macroMode} role="group" aria-label="营养占比口径">{([["grams","克数占比"],["energy","能量占比"]] as const).map(([value,label])=><button key={value} aria-pressed={mode===value} onClick={()=>setMode(value)}>{label}</button>)}</div>
     <div className={styles.macroLegend}>{macros.map(metric=><span key={metric}><i style={{background:macroColors[metric as keyof typeof macroColors]}}/>{metric==="proteinG"?"P":metric==="carbsG"?"C":"F"} · {metricLabels[metric]}</span>)}{totals&&!distribution&&<span>营养占比不完整 · 显示总热量</span>}</div>
     <div className={styles.barViewport} ref={viewport}>
       <svg className={styles.chart} style={{ visibility: containerWidth ? undefined : "hidden" }} viewBox={`0 0 ${width} 224`} role="group" aria-label={`热量柱状图，单位${unit}`}>
@@ -48,14 +50,14 @@ export function NutritionChart({ dates, groups, select, mode, setMode }: { dates
             <title>{label}</title><rect className={styles.barHit} x={x} y="25" width={slot} height="164" />
             {energy!=null&&(()=>{
               const segments=macroDistribution(daily, mode);let below=0;
-              if(!segments)return Number(energy)>0?<rect data-metric="caloriesKcal" data-incomplete="true" x={x+(slot-barWidth)/2} y={y(Number(energy))} width={barWidth} height={y(0)-y(Number(energy))} fill={calorieColor} className={styles.bar}/>:null;
-              return segments.map(segment=>{const start=below;below+=segment.calories;const height=y(start)-y(below);return <g key={segment.metric}><rect data-metric={segment.metric} data-energy-ratio={mode==="energy"?segment.ratio:undefined} data-macro-ratio={segment.ratio} data-macro-mode={mode} data-incomplete={Boolean(daily?.incomplete.caloriesKcal)} x={x+(slot-barWidth)/2} y={y(below)} width={barWidth} height={height} fill={macroColors[segment.metric]} className={styles.bar}/>{barWidth>=11&&height>=14&&<text className={styles.stackLetter} x={x+slot/2} y={y(below)+height/2+3.5} textAnchor="middle" fill={segment.metric==="proteinG"?"#f0e9dd":"#182b38"}>{segment.metric==="proteinG"?"P":segment.metric==="carbsG"?"C":"F"}</text>}</g>});
+              if(!segments)return Number(energy)>0?<rect data-chart-bar data-chart-zero="184" data-metric="caloriesKcal" data-incomplete="true" x={x+(slot-barWidth)/2} y={y(Number(energy))} width={barWidth} height={y(0)-y(Number(energy))} fill={calorieColor} className={styles.bar}/>:null;
+              return segments.map(segment=>{const start=below;below+=segment.calories;const height=y(start)-y(below);return <g key={segment.metric}><rect data-chart-bar data-chart-zero="184" data-metric={segment.metric} data-energy-ratio={mode==="energy"?segment.ratio:undefined} data-macro-ratio={segment.ratio} data-macro-mode={mode} data-incomplete={Boolean(daily?.incomplete.caloriesKcal)} x={x+(slot-barWidth)/2} y={y(below)} width={barWidth} height={height} fill={macroColors[segment.metric]} className={styles.bar}/>{barWidth>=11&&height>=14&&<text className={styles.stackLetter} x={x+slot/2} y={y(below)+height/2+3.5} textAnchor="middle" fill={segment.metric==="proteinG"?"#f0e9dd":"#182b38"}>{segment.metric==="proteinG"?"P":segment.metric==="carbsG"?"C":"F"}</text>}</g>});
             })()}
             {allDates && energy != null && slot >= valueLabel.length * 6.5 + 6 && <text className={styles.barValue} x={x + slot / 2} y={y(Number(energy)) - 7} textAnchor="middle">{valueLabel}{daily?.incomplete.caloriesKcal ? "*" : ""}</text>}
             {allDates && <text className={styles.axis} data-date-tick x={x + slot / 2} y="215" textAnchor="middle">{slot >= 46 ? date.slice(5) : date.slice(8)}</text>}
           </g>;
         })}
-        {connected && <path data-energy-line d={line} fill="none" stroke={calorieColor} strokeWidth="1.5" className={styles.bar}/>}
+        {connected && <path data-chart-line data-energy-line d={line} fill="none" stroke={calorieColor} strokeWidth="1.5" className={styles.bar}/>}
         <path className={styles.selectedDay} d={`M ${selectedX} 188 v 6`} />
         {!allDates && <text className={styles.axis} data-date-tick x={Math.max(left + 20, Math.min(width - right - 20, selectedX))} y="215" textAnchor="middle">{inspected.slice(5)}</text>}
       </svg>

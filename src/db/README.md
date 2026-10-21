@@ -15,7 +15,7 @@
 
 Feature 可以直接使用 Drizzle。数据库结构变化必须生成 `drizzle/` migration，并分别在开发、测试和生产环境执行。
 
-运行配置与账号创建见 [数据库与账号接入](../../docs/auth-setup.md)。身体、饮食及对应导入已建表；运动尚未建表。测量缺少时区时 UTC 时刻为空；来源指标缺项不补零，软删除字段供后续恢复入口使用。网页仍使用内部邮箱密码，不启用第三方身份登录，accounts 的外部提供方令牌字段保持空值。MCP OAuth 是 Formward 向外部客户端提供的账号授权，使用独立 oauth_* 表。
+运行配置与账号创建见 [数据库与账号接入](../../docs/auth-setup.md)。身体、饮食及对应导入已建表；消耗与活动已建表。测量缺少时区时 UTC 时刻为空；来源指标缺项不补零，软删除字段供后续恢复入口使用。网页仍使用内部邮箱密码，不启用第三方身份登录，accounts 的外部提供方令牌字段保持空值。MCP OAuth 是 Formward 向外部客户端提供的账号授权，使用独立 oauth_* 表。
 
 `measurement_sources` 保存账号、历史来源名称、创建与最近使用时间，以及软删除时间和操作者；账号／名称唯一。0012 migration 新增 nullable deleted_at／deleted_by，保留原四列和值。来源建议删除仅影响可选列表，旧记录仍保存自己的名称快照；明确再次使用并成功保存后恢复。测量以 `device_label` 保存独立名称快照，不通过外键联动历史。主表 30 列，BMI 仅可留在原文件及既有输入／审计快照。完整连接流程、关系图、字段、约束和维护入口见 [数据库字典](../../docs/database.md)。
 
@@ -33,4 +33,6 @@ OAuth Provider 的客户端、资源、授权同意、摘要令牌、刷新轮�
 
 0017_dry_pandemic 为 foods 新增 category text NOT NULL DEFAULT ingredient，CHECK 仅允许 meal／ingredient；旧字段、营养、单位和历史 JSON 不变。食材物理删除先由 feature 解除所有历史 meal_items.food_id 外键并保留 food_snapshot。
 
-0018 新增 record_operations 统一审核批次，关联身体／饮食子操作及其审核版本，保存不可变混合请求与人工草稿。共有30张业务／认证表；旧表和值保持。字段、索引和事务规则见数据库字典。
+0018 新增 record_operations 统一审核批次，关联身体／饮食子操作及其审核版本，保存不可变混合请求与人工草稿。0018结构有30张业务／认证表；旧表和值保持。字段、索引和事务规则见数据库字典。
+
+0019新增energy_profiles、energy_days、activities、energy_operations、energy_events，并为record_operations增加可空消耗关联及revision；当前共35张表。归属组合外键在唯一索引建立后添加；有效日记录／资料生效日期按账号唯一。字段与优先级见[消耗文档](../../docs/energy.md)和[数据库字典](../../docs/database.md)。
