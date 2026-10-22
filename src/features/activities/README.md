@@ -1,13 +1,14 @@
 # 消耗与活动
 
-负责每日静息／活动／总量覆盖、活动明细、按日期生效的公式资料、审核与审计。活动数值原样相加，不扣静息，不估普通日常活动；只有完成且有效的活动进入合计，未知用null；仅在账号明确设置的zeroActivityFrom日起，未录活动按0；已有未知热量明细仍保持未知。
+负责每日消耗、运动明细、独立公式对照、预览与审计。分项／只记总数互斥，活动合计／运动累计互斥；活动原值相加，不扣静息。只有有效且完成的运动进入合计，未知与零区分，未录日期不自动生成消耗。
 
-- `model.ts`：输入校验、平均静息／默认零、三层优先级、Mifflin公式和体重回退。
-- `records.ts`：归属、版本、幂等、预览、确认事务、软删除恢复和审计。
-- `energy-view.tsx`／`energy-editor.tsx`／`energy.module.css`：网页和审核表单、历史图、资料与最近删除。
-- `ai-api.ts`／`ai-openapi.ts`：HTTP与MCP共用查询、协议和说明。
-- `energy.test.ts`／`migration.test.ts`：业务、安全、回滚及旧表保护。
+- `model.ts`：输入类型、模式兼容、每日计算与Mifflin公式体重回退。
+- `presentation.ts`：服务端整理展示读数，浏览器不执行最终取值或初始化。
+- `records.ts`：归属、版本、幂等、预览、确认事务、软删除恢复、审计和退役动作保护。
+- `energy-view.tsx`／`energy-editor.tsx`／`energy.module.css`：双模式录入、按日批量运动、历史图与独立公式对照。
+- `ai-api.ts`／`ai-openapi.ts`：HTTP与MCP共用查询及协议。
+- `energy.test.ts`／`migration.test.ts`：业务、安全、回滚与旧表保护。
 
-网页入口、HTTP和MCP复用同一业务；不在入口重复计算规则。完整口径与维护见[消耗文档](../../../docs/energy.md)。每个新目录包含README，新增结构通过versioned migration。
+网页、HTTP、MCP复用业务。日常默认值不参与读取或新的写入，旧存储及审计保留；旧预览必须刷新，退役项只能取消。活动及静息估算标识内部保留，普通网页不展示活动估算勾选。新增结构使用版本化migration，完整规则见[热量消耗](../../../docs/energy.md)。
 
-`energy_defaults`保存账号日常默认值，不逐日伪造实测。网页提供独立公式对照；日记录activeEstimated／notes保存活动初始化估算。新规则与资料均可统一审核，旧快照忽略新增空字段以兼容旧pending。
+`history.ts`仅构造明确范围的一次性补缺动作，数值从私有请求输入，保护原有记录；正式保存仍经统一网页审核。`history.test.ts`覆盖范围、补零边界、保留已知值／来源和重复补齐。

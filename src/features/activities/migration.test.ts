@@ -27,3 +27,23 @@ test("消耗迁移保留30张旧表字段值，仅增加5张表和可空关联",
     await assert.rejects(pg.exec("INSERT INTO energy_days(id,user_id,local_date,timezone,resting_kcal) VALUES ('bad','energy-migration-owner','2024-08-01','Asia/Shanghai',-1)"));
   } finally { await pg.close(); }
 });
+
+test("显式消耗模式迁移保留36张表的原字段和值，旧行不补零或重解释", async () => {
+  const pg = new PGlite();
+  try {
+    const files = (await readdir("drizzle")).filter(file => /^\d{4}_.*\.sql$/.test(file)).sort();
+    for (const file of files.filter(file => file < "0021")) await pg.exec(await readFile(`drizzle/${file}`, "utf8"));
+    await pg.exec("INSERT INTO users(id,name,email) VALUES ('mode-owner','虚构用户','mode@example.test'); INSERT INTO energy_days(id,user_id,local_date,timezone,resting_kcal,active_kcal,total_kcal,source_system) VALUES ('mode-day','mode-owner','2024-08-01','Asia/Shanghai',1900,NULL,2400,'虚构设备'); INSERT INTO energy_defaults(id,user_id,resting_from,resting_kcal) VALUES ('mode-default','mode-owner','2024-08-01',2100)");
+    const tables = (await pg.query<{ table_name: string }>("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name")).rows.map(row => row.table_name);
+    assert.equal(tables.length, 36);
+    const prior = new Map<string, Record<string, unknown>[]>();
+    for (const table of tables) prior.set(table, (await pg.query<Record<string, unknown>>(`SELECT * FROM "${table}"`)).rows);
+    await pg.exec(await readFile("drizzle/0021_tranquil_leo.sql", "utf8"));
+    for (const table of tables) {
+      const after = (await pg.query<Record<string, unknown>>(`SELECT * FROM "${table}"`)).rows;
+      if (table === "energy_days") for (const row of after) { assert.equal(row.entry_mode, null); assert.equal(row.activity_mode, null); assert.equal(row.resting_estimated, false); for (const field of ["entry_mode", "activity_mode", "resting_source_system", "active_source_system", "resting_estimated"]) delete row[field]; }
+      assert.deepEqual(after, prior.get(table), table);
+    }
+    await assert.rejects(pg.exec("UPDATE energy_days SET entry_mode='invalid' WHERE id='mode-day'"));
+  } finally { await pg.close(); }
+});

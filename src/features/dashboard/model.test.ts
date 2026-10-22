@@ -1,6 +1,7 @@
+import { chartScale } from "../../components/chart-scale";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { overview, overviewDays, overviewScale, latestMorningWeight } from "./model";
+import { overview, overviewDays, latestMorningWeight } from "./model";
 import { prepareMealActions } from "../meals/records";
 import { emptyNutrition, type MealView } from "../meals/model";
 import { emptyEnergy, type EnergySnapshot } from "../activities/model";
@@ -39,11 +40,23 @@ test("摄入减最终消耗得到带符号盈余，未知与实际零不同", ()
   assert.equal(days[3].energy.totalKcal, null); assert.equal(days[3].nutrition, null);
   assert.equal(overview([meal("2024-03-01", "600")], [], "2024-03-01", energy).energyBalance, 100);
 });
-test("两个数值轴的比例保留共同零点并容纳正负数据", () => {
-  const energy = { ...emptyEnergy(), days: [expenditure("2024-03-01", "1500")] };
-  const days = overviewDays([meal("2024-03-01", "300")], [observed("2024-03-01"), observed("2024-03-02", { weightKg: "69.5" })], ["2024-03-01"], false, energy), scale = overviewScale(days);
-  assert.ok(scale.kcalHigh > 1500); assert.ok(scale.kcalLow < -1200); assert.ok(scale.kgLow < -.5);
-  assert.ok(Math.abs(scale.kcalHigh / (scale.kcalHigh - scale.kcalLow) - scale.kgHigh / (scale.kgHigh - scale.kgLow)) < 1e-12);
+test("独立坐标轴使用整齐等距刻度，包含零且覆盖正负值", () => {
+  for (const [values, unit] of [[[2480, 3150], "kcal"], [[-530, 760], "kcal"], [[-0.3, 0.4], "kg"], [[-12000, 400], "kcal"], [[0], "kcal"], [[], "kg"]] as const) {
+    const scale = chartScale([...values], unit);
+    assert.ok(scale.min <= Math.min(0, ...values)); assert.ok(scale.max >= Math.max(0, ...values));
+    assert.ok(scale.ticks.includes(0));
+    scale.ticks.slice(1).forEach((tick, i) => assert.ok(Math.abs(tick - scale.ticks[i] - scale.step) < 1e-8));
+  }
+  assert.deepEqual(chartScale([-530,760]).ticks, [-1000,0,1000]);
+  assert.deepEqual(chartScale([-.3,.4], "kg").ticks, [-.5,0,.5]);
+  assert.deepEqual(chartScale([-.05], "kg").ticks, [-.1,0]);
+});
+test("部分摄入和估算消耗仍计算盈余，缺失与明确零保持区别", () => {
+  const partial = prepareMealActions({ operationId: "fictional-partial", actions: [{ kind: "save_meal", date: "2024-03-01", mealType: "午餐", items: [{ kind: "food", name: "已知食物", sourceKind: "estimated", nutrition: { ...emptyNutrition(), caloriesKcal: "300" } }, { kind: "food", name: "未知食物", sourceKind: "unknown", nutrition: emptyNutrition() }] }] }, { foods: [], meals: [] }, "manual")[0].meal!;
+  const energy = { ...emptyEnergy(), days: [{ ...expenditure("2024-03-01", "200"), totalKcal: null, restingKcal: "200", activeKcal: "0", restingEstimated: true }] };
+  const day = overviewDays([partial], [], ["2024-03-01"], false, energy)[0];
+  assert.equal(day.nutrition?.incomplete.caloriesKcal, true); assert.equal(day.energy.estimated, true); assert.equal(day.energyBalance, 100);
+  assert.equal(overview([partial], [], "2024-03-01", energy).energyBalance, 100);
 });
 test("身体卡仅取真实空腹晨重，晚间与估计不进入", () => {
   const early = observed("2024-03-01", { updatedAt: "2024-04-01" }), morning = observed("2024-03-02"), evening = observed("2024-03-03", { id: "evening", period: "evening", fasting: false }), estimate = observed("2024-03-04", { recordKind: "estimated" });

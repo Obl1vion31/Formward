@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "../../db/schema";
 import { createAiToken, authenticateAi, revokeAiToken } from "../auth/ai-tokens";
 import { energyDays, emptyEnergy, restingEstimate, type EnergyProfile, type ActivityRecord, type EnergyDayRecord } from "./model";
-import { submitEnergyOperation, decideEnergyOperation, readEnergySnapshot, planEnergyActions } from "./records";
+import { submitEnergyOperation, decideEnergyOperation, readEnergySnapshot, planEnergyActions, reviseEnergyOperation } from "./records";
 import { submitRecordOperation, reviewRecordOperation, getRecordOperation } from "../records/operations";
 import type { MeasurementDisplay } from "../measurements/entry-state";
 
@@ -125,30 +125,52 @@ test("消耗审计失败回滚同批身体、饮食与所有终态", async () =>
 });
 
 
-test("日常默认值按日期和账号启用，单日覆盖优先，未知活动不被默认零掩盖", () => {
-  const defaults = [{ id: randomUUID(), version: 1, deletedAt: null, restingFrom: date, restingKcal: "2058", zeroActivityFrom: "2024-08-02" }];
-  assert.equal(energyDays({ ...emptyEnergy(), defaults }, [], ["2024-07-31"])[0].restingKcal, null);
-  assert.equal(energyDays({ ...emptyEnergy(), defaults }, [], [date])[0].activeKcal, null);
-  const future = energyDays({ ...emptyEnergy(), defaults }, [], ["2024-08-02"])[0];
-  assert.equal(Number(future.totalKcal), 2058); assert.equal(future.activeSource, "default-zero"); assert.equal(future.restingSource, "average");
-  const unknown = energyDays({ ...emptyEnergy(), defaults, activities: [activity({ date: "2024-08-02", caloriesKcal: null })] }, [], ["2024-08-02"])[0]; assert.equal(unknown.totalKcal, null);
-  const explicit = energyDays({ ...emptyEnergy(), defaults, days: [day({ restingKcal: "1800", activeKcal: "300", totalKcal: "2400" })] }, [], [date])[0]; assert.equal(Number(explicit.totalKcal), 2400); assert.equal(explicit.restingSource, "record");
-  assert.equal(energyDays(emptyEnergy(), [], [date])[0].activeKcal, null);
+test("退役默认值与公式不再给未录日期生成消耗", () => {
+  const defaults = [{ id: randomUUID(), version: 1, deletedAt: null, restingFrom: date, restingKcal: "2100", zeroActivityFrom: date }];
+  const state = { ...emptyEnergy(), defaults, profiles: [profile()] };
+  const future = energyDays(state, [weight()], [date])[0];
+  assert.equal(future.restingKcal, null); assert.equal(future.activeKcal, null); assert.equal(future.totalKcal, null);
+  assert.ok(restingEstimate(date, state.profiles, [weight()]));
 });
-test("初始化活动估算与备注保存、可编辑，日常默认值经审核才生效且按账号隔离", async () => {
-  const a = await owner(), b = await owner();
-  const op = await submitRecordOperation(db, a.identity, { operationId: randomUUID(), items: [{ key: "defaults", kind: "save_energy_defaults", restingFrom: date, restingKcal: "2058", zeroActivityFrom: date }, { key: "day", kind: "save_energy_day", date, activeKcal: "200", activeEstimated: true, notes: "虚构初始化估算" }] });
-  assert.equal((await readEnergySnapshot(db, a.userId)).defaults?.length, 0);
-  await reviewRecordOperation(db, a.userId, op.id, { kind: "confirm", revision: op.revision });
-  const state = await readEnergySnapshot(db, a.userId); assert.equal(state.defaults?.length, 1); assert.equal(state.days[0].activeEstimated, true); assert.equal(state.days[0].notes, "虚构初始化估算");
-  assert.equal(Number(energyDays(state, [], [date])[0].totalKcal), 2258); assert.equal(energyDays(state, [], [date])[0].estimated, true);
-  assert.equal((await readEnergySnapshot(db, b.userId)).defaults?.length, 0);
-  const foreign = state.defaults![0]; assert.ok(planEnergyActions([{ kind: "save_energy_defaults", ...foreign, restingKcal: "2100" }], await readEnergySnapshot(db, b.userId))[0].error);
-  assert.ok(planEnergyActions([{ kind: "save_energy_defaults", restingFrom: date, restingKcal: "2100", zeroActivityFrom: date }], state)[0].error);
-  assert.ok(planEnergyActions([{ kind: "save_energy_defaults", id: foreign.id, version: 99, restingFrom: date, restingKcal: "2100", zeroActivityFrom: date }], state)[0].error);
-  const removed = await submitEnergyOperation(db, { userId: a.userId, origin: "manual" }, { operationId: randomUUID(), actions: [{ kind: "delete_energy_defaults", id: foreign.id, version: foreign.version }] }); await decideEnergyOperation(db, a.userId, removed.id, removed.revision, "confirm");
-  assert.equal(energyDays(await readEnergySnapshot(db, a.userId), [], [date])[0].restingKcal, null);
-  const deleted = (await readEnergySnapshot(db, a.userId)).defaults![0];
-  const restore = await submitEnergyOperation(db, { userId: a.userId, origin: "manual" }, { operationId: randomUUID(), actions: [{ kind: "restore_energy_defaults", id: deleted.id, version: deleted.version }] }); await decideEnergyOperation(db, a.userId, restore.id, restore.revision, "confirm");
-  assert.equal(Number(energyDays(await readEnergySnapshot(db, a.userId), [], [date])[0].restingKcal), 2058);
+test("显式模式排除隐藏旧值，分项来源独立保留", async () => {
+  const { userId } = await owner(), actor = { userId, origin: "manual" as const };
+  const submit = async (actions: unknown[]) => { const op = await submitEnergyOperation(db, actor, { operationId: randomUUID(), actions }); await decideEnergyOperation(db, userId, op.id, op.revision, "confirm"); return readEnergySnapshot(db,userId); };
+  let state = await submit([{ kind: "save_energy_day", date, entryMode: "components", activityMode: "total", restingKcal: "1900", restingSourceSystem: "虚构秤", activeSourceSystem: "虚构手表" }]);
+  assert.equal(Number(energyDays(state, [], [date])[0].totalKcal), 1900); assert.equal(Number(state.days[0].activeKcal), 0);
+  const prior = state.days[0];
+  state = await submit([{ kind: "save_energy_day", id: prior.id, version: prior.version, date, entryMode: "total", totalKcal: "2400" }]);
+  let reading = energyDays(state, [], [date])[0]; assert.equal(Number(reading.totalKcal), 2400); assert.equal(reading.restingKcal, null); assert.equal(state.days[0].restingKcal, "1900.0000");
+  const saved = state.days[0];
+  state = await submit([{ kind: "save_energy_day", id: saved.id, version: saved.version, date, entryMode: "components", activityMode: "activities" }, { kind: "save_activity", date, name: "虚构跑步", caloriesKcal: "400" }]);
+  reading = energyDays(state, [], [date])[0]; assert.equal(Number(reading.totalKcal), 2300); assert.equal(Number(state.days[0].totalKcal), 2400); assert.equal(state.days[0].restingSourceSystem, "虚构秤"); assert.equal(state.days[0].activeSourceSystem, "虚构手表");
+  const invalid = planEnergyActions([{ kind: "save_energy_day", date: "2024-08-02", entryMode: "components", restingKcal: "100", totalKcal: "999" }], emptyEnergy()); assert.ok(invalid[0].error);
+});
+test("旧默认动作不能新增或恢复，旧预览必须刷新且只能取消退役项", async () => {
+  const { userId } = await owner(), actor = { userId, origin: "manual" as const };
+  const retired = { kind: "save_energy_defaults" as const, restingFrom: date, restingKcal: "2100", zeroActivityFrom: date };
+  await assert.rejects(submitEnergyOperation(db, actor, { operationId: randomUUID(), actions: [retired] }), /停用/);
+  await assert.rejects(submitEnergyOperation(db, actor, { operationId: randomUUID(), actions: [{ kind: "restore_energy_defaults", id: randomUUID(), version: 1 }] }), /停用/);
+  const op = await submitEnergyOperation(db, actor, { operationId: randomUUID(), actions: [{ kind: "save_energy_day", date, restingKcal: "1900", activeKcal: "200", restingEstimated: true, activeEstimated: true, notes: "虚构初始化" }] });
+  await db.update(schema.energyOperation).set({ snapshotDigest: "old-rules" }).where(eq(schema.energyOperation.id, op.id));
+  await assert.rejects(decideEnergyOperation(db,userId,op.id,op.revision,"confirm"), /刷新/);
+  const refreshed = await reviseEnergyOperation(db,userId,op.id,op.revision,[retired,{ kind: "save_energy_day", date, restingKcal: "1900", activeKcal: "200", restingEstimated: true, activeEstimated: true, notes: "虚构初始化" }],[0]);
+  assert.ok(refreshed.rows[0].error); assert.ok(refreshed.canConfirm);
+  await decideEnergyOperation(db,userId,op.id,refreshed.revision,"confirm");
+  const state = await readEnergySnapshot(db,userId); assert.equal(state.defaults?.length,0); assert.equal(state.days[0].activeEstimated,true); assert.equal(state.days[0].restingEstimated,true); assert.equal(state.days[0].notes,"虚构初始化");
+  assert.equal(Number(energyDays(state,[],[date])[0].totalKcal),2100);
+});
+test("显式未知、空明细、未完成明细与明确零分别处理", () => {
+  const explicit = (patch: Partial<EnergyDayRecord>) => ({ ...emptyEnergy(), days: [day({ entryMode: "components", activityMode: "total", ...patch })] });
+  assert.equal(energyDays(explicit({ activeKcal: null }), [], [date])[0].totalKcal, null);
+  assert.equal(Number(energyDays(explicit({ activeKcal: "0" }), [], [date])[0].totalKcal), 2000);
+  assert.equal(Number(energyDays(explicit({ activityMode: "activities" }), [], [date])[0].totalKcal), 2000);
+  assert.equal(energyDays({ ...explicit({ activityMode: "activities" }), activities: [activity({ caloriesKcal: null })] }, [], [date])[0].totalKcal, null);
+});
+
+test("旧空模式日记录删除恢复不把未知活动改成零", async () => {
+  const {userId}=await owner(), id=randomUUID(), actor={userId,origin:"manual" as const};
+  await db.insert(schema.energyDay).values({id,userId,date,timezone:"Asia/Shanghai",restingKcal:"1900"});
+  let current=(await readEnergySnapshot(db,userId)).days[0];
+  for(const kind of ["delete_energy_day","restore_energy_day"] as const){const op=await submitEnergyOperation(db,actor,{operationId:randomUUID(),actions:[{kind,id,version:current.version}]});await decideEnergyOperation(db,userId,op.id,op.revision,"confirm");current=(await readEnergySnapshot(db,userId)).days[0];}
+  assert.equal(current.activityMode,null);assert.equal(current.entryMode,null);assert.equal(energyDays(await readEnergySnapshot(db,userId),[],[date])[0].totalKcal,null);
 });

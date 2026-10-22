@@ -4,6 +4,7 @@ import { currentPageUser } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { readEnergySnapshot } from "@/features/activities/records";
 import { EnergyView } from "@/features/activities/energy-view";
+import { energyPresentation } from "@/features/activities/presentation";
 import { listMeasurements } from "@/features/measurements/records";
 import { measurementDisplay } from "@/features/measurements/editing";
 import { localMeasurementDate } from "@/features/measurements/entry-state";
@@ -21,5 +22,5 @@ export default async function EnergyPage({ searchParams }: { searchParams: Promi
 async function Content({ user, date }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date: string | null }) {
   const db = getDatabase(), snapshot = await readEnergySnapshot(db, user.id), records = await listMeasurements(db, user.id);
   const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
-  return <main className="dashboard-page"><DashboardHeader email={user.email} /><EnergyView snapshot={snapshot} records={records.map(measurementDisplay)} today={today} save={saveEnergyAction} initialDate={date} /></main>;
+  return <main className="dashboard-page"><DashboardHeader email={user.email} /><EnergyView presentation={energyPresentation(snapshot, records.map(measurementDisplay), today)} save={saveEnergyAction} initialDate={date} /></main>;
 }

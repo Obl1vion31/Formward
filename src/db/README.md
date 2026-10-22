@@ -38,3 +38,5 @@ OAuth Provider 的客户端、资源、授权同意、摘要令牌、刷新轮�
 0019新增energy_profiles、energy_days、activities、energy_operations、energy_events，并为record_operations增加可空消耗关联及revision；0019结构共35张表。归属组合外键在唯一索引建立后添加；有效日记录／资料生效日期按账号唯一。字段与优先级见[消耗文档](../../docs/energy.md)和[数据库字典](../../docs/database.md)。
 
 0020增加energy_defaults和energy_days.active_estimated／notes，当前36张应用表。默认值仅在账号明确保存后生效；旧字段值保持，原日记录新增列为false／NULL。默认规则写入复用消耗操作和审计，不创建每日事实。
+
+0021仅为energy_days新增可空显式模式、分项来源及内部静息估算标识，原36表原字段和值保持。旧行模式为空，服务端按旧口径解释，新保存显式选择；energy_defaults仅留退役存储和审计，禁止旧预览重新启用。

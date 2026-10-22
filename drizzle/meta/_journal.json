@@ -148,6 +148,13 @@
       "when": 1792601613973,
       "tag": "0020_strange_meteorite",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792641437703,
+      "tag": "0021_tranquil_leo",
+      "breakpoints": true
     }
   ]
 }

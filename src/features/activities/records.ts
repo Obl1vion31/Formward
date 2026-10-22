@@ -16,7 +16,7 @@ function canonical(value: unknown): unknown {
 }
 function snapshotDigest(state: EnergySnapshot) {
   const { defaults, ...legacy } = state;
-  return digest({ ...legacy, days: legacy.days.map(({ activeEstimated, notes, ...day }) => ({ ...day, ...(activeEstimated ? { activeEstimated } : {}), ...(notes ? { notes } : {}) })), ...(defaults?.length ? { defaults } : {}) });
+  return digest({ rules: "explicit-energy-modes-v1", ...legacy, days: legacy.days.map(({ activeEstimated, notes, ...day }) => ({ ...day, ...(activeEstimated ? { activeEstimated } : {}), ...(notes ? { notes } : {}) })), ...(defaults?.length ? { defaults } : {}) });
 }
 const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex");
 const typeOf = (action: EnergyAction) => action.kind.includes("defaults") ? "defaults" : action.kind.includes("profile") ? "profile" : action.kind.includes("energy_day") ? "day" : "activity";
@@ -49,6 +49,7 @@ export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnaps
   return actions.map((action, index) => {
     const row: EnergyPreview = { action, excluded: excluded.includes(index) };
     try {
+      if (action.kind.includes("energy_defaults")) throw new ApiError(400, "retired_action", "日常默认值已停用，请取消这一项。");
       const entries = listOf(state, action), before = action.id ? entries.find(record => record.id === action.id) : undefined;
       row.before = before;
       if (action.id && !before) throw new ApiError(404, "not_found", "记录不存在或不属于当前账号。");
@@ -68,7 +69,16 @@ export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnaps
       } else if (action.kind === "save_energy_day") {
         if (before?.deletedAt) throw new ApiError(409, "deleted", "请先恢复这一天的记录。");
         const prior = before && "date" in before && "restingKcal" in before ? before : undefined;
-        row.after = { ...base, ...provenance(action, before), date: action.date, activeEstimated: action.activeEstimated ?? prior?.activeEstimated ?? false, notes: action.notes === undefined ? prior?.notes ?? null : action.notes, restingKcal: action.restingKcal === undefined ? prior?.restingKcal ?? null : action.restingKcal, activeKcal: action.activeKcal === undefined ? prior?.activeKcal ?? null : action.activeKcal, totalKcal: action.totalKcal === undefined ? prior?.totalKcal ?? null : action.totalKcal };
+        const restingKcal = action.restingKcal === undefined ? prior?.restingKcal ?? null : action.restingKcal;
+        const activeKcal = action.activeKcal === undefined ? prior?.activeKcal ?? (action.entryMode === "components" && action.activityMode !== "activities" ? "0" : null) : action.activeKcal;
+        const totalKcal = action.totalKcal === undefined ? prior?.totalKcal ?? null : action.totalKcal;
+        // 无模式的旧请求继续按旧的覆盖优先级解释；新请求始终显式选择。
+        const entryMode = action.entryMode ?? (action.totalKcal !== undefined ? totalKcal !== null ? "total" : "components" : prior?.entryMode ?? (totalKcal !== null ? "total" : "components"));
+        const activityMode = action.activityMode ?? (action.activeKcal !== undefined ? activeKcal !== null ? "total" : "activities" : prior?.activityMode ?? (activeKcal !== null ? "total" : "activities"));
+        if (action.entryMode === "components" && action.totalKcal != null) throw new ApiError(400, "invalid_input", "分开记录时请使用自动合计，不要同时填写总数。");
+        if (action.entryMode === "total" && (action.restingKcal != null || action.activeKcal != null)) throw new ApiError(400, "invalid_input", "只记总数时请勿同时提交分项。");
+        if (action.activityMode === "activities" && action.activeKcal != null) throw new ApiError(400, "invalid_input", "按运动累计时请勿同时填写活动合计。因未采用的旧值仍会保留，可直接省略该字段。");
+        row.after = { ...base, ...provenance(action, before), date: action.date, entryMode, activityMode, restingSourceSystem: action.restingSourceSystem === undefined ? prior?.restingSourceSystem ?? prior?.sourceSystem ?? null : action.restingSourceSystem, activeSourceSystem: action.activeSourceSystem === undefined ? prior?.activeSourceSystem ?? prior?.sourceSystem ?? null : action.activeSourceSystem, restingEstimated: action.restingEstimated ?? prior?.restingEstimated ?? false, activeEstimated: action.activeEstimated ?? prior?.activeEstimated ?? false, notes: action.notes === undefined ? prior?.notes ?? null : action.notes, restingKcal, activeKcal, totalKcal };
       } else if (action.kind === "save_activity") {
         if (before?.deletedAt) throw new ApiError(409, "deleted", "请先恢复该活动。");
         const prior = before && "name" in before ? before : undefined;
@@ -117,6 +127,7 @@ export async function submitEnergyOperation(db: Database, actor: EnergyActor, ra
       if (prior.requestDigest !== digest(input) || prior.origin !== actor.origin || prior.tokenId !== (actor.identity?.tokenId ?? null) || prior.oauthConnectionId !== (actor.identity?.oauthConnectionId ?? null)) throw new ApiError(409, "request_conflict", "不能用同一请求编号替换内容或授权。");
       return { ...displayEnergyOperation(prior), repeated: true };
     }
+    if (input.actions.some(action => action.kind.includes("energy_defaults"))) throw new ApiError(400, "retired_action", "日常默认值已停用，请改为记录具体日期。");
     const state = await readEnergySnapshot(tx, actor.userId);
     const [row] = await tx.insert(energyOperation).values({ id: randomUUID(), userId: actor.userId, operationId: input.operationId, origin: actor.origin, tokenId: actor.identity?.tokenId, oauthConnectionId: actor.identity?.oauthConnectionId, requestDigest: digest(input), snapshotDigest: snapshotDigest(state), payload: input, draft: input, preview: planEnergyActions(input.actions, state), expiresAt: actor.origin === "ai" ? new Date(Date.now() + 15 * 60000) : null }).returning();
     return { ...displayEnergyOperation(row), repeated: false };
@@ -151,7 +162,7 @@ async function write(tx: Transaction, userId: string, row: EnergyPreview) {
   } else {
     const source = { timezone: record.timezone, sourceSystem: record.sourceSystem, sourceRecordId: record.sourceRecordId, sourceOccurredAt: record.sourceOccurredAt ? new Date(record.sourceOccurredAt) : null, sourceUnit: record.sourceUnit, syncStatus: record.syncStatus };
     if ("restingKcal" in record) {
-      const values = { ...common, ...source, date: record.date, activeEstimated: record.activeEstimated ?? false, notes: record.notes ?? null, restingKcal: record.restingKcal, activeKcal: record.activeKcal, totalKcal: record.totalKcal };
+      const values = { ...common, ...source, date: record.date, entryMode: record.entryMode ?? null, activityMode: record.activityMode ?? null, restingSourceSystem: record.restingSourceSystem ?? null, activeSourceSystem: record.activeSourceSystem ?? null, restingEstimated: record.restingEstimated ?? false, activeEstimated: record.activeEstimated ?? false, notes: record.notes ?? null, restingKcal: record.restingKcal, activeKcal: record.activeKcal, totalKcal: record.totalKcal };
       if (row.before) await tx.update(energyDay).set(values).where(and(eq(energyDay.userId, userId), eq(energyDay.id, record.id)));
       else await tx.insert(energyDay).values({ id: record.id, userId, ...values });
     } else {
@@ -172,6 +183,7 @@ export async function decideEnergyOperation(db: Database, userId: string, id: st
       if (row.expiresAt && row.expiresAt < new Date()) throw new ApiError(409, "expired", "预览已过期，请刷新。");
       if (snapshotDigest(await readEnergySnapshot(tx, userId)) !== row.snapshotDigest) throw new ApiError(409, "snapshot_changed", "消耗资料或记录已改变，请刷新预览。");
       const selected = row.preview.filter(row => !row.excluded);
+      if (selected.some(entry => entry.action.kind.includes("energy_defaults"))) throw new ApiError(400, "retired_action", "日常默认值已停用，请刷新预览并取消这一项。");
       if (!selected.length || selected.some(row => row.error || !row.after)) throw new ApiError(400, "review_required", "请修改或取消有问题的消耗记录。");
       for (const entry of selected) {
         await write(tx, userId, entry);

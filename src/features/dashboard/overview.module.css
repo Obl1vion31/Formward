@@ -60,3 +60,11 @@
 }
 
 @media(prefers-reduced-motion:reduce) { .card { transition:none; }.card:hover { transform:none; } }
+.comparisonPlots { display:grid; gap:12px; }
+.plotPanel + .plotPanel { border-top:1px solid rgba(240,233,221,.12); padding-top:12px; }
+.panelHeading { display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:24px; }
+.panelHeading h3 { margin:0; font-size:14px; font-weight:500; }
+.panelHeading time { color:#b4afa5; font-size:11px; }
+.panelHeading .legend { margin:0; gap:16px; font-size:11px; }
+.axis { font-size:11px; fill:#b4afa5; }
+.dayReadout strong { margin-top:4px; }

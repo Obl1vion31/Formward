@@ -668,22 +668,22 @@ SELECT * FROM meals WHERE user_id = '示例账号编号';
 | 步骤 | 在哪里运行 | 文件／函数 | 收到什么 | 做什么 | 交给谁 |
 | --- | --- | --- | --- | --- | --- |
 | 1. 读取事实 | 服务端 | [dashboard/page.tsx](../src/app/dashboard/page.tsx) → `listMeasurements`、`readMealSnapshot`、`readEnergySnapshot` | 当前账号 | 读取身体、饮食与消耗，使用 `measurementDisplay` 整理身体数据 | `OverviewView` 的属性 |
-| 2. 选择与计算 | 首次内容准备及浏览器显示更新 | [dashboard/model.ts](../src/features/dashboard/model.ts)，由 [overview-view.tsx](../src/features/dashboard/overview-view.tsx) 等调用 | 身体记录、餐次、今天与区间 | 计算摄入、最终消耗、盈余及相邻两日晨重差 | 卡片与图表需要的数据 |
-| 3. 绘制并交互 | 首次准备内容，随后浏览器交互 | [overview-trend.tsx](../src/features/dashboard/overview-trend.tsx) | 记录和显示选择 | 画浅蓝摄入柱、浅红消耗柱、金色盈余柱和暖白次晨差线，响应日期选择 | 屏幕上的总览 |
+| 2. 计算展示数据 | 服务端 | [dashboard/presentation.ts](../src/features/dashboard/presentation.ts) → [model.ts](../src/features/dashboard/model.ts) | 身体记录、餐次、今天 | 计算摄入、最终消耗、盈余和两种估计显示口径的相邻晨重差 | 卡片与图表属性 |
+| 3. 绘制并交互 | 首次准备内容，随后浏览器交互 | [overview-trend.tsx](../src/features/dashboard/overview-trend.tsx) | 记录和显示选择 | 分三行画摄入／消耗并排柱、盈余柱和次晨差线，独立刻度并同步日期选择 | 屏幕上的总览 |
 
 所以改变线条颜色和改变“哪两天晨重相减”，分别对应绘制／样式和模型计算。横轴 D 日的次晨变化必须是 D+1 晨重减 D 晨重，缺少任一日就留空，不能挑别的日期凑成一对。页面读取不会生成新估计；已有估计可由开关控制，并用虚线区分。身体卡使用最近有效空腹晨重，另有摄入和消耗卡。没有记录不能解释成确定的零。
 
 ### 7.2.1 消耗：同一组数字怎样从输入到总览
 
-先用虚构例子理解：小林填静息2000，又记跑步800，最后消耗是2800；若填“活动合计900”，结果改为2900，跑步明细还在；再填“全天总消耗3100”，最终用3100。清空覆盖值后又按分项计算。数字照用户提供的原样使用，不扣一次静息。
+先用虚构例子理解：小林选“分开记录”，填静息2000，再选“按运动累计”记跑步800，消耗是2800。若改选“记合计”并填900，结果是2900，跑步保留但不重复相加。选“只记总数”填3100，最终就是3100，其他分项不参与。切回分开记录再使用当前分项。每组来源放在对应输入旁，数字按原样使用，不扣一次静息。
 
 ```mermaid
 flowchart LR
   A[1 浏览器输入静息与活动] --> B[2 保存动作发送请求]
   B --> C[3 服务端校验并创建操作]
   C --> D[4 事务确认事实和审计]
-  D --> E[5 返回快照]
-  E --> F[6 组件重新计算并显示]
+  D --> E[5 服务端计算并返回读数]
+  E --> F[6 浏览器选择日期并显示]
 ```
 
 | 哪一步 | 在哪里运行 | 文件／函数 | 收到什么 | 做什么 | 交给谁 |
@@ -691,15 +691,15 @@ flowchart LR
 | 1. 打开 | Next.js服务端 | [消耗page.tsx](../src/app/dashboard/energy/page.tsx) | 登录账号 | 顺序读消耗与身体记录 | `EnergyView` |
 | 2. 填写 | 浏览器 | [energy-view.tsx](../src/features/activities/energy-view.tsx) → [EnergyEditor](../src/features/activities/energy-editor.tsx) | 日记录／活动／资料 | 保存浏览器草稿，不改数据库 | `execute`回调 |
 | 3. 提交 | 浏览器到服务端 | [actions.ts](../src/app/dashboard/energy/actions.ts) 的 `saveEnergyAction` | 同一内容复用的operationId和actions | 检查登录，调用共用业务 | `submitEnergyOperation` |
-| 4. 校验与保存 | 服务端和数据库 | [activities/records.ts](../src/features/activities/records.ts) | 账号、版本和动作 | 预览后确认，事务保存事实和事件 | 返回`EnergySnapshot` |
-| 5. 显示合计 | 首次内容准备及浏览器更新 | [activities/model.ts](../src/features/activities/model.ts) 的 `energyDays` | 保存的分项、覆盖值和资料 | 按优先级计算，不另存一份合计 | 消耗和总览图 |
+| 4. 校验与保存 | 服务端和数据库 | [activities/records.ts](../src/features/activities/records.ts) | 账号、版本和动作列表 | 预览后确认，同日多项事务保存事实和事件 | `energyPresentation` |
+| 5. 计算读数 | 服务端 | [activities/presentation.ts](../src/features/activities/presentation.ts) → `energyDays` | 已保存的数值、明细和模式 | 计算最终读数，未采用字段不叠加，不另存一份合计 | 消耗与总览交互组件 |
 | 6. AI另一入口 | 服务端及网页登录 | `query_energy`／`submit_record_operation` → 同一feature | 授权与items | 先预览，网页登录确认才存事实 | 同样的表与图 |
 
-“日常默认值”可以保存平均静息和“从某天起未录活动按0”。它是一份账号规则，读取时用于补没有单日值的日期，不是每天生成新的实测；其他账号不自动使用。初始化估算活动另有标记和备注。网页的“静息公式对照”独立比较公式和当前采用值，不会把平均静息改掉。
+“日常默认值”已停用。一次性初始化只会把明确账号、日期和数值组成一份审核批次，用户确认后保存这些日期的记录；页面不会把某个历史平均值自动套到今天或未来。内部估算标识和审计仍保留，去掉勾选控件不等于删除记录依据。
 
-公式资料是身高、出生日期和公式性别参数。它帮助在未填静息时估算，不要求先填它才允许记录热量。公式先找当天空腹实测，再看已有当天估计，再找过去30日晨重；信息不够就空着，不会偷偷替你造一条身体记录。未知用空值，明确没有活动才填0。“来源与依据”展开后才显示使用哪天体重和算式。完整规则见[热量消耗](energy.md)。
+公式资料是身高、出生日期和公式性别参数，只用来独立计算一个对照结果，不自动成为当天静息。它先找当天空腹实测，再看已有当天估计，再找过去30日晨重；依据不足就空着，不会造身体记录。新分项记录的空活动合计按0保存；API显式未知和热量未知的运动仍未知。完整规则见[热量消耗](energy.md)。
 
-**试着回答**：全天总数3100和跑步800会不会再加一次？答：不会，总数覆盖。为什么删掉活动后可能显示空白？答：没有活动记录不能证明活动消耗为0。
+**试着回答**：只记总数3100时，跑步800会不会再加一次？答：不会，只有当前总数模式参与。未录今天但有公式资料，今天会自动出现消耗吗？答：不会。估算摄入300、消耗200能否算盈余？答：可以，两个数值都有就得到+100；标记不会阻止相减。
 
 
 ### 7.3 身体记录：普通录入与估算有两条路线
@@ -837,7 +837,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 | 饮食表格、拖拽、弹窗 | `meals-view.tsx`、`meal-editor.tsx` | 并列看 `meals.module.css`；不要顺手修改保存规则 |
 | 食材营养换算／自由填写 | `meals/model.ts` | `meal-editor.tsx` 的预览，`meals/records.ts` 的正式校验：两侧保持同一语义 |
 | 摄入图的显示和占比 | `nutrition-chart.tsx`、`meals/model.ts` | `MealsView` 中切换状态；柱高是已记录 kcal，分段可切换克数或能量占比 |
-| 静息公式／总量优先级／活动合计 | `activities/model.ts` | `activities/records.ts`保存校验，`energy-editor.tsx`输入，`energy-view.tsx`展示 |
+| 静息公式／录入模式／活动累计 | `activities/model.ts` | `activities/presentation.ts`服务端展示数据，`activities/records.ts`保存校验，`energy-editor.tsx`输入，`energy-view.tsx`展示 |
 | 总览盈余、次晨配对 | `dashboard/model.ts` | `overview-trend.tsx` 和 [overview.module.css](../src/features/dashboard/overview.module.css)：计算与画图分开找 |
 | 身体图、点选、详情 | `measurements-view.tsx` | [measurements-view.module.css](../src/features/measurements/measurements-view.module.css)；内部 `TrendPlot`、`MeasurementInspector`、`DayOverview` 对应区域 |
 | 身体日期与候选选择 | [days.ts](../src/features/measurements/days.ts)、[calendar.ts](../src/features/measurements/calendar.ts)、[trend.ts](../src/features/measurements/trend.ts)、[summary.ts](../src/features/measurements/summary.ts) | 选择数据与显示数据的口径，不是改 CSS 就能改变 |
@@ -887,7 +887,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 | OAuth，9 张 | `oauth_client`、`oauth_resource`、`oauth_client_resource`、`oauth_refresh_token`、`oauth_access_token`、`oauth_consent`、`oauth_client_assertion`、`jwks`、`oauth_connections` | 外部客户端、授权资源、用户同意、令牌更新、签名密钥与稳定连接 |
 | 身体，6 张 | `measurements`、`measurement_days`、`measurement_sources`、`measurement_imports`、`measurement_operations`、`measurement_events` | 测量事实、日期／提醒、来源建议、批次、审核与变更记录 |
 | 饮食与图片，8 张 | `foods`、`meals`、`meal_items`、`meal_imports`、`meal_operations`、`meal_events`、`meal_images`、`meal_image_links` | 食材、餐次、餐项、导入、审核、变更与图片元数据／关联 |
-| 消耗与活动，6 张 | `energy_profiles`、`energy_days`、`activities`、`energy_operations`、`energy_events`、`energy_defaults` | 按日期生效的资料、日录入、活动、预览和变更审计 |
+| 消耗与活动，6 张 | `energy_profiles`、`energy_days`、`activities`、`energy_operations`、`energy_events`、`energy_defaults` | 按日期生效的资料、显式模式日录入、活动、预览和审计；energy_defaults仅留退役存储 |
 | 统一审核，1 张 | `record_operations` | 一次混合请求、人工草稿、身体／饮食／消耗子操作关联和审核版本 |
 
 `drizzle.__drizzle_migrations` 是迁移工具的执行账本，不计入上述 36 张应用表。目标、训练计划和设备自动同步不在本轮实现范围。

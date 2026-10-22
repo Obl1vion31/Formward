@@ -18,3 +18,21 @@
 @media(max-width:600px) { .summary { gap:12px; }.summary strong { font-size:23px; }.fields { grid-template-columns:1fr; gap:14px; }.toolbar { gap:5px 18px; }.toolbar > :last-child { margin-left:0; }.title { align-items:flex-start; gap:6px; }.ranges { gap:0; }.readout { gap:12px 20px; }.readout time { width:100%; }.row { gap:10px 16px; }.row .actions { width:100%; }.custom label { flex:1; min-width:120px; } }
 @media(prefers-reduced-motion:reduce) { .workspace * { scroll-behavior:auto; } }
 @media(max-width:600px) { .summary strong small { display:block; margin:4px 0 0; } }
+.sourceLine { display:flex; gap:6px 20px; flex-wrap:wrap; color:#b4afa5; font-size:12px; margin-top:8px; }
+.editorTop,.editorTotal { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin:16px 0 24px; }
+.editorTop > label { max-width:220px; }
+.modeSwitch { display:flex; flex-wrap:wrap; padding:3px; border-radius:8px; background:#23272b; gap:3px; }
+.form .modeSwitch button { min-height:36px; padding:7px 12px; border:0; border-radius:5px; color:#b7b1a5; }
+.form .modeSwitch button[aria-pressed=true] { background:#e8e2d8; color:#202428; }
+.editorSection + .editorSection { border-top:1px solid rgba(240,233,221,.12); padding-top:20px; margin-top:22px; }
+.editorSection h3 { margin:0; font-size:14px; font-weight:500; }
+.activityDraft { padding:16px 0; border-bottom:1px solid rgba(240,233,221,.12); }
+.activityDraft h4 { margin:0; font-size:13px; font-weight:400; }
+.editorTotal { border-top:1px solid rgba(240,233,221,.16); padding-top:22px; margin-top:24px; }
+.editorTotal strong { font-size:28px; font-weight:400; font-variant-numeric:tabular-nums; }
+.editorTotal small { font-size:11px; color:#a8a195; margin-left:6px; }
+.editorTotal > span small { display:block; margin:5px 0 0; }
+.form [hidden] { display:none!important; }
+.form input,.form select { background:#202327; border:1px solid rgba(240,233,221,.17); border-radius:7px; padding:10px 12px; }
+.axis { font-size:11px; fill:#b4afa5; }
+@media(max-width:600px) { .form input,.form select { font-size:16px; }.form .modeSwitch button { min-height:44px; }.editorTop { align-items:flex-start; } }

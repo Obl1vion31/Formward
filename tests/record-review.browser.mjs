@@ -68,14 +68,14 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
     for (const days of [7, 30, 90]) {
       await page.getByRole("button", { name: `${days}D`, exact: true }).click();
       const chart = page.getByRole("group", { name: "摄入、消耗、盈余与次晨体重变化", exact: true });
-      const values = await chart.locator(`[data-overview-date="${date}"]`).evaluate(group => {
-        const intake = group.querySelector('[data-series="intake"]'), expenditure = group.querySelector('[data-series="expenditure"]'), balance = group.querySelector('[data-series="balance"]');
+      const values = await chart.evaluate((group, date) => {
+        const intake = group.querySelector(`[data-overview-date="${date}"] [data-series="intake"]`), expenditure = group.querySelector(`[data-overview-date="${date}"] [data-series="expenditure"]`), balance = group.querySelector(`[data-overview-date="${date}"] [data-series="balance"]`);
         const n = (node, key) => Number(node.getAttribute(key));
-        const zero = n(group.closest("svg").querySelector("[data-overview-zero]"), "y1");
+        const zero = n(group.querySelector('[data-overview-panel="balance"] [data-overview-zero]'), "y1");
         return { intake: n(intake,"data-overview-value"), expenditure: n(expenditure,"data-overview-value"), balance: n(balance,"data-overview-value"), centers: [intake,expenditure,balance].map(node=>n(node,"x")+n(node,"width")/2), balanceTop:n(balance,"y"), balanceBottom:n(balance,"y")+n(balance,"height"), zero };
-      });
+      }, date);
       assert.equal(values.expenditure,2800); assert.equal(values.balance,values.intake-2800);
-      assert.ok(values.centers[0]<values.centers[1]&&values.centers[1]<values.centers[2]);
+      assert.ok(values.centers[0]<values.centers[1]);
       assert.ok(Math.abs((values.balance < 0 ? values.balanceTop : values.balanceBottom)-values.zero)<.01);
 
     }

@@ -13,7 +13,7 @@ const provenance = {
 };
 export const energyActionSchemas = [
   z.object({ kind: z.literal("save_energy_defaults"), ...identity, restingFrom: date, restingKcal: decimal.nullable(), zeroActivityFrom: date.nullable() }).strict(),
-  z.object({ kind: z.literal("save_energy_day"), ...identity, date, restingKcal: decimal.nullable().optional(), activeKcal: decimal.nullable().optional(), activeEstimated: z.boolean().optional(), notes: text(2000).nullable().optional(), totalKcal: decimal.nullable().optional(), ...provenance }).strict(),
+  z.object({ kind: z.literal("save_energy_day"), ...identity, date, entryMode: z.enum(["components", "total"]).optional(), activityMode: z.enum(["total", "activities"]).optional(), restingSourceSystem: text(200).nullable().optional(), activeSourceSystem: text(200).nullable().optional(), restingEstimated: z.boolean().optional(), restingKcal: decimal.nullable().optional(), activeKcal: decimal.nullable().optional(), activeEstimated: z.boolean().optional(), notes: text(2000).nullable().optional(), totalKcal: decimal.nullable().optional(), ...provenance }).strict(),
   z.object({ kind: z.literal("save_activity"), ...identity, date, name: text(200).min(1, "请填写活动名称。"), durationMinutes: decimal.nullable().optional(), caloriesKcal: decimal.nullable().optional(), completed: z.boolean().optional(), ...provenance }).strict(),
   z.object({ kind: z.literal("save_energy_profile"), ...identity, effectiveFrom: date, heightCm: decimal.refine(value => Number(value) > 0 && Number(value) <= 300, "身高须在 0–300 cm 之间。"), birthDate: date, sex: z.enum(["male", "female"]) }).strict(),
   ...(["delete_energy_defaults", "restore_energy_defaults", "delete_energy_day", "restore_energy_day", "delete_activity", "restore_activity", "delete_energy_profile", "restore_energy_profile"] as const).map(kind => z.object({ kind: z.literal(kind), id: z.string().uuid(), version: z.number().int().positive() }).strict()),
@@ -24,7 +24,7 @@ export const energyInputSchema = z.object({ operationId: z.string().regex(/^[a-z
 export type EnergyInput = z.infer<typeof energyInputSchema>;
 export type EnergyProvenance = { timezone: string; sourceSystem: string | null; sourceRecordId: string | null; sourceOccurredAt: string | null; sourceUnit: "kcal"; syncStatus: "confirmed" };
 type Versioned = { id: string; version: number; deletedAt: string | null };
-export type EnergyDayRecord = Versioned & EnergyProvenance & { date: string; restingKcal: string | null; activeKcal: string | null; totalKcal: string | null; activeEstimated?: boolean; notes?: string | null };
+export type EnergyDayRecord = Versioned & EnergyProvenance & { date: string; entryMode?: "components" | "total" | null; activityMode?: "total" | "activities" | null; restingSourceSystem?: string | null; activeSourceSystem?: string | null; restingEstimated?: boolean; restingKcal: string | null; activeKcal: string | null; totalKcal: string | null; activeEstimated?: boolean; notes?: string | null };
 export type ActivityRecord = Versioned & EnergyProvenance & { date: string; name: string; durationMinutes: string | null; caloriesKcal: string | null; completed: boolean };
 export type EnergyProfile = Versioned & { effectiveFrom: string; heightCm: string; birthDate: string; sex: "male" | "female" };
 export type EnergyDefaults = Versioned & { restingFrom: string; restingKcal: string | null; zeroActivityFrom: string | null };
@@ -66,22 +66,24 @@ export function restingEstimate(date: string, profiles: EnergyProfile[], records
   return { value: amount(calculated), basis: { method: "mifflin-st-jeor", profileId: profile.id, profileVersion: profile.version, heightCm: profile.heightCm, age, sex: profile.sex, weightKg: weight.weightKg, weightDate: weight.recordDate, weightId: weight.id, weightEstimated: weight.recordKind === "estimated", carried } };
 }
 
-/** 仅派生查询，不写体重估计；用户录入的活动数字原样相加。 */
+export function energyModes(record?: Pick<EnergyDayRecord, "entryMode" | "activityMode" | "totalKcal" | "activeKcal"> | null) {
+  return { entryMode: record?.entryMode ?? (record?.totalKcal != null ? "total" : "components"), activityMode: record?.activityMode ?? (record?.activeKcal != null ? "total" : "activities") } as const;
+}
+export const blankEnergyDay = (date: string): EnergyDay => ({ date, record: null, activities: [], restingKcal: null, activeKcal: null, totalKcal: null, restingBasis: null, restingSource: null, activeSource: null, totalSource: null, estimated: false });
+/** 每日正式记录的派生读数。公式仅供独立对照，退役默认规则不参与取值。 */
 export function energyDays(snapshot: EnergySnapshot, records: MeasurementDisplay[], dates: string[]): EnergyDay[] {
+  void records;
   return dates.map(date => {
     const record = snapshot.days.find(day => day.date === date && !day.deletedAt) ?? null;
     const activities = snapshot.activities.filter(activity => activity.date === date && !activity.deletedAt && activity.completed);
-    const defaults = snapshot.defaults?.find(record => !record.deletedAt);
-    const average = defaults && date >= defaults.restingFrom ? defaults.restingKcal : null;
-    const estimate = record?.restingKcal != null || average != null ? null : restingEstimate(date, snapshot.profiles, records);
-    const restingKcal = record?.restingKcal ?? average ?? estimate?.value ?? null;
-    const restingSource = record?.restingKcal != null ? "record" : average != null ? "average" : estimate ? "formula" : null;
+    const modes = energyModes(record), onlyTotal = modes.entryMode === "total";
+    const restingKcal = onlyTotal ? null : record?.restingKcal ?? null;
+    const restingSource = restingKcal != null ? "record" as const : null;
     const activityKnown = activities.length > 0 && activities.every(activity => activity.caloriesKcal !== null);
-    // 零值仅来自用户明确启用的日期规则；已有未知热量活动仍保持未知。
-    const defaultZero = !!defaults?.zeroActivityFrom && date >= defaults.zeroActivityFrom && activities.length === 0;
-    const activeKcal = record?.activeKcal ?? (activityKnown ? amount(activities.reduce((sum, activity) => sum + Number(activity.caloriesKcal), 0)) : defaultZero ? "0.0000" : null);
-    const totalKcal = record?.totalKcal ?? (restingKcal !== null && activeKcal !== null ? amount(Number(restingKcal) + Number(activeKcal)) : null);
-    return { date, record, activities, restingKcal, activeKcal, totalKcal, restingBasis: estimate?.basis ?? null, restingSource, totalSource: record?.totalKcal != null ? "override" : totalKcal !== null ? "sum" : null, activeSource: record?.activeKcal != null ? "override" : activityKnown ? "activities" : defaultZero ? "default-zero" : null, estimated: record?.totalKcal == null && totalKcal !== null && (!!estimate || restingSource === "average" || record?.activeKcal != null && record.activeEstimated === true) };
+    const detailSum = activityKnown || record?.activityMode === "activities" && activities.length === 0 ? amount(activities.reduce((sum, activity) => sum + Number(activity.caloriesKcal), 0)) : null;
+    const activeKcal = onlyTotal ? null : modes.activityMode === "total" ? record?.activeKcal ?? null : detailSum;
+    const totalKcal = onlyTotal ? record?.totalKcal ?? null : restingKcal !== null && activeKcal !== null ? amount(Number(restingKcal) + Number(activeKcal)) : null;
+    return { date, record, activities, restingKcal, activeKcal, totalKcal, restingBasis: null, restingSource, totalSource: totalKcal === null ? null : onlyTotal ? "override" : "sum", activeSource: activeKcal === null ? null : modes.activityMode === "total" ? "override" : "activities", estimated: !onlyTotal && totalKcal !== null && (record?.restingEstimated === true || modes.activityMode === "total" && record?.activeEstimated === true) };
   });
 }
 export const energyValue = (value: string | number | null | undefined) => value == null ? "—" : Number(value).toLocaleString("zh-CN", { maximumFractionDigits: 0 });

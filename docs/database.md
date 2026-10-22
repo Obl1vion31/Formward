@@ -625,18 +625,32 @@ meal_operations.payload／draft保存可选expectedImageCount，preview中的mis
 | 表 | 专有字段 | 约束与语义 |
 | --- | --- | --- |
 | energy_profiles | effective_from date非空；height_cm numeric(7,4)非空；birth_date date非空；sex text非空 | 有效账号／生效日唯一；身高(0,300]，male／female，出生早于生效。成人年龄由feature校验；不复制身体记录 |
-| energy_days | local_date date非空；resting_kcal／active_kcal／total_kcal numeric(14,4)可空 | 有效账号／日期唯一；数值非负。total覆盖最终总量，active覆盖明细，空值保留未知 |
+| energy_days | local_date date非空；resting_kcal／active_kcal／total_kcal numeric(14,4)可空 | 有效账号／日期唯一；数值非负。entry_mode决定分项或总数，activity_mode决定合计或明细；旧行模式为空时兼容原优先级，空值保留未知 |
 | activities | local_date date非空；name text非空；duration_minutes／calories_kcal numeric(14,4)可空；completed boolean非空默认true | 名称非空、数值非负；按账号／日期索引；有效来源系统＋来源记录编号按账号唯一。只有有效完成项汇总 |
 
 `energy_operations`字段：`id text PK`、`user_id text FK`、`operation_id text`、`origin text`、可空`token_id text FK`／`oauth_connection_id text FK`、`request_digest text`／`snapshot_digest text`、`payload jsonb`／`draft jsonb`／`preview jsonb`、`revision integer DEFAULT 1`、`status text DEFAULT pending`、可空`expires_at timestamptz`／`confirmed_at timestamptz`、`created_at timestamptz DEFAULT now`。除已注明可空列均非空。账号／请求编号与账号／ID唯一；origin为manual或ai，AI恰有一个凭据，人工无凭据；状态pending／confirmed／cancelled，revision正数。payload不可变，draft独立；AI15分钟到期。actor凭据和请求内容共同绑定幂等。
 
 `energy_events`字段：`id text PK`、`user_id text FK`、`operation_id text`、`record_id text`、`record_type text`、`actor_type text`、`actor_id text`、`confirmed_by text FK users`、`snapshot jsonb`、`created_at timestamptz DEFAULT now`，均非空。账号／操作组合外键指向energy_operations，账号／record_id索引。snapshot包含originalInput、最终action、before、after；保存来源、操作者、确认者和时间，事实与审计同一事务。删除保留事实和事件，恢复递增版本，不提供物理删除接口。
 
-最终消耗与公式依据由`energyDays`派生，未建另一份每日合计表。读写关系与数值示例见[热量消耗](energy.md)。
+最终消耗由`energyDays`派生，公式独立由`restingEstimate`计算，未建另一份每日合计表。读写关系与数值示例见[热量消耗](energy.md)。
 
 
 ## 日常消耗默认值
 
-`energy_defaults`使用消耗身份公共字段id、user_id、version、deleted_at、created_at、updated_at。专有字段为`resting_from date NOT NULL`、`resting_kcal numeric(14,4) NULL`、`zero_activity_from date NULL`；有效user_id唯一，静息非负，版本正数。账号自行启用，默认空表；读取不生成每日事实。保存／软删除／恢复同样记录到energy_operations／energy_events。
+`energy_defaults`使用消耗身份公共字段id、user_id、version、deleted_at、created_at、updated_at。专有字段为`resting_from date NOT NULL`、`resting_kcal numeric(14,4) NULL`、`zero_activity_from date NULL`；有效user_id唯一，静息非负，版本正数。该表仅保留退役规则及其历史审计，不再参与消耗取值，不接受新增／删除／恢复。旧审核必须刷新并取消退役项。
 
 `energy_days.active_estimated boolean NOT NULL DEFAULT false`标记活动合计估算；`notes text NULL`保存初始化依据等备注。0020仅新增上述结构，既有字段和值保持，不批量修改历史或其他账号。数值、日期范围和有效性见[消耗规则](energy.md)。
+
+## 显式消耗模式字段
+
+0021为energy_days新增下列字段，36张应用表原字段和值保持，不批量补零或修改其他账号。
+
+| 字段 | 类型与约束 | 用途 |
+| --- | --- | --- |
+| entry_mode | text NULL；components／total | 分项合计或只记总数；新保存显式写入，旧行null兼容原覆盖口径 |
+| activity_mode | text NULL；total／activities | 直接活动合计或完成运动累计，隐藏旧数值不参与 |
+| resting_source_system | text NULL | 静息来源，旧记录可回退显示原共享来源 |
+| active_source_system | text NULL | 活动合计来源，与静息独立 |
+| resting_estimated | boolean NOT NULL DEFAULT false | 内部静息估算标识，初始化平均值不伪装为逐日实测 |
+
+模式CHECK只接受列出的值或旧行null；新请求不自动注入schema默认值，避免改变旧请求摘要。活动／静息原值、停用模式中的旧值、估算备注和来源元数据保留，使用哪组数值由模式决定。正式写入、版本递增和事件仍在同一事务，旧消耗快照的规则版本变化要求重新预览。

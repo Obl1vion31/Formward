@@ -8,6 +8,7 @@ import { localMeasurementDate } from "@/features/measurements/entry-state";
 import { systemMeasurementTimezone } from "@/features/measurements/timezone";
 import { readMealSnapshot } from "@/features/meals/records";
 import { readEnergySnapshot } from "@/features/activities/records";
+import { overviewPresentation } from "@/features/dashboard/presentation";
 import { OverviewView } from "@/features/dashboard/overview-view";
 import { RouteLoading } from "@/components/page-loading";
 import { DashboardHeader } from "./header";
@@ -19,5 +20,5 @@ export default async function DashboardPage() {
 async function Content({ user }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>> }) {
  const db=getDatabase(), records=await listMeasurements(db,user.id), snapshot=await readMealSnapshot(db,user.id),energy=await readEnergySnapshot(db,user.id);
  const today=localMeasurementDate(new Date(),systemMeasurementTimezone(new Date(),process.env.FORMWARD_TIMEZONE));
- return <main className="dashboard-page"><DashboardHeader email={user.email}/><OverviewView records={records.map(measurementDisplay)} meals={snapshot.meals} energy={energy} today={today}/></main>;
+ return <main className="dashboard-page"><DashboardHeader email={user.email}/><OverviewView presentation={overviewPresentation(snapshot.meals, records.map(measurementDisplay), energy, today)}/></main>;
 }

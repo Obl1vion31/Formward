@@ -152,4 +152,4 @@ MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation
 
 消耗查询为GET /api/v1/energy与MCP query_energy，统一提交支持每日消耗、活动及公式资料的保存／软删除／恢复。OAuth独立energy:read／energy:write，旧连接须重新授权；手动令牌沿用read／write。规则、字段及虚构例子见[消耗文档](energy.md)。
 
-消耗的`save_energy_defaults`按账号保存平均静息与默认零日期，日记录`activeEstimated`／`notes`保存初始化估算及依据；接口返回defaults。没有明确启用规则的账号继续保留未知，已有未知热量明细不补零。公式资料与实际采用值可在网页单独对照，规则见[消耗](energy.md)。
+消耗采用entryMode（components／total）与activityMode（total／activities）显式选择，静息与活动分别使用restingSourceSystem／activeSourceSystem；总数来源仍用sourceSystem。旧无模式请求兼容原口径，估算及notes内部保留。save_energy_defaults及删除／恢复已退役，旧预览必须刷新并取消退役项，不能借旧链接写入。查询不返回defaults，不给未录日期自动生成消耗；公式通过独立formula返回，不参与每日总数。详细字段、未知／零与虚构例子见[消耗](energy.md)。

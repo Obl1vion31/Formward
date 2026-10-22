@@ -6,6 +6,11 @@ import { getDatabase } from "@/db/client";
 import { submitEnergyOperation, decideEnergyOperation, readEnergySnapshot } from "@/features/activities/records";
 import type { EnergyInput } from "@/features/activities/model";
 import { safeAiError } from "@/features/measurements/ai-api";
+import { energyPresentation } from "@/features/activities/presentation";
+import { listMeasurements } from "@/features/measurements/records";
+import { measurementDisplay } from "@/features/measurements/editing";
+import { localMeasurementDate } from "@/features/measurements/entry-state";
+import { systemMeasurementTimezone } from "@/features/measurements/timezone";
 export async function saveEnergyAction(input: EnergyInput) {
   const user = await currentUser(await headers());
   if (!user) return { ok: false as const, error: "登录已失效，请重新登录。" };
@@ -15,6 +20,7 @@ export async function saveEnergyAction(input: EnergyInput) {
     await decideEnergyOperation(db, user.id, operation.id, operation.revision, "confirm");
     const snapshot = await readEnergySnapshot(db, user.id);
     revalidatePath("/dashboard/energy"); revalidatePath("/dashboard"); revalidatePath("/dashboard/ai", "layout");
-    return { ok: true as const, data: { snapshot, message: "已保存。" } };
+    const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
+    return { ok: true as const, data: { presentation: energyPresentation(snapshot, (await listMeasurements(db, user.id)).map(measurementDisplay), today), message: "已保存。" } };
   } catch (error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }

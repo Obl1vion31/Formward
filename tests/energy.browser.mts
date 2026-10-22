@@ -35,7 +35,10 @@ try {
   const context = await (browser as Awaited<ReturnType<typeof chromium.launch>>).newContext({ locale: "zh-CN", timezoneId: "Asia/Shanghai", viewport: { width: 1440, height: 1000 } });
   assert.equal((await context.request.post(`${baseURL}/api/auth/sign-in/email`, { headers: { Origin: baseURL }, data: account })).status(), 200);
   const page = await context.newPage(), errors: string[] = []; page.on("pageerror", (error: Error) => errors.push(error.message));
-  try { await checkEnergy({ baseURL, context, page, token: token.rawToken, today }); assert.deepEqual(errors, []); }
+  try { await checkEnergy({ baseURL, context, page, token: token.rawToken, today });
+    const touch = await (browser as Awaited<ReturnType<typeof chromium.launch>>).newContext({ locale: "zh-CN", timezoneId: "Asia/Shanghai", viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, storageState: await context.storageState() });
+    try { const touchPage = await touch.newPage(); touchPage.on("pageerror", (error: Error) => errors.push(error.message)); await touchPage.goto(`${baseURL}/dashboard`); await touchPage.locator(`[data-overview-panel="balance"] [data-overview-date="${today}"]`).tap(); await touchPage.locator("dialog[aria-labelledby]").waitFor(); await touchPage.getByRole("button", { name: "关闭编辑", exact: true }).click(); assert.equal(await touchPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); } finally { await touch.close(); }
+    assert.deepEqual(errors, []); }
   catch (error) { await page.screenshot({ path: "/tmp/formward-energy-visual/failure.png", fullPage: true }); await writeFile("/tmp/formward-energy-visual/failure.html", await page.content()); throw error; }
   await context.close();
 } catch (error) { await writeFile("/tmp/formward-energy-visual/server.log", logs); throw error; }

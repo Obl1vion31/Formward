@@ -9,29 +9,29 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
   const dialog = () => page.locator("dialog[aria-labelledby]");
   const save = async () => { await dialog().getByRole("button", { name: "保存", exact: true }).click(); await dialog().waitFor({ state: "hidden" }); };
   const edit = async fields => { await page.getByRole("button", { name: "记录当天", exact: true }).click(); for (const [label, value] of Object.entries(fields)) await dialog().getByRole("spinbutton", { name: label, exact: true }).fill(value); await save(); };
+  assert.equal(await page.getByRole("button", { name: "日常默认值", exact: true }).count(), 0);
   await edit({ "静息 · kcal": "2000", "活动合计 · kcal": "800" }); assert.match((await summary.innerText()).replaceAll(",", ""), /2800/);
-  await page.getByRole("button", { name: "添加活动", exact: true }).first().click(); await dialog().getByLabel("活动名称", { exact: true }).fill("虚构跑步"); await dialog().getByLabel("活动热量 · kcal", { exact: true }).fill("800"); await dialog().getByLabel("时长 · 分钟", { exact: true }).fill("60"); await save(); assert.match((await summary.innerText()).replaceAll(",", ""), /2800/);
-  await edit({ "活动合计 · kcal": "", "全天总消耗 · kcal": "3100" }); assert.match((await summary.innerText()).replaceAll(",", ""), /3100/);
-  await edit({ "全天总消耗 · kcal": "" }); assert.match((await summary.innerText()).replaceAll(",", ""), /2800/);
+  await page.getByRole("button", { name: "记录当天", exact: true }).click();
+  assert.equal(await dialog().getByLabel("来源记录编号", { exact: true }).count(), 0);
+  await dialog().getByLabel("静息来源", { exact: true }).fill("虚构静息设备"); await dialog().getByLabel("活动来源", { exact: true }).fill("虚构活动设备");
+  await dialog().getByRole("button", { name: "只记总数", exact: true }).click();
+  assert.equal(await dialog().getByLabel("静息 · kcal", { exact: true }).isVisible(), false);
+  await dialog().getByLabel("全天总消耗 · kcal", { exact: true }).fill("3100"); await save(); assert.match((await summary.innerText()).replaceAll(",", ""), /3100/);
+  await page.getByRole("button", { name: "记录当天", exact: true }).click(); await dialog().getByRole("button", { name: "分开记录", exact: true }).click();
+  assert.equal(await dialog().getByLabel("全天总消耗 · kcal", { exact: true }).isVisible(), false);
+  await dialog().getByRole("button", { name: "按运动累计", exact: true }).click(); await dialog().getByRole("button", { name: "＋ 添加运动", exact: true }).click();
+  await dialog().getByLabel("运动名称 1", { exact: true }).fill("虚构跑步"); await dialog().getByLabel("运动热量 · kcal 1", { exact: true }).fill("800"); await dialog().getByLabel("运动时长 · 分钟 1", { exact: true }).fill("60"); await dialog().getByLabel("运动来源 1", { exact: true }).fill("虚构运动设备"); await save(); assert.match((await summary.innerText()).replaceAll(",", ""), /2800/);
   const todayRow = page.locator(`[data-energy-day="${today}"]`); await todayRow.locator("summary").click(); await todayRow.getByRole("button", { name: "编辑活动", exact: true }).click(); await dialog().getByLabel("活动热量 · kcal", { exact: true }).fill("850"); await save(); assert.match((await summary.innerText()).replaceAll(",", ""), /2850/);
-  await todayRow.getByRole("button", { name: "删除活动", exact: true }).click(); await page.getByText("最近删除 · 1", { exact: true }).waitFor(); assert.match((await summary.innerText()).replaceAll(",", ""), /总消耗\s*—/);
+  await todayRow.getByRole("button", { name: "删除活动", exact: true }).click(); await page.getByText("最近删除 · 1", { exact: true }).waitFor(); assert.match((await summary.innerText()).replaceAll(",", ""), /2000/);
   await page.getByText("最近删除 · 1", { exact: true }).click(); await page.getByRole("button", { name: "恢复", exact: true }).click(); await page.getByText("最近删除 · 1", { exact: true }).waitFor({ state: "hidden" }); assert.match((await summary.innerText()).replaceAll(",", ""), /2850/);
-  await edit({ "静息 · kcal": "", "活动合计 · kcal": "0" }); assert.match((await summary.innerText()).replaceAll(",", ""), /总消耗\s*—/);
-  await page.getByRole("button", { name: "公式资料", exact: true }).click(); await dialog().getByLabel("身高", { exact: true }).fill("175"); await dialog().getByLabel("出生日期", { exact: true }).fill("1994-08-01"); await dialog().getByLabel("公式性别参数", { exact: true }).selectOption("male"); await save(); assert.match((await summary.innerText()).replaceAll(",", ""), /估计/); assert.doesNotMatch((await summary.innerText()).replaceAll(",", ""), /总消耗\s*—/);
+  await page.getByRole("button", { name: "记录当天", exact: true }).click(); await dialog().getByRole("button", { name: "记合计", exact: true }).click(); await dialog().getByLabel("静息 · kcal", { exact: true }).fill(""); await dialog().getByLabel("活动合计 · kcal", { exact: true }).fill("0"); await save(); assert.match((await summary.innerText()).replaceAll(",", ""), /总消耗\s*—/);
+  await page.getByRole("button", { name: "公式资料", exact: true }).click(); await dialog().getByLabel("身高", { exact: true }).fill("175"); await dialog().getByLabel("出生日期", { exact: true }).fill("1994-08-01"); await dialog().getByLabel("公式性别参数", { exact: true }).selectOption("male"); await save(); assert.match((await summary.innerText()).replaceAll(",", ""), /总消耗\s*—/);
+  await page.getByText("静息公式对照", { exact: true }).click(); assert.match(await page.getByText(/公式估算.*kcal／天/).innerText(), /175 cm/);
+  assert.doesNotMatch(await page.locator("main").innerText(), /当前采用|来源与依据|活动合计为估算/);
   await page.getByText("公式资料与历史", { exact: true }).click(); await page.getByRole("button", { name: "编辑资料", exact: true }).click(); await dialog().getByLabel("生效日期", { exact: true }).fill(previous(today, -1));
   let historicalConfirmation = false; page.once("dialog", async prompt => { historicalConfirmation = true; assert.match(prompt.message(), /生效/); await prompt.accept(); }); await save(); assert.ok(historicalConfirmation);
   await edit({ "静息 · kcal": "2000", "活动合计 · kcal": "800" });
-  const result = await api(); assert.equal(Number(result.days[0].totalKcal), 2800);
-  // 默认值按账号保存；不用为每天建立虚构的零活动明细。
-  await page.getByRole("button", { name: "日常默认值", exact: true }).click();
-  await dialog().getByLabel("平均静息生效日期", { exact: true }).fill(previous(today, -60)); await dialog().getByLabel("平均静息 · kcal", { exact: true }).fill("2100");
-  page.once("dialog", prompt => prompt.accept()); await save();
-  await edit({ "静息 · kcal": "", "活动合计 · kcal": "" });
-  await todayRow.locator("summary").click(); await todayRow.getByRole("button", { name: "删除活动", exact: true }).click();
-  await page.getByRole("status").filter({ hasText: "已保存" }).waitFor(); assert.match((await summary.innerText()).replaceAll(",", ""), /总消耗\s*2100/); assert.match((await summary.innerText()).replaceAll(",", ""), /活动\s*0/);
-  await page.getByText("静息公式对照", { exact: true }).click(); assert.match(await page.getByText(/公式估算.*kcal／天/).innerText(), /175 cm/);
-  await page.getByRole("button", { name: "记录当天", exact: true }).click(); await dialog().getByLabel("活动合计 · kcal", { exact: true }).fill("200"); await dialog().getByLabel("活动合计为估算", { exact: true }).check(); await dialog().getByLabel("备注", { exact: true }).fill("虚构初始化估算"); await save();
-  assert.match(await todayRow.innerText(), /活动估计/);
+  const result = await api(); assert.equal(Number(result.days[0].totalKcal), 2800); assert.equal(result.defaults, undefined); assert.equal(result.records[0].restingSourceSystem, "虚构静息设备"); assert.equal(result.records[0].activeSourceSystem, "虚构活动设备");
   // 同一份请求同时预览身体、饮食和消耗，确认之前不改变事实。
   const old = previous(today, -40), next = previous(today, -39);
   const payload = { operationId: randomUUID(), items: [
@@ -46,14 +46,25 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
   await page.goto(operation.confirmationUrl ?? `${baseURL}/dashboard/ai/operations/${operation.id}`); await page.getByRole("button", { name: /保存/ }).last().click(); await page.waitForURL(`${baseURL}/dashboard`);
   const chart = page.getByRole("group", { name: "摄入、消耗、盈余与次晨体重变化", exact: true }); await chart.waitFor();
   await page.getByRole("button", { name: "全部", exact: true }).click();
-  const positive = chart.locator(`[data-overview-date="${old}"]`), negative = chart.locator(`[data-overview-date="${next}"]`);
-  assert.deepEqual(await positive.locator("[data-series]").evaluateAll(nodes => nodes.map(node => node.getAttribute("data-series"))), ["intake", "expenditure", "balance", "weight-change"]);
+  const balancePanel = chart.locator('[data-overview-panel="balance"]'), weightPanel = chart.locator('[data-overview-panel="weight"]');
+  const positive = balancePanel.locator(`[data-overview-date="${old}"]`), negative = balancePanel.locator(`[data-overview-date="${next}"]`);
+  assert.equal(await chart.locator("[data-overview-panel]").count(), 3);
+  assert.deepEqual(await chart.locator(`[data-overview-date="${old}"] [data-series]`).evaluateAll(nodes => nodes.map(node => node.getAttribute("data-series"))), ["intake", "expenditure", "balance", "weight-change"]);
   assert.equal(await positive.locator('[data-series="balance"]').getAttribute("data-overview-value"), "200"); assert.equal(await negative.locator('[data-series="balance"]').getAttribute("data-overview-value"), "-1000");
-  assert.equal(await positive.locator('[data-series="weight-change"]').getAttribute("data-overview-value"), "-0.25"); assert.equal(await negative.locator('[data-series="weight-change"]').count(), 0);
-  const baseline = Number(await chart.locator("[data-overview-zero]").getAttribute("y1")); assert.ok(Number(await positive.locator('[data-series="balance"]').getAttribute("y")) < baseline); assert.equal(Number(await negative.locator('[data-series="balance"]').getAttribute("y")), baseline);
+  assert.equal(await weightPanel.locator(`[data-overview-date="${old}"] [data-series="weight-change"]`).getAttribute("data-overview-value"), "-0.25"); assert.equal(await weightPanel.locator(`[data-overview-date="${next}"] [data-series="weight-change"]`).count(), 0);
+  const baseline = Number(await balancePanel.locator("[data-overview-zero]").getAttribute("y1")); assert.ok(Number(await positive.locator('[data-series="balance"]').getAttribute("y")) < baseline); assert.equal(Number(await negative.locator('[data-series="balance"]').getAttribute("y")), baseline);
   await positive.focus(); await page.keyboard.press("ArrowRight"); assert.equal(await negative.evaluate(node => node === document.activeElement), true); await page.keyboard.press("Enter"); await dialog().getByText("总消耗 2,800 kcal", { exact: true }).waitFor(); await page.keyboard.press("Escape");
-  for (const width of [1440, 1100, 390, 320]) { await page.setViewportSize({ width, height: width < 500 ? 844 : 1000 }); await page.getByRole("button", { name: "7D", exact: true }).click(); await page.waitForTimeout(300); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); assert.doesNotMatch(await page.locator("main").innerText(), /共用零点|以.*为基准|当天已记录摄入|预算未设置/); await page.screenshot({ path: `/tmp/formward-energy-visual/overview-${width}.png`, fullPage: true });
+  for (const width of [1440, 1100, 390, 320]) { await page.setViewportSize({ width, height: width < 500 ? 844 : 1000 }); await page.getByRole("button", { name: "7D", exact: true }).click(); await page.waitForTimeout(300); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); assert.doesNotMatch(await page.locator("main").innerText(), /共用零点|以.*为基准|当天已记录摄入|预算未设置|当前采用|来源与依据|活动合计为估算|日常默认值/); await page.screenshot({ path: `/tmp/formward-energy-visual/overview-${width}.png`, fullPage: true });
     await page.getByRole("link", { name: "消耗记录", exact: true }).first().click(); await summary.waitFor(); await page.getByRole("group", { name: "每日消耗柱状图", exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(550); assert.equal(await summary.locator("strong").evaluateAll(nodes => nodes.every(node => node.getBoundingClientRect().right <= node.parentElement.getBoundingClientRect().right + 1)), true); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); await page.screenshot({ path: `/tmp/formward-energy-visual/energy-${width}.png`, fullPage: true }); await page.getByRole("link", { name: "← 总览", exact: true }).first().click(); await chart.waitFor(); }
+  for (const range of ["30D", "90D", "全部", "自定义"]) {
+    await page.getByRole("button", { name: range, exact: true }).click();
+    if (range === "自定义") { await page.getByLabel("总览开始日期", { exact: true }).fill(old); await page.getByLabel("总览结束日期", { exact: true }).fill(next); }
+    assert.equal(await chart.locator("[data-overview-panel]").count(), 3);
+    for (const panel of await chart.locator("[data-overview-panel]").all()) {
+      const ticks = await panel.evaluate(node => Array.from(node.querySelectorAll("svg > g > line")).map(line => Number(line.parentElement.textContent)));
+      assert.ok(ticks.includes(0)); if (ticks.length > 2) { const step = ticks[1] - ticks[0]; assert.ok(ticks.slice(1).every((value, index) => Math.abs(value - ticks[index] - step) < 1e-8)); }
+    }
+  }
   await page.emulateMedia({ reducedMotion: "reduce" }); await page.getByRole("button", { name: "90D", exact: true }).click(); await page.waitForTimeout(100); assert.equal(await chart.evaluate(node => node.getAnimations({ subtree: true }).filter(animation => animation.playState === "running").length), 0);
   console.log("消耗录入、优先级、明细编辑、删除恢复、公式历史确认、混合AI审核、正负盈余、相邻晨重、键盘、四种宽度与减少动态效果通过");
 }
