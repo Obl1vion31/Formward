@@ -46,7 +46,10 @@
 @media(max-width:700px),(hover:none) and (pointer:coarse) {
  .workspace { padding-top:8px; }.heading { min-height:34px; }
  .section { margin-top:14px; }.readout { margin-block:8px; padding-block:10px; }
- .readout strong { font-size:23px; }.historyDate { flex-wrap:wrap; gap:4px; }
+ .readout { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px 6px; }
+ .plot { margin-top:6px; }.sourceLine { margin-top:6px; }
+ .readout time { grid-column:1/-1; }.readout > div { min-width:0; }
+ .readout strong { font-size:clamp(19px,5.7vw,24px); white-space:nowrap; }.readout strong small { font-size:10px; margin-left:3px; }.historyDate { flex-wrap:wrap; gap:4px; }
 }
 
 @media(max-width:700px),(hover:none) and (pointer:coarse) {

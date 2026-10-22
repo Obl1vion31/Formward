@@ -57,7 +57,9 @@ export async function checkMobile({baseURL,context,page,today,token}) {
         const readout=await page.getByRole("group",{name:"选中日消耗",exact:true}).boundingBox();
         const plot=await page.getByRole("group",{name:"每日消耗柱状图",exact:true}).boundingBox();
         assert.ok(readout.y+readout.height<height-56);
-        assert.ok(plot.y<height-100);
+        assert.ok(plot.y+plot.height*.8<height-56, JSON.stringify({width,height,plot}));
+        const valueTops=await page.getByRole("group",{name:"选中日消耗",exact:true}).locator(":scope > div").evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().top));
+        assert.ok(Math.max(...valueTops)-Math.min(...valueTops)<1);
       }
       await page.screenshot({path:`${artifacts}/${label}-${width}x${height}.png`,fullPage:true});
       await page.screenshot({path:`${artifacts}/${label}-viewport-${width}x${height}.png`});
