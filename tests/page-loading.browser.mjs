@@ -195,7 +195,7 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     } finally { await otherPage.close(); }
     await page.getByText("审核信息与刷新",{exact:true}).click();
     await slowAction("正在处理记录审核…", () => page.getByRole("button", { name: "刷新预览", exact: true }).click());
-    await slowAction("正在处理记录审核…", () => row.getByRole("button", { name: "确认本项", exact: true }).click());
+    await slowAction("正在处理记录审核…", () => row.getByRole("button", { name: "标记已核对", exact: true }).click());
     await slowAction("正在处理记录审核…", () => page.locator(`[data-review-key="${batch.items[1].id}"]`).getByRole("button", {name:"取消",exact:true}).click());
     await slowAction("正在处理记录审核…", () => page.getByRole("button", {name:"确认并全部保存",exact:true}).click());
     await page.getByRole("heading",{name:"已保存",exact:true}).waitFor(); await page.waitForURL(`${baseURL}/dashboard`);

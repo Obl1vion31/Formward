@@ -5,6 +5,7 @@ import { lockPageScroll } from "@/components/scroll-lock";
 import { usePageLoading } from "@/components/page-loading-state";
 import { useMobileMode } from "@/components/use-mobile-mode";
 import { dailyTotals, suggestedMealType, mealOperationStatus, emptyNutrition, formatNutrition, metricLabels, metrics, type FoodDraft, type MealAction,  type MealInput, type MacroMode, type MealOperationView, type MealSnapshot, type MealView, type Metric,  type Result, type Totals } from "./model";
+import { recentRecordDates, recordDateLabel } from "@/components/record-dates";
 import { useLocalToday } from "@/components/use-local-today";
 import { FoodDetails, FoodTable } from "./presets";
 import { ImageGallery, PhotoFields } from "./photos";
@@ -33,6 +34,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, pur
   const range=rangeChoice??(mobile?"7":"30"),[customFrom,setCustomFrom]=useState(""),[customTo,setCustomTo]=useState(today);
   const [editing,setEditing]=useState<MealAction|null>(null),[showDeleted,setShowDeleted]=useState(false),[foodQuery,setFoodQuery]=useState("");
   const [foodCategory,setFoodCategory]=useState("all"),[purgeTarget,setPurgeTarget]=useState<{id:string;version:number;recordType:"meal"|"food";name:string}|null>(null);
+  const [calendarDate,setCalendarDate]=useState("");
   const [macroMode,setMacroMode]=useState<MacroMode>("grams");
   const [viewingFood,setViewingFood]=useState<FoodDraft|null>(null);
   const [error,setError]=useState(""),[notice,setNotice]=useState(""),[pending,startTransition]=useTransition(),[busy,setBusy]=useState(false);
@@ -69,8 +71,12 @@ export function MealsView({ snapshot, today: initialToday, operations, save, pur
         {range==="custom"&&<div className={styles.toolbar}><label>开始<input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}/></label><label>结束<input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}/></label></div>}
         {validRange?<NutritionChart key={`${from}:${to}`} dates={dates} groups={groups} mode={macroMode} setMode={setMacroMode} select={date=>{setSelectedDate(date);setShowDeleted(false);setHistoryOpen(true);}}/>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}
         </section>
-      <div className={styles.tableHeading}><h2>今天的餐次</h2><button onClick={()=>{setSelectedDate(today);setShowDeleted(false);setHistoryOpen(true);}}>历史记录 →</button></div>
-      <MealList meals={chosen?.meals??[]} busy={busy} edit={editMeal} remove={m=>execute({kind:"delete_meal",id:m.id,version:m.version})}/>
+      <div className={styles.tableHeading}><h2>每日记录</h2><label className={styles.calendarPicker}>查看日期<input aria-label="饮食记录日期" type="date" max={today} value={calendarDate} onChange={event=>setCalendarDate(event.target.value)}/></label><button onClick={()=>{setSelectedDate(today);setShowDeleted(false);setHistoryOpen(true);}}>历史记录 →</button></div>
+      <div>{[...new Set([...recentRecordDates(today),...(calendarDate?[calendarDate]:[])])].sort().reverse().map(date=>{
+        const group=groups.find(day=>day.date===date);
+        return <section className={styles.calendarDay} key={date} data-meal-day={date}><div className={styles.calendarRow}><div><time dateTime={date}>{recordDateLabel(date,today)}</time><p>{group ? group.meals.length+" 餐" : "未记录"}</p></div><strong>{formatNutrition(group?.totals.values.caloriesKcal??null,"caloriesKcal")} <small>kcal{group?.totals.incomplete.caloriesKcal?" · 部分":""}</small></strong><button onClick={()=>addMeal(date)}>{group?"添加一餐":date<today?"补录":"录入"}</button></div>
+        {group && <details open={date===today||date===calendarDate}><summary>餐次详情</summary><MealList meals={group.meals} busy={busy} edit={editMeal} remove={meal=>execute({kind:"delete_meal",id:meal.id,version:meal.version})}/></details>}</section>;
+      })}</div>
     </>:<>
       <div className={styles.categoryTabs}>{[["all","全部"],["meal","整餐"],["ingredient","食材"]].map(([key,label])=><button key={key} aria-pressed={foodCategory===key} onClick={()=>setFoodCategory(key)}>{label}</button>)}</div><div className={styles.toolbar}><input aria-label="搜索食材" placeholder="搜索名称、品牌或做法" value={foodQuery} onChange={e=>setFoodQuery(e.target.value)}/><button className={styles.primary} onClick={()=>{setError("");setEditing({kind:"save_food",name:"",brand:null,preparation:null,baseQuantity:"1",unit:"份",nutrition:emptyNutrition(),sourceKind:"reference"});}}>添加食材 ＋</button></div>
       {visibleFoods.length ? <FoodTable foods={visibleFoods} details={setViewingFood} actions={f=><><button onClick={()=>{setError("");setEditing({kind:"save_food",...f});}}>编辑</button><button disabled={busy} onClick={()=>execute({kind:"delete_food",id:f.id,version:f.version})}>删除</button></>}/> : <p className={styles.hint}>还没有匹配的条目，可以添加食材或整餐。</p>}

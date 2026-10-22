@@ -1047,3 +1047,11 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 不必把所有文档顺着再读一遍。带着具体问题查对应主题，再回到本指南的流程定位它处于哪一步。
 
 **最后试着讲一遍**：浏览器打开饮食页，服务器怎么知道账号、从哪里取数、把什么交给组件；填写 A 和 B 时谁计算；点击保存后谁验证、哪些表变化、结果怎样回到屏幕。需要提示时，按第 4.2 → 4.3 → 4.4 → 6.1 节依次看。
+
+### 手机日期与审核展示从哪里来
+
+手机底部四栏和48px页头由 [DashboardHeader](../src/app/dashboard/header.tsx) 组成，颜色、菜单与安全区在 [全局样式](../src/app/globals.css)。确认页不挂四栏，只显示自己的保存栏。
+
+“昨天没录也能看到补录”来自 [record-dates.ts](../src/components/record-dates.ts)：它像在日历上列出最近10天，不向数据库增加空记录。饮食的 [MealsView](../src/features/meals/meals-view.tsx) 和消耗的 [EnergyView](../src/features/activities/energy-view.tsx) 再把真实数据对上日期。比如昨天只有活动，仍能补录日消耗；昨天完全空白也能打开标着昨天日期的表单。[RecordDateContext](../src/components/record-date-context.tsx) 在跨零点时提醒正在编辑原日期，保存不会自动变成新一天。
+
+确认页的“本餐960 kcal”从服务端已有的MealView.totals读取。[RecordReview](../src/features/records/record-review.tsx) 只组织字号和位置；它不会把未知当0，不另写一套营养算法。标记已核对只是草稿状态，底部统一保存才调用原有确认事务。总览默认日期也只是选择已有读数，不补造摄入或消耗。

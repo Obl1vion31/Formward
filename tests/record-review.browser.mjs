@@ -33,7 +33,7 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
   await dialog.getByRole("button", { name: "更新预览", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
   assert.ok((await row("morning").innerText()).includes("70.4kg"));
   assert.equal((await readBody()).find(record => record.id === morning?.id)?.weightKg, morning?.weightKg, "更新预览不写事实");
-  await row("morning").getByRole("button", { name: "确认本项", exact: true }).click(); await page.locator('[data-review-key="morning"][data-checked="true"]').waitFor();
+  await row("morning").getByRole("button", { name: "标记已核对", exact: true }).click(); await page.locator('[data-review-key="morning"][data-checked="true"]').waitFor();
   assert.equal((await readMeals()).length, beforeMeals);
   await stalePage.locator('[data-review-key="morning"]').getByRole("button", { name: "修改", exact: true }).click();
   const staleDialog = stalePage.getByRole("dialog", { name: "修改待保存内容", exact: true });
@@ -94,7 +94,7 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
   }
   if (images.length) {
     const updated = await post([{ ...savedMeal, key: "photo", kind: "save_meal", imageIds: [images[0]], expectedImageCount: 1, photoReview, items: savedMeal.items.map(item => ({ kind: "food", name: item.name, quantity: item.quantity, unit: item.unit, originalItemId: item.id, sourceKind: item.sourceKind })) , source: undefined, deletedAt: undefined, totals: undefined }].map(({ source, deletedAt, totals, ...rest }) => { void source; void deletedAt; void totals; return rest; }));
-    await page.goto(updated.confirmationUrl); await page.getByText("修改前图片", { exact: true }).waitFor(); await page.getByText("修改后图片", { exact: true }).waitFor();
+    await page.goto(updated.confirmationUrl); await page.getByText('照片变更',{exact:true}).click(); await page.getByText("修改前图片", { exact: true }).waitFor(); await page.getByText("修改后图片", { exact: true }).waitFor();
     await page.screenshot({ path: `${artifacts}/photo-comparison.png`, fullPage: true });
   }
   console.log("通过：混合审核、草稿编辑与核对、取消入库后保留摄入、统一事务保存与自动返回、消耗混合确认、两种比例切换、正负盈余与次晨对齐；1440／1100／390／320px。");

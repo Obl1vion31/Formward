@@ -14,6 +14,7 @@ import { createAiToken } from "../src/features/auth/ai-tokens";
 import { submitEnergyOperation, decideEnergyOperation } from "../src/features/activities/records";
 import { saveMeasurementDay } from "../src/features/measurements/editing";
 import { addCalendarDays } from "../src/features/measurements/calendar";
+import { checkMobile } from "./mobile-check.browser.mjs";
 import { checkEnergy } from "./energy-check.browser.mjs";
 async function freePort() { const server = createServer(); server.listen(0, "127.0.0.1"); await once(server, "listening"); const port = (server.address() as { port: number }).port; await new Promise<void>(resolve => server.close(() => resolve())); return port; }
 const pg = new PGlite(), db = drizzle(pg, { schema }), port = await freePort(), dbPort = await freePort(), baseURL = `http://127.0.0.1:${port}`;
@@ -36,7 +37,7 @@ try {
   assert.equal((await context.request.post(`${baseURL}/api/auth/sign-in/email`, { headers: { Origin: baseURL }, data: account })).status(), 200);
   const page = await context.newPage(), errors: string[] = []; page.on("pageerror", (error: Error) => errors.push(error.message));
   try { await checkEnergy({ baseURL, context, page, token: token.rawToken, today });
-    const touch = await (browser as Awaited<ReturnType<typeof chromium.launch>>).newContext({ locale: "zh-CN", timezoneId: "Asia/Shanghai", viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, storageState: await context.storageState() });
+    const touch = await (browser as Awaited<ReturnType<typeof chromium.launch>>).newContext({ locale: "zh-CN", timezoneId: "Asia/Shanghai", viewport: { width: 390, height: 640 }, hasTouch: true, isMobile: true, storageState: await context.storageState() });
     try { const touchPage = await touch.newPage(); touchPage.on("pageerror", (error: Error) => errors.push(error.message)); await touchPage.goto(`${baseURL}/dashboard`); await touchPage.locator(`[data-overview-date="${today}"]`).tap(); assert.equal(await touchPage.locator("dialog[aria-labelledby]").count(), 0); await touchPage.getByRole("button", { name: "查看记录 →", exact: true }).tap(); await touchPage.locator("dialog[aria-labelledby]").waitFor(); await touchPage.getByRole("button", { name: "关闭编辑", exact: true }).click(); await touchPage.locator("dialog[aria-labelledby]").waitFor({ state: "hidden" }); assert.equal(await touchPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       const svg = touchPage.getByRole("group", { name: "双层日期关联图", exact: true });
       await svg.scrollIntoViewIfNeeded(); const box = await svg.boundingBox(); const client = await touch.newCDPSession(touchPage);
@@ -44,10 +45,11 @@ try {
       const sx = box!.x + box!.width * .4, sy = Math.min(600, box!.y + 90);
       await send("touchStart", sx, sy); for (let i = 1; i <= 5; i++) await send("touchMove", sx + i * 15, sy); await send("touchEnd", sx + 75, sy);
       assert.equal(await touchPage.locator("dialog[aria-labelledby]").count(), 0);
-      const beforeScroll = await touchPage.evaluate(() => scrollY);
-      await send("touchStart", sx, sy); for (let i = 1; i <= 6; i++) await send("touchMove", sx, sy - i * 18); await send("touchEnd", sx, sy - 108);
+      await touchPage.evaluate(() => scrollTo(0,0)); const verticalBox = await svg.boundingBox(); const vy = Math.min(540, verticalBox!.y + 60); const beforeScroll = await touchPage.evaluate(() => scrollY);
+      await send("touchStart", sx, vy); for (let i = 1; i <= 6; i++) await send("touchMove", sx, vy - i * 18); await send("touchEnd", sx, vy - 108);
       await touchPage.waitForTimeout(200); assert.ok(await touchPage.evaluate(() => scrollY) > beforeScroll);
       await client.detach(); } finally { await touch.close(); }
+    await checkMobile({ baseURL, context, page, today, token: token.rawToken });
     assert.deepEqual(errors, []); }
   catch (error) { await page.screenshot({ path: "/tmp/formward-energy-visual/failure.png", fullPage: true }); await writeFile("/tmp/formward-energy-visual/failure.html", await page.content()); throw error; }
   await context.close();

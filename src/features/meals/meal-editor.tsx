@@ -1,4 +1,5 @@
 "use client";
+import { RecordDateContext } from "@/components/record-date-context";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { decimal, defaultFoodQuantity, emptyNutrition, foodSpecification, formatNutrition, metricLabels, metrics, nutritionFor, sumNutrition, type FoodView, type ItemDraft, type ItemView, type MealDraft } from "./model";
 import { NutritionFields, SourceFields } from "./nutrition-fields";
@@ -12,6 +13,7 @@ function Cell({value,label,placeholder="—",numeric=false,blank=false,required=
  return editing?<input autoFocus={!blank} aria-label={label} placeholder={placeholder} value={value} type={numeric?"number":"text"} min={numeric?"0":undefined} max={numeric?"1000000":undefined} step={numeric?"0.0001":undefined} inputMode={numeric?"decimal":undefined} required={required} maxLength={numeric?undefined:200} onChange={event=>change(event.target.value)} onBlur={()=>setEditing(false)} onKeyDown={event=>{if(event.key==="Enter"||event.key==="Escape"){event.preventDefault();setEditing(false);requestAnimationFrame(()=>button.current?.focus());}}}/>:<button ref={button} type="button" className={styles.cell} aria-label={label} onDoubleClick={()=>setEditing(true)} onClick={()=>{if(window.matchMedia("(pointer:coarse), (max-width:960px)").matches)setEditing(true);}} onKeyDown={keyboard}>{value||placeholder}</button>;
 }
 export function MealEditor({ initial, foods, historicalFoods=[], historicalItems=[], foodRefs={}, submitLabel="保存餐次", error, busy, save }: { initial:MealDraft;foods:FoodView[];historicalFoods?:FoodView[];historicalItems?:ItemView[];foodRefs?:Record<string,FoodView>;submitLabel?:string;error:string;busy:boolean;save:(input:MealDraft,allowMissingImages?:boolean)=>Promise<void> }) {
+ const [openedOn]=useState(()=>new Date().toLocaleDateString("en-CA"));
  const [draft,setDraft]=useState<MealDraft>(()=>({...structuredClone(initial),items:[...initial.items.map(item=>({...structuredClone(item),kind:"food" as const})),freeItem()]}));
  const [query,setQuery]=useState(""),[category,setCategory]=useState("all"),[step,setStep]=useState<"picker"|"entry">("entry"),[replacing,setReplacing]=useState<number|null>(null),[details,setDetails]=useState<number|null>(null),[dragging,setDragging]=useState(false);
  const [uploading,setUploading]=useState(false),[photoError,setPhotoError]=useState(""),[textOnly,setTextOnly]=useState(false),table=useRef<HTMLDivElement>(null);
@@ -37,7 +39,7 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
  const entered=draft.items.filter(item=>item.name.trim()),totals=sumNutrition(entered.map(values));
  const detailItem=details===null?null:draft.items[details],detailFood=detailItem?itemFood(detailItem):null;
  return <form className={`${styles.form} ${styles.mealForm}`} aria-busy={busy} onSubmit={event=>{event.preventDefault();if(!entered.length)return;void save({...draft,items:entered},textOnly);}}><fieldset disabled={busy||uploading}>
- <div className={styles.formColumns}><label>日期<input type="date" required value={draft.date} onChange={event=>setDraft({...draft,date:event.target.value,occurredAt:null})}/></label><label>餐次<input aria-label="餐次" required maxLength={50} list="meal-types" value={draft.mealType} onChange={event=>setDraft({...draft,mealType:event.target.value})}/><datalist id="meal-types">{["早餐","午餐","晚餐","加餐","夜宵"].map(name=><option key={name}>{name}</option>)}</datalist></label></div>
+ <RecordDateContext date={draft.date} openedOn={openedOn}/><div className={styles.formColumns}><label>日期<input type="date" required value={draft.date} onChange={event=>setDraft({...draft,date:event.target.value,occurredAt:null})}/></label><label>餐次<input aria-label="餐次" required maxLength={50} list="meal-types" value={draft.mealType} onChange={event=>setDraft({...draft,mealType:event.target.value})}/><datalist id="meal-types">{["早餐","午餐","晚餐","加餐","夜宵"].map(name=><option key={name}>{name}</option>)}</datalist></label></div>
  <p className={styles.hint}>从左侧食材库直接添加，或在右侧空白行自由填写。双击单元格或按 Enter 编辑。</p>
  <div className={styles.entryPaths}><button type="button" aria-pressed={step==="picker"} onClick={()=>setStep("picker")}>选择食材库</button><button type="button" aria-pressed={step==="entry"} onClick={()=>setStep("entry")}>本餐 {entered.length} 项 →</button></div>
  <div className={styles.mealColumns} data-step={step}>
@@ -62,7 +64,7 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
         {draft.photoReview&&<fieldset className={styles.photoReview}><legend>照片信息核对</legend>{draft.photoReview.questions.length>0&&<p className={styles.error}>{draft.photoReview.questions.join("；")}</p>}{([['dateConfirmed','日期'],['mealTypeConfirmed','餐次'],['identityConfirmed','食物与做法'],['amountConfirmed','实际食用量'],['cookingConfirmed','油和酱料']] as const).map(([key,label])=><label className={styles.checkbox} key={key}><input type="checkbox" checked={draft.photoReview![key]} onChange={event=>setDraft({...draft,photoReview:{...draft.photoReview!,[key]:event.target.checked}})}/>已核对{label}</label>)}{draft.photoReview.questions.length>0&&<label className={styles.checkbox}><input type="checkbox" onChange={event=>{if(event.target.checked)setDraft({...draft,photoReview:{...draft.photoReview!,questions:[]}});}}/>已解决待核对问题</label>}</fieldset>}
         {(error.includes("相同")||draft.allowDuplicate)&&<label className={styles.checkbox}><input type="checkbox" checked={Boolean(draft.allowDuplicate)} onChange={event=>setDraft({...draft,allowDuplicate:event.target.checked})}/>这是另一次进食，仍然新增</label>}
         {submitLabel!=="更新预览"&&(draft.expectedImageCount??0)>(draft.imageIds?.length??0)&&<label className={styles.checkbox}><input type="checkbox" checked={textOnly} onChange={event=>setTextOnly(event.target.checked)}/>照片尚未全部保存，先保存文字记录</label>}
-        {error&&<p className={styles.error} role="alert">{error}</p>}<button disabled={!entered.length||uploading||(Boolean(photoError)&&!textOnly)} className={styles.save} type="submit">{busy?"正在处理…":submitLabel}</button>
+        {error&&<p className={styles.error} role="alert">{error}</p>}<button disabled={!entered.length||uploading||(Boolean(photoError)&&!textOnly)} className={styles.save} type="submit">{busy?"正在处理…":submitLabel==="更新预览"?submitLabel:submitLabel+" · "+draft.date}</button>
       </section>
     </div>
   </fieldset></form>;

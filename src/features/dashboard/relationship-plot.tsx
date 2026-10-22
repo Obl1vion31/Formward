@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
-import { chartScale } from "@/components/chart-scale";
+
 import { useChartMotion } from "@/components/use-chart-motion";
 import { energyBands, energyLineScale, fadeEdgeFraction, linePath, missingRuns } from "./chart-geometry";
 import type { OverviewDay } from "./model";
@@ -12,8 +12,8 @@ export function RelationshipPlot({ days, selected, inspect, open }: { days: Over
   const gesture = useRef<{ x: number; y: number; horizontal: boolean } | null>(null);
   useEffect(() => { const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width)); observer.observe(container.current!); return () => observer.disconnect(); }, []);
   useChartMotion(container, width ? days.map(day => `${day.date}:${day.nutrition?.values.caloriesKcal}:${day.energy.totalKcal}:${day.energyBalance}:${day.weightChangeKg}:${day.differenceEstimated}`).join("|") : "pending");
-  const w = width || 280, left = 49, right = 13, top = 26, energyBottom = w < 500 ? 222 : 246, weightTop = energyBottom + 75, weightBottom = weightTop + 85, height = weightBottom + 34;
-  const energyScale = energyLineScale(days.flatMap(day => [day.nutrition?.values.caloriesKcal, day.energy.totalKcal])), weightScale = chartScale(days.map(day => day.weightChangeKg), "kg");
+  const w = width || 280, left = 49, right = 13, top = 26, energyBottom = w < 500 ? 190 : 246, weightTop = energyBottom + 75, weightBottom = weightTop + 112, height = weightBottom + 34;
+  const energyScale = energyLineScale(days.flatMap(day => [day.nutrition?.values.caloriesKcal, day.energy.totalKcal])), weightScale = energyLineScale(days.map(day => day.weightChangeKg), "kg");
   const energyY = (n: number) => energyBottom - (n - energyScale.min) / (energyScale.max - energyScale.min) * (energyBottom - top);
   const weightY = (n: number) => weightBottom - (n - weightScale.min) / (weightScale.max - weightScale.min) * (weightBottom - weightTop);
   const slot = (w - left - right) / days.length, x = (index: number) => left + (index + .5) * slot;
@@ -53,7 +53,7 @@ export function RelationshipPlot({ days, selected, inspect, open }: { days: Over
       </g>
       <g data-overview-panel="weight">
         <line x1="0" x2={w} y1={energyBottom + 35} y2={energyBottom + 35} className={styles.grid} />
-        <text x="0" y={energyBottom + 58} className={styles.plotTitle}>次晨体重变化</text><text x={w - right} y={energyBottom + 58} textAnchor="end" className={styles.axis}>kg</text>
+        <text x="0" y={energyBottom + 58} className={styles.plotTitle}>次晨体重变化</text><text x={w - right} y={energyBottom + 58} textAnchor="end" className={styles.axis}>{w < 500 ? (days[selectedIndex]?.ambiguous ? "待选择" : days[selectedIndex]?.weightChangeKg == null ? "未配对" : (days[selectedIndex].weightChangeKg! > 0 ? "+" : "") + days[selectedIndex].weightChangeKg + (days[selectedIndex].differenceEstimated ? " kg · 含估计" : " kg")) : "kg"}</text>
         {weightScale.ticks.map(tick => <g key={tick} data-axis-tick={tick}><line data-overview-zero={tick === 0 ? "" : undefined} x1={left} x2={w - right} y1={weightY(tick)} y2={weightY(tick)} className={tick === 0 ? styles.zeroLine : styles.grid} /><text x={left - 8} y={weightY(tick) + 4} textAnchor="end" className={styles.axis}>{tick > 0 ? "+" : ""}{tick}</text></g>)}
         <g data-chart-line className={styles.plotData}>{days.map((day, i) => i > 0 && day.weightChangeKg !== null && days[i - 1].weightChangeKg !== null && <line key={day.date} x1={x(i - 1)} x2={x(i)} y1={weightY(days[i - 1].weightChangeKg!)} y2={weightY(day.weightChangeKg)} stroke={palette.weight} strokeWidth="1.6" strokeLinecap="round" strokeDasharray={day.differenceEstimated || days[i - 1].differenceEstimated ? "4 4" : undefined} />)}</g>
         {days.some(day => day.weightChangeKg !== null) && weightGaps.map(run => <line key={run.start} data-missing-run="weight" x1={(x(run.start) + x(run.end)) / 2 - 3} x2={(x(run.start) + x(run.end)) / 2 + 3} y1={weightBottom + 11} y2={weightBottom + 11} className={styles.gapMark} />)}

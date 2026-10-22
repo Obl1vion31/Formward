@@ -1,15 +1,21 @@
 import type { ChartScale } from "@/components/chart-scale";
 
-/** 折线取完整区间并留余量；不改变其他页面柱图包含零点的刻度。 */
-export function energyLineScale(values: (number | string | null | undefined)[]): ChartScale {
+/** 折线范围独立于主刻度；半步边界减少凑整造成的无效留白。 */
+export function energyLineScale(values: (number | string | null | undefined)[], unit: "kcal" | "kg" = "kcal"): ChartScale {
   const numbers = values.filter(value => value != null).map(Number).filter(Number.isFinite);
-  if (!numbers.length) return { min: 0, max: 1000, step: 500, ticks: [0, 500, 1000] };
-  const low = Math.min(...numbers), high = Math.max(...numbers), padding = Math.max(200, (high - low) * .12);
-  const bottom = Math.max(0, low - padding), top = Math.max(bottom + 1, high + padding);
-  const power = 10 ** Math.floor(Math.log10((top - bottom) / 4));
-  const step = [1, 2, 5, 10, 20, 50].map(n => Math.max(1, n * power)).find(n => Math.ceil(top / n) - Math.floor(bottom / n) <= 4)!;
-  const min = Math.floor(bottom / step) * step, max = Math.ceil(top / step) * step;
-  return { min, max, step, ticks: Array.from({ length: Math.round((max - min) / step) + 1 }, (_, i) => min + i * step) };
+  if (!numbers.length) return unit === "kg" ? { min: -.5, max: .5, step: .5, ticks: [-.5, 0, .5] } : { min: 0, max: 1000, step: 500, ticks: [0, 500, 1000] };
+  const low = Math.min(...numbers), high = Math.max(...numbers), padding = Math.max(unit === "kg" ? .1 : 100, (high - low) * .05);
+  const bottom = unit === "kg" ? Math.min(0, low - padding) : Math.max(0, low - padding), top = unit === "kg" ? Math.max(0, high + padding) : high + padding;
+  const span = top - bottom, power = 10 ** Math.floor(Math.log10(span / 5)), minimum = unit === "kg" ? .1 : 1;
+  const choices = [...new Set([1, 2, 2.5, 5, 10, 20, 25, 50, 100].map(n => Math.max(minimum, n * power)))];
+  const round = (n: number) => Number(n.toPrecision(12));
+  for (const step of choices) {
+    const half = step / 2, min = round(Math.floor(bottom / half) * half), max = round(Math.ceil(top / half) * half);
+    const first = Math.ceil((min - step * 1e-10) / step) * step, count = Math.floor((max - first + step * 1e-10) / step) + 1;
+    if (count < 3 || count > 6) continue;
+    return { min, max, step: round(step), ticks: Array.from({ length: count }, (_, i) => round(first + i * step)) };
+  }
+  return { min: bottom, max: top, step: span, ticks: [bottom, top] };
 }
 
 export type Point = { x: number; y: number };

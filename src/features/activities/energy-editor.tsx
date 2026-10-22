@@ -1,10 +1,12 @@
 "use client";
+import { RecordDateContext } from "@/components/record-date-context";
 import { useState } from "react";
 import { energyModes, energyValue, type ActivityRecord, type EnergyAction } from "./model";
 import styles from "./energy.module.css";
 
 type ActivityDraft = Extract<EnergyAction, { kind: "save_activity" }> & { key: string };
 export function EnergyEditor({ initial, activities = [], busy, error, save, saveBatch, submitLabel = "保存" }: { initial: EnergyAction; activities?: ActivityRecord[]; busy: boolean; error: string; save: (action: EnergyAction) => void; saveBatch?: (actions: EnergyAction[]) => void; submitLabel?: string }) {
+  const [openedOn] = useState(() => new Date().toLocaleDateString("en-CA"));
   const [draft, setDraft] = useState(initial);
   const [sex, setSex] = useState(initial.kind === "save_energy_profile" && initial.birthDate ? initial.sex : "");
   const [items, setItems] = useState<ActivityDraft[]>(() => activities.map(row => ({ key: row.id, kind: "save_activity", id: row.id, version: row.version, date: row.date, name: row.name, durationMinutes: row.durationMinutes, caloriesKcal: row.caloriesKcal, completed: row.completed, sourceSystem: row.sourceSystem, timezone: row.timezone })));
@@ -36,7 +38,7 @@ export function EnergyEditor({ initial, activities = [], busy, error, save, save
     {retired ? <p role="alert">日常默认值已停用，请取消这一项。</p> : draft.kind === "save_energy_profile" ? <>
       <div className={styles.fields}><label>生效日期<input aria-label="生效日期" type="date" required value={draft.effectiveFrom} onChange={event => set("effectiveFrom", event.target.value)} /></label><label>身高 · cm<input aria-label="身高" type="number" required min="0.0001" max="300" step="0.0001" value={draft.heightCm} onChange={event => set("heightCm", event.target.value)} /></label><label>出生日期<input aria-label="出生日期" type="date" required value={draft.birthDate} onChange={event => set("birthDate", event.target.value)} /></label><label>公式性别参数<select aria-label="公式性别参数" required value={sex} onChange={event => { setSex(event.target.value); set("sex", event.target.value); }}><option value="" disabled>请选择</option><option value="male">男性</option><option value="female">女性</option></select></label></div>
     </> : draft.kind === "save_energy_day" || draft.kind === "save_activity" ? <>
-      <div className={styles.editorTop}><label>日期<input aria-label="日期" type="date" required value={draft.date} onChange={event => set("date", event.target.value)} /></label>{draft.kind === "save_energy_day" && <div className={styles.modeSwitch} role="group" aria-label="消耗录入方式">{[["components", "分开记录"], ["total", "只记总数"]].map(([value, label]) => <button type="button" key={value} aria-pressed={modes.entryMode === value} onClick={() => set("entryMode", value)}>{label}</button>)}</div>}</div>
+      <RecordDateContext date={draft.date} openedOn={openedOn}/><div className={styles.editorTop}><label>日期<input aria-label="日期" type="date" required value={draft.date} onChange={event => set("date", event.target.value)} /></label>{draft.kind === "save_energy_day" && <div className={styles.modeSwitch} role="group" aria-label="消耗录入方式">{[["components", "分开记录"], ["total", "只记总数"]].map(([value, label]) => <button type="button" key={value} aria-pressed={modes.entryMode === value} onClick={() => set("entryMode", value)}>{label}</button>)}</div>}</div>
       {draft.kind === "save_energy_day" ? <>
         <div hidden={modes.entryMode !== "components"}>
           <section className={styles.editorSection}><h3>静息消耗</h3><div className={styles.fields}>{numberField("restingKcal", "静息 · kcal", "未填写")}{sourceField("restingSourceSystem", "静息来源")}</div></section>
@@ -50,6 +52,6 @@ export function EnergyEditor({ initial, activities = [], busy, error, save, save
       </> : <><div className={styles.fields}><label>活动名称<input aria-label="活动名称" maxLength={200} required value={draft.name} onChange={event => set("name", event.target.value)} /></label>{sourceField("sourceSystem", "活动来源")}{numberField("durationMinutes", "时长 · 分钟", "可选")}{numberField("caloriesKcal", "活动热量 · kcal", "未填写")}</div><label className={styles.checkbox}><input type="checkbox" checked={draft.completed ?? true} onChange={event => set("completed", event.target.checked)} />已完成</label></>}
       <details><summary>时间与备注</summary><div className={styles.fields}><label>时区<input aria-label="时区" maxLength={100} value={draft.timezone ?? ""} onChange={event => set("timezone", event.target.value)} /></label>{draft.kind === "save_energy_day" && <label>备注<input aria-label="备注" maxLength={2000} value={draft.notes ?? ""} onChange={event => set("notes", event.target.value || null)} /></label>}</div></details>
     </> : null}
-    {error && <p role="alert" className={styles.error}>{error}</p>}<button className={styles.save} type="submit">{busy ? "正在保存…" : submitLabel}</button>
+    {error && <p role="alert" className={styles.error}>{error}</p>}<button className={styles.save} type="submit">{busy ? "正在保存…" : submitLabel === "保存" && "date" in draft ? submitLabel + " · " + draft.date : submitLabel}</button>
   </fieldset></form>;
 }

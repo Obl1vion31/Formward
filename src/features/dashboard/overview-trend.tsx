@@ -1,4 +1,5 @@
 "use client";
+import { preferredRecordedDate, rangeContaining } from "@/components/record-dates";
 import { useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
 import { RelationshipPlot } from "./relationship-plot";
@@ -21,22 +22,29 @@ function WeightReading({ record }: { record: MeasurementDisplay | null }) {
 const blankDay = (date: string): OverviewDay => ({ date, nextDate: addCalendarDays(date, 1), meals: [], nutrition: null, morning: null, nextMorning: null, weightChangeKg: null, differenceEstimated: false, ambiguous: false, energy: blankEnergyDay(date), energyBalance: null });
 export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const today = data.today, mobile = useMobileMode();
-  const [mode, setMode] = useState<string | null>(null), [custom, setCustom] = useState({ from: addCalendarDays(today, -29), to: today }), [inspected, setInspected] = useState(today), [estimates, setEstimates] = useState(true), [opened, setOpened] = useState<string | null>(null);
-  const range = mode ?? (mobile ? "7" : "30");
+  const preferred = preferredRecordedDate(data.days, today, day => day.nutrition?.values.caloriesKcal != null && day.energy.totalKcal !== null, day => data.recordDates.includes(day.date));
+  const [mode, setMode] = useState<string | null>(null), [custom, setCustom] = useState({ from: addCalendarDays(today, -29), to: today }), [inspected, setInspected] = useState(preferred), [estimates, setEstimates] = useState(true), [opened, setOpened] = useState<string | null>(null);
+  const range = mode ?? rangeContaining(preferred, today, mobile ? "7" : "30");
   const available = estimates ? data.estimatedDays : data.days;
   const byDate = new Map(available.map(day => [day.date, day]));
   const earliest = available.map(day => day.date).filter(date => date <= today).sort()[0] ?? today;
   const from = range === "all" ? earliest : range === "custom" ? custom.from : addCalendarDays(today, 1 - Number(range)), to = range === "custom" ? custom.to : today;
   let dates: string[] = [];
   try { const length = calendarOrdinal(to) - calendarOrdinal(from) + 1; if (length > 0 && length <= 3661) dates = Array.from({ length }, (_, index) => addCalendarDays(from, index)); } catch {}
-  const selected = dates.includes(inspected) ? inspected : to, days = dates.map(date => byDate.get(date) ?? blankDay(date)), day = days.find(day => day.date === selected), dialogDay = opened ? byDate.get(opened) ?? blankDay(opened) : null;
+  const days = dates.map(date => byDate.get(date) ?? blankDay(date));
+  const fallback = preferredRecordedDate(days, today, day => day.nutrition?.values.caloriesKcal != null && day.energy.totalKcal !== null, day => data.recordDates.includes(day.date));
+  const selected = dates.includes(inspected) ? inspected : dates.includes(fallback) ? fallback : to, day = days.find(day => day.date === selected), dialogDay = opened ? byDate.get(opened) ?? blankDay(opened) : null;
   return <section className={styles.trends} aria-label="热量与晨重趋势">
-    <div className={styles.trendToolbar}><div className={styles.trendTitle}><h2>摄入、消耗与次晨变化</h2><time>{from.replaceAll("-", ".")} — {to.replaceAll("-", ".")}</time></div><div className={styles.ranges}>{[["7", "7D"], ["30", "30D"], ["90", "90D"], ["all", "全部"], ["custom", "自定义"]].map(([key, label]) => <button key={key} aria-pressed={range === key} onClick={() => setMode(key)}>{label}</button>)}</div><label className={styles.estimateToggle}><input type="checkbox" checked={estimates} onChange={event => setEstimates(event.target.checked)} />显示体重估计</label></div>
+    <div className={styles.trendToolbar}><div className={styles.trendTitle}><h2>摄入、消耗与次晨变化</h2><time>{from.replaceAll("-", ".")} — {to.replaceAll("-", ".")}</time></div><div className={styles.ranges}>{[["7", "7D"], ["30", "30D"], ["90", "90D"], ["all", "全部"], ["custom", "自定义"]].map(([key, label]) => <button key={key} aria-pressed={range === key} onClick={() => setMode(key)}>{label}</button>)}</div><label className={styles.estimateToggle}><input type="checkbox" checked={estimates} onChange={event => setEstimates(event.target.checked)} aria-label="显示体重估计" />体重估计</label></div>
     {range === "custom" && <div className={styles.customRange}><label>开始<input aria-label="总览开始日期" type="date" value={custom.from} onChange={event => setCustom({ ...custom, from: event.target.value })} /></label><label>结束<input aria-label="总览结束日期" type="date" value={custom.to} onChange={event => setCustom({ ...custom, to: event.target.value })} /></label></div>}
     {!dates.length ? <p className={styles.caption}>请选择有效日期范围，最长 10 年。</p> : <>
       {day && <div className={styles.dayReadout} aria-live="polite" aria-atomic="true" aria-label="日期对照" data-selected-date={selected}>
         <div className={styles.readoutHeading}><time dateTime={selected}>{selected.replaceAll("-", ".")}</time><button onClick={() => setOpened(selected)}>查看记录 →</button></div>
-        <div className={styles.relations}>
+        <div className={styles.mobileEnergy}>
+          <span>{day.energyBalance === null ? "待补齐收支" : day.energyBalance === 0 ? "收支平衡" : day.energyBalance > 0 ? "热量盈余" : "热量缺口"}</span>
+          <strong className={day.energyBalance !== null && day.energyBalance < 0 ? styles.deficitText : styles.surplusText}>{day.energyBalance === null ? "—" : signed(day.energyBalance, 0)}<small>kcal</small></strong>
+          <p>摄入 {formatNutrition(day.nutrition?.values.caloriesKcal ?? null, "caloriesKcal")}{day.nutrition?.incomplete.caloriesKcal ? "（部分）" : ""} − 消耗 {energyValue(day.energy.totalKcal)}{day.energy.estimated ? "（估计）" : ""}</p>
+        </div><div className={styles.relations}>
           <div className={styles.energyEquation}>
             <div><span>摄入</span><strong className={styles.intakeText}>{formatNutrition(day.nutrition?.values.caloriesKcal ?? null, "caloriesKcal")}</strong><small>kcal{day.nutrition?.values.caloriesKcal == null ? " · 缺摄入" : day.nutrition.incomplete.caloriesKcal ? " · 部分" : ""}</small></div>
             <b aria-hidden="true">−</b>

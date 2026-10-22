@@ -2,10 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { energyLineScale, energyBands, linePath, fadeEdgeFraction, missingRuns, type EnergyPoint } from "./chart-geometry";
 
-test("折线刻度覆盖空值、常数、零和极值，完整区间内最多五个整倍数刻度", () => {
+test("折线刻度覆盖空值、常数、零和极值，完整区间内最多六个整倍数刻度", () => {
   for (const values of [[], [null, undefined], [0], [2600, 2600], [2058, 3000], [0, 100000], [100, 50000, null]]) {
     const scale = energyLineScale(values);
-    assert.ok(scale.min < scale.max && scale.ticks.length <= 5);
+    assert.ok(scale.min < scale.max && scale.ticks.length <= 6);
     assert.ok(scale.ticks.every((n, i) => !i || Math.abs(n - scale.ticks[i - 1] - scale.step) < 1e-8));
     for (const n of values) if (n != null) assert.ok(n >= scale.min && n <= scale.max);
   }
@@ -32,4 +32,12 @@ test("断线与缺测标记不跨过空日期，孤立记录保留自己的位�
     assert.ok(fadeEdgeFraction(width) <= .25);
     assert.ok(fadeEdgeFraction(width) * width <= 8);
   }
+});
+
+test("真实波动形态不会为凑主刻度扩张到0至6000，kg保留零且覆盖峰谷", () => {
+ const kcal=energyLineScale([920,2100,3100,4120,2600]);
+ assert.ok(kcal.min > 0 && kcal.max < 6000);
+ assert.deepEqual(kcal.ticks,[1000,2000,3000,4000]);
+ const kg=energyLineScale([-.95,.12,1.25,null],"kg");
+ assert.ok(kg.min<=-.95 && kg.max>=1.25 && kg.ticks.includes(0));
 });

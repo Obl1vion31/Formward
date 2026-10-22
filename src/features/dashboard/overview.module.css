@@ -99,3 +99,25 @@
  .legend { gap:8px 10px; }
 }
 @media(prefers-reduced-motion:reduce) { .card { transition:none; } }
+
+.mobileEnergy { display:none; }
+@media(max-width:700px),(hover:none) and (pointer:coarse) {
+ .cards,.dayReadout .relations { display:none; }
+ .mobileEnergy { display:block; min-height:94px; }
+ .dayReadout .mobileEnergy > strong { font-size:30px; color:#D8B38A; }
+ .dayReadout .mobileEnergy > .deficitText { color:#92B2C2; }
+ .mobileEnergy p { margin:8px 0 0; font-size:12px; color:#b4afa5; line-height:1.6; }
+ .dayReadout { margin-block:6px 12px; padding-bottom:10px; }.readoutHeading { min-height:38px; }
+ .mobileEnergy > strong small { font-size:12px; }
+ .trendTitle h2 { font-size:15px; }
+}
+
+.relationship { min-width:0; }
+@media(max-width:700px),(hover:none) and (pointer:coarse) {
+ .workspace > .heading { display:none; }
+ .trends { display:flex; flex-direction:column; padding-top:8px; }
+ .dayReadout { order:1; margin-top:0; }.trendToolbar,.customRange { order:2; }.relationship { order:3; }
+ .trendTitle { display:none; }.estimateToggle { width:auto; margin-left:auto; min-height:34px; }
+ .ranges { gap:0; }.ranges button { padding-inline:7px; }
+ .mobileEnergy { min-height:94px; }
+}

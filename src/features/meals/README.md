@@ -13,3 +13,5 @@
 meal-editor.tsx 管表格与选择，nutrition-fields.tsx 管营养与依据，nutrition-chart.tsx 管固定宽度图，presets.tsx 仅保留食材表格／详情，review-details.tsx 管紧凑审核与逐项依据，records/record-review.tsx 管统一审核与终态。估算分析保留成分分量、来源／计算及汇总，不写个人餐次背景、泛化提醒或无关排除清单。
 
 images.ts 管原图下载与存储，image-upload.ts 管限账号／路径／摘要的短期 OIDC 直传，photos.tsx 共用上传与回看。最多8张、每张20 MiB，JPEG／PNG／WebP，不进 public／Git。允许既有 OpenAI 文件域名及限定 oaisdmntpr 账号、24位长度与完整 blob.core.windows.net 后缀，逐跳验证重定向。expectedImageCount 保留缺图预期，AI photoReview 待核对阻止保存，只有网页登录明确选择才可先保存文字并审计。终态不能再次确认，旧 pending 不能覆盖新 revision。存储失败与上传后事务失败的清理、重试、原图归属仍覆盖隔离测试。完整规则见[饮食记录](../../../docs/meals.md)。
+
+每日记录直接列出最近10个日历日，过去空日可补录、已有餐次可追加，另可选日期。日期只形成展示行，不自动建餐次或补0；历史抽屉保留。编辑器与保存按钮显示目标日期，跨零点和页面恢复不挪动已打开草稿。手机今天摄入为一行大kcal与下一行三项宏量，底栏与安全区留足空间。

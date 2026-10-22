@@ -1,3 +1,5 @@
+import { overviewPresentation } from "./presentation";
+import { preferredRecordedDate } from "../../components/record-dates";
 import { chartScale } from "../../components/chart-scale";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -64,4 +66,13 @@ test("身体卡仅取真实空腹晨重，晚间与估计不进入", () => {
 });
 test("详情链接验证真实日历日期", () => {
   assert.equal(linkedDate("2024-02-29"), "2024-02-29"); for (const date of ["2023-02-29", "2024-13-01", "today", ["2024-03-01"], undefined]) assert.equal(linkedDate(date), null);
+});
+
+test("无完整收支时保留仅体脂、晚间及估计的实际记录日期，不把配对前日当成事实", () => {
+  const records = [observed("2024-03-01", { period:"evening", fasting:false }), observed("2024-03-03", { weightKg:null }), observed("2024-03-04", { recordKind:"estimated" }), observed("2024-04-01")];
+  const view = overviewPresentation([], records, emptyEnergy(), "2024-03-05");
+  assert.deepEqual(view.recordDates, ["2024-03-01","2024-03-03","2024-03-04"]);
+  assert.equal(view.days.find(day => day.date==="2024-03-04")?.morning, null);
+  assert.equal(preferredRecordedDate(view.days,view.today, day=>day.energyBalance!==null, day=>view.recordDates.includes(day.date)),"2024-03-04");
+  assert.equal(view.recordDates.includes("2024-03-02"),false);
 });

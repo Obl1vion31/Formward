@@ -101,7 +101,7 @@ try {
 
   assert.equal(await dialog.getByRole('combobox',{name:'记录类型',exact:true}).count(),0);
 
-  await dialog.getByRole("button", { name: "保存餐次", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
+  await dialog.getByRole("button", { name: /^保存餐次/, exact: false }).click(); await dialog.waitFor({ state: "hidden" });
   let state = await currentMeals();
   await page.getByRole("link",{name:"Formward 主页",exact:true}).click();await page.getByRole("heading",{name:"总览",exact:true}).waitFor();
   assert.ok((await page.getByRole("link",{name:"饮食记录",exact:true}).innerText()).includes("2 餐"));
@@ -115,7 +115,7 @@ try {
       await plots.first().locator(`[data-overview-date="${dateAt(-1)}"]`).focus();
       const positions=await page.locator('[data-crosshair-date]').evaluateAll((nodes:Element[])=>nodes.map(node=>node.getAttribute('x1')));
       assert.equal(new Set(positions).size,1);assert.equal(await page.getByLabel('日期对照',{exact:true}).getAttribute('data-selected-date'),dateAt(-1));
-      const readout=await page.getByLabel('日期对照',{exact:true}).innerText();assert.ok(['摄入','消耗','热量','次晨变化'].every(label=>readout.includes(label)));
+      const readout=await page.getByLabel('日期对照',{exact:true}).innerText();assert.ok(['摄入','消耗'].every(label=>readout.includes(label)));assert.match(readout,/热量|待补齐|收支平衡/);
       assert.ok(await plots.first().locator("svg").evaluateAll((nodes:SVGSVGElement[])=>nodes.every(node=>Math.abs(node.getBoundingClientRect().width-Number(node.getAttribute("viewBox")!.split(" ")[2]))<1)));
     }
     await page.screenshot({path:`/tmp/formward-overview-visual/overview-${width}.png`,fullPage:true});
@@ -135,7 +135,7 @@ try {
   await page.getByRole('button',{name:'关闭编辑',exact:true}).click();await page.getByRole('dialog',{name:'历史饮食记录',exact:true}).waitFor({state:'hidden'});
   await page.getByRole('link',{name:'Formward 主页',exact:true}).click();await page.getByRole('heading',{name:'总览',exact:true}).waitFor();
   await page.getByRole("link",{name:"饮食记录",exact:true}).click();await page.getByRole("heading",{name:"饮食记录",exact:true}).waitFor(); const dinner = state.meals.find(m => m.mealType === "晚餐")!; assert.equal(dinner.totals.values.caloriesKcal, "228.0000"); assert.equal(dinner.items.length, 2);assert.deepEqual(dinner.items.find(i=>i.foodId)?.foodSnapshot?.imageIds,[image.id]);
-  const article = page.locator("article").filter({ has: page.getByRole("heading", { name: "晚餐", exact: true }) }); await article.getByRole("button", { name: "编辑", exact: true }).click(); dialog = page.locator("dialog:not(.page-loading-dialog)"); await dialog.getByLabel("餐次备注", { exact: true }).fill("虚构修改备注"); await dialog.getByRole("button", { name: "保存餐次", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
+  const article = page.locator("article").filter({ has: page.getByRole("heading", { name: "晚餐", exact: true }) }); await article.getByRole("button", { name: "编辑", exact: true }).click(); dialog = page.locator("dialog:not(.page-loading-dialog)"); await dialog.getByLabel("餐次备注", { exact: true }).fill("虚构修改备注"); await dialog.getByRole("button", { name: /^保存餐次/, exact: false }).click(); await dialog.waitFor({ state: "hidden" });
   state = await currentMeals(); assert.equal(state.meals.find(m => m.id === dinner.id)?.notes, "虚构修改备注");
   await article.getByRole("button", { name: "删除", exact: true }).click(); await page.getByRole("status").waitFor(); await page.getByRole("button", { name: "最近删除", exact: true }).click(); await page.getByRole("button", { name: "恢复", exact: true }).click(); await page.getByRole("button", { name: "恢复", exact: true }).waitFor({state:"hidden"}); await page.getByRole('dialog',{name:'最近删除',exact:true}).getByRole('button',{name:'关闭编辑',exact:true}).click();await page.getByRole('dialog',{name:'最近删除',exact:true}).waitFor({state:'hidden'});
   assert.equal((await currentMeals()).meals.find(m => m.id === dinner.id)?.deletedAt, null);
@@ -213,7 +213,7 @@ try {
   await article.getByRole('button',{name:'编辑',exact:true}).click();dialog=page.getByRole('dialog',{name:'编辑餐次',exact:true});
   await dialog.getByText('历史规格 · 每 1包',{exact:true}).waitFor();
   await dialog.getByRole('button',{name:'食用量（包）',exact:true}).dblclick();await dialog.getByLabel('食用量（包）',{exact:true}).fill('1');await page.keyboard.press('Enter');
-  await dialog.getByRole('button',{name:'保存餐次',exact:true}).click();await dialog.waitFor({state:'hidden'});
+  await dialog.getByRole('button',{name:/^保存餐次/,exact:false}).click();await dialog.waitFor({state:'hidden'});
   assert.equal((await currentMeals()).meals.find(m=>m.id===dinner.id)?.totals.values.caloriesKcal,'144.0000');
   await article.getByRole('button',{name:'删除',exact:true}).click();await page.getByRole('button',{name:'最近删除',exact:true}).click();trash=page.getByRole('dialog',{name:'最近删除',exact:true});
   await trash.getByRole('button',{name:'永久删除',exact:true}).click();await page.getByRole('dialog',{name:'永久删除',exact:true}).getByRole('button',{name:'确认永久删除',exact:true}).click();await page.getByRole('dialog',{name:'永久删除',exact:true}).waitFor({state:'hidden'});
