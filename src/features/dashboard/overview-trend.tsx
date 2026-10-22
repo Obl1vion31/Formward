@@ -38,9 +38,9 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
         <div className={styles.readoutHeading}><time dateTime={selected}>{selected.replaceAll("-", ".")}</time><button onClick={() => setOpened(selected)}>查看记录 →</button></div>
         <div className={styles.relations}>
           <div className={styles.energyEquation}>
-            <div><span>摄入</span><strong className={styles.intakeText}>{formatNutrition(day.nutrition?.values.caloriesKcal ?? null, "caloriesKcal")}</strong><small>kcal{day.nutrition?.incomplete.caloriesKcal ? " · 部分" : ""}</small>{day.nutrition?.values.caloriesKcal == null && <em>缺摄入</em>}</div>
+            <div><span>摄入</span><strong className={styles.intakeText}>{formatNutrition(day.nutrition?.values.caloriesKcal ?? null, "caloriesKcal")}</strong><small>kcal{day.nutrition?.values.caloriesKcal == null ? " · 缺摄入" : day.nutrition.incomplete.caloriesKcal ? " · 部分" : ""}</small></div>
             <b aria-hidden="true">−</b>
-            <div><span>消耗</span><strong className={styles.expenditureText}>{energyValue(day.energy.totalKcal)}</strong><small>kcal{day.energy.estimated ? " · 估计" : ""}</small>{day.energy.totalKcal === null && <em>缺消耗</em>}</div>
+            <div><span>消耗</span><strong className={styles.expenditureText}>{energyValue(day.energy.totalKcal)}</strong><small>kcal{day.energy.totalKcal === null ? " · 缺消耗" : day.energy.estimated ? " · 估计" : ""}</small></div>
             <b aria-hidden="true">=</b>
             <div className={day.energyBalance === null || day.energyBalance === 0 ? undefined : day.energyBalance > 0 ? styles.surplusText : styles.deficitText}><span>{day.energyBalance === 0 ? "收支平衡" : day.energyBalance !== null && day.energyBalance < 0 ? "热量缺口" : "热量盈余"}</span><strong data-selected-balance={day.energyBalance ?? undefined}>{signed(day.energyBalance, 0)}</strong><small>kcal</small></div>
           </div>

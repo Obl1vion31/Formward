@@ -78,6 +78,10 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
       const sets = [...panels.map(panel => boxes(panel.querySelectorAll("[data-axis-tick] text"))), boxes(group.querySelectorAll("[data-overview-date] > text"))];
       return sets.every(set => set.every((a,i) => set.every((b,j) => i === j || !collides(a,b))));
     }), true);
+    const topBefore = await chart.locator("svg").evaluate(node => node.getBoundingClientRect().top + scrollY);
+    await chart.locator(`[data-overview-date="${previous(today, -4)}"]`).focus();
+    assert.equal(await chart.locator("svg").evaluate(node => node.getBoundingClientRect().top + scrollY), topBefore);
+    await chart.locator(`[data-overview-date="${previous(today, -3)}"]`).focus();
     const centers = await chart.locator(`[data-overview-date="${previous(today, -3)}"] [data-series]`).evaluateAll(nodes => nodes.map(n => n.getAttribute("cx"))); assert.equal(new Set(centers).size, 1);
     await page.screenshot({ path: `/tmp/formward-energy-visual/overview-${width}.png`, fullPage: true });
     await page.getByRole("link", { name: "消耗记录", exact: true }).first().click(); await summary.waitFor(); await page.getByRole("group", { name: "每日消耗柱状图", exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(550); assert.equal(await summary.locator("strong").evaluateAll(nodes => nodes.every(node => node.getBoundingClientRect().right <= node.parentElement.getBoundingClientRect().right + 1)), true); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); await page.screenshot({ path: `/tmp/formward-energy-visual/energy-${width}.png`, fullPage: true }); await page.getByRole("link", { name: "← 总览", exact: true }).first().click(); await chart.waitFor(); }

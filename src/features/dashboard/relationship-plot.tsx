@@ -28,6 +28,7 @@ export function RelationshipPlot({ days, selected, inspect, open }: { days: Over
     <div className={styles.plot}><svg viewBox={`0 0 ${w} ${height}`} style={{ visibility: width ? undefined : "hidden" }} role="group" aria-label="双层日期关联图" aria-describedby={`${id}-help`}
       onPointerDown={event => { if (event.button !== 0) return; gesture.current = { x: event.clientX, y: event.clientY, horizontal: false }; pick(event.currentTarget, event.clientX); }}
       onPointerMove={event => {
+        if (event.pointerType === "mouse" && event.buttons === 0) gesture.current = null;
         const start = gesture.current;
         if (start && !start.horizontal && Math.abs(event.clientX - start.x) > 8 && Math.abs(event.clientX - start.x) > Math.abs(event.clientY - start.y)) { start.horizontal = true; event.currentTarget.setPointerCapture(event.pointerId); }
         if (event.pointerType === "mouse" || start?.horizontal) pick(event.currentTarget, event.clientX);

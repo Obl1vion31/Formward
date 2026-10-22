@@ -25,11 +25,13 @@
 .energyEquation > div,.weightEquation > div { min-width:0; }
 .dayReadout span { display:block; color:#a8a195; font-size:12px; margin-bottom:7px; white-space:nowrap; }
 .dayReadout strong { display:block; font-size:30px; line-height:1.2; font-weight:400; white-space:nowrap; letter-spacing:-.035em; }
-.dayReadout .energyEquation small { display:block; margin:5px 0 0; }
+.dayReadout .energyEquation small { display:block; margin:5px 0 0; white-space:nowrap; }
 .dayReadout b { color:#6f6c64; font-size:17px; font-weight:400; }
 .dayReadout em,.dayDetails em { display:inline-block; color:#a8a195; font-style:normal; font-size:11px; margin:4px 0 0; }
 .intakeText { color:#92B9D6; }.expenditureText { color:#D89490; }.surplusText strong { color:#D8B38A; }.deficitText strong { color:#92B2C2; }
 .weightEquation { display:grid; grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr) minmax(0,1.25fr); gap:10px; border-left:1px solid rgba(240,233,221,.1); padding-left:28px; align-items:center; }
+.weightEquation > div { position:relative; padding-bottom:17px; }
+.weightEquation em { position:absolute; left:0; bottom:0; margin:0; line-height:14px; }
 .weightEquation strong { font-size:25px; }
 .weightDifference { padding-left:12px; }
 .panelHeading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:8px; }
