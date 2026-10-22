@@ -69,14 +69,12 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
       await page.getByRole("button", { name: `${days}D`, exact: true }).click();
       const chart = page.getByRole("group", { name: "摄入、消耗、盈余与次晨体重变化", exact: true });
       const values = await chart.evaluate((group, date) => {
-        const intake = group.querySelector(`[data-overview-date="${date}"] [data-series="intake"]`), expenditure = group.querySelector(`[data-overview-date="${date}"] [data-series="expenditure"]`), balance = group.querySelector(`[data-overview-date="${date}"] [data-series="balance"]`);
-        const n = (node, key) => Number(node.getAttribute(key));
-        const zero = n(group.querySelector('[data-overview-panel="balance"] [data-overview-zero]'), "y1");
-        return { intake: n(intake,"data-overview-value"), expenditure: n(expenditure,"data-overview-value"), balance: n(balance,"data-overview-value"), centers: [intake,expenditure,balance].map(node=>n(node,"x")+n(node,"width")/2), balanceTop:n(balance,"y"), balanceBottom:n(balance,"y")+n(balance,"height"), zero };
+        const day = group.querySelector(`[data-overview-date="${date}"]`);
+        const n = key => Number(day.querySelector(`[data-series="${key}"]`).getAttribute("data-overview-value"));
+        return { intake: n("intake"), expenditure: n("expenditure"), balance: Number(day.getAttribute("data-balance")) };
       }, date);
       assert.equal(values.expenditure,2800); assert.equal(values.balance,values.intake-2800);
-      assert.ok(values.centers[0]<values.centers[1]);
-      assert.ok(Math.abs((values.balance < 0 ? values.balanceTop : values.balanceBottom)-values.zero)<.01);
+      assert.equal(await chart.locator("[data-overview-panel]").count(), 2);
 
     }
     await page.screenshot({ path: `${artifacts}/overview-${width}.png`, fullPage: true });

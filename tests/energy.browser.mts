@@ -37,7 +37,17 @@ try {
   const page = await context.newPage(), errors: string[] = []; page.on("pageerror", (error: Error) => errors.push(error.message));
   try { await checkEnergy({ baseURL, context, page, token: token.rawToken, today });
     const touch = await (browser as Awaited<ReturnType<typeof chromium.launch>>).newContext({ locale: "zh-CN", timezoneId: "Asia/Shanghai", viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, storageState: await context.storageState() });
-    try { const touchPage = await touch.newPage(); touchPage.on("pageerror", (error: Error) => errors.push(error.message)); await touchPage.goto(`${baseURL}/dashboard`); await touchPage.locator(`[data-overview-panel="balance"] [data-overview-date="${today}"]`).tap(); await touchPage.locator("dialog[aria-labelledby]").waitFor(); await touchPage.getByRole("button", { name: "关闭编辑", exact: true }).click(); assert.equal(await touchPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); } finally { await touch.close(); }
+    try { const touchPage = await touch.newPage(); touchPage.on("pageerror", (error: Error) => errors.push(error.message)); await touchPage.goto(`${baseURL}/dashboard`); await touchPage.locator(`[data-overview-date="${today}"]`).tap(); assert.equal(await touchPage.locator("dialog[aria-labelledby]").count(), 0); await touchPage.getByRole("button", { name: "查看记录 →", exact: true }).tap(); await touchPage.locator("dialog[aria-labelledby]").waitFor(); await touchPage.getByRole("button", { name: "关闭编辑", exact: true }).click(); await touchPage.locator("dialog[aria-labelledby]").waitFor({ state: "hidden" }); assert.equal(await touchPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      const svg = touchPage.getByRole("group", { name: "双层日期关联图", exact: true });
+      await svg.scrollIntoViewIfNeeded(); const box = await svg.boundingBox(); const client = await touch.newCDPSession(touchPage);
+      const send = (type: string, x: number, y: number) => client.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y }] });
+      const sx = box!.x + box!.width * .4, sy = Math.min(600, box!.y + 90);
+      await send("touchStart", sx, sy); for (let i = 1; i <= 5; i++) await send("touchMove", sx + i * 15, sy); await send("touchEnd", sx + 75, sy);
+      assert.equal(await touchPage.locator("dialog[aria-labelledby]").count(), 0);
+      const beforeScroll = await touchPage.evaluate(() => scrollY);
+      await send("touchStart", sx, sy); for (let i = 1; i <= 6; i++) await send("touchMove", sx, sy - i * 18); await send("touchEnd", sx, sy - 108);
+      await touchPage.waitForTimeout(200); assert.ok(await touchPage.evaluate(() => scrollY) > beforeScroll);
+      await client.detach(); } finally { await touch.close(); }
     assert.deepEqual(errors, []); }
   catch (error) { await page.screenshot({ path: "/tmp/formward-energy-visual/failure.png", fullPage: true }); await writeFile("/tmp/formward-energy-visual/failure.html", await page.content()); throw error; }
   await context.close();

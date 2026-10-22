@@ -669,7 +669,7 @@ SELECT * FROM meals WHERE user_id = '示例账号编号';
 | --- | --- | --- | --- | --- | --- |
 | 1. 读取事实 | 服务端 | [dashboard/page.tsx](../src/app/dashboard/page.tsx) → `listMeasurements`、`readMealSnapshot`、`readEnergySnapshot` | 当前账号 | 读取身体、饮食与消耗，使用 `measurementDisplay` 整理身体数据 | `OverviewView` 的属性 |
 | 2. 计算展示数据 | 服务端 | [dashboard/presentation.ts](../src/features/dashboard/presentation.ts) → [model.ts](../src/features/dashboard/model.ts) | 身体记录、餐次、今天 | 计算摄入、最终消耗、盈余和两种估计显示口径的相邻晨重差 | 卡片与图表属性 |
-| 3. 绘制并交互 | 首次准备内容，随后浏览器交互 | [overview-trend.tsx](../src/features/dashboard/overview-trend.tsx) | 记录和显示选择 | 分三行画摄入／消耗并排柱、盈余柱和次晨差线，独立刻度并同步日期选择 | 屏幕上的总览 |
+| 3. 绘制并交互 | 首次准备内容，随后浏览器交互 | [overview-trend.tsx](../src/features/dashboard/overview-trend.tsx) | 记录和显示选择 | 交给 [relationship-plot.tsx](../src/features/dashboard/relationship-plot.tsx) 绘制两层图：摄入与消耗线间填色表示差值，下层显示次晨变化；[chart-geometry.ts](../src/features/dashboard/chart-geometry.ts) 只计算画线坐标与刻度，两层同步日期选择 | 屏幕上的总览 |
 
 所以改变线条颜色和改变“哪两天晨重相减”，分别对应绘制／样式和模型计算。横轴 D 日的次晨变化必须是 D+1 晨重减 D 晨重，缺少任一日就留空，不能挑别的日期凑成一对。页面读取不会生成新估计；已有估计可由开关控制，并用虚线区分。身体卡使用最近有效空腹晨重，另有摄入和消耗卡。没有记录不能解释成确定的零。
 

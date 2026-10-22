@@ -48,25 +48,57 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
   await page.goto(operation.confirmationUrl ?? `${baseURL}/dashboard/ai/operations/${operation.id}`); await page.getByRole("button", { name: /保存/ }).last().click(); await page.waitForURL(`${baseURL}/dashboard`);
   const chart = page.getByRole("group", { name: "摄入、消耗、盈余与次晨体重变化", exact: true }); await chart.waitFor();
   await page.getByRole("button", { name: "全部", exact: true }).click();
-  const balancePanel = chart.locator('[data-overview-panel="balance"]'), weightPanel = chart.locator('[data-overview-panel="weight"]');
-  const positive = balancePanel.locator(`[data-overview-date="${old}"]`), negative = balancePanel.locator(`[data-overview-date="${next}"]`);
-  assert.equal(await chart.locator("[data-overview-panel]").count(), 3);
-  assert.deepEqual(await chart.locator(`[data-overview-date="${old}"] [data-series]`).evaluateAll(nodes => nodes.map(node => node.getAttribute("data-series"))), ["intake", "expenditure", "balance", "weight-change"]);
-  assert.equal(await positive.locator('[data-series="balance"]').getAttribute("data-overview-value"), "200"); assert.equal(await negative.locator('[data-series="balance"]').getAttribute("data-overview-value"), "-1000");
-  assert.equal(await weightPanel.locator(`[data-overview-date="${old}"] [data-series="weight-change"]`).getAttribute("data-overview-value"), "-0.25"); assert.equal(await weightPanel.locator(`[data-overview-date="${next}"] [data-series="weight-change"]`).count(), 0);
-  const baseline = Number(await balancePanel.locator("[data-overview-zero]").getAttribute("y1")); assert.ok(Number(await positive.locator('[data-series="balance"]').getAttribute("y")) < baseline); assert.equal(Number(await negative.locator('[data-series="balance"]').getAttribute("y")), baseline);
+  const positive = chart.locator(`[data-overview-date="${old}"]`), negative = chart.locator(`[data-overview-date="${next}"]`);
+  assert.equal(await chart.locator("[data-overview-panel]").count(), 2);
+  assert.equal(await positive.getAttribute("data-balance"), "200"); assert.equal(await negative.getAttribute("data-balance"), "-1000");
+  assert.equal(await positive.locator('[data-series="weight-change"]').getAttribute("data-overview-value"), "-0.25");
+  assert.equal(await negative.locator('[data-series="weight-change"]').count(), 0);
+  assert.equal(await chart.locator('[data-energy-band="surplus"]').first().getAttribute("fill"), "#D8B38A");
+  assert.equal(await chart.locator('[data-energy-band="deficit"]').first().getAttribute("fill"), "#92B2C2");
+  await positive.click(); assert.equal(await dialog().count(), 0);
   await positive.focus(); await page.keyboard.press("ArrowRight"); assert.equal(await negative.evaluate(node => node === document.activeElement), true); await page.keyboard.press("Enter"); await dialog().getByText("总消耗 2,800 kcal", { exact: true }).waitFor(); await page.keyboard.press("Escape");
-  for (const width of [1440, 1100, 390, 320]) { await page.setViewportSize({ width, height: width < 500 ? 844 : 1000 }); await page.getByRole("button", { name: "7D", exact: true }).click(); await page.waitForTimeout(300); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); assert.doesNotMatch(await page.locator("main").innerText(), /共用零点|以.*为基准|当天已记录摄入|预算未设置|当前采用|来源与依据|活动合计为估算|日常默认值/); await page.screenshot({ path: `/tmp/formward-energy-visual/overview-${width}.png`, fullPage: true });
+  // 连续虚构资料包含正负交叉、单项缺测与连续缺日，用于真实页面的视觉验收。
+  const fixtures = [];
+  for (let i = -29; i < 0; i++) {
+    const date = previous(today, i);
+    if (![-17, -16, -4].includes(i)) fixtures.push({ key: `meal-${i}`, kind: "save_meal", date, mealType: "虚构午餐", items: [{ kind: "food", name: "虚构验收食物", nutrition: { caloriesKcal: String(2500 + Math.round(Math.sin(i * .7) * 440)), proteinG: null, carbsG: null, fatG: null } }] });
+    if (i < -8 && ![-10, -9].includes(i)) fixtures.push({ key: `energy-${i}`, kind: "save_energy_day", date, totalKcal: String(2650 + Math.round(Math.cos(i * .55) * 260)) });
+    if (i < -8 && i !== -20) fixtures.push({ key: `weight-${i}`, kind: "save_record", date, period: "daytime", fasting: true, weightKg: String(Math.round((70 + Math.sin(i * .6) * .3) * 100) / 100), deviceLabel: "虚构秤" });
+  }
+  for (let i = 0; i < fixtures.length; i += 30) {
+    const response = await context.request.post(`${baseURL}/api/v1/record-operations`, { headers: { Authorization: `Bearer ${token}` }, data: { operationId: randomUUID(), items: fixtures.slice(i, i + 30) } });
+    assert.equal(response.status(), 200); const operation = await response.json();
+    await page.goto(operation.confirmationUrl); await page.getByRole("button", { name: /保存/ }).last().click(); await page.waitForURL(`${baseURL}/dashboard`);
+  }
+  for (const width of [1440, 1100, 390, 320]) { await page.setViewportSize({ width, height: width < 500 ? 844 : 1000 }); await page.getByRole("button", { name: width < 500 ? "7D" : "30D", exact: true }).click(); await chart.locator(`[data-overview-date="${previous(today, -3)}"]`).focus(); await page.waitForTimeout(550); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); assert.doesNotMatch(await page.locator("main").innerText(), /共用零点|以.*为基准|当天已记录摄入|预算未设置|当前采用|来源与依据|活动合计为估算|日常默认值/); assert.equal(await page.getByLabel("日期对照", { exact: true }).locator("strong").evaluateAll(nodes => nodes.every(node => { const range = document.createRange(); range.selectNodeContents(node); const ink = range.getBoundingClientRect(), cell = node.parentElement.getBoundingClientRect(); return ink.left >= cell.left - 1 && ink.right <= cell.right + 1; })), true);
+    assert.equal(await chart.evaluate(group => {
+      const panels = [...group.querySelectorAll("[data-overview-panel]")];
+      const boxes = nodes => [...nodes].map(n => n.getBoundingClientRect());
+      const collides = (a,b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      const sets = [...panels.map(panel => boxes(panel.querySelectorAll("[data-axis-tick] text"))), boxes(group.querySelectorAll("[data-overview-date] > text"))];
+      return sets.every(set => set.every((a,i) => set.every((b,j) => i === j || !collides(a,b))));
+    }), true);
+    const centers = await chart.locator(`[data-overview-date="${previous(today, -3)}"] [data-series]`).evaluateAll(nodes => nodes.map(n => n.getAttribute("cx"))); assert.equal(new Set(centers).size, 1);
+    await page.screenshot({ path: `/tmp/formward-energy-visual/overview-${width}.png`, fullPage: true });
     await page.getByRole("link", { name: "消耗记录", exact: true }).first().click(); await summary.waitFor(); await page.getByRole("group", { name: "每日消耗柱状图", exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(550); assert.equal(await summary.locator("strong").evaluateAll(nodes => nodes.every(node => node.getBoundingClientRect().right <= node.parentElement.getBoundingClientRect().right + 1)), true); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); await page.screenshot({ path: `/tmp/formward-energy-visual/energy-${width}.png`, fullPage: true }); await page.getByRole("link", { name: "← 总览", exact: true }).first().click(); await chart.waitFor(); }
   for (const range of ["30D", "90D", "全部", "自定义"]) {
     await page.getByRole("button", { name: range, exact: true }).click();
     if (range === "自定义") { await page.getByLabel("总览开始日期", { exact: true }).fill(old); await page.getByLabel("总览结束日期", { exact: true }).fill(next); }
-    assert.equal(await chart.locator("[data-overview-panel]").count(), 3);
+    assert.equal(await chart.locator("[data-overview-panel]").count(), 2);
     for (const panel of await chart.locator("[data-overview-panel]").all()) {
-      const ticks = await panel.evaluate(node => Array.from(node.querySelectorAll("svg > g > line")).map(line => Number(line.parentElement.textContent)));
-      assert.ok(ticks.includes(0)); if (ticks.length > 2) { const step = ticks[1] - ticks[0]; assert.ok(ticks.slice(1).every((value, index) => Math.abs(value - ticks[index] - step) < 1e-8)); }
+      const ticks = await panel.locator("[data-axis-tick]").evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-axis-tick"))));
+      if (await panel.getAttribute("data-overview-panel") === "weight") assert.ok(ticks.includes(0)); if (ticks.length > 2) { const step = ticks[1] - ticks[0]; assert.ok(ticks.slice(1).every((value, index) => Math.abs(value - ticks[index] - step) < 1e-8)); }
     }
   }
+  await page.getByRole("button", { name: "30D", exact: true }).click();
+  assert.ok(await chart.locator("mask").count() > 0);
+  assert.ok(await chart.locator('[data-missing-run="energy"]').count() > 0);
+  assert.equal(await chart.locator("mask").evaluateAll(nodes => new Set(nodes.map(n => n.id)).size === nodes.length && nodes.every(n => n.getAttribute("maskUnits") === "userSpaceOnUse")), true);
+  const plot = chart.locator("svg"); const box = await plot.boundingBox();
+  await page.mouse.move(box.x + box.width * .8, box.y + 80); const before = await page.getByLabel("日期对照", { exact: true }).getAttribute("data-selected-date");
+  await page.mouse.down(); await page.mouse.move(box.x + box.width * .4, box.y + 85, { steps: 6 }); await page.mouse.up();
+  assert.notEqual(await page.getByLabel("日期对照", { exact: true }).getAttribute("data-selected-date"), before);
+  assert.equal(await dialog().count(), 0); await page.getByRole("button", { name: "查看记录 →", exact: true }).click(); await dialog().waitFor(); await page.keyboard.press("Escape");
   await page.emulateMedia({ reducedMotion: "reduce" }); await page.getByRole("button", { name: "90D", exact: true }).click(); await page.waitForTimeout(100); assert.equal(await chart.evaluate(node => node.getAnimations({ subtree: true }).filter(animation => animation.playState === "running").length), 0);
-  console.log("消耗录入、优先级、明细编辑、删除恢复、公式历史确认、混合AI审核、正负盈余、相邻晨重、键盘、四种宽度与减少动态效果通过");
+  console.log("消耗录入、优先级、明细编辑、删除恢复、公式历史确认、混合AI审核、双层交叉填色、缺测遮罩、相邻晨重、键盘与拖动、四种宽度与减少动态效果通过");
 }
