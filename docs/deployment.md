@@ -2,7 +2,7 @@
 
 正式域名为 [Formward](https://formward-ten.vercel.app)，Next.js 由 Vercel Hobby 托管，数据库沿用 Neon PostgreSQL。AI 使用正式 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 或 `https://formward-ten.vercel.app/api/mcp`，不能使用受 Deployment Protection 保护的单次部署／预览地址。
 
-当前READY部署`dpl_AZNJb45X9Z1bJTH4wSVbVmjRGRgR`，功能提交`0862c67`，正式别名已核对。OpenAPI1.11.0／MCP1.8.0，共12工具；数据库0021，36张应用表加Drizzle账本。Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。总览使用能量线间差值填色与次晨变化双层关联图；消耗支持分项／总数及活动合计／累计两级互斥模式。公式只供对照，日常默认值已停用。
+当前READY部署`dpl_6HUNRtdWzRRvny6r8SHUUh4FSZd3`，功能提交`973ca01`（主体`18fab5a`），正式别名已核对。OpenAPI1.11.0／MCP1.8.0，共12工具；数据库0021，36张应用表加Drizzle账本。Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。总览使用能量线间差值填色与次晨变化双层关联图；消耗支持分项／总数及活动合计／累计两级互斥模式。公式只供对照，日常默认值已停用。
 
 ## 平台与变量
 
@@ -110,3 +110,7 @@ Vercel的生产敏感变量不能下载，env pull的[SENSITIVE]占位符不能�
 正式交互报告`/tmp/formward-energy-modes-production.json`及`/tmp/formward-energy-modes-editor-production.json`；READY别名核对`/tmp/formward-energy-modes-inspect-final.log`。13项公开入口及认证保护通过，见`/tmp/formward-energy-modes-http.json`；MCP未授权challenge使用POST测试，GET的405不代表认证故障。最终部署Runtime error／fatal与请求5xx均0，见`/tmp/formward-energy-modes-runtime-errors.jsonl`和`/tmp/formward-energy-modes-server-errors.jsonl`。
 
 一次性历史补齐已通过正式统一提交生成43天待确认预览。用户尚需网页登录确认，不能代确认或称已保存。预览后另做全库核对，只新增统一审核及消耗子审核各1条，原健康事实保持；固定清理日没有正式静息记录，其错误默认派生已消失，无须删除健康事实。具体范围、私有请求和后续核对见[交接](../handoff.md)。
+
+双层关联图已通过最终正式站1440／1100／390／320px截图复核、全部范围、键盘、减少动态效果与缺记录切换位置稳定检查。虚构账号及所属数据已清理；13项公开入口／认证保护通过，客户端异常、Runtime error／fatal和请求5xx均0。截图与报告位于被忽略的`.codex/overview-verification/final/`。本轮无数据库迁移、权限或健康计算变化。
+
+本次发布前后私有备份为`data/exports/database-before-overview-release-2026-10-22.json`及`database-after-overview-release-2026-10-22.json`；`overview-release-storage-verification-2026-10-22.json`核对37张表结构和既有数据保持，仅排除正常限流及指定认证使用／续期元数据。全部文件0600，不提交或公开。

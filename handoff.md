@@ -4,7 +4,7 @@
 
 ## 当前任务与实现
 
-用户确认“双层关联图”并要求执行和视觉验收。网站展示已实现，待正式发布核对：
+用户确认“双层关联图”并要求执行和视觉验收。网站展示已发布，正式站虚构账号及视觉验收完成：
 
 - 上层为蓝色摄入线、红色消耗线；线间柔杏金#D8B38A盈余、雾蓝灰#92B2C2缺口，均28%填色，交点分区。主图完整区间整齐刻度并留余量。
 - 下层暖白次晨变化，与上层共日期、选中线及命中区，kg轴独立。严格相邻日配对、缺测断开、候选未决留空，估计仍为虚线与空心点。
@@ -17,7 +17,11 @@
 
 300项单元／集成、lint、typecheck、production build及目录结构检查通过。隔离数据库的消耗、饮食、统一审核浏览器回归通过。四种宽度1440／1100／390／320px真实页面截图已人工查看，亮白默认焦点框已替换为克制的日期焦点样式；验证所有区间、交叉填色与缺测遮罩、方向键／Enter、鼠标拖动、触屏横滑及纵向滚动、减少动态效果与无客户端异常。
 
-正式站当前仍为上一READY部署`dpl_AZNJb45X9Z1bJTH4wSVbVmjRGRgR`（功能`0862c67`）；手动发布后核对别名与正式浏览器，再更新本段。生产发布前备份为私有`data/exports/database-before-overview-relationship-2026-10-22.json`，37张表，0600，禁止提交或公开。
+正式域名已核对指向READY部署`dpl_6HUNRtdWzRRvny6r8SHUUh4FSZd3`，功能提交`973ca01`（主体`18fab5a`）。正式站覆盖全部范围、四种宽度、正负填色、缺测、键盘与减少动态效果；最终版本另外验证缺摄入／缺晨重状态切换不撑高读数区。全部虚构账号和所属健康事实、操作、审计、会话与令牌已清理。客户端异常0，13项公开入口／认证保护通过，Runtime error／fatal及请求5xx均0。报告在被忽略的`.codex/overview-verification/`，最终截图和报告在其`final/`，仅含虚构数据。
+
+生产发布前备份为私有`data/exports/database-before-overview-release-2026-10-22.json`，37张表，0600，禁止提交或公开。
+
+发布后私有备份为`data/exports/database-after-overview-release-2026-10-22.json`；`overview-release-storage-verification-2026-10-22.json`核对37张表结构一致，既有健康事实、来源、原请求、审核及审计逐项保持；仅忽略正常限流及指定认证使用／续期元数据。备份和报告均0600，Git与部署忽略。
 
 ## 已有历史审核
 
@@ -51,7 +55,7 @@ Git推送不自动发布，按现有Vercel CLI流程部署并确认正式别名R
 
 早期私有备份仍在被忽略的data/exports、0600：database-before-energy-defaults-2026-10-22.json、database-after-energy-defaults-migration-2026-10-22.json、database-after-energy-defaults-production-2026-10-22.json；对应energy-defaults-migration-verification与energy-defaults-production-verification报告保留。不要依据旧报告认定当前新表为空，实际用户已保存过数据。
 
-本机工具：Node24.21.0；pnpm与Vercel CLI位于/tmp/formward-tools/node_modules/.bin。Playwright变量及浏览器验证方式见tests/README.md。构建不能与使用同一.next的浏览器服务并行。
+本机工具：Node24.21.0；pnpm与Vercel CLI保留在/home/obl1vion/.local/formward-tools/node_modules/.bin，避免/tmp在环境重启后丢失。当前PLAYWRIGHT_MODULE为该工具目录node_modules/playwright/index.mjs，PLAYWRIGHT_BROWSERS_PATH为该目录browsers；LD_LIBRARY_PATH使用system/root/usr/lib/x86_64-linux-gnu，FONTCONFIG_FILE使用system/fonts.conf。通用方法见tests/README.md。构建不能与使用同一.next的浏览器服务并行。
 
 ## 视觉参考与文档
 
