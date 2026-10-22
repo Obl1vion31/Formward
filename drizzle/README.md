@@ -1,8 +1,10 @@
-# Drizzle Migrations
+# 数据库迁移
 
 `0010_shared_auth_rate_limits.sql` 新增 rate_limits 与最后请求时间索引，供 Vercel 多实例共享登录限流；不改变既有账号、认证和健康表。
 
 本目录保存由 Drizzle Kit 生成并纳入版本控制的 PostgreSQL migration 历史。生成的迁移子目录和快照属于工具产物，无需单独 README；已进入共享环境的 migration 不再修改。
+
+当前schema至0021，共36张应用表，另有Drizzle迁移账本。这里仅管理结构；个人历史初始化通过明确范围的业务审核处理，不能把个人数值写进公共migration。网页、HTTP和MCP共用`src/features`的业务写入与审计。
 
 `0000_flat_hawkeye.sql` 建立内部账号、凭据、会话和 verification 表；`0001_broken_moira_mactaggert.sql` 建立身体测量、导入批次与写入事件表，以及数值校验、账号归属与去重约束。`0002_complete_lockjaw.sql` 增加实测／估计、录入入口、设备、连接应用及模型信息，并约束有效估计时段唯一、占位时间不生成 UTC。`0003_pretty_mister_sinister.sql` 首次放开仅体脂估计。`0004_dapper_valeria_richards.sql` 增加批次初始化元数据，并以部分唯一索引约束每账号至多一次初始化；报告与冻结范围持久保存。`0005_medical_beyonder.sql` 支持仅体脂实测，要求每条测量至少有体重／体脂之一；新增按账号／日期唯一的空白日期与提醒状态表，以及请求内容摘要。`meta/` 是生成的快照与 journal，随 migration 纳入版本控制。生成命令为 `pnpm db:generate`，执行命令为 `pnpm db:migrate`，连接配置见 `docs/auth-setup.md`。
 
@@ -30,4 +32,8 @@
 
 0017_dry_pandemic 新增 foods.category，默认 ingredient，CHECK 仅接受 meal／ingredient。旧记录分类随后通过指定账号、ID／版本／摘要的授权维护完成，不改营养、单位及历史快照。没有新增表，共29张业务／认证表。
 
-0018_sudden_silverclaw 仅新增 record_operations，保存统一审核请求、草稿、父子审核版本与终态，并关联既有子操作。账号／请求和两个子操作标识唯一；不改现有29张表和值，当前 schema 共30张业务／认证表。
+0018_sudden_silverclaw 仅新增 record_operations，保存统一审核请求、草稿、父子审核版本与终态，并关联既有子操作。账号／请求和两个子操作标识唯一；不改原29张表和值，迁移后共30张业务／认证表。
+
+0019新增公式资料、每日消耗、活动明细、消耗审核及审计5张表；统一审核增加可空消耗子操作和版本关联。0020新增energy_defaults，以及日记录active_estimated／notes，迁移后共36张应用表。默认值表仅保留退役存储与审计，业务不再读取或允许新增／恢复默认规则；共享migration保持原样。
+
+0021_tranquil_leo为energy_days增加可空entry_mode、activity_mode、resting_source_system、active_source_system，以及非空默认false的resting_estimated，并校验模式取值。旧行模式保留null以兼容旧请求的取值优先级，不回填个人热量、活动0或默认规则。没有新建表，meta快照及journal同步纳入版本控制。迁移前后逐表核对原字段和值保持，账本只增加对应1条；生产执行和私有核对位置见[部署文档](../docs/deployment.md)及[项目交接](../handoff.md)。
