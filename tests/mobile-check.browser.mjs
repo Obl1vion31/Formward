@@ -17,6 +17,19 @@ export async function checkMobile({baseURL,context,page,today,token}) {
   await mealMissing.getByRole("button",{name:"补录",exact:true}).click();
   assert.equal(await dialog().getByLabel("日期",{exact:true}).inputValue(),shift(today,-4));
   await page.getByRole("button",{name:"关闭编辑",exact:true}).click();await dialog().waitFor({state:"hidden"});
+  const unknownNutrition={caloriesKcal:null,proteinG:null,carbsG:null,fatG:null};
+  const cases=[
+    {key:"unknown",mealType:"未知测试",items:[{kind:"food",name:"虚构未知营养",nutrition:unknownNutrition}]},
+    {key:"zero",mealType:"零值测试",items:[{kind:"food",name:"虚构明确零",nutrition:{caloriesKcal:"0",proteinG:"0",carbsG:"0",fatG:"0"}}]},
+    {key:"partial",mealType:"部分测试",items:[{kind:"food",name:"虚构已知部分",nutrition:{caloriesKcal:"50",proteinG:"2",carbsG:"4",fatG:"1"}},{kind:"food",name:"虚构待确认部分",nutrition:unknownNutrition}]}
+  ];
+  const totalsResponse=await context.request.post(baseURL+"/api/v1/record-operations",{headers:{Authorization:`Bearer ${token}`},data:{operationId:randomUUID(),items:cases.map(row=>({...row,kind:"save_meal",date:shift(today,-2)}))}});
+  assert.equal(totalsResponse.status(),200);const totalsOperation=await totalsResponse.json();await page.goto(totalsOperation.confirmationUrl);
+  await page.getByRole("group",{name:"本餐合计",exact:true}).nth(2).waitFor();
+  const texts=await page.getByRole("group",{name:"本餐合计",exact:true}).allInnerTexts();
+  assert.match(texts[0],/未知/);assert.doesNotMatch(texts[0],/部分/);
+  assert.match(texts[1],/0/);assert.doesNotMatch(texts[1],/未知|部分/);
+  assert.match(texts[2],/50/);assert.match(texts[2],/已知部分/);
   const payload={operationId:randomUUID(),items:[{key:"mobile-lunch",kind:"save_meal",date:shift(today,-1),mealType:"lunch",items:[
     {kind:"food",name:"虚构烤鸡饭，含蔬菜与米饭的长名称",quantity:"1",unit:"份",nutrition:{caloriesKcal:"620",proteinG:"30",carbsG:"70",fatG:"24"}},
     {kind:"food",name:"虚构酸奶",quantity:"1",unit:"杯",nutrition:{caloriesKcal:"220",proteinG:"10",carbsG:"24",fatG:"9"}},
