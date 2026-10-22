@@ -17,9 +17,15 @@
 
 本机lint、typecheck、305项单元／集成及production build通过。饮食、统一审核、消耗、身体／AI／加载和手机专项均通过；尖峰／缺测样本最终截图已复核，236项文档链接与章节跳转、目录结构及diff检查通过。手机专项覆盖320／390／430px与矮视口、1100／1440px、粗指针横屏、跨零点草稿、菜单与导航、补录及审核首屏。
 
-正式站当前仍为上一成功部署`dpl_6HUNRtdWzRRvny6r8SHUUh4FSZd3`（功能`973ca01`）；完成回归后保存私有备份、提交并手动发布，再核对READY别名、虚构账号验收与清理及既有数据保持。本轮无迁移。
+正式别名已核对指向READY部署`dpl_36rkVNJrjXVQrs8e1avrAJf7MggA`，功能提交`2c327a9`（主体`cee8355`，窄屏`e05116f`）。正式域名虚构账号验收通过，包括全未知／0／已知部分的独立餐次合计；测试账号、健康事实、操作、审计、令牌与会话均已清理。客户端异常0，13项公开入口／认证保护通过；Runtime error／fatal及请求5xx均0。
 
-本机本轮截图与日志在`/tmp/formward-mobile-visual/`及`/tmp/formward-mobile-*.log`，只含虚构数据。上轮发布前后私有备份仍保留`database-before-overview-release-2026-10-22.json`、`database-after-overview-release-2026-10-22.json`及`overview-release-storage-verification-2026-10-22.json`；37张表一致，0600，Git与部署忽略。
+本轮实际网页截图已查看，含320／390／430px、1100／1440px、矮视口和触屏横屏。320px消耗三项同排，首屏至少80%图形；确认页首屏有日期、合计、前两项食物与保存。软键盘通过缩小视口模拟，真实iOS／微信键盘与浏览器工具栏仍由用户复核。
+
+私有验收报告、截图与日志归档在被忽略的`.codex/mobile-verification/`，只含虚构账号数据；`acceptance.json`为汇总，`screenshots/`含视口和全页截图。正式站当前任务已完成，后续以维护与用户反馈优化为主。
+
+发布前后备份为`data/exports/database-before-mobile-2026-10-23.json`与`database-after-mobile-2026-10-23.json`，核对报告`mobile-release-storage-verification-2026-10-23.json`：37张表结构一致，既有健康事实、来源、原请求、审核与审计保持，只排除正常限流及指定认证使用／续期元数据。文件0600，Git与部署忽略，无migration。
+
+上轮私有备份仍保留`database-before-overview-release-2026-10-22.json`、`database-after-overview-release-2026-10-22.json`及`overview-release-storage-verification-2026-10-22.json`。
 
 ## 已有历史审核
 
