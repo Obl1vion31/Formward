@@ -15,7 +15,7 @@
 - `interface.md`：已确定页面的内容、布局与交互。
 - `frame-calibration.md`：首页静态人物测量、离线拟合方式，以及视频首尾与静态端点的校准。
 - `design-reference.md`：MacroFactor 调研与 Formward 的 PC 端设计方向。
-- [visual-research.md](visual-research.md)：总览与消耗页的视觉调研、官方依据及两种待选择参考布局，不代表已上线方案。
+- [visual-research.md](visual-research.md)：总览的视觉调研、官方依据及双层关联参考图；趋势与单日读数联动，尚未作为网站界面发布。
 - `architecture.md`：轻量 Next.js 模块化单体边界。
 - `ai-api.md`：身体与饮食 MCP + OAuth、原图传输、AI 令牌、HTTP 协议、网页预览确认和本地 Codex 试验步骤。
 - `auth-setup.md`：Neon 配置、数据库 migration、内部账号创建、登录顺序与验证。
