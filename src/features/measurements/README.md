@@ -41,3 +41,5 @@ Inspector 锁定页面滚动时，预留稳定滚动条空间，仅将锁定前�
 `sources.ts` 管理账号历史来源、归属校验的幂等软删除、明确再次使用时恢复、实测事务中的最近使用时间和授权缺失来源补齐。共享校验要求新记录或主动清空时补填来源或 sourceUnspecifiedConfirmed:true；既有记录省略来源保持。`migration.test.ts` 验证旧结构升级与旧文件重导，`sources.test.ts` 验证来源规则、回滚、幂等与账号隔离。数据库完整字段、索引和关系见 [数据库字典](../../../docs/database.md)。
 
 `ai-operations.ts` 保留身体预览、稳定行标识、版本、15分钟有效期和事务规则，供统一审核及旧接口共用。网页审核由 records feature 负责，逐项确认只标记草稿，底部统一保存；`ai-confirmation.tsx` 仅保留身体编辑器、来源输入及估算依据。原始请求不变，审计关联原始候选、人工草稿及确认上下文。具体协议见 [AI 接入](../../../docs/ai-api.md)。
+
+来源输入复用components/source-input，身体建议仍由本目录独立管理，不混入消耗来源。

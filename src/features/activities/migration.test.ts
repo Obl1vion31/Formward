@@ -2,6 +2,27 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { test } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
+test("消耗来源迁移仅增加建议元数据，按账号去重并保留全部旧表和值", async () => {
+  const pg = new PGlite();
+  try {
+    const files = (await readdir("drizzle")).filter(file => /^\d{4}_.*\.sql$/.test(file)).sort();
+    for (const file of files.filter(file => file < "0022")) await pg.exec(await readFile(`drizzle/${file}`, "utf8"));
+    await pg.exec(`INSERT INTO users(id,name,email) VALUES ('source-owner','虚构甲','source-a@example.test'),('source-other','虚构乙','source-b@example.test');
+      INSERT INTO energy_days(id,user_id,local_date,timezone,source_system,resting_source_system,active_source_system,updated_at) VALUES
+      ('source-day','source-owner','2024-08-01','Asia/Shanghai','虚构手表','虚构手表',' 虚构应用 ','2024-08-02'),
+      ('source-other-day','source-other','2024-08-01','Asia/Shanghai','虚构手表',NULL,NULL,'2024-08-01');
+      INSERT INTO activities(id,user_id,local_date,timezone,name,source_system) VALUES ('source-activity','source-owner','2024-08-03','Asia/Shanghai','虚构活动','虚构手表');
+      INSERT INTO activities(id,user_id,local_date,timezone,name,source_system,deleted_at) VALUES ('source-deleted','source-owner','2024-08-04','Asia/Shanghai','虚构删除','不应出现',now());
+      INSERT INTO measurement_sources(user_id,label) VALUES ('source-owner','仅身体来源');`);
+    const tables = (await pg.query<{ table_name: string }>("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name")).rows.map(row => row.table_name);
+    const prior = new Map<string, Record<string, unknown>[]>();
+    for (const table of tables) prior.set(table, (await pg.query<Record<string, unknown>>(`SELECT * FROM "${table}"`)).rows);
+    await pg.exec(await readFile("drizzle/0022_daily_marauders.sql", "utf8"));
+    for (const table of tables) assert.deepEqual((await pg.query(`SELECT * FROM "${table}"`)).rows, prior.get(table), table);
+    assert.deepEqual((await pg.query("SELECT user_id,label FROM energy_sources ORDER BY user_id,label")).rows, [{ user_id: "source-other", label: "虚构手表" }, { user_id: "source-owner", label: "虚构应用" }, { user_id: "source-owner", label: "虚构手表" }]);
+    assert.equal((await pg.query("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'")).rows.length, tables.length + 1);
+  } finally { await pg.close(); }
+});
 test("消耗迁移保留30张旧表字段值，仅增加5张表和可空关联", async () => {
   const pg = new PGlite();
   try {

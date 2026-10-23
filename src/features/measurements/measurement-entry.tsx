@@ -8,7 +8,7 @@ import type { MeasurementMetric } from "./trend";
 import { systemMeasurementTimezone, timezoneLabel, timezoneOptions } from "./timezone";
 import styles from "./measurements-view.module.css";
 
-import { SourceInput } from "./source-input";
+import { SourceInput } from "@/components/source-input";
 
 type Draft = Record<EntryPeriod, { weightKg: string; bodyFatPercent: string; deviceLabel: string; timezone: string }>;
 const periodName = (period: EntryPeriod) => period === "daytime" ? "晨间" : "晚间";

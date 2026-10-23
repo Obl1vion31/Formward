@@ -5,6 +5,7 @@ import { activity, energyDay, energyDefault, energyEvent, energyOperation, energ
 import { ApiError, type AiIdentity } from "../auth/ai-identity";
 import { requireActiveAiToken } from "../auth/ai-tokens";
 import { lockOwner, type Transaction } from "../auth/owner-lock";
+import { rememberEnergySources } from "./sources";
 import { systemMeasurementTimezone, validateMeasurementTimezone } from "../measurements/timezone";
 import { ageOn, energyInputSchema, type EnergyAction, type EnergyInput, type EnergyOperationView, type EnergyPreview, type EnergyRecord, type EnergySnapshot, type EnergyProvenance } from "./model";
 
@@ -187,6 +188,7 @@ export async function decideEnergyOperation(db: Database, userId: string, id: st
       if (!selected.length || selected.some(row => row.error || !row.after)) throw new ApiError(400, "review_required", "请修改或取消有问题的消耗记录。");
       for (const entry of selected) {
         await write(tx, userId, entry);
+        await rememberEnergySources(tx, userId, entry);
         const index = row.preview.indexOf(entry);
         await tx.insert(energyEvent).values({ id: randomUUID(), userId, operationId: row.id, recordId: entry.after!.id, recordType: typeOf(entry.action), actorType: row.origin === "ai" ? "ai" : "user", actorId: row.tokenId ?? row.oauthConnectionId ?? userId, confirmedBy: userId, snapshot: { originalInput: row.payload.actions[index] ?? entry.action, action: entry.action, before: entry.before ?? null, after: entry.after! } });
       }

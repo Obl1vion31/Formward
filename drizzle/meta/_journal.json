@@ -155,6 +155,13 @@
       "when": 1792641437703,
       "tag": "0021_tranquil_leo",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792781105433,
+      "tag": "0022_daily_marauders",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 # 数据库连接与字段字典
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 36 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 37 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 
@@ -16,7 +16,7 @@
 
 ## 逻辑关系
 
-业务对象与物理表的对应方法、全部 36 张表的用途分组，见 [Code Study 的数据库地图](code-study.md#database-map)。下图按健康业务和身份授权分别展示主要物理外键；为便于阅读，省略部分重复的 `user_id` 连线。`o|` 表示可选的单个关联，`o{` 表示零到多个。完整字段、组合外键和检查约束以本文字典及 [schema.ts](../src/db/schema.ts) 为准。
+业务对象与物理表的对应方法、全部 37 张表的用途分组，见 [Code Study 的数据库地图](code-study.md#database-map)。下图按健康业务和身份授权分别展示主要物理外键；为便于阅读，省略部分重复的 `user_id` 连线。`o|` 表示可选的单个关联，`o{` 表示零到多个。完整字段、组合外键和检查约束以本文字典及 [schema.ts](../src/db/schema.ts) 为准。
 
 ### 健康事实、审核与图片
 
@@ -25,6 +25,7 @@ erDiagram
     users ||--o{ measurements : user_id
     users ||--o{ measurement_days : user_id
     users ||--o{ measurement_sources : user_id
+    users ||--o{ energy_sources : user_id
     users ||--o{ measurement_imports : user_id
     users ||--o{ measurement_operations : user_id
     users ||--o{ record_operations : user_id
@@ -82,7 +83,7 @@ erDiagram
 
 身体 AI 操作的 `token_id`／`oauth_connection_id` 恰有一个非空；饮食操作按 `origin` 校验手动、AI 或初始化对应的凭据与导入关系。OAuth 的 `client_id` 引用客户端业务标识 `oauth_client.client_id`，资源关联引用 `oauth_resource.identifier`，不应一律理解成关联对应表的 `id`。
 
-下列基础设施表没有图中的用户外键：`verifications` 按 `identifier` 管理验证状态；`rate_limits` 保存认证前来源与入口限流；`oauth_client_assertion` 保存协议断言的期限；`jwks` 保存签名密钥。它们与图中表合计为当前 36 张应用表。迁移账本 `drizzle.__drizzle_migrations` 另由工具管理。
+下列基础设施表没有图中的用户外键：`verifications` 按 `identifier` 管理验证状态；`rate_limits` 保存认证前来源与入口限流；`oauth_client_assertion` 保存协议断言的期限；`jwks` 保存签名密钥。它们与图中表合计为当前 37 张应用表。迁移账本 `drizzle.__drizzle_migrations` 另由工具管理。
 
 `created_by`、`actor_id` 等操作者快照保留文本标识，不是数据归属外键；真正归属由可信身份与 `user_id` 校验。体重单位固定 kg，体脂固定 %；外部原值、来源标识和批次状态独立保存。
 
@@ -654,3 +655,18 @@ meal_operations.payload／draft保存可选expectedImageCount，preview中的mis
 | resting_estimated | boolean NOT NULL DEFAULT false | 内部静息估算标识，初始化平均值不伪装为逐日实测 |
 
 模式CHECK只接受列出的值或旧行null；新请求不自动注入schema默认值，避免改变旧请求摘要。活动／静息原值、停用模式中的旧值、估算备注和来源元数据保留，使用哪组数值由模式决定。正式写入、版本递增和事件仍在同一事务，旧消耗快照的规则版本变化要求重新预览。
+
+## 消耗来源建议
+
+0022_daily_marauders新增六列energy_sources，按账号／名称唯一，名称1–200字，保存创建／最近使用及软删除时间、删除操作者。迁移从未删除日记录的来源字段和运动来源按账号去重建立建议；不改任何既有表、健康事实、原始请求或审计。
+
+| 字段 | 类型 | 语义 |
+| --- | --- | --- |
+| user_id | text NOT NULL FK users | 来源建议所属账号，删除账号级联清理 |
+| label | text NOT NULL | 账号内唯一名称，去首尾空白 |
+| created_at | timestamptz NOT NULL DEFAULT now | 建议创建时间 |
+| last_used_at | timestamptz NOT NULL DEFAULT now | 正式保存采用该来源的最近时间，按账号索引排序 |
+| deleted_at | timestamptz NULL | 建议移除时间，仅影响候选列表 |
+| deleted_by | text NULL FK users | 移除建议的操作者 |
+
+消耗来源使用独立于身体的账号建议池，静息、活动合计、总数与运动共用。输入仅回显已保存值，点击展开全部历史，输入筛选，支持键盘和触屏；“×”只软移除建议，保留草稿和历史快照。正式保存成功才更新建议，普通编辑保留旧来源不会恢复已移除项；新记录或明确更换来源并保存后恢复。统一AI审核共用相同输入与事务，来源仍可留空。

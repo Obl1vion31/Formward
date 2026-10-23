@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { ReviewInput, ReviewItem } from "./ai-operations";
 import { offsetTimezone, timezoneLabel, timezoneOptions } from "./timezone";
-import { SourceInput } from "./source-input";
+import { SourceInput } from "@/components/source-input";
 import type { SourceRemovalResult } from "./entry-state";
 
 type Draft = { seed: ReviewItem; date: string; period: ReviewInput["period"]; weightKg: string; bodyFatPercent: string; deviceLabel: string; fasting: boolean; timezone: string; recordId: string; version: string };

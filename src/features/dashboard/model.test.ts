@@ -12,6 +12,35 @@ import type { MeasurementDisplay } from "../measurements/entry-state";
 const observed = (date: string, patch: Partial<MeasurementDisplay> = {}): MeasurementDisplay => ({ id: date, recordDate: date, period: "daytime", weightKg: "70.00", bodyFatPercent: "20.00", fasting: true, sourceLocalTime: date + " 08:00:00", recordKind: "observed", timezone: "Asia/Shanghai", sourceType: "manual", sourceSystem: null, sourceRecordId: null, entryChannel: "manual", deviceLabel: "虚构秤", estimation: null, timePrecision: "minute", updatedAt: date, ...patch });
 const meal = (date: string, caloriesKcal: string): MealView => prepareMealActions({ operationId: "fictional-overview", actions: [{ kind: "save_meal", date, mealType: "午餐", items: [{ kind: "food", name: "虚构食物", sourceKind: "reference", nutrition: { ...emptyNutrition(), caloriesKcal } }] }] }, { foods: [], meals: [] }, "manual")[0].meal!;
 const expenditure = (date: string, totalKcal: string) => ({ id: date, version: 1, deletedAt: null, date, restingKcal: null, activeKcal: null, totalKcal, timezone: "Asia/Shanghai", sourceSystem: null, sourceRecordId: null, sourceOccurredAt: null, sourceUnit: "kcal" as const, syncStatus: "confirmed" as const });
+
+test("总览卡片各取最近记录日，跨零点保留昨日餐次且不影响当天汇总", () => {
+  const meals = [meal("2024-08-02", "200"), meal("2024-08-02", "300"), meal("2024-08-01", "400")];
+  const snapshot = { ...emptyEnergy(), days: [expenditure("2024-08-01", "2400")] };
+  const result = overviewPresentation(meals, [], snapshot, "2024-08-03");
+  assert.equal(result.latestIntake?.date, "2024-08-02"); assert.equal(result.latestIntake?.meals.length, 2);
+  assert.equal(result.latestIntake?.totals.values.caloriesKcal, "500.0000");
+  assert.equal(result.latestEnergy?.date, "2024-08-01"); assert.equal(result.summary.mealCount, 0);
+  assert.equal(overviewPresentation([...meals, meal("2024-07-01", "800")], [], snapshot, "2024-08-03").latestIntake?.date, "2024-08-02");
+});
+test("最新日的未知、零和部分保留，删除与未来记录不挤掉有效历史", () => {
+  const known = meal("2024-08-01", "100"), unknown = { ...meal("2024-08-02", "0"), items: [] };
+  const partial = { ...expenditure("2024-08-02", "0"), totalKcal: null, restingKcal: "2000" };
+  const snapshot = { ...emptyEnergy(), days: [expenditure("2024-08-01", "2400"), partial, expenditure("2024-08-04", "9000")] };
+  const result = overviewPresentation([known, unknown, meal("2024-08-04", "9000")], [], snapshot, "2024-08-03");
+  assert.equal(result.latestIntake?.date, "2024-08-02"); assert.equal(result.latestIntake?.totals.values.caloriesKcal, null);
+  assert.equal(result.latestEnergy?.date, "2024-08-02"); assert.equal(result.latestEnergy?.totalKcal, null);
+  const zero = overviewPresentation([meal("2024-08-03", "0")], [], { ...emptyEnergy(), days: [expenditure("2024-08-03", "0")] }, "2024-08-03");
+  assert.equal(Number(zero.latestIntake?.totals.values.caloriesKcal), 0); assert.equal(zero.latestEnergy?.totalKcal, "0");
+  const deleted = overviewPresentation([known, { ...unknown, deletedAt: "2024-08-03" }], [], { ...snapshot, days: snapshot.days.map(row => row.date === partial.date ? { ...row, deletedAt: "2024-08-03" } : row) }, "2024-08-03");
+  assert.equal(deleted.latestIntake?.date, known.date); assert.equal(deleted.latestEnergy?.date, known.date);
+});
+test("只有已完成活动也算最近消耗日，空账号和公式资料不生成摘要", () => {
+  const base = { ...expenditure("2024-08-02", "0"), name: "虚构步行", completed: true, durationMinutes: null, caloriesKcal: null };
+  const result = overviewPresentation([], [], { ...emptyEnergy(), activities: [base, { ...base, id: "pending", date: "2024-08-03", completed: false }] }, "2024-08-03");
+  assert.equal(result.latestEnergy?.date, "2024-08-02"); assert.equal(result.latestEnergy?.totalKcal, null);
+  const empty = overviewPresentation([], [], emptyEnergy(), "2024-08-03");
+  assert.equal(empty.latestIntake, null); assert.equal(empty.latestEnergy, null);
+});
 test("总览仅统计当天有效摄入，未知消耗不制造盈余", () => {
   const record = meal("2024-08-01", "200"), today = overview([record], [], "2024-08-01"), empty = overview([record], [], "2024-08-02");
   assert.equal(today.mealCount, 1); assert.equal(today.nutrition.values.caloriesKcal, "200.0000"); assert.equal(today.nutrition.incomplete.proteinG, true); assert.equal(empty.mealCount, 0); assert.equal(empty.nutrition.values.caloriesKcal, null); assert.equal(today.energyBalance, null);

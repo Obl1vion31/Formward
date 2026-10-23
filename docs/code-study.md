@@ -707,7 +707,7 @@ flowchart LR
 | 步骤 | 在哪里运行 | 文件／函数 | 收到什么 | 做什么 | 交给谁 |
 | --- | --- | --- | --- | --- | --- |
 | 1. 读取页面资料 | 服务端 | [measurements/page.tsx](../src/app/dashboard/measurements/page.tsx) | 当前账号、可选日期 | 读取测量、日期／提醒状态、来源建议 | `MeasurementsView` |
-| 2. 显示或录入 | 浏览器交互 | [measurements-view.tsx](../src/features/measurements/measurements-view.tsx)、[measurement-entry.tsx](../src/features/measurements/measurement-entry.tsx)、[source-input.tsx](../src/features/measurements/source-input.tsx) | 记录、日期、来源与用户输入 | 管理图、历史、详情、四项输入与草稿 | 身体保存或估算动作 |
+| 2. 显示或录入 | 浏览器交互 | [measurements-view.tsx](../src/features/measurements/measurements-view.tsx)、[measurement-entry.tsx](../src/features/measurements/measurement-entry.tsx)、[source-input.tsx](../src/components/source-input.tsx) | 记录、日期、来源与用户输入 | 管理图、历史、详情、四项输入与草稿 | 身体保存或估算动作 |
 | 3A. 保存实测 | 服务端及数据库 | [dashboard/actions.ts](../src/app/dashboard/actions.ts) 的 `saveDayAction` → [editing.ts](../src/features/measurements/editing.ts) 的 `saveMeasurementDay` | 本次填写、版本、来源、时区 | 校验晨晚与空腹条件，保存实测及事件 | 返回最新页面数据 |
 | 3B. 显式估算 | 服务端及数据库 | `estimateCellAction` → `estimateMeasurementCell` → [estimation.ts](../src/features/measurements/estimation.ts)、[estimate-records.ts](../src/features/measurements/estimate-records.ts) | 用户明确点击的日期／时段／指标 | 根据样本计算，条件允许才保存估计与依据 | 返回结果，更新身体页和总览 |
 
@@ -876,7 +876,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 
 ## 10. 数据表查阅：知道用途，比背字段重要
 
-### 10.1 当前全部 36 张表
+### 10.1 当前全部 37 张表
 
 下表按 [schema.ts](../src/db/schema.ts) 中的物理表名分组。这里描述代码声明，实际某个环境执行了哪些迁移，要查看该环境的账本。
 
@@ -887,10 +887,10 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 | OAuth，9 张 | `oauth_client`、`oauth_resource`、`oauth_client_resource`、`oauth_refresh_token`、`oauth_access_token`、`oauth_consent`、`oauth_client_assertion`、`jwks`、`oauth_connections` | 外部客户端、授权资源、用户同意、令牌更新、签名密钥与稳定连接 |
 | 身体，6 张 | `measurements`、`measurement_days`、`measurement_sources`、`measurement_imports`、`measurement_operations`、`measurement_events` | 测量事实、日期／提醒、来源建议、批次、审核与变更记录 |
 | 饮食与图片，8 张 | `foods`、`meals`、`meal_items`、`meal_imports`、`meal_operations`、`meal_events`、`meal_images`、`meal_image_links` | 食材、餐次、餐项、导入、审核、变更与图片元数据／关联 |
-| 消耗与活动，6 张 | `energy_profiles`、`energy_days`、`activities`、`energy_operations`、`energy_events`、`energy_defaults` | 按日期生效的资料、显式模式日录入、活动、预览和审计；energy_defaults仅留退役存储 |
+| 消耗与活动，7 张 | `energy_profiles`、`energy_days`、`activities`、`energy_operations`、`energy_events`、`energy_defaults`、`energy_sources` | 按日期生效的资料、显式模式日录入、活动、预览和审计；energy_sources保存独立来源建议；energy_defaults仅留退役存储 |
 | 统一审核，1 张 | `record_operations` | 一次混合请求、人工草稿、身体／饮食／消耗子操作关联和审核版本 |
 
-`drizzle.__drizzle_migrations` 是迁移工具的执行账本，不计入上述 36 张应用表。目标、训练计划和设备自动同步不在本轮实现范围。
+`drizzle.__drizzle_migrations` 是迁移工具的执行账本，不计入上述 37 张应用表。目标、训练计划和设备自动同步不在本轮实现范围。
 
 所有个人健康记录都按账号归属读取和写入；登录前的限流、协议资源等基础设施表有自己的标识规则，不能因为它们没有健康数据的 `user_id` 就直接认定有缺陷。
 

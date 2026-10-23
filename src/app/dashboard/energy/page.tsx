@@ -12,7 +12,8 @@ import { systemMeasurementTimezone } from "@/features/measurements/timezone";
 import { linkedDate } from "@/features/measurements/calendar";
 import { RouteLoading } from "@/components/page-loading";
 import { DashboardHeader } from "../header";
-import { saveEnergyAction } from "./actions";
+import { saveEnergyAction, removeEnergySourceAction } from "./actions";
+import { listEnergySources } from "@/features/activities/sources";
 export const metadata = { title: "Formward · 消耗" };
 export const maxDuration = 60;
 export default async function EnergyPage({ searchParams }: { searchParams: Promise<{ date?: string | string[] }> }) {
@@ -22,5 +23,5 @@ export default async function EnergyPage({ searchParams }: { searchParams: Promi
 async function Content({ user, date }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date: string | null }) {
   const db = getDatabase(), snapshot = await readEnergySnapshot(db, user.id), records = await listMeasurements(db, user.id);
   const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
-  return <main className="dashboard-page"><DashboardHeader email={user.email} /><EnergyView presentation={energyPresentation(snapshot, records.map(measurementDisplay), today)} save={saveEnergyAction} initialDate={date} /></main>;
+  return <main className="dashboard-page"><DashboardHeader email={user.email} /><EnergyView presentation={energyPresentation(snapshot, records.map(measurementDisplay), today, await listEnergySources(db, user.id))} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date} /></main>;
 }

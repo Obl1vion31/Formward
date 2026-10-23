@@ -6,6 +6,7 @@ import { useLocalToday } from "@/components/use-local-today";
 import { useMobileMode } from "@/components/use-mobile-mode";
 import { preferredRecordedDate, rangeContaining, recentRecordDates, recordDateLabel } from "@/components/record-dates";
 import { useChartMotion } from "@/components/use-chart-motion";
+import type { SourceRemovalResult } from "@/components/source-input";
 import { EditorDialog } from "../meals/meals-view";
 import { addCalendarDays, calendarOrdinal } from "../measurements/calendar";
 import { chartScale } from "@/components/chart-scale";
@@ -23,13 +24,16 @@ export function EnergySources({ day }: { day: EnergyDay }) {
   const sources = day.totalSource === "override" ? [["总消耗", day.record?.sourceSystem]] : [["静息", rest], ["活动", active]];
   return <div className={styles.sourceLine}>{sources.filter(([, source]) => source).map(([label, source]) => <span key={label}>{label} · {source}</span>)}</div>;
 }
-export function EnergyView({ presentation, save, initialDate = null }: { presentation: EnergyPresentation; save: SaveEnergy; initialDate?: string | null }) {
+export function EnergyView({ presentation, save, removeSource, initialDate = null }: { presentation: EnergyPresentation; save: SaveEnergy; removeSource: (label: string) => Promise<SourceRemovalResult>; initialDate?: string | null }) {
   const today = useLocalToday(presentation.today), mobile = useMobileMode();
   const router = useRouter();
   useEffect(() => { if (today !== presentation.today) router.refresh(); }, [today, presentation.today, router]);
   const [local, setLocal] = useState<EnergyPresentation | null>(null), [base, setBase] = useState(presentation);
   if (base !== presentation) { setBase(presentation); setLocal(null); }
   const data = local ?? presentation, state = data.snapshot;
+  const [sourceResult, setSourceResult] = useState<{ base: string[]; sources: string[] } | null>(null);
+  const sources = sourceResult?.base === data.sources ? sourceResult.sources : data.sources;
+  async function remove(label: string) { const result = await removeSource(label); if (result.ok) setSourceResult({ base: data.sources, sources: result.sources }); return result; }
   const byDate = new Map(data.days.map(day => [day.date, day]));
   const [formulaOpen, setFormulaOpen] = useState(false), [historyDate, setHistoryDate] = useState("");
   const latest = preferredRecordedDate(data.days, today, day => day.totalKcal !== null, day => !!day.record || day.activities.length > 0);
@@ -81,7 +85,7 @@ export function EnergyView({ presentation, save, initialDate = null }: { present
     {formulaOpen && <EditorDialog title="静息公式与资料" busy={busy} close={() => setFormulaOpen(false)}><h3>今天的静息公式对照</h3><p>{today}</p>{formula ? <><p>公式估算 {energyValue(formula.value)} kcal／天 · {formula.basis.age} 岁 · {Number(formula.basis.heightCm)} cm · {Number(formula.basis.weightKg)} kg（{formula.basis.weightDate}）</p></> : <p>填写身高、出生日期和公式性别参数后，结合有效晨重计算。</p>}<button onClick={editProfile}>填写或修改公式资料</button>
     <details className={styles.details}><summary>资料历史</summary>{state.profiles.filter(profile => !profile.deletedAt).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom)).map(profile => <div className={styles.row} key={profile.id}><div><h3>{profile.effectiveFrom} 起</h3><p>{Number(profile.heightCm)} cm · {profile.birthDate} · {profile.sex === "male" ? "男性" : "女性"}</p></div><div className={styles.actions}><button disabled={busy} onClick={() => { const { deletedAt, ...fields } = profile; void deletedAt; edit({ kind: "save_energy_profile", ...fields }); }}>编辑资料</button><button disabled={busy} onClick={() => { if (window.confirm(`删除将影响 ${profile.effectiveFrom} 起至下一份有效资料之前的公式估算，确认删除？`)) execute({ kind: "delete_energy_profile", id: profile.id, version: profile.version }); }}>删除资料</button></div></div>)}{!state.profiles.some(profile => !profile.deletedAt) && <p>尚未填写公式资料。</p>}<button onClick={editProfile}>填写公式资料</button></details>
 </EditorDialog>}
-    {editing && <EditorDialog title={editing.kind === "save_energy_profile" ? "公式资料" : editing.kind === "save_activity" ? "活动记录" : "每日消耗"} busy={busy} close={() => { if (!busy) { setEditing(null); setError(""); } }}><EnergyEditor initial={editing} error={error} busy={busy} save={execute} saveBatch={execute} activities={editing.kind === "save_energy_day" ? state.activities.filter(row => row.date === editing.date && !row.deletedAt) : []} /></EditorDialog>}
+    {editing && <EditorDialog title={editing.kind === "save_energy_profile" ? "公式资料" : editing.kind === "save_activity" ? "活动记录" : "每日消耗"} busy={busy} close={() => { if (!busy) { setEditing(null); setError(""); } }}><EnergyEditor initial={editing} error={error} busy={busy} save={execute} saveBatch={execute} sources={sources} removeSource={remove} activities={editing.kind === "save_energy_day" ? state.activities.filter(row => row.date === editing.date && !row.deletedAt) : []} /></EditorDialog>}
   </section>;
 }
 

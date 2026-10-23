@@ -30,3 +30,5 @@
 `oauth.test.ts` 使用实际 OAuth HTTP 和两代 SDK 客户端覆盖发现、签名请求、PKCE、刷新轮换、幂等、网页确认、只读、跨账号、到期、伪造签名和撤销。`tests/oauth.browser.mjs` 验证手机登录授权及完整预览确认／撤销流程，均使用虚构数据库。
 
 饮食OAuth使用meals:read／meals:write，与身体权限独立；原连接需重新授权。owner-lock.ts为新增业务共用账号行锁。requireActiveAiToken及requireOauthConnection按业务域复核授权，旧身体调用保留默认域。AI设置同时列出身体与饮食审核，手动令牌仍为统一read／write。
+
+AI接入按连接实际scope分别显示消耗查询与提交权限，缺失时提示在客户端重新授权；不自动扩展旧连接。query_energy要求energy:read，统一消耗预览要求energy:write。

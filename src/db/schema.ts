@@ -138,6 +138,20 @@ export const measurementSource = pgTable("measurement_sources", {
   check("measurement_sources_label_valid", sql`length(${table.label}) BETWEEN 1 AND 300 AND ${table.label} = btrim(${table.label})`),
 ]);
 
+// 消耗来源建议与身体来源独立；健康记录继续保留自己的名称快照。
+export const energySource = pgTable("energy_sources", {
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  deletedBy: text("deleted_by").references(() => user.id),
+}, table => [
+  uniqueIndex("energy_sources_user_label_idx").on(table.userId, table.label),
+  index("energy_sources_user_last_used_idx").on(table.userId, table.lastUsedAt),
+  check("energy_sources_label_valid", sql`length(${table.label}) BETWEEN 1 AND 200 AND ${table.label} = btrim(${table.label})`),
+]);
+
 // 空白日期与提醒偏好独立于测量事实，不能参与实测统计。
 export const measurementDay = pgTable("measurement_days", {
   id: text("id").primaryKey(),
