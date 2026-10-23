@@ -2,7 +2,7 @@
 
 正式域名为 [Formward](https://formward-ten.vercel.app)，Next.js 由 Vercel Hobby 托管，数据库沿用 Neon PostgreSQL。AI 使用正式 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 或 `https://formward-ten.vercel.app/api/mcp`，不能使用受 Deployment Protection 保护的单次部署／预览地址。
 
-当前READY部署`dpl_36rkVNJrjXVQrs8e1avrAJf7MggA`，功能提交`2c327a9`（主体`cee8355`，窄屏`e05116f`），正式别名已核对。OpenAPI1.11.0／MCP1.8.0，共12工具；数据库0021，36张应用表加Drizzle账本。Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。总览使用能量线间差值填色与次晨变化双层关联图；消耗支持分项／总数及活动合计／累计两级互斥模式。公式只供对照，日常默认值已停用。
+当前READY部署`dpl_AJn19VeUQ8J7hjZ4MSCpWYpDrT3h`，功能提交`840419b`（分支codex/latest-records-energy-sources，尚未合入main），正式别名已核对。OpenAPI1.11.0／MCP1.8.0，共12工具；数据库0022，37张应用表加Drizzle账本。Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。总览使用能量线间差值填色与次晨变化双层关联图；消耗支持分项／总数及活动合计／累计两级互斥模式。公式只供对照，日常默认值已停用。
 
 ## 平台与变量
 
@@ -40,7 +40,7 @@ Hobby 配额遵守 [Blob 用量规则](https://vercel.com/docs/vercel-blob/usage
 
 修改前读根 README、AGENTS 和对应 README、当前 Next.js 本地文档。发布前运行 lint、typecheck、unit/integration test、production build、结构检查及受影响浏览器检查。浏览器使用独立 PGlite、端口和虚构账号；同一个 `.next` 构建目录不同时用于构建和正在运行的浏览器服务。
 
-新增 migration 先提交版本控制，再保存私有一致性备份、执行和核对旧字段／值。构建不自动迁移，共享 migration 不修改。0021仅给energy_days增加模式、分项来源及静息估算共5列与模式约束，不新增表，不回填个人数值；执行后核对36张应用表原字段和值保持，账本只新增对应1条。0019消耗表、0020退役默认存储及更早结构保持，已有数据不能按初次建表时的空表状态推断。
+新增 migration 先提交版本控制，再保存私有一致性备份、执行和核对旧字段／值。当前0022新增energy_sources并从未删除消耗／运动的已有来源去重初始化建议；原36张应用表结构与值保持，仅增加一条账本。正式站五种宽度及来源编辑验收完成，临时账号和所属数据已清理。构建不自动迁移，共享 migration 不修改。0021仅给energy_days增加模式、分项来源及静息估算共5列与模式约束，不新增表，不回填个人数值；执行后核对36张应用表原字段和值保持，账本只新增对应1条。0019消耗表、0020退役默认存储及更早结构保持，已有数据不能按初次建表时的空表状态推断。
 
 ```bash
 node --network-family-autoselection-attempt-timeout=1000 --env-file=.env.local --import tsx scripts/backup-database.mts data/exports/私有备份.json
