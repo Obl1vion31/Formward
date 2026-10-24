@@ -4,11 +4,11 @@
 
 ## 当前任务与实现
 
-本轮已实施并发布首页最新记录、消耗来源记忆和MCP授权提示。用户选择消耗来源单独记忆、手机图下纵向三行摘要。
+本轮已发布统一OAuth补授权与纯连接检查；首页最新记录、消耗来源记忆保持。用户选择消耗来源单独记忆、手机图下纵向三行摘要。
 
 - 首页身体、摄入、消耗各自读取最近记录日期；摄入显示该日餐数／kcal，消耗标日期，跨零点保持。最新部分数据不退回更早完整日，未知与0区分，图表每日收支规则保持。
 - 消耗来源在静息／活动合计／总数／运动间共用，与身体来源隔离；正式保存成功才记忆，点击展开全部、搜索／键盘／触屏选择，软移除保留历史与草稿，明确新使用才恢复。网页与统一／旧审核入口共用输入。
-- query_energy实际调用返回UNAUTHORIZED／TRIGGER_REAUTHENTICATION，请求energy:read。服务已有消耗查询及统一审核写入；当前用户连接仍需在客户端重新授权energy:read／energy:write并保留原权限。网站显示每个连接的消耗查询／提交授权，不能把部署当作用户已授权。
+- query_energy已在用户补授权后实测成功；用户报告仅消耗提交未授权。authorize_formward新增纯连接检查，一次申请身体、饮食／食材、消耗的读取和提交预览；不读健康内容、不建预览。已有提交权限的连接缺新类别时补授权合并六项，日常只读缺权限只合并三类读取。三类权限在设置页同格式显示，提供复制统一授权指令；旧令牌／连接不自动扩权，必须用户OAuth同意。客户端需刷新工具列表才能发现新增工具。
 
 - 手机48px页头、账号更多菜单、四个主页面底部导航；审核只保留统一保存栏。
 - 饮食／消耗最近10个日历日直接补录，含全空与只有活动的日期；保存明确日期，跨零点保留草稿；空行不入库。
@@ -19,19 +19,21 @@
 
 ## 验证与发布
 
-本机lint、typecheck、313项单元／集成及production build通过。新增日期／来源／迁移场景全部通过；251项文档本地链接、目录及diff检查通过。饮食、统一审核、消耗、身体／AI／加载和手机专项均通过；身体来源的鼠标／键盘／320px触屏选择和移除、留空与失败草稿保护也通过。手机专项覆盖320／390／430px与矮视口、1100／1440px、粗指针横屏、跨零点草稿、菜单与导航、补录及审核首屏。
+本机lint、typecheck、317项单元／集成及production build通过。新增统一授权、只读保持、同客户端升级、旧令牌隔离及零健康／预览写入场景通过；251项文档本地链接、目录及diff检查通过。饮食、统一审核、消耗、身体／AI／加载和手机专项均通过；身体来源的鼠标／键盘／320px触屏选择和移除、留空与失败草稿保护也通过。手机专项覆盖320／390／430px与矮视口、1100／1440px、粗指针横屏、跨零点草稿、菜单与导航、补录及审核首屏。
 
-正式别名已核对指向READY部署`dpl_AJn19VeUQ8J7hjZ4MSCpWYpDrT3h`，功能提交`840419b`，功能分支已推送。正式域名虚构账号验收通过，覆盖320／390／430／1100／1440px最近日期、来源选择／持久移除及AI只更新预览；测试账号、健康事实、操作、审计、令牌与会话均已清理。客户端异常0，7项公开入口／认证保护及消耗scope发现通过；Runtime error／fatal及请求5xx均0。
+正式别名已核对指向READY部署`dpl_BVBavTsuxTeaqiVwE4ygRK24wf1r`，功能提交`dd36e6f`，功能分支已推送。正式域名虚构账号验收通过，覆盖320／390／430／1100／1440px最近日期、来源选择／持久移除及AI只更新预览；测试账号、健康事实、操作、审计、令牌与会话均已清理。客户端异常0，7项公开入口／认证保护及消耗scope发现通过；Runtime error／fatal及请求5xx均0。
 
 本轮实际网页截图已查看，含320／390／430px、1100／1440px、矮视口和触屏横屏。320px消耗三项同排，首屏至少80%图形；确认页首屏有日期、合计、前两项食物与保存。软键盘通过缩小视口模拟，真实iOS／微信键盘与浏览器工具栏仍由用户复核。
 
-当前截图在被忽略的`.codex/latest-record-visual/`，正式站报告在`.codex/latest-record-release/production.json`，过程日志为`.codex/latest-record-*.log`，只含虚构账号数据。既有手机专项归档仍保留在`.codex/mobile-verification/`。网页修改与发布已完成，当前用户MCP连接补授权仍待本人在客户端完成。
+当前截图在被忽略的`.codex/latest-record-visual/`，正式站报告在`.codex/latest-record-release/production.json`，过程日志为`.codex/latest-record-*.log`，只含虚构账号数据。既有手机专项归档仍保留在`.codex/mobile-verification/`。统一授权已部署，当前用户的剩余消耗提交权限仍须本人OAuth同意；不要用健康记录提交触发测试授权，应使用authorize_formward。
 
 先前手机发布备份为`data/exports/database-before-mobile-2026-10-23.json`与`database-after-mobile-2026-10-23.json`，核对报告`mobile-release-storage-verification-2026-10-23.json`：37张表结构一致，既有健康事实、来源、原请求、审核与审计保持，只排除正常限流及指定认证使用／续期元数据。文件0600，Git与部署忽略，无migration。
 
 上轮私有备份仍保留`database-before-overview-release-2026-10-22.json`、`database-after-overview-release-2026-10-22.json`及`overview-release-storage-verification-2026-10-22.json`。
 
 本轮私有备份为data/exports/database-before-latest-records-2026-10-24.json、database-after-latest-records-migration-2026-10-24.json和database-after-latest-records-production-2026-10-24.json；核对报告为latest-records-migration-verification-2026-10-24.json和latest-records-production-verification-2026-10-24.json。仅新增energy_sources及一条迁移账本；既有表结构和值保持，只排除正常限流、会话续期和授权使用时间。文件0600、Git与部署忽略。
+
+统一授权发布无migration。私有备份为data/exports/database-before-unified-access-2026-10-24.json和database-after-unified-access-production-2026-10-24.json，核对为unified-access-production-verification-2026-10-24.json，38表结构及既有数据／scope保持，仅排除正常限流和授权使用／会话续期。正式站使用临时账号复现“只差energy:write”，一次网页同意后六项权限完整；零健康／预览写入、旧令牌隔离与撤销均通过，账号及OAuth客户端已清理。报告／截图在.codex/unified-access-release/；320／390／1440px已查看。
 
 ## 已有历史审核
 
