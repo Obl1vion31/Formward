@@ -31,4 +31,6 @@
 
 饮食OAuth使用meals:read／meals:write，与身体权限独立；原连接需重新授权。owner-lock.ts为新增业务共用账号行锁。requireActiveAiToken及requireOauthConnection按业务域复核授权，旧身体调用保留默认域。AI设置同时列出身体与饮食审核，手动令牌仍为统一read／write。
 
-AI接入按连接实际scope分别显示消耗查询与提交权限，缺失时提示在客户端重新授权；不自动扩展旧连接。query_energy要求energy:read，统一消耗预览要求energy:write。
+AI接入按连接实际scope以同一格式显示身体、饮食／食材及消耗的查询与提交权限，缺失时提示在客户端重新授权；不自动扩展旧连接。query_energy要求energy:read，统一消耗预览要求energy:write。
+
+完整接入使用authorize_formward统一检查并申请身体、饮食／食材、消耗的查询与提交预览权限。该工具只返回连接状态，不读取健康内容、不生成预览或保存事实；OAuth同意仍由用户完成。缺权限时保留原有授权，并合并申请三类记录权限；只有读取权限的连接在日常查询补授权时只申请三类读取，明确调用完整接入或提交工具才申请提交权限。已有令牌不会因请求授权而自动扩权，旧客户端与单类授权继续可用。

@@ -2,9 +2,15 @@
 
 接口覆盖晨晚体重／体脂、来源、时区、记录详情与历史、候选分析、摘要与趋势、历史编辑及单项显式估算。网页和 API 使用同一 measurements feature。饮食、食材及其删除／恢复已接入；通用文件导入及身体记录的网页删除／恢复、准确测量时间和历史归属纠正尚未接入。
 
+## 统一连接与授权
+
+完整接入使用authorize_formward统一检查并申请身体、饮食／食材、消耗的查询与提交预览权限。该工具只返回连接状态，不读取健康内容、不生成预览或保存事实；OAuth同意仍由用户完成。缺权限时保留原有授权，并合并申请三类记录权限；只有读取权限的连接在日常查询补授权时只申请三类读取，明确调用完整接入或提交工具才申请提交权限。已有令牌不会因请求授权而自动扩权，旧客户端与单类授权继续可用。
+
+在客户端刷新Formward工具列表后，可让AI“统一连接并授权Formward的全部记录能力”。授权页一次列出三类查询与提交预览，允许后再检查连接；AI接入页按同一格式展示三类权限，并提供“复制统一授权指令”。刷新工具只更新定义，不代表已同意新增权限。
+
 ## 混合记录接口
 
-MCP 1.8.0 提供12个工具，新增 `submit_record_operation`／`get_record_operation`；HTTP 为 `POST /api/v1/record-operations` 和 `GET /api/v1/record-operations/{id}`。支持只提交一类或任意组合，最多100项（包含展开的新食材）、64 KiB，统一链接 `/dashboard/ai/operations/{id}`。原单类接口和链接保持兼容，确认只能由登录网页执行。
+MCP 1.9.0 提供13个工具，新增 `submit_record_operation`／`get_record_operation`；HTTP 为 `POST /api/v1/record-operations` 和 `GET /api/v1/record-operations/{id}`。支持只提交一类或任意组合，最多100项（包含展开的新食材）、64 KiB，统一链接 `/dashboard/ai/operations/{id}`。原单类接口和链接保持兼容，确认只能由登录网页执行。
 
 请求为 `{ operationId, timezone?, items }`，每项包含唯一 `key` 和既有 `save_record`、`estimate_cell`、`save_meal`、`save_food` 或饮食删除／恢复字段。餐项通过 `foodRef` 引用同批 `save_food.key`，不同时提供 `foodId`、`foodDraft` 或 `nutrition`；内嵌 `foodDraft` 兼容并自动展开。以下仅为虚构格式：
 
@@ -24,6 +30,7 @@ MCP 1.8.0 提供12个工具，新增 `submit_record_operation`／`get_record_ope
 
 | 工具 | 输入与行为 | 权限 |
 | --- | --- | --- |
+| `authorize_formward` | 无参数；检查完整连接、缺权限时请求一次统一OAuth授权，不生成健康预览 | 身体／饮食／消耗读写 |
 | `query_energy` | from／to／timezone查询最终消耗、分项、活动及公式依据 | `energy:read` |
 | `submit_record_operation` | items混合预览，返回统一确认链接 | 按内容检查对应write权限 |
 | `get_record_operation` | 查询混合审核状态 | 按内容检查对应read权限 |
@@ -150,6 +157,6 @@ MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation
 
 食材可选 category:meal／ingredient，新条目省略为 ingredient，省略更新保留原分类；查询返回分类。餐项查询返回稳定 id，编辑时以 originalItemId 引用同一餐次／版本原项。食材已永久删除的旧餐项不传 foodId 或 nutrition，服务端沿用原快照按同单位 quantity 换算；不能将已删食材用于新餐。永久删除只在网页最近删除提供，不新增 MCP 工具或 HTTP 写接口。
 
-消耗查询为GET /api/v1/energy与MCP query_energy，统一提交支持每日消耗、活动及公式资料的保存／软删除／恢复。OAuth独立energy:read／energy:write，旧连接须重新授权；手动令牌沿用read／write。若query_energy返回insufficient_scope或客户端UNAUTHORIZED并请求energy:read，请在客户端重新授权，申请energy:read／energy:write并保留原有身体、饮食权限；仅刷新工具列表不会增加OAuth授权。AI接入页面按连接分别显示消耗查询和提交权限。规则、字段及虚构例子见[消耗文档](energy.md)。
+消耗查询为GET /api/v1/energy与MCP query_energy，统一提交支持每日消耗、活动及公式资料的保存／软删除／恢复。OAuth独立energy:read／energy:write，旧连接须重新授权；手动令牌沿用read／write。需要完整接入或补齐权限时使用authorize_formward统一申请并由用户同意，不必先提交健康记录来触发授权。AI接入页面按连接以相同格式展示身体、饮食／食材和消耗权限；仅刷新工具列表不会增加OAuth授权。规则、字段及虚构例子见[消耗文档](energy.md)。
 
 消耗采用entryMode（components／total）与activityMode（total／activities）显式选择，静息与活动分别使用restingSourceSystem／activeSourceSystem；总数来源仍用sourceSystem。旧无模式请求兼容原口径，估算及notes内部保留。save_energy_defaults及删除／恢复已退役，旧预览必须刷新并取消退役项，不能借旧链接写入。查询不返回defaults，不给未录日期自动生成消耗；公式通过独立formula返回，不参与每日总数。详细字段、未知／零与虚构例子见[消耗](energy.md)。

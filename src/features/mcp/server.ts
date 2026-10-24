@@ -24,6 +24,16 @@ import { queryEnergy } from "../activities/ai-api";
 import { isEnergy } from "../activities/model";
 import { energyAiInstructions } from "../activities/ai-openapi";
 
+const recordReadScopes = [READ_SCOPE, MEALS_READ_SCOPE, ENERGY_READ_SCOPE];
+const recordWriteScopes = [WRITE_SCOPE, MEALS_WRITE_SCOPE, ENERGY_WRITE_SCOPE];
+const completeRecordScopes = [...recordReadScopes, ...recordWriteScopes];
+/** 补授权按完整记录能力合并申请；仅查询连接保持只读，既有授权由客户端保留。 */
+function authorizationScopes(required: string[], granted: string[]) {
+  const records = !required.length || required.some(scope => completeRecordScopes.includes(scope));
+  const write = [...required, ...granted].some(scope => recordWriteScopes.includes(scope));
+  return [...new Set([...granted, ...required, ...(records ? [...recordReadScopes, ...(write ? recordWriteScopes : [])] : [])])];
+}
+
 function recordScopes(items: { kind: string }[], write: boolean) {
   return [...new Set(items.map(item => isEnergy(item) ? write ? ENERGY_WRITE_SCOPE : ENERGY_READ_SCOPE : item.kind === "save_record" || item.kind === "estimate_cell" ? write ? WRITE_SCOPE : READ_SCOPE : write ? MEALS_WRITE_SCOPE : MEALS_READ_SCOPE))];
 }
@@ -41,7 +51,7 @@ function toolPolicy(scopes: string[], readOnly: boolean, profile = false) {
 
 export function createFormwardMcp(db: Database, identity: AiIdentity, grantedScopes: string[], request: Request) {
   const resource = new URL("/api/mcp", siteOrigin(request)).href;
-  const server = new McpServer({ name: "Formward", version: "1.8.0" }, { instructions: "查询自己的身体记录时使用 query_measurements。身体记录的新录入、历史修改、估算通过 submit_measurement_operation 生成预览，将 confirmationUrl 完整提供给用户，等待用户在 Formward 网页确认。不要声称预览已经保存。未知值为 null，实测与估计必须区分，不把体重差解释为确定的热量或因果。重复提交沿用相同 operationId。用户未提供测量来源时，先询问实际设备／应用来源或是否确认不填写；可以列出查询返回的历史 sources 供选择，不能擅自沿用，也不能把 ChatGPT／手动提供当作测量来源。用户明确留空时传 deviceLabel:null 和 sourceUnspecifiedConfirmed:true。响应 needsUserInput 非空时说明待补信息，询问用户或让其在网页补填，不能把有问题的预览说成可直接保存。" + mealAiInstructions + recordAiInstructions + energyAiInstructions });
+  const server = new McpServer({ name: "Formward", version: "1.9.0" }, { instructions: "用户明确要求完整接入或补齐授权时，先调用authorize_formward一次请求身体、饮食和消耗的查询与提交预览权限；此工具不生成健康预览，仍需用户OAuth同意。查询自己的身体记录时使用 query_measurements。身体记录的新录入、历史修改、估算通过 submit_measurement_operation 生成预览，将 confirmationUrl 完整提供给用户，等待用户在 Formward 网页确认。不要声称预览已经保存。未知值为 null，实测与估计必须区分，不把体重差解释为确定的热量或因果。重复提交沿用相同 operationId。用户未提供测量来源时，先询问实际设备／应用来源或是否确认不填写；可以列出查询返回的历史 sources 供选择，不能擅自沿用，也不能把 ChatGPT／手动提供当作测量来源。用户明确留空时传 deviceLabel:null 和 sourceUnspecifiedConfirmed:true。响应 needsUserInput 非空时说明待补信息，询问用户或让其在网页补填，不能把有问题的预览说成可直接保存。" + mealAiInstructions + recordAiInstructions + energyAiInstructions });
   async function execute(scopes: string[], work: () => Promise<Record<string, unknown>>) {
     try {
       if (scopes.some(scope => !grantedScopes.includes(scope))) throw new ApiError(403, "insufficient_scope", "当前账号连接缺少权限，请重新授权。");
@@ -49,11 +59,12 @@ export function createFormwardMcp(db: Database, identity: AiIdentity, grantedSco
       return { content: [{ type: "text" as const, text: JSON.stringify(data) }], structuredContent: data, ...(data.status === "failed" ? { isError: true } : {}) };
     } catch (error) {
       const failure = safeAiError(error);
-      const challenge = `Bearer resource_metadata="${new URL("/.well-known/oauth-protected-resource/api/mcp", resource).href}", error="${failure.status === 403 ? "insufficient_scope" : "invalid_token"}", error_description="Please reconnect Formward", scope="${scopes.join(" ")}"`;
+      const challenge = `Bearer resource_metadata="${new URL("/.well-known/oauth-protected-resource/api/mcp", resource).href}", error="${failure.status === 403 ? "insufficient_scope" : "invalid_token"}", error_description="Please authorize Formward record access together", scope="${authorizationScopes(scopes, grantedScopes).join(" ")}"`;
       return { content: [{ type: "text" as const, text: failure.error.message }], structuredContent: { error: failure.error }, isError: true,
         ...([401, 403].includes(failure.status) ? { _meta: { "mcp/www_authenticate": [challenge] } } : {}) };
     }
   }
+  server.registerTool("authorize_formward", { title: "统一授权 Formward 记录能力", description: "用户要求连接Formward、补齐授权或统一开启身体、饮食／食材、消耗的查询与提交预览时使用。一次请求三类记录的读写权限，由用户在OAuth网页同意；仅检查连接，不读取健康内容、不创建预览或保存记录。只读使用者的日常查询继续使用原查询工具；用户未要求完整接入时不主动请求提交权限。成功后所有正式保存仍需用户网页登录确认。", inputSchema: z.object({}).strict(), ...toolPolicy(completeRecordScopes, true) }, () => execute(completeRecordScopes, async () => ({ connected: true, access: "read_and_submit_previews", domains: ["measurements", "meals", "energy"], requiresWebConfirmation: true })));
   server.registerTool("get_profile", { title: "查看已连接账号", description: "查看本次 OAuth 连接对应的 Formward 账号，返回稳定标识和显示名称。", inputSchema: z.object({}).strict(), ...toolPolicy(["profile"], true, true) }, () => execute(["profile"], async () => {
     const [profile] = await db.select({ id: user.id, displayName: user.name }).from(user).where(eq(user.id, identity.userId));
     if (!profile) throw new ApiError(401, "invalid_token", "账号不存在。");
@@ -126,7 +137,7 @@ async function traceMcpRequest(request: Request) {
     for (;;) { const {done,value}=await reader.read(); if(done) break; size+=value.length; if(size>131072) throw new ApiError(413,"invalid_input","MCP请求过大。"); chunks.push(value); }
     const input = JSON.parse(Buffer.concat(chunks).toString());
     const name = input?.method === "tools/call" ? input?.params?.name : null;
-    const known = ["get_profile","query_energy","query_measurements","submit_measurement_operation","get_measurement_operation","search_foods","query_meals","submit_meal_operation","get_meal_operation","import_meal_images","submit_record_operation","get_record_operation"];
+    const known = ["authorize_formward","get_profile","query_energy","query_measurements","submit_measurement_operation","get_measurement_operation","search_foods","query_meals","submit_meal_operation","get_meal_operation","import_meal_images","submit_record_operation","get_record_operation"];
     if (known.includes(name)) {
       const files=input?.params?.arguments?.files, first=Array.isArray(files)?files[0]:null;
       console.info(JSON.stringify({event:"mcp_tool_call",tool:name,...(name==="import_meal_images"?{fileCount:Array.isArray(files)?files.length:null,fileShape:typeof first,hasDownloadUrl:typeof first?.download_url==="string",hasFileId:typeof first?.file_id==="string"}:{})}));

@@ -130,7 +130,7 @@ test("现代与旧 MCP 客户端发现工具、查询、提交预览、网页确
   for (const mode of ["legacy", "auto"] as const) {
     const client = await mcpClient(connected.tokens.access_token, mode);
     try {
-      const tools = await client.listTools(); assert.deepEqual(tools.tools.map(tool => tool.name).sort(), ["get_meal_operation", "get_measurement_operation", "get_profile", "get_record_operation", "import_meal_images", "query_energy", "query_meals", "query_measurements", "search_foods", "submit_meal_operation", "submit_measurement_operation", "submit_record_operation"]);
+      const tools = await client.listTools(); assert.deepEqual(tools.tools.map(tool => tool.name).sort(), ["authorize_formward", "get_meal_operation", "get_measurement_operation", "get_profile", "get_record_operation", "import_meal_images", "query_energy", "query_meals", "query_measurements", "search_foods", "submit_meal_operation", "submit_measurement_operation", "submit_record_operation"]);
       const profile = await client.callTool({ name: "get_profile", arguments: {} }); assert.equal((profile.structuredContent as Record<string, unknown>)?.id, connected.userId);
       const input = { operationId: randomUUID(), items: [{ kind: "save_record", date: mode === "legacy" ? "2024-06-01" : "2024-06-02", period: "evening", weightKg: "70.20", deviceLabel: "虚构 MCP 秤" }] };
       const result = await client.callTool({ name: "submit_measurement_operation", arguments: input }); assert.ok(!result.isError);
@@ -307,4 +307,82 @@ test("消耗 OAuth 权限独立，旧连接与只读连接不能写；确认后�
   const readonly = await connect(credentials, ["openid", "profile", "offline_access", ENERGY_READ_SCOPE]), readClient = await mcpClient(readonly.tokens.access_token);
   try { assert.ok(!(await readClient.callTool({ name: "query_energy", arguments: {} })).isError); assert.equal((await readClient.callTool({ name: "submit_record_operation", arguments: { operationId: randomUUID(), items: [{ key: "activity", kind: "save_activity", date: "2024-09-17", name: "虚构", caloriesKcal: "800" }] } })).isError, true); }
   finally { await readClient.close(); }
+});
+
+async function recordState(userId: string) {
+  const result: Record<string, unknown> = {};
+  for (const table of ["measurements", "measurement_sources", "measurement_operations", "measurement_events", "foods", "meals", "meal_items", "meal_operations", "meal_events", "energy_days", "activities", "energy_profiles", "energy_sources", "energy_operations", "energy_events", "record_operations"]) {
+    result[table] = (await pg.query(`SELECT * FROM ${table} WHERE user_id=$1`, [userId])).rows;
+  }
+  return result;
+}
+function requestedScopes(result: { _meta?: Record<string, unknown> }) {
+  const challenges = result._meta?.["mcp/www_authenticate"] as string[] | undefined;
+  assert.ok(challenges?.length);
+  return challenges[0].match(/scope="([^"]*)"/)![1].split(" ");
+}
+const allRecordScopes = [READ_SCOPE, MEALS_READ_SCOPE, ENERGY_READ_SCOPE, WRITE_SCOPE, MEALS_WRITE_SCOPE, ENERGY_WRITE_SCOPE];
+
+test("已有提交权限的连接缺新类别权限时一次申请全部记录读写，不改变授权或生成预览", async () => {
+  const connected = await connect(), client = await mcpClient(connected.tokens.access_token), before = await recordState(connected.userId);
+  const consent = (await listOauthConnections(db, connected.userId)).find(row => row.id === connected.claims[CONNECTION_CLAIM])!;
+  try {
+    const denied = await client.callTool({ name: "query_energy", arguments: {} });
+    assert.equal(denied.isError, true);
+    for (const scope of [...allRecordScopes, "profile", "offline_access"]) assert.ok(requestedScopes(denied).includes(scope), scope);
+    const authorization = await client.callTool({ name: "authorize_formward", arguments: {} });
+    assert.equal(authorization.isError, true);
+    for (const scope of allRecordScopes) assert.ok(requestedScopes(authorization).includes(scope));
+    assert.deepEqual(await recordState(connected.userId), before);
+    assert.deepEqual((await listOauthConnections(db, connected.userId)).find(row => row.id === consent.id)?.scopes, consent.scopes);
+  } finally { await client.close(); }
+});
+
+test("只读查询补齐全部读取而不请求提交；用户明确完整接入才申请全部读写", async () => {
+  const connected = await connect(credentials, ["openid", "profile", "offline_access", READ_SCOPE]), client = await mcpClient(connected.tokens.access_token);
+  try {
+    const denied = await client.callTool({ name: "query_energy", arguments: {} }), requested = requestedScopes(denied);
+    for (const scope of [READ_SCOPE, MEALS_READ_SCOPE, ENERGY_READ_SCOPE]) assert.ok(requested.includes(scope));
+    for (const scope of [WRITE_SCOPE, MEALS_WRITE_SCOPE, ENERGY_WRITE_SCOPE]) assert.ok(!requested.includes(scope));
+    const full = await client.callTool({ name: "authorize_formward", arguments: {} });
+    for (const scope of allRecordScopes) assert.ok(requestedScopes(full).includes(scope));
+  } finally { await client.close(); }
+});
+
+test("完整授权的连接检查可重复且不读写健康事实或预览，声明准确且撤销后失效", async () => {
+  const connected = await connect(second, ["openid", "profile", "offline_access", ...allRecordScopes]);
+  const before = await recordState(connected.userId), client = await mcpClient(connected.tokens.access_token);
+  try {
+    const definitions = await client.listTools(), tool = definitions.tools.find(tool => tool.name === "authorize_formward")!;
+    assert.equal(tool.annotations?.readOnlyHint, true);
+    assert.deepEqual((tool._meta?.securitySchemes as { scopes: string[] }[])[0].scopes, allRecordScopes);
+    for (let i = 0; i < 2; i++) {
+      const status = await client.callTool({ name: "authorize_formward", arguments: {} });
+      assert.ok(!status.isError);
+      assert.deepEqual(status.structuredContent, { connected: true, access: "read_and_submit_previews", domains: ["measurements", "meals", "energy"], requiresWebConfirmation: true });
+    }
+    assert.equal((await client.callTool({ name: "authorize_formward", arguments: { userId: randomUUID() } })).isError, true);
+    assert.deepEqual(await recordState(connected.userId), before);
+    await revokeOauthConnection(db, connected.userId, connected.claims[CONNECTION_CLAIM]);
+    await assert.rejects(client.callTool({ name: "authorize_formward", arguments: {} }));
+  } finally { await client.close(); }
+});
+
+test("同一客户端在一次网页同意后从部分授权升级完整读写，旧访问令牌不自动扩权", async () => {
+  const connected = await connect(), before = await recordState(connected.userId);
+  const request = await authorize(connected.clientId, connected.cookie, ["openid", "profile", "offline_access", ...allRecordScopes]);
+  assert.match(request.redirectUrl!, /\/oauth\/consent\?/);
+  const info = await oauthPageRequest(db, auth, request.query);
+  assert.ok(info); for (const scope of allRecordScopes) assert.ok(info.scopes.some(item => item.scope === scope));
+  const accepted = await json("oauth2/consent", { accept: true, oauth_query: request.query }, connected.cookie);
+  assert.equal(accepted.status, 200);
+  const code = new URL((await accepted.json()).url).searchParams.get("code")!;
+  const exchanged = await token({ grant_type: "authorization_code", client_id: connected.clientId, code, code_verifier: request.verifier, redirect_uri: callback, resource: `${baseURL}/api/mcp` });
+  assert.equal(exchanged.status, 200);
+  const upgraded = await mcpClient((await exchanged.json()).access_token), old = await mcpClient(connected.tokens.access_token);
+  try {
+    assert.ok(!(await upgraded.callTool({ name: "authorize_formward", arguments: {} })).isError);
+    assert.equal((await old.callTool({ name: "authorize_formward", arguments: {} })).isError, true);
+    assert.deepEqual(await recordState(connected.userId), before);
+  } finally { await upgraded.close(); await old.close(); }
 });

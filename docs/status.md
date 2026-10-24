@@ -20,7 +20,9 @@ Formward采用Next.js16.3.7、React、TypeScript、Node.js24.21.0和pnpm9.15.9�
 
 ## 协议与数据库
 
-仓库协议OpenAPI1.11.0／MCP1.8.0，共12工具。消耗查询沿用GET /api/v1/energy和query_energy；统一提交扩展entryMode、activityMode与分项来源，旧无模式请求兼容。OAuth仍按身体／饮食／消耗原权限隔离，不自动扩权；AI正式保存必须用户网页登录确认。
+完整接入和补授权统一通过authorize_formward一次申请身体、饮食／食材、消耗的查询与提交预览，用户在OAuth网页明确同意。连接检查只返回授权状态，不读取健康内容或创建预览；日常只读连接保持只读，旧令牌不自动扩权。
+
+仓库协议OpenAPI1.11.0／MCP1.9.0，共13工具。消耗查询沿用GET /api/v1/energy和query_energy；统一提交扩展entryMode、activityMode与分项来源，旧无模式请求兼容。OAuth仍按身体／饮食／消耗原权限隔离，不自动扩权；AI正式保存必须用户网页登录确认。
 
 仓库schema至0022，共37张应用表加Drizzle账本。energy_sources从既有未删除消耗／运动的名称初始化账号建议，正式保存与来源更新同一事务；原36表字段和值保持。energy_days沿用0021显式模式、分项来源及resting_estimated；energy_defaults仅保留退役存储与审计。完整字段见[数据库字典](database.md)。
 

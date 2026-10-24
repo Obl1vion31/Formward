@@ -11,10 +11,10 @@ const callback = "https://fictional-browser.example.test/callback", clientName =
 const errors = [];
 let client;
 try {
-  const registration = await fetch(`${baseURL}/api/auth/oauth2/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_name: clientName, redirect_uris: [callback], token_endpoint_auth_method: "none", grant_types: ["authorization_code", "refresh_token"], response_types: ["code"], scope: "openid profile offline_access measurements:read measurements:write" }) });
+  const registration = await fetch(`${baseURL}/api/auth/oauth2/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_name: clientName, redirect_uris: [callback], token_endpoint_auth_method: "none", grant_types: ["authorization_code", "refresh_token"], response_types: ["code"], scope: "openid profile offline_access measurements:read measurements:write meals:read meals:write energy:read energy:write" }) });
   assert.equal(registration.status, 201); const registered = await registration.json();
   const verifier = randomBytes(32).toString("base64url"), state = randomUUID();
-  const query = new URLSearchParams({ client_id: registered.client_id, response_type: "code", redirect_uri: callback, scope: "openid profile offline_access measurements:read measurements:write", state, resource: `${baseURL}/api/mcp`, code_challenge_method: "S256", code_challenge: createHash("sha256").update(verifier).digest("base64url") });
+  const query = new URLSearchParams({ client_id: registered.client_id, response_type: "code", redirect_uri: callback, scope: "openid profile offline_access measurements:read measurements:write meals:read meals:write energy:read energy:write", state, resource: `${baseURL}/api/mcp`, code_challenge_method: "S256", code_challenge: createHash("sha256").update(verifier).digest("base64url") });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, extraHTTPHeaders: { "x-forwarded-for": "192.0.2.199" } });
   await context.route(`${callback}**`, route => route.fulfill({ contentType: "text/html", body: "<p>授权完成</p>" }));
   const page = await context.newPage(); page.on("pageerror", error => errors.push(error.message));
@@ -27,6 +27,8 @@ try {
   assert.ok((await page.locator("main").textContent()).includes(clientName));
   assert.ok((await page.locator("main").textContent()).includes("保存仍需网页确认"));
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  for (const text of ["查询身体记录和审核状态", "提交身体记录预览（保存仍需网页确认）", "查询饮食、食材和审核状态", "提交饮食与食材预览（保存仍需网页确认）", "查询消耗、活动与公式资料", "提交消耗与活动预览（保存仍需网页确认）"]) await page.getByText(text, { exact: true }).waitFor();
+  for (const width of [320,390,1440]) { await page.setViewportSize({ width, height:844 }); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); await page.screenshot({ path:`/tmp/formward-unified-consent-${width}.png`,fullPage:true }); }
   await page.screenshot({ path: "/tmp/formward-oauth-consent-mobile.png" });
   await page.getByRole("button", { name: "允许连接", exact: true }).click();
   await page.waitForURL(`${callback}**`);
@@ -35,6 +37,7 @@ try {
   assert.equal(exchange.status, 200); const tokens = await exchange.json();
   client = new Client({ name: "fictional-browser-client", version: "1.0.0" }, { versionNegotiation: { mode: "auto" } });
   await client.connect(new StreamableHTTPClientTransport(new URL(`${baseURL}/api/mcp`), { requestInit: { headers: { Authorization: `Bearer ${tokens.access_token}` } } }));
+  const connected = await client.callTool({ name: "authorize_formward", arguments: {} }); assert.ok(!connected.isError); assert.equal(connected.structuredContent.requiresWebConfirmation, true);
   const initial = await client.callTool({ name: "submit_measurement_operation", arguments: { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-07-01", period: "evening", weightKg: "74.20", deviceLabel: "虚构浏览器秤" }] } });
   assert.ok(!initial.isError); const operation = initial.structuredContent;
   await page.goto(operation.confirmationUrl);
@@ -43,10 +46,11 @@ try {
   const result = await client.callTool({ name: "get_measurement_operation", arguments: { id: operation.id } }); assert.equal(result.structuredContent.status, "confirmed");
   await page.goto(`${baseURL}/dashboard/ai`);
   const connection = page.getByRole("listitem").filter({ hasText: clientName });
+  for (const width of [320,390,1440]) { await page.setViewportSize({ width,height:844 }); await connection.getByText(/全部记录查询与提交预览/).waitFor(); for (const label of ["身体","饮食与食材","消耗"]) await connection.getByText(`${label}查询：已授权 · ${label}提交：已授权`, { exact:true }).waitFor(); await page.getByRole("button", { name:"复制统一授权指令",exact:true }).waitFor(); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); await page.screenshot({ path:`/tmp/formward-unified-access-${width}.png`,fullPage:true }); }
   await connection.getByRole("button", { name: "撤销连接", exact: true }).click();
   await connection.getByText(/已撤销/).waitFor();
   await assert.rejects(client.callTool({ name: "query_measurements", arguments: {} }));
   assert.deepEqual(errors, []);
-  console.log("通过：手机 OAuth 登录 → 明确授权 → MCP 提交 → 网页确认 → 状态查询 → 即时撤销。");
+  console.log("通过：手机 OAuth 登录 → 一次授权全部记录／只读连接检查 → MCP 提交 → 网页确认 → 状态查询 → 即时撤销。");
   await context.close();
 } finally { await client?.close(); await browser.close(); }
