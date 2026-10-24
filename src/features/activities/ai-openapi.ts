@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { energyActionSchemas } from "./model";
-const current = energyActionSchemas.filter(schema => !schema.shape.kind.value.includes("energy_defaults"));
+const current = energyActionSchemas.filter(schema => !schema.shape.kind.value.includes("energy_defaults") && !schema.shape.kind.value.startsWith("delete_") && !schema.shape.kind.value.startsWith("restore_"));
 const keyed = z.union(current.map(schema => schema.extend({ key: z.string().regex(/^[a-zA-Z0-9_-]{1,120}$/) })));
 export const energySchemas = { EnergyAction: z.toJSONSchema(z.union(current)), RecordEnergyItem: z.toJSONSchema(keyed) };
 export const energyAiInstructions = "消耗查询使用query_energy。通过submit_record_operation提交save_energy_day：entryMode=components只填restingKcal及activityMode；activityMode=total填activeKcal，activities累计独立save_activity条目；entryMode=total只填totalKcal。静息和活动原值相加，不扣除静息或估算额外日常活动；两种活动来源不重复累计。restingSourceSystem与activeSourceSystem分别记录真实来源；总数来源用sourceSystem。公式资料save_energy_profile仅用于独立公式对照，不自动生成每日消耗。日常默认值已停用，不得提交其新增或恢复。没有记录的日期保持未知；新分项日记录未提供活动合计时可记0，显式null和未知热量明细仍保持未知。估算元数据activeEstimated/restingEstimated及notes内部保留。数字用十进制字符串，已有记录先查id/version，省略保留、null清空；旧请求继续兼容原覆盖口径。所有正式写入仍需用户网页登录确认，不能代确认，可与身体、饮食合并提交。";

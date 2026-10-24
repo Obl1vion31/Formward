@@ -86,7 +86,7 @@ export async function checkMobile({baseURL,context,page,today,token}) {
     const d=p.locator("dialog[aria-labelledby]");await d.getByLabel("静息 · kcal",{exact:true}).fill("2345");
     await p.clock.fastForward(90_000);await p.getByText(/已跨零点/).waitFor();assert.equal(await d.getByLabel("日期",{exact:true}).inputValue(),today);assert.equal(await d.getByLabel("静息 · kcal",{exact:true}).inputValue(),"2345");
     await p.setViewportSize({width:390,height:360});await d.getByLabel("静息 · kcal",{exact:true}).scrollIntoViewIfNeeded();assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
-    await p.getByRole("button",{name:"关闭编辑",exact:true}).click();await p.clock.runFor(400);
+    p.once("dialog",prompt=>prompt.accept());await p.getByRole("button",{name:"关闭编辑",exact:true}).click();await d.waitFor({state:"hidden"});await p.clock.runFor(400);
     await p.setViewportSize({width:844,height:390});const nav=p.getByRole("navigation",{name:"主导航",exact:true});await nav.getByRole("link",{name:"身体",exact:true}).tap();await p.waitForURL("**/dashboard/measurements");assert.equal(await nav.getByRole("link",{name:"身体",exact:true}).getAttribute("aria-current"),"page");await p.getByRole("heading",{name:"身体记录",exact:true}).waitFor();await p.screenshot({path:artifacts+"/touch-landscape.png"});assert.deepEqual(touchErrors,[]);
   } finally { await touch.close(); }
   await page.goto(review);await page.getByRole("button",{name:"确认并全部保存",exact:true}).click();await page.waitForURL(baseURL+"/dashboard");

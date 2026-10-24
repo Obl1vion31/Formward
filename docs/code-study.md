@@ -699,7 +699,7 @@ flowchart LR
 
 公式资料是身高、出生日期和公式性别参数，只用来独立计算一个对照结果，不自动成为当天静息。它先找当天空腹实测，再看已有当天估计，再找过去30日晨重；依据不足就空着，不会造身体记录。新分项记录的空活动合计按0保存；API显式未知和热量未知的运动仍未知。完整规则见[热量消耗](energy.md)。
 
-**试着回答**：只记总数3100时，跑步800会不会再加一次？答：不会，只有当前总数模式参与。未录今天但有公式资料，今天会自动出现消耗吗？答：不会。估算摄入300、消耗200能否算盈余？答：可以，两个数值都有就得到+100；标记不会阻止相减。
+**试着回答**：只记总数3100时，跑步800会不会再加一次？答：不会，只有当前总数模式参与。未录今天但有公式资料，今天会自动出现消耗吗？答：不会。估算摄入300、消耗200能否算盈余？答：当天确认已记完时可以，两个数值都有就得到+100；估算标记不会阻止相减。若当天未记全／未确认，摄入照常展示，盈余留空。
 
 
 ### 7.3 身体记录：普通录入与估算有两条路线
@@ -876,7 +876,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 
 ## 10. 数据表查阅：知道用途，比背字段重要
 
-### 10.1 当前全部 37 张表
+### 10.1 当前全部 39 张表
 
 下表按 [schema.ts](../src/db/schema.ts) 中的物理表名分组。这里描述代码声明，实际某个环境执行了哪些迁移，要查看该环境的账本。
 
@@ -886,11 +886,11 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 | 手动 AI 凭据，1 张 | `ai_tokens` | 可撤销令牌摘要、权限、到期和使用状态 |
 | OAuth，9 张 | `oauth_client`、`oauth_resource`、`oauth_client_resource`、`oauth_refresh_token`、`oauth_access_token`、`oauth_consent`、`oauth_client_assertion`、`jwks`、`oauth_connections` | 外部客户端、授权资源、用户同意、令牌更新、签名密钥与稳定连接 |
 | 身体，6 张 | `measurements`、`measurement_days`、`measurement_sources`、`measurement_imports`、`measurement_operations`、`measurement_events` | 测量事实、日期／提醒、来源建议、批次、审核与变更记录 |
-| 饮食与图片，8 张 | `foods`、`meals`、`meal_items`、`meal_imports`、`meal_operations`、`meal_events`、`meal_images`、`meal_image_links` | 食材、餐次、餐项、导入、审核、变更与图片元数据／关联 |
+| 饮食与图片，10 张 | `foods`、`meals`、`meal_items`、`meal_imports`、`meal_operations`、`meal_events`、`meal_images`、`meal_image_links`、`meal_days`、`meal_day_events` | 食材、餐次、餐项、导入、审核、变更、日完成状态与图片元数据／关联 |
 | 消耗与活动，7 张 | `energy_profiles`、`energy_days`、`activities`、`energy_operations`、`energy_events`、`energy_defaults`、`energy_sources` | 按日期生效的资料、显式模式日录入、活动、预览和审计；energy_sources保存独立来源建议；energy_defaults仅留退役存储 |
 | 统一审核，1 张 | `record_operations` | 一次混合请求、人工草稿、身体／饮食／消耗子操作关联和审核版本 |
 
-`drizzle.__drizzle_migrations` 是迁移工具的执行账本，不计入上述 37 张应用表。目标、训练计划和设备自动同步不在本轮实现范围。
+`drizzle.__drizzle_migrations` 是迁移工具的执行账本，不计入上述 39 张应用表。目标、训练计划和设备自动同步不在本轮实现范围。
 
 所有个人健康记录都按账号归属读取和写入；登录前的限流、协议资源等基础设施表有自己的标识规则，不能因为它们没有健康数据的 `user_id` 就直接认定有缺陷。
 
@@ -1055,3 +1055,16 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 “昨天没录也能看到补录”来自 [record-dates.ts](../src/components/record-dates.ts)：它像在日历上列出最近10天，不向数据库增加空记录。饮食的 [MealsView](../src/features/meals/meals-view.tsx) 和消耗的 [EnergyView](../src/features/activities/energy-view.tsx) 再把真实数据对上日期。比如昨天只有活动，仍能补录日消耗；昨天完全空白也能打开标着昨天日期的表单。[RecordDateContext](../src/components/record-date-context.tsx) 在跨零点时提醒正在编辑原日期，保存不会自动变成新一天。
 
 确认页的“本餐960 kcal”从服务端已有的MealView.totals读取。[RecordReview](../src/features/records/record-review.tsx) 只组织字号和位置；它不会把未知当0，不另写一套营养算法。标记已核对只是草稿状态，底部统一保存才调用原有确认事务。总览默认日期也只是选择已有读数，不补造摄入或消耗。
+
+## 查阅补充：一天记完与账号导出
+
+“保存一餐”只表示这餐已入库，并不说明一整天已经记录齐全。例如午餐600 kcal保存后，饮食图仍画600；用户在当天记录点“已记完”以后，服务端才允许总览把当天摄入减去消耗。“未记全”保留食物和读数，不将未知补零。改餐次后需要重新确认，避免刚加晚餐还沿用旧午餐状态。既有历史按用户选择，在0023固定初始化一次，不是未来默认。
+
+| 哪一步 | 在哪里运行 | 哪个文件／函数 | 收到什么 | 做什么 | 交给谁 |
+| --- | --- | --- | --- | --- | --- |
+| 点当天状态 | 浏览器 | meals/meal-day-control.tsx | 当天状态、日期和版本 | 发起本人确认 | saveMealDayAction |
+| 确认本人及当前餐次 | 服务端 | meals/day-status.ts的setMealDayStatus | 日期、状态、请求标识与当前摘要 | 校验归属／版本／幂等，事务保存状态与审计 | readMealSnapshot |
+| 判断盈余 | 服务端 | dashboard/model.ts | 餐次、日状态、消耗 | 已记完且两边有数值才相减 | 总览读数与图形 |
+| 下载自己的记录 | 服务端 | features/exports与dashboard/export | 已验证会话、可选日期范围 | 复用正式汇总，生成真正xlsx | 本人浏览器下载 |
+
+新增表meal_days保存按账号／日期唯一的状态，meal_day_events保存确认与失效审计。Excel下载不是数据库备份，不能包含密码、令牌、其他账号或公开原图地址；空值和实际0保留区别。

@@ -17,6 +17,7 @@ import { LoginOverlay } from "./login-overlay";
 import { useDirectionTrigger } from "./use-direction-trigger";
 import { usePageLoading } from "@/components/page-loading-state";
 import { useMobileMode } from "@/components/use-mobile-mode";
+import fallbackStyles from "./home-login-fallback.module.css";
 
 // phase 表示交互阶段，不等于帧序号；FORWARD_ANIMATING 内部沿半秒播放时间轴前进（一秒源视频的 2 倍速）。
 type Phase = "INTRO" | "FORWARD_ANIMATING" | "LOGIN_READY" | "REVERSE_ANIMATING" | "AUTHENTICATING" | "FINAL_TRANSITION" | "FINAL";
@@ -49,6 +50,7 @@ export default function HomeExperience() {
   const timelineRef = useRef<ReturnType<typeof createProgressTimeline> | null>(null);
   const targetProgressRef = useRef<TargetProgress>(0);
   const imagesReadyRef = useRef(false);
+  const imageErrorRef = useRef(false);
   const reducedMotionRef = useRef(false);
   const staticTurnRef = useRef(false);
   // 这些低频 state 影响 JSX；每一帧的进度和鼠标坐标不放在 state 里。
@@ -66,7 +68,7 @@ export default function HomeExperience() {
     // 先检查设备、素材就绪和系统偏好，再按阶段选择 1、0.5 或 0 倍幅度。
     // 默认 100ms 用于开始转身；输入聚焦传 180ms，能力关闭传 0 立即归零。
     const phase = phaseRef.current;
-    const allowed = mouseEnabledRef.current && pageActiveRef.current && imagesReadyRef.current && !reducedMotionRef.current;
+    const allowed = mouseEnabledRef.current && pageActiveRef.current && imagesReadyRef.current && !imageErrorRef.current && !reducedMotionRef.current;
     const gain = !allowed ? 0 : phase === "INTRO" ? 1
       : phase === "LOGIN_READY" && !formLockedRef.current ? 0.5
         : phase === "FINAL" && !inputFocusedRef.current ? 0.5 : 0;
@@ -184,7 +186,7 @@ export default function HomeExperience() {
 
   const requestDirection = useCallback((target: TargetProgress) => {
     // 所有滚轮、触控与键盘意图统一到这里，最终态直接拒绝方向变化。
-    if (["AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phaseRef.current)) return;
+    if (imageErrorRef.current || ["AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phaseRef.current)) return;
     // 先记住最新目标：解码尚未完成时先不播放，就绪后执行最近一次意图。
     targetProgressRef.current = target;
     if (target === 0) focusLoginRef.current = false;
@@ -198,6 +200,21 @@ export default function HomeExperience() {
     changePhase(target === 1 ? "FORWARD_ANIMATING" : "REVERSE_ANIMATING");
     timelineRef.current.playTo(target, reducedMotionRef.current || staticTurnRef.current);
   }, [changePhase, mobileMode]);
+
+  const enablePlainLogin = useCallback(() => {
+    // 装饰资源失败不影响认证；保留同一个表单实例和已输入的凭据。
+    imageErrorRef.current = true;
+    imagesReadyRef.current = true;
+    staticTurnRef.current = true;
+    targetProgressRef.current = 1;
+    timelineRef.current?.cancel();
+    renderProgress(1);
+    setImageError(true);
+    setImagesReady(true);
+    setStaticTurn(true);
+    changePhase("LOGIN_READY");
+    updateMotion(0);
+  }, [changePhase, renderProgress, updateMotion]);
 
   useEffect(() => {
     if (mobileMode === null) return;
@@ -223,7 +240,7 @@ export default function HomeExperience() {
         setStaticTurn(true); setImagesReady(true);
         renderProgress(targetProgressRef.current);
         if (targetProgressRef.current === 1) requestDirection(1);
-      }).catch(() => { if (active) setImageError(true); });
+      }).catch(() => { if (active) enablePlainLogin(); });
       return () => { active = false; timeline.cancel(); orbit.dispose(); orbitRef.current = null; timelineRef.current = null; };
     }
     const source = stageRef.current?.querySelector<HTMLVideoElement>("video");
@@ -288,7 +305,7 @@ export default function HomeExperience() {
       setStaticTurn(staticTurnRef.current);
       if (targetProgressRef.current === 1) requestDirection(1);
     }).catch(() => {
-      if (active) setImageError(true);
+      if (active) enablePlainLogin();
     });
     return () => {
       active = false;
@@ -300,7 +317,7 @@ export default function HomeExperience() {
       videoRef.current = null;
       timelineRef.current = null;
     };
-  }, [changePhase, renderProgress, requestDirection, updateMotion, mobileMode]);
+  }, [changePhase, enablePlainLogin, renderProgress, requestDirection, updateMotion, mobileMode]);
 
   useEffect(() => () => loginAbortRef.current?.abort(), []);
 
@@ -310,7 +327,7 @@ export default function HomeExperience() {
   }, [reducedMotion, renderProgress]);
 
   // 停在背面时仍监听倒放；认证开始后暂停，失败回到表单时恢复。
-  useDirectionTrigger(requestDirection, mobileMode === false && !["AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phase));
+  useDirectionTrigger(requestDirection, mobileMode === false && !imageError && !["AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phase));
 
   async function enter(email: string, password: string) {
     // ref 同步锁住重复提交和方向输入；只有服务端验证成功才播放最终动画。
@@ -329,7 +346,10 @@ export default function HomeExperience() {
       changePhase("LOGIN_READY");
       return;
     }
-    changePhase("FINAL_TRANSITION");
+    if (imageErrorRef.current) {
+      changePhase("FINAL");
+      startNavigation(() => router.replace("/dashboard"));
+    } else changePhase("FINAL_TRANSITION");
   }
 
   function finishTransition(event: React.AnimationEvent<HTMLDivElement>) {
@@ -360,9 +380,9 @@ export default function HomeExperience() {
   const accessible = ["LOGIN_READY", "AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phase);
 
   return (
-    <main className={`home-page ${heroDisplay.variable} ${heroMono.variable}`} data-phase={phase} data-mobile={mobileMode === true} data-reduced-motion={reducedMotion} data-images-ready={imagesReady} data-turn-mode={staticTurn ? "static" : "video"}
+    <main className={`home-page ${heroDisplay.variable} ${heroMono.variable} ${imageError ? fallbackStyles.plainLogin : ""}`} data-image-fallback={imageError} data-phase={phase} data-mobile={mobileMode === true} data-reduced-motion={reducedMotion} data-images-ready={imagesReady} data-turn-mode={staticTurn ? "static" : "video"}
       style={{ "--final-duration": `${reducedMotion ? 240 : FINAL_DURATION_MS}ms` } as CSSProperties}>
-      <HomeHeader showBack={mobileMode === true && ["LOGIN_READY", "AUTHENTICATING"].includes(phase)} canGoBack={phase === "LOGIN_READY"} onBack={() => requestDirection(0)} />
+      <HomeHeader showBack={!imageError && mobileMode === true && ["LOGIN_READY", "AUTHENTICATING"].includes(phase)} canGoBack={phase === "LOGIN_READY"} onBack={() => requestDirection(0)} />
       <section className="home-scroll" aria-label="Formward 登录入口">
         <div className="home-stage" ref={stageRef} onClick={event => {
           if (mobileMode && phaseRef.current === "INTRO" && !(event.target instanceof Element && event.target.closest("button, a, input, textarea, select"))) requestDirection(1);
@@ -375,7 +395,8 @@ export default function HomeExperience() {
           <div className="scroll-hint" aria-hidden="true"><span className="scroll-hint-track"><span className="scroll-hint-wheel" /></span><span>SCROLL TO ENTER</span></div>
           {mobileMode && imagesReady && phase === "INTRO" && <p className="tap-hint">轻触屏幕进入登录</p>}
           {/* 加载提示独立于 SCROLL；role=status 让辅助技术知道加载 / 失败结果。 */}
-          {!imagesReady && <div className="image-status" role="status">{imageError ? "动画加载失败，请刷新重试" : "正在加载"}</div>}
+          {!imagesReady && <div className="image-status" role="status">正在加载</div>}
+          {imageError && <div className={fallbackStyles.introduction}><h1>登录 Formward</h1><p role="status">封面暂时无法显示，你仍可正常登录。</p></div>}
           <button className="keyboard-entry" type="button" onClick={revealLogin} inert={phase !== "INTRO"} aria-hidden={phase !== "INTRO"}>进入登录</button>
         </div>
       </section>

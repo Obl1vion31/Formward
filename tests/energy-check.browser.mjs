@@ -46,6 +46,16 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
   ] };
   const response = await context.request.post(`${baseURL}/api/v1/record-operations`, { headers: { Authorization: `Bearer ${token}` }, data: payload }); assert.equal(response.status(), 200); const operation = await response.json();
   await page.goto(operation.confirmationUrl ?? `${baseURL}/dashboard/ai/operations/${operation.id}`); await page.getByRole("button", { name: /保存/ }).last().click(); await page.waitForURL(`${baseURL}/dashboard`);
+  // API 保存餐次只确认条目；必须经真实饮食页确认全天记录后才计算盈余。
+  for (const date of [old, next]) {
+    await page.goto(baseURL+"/dashboard/meals?date="+date);
+    await page.locator("dialog[open]").waitFor();
+    const status = page.locator("dialog[open]").getByRole("group", { name: date + " 饮食是否记完", exact: true });
+    await status.getByRole("button", { name: "已记完", exact: true }).click();
+    await status.getByRole("button", { name: "已记完", exact: true }).waitFor({ state: "visible" });
+    await page.waitForFunction(date => document.querySelector(`[aria-label="${date} 饮食是否记完"] button[aria-pressed="true"]`)?.textContent === "已记完", date);
+  }
+  await page.goto(`${baseURL}/dashboard`);
   const chart = page.getByRole("group", { name: "摄入、消耗、盈余与次晨体重变化", exact: true }); await chart.waitFor();
   await page.getByRole("button", { name: "全部", exact: true }).click();
   const positive = chart.locator(`[data-overview-date="${old}"]`), negative = chart.locator(`[data-overview-date="${next}"]`);
@@ -56,7 +66,7 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
   assert.equal(await chart.locator('[data-energy-band="surplus"]').first().getAttribute("fill"), "#D8B38A");
   assert.equal(await chart.locator('[data-energy-band="deficit"]').first().getAttribute("fill"), "#92B2C2");
   await positive.click(); assert.equal(await dialog().count(), 0);
-  await positive.focus(); await page.keyboard.press("ArrowRight"); assert.equal(await negative.evaluate(node => node === document.activeElement), true); await page.keyboard.press("Enter"); await dialog().getByText("总消耗 2,800 kcal", { exact: true }).waitFor(); await page.keyboard.press("Escape");
+  await positive.focus(); await page.keyboard.press("ArrowRight"); assert.equal(await negative.evaluate(node => node === document.activeElement), true); await page.keyboard.press("Enter"); assert.equal(await dialog().count(), 0); await page.getByRole("button", { name: "查看记录 →", exact: true }).click(); await dialog().getByText("总消耗 2,800 kcal", { exact: true }).waitFor(); await page.keyboard.press("Escape");
   // 连续虚构资料包含正负交叉、单项缺测与连续缺日，用于真实页面的视觉验收。
   const fixtures = [];
   const sharpIntake = [2390, 2670, 3690, 3360, 3820, 3170, 4280, 2780, 3100, 2180, 2510, 2340, 2520, 2290, 1850, 1770, 2360, 2560, 2790, 1810, 2240, 2190, 2380, 2910, 2230, 3260, 2160, 2710, 1940, 940];
@@ -71,6 +81,14 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
     assert.equal(response.status(), 200); const operation = await response.json();
     await page.goto(operation.confirmationUrl); await page.getByRole("button", { name: /保存/ }).last().click(); await page.waitForURL(`${baseURL}/dashboard`);
   }
+  for(const date of [...new Set(fixtures.filter(item=>item.kind==="save_meal").map(item=>item.date))]){
+    await page.goto(baseURL+"/dashboard/meals?date="+date);
+    await page.locator("dialog[open]").waitFor();
+    const status=page.locator("dialog[open]").getByRole("group",{name:date+" 饮食是否记完",exact:true});
+    await status.getByRole("button",{name:"已记完",exact:true}).click();
+    await page.waitForFunction(date=>document.querySelector('[aria-label="'+date+' 饮食是否记完"] button[aria-pressed="true"]')?.textContent==="已记完",date);
+  }
+  await page.goto(baseURL+"/dashboard");
   for (const width of [1440, 1100, 430, 390, 320]) { await page.setViewportSize({ width, height: width < 500 ? 844 : 1000 }); await page.getByRole("button", { name: width < 500 ? "7D" : "30D", exact: true }).click(); await chart.locator(`[data-overview-date="${previous(today, -3)}"]`).focus(); await page.waitForTimeout(550); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); assert.doesNotMatch(await page.locator("main").innerText(), /共用零点|以.*为基准|当天已记录摄入|预算未设置|当前采用|来源与依据|活动合计为估算|日常默认值/); assert.equal(await page.getByLabel("日期对照", { exact: true }).locator("strong").evaluateAll(nodes => nodes.every(node => { const range = document.createRange(); range.selectNodeContents(node); const ink = range.getBoundingClientRect(), cell = node.parentElement.getBoundingClientRect(); return ink.left >= cell.left - 1 && ink.right <= cell.right + 1; })), true);
     assert.equal(await chart.evaluate(group => {
       const panels = [...group.querySelectorAll("[data-overview-panel]")];
@@ -83,7 +101,7 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
     await chart.locator(`[data-overview-date="${previous(today, -4)}"]`).focus();
     assert.equal(await chart.locator("svg").evaluate(node => node.getBoundingClientRect().top + scrollY), topBefore);
     await chart.locator(`[data-overview-date="${previous(today, -3)}"]`).focus();
-    const centers = await chart.locator(`[data-overview-date="${previous(today, -3)}"] [data-series]`).evaluateAll(nodes => nodes.map(n => n.getAttribute("cx"))); assert.equal(new Set(centers).size, 1);
+    const centers = await chart.locator(`[data-overview-date="${previous(today, -3)}"] [data-series]`).evaluateAll(nodes => nodes.map(n => n.hasAttribute("cx") ? Number(n.getAttribute("cx")) : Number(n.getAttribute("x")) + Number(n.getAttribute("width")) / 2)); assert.equal(new Set(centers).size, 1);
     await page.screenshot({ path: `/tmp/formward-energy-visual/overview-${width}.png`, fullPage: true });
     await (width < 700 ? page.getByRole("navigation", { name: "主导航", exact: true }).getByRole("link", { name: "消耗", exact: true }) : page.getByRole("link", { name: "消耗记录", exact: true }).first()).click(); await summary.waitFor(); await page.getByRole("group", { name: "每日消耗柱状图", exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(550); assert.equal(await summary.locator("strong").evaluateAll(nodes => nodes.every(node => node.getBoundingClientRect().right <= node.parentElement.getBoundingClientRect().right + 1)), true); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); await page.screenshot({ path: `/tmp/formward-energy-visual/energy-${width}.png`, fullPage: true }); await page.getByRole("link", { name: "Formward 主页", exact: true }).click(); await chart.waitFor(); }
   for (const range of ["30D", "90D", "全部", "自定义"]) {

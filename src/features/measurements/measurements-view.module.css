@@ -25,7 +25,7 @@
 .entryGroups legend { padding: 0 0 14px; font-size: 14px; }
 .entryCell { margin-bottom: 22px; }
 .entryCell > label { display: flex; justify-content: space-between; color: var(--body-muted); font-size: 12px; margin-bottom: 6px; }
-.entryCell small { font-size: 11px; color: var(--body-muted); }
+.entryCell small { font-size: 12px; color: var(--body-muted); }
 .entryInputRow { display: flex; align-items: center; gap: 12px; min-height: 44px; border-bottom: 1px solid var(--body-rule); }
 .entryForm input { appearance: none; min-width: 0; width: 100%; min-height: 44px; background: transparent; color: inherit; border: 0; border-radius: 0; font: inherit; }
 .entryForm [role="combobox"] { border-bottom: 1px solid var(--body-rule); font-size: 13px; }
@@ -175,7 +175,7 @@
 .periodNavigation { display: flex; gap: 24px; border-bottom: 1px solid var(--body-rule); }
 .drawer .periodNavigation button { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid transparent; font-size: 13px; }
 .periodNavigation button[aria-pressed="true"] { color: var(--body-ink); border-bottom-color: var(--body-muted); }
-.periodNavigation small { color: var(--body-muted); font-size: 10px; }
+.periodNavigation small { color: var(--body-muted); font-size: 12px; }
 .periodNavigation button:disabled { opacity: .4; cursor: default; }
 .recordDetails { padding: 24px 0 8px; }
 .recordMetric { margin: 0 0 8px; color: var(--body-muted); font-size: 13px; }
@@ -216,10 +216,14 @@
 .references li { margin: 8px 0; }
 .tableLine { display: flex; justify-content: flex-end; align-items: center; gap: 5px; height: 44px; }
 .workspace .tableReading { display: inline-flex; justify-content: flex-end; align-items: center; gap: 5px; color: inherit; min-height: 44px; width: 100%; padding: 0; text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
-.history .tableLine small { display: inline; font-size: 11px; }
+.history .tableLine small { display: inline; font-size: 12px; }
 .readingStatus { font-size: 8px; color: var(--body-muted); }
 .tableReading[data-kind="estimated"] .readingStatus { font-size: 12px; }
 .metricPlot { padding: 12px 0 16px; }
+.metricHeading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.metricHeading > button { min-height:44px; padding:0; color:var(--body-gold); font-size:12px; white-space:nowrap; }
+.recordedChangeLabel small { display:block; margin-top:3px; font:inherit; }
+.chartNavigation { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; margin-top:8px; }
 .metricPlot + .metricPlot { border-top: 1px solid var(--body-rule); }
 .metricPlot h2 { display: flex; align-items: baseline; gap: 8px; font-size: 15px; font-weight: 500; margin: 0 0 6px; }
 .metricPlot h2 small { font-weight: 400; color: var(--body-muted); font-size: 12px; }
@@ -247,10 +251,10 @@
   .summary strong small { font-size: 12px; }
   .summary p { min-height: 0; font-size: 12px; }
   .chartToolbar { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 6px; padding-bottom: 4px; }
-  .rangeCaption { font-size: 11px; }
+  .rangeCaption { font-size: 12px; }
   .rangeFull { display: none; }
   .rangeShort { display: grid; gap: 2px; line-height: 1.4; }
-  .rangeShort small { font-size: 10px; }
+  .rangeShort small { font-size: 12px; }
   .chartControls { grid-column: 1 / -1; flex-wrap: wrap; justify-content: flex-end; gap: 0 16px; }
   .rangeTabs { gap: 1px; }
   .rangeTabs button { padding: 6px 3px; font-size: 12px; }
@@ -262,17 +266,17 @@
   .rules .rulesPrinciples { grid-column: auto; }
   .chartPanel { padding: 8px 0 10px; }
   .plot { height: 206px; }
-  .axis { font-size: 13.5px; }
+  .axis { font-size: 15px; }
   .emptyChart { font-size: 15.5px; }
-  .plotFooter { position: relative; gap: 4px; padding-left: 0; }
-  .plotHint { position: absolute; top: 0; left: 0; width: 100%; height: 26px; line-height: 26px; background: #10100f; text-align: left; }
+  .plotFooter { position:static; flex-direction:column; align-items:flex-start; gap:6px; padding-left:0; }
+  .plotHint { position:static; width:100%; height:auto; min-height:20px; line-height:1.6; background:none; text-align:left; white-space:normal; overflow:visible; text-overflow:clip; }
   .plotHint:empty { visibility: hidden; }
   .legend { gap: 14px; }
   .calendar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; }
   .calendar label { min-width: 0; }
   .calendar input { min-width: 0; width: 100%; padding: 8px 4px; }
   .calendar p { grid-column: 1 / -1; }
-  .sectionTitle > span { font-size: 11px; }
+  .sectionTitle > span { font-size: 12px; }
   .sectionTitle { padding-bottom: 4px; }
   .history { margin-top: 12px; }
   .fullHistory { margin-top: 4px; }
@@ -281,13 +285,13 @@
   .differenceColumn { width: 14%; }
   .actionColumn { width: 16%; }
   .history .rowActions { gap: 0; }
-  .workspace .tableReading { font-size: 12px; gap: 2px; }
-  .history .tableLine small { font-size: 9px; }
+  .workspace .tableReading { font-size: 12px; gap: 2px; flex-wrap:wrap; }
+  .history .tableLine small { font-size: 12px; }
   .history td:nth-child(4) .tableLine { flex-direction: column; justify-content: center; gap: 2px; }
-  .tableReading[data-kind="estimated"] .readingStatus { font-size: 10px; }
+  .tableReading[data-kind="estimated"] .readingStatus { font-size: 12px; }
   .history th, .history td { height: 88px; padding: 0 6px; font-size: 13px; }
   .history tbody th button { min-height: 44px; font-size: 13px; text-align: left; }
-  .history tbody th small { display: block; margin: 3px 0 0; font-size: 10px; }
+  .history tbody th small { display: block; margin: 3px 0 0; font-size: 12px; }
   .history thead th { height: 32px; font-size: 12px; }
   .history thead small { display: none; }
   .drawerHeader { padding: 18px 20px; }
@@ -302,9 +306,9 @@
 .dayOverview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; flex-shrink: 0; padding: 16px 28px 18px; border-bottom: 1px solid var(--body-rule); }
 .dayOverview h3 { font-weight: 400; font-size: 13px; margin: 0 0 10px; }
 .overviewReading { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin-top: 9px; align-items: baseline; }
-.overviewReading > span { color: var(--body-muted); font-size: 11px; }
+.overviewReading > span { color: var(--body-muted); font-size: 12px; }
 .overviewReading strong { font-size: 23px; line-height: 1.15; font-weight: 400; white-space: nowrap; }
-.overviewReading small { color: var(--body-muted); font-size: 10px; }
+.overviewReading small { color: var(--body-muted); font-size: 12px; }
 .overviewReading strong small { margin-left: 4px; }
 .overviewReading > small { grid-column: 2; text-align: right; }
 .periodDetails { border-bottom: 1px solid var(--body-rule); }

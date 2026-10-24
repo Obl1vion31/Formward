@@ -1,5 +1,5 @@
 import { buildMeasurementDays } from "../measurements/days";
-import { dailyTotals, emptyNutrition, type MealView } from "../meals/model";
+import { dailyTotals, emptyNutrition, type MealDayStatus, type MealView } from "../meals/model";
 import { measurementSummary } from "../measurements/summary";
 import { addCalendarDays } from "../measurements/calendar";
 import type { MeasurementDisplay } from "../measurements/entry-state";
@@ -10,7 +10,7 @@ export function overview(meals: MealView[], records: MeasurementDisplay[], today
   const nutrition = day?.totals ?? { values: emptyNutrition(), incomplete: { caloriesKcal: false, proteinG: false, carbsG: false, fatG: false } };
   return { today, mealCount: day?.meals.length ?? 0, nutrition, energy,
     body: (["weightKg", "bodyFatPercent"] as const).map(metric => ({ metric, ...measurementSummary(records.filter(row => row.recordDate <= today), metric) })),
-    energyBalance: nutrition.values.caloriesKcal !== null && energy.totalKcal !== null ? difference(nutrition.values.caloriesKcal, energy.totalKcal, 10000) : null,
+    energyBalance: day?.day.status === "complete" && nutrition.values.caloriesKcal !== null && energy.totalKcal !== null ? difference(nutrition.values.caloriesKcal, energy.totalKcal, 10000) : null,
     activities: energy.activities };
 }
 const difference = (a: string, b: string, precision: number) => (Math.round(Number(a) * precision) - Math.round(Number(b) * precision)) / precision;
@@ -19,7 +19,7 @@ export type OverviewDay = {
   nutrition: ReturnType<typeof dailyTotals>[number]["totals"] | null;
   morning: MeasurementDisplay | null; nextMorning: MeasurementDisplay | null;
   weightChangeKg: number | null; differenceEstimated: boolean; ambiguous: boolean;
-  energy: EnergyDay; energyBalance: number | null;
+  mealDayStatus: MealDayStatus; balanceEligible: boolean; energy: EnergyDay; energyBalance: number | null;
 };
 /** D日摄入/消耗对应D+1晨重减D晨重；不跨缺日、不生成身体估计。 */
 export function overviewDays(meals: MealView[], records: MeasurementDisplay[], dates: string[], showEstimates = false, snapshot: EnergySnapshot = emptyEnergy(), asOf?: string): OverviewDay[] {
@@ -33,8 +33,8 @@ export function overviewDays(meals: MealView[], records: MeasurementDisplay[], d
     const ambiguous = [date, nextDate].some(date => (mornings.get(date)?.daytime.filter(record => record.recordKind !== "estimated").length ?? 0) > 1);
     return { date, nextDate, meals: day?.meals ?? [], nutrition: day?.totals ?? null, morning: current, nextMorning: next,
       weightChangeKg: !ambiguous && current?.weightKg != null && next?.weightKg != null ? difference(next.weightKg, current.weightKg, 100) : null,
-      differenceEstimated: !!(current && next && (current.recordKind === "estimated" || next.recordKind === "estimated")), ambiguous, energy: expenditure,
-      energyBalance: day?.totals.values.caloriesKcal != null && expenditure.totalKcal !== null ? difference(day.totals.values.caloriesKcal, expenditure.totalKcal, 10000) : null };
+      differenceEstimated: !!(current && next && (current.recordKind === "estimated" || next.recordKind === "estimated")), ambiguous, mealDayStatus:day?.day.status??"unconfirmed",balanceEligible:day?.day.status==="complete", energy: expenditure,
+      energyBalance: day?.day.status === "complete" && day?.totals.values.caloriesKcal != null && expenditure.totalKcal !== null ? difference(day.totals.values.caloriesKcal, expenditure.totalKcal, 10000) : null };
   });
 }
 export function latestRealWeight(records: MeasurementDisplay[], today: string) {

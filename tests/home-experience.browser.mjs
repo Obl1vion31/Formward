@@ -916,19 +916,17 @@ try {
   await failedVideoContext.close();
   results.push({ test: "视频加载失败：静态首尾过渡仍能进入登录" });
 
-  // 失败分支也独立验收：人物停在首帧，状态信息不会因鼠标或滚轮操作被隐藏。
+  // 静态封面失败降级到同一登录表单，正常媒体流程保持。
   const failedContext = await browser.newContext();
   await failedContext.route("**/_next/image?**", (route) => route.abort());
   const failedPage = await failedContext.newPage();
   await failedPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
-  await failedPage.getByRole("status").filter({ hasText: "动画加载失败" }).waitFor();
-  await failedPage.mouse.move(400, 200);
-  await failedPage.mouse.wheel(0, 80);
-  assert.equal(await failedPage.getByRole("status").textContent(), "动画加载失败，请刷新重试");
-  assert.equal((await snapshot(failedPage)).progress, 0);
-  assert.equal((await snapshot(failedPage)).introVisibility, "hidden");
-  await assertCentred(failedPage);
-  results.push({ test: "动画失败：状态信息持续显示，人物保持首帧" });
+  await failedPage.getByRole("status").filter({ hasText: "封面暂时无法显示" }).waitFor();
+  await phase(failedPage, "LOGIN_READY");
+  assert.equal(await failedPage.locator("#email").isVisible(), true);
+  assert.equal(await failedPage.locator("#email").isEnabled(), true);
+  assert.equal(await failedPage.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  results.push({ test: "静态封面失败：普通登录表单仍可用" });
   await failedContext.close();
   assert.deepEqual(errors, []);
   console.log(JSON.stringify(results, null, 2));

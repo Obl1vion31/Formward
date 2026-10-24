@@ -89,3 +89,17 @@
  .footer { margin-top:10px; padding-block:8px calc(8px + env(safe-area-inset-bottom)); min-height:62px; }
  .footer small { display:none; }.footer .save { min-height:44px; }.sectionHeading h2 { font-size:14px; }
 }
+
+.duplicates { margin-block:12px; padding:12px; border:1px solid rgba(190,164,120,.32); border-radius:4px; }
+.duplicates h4 { margin:0 0 8px; font-size:14px; font-weight:500; }
+.duplicates > div + div { margin-top:10px; }
+.duplicates p { margin:5px 0; overflow-wrap:anywhere; }
+.duplicates p:first-child { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px 12px; }
+.duplicates p + p,.duplicates a { color:var(--muted); font-size:12px; }
+.duplicates label { display:flex; align-items:center; gap:8px; min-height:44px; }
+.duplicates input { accent-color:var(--gold); width:18px; height:18px; }
+.receipt { list-style:none; padding:0; margin:0; width:min(100%,520px); }
+.receipt li { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px 16px; padding:12px 0; border-bottom:1px solid rgba(240,233,221,.12); }
+.receipt a { min-height:44px; display:inline-flex; align-items:center; }
+.success .stay { border:1px solid var(--gold); border-radius:4px; color:var(--gold); background:transparent; padding:8px 16px; min-height:44px; cursor:pointer; font:inherit; }
+@media(max-width:700px),(hover:none) and (pointer:coarse) { .row > .duplicates { order:1; }.success { align-items:stretch; text-align:center; padding-block:24px; }.receipt { margin-inline:auto; text-align:left; font-size:13px; }.success .stay { align-self:center; } }

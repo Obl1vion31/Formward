@@ -10,6 +10,10 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
   await mkdir(artifacts, { recursive: true });
   const errors = [];
   let ip = 100;
+  async function openSelectedChartDay(page) {
+    assert.equal(await page.locator('dialog[aria-labelledby="measurement-drawer-title"]').count(), 0, "选日不打开详情");
+    await page.getByRole("button", { name: "查看体重所选日记录", exact: true }).click();
+  }
   async function loggedInPage(viewport, credentials = first, options = {}) {
     const context = await browser.newContext({ viewport, timezoneId: "Asia/Shanghai", ...options });
     const response = await context.request.post(`${baseURL}/api/auth/sign-in/email`, { headers: { Origin: baseURL, "x-forwarded-for": `192.0.2.${ip++}` }, data: credentials });
@@ -495,12 +499,14 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.ok(Number.isFinite(Number(await single.locator("circle").first().getAttribute("cx"))), "单日图区间没有无效坐标");
     await single.focus();
     await page.keyboard.press("Enter");
+    await openSelectedChartDay(page);
     await assertRecordInspector(page);
     assert.match(await drawer.innerText(), /2025.07.14.*测量时间\s*无/s);
     await page.keyboard.press("Escape");
     await drawer.waitFor({ state: "hidden" });
-    assert.equal(await single.evaluate(node => node === document.activeElement), true, "实测直接查看后返回图表点");
-    await page.keyboard.press("Space");
+    assert.equal(await page.getByRole("button", { name: "查看体重所选日记录", exact: true }).evaluate(node => node === document.activeElement), true, "详情返回显式查看按钮");
+    await single.focus(); await page.keyboard.press("Space");
+    await openSelectedChartDay(page);
     await assertRecordInspector(page);
     await page.keyboard.press("Escape");
     await drawer.waitFor({ state: "hidden" });
@@ -579,6 +585,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       });
       await mobile.page.screenshot({ path: `${artifacts}/mobile-${width}-7-days.png`, fullPage: true });
       await chartFor(mobile.page).locator('[data-point-id][data-date="2025-07-08"][data-period="daytime"]').tap();
+      await openSelectedChartDay(mobile.page);
       const mobileDrawer = await assertRecordInspector(mobile.page);
       assert.match(await mobileDrawer.locator('[data-record-value]').innerText(), /76.20/);
       assert.match(await mobileDrawer.innerText(), /虚构蓝牙体重秤/);
@@ -587,6 +594,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       await mobileDrawer.getByRole("button", { name: "关闭记录详情", exact: true }).tap();
       await mobileDrawer.waitFor({ state: "hidden" });
       await chartFor(mobile.page).locator('[data-point-id][data-date="2025-07-09"][data-period="daytime"][data-kind="estimated"]').tap();
+      await openSelectedChartDay(mobile.page);
       await assertSimpleEstimate(mobile.page);
       assert.equal(await detailFor(mobile.page).count(), 0);
       assert.equal(await mobile.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, "估计详情不撑宽手机页面");
@@ -595,6 +603,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       await mobileDrawer.getByRole("button", { name: "关闭记录详情", exact: true }).tap();
       await mobileDrawer.waitFor({ state: "hidden" });
       await chartFor(mobile.page).locator('[data-point-id][data-date="2025-07-14"][data-period="daytime"]').tap();
+      await openSelectedChartDay(mobile.page);
       await assertRecordInspector(mobile.page);
       assert.match(await mobileDrawer.getByRole("region", { name: "记录信息" }).innerText(), /测量时间\s*无/);
       assert.match(await mobileDrawer.getByRole("region", { name: "当天晨晚概览" }).innerText(), /实测/);
@@ -613,6 +622,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       const initializedChart = chartFor(initialized.page);
       await assertRecentLayout(initialized.page);
       await initializedChart.locator('[data-date="2025-08-05"][data-period="daytime"][data-kind="observed"]').click();
+      await openSelectedChartDay(initialized.page);
       const observedModal = await assertRecordInspector(initialized.page);
       assert.match(await observedModal.innerText(), /外部录入.*测量时间\s*无/s);
       assert.match(await observedModal.getByRole("region", { name: "记录信息" }).innerText(), /时区\s*未指定/);
@@ -624,6 +634,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       const point = initializedChart.locator('[data-date="2025-08-06"][data-period="daytime"]');
       assert.match(await point.getAttribute("aria-label"), /估计.*晨间趋势插值/);
       await point.focus(); await initialized.page.keyboard.press("Enter");
+      await openSelectedChartDay(initialized.page);
       const modal = await assertSimpleEstimate(initialized.page);
       assert.match(await modal.textContent(), /历史补全/);
       assert.match(await modal.textContent(), /80.00.*82.00.*1\/2.*81.00/s);
@@ -636,17 +647,20 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       await initialized.page.locator("dialog").waitFor({ state: "detached" });
       const direct = chartFor(initialized.page).locator('[data-date="2025-08-06"][data-period="daytime"][data-kind="estimated"]');
       await direct.focus(); await initialized.page.keyboard.press("Enter");
+      await openSelectedChartDay(initialized.page);
       await assertSimpleEstimate(initialized.page);
       assert.match(await modal.innerText(), /81.00/);
       await initialized.page.keyboard.press("Escape");
       await initialized.page.locator("dialog").waitFor({ state: "detached" });
-      assert.equal(await direct.evaluate(node => node === document.activeElement), true, "单值详情焦点返回图表触发点");
-      await initialized.page.keyboard.press("Space");
+      assert.equal(await initialized.page.getByRole("button", { name: "查看体重所选日记录", exact: true }).evaluate(node => node === document.activeElement), true, "单值详情焦点返回显式查看按钮");
+      await direct.focus(); await initialized.page.keyboard.press("Space");
+      await openSelectedChartDay(initialized.page);
       await assertSimpleEstimate(initialized.page);
       await initialized.page.keyboard.press("Escape");
       await initialized.page.locator("dialog").waitFor({ state: "detached" });
       await initializedChart.locator('[data-date="2025-08-04"][data-period="daytime"]').focus();
       await initialized.page.keyboard.press("Enter");
+      await openSelectedChartDay(initialized.page);
       await assertSimpleEstimate(initialized.page);
       assert.match(await modal.textContent(), /历史边界趋势推算/);
       assert.match(await modal.textContent(), /3 个真实晨间日/);

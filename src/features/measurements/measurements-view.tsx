@@ -1,6 +1,7 @@
 "use client";
 import { useChartMotion } from "@/components/use-chart-motion";
 import { useBackdropDismiss } from "@/components/use-backdrop-dismiss";
+import { ChartDateControls } from "@/components/chart-date-controls";
 
 import { useEffect, useId, useRef, useState } from "react";
 import { buildMeasurementDays, recentMeasurementDays } from "./days";
@@ -58,6 +59,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const [rangeError, setRangeError] = useState("");
   const calendarButton = useRef<HTMLButtonElement>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(initialDate);
+  const [chartPeriod, setChartPeriod] = useState<"daytime" | "evening" | undefined>();
   const [showEvening, setShowEvening] = useState(true);
   const [showEstimates, setShowEstimates] = useState(true);
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -72,7 +74,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const recentInterval = { start: catalog.start, end: today || catalog.end };
   const recent = recentMeasurementDays(displayedRecords, recentInterval, choices).filter(day => day.date === today || (!dates.some(row => row.date === day.date && row.reminderSkipped) && measurementNeedsEntry(records, day.date, choices)));
   const fatDays = new Map(recentMeasurementDays(displayedRecords, recentInterval, choices, 10, "bodyFatPercent").map(day => [day.date, day]));
-  const activeDate = selectedDate && selectedDate >= range.start && selectedDate <= range.end ? selectedDate : null;
+  const activeDate = selectedDate && selectedDate >= range.start && selectedDate <= range.end ? selectedDate : range.end;
   const summaries = metrics.map(metric => ({ metric, ...measurementSummary(records, metric, choices) }));
 
   function selectRange(nextMode: MeasurementRange, nextInterval = customRange) {
@@ -105,9 +107,9 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
         <p>{summary.current ? <>晨间空腹 · <time dateTime={summary.current.recordDate}>{displayDate(summary.current.recordDate)}</time></> : "暂无空腹记录"}</p>
       </div>)}
       {summaries.map(summary => <div key={summary.metric} data-summary="change" data-metric={summary.metric}>
-        <span>{metricName(summary.metric)} · 7 日变化</span>
+        <span className={styles.recordedChangeLabel}>{metricName(summary.metric)}<small>近7日已记录变化</small></span>
         <strong>{formatDifference(summary.change, summary.metric, false) ?? "—"}<small>{summary.metric === "weightKg" ? "kg" : "百分点"}</small></strong>
-        <p>{summary.changeStart ? `${shortDate(summary.changeStart)} — ${shortDate(summary.end!)}` : "不足 2 个记录日"}</p>
+        <p>{summary.changeStart ? <>实录 <time dateTime={summary.changeStart}>{shortDate(summary.changeStart)}</time> — <time dateTime={summary.end!}>{shortDate(summary.end!)}</time></> : summary.coverage === 1 ? "近7日仅1个记录日" : "近7日无有效记录"}</p>
       </div>)}
       {summaries.map(summary => <div key={summary.metric} data-summary="average" data-metric={summary.metric}>
         <span>{metricName(summary.metric)} · 7 日均值</span>
@@ -150,9 +152,10 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
         {rangeError && <p role="alert">{rangeError}</p>}
       </form>}
       {metrics.map(metric => <div className={styles.metricPlot} key={metric} data-chart-metric={metric}>
-        <h2>{metricName(metric)}<small>{unitFor(metric)}</small></h2>
-        <TrendPlot records={visibleRecords} metric={metric} showEvening={showEvening} interval={range} selectedDate={activeDate} onInspect={row => inspectRecord(row, metric)} choices={choices} />
+        <div className={styles.metricHeading}><h2>{metricName(metric)}<small>{unitFor(metric)}</small></h2><button type="button" aria-label={`查看${metricName(metric)}所选日记录`} onClick={() => inspectDay(activeDate, chartPeriod, metric)}>查看记录 →</button></div>
+        <TrendPlot records={visibleRecords} metric={metric} showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={chartPeriod} onSelect={row => { setSelectedDate(row.recordDate); setChartPeriod(row.period); }} choices={choices} />
       </div>)}
+      <div className={styles.chartNavigation}><ChartDateControls label="身体图表日期" value={activeDate} min={range.start} max={range.end} onChange={date => { setSelectedDate(date); setChartPeriod(undefined); }} /></div>
     </section>
     <section className={styles.history} aria-label="最近记录">
       <div className={styles.sectionTitle}><h2>最近记录</h2><span>● 实测 · ◇ 估计 · 实测晨晚差</span></div>
@@ -419,9 +422,9 @@ function RepresentativeChoices({ day, metric, choices, period: onlyPeriod, onCho
   </label>)}</>;
 }
 
-function TrendPlot({ records, metric, showEvening, interval, selectedDate, onInspect, choices }: {
+function TrendPlot({ records, metric, showEvening, interval, selectedDate, selectedPeriod, onSelect, choices }: {
   records: MeasurementDisplay[]; metric: MeasurementMetric; showEvening: boolean; interval: MeasurementInterval;
-  selectedDate: string | null; onInspect: (row: MeasurementDisplay) => void; choices: Record<string, string>;
+  selectedDate: string | null; selectedPeriod?: "daytime" | "evening"; onSelect: (row: MeasurementDisplay) => void; choices: Record<string, string>;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
   const plotId = useId();
@@ -448,8 +451,8 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, onIns
   const ticks = measurementDateTicks(interval, width < 500 ? 4 : width < 900 ? 6 : 8);
   const unit = unitFor(metric);
   const pointLabel = (row: MeasurementDisplay) => `${row.recordDate} · ${row.period === "daytime" ? "空腹" : "晚间非空腹"} · ${row[metric]} ${unit} · ${row.recordKind === "estimated" ? `估计 · ${estimateUserExplanation(row.estimation, row.recordDate, metric).method}` : "实测"}`;
-  const hintedRecord = points.find((row) => row.id === hintRecordId);
-  const activate = (row: MeasurementDisplay) => onInspect(row);
+  const hintedRecord = points.find((row) => row.id === hintRecordId) ?? points.find(row => row.recordDate === selectedDate && row.period === (selectedPeriod ?? "daytime")) ?? points.find(row => row.recordDate === selectedDate);
+  const activate = (row: MeasurementDisplay) => onSelect(row);
   const selectKey = (event: React.KeyboardEvent, row: MeasurementDisplay) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(row); } };
 
   return <>
@@ -475,7 +478,7 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, onIns
           const clipTop = midpoint !== null && !coincident && ownY > companionY! ? midpoint : 0;
           const clipBottom = midpoint !== null && !coincident && ownY < companionY! ? midpoint : 252;
           const clipId = `${plotId}-${row.id}`;
-          return <g key={row.id} data-point-id={row.id} data-date={row.recordDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.recordDate === selectedDate} aria-haspopup={estimated ? "dialog" : undefined} onMouseEnter={() => setHintRecordId(row.id)} onMouseLeave={() => setHintRecordId(null)} onFocus={() => setHintRecordId(row.id)} onBlur={() => setHintRecordId(null)} onClick={() => activate(row)} onKeyDown={(event) => selectKey(event, row)}>
+          return <g key={row.id} data-point-id={row.id} data-date={row.recordDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.recordDate === selectedDate} onMouseEnter={() => { setHintRecordId(row.id); onSelect(row); }} onMouseLeave={() => setHintRecordId(null)} onFocus={() => { setHintRecordId(row.id); onSelect(row); }} onBlur={() => setHintRecordId(null)} onClick={() => activate(row)} onKeyDown={(event) => selectKey(event, row)}>
             <title>{estimated ? label : `${recordTimeLabel(row)} · ${label}`}</title>
             <defs><clipPath id={clipId}><rect x={clipLeft} y={clipTop} width={clipRight - clipLeft} height={clipBottom - clipTop} /></clipPath></defs>
             <circle cx={x(row.recordDate)} cy={ownY} r="14" className={styles.hitTarget} clipPath={`url(#${clipId})`} />
@@ -486,6 +489,6 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, onIns
         {!points.length && <text x={width / 2} y="118" textAnchor="middle" className={styles.emptyChart}>{`此区间暂无${showEvening ? "" : "空腹"}${metricName(metric)}记录`}</text>}
       </svg>
     </div>
-    <div className={styles.plotFooter}><div className={styles.legend}><span><i className={styles.dayDot} />晨间空腹</span>{showEvening && <span><i className={styles.nightDot} />晚间 · 非空腹</span>}{points.some((row) => row.recordKind === "estimated") && <span><i className={styles.estimateDot} />虚线 · 估计</span>}</div><output className={styles.plotHint} aria-live="polite">{hintedRecord ? pointLabel(hintedRecord) : ""}</output></div>
+    <div className={styles.plotFooter}><div className={styles.legend}><span><i className={styles.dayDot} />晨间空腹</span>{showEvening && <span><i className={styles.nightDot} />晚间 · 非空腹</span>}{points.some((row) => row.recordKind === "estimated") && <span><i className={styles.estimateDot} />虚线 · 估计</span>}</div><output className={styles.plotHint} aria-live="polite">{hintedRecord ? pointLabel(hintedRecord) : selectedDate ? `${displayDate(selectedDate)} · 未记录` : ""}</output></div>
   </>;
 }

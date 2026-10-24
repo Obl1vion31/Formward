@@ -148,12 +148,14 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     await page.getByRole("link", { name: "AI 接入", exact: true }).click(); await navigation.wait();
     await assertLoading("正在加载页面…", "loading-navigation-desktop");
     await navigation.release(); await page.getByRole("heading", { name: "AI 接入", exact: true }).waitFor(); await ready();
+    await page.getByText("高级接入 · 手动令牌与 HTTP", { exact: true }).click();
     await page.getByLabel("令牌名称").fill("虚构加载测试");
     await slowAction("正在创建访问令牌…", () => page.getByRole("button", { name: "创建令牌", exact: true }).click());
     token = await page.getByLabel("新令牌原文").inputValue();
     await page.getByRole("button", { name: "已保存，关闭", exact: true }).click();
     // 两个真实等待来源交叠：前一个失败结束时，导航仍等待，不能提前收起。
     await page.goto(`${baseURL}/dashboard/ai`); await page.getByRole("heading", { name: "AI 接入", exact: true }).waitFor(); await ready();
+    await page.getByText("高级接入 · 手动令牌与 HTTP", { exact: true }).click();
     await page.getByLabel("令牌名称").fill("虚构交叠请求");
     const overlapping = await holdNext(actionRequest);
     const overlappingNavigation = await holdNext(request => request.method() === "GET" && new URL(request.url()).pathname === "/dashboard" && request.headers()["rsc"] === "1" && !request.headers()["next-router-prefetch"]);

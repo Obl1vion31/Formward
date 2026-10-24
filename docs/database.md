@@ -670,3 +670,19 @@ meal_operations.payload／draft保存可选expectedImageCount，preview中的mis
 | deleted_by | text NULL FK users | 移除建议的操作者 |
 
 消耗来源使用独立于身体的账号建议池，静息、活动合计、总数与运动共用。输入仅回显已保存值，点击展开全部历史，输入筛选，支持键盘和触屏；“×”只软移除建议，保留草稿和历史快照。正式保存成功才更新建议，普通编辑保留旧来源不会恢复已移除项；新记录或明确更换来源并保存后恢复。统一AI审核共用相同输入与事务，来源仍可留空。
+
+## 每日饮食完成状态
+
+0023新增meal_days和meal_day_events，应用表共39张（另有Drizzle账本）。不修改旧表字段或既有健康事实。
+
+| 表 | 字段 | 用途 |
+| --- | --- | --- |
+| meal_days | id、user_id、date | 账号／日期唯一的日状态 |
+| meal_days | status | complete／incomplete／unconfirmed，与营养字段是否未知分开 |
+| meal_days | content_digest、version | 当前有效餐次ID／版本的摘要与状态版本，确认后餐次变化使状态失效 |
+| meal_days | source、updated_by、updated_at | 用户确认、餐次变化或一次性历史初始化的来源和操作者 |
+| meal_day_events | id、user_id、date | 日状态审计归属 |
+| meal_day_events | request_id、request_digest | 本账号请求幂等和内容绑定 |
+| meal_day_events | actor_id、snapshot、created_at | 状态前后、变更原因及关联操作 |
+
+历史初始化只覆盖固定截至2026-10-23已有有效餐次的日期，按本次用户明确选择视为已记完；空日不创建。migration记录初始化审计，不改旧餐、原始请求、来源或数值。新增日、未来补录和餐次修改不会套用历史规则。

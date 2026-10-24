@@ -39,3 +39,5 @@
 0021_tranquil_leo为energy_days增加可空entry_mode、activity_mode、resting_source_system、active_source_system，以及非空默认false的resting_estimated，并校验模式取值。旧行模式保留null以兼容旧请求的取值优先级，不回填个人热量、活动0或默认规则。没有新建表，meta快照及journal同步纳入版本控制。迁移前后逐表核对原字段和值保持，账本只增加对应1条；生产执行和私有核对位置见[部署文档](../docs/deployment.md)及[项目交接](../handoff.md)。
 
 0022_daily_marauders新增六列energy_sources，按账号／名称唯一，名称1–200字，保存创建／最近使用及软删除时间、删除操作者。迁移从未删除日记录的来源字段和运动来源按账号去重建立建议；不改任何既有表、健康事实、原始请求或审计。
+
+0023_amused_master_mold新增meal_days／meal_day_events，保存每天是否记完、版本与餐次摘要、幂等和审计；39张应用表加迁移账本。用户确认截至2026-10-23已有有效餐次的历史日期视为已记完，migration只建结构；指定授权账号的一次性维护初始化状态，空日不建、其他账号不处理；旧表与所有健康事实保持。后续餐次保存与状态失效同一事务，不能沿用历史默认。

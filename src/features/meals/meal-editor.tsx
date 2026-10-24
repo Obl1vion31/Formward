@@ -1,4 +1,5 @@
 "use client";
+import { useDraftGuard } from "@/components/draft-guard";
 import { RecordDateContext } from "@/components/record-date-context";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { decimal, defaultFoodQuantity, emptyNutrition, foodSpecification, formatNutrition, metricLabels, metrics, nutritionFor, sumNutrition, type FoodView, type ItemDraft, type ItemView, type MealDraft } from "./model";
@@ -17,6 +18,9 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
  const [draft,setDraft]=useState<MealDraft>(()=>({...structuredClone(initial),items:[...initial.items.map(item=>({...structuredClone(item),kind:"food" as const})),freeItem()]}));
  const [query,setQuery]=useState(""),[category,setCategory]=useState("all"),[step,setStep]=useState<"picker"|"entry">("entry"),[replacing,setReplacing]=useState<number|null>(null),[details,setDetails]=useState<number|null>(null),[dragging,setDragging]=useState(false);
  const [uploading,setUploading]=useState(false),[photoError,setPhotoError]=useState(""),[textOnly,setTextOnly]=useState(false),table=useRef<HTMLDivElement>(null);
+ const draftSignature = JSON.stringify({...draft,items:draft.items.filter(item=>item.name.trim())});
+ const [initialSignature] = useState(draftSignature);
+ useDraftGuard(draftSignature !== initialSignature || textOnly, uploading);
  function itemFood(item:ItemDraft){return item.foodRef?foodRefs[item.foodRef]:item.foodId?historicalFoods.find(food=>food.id===item.foodId&&food.version===item.foodVersion)??foods.find(food=>food.id===item.foodId):item.foodDraft??historicalItems.find(previous=>previous.id===item.originalItemId)?.foodSnapshot;}
  function values(item:ItemDraft){const food=itemFood(item);return food?item.quantity&&decimal.safeParse(item.quantity).success&&Number(item.quantity)>0?nutritionFor(food,item.quantity):emptyNutrition():item.nutrition??emptyNutrition();}
  function setItem(index:number,next:ItemDraft){setDraft(previous=>{

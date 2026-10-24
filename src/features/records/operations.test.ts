@@ -8,9 +8,9 @@ import { eq } from "drizzle-orm";
 import * as schema from "../../db/schema";
 import { authenticateAi, createAiToken, revokeAiToken } from "../auth/ai-tokens";
 import { submitAiMeasurementOperation, reviewAiMeasurementOperation } from "../measurements/ai-operations";
-import { submitMealOperation, readMealSnapshot, reviseMealOperation } from "../meals/records";
+import { submitMealOperation, decideMealOperation, readMealSnapshot, reviseMealOperation } from "../meals/records";
 import { macroDistribution, sumNutrition } from "../meals/model";
-import { submitRecordOperation, reviewRecordOperation, loadRecordReview, getRecordOperation } from "./operations";
+import { submitRecordOperation, reviewRecordOperation, loadRecordReview, getRecordOperation, listRecordOperations } from "./operations";
 
 import type { RecordReviewView } from "./model";
 
@@ -169,4 +169,79 @@ test("未知批内食材引用明确阻止保存，可取消错误餐次独立�
   operation = await reviewRecordOperation(db, userId, operation.id, { kind: "exclude", revision: operation.revision, keys: [meal.key] });
   await reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: operation.revision });
   const snapshot = await readMealSnapshot(db, userId); assert.equal(snapshot.foods.length, 1); assert.equal(snapshot.meals.length, 0);
+});
+
+
+test("重复餐次对照只返回本账号已有事实，另一次进食仍须明确选择", async () => {
+  const first = await owner(), other = await owner();
+  let saved: RecordReviewView = await submitRecordOperation(db, first.identity, input([meal]));
+  saved = await reviewRecordOperation(db, first.userId, saved.id, {kind:"confirm",revision:saved.revision});
+  assert.equal(saved.status,"confirmed");
+  const original = (await readMealSnapshot(db, first.userId)).meals[0];
+  let repeated: RecordReviewView = await submitRecordOperation(db, first.identity, input([meal]));
+  assert.match(repeated.rows[0].meal!.error!, /相同/);
+  assert.deepEqual(repeated.rows[0].duplicateMeals?.map(row=>[row.id,row.date,row.items[0].name,Number(row.totals.values.caloriesKcal)]), [[original.id,meal.date,"虚构食品",200]]);
+  assert.equal((await readMealSnapshot(db, first.userId)).meals.length,1);
+  const otherPreview = await submitRecordOperation(db, other.identity, input([meal]));
+  assert.equal(otherPreview.rows[0].duplicateMeals,undefined);
+  await reject(getRecordOperation(db,other.identity,repeated.id),"not_found");
+  const repeatedAction = repeated.rows[0].action;
+  assert.equal(repeatedAction.kind,"save_meal");
+  if (repeatedAction.kind !== "save_meal") throw new Error("虚构餐次类型不符");
+  repeated = await reviewRecordOperation(db, first.userId, repeated.id, {kind:"update",key:"meal",revision:repeated.revision,action:{...repeatedAction,allowDuplicate:true}});
+  assert.equal(repeated.rows[0].meal!.error,undefined);
+  assert.equal((await readMealSnapshot(db, first.userId)).meals.length,1,"更新预览不写入餐次");
+  await reviewRecordOperation(db, first.userId, repeated.id, {kind:"confirm",revision:repeated.revision});
+  assert.equal((await readMealSnapshot(db, first.userId)).meals.length,2);
+});
+
+test("最近提交摘要区分业务日期与提交时间、取消项和过期，保持账号隔离", async () => {
+  const first = await owner(), other = await owner();
+  let op: RecordReviewView = await submitRecordOperation(db, first.identity, input([meal,{key:"burn",kind:"save_energy_day",date:"2024-08-02",entryMode:"total",totalKcal:"2500"}]));
+  let rows = await listRecordOperations(db, first.userId);
+  assert.deepEqual(rows[0].dates,["2024-08-01","2024-08-02"]);
+  assert.deepEqual(rows[0].types,["摄入","消耗"]);
+  assert.match(rows[0].summary,/摄入1餐、消耗1项/);
+  assert.equal(rows[0].pendingCount,2);
+  assert.equal(rows[0].expired,false);
+  assert.notEqual(rows[0].createdAt.slice(0,10),"2024-08-01");
+  assert.equal((await listRecordOperations(db,other.userId)).length,0);
+  await db.update(schema.energyOperation).set({expiresAt:new Date("2020-01-01T00:00:00Z")}).where(eq(schema.energyOperation.id,op.energyOperation!.id));
+  rows = await listRecordOperations(db,first.userId);
+  assert.equal(rows[0].expired,true);
+  assert.equal(rows[0].status,"pending","展示过期不篡改批次状态");
+  op = await reviewRecordOperation(db,first.userId,op.id,{kind:"exclude",keys:["burn"],revision:op.revision});
+  rows = await listRecordOperations(db,first.userId);
+  assert.deepEqual(rows[0].dates,["2024-08-01"]);
+  assert.equal(rows[0].excludedCount,1);
+  assert.equal(rows[0].pendingCount,1);
+  assert.equal(rows[0].expired,false,"已排除项目不决定剩余批次的有效期");
+  await reviewRecordOperation(db,first.userId,op.id,{kind:"confirm",revision:op.revision});
+  rows = await listRecordOperations(db,first.userId);
+  assert.equal(rows[0].status,"confirmed");
+  assert.equal(rows[0].expired,false);
+  assert.equal(rows[0].pendingCount,0);
+});
+
+test("AI新增修改允许；整条删除恢复、混合批量及旧待确认均拒绝，网页手动可继续",async()=>{
+ const {userId,identity}=await owner();
+ for(const kind of ["delete_meal","restore_meal","delete_food","restore_food","delete_activity","restore_activity","delete_energy_day","restore_energy_day","delete_energy_profile","restore_energy_profile"]) {
+  const action={kind,id:randomUUID(),version:1};
+  await reject(submitRecordOperation(db,identity,input([{key:"bad",...action},meal])),"ai_action_not_allowed");
+ }
+ assert.equal((await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.userId,userId))).length,0);
+ const op=await submitRecordOperation(db,identity,input([meal]));
+ await reviewRecordOperation(db,userId,op.id,{kind:"confirm",revision:op.revision});
+ const record=(await readMealSnapshot(db,userId)).meals[0];
+ const action={kind:"delete_meal" as const,id:record.id,version:record.version};
+ await reject(submitMealOperation(db,{userId,origin:"ai",identity},{operationId:randomUUID(),actions:[action]}),"ai_action_not_allowed");
+ // 模拟规则上线前已存在且拥有合法凭据的删除申请。
+ const old=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[action]});
+ await db.update(schema.mealOperation).set({origin:"ai",tokenId:identity.tokenId}).where(eq(schema.mealOperation.id,old.id));
+ await reject(decideMealOperation(db,userId,old.id,old.revision,"confirm"),"ai_action_not_allowed");
+ assert.equal((await readMealSnapshot(db,userId)).meals[0].deletedAt,null);
+ assert.equal((await decideMealOperation(db,userId,old.id,old.revision,"cancel")).status,"cancelled");
+ const manual=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[action]});
+ await decideMealOperation(db,userId,manual.id,manual.revision,"confirm");
+ assert.ok((await readMealSnapshot(db,userId)).meals[0].deletedAt);
 });

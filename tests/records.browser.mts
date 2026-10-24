@@ -11,7 +11,7 @@ import * as schema from "../src/db/schema";
 import { provisionAccount } from "../src/features/auth/provision";
 import { createAiToken } from "../src/features/auth/ai-tokens";
 import { saveMealImage } from "../src/features/meals/images";
-import { checkUnifiedReview } from "./record-review.browser.mjs";
+import { checkUnifiedReview, checkReviewMaintenance } from "./record-review.browser.mjs";
 async function freePort() { const server = createServer(); server.listen(0, "127.0.0.1"); await once(server, "listening"); const port = (server.address() as { port: number }).port; await new Promise<void>(resolve => server.close(() => resolve())); return port; }
 const pg = new PGlite(), db = drizzle(pg, { schema }), port = await freePort(), dbPort = await freePort(), baseURL = `http://127.0.0.1:${port}`;
 await migrate(db, { migrationsFolder: "./drizzle" });
@@ -31,7 +31,11 @@ try {
   assert.equal((await context.request.post(`${baseURL}/api/auth/sign-in/email`, { headers: { Origin: baseURL }, data: account })).status(), 200);
   const page = await context.newPage(), errors: string[] = []; page.on("pageerror", (error: Error) => errors.push(error.message));
   for (const id of images) await page.route(`**/api/meal-images/${id}`, async (route: { fulfill(options: unknown): Promise<void> }) => route.fulfill({ status: 200, contentType: "image/png", body: png }));
-  try { await checkUnifiedReview({ baseURL, context, page, token: token.rawToken, images, date: new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) }); assert.deepEqual(errors, []); }
+  try {
+    const check = process.env.FORMWARD_REVIEW_MAINTENANCE_ONLY === "1" ? checkReviewMaintenance : checkUnifiedReview;
+    await check({ baseURL, context, page, token: token.rawToken, images, date: new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) });
+    assert.deepEqual(errors, []);
+  }
   catch (error) { await page.screenshot({ path: "/tmp/formward-records-failure.png", fullPage: true }); await writeFile("/tmp/formward-records-failure.html", await page.content()); throw error; }
   await context.close();
 } catch (error) { await writeFile("/tmp/formward-records-server.log", logs); throw error; }

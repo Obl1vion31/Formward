@@ -115,21 +115,21 @@ try {
       await plots.first().locator(`[data-overview-date="${dateAt(-1)}"]`).focus();
       const positions=await page.locator('[data-crosshair-date]').evaluateAll((nodes:Element[])=>nodes.map(node=>node.getAttribute('x1')));
       assert.equal(new Set(positions).size,1);assert.equal(await page.getByLabel('日期对照',{exact:true}).getAttribute('data-selected-date'),dateAt(-1));
-      const readout=await page.getByLabel('日期对照',{exact:true}).innerText();assert.ok(['摄入','消耗'].every(label=>readout.includes(label)));assert.match(readout,/热量|待补齐|收支平衡/);
+      const readout=await page.getByLabel('日期对照',{exact:true}).innerText();assert.ok(['摄入','消耗'].every(label=>readout.includes(label)));assert.match(readout,/热量|待补齐|收支平衡|全天待确认|当天未记全/);
       assert.ok(await plots.first().locator("svg").evaluateAll((nodes:SVGSVGElement[])=>nodes.every(node=>Math.abs(node.getBoundingClientRect().width-Number(node.getAttribute("viewBox")!.split(" ")[2]))<1)));
     }
     await page.screenshot({path:`/tmp/formward-overview-visual/overview-${width}.png`,fullPage:true});
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   }
   await page.setViewportSize({width:1440,height:1100});
-  await page.getByRole('group',{name:'摄入、消耗、盈余与次晨体重变化',exact:true}).locator(`[data-overview-date="${today}"]`).focus(); await page.keyboard.press("Enter");
+  await page.getByRole('group',{name:'摄入、消耗、盈余与次晨体重变化',exact:true}).locator(`[data-overview-date="${today}"]`).focus(); await page.keyboard.press("Enter"); assert.equal(await page.getByRole("dialog").count(),0); await page.getByRole("button",{name:"查看记录 →",exact:true}).click();
   const dayDetail=page.getByRole('dialog',{name:today+' · 当日记录',exact:true});await dayDetail.getByText('虚构蛋白食物',{exact:true}).waitFor();
   await dayDetail.getByRole('link',{name:'查看身体记录 →',exact:true}).click();
   const bodyDrawer=page.locator('dialog[aria-labelledby="measurement-drawer-title"]');await bodyDrawer.waitFor();
   await dragOutsideKeepsOpen(bodyDrawer,bodyDrawer.locator('h2'));
   const bodyBox=await bodyDrawer.boundingBox();await page.mouse.click(Math.max(10,bodyBox!.x-40),100);await bodyDrawer.waitFor({state:'hidden'});
   await page.getByRole('link',{name:'Formward 主页',exact:true}).click();await page.getByRole('heading',{name:'总览',exact:true}).waitFor();
-  await page.getByRole('group',{name:'摄入、消耗、盈余与次晨体重变化',exact:true}).locator(`[data-overview-date="${today}"]`).focus(); await page.keyboard.press("Enter");
+  await page.getByRole('group',{name:'摄入、消耗、盈余与次晨体重变化',exact:true}).locator(`[data-overview-date="${today}"]`).focus(); await page.keyboard.press("Enter"); assert.equal(await page.getByRole("dialog").count(),0); await page.getByRole("button",{name:"查看记录 →",exact:true}).click();
   await dayDetail.getByRole('link',{name:'查看饮食记录 →',exact:true}).click();
   await page.getByRole('dialog',{name:'历史饮食记录',exact:true}).waitFor();assert.equal(await page.getByLabel('查看日期',{exact:true}).inputValue(),today);
   await page.getByRole('button',{name:'关闭编辑',exact:true}).click();await page.getByRole('dialog',{name:'历史饮食记录',exact:true}).waitFor({state:'hidden'});
@@ -153,7 +153,7 @@ try {
       const chart=page.getByRole("group",{name:/柱状图/});
       await page.waitForFunction(()=>{const svg=document.querySelector('svg[aria-label*="柱状图"]')!;return Math.abs(svg.getBoundingClientRect().width-Number(svg.getAttribute("viewBox")!.split(" ")[2]))<1;});
       assert.equal(await chart.locator('[data-bar-date]').count(),days);
-      assert.equal(await chart.locator('[data-date-tick]').count(),days===7?7:1);
+      assert.ok(await chart.locator('[data-date-tick]').count()>=3 && await chart.locator('[data-date-tick]').count()<=7, '日期刻度稀疏且仍可辨范围');
       assert.ok(await chart.evaluate((node:Element)=>{const parent=node.parentElement!;return parent.scrollWidth<=parent.clientWidth+1;}),"所有范围固定宽度");
       await chart.locator(`[data-bar-date="${today}"]`).focus();
       assert.ok((await page.locator('[data-chart-readout]').innerText()).includes(String(expectedDayEnergy)),"精确读取当日热量");
@@ -179,7 +179,7 @@ try {
 
     await page.screenshot({path:`/tmp/formward-meals-visual/library-${size}.png`,fullPage:true});
     await page.getByRole("button",{name:"饮食",exact:true}).click();
-    await page.locator(`[data-bar-date="${today}"]`).click();
+    await page.locator(`[data-bar-date="${today}"] > rect`).first().click(); assert.equal(await page.getByRole("dialog").count(),0); await page.getByRole("button",{name:"查看记录 →",exact:true}).click();
     const history=page.getByRole('dialog',{name:'历史饮食记录',exact:true});
     await history.getByRole('cell',{name:'2包',exact:true}).waitFor();
     assert.ok(await history.evaluate((node:HTMLElement)=>node.scrollWidth<=node.clientWidth+1));
@@ -197,7 +197,7 @@ try {
   await page.getByRole('button',{name:'7D',exact:true}).click();
   assert.ok(await page.locator('[class*="barValue"]').count()>0,'热量柱顶直接显示数字');
   const todaySummary=await page.locator('[class*="summary"]').first().innerText();
-  await page.locator(`[data-bar-date="${dateAt(-3)}"]`).click();await page.locator("dialog:not(.page-loading-dialog)").waitFor();assert.equal(await page.getByLabel("查看日期",{exact:true}).inputValue(),dateAt(-3));assert.equal(await page.locator('[class*="summary"]').first().innerText(),todaySummary);await page.getByRole("button",{name:"回到今天",exact:true}).click();await page.locator("dialog:not(.page-loading-dialog)").waitFor({state:"hidden"});
+  await page.locator(`[data-bar-date="${dateAt(-3)}"]`).click();assert.equal(await page.getByRole("dialog").count(),0);await page.getByRole("button",{name:"查看记录 →",exact:true}).click();await page.locator("dialog:not(.page-loading-dialog)").waitFor();assert.equal(await page.getByLabel("查看日期",{exact:true}).inputValue(),dateAt(-3));assert.equal(await page.locator('[class*="summary"]').first().innerText(),todaySummary);await page.getByRole("button",{name:"回到今天",exact:true}).click();await page.locator("dialog:not(.page-loading-dialog)").waitFor({state:"hidden"});
   const screenshots = "/tmp/formward-meals-visual"; await mkdir(screenshots, { recursive: true }); await page.screenshot({ path: `${screenshots}/desktop.png`, fullPage: true });
   await page.setViewportSize({ width: 320, height: 850 }); assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)); await page.screenshot({ path: `${screenshots}/mobile-320.png`, fullPage: true });
   await page.getByRole("button", { name: /记录一餐/ }).click(); await page.locator("dialog:not(.page-loading-dialog)").waitFor(); await page.locator("dialog:not(.page-loading-dialog)").evaluate(async (node: HTMLElement) => { await Promise.all(node.getAnimations().map(a => a.finished.catch(() => {}))); }); assert.ok(await page.locator("dialog:not(.page-loading-dialog)").evaluate((node: HTMLElement) => node.scrollWidth <= node.clientWidth + 1)); await page.screenshot({ path: `${screenshots}/editor-320.png` }); await page.getByRole("button", { name: "关闭编辑", exact: true }).click(); await page.locator("dialog:not(.page-loading-dialog)").waitFor({ state: "hidden" });

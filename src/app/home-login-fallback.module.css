@@ -1,0 +1,13 @@
+.plainLogin:global(.home-page) { min-height:100svh; }
+.plainLogin :global(.home-scroll) { height:auto; min-height:100svh; }
+.plainLogin :global(.home-stage) { position:relative; height:auto; min-height:100svh; padding:clamp(120px,20svh,180px) 24px 48px; overflow:visible; background:var(--graphite); display:flex; flex-direction:column; align-items:center; }
+.plainLogin :global(.figure-motion),.plainLogin :global(.home-intro-backdrop),.plainLogin :global(.scroll-hint),.plainLogin :global(.tap-hint),.plainLogin :global(.keyboard-entry) { display:none; }
+.introduction { order:-1; width:min(340px,100%); padding:0 24px; margin-bottom:24px; }
+.introduction h1 { margin:0 0 10px; font-size:24px; font-weight:500; }
+.introduction p { margin:0; color:var(--muted); font-size:13px; line-height:1.7; }
+.plainLogin :global(.login-overlay) { position:relative; inset:auto; width:min(340px,100%); opacity:1!important; transform:none!important; }
+.plainLogin :global(.login-form) { padding:0 24px; }
+.plainLogin :global(.login-form::before) { display:none; }
+.plainLogin :global(.login-form input) { min-height:44px; border-bottom-color:rgba(240,233,221,.3); }
+.plainLogin :global(.login-form button) { min-height:44px; }
+@media(max-height:550px) { .plainLogin :global(.home-stage) { padding-top:90px; } .introduction { margin-bottom:16px; } }

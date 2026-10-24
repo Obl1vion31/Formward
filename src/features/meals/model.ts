@@ -47,10 +47,15 @@ export const actionSchema = z.discriminatedUnion("kind", [
 export type MealAction = z.infer<typeof actionSchema>;
 export const operationSchema = z.object({ operationId: z.string().regex(/^[a-zA-Z0-9-]{8,120}$/), actions: z.array(actionSchema).min(1).max(100) }).strict();
 export type MealInput = z.infer<typeof operationSchema>;
+export const publicMealInputSchema = operationSchema.extend({ actions: z.array(z.union(actionSchema.options.filter(schema => !schema.shape.kind.value.startsWith("delete_") && !schema.shape.kind.value.startsWith("restore_")))).min(1).max(100) });
 export type FoodView = FoodDraft & { id: string; version: number; deletedAt: string | null };
 export type ItemView = ItemDraft & { id?: string; nutrition: Nutrition; foodSnapshot?: FoodView; sourceKind: ItemDraft["sourceKind"] };
 export type Totals = { values: Nutrition; incomplete: Record<Metric, boolean> };
-export type MealView = Omit<MealDraft, "items"> & { id: string; version: number; items: ItemView[]; totals: Totals; source: "manual" | "ai" | "initialization"; deletedAt: string | null };
+export type MealDayStatus = "complete" | "incomplete" | "unconfirmed";
+export type MealDayView = { date: string; status: MealDayStatus; version: number; contentDigest: string; source: string };
+export type MealDayInput = { operationId: string; date: string; status: "complete" | "incomplete"; version: number; contentDigest: string };
+export const mealDayLabels: Record<MealDayStatus,string> = {complete:"已记完",incomplete:"未记全",unconfirmed:"待确认是否记完"};
+export type MealView = Omit<MealDraft, "items"> & { id: string; version: number; day?: MealDayView; items: ItemView[]; totals: Totals; source: "manual" | "ai" | "initialization"; deletedAt: string | null };
 export type MealSnapshot = { meals: MealView[]; foods: FoodView[] };
 export type PreviewRow = { excluded?: boolean; before?: FoodView | MealView; review?: { itemId: string; operationId: string; originalInput: unknown; reviewedInput: unknown; editedBy?: { userId: string; at: string } }; action: MealAction; food?: FoodView; meal?: MealView; error?: string; duplicateIds: string[]; warnings: string[]; needsUserInput?: string[] };
 export type MealOperationView = { id: string; revision: number; status: string; origin: string; rows: PreviewRow[]; canConfirm: boolean; canConfirmWithoutImages?: boolean; missingImages?: number; needsUserInput?: { index: number; questions: string[] }[]; createdAt: string; expiresAt: string | null; confirmationPath: string; result: { saved: number; message: string } | null };
@@ -93,7 +98,7 @@ export function sumNutrition(rows: Nutrition[]): Totals {
 export function dailyTotals(meals: MealView[]) {
   const groups = new Map<string, MealView[]>();
   for (const meal of meals.filter(m => !m.deletedAt)) groups.set(meal.date, [...(groups.get(meal.date) ?? []), meal]);
-  return [...groups].sort(([a], [b]) => b.localeCompare(a)).map(([date, rows]) => ({ date, meals: rows, totals: sumNutrition(rows.flatMap(m => m.items.map(i => i.nutrition))) }));
+  return [...groups].sort(([a], [b]) => b.localeCompare(a)).map(([date, rows]) => ({ date, meals: rows, day: rows[0]?.day ?? {date,status:"unconfirmed" as const,version:0,contentDigest:"",source:"unconfirmed"}, totals: sumNutrition(rows.flatMap(m => m.items.map(i => i.nutrition))) }));
 }
 export function formatNutrition(value: string | null, metric: Metric) { return value === null ? "—" : Number(value).toLocaleString("zh-CN", { maximumFractionDigits: metric === "caloriesKcal" ? 0 : 1 }); }
 

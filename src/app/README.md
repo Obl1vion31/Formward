@@ -20,7 +20,7 @@
 - `home-intro-backdrop.tsx` 显示单行同级的 Discipline / NUTRITION、Drive / BUILD YOURSELF、Effortless / AI LOGGING。视觉首尾场景用于 reduced motion 的静态交叠，辅助技术只读取一份文案。手机使用底部三列与细轴；键盘入口获焦时位于文字上方。加载及失败时隐藏，登录与认证保留终点，成功后的最终过渡退出。
 - `home-orbit.ts` 以人物进度计算 150° 倾斜椭圆投影、节点、引线、轻微缩放及明暗。标注文字在节点水平线下方 12px，引线与文字边缘间隔 12px；左右对齐及引线方向连续插值。ResizeObserver 与字体就绪后缓存完整标注尺寸，正常模式直接更新 DOM，不另开动画时钟或逐帧读取布局；文字始终面向读者。
 - `hero-font.ts` 通过 `next/font/local` 提供 Newsreader 正体 400 和 IBM Plex Mono 400。主词使用 Newsreader、自动光学尺寸、0.035em 字距与 1.2 行高；桌面字号为 `clamp(20px, 1.68vw, 26px)`，手机为 14px。微标签及滚动提示使用 IBM Plex Mono，Logo 与产品 UI 沿用系统 sans serif。资源和许可证在 `public/fonts/`。
-- `home-experience.tsx` 协调 INTRO、FORWARD_ANIMATING、LOGIN_READY、REVERSE_ANIMATING、AUTHENTICATING、FINAL_TRANSITION、FINAL 状态，等待静态图解码并同步表单，视频失败／预加载超时使用静态首尾过渡。SCROLL 提示随 INTRO 状态显示，每次回到首屏都恢复；人物运动由独立外层承载，播放期间暂停，输入框首次聚焦后回中并锁定整个登录阶段，倒放回首屏或进入 FINAL 才解除。
+- `home-experience.tsx` 协调 INTRO、FORWARD_ANIMATING、LOGIN_READY、REVERSE_ANIMATING、AUTHENTICATING、FINAL_TRANSITION、FINAL 状态，等待静态图解码并同步表单，视频失败／预加载超时使用静态首尾过渡。任一静态图解码失败时切换为普通登录，复用原表单并保留输入；认证成功直接导航，不等待无法完成的人物动画。SCROLL 提示随 INTRO 状态显示，每次回到首屏都恢复；人物运动由独立外层承载，播放期间暂停，输入框首次聚焦后回中并锁定整个登录阶段，倒放回首屏或进入 FINAL 才解除。
 - `turn-video.ts` 管理 60 帧视频的异步寻帧、WebGL 透明合成与宽幅暗光晕去除、端点大小与位置以及资源清理；桌面主动静音内联播放唤醒解码，当前帧可绘制后暂停，每次最多等待 4 秒。自动播放被拒绝时支持触摸／点击／按键重试；播放文件由原始视频生成，视频目录保存制作说明。
 - `figure-motion.ts` 用独立 rAF 控制反向位移与朝鼠标倾转，按实际时间平滑跟随，停止 180ms 后用 600ms 回中；归稳后取消 rAF。首屏幅度为水平 6px、垂直 4px、倾转 0.6° / 0.3°；Frame 12 未填写时与 Frame 13 输入框无焦点时为半幅。触屏、窄屏、reduced motion、页面隐藏和失焦时关闭。
 - `use-direction-trigger.ts` 在桌面监听滚轮和键盘方向；滚轮累计 44px、触控累计 40px 后选择目标端点。惯性不重启播放，进入最终过渡后移除监听。

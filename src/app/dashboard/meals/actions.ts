@@ -35,3 +35,9 @@ export async function permanentlyDeleteAction(input: import("@/features/meals/re
   const db = getDatabase(), result = await permanentlyDeleteMealRecord(db,userId,input);
   return { snapshot:await readMealSnapshot(db,userId),message:result.message };
 }); }
+
+export async function saveMealDayAction(input: import("@/features/meals/model").MealDayInput) { return perform(async userId=>{
+  const {setMealDayStatus}=await import("@/features/meals/day-status");
+  const db=getDatabase();await setMealDayStatus(db,userId,input);
+  return {snapshot:await readMealSnapshot(db,userId),message:input.status==="complete"?"已确认这一天记完。":"已标记未记全，摄入保留，暂不计入盈余。"};
+});}

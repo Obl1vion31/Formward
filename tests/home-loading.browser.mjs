@@ -8,7 +8,7 @@ const errors = [];
 const results = [];
 
 try {
-  for (const scenario of ["current-frame", "play-required", "gesture-required", "blocked-video", "failed-video", "no-webgl", "desktop-failed-video", "mobile-static", "mobile-reduced", "mobile-landscape"]) {
+  for (const scenario of ["current-frame", "play-required", "gesture-required", "blocked-video", "failed-video", "no-webgl", "desktop-failed-video", "mobile-static", "mobile-reduced", "mobile-landscape", "mobile-failed-image", "desktop-failed-image", "mobile-failed-final-image", "desktop-failed-final-image"]) {
     const desktop = !scenario.startsWith("mobile-");
     const context = await browser.newContext({ viewport: { width: scenario === "mobile-landscape" ? 844 : desktop ? 1440 : 390, height: scenario === "mobile-landscape" ? 390 : desktop ? 900 : 844 }, isMobile: !desktop, hasTouch: !desktop, reducedMotion: scenario === "mobile-reduced" ? "reduce" : "no-preference" });
     if (scenario === "current-frame") {
@@ -52,6 +52,10 @@ try {
         };
       });
     }
+    if (scenario.includes("failed-image") || scenario.includes("failed-final-image")) await context.addInitScript(({ finalOnly }) => {
+      const decode = HTMLImageElement.prototype.decode;
+      HTMLImageElement.prototype.decode = function() { return !finalOnly || this.closest(".body-frame-final") ? Promise.reject(new DOMException("虚构图片解码失败", "EncodingError")) : decode.call(this); };
+    }, { finalOnly: scenario.includes("final-image") });
     let loginRequests = 0;
     // 只验证登录表单可提交及失败可重试，不向真实库发送测试密码。
     await context.route("**/api/auth/sign-in/email", async route => {
@@ -62,6 +66,17 @@ try {
     page.on("pageerror", error => errors.push(error.message));
     await page.goto(baseURL, { waitUntil: "domcontentloaded" });
     await page.waitForSelector('main[data-images-ready="true"]', { timeout: 15000 });
+    if (scenario.includes("failed-image") || scenario.includes("failed-final-image")) {
+      await page.waitForSelector("main[data-image-fallback=true][data-phase=LOGIN_READY]");
+      assert.equal(await page.getByRole("heading", { name: "登录 Formward" }).isVisible(), true);
+      assert.equal(await page.locator("#email").isEnabled(), true);
+      await page.locator("#email").fill("fictional@example.test"); await page.locator("#password").fill("fictional-password");
+      for (let retry = 0; retry < 2; retry++) { await page.locator("button[type=submit]").click(); await page.locator("#login-error").waitFor(); }
+      assert.equal(loginRequests, 2); assert.equal(await page.locator("#email").inputValue(), "fictional@example.test");
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      await page.screenshot({ path: `/tmp/formward-${scenario}.png` }); results.push({ engine, scenario, loginRequests });
+      await context.close(); continue;
+    }
     if (!desktop) {
       assert.equal(await page.locator("video").count(), 0, "手机不挂载或请求视频");
       assert.equal(await page.locator("main").getAttribute("data-turn-mode"), "static");

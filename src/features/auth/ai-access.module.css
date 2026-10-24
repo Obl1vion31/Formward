@@ -1,0 +1,41 @@
+.settings { padding-top:20px; }
+.settings h1 { margin:0 0 20px; font-size:22px; }
+.settings :global(.ai-section) { margin:22px 0; padding-top:20px; }
+.settings :global(.ai-section) h2 { font-size:16px; }
+.settings .connectionSection { border-top:0; padding-top:0; }
+.sectionHeading { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px 16px; }
+.status { color:var(--gold); font-size:12px; }
+.settings .connections { margin-top:0; }
+.settings .connections > li { padding:14px 0; }
+.connectionBody { width:100%; }
+.settings .connectionBody > p { margin:4px 0 10px; font-size:12px; }
+.permissions { display:grid; gap:7px; font-size:13px; }
+.permissions > div { display:grid; grid-template-columns:100px 1fr 1fr; gap:8px; }
+.permissions strong { font-weight:400; }
+.permissions span { font-size:12px!important; }
+.settings .connectionDetails { margin-top:8px; }
+.settings .connectionDetails summary { font-size:12px; color:var(--muted); min-height:36px; }
+.address { display:flex; gap:10px; align-items:center; margin:12px 0; }
+.address input { font-family:monospace; flex:1; }
+.settings .disclosure > summary { font-size:14px; }
+.settings .disclosure > section { margin-top:20px; }
+.settings .http { padding-top:22px; border-top:1px solid rgba(240,233,221,.12); }
+.settings :global(.ai-list) li { align-items:flex-start; }
+.settings :global(.ai-list) li > span { max-width:110px; white-space:normal; text-align:right; font-size:12px; }
+.settings :global(.ai-list) li a { display:inline-block; line-height:1.5; }
+.settings :global(.ai-secret) { margin-top:16px; }
+@media(max-width:600px) {
+  .settings { padding-top:12px; }
+  .settings h1 { font-size:20px; }
+  .settings :global(.ai-section) { margin:18px 0; padding-top:16px; }
+  .settings .connectionSection { padding-top:0; }
+  .permissions > div { grid-template-columns:80px 1fr 1fr; gap:5px; }
+  .permissions span { font-size:12px!important; }
+  .address { flex-wrap:wrap; }
+  .address input { flex-basis:100%; }
+  .settings :global(.ai-list) li { gap:8px; }
+  .settings :global(.ai-token-form) { margin-top:16px; gap:12px; }
+  .settings :global(.ai-token-form) label { flex-basis:100%; }
+  .settings :global(.ai-secret) { padding:14px; }
+  .settings :global(.ai-secret) input { font-size:16px; }
+}

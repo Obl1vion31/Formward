@@ -1,0 +1,12 @@
+.workspace { max-width:720px; margin:0 auto; padding:24px 0 64px; line-height:1.7; }
+.workspace h1 { margin:0 0 12px; font-size:22px; font-weight:500; }
+.workspace p { color:var(--muted); font-size:14px; }
+.form { margin:28px 0; }
+.range { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.range label { display:grid; gap:8px; font-size:13px; color:var(--muted); }
+.range input { min-width:0; width:100%; min-height:44px; background:transparent; color:var(--warm-white); border:1px solid rgba(240,233,221,.25); padding:10px; border-radius:5px; color-scheme:dark; font:inherit; }
+.form .hint { font-size:12px; }
+.form button { min-height:44px; border:1px solid var(--gold); border-radius:5px; background:transparent; color:var(--gold); padding:10px 16px; font:inherit; cursor:pointer; }
+.details { border-top:1px solid rgba(240,233,221,.15); padding-top:18px; font-size:13px; }
+.details summary { cursor:pointer; min-height:44px; color:var(--gold); }
+@media(max-width:600px) { .range { grid-template-columns:1fr; gap:14px; } .range input { font-size:16px; } }

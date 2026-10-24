@@ -2,6 +2,7 @@
 import { preferredRecordedDate, rangeContaining } from "@/components/record-dates";
 import { useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
+import { ChartDateControls } from "@/components/chart-date-controls";
 import { RelationshipPlot } from "./relationship-plot";
 import { addCalendarDays, calendarOrdinal } from "../measurements/calendar";
 import { useMobileMode } from "@/components/use-mobile-mode";
@@ -19,10 +20,10 @@ const signed = (value: number | null, precision = 2) => value === null ? "—" :
 function WeightReading({ record }: { record: MeasurementDisplay | null }) {
   return <><strong>{record ? Number(record.weightKg) : "—"}<small>kg</small></strong>{record?.recordKind === "estimated" && <em>估计</em>}</>;
 }
-const blankDay = (date: string): OverviewDay => ({ date, nextDate: addCalendarDays(date, 1), meals: [], nutrition: null, morning: null, nextMorning: null, weightChangeKg: null, differenceEstimated: false, ambiguous: false, energy: blankEnergyDay(date), energyBalance: null });
+const blankDay = (date: string): OverviewDay => ({ date, nextDate: addCalendarDays(date, 1), meals: [], nutrition: null, morning: null, nextMorning: null, weightChangeKg: null, differenceEstimated: false, ambiguous: false, energy: blankEnergyDay(date), energyBalance: null, mealDayStatus: "unconfirmed", balanceEligible: false });
 export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const today = data.today, mobile = useMobileMode();
-  const preferred = preferredRecordedDate(data.days, today, day => day.nutrition?.values.caloriesKcal != null && day.energy.totalKcal !== null, day => data.recordDates.includes(day.date));
+  const preferred = preferredRecordedDate(data.days, today, day => day.energyBalance !== null, day => data.recordDates.includes(day.date));
   const [mode, setMode] = useState<string | null>(null), [custom, setCustom] = useState({ from: addCalendarDays(today, -29), to: today }), [inspected, setInspected] = useState(preferred), [estimates, setEstimates] = useState(true), [opened, setOpened] = useState<string | null>(null);
   const range = mode ?? rangeContaining(preferred, today, mobile ? "7" : "30");
   const available = estimates ? data.estimatedDays : data.days;
@@ -32,7 +33,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   let dates: string[] = [];
   try { const length = calendarOrdinal(to) - calendarOrdinal(from) + 1; if (length > 0 && length <= 3661) dates = Array.from({ length }, (_, index) => addCalendarDays(from, index)); } catch {}
   const days = dates.map(date => byDate.get(date) ?? blankDay(date));
-  const fallback = preferredRecordedDate(days, today, day => day.nutrition?.values.caloriesKcal != null && day.energy.totalKcal !== null, day => data.recordDates.includes(day.date));
+  const fallback = preferredRecordedDate(days, today, day => day.energyBalance !== null, day => data.recordDates.includes(day.date));
   const selected = dates.includes(inspected) ? inspected : dates.includes(fallback) ? fallback : to, day = days.find(day => day.date === selected), dialogDay = opened ? byDate.get(opened) ?? blankDay(opened) : null;
   return <section className={styles.trends} aria-label="热量与晨重趋势">
     <div className={styles.trendToolbar}><div className={styles.trendTitle}><h2>摄入、消耗与次晨变化</h2><time>{from.replaceAll("-", ".")} — {to.replaceAll("-", ".")}</time></div><div className={styles.ranges}>{[["7", "7D"], ["30", "30D"], ["90", "90D"], ["all", "全部"], ["custom", "自定义"]].map(([key, label]) => <button key={key} aria-pressed={range === key} onClick={() => setMode(key)}>{label}</button>)}</div><label className={styles.estimateToggle}><input type="checkbox" checked={estimates} onChange={event => setEstimates(event.target.checked)} aria-label="显示体重估计" />体重估计</label></div>
@@ -41,16 +42,16 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       {day && <div className={styles.dayReadout} aria-live="polite" aria-atomic="true" aria-label="日期对照" data-selected-date={selected}>
         <div className={styles.readoutHeading}><time dateTime={selected}>{selected.replaceAll("-", ".")}</time><button onClick={() => setOpened(selected)}>查看记录 →</button></div>
         <div className={styles.mobileEnergy}>
-          <span>{day.energyBalance === null ? "待补齐收支" : day.energyBalance === 0 ? "收支平衡" : day.energyBalance > 0 ? "热量盈余" : "热量缺口"}</span>
+          <span>{day.energyBalance === null ? day.nutrition && day.mealDayStatus === "incomplete" ? "当天未记全" : day.nutrition && day.mealDayStatus === "unconfirmed" ? "全天待确认" : "待补齐收支" : day.energyBalance === 0 ? "收支平衡" : day.energyBalance > 0 ? "热量盈余" : "热量缺口"}</span>
           <strong className={day.energyBalance !== null && day.energyBalance < 0 ? styles.deficitText : styles.surplusText}>{day.energyBalance === null ? "—" : signed(day.energyBalance, 0)}<small>kcal</small></strong>
-          <p>摄入 {formatNutrition(day.nutrition?.values.caloriesKcal ?? null, "caloriesKcal")}{day.nutrition?.incomplete.caloriesKcal ? "（部分）" : ""} − 消耗 {energyValue(day.energy.totalKcal)}{day.energy.estimated ? "（估计）" : ""}</p>
+          <p>摄入 {formatNutrition(day.nutrition?.values.caloriesKcal ?? null, "caloriesKcal")}{day.nutrition?.incomplete.caloriesKcal ? "（营养部分未知）" : ""} − 消耗 {energyValue(day.energy.totalKcal)}{day.energy.estimated ? "（估计）" : ""}</p>
         </div><div className={styles.relations}>
           <div className={styles.energyEquation}>
-            <div><span>摄入</span><strong className={styles.intakeText}>{formatNutrition(day.nutrition?.values.caloriesKcal ?? null, "caloriesKcal")}</strong><small>kcal{day.nutrition?.values.caloriesKcal == null ? " · 缺摄入" : day.nutrition.incomplete.caloriesKcal ? " · 部分" : ""}</small></div>
+            <div><span>摄入</span><strong className={styles.intakeText}>{formatNutrition(day.nutrition?.values.caloriesKcal ?? null, "caloriesKcal")}</strong><small>kcal{day.nutrition?.values.caloriesKcal == null ? " · 缺摄入" : day.mealDayStatus === "incomplete" ? " · 未记全" : day.mealDayStatus === "unconfirmed" ? " · 全天待确认" : day.nutrition.incomplete.caloriesKcal ? " · 营养部分未知" : ""}</small></div>
             <b aria-hidden="true">−</b>
             <div><span>消耗</span><strong className={styles.expenditureText}>{energyValue(day.energy.totalKcal)}</strong><small>kcal{day.energy.totalKcal === null ? " · 缺消耗" : day.energy.estimated ? " · 估计" : ""}</small></div>
             <b aria-hidden="true">=</b>
-            <div className={day.energyBalance === null || day.energyBalance === 0 ? undefined : day.energyBalance > 0 ? styles.surplusText : styles.deficitText}><span>{day.energyBalance === 0 ? "收支平衡" : day.energyBalance !== null && day.energyBalance < 0 ? "热量缺口" : "热量盈余"}</span><strong data-selected-balance={day.energyBalance ?? undefined}>{signed(day.energyBalance, 0)}</strong><small>kcal</small></div>
+            <div className={day.energyBalance === null || day.energyBalance === 0 ? undefined : day.energyBalance > 0 ? styles.surplusText : styles.deficitText}><span>{day.energyBalance === null ? "热量收支" : day.energyBalance === 0 ? "收支平衡" : day.energyBalance < 0 ? "热量缺口" : "热量盈余"}</span><strong data-selected-balance={day.energyBalance ?? undefined}>{signed(day.energyBalance, 0)}</strong><small>kcal</small></div>
           </div>
           <div className={styles.weightEquation}>
             <div><span>{day.date.slice(5).replace("-", ".")} 晨重</span><WeightReading record={day.morning} /></div><b aria-hidden="true">→</b>
@@ -58,7 +59,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
             <div className={styles.weightDifference}><span>次晨变化</span><strong>{signed(day.weightChangeKg)}<small>kg</small></strong>{day.ambiguous ? <em>待选择</em> : day.differenceEstimated && day.weightChangeKg !== null && <em>含估计</em>}</div>
           </div>
         </div>
-      </div>}<RelationshipPlot days={days} selected={selected} inspect={setInspected} open={date => { setInspected(date); setOpened(date); }} />
+      </div>}<RelationshipPlot days={days} selected={selected} inspect={setInspected} /><div className={styles.chartNavigation}><ChartDateControls label="总览图表日期" value={selected} min={dates[0]} max={dates.at(-1)!} onChange={setInspected} /></div>
     </>}
     {dialogDay && <EditorDialog title={`${dialogDay.date} · 当日记录`} close={() => setOpened(null)} busy={false}><div className={styles.dayDetails}>
       <h3>晨间体重</h3><p>{dialogDay.date} <WeightReading record={dialogDay.morning} /></p><p>{dialogDay.nextDate} <WeightReading record={dialogDay.nextMorning} /></p><p>次晨变化 {signed(dialogDay.weightChangeKg)} kg{dialogDay.differenceEstimated && dialogDay.weightChangeKg !== null ? " · 含估计" : ""}</p><LoadingLink href={`/dashboard/measurements?date=${dialogDay.date}`}>查看身体记录 →</LoadingLink>

@@ -46,9 +46,10 @@ try {
   const result = await client.callTool({ name: "get_measurement_operation", arguments: { id: operation.id } }); assert.equal(result.structuredContent.status, "confirmed");
   await page.goto(`${baseURL}/dashboard/ai`);
   const connection = page.getByRole("listitem").filter({ hasText: clientName });
-  for (const width of [320,390,1440]) { await page.setViewportSize({ width,height:844 }); await connection.getByText(/全部记录查询与提交预览/).waitFor(); for (const label of ["身体","饮食与食材","消耗"]) await connection.getByText(`${label}查询：已授权 · ${label}提交：已授权`, { exact:true }).waitFor(); await page.getByRole("button", { name:"复制统一授权指令",exact:true }).waitFor(); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); await page.screenshot({ path:`/tmp/formward-unified-access-${width}.png`,fullPage:true }); }
+  for (const width of [320,390,1440]) { await page.setViewportSize({ width,height:844 }); await connection.getByText(/全部记录查询与提交预览/).waitFor(); for (const label of ["身体","饮食与食材","消耗"]) { await connection.getByLabel(`${label}查询：已授权`, { exact:true }).waitFor(); await connection.getByLabel(`${label}提交：已授权`, { exact:true }).waitFor(); } await page.getByRole("button", { name:"复制统一授权指令",exact:true }).waitFor(); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); await page.screenshot({ path:`/tmp/formward-unified-access-${width}.png`,fullPage:true }); }
+  await connection.getByText("连接详情与撤销", { exact:true }).click();
   await connection.getByRole("button", { name: "撤销连接", exact: true }).click();
-  await connection.getByText(/已撤销/).waitFor();
+  await connection.getByText("已撤销", {exact:true}).waitFor();
   await assert.rejects(client.callTool({ name: "query_measurements", arguments: {} }));
   assert.deepEqual(errors, []);
   console.log("通过：手机 OAuth 登录 → 一次授权全部记录／只读连接检查 → MCP 提交 → 网页确认 → 状态查询 → 即时撤销。");

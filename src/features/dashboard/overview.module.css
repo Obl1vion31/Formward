@@ -27,7 +27,7 @@
 .dayReadout strong { display:block; font-size:30px; line-height:1.2; font-weight:400; white-space:nowrap; letter-spacing:-.035em; }
 .dayReadout .energyEquation small { display:block; margin:5px 0 0; white-space:nowrap; }
 .dayReadout b { color:#6f6c64; font-size:17px; font-weight:400; }
-.dayReadout em,.dayDetails em { display:inline-block; color:#a8a195; font-style:normal; font-size:11px; margin:4px 0 0; }
+.dayReadout em,.dayDetails em { display:inline-block; color:#a8a195; font-style:normal; font-size:12px; margin:4px 0 0; }
 .intakeText { color:#92B9D6; }.expenditureText { color:#D89490; }.surplusText strong { color:#D8B38A; }.deficitText strong { color:#92B2C2; }
 .weightEquation { display:grid; grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr) minmax(0,1.25fr); gap:10px; border-left:1px solid rgba(240,233,221,.1); padding-left:28px; align-items:center; }
 .weightEquation > div { position:relative; padding-bottom:17px; }
@@ -41,11 +41,15 @@
 .legend i { display:inline-block; width:13px; height:2px; border-radius:2px; }
 .legend .areaKey { width:11px; height:8px; opacity:.65; border-radius:1px; }
 .legend .gapKey { background:#79786f; width:7px; height:2px; }
+.legend .intakeKey { width:7px; height:7px; border-radius:50%; }
+.legend .expenditureKey { width:7px; height:7px; border-radius:0; }
+.legend .unconfirmedKey { width:7px; height:7px; border-radius:50%; background:none; border:1px solid #92B9D6; }
+.chartNavigation { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; margin-top:8px; }
 .plot { width:100%; min-width:0; }
 .plot svg { display:block; width:100%; height:auto; overflow:hidden; touch-action:pan-y; user-select:none; }
 .grid { stroke:rgba(240,233,221,.09); stroke-width:.7; }
 .zeroLine { stroke:rgba(240,233,221,.23); stroke-width:1; }
-.axis { fill:#aba99f; font:11px ui-monospace,monospace; }
+.axis { fill:#aba99f; font:12px ui-monospace,monospace; }
 .plotTitle { fill:#ded8cd; font:13px sans-serif; }
 .emptyPlot { fill:#99968b; font:12px sans-serif; paint-order:stroke; stroke:#151513; stroke-width:5px; }
 .plotHit { fill:transparent; cursor:crosshair; }
@@ -62,7 +66,7 @@
 .card h2 { margin:0; font-size:13px; font-weight:400; color:#b4afa5; }
 .card span { color:#bea478; font-size:12px; }
 .card > strong { display:block; font-size:25px; font-weight:400; margin:10px 0 0; }
-.card p { color:#a8a195; font-size:11px; margin:6px 0 0; }
+.card p { color:#a8a195; font-size:12px; margin:6px 0 0; }
 .dayDetails { font-size:13px; line-height:1.8; }
 .dayDetails h3 { font-weight:500; margin:24px 0 12px; }
 .dayDetails small { color:#a8a195; margin-left:5px; }
@@ -79,14 +83,14 @@
 @media(max-width:600px) {
  .workspace { padding-top:14px; }.trends { padding-top:14px; }
  .trendToolbar { gap:0 10px; }.ranges { gap:0; }.estimateToggle { width:100%; min-height:34px; }
- .trendTitle { flex-basis:100%; margin-bottom:5px; gap:5px; }.trendTitle time { font-size:11px; }
+ .trendTitle { flex-basis:100%; margin-bottom:5px; gap:5px; }.trendTitle time { font-size:12px; }
  .trendToolbar h2 { font-size:17px; }
  .dayReadout { margin:6px 0 16px; padding-bottom:14px; }
  .relations { gap:14px; }.energyEquation { gap:4px; }
  .dayReadout strong { font-size:28px; }.weightEquation strong { font-size:22px; }
  .weightEquation { gap:7px; grid-template-columns:minmax(0,1fr) 12px minmax(0,1fr) minmax(0,1.1fr); padding-top:12px; }.weightDifference { padding-left:6px; }
- .weightEquation small { margin-left:3px; font-size:11px; }
- .panelHeading { align-items:flex-start; flex-direction:column; gap:10px; }.legend { gap:8px 13px; font-size:11px; }
+ .weightEquation small { margin-left:3px; font-size:12px; }
+ .panelHeading { align-items:flex-start; flex-direction:column; gap:10px; }.legend { gap:8px 13px; font-size:12px; }
  .customRange { gap:14px; }.customRange label { flex:1; min-width:0; }.customRange input { width:100%; }
  .cards { grid-template-columns:1fr; gap:0; margin-top:18px; border-top:1px solid rgba(240,233,221,.12); }
  .card { position:relative; border:0; border-bottom:1px solid rgba(240,233,221,.1); border-radius:0; padding:14px 0; display:grid; grid-template-columns:1fr auto; align-items:center; gap:4px 10px; }
@@ -95,7 +99,7 @@
 }
 @media(max-width:360px) {
  .trendToolbar h2 { font-size:16px; }.energyEquation { gap:2px; grid-template-columns:minmax(0,1fr) 12px minmax(0,1fr) 12px minmax(0,1.05fr); }
- .dayReadout strong { font-size:25px; }.weightEquation strong { font-size:19px; }.dayReadout span { font-size:11px; }
+ .dayReadout strong { font-size:25px; }.weightEquation strong { font-size:19px; }.dayReadout span { font-size:12px; }
  .legend { gap:8px 10px; }
 }
 @media(prefers-reduced-motion:reduce) { .card { transition:none; } }

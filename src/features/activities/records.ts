@@ -1,3 +1,4 @@
+import { requireAiUpserts } from "../auth/ai-write-policy";
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, eq } from "drizzle-orm";
 import type { Database } from "../../db/client";
@@ -117,6 +118,7 @@ function parse(input: unknown): EnergyInput {
 }
 export async function submitEnergyOperation(db: Database, actor: EnergyActor, raw: unknown) {
   const input = parse(raw);
+  if (actor.origin === "ai") requireAiUpserts(input.actions);
   return db.transaction(async tx => {
     await lockOwner(tx, actor.userId);
     if (actor.origin === "ai") {
@@ -184,6 +186,7 @@ export async function decideEnergyOperation(db: Database, userId: string, id: st
       if (row.expiresAt && row.expiresAt < new Date()) throw new ApiError(409, "expired", "预览已过期，请刷新。");
       if (snapshotDigest(await readEnergySnapshot(tx, userId)) !== row.snapshotDigest) throw new ApiError(409, "snapshot_changed", "消耗资料或记录已改变，请刷新预览。");
       const selected = row.preview.filter(row => !row.excluded);
+      if (row.origin === "ai") requireAiUpserts(selected.map(entry => entry.action));
       if (selected.some(entry => entry.action.kind.includes("energy_defaults"))) throw new ApiError(400, "retired_action", "日常默认值已停用，请刷新预览并取消这一项。");
       if (!selected.length || selected.some(row => row.error || !row.after)) throw new ApiError(400, "review_required", "请修改或取消有问题的消耗记录。");
       for (const entry of selected) {

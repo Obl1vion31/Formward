@@ -22,8 +22,15 @@ export async function checkAiAccessBrowser({ baseURL, account, other, date }) {
   try {
     await page.goto(`${baseURL}/dashboard`); await page.getByRole("link", { name: "AI 接入", exact: true }).click();
     assert.ok((await page.locator(".ai-instructions").textContent()).includes("每次新录入自动采用当次系统时区"));
+    assert.equal(await page.getByLabel("令牌名称").isVisible(), false, "普通接入首屏不展开手动令牌");
+    const sections = await page.locator(".ai-page > section").evaluateAll(nodes => nodes.map(node => node.getAttribute("aria-label")));
+    assert.deepEqual(sections, ["连接状态", "接入操作", "最近提交"]);
+    await page.getByText("高级接入 · 手动令牌与 HTTP", { exact: true }).click();
     await page.getByLabel("令牌名称").fill("虚构 Codex 试验"); await page.getByRole("button", { name: "创建令牌", exact: true }).click();
-    await page.getByLabel("新令牌原文").waitFor(); token = await page.getByLabel("新令牌原文").inputValue(); assert.match(token, /^fw_ai_[A-Za-z0-9_-]{43}$/);
+    await page.getByLabel("新令牌原文").waitFor();
+    await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "新建令牌，仅显示一次");
+    assert.equal(await page.getByLabel("新建令牌，仅显示一次").evaluate(node => node === document.activeElement), true, "创建后聚焦一次性令牌");
+    token = await page.getByLabel("新令牌原文").inputValue(); assert.match(token, /^fw_ai_[A-Za-z0-9_-]{43}$/);
     await page.getByRole("button", { name: "已保存，关闭" }).click(); await page.reload(); assert.equal(await page.getByLabel("新令牌原文").count(), 0); assert.ok(!(await page.content()).includes(token));
     const apiRead = await fetch(`${baseURL}/api/v1/measurements`, { headers: { Authorization: `Bearer ${token}` } }); assert.equal(apiRead.status, 200); assert.deepEqual((await apiRead.json()).records, []);
     const preview = await post(payload); assert.equal(preview.preview.rows.length, 2); assert.equal(preview.preview.canConfirm, true);
@@ -82,6 +89,7 @@ export async function checkAiAccessBrowser({ baseURL, account, other, date }) {
     try { await otherContext.request.post(`${baseURL}/api/auth/sign-in/email`, { headers: { Origin: baseURL, "x-forwarded-for": "192.0.2.202" }, data: other }); assert.equal((await otherContext.request.get(preview.confirmationUrl)).status(), 404); } finally { await otherContext.close(); }
     await page.goto(`${baseURL}/dashboard/ai`); await page.getByRole("heading", { name: "AI 接入", exact: true }).waitFor();
     for (const width of [390, 320]) { await page.setViewportSize({ width, height: 844 }); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); await page.screenshot({ path: `${artifacts}/ai-access-${width}.png`, fullPage: true }); }
+    await page.getByText("高级接入 · 手动令牌与 HTTP", { exact: true }).click();
     await page.getByRole("button", { name: "撤销", exact: true }).click(); await page.getByText("令牌已撤销。", { exact: true }).waitFor();
     assert.equal((await fetch(`${baseURL}/api/v1/measurements`, { headers: { Authorization: `Bearer ${token}` } })).status, 401);
     const spec = await fetch(`${baseURL}/api/v1/openapi.json`); assert.equal(spec.status, 200); assert.equal((await spec.json()).openapi, "3.1.0");

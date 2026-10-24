@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import ExcelJS from "exceljs";
+import { readFile } from "node:fs/promises";
 import { spawn, type ChildProcess } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:net";
@@ -99,6 +101,9 @@ try {
   const guarded = await unauthenticated.newPage();
   await guarded.goto(`${baseURL}/dashboard`);
   assert.equal(new URL(guarded.url()).pathname, "/");
+  const blockedExport = await unauthenticated.request.get(`${baseURL}/dashboard/export/file`);
+  assert.equal(blockedExport.status(), 401);
+  assert.match(blockedExport.headers()["cache-control"], /no-store/);
   await unauthenticated.close();
   console.log("通过：未登录不能直接访问主页。");
 
@@ -152,6 +157,26 @@ try {
   assert.ok((await login.page.locator(".dashboard-account").textContent()).includes(first.email));
   console.log("通过：认证中拒绝重复提交和倒放，成功后完成 700ms 动画才进入主页，刷新保留登录。");
 
+  await login.page.goto(`${baseURL}/dashboard/export`);
+  await login.page.getByRole("heading", { name: "导出记录", exact: true }).waitFor();
+  const fileResponse = await login.context.request.get(`${baseURL}/dashboard/export/file`);
+  assert.equal(fileResponse.status(), 200);
+  assert.match(fileResponse.headers()["content-type"], /spreadsheetml/);
+  assert.match(fileResponse.headers()["cache-control"], /private.*no-store/);
+  assert.match(fileResponse.headers()["content-disposition"], /attachment.*xlsx/);
+  const downloadedBook = new ExcelJS.Workbook(); await downloadedBook.xlsx.load(new Uint8Array(await fileResponse.body()).buffer);
+  assert.equal(downloadedBook.worksheets[0].name, "每日汇总"); assert.equal(downloadedBook.worksheets.length, 9);
+  assert.equal((await login.context.request.get(`${baseURL}/dashboard/export/file?user_id=other`)).status(), 400);
+  assert.equal((await login.context.request.get(`${baseURL}/dashboard/export/file?from=2024-02-30`)).status(), 400);
+  const downloading = login.page.waitForEvent("download");
+  await login.page.getByRole("button", { name: "下载 Excel · .xlsx", exact: true }).click();
+  const download = await downloading; assert.match(download.suggestedFilename(), /\.xlsx$/);
+  const content = await readFile((await download.path())!); assert.equal(content.subarray(0,2).toString(), "PK");
+  for (const width of [1440, 390, 320]) { await login.page.setViewportSize({ width, height: 844 }); assert.equal(await login.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); await login.page.screenshot({ path: `/tmp/formward-export-${width}.png` }); }
+  await login.page.setViewportSize({ width: 1440, height: 900 });
+  console.log("通过：本人Excel实际下载、原生文件回读、未登录与账号参数保护、日期错误及桌面手机布局。");
+  await login.page.goto(`${baseURL}/dashboard`);
+
   const other = await makePage();
   await fill(other.page, second);
   await other.page.locator('button[type="submit"]').click();
@@ -186,6 +211,22 @@ try {
   await mobile.context.close();
   console.log("通过：手机 reduced motion 完成 240ms 动画后跳转，主页不横向溢出。");
   assert.deepEqual(errors, []);
+
+  const fallbackErrors: string[] = [];
+  for (const width of [1440, 320]) {
+    const fallback = await launched.newContext({ viewport: { width, height: width === 320 ? 740 : 900 }, isMobile: width === 320, hasTouch: width === 320, reducedMotion: width === 320 ? "reduce" : "no-preference", extraHTTPHeaders: { "x-forwarded-for": `192.0.2.${nextTestIP++}` } });
+    await fallback.route("**/_next/image?**", (route: { abort: () => Promise<void> }) => route.abort());
+    const fallbackPage = await fallback.newPage(); fallbackPage.on("pageerror", (error: Error) => fallbackErrors.push(error.message));
+    await fallbackPage.goto(baseURL);
+    await fallbackPage.waitForSelector("main[data-image-fallback=true][data-phase=LOGIN_READY]");
+    await fill(fallbackPage); await fallbackPage.locator("button[type=submit]").click();
+    await fallbackPage.waitForURL(`${baseURL}/dashboard`);
+    await fallbackPage.locator("main.dashboard-page").waitFor({state:"visible"});
+    await fallback.close();
+  }
+  assert.deepEqual(errors, []);
+
+  assert.deepEqual(fallbackErrors, []);
 
   const loading = spawn(process.execPath, ["tests/home-loading.browser.mjs"], { env: { ...process.env, FORMWARD_BASE_URL: baseURL }, stdio: "inherit" });
   const [loadingCode] = await once(loading, "exit");

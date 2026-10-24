@@ -10,7 +10,8 @@ import { emptyEnergy, type EnergySnapshot } from "../activities/model";
 import { linkedDate } from "../measurements/calendar";
 import type { MeasurementDisplay } from "../measurements/entry-state";
 const observed = (date: string, patch: Partial<MeasurementDisplay> = {}): MeasurementDisplay => ({ id: date, recordDate: date, period: "daytime", weightKg: "70.00", bodyFatPercent: "20.00", fasting: true, sourceLocalTime: date + " 08:00:00", recordKind: "observed", timezone: "Asia/Shanghai", sourceType: "manual", sourceSystem: null, sourceRecordId: null, entryChannel: "manual", deviceLabel: "虚构秤", estimation: null, timePrecision: "minute", updatedAt: date, ...patch });
-const meal = (date: string, caloriesKcal: string): MealView => prepareMealActions({ operationId: "fictional-overview", actions: [{ kind: "save_meal", date, mealType: "午餐", items: [{ kind: "food", name: "虚构食物", sourceKind: "reference", nutrition: { ...emptyNutrition(), caloriesKcal } }] }] }, { foods: [], meals: [] }, "manual")[0].meal!;
+const makeMeal = (date: string, caloriesKcal: string): MealView => prepareMealActions({ operationId: "fictional-overview", actions: [{ kind: "save_meal", date, mealType: "午餐", items: [{ kind: "food", name: "虚构食物", sourceKind: "reference", nutrition: { ...emptyNutrition(), caloriesKcal } }] }] }, { foods: [], meals: [] }, "manual")[0].meal!;
+const meal = (date:string,caloriesKcal:string):MealView => ({...makeMeal(date,caloriesKcal),day:{date,status:"complete",version:1,contentDigest:"fictional",source:"user"}});
 const expenditure = (date: string, totalKcal: string) => ({ id: date, version: 1, deletedAt: null, date, restingKcal: null, activeKcal: null, totalKcal, timezone: "Asia/Shanghai", sourceSystem: null, sourceRecordId: null, sourceOccurredAt: null, sourceUnit: "kcal" as const, syncStatus: "confirmed" as const });
 
 test("总览卡片各取最近记录日，跨零点保留昨日餐次且不影响当天汇总", () => {
@@ -85,6 +86,7 @@ test("独立坐标轴使用整齐等距刻度，包含零且覆盖正负值", ()
 test("部分摄入和估算消耗仍计算盈余，缺失与明确零保持区别", () => {
   const partial = prepareMealActions({ operationId: "fictional-partial", actions: [{ kind: "save_meal", date: "2024-03-01", mealType: "午餐", items: [{ kind: "food", name: "已知食物", sourceKind: "estimated", nutrition: { ...emptyNutrition(), caloriesKcal: "300" } }, { kind: "food", name: "未知食物", sourceKind: "unknown", nutrition: emptyNutrition() }] }] }, { foods: [], meals: [] }, "manual")[0].meal!;
   const energy = { ...emptyEnergy(), days: [{ ...expenditure("2024-03-01", "200"), totalKcal: null, restingKcal: "200", activeKcal: "0", restingEstimated: true }] };
+  partial.day={date:partial.date,status:"complete",version:1,contentDigest:"fictional",source:"user"};
   const day = overviewDays([partial], [], ["2024-03-01"], false, energy)[0];
   assert.equal(day.nutrition?.incomplete.caloriesKcal, true); assert.equal(day.energy.estimated, true); assert.equal(day.energyBalance, 100);
   assert.equal(overview([partial], [], "2024-03-01", energy).energyBalance, 100);
@@ -104,4 +106,15 @@ test("无完整收支时保留仅体脂、晚间及估计的实际记录日期�
   assert.equal(view.days.find(day => day.date==="2024-03-04")?.morning, null);
   assert.equal(preferredRecordedDate(view.days,view.today, day=>day.energyBalance!==null, day=>view.recordDates.includes(day.date)),"2024-03-04");
   assert.equal(view.recordDates.includes("2024-03-02"),false);
+});
+
+test("未确认与未记全保留摄入，但不生成盈余；确认后恢复且0可计算",()=>{
+ const date="2024-03-01", energy={...emptyEnergy(),days:[expenditure(date,"200")]};
+ for(const status of ["unconfirmed","incomplete"] as const){
+  const record={...meal(date,"300"),day:{...meal(date,"300").day!,status}};
+  const day=overviewDays([record],[],[date],false,energy)[0];
+  assert.equal(day.nutrition?.values.caloriesKcal,"300.0000");assert.equal(day.energyBalance,null);assert.equal(day.balanceEligible,false);assert.equal(day.mealDayStatus,status);
+  assert.equal(overview([record],[],date,energy).energyBalance,null);
+ }
+ assert.equal(overviewDays([meal(date,"0")],[],[date],false,energy)[0].energyBalance,-200);
 });

@@ -16,5 +16,5 @@ export async function queryMeals(db: Database, userId: string, params: URLSearch
   if (from && to && from > to) throw new ApiError(400, "invalid_input", "日期区间无效。");
   const timezone=params.get("timezone")??process.env.FORMWARD_TIMEZONE??"Asia/Shanghai"; validateMeasurementTimezone(timezone);
   const state = await readMealSnapshot(db, userId), meals = state.meals.filter(m => !m.deletedAt && (!from || m.date >= from) && (!to || m.date <= to));
-  return { context:{timezone,localDate:localMeasurementDate(new Date(),timezone)}, meals, days: dailyTotals(meals), units: { caloriesKcal: "kcal", proteinG: "g", carbsG: "g", fatG: "g" }, rules: "杂只包含未单列的剩余食物；只有杂时代表整餐。whole整餐估算不能与其他项相加。无记录不等于零摄入。食材查找后使用稳定foodId和foodVersion，未知值为null。AI写入只提交预览，等待网页登录确认。" };
+  return { context:{timezone,localDate:localMeasurementDate(new Date(),timezone)}, meals, days: dailyTotals(meals), units: { caloriesKcal: "kcal", proteinG: "g", carbsG: "g", fatG: "g" }, rules: "杂只包含未单列的剩余食物；只有杂时代表整餐。whole整餐估算不能与其他项相加。无记录不等于零摄入。days.day.status为complete表示用户已确认当天记完；incomplete或unconfirmed保留摄入但不参与总览盈余。保存或更改餐次后需由用户重新确认全天状态。食材查找后使用稳定foodId和foodVersion，未知值为null。AI写入只提交预览，等待网页登录确认。" };
 }

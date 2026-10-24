@@ -1,3 +1,4 @@
+import { aiActionAllowed, requireAiUpserts } from "../auth/ai-write-policy";
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, desc, eq, isNull, ne, inArray } from "drizzle-orm";
 import type { Database } from "../../db/client";
@@ -10,6 +11,7 @@ import { validateMeasurementTimezone } from "../measurements/timezone";
 import { localMeasurementDate } from "../measurements/entry-state";
 import { emptyNutrition, metrics, nutritionFor, operationSchema, sumNutrition, missingMealImages, type FoodDraft, type FoodView, type ItemDraft, type ItemView, type MealAction, type MealInput, type MealOperationView, type MealSnapshot, type MealView, type Nutrition, type PreviewRow } from "./model";
 import { foodDescriptionProblem } from "./food-description";
+import { readMealDayViews, invalidateMealDays } from "./day-status";
 
 export type MealActor = { userId: string; origin: "manual" | "ai" | "initialization"; identity?: AiIdentity; importId?: string };
 // PostgreSQL jsonb会重排对象字段；请求和保存后的原始快照使用相同的稳定摘要。
@@ -44,9 +46,10 @@ export async function readMealSnapshot(db: Pick<Database, "select">, userId: str
   const items = await db.select().from(mealItem).where(and(eq(mealItem.userId, userId), isNull(mealItem.deletedAt))).orderBy(mealItem.position);
   const links = await db.select().from(mealImageLink).where(eq(mealImageLink.userId,userId)).orderBy(mealImageLink.position);
   for (const f of foods) Object.assign(f,{imageIds:links.filter(l=>l.foodId===f.id).map(l=>l.imageId)});
+  const dayStates=await readMealDayViews(db,userId,meals);
   return { foods, meals: meals.map(row => {
     const entries: ItemView[] = items.filter(i => i.mealId === row.id).map(i => ({ id: i.id, kind: i.kind as ItemDraft["kind"], name: i.name, quantity: i.quantity, amountDecision:(i.amountDecision??undefined) as ItemDraft["amountDecision"], ...(i.reviewExplanation ? { reviewExplanation: i.reviewExplanation } : {}), unit: i.unit, ...(i.foodId ? { foodId: i.foodId, foodVersion: i.foodSnapshot?.version } : {}), ...(i.foodSnapshot ? { foodSnapshot: i.foodSnapshot } : {}), nutrition: nutrients(i), sourceKind: i.sourceKind as ItemDraft["sourceKind"], basis: i.basis, evidenceUrl: i.evidenceUrl }));
-    return { imageIds:links.filter(l=>l.mealId===row.id).map(l=>l.imageId), id: row.id, version: row.version, date: row.localDate, mealType: row.mealType, timezone: row.timezone, occurredAt: row.occurredAt?.toISOString() ?? null, notes: row.notes, items: entries, totals: sumNutrition(entries.map(i => i.nutrition)), source: row.source as MealView["source"], deletedAt: row.deletedAt?.toISOString() ?? null };
+    return { imageIds:links.filter(l=>l.mealId===row.id).map(l=>l.imageId), id: row.id, version: row.version, day:dayStates.get(row.localDate), date: row.localDate, mealType: row.mealType, timezone: row.timezone, occurredAt: row.occurredAt?.toISOString() ?? null, notes: row.notes, items: entries, totals: sumNutrition(entries.map(i => i.nutrition)), source: row.source as MealView["source"], deletedAt: row.deletedAt?.toISOString() ?? null };
   }) };
 }
 export async function searchFoods(db: Database, userId: string, query = "") {
@@ -159,6 +162,7 @@ export async function listMealOperations(db: Database, userId: string) {
 }
 export async function submitMealOperation(db: Database, actor: MealActor, raw: unknown, planner: MealPlanner = prepareMealActions) {
   const input = parse(raw), hash = digest(input);
+  if (actor.origin === "ai") requireAiUpserts(input.actions);
   return db.transaction(async tx => {
     await lockOwner(tx, actor.userId);
     if (actor.origin === "ai") {
@@ -194,6 +198,7 @@ export async function reviseMealOperation(db: Database, userId: string, id: stri
     const input = parse({ operationId: row.draft.operationId, actions: actions ?? row.draft.actions });
     validateFoodDescriptions(input);
     const state = await readMealSnapshot(tx, userId), preview = planner(input, state, row.origin as MealActor["origin"]);
+    if (row.origin === "ai") for (const entry of preview) if (!aiActionAllowed(entry.action.kind)) entry.error = "AI不能删除或恢复整条记录，请取消这一项。";
     await validatePreviewImages(tx,userId,preview);
     const [updated] = await tx.update(mealOperation).set({ draft: input, preview, snapshotDigest: stateDigest(state), revision: row.revision + 1, expiresAt: row.origin === "ai" ? new Date(Date.now() + 15 * 60000) : null }).where(eq(mealOperation.id, row.id)).returning();
     return displayMealOperation(updated);
@@ -243,6 +248,7 @@ export async function decideMealOperation(db: Database, userId: string, id: stri
     const before = await readMealSnapshot(tx, userId);
     if (stateDigest(before) !== op.snapshotDigest) throw new ApiError(409, "snapshot_changed", "饮食或食材已改变，请刷新预览后重新核对。");
     const active = op.preview.filter(row => !row.excluded);
+    if (op.origin === "ai") requireAiUpserts(active.map(row => row.action));
     for (let index = 0; index < active.length; index++) {
       const row = active[index];
       if (row.food) await writeFood(tx, userId, row.food);
@@ -264,6 +270,8 @@ export async function decideMealOperation(db: Database, userId: string, id: stri
       const record = row.food ?? row.meal!;
       await tx.insert(mealEvent).values({ id: randomUUID(), userId, recordId: record.id, recordType: row.food ? "food" : "meal", operationId: op.id, actorType: op.origin === "ai" ? "ai" : "user", actorId: op.tokenId ?? op.oauthConnectionId ?? userId, confirmedBy: userId, snapshot: { action: row.action, originalInput: row.review?.originalInput ?? op.payload.actions[index] ?? null, ...(row.review ? { review: row.review } : {}), before: (row.food ? before.foods : before.meals).find(r => r.id === record.id) ?? null, after: record, origin: op.origin, ...(missingImages && allowMissingImages ? { confirmedWithoutImages: true, missingImages } : {}) } });
     }
+    const changedDates=active.flatMap(row=>row.meal?[row.meal.date,...before.meals.filter(m=>m.id===row.meal!.id).map(m=>m.date)]:[]);
+    if(changedDates.length)await invalidateMealDays(tx,userId,changedDates,op.id,op.tokenId??op.oauthConnectionId??userId);
     if (op.importId) await tx.update(mealImport).set({ confirmedAt: new Date() }).where(and(eq(mealImport.userId, userId), eq(mealImport.id, op.importId)));
     const [updated] = await tx.update(mealOperation).set({ status: "confirmed", revision: op.revision + 1, confirmedAt: new Date(), result: { saved: active.length, message: `已保存${active.length}项饮食／食材记录。${missingImages ? `已按你的选择先保存文字，${missingImages}张照片尚未保存。` : ""}` } }).where(eq(mealOperation.id, id)).returning();
     return displayMealOperation(updated);

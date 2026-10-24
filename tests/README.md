@@ -145,3 +145,5 @@ image-upload.test.ts验证20 MiB直传凭据的正常、篡改、过期、跨账
 `latest-records-check.browser.mjs`由消耗浏览器入口运行，FORMWARD_LATEST_RECORDS_ONLY=1可只运行此专项，覆盖各自最近日期／跨零点摘要、320／390／430／1100／1440px三行或卡片展示、消耗来源键盘选择／持久移除／草稿保留及AI编辑只更新预览。截图在被忽略的.codex/latest-record-visual，仅使用隔离虚构账号。
 
 OAuth测试覆盖部分授权到完整读写的一次网页同意、只读查询不请求提交、拒绝前不改权限、旧令牌保持原scope及连接检查不改健康／预览；浏览器验证六项记录权限同时展示和320／390／1440px统一权限列表。
+
+统一审核维护专项可在production build后运行 FORMWARD_REVIEW_MAINTENANCE_ONLY=1 pnpm test:records-browser，沿用隔离PGlite与临时Playwright环境。覆盖重复餐次对照／明确另一次进食／取消不删除原餐、日常饮食和消耗与身体审核的草稿关闭保护、回执业务日期链接、停留查看和默认2秒返回；1440／390／320px截图在 /tmp/formward-records-maintenance/。records/operations.test.ts 另验证对照与摘要账号隔离、过期及取消项目；review-summary.test.ts 验证业务日期与回执映射，不跨日相加。

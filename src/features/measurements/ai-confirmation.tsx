@@ -1,4 +1,5 @@
 "use client";
+import { useDraftGuard, useDraftClose } from "@/components/draft-guard";
 import { useState } from "react";
 import type { ReviewInput, ReviewItem } from "./ai-operations";
 import { offsetTimezone, timezoneLabel, timezoneOptions } from "./timezone";
@@ -58,6 +59,9 @@ function DraftForm({ item, draft, change, busy, updating, save, close, sources, 
 }
 export function MeasurementReviewEditor({ item, busy, save, close, sources, removeSource }: { item: ReviewItem; busy: boolean; save: (input: ReviewInput) => void; close: () => void; sources: string[]; removeSource: (label: string) => Promise<SourceRemovalResult> }) {
   const [draft, setDraft] = useState(() => draftFor(item));
-  return <DraftForm item={item} draft={draft} change={setDraft} busy={busy} updating={busy} save={() => save(inputFromDraft(item, draft))} close={close} sources={sources} removeSource={removeSource} />;
+  const [initialSignature] = useState(() => JSON.stringify(draft));
+  useDraftGuard(JSON.stringify(draft) !== initialSignature, busy);
+  const closeDraft = useDraftClose(close);
+  return <DraftForm item={item} draft={draft} change={setDraft} busy={busy} updating={busy} save={() => save(inputFromDraft(item, draft))} close={closeDraft} sources={sources} removeSource={removeSource} />;
 }
 export { Explanation as MeasurementReviewExplanation };

@@ -40,17 +40,17 @@
 .meal:last-child { border-bottom: 0; }
 .mealHeading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .mealHeading h3 { margin: 0; font-size: 15px; font-weight: 500; }
-.mealHeading > span { color: var(--muted); font-size: 11px; margin-right: auto; }
+.mealHeading > span { color: var(--muted); font-size: 12px; margin-right: auto; }
 .mealHeading button { font-size: 12px; color: var(--gold); padding: 0; }
 .compactMetrics { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin: 8px 0 12px; }
-.compactMetrics span { display: block; color: var(--muted); font-size: 11px; margin-bottom: 6px; }
+.compactMetrics span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
 .compactMetrics strong { font-size: 19px; font-weight: 400; white-space: nowrap; }
 .notes, .foodRow p, .itemDetail p { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); font-size: 12px; line-height: 1.8; }
 .meal summary { cursor: pointer; color: var(--muted); font-size: 12px; min-height: 44px; display: flex; align-items: center; }
 .meal summary::after { content: "＋"; margin-left: 12px; color: var(--gold); }
 .meal details[open] > summary::after { content: "−"; }
 .itemDetail { padding: 14px 0; border-bottom: 1px solid var(--rule); }
-.itemDetail > span { margin-left: 12px; font-size: 11px; color: var(--muted); }
+.itemDetail > span { margin-left: 12px; font-size: 12px; color: var(--muted); }
 .itemDetail a { color: var(--gold); font-size: 12px; }
 .foodRow { display: flex; gap: 24px; align-items: center; justify-content: space-between; padding: 20px 0; border-bottom: 1px solid var(--rule); }
 .foodRow > div:first-child { min-width: 0; flex: 1; }
@@ -85,7 +85,7 @@
 .sourceFields { margin: 16px 0 24px; }
 .suggestions { border-bottom: 1px solid var(--rule); max-height: 230px; overflow-y: auto; margin-bottom: 16px; }
 .suggestions button { display: block; width: 100%; text-align: left; color: var(--ink); border-bottom: 1px solid var(--rule); padding: 12px 4px; }
-.suggestions small { display: block; font-size: 11px; margin-top: 5px; color: var(--muted); }
+.suggestions small { display: block; font-size: 12px; margin-top: 5px; color: var(--muted); }
 .form .checkbox { display: flex; align-items: center; min-height: 44px; gap: 10px; }
 .checkbox input { width: 18px; height: 18px; min-height: 18px; accent-color: var(--gold); }
 .drawer .save { color: var(--gold); padding-inline: 0; text-decoration: underline; text-underline-offset: 4px; }
@@ -97,7 +97,7 @@
 @keyframes drawerOut { from { transform: translateX(0); } to { transform: translateX(100%); } }
 @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes backdropOut { from { opacity: 1; } to { opacity: 0; } }
-@media(max-width:600px) { .summary { gap: 16px; grid-template-columns: 1fr 1fr; } .summary strong { font-size: 36px; } .toolbar { gap: 6px; } .rangeTabs { margin-left: auto; gap: 0; } .metricTabs { width: 100%; justify-content: space-between; }   .dayMeals { padding-inline: 10px 0; } .compactMetrics { gap: 6px; } .compactMetrics strong { font-size: 16px; } .compactMetrics small { display: block; margin-left: 0; font-size: 10px; } .foodRow { gap: 10px; } .foodRow > .actions { flex-direction: column; gap: 0; } .drawerContent { padding: 22px 20px; } .chart { height: 195px; } .heading { gap: 10px; } .reviewActions { gap: 8px; flex-wrap: wrap; } }
+@media(max-width:600px) { .summary { gap: 16px; grid-template-columns: 1fr 1fr; } .summary strong { font-size: 36px; } .toolbar { gap: 6px; } .rangeTabs { margin-left: auto; gap: 0; } .metricTabs { width: 100%; justify-content: space-between; }   .dayMeals { padding-inline: 10px 0; } .compactMetrics { gap: 6px; } .compactMetrics strong { font-size: 16px; } .compactMetrics small { display: block; margin-left: 0; font-size: 12px; } .foodRow { gap: 10px; } .foodRow > .actions { flex-direction: column; gap: 0; } .drawerContent { padding: 22px 20px; } .chart { height: 195px; } .heading { gap: 10px; } .reviewActions { gap: 8px; flex-wrap: wrap; } }
 @media(prefers-reduced-motion:reduce) { .drawer, .drawer::backdrop, .drawer[data-closing="true"], .drawer[data-closing="true"]::backdrop { animation: none; } }
 
 .workspace a:focus-visible, .workspace summary:focus-visible, .drawer select:focus-visible, .drawer textarea:focus-visible, .drawer summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
@@ -116,7 +116,7 @@
 .chart g[role="button"]:focus-visible .barHit { fill:rgba(240,233,221,.08); stroke:var(--gold); stroke-width:1; }
 .barHint { min-height:20px; margin:4px 0; font-size:12px; color:var(--muted); white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
 .photos { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }
-.photos a { display:block; color:var(--muted); font-size:11px; text-decoration:none; }
+.photos a { display:block; color:var(--muted); font-size:12px; text-decoration:none; }
 .photos img { display:block; width:76px; height:76px; object-fit:cover; border:1px solid var(--rule); margin-bottom:4px; }
 .photoFields { margin:20px 0; }
 .photoFields input[type="file"] { font-size:12px; max-width:100%; }
@@ -135,7 +135,7 @@
 .foodTable th span { display: block; margin-top: 3px; max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.5; color: var(--muted); }
 .foodTable td { white-space: nowrap; }
 .foodTable th:first-child { width: 32%; }
-.foodTable details { margin-top: 8px; font-size: 11px; color: var(--muted); }
+.foodTable details { margin-top: 8px; font-size: 12px; color: var(--muted); }
 .foodTable details p { max-width: 380px; }
 .foodTable summary { cursor: pointer; min-height: 30px; }
 .foodTable a, .evidence a { color: var(--gold); }
@@ -165,8 +165,8 @@
 .chartMacros i { display:inline-block; width:7px; height:7px; margin-right:6px; }
 .chartMacros strong { display:block; color:var(--ink); margin-top:7px; font-size:18px; font-weight:400; }
 .selectedDay { stroke:var(--gold); stroke-width:2; pointer-events:none; }
-.barValue { fill:var(--ink); font:11px ui-monospace,monospace; pointer-events:none; }
-.chart .axis { font-size:11px; }
+.barValue { fill:var(--ink); font:12px ui-monospace,monospace; pointer-events:none; }
+.chart .axis { font-size:12px; }
 .chart { height:auto; max-height:260px; overflow:hidden; }
 .chart g[data-selected="true"] .barHit { fill:rgba(240,233,221,.04); }
 .mobileUnit { display:none; }
@@ -193,20 +193,20 @@
   .rowEnergy { grid-column:5 / 7; grid-row:1; text-align:right!important; align-self:start; padding-top:2px!important; font-size:14px!important; }
   .rowAmount { grid-column:1 / 3; grid-row:2; color:var(--muted); white-space:normal; overflow-wrap:anywhere; }
   .rowMacro { grid-row:2; color:var(--ink); }
-  .rowMacro::before { content:attr(data-label); display:block; font-size:10px; color:var(--muted); margin-bottom:2px; }
+  .rowMacro::before { content:attr(data-label); display:block; font-size:12px; color:var(--muted); margin-bottom:2px; }
   .rowActions { grid-column:6; grid-row:2; justify-self:end; }
   .foodTable .rowActions { grid-column:6; grid-row:2; }
   .foodTable .foodInlineActions { display:none; }
   .foodTable .rowActions .actions { gap:10px; }
   .foodTable .rowActions button { padding-inline:0; }
-  .mobileUnit { display:inline; font-size:11px; color:var(--muted); font-weight:400; }
+  .mobileUnit { display:inline; font-size:12px; color:var(--muted); font-weight:400; }
   .nutritionTable .itemEvidenceRow { display:block; }
   .itemEvidenceRow > td { padding:8px 0; }
 }
 @media(max-width:700px) {
   .compactMetrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
   .compactMetrics strong { font-size:18px; }
-  .compactMetrics strong small { display:inline; margin-left:4px; font-size:11px; }
+  .compactMetrics strong small { display:inline; margin-left:4px; font-size:12px; }
   .chartReadout { align-items:flex-start; gap:10px; }
   .chartMacros { gap:16px; flex-wrap:wrap; justify-content:flex-end; }
   .chartMacros strong { font-size:16px; }
@@ -219,7 +219,7 @@
 }
 
 .mealCalories { font-size:14px; font-weight:400; white-space:nowrap; }
-.mealCalories small { color:var(--muted); font-size:11px; }
+.mealCalories small { color:var(--muted); font-size:12px; }
 .trendTitle { font-size:14px; font-weight:500; }
 .trendTitle small { font-size:12px; color:var(--muted); margin-left:6px; }
 .lineToggle { display:inline-flex; align-items:center; gap:6px; margin-left:auto; cursor:pointer; }
@@ -234,7 +234,7 @@
 .pickerResults > button:active { cursor:grabbing; }
 .pickerResults > button > span:first-child { min-width:0; flex:1; }
 .pickerResults strong { display:block; color:var(--ink); font-weight:500; line-height:1.6; }
-.pickerResults small { display:block; color:var(--muted); font-size:11px; line-height:1.7; margin-top:3px; }
+.pickerResults small { display:block; color:var(--muted); font-size:12px; line-height:1.7; margin-top:3px; }
 .pickerResults > button > span:first-child small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .mealEntry { min-width:0; }
 .sourceChoices { display:flex!important; gap:20px; flex-wrap:wrap; }
@@ -247,7 +247,7 @@
 .mealSheet { border:1px solid var(--rule); border-radius:4px; margin-bottom:24px; padding:0 8px; }
 .mealSheet[data-dragging="true"] { border-color:var(--gold); background:rgba(190,164,120,.05); }
 .entryTable { width:100%; table-layout:fixed; border-collapse:collapse; font-size:13px; }
-.entryTable th { text-align:right; font-size:11px; font-weight:400; color:var(--muted); padding:12px 4px; }
+.entryTable th { text-align:right; font-size:12px; font-weight:400; color:var(--muted); padding:12px 4px; }
 .entryTable th:first-child { text-align:left; width:27%; }
 .entryTable th:nth-child(2) { width:17%; }
 .entryTable th:last-child { width:13%; }
@@ -255,25 +255,25 @@
 .entryTable .entryName { text-align:left; overflow-wrap:anywhere; }
 .entryName .cell { color:var(--ink); }
 .entryName strong { font-size:13px; font-weight:500; display:block; }
-.entryName small { display:block; color:var(--muted); font-size:10px; margin-top:4px; }
+.entryName small { display:block; color:var(--muted); font-size:12px; margin-top:4px; }
 .entryTable .cell { display:block; width:100%; min-height:36px; text-align:inherit; padding:6px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
 .entryTable input { min-height:36px; width:100%; padding:6px 0; font-size:13px; text-align:inherit; }
 .entryTable input::-webkit-inner-spin-button { appearance:none; }
 .entryTable input { appearance:textfield; }
 .entryQuantity .cell,.entryQuantity input { display:inline-block; width:calc(100% - 22px); }
-.entryQuantity > small { color:var(--muted); font-size:10px; margin-left:4px; }
+.entryQuantity > small { color:var(--muted); font-size:12px; margin-left:4px; }
 .entryActions { white-space:nowrap; }
-.entryTable .entryActions button { min-height:36px; font-size:11px; padding:4px; }
+.entryTable .entryActions button { min-height:36px; font-size:12px; padding:4px; }
 .calculated { color:var(--blue); }
 .rowDetail { border-bottom:1px solid var(--rule); margin-bottom:24px; padding:0 0 16px; }
 .categoryTabs { display:flex; gap:16px; margin:0 0 8px; }
 .categoryTabs button { padding-inline:0; font-size:12px; }
 .categoryTabs button[aria-pressed="true"] { color:var(--gold); }
 .tabs .trashEntry { margin-left:auto; font-size:12px; }
-.macroLegend { display:flex; flex-wrap:wrap; gap:12px 20px; font-size:11px; color:var(--muted); margin:16px 0 4px; }
+.macroLegend { display:flex; flex-wrap:wrap; gap:12px 20px; font-size:12px; color:var(--muted); margin:16px 0 4px; }
 .macroLegend span { display:flex; align-items:center; gap:6px; }
 .macroLegend i { width:12px; height:8px; }
-.stackLetter { font:10px ui-monospace,monospace; pointer-events:none; }
+.stackLetter { font:12px ui-monospace,monospace; pointer-events:none; }
 @media(max-width:960px) {
  .wideDrawer { width:100%; }
  .mealColumns { display:block; }
@@ -287,13 +287,16 @@
  .entryTable tr:last-child { border-bottom:0; }.entryTable td { border:0; padding:0; min-width:0; }
  .entryTable .entryName { grid-column:1/3; grid-row:1; }.entryTable .entryQuantity { grid-column:3; grid-row:1; }.entryTable .entryActions { grid-column:4; grid-row:1; }
  .entryTable td[data-nutrient] { display:flex; align-items:center; text-align:left; gap:5px; }
- .entryTable td[data-nutrient]::before { content:attr(data-label); font-size:10px; color:var(--muted); }
+ .entryTable td[data-nutrient]::before { content:attr(data-label); font-size:12px; color:var(--muted); }
  .entryTable td[data-nutrient] input,.entryTable td[data-nutrient] .cell { min-width:0; flex:1; }
  .mealTotal { top:-22px; }.mealTotal .compactMetrics { gap:12px; }.mealTotal .compactMetrics strong { font-size:18px; }
- .mealTotal .compactMetrics span,.mealTotal small { font-size:11px; }.mealTotal .compactMetrics small { margin-left:3px; }
+ .mealTotal .compactMetrics span,.mealTotal small { font-size:12px; }.mealTotal .compactMetrics small { margin-left:3px; }
 }
 
 .macroMode { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:10px 0; font-size:12px; }
+.chartNavigation { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 16px; margin-top:8px; }
+.chartNavigation > button { min-height:44px; color:var(--gold); }
+.macroLegend .incompleteKey { background:repeating-linear-gradient(135deg,transparent 0 2px,#f0e9dd80 2px 3px); }
 .macroMode button { min-height:36px; padding:4px 10px; border:1px solid var(--rule); border-radius:4px; }
 .macroMode button[aria-pressed="true"] { color:var(--gold); border-color:var(--gold); }
 .macroMode span { color:var(--muted); }
@@ -301,7 +304,7 @@
 .calendarDay { padding:12px 0; border-bottom:1px solid rgba(240,233,221,.12); }
 .calendarRow { display:flex; align-items:center; gap:12px; }
 .calendarRow > div { flex:1; min-width:0; }.calendarRow time { font-size:13px; }.calendarRow p { color:#a8a195; font-size:12px; margin:5px 0 0; }
-.calendarRow > strong { font-size:18px; font-weight:400; white-space:nowrap; }.calendarRow small { font-size:11px; color:#a8a195; }
+.calendarRow > strong { font-size:18px; font-weight:400; white-space:nowrap; }.calendarRow small { font-size:12px; color:#a8a195; }
 .calendarRow button { min-height:44px; }.calendarDay > details > summary { min-height:36px; align-content:center; color:#a8a195; cursor:pointer; font-size:12px; }
 .calendarPicker { display:flex; align-items:center; flex-wrap:wrap; gap:6px; font-size:12px; color:#a8a195; }
 .calendarPicker input { background:none; color:inherit; color-scheme:dark; border:1px solid #ffffff22; padding:7px; border-radius:3px; min-width:0; max-width:145px; font:inherit; }
@@ -314,6 +317,6 @@
  .summary { grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px 12px; padding:12px 0; }
  .summary > div:first-child { grid-column:1/-1; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
  .summary strong { font-size:21px; margin:6px 0 0; }.summary > div:first-child strong { font-size:30px; margin:0; }
- .summary span { font-size:12px; }.summary small { font-size:11px; margin-left:3px; }
+ .summary span { font-size:12px; }.summary small { font-size:12px; margin-left:3px; }
  .tableHeading { flex-wrap:wrap; gap:4px 12px; }
 }

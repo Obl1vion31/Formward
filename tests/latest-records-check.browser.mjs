@@ -28,7 +28,7 @@ export async function checkLatestRecords({ baseURL, context, page, token, today 
   const dialog = () => page.locator("dialog[aria-labelledby]");
   const open = async date => { await page.locator(`[data-energy-day="${date}"]`).getByRole("button", { name: /^(录入|补录|编辑)$/ }).click(); await dialog().waitFor(); };
   const save = async () => { await dialog().getByRole("button", { name: /^保存/ }).click(); await dialog().waitFor({ state: "hidden" }); };
-  const close = async () => { await page.getByRole("button", { name: "关闭编辑", exact: true }).click(); await dialog().waitFor({ state: "hidden" }); };
+  const close = async () => { const accept=prompt=>prompt.accept(); page.once("dialog",accept); try { await page.getByRole("button", { name: "关闭编辑", exact: true }).click(); await dialog().waitFor({ state: "hidden" }); } finally {page.off("dialog",accept);} };
   await open(shift(today, -3));
   await dialog().getByRole("combobox", { name: "静息来源", exact: true }).fill("虚构 Garmin");
   await dialog().getByRole("combobox", { name: "活动来源", exact: true }).fill("虚构 Garmin"); await save();

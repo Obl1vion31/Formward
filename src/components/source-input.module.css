@@ -2,6 +2,7 @@
 .sourceInput > label { display: block; color: var(--source-muted); font-size: 12px; }
 .sourceInput > input { appearance: none; width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; border: 0; border-bottom: 1px solid var(--source-rule); border-radius: 0; font: inherit; font-size: 13px; color: inherit; background: transparent; }
 .sourceInput > input:focus-visible { outline: 1px solid #bea478; outline-offset: 4px; }
+.sourceInput > input::placeholder { color:var(--source-muted); opacity:1; }
 .sourceOptions { position: absolute; z-index: 3; width: 100%; max-height: 176px; overflow-y: auto; margin: 0; padding: 0; background: #20201c; border: 1px solid var(--source-rule); box-shadow: 0 8px 24px rgba(0,0,0,.25); }
 .sourceOptions > div { display: grid; grid-template-columns: minmax(0,1fr) 44px; }
 .sourceOption { min-height: 44px; align-content: center; padding: 8px 12px; font-size: 13px; overflow-wrap: anywhere; cursor: pointer; }
@@ -9,3 +10,4 @@
 .sourceOptions button { appearance: none; width: 44px; min-height: 44px; padding: 0; background: none; border: 0; color: var(--source-ink); font: inherit; font-size: 22px; cursor: pointer; }
 .sourceEmpty { grid-column: 1 / -1; padding: 12px; color: var(--source-muted); font-size: 12px; line-height: 1.6; }
 .error { color: #d7aa9b; font-size: 13px; line-height: 1.6; }
+@media(max-width:700px),(hover:none) and (pointer:coarse) { .sourceInput > input[role="combobox"] { font-size:16px; } }

@@ -1,4 +1,5 @@
 "use client";
+import { useDraftGuard } from "@/components/draft-guard";
 import { RecordDateContext } from "@/components/record-date-context";
 import { SourceInput, type SourceRemovalResult } from "@/components/source-input";
 import { useState } from "react";
@@ -11,6 +12,9 @@ export function EnergyEditor({ initial, activities = [], sources, removeSource, 
   const [draft, setDraft] = useState(initial);
   const [sex, setSex] = useState(initial.kind === "save_energy_profile" && initial.birthDate ? initial.sex : "");
   const [items, setItems] = useState<ActivityDraft[]>(() => activities.map(row => ({ key: row.id, kind: "save_activity", id: row.id, version: row.version, date: row.date, name: row.name, durationMinutes: row.durationMinutes, caloriesKcal: row.caloriesKcal, completed: row.completed, sourceSystem: row.sourceSystem, timezone: row.timezone })));
+  const draftSignature = JSON.stringify([draft, items]);
+  const [initialSignature] = useState(draftSignature);
+  useDraftGuard(draftSignature !== initialSignature, busy);
   const set = (key: string, value: unknown) => setDraft(current => ({ ...current, [key]: value, ...(key === "restingKcal" ? { restingEstimated: false } : key === "activeKcal" ? { activeEstimated: false } : key === "sourceSystem" ? { sourceRecordId: null } : {}) }));
   const modes: { entryMode: "components" | "total"; activityMode: "total" | "activities" } = draft.kind === "save_energy_day" ? energyModes({ ...draft, activityMode: draft.activityMode ?? (draft.activeKcal != null || !draft.id ? "total" : "activities"), totalKcal: draft.totalKcal ?? null, activeKcal: draft.activeKcal ?? null }) : { entryMode: "components", activityMode: "total" };
   const numberField = (key: "restingKcal" | "activeKcal" | "totalKcal" | "caloriesKcal" | "durationMinutes", label: string, placeholder: string) => <label key={key}>{label}<input aria-label={label} type="number" min="0" max="1000000" step="0.0001" inputMode="decimal" disabled={draft.kind === "save_energy_day" && (key === "totalKcal" ? modes.entryMode !== "total" : modes.entryMode !== "components" || key === "activeKcal" && modes.activityMode !== "total")} placeholder={placeholder} value={key in draft ? (draft as Record<string, unknown>)[key] as string ?? "" : ""} onChange={event => set(key, event.target.value || null)} /></label>;

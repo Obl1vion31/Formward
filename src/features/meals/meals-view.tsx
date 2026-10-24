@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useId, useRef, useState, useTransition, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useTransition, type ReactNode } from "react";
 import { LoadingLink } from "@/components/loading-link";
 import { lockPageScroll } from "@/components/scroll-lock";
 import { usePageLoading } from "@/components/page-loading-state";
@@ -10,7 +10,10 @@ import { useLocalToday } from "@/components/use-local-today";
 import { FoodDetails, FoodTable } from "./presets";
 import { ImageGallery, PhotoFields } from "./photos";
 import { MealEvidence, NutritionTable } from "./review-details";
+import { MealDayControl } from "./meal-day-control";
+import type { MealDayInput } from "./model";
 import { NutritionChart } from "./nutrition-chart";
+import { DraftCloseContext, DraftGuardContext, useDraftGuard, type DraftState } from "@/components/draft-guard";
 import { useBackdropDismiss } from "@/components/use-backdrop-dismiss";
 import { NutritionFields, SourceFields } from "./nutrition-fields";
 import { MealEditor } from "./meal-editor";
@@ -25,7 +28,7 @@ const dateAt = (n: number) => new Date(n * 86400000).toISOString().slice(0, 10);
 function MetricValues({ totals, compact = false }: { totals: Totals; compact?: boolean }) {
   return <div className={compact ? styles.compactMetrics : styles.summary}>{metrics.map(metric => <div key={metric}><span>{metricLabels[metric]}</span><strong>{formatNutrition(totals.values[metric], metric)}<small>{unitFor(metric)}</small></strong>{!compact && totals.incomplete[metric] && <p>部分</p>}{compact && totals.incomplete[metric] && <small>部分</small>}</div>)}</div>;
 }
-export function MealsView({ snapshot, today: initialToday, operations, save, purge, initialDate = null }: { snapshot: MealSnapshot; today: string; operations: MealOperationView[]; save: SaveMeals; purge: (input: import("./recently-deleted").PermanentDeletion) => ReturnType<SaveMeals>; initialDate?: string|null }) {
+export function MealsView({ snapshot, today: initialToday, operations, save, saveDay, purge, initialDate = null }: { snapshot: MealSnapshot; today: string; operations: MealOperationView[]; save: SaveMeals; saveDay?: (input: MealDayInput) => ReturnType<SaveMeals>; purge: (input: import("./recently-deleted").PermanentDeletion) => ReturnType<SaveMeals>; initialDate?: string|null }) {
   const today=useLocalToday(initialToday), now=useOperationClock();
   const [local,setLocal]=useState<MealSnapshot|null>(null),[base,setBase]=useState(snapshot);
   if(snapshot!==base){setBase(snapshot);setLocal(null);}
@@ -49,6 +52,16 @@ export function MealsView({ snapshot, today: initialToday, operations, save, pur
     const data=JSON.stringify(action);if(request.current?.data!==data)request.current={data,id:crypto.randomUUID()};
     try{const result=await save({operationId:request.current.id,actions:[action]},allowMissingImages);if(!result.ok){setError(result.error);return false;}setLocal(result.data.snapshot);setNotice(result.data.message);request.current=null;return true;}
     catch{setError("保存未完成，请重试，当前输入已保留。");return false;}finally{busyRef.current=false;setBusy(false);}
+  }
+  async function performDay(input: MealDayInput) {
+    if (!saveDay || busyRef.current) return false;
+    busyRef.current = true; setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await saveDay(input);
+      if (!result.ok) { setError(result.error); return false; }
+      setLocal(result.data.snapshot); setNotice(result.data.message); return true;
+    } catch { setError("当天记录状态未保存，请重试。"); return false; }
+    finally { busyRef.current = false; setBusy(false); }
   }
   function execute(action:MealAction){startTransition(async()=>{await perform(action);});}
   function addMeal(date:string){setError("");setEditing({kind:"save_meal",date,mealType:suggestedMealType(new Date().getHours()),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,items:[]});}
@@ -75,13 +88,14 @@ export function MealsView({ snapshot, today: initialToday, operations, save, pur
       <div>{[...new Set([...recentRecordDates(today),...(calendarDate?[calendarDate]:[])])].sort().reverse().map(date=>{
         const group=groups.find(day=>day.date===date);
         return <section className={styles.calendarDay} key={date} data-meal-day={date}><div className={styles.calendarRow}><div><time dateTime={date}>{recordDateLabel(date,today)}</time><p>{group ? group.meals.length+" 餐" : "未记录"}</p></div><strong>{formatNutrition(group?.totals.values.caloriesKcal??null,"caloriesKcal")} <small>kcal{group?.totals.incomplete.caloriesKcal?" · 部分":""}</small></strong><button onClick={()=>addMeal(date)}>{group?"添加一餐":date<today?"补录":"录入"}</button></div>
+        {group && saveDay && <MealDayControl day={group.day} busy={busy} save={performDay}/>}
         {group && <details open={date===today||date===calendarDate}><summary>餐次详情</summary><MealList meals={group.meals} busy={busy} edit={editMeal} remove={meal=>execute({kind:"delete_meal",id:meal.id,version:meal.version})}/></details>}</section>;
       })}</div>
     </>:<>
       <div className={styles.categoryTabs}>{[["all","全部"],["meal","整餐"],["ingredient","食材"]].map(([key,label])=><button key={key} aria-pressed={foodCategory===key} onClick={()=>setFoodCategory(key)}>{label}</button>)}</div><div className={styles.toolbar}><input aria-label="搜索食材" placeholder="搜索名称、品牌或做法" value={foodQuery} onChange={e=>setFoodQuery(e.target.value)}/><button className={styles.primary} onClick={()=>{setError("");setEditing({kind:"save_food",name:"",brand:null,preparation:null,baseQuantity:"1",unit:"份",nutrition:emptyNutrition(),sourceKind:"reference"});}}>添加食材 ＋</button></div>
       {visibleFoods.length ? <FoodTable foods={visibleFoods} details={setViewingFood} actions={f=><><button onClick={()=>{setError("");setEditing({kind:"save_food",...f});}}>编辑</button><button disabled={busy} onClick={()=>execute({kind:"delete_food",id:f.id,version:f.version})}>删除</button></>}/> : <p className={styles.hint}>还没有匹配的条目，可以添加食材或整餐。</p>}
     </>}
-    {historyOpen&&<EditorDialog title="历史饮食记录" close={()=>setHistoryOpen(false)} busy={busy}><div className={styles.toolbar}><label>查看日期<input aria-label="查看日期" type="date" value={selectedDate} onChange={e=>{if(e.target.value)setSelectedDate(e.target.value);}}/></label><button onClick={()=>{setSelectedDate(today);setHistoryOpen(false);}}>回到今天</button></div><MetricValues totals={groups.find(d=>d.date===selectedDate)?.totals??{values:emptyNutrition(),incomplete:{caloriesKcal:false,proteinG:false,carbsG:false,fatG:false}}} compact/><button className={styles.primary} onClick={()=>addMeal(selectedDate)}>补录这一餐 ＋</button><MealList expanded meals={groups.find(d=>d.date===selectedDate)?.meals??[]} busy={busy} edit={editMeal} remove={m=>execute({kind:"delete_meal",id:m.id,version:m.version})}/>
+    {historyOpen&&<EditorDialog title="历史饮食记录" close={()=>setHistoryOpen(false)} busy={busy}><div className={styles.toolbar}><label>查看日期<input aria-label="查看日期" type="date" value={selectedDate} onChange={e=>{if(e.target.value)setSelectedDate(e.target.value);}}/></label><button onClick={()=>{setSelectedDate(today);setHistoryOpen(false);}}>回到今天</button></div><MetricValues totals={groups.find(d=>d.date===selectedDate)?.totals??{values:emptyNutrition(),incomplete:{caloriesKcal:false,proteinG:false,carbsG:false,fatG:false}}} compact/>{saveDay && groups.find(group=>group.date===selectedDate) && <MealDayControl day={groups.find(group=>group.date===selectedDate)!.day} busy={busy} save={performDay}/>}<button className={styles.primary} onClick={()=>addMeal(selectedDate)}>补录这一餐 ＋</button><MealList expanded meals={groups.find(d=>d.date===selectedDate)?.meals??[]} busy={busy} edit={editMeal} remove={m=>execute({kind:"delete_meal",id:m.id,version:m.version})}/>
     </EditorDialog>}
     {showDeleted&&<EditorDialog title="最近删除" close={()=>{setShowDeleted(false);setError("");}} busy={busy}>
       <p className={styles.hint}>恢复后重新显示；永久删除后无法恢复。</p>{error&&<p role="alert" className={styles.error}>{error}</p>}
@@ -100,13 +114,33 @@ export function EditorDialog({ title, close, busy, children, wide = false }: { t
   const titleId=useId();
   const ref = useRef<HTMLDialogElement>(null), [closing, setClosing] = useState(false), timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => { const node = ref.current!, previous = document.activeElement, unlock = lockPageScroll(); node.showModal(); return () => { if (timer.current) clearTimeout(timer.current); node.close(); unlock(); if (previous instanceof HTMLElement && previous.isConnected) previous.focus({ preventScroll: true }); }; }, []);
-  function requestClose() { if (busy || closing) return; if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) close(); else { setClosing(true); timer.current = setTimeout(close, 240); } }
+  const drafts = useRef(new Map<symbol, DraftState>());
+  const registerDraft = useCallback((state: DraftState) => {
+    const key = Symbol(); drafts.current.set(key, state);
+    return () => { drafts.current.delete(key); };
+  }, []);
+  useEffect(() => {
+    const protect = (event: BeforeUnloadEvent) => {
+      if (![...drafts.current.values()].some(state => state.dirty)) return;
+      event.preventDefault(); event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", protect);
+    return () => window.removeEventListener("beforeunload", protect);
+  }, []);
+  function requestClose() {
+    if (busy || closing || [...drafts.current.values()].some(state => state.busy)) return;
+    if ([...drafts.current.values()].some(state => state.dirty) && !window.confirm("本次输入尚未提交，关闭会放弃这些改动。已保存的记录和已更新的预览不受影响。确定关闭？")) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) close();
+    else { setClosing(true); timer.current = setTimeout(close, 240); }
+  }
   const backdrop = useBackdropDismiss(requestClose);
-  return <dialog {...backdrop} ref={ref} className={`${styles.drawer} ${wide ? styles.wideDrawer : ""}`} data-closing={closing} aria-labelledby={titleId} onCancel={e => { e.preventDefault(); requestClose(); }}><div className={styles.drawerContent}><div className={styles.heading}><h2 id={titleId}>{title}</h2><button aria-label="关闭编辑" disabled={busy} onClick={requestClose}>×</button></div>{children}</div></dialog>;
+  return <dialog {...backdrop} ref={ref} className={`${styles.drawer} ${wide ? styles.wideDrawer : ""}`} data-closing={closing} aria-labelledby={titleId} onCancel={e => { e.preventDefault(); requestClose(); }}><div className={styles.drawerContent}><div className={styles.heading}><h2 id={titleId}>{title}</h2><button aria-label="关闭编辑" disabled={busy} onClick={requestClose}>×</button></div><DraftGuardContext.Provider value={registerDraft}><DraftCloseContext.Provider value={requestClose}>{children}</DraftCloseContext.Provider></DraftGuardContext.Provider></div></dialog>;
 }
 export function FoodEditor({ initial, submitLabel = "保存食材", error, busy, save }: { initial: FoodDraft; submitLabel?: string; error: string; busy: boolean; save: (f: FoodDraft, allowMissingImages?: boolean) => Promise<void> }) {
   const [draft, setDraft] = useState<FoodDraft>(() => { const {id,version,category,name,brand,preparation,baseQuantity,unit,nutrition,sourceKind,basis,evidenceUrl,imageIds,expectedImageCount}=initial;return structuredClone({id,version,category,name,brand,preparation,baseQuantity,unit,nutrition,sourceKind,basis,evidenceUrl,imageIds,expectedImageCount}); });
   const [uploading,setUploading]=useState(false),[photoError,setPhotoError]=useState(""),[textOnly,setTextOnly]=useState(false);
+  const [initialSignature] = useState(() => JSON.stringify(draft));
+  useDraftGuard(JSON.stringify(draft) !== initialSignature || textOnly, uploading);
   return <form className={styles.form} aria-busy={busy} onSubmit={e => { e.preventDefault(); void save(draft,textOnly); }}><fieldset disabled={busy||uploading}>
     <label>分类<select aria-label="食材分类" value={draft.category??"ingredient"} onChange={e=>setDraft({...draft,category:e.target.value as "meal"|"ingredient"})}><option value="ingredient">食材</option><option value="meal">整餐</option></select></label>
     <label>食材／产品名称<input required maxLength={200} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} /></label><div className={styles.formColumns}><label>品牌（可选）<input value={draft.brand ?? ""} onChange={e => setDraft({ ...draft, brand: e.target.value || null })} /></label><label>规格／做法（可选）<input placeholder="口味、净重、生／熟…" value={draft.preparation ?? ""} onChange={e => setDraft({ ...draft, preparation: e.target.value || null })} /></label></div>

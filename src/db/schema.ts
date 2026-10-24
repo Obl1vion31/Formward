@@ -373,6 +373,23 @@ export const meal = pgTable("meals", {
   occurredAt: timestamp("occurred_at", { withTimezone: true }), timezone: text("timezone"), notes: text("notes"), source: text("source").notNull(), sourceSystem: text("source_system"), sourceRecordId: text("source_record_id"), syncStatus: text("sync_status").notNull().default("local"),
   importId: text("import_id"), sourceRow: integer("source_row"), version: integer("version").notNull().default(1), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(), deletedAt: timestamp("deleted_at", { withTimezone: true }),
 }, t => [uniqueIndex("meals_owner_id_idx").on(t.userId, t.id), uniqueIndex("meals_owner_source_idx").on(t.userId, t.sourceSystem, t.sourceRecordId), index("meals_owner_date_idx").on(t.userId, t.localDate), foreignKey({ columns: [t.userId, t.importId], foreignColumns: [mealImport.userId, mealImport.id] }), check("meals_source_valid", sql`${t.source} IN ('manual','ai','initialization')`), check("meals_time_valid", sql`${t.occurredAt} IS NULL OR ${t.timezone} IS NOT NULL`)]);
+// 用户确认当天是否记完，独立于餐次营养是否有未知字段。
+export const mealDay = pgTable("meal_days", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),
+  date: date("date").notNull(), status: text("status", { enum: ["complete", "incomplete", "unconfirmed"] }).notNull(),
+  contentDigest: text("content_digest").notNull(), version: integer("version").notNull().default(1),
+  source: text("source").notNull(), updatedBy: text("updated_by").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex("meal_days_owner_date_idx").on(t.userId,t.date),
+  check("meal_days_status_valid",sql`${t.status} IN ('complete','incomplete','unconfirmed')`),
+  check("meal_days_version_valid",sql`${t.version}>0`)]);
+export const mealDayEvent = pgTable("meal_day_events", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),
+  date: date("date").notNull(), requestId: text("request_id").notNull(), requestDigest: text("request_digest").notNull(),
+  actorId: text("actor_id").notNull(), snapshot: jsonb("snapshot").$type<Record<string,unknown>>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex("meal_day_events_owner_request_idx").on(t.userId,t.requestId), index("meal_day_events_owner_date_idx").on(t.userId,t.date)]);
+
 export const mealItem = pgTable("meal_items", {
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), mealId: text("meal_id").notNull(), position: integer("position").notNull(), kind: text("kind").notNull(), name: text("name").notNull(),
   quantity: numeric("quantity", { precision: 14, scale: 4 }), amountDecision: text("amount_decision"), reviewExplanation: jsonb("review_explanation").$type<import("../features/meals/model").ReviewExplanation>(), unit: text("unit"), foodId: text("food_id"), foodSnapshot: jsonb("food_snapshot").$type<import("../features/meals/model").FoodView>(), ...nutritionColumns(),
