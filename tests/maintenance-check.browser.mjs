@@ -33,6 +33,7 @@ export async function checkMaintenance({baseURL,context,page,token,today,db,user
  const mark=async d=>{const group=dailyTotals((await readMealSnapshot(db,userId)).meals).find(group=>group.date===d);const {source,...day}=group.day;void source;await setMealDayStatus(db,userId,{...day,operationId:randomUUID(),status:"complete"});};
  for(const group of dailyTotals((await readMealSnapshot(db,userId)).meals).filter(group=>group.date>=shift(today,-30)))await mark(group.date);
  await context.route("**/api/meal-images/**",async route=>{requests.push(new URL(route.request().url()).pathname);await route.fulfill({status:200,contentType:"image/png",body:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==","base64")});});
+ if(process.env.FORMWARD_OVERVIEW_ONLY==="1")return;
  const dialog=()=>page.locator("dialog[open]:not(.page-loading-dialog)").last();
  const close=async()=>{const accept=prompt=>prompt.accept();page.once("dialog",accept);try{await dialog().getByRole("button",{name:/^关闭/}).click();await page.locator("dialog[open]:not(.page-loading-dialog)").waitFor({state:"hidden"});}finally{page.off("dialog",accept);}};
  const screenshot=async name=>{await page.waitForTimeout(550);await page.screenshot({path:artifacts+"/"+name+".png"});};
@@ -51,7 +52,7 @@ export async function checkMaintenance({baseURL,context,page,token,today,db,user
  await clickDate(a);await mouseAt(b);assert.equal(await readout.getAttribute("data-selected-date"),a);assert.equal(await page.locator("[data-pinned-date]").getAttribute("data-pinned-date"),a);
  await clickDate(b);await page.mouse.move(10,10);assert.equal(await readout.getAttribute("data-selected-date"),b);
  await page.locator('[data-overview-date="'+b+'"]').focus();await page.keyboard.press("Escape");assert.equal(await page.locator("[data-pinned-date]").count(),0);
- await page.locator('input[aria-label="总览图表日期"]').fill(date);await page.getByRole("button",{name:"查看记录 →",exact:true}).click();await dialog().waitFor();
+ await clickDate(date);await page.getByRole("button",{name:"查看记录 →",exact:true}).click();await dialog().waitFor();
  assert.equal(await dialog().evaluate(node=>node.scrollHeight<=node.clientHeight+1),true,"两餐默认详情无纵向滚动");
  assert.equal(requests.length,0,"关闭的餐次详情不请求原图");assert.equal(await dialog().locator("table").count(),0);
  assert.match(await dialog().innerText(),/2 餐/);await screenshot("overview-details-1440");

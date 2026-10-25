@@ -102,7 +102,7 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
     await (width < 700 ? page.getByRole("navigation", { name: "主导航", exact: true }).getByRole("link", { name: "消耗", exact: true }) : page.getByRole("link", { name: "消耗记录", exact: true }).first()).click(); await summary.waitFor(); await page.getByRole("group", { name: "每日消耗柱状图", exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(550); assert.equal(await summary.locator("strong").evaluateAll(nodes => nodes.every(node => node.getBoundingClientRect().right <= node.parentElement.getBoundingClientRect().right + 1)), true); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); await page.screenshot({ path: `/tmp/formward-energy-visual/energy-${width}.png`, fullPage: true }); await page.getByRole("link", { name: "Formward 主页", exact: true }).click(); await chart.waitFor(); }
   for (const range of ["30D", "90D", "全部", "自定义"]) {
     await page.getByRole("button", { name: range, exact: true }).click();
-    if (range === "自定义") { await page.getByLabel("总览开始日期", { exact: true }).fill(old); await page.getByLabel("总览结束日期", { exact: true }).fill(next); }
+    if (range === "自定义") { await page.getByLabel("总览开始日期", { exact: true }).fill(old); await page.getByLabel("总览结束日期", { exact: true }).fill(next); await page.getByRole("button", {name:"应用",exact:true}).click(); }
     assert.equal(await chart.locator("[data-overview-panel]").count(), 2);
     for (const panel of await chart.locator("[data-overview-panel]").all()) {
       const ticks = await panel.locator("[data-axis-tick]").evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-axis-tick"))));

@@ -1086,3 +1086,10 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 | 看运动审核 | 服务端与网页 | records/operations.ts的expandEnergyRelations | 总数变化及本账号已有运动 | 列成独立核对项，选已包含／额外增加 | 底部一次确认 |
 
 对应的新列来自0024：meal_items的nutrition_basis、per_portion_nutrition；foods的serving_quantity、serving_unit；activities的inclusion、inclusion_basis。它们只为新规则保存明确的含义，不给旧餐重新乘份数，不给旧运动自动多加热量。普通Excel包含8张表，保留原数值、每份输入、包装和包含关系，不导出退役公式资料或账号凭据。
+
+
+### 总览布局和视觉验收从哪里看
+
+总览的选日和读数在 `src/features/dashboard/overview-trend.tsx`，双图在同目录的 `relationship-plot.tsx`，间距在 `overview.module.css`。手机把同一天的摄入、消耗和差值排在紧凑区域，两张图共用日期；通过点击图形选日，桌面点击图外或Escape解除固定。这里调整的是呈现，不重新计算健康数据。
+
+修改界面和验收前都读[设计与视觉验收](design-reference.md)。例如，“两个图都已画出来”还不够：需在未滚动的手机视口中确认下层图和日期刻度没有被底部导航遮住，截图逐项核对适用标准。

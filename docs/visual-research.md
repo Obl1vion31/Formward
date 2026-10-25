@@ -55,7 +55,9 @@ Carbon要求比较柱图从零开始，缺数据的时段不插值补线，时�
 
 1440／1024／390／320px浏览器检查通过，无横向溢出、日期标签碰撞或客户端异常；摄入未知、晨重缺口、末日未知及范围切换已检查。日志为`/tmp/formward-energy-relationship-check.log`，桌面和手机静态图保存在被忽略的`.codex/visualizations/energy-relationship-desktop.png`及`energy-relationship-mobile.png`，只含示意数据。
 
-## 实施时的检查边界
+## 图表专项边界
+
+通用信息层级与视觉验收统一使用[设计文档](design-reference.md)，以下仅补充图表数据与几何约束。
 
 - 两图共日期、独立单位和整齐刻度，所有数据完整显示；选中日期变化不能改变刻度。
 - 两条能量线交叉时先计算交点并分区填色；未知值不能当0，不跨缺日连接。采用直线段，不平滑曲线。

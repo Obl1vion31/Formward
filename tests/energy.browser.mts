@@ -14,6 +14,7 @@ import { createAiToken } from "../src/features/auth/ai-tokens";
 import { submitEnergyOperation, decideEnergyOperation } from "../src/features/activities/records";
 import { saveMeasurementDay } from "../src/features/measurements/editing";
 import { addCalendarDays } from "../src/features/measurements/calendar";
+import { checkOverviewFirstScreen } from "./overview-first-screen.browser.mjs";
 import { checkMaintenance } from "./maintenance-check.browser.mjs";
 import { checkMobile } from "./mobile-check.browser.mjs";
 import { checkMealDayCompletion } from "./meal-day-check.browser.mjs";
@@ -26,7 +27,7 @@ await migrate(db, { migrationsFolder: "./drizzle" });
 const account = { email: "energy-browser@example.test", password: "fictional-energy-browser-password" };
 const owner = await provisionAccount(db, { ...account, name: "虚构消耗验收" }), token = await createAiToken(db, owner.id, "虚构消耗HTTP", "write");
 const today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
-for (let i = -8; i <= 0; i++) await saveMeasurementDay(db, { userId: owner.id, actorId: owner.id }, { operationId: randomUUID(), date: addCalendarDays(today, i), timezone: "Asia/Shanghai", periods: { daytime: { weightKg: String(70 - i * .05), bodyFatPercent: null, fasting: true, deviceLabel: "虚构秤" } } });
+for (let i = -8; i <= 0; i++) await saveMeasurementDay(db, { userId: owner.id, actorId: owner.id }, { operationId: randomUUID(), date: addCalendarDays(today, i), timezone: "Asia/Shanghai", periods: { daytime: { weightKg: String(Math.round((70 + Math.sin(i * .6) * .5) * 100) / 100), bodyFatPercent: null, fasting: true, deviceLabel: "虚构秤" } } });
 for (let i = -8; i < 0; i++) { const op = await submitEnergyOperation(db, { userId: owner.id, origin: "manual" }, { operationId: randomUUID(), actions: [{ kind: "save_energy_day", date: addCalendarDays(today, i), ...(i === -1 ? { totalKcal: "2600" } : { restingKcal: "2000", activeKcal: "800" }) }] }); await decideEnergyOperation(db, owner.id, op.id, op.revision, "confirm"); }
 const socket = new PGLiteSocketServer({ db: pg, host: "127.0.0.1", port: dbPort }); await socket.start();
 const child = spawn("pnpm", ["start", "--hostname", "127.0.0.1", "--port", String(port)], { env: { ...process.env, TZ: "UTC", DATABASE_URL: `postgresql://postgres:postgres@127.0.0.1:${dbPort}/postgres?max=1`, BETTER_AUTH_URL: baseURL, BETTER_AUTH_SECRET: "fictional-energy-browser-secret-more-than-32-characters", FORMWARD_TIMEZONE: "Asia/Shanghai", NODE_ENV: "production" }, detached: true, stdio: ["ignore", "pipe", "pipe"] });
@@ -35,12 +36,12 @@ let browser: { close(): Promise<void> } | undefined;
 await mkdir("/tmp/formward-energy-visual", { recursive: true });
 try {
   for (let i = 0; i < 100; i++) { if (child.exitCode !== null) throw new Error("隔离服务退出"); try { if ((await fetch(baseURL)).ok) break; } catch {} await new Promise(resolve => setTimeout(resolve, 250)); }
-  const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "/tmp/formward-browser-check/node_modules/playwright/index.mjs");
-  browser = await chromium.launch({ headless: true, ignoreDefaultArgs: ["--hide-scrollbars"], args: ["--no-sandbox", "--use-angle=swiftshader"] });
+  const { chromium, webkit } = await import(process.env.PLAYWRIGHT_MODULE ?? "/tmp/formward-browser-check/node_modules/playwright/index.mjs");
+  browser = await (process.env.FORMWARD_OVERVIEW_BROWSER === "webkit" ? webkit : chromium).launch({ headless: true, ignoreDefaultArgs: ["--hide-scrollbars"], args: process.env.FORMWARD_OVERVIEW_BROWSER === "webkit" ? [] : ["--no-sandbox", "--use-angle=swiftshader"] });
   const context = await (browser as Awaited<ReturnType<typeof chromium.launch>>).newContext({ locale: "zh-CN", timezoneId: "Asia/Shanghai", viewport: { width: 1440, height: 1000 } });
   assert.equal((await context.request.post(`${baseURL}/api/auth/sign-in/email`, { headers: { Origin: baseURL }, data: account })).status(), 200);
   const page = await context.newPage(), errors: string[] = []; page.on("pageerror", (error: Error) => errors.push(error.message));
-  try { if(process.env.FORMWARD_MAINTENANCE_ONLY==="1"){await checkMaintenance({baseURL,context,page,token:token.rawToken,today,db,userId:owner.id});} else if (process.env.FORMWARD_MEAL_DAY_ONLY === "1") { await checkMealDayCompletion({ baseURL, context, page, token: token.rawToken, today }); } else { await checkLatestRecords({ baseURL, context, page, token: token.rawToken, today }); if (process.env.FORMWARD_CHART_INTERACTIONS_ONLY === "1") { await checkChartInteractions({ baseURL, page, artifacts: "/tmp/formward-energy-visual" }); } else if (process.env.FORMWARD_LATEST_RECORDS_ONLY !== "1") { await checkEnergy({ baseURL, context, page, token: token.rawToken, today });
+  try { if(process.env.FORMWARD_MAINTENANCE_ONLY==="1" || process.env.FORMWARD_OVERVIEW_ONLY==="1"){await checkMaintenance({baseURL,context,page,token:token.rawToken,today,db,userId:owner.id});await checkOverviewFirstScreen({baseURL,page,engine:process.env.FORMWARD_OVERVIEW_BROWSER ?? "chromium"});} else if (process.env.FORMWARD_MEAL_DAY_ONLY === "1") { await checkMealDayCompletion({ baseURL, context, page, token: token.rawToken, today }); } else { await checkLatestRecords({ baseURL, context, page, token: token.rawToken, today }); if (process.env.FORMWARD_CHART_INTERACTIONS_ONLY === "1") { await checkChartInteractions({ baseURL, page, artifacts: "/tmp/formward-energy-visual" }); } else if (process.env.FORMWARD_LATEST_RECORDS_ONLY !== "1") { await checkEnergy({ baseURL, context, page, token: token.rawToken, today });
     const touch = await (browser as Awaited<ReturnType<typeof chromium.launch>>).newContext({ locale: "zh-CN", timezoneId: "Asia/Shanghai", viewport: { width: 390, height: 640 }, hasTouch: true, isMobile: true, storageState: await context.storageState() });
     try { const touchPage = await touch.newPage(); touchPage.on("pageerror", (error: Error) => errors.push(error.message)); await touchPage.goto(`${baseURL}/dashboard`); await touchPage.locator(`[data-overview-date="${today}"]`).tap(); assert.equal(await touchPage.locator("dialog[aria-labelledby]").count(), 0); await touchPage.getByRole("button", { name: "查看记录 →", exact: true }).tap(); await touchPage.locator("dialog[aria-labelledby]").waitFor(); await touchPage.getByRole("button", { name: "关闭编辑", exact: true }).click(); await touchPage.locator("dialog[aria-labelledby]").waitFor({ state: "hidden" }); assert.equal(await touchPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       const svg = touchPage.getByRole("group", { name: "双层日期关联图", exact: true });
@@ -53,7 +54,7 @@ try {
       await send("touchStart", sx, vy); for (let i = 1; i <= 6; i++) await send("touchMove", sx, vy - i * 18); await send("touchEnd", sx, vy - 108);
       await touchPage.waitForTimeout(200); assert.ok(await touchPage.evaluate(() => scrollY) > beforeScroll);
       await client.detach(); } finally { await touch.close(); }
-    await checkMobile({ baseURL, context, page, today, token: token.rawToken }); }
+    await checkMobile({ baseURL, context, page, today, token: token.rawToken });await checkOverviewFirstScreen({baseURL,page}); }
     } assert.deepEqual(errors, []); }
   catch (error) { await page.screenshot({ path: "/tmp/formward-energy-visual/failure.png", fullPage: true }); await writeFile("/tmp/formward-energy-visual/failure.html", await page.content()); throw error; }
   await context.close();

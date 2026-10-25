@@ -19,9 +19,27 @@ export async function checkChartInteractions({ baseURL, page, artifacts }) {
       for (const entry of cases) {
         await page.goto(new URL(entry.path, baseURL).href);
         const input = page.locator('input[type="date"]').and(page.getByLabel(entry.label, { exact: true }));
-        await input.waitFor();
+        if (entry.name !== "overview") await input.waitFor();
+        else await page.locator("[data-overview-date]").first().waitFor();
         await page.getByRole("button", { name: "30D", exact: true }).click();
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        if (entry.name === "overview") {
+          assert.equal(await input.count(), 0);
+          const points = page.locator(entry.points), first = points.first(), last = points.last();
+          await first.focus(); await page.keyboard.press("Enter");
+          assert.equal(await page.getByLabel("日期对照", {exact:true}).getAttribute("data-selected-date"), await first.getAttribute(entry.dateAttribute));
+          await page.keyboard.press("End");
+          assert.equal(await last.evaluate(node => node === document.activeElement), true);
+          await page.keyboard.press("Enter"); await page.keyboard.press("Escape");
+          await page.getByRole("button", {name:entry.action, exact:true}).click();
+          await page.locator("dialog[open]").last().waitFor();
+          await page.keyboard.press("Escape");
+          await page.locator("dialog[open]").waitFor({state:"hidden"});
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+          outcomes.push({page:entry.name, width, passed:true});
+          console.log("图表通过",entry.name,width);
+          continue;
+        }
         const min = await input.getAttribute("min"), max = await input.getAttribute("max");
         assert.ok(min && max && min <= max);
         const point = page.locator(entry.points).first();

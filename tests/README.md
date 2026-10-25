@@ -149,3 +149,6 @@ OAuth测试覆盖部分授权到完整读写的一次网页同意、只读查询
 统一审核维护专项可在production build后运行 FORMWARD_REVIEW_MAINTENANCE_ONLY=1 pnpm test:records-browser，沿用隔离PGlite与临时Playwright环境。覆盖重复餐次对照／明确另一次进食／取消不删除原餐、日常饮食和消耗与身体审核的草稿关闭保护、回执业务日期链接、停留查看和默认2秒返回；1440／390／320px截图在 /tmp/formward-records-maintenance/。records/operations.test.ts 另验证对照与摘要账号隔离、过期及取消项目；review-summary.test.ts 验证业务日期与回执映射，不跨日相加。
 
 维护专项使用FORMWARD_MAINTENANCE_ONLY=1 pnpm test:energy-browser，验证五种宽度、矮屏、总览固定日期／折叠详情／图片延后加载、最近摄入、历史分页、每份营养及包装、运动包含关系、一次审核与减少动态效果；输入均为虚构数据。FORMWARD_REVIEW_MAINTENANCE_ONLY=1 pnpm test:records-browser覆盖重复餐对照、取消与恢复草稿、未保存输入保护和日期回执。原图表点击只选日，需显式“查看记录”打开详情，旧测试步骤须遵循同一交互。
+
+
+总览视觉验收统一读取[设计文档](../docs/design-reference.md)。`overview-first-screen.browser.mjs`检查未滚动的320×560、390×560、390×640、430×780手机视口，模拟34px底部安全区，断言完整双图与日期刻度位于实际导航上方；另查横屏、1100／1440px、刻度碰撞、选日稳定、固定／图外解除、自定义应用／取消及减少动态效果。截图为实际视口，需逐张复核。隔离入口为 `FORMWARD_OVERVIEW_ONLY=1 pnpm test:energy-browser`；`FORMWARD_MAINTENANCE_ONLY=1`同时回归既有维护流程；正常消耗全量入口也包含首屏检查。`FORMWARD_OVERVIEW_BROWSER=webkit`可切换临时安装的WebKit，不增加应用依赖。模拟测试不替代真实iPhone及软键盘复核。
