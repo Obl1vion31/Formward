@@ -8,11 +8,15 @@
 
 设计与验收标准统一在[既有设计文档](docs/design-reference.md)，未新建规则文件；AGENTS要求界面实施前、验收前读取并逐项留下证据。机器检查包含实际首屏边界、SVG字形尺寸和刻度碰撞，不能只检查DOM或长截图。详细结果见[验收记录](docs/maintenance-verification.md)。
 
-本机lint、typecheck、354项单元／集成、production build、消耗／手机／审核回归和四页面×四宽度图表交互通过。Chromium与WebKit使用虚构数据通过320×560、390×560、390×640、430×780、1100／1440px，另查触屏横屏、150% CSS放大和减少动态效果，手机模拟34px安全区。已实际复核截图；旧本机Fontconfig缺少系统别名造成WebKit SVG文字不绘制，修正测试字体配置后重新通过，未因此改动业务实现。当前等待正式发布与站点复验。
+本机lint、typecheck、354项单元／集成、production build、消耗／手机／审核回归和四页面×四宽度图表交互通过。Chromium与WebKit使用虚构数据通过320×560、390×560、390×640、430×780、1100／1440px，另查触屏横屏、150% CSS放大和减少动态效果，手机模拟34px安全区。已实际复核截图；旧本机Fontconfig缺少系统别名造成WebKit SVG文字不绘制，修正测试字体配置后重新通过，未因此改动业务实现。
 
-## 当前交付：三阶段完善已完成
+正式域名已核对READY部署dpl_A9Ncxhg35CPxuN3WcMCKeVqwAt4Q，运行代码aaea8b3，分支codex/latest-records-energy-sources未合入main。正式站同一双浏览器及触屏／放大检查通过，已逐张复核截图；客户端异常与5xx为0，14项公开／保护入口通过，验收时段Runtime error／fatal为0。虚构账号和数据全部清理，40表核对原健康事实、请求、审计及结构保持。
 
-正式域名https://formward-ten.vercel.app，READY部署dpl_5yW5kVWVmjozc837AaRpXeMUtgLU，运行代码83a773c，数据库0024。功能分支已推送，尚未合入main。第一批维护为f92f08f／0023，后续录入与界面完善已单独发布。
+发布前后备份为data/exports/database-before-overview-compact-2026-10-25.json和database-after-overview-compact-2026-10-25.json，核对为overview-compact-storage-verification-2026-10-25.json，均0600且Git忽略。正式截图与报告在.codex/overview-compact-release/；本轮无migration，数据库仍0024。
+
+## 此前三阶段完善交付
+
+此前三阶段部署dpl_5yW5kVWVmjozc837AaRpXeMUtgLU，运行代码83a773c，数据库0024；当前总览维护版本见上一节。功能分支已推送，尚未合入main。第一批维护为f92f08f／0023，后续录入与界面完善已单独发布。
 
 - 日状态为已记完／未记全／未确认；只有已记完且两侧有值才计算盈余，估算和营养部分未知不额外阻止相减。餐次变更让相关日重新待确认。授权账号截至2026-10-23的28个有效历史餐日已一次性初始化，空日与其他账号不处理，不成为未来默认。
 - AI禁止整条删除／恢复或批量删除身体、餐次、食材、消耗、运动；餐内增减经审核，不能清空整餐。网页手工操作保留，取消草稿不会删除事实；HTTP、MCP、业务执行及旧待确认申请共用保护。

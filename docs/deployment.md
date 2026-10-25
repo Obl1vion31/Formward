@@ -2,7 +2,7 @@
 
 正式域名为 [Formward](https://formward-ten.vercel.app)，Next.js 由 Vercel Hobby 托管，数据库沿用 Neon PostgreSQL。AI 使用正式 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 或 `https://formward-ten.vercel.app/api/mcp`，不能使用受 Deployment Protection 保护的单次部署／预览地址。
 
-当前正式站READY部署dpl_5yW5kVWVmjozc837AaRpXeMUtgLU，运行代码83a773c（分支codex/latest-records-energy-sources，尚未合入main），数据库0024，共39张应用表加Drizzle账本。OpenAPI1.12.0／MCP1.10.0、13工具；Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。具体结果见[验收记录](maintenance-verification.md)。
+当前正式站READY部署dpl_A9Ncxhg35CPxuN3WcMCKeVqwAt4Q，运行代码aaea8b3（分支codex/latest-records-energy-sources，尚未合入main），数据库0024，共39张应用表加Drizzle账本。OpenAPI1.12.0／MCP1.10.0、13工具；Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。具体结果见[验收记录](maintenance-verification.md)。
 
 ## 平台与变量
 
@@ -122,3 +122,6 @@ Vercel的生产敏感变量不能下载，env pull的[SENSITIVE]占位符不能�
 手机四栏导航与48px页头、最近10日直接补录、单份有效消耗读数、单餐服务端合计及局部线图刻度使用现有数据库和协议，无迁移。隔离浏览器验证320／390／430px及矮视口、触屏横屏、1100／1440px，图片只含虚构数据；软键盘以缩小视口模拟，真实手机浏览器仍需用户复核。最终版本、305项测试、正式站虚构验收、备份与清理证据见[交接](../handoff.md)。
 
 手机最终版本的正式域名验收通过，Runtime error／fatal及请求5xx均0，13项公开入口通过。虚构账号及其数据已清理，`.codex/mobile-verification/`归档实际截图与报告。发布前后备份`data/exports/database-before-mobile-2026-10-23.json`、`database-after-mobile-2026-10-23.json`及`mobile-release-storage-verification-2026-10-23.json`核对37张表结构与既有数据保持，只排除指定认证使用／续期和正常限流元数据；全部0600、Git与部署忽略。无migration。
+
+
+总览首屏维护不涉及migration。正式站双浏览器、四个手机竖屏、桌面、触屏横屏、150% CSS放大和减少动态效果均复验；14项公共／保护入口通过。发布前后overview-compact私有备份与40表核对保持原数据，虚构账号清理完成。当前设计与视觉验收统一依据为[既有设计文档](design-reference.md)，截图和条目结果见[验收记录](maintenance-verification.md)。
