@@ -14,6 +14,7 @@ import { createAiToken } from "../src/features/auth/ai-tokens";
 import { submitEnergyOperation, decideEnergyOperation } from "../src/features/activities/records";
 import { saveMeasurementDay } from "../src/features/measurements/editing";
 import { addCalendarDays } from "../src/features/measurements/calendar";
+import { checkMaintenance } from "./maintenance-check.browser.mjs";
 import { checkMobile } from "./mobile-check.browser.mjs";
 import { checkMealDayCompletion } from "./meal-day-check.browser.mjs";
 import { checkChartInteractions } from "./chart-interactions.browser.mjs";
@@ -39,7 +40,7 @@ try {
   const context = await (browser as Awaited<ReturnType<typeof chromium.launch>>).newContext({ locale: "zh-CN", timezoneId: "Asia/Shanghai", viewport: { width: 1440, height: 1000 } });
   assert.equal((await context.request.post(`${baseURL}/api/auth/sign-in/email`, { headers: { Origin: baseURL }, data: account })).status(), 200);
   const page = await context.newPage(), errors: string[] = []; page.on("pageerror", (error: Error) => errors.push(error.message));
-  try { if (process.env.FORMWARD_MEAL_DAY_ONLY === "1") { await checkMealDayCompletion({ baseURL, context, page, token: token.rawToken, today }); } else { await checkLatestRecords({ baseURL, context, page, token: token.rawToken, today }); if (process.env.FORMWARD_CHART_INTERACTIONS_ONLY === "1") { await checkChartInteractions({ baseURL, page, artifacts: "/tmp/formward-energy-visual" }); } else if (process.env.FORMWARD_LATEST_RECORDS_ONLY !== "1") { await checkEnergy({ baseURL, context, page, token: token.rawToken, today });
+  try { if(process.env.FORMWARD_MAINTENANCE_ONLY==="1"){await checkMaintenance({baseURL,context,page,token:token.rawToken,today,db,userId:owner.id});} else if (process.env.FORMWARD_MEAL_DAY_ONLY === "1") { await checkMealDayCompletion({ baseURL, context, page, token: token.rawToken, today }); } else { await checkLatestRecords({ baseURL, context, page, token: token.rawToken, today }); if (process.env.FORMWARD_CHART_INTERACTIONS_ONLY === "1") { await checkChartInteractions({ baseURL, page, artifacts: "/tmp/formward-energy-visual" }); } else if (process.env.FORMWARD_LATEST_RECORDS_ONLY !== "1") { await checkEnergy({ baseURL, context, page, token: token.rawToken, today });
     const touch = await (browser as Awaited<ReturnType<typeof chromium.launch>>).newContext({ locale: "zh-CN", timezoneId: "Asia/Shanghai", viewport: { width: 390, height: 640 }, hasTouch: true, isMobile: true, storageState: await context.storageState() });
     try { const touchPage = await touch.newPage(); touchPage.on("pageerror", (error: Error) => errors.push(error.message)); await touchPage.goto(`${baseURL}/dashboard`); await touchPage.locator(`[data-overview-date="${today}"]`).tap(); assert.equal(await touchPage.locator("dialog[aria-labelledby]").count(), 0); await touchPage.getByRole("button", { name: "查看记录 →", exact: true }).tap(); await touchPage.locator("dialog[aria-labelledby]").waitFor(); await touchPage.getByRole("button", { name: "关闭编辑", exact: true }).click(); await touchPage.locator("dialog[aria-labelledby]").waitFor({ state: "hidden" }); assert.equal(await touchPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       const svg = touchPage.getByRole("group", { name: "双层日期关联图", exact: true });

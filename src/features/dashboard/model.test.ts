@@ -3,7 +3,7 @@ import { preferredRecordedDate } from "../../components/record-dates";
 import { chartScale } from "../../components/chart-scale";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { overview, overviewDays, latestMorningWeight } from "./model";
+import { energyEquationReadings, overview, overviewDays, latestMorningWeight } from "./model";
 import { prepareMealActions } from "../meals/records";
 import { emptyNutrition, type MealView } from "../meals/model";
 import { emptyEnergy, type EnergySnapshot } from "../activities/model";
@@ -117,4 +117,15 @@ test("未确认与未记全保留摄入，但不生成盈余；确认后恢复�
   assert.equal(overview([record],[],date,energy).energyBalance,null);
  }
  assert.equal(overviewDays([meal(date,"0")],[],[date],false,energy)[0].energyBalance,-200);
+});
+
+test("服务端展示算式使用必要的小数，既有记录精度与真实差值不变",()=>{
+ for(const [a,b] of [["2000.4","1900.6"],["2000","1901"],["0","0"],["3100.2222","2900.7777"],["0.4","0.6"]]){
+  const difference=(Math.round(Number(a)*10000)-Math.round(Number(b)*10000))/10000;
+  const shown=energyEquationReadings(a,b,difference),n=(value:string)=>Number(value.replaceAll(",",""));
+  assert.ok(Math.abs(n(shown.intake)-n(shown.expenditure)-n(shown.balance))<1e-7);
+ }
+ assert.equal(energyEquationReadings("2000","1901",99).balance,"+99");
+ assert.equal(energyEquationReadings("2000.4","1900.6",99.8).intake,"2,000.4");
+ assert.equal(energyEquationReadings("0",null,null).balance,"—");
 });

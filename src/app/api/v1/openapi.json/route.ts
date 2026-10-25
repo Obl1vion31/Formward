@@ -10,5 +10,5 @@ export function GET(request: Request) {
     RecordMealSave: { ...meal, required: [...meal.required, "key"], properties: { ...meal.properties, key } },
     RecordFoodSave: { ...food, required: [...food.required, "key", "kind"], properties: { ...food.properties, key, kind: { const: "save_food" } } },
   };
-  return Response.json({ ...original, info: { ...original.info, title: "Formward 健康记录 API", version: "1.11.0" }, paths: { ...original.paths, ...mealPaths, ...recordPaths, ...energyPaths }, components: { ...original.components, schemas: { ...original.components.schemas, ...mealSchemas, ...recordSchemas, ...energySchemas, ...unifiedSchemas } } }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ ...original, info: { ...original.info, title: "Formward 健康记录 API", version: "1.12.0" }, paths: { ...original.paths, ...mealPaths, ...recordPaths, ...energyPaths }, components: { ...original.components, schemas: { ...original.components.schemas, ...mealSchemas, ...recordSchemas, ...energySchemas, ...unifiedSchemas } } }, { headers: { "Cache-Control": "no-store" } });
 }

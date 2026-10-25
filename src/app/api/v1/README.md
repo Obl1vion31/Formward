@@ -4,7 +4,7 @@
 
 维护时同步接口文档与隔离测试，新业务规则留在 feature。
 
-饮食增加foods、meals与meal-operations，沿用Bearer鉴权及64KiB限制。公开OpenAPI1.11.0同时包含身体与饮食，确认只由网页Action执行。
+饮食增加foods、meals与meal-operations，沿用Bearer鉴权及64KiB限制。公开OpenAPI1.12.0同时包含身体与饮食，确认只由网页Action执行。
 
 POST /meal-images接收ChatGPT文件引用，私有保存并返回附件ID；新草稿支持imageIds、photoReview及amountDecision。GET /foods保留兼容的presets:[]，GET /meals支持timezone并返回日期上下文。正式保存继续仅通过网页Action。
 
@@ -12,6 +12,8 @@ POST /meal-images接收ChatGPT文件引用，私有保存并返回附件ID；新
 
 record-operations 支持身体／摄入／食材任意混合预览及状态查询，稳定 key 和 foodRef 解析集中在 records feature，返回一个确认链接。旧单类接口继续兼容。
 
-消耗查询为GET /api/v1/energy与MCP query_energy，统一提交支持每日消耗、活动及公式资料的保存／软删除／恢复。OAuth独立energy:read／energy:write，旧连接须重新授权；手动令牌沿用read／write。规则、字段及虚构例子见[消耗文档](../../../../docs/energy.md)。
+消耗查询为GET /api/v1/energy与MCP query_energy，统一提交支持每日消耗与活动的新增／修改。OAuth独立energy:read／energy:write，旧连接须重新授权；手动令牌沿用read／write。规则、字段及虚构例子见[消耗文档](../../../../docs/energy.md)。
 
-消耗显式支持entryMode／activityMode与分项来源；日常默认动作不在新工具schema中提供。旧消耗预览刷新后遵循新规则，不能直接确认退役动作。公式独立对照，未录日期不自动生成消耗。
+消耗显式支持entryMode／activityMode与分项来源；日常默认动作不在新工具schema中提供。旧消耗预览刷新后遵循新规则，不能直接确认退役动作。公式和日常默认均退役，旧存储审计保留，未录日期不生成消耗。
+
+新增每份营养与可靠包装换算、运动included／additional包含关系；旧nutrition总量与无关系明细保持原语义。AI不提供整条删除恢复或批量删除，用户只在网页统一确认后保存，不增加OAuth权限。

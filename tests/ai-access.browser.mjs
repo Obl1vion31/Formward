@@ -56,7 +56,7 @@ export async function checkAiAccessBrowser({ baseURL, account, other, date }) {
       await page.getByRole("heading", {name:"已取消",exact:true}).waitFor();
     } finally { await rm(local, { recursive: true, force: true }); }
     await page.goto(preview.confirmationUrl); await page.getByRole("heading", { name: "确认记录", exact: true }).waitFor();
-    await page.getByRole("button", { name: "确认并全部保存", exact: true }).click(); await page.getByRole("heading", { name: "已保存", exact: true }).waitFor();
+    await page.getByRole("button", { name: "确认保存", exact: true }).click(); await page.getByRole("heading", { name: "已保存", exact: true }).waitFor();
     await page.waitForURL(`${baseURL}/dashboard`);
     const read = async () => (await (await fetch(`${baseURL}/api/v1/measurements`, { headers: { Authorization: `Bearer ${token}` } })).json()).records;
     assert.equal((await read()).length,2);
@@ -81,7 +81,7 @@ export async function checkAiAccessBrowser({ baseURL, account, other, date }) {
     assert.equal(await editor.getByLabel("体重（kg）").inputValue(),"72.34");assert.equal(await source.inputValue(),"");
     await editor.getByRole("button",{name:"更新预览",exact:true}).click();await editor.waitFor({state:"hidden"});
     assert.equal((await read()).length,2);
-    await page.getByRole("button",{name:"确认并全部保存",exact:true}).click();await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
+    await page.getByRole("button",{name:"确认保存",exact:true}).click();await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
     assert.equal((await read()).find(record=>record.recordDate===nextDate(6)).deviceLabel,null);
     await page.waitForURL(`${baseURL}/dashboard`);
     await checkUnifiedReview({baseURL,context,page,token,date,artifacts});

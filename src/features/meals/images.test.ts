@@ -57,11 +57,10 @@ test("原图上传后数据库写入失败时清理文件，不依赖静态读�
  assert.equal(uploaded.length,1);assert.deepEqual(removed,uploaded);
  assert.equal((await db.select().from(schema.mealImage).where(eq(schema.mealImage.userId,id))).length,0);
 });
-test("照片餐次未核对不可保存，网页修订后保存且编辑删除恢复保留原图",async()=>{
+test("照片不要求五项勾选，直接保存未知文字且编辑删除恢复保留原图",async()=>{
  const id=await owner(),token=await createAiToken(db,id,"虚构图片令牌","write"),identity=await authenticateAi(db,`Bearer ${token.rawToken}`);
  const image=await saveMealImage(db,id,png,{fileName:"虚构原图.png",source:"ai",actorId:token.token.id,identity},store);
- let op=await submitMealOperation(db,{userId:id,origin:"ai",identity},{operationId:randomUUID(),actions:[action([image.id])]});assert.equal(op.canConfirm,false);assert.equal(op.needsUserInput?.[0].questions.length,5);
- await reject(decideMealOperation(db,id,op.id,op.revision,"confirm"),"review_required");
+ let op=await submitMealOperation(db,{userId:id,origin:"ai",identity},{operationId:randomUUID(),actions:[action([image.id])]});assert.equal(op.canConfirm,true);assert.deepEqual(op.needsUserInput,[]);
  op={...op,...await reviseMealOperation(db,id,op.id,op.revision,[action([image.id],review)])};assert.equal(op.canConfirm,true);await decideMealOperation(db,id,op.id,op.revision,"confirm");
  let meal=(await readMealSnapshot(db,id)).meals[0];assert.deepEqual(meal.imageIds,[image.id]);
  for(const kind of ["delete_meal","restore_meal"] as const){const change=await submitMealOperation(db,{userId:id,origin:"manual"},{operationId:randomUUID(),actions:[{kind,id:meal.id,version:meal.version}]});await decideMealOperation(db,id,change.id,change.revision,"confirm");meal=(await readMealSnapshot(db,id)).meals[0];assert.deepEqual(meal.imageIds,[image.id]);}

@@ -261,6 +261,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
           const before = await measure();
           const probe = await motionProbe(scrolled);
           await trigger.click();
+          if(await trigger.evaluate(node=>!!node.closest("svg")))await openSelectedChartDay(scrolled);
           const modal = scrolled.getByRole('dialog');
           await modal.waitFor();
           for (let frame = 0; frame < 4; frame++) {
@@ -312,7 +313,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.equal(await page.getByRole("button", { name: "30D", exact: true }).getAttribute("aria-pressed"), "true");
     assert.equal(await recent.locator("tbody tr").count(), 2, "今天及未选择代表的日期常驻，其余完成记录从历史查看");
     assert.equal(await detail.count(), 0);
-    assert.equal(await page.locator('input[type="date"]').count(), 0);
+    assert.equal(await page.locator('input[type="date"]').count(), 1);assert.equal(await page.locator('input[aria-label="身体图表日期"]').count(),1);
     assert.equal(await page.getByLabel("晚间数据", { exact: true }).isChecked(), true);
     for (const checked of [false, true, false, true]) await assertStableEveningToggle(page, checked);
     const measuredPlot = await chart.locator('svg[role="group"]').elementHandle();
@@ -347,7 +348,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     const estimateStyle = await chart.locator('[data-segment="estimated"]').first().evaluate((node) => getComputedStyle(node).strokeDasharray);
     assert.notEqual(estimateStyle, "none");
     await page.screenshot({ path: `${artifacts}/desktop-estimated-trends.png`, fullPage: true });
-    await estimate.click();
+    await estimate.click();await openSelectedChartDay(page);
     const estimationDrawer = await assertSimpleEstimate(page);
     assert.equal(await estimationDrawer.getByRole("heading", { name: "2025.07.11", exact: true }).count(), 1);
     assert.match(await estimationDrawer.innerText(), /当日晨间实测：74.80 kg/);
@@ -360,9 +361,10 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     await page.screenshot({ path: `${artifacts}/desktop-single-estimate.png` });
     await page.keyboard.press("Escape");
     await estimationDrawer.waitFor({ state: "hidden" });
-    assert.equal(await estimate.evaluate(node => node === document.activeElement), true, "估计抽屉关闭后焦点返回图表点");
+    assert.equal(await page.getByRole("button",{name:"查看体重所选日记录",exact:true}).evaluate(node=>node===document.activeElement),true,"估计抽屉关闭后焦点返回查看按钮");
     assert.equal(await detail.count(), 0, "无需日期信息栏中转");
     await chart.locator('[data-date="2025-07-11"][data-period="evening"][data-kind="estimated"]').click();
+    await chart.getByRole("button",{name:/所选日记录$/}).click();
     await assertSimpleEstimate(page);
     assert.match(await estimationDrawer.innerText(), /日常估计/);
     await page.keyboard.press("Escape");
@@ -385,6 +387,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.ok(await chart.locator('[data-segment][data-period="evening"]').count() > 0);
     assert.ok(await chart.locator('[data-pair]').count() > 0);
     await chart.locator('[data-date="2025-07-08"][data-period="daytime"][data-kind="observed"]').click();
+    await chart.getByRole("button",{name:/所选日记录$/}).click();
     const drawer = await assertRecordInspector(page);
     assert.match(await drawer.locator('[data-record-value]').innerText(), /76.20.*kg/s);
     assert.match(await drawer.innerText(), /虚构蓝牙体重秤.*虚构连接应用/s);
@@ -440,13 +443,14 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     await page.getByLabel("估计补全", { exact: true }).check();
     const fatEstimate = chart.locator('[data-point-id][data-date="2025-07-11"][data-period="daytime"][data-kind="estimated"]');
     assert.equal(await fatEstimate.count(), 1, "真实体重存在时仍展示独立估计体脂");
-    await fatEstimate.click();
+    await fatEstimate.click();await chart.getByRole("button",{name:/所选日记录$/}).click();
     const fatModal = await assertSimpleEstimate(page, "bodyFatPercent");
     assert.match(await fatModal.innerText(), /体脂率.*近期晨间趋势/s);
     assert.ok(!(await fatModal.getByRole("article", { name: "记录详情" }).innerText()).includes("74.80 kg"), "估计体脂依据与同日实测概览独立");
     await page.keyboard.press("Escape");
     await fatModal.waitFor({ state: "hidden" });
     await chart.locator('[data-point-id][data-date="2025-07-11"][data-period="evening"][data-kind="estimated"]').click();
+    await chart.getByRole("button",{name:/所选日记录$/}).click();
     await assertSimpleEstimate(page, "bodyFatPercent");
     assert.match(await fatModal.innerText(), /个人典型晨晚差：.*个百分点/);
     await page.keyboard.press("Escape");
@@ -456,6 +460,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.equal(await chart.locator('[data-point-id][data-date="2025-07-11"][data-period="daytime"][data-kind="observed"]').count(), 1);
     assert.equal(await chart.locator('[data-point-id][data-date="2025-07-11"][data-period="daytime"][data-kind="estimated"]').count(), 0);
     await chart.locator('[data-point-id][data-date="2025-07-11"][data-period="daytime"][data-kind="observed"]').click();
+    await chart.getByRole("button",{name:/所选日记录$/}).click();
     await assertRecordInspector(page);
     assert.match(await drawer.locator('[data-record-value]').innerText(), /74.80/);
     assert.equal(await drawer.getByRole("button", { name: "查看体脂率记录值", exact: true }).count(), 0, "实测缺失体脂不混入另一条记录的估计体脂");
@@ -569,7 +574,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
       }
       const densePoint = chartFor(mobile.page).locator('[data-point-id][data-date="2025-07-09"][data-period="daytime"][data-kind="estimated"]');
       const beforeInspector = await chartFor(mobile.page).boundingBox();
-      await densePoint.tap();
+      await densePoint.tap();await openSelectedChartDay(mobile.page);
       const denseModal = await assertSimpleEstimate(mobile.page);
       const duringInspector = await chartFor(mobile.page).boundingBox();
       assert.equal(duringInspector.x, beforeInspector.x, "手机打开 Inspector 时图表不横移");

@@ -165,7 +165,7 @@ try {
   assert.match(fileResponse.headers()["cache-control"], /private.*no-store/);
   assert.match(fileResponse.headers()["content-disposition"], /attachment.*xlsx/);
   const downloadedBook = new ExcelJS.Workbook(); await downloadedBook.xlsx.load(new Uint8Array(await fileResponse.body()).buffer);
-  assert.equal(downloadedBook.worksheets[0].name, "每日汇总"); assert.equal(downloadedBook.worksheets.length, 9);
+  assert.equal(downloadedBook.worksheets[0].name, "每日汇总"); assert.equal(downloadedBook.worksheets.length, 8); assert.equal(downloadedBook.getWorksheet("公式资料"), undefined);
   assert.equal((await login.context.request.get(`${baseURL}/dashboard/export/file?user_id=other`)).status(), 400);
   assert.equal((await login.context.request.get(`${baseURL}/dashboard/export/file?from=2024-02-30`)).status(), 400);
   const downloading = login.page.waitForEvent("download");

@@ -31,7 +31,7 @@ MCP 1.9.0 提供13个工具，统一连接检查为authorize_formward，混合�
 | 工具 | 输入与行为 | 权限 |
 | --- | --- | --- |
 | `authorize_formward` | 无参数；检查完整连接、缺权限时请求一次统一OAuth授权，不生成健康预览 | 身体／饮食／消耗读写 |
-| `query_energy` | from／to／timezone查询最终消耗、分项、活动及公式依据 | `energy:read` |
+| `query_energy` | from／to／timezone查询最终消耗、录入分项、额外运动及包含关系 | `energy:read` |
 | `submit_record_operation` | items混合预览，返回统一确认链接 | 按内容检查对应write权限 |
 | `get_record_operation` | 查询混合审核状态 | 按内容检查对应read权限 |
 | `get_profile` | 返回已连接账号的稳定标识与显示名称 | `profile` |
@@ -131,7 +131,7 @@ search_foods返回foods及兼容的presets:[]，不提供基础预设采用；qu
 
 ## 一个链接审核整批
 
-统一审核页按身体状况、摄入记录、食材库记录和消耗记录排列，只显示本次内容。新增直接展示内容，修改显示原值与新值；新增图片贴近对应记录，变更图片展示前后对照。逐项确认只标记已核对，修改先更新草稿，取消可恢复；整体核对后也可直接点击底部“确认并全部保存”。所选内容在一个数据库事务中保存，失败保留输入并整体回滚。手机压缩信息间距，底部吸附按钮保留安全区；依据、备注和审核技术信息折叠。保存成功显示勾，2秒后返回总览，保留立即返回入口；重新打开已完成链接不自动跳转。
+统一审核页按身体状况、摄入记录、食材库记录和消耗记录排列，只显示本次内容。新增直接展示内容，餐次修改突出增减及修改后合计，旧内容按需展开；新增图片贴近对应记录，变更图片展示前后对照。修改先更新草稿，取消可恢复；普通餐次只需底部一次“确认保存”，不显示标记核对或照片清单。缺图可直接保存文字，重复餐和消耗关系未定才提出问题。所选内容在一个数据库事务中保存，失败保留输入并整体回滚。手机压缩信息间距，底部吸附按钮保留安全区；依据、备注和审核技术信息折叠。保存成功显示勾，2秒后返回总览，保留立即返回入口；重新打开已完成链接不自动跳转。
 
 来源编辑与身体录入共用来源输入，点击展开本账号历史建议，支持移除；来源可填写或直接留空后更新预览，历史快照不受建议移除影响。已有部分保存的旧审核保留原结果，剩余内容统一确认，不重复写入。
 
@@ -157,8 +157,10 @@ MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation
 
 食材可选 category:meal／ingredient，新条目省略为 ingredient，省略更新保留原分类；查询返回分类。餐项查询返回稳定 id，编辑时以 originalItemId 引用同一餐次／版本原项。食材已永久删除的旧餐项不传 foodId 或 nutrition，服务端沿用原快照按同单位 quantity 换算；不能将已删食材用于新餐。永久删除只在网页最近删除提供，不新增 MCP 工具或 HTTP 写接口。
 
-消耗查询为GET /api/v1/energy与MCP query_energy，统一提交支持每日消耗、活动及公式资料的新增／修改；整条删除及恢复仅限网页手工操作。OAuth独立energy:read／energy:write，旧连接须重新授权；手动令牌沿用read／write。需要完整接入或补齐权限时使用authorize_formward统一申请并由用户同意，不必先提交健康记录来触发授权。AI接入页面按连接以相同格式展示身体、饮食／食材和消耗权限；仅刷新工具列表不会增加OAuth授权。规则、字段及虚构例子见[消耗文档](energy.md)。
+消耗查询为GET /api/v1/energy与MCP query_energy，统一提交支持每日消耗与活动的新增／修改；整条删除及恢复仅限网页手工操作。OAuth独立energy:read／energy:write，旧连接须重新授权；手动令牌沿用read／write。需要完整接入或补齐权限时使用authorize_formward统一申请并由用户同意，不必先提交健康记录来触发授权。AI接入页面按连接以相同格式展示身体、饮食／食材和消耗权限；仅刷新工具列表不会增加OAuth授权。规则、字段及虚构例子见[消耗文档](energy.md)。
 
-消耗采用entryMode（components／total）与activityMode（total／activities）显式选择，静息与活动分别使用restingSourceSystem／activeSourceSystem；总数来源仍用sourceSystem。旧无模式请求兼容原口径，估算及notes内部保留。save_energy_defaults及删除／恢复已退役，旧预览必须刷新并取消退役项，不能借旧链接写入。查询不返回defaults，不给未录日期自动生成消耗；公式通过独立formula返回，不参与每日总数。详细字段、未知／零与虚构例子见[消耗](energy.md)。
+消耗采用entryMode（components／total）与activityMode（total／activities）显式选择，静息与活动分别使用restingSourceSystem／activeSourceSystem；总数来源仍用sourceSystem。旧无模式请求兼容原口径，估算及notes内部保留。save_energy_defaults及删除／恢复已退役，旧预览必须刷新并取消退役项，不能借旧链接写入。查询不返回defaults，不给未录日期自动生成消耗；公式计算已撤下，兼容formula返回estimate:null、retired:true，旧资料与审计保留。详细字段、未知／零与虚构例子见[消耗](energy.md)。
 
 AI只允许新增或修改，不得整条删除或恢复（包括批量）；餐内增减经审核且不得清空整餐。网页手工删除恢复不受影响，取消本次待保存项不删除既有记录。旧待确认申请也在实际写入前验证。
+
+当前协议增加nutritionBasis／perPortionNutrition、servingQuantity／servingUnit、运动inclusion；旧nutrition仍是本次总量，旧明细不自动相加。静息公式和资料动作停用。普通单餐只要底部一次确认，缺图不阻止文字保存；总数与运动关系不明时列独立核对项，不能按大小推断。MCP服务1.10.0，工具仍13个，不增加OAuth权限；刷新工具列表可获得新字段。

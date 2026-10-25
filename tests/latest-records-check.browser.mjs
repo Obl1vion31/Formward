@@ -8,7 +8,7 @@ export async function checkLatestRecords({ baseURL, context, page, token, today 
   const headers = { Authorization: `Bearer ${token}` }, intakeDate = shift(today, -2), energyDate = shift(today, -1);
   const response = await context.request.post(`${baseURL}/api/v1/record-operations`, { headers, data: { operationId: randomUUID(), items: ["早餐", "午餐", "晚餐"].map((mealType, index) => ({ key: `latest-${index}`, kind: "save_meal", date: intakeDate, mealType, items: [{ kind: "food", name: "虚构摘要食物", nutrition: { caloriesKcal: "200", proteinG: null, carbsG: null, fatG: null } }] })) } });
   assert.equal(response.status(), 200); const operation = await response.json();
-  await page.goto(operation.confirmationUrl); await page.getByRole("button", { name: /确认并全部保存/ }).click(); await page.waitForURL(`${baseURL}/dashboard`);
+  await page.goto(operation.confirmationUrl); await page.getByRole("button", { name: /确认保存/ }).click(); await page.waitForURL(`${baseURL}/dashboard`);
   for (const width of [320, 390, 430, 1100, 1440]) {
     await page.setViewportSize({ width, height: width < 700 ? 844 : 1000 });
     const intake = page.getByRole("link", { name: "饮食记录", exact: true }), energy = page.getByRole("link", { name: "消耗记录", exact: true }), body = page.getByRole("link", { name: "身体记录", exact: true });

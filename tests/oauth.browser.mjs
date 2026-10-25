@@ -41,7 +41,7 @@ try {
   const initial = await client.callTool({ name: "submit_measurement_operation", arguments: { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-07-01", period: "evening", weightKg: "74.20", deviceLabel: "虚构浏览器秤" }] } });
   assert.ok(!initial.isError); const operation = initial.structuredContent;
   await page.goto(operation.confirmationUrl);
-  await page.getByRole("button", { name: "确认并全部保存", exact: true }).click();
+  await page.getByRole("button", { name: "确认保存", exact: true }).click();
   await page.getByRole("status").filter({ hasText: "已保存 1" }).waitFor();
   const result = await client.callTool({ name: "get_measurement_operation", arguments: { id: operation.id } }); assert.equal(result.structuredContent.status, "confirmed");
   await page.goto(`${baseURL}/dashboard/ai`);

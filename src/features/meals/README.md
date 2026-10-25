@@ -2,7 +2,9 @@
 
 负责今天摄入、P／C／F 每日 kcal 堆叠图、历史餐次、整餐／食材库、最近删除、私有原图与 AI 网页审核。model.ts 集中校验、单位换算、图形占比和餐次建议；records.ts 共用网页／HTTP／MCP 的预览、确认、归属、版本、历史快照和审计；recently-deleted.ts 提供网页专用永久删除事务；food-description.ts 管食材客观分析规则，queryFoods 实时返回规则及兼容的 presets:[]。
 
-餐次编辑桌面左侧为可搜索、按整餐／食材筛选的卡片，点击或拖入右侧小表格；手机保留选择／本餐分步。右侧顶部常驻合计，每项一行：名称、用量、kcal、P、C、F、操作，并常驻一行空白自由填写。桌面双击或 Enter 编辑、Tab 移动，触屏轻点；食材营养自动换算只读，自由项营养是本次摄入，不再次乘分量。份／勺等计数单位默认 1，重量、体积和未知单位留空；更换食材按新单位重新设置。新餐次按设备时间建议早餐／午餐／加餐／晚餐／夜宵，可手改，旧餐不覆盖。依据、新食材规格、备注和照片按需展开，上传／缺图／重复／审核保护保留。
+餐次编辑桌面可搜索、点击或拖入食材；手机按名称、单位／份数和两列营养组织。新自由项默认1份，常驻暖色边框输入，nutritionBasis=per_portion与perPortionNutrition由服务端乘quantity；旧nutrition保持本次总量，不自动重算，主动切换才按份计算。可靠servingQuantity／servingUnit支持包装换算，旧g记录与快照不变。详情小框只选择营养依据，餐次备注保留。Enter结束当前格输入，Tab移动，明确保存按钮提交。
+
+摄入摘要默认今天及以前最近有记录的一天，明确日期链接及主动选择优先；最近10个日历日含空日补录，“查看全部”按50个记录日分页。meal-editor.tsx管理输入，model.ts共用换算，records.ts保存与审计。网页同一餐的人工旧草稿按实际保存顺序更新，并保存每次前后版本；AI旧预览、食材和其他类型继续检查版本及快照。
 
 每日一根三色 kcal 堆叠柱，由下到上为 P 蛋白质 #365E78、C 碳水 #6C96B3、F 脂肪 #AFCDDE。默认按 P:C:F 克数占比分段，可切换 4P:4C:9F 能量占比；百分比与三色分段同步切换，柱总高始终为已记录 kcal，不改写原值。切换日期和区间保留口径，重新进入默认克数。宏量缺项或全部为零时只画总热量并注明占比不完整。容得下才标 P／C／F，读数列出 kcal、克数和占比。日期之间留白，固定宽度无横向滚动，短区间柱顶显示数值，长区间只显示选中日期和完整范围，可选连线默认关闭。
 
@@ -12,7 +14,7 @@
 
 meal-editor.tsx 管表格与选择，nutrition-fields.tsx 管营养与依据，nutrition-chart.tsx 管固定宽度图，presets.tsx 仅保留食材表格／详情，review-details.tsx 管紧凑审核与逐项依据，records/record-review.tsx 管统一审核与终态。估算分析保留成分分量、来源／计算及汇总，不写个人餐次背景、泛化提醒或无关排除清单。
 
-images.ts 管原图下载与存储，image-upload.ts 管限账号／路径／摘要的短期 OIDC 直传，photos.tsx 共用上传与回看。最多8张、每张20 MiB，JPEG／PNG／WebP，不进 public／Git。允许既有 OpenAI 文件域名及限定 oaisdmntpr 账号、24位长度与完整 blob.core.windows.net 后缀，逐跳验证重定向。expectedImageCount 保留缺图预期，AI photoReview 待核对阻止保存，只有网页登录明确选择才可先保存文字并审计。终态不能再次确认，旧 pending 不能覆盖新 revision。存储失败与上传后事务失败的清理、重试、原图归属仍覆盖隔离测试。完整规则见[饮食记录](../../../docs/meals.md)。
+images.ts 管原图下载与存储，image-upload.ts 管限账号／路径／摘要的短期 OIDC 直传，photos.tsx 共用上传与回看。最多8张、每张20 MiB，JPEG／PNG／WebP，不进 public／Git。允许既有 OpenAI 文件域名及限定 oaisdmntpr 账号、24位长度与完整 blob.core.windows.net 后缀，逐跳验证重定向。expectedImageCount保留缺图事实；缺图可直接保存文字并审计，不要求photoReview五项勾选。终态不能再次确认，旧 pending 不能覆盖新 revision。存储失败与上传后事务失败的清理、重试、原图归属仍覆盖隔离测试。完整规则见[饮食记录](../../../docs/meals.md)。
 
 每日记录直接列出最近10个日历日，过去空日可补录、已有餐次可追加，另可选日期。日期只形成展示行，不自动建餐次或补0；历史抽屉保留。编辑器与保存按钮显示目标日期，跨零点和页面恢复不挪动已打开草稿。手机今天摄入为一行大kcal与下一行三项宏量，底栏与安全区留足空间。
 

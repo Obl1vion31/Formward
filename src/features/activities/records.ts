@@ -1,3 +1,4 @@
+import { retiredEnergyAction } from "./model";
 import { requireAiUpserts } from "../auth/ai-write-policy";
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, eq } from "drizzle-orm";
@@ -8,7 +9,7 @@ import { requireActiveAiToken } from "../auth/ai-tokens";
 import { lockOwner, type Transaction } from "../auth/owner-lock";
 import { rememberEnergySources } from "./sources";
 import { systemMeasurementTimezone, validateMeasurementTimezone } from "../measurements/timezone";
-import { ageOn, energyInputSchema, type EnergyAction, type EnergyInput, type EnergyOperationView, type EnergyPreview, type EnergyRecord, type EnergySnapshot, type EnergyProvenance } from "./model";
+import { energyDays, energyBaseline, ageOn, energyInputSchema, type EnergyAction, type EnergyInput, type EnergyOperationView, type EnergyPreview, type EnergyRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyProvenance } from "./model";
 
 export type EnergyActor = { userId: string; origin: "manual" | "ai"; identity?: AiIdentity };
 function canonical(value: unknown): unknown {
@@ -48,10 +49,10 @@ function provenance(action: EnergyAction, before?: EnergyRecord): EnergyProvenan
 }
 export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnapshot, excluded: number[] = []): EnergyPreview[] {
   const state = structuredClone(snapshot), targets = new Set<string>();
-  return actions.map((action, index) => {
+  const rows = actions.map((action, index) => {
     const row: EnergyPreview = { action, excluded: excluded.includes(index) };
     try {
-      if (action.kind.includes("energy_defaults")) throw new ApiError(400, "retired_action", "日常默认值已停用，请取消这一项。");
+      if (retiredEnergyAction(action.kind)) throw new ApiError(400, "retired_action", "日常默认值和静息公式资料已停用，请取消这一项。");
       const entries = listOf(state, action), before = action.id ? entries.find(record => record.id === action.id) : undefined;
       row.before = before;
       if (action.id && !before) throw new ApiError(404, "not_found", "记录不存在或不属于当前账号。");
@@ -84,7 +85,7 @@ export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnaps
       } else if (action.kind === "save_activity") {
         if (before?.deletedAt) throw new ApiError(409, "deleted", "请先恢复该活动。");
         const prior = before && "name" in before ? before : undefined;
-        row.after = { ...base, ...provenance(action, before), date: action.date, name: action.name, caloriesKcal: action.caloriesKcal === undefined ? prior?.caloriesKcal ?? null : action.caloriesKcal, durationMinutes: action.durationMinutes === undefined ? prior?.durationMinutes ?? null : action.durationMinutes, completed: action.completed ?? prior?.completed ?? true };
+        row.after = { ...base, ...provenance(action, before), date: action.date, inclusion:prior?.inclusion??null,inclusionBasis:prior?.inclusionBasis??null,name: action.name, caloriesKcal: action.caloriesKcal === undefined ? prior?.caloriesKcal ?? null : action.caloriesKcal, durationMinutes: action.durationMinutes === undefined ? prior?.durationMinutes ?? null : action.durationMinutes, completed: action.completed ?? prior?.completed ?? true };
       } else {
         if (!before) throw new ApiError(404, "not_found", "记录不存在。");
         const deleting = action.kind.startsWith("delete_");
@@ -102,7 +103,30 @@ export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnaps
     } catch (error) { row.error = error instanceof Error ? error.message : "记录无效。"; }
     return row;
   });
+  // 先形成整批草稿，再核对关系，因此“先录总数／先录运动”结果一致。
+  for(const row of rows) if(!row.excluded && !row.error && row.after && "name" in row.after){
+    const record=row.after, action=row.action, baseline=energyBaseline(state.days.find(day=>!day.deletedAt&&day.date===record.date));
+    if("inclusion" in action && action.inclusion!==undefined){
+      record.inclusion=baseline?action.inclusion:null;record.inclusionBasis=record.inclusion?baseline:null;
+    }
+    const prior=row.before && "name" in row.before?row.before:undefined;
+    const energyChanged=!prior || prior.date!==record.date || Number(prior.caloriesKcal)!==Number(record.caloriesKcal) || (prior.caloriesKcal===null)!==(record.caloriesKcal===null) || prior.completed!==record.completed || !!prior.deletedAt!==!!record.deletedAt;
+    if(!record.deletedAt && record.completed && baseline && energyChanged && (!record.inclusion || record.inclusionBasis!==baseline)){
+      row.coverageQuestions=[record];row.error="请确认“"+record.name+"”是否已包含在当天录入的总数中。";
+    }
+  }
+  for(const row of rows) if(!row.excluded && !row.error && row.after && "restingKcal" in row.after && "date" in row.after){
+    const record=row.after as EnergyDayRecord,prior=row.before && "date" in row.before && "restingKcal" in row.before?row.before as EnergyDayRecord:undefined;
+    const baseline=energyBaseline(record);
+    if(baseline && baseline!==energyBaseline(prior)){
+      const unresolved=state.activities.filter(activity=>!activity.deletedAt&&activity.completed&&activity.date===record.date&&(!activity.inclusion||activity.inclusionBasis!==baseline));
+      if(unresolved.length){row.coverageQuestions=unresolved;row.error="总数或记录方式已改变，请核对 "+unresolved.length+" 项运动是否已包含。";}
+    }
+  }
+  for(const row of rows)if(row.after&&"date" in row.after&&"restingKcal" in row.after)row.day=energyDays(state,[],[row.after.date])[0];
+  return rows;
 }
+
 export function displayEnergyOperation(row: typeof energyOperation.$inferSelect): EnergyOperationView {
   return { id: row.id, revision: row.revision, status: row.status, rows: row.preview, canConfirm: row.status === "pending" && row.preview.some(row => !row.excluded) && row.preview.every(row => row.excluded || !row.error), expiresAt: row.expiresAt?.toISOString() ?? null, createdAt: row.createdAt.toISOString() };
 }
@@ -130,7 +154,7 @@ export async function submitEnergyOperation(db: Database, actor: EnergyActor, ra
       if (prior.requestDigest !== digest(input) || prior.origin !== actor.origin || prior.tokenId !== (actor.identity?.tokenId ?? null) || prior.oauthConnectionId !== (actor.identity?.oauthConnectionId ?? null)) throw new ApiError(409, "request_conflict", "不能用同一请求编号替换内容或授权。");
       return { ...displayEnergyOperation(prior), repeated: true };
     }
-    if (input.actions.some(action => action.kind.includes("energy_defaults"))) throw new ApiError(400, "retired_action", "日常默认值已停用，请改为记录具体日期。");
+    if (input.actions.some(action => retiredEnergyAction(action.kind))) throw new ApiError(400, "retired_action", "日常默认值和静息公式资料已停用，请记录具体日期的消耗。");
     const state = await readEnergySnapshot(tx, actor.userId);
     const [row] = await tx.insert(energyOperation).values({ id: randomUUID(), userId: actor.userId, operationId: input.operationId, origin: actor.origin, tokenId: actor.identity?.tokenId, oauthConnectionId: actor.identity?.oauthConnectionId, requestDigest: digest(input), snapshotDigest: snapshotDigest(state), payload: input, draft: input, preview: planEnergyActions(input.actions, state), expiresAt: actor.origin === "ai" ? new Date(Date.now() + 15 * 60000) : null }).returning();
     return { ...displayEnergyOperation(row), repeated: false };
@@ -169,7 +193,7 @@ async function write(tx: Transaction, userId: string, row: EnergyPreview) {
       if (row.before) await tx.update(energyDay).set(values).where(and(eq(energyDay.userId, userId), eq(energyDay.id, record.id)));
       else await tx.insert(energyDay).values({ id: record.id, userId, ...values });
     } else {
-      const values = { ...common, ...source, date: record.date, name: record.name, durationMinutes: record.durationMinutes, caloriesKcal: record.caloriesKcal, completed: record.completed };
+      const values = { ...common, ...source, date: record.date, name: record.name, durationMinutes: record.durationMinutes, caloriesKcal: record.caloriesKcal, inclusion:record.inclusion??null,inclusionBasis:record.inclusionBasis??null,completed: record.completed };
       if (row.before) await tx.update(activity).set(values).where(and(eq(activity.userId, userId), eq(activity.id, record.id)));
       else await tx.insert(activity).values({ id: record.id, userId, ...values });
     }
@@ -187,7 +211,7 @@ export async function decideEnergyOperation(db: Database, userId: string, id: st
       if (snapshotDigest(await readEnergySnapshot(tx, userId)) !== row.snapshotDigest) throw new ApiError(409, "snapshot_changed", "消耗资料或记录已改变，请刷新预览。");
       const selected = row.preview.filter(row => !row.excluded);
       if (row.origin === "ai") requireAiUpserts(selected.map(entry => entry.action));
-      if (selected.some(entry => entry.action.kind.includes("energy_defaults"))) throw new ApiError(400, "retired_action", "日常默认值已停用，请刷新预览并取消这一项。");
+      if (selected.some(entry => retiredEnergyAction(entry.action.kind))) throw new ApiError(400, "retired_action", "日常默认值和静息公式资料已停用，请刷新预览并取消这一项。");
       if (!selected.length || selected.some(row => row.error || !row.after)) throw new ApiError(400, "review_required", "请修改或取消有问题的消耗记录。");
       for (const entry of selected) {
         await write(tx, userId, entry);

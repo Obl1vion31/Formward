@@ -245,3 +245,51 @@ test("AI新增修改允许；整条删除恢复、混合批量及旧待确认均
  await decideMealOperation(db,userId,manual.id,manual.revision,"confirm");
  assert.ok((await readMealSnapshot(db,userId)).meals[0].deletedAt);
 });
+
+test("照片未齐和旧照片核对标识不阻止文字保存；不自动另建食材库",async()=>{
+ const {userId,identity}=await owner();
+ const op=await submitRecordOperation(db,identity,input([{...meal,expectedImageCount:2,photoReview:{dateConfirmed:false,mealTypeConfirmed:false,identityConfirmed:false,amountConfirmed:false,cookingConfirmed:false,questions:["未知做法保留估算"]}}]));
+ assert.equal(op.canConfirm,true);assert.deepEqual(op.needsUserInput,[]);assert.equal(op.rows.length,1);
+ await reviewRecordOperation(db,userId,op.id,{kind:"confirm",revision:op.revision});
+ const snapshot=await readMealSnapshot(db,userId);assert.equal(snapshot.meals.length,1);assert.equal(snapshot.foods.length,0);
+});
+test("按运动累计的消耗编辑拿到同一服务端预览内运动，不把400误作0",async()=>{
+ const {userId,identity}=await owner();
+ const op=await submitRecordOperation(db,identity,input([{key:"energy",kind:"save_energy_day",date:"2024-08-01",entryMode:"components",activityMode:"activities",restingKcal:"1800"},{key:"run",kind:"save_activity",date:"2024-08-01",name:"虚构跑步",caloriesKcal:"400"}]));
+ assert.equal(op.energySnapshot?.activities[0].caloriesKcal,"400");
+ assert.equal(op.energySnapshot?.days[0].restingKcal,"1800");
+ assert.equal((await readMealSnapshot(db,userId)).meals.length,0);
+});
+
+test("先录运动再提交总数，会列出独立包含核对项；取消不删事实，可一次选择全部",async()=>{
+ const {userId,identity}=await owner();
+ const op:RecordReviewView=await submitRecordOperation(db,identity,input([{key:"run",kind:"save_activity",date:"2024-08-01",name:"虚构先录运动",caloriesKcal:"300"}]));
+ await reviewRecordOperation(db,userId,op.id,{kind:"confirm",revision:op.revision});
+ let aggregate:RecordReviewView=await submitRecordOperation(db,identity,input([{key:"total",kind:"save_energy_day",date:"2024-08-01",entryMode:"total",totalKcal:"600"}]));
+ assert.equal(aggregate.rows.length,2);assert.equal(aggregate.rows.filter(row=>row.inclusionReview).length,1);assert.equal(aggregate.canConfirm,false);
+ const activity=aggregate.rows.find(row=>row.action.kind==="save_activity")!;
+ aggregate=await reviewRecordOperation(db,userId,aggregate.id,{kind:"exclude",revision:aggregate.revision,keys:[activity.key]});assert.equal(aggregate.canConfirm,false);
+ aggregate=await reviewRecordOperation(db,userId,aggregate.id,{kind:"restore",revision:aggregate.revision,keys:[activity.key]});
+ aggregate=await reviewRecordOperation(db,userId,aggregate.id,{kind:"energy_inclusion",revision:aggregate.revision,keys:[activity.key],inclusion:"additional"});assert.equal(aggregate.canConfirm,true);
+ assert.equal(Number(aggregate.rows.find(row=>row.action.kind==="save_energy_day")!.energy!.day!.totalKcal),900);
+ await reviewRecordOperation(db,userId,aggregate.id,{kind:"confirm",revision:aggregate.revision});
+ const days=await db.select().from(schema.energyDay).where(eq(schema.energyDay.userId,userId));assert.equal(Number(days[0].totalKcal),600);
+});
+test("更改待确认总数后增加独立运动核对；每份餐项修改清楚列出移除内容",async()=>{
+ const {userId,identity}=await owner();
+ let op:RecordReviewView=await submitRecordOperation(db,identity,input([{key:"run",kind:"save_activity",date:"2024-08-01",name:"虚构运动",caloriesKcal:"300"},{key:"total",kind:"save_energy_day",date:"2024-08-01",entryMode:"total",totalKcal:"600"}]));
+ const workout=op.rows.find(row=>row.action.kind==="save_activity")!;
+ op=await reviewRecordOperation(db,userId,op.id,{kind:"energy_inclusion",revision:op.revision,keys:[workout.key],inclusion:"included"});
+ assert.equal(op.canConfirm,true);
+ const total=op.rows.find(row=>row.action.kind==="save_energy_day")!;
+ assert.equal(total.action.kind,"save_energy_day");if(total.action.kind!=="save_energy_day")throw new Error("虚构总数行缺失");
+ op=await reviewRecordOperation(db,userId,op.id,{kind:"update",revision:op.revision,key:total.key,action:{...total.action,kind:"save_energy_day",date:"2024-08-01",entryMode:"total",totalKcal:"700"}});
+ // 修改过的包含选择必须再次检查，不根据大小推断。
+ assert.equal(op.energySnapshot?.days[0].totalKcal,"700");assert.equal(op.canConfirm,false);
+ const first:RecordReviewView=await submitRecordOperation(db,identity,input([{...meal,items:[...meal.items,{kind:"food",name:"虚构被移除食物",sourceKind:"estimated",nutrition}]}]));
+ await reviewRecordOperation(db,userId,first.id,{kind:"confirm",revision:first.revision});
+ const saved=(await readMealSnapshot(db,userId)).meals[0];
+ const changed=await submitRecordOperation(db,identity,input([{...meal,id:saved.id,version:saved.version,items:[{kind:"food",originalItemId:saved.items[0].id,name:saved.items[0].name,quantity:"1.5",unit:"份",nutritionBasis:"per_portion",perPortionNutrition:nutrition,sourceKind:"estimated"}]}]));
+ assert.equal(changed.rows[0].meal?.changes?.removed[0].name,"虚构被移除食物");
+ assert.equal(Number(changed.rows[0].meal?.meal?.totals.values.caloriesKcal),300);
+});

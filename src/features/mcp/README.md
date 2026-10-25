@@ -6,9 +6,9 @@
 
 修改工具时同步 AI 接入说明、权限声明和隔离测试；不得在工具中另写健康数据规则或向模型返回凭据。
 
-饮食增加search_foods、query_meals、submit_meal_operation、get_meal_operation，复用meals feature；工具声明meals:read／meals:write，原身体授权不自动扩权。服务版本1.9.0，写入均返回网页登录确认链接，照片分析的杂只包含剩余食物；reference 支持手动合并来源，AI label／composition_table 保留。食材描述保留实际组成、规格、各成分分量及来源／计算／结果，不写录入背景或无关排除清单。
+饮食增加search_foods、query_meals、submit_meal_operation、get_meal_operation，复用meals feature；工具声明meals:read／meals:write，原身体授权不自动扩权。服务版本1.10.0，写入均返回网页登录确认链接，照片分析的杂只包含剩余食物；reference 支持手动合并来源，AI label／composition_table 保留。食材描述保留实际组成、规格、各成分分量及来源／计算／结果，不写录入背景或无关排除清单。
 
-import_meal_images沿用meals:write，顶层files声明openai/fileParams，最多20 MiB，下载并私有保存原图后返回附件ID、status及逐文件failures；部分成功保留成功ID，只重试失败项。日志记录工具名、文件结构和阶段错误，不记录下载地址或健康内容；不直接保存餐次。成功附件仍须提交到对应餐次预览，已有餐次用id/version更新；预览含图时说明待网页确认，用户确认后查询最新审核／餐次再报告关联状态。照片的photoReview未核对或questions未解决时返回needsUserInput。search_foods返回兼容的空presets；query_meals可传timezone取得日期上下文。
+import_meal_images沿用meals:write，顶层files声明openai/fileParams，最多20 MiB，下载并私有保存原图后返回附件ID、status及逐文件failures；部分成功保留成功ID，只重试失败项。日志记录工具名、文件结构和阶段错误，不记录下载地址或健康内容；不直接保存餐次。成功附件仍须提交到对应餐次预览，已有餐次用id/version更新；预览含图时说明待网页确认，用户确认后查询最新审核／餐次再报告关联状态。照片不要求五项勾选，缺图可直接保存文字；只有真实缺失、重复或包含关系问题阻止保存。search_foods返回兼容的空presets；query_meals可传timezone取得日期上下文。
 
 search_foods 与 HTTP 食材查询共用 queryFoods，在实时结果附 foodLibraryRules。新写入的食材说明含个人餐次背景／泛化提醒时，feature 在创建预览前返回 food_description；修正后可用原 operationId 重试。工具描述修改后按官方自定义 MCP 流程刷新连接并开新对话，不把刷新视为旧数据清理。
 
@@ -16,8 +16,10 @@ search_foods 与 HTTP 食材查询共用 queryFoods，在实时结果附 foodLib
 
 统一记录工具 submit_record_operation／get_record_operation 复用 records feature，共13个工具。支持任意混合项和同批 foodRef，返回一个链接，逐项只核对草稿，底部统一保存；按内容检查身体／饮食／消耗对应权限，旧连接不自动扩权。
 
-消耗查询为GET /api/v1/energy与MCP query_energy，统一提交支持每日消耗、活动及公式资料的保存／软删除／恢复。OAuth独立energy:read／energy:write，旧连接须重新授权；手动令牌沿用read／write。规则、字段及虚构例子见[消耗文档](../../../docs/energy.md)。
+消耗查询为GET /api/v1/energy与MCP query_energy，统一提交支持每日消耗与活动的新增／修改。OAuth独立energy:read／energy:write，旧连接须重新授权；手动令牌沿用read／write。规则、字段及虚构例子见[消耗文档](../../../docs/energy.md)。
 
-消耗显式支持entryMode／activityMode与分项来源；日常默认动作不在新工具schema中提供。旧消耗预览刷新后遵循新规则，不能直接确认退役动作。公式独立对照，未录日期不自动生成消耗。
+消耗显式支持entryMode／activityMode与分项来源；日常默认动作不在新工具schema中提供。旧消耗预览刷新后遵循新规则，不能直接确认退役动作。公式和日常默认均退役，旧存储审计保留，未录日期不生成消耗。
 
 完整接入使用authorize_formward统一检查并申请身体、饮食／食材、消耗的查询与提交预览权限。该工具只返回连接状态，不读取健康内容、不生成预览或保存事实；OAuth同意仍由用户完成。缺权限时保留原有授权，并合并申请三类记录权限；只有读取权限的连接在日常查询补授权时只申请三类读取，明确调用完整接入或提交工具才申请提交权限。已有令牌不会因请求授权而自动扩权，旧客户端与单类授权继续可用。
+
+新增每份营养与可靠包装换算、运动included／additional包含关系；旧nutrition总量与无关系明细保持原语义。AI不提供整条删除恢复或批量删除，用户只在网页统一确认后保存，不增加OAuth权限。

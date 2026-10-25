@@ -15,11 +15,12 @@ const imageIds = z.array(z.string().uuid()).max(8).refine(ids => new Set(ids).si
 const evidenceNote = z.object({ source: z.enum(["user", "label", "food_library", "composition_table", "estimate", "unknown"]), basis: text(2000).min(1), uncertainty: text(1000).nullable().optional() }).strict();
 export const reviewExplanationSchema = z.object({ identity: evidenceNote.optional(), amount: evidenceNote.optional(), cooking: evidenceNote.optional(), nutrition: evidenceNote.optional() }).strict();
 export type ReviewExplanation = z.infer<typeof reviewExplanationSchema>;
-export const photoReviewSchema = z.object({ dateConfirmed: z.boolean(), mealTypeConfirmed: z.boolean(), identityConfirmed: z.boolean(), amountConfirmed: z.boolean(), cookingConfirmed: z.boolean(), questions: z.array(text(500).min(1)).max(20).default([]) }).strict();
+export const photoReviewSchema = z.object({ dateConfirmed: z.boolean(), mealTypeConfirmed: z.boolean(), identityConfirmed: z.boolean(), amountConfirmed: z.boolean(), cookingConfirmed: z.boolean(), questions: z.array(text(500).min(1)).max(20).default([]) }).strict().meta({deprecated:true,description:"旧照片核对格式，仅留档兼容；不要求逐项勾选，不阻止文字保存。"});
 export const foodDraftSchema = z.object({
   id: z.string().uuid().optional(), version: z.number().int().positive().optional(),
   category: z.enum(["meal", "ingredient"]).optional(),
   name: text(200).min(1), brand: text(200).nullable().optional(), preparation: text(200).nullable().optional(),
+  servingQuantity:decimal.refine(v=>Number(v)>0).nullable().optional(), servingUnit:text(30).min(1).nullable().optional(),
   baseQuantity: decimal.refine(v => Number(v) > 0, "基准数量须大于0"), unit: text(30).min(1),
   imageIds, expectedImageCount: z.number().int().min(0).max(8).optional(), nutrition: nutritionSchema, sourceKind: source, basis: text(4000).nullable().optional(), evidenceUrl: evidence,
 }).strict();
@@ -30,6 +31,7 @@ export const itemSchema = z.object({
   kind: z.enum(["food", "misc", "whole"]), name: text(200).min(1),
   quantity: decimal.refine(v => Number(v) > 0, "食用量须大于0").nullable().optional(), unit: text(30).nullable().optional(),
   amountDecision: z.enum(["provided", "estimate_accepted", "unknown_accepted"]).optional(), foodId: z.string().uuid().optional(), foodVersion: z.number().int().positive().optional(), foodDraft: foodDraftSchema.optional(),
+  nutritionBasis:z.enum(["consumed_total","per_portion"]).optional(), perPortionNutrition:nutritionSchema.optional(),
   nutrition: nutritionSchema.optional(), sourceKind: source.default("estimated"), basis: text(4000).nullable().optional(), evidenceUrl: evidence, reviewExplanation: reviewExplanationSchema.optional(),
 }).strict();
 export type ItemDraft = z.infer<typeof itemSchema>;
@@ -57,7 +59,8 @@ export type MealDayInput = { operationId: string; date: string; status: "complet
 export const mealDayLabels: Record<MealDayStatus,string> = {complete:"已记完",incomplete:"未记全",unconfirmed:"待确认是否记完"};
 export type MealView = Omit<MealDraft, "items"> & { id: string; version: number; day?: MealDayView; items: ItemView[]; totals: Totals; source: "manual" | "ai" | "initialization"; deletedAt: string | null };
 export type MealSnapshot = { meals: MealView[]; foods: FoodView[] };
-export type PreviewRow = { excluded?: boolean; before?: FoodView | MealView; review?: { itemId: string; operationId: string; originalInput: unknown; reviewedInput: unknown; editedBy?: { userId: string; at: string } }; action: MealAction; food?: FoodView; meal?: MealView; error?: string; duplicateIds: string[]; warnings: string[]; needsUserInput?: string[] };
+export type MealChanges={added:ItemView[];removed:ItemView[];changed:{before:ItemView;after:ItemView}[];metadata:string[]};
+export type PreviewRow = {changes?:MealChanges; excluded?: boolean; before?: FoodView | MealView; review?: { itemId: string; operationId: string; originalInput: unknown; reviewedInput: unknown; editedBy?: { userId: string; at: string } }; action: MealAction; food?: FoodView; meal?: MealView; error?: string; duplicateIds: string[]; warnings: string[]; needsUserInput?: string[] };
 export type MealOperationView = { id: string; revision: number; status: string; origin: string; rows: PreviewRow[]; canConfirm: boolean; canConfirmWithoutImages?: boolean; missingImages?: number; needsUserInput?: { index: number; questions: string[] }[]; createdAt: string; expiresAt: string | null; confirmationPath: string; result: { saved: number; message: string } | null };
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -83,8 +86,12 @@ export function scaled(value: string, quantity: string, base: string) {
   const units = (numerator + divisor / BigInt(2)) / divisor;
   return `${units / BigInt(10000)}.${String(units % BigInt(10000)).padStart(4, "0")}`;
 }
-export function nutritionFor(food: FoodDraft, quantity: string): Nutrition {
-  return Object.fromEntries(metrics.map(metric => [metric, food.nutrition[metric] === null ? null : scaled(food.nutrition[metric]!, quantity, food.baseQuantity)])) as Nutrition;
+export function nutritionFor(food: FoodDraft, quantity: string, unit=food.unit): Nutrition {
+  const amount=unit===food.servingUnit && food.servingQuantity?scaled(quantity,food.servingQuantity,"1"):quantity;
+  return Object.fromEntries(metrics.map(metric => [metric, food.nutrition[metric] === null ? null : scaled(food.nutrition[metric]!, amount, food.baseQuantity)])) as Nutrition;
+}
+export function portionNutrition(nutrition: Nutrition, quantity: string): Nutrition {
+ return Object.fromEntries(metrics.map(metric=>[metric,nutrition[metric]===null?null:scaled(nutrition[metric]!,quantity,"1")])) as Nutrition;
 }
 export function sumNutrition(rows: Nutrition[]): Totals {
   const values = emptyNutrition(), incomplete = {} as Record<Metric, boolean>;

@@ -60,3 +60,8 @@
  .workspace > .section:first-of-type > .title > .title { flex:1; }
  .pageMenu { margin-left:auto; }.pageMenu summary { padding-inline:6px; }
 }
+
+.inclusion { margin-top:12px; padding:12px 14px; border:1px solid #bea47860; border-radius:5px; }
+.inclusion>span { display:block; color:#d6c4a8; font-size:13px; }.inclusion>div { display:flex; gap:8px; margin-top:8px; }
+.inclusion button { min-height:40px; padding:7px 14px; border:1px solid #ffffff25; border-radius:4px; }
+.inclusion button[aria-pressed=true] { color:#f0e9dd; background:#bea47824; border-color:#bea478; }

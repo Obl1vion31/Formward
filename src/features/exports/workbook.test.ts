@@ -33,7 +33,7 @@ test("原生xlsx回读保留数字、零、未知、来源、日完整状态与�
   const raw = await buildAccountWorkbook(data(), { from: null, to: null }, context);
   assert.equal(Buffer.from(raw).subarray(0,2).toString(), "PK");
   const book = await read(raw);
-  assert.deepEqual(book.worksheets.map(sheet => sheet.name), ["每日汇总", "餐次", "食物明细", "身体记录", "每日消耗", "活动明细", "食材库", "公式资料", "说明"]);
+  assert.deepEqual(book.worksheets.map(sheet => sheet.name), ["每日汇总", "餐次", "食物明细", "身体记录", "每日消耗", "活动明细", "食材库", "说明"]);
   assert.equal(value(book, "每日汇总", 2, "记录日期"), date);
   assert.equal(value(book, "每日汇总", 2, "热量 · kcal"), 1250.25);
   assert.equal(value(book, "每日汇总", 2, "脂肪 · g"), 0);
@@ -61,7 +61,7 @@ test("范围含首末日且保留末日次晨配对，参考食材与已生效�
   assert.equal(value(book, "每日汇总", 2, "次晨变化 · kg"), 0.5);
   assert.equal(value(book, "每日汇总", 2, "体重变化含估计"), "是");
   assert.equal(book.getWorksheet("食材库")!.rowCount, 2);
-  assert.equal(value(book, "公式资料", 2, "生效日期"), "2024-01-01");
+  assert.equal(book.getWorksheet("公式资料"), undefined);
 });
 test("用户公式样式文字按字符串保存，不生成公式或超链接执行对象", async () => {
   const book = await read(await buildAccountWorkbook(data(), { from: null, to: null }, context));

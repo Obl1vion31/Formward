@@ -46,7 +46,7 @@ export async function checkMobile({baseURL,context,page,today,token}) {
     assert.equal(await page.getByRole("navigation",{name:"主导航",exact:true}).count(),0);
     if(width<=700) {
       const total=await page.getByRole("group",{name:"本餐合计",exact:true}).boundingBox();
-      const save=await page.getByRole("button",{name:"确认并全部保存",exact:true}).boundingBox();
+      const save=await page.getByRole("button",{name:"确认保存",exact:true}).boundingBox();
       const second=await page.getByText("虚构酸奶",{exact:true}).boundingBox();
       assert.ok(total.y+total.height < height-60);
       assert.ok(second.y+second.height <= save.y+1);
@@ -89,6 +89,6 @@ export async function checkMobile({baseURL,context,page,today,token}) {
     p.once("dialog",prompt=>prompt.accept());await p.getByRole("button",{name:"关闭编辑",exact:true}).click();await d.waitFor({state:"hidden"});await p.clock.runFor(400);
     await p.setViewportSize({width:844,height:390});const nav=p.getByRole("navigation",{name:"主导航",exact:true});await nav.getByRole("link",{name:"身体",exact:true}).tap();await p.waitForURL("**/dashboard/measurements");assert.equal(await nav.getByRole("link",{name:"身体",exact:true}).getAttribute("aria-current"),"page");await p.getByRole("heading",{name:"身体记录",exact:true}).waitFor();await p.screenshot({path:artifacts+"/touch-landscape.png"});assert.deepEqual(touchErrors,[]);
   } finally { await touch.close(); }
-  await page.goto(review);await page.getByRole("button",{name:"确认并全部保存",exact:true}).click();await page.waitForURL(baseURL+"/dashboard");
+  await page.goto(review);await page.getByRole("button",{name:"确认保存",exact:true}).click();await page.waitForURL(baseURL+"/dashboard");
   console.log("手机事实优先验收通过：每日补录、明确保存日期、餐次合计与中文餐次、三种手机和矮视口、四栏导航、审核单保存栏、跨零点草稿与触屏横屏。");
 }

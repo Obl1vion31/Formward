@@ -340,7 +340,7 @@ Next.js 的 `page.tsx`、`layout.tsx` 默认属于服务端组件。交互组件
 | 内容 | 已知数据 | 这次怎么输入 | 本次营养 |
 | --- | --- | --- | --- |
 | 示例食物 A | 每 100g：120 kcal，蛋白质 5g、碳水 16g、脂肪 4g | 从库中选择，再填写 150g | 按 1.5 倍换算：180 kcal、7.5g／24g／6g |
-| 示例饮料 B | 没有对应的库条目 | 在空白行自由填写 200mL 和本次营养 | 直接填本次 60 kcal、0g／15g／0g |
+| 示例饮料 B | 没有对应的库条目 | 在空白行填1份饮料（实际200mL），填这一份营养 | 每份60 kcal、0g／15g／0g，1份仍为60 kcal |
 | 午餐合计 | 两项本次营养相加 | 在编辑器顶部预览 | 240 kcal、7.5g／39g／6g |
 
 食材 A 的换算发生在 [model.ts](../src/features/meals/model.ts) 的 `nutritionFor`；各项相加由 `sumNutrition` 完成。饮料 B 的 60 kcal 已表示本次摄入，不能再乘 200。未知数值留空对应 `null`，只有明确知道为零才填 0。
@@ -386,7 +386,7 @@ sequenceDiagram
 | 1. 打开记录框 | 浏览器 | `MealsView` → `addMeal` | 选中的日期、设备时间 | 准备新餐草稿，建议餐次名称并打开编辑框 | `MealEditor` 的 `initial` |
 | 2. 选择食材 A | 浏览器 | `MealEditor` → `choose` | 已读取的食材编号、版本、规格 | 将食材放进本餐；g 单位的用量先留空 | 编辑器的 `draft.items` |
 | 3. 填写 150g | 浏览器 | `MealEditor` → `setItem`、`values` | 新用量和食材规格 | 更新草稿，调用 `nutritionFor` 预览 180 kcal | 本餐表格和合计 |
-| 4. 自由填写饮料 B | 浏览器 | 同一编辑器 | 名称、200mL、直接填写的本次营养 | 保留为自由餐项；常驻空白行不作为有效餐项保存 | 编辑器草稿和合计 |
+| 4. 自由填写饮料 B | 浏览器 | 同一编辑器 | 名称、1份（实际200mL）、每份营养 | 保留为自由餐项；常驻空白行不作为有效餐项保存 | 编辑器草稿和合计 |
 | 5. 点击保存 | 浏览器 | 编辑器的表单提交处理 | 当前草稿中的非空餐项 | 调用收到的 `save` 回调 | `MealsView` 提供的函数 |
 
 这里只是修改程序的临时记忆。即使你已经看见 240 kcal，也不代表数据库里已经多了一餐。食材选择框中的搜索同样可以直接筛选已读取的数据，不必每敲一个字都重新查数据库。
@@ -437,7 +437,7 @@ sequenceDiagram
 
 | 名称或位置 | 它描述什么 | 用这顿午餐理解 |
 | --- | --- | --- |
-| `MealDraft`／`draft` | 正在编辑的一餐 | 日期、餐次、食材 A 的 150g、自由项 B 的本次营养 |
+| `MealDraft`／`draft` | 正在编辑的一餐 | 日期、餐次、食材 A 的 150g、自由项 B 的每份营养与份数 |
 | `MealInput` | 一次提交可以包含的动作 | 请求编号，加上一个保存这顿午餐的动作 |
 | `meal_operations` 中的请求和预览 | 这次操作想做什么、能否确认 | 原输入、当前草稿、准备保存的餐次、审核状态 |
 | `meals`、`meal_items` | 已确认的餐次和餐项事实 | 一条午餐记录，两条有效餐项，合计为 240 kcal |
@@ -454,7 +454,7 @@ sequenceDiagram
 | 保存校验失败，编辑框仍打开 | 显示错误，保留本轮输入，方便修正 | `MealsView.perform` 与错误返回 |
 | 保存时连点按钮 | 浏览器忙碌保护阻止重复发起，服务端仍检查重复 | `busyRef`、按钮状态与业务操作编号 |
 | 网络断开，没有收到成功结果 | 服务端可能尚未保存，也可能已经保存但响应丢失，不能仅据网络错误判断 | 相同内容重试使用同一请求编号，由服务端识别 |
-| 另一个页面先改了相关数据 | 旧版本或旧预览可能被拒绝，需要重新读取和核对 | `version`、`revision`、当前数据摘要检查 |
+| 另一个页面先改了相关数据 | AI旧预览、食材或身体旧版本可能被拒绝；网页人工编辑同一餐按实际保存顺序更新 | `version`、`revision`、当前数据摘要检查 |
 | 数据库确认事务中间失败 | 这次事务内的正式记录修改回滚；已创建的操作预览可能仍在 | `decideMealOperation` 的事务 |
 | 保存成功后再次打开或刷新 | 服务端从数据库重新读取，不依赖旧编辑器继续存活 | 第 4.2 节的读取链 |
 
@@ -573,7 +573,7 @@ AI 工具请求：api/mcp/route.ts ─────────┘
 | `foods` | 食材A编号 | 用户甲编号 | 示例食物 A，基准 100g，120 kcal |
 | `meals` | 午餐编号 | 用户甲编号 | 示例午餐，某日 |
 | `meal_items` | 餐项1编号 | 用户甲编号 | `meal_id = 午餐编号`，`food_id = 食材A编号`，150g，180 kcal |
-| `meal_items` | 餐项2编号 | 用户甲编号 | `meal_id = 午餐编号`，`food_id = null`，自由项 B，200mL，60 kcal |
+| `meal_items` | 餐项2编号 | 用户甲编号 | `meal_id = 午餐编号`，`food_id = null`，自由项 B，1份（200mL），60 kcal；另存每份输入口径 |
 
 `meal_items.meal_id` 指向餐次，说明这项属于哪一餐；`food_id` 可以指向食材库，也可以为空。表之间指向其他记录的约束叫**外键**。例如餐项引用的餐次应该存在；本项目的部分组合外键还会一起检查账号，防止串到另一账号的数据。
 
@@ -622,7 +622,7 @@ SELECT * FROM meals WHERE user_id = '示例账号编号';
 
 事务不等于“此前所有步骤都撤销”。例如创建预览是之前的一次事务，确认失败后预览可以仍然存在；Blob 照片也不在 PostgreSQL 事务里面，不能期待数据库自动撤销所有文件上传。
 
-同一份数据被不同页面同时编辑，还要检查版本：`version` 表示记录版本，`revision` 表示审核草稿修订号。你拿旧版本提交时，系统需要拒绝或要求重新核对，而不是让后提交的人直接盖掉新内容。
+同一份数据被不同页面同时编辑，还要检查版本：`version` 表示记录版本，`revision` 表示审核草稿修订号。AI待确认申请仍须拒绝旧版本并重新核对；网页人工编辑同一餐按实际保存先后生效，后保存的版本采用，并保留前后记录。其他类型仍使用各自版本保护。
 
 ### 6.6 改了 schema，为什么数据库还没有新列
 
@@ -689,7 +689,7 @@ flowchart LR
 | 哪一步 | 在哪里运行 | 文件／函数 | 收到什么 | 做什么 | 交给谁 |
 | --- | --- | --- | --- | --- | --- |
 | 1. 打开 | Next.js服务端 | [消耗page.tsx](../src/app/dashboard/energy/page.tsx) | 登录账号 | 顺序读消耗与身体记录 | `EnergyView` |
-| 2. 填写 | 浏览器 | [energy-view.tsx](../src/features/activities/energy-view.tsx) → [EnergyEditor](../src/features/activities/energy-editor.tsx) | 日记录／活动／资料 | 保存浏览器草稿，不改数据库 | `execute`回调 |
+| 2. 填写 | 浏览器 | [energy-view.tsx](../src/features/activities/energy-view.tsx) → [EnergyEditor](../src/features/activities/energy-editor.tsx) | 日记录／活动／包含关系 | 保存浏览器草稿，不改数据库 | `execute`回调 |
 | 3. 提交 | 浏览器到服务端 | [actions.ts](../src/app/dashboard/energy/actions.ts) 的 `saveEnergyAction` | 同一内容复用的operationId和actions | 检查登录，调用共用业务 | `submitEnergyOperation` |
 | 4. 校验与保存 | 服务端和数据库 | [activities/records.ts](../src/features/activities/records.ts) | 账号、版本和动作列表 | 预览后确认，同日多项事务保存事实和事件 | `energyPresentation` |
 | 5. 计算读数 | 服务端 | [activities/presentation.ts](../src/features/activities/presentation.ts) → `energyDays` | 已保存的数值、明细和模式 | 计算最终读数，未采用字段不叠加，不另存一份合计 | 消耗与总览交互组件 |
@@ -697,9 +697,11 @@ flowchart LR
 
 “日常默认值”已停用。一次性初始化只会把明确账号、日期和数值组成一份审核批次，用户确认后保存这些日期的记录；页面不会把某个历史平均值自动套到今天或未来。内部估算标识和审计仍保留，去掉勾选控件不等于删除记录依据。
 
-公式资料是身高、出生日期和公式性别参数，只用来独立计算一个对照结果，不自动成为当天静息。它先找当天空腹实测，再看已有当天估计，再找过去30日晨重；依据不足就空着，不会造身体记录。新分项记录的空活动合计按0保存；API显式未知和热量未知的运动仍未知。完整规则见[热量消耗](energy.md)。
+静息公式与资料已经撤下，旧资料和审计仍在数据库，但页面不再计算或自动采用。新分项记录的空活动合计按0保存；API显式未知和额外运动热量未知仍未知。完全未录日期不会产生消耗。
 
-**试着回答**：只记总数3100时，跑步800会不会再加一次？答：不会，只有当前总数模式参与。未录今天但有公式资料，今天会自动出现消耗吗？答：不会。估算摄入300、消耗200能否算盈余？答：当天确认已记完时可以，两个数值都有就得到+100；估算标记不会阻止相减。若当天未记全／未确认，摄入照常展示，盈余留空。
+如果先录总消耗600，再录运动300，系统不能从大小知道这300是否已经在600里面。选择“已包含”就仍为600，选择“额外增加”才为900。先录运动再录总数也一样；活动合计也遵守同一规则。纯运动累计没有总数需要去重，直接将已完成明细相加。完整规则见[热量消耗](energy.md)。
+
+**试着回答**：只记总数3100时，跑步800会不会再加一次？答：由用户选择是否已包含，不能猜。未录今天但有旧公式资料，会自动出现消耗吗？答：不会。估算摄入300、消耗200能否算盈余？答：当天确认已记完时得到+100；估算标记不阻止相减，未记全／未确认时盈余留空。
 
 
 ### 7.3 身体记录：普通录入与估算有两条路线
@@ -755,7 +757,7 @@ flowchart LR
 
 当前每批最多 8 张，每张最多 20 MiB，支持 JPEG／PNG／WebP。上传成功只证明图片保存了，餐次可能尚未确认。数据库里保存图片信息和关系，Private Blob 里保存原文件；`public/` 只放可以公开访问的素材，不放用户照片。
 
-缺图时必须补传，或由用户明确选择先保存文字；照片事实尚待核对时也不能由 AI 代确认。数据库事务不会自动控制 Blob，失败清理和重试由图片业务另外协调。
+照片不是保存文字的必需条件。缺图可直接保存文字并之后补传，保留失败提示及缺图事实；不需要五项勾选，也不把未知写成已核对。数据库事务不会自动控制 Blob，失败清理和重试由图片业务另外协调。
 
 ### 7.6 导入和维护：不通过网页，也要经过业务
 
@@ -820,7 +822,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 | [features/dashboard](../src/features/dashboard/README.md) | 总览计算、图表与卡片 | 聚合身体、饮食与消耗记录，不另存一份当天事实 |
 | [features/mcp](../src/features/mcp/README.md) | AI 工具注册、协议和身份适配 | 将工具调用转交现有业务 |
 | [features/imports](../src/features/imports/README.md) | 身体和饮食 TSV 解析与预览 | 正式写入仍交给对应业务 |
-| [features/activities](../src/features/activities/README.md) | 每日消耗、活动明细、公式资料、预览与审计 | 网页、HTTP和MCP共用计算和写入 |
+| [features/activities](../src/features/activities/README.md) | 每日消耗、活动明细及包含关系、预览与审计；退役资料仅保留 | 网页、HTTP和MCP共用计算和写入 |
 | [src/components](../src/components/README.md) | 多页面共用的等待、链接、日期、设备判断和弹窗辅助 | 业务专用组件仍留在 feature 或页面附近 |
 | [src/db](../src/db/README.md) | 连接与表结构声明 | 业务用这里的对象查询数据库 |
 | [drizzle](../drizzle/README.md) | 版本化数据库结构迁移 | 对指定环境执行后才改变真实结构 |
@@ -837,7 +839,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 | 饮食表格、拖拽、弹窗 | `meals-view.tsx`、`meal-editor.tsx` | 并列看 `meals.module.css`；不要顺手修改保存规则 |
 | 食材营养换算／自由填写 | `meals/model.ts` | `meal-editor.tsx` 的预览，`meals/records.ts` 的正式校验：两侧保持同一语义 |
 | 摄入图的显示和占比 | `nutrition-chart.tsx`、`meals/model.ts` | `MealsView` 中切换状态；柱高是已记录 kcal，分段可切换克数或能量占比 |
-| 静息公式／录入模式／活动累计 | `activities/model.ts` | `activities/presentation.ts`服务端展示数据，`activities/records.ts`保存校验，`energy-editor.tsx`输入，`energy-view.tsx`展示 |
+| 录入模式／运动包含关系／活动累计 | `activities/model.ts` | `activities/presentation.ts`服务端展示数据，`activities/records.ts`保存校验，`energy-editor.tsx`输入，`energy-view.tsx`展示 |
 | 总览盈余、次晨配对 | `dashboard/model.ts` | `overview-trend.tsx` 和 [overview.module.css](../src/features/dashboard/overview.module.css)：计算与画图分开找 |
 | 身体图、点选、详情 | `measurements-view.tsx` | [measurements-view.module.css](../src/features/measurements/measurements-view.module.css)；内部 `TrendPlot`、`MeasurementInspector`、`DayOverview` 对应区域 |
 | 身体日期与候选选择 | [days.ts](../src/features/measurements/days.ts)、[calendar.ts](../src/features/measurements/calendar.ts)、[trend.ts](../src/features/measurements/trend.ts)、[summary.ts](../src/features/measurements/summary.ts) | 选择数据与显示数据的口径，不是改 CSS 就能改变 |
@@ -1039,7 +1041,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 | 页面应有的实际行为 | [界面说明](interface.md) |
 | 身体日期、空腹、估算和历史规则 | [身体记录](measurements.md) |
 | 餐项、食材、快照、图片和审核规则 | [饮食记录](meals.md) |
-| 静息、活动、全天覆盖与公式资料 | [热量消耗](energy.md) |
+| 静息、活动、总数与明细是否重复 | [热量消耗](energy.md) |
 | 每个字段、外键和迁移的准确含义 | [数据库字典](database.md)、[数据模型原则](data-model.md) |
 | AI 请求具体怎么发、怎样授权 | [AI 接入](ai-api.md) |
 | 首页人物与转身素材怎么匹配 | [画面校准](frame-calibration.md) |
@@ -1054,11 +1056,11 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 
 “昨天没录也能看到补录”来自 [record-dates.ts](../src/components/record-dates.ts)：它像在日历上列出最近10天，不向数据库增加空记录。饮食的 [MealsView](../src/features/meals/meals-view.tsx) 和消耗的 [EnergyView](../src/features/activities/energy-view.tsx) 再把真实数据对上日期。比如昨天只有活动，仍能补录日消耗；昨天完全空白也能打开标着昨天日期的表单。[RecordDateContext](../src/components/record-date-context.tsx) 在跨零点时提醒正在编辑原日期，保存不会自动变成新一天。
 
-确认页的“本餐960 kcal”从服务端已有的MealView.totals读取。[RecordReview](../src/features/records/record-review.tsx) 只组织字号和位置；它不会把未知当0，不另写一套营养算法。标记已核对只是草稿状态，底部统一保存才调用原有确认事务。总览默认日期也只是选择已有读数，不补造摄入或消耗。
+确认页的“本餐960 kcal”从服务端已有的MealView.totals读取。[RecordReview](../src/features/records/record-review.tsx) 只组织字号和位置；它不会把未知当0，不另写一套营养算法。普通单餐不需要标记核对，底部一次确认才调用正式事务。修改和取消只改草稿；确实缺信息、重复餐或运动包含关系不明时才提出对应问题。总览默认日期也只是选择已有读数，不补造摄入或消耗。
 
 ## 查阅补充：一天记完与账号导出
 
-“保存一餐”只表示这餐已入库，并不说明一整天已经记录齐全。例如午餐600 kcal保存后，饮食图仍画600；用户在当天记录点“已记完”以后，服务端才允许总览把当天摄入减去消耗。“未记全”保留食物和读数，不将未知补零。改餐次后需要重新确认，避免刚加晚餐还沿用旧午餐状态。既有历史按用户选择，在0023固定初始化一次，不是未来默认。
+“保存一餐”只表示这餐已入库，并不说明一整天已经记录齐全。例如午餐600 kcal保存后，饮食图仍画600；用户在当天记录点“已记完”以后，服务端才允许总览把当天摄入减去消耗。“未记全”保留食物和读数，不将未知补零。改餐次后需要重新确认，避免刚加晚餐还沿用旧午餐状态。0023只建结构；已授权账号截至2026-10-23的有效历史餐日经一次性私有维护确认，不处理其他账号，也不是未来默认。
 
 | 哪一步 | 在哪里运行 | 哪个文件／函数 | 收到什么 | 做什么 | 交给谁 |
 | --- | --- | --- | --- | --- | --- |
@@ -1068,3 +1070,19 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 | 下载自己的记录 | 服务端 | features/exports与dashboard/export | 已验证会话、可选日期范围 | 复用正式汇总，生成真正xlsx | 本人浏览器下载 |
 
 新增表meal_days保存按账号／日期唯一的状态，meal_day_events保存确认与失效审计。Excel下载不是数据库备份，不能包含密码、令牌、其他账号或公开原图地址；空值和实际0保留区别。
+
+
+## 查阅补充：每份营养、包装与紧凑详情
+
+“每份”和“这次总量”是不同输入。虚构鸡蛋每个90kcal，填1.5个，结果是135；新自由项同时保存每份90和本次135，旧餐只保存本次90时不会再乘份数。编辑旧项会标出原口径，只有主动切换才按份计算。
+
+| 哪一步 | 在哪里运行 | 哪个文件／函数 | 收到什么 | 做什么 | 交给谁 |
+| --- | --- | --- | --- | --- | --- |
+| 填每份数据 | 浏览器 | meals/meal-editor.tsx | 名称、单位、份数和每份营养 | 保留草稿并用共用模型预览 | saveMealAction |
+| 算正式营养 | 服务端 | meals/records.ts的prepareItem、model.ts的portionNutrition | per_portion标识、perPortionNutrition和quantity | 计算本次值，拒绝同时提交另一套总量 | meal_items及审计 |
+| 按包输入 | 浏览器到服务端 | 同一编辑器／nutritionFor | 可靠包装规格及包数 | 先换成基准单位，再换算营养；不猜一包重量 | 本次营养与历史快照 |
+| 看差值 | 服务端到浏览器 | dashboard/model.ts的energyEquationReadings | 原始摄入、消耗、差额 | 选择必要小数位，让显示算式能算对 | 总览读数 |
+| 看详情 | 浏览器 | overview-trend.tsx／components/disclosure.tsx | 已选择日期 | 身体与消耗并排，常驻当日营养，展开单餐才挂载明细和原图 | 当前窗口 |
+| 看运动审核 | 服务端与网页 | records/operations.ts的expandEnergyRelations | 总数变化及本账号已有运动 | 列成独立核对项，选已包含／额外增加 | 底部一次确认 |
+
+对应的新列来自0024：meal_items的nutrition_basis、per_portion_nutrition；foods的serving_quantity、serving_unit；activities的inclusion、inclusion_basis。它们只为新规则保存明确的含义，不给旧餐重新乘份数，不给旧运动自动多加热量。普通Excel包含8张表，保留原数值、每份输入、包装和包含关系，不导出退役公式资料或账号凭据。

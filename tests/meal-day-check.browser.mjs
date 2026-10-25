@@ -4,7 +4,7 @@ import {mkdir} from "node:fs/promises";
 export async function checkMealDayCompletion({baseURL,context,page,token,today}){
  const date=new Date(Date.parse(today+"T12:00:00Z")-3*86400000).toISOString().slice(0,10),headers={Authorization:"Bearer "+token};
  const post=async(items)=>{const response=await context.request.post(baseURL+"/api/v1/record-operations",{headers,data:{operationId:randomUUID(),items}});assert.equal(response.status(),200);return response.json();};
- const save=async(op)=>{await page.goto(op.confirmationUrl);await page.getByRole("button",{name:"确认并全部保存",exact:true}).click();await page.waitForURL(baseURL+"/dashboard");};
+ const save=async(op)=>{await page.goto(op.confirmationUrl);await page.getByRole("button",{name:"确认保存",exact:true}).click();await page.waitForURL(baseURL+"/dashboard");};
  const meal=(key,kcal)=>({key,kind:"save_meal",date,mealType:"虚构完整性验收"+key,items:[{kind:"food",name:"虚构完整性食物"+key,nutrition:{caloriesKcal:kcal,proteinG:"20",carbsG:"0",fatG:null}}]});
  const energyResponse=await context.request.get(baseURL+"/api/v1/energy?from="+date+"&to="+date,{headers});assert.equal(energyResponse.status(),200);const current=(await energyResponse.json()).records.find(row=>row.date===date&&!row.deletedAt);
  await save(await post([{key:"day-energy",kind:"save_energy_day",...(current?{id:current.id,version:current.version}:{}),date,entryMode:"total",totalKcal:"2400"},meal("day-first","800")]));

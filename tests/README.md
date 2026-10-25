@@ -147,3 +147,5 @@ image-upload.test.ts验证20 MiB直传凭据的正常、篡改、过期、跨账
 OAuth测试覆盖部分授权到完整读写的一次网页同意、只读查询不请求提交、拒绝前不改权限、旧令牌保持原scope及连接检查不改健康／预览；浏览器验证六项记录权限同时展示和320／390／1440px统一权限列表。
 
 统一审核维护专项可在production build后运行 FORMWARD_REVIEW_MAINTENANCE_ONLY=1 pnpm test:records-browser，沿用隔离PGlite与临时Playwright环境。覆盖重复餐次对照／明确另一次进食／取消不删除原餐、日常饮食和消耗与身体审核的草稿关闭保护、回执业务日期链接、停留查看和默认2秒返回；1440／390／320px截图在 /tmp/formward-records-maintenance/。records/operations.test.ts 另验证对照与摘要账号隔离、过期及取消项目；review-summary.test.ts 验证业务日期与回执映射，不跨日相加。
+
+维护专项使用FORMWARD_MAINTENANCE_ONLY=1 pnpm test:energy-browser，验证五种宽度、矮屏、总览固定日期／折叠详情／图片延后加载、最近摄入、历史分页、每份营养及包装、运动包含关系、一次审核与减少动态效果；输入均为虚构数据。FORMWARD_REVIEW_MAINTENANCE_ONLY=1 pnpm test:records-browser覆盖重复餐对照、取消与恢复草稿、未保存输入保护和日期回执。原图表点击只选日，需显式“查看记录”打开详情，旧测试步骤须遵循同一交互。

@@ -320,3 +320,39 @@
  .summary span { font-size:12px; }.summary small { font-size:12px; margin-left:3px; }
  .tableHeading { flex-wrap:wrap; gap:4px 12px; }
 }
+
+.historyPages { display:flex; gap:14px; justify-content:space-between; align-items:center; margin:12px 0; }
+.historyPages button { min-height:44px; }.historyPages button:disabled { opacity:.35; }
+.historyDates { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; max-height:148px; overflow-y:auto; margin-bottom:18px; }
+.historyDates button { text-align:left; padding:8px 10px; border:1px solid #ffffff18; font-size:12px; min-height:48px; }
+.historyDates button>span { display:block; color:#b4afa5; font-size:11px; }
+.historyDates button[aria-pressed=true] { border-color:#bea478; }
+@media(max-width:600px) {.historyDates { grid-template-columns:repeat(2,minmax(0,1fr)); }}
+
+.mealForm input:not([type=checkbox]),.mealForm textarea,.mealForm select { border:1px solid rgba(190,164,120,.48); border-radius:4px; background:#171714; color:#f0e9dd; }
+.mealForm input:not([type=checkbox]):hover,.mealForm textarea:hover,.mealForm select:hover { border-color:#bea478; }
+.mealForm input:not([type=checkbox]):focus,.mealForm textarea:focus,.mealForm select:focus { outline:2px solid #bea478; outline-offset:1px; }
+.entryTable td input { width:100%; min-width:0; padding:8px 6px; min-height:38px; }
+.entryTable .entryQuantity { display:flex; align-items:center; gap:5px; }
+.entryQuantity>input:not(:last-child),.entryQuantity>select { width:42px; flex:0 0 42px; padding:7px 3px; text-align:center; }
+.entryQuantity>input:last-child { min-width:0; width:65px; flex:1; }
+.entryQuantity>small { margin:0; flex-shrink:0; }
+.nutritionBubble { width:min(300px,calc(100vw - 32px)); padding:18px; border:1px solid #bea47880; border-radius:8px; background:#1c1c18; color:#f0e9dd; box-shadow:0 18px 60px #0009; }
+.nutritionBubble::backdrop { background:#0003; }
+.nutritionBubble h3 { font-size:14px; margin:0 0 12px; }.nutritionBubble p { font-size:12px; color:#b4afa5; line-height:1.7; }
+.nutritionBubble label { display:grid; gap:8px; font-size:13px; }.nutritionBubble select { padding:8px; }
+.nutritionBubble button { min-height:40px; color:#bea478; }.nutritionBubble .checkbox { display:flex; align-items:center; }
+@media(max-width:960px) {.entryTable .entryQuantity { justify-content:flex-start; }.entryQuantity>input:last-child { max-width:90px; }.entryTable td input { min-height:40px; }.entryName>small { display:block; margin-top:4px; }}
+
+.quantityLabel { display:none; }.nutritionBubble { white-space:normal; text-align:left; }
+@media(max-width:960px) {
+ .entryTable .entryName { grid-column:1/4; grid-row:1; }.entryTable .entryActions { grid-column:4; grid-row:1; }
+ .entryTable .entryQuantity { grid-column:1/5; grid-row:2; justify-content:flex-start; }
+ .quantityLabel { display:inline-block; font-size:12px; color:#b4afa5; width:42px; text-align:left; flex-shrink:0; }
+ .entryQuantity>input:last-child { flex:0 1 90px; width:90px; }
+ .entryQuantity>input:not(:last-child),.entryQuantity>select { flex:0 0 48px; width:48px; }
+}
+@media(max-width:500px) {
+ .entryTable td[data-nutrient] { grid-column:span 2; }
+ .entryTable tr { gap:8px; }
+}

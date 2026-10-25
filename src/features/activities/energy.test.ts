@@ -61,7 +61,7 @@ test("体重回退复用已有估计及30日内晨重，多候选、过期与未
 });
 test("预览不写事实，重复保存幂等，清空覆盖后回到明细合计", async () => {
   const { userId } = await owner(), actor = { userId, origin: "manual" as const };
-  const raw = { operationId: randomUUID(), actions: [{ kind: "save_energy_day", date, restingKcal: "2000", activeKcal: "900", totalKcal: "3000" }, { kind: "save_activity", date, name: "虚构跑步", caloriesKcal: "800" }] };
+  const raw = { operationId: randomUUID(), actions: [{ kind: "save_energy_day", date, restingKcal: "2000", activeKcal: "900", totalKcal: "3000" }, { kind: "save_activity", date, name: "虚构跑步", caloriesKcal: "800",inclusion:"included" }] };
   const operation = await submitEnergyOperation(db, actor, raw);
   assert.equal((await readEnergySnapshot(db, userId)).days.length, 0);
   assert.equal((await submitEnergyOperation(db, actor, raw)).id, operation.id);

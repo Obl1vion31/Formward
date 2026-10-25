@@ -103,3 +103,7 @@
 .receipt a { min-height:44px; display:inline-flex; align-items:center; }
 .success .stay { border:1px solid var(--gold); border-radius:4px; color:var(--gold); background:transparent; padding:8px 16px; min-height:44px; cursor:pointer; font:inherit; }
 @media(max-width:700px),(hover:none) and (pointer:coarse) { .row > .duplicates { order:1; }.success { align-items:stretch; text-align:center; padding-block:24px; }.receipt { margin-inline:auto; text-align:left; font-size:13px; }.success .stay { align-self:center; } }
+
+.changeSummary { margin:8px 0 16px; padding:8px 12px; border-left:2px solid #bea478; background:#bea4780a; font-size:13px; }
+.changeSummary p { margin:6px 0; }.changeSummary .removed { color:#d6a5a1; }
+.energyTotal { display:flex; gap:16px; align-items:baseline; color:#b4afa5; }.energyTotal strong { color:#f0e9dd; font-weight:400; font-size:24px; }

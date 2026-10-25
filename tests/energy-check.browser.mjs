@@ -7,7 +7,7 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
   const summary = page.getByRole("group", { name: "选中日消耗", exact: true });
   await summary.waitFor(); assert.match(await summary.innerText(), new RegExp(previous(today, -1)));
   const dialog = () => page.locator("dialog[aria-labelledby]");
-  const save = async () => { await dialog().getByRole("button", { name: /^保存/, exact: false }).click(); await dialog().waitFor({ state: "hidden" }); };
+  const save = async () => { if(await dialog().getByRole("button",{name:"全部已包含",exact:true}).count())await dialog().getByRole("button",{name:"全部已包含",exact:true}).click();await dialog().getByRole("button", { name: /^保存/, exact: false }).click(); await dialog().waitFor({ state: "hidden" }); };
   const edit = async fields => { await page.locator(`[data-energy-day="${today}"]`).getByRole("button", { name: /^(录入|编辑)$/, exact: false }).click(); for (const [label, value] of Object.entries(fields)) await dialog().getByRole("spinbutton", { name: label, exact: true }).fill(value); await save(); };
   assert.equal(await page.getByRole("button", { name: "日常默认值", exact: true }).count(), 0);
   await edit({ "静息 · kcal": "2000", "活动合计 · kcal": "800" }); assert.match((await summary.innerText()).replaceAll(",", ""), /2800/);
@@ -25,13 +25,9 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
   await page.locator(`[data-energy-day="${today}"]`).getByRole("button", { name: /^(录入|编辑)$/, exact: false }).click(); await dialog().getByRole("button", { name: "只记总数", exact: true }).click(); await dialog().getByLabel("全天总消耗 · kcal", { exact: true }).fill("-1"); await dialog().getByRole("button", { name: "分开记录", exact: true }).click(); await save(); assert.match((await summary.innerText()).replaceAll(",", ""), /2800/);
   const todayRow = page.locator(`[data-energy-day="${today}"]`); await todayRow.getByText("活动明细", { exact: true }).click(); await todayRow.getByRole("button", { name: "编辑活动", exact: true }).click(); await dialog().getByLabel("活动热量 · kcal", { exact: true }).fill("850"); await save(); assert.match((await summary.innerText()).replaceAll(",", ""), /2850/);
   await todayRow.getByRole("button", { name: "删除活动", exact: true }).click(); await page.getByText("最近删除 · 1", { exact: true }).waitFor(); assert.match((await summary.innerText()).replaceAll(",", ""), /2000/);
-  await page.getByText("最近删除 · 1", { exact: true }).click(); await page.getByRole("button", { name: "恢复", exact: true }).click(); await page.getByText("最近删除 · 1", { exact: true }).waitFor({ state: "hidden" }); assert.match((await summary.innerText()).replaceAll(",", ""), /2850/);
+  await page.getByText("最近删除 · 1", { exact: true }).click(); await page.getByRole("button", { name: "恢复", exact: true }).click();await save(); await page.getByText("最近删除 · 1", { exact: true }).waitFor({ state: "hidden" }); assert.match((await summary.innerText()).replaceAll(",", ""), /2850/);
   await page.locator(`[data-energy-day="${today}"]`).getByRole("button", { name: /^(录入|编辑)$/, exact: false }).click(); await dialog().getByRole("button", { name: "记合计", exact: true }).click(); await dialog().getByLabel("静息 · kcal", { exact: true }).fill(""); await dialog().getByLabel("活动合计 · kcal", { exact: true }).fill("0"); await save(); assert.match((await summary.innerText()).replaceAll(",", ""), /总消耗\s*—/);
-  await page.getByLabel("消耗更多选项", { exact: true }).click(); await page.getByRole("button", { name: "静息公式与资料", exact: true }).click(); await page.getByRole("button", { name: "填写或修改公式资料", exact: true }).click(); await dialog().getByLabel("身高", { exact: true }).fill("175"); await dialog().getByLabel("出生日期", { exact: true }).fill("1994-08-01"); await dialog().getByLabel("公式性别参数", { exact: true }).selectOption("male"); await save(); assert.match((await summary.innerText()).replaceAll(",", ""), /总消耗\s*—/);
-  await page.getByLabel("消耗更多选项", { exact: true }).click(); await page.getByRole("button", { name: "静息公式与资料", exact: true }).click(); assert.match(await page.getByText(/公式估算.*kcal／天/).innerText(), /175 cm/);
-  assert.doesNotMatch(await page.locator("main").innerText(), /当前采用|来源与依据|活动合计为估算/);
-  await page.getByText("资料历史", { exact: true }).click(); await page.getByRole("button", { name: "编辑资料", exact: true }).click(); await dialog().getByLabel("生效日期", { exact: true }).fill(previous(today, -1));
-  let historicalConfirmation = false; page.once("dialog", async prompt => { historicalConfirmation = true; assert.match(prompt.message(), /生效/); await prompt.accept(); }); await save(); assert.ok(historicalConfirmation);
+  assert.equal(await page.getByRole("button",{name:"静息公式与资料",exact:true}).count(),0);
   await edit({ "静息 · kcal": "2000", "活动合计 · kcal": "800" });
   const result = await api(); assert.equal(Number(result.days[0].totalKcal), 2800); assert.equal(result.defaults, undefined); assert.equal(result.records[0].restingSourceSystem, "虚构静息设备"); assert.equal(result.records[0].activeSourceSystem, "虚构活动设备");
   // 同一份请求同时预览身体、饮食和消耗，确认之前不改变事实。
@@ -66,7 +62,7 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
   assert.equal(await chart.locator('[data-energy-band="surplus"]').first().getAttribute("fill"), "#D8B38A");
   assert.equal(await chart.locator('[data-energy-band="deficit"]').first().getAttribute("fill"), "#92B2C2");
   await positive.click(); assert.equal(await dialog().count(), 0);
-  await positive.focus(); await page.keyboard.press("ArrowRight"); assert.equal(await negative.evaluate(node => node === document.activeElement), true); await page.keyboard.press("Enter"); assert.equal(await dialog().count(), 0); await page.getByRole("button", { name: "查看记录 →", exact: true }).click(); await dialog().getByText("总消耗 2,800 kcal", { exact: true }).waitFor(); await page.keyboard.press("Escape");
+  await positive.focus();await page.keyboard.press("Escape"); await page.keyboard.press("ArrowRight"); assert.equal(await negative.evaluate(node => node === document.activeElement), true); await page.keyboard.press("Enter"); assert.equal(await dialog().count(), 0); await page.getByRole("button", { name: "查看记录 →", exact: true }).click(); await dialog().locator("strong").filter({hasText:/^2,800/}).waitFor(); await page.keyboard.press("Escape");
   // 连续虚构资料包含正负交叉、单项缺测与连续缺日，用于真实页面的视觉验收。
   const fixtures = [];
   const sharpIntake = [2390, 2670, 3690, 3360, 3820, 3170, 4280, 2780, 3100, 2180, 2510, 2340, 2520, 2290, 1850, 1770, 2360, 2560, 2790, 1810, 2240, 2190, 2380, 2910, 2230, 3260, 2160, 2710, 1940, 940];
@@ -117,11 +113,12 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
   assert.ok(await chart.locator("mask").count() > 0);
   assert.ok(await chart.locator('[data-missing-run="energy"]').count() > 0);
   assert.equal(await chart.locator("mask").evaluateAll(nodes => new Set(nodes.map(n => n.id)).size === nodes.length && nodes.every(n => n.getAttribute("maskUnits") === "userSpaceOnUse")), true);
+  await page.locator("[data-overview-date]").first().focus();await page.keyboard.press("Escape");
   const plot = chart.locator("svg"); const box = await plot.boundingBox();
   await page.mouse.move(box.x + box.width * .8, box.y + 80); const before = await page.getByLabel("日期对照", { exact: true }).getAttribute("data-selected-date");
   await page.mouse.down(); await page.mouse.move(box.x + box.width * .4, box.y + 85, { steps: 6 }); await page.mouse.up();
   assert.notEqual(await page.getByLabel("日期对照", { exact: true }).getAttribute("data-selected-date"), before);
   assert.equal(await dialog().count(), 0); await page.getByRole("button", { name: "查看记录 →", exact: true }).click(); await dialog().waitFor(); await page.keyboard.press("Escape");
   await page.emulateMedia({ reducedMotion: "reduce" }); await page.getByRole("button", { name: "90D", exact: true }).click(); await page.waitForTimeout(100); assert.equal(await chart.evaluate(node => node.getAnimations({ subtree: true }).filter(animation => animation.playState === "running").length), 0);
-  console.log("消耗录入、优先级、明细编辑、删除恢复、公式历史确认、混合AI审核、双层交叉填色、缺测遮罩、相邻晨重、键盘与拖动、四种宽度与减少动态效果通过");
+  console.log("消耗录入、优先级、明细编辑、删除恢复、公式入口撤下、混合AI审核、双层交叉填色、缺测遮罩、相邻晨重、键盘与拖动、四种宽度与减少动态效果通过");
 }

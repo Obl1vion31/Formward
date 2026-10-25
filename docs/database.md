@@ -1,6 +1,6 @@
 # 数据库连接与字段字典
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 37 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 39 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 
@@ -83,7 +83,7 @@ erDiagram
 
 身体 AI 操作的 `token_id`／`oauth_connection_id` 恰有一个非空；饮食操作按 `origin` 校验手动、AI 或初始化对应的凭据与导入关系。OAuth 的 `client_id` 引用客户端业务标识 `oauth_client.client_id`，资源关联引用 `oauth_resource.identifier`，不应一律理解成关联对应表的 `id`。
 
-下列基础设施表没有图中的用户外键：`verifications` 按 `identifier` 管理验证状态；`rate_limits` 保存认证前来源与入口限流；`oauth_client_assertion` 保存协议断言的期限；`jwks` 保存签名密钥。它们与图中表合计为当前 37 张应用表。迁移账本 `drizzle.__drizzle_migrations` 另由工具管理。
+下列基础设施表没有图中的用户外键：`verifications` 按 `identifier` 管理验证状态；`rate_limits` 保存认证前来源与入口限流；`oauth_client_assertion` 保存协议断言的期限；`jwks` 保存签名密钥。它们与图中表合计为当前 39 张应用表。迁移账本 `drizzle.__drizzle_migrations` 另由工具管理。
 
 `created_by`、`actor_id` 等操作者快照保留文本标识，不是数据归属外键；真正归属由可信身份与 `user_id` 校验。体重单位固定 kg，体脂固定 %；外部原值、来源标识和批次状态独立保存。
 
@@ -685,4 +685,17 @@ meal_operations.payload／draft保存可选expectedImageCount，preview中的mis
 | meal_day_events | request_id、request_digest | 本账号请求幂等和内容绑定 |
 | meal_day_events | actor_id、snapshot、created_at | 状态前后、变更原因及关联操作 |
 
-历史初始化只覆盖固定截至2026-10-23已有有效餐次的日期，按本次用户明确选择视为已记完；空日不创建。migration记录初始化审计，不改旧餐、原始请求、来源或数值。新增日、未来补录和餐次修改不会套用历史规则。
+历史初始化只覆盖固定截至2026-10-23已有有效餐次的日期，按本次用户明确选择视为已记完；空日不创建。私有维护记录初始化审计，不改旧餐、原始请求、来源或数值。新增日、未来补录和餐次修改不会套用历史规则。
+
+## 录入口径与包含关系
+
+0024仅增加六列及配对约束，不回填个人热量，不改旧营养、数量、时间、版本、来源或历史JSON，表数仍为39张应用表及迁移账本。
+
+| 表 | 字段 | 用途与兼容 |
+| --- | --- | --- |
+| foods | serving_quantity numeric(14,4)、serving_unit text | 一包装对应的基准数量及包装单位；同时为空或同时有效，包装单位与基准单位区分。旧行null，不猜重量 |
+| meal_items | nutrition_basis text NOT NULL DEFAULT consumed_total | consumed_total保留旧总量语义；per_portion明确按每份计算，不自动转换旧餐 |
+| meal_items | per_portion_nutrition jsonb | 每份四项可空营养。per_portion必须有此值，原四列仍是本次实际营养 |
+| activities | inclusion text、inclusion_basis text | included／additional与服务端绑定的日记录、日期、模式、原录值成对保存；旧行null沿用原结果 |
+
+同批计算先形成最终草稿，再验证关系，因此两种录入顺序一致。更改采用总数会要求重新核对；来源备注不影响绑定。原始请求摘要不变，刷新不代替用户选择，所有正式写入与来源／审计在同一事务。旧公式、默认值存储及审计继续保留，但新动作、恢复和普通导出停用。

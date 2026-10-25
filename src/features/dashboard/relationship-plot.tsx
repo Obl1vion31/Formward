@@ -7,7 +7,7 @@ import type { OverviewDay } from "./model";
 import styles from "./overview.module.css";
 
 const palette = { intake: "#92B9D6", expenditure: "#D89490", surplus: "#D8B38A", deficit: "#92B2C2", weight: "#EEE5D5" };
-export function RelationshipPlot({ days, selected, inspect }: { days: OverviewDay[]; selected: string; inspect: (date: string) => void }) {
+export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unpin,pinned }: { days: OverviewDay[]; selected: string; inspect:(date:string)=>void;preview:(date:string)=>void;leave:()=>void;pin:(date:string)=>void;unpin:()=>void;pinned:boolean }) {
   const container = useRef<HTMLDivElement>(null), [width, setWidth] = useState(0), id = useId().replaceAll(":", "");
   const gesture = useRef<{ x: number; y: number; horizontal: boolean } | null>(null);
   useEffect(() => { const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width)); observer.observe(container.current!); return () => observer.disconnect(); }, []);
@@ -22,17 +22,17 @@ export function RelationshipPlot({ days, selected, inspect }: { days: OverviewDa
   const paired = days.map((day, i) => intake[i] && expenditure[i] && day.energyBalance !== null ? { intake: intake[i]!, expenditure: expenditure[i]!, balance: day.energyBalance } : null);
   const energyGaps = missingRuns(days.map((_, i) => Boolean(intake[i] && expenditure[i]))), weightGaps = missingRuns(days.map(day => day.weightChangeKg !== null));
   const selectedIndex = Math.max(0, days.findIndex(day => day.date === selected)), stride = Math.max(1, Math.ceil((days.length - 1) / (w < 440 ? 3 : 6)));
-  const pick = (svg: SVGSVGElement, clientX: number) => { const bounds = svg.getBoundingClientRect(); inspect(days[Math.max(0, Math.min(days.length - 1, Math.floor(((clientX - bounds.left) * w / bounds.width - left) / slot)))].date); };
-  return <div ref={container} role="group" aria-label="摄入、消耗、盈余与次晨体重变化" className={styles.relationship}>
+  const pick = (svg: SVGSVGElement, clientX: number, action=preview) => { const bounds = svg.getBoundingClientRect(); action(days[Math.max(0, Math.min(days.length - 1, Math.floor(((clientX - bounds.left) * w / bounds.width - left) / slot)))].date); };
+  return <div ref={container} role="group" aria-label="摄入、消耗、盈余与次晨体重变化" className={styles.relationship} data-pinned-date={pinned?selected:undefined}>
     <div className={styles.panelHeading}><h3>热量收支</h3><div className={styles.legend}><span><i className={styles.intakeKey} style={{ background: palette.intake }} />摄入</span><span><i className={styles.expenditureKey} style={{ background: palette.expenditure }} />消耗</span><span><i className={styles.areaKey} style={{ background: palette.surplus }} />盈余</span><span><i className={styles.areaKey} style={{ background: palette.deficit }} />缺口</span>{days.some(day => day.nutrition && day.mealDayStatus !== "complete") && <span><i className={styles.unconfirmedKey} />未记全／待确认</span>}{!!(energyGaps.length || weightGaps.length) && <span><i className={styles.gapKey} />缺记录</span>}</div></div>
     <div className={styles.plot}><svg viewBox={`0 0 ${w} ${height}`} style={{ visibility: width ? undefined : "hidden" }} role="group" aria-label="双层日期关联图" aria-describedby={`${id}-help`}
-      onPointerDown={event => { if (event.button !== 0) return; gesture.current = { x: event.clientX, y: event.clientY, horizontal: false }; pick(event.currentTarget, event.clientX); }}
+      onPointerDown={event => { if (event.button !== 0) return; gesture.current = { x: event.clientX, y: event.clientY, horizontal: false }; if(event.pointerType!=="mouse")pick(event.currentTarget,event.clientX,inspect); }}
       onPointerMove={event => {
         if (event.pointerType === "mouse" && event.buttons === 0) gesture.current = null;
         const start = gesture.current;
         if (start && !start.horizontal && Math.abs(event.clientX - start.x) > 8 && Math.abs(event.clientX - start.x) > Math.abs(event.clientY - start.y)) { start.horizontal = true; event.currentTarget.setPointerCapture(event.pointerId); }
-        if (event.pointerType === "mouse" || start?.horizontal) pick(event.currentTarget, event.clientX);
-      }} onPointerUp={event => { gesture.current = null; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }} onPointerCancel={() => { gesture.current = null; }}>
+        if(event.pointerType==="mouse")pick(event.currentTarget,event.clientX);else if(start?.horizontal)pick(event.currentTarget,event.clientX,inspect);
+      }} onPointerUp={event => { gesture.current = null; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }} onPointerCancel={() => { gesture.current = null; }} onPointerLeave={leave} onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();event.stopPropagation();unpin();}}}>
       <desc id={`${id}-help`}>上下两图使用同一日期。点击、左右方向键及Enter选择日期，查看记录按钮打开详情。摄入用圆点，消耗用方点，空心摄入点表示当天未记全或尚未确认全天。热量填色只用于已确认完整日，体重变化对应当日到次日晨间。</desc>
       <g data-overview-panel="energy">
         <text x={left - 8} y="13" textAnchor="end" className={styles.axis}>kcal</text>
@@ -61,8 +61,8 @@ export function RelationshipPlot({ days, selected, inspect }: { days: OverviewDa
       </g>
       <rect x={left + selectedIndex * slot} y={top} width={slot} height={weightBottom - top} fill="rgba(240,233,221,.025)" className={styles.plotData} />
       <line data-crosshair-date={selected} x1={x(selectedIndex)} x2={x(selectedIndex)} y1={top} y2={weightBottom} className={styles.crosshair} />
-      {days.map((day, i) => <g key={day.date} style={{ outline: "none" }} role="button" tabIndex={day.date === selected ? 0 : -1} data-overview-date={day.date} data-balance={day.energyBalance ?? undefined} data-meal-day-status={day.mealDayStatus} aria-label={`${day.date} · 摄入 ${day.nutrition?.values.caloriesKcal ?? "未记录"} kcal${day.nutrition && day.mealDayStatus !== "complete" ? day.mealDayStatus === "incomplete" ? "，当天未记全" : "，全天待确认" : ""} · 消耗 ${day.energy.totalKcal ?? "未记录"} kcal · 盈余 ${day.energyBalance ?? "未知"} kcal · 次晨变化 ${day.weightChangeKg ?? "未知"} kg`} onFocus={() => inspect(day.date)} onClick={() => inspect(day.date)} onKeyDown={event => {
-        if (["Enter", " "].includes(event.key)) { event.preventDefault(); inspect(day.date); }
+      {days.map((day, i) => <g key={day.date} style={{ outline: "none" }} role="button" tabIndex={day.date === selected ? 0 : -1} data-overview-date={day.date} data-balance={day.energyBalance ?? undefined} data-meal-day-status={day.mealDayStatus} aria-label={`${day.date} · 摄入 ${day.nutrition?.values.caloriesKcal ?? "未记录"} kcal${day.nutrition && day.mealDayStatus !== "complete" ? day.mealDayStatus === "incomplete" ? "，当天未记全" : "，全天待确认" : ""} · 消耗 ${day.energy.totalKcal ?? "未记录"} kcal · 盈余 ${day.energyBalance ?? "未知"} kcal · 次晨变化 ${day.weightChangeKg ?? "未知"} kg`} onFocus={() => inspect(day.date)} onClick={() => pin(day.date)} onKeyDown={event => {
+        if (["Enter", " "].includes(event.key)) { event.preventDefault(); pin(day.date); }
         const next = event.key === "ArrowLeft" ? i - 1 : event.key === "ArrowRight" ? i + 1 : event.key === "Home" ? 0 : event.key === "End" ? days.length - 1 : null;
         if (next !== null) { event.preventDefault(); event.currentTarget.parentElement?.querySelectorAll<SVGGElement>("[data-overview-date]")[Math.max(0, Math.min(days.length - 1, next))]?.focus(); }
       }}>

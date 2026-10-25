@@ -12,8 +12,8 @@ import { decideMealOperation, digest, displayMealOperation, getMealOperation, pr
 import { type MealAction, type MealInput, type PreviewRow, type MealSnapshot } from "../meals/model";
 import { category, isBody, isEnergy, recordInputSchema, recordItemSchema, type RecordAction, type RecordInput, type RecordItem, type RecordReviewAction, type RecordReviewView, type RecordRow } from "./model";
 
-import { submitEnergyOperation, getEnergyOperation, displayEnergyOperation, reviseEnergyOperation, decideEnergyOperation } from "../activities/records";
-import type { EnergyAction } from "../activities/model";
+import { planEnergyActions, readEnergySnapshot, submitEnergyOperation, getEnergyOperation, displayEnergyOperation, reviseEnergyOperation, decideEnergyOperation } from "../activities/records";
+import { energyBaseline, retiredEnergyAction, type ActivityRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyAction } from "../activities/model";
 
 import { actionDate, summarizeRecordItems } from "./review-summary";
 
@@ -32,7 +32,7 @@ function normalize(input: RecordInput): RecordItem[] {
   const embedded = new Map<string, string>();
   for (const item of [...items]) if (item.action.kind === "save_meal") {
     item.action = { ...item.action, items: item.action.items.map((entry, index) => {
-      if (entry.foodRef && (entry.foodId || entry.foodDraft || entry.nutrition)) throw new ApiError(400, "invalid_input", "foodRef 不能同时提供 foodId、foodDraft 或 nutrition。");
+      if (entry.foodRef && (entry.foodId || entry.foodDraft || entry.nutrition || entry.perPortionNutrition)) throw new ApiError(400, "invalid_input", "foodRef 不能同时提供 foodId、foodDraft 或 nutrition。");
       if (!entry.foodDraft) return entry;
       const signature = digest(entry.foodDraft);
       let ref = embedded.get(signature);
@@ -98,6 +98,24 @@ function planner(items: RecordItem[], operationId: string): MealPlanner {
   };
 }
 
+/** 总数改变影响已有运动时，把这些运动列成独立审核项，不偷偷修改明细。 */
+async function expandEnergyRelations(db:Database,userId:string,items:RecordItem[]){
+ const entries=energyItems(items);
+ if(!entries.some(item=>item.action.kind==="save_energy_day"))return;
+ const snapshot=await readEnergySnapshot(db,userId);
+ const previews=planEnergyActions(entries.map(item=>item.action as EnergyAction),snapshot,entries.flatMap((item,index)=>item.excluded?[index]:[]));
+ const candidates=previews.filter(row=>!row.excluded).flatMap(row=>row.coverageQuestions??[]);
+ for(const record of candidates){
+  const stored=snapshot.activities.find(row=>row.id===record.id&&!row.deletedAt);
+  if(!stored||items.some(item=>item.action.kind==="save_activity"&&item.action.id===stored.id))continue;
+  const action:Extract<EnergyAction,{kind:"save_activity"}>={kind:"save_activity",id:stored.id,version:stored.version,date:stored.date,name:stored.name,caloriesKcal:stored.caloriesKcal,durationMinutes:stored.durationMinutes,completed:stored.completed,sourceSystem:stored.sourceSystem,sourceRecordId:stored.sourceRecordId,sourceOccurredAt:stored.sourceOccurredAt,timezone:stored.timezone,sourceUnit:stored.sourceUnit};
+  const key="inclusion-"+stored.id;
+  if(items.some(item=>item.key===key))throw new ApiError(400,"invalid_input","项目key与运动核对项冲突，请更换key。");
+  items.push({key,action,originalInput:action,excluded:false,checked:false,inclusionReview:true});
+ }
+ if(items.length>100)throw new ApiError(400,"invalid_input","包含运动核对后超过100项，请按日期分批提交。");
+}
+
 async function find(db: Database, userId: string, id: string, source?: Source) {
   const [row] = await db.select().from(recordOperation).where(and(eq(recordOperation.userId, userId), source ? eq(source === "body" ? recordOperation.measurementOperationId : recordOperation.mealOperationId, id) : or(eq(recordOperation.id, id), eq(recordOperation.measurementOperationId, id))));
   return row;
@@ -121,6 +139,13 @@ async function view(db: Database, row: Stored): Promise<RecordReviewView> {
   const meal = row.mealOperationId ? displayMealOperation(await getMealOperation(db, row.userId, row.mealOperationId)) : undefined;
   const energy = row.energyOperationId ? displayEnergyOperation(await getEnergyOperation(db, row.userId, row.energyOperationId)) : undefined;
   const snapshot = await readMealSnapshot(db, row.userId);
+  const energySnapshot:EnergySnapshot=energy ? {...await readEnergySnapshot(db,row.userId),profiles:[],defaults:[]} : {days:[],activities:[],profiles:[]};
+  for(const preview of energy?.rows??[]) if(!preview.excluded && preview.after){
+    const record=preview.after;
+    if("date" in record && "name" in record) energySnapshot.activities=[...energySnapshot.activities.filter(item=>item.id!==record.id),record as ActivityRecord];
+    else if("date" in record) energySnapshot.days=[...energySnapshot.days.filter(item=>item.id!==record.id),record as EnergyDayRecord];
+  }
+
   const needsBody = row.draft.some(item => isBody(item.action) && !item.excluded && !item.persisted && body?.items.find(candidate => candidate.id === item.measurementItemId)?.status === "pending");
   const needsMeal = mealItems(row.draft).some(item => !item.excluded && !item.persisted);
   const needsEnergy = energyItems(row.draft).some(item => !item.excluded && !item.persisted);
@@ -134,7 +159,7 @@ async function view(db: Database, row: Stored): Promise<RecordReviewView> {
     const before = mealRow?.before ?? (targetId ? [...snapshot.foods, ...snapshot.meals].find(record => record.id === targetId) : undefined);
     const persisted = item.persisted || bodyRow?.status === "confirmed" || (!!meal && meal.status === "confirmed" && !item.excluded && !isBody(item.action) && !isEnergy(item.action)) || (!!energy && energy.status === "confirmed" && !item.excluded && isEnergy(item.action));
     const duplicateMeals = mealRow?.duplicateIds?.flatMap(id => snapshot.meals.filter(meal => meal.id === id && !meal.deletedAt));
-    if (!aiActionAllowed(item.action.kind)) {
+    if (!aiActionAllowed(item.action.kind) || retiredEnergyAction(item.action.kind)) {
       if (mealRow) mealRow.error = "AI不能删除或恢复整条记录，请取消这一项。";
       if (energyRow) energyRow.error = "AI不能删除或恢复整条记录，请取消这一项。";
     }
@@ -143,10 +168,9 @@ async function view(db: Database, row: Stored): Promise<RecordReviewView> {
   const pending = rows.filter(item => !item.excluded && !item.persisted && item.body?.status !== "skipped");
   const needsUserInput = pending.flatMap(item => {
     const questions = isBody(item.action) ? item.body?.preview.canConfirm ? [] : item.body?.preview.needsUserInput?.map(issue => issue.message) ?? [item.body?.preview.message ?? "身体记录需要核对。"] : isEnergy(item.action) ? item.energy?.error ? [item.energy.error] : !item.energy ? ["消耗记录需要核对。"] : [] : item.meal?.needsUserInput?.length ? [...item.meal.needsUserInput] : item.meal?.error ? [item.meal.error] : [];
-    if ((item.action.kind === "save_meal" || item.action.kind === "save_food") && (item.action.expectedImageCount ?? 0) > (item.meal?.meal?.imageIds?.length ?? item.meal?.food?.imageIds?.length ?? 0)) questions.push("照片未齐，请补传或由用户在网页明确选择先保存文字。");
     return questions.length ? [{ key: item.key, questions }] : [];
   });
-  return { id: row.id, revision: row.revision, status: row.status, createdAt: row.createdAt.toISOString(), expiresAt: expirations[0] ?? null, confirmationPath: `/dashboard/ai/operations/${row.id}`, foods: snapshot.foods.filter(food => !food.deletedAt), mealOperation: meal, energyOperation: energy, rows, needsUserInput, canConfirm: row.status === "pending" && pending.length > 0 && !needsUserInput.length && (!expirations[0] || Date.parse(expirations[0]) > Date.now()), saved: rows.filter(item => item.persisted).length };
+  return { id: row.id, revision: row.revision, status: row.status, createdAt: row.createdAt.toISOString(), expiresAt: expirations[0] ?? null, confirmationPath: `/dashboard/ai/operations/${row.id}`, foods: snapshot.foods.filter(food => !food.deletedAt), energySnapshot, mealOperation: meal, energyOperation: energy, rows, needsUserInput, canConfirm: row.status === "pending" && pending.length > 0 && !needsUserInput.length && (!expirations[0] || Date.parse(expirations[0]) > Date.now()), saved: rows.filter(item => item.persisted).length };
 }
 export async function loadRecordReview(db: Database, userId: string, id: string, source?: Source) {
   const row = await find(db, userId, id, source);
@@ -185,6 +209,7 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
     const body = bodies.length ? await submitAiMeasurementOperation(connection, identity, { kind: "batch", operationId: `records-${id}`, items: bodies.map(item => item.action) }, input.timezone ?? timezone) : null;
     bodies.forEach((item, index) => { item.measurementItemId = body!.items[index].id; item.action = body!.items[index].input; });
     for (const item of energyItems(items)) if (item.action.kind === "save_energy_day" || item.action.kind === "save_activity") item.action = { ...item.action, timezone: item.action.timezone ?? input.timezone ?? timezone };
+    await expandEnergyRelations(connection,identity.userId,items);
     const energy = energyItems(items).length ? await submitEnergyOperation(connection, { userId: identity.userId, origin: "ai", identity }, { operationId: `records-${id}`, actions: energyItems(items).map(item => item.action) }) : null;
     const meal = mealItems(items).length ? await submitMealOperation(connection, { userId: identity.userId, origin: "ai", identity }, mealInput(`records-${id}`, items), planner(items, id)) : null;
     const [row] = await tx.insert(recordOperation).values({ id, userId: identity.userId, operationId: input.operationId, requestDigest: digest(input), payload: input, draft: items, measurementOperationId: body?.id, mealOperationId: meal?.id, measurementRevision: body?.revision, mealRevision: meal?.revision, energyOperationId: energy?.id, energyRevision: energy?.revision, status: !meal && !energy && body && !body.counts.pending ? "completed" : "pending" }).returning();
@@ -193,7 +218,7 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
 }
 
 export async function reviewRecordOperation(db: Database, userId: string, id: string, action: RecordReviewAction, source?: Source) {
-  if (!action || !Number.isInteger(action.revision) || action.revision < 1 || !["check", "exclude", "restore", "update", "refresh", "cancel", "confirm"].includes(action.kind)) throw new ApiError(400, "invalid_input", "审核操作无效。");
+  if (!action || !Number.isInteger(action.revision) || action.revision < 1 || !["check", "exclude", "restore", "energy_inclusion", "update", "refresh", "cancel", "confirm"].includes(action.kind)) throw new ApiError(400, "invalid_input", "审核操作无效。");
   if (action.kind === "confirm" && action.allowMissingImageKeys !== undefined && (!Array.isArray(action.allowMissingImageKeys) || action.allowMissingImageKeys.length > 100 || action.allowMissingImageKeys.some(key => typeof key !== "string"))) throw new ApiError(400, "invalid_input", "缺图确认项目无效。");
   return db.transaction(async tx => {
     await lockOwner(tx, userId); const connection = tx as unknown as Database;
@@ -219,7 +244,6 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
       if (!selected.length) throw new ApiError(400, "no_changes", "没有待保存内容。");
       if (selected.some(item => isBody(item.action) ? !item.body?.preview.canConfirm : isEnergy(item.action) ? !item.energy || item.energy.error : !item.meal || item.meal.error || item.meal.needsUserInput?.length)) throw new ApiError(400, "review_required", "请修改或取消仍需核对的项目。");
       const missingKeys = selected.filter(item => item.meal && (item.action.kind === "save_meal" || item.action.kind === "save_food") && (item.action.expectedImageCount ?? 0) > (item.meal.meal?.imageIds?.length ?? item.meal.food?.imageIds?.length ?? 0)).map(item => item.key);
-      if (missingKeys.some(key => !action.allowMissingImageKeys?.includes(key))) throw new ApiError(400, "images_required", "请补传照片，或在对应项明确选择先保存文字。");
       if (row.measurementOperationId) {
         let body = await getAiMeasurementOperation(connection, userId, row.measurementOperationId);
         const selectedIds = selected.flatMap(item => item.measurementItemId && item.body?.status === "pending" ? [item.measurementItemId] : []);
@@ -250,8 +274,27 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
         requireAiUpserts([parsed.data]);
         const { key, ...input } = parsed.data; void key;
         item.action = input as RecordAction; item.checked = false; item.editedBy = { userId, at: new Date().toISOString() };
+        if(item.action.kind==="save_energy_day"){
+          const changedDay=item.action;
+          const prior=before.energySnapshot?.days.find(day=>day.date===changedDay.date);
+          const entries=energyItems(items),state=await readEnergySnapshot(connection,userId);
+          const next=planEnergyActions(entries.map(entry=>entry.action as EnergyAction),state,entries.flatMap((entry,index)=>entry.excluded?[index]:[])).find(preview=>preview.action===item.action)?.after;
+          if(next && "restingKcal" in next && "date" in next && energyBaseline(prior?{...prior,id:"comparison"}:null)!==energyBaseline({...next,id:"comparison"})){
+            for(const dependent of items)if(dependent.action.kind==="save_activity" && [prior?.date,next.date].includes(dependent.action.date)){
+              const {inclusion,...rest}=dependent.action;void inclusion;dependent.action=rest;dependent.checked=false;
+            }
+          }
+        }
+
         for (const dependent of items) if (dependent.action.kind === "save_meal" && dependent.action.items.some(entry => entry.foodRef === item.key)) dependent.checked = false;
         if (isBody(item.action) && row.measurementOperationId) { const body = await getAiMeasurementOperation(connection, userId, row.measurementOperationId); await reviewAiMeasurementOperation(connection, userId, body.id, { kind: "update", revision: body.revision, changes: [{ itemId: item.measurementItemId!, input: item.action }] }); }
+      } else if(action.kind==="energy_inclusion"){
+        if(!["included","additional"].includes(action.inclusion)||!Array.isArray(action.keys)||!action.keys.length||new Set(action.keys).size!==action.keys.length)throw new ApiError(400,"invalid_input","请选择有效的运动包含关系。");
+        for(const key of action.keys){
+          const item=items.find(item=>item.key===key&&!item.persisted&&!item.excluded&&item.action.kind==="save_activity");
+          if(!item||item.action.kind!=="save_activity")throw new ApiError(400,"invalid_input","只能核对本次尚未保存的运动。");
+          item.action={...item.action,inclusion:action.inclusion};item.checked=false;item.editedBy={userId,at:new Date().toISOString()};
+        }
       } else if ("keys" in action) {
         if (!Array.isArray(action.keys) || !action.keys.length || new Set(action.keys).size !== action.keys.length || action.keys.some(key => !items.some(item => item.key === key && !item.persisted))) throw new ApiError(400, "invalid_input", "请选择本次尚未保存的项目。");
         for (const item of items.filter(item => action.keys.includes(item.key))) {
@@ -265,6 +308,7 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
         if (meal.status === "pending") await reviseMealOperation(connection, userId, meal.id, meal.revision, mealInput(meal.draft.operationId, items).actions, planner(items, row.id));
       }
       if (row.energyOperationId && action.kind !== "check") {
+        await expandEnergyRelations(connection,userId,items);
         const energy = await getEnergyOperation(connection, userId, row.energyOperationId), entries = energyItems(items);
         if (energy.status === "pending") await reviseEnergyOperation(connection, userId, energy.id, energy.revision, entries.map(item => item.action as EnergyAction), entries.flatMap((item,index) => item.excluded ? [index] : []));
       }

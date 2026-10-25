@@ -199,12 +199,12 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     await slowAction("正在处理记录审核…", () => page.getByRole("button", { name: "刷新预览", exact: true }).click());
     await slowAction("正在处理记录审核…", () => row.getByRole("button", { name: "标记已核对", exact: true }).click());
     await slowAction("正在处理记录审核…", () => page.locator(`[data-review-key="${batch.items[1].id}"]`).getByRole("button", {name:"取消",exact:true}).click());
-    await slowAction("正在处理记录审核…", () => page.getByRole("button", {name:"确认并全部保存",exact:true}).click());
+    await slowAction("正在处理记录审核…", () => page.getByRole("button", {name:"确认保存",exact:true}).click());
     await page.getByRole("heading",{name:"已保存",exact:true}).waitFor(); await page.waitForURL(`${baseURL}/dashboard`);
     const secondBatch = await post([item(3), item(4)]);
     await page.goto(secondBatch.confirmationUrl); await page.getByRole("heading", { name: "确认记录", exact: true }).waitFor(); await ready();
     await slowAction("正在处理记录审核…", () => page.locator(`[data-review-key="${secondBatch.items[0].id}"]`).getByRole("button", { name: "取消", exact: true }).click());
-    await slowAction("正在处理记录审核…", () => page.getByRole("button", { name: "确认并全部保存", exact: true }).click());
+    await slowAction("正在处理记录审核…", () => page.getByRole("button", { name: "确认保存", exact: true }).click());
     await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
     await page.goto(`${baseURL}/dashboard/ai`); await page.getByRole("heading", { name: "AI 接入", exact: true }).waitFor(); await ready();
     await slowAction("正在撤销访问令牌…", () => page.getByRole("button", { name: "撤销", exact: true }).click());

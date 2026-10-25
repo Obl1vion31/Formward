@@ -142,9 +142,9 @@ test("食材版本改变保留历史快照，旧餐改备注或分量仍使用�
   await save(userId, [{ kind: "save_food", ...product({ id: f.id, version: f.version, nutrition: n("130") }) }]); const m = (await readMealSnapshot(db, userId)).meals[0]; assert.equal(m.totals.values.caloriesKcal, "110.0000");
   await save(userId, [lunch({ id: m.id, version: m.version, notes: "改备注并调整实际食量", items: [{ kind: "food", name: f.name, foodId: f.id, foodVersion: f.version, quantity: "2", unit: "包", sourceKind: "label" }] })]); assert.equal((await readMealSnapshot(db, userId)).meals[0].totals.values.caloriesKcal, "220.0000");
 });
-test("编辑冲突保留记录，删除与恢复改变汇总并保持审计", async () => {
+test("网页旧草稿可按保存顺序覆盖，删除与恢复改变汇总并保持审计", async () => {
   const userId = await owner(); await save(userId, [lunch()]); const m = (await readMealSnapshot(db, userId)).meals[0];
-  await save(userId, [lunch({ id: m.id, version: m.version, notes: "新备注" })]); const stale = await submitMealOperation(db, { userId, origin: "manual" }, { operationId: randomUUID(), actions: [lunch({ id: m.id, version: m.version })] }); assert.equal(stale.canConfirm, false);
+  await save(userId, [lunch({ id: m.id, version: m.version, notes: "新备注" })]); const stale = await submitMealOperation(db, { userId, origin: "manual" }, { operationId: randomUUID(), actions: [lunch({ id: m.id, version: m.version })] }); assert.equal(stale.canConfirm, true);
   const current = (await readMealSnapshot(db, userId)).meals[0]; await save(userId, [{ kind: "delete_meal", id: current.id, version: current.version }]); let state = await readMealSnapshot(db, userId); assert.equal(dailyTotals(state.meals).length, 0);
   await save(userId, [{ kind: "restore_meal", id: state.meals[0].id, version: state.meals[0].version }]); state = await readMealSnapshot(db, userId); assert.equal(dailyTotals(state.meals).length, 1); assert.equal(state.meals[0].notes, "新备注");
 });
@@ -180,10 +180,10 @@ test("参考热量仅格式差异不报调整，取消后的并发重试只保�
   const results = await Promise.all([stageMealInitialization(db, userId, tsv, "虚构.tsv"), stageMealInitialization(db, userId, tsv, "虚构.tsv")]); assert.equal(results[0].id, results[1].id);
 });
 
-test("缺图须网页登录明确选择，无图保存审计、审核终态及说明保留",async()=>{
+test("缺图不阻止文字保存，无图审计、审核终态及说明保留",async()=>{
  const userId=await owner(),explanation={amount:{source:"estimate" as const,basis:"虚构份量估100g",uncertainty:"图片份量存在误差"}};
  const op=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[lunch({expectedImageCount:1,items:[{kind:"food",name:"虚构牛排",quantity:"100",unit:"g",sourceKind:"estimated",nutrition:n("120","20","0","4"),reviewExplanation:explanation}]})]});
- assert.equal(op.missingImages,1);await assert.rejects(decideMealOperation(db,userId,op.id,op.revision,"confirm"),/照片/);
+ assert.equal(op.missingImages,1);
  const saved=await decideMealOperation(db,userId,op.id,op.revision,"confirm",true);assert.equal(saved.status,"confirmed");assert.equal(saved.canConfirm,false);assert.match(saved.result!.message,/文字/);
  assert.deepEqual((await readMealSnapshot(db,userId)).meals[0].items[0].reviewExplanation,explanation);
  const events=await db.select().from(schema.mealEvent).where(eq(schema.mealEvent.userId,userId));assert.equal(events[0].snapshot.confirmedWithoutImages,true);
@@ -347,4 +347,22 @@ test("永久删除拒绝不完整快照并在审计失败时完整回滚",async(
  const before=await readMealSnapshot(db,userId);
  await pg.exec("CREATE FUNCTION fail_permanent_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.snapshot->>'permanentDeletion' = 'true' THEN RAISE EXCEPTION 'fictional audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_permanent_event BEFORE INSERT ON meal_events FOR EACH ROW EXECUTE FUNCTION fail_permanent_audit();");
  try{await assert.rejects(permanentlyDeleteMealRecord(db,userId,request));assert.deepEqual(await readMealSnapshot(db,userId),before);assert.equal((await db.select().from(schema.mealOperation).where(eq(schema.mealOperation.operationId,request.operationId))).length,0);}finally{await pg.exec("DROP TRIGGER reject_permanent_event ON meal_events; DROP FUNCTION fail_permanent_audit();");}
+});
+
+test("两份人工旧草稿先后保存，后保存生效，保留真实前后版本和历史规格；AI仍阻止过期覆盖",async()=>{
+ const userId=await owner();await save(userId,[{kind:"save_food",...product()}]);const f=(await searchFoods(db,userId))[0];
+ await save(userId,[lunch({items:[{kind:"food",name:f.name,quantity:"1",unit:f.unit,foodId:f.id,foodVersion:f.version,sourceKind:f.sourceKind}]})]);
+ const original=(await readMealSnapshot(db,userId)).meals[0],item=original.items[0];
+ const draft=(quantity:string,notes:string):MealAction=>({kind:"save_meal",id:original.id,version:original.version,date:original.date,mealType:original.mealType,notes,items:[{kind:"food",originalItemId:item.id,name:item.name,quantity,unit:item.unit,foodId:item.foodId,foodVersion:item.foodVersion,sourceKind:item.sourceKind}]});
+ const a=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[draft("2","先保存")]});
+ const b=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[draft("1.5","后保存")]});
+ await decideMealOperation(db,userId,a.id,a.revision,"confirm");await decideMealOperation(db,userId,b.id,b.revision,"confirm");
+ const after=(await readMealSnapshot(db,userId)).meals[0];assert.equal(after.version,3);assert.equal(after.notes,"后保存");assert.equal(Number(after.totals.values.caloriesKcal),165);
+ const events=await db.select().from(schema.mealEvent).where(eq(schema.mealEvent.operationId,b.id));
+ assert.equal((events[0].snapshot as {before:{version:number}}).before.version,2);
+ const token=await createAiToken(db,userId,"虚构并发AI","write"),identity=await authenticateAi(db,"Bearer "+token.rawToken);
+ const stale=await submitMealOperation(db,{userId,origin:"ai",identity},{operationId:randomUUID(),actions:[draft("3","AI旧版本")]});
+ assert.equal(stale.canConfirm,false);
+ const later=await save(userId,[draft("0.5","旧草稿更晚保存")]);assert.equal(later.canConfirm,true);
+ assert.equal(Number((await readMealSnapshot(db,userId)).meals[0].totals.values.caloriesKcal),55);
 });
