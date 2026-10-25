@@ -107,7 +107,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     await save();
     assert.equal(await form().getByRole("textbox", { name: "晨间体重" }).inputValue(), "70.20");
     await close();
-    await page.locator(`section[aria-label="身体指标趋势"] [data-date="${today}"][data-period="evening"][data-kind="estimated"]`).click();
+    await page.locator(`section[aria-label="身体指标趋势"] [data-date="${today}"][data-period="evening"][data-kind="estimated"]`).click();await page.getByRole("button",{name:"查看体重所选日记录",exact:true}).click();
     await page.getByRole("article", { name: "记录详情" }).waitFor();
     await page.getByRole("dialog").getByRole("button", { name: "编辑", exact: true }).click();
     await form().getByRole("textbox", { name: "晚间体重", exact: true }).fill("70.80");
@@ -125,7 +125,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     await close();
     // API 历史测量允许只改晨晚时区，不要求重输数值；清空和采用系统时区同样可保存。
     const apiDate = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
-    const openApiRecord = async () => { await page.locator(`section[aria-label="身体指标趋势"] [data-chart-metric="weightKg"] [data-date="${apiDate}"][data-period="daytime"][data-kind="observed"]`).click(); await page.getByRole("article", { name: "记录详情" }).waitFor(); };
+    const openApiRecord = async () => { await page.locator(`section[aria-label="身体指标趋势"] [data-chart-metric="weightKg"] [data-date="${apiDate}"][data-period="daytime"][data-kind="observed"]`).click();await page.getByRole("button",{name:"查看体重所选日记录",exact:true}).click(); await page.getByRole("article", { name: "记录详情" }).waitFor(); };
     assert.equal(await page.locator(`section[aria-label="最近记录"] tr[data-date="${apiDate}"]`).count(), 0, "完整历史记录从图表或完整历史进入");
     await openApiRecord(); await page.getByRole("dialog").getByRole("button", { name: "编辑", exact: true }).click();
     const morningTimezone = form().getByRole("combobox", { name: "晨间时区", exact: true }), eveningTimezone = form().getByRole("combobox", { name: "晚间时区", exact: true });
@@ -314,7 +314,7 @@ export async function checkMeasurementEntry({ loggedInPage, entryAccount, today,
     await page.getByLabel("结束日期", { exact: true }).fill(blankDate);
     await page.getByRole("button", { name: "应用", exact: true }).click();
     assert.equal(await page.locator(`section[aria-label="最近记录"] tr[data-date="${blankDate}"]`).count(), 0, "图表筛选不改变今天与待补录列表");
-    await page.locator(`section[aria-label="身体指标趋势"] [data-chart-metric="bodyFatPercent"] [data-date="${blankDate}"][data-period="daytime"][data-kind="observed"]`).click();
+    await page.locator(`section[aria-label="身体指标趋势"] [data-chart-metric="bodyFatPercent"] [data-date="${blankDate}"][data-period="daytime"][data-kind="observed"]`).click();await page.getByRole("button",{name:"查看体脂率所选日记录",exact:true}).click();
     const detail = page.getByRole("article", { name: "记录详情", exact: true });
     await detail.waitFor();
     const infoBefore = await detail.getByRole("region", { name: "记录信息" }).innerText();
