@@ -27,7 +27,7 @@ try {
   assert.ok((await page.locator("main").textContent()).includes(clientName));
   assert.ok((await page.locator("main").textContent()).includes("保存仍需网页确认"));
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-  for (const text of ["查询身体记录和审核状态", "提交身体记录预览（保存仍需网页确认）", "查询饮食、食材和审核状态", "提交饮食与食材预览（保存仍需网页确认）", "查询消耗、活动与公式资料", "提交消耗与活动预览（保存仍需网页确认）"]) await page.getByText(text, { exact: true }).waitFor();
+  for (const text of ["查询身体记录和审核状态", "提交身体记录预览（保存仍需网页确认）", "查询饮食、食材和审核状态", "提交饮食与食材预览（保存仍需网页确认）", "查询消耗与活动记录", "提交消耗与活动预览（保存仍需网页确认）"]) await page.getByText(text, { exact: true }).waitFor();
   for (const width of [320,390,1440]) { await page.setViewportSize({ width, height:844 }); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); await page.screenshot({ path:`/tmp/formward-unified-consent-${width}.png`,fullPage:true }); }
   await page.screenshot({ path: "/tmp/formward-oauth-consent-mobile.png" });
   await page.getByRole("button", { name: "允许连接", exact: true }).click();
