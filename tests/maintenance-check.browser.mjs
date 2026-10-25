@@ -33,8 +33,8 @@ export async function checkMaintenance({baseURL,context,page,token,today,db,user
  const mark=async d=>{const group=dailyTotals((await readMealSnapshot(db,userId)).meals).find(group=>group.date===d);const {source,...day}=group.day;void source;await setMealDayStatus(db,userId,{...day,operationId:randomUUID(),status:"complete"});};
  for(const group of dailyTotals((await readMealSnapshot(db,userId)).meals).filter(group=>group.date>=shift(today,-30)))await mark(group.date);
  await context.route("**/api/meal-images/**",async route=>{requests.push(new URL(route.request().url()).pathname);await route.fulfill({status:200,contentType:"image/png",body:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==","base64")});});
- const dialog=()=>page.locator("dialog[open]").last();
- const close=async()=>{const accept=prompt=>prompt.accept();page.once("dialog",accept);try{await dialog().getByRole("button",{name:/^关闭/}).click();await page.locator("dialog[open]").waitFor({state:"hidden"});}finally{page.off("dialog",accept);}};
+ const dialog=()=>page.locator("dialog[open]:not(.page-loading-dialog)").last();
+ const close=async()=>{const accept=prompt=>prompt.accept();page.once("dialog",accept);try{await dialog().getByRole("button",{name:/^关闭/}).click();await page.locator("dialog[open]:not(.page-loading-dialog)").waitFor({state:"hidden"});}finally{page.off("dialog",accept);}};
  const screenshot=async name=>{await page.waitForTimeout(550);await page.screenshot({path:artifacts+"/"+name+".png"});};
  // Actual mouse selection, fixed dates and leaving the plot.
  await page.setViewportSize({width:1440,height:900});await page.goto(baseURL+"/dashboard");
@@ -71,14 +71,14 @@ export async function checkMaintenance({baseURL,context,page,token,today,db,user
  assert.match(await dialog().getByLabel("本餐合计",{exact:true}).innerText(),/135/);
  const border=await dialog().getByLabel("餐次备注",{exact:true}).evaluate(node=>getComputedStyle(node).borderTopColor);assert.notEqual(border,"rgba(0, 0, 0, 0)");
  await screenshot("meal-editor-1440");
- await dialog().getByRole("button",{name:"保存餐次 · "+today,exact:true}).click();await page.locator("dialog[open]").waitFor({state:"hidden"});
+ await dialog().getByRole("button",{name:"保存餐次 · "+today,exact:true}).click();await page.locator("dialog[open]:not(.page-loading-dialog)").waitFor({state:"hidden"});
  let latest=(await readMealSnapshot(db,userId)).meals.find(row=>row.date===today);assert.equal(Number(latest.totals.values.caloriesKcal),135);
  // Packaging defaults to a count, not a guessed weight.
  await page.getByRole("button",{name:"记录一餐",exact:false}).click();await dialog().getByRole("button",{name:"选择 "+foodName,exact:true}).click();
  assert.equal(await dialog().getByLabel("食用量（包）",{exact:true}).inputValue(),"1");await dialog().getByLabel("食用量（包）",{exact:true}).fill("0.5");
  assert.match(await dialog().getByLabel("本餐合计",{exact:true}).innerText(),/50/);
  for(const width of [390,320]){await page.setViewportSize({width,height:700});await screenshot("meal-editor-"+width);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
- await dialog().getByRole("button",{name:"保存餐次 · "+today,exact:true}).click();await page.locator("dialog[open]").waitFor({state:"hidden"});
+ await dialog().getByRole("button",{name:"保存餐次 · "+today,exact:true}).click();await page.locator("dialog[open]:not(.page-loading-dialog)").waitFor({state:"hidden"});
  assert.ok((await readMealSnapshot(db,userId)).meals.some(row=>row.date===today&&Number(row.totals.values.caloriesKcal)===50));
  // Total and details coexist; changing the adopted total requires another explicit relation.
  await page.setViewportSize({width:1440,height:900});await page.goto(baseURL+"/dashboard/energy");
@@ -87,15 +87,15 @@ export async function checkMaintenance({baseURL,context,page,token,today,db,user
  await editEnergy(date);await dialog().getByRole("button",{name:"＋ 添加运动",exact:true}).click();await dialog().getByLabel("运动名称 1",{exact:true}).fill("虚构跑步");await dialog().getByLabel("运动热量 · kcal 1",{exact:true}).fill("300");
  assert.equal(await dialog().getByRole("button",{name:"保存 · "+date,exact:true}).isDisabled(),true);
  await dialog().getByRole("group",{name:"运动 1 包含关系",exact:true}).getByRole("button",{name:"已包含",exact:true}).click();
- await dialog().getByRole("button",{name:"保存 · "+date,exact:true}).click();await page.locator("dialog[open]").waitFor({state:"hidden"});
+ await dialog().getByRole("button",{name:"保存 · "+date,exact:true}).click();await page.locator("dialog[open]:not(.page-loading-dialog)").waitFor({state:"hidden"});
  let energy=(await readEnergySnapshot(db,userId));assert.equal(energy.activities.find(row=>row.date===date).inclusion,"included");
  await editEnergy(date);await dialog().getByRole("button",{name:"分开记录",exact:true}).click();await dialog().getByRole("button",{name:"记合计",exact:true}).click();await dialog().getByLabel("静息 · kcal",{exact:true}).fill("1800");await dialog().getByLabel("活动合计 · kcal",{exact:true}).fill("400");
  assert.equal(await dialog().getByRole("button",{name:"保存 · "+date,exact:true}).isDisabled(),true);
  await dialog().getByRole("group",{name:"运动 1 包含关系",exact:true}).getByRole("button",{name:"额外增加",exact:true}).click();
  assert.match(await dialog().locator('div[aria-live="polite"]').innerText(),/2,500/);await screenshot("energy-relations-1440");
- await dialog().getByRole("button",{name:"保存 · "+date,exact:true}).click();await page.locator("dialog[open]").waitFor({state:"hidden"});
+ await dialog().getByRole("button",{name:"保存 · "+date,exact:true}).click();await page.locator("dialog[open]:not(.page-loading-dialog)").waitFor({state:"hidden"});
  await editEnergy(date);await dialog().getByLabel("活动合计 · kcal",{exact:true}).fill("500");assert.equal(await dialog().getByRole("button",{name:"保存 · "+date,exact:true}).isDisabled(),true);
- await dialog().getByRole("group",{name:"运动 1 包含关系",exact:true}).getByRole("button",{name:"已包含",exact:true}).click();await dialog().getByRole("button",{name:"保存 · "+date,exact:true}).click();await page.locator("dialog[open]").waitFor({state:"hidden"});
+ await dialog().getByRole("group",{name:"运动 1 包含关系",exact:true}).getByRole("button",{name:"已包含",exact:true}).click();await dialog().getByRole("button",{name:"保存 · "+date,exact:true}).click();await page.locator("dialog[open]:not(.page-loading-dialog)").waitFor({state:"hidden"});
  const post=async items=>{const response=await context.request.post(baseURL+"/api/v1/record-operations",{headers,data:{operationId:randomUUID(),items}});assert.equal(response.status(),200);return response.json();};
  // A normal two-item photo meal has one save action and no acknowledgement checklist.
  const aiDate=shift(today,-60),photoMeal=await post([{key:"meal",kind:"save_meal",date:aiDate,mealType:"lunch",expectedImageCount:2,photoReview:{dateConfirmed:false,mealTypeConfirmed:false,identityConfirmed:false,amountConfirmed:false,cookingConfirmed:false,questions:[]},items:[{kind:"food",name:"虚构长名称食物甲，包含足够文字验证手机换行",quantity:"1",unit:"份",nutrition:n("650"),sourceKind:"estimated"},{kind:"food",name:"虚构食物乙",quantity:"1",unit:"份",nutrition:n("230"),sourceKind:"estimated"}]}]);

@@ -161,7 +161,7 @@ async function view(db: Database, row: Stored): Promise<RecordReviewView> {
     const duplicateMeals = mealRow?.duplicateIds?.flatMap(id => snapshot.meals.filter(meal => meal.id === id && !meal.deletedAt));
     if (!aiActionAllowed(item.action.kind) || retiredEnergyAction(item.action.kind)) {
       if (mealRow) mealRow.error = "AI不能删除或恢复整条记录，请取消这一项。";
-      if (energyRow) energyRow.error = "AI不能删除或恢复整条记录，请取消这一项。";
+      if (energyRow) energyRow.error = retiredEnergyAction(item.action.kind) ? "日常默认值和静息公式资料已停用，请取消这一项。" : "AI不能删除或恢复整条记录，请取消这一项。";
     }
     return { ...item, persisted, ...(bodyRow ? { body: bodyRow } : {}), ...(mealRow ? { meal: { ...mealRow, before } } : {}), ...(energyRow ? { energy: energyRow } : {}), ...(duplicateMeals?.length ? { duplicateMeals } : {}) };
   });

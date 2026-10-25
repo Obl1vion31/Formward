@@ -5,8 +5,6 @@ import { getDatabase } from "@/db/client";
 import { readEnergySnapshot } from "@/features/activities/records";
 import { EnergyView } from "@/features/activities/energy-view";
 import { energyPresentation } from "@/features/activities/presentation";
-import { listMeasurements } from "@/features/measurements/records";
-import { measurementDisplay } from "@/features/measurements/editing";
 import { localMeasurementDate } from "@/features/measurements/entry-state";
 import { systemMeasurementTimezone } from "@/features/measurements/timezone";
 import { linkedDate } from "@/features/measurements/calendar";
@@ -21,7 +19,7 @@ export default async function EnergyPage({ searchParams }: { searchParams: Promi
   return <Suspense fallback={<RouteLoading />}><Content user={user} date={linkedDate((await searchParams).date)} /></Suspense>;
 }
 async function Content({ user, date }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date: string | null }) {
-  const db = getDatabase(), snapshot = await readEnergySnapshot(db, user.id), records = await listMeasurements(db, user.id);
+  const db = getDatabase(), snapshot = await readEnergySnapshot(db, user.id);
   const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
-  return <main className="dashboard-page"><DashboardHeader email={user.email} /><EnergyView presentation={energyPresentation(snapshot, records.map(measurementDisplay), today, await listEnergySources(db, user.id))} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date} /></main>;
+  return <main className="dashboard-page"><DashboardHeader email={user.email} /><EnergyView presentation={energyPresentation(snapshot, [], today, await listEnergySources(db, user.id))} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date} /></main>;
 }

@@ -7,8 +7,6 @@ import { submitEnergyOperation, decideEnergyOperation, readEnergySnapshot } from
 import type { EnergyInput } from "@/features/activities/model";
 import { safeAiError } from "@/features/measurements/ai-api";
 import { energyPresentation } from "@/features/activities/presentation";
-import { listMeasurements } from "@/features/measurements/records";
-import { measurementDisplay } from "@/features/measurements/editing";
 import { localMeasurementDate } from "@/features/measurements/entry-state";
 import { systemMeasurementTimezone } from "@/features/measurements/timezone";
 import { listEnergySources, removeEnergySource } from "@/features/activities/sources";
@@ -23,7 +21,7 @@ export async function saveEnergyAction(input: EnergyInput) {
     const snapshot = await readEnergySnapshot(db, user.id);
     revalidatePath("/dashboard/energy"); revalidatePath("/dashboard"); revalidatePath("/dashboard/ai", "layout");
     const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
-    return { ok: true as const, data: { presentation: energyPresentation(snapshot, (await listMeasurements(db, user.id)).map(measurementDisplay), today, await listEnergySources(db, user.id)), message: "已保存。" } };
+    return { ok: true as const, data: { presentation: energyPresentation(snapshot, [], today, await listEnergySources(db, user.id)), message: "已保存。" } };
   } catch (error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }
 

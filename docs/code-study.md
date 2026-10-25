@@ -688,7 +688,7 @@ flowchart LR
 
 | 哪一步 | 在哪里运行 | 文件／函数 | 收到什么 | 做什么 | 交给谁 |
 | --- | --- | --- | --- | --- | --- |
-| 1. 打开 | Next.js服务端 | [消耗page.tsx](../src/app/dashboard/energy/page.tsx) | 登录账号 | 顺序读消耗与身体记录 | `EnergyView` |
+| 1. 打开 | Next.js服务端 | [消耗page.tsx](../src/app/dashboard/energy/page.tsx) | 登录账号 | 读取消耗、运动和来源建议，不读取身体记录 | `EnergyView` |
 | 2. 填写 | 浏览器 | [energy-view.tsx](../src/features/activities/energy-view.tsx) → [EnergyEditor](../src/features/activities/energy-editor.tsx) | 日记录／活动／包含关系 | 保存浏览器草稿，不改数据库 | `execute`回调 |
 | 3. 提交 | 浏览器到服务端 | [actions.ts](../src/app/dashboard/energy/actions.ts) 的 `saveEnergyAction` | 同一内容复用的operationId和actions | 检查登录，调用共用业务 | `submitEnergyOperation` |
 | 4. 校验与保存 | 服务端和数据库 | [activities/records.ts](../src/features/activities/records.ts) | 账号、版本和动作列表 | 预览后确认，同日多项事务保存事实和事件 | `energyPresentation` |
