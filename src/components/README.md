@@ -27,7 +27,7 @@
 
 use-chart-date-selection.ts统一四页的临时悬停、点击固定、图外／Escape解除和键盘选日；仅维护界面日期。chart-ranges.tsx复用区间按钮，日期输入保留在各模块的自定义表单。
 
- daily-records.tsx与record-ui.module.css统一日期行、查看入口及次要状态位置；record-history.tsx提供日期查找、50行加载及返回历史位置。主列表由record-dates.ts推导今天及前6天待处理日期，不计算健康数值。
+ daily-records.tsx与record-ui.module.css统一日期行、查看入口及次要状态位置；record-history.tsx提供页面内日期查找与每批50行加载；daily-records.tsx在最近行下方提供展开／收起历史。单日查看或编辑才开Inspector，关闭保留列表加载状态及页面位置。主列表由record-dates.ts推导今天及前6天待处理日期，不计算健康数值。
 
  inspector.tsx与同名CSS统一侧栏、滚动锁、焦点、Escape／遮罩、输入保护和减少动态效果。身体页传入专用标题和内容，保留候选与晨晚流程；饮食旧EditorDialog导出仅为兼容现有调用，不再自建弹窗。
 

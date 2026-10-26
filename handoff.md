@@ -2,7 +2,15 @@
 
 更新日期：2026-10-27。仓库 `/home/obl1vion/projects/Formward`，当前功能分支 `codex/latest-records-energy-sources`，尚未合入main。先读根README、AGENTS、本文及目标目录最近README；修改Next.js前读取已安装包的本地指南。
 
-## 当前维护：四页一致交互与手机核心数据
+## 当前维护：页面内历史与固定“已记全”文案
+
+身体、饮食、消耗的“查看全部”位于最近行下方，点击在页面内展开历史，每批50日且排除最近日期；具体日期查看或编辑才打开Inspector，关闭恢复页面滚动、触发焦点及已加载批次。身体删除Inspector内历史分支，三页复用相同日期行与历史索引。按日期查找保留，空行不写入数据库。
+
+“已记全”始终使用同一文字，未确认／未记全不勾选，完成后打勾、文字变淡且仍可取消；保存中不替换文字，失败保留实际状态。这里只改勾选控件，最近日期筛选与盈余业务保持。身体晨间／晚间组内不拆字，桌面数值按内容宽度排列；饮食和消耗清除鼠标点击SVG列的默认白框，保留键盘绘图区焦点。
+
+无公开协议、权限、数据库或健康规则变化，无migration。361项单元／集成、lint、typecheck、production build、AI混合审核和日完整性专项通过。Chromium／WebKit最终样式、四页首屏、三页50日加载及手机历史复验通过，正式发布待执行。证据将归档.codex/inline-history-visual/及.codex/inline-history-release/。
+
+## 此前四页一致交互与手机核心数据
 
 四页使用components/use-chart-date-selection.ts共用悬停预览、点击固定、图外／Escape解除和键盘选日，chart-ranges.tsx共用区间按钮；无前后日控件。daily-records.tsx统一日期行，record-history.tsx提供完整历史与返回位置，inspector.tsx提供共用侧栏外壳及输入／焦点保护。身体保留专用晨晚、候选和编辑内容。
 

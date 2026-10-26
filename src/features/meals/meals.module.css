@@ -112,7 +112,7 @@
 .bar[data-incomplete="true"] { fill-opacity:.45; stroke:currentColor; stroke-dasharray:2 2; }
 .barHit { fill:transparent; }
 .chart g[role="button"] { cursor:pointer; }
-.chart g[role="button"]:focus-visible { outline:none; }
+.chart g[role="button"]:focus { outline:none; }
 .chart g[role="button"]:focus-visible .barHit { fill:rgba(240,233,221,.08); stroke:var(--gold); stroke-width:1; }
 .barHint { min-height:20px; margin:4px 0; font-size:12px; color:var(--muted); white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
 .photos { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0; }

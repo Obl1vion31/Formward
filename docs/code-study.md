@@ -1096,4 +1096,4 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 
 ## 界面复用的查找入口
 
-四页选日行为从components/use-chart-date-selection.ts找；区间按钮看chart-ranges.tsx，日期行看daily-records.tsx，历史查看看record-history.tsx，侧栏外壳看inspector.tsx。它们处理显示和交互，餐次、消耗与身体规则仍在对应feature。删除食材库不会删掉以前吃过的餐次：餐项保存当时的营养和包装快照；人工永久删除只解除库引用，历史营养保持。图表缺测仍是真实缺失，不通过新增0填平。
+四页选日行为从components/use-chart-date-selection.ts找；区间按钮看chart-ranges.tsx，日期行看daily-records.tsx，页面下方展开的历史日期看record-history.tsx，单日查看／编辑的侧栏外壳看inspector.tsx。它们处理显示和交互，餐次、消耗与身体规则仍在对应feature。删除食材库不会删掉以前吃过的餐次：餐项保存当时的营养和包装快照；人工永久删除只解除库引用，历史营养保持。图表缺测仍是真实缺失，不通过新增0填平。

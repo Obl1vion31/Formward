@@ -15,8 +15,8 @@ export async function checkMealDayCompletion({baseURL,context,page,token,today})
  assert.equal(await graphDay().getAttribute("data-balance"),null);
  assert.equal(Number(await graphDay().locator('[data-series="intake"]').getAttribute("data-overview-value")),800);
  const mark=async(status)=>{
-  await page.goto(baseURL+"/dashboard/meals");const row=page.locator('[data-meal-day="'+date+'"]');
-  await row.getByRole("button",{name:status==="complete"?"已记完":"未记全",exact:true}).click();
+  await page.goto(baseURL+"/dashboard/meals?date="+date);const row=page.locator("dialog[open]");
+  await row.getByRole("checkbox",{name:date+" 已记全",exact:true}).click();
   await row.locator('[data-meal-day-status="'+status+'"]').waitFor();
   assert.equal((await read()).day.status,status);
  };
@@ -32,7 +32,7 @@ export async function checkMealDayCompletion({baseURL,context,page,token,today})
  for(const width of[1440,390,320]){
   await page.setViewportSize({width,height:width<500?740:1000});await page.goto(baseURL+"/dashboard/meals");
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
-  await page.locator('[data-meal-day="'+date+'"]').scrollIntoViewIfNeeded();await page.waitForTimeout(500);await page.screenshot({path:"/tmp/formward-day-visual/day-"+width+".png",fullPage:true});
+  await page.locator("[data-history-toggle]").click();await page.locator('[data-record-date="'+date+'"]').scrollIntoViewIfNeeded();await page.waitForTimeout(500);await page.screenshot({path:"/tmp/formward-day-visual/day-"+width+".png",fullPage:true});
  }
  console.log("饮食日完整性实际网页通过：新日待确认/已记完/未记全、摄入保留/盈余排除、追加餐后重新确认，1440/390/320px。");
 }
