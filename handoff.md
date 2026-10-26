@@ -1,6 +1,6 @@
 # Formward 项目交接
 
-更新日期：2026-10-26。仓库 `/home/obl1vion/projects/Formward`，当前功能分支 `codex/latest-records-energy-sources`，尚未合入main。先读根README、AGENTS、本文及目标目录最近README；修改Next.js前读取已安装包的本地指南。
+更新日期：2026-10-27。仓库 `/home/obl1vion/projects/Formward`，当前功能分支 `codex/latest-records-energy-sources`，尚未合入main。先读根README、AGENTS、本文及目标目录最近README；修改Next.js前读取已安装包的本地指南。
 
 ## 当前维护：四页一致交互与手机核心数据
 
@@ -10,15 +10,17 @@
 
 网页人工确认永久删除正式餐次／食材／日消耗／运动，保留审计、备份及既有软删除数据。删除食材保留旧餐营养、份数、包装快照与照片，不作废已记完；删除餐次同事务作废当天确认。消耗批量运动删除同事务，内部选项仅人工网页使用，公开协议不增加能力，AI整条删除仍禁止。
 
-0025_active_food_identity.sql仅将食材规格唯一索引限制到有效条目，使旧软删除数据不阻挡同规格新建；不新增列、不改旧migration或历史事实。迁移尚未在生产执行，需按既有流程先提交、备份、迁移核对、发布及正式虚构账号验收。
+0025_active_food_identity.sql仅将食材规格唯一索引限制到有效条目，使旧软删除数据不阻挡同规格新建；不新增列、不改旧migration或历史事实。已先纳入版本控制，再备份、执行生产迁移并核对实际索引。数据库至0025，仍为39张应用表加Drizzle账本。
 
-当前361项单元／集成测试通过。production build通过，四页浏览器首屏与交互正在验收，尚未发布。证据在.codex/unified-ui-visual/，最终结果以验收记录为准。设计标准仍为docs/design-reference.md，实施及验收前必读，不新增规则文件。
+361项单元／集成、lint、typecheck、production build、结构及文档检查通过。本机与正式域名Chromium／WebKit均完成四页×7组视口验收，含320×560矮屏、模拟安全区、触屏、键盘、固定／解除日期、历史返回与记全切换；未完成运动在Inspector保留而不计入热量。15项公开／保护入口通过，验收请求5xx与客户端异常为0。正式虚构账号及全部所属测试数据已清理。证据在.codex/unified-ui-visual/和.codex/unified-ui-release/；设计标准仍为docs/design-reference.md，实施及验收前必读，不新增规则文件。真实iOS浏览器与系统软键盘未作实机验收。
 
-## 已有正式版本
+## 当前正式版本
 
-正式域名当前仍为READY部署dpl_A9Ncxhg35CPxuN3WcMCKeVqwAt4Q，运行代码aaea8b3；数据库0024。功能分支codex/latest-records-energy-sources尚未合入main。先前总览手机图组常规268px／矮视口228px，两图完整可见；本次继续保持此标准。
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_2UiExPvi9DbYcmhGuYNpmHwVwXgv，运行代码c5830eb；数据库0025。功能分支codex/latest-records-energy-sources已推送，尚未合入main。手机总览图组常规268px／矮视口228px，两图完整可见。
 
-先前备份为data/exports/database-before-overview-compact-2026-10-25.json和database-after-overview-compact-2026-10-25.json，核对为overview-compact-storage-verification-2026-10-25.json，均0600且Git忽略。正式截图与报告在.codex/overview-compact-release/。
+主界面710055c的正式双浏览器完整验收报告为.codex/unified-ui-release/production.json；最终c5830eb仅补齐Inspector中的未完成运动展示，双浏览器专项报告为energy-details-production.json及对应*-energy-details.json。正式别名状态见.codex/unified-ui-inspect.log，15项入口见.codex/unified-ui-release/public.json。
+
+私有备份为data/exports/database-before-unified-ui-2026-10-26.json、database-after-migration-unified-ui-2026-10-26.json、database-after-primary-unified-ui-2026-10-26.json、database-after-production-unified-ui-2026-10-26.json；核对为unified-ui-after-migration-storage-verification.json、unified-ui-after-primary-storage-verification.json及unified-ui-after-production-storage-verification.json。40表原有列、健康事实、请求、审计及旧软删除数据保持，只增加一条迁移账本；正常认证使用／续期元数据和限流单独排除。全部0600，Git与部署忽略。
 
 ## 此前三阶段完善交付
 
@@ -48,11 +50,11 @@
 - query_energy已在用户补授权后实测成功；用户报告仅消耗提交未授权。authorize_formward新增纯连接检查，一次申请身体、饮食／食材、消耗的读取和提交预览；不读健康内容、不建预览。已有提交权限的连接缺新类别时补授权合并六项，日常只读缺权限只合并三类读取。三类权限在设置页同格式显示，提供复制统一授权指令；旧令牌／连接不自动扩权，必须用户OAuth同意。客户端需刷新工具列表才能发现新增工具。
 
 - 手机48px页头、账号更多菜单、四个主页面底部导航；审核只保留统一保存栏。
-- 饮食／消耗最近10个日历日直接补录，含全空与只有活动的日期；保存明确日期，跨零点保留草稿；空行不入库。
+- 饮食／消耗从今天及前6天待处理日期直接补录，更早或完成日期在查看全部；保存明确日期，跨零点保留草稿，空行不入库。
 - 消耗默认最近有效日，只显示单份读数与趋势；公式／资料入口撤下。长区间提供稀疏日期标签。
 - 总览默认最近完整收支日，必要时扩大最短区间。手机先显示盈余／缺口与计算式，次晨读数在下层图旁，详情保留两日晨重；局部线图刻度与数据范围独立，kg保留零线。
 - 确认页优先单餐日期、中文餐次、服务端kcal及宏量合计和食物，图片依据折叠；普通餐次只需底部一次确认保存，缺图可先保存文字。
-- 0022新增energy_sources并从有效既有来源初始化建议元数据，原表／健康事实／原始请求／审计保持。当前正式数据库0024、39张应用表加账本；0024只增加兼容列。公开权限种类和认证保持；OpenAPI1.12.0／MCP1.10.0、13工具。2058仍仅为既有一次性初始化。
+- 0022新增energy_sources并从有效既有来源初始化建议元数据，原表／健康事实／原始请求／审计保持。当前正式数据库0025、39张应用表加账本；0024增加兼容列，0025仅调整有效食材规格索引。公开权限种类和认证保持；OpenAPI1.12.0／MCP1.10.0、13工具。2058仍仅为既有一次性初始化。
 
 ## 验证与发布归档
 

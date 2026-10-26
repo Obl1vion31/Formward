@@ -1,6 +1,6 @@
 # 完善任务验收
 
-## 四页交互与手机核心数据（2026-10-26）
+## 四页交互与手机核心数据（2026-10-26实施，10-27归档）
 
 按design-reference.md的D1—D6检查实际网页，使用独立PGlite与虚构账号，未触碰真实健康数据。361项单元／集成、lint、typecheck与production build通过。新增回归覆盖有效餐次直接永久删除、当天确认失效与重试、包装食材快照／已记完保持、旧软删除规格重建、运动混合删除与审计失败回滚。
 
@@ -8,12 +8,16 @@ Chromium和WebKit各通过四页×7组视口：320×560、390×560、390×640、
 
 AI混合审核与餐次／消耗编辑、取消、事务保存、两种营养占比、盈余与次晨对齐浏览器回归通过，覆盖1440／1100／390／320px。实际图像在.codex/unified-ui-visual/，双浏览器几何与总览报告分别为*-geometry.json及*-report.json。曾发现并修正首次SSR本地日期为空、窄屏占比按钮折行及不同滚动条宽度改变消耗图高度；保存中拒绝关闭的既有保护保留，测试等真实保存结束再关闭。
 
-生产迁移与正式验收待执行；0025仅修改有效食材规格唯一索引，不清理或回填任何旧事实。发布完成后在此登记部署和数据核对结果。
+0025先纳入版本控制，再进行私有备份、生产迁移和实际索引核对；仅修改有效食材规格唯一索引，不清理或回填旧事实。正式域名https://formward-ten.vercel.app已核对READY部署dpl_2UiExPvi9DbYcmhGuYNpmHwVwXgv、运行代码c5830eb，数据库0025，分支已推送且未合入main。
+
+主界面710055c在正式域名完成上述双浏览器四页×7组视口验收，报告.codex/unified-ui-release/production.json。之后c5830eb只修正Inspector从全部有效活动读取明细，保留未完成运动；正式Chromium／WebKit专项确认未完成项可见、标有未完成且总消耗不变。报告energy-details-production.json及*-energy-details.json与完整验收同目录。15项公共／保护入口通过；本轮验收客户端异常及请求5xx为0。虚构账号与全部所属测试数据已清理。
+
+迁移后、主界面发布后及最终发布后均与迁移前私有备份对照40表：既有列、健康事实、原始请求、来源、审计和旧软删除数据保持，账本仅增一条；正常会话续期／授权使用元数据与限流单独排除。备份为data/exports/database-before-unified-ui-2026-10-26.json、database-after-migration-unified-ui-2026-10-26.json、database-after-primary-unified-ui-2026-10-26.json、database-after-production-unified-ui-2026-10-26.json；核对为unified-ui-after-migration-storage-verification.json、unified-ui-after-primary-storage-verification.json、unified-ui-after-production-storage-verification.json。文件0600，Git与部署忽略。
 
 
 使用虚构账号验收，真实健康数据不进入截图、测试或公开报告。
 
-## 总览首屏维护
+## 此前总览首屏维护
 
 统一依据为[设计与视觉验收](design-reference.md)，实施前与验收前读取同一文件。本机与正式域名均按适用条目检查，结果如下。
 

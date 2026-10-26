@@ -2,7 +2,7 @@
 
 正式域名为 [Formward](https://formward-ten.vercel.app)，Next.js 由 Vercel Hobby 托管，数据库沿用 Neon PostgreSQL。AI 使用正式 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 或 `https://formward-ten.vercel.app/api/mcp`，不能使用受 Deployment Protection 保护的单次部署／预览地址。
 
-当前正式站READY部署dpl_A9Ncxhg35CPxuN3WcMCKeVqwAt4Q，运行代码aaea8b3（分支codex/latest-records-energy-sources，尚未合入main），数据库0024，共39张应用表加Drizzle账本。OpenAPI1.12.0／MCP1.10.0、13工具；Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。具体结果见[验收记录](maintenance-verification.md)。
+当前正式站READY部署dpl_2UiExPvi9DbYcmhGuYNpmHwVwXgv，运行代码c5830eb（分支codex/latest-records-energy-sources，已推送、尚未合入main），数据库0025，共39张应用表加Drizzle账本。0025已在备份后迁移，40表既有数据核对保持；正式双浏览器验收、未完成运动专项及15项公开／保护入口通过，虚构账号已清理。OpenAPI1.12.0／MCP1.10.0、13工具；Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。具体结果见[验收记录](maintenance-verification.md)。
 
 ## 平台与变量
 
