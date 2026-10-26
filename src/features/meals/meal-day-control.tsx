@@ -11,5 +11,5 @@ export function MealDayControl({day,busy,save}:{day:MealDayView;busy:boolean;sav
     setWorking(true);
     try{if(await save(request.current!))request.current=null;}finally{setWorking(false);}
   }
-  return <div className={styles.control} data-meal-day-status={day.status}><span>{mealDayLabels[day.status]}</span><div role="group" aria-label={day.date+" 饮食是否记完"}><button type="button" disabled={busy||working||day.status==="complete"} aria-pressed={day.status==="complete"} onClick={()=>void choose("complete")}>已记完</button><button type="button" disabled={busy||working||day.status==="incomplete"} aria-pressed={day.status==="incomplete"} onClick={()=>void choose("incomplete")}>未记全</button></div></div>;
+  return <button type="button" className={styles.control} data-meal-day-status={day.status} aria-label={day.date+" "+mealDayLabels[day.status]+"，点击"+(day.status==="complete"?"标为未记全":"确认已记完")} aria-pressed={day.status==="complete"} disabled={busy||working} onClick={()=>void choose(day.status==="complete"?"incomplete":"complete")}>{working?"保存中…":<>{day.status==="complete"?"✓ ":"○ "}{day.status==="complete"?"已记完":day.status==="incomplete"?"未记全":"待确认"}</>}</button>;
 }

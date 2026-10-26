@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { recentRecordDates, recordDateLabel, preferredRecordedDate, rangeContaining } from "@/components/record-dates";
+import { recentRecordDates, pendingRecordDates, recordDateLabel, preferredRecordedDate, rangeContaining } from "@/components/record-dates";
 test("日历空日只作为展示，包含昨日、跨月和闰日", () => {
  assert.deepEqual(recentRecordDates("2028-03-01",3),["2028-03-01","2028-02-29","2028-02-28"]);
  assert.equal(recentRecordDates("2026-01-01")[1],"2025-12-31");
@@ -21,4 +21,10 @@ test("最近有效记录超出默认区间时扩大，历史深链保持自己�
  assert.equal(rangeContaining("2026-08-01","2026-10-23","7"),"90");
  assert.equal(rangeContaining("2026-01-01","2026-10-23","30"),"all");
  assert.equal(rangeContaining("2026-10-01","2026-10-01","7"),"7");
+});
+
+test("主列表只取今天和前六天待处理日期，服务端尚无本地今天时可显示日期",()=>{
+ assert.deepEqual(pendingRecordDates("2026-01-03",d=>["2026-01-01","2025-12-28","2025-12-27"].includes(d)),["2026-01-03","2026-01-01","2025-12-28"]);
+ assert.deepEqual(pendingRecordDates("2028-03-01",()=>false),["2028-03-01"]);
+ assert.equal(recordDateLabel("2026-10-25",""),"2026-10-25");
 });

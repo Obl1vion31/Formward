@@ -152,3 +152,5 @@ OAuth测试覆盖部分授权到完整读写的一次网页同意、只读查询
 
 
 总览视觉验收统一读取[设计文档](../docs/design-reference.md)。`overview-first-screen.browser.mjs`检查未滚动的320×560、390×560、390×640、430×780手机视口，模拟34px底部安全区，断言完整双图与日期刻度位于实际导航上方；另查横屏、1100／1440px、刻度碰撞、选日稳定、固定／图外解除、自定义应用／取消及减少动态效果。截图为实际视口，需逐张复核。隔离入口为 `FORMWARD_OVERVIEW_ONLY=1 pnpm test:energy-browser`；`FORMWARD_MAINTENANCE_ONLY=1`同时回归既有维护流程；正常消耗全量入口也包含首屏检查。`FORMWARD_OVERVIEW_BROWSER=webkit`可切换临时安装的WebKit，不增加应用依赖。模拟测试不替代真实iPhone及软键盘复核。
+
+FORMWARD_UNIFIED_UI_ONLY=1 pnpm test:energy-browser使用PGlite和虚构账号验收四页共用交互、当天／前6天待处理列表、单按钮记全、Inspector与各手机首屏；FORMWARD_OVERVIEW_BROWSER=webkit切换WebKit。截图和几何报告位于.codex/unified-ui-visual/，实际视口包含34px模拟安全区。浏览器模块和依赖可从本机私有工具目录通过既有环境变量指定，不加入产品依赖。

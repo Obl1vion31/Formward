@@ -63,6 +63,8 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
    const choice=relation(item);changes.push({...action,date:draft.date,...(baseline&&choice?{inclusion:choice}:{})});
   }
   for(const row of activities.filter(row=>!row.deletedAt&&row.date===(initial.kind==="save_energy_day"?initial.date:draft.date)&&!items.some(item=>item.id===row.id)))changes.push({kind:"delete_activity",id:row.id,version:row.version});
+  const removed=changes.filter(action=>action.kind==="delete_activity");
+  if(removed.length&&!window.confirm("保存后将永久删除 "+removed.length+" 条已记录运动，无法恢复。继续保存？"))return;
   saveBatch(changes);
  }
  const retired=draft.kind.includes("energy_defaults")||draft.kind.includes("energy_profile");

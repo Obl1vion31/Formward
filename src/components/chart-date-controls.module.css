@@ -1,7 +1,0 @@
-.controls { display:grid; grid-template-columns:44px minmax(0,1fr) 44px; align-items:center; gap:6px; width:270px; max-width:100%; min-width:0; color:#f0e9dd; }
-.controls > button[type="button"] { appearance:none; display:flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; border:0; padding:4px 0; background:transparent; color:#bea478; font:inherit; font-size:12px; white-space:nowrap; cursor:pointer; }
-.controls > button:disabled { opacity:.4; cursor:default; }
-.controls > input[type="date"] { width:100%; min-width:0; min-height:44px; box-sizing:border-box; padding:6px; border:1px solid rgba(240,233,221,.2); border-radius:4px; background:#151513; color:#f0e9dd; font:inherit; font-size:14px; color-scheme:dark; }
-.controls > :is(button,input):focus-visible { outline:2px solid #bea478; outline-offset:2px; }
-.label { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
-@media(max-width:700px),(hover:none) and (pointer:coarse) { .controls > input[type="date"] { font-size:16px; } }

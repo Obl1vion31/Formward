@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {eq} from "drizzle-orm";
 import {after,before,test} from "node:test";
 import {randomUUID} from "node:crypto";
 import {PGlite} from "@electric-sql/pglite";
@@ -59,4 +60,26 @@ test("删除恢复不重复加；总数变化后恢复必须明确关系，跨�
  const input={operationId:randomUUID(),actions:[run("1","additional")]},op=await submitEnergyOperation(db,actor,input);await decideEnergyOperation(db,actor.userId,op.id,op.revision,"confirm");await decideEnergyOperation(db,actor.userId,op.id,op.revision,"confirm");assert.equal(Number((await read(actor)).totalKcal),801);
  assert.equal((await submitEnergyOperation(db,actor,input)).id,op.id);
  await assert.rejects(submitEnergyOperation(db,actor,{...input,actions:[run("1","included")]}));
+});
+
+test("网页永久删除支持日记录与运动批量事务，保留审计且重复安全",async()=>{
+ const actor=await owner();let state=await save(actor,[total(),run("300","additional")]);
+ const op=await submitEnergyOperation(db,actor,{operationId:randomUUID(),actions:[{kind:"delete_energy_day",id:state.days[0].id,version:state.days[0].version},{kind:"delete_activity",id:state.activities[0].id,version:state.activities[0].version}]});
+ assert.equal(op.canConfirm,true);await decideEnergyOperation(db,actor.userId,op.id,op.revision,"confirm",{permanentManualDeletion:true});await decideEnergyOperation(db,actor.userId,op.id,op.revision,"confirm",{permanentManualDeletion:true});
+ state=await readEnergySnapshot(db,actor.userId);assert.equal(state.days.length,0);assert.equal(state.activities.length,0);
+ const events=await db.select().from(schema.energyEvent).where(eq(schema.energyEvent.userId,actor.userId));assert.equal(events.filter(e=>e.snapshot.permanentDeletion).length,2);assert.ok(events.filter(e=>e.snapshot.permanentDeletion).every(e=>e.snapshot.after===null));
+});
+test("永久删除额外运动不减掉手工总数，删除日记录保留其他活动",async()=>{
+ const actor=await owner();let state=await save(actor,[total(),run("300","additional")]);
+ async function remove(actions:EnergyAction[]){const op=await submitEnergyOperation(db,actor,{operationId:randomUUID(),actions});assert.equal(op.canConfirm,true);await decideEnergyOperation(db,actor.userId,op.id,op.revision,"confirm",{permanentManualDeletion:true});}
+ await remove([{kind:"delete_activity",id:state.activities[0].id,version:state.activities[0].version}]);assert.equal(Number((await read(actor)).totalKcal),600);
+ state=await save(actor,[run("100","included")]);await remove([{kind:"delete_energy_day",id:state.days[0].id,version:state.days[0].version}]);
+ state=await readEnergySnapshot(db,actor.userId);assert.equal(state.days.length,0);assert.equal(state.activities.length,1);assert.equal((await read(actor)).totalKcal,null);
+});
+
+test("永久删除审计失败时日记录、活动与整批修改完整回滚",async()=>{
+ const actor=await owner();const before=await save(actor,[total(),run("300","additional")]);
+ const operation=await submitEnergyOperation(db,actor,{operationId:randomUUID(),actions:[{kind:"save_energy_day",id:before.days[0].id,version:before.days[0].version,date,entryMode:"total",totalKcal:"600"},{kind:"delete_activity",id:before.activities[0].id,version:before.activities[0].version}]});assert.equal(operation.canConfirm,true);
+ await pg.exec("CREATE FUNCTION reject_hard_energy() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.snapshot->>'permanentDeletion' = 'true' THEN RAISE EXCEPTION 'fictional audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_hard_energy BEFORE INSERT ON energy_events FOR EACH ROW EXECUTE FUNCTION reject_hard_energy();");
+ try{await assert.rejects(decideEnergyOperation(db,actor.userId,operation.id,operation.revision,"confirm",{permanentManualDeletion:true}));assert.deepEqual(await readEnergySnapshot(db,actor.userId),before);}finally{await pg.exec("DROP TRIGGER reject_hard_energy ON energy_events; DROP FUNCTION reject_hard_energy();");}
 });

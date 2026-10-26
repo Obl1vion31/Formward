@@ -1093,3 +1093,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 总览的选日和读数在 `src/features/dashboard/overview-trend.tsx`，双图在同目录的 `relationship-plot.tsx`，间距在 `overview.module.css`。手机把同一天的摄入、消耗和差值排在紧凑区域，两张图共用日期；通过点击图形选日，桌面点击图外或Escape解除固定。这里调整的是呈现，不重新计算健康数据。
 
 修改界面和验收前都读[设计与视觉验收](design-reference.md)。例如，“两个图都已画出来”还不够：需在未滚动的手机视口中确认下层图和日期刻度没有被底部导航遮住，截图逐项核对适用标准。
+
+## 界面复用的查找入口
+
+四页选日行为从components/use-chart-date-selection.ts找；区间按钮看chart-ranges.tsx，日期行看daily-records.tsx，历史查看看record-history.tsx，侧栏外壳看inspector.tsx。它们处理显示和交互，餐次、消耗与身体规则仍在对应feature。删除食材库不会删掉以前吃过的餐次：餐项保存当时的营养和包装快照；人工永久删除只解除库引用，历史营养保持。图表缺测仍是真实缺失，不通过新增0填平。

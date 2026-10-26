@@ -313,7 +313,7 @@ export async function checkMeasurementsBrowser({ baseURL, first, second, initial
     assert.equal(await page.getByRole("button", { name: "30D", exact: true }).getAttribute("aria-pressed"), "true");
     assert.equal(await recent.locator("tbody tr").count(), 2, "今天及未选择代表的日期常驻，其余完成记录从历史查看");
     assert.equal(await detail.count(), 0);
-    assert.equal(await page.locator('input[type="date"]').count(), 1);assert.equal(await page.locator('input[aria-label="身体图表日期"]').count(),1);
+    assert.equal(await page.locator('input[aria-label="身体图表日期"]').count(),0);
     assert.equal(await page.getByLabel("晚间数据", { exact: true }).isChecked(), true);
     for (const checked of [false, true, false, true]) await assertStableEveningToggle(page, checked);
     const measuredPlot = await chart.locator('svg[role="group"]').elementHandle();

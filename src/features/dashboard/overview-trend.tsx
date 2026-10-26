@@ -1,7 +1,9 @@
 "use client";
+import { ChartRanges } from "@/components/chart-ranges";
+import { useChartDateSelection } from "@/components/use-chart-date-selection";
 import { Disclosure } from "@/components/disclosure";
 import { preferredRecordedDate, rangeContaining } from "@/components/record-dates";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
 import { RelationshipPlot } from "./relationship-plot";
 import { addCalendarDays, calendarOrdinal } from "../measurements/calendar";
@@ -23,23 +25,10 @@ const blankDay = (date: string): OverviewDay => ({ date, nextDate: addCalendarDa
 export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const today = data.today, mobile = useMobileMode();
   const preferred = preferredRecordedDate(data.days, today, day => day.energyBalance !== null, day => data.recordDates.includes(day.date));
-  const [mode, setMode] = useState<string | null>(null), [custom, setCustom] = useState({ from: addCalendarDays(today, -29), to: today }), [inspected, setInspected] = useState(preferred), [estimates, setEstimates] = useState(true), [opened, setOpened] = useState<string | null>(null);
-  const [hovered,setHovered]=useState<string|null>(null),[pinned,setPinned]=useState<string|null>(null);
-  const plotRegion = useRef<HTMLDivElement>(null);
+  const [mode, setMode] = useState<string | null>(null), [custom, setCustom] = useState({ from: addCalendarDays(today, -29), to: today }), [estimates, setEstimates] = useState(true), [opened, setOpened] = useState<string | null>(null);
   const [customOpen, setCustomOpen] = useState(false), [customDraft, setCustomDraft] = useState(custom);
   let customValid = false;
   try { const length = calendarOrdinal(customDraft.to) - calendarOrdinal(customDraft.from) + 1; customValid = length > 0 && length <= 3661; } catch {}
-  useEffect(() => {
-    if (!pinned) return;
-    const release = (event: PointerEvent) => {
-      if (event.target instanceof Element && event.target.closest("[data-overview-range-controls]")) return;
-      if (event.target instanceof Node && !plotRegion.current?.contains(event.target)) { setPinned(null); setHovered(null); }
-    };
-    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { setPinned(null); setHovered(null); } };
-    document.addEventListener("pointerdown", release);
-    document.addEventListener("keydown", escape);
-    return () => { document.removeEventListener("pointerdown", release); document.removeEventListener("keydown", escape); };
-  }, [pinned]);
   const range = mode ?? rangeContaining(preferred, today, mobile ? "7" : "30");
   const available = estimates ? data.estimatedDays : data.days;
   const byDate = new Map(available.map(day => [day.date, day]));
@@ -49,16 +38,9 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   try { const length = calendarOrdinal(to) - calendarOrdinal(from) + 1; if (length > 0 && length <= 3661) dates = Array.from({ length }, (_, index) => addCalendarDays(from, index)); } catch {}
   const days = dates.map(date => byDate.get(date) ?? blankDay(date));
   const fallback = preferredRecordedDate(days, today, day => day.energyBalance !== null, day => data.recordDates.includes(day.date));
-  if (pinned && !dates.includes(pinned)) { setPinned(null); setHovered(null); }
-  const activePin=pinned && dates.includes(pinned)?pinned:null;
-  const previewDate=activePin??hovered??inspected;
-  const selected = dates.includes(previewDate) ? previewDate : dates.includes(fallback) ? fallback : to, day = days.find(day => day.date === selected), dialogDay = opened ? byDate.get(opened) ?? blankDay(opened) : null;
+  const selection=useChartDateSelection(dates,preferred,fallback),selected=selection.selected,day=days.find(day=>day.date===selected),dialogDay=opened?byDate.get(opened)??blankDay(opened):null;
   return <section className={styles.trends} aria-label="热量与晨重趋势">
-    <div className={styles.trendToolbar} data-overview-range-controls=""><div className={styles.trendTitle}><h2>摄入、消耗与次晨变化</h2><time>{from.replaceAll("-", ".")} — {to.replaceAll("-", ".")}</time></div><div className={styles.ranges}>{[["7", "7D"], ["30", "30D"], ["90", "90D"], ["all", "全部"], ["custom", "自定义"]].map(([key, label]) => <button key={key} aria-pressed={range === key} aria-expanded={key === "custom" ? customOpen : undefined} onClick={() => {
-      setHovered(null);
-      if (key === "custom") { setCustomDraft(custom); setCustomOpen(true); }
-      else { setMode(key); setCustomOpen(false); }
-    }}>{label}</button>)}</div><label className={styles.estimateToggle}><input type="checkbox" checked={estimates} onChange={event => setEstimates(event.target.checked)} aria-label="显示体重估计" />体重估计</label></div>
+    <div className={styles.trendToolbar} data-overview-range-controls=""><div className={styles.trendTitle}><h2>摄入、消耗与次晨变化</h2><time>{from.replaceAll("-", ".")} — {to.replaceAll("-", ".")}</time></div><ChartRanges className={styles.ranges} value={range} change={key=>{selection.leave();if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/><label className={styles.estimateToggle}><input type="checkbox" checked={estimates} onChange={event => setEstimates(event.target.checked)} aria-label="显示体重估计" />体重估计</label></div>
     {customOpen && <form data-overview-range-controls="" className={styles.customRange} aria-label="自定义日期范围" onSubmit={event => { event.preventDefault(); if (customValid) { setCustom(customDraft); setMode("custom"); setCustomOpen(false); } }} onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setCustomOpen(false); } }}>
       <label>开始<input autoFocus aria-label="总览开始日期" type="date" value={customDraft.from} onChange={event => setCustomDraft({ ...customDraft, from: event.target.value })} /></label>
       <label>结束<input aria-label="总览结束日期" type="date" value={customDraft.to} onChange={event => setCustomDraft({ ...customDraft, to: event.target.value })} /></label>
@@ -86,7 +68,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
             <div className={styles.weightDifference}><span>次晨变化</span><strong>{signed(day.weightChangeKg)}<small>kg</small></strong>{day.ambiguous ? <em>待选择</em> : day.differenceEstimated && day.weightChangeKg !== null && <em>含估计</em>}</div>
           </div>
         </div>
-      </div>}<div ref={plotRegion} className={styles.plotRegion}><RelationshipPlot days={days} selected={selected} inspect={date=>{setInspected(date);setHovered(null);if(activePin)setPinned(date);}} preview={date=>{if(!activePin)setHovered(date);}} leave={()=>setHovered(null)} pin={date=>{setHovered(null);setInspected(date);if(!mobile)setPinned(date);}} unpin={()=>{setPinned(null);setHovered(null);}} pinned={!!activePin} /></div>
+      </div>}<div data-chart-selection={selection.regionId} className={styles.plotRegion}><RelationshipPlot days={days} selected={selected} inspect={selection.choose} preview={selection.preview} leave={selection.leave} pin={selection.pin} unpin={selection.release} pinned={!!selection.pinned}/></div>
     </>}
     {dialogDay && <EditorDialog title={dialogDay.date+" · 当日记录"} close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}
   </section>;

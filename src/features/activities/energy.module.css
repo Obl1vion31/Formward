@@ -65,3 +65,7 @@
 .inclusion>span { display:block; color:#d6c4a8; font-size:13px; }.inclusion>div { display:flex; gap:8px; margin-top:8px; }
 .inclusion button { min-height:40px; padding:7px 14px; border:1px solid #ffffff25; border-radius:4px; }
 .inclusion button[aria-pressed=true] { color:#f0e9dd; background:#bea47824; border-color:#bea478; }
+
+@media(max-width:700px),(hover:none) and (pointer:coarse){.section>.title>.title{display:none}.section>.title{min-height:44px;align-items:center}.readout{padding:8px 0;gap:8px 18px}.readout>div{flex:1;min-width:0}.legend{margin:8px 0}.plot{margin-top:6px}}
+
+@media(max-width:700px),(hover:none) and (pointer:coarse){.plot{margin-top:0}}

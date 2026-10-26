@@ -316,7 +316,7 @@ test("永久删除食材保留所有版本的营养和原规格，历史编辑�
  let before=await readMealSnapshot(db,userId);const first=before.meals[0];
  await save(userId,[lunch({id:first.id,version:first.version,notes:"虚构修改",items:first.items.map(i=>({originalItemId:i.id,kind:"food",name:i.name,foodId:i.foodId,foodVersion:i.foodVersion,quantity:i.quantity,unit:i.unit,sourceKind:i.sourceKind}))})]);
  await save(userId,[{kind:"save_food",...product({id:f.id,version:f.version,baseQuantity:"1",unit:"勺",nutrition:n("200")})}]);f=(await searchFoods(db,userId))[0];
- const activeRequest={operationId:randomUUID(),recordType:"food" as const,id:f.id,version:f.version};await reject(permanentlyDeleteMealRecord(db,userId,activeRequest),"state_conflict");
+ const activeRequest={operationId:randomUUID(),recordType:"food" as const,id:f.id,version:f.version};
  await save(userId,[{kind:"delete_food",id:f.id,version:f.version}]);before=await readMealSnapshot(db,userId);f=before.foods[0];
  const pending=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[lunch({date:"2024-08-02"})]});
  const allBefore=await db.select().from(schema.mealItem).where(eq(schema.mealItem.userId,userId)),request={...activeRequest,version:f.version};
@@ -324,7 +324,7 @@ test("永久删除食材保留所有版本的营养和原规格，历史编辑�
  assert.equal((await permanentlyDeleteMealRecord(db,userId,request)).repeated,false);assert.equal((await permanentlyDeleteMealRecord(db,userId,request)).repeated,true);
  await reject(decideMealOperation(db,userId,pending.id,pending.revision,"confirm"),"snapshot_changed");
  const after=await readMealSnapshot(db,userId);assert.equal(after.foods.length,0);assert.equal(after.meals[0].items[0].foodSnapshot?.imageIds?.[0],imageId);assert.equal((await db.select().from(schema.mealImage).where(eq(schema.mealImage.id,imageId))).length,1);
- for(const m of after.meals){const old=before.meals.find(row=>row.id===m.id)!;assert.deepEqual(m.totals,old.totals);assert.equal(m.version,old.version+1);assert.equal(m.items[0].foodId,undefined);assert.deepEqual(m.items[0].foodSnapshot,old.items[0].foodSnapshot);}
+ for(const m of after.meals){const old=before.meals.find(row=>row.id===m.id)!;assert.deepEqual(m.totals,old.totals);assert.equal(m.version,old.version);assert.equal(m.items[0].foodId,undefined);assert.deepEqual(m.items[0].foodSnapshot,old.items[0].foodSnapshot);}
  const allAfter=await db.select().from(schema.mealItem).where(eq(schema.mealItem.userId,userId));assert.deepEqual(allAfter,allBefore.map(item=>({...item,foodId:null})));
  const m=after.meals[0],i=m.items[0];
  await save(userId,[lunch({id:m.id,version:m.version,items:[{originalItemId:i.id,kind:"food",name:i.name,quantity:"25",unit:"g",sourceKind:i.sourceKind}]})]);
@@ -365,4 +365,34 @@ test("两份人工旧草稿先后保存，后保存生效，保留真实前后�
  assert.equal(stale.canConfirm,false);
  const later=await save(userId,[draft("0.5","旧草稿更晚保存")]);assert.equal(later.canConfirm,true);
  assert.equal(Number((await readMealSnapshot(db,userId)).meals[0].totals.values.caloriesKcal),55);
+});
+
+test("网页直接永久删除有效餐次，作废当日确认且重试不重复作废",async()=>{
+ const {setMealDayStatus}=await import("./day-status");
+ const userId=await owner();await save(userId,[lunch()]);
+ const m=(await readMealSnapshot(db,userId)).meals[0],group=dailyTotals([m])[0];
+ await setMealDayStatus(db,userId,{operationId:randomUUID(),date:group.day.date,version:group.day.version,contentDigest:group.day.contentDigest,status:"complete"});
+ const request={operationId:randomUUID(),recordType:"meal" as const,id:m.id,version:m.version};
+ await permanentlyDeleteMealRecord(db,userId,request);
+ assert.equal((await readMealSnapshot(db,userId)).meals.length,0);
+ const day=(await db.select().from(schema.mealDay).where(eq(schema.mealDay.userId,userId)))[0];assert.equal(day.status,"unconfirmed");
+ await permanentlyDeleteMealRecord(db,userId,request);
+ assert.deepEqual((await db.select().from(schema.mealDay).where(eq(schema.mealDay.userId,userId)))[0],day);
+});
+test("永久删除包装食材保留营养、份数和当天已记完，不改餐次版本",async()=>{
+ const {setMealDayStatus}=await import("./day-status");const userId=await owner();
+ await save(userId,[{kind:"save_food",...product({unit:"g",baseQuantity:"90",servingQuantity:"90",servingUnit:"包"})}]);
+ const f=(await searchFoods(db,userId))[0];
+ await save(userId,[lunch({items:[{kind:"food",foodId:f.id,foodVersion:f.version,name:f.name,quantity:"0.5",unit:"包",sourceKind:f.sourceKind}]})]);
+ const before=await readMealSnapshot(db,userId),g=dailyTotals(before.meals)[0];
+ await setMealDayStatus(db,userId,{date:g.day.date,version:g.day.version,contentDigest:g.day.contentDigest,operationId:randomUUID(),status:"complete"});
+ await permanentlyDeleteMealRecord(db,userId,{operationId:randomUUID(),recordType:"food",id:f.id,version:f.version});
+ const after=await readMealSnapshot(db,userId);assert.equal(after.meals[0].version,before.meals[0].version);assert.deepEqual(after.meals[0].totals,before.meals[0].totals);assert.equal(dailyTotals(after.meals)[0].day.status,"complete");assert.equal(after.meals[0].items[0].quantity,"0.5000");assert.equal(after.meals[0].items[0].unit,"包");
+});
+test("旧软删除食材保留，新同规格可新增，有效同规格仍阻止恢复",async()=>{
+ const userId=await owner();await save(userId,[{kind:"save_food",...product()}]);const f=(await searchFoods(db,userId))[0];
+ await save(userId,[{kind:"delete_food",id:f.id,version:f.version}]);
+ await save(userId,[{kind:"save_food",...product()}]);
+ const foods=(await readMealSnapshot(db,userId)).foods;assert.equal(foods.length,2);assert.equal(foods.filter(f=>!f.deletedAt).length,1);
+ const old=foods.find(f=>f.deletedAt)!;const op=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"restore_food",id:old.id,version:old.version}]});assert.equal(op.canConfirm,false);
 });

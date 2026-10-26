@@ -1,18 +1,19 @@
 "use client";
 import { useChartMotion } from "@/components/use-chart-motion";
-import { useBackdropDismiss } from "@/components/use-backdrop-dismiss";
-import { ChartDateControls } from "@/components/chart-date-controls";
+import { ChartRanges } from "@/components/chart-ranges";
+import { useChartDateSelection } from "@/components/use-chart-date-selection";
+import { DailyRecords,DailyRecordRow } from "@/components/daily-records";
+import { Inspector } from "@/components/inspector";
 
 import { useEffect, useId, useRef, useState } from "react";
 import { buildMeasurementDays, recentMeasurementDays } from "./days";
 import { measurementCalendarPage, measurementCalendarRange } from "./calendar";
 import { measurementSummary } from "./summary";
-import { calendarOrdinal, measurementDateTicks, measurementRange, measurementTrend, metricDifference, normalScale, type MeasurementInterval, type MeasurementMetric, type MeasurementRange } from "./trend";
+import { calendarOrdinal, measurementDateTicks, measurementRange, measurementTrend, normalScale, type MeasurementInterval, type MeasurementMetric, type MeasurementRange } from "./trend";
 import styles from "./measurements-view.module.css";
 import { estimateModeLabel, estimateUserExplanation } from "./estimate-explanation";
 import { localMeasurementDate, measurementDayAction, measurementNeedsEntry, type EntryResult, type MeasurementActions, type MeasurementDateDisplay, type MeasurementDisplay } from "./entry-state";
 import { MeasurementEntry } from "./measurement-entry";
-import { lockPageScroll } from "@/components/scroll-lock";
 import { timezoneLabel } from "./timezone";
 import { useMobileMode } from "@/components/use-mobile-mode";
 export type { MeasurementDisplay } from "./entry-state";
@@ -58,7 +59,6 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [rangeError, setRangeError] = useState("");
   const calendarButton = useRef<HTMLButtonElement>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(initialDate);
   const [chartPeriod, setChartPeriod] = useState<"daytime" | "evening" | undefined>();
   const [showEvening, setShowEvening] = useState(true);
   const [showEstimates, setShowEstimates] = useState(true);
@@ -66,20 +66,19 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [drawer, setDrawer] = useState<DrawerView | null>(initialDate ? {kind:"day",date:initialDate,metric:"weightKg"} : null);
   function updated(result: Extract<EntryResult, { ok: true }>) { setSourceResult(null); setActionResult({ ...result, base: serverRecords }); }
-  if (!latestDate) return <section className={styles.empty}><h1>身体记录</h1><p>暂无测量记录。</p></section>;
 
   const range = measurementRange(latestDate, mode, mode === "custom" ? customRange : { start: earliestDate, end: latestDate });
   const displayedRecords = records.filter((row) => showEstimates || row.recordKind !== "estimated");
   const visibleRecords = displayedRecords.filter((row) => row.recordDate >= range.start && row.recordDate <= range.end);
   const recentInterval = { start: catalog.start, end: today || catalog.end };
-  const recent = recentMeasurementDays(displayedRecords, recentInterval, choices).filter(day => day.date === today || (!dates.some(row => row.date === day.date && row.reminderSkipped) && measurementNeedsEntry(records, day.date, choices)));
-  const fatDays = new Map(recentMeasurementDays(displayedRecords, recentInterval, choices, 10, "bodyFatPercent").map(day => [day.date, day]));
-  const activeDate = selectedDate && selectedDate >= range.start && selectedDate <= range.end ? selectedDate : range.end;
+  const recent = recentMeasurementDays(displayedRecords, recentInterval, choices, 7).filter(day => day.date === today || (!dates.some(row => row.date === day.date && row.reminderSkipped) && measurementNeedsEntry(records, day.date, choices)));
+  const fatDays = new Map(recentMeasurementDays(displayedRecords, recentInterval, choices, 7, "bodyFatPercent").map(day => [day.date, day]));
+  const chartDates=measurementCalendarPage(range,calendarOrdinal(range.end)-calendarOrdinal(range.start)+1).reverse();
+  const selection=useChartDateSelection(chartDates,initialDate??range.end,visibleRecords.map(row=>row.recordDate).sort().at(-1)??range.end),activeDate=selection.selected;
   const summaries = metrics.map(metric => ({ metric, ...measurementSummary(records, metric, choices) }));
 
   function selectRange(nextMode: MeasurementRange, nextInterval = customRange) {
-    const next = measurementRange(latestDate, nextMode, nextMode === "custom" ? nextInterval : { start: earliestDate, end: latestDate });
-    if (selectedDate && (selectedDate < next.start || selectedDate > next.end)) setSelectedDate(null);
+    measurementRange(latestDate,nextMode,nextMode==="custom"?nextInterval:{start:earliestDate,end:latestDate});
     setMode(nextMode);
     setCalendarOpen(false);
   }
@@ -87,11 +86,11 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
     setChoices((previous) => ({ ...previous, [`${date}:${period}`]: id }));
   }
   function inspectRecord(row: MeasurementDisplay, metric: MeasurementMetric) {
-    setSelectedDate(row.recordDate);
+    selection.choose(row.recordDate);
     setDrawer({ kind: "record", recordId: row.id, metric });
   }
   function inspectDay(date: string, period?: "daytime" | "evening", metric: MeasurementMetric = "weightKg") {
-    setSelectedDate(date);
+    selection.choose(date);
     setDrawer({ kind: "day", date, period, metric });
   }
 
@@ -106,7 +105,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
         <strong>{summary.current?.[summary.metric] ?? "—"}<small>{unitFor(summary.metric)}</small></strong>
         <p>{summary.current ? <>晨间空腹 · <time dateTime={summary.current.recordDate}>{displayDate(summary.current.recordDate)}</time></> : "暂无空腹记录"}</p>
       </div>)}
-      {summaries.map(summary => <div key={summary.metric} data-summary="change" data-metric={summary.metric}>
+      {!mobileMode&&<>      {summaries.map(summary => <div key={summary.metric} data-summary="change" data-metric={summary.metric}>
         <span className={styles.recordedChangeLabel}>{metricName(summary.metric)}<small>近7日已记录变化</small></span>
         <strong>{formatDifference(summary.change, summary.metric, false) ?? "—"}<small>{summary.metric === "weightKg" ? "kg" : "百分点"}</small></strong>
         <p>{summary.changeStart ? <>实录 <time dateTime={summary.changeStart}>{shortDate(summary.changeStart)}</time> — <time dateTime={summary.end!}>{shortDate(summary.end!)}</time></> : summary.coverage === 1 ? "近7日仅1个记录日" : "近7日无有效记录"}</p>
@@ -116,24 +115,42 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
         <strong>{summary.average?.toFixed(2) ?? "—"}<small>{unitFor(summary.metric)}</small></strong>
         <p>{summary.coverage}/7 天{summary.end && ` · 截至 ${shortDate(summary.end)}`}</p>
       </div>)}
+</>}
+
     </section>
-    <section className={styles.chartPanel} aria-label="身体指标趋势" data-range={mode} style={{ visibility: mobileMode === null || !today ? "hidden" : undefined }}>
-      <div className={styles.chartToolbar}>
+    <section data-chart-selection={selection.regionId} data-selected-date={selection.selected} data-pinned-date={selection.pinned??undefined} onMouseLeave={selection.leave} className={styles.chartPanel} aria-label="身体指标趋势" data-range={mode} style={{ visibility: mobileMode === null || !today ? "hidden" : undefined }}>
+      <div className={styles.chartToolbar} data-chart-controls>
         <span className={styles.rangeCaption} title={`${displayDate(range.start)} — ${displayDate(range.end)}`}>
           <span className={styles.rangeFull}>{displayDate(range.start)} — {displayDate(range.end)}</span>
           <span className={styles.rangeShort}><small>{range.start.slice(0, 4) === range.end.slice(0, 4) ? range.end.slice(0, 4) : `${range.start.slice(0, 4)} — ${range.end.slice(0, 4)}`}</small><span>{shortDate(range.start)} — {shortDate(range.end)}</span></span>
         </span>
-        <div className={styles.rangeTabs} aria-label="日期视角">
-            {ranges.map((item) => <button key={item.value} type="button" aria-pressed={mode === item.value} onClick={() => selectRange(item.value)}>{item.label}</button>)}
+        <ChartRanges className={styles.rangeTabs} value={mode} items={ranges.map(item=>[item.value,item.label])} change={value=>selectRange(value as MeasurementRange)}>
             <button type="button" ref={calendarButton} aria-label="自定义日期" aria-pressed={mode === "custom"} aria-expanded={calendarOpen} aria-controls="measurement-calendar" onClick={() => { setDraftRange(range); setRangeError(""); setCalendarOpen(!calendarOpen); }}><CalendarIcon /><span>自定义</span></button>
-        </div>
-        <div className={styles.chartControls}>
+        </ChartRanges>
+        {mobileMode?<details className={styles.mobileOptions}><summary>统计与选项</summary><div className={styles.extraStatsGrid}>      {summaries.map(summary => <div key={summary.metric} data-summary="change" data-metric={summary.metric}>
+        <span className={styles.recordedChangeLabel}>{metricName(summary.metric)}<small>近7日已记录变化</small></span>
+        <strong>{formatDifference(summary.change, summary.metric, false) ?? "—"}<small>{summary.metric === "weightKg" ? "kg" : "百分点"}</small></strong>
+        <p>{summary.changeStart ? <>实录 <time dateTime={summary.changeStart}>{shortDate(summary.changeStart)}</time> — <time dateTime={summary.end!}>{shortDate(summary.end!)}</time></> : summary.coverage === 1 ? "近7日仅1个记录日" : "近7日无有效记录"}</p>
+      </div>)}
+      {summaries.map(summary => <div key={summary.metric} data-summary="average" data-metric={summary.metric}>
+        <span>{metricName(summary.metric)} · 7 日均值</span>
+        <strong>{summary.average?.toFixed(2) ?? "—"}<small>{unitFor(summary.metric)}</small></strong>
+        <p>{summary.coverage}/7 天{summary.end && ` · 截至 ${shortDate(summary.end)}`}</p>
+      </div>)}
+</div>        <div className={styles.chartControls}>
           <label className={styles.toggle}><span>晚间</span><input aria-label="晚间数据" type="checkbox" checked={showEvening} onChange={(event) => setShowEvening(event.target.checked)} /></label>
           <div className={styles.estimateControls}>
             <label className={styles.toggle}><span>估计</span><input aria-label="估计补全" type="checkbox" checked={showEstimates} onChange={(event) => setShowEstimates(event.target.checked)} /></label>
             <button type="button" className={styles.rulesButton} aria-expanded={rulesOpen} aria-controls="measurement-estimate-rules" onClick={() => setRulesOpen(!rulesOpen)}>估算规则<span aria-hidden="true">{rulesOpen ? "−" : "+"}</span></button>
           </div>
-        </div>
+        </div></details>:<>        <div className={styles.chartControls}>
+          <label className={styles.toggle}><span>晚间</span><input aria-label="晚间数据" type="checkbox" checked={showEvening} onChange={(event) => setShowEvening(event.target.checked)} /></label>
+          <div className={styles.estimateControls}>
+            <label className={styles.toggle}><span>估计</span><input aria-label="估计补全" type="checkbox" checked={showEstimates} onChange={(event) => setShowEstimates(event.target.checked)} /></label>
+            <button type="button" className={styles.rulesButton} aria-expanded={rulesOpen} aria-controls="measurement-estimate-rules" onClick={() => setRulesOpen(!rulesOpen)}>估算规则<span aria-hidden="true">{rulesOpen ? "−" : "+"}</span></button>
+          </div>
+        </div></>}
+
       </div>
       {rulesOpen && <section id="measurement-estimate-rules" className={styles.rules} aria-label="估算规则">
         <div><h2>历史初始化</h2><p>第一次补齐已有的历史缺口，利用已经存在的前后真实测量恢复中间趋势。</p><p>补全后结果固定，以后新增数据不会反向改写；真实补录会替代对应的估计值。</p></div>
@@ -153,28 +170,10 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
       </form>}
       {metrics.map(metric => <div className={styles.metricPlot} key={metric} data-chart-metric={metric}>
         <div className={styles.metricHeading}><h2>{metricName(metric)}<small>{unitFor(metric)}</small></h2><button type="button" aria-label={`查看${metricName(metric)}所选日记录`} onClick={() => inspectDay(activeDate, chartPeriod, metric)}>查看记录 →</button></div>
-        <TrendPlot records={visibleRecords} metric={metric} showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={chartPeriod} onSelect={row => { setSelectedDate(row.recordDate); setChartPeriod(row.period); }} choices={choices} />
+        <TrendPlot records={visibleRecords} metric={metric} showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={chartPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices} />
       </div>)}
-      <div className={styles.chartNavigation}><ChartDateControls label="身体图表日期" value={activeDate} min={range.start} max={range.end} onChange={date => { setSelectedDate(date); setChartPeriod(undefined); }} /></div>
     </section>
-    <section className={styles.history} aria-label="最近记录">
-      <div className={styles.sectionTitle}><h2>最近记录</h2><span>● 实测 · ◇ 估计 · 实测晨晚差</span></div>
-      {recent.length ? <table>
-        <colgroup><col className={styles.dateColumn} /><col className={styles.readingColumn} /><col className={styles.readingColumn} /><col className={styles.differenceColumn} /><col className={styles.actionColumn} /></colgroup>
-        <thead><tr><th scope="col">日期</th><th scope="col">晨间</th><th scope="col" title="晚间 · 非空腹">晚间<small> · 非空腹</small></th><th scope="col">差值</th><th scope="col">操作</th></tr></thead>
-        <tbody>{recent.map((day) => <tr data-date={day.date} key={day.date} data-selected={day.date === activeDate}>
-          <th scope="row"><button type="button" aria-label={`查看日期 ${day.date}`} aria-pressed={day.date === activeDate} onClick={() => inspectDay(day.date)}><time dateTime={day.date}>{shortDate(day.date)}</time><small>{weekday(day.date)}</small></button></th>
-          {(["daytime", "evening"] as const).map(period => <td key={period} className={period === "daytime" ? styles.dayValue : styles.nightValue}>{metrics.map(metric => {
-            const metricDay = metric === "weightKg" ? day : fatDays.get(day.date)!;
-            const row = period === "daytime" ? metricDay.daytimeRecord : metricDay.eveningRecord;
-            return <div className={styles.tableLine} key={metric} data-table-metric={metric}><TableReading row={row} metric={metric} pendingLabel={metricDay[period].length > 1 ? `查看 ${day.date} ${period === "daytime" ? "白天" : "晚间"}${metricName(metric)}候选记录` : null} onInspect={row => inspectRecord(row, metric)} onInspectCandidates={() => inspectDay(day.date, period, metric)} /></div>;
-          })}</td>)}
-          <td>{metrics.map(metric => { const metricDay = metric === "weightKg" ? day : fatDays.get(day.date)!; return <div className={styles.tableLine} key={metric} data-difference-metric={metric}>{formatDifference(metricDifference(metricDay.daytimeRecord, metricDay.eveningRecord, metric), metric, false) ?? <Missing />}<small>{metric === "weightKg" ? "kg" : "百分点"}</small></div>; })}</td>
-          <td><DayActions date={day.date} today={today} records={records} onView={() => inspectDay(day.date)} onEntry={editing => setDrawer({ kind: "entry", date: day.date, editing })} /></td>
-        </tr>)}</tbody>
-      </table> : <p className={styles.emptyHistory}>此区间暂无记录。</p>}
-      <div className={styles.historyFooter}><button type="button" className={styles.fullHistory} onClick={() => setDrawer({ kind: "history" })}>查看全部 <span aria-hidden="true">↗</span></button></div>
-    </section>
+    <DailyRecords viewAll={()=>setDrawer({kind:"history"})}>{recent.map(day=><DailyRecordRow key={day.date} date={day.date} today={today} value={<div className={styles.dailyReadings}>{(["daytime","evening"] as const).map(period=><span key={period}>{period==="daytime"?"晨间":"晚间"} {metrics.map(metric=>{const d=metric==="weightKg"?day:fatDays.get(day.date)!;const row=period==="daytime"?d.daytimeRecord:d.eveningRecord;return <TableReading key={metric} row={row} metric={metric} pendingLabel={d[period].length>1?"待选择":null} onInspect={r=>inspectRecord(r,metric)} onInspectCandidates={()=>inspectDay(day.date,period,metric)}/>;})}</span>)}</div>}><DayActions date={day.date} today={today} records={records} onView={()=>inspectDay(day.date)} onEntry={editing=>setDrawer({kind:"entry",date:day.date,editing})}/></DailyRecordRow>)}</DailyRecords>
     {drawer && <MeasurementInspector view={drawer} records={records} sources={sources} today={today} timezone={timezone} actions={sourceActions} onUpdated={updated} catalog={catalog} choices={choices} onChoose={chooseRecord} onClose={() => setDrawer(null)} />}
   </section>;
 }
@@ -245,7 +244,7 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
   onUpdated: (result: Extract<EntryResult, { ok: true }>) => void; catalog: MeasurementInterval; choices: Record<string, string>;
   onChoose: (date: string, period: "daytime" | "evening", id: string) => void; onClose: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
+  const dismiss=useRef<()=>void>(()=>onClose());
   const content = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const historyPosition = useRef({ scroll: 0, trigger: null as HTMLElement | null });
@@ -272,42 +271,7 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
   const activeDay = active ? buildMeasurementDays(records.filter(row => row.recordDate === active.date), choices, active.metric, [active.date])[0] : null;
   const row = activeDay?.records.find(row => row.id === active?.recordId);
   const navigationKey = editor ? `entry:${editor.date}` : active ? `${active.date}:${active.recordId ?? active.period ?? "candidates"}` : "history";
-  const closing = useRef(false);
-  const closeTimer = useRef<number | null>(null);
-  const closeCallback = useRef(onClose);
-  useEffect(() => { closeCallback.current = onClose; }, [onClose]);
-  function requestClose() {
-    if (closing.current) return;
-    closing.current = true;
-    const node = dialog.current!;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { closeCallback.current(); return; }
-    node.dataset.motion = "closing";
-    // animationend 是正常退出路径，计时器覆盖动画被取消或浏览器未派发事件。
-    closeTimer.current = window.setTimeout(() => closeCallback.current(), 280);
-  }
-  useEffect(() => {
-    const node = dialog.current!;
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const reduceMotion = () => {
-      if (!motion.matches) return;
-      if (closing.current) closeCallback.current();
-      else node.dataset.motion = "open";
-    };
-    const previousFocus = document.activeElement;
-    node.showModal();
-    const unlock = lockPageScroll();
-    closing.current = false;
-    node.dataset.motion = motion.matches ? "open" : "opening";
-    motion.addEventListener("change", reduceMotion);
-    return () => {
-      motion.removeEventListener("change", reduceMotion);
-      if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
-      node.close();
-      unlock();
-      if ((previousFocus instanceof HTMLElement || previousFocus instanceof SVGElement) && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
-      else document.querySelector<HTMLButtonElement>('section[aria-label="最近记录"] button[class*="fullHistory"]')?.focus({preventScroll:true});
-    };
-  }, []);
+  function requestClose(){dismiss.current();}
   useEffect(() => {
     if (navigationKey === "history") {
       content.current!.scrollTop = historyPosition.current.scroll;
@@ -328,30 +292,12 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
     }
     onUpdated(result);
   }
-  const backdrop = useBackdropDismiss(requestClose);
-  return <dialog {...backdrop} ref={dialog} className={styles.drawer} aria-labelledby="measurement-drawer-title" onCancel={event => { event.preventDefault(); requestClose(); }} onAnimationEnd={event => {
-    if (event.target !== event.currentTarget || event.nativeEvent.pseudoElement || event.animationName !== window.getComputedStyle(event.currentTarget).animationName) return;
-    if (closing.current) { if (closeTimer.current !== null) window.clearTimeout(closeTimer.current); closeCallback.current(); }
-    else event.currentTarget.dataset.motion = "open";
-  }} onClose={(event) => {
-    // Strict Mode 清理时的 close 事件可能在再次 showModal 后送达；只同步真正关闭的状态。
-    if (!event.currentTarget.open) requestClose();
-  }} onKeyDown={(event) => {
-    if (event.key !== "Tab") return;
-    const collapsed = [...event.currentTarget.querySelectorAll('details:not([open])')];
-    const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button, select, input, summary, [tabindex]')]
-      // 折叠内容可能仍有布局矩形；其中只有直接的 summary 可以接收焦点。
-      .filter((node) => node.tabIndex >= 0 && !node.matches(":disabled") && node.getClientRects().length > 0
-        && collapsed.every(details => !details.contains(node) || details.querySelector(":scope > summary") === node));
-    const first = controls[0], last = controls.at(-1);
-    if (event.shiftKey && (document.activeElement === first || document.activeElement === heading.current)) { event.preventDefault(); last?.focus(); }
-    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-  }}>
+  return <Inspector title="身体记录详情" close={onClose} onCloseReady={close=>{dismiss.current=close;}} className={styles.drawer} header={(
     <header className={styles.drawerHeader}><div>
       {!editor && view.kind === "history" && active && <button type="button" className={styles.historyBack} onClick={() => setActive(null)}>← 返回完整历史</button>}
       <h2 ref={heading} tabIndex={-1} id="measurement-drawer-title">{editor ? displayDate(editor.date) : active ? displayDate(active.date) || "记录详情" : "完整历史"}</h2>
       <p>{editor ? `${weekday(editor.date)} · 体重与体脂 · 晨间／晚间` : active ? `${weekday(active.date)} · 晨间／晚间` : `${totalDays} 个日期 · ${records.filter(row => row.recordKind !== "estimated").length} 条实测 · ${records.filter(row => row.recordKind === "estimated").length} 条估计`}</p>
-    </div><button type="button" autoFocus aria-label="关闭记录详情" onClick={requestClose}>×</button></header>
+    </div><button type="button" autoFocus aria-label="关闭记录详情" onClick={requestClose}>×</button></header>)}>
     {(editor || active) && <DayOverview date={editor?.date ?? active!.date} records={records} choices={choices} />}
     <div ref={content} className={styles.drawerContent}>
       {editor && <><button type="button" className={styles.historyBack} onClick={() => { if (view.kind === "entry") requestClose(); else setEditor(null); }}>← {view.kind === "entry" ? "返回身体记录" : active ? "返回记录详情" : "返回完整历史"}</button><MeasurementEntry key={editor.date} date={editor.date} timezone={timezone} records={records} sources={sources} choices={{ ...choices, ...editorChoices }} actions={actions} editing={editor.editing} onUpdated={entryUpdated} onChoose={(date, period, id) => setEditorChoices(previous => ({ ...previous, [`${date}:${period}`]: id }))} /></>}
@@ -382,7 +328,7 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
       </>}
       {!editor && active && !activeDay && <p className={styles.emptyHistory}>此记录已不可用。</p>}
     </div>
-  </dialog>;
+  </Inspector>;
 }
 function DayOverview({ date, records, choices }: { date: string; records: MeasurementDisplay[]; choices: Record<string, string> }) {
   const days = metrics.map(metric => buildMeasurementDays(records.filter(row => row.recordDate === date), choices, metric, [date])[0]);
@@ -422,12 +368,12 @@ function RepresentativeChoices({ day, metric, choices, period: onlyPeriod, onCho
   </label>)}</>;
 }
 
-function TrendPlot({ records, metric, showEvening, interval, selectedDate, selectedPeriod, onSelect, choices }: {
+function TrendPlot({ records, metric, showEvening, interval, selectedDate, selectedPeriod, selection, onPeriod, choices }: {
   records: MeasurementDisplay[]; metric: MeasurementMetric; showEvening: boolean; interval: MeasurementInterval;
-  selectedDate: string | null; selectedPeriod?: "daytime" | "evening"; onSelect: (row: MeasurementDisplay) => void; choices: Record<string, string>;
+  selectedDate: string | null; selectedPeriod?: "daytime" | "evening"; selection:ReturnType<typeof useChartDateSelection>; onPeriod:(period:"daytime"|"evening")=>void; choices: Record<string, string>;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
-  const plotId = useId();
+  const plotId = useId(), mobile=useMobileMode();
   const [viewportWidth, setViewportWidth] = useState(0);
   const [hintRecordId, setHintRecordId] = useState<string | null>(null);
   useEffect(() => {
@@ -441,7 +387,8 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, selec
   const span = calendarOrdinal(interval.end) - calendarOrdinal(interval.start);
   const x = (date: string) => span ? 48 + (calendarOrdinal(date) - calendarOrdinal(interval.start)) / span * (width - 72) : (width + 24) / 2;
   const scale = points.length ? normalScale(points.map((row) => Number(row[metric]))) : null;
-  const y = (value: string | null) => 22 + (scale?.position(Number(value)) ?? .5) * 190;
+  const height=mobile?180:252, plotBottom=height-34;
+  const y = (value: string | null) => 18 + (scale?.position(Number(value)) ?? .5) * (plotBottom-18);
   const pointDays = [...new Set(points.map(row => row.recordDate))].sort();
   const hitColumns = new Map(pointDays.map((date, index) => [date, {
     left: index ? (x(pointDays[index - 1]) + x(date)) / 2 : 0,
@@ -452,16 +399,16 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, selec
   const unit = unitFor(metric);
   const pointLabel = (row: MeasurementDisplay) => `${row.recordDate} · ${row.period === "daytime" ? "空腹" : "晚间非空腹"} · ${row[metric]} ${unit} · ${row.recordKind === "estimated" ? `估计 · ${estimateUserExplanation(row.estimation, row.recordDate, metric).method}` : "实测"}`;
   const hintedRecord = points.find((row) => row.id === hintRecordId) ?? points.find(row => row.recordDate === selectedDate && row.period === (selectedPeriod ?? "daytime")) ?? points.find(row => row.recordDate === selectedDate);
-  const activate = (row: MeasurementDisplay) => onSelect(row);
-  const selectKey = (event: React.KeyboardEvent, row: MeasurementDisplay) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(row); } };
+  const activate = (row: MeasurementDisplay) => {selection.pin(row.recordDate);onPeriod(row.period);};
+
 
   return <>
     <div className={styles.plotViewport} ref={viewport}>
-      <svg className={styles.plot} style={{ visibility: viewportWidth > 0 ? undefined : "hidden" }} width={width} height={252} viewBox={`0 0 ${width} 252`} role="group" aria-label={`${metricName(metric)}趋势，数值越高位置越高`}>
+      <svg className={styles.plot} style={{ visibility: viewportWidth > 0 ? undefined : "hidden" }} width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={`${metricName(metric)}趋势，数值越高位置越高`}>
         <title>{`${metricName(metric)}趋势`}</title>
         {scale?.ticks.map((value) => <g key={value}><line x1="48" x2={width - 24} y1={y(String(value))} y2={y(String(value))} className={styles.grid} /><text x="37" y={y(String(value)) + 4} textAnchor="end" className={styles.axis}>{value.toFixed(1)}</text></g>)}
-        {ticks.map((date) => <text key={date} x={x(date)} y="242" textAnchor="middle" className={styles.axis}>{date.slice(5).replace("-", "/")}</text>)}
-        {selectedDate && <line x1={x(selectedDate)} x2={x(selectedDate)} y1="14" y2="218" className={styles.selectedDayLine} />}
+        {ticks.map((date) => <text key={date} x={x(date)} y={height-10} textAnchor="middle" className={styles.axis}>{date.slice(5).replace("-", "/")}</text>)}
+        {selectedDate && <line x1={x(selectedDate)} x2={x(selectedDate)} y1="14" y2={plotBottom+6} className={styles.selectedDayLine} />}
         {pairs.map((day) => <line data-pair={day.date} key={day.date} x1={x(day.date)} x2={x(day.date)} y1={y(day.daytimeRecord![metric])} y2={y(day.eveningRecord![metric])} className={styles.pairLine} />)}
         {segments.map(({ a, b, period, estimated, missingDayCount }) => <line data-chart-line key={`${a.id}:${b.id}`} data-segment={estimated ? "estimated" : missingDayCount ? "gap" : "continuous"} data-period={period} x1={x(a.recordDate)} y1={y(a[metric])} x2={x(b.recordDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} ${estimated ? styles.estimateLine : missingDayCount ? styles.gapLine : ""}`} />)}
         {[...points].sort((a, b) => Number(a.period === "daytime") - Number(b.period === "daytime")).map((row) => {
@@ -476,9 +423,9 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, selec
           const clipLeft = coincident && row.period === "evening" ? x(row.recordDate) : column.left;
           const clipRight = coincident && row.period === "daytime" ? x(row.recordDate) : column.right;
           const clipTop = midpoint !== null && !coincident && ownY > companionY! ? midpoint : 0;
-          const clipBottom = midpoint !== null && !coincident && ownY < companionY! ? midpoint : 252;
+          const clipBottom = midpoint !== null && !coincident && ownY < companionY! ? midpoint : height;
           const clipId = `${plotId}-${row.id}`;
-          return <g key={row.id} data-point-id={row.id} data-date={row.recordDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.recordDate === selectedDate} onMouseEnter={() => { setHintRecordId(row.id); onSelect(row); }} onMouseLeave={() => setHintRecordId(null)} onFocus={() => { setHintRecordId(row.id); onSelect(row); }} onBlur={() => setHintRecordId(null)} onClick={() => activate(row)} onKeyDown={(event) => selectKey(event, row)}>
+          return <g key={row.id} data-point-id={row.id} data-date={row.recordDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.recordDate === selectedDate} data-chart-date={row.recordDate} onMouseEnter={() => { if(!selection.pinned){setHintRecordId(row.id);selection.preview(row.recordDate);onPeriod(row.period);} }} onMouseLeave={() => setHintRecordId(null)} onFocus={() => {setHintRecordId(row.id);selection.choose(row.recordDate);onPeriod(row.period);}} onBlur={() => setHintRecordId(null)} onClick={() => activate(row)} onKeyDown={(event) => {selection.keyDown(event,row.recordDate);if(event.key==="Enter"||event.key===" ")activate(row);}}>
             <title>{estimated ? label : `${recordTimeLabel(row)} · ${label}`}</title>
             <defs><clipPath id={clipId}><rect x={clipLeft} y={clipTop} width={clipRight - clipLeft} height={clipBottom - clipTop} /></clipPath></defs>
             <circle cx={x(row.recordDate)} cy={ownY} r="14" className={styles.hitTarget} clipPath={`url(#${clipId})`} />
@@ -489,6 +436,6 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, selec
         {!points.length && <text x={width / 2} y="118" textAnchor="middle" className={styles.emptyChart}>{`此区间暂无${showEvening ? "" : "空腹"}${metricName(metric)}记录`}</text>}
       </svg>
     </div>
-    <div className={styles.plotFooter}><div className={styles.legend}><span><i className={styles.dayDot} />晨间空腹</span>{showEvening && <span><i className={styles.nightDot} />晚间 · 非空腹</span>}{points.some((row) => row.recordKind === "estimated") && <span><i className={styles.estimateDot} />虚线 · 估计</span>}</div><output className={styles.plotHint} aria-live="polite">{hintedRecord ? pointLabel(hintedRecord) : selectedDate ? `${displayDate(selectedDate)} · 未记录` : ""}</output></div>
+    <div className={styles.plotFooter}><div className={styles.legend}><span><i className={styles.dayDot} />晨间空腹</span>{showEvening && <span><i className={styles.nightDot} />晚间 · 非空腹</span>}{points.some((row) => row.recordKind === "estimated") && <span><i className={styles.estimateDot} />虚线 · 估计</span>}</div><output className={styles.plotHint} aria-live="polite">{hintedRecord ? pointLabel(hintedRecord) : ""}</output></div>
   </>;
 }

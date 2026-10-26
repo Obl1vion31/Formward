@@ -67,8 +67,8 @@ function prepareFood(input: FoodDraft, state: MealSnapshot): FoodView {
   const old = input.id ? state.foods.find(f => f.id === input.id) : undefined;
   if (input.id && (!old || old.deletedAt)) throw new ApiError(404, "not_found", "食材不存在或已停用。");
   if (old && old.version !== input.version) throw new ApiError(409, "version_conflict", "食材已被修改，请刷新后重试。");
-  const duplicate = state.foods.find(f => f.id !== input.id && foodIdentity(f) === foodIdentity(input));
-  if (duplicate) throw new ApiError(409, "duplicate_food", `已有同规格食材“${duplicate.name}”，请选择已有条目${duplicate.deletedAt ? "或恢复它" : ""}。`);
+  const duplicate = state.foods.find(f => !f.deletedAt && f.id !== input.id && foodIdentity(f) === foodIdentity(input));
+  if (duplicate) throw new ApiError(409, "duplicate_food", `已有同规格食材“${duplicate.name}”，请选择已有条目。`);
   return { ...input,servingQuantity:input.servingQuantity===undefined?(old?.unit===input.unit?old.servingQuantity??null:null):input.servingQuantity,servingUnit:input.servingUnit===undefined?(old?.unit===input.unit?old.servingUnit??null:null):input.servingUnit,category: input.category ?? old?.category ?? "ingredient", imageIds:input.imageIds ?? old?.imageIds ?? [], id: old?.id ?? randomUUID(), version: (old?.version ?? 0) + 1, deletedAt: null };
 }
 function prepareItem(input: ItemDraft, state: MealSnapshot, previous?: ItemView): ItemView {
@@ -156,6 +156,7 @@ export function prepareMealActions(input: MealInput, state: MealSnapshot, origin
         if (existing.version !== action.version) throw new ApiError(409, "version_conflict", "记录已改变，请刷新后重试。");
         const deleting = action.kind.startsWith("delete");
         if (Boolean(existing.deletedAt) === deleting) throw new ApiError(409, "state_conflict", "记录状态已改变，请刷新。");
+        if(isFood&&!deleting&&working.foods.some(f=>!f.deletedAt&&f.id!==existing.id&&foodIdentity(f)===foodIdentity(existing as FoodView)))throw new ApiError(409,"duplicate_food","已有有效的同规格食材，不能恢复旧条目。");
         const next = { ...existing, version: existing.version + 1, deletedAt: deleting ? new Date().toISOString() : null };
         Object.assign(existing, next);
         if (isFood) row.food = next as FoodView; else row.meal = next as MealView;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import {useDraftGuard} from "@/components/draft-guard";
 import { usePageLoading } from "@/components/page-loading-state";
 import { entryMetrics, measurementEntryState, missingMeasurementCells, type EntryPeriod, type EntryResult, type MeasurementActions, type MeasurementDisplay } from "./entry-state";
 import type { PeriodEdit, SaveMeasurementDayInput } from "./editing";
@@ -41,6 +42,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
   const baseline = makeDraft(baseRecords, date, choices, defaultTimezone);
   const dirty = groups.some(group => !group.pending && !group.blocked && (entryMetrics.some(field => draft[group.period][field] !== baseline[group.period][field]) || (!!group.observed && (["deviceLabel", "timezone"] as const).some(field => draft[group.period][field] !== baseline[group.period][field]))));
   const hasDraft = (["daytime", "evening"] as const).some(period => ([...entryMetrics, "deviceLabel", "timezone"] as const).some(field => draft[period][field] !== baseline[period][field]));
+  useDraftGuard(hasDraft,busy);
   // 新服务端快照只更新干净表单；草稿继续绑定开始编辑时的版本。
   if (records !== lastRecords) {
     setLastRecords(records);

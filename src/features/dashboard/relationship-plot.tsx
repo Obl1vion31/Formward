@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { useMobileMode } from "@/components/use-mobile-mode";
 import { useChartMotion } from "@/components/use-chart-motion";
-import { energyBands, energyLineScale, fadeEdgeFraction, linePath, missingRuns } from "./chart-geometry";
+import { energyBands, energyLineScale, fadeEdgeFraction, linePath } from "./chart-geometry";
 import type { OverviewDay } from "./model";
 import styles from "./overview.module.css";
 
@@ -36,7 +36,6 @@ export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unp
   const intake = days.map((day, i) => day.nutrition?.values.caloriesKcal != null ? { x: x(i), y: energyY(Number(day.nutrition.values.caloriesKcal)) } : null);
   const expenditure = days.map((day, i) => day.energy.totalKcal != null ? { x: x(i), y: energyY(Number(day.energy.totalKcal)) } : null);
   const paired = days.map((day, i) => intake[i] && expenditure[i] && day.energyBalance !== null ? { intake: intake[i]!, expenditure: expenditure[i]!, balance: day.energyBalance } : null);
-  const energyGaps = missingRuns(days.map((_, i) => Boolean(intake[i] && expenditure[i]))), weightGaps = missingRuns(days.map(day => day.weightChangeKg !== null));
   const selectedIndex = Math.max(0, days.findIndex(day => day.date === selected)), stride = Math.max(1, Math.ceil((days.length - 1) / (w < 440 ? 3 : 6)));
   const pick = (svg: SVGSVGElement, clientX: number, action=preview) => { const bounds = svg.getBoundingClientRect(); action(days[Math.max(0, Math.min(days.length - 1, Math.floor(((clientX - bounds.left) * w / bounds.width - left) / slot)))].date); };
   return <div ref={container} role="group" aria-label="摄入、消耗、盈余与次晨体重变化" className={styles.relationship} data-pinned-date={pinned?selected:undefined}>
@@ -63,15 +62,13 @@ export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unp
           <path data-energy-line="intake" d={linePath(intake)} fill="none" stroke={palette.intake} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           <path data-energy-line="expenditure" d={linePath(expenditure)} fill="none" stroke={palette.expenditure} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </g>
-        {paired.some(Boolean) && energyGaps.map(run => <line key={run.start} data-missing-run="energy" x1={(x(run.start) + x(run.end)) / 2 - 3} x2={(x(run.start) + x(run.end)) / 2 + 3} y1={energyBottom + 12} y2={energyBottom + 12} className={styles.gapMark} />)}
         {!intake.some(Boolean) && !expenditure.some(Boolean) && <text x={(left + w - right) / 2} y={(top + energyBottom) / 2} textAnchor="middle" className={styles.emptyPlot}>此区间暂无热量记录</text>}
       </g>
       <g data-overview-panel="weight">
         {!compact && <line x1="0" x2={w} y1={energyBottom + 16} y2={energyBottom + 16} className={styles.grid} />}
-        <text x="0" y={weightTop - 10} className={styles.plotTitle}>次晨变化</text><text x={w - right} y={weightTop - 10} textAnchor="end" className={styles.axis}>{compact ? (days[selectedIndex]?.ambiguous ? "待选择" : days[selectedIndex]?.weightChangeKg == null ? "未配对" : (days[selectedIndex].weightChangeKg! > 0 ? "+" : "") + days[selectedIndex].weightChangeKg + (days[selectedIndex].differenceEstimated ? " kg · 含估计" : " kg")) : "kg"}</text>
+        <text data-weight-readout x={w - right} y={weightTop - 10} textAnchor="end" className={styles.axis}>次晨变化：{(days[selectedIndex]?.ambiguous ? "待选择" : days[selectedIndex]?.weightChangeKg == null ? "未配对" : (days[selectedIndex].weightChangeKg! > 0 ? "+" : "") + days[selectedIndex].weightChangeKg + (days[selectedIndex].differenceEstimated ? " kg · 含估计" : " kg"))}</text>
         {weightTicks.map(tick => <g key={tick} data-axis-tick={tick}><line data-overview-zero={tick === 0 ? "" : undefined} x1={left} x2={w - right} y1={weightY(tick)} y2={weightY(tick)} className={tick === 0 ? styles.zeroLine : styles.grid} /><text x={left - 8} y={weightY(tick) + 4} textAnchor="end" className={styles.axis}>{tick > 0 ? "+" : ""}{tick}</text></g>)}
         <g data-chart-line className={styles.plotData}>{days.map((day, i) => i > 0 && day.weightChangeKg !== null && days[i - 1].weightChangeKg !== null && <line key={day.date} x1={x(i - 1)} x2={x(i)} y1={weightY(days[i - 1].weightChangeKg!)} y2={weightY(day.weightChangeKg)} stroke={palette.weight} strokeWidth="1.6" strokeLinecap="round" strokeDasharray={day.differenceEstimated || days[i - 1].differenceEstimated ? "4 4" : undefined} />)}</g>
-        {days.some(day => day.weightChangeKg !== null) && weightGaps.map(run => <line key={run.start} data-missing-run="weight" x1={(x(run.start) + x(run.end)) / 2 - 3} x2={(x(run.start) + x(run.end)) / 2 + 3} y1={weightBottom + 11} y2={weightBottom + 11} className={styles.gapMark} />)}
         {!days.some(day => day.weightChangeKg !== null) && <text x={(left + w - right) / 2} y={weightTop + 24} textAnchor="middle" className={styles.emptyPlot}>暂无相邻两日晨重</text>}
       </g>
       <rect x={left + selectedIndex * slot} y={top} width={slot} height={weightBottom - top} fill="rgba(240,233,221,.025)" className={styles.plotData} />
@@ -92,9 +89,8 @@ export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unp
         {(i % stride === 0 && days.length - 1 - i >= stride / 2 || i === days.length - 1) && <text x={x(i)} y={height - 5} textAnchor={days.length === 1 ? "middle" : i === 0 ? "start" : i === days.length - 1 ? "end" : "middle"} data-overview-date-label="" className={styles.axis}>{w < 440 && days.length <= 7 ? day.date.slice(8) : days.length > 366 ? day.date.slice(2, 7).replace("-", ".") : day.date.slice(5).replace("-", ".")}</text>}
       </g>)}
     </svg></div>
-    {!!(energyGaps.length || weightGaps.length || days.some(day => day.nutrition && day.mealDayStatus !== "complete")) && <div className={styles.plotNotes}>
+    {days.some(day => day.nutrition && day.mealDayStatus !== "complete") && <div className={styles.plotNotes}>
       {days.some(day => day.nutrition && day.mealDayStatus !== "complete") && <span><i className={styles.unconfirmedKey} />空心点：未记全／待确认</span>}
-      {!!(energyGaps.length || weightGaps.length) && <span><i className={styles.gapKey} />短横：缺记录</span>}
     </div>}
   </div>;
 }

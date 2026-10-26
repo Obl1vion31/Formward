@@ -699,3 +699,5 @@ meal_operations.payload／draft保存可选expectedImageCount，preview中的mis
 | activities | inclusion text、inclusion_basis text | included／additional与服务端绑定的日记录、日期、模式、原录值成对保存；旧行null沿用原结果 |
 
 同批计算先形成最终草稿，再验证关系，因此两种录入顺序一致。更改采用总数会要求重新核对；来源备注不影响绑定。原始请求摘要不变，刷新不代替用户选择，所有正式写入与来源／审计在同一事务。旧公式、默认值存储及审计继续保留，但新动作、恢复和普通导出停用。
+
+0025仅将foods_owner_identity_idx改为deleted_at IS NULL的有效条目唯一索引；不新增列、不回填和清理旧记录。旧软删除食材保留，允许创建新的同规格有效条目。网页永久删除保留操作／事件，餐项保留食材规格及营养快照；energy_events的after在永久删除时为null，结构仍为既有JSONB。

@@ -199,13 +199,14 @@ async function write(tx: Transaction, userId: string, row: EnergyPreview) {
     }
   }
 }
-export async function decideEnergyOperation(db: Database, userId: string, id: string, revision: number, decision: "confirm" | "cancel") {
+export async function decideEnergyOperation(db: Database, userId: string, id: string, revision: number, decision: "confirm" | "cancel", options: {permanentManualDeletion?:boolean} = {}) {
   if (!["confirm", "cancel"].includes(decision)) throw new ApiError(400, "invalid_input", "消耗审核动作无效。");
   return db.transaction(async tx => {
     await lockOwner(tx, userId); const row = await getEnergyOperation(tx, userId, id), status = decision === "confirm" ? "confirmed" : "cancelled";
     if (row.status === status) return displayEnergyOperation(row);
     if (row.status !== "pending" || row.revision !== revision) throw new ApiError(409, "review_changed", "消耗审核已改变，请重新核对。");
     if (decision === "confirm") {
+      if(options.permanentManualDeletion&&row.origin!=="manual")throw new ApiError(403,"forbidden","永久删除仅限网页人工确认。");
       await checkCredential(tx, row);
       if (row.expiresAt && row.expiresAt < new Date()) throw new ApiError(409, "expired", "预览已过期，请刷新。");
       if (snapshotDigest(await readEnergySnapshot(tx, userId)) !== row.snapshotDigest) throw new ApiError(409, "snapshot_changed", "消耗资料或记录已改变，请刷新预览。");
@@ -214,10 +215,12 @@ export async function decideEnergyOperation(db: Database, userId: string, id: st
       if (selected.some(entry => retiredEnergyAction(entry.action.kind))) throw new ApiError(400, "retired_action", "日常默认值和静息公式资料已停用，请刷新预览并取消这一项。");
       if (!selected.length || selected.some(row => row.error || !row.after)) throw new ApiError(400, "review_required", "请修改或取消有问题的消耗记录。");
       for (const entry of selected) {
-        await write(tx, userId, entry);
+        const permanent=options.permanentManualDeletion&&entry.action.kind.startsWith("delete_");
+        if(permanent){const table=entry.action.kind==="delete_energy_day"?energyDay:activity;await tx.delete(table).where(and(eq(table.userId,userId),eq(table.id,entry.before!.id)));}
+        else await write(tx, userId, entry);
         await rememberEnergySources(tx, userId, entry);
         const index = row.preview.indexOf(entry);
-        await tx.insert(energyEvent).values({ id: randomUUID(), userId, operationId: row.id, recordId: entry.after!.id, recordType: typeOf(entry.action), actorType: row.origin === "ai" ? "ai" : "user", actorId: row.tokenId ?? row.oauthConnectionId ?? userId, confirmedBy: userId, snapshot: { originalInput: row.payload.actions[index] ?? entry.action, action: entry.action, before: entry.before ?? null, after: entry.after! } });
+        await tx.insert(energyEvent).values({ id: randomUUID(), userId, operationId: row.id, recordId: entry.after!.id, recordType: typeOf(entry.action), actorType: row.origin === "ai" ? "ai" : "user", actorId: row.tokenId ?? row.oauthConnectionId ?? userId, confirmedBy: userId, snapshot: { originalInput: row.payload.actions[index] ?? entry.action, action: entry.action, before: entry.before ?? null, after: permanent?null:entry.after!, ...(permanent?{permanentDeletion:true}:{}) } });
       }
     }
     const [updated] = await tx.update(energyOperation).set({ status, revision: row.revision + 1, confirmedAt: decision === "confirm" ? new Date() : null }).where(eq(energyOperation.id, id)).returning();

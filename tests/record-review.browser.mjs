@@ -64,9 +64,9 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
   await page.goto(operation.confirmationUrl); await page.getByRole("heading", { name: "已保存", exact: true }).waitFor(); assert.equal(await save().count(), 0);
   // 保存一餐不等于当天已记完；人工确认后才验收盈余图形。
   await page.goto(`${baseURL}/dashboard/meals?date=${date}`);
-  const dayHistory = page.getByRole("dialog", {name:"历史饮食记录",exact:true});
-  await dayHistory.getByRole("group",{name:date+" 饮食是否记完",exact:true}).getByRole("button",{name:"已记完",exact:true}).click();
-  await dayHistory.locator('[data-meal-day-status="complete"]').waitFor();
+  const dayHistory = page.locator("dialog[open]");
+  await dayHistory.locator("[data-meal-day-status]").click();
+  await dayHistory.locator('[data-meal-day-status="complete"]').waitFor();await page.waitForFunction(()=>!document.querySelector('dialog[open] [data-meal-day-status]')?.disabled);
   await dayHistory.getByRole("button",{name:"关闭编辑",exact:true}).click();await dayHistory.waitFor({state:"hidden"});
   await page.goto(`${baseURL}/dashboard`);
   for (const width of [1440, 1100, 390, 320]) {

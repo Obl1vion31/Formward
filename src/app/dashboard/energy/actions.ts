@@ -17,7 +17,7 @@ export async function saveEnergyAction(input: EnergyInput) {
   try {
     const db = getDatabase(), operation = await submitEnergyOperation(db, { userId: user.id, origin: "manual" }, input);
     if (operation.status !== "confirmed" && !operation.canConfirm) throw new Error(operation.rows.find(row => row.error)?.error ?? "请检查输入。");
-    await decideEnergyOperation(db, user.id, operation.id, operation.revision, "confirm");
+    await decideEnergyOperation(db, user.id, operation.id, operation.revision, "confirm", {permanentManualDeletion:true});
     const snapshot = await readEnergySnapshot(db, user.id);
     revalidatePath("/dashboard/energy"); revalidatePath("/dashboard"); revalidatePath("/dashboard/ai", "layout");
     const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));

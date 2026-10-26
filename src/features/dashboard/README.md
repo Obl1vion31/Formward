@@ -9,3 +9,5 @@
 网页保存和AI确认刷新总览，身份校验留在app。`model.test.ts`验证业务，`chart-geometry.test.ts`验证交点和缺测边界；浏览器入口为tests/energy.browser.mts，覆盖四种宽度、拖动、键盘、触屏、详情及减少动态效果。复用use-chart-motion.ts：图形450ms入场／200ms区间变化，读数、坐标和命中区域不动，选日不重播。
 
 界面修改及验收必读[设计文档](../../../docs/design-reference.md)。总览直接在图上选日，无独立日期导航；桌面点击图外或Escape解除固定，范围内固定日保留。自定义范围应用后收起。手机图组常规268px／矮视口228px，减少刻度密度而不缩放文字或改变数据范围。首屏几何与截图检查见tests/overview-first-screen.browser.mjs。
+
+总览共用四页选日逻辑；次晨标题与读数合并在过渡区右侧，缺测只断线，不再绘制短横。两图尺寸及手机首屏要求保持。

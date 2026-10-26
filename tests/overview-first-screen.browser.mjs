@@ -50,6 +50,7 @@ export async function checkOverviewFirstScreen({baseURL, page, artifacts = ".cod
       assert.equal(await plot.evaluate(svg => {
         const sets=[...svg.querySelectorAll("[data-overview-panel]")].map(panel=>[...panel.querySelectorAll("[data-axis-tick] text")]);
         sets.push([...svg.querySelectorAll("[data-overview-date-label]")]);
+        sets.push([...svg.querySelectorAll("[data-axis-tick] text,[data-weight-readout],[data-overview-date-label]")]);
         return sets.every(nodes=>nodes.every((node,i)=>nodes.every((other,j)=> {
           if(i===j)return true;
           const a=node.getBoundingClientRect(),b=other.getBoundingClientRect();
