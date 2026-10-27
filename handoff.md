@@ -2,7 +2,7 @@
 
 ## 本轮：四页共同布局与消耗填写
 
-本机实施及视觉验收完成，待正式发布复验。本轮无migration、公开字段/工具/权限变化，数据库仍0026。共同框架、选中日晨间读数、应用内确认和两位显示已接入；活动先自动累计，手填后才核对，改数重新核对，旧false不自动计入。保留35479cf自由项总量和32be0cd布局/详情定位。383项单元/集成、lint零警告、typecheck、production build及文档/结构检查通过。Chromium/WebKit四页7组视口对齐≤2px、34px安全区、AI不重复累计、精度与应用内确认通过；原饮食和跨页面更新回归通过。实际截图在.codex/unified-frame-gallery/，逐项证据见docs/maintenance-verification.md；真实iOS/系统软键盘未测。正式版本以下方已发布记录为准。
+已正式发布并完成复验。本轮无migration、公开字段/工具/权限变化，数据库仍0026。共同框架、选中日晨间读数、应用内确认和两位显示已接入；活动先自动累计，手填后才核对，改数重新核对，旧false不自动计入。保留35479cf自由项总量和32be0cd布局/详情定位。383项单元/集成、lint零警告、typecheck、production build及文档/结构检查通过。Chromium/WebKit四页7组视口对齐≤2px、34px安全区、AI不重复累计、精度与应用内确认通过；原饮食和跨页面更新回归通过。实际截图在.codex/unified-frame-gallery/，逐项证据见docs/maintenance-verification.md；真实iOS/系统软键盘未测。正式版本以下方已发布记录为准。
 
 更新日期：2026-10-28。仓库 `/home/obl1vion/projects/Formward`，当前功能分支 `codex/latest-records-energy-sources`，尚未合入main。先读根README、AGENTS、本文及目标目录最近README；修改Next.js前读取已安装包的本地指南。
 
@@ -55,13 +55,15 @@
 
 ## 当前正式版本
 
-正式域名 https://formward-ten.vercel.app 已核对 READY 部署 dpl_HeNMUADh26b3D68zZPgx2kdgeNfm，运行代码 b654847，数据库0026；功能分支codex/latest-records-energy-sources已推送，尚未合入main。已合并32be0cd，保留此前餐次字号、列宽、单位及详情定位修正。OpenAPI1.13.0、MCP1.11.0，13个工具与既有权限种类保持。
+正式域名 https://formward-ten.vercel.app 已核对 READY 部署 dpl_3ze77nJeUbXfiuxvgnzsRGxW4JhB，应用代码 c591fc6，数据库仍0026（39张应用表加账本）。功能分支codex/latest-records-energy-sources已推送，尚未合入main；交接与测试证据另行提交，不改变部署中的应用代码。
 
-379项单元／集成、lint、typecheck、production build、312项本地链接和15项章节锚点、60个团队目录README及diff检查通过。隔离Chromium／WebKit验证运动分项、AI修改不正式保存、单项删除、跨窗口保留输入与明确覆盖、自定义取消、慢图登录；四页矮屏、横屏、键盘、减少动态效果及历史回归通过。正式站两浏览器各五种宽度重走实际保存和更新提醒，Chromium发出真实浏览器触屏事件验证横拖选日及纵向滚动。16项入口保护通过；最终验收客户端异常与请求5xx为0，部署最近10分钟Runtime error／fatal和请求5xx均0。WebKit首轮捕获一次跨页请求错误，诊断保留；补充跳转前后等待请求完成后，无过滤重跑通过，不将首轮记为通过。真实iOS及系统软键盘未作实机测试。
+四页共用框架、选中日晨间读数、活动自动累计/手填区分、统一应用内确认及两位显示已发布；没有migration、公开字段、工具或权限变化。旧精度、饮食自由项总量、旧每份与食材换算保持。旧消耗预览须刷新按新规则重新核对。
 
-正式报告与虚构截图在私有.codex/body-energy-release/，Chromium／WebKit分别为production-chromium.json与production-webkit.json；READY见.codex/body-energy-inspect-final.log。测试账号及所属记录、待确认操作、令牌与会话已全部清理。发布前、迁移后和发布后三份私有备份为data/exports/database-before-body-energy-2026-10-28.json、database-after-body-energy-migration-2026-10-28.json和database-after-body-energy-production-2026-10-28.json，均0600、Git与部署忽略。
+383项单元/集成、lint零警告、typecheck、production build、311项本地链接及15锚点、目录和diff检查通过。Chromium/WebKit隔离及正式站均完成四页7组视口共同位置≤2px、34px安全区、填报/保存、未知/0、AI新运动仅累计一次、原四位只改备注、统一确认取消/Escape、自定义/固定选日、触屏、150%放大与减少动效。逐键输入2000.12、第三位拒绝和失焦稳定通过；原饮食与跨页更新回归通过。真实iOS及系统软键盘未测。
 
-body-energy-migration-verification.json与body-energy-production-verification.json核对40表原有列、健康事实、请求和审计保持，0026只加三列及一条账本，旧运动新列保持NULL。期间已有账号正常新增的图片、待确认提交及授权轮换均保留，未代确认、删除或回滚；body-energy-concurrent-verification.json单独核对新增归属与测试数据清理。回退必须保留运动分项计算及新列，不切回无法理解components的旧后端。
+正式站报告和截图在私有.codex/unified-frame-release/，production-chromium.json与production-webkit.json均通过。WebKit首轮捕获3条RSC访问检查错误，诊断和失败日志保留；连续整页跳转前后等待networkidle后，保持全部错误断言重跑通过，不将首轮记为通过。公开/保护入口16项通过，最终客户端异常与5xx为0；部署20分钟窗口Runtime error/fatal及请求5xx为0。虚构账号及全部所属数据已清理。
+
+发布前后备份data/exports/database-before-unified-frame-2026-10-28.json、database-after-unified-frame-production-2026-10-28.json与unified-frame-production-verification.json均0600、Git/部署忽略。40表结构、账本、原健康事实、请求与审计完全保持，没有新增或遗留虚构健康数据；没有执行个人历史初始化。实际并排相册在.codex/unified-frame-release/gallery/，已导出90张截图供用户逐项验收。
 
 ## 此前三阶段完善交付
 

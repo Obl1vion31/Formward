@@ -10,6 +10,7 @@ export async function checkOverviewFirstScreen({baseURL, page, artifacts = ".cod
   await page.emulateMedia({reducedMotion:"no-preference"});
   const plot = page.getByRole("group", {name:"双层日期关联图", exact:true});
   const readout = page.getByLabel("日期对照", {exact:true});
+  const visit=async(target=page)=>{await target.waitForLoadState("networkidle");await target.goto(baseURL+"/dashboard");await target.waitForLoadState("networkidle");};
   const ready = async mobile => {
     await plot.waitFor();
     await page.evaluate(async () => { await document.fonts.ready; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
@@ -21,7 +22,7 @@ export async function checkOverviewFirstScreen({baseURL, page, artifacts = ".cod
   try {
     for (const [width,height] of [[320,560],[390,560],[390,640],[430,780],[844,390],[1100,900],[1440,900]]) {
       await page.setViewportSize({width,height});
-      await page.goto(baseURL+"/dashboard");
+      await visit();
       await page.mouse.move(0,0);
       const mobile = width <= 700;
       await ready(mobile);
@@ -67,12 +68,12 @@ export async function checkOverviewFirstScreen({baseURL, page, artifacts = ".cod
         assert.deepEqual(await plot.locator("[data-axis-tick]").evaluateAll(nodes=>nodes.map(node=>node.getAttribute("data-axis-tick"))),ticks);
         await page.keyboard.press("Escape");
       }
-      await page.goto(baseURL+"/dashboard"); await ready(mobile);
+      await visit(); await ready(mobile);
       if(mobile){await page.addStyleTag({content:".mobile-bottom-nav { padding-bottom:34px; }"});await page.waitForTimeout(100);}
       await page.screenshot({path:join(artifacts,engine+"-"+width+"x"+height+".png")});
       cases.push({width,height,safeArea:mobile?34:0,geometry,passed:true});
     }
-    await page.setViewportSize({width:1440,height:900}); await page.goto(baseURL+"/dashboard");await ready(false);
+    await page.setViewportSize({width:1440,height:900}); await visit();await ready(false);
     const dates=await page.locator("[data-overview-date]").evaluateAll(nodes=>nodes.map(node=>node.getAttribute("data-overview-date")));
     const a=dates.at(-4),b=dates.at(-2);
     const at=async (date,action="move")=>{
@@ -117,7 +118,7 @@ export async function checkOverviewFirstScreen({baseURL, page, artifacts = ".cod
     try {
       const p=await touch.newPage();p.on("pageerror",onError);
       for(const [width,height] of [[390,560],[844,390]]) {
-        await p.setViewportSize({width,height});await p.goto(baseURL+"/dashboard");
+        await p.setViewportSize({width,height});await visit(p);
         const chart=p.getByRole("group",{name:"双层日期关联图",exact:true});
         await chart.waitFor();await p.waitForFunction(()=>document.querySelector('button[aria-pressed="true"]')?.textContent==="7D");
         await p.evaluate(()=>document.fonts.ready);await p.waitForTimeout(500);
@@ -136,7 +137,7 @@ export async function checkOverviewFirstScreen({baseURL, page, artifacts = ".cod
     } finally {await touch.close();}
     await page.emulateMedia({reducedMotion:"reduce"});await page.getByRole("button",{name:"90D",exact:true}).click();await page.waitForTimeout(100);
     assert.equal(await plot.evaluate(node=>node.getAnimations({subtree:true}).filter(a=>a.playState==="running").length),0);
-    assert.deepEqual(errors,[]);
+    await page.waitForLoadState("networkidle");assert.deepEqual(errors,[]);
     const result={passed:true,engine,designItems:["D1","D2","D3","D4","D5","D6"],cases,clientErrors:errors};
     await writeFile(join(artifacts,engine+"-report.json"),JSON.stringify(result,null,2));
     console.log(engine+" 总览首屏、双图、坐标、图外解除、自定义收起和键盘检查通过。");

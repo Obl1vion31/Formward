@@ -16,7 +16,7 @@
 
 383项单元/集成、lint零警告、typecheck、production build、311项本地链接及15锚点、团队目录README和diff检查通过。截图和逐项报告在私有.codex/unified-frame-visual/{chromium,webkit}/；原饮食专项在.codex/meal-total-visual/，更新提示回归在.codex/unified-frame-regression/，实际并排相册在.codex/unified-frame-gallery/。已查看320/390/430手机、1100/1440电脑、横屏及WebKit的读数、填写、确认和AI界面。
 
-初轮发现窄屏读数截断、等待层遮挡确认、安全区边框高度未被观察、查看详情未解除固定，以及AI新运动预览可能重复累计；修正后无过滤重跑，两浏览器最终入口均退出0。旧测试断言按两位显示及“显示选项”真实入口更新，正式保存、原精度和营养换算断言保留。生产发布与复验状态见handoff.md。
+初轮发现窄屏读数截断、等待层遮挡确认、安全区边框高度未被观察、查看详情未解除固定，以及AI新运动预览可能重复累计；修正后无过滤重跑，两浏览器最终入口均退出0。旧测试断言按两位显示及“显示选项”真实入口更新，正式保存、原精度和营养换算断言保留。正式版本c591fc6、READY部署dpl_3ze77nJeUbXfiuxvgnzsRGxW4JhB已从正式域名复验；Chromium/WebKit最终客户端异常和5xx为0，16项入口通过。WebKit正式首轮3条RSC检查错误保留，整页跳转前后等待networkidle后无过滤重跑通过。逐键两位输入及第三位拒绝另验通过。虚构账号全部清理，发布前后40表结构、账本、原健康事实/请求/审计完全一致；正式报告与截图在.codex/unified-frame-release/，90张截图已导出。真实iOS及系统软键盘仍为未测。
 
 
 ## 身体、运动与跨页面更新（2026-10-28）

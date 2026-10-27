@@ -1,5 +1,17 @@
 # 公网 HTTPS 部署
 
+## 当前四页布局版本
+
+正式域名 https://formward-ten.vercel.app 已核对 READY 部署 dpl_3ze77nJeUbXfiuxvgnzsRGxW4JhB，应用代码 c591fc6，数据库仍0026（39张应用表加账本）。功能分支codex/latest-records-energy-sources已推送，尚未合入main；交接与测试证据另行提交，不改变部署中的应用代码。
+
+四页共用框架、选中日晨间读数、活动自动累计/手填区分、统一应用内确认及两位显示已发布；没有migration、公开字段、工具或权限变化。旧精度、饮食自由项总量、旧每份与食材换算保持。旧消耗预览须刷新按新规则重新核对。
+
+383项单元/集成、lint零警告、typecheck、production build、311项本地链接及15锚点、目录和diff检查通过。Chromium/WebKit隔离及正式站均完成四页7组视口共同位置≤2px、34px安全区、填报/保存、未知/0、AI新运动仅累计一次、原四位只改备注、统一确认取消/Escape、自定义/固定选日、触屏、150%放大与减少动效。逐键输入2000.12、第三位拒绝和失焦稳定通过；原饮食与跨页更新回归通过。真实iOS及系统软键盘未测。
+
+正式站报告和截图在私有.codex/unified-frame-release/，production-chromium.json与production-webkit.json均通过。WebKit首轮捕获3条RSC访问检查错误，诊断和失败日志保留；连续整页跳转前后等待networkidle后，保持全部错误断言重跑通过，不将首轮记为通过。公开/保护入口16项通过，最终客户端异常与5xx为0；部署20分钟窗口Runtime error/fatal及请求5xx为0。虚构账号及全部所属数据已清理。
+
+发布前后备份data/exports/database-before-unified-frame-2026-10-28.json、database-after-unified-frame-production-2026-10-28.json与unified-frame-production-verification.json均0600、Git/部署忽略。40表结构、账本、原健康事实、请求与审计完全保持，没有新增或遗留虚构健康数据；没有执行个人历史初始化。实际并排相册在.codex/unified-frame-release/gallery/，已导出90张截图供用户逐项验收。
+
 正式域名为 [Formward](https://formward-ten.vercel.app)，Next.js 由 Vercel Hobby 托管，数据库沿用 Neon PostgreSQL。AI 使用正式 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 或 `https://formward-ten.vercel.app/api/mcp`，不能使用受 Deployment Protection 保护的单次部署／预览地址。
 
 当前正式站READY部署dpl_4ftctbpujyRJjuwGYnT6rK6tGocv，运行代码35479cf（分支codex/latest-records-energy-sources，已推送、尚未合入main），数据库0025，共39张应用表加Drizzle账本。本轮餐次输入对齐和本次总营养无migration；已做发布前后私有备份，正式域名15项公开／保护入口、虚构账号双浏览器五种宽度及保存／AI审核验收通过，测试数据已清理。40表原有结构、账本、健康事实、请求与审计完全保持；正常OAuth使用和刷新轮换元数据单独核对保留。OpenAPI1.12.0／MCP1.10.0、13工具；Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。证据在.codex/meal-total-release/，具体结果见[验收记录](maintenance-verification.md)。
