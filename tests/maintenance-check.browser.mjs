@@ -67,8 +67,8 @@ export async function checkMaintenance({baseURL,context,page,token,today,db,user
  await dialog().getByRole("button",{name:"下一页",exact:true}).click();assert.match(await dialog().innerText(),/第 2 页/);await close();
  await page.getByRole("button",{name:"记录一餐",exact:false}).click();await dialog().waitFor();
  await dialog().getByLabel("自由填写食物名称",{exact:true}).fill("虚构一个半鸡蛋");
- await dialog().getByLabel("份数 1",{exact:true}).fill("1.5");await dialog().getByLabel("每份热量 1",{exact:true}).fill("90");
- await dialog().getByLabel("每份蛋白质 1",{exact:true}).fill("8");await dialog().getByLabel("每份碳水 1",{exact:true}).fill("0");await dialog().getByLabel("每份脂肪 1",{exact:true}).fill("6");
+ await dialog().getByLabel("数量 1",{exact:true}).fill("1.5");await dialog().getByLabel("本次热量 1",{exact:true}).fill("135");
+ await dialog().getByLabel("本次蛋白质 1",{exact:true}).fill("8");await dialog().getByLabel("本次碳水 1",{exact:true}).fill("0");await dialog().getByLabel("本次脂肪 1",{exact:true}).fill("6");
  assert.match(await dialog().getByLabel("本餐合计",{exact:true}).innerText(),/135/);
  const border=await dialog().getByLabel("餐次备注",{exact:true}).evaluate(node=>getComputedStyle(node).borderTopColor);assert.notEqual(border,"rgba(0, 0, 0, 0)");
  await screenshot("meal-editor-1440");
@@ -76,7 +76,7 @@ export async function checkMaintenance({baseURL,context,page,token,today,db,user
  let latest=(await readMealSnapshot(db,userId)).meals.find(row=>row.date===today);assert.equal(Number(latest.totals.values.caloriesKcal),135);
  // Packaging defaults to a count, not a guessed weight.
  await page.getByRole("button",{name:"记录一餐",exact:false}).click();await dialog().getByRole("button",{name:"选择 "+foodName,exact:true}).click();
- assert.equal(await dialog().getByLabel("食用量（包）",{exact:true}).inputValue(),"1");await dialog().getByLabel("食用量（包）",{exact:true}).fill("0.5");
+ assert.equal(await dialog().getByLabel("数量 1",{exact:true}).inputValue(),"1");await dialog().getByLabel("数量 1",{exact:true}).fill("0.5");
  assert.match(await dialog().getByLabel("本餐合计",{exact:true}).innerText(),/50/);
  for(const width of [390,320]){await page.setViewportSize({width,height:700});await screenshot("meal-editor-"+width);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
  await dialog().getByRole("button",{name:"保存餐次 · "+today,exact:true}).click();await page.locator("dialog[open]:not(.page-loading-dialog)").waitFor({state:"hidden"});

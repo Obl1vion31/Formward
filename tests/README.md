@@ -158,3 +158,7 @@ FORMWARD_UNIFIED_UI_ONLY=1 pnpm test:energy-browser使用PGlite和虚构账号�
 ## 页面内历史与记全控件验收
 
 当前身体、饮食、消耗的共用列表回归使用FORMWARD_UNIFIED_UI_ONLY=1运行tests/energy.browser.mts，配合FORMWARD_OVERVIEW_BROWSER=webkit分别验收两引擎。FORMWARD_UNIFIED_ARTIFACTS指定私有截图目录。独立虚构数据含65日历史、空日及未完成活动；检查页面展开不打开dialog、每批50日、重复日期排除、查看和编辑才开Inspector、关闭恢复窗口滚动／焦点、折叠后保留批次。鼠标实际点击首中末日检查默认白框，键盘继续显示绘图区焦点；“已记全”文字在失败／勾选／取消时保持，勾选后变淡。旧完整历史抽屉步骤由此共用回归替代。
+
+## 一餐总量编辑器
+
+FORMWARD_MEAL_ENTRY_ONLY=1 pnpm test:records-browser检查独立的虚构餐次、旧按份项、包装与按克食材，以及AI审核；FORMWARD_EDITOR_BROWSER=webkit切换WebKit。目标视口1440／1100／430／390／320px，检查八列表头、同高顶端对齐、标签与框内留白、手机分组、150g填240仍为240、只改数量不重乘、旧项无改动保存不丢精度、取消不写、审核更新不正式保存及库项自动换算。截图在私有.codex/meal-total-visual/。meal-editor-state.test.ts覆盖旧项原口径保留、修改后总量、元数据清除及库引用隔离。

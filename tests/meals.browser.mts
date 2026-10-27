@@ -83,12 +83,12 @@ try {
   await dialog.getByLabel("依据／备注", { exact: true }).fill("虚构标签转录：每包营养"); await dialog.getByRole("button", { name: "保存食材", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
   await page.getByRole("button", { name: "饮食", exact: true }).click(); await page.getByRole("button", { name: /记录一餐/ }).click(); dialog = page.locator("dialog:not(.page-loading-dialog)"); await dialog.getByLabel("餐次", { exact: true }).fill("晚餐");
   await dialog.getByLabel("自由填写食物名称",{exact:true}).fill("虚构配餐");
-  for (const [label,value] of [["每份热量 1","60"],["每份蛋白质 1","3"],["每份碳水 1","10"],["每份脂肪 1","1"]]) await dialog.getByLabel(label,{exact:true}).fill(value);
+  for (const [label,value] of [["本次热量 1","60"],["本次蛋白质 1","3"],["本次碳水 1","10"],["本次脂肪 1","1"]]) await dialog.getByLabel(label,{exact:true}).fill(value);
   await dialog.getByLabel("搜索食材",{exact:true}).fill("虚构蛋白");
   await dialog.getByRole("button",{name:"选择 虚构蛋白食物",exact:true}).click();
-  if(await dialog.getByRole("button",{name:"食用量（包）",exact:true}).count())await dialog.getByRole("button",{name:"食用量（包）",exact:true}).dblclick();
-  assert.equal(await dialog.getByLabel("食用量（包）",{exact:true}).inputValue(),"1");
-  await dialog.getByLabel("食用量（包）",{exact:true}).fill("2");await page.keyboard.press("Enter");
+  if(await dialog.getByRole("button",{name:"数量 2",exact:true}).count())await dialog.getByRole("button",{name:"数量 2",exact:true}).dblclick();
+  assert.equal(await dialog.getByLabel("数量 2",{exact:true}).inputValue(),"1");
+  await dialog.getByLabel("数量 2",{exact:true}).fill("2");await page.keyboard.press("Enter");
   await dialog.getByLabel("搜索食材",{exact:true}).fill("虚构组合");
   await dialog.getByRole("button",{name:"选择 虚构组合餐",exact:true}).dragTo(dialog.getByRole("table",{name:"本餐食物表",exact:true}));
   await dialog.getByRole("button",{name:"移除 虚构组合餐",exact:true}).click();
@@ -212,7 +212,7 @@ try {
   await page.getByRole('button',{name:'饮食',exact:true}).click();
   await article.getByRole('button',{name:'编辑',exact:true}).click();dialog=page.getByRole('dialog',{name:'编辑餐次',exact:true});
   await dialog.getByText('每 1包',{exact:true}).waitFor();
-  await dialog.getByLabel('食用量（包）',{exact:true}).fill('1');await page.keyboard.press('Enter');
+  await dialog.getByLabel('数量 2',{exact:true}).fill('1');await page.keyboard.press('Enter');
   await dialog.getByRole('button',{name:/^保存餐次/,exact:false}).click();await dialog.waitFor({state:'hidden'});
   assert.equal((await currentMeals()).meals.find(m=>m.id===dinner.id)?.totals.values.caloriesKcal,'144.0000');
   await article.getByRole('button',{name:'删除',exact:true}).click();await page.getByRole('button',{name:'最近删除',exact:true}).click();trash=page.getByRole('dialog',{name:'最近删除',exact:true});

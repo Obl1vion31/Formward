@@ -11,6 +11,7 @@ import * as schema from "../src/db/schema";
 import { provisionAccount } from "../src/features/auth/provision";
 import { createAiToken } from "../src/features/auth/ai-tokens";
 import { saveMealImage } from "../src/features/meals/images";
+import {checkMealEntry} from "./meal-entry.browser.mjs";
 import { checkUnifiedReview, checkReviewMaintenance } from "./record-review.browser.mjs";
 async function freePort() { const server = createServer(); server.listen(0, "127.0.0.1"); await once(server, "listening"); const port = (server.address() as { port: number }).port; await new Promise<void>(resolve => server.close(() => resolve())); return port; }
 const pg = new PGlite(), db = drizzle(pg, { schema }), port = await freePort(), dbPort = await freePort(), baseURL = `http://127.0.0.1:${port}`;
@@ -25,15 +26,17 @@ let logs = ""; child.stdout.on("data", data => { logs += data; }); child.stderr.
 let browser: { close(): Promise<void> } | undefined;
 try {
   for (let i = 0; i < 100; i++) { if (child.exitCode !== null) throw new Error("隔离服务退出"); try { if ((await fetch(baseURL)).ok) break; } catch {} await new Promise(resolve => setTimeout(resolve, 250)); }
-  const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "/tmp/formward-browser-check/node_modules/playwright/index.mjs");
-  browser = await chromium.launch({ headless: true, ignoreDefaultArgs: ["--hide-scrollbars"], args: ["--no-sandbox", "--use-angle=swiftshader"] });
+  const { chromium,webkit } = await import(process.env.PLAYWRIGHT_MODULE ?? "/tmp/formward-browser-check/node_modules/playwright/index.mjs");
+  browser = await (process.env.FORMWARD_EDITOR_BROWSER==="webkit"?webkit:chromium).launch({ headless: true, ignoreDefaultArgs: ["--hide-scrollbars"], args: process.env.FORMWARD_EDITOR_BROWSER==="webkit"?[]:["--no-sandbox", "--use-angle=swiftshader"] });
   const context = await (browser as Awaited<ReturnType<typeof chromium.launch>>).newContext({ locale: "zh-CN", timezoneId: "Asia/Shanghai", viewport: { width: 1440, height: 844 } });
   assert.equal((await context.request.post(`${baseURL}/api/auth/sign-in/email`, { headers: { Origin: baseURL }, data: account })).status(), 200);
   const page = await context.newPage(), errors: string[] = []; page.on("pageerror", (error: Error) => errors.push(error.message));
   for (const id of images) await page.route(`**/api/meal-images/${id}`, async (route: { fulfill(options: unknown): Promise<void> }) => route.fulfill({ status: 200, contentType: "image/png", body: png }));
   try {
+    if(process.env.FORMWARD_MEAL_ENTRY_ONLY==="1"){await checkMealEntry({baseURL,context,page,db,userId:owner.id,token:token.rawToken,today:new Date(Date.now()+8*3600000).toISOString().slice(0,10),engine:process.env.FORMWARD_EDITOR_BROWSER??"chromium"});}else{
     const check = process.env.FORMWARD_REVIEW_MAINTENANCE_ONLY === "1" ? checkReviewMaintenance : checkUnifiedReview;
     await check({ baseURL, context, page, token: token.rawToken, images, date: new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) });
+    }
     assert.deepEqual(errors, []);
   }
   catch (error) { await page.screenshot({ path: "/tmp/formward-records-failure.png", fullPage: true }); await writeFile("/tmp/formward-records-failure.html", await page.content()); throw error; }
