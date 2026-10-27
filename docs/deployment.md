@@ -2,7 +2,7 @@
 
 正式域名为 [Formward](https://formward-ten.vercel.app)，Next.js 由 Vercel Hobby 托管，数据库沿用 Neon PostgreSQL。AI 使用正式 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 或 `https://formward-ten.vercel.app/api/mcp`，不能使用受 Deployment Protection 保护的单次部署／预览地址。
 
-当前正式站READY部署dpl_BRULKd5oT4NjnZwLRUzQrXCNkw47，运行代码acfdd40（分支codex/latest-records-energy-sources，已推送、尚未合入main），数据库0025，共39张应用表加Drizzle账本。本轮页面内历史与勾选控件无migration；发布前已做私有一致性备份，正式域名15项公开／保护入口和虚构账号双浏览器验收通过，测试数据已清理。40表原有结构、账本、健康事实、请求及审计保持；期间新增录入与对应汇总、授权更新单独核对后保留。OpenAPI1.12.0／MCP1.10.0、13工具；Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。具体结果见[验收记录](maintenance-verification.md)。
+当前正式站READY部署dpl_4ftctbpujyRJjuwGYnT6rK6tGocv，运行代码35479cf（分支codex/latest-records-energy-sources，已推送、尚未合入main），数据库0025，共39张应用表加Drizzle账本。本轮餐次输入对齐和本次总营养无migration；已做发布前后私有备份，正式域名15项公开／保护入口、虚构账号双浏览器五种宽度及保存／AI审核验收通过，测试数据已清理。40表原有结构、账本、健康事实、请求与审计完全保持；正常OAuth使用和刷新轮换元数据单独核对保留。OpenAPI1.12.0／MCP1.10.0、13工具；Node.js24.21.0、pnpm9.15.9、Next.js16.3.7。证据在.codex/meal-total-release/，具体结果见[验收记录](maintenance-verification.md)。
 
 ## 平台与变量
 

@@ -8,7 +8,9 @@
 
 lint、typecheck、production build与42个测试文件共368项单元／集成通过。WSL多次中断整批测试进程，最终逐文件独立进程运行全部同一组测试并逐项核对通过，报告.codex/meal-total-test-report.json；中断日志保留，不记为通过。AI混合审核原回归通过。Chromium和WebKit分别检查1440／1100／430／390／320px；新增、数量修改、旧记录打开取消与未改保存、旧项修改、包装与克数混合及AI编辑草稿后确认均通过，报告和截图.codex/meal-total-visual/。实际查看桌面与手机图像后修正食材库只读营养行的垂直位置，最终两引擎重跑通过，无横向溢出与客户端异常。真实iOS及系统软键盘未作实机验收。
 
-正式发布、虚构账号复验及备份核对待完成，不以本机通过代替线上结果。
+正式域名已核对READY部署dpl_4ftctbpujyRJjuwGYnT6rK6tGocv，运行代码35479cf，数据库0025。正式Chromium／WebKit重复各五种宽度、实际保存和编辑、旧项兼容与AI草稿确认，通过；15项公开／保护入口通过，请求5xx和客户端异常为0。实际查看正式桌面混合输入、1100px和390／320px手机截图，20张录入／混合截图与报告归档.codex/meal-total-release/。虚构账号及全部所属数据已清理。283项本地文档链接、15项锚点、目录与diff检查通过。
+
+发布前后私有备份database-before-meal-total-2026-10-27.json、database-after-production-meal-total-2026-10-27.json位于data/exports，0600、Git与部署忽略。初始严格比较meal-total-after-production-storage-verification.json检测到正常授权变化，诊断保留。最终meal-total-after-production-auth-verification.json核对40表原有列与账本保持，无原行删除，无测试残留；健康事实、请求、审计与日汇总完全一致。差异仅为OAuth客户端更新时间、连接使用时间、刷新令牌正常轮换及一条新认证断言，未修改真实数据以制造相同备份。
 
 ## 页面内历史与“已记全”（2026-10-27）
 

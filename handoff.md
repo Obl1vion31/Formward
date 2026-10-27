@@ -6,7 +6,7 @@
 
 食物、单位、数量拆成独立列，桌面八列、主输入同高顶端对齐；手机名称、并排单位数量及两列营养。标签与边框内留白统一，说明移到表格下。自由项默认consumed_total，填本次总营养，数量不相乘；食材库、包装及归档快照继续自动换算。旧per_portion用完整服务端总量回显，未修改项提交原数据，修改后按总量保存，打开和取消不写正式记录。编辑器私有元数据不提交；公共接口旧每份请求仍兼容，无migration。
 
-本机lint、typecheck、production build、42文件共368项单元／集成、Chromium／WebKit五种宽度专项和AI混合审核通过。WSL中断整批运行后逐文件独立执行完整测试集，证据在.codex/meal-total-test-report.json。实际查看截图并核对输入对齐，正式发布与复验进行中，证据使用.codex/meal-total-visual/及.codex/meal-total-release/。当前正式版本见下文，未完成验收不得写成已发布。
+本机lint、typecheck、production build、42文件共368项单元／集成、Chromium／WebKit五种宽度专项和AI混合审核通过。WSL中断整批运行后逐文件独立执行完整测试集，证据在.codex/meal-total-test-report.json。实际查看截图并核对输入对齐，正式发布与双浏览器复验均已通过，虚构账号已清理。15项公开／保护入口通过，验收5xx和客户端异常为0。40表原有结构、账本、健康事实、请求与审计保持；仅正常授权使用和令牌轮换产生差异。证据使用.codex/meal-total-visual/及.codex/meal-total-release/，当前正式版本见下文。
 
 ## 当前维护：页面内历史与固定“已记全”文案
 
@@ -30,11 +30,11 @@
 
 ## 当前正式版本
 
-正式域名https://formward-ten.vercel.app已再次核对READY部署dpl_BRULKd5oT4NjnZwLRUzQrXCNkw47，运行代码acfdd40；数据库0025。功能分支codex/latest-records-energy-sources已推送，尚未合入main。手机总览图组常规268px／矮视口228px，两图完整可见。
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_4ftctbpujyRJjuwGYnT6rK6tGocv，运行代码35479cf；数据库0025。功能分支codex/latest-records-energy-sources已推送，尚未合入main。本轮无migration，自由项按本次总营养输入，旧按份项未修改保留原数据，食材库继续换算。
 
-正式双浏览器完整报告为.codex/inline-history-release/production.json，包含56个主页面视口组合，另验三页手机历史、50日加载、查看／编辑返回、固定文案、鼠标焦点与键盘。15项入口见同目录public.json，最终READY见.codex/inline-history-inspect-final.log。请求5xx和客户端异常为0；保存失败用浏览器本地拦截模拟，不计作真实服务故障。虚构账号及全部所属数据已清理。
+正式双浏览器报告为.codex/meal-total-release/production.json，包含两引擎各1440／1100／430／390／320px，新增保存、改数量不重乘、旧项打开取消／未改保存／修改、完整小数、未知／0、包装与克数混合、AI预览后确认。15项入口见同目录public.json，最终READY见.codex/meal-total-inspect-final.log。请求5xx和客户端异常为0；已实际查看桌面输入、混合食材及窄屏截图，虚构账号及全部所属数据已清理。
 
-私有备份为data/exports/database-before-inline-history-2026-10-27.json及database-after-production-inline-history-2026-10-27.json，均0600、Git与部署忽略。严格全库比较报告inline-history-after-production-storage-verification.json保留期间新录入造成的差异诊断；最终inline-history-after-production-concurrent-verification.json逐项核对40表原有列、迁移账本、原健康事实／请求／审计保持，无原行删除、无测试数据残留。差异为既有账号新增录入、对应有审计的日汇总，以及来源使用时间和正常授权轮换，全部保留，未改写数据使两份备份相同。本轮无migration。此前四页维护证据仍保留在.codex/unified-ui-release/及原私有备份中。
+私有备份为data/exports/database-before-meal-total-2026-10-27.json及database-after-production-meal-total-2026-10-27.json，均0600、Git与部署忽略。初始严格比较meal-total-after-production-storage-verification.json保留正常授权变化的诊断；最终meal-total-after-production-auth-verification.json逐项核对40表原有列、账本及原健康事实／请求／审计完全保持，无原行删除、无测试数据残留。差异限于OAuth客户端更新时间、连接使用时间及正常刷新令牌轮换、新增一次认证断言；未修改真实数据使备份相同。此前页面内历史、四页首屏与完整交互证据仍保留在.codex/inline-history-release/和.codex/unified-ui-release/，本轮不重复运行无关的完整四页验收。真实iOS及系统软键盘仍未作实机检查。
 
 ## 此前三阶段完善交付
 
