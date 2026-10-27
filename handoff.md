@@ -8,7 +8,7 @@
 
 “已记全”始终使用同一文字，未确认／未记全不勾选，完成后打勾、文字变淡且仍可取消；保存中不替换文字，失败保留实际状态。这里只改勾选控件，最近日期筛选与盈余业务保持。身体晨间／晚间组内不拆字，桌面数值按内容宽度排列；饮食和消耗清除鼠标点击SVG列的默认白框，保留键盘绘图区焦点。
 
-无公开协议、权限、数据库或健康规则变化，无migration。361项单元／集成、lint、typecheck、production build、AI混合审核和日完整性专项通过。Chromium／WebKit最终样式、四页首屏、三页50日加载及手机历史复验通过，正式发布待执行。证据将归档.codex/inline-history-visual/及.codex/inline-history-release/。
+无公开协议、权限、数据库或健康规则变化，无migration。361项单元／集成、lint、typecheck、production build、AI混合审核和日完整性专项通过。Chromium／WebKit最终样式、四页首屏、三页50日加载及手机历史复验通过，正式域名已READY，15项公开／保护入口及虚构账号双浏览器复验通过，测试数据全部清理；40表结构、迁移账本及原有健康事实核对保持，期间新增录入和对应汇总／授权更新保留。证据归档.codex/inline-history-visual/及.codex/inline-history-release/。
 
 ## 此前四页一致交互与手机核心数据
 
@@ -24,11 +24,11 @@
 
 ## 当前正式版本
 
-正式域名https://formward-ten.vercel.app已核对READY部署dpl_2UiExPvi9DbYcmhGuYNpmHwVwXgv，运行代码c5830eb；数据库0025。功能分支codex/latest-records-energy-sources已推送，尚未合入main。手机总览图组常规268px／矮视口228px，两图完整可见。
+正式域名https://formward-ten.vercel.app已再次核对READY部署dpl_BRULKd5oT4NjnZwLRUzQrXCNkw47，运行代码acfdd40；数据库0025。功能分支codex/latest-records-energy-sources已推送，尚未合入main。手机总览图组常规268px／矮视口228px，两图完整可见。
 
-主界面710055c的正式双浏览器完整验收报告为.codex/unified-ui-release/production.json；最终c5830eb仅补齐Inspector中的未完成运动展示，双浏览器专项报告为energy-details-production.json及对应*-energy-details.json。正式别名状态见.codex/unified-ui-inspect.log，15项入口见.codex/unified-ui-release/public.json。
+正式双浏览器完整报告为.codex/inline-history-release/production.json，包含56个主页面视口组合，另验三页手机历史、50日加载、查看／编辑返回、固定文案、鼠标焦点与键盘。15项入口见同目录public.json，最终READY见.codex/inline-history-inspect-final.log。请求5xx和客户端异常为0；保存失败用浏览器本地拦截模拟，不计作真实服务故障。虚构账号及全部所属数据已清理。
 
-私有备份为data/exports/database-before-unified-ui-2026-10-26.json、database-after-migration-unified-ui-2026-10-26.json、database-after-primary-unified-ui-2026-10-26.json、database-after-production-unified-ui-2026-10-26.json；核对为unified-ui-after-migration-storage-verification.json、unified-ui-after-primary-storage-verification.json及unified-ui-after-production-storage-verification.json。40表原有列、健康事实、请求、审计及旧软删除数据保持，只增加一条迁移账本；正常认证使用／续期元数据和限流单独排除。全部0600，Git与部署忽略。
+私有备份为data/exports/database-before-inline-history-2026-10-27.json及database-after-production-inline-history-2026-10-27.json，均0600、Git与部署忽略。严格全库比较报告inline-history-after-production-storage-verification.json保留期间新录入造成的差异诊断；最终inline-history-after-production-concurrent-verification.json逐项核对40表原有列、迁移账本、原健康事实／请求／审计保持，无原行删除、无测试数据残留。差异为既有账号新增录入、对应有审计的日汇总，以及来源使用时间和正常授权轮换，全部保留，未改写数据使两份备份相同。本轮无migration。此前四页维护证据仍保留在.codex/unified-ui-release/及原私有备份中。
 
 ## 此前三阶段完善交付
 

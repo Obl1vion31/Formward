@@ -8,7 +8,9 @@
 
 实际截图与报告在私有.codex/inline-history-visual/，本轮已逐张查看桌面记录行、选中空日、三页手机历史及主图首屏。首次补充回归的饮食行操作选择器误以为已有餐日提供“编辑”，实际为“添加一餐”；修正测试入口后重跑两引擎通过，诊断日志保留，不通过修改页面迎合错误断言。
 
-正式域名发布、虚构账号验收及发布后数据核对待执行。本轮无migration、公开协议或健康规则变化；真实iOS与系统软键盘未作实机验收。
+正式域名已再次核对READY部署dpl_BRULKd5oT4NjnZwLRUzQrXCNkw47、运行代码acfdd40，数据库0025。本轮无migration、公开协议或健康规则变化。正式Chromium／WebKit重复上述检查通过，56个主页面视口组合、三页手机历史、50日加载、查看／编辑与返回、固定勾选文案、实际鼠标焦点及键盘均通过。15项公开／保护入口通过，验收真实请求5xx和客户端异常为0；浏览器本地拦截的模拟500另行标识。临时账号与全部所属数据已清理，报告和截图在.codex/inline-history-release/，已实际查看正式手机历史、桌面身体记录行和末日选中截图。真实iOS与系统软键盘未作实机验收。
+
+发布前后私有备份database-before-inline-history-2026-10-27.json、database-after-production-inline-history-2026-10-27.json位于data/exports，0600、Git与部署忽略。严格比较发现跨度内既有账号的新录入，原差异诊断inline-history-after-production-storage-verification.json保留。最终inline-history-after-production-concurrent-verification.json检查40表：原有列与迁移账本保持；原健康事实、请求、审计及所有旧行保持，无虚构数据残留；日汇总的版本／摘要更新有匹配审计，来源仅使用时间变化，认证为正常续期／轮换。其他新增内容全部保留，未为通过验收修改真实数据。
 
 ## 四页交互与手机核心数据（2026-10-26实施，10-27归档）
 
