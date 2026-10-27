@@ -1,4 +1,7 @@
 "use client";
+import {DecimalInput} from "@/components/decimal-input";
+import {confirmAction} from "@/components/confirmation-state";
+import {formatRecordNumber} from "@/components/number-format";
 
 import {confirmNumbers} from "@/components/number-change";
 import {measurementVersions,verifyRecordVersions,acknowledgeRecordChanges} from "@/components/record-change-client";
@@ -75,7 +78,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       finally { lock.current = false; setWorking(false); }
     });
   }
-  function save(event: React.FormEvent) {
+  async function save(event: React.FormEvent) {
     event.preventDefault();
     const periods: SaveMeasurementDayInput["periods"] = {};
     for (const group of groups) {
@@ -94,7 +97,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       else change.timezone = draft[group.period].timezone || null;
       periods[group.period] = change;
     }
-    if(!confirmNumbers(groups.flatMap(group=>entryMetrics.map(metric=>({label:periodName(group.period)+metricName(metric),unit:metric==="weightKg"?"kg":"%",value:draft[group.period][metric],previous:baseline[group.period][metric]||records.filter(row=>row.period===group.period&&row.recordDate<=date&&row[metric]!=null).sort((a,b)=>b.recordDate.localeCompare(a.recordDate))[0]?.[metric]}))),numberAcknowledgements.current))return;
+    if(!await confirmNumbers(groups.flatMap(group=>entryMetrics.map(metric=>({label:periodName(group.period)+metricName(metric),unit:metric==="weightKg"?"kg":"%",value:draft[group.period][metric],previous:baseline[group.period][metric]||records.filter(row=>row.period===group.period&&row.recordDate<=date&&row[metric]!=null).sort((a,b)=>b.recordDate.localeCompare(a.recordDate))[0]?.[metric]}))),numberAcknowledgements.current))return;
     const payload = { date, timezone, periods };
     run("正在保存记录…", async () => {
       const expected=Object.keys(periods).map(period=>{const row=measurementEntryState(baseRecords,date).find(group=>group.period===period)?.observed;return {key:`measurement:${date}:${period}:observed`,version:row?row.id+":"+row.updatedAt:null,summary:row?`体重 ${row.weightKg??"—"} kg · 体脂 ${row.bodyFatPercent??"—"}%`:undefined};});
@@ -121,13 +124,13 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
             return <div className={styles.entryCell} key={metric} data-entry-cell={`${group.period}:${metric}`} data-kind={cell.kind}>
               <label htmlFor={`entry-${group.period}-${metric}`}>{metricName(metric)}<small>{metric === "weightKg" ? "kg" : "%"}</small></label>
               <div className={styles.entryInputRow}>
-                {editable ? <input id={`entry-${group.period}-${metric}`} aria-label={label} type="text" inputMode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" placeholder="实测值" value={draft[group.period][metric]} onChange={event => setField(group.period, metric, event.target.value)} />
-                  : <span className={styles.entryRecorded}>{cell.value ?? "—"}<small>{cell.kind === "estimated" ? "◇ 估计" : cell.kind === "observed" ? "实测" : ""}</small></span>}
-                {actions.deleteCell&&group.observed?.[metric]!=null&&<button type="button" className={styles.deleteCell} disabled={busy||hasDraft} aria-label={"删除"+label} onClick={()=>{const original=group.observed!;if(window.confirm(`删除 ${date} ${periodName(group.period)}${metricName(metric)} ${original[metric]}${metric==="weightKg"?" 公斤":"%"}？其他指标和另一时段保留。`))run("正在删除这一项…",()=>actions.deleteCell!({recordId:original.id,version:original.updatedAt,metric,operationId:operationId(["delete",original.id,original.updatedAt,metric])}),[`measurement:${date}:${group.period}:observed`]);}}>×</button>}
+                {editable ? <DecimalInput id={`entry-${group.period}-${metric}`} aria-label={label} min={0} placeholder="实测值" value={draft[group.period][metric]} onValue={value=>setField(group.period,metric,value)} />
+                  : <span className={styles.entryRecorded}>{formatRecordNumber(cell.value)}<small>{cell.kind === "estimated" ? "◇ 估计" : cell.kind === "observed" ? "实测" : ""}</small></span>}
+                {actions.deleteCell&&group.observed?.[metric]!=null&&<button type="button" className={styles.deleteCell} disabled={busy||hasDraft} aria-label={"删除"+label} onClick={async()=>{const original=group.observed!;if(await confirmAction({title:"删除"+label+"？",danger:true,confirmLabel:"删除"+metricName(metric),message:`删除 ${date} ${periodName(group.period)}${metricName(metric)} ${formatRecordNumber(original[metric])}${metric==="weightKg"?" 公斤":"%"}？其他指标和另一时段保留。`}))run("正在删除这一项…",()=>actions.deleteCell!({recordId:original.id,version:original.updatedAt,metric,operationId:operationId(["delete",original.id,original.updatedAt,metric])}),[`measurement:${date}:${group.period}:observed`]);}}>×</button>}
                 {cell.kind === "missing" ? <button type="button" className={styles.estimateAction} aria-label={`估算${label}`} disabled={busy || dirty} onClick={() => { const payload = { date, period: group.period, metric }; run(`正在估算${label}…`, () => actions.estimate({ ...payload, operationId: operationId(["estimate", payload]) }),[`measurement:${date}:${group.period}:estimated`]); }}>{busy && busyLabel === `正在估算${label}…` ? "估算中…" : "估算"}</button>
                   : null}
               </div>
-              {editable && cell.kind === "estimated" && <small className={styles.entryReference}>原估计 {cell.value} · 请填写真实读数</small>}
+              {editable && cell.kind === "estimated" && <small className={styles.entryReference}>原估计 {formatRecordNumber(cell.value)} · 请填写真实读数</small>}
             </div>;
           })}
           <SourceInput label={`${periodName(group.period)}数据来源`} value={draft[group.period].deviceLabel} sources={sources} onChange={value => setField(group.period, "deviceLabel", value)} removeSource={actions.removeSource} disabled={busy || group.blocked} />

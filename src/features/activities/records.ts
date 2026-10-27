@@ -10,7 +10,7 @@ import { requireActiveAiToken } from "../auth/ai-tokens";
 import { lockOwner, type Transaction } from "../auth/owner-lock";
 import { rememberEnergySources } from "./sources";
 import { systemMeasurementTimezone, validateMeasurementTimezone } from "../measurements/timezone";
-import { energyDays, energyBaseline, activityCalories, activityCalorieFields, ageOn, energyInputSchema, type EnergyAction, type EnergyInput, type EnergyOperationView, type EnergyPreview, type EnergyRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyProvenance } from "./model";
+import { energyDays, energyBaseline, activityEnergyChanged, activityCalories, activityCalorieFields, ageOn, energyInputSchema, type EnergyAction, type EnergyInput, type EnergyOperationView, type EnergyPreview, type EnergyRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyProvenance } from "./model";
 
 export type EnergyActor = { userId: string; origin: "manual" | "ai"; identity?: AiIdentity };
 function canonical(value: unknown): unknown {
@@ -20,7 +20,7 @@ function canonical(value: unknown): unknown {
 }
 function snapshotDigest(state: EnergySnapshot) {
   const { defaults, ...legacy } = state;
-  return digest({ rules: "explicit-energy-modes-v1", ...legacy, days: legacy.days.map(({ activeEstimated, notes, ...day }) => ({ ...day, ...(activeEstimated ? { activeEstimated } : {}), ...(notes ? { notes } : {}) })), ...(defaults?.length ? { defaults } : {}) });
+  return digest({ rules: "explicit-energy-modes-v2", ...legacy, days: legacy.days.map(({ activeEstimated, notes, ...day }) => ({ ...day, ...(activeEstimated ? { activeEstimated } : {}), ...(notes ? { notes } : {}) })), ...(defaults?.length ? { defaults } : {}) });
 }
 const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex");
 const typeOf = (action: EnergyAction) => action.kind.includes("defaults") ? "defaults" : action.kind.includes("profile") ? "profile" : action.kind.includes("energy_day") ? "day" : "activity";
@@ -74,7 +74,7 @@ export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnaps
         if (before?.deletedAt) throw new ApiError(409, "deleted", "请先恢复这一天的记录。");
         const prior = before && "date" in before && "restingKcal" in before ? before : undefined;
         const restingKcal = action.restingKcal === undefined ? prior?.restingKcal ?? null : action.restingKcal;
-        const activeKcal = action.activeKcal === undefined ? prior?.activeKcal ?? (action.entryMode === "components" && action.activityMode !== "activities" ? "0" : null) : action.activeKcal;
+        const activeKcal = action.activeKcal === undefined ? prior?.activeKcal ?? null : action.activeKcal;
         const totalKcal = action.totalKcal === undefined ? prior?.totalKcal ?? null : action.totalKcal;
         // 无模式的旧请求继续按旧的覆盖优先级解释；新请求始终显式选择。
         const entryMode = action.entryMode ?? (action.totalKcal !== undefined ? totalKcal !== null ? "total" : "components" : prior?.entryMode ?? (totalKcal !== null ? "total" : "components"));
@@ -111,7 +111,8 @@ export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnaps
       record.inclusion=baseline?action.inclusion:null;record.inclusionBasis=record.inclusion?baseline:null;
     }
     const prior=row.before && "name" in row.before?row.before:undefined;
-    const energyChanged=!prior || prior.date!==record.date || Number(activityCalories(prior))!==Number(activityCalories(record)) || (activityCalories(prior)===null)!==(activityCalories(record)===null) || prior.completed!==record.completed || !!prior.deletedAt!==!!record.deletedAt;
+    const energyChanged=!prior || activityEnergyChanged(prior,record);
+    if(energyChanged && !("inclusion" in action && action.inclusion!==undefined)){record.inclusion=null;record.inclusionBasis=null;}
     if(!record.deletedAt && record.completed && baseline && energyChanged && (!record.inclusion || record.inclusionBasis!==baseline)){
       row.coverageQuestions=[record];row.error="请确认“"+record.name+"”是否已包含在当天录入的总数中。";
     }
@@ -120,7 +121,7 @@ export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnaps
     const record=row.after as EnergyDayRecord,prior=row.before && "date" in row.before && "restingKcal" in row.before?row.before as EnergyDayRecord:undefined;
     const baseline=energyBaseline(record);
     if(baseline && baseline!==energyBaseline(prior)){
-      const unresolved=state.activities.filter(activity=>!activity.deletedAt&&activity.completed&&activity.date===record.date&&(!activity.inclusion||activity.inclusionBasis!==baseline));
+      const unresolved=state.activities.filter(activity=>!activity.deletedAt&&activity.completed&&activity.date===record.date&&!rows.some(candidate=>!candidate.excluded&&!candidate.error&&candidate.after&&"name" in candidate.after&&candidate.after.id===activity.id&&"inclusion" in candidate.action&&candidate.action.inclusion!=null&&activity.inclusionBasis===baseline));
       if(unresolved.length){row.coverageQuestions=unresolved;row.error="总数或记录方式已改变，请核对 "+unresolved.length+" 项运动是否已包含。";}
     }
   }

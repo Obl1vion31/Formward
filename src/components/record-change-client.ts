@@ -1,4 +1,5 @@
 "use client";
+import {confirmAction} from "./confirmation-state";
 import type {MeasurementDisplay} from "@/features/measurements/entry-state";
 import type {MealSnapshot} from "@/features/meals/model";
 import type {EnergySnapshot} from "@/features/activities/model";
@@ -21,7 +22,7 @@ export async function verifyRecordVersions(expected:{key:string;version:string|n
   const details=await fetchRecordStamps(changed.map(row=>row.key));
   const lines=changed.map(row=>{const now=details.find(r=>r.key===row.key);return now?now.date+" "+now.title+"已修改"+(row.summary?"\n原来："+row.summary:"")+(now.summary?"\n最新："+now.summary:""):"这条记录已删除";}).join("\n");
   if(changed.some(row=>!byKey.has(row.key)))throw new Error(lines+"，请查看最新记录；输入已保留。");
-  if(!window.confirm(lines+"。\n当前输入已保留。确定仍保存当前填写内容？取消后可查看最新记录。"))throw new Error("尚未保存，当前输入已保留，可查看最新记录。");
+  if(!await confirmAction({title:"这条记录已在别处修改",message:lines+"。\n当前输入已保留，可取消并查看最新记录，或仍保存当前内容。",confirmLabel:"仍保存当前内容"}))throw new Error("尚未保存，当前输入已保留，可查看最新记录。");
  }
  return byKey;
 }

@@ -31,7 +31,7 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
   let dialog = page.getByRole("dialog", { name: "修改待保存内容", exact: true });
   await dialog.getByLabel("体重（kg）", { exact: true }).fill("70.40");
   await dialog.getByRole("button", { name: "应用修改", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
-  assert.ok((await row("morning").innerText()).includes("70.4kg"));
+  assert.ok((await row("morning").innerText()).includes("70.40kg"));
   assert.equal((await readBody()).find(record => record.id === morning?.id)?.weightKg, morning?.weightKg, "应用修改不写事实");
   assert.equal(await row("morning").getByRole("button",{name:"标记已核对",exact:true}).count(),0);
   assert.equal((await readMeals()).length, beforeMeals);
@@ -87,9 +87,11 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
   }
   await page.goto(`${baseURL}/dashboard/meals`);
   for (const mode of ["克数占比", "能量占比"]) {
+    if(!await page.getByRole("button",{name:mode,exact:true}).isVisible())await page.locator("[data-chart-controls]>summary").click();
     await page.getByRole("button", { name: mode, exact: true }).click();
     for (const days of [7, 30, 90]) {
       await page.getByRole("button", { name: `${days}D`, exact: true }).click();
+      if(!await page.getByRole("button",{name:mode,exact:true}).isVisible())await page.locator("[data-chart-controls]>summary").click();
       assert.equal(await page.getByRole("button", { name: mode, exact: true }).getAttribute("aria-pressed"), "true");
       const ratio = Number(await page.locator(`[data-bar-date="${date}"] [data-metric="fatG"]`).getAttribute("data-macro-ratio"));
       const totals = (await readMeals()).filter(meal => meal.date === date).flatMap(meal => meal.items).reduce((total, item) => ({ p: total.p + Number(item.nutrition.proteinG), c: total.c + Number(item.nutrition.carbsG), f: total.f + Number(item.nutrition.fatG) }), { p: 0, c: 0, f: 0 });
@@ -149,7 +151,7 @@ export async function checkReviewMaintenance({baseURL,page,token,date,artifacts=
   const duplicate=await post([{...meal,notes:"虚构维护草稿"}]);await page.goto(duplicate.confirmationUrl);
   const comparison=page.getByRole("region",{name:"已有相同餐次"});
   await comparison.waitFor();assert.ok((await comparison.innerText()).includes(date));
-  assert.ok((await comparison.innerText()).includes("虚构维护鸡肉"));assert.ok((await comparison.innerText()).includes("600 kcal"));
+  assert.ok((await comparison.innerText()).includes("虚构维护鸡肉"));assert.ok((await comparison.innerText()).includes("600.00 kcal"));
   for(const width of [1440,390,320]) {
     await page.setViewportSize({width,height:844});
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);

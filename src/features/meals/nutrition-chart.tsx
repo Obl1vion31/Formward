@@ -9,12 +9,12 @@ import styles from "./meals.module.css";
 
 const calorieColor = "#7F9EAF";
 const macros: Metric[] = ["proteinG", "carbsG", "fatG"];
-export function NutritionChart({ dates, groups, selection, mode, setMode }: { dates: string[]; groups: ReturnType<typeof dailyTotals>; selection:ReturnType<typeof useChartDateSelection>; mode: MacroMode; setMode: (mode: MacroMode) => void }) {
+export function NutritionChart({ dates, groups, selection, mode }: { dates: string[]; groups: ReturnType<typeof dailyTotals>; selection:ReturnType<typeof useChartDateSelection>; mode: MacroMode }) {
   const viewport = useRef<HTMLDivElement>(null), [containerWidth, setContainerWidth] = useState(0);
   const patternId = useId().replaceAll(":", "");
   const byDate = new Map(groups.map(group => [group.date, group.totals]));
   const statusByDate = new Map(groups.map(group => [group.date, group.day.status]));
-  const inspected=selection.selected,totals=byDate.get(inspected),distribution=macroDistribution(totals,mode),unit="kcal";
+  const inspected=selection.selected,unit="kcal";
   useEffect(() => {
     const node = viewport.current!, observer = new ResizeObserver(([entry]) => setContainerWidth(entry.contentRect.width));
     observer.observe(node); return () => observer.disconnect();
@@ -26,9 +26,7 @@ export function NutritionChart({ dates, groups, selection, mode, setMode }: { da
   const allDates = dates.length <= 7, selectedX = left + (dates.indexOf(inspected) + .5) * slot;
   const stride = Math.max(1, Math.ceil((dates.length - 1) / (width < 440 ? 3 : 6)));
   return <>
-    <div className={styles.macroTools}><div className={styles.macroMode} role="group" aria-label="营养占比口径">{([["grams","克数占比"],["energy","能量占比"]] as const).map(([value,label])=><button key={value} aria-pressed={mode===value} onClick={()=>setMode(value)}>{label}</button>)}</div>
-    <div className={styles.macroLegend}>{macros.map(metric=><span key={metric}><i style={{background:macroColors[metric as keyof typeof macroColors]}}/>{metric==="proteinG"?"P":metric==="carbsG"?"C":"F"}<small> · {metricLabels[metric]}</small></span>)}{totals&&!distribution&&<span>营养占比不完整 · 显示总热量</span>}{dates.some(date => byDate.has(date) && statusByDate.get(date) !== "complete") && <span><i className={styles.incompleteKey} />未记全／全天待确认</span>}</div>
-    </div><div className={styles.barViewport} ref={viewport} onMouseLeave={selection.leave}>
+    <div className={styles.barViewport} ref={viewport} onMouseLeave={selection.leave}>
       <svg {...drag} className={styles.chart} style={{ touchAction:"pan-y", visibility: containerWidth ? undefined : "hidden" }} viewBox={`0 0 ${width} 194`} role="group" aria-label={`热量柱状图，单位${unit}`}>
         <defs><pattern id={patternId} width="5" height="5" patternUnits="userSpaceOnUse"><path d="M-1 1L1 -1M0 5L5 0M4 6L6 4" stroke="#f0e9dd" strokeOpacity=".3" strokeWidth="1" /></pattern></defs>
         {scale.ticks.map(tick => <g key={tick}><line className={styles.grid} x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} /><text className={styles.axis} data-calorie-tick={tick} x={left - 8} y={y(tick) + 4} textAnchor="end">{tick}</text></g>)}

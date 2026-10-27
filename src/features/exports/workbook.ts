@@ -33,7 +33,7 @@ const nutrientValues = (nutrition: { caloriesKcal: string | null; proteinG: stri
 function sheet(book: ExcelJS.Workbook, name: string, columns: Column[], values: Value[][]) {
   if(values.some(row=>row.length!==columns.length))throw new Error("导出字段数量不一致："+name);
   const page = book.addWorksheet(name, { views: [{ state: "frozen", ySplit: 1 }] });
-  page.columns = columns.map((column, index) => ({ header: column.header, key: String(index), width: column.width, style: { numFmt: column.numeric ? "0.####" : "@" } }));
+  page.columns = columns.map((column, index) => ({ header: column.header, key: String(index), width: column.width, style: { numFmt: column.numeric ? ["版本","图片数量","餐数","记录数","有效天数"].includes(column.header)?"0":"0.00" : "@" } }));
   for (const row of values) page.addRow(row);
   page.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
   page.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF365E78" } };

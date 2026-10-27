@@ -1,5 +1,9 @@
 # Formward 项目交接
 
+## 本轮：四页共同布局与消耗填写
+
+本机实施及视觉验收完成，待正式发布复验。本轮无migration、公开字段/工具/权限变化，数据库仍0026。共同框架、选中日晨间读数、应用内确认和两位显示已接入；活动先自动累计，手填后才核对，改数重新核对，旧false不自动计入。保留35479cf自由项总量和32be0cd布局/详情定位。383项单元/集成、lint零警告、typecheck、production build及文档/结构检查通过。Chromium/WebKit四页7组视口对齐≤2px、34px安全区、AI不重复累计、精度与应用内确认通过；原饮食和跨页面更新回归通过。实际截图在.codex/unified-frame-gallery/，逐项证据见docs/maintenance-verification.md；真实iOS/系统软键盘未测。正式版本以下方已发布记录为准。
+
 更新日期：2026-10-28。仓库 `/home/obl1vion/projects/Formward`，当前功能分支 `codex/latest-records-energy-sources`，尚未合入main。先读根README、AGENTS、本文及目标目录最近README；修改Next.js前读取已安装包的本地指南。
 
 ## 身体、运动与记录更新

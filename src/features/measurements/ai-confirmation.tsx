@@ -1,4 +1,6 @@
 "use client";
+import {DecimalInput} from "@/components/decimal-input";
+import {formatRecordNumber} from "@/components/number-format";
 import { useDraftGuard, useDraftClose } from "@/components/draft-guard";
 import { useState } from "react";
 import type { ReviewInput, ReviewItem } from "./ai-operations";
@@ -7,7 +9,7 @@ import { SourceInput } from "@/components/source-input";
 import type { SourceRemovalResult } from "./entry-state";
 
 type Draft = { seed: ReviewItem; date: string; period: ReviewInput["period"]; weightKg: string; bodyFatPercent: string; deviceLabel: string; fasting: boolean; timezone: string; recordId: string; version: string };
-function display(value: unknown, unit = "") { return value === true ? "空腹" : value === false ? "非空腹" : value === null || value === undefined ? "未指定" : `${value}${unit}`; }
+function display(value: unknown, unit = "") { return value === true ? "空腹" : value === false ? "非空腹" : value === null || value === undefined ? "未指定" : (unit?formatRecordNumber(String(value)):String(value))+unit; }
 function candidates(item: ReviewItem): Record<string, unknown>[] {
   const before = item.preview.rows[0]?.before;
   return Array.isArray(before?.candidates) ? before.candidates : before?.id ? [before] : [];
@@ -46,8 +48,8 @@ function DraftForm({ item, draft, change, busy, updating, save, close, sources, 
       <label>时段<select aria-label="时段" value={draft.period} onChange={event => set({ period: event.target.value as Draft["period"], fasting: false, recordId: "", version: "" })} disabled={busy}><option value="daytime">晨间</option><option value="evening">晚间</option></select></label>
       {isRecord && <>
         {!!options.length && sameTarget && <label className="ai-draft-wide">要修改的历史记录<select aria-label="要修改的历史记录" value={draft.recordId} disabled={busy} onChange={event => { const record = options.find(record => record.id === event.target.value); set({ recordId: event.target.value, version: String(record?.updatedAt ?? "") }); }}><option value="">未选择历史记录</option>{options.map(record => <option key={String(record.id)} value={String(record.id)}>{display(record.weightKg, " kg")} · {display(record.bodyFatPercent, "%")} · {display(record.deviceLabel)} · {String(record.id).slice(0, 8)}</option>)}</select></label>}
-        <label>体重（kg）<input type="text" inputMode="decimal" value={draft.weightKg} onChange={event => set({ weightKg: event.target.value })} disabled={busy} placeholder="未知留空" /></label>
-        <label>体脂率（%）<input type="text" inputMode="decimal" value={draft.bodyFatPercent} onChange={event => set({ bodyFatPercent: event.target.value })} disabled={busy} placeholder="未知留空" /></label>
+        <label>体重（kg）<DecimalInput min={0} value={draft.weightKg} onValue={value=>set({weightKg:value})} disabled={busy} placeholder="未知留空" /></label>
+        <label>体脂率（%）<DecimalInput min={0} max={100} value={draft.bodyFatPercent} onValue={value=>set({bodyFatPercent:value})} disabled={busy} placeholder="未知留空" /></label>
         <div className="ai-draft-wide"><SourceInput label="测量来源" value={draft.deviceLabel} sources={sources} onChange={value => set({ deviceLabel: value })} removeSource={removeSource} disabled={busy} /></div>
         <div className="ai-draft-wide ai-timezone-field"><label>时区<select aria-label="时区" value={draft.timezone} onChange={event => set({ timezone: event.target.value })} disabled={busy}><option value="">未指定</option>{draft.timezone && !timezoneOptions.some(option => option.value === draft.timezone) && <option value={draft.timezone}>{timezoneLabel(draft.timezone, draft.date)}（保留原时区）</option>}{timezoneOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button className="ai-button ai-secondary" type="button" disabled={busy} onClick={() => set({ timezone: offsetTimezone(-new Date().getTimezoneOffset()) })}>采用设备时区</button></div>
         {draft.period === "daytime" ? <label className="ai-fasting ai-draft-wide"><input type="checkbox" checked={draft.fasting} onChange={event => set({ fasting: event.target.checked })} disabled={busy} />确认这次晨间测量为空腹</label> : <p className="ai-muted ai-draft-wide">晚间固定为非空腹。</p>}

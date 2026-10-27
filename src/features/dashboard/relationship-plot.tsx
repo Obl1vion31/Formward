@@ -1,4 +1,5 @@
 "use client";
+import {signedRecordNumber} from "@/components/number-format";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { useMobileMode } from "@/components/use-mobile-mode";
@@ -8,8 +9,9 @@ import type { OverviewDay } from "./model";
 import styles from "./overview.module.css";
 
 const palette = { intake: "#92B9D6", expenditure: "#D89490", surplus: "#D8B38A", deficit: "#92B2C2", weight: "#EEE5D5" };
-export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unpin,pinned }: { days: OverviewDay[]; selected: string; inspect:(date:string)=>void;preview:(date:string)=>void;leave:()=>void;pin:(date:string)=>void;unpin:()=>void;pinned:boolean }) {
+export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unpin }: { days: OverviewDay[]; selected: string; inspect:(date:string)=>void;preview:(date:string)=>void;leave:()=>void;pin:(date:string)=>void;unpin:()=>void }) {
   const container = useRef<HTMLDivElement>(null), [width, setWidth] = useState(0), id = useId().replaceAll(":", "");
+  const [viewportRoom,setViewportRoom]=useState<number|null>(null);
   const mobile = useMobileMode(), [shortViewport, setShortViewport] = useState(false);
   useEffect(() => {
     const query = window.matchMedia("(max-height: 600px)");
@@ -18,10 +20,16 @@ export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unp
     return () => query.removeEventListener("change", update);
   }, []);
   const gesture = useRef<{ x: number; y: number; horizontal: boolean } | null>(null);
-  useEffect(() => { const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width)); observer.observe(container.current!); return () => observer.disconnect(); }, []);
+  useEffect(() => {
+    const node=container.current!,nav=document.querySelector(".mobile-bottom-nav");
+    const measure=()=>{setWidth(node.getBoundingClientRect().width);setViewportRoom(nav&&getComputedStyle(nav).display!=="none"?Math.floor(nav.getBoundingClientRect().top-node.getBoundingClientRect().top-window.scrollY-4):null);};
+    const observer=new ResizeObserver(measure);observer.observe(node);if(nav)observer.observe(nav,{box:"border-box"});window.addEventListener("resize",measure);measure();
+    return()=>{observer.disconnect();window.removeEventListener("resize",measure);};
+  }, []);
   useChartMotion(container, width ? days.map(day => `${day.date}:${day.nutrition?.values.caloriesKcal}:${day.energy.totalKcal}:${day.energyBalance}:${day.weightChangeKg}:${day.differenceEstimated}`).join("|") : "pending");
   const w = width || 280, compact = mobile ?? w < 650, left = 49, right = 13, top = compact ? 16 : 26;
-  const energyBottom = top + (compact ? shortViewport ? 96 : 124 : 220);
+  const energyHeight=compact?Math.min(shortViewport?96:124,Math.max(60,(viewportRoom??1000)-top-32-(shortViewport?56:68)-28)):220;
+  const energyBottom = top + energyHeight;
   const weightTop = energyBottom + (compact ? 32 : 56), weightBottom = weightTop + (compact ? shortViewport ? 56 : 68 : 112), height = weightBottom + (compact ? 28 : 34);
   const energyScale = energyLineScale(days.flatMap(day => [day.nutrition?.values.caloriesKcal, day.energy.totalKcal])), weightScale = energyLineScale(days.map(day => day.weightChangeKg), "kg");
   // 只减少标签密度，保持全区间的数据范围与零线。
@@ -38,8 +46,8 @@ export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unp
   const paired = days.map((day, i) => intake[i] && expenditure[i] && day.energyBalance !== null ? { intake: intake[i]!, expenditure: expenditure[i]!, balance: day.energyBalance } : null);
   const selectedIndex = Math.max(0, days.findIndex(day => day.date === selected)), stride = Math.max(1, Math.ceil((days.length - 1) / (w < 440 ? 3 : 6)));
   const pick = (svg: SVGSVGElement, clientX: number, action=preview) => { const bounds = svg.getBoundingClientRect(); action(days[Math.max(0, Math.min(days.length - 1, Math.floor(((clientX - bounds.left) * w / bounds.width - left) / slot)))].date); };
-  return <div ref={container} role="group" aria-label="摄入、消耗、盈余与次晨体重变化" className={styles.relationship} data-pinned-date={pinned?selected:undefined}>
-    <div className={styles.panelHeading}><h3>热量收支 <small>kcal</small></h3><div className={styles.legend}><span><i className={styles.intakeKey} style={{ background: palette.intake }} />摄入</span><span><i className={styles.expenditureKey} style={{ background: palette.expenditure }} />消耗</span><span><i className={styles.areaKey} style={{ background: palette.surplus }} />盈余</span><span><i className={styles.areaKey} style={{ background: palette.deficit }} />缺口</span></div></div>
+  return <div ref={container} role="group" aria-label="摄入、消耗、盈余与次晨体重变化" className={styles.relationship}>
+
     <div className={styles.plot}><svg viewBox={`0 0 ${w} ${height}`} style={{ visibility: width ? undefined : "hidden" }} role="group" aria-label="双层日期关联图" aria-describedby={`${id}-help`}
       onPointerDown={event => { if (event.button !== 0) return; gesture.current = { x: event.clientX, y: event.clientY, horizontal: false }; if(event.pointerType!=="mouse")pick(event.currentTarget,event.clientX,inspect); }}
       onPointerMove={event => {
@@ -66,7 +74,7 @@ export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unp
       </g>
       <g data-overview-panel="weight">
         {!compact && <line x1="0" x2={w} y1={energyBottom + 16} y2={energyBottom + 16} className={styles.grid} />}
-        <text data-weight-readout x={w - right} y={weightTop - 10} textAnchor="end" className={styles.axis}>次晨变化：{(days[selectedIndex]?.ambiguous ? "待选择" : days[selectedIndex]?.weightChangeKg == null ? "未配对" : (days[selectedIndex].weightChangeKg! > 0 ? "+" : "") + days[selectedIndex].weightChangeKg + (days[selectedIndex].differenceEstimated ? " kg · 含估计" : " kg"))}</text>
+        <text data-weight-readout x={w - right} y={weightTop - 10} textAnchor="end" className={styles.axis}>次晨变化：{(days[selectedIndex]?.ambiguous ? "待选择" : days[selectedIndex]?.weightChangeKg == null ? "未配对" : signedRecordNumber(days[selectedIndex].weightChangeKg) + (days[selectedIndex].differenceEstimated ? " kg · 含估计" : " kg"))}</text>
         {weightTicks.map(tick => <g key={tick} data-axis-tick={tick}><line data-overview-zero={tick === 0 ? "" : undefined} x1={left} x2={w - right} y1={weightY(tick)} y2={weightY(tick)} className={tick === 0 ? styles.zeroLine : styles.grid} /><text x={left - 8} y={weightY(tick) + 4} textAnchor="end" className={styles.axis}>{tick > 0 ? "+" : ""}{tick}</text></g>)}
         <g data-chart-line className={styles.plotData}>{days.map((day, i) => i > 0 && day.weightChangeKg !== null && days[i - 1].weightChangeKg !== null && <line key={day.date} x1={x(i - 1)} x2={x(i)} y1={weightY(days[i - 1].weightChangeKg!)} y2={weightY(day.weightChangeKg)} stroke={palette.weight} strokeWidth="1.6" strokeLinecap="round" strokeDasharray={day.differenceEstimated || days[i - 1].differenceEstimated ? "4 4" : undefined} />)}</g>
         {!days.some(day => day.weightChangeKg !== null) && <text x={(left + w - right) / 2} y={weightTop + 24} textAnchor="middle" className={styles.emptyPlot}>暂无相邻两日晨重</text>}

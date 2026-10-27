@@ -1,5 +1,9 @@
 # 消耗记录
 
+## 每日填写窗口
+
+顶部显示目标日总消耗与保存，其后为总消耗、运动明细和时间备注。新日默认activities累计；自动值只显示，不写为手填合计。手填包括0才切换total、要求新/已变运动核对；清空恢复累计。改变总数或计入值让旧关系失效，来源备注不重问。新运动默认计入，页面不再提供已完成勾选；旧false保持未计入。单独修改运动也预览同日其余活动。旧消耗预览的规则摘要已更换，必须刷新；无migration。
+
 运动填写calorieMode=total／components。旧caloriesKcal保持原值；分开填写增加exerciseRestingKcal／exerciseActiveKcal，只将纯运动计入每日。activityReadings区分本次总数与计入值；普通填写、AI、查询及Excel共用。0026只增列不回算历史。没有采用中的活动／全天总数不问包含关系。
 
 沿用activities模块，集中每日消耗、运动明细、原始来源和确认审计；网页、HTTP、MCP与Excel复用同一规则。

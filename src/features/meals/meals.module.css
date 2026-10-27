@@ -350,3 +350,5 @@
 .mobileLibrary{display:none}@media(max-width:700px),(hover:none) and (pointer:coarse){.tabs{display:none}.workspace[data-active-tab=foods] .tabs{display:flex}.mobileLibrary{display:flex;justify-content:flex-end;margin-top:4px}.summary{grid-template-columns:1.3fr repeat(3,minmax(0,1fr));gap:6px;padding:5px 0 8px}.summary>div:first-child{grid-column:auto;display:block}.summary>div:first-child span{display:block}.summary>div:first-child span::after{content:" kcal";font-size:12px}.summary>div:first-child strong{font-size:22px;margin:3px 0 0}.summary>div:first-child strong small{display:none}.summary strong{font-size:21px}.summary span{white-space:nowrap}.macroTools .macroLegend span{font-size:12px}.macroTools .macroLegend small{display:none}.macroTools .macroLegend span::first-letter{font-size:inherit}.macroTools .macroLegend{gap:8px}}
 
 .macroTools .macroMode{flex:none;flex-wrap:nowrap}.macroTools .macroLegend{flex:1;min-width:0}@media(max-width:700px),(hover:none) and (pointer:coarse){.trend{padding-top:4px}.macroTools .macroMode button{white-space:nowrap}}
+
+.mobileLibrary.mobileLibrary{display:block;padding:8px 0}

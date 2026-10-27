@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {confirmationIsOpen} from "./confirmation-state";
 import { lockPageScroll } from "./scroll-lock";
 import { LoadingContext, LoadingVisibleContext, usePageLoading } from "./page-loading-state";
 
@@ -43,6 +44,8 @@ function LoadingDialog({ label }: { label: string }) {
 }
 
 export function PageLoadingProvider({ children }: { children: ReactNode }) {
+  const [confirming,setConfirming]=useState(confirmationIsOpen);
+  useEffect(()=>{const update=()=>setConfirming(confirmationIsOpen());window.addEventListener("formward-confirmation-change",update);return()=>window.removeEventListener("formward-confirmation-change",update);},[]);
   const tasks = useRef(new Map<symbol, string>());
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,7 +87,7 @@ export function PageLoadingProvider({ children }: { children: ReactNode }) {
   }, []);
   return <LoadingContext.Provider value={controller}><LoadingVisibleContext.Provider value={visible}>
     <div data-page-content aria-busy={label !== null}>{children}</div>
-    {visible && label && <LoadingDialog label={label} />}
+    {visible && !confirming && label && <LoadingDialog label={label} />}
   </LoadingVisibleContext.Provider></LoadingContext.Provider>;
 }
 

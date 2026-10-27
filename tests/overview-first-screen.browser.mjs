@@ -25,7 +25,7 @@ export async function checkOverviewFirstScreen({baseURL, page, artifacts = ".cod
       await page.mouse.move(0,0);
       const mobile = width <= 700;
       await ready(mobile);
-      if (mobile) await page.addStyleTag({content:".mobile-bottom-nav { padding-bottom:34px; }"});
+      if (mobile) {await page.addStyleTag({content:".mobile-bottom-nav { padding-bottom:34px; }"});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await page.waitForTimeout(100);}
       const geometry = await plot.evaluate(svg => {
         const rect = node => { const b=node.getBoundingClientRect();return {top:b.top,bottom:b.bottom,left:b.left,right:b.right,height:b.height}; };
         return {scrollY,svg:rect(svg),nav:document.querySelector(".mobile-bottom-nav")?.getBoundingClientRect().top,
@@ -68,7 +68,7 @@ export async function checkOverviewFirstScreen({baseURL, page, artifacts = ".cod
         await page.keyboard.press("Escape");
       }
       await page.goto(baseURL+"/dashboard"); await ready(mobile);
-      if(mobile)await page.addStyleTag({content:".mobile-bottom-nav { padding-bottom:34px; }"});
+      if(mobile){await page.addStyleTag({content:".mobile-bottom-nav { padding-bottom:34px; }"});await page.waitForTimeout(100);}
       await page.screenshot({path:join(artifacts,engine+"-"+width+"x"+height+".png")});
       cases.push({width,height,safeArea:mobile?34:0,geometry,passed:true});
     }

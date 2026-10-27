@@ -1,3 +1,4 @@
+import {formatRecordNumber} from "../../components/number-format";
 import { z } from "zod";
 import { addCalendarDays, calendarOrdinal } from "../measurements/calendar";
 import { buildMeasurementDays } from "../measurements/days";
@@ -100,6 +101,10 @@ export function energyDays(snapshot: EnergySnapshot, records: MeasurementDisplay
 export function activityCalories(record: Pick<ActivityRecord,"calorieMode"|"caloriesKcal"|"exerciseActiveKcal">): string|null {
   return record.calorieMode === "components" ? record.exerciseActiveKcal ?? null : record.caloriesKcal;
 }
+/** 是否改变了当天计入值；来源、名称和期间静息不改变包含关系。 */
+export function activityEnergyChanged(before:ActivityRecord,after:ActivityRecord){
+ return before.date!==after.date||before.completed!==after.completed||!!before.deletedAt!==!!after.deletedAt||Number(activityCalories(before))!==Number(activityCalories(after))||(activityCalories(before)===null)!==(activityCalories(after)===null);
+}
 export function activityReadings(record: Pick<ActivityRecord,"calorieMode"|"caloriesKcal"|"exerciseActiveKcal"|"exerciseRestingKcal">) {
   const totalKcal=record.calorieMode==="components" ? record.exerciseActiveKcal!=null&&record.exerciseRestingKcal!=null?amount(Number(record.exerciseActiveKcal)+Number(record.exerciseRestingKcal)):null : record.caloriesKcal;
   return {totalKcal,countedKcal:activityCalories(record)};
@@ -111,7 +116,7 @@ export function activityCalorieFields(action: {calorieMode?:"total"|"components"
   const caloriesKcal=calorieMode==="components" ? exerciseActiveKcal!=null&&exerciseRestingKcal!=null?amount(Number(exerciseActiveKcal)+Number(exerciseRestingKcal)):null : action.caloriesKcal===undefined?prior?.caloriesKcal??null:action.caloriesKcal;
   return {calorieMode,exerciseRestingKcal,exerciseActiveKcal,caloriesKcal};
 }
-export const energyValue = (value: string | number | null | undefined) => value == null ? "—" : Number(value).toLocaleString("zh-CN", { maximumFractionDigits: 0 });
+export const energyValue = (value: string | number | null | undefined) => formatRecordNumber(value);
 export const energyKinds = new Set<string>(energyActionSchemas.map(schema => schema.shape.kind.value));
 export const isEnergy = (action: { kind: string }): action is EnergyAction => energyKinds.has(action.kind);
 

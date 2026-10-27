@@ -83,3 +83,33 @@ test("永久删除审计失败时日记录、活动与整批修改完整回滚",
  await pg.exec("CREATE FUNCTION reject_hard_energy() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.snapshot->>'permanentDeletion' = 'true' THEN RAISE EXCEPTION 'fictional audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_hard_energy BEFORE INSERT ON energy_events FOR EACH ROW EXECUTE FUNCTION reject_hard_energy();");
  try{await assert.rejects(decideEnergyOperation(db,actor.userId,operation.id,operation.revision,"confirm",{permanentManualDeletion:true}));assert.deepEqual(await readEnergySnapshot(db,actor.userId),before);}finally{await pg.exec("DROP TRIGGER reject_hard_energy ON energy_events; DROP FUNCTION reject_hard_energy();");}
 });
+
+test("空活动合计不会伪造人工0；1357自动累计、手填1357和明确0分开判断",async()=>{
+ const a=await owner();let s=await save(a,[{kind:"save_energy_day",date,entryMode:"components",restingKcal:"2000"},run("1357")]);
+ assert.equal(s.days[0].activeKcal,null);assert.equal(s.days[0].activityMode,"activities");assert.equal(Number((await read(a)).totalKcal),3357);
+ for(const value of ["1357","0"]){
+  const op=await submitEnergyOperation(db,a,{operationId:randomUUID(),actions:[{kind:"save_energy_day",id:s.days[0].id,version:s.days[0].version,date,activityMode:"total",activeKcal:value}]});
+  assert.equal(op.canConfirm,false);assert.equal(op.rows[0].coverageQuestions?.length,1);
+ }
+ s=await save(a,[{kind:"save_energy_day",id:s.days[0].id,version:s.days[0].version,date,activityMode:"total",activeKcal:"1357"},update(s.activities[0],{inclusion:"included"})]);
+ assert.equal(Number((await read(a)).totalKcal),3357);
+ s=await save(a,[{kind:"save_energy_day",id:s.days[0].id,version:s.days[0].version,date,activityMode:"activities",activeKcal:null}]);
+ assert.equal(Number((await read(a)).totalKcal),3357);
+ const back=await submitEnergyOperation(db,a,{operationId:randomUUID(),actions:[{kind:"save_energy_day",id:s.days[0].id,version:s.days[0].version,date,activityMode:"total",activeKcal:"1357"}]});
+ assert.equal(back.canConfirm,false,"恢复相同数值不能恢复已经失效的包含选择");
+});
+test("改变运动计入值必须重选；只改名称、来源或期间静息保留原关系与四位精度",async()=>{
+ const a=await owner();let s=await save(a,[total(),{kind:"save_activity",date,name:"虚构精度",calorieMode:"components",exerciseActiveKcal:"400.1234",exerciseRestingKcal:"50.1234",inclusion:"included"}]);
+ const row=s.activities[0];
+ const pending=await submitEnergyOperation(db,a,{operationId:randomUUID(),actions:[{kind:"save_activity",id:row.id,version:row.version,date,name:row.name,exerciseActiveKcal:"401"}]});
+ assert.equal(pending.canConfirm,false);assert.equal(pending.rows[0].coverageQuestions?.length,1);
+ s=await save(a,[{kind:"save_activity",id:row.id,version:row.version,date,name:"改名称",sourceSystem:"改来源",exerciseRestingKcal:"60"}]);
+ assert.equal(s.activities[0].exerciseActiveKcal,"400.1234");assert.equal(s.activities[0].inclusion,"included");
+ const d=s.days[0];s=await save(a,[{kind:"save_energy_day",id:d.id,version:d.version,date,notes:"只改备注"}]);assert.equal(s.days[0].totalKcal,d.totalKcal);
+});
+test("旧未计入运动在只改日记录时不参与累计，也不要求包含核对",async()=>{
+ const a=await owner();let s=await save(a,[{kind:"save_energy_day",date,entryMode:"components",activityMode:"activities",restingKcal:"2000"},{kind:"save_activity",date,name:"旧未计入",caloriesKcal:"400",completed:false}]);
+ assert.equal(Number((await read(a)).totalKcal),2000);
+ s=await save(a,[{kind:"save_energy_day",id:s.days[0].id,version:s.days[0].version,date,activityMode:"total",activeKcal:"0"}]);
+ assert.equal(s.activities[0].completed,false);assert.equal(Number((await read(a)).totalKcal),2000);
+});

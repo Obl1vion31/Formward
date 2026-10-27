@@ -15,7 +15,8 @@ export function DashboardHeader({ email }: { email: string }) {
   }, [pathname]);
   return <><header className={`dashboard-header${review ? " dashboard-review-header" : ""}`}>
     <LoadingLink className="dashboard-logo" href="/dashboard" aria-label="Formward 主页">formward<span>.</span></LoadingLink>
-    {pathname !== "/dashboard" && <LoadingLink className="dashboard-back" href="/dashboard">← 总览</LoadingLink>}
+    {!page && pathname !== "/dashboard" && <LoadingLink className="dashboard-back" href="/dashboard">← 总览</LoadingLink>}
+    {page&&<nav className="desktop-record-nav" aria-label="主导航">{pages.map(([href,label])=><LoadingLink key={href} href={href} aria-current={pathname===href?"page":undefined}>{label}</LoadingLink>)}</nav>}
     <span className="mobile-page-name" role={review ? "heading" : undefined} aria-level={review ? 1 : undefined}>{review ? "确认记录" : page?.[1] ?? (pathname.startsWith("/dashboard/export")?"导出数据":"AI 接入")}</span>
     <div className="dashboard-account"><span>{email}</span><LoadingLink href="/dashboard/ai" className="dashboard-ai-link">AI 接入</LoadingLink><LoadingLink href="/dashboard/export" className="dashboard-ai-link">导出数据</LoadingLink><LogoutButton /></div>
     <details className="dashboard-menu" ref={menu} onKeyDown={event => { if (event.key === "Escape" && menu.current) { menu.current.open = false; menu.current.querySelector("summary")?.focus(); } }}>

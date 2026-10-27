@@ -1,4 +1,5 @@
 "use client";
+import {DecimalInput} from "@/components/decimal-input";
 import {confirmNumbers} from "@/components/number-change";
 import { useDraftGuard } from "@/components/draft-guard";
 import { RecordDateContext } from "@/components/record-date-context";
@@ -12,7 +13,8 @@ import {useMealLayout} from "./use-meal-layout";
 import styles from "./meals.module.css";
 const dragType="application/x-formward-food";
 function Cell({value,label,placeholder="—",numeric=false,required=false,description,change}:{value:string;label:string;placeholder?:string;numeric?:boolean;blank?:boolean;required?:boolean;description?:string;change:(value:string)=>void}) {
- return <input aria-label={label} aria-describedby={description} placeholder={placeholder} value={value} type={numeric?"number":"text"} min={numeric?"0":undefined} max={numeric?"1000000":undefined} step={numeric?"0.0001":undefined} inputMode={numeric?"decimal":undefined} required={required} maxLength={numeric?undefined:200} onChange={event=>change(event.target.value)} onKeyDown={event=>{if(event.key==="Enter"){event.preventDefault();event.currentTarget.blur();}}}/>;
+ const common={"aria-label":label,"aria-describedby":description,placeholder,required,onKeyDown:(event:React.KeyboardEvent<HTMLInputElement>)=>{if(event.key==="Enter"){event.preventDefault();event.currentTarget.blur();}}};
+ return numeric?<DecimalInput {...common} min={0} max={1000000} value={value} onValue={change}/>:<input {...common} value={value} maxLength={200} onChange={event=>change(event.target.value)}/>;
 }
 export function MealEditor({ initial, foods, historicalFoods=[], historicalItems=[], foodRefs={}, recentMeals=[], submitLabel="保存餐次", error, busy, save }: { initial:MealDraft;foods:FoodView[];historicalFoods?:FoodView[];historicalItems?:ItemView[];foodRefs?:Record<string,FoodView>;recentMeals?:MealView[];submitLabel?:string;error:string;busy:boolean;save:(input:MealDraft,allowMissingImages?:boolean)=>Promise<void> }) {
  const numberAcknowledgements=useRef(new Set<string>());
@@ -49,7 +51,7 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
  const entered=draft.items.filter(item=>item.name.trim()),totals=sumNutrition(entered.map(values));
  const layout=useMealLayout(table,draft.items.map(item=>[item.unit??"",item.quantity??"",...metrics.map(metric=>{const value=values(item)[metric];return itemFood(item)?formatNutrition(value,metric):value??"";})]));
 
- return <form className={`${styles.form} ${styles.mealForm}`} data-picker={layout.picker} aria-busy={busy} onSubmit={event=>{event.preventDefault();if(!entered.length)return;const original=historicalItems.length?sumNutrition(historicalItems.map(item=>item.nutrition)):recentMeals.filter(meal=>meal.date<=draft.date&&!meal.deletedAt&&mealTypeLabel(meal.mealType)===mealTypeLabel(draft.mealType)).sort((a,b)=>b.date.localeCompare(a.date))[0]?.totals;if(!confirmNumbers(metrics.map(metric=>({label:metricLabels[metric],unit:metric==="caloriesKcal"?"kcal":"g",value:totals.values[metric],previous:original?.values[metric]})),numberAcknowledgements.current))return;void save(mealEditorInput(draft),true);}}><fieldset disabled={busy||uploading}>
+ return <form className={`${styles.form} ${styles.mealForm}`} data-picker={layout.picker} aria-busy={busy} onSubmit={async event=>{event.preventDefault();if(!entered.length)return;const original=historicalItems.length?sumNutrition(historicalItems.map(item=>item.nutrition)):recentMeals.filter(meal=>meal.date<=draft.date&&!meal.deletedAt&&mealTypeLabel(meal.mealType)===mealTypeLabel(draft.mealType)).sort((a,b)=>b.date.localeCompare(a.date))[0]?.totals;if(!await confirmNumbers(metrics.map(metric=>({label:metricLabels[metric],unit:metric==="caloriesKcal"?"kcal":"g",value:totals.values[metric],previous:original?.values[metric]})),numberAcknowledgements.current))return;void save(mealEditorInput(draft),true);}}><fieldset disabled={busy||uploading}>
  <RecordDateContext date={draft.date} openedOn={openedOn}/><div className={styles.formColumns}><label>日期<input type="date" required value={draft.date} onChange={event=>setDraft({...draft,date:event.target.value,occurredAt:null})}/></label><label>餐次<input aria-label="餐次" required maxLength={50} list="meal-types" value={draft.mealType} onChange={event=>setDraft({...draft,mealType:event.target.value})}/><datalist id="meal-types">{["早餐","午餐","晚餐","加餐","夜宵"].map(name=><option key={name}>{name}</option>)}</datalist></label></div>
  <p className={styles.hint}>选择食材库，或直接填写食物及本次总营养。</p>
  <div className={styles.entryPaths}><button type="button" aria-pressed={step==="picker"} onClick={()=>setStep("picker")}>选择食材库</button><button type="button" aria-pressed={step==="entry"} onClick={()=>setStep("entry")}>本餐 {entered.length} 项 →</button></div>

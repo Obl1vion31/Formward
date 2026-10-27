@@ -137,7 +137,7 @@ test("显式模式排除隐藏旧值，分项来源独立保留", async () => {
   const { userId } = await owner(), actor = { userId, origin: "manual" as const };
   const submit = async (actions: unknown[]) => { const op = await submitEnergyOperation(db, actor, { operationId: randomUUID(), actions }); await decideEnergyOperation(db, userId, op.id, op.revision, "confirm"); return readEnergySnapshot(db,userId); };
   let state = await submit([{ kind: "save_energy_day", date, entryMode: "components", activityMode: "total", restingKcal: "1900", restingSourceSystem: "虚构秤", activeSourceSystem: "虚构手表" }]);
-  assert.equal(Number(energyDays(state, [], [date])[0].totalKcal), 1900); assert.equal(Number(state.days[0].activeKcal), 0);
+  assert.equal(energyDays(state, [], [date])[0].totalKcal, null); assert.equal(state.days[0].activeKcal, null);
   const prior = state.days[0];
   state = await submit([{ kind: "save_energy_day", id: prior.id, version: prior.version, date, entryMode: "total", totalKcal: "2400" }]);
   let reading = energyDays(state, [], [date])[0]; assert.equal(Number(reading.totalKcal), 2400); assert.equal(reading.restingKcal, null); assert.equal(state.days[0].restingKcal, "1900.0000");

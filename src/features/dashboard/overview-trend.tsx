@@ -1,4 +1,6 @@
 "use client";
+import {RecordTrendPanel,ChartOptions,CustomRecordRange} from "@/components/record-trend-panel";
+import {formatRecordNumber,signedRecordNumber} from "@/components/number-format";
 import {mealTypeLabel} from "../meals/model";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
@@ -18,9 +20,9 @@ import { ImageGallery } from "../meals/photos";
 import { blankEnergyDay, energyValue } from "../activities/model";
 import type { OverviewDay } from "./model";
 import styles from "./overview.module.css";
-const signed = (value: number | null, precision = 2) => value === null ? "—" : `${value > 0 ? "+" : ""}${Number(value.toFixed(precision))}`;
+const signed=signedRecordNumber;
 function WeightReading({ record }: { record: MeasurementDisplay | null }) {
-  return <><strong>{record ? Number(record.weightKg) : "—"}<small>kg</small></strong>{record?.recordKind === "estimated" && <em>估计</em>}</>;
+  return <><strong>{record ? formatRecordNumber(record.weightKg) : "—"}<small>kg</small></strong>{record?.recordKind === "estimated" && <em>估计</em>}</>;
 }
 const blankDay = (date: string): OverviewDay => ({ date, nextDate: addCalendarDays(date, 1), meals: [], nutrition: null, morning: null, nextMorning: null, weightChangeKg: null, differenceEstimated: false, ambiguous: false, energy: blankEnergyDay(date), energyBalance: null, mealDayStatus: "unconfirmed", balanceEligible: false });
 export function OverviewTrend({ data }: { data: OverviewPresentation }) {
@@ -28,8 +30,6 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const preferred = preferredRecordedDate(data.days, today, day => day.energyBalance !== null, day => data.recordDates.includes(day.date));
   const [mode, setMode] = useState<string | null>(null), [custom, setCustom] = useState({ from: addCalendarDays(today, -29), to: today }), [estimates, setEstimates] = useState(true), [opened, setOpened] = useState<string | null>(null);
   const [customOpen, setCustomOpen] = useState(false), [customDraft, setCustomDraft] = useState(custom);
-  let customValid = false;
-  try { const length = calendarOrdinal(customDraft.to) - calendarOrdinal(customDraft.from) + 1; customValid = length > 0 && length <= 3661; } catch {}
   const range = mode ?? rangeContaining(preferred, today, mobile ? "7" : "30");
   const available = estimates ? data.estimatedDays : data.days;
   const byDate = new Map(available.map(day => [day.date, day]));
@@ -40,38 +40,23 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const days = dates.map(date => byDate.get(date) ?? blankDay(date));
   const fallback = preferredRecordedDate(days, today, day => day.energyBalance !== null, day => data.recordDates.includes(day.date));
   const selection=useChartDateSelection(dates,preferred,fallback),selected=selection.selected,day=days.find(day=>day.date===selected),dialogDay=opened?byDate.get(opened)??blankDay(opened):null;
-  return <section className={styles.trends} aria-label="热量与晨重趋势">
-    <div className={styles.trendToolbar} data-overview-range-controls=""><div className={styles.trendTitle}><h2>摄入、消耗与次晨变化</h2><time>{from.replaceAll("-", ".")} — {to.replaceAll("-", ".")}</time></div><ChartRanges className={styles.ranges} value={range} change={key=>{selection.leave();if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/><label className={styles.estimateToggle}><input type="checkbox" checked={estimates} onChange={event => setEstimates(event.target.checked)} aria-label="显示体重估计" />体重估计</label></div>
-    {customOpen && <form data-overview-range-controls="" className={styles.customRange} aria-label="自定义日期范围" onSubmit={event => { event.preventDefault(); if (customValid) { setCustom(customDraft); setMode("custom"); setCustomOpen(false); } }} onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setCustomOpen(false); } }}>
-      <label>开始<input autoFocus aria-label="总览开始日期" type="date" value={customDraft.from} onChange={event => setCustomDraft({ ...customDraft, from: event.target.value })} /></label>
-      <label>结束<input aria-label="总览结束日期" type="date" value={customDraft.to} onChange={event => setCustomDraft({ ...customDraft, to: event.target.value })} /></label>
-      <div><button type="submit" disabled={!customValid}>应用</button><button type="button" onClick={() => setCustomOpen(false)}>取消</button></div>
-      {!customValid && <p role="status">请选择有效日期范围，最长 10 年。</p>}
-    </form>}
-    {!dates.length ? <p className={styles.caption}>请选择有效日期范围，最长 10 年。</p> : <>
-      {day && <div className={styles.dayReadout} aria-live="polite" aria-atomic="true" aria-label="日期对照" data-selected-date={selected}>
-        <div className={styles.readoutHeading}><time dateTime={selected}>{selected.replaceAll("-", ".")}</time><span className={styles.readoutFlags}>{[day.nutrition && day.mealDayStatus === "incomplete" ? "未记全" : day.nutrition && day.mealDayStatus === "unconfirmed" ? "待确认" : null, day.nutrition?.incomplete.caloriesKcal ? "部分" : null, day.energy.estimated ? "估计" : null].filter(Boolean).join(" · ")}</span><button onClick={() => setOpened(selected)}>查看记录 →</button></div>
-        <div className={styles.mobileEnergy}>
-          <span>摄入 <strong className={styles.intakeText}>{day.displayEnergy?.intake ?? "—"}</strong></span>
-          <span>消耗 <strong className={styles.expenditureText}>{day.displayEnergy?.expenditure ?? "—"}</strong></span>
-          <span>{day.energyBalance === null ? "收支" : day.energyBalance === 0 ? "平衡" : day.energyBalance > 0 ? "盈余" : "缺口"} <strong className={day.energyBalance !== null && day.energyBalance < 0 ? styles.deficitText : styles.surplusText}>{day.displayEnergy?.balance ?? "—"}</strong><small>kcal</small></span>
-        </div><div className={styles.relations}>
-          <div className={styles.energyEquation}>
-            <div><span>摄入</span><strong className={styles.intakeText}>{day.displayEnergy?.intake ?? "—"}</strong><small>kcal{day.nutrition?.values.caloriesKcal == null ? " · 缺摄入" : day.mealDayStatus === "incomplete" ? " · 未记全" : day.mealDayStatus === "unconfirmed" ? " · 全天待确认" : day.nutrition.incomplete.caloriesKcal ? " · 营养部分未知" : ""}</small></div>
-            <b aria-hidden="true">−</b>
-            <div><span>消耗</span><strong className={styles.expenditureText}>{day.displayEnergy?.expenditure ?? "—"}</strong><small>kcal{day.energy.totalKcal === null ? " · 缺消耗" : day.energy.estimated ? " · 估计" : ""}</small></div>
-            <b aria-hidden="true">=</b>
-            <div className={day.energyBalance === null || day.energyBalance === 0 ? undefined : day.energyBalance > 0 ? styles.surplusText : styles.deficitText}><span>{day.energyBalance === null ? "热量收支" : day.energyBalance === 0 ? "收支平衡" : day.energyBalance < 0 ? "热量缺口" : "热量盈余"}</span><strong data-selected-balance={day.energyBalance ?? undefined}>{day.displayEnergy?.balance ?? "—"}</strong><small>kcal</small></div>
-          </div>
-          <div className={styles.weightEquation}>
-            <div><span>{day.date.slice(5).replace("-", ".")} 晨重</span><WeightReading record={day.morning} /></div><b aria-hidden="true">→</b>
-            <div><span>{day.nextDate.slice(5).replace("-", ".")} 晨重</span><WeightReading record={day.nextMorning} /></div>
-            <div className={styles.weightDifference}><span>次晨变化</span><strong>{signed(day.weightChangeKg)}<small>kg</small></strong>{day.ambiguous ? <em>待选择</em> : day.differenceEstimated && day.weightChangeKg !== null && <em>含估计</em>}</div>
-          </div>
-        </div>
-      </div>}<div data-chart-selection={selection.regionId} className={styles.plotRegion}><RelationshipPlot days={days} selected={selected} inspect={selection.choose} preview={selection.preview} leave={selection.leave} pin={selection.pin} unpin={selection.release} pinned={!!selection.pinned}/></div>
-    </>}
-    {dialogDay && <EditorDialog title={dialogDay.date+" · 当日记录"} close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}
+  return <section aria-label="热量与晨重趋势" data-chart-selection={selection.regionId} data-selected-date={selected} data-pinned-date={selection.pinned??undefined}>
+    <RecordTrendPanel
+      range={<ChartRanges value={range} change={key=>{selection.leave();if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>}
+      custom={customOpen&&<CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
+      date={selected} view={()=>{selection.release();setOpened(selected);}}
+      readoutLabel="日期对照"
+      metrics={[
+       {label:"摄入",value:formatNutrition(day?.nutrition?.values.caloriesKcal??null,"caloriesKcal"),unit:"kcal",tone:"blue"},
+       {label:"消耗",value:energyValue(day?.energy.totalKcal),unit:"kcal",tone:"red"},
+       {label:day?.energyBalance==null?"收支":day.energyBalance<0?"缺口":"盈余",value:signed(day?.energyBalance??null),unit:"kcal",tone:day?.energyBalance!=null&&day.energyBalance<0?"blue":"gold"}
+      ]}
+      flags={[day?.nutrition&&day.mealDayStatus!=="complete"?"饮食"+(day.mealDayStatus==="incomplete"?"未记全":"待确认"):null,day?.nutrition?.incomplete.caloriesKcal?"营养含未知":null,day?.energy.estimated?"消耗含估计":null].filter(Boolean).join(" · ")}
+      title="热量收支"
+      options={<ChartOptions><label><input type="checkbox" checked={estimates} onChange={event=>setEstimates(event.target.checked)} aria-label="显示体重估计"/>显示体重估计</label></ChartOptions>}
+      legend={<><span><i style={{background:"#92B9D6"}}/>摄入</span><span><i style={{background:"#D89490"}}/>消耗</span><span><i style={{background:"#D8B38A"}}/>盈余</span><span><i style={{background:"#92B2C2"}}/>缺口</span></>}
+    >{dates.length?<RelationshipPlot days={days} selected={selected} inspect={selection.choose} preview={selection.preview} leave={selection.leave} pin={selection.pin} unpin={selection.release}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
+    {dialogDay&&<EditorDialog title={dialogDay.date+" · 当日记录"} close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}
   </section>;
 }
 
@@ -79,7 +64,7 @@ function OverviewDayDetails({day}:{day:OverviewDay}){
  const mealRow=(meal:OverviewDay["meals"][number])=><Disclosure key={meal.id} className={styles.compactMeal} summary={<><span><strong>{mealTypeLabel(meal.mealType)}</strong><span>{meal.items.map(item=>item.name).join("、")}</span></span><b>{formatNutrition(meal.totals.values.caloriesKcal,"caloriesKcal")} <small>kcal</small></b></>}><NutritionTable items={meal.items} saved/><MealEvidence notes={meal.notes}/><ImageGallery ids={meal.imageIds}/><LoadingLink href={"/dashboard/meals?date="+day.date}>编辑这一日饮食 →</LoadingLink></Disclosure>;
  return <div className={styles.dayDetails}>
   <div className={styles.detailTop}>
-   <section><h3>晨间体重</h3><div className={styles.detailReading}><WeightReading record={day.morning}/></div><p>次晨 {day.nextDate.slice(5)} · {day.nextMorning?Number(day.nextMorning.weightKg):"—"} kg <b>{signed(day.weightChangeKg)} kg</b>{day.differenceEstimated&&day.weightChangeKg!==null?" · 含估计":""}</p><LoadingLink href={"/dashboard/measurements?date="+day.date}>身体记录 →</LoadingLink></section>
+   <section><h3>晨间体重</h3><div className={styles.detailReading}><WeightReading record={day.morning}/></div><p>次晨 {day.nextDate.slice(5)} · {day.nextMorning?formatRecordNumber(day.nextMorning.weightKg):"—"} kg <b>{signed(day.weightChangeKg)} kg</b>{day.differenceEstimated&&day.weightChangeKg!==null?" · 含估计":""}</p><LoadingLink href={"/dashboard/measurements?date="+day.date}>身体记录 →</LoadingLink></section>
    <section><h3>消耗</h3><div className={styles.detailReading}><strong>{energyValue(day.energy.totalKcal)}<small>kcal</small></strong></div><p>静息 {energyValue(day.energy.restingKcal)} · 活动 {energyValue(day.energy.activeKcal)} kcal</p><LoadingLink href={"/dashboard/energy?date="+day.date}>消耗记录 →</LoadingLink></section>
   </div>
   <section className={styles.detailNutrition}>{day.nutrition&&day.mealDayStatus!=="complete"&&<p>饮食修改后需要重新确认是否已记全，确认后显示热量收支。</p>}<h3>当日总摄入 <small>{day.meals.length} 餐</small></h3><div>{(["caloriesKcal","proteinG","carbsG","fatG"] as const).map((metric,i)=><span key={metric}><small>{["热量","蛋白质","碳水","脂肪"][i]}</small><strong>{formatNutrition(day.nutrition?.values[metric]??null,metric)}<small>{i?"g":"kcal"}</small></strong>{day.nutrition?.incomplete[metric]&&<small>已知部分</small>}</span>)}</div></section>

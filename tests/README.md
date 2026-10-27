@@ -1,5 +1,9 @@
 # Tests
 
+## 四页布局与消耗填写验收
+
+production build后设置FORMWARD_FRAME_ONLY=1运行pnpm test:energy-browser。unified-frame.browser.mjs用同一虚构账号、同日7D并排验证七种视口共同区域≤2px、读数不裁切、自动累计/手填/明确0/清空、备注保留四位旧数、单运动完整预览、应用内确认与AI两位数。FORMWARD_FRAME_ARTIFACTS指定私有输出目录，FORMWARD_OVERVIEW_BROWSER=webkit可复用；真实iOS和软键盘单独记未测。
+
 ## 目的
 
 本目录保存跨功能、数据库和浏览器端到端测试。单个 feature 的单元测试优先与源文件放在一起。
