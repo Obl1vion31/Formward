@@ -36,10 +36,16 @@ try {
     if(process.env.FORMWARD_MEAL_ENTRY_ONLY==="1"){await checkMealEntry({baseURL,context,page,db,userId:owner.id,token:token.rawToken,today:new Date(Date.now()+8*3600000).toISOString().slice(0,10),engine:process.env.FORMWARD_EDITOR_BROWSER??"chromium"});}else{
     const check = process.env.FORMWARD_REVIEW_MAINTENANCE_ONLY === "1" ? checkReviewMaintenance : checkUnifiedReview;
     await check({ baseURL, context, page, token: token.rawToken, images, date: new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) });
+
     }
     assert.deepEqual(errors, []);
   }
   catch (error) { await page.screenshot({ path: "/tmp/formward-records-failure.png", fullPage: true }); await writeFile("/tmp/formward-records-failure.html", await page.content()); throw error; }
   await context.close();
-} catch (error) { await writeFile("/tmp/formward-records-server.log", logs); throw error; }
+} catch (error) { await writeFile("/tmp/formward-records-server.log", logs);await writeFile("/tmp/formward-"+(process.env.FORMWARD_EDITOR_BROWSER??"chromium")+"-records-server.log",logs); throw error; }
 finally { await browser?.close(); if (child.exitCode === null) { process.kill(-child.pid!, "SIGTERM"); await once(child, "exit"); } await socket.stop(); await new Promise(resolve => setImmediate(resolve)); await pg.close(); }
+
+if(process.env.FORMWARD_MEAL_ENTRY_ONLY!=="1"&&process.env.FORMWARD_REVIEW_MAINTENANCE_ONLY!=="1"){
+ const entry=spawn(process.execPath,["--import","tsx","tests/records.browser.mts"],{env:{...process.env,FORMWARD_MEAL_ENTRY_ONLY:"1"},stdio:"inherit"});
+ const [code]=await once(entry,"exit");assert.equal(code,0,"餐次编辑器视觉门槛失败");
+}
