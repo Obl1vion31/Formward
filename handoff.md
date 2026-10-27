@@ -1,10 +1,10 @@
 # Formward 项目交接
 
-更新日期：2026-10-27。仓库 `/home/obl1vion/projects/Formward`，当前功能分支 `codex/latest-records-energy-sources`，尚未合入main。先读根README、AGENTS、本文及目标目录最近README；修改Next.js前读取已安装包的本地指南。
+更新日期：2026-10-28。仓库 `/home/obl1vion/projects/Formward`，当前功能分支 `codex/latest-records-energy-sources`，尚未合入main。先读根README、AGENTS、本文及目标目录最近README；修改Next.js前读取已安装包的本地指南。
 
 ## 当前维护：餐次视觉修正
 
-在独立工作树meal-editor-visual、分支codex/meal-editor-visual从5e43c37实施，原工作区业务与0026草稿保持。修正按钮旁详情、完整单位、按实际宽度分配列、16px主字段和统一文字边缘；包装说明移详情。营养与历史规则保持，未增加协议或migration。368项单元／集成、lint、typecheck、production build、最终Chromium常规审核＋自动编辑器门槛、WebKit专项通过。两引擎各9组视口与125%放大、完整字形、列轴、逐项手机截图及按钮旁气泡均检查，客户端异常0，不过滤错误。规则在现有design-reference.md，旧验收范围已更正；正式发布与复验进行中。
+在独立工作树meal-editor-visual、分支codex/meal-editor-visual从5e43c37实施，原工作区业务与0026草稿保持。修正按钮旁详情、完整单位、按实际宽度分配列、16px主字段和统一文字边缘；包装说明移详情。营养与历史规则保持，未增加协议或migration。368项单元／集成、lint、typecheck、production build、最终Chromium常规审核＋自动编辑器门槛、WebKit专项通过。两引擎各9组视口与125%放大、完整字形、列轴、逐项手机截图及按钮旁气泡均检查，客户端异常0，不过滤错误。规则在现有design-reference.md，旧验收范围已更正；正式发布及双浏览器虚构账号复验完成；清理完成，40表结构、账本、原健康事实／请求／审计完全保持。
 
 ## 此前维护：一餐总量输入与对齐
 
@@ -34,11 +34,11 @@
 
 ## 当前正式版本
 
-正式域名https://formward-ten.vercel.app已核对READY部署dpl_4ftctbpujyRJjuwGYnT6rK6tGocv，运行代码35479cf；数据库0025。功能分支codex/latest-records-energy-sources已推送，尚未合入main。本轮无migration，自由项按本次总营养输入，旧按份项未修改保留原数据，食材库继续换算。
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_8KfD6EBLswBPkV4SmU5fYzE3MB84，运行代码32be0cd，分支codex/meal-editor-visual；数据库0025。发布源为该提交的Git归档，未上传原工作区草稿、依赖链接、本机凭据或私有报告。未合入main。原工作区业务及0026草稿保持，已同步设计规则和交接指引；继续发布业务分支前须整合此视觉分支，避免覆盖已上线修正。
 
-正式双浏览器报告为.codex/meal-total-release/production.json，包含两引擎各1440／1100／430／390／320px，新增保存、改数量不重乘、旧项打开取消／未改保存／修改、完整小数、未知／0、包装与克数混合、AI预览后确认。15项入口见同目录public.json，最终READY见.codex/meal-total-inspect-final.log。请求5xx和客户端异常为0；已实际查看桌面输入、混合食材及窄屏截图，虚构账号及全部所属数据已清理。
+本机及正式Chromium／WebKit均各9组视口，另125%放大；正式18组视口、30个详情场景，包含完整单位与长名、数字四列对齐、滚动／缩放、Escape／外部关闭、总量与旧项、包装及AI审核。最终严格客户端异常0、请求5xx为0，未过滤错误；15项公开／保护入口通过。正式截图与报告.codex/meal-visual-release/production.json及public.json，READY见.codex/visual-inspect-ready.log，临时账号及所属数据全部清理。真实iOS和系统软键盘未作实机验收。
 
-私有备份为data/exports/database-before-meal-total-2026-10-27.json及database-after-production-meal-total-2026-10-27.json，均0600、Git与部署忽略。初始严格比较meal-total-after-production-storage-verification.json保留正常授权变化的诊断；最终meal-total-after-production-auth-verification.json逐项核对40表原有列、账本及原健康事实／请求／审计完全保持，无原行删除、无测试数据残留。差异限于OAuth客户端更新时间、连接使用时间及正常刷新令牌轮换、新增一次认证断言；未修改真实数据使备份相同。此前页面内历史、四页首屏与完整交互证据仍保留在.codex/inline-history-release/和.codex/unified-ui-release/，本轮不重复运行无关的完整四页验收。真实iOS及系统软键盘仍未作实机检查。
+私有备份data/exports/database-before-meal-visual-2026-10-28.json与database-after-meal-visual-2026-10-28.json、核对meal-visual-after-production-auth-verification.json均0600、Git与部署忽略。40表原有列、账本、健康事实、请求、审计、日汇总及原行完全保持，无测试残留，无migration；本轮也未出现授权元数据差异，只排除正常限流。旧视觉与历史验收证据仍在原工作树的.codex/meal-total-release/、.codex/inline-history-release/和.codex/unified-ui-release/，此前结论的漏测范围已在验收记录注明。
 
 ## 此前三阶段完善交付
 

@@ -43,8 +43,8 @@ Formward采用Next.js16.3.7、React、TypeScript、Node.js24.21.0和pnpm9.15.9�
 
 ## 当前界面验收与发布
 
-正式域名READY部署dpl_4ftctbpujyRJjuwGYnT6rK6tGocv，运行代码35479cf，数据库0025。本轮完成餐次编辑器独立单位／数量列、主输入同高对齐、标签和框内留白、手机分组布局。自由项填写本次总营养，旧每份项按完整服务端总量回显、未修改项保留原输入，食材库与包装继续换算，无migration或公共字段变化。设计与每次界面验收统一读取[设计文档](design-reference.md)，AGENTS设有必读入口。
+正式域名READY部署dpl_8KfD6EBLswBPkV4SmU5fYzE3MB84，运行代码32be0cd，数据库0025，视觉分支codex/meal-editor-visual未合入main。餐次编辑器按实际内容分配列，主字段16px、44px高，同类字段边缘统一；单位完整，包装不撑副行；详情位于按钮旁，滚动、缩放及Escape由组件处理。无公共协议、数据库或营养规则变化。每次界面修改及验收读取同一[设计文档](design-reference.md)，关键裁切、对齐或浮层问题阻止发布。
 
-42文件共368项单元／集成、lint、typecheck、production build、283项本地文档链接和15项锚点、结构检查通过。WSL中断整批运行后，完整测试集逐文件独立进程执行并核对；中断日志不计为通过。AI混合审核回归及本机Chromium／WebKit各五种宽度的本次编辑专项通过。正式域名双浏览器重复总量保存、旧项兼容、包装、精度、未知／0及AI草稿确认，15项公开／保护入口通过，验收请求5xx和客户端异常为0。
+368项单元／集成、lint、typecheck、production build、284项本地链接、15项锚点和目录／diff检查通过。普通records浏览器入口默认顺序执行统一审核与独立编辑器门槛。Chromium／WebKit本机与正式各9组视口及125%放大，正式18组视口、30个详情场景，15项公开／保护入口通过；最终请求5xx、客户端异常为0，未过滤错误。截图与机器报告在本工作树.codex/meal-total-visual/及.codex/meal-visual-release/，原验收漏测范围在[验收记录](maintenance-verification.md)更正。
 
-正式虚构账号及全部所属数据已清理。发布前后40表原有结构、账本、健康事实、请求和审计完全保持，只有正常OAuth使用及刷新轮换元数据变化。证据在私有.codex/meal-total-visual/和.codex/meal-total-release/，备份及核对见[交接](../handoff.md)。此前三页内联历史、固定“已记全”、四页首屏与完整交互报告继续保留，本轮不重复声称完整四页重验。真实iOS浏览器和系统软键盘未作实机验收，详见[验收记录](maintenance-verification.md)。
+正式虚构账号和全部所属数据已清理，40表结构、账本、原健康事实／请求／审计及全部旧行完全保持。本轮无授权元数据差异，仅排除限流。备份见[交接](../handoff.md)。原工作区其他业务和0026草稿未纳入发布，继续发布前应整合视觉分支。真实iOS和系统软键盘未作实机检查。
