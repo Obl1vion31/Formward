@@ -1,3 +1,5 @@
+import {numberChangeMessages} from "../../components/number-change";
+import { mealTypeLabel } from "./model";
 import { aiActionAllowed, requireAiUpserts } from "../auth/ai-write-policy";
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, desc, eq, isNull, ne, inArray } from "drizzle-orm";
@@ -50,7 +52,7 @@ export async function readMealSnapshot(db: Pick<Database, "select">, userId: str
   const dayStates=await readMealDayViews(db,userId,meals);
   return { foods, meals: meals.map(row => {
     const entries: ItemView[] = items.filter(i => i.mealId === row.id).map(mealItemView);
-    return { imageIds:links.filter(l=>l.mealId===row.id).map(l=>l.imageId), id: row.id, version: row.version, day:dayStates.get(row.localDate), date: row.localDate, mealType: row.mealType, timezone: row.timezone, occurredAt: row.occurredAt?.toISOString() ?? null, notes: row.notes, items: entries, totals: sumNutrition(entries.map(i => i.nutrition)), source: row.source as MealView["source"], deletedAt: row.deletedAt?.toISOString() ?? null };
+    return { imageIds:links.filter(l=>l.mealId===row.id).map(l=>l.imageId), id: row.id, version: row.version, day:dayStates.get(row.localDate), date: row.localDate, mealType: mealTypeLabel(row.mealType), timezone: row.timezone, occurredAt: row.occurredAt?.toISOString() ?? null, notes: row.notes, items: entries, totals: sumNutrition(entries.map(i => i.nutrition)), source: row.source as MealView["source"], deletedAt: row.deletedAt?.toISOString() ?? null };
   }) };
 }
 export async function searchFoods(db: Database, userId: string, query = "") {
@@ -101,7 +103,7 @@ function prepareItem(input: ItemDraft, state: MealSnapshot, previous?: ItemView)
   return { ...input, id: previous?.id, nutritionBasis:"consumed_total",nutrition: input.nutrition ?? emptyNutrition() };
 }
 function mealFingerprint(m: Pick<MealView, "date" | "mealType" | "notes" | "items">) {
-  return digest([m.date, norm(m.mealType), norm(m.notes), m.items.map(i => [i.kind, norm(i.name), i.quantity == null ? null : Number(i.quantity), norm(i.unit), metrics.map(k => i.nutrition[k] === null ? null : Number(i.nutrition[k]))])]);
+  return digest([m.date, norm(mealTypeLabel(m.mealType)), norm(m.notes), m.items.map(i => [i.kind, norm(i.name), i.quantity == null ? null : Number(i.quantity), norm(i.unit), metrics.map(k => i.nutrition[k] === null ? null : Number(i.nutrition[k]))])]);
 }
 export type MealPlanner = (input: MealInput, state: MealSnapshot, origin: MealActor["origin"], history?: Map<string,ItemView>) => PreviewRow[];
 export function prepareMealActions(input: MealInput, state: MealSnapshot, origin: MealActor["origin"], history?: Map<string,ItemView>): PreviewRow[] {
@@ -129,7 +131,9 @@ export function prepareMealActions(input: MealInput, state: MealSnapshot, origin
           if (entry.foodDraft && entry.foodSnapshot) working.foods.push(entry.foodSnapshot);
           return entry;
         });
-        row.meal = { ...action, imageIds:action.imageIds ?? old?.imageIds ?? [], id: old?.id ?? randomUUID(), version: (old?.version ?? 0) + 1, items, totals: sumNutrition(items.map(i => i.nutrition)), source: old?.source ?? origin, deletedAt: null };
+        row.meal = { ...action, mealType:mealTypeLabel(action.mealType), imageIds:action.imageIds ?? old?.imageIds ?? [], id: old?.id ?? randomUUID(), version: (old?.version ?? 0) + 1, items, totals: sumNutrition(items.map(i => i.nutrition)), source: old?.source ?? origin, deletedAt: null };
+        const priorNutrition=old?.totals.values??working.meals.filter(m=>!m.deletedAt&&m.date<=action.date&&mealTypeLabel(m.mealType)===mealTypeLabel(action.mealType)).sort((a,b)=>b.date.localeCompare(a.date))[0]?.totals.values;
+        row.warnings.push(...numberChangeMessages(metrics.map(metric=>({label:metric==="caloriesKcal"?"本餐热量":metric==="proteinG"?"蛋白质":metric==="carbsG"?"碳水":"脂肪",unit:metric==="caloriesKcal"?"kcal":"g",value:row.meal!.totals.values[metric],previous:priorNutrition?.[metric]}))));
         if(old){
           const used=new Set<string>(),added:ItemView[]=[],changed:{before:ItemView;after:ItemView}[]=[];
           for(const item of items){
@@ -257,7 +261,7 @@ async function writeFood(tx: Transaction, userId: string, f: FoodView) {
   else await tx.insert(food).values({ id: f.id, userId, ...values });
   await writeImageLinks(tx,userId,f,true);
 }
-export async function decideMealOperation(db: Database, userId: string, id: string, revision: number, decision: "confirm" | "cancel", allowMissingImages = false) {
+export async function decideMealOperation(db: Database, userId: string, id: string, revision: number, decision: "confirm" | "cancel", allowMissingImages = false, options:{strictManualVersions?:boolean}={}) {
   if (!["confirm", "cancel"].includes(decision)) throw new ApiError(400, "invalid_input", "审核操作无效。");
   return db.transaction(async tx => {
     await lockOwner(tx, userId); const op = await getMealOperation(tx, userId, id);
@@ -270,6 +274,7 @@ export async function decideMealOperation(db: Database, userId: string, id: stri
     await checkCredential(tx, op);
     if (op.expiresAt && op.expiresAt < new Date()) throw new ApiError(409, "expired", "预览已过期，请刷新预览后确认。");
     const before = await readMealSnapshot(tx, userId);
+    if(options.strictManualVersions&&op.origin==="manual")for(const action of op.draft.actions){if(action.id&&action.version!=null){const current=(action.kind.endsWith("food")?before.foods:before.meals).find(row=>row.id===action.id&&!row.deletedAt);if(!current||current.version!==action.version)throw new ApiError(409,"version_conflict","记录刚在别处修改，请查看最新内容后再保存，输入已保留。");}}
     if (stateDigest(before) !== op.snapshotDigest) {
       if (op.origin !== "manual" || !op.draft.actions.every(action=>action.kind==="save_meal" && !!action.id && action.items.every(item=>!item.foodId || before.foods.some(food=>food.id===item.foodId && !food.deletedAt)))) throw new ApiError(409,"snapshot_changed","饮食或食材已改变，请刷新预览后重新核对。");
       op.preview=prepareMealActions(op.draft,before,"manual",await manualHistory(tx,userId,op.draft));
@@ -293,7 +298,7 @@ export async function decideMealOperation(db: Database, userId: string, id: stri
             await writeFood(tx, userId, i.foodSnapshot);
             await tx.insert(mealEvent).values({ id: randomUUID(), userId, recordId: i.foodSnapshot.id, recordType: "food", operationId: op.id, actorType: op.origin === "ai" ? "ai" : "user", actorId: op.tokenId ?? op.oauthConnectionId ?? userId, confirmedBy: userId, snapshot: { originalInput: i.foodDraft, before: null, after: i.foodSnapshot, origin: op.origin, mealId: m.id } });
           }
-          const values = { localDate: m.date, mealType: m.mealType, notes: m.notes ?? null, timezone: m.timezone ?? null, occurredAt: m.occurredAt ? new Date(m.occurredAt) : null, source: m.source, version: m.version, updatedAt: new Date() };
+          const values = { localDate: m.date, mealType: mealTypeLabel(m.mealType), notes: m.notes ?? null, timezone: m.timezone ?? null, occurredAt: m.occurredAt ? new Date(m.occurredAt) : null, source: m.source, version: m.version, updatedAt: new Date() };
           if (row.action.id) await tx.update(meal).set(values).where(and(eq(meal.id, m.id), eq(meal.userId, userId)));
           else await tx.insert(meal).values({ id: m.id, userId, ...values, sourceSystem: op.origin === "initialization" ? "historical-meal-initialization" : "formward", sourceRecordId: op.origin === "initialization" ? `${op.importId}:${index + 2}` : `${op.operationId}:${index}`, importId: op.importId, sourceRow: op.importId ? index + 2 : null, syncStatus: "confirmed" });
           await writeImageLinks(tx,userId,m,false);

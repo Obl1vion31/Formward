@@ -21,7 +21,7 @@ export async function saveEnergyAction(input: EnergyInput) {
     const snapshot = await readEnergySnapshot(db, user.id);
     revalidatePath("/dashboard/energy"); revalidatePath("/dashboard"); revalidatePath("/dashboard/ai", "layout");
     const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
-    return { ok: true as const, data: { presentation: energyPresentation(snapshot, [], today, await listEnergySources(db, user.id)), message: "已保存。" } };
+    return { ok: true as const, data: { presentation: energyPresentation(snapshot, [], today, await listEnergySources(db, user.id)), changedKeys:operation.rows.flatMap(row=>row.after&&"date" in row.after?["name" in row.after?"activity:"+row.after.id:"energyDay:"+row.after.date]:[]),message: "已保存。" } };
   } catch (error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }
 

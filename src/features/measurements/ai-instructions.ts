@@ -13,7 +13,7 @@ API 地址：${baseURL}/api/v1
 4. 查询到已有值时，相同内容跳过，缺项可补充。不同已有值须向用户核对；要修改历史必须在对应项提供 recordId 和 version（查询返回的 updatedAt）。仅修改来源或时区也须明确这两个字段。显式 null 表示清空；不能把两项数值全部清空。
 5. 批量估算项：{"kind":"estimate_cell","date":"YYYY-MM-DD","period":"evening","metric":"weightKg"}，metric 也可为 bodyFatPercent。只估这一个空项，展示依据与不确定性；同批未确认实测不参与估算，样本不足保持空白，冻结历史不新增估计。
 6. 先检查返回的 needsUserInput；非空时说明待补字段，不能说成可直接保存。将 confirmationUrl 完整交给用户，登录后可逐项核对、修改或取消；确认本项只标记草稿，修改先更新预览，最后在底部“确认并全部保存”一次写入未取消的有效内容。错误项须修改或取消后再统一保存，AI 不能代点击或绕过确认。过期或数据变化须刷新核对；令牌失效须重新授权。相同请求重试复用 operationId 和原始内容。
-7. GET /measurement-operations/{id} 检查结果。每条 items 的 status=confirmed 才表示该条已保存；counts 给出保存、取消、跳过和待处理数量。总体 status=confirmed 表示全部待保存行已保存，partially_confirmed 表示部分已保存且仍有待处理，completed 表示混合结果或全部跳过；不能把整批取消、过期或冲突宣称为全部保存。无改动预览无需确认。多候选 choices 为 {"YYYY-MM-DD:daytime":"recordId"} 的 URL 编码 JSON，仅影响本次分析，不修改历史代表选择。
+7. GET /measurement-operations/{id} 检查结果。每条 items 的 status=confirmed 才表示该条已保存；counts 给出保存、取消、跳过和待处理数量。总体 status=confirmed 表示全部待保存行已保存，partially_confirmed 表示部分已保存且仍有待处理，completed 表示混合结果或全部跳过；不能把整批取消、过期或冲突宣称为全部保存。无改动预览无需确认。同一天晨间／晚间各采用最后保存的记录。再次录入先显示旧值与新值，确认后覆盖；遗漏字段保留，不能填写未来日期。
 
 本地 Codex 试验：在 Formward 工作区运行 pnpm ai:setup，按提示输入 API 地址和令牌，写入被 Git 忽略的 .env.ai.local。pnpm ai:request GET /measurements 发起查询；提交时用 pnpm ai:request POST /measurement-operations 私有请求.json。此助手只通过 HTTP 使用上述权限，不需要网页登录密码、数据库凭据或模型 API Key。`;
 }

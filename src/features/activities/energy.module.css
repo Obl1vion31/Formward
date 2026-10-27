@@ -69,3 +69,7 @@
 @media(max-width:700px),(hover:none) and (pointer:coarse){.section>.title>.title{display:none}.section>.title{min-height:44px;align-items:center}.readout{padding:8px 0;gap:8px 18px}.readout>div{flex:1;min-width:0}.legend{margin:8px 0}.plot{margin-top:6px}}
 
 @media(max-width:700px),(hover:none) and (pointer:coarse){.plot{margin-top:0}}
+
+.exerciseFields{margin-top:12px}.exerciseFields>.modeSwitch{margin-bottom:12px}.exerciseFields .hint{margin:8px 0;color:#c9c1b5}.custom{flex-wrap:wrap}.custom button{min-height:44px;padding:8px 12px}
+
+.exerciseFields[data-mode=components]>.fields{grid-template-columns:repeat(2,minmax(0,1fr))}.activityDraft>.fields,.activityFields{grid-template-columns:repeat(2,minmax(0,1fr))}.activityDraft>.fields>label:first-child,.activityFields>label:first-child{grid-column:1/-1}

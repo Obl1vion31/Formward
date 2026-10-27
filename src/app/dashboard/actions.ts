@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { currentUser } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { listMeasurements, type MeasurementActor } from "@/features/measurements/records";
-import { estimateMeasurementCell, listMeasurementDates, measurementDisplay, saveMeasurementDay, type EstimateCellInput, type SaveMeasurementDayInput } from "@/features/measurements/editing";
+import { deleteMeasurementCell, estimateMeasurementCell, listMeasurementDates, measurementDisplay, saveMeasurementDay, type EstimateCellInput, type SaveMeasurementDayInput } from "@/features/measurements/editing";
 import type { EntryResult, SourceRemovalResult } from "@/features/measurements/entry-state";
 import type { Database } from "@/db/client";
 import { listMeasurementSources, removeMeasurementSource } from "@/features/measurements/sources";
@@ -41,4 +41,8 @@ export async function removeSourceAction(label: string): Promise<SourceRemovalRe
     revalidatePath("/dashboard"); revalidatePath("/dashboard/energy"); revalidatePath("/dashboard/measurements"); revalidatePath("/dashboard/ai/operations/[id]", "page");
     return { ok: true, sources };
   } catch (error) { return { ok: false, error: safeAiError(error).error.message }; }
+}
+
+export async function deleteCellAction(input:Parameters<typeof deleteMeasurementCell>[2]) {
+ return perform(async(db,actor)=>{await deleteMeasurementCell(db,actor,input);return "已删除这一项，其他记录保留。";});
 }

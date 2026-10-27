@@ -81,19 +81,19 @@ test("体脂缺项只影响体脂图，差值按百分点计算，未知空腹�
   assert.equal(metricDifference(records[2], records[1], "bodyFatPercent"), null);
 });
 
-test("候选不参与主线与差值，不越过待选择日连线，选择后各视图同步", () => {
+test("同槽最新记录参与主线和差值，旧选择不改变采用值", () => {
   const records = [row("a", "2025-01-01", "daytime"), row("b", "2025-01-02", "daytime", "76.00"), row("c", "2025-01-02", "daytime", "77.00"), row("d", "2025-01-03", "daytime"), row("n", "2025-01-02", "evening", "78.00")];
   const unresolved = measurementTrend(records, "weightKg", true);
-  assert.equal(unresolved.segments.length, 0);
-  assert.ok(!unresolved.points.some((point) => point.id === "b" || point.id === "c"));
+  assert.equal(unresolved.segments.length, 2);
+  assert.ok(!unresolved.points.some((point) => point.id === "b"));
   const choices = { "2025-01-02:daytime": "b" };
   const selected = buildMeasurementDays(records, choices).find((day) => day.date === "2025-01-02")!;
-  assert.equal(selected.daytimeRecord?.id, "b");
-  assert.equal(selected.weightDifferenceKg, 2);
+  assert.equal(selected.daytimeRecord?.id, "c");
+  assert.equal(selected.weightDifferenceKg, 1);
   assert.equal(selected.needsSelection, false);
   const trend = measurementTrend(records, "weightKg", true, choices);
   assert.equal(trend.segments.length, 2);
-  assert.ok(!trend.points.some((point) => point.id === "c"));
+  assert.ok(!trend.points.some((point) => point.id === "b"));
   assert.equal(trend.pairs.length, 1);
   assert.equal(measurementTrend([], "weightKg", true).points.length, 0);
 });

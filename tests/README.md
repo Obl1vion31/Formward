@@ -162,3 +162,7 @@ FORMWARD_UNIFIED_UI_ONLY=1 pnpm test:energy-browser使用PGlite和虚构账号�
 ## 一餐总量编辑器
 
 FORMWARD_MEAL_ENTRY_ONLY=1 pnpm test:records-browser检查独立的虚构餐次、旧按份项、包装与按克食材，以及AI审核；FORMWARD_EDITOR_BROWSER=webkit切换WebKit。目标视口1440／1100／430／390／320px，检查八列表头、同高顶端对齐、标签与框内留白、手机分组、150g填240仍为240、只改数量不重乘、旧项无改动保存不丢精度、取消不写、审核更新不正式保存及库项自动换算。截图在私有.codex/meal-total-visual/。meal-editor-state.test.ts覆盖旧项原口径保留、修改后总量、元数据清除及库引用隔离。
+
+## 身体覆盖、运动分项与跨窗口检查
+
+FORMWARD_BODY_ENERGY_ONLY=1 pnpm test:energy-browser运行隔离PGlite和虚构账号，验证运动400＋期间静息50计入400、仅总数450原样计入、身体覆盖与单指标删除、双窗口修改提醒／保留输入／明确覆盖、中文餐次、自定义取消和慢图登录；五种宽度截图在.codex/body-energy-visual。FORMWARD_BODY_ENERGY_ARTIFACTS可指定私有目录。单元／集成新增计入规则、删除幂等／未来日期、跨账号版本摘要与数量级提醒，不读真实数据库。真实iOS系统软键盘仍待实机。

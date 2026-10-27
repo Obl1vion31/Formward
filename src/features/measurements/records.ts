@@ -1,3 +1,5 @@
+import { latestMeasurement } from "./days";
+import { localMeasurementDate } from "./entry-state";
 import { createHash, randomUUID } from "node:crypto";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Database } from "../../db/client";
@@ -35,6 +37,7 @@ export type ImportedMeasurement = {
 export function validateImportedMeasurement(input: ImportedMeasurement) {
   const assignment = assignMeasurement(input.sourceLocalTime);
   const time = resolveMeasurementTime(input.sourceLocalTime, input.timezone ?? null, input.utcOffsetMinutes ?? undefined);
+  if(assignment.recordDate>localMeasurementDate(new Date(),input.timezone??process.env.FORMWARD_TIMEZONE??"Asia/Shanghai"))throw new Error("不能导入未来日期的身体记录。");
   const fasting = assignment.period === "evening" ? false : input.fasting ?? null;
   const fastingSource = assignment.period === "evening" ? "evening_rule" as const : input.fastingSource ?? null;
   if (input.fasting != null && typeof input.fasting !== "boolean") throw new Error("空腹状态无效。");
@@ -188,6 +191,7 @@ export function parseReportedMeasurement(input: unknown): ReportedMeasurement {
 
 export function validateReportedMeasurement(input: ReportedMeasurement) {
   calendarOrdinal(input.recordDate);
+  if(input.recordDate>localMeasurementDate(new Date(),input.timezone??process.env.FORMWARD_TIMEZONE??"Asia/Shanghai"))throw new Error("不能录入未来日期的身体记录。");
   if (input.period !== "daytime" && input.period !== "evening") throw new Error("测量时段无效。");
   if (input.fasting !== null && typeof input.fasting !== "boolean") throw new Error("空腹条件无效。");
   if (input.measuredAt && input.assumedTime) throw new Error("真实测量时间不能同时使用占位时间。");
@@ -221,17 +225,11 @@ export function validateReportedMeasurement(input: ReportedMeasurement) {
 }
 
 export function resolveReportedMeasurement(prior: (typeof measurement.$inferSelect)[], record: ReturnType<typeof validateReportedMeasurement>) {
-  const active = prior.filter((row) => row.deletedAt === null);
-  const sameValues = active.find((row) => (record.weightKg === null || row.weightKg === record.weightKg) && (record.bodyFatPercent === null || row.bodyFatPercent === record.bodyFatPercent));
-  if (active.length === 1 && sameValues && record.timePrecision === "second" && sameValues.timePrecision !== "second") return { kind: "supplement" as const, row: sameValues };
-  if (sameValues || prior.some((row) => row.deduplicationKey === record.deduplicationKey ||
-      ((Object.hasOwn(row.originalValues, "recordDate") || Object.hasOwn(row.originalValues, "analysisDate")) &&
-       (record.weightKg === null || Number(row.originalValues.weightKg) === Number(record.weightKg)) &&
-       (record.bodyFatPercent === null || Number(row.originalValues.bodyFatPercent) === Number(record.bodyFatPercent))))) return { kind: "duplicate" as const, row: null };
-  const row = active.length === 1 ? active[0] : null;
-  if (row && (row.weightKg === null || record.weightKg === null || row.weightKg === record.weightKg) && (row.bodyFatPercent === null || record.bodyFatPercent === null || row.bodyFatPercent === record.bodyFatPercent)) return { kind: "supplement" as const, row };
-  if (active.length) throw new Error("该日期时段已有不同实测值，请先核对。");
-  return { kind: "insert" as const, row: null };
+ const row=latestMeasurement(prior);
+ if(row){const same=(record.weightKg===null||row.weightKg===record.weightKg)&&(record.bodyFatPercent===null||row.bodyFatPercent===record.bodyFatPercent);
+  if(same&&!(record.timePrecision==="second"&&(row.timePrecision!=="second"||row.sourceLocalTime!==record.sourceLocalTime||row.timezone!==record.timezone)))return {kind:"duplicate" as const,row:null};
+  return {kind:"supplement" as const,row};}
+ return {kind:"insert" as const,row:null};
 }
 
 export async function insertReportedMeasurement(tx: MeasurementTransaction, actor: MeasurementActor, record: ReturnType<typeof validateReportedMeasurement>, importId: string, provenance: { entryChannel: EntryChannel; deviceLabel?: string | null; sourceUnspecifiedConfirmed?: boolean }) {
@@ -240,8 +238,9 @@ export async function insertReportedMeasurement(tx: MeasurementTransaction, acto
   if (resolution.kind === "duplicate") return null;
   if (resolution.kind === "supplement") {
     const before = resolution.row;
-    const confirmedTime = record.timePrecision === "second" && before.timePrecision !== "second";
-    const [after] = await tx.update(measurement).set({ weightKg: before.weightKg ?? record.weightKg, bodyFatPercent: before.bodyFatPercent ?? record.bodyFatPercent, updatedAt: new Date(),
+    await archiveMeasurementCandidates(tx,actor,record.recordDate,record.period,before.id);
+    const confirmedTime = record.timePrecision === "second" && (before.timePrecision !== "second" || before.sourceLocalTime!==record.sourceLocalTime || before.timezone!==record.timezone);
+    const [after] = await tx.update(measurement).set({ weightKg: record.weightKg ?? before.weightKg, bodyFatPercent: record.bodyFatPercent ?? before.bodyFatPercent, updatedAt: new Date(),
       ...(confirmedTime ? { sourceLocalTime: record.sourceLocalTime, occurredAt: record.occurredAt, timezone: record.timezone, utcOffsetMinutes: record.utcOffsetMinutes, timePrecision: "second" } : {}),
     }).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, before.id))).returning();
     await supersedeEstimates(tx, actor, after.recordDate, after.period);
@@ -250,7 +249,7 @@ export async function insertReportedMeasurement(tx: MeasurementTransaction, acto
     return { ...after, writeKind: "updated" as const };
   }
   const { sourceUnspecifiedConfirmed, ...recordProvenance } = provenance;
-  const [row] = await tx.insert(measurement).values({ id: randomUUID(), userId: actor.userId, ...record, ...recordProvenance, recordKind: "observed", sourceType: "manual", sourceSystem: null, importId, createdBy: actor.actorId }).returning();
+  const [row] = await tx.insert(measurement).values({ id: randomUUID(), userId: actor.userId, ...record, deduplicationKey:prior.length?createHash("sha256").update(record.deduplicationKey+":"+importId).digest("hex"):record.deduplicationKey, ...recordProvenance, recordKind: "observed", sourceType: "manual", sourceSystem: null, importId, createdBy: actor.actorId }).returning();
   await supersedeEstimates(tx, actor, row.recordDate, row.period);
   await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: row.id, action: "create", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { ai: actor.aiContext, after: row, ...(sourceUnspecifiedConfirmed !== undefined ? { sourceUnspecifiedConfirmed } : {}), reason: "user_reported_measurement" } });
   if (row.deviceLabel) await rememberMeasurementSource(tx, actor.userId, row.deviceLabel, true);
@@ -280,4 +279,13 @@ export async function saveReportedMeasurements(db: Database, input: MeasurementA
 
 function requireUser(userId: string) {
   if (!userId.trim()) throw new Error("缺少经过验证的账号。");
+}
+
+/** 归档被新值取代的旧候选，保留来源、原值与审计。 */
+export async function archiveMeasurementCandidates(tx:MeasurementTransaction,actor:MeasurementActor,date:string,period:"daytime"|"evening",keepId:string) {
+  const rows=await tx.select().from(measurement).where(and(eq(measurement.userId,actor.userId),eq(measurement.recordDate,date),eq(measurement.period,period),eq(measurement.recordKind,"observed"),isNull(measurement.deletedAt)));
+  for(const before of rows.filter(row=>row.id!==keepId)){
+    const [after]=await tx.update(measurement).set({deletedAt:new Date(),updatedAt:new Date()}).where(and(eq(measurement.userId,actor.userId),eq(measurement.id,before.id))).returning();
+    await tx.insert(measurementEvent).values({id:randomUUID(),userId:actor.userId,measurementId:before.id,action:"delete",actorType:actor.actorType??"user",actorId:actor.actorId,snapshot:{before,after,reason:"superseded_slot",adoptedId:keepId}});
+  }
 }

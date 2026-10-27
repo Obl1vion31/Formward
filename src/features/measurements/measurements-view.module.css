@@ -328,3 +328,7 @@
 .mobileOptions{font-size:12px;color:var(--body-muted);position:relative}.mobileOptions>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;list-style:none;color:var(--body-gold)}.mobileOptions[open]{flex-basis:100%}.mobileOptions .extraStatsGrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:12px 0}.mobileOptions .chartControls{display:flex;justify-content:flex-start}.mobileOptions strong{display:block;font-size:24px;margin:6px 0}.mobileOptions p{font-size:12px}@media(max-width:700px),(hover:none) and (pointer:coarse){.workspace>.heading{display:none}.summary{padding-top:2px}.chartToolbar{flex-wrap:wrap}.metricPlot{padding:0 0 8px}.dailyReadings>span{white-space:nowrap}.dailyReadings .tableReading{width:auto!important;flex:none;min-height:32px!important}.rowActions{display:flex!important;gap:14px!important;width:auto!important;flex-direction:row!important}.chartToolbar>.rangeTabs{flex:1}.chartControls{width:auto}.mobileOptions[open]>.chartControls{width:100%}}
 
 .dailyReadings>span{white-space:nowrap;flex-wrap:nowrap}.dailyReadings .periodLabel{flex:none;white-space:nowrap}.dailyReadings .tableReading{width:auto;flex:none;white-space:nowrap;flex-wrap:nowrap}
+
+.deleteCell{justify-self:end;min-width:32px;min-height:32px;color:var(--muted);background:transparent;border:0;font-size:18px}.deleteCell:hover{color:#efb0a4}.deleteCell:disabled{opacity:.4}
+
+.entryCell{position:relative}.entryInputRow>.deleteCell{flex:0 0 44px;min-height:44px;padding:8px;background:transparent;border:0}

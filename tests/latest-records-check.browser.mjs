@@ -58,7 +58,7 @@ export async function checkLatestRecords({ baseURL, context, page, token, today 
   assert.equal(preview.status(), 200); const review = await preview.json();
   await page.goto(review.confirmationUrl); await page.getByRole("button", { name: "修改", exact: true }).click();
   await dialog().getByRole("combobox", { name: "总消耗来源", exact: true }).click(); await dialog().getByRole("gridcell", { name: "虚构 Garmin", exact: true }).click();
-  await dialog().getByRole("button", { name: "更新预览", exact: true }).click(); await dialog().waitFor({ state: "hidden" });
+  await dialog().getByRole("button", { name: "应用修改", exact: true }).click(); await dialog().waitFor({ state: "hidden" });
   const untouched = await context.request.get(`${baseURL}/api/v1/energy?from=${shift(today, -70)}&to=${shift(today, -70)}`, { headers });
   assert.equal((await untouched.json()).records.length, 0);
   await page.setViewportSize({ width: 1440, height: 1000 });

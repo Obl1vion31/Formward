@@ -15,7 +15,7 @@ async function perform<T>(work: (userId: string) => Promise<T>) {
 export async function saveMealAction(input: MealInput, allowMissingImages = false) { return perform(async userId => {
   const db=getDatabase(), op=await submitMealOperation(db,{userId,origin:"manual"},input);
   if (op.status !== "confirmed" && !op.canConfirm && !(allowMissingImages && op.canConfirmWithoutImages)) throw new Error(op.rows.find(r=>r.error)?.error ?? "请检查录入内容。");
-  const result=await decideMealOperation(db,userId,op.id,op.revision,"confirm",allowMissingImages);
+  const result=await decideMealOperation(db,userId,op.id,op.revision,"confirm",allowMissingImages,{strictManualVersions:true});
   return { snapshot:await readMealSnapshot(db,userId), message:result.result?.message ?? "已保存。" };
 }); }
 export async function decideMealAction(id: string, revision: number, decision: "confirm" | "cancel", allowMissingImages = false) { return perform(userId => decideMealOperation(getDatabase(),userId,id,revision,decision,allowMissingImages)); }

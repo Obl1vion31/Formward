@@ -128,3 +128,5 @@ export function macroDistribution(totals: Totals | undefined, mode: MacroMode = 
 }
 /** 旧调用保留能量口径。 */
 export const macroEnergy = (totals: Totals | undefined) => totals?.values.caloriesKcal == null ? null : macroDistribution(totals, "energy");
+
+export function mealTypeLabel(name:string){return ({breakfast:"早餐",lunch:"午餐",dinner:"晚餐",snack:"加餐",supper:"夜宵"} as Record<string,string>)[name.trim().toLowerCase()]??name;}

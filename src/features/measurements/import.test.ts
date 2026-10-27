@@ -115,14 +115,14 @@ test("软删除的记录不出现在读取中，重导不会复活", async () =>
   assert.equal((await listMeasurements(db, otherId)).length, 1);
 });
 
-test("缺失测量不补零，同一晚多条记录不擅自选择或合并", () => {
+test("缺失测量不补零，同一晚多条记录采用最后录入且原始行保留", () => {
   const rows = previewMeasurementTsv(contents).records.map((row, index) => ({ ...row, id: String(index) }));
   const incomplete = buildMeasurementDays([rows[0]])[0];
   assert.equal(incomplete.eveningRecord, null);
   assert.equal(incomplete.weightDifferenceKg, null);
   const multiple = buildMeasurementDays([...rows, { ...rows[1], id: "another-evening", weightKg: "75.90" }])[0];
-  assert.equal(multiple.evening.length, 2);
-  assert.equal(multiple.eveningRecord, null);
+  assert.equal(multiple.evening.length, 1);
+  assert.equal(multiple.eveningRecord?.weightKg, "75.90");
   assert.equal(multiple.weightDifferenceKg, null);
-  assert.equal(multiple.needsSelection, true);
+  assert.equal(multiple.needsSelection, false);
 });

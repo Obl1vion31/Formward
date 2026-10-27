@@ -5,7 +5,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import * as schema from "../../db/schema";
-import { createMeasurementDate, estimateMeasurementCell, listMeasurementDates, saveMeasurementDay, skipMeasurementReminder, type PeriodEdit, type SaveMeasurementDayInput } from "./editing";
+import { deleteMeasurementCell, createMeasurementDate, estimateMeasurementCell, listMeasurementDates, saveMeasurementDay, skipMeasurementReminder, type PeriodEdit, type SaveMeasurementDayInput } from "./editing";
 import { listMeasurements, saveReportedMeasurements } from "./records";
 import { entryMetrics, entryPeriods, localMeasurementDate, missingMeasurementCells } from "./entry-state";
 import { applyHistoricalInitialization, previewHistoricalInitialization } from "./initialization";
@@ -230,5 +230,19 @@ test("审计失败整日回滚；估算不足不填零；多个候选不视为�
   const estimate = await estimateMeasurementCell(db, actor, { date: "2024-04-04", period: "daytime", metric: "weightKg", operationId: randomUUID() });
   assert.match(estimate.message, /保持空白/); assert.deepEqual(await listMeasurements(db, actor.userId), []);
   const rows = [1, 2].map(index => ({ id: `candidate-${index}`, recordDate: "2024-04-04", period: "daytime" as const, weightKg: "70.00", bodyFatPercent: null, fasting: true, sourceLocalTime: "2024-04-04" }));
-  assert.deepEqual(missingMeasurementCells(rows, "2024-04-04"), entryMetrics.map(metric => ({ period: "evening", metric })));
+  assert.deepEqual(missingMeasurementCells(rows, "2024-04-04"), [{period:"daytime",metric:"bodyFatPercent"},...entryMetrics.map(metric => ({ period: "evening", metric }))]);
 });
+
+test("同槽覆盖保留遗漏项，单项删除保留另一指标，最后一项删除不复活旧值",async()=>{
+ const actor=await owner("single-slot-delete");const date="2024-04-04";
+ await saveMeasurementDay(db,actor,input(date,{daytime:{weightKg:"70",bodyFatPercent:"20",fasting:true}}));
+ await saveMeasurementDay(db,actor,input(date,{daytime:{weightKg:"71",fasting:true}}));
+ let rows=await listMeasurements(db,actor.userId);assert.equal(rows.length,1);assert.equal(rows[0].weightKg,"71.00");assert.equal(rows[0].bodyFatPercent,"20.00");
+ const deleted={recordId:rows[0].id,version:rows[0].updatedAt.toISOString(),metric:"weightKg" as const,operationId:randomUUID()};await deleteMeasurementCell(db,actor,deleted);await deleteMeasurementCell(db,actor,deleted);
+ rows=await listMeasurements(db,actor.userId);assert.equal(rows[0].weightKg,null);assert.equal(rows[0].bodyFatPercent,"20.00");
+ await deleteMeasurementCell(db,actor,{recordId:rows[0].id,version:rows[0].updatedAt.toISOString(),metric:"bodyFatPercent",operationId:randomUUID()});assert.equal((await listMeasurements(db,actor.userId)).length,0);
+ await saveMeasurementDay(db,actor,input(date,{daytime:{weightKg:"70",fasting:true}}));assert.equal((await listMeasurements(db,actor.userId)).length,1);
+ await assert.rejects(saveMeasurementDay(db,actor,input("2999-01-01",{daytime:{weightKg:"70",fasting:true}})),/未来/);
+});
+
+test("覆盖旧候选统一归档，删除跨账号／旧版本拒绝且审计失败回滚",async()=>{const actor=await owner("candidate-delete"),other=await owner("candidate-delete-other"),date="2024-04-04";await saveMeasurementDay(db,actor,input(date,{daytime:{weightKg:"70",bodyFatPercent:"20",fasting:true}}));const old=(await listMeasurements(db,actor.userId))[0];const id=randomUUID();await db.insert(schema.measurement).values({...old,id,weightKg:"71.00",updatedAt:new Date(old.updatedAt.getTime()+10),deduplicationKey:randomUUID()});await saveMeasurementDay(db,actor,input(date,{daytime:{bodyFatPercent:"21",fasting:true}}));const current=(await listMeasurements(db,actor.userId))[0];assert.equal(current.id,id);assert.equal(current.weightKg,"71.00");assert.equal((await db.select().from(schema.measurement).where(eq(schema.measurement.id,old.id)))[0].deletedAt!==null,true);const request={recordId:id,version:current.updatedAt.toISOString(),metric:"weightKg" as const,operationId:randomUUID()};await assert.rejects(deleteMeasurementCell(db,other,request),/变化/);await assert.rejects(deleteMeasurementCell(db,actor,{...request,version:old.updatedAt.toISOString(),operationId:randomUUID()}),/变化/);await pg.exec("CREATE FUNCTION reject_delete_audit() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'fictional delete failure'; END; $$ LANGUAGE plpgsql; CREATE TRIGGER reject_delete_audit BEFORE INSERT ON measurement_events FOR EACH ROW EXECUTE FUNCTION reject_delete_audit();");try{await assert.rejects(deleteMeasurementCell(db,actor,request));}finally{await pg.exec("DROP TRIGGER reject_delete_audit ON measurement_events; DROP FUNCTION reject_delete_audit();");}assert.equal((await listMeasurements(db,actor.userId))[0].weightKg,"71.00");});

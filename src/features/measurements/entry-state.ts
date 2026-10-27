@@ -1,3 +1,4 @@
+import { adoptedMeasurements } from "./days";
 import type { DailyMeasurement } from "./days";
 import type { MeasurementMetric } from "./trend";
 import type { EstimationMetadata } from "./estimation";
@@ -22,6 +23,7 @@ export type SourceRemovalResult = { ok: true; sources: string[] } | { ok: false;
 export type MeasurementActions = {
   save: (input: SaveMeasurementDayInput) => Promise<EntryResult>;
   estimate: (input: EstimateCellInput) => Promise<EntryResult>;
+  deleteCell?: (input: {recordId:string;version:string;metric:MeasurementMetric;operationId:string}) => Promise<EntryResult>;
   removeSource: (label: string) => Promise<SourceRemovalResult>;
 };
 
@@ -33,7 +35,7 @@ export function localMeasurementDate(now = new Date(), timezone?: string) {
 /** 候选未确定时要求选择已有记录，不能把它当空值再次录入。 */
 export function measurementEntryState<T extends DailyMeasurement>(records: T[], date: string, choices: Record<string, string> = {}) {
   return entryPeriods.map(period => {
-    const rows = records.filter(row => row.recordDate === date && row.period === period);
+    const rows = adoptedMeasurements(records).filter(row => row.recordDate === date && row.period === period);
     const observed = rows.filter(row => row.recordKind !== "estimated");
     const selected = observed.find(row => row.id === choices[`${date}:${period}`]) ?? (observed.length === 1 ? observed[0] : null);
     const pending = observed.length > 1 && !selected;

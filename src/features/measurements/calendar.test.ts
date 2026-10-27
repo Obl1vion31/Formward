@@ -29,12 +29,12 @@ test("历史按 50 日期分页，边界没有重复或漏日，极长区间仅�
 });
 
 
-test("待补录不包括已填估计，部分缺项和未选候选仍需处理",()=>{
+test("待补录不包括已填估计，部分缺项仍需处理而旧候选统一采用最新",()=>{
  const date="2024-03-02",base={recordDate:date,weightKg:"70",bodyFatPercent:"20",sourceLocalTime:date};
  const full=[{...base,id:"m",period:"daytime" as const,fasting:true,recordKind:"observed" as const},{...base,id:"e",period:"evening" as const,fasting:false,recordKind:"observed" as const}];
  assert.equal(measurementNeedsEntry(full,date),false);
  assert.equal(measurementNeedsEntry([{...full[0],bodyFatPercent:null},full[1]],date),true);
  assert.equal(measurementNeedsEntry(full.map(row=>({...row,recordKind:"estimated" as const})),date),false);
- const candidates=[...full,{...full[0],id:"m2"}];assert.equal(measurementNeedsEntry(candidates,date),true);
+ const candidates=[...full,{...full[0],id:"m2"}];assert.equal(measurementNeedsEntry(candidates,date),false);
  assert.equal(measurementNeedsEntry(candidates,date,{[date+":daytime"]:"m"}),false);
 });

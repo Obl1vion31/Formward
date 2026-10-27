@@ -68,6 +68,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const [drawer, setDrawer] = useState<DrawerView | null>(initialDate ? {kind:"day",date:initialDate,metric:"weightKg"} : null);
   function updated(result: Extract<EntryResult, { ok: true }>) { setSourceResult(null); setActionResult({ ...result, base: serverRecords }); }
 
+  useEffect(()=>{const latest=()=>{setDrawer(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
   const range = measurementRange(latestDate, mode, mode === "custom" ? customRange : { start: earliestDate, end: latestDate });
   const displayedRecords = records.filter((row) => showEstimates || row.recordKind !== "estimated");
   const visibleRecords = displayedRecords.filter((row) => row.recordDate >= range.start && row.recordDate <= range.end);
@@ -75,7 +76,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const recent = recentMeasurementDays(displayedRecords, recentInterval, choices, 7).filter(day => day.date === today || (!dates.some(row => row.date === day.date && row.reminderSkipped) && measurementNeedsEntry(records, day.date, choices)));
   const chartDates=measurementCalendarPage(range,calendarOrdinal(range.end)-calendarOrdinal(range.start)+1).reverse();
   const selection=useChartDateSelection(chartDates,initialDate??range.end,visibleRecords.map(row=>row.recordDate).sort().at(-1)??range.end),activeDate=selection.selected;
-  const summaries = metrics.map(metric => ({ metric, ...measurementSummary(records, metric, choices) }));
+  const summaries = metrics.map(metric => ({ metric, ...measurementSummary(records.filter(row=>row.recordDate<=(today||localMeasurementDate(new Date(),"Asia/Shanghai"))), metric, choices) }));
 
   function selectRange(nextMode: MeasurementRange, nextInterval = customRange) {
     measurementRange(latestDate,nextMode,nextMode==="custom"?nextInterval:{start:earliestDate,end:latestDate});

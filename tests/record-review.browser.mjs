@@ -30,15 +30,15 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
   await row("morning").getByRole("button", { name: "修改", exact: true }).click();
   let dialog = page.getByRole("dialog", { name: "修改待保存内容", exact: true });
   await dialog.getByLabel("体重（kg）", { exact: true }).fill("70.40");
-  await dialog.getByRole("button", { name: "更新预览", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
+  await dialog.getByRole("button", { name: "应用修改", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
   assert.ok((await row("morning").innerText()).includes("70.4kg"));
-  assert.equal((await readBody()).find(record => record.id === morning?.id)?.weightKg, morning?.weightKg, "更新预览不写事实");
+  assert.equal((await readBody()).find(record => record.id === morning?.id)?.weightKg, morning?.weightKg, "应用修改不写事实");
   assert.equal(await row("morning").getByRole("button",{name:"标记已核对",exact:true}).count(),0);
   assert.equal((await readMeals()).length, beforeMeals);
   await stalePage.locator('[data-review-key="morning"]').getByRole("button", { name: "修改", exact: true }).click();
   const staleDialog = stalePage.getByRole("dialog", { name: "修改待保存内容", exact: true });
   await staleDialog.getByLabel("测量来源", { exact: true }).fill("保留的并发草稿");
-  await staleDialog.getByRole("button", { name: "更新预览", exact: true }).click();
+  await staleDialog.getByRole("button", { name: "应用修改", exact: true }).click();
   await staleDialog.getByRole("alert").filter({ hasText: "另一个页面" }).waitFor();
   assert.equal(await staleDialog.getByLabel("测量来源", { exact: true }).inputValue(), "保留的并发草稿");
   await staleDialog.getByRole("button", { name: "加载最新状态，保留输入", exact: true }).click();
@@ -49,7 +49,7 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
   // 餐次编辑保留同批 foodRef，按食材规格只读换算。
   await row("meal").getByRole("button", { name: "修改", exact: true }).click(); dialog = page.getByRole("dialog", { name: "修改待保存内容", exact: true });
   await dialog.getByLabel("餐次备注", { exact: true }).fill("虚构草稿备注");
-  await dialog.getByRole("button", { name: "更新预览", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
+  await dialog.getByRole("button", { name: "应用修改", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
   await row("food").getByRole("button", { name: "取消", exact: true }).click(); await page.locator('[data-review-key="food"][data-excluded="true"]').waitFor();
   await row("food").getByRole("button", { name: "恢复本项", exact: true }).click(); await page.locator('[data-review-key="food"][data-excluded="false"]').waitFor();
   await row("food").getByRole("button", { name: "取消", exact: true }).click(); await page.locator('[data-review-key="food"][data-excluded="true"]').waitFor();
@@ -132,8 +132,8 @@ export async function checkReviewMaintenance({baseURL,page,token,date,artifacts=
   await answerClose(()=>editor().getByRole("button",{name:"关闭编辑",exact:true}).click(),false);
   assert.equal(await editor().getByLabel("餐次备注",{exact:true}).inputValue(),"虚构维护草稿");
   await answerClose(()=>editor().press("Escape"),false);
-  await editor().getByRole("button",{name:"更新预览",exact:true}).click();await editor().waitFor({state:"hidden"});
-  assert.equal((await meals()).length,beforeCount,"关闭保护和更新预览均不写入事实");
+  await editor().getByRole("button",{name:"应用修改",exact:true}).click();await editor().waitFor({state:"hidden"});
+  assert.equal((await meals()).length,beforeCount,"关闭保护和应用修改均不写入事实");
   await page.getByRole("button",{name:"确认保存",exact:true}).click();
   await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
   await page.getByRole("button",{name:"停留查看",exact:true}).click();
@@ -161,7 +161,7 @@ export async function checkReviewMaintenance({baseURL,page,token,date,artifacts=
   await comparison.getByRole("checkbox",{name:"这是另一次进食，仍然新增",exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('[data-review-key="maintenance-meal"] input[type="checkbox"]')?.checked && !document.querySelector('[aria-label="统一记录确认"]')?.getAttribute("aria-busy")?.includes("true"));
   const save=page.getByRole("button",{name:"确认保存",exact:true});assert.equal(await save.isEnabled(),true);
-  assert.equal((await meals()).length,beforeCount+1,"明确允许另一次进食仍只更新预览");
+  assert.equal((await meals()).length,beforeCount+1,"明确允许另一次进食仍只应用修改");
   await row().getByRole("button",{name:"取消本次新增",exact:true}).click();
   await page.locator('[data-review-key="maintenance-meal"][data-excluded="true"]').waitFor();
   assert.equal((await meals()).length,beforeCount+1,"取消新增不删除已有餐次");

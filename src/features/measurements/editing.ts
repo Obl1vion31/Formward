@@ -1,8 +1,9 @@
+import { latestMeasurement } from "./days";
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { measurement, measurementDay, measurementEvent, measurementImport } from "../../db/schema";
-import { insertReportedMeasurement, lockMeasurementOwner, validateReportedMeasurement, type MeasurementActor, type MeasurementTransaction } from "./records";
+import { archiveMeasurementCandidates, insertReportedMeasurement, lockMeasurementOwner, validateReportedMeasurement, type MeasurementActor, type MeasurementTransaction } from "./records";
 import { calendarOrdinal, type MeasurementMetric } from "./trend";
 import { buildHistoricalEstimates } from "./estimation";
 import { insertEstimate, supersedeEstimates } from "./estimate-records";
@@ -32,7 +33,7 @@ export function measurementDisplay(row: typeof measurement.$inferSelect): Measur
     sourceLocalTime: row.sourceLocalTime, timezone: row.timezone, timezoneLabel: timezoneLabel(row.timezone, row.recordDate, row.utcOffsetMinutes), utcOffsetMinutes: row.utcOffsetMinutes, sourceType: row.sourceType,
     sourceSystem: row.sourceSystem, sourceRecordId: row.sourceRecordId, recordKind: row.recordKind,
     entryChannel: row.entryChannel, deviceLabel: row.deviceLabel,
-    estimation: row.estimation, timePrecision: row.timePrecision, updatedAt: row.updatedAt.toISOString() };
+    estimation: row.estimation, timePrecision: row.timePrecision, createdAt:row.createdAt.toISOString(),sourceRow:row.sourceRow, updatedAt: row.updatedAt.toISOString() };
 }
 function requireActor(actor: MeasurementActor) {
   if (!actor.userId?.trim() || actor.actorId !== actor.userId) throw new Error("操作者与账号不一致。");
@@ -82,9 +83,13 @@ export async function prepareMeasurementDay(tx: MeasurementTransaction, actor: M
     const edit = input.periods[period];
     if (!edit) continue;
     if (!entryMetrics.some(metric => Object.hasOwn(edit, metric)) && !["deviceLabel", "fasting", "timezone"].some(field => Object.hasOwn(edit, field))) throw new Error("请选择要保存的指标。");
-    const [before] = edit.recordId ? await tx.select().from(measurement).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, edit.recordId), isNull(measurement.deletedAt))) : [];
+    const [specified] = edit.recordId ? await tx.select().from(measurement).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, edit.recordId), isNull(measurement.deletedAt))) : [];
+    const candidates=await tx.select().from(measurement).where(and(eq(measurement.userId,actor.userId),eq(measurement.recordDate,input.date),eq(measurement.period,period),eq(measurement.recordKind,"observed"),isNull(measurement.deletedAt)));
+    const adopted=latestMeasurement(candidates);
+    if(specified&&adopted&&specified.id!==adopted.id)throw new Error("这个时段已采用更新的记录，请查看最新内容后重新确认。");
+    const before=specified??adopted;
     if (edit.recordId && (!before || before.recordKind !== "observed" || before.recordDate !== input.date || before.period !== period)) throw new Error("记录不存在或不属于当前日期时段。");
-    if (before && before.updatedAt.toISOString() !== edit.version) throw new Error("记录已变化，请刷新后重新编辑。");
+    if (before && edit.recordId && before.updatedAt.toISOString() !== edit.version) throw new Error("记录已变化，请刷新后重新编辑。");
     const values = { weightKg: before?.weightKg ?? null, bodyFatPercent: before?.bodyFatPercent ?? null, fasting: before?.fasting ?? null };
     for (const field of ["weightKg", "bodyFatPercent", "fasting"] as const) if (Object.hasOwn(edit, field)) Object.assign(values, { [field]: edit[field] });
     const timezone = Object.hasOwn(edit, "timezone") ? edit.timezone! : before ? before.timezone : input.timezone;
@@ -115,6 +120,7 @@ export async function saveMeasurementDay(db: Database, actor: MeasurementActor, 
     let saved = 0;
     for (const { period, before, valid, deviceLabel, time, sourceUnspecifiedConfirmed } of await prepareMeasurementDay(tx, actor, input)) {
       if (before) {
+        await archiveMeasurementCandidates(tx,actor,input.date,period,before.id);
         const [after] = await tx.update(measurement).set({ weightKg: valid.weightKg, bodyFatPercent: valid.bodyFatPercent, deviceLabel, fasting: valid.fasting, fastingSource: valid.fastingSource, ...(time ?? {}), updatedAt: new Date(Math.max(Date.now(), before.updatedAt.getTime() + 1)) }).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, before.id))).returning();
         await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: after.id, action: "update", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { ai: actor.aiContext, before, after, sourceUnspecifiedConfirmed, reason: actor.actorType === "ai" ? "ai_measurement_edit" : "manual_measurement_edit", importId: batch.id } });
         if (before.weightKg !== valid.weightKg || before.bodyFatPercent !== valid.bodyFatPercent) await supersedeEstimates(tx, actor, input.date, period);
@@ -172,5 +178,25 @@ export async function estimateMeasurementCell(db: Database, actor: MeasurementAc
     await ensureDate(tx, actor, input.date);
     await tx.update(measurementImport).set({ insertedCount: 1 }).where(eq(measurementImport.id, batch.id));
     return { message: "已估算此项，仅用于辅助趋势。", repeated: false };
+  });
+}
+
+export async function deleteMeasurementCell(db:Database,actor:MeasurementActor,input:{recordId:string;version:string;metric:MeasurementMetric;operationId:string}) {
+  requireActor(actor);
+  if(actor.actorType==="ai"||!entryMetrics.includes(input.metric))throw new Error("仅限本人在网页删除一个指标。");
+  return db.transaction(async tx=>{
+    await lockMeasurementOwner(tx,actor.userId);
+    const batch=await startOperation(tx,actor,input.operationId,["delete_cell",input]);if(batch.repeated)return;
+    const [before]=await tx.select().from(measurement).where(and(eq(measurement.userId,actor.userId),eq(measurement.id,input.recordId),isNull(measurement.deletedAt)));
+    if(!before||before.updatedAt.toISOString()!==input.version)throw new Error("记录已变化，请查看最新记录后再删除。");
+    if(before.recordKind==="observed")await archiveMeasurementCandidates(tx,actor,before.recordDate,before.period,before.id);
+    const other=input.metric==="weightKg"?"bodyFatPercent":"weightKg";
+    if(before.recordKind==="observed"){
+      const estimates=await tx.select().from(measurement).where(and(eq(measurement.userId,actor.userId),eq(measurement.recordDate,before.recordDate),eq(measurement.period,before.period),eq(measurement.recordKind,"estimated"),isNull(measurement.deletedAt)));
+      for(const prior of estimates.filter(row=>row[input.metric]!==null)){const [afterEstimate]=await tx.update(measurement).set({[input.metric]:prior[other]===null?prior[input.metric]:null,deletedAt:prior[other]===null?new Date():null,updatedAt:new Date()}).where(eq(measurement.id,prior.id)).returning();await tx.insert(measurementEvent).values({id:randomUUID(),userId:actor.userId,measurementId:prior.id,action:"delete",actorType:"user",actorId:actor.actorId,snapshot:{before:prior,after:afterEstimate,metric:input.metric,reason:"manual_single_metric_delete"}});}
+    }
+
+    const [after]=await tx.update(measurement).set({[input.metric]:before[other]===null?before[input.metric]:null,deletedAt:before[other]===null?new Date():null,updatedAt:new Date(Math.max(Date.now(),before.updatedAt.getTime()+1))}).where(and(eq(measurement.userId,actor.userId),eq(measurement.id,before.id))).returning();
+    await tx.insert(measurementEvent).values({id:randomUUID(),userId:actor.userId,measurementId:before.id,action:"delete",actorType:"user",actorId:actor.actorId,snapshot:{before,after,metric:input.metric,reason:"manual_single_metric_delete"}});
   });
 }

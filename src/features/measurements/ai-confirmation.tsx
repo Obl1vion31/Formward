@@ -23,7 +23,7 @@ function inputFromDraft(item: ReviewItem, draft: Draft): ReviewInput {
   if (item.input.kind === "estimate_cell") return { ...item.input, date: draft.date, period: draft.period };
   const input = { ...item.input, date: draft.date, period: draft.period }, baseline = draftFor(item);
   for (const field of ["weightKg", "bodyFatPercent", "deviceLabel", "timezone"] as const) if (draft[field] !== baseline[field]) input[field] = draft[field].trim() || null;
-  // 仅用户更新预览时确认当前空来源；填写来源清除旧请求的留空标记。
+  // 仅用户应用修改时确认当前空来源；填写来源清除旧请求的留空标记。
   if (!draft.deviceLabel.trim()) { input.deviceLabel = null; input.sourceUnspecifiedConfirmed = true; }
   else delete input.sourceUnspecifiedConfirmed;
   if (draft.fasting !== baseline.fasting || draft.period !== baseline.period) input.fasting = draft.period === "evening" ? false : draft.fasting;
@@ -53,8 +53,8 @@ function DraftForm({ item, draft, change, busy, updating, save, close, sources, 
         {draft.period === "daytime" ? <label className="ai-fasting ai-draft-wide"><input type="checkbox" checked={draft.fasting} onChange={event => set({ fasting: event.target.checked })} disabled={busy} />确认这次晨间测量为空腹</label> : <p className="ai-muted ai-draft-wide">晚间固定为非空腹。</p>}
       </>}
     </div>
-    <p className="ai-muted">更新预览后，再核对前后值并确认保存。修改时区保留原当地钟点，未知测量时间保持空白。</p>
-    <div className="ai-actions"><button type="submit" className="ai-button" disabled={busy}>{updating ? "正在更新…" : "更新预览"}</button><button type="button" className="ai-button ai-secondary" disabled={busy} onClick={close}>放弃本行修改</button></div>
+    <p className="ai-muted">应用修改后，再核对前后值并确认保存。修改时区保留原当地钟点，未知测量时间保持空白。</p>
+    <div className="ai-actions"><button type="submit" className="ai-button" disabled={busy}>{updating ? "正在更新…" : "应用修改"}</button><button type="button" className="ai-button ai-secondary" disabled={busy} onClick={close}>放弃本行修改</button></div>
   </form>;
 }
 export function MeasurementReviewEditor({ item, busy, save, close, sources, removeSource }: { item: ReviewItem; busy: boolean; save: (input: ReviewInput) => void; close: () => void; sources: string[]; removeSource: (label: string) => Promise<SourceRemovalResult> }) {

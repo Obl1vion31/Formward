@@ -1,3 +1,4 @@
+import {recordStamps} from "../records/changes";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, before, test } from "node:test";
@@ -7,7 +8,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { eq } from "drizzle-orm";
 import * as schema from "../../db/schema";
 import { createAiToken, authenticateAi, revokeAiToken } from "../auth/ai-tokens";
-import { energyDays, emptyEnergy, restingEstimate, type EnergyProfile, type ActivityRecord, type EnergyDayRecord } from "./model";
+import { activityCalorieFields, energyBaseline, activityReadings, energyDays, emptyEnergy, restingEstimate, type EnergyProfile, type ActivityRecord, type EnergyDayRecord } from "./model";
 import { submitEnergyOperation, decideEnergyOperation, readEnergySnapshot, planEnergyActions, reviseEnergyOperation } from "./records";
 import { submitRecordOperation, reviewRecordOperation, getRecordOperation } from "../records/operations";
 import type { MeasurementDisplay } from "../measurements/entry-state";
@@ -174,3 +175,20 @@ test("旧空模式日记录删除恢复不把未知活动改成零", async () =>
   for(const kind of ["delete_energy_day","restore_energy_day"] as const){const op=await submitEnergyOperation(db,actor,{operationId:randomUUID(),actions:[{kind,id,version:current.version}]});await decideEnergyOperation(db,userId,op.id,op.revision,"confirm");current=(await readEnergySnapshot(db,userId)).days[0];}
   assert.equal(current.activityMode,null);assert.equal(current.entryMode,null);assert.equal(energyDays(await readEnergySnapshot(db,userId),[],[date])[0].totalKcal,null);
 });
+
+test("运动分开填写只计纯运动，总数原样计入，旧记录不回算",async()=>{
+ const actor=await owner();
+ const op=await submitEnergyOperation(db,{userId:actor.userId,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_energy_day",date,entryMode:"components",activityMode:"activities",restingKcal:"2000"},{kind:"save_activity",date,name:"虚构跑步",calorieMode:"components",exerciseRestingKcal:"50",exerciseActiveKcal:"400"}]});
+ assert.equal(op.canConfirm,true);await decideEnergyOperation(db,actor.userId,op.id,op.revision,"confirm");
+ const state=await readEnergySnapshot(db,actor.userId),result=energyDays(state,[],[date])[0];assert.equal(Number(result.totalKcal),2400);assert.deepEqual(activityReadings(state.activities[0]),{totalKcal:"450.0000",countedKcal:"400.0000"});
+ assert.equal(Number(energyDays({...state,activities:[activity({caloriesKcal:"450"})]},[],[date])[0].totalKcal),2450);
+ assert.equal(activityReadings(activity({calorieMode:"components",exerciseActiveKcal:"0",exerciseRestingKcal:null})).countedKcal,"0");
+ assert.equal(activityReadings(activity({calorieMode:"components",exerciseActiveKcal:"400",exerciseRestingKcal:null})).totalKcal,null);
+ assert.equal(energyDays({...state,activities:[activity({completed:false})]},[],[date])[0].totalKcal,"2000.0000");
+});
+
+test("更新检查只列本人记录，能识别状态和运动版本",async()=>{const first=await owner(),second=await owner();const op=await submitEnergyOperation(db,{userId:first.userId,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_energy_day",date,restingKcal:"2000",activeKcal:"0"}]});await decideEnergyOperation(db,first.userId,op.id,op.revision,"confirm");const stamps=await recordStamps(db,first.userId);assert.equal(stamps.length,1);assert.equal(stamps[0].key,"energyDay:"+date);assert.equal(stamps[0].summary,undefined);assert.deepEqual(await recordStamps(db,second.userId),[]);});
+
+test("分项运动的包含关系只采用纯运动，未知额外运动不补零",()=>{const record=day({entryMode:"components",activityMode:"total",activeKcal:"600"});const workout=activity({calorieMode:"components",caloriesKcal:"450",exerciseActiveKcal:"400",exerciseRestingKcal:"50",inclusion:"additional",inclusionBasis:energyBaseline(record)});const state={...emptyEnergy(),days:[record],activities:[workout]};assert.equal(Number(energyDays(state,[],[date])[0].totalKcal),3000);workout.inclusion="included";assert.equal(Number(energyDays(state,[],[date])[0].totalKcal),2600);workout.inclusion="additional";workout.exerciseActiveKcal=null;assert.equal(energyDays(state,[],[date])[0].totalKcal,null);workout.inclusion="included";assert.equal(Number(energyDays(state,[],[date])[0].totalKcal),2600);});
+
+test("旧请求编辑新分项运动仍按显式提供的总数采用",()=>{const prior=activity({calorieMode:"components",exerciseActiveKcal:"400",exerciseRestingKcal:"50",caloriesKcal:"450"});const after=activityCalorieFields({caloriesKcal:"650"},prior);assert.equal(after.calorieMode,"total");assert.equal(activityReadings(after).countedKcal,"650");});

@@ -1,5 +1,7 @@
 # 消耗记录
 
+运动填写calorieMode=total／components。旧caloriesKcal保持原值；分开填写增加exerciseRestingKcal／exerciseActiveKcal，只将纯运动计入每日。activityReadings区分本次总数与计入值；普通填写、AI、查询及Excel共用。0026只增列不回算历史。没有采用中的活动／全天总数不问包含关系。
+
 沿用activities模块，集中每日消耗、运动明细、原始来源和确认审计；网页、HTTP、MCP与Excel复用同一规则。
 
 - model.ts：输入schema、明确模式、energyBaseline包含关系绑定及energyDays最终读数。只记总数与分开记录互斥，运动明细始终可记录；存在总数／活动合计时，included不加、additional额外增加，不按大小猜测。

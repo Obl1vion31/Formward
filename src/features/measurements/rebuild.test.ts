@@ -85,7 +85,7 @@ test("体脂缺项显式估计；实测恢复不重算，补录仅替代对应�
   assert.ok(!completed.some(r => r.recordDate === "2024-01-04" && r.period === "daytime" && r.recordKind === "estimated"));
   assert.equal(completed.find(r => r.recordDate === "2024-01-04" && r.period === "evening")!.bodyFatPercent, "24.60");
   assert.equal((await write(owner, [record(4, "daytime", "68.27", "23.42")])).skipped, 1);
-  await assert.rejects(write(owner, [record(4, "daytime", "68.27", "23.43")]), /已有不同实测/);
+  const replaced=await write(owner,[record(4,"daytime","68.27","23.43")]);assert.equal(replaced.updated,1);assert.equal((await listMeasurements(db,owner)).find(r=>r.id===actual.id)!.bodyFatPercent,"23.43");
   const update = (await db.select().from(schema.measurementEvent)).find(e => e.measurementId === actual.id && e.snapshot.reason === "reported_missing_metrics")!;
   assert.ok(update.snapshot.before && update.snapshot.after && update.snapshot.reportedValues);
 });

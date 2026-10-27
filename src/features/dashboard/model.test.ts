@@ -58,11 +58,11 @@ test("缺日不跨越配对，晚间不混入，未来晨重不提前展示", ()
   assert.equal(overviewDays([], rows, ["2024-03-01"])[0].weightChangeKg, null);
   assert.equal(overviewDays([], [observed("2024-03-01"), observed("2024-03-02")], ["2024-03-01"], true, emptyEnergy(), "2024-03-01")[0].weightChangeKg, null);
 });
-test("已有估计通过开关展示，多候选不擅选，零变化保留", () => {
+test("已有估计通过开关展示，同槽采用最后保存，零变化保留", () => {
   const rows = [observed("2024-03-01"), observed("2024-03-02", { recordKind: "estimated", weightKg: "70.2" })];
   assert.equal(overviewDays([], rows, ["2024-03-01"], false)[0].weightChangeKg, null);
   const estimate = overviewDays([], rows, ["2024-03-01"], true)[0]; assert.equal(estimate.weightChangeKg, .2); assert.equal(estimate.differenceEstimated, true);
-  const ambiguous = overviewDays([], [...rows, observed("2024-03-01", { id: "second" })], ["2024-03-01"], true)[0]; assert.equal(ambiguous.weightChangeKg, null); assert.equal(ambiguous.ambiguous, true);
+  const ambiguous = overviewDays([], [...rows, observed("2024-03-01", { id: "second" })], ["2024-03-01"], true)[0]; assert.equal(ambiguous.weightChangeKg, .2); assert.equal(ambiguous.ambiguous, false);
   assert.equal(overviewDays([], [observed("2024-03-01"), observed("2024-03-02")], ["2024-03-01"])[0].weightChangeKg, 0);
 });
 test("摄入减最终消耗得到带符号盈余，未知与实际零不同", () => {

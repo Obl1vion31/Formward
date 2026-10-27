@@ -1,5 +1,10 @@
 # 身体、饮食与消耗 AI 接入
 
+## 当前兼容规则
+
+OpenAPI1.13.0／MCP1.11.0，工具及权限种类保持。身体按同一天晨晚最后保存值覆盖，预览显示旧→新，取消不保存，遗漏字段保留，不接收未来身体日期。运动save_activity扩展calorieMode、exerciseRestingKcal、exerciseActiveKcal；分项只计纯运动，旧caloriesKcal原值继续采用，查询activities增加totalKcal／countedKcal。AI正常新增修改、网页登录确认及版本／幂等保护保持。常见英文餐次仍可提交，显示及新保存中文，原请求摘要不改。网页登录私有/api/record-changes不接受AI令牌，不增加工具或权限。
+
+
 接口覆盖晨晚体重／体脂、来源、时区、记录详情与历史、候选分析、摘要与趋势、历史编辑及单项显式估算。网页和 API 使用同一 measurements feature。饮食、食材及其删除／恢复已接入；通用文件导入及身体记录的网页删除／恢复、准确测量时间和历史归属纠正尚未接入。
 
 ## 统一连接与授权
@@ -149,7 +154,7 @@ search_foods返回foods及兼容的presets:[]，不提供基础预设采用；qu
 
 ## 饮食接口
 
-MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation，分别使用meals:read／meals:write；已有身体连接需重新授权。HTTP提供GET /foods?q=、GET /meals?from=&to=、POST /meal-operations、GET /meal-operations/{id}，公开协议1.10.0。输入operationId、actions；save_meal含date、mealType、items，已有食材用foodId＋foodVersion、同单位quantity，新食材可用foodDraft。杂只估未单列的剩余食物，whole整餐估算须为唯一项。AI 标签与成分表需依据，未知null；手动合并来源 reference 为标签／成分表，旧来源继续兼容。新手动自由项用 kind:food，营养直接表示本次摄入，分量不再次相乘。确认链接为/dashboard/meals/review/{id}，15分钟有效，原请求与修订草稿独立；正式保存仅网页登录确认，权限撤销即时阻止。结构、初始化和实例定位见[饮食记录](meals.md)。
+MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation，分别使用meals:read／meals:write；已有身体连接需重新授权。HTTP提供GET /foods?q=、GET /meals?from=&to=、POST /meal-operations、GET /meal-operations/{id}，公开协议1.11.0。输入operationId、actions；save_meal含date、mealType、items，已有食材用foodId＋foodVersion、同单位quantity，新食材可用foodDraft。杂只估未单列的剩余食物，whole整餐估算须为唯一项。AI 标签与成分表需依据，未知null；手动合并来源 reference 为标签／成分表，旧来源继续兼容。新手动自由项用 kind:food，营养直接表示本次摄入，分量不再次相乘。确认链接为/dashboard/meals/review/{id}，15分钟有效，原请求与修订草稿独立；正式保存仅网页登录确认，权限撤销即时阻止。结构、初始化和实例定位见[饮食记录](meals.md)。
 \n照片上传需先实际调用import_meal_images，再提交imageIds及expectedImageCount；失败也保留预期张数并说明具体错误。canConfirm表示正常确认可用，canConfirmWithoutImages表示可由用户选择先保存文字。补传与无图保存选择仅在登录网页完成，API没有代确认入口。每项食物可提交reviewExplanation，分别说明identity、amount、cooking、nutrition的来源、basis及uncertainty；已有basis和食材快照继续兼容。
 
 
@@ -163,4 +168,4 @@ MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation
 
 AI只允许新增或修改，不得整条删除或恢复（包括批量）；餐内增减经审核且不得清空整餐。网页手工删除恢复不受影响，取消本次待保存项不删除既有记录。旧待确认申请也在实际写入前验证。
 
-当前协议增加nutritionBasis／perPortionNutrition、servingQuantity／servingUnit、运动inclusion；旧nutrition仍是本次总量，旧明细不自动相加。静息公式和资料动作停用。普通单餐只要底部一次确认，缺图不阻止文字保存；总数与运动关系不明时列独立核对项，不能按大小推断。MCP服务1.10.0，工具仍13个，不增加OAuth权限；刷新工具列表可获得新字段。
+当前协议增加nutritionBasis／perPortionNutrition、servingQuantity／servingUnit、运动inclusion；旧nutrition仍是本次总量，旧明细不自动相加。静息公式和资料动作停用。普通单餐只要底部一次确认，缺图不阻止文字保存；总数与运动关系不明时列独立核对项，不能按大小推断。MCP服务1.11.0，工具仍13个，不增加OAuth权限；刷新工具列表可获得新字段。

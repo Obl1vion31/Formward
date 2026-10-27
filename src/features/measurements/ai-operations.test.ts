@@ -222,10 +222,8 @@ test("审核版本、跨账号和行归属验证，取消／保存终态不能�
 
 test("同批重复目标需处理，取消其中一行重新预览；重复实测和不足估算跳过", async () => {
   const { userId, identity } = await owner(), initial = await submitAiMeasurementOperation(db, identity, batch([realItem(), realItem()]));
-  assert.equal(initial.counts.issues, 2);
-  const unique = await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "cancel", revision: initial.revision, itemIds: [initial.items[1].id] });
-  assert.equal(unique.items[0].preview.canConfirm, true);
-  await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: unique.revision });
+  assert.equal(initial.counts.issues,0);assert.equal(initial.counts.skipped,1);
+  await reviewAiMeasurementOperation(db,userId,initial.id,{kind:"confirm",revision:initial.revision});
   const duplicate = await submitAiMeasurementOperation(db, identity, batch([realItem(), { kind: "estimate_cell", date: "2024-05-02", period: "evening", metric: "weightKg" }]));
   assert.equal(duplicate.status, "completed"); assert.equal(duplicate.counts.skipped, 2);
   assert.equal((await listMeasurements(db, userId)).length, 1);
@@ -346,7 +344,7 @@ test("仅体脂、缺项补充、完全重复、冲突与带版本历史／来�
   assert.equal(supplement.preview.rows[0].state, "supplement"); await confirm(identity, supplement.id);
   const after = (await listMeasurements(db, userId))[0]; assert.equal(after.id, before.id); assert.equal(after.bodyFatPercent, "20.10"); assert.equal(after.weightKg, "70.20"); assert.deepEqual(after.originalValues, before.originalValues);
   const conflict = await submitAiMeasurementOperation(db, identity, input({ daytime: { weightKg: "71.00", fasting: true }, evening: { weightKg: "72.00", deviceLabel: "虚构秤" } }));
-  assert.equal(conflict.preview.rows[0].state, "conflict"); assert.equal(conflict.preview.canConfirm, false); await rejects(confirm(identity, conflict.id), "no_changes"); assert.equal((await listMeasurements(db, userId)).length, 1);
+  assert.equal(conflict.preview.rows[0].state, "edit"); assert.equal(conflict.preview.canConfirm, true); await reviewAiMeasurementOperation(db,userId,conflict.id,{kind:"cancel",revision:conflict.revision}); assert.equal((await listMeasurements(db,userId)).length,1);
   const edit = await submitAiMeasurementOperation(db, identity, input({ daytime: { recordId: after.id, version: after.updatedAt.toISOString(), weightKg: "71.00" } })); await confirm(identity, edit.id);
   const edited = (await listMeasurements(db, userId))[0];
   const source = await submitAiMeasurementOperation(db, identity, input({ daytime: { recordId: edited.id, version: edited.updatedAt.toISOString(), deviceLabel: "虚构新秤" } })); await confirm(identity, source.id);
@@ -461,8 +459,8 @@ test("来源修改保留准确跨午夜时间，查询候选只影响本次分�
   const row = (await listMeasurements(db, userId))[0];
   const change = await submitAiMeasurementOperation(db, identity, input({ evening: { recordId: row.id, version: row.updatedAt.toISOString(), deviceLabel: "虚构新来源" } })); await confirm(identity, change.id);
   const after = (await listMeasurements(db, userId))[0]; assert.equal(after.sourceLocalTime, row.sourceLocalTime); assert.equal(after.occurredAt!.toISOString(), row.occurredAt!.toISOString()); assert.equal(after.timezone, row.timezone); assert.equal(after.entryChannel, "manual"); assert.deepEqual(after.originalValues, row.originalValues);
-  await db.insert(schema.measurement).values({ ...after, id: randomUUID(), weightKg: "70.30", deduplicationKey: "b".repeat(64) });
-  const undecided = await queryAiMeasurements(db, userId, new URLSearchParams()); assert.equal(undecided.analyses.weightKg.days[0].needsSelection, true);
-  const chosen = await queryAiMeasurements(db, userId, new URLSearchParams({ choices: JSON.stringify({ "2024-04-04:evening": row.id }) })); assert.equal(chosen.analyses.weightKg.days[0].evening!.id, row.id); assert.equal(chosen.analyses.weightKg.days[0].needsSelection, false);
-  assert.equal((await queryAiMeasurements(db, userId, new URLSearchParams())).analyses.weightKg.days[0].needsSelection, true);
+  await db.insert(schema.measurement).values({ ...after, id: randomUUID(), updatedAt:new Date(after.updatedAt.getTime()+1), weightKg: "70.30", deduplicationKey: "b".repeat(64) });
+  const undecided = await queryAiMeasurements(db, userId, new URLSearchParams()); assert.equal(undecided.analyses.weightKg.days[0].needsSelection, false);
+  const chosen = await queryAiMeasurements(db, userId, new URLSearchParams({ choices: JSON.stringify({ "2024-04-04:evening": row.id }) })); assert.equal(chosen.analyses.weightKg.days[0].evening!.weightKg, "70.30"); assert.equal(chosen.analyses.weightKg.days[0].needsSelection, false);
+  assert.equal((await queryAiMeasurements(db, userId, new URLSearchParams() )).analyses.weightKg.days[0].needsSelection, false);
 });

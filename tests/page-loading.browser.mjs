@@ -174,7 +174,7 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     const row = page.locator(`[data-review-key="${batch.items[0].id}"]`);
     const editor = page.getByRole("dialog", {name:"修改待保存内容",exact:true});
     await row.getByRole("button", { name: "修改", exact: true }).click(); await editor.getByLabel("体重（kg）").fill("72.10");
-    await slowAction("正在处理记录审核…", () => editor.getByRole("button", { name: "更新预览", exact: true }).click(), "loading-review-update");
+    await slowAction("正在处理记录审核…", () => editor.getByRole("button", { name: "应用修改", exact: true }).click(), "loading-review-update");
     assert.ok((await row.innerText()).includes("72.1kg"));
     if (process.env.FORMWARD_MEASUREMENTS_DEV === "1") {
       // 写草稿前用当前编译 hash 建立开发连接；生产继续验证从 Link 进入的完整流程。
@@ -188,12 +188,12 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
       const otherRow = otherPage.locator(`[data-review-key="${batch.items[1].id}"]`);
       await otherRow.getByRole("button", { name: "修改", exact: true }).click();
       await otherPage.getByRole("dialog",{name:"修改待保存内容",exact:true}).getByLabel("测量来源", { exact: true }).fill("虚构另一页面来源");
-      await otherPage.getByRole("dialog",{name:"修改待保存内容",exact:true}).getByRole("button", { name: "更新预览", exact: true }).click();
+      await otherPage.getByRole("dialog",{name:"修改待保存内容",exact:true}).getByRole("button", { name: "应用修改", exact: true }).click();
       await otherRow.getByText("虚构另一页面来源", { exact: true }).waitFor();
-      await slowAction("正在处理记录审核…", () => editor.getByRole("button", { name: "更新预览", exact: true }).click());
+      await slowAction("正在处理记录审核…", () => editor.getByRole("button", { name: "应用修改", exact: true }).click());
       await slowAction("正在处理记录审核…", () => page.getByRole("button", { name: "加载最新状态，保留输入", exact: true }).click());
       assert.equal(await editor.getByLabel("测量来源", { exact: true }).inputValue(), "虚构保留输入");
-      await slowAction("正在处理记录审核…", () => editor.getByRole("button", { name: "更新预览", exact: true }).click());
+      await slowAction("正在处理记录审核…", () => editor.getByRole("button", { name: "应用修改", exact: true }).click());
     } finally { await otherPage.close(); }
     await page.getByText("审核信息与刷新",{exact:true}).click();
     await slowAction("正在处理记录审核…", () => page.getByRole("button", { name: "刷新预览", exact: true }).click());

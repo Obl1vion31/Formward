@@ -1,5 +1,7 @@
 # Components
 
+record-updates.tsx提供跨页面更新提示，record-change-client.ts负责只读检查、保存前核对和本窗口保存确认；draft-guard.ts登记草稿供明确采用最新时保护输入。use-chart-drag.ts仅处理水平手势，竖向滚动交还页面。number-change.ts以十倍／十分之一提示输入量级，不作健康判断。
+
 本目录保存多个页面共同使用的界面组件，例如按钮、输入、导航、日期范围和图表外壳。业务专用组件留在对应页面或 feature 附近，避免形成无边界组件仓库。
 
 `page-loading.tsx` 提供根布局使用的 `PageLoadingProvider` 和路由后备 `RouteLoading`，`page-loading-state.ts` 提供绑定真实等待状态的 `usePageLoading({ active, label })` 与共享 Context。组件模块只导出组件，保留 Fast Refresh 的状态边界。操作立即反馈，持续超过 200ms 才显示全屏虚化与居中动画／动作文字；多个来源各自登记，全部结束才收起，路由阶段交接不重置延迟。模态层使用原生 dialog，以视口宽度覆盖滚动条预留区域，位于业务弹窗上方，等待时阻止操作、Escape 和 Tab，结束后恢复可用焦点。异常与卸载清理各自状态，不自动重试。首屏路由后备可由服务器输出，客户端模态层出现后隐藏后备。

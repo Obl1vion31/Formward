@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
 import { dailyTotals, macroColors, macroDistribution, formatNutrition, metricLabels, type Metric, type MacroMode } from "./model";
+import {useChartDrag} from "@/components/use-chart-drag";
 import { useChartMotion } from "@/components/use-chart-motion";
 import type { useChartDateSelection } from "@/components/use-chart-date-selection";
 import { chartScale } from "@/components/chart-scale";
@@ -21,13 +22,14 @@ export function NutritionChart({ dates, groups, selection, mode, setMode }: { da
   useChartMotion(viewport, containerWidth ? `${dates[0]}:${dates.at(-1)}:${mode}:${groups.map(group => `${group.date}:${JSON.stringify(group.totals)}`).join("|")}` : "pending");
   const width = containerWidth || 280, left = 54, right = 10, slot = (width - left - right) / dates.length;
   const scale = chartScale(dates.map(date => byDate.get(date)?.values.caloriesKcal)), max = scale.max, y = (value: number) => 154 - value / max * 120;
+  const drag=useChartDrag(dates,width,left,right,selection.pin);
   const allDates = dates.length <= 7, selectedX = left + (dates.indexOf(inspected) + .5) * slot;
   const stride = Math.max(1, Math.ceil((dates.length - 1) / (width < 440 ? 3 : 6)));
   return <>
     <div className={styles.macroTools}><div className={styles.macroMode} role="group" aria-label="营养占比口径">{([["grams","克数占比"],["energy","能量占比"]] as const).map(([value,label])=><button key={value} aria-pressed={mode===value} onClick={()=>setMode(value)}>{label}</button>)}</div>
     <div className={styles.macroLegend}>{macros.map(metric=><span key={metric}><i style={{background:macroColors[metric as keyof typeof macroColors]}}/>{metric==="proteinG"?"P":metric==="carbsG"?"C":"F"}<small> · {metricLabels[metric]}</small></span>)}{totals&&!distribution&&<span>营养占比不完整 · 显示总热量</span>}{dates.some(date => byDate.has(date) && statusByDate.get(date) !== "complete") && <span><i className={styles.incompleteKey} />未记全／全天待确认</span>}</div>
     </div><div className={styles.barViewport} ref={viewport} onMouseLeave={selection.leave}>
-      <svg className={styles.chart} style={{ visibility: containerWidth ? undefined : "hidden" }} viewBox={`0 0 ${width} 194`} role="group" aria-label={`热量柱状图，单位${unit}`}>
+      <svg {...drag} className={styles.chart} style={{ touchAction:"pan-y", visibility: containerWidth ? undefined : "hidden" }} viewBox={`0 0 ${width} 194`} role="group" aria-label={`热量柱状图，单位${unit}`}>
         <defs><pattern id={patternId} width="5" height="5" patternUnits="userSpaceOnUse"><path d="M-1 1L1 -1M0 5L5 0M4 6L6 4" stroke="#f0e9dd" strokeOpacity=".3" strokeWidth="1" /></pattern></defs>
         {scale.ticks.map(tick => <g key={tick}><line className={styles.grid} x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} /><text className={styles.axis} data-calorie-tick={tick} x={left - 8} y={y(tick) + 4} textAnchor="end">{tick}</text></g>)}
         <text className={styles.axis} x={left - 8} y="18" textAnchor="end">{unit}</text>

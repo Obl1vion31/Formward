@@ -10,8 +10,20 @@ export type DailyMeasurement = {
   fasting: boolean | null;
   sourceLocalTime: string;
   recordKind?: "observed" | "estimated";
+  updatedAt?: string|Date; createdAt?:string|Date; sourceRow?:number|null; deletedAt?:string|Date|null;
 };
 
+/** 旧同槽实测按最后保存采用；原始行继续留档。 */
+export function latestMeasurement<T extends DailyMeasurement>(rows:T[]):T|null {
+  const time=(v:string|Date|undefined)=>v?new Date(v).getTime():0;
+  return [...rows].filter(row=>!row.deletedAt).sort((a,b)=>time(b.updatedAt)-time(a.updatedAt)||time(b.createdAt)-time(a.createdAt)||(b.sourceRow??0)-(a.sourceRow??0)||b.sourceLocalTime.localeCompare(a.sourceLocalTime)||b.id.localeCompare(a.id))[0]??null;
+}
+export function adoptedMeasurements<T extends DailyMeasurement>(rows:T[]):T[] {
+  const slots=new Map<string,T[]>();
+  for(const row of rows.filter(row=>!row.deletedAt&&row.recordKind!=="estimated")){const key=row.recordDate+":"+row.period;slots.set(key,[...(slots.get(key)??[]),row]);}
+  const chosen=new Set([...slots.values()].map(rows=>latestMeasurement(rows)!.id));
+  return rows.filter(row=>!row.deletedAt&&(row.recordKind==="estimated"||chosen.has(row.id)));
+}
 /** 晨晚差只能来自同归属日的真实、条件明确的配对。 */
 export function isRealMeasurementPair(daytime: DailyMeasurement | null, evening: DailyMeasurement | null) {
   return !!daytime && !!evening && daytime.recordDate === evening.recordDate
@@ -26,10 +38,11 @@ export function measurementWeightDifference(daytime: DailyMeasurement | null, ev
     : null;
 }
 
-/** 同时段多次测量先保留候选，不擅自取平均、最低值或最后一条。 */
-export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], choices: Record<string, string> = {}, metric: "weightKg" | "bodyFatPercent" = "weightKg", dates: string[] = []) {
+/** 各时段共同采用最后保存的实测，实测优先于估计。 */
+export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], _choices: Record<string, string> = {}, metric: "weightKg" | "bodyFatPercent" = "weightKg", dates: string[] = []) {
+  void _choices;
   const groups = new Map<string, { date: string; daytime: T[]; evening: T[] }>();
-  for (const record of records) {
+  for (const record of adoptedMeasurements(records)) {
     const group = groups.get(record.recordDate) ?? { date: record.recordDate, daytime: [], evening: [] };
     group[record.period].push(record);
     groups.set(record.recordDate, group);
@@ -44,8 +57,7 @@ export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], c
     const pick = (period: MeasurementPeriod) => {
       const candidates = group[period];
       const observed = candidates.filter((row) => row.recordKind !== "estimated");
-      const selected = observed.find((row) => row.id === choices[`${group.date}:${period}`])
-        ?? (observed.length === 1 ? observed[0] : null);
+      const selected = latestMeasurement(observed);
       if (observed.length && !selected) return null;
       if (selected && (selected[metric] !== null || selected.fasting !== (period === "daytime"))) return selected;
       return estimates.find((row) => row.period === period && row[metric] !== null) ?? selected;
@@ -55,7 +67,7 @@ export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], c
     return {
       ...group, records: allRecords, daytimeRecord: daytime, eveningRecord: evening,
       weightDifferenceKg: measurementWeightDifference(daytime, evening),
-      needsSelection: (["daytime", "evening"] as const).some((period) => group[period].filter((row) => row.recordKind !== "estimated").length > 1 && !group[period].some((row) => row.recordKind !== "estimated" && row.id === choices[`${group.date}:${period}`])),
+      needsSelection: false,
     };
   });
 }

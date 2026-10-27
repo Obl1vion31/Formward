@@ -1,3 +1,6 @@
+import {numberChangeMessages} from "../../components/number-change";
+import {adoptedMeasurements} from "./days";
+import { latestMeasurement } from "./days";
 import { createHash, randomUUID } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import type { Database } from "../../db/client";
@@ -14,7 +17,7 @@ import { MeasurementSourceError } from "./sources";
 type SingleInput = ({ kind: "save_day" } & SaveMeasurementDayInput) | ({ kind: "estimate_cell" } & EstimateCellInput);
 export type ReviewInput = ({ kind: "save_record"; date: string; period: "daytime" | "evening" } & PeriodEdit) | { kind: "estimate_cell"; date: string; period: "daytime" | "evening"; metric: "weightKg" | "bodyFatPercent" };
 export type AiMeasurementInput = SingleInput | { kind: "batch"; operationId: string; items: ReviewInput[] };
-type PreviewRow = { period: "daytime" | "evening"; state: "new" | "edit" | "supplement" | "duplicate" | "conflict" | "estimate" | "invalid"; before: Record<string, unknown> | null; after: Record<string, unknown> | null; message: string; replacedEstimates?: Record<string, unknown>[] };
+type PreviewRow = { period: "daytime" | "evening"; state: "new" | "edit" | "supplement" | "duplicate" | "conflict" | "estimate" | "invalid"; before: Record<string, unknown> | null; after: Record<string, unknown> | null; message: string; warnings?:string[]; replacedEstimates?: Record<string, unknown>[] };
 type InputIssue = { field: string; code: string; message: string; period?: "daytime" | "evening" };
 export type OperationPreview = { date: string; kind: AiMeasurementInput["kind"]; canConfirm: boolean; rows: PreviewRow[]; message: string; needsUserInput?: InputIssue[]; defaultTimezone?: string; resolved?: SaveMeasurementDayInput; explanation?: ReturnType<typeof estimateUserExplanation>; items?: ReviewItem[] };
 export type ReviewItem = { id: string; input: ReviewInput; originalInput: ReviewInput; status: "pending" | "confirmed" | "cancelled" | "skipped"; preview: OperationPreview; editedBy?: { userId: string; at: string }; result?: { saved: number; message: string; confirmedAt: string } };
@@ -87,12 +90,11 @@ async function previewOperation(tx: MeasurementTransaction, userId: string, inpu
     const active = samePeriod.filter(row => !row.deletedAt);
     let edit = requested, state: PreviewRow["state"] = requested.recordId ? "edit" : "new";
     if (!requested.recordId && active.length) {
-      const matching = active.find(row => fields.every(field => !Object.hasOwn(requested, field) || (period === "evening" && field === "fasting" ? row.fasting === false : row[field] === requested[field])));
-      const supplement = active.length === 1 && fields.every(field => !Object.hasOwn(requested, field) || (period === "evening" && field === "fasting") || active[0][field] === null || active[0][field] === requested[field]) ? active[0] : null;
-      const target = matching ?? supplement;
-      if (!target) { rows.push({ period, state: "conflict", before: active.length === 1 ? measurementDisplay(active[0]) : { candidates: active.map(measurementDisplay) }, after: requested, message: "已有不同实测或多个候选。请查询后明确指定 recordId 和 version，再提交修改。" }); continue; }
+      const target=latestMeasurement(active)!;
+      const matching=fields.every(field=>!Object.hasOwn(requested,field)||target[field]===requested[field]);
+      const supplement=fields.every(field=>!Object.hasOwn(requested,field)||target[field]===null||target[field]===requested[field]);
       edit = { ...requested, recordId: target.id, version: target.updatedAt.toISOString() };
-      state = matching ? "duplicate" : "supplement";
+      state = matching ? "duplicate" : supplement?"supplement":"edit";
     }
     const plan = await prepareMeasurementDay(tx, actor, { ...resolved, periods: { [period]: edit } }).then(plans => plans[0]).catch(error => {
       if (!(error instanceof MeasurementSourceError)) throw error;
@@ -106,7 +108,8 @@ async function previewOperation(tx: MeasurementTransaction, userId: string, inpu
     }
     if (plan.before && fields.every(field => plan.before![field] === (field === "deviceLabel" ? plan.deviceLabel : plan.valid[field]))) state = "duplicate";
     const replacedEstimates = state === "duplicate" ? [] : records.filter(row => !row.deletedAt && row.recordDate === input.date && row.period === period && row.recordKind === "estimated").map(row => ({ id: row.id, weightKg: plan.valid.weightKg !== null ? row.weightKg : null, bodyFatPercent: plan.valid.bodyFatPercent !== null ? row.bodyFatPercent : null })).filter(row => row.weightKg !== null || row.bodyFatPercent !== null);
-    rows.push({ period, state, before: plan.before ? measurementDisplay(plan.before) : null, after: { weightKg: plan.valid.weightKg, bodyFatPercent: plan.valid.bodyFatPercent, fasting: plan.valid.fasting, deviceLabel: plan.deviceLabel, timezone: plan.valid.timezone, timezoneLabel: timezoneLabel(plan.valid.timezone, input.date, plan.time ? plan.time.utcOffsetMinutes : plan.before?.utcOffsetMinutes) }, replacedEstimates, message: state === "duplicate" ? "已记录相同内容，将跳过。" : state === "supplement" ? "补充缺失字段，保留已有值。" : state === "edit" ? "修改明确指定的历史记录。" : "新增实测，其他未知项保持空白。" });
+    const warnings=numberChangeMessages(entryMetrics.map(metric=>({label:metric==="weightKg"?"体重":"体脂",unit:metric==="weightKg"?"kg":"%",value:plan.valid[metric],previous:plan.before?.[metric]??adoptedMeasurements(records).filter(row=>row.recordKind==="observed"&&row.period===period&&row.recordDate<=input.date&&row[metric]!=null).sort((a,b)=>b.recordDate.localeCompare(a.recordDate))[0]?.[metric]})));
+    rows.push({ period, state, warnings, before: plan.before ? measurementDisplay(plan.before) : null, after: { weightKg: plan.valid.weightKg, bodyFatPercent: plan.valid.bodyFatPercent, fasting: plan.valid.fasting, deviceLabel: plan.deviceLabel, timezone: plan.valid.timezone, timezoneLabel: timezoneLabel(plan.valid.timezone, input.date, plan.time ? plan.time.utcOffsetMinutes : plan.before?.utcOffsetMinutes) }, replacedEstimates, message: state === "duplicate" ? "已记录相同内容，将跳过。" : state === "supplement"?"补充缺失字段，保留其他已保存数值。":state === "edit" ? "覆盖这个时段的记录，遗漏项保留。" : "新增实测，其他未知项保持空白。" });
     if (state !== "duplicate") resolved.periods[period] = edit;
   }
   const conflict = rows.some(row => row.state === "conflict" || row.state === "invalid"), hasChanges = Object.keys(resolved.periods).length > 0;
@@ -257,6 +260,9 @@ function combinedPreview(kind: AiMeasurementInput["kind"], items: ReviewItem[]):
     message: counts.pending ? counts.issues ? `${counts.issues} 条需要修改或取消，其他有效记录可以逐条保存。` : "核对后可逐条确认，也可一次保存剩余记录。" : counts.saved ? "已完成本次审核，请查看每条记录的结果。" : "无需保存，或待处理记录已取消。" };
 }
 async function rebuildItems(tx: MeasurementTransaction, userId: string, items: ReviewItem[], records: typeof measurement.$inferSelect[]) {
+  const slots=new Map<string,ReviewItem[]>();
+  for(const item of items.filter(item=>item.status==="pending"&&item.input.kind==="save_record")){const key=item.input.date+":"+item.input.period;slots.set(key,[...(slots.get(key)??[]),item]);}
+  for(const entries of slots.values())if(entries.length>1){const last=entries.at(-1)!;last.input=Object.assign({},...entries.map(item=>item.input));for(const earlier of entries.slice(0,-1)){earlier.status="skipped";earlier.preview={...earlier.preview,canConfirm:false,message:"同一时段的内容已合并到本次后面的修改。",rows:[]};}}
   for (const item of items.filter(item => item.status === "pending")) {
     try {
       item.preview = await previewOperation(tx, userId, singleInput(item.input), records);

@@ -1,8 +1,10 @@
 "use client";
+import {confirmNumbers} from "@/components/number-change";
 import { useDraftGuard } from "@/components/draft-guard";
 import { RecordDateContext } from "@/components/record-date-context";
+import { mealTypeLabel } from "./model";
 import { useId, useRef, useState } from "react";
-import { decimal, defaultFoodQuantity, emptyNutrition, foodSpecification, formatNutrition, metricLabels, metrics, scaled, nutritionFor, sumNutrition, type FoodView, type ItemDraft, type ItemView, type MealDraft } from "./model";
+import { decimal, defaultFoodQuantity, emptyNutrition, foodSpecification, formatNutrition, metricLabels, metrics, scaled, nutritionFor, sumNutrition, type FoodView, type ItemDraft, type ItemView, type MealView,type MealDraft } from "./model";
 import {editorDecimal,editorItem,freeEditorItem,mealEditorInput,type EditorItem,type EditorMeal} from "./meal-editor-state";
 import { PhotoFields } from "./photos";
 import styles from "./meals.module.css";
@@ -10,9 +12,10 @@ const dragType="application/x-formward-food";
 function Cell({value,label,placeholder="—",numeric=false,required=false,description,change}:{value:string;label:string;placeholder?:string;numeric?:boolean;blank?:boolean;required?:boolean;description?:string;change:(value:string)=>void}) {
  return <input aria-label={label} aria-describedby={description} placeholder={placeholder} value={value} type={numeric?"number":"text"} min={numeric?"0":undefined} max={numeric?"1000000":undefined} step={numeric?"0.0001":undefined} inputMode={numeric?"decimal":undefined} required={required} maxLength={numeric?undefined:200} onChange={event=>change(event.target.value)} onKeyDown={event=>{if(event.key==="Enter"){event.preventDefault();event.currentTarget.blur();}}}/>;
 }
-export function MealEditor({ initial, foods, historicalFoods=[], historicalItems=[], foodRefs={}, submitLabel="保存餐次", error, busy, save }: { initial:MealDraft;foods:FoodView[];historicalFoods?:FoodView[];historicalItems?:ItemView[];foodRefs?:Record<string,FoodView>;submitLabel?:string;error:string;busy:boolean;save:(input:MealDraft,allowMissingImages?:boolean)=>Promise<void> }) {
+export function MealEditor({ initial, foods, historicalFoods=[], historicalItems=[], foodRefs={}, recentMeals=[], submitLabel="保存餐次", error, busy, save }: { initial:MealDraft;foods:FoodView[];historicalFoods?:FoodView[];historicalItems?:ItemView[];foodRefs?:Record<string,FoodView>;recentMeals?:MealView[];submitLabel?:string;error:string;busy:boolean;save:(input:MealDraft,allowMissingImages?:boolean)=>Promise<void> }) {
+ const numberAcknowledgements=useRef(new Set<string>());
  const [openedOn]=useState(()=>new Date().toLocaleDateString("en-CA"));
- const [draft,setDraft]=useState<EditorMeal>(()=>({...structuredClone(initial),items:[...initial.items.map((item,index)=>{
+ const [draft,setDraft]=useState<EditorMeal>(()=>({...structuredClone(initial),mealType:mealTypeLabel(initial.mealType),items:[...initial.items.map((item,index)=>{
   const saved=item.originalItemId?historicalItems.find(previous=>previous.id===item.originalItemId):historicalItems[index];
   return editorItem(item,index,saved?.nutrition,!!(item.foodId||item.foodRef||item.foodDraft||saved?.foodSnapshot));
  }),freeEditorItem(initial.items.length)]}));
@@ -43,7 +46,7 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
  const results=foods.filter(food=>!food.deletedAt&&(category==="all"||(food.category??"ingredient")===category)&&`${food.name} ${food.brand??""} ${food.preparation??""}`.toLowerCase().includes(query.trim().toLowerCase()));
  const entered=draft.items.filter(item=>item.name.trim()),totals=sumNutrition(entered.map(values));
 
- return <form className={`${styles.form} ${styles.mealForm}`} aria-busy={busy} onSubmit={event=>{event.preventDefault();if(!entered.length)return;void save(mealEditorInput(draft),true);}}><fieldset disabled={busy||uploading}>
+ return <form className={`${styles.form} ${styles.mealForm}`} aria-busy={busy} onSubmit={event=>{event.preventDefault();if(!entered.length)return;const original=historicalItems.length?sumNutrition(historicalItems.map(item=>item.nutrition)):recentMeals.filter(meal=>meal.date<=draft.date&&!meal.deletedAt&&mealTypeLabel(meal.mealType)===mealTypeLabel(draft.mealType)).sort((a,b)=>b.date.localeCompare(a.date))[0]?.totals;if(!confirmNumbers(metrics.map(metric=>({label:metricLabels[metric],unit:metric==="caloriesKcal"?"kcal":"g",value:totals.values[metric],previous:original?.values[metric]})),numberAcknowledgements.current))return;void save(mealEditorInput(draft),true);}}><fieldset disabled={busy||uploading}>
  <RecordDateContext date={draft.date} openedOn={openedOn}/><div className={styles.formColumns}><label>日期<input type="date" required value={draft.date} onChange={event=>setDraft({...draft,date:event.target.value,occurredAt:null})}/></label><label>餐次<input aria-label="餐次" required maxLength={50} list="meal-types" value={draft.mealType} onChange={event=>setDraft({...draft,mealType:event.target.value})}/><datalist id="meal-types">{["早餐","午餐","晚餐","加餐","夜宵"].map(name=><option key={name}>{name}</option>)}</datalist></label></div>
  <p className={styles.hint}>选择食材库，或直接填写食物及本次总营养。</p>
  <div className={styles.entryPaths}><button type="button" aria-pressed={step==="picker"} onClick={()=>setStep("picker")}>选择食材库</button><button type="button" aria-pressed={step==="entry"} onClick={()=>setStep("entry")}>本餐 {entered.length} 项 →</button></div>
@@ -75,7 +78,7 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
         <PhotoFields expectedCount={draft.expectedImageCount} onExpected={expectedImageCount=>setDraft(previous=>({...previous,expectedImageCount}))} ids={draft.imageIds??[]} change={imageIds=>setDraft(previous=>({...previous,imageIds}))} busy={busy} onBusy={setUploading} onError={setPhotoError}/>
         {(error.includes("相同")||draft.allowDuplicate)&&<label className={styles.checkbox}><input type="checkbox" checked={Boolean(draft.allowDuplicate)} onChange={event=>setDraft({...draft,allowDuplicate:event.target.checked})}/>这是另一次进食，仍然新增</label>}
         {(draft.expectedImageCount??0)>(draft.imageIds?.length??0)&&<p className={styles.hint}>照片未齐，可直接保存文字，之后补传。</p>}
-        {photoError&&<p className={styles.hint}>{photoError} 可先保存文字。</p>}{error&&<p className={styles.error} role="alert">{error}</p>}<button disabled={!entered.length||uploading} className={styles.save} type="submit">{busy?"正在处理…":submitLabel==="更新预览"?submitLabel:submitLabel+" · "+draft.date}</button>
+        {photoError&&<p className={styles.hint}>{photoError} 可先保存文字。</p>}{error&&<p className={styles.error} role="alert">{error}</p>}<button disabled={!entered.length||uploading} className={styles.save} type="submit">{busy?"正在处理…":submitLabel==="应用修改"?submitLabel:submitLabel+" · "+draft.date}</button>
       </section>
     </div>
   </fieldset></form>;

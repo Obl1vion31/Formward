@@ -1,10 +1,12 @@
 "use client";
+import {energyVersions,verifyRecordVersions,acknowledgeRecordChanges} from "@/components/record-change-client";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { usePageLoading } from "@/components/page-loading-state";
 import { useLocalToday } from "@/components/use-local-today";
 import { useMobileMode } from "@/components/use-mobile-mode";
 import { preferredRecordedDate, rangeContaining, recentRecordDates, pendingRecordDates } from "@/components/record-dates";
+import {useChartDrag} from "@/components/use-chart-drag";
 import { useChartMotion } from "@/components/use-chart-motion";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
@@ -17,10 +19,10 @@ import { chartScale } from "@/components/chart-scale";
 import type { EnergyPresentation } from "./presentation";
 import type { Result } from "../meals/model";
 import { EnergyEditor } from "./energy-editor";
-import { blankEnergyDay, energyValue, type EnergyAction, type EnergyDay, type EnergyInput } from "./model";
+import { activityReadings, blankEnergyDay, energyValue, type EnergyAction, type EnergyDay, type EnergyInput } from "./model";
 import styles from "./energy.module.css";
 
-export type SaveEnergy = (input: EnergyInput) => Promise<Result<{ presentation: EnergyPresentation; message: string }>>;
+export type SaveEnergy = (input: EnergyInput) => Promise<Result<{ presentation: EnergyPresentation; message: string;changedKeys?:string[] }>>;
 export function EnergySources({ day }: { day: EnergyDay }) {
   const rest = day.record?.restingSourceSystem ?? day.record?.sourceSystem;
   const active = day.activeSource === "activities" ? [...new Set(day.activities.map(row => row.sourceSystem).filter(Boolean))].join("、") : day.record?.activeSourceSystem ?? day.record?.sourceSystem;
@@ -43,12 +45,15 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
   const [editing, setEditing] = useState<EnergyAction | null>(null), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [busy, startTransition] = useTransition(), guard = useRef(false), request = useRef<{ content: string; id: string } | null>(null);
   const [mode, setMode] = useState<string | null>(null), [custom, setCustom] = useState({ from: addCalendarDays(initialDate ?? today, -29), to: initialDate ?? today });
+  const [customOpen,setCustomOpen]=useState(false),[customDraft,setCustomDraft]=useState(custom);
+  let customValid=false;try{const n=calendarOrdinal(customDraft.to)-calendarOrdinal(customDraft.from)+1;customValid=n>0&&n<=3661;}catch{}
   const end = initialDate ?? today, range = mode ?? rangeContaining(initialDate ?? latest, end, mobile ? "7" : "30");
   const earliest = [end, today, ...state.days.map(day => day.date), ...state.activities.map(row => row.date)].sort()[0];
   const from = range === "all" ? earliest : range === "custom" ? custom.from : addCalendarDays(end, 1 - Number(range)), to = range === "custom" ? custom.to : end;
   const dates = useMemo(() => { try { const length = calendarOrdinal(to) - calendarOrdinal(from) + 1; return length > 0 && length <= 3661 ? Array.from({ length }, (_, index) => addCalendarDays(from, index)) : []; } catch { return []; } }, [from, to]);
   const chartDays = dates.map(date => byDate.get(date) ?? blankEnergyDay(date));
   const selection=useChartDateSelection(dates,initialDate??latest,preferredRecordedDate(chartDays,today,day=>day.totalKcal!==null,day=>!!day.record||day.activities.length>0)),inspected=selection.selected,chosen=chartDays.find(day=>day.date===inspected);
+  useEffect(()=>{const latest=()=>{setEditing(null);setViewing(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
   const historyDates=[...new Set([...recentRecordDates(today),...state.days.filter(d=>!d.deletedAt).map(d=>d.date),...state.activities.filter(a=>!a.deletedAt).map(a=>a.date)])].sort().reverse();
   usePageLoading({ active: busy, label: "正在保存消耗记录…" });
   function edit(action: EnergyAction) { setError(""); setNotice(""); setEditing(action); }
@@ -59,25 +64,26 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
   function execute(input: EnergyAction | EnergyAction[]) {
     const actions = Array.isArray(input) ? input : [input];
     if (guard.current) return; guard.current = true; setError(""); setNotice("");
-    const content = JSON.stringify(actions); if (request.current?.content !== content) request.current = { content, id: crypto.randomUUID() };
-    const operationId = request.current.id;
     startTransition(async () => {
-      try { const result = await save({ operationId, actions }); if (!result.ok) { setError(result.error); return; } setLocal(result.data.presentation); const changed = actions.find(action => "date" in action); if (changed && "date" in changed) selection.choose(changed.date); setNotice(result.data.message); setEditing(null); request.current = null; }
+      try { const expected=actions.flatMap(action=>(action.kind==="save_energy_day"||action.id&&action.version)?[{key:action.kind.includes("energy_day")?"energyDay:"+("date" in action?action.date:state.days.find(d=>d.id===action.id)?.date):"activity:"+action.id,version:action.version?String(action.version):null}]:[]);
+        const latest=await verifyRecordVersions(expected);const current=actions.map(action=>{const stamp=latest.get(action.kind.includes("energy_day")?"energyDay:"+("date" in action?action.date:state.days.find(d=>d.id===action.id)?.date):"activity:"+action.id);return stamp?{...action,id:stamp.id,version:Number(stamp.version)}:action;});
+        const content=JSON.stringify(current);if(request.current?.content!==content)request.current={content,id:crypto.randomUUID()};
+        const result = await save({ operationId:request.current.id, actions:current }); if (!result.ok) { setError(result.error); return; } acknowledgeRecordChanges(result.data.changedKeys??actions.map(action=>action.kind.includes("energy_day")?"energyDay:"+("date" in action?action.date:state.days.find(d=>d.id===action.id)?.date):"activity:"+(action.id??result.data.presentation.snapshot.activities.find(a=>!state.activities.some(old=>old.id===a.id)&&"name" in action&&a.name===action.name)?.id)),energyVersions(result.data.presentation.snapshot));setLocal(result.data.presentation); const changed = actions.find(action => "date" in action); if (changed && "date" in changed) selection.choose(changed.date); setNotice(result.data.message); setEditing(null); request.current = null; }
       catch { setError("保存未完成，当前输入已保留，请重试。"); }
       finally { guard.current = false; }
     });
   }
-  function activityEdit(activity:EnergyDay["activities"][number]){const {deletedAt,syncStatus,inclusionBasis,...fields}=activity;void deletedAt;void syncStatus;void inclusionBasis;edit({kind:"save_activity",...fields});}
+  function activityEdit(activity:EnergyDay["activities"][number]){const {deletedAt,syncStatus,inclusionBasis,...fields}=activity;void deletedAt;void syncStatus;void inclusionBasis;edit({kind:"save_activity",...fields,calorieMode:fields.calorieMode??undefined});}
   function removeRecord(action:EnergyAction,label:string){if(window.confirm("永久删除"+label+"？此操作无法恢复。"))execute(action);}
   const summary=(date:string)=>{const day=byDate.get(date);return day?<>{energyValue(day.totalKcal)} kcal · 静息 {energyValue(day.restingKcal)} · 活动 {energyValue(day.activeKcal)}</>:"尚无记录";};
   const recentDates=pendingRecordDates(today,date=>byDate.get(date)?.totalKcal==null);
   const renderDay=(date:string)=>{const day=byDate.get(date);return <DailyRecordRow key={date} date={date} today={today} value={summary(date)}><button disabled={busy} onClick={()=>editDay(date)}>{day?.record?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>setViewing(date)}>查看</button></DailyRecordRow>;};
-  const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <><h3>{date.replaceAll("-",".")}</h3><div className={styles.summary}>{([["总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>kcal</small></strong></div>)}</div><EnergySources day={day}/><div className={styles.actions}><button onClick={()=>editDay(date)}>{day.record?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>editDay(date,true)}>添加活动</button></div>{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=><article key={activity.id} className={styles.row}><div><h3>{activity.name}</h3><p>{activity.durationMinutes!==null?Number(activity.durationMinutes)+" 分钟 · ":""}{activity.sourceSystem}{!activity.completed?" · 未完成":""}{activity.inclusion==="included"?" · 已包含":activity.inclusion==="additional"?" · 额外增加":""}</p></div><strong>{energyValue(activity.caloriesKcal)}<small>kcal</small></strong><div className={styles.actions}><button onClick={()=>activityEdit(activity)}>编辑活动</button><button disabled={busy} onClick={()=>removeRecord({kind:"delete_activity",id:activity.id,version:activity.version},activity.name)}>删除活动</button></div></article>)}{day.record&&<details className={styles.details}><summary>更多操作</summary><button disabled={busy} onClick={()=>removeRecord({kind:"delete_energy_day",id:day.record!.id,version:day.record!.version},date+" 消耗记录")}>永久删除日记录</button></details>}</>;};
+  const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <><h3>{date.replaceAll("-",".")}</h3><div className={styles.summary}>{([["总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>kcal</small></strong></div>)}</div><EnergySources day={day}/><div className={styles.actions}><button onClick={()=>editDay(date)}>{day.record?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>editDay(date,true)}>添加活动</button></div>{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=><article key={activity.id} className={styles.row}><div><h3>{activity.name}</h3><p>{activity.durationMinutes!==null?Number(activity.durationMinutes)+" 分钟 · ":""}{activity.sourceSystem}{!activity.completed?" · 未完成":""}{activity.inclusion==="included"?" · 已包含":activity.inclusion==="additional"?" · 额外增加":""}</p></div><strong>{energyValue(activityReadings(activity).totalKcal)}<small>kcal</small>{activity.calorieMode==="components"&&<small>计入当天 {energyValue(activityReadings(activity).countedKcal)} kcal</small>}</strong><div className={styles.actions}><button onClick={()=>activityEdit(activity)}>编辑活动</button><button disabled={busy} onClick={()=>removeRecord({kind:"delete_activity",id:activity.id,version:activity.version},activity.name)}>删除活动</button></div></article>)}{day.record&&<details className={styles.details}><summary>更多操作</summary><button disabled={busy} onClick={()=>removeRecord({kind:"delete_energy_day",id:day.record!.id,version:day.record!.version},date+" 消耗记录")}>永久删除日记录</button></details>}</>;};
   return <section className={styles.workspace}>
     <header className={styles.heading}><h1>消耗</h1></header>
     {error && !editing && <p className={styles.error} role="alert">{error}</p>}{notice && <p className={styles.notice} role="status">{notice}</p>}
-    <section className={styles.section} aria-label="消耗历史趋势" data-chart-selection={selection.regionId} data-selected-date={selection.selected} data-pinned-date={selection.pinned??undefined}><div className={styles.title}><div className={styles.title}><h2>每日消耗</h2><time>{from.replaceAll("-", ".")} — {to.replaceAll("-", ".")}</time></div><ChartRanges className={styles.ranges} value={range} change={setMode}/></div>
-      {range === "custom" && <div className={styles.custom}><label>开始<input type="date" aria-label="消耗开始日期" value={custom.from} onChange={event => setCustom({ ...custom, from: event.target.value })} /></label><label>结束<input type="date" aria-label="消耗结束日期" value={custom.to} onChange={event => setCustom({ ...custom, to: event.target.value })} /></label></div>}
+    <section className={styles.section} aria-label="消耗历史趋势" data-chart-selection={selection.regionId} data-selected-date={selection.selected} data-pinned-date={selection.pinned??undefined}><div className={styles.title}><div className={styles.title}><h2>每日消耗</h2><time>{from.replaceAll("-", ".")} — {to.replaceAll("-", ".")}</time></div><ChartRanges className={styles.ranges} value={range} change={key=>{if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/></div>
+      {customOpen&&<form className={styles.custom} data-chart-controls onSubmit={event=>{event.preventDefault();if(customValid){setCustom(customDraft);setMode("custom");setCustomOpen(false);}}}><label>开始<input type="date" aria-label="消耗开始日期" value={customDraft.from} onChange={event=>setCustomDraft({...customDraft,from:event.target.value})}/></label><label>结束<input type="date" aria-label="消耗结束日期" value={customDraft.to} onChange={event=>setCustomDraft({...customDraft,to:event.target.value})}/></label><button disabled={!customValid} type="submit">应用</button><button type="button" onClick={()=>setCustomOpen(false)}>取消</button></form>}
       {!dates.length?<p className={styles.empty}>请选择有效日期范围，最长10年。</p>:<><SelectedDateHeading date={inspected} view={()=>setViewing(inspected)}/><div className={styles.readout} role="group" aria-label="选中日消耗" aria-live="polite" aria-atomic="true">{([["总消耗",chosen?.totalKcal],["静息",chosen?.restingKcal],["活动",chosen?.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>kcal</small></strong>{(label==="静息"&&chosen?.record?.restingEstimated||label==="总消耗"&&chosen?.estimated)&&<small>估计</small>}</div>)}</div><div className={styles.legend}><span><i style={{background:"#6C96B3"}}/>静息</span><span><i style={{background:"#C07B77"}}/>活动</span><span><i style={{background:"#9EAAA9"}}/>录入总消耗</span></div><EnergyPlot days={chartDays} selected={inspected} selection={selection}/></>}
     </section>
     <DailyRecords history={<RecordHistory today={today} dates={historyDates.filter(date=>!recentDates.includes(date))} renderRow={renderDay} view={setViewing}/>}>{recentDates.map(renderDay)}</DailyRecords>
@@ -93,9 +99,10 @@ function EnergyPlot({ days, selected, selection }: { days: EnergyDay[]; selected
   const stride = Math.max(1, Math.ceil((days.length - 1) / (width < 440 ? 3 : 6)));
   const scale = chartScale(days.flatMap(day => [day.restingKcal == null && day.activeKcal == null ? null : Number(day.restingKcal ?? 0) + Number(day.activeKcal ?? 0), day.totalKcal]));
   const w = width || 280, left = 56, right = 12, slot = (w - left - right) / days.length, maximum = scale.max;
+  const drag=useChartDrag(days.map(day=>day.date),w,left,right,selection.pin);
   const bottom = w < 650 ? 164 : 220;
   const y = (value: number) => bottom - value / maximum * (bottom - 30), barWidth = Math.min(30, slot * .65), x = (index: number) => left + (index + .5) * slot;
-  return <div className={styles.plot} ref={container} onMouseLeave={selection.leave}><svg viewBox={`0 0 ${w} ${bottom + 34}`} style={{ visibility: width ? undefined : "hidden" }} role="group" aria-label="每日消耗柱状图">
+  return <div className={styles.plot} ref={container} onMouseLeave={selection.leave}><svg {...drag} viewBox={`0 0 ${w} ${bottom + 34}`} style={{ touchAction:"pan-y", visibility: width ? undefined : "hidden" }} role="group" aria-label="每日消耗柱状图">
     {scale.ticks.map(tick => <g key={tick}><line x1={left} x2={w - right} y1={y(tick)} y2={y(tick)} className={styles.grid} /><text x={left - 7} y={y(tick) + 4} textAnchor="end" className={styles.axis}>{tick}</text></g>)}<text x={left - 7} y="15" textAnchor="end" className={styles.axis}>kcal</text>
     {days.map((day, index) => { const resting = Number(day.restingKcal ?? 0), active = Number(day.activeKcal ?? 0), onlyTotal = day.restingKcal === null && day.activeKcal === null && day.totalKcal !== null; return <g key={day.date} role="button" tabIndex={day.date === selected ? 0 : -1} data-energy-date={day.date} aria-label={`${day.date} · 总消耗 ${day.totalKcal ?? "未填写"} kcal`} data-chart-date={day.date} onMouseEnter={()=>selection.preview(day.date)} onFocus={()=>selection.choose(day.date)} onClick={()=>selection.pin(day.date)} onKeyDown={event=>selection.keyDown(event,day.date)}>
       <rect className={styles.hit} x={left + index * slot} y="22" width={slot} height={bottom - 18} />

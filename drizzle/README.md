@@ -4,7 +4,7 @@
 
 本目录保存由 Drizzle Kit 生成并纳入版本控制的 PostgreSQL migration 历史。生成的迁移子目录和快照属于工具产物，无需单独 README；已进入共享环境的 migration 不再修改。
 
-当前schema至0022，共37张应用表，另有Drizzle迁移账本。迁移可从既有来源初始化建议元数据；个人历史初始化通过明确范围的业务审核处理，不能把个人数值写进公共migration。网页、HTTP和MCP共用`src/features`的业务写入与审计。
+当前schema至0026，共39张应用表，另有Drizzle迁移账本。迁移可从既有来源初始化建议元数据；个人历史初始化通过明确范围的业务审核处理，不能把个人数值写进公共migration。网页、HTTP和MCP共用`src/features`的业务写入与审计。
 
 `0000_flat_hawkeye.sql` 建立内部账号、凭据、会话和 verification 表；`0001_broken_moira_mactaggert.sql` 建立身体测量、导入批次与写入事件表，以及数值校验、账号归属与去重约束。`0002_complete_lockjaw.sql` 增加实测／估计、录入入口、设备、连接应用及模型信息，并约束有效估计时段唯一、占位时间不生成 UTC。`0003_pretty_mister_sinister.sql` 首次放开仅体脂估计。`0004_dapper_valeria_richards.sql` 增加批次初始化元数据，并以部分唯一索引约束每账号至多一次初始化；报告与冻结范围持久保存。`0005_medical_beyonder.sql` 支持仅体脂实测，要求每条测量至少有体重／体脂之一；新增按账号／日期唯一的空白日期与提醒状态表，以及请求内容摘要。`meta/` 是生成的快照与 journal，随 migration 纳入版本控制。生成命令为 `pnpm db:generate`，执行命令为 `pnpm db:migrate`，连接配置见 `docs/auth-setup.md`。
 
@@ -43,3 +43,5 @@
 0023_amused_master_mold新增meal_days／meal_day_events，保存每天是否记完、版本与餐次摘要、幂等和审计；39张应用表加迁移账本。用户确认截至2026-10-23已有有效餐次的历史日期视为已记完，migration只建结构；指定授权账号的一次性维护初始化状态，空日不建、其他账号不处理；旧表与所有健康事实保持。后续餐次保存与状态失效同一事务，不能沿用历史默认。
 
 0024_tan_starjammers只增加六列：foods包装换算、meal_items每份输入口径与营养、activities包含关系与基准；配对约束拒绝半套元数据。旧行默认consumed_total或null，旧营养、数量、时间、来源和审计不变，无个人数值回填。
+
+0026_dark_tana_nile只增加activities三列：calorie_mode、resting_kcal、active_kcal及非负／模式约束，旧行NULL，不回算旧运动，不新增表。migration纳入版本控制后才允许生产执行，先备份、后核对原列和健康事实。

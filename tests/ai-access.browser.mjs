@@ -79,7 +79,7 @@ export async function checkAiAccessBrowser({ baseURL, account, other, date }) {
     await editor.getByRole("button",{name:"移除来源建议 虚构 AI 晚间秤",exact:true}).click();
     await page.waitForFunction(()=>!document.querySelector('[aria-label="移除来源建议 虚构 AI 晚间秤"]'));
     assert.equal(await editor.getByLabel("体重（kg）").inputValue(),"72.34");assert.equal(await source.inputValue(),"");
-    await editor.getByRole("button",{name:"更新预览",exact:true}).click();await editor.waitFor({state:"hidden"});
+    await editor.getByRole("button",{name:"应用修改",exact:true}).click();await editor.waitFor({state:"hidden"});
     assert.equal((await read()).length,2);
     await page.getByRole("button",{name:"确认保存",exact:true}).click();await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
     assert.equal((await read()).find(record=>record.recordDate===nextDate(6)).deviceLabel,null);

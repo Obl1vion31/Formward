@@ -6,7 +6,7 @@
 
 修改工具时同步 AI 接入说明、权限声明和隔离测试；不得在工具中另写健康数据规则或向模型返回凭据。
 
-饮食增加search_foods、query_meals、submit_meal_operation、get_meal_operation，复用meals feature；工具声明meals:read／meals:write，原身体授权不自动扩权。服务版本1.10.0，写入均返回网页登录确认链接，普通记餐只创建餐次，明确要求入库才另建食材库项目；reference 支持手动合并来源，AI label／composition_table 保留。食材描述保留实际组成、规格、各成分分量及来源／计算／结果，不写录入背景或无关排除清单。
+饮食增加search_foods、query_meals、submit_meal_operation、get_meal_operation，复用meals feature；工具声明meals:read／meals:write，原身体授权不自动扩权。服务版本1.11.0，写入均返回网页登录确认链接，普通记餐只创建餐次，明确要求入库才另建食材库项目；reference 支持手动合并来源，AI label／composition_table 保留。食材描述保留实际组成、规格、各成分分量及来源／计算／结果，不写录入背景或无关排除清单。
 
 import_meal_images沿用meals:write，顶层files声明openai/fileParams，最多20 MiB，下载并私有保存原图后返回附件ID、status及逐文件failures；部分成功保留成功ID，只重试失败项。日志记录工具名、文件结构和阶段错误，不记录下载地址或健康内容；不直接保存餐次。成功附件仍须提交到对应餐次预览，已有餐次用id/version更新；预览含图时说明待网页确认，用户确认后查询最新审核／餐次再报告关联状态。照片不要求五项勾选，缺图可直接保存文字；只有真实缺失、重复或包含关系问题阻止保存。search_foods返回兼容的空presets；query_meals可传timezone取得日期上下文。
 

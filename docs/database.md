@@ -1,5 +1,10 @@
 # 数据库连接与字段字典
 
+## 运动分项存储
+
+0026_dark_tana_nile为activities增加calorie_mode、resting_kcal、active_kcal，均可空，旧记录不回填。TypeScript对应calorieMode、exerciseRestingKcal、exerciseActiveKcal，避免与日记录混淆。原calories_kcal保存运动总数；分项模式总数由两项已知时形成，计入值由纯运动产生，未知保持空。账号、来源、版本和审计沿用。当前39张应用表另加Drizzle账本。身体旧实测通过既有deleted_at归档；单指标删除保留另一指标及审计。
+
+
 本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 39 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。

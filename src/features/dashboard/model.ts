@@ -1,4 +1,4 @@
-import { buildMeasurementDays } from "../measurements/days";
+import { adoptedMeasurements, buildMeasurementDays } from "../measurements/days";
 import { dailyTotals, emptyNutrition, type MealDayStatus, type MealView } from "../meals/model";
 import { measurementSummary } from "../measurements/summary";
 import { addCalendarDays } from "../measurements/calendar";
@@ -50,9 +50,9 @@ export function overviewDays(meals: MealView[], records: MeasurementDisplay[], d
   });
 }
 export function latestRealWeight(records: MeasurementDisplay[], today: string) {
-  return records.filter(record => record.recordKind !== "estimated" && record.weightKg !== null && record.recordDate <= today)
+  return adoptedMeasurements(records).filter(record => record.recordKind !== "estimated" && record.weightKg !== null && record.recordDate <= today)
     .sort((a,b) => b.recordDate.localeCompare(a.recordDate) || Number(b.period==="evening")-Number(a.period==="evening") || b.sourceLocalTime.localeCompare(a.sourceLocalTime) || b.id.localeCompare(a.id))[0] ?? null;
 }
 export function latestMorningWeight(records: MeasurementDisplay[], today: string) {
-  return latestRealWeight(records.filter(record => record.period === "daytime" && record.fasting === true), today);
+  return latestRealWeight(adoptedMeasurements(records).filter(record => record.period === "daytime" && record.fasting === true), today);
 }

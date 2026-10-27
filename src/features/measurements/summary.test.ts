@@ -48,12 +48,12 @@ test("不足两天不报变化，单点仍计算均值，无空腹或无有效�
   assert.equal(missing.companion?.weightKg, "75.00");
 });
 
-test("同日多条未选代表时排除，选择只计一个日值，均值按百分之一四舍五入", () => {
+test("同日多条统一采用最后保存，不因旧选择参数改变结果", () => {
   const records = [row("a", "2025-01-09", "75.00"), row("b", "2025-01-10", "75.01"), row("c", "2025-01-10", "80.00")];
-  assert.equal(measurementSummary(records, "weightKg").current?.id, "a");
+  assert.equal(measurementSummary(records, "weightKg").current?.id, "c");
   const chosen = measurementSummary(records, "weightKg", { "2025-01-10:daytime": "b" });
-  assert.equal(chosen.current?.id, "b");
+  assert.equal(chosen.current?.id, "c");
   assert.equal(chosen.coverage, 2);
-  assert.equal(chosen.average, 75.01);
-  assert.equal(chosen.change, .01);
+  assert.equal(chosen.average, 77.5);
+  assert.equal(chosen.change, 5);
 });

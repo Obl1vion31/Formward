@@ -1,3 +1,4 @@
+import {numberChangeMessages} from "../../components/number-change";
 import { retiredEnergyAction } from "./model";
 import { requireAiUpserts } from "../auth/ai-write-policy";
 import { createHash, randomUUID } from "node:crypto";
@@ -9,7 +10,7 @@ import { requireActiveAiToken } from "../auth/ai-tokens";
 import { lockOwner, type Transaction } from "../auth/owner-lock";
 import { rememberEnergySources } from "./sources";
 import { systemMeasurementTimezone, validateMeasurementTimezone } from "../measurements/timezone";
-import { energyDays, energyBaseline, ageOn, energyInputSchema, type EnergyAction, type EnergyInput, type EnergyOperationView, type EnergyPreview, type EnergyRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyProvenance } from "./model";
+import { energyDays, energyBaseline, activityCalories, activityCalorieFields, ageOn, energyInputSchema, type EnergyAction, type EnergyInput, type EnergyOperationView, type EnergyPreview, type EnergyRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyProvenance } from "./model";
 
 export type EnergyActor = { userId: string; origin: "manual" | "ai"; identity?: AiIdentity };
 function canonical(value: unknown): unknown {
@@ -85,7 +86,7 @@ export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnaps
       } else if (action.kind === "save_activity") {
         if (before?.deletedAt) throw new ApiError(409, "deleted", "请先恢复该活动。");
         const prior = before && "name" in before ? before : undefined;
-        row.after = { ...base, ...provenance(action, before), date: action.date, inclusion:prior?.inclusion??null,inclusionBasis:prior?.inclusionBasis??null,name: action.name, caloriesKcal: action.caloriesKcal === undefined ? prior?.caloriesKcal ?? null : action.caloriesKcal, durationMinutes: action.durationMinutes === undefined ? prior?.durationMinutes ?? null : action.durationMinutes, completed: action.completed ?? prior?.completed ?? true };
+        row.after = { ...base, ...provenance(action, before), date: action.date, inclusion:prior?.inclusion??null,inclusionBasis:prior?.inclusionBasis??null,name: action.name, ...activityCalorieFields(action, prior), durationMinutes: action.durationMinutes === undefined ? prior?.durationMinutes ?? null : action.durationMinutes, completed: action.completed ?? prior?.completed ?? true };
       } else {
         if (!before) throw new ApiError(404, "not_found", "记录不存在。");
         const deleting = action.kind.startsWith("delete_");
@@ -110,7 +111,7 @@ export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnaps
       record.inclusion=baseline?action.inclusion:null;record.inclusionBasis=record.inclusion?baseline:null;
     }
     const prior=row.before && "name" in row.before?row.before:undefined;
-    const energyChanged=!prior || prior.date!==record.date || Number(prior.caloriesKcal)!==Number(record.caloriesKcal) || (prior.caloriesKcal===null)!==(record.caloriesKcal===null) || prior.completed!==record.completed || !!prior.deletedAt!==!!record.deletedAt;
+    const energyChanged=!prior || prior.date!==record.date || Number(activityCalories(prior))!==Number(activityCalories(record)) || (activityCalories(prior)===null)!==(activityCalories(record)===null) || prior.completed!==record.completed || !!prior.deletedAt!==!!record.deletedAt;
     if(!record.deletedAt && record.completed && baseline && energyChanged && (!record.inclusion || record.inclusionBasis!==baseline)){
       row.coverageQuestions=[record];row.error="请确认“"+record.name+"”是否已包含在当天录入的总数中。";
     }
@@ -122,6 +123,11 @@ export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnaps
       const unresolved=state.activities.filter(activity=>!activity.deletedAt&&activity.completed&&activity.date===record.date&&(!activity.inclusion||activity.inclusionBasis!==baseline));
       if(unresolved.length){row.coverageQuestions=unresolved;row.error="总数或记录方式已改变，请核对 "+unresolved.length+" 项运动是否已包含。";}
     }
+  }
+  for(const row of rows)if(row.after&&!row.excluded){
+    const after=row.after;
+    if("date" in after&&"restingKcal" in after){const prior=row.before&&"restingKcal" in row.before&&"date" in row.before?row.before:snapshot.days.filter(day=>!day.deletedAt&&day.date<=after.date).sort((a,b)=>b.date.localeCompare(a.date))[0];row.warnings=numberChangeMessages((["restingKcal","activeKcal","totalKcal"] as const).map(key=>({label:key==="restingKcal"?"静息":key==="activeKcal"?"活动合计":"总消耗",unit:"kcal",value:after[key],previous:prior?.[key]})));}
+    else if("name" in after){const prior=row.before&&"name" in row.before?row.before:snapshot.activities.filter(a=>!a.deletedAt&&a.name===after.name&&a.date<=after.date).sort((a,b)=>b.date.localeCompare(a.date))[0];row.warnings=numberChangeMessages([{label:"本次运动计入",unit:"kcal",value:activityCalories(after),previous:prior?activityCalories(prior):null}]);}
   }
   for(const row of rows)if(row.after&&"date" in row.after&&"restingKcal" in row.after)row.day=energyDays(state,[],[row.after.date])[0];
   return rows;
@@ -193,7 +199,7 @@ async function write(tx: Transaction, userId: string, row: EnergyPreview) {
       if (row.before) await tx.update(energyDay).set(values).where(and(eq(energyDay.userId, userId), eq(energyDay.id, record.id)));
       else await tx.insert(energyDay).values({ id: record.id, userId, ...values });
     } else {
-      const values = { ...common, ...source, date: record.date, name: record.name, durationMinutes: record.durationMinutes, caloriesKcal: record.caloriesKcal, inclusion:record.inclusion??null,inclusionBasis:record.inclusionBasis??null,completed: record.completed };
+      const values = { ...common, ...source, date: record.date, name: record.name, durationMinutes: record.durationMinutes, caloriesKcal: record.caloriesKcal, calorieMode:record.calorieMode??null,exerciseRestingKcal:record.exerciseRestingKcal??null,exerciseActiveKcal:record.exerciseActiveKcal??null, inclusion:record.inclusion??null,inclusionBasis:record.inclusionBasis??null,completed: record.completed };
       if (row.before) await tx.update(activity).set(values).where(and(eq(activity.userId, userId), eq(activity.id, record.id)));
       else await tx.insert(activity).values({ id: record.id, userId, ...values });
     }
