@@ -2,7 +2,7 @@
 
 ## 当前维护：身体、运动与记录更新
 
-身体同槽覆盖和单项删除、运动分项／计入规则、90秒跨页更新和保存前核对已接入；常见餐次中文、AI应用修改、温和数值核对、手机横拖、自定义应用／取消及慢图登录保持现有布局。0026只新增activities三列和约束，旧运动不回算。当前隔离验证进行中，本轮尚未迁移和发布；完成状态以交接及验收记录为准。
+身体同槽覆盖和单项删除、运动分项／计入规则、90秒跨页更新和保存前核对已接入；常见餐次中文、AI应用修改、温和数值核对、手机横拖、自定义应用／取消及慢图登录保持现有布局。0026只新增activities三列和约束，旧运动不回算。本机379项单元／集成、必要网页和正式站双浏览器验证通过；0026已迁移并正式发布，原有健康数据和审计核对保持。详见交接及验收记录。
 
 
 Formward采用Next.js16.3.7、React、TypeScript、Node.js24.21.0和pnpm9.15.9。app负责页面／动作／HTTP入口，features共用业务，PostgreSQL／Drizzle保存事实及审计，Better Auth认证。新手阅读[学习指南](code-study.md)。
@@ -37,7 +37,7 @@ Formward采用Next.js16.3.7、React、TypeScript、Node.js24.21.0和pnpm9.15.9�
 
 354项单元／集成、lint、typecheck、production build、283项文档本地链接及15项章节锚点、结构与diff检查通过。饮食、消耗、统一审核、日完整性、图表、登录／OAuth、加载、本人Excel及身体完整回归通过；覆盖320／390／430／1100／1440px、矮屏、触屏横屏、跨零点、减少动态效果，实际截图已查看。
 
-此前三阶段部署dpl_5yW5kVWVmjozc837AaRpXeMUtgLU，运行代码83a773c，数据库0024。正式站虚构账号复验固定／解除日期、详情折叠及延后原图、每份与包装、两种运动录入顺序、一次审核及缺图保存；MCP1.11.0、13工具、删除限制和消耗查询通过，15项公开入口与登录保护通过。客户端异常／请求5xx为0，验收时段最近10分钟Runtime error／fatal为0。临时账号、OAuth客户端和全部所属数据已清理。
+此前三阶段部署dpl_5yW5kVWVmjozc837AaRpXeMUtgLU，运行代码83a773c，数据库0024。正式站虚构账号复验固定／解除日期、详情折叠及延后原图、每份与包装、两种运动录入顺序、一次审核及缺图保存；MCP1.10.0、13工具、删除限制和消耗查询通过，15项公开入口与登录保护通过。客户端异常／请求5xx为0，验收时段最近10分钟Runtime error／fatal为0。临时账号、OAuth客户端和全部所属数据已清理。
 
 迁移前后及发布后40表逐项核对，旧健康事实、原始请求与审计保持；0024只增加六个兼容列。唯一授权食材包装维护有独立预览、版本、幂等及审计，旧餐克数与营养保持。第一批仅授权账号28个截至2026-10-23的历史餐日初始化为已记完，不套用其他账号或未来日期。备份与核对见[交接](../handoff.md)，完整验收见[验收记录](maintenance-verification.md)。正式截图和机器报告在私有.codex/stage3-release/，本机密集波动样本在.codex/maintenance-visual/。
 
@@ -48,8 +48,10 @@ Formward采用Next.js16.3.7、React、TypeScript、Node.js24.21.0和pnpm9.15.9�
 
 ## 当前界面验收与发布
 
-正式域名READY部署dpl_4ftctbpujyRJjuwGYnT6rK6tGocv，运行代码35479cf，数据库0025。本轮完成餐次编辑器独立单位／数量列、主输入同高对齐、标签和框内留白、手机分组布局。自由项填写本次总营养，旧每份项按完整服务端总量回显、未修改项保留原输入，食材库与包装继续换算，无migration或公共字段变化。设计与每次界面验收统一读取[设计文档](design-reference.md)，AGENTS设有必读入口。
+正式域名 https://formward-ten.vercel.app 已核对 READY 部署 dpl_HeNMUADh26b3D68zZPgx2kdgeNfm，运行代码 b654847，数据库0026；功能分支codex/latest-records-energy-sources已推送，尚未合入main。已合并32be0cd，保留此前餐次字号、列宽、单位及详情定位修正。OpenAPI1.13.0、MCP1.11.0，13个工具与既有权限种类保持。
 
-42文件共368项单元／集成、lint、typecheck、production build、283项本地文档链接和15项锚点、结构检查通过。WSL中断整批运行后，完整测试集逐文件独立进程执行并核对；中断日志不计为通过。AI混合审核回归及本机Chromium／WebKit各五种宽度的本次编辑专项通过。正式域名双浏览器重复总量保存、旧项兼容、包装、精度、未知／0及AI草稿确认，15项公开／保护入口通过，验收请求5xx和客户端异常为0。
+379项单元／集成、lint、typecheck、production build、312项本地链接和15项章节锚点、60个团队目录README及diff检查通过。隔离Chromium／WebKit验证运动分项、AI修改不正式保存、单项删除、跨窗口保留输入与明确覆盖、自定义取消、慢图登录；四页矮屏、横屏、键盘、减少动态效果及历史回归通过。正式站两浏览器各五种宽度重走实际保存和更新提醒，Chromium发出真实浏览器触屏事件验证横拖选日及纵向滚动。16项入口保护通过；最终验收客户端异常与请求5xx为0，部署最近10分钟Runtime error／fatal和请求5xx均0。WebKit首轮捕获一次跨页请求错误，诊断保留；补充跳转前后等待请求完成后，无过滤重跑通过，不将首轮记为通过。真实iOS及系统软键盘未作实机测试。
 
-正式虚构账号及全部所属数据已清理。发布前后40表原有结构、账本、健康事实、请求和审计完全保持，只有正常OAuth使用及刷新轮换元数据变化。证据在私有.codex/meal-total-visual/和.codex/meal-total-release/，备份及核对见[交接](../handoff.md)。此前三页内联历史、固定“已记全”、四页首屏与完整交互报告继续保留，本轮不重复声称完整四页重验。真实iOS浏览器和系统软键盘未作实机验收，详见[验收记录](maintenance-verification.md)。
+正式报告与虚构截图在私有.codex/body-energy-release/，Chromium／WebKit分别为production-chromium.json与production-webkit.json；READY见.codex/body-energy-inspect-final.log。测试账号及所属记录、待确认操作、令牌与会话已全部清理。发布前、迁移后和发布后三份私有备份为data/exports/database-before-body-energy-2026-10-28.json、database-after-body-energy-migration-2026-10-28.json和database-after-body-energy-production-2026-10-28.json，均0600、Git与部署忽略。
+
+body-energy-migration-verification.json与body-energy-production-verification.json核对40表原有列、健康事实、请求和审计保持，0026只加三列及一条账本，旧运动新列保持NULL。期间已有账号正常新增的图片、待确认提交及授权轮换均保留，未代确认、删除或回滚；body-energy-concurrent-verification.json单独核对新增归属与测试数据清理。回退必须保留运动分项计算及新列，不切回无法理解components的旧后端。

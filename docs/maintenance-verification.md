@@ -2,7 +2,7 @@
 
 ## 身体、运动与跨页面更新（2026-10-28）
 
-保留餐次组件32be0cd视觉调整和本次总营养口径，晨间仍只收空腹。379项单元／集成、lint、typecheck及production build通过，运动分项migration已纳入版本控制；生产备份、迁移和发布尚待执行。
+保留餐次组件32be0cd视觉调整和本次总营养口径，晨间仍只收空腹。379项单元／集成、lint、typecheck及production build通过，运动分项migration已纳入版本控制；生产备份、0026迁移、正式发布及双浏览器复验均已完成。
 
 | 标准 | 实际检查 | 结果 |
 | --- | --- | --- |
@@ -15,6 +15,14 @@
 | D6 实机 | 真实iOS及系统软键盘 | 未测；浏览器触屏及视口模拟不代替实机 |
 
 隔离截图与报告在.codex/body-energy-visual/和.codex/body-energy-visual-webkit/；四页完整首屏与历史报告在.codex/inline-history-visual/，更新后共用餐次门槛在.codex/meal-total-visual/。已实际查看320／390px运动、600→800提示、单项删除、矮屏总览和1440px消耗。旧回归中全局“记录一餐”和data-energy-day选择器与现有日期行不一致，按真实入口修正；失败诊断保留，未改业务迎合旧断言。
+
+正式域名 https://formward-ten.vercel.app 已核对 READY 部署 dpl_HeNMUADh26b3D68zZPgx2kdgeNfm，运行代码 b654847，数据库0026；功能分支codex/latest-records-energy-sources已推送，尚未合入main。已合并32be0cd，保留此前餐次字号、列宽、单位及详情定位修正。OpenAPI1.13.0、MCP1.11.0，13个工具与既有权限种类保持。
+
+379项单元／集成、lint、typecheck、production build、312项本地链接和15项章节锚点、60个团队目录README及diff检查通过。隔离Chromium／WebKit验证运动分项、AI修改不正式保存、单项删除、跨窗口保留输入与明确覆盖、自定义取消、慢图登录；四页矮屏、横屏、键盘、减少动态效果及历史回归通过。正式站两浏览器各五种宽度重走实际保存和更新提醒，Chromium发出真实浏览器触屏事件验证横拖选日及纵向滚动。16项入口保护通过；最终验收客户端异常与请求5xx为0，部署最近10分钟Runtime error／fatal和请求5xx均0。WebKit首轮捕获一次跨页请求错误，诊断保留；补充跳转前后等待请求完成后，无过滤重跑通过，不将首轮记为通过。真实iOS及系统软键盘未作实机测试。
+
+正式报告与虚构截图在私有.codex/body-energy-release/，Chromium／WebKit分别为production-chromium.json与production-webkit.json；READY见.codex/body-energy-inspect-final.log。测试账号及所属记录、待确认操作、令牌与会话已全部清理。发布前、迁移后和发布后三份私有备份为data/exports/database-before-body-energy-2026-10-28.json、database-after-body-energy-migration-2026-10-28.json和database-after-body-energy-production-2026-10-28.json，均0600、Git与部署忽略。
+
+body-energy-migration-verification.json与body-energy-production-verification.json核对40表原有列、健康事实、请求和审计保持，0026只加三列及一条账本，旧运动新列保持NULL。期间已有账号正常新增的图片、待确认提交及授权轮换均保留，未代确认、删除或回滚；body-energy-concurrent-verification.json单独核对新增归属与测试数据清理。回退必须保留运动分项计算及新列，不切回无法理解components的旧后端。
 
 ## 餐次组件排版与详情定位（2026-10-28）
 

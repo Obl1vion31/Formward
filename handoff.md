@@ -12,9 +12,9 @@
 
 饮食修改后提示重新确认已记全，AI修改按钮称“应用修改”；常见餐次全站中文，新保存中文、原请求及旧记录原文留档。营养占比保持，自由食物保留本次总量输入。饮食／消耗支持手机横向拖选，纵向正常滚动，自定义应用前保留原图、取消不变。封面图片失败或超过4秒显示普通登录。数量级变化仅作温和核对，不改数值。
 
-本机379项单元／集成、lint、typecheck及production build通过。隔离网页验证身体覆盖／单指标删除、两种运动及AI分项编辑、90秒更新和返回页面检查、保存前再次核对、取消保留输入、自定义取消、慢图登录；Chromium实发触屏横拖与纵向滚动通过。四页七组视口、键盘、减少动态效果和历史回归通过，餐次视觉新样式与AI确认回归通过。发布前备份及迁移待执行；证据归档.codex/body-energy-*，不重跑个人历史初始化。
+本机379项单元／集成、lint、typecheck及production build通过。隔离网页验证身体覆盖／单指标删除、两种运动及AI分项编辑、90秒更新和返回页面检查、保存前再次核对、取消保留输入、自定义取消、慢图登录；Chromium实发触屏横拖与纵向滚动通过。四页七组视口、键盘、减少动态效果和历史回归通过，餐次视觉新样式与AI确认回归通过。生产备份、0026迁移、正式发布和双浏览器验收已完成；证据归档.codex/body-energy-*，不重跑个人历史初始化。
 
-## 已发布视觉分支：餐次编辑器（2026-10-28）
+## 此前餐次视觉分支（已合并）
 
 餐次视觉代码32be0cd已从独立工作树发布，分支codex/meal-editor-visual，正式READY部署dpl_8KfD6EBLswBPkV4SmU5fYzE3MB84。当前工作区的其他业务／0026草稿没有随本轮发布，也未被撤销。视觉设计标准已同步到当前docs/design-reference.md。本轮已合并32be0cd并重新验证共用餐次编辑器，后续发布保留这批视觉修正。完整本轮交接和最终验收在/home/obl1vion/projects/Formward-worktrees/meal-editor-visual/handoff.md。正式双浏览器18组视口、30个详情场景及15项入口复验通过，测试账号已清理，40表原健康事实／请求／审计与结构核对完全保持。
 
@@ -51,11 +51,13 @@
 
 ## 当前正式版本
 
-正式域名https://formward-ten.vercel.app已核对READY部署dpl_4ftctbpujyRJjuwGYnT6rK6tGocv，运行代码35479cf；数据库0025。功能分支codex/latest-records-energy-sources已推送，尚未合入main。本轮无migration，自由项按本次总营养输入，旧按份项未修改保留原数据，食材库继续换算。
+正式域名 https://formward-ten.vercel.app 已核对 READY 部署 dpl_HeNMUADh26b3D68zZPgx2kdgeNfm，运行代码 b654847，数据库0026；功能分支codex/latest-records-energy-sources已推送，尚未合入main。已合并32be0cd，保留此前餐次字号、列宽、单位及详情定位修正。OpenAPI1.13.0、MCP1.11.0，13个工具与既有权限种类保持。
 
-正式双浏览器报告为.codex/meal-total-release/production.json，包含两引擎各1440／1100／430／390／320px，新增保存、改数量不重乘、旧项打开取消／未改保存／修改、完整小数、未知／0、包装与克数混合、AI预览后确认。15项入口见同目录public.json，最终READY见.codex/meal-total-inspect-final.log。请求5xx和客户端异常为0；已实际查看桌面输入、混合食材及窄屏截图，虚构账号及全部所属数据已清理。
+379项单元／集成、lint、typecheck、production build、312项本地链接和15项章节锚点、60个团队目录README及diff检查通过。隔离Chromium／WebKit验证运动分项、AI修改不正式保存、单项删除、跨窗口保留输入与明确覆盖、自定义取消、慢图登录；四页矮屏、横屏、键盘、减少动态效果及历史回归通过。正式站两浏览器各五种宽度重走实际保存和更新提醒，Chromium发出真实浏览器触屏事件验证横拖选日及纵向滚动。16项入口保护通过；最终验收客户端异常与请求5xx为0，部署最近10分钟Runtime error／fatal和请求5xx均0。WebKit首轮捕获一次跨页请求错误，诊断保留；补充跳转前后等待请求完成后，无过滤重跑通过，不将首轮记为通过。真实iOS及系统软键盘未作实机测试。
 
-私有备份为data/exports/database-before-meal-total-2026-10-27.json及database-after-production-meal-total-2026-10-27.json，均0600、Git与部署忽略。初始严格比较meal-total-after-production-storage-verification.json保留正常授权变化的诊断；最终meal-total-after-production-auth-verification.json逐项核对40表原有列、账本及原健康事实／请求／审计完全保持，无原行删除、无测试数据残留。差异限于OAuth客户端更新时间、连接使用时间及正常刷新令牌轮换、新增一次认证断言；未修改真实数据使备份相同。此前页面内历史、四页首屏与完整交互证据仍保留在.codex/inline-history-release/和.codex/unified-ui-release/，本轮不重复运行无关的完整四页验收。真实iOS及系统软键盘仍未作实机检查。
+正式报告与虚构截图在私有.codex/body-energy-release/，Chromium／WebKit分别为production-chromium.json与production-webkit.json；READY见.codex/body-energy-inspect-final.log。测试账号及所属记录、待确认操作、令牌与会话已全部清理。发布前、迁移后和发布后三份私有备份为data/exports/database-before-body-energy-2026-10-28.json、database-after-body-energy-migration-2026-10-28.json和database-after-body-energy-production-2026-10-28.json，均0600、Git与部署忽略。
+
+body-energy-migration-verification.json与body-energy-production-verification.json核对40表原有列、健康事实、请求和审计保持，0026只加三列及一条账本，旧运动新列保持NULL。期间已有账号正常新增的图片、待确认提交及授权轮换均保留，未代确认、删除或回滚；body-energy-concurrent-verification.json单独核对新增归属与测试数据清理。回退必须保留运动分项计算及新列，不切回无法理解components的旧后端。
 
 ## 此前三阶段完善交付
 
