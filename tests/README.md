@@ -166,3 +166,5 @@ FORMWARD_MEAL_ENTRY_ONLY=1 pnpm test:records-browser检查独立的虚构餐次�
 ## 身体覆盖、运动分项与跨窗口检查
 
 FORMWARD_BODY_ENERGY_ONLY=1 pnpm test:energy-browser运行隔离PGlite和虚构账号，验证运动400＋期间静息50计入400、仅总数450原样计入、身体覆盖与单指标删除、双窗口修改提醒／保留输入／明确覆盖、中文餐次、自定义取消和慢图登录；五种宽度截图在.codex/body-energy-visual。FORMWARD_BODY_ENERGY_ARTIFACTS可指定私有目录。单元／集成新增计入规则、删除幂等／未来日期、跨账号版本摘要与数量级提醒，不读真实数据库。真实iOS系统软键盘仍待实机。
+
+共用餐次编辑器视觉专项默认纳入pnpm test:records-browser，另用FORMWARD_MEAL_ENTRY_ONLY=1快速定位；FORMWARD_EDITOR_BROWSER=webkit切换WebKit。标准只在[设计文档](../docs/design-reference.md)D3／D4／D6维护。报告逐项区分通过、失败、未测和不适用，记录实际字形空间、完整数字列对齐、行高及详情几何；截图包含每条手机记录与实际打开的浮层。常规审核结束并关闭服务后，再启动独立临时数据库和虚构账号执行编辑器门槛，避免样本和连接互相影响。
