@@ -5,7 +5,7 @@ import type {Database} from "../../db/client";
 import {measurement,meal,food,activity,energyDay,mealDay} from "../../db/schema";
 import {adoptedMeasurements} from "../measurements/days";
 import {mealTypeLabel} from "../meals/model";
-import type {RecordStamp} from "./change-state";
+import {recordNumber,type RecordStamp} from "./change-state";
 /** 只读取本人记录的版本、日期和名称，不轮询完整健康内容。 */
 export async function recordStamps(db:Database,userId:string,details=false):Promise<RecordStamp[]> {
  if(!userId)throw new Error("请先登录。");
@@ -18,10 +18,10 @@ export async function recordStamps(db:Database,userId:string,details=false):Prom
   db.select({id:mealDay.id,date:mealDay.date,status:mealDay.status,version:mealDay.version}).from(mealDay).where(eq(mealDay.userId,userId))]);
  const nutrition=details?await readMealSnapshot(db,userId):null;
  return [
- ...adoptedMeasurements(body).map(row=>({key:`measurement:${row.recordDate}:${row.period}:${row.recordKind}`,id:row.id,date:row.recordDate,title:row.period==="daytime"?"晨间身体记录":"晚间身体记录",...(details?{summary:`体重 ${row.weightKg??"—"} kg · 体脂 ${row.bodyFatPercent??"—"}%`}:{}),version:row.id+":"+row.updatedAt.toISOString(),href:"/dashboard/measurements?date="+row.recordDate})),
- ...meals.filter(r=>!r.deletedAt).map(r=>({key:"meal:"+r.id,id:r.id,date:r.date,title:mealTypeLabel(r.name),...(details?{summary:`${nutrition?.meals.find(m=>m.id===r.id)?.totals.values.caloriesKcal??"—"} 千卡`}:{}),version:String(r.version),href:"/dashboard/meals?date="+r.date})),
- ...foods.filter(r=>!r.deletedAt).map(r=>({key:"food:"+r.id,id:r.id,date:"",title:r.name,...(details?{summary:`每 ${r.baseQuantity}${r.unit} · ${r.caloriesKcal??"—"} 千卡`}:{}),version:String(r.version),href:"/dashboard/meals"})),
- ...activities.filter(r=>!r.deletedAt).map(r=>({key:"activity:"+r.id,id:r.id,date:r.date,title:r.name,...(details?{summary:`本次 ${activityReadings(r).totalKcal??"—"}，计入当天 ${activityReadings(r).countedKcal??"—"} 千卡${r.source?" · "+r.source:""}`}:{}),version:String(r.version),href:"/dashboard/energy?date="+r.date})),
- ...days.filter(r=>!r.deletedAt).map(r=>({key:"energyDay:"+r.date,id:r.id,date:r.date,title:"每日消耗",...(details?{summary:r.entryMode==="total"?`录入总数 ${r.totalKcal??"—"} 千卡`:`静息 ${r.restingKcal??"—"} · 活动合计 ${r.activeKcal??"—"} 千卡`}:{}),version:String(r.version),href:"/dashboard/energy?date="+r.date})),
+ ...adoptedMeasurements(body).map(row=>({key:`measurement:${row.recordDate}:${row.period}:${row.recordKind}`,id:row.id,date:row.recordDate,title:row.period==="daytime"?"晨间身体记录":"晚间身体记录",...(details?{summary:`体重 ${recordNumber(row.weightKg)} kg · 体脂 ${recordNumber(row.bodyFatPercent)}%`}:{}),version:row.id+":"+row.updatedAt.toISOString(),href:"/dashboard/measurements?date="+row.recordDate})),
+ ...meals.filter(r=>!r.deletedAt).map(r=>({key:"meal:"+r.id,id:r.id,date:r.date,title:mealTypeLabel(r.name),...(details?{summary:`${recordNumber(nutrition?.meals.find(m=>m.id===r.id)?.totals.values.caloriesKcal)} 千卡`}:{}),version:String(r.version),href:"/dashboard/meals?date="+r.date})),
+ ...foods.filter(r=>!r.deletedAt).map(r=>({key:"food:"+r.id,id:r.id,date:"",title:r.name,...(details?{summary:`每 ${r.baseQuantity}${r.unit} · ${recordNumber(r.caloriesKcal)} 千卡`}:{}),version:String(r.version),href:"/dashboard/meals"})),
+ ...activities.filter(r=>!r.deletedAt).map(r=>({key:"activity:"+r.id,id:r.id,date:r.date,title:r.name,...(details?{summary:`本次 ${recordNumber(activityReadings(r).totalKcal)}，计入当天 ${recordNumber(activityReadings(r).countedKcal)} 千卡${r.source?" · "+r.source:""}`}:{}),version:String(r.version),href:"/dashboard/energy?date="+r.date})),
+ ...days.filter(r=>!r.deletedAt).map(r=>({key:"energyDay:"+r.date,id:r.id,date:r.date,title:"每日消耗",...(details?{summary:r.entryMode==="total"?`录入总数 ${recordNumber(r.totalKcal)} 千卡`:`静息 ${recordNumber(r.restingKcal)} · 活动合计 ${recordNumber(r.activeKcal)} 千卡`}:{}),version:String(r.version),href:"/dashboard/energy?date="+r.date})),
  ...status.map(r=>({key:"mealDay:"+r.date,id:r.id,date:r.date,title:"饮食是否已记全",...(details?{summary:r.status==="complete"?"已记全":r.status==="incomplete"?"未记全":"需要重新确认是否已记全"}:{}),version:String(r.version),href:"/dashboard/meals?date="+r.date}))];
 }

@@ -39,6 +39,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   const [local,setLocal]=useState<MealSnapshot|null>(null),[base,setBase]=useState(snapshot);
   if(snapshot!==base){setBase(snapshot);setLocal(null);}
   const state=local??snapshot,mobile=useMobileMode(),[tab,setTab]=useState<"meals"|"foods">("meals");
+  useDraftGuard(false,false,mealVersions(state));
   const [selectedDate,setSelectedDate]=useState(initialDate??today),[historyOpen,setHistoryOpen]=useState(Boolean(initialDate)),[rangeChoice,setRange]=useState<string|null>(null);
   const range=rangeChoice??rangeContaining(initialDate??dailyTotals(state.meals).find(day=>day.date<=today)?.date??today,today,mobile?"7":"30"),[customFrom,setCustomFrom]=useState(""),[customTo,setCustomTo]=useState(today);
   const [customOpen,setCustomOpen]=useState(false),[customDraft,setCustomDraft]=useState({from:today,to:today});

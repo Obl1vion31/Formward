@@ -170,13 +170,13 @@ export async function checkReviewMaintenance({baseURL,page,token,date,artifacts=
   assert.equal((await meals()).length,beforeCount+2,"未选择停留时保留2秒自动返回");
 
   await page.goto(baseURL+"/dashboard/meals");
-  await page.getByRole("button",{name:/记录一餐/}).click();
+  await page.locator('[data-record-date="'+date+'"]').getByRole("button",{name:"添加一餐",exact:true}).click();
   let daily=page.getByRole("dialog",{name:"记录一餐",exact:true});
   await daily.getByLabel("餐次备注",{exact:true}).fill("虚构待放弃输入");
   await answerClose(()=>daily.press("Escape"),false);assert.equal(await daily.getByLabel("餐次备注",{exact:true}).inputValue(),"虚构待放弃输入");
   await answerClose(()=>daily.getByRole("button",{name:"关闭编辑",exact:true}).click(),true);await daily.waitFor({state:"hidden"});
   await page.goto(baseURL+"/dashboard/energy");
-  await page.locator('[data-energy-day="'+date+'"]').getByRole("button",{name:"录入",exact:true}).click();
+  await page.locator('[data-record-date="'+date+'"]').getByRole("button",{name:"录入",exact:true}).click();
   daily=page.getByRole("dialog",{name:"每日消耗",exact:true});
   await daily.getByLabel("静息 · kcal",{exact:true}).fill("2100");
   await answerClose(()=>daily.getByRole("button",{name:"关闭编辑",exact:true}).click(),false);assert.equal(await daily.getByLabel("静息 · kcal",{exact:true}).inputValue(),"2100");

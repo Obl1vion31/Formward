@@ -1,4 +1,5 @@
 "use client";
+import {useDraftGuard} from "@/components/draft-guard";
 import {energyVersions,verifyRecordVersions,acknowledgeRecordChanges} from "@/components/record-change-client";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -36,6 +37,7 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
   const [local, setLocal] = useState<EnergyPresentation | null>(null), [base, setBase] = useState(presentation);
   if (base !== presentation) { setBase(presentation); setLocal(null); }
   const data = local ?? presentation, state = data.snapshot;
+  useDraftGuard(false,false,energyVersions(state));
   const [sourceResult, setSourceResult] = useState<{ base: string[]; sources: string[] } | null>(null);
   const sources = sourceResult?.base === data.sources ? sourceResult.sources : data.sources;
   async function remove(label: string) { const result = await removeSource(label); if (result.ok) setSourceResult({ base: data.sources, sources: result.sources }); return result; }

@@ -61,7 +61,7 @@ OAuth 使用授权码 + S256 PKCE，授权码有效 5 分钟；访问令牌有�
 
 import_meal_images（meals:write）接收顶层files，工具声明_meta["openai/fileParams"]。每项包含download_url、file_id，可选mime_type、file_name，返回稳定附件id、status（complete／partial／failed）、逐文件failures（index、code、message、stage、retryable、requestId）。部分成功保留ID，仅重试失败项，全部失败为MCP工具错误。HTTP对应POST /api/v1/meal-images；网页提供会话保护的补传和读取。最多8张、每张20 MiB，JPEG／PNG／WebP原图私有保存，临时下载地址不作为长期照片链接。字段机制见[OpenAI官方说明](https://developers.openai.com/plugins/reference#define-file-inputs)。
 
-先识别、查询已有食材，再集中问日期、餐次、身份、实际食用量和额外油酱；只传图片不能默认日期或餐次。整份须确认全部吃完并有已知规格。餐次／食材用imageIds关联原图；照片AI餐次的photoReview核对字段和questions决定needsUserInput，未解决禁止确认，网页可补传、逐项修改并更新预览。模型不得自行代确认。食量未知先询问，再由用户接受估算或明确未知。包装识别保留名称、品牌、规格、标签单位及照片。规则见[饮食记录](meals.md)。
+先识别、查询已有食材，再集中问日期、餐次、身份、实际食用量和额外油酱；只传图片不能默认日期或餐次。整份须确认全部吃完并有已知规格。餐次／食材用imageIds关联原图；照片AI餐次的photoReview核对字段和questions决定needsUserInput，未解决禁止确认，网页可补传、逐项修改并应用修改。模型不得自行代确认。食量未知先询问，再由用户接受估算或明确未知。包装识别保留名称、品牌、规格、标签单位及照片。规则见[饮食记录](meals.md)。
 
 search_foods返回foods及兼容的presets:[]，不提供基础预设采用；query_meals增加可选timezone，context.localDate用于相对日期。新工具沿用饮食权限，已有饮食连接刷新工具列表即可，缺饮食权限的身体连接仍须重新授权。
 
@@ -72,7 +72,7 @@ search_foods返回foods及兼容的presets:[]，不提供基础预设采用；qu
 1. 在工作区交互终端运行 `pnpm ai:setup`，输入地址和隐藏输入的令牌。配置写入权限 0600、被 Git 忽略的 `.env.ai.local`，拒绝覆盖已有文件。
 2. 运行 `pnpm ai:request GET /measurements`，或把接入说明交给能发送 HTTP 请求的 AI，让它先查询。
 3. 把真实提供的候选内容整理为私有 `data/exports/` JSON，再运行 `pnpm ai:request POST /measurement-operations data/exports/请求.json`。
-4. 打开响应中的 `confirmationUrl`，在 Formward 登录、逐行核对前后值。可修改并更新预览，逐项确认仅标记草稿，最后在底部统一保存未取消内容。
+4. 打开响应中的 `confirmationUrl`，在 Formward 登录、逐行核对前后值。可修改并应用修改，逐项确认仅标记草稿，最后在底部统一保存未取消内容。
 5. 运行 `pnpm ai:request GET /measurement-operations/操作ID` 检查每行结果和数量。
 
 助手只通过 HTTP 使用私有配置，不读取数据库配置或打印令牌，不跟随重定向。仅允许 HTTPS 或本机 HTTP。Formward 令牌不是模型服务的 API Key，也不需要网页登录密码。公网地址为 `https://formward-ten.vercel.app`，OpenAPI 为 `https://formward-ten.vercel.app/api/v1/openapi.json`，外部 AI 可使用此地址和访问令牌。部署维护见 [公网 HTTPS 部署](deployment.md)；HTTP API 保持独立手动令牌鉴权；OAuth 连接使用上述 MCP 入口。
@@ -132,13 +132,13 @@ search_foods返回foods及兼容的presets:[]，不提供基础预设采用；qu
 
 兼容原 `save_day` 请求：`{kind:"save_day",operationId,date,periods:{daytime:{...},evening:{...}},timezone?}`；历史编辑字段在对应时段内。兼容独立 `estimate_cell` 请求，在估算项外再提供 operationId。已有单日／单项链接使用同一个可编辑审核页。
 
-提交与状态响应中的 `needsUserInput` 列出待核对的 `itemId`、日期、时段、字段、错误码和提示；来源缺失的错误码为 `source_confirmation_required`。AI 应说明并询问待补项；有未解决问题的行不可确认。缺来源也可先保留为待修改预览，用户在网页补填或直接留空后更新预览，再确认保存。原请求和审核草稿分别保留，来源留空确认进入审计。
+提交与状态响应中的 `needsUserInput` 列出待核对的 `itemId`、日期、时段、字段、错误码和提示；来源缺失的错误码为 `source_confirmation_required`。AI 应说明并询问待补项；有未解决问题的行不可确认。缺来源也可先保留为待修改预览，用户在网页补填或直接留空后应用修改，再确认保存。原请求和审核草稿分别保留，来源留空确认进入审计。
 
 ## 一个链接审核整批
 
 统一审核页按身体状况、摄入记录、食材库记录和消耗记录排列，只显示本次内容。新增直接展示内容，餐次修改突出增减及修改后合计，旧内容按需展开；新增图片贴近对应记录，变更图片展示前后对照。修改先更新草稿，取消可恢复；普通餐次只需底部一次“确认保存”，不显示标记核对或照片清单。缺图可直接保存文字，重复餐和消耗关系未定才提出问题。所选内容在一个数据库事务中保存，失败保留输入并整体回滚。手机压缩信息间距，底部吸附按钮保留安全区；依据、备注和审核技术信息折叠。保存成功显示勾，2秒后返回总览，保留立即返回入口；重新打开已完成链接不自动跳转。
 
-来源编辑与身体录入共用来源输入，点击展开本账号历史建议，支持移除；来源可填写或直接留空后更新预览，历史快照不受建议移除影响。已有部分保存的旧审核保留原结果，剩余内容统一确认，不重复写入。
+来源编辑与身体录入共用来源输入，点击展开本账号历史建议，支持移除；来源可填写或直接留空后应用修改，历史快照不受建议移除影响。已有部分保存的旧审核保留原结果，剩余内容统一确认，不重复写入。
 
 ## 时区与审计
 
@@ -146,7 +146,7 @@ search_foods返回foods及兼容的presets:[]，不提供基础预设采用；qu
 
 每次新录入自动采用当次系统时区，无须用户重复填写。`pnpm ai:request` 每次读取所在设备的系统偏移并发送 `X-Formward-Timezone`，不改写私有请求文件。其他客户端可传相同请求头；未传则采用 FORMWARD_TIMEZONE 配置地区的当次偏移，未配置才读取服务系统偏移。公网服务配置 Asia/Shanghai，默认 +08:00，不依赖平台固定的 UTC 时区。`GET /measurements` 的 `context` 返回 `timezone`、`timezoneLabel` 和 `localDate`，供 AI 读取本次默认值。无法发送自定义请求头的客户端可在候选 timezone 中明确提供时区。
 
-新记录省略 `timezone` 时由 API 自动带入，明确值优先；显式 null 保持未指定。审核页回显自动采用的时区，仍可选择其他时区或点击“采用设备时区”，然后更新预览、确认。身体记录页面的常规编辑也支持晨晚独立修改时区，选择后点击“保存录入”，无需重输体重和体脂。已有记录补缺或修改省略时区时保留原值，历史时区变更须明确指定记录与版本。`preview.defaultTimezone` 保存本次默认值；自动填入只进入审核草稿，原始请求保留。刷新和相同 operationId 重试保留首次预览／用户修改后的时区，下一次新操作重新读取系统时区。
+新记录省略 `timezone` 时由 API 自动带入，明确值优先；显式 null 保持未指定。审核页回显自动采用的时区，仍可选择其他时区或点击“采用设备时区”，然后应用修改、确认。身体记录页面的常规编辑也支持晨晚独立修改时区，选择后点击“保存录入”，无需重输体重和体脂。已有记录补缺或修改省略时区时保留原值，历史时区变更须明确指定记录与版本。`preview.defaultTimezone` 保存本次默认值；自动填入只进入审核草稿，原始请求保留。刷新和相同 operationId 重试保留首次预览／用户修改后的时区，下一次新操作重新读取系统时区。
 
 显式历史修改保留 `sourceLocalTime` 与 recordDate：准确时间重算 UTC，未知钟点继续为 day_period／assumed，UTC 与准确偏移为空。
 

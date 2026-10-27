@@ -95,3 +95,5 @@ test("账号导出读取拒绝未登录且隔离他人健康数据和凭据表",
     assert.equal(book.getWorksheet("身体记录")!.rowCount, 1, "空模块保留表头，不伪造记录");
   } finally { await pg.close(); }
 });
+
+test("运动分项导出区分本次总数和当天计入值，旧运动原值保留",async()=>{const sample=data(),base=sample.energy.activities[0];sample.energy.days=[energy(date,{activityMode:"activities"})];sample.energy.activities=[{...base,completed:true,calorieMode:"components",exerciseRestingKcal:"50",exerciseActiveKcal:"400",caloriesKcal:"450"},{...base,id:randomUUID(),name:"旧运动",completed:true,caloriesKcal:"450"}];const book=await read(await buildAccountWorkbook(sample,{from:date,to:date},context));assert.equal(value(book,"每日消耗",2,"最终消耗 · kcal"),2850);assert.equal(value(book,"活动明细",2,"运动填写方式"),"分开填写");assert.equal(value(book,"活动明细",2,"期间静息 · kcal"),50);assert.equal(value(book,"活动明细",2,"纯运动 · kcal"),400);assert.equal(value(book,"活动明细",2,"本次总数 · kcal"),450);assert.equal(value(book,"活动明细",2,"计入当天 · kcal"),400);assert.equal(value(book,"活动明细",3,"运动填写方式"),"只记总数");assert.equal(value(book,"活动明细",3,"计入当天 · kcal"),450);});

@@ -1,4 +1,6 @@
 "use client";
+import {useDraftGuard} from "@/components/draft-guard";
+import {measurementVersions} from "@/components/record-change-client";
 import { useChartMotion } from "@/components/use-chart-motion";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
@@ -35,6 +37,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const [actionResult, setActionResult] = useState<(Extract<EntryResult, { ok: true }> & { base: MeasurementDisplay[] }) | null>(null);
   // 保存结果即时反馈；新的服务端快照抵达后接管，不能长期保留首次加载数据。
   const { records, dates, sources: snapshotSources } = actionResult?.base === serverRecords ? actionResult : { records: serverRecords, dates: serverDates, sources: serverSources };
+  useDraftGuard(false,false,measurementVersions(records));
   const [sourceResult, setSourceResult] = useState<{ base: string[]; sources: string[] } | null>(null);
   const sources = sourceResult?.base === serverSources ? sourceResult.sources : snapshotSources;
   const sourceActions: MeasurementActions = { ...actions, removeSource: async label => {

@@ -2,8 +2,9 @@
 import {useEffect,useRef,useState,useTransition} from "react";
 import {useRouter} from "next/navigation";
 import {usePageLoading} from "./page-loading-state";
+import styles from "./inspector.module.css";
 import {Inspector} from "./inspector";
-import {draftIsBusy,draftIsDirty} from "./draft-guard";
+import {draftIsBusy,draftIsDirty,visibleRecordSummary} from "./draft-guard";
 import {fetchRecordStamps} from "./record-change-client";
 import {changedRecords,type RecordStamp} from "@/features/records/change-state";
 export function RecordUpdates(){
@@ -12,7 +13,7 @@ export function RecordUpdates(){
  useEffect(()=>{let active=true;
   async function check(){if(document.hidden||inflight.current||draftIsBusy())return;inflight.current=true;const epoch=generation.current;
    try{const next=await fetchRecordStamps();if(!active||epoch!==generation.current||draftIsBusy())return;
-    if(baseline.current){const difference=changedRecords(baseline.current,next);if(difference.length)setChanges(previous=>[...new Map([...previous,...difference].map(row=>[row.record.key,row])).values()]);}
+    if(baseline.current){const difference=changedRecords(baseline.current.map(row=>({...row,summary:visibleRecordSummary(row.key,row.version)})),next);if(difference.length)setChanges(previous=>[...new Map([...previous,...difference].map(row=>[row.record.key,row])).values()]);}
     baseline.current=next;
    }catch{}finally{inflight.current=false;}}
   const visible=()=>{if(!document.hidden)void check();};
@@ -22,5 +23,5 @@ export function RecordUpdates(){
  },[]);
  function load(href?:string){if(draftIsBusy()){setDetailError("正在保存，请稍后查看最新。");return;}if(draftIsDirty()&&!window.confirm("查看最新会放弃尚未保存的输入，确定采用最新内容？"))return;window.dispatchEvent(new Event("formward-load-latest"));setChanges([]);setDetails(false);startTransition(()=>{if(href)router.push(href);else router.refresh();});}
  if(!changes.length)return null;
- return <Inspector title={details?"最新记录变化":"记录在其他页面有更新"} close={()=>{setChanges([]);setDetails(false);setDetailError("");}}><p>你正在填写的内容已保留。</p>{detailError&&<p role="alert">{detailError}</p>}<ul>{changes.map(change=><li key={change.record.key}>{change.record.date} {change.record.title} · 已{change.kind}{details&&<small> · {change.record.summary??"记录内容已变化"}<button onClick={()=>load(change.record.href)}>查看这条 →</button></small>}</li>)}</ul><div style={{display:"flex",gap:16,flexWrap:"wrap",marginTop:20}}><button onClick={()=>{setChanges([]);setDetails(false);setDetailError("");}}>稍后查看</button>{details?<button onClick={()=>load()}>采用最新内容</button>:<button onClick={async()=>{setDetailError("");try{const latest=await fetchRecordStamps(changes.map(c=>c.record.key));setChanges(rows=>rows.map(c=>({...c,record:latest.find(r=>r.key===c.record.key)??c.record})));setDetails(true);}catch{setDetailError("暂时无法读取最新内容，请重试，输入已保留。");}}}>查看最新</button>}</div></Inspector>;
+ return <Inspector compact title={details?"最新记录变化":"记录在其他页面有更新"} close={()=>{setChanges([]);setDetails(false);setDetailError("");}}><p>你正在填写的内容已保留。</p>{detailError&&<p role="alert">{detailError}</p>}<ul className={styles.updateList}>{changes.map(change=><li key={change.record.key}>{change.record.date} {change.record.title} · 已{change.kind}{details&&<small> · {change.previous?.summary&&<>原来：{change.previous.summary}<br/></>}最新：{change.record.summary??(change.kind==="删除"?"这条记录已删除":"记录内容已变化")}<button onClick={()=>load(change.record.href)}>查看这条 →</button></small>}</li>)}</ul><div className={styles.updateActions}><button onClick={()=>{setChanges([]);setDetails(false);setDetailError("");}}>稍后查看</button>{details?<button onClick={()=>load()}>采用最新内容</button>:<button onClick={async()=>{setDetailError("");try{const latest=await fetchRecordStamps(changes.map(c=>c.record.key));setChanges(rows=>rows.map(c=>({...c,record:latest.find(r=>r.key===c.record.key)??c.record})));setDetails(true);}catch{setDetailError("暂时无法读取最新内容，请重试，输入已保留。");}}}>查看最新</button>}</div></Inspector>;
 }

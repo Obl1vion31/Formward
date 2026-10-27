@@ -1,10 +1,5 @@
 # Formward 项目交接
 
-## 已发布视觉分支：餐次编辑器（2026-10-28）
-
-餐次视觉代码32be0cd已从独立工作树发布，分支codex/meal-editor-visual，正式READY部署dpl_8KfD6EBLswBPkV4SmU5fYzE3MB84。当前工作区的其他业务／0026草稿没有随本轮发布，也未被撤销。视觉设计标准已同步到当前docs/design-reference.md。继续发布当前业务分支前，须先整合该视觉分支并回归，避免覆盖已经上线的修正；不要重置或覆盖现有业务输入。完整本轮交接和最终验收在/home/obl1vion/projects/Formward-worktrees/meal-editor-visual/handoff.md。正式虚构账号复验与备份核对进行中。
-
-
 更新日期：2026-10-28。仓库 `/home/obl1vion/projects/Formward`，当前功能分支 `codex/latest-records-energy-sources`，尚未合入main。先读根README、AGENTS、本文及目标目录最近README；修改Next.js前读取已安装包的本地指南。
 
 ## 身体、运动与记录更新
@@ -17,9 +12,14 @@
 
 饮食修改后提示重新确认已记全，AI修改按钮称“应用修改”；常见餐次全站中文，新保存中文、原请求及旧记录原文留档。营养占比保持，自由食物保留本次总量输入。饮食／消耗支持手机横向拖选，纵向正常滚动，自定义应用前保留原图、取消不变。封面图片失败或超过4秒显示普通登录。数量级变化仅作温和核对，不改数值。
 
-实施与隔离验收进行中，尚未迁移或发布本轮；证据归档.codex/body-energy-*。以最新代码为准，不重跑个人历史初始化。
+本机379项单元／集成、lint、typecheck及production build通过。隔离网页验证身体覆盖／单指标删除、两种运动及AI分项编辑、90秒更新和返回页面检查、保存前再次核对、取消保留输入、自定义取消、慢图登录；Chromium实发触屏横拖与纵向滚动通过。四页七组视口、键盘、减少动态效果和历史回归通过，餐次视觉新样式与AI确认回归通过。发布前备份及迁移待执行；证据归档.codex/body-energy-*，不重跑个人历史初始化。
 
-## 当前维护：餐次视觉修正
+## 已发布视觉分支：餐次编辑器（2026-10-28）
+
+餐次视觉代码32be0cd已从独立工作树发布，分支codex/meal-editor-visual，正式READY部署dpl_8KfD6EBLswBPkV4SmU5fYzE3MB84。当前工作区的其他业务／0026草稿没有随本轮发布，也未被撤销。视觉设计标准已同步到当前docs/design-reference.md。本轮已合并32be0cd并重新验证共用餐次编辑器，后续发布保留这批视觉修正。完整本轮交接和最终验收在/home/obl1vion/projects/Formward-worktrees/meal-editor-visual/handoff.md。正式双浏览器18组视口、30个详情场景及15项入口复验通过，测试账号已清理，40表原健康事实／请求／审计与结构核对完全保持。
+
+
+## 已保留的餐次视觉修正
 
 在独立工作树meal-editor-visual、分支codex/meal-editor-visual从5e43c37实施，原工作区业务与0026草稿保持。修正按钮旁详情、完整单位、按实际宽度分配列、16px主字段和统一文字边缘；包装说明移详情。营养与历史规则保持，未增加协议或migration。368项单元／集成、lint、typecheck、production build、最终Chromium常规审核＋自动编辑器门槛、WebKit专项通过。两引擎各9组视口与125%放大、完整字形、列轴、逐项手机截图及按钮旁气泡均检查，客户端异常0，不过滤错误。规则在现有design-reference.md，旧验收范围已更正；正式发布与复验进行中。
 

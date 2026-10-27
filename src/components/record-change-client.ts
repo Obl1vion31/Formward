@@ -2,12 +2,15 @@
 import type {MeasurementDisplay} from "@/features/measurements/entry-state";
 import type {MealSnapshot} from "@/features/meals/model";
 import type {EnergySnapshot} from "@/features/activities/model";
+import {adoptedMeasurements} from "@/features/measurements/days";
+import {activityReadings} from "@/features/activities/model";
+import {recordNumber} from "@/features/records/change-state";
 import type {RecordStamp} from "@/features/records/change-state";
 export async function fetchRecordStamps(keys?:string[]):Promise<RecordStamp[]>{const response=await fetch("/api/record-changes"+(keys?"?keys="+encodeURIComponent(keys.join("|")):""),{cache:"no-store",credentials:"same-origin"});if(!response.ok)throw new Error("暂时无法核对最新记录，请重试，输入已保留。");return (await response.json()).records;}
-export type VersionStamp={key:string;version:string};
-export function measurementVersions(records:MeasurementDisplay[]):VersionStamp[]{return records.map(row=>({key:`measurement:${row.recordDate}:${row.period}:${row.recordKind}`,version:row.id+":"+row.updatedAt}));}
-export function mealVersions(snapshot:MealSnapshot):VersionStamp[]{return [...snapshot.meals.filter(row=>!row.deletedAt).flatMap(row=>[{key:"meal:"+row.id,version:String(row.version)},...(row.day?[{key:"mealDay:"+row.date,version:String(row.day.version)}]:[])]),...snapshot.foods.filter(row=>!row.deletedAt).map(row=>({key:"food:"+row.id,version:String(row.version)}))];}
-export function energyVersions(snapshot:EnergySnapshot):VersionStamp[]{return [...snapshot.days.filter(row=>!row.deletedAt).map(row=>({key:"energyDay:"+row.date,version:String(row.version)})),...snapshot.activities.filter(row=>!row.deletedAt).map(row=>({key:"activity:"+row.id,version:String(row.version)}))];}
+export type VersionStamp={key:string;version:string;summary?:string};
+export function measurementVersions(records:MeasurementDisplay[]):VersionStamp[]{return adoptedMeasurements(records).map(row=>({summary:`体重 ${recordNumber(row.weightKg)} kg · 体脂 ${recordNumber(row.bodyFatPercent)}%`,key:`measurement:${row.recordDate}:${row.period}:${row.recordKind}`,version:row.id+":"+row.updatedAt}));}
+export function mealVersions(snapshot:MealSnapshot):VersionStamp[]{return [...snapshot.meals.filter(row=>!row.deletedAt).flatMap(row=>[{key:"meal:"+row.id,version:String(row.version),summary:recordNumber(row.totals.values.caloriesKcal)+" 千卡"},...(row.day?[{key:"mealDay:"+row.date,version:String(row.day.version),summary:row.day.status==="complete"?"已记全":"需要重新确认是否已记全"}]:[])]),...snapshot.foods.filter(row=>!row.deletedAt).map(row=>({key:"food:"+row.id,version:String(row.version),summary:recordNumber(row.nutrition.caloriesKcal)+" 千卡"}))];}
+export function energyVersions(snapshot:EnergySnapshot):VersionStamp[]{return [...snapshot.days.filter(row=>!row.deletedAt).map(row=>({key:"energyDay:"+row.date,version:String(row.version),summary:row.entryMode==="total"?`录入总数 ${recordNumber(row.totalKcal)} 千卡`:`静息 ${recordNumber(row.restingKcal)} · 活动合计 ${recordNumber(row.activeKcal)} 千卡`})),...snapshot.activities.filter(row=>!row.deletedAt).map(row=>({key:"activity:"+row.id,version:String(row.version),summary:`本次 ${recordNumber(activityReadings(row).totalKcal)}，计入当天 ${recordNumber(activityReadings(row).countedKcal)} 千卡`}))];}
 export function acknowledgeRecordChanges(keys:string[],versions:VersionStamp[]){window.dispatchEvent(new CustomEvent("formward-record-saved",{detail:keys.map(key=>({key,version:versions.find(row=>row.key===key)?.version??null}))}));}
 /** 保存前核对；只有用户明确继续才采用最新版本，后端仍检查原子写入版本。 */
 export async function verifyRecordVersions(expected:{key:string;version:string|null;summary?:string}[]) {
