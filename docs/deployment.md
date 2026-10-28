@@ -2,13 +2,13 @@
 
 ## 当前正式版本
 
-正式域名[Formward](https://formward-ten.vercel.app)已核对READY部署dpl_BJPfF6RaHjeRUMbmDJd6bwbwzQva，应用代码4e60a2f，数据库0026（39张应用表加Drizzle账本）。功能分支codex/latest-records-energy-sources已推送，尚未合入main；发布结果另行提交，不改变部署中的应用代码。用户于本地实际页面截图交付后明确要求发布及上传GitHub，符合设计D8；以后修改继续先交付实际页面并获确认。
+正式域名[Formward](https://formward-ten.vercel.app)已核对READY部署dpl_8LHcATdFBb84treQSb8iuEJ9kKY7，应用源码5347929，数据库0026（39张应用表加Drizzle账本）。用户查看本地实际截图后明确要求发布并更新main；main已推送GitHub，包含此前已上线的提交。发布验收记录另行提交，不改变已部署的应用代码，以后修改继续遵守设计D8。
 
-四页共用数据优先框架，主读数在区间前；总览估计开关与饮食占比直接显示，电脑身体统计直接展开。消耗窗口固定日期/总数/保存，运动本次总数、分项及是否额外增加分开说明。网页营养/消耗新手填整数，身体两位；原精度、份量/包装换算、既有业务与公开协议保持。本轮没有migration、权限、历史初始化或环境变量改动。当前OpenAPI1.13.0、MCP1.11.0与13工具，本轮未修改协议。
+当前工具侧栏提供AI接入、Excel，打卡／总结／站内AI录入暂未开放；账号菜单只留账号与退出，AI确认页维持紧凑。活动合计手填切回累计或清空失焦先确认变化，取消保留草稿；AI应用修改后仍需统一保存。消耗估计标签不展示，身体估计保留，必要状态选日不抖动。没有migration、历史初始化、权限、环境变量或公开协议变化；OpenAPI1.13.0、MCP1.11.0、13工具保持。
 
-387项单元/集成、lint零警告、typecheck、production build、本地浏览器/结构/文档/diff检查通过。正式站Chromium/WebKit各完成四页七组视口、消耗包含关系及实际总数、填写顶部/中段/底部、AI整数、旧四位只改备注、应用内确认、选日/自定义、触屏、150%放大和减少动效；16项公开/保护入口通过，浏览器客户端异常与请求5xx均0，部署20分钟日志窗口Runtime error/fatal及请求5xx均0。真实iOS和系统软键盘未测。详细结果见[验收记录](maintenance-verification.md)，正式截图/报告在私有.codex/data-first-release/。
+392项单元／集成、最终提示专项、lint零警告、typecheck、production build、本地结构／267项文档链接／diff与浏览器检查通过。正式Chromium／WebKit各完成五种宽度四页和关键操作，共66张截图／引擎；16项公开与保护入口通过，客户端异常和请求5xx均0。部署20分钟Runtime error／fatal与CDN请求5xx均0，无排除区间。真实iOS及系统软键盘未测。逐项证据见[验收记录](maintenance-verification.md)，正式私有证据在.codex/energy-tools-release/。
 
-发布前后备份data/exports/database-before-data-first-2026-10-28.json、database-after-production-data-first-2026-10-28.json及data-first-production-verification.json均0600、Git/部署忽略。40表结构、账本、原健康事实、请求和审计保持，没有个人历史回填；虚构账号及全部所属数据已清理。
+发布前后data/exports/database-before-energy-tools-2026-10-29.json、database-after-production-energy-tools-2026-10-29.json及energy-tools-production-verification.json均0600、Git／部署忽略。40表结构、迁移账本、原健康事实、请求及审计保持，虚构账号及所属数据已清理；正常限流元数据不作为健康变化。
 
 Next.js由Vercel Hobby托管，数据库沿用Neon PostgreSQL。AI使用正式[OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json)或https://formward-ten.vercel.app/api/mcp，不使用受Deployment Protection保护的单次部署/预览地址。
 

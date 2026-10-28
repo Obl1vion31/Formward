@@ -1,6 +1,6 @@
 # 完善任务验收
 
-## 消耗交互与工具侧栏（2026-10-29，已获发布授权）
+## 消耗交互与工具侧栏（2026-10-29，已正式发布并更新main）
 
 用户已看过实际截图并明确要求发布、更新main；本轮修改网页、测试和文档，不改数据库结构、公开协议、权限或历史健康事实。以下截图来自实际 production build 与隔离PGlite虚构账号；参考图、测试通过和自行查看均不代替用户认可。
 
@@ -13,7 +13,11 @@
 | D5 运动与AI | 741运动＋110期间静息只累计741；已包含、手填0、未知、旧未计入、待删除和空白新增；AI应用修改不写健康事实或版本 | 两引擎通过；AI切换文案单独说明返回后仍需统一确认保存 |
 | D6 既有餐次填写 | 共用饮食填写、长名称／包装／按克、对齐、未知／0、旧四位只改备注、换算及AI确认 | Chromium与WebKit专项通过，证据在.codex/energy-tools-meal-regression/ |
 | D6 环境与覆盖边界 | 手机为浏览器窄视口，默认安全区；另检查减少动态效果与键盘。真实iOS、系统地址栏和系统软键盘 | 真实设备未测，不计作通过；本轮不改首页动效或健康计算 |
-| D8 发布边界 | 回复直接交付实际手机／电脑、手填／累计／切换确认截图和完整相册 | 已获明确发布与main更新授权，正式版本和验收结果待发布后记录 |
+| D8 发布边界 | 实际手机／电脑、手填／累计／切换确认截图已直接交付，用户随后明确要求发布及更新main | 已按明确授权发布，正式域名READY，main已推送 |
+
+正式域名已指向READY部署dpl_8LHcATdFBb84treQSb8iuEJ9kKY7，应用源码5347929；main通过快进保留历史并推送GitHub。正式Chromium／WebKit各完成五种宽度、四个主页面和关键操作，共8组、66张实际截图／引擎；16项公开／受保护入口通过。浏览器客户端异常、请求5xx均0；部署20分钟Runtime error／fatal和CDN请求5xx均0，无日志排除区间。人工查看正式手机工具栏与电脑切换确认。
+
+发布前后40表结构、账本和原健康事实／请求／审计核对保持，虚构账号及全部所属记录清理。私有备份database-before-energy-tools-2026-10-29.json、database-after-production-energy-tools-2026-10-29.json和energy-tools-production-verification.json在data/exports，均0600且Git／部署忽略；本轮无migration、回填、权限或环境变量变化。正式报告、截图和日志摘要在.codex/energy-tools-release/；正式公共入口报告public.json、每引擎production-*.json及runtime-summary.json均通过。
 
 完整单元／集成392项通过；最终累计提示专项5项、lint零警告、typecheck及production build通过。目录结构、267项本地Markdown文件链接和git diff --check通过。全部写入仅在隔离虚构数据库，finally关闭浏览器、临时服务与数据库；生产健康数据未被本轮测试触碰。
 
