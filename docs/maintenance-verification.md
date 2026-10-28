@@ -1,8 +1,8 @@
 # 完善任务验收
 
-## 数据优先布局、运动说明与整数录入（2026-10-28，用户已确认发布）
+## 数据优先布局、运动说明与整数录入（2026-10-28，已正式发布）
 
-本地实际网页已完成技术与视觉自检，手机四页、电脑四页及消耗填写顶部／中段／底部实际截图已交付。用户随后明确要求“发布公网，然后上传GitHub”，进入正式发布；本轮无迁移、不改历史初始化。备份和正式复验结果完成后补充，下方旧发布报告不代替本轮证据。
+本地实际网页截图交付后，用户明确要求“发布公网，然后上传GitHub”。正式域名已指向READY部署dpl_BJPfF6RaHjeRUMbmDJd6bwbwzQva，应用代码4e60a2f。当前功能分支已推送，未合入main；本轮无迁移、不改历史初始化，下方旧发布报告不代替本轮证据。
 
 | 标准 | 实际网页检查 | 结果 |
 | --- | --- | --- |
@@ -14,13 +14,23 @@
 | D4/D6 输入和操作保护 | 手填0/清空恢复、包含关系失效后重选、取消/Escape、单指标删除、重复保存及版本变化；自定义取消保持原日期 | 浏览器回归通过，失败保留输入；应用确认不使用原生confirm |
 | D6 跨页面与既有功能 | 90秒及回到页面检查、保住草稿、保存前核对；身体/饮食/AI确认、部分/未知/0、慢图登录、横拖选日和纵向滚动 | 独立更新回归与两引擎餐次专项通过 |
 | D6 设备边界 | 320×560、390×560/640、430×780、844×390、1100×900、1440×900；实际浏览器触屏上下文横竖屏、模拟安全区、150%放大、键盘及减少动效 | Chromium/WebKit通过；真实iOS与系统软键盘未测，不冒充实机通过 |
-| D8 用户确认/发布 | 交付本地实际截图相册，参考图与自动化通过均不能代替用户确认 | 已获本次明确发布授权；备份及正式发布复验进行中 |
+| D8 用户确认/发布 | 交付本地实际截图相册，参考图与自动化通过均不能代替用户确认 | 已按明确发布授权完成备份、手动发布、READY核对与正式复验 |
 
-387项单元／集成、lint零警告、类型检查和production build通过；结构、211项文档本地链接及git diff --check通过。实际网页使用独立虚构账号与临时数据库，由测试脚本停止服务并清理；不使用个人健康记录制造验收通过。截图中四页统一选7D便于横向比较，产品原有手机/电脑默认区间保持。
+387项单元／集成、lint零警告、类型检查和production build通过；结构、211项文档本地链接及git diff --check通过。本地网页使用独立虚构账号与临时数据库，正式复验使用独立虚构账号；均在finally清理，不使用个人健康记录制造验收通过。截图中四页统一选7D便于横向比较，产品原有手机/电脑默认区间保持。
 
-证据：.codex/data-first-unit.log；.codex/data-first-visual/{chromium,webkit}/report.json（完整七组视口）；.codex/data-first-entry-final/{chromium,webkit}/（最终填写与缩放回归）；.codex/data-first-long/（长整数/轴刻度）；.codex/data-first-touch/（触屏）；.codex/data-first-updates-final/（跨页回归）；.codex/meal-total-visual/（餐次/AI）；.codex/visual-priority-build.log。交付相册为Windows本地formward-actual-review-20261028/review.html及实际截图，均标记待用户验收。
+证据：.codex/data-first-unit.log；.codex/data-first-visual/{chromium,webkit}/report.json（完整七组视口）；.codex/data-first-entry-final/{chromium,webkit}/（最终填写与缩放回归）；.codex/data-first-long/（长整数/轴刻度）；.codex/data-first-touch/（触屏）；.codex/data-first-updates-final/（跨页回归）；.codex/meal-total-visual/（餐次/AI）；.codex/visual-priority-build.log。交付相册为Windows本地formward-actual-review-20261028/review.html及实际截图；交付时标记待用户验收，获本次发布授权后已更新发布状态，另归档正式站截图。
 
 迭代中保留原失败诊断：自定义收起时静止鼠标误预览下方日期已通过暂停表单期间预览并改用移动事件修正；长数坐标最初裁字已按实际字体宽度修正并新增字形边界检查；包含提示重复和滚动双线已修正。跨页回归曾出现一次React #441并保留诊断，未确定根因，不过滤错误；后续两次独立完整回归通过。技术回归与人工查看只说明上述覆盖范围，最终视觉认可仍由用户确认。
+
+### 本轮正式站结果
+
+正式域名Chromium/WebKit各完成四页七组视口、主要读数与区间层级、单位不拆行、身体统计、整数输入与非法小数、旧四位仅改备注不回写、运动自动累计/手填0/清空恢复、单运动含其他明细、包含/额外增加、消耗顶部/中段/底部、AI确认、删除/放弃取消与Escape、自定义与固定选日、键盘、触屏、150%放大及减少动态效果。两份production报告passed，浏览器请求5xx与客户端异常均0。逐张查看正式手机饮食、电脑身体、消耗中段和AI确认截图；实际iOS和系统软键盘仍未测。
+
+16项公开/保护入口通过。公开入口脚本最初复用了旧版本断言和MCP GET假设；按当前源码OpenAPI1.13.0与MCP POST验证，最终通过，原诊断保留，不通过修改业务迎合旧断言。平台请求查询最初过滤语法被拒绝，按CLI本地帮助修正后重新查询；新部署20分钟窗口Runtime error/fatal与请求5xx均0，两份摘要recordsReturned=0且hasMore=false。以上查询失败不计为通过。
+
+私有证据.codex/data-first-release/，包含production-chromium.json、production-webkit.json、两引擎实际截图、public.json、deployment.json及runtime-errors.jsonl/request-errors.jsonl。正式部署dpl_BJPfF6RaHjeRUMbmDJd6bwbwzQva（formward-oqmxb0615-opgobl1v-5358.vercel.app），正式别名formward-ten.vercel.app为READY。应用代码4e60a2f已推送当前功能分支；后续仅提交发布记录，无新代码需再次部署。最终299项全仓本地文档链接、目录和git diff --check通过。
+
+发布前后data/exports/database-before-data-first-2026-10-28.json和database-after-production-data-first-2026-10-28.json、data-first-production-verification.json均0600、Git与部署忽略。40表原结构、账本、健康事实、请求与审计保持，原行无删除、没有新增健康行或虚构数据遗留；除正常限流表单独排除外，本次原行字段也没有允许项差异。虚构账号及全部所属数据已清理。没有migration、个人历史回填或生产配置改动。
 
 ## 四页布局、消耗填写与统一确认（2026-10-28）
 

@@ -1,9 +1,16 @@
 # Formward 项目交接
 
-## 本轮：数据优先布局、运动说明与整数录入（用户已确认发布，正在发布）
-本轮已完成本地实际页面交付，用户于2026-10-28明确要求“发布公网，然后上传GitHub”，实际页面确认门槛已满足，进入备份、正式发布、复验和分支上传；发布完成前不将进行中写成已发布。四页顺序为日期/查看、主要读数、区间、标题与实际选项、图例及图形；主数字突出、区间轻选中、饮食g与数字同行。电脑直接展开身体最近值和统计，手机收起次要统计。运动本次总数／分项／是否额外增加统一说明，消耗窗口边界与操作间距修正。网页营养／消耗新手填整数，身体两位；旧值、换算、公开接口精度保持，无migration或权限变化。
+## 本轮：数据优先布局、运动说明与整数录入（已正式发布）
 
-本地387项单元／集成、lint、类型检查、production build及Chromium／WebKit浏览器回归通过。两引擎各检查四页七组视口、实际触屏横竖屏、长数字与轴刻度、消耗填写顶部／中段／底部、AI确认、旧值精度和跨页面更新。实际截图与逐项结果见docs/maintenance-verification.md及.codex/data-first-visual/、.codex/data-first-entry-final/；交付相册使用虚构数据，本地交付原状态为待用户验收，随后已获本次明确发布授权。真实iOS与系统软键盘未测。严格按设计D8：用户确认实际页面前不得发布；旧报告或本地技术通过不代表用户认可。正式版本仍是下方此前发布记录，本轮不迁移、不重跑历史初始化，生产备份与正式验收结果完成后追加。
+用户在本地实际页面截图交付后，于2026-10-28明确要求“发布公网，然后上传GitHub”。已按本次授权完成备份、手动发布、正式站复验、虚构数据清理与分支上传。正式域名https://formward-ten.vercel.app指向READY部署dpl_BJPfF6RaHjeRUMbmDJd6bwbwzQva，应用代码4e60a2f；分支codex/latest-records-energy-sources已推送，未合入main。发布结果和交接另行提交，不改变部署中的应用代码。
+
+四页顺序统一为日期/查看、主要读数、区间、标题与实际选项、图例及图形；主数字突出、区间轻选中、数字与单位同行。电脑展开身体最近值和统计，手机收起次要统计。运动本次851=741运动＋110期间静息；已含在活动1357时不再增加，静息2058时当天3415；额外增加时4156，自动累计时2799。填写、详情和AI确认共用说明，消耗窗口分隔与操作间距已修正。网页营养/消耗新手填整数，身体两位；旧值、份量/包装换算、公开协议精度保持，无migration或权限变化。
+
+387项单元／集成、lint零警告、类型检查、production build、目录/链接/diff检查及本地浏览器回归通过。正式域名Chromium/WebKit均完成四页七组视口、整数/非法小数/旧四位只改备注、自动/手填0/清空、单运动完整日预览、包含关系、滚动顶部/中段/底部、AI确认、小型确认取消/Escape、自定义、键盘、触屏、150%放大与减少动效。16项公开/保护入口通过；正式浏览器请求5xx和客户端异常均0，部署20分钟日志窗口Runtime error/fatal及请求5xx均0。实际查看正式手机饮食、电脑身体、消耗中段和AI截图；真实iOS与系统软键盘未测。
+
+发布前后私有备份data/exports/database-before-data-first-2026-10-28.json、database-after-production-data-first-2026-10-28.json及data-first-production-verification.json均0600、Git/部署忽略。40表结构、迁移账本、原健康事实、请求及审计保持，无原行删除、新增健康事实或虚构数据遗留；未迁移、未重跑历史初始化。测试服务与临时数据已清理。正式证据.codex/data-first-release/，本地证据.codex/data-first-visual/、.codex/data-first-entry-final/、.codex/data-first-long/、.codex/data-first-touch/与.codex/data-first-updates-final/；逐项记录见docs/maintenance-verification.md。
+
+设计D8继续适用于以后修改：参考图与自动测试通过不能代替用户对实际网页的确认；本轮已通过上述明确发布指令满足门槛。
 
 更新日期：2026-10-28。仓库 `/home/obl1vion/projects/Formward`，当前功能分支 `codex/latest-records-energy-sources`，尚未合入main。先读根README、AGENTS、本文及目标目录最近README；修改Next.js前读取已安装包的本地指南。
 
