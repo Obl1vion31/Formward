@@ -2,7 +2,7 @@
 
 ## 四页共用框架、确认和读数
 
-record-trend-panel.tsx统一正文、日期与查看、主要读数、区间、标题与实际选项、图例和绘图区。InlineChartControls直接呈现单个勾选与占比切换，ChartOptions只放真正需展开的业务选项，自定义日期须应用才生效。确认由confirmation.tsx与confirmation-state.ts集中排队、取消/Escape、焦点和滚动锁；没有挂载时不降级到浏览器确认。number-format.ts按业务显示饮食／消耗整数和身体两位；decimal-input.tsx保留未修改原值，营养／消耗新手填只收整数，非法小数提示并阻止提交，失焦不写回。健康计算仍在各feature共用模型。
+record-trend-panel.tsx统一正文、日期与查看、主要读数、区间、标题与实际选项、图例和绘图区。InlineChartControls直接呈现单个勾选与占比切换，ChartOptions只放真正需展开的业务选项，自定义日期须应用才生效。必要状态按当前区间的可能文字预留紧凑高度，无提示区间不占行。确认由confirmation.tsx与confirmation-state.ts集中排队、取消/Escape、焦点和滚动锁；没有挂载时不降级到浏览器确认。number-format.ts按业务显示饮食／消耗整数和身体两位；decimal-input.tsx保留未修改原值，营养／消耗新手填只收整数，非法小数提示并阻止提交，失焦不写回。健康计算仍在各feature共用模型。
 
 record-updates.tsx提供跨页面更新提示，record-change-client.ts负责只读检查、保存前核对和本窗口保存确认；draft-guard.ts登记草稿供明确采用最新时保护输入。use-chart-drag.ts仅处理水平手势，竖向滚动交还页面。number-change.ts以十倍／十分之一提示输入量级，不作健康判断。
 

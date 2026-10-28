@@ -25,6 +25,7 @@ function WeightReading({ record }: { record: MeasurementDisplay | null }) {
   return <><strong>{record ? formatRecordNumber(record.weightKg) : "—"}<small>kg</small></strong>{record?.recordKind === "estimated" && <em>估计</em>}</>;
 }
 const blankDay = (date: string): OverviewDay => ({ date, nextDate: addCalendarDays(date, 1), meals: [], nutrition: null, morning: null, nextMorning: null, weightChangeKg: null, differenceEstimated: false, ambiguous: false, energy: blankEnergyDay(date), energyBalance: null, mealDayStatus: "unconfirmed", balanceEligible: false });
+const overviewFlags=(day?:OverviewDay)=>[day?.nutrition&&day.mealDayStatus!=="complete"?"饮食"+(day.mealDayStatus==="incomplete"?"未记全":"待确认"):null,day?.nutrition?.incomplete.caloriesKcal?"营养含未知":null].filter(Boolean).join(" · ");
 export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const today = data.today, mobile = useMobileMode();
   const preferred = preferredRecordedDate(data.days, today, day => day.energyBalance !== null, day => data.recordDates.includes(day.date));
@@ -51,7 +52,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
        {label:"消耗",value:energyValue(day?.energy.totalKcal),unit:"kcal",tone:"red"},
        {label:day?.energyBalance==null?"收支":day.energyBalance<0?"缺口":"盈余",value:signedIntegerNumber(day?.energyBalance??null),unit:"kcal",tone:day?.energyBalance!=null&&day.energyBalance<0?"blue":"gold"}
       ]}
-      flags={[day?.nutrition&&day.mealDayStatus!=="complete"?"饮食"+(day.mealDayStatus==="incomplete"?"未记全":"待确认"):null,day?.nutrition?.incomplete.caloriesKcal?"营养含未知":null,day?.energy.estimated?"消耗含估计":null].filter(Boolean).join(" · ")}
+      flags={overviewFlags(day)} flagVariants={days.map(overviewFlags)}
       title="热量收支"
       options={<InlineChartControls><label><input type="checkbox" checked={estimates} onChange={event=>setEstimates(event.target.checked)} aria-label="显示体重估计"/>显示体重估计</label></InlineChartControls>}
       legend={<><span><i style={{background:"#92B9D6"}}/>摄入</span><span><i style={{background:"#D89490"}}/>消耗</span><span><i style={{background:"#D8B38A"}}/>盈余</span><span><i style={{background:"#92B2C2"}}/>缺口</span></>}

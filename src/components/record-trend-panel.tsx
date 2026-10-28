@@ -2,12 +2,12 @@
 import {useEffect,useRef,useState,type ReactNode,type ComponentPropsWithoutRef,type CSSProperties} from "react";
 import {SelectedDateHeading} from "./daily-records";
 import styles from "./record-trend-panel.module.css";
-export type RecordMetric={label:string;value:string;unit:string;tone?:"blue"|"red"|"gold";note?:string;inlineUnit?:boolean};
+export type RecordMetric={label:string;value:string;unit:string;tone?:"blue"|"red"|"gold";note?:string;reserveNote?:boolean;inlineUnit?:boolean};
 export function RecordWorkspace({title,headingId,className="",children,...props}:ComponentPropsWithoutRef<"section">&{title:string;headingId?:string}){
  return <section {...props} className={styles.workspace+" "+className} data-record-workspace><header className={styles.pageHeading}><h1 id={headingId}>{title}</h1></header>{children}</section>;
 }
-export function RecordTrendPanel({range,custom,date,view,metrics,title,options,legend,children,readoutLabel="选中日读数",flags,statistics}:{
- range:ReactNode;custom?:ReactNode;date:string;view:()=>void;metrics:RecordMetric[];title:string;options?:ReactNode;legend:ReactNode;children:ReactNode;readoutLabel?:string;flags?:string;statistics?:ReactNode;
+export function RecordTrendPanel({range,custom,date,view,metrics,title,options,legend,children,readoutLabel="选中日读数",flags,flagVariants=[],statistics}:{
+ range:ReactNode;custom?:ReactNode;date:string;view:()=>void;metrics:RecordMetric[];title:string;options?:ReactNode;legend:ReactNode;children:ReactNode;readoutLabel?:string;flags?:string;flagVariants?:string[];statistics?:ReactNode;
 }){
  const metricRef=useRef<HTMLDivElement>(null),[columnLimit,setColumnLimit]=useState(metrics.length);
  const readingKey=metrics.map(metric=>metric.value+metric.unit).join("|");
@@ -28,12 +28,13 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,options,l
   return()=>{observer.disconnect();cancelAnimationFrame(frame);};
  },[readingKey,metrics.length]);
  const columns=Math.min(columnLimit,metrics.length);
+ const statusVariants=[...new Set([...flagVariants,flags].filter((value):value is string=>Boolean(value)))];
  return <div className={styles.panel} data-record-trend>
   <div className={styles.date} data-record-slot="date"><SelectedDateHeading date={date} view={view}/></div>
   <div className={statistics?styles.readingArea:undefined}>
-  <div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-metric-count={metrics.length} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map(metric=><div key={metric.label} className={styles.metric}><span>{metric.label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span><strong data-metric-number className={metric.tone?styles[metric.tone]:undefined}><span>{metric.value}</span>{metric.inlineUnit&&<small>{metric.unit}</small>}</strong>{metric.note?<em>{metric.note}</em>:<span className={styles.noNote}/>}</div>)}</div>
+  <div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-metric-count={metrics.length} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map(metric=><div key={metric.label} className={styles.metric}><span>{metric.label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span><strong data-metric-number className={metric.tone?styles[metric.tone]:undefined}><span>{metric.value}</span>{metric.inlineUnit&&<small>{metric.unit}</small>}</strong>{metric.note?<em>{metric.note}</em>:<span className={metric.reserveNote?styles.noteSpace:styles.noNote} aria-hidden="true"/>}</div>)}</div>
   {statistics}</div>
-  {flags&&<p className={styles.flags}>{flags}</p>}
+  {statusVariants.length>0&&<div className={styles.flags} data-record-slot="status">{statusVariants.map(value=><span key={value} aria-hidden="true" className={styles.flagMeasure}>{value}</span>)}<span role="status">{flags??""}</span></div>}
   <div className={styles.range} data-record-slot="range">{range}</div>{custom}
   <div className={styles.plotHeading} data-record-slot="title"><h2>{title}</h2>{options}</div>
   <div className={styles.legend} data-record-slot="legend">{legend}</div>

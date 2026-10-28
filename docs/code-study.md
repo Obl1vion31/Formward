@@ -175,7 +175,7 @@ RootLayout（src/app/layout.tsx）
 | `DashboardLayout` | [src/app/dashboard/layout.tsx](../src/app/dashboard/layout.tsx) | 当前访问的登录状态、子页面 | 登录后区域的公共检查；未登录返回首页，已登录返回子页面 |
 | `MealsPage` | [src/app/dashboard/meals/page.tsx](../src/app/dashboard/meals/page.tsx) | 登录状态、网址里的可选日期 | 页面默认导出的入口组件；检查登录，将账号和日期交给 `Content` |
 | `Content` | [src/app/dashboard/meals/page.tsx](../src/app/dashboard/meals/page.tsx) | `MealsPage` 传来的账号和日期 | 同文件内的组件；读取餐次、食材和审核操作，组装页头与 `MealsView` |
-| `DashboardHeader` | [src/app/dashboard/header.tsx](../src/app/dashboard/header.tsx) | 当前账号邮箱、当前网址 | 显示 Logo、邮箱、AI 接入和退出等入口 |
+| `DashboardHeader` | [src/app/dashboard/header.tsx](../src/app/dashboard/header.tsx) | 当前账号邮箱、当前网址 | 显示 Logo、主导航、工具按钮与账号菜单；工具内接入现有 AI 接入和 Excel 页面 |
 | `MealsView` | [src/features/meals/meals-view.tsx](../src/features/meals/meals-view.tsx) | 餐次／食材数据、日期、保存函数 | 管理日期、页签、弹窗、保存等待和结果 |
 | `NutritionChart` | [src/features/meals/nutrition-chart.tsx](../src/features/meals/nutrition-chart.tsx) | 日期、每日合计、显示方式等 | 绘制每日摄入柱图并响应选择 |
 | `MealList` | [src/features/meals/meals-view.tsx](../src/features/meals/meals-view.tsx) | 餐次、忙碌状态、编辑／删除回调 | 同文件内的组件；显示餐次及食物明细 |
@@ -1055,7 +1055,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 
 ### 手机日期与审核展示从哪里来
 
-手机底部四栏和48px页头由 [DashboardHeader](../src/app/dashboard/header.tsx) 组成，颜色、菜单与安全区在 [全局样式](../src/app/globals.css)。确认页不挂四栏，只显示自己的保存栏。
+手机底部四栏和48px页头由 [DashboardHeader](../src/app/dashboard/header.tsx) 组成，颜色、菜单与安全区在 [全局样式](../src/app/globals.css)。确认页不挂四栏或工具入口，只显示自己的保存栏。页头的“工具”打开覆盖式侧栏，正文宽度不变；AI接入和Excel是真实链接，打卡、总结和站内AI聊天只显示暂未开放，不会创建记录。
 
 “昨天没录也能看到补录”来自 [record-dates.ts](../src/components/record-dates.ts)：它像在日历上列出最近10天，不向数据库增加空记录。饮食的 [MealsView](../src/features/meals/meals-view.tsx) 和消耗的 [EnergyView](../src/features/activities/energy-view.tsx) 再把真实数据对上日期。比如昨天只有活动，仍能补录日消耗；昨天完全空白也能打开标着昨天日期的表单。[RecordDateContext](../src/components/record-date-context.tsx) 在跨零点时提醒正在编辑原日期，保存不会自动变成新一天。
 
@@ -1106,3 +1106,10 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 消耗的说明文字由activities/activity-summary.ts整理。例如本次运动741＋期间静息110共851，但已包含在当天活动1357时，本次不再额外增加；当天静息2058＋活动1357仍为3415。这里读取共用计算结果和包含关系，只解释数字，不另算热量。视觉修改先在本地网页验收，用户认可实际截图和操作后才发布。
 
 图边缘的刻度也需要留位置：components/use-chart-viewport.ts先测量实际字体中最长刻度的宽度，再安排绘图区。例如1000000必须完整显示，不能被切成000000。它只决定屏幕上的位置，不修改数据库里的数值；总览、饮食和消耗共同使用。
+
+
+### 活动合计切换为什么先问一次
+
+假设你在消耗填写窗口填了活动215、静息2058，总消耗是2273。此时没有运动明细，直接改用明细相加就会让活动变成0。因此“填写方式”先弹出确认，把2273→2058显示给你看。取消后原数字和来源还在；确认后也只是浏览器草稿变了，仍须点击顶部保存才写入数据库。清空手填数字后离开输入框也遵守同一保护。主要界面在 energy-editor.tsx，计算仍调用 activities/model.ts 的共用规则，AI确认页面复用同一填写窗口。
+
+总览不再根据消耗的历史估计标记增加一行提示。必要的“饮食未记全／营养含未知”仍保留，RecordTrendPanel 根据当前区间所有可能提示预留所需高度，因此鼠标换日期只换字，不把图表推上推下。身体估计依然单独标记，数据库和公开查询原精度、历史来源都保持。

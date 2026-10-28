@@ -8,7 +8,7 @@
 
 ## 内容
 
-- [maintenance-verification.md](maintenance-verification.md)：本轮分批发布、实际网页视觉检查与数据核对证据。
+- [maintenance-verification.md](maintenance-verification.md)：实际网页视觉检查、发布与数据核对证据。
 - `status.md`：当前实现、验证结果、关键代码位置和待完成工作，供后续协作快速恢复上下文。
 - [code-study.md](code-study.md)：面向仅有初步 HTML／TypeScript 知识的项目学习指南；从浏览器、服务器和组件开始，区分组件函数名、定义文件与职责，逐项对应饮食页组件并示范查找定义、引入和使用；用虚构午餐讲清读取、输入、保存与数据库，后半部提供其他业务流程、观察工具、模块、全部表、设计取舍和开发检查。
 - `product.md`：定位、用户价值、首版范围和长期路线。

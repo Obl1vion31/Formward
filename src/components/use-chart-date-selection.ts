@@ -16,7 +16,8 @@ export function useChartDateSelection(dates: string[], initial: string, fallback
       if (event.target instanceof Element && event.target.closest("[data-chart-controls], [data-overview-range-controls], dialog")) return;
       if (event.target instanceof Element && event.target.closest("[data-chart-selection]")?.getAttribute("data-chart-selection")!==regionId) release();
     };
-    const escape = (event: globalThis.KeyboardEvent) => { if (event.key === "Escape") release(); };
+    // 弹窗与自己的控件先处理 Escape，不顺带解除背后固定的日期。
+    const escape = (event: globalThis.KeyboardEvent) => { if (event.key === "Escape"&&!event.defaultPrevented&&!document.querySelector("dialog[open]")) release(); };
     document.addEventListener("pointerdown", outside); document.addEventListener("keydown", escape);
     return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
   }, [validPin,regionId]);

@@ -93,8 +93,8 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
        custom={customOpen&&<CustomRecordRange label="消耗" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
        date={inspected} view={()=>{selection.release();setViewing(inspected);}} readoutLabel="选中日消耗"
        metrics={[
-        {label:"总消耗",value:energyValue(chosen?.totalKcal),unit:"kcal",note:chosen?.estimated?"含估计":undefined},
-        {label:"静息",value:energyValue(chosen?.restingKcal),unit:"kcal",tone:"blue",note:chosen?.record?.restingEstimated?"估计":undefined},
+        {label:"总消耗",value:energyValue(chosen?.totalKcal),unit:"kcal"},
+        {label:"静息",value:energyValue(chosen?.restingKcal),unit:"kcal",tone:"blue"},
         {label:"活动",value:energyValue(chosen?.activeKcal),unit:"kcal",tone:"red"}
        ]}
        title="每日消耗"

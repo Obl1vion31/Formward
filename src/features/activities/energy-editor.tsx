@@ -1,5 +1,5 @@
 "use client";
-import {useRef,useState} from "react";
+import {useEffect,useId,useRef,useState} from "react";
 import {confirmAction} from "@/components/confirmation-state";
 import {confirmNumbers} from "@/components/number-change";
 import {DecimalInput} from "@/components/decimal-input";
@@ -8,6 +8,7 @@ import {RecordDateContext} from "@/components/record-date-context";
 import {SourceInput,type SourceRemovalResult} from "@/components/source-input";
 import {activityCalories,activityCalorieFields,activityReadings,activityEnergyChanged,energyBaseline,energyDays,energyModes,energyValue,type ActivityRecord,type EnergyDayRecord,type EnergyAction} from "./model";
 import {activitySummary} from "./activity-summary";
+import {activityAccumulationPreview,activityAccumulationMessage} from "./energy-aggregate";
 import styles from "./energy.module.css";
 type Choice="included"|"additional";
 type ActivityAction=Extract<EnergyAction,{kind:"save_activity"}>;
@@ -23,6 +24,13 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
  initial:EnergyAction;activities?:ActivityRecord[];dayRecords?:EnergyDayRecord[];activityPreview?:ActivityRecord;sources:string[];removeSource:(label:string)=>Promise<SourceRemovalResult>;busy:boolean;error:string;save:(action:EnergyAction)=>void;saveBatch?:(actions:EnergyAction[])=>void;submitLabel?:string;
 }){
  const numberAcknowledgements=useRef(new Set<string>()),submitting=useRef(false);
+ const methodMenu=useRef<HTMLDetailsElement>(null),switchingAggregate=useRef(false),aggregateWasCleared=useRef(false),aggregateId=useId();
+ const [clearedAggregate,setClearedAggregate]=useState(false),[confirmingAggregate,setConfirmingAggregate]=useState(false);
+ useEffect(()=>{
+  const dismiss=(event:PointerEvent)=>{if(methodMenu.current&&!methodMenu.current.contains(event.target as Node))methodMenu.current.open=false;};
+  document.addEventListener("pointerdown",dismiss);
+  return()=>{document.removeEventListener("pointerdown",dismiss);};
+ },[]);
  const [openedOn]=useState(()=>new Date().toLocaleDateString("en-CA"));
  const [draft,setDraft]=useState<EnergyAction>(()=>{
   if(initial.kind!=="save_activity")return structuredClone(initial);
@@ -62,19 +70,54 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
  const singleRequires=!!baseline&&single&&draft.completed!==false&&(singleChanged||!selectedRelation);
  const projectedItems:ActivityRecord[]=daily?items.filter(item=>item.name.trim()).map(item=>({...activityRecord({...item,date:targetDate!},item.key,activities.find(row=>row.id===item.id)),inclusion:relation(item),inclusionBasis:relation(item)?baseline:null})):activities.filter(row=>!row.deletedAt&&row.date===targetDate&&(!single||row.id!==(draft.id??originalActivity?.id)));
  if(single)projectedItems.push({...activityRecord(draft,"single",originalActivity),inclusion:selectedRelation,inclusionBasis:selectedRelation?baseline:null});
- const autoActive=energyDays({days:projected?[{...projected,entryMode:"components",activityMode:"activities",activeKcal:null,totalKcal:null}]:[],activities:projectedItems,profiles:[]},[],targetDate?[targetDate]:[])[0]?.activeKcal??null;
+ const accumulation=projected?activityAccumulationPreview(projected,projectedItems):null;
+ const autoActive=accumulation?.activeKcal??null;
  const unresolvedCount=daily?unresolved.length:singleRequires&&!selectedRelation?1:0;
  const total=unresolvedCount?null:projected?energyDays({days:[projected],activities:projectedItems,profiles:[]},[],[projected.date])[0].totalKcal:null;
- const signature=JSON.stringify([draft,items,singleChoice]),[firstSignature]=useState(signature);useDraftGuard(signature!==firstSignature,busy);
+ const signature=JSON.stringify([draft,items,singleChoice]),[firstSignature]=useState(signature);useDraftGuard(signature!==firstSignature||clearedAggregate,busy);
  const set=(key:string,value:unknown)=>setDraft(current=>({...current,[key]:value,...(key==="restingKcal"?{restingEstimated:false}:key==="activeKcal"?{activeEstimated:false}:{}),...(key.endsWith("SourceSystem")||key==="sourceSystem"?{sourceRecordId:null}:{})}));
- function aggregate(value:string){if(!daily)return;setAggregateEpoch(epoch=>epoch+1);setDraft(current=>({...current,activeKcal:value||null,activityMode:value?"total":"activities",activeEstimated:false}));}
- function aggregateFinished(){setAggregateEditing(false);if(unresolved[0])setExpanded(values=>new Set([...values,unresolved[0].key]));}
+ function aggregate(value:string){
+  if(!daily||switchingAggregate.current)return;
+  aggregateWasCleared.current=value===""&&modes.activityMode==="total";
+  setClearedAggregate(aggregateWasCleared.current);
+  // 清空只是当前输入，不先清掉手填草稿或让每日总数跳到累计结果。
+  if(value==="")return;
+  if(modes.activityMode!=="total"||draft.activeKcal!==value)setAggregateEpoch(epoch=>epoch+1);
+  setDraft(current=>({...current,activeKcal:value,activityMode:"total",activeEstimated:false}));
+ }
+ async function requestActivityAccumulation(){
+  if(!daily||!projected||!accumulation||modes.activityMode!=="total"||switchingAggregate.current)return;
+  switchingAggregate.current=true;setConfirmingAggregate(true);
+  if(methodMenu.current)methodMenu.current.open=false;
+  try{
+   const confirmed=await confirmAction({title:"改用运动明细相加？",message:activityAccumulationMessage(projected.activeKcal,total,accumulation,submitLabel==="应用修改"),confirmLabel:"确认切换"});
+   if(confirmed){
+    // 未采用的手填数值和来源仍留在各自草稿中，切回手填时可恢复。
+    setDraft(current=>({...current,activityMode:"activities"}));
+    setAggregateEpoch(epoch=>epoch+1);
+    setAdjusting(new Set());
+   }
+  }finally{
+   aggregateWasCleared.current=false;setClearedAggregate(false);setAggregateEditing(false);
+   switchingAggregate.current=false;setConfirmingAggregate(false);
+  }
+ }
+ function restoreManualAggregate(){
+  if(!daily||switchingAggregate.current)return;
+  if(methodMenu.current)methodMenu.current.open=false;
+  aggregateWasCleared.current=false;setClearedAggregate(false);setAggregateEditing(false);
+  setDraft(current=>({...current,activityMode:"total"}));setAggregateEpoch(epoch=>epoch+1);
+ }
+ function aggregateFinished(){
+  if(aggregateWasCleared.current){void requestActivityAccumulation();return;}
+  setAggregateEditing(false);if(unresolved[0])setExpanded(values=>new Set([...values,unresolved[0].key]));
+ }
  function choose(item:ActivityDraft,value:Choice){setItems(rows=>rows.map(row=>row.key===item.key?{...row,inclusion:value,choiceSignature:relationKey(row)}:row));setAdjusting(keys=>new Set([...keys].filter(key=>key!==item.key)));}
  function relationButtons(value:Choice|null,onChoose:(choice:Choice)=>void,label:string){return <div className={styles.inclusion} role="group" aria-label={label}><span>这项运动是否已包含在当天{modes.entryMode==="total"?"总消耗":"活动合计"} {energyValue(modes.entryMode==="total"?projected?.totalKcal:projected?.activeKcal)} 千卡中？</span><div>{([["included","已包含"],["additional","额外增加"]] as const).map(([choice,text])=><button key={choice} type="button" aria-pressed={value===choice} onClick={()=>onChoose(choice)}>{text}</button>)}</div></div>;}
  const source=(key:"sourceSystem"|"restingSourceSystem"|"activeSourceSystem",label:string)=><SourceInput label={label} value={key in draft?(draft as Record<string,unknown>)[key] as string??"":key!=="sourceSystem"&&"sourceSystem" in draft?draft.sourceSystem??"":""} sources={sources} removeSource={removeSource} disabled={busy} maxLength={200} onChange={value=>set(key,value||null)}/>;
  const field=(key:"restingKcal"|"totalKcal",label:string)=><label>{label}<DecimalInput precision={0} min={0} max={1000000} aria-label={label} placeholder="未知可留空" value={key in draft?(draft as Record<string,unknown>)[key] as string:null} onFocus={()=>key==="totalKcal"&&setAggregateEditing(true)} onBlur={aggregateFinished} onValue={value=>{if(key==="totalKcal")setAggregateEpoch(epoch=>epoch+1);set(key,value||null);}}/></label>;
  async function submit(){
-  if(submitting.current||busy)return;submitting.current=true;
+  if(submitting.current||busy||switchingAggregate.current)return;if(aggregateWasCleared.current){void requestActivityAccumulation();return;}submitting.current=true;
   try{
    if(single){
     if(singleRequires&&!selectedRelation)return;
@@ -95,17 +138,17 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
    saveBatch(changes);
   }finally{submitting.current=false;}
  }
- const retired=draft.kind.includes("energy_defaults")||draft.kind.includes("energy_profile"),blocked=busy||retired||!!(saveBatch&&daily&&unresolvedCount)||!!(singleRequires&&!selectedRelation);
+ const retired=draft.kind.includes("energy_defaults")||draft.kind.includes("energy_profile"),blocked=busy||confirmingAggregate||retired||!!(saveBatch&&daily&&unresolvedCount)||!!(singleRequires&&!selectedRelation);
  const missing= modes.entryMode==="total"&&projected?.totalKcal==null?"还没填当天总数":modes.entryMode==="components"&&projected?.restingKcal==null?"还没填当天静息":modes.activityMode==="total"&&projected?.activeKcal==null?"还没填活动合计":"有运动热量未知";
  const saveLabel=busy?submitLabel==="应用修改"?"正在应用…":"正在保存…":submitLabel==="保存"&&targetDate?"保存 · "+targetDate:submitLabel;
  function addItem(){if(!daily)return;const key=crypto.randomUUID();setItems(rows=>[...rows,{key,kind:"save_activity",date:draft.date,name:"",calorieMode:"total",completed:true,timezone:draft.timezone}]);setExpanded(values=>new Set([...values,key]));}
  return <form className={styles.form+" "+styles.energyEntry} aria-busy={busy} onSubmit={event=>{event.preventDefault();void submit();}}>
   <div className={styles.stickyTotal}><div>{targetDate&&<RecordDateContext date={targetDate} openedOn={openedOn}/>}<span>当天总消耗 <small>kcal</small></span><strong>{energyValue(total)}</strong>{(unresolvedCount>0||total==null)&&<small>{unresolvedCount?unresolvedCount+"项运动待核对":missing+"，可保存已有部分"}</small>}</div><button className={styles.headerSave} type="submit" disabled={blocked}>{saveLabel}</button></div>
-  <fieldset disabled={busy||retired}>
+  <fieldset disabled={busy||retired||confirmingAggregate}>
    {retired?<p role="alert">日常默认值和静息公式资料已停用，请取消这一项。</p>:daily||single?<>
    <section className={styles.entrySection}><h3>{modes.entryMode==="total"?"总消耗":"静息与活动"}</h3>
-    {daily?<><div className={styles.modeSwitch} role="group" aria-label="消耗录入方式">{([["components","分开记录"],["total","只记总数"]] as const).map(([mode,text])=><button type="button" key={mode} aria-pressed={modes.entryMode===mode} onClick={()=>{set("entryMode",mode);setAggregateEpoch(epoch=>epoch+1);}}>{text}</button>)}</div>
-     {modes.entryMode==="components"?<><div className={styles.fields}>{field("restingKcal","静息 · kcal")}{source("restingSourceSystem","静息来源")}</div><div className={styles.fields}><label>活动合计 · kcal<DecimalInput precision={0} aria-label="活动合计 · kcal" min={0} max={1000000} data-calorie-origin={modes.activityMode==="activities"?"automatic":"manual"} value={modes.activityMode==="activities"?autoActive:draft.activeKcal} placeholder="由运动累计，也可直接填写" onFocus={()=>setAggregateEditing(true)} onBlur={aggregateFinished} onValue={aggregate}/></label>{modes.activityMode==="activities"?<div className={styles.derivedSource}><span>来源（随运动）</span><p>{[...new Set(projectedItems.map(row=>row.sourceSystem).filter(Boolean))].join("、")||"运动明细"}</p></div>:source("activeSourceSystem","活动来源")}</div><p className={styles.hint}>{modes.activityMode==="activities"?"由"+projectedItems.filter(row=>row.completed).length+"项运动自动累计；可以改填全天合计":"手填活动合计"}{modes.activityMode==="total"&&<button type="button" onClick={()=>{aggregate("");setAggregateEditing(false);}}>恢复运动累计</button>}</p></>:<div className={styles.fields}>{field("totalKcal","全天总消耗 · kcal")}{source("sourceSystem","总消耗来源")}</div>}
+    {daily?<><div className={styles.modeSwitch} role="group" aria-label="消耗录入方式">{([["components","分开记录"],["total","只记总数"]] as const).map(([mode,text])=><button type="button" key={mode} aria-pressed={modes.entryMode===mode} onClick={()=>{if(switchingAggregate.current)return;set("entryMode",mode);setAggregateEpoch(epoch=>epoch+1);}}>{text}</button>)}</div>
+     {modes.entryMode==="components"?<><div className={styles.fields}>{field("restingKcal","静息 · kcal")}{source("restingSourceSystem","静息来源")}</div><div className={styles.aggregateBlock}><div className={styles.aggregateHeading}><div><span>活动合计</span>{modes.activityMode==="activities"&&<small>{accumulation?.activities.length?"由"+accumulation.activities.length+"项运动相加":"暂无运动明细"}</small>}</div><details ref={methodMenu} className={styles.aggregateMenu} onToggle={event=>{if(switchingAggregate.current)event.currentTarget.open=false;}} onKeyDown={event=>{if(event.key==="Escape"&&event.currentTarget.open){event.preventDefault();event.stopPropagation();event.currentTarget.open=false;event.currentTarget.querySelector("summary")?.focus();}}}><summary onClick={event=>{if(switchingAggregate.current)event.preventDefault();}}>填写方式</summary><div>{modes.activityMode==="total"?<button type="button" onClick={()=>void requestActivityAccumulation()}>改用运动累计</button>:<button type="button" onClick={restoreManualAggregate}>改为手填活动合计</button>}</div></details></div><div className={styles.fields+" "+styles.aggregateFields} data-mode={modes.activityMode}><label htmlFor={aggregateId}>千卡<DecimalInput id={aggregateId} precision={0} aria-label="活动合计 · kcal" min={0} max={1000000} data-calorie-origin={modes.activityMode==="activities"?"automatic":"manual"} value={modes.activityMode==="activities"?autoActive:draft.activeKcal} placeholder="未知可留空" onFocus={()=>setAggregateEditing(true)} onBlur={aggregateFinished} onValue={aggregate}/></label>{modes.activityMode==="total"&&source("activeSourceSystem","活动来源")}</div></div></>:<div className={styles.fields}>{field("totalKcal","全天总消耗 · kcal")}{source("sourceSystem","总消耗来源")}</div>}
     </>:<div className={styles.contextReadings}><div><span>静息 · kcal</span><strong>{energyValue(day?.restingKcal)}</strong></div><div><span>{modes.entryMode==="total"?"录入总数":"活动合计"} · kcal</span><strong>{energyValue(modes.entryMode==="total"?day?.totalKcal:modes.activityMode==="total"?day?.activeKcal:autoActive)}</strong></div></div>}
    </section>
    <section className={styles.entrySection}><div className={styles.title}><h3>运动明细 <small>{daily?items.length:"1"}项</small></h3>{unresolvedCount>0&&<span className={styles.pendingBadge}>{unresolvedCount}项待核对</span>}</div>

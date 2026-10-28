@@ -1,5 +1,9 @@
 # Tests
 
+## 工具侧栏与活动累计保护
+
+production build后，FORMWARD_ENERGY_TOOLS_ONLY=1 pnpm test:energy-browser使用隔离PGlite与虚构账号，检查五种宽度四页侧栏开关不移动正文、菜单互斥、键盘焦点与真实导航；活动合计的菜单和清空失焦共用确认，覆盖取消、Escape、恢复手填、0、未知、旧未计入、待删除、保存失败及AI只修改草稿。FORMWARD_ENERGY_TOOLS_ARTIFACTS指定截图目录，FORMWARD_OVERVIEW_BROWSER=webkit复用另一引擎；测量总览与消耗悬停各状态时的读数、区间、图表位置，清洁区间不保留提示空行。
+
 ## 四页布局与消耗填写验收
 
 production build后设置FORMWARD_FRAME_ONLY=1运行pnpm test:energy-browser。unified-frame.browser.mjs用同一虚构账号、同日7D并排验证七种视口日期／主要读数共同区域≤2px、读数不裁切、自动累计/手填/明确0/清空、备注保留四位旧数、单运动完整预览、应用内确认与AI整数及身体两位数。FORMWARD_FRAME_ARTIFACTS指定私有输出目录，FORMWARD_OVERVIEW_BROWSER=webkit可复用；真实iOS和软键盘单独记未测。FORMWARD_FRAME_KEYBOARD_ONLY=1另验逐键输入整数、小数明确报错、旧值失焦不回写；连续整页跳转前后等待networkidle，保留全部pageerror检查。

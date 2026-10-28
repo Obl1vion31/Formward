@@ -5,7 +5,7 @@ import {mkdir,writeFile} from "node:fs/promises";
 import {submitMealOperation,decideMealOperation,readMealSnapshot} from "../src/features/meals/records.ts";
 import {addCalendarDays} from "../src/features/measurements/calendar.ts";
 const nutrition=(caloriesKcal,proteinG="0",carbsG=null,fatG="0.1234")=>({caloriesKcal,proteinG,carbsG,fatG});
-export async function checkMealEntry({baseURL,context,page,db,userId,token,today,engine="chromium",artifacts=".codex/meal-total-visual"}){
+export async function checkMealEntry({baseURL,context,page,db,userId,token,today,engine="chromium",artifacts=process.env.FORMWARD_MEAL_ENTRY_ARTIFACTS??".codex/meal-total-visual"}){
  await mkdir(artifacts,{recursive:true});
  if(process.env.FORMWARD_POPOVER_DEBUG)await page.addInitScript(()=>{const original=HTMLElement.prototype.hidePopover;HTMLElement.prototype.hidePopover=function(...args){const b=[...document.querySelectorAll("[popovertarget]")].find(n=>n.getAttribute("popovertarget")===this.id),r=b?.getBoundingClientRect();this.dataset.hideTrace=JSON.stringify({stack:new Error().stack,button:r?{x:r.x,y:r.y,right:r.right,bottom:r.bottom}:null,width:innerWidth,height:innerHeight});return original.apply(this,args);};});page.setDefaultTimeout(25000);const errors=[],errorDetails=[],failedRequests=[];page.on("requestfailed",r=>failedRequests.push({url:r.url(),error:r.failure()?.errorText}));page.on("pageerror",e=>{errors.push(e.message);errorDetails.push({url:page.url(),message:e.message,stack:e.stack});});
  try{
