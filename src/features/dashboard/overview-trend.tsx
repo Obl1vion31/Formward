@@ -1,6 +1,6 @@
 "use client";
-import {RecordTrendPanel,ChartOptions,CustomRecordRange} from "@/components/record-trend-panel";
-import {formatRecordNumber,signedRecordNumber} from "@/components/number-format";
+import {RecordTrendPanel,InlineChartControls,CustomRecordRange} from "@/components/record-trend-panel";
+import {formatRecordNumber,signedRecordNumber,signedIntegerNumber} from "@/components/number-format";
 import {mealTypeLabel} from "../meals/model";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
@@ -39,7 +39,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   try { const length = calendarOrdinal(to) - calendarOrdinal(from) + 1; if (length > 0 && length <= 3661) dates = Array.from({ length }, (_, index) => addCalendarDays(from, index)); } catch {}
   const days = dates.map(date => byDate.get(date) ?? blankDay(date));
   const fallback = preferredRecordedDate(days, today, day => day.energyBalance !== null, day => data.recordDates.includes(day.date));
-  const selection=useChartDateSelection(dates,preferred,fallback),selected=selection.selected,day=days.find(day=>day.date===selected),dialogDay=opened?byDate.get(opened)??blankDay(opened):null;
+  const selection=useChartDateSelection(dates,preferred,fallback,customOpen),selected=selection.selected,day=days.find(day=>day.date===selected),dialogDay=opened?byDate.get(opened)??blankDay(opened):null;
   return <section aria-label="热量与晨重趋势" data-chart-selection={selection.regionId} data-selected-date={selected} data-pinned-date={selection.pinned??undefined}>
     <RecordTrendPanel
       range={<ChartRanges value={range} change={key=>{selection.leave();if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>}
@@ -49,11 +49,11 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       metrics={[
        {label:"摄入",value:formatNutrition(day?.nutrition?.values.caloriesKcal??null,"caloriesKcal"),unit:"kcal",tone:"blue"},
        {label:"消耗",value:energyValue(day?.energy.totalKcal),unit:"kcal",tone:"red"},
-       {label:day?.energyBalance==null?"收支":day.energyBalance<0?"缺口":"盈余",value:signed(day?.energyBalance??null),unit:"kcal",tone:day?.energyBalance!=null&&day.energyBalance<0?"blue":"gold"}
+       {label:day?.energyBalance==null?"收支":day.energyBalance<0?"缺口":"盈余",value:signedIntegerNumber(day?.energyBalance??null),unit:"kcal",tone:day?.energyBalance!=null&&day.energyBalance<0?"blue":"gold"}
       ]}
       flags={[day?.nutrition&&day.mealDayStatus!=="complete"?"饮食"+(day.mealDayStatus==="incomplete"?"未记全":"待确认"):null,day?.nutrition?.incomplete.caloriesKcal?"营养含未知":null,day?.energy.estimated?"消耗含估计":null].filter(Boolean).join(" · ")}
       title="热量收支"
-      options={<ChartOptions><label><input type="checkbox" checked={estimates} onChange={event=>setEstimates(event.target.checked)} aria-label="显示体重估计"/>显示体重估计</label></ChartOptions>}
+      options={<InlineChartControls><label><input type="checkbox" checked={estimates} onChange={event=>setEstimates(event.target.checked)} aria-label="显示体重估计"/>显示体重估计</label></InlineChartControls>}
       legend={<><span><i style={{background:"#92B9D6"}}/>摄入</span><span><i style={{background:"#D89490"}}/>消耗</span><span><i style={{background:"#D8B38A"}}/>盈余</span><span><i style={{background:"#92B2C2"}}/>缺口</span></>}
     >{dates.length?<RelationshipPlot days={days} selected={selected} inspect={selection.choose} preview={selection.preview} leave={selection.leave} pin={selection.pin} unpin={selection.release}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     {dialogDay&&<EditorDialog title={dialogDay.date+" · 当日记录"} close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}

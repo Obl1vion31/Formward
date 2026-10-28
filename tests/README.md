@@ -2,7 +2,7 @@
 
 ## 四页布局与消耗填写验收
 
-production build后设置FORMWARD_FRAME_ONLY=1运行pnpm test:energy-browser。unified-frame.browser.mjs用同一虚构账号、同日7D并排验证七种视口共同区域≤2px、读数不裁切、自动累计/手填/明确0/清空、备注保留四位旧数、单运动完整预览、应用内确认与AI两位数。FORMWARD_FRAME_ARTIFACTS指定私有输出目录，FORMWARD_OVERVIEW_BROWSER=webkit可复用；真实iOS和软键盘单独记未测。FORMWARD_FRAME_KEYBOARD_ONLY=1另验逐键输入2000.12、拒绝第三位及失焦稳定；连续整页跳转前后等待networkidle，保留全部pageerror检查。
+production build后设置FORMWARD_FRAME_ONLY=1运行pnpm test:energy-browser。unified-frame.browser.mjs用同一虚构账号、同日7D并排验证七种视口日期／主要读数共同区域≤2px、读数不裁切、自动累计/手填/明确0/清空、备注保留四位旧数、单运动完整预览、应用内确认与AI整数及身体两位数。FORMWARD_FRAME_ARTIFACTS指定私有输出目录，FORMWARD_OVERVIEW_BROWSER=webkit可复用；真实iOS和软键盘单独记未测。FORMWARD_FRAME_KEYBOARD_ONLY=1另验逐键输入整数、小数明确报错、旧值失焦不回写；连续整页跳转前后等待networkidle，保留全部pageerror检查。
 
 ## 目的
 
@@ -155,7 +155,7 @@ OAuth测试覆盖部分授权到完整读写的一次网页同意、只读查询
 维护专项使用FORMWARD_MAINTENANCE_ONLY=1 pnpm test:energy-browser，验证五种宽度、矮屏、总览固定日期／折叠详情／图片延后加载、最近摄入、历史分页、每份营养及包装、运动包含关系、一次审核与减少动态效果；输入均为虚构数据。FORMWARD_REVIEW_MAINTENANCE_ONLY=1 pnpm test:records-browser覆盖重复餐对照、取消与恢复草稿、未保存输入保护和日期回执。原图表点击只选日，需显式“查看记录”打开详情，旧测试步骤须遵循同一交互。
 
 
-总览视觉验收统一读取[设计文档](../docs/design-reference.md)。`overview-first-screen.browser.mjs`检查未滚动的320×560、390×560、390×640、430×780手机视口，模拟34px底部安全区，断言完整双图与日期刻度位于实际导航上方；另查横屏、1100／1440px、刻度碰撞、选日稳定、固定／图外解除、自定义应用／取消及减少动态效果。截图为实际视口，需逐张复核。隔离入口为 `FORMWARD_OVERVIEW_ONLY=1 pnpm test:energy-browser`；`FORMWARD_MAINTENANCE_ONLY=1`同时回归既有维护流程；正常消耗全量入口也包含首屏检查。`FORMWARD_OVERVIEW_BROWSER=webkit`可切换临时安装的WebKit，不增加应用依赖。模拟测试不替代真实iPhone及软键盘复核。
+总览视觉验收统一读取[设计文档](../docs/design-reference.md)。`overview-first-screen.browser.mjs`检查未滚动的320×560、390×560、390×640、430×780手机视口，模拟34px底部安全区，断言核心读数和主要图形在首屏，矮屏自然滚动后能看到完整双图及日期刻度；另查横屏、1100／1440px、刻度碰撞、选日稳定、固定／图外解除、自定义应用／取消及减少动态效果。截图为实际视口，需逐张复核。隔离入口为 `FORMWARD_OVERVIEW_ONLY=1 pnpm test:energy-browser`；`FORMWARD_MAINTENANCE_ONLY=1`同时回归既有维护流程；正常消耗全量入口也包含首屏检查。`FORMWARD_OVERVIEW_BROWSER=webkit`可切换临时安装的WebKit，不增加应用依赖。模拟测试不替代真实iPhone及软键盘复核。
 
 FORMWARD_UNIFIED_UI_ONLY=1 pnpm test:energy-browser使用PGlite和虚构账号验收四页共用交互、当天／前6天待处理列表、单按钮记全、Inspector与各手机首屏；FORMWARD_OVERVIEW_BROWSER=webkit切换WebKit。截图和几何报告位于.codex/unified-ui-visual/，实际视口包含34px模拟安全区。浏览器模块和依赖可从本机私有工具目录通过既有环境变量指定，不加入产品依赖。
 
@@ -172,3 +172,10 @@ FORMWARD_MEAL_ENTRY_ONLY=1 pnpm test:records-browser检查独立的虚构餐次�
 FORMWARD_BODY_ENERGY_ONLY=1 pnpm test:energy-browser运行隔离PGlite和虚构账号，验证运动400＋期间静息50计入400、仅总数450原样计入、身体覆盖与单指标删除、双窗口修改提醒／保留输入／明确覆盖、中文餐次、自定义取消和慢图登录；五种宽度截图在.codex/body-energy-visual。FORMWARD_BODY_ENERGY_ARTIFACTS可指定私有目录。单元／集成新增计入规则、删除幂等／未来日期、跨账号版本摘要与数量级提醒，不读真实数据库。真实iOS系统软键盘仍待实机。
 
 共用餐次编辑器视觉专项默认纳入pnpm test:records-browser，另用FORMWARD_MEAL_ENTRY_ONLY=1快速定位；FORMWARD_EDITOR_BROWSER=webkit切换WebKit。标准只在[设计文档](../docs/design-reference.md)D3／D4／D6维护。报告逐项区分通过、失败、未测和不适用，记录实际字形空间、完整数字列对齐、行高及详情几何；截图包含每条手机记录与实际打开的浮层。常规审核结束并关闭服务后，再启动独立临时数据库和虚构账号执行编辑器门槛，避免样本和连接互相影响。
+
+数据优先视觉验收沿用FORMWARD_FRAME_ONLY=1，截图位于.codex/data-first-visual/{chromium,webkit}。另验运动本次851、已包含总数3415／额外增加4156、固定总数与运动中段／底部、16px操作间隔、44px点击范围、非法小数与旧四位数只改备注。参考图与本地技术通过均不代表用户已验收；实际截图与操作须先交用户确认，确认前不得发布。
+
+FORMWARD_FRAME_STRESS_ONLY=1配合FORMWARD_FRAME_ONLY=1运行长整数专项；使用正式业务函数生成独立虚构日，320／390／1440px验证百万级读数整项换行以及实际坐标文字完整边界，Chromium和WebKit分别运行。FORMWARD_FRAME_FLOW_ONLY=1只用于交互定位，不冒充完整七组视口验收。失败时保存独立client-failure.json和server-failure.log，保持pageerror零容忍，不过滤React错误。
+
+
+FORMWARD_FRAME_TOUCH_ONLY=1配合FORMWARD_FRAME_ONLY=1检查四页390×640及844×390的hasTouch/isMobile浏览器上下文，截图和touch-report.json独立保存；Chromium/WebKit均运行，不等同真实iOS或系统软键盘实测。

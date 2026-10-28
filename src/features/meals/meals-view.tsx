@@ -1,5 +1,5 @@
 "use client";
-import {RecordWorkspace,RecordTrendPanel,ChartOptions,CustomRecordRange} from "@/components/record-trend-panel";
+import {RecordWorkspace,RecordTrendPanel,InlineChartControls,CustomRecordRange} from "@/components/record-trend-panel";
 import {confirmAction} from "@/components/confirmation-state";
 import {DecimalInput} from "@/components/decimal-input";
 import {confirmNumbers} from "@/components/number-change";
@@ -58,7 +58,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   const first=groups.at(-1)?.date??today,from=range==="all"?first:range==="custom"?customFrom:dateAt(dateNumber(end)-Number(range)+1),to=range==="custom"?customTo:end;
   const validRange=/^\d{4}-\d{2}-\d{2}$/.test(from)&&/^\d{4}-\d{2}-\d{2}$/.test(to)&&dateNumber(from)<=dateNumber(to)&&dateNumber(to)-dateNumber(from)<=3660;
   const dates=validRange?Array.from({length:dateNumber(to)-dateNumber(from)+1},(_,i)=>dateAt(dateNumber(from)+i)):[];
-  const chart=useChartDateSelection(dates,preferred,dates.findLast(date=>groups.some(g=>g.date===date))??today),summaryDate=chart.selected,chosen=groups.find(g=>g.date===summaryDate);
+  const chart=useChartDateSelection(dates,preferred,dates.findLast(date=>groups.some(g=>g.date===date))??today,customOpen),summaryDate=chart.selected,chosen=groups.find(g=>g.date===summaryDate);
   function viewDay(date:string){setSelectedDate(date);setHistoryOpen(true);}
   const dailySummary=(date:string)=>{const group=groups.find(g=>g.date===date);return group?<>{group.meals.length} 餐 · {formatNutrition(group.totals.values.caloriesKcal,"caloriesKcal")} kcal{group.totals.incomplete.caloriesKcal?" · 部分":""}</>:"尚无记录";};
   const recentDates=pendingRecordDates(today,date=>groups.find(g=>g.date===date)?.day.status!=="complete");
@@ -97,9 +97,9 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
        range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft({from:customFrom||from,to:customTo});setCustomOpen(true);}else{setRange(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="饮食" value={customDraft} change={setCustomDraft} apply={()=>{setCustomFrom(customDraft.from);setCustomTo(customDraft.to);setRange("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
        date={summaryDate} view={()=>{chart.release();viewDay(summaryDate);}} readoutLabel="选中日营养"
-       metrics={metrics.map(metric=>({label:metricLabels[metric],value:formatNutrition(chosen?.totals.values[metric]??null,metric),unit:unitFor(metric),tone:metric==="caloriesKcal"?"blue":undefined,note:chosen?.totals.incomplete[metric]?"已知部分":undefined}))}
+       metrics={metrics.map(metric=>({label:metricLabels[metric],value:formatNutrition(chosen?.totals.values[metric]??null,metric),unit:unitFor(metric),inlineUnit:metric!=="caloriesKcal",tone:metric==="caloriesKcal"?"blue":undefined,note:chosen?.totals.incomplete[metric]?"已知部分":undefined}))}
        title="每日摄入"
-       options={<ChartOptions><div role="group" aria-label="营养占比口径">{([["grams","克数占比"],["energy","能量占比"]] as const).map(([value,label])=><button type="button" key={value} aria-pressed={macroMode===value} onClick={()=>setMacroMode(value)}>{label}</button>)}</div></ChartOptions>}
+       options={<InlineChartControls><div role="group" aria-label="营养占比口径">{([["grams","克数占比"],["energy","能量占比"]] as const).map(([value,label])=><button type="button" key={value} aria-pressed={macroMode===value} onClick={()=>setMacroMode(value)}>{label}</button>)}</div></InlineChartControls>}
        legend={<>{(["proteinG","carbsG","fatG"] as const).map(metric=><span key={metric}><i style={{background:macroColors[metric]}}/>{metricLabels[metric]}</span>)}{groups.some(group=>group.day.status!=="complete")&&<span>未记全／待确认</span>}</>}
       >{validRange?<NutritionChart dates={dates} groups={groups} mode={macroMode} selection={chart}/>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}</RecordTrendPanel>
       </div>

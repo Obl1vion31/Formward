@@ -1,4 +1,4 @@
-import {formatRecordNumber} from "../src/components/number-format.ts";
+import {formatIntegerNumber} from "../src/components/number-format.ts";
 import assert from "node:assert/strict";
 import {randomUUID} from "node:crypto";
 import {mkdir,writeFile} from "node:fs/promises";
@@ -116,7 +116,7 @@ export async function checkMealEntry({baseURL,context,page,db,userId,token,today
  await editSaved(saved);await form().getByLabel("数量 1",{exact:true}).fill("200");await total(240);await form().getByRole("button",{name:"保存餐次 · "+today,exact:true}).click();await page.getByRole("heading",{name:"编辑餐次",exact:true}).waitFor({state:"hidden"});saved=(await snapshot()).meals.find(m=>m.id===saved.id);assert.equal(Number(saved.items[0].quantity),200);assert.equal(Number(saved.items[0].nutrition.caloriesKcal),240);
  // Old per-portion values are projected as totals; unmodified save preserves the old wire format.
  let old=(await snapshot()).meals.find(m=>m.mealType===name),before=structuredClone(old.items[0].nutrition);
- await editSaved(old);assert.equal(Number(await form().getByLabel("本次热量 1",{exact:true}).inputValue()),135);assert.equal(await form().getByLabel("本次脂肪 1",{exact:true}).inputValue(),formatRecordNumber(before.fatG));assert.equal(await form().getByLabel("本次碳水 1",{exact:true}).inputValue(),"");assert.equal(Number(await form().getByLabel("本次蛋白质 1",{exact:true}).inputValue()),0);
+ await editSaved(old);assert.equal(Number(await form().getByLabel("本次热量 1",{exact:true}).inputValue()),135);assert.equal(await form().getByLabel("本次脂肪 1",{exact:true}).inputValue(),formatIntegerNumber(before.fatG));assert.equal(await form().getByLabel("本次碳水 1",{exact:true}).inputValue(),"");assert.equal(Number(await form().getByLabel("本次蛋白质 1",{exact:true}).inputValue()),0);
  await closeEditor();assert.equal((await snapshot()).meals.find(m=>m.id===old.id).version,old.version);
  await editSaved(old);await form().getByRole("button",{name:"保存餐次 · "+oldDate,exact:true}).click();await page.getByRole("heading",{name:"编辑餐次",exact:true}).waitFor({state:"hidden"});old=(await snapshot()).meals.find(m=>m.id===old.id);assert.deepEqual(old.items[0].nutrition,before);assert.equal(old.items[0].nutritionBasis,"per_portion");
  await editSaved(old);await form().getByLabel("数量 1",{exact:true}).fill("2");await total(135);await form().getByRole("button",{name:"保存餐次 · "+oldDate,exact:true}).click();await page.getByRole("heading",{name:"编辑餐次",exact:true}).waitFor({state:"hidden"});old=(await snapshot()).meals.find(m=>m.id===old.id);assert.deepEqual(old.items[0].nutrition,before);assert.equal(old.items[0].nutritionBasis,"consumed_total");

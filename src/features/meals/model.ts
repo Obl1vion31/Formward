@@ -1,4 +1,4 @@
-import {formatRecordNumber} from "../../components/number-format";
+import {formatIntegerNumber} from "../../components/number-format";
 import { z } from "zod";
 
 export const metrics = ["caloriesKcal", "proteinG", "carbsG", "fatG"] as const;
@@ -108,7 +108,7 @@ export function dailyTotals(meals: MealView[]) {
   for (const meal of meals.filter(m => !m.deletedAt)) groups.set(meal.date, [...(groups.get(meal.date) ?? []), meal]);
   return [...groups].sort(([a], [b]) => b.localeCompare(a)).map(([date, rows]) => ({ date, meals: rows, day: rows[0]?.day ?? {date,status:"unconfirmed" as const,version:0,contentDigest:"",source:"unconfirmed"}, totals: sumNutrition(rows.flatMap(m => m.items.map(i => i.nutrition))) }));
 }
-export function formatNutrition(value: string | null, metric: Metric) { void metric;return formatRecordNumber(value); }
+export function formatNutrition(value: string | null, metric: Metric) { void metric;return formatIntegerNumber(value); }
 
 /** 计数单位默认一份；重量、体积及未知单位由用户明确填写。 */
 export function defaultFoodQuantity(unit: string): string | null {

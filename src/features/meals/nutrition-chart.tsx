@@ -1,27 +1,26 @@
 "use client";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef } from "react";
 import { dailyTotals, macroColors, macroDistribution, formatNutrition, metricLabels, type Metric, type MacroMode } from "./model";
 import {useChartDrag} from "@/components/use-chart-drag";
 import { useChartMotion } from "@/components/use-chart-motion";
 import type { useChartDateSelection } from "@/components/use-chart-date-selection";
+import {useChartViewport} from "@/components/use-chart-viewport";
 import { chartScale } from "@/components/chart-scale";
 import styles from "./meals.module.css";
 
 const calorieColor = "#7F9EAF";
 const macros: Metric[] = ["proteinG", "carbsG", "fatG"];
 export function NutritionChart({ dates, groups, selection, mode }: { dates: string[]; groups: ReturnType<typeof dailyTotals>; selection:ReturnType<typeof useChartDateSelection>; mode: MacroMode }) {
-  const viewport = useRef<HTMLDivElement>(null), [containerWidth, setContainerWidth] = useState(0);
+  const viewport = useRef<HTMLDivElement>(null);
   const patternId = useId().replaceAll(":", "");
   const byDate = new Map(groups.map(group => [group.date, group.totals]));
   const statusByDate = new Map(groups.map(group => [group.date, group.day.status]));
   const inspected=selection.selected,unit="kcal";
-  useEffect(() => {
-    const node = viewport.current!, observer = new ResizeObserver(([entry]) => setContainerWidth(entry.contentRect.width));
-    observer.observe(node); return () => observer.disconnect();
-  }, []);
+  const scale=chartScale(dates.map(date=>byDate.get(date)?.values.caloriesKcal));
+  const {width:containerWidth,left}=useChartViewport(viewport,scale.ticks,54);
   useChartMotion(viewport, containerWidth ? `${dates[0]}:${dates.at(-1)}:${mode}:${groups.map(group => `${group.date}:${JSON.stringify(group.totals)}`).join("|")}` : "pending");
-  const width = containerWidth || 280, left = 54, right = 10, slot = (width - left - right) / dates.length;
-  const scale = chartScale(dates.map(date => byDate.get(date)?.values.caloriesKcal)), max = scale.max, y = (value: number) => 154 - value / max * 120;
+  const width = containerWidth || 280, right = 10, slot = (width - left - right) / dates.length;
+  const max = scale.max, y = (value: number) => 154 - value / max * 120;
   const drag=useChartDrag(dates,width,left,right,selection.pin);
   const allDates = dates.length <= 7, selectedX = left + (dates.indexOf(inspected) + .5) * slot;
   const stride = Math.max(1, Math.ceil((dates.length - 1) / (width < 440 ? 3 : 6)));
@@ -36,7 +35,7 @@ export function NutritionChart({ dates, groups, selection, mode }: { dates: stri
           const incompleteDay = !!daily && statusByDate.get(date) !== "complete";
           const label = `${date} · ${daily ? ["caloriesKcal" as const, ...macros].map(metric => `${metricLabels[metric]} ${formatNutrition(daily.values[metric], metric)} ${metric === "caloriesKcal" ? "kcal" : "g"}${daily.incomplete[metric] ? "（已知合计，不完整）" : ""}`).join(" · ") : "未记录"}${incompleteDay ? statusByDate.get(date) === "incomplete" ? " · 当天未记全" : " · 全天待确认" : ""}`;
           const valueLabel = formatNutrition(energy ?? null, "caloriesKcal");
-          return <g key={date} role="button" tabIndex={date === inspected ? 0 : -1} data-bar-date={date} data-selected={date === inspected} data-day-status={statusByDate.get(date)} aria-label={label} data-chart-date={date} onMouseEnter={()=>selection.preview(date)} onFocus={()=>selection.choose(date)} onClick={()=>selection.pin(date)} onKeyDown={event=>selection.keyDown(event,date)}>
+          return <g key={date} role="button" tabIndex={date === inspected ? 0 : -1} data-bar-date={date} data-selected={date === inspected} data-day-status={statusByDate.get(date)} aria-label={label} data-chart-date={date} onMouseMove={()=>selection.preview(date)} onFocus={()=>selection.choose(date)} onClick={()=>selection.pin(date)} onKeyDown={event=>selection.keyDown(event,date)}>
             <title>{label}</title><rect className={styles.barHit} x={x} y="25" width={slot} height="134" />
             {energy!=null&&(()=>{
               const segments=macroDistribution(daily, mode);let below=0;

@@ -334,3 +334,6 @@
 .entryCell{position:relative}.entryInputRow>.deleteCell{flex:0 0 44px;min-height:44px;padding:8px;background:transparent;border:0}
 
 .panelStats{display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:12px;color:#b8b0a2}.panelStats strong{display:block;font-size:20px;font-weight:400;color:#f0e9dd;margin:5px 0}.panelStats p{font-size:12px;margin:4px 0 14px}.additionalMetric{margin-top:24px}
+
+.panelStats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;padding:8px 0 4px;align-items:baseline}.panelStats>div{min-width:0}.panelStats span{display:block;line-height:20px}.panelStats strong{display:block;white-space:nowrap;font-size:22px;line-height:1.4;margin:4px 0 0}.panelStats small{font-size:12px;margin-left:4px;color:#b8b0a2}.panelStats p{font-size:12px;margin:2px 0 0;line-height:18px}
+@media(max-width:700px),(hover:none) and (pointer:coarse){.panelStats{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 10px;padding:0 0 16px}.panelStats strong{font-size:20px}.panelStats span{font-size:12px}.panelStats small{margin-left:3px}}

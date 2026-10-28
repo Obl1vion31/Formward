@@ -78,8 +78,14 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const recent = recentMeasurementDays(displayedRecords, recentInterval, choices, 7).filter(day => day.date === today || (!dates.some(row => row.date === day.date && row.reminderSkipped) && measurementNeedsEntry(records, day.date, choices)));
   const chartDates=measurementCalendarPage(range,calendarOrdinal(range.end)-calendarOrdinal(range.start)+1).reverse();
   const preferred=displayedRecords.filter(row=>row.recordDate<=(today||latestDate)&&row.period==="daytime").map(row=>row.recordDate).sort().at(-1)??(today||range.end);
-  const selection=useChartDateSelection(chartDates,initialDate??preferred,visibleRecords.map(row=>row.recordDate).sort().at(-1)??range.end),activeDate=selection.selected;
+  const selection=useChartDateSelection(chartDates,initialDate??preferred,visibleRecords.map(row=>row.recordDate).sort().at(-1)??range.end,calendarOpen),activeDate=selection.selected;
   const summaries = metrics.map(metric => ({ metric, ...measurementSummary(records.filter(row=>row.recordDate<=(today||localMeasurementDate(new Date(),"Asia/Shanghai"))), metric, choices) }));
+
+  const summaryContent=<div className={styles.panelStats} aria-label="最近值与近7日统计">{summaries.flatMap(summary=>[
+   <div key={summary.metric+":latest"}><span>最近{metricName(summary.metric)}</span><strong>{formatRecordNumber(summary.current?.[summary.metric])}<small>{unitFor(summary.metric)}</small></strong><p>{summary.current?displayDate(summary.current.recordDate):"暂无空腹实测"}</p></div>,
+   <div key={summary.metric+":change"}><span>近7日{metricName(summary.metric)}变化</span><strong>{formatDifference(summary.change,summary.metric,false)??"—"}</strong></div>,
+   <div key={summary.metric+":average"}><span>近7日{metricName(summary.metric)}均值</span><strong>{formatRecordNumber(summary.average)}<small>{unitFor(summary.metric)}</small></strong><p>{summary.coverage}/7天</p></div>
+  ])}</div>;
 
   function selectRange(nextMode: MeasurementRange, nextInterval = customRange) {
     measurementRange(latestDate,nextMode,nextMode==="custom"?nextInterval:{start:earliestDate,end:latestDate});
@@ -111,9 +117,10 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
        custom={calendarOpen&&<CustomRecordRange label="身体" value={{from:draftRange.start,to:draftRange.end}} change={next=>setDraftRange({start:next.from,end:next.to})} apply={()=>{setCustomRange(draftRange);selectRange("custom",draftRange);}} cancel={()=>setCalendarOpen(false)}/>}
        date={activeDate} view={()=>{selection.release();inspectDay(activeDate,chartPeriod);}} readoutLabel="选中日身体记录"
        metrics={metrics.map(metric=>{const selected=buildMeasurementDays(displayedRecords.filter(row=>row.recordDate===activeDate),choices,metric,[activeDate])[0].daytimeRecord;const row=selected?.fasting===true?selected:null;return {label:"晨间"+metricName(metric),value:formatRecordNumber(row?.[metric]),unit:unitFor(metric),note:row?.recordKind==="estimated"?"估计":undefined};})}
+       statistics={!mobileMode?summaryContent:undefined}
        title="体重 · kg"
-       options={<ChartOptions label="统计与选项">
-         <div className={styles.panelStats}>{summaries.map(summary=><div key={summary.metric}><span>最近{metricName(summary.metric)}</span><strong>{formatRecordNumber(summary.current?.[summary.metric])} <small>{unitFor(summary.metric)}</small></strong><p>{summary.current?displayDate(summary.current.recordDate):"暂无空腹实测"}</p><span>近7日变化</span><strong>{formatDifference(summary.change,summary.metric,false)??"—"}</strong><span>近7日均值</span><strong>{formatRecordNumber(summary.average)}</strong><p>{summary.coverage}/7天</p></div>)}</div>
+       options={<ChartOptions label={mobileMode?"统计与选项":"图表设置"}>
+         {mobileMode&&summaryContent}
          <div className={styles.chartControls}><label className={styles.toggle}><span>晚间</span><input aria-label="晚间数据" type="checkbox" checked={showEvening} onChange={event=>setShowEvening(event.target.checked)}/></label><label className={styles.toggle}><span>估计</span><input aria-label="估计补全" type="checkbox" checked={showEstimates} onChange={event=>setShowEstimates(event.target.checked)}/></label><button type="button" aria-expanded={rulesOpen} onClick={()=>setRulesOpen(!rulesOpen)}>估算规则 {rulesOpen?"−":"＋"}</button></div>
          {rulesOpen && <section id="measurement-estimate-rules" className={styles.rules} aria-label="估算规则">
         <div><h2>历史初始化</h2><p>第一次补齐已有的历史缺口，利用已经存在的前后真实测量恢复中间趋势。</p><p>补全后结果固定，以后新增数据不会反向改写；真实补录会替代对应的估计值。</p></div>
@@ -349,7 +356,7 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, selec
           const clipTop = midpoint !== null && !coincident && ownY > companionY! ? midpoint : 0;
           const clipBottom = midpoint !== null && !coincident && ownY < companionY! ? midpoint : height;
           const clipId = `${plotId}-${row.id}`;
-          return <g key={row.id} data-point-id={row.id} data-date={row.recordDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.recordDate === selectedDate} data-chart-date={row.recordDate} onMouseEnter={() => { if(!selection.pinned){setHintRecordId(row.id);selection.preview(row.recordDate);onPeriod(row.period);} }} onMouseLeave={() => setHintRecordId(null)} onFocus={() => {setHintRecordId(row.id);selection.choose(row.recordDate);onPeriod(row.period);}} onBlur={() => setHintRecordId(null)} onClick={() => activate(row)} onKeyDown={(event) => {selection.keyDown(event,row.recordDate);if(event.key==="Enter"||event.key===" ")activate(row);}}>
+          return <g key={row.id} data-point-id={row.id} data-date={row.recordDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.recordDate === selectedDate} data-chart-date={row.recordDate} onMouseMove={() => { if(!selection.pinned){setHintRecordId(row.id);selection.preview(row.recordDate);onPeriod(row.period);} }} onMouseLeave={() => setHintRecordId(null)} onFocus={() => {setHintRecordId(row.id);selection.choose(row.recordDate);onPeriod(row.period);}} onBlur={() => setHintRecordId(null)} onClick={() => activate(row)} onKeyDown={(event) => {selection.keyDown(event,row.recordDate);if(event.key==="Enter"||event.key===" ")activate(row);}}>
             <title>{estimated ? label : `${recordTimeLabel(row)} · ${label}`}</title>
             <defs><clipPath id={clipId}><rect x={clipLeft} y={clipTop} width={clipRight - clipLeft} height={clipBottom - clipTop} /></clipPath></defs>
             <circle cx={x(row.recordDate)} cy={ownY} r="14" className={styles.hitTarget} clipPath={`url(#${clipId})`} />

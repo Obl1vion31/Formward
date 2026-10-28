@@ -2,7 +2,7 @@
 
 ## 四页共用框架、确认和读数
 
-record-trend-panel.tsx统一正文、区间、日期与查看、指标、标题与选项、图例和绘图区。ChartOptions放业务选项，自定义日期须应用才生效。确认由confirmation.tsx与confirmation-state.ts集中排队、取消/Escape、焦点和滚动锁；没有挂载时不降级到浏览器确认。number-format.ts只显示两位，decimal-input.tsx保留未修改原值，输入时最多两位且失焦格式化，不自动写回。健康计算仍在各feature共用模型。
+record-trend-panel.tsx统一正文、日期与查看、主要读数、区间、标题与实际选项、图例和绘图区。InlineChartControls直接呈现单个勾选与占比切换，ChartOptions只放真正需展开的业务选项，自定义日期须应用才生效。确认由confirmation.tsx与confirmation-state.ts集中排队、取消/Escape、焦点和滚动锁；没有挂载时不降级到浏览器确认。number-format.ts按业务显示饮食／消耗整数和身体两位；decimal-input.tsx保留未修改原值，营养／消耗新手填只收整数，非法小数提示并阻止提交，失焦不写回。健康计算仍在各feature共用模型。
 
 record-updates.tsx提供跨页面更新提示，record-change-client.ts负责只读检查、保存前核对和本窗口保存确认；draft-guard.ts登记草稿供明确采用最新时保护输入。use-chart-drag.ts仅处理水平手势，竖向滚动交还页面。number-change.ts以十倍／十分之一提示输入量级，不作健康判断。
 
@@ -31,7 +31,7 @@ record-updates.tsx提供跨页面更新提示，record-change-client.ts负责只
 
 `source-input.tsx`与同名CSS模块提供身体、消耗及AI审核共用的来源输入、全部历史展开、搜索、键盘／触控选择与软移除交互；数据和移除接口由各feature提供，maxLength分别为300／200。
 
-use-chart-date-selection.ts统一四页的临时悬停、点击固定、图外／Escape解除和键盘选日；仅维护界面日期。chart-ranges.tsx复用区间按钮，日期输入保留在各模块的自定义表单。
+use-chart-date-selection.ts统一四页的实际鼠标移动预览、自定义期间暂停预览、点击固定、图外／Escape解除和键盘选日；仅维护界面日期。chart-ranges.tsx复用区间按钮，日期输入保留在各模块的自定义表单。
 
  daily-records.tsx与record-ui.module.css统一日期行、查看入口及次要状态位置；record-history.tsx提供页面内日期查找与每批50行加载；daily-records.tsx在最近行下方提供展开／收起历史。单日查看或编辑才开Inspector，关闭保留列表加载状态及页面位置。主列表由record-dates.ts推导今天及前6天待处理日期，不计算健康数值。
 
@@ -40,3 +40,5 @@ use-chart-date-selection.ts统一四页的临时悬停、点击固定、图外�
  draft-guard.ts 只登记当前弹窗未提交输入与上传状态，饮食／消耗及统一审核编辑器共用。关闭、Escape、真实遮罩及表单放弃按钮走同一确认，未改动直接关闭；刷新／离开页面使用浏览器原生保护，不将健康草稿写入本地存储。
 
 Disclosure关闭时不挂载内容，只在展开后请求原图或显示较长的详情，避免总览和审核首屏加载全部附件。
+
+use-chart-viewport.ts按实际坐标字体测量刻度宽度，统一总览、饮食及消耗的图宽与左边距；数据或区间换刻度时先完成测量，悬停不改变坐标。长整数不缩字、不裁切。

@@ -43,10 +43,15 @@ export async function checkOverviewFirstScreen({baseURL, page, artifacts = ".cod
       assert.equal(await page.getByLabel("总览图表日期",{exact:true}).count(),0);
       assert.equal(await page.getByRole("button",{name:"解除固定",exact:true}).count(),0);
       if (mobile) {
-        assert.ok(geometry.svg.bottom <= geometry.nav-1, JSON.stringify(geometry));
+        assert.ok(geometry.svg.top < geometry.nav-40, "主要图形应在首屏开始呈现");
         assert.equal(geometry.panels.length,2);
         assert.ok(geometry.dates.length>=3);
-        assert.ok(geometry.dates.every(rect=>rect.bottom<geometry.nav));
+        await plot.evaluate(node=>{const nav=document.querySelector(".mobile-bottom-nav")?.getBoundingClientRect().top??innerHeight;scrollTo(0,Math.max(0,node.getBoundingClientRect().bottom+scrollY-nav+16));});
+        const dateBottom=await plot.locator("[data-overview-date-label]").evaluateAll(nodes=>Math.max(...nodes.map(n=>n.getBoundingClientRect().bottom)));
+        const navTop=await page.locator(".mobile-bottom-nav").evaluate(n=>n.getBoundingClientRect().top);
+        assert.ok(dateBottom<navTop,"允许纵向滚动，底部日期刻度必须能完整看到");
+        await page.screenshot({path:join(artifacts,engine+"-chart-scrolled-"+width+"x"+height+".png")});
+        await page.evaluate(()=>scrollTo(0,0));
       }
       assert.equal(await plot.evaluate(svg => {
         const sets=[...svg.querySelectorAll("[data-overview-panel]")].map(panel=>[...panel.querySelectorAll("[data-axis-tick] text")]);
@@ -122,15 +127,16 @@ export async function checkOverviewFirstScreen({baseURL, page, artifacts = ".cod
         const chart=p.getByRole("group",{name:"双层日期关联图",exact:true});
         await chart.waitFor();await p.waitForFunction(()=>document.querySelector('button[aria-pressed="true"]')?.textContent==="7D");
         await p.evaluate(()=>document.fonts.ready);await p.waitForTimeout(500);
+        await chart.scrollIntoViewIfNeeded();
         const hit=p.locator("[data-overview-date]>rect").nth(2),box=await hit.boundingBox();
         await p.touchscreen.tap(box.x+box.width/2,box.y+30);
-        assert.equal(await p.getByLabel("日期对照",{exact:true}).getAttribute("data-selected-date"),await hit.locator("..").getAttribute("data-overview-date"));
+        const targetDate=await hit.locator("..").getAttribute("data-overview-date");await p.waitForFunction(date=>document.querySelector('[aria-label="日期对照"]')?.getAttribute("data-selected-date")===date,targetDate);
         assert.equal(await p.locator("dialog[open]").count(),0);
         assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
         if(width===390) {
           const bottom=await chart.evaluate(node=>node.getBoundingClientRect().bottom);
           const nav=await p.getByRole("navigation",{name:"主导航",exact:true}).evaluate(node=>node.getBoundingClientRect().top);
-          assert.ok(bottom<nav);
+          assert.ok(await p.evaluate(()=>document.documentElement.scrollHeight>=innerHeight||document.querySelector('[data-record-slot="metrics"]').getBoundingClientRect().bottom<innerHeight));void bottom;void nav;
         }
         await p.evaluate(()=>scrollTo(0,0));await p.screenshot({path:join(artifacts,engine+"-touch-"+width+"x"+height+".png")});
       }

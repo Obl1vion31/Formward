@@ -1,6 +1,6 @@
 # Formward：从零看懂网页、后端与数据库
 
-> 四页共同外壳在 src/components/record-trend-panel.tsx：先区间，再日期和查看，再读数、标题、图例和图。各页只传自己的指标和图形。身体顶部跟着你选的日期变，无值不借别天的值。每日消耗先从运动累计，手填活动合计才核对“是否已包含”；例如自动400＋静息2000为2400。小型确认框在 confirmation.tsx，两位数字在 number-format.ts；decimal-input.tsx 只在你真正输入时改草稿，所以旧400.1234显示400.12，单纯打开或改备注仍保留原数。
+> 四页共同外壳在 src/components/record-trend-panel.tsx：先日期和查看，再主要读数、区间、标题、图例和图。各页只传自己的指标和图形。身体顶部跟着你选的日期变，无值不借别天的值。每日消耗先从运动累计，手填活动合计才核对“是否已包含”；例如自动400＋静息2000为2400。小型确认框在 confirmation.tsx，number-format.ts让饮食／消耗显示整数、身体显示两位；decimal-input.tsx只有真正有效输入才改草稿，营养／消耗新手填只收整数，所以旧400.1234显示400，单纯打开或改备注仍保留原数。
 
 
 这份指南从一个问题开始：**我在网页里填了一餐，点了保存，这些文字和数字到底去了哪里？**
@@ -1084,7 +1084,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 | 填本次数据 | 浏览器 | meals/meal-editor.tsx及meal-editor-state.ts | 名称、单位、数量和本次总营养 | 保留总量草稿，旧项未修改时保留原输入 | saveMealAction |
 | 保存正式营养 | 服务端 | meals/records.ts的prepareItem | consumed_total及nutrition；旧per_portion仍兼容 | 总量直接保存，旧每份请求沿用既有换算 | meal_items及审计 |
 | 按包输入 | 浏览器到服务端 | 同一编辑器／nutritionFor | 可靠包装规格及包数 | 先换成基准单位，再换算营养；不猜一包重量 | 本次营养与历史快照 |
-| 看差值 | 服务端到浏览器 | dashboard/model.ts的energyEquationReadings | 原始摄入、消耗、差额 | 选择必要小数位，让显示算式能算对 | 总览读数 |
+| 看差值 | 服务端到浏览器 | dashboard/model.ts的energyEquationReadings | 原始摄入、消耗、差额 | 保留真实差额，按能量整数／身体两位的规则显示 | 总览读数 |
 | 看详情 | 浏览器 | overview-trend.tsx／components/disclosure.tsx | 已选择日期 | 身体与消耗并排，常驻当日营养，展开单餐才挂载明细和原图 | 当前窗口 |
 | 看运动审核 | 服务端与网页 | records/operations.ts的expandEnergyRelations | 总数变化及本账号已有运动 | 列成独立核对项，选已包含／额外增加 | 底部一次确认 |
 
@@ -1102,3 +1102,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 四页选日行为从components/use-chart-date-selection.ts找；区间按钮看chart-ranges.tsx，日期行看daily-records.tsx，页面下方展开的历史日期看record-history.tsx，单日查看／编辑的侧栏外壳看inspector.tsx。它们处理显示和交互，餐次、消耗与身体规则仍在对应feature。删除食材库不会删掉以前吃过的餐次：餐项保存当时的营养和包装快照；人工永久删除只解除库引用，历史营养保持。图表缺测仍是真实缺失，不通过新增0填平。
 
 餐次编辑器的视觉尺寸由use-meal-layout.ts测量文字与可用空间，只决定表格／卡片和列宽；meal-item-details.tsx把详情放在当前Inspector顶层，再依据按钮位置显示。它们与meals.module.css一起看，不进入数据库保存链，也不计算或舍入营养。包装换算仍由原有meals/model.ts共用规则负责。
+
+消耗的说明文字由activities/activity-summary.ts整理。例如本次运动741＋期间静息110共851，但已包含在当天活动1357时，本次不再额外增加；当天静息2058＋活动1357仍为3415。这里读取共用计算结果和包含关系，只解释数字，不另算热量。视觉修改先在本地网页验收，用户认可实际截图和操作后才发布。
+
+图边缘的刻度也需要留位置：components/use-chart-viewport.ts先测量实际字体中最长刻度的宽度，再安排绘图区。例如1000000必须完整显示，不能被切成000000。它只决定屏幕上的位置，不修改数据库里的数值；总览、饮食和消耗共同使用。

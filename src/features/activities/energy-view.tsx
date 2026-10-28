@@ -18,11 +18,13 @@ import { RecordHistory } from "@/components/record-history";
 import type { SourceRemovalResult } from "@/components/source-input";
 import { EditorDialog } from "../meals/meals-view";
 import { addCalendarDays, calendarOrdinal } from "../measurements/calendar";
+import {useChartViewport} from "@/components/use-chart-viewport";
 import { chartScale } from "@/components/chart-scale";
 import type { EnergyPresentation } from "./presentation";
 import type { Result } from "../meals/model";
+import {activitySummary} from "./activity-summary";
 import { EnergyEditor } from "./energy-editor";
-import { activityReadings, blankEnergyDay, energyValue, type EnergyAction, type EnergyDay, type EnergyInput } from "./model";
+import { blankEnergyDay, energyValue, type EnergyAction, type EnergyDay, type EnergyInput } from "./model";
 import styles from "./energy.module.css";
 
 export type SaveEnergy = (input: EnergyInput) => Promise<Result<{ presentation: EnergyPresentation; message: string;changedKeys?:string[] }>>;
@@ -55,7 +57,7 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
   const from = range === "all" ? earliest : range === "custom" ? custom.from : addCalendarDays(end, 1 - Number(range)), to = range === "custom" ? custom.to : end;
   const dates = useMemo(() => { try { const length = calendarOrdinal(to) - calendarOrdinal(from) + 1; return length > 0 && length <= 3661 ? Array.from({ length }, (_, index) => addCalendarDays(from, index)) : []; } catch { return []; } }, [from, to]);
   const chartDays = dates.map(date => byDate.get(date) ?? blankEnergyDay(date));
-  const selection=useChartDateSelection(dates,initialDate??latest,preferredRecordedDate(chartDays,today,day=>day.totalKcal!==null,day=>!!day.record||day.activities.length>0)),inspected=selection.selected,chosen=chartDays.find(day=>day.date===inspected);
+  const selection=useChartDateSelection(dates,initialDate??latest,preferredRecordedDate(chartDays,today,day=>day.totalKcal!==null,day=>!!day.record||day.activities.length>0),customOpen),inspected=selection.selected,chosen=chartDays.find(day=>day.date===inspected);
   useEffect(()=>{const latest=()=>{setEditing(null);setViewing(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
   const historyDates=[...new Set([...recentRecordDates(today),...state.days.filter(d=>!d.deletedAt).map(d=>d.date),...state.activities.filter(a=>!a.deletedAt).map(a=>a.date)])].sort().reverse();
   usePageLoading({ active: busy, label: "正在保存消耗记录…" });
@@ -82,7 +84,7 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
   const summary=(date:string)=>{const day=byDate.get(date);return day?<>{energyValue(day.totalKcal)} kcal · 静息 {energyValue(day.restingKcal)} · 活动 {energyValue(day.activeKcal)}</>:"尚无记录";};
   const recentDates=pendingRecordDates(today,date=>byDate.get(date)?.totalKcal==null);
   const renderDay=(date:string)=>{const day=byDate.get(date);return <DailyRecordRow key={date} date={date} today={today} value={summary(date)}><button disabled={busy} onClick={()=>editDay(date)}>{day?.record?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>setViewing(date)}>查看</button></DailyRecordRow>;};
-  const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <><h3>{date.replaceAll("-",".")}</h3><div className={styles.summary}>{([["总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>kcal</small></strong></div>)}</div><EnergySources day={day}/><div className={styles.actions}><button onClick={()=>editDay(date)}>{day.record?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>editDay(date,true)}>添加活动</button></div>{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=><article key={activity.id} className={styles.row}><div><h3>{activity.name}</h3><p>{activity.durationMinutes!==null?Number(activity.durationMinutes)+" 分钟 · ":""}{activity.sourceSystem}{!activity.completed?" · 历史未计入":""}{activity.inclusion==="included"?" · 已包含":activity.inclusion==="additional"?" · 额外增加":""}</p></div><strong>{energyValue(activityReadings(activity).totalKcal)}<small>kcal</small>{activity.calorieMode==="components"&&<small>计入当天 {energyValue(activityReadings(activity).countedKcal)} kcal</small>}</strong><div className={styles.actions}><button onClick={()=>activityEdit(activity)}>编辑活动</button><button disabled={busy} onClick={()=>removeRecord({kind:"delete_activity",id:activity.id,version:activity.version},activity.name)}>删除活动</button></div></article>)}{day.record&&<details className={styles.details}><summary>更多操作</summary><button disabled={busy} onClick={()=>removeRecord({kind:"delete_energy_day",id:day.record!.id,version:day.record!.version},date+" 消耗记录")}>永久删除日记录</button></details>}</>;};
+  const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <><h3>{date.replaceAll("-",".")}</h3><div className={styles.summary}>{([["总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>kcal</small></strong></div>)}</div><EnergySources day={day}/><div className={styles.actions}><button onClick={()=>editDay(date)}>{day.record?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>editDay(date,true)}>添加活动</button></div>{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=>{const reading=activitySummary(activity,day.record);return <article key={activity.id} className={styles.row}><div><h3>{activity.name}</h3><p>{activity.durationMinutes!==null?energyValue(activity.durationMinutes)+" 分钟 · ":""}{activity.sourceSystem}</p>{reading.breakdown&&<p>{reading.breakdown}</p>}<p className={styles.inclusionStatus} data-exercise-effect>{reading.effect}</p></div><strong>{energyValue(reading.totalKcal)}<small>kcal</small></strong><div className={styles.actions}><button onClick={()=>activityEdit(activity)}>编辑活动</button><button disabled={busy} onClick={()=>removeRecord({kind:"delete_activity",id:activity.id,version:activity.version},activity.name)}>删除活动</button></div></article>;})}{day.record&&<details className={styles.details}><summary>更多操作</summary><button disabled={busy} onClick={()=>removeRecord({kind:"delete_energy_day",id:day.record!.id,version:day.record!.version},date+" 消耗记录")}>永久删除日记录</button></details>}</>;};
   return <RecordWorkspace title="消耗" className={styles.workspace}>
     {error && !editing && <p className={styles.error} role="alert">{error}</p>}{notice && <p className={styles.notice} role="status">{notice}</p>}
     <section aria-label="消耗历史趋势" data-chart-selection={selection.regionId} data-selected-date={selection.selected} data-pinned-date={selection.pinned??undefined}>
@@ -106,18 +108,19 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
 }
 
 function EnergyPlot({ days, selected, selection }: { days: EnergyDay[]; selected: string; selection:ReturnType<typeof useChartDateSelection> }) {
-  const container = useRef<HTMLDivElement>(null), [width, setWidth] = useState(0);
-  useEffect(() => { const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width)); observer.observe(container.current!); return () => observer.disconnect(); }, []);
+  const container = useRef<HTMLDivElement>(null);
+  const scale = chartScale(days.flatMap(day => [day.restingKcal == null && day.activeKcal == null ? null : Number(day.restingKcal ?? 0) + Number(day.activeKcal ?? 0), day.totalKcal]));
+  const {width,left}=useChartViewport(container,scale.ticks,56);
   useChartMotion(container, width ? days.map(day => `${day.date}:${day.restingKcal}:${day.activeKcal}:${day.totalKcal}`).join("|") : "pending");
   const stride = Math.max(1, Math.ceil((days.length - 1) / (width < 440 ? 3 : 6)));
-  const scale = chartScale(days.flatMap(day => [day.restingKcal == null && day.activeKcal == null ? null : Number(day.restingKcal ?? 0) + Number(day.activeKcal ?? 0), day.totalKcal]));
-  const w = width || 280, left = 56, right = 12, slot = (w - left - right) / days.length, maximum = scale.max;
+
+  const w = width || 280, right = 12, slot = (w - left - right) / days.length, maximum = scale.max;
   const drag=useChartDrag(days.map(day=>day.date),w,left,right,selection.pin);
   const bottom = w < 650 ? 164 : 220;
   const y = (value: number) => bottom - value / maximum * (bottom - 30), barWidth = Math.min(30, slot * .65), x = (index: number) => left + (index + .5) * slot;
   return <div className={styles.plot} ref={container} onMouseLeave={selection.leave}><svg {...drag} viewBox={`0 0 ${w} ${bottom + 34}`} style={{ touchAction:"pan-y", visibility: width ? undefined : "hidden" }} role="group" aria-label="每日消耗柱状图">
     {scale.ticks.map(tick => <g key={tick}><line x1={left} x2={w - right} y1={y(tick)} y2={y(tick)} className={styles.grid} /><text x={left - 7} y={y(tick) + 4} textAnchor="end" className={styles.axis}>{tick}</text></g>)}<text x={left - 7} y="15" textAnchor="end" className={styles.axis}>kcal</text>
-    {days.map((day, index) => { const resting = Number(day.restingKcal ?? 0), active = Number(day.activeKcal ?? 0), onlyTotal = day.restingKcal === null && day.activeKcal === null && day.totalKcal !== null; return <g key={day.date} role="button" tabIndex={day.date === selected ? 0 : -1} data-energy-date={day.date} aria-label={`${day.date} · 总消耗 ${day.totalKcal ?? "未填写"} kcal`} data-chart-date={day.date} onMouseEnter={()=>selection.preview(day.date)} onFocus={()=>selection.choose(day.date)} onClick={()=>selection.pin(day.date)} onKeyDown={event=>selection.keyDown(event,day.date)}>
+    {days.map((day, index) => { const resting = Number(day.restingKcal ?? 0), active = Number(day.activeKcal ?? 0), onlyTotal = day.restingKcal === null && day.activeKcal === null && day.totalKcal !== null; return <g key={day.date} role="button" tabIndex={day.date === selected ? 0 : -1} data-energy-date={day.date} aria-label={`${day.date} · 总消耗 ${day.totalKcal ?? "未填写"} kcal`} data-chart-date={day.date} onMouseMove={()=>selection.preview(day.date)} onFocus={()=>selection.choose(day.date)} onClick={()=>selection.pin(day.date)} onKeyDown={event=>selection.keyDown(event,day.date)}>
       <rect className={styles.hit} x={left + index * slot} y="22" width={slot} height={bottom - 18} />
       {day.restingKcal !== null && <rect data-chart-bar data-chart-zero={bottom} data-energy-series="resting" data-value={day.restingKcal} x={x(index) - barWidth / 2} y={y(resting)} width={barWidth} height={y(0) - y(resting)} fill="#6C96B3" opacity={day.restingBasis ? .55 : .9} className={styles.mark} />}
       {day.activeKcal !== null && <rect data-chart-bar data-chart-zero={bottom} data-energy-series="active" data-value={day.activeKcal} x={x(index) - barWidth / 2} y={y(resting + active)} width={barWidth} height={y(resting) - y(resting + active)} fill="#C07B77" className={styles.mark} />}

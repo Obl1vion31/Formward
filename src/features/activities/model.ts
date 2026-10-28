@@ -1,4 +1,4 @@
-import {formatRecordNumber} from "../../components/number-format";
+import {formatIntegerNumber} from "../../components/number-format";
 import { z } from "zod";
 import { addCalendarDays, calendarOrdinal } from "../measurements/calendar";
 import { buildMeasurementDays } from "../measurements/days";
@@ -116,7 +116,7 @@ export function activityCalorieFields(action: {calorieMode?:"total"|"components"
   const caloriesKcal=calorieMode==="components" ? exerciseActiveKcal!=null&&exerciseRestingKcal!=null?amount(Number(exerciseActiveKcal)+Number(exerciseRestingKcal)):null : action.caloriesKcal===undefined?prior?.caloriesKcal??null:action.caloriesKcal;
   return {calorieMode,exerciseRestingKcal,exerciseActiveKcal,caloriesKcal};
 }
-export const energyValue = (value: string | number | null | undefined) => formatRecordNumber(value);
+export const energyValue = (value: string | number | null | undefined) => formatIntegerNumber(value);
 export const energyKinds = new Set<string>(energyActionSchemas.map(schema => schema.shape.kind.value));
 export const isEnergy = (action: { kind: string }): action is EnergyAction => energyKinds.has(action.kind);
 

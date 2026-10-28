@@ -1,4 +1,6 @@
-import {activityReadings} from "../activities/model";
+import {activitySummary} from "../activities/activity-summary";
+import {readEnergySnapshot} from "../activities/records";
+import {formatIntegerNumber} from "../../components/number-format";
 import {readMealSnapshot} from "../meals/records";
 import {eq} from "drizzle-orm";
 import type {Database} from "../../db/client";
@@ -17,11 +19,12 @@ export async function recordStamps(db:Database,userId:string,details=false):Prom
   db.select({id:energyDay.id,date:energyDay.date,restingKcal:energyDay.restingKcal,activeKcal:energyDay.activeKcal,totalKcal:energyDay.totalKcal,entryMode:energyDay.entryMode,source:energyDay.sourceSystem,version:energyDay.version,deletedAt:energyDay.deletedAt}).from(energyDay).where(eq(energyDay.userId,userId)),
   db.select({id:mealDay.id,date:mealDay.date,status:mealDay.status,version:mealDay.version}).from(mealDay).where(eq(mealDay.userId,userId))]);
  const nutrition=details?await readMealSnapshot(db,userId):null;
+ const energy=details?await readEnergySnapshot(db,userId):null;
  return [
  ...adoptedMeasurements(body).map(row=>({key:`measurement:${row.recordDate}:${row.period}:${row.recordKind}`,id:row.id,date:row.recordDate,title:row.period==="daytime"?"晨间身体记录":"晚间身体记录",...(details?{summary:`体重 ${recordNumber(row.weightKg)} kg · 体脂 ${recordNumber(row.bodyFatPercent)}%`}:{}),version:row.id+":"+row.updatedAt.toISOString(),href:"/dashboard/measurements?date="+row.recordDate})),
- ...meals.filter(r=>!r.deletedAt).map(r=>({key:"meal:"+r.id,id:r.id,date:r.date,title:mealTypeLabel(r.name),...(details?{summary:`${recordNumber(nutrition?.meals.find(m=>m.id===r.id)?.totals.values.caloriesKcal)} 千卡`}:{}),version:String(r.version),href:"/dashboard/meals?date="+r.date})),
- ...foods.filter(r=>!r.deletedAt).map(r=>({key:"food:"+r.id,id:r.id,date:"",title:r.name,...(details?{summary:`每 ${r.baseQuantity}${r.unit} · ${recordNumber(r.caloriesKcal)} 千卡`}:{}),version:String(r.version),href:"/dashboard/meals"})),
- ...activities.filter(r=>!r.deletedAt).map(r=>({key:"activity:"+r.id,id:r.id,date:r.date,title:r.name,...(details?{summary:`本次 ${recordNumber(activityReadings(r).totalKcal)}，计入当天 ${recordNumber(activityReadings(r).countedKcal)} 千卡${r.source?" · "+r.source:""}`}:{}),version:String(r.version),href:"/dashboard/energy?date="+r.date})),
- ...days.filter(r=>!r.deletedAt).map(r=>({key:"energyDay:"+r.date,id:r.id,date:r.date,title:"每日消耗",...(details?{summary:r.entryMode==="total"?`录入总数 ${recordNumber(r.totalKcal)} 千卡`:`静息 ${recordNumber(r.restingKcal)} · 活动合计 ${recordNumber(r.activeKcal)} 千卡`}:{}),version:String(r.version),href:"/dashboard/energy?date="+r.date})),
+ ...meals.filter(r=>!r.deletedAt).map(r=>({key:"meal:"+r.id,id:r.id,date:r.date,title:mealTypeLabel(r.name),...(details?{summary:`${formatIntegerNumber(nutrition?.meals.find(m=>m.id===r.id)?.totals.values.caloriesKcal)} 千卡`}:{}),version:String(r.version),href:"/dashboard/meals?date="+r.date})),
+ ...foods.filter(r=>!r.deletedAt).map(r=>({key:"food:"+r.id,id:r.id,date:"",title:r.name,...(details?{summary:`每 ${r.baseQuantity}${r.unit} · ${formatIntegerNumber(r.caloriesKcal)} 千卡`}:{}),version:String(r.version),href:"/dashboard/meals"})),
+ ...activities.filter(r=>!r.deletedAt).map(r=>({key:"activity:"+r.id,id:r.id,date:r.date,title:r.name,...(details?{summary:(()=>{const saved=energy?.activities.find(row=>row.id===r.id);if(!saved)return "运动记录已修改";const reading=activitySummary(saved,energy?.days.find(day=>day.date===r.date&&!day.deletedAt));return "本次 "+formatIntegerNumber(reading.totalKcal)+" 千卡；"+reading.effect+(r.source?" · "+r.source:"");})()}:{}),version:String(r.version),href:"/dashboard/energy?date="+r.date})),
+ ...days.filter(r=>!r.deletedAt).map(r=>({key:"energyDay:"+r.date,id:r.id,date:r.date,title:"每日消耗",...(details?{summary:r.entryMode==="total"?`录入总数 ${formatIntegerNumber(r.totalKcal)} 千卡`:`静息 ${formatIntegerNumber(r.restingKcal)} · 活动合计 ${formatIntegerNumber(r.activeKcal)} 千卡`}:{}),version:String(r.version),href:"/dashboard/energy?date="+r.date})),
  ...status.map(r=>({key:"mealDay:"+r.date,id:r.id,date:r.date,title:"饮食是否已记全",...(details?{summary:r.status==="complete"?"已记全":r.status==="incomplete"?"未记全":"需要重新确认是否已记全"}:{}),version:String(r.version),href:"/dashboard/meals?date="+r.date}))];
 }

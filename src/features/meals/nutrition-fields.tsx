@@ -4,7 +4,7 @@ import { useId } from "react";
 import { metrics, metricLabels, type FoodDraft, type Nutrition } from "./model";
 import styles from "./meals.module.css";
 export function NutritionFields({ value, change, readOnly = false }: { value: Nutrition; change: (value: Nutrition) => void; readOnly?: boolean }) {
-  return <div className={styles.nutritionFields}>{metrics.map(metric => <label key={metric}>{metricLabels[metric]} <small>{metric === "caloriesKcal" ? "kcal" : "g"}</small><DecimalInput aria-label={metricLabels[metric]} min={0} max={1000000} readOnly={readOnly} placeholder="未知" value={value[metric]} onValue={text=>change({...value,[metric]:text||null})} /></label>)}</div>;
+  return <div className={styles.nutritionFields}>{metrics.map(metric => <label key={metric}>{metricLabels[metric]} <small>{metric === "caloriesKcal" ? "kcal" : "g"}</small><DecimalInput precision={0} aria-label={metricLabels[metric]} min={0} max={1000000} readOnly={readOnly} placeholder="未知" value={value[metric]} onValue={text=>change({...value,[metric]:text||null})} /></label>)}</div>;
 }
 type SourceValue={ sourceKind: FoodDraft["sourceKind"]; basis?: string | null; evidenceUrl?: string | null };
 export function SourceFields({ value, change, detailed = false }: { value: SourceValue; change: (next: SourceValue) => void; detailed?: boolean }) {

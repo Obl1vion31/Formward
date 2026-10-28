@@ -2,7 +2,7 @@
 import { useEffect, useId, useState, type KeyboardEvent } from "react";
 
 /** 只维护查看日期，不写入业务记录。四页共用预览、固定及解除。 */
-export function useChartDateSelection(dates: string[], initial: string, fallback = initial) {
+export function useChartDateSelection(dates: string[], initial: string, fallback = initial, previewPaused = false) {
   const regionId=useId();
   const [committed, setCommitted] = useState(initial), [hovered, setHovered] = useState<string|null>(null), [fixed, setFixed] = useState<string|null>(null);
   const rangeKey = dates.join("|"), validPin = fixed !== null && dates.includes(fixed) ? fixed : null;
@@ -22,7 +22,7 @@ export function useChartDateSelection(dates: string[], initial: string, fallback
   }, [validPin,regionId]);
   const choose = (date: string) => { setCommitted(date); setHovered(null); if (validPin) setFixed(date); };
   const pin = (date: string) => { setCommitted(date); setHovered(null); setFixed(date); };
-  const preview = (date: string) => { if (!validPin) setHovered(date); };
+  const preview = (date: string) => { if (!validPin&&!previewPaused) setHovered(date); };
   const keyDown = (event: KeyboardEvent<SVGGElement>, date: string) => {
     if (event.key === "Enter" || event.key === " ") { event.preventDefault(); pin(date); return; }
     if (event.key === "Escape") { event.preventDefault(); release(); return; }
