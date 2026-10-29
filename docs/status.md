@@ -1,12 +1,20 @@
 # 当前实现与验证
 
+## 居中定位：已修正并发布
+
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_2C8bsftEneVCMEVdPidswep4kxxQ，应用源码bcbca33，main已推送GitHub。以账号管理版本1cd5c4d为基础，纠正既有导航布局的居中定位：正文左右112px对称预留、页头对称回扩；右侧三点把手按自身中心对准视口中线，手机次级页入口清除电脑位移。
+
+1440×900修复前实测正文向右24px、把手中心向下77px；修复后隔离和正式站Chromium／WebKit均为0偏移。两引擎正式各38张实际截图，覆盖1100／1440／1920px及不同高度、320／390／430px手机、滚动、原页窗口调整、150%CSS放大、工具展开／Escape、减少动态效果，以及AI／导出页手机右下角入口。实际查看修复前后及正式截图；真实iOS和系统软键盘未测。409项完整单元／集成、lint、类型检查、生产构建、结构及269项根文档／docs本地链接通过；两引擎共用饮食填写、旧精度、包装换算和AI确认回归通过。正式19项入口通过，客户端异常、请求5xx及该部署20分钟Runtime error／fatal均0，无排除区间。
+
+本轮没有migration、历史初始化、账号角色／权限、健康计算或公开协议变化；保留0027及全部账号安全检查。生产前后data/exports/database-before-centering-2026-10-30.json、database-after-production-centering-2026-10-30.json及centering-production-verification.json均0600、Git／部署忽略；42表结构、账本、原账号／密码、健康事实、请求与审计保持，未新增原表行值变化，虚构普通账号、会话和所属审计已清理。证据.codex/centering-before/、.codex/centering-visual/、.codex/centering-meal-regression/及.codex/centering-release/。
+
 ## 账号管理：已发布，main已更新
 
 分支 `codex/account-management-v1` 提供 `/admin`、`/dashboard/account`、`/account/claim`。owner 的账号／邀请／审计后台需当前会话再次验密，十分钟过期；手动邀请72小时、普通账号重设15分钟，随机链接只存摘要，预览不消费、成功保存原子消费。没有邮件、公开注册、代登录、角色编辑或删除用户。改密／停用／全部撤销联动网页登录、AI Token、OAuth 和未用恢复链接，恢复不复活旧授权；旧版本在途会话／写入被拒绝。
 
 新增0027 migration，共41张应用表；不改旧密码、健康事实或既有验证状态，不自动指定 owner。首次引导与 owner 恢复工具见 [账号说明](auth-setup.md)。409项完整单元／集成、lint、typecheck、production build、真实PostgreSQL并发与原登录／OAuth浏览器回归通过；隔离Chromium／WebKit各41张实际截图、正式各17张截图及19项入口通过，客户端异常和请求5xx均0。新账号空身体页与图片／视频等待竞争已修复，真实iOS和软键盘未测。详细证据见[验收记录](maintenance-verification.md)。
 
-用户已验收页面并授权发布、更新main。正式域名https://formward-ten.vercel.app指向READY部署dpl_GZNxCaMsEgWT3mwa4ZyhhW3SaF46，应用源码c9baf09；0027已迁移，并为用户指定的已有账号初始化唯一owner。main包含实现和发布记录，已推送GitHub。发布前后四份私有备份及逐项核对证明旧字段定义、账号密码、健康事实与原授权保持，仅指定角色和初始化审计新增；虚构测试数据已清理，正式证据在.codex/accounts-release/。该部署20分钟日志查询窗口无Runtime error／fatal或请求5xx、无排除区间；后台完整解锁与停用恢复流程在隔离环境验证，生产验收不使用真实owner密码或仿造其会话。
+用户已验收页面并授权发布、更新main。账号管理原发布代码c9baf09及其验收记录已保留，当前正式版本以上方居中修正为准；0027已迁移，并为用户指定的已有账号初始化唯一owner。main包含实现和发布记录，已推送GitHub。发布前后四份私有备份及逐项核对证明旧字段定义、账号密码、健康事实与原授权保持，仅指定角色和初始化审计新增；虚构测试数据已清理，正式证据在.codex/accounts-release/。该部署20分钟日志查询窗口无Runtime error／fatal或请求5xx、无排除区间；后台完整解锁与停用恢复流程在隔离环境验证，生产验收不使用真实owner密码或仿造其会话。
 
 ## 导航调整：已发布，main已更新
 

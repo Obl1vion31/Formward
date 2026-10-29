@@ -2,9 +2,13 @@
 
 ## 正文与工具把手居中（2026-10-30）
 
-修复前1440×900实际浏览器测得正文向右24px、右侧把手向下77px。修复后Chromium／WebKit各38张实际截图：1100×900、1440×900、1920×1080、1440×640和320×560／390×640／430×780四页，水平及垂直偏移均为0。另核对滚动、原页窗口调整、150%CSS放大、工具展开／Escape与正文尺寸稳定、手机AI和导出页右下角入口位置，以及减少动态效果。两引擎共用饮食填写、包装换算、旧精度及AI确认通过；真实iOS和软键盘未测。409项完整单元／集成、lint、类型检查、生产构建、结构与269项根文档／docs本地链接通过。记录对应设计D2、D3、D4、D6、D7。
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_2C8bsftEneVCMEVdPidswep4kxxQ，应用源码bcbca33，main已推送GitHub。以账号管理版本1cd5c4d为基础，纠正既有导航布局的居中定位：正文左右112px对称预留、页头对称回扩；右侧三点把手按自身中心对准视口中线，手机次级页入口清除电脑位移。
 
-证据在私有.codex/centering-before/、.codex/centering-visual/和.codex/centering-meal-regression/。已人工查看修复前后电脑总览、1100px身体、手机与工具截图；正式结果发布后补记。
+1440×900修复前实测正文向右24px、把手中心向下77px；修复后隔离和正式站Chromium／WebKit均为0偏移。两引擎正式各38张实际截图，覆盖1100／1440／1920px及不同高度、320／390／430px手机、滚动、原页窗口调整、150%CSS放大、工具展开／Escape、减少动态效果，以及AI／导出页手机右下角入口。实际查看修复前后及正式截图；真实iOS和系统软键盘未测。409项完整单元／集成、lint、类型检查、生产构建、结构及269项根文档／docs本地链接通过；两引擎共用饮食填写、旧精度、包装换算和AI确认回归通过。正式19项入口通过，客户端异常、请求5xx及该部署20分钟Runtime error／fatal均0，无排除区间。
+
+本轮没有migration、历史初始化、账号角色／权限、健康计算或公开协议变化；保留0027及全部账号安全检查。生产前后data/exports/database-before-centering-2026-10-30.json、database-after-production-centering-2026-10-30.json及centering-production-verification.json均0600、Git／部署忽略；42表结构、账本、原账号／密码、健康事实、请求与审计保持，未新增原表行值变化，虚构普通账号、会话和所属审计已清理。证据.codex/centering-before/、.codex/centering-visual/、.codex/centering-meal-regression/及.codex/centering-release/。
+
+记录对应设计D2、D3、D4、D6、D7；本轮为已确认导航布局的定位纠错。
 
 ## 账号管理（2026-10-29，已发布并更新main）
 

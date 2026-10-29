@@ -1,12 +1,12 @@
-## 本轮：正文与工具把手居中修正（本地完成）
+## 当前发布：正文与工具把手居中修正
 
-用户反馈正文左右和右侧工具上下未居中，要求检查并解决。此处纠正已确认电脑A／手机贴底导航的定位，不引入新的导航方案。以最新账号管理发布1cd5c4d为基础，保留0027及现有账号安全检查。
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_2C8bsftEneVCMEVdPidswep4kxxQ，应用源码bcbca33，main已推送GitHub。以账号管理版本1cd5c4d为基础，纠正既有导航布局的居中定位：正文左右112px对称预留、页头对称回扩；右侧三点把手按自身中心对准视口中线，手机次级页入口清除电脑位移。
 
-1440×900实测修复前正文向右24px、把手中心向下77px。原因是正文左右112／64px不对称留白，以及把手top:55%未减自身半高。现改为正文两侧112px、页头对称回扩；把手top:50%并上移自身半高，手机右下角入口清除该位移。没有数据库、权限、接口或健康规则变化。
+1440×900修复前实测正文向右24px、把手中心向下77px；修复后隔离和正式站Chromium／WebKit均为0偏移。两引擎正式各38张实际截图，覆盖1100／1440／1920px及不同高度、320／390／430px手机、滚动、原页窗口调整、150%CSS放大、工具展开／Escape、减少动态效果，以及AI／导出页手机右下角入口。实际查看修复前后及正式截图；真实iOS和系统软键盘未测。409项完整单元／集成、lint、类型检查、生产构建、结构及269项根文档／docs本地链接通过；两引擎共用饮食填写、旧精度、包装换算和AI确认回归通过。正式19项入口通过，客户端异常、请求5xx及该部署20分钟Runtime error／fatal均0，无排除区间。
 
-409项单元／集成、lint、类型检查、production build、结构及根文档／docs内269个本地链接通过。Chromium／WebKit各38张实际截图，四页1100／1440／1920px和不同高度、320／390／430px手机、滚动、窗口调整、150%缩放、工具开关／Escape与减少动态效果通过；正文水平和把手垂直偏移均为0。两引擎共用餐次填写、旧值精度、换算和AI确认回归通过。实际查看修复前后、电脑身体与手机截图，真实iOS和系统软键盘未测。证据.codex/centering-before/、.codex/centering-visual/、.codex/centering-meal-regression/。已保存42表私有生产备份；正式发布结果完成后补记。
+本轮没有migration、历史初始化、账号角色／权限、健康计算或公开协议变化；保留0027及全部账号安全检查。生产前后data/exports/database-before-centering-2026-10-30.json、database-after-production-centering-2026-10-30.json及centering-production-verification.json均0600、Git／部署忽略；42表结构、账本、原账号／密码、健康事实、请求与审计保持，未新增原表行值变化，虚构普通账号、会话和所属审计已清理。证据.codex/centering-before/、.codex/centering-visual/、.codex/centering-meal-regression/及.codex/centering-release/。
 
-## 当前发布：账号管理第一版
+## 已保留发布：账号管理第一版
 
 用户已验收实际页面并明确授权发布公网、上传main。正式域名https://formward-ten.vercel.app已指向READY部署dpl_GZNxCaMsEgWT3mwa4ZyhhW3SaF46，应用源码c9baf09；0027已迁移，并按用户指定邮箱预览、核对ID后初始化唯一owner，原密码保持。main包含实现及本轮发布记录并推送GitHub。账号仍仅邀请制、手动交付链接、后台密码再次确认；邮件、公开注册和MFA留后续。以后修改继续按设计D8与当次授权处理。
 
