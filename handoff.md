@@ -1,12 +1,16 @@
-## 待验收：账号管理第一版
+## 当前发布：账号管理第一版
 
-工作分支 `codex/account-management-v1`，尚未发布、合入main、执行生产0027或指定生产owner。用户已确定站内管理、首批仅邀请制、手动交付链接、后台仅密码再次确认；邮件、公开注册和MFA留后续。下一步先让用户查看实际页面，再获取唯一owner已有登录邮箱，不能沿用上次导航发布的免验收授权。
+用户已验收实际页面并明确授权发布公网、上传main。正式域名https://formward-ten.vercel.app已指向READY部署dpl_GZNxCaMsEgWT3mwa4ZyhhW3SaF46，应用源码c9baf09；0027已迁移，并按用户指定邮箱预览、核对ID后初始化唯一owner，原密码保持。main包含实现及本轮发布记录并推送GitHub。账号仍仅邀请制、手动交付链接、后台密码再次确认；邮件、公开注册和MFA留后续。以后修改继续按设计D8与当次授权处理。
 
-已实现 `/admin` 三页签、本人账号设置、fragment 激活／重设、72小时邀请与15分钟重设、十分钟会话绑定验密、统一停用／全部撤销／改密、审计与受控owner初始化／恢复。Admin直接接口关闭，网页写入在既有账号行锁内复核会话版本，AI/OAuth复核活动状态和原授权，恢复不复活旧授权或审核。0027只增账号字段与两表，既有健康数据、密码和邮箱验证不回填；首个owner必须明确指定。
+已实现 `/admin` 三页签、本人账号设置、fragment 激活／重设、72小时邀请与15分钟重设、十分钟会话绑定验密、统一停用／全部撤销／改密、审计与受控owner初始化／恢复。Admin直接接口关闭，网页写入在既有账号行锁内复核会话版本，AI/OAuth复核活动状态和原授权，恢复不复活旧授权或审核。0027只增账号字段与两表，既有健康数据、密码和邮箱验证不回填。owner继续使用原账号和密码，在账号菜单进入管理后再次验密。
 
-409项完整单元／集成、lint零警告、typecheck、production build、Drizzle check、真实PostgreSQL多连接并发、原登录／媒体／OAuth浏览器回归通过；账号Chromium／WebKit各41张实际截图、十组功能检查通过，异常与5xx均0。静态图片与视频等待竞争、空账号身体页首次渲染日期已修复。证据 `.codex/accounts-visual/`、`.codex/account-*.log`，说明与逐项设计验收见docs/auth-setup.md及docs/maintenance-verification.md。真实iOS和软键盘未测。正式站仍是下节版本。
+409项完整单元／集成、lint零警告、typecheck、production build、Drizzle check、真实PostgreSQL多连接并发、原登录／媒体／OAuth浏览器回归通过；隔离账号Chromium／WebKit各41张实际截图与十组检查通过。正式两引擎各17张截图与五组检查、19项公开／认证／私有路径检查通过，客户端异常和请求5xx均0；该部署20分钟日志查询窗口Runtime error／fatal和请求5xx均0，无排除区间。生产只用虚构普通账号验收激活／改密／重设、撤销及四页，不使用或仿造真实owner密码／会话；后台解锁、停用恢复与并发完整流程在隔离环境通过。静态图片与视频等待竞争、空账号身体页首次渲染日期已修复；真实iOS和软键盘未测。
 
-## 当前发布：电脑左侧导航与手机贴底导航
+私有备份data/exports/database-{before,after-migration,after-owner,after-production}-accounts-2026-10-29.json及accounts-*-verification-2026-10-29.json均0600、Git与部署忽略。迁移前40表、迁移后42表（含迁移账本），旧字段定义、原账号、密码、健康事实和授权保持，账本仅新增0027；指定账号仅增加owner角色及初始化审计，正常限流元数据单独处理。虚构账号、链接、审计和所属数据均已清理。证据 `.codex/accounts-release/`、`.codex/accounts-visual/`、`.codex/account-*.log`；说明及逐项验收见docs/auth-setup.md、docs/maintenance-verification.md。
+
+回滚不得退回忽略banned／access_version的旧认证代码或复活已撤销凭据；保留新增结构和安全检查，必要时先关闭管理写入口再修复，不重跑个人历史初始化。
+
+## 已有发布：电脑左侧导航与手机贴底导航
 
 正式域名https://formward-ten.vercel.app已核对READY部署dpl_J1iW1MiZuL2MbxPjkdEPQHDdJX2E，应用源码b81dac3。电脑采用左侧72px图标文字导航，手机采用贴底四项导航、最右侧单独放工具；电脑工具由屏幕右侧三点把手打开，账号改为右上角人像。main已推送GitHub；本次用户明确授权免去再次验收等待，完成必要测试和实际网页自检后直接发布。
 

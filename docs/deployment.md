@@ -1,18 +1,18 @@
 # 公网 HTTPS 部署
 
-## 账号管理上线条件
+## 账号管理与安全边界
 
-账号管理代码在 `codex/account-management-v1`，0027尚未应用生产，也未指定生产owner或发布。先由用户确认实际页面、指定已有owner登录邮箱并明确本轮发布，再提交migration与源码、保存私有备份、应用0027、按预览用户ID受控初始化、部署并复核正式站。迁移默认旧用户普通／正常，旧密码、验证状态和健康事实保持；初始化只变更指定角色及对应审计。命令见 [账号接入](auth-setup.md)。
+0027已应用生产，并按用户指定的已有邮箱预览、核对ID后初始化唯一owner。用户已验收实际页面并明确授权本轮发布、更新main；迁移与源码先提交，再保存私有备份、迁移、初始化、部署并复核。迁移默认旧用户普通／正常，旧密码、验证状态和健康事实保持；初始化只变更指定角色及对应审计。日常管理从站内完成，维护命令见 [账号接入](auth-setup.md)。
 
-正式核对要覆盖后台再次验密、普通账号拒绝、邀请／重设与网页和AI统一失效；不得用真实健康数据作破坏性验证。回滚优先回滚界面，保留新增安全鉴权；不能直接退回忽略banned／access_version的旧认证代码。当前正式版本仍以下节为准。
+正式核对使用虚构账号、只清理所属测试数据，不破坏真实健康数据；不使用或仿造真实owner密码／会话。完整后台再次验密、停用恢复、权限与并发在隔离数据库验证，生产验证普通账号拒绝、激活／重设、本人改密、会话与AI统一失效。回滚优先回滚界面，保留新增结构和安全鉴权；不能退回忽略banned／access_version的旧认证代码或复活已撤销凭据，必要时先关闭管理写入口。
 
 ## 当前正式版本
 
-正式域名https://formward-ten.vercel.app已核对READY部署dpl_J1iW1MiZuL2MbxPjkdEPQHDdJX2E，应用源码b81dac3。电脑采用左侧72px图标文字导航，手机采用贴底四项导航、最右侧单独放工具；电脑工具由屏幕右侧三点把手打开，账号改为右上角人像。main已推送GitHub；本次用户明确授权免去再次验收等待，完成必要测试和实际网页自检后直接发布。
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_GZNxCaMsEgWT3mwa4ZyhhW3SaF46，应用源码c9baf09。站内账号／邀请／审计后台、本人设置、一次性激活／重设、统一访问撤销已发布；owner使用原密码，并在当前会话再次验密十分钟。现有桌面左侧导航、手机贴底导航与工具侧栏保持。main已包含实现和发布记录并推送GitHub；用户已确认本轮实际页面，后续修改继续按设计D8与当次授权处理。
 
-392项完整单元／集成、lint零警告、typecheck、production build、结构／267项文档链接／diff检查通过。隔离与正式站Chromium、WebKit均覆盖320／390／430px手机及1100／1440px电脑，正式各67张截图；检查四页真实跳转及高亮、滚动固定、侧栏不移动正文、菜单与填写窗口互斥、键盘焦点／Escape、触屏横屏、活动合计保护、AI草稿和悬停稳定。四页日期与主要读数共同基线一致。两引擎共用饮食填写、旧精度、换算与AI确认本地回归通过。正式16项入口通过，客户端异常与请求5xx均0；部署20分钟Runtime error／fatal及请求5xx均0，无排除区间。真实iOS及系统软键盘未测。
+409项完整单元／集成、lint零警告、typecheck、production build、真实PostgreSQL多连接、Drizzle、结构、303项文档链接和diff检查通过。隔离账号Chromium／WebKit各41张截图、十组检查通过；正式各17张截图、五组检查，覆盖320／390／430／844／1100／1440px账号设置、四页电脑／手机、激活／改密／重设和旧访问失效。19项公开／认证／私有路径检查通过，客户端异常与请求5xx均0；该部署20分钟日志查询窗口Runtime error／fatal及请求5xx均0，无排除区间。真实iOS及系统软键盘未测。
 
-发布前后data/exports/database-before-navigation-2026-10-29.json、database-after-production-navigation-2026-10-29.json及navigation-production-verification.json均0600，Git／部署忽略。40表结构、迁移账本、原健康事实、请求及审计保持，虚构账号及全部所属数据已清理；正常限流元数据单独处理。没有migration、历史初始化、权限、公开协议、环境变量或健康计算变化；OpenAPI1.13.0、MCP1.11.0保持。正式证据.codex/navigation-release/，本地证据.codex/navigation-visual/及.codex/navigation-meal-regression/。
+私有备份data/exports/database-{before,after-migration,after-owner,after-production}-accounts-2026-10-29.json及accounts-*-verification-2026-10-29.json均0600、Git与部署忽略。原40表字段定义和值保持，新增两表后为42表（含迁移账本），账本只新增0027；指定账号仅增加owner角色和对应审计，原密码、健康事实及授权保持。虚构账号、链接、审计和所属数据清理完成，正常限流元数据单独处理。没有个人历史初始化、环境变量、健康计算或公开协议变更；OpenAPI1.13.0、MCP1.11.0保持。正式证据.codex/accounts-release/，本地证据.codex/accounts-visual/及.codex/account-*.log。
 
 Next.js由Vercel Hobby托管，数据库沿用Neon PostgreSQL。AI使用正式[OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json)或https://formward-ten.vercel.app/api/mcp，不使用受Deployment Protection保护的单次部署/预览地址。
 
