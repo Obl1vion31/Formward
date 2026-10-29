@@ -2,11 +2,13 @@
 
 ## 导航与工具入口（2026-10-29）
 
-本地392项完整单元／集成、lint、类型检查、生产构建、结构与267项文档链接检查通过。Chromium／WebKit各完成320×560、390×640、430×780、1100×900、1440×900的四页实际页面，工具、活动累计保护、AI草稿、未知／0、保存失败和悬停位置保持，共67张截图／引擎。新增验证左侧窄栏／贴底图标文字导航的真实跳转、当前页高亮、滚动固定、点击范围、工具分隔与触屏横屏；关闭工具恢复焦点、滚动及固定选日。两引擎另验证共用餐次填写、旧精度、包装换算与AI确认。四页同宽日期和读数基线一致，已人工查看实际手机、电脑及工具截图。真实iOS与系统软键盘未测。
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_J1iW1MiZuL2MbxPjkdEPQHDdJX2E，应用源码b81dac3。电脑采用左侧72px图标文字导航，手机采用贴底四项导航、最右侧单独放工具；电脑工具由屏幕右侧三点把手打开，账号改为右上角人像。main已推送GitHub；本次用户明确授权免去再次验收等待，完成必要测试和实际网页自检后直接发布。
 
-Chromium首次边界检查将预留滚动条宽度算入可用区域，失败诊断保留。改为测量正文实际右边界后完整重跑通过；不将失败轮次计为通过。运行时页面代码不因该检查修正发生变更。
+392项完整单元／集成、lint零警告、typecheck、production build、结构／267项文档链接／diff检查通过。隔离与正式站Chromium、WebKit均覆盖320／390／430px手机及1100／1440px电脑，正式各67张截图；检查四页真实跳转及高亮、滚动固定、侧栏不移动正文、菜单与填写窗口互斥、键盘焦点／Escape、触屏横屏、活动合计保护、AI草稿和悬停稳定。四页日期与主要读数共同基线一致。两引擎共用饮食填写、旧精度、换算与AI确认本地回归通过。正式16项入口通过，客户端异常与请求5xx均0；部署20分钟Runtime error／fatal及请求5xx均0，无排除区间。真实iOS及系统软键盘未测。
 
-用户已选电脑左侧窄栏与手机贴底图标文字导航，并明确授权完成后直接发布、更新main。本轮仍执行D1—D7适用条目及实际网页自检；D8按当次明确发布授权处理。本地证据在私有.codex/navigation-visual/和.codex/navigation-meal-regression/；正式证据将保存在.codex/navigation-release/。
+发布前后data/exports/database-before-navigation-2026-10-29.json、database-after-production-navigation-2026-10-29.json及navigation-production-verification.json均0600，Git／部署忽略。40表结构、迁移账本、原健康事实、请求及审计保持，虚构账号及全部所属数据已清理；正常限流元数据单独处理。没有migration、历史初始化、权限、公开协议、环境变量或健康计算变化；OpenAPI1.13.0、MCP1.11.0保持。正式证据.codex/navigation-release/，本地证据.codex/navigation-visual/及.codex/navigation-meal-regression/。
+
+Chromium首次边界检查将预留滚动条宽度算入可用区域，失败诊断保留；改为测量正文实际右边界后完整重跑通过，不将失败轮次记为通过。
 
 ## 消耗交互与工具侧栏（2026-10-29，已正式发布并更新main）
 

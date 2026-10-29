@@ -2,13 +2,11 @@
 
 ## 当前正式版本
 
-正式域名[Formward](https://formward-ten.vercel.app)已核对READY部署dpl_8LHcATdFBb84treQSb8iuEJ9kKY7，应用源码5347929，数据库0026（39张应用表加Drizzle账本）。用户查看本地实际截图后明确要求发布并更新main；main已推送GitHub，包含此前已上线的提交。发布验收记录另行提交，不改变已部署的应用代码，以后修改继续遵守设计D8。
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_J1iW1MiZuL2MbxPjkdEPQHDdJX2E，应用源码b81dac3。电脑采用左侧72px图标文字导航，手机采用贴底四项导航、最右侧单独放工具；电脑工具由屏幕右侧三点把手打开，账号改为右上角人像。main已推送GitHub；本次用户明确授权免去再次验收等待，完成必要测试和实际网页自检后直接发布。
 
-当前工具侧栏提供AI接入、Excel，打卡／总结／站内AI录入暂未开放；账号菜单只留账号与退出，AI确认页维持紧凑。活动合计手填切回累计或清空失焦先确认变化，取消保留草稿；AI应用修改后仍需统一保存。消耗估计标签不展示，身体估计保留，必要状态选日不抖动。没有migration、历史初始化、权限、环境变量或公开协议变化；OpenAPI1.13.0、MCP1.11.0、13工具保持。
+392项完整单元／集成、lint零警告、typecheck、production build、结构／267项文档链接／diff检查通过。隔离与正式站Chromium、WebKit均覆盖320／390／430px手机及1100／1440px电脑，正式各67张截图；检查四页真实跳转及高亮、滚动固定、侧栏不移动正文、菜单与填写窗口互斥、键盘焦点／Escape、触屏横屏、活动合计保护、AI草稿和悬停稳定。四页日期与主要读数共同基线一致。两引擎共用饮食填写、旧精度、换算与AI确认本地回归通过。正式16项入口通过，客户端异常与请求5xx均0；部署20分钟Runtime error／fatal及请求5xx均0，无排除区间。真实iOS及系统软键盘未测。
 
-392项单元／集成、最终提示专项、lint零警告、typecheck、production build、本地结构／267项文档链接／diff与浏览器检查通过。正式Chromium／WebKit各完成五种宽度四页和关键操作，共66张截图／引擎；16项公开与保护入口通过，客户端异常和请求5xx均0。部署20分钟Runtime error／fatal与CDN请求5xx均0，无排除区间。真实iOS及系统软键盘未测。逐项证据见[验收记录](maintenance-verification.md)，正式私有证据在.codex/energy-tools-release/。
-
-发布前后data/exports/database-before-energy-tools-2026-10-29.json、database-after-production-energy-tools-2026-10-29.json及energy-tools-production-verification.json均0600、Git／部署忽略。40表结构、迁移账本、原健康事实、请求及审计保持，虚构账号及所属数据已清理；正常限流元数据不作为健康变化。
+发布前后data/exports/database-before-navigation-2026-10-29.json、database-after-production-navigation-2026-10-29.json及navigation-production-verification.json均0600，Git／部署忽略。40表结构、迁移账本、原健康事实、请求及审计保持，虚构账号及全部所属数据已清理；正常限流元数据单独处理。没有migration、历史初始化、权限、公开协议、环境变量或健康计算变化；OpenAPI1.13.0、MCP1.11.0保持。正式证据.codex/navigation-release/，本地证据.codex/navigation-visual/及.codex/navigation-meal-regression/。
 
 Next.js由Vercel Hobby托管，数据库沿用Neon PostgreSQL。AI使用正式[OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json)或https://formward-ten.vercel.app/api/mcp，不使用受Deployment Protection保护的单次部署/预览地址。
 
