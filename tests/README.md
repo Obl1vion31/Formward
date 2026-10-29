@@ -16,6 +16,18 @@ production build后设置FORMWARD_FRAME_ONLY=1运行pnpm test:energy-browser。u
 
 本目录保存跨功能、数据库和浏览器端到端测试。单个 feature 的单元测试优先与源文件放在一起。
 
+## 自建服务器隔离验收
+
+`node --import tsx tests/self-hosted.browser.mts` 访问已经启动的远端 production 服务，不启动本地 Next.js、不调用本机 `auth.handler`。运行前通过 SSH 将网页和数据库转发到本机，并完成隔离库 migration；`FORMWARD_PREVIEW_URL` 默认 `http://127.0.0.1:3300`，只接受回环来源。`DATABASE_URL` 只接受回环 PostgreSQL 的 `formward_preview` 库，拒绝生产域名、其他库名、连接地址覆盖参数及包含非 `.test` 账号的库。不能对生产迁移副本运行。
+
+`FORMWARD_PREVIEW_CREDENTIALS` 指向权限恰为 `0600` 的本地 JSON，形状为 `{ "owner": { "email": "…@example.test", "password": "…" }, "person": { "email": "…@example.test", "password": "…" } }`；两个虚构邮箱不同，密码为 12–128 字符。脚本通过 feature 创建账号、初始化唯一虚构 owner，并在缺少对应样本时加入少量代表性健康记录。保留账号和已保存样本供人工验收；重复运行不会重置密码或覆盖样本，退出时撤销本轮 AI Token 和未确认图片预览。凭据文件、截图和报告保持在仓库忽略的私有位置。
+
+复用下文仓库外的 Playwright 工具环境，`FORMWARD_PREVIEW_BROWSER=chromium|webkit` 分别运行两种引擎，`PLAYWRIGHT_MODULE` 指定模块入口。`FORMWARD_PREVIEW_ARTIFACTS` 指定私有证据目录，默认为 `.codex/self-hosted/<engine>`。浏览器经真实 HTTP 登录，验证匿名与普通账号权限、owner 再次验密、邀请生成和兑换、四主页面、账号设置、AI 文字提交后网页确认与重载、跨账号审核拒绝、Excel 导出、MCP 未授权、伪造 Origin 拒绝，以及未配置对象存储时网页选图明确失败且不增加图片记录。截图覆盖 1440／1100 桌面、320／390／430 手机、矮屏和触屏横屏，并检查桌面居中与横向溢出。全部 `pageerror` 和 `5xx` 写入 `report.json`，仅对已断言的图片配置失败单独标记预期；当前 Blob SDK 缺配置也可能返回 `400 invalid_input`，必须同时核对明确的缺凭据错误，不能把一般 400 当通过。不打印密码或邀请完整链接，截图遮罩密码与链接输入框。
+
+此脚本不替代账号并发专项、对象存储成功上传、真实 iPhone／微信与软键盘、DNS／TLS／备案或跨境连接验收。两种浏览器顺序运行；遇到每分钟登录限流时等待窗口结束后重试，不修改或跳过生产限流规则。
+
+浏览器操作最长等待 20 秒，导航 30 秒，阶段名称写入日志及报告；错误截图和退出清理也有时限。Blob SDK 对失败签名响应不读正文，浏览器 `Response.body()` 可能一直等待，因此先断言真实网页失败状态、错误提示和重试入口，再用同一内存请求经远端 HTTP 独立核对错误正文。该请求不打印上传凭据，两次已断言的失败均计入报告，不以忽略异常换取通过。
+
 ## 账号管理验收
 
 `pnpm test` 包含 account-management.test.ts，覆盖普通用户与过期／跨会话拒绝、邀请摘要／重复／并发／过期／撤销、激活审计失败回滚、改密与停用联动、旧版本会话、原生接口旁路和 owner 维护。OAuth 集成覆盖后台停用与真实刷新竞争、旧 JWT／刷新／审核失效及恢复后重新连接。身体迁移测试在核对旧结构后升级到当前认证结构再调用当前业务函数。
@@ -34,6 +46,8 @@ pnpm test:account-concurrency
 可通过 PLAYWRIGHT_MODULE 与 FORMWARD_EMBEDDED_POSTGRES_MODULE 指定已安装模块的绝对入口。`accounts.concurrent.mts` 只在临时目录建立回环 PostgreSQL，用多连接和真实行锁验证邀请单次消费、旧密码已验证但会话延迟插入、在途保存与撤销顺序。它不读取 .env.local，也不接受生产连接。单连接 PGlite 不替代该并发验收。真实 iOS／系统软键盘仍须记为未测。
 
 ## 当前验证入口
+
+`NODE_PATH=./node_modules/next/dist/compiled node --conditions=react-server --import tsx tests/image-upload-origin.http.mts`使用实际上传Route Handler、真实认证和隔离PGlite，覆盖HTTP／HTTPS反代内部地址、配置来源、本机SSH隧道别名、伪造Host／转发头、跨站来源、错误端口、缺Origin和匿名请求。仅为虚构账号签发上传准备凭据，不调用Blob或读取生产配置；通过Next自带server-only的react-server入口加载真实服务端模块，不需要构建。
 
 - `pnpm test` 使用 Node.js 24 内置测试运行器，执行动画与轨道、认证、身体测量测试。测量另覆盖晨间基准四种情况、稳健中位差、28 天窗口／至少 3 日／最多 7 个晨间样本／7 天延续、样本不足、正常模式排除估计与未来实测、历史稳定、真实替代估计、按指标独立补缺、准确时间确认、重建与数据库指标存在约束、来源与写入入口独立、占位时间不生成 UTC、补全预览／幂等及整批回滚；初始化另覆盖全范围真实配对、两侧插值、受限边界外推、真实来源快照与逐项报告、一次性与并发幂等、冻结空缺、补录仅替代对应指标、普通重建／恢复保护、来源隔离与审计失败回滚；也覆盖当地 06:00／18:00 边界、跨月跨年、时区与夏令时、白天空腹确认、晚间非空腹规则、缺项、多次测量、维护预览绑定、幂等修正／软删除／恢复、事务回滚、重复与并发重试、重新排序导入及跨账号访问。时间线覆盖 500ms 正倒放、中途反向、方向阈值、惯性、两端各 40ms 的视频 / 静态混合、60 帧索引、异步寻帧合并及清理、reduced motion；475 / 500 / 525ms 以模拟 60Hz、120Hz 时钟验证线性游标。
 - `figure-motion.test.mjs` 验证原有鼠标位移、倾转、跟随、回中、暂停恢复和焦点锁定。模拟时钟不代表实机高刷新率验收。

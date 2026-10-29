@@ -1,5 +1,25 @@
 # 完善任务验收
 
+## 上海服务器私有预览（2026-10-30）
+
+本轮在上海实例完成原生 Node／systemd／Nginx／PostgreSQL 18 部署，网页通过本机 SSH 隧道验收。预览只使用 `.test` 虚构账号、独立认证 secret 和虚构健康记录；真实 Neon 快照在另一演练库，只用于完整性验证。当前国际生产版本及数据来源保持，未发布国内公网或合入 main。完整计划见[国内部署](mainland-deployment.md)。
+
+409 项现有单元／集成、17 项上传来源 HTTP 专项、7 项真实 PostgreSQL 恢复专项、lint、typecheck、production build、目录及 shell 语法检查通过。上传入口复用可信站点来源校验，覆盖反向代理及恶意 Origin；Vercel 继续采用平台构建，自建使用 standalone。没有新增业务 migration，预览应用已有 0000–0027。
+
+Chromium／WebKit 各 7 组检查、37 张实际截图通过：匿名／普通账号／owner 再次验密、独立浏览器邀请激活、四业务页面、账号设置、真实 HTTP AI 文字预览→网页确认→重载→查询、跨账号审核拒绝、Excel 实际导出和伪造来源拒绝。图片未配置真实返回 400 invalid_input，网页保留错误与重试，图片表没有新增；独立重放签名请求验证 Missing webhook public key 等明确配置错误，不把其他 400 当作通过。两引擎 pageerror 与请求 5xx 均为 0。
+
+按 D1–D7 检查 1440／1100 桌面、320／390／430 手机、390×560 矮屏和 844×390 触屏横屏；正文与工具中心偏移不超过 1px，无横向溢出。实际查看两引擎桌面总览／身体、手机总览／身体／320 饮食、横屏消耗、账号后台、邀请成功和图片失败截图。截图保存在 `.codex/mainland-setup/chromium/` 与 `webkit/`。D8：本轮仅私有验收，不构成正式公网发布。真实 iPhone／微信、系统软键盘、COS 成功读写、DNS／TLS 和跨境连接仍未测。
+
+测试脚本保留最初的中断与失败证据：浏览器 Blob SDK 放弃错误正文后，Response.body 和 networkidle 不能作为该失败状态的完成标准；改为真实错误／重试 UI 断言及有限时长的独立 HTTP 错误体核对。其余截图仍等待网络稳定；所有等待及清理设有时限，最终两引擎完整重跑通过。虚构测试令牌和未确认图片预览已清理，保留已确认虚构样本供用户验收。
+
+Neon 只读快照归档与恢复核对 42 表、1,580 行通过，表数据摘要、逻辑列顺序、约束、索引和序列匹配。原物理 attnum 在 DROP 列后留有空位，首次报告如实保留；`mainland-rehearsal-2026-10-30-logical-columns.verification.json` 只读取原归档和目标库重新验证，未连接源库、重写数据或覆盖原报告。归档、摘要和报告均在 `data/exports/`，0600、Git 忽略。
+
+实际 systemd 每日备份已生成、取回并校验 SHA-256，恢复到 `formward_rehearsal_preview_backup` 后 42 表、180 行及结构一致，源库在核对期间保持稳定。报告为 `data/exports/mainland-daily-backup-2026-10-30.verification.json`。备份服务在该实例启用 NoNewPrivileges 时缺少 CAP_SETUID，已通过临时 id 探针定位并只调整 root 备份 unit；网页应用沙箱保持。定时任务只备份预览库，不覆盖未来正式库或图片原件。
+
+发布激活脚本 6 个失败路径 mock 通过；服务器实际部署故意启动失败的包，触发健康失败后切回 `preview-20261030-01` 并通过 HTTP 验证。回退前清理 systemd 启动限流，旧版恢复失败不会报告成功。真实重启后应用、Nginx、PostgreSQL 和备份 timer 自动启动，公网探测仅 22 可连接；PostgreSQL 集群由 start.conf=auto 生成 enabled-runtime，顶层服务 enabled。证据为 `.codex/mainland-setup/rollback-live.json`、`server-after-restart.json`。
+
+重启前后对预览库和真实快照演练库逐表生成摘要，42 表／180 行和 42 表／1,580 行的全部内容及结构摘要分别完全一致；随后虚构账号实际登录、总览和退出均返回 200。证据为 `.codex/mainland-setup/persistence-before.json`、`persistence-after.json`、`post-restart-http.json`。重启后的登录属于此核对完成之后的正常虚构会话写入。
+
 ## 正文与工具把手居中（2026-10-30）
 
 正式域名https://formward-ten.vercel.app已核对READY部署dpl_2C8bsftEneVCMEVdPidswep4kxxQ，应用源码bcbca33，main已推送GitHub。以账号管理版本1cd5c4d为基础，纠正既有导航布局的居中定位：正文左右112px对称预留、页头对称回扩；右侧三点把手按自身中心对准视口中线，手机次级页入口清除电脑位移。

@@ -1,0 +1,74 @@
+# 国内服务器隔离预览部署
+
+本目录提供 Ubuntu 24.04 amd64 上的原生部署配置。应用采用独立非登录用户与 systemd，数据库采用 PostgreSQL 18，Nginx 仅监听回环地址。它用于服务器验收和迁移准备；正式域名、HTTPS、COS 与双区数据路由需在对应功能完成后另行验收。
+
+## 文件与运行关系
+
+- bootstrap.sh：显式使用 --apply 后安装必要软件、建立专用目录与数据库角色、配置本机代理及定时备份。初次运行拒绝接管既有应用、PostgreSQL 集群或 Nginx；重复运行只更新带本项目管理标记的配置。
+- package-release.sh：把已验收的 standalone 构建、静态文件和公开素材打包到被忽略的 .codex/mainland-setup，保留源码提交、工作区差异摘要与 BUILD_ID，排除环境文件和私钥；相同发布标识拒绝覆盖。
+- activate-preview.sh：核对归档 SHA-256，安全解包到新的版本目录，原子更新 current 并重启；健康检查失败时切回上个版本。首次发布失败时停止服务，不留下错误的 current。
+- formward-preview.service：用 formward 用户运行 current/server.js，仅监听 127.0.0.1:3000；异常退出后重启，读取 root 专有的 /etc/formward/preview.env。
+- nginx-preview.conf：仅监听 127.0.0.1:8080；将请求转给应用，并覆盖代理来源头。外部仅通过 SSH 转发本机 3300 访问。
+- backup-preview.sh、formward-backup-preview.service、formward-backup-preview.timer：每天 UTC 19:00（北京时间次日 03:00）后随机延迟最多 15 分钟，备份 formward_preview，保留 14 天。
+
+服务器路径为 /srv/formward/preview/releases/<发布标识> 与 current 符号链接。发布包须包含 Next.js standalone 产物、.next/static 和 public；每个发布目录中的 .next/cache 应归 formward 可写，其他程序文件建议由 root 持有并允许 formward 读取。应用配置不进入发布包。
+
+## 执行前提
+
+先将经过校验的 Node.js 24.21.0 amd64 解压到 /opt/node-v24.21.0-linux-x64。bootstrap 不下载或执行第三方安装脚本。PostgreSQL 仓库按[官方 Ubuntu 指引](https://www.postgresql.org/download/linux/ubuntu/)下载签名公钥，使用 signed-by 限定仓库密钥，再安装 postgresql-18。
+
+复制本目录的所有文件到服务器同一目录，检查脚本后执行：
+
+~~~sh
+sudo bash /路径/self-hosting/bootstrap.sh --apply
+~~~
+
+脚本固定使用 PostgreSQL 18/main、5432 端口，以及 UTF8 / C.UTF-8 / libc 的 formward_preview 数据库。独立 formward_preview 角色无超级用户、建库、建角色或绕过 RLS 权限，初始没有密码。首次建库时由此角色持有数据库；启动网页前应由私密 provision 建立独立 migrator、移交数据库及 schema 所有权，应用角色仅保留所需 DML 和 sequence 权限。bootstrap 重跑保留此后权限收紧，不把所有者改回应用角色。通过私密输入设置 SCRAM 密码后，再以 root 创建 0600 的 /etc/formward/preview.env，至少配置：
+
+~~~dotenv
+DATABASE_URL=postgresql://formward_preview:私密密码@127.0.0.1:5432/formward_preview
+BETTER_AUTH_SECRET=独立测试环境的随机秘密
+BETTER_AUTH_URL=http://127.0.0.1:3300
+FORMWARD_TIMEZONE=Asia/Shanghai
+~~~
+
+真实 Neon 数据的迁移演练须使用另一个独立数据库，不能连接到此网页实例。预览库使用虚构账号、授权和健康记录；Blob / COS 凭据未配置时，不把图片保存和读取算作通过。生产秘密、真实密码及完整图片链接不能进入命令行、Git 或日志。
+
+完成版本化 migration 后，通过发布工具核对并启用版本：
+
+~~~sh
+sudo bash /路径/self-hosting/activate-preview.sh 发布标识 /路径/发布归档.tar.gz 归档SHA256
+sudo systemctl status formward-preview.service --no-pager
+~~~
+
+发布工具要求归档、版本名和摘要显式给出，拒绝覆盖已有版本。归档由当前项目构建后用 `bash scripts/self-hosting/package-release.sh 发布标识` 生成；构建前修改的源码必须重新构建，打包不会代替构建或测试。
+
+bootstrap 会 enable 应用服务；应用文件或环境文件尚未就绪时，systemd 条件会跳过启动。Nginx、数据库及备份 timer 由脚本启用。数据库和应用不会监听公网，UFW 只允许 SSH 的 22/tcp；脚本不调整 SSH 登录配置。
+
+## 本机访问
+
+在自己的电脑建立 SSH 隧道，把本机 127.0.0.1:3300 转到服务器的 127.0.0.1:8080，然后访问 http://127.0.0.1:3300。固定使用此 Host 与端口，以匹配可信来源、会话和审核链接；不要把代理任意改为信任客户端提供的 X-Forwarded-For。
+
+~~~sh
+ssh -N -L 127.0.0.1:3300:127.0.0.1:8080 -i 私钥路径 ubuntu@服务器公网IP
+~~~
+
+代理超时为 120 秒，关闭响应和请求缓冲，禁用访问日志；Nginx 错误日志仅记录 critical 级别。应用日志进入 journald，并设置本服务日志速率限制，不修改全局 journald 配置。查询日志时避免输出真实健康数据或凭据。
+
+## 备份与恢复验收
+
+备份目录 /var/backups/formward 为 root 0700，dump 和 SHA-256 校验文件为 0600。备份用 PostgreSQL 18 的 pg_dump custom 格式，固定只连接本机 Unix socket 的 formward_preview。脚本用锁避免并发；文件名包含 UTC 时间，已有文件不会覆盖；失败的临时文件清理后保留先前成功备份。仅清理本脚本命名且超过 14 天的预览备份。
+
+备份服务以 root 管理受限归档目录，并用 runuser 切换到 postgres 做本机 peer 认证。因此该维护服务显式设置 NoNewPrivileges=false；其他文件系统及地址族限制保留，网页应用服务继续设置 NoNewPrivileges=true。必须通过 systemd 实际运行备份，单独以 root 手动执行脚本不能证明定时任务权限可用。
+
+~~~sh
+sudo systemctl start formward-backup-preview.service
+sudo systemctl list-timers formward-backup-preview.timer --no-pager
+sudo journalctl -u formward-backup-preview.service -n 20 --no-pager
+~~~
+
+脚本会验证 dump 目录可读取，但完整恢复验收还需把备份恢复到另一个隔离数据库，检查 schema、迁移账本、行数与数据摘要，再验证应用读写。备份只包含数据库，不包含 Blob / COS 图片原件。现阶段是本机备份；独立 COS 的加密异机备份和图片原件备份须另行配置并验证，不能把同盘副本当作灾难恢复。
+
+## 维护
+
+修改部署配置后先做 bash 语法检查、Nginx 与 systemd 配置检查，再在隔离服务器验证。已有数据库只通过 Drizzle migration 演进，bootstrap 不修改业务 schema。升级 Node 或 PostgreSQL 大版本应先核对兼容性、备份及恢复流程；当前参数不用于直接开放正式公网网站。

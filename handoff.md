@@ -1,3 +1,11 @@
+## 当前工作：上海服务器私有预览与迁移准备
+
+当前分支 `codex/mainland-server-preparation`，本轮只部署上海私有预览，未合入 main 或切换国际生产。完整计划与后续域名／备案安排在 `docs/mainland-deployment.md`，实际证据在 `docs/maintenance-verification.md`。Node 24.21.0／PostgreSQL 18.6／Nginx／systemd 已运行，网页通过 SSH 本机 3300 访问，公网仅 SSH；虚构预览资料在被忽略的 `.codex/mainland-setup/preview-login.txt`，不要输出凭据或使用真实健康数据截图。
+
+Neon 快照在独立演练库恢复，42 表 1,580 行及结构核对通过；真实 systemd 预览备份已取回并恢复到另一个空库，42 表 180 行匹配。409 项现有测试、17 项来源 HTTP 专项、7 项真实 PostgreSQL 恢复专项及技术检查通过；Chromium／WebKit 各 7 组、37 截图，客户端异常和 5xx 为 0。实际失败发布回退与服务器重启自动启动通过。备份仅覆盖虚构预览库，正式库和持续异机备份需单独配置。
+
+下一阶段先接 COS 和双区受限业务接口、明确 OAuth／MCP 身份迁移，再等域名备案及实际验收完成后统一停写、最终归档、双入口切库。当前源码仍直接依赖数据库和 Blob，不能只改环境变量就宣称双区账号、图片和授权已经融合。下列既有正式发布信息继续有效。
+
 ## 当前发布：正文与工具把手居中修正
 
 正式域名https://formward-ten.vercel.app已核对READY部署dpl_2C8bsftEneVCMEVdPidswep4kxxQ，应用源码bcbca33，main已推送GitHub。以账号管理版本1cd5c4d为基础，纠正既有导航布局的居中定位：正文左右112px对称预留、页头对称回扩；右侧三点把手按自身中心对准视口中线，手机次级页入口清除电脑位移。
@@ -54,7 +62,7 @@
 
 设计D8继续适用于以后修改：参考图与自动测试通过不能代替用户对实际网页的确认；本轮已通过上述明确发布指令满足门槛。
 
-更新日期：2026-10-29。仓库 `/home/obl1vion/projects/Formward`，当前分支 `main`，已推送GitHub。先读根README、AGENTS、本文及目标目录最近README；修改Next.js前读取已安装包的本地指南。
+更新日期：2026-10-30。仓库 `/home/obl1vion/projects/Formward`，当前工作分支 `codex/mainland-server-preparation`；国际生产版本按上文正式发布记录保持。先读根README、AGENTS、本文及目标目录最近README；修改Next.js前读取已安装包的本地指南。
 
 ## 身体、运动与记录更新
 

@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // 自建部署使用独立运行产物；Vercel 继续由平台适配器生成部署输出。
+  output: process.env.VERCEL === "1" ? undefined : "standalone",
   // 允许该主机名加载开发服务资源；这是开发来源配置，不是生产环境的登录权限或 API CORS。
   // 添加其他端口转发域名后需要重启 pnpm dev。
   allowedDevOrigins: ["127.0.0.1"],

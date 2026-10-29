@@ -1,4 +1,5 @@
 import { withCurrentSession } from "@/features/auth/server";
+import { isAccountRequestOrigin } from "@/features/auth/site-url";
 import { getDatabase } from "@/db/client";
 import { saveMealImage } from "@/features/meals/images";
 import { prepareImageUpload, completeImageUpload, signImageUpload } from "@/features/meals/image-upload";
@@ -6,7 +7,7 @@ import { safeAiError } from "@/features/measurements/ai-api";
 import type { HandleUploadPresignedBody } from "@vercel/blob/client";
 export const maxDuration = 60;
 export async function POST(request: Request) {
-  if (request.headers.get("origin") !== new URL(request.url).origin) return Response.json({ error: "上传来源无效。" }, { status: 403 });
+  if (!isAccountRequestOrigin(request.headers)) return Response.json({ error: "上传来源无效。" }, { status: 403 });
   try {
     return await withCurrentSession(request.headers, async user => {
     let result;

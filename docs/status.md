@@ -1,5 +1,9 @@
 # 当前实现与验证
 
+## 上海节点：私有预览与数据库恢复准备
+
+当前工作分支为 `codex/mainland-server-preparation`。上海服务器已运行独立预览；Neon 原生恢复演练、真实每日备份恢复、两引擎网页检查和失败发布回退通过。生产继续使用既有 Vercel／Neon／Blob，国内只通过 SSH 验收。完整范围、证据及域名备案步骤见[国内部署](mainland-deployment.md)和[维护验收](maintenance-verification.md)。下一阶段需要 COS、双区业务与授权路由、域名备案及最终数据切换；当前 timer 仅覆盖虚构预览库。
+
 ## 居中定位：已修正并发布
 
 正式域名https://formward-ten.vercel.app已核对READY部署dpl_2C8bsftEneVCMEVdPidswep4kxxQ，应用源码bcbca33，main已推送GitHub。以账号管理版本1cd5c4d为基础，纠正既有导航布局的居中定位：正文左右112px对称预留、页头对称回扩；右侧三点把手按自身中心对准视口中线，手机次级页入口清除电脑位移。

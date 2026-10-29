@@ -89,6 +89,8 @@ tests/            跨功能与端到端测试
 
 ## 自己启动开发服务
 
+国内服务器的原生部署、隔离验收、数据库恢复演练及域名备案安排见[国内服务器与双区部署](docs/mainland-deployment.md)。正式国际站仍以上方公网部署说明为准。
+
 1. 在终端进入本仓库根目录：`cd /home/obl1vion/projects/Formward`。
 2. 安装 `.nvmrc` 指定的 Node.js `24.21.0`。可从 [Node.js 官方下载页](https://nodejs.org/en/download)安装；安装后打开新终端，运行 `node --version` 确认显示 `v24`。当前共享环境自带的 Node.js 18 不满足本项目要求。
 3. 运行 `pnpm --version`，确认 pnpm 9 可用。如果没有 pnpm，在 Node.js 24 环境下运行 `npm install -g pnpm@9.15.9`。
