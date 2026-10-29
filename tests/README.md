@@ -2,7 +2,7 @@
 
 ## 工具侧栏与活动累计保护
 
-production build后，FORMWARD_ENERGY_TOOLS_ONLY=1 pnpm test:energy-browser使用隔离PGlite与虚构账号，检查五种宽度四页侧栏开关不移动正文、菜单互斥、键盘焦点与真实导航；活动合计的菜单和清空失焦共用确认，覆盖取消、Escape、恢复手填、0、未知、旧未计入、待删除、保存失败及AI只修改草稿。FORMWARD_ENERGY_TOOLS_ARTIFACTS指定截图目录，FORMWARD_OVERVIEW_BROWSER=webkit复用另一引擎；测量总览与消耗悬停各状态时的读数、区间、图表位置，清洁区间不保留提示空行。
+production build后，FORMWARD_ENERGY_TOOLS_ONLY=1 pnpm test:energy-browser使用隔离PGlite与虚构账号，检查五种宽度四页的电脑左侧导航、手机贴底图标文字导航与独立工具入口、真实跳转与高亮、滚动固定和触屏横屏；侧栏开关不移动正文、菜单互斥、键盘焦点与真实导航；活动合计的菜单和清空失焦共用确认，覆盖取消、Escape、恢复手填、0、未知、旧未计入、待删除、保存失败及AI只修改草稿。FORMWARD_ENERGY_TOOLS_ARTIFACTS指定截图目录，FORMWARD_OVERVIEW_BROWSER=webkit复用另一引擎；测量总览与消耗悬停各状态时的读数、区间、图表位置，清洁区间不保留提示空行。
 
 ## 四页布局与消耗填写验收
 

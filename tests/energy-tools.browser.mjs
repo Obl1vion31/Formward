@@ -37,12 +37,12 @@ export async function checkEnergyTools({baseURL,page,context,db,userId,today,tok
  assert.ok(meals.canConfirm);await decideMealOperation(db,userId,meals.id,meals.revision,"confirm");
  for(const row of (await readMealSnapshot(db,userId)).meals){await setMealDayStatus(db,userId,{operationId:randomUUID(),date:row.date,status:row.date===date(-1)?"incomplete":"complete",version:row.day.version,contentDigest:row.day.contentDigest});}
  const pages=[["overview",""],["meals","/meals"],["energy","/energy"],["body","/measurements"]];
- for(const [width,height] of process.env.FORMWARD_ENERGY_TOOLS_FLOW_ONLY==="1"?[]:[[320,560],[390,640],[430,780],[1100,900],[1440,900]]){
+ for(const [width,height] of process.env.FORMWARD_ENERGY_TOOLS_FLOW_ONLY==="1"?[]:[[320,560],[390,640],[430,780],[1100,900],[1440,900]].filter(([w])=>!process.env.FORMWARD_TOOLS_WIDTH||w===Number(process.env.FORMWARD_TOOLS_WIDTH))){
   console.log("Checking tools viewport",width,height);await page.setViewportSize({width,height});
   for(const [name,path] of pages){
    await visit("/dashboard"+path);await page.getByRole("button",{name:"7D",exact:true}).click();await page.evaluate(()=>scrollTo(0,0));await shot(name+"-closed-"+width);
    const before=await bounds(),trigger=page.getByRole("button",{name:"工具",exact:true});
-   const header=await page.locator(".dashboard-header").boundingBox(),triggerBox=await trigger.boundingBox();assert.ok(triggerBox.height>=44&&triggerBox.width>=44);
+   const visibleWidth=await page.evaluate(()=>document.body.getBoundingClientRect().right),header=await page.locator(".dashboard-header").boundingBox(),triggerBox=await trigger.boundingBox();assert.ok(triggerBox.height>=44&&triggerBox.width>=44);
    await page.getByLabel("账号菜单",{exact:true}).click();assert.ok(await page.locator(".dashboard-menu").evaluate(node=>node.open));
    await trigger.click();const drawer=page.getByRole("dialog",{name:"工具",exact:true});await drawer.waitFor();await page.waitForTimeout(400);
    assert.equal(await page.locator(".dashboard-menu").evaluate(node=>node.open),false,"opening tools closes account");
@@ -52,7 +52,16 @@ export async function checkEnergyTools({baseURL,page,context,db,userId,today,tok
    assert.ok(await drawer.getByText("站内聊天录入，暂未开放",{exact:true}).isVisible());
    const box=await drawer.boundingBox();assert.ok(box.width<=Math.min(320,width-16)+1&&box.x>=15);assert.ok(box.x+box.width<=width+1);
    const after=await bounds();for(const key of ["date","metrics","range","plot"])for(const dim of ["x","y","width"])assert.ok(Math.abs(before[key][dim]-after[key][dim])<=1,name+" tools shifts "+key+" "+dim);
-   if(width<=430)assert.ok(header.height<=50&&triggerBox.y<header.y+header.height,"one-line mobile header");
+   const nav=page.locator(width<=430?".mobile-bottom-nav":".desktop-record-nav");
+   assert.ok(await nav.isVisible(),"chosen navigation visible");
+   assert.equal(await nav.locator("a").count(),4);
+   const current=nav.locator('a[aria-current="page"]');
+   assert.equal((await current.innerText()).trim(),{overview:"总览",meals:"饮食",energy:"消耗",body:"身体"}[name]);
+   assert.equal(await current.getAttribute("aria-current"),"page");
+   assert.equal(await nav.locator("a svg").count(),4,"icons accompany labels");
+   const navBox=await nav.boundingBox();
+   if(width<=430){assert.ok(header.height<=50,"one-line mobile header");assert.ok(triggerBox.y>=navBox.y&&triggerBox.y+triggerBox.height<=height,"mobile tools in bottom bar");assert.ok(Math.abs(navBox.y+navBox.height-height)<=1,"bar is pinned to bottom");}
+   else{assert.ok(navBox.x+navBox.width<=before.metrics.x,"desktop rail leaves content clear");assert.ok(Math.abs(triggerBox.x+triggerBox.width-visibleWidth)<=1,"desktop tools on right visible edge "+JSON.stringify({visibleWidth,triggerBox}));assert.ok(triggerBox.y>=height*.5&&triggerBox.y<=height*.6,"side handle vertically placed");}
    await shot(name+"-tools-"+width);geometry.push({name,width,height,header,drawer:box,before,after});
    const focusables=drawer.locator("button:not(:disabled),a[href]");await focusables.last().focus();await page.keyboard.press("Tab");assert.equal(await focusables.first().evaluate(node=>node===document.activeElement),true,"focus trap");
    await page.keyboard.press("Escape");await drawer.waitFor({state:"hidden"});assert.equal(await trigger.evaluate(node=>node===document.activeElement),true,"return trigger focus");
@@ -66,6 +75,21 @@ export async function checkEnergyTools({baseURL,page,context,db,userId,today,tok
   await shot("activity-automatic-"+width);await closeEditor();
  }
  if(process.env.FORMWARD_ENERGY_TOOLS_FLOW_ONLY!=="1")checks.push("Five sizes/four actual pages: tools overlay leaves content geometry unchanged, mobile header one line; disabled future items, keyboard loop, Escape focus/scroll restore; actual closed/open and manual/auto/confirm screenshots");
+ // All four real links navigate and highlight consistently; scrolling keeps the navigation available.
+ for(const width of [390,1440]){
+  await page.setViewportSize({width,height:900});await visit("/dashboard");
+  for(const [name,path] of pages.slice(1).concat([pages[0]])){
+   const nav=page.locator(width===390?".mobile-bottom-nav":".desktop-record-nav");
+   const label={overview:"总览",meals:"饮食",energy:"消耗",body:"身体"}[name];
+   await nav.getByRole("link",{name:label,exact:true}).click();await page.waitForURL(url=>url.pathname==="/dashboard"+path);await page.waitForLoadState("networkidle");
+   assert.equal(await page.locator(width===390?".mobile-bottom-nav":".desktop-record-nav").getByRole("link",{name:label,exact:true}).getAttribute("aria-current"),"page");
+  }
+  const nav=page.locator(width===390?".mobile-bottom-nav":".desktop-record-nav"),before=await nav.boundingBox();await page.evaluate(()=>scrollTo(0,document.body.scrollHeight));const after=await nav.boundingBox();assert.ok(Math.abs(before.y-after.y)<=1,"navigation stays fixed when scrolling");await page.evaluate(()=>scrollTo(0,0));
+ }
+ // Touch landscape keeps four destinations and a separate tools button available.
+ const touch=await context.browser().newContext({viewport:{width:844,height:390},hasTouch:true,isMobile:true,locale:"zh-CN",timezoneId:"Asia/Shanghai",storageState:await context.storageState()});
+ try{const tp=await touch.newPage();await tp.goto(baseURL+"/dashboard");await tp.waitForLoadState("networkidle");await tp.locator(".mobile-bottom-nav").waitFor();await tp.getByRole("button",{name:"工具",exact:true}).tap();await tp.getByRole("dialog",{name:"工具",exact:true}).waitFor();await tp.getByRole("button",{name:"关闭工具栏",exact:true}).tap();await tp.getByRole("dialog",{name:"工具",exact:true}).waitFor({state:"hidden"});assert.ok(await tp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await tp.screenshot({path:artifacts+"/navigation-touch-landscape.png"});screens.push("navigation-touch-landscape.png");}finally{await touch.close();}
+ checks.push("Desktop left rail/mobile icon-and-label bar with separated tools: all actual links/highlights, fixed positioning, clear gutters, touch landscape");
  // Opening tools and pressing Escape preserves the chart day the user pinned.
  await page.setViewportSize({width:390,height:640});await visit("/dashboard");await page.getByRole("button",{name:"7D",exact:true}).click();const pinnedDate=date(-1),pinned=page.locator('[data-overview-date="'+pinnedDate+'"]');await pinned.focus();await page.keyboard.press("Enter");const trend=page.getByRole("region",{name:"热量与晨重趋势",exact:true});assert.equal(await trend.getAttribute("data-pinned-date"),pinnedDate);await page.getByRole("button",{name:"工具",exact:true}).click();await page.getByRole("dialog",{name:"工具",exact:true}).waitFor();assert.equal(await trend.getAttribute("data-pinned-date"),pinnedDate,"tool open preserves pin");await page.keyboard.press("Escape");await page.getByRole("dialog",{name:"工具",exact:true}).waitFor({state:"hidden"});assert.equal(await trend.getAttribute("data-pinned-date"),pinnedDate);assert.equal(await trend.getAttribute("data-selected-date"),pinnedDate);
  checks.push("Tool open/Escape close preserves the pinned chart date");

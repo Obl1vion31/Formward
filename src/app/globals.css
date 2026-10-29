@@ -888,7 +888,7 @@ input:focus-visible {
 .tap-hint { position: absolute; z-index: 2; bottom: calc(108px + env(safe-area-inset-bottom)); left: 0; right: 0; margin: 0; text-align: center; font-size: 12px; letter-spacing: .1em; color: #b9b2a8; pointer-events: none; }
 
 /* 手机公共导航；审核页仅保留自己的统一保存栏。 */
-.mobile-page-name,.dashboard-menu,.mobile-bottom-nav { display:none; }
+.mobile-page-name,.dashboard-menu { display:none; }
 .record-date-context { color:var(--muted); font-size:12px; line-height:1.6; margin:4px 0 12px; }
 .record-date-context strong { color:var(--warm-white); font-weight:500; }
 @media (max-width:700px), (hover:none) and (pointer:coarse) {
@@ -904,11 +904,19 @@ input:focus-visible {
  .dashboard-menu > div { position:absolute; right:0; top:46px; width:min(280px,calc(100vw - 36px)); padding:12px 16px; background:#1b1b18; border:1px solid rgba(240,233,221,.16); box-shadow:0 8px 24px #0006; display:grid; }
  .dashboard-menu > div > span { color:var(--muted); font-size:12px; padding:8px 0; overflow-wrap:anywhere; }
  .dashboard-menu a,.dashboard-menu button { display:flex; align-items:center; min-height:44px; color:var(--warm-white); background:none; border:0; text-decoration:none; font:inherit; font-size:14px; padding:0; }
- .mobile-bottom-nav { position:fixed; bottom:0; left:0; right:0; z-index:20; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); padding-bottom:env(safe-area-inset-bottom); background:var(--graphite); border-top:1px solid rgba(240,233,221,.14); }
- .mobile-bottom-nav a { display:flex; min-height:56px; align-items:center; justify-content:center; color:var(--muted); font-size:14px; text-decoration:none; }
- .mobile-bottom-nav a[aria-current="page"] { color:var(--gold); box-shadow:inset 0 -2px var(--gold); }
- .dashboard-menu :focus-visible,.mobile-bottom-nav a:focus-visible { outline:2px solid var(--gold); outline-offset:-4px; }
+ .dashboard-menu :focus-visible { outline:2px solid var(--gold); outline-offset:-4px; }
 }
 
-.dashboard-header .dashboard-account{display:none}.desktop-record-nav{display:flex;align-items:center;gap:24px;margin-left:auto}.desktop-record-nav a{display:flex;align-items:center;min-height:44px;color:var(--muted);text-decoration:none;font-size:14px;border-bottom:2px solid transparent}.desktop-record-nav a[aria-current=page]{color:var(--warm-white);border-color:var(--gold)}.dashboard-header .dashboard-menu{display:block;position:relative;margin-left:20px}.dashboard-menu>summary{list-style:none;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;color:var(--gold);cursor:pointer}.dashboard-menu>summary::-webkit-details-marker{display:none}.dashboard-menu>div{position:absolute;right:0;top:46px;z-index:40;width:min(280px,calc(100vw - 32px));padding:12px 16px;display:grid;background:#1b1b18;border:1px solid #f0e9dd29;box-shadow:0 8px 24px #0006}.dashboard-menu>div>span{color:var(--muted);font-size:12px;padding:8px 0;overflow-wrap:anywhere}.dashboard-menu a,.dashboard-menu button{display:flex;align-items:center;min-height:44px;color:var(--warm-white);background:none;border:0;text-decoration:none;font:inherit;font-size:14px;padding:0}
-@media(max-width:700px),(hover:none) and (pointer:coarse){.dashboard-page{padding-inline:16px}.desktop-record-nav{display:none}.dashboard-header .dashboard-menu{margin-left:0}.mobile-page-name{margin-inline:auto}.dashboard-header{justify-content:space-between}}
+.dashboard-header .dashboard-account{display:none}
+.dashboard-header .dashboard-menu{display:block;position:relative}
+.dashboard-menu>summary{list-style:none;display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;color:var(--muted);cursor:pointer}
+.dashboard-menu>summary::-webkit-details-marker{display:none}
+.dashboard-menu>summary svg{width:21px;height:21px}
+.dashboard-menu>div{position:absolute;right:0;top:46px;z-index:40;width:min(280px,calc(100vw - 32px));padding:12px 16px;display:grid;background:#1b1b18;border:1px solid #f0e9dd29;box-shadow:0 8px 24px #0006}
+.dashboard-menu>div>span{color:var(--muted);font-size:12px;padding:8px 0;overflow-wrap:anywhere}
+.dashboard-menu a,.dashboard-menu button{display:flex;align-items:center;min-height:44px;color:var(--warm-white);background:none;border:0;text-decoration:none;font:inherit;font-size:14px;padding:0}
+@media(max-width:700px),(hover:none) and (pointer:coarse){
+ .dashboard-page{padding-inline:16px}
+ .mobile-page-name{margin-inline:auto}
+ .dashboard-header{justify-content:space-between}
+}
