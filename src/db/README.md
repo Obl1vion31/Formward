@@ -11,6 +11,8 @@
 
 ## 维护约定
 
+0027_account_management 新增 account_links、account_events；users 增加 role、banned、ban_reason、ban_expires、last_login_at、access_version；sessions 增加 impersonated_by、access_version、admin_verified_at。共 41 张应用表。旧字段和值保持，默认普通用户／正常／版本 0，最近登录与再次验密保持空。激活／重设链接仅存摘要，邀请不预建用户；管理审计无密码或完整链接。首次 owner 通过受控维护工具明确指定。
+
 `rate_limits` 是登录前按来源与认证入口维护的共享限流状态，包含 id、唯一 key、count 和毫秒 last_request；没有健康数据或用户归属。Better Auth 负责原子计数与过期清理，0010 migration 仅新增此表。
 
 Feature 可以直接使用 Drizzle。数据库结构变化必须生成 `drizzle/` migration，并分别在开发、测试和生产环境执行。

@@ -1,7 +1,7 @@
 "use server";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { currentUser } from "@/features/auth/server";
+import { withCurrentSession } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { submitEnergyOperation, decideEnergyOperation, readEnergySnapshot } from "@/features/activities/records";
 import type { EnergyInput } from "@/features/activities/model";
@@ -12,9 +12,8 @@ import { systemMeasurementTimezone } from "@/features/measurements/timezone";
 import { listEnergySources, removeEnergySource } from "@/features/activities/sources";
 import type { SourceRemovalResult } from "@/components/source-input";
 export async function saveEnergyAction(input: EnergyInput) {
-  const user = await currentUser(await headers());
-  if (!user) return { ok: false as const, error: "登录已失效，请重新登录。" };
   try {
+    return await withCurrentSession(await headers(), async user => {
     const db = getDatabase(), operation = await submitEnergyOperation(db, { userId: user.id, origin: "manual" }, input);
     if (operation.status !== "confirmed" && !operation.canConfirm) throw new Error(operation.rows.find(row => row.error)?.error ?? "请检查输入。");
     await decideEnergyOperation(db, user.id, operation.id, operation.revision, "confirm", {permanentManualDeletion:true});
@@ -22,15 +21,16 @@ export async function saveEnergyAction(input: EnergyInput) {
     revalidatePath("/dashboard/energy"); revalidatePath("/dashboard"); revalidatePath("/dashboard/ai", "layout");
     const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
     return { ok: true as const, data: { presentation: energyPresentation(snapshot, [], today, await listEnergySources(db, user.id)), changedKeys:operation.rows.flatMap(row=>row.after&&"date" in row.after?["name" in row.after?"activity:"+row.after.id:"energyDay:"+row.after.date]:[]),message: "已保存。" } };
+    });
   } catch (error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }
 
 export async function removeEnergySourceAction(label: string): Promise<SourceRemovalResult> {
-  const user = await currentUser(await headers());
-  if (!user) return { ok: false, error: "登录已失效，请重新登录。" };
   try {
+    return await withCurrentSession(await headers(), async user => {
     const sources = await removeEnergySource(getDatabase(), { userId: user.id, actorId: user.id }, label);
     revalidatePath("/dashboard/energy"); revalidatePath("/dashboard/ai", "layout"); revalidatePath("/dashboard/meals/review", "layout");
     return { ok: true, sources };
+    });
   } catch (error) { return { ok: false, error: safeAiError(error).error.message }; }
 }

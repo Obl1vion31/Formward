@@ -1,3 +1,11 @@
+## 待验收：账号管理第一版
+
+工作分支 `codex/account-management-v1`，尚未发布、合入main、执行生产0027或指定生产owner。用户已确定站内管理、首批仅邀请制、手动交付链接、后台仅密码再次确认；邮件、公开注册和MFA留后续。下一步先让用户查看实际页面，再获取唯一owner已有登录邮箱，不能沿用上次导航发布的免验收授权。
+
+已实现 `/admin` 三页签、本人账号设置、fragment 激活／重设、72小时邀请与15分钟重设、十分钟会话绑定验密、统一停用／全部撤销／改密、审计与受控owner初始化／恢复。Admin直接接口关闭，网页写入在既有账号行锁内复核会话版本，AI/OAuth复核活动状态和原授权，恢复不复活旧授权或审核。0027只增账号字段与两表，既有健康数据、密码和邮箱验证不回填；首个owner必须明确指定。
+
+409项完整单元／集成、lint零警告、typecheck、production build、Drizzle check、真实PostgreSQL多连接并发、原登录／媒体／OAuth浏览器回归通过；账号Chromium／WebKit各41张实际截图、十组功能检查通过，异常与5xx均0。静态图片与视频等待竞争、空账号身体页首次渲染日期已修复。证据 `.codex/accounts-visual/`、`.codex/account-*.log`，说明与逐项设计验收见docs/auth-setup.md及docs/maintenance-verification.md。真实iOS和软键盘未测。正式站仍是下节版本。
+
 ## 当前发布：电脑左侧导航与手机贴底导航
 
 正式域名https://formward-ten.vercel.app已核对READY部署dpl_J1iW1MiZuL2MbxPjkdEPQHDdJX2E，应用源码b81dac3。电脑采用左侧72px图标文字导航，手机采用贴底四项导航、最右侧单独放工具；电脑工具由屏幕右侧三点把手打开，账号改为右上角人像。main已推送GitHub；本次用户明确授权免去再次验收等待，完成必要测试和实际网页自检后直接发布。

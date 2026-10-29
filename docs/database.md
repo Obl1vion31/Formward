@@ -2,10 +2,10 @@
 
 ## 运动分项存储
 
-0026_dark_tana_nile为activities增加calorie_mode、resting_kcal、active_kcal，均可空，旧记录不回填。TypeScript对应calorieMode、exerciseRestingKcal、exerciseActiveKcal，避免与日记录混淆。原calories_kcal保存运动总数；分项模式总数由两项已知时形成，计入值由纯运动产生，未知保持空。账号、来源、版本和审计沿用。当前39张应用表另加Drizzle账本。身体旧实测通过既有deleted_at归档；单指标删除保留另一指标及审计。
+0026_dark_tana_nile为activities增加calorie_mode、resting_kcal、active_kcal，均可空，旧记录不回填。TypeScript对应calorieMode、exerciseRestingKcal、exerciseActiveKcal，避免与日记录混淆。原calories_kcal保存运动总数；分项模式总数由两项已知时形成，计入值由纯运动产生，未知保持空。账号、来源、版本和审计沿用。当前41张应用表另加Drizzle账本。身体旧实测通过既有deleted_at归档；单指标删除保留另一指标及审计。
 
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 39 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 41 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。0027 只扩展账号管理，不修改健康表、旧密码或授权值。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 
@@ -88,7 +88,7 @@ erDiagram
 
 身体 AI 操作的 `token_id`／`oauth_connection_id` 恰有一个非空；饮食操作按 `origin` 校验手动、AI 或初始化对应的凭据与导入关系。OAuth 的 `client_id` 引用客户端业务标识 `oauth_client.client_id`，资源关联引用 `oauth_resource.identifier`，不应一律理解成关联对应表的 `id`。
 
-下列基础设施表没有图中的用户外键：`verifications` 按 `identifier` 管理验证状态；`rate_limits` 保存认证前来源与入口限流；`oauth_client_assertion` 保存协议断言的期限；`jwks` 保存签名密钥。它们与图中表合计为当前 39 张应用表。迁移账本 `drizzle.__drizzle_migrations` 另由工具管理。
+下列基础设施表没有图中的用户外键：`verifications` 按 `identifier` 管理验证状态；`rate_limits` 保存认证前来源与入口限流；`oauth_client_assertion` 保存协议断言的期限；`jwks` 保存签名密钥。账号管理另外保存 `account_links`、`account_events`，通过签发人、操作者及目标关联 users；合计 41 张应用表。迁移账本 `drizzle.__drizzle_migrations` 另由工具管理。
 
 `created_by`、`actor_id` 等操作者快照保留文本标识，不是数据归属外键；真正归属由可信身份与 `user_id` 校验。体重单位固定 kg，体脂固定 %；外部原值、来源标识和批次状态独立保存。
 
@@ -505,6 +505,9 @@ JWT 签名公私钥。私钥由 Better Auth 加密保存，公开端点只返回
 | `expires_at` | `timestamp with time zone` | 无空值 | 到期时间 | `Better Auth` |
 | `ip_address` | `text` | 可空：未提供／不适用，具体见用途 | 会话来源 IP；空值表示未提供 | `Better Auth` |
 | `user_agent` | `text` | 可空：未提供／不适用，具体见用途 | 会话客户端信息；空值表示未提供 | `Better Auth` |
+| `impersonated_by` | `text` | 可空；本期始终为空 | Admin 插件兼容字段，代登录入口关闭 | `Better Auth` |
+| `access_version` | `integer` | 非空；默认 0 | 登录验证前捕获的账号访问版本，须与 users 一致 | `auth` |
+| `admin_verified_at` | `timestamptz` | 可空；新会话为空 | 当前会话最近一次管理验密，10 分钟有效，不自动续期 | `account-management` |
 | `created_at` | `timestamp with time zone` | 无空值；默认 now() | 创建时间；不是测量时间 | `创建记录时由数据库／feature 写入` |
 | `updated_at` | `timestamp with time zone` | 无空值；默认 now() | 最近修改时间；测量编辑用它作并发版本 | `对应 feature 更新` |
 
@@ -524,6 +527,12 @@ JWT 签名公私钥。私钥由 Better Auth 加密保存，公开端点只返回
 | `email` | `text` | 无空值 | 规范化登录邮箱，唯一 | `auth/provision.ts` |
 | `email_verified` | `boolean` | 无空值；默认 False | 内部账号邮箱验证状态 | `Better Auth` |
 | `image` | `text` | 可空：未提供／不适用，具体见用途 | 头像地址；空值表示未设置 | `Better Auth` |
+| `role` | `text` | 非空；默认 user | user／owner；网页不开放角色编辑 | `auth／受控初始化` |
+| `banned` | `boolean` | 非空；默认 false | 唯一账号停用状态 | `account-management` |
+| `ban_reason` | `text` | 可空 | 停用原因，最多 500 字符 | `account-management` |
+| `ban_expires` | `timestamptz` | 可空；本期为空 | Admin 插件兼容字段，本期不做定时恢复 | `auth` |
+| `last_login_at` | `timestamptz` | 可空；不回填 | 最近成功登录，旧值未知保持空 | `auth 登录钩子` |
+| `access_version` | `integer` | 非空；默认 0 | 全部撤销／停用／改密递增，阻止延迟旧会话 | `account-security` |
 | `created_at` | `timestamp with time zone` | 无空值；默认 now() | 创建时间；不是测量时间 | `创建记录时由数据库／feature 写入` |
 | `updated_at` | `timestamp with time zone` | 无空值；默认 now() | 最近修改时间；测量编辑用它作并发版本 | `对应 feature 更新` |
 
@@ -547,6 +556,28 @@ JWT 签名公私钥。私钥由 Better Auth 加密保存，公开端点只返回
 
 - 主键：`id`。
 - 索引 `verifications_identifier_idx`：`identifier`。
+
+### `account_links`
+
+| 字段 | 类型／默认 | 用途 |
+| --- | --- | --- |
+| id | text PK | 链接记录标识 |
+| purpose | text 非空 | invite／reset_password |
+| email | text 非空 | 规范化目标登录标识，不代表邮箱验证 |
+| user_id | text NULL FK users | 邀请激活前为空；重设必须指定目标 |
+| created_by | text 非空 FK users | owner 签发人 |
+| request_id | text 非空 | 签发人内唯一的重试标识 |
+| token_hash | text 非空 UNIQUE | 32 字节随机令牌的 SHA-256 摘要 |
+| created_at | timestamptz DEFAULT now | 创建时间 |
+| expires_at | timestamptz 非空 | 邀请 72 小时／重设 15 分钟 |
+| consumed_at | timestamptz NULL | 成功保存密码时原子消费 |
+| revoked_at | timestamptz NULL | 重新生成／撤销访问后永久失效 |
+
+部分唯一索引限制每个 email／purpose 只有一个未消费且未撤销的链接；过期后重新生成先撤销旧行。user_id 有索引；签发人／request_id 唯一。外键不级联删除历史。链接原文不保存、不进入日志。
+
+### `account_events`
+
+字段为 id text PK、actor_id text NULL FK users、user_id text NULL FK users、email text 非空、action text 非空、outcome text DEFAULT success、reason text NULL、request_id text 非空 UNIQUE、created_at timestamptz DEFAULT now。actor_id 为空表示本地维护，邀请未激活时目标 user_id 可空。outcome 为 success／rejected，reason 只含操作原因或安全业务错误，不含密码、健康内容或令牌。created_at 有索引，本期不自动清理。
 
 ### `drizzle.__drizzle_migrations`（工具维护）
 

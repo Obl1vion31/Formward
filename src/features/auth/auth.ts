@@ -2,13 +2,20 @@ import { betterAuth } from "better-auth/minimal";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { getDatabase, type Database } from "../../db/client";
 import * as schema from "../../db/schema";
-import { jwt } from "better-auth/plugins";
-import { APIError } from "better-auth/api";
+import { admin, jwt } from "better-auth/plugins";
+import { defaultAc, userAc } from "better-auth/plugins/admin/access";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
+import { and, eq } from "drizzle-orm";
 import { mcp } from "@better-auth/mcp";
 import { cimd } from "@better-auth/cimd";
 import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { getOAuthProviderState } from "@better-auth/oauth-provider";
 import { OAUTH_SCOPES, oauthAccessClaims, oauthConnectionReference } from "./oauth-connections";
+import { limitAccountAttempt, requireSessionProof } from "./account-security";
+
+type LoginSnapshot = { id: string; accessVersion: number };
+type SecurityContext = { formwardLogin?: LoginSnapshot };
+const blockedAccountPaths = ["/token", "/change-password", "/set-password", "/request-password-reset", "/reset-password", "/change-email", "/delete-user", "/delete-user/callback", "/send-verification-email", "/verify-email", "/update-user", "/verify-password", "/revoke-session", "/revoke-sessions", "/revoke-other-sessions", "/update-session", "/link-social", "/unlink-account"];
 
 export function createAuth(db: Database, config: { secret: string; baseURL: string; rateLimit?: boolean }) {
   if (config.secret.length < 32) throw new Error("BETTER_AUTH_SECRET 需要至少 32 个随机字符。");
@@ -17,6 +24,10 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
   if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
     trustedOrigins.push(`http://localhost:${url.port || "80"}`, `http://127.0.0.1:${url.port || "80"}`);
   }
+  const adminPlugin = admin({ defaultRole: "user", adminRoles: ["owner"],
+    roles: { user: userAc, owner: defaultAc.newRole({ user: ["list", "get", "ban"], session: ["list", "revoke"] }) },
+    bannedUserMessage: "账号已停用，请联系邀请人。" });
+  const disabledPaths = [...blockedAccountPaths, ...Object.values(adminPlugin.endpoints).map(endpoint => endpoint.path)];
   return betterAuth({
     appName: "Formward",
     secret: config.secret,
@@ -24,7 +35,10 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
     trustedOrigins,
     database: drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
     emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: 6, maxPasswordLength: 128 },
-    session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24, cookieCache: { enabled: false } },
+    user: { additionalFields: { accessVersion: { type: "number", defaultValue: 0, input: false }, lastLoginAt: { type: "date", required: false, input: false } } },
+    session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24, cookieCache: { enabled: false }, additionalFields: {
+      accessVersion: { type: "number", defaultValue: 0, input: false }, adminVerifiedAt: { type: "date", required: false, input: false, returned: false },
+    } },
     rateLimit: {
       enabled: config.rateLimit ?? true,
       storage: "database",
@@ -33,8 +47,51 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
       customRules: { "/sign-in/email": { window: 60, max: 5 } },
     },
     advanced: { cookiePrefix: "formward", useSecureCookies: url.protocol === "https:" },
-    disabledPaths: ["/token"],
+    disabledPaths,
+    hooks: {
+      before: createAuthMiddleware(async ctx => {
+        // disabledPaths 仅保护 HTTP；这里同时拦截服务端 auth.api 的旁路。
+        if (disabledPaths.includes(ctx.path)) throw new APIError("NOT_FOUND", { message: "此入口未开放。" });
+        if (ctx.path === "/sign-in/email") {
+          const email = typeof ctx.body?.email === "string" ? ctx.body.email.trim().toLowerCase() : "";
+          if (config.rateLimit !== false) {
+            try { await limitAccountAttempt(db, "signin-account", email); }
+            catch { throw new APIError("TOO_MANY_REQUESTS", { message: "尝试次数较多，请一分钟后重试。" }); }
+          }
+          const [owner] = await db.select({ id: schema.user.id, accessVersion: schema.user.accessVersion }).from(schema.user).where(eq(schema.user.email, email));
+          (ctx.context as typeof ctx.context & SecurityContext).formwardLogin = owner;
+        } else if (ctx.path !== "/get-session" && ctx.path !== "/sign-out" && ctx.headers?.get("cookie")) {
+          const identity = await getSessionFromCtx(ctx);
+          if (identity) {
+            try { await requireSessionProof(db, { userId: identity.user.id, sessionId: identity.session.id, accessVersion: Number((identity.session as { accessVersion?: number }).accessVersion ?? 0) }); }
+            catch { throw new APIError("UNAUTHORIZED", { message: "登录已失效，请重新登录。" }); }
+          }
+        }
+      }),
+      after: createAuthMiddleware(async ctx => {
+        if (ctx.path === "/get-session") {
+          const identity = ctx.context.returned as { user?: { id: string }; session?: { id: string; accessVersion?: number } } | null;
+          if (identity?.user && identity.session) {
+            try { await requireSessionProof(db, { userId: identity.user.id, sessionId: identity.session.id, accessVersion: identity.session.accessVersion ?? 0 }); }
+            catch { return ctx.json(null); }
+          }
+        }
+        if (ctx.path === "/sign-in/email" && ctx.context.newSession) {
+          const snapshot = (ctx.context as typeof ctx.context & SecurityContext).formwardLogin;
+          if (snapshot) {
+            const changed = await db.update(schema.user).set({ lastLoginAt: new Date() }).where(and(eq(schema.user.id, snapshot.id), eq(schema.user.accessVersion, snapshot.accessVersion), eq(schema.user.banned, false))).returning({ id: schema.user.id });
+            if (!changed.length) throw new APIError("UNAUTHORIZED", { message: "账号访问已变化，请重新登录。" });
+          }
+        }
+      }),
+    },
+    databaseHooks: { session: { create: { before: async (data, ctx) => {
+      const snapshot = (ctx?.context as (SecurityContext | undefined))?.formwardLogin;
+      if (!snapshot || snapshot.id !== data.userId) throw new APIError("UNAUTHORIZED", { message: "请通过密码登录。" });
+      return { data: { ...data, accessVersion: snapshot.accessVersion, adminVerifiedAt: null } };
+    } } } },
     plugins: [
+      adminPlugin,
       jwt(),
       mcp({
         resource: new URL("/api/mcp", url).href,

@@ -1,15 +1,13 @@
 "use server";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { currentUser } from "@/features/auth/server";
+import { withCurrentSession } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { safeAiError } from "@/features/measurements/ai-api";
 import { submitMealOperation, decideMealOperation, reviseMealOperation, readMealSnapshot, getMealOperation } from "@/features/meals/records";
 import type { MealInput, MealAction } from "@/features/meals/model";
 async function perform<T>(work: (userId: string) => Promise<T>) {
-  const user = await currentUser(await headers());
-  if (!user) return { ok: false as const, error: "登录已失效，请重新登录。" };
-  try { const data = await work(user.id); revalidatePath("/dashboard/meals"); revalidatePath("/dashboard/meals/review/[id]", "page"); revalidatePath("/dashboard/ai"); revalidatePath("/dashboard"); return { ok: true as const, data }; }
+  try { return await withCurrentSession(await headers(), async user => { const data = await work(user.id); revalidatePath("/dashboard/meals"); revalidatePath("/dashboard/meals/review/[id]", "page"); revalidatePath("/dashboard/ai"); revalidatePath("/dashboard"); return { ok: true as const, data }; }); }
   catch(error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }
 export async function saveMealAction(input: MealInput, allowMissingImages = false) { return perform(async userId => {

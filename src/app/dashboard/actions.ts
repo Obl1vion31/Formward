@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { currentUser } from "@/features/auth/server";
+import { withCurrentSession } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { listMeasurements, type MeasurementActor } from "@/features/measurements/records";
 import { deleteMeasurementCell, estimateMeasurementCell, listMeasurementDates, measurementDisplay, saveMeasurementDay, type EstimateCellInput, type SaveMeasurementDayInput } from "@/features/measurements/editing";
@@ -12,9 +12,8 @@ import { listMeasurementSources, removeMeasurementSource } from "@/features/meas
 import { safeAiError } from "@/features/measurements/ai-api";
 
 async function perform(work: (db: Database, actor: MeasurementActor) => Promise<string>): Promise<EntryResult> {
-  const user = await currentUser(await headers());
-  if (!user) return { ok: false, error: "登录已失效，请重新登录后保存。" };
   try {
+    return await withCurrentSession(await headers(), async user => {
     const db = getDatabase();
     const message = await work(db, { userId: user.id, actorId: user.id, actorType: "user" });
     const records = await listMeasurements(db, user.id);
@@ -22,6 +21,7 @@ async function perform(work: (db: Database, actor: MeasurementActor) => Promise<
     const sources = await listMeasurementSources(db, user.id);
     revalidatePath("/dashboard"); revalidatePath("/dashboard/energy"); revalidatePath("/dashboard/measurements");
     return { ok: true, records: records.map(measurementDisplay), dates, sources, message };
+    });
   } catch (error) {
     // 数据库错误可能含 SQL 和数值，只把业务校验消息返回给本账号。
     return { ok: false, error: safeAiError(error).error.message };
@@ -34,12 +34,12 @@ export async function estimateCellAction(input: EstimateCellInput) {
   return perform(async (db, actor) => (await estimateMeasurementCell(db, actor, input)).message);
 }
 export async function removeSourceAction(label: string): Promise<SourceRemovalResult> {
-  const user = await currentUser(await headers());
-  if (!user) return { ok: false, error: "登录已失效，请重新登录。" };
   try {
+    return await withCurrentSession(await headers(), async user => {
     const sources = await removeMeasurementSource(getDatabase(), { userId: user.id, actorId: user.id, actorType: "user" }, label);
     revalidatePath("/dashboard"); revalidatePath("/dashboard/energy"); revalidatePath("/dashboard/measurements"); revalidatePath("/dashboard/ai/operations/[id]", "page");
     return { ok: true, sources };
+    });
   } catch (error) { return { ok: false, error: safeAiError(error).error.message }; }
 }
 

@@ -920,3 +920,10 @@ input:focus-visible {
  .mobile-page-name{margin-inline:auto}
  .dashboard-header{justify-content:space-between}
 }
+
+/* 低频找回说明保持在登录表单内，不改变人物转场。 */
+.login-recovery{margin-top:12px;color:var(--muted);font-size:11px;line-height:1.7}
+.login-recovery summary{cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:center;list-style:none}
+.login-recovery summary::-webkit-details-marker{display:none}
+.login-recovery p{margin:4px 0 0;max-width:260px;text-align:center}
+.login-recovery:focus-visible{outline:2px solid var(--gold);outline-offset:3px}

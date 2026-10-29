@@ -12,6 +12,23 @@ production build后设置FORMWARD_FRAME_ONLY=1运行pnpm test:energy-browser。u
 
 本目录保存跨功能、数据库和浏览器端到端测试。单个 feature 的单元测试优先与源文件放在一起。
 
+## 账号管理验收
+
+`pnpm test` 包含 account-management.test.ts，覆盖普通用户与过期／跨会话拒绝、邀请摘要／重复／并发／过期／撤销、激活审计失败回滚、改密与停用联动、旧版本会话、原生接口旁路和 owner 维护。OAuth 集成覆盖后台停用与真实刷新竞争、旧 JWT／刷新／审核失效及恢复后重新连接。身体迁移测试在核对旧结构后升级到当前认证结构再调用当前业务函数。
+
+`pnpm test:account-browser` 自行建立隔离 PGlite 和独立 production 服务，验证真实 Server Action 越权、后台解锁、邀请／激活／重设、个人改密、过期保留筛选与草稿、停用恢复和审计。五种宽度、矮屏与横屏截图包含长邮箱、弹窗、设置底部、原四页及菜单；`FORMWARD_ACCOUNT_BROWSER=webkit` 切换引擎，`FORMWARD_ACCOUNT_ARTIFACTS` 指定私有证据目录。需要先构建，不能与修改同一 `.next` 的构建同时运行。
+
+浏览器和真实 PostgreSQL 并发工具放在仓库外，无新增运行依赖：
+
+```bash
+npm install --prefix /tmp/formward-account-tooling --no-audit --no-fund playwright embedded-postgres@18.4.0-beta.17
+PLAYWRIGHT_BROWSERS_PATH=/tmp/formward-account-tooling/browsers node /tmp/formward-account-tooling/node_modules/playwright/cli.js install chromium webkit
+PLAYWRIGHT_BROWSERS_PATH=/tmp/formward-account-tooling/browsers pnpm test:account-browser
+pnpm test:account-concurrency
+```
+
+可通过 PLAYWRIGHT_MODULE 与 FORMWARD_EMBEDDED_POSTGRES_MODULE 指定已安装模块的绝对入口。`accounts.concurrent.mts` 只在临时目录建立回环 PostgreSQL，用多连接和真实行锁验证邀请单次消费、旧密码已验证但会话延迟插入、在途保存与撤销顺序。它不读取 .env.local，也不接受生产连接。单连接 PGlite 不替代该并发验收。真实 iOS／系统软键盘仍须记为未测。
+
 ## 当前验证入口
 
 - `pnpm test` 使用 Node.js 24 内置测试运行器，执行动画与轨道、认证、身体测量测试。测量另覆盖晨间基准四种情况、稳健中位差、28 天窗口／至少 3 日／最多 7 个晨间样本／7 天延续、样本不足、正常模式排除估计与未来实测、历史稳定、真实替代估计、按指标独立补缺、准确时间确认、重建与数据库指标存在约束、来源与写入入口独立、占位时间不生成 UTC、补全预览／幂等及整批回滚；初始化另覆盖全范围真实配对、两侧插值、受限边界外推、真实来源快照与逐项报告、一次性与并发幂等、冻结空缺、补录仅替代对应指标、普通重建／恢复保护、来源隔离与审计失败回滚；也覆盖当地 06:00／18:00 边界、跨月跨年、时区与夏令时、白天空腹确认、晚间非空腹规则、缺项、多次测量、维护预览绑定、幂等修正／软删除／恢复、事务回滚、重复与并发重试、重新排序导入及跨账号访问。时间线覆盖 500ms 正倒放、中途反向、方向阈值、惯性、两端各 40ms 的视频 / 静态混合、60 帧索引、异步寻帧合并及清理、reduced motion；475 / 500 / 525ms 以模拟 60Hz、120Hz 时钟验证线性游标。

@@ -20,5 +20,5 @@ export default async function DashboardPage() {
 async function Content({ user }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>> }) {
  const db=getDatabase(), records=await listMeasurements(db,user.id), snapshot=await readMealSnapshot(db,user.id),energy=await readEnergySnapshot(db,user.id);
  const today=localMeasurementDate(new Date(),systemMeasurementTimezone(new Date(),process.env.FORMWARD_TIMEZONE));
- return <main className="dashboard-page"><DashboardHeader email={user.email}/><OverviewView presentation={overviewPresentation(snapshot.meals, records.map(measurementDisplay), energy, today)}/></main>;
+ return <main className="dashboard-page"><DashboardHeader email={user.email} owner={user.role === "owner"}/><OverviewView presentation={overviewPresentation(snapshot.meals, records.map(measurementDisplay), energy, today)}/></main>;
 }

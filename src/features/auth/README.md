@@ -2,7 +2,7 @@
 
 ## 目的
 
-负责内部邮箱密码登录、Session、当前用户和退出。网页入口与 HTTP 认证接口使用同一 Better Auth 配置；独立可撤销 AI Token。
+负责邀请制邮箱密码登录、Session、账号管理、当前用户和退出。网页入口与 HTTP 认证接口使用同一 Better Auth 配置；独立可撤销 AI Token。
 
 ## 当前内容
 
@@ -10,10 +10,16 @@
 - `site-url.ts`：公网链接采用 BETTER_AUTH_URL 的 HTTPS 根地址，忽略代理内部地址和请求 Host；本机兼容 localhost、127.0.0.1 与 IPv6。`site-url.test.ts` 覆盖审核链接、OpenAPI、错误配置和云服务默认时区。
 - `server.ts`：Next.js 的 server-only 入口，避免认证配置被客户端导入；currentPageUser 使用 React cache 在同次 Server Component 请求中复用身份查询，不跨请求缓存。页面和 Server Actions 继续分别验证身份。
 - `client.ts`：浏览器登录与退出请求、超时与中文错误提示；不保存密码或令牌。
-- `provision.ts`：管理员账号创建，规范化邮箱并在事务中写用户和 credential，密码保存 scrypt 哈希；重复请求不创建重复账号或重置密码。
+- `provision.ts`：维护脚本创建普通账号，规范化邮箱并在事务中写用户和 credential，密码保存 scrypt 哈希；重复请求不创建重复账号或重置密码。
 - `auth.test.ts`：独立内存 PostgreSQL 的正常、无效、重复、跨账号、撤销、过期、来源检查和限流验证。
 
 ## 维护约定
+
+`account-management.ts` 提供受限 owner、会话再次验密、账号列表、72 小时邀请、15 分钟密码重设、本人账号设置与本地 owner 引导／恢复。一次性原文只生成时返回，数据库保存 SHA-256 摘要；预览不消费，兑换、密码与审计同事务。没有邮件或自助注册，手动激活不验证邮箱。网页不提供健康记录、代登录、角色编辑和删除用户。
+
+`account-security.ts` 集中检查停用状态、会话版本、十分钟近期验密、共享限流和全部访问撤销。`request-identity.ts` 将已验证的本次会话绑定到服务端异步上下文；现有网页写入在账号行锁内复核，防止撤销后的在途请求继续保存。AI／OAuth 的令牌与连接保留永久撤销状态，恢复不复活旧授权。登录按账号和来源分别限流；新会话不继承管理解锁。
+
+`admin-panel.tsx`、`account-panel.tsx`、`claim-panel.tsx` 与 `account-ui.tsx` 提供管理、本人设置、公开链接和共享交互。`account.module.css` 沿用石墨／暖金与紧凑手机布局。入口在 `/admin`、`/dashboard/account`、`/account/claim`；feature 不承载 Next.js Server Actions。
 
 身份来自已验证的会话 cookie，不能采用客户端提交的 user_id。AI Token 独立 Bearer 鉴权、只保存不可逆摘要，映射到同一 user_id。内部账号通过 `pnpm account:create` 创建；数据库和配置说明见 [接入指南](../../../docs/auth-setup.md)。
 

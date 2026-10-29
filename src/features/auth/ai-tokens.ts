@@ -5,6 +5,7 @@ import { aiToken } from "../../db/schema";
 import { lockMeasurementOwner, type MeasurementTransaction } from "../measurements/records";
 import { ApiError, type AiIdentity, type ManualAiIdentity } from "./ai-identity";
 import { requireOauthConnection } from "./oauth-connections";
+import { requireActiveAccount } from "./account-security";
 export { ApiError, type AiIdentity } from "./ai-identity";
 
 const digest = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -33,6 +34,7 @@ export async function revokeAiToken(db: Database, userId: string, id: string) {
   });
 }
 export async function requireActiveAiToken(tx: MeasurementTransaction, identity: AiIdentity, write = false, domain: "measurements" | "meals" | "energy" = "measurements") {
+  await requireActiveAccount(tx, identity.userId);
   if (identity.oauthConnectionId) {
     if (write && identity.permission !== "write") throw new ApiError(403, "read_only", "只读授权不能提交操作。");
     return requireOauthConnection(tx, identity.userId, identity.oauthConnectionId, write, domain);

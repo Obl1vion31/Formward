@@ -23,5 +23,5 @@ async function AiAccessContent({ user }: { user: NonNullable<Awaited<ReturnType<
   const recordOperations = await listRecordOperations(db, user.id);
   const mealOperations = (await listMealOperations(db, user.id)).filter(operation => !recordOperations.some(record => record.mealOperationId === operation.id));
   const standaloneBodies = operations.filter(operation => !recordOperations.some(record => record.measurementOperationId === operation.id));
-  return <main className="dashboard-page"><DashboardHeader email={user.email} /><AiAccess recordOperations={recordOperations} mealOperations={mealOperations} tokens={tokens} operations={standaloneBodies} connections={connections} create={createTokenAction} revoke={revokeTokenAction} revokeConnection={revokeConnectionAction} /></main>;
+  return <main className="dashboard-page"><DashboardHeader email={user.email} owner={user.role === "owner"} /><AiAccess recordOperations={recordOperations} mealOperations={mealOperations} tokens={tokens} operations={standaloneBodies} connections={connections} create={createTokenAction} revoke={revokeTokenAction} revokeConnection={revokeConnectionAction} /></main>;
 }

@@ -1,4 +1,4 @@
-import { currentPageUser } from "@/features/auth/server";
+import { withCurrentSession } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { saveMealImage } from "@/features/meals/images";
 import { prepareImageUpload, completeImageUpload, signImageUpload } from "@/features/meals/image-upload";
@@ -6,10 +6,9 @@ import { safeAiError } from "@/features/measurements/ai-api";
 import type { HandleUploadPresignedBody } from "@vercel/blob/client";
 export const maxDuration = 60;
 export async function POST(request: Request) {
-  const user = await currentPageUser();
-  if (!user) return Response.json({ error: "请先登录。" }, { status: 401 });
   if (request.headers.get("origin") !== new URL(request.url).origin) return Response.json({ error: "上传来源无效。" }, { status: 403 });
   try {
+    return await withCurrentSession(request.headers, async user => {
     let result;
     if (request.headers.get("content-type")?.includes("multipart/form-data")) {
       // 兼容旧客户端；新网页20 MiB原图通过预签名直传，不经过函数请求体。
@@ -25,5 +24,6 @@ export async function POST(request: Request) {
       else result = await signImageUpload(request, body as HandleUploadPresignedBody, user.id);
     }
     return Response.json(result, { headers: { "Cache-Control": "no-store" } });
+    });
   } catch (error) { const safe = safeAiError(error); return Response.json({ error: safe.error.message, code: safe.error.code }, { status: safe.status, headers: { "Cache-Control": "no-store" } }); }
 }

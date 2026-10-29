@@ -21,5 +21,5 @@ export default async function EnergyPage({ searchParams }: { searchParams: Promi
 async function Content({ user, date }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date: string | null }) {
   const db = getDatabase(), snapshot = await readEnergySnapshot(db, user.id);
   const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
-  return <main className="dashboard-page"><DashboardHeader email={user.email} /><EnergyView presentation={energyPresentation(snapshot, [], today, await listEnergySources(db, user.id))} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date} /></main>;
+  return <main className="dashboard-page"><DashboardHeader email={user.email} owner={user.role === "owner"} /><EnergyView presentation={energyPresentation(snapshot, [], today, await listEnergySources(db, user.id))} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date} /></main>;
 }

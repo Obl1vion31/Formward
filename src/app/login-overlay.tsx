@@ -37,6 +37,7 @@ export function LoginOverlay({ overlayRef, accessible, canSubmit, pending, error
         <label htmlFor="password">Password</label>
         <input id="password" type="password" name="password" value={password} disabled={!canSubmit} onChange={(event) => setPassword(event.target.value)} onFocus={onInputFocus} onBlur={onInputBlur} autoComplete="current-password" aria-describedby={error ? "login-error" : undefined} />
         <button type="submit" disabled={!canEnter}><span>{pending ? "正在验证…" : "ENTER"}</span></button>
+        <details className="login-recovery"><summary>忘记密码？</summary><p>请联系邀请人核实身份，获取一次性密码重设链接。</p></details>
         {error && <p className="login-error" id="login-error" role="alert">{error}</p>}
       </form>
     </div>

@@ -29,7 +29,7 @@ async function DashboardContent({ user, date }: { user: NonNullable<Awaited<Retu
 
   return (
     <main className="dashboard-page">
-      <DashboardHeader email={user.email} />
+      <DashboardHeader email={user.email} owner={user.role === "owner"} />
       <MeasurementsView initialDate={date} records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ deleteCell:deleteCellAction, save: saveDayAction, estimate: estimateCellAction, removeSource: removeSourceAction }} />
     </main>
   );

@@ -16,6 +16,12 @@ export const user = pgTable("users", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
+  role: text("role").notNull().default("user"),
+  banned: boolean("banned").notNull().default(false),
+  banReason: text("ban_reason"),
+  banExpires: timestamp("ban_expires", { withTimezone: true }),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  accessVersion: integer("access_version").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -27,6 +33,9 @@ export const session = pgTable("sessions", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
+  impersonatedBy: text("impersonated_by"),
+  accessVersion: integer("access_version").notNull().default(0),
+  adminVerifiedAt: timestamp("admin_verified_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [index("sessions_user_id_idx").on(table.userId)]);
@@ -58,6 +67,39 @@ export const verification = pgTable("verifications", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [index("verifications_identifier_idx").on(table.identifier)]);
+
+// 手动交付的激活／重设链接；原文只生成时返回，数据库仅保存摘要。
+export const accountLink = pgTable("account_links", {
+  id: text("id").primaryKey(),
+  purpose: text("purpose").$type<"invite" | "reset_password">().notNull(),
+  email: text("email").notNull(),
+  userId: text("user_id").references(() => user.id),
+  createdBy: text("created_by").notNull().references(() => user.id),
+  requestId: text("request_id").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+}, t => [
+  uniqueIndex("account_links_issuer_request_idx").on(t.createdBy, t.requestId),
+  uniqueIndex("account_links_active_email_idx").on(t.email, t.purpose).where(sql`${t.consumedAt} IS NULL AND ${t.revokedAt} IS NULL`),
+  index("account_links_user_idx").on(t.userId),
+  check("account_links_purpose_valid", sql`${t.purpose} IN ('invite','reset_password') AND (${t.purpose}<>'reset_password' OR ${t.userId} IS NOT NULL)`),
+]);
+
+// 只记录账号操作元数据，不记录健康内容、密码、令牌或完整链接。
+export const accountEvent = pgTable("account_events", {
+  id: text("id").primaryKey(),
+  actorId: text("actor_id").references(() => user.id),
+  userId: text("user_id").references(() => user.id),
+  email: text("email").notNull(),
+  action: text("action").notNull(),
+  outcome: text("outcome").notNull().default("success"),
+  reason: text("reason"),
+  requestId: text("request_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex("account_events_request_idx").on(t.requestId), index("account_events_created_idx").on(t.createdAt)]);
 
 export const measurementImport = pgTable("measurement_imports", {
   id: text("id").primaryKey(),

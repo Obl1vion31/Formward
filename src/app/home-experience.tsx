@@ -50,6 +50,7 @@ export default function HomeExperience() {
   const timelineRef = useRef<ReturnType<typeof createProgressTimeline> | null>(null);
   const targetProgressRef = useRef<TargetProgress>(0);
   const imagesReadyRef = useRef(false);
+  const imagesDecodedRef = useRef(false);
   const imageErrorRef = useRef(false);
   const reducedMotionRef = useRef(false);
   const staticTurnRef = useRef(false);
@@ -234,9 +235,11 @@ export default function HomeExperience() {
       timeline.jumpTo(targetProgressRef.current);
       let active = true;
       imagesReadyRef.current = false;
+      imagesDecodedRef.current = false;
       const images = Array.from(stageRef.current?.querySelectorAll<HTMLImageElement>(".body-frame img") ?? []);
       Promise.all(images.map(image => image.decode())).then(() => {
         if (!active || imageErrorRef.current) return;
+        imagesDecodedRef.current = true;
         imagesReadyRef.current = true;
         setStaticTurn(true); setImagesReady(true);
         renderProgress(targetProgressRef.current);
@@ -277,6 +280,7 @@ export default function HomeExperience() {
     // 静态图仍需解码；视频是可选装饰，失败或手机预加载超时后采用静态过渡。
     const images = Array.from(stageRef.current?.querySelectorAll<HTMLImageElement>(".body-frame img") ?? []);
     imagesReadyRef.current = false;
+    imagesDecodedRef.current = false;
     const turnReady = video.ready.catch(() => {
       if (!active) return;
       staticTurnRef.current = true;
@@ -296,7 +300,10 @@ export default function HomeExperience() {
     }
     const gestures = ["touchend", "click", "keydown"];
     gestures.forEach(event => source.ownerDocument.addEventListener(event, retryVideo));
-    Promise.all([...images.map((image) => image.decode()), turnReady]).then(() => {
+    const decodedImages = Promise.all(images.map(image => image.decode())).then(() => {
+      if (active) imagesDecodedRef.current = true;
+    });
+    Promise.all([decodedImages, turnReady]).then(() => {
       // Promise 不能直接取消；active 防止组件卸载后再写状态或启动动画。
       if (!active || imageErrorRef.current) return;
       imagesReadyRef.current = true;
@@ -328,7 +335,7 @@ export default function HomeExperience() {
   }, [reducedMotion, renderProgress]);
 
   // 停在背面时仍监听倒放；认证开始后暂停，失败回到表单时恢复。
-  useEffect(()=>{if(imagesReady||imageError)return;const timer=setTimeout(enablePlainLogin,4000);return ()=>clearTimeout(timer);},[imagesReady,imageError,enablePlainLogin]);
+  useEffect(()=>{if(imagesReady||imageError)return;const timer=setTimeout(()=>{if(!imagesDecodedRef.current)enablePlainLogin();},4000);return ()=>clearTimeout(timer);},[imagesReady,imageError,enablePlainLogin]);
 
   useDirectionTrigger(requestDirection, mobileMode === false && !imageError && !["AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phase));
 

@@ -3,7 +3,8 @@ import { localMeasurementDate } from "./entry-state";
 import { createHash, randomUUID } from "node:crypto";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Database } from "../../db/client";
-import { measurement, measurementEvent, measurementImport, user } from "../../db/schema";
+import { measurement, measurementEvent, measurementImport } from "../../db/schema";
+import { lockActiveAccount } from "../auth/account-security";
 import { assignMeasurement } from "./assignment";
 import { resolveMeasurementTime } from "./time";
 import { validateMeasurementTimezone } from "./timezone";
@@ -19,8 +20,7 @@ export type EntryChannel = "api" | "manual" | "development_backend";
 /** 所有测量写入锁定归属账号，避免实测补录与估计生成并发留下重复时段。 */
 export async function lockMeasurementOwner(tx: MeasurementTransaction, userId: string) {
   requireUser(userId);
-  const [owner] = await tx.select({ id: user.id }).from(user).where(eq(user.id, userId)).for("update");
-  if (!owner) throw new Error("目标账号不存在。");
+  await lockActiveAccount(tx, userId);
 }
 
 export type ImportedMeasurement = {

@@ -10,6 +10,8 @@
 
 ## 当前入口
 
+- `admin/` 是 owner 的账号／邀请／操作记录后台，先验证会话和十分钟近期验密；`dashboard/account/` 提供本人的密码和设备；`account/claim/` 从 fragment 读取一次性激活／重设令牌。三个入口的业务集中在 auth feature。账号菜单包含设置及 owner 专用管理链接；首页和 OAuth 登录提供人工找回说明。
+
 - `api/mcp/` 提供 OAuth 保护的 MCP HTTP 入口，`.well-known/` 转发公开授权发现，`oauth/` 提供签名请求对应的登录与授权页；业务规则位于 auth、mcp 与 measurements feature。
 - 手机首屏点击直接到第 12 张，登录后只通过顶部返回回首帧并保留输入；不使用下滑、不下载转身视频。手机判断和图表默认 7D 共用 `components/use-mobile-mode.ts`，桌面图表仍默认 30D。
 - `page.tsx` 让 `/` 显示 `HomeExperience` 提供的人物、提示和登录体验。

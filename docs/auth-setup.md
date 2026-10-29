@@ -28,7 +28,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 
 正式网站为 [https://formward-ten.vercel.app](https://formward-ten.vercel.app)，通过 Vercel 托管并使用现有 Neon。生产变量与本机配置独立；完整步骤见 [公网 HTTPS 部署](deployment.md)。登录限流使用数据库 rate_limits，多实例共享每分钟五次登录计数；此表由 0010 migration 创建，不修改账号或健康记录。
 
-## 建表与创建账号
+## 建表与账号管理
 
 在仓库根目录执行：
 
@@ -38,6 +38,44 @@ pnpm account:create
 ```
 
 第一条命令只执行 `drizzle/` 中已纳入版本控制的 migration；重复执行不会重复建表。第二条命令依次询问邮箱和密码，终端密码输入不显示，数据库只保存 Better Auth 的 scrypt 哈希。内部账号支持 6–128 字符密码。重复创建同一个邮箱会返回已有账号，不重置密码。网站不提供公开注册。
+
+日常新增账号使用 `/admin` 的邀请页，`account:create` 只保留首次引导和维护兼容。0027 migration 新增账号管理字段、链接与审计表，不改既有密码、邮箱验证或健康事实。已有账号默认为普通用户、正常状态，未知的最近登录时间保持空值。
+
+### 首个 owner
+
+使用你已指定的现有账号邮箱预览；核对用户 ID 后执行，不自动把第一个登录／注册者设为 owner：
+
+```bash
+pnpm account:owner --preview owner@example.test
+pnpm account:owner --write owner@example.test 预览中的用户ID
+```
+
+工具只允许首个 owner 和对同一账号重复初始化；不开放新增管理员的网页入口。生产执行须先完成备份、实际页面验收和本轮发布授权。owner 仍用原密码登录，从账号菜单进入管理，再次输入当前密码；确认绑定当前会话，10 分钟后过期，不因操作续期。
+
+### 邀请与找回密码
+
+后台有账号、邀请、操作记录三个页签。邀请有效 72 小时，普通账号密码重设链接有效 15 分钟；owner 复制链接后通过原联系渠道交给本人。重新生成使旧链接失效，关闭弹窗后不能找回原文。新账号在激活成功时才创建；已有邮箱不能用邀请覆盖密码。浏览器已有登录时须显式退出，激活或重设后不自动登录。
+
+链接令牌使用 32 字节安全随机数和 SHA-256 摘要，原文位于 URL fragment，不进入普通 URL 查询与日志。预览不消费，保存以事务完成密码、消费和审计；重设另撤销全部旧访问。手动交付不证明邮箱所有权，新账号 `email_verified=false`，旧值不改。第一版不接邮件、不开放注册，登录页“忘记密码”提示联系邀请人。
+
+账号设置位于 `/dashboard/account`，邮箱只读，提供修改密码、本人登录设备退出和 AI 接入入口。新设置／重设密码为 12–128 字符；已有短密码可继续登录。改密和全部撤销会退出所有网页设备、撤销手动 AI Token、OAuth 连接／刷新授权及未使用的恢复链接；恢复停用账号不恢复旧凭据或旧审核。
+
+### owner 密码恢复
+
+唯一 owner 忘记密码时，在受控交互终端运行；密码不得放入命令参数。先备份并预览目标，再执行：
+
+```bash
+pnpm account:owner --preview owner@example.test
+pnpm account:owner --recover owner@example.test 预览中的用户ID
+```
+
+恢复工具核对目标邮箱，隐藏输入并确认新密码，事务撤销旧访问、记录维护审计。不能用于普通账号，也不删除任何健康记录。
+
+### 权限与并发
+
+Admin 插件使用受限 `owner`／`user` 角色，不使用 `adminUserIds`；直接管理、修改身份／密码与原生会话撤销入口对 HTTP 和内部 `auth.api` 同时关闭。所有管理读写另校验有效会话、角色和近期验密。管理列表不返回健康数据、令牌摘要或密码。
+
+`access_version` 绑定账号与会话，撤销、停用和改密递增。登录保存密码验证前捕获的版本，网页写入在既有账号行锁中复核当前请求会话；OAuth 与 AI 在请求和确认时复核活动状态与原授权。后台不能停用、降权、删除或生成 owner 的重设链接。
 
 新增或修改表结构时运行 `pnpm db:generate`，检查生成 SQL 后执行 `pnpm db:migrate`。已经进入共享数据库的 migration 不再修改；后续变化生成新 migration。
 

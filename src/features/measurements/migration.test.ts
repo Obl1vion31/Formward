@@ -65,6 +65,8 @@ test("旧 schema 升级保留时间、冻结依据、指纹与审计，合并设
     assert.deepEqual((await pg.query("SELECT * FROM measurement_imports")).rows, frozen);
     assert.deepEqual((await pg.query<Record<string, unknown>>("SELECT * FROM measurement_days")).rows, days.map(({ analysis_date, ...row }) => ({ ...row, record_date: analysis_date })));
     assert.equal((await pg.query("SELECT * FROM measurement_events WHERE snapshot->>'reason'='schema_device_label_merge'")).rows.length, 3);
+    // 旧结构的迁移断言完成后，升级到当前认证结构再调用当前版本业务函数。
+    for (const file of (await readdir("drizzle")).filter(file => /^(000[89]|001[013-9]|002\d)_.*\.sql$/.test(file)).sort()) await pg.exec(await readFile(`drizzle/${file}`, "utf8"));
     await fillMissingMeasurementSources(db, { userId: "fictional-owner", actorId: "fictional-owner" }, "虚构已确认秤-应用");
     assert.equal((await db.select().from(schema.measurement).where(eq(schema.measurement.id, "other")))[0].deviceLabel, null);
     assert.equal((await db.select().from(schema.measurement).where(eq(schema.measurement.id, "estimate")))[0].deviceLabel, null);

@@ -4,6 +4,7 @@ import type { Database } from "../../db/client";
 import { oauthClient, oauthConnection, oauthConsent, oauthRefreshToken, oauthAccessToken } from "../../db/schema";
 import { lockMeasurementOwner } from "../measurements/records";
 import { ApiError } from "./ai-identity";
+import { requireActiveAccount } from "./account-security";
 
 export const READ_SCOPE = "measurements:read";
 export const WRITE_SCOPE = "measurements:write";
@@ -27,6 +28,7 @@ export async function oauthConnectionReference(db: Database, userId: string, cli
 }
 
 export async function requireOauthConnection(tx: Pick<Database, "select">, userId: string, id: string, write: boolean | null = false, domain: "measurements" | "meals" | "energy" = "measurements") {
+  await requireActiveAccount(tx, userId);
   const [row] = await tx.select().from(oauthConnection).where(and(eq(oauthConnection.id, id), eq(oauthConnection.userId, userId)));
   if (!row || !row.authorizedAt || row.revokedAt || row.expiresAt.getTime() <= Date.now()) throw new ApiError(401, "invalid_token", "账号连接无效、已过期或已撤销，请重新授权。");
   const [client] = await tx.select().from(oauthClient).where(eq(oauthClient.clientId, row.clientId));

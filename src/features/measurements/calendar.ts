@@ -13,9 +13,9 @@ export function addCalendarDays(date: string, offset: number) {
 
 /** 保留已有日期；漏记日期从账号、记录、已保存日期中最早一天补到今天。 */
 export function measurementCalendarRange(today: string, accountDate: string, recordedDates: string[], savedDates: string[]) {
-  const dates = [today, ...recordedDates, ...savedDates].filter(Boolean).sort();
-  const starts = [...dates, accountDate].filter(Boolean).sort();
-  return { start: starts[0] ?? "", end: dates.at(-1) ?? "" };
+  // 空账号服务端渲染时 today 尚未由浏览器确定，以账号日保证初始区间有效。
+  const dates = [today, accountDate, ...recordedDates, ...savedDates].filter(Boolean).sort();
+  return { start: dates[0] ?? "", end: dates.at(-1) ?? "" };
 }
 
 /** 只生成当前批次的日期，长历史不会一次创建所有空行。 */

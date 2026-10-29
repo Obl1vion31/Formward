@@ -16,5 +16,5 @@ export default async function MealsPage({searchParams}:{searchParams:Promise<{da
 async function Content({user,date}:{user:NonNullable<Awaited<ReturnType<typeof currentPageUser>>>;date:string|null}) {
   const db=getDatabase(), snapshot=await readMealSnapshot(db,user.id), operations=await listMealOperations(db,user.id);
   const today=localMeasurementDate(new Date(),systemMeasurementTimezone(new Date(),process.env.FORMWARD_TIMEZONE));
-  return <main className="dashboard-page"><DashboardHeader email={user.email}/><MealsView initialDate={date} snapshot={snapshot} today={today} operations={operations} save={saveMealAction} saveDay={saveMealDayAction} purge={permanentlyDeleteAction}/></main>;
+  return <main className="dashboard-page"><DashboardHeader email={user.email} owner={user.role === "owner"}/><MealsView initialDate={date} snapshot={snapshot} today={today} operations={operations} save={saveMealAction} saveDay={saveMealDayAction} purge={permanentlyDeleteAction}/></main>;
 }

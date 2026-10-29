@@ -10,6 +10,8 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { provisionAccount } from "../src/features/auth/provision";
 import * as schema from "../src/db/schema";
+import { eq } from "drizzle-orm";
+import { hashAccountToken } from "../src/features/auth/account-security";
 
 // 测试自带独立的内存 PostgreSQL，不读取或写入 .env.local 指向的真实数据库。
 const pg = new PGlite();
@@ -152,9 +154,9 @@ try {
   const timings = await login.page.evaluate(() => (window as typeof window & { authAnimationTimings: { started: number; ended: number; dashboardRequested: number } }).authAnimationTimings);
   assert.ok(timings.ended - timings.started >= 650);
   assert.ok(timings.dashboardRequested >= timings.ended, "实际动画结束事件先于主页请求");
-  assert.ok((await login.page.locator(".dashboard-account").textContent()).includes(first.email));
+  assert.ok((await login.page.locator(".dashboard-menu").textContent()).includes(first.email));
   await login.page.reload();
-  assert.ok((await login.page.locator(".dashboard-account").textContent()).includes(first.email));
+  assert.ok((await login.page.locator(".dashboard-menu").textContent()).includes(first.email));
   console.log("通过：认证中拒绝重复提交和倒放，成功后完成 700ms 动画才进入主页，刷新保留登录。");
 
   await login.page.goto(`${baseURL}/dashboard/export`);
@@ -182,15 +184,16 @@ try {
   await other.page.locator('button[type="submit"]').click();
   await other.page.waitForURL("**/dashboard");
   await other.page.goto(`${baseURL}/dashboard?user_id=first-account`);
-  const otherContent = await other.page.locator(".dashboard-account").textContent();
+  const otherContent = await other.page.locator(".dashboard-menu").textContent();
   assert.ok(otherContent.includes(second.email));
   assert.ok(!otherContent.includes(first.email));
+  await login.page.locator("summary[aria-label='账号菜单']").click();
   await login.page.getByRole("button", { name: "退出登录", exact: true }).click();
   await login.page.waitForURL(baseURL + "/");
   await login.page.goto(`${baseURL}/dashboard`);
   assert.equal(new URL(login.page.url()).pathname, "/");
   await other.page.reload();
-  assert.ok((await other.page.locator(".dashboard-account").textContent()).includes(second.email));
+  assert.ok((await other.page.locator(".dashboard-menu").textContent()).includes(second.email));
   await other.context.close();
   await login.context.close();
   console.log("通过：两个账号会话隔离，退出撤销自己的会话，另一个账号继续可用。");
@@ -232,6 +235,8 @@ try {
   const [loadingCode] = await once(loading, "exit");
   assert.equal(loadingCode, 0, "桌面媒体等待与手机静态登录回归通过");
 
+  // OAuth 是独立场景；前面五次登录已验证完成，清理隔离 fixture 的账号限流窗口。
+  await db.delete(schema.rateLimit).where(eq(schema.rateLimit.key, `account:signin-account:${hashAccountToken(first.email)}`));
   const oauth = spawn(process.execPath, ["tests/oauth.browser.mjs"], { env: { ...process.env, FORMWARD_BASE_URL: baseURL, FORMWARD_OAUTH_TEST_EMAIL: first.email, FORMWARD_OAUTH_TEST_PASSWORD: first.password }, stdio: "inherit" });
   const [oauthCode] = await once(oauth, "exit");
   assert.equal(oauthCode, 0, "OAuth 网页授权与 MCP 完整流程通过");

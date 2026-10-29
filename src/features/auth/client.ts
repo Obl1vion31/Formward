@@ -15,6 +15,10 @@ export async function signIn(email: string, password: string, signal: AbortSigna
       const result = await response.json();
       return { success: true, ...(result.redirect === true && typeof result.url === "string" ? { redirectUrl: result.url } : {}) };
     }
+    if (response.status === 403) {
+      const failure = await response.json().catch(() => null) as { code?: string } | null;
+      if (failure?.code === "BANNED_USER") return { success: false, message: "账号已停用，请联系邀请人。" };
+    }
     const message = response.status === 401 ? "邮箱或密码不正确，请重新输入。"
       : response.status === 400 ? "请检查邮箱和密码后重试。"
         : response.status === 429 ? "尝试次数较多，请稍等一分钟后重试。"

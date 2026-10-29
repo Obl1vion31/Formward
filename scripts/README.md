@@ -6,6 +6,8 @@
 
 ## 当前入口
 
+- `manage-account.mts`（`pnpm account:owner`）：首次指定已有账号为唯一 owner，或在交互终端恢复 owner 密码。先 `--preview 邮箱` 核对用户 ID，再 `--write 邮箱 用户ID`；恢复用 `--recover 邮箱 用户ID`，隐藏输入并确认新密码，撤销全部访问并留维护审计。读取私有配置，预览不写入；不能通过此入口新增第二个 owner、恢复普通账号或删除健康数据。日常邀请、停用、恢复、重设和设备管理均从网页完成。
+
 - `initialize-measurement-history.mts`：执行明确授权的一次性历史初始化，与正常估计完全分开。用法：`node --env-file=.env.local --import tsx scripts/initialize-measurement-history.mts data/exports/私有请求.json --preview|--write 预览摘要`。JSON 包含 `userId`、`request: { operationId, range: { start, end } }`，范围最多 366 天。只接受私有 `data/exports/` 请求；预览可使用指定范围内后续已存在的真实配对与晨间记录，执行绑定账号快照、软删除旧估计、生成独立批次并冻结整个范围。每账号只能完成一次；相同请求返回原报告，不同请求不能重做。执行后输出同请求名的 `.report.json` 和 `.report.md`，文件权限 0600，完整报告同时保存在数据库批次中，导出失败可重试恢复。执行前备份账号记录、批次和事件。不得把报告或实际数值提交 Git／放入 public。
 
 - `rebuild-measurement-estimates.mts`：仅用正常过去数据规则重建指定账号与范围的估计，禁止与初始化冻结范围重叠，不修改真实记录及来源。格式：`node --env-file=.env.local --import tsx scripts/rebuild-measurement-estimates.mts 私有请求JSON --preview|--write 预览摘要`。JSON 包含 `userId` 和 `request: { operationId, range: { start, end } }`，日期为 YYYY-MM-DD、范围最多 366 天。预览列出旧估计、结果和缺项原因；执行绑定账号快照，软删除旧估计后生成晨间基准版本，样本不足留空。仅用于已经授权的历史重建；事务审计、幂等和私有报告约定与其他维护工具相同。

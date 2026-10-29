@@ -6,7 +6,7 @@
 
 ## 初始功能
 
-- `auth/`：登录、Session、AI Token、OAuth Provider 与账号连接。
+- `auth/`：邀请制账号管理、登录、Session、AI Token、OAuth Provider 与账号连接。
 - `mcp/`：远程 MCP 协议、工具说明与 OAuth 身份适配，调用已有 feature。
 - `meals/`：饮食记录。
 - `activities/`：每日消耗、活动明细、公式资料与共用审核业务。

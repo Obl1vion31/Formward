@@ -30,7 +30,7 @@ const futureTools = [
   { name: "AI 录入", description: "站内聊天录入，暂未开放" },
 ] as const;
 
-export function DashboardHeader({ email }: { email: string }) {
+export function DashboardHeader({ email, owner = false }: { email: string; owner?: boolean }) {
   const pathname = usePathname(), router = useRouter(), menu = useRef<HTMLDetailsElement>(null);
   const [toolsOpen, setToolsOpen] = useState(false), [pending, startTransition] = useTransition();
   const closeTools = useRef<() => void>(() => {}), nextHref = useRef<string | null>(null);
@@ -64,10 +64,10 @@ export function DashboardHeader({ email }: { email: string }) {
   return <><header className={"dashboard-header " + styles.header + (review ? " dashboard-review-header" : "")}>
     <LoadingLink className="dashboard-logo" href="/dashboard" aria-label="Formward 主页">formward<span>.</span></LoadingLink>
     {!page && pathname !== "/dashboard" && <LoadingLink className="dashboard-back" href="/dashboard">← 总览</LoadingLink>}
-    <span className="mobile-page-name" role={review ? "heading" : undefined} aria-level={review ? 1 : undefined}>{review ? "确认记录" : page?.[1] ?? (pathname.startsWith("/dashboard/export") ? "导出数据" : "AI 接入")}</span>
+    <span className="mobile-page-name" role={review ? "heading" : undefined} aria-level={review ? 1 : undefined}>{review ? "确认记录" : page?.[1] ?? (pathname.startsWith("/dashboard/export") ? "导出数据" : pathname === "/dashboard/account" ? "账号设置" : "AI 接入")}</span>
     <div className={styles.actions}>
       <details className="dashboard-menu" ref={menu} onKeyDown={event => { if (event.key === "Escape" && menu.current) { menu.current.open = false; menu.current.querySelector("summary")?.focus(); } }}>
-        <summary aria-label="账号菜单"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9" r="3"/><path d="M5.5 18c1-5 12-5 13 0"/></svg></summary><div><span>{email}</span><LogoutButton /></div>
+        <summary aria-label="账号菜单"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9" r="3"/><path d="M5.5 18c1-5 12-5 13 0"/></svg></summary><div><span>{email}</span><LoadingLink href="/dashboard/account">账号设置</LoadingLink>{owner && <LoadingLink href="/admin">账号管理</LoadingLink>}<LogoutButton /></div>
       </details>
     </div>
   </header>

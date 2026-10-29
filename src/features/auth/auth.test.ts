@@ -154,6 +154,7 @@ test("登录限流阻止同一来源在一分钟内连续尝试超过五次", as
 });
 
 test("不同认证实例共享登录限流，重建实例不重置，过期后可重新尝试", async () => {
+  await db.delete(schema.rateLimit);
   const config = { secret: "fictional-test-secret-at-least-32-characters", baseURL };
   const instances = [createAuth(db, config), createAuth(db, config)];
   const attempt = (instance: typeof auth, ip = "192.0.2.100") => instance.handler(new Request(`${baseURL}/api/auth/sign-in/email`, {
@@ -162,11 +163,13 @@ test("不同认证实例共享登录限流，重建实例不重置，过期后�
   }));
   for (let i = 0; i < 5; i++) assert.equal((await attempt(instances[i % 2])).status, 401);
   assert.equal((await attempt(createAuth(db, config))).status, 429);
-  assert.equal((await attempt(instances[0], "192.0.2.101")).status, 401);
+  // 按账号的共享限流同样生效，更换来源不能绕过。
+  assert.equal((await attempt(instances[0], "192.0.2.101")).status, 429);
   const row = (await db.select().from(schema.rateLimit)).find(row => row.key.includes("192.0.2.100"));
   assert.ok(row);
   assert.equal(row.count, 5);
   await db.update(schema.rateLimit).set({ lastRequest: Date.now() - 61_000 }).where(eq(schema.rateLimit.id, row.id));
+  await db.update(schema.rateLimit).set({ lastRequest: Date.now() - 61_000 }).where(eq(schema.rateLimit.key, `account:signin-account:${(await import("./account-security")).hashAccountToken(credentials.email)}`));
   assert.equal((await attempt(instances[1])).status, 401);
 });
 

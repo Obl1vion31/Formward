@@ -17,6 +17,7 @@ import { createMcpEndpoint } from "../mcp/server";
 import { listMeasurements } from "../measurements/records";
 import { reviewRecordOperation } from "../records/operations";
 import { reviewAiMeasurementOperation } from "../measurements/ai-operations";
+import { initializeAccountOwner, manageAccount, unlockAccountAdmin } from "./account-management";
 
 const pg = new PGlite(), db = drizzle(pg, { schema });
 let auth: ReturnType<typeof createAuth>, baseURL: string;
@@ -90,6 +91,40 @@ async function mcpClient(accessToken: string, mode: "legacy" | "auto" = "auto") 
   await client.connect(new StreamableHTTPClientTransport(new URL(`${baseURL}/api/mcp`), { requestInit: { headers: { Authorization: `Bearer ${accessToken}` } } }));
   return client;
 }
+
+test("后台停用与 OAuth 刷新竞争后旧 JWT／刷新／审核全部失效，恢复重新连接不复活旧审核", async () => {
+  const operator = { email: "operator@example.test", password: "fictional-operator-password" };
+  const operatorId = (await provisionAccount(db, operator)).id;
+  await initializeAccountOwner(db, operatorId);
+  const logged = await login(operator), identity = await auth.api.getSession({ headers: new Headers({ cookie: logged.cookie }) });
+  assert.ok(identity);
+  const proof = { userId: operatorId, sessionId: identity.session.id, accessVersion: identity.session.accessVersion };
+  await unlockAccountAdmin(db, proof, operator.password, "oauth-account-test");
+  const subject = { email: "suspended@example.test", password: "fictional-subject-password" };
+  await provisionAccount(db, subject);
+  const connected = await connect(subject), client = await mcpClient(connected.tokens.access_token);
+  try {
+    const result = await client.callTool({ name: "submit_measurement_operation", arguments: { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-06-29", period: "evening", weightKg: "71.00", deviceLabel: "虚构秤" }] } });
+    assert.ok(!result.isError);
+    const preview = result.structuredContent as { id: string; revision: number };
+    const [refresh] = await Promise.all([
+      token({ grant_type: "refresh_token", client_id: connected.clientId, refresh_token: connected.tokens.refresh_token, resource: `${baseURL}/api/mcp` }),
+      manageAccount(db, proof, connected.userId, "suspend", "虚构账号停用", randomUUID()),
+    ]);
+    assert.ok([200, 400].includes(refresh.status));
+    const refreshed = await refresh.json();
+    for (const access of [connected.tokens.access_token, refreshed.access_token].filter(Boolean)) {
+      const denied = await fetch(`${baseURL}/api/mcp`, { method: "POST", headers: { Authorization: `Bearer ${access}`, "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) });
+      assert.equal(denied.status, 401);
+    }
+    await assert.rejects(reviewAiMeasurementOperation(db, connected.userId, preview.id, { kind: "confirm", revision: preview.revision }));
+    await manageAccount(db, proof, connected.userId, "restore", "", randomUUID());
+    assert.equal((await token({ grant_type: "refresh_token", client_id: connected.clientId, refresh_token: connected.tokens.refresh_token, resource: `${baseURL}/api/mcp` })).status, 400);
+    await connect(subject);
+    await assert.rejects(reviewAiMeasurementOperation(db, connected.userId, preview.id, { kind: "confirm", revision: preview.revision }));
+    assert.equal((await listMeasurements(db, connected.userId)).length, 0);
+  } finally { await client.close(); }
+});
 
 test("MCP/OAuth 公开发现绑定固定资源、PKCE 和客户端注册；无凭据不返回工具或健康数据", async () => {
   const resource = await fetch(`${baseURL}/.well-known/oauth-protected-resource/api/mcp`); assert.equal(resource.status, 200);

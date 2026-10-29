@@ -11,6 +11,7 @@ test("日历从账号、已有记录或已保存日期中的最早日补齐，�
 });
 
 test("无测量账号、跨月与闰年只推导空行，不生成读数", () => {
+  assert.deepEqual(measurementCalendarRange("", "2026-10-29", [], []), { start: "2026-10-29", end: "2026-10-29" });
   const days = recentMeasurementDays([], { start: "2024-02-27", end: "2024-03-02" });
   assert.deepEqual(days.map(day => day.date), ["2024-03-02", "2024-03-01", "2024-02-29", "2024-02-28", "2024-02-27"]);
   assert.ok(days.every(day => !day.records.length && day.daytimeRecord === null && day.eveningRecord === null && day.weightDifferenceKg === null));

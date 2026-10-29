@@ -1,7 +1,7 @@
 "use server";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { currentUser } from "@/features/auth/server";
+import { withCurrentSession } from "@/features/auth/server";
 import { createAiToken, revokeAiToken } from "@/features/auth/ai-tokens";
 import { getDatabase } from "@/db/client";
 import { revokeOauthConnection } from "@/features/auth/oauth-connections";
@@ -9,12 +9,12 @@ import { safeAiError } from "@/features/measurements/ai-api";
 import { decideAiMeasurementOperation, getAiMeasurementOperation, reviewAiMeasurementOperation, type ReviewAction } from "@/features/measurements/ai-operations";
 
 async function perform<T>(work: (userId: string) => Promise<T>) {
-  const user = await currentUser(await headers());
-  if (!user) return { ok: false as const, error: "登录已失效，请重新登录。" };
   try {
+    return await withCurrentSession(await headers(), async user => {
     const data = await work(user.id);
     revalidatePath("/dashboard/ai", "layout"); revalidatePath("/dashboard"); revalidatePath("/dashboard/energy"); revalidatePath("/dashboard/measurements");
     return { ok: true as const, data };
+    });
   } catch (error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }
 export async function createTokenAction(name: string, permission: "read" | "write") {

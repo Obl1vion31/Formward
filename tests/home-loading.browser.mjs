@@ -108,6 +108,7 @@ try {
     else if (engine === "chromium") assert.equal(await page.locator("main").getAttribute("data-turn-mode"), "video", "当前帧即可使用视频，不等待 canplaythrough");
     await page.waitForFunction(() => !document.querySelector("dialog[open]"));
     if (scenario === "gesture-required") {
+      assert.equal(await page.locator("main").getAttribute("data-image-fallback"), "false", "视频等待手势不能被误判为静态图片失败");
       await page.locator(".home-stage").click({ position: { x: 10, y: 100 } });
       await page.waitForSelector('main[data-turn-mode="video"]', { timeout: 8000 });
       assert.equal(await page.locator("main").getAttribute("data-phase"), "INTRO", "手势恢复不改变当前端点");
