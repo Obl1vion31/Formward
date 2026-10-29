@@ -61,7 +61,7 @@ export async function checkEnergyTools({baseURL,page,context,db,userId,today,tok
    assert.equal(await nav.locator("a svg").count(),4,"icons accompany labels");
    const navBox=await nav.boundingBox();
    if(width<=430){assert.ok(header.height<=50,"one-line mobile header");assert.ok(triggerBox.y>=navBox.y&&triggerBox.y+triggerBox.height<=height,"mobile tools in bottom bar");assert.ok(Math.abs(navBox.y+navBox.height-height)<=1,"bar is pinned to bottom");}
-   else{assert.ok(navBox.x+navBox.width<=before.metrics.x,"desktop rail leaves content clear");assert.ok(Math.abs(triggerBox.x+triggerBox.width-visibleWidth)<=1,"desktop tools on right visible edge "+JSON.stringify({visibleWidth,triggerBox}));assert.ok(triggerBox.y>=height*.5&&triggerBox.y<=height*.6,"side handle vertically placed");}
+   else{assert.ok(navBox.x+navBox.width<=before.metrics.x,"desktop rail leaves content clear");assert.ok(Math.abs(triggerBox.x+triggerBox.width-visibleWidth)<=1,"desktop tools on right visible edge "+JSON.stringify({visibleWidth,triggerBox}));assert.ok(Math.abs(triggerBox.y+triggerBox.height/2-height/2)<=1,"side handle vertically centered");}
    await shot(name+"-tools-"+width);geometry.push({name,width,height,header,drawer:box,before,after});
    const focusables=drawer.locator("button:not(:disabled),a[href]");await focusables.last().focus();await page.keyboard.press("Tab");assert.equal(await focusables.first().evaluate(node=>node===document.activeElement),true,"focus trap");
    await page.keyboard.press("Escape");await drawer.waitFor({state:"hidden"});assert.equal(await trigger.evaluate(node=>node===document.activeElement),true,"return trigger focus");

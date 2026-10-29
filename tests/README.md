@@ -1,5 +1,9 @@
 # Tests
 
+## 正文与工具居中
+
+production build后设置FORMWARD_CENTERING_ONLY=1运行pnpm test:energy-browser。layout-centering.browser.mjs检查四页正文中心相对页面可用中线、工具按钮中心相对视口中线，误差均不超过1px；覆盖1100／1440／1920px桌面及不同高度、320／390／430px手机、滚动、窗口切换、工具展开／Escape与减少动态效果。AI／导出页的手机工具保持右下角，不受电脑位移影响。FORMWARD_CENTERING_ARTIFACTS指定私有截图位置，FORMWARD_OVERVIEW_BROWSER=webkit复用另一引擎；FORMWARD_CENTERING_CAPTURE_ONLY仅用于留存修复前对照，不计为通过。
+
 ## 工具侧栏与活动累计保护
 
 production build后，FORMWARD_ENERGY_TOOLS_ONLY=1 pnpm test:energy-browser使用隔离PGlite与虚构账号，检查五种宽度四页的电脑左侧导航、手机贴底图标文字导航与独立工具入口、真实跳转与高亮、滚动固定和触屏横屏；侧栏开关不移动正文、菜单互斥、键盘焦点与真实导航；活动合计的菜单和清空失焦共用确认，覆盖取消、Escape、恢复手填、0、未知、旧未计入、待删除、保存失败及AI只修改草稿。FORMWARD_ENERGY_TOOLS_ARTIFACTS指定截图目录，FORMWARD_OVERVIEW_BROWSER=webkit复用另一引擎；测量总览与消耗悬停各状态时的读数、区间、图表位置，清洁区间不保留提示空行。
