@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp,readFile,writeFile,mkdir } from "node:fs/promises";
+import { mkdtemp,readFile,writeFile,mkdir,cp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join,resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -24,7 +24,9 @@ import { OAUTH_SCOPES } from "../src/features/auth/oauth-connections";
 
 export async function regionalFixture(options:{trustedOrigin?:string}={}) {
  const folder=await mkdtemp(join(tmpdir(),"formward-regional-browser-")),release=resolve(process.env.FORMWARD_TEST_RELEASE??".codex/regional-releases/acceptance-01");
- const standalone=join(release,"standalone"),gatewayFile=join(release,"international/.vercel/output/functions/gateway.func/index.mjs");
+ const standalone=join(folder,"app"),gatewayFile=join(folder,"gateway.mjs");
+ await cp(join(release,"standalone"),standalone,{recursive:true,verbatimSymlinks:true});
+ await cp(join(release,"international/.vercel/output/functions/gateway.func/index.mjs"),gatewayFile);
  const {default:EmbeddedPostgres}=await import(pathToFileURL(process.env.FORMWARD_EMBEDDED_POSTGRES_MODULE??"/tmp/formward-account-tooling/node_modules/embedded-postgres/dist/index.js").href);
  async function freePort(){const server=netServer();server.listen(0,"127.0.0.1");await once(server,"listening");const addr=server.address();assert.ok(addr&&typeof addr==="object");await new Promise<void>(r=>server.close(()=>r()));return addr.port;}
  const [pgPort,appPort,cnPort,globalPort,rootPort]=await Promise.all(Array.from({length:5},()=>freePort()));

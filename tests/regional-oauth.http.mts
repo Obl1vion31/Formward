@@ -40,7 +40,7 @@ try{
  ]);
  assert.equal(valid.status,200,await valid.clone().text());assert.ok(invalidGrant.status>=400);assert.equal((await invalidGrant.json()).error,"invalid_grant");
  checks.push("两个production请求并行使用不同客户端资料，材料和Response流互不串用");
- const docUrl="https://example.com/formward-client.json",jwksUrl="https://example.com/formward-cimd-jwks.json",verifier=randomBytes(32).toString("base64url");
+ const docUrl="https://cimd.example.com/formward-client.json",jwksUrl="https://cimd.example.com/formward-cimd-jwks.json",verifier=randomBytes(32).toString("base64url");
  const query=new URLSearchParams({client_id:docUrl,redirect_uri:"https://example.com/cimd-callback",response_type:"code",scope:"openid profile offline_access measurements:read",state:randomUUID(),code_challenge:createHash("sha256").update(verifier).digest("base64url"),code_challenge_method:"S256",resource:fixture.global+"/api/mcp"});
  const envelope:OAuthEnvelope={method:"GET",path:"/api/auth/oauth2/authorize?"+query,headers:{accept:"text/html",cookie:fixture.oldCookie},body:"",materials:[]};
  const document={client_id:docUrl,client_name:"虚构CIMD客户端",redirect_uris:["https://example.com/cimd-callback"],token_endpoint_auth_method:"private_key_jwt",jwks_uri:jwksUrl,grant_types:["authorization_code","refresh_token"],response_types:["code"]};
@@ -49,7 +49,19 @@ try{
  const pre2=await call("preflight",{...envelope,materials:[docMaterial]});assert.deepEqual(await pre2.json(),[{url:docUrl,maxBytes:5120},{url:jwksUrl,maxBytes:65536}]);
  const authorized=await call("execute",{...envelope,materials:[docMaterial,{url:jwksUrl,body:JSON.stringify(firstKey.jwks),contentType:"application/json"}]});
  assert.ok([200,302].includes(authorized.status),await authorized.clone().text());
- checks.push("CIMD官方传输钩子在实际production请求读取预检资料，原授权处理器执行一次");
+ const consentLocation=authorized.headers.get("location")??(await authorized.clone().json()).url;
+ const materials=[docMaterial,{url:jwksUrl,body:JSON.stringify(firstKey.jwks),contentType:"application/json"}];
+ const consentEnvelope:OAuthEnvelope={method:"POST",path:"/api/auth/oauth2/consent",headers:{"content-type":"application/json",origin:fixture.global,cookie:fixture.oldCookie},body:Buffer.from(JSON.stringify({accept:true,oauth_query:new URL(consentLocation,fixture.global).search.slice(1)})).toString("base64"),materials};
+ const consentResponse=await call("execute",consentEnvelope);assert.equal(consentResponse.status,200,await consentResponse.clone().text());
+ const code=new URL((await consentResponse.json()).url).searchParams.get("code")!;
+ const params=new URLSearchParams({grant_type:"authorization_code",client_id:docUrl,code,code_verifier:verifier,redirect_uri:"https://example.com/cimd-callback",resource:fixture.global+"/api/mcp",client_assertion_type:"urn:ietf:params:oauth:client-assertion-type:jwt-bearer",client_assertion:assertion(docUrl,firstKey)});
+ const tokenEnvelope:OAuthEnvelope={method:"POST",path:"/api/auth/oauth2/token",headers:{"content-type":"application/x-www-form-urlencoded"},body:Buffer.from(params.toString()).toString("base64"),materials};
+ const cimdToken=await call("execute",tokenEnvelope);assert.equal(cimdToken.status,200,await cimdToken.clone().text());const cimdTokens=await cimdToken.json();
+ const cimdRotated=key("cimd-rotated"),refreshEnvelope=request(docUrl,cimdTokens.refresh_token,assertion(docUrl,cimdRotated));
+ refreshEnvelope.materials=[docMaterial,{url:jwksUrl,body:JSON.stringify(cimdRotated.jwks),contentType:"application/json"}];
+ const cimdRefresh=await call("execute",refreshEnvelope);assert.equal(cimdRefresh.status,200,await cimdRefresh.clone().text());
+ checks.push("CIMD官方钩子完成production授权、同意、私钥断言兑换与公钥轮换刷新；不扩展网页登录可信来源");
+
  const spoofed=await call("execute",{...input,materials:[{url:"https://evil.example/keys",body:'{"keys":[]}',contentType:"application/json"}]});assert.equal(spoofed.status,503);
  console.log(JSON.stringify({checks},null,2));
 }finally{await fixture.close();}
