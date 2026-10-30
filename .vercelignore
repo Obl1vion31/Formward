@@ -5,6 +5,7 @@ data/
 *.pem
 *.key
 .git/
+.git
 .aws/
 .agents/
 .codex/

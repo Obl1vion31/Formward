@@ -1,7 +1,7 @@
 .page { max-width:1200px;min-height:100dvh;margin:0 auto;padding:0 40px 64px; }
 .topbar { display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:80px;border-bottom:1px solid #f0e9dd18; }
 .topbar a { color:var(--muted);text-decoration:none;font-size:13px;min-height:44px;display:inline-flex;align-items:center; }
-.topbar .logo { color:var(--warm-white);font-size:24px;letter-spacing:-1px; }.logo span { color:var(--gold); }
+.topbar .logo { color:var(--warm-white);font-size:24px;letter-spacing:-1px; }
 .heading { padding:40px 0 24px; }.heading h1 { font-size:32px;line-height:1.25;font-weight:500;margin:10px 0 12px;letter-spacing:-.8px; }.heading p { margin:0;color:var(--muted);font-size:14px;line-height:1.7; }
 .eyebrow,.sectionNumber { color:var(--gold);font-size:11px;letter-spacing:1.5px;line-height:1.6; }
 .accountIdentity { display:flex;align-items:center;gap:12px;flex-wrap:wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.7;margin:0 0 22px; }

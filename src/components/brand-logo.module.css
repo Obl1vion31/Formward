@@ -1,0 +1,8 @@
+.brand { display:inline-flex;align-items:center;gap:10px;vertical-align:middle;white-space:nowrap; }
+.mark { width:var(--brand-mark-size,28px);height:var(--brand-mark-size,28px);flex-shrink:0;background:currentColor;mask:url("/icons/formward-mark.svg") center/contain no-repeat; }
+.word { color:inherit; }
+.dot { color:var(--gold); }
+@media(max-width:700px),(hover:none) and (pointer:coarse) {
+  .mark { width:24px;height:24px; }
+  .compact .word { display:none; }
+}

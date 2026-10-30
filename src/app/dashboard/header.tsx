@@ -7,6 +7,7 @@ import { Inspector } from "@/components/inspector";
 import { usePageLoading } from "@/components/page-loading-state";
 import inspectorStyles from "@/components/inspector.module.css";
 import styles from "./header.module.css";
+import { BrandLogo } from "@/components/brand-logo";
 
 const pages = [["/dashboard", "总览"], ["/dashboard/meals", "饮食"], ["/dashboard/energy", "消耗"], ["/dashboard/measurements", "身体"]] as const;
 
@@ -62,7 +63,7 @@ export function DashboardHeader({ email, owner = false }: { email: string; owner
     closeTools.current();
   }
   return <><header className={"dashboard-header " + styles.header + (review ? " dashboard-review-header" : "")}>
-    <LoadingLink className="dashboard-logo" href="/dashboard" aria-label="Formward 主页">formward<span>.</span></LoadingLink>
+    <LoadingLink className="dashboard-logo" href="/dashboard" aria-label="Formward 主页"><BrandLogo compactOnMobile /></LoadingLink>
     {!page && pathname !== "/dashboard" && <LoadingLink className="dashboard-back" href="/dashboard">← 总览</LoadingLink>}
     <span className="mobile-page-name" role={review ? "heading" : undefined} aria-level={review ? 1 : undefined}>{review ? "确认记录" : page?.[1] ?? (pathname.startsWith("/dashboard/export") ? "导出数据" : pathname === "/dashboard/account" ? "账号设置" : "AI 接入")}</span>
     <div className={styles.actions}>

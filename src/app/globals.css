@@ -130,6 +130,7 @@ input:focus-visible {
   pointer-events: none;
 }
 .home-logo {
+  --brand-mark-size: 32px;
   color: var(--warm-white);
   font-size: clamp(23px, 2vw, 29px);
   font-weight: 720;
@@ -137,9 +138,6 @@ input:focus-visible {
   line-height: 1;
   opacity: .78;
   transition: opacity 350ms ease;
-}
-.home-logo span {
-  color: var(--gold);
 }
 .home-page[data-phase="LOGIN_READY"] .home-logo,
 .home-page[data-phase="FINAL_TRANSITION"] .home-logo,
@@ -485,13 +483,17 @@ input:focus-visible {
   border-bottom: 1px solid rgba(240, 233, 221, .12);
 }
 .dashboard-logo {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
   color: var(--warm-white);
   font-size: 26px;
   font-weight: 600;
   letter-spacing: -.04em;
   text-decoration: none;
 }
-.dashboard-logo span { color: var(--gold); }
 .dashboard-back { color:var(--muted); text-decoration:none; font-size:13px; display:flex; align-items:center; min-height:44px; white-space:nowrap; }
 .dashboard-header .dashboard-account { margin-left:auto; }
 @media (max-width:700px) { .dashboard-header { flex-wrap:wrap; padding-block:12px 4px; } .dashboard-back { order:3; width:100%; } }
@@ -868,7 +870,7 @@ input:focus-visible {
 /* OAuth 登录与同意页面沿用站内石墨底色、哑金操作和清晰表单。 */
 .oauth-page { min-height: 100svh; display: grid; place-items: center; padding: 32px 20px; background: var(--graphite); }
 .oauth-card { width: min(480px, 100%); color: var(--warm-white); }
-.oauth-card .home-logo { display: inline-block; text-decoration: none; margin-bottom: 40px; }
+.oauth-card .home-logo { display: inline-flex; align-items:center; min-height:44px; text-decoration: none; margin-bottom: 40px; }
 .oauth-card h1 { font-size: 26px; font-weight: 500; margin: 0 0 20px; }
 .oauth-card p, .oauth-card li { font-size: 14px; line-height: 1.8; color: #b9b2a8; }
 .oauth-card ul { padding-left: 20px; margin: 20px 0; }

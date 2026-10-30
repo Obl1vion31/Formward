@@ -5,6 +5,7 @@ import { Inspector } from "@/components/inspector";
 import { usePageLoading } from "@/components/page-loading-state";
 import type { AccountResult } from "./account-management";
 import styles from "./account.module.css";
+import { BrandLogo } from "@/components/brand-logo";
 
 export function useAccountTask() {
   const lock = useRef(false), [busy, setBusy] = useState(false), [label, setLabel] = useState(""), [error, setError] = useState("");
@@ -25,7 +26,7 @@ export function useAccountTask() {
 }
 
 export function AccountFrame({ title, intro, children }: { title: string; intro: string; children: ReactNode }) {
-  return <main className={styles.page}><header className={styles.topbar}><LoadingLink className={styles.logo} href="/dashboard">formward<span>.</span></LoadingLink><LoadingLink href="/dashboard">← 返回总览</LoadingLink></header><div className={styles.heading}><span className={styles.eyebrow}>FORMWARD ACCOUNT</span><h1>{title}</h1><p>{intro}</p></div>{children}</main>;
+  return <main className={styles.page}><header className={styles.topbar}><LoadingLink className={styles.logo} href="/dashboard" aria-label="Formward 主页"><BrandLogo /></LoadingLink><LoadingLink href="/dashboard">← 返回总览</LoadingLink></header><div className={styles.heading}><span className={styles.eyebrow}>FORMWARD ACCOUNT</span><h1>{title}</h1><p>{intro}</p></div>{children}</main>;
 }
 export function AccountFeedback({ error, message }: { error?: string; message?: string }) {
   return <>{error && <p className={styles.error} role="alert">{error}</p>}{message && <p className={styles.notice} role="status">{message}</p>}</>;
