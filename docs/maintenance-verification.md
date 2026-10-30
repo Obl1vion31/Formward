@@ -1,5 +1,13 @@
 # 完善任务验收
 
+## 品牌 Logo：已发布（2026-10-31）
+
+用户于2026-10-31查看实际页面后明确要求发布公网。正式域名 https://formward-ten.vercel.app 已核对 READY 部署 `dpl_FWmg8Xf75oRAnasTNePGVAmf9Ye7`，应用源码 `273dbb5`，来自独立分支 `codex/brand-logo-release`。以此前正式基线 `42c7e8a` 仅接入 F＋手臂标志、透明导出、全站品牌组件及 favicon／Apple 图标；未带入双区、地区选择、COS 或新 migration。main 未修改，域名 DNS 与私有双区预览未切换。
+
+发布基线 lint、typecheck、409项单元／集成、production build、目录及diff检查通过；隔离 Chromium／WebKit 各48张品牌截图、30组页头检查通过。正式两引擎各30张实际截图、18组页头检查通过，客户端异常及请求5xx为0；20项公开／受保护入口与5份图标文件逐字节SHA256校验通过。正式别名再次核对仍为新部署 READY；该部署20分钟查询窗口 Runtime error／fatal 与请求5xx均0，无排除区间。实际查看正式桌面首页和WebKit手机总览；真实iOS和主屏图标实机显示未测。
+
+发布前后私有备份 `data/exports/database-before-brand-logo-2026-10-31.json`、`database-after-production-brand-logo-2026-10-31.json` 及 `brand-logo-production-verification.json` 均为0600，Git／部署忽略。42表结构及全部原有行值一致，无新增正式业务数据，临时普通账号、登录和所属审计已清理。证据位于 `.codex/brand-release/`，生产截图和报告在 `production/{chromium,webkit}/`；应用源码与发布记录保留在独立发布分支。
+
 ## 正文与工具把手居中（2026-10-30）
 
 正式域名https://formward-ten.vercel.app已核对READY部署dpl_2C8bsftEneVCMEVdPidswep4kxxQ，应用源码bcbca33，main已推送GitHub。以账号管理版本1cd5c4d为基础，纠正既有导航布局的居中定位：正文左右112px对称预留、页头对称回扩；右侧三点把手按自身中心对准视口中线，手机次级页入口清除电脑位移。
