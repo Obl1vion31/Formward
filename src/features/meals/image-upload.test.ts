@@ -22,13 +22,13 @@ test("直传凭据限定账号、路径和期限，拒绝篡改、跨账号及�
 });
 test("直传完成真实校验字节且幂等，重复图片返回已有附件；失败清理暂存",async()=>{
  const id=await owner(),prepared=await prepareImageUpload(db,id,input,secret);assert.ok(prepared.ticket);
- const removed:string[]=[],deps={read:async()=>png,remove:async(p:string|string[])=>{removed.push(String(p));},secret};
+ const removed:string[]=[],deps={write:async()=>{},read:async()=>png,remove:async(p:string|string[])=>{removed.push(String(p));},secret};
  const first=await completeImageUpload(db,id,prepared.ticket,deps),repeat=await completeImageUpload(db,id,prepared.ticket,deps);
- assert.equal(first.id,repeat.id);assert.equal(repeat.repeated,true);assert.deepEqual(removed,[]);
+ assert.equal(first.id,repeat.id);assert.equal(repeat.repeated,true);assert.deepEqual(removed,[prepared.pathname,prepared.pathname]);
  assert.equal((await prepareImageUpload(db,id,input,secret)).image?.id,first.id);
  await assert.rejects(completeImageUpload(db,await owner(),prepared.ticket,deps),/账号/);
  const failedOwner=await owner(),bad=await prepareImageUpload(db,failedOwner,input,secret);assert.ok(bad.ticket);
  await assert.rejects(completeImageUpload(db,failedOwner,bad.ticket,{...deps,read:async()=>Buffer.concat([png,Buffer.from([0])])}),/不一致/);
- assert.deepEqual(removed,[bad.pathname]);assert.equal((await db.select().from(schema.mealImage).where(eq(schema.mealImage.userId,failedOwner))).length,0);
+ assert.deepEqual(removed,[prepared.pathname,prepared.pathname,bad.pathname]);assert.equal((await db.select().from(schema.mealImage).where(eq(schema.mealImage.userId,failedOwner))).length,0);
  const retry=await completeImageUpload(db,failedOwner,bad.ticket,deps);assert.ok(retry.id);
 });

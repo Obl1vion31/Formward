@@ -173,3 +173,7 @@ AI只允许新增或修改，不得整条删除或恢复（包括批量）；餐
 ## 网页数字展示与手工修改
 
 饮食营养、消耗及热量差在网页显示整数，身体和kg变化保留两位。AI填写新的营养／消耗数值时按用户的整数提供；网页确认中的手工修改也只接受整数。公开HTTP／MCP既有字段、最多四位小数兼容和查询原精度保持；换算产生的小数和未修改旧值不因展示格式而改写。运动本次总数与当天额外增加分开解释：已包含的运动不重复加入当天总数。
+
+## 地区与照片补齐
+
+双区仍使用既有MCP地址与OAuth身份，不因网页选区自动切换授权地址。import_meal_images／POST /api/v1/meal-images可传processingRegion=cn或global；失败保留成功ID与文字，征得用户同意后才切换处理区重试失败照片。已有预览不能以原operationId替换原始请求，改用append_pending_images／POST /api/v1/pending-images，参数id、revision、imageIds及统一审核key或独立饮食审核index。只追加本人原授权的有效待审附件，返回最新revision，仍须网页确认保存。

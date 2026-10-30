@@ -1,0 +1,10 @@
+import { readFile } from "node:fs/promises";
+const manifest=JSON.parse(await readFile(process.argv[2],"utf8")),origin=process.env.FORMWARD_HEALTH_ORIGIN??"http://127.0.0.1:3000";
+const headers={Authorization:"Bearer "+process.env.FORMWARD_READINESS_SECRET};
+if(process.env.FORMWARD_REGIONAL==="1"){
+ const {createHmac}=await import("node:crypto");const path="/api/internal/readiness",source=process.env.BETTER_AUTH_URL,time=String(Date.now()),ip="";
+ Object.assign(headers,{Host:new URL(process.env.FORMWARD_ORIGIN_URL).host,"x-formward-source":source,"x-formward-time":time,"x-formward-ip":ip,"x-formward-service":createHmac("sha256",process.env.FORMWARD_GATEWAY_SECRET).update(["formward-regional-v1","GET",path,source,time,ip].join("\n")).digest("base64url")});
+}
+const response=await fetch(new URL("/api/internal/readiness",origin),{headers,signal:AbortSignal.timeout(5000)});const data=await response.json();
+if(!response.ok||!data.ready||["commit","buildId","protocol","schema"].some(k=>data[k]!==manifest[k]))throw new Error("实际发布版本、数据库或协议检查失败。");
+console.log("实际版本及数据库检查通过。");

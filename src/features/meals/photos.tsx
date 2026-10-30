@@ -38,7 +38,11 @@ export function PhotoFields({ ids, change, busy, onBusy, onError, expectedCount 
           const prepared = await uploadRequest({ step: "prepare", file: { fileName: file.name, size: file.size, mimeType: file.type, sha256 } });
           let image = prepared.image;
           if (!image) {
-            await uploadPresigned(prepared.pathname, file, { access: "private", handleUploadUrl: "/api/meal-images/upload", clientPayload: prepared.ticket, contentType: file.type, multipart: file.size > 4 * 1024 * 1024, onUploadProgress: event => setProgress("照片 " + (index + 1) + "/" + files.length + " · " + Math.round(event.percentage) + "%") });
+            if (prepared.provider === "cos") {
+              const signed = await uploadRequest({ type: "blob.generate-presigned-url", payload: { pathname: prepared.pathname, clientPayload: prepared.ticket } });
+              const data = new FormData(); for (const [key,value] of Object.entries(signed.fields)) data.append(key,String(value)); data.append("file",file);
+              const uploaded = await fetch(signed.url,{method:"POST",body:data}); if (!uploaded.ok) throw new Error("国内原图上传未完成，请重试。");
+            } else await uploadPresigned(prepared.pathname, file, { access: "private", handleUploadUrl: "/api/meal-images/upload", clientPayload: prepared.ticket, contentType: file.type, multipart: file.size > 4 * 1024 * 1024, onUploadProgress: event => setProgress("照片 " + (index + 1) + "/" + files.length + " · " + Math.round(event.percentage) + "%") });
             setProgress("正在核对并保存原图…");
             image = await uploadRequest({ step: "complete", ticket: prepared.ticket });
           }

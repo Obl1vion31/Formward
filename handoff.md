@@ -1,3 +1,7 @@
+# 双区工作分支状态
+
+当前分支codex/mainland-server-preparation进行formward.top双区与图片存储开发，尚未合入main或切换生产。global.formward.top已添加Vercel且所有权通过，但没有添加网站CNAME；上海仍仅SSH公开。DNS接口凭据尚未提供，真实COS和正式数据切换保持待验收。代码及测试见docs/mainland-deployment.md和scripts/self-hosting/README.md，后续不得把模拟存储、私有测试或脚本准备冒充公网／真实COS／正式证书续期通过。
+
 ## 当前工作：上海服务器私有预览与迁移准备
 
 当前分支 `codex/mainland-server-preparation`，本轮只部署上海私有预览，未合入 main 或切换国际生产。完整计划与后续域名／备案安排在 `docs/mainland-deployment.md`，实际证据在 `docs/maintenance-verification.md`。Node 24.21.0／PostgreSQL 18.6／Nginx／systemd 已运行，网页通过 SSH 本机 3300 访问，公网仅 SSH；虚构预览资料在被忽略的 `.codex/mainland-setup/preview-login.txt`，不要输出凭据或使用真实健康数据截图。

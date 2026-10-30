@@ -1,0 +1,13 @@
+[Unit]
+Description=Formward DNS certificate renewal
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+EnvironmentFile=/etc/formward/dns.env
+ExecStart=/opt/formward-acme/acme.sh --cron --home /var/lib/formward/acme
+ExecStartPost=/usr/local/lib/formward/check-certificate.sh
+PrivateTmp=true
+ProtectHome=true

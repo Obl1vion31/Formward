@@ -23,3 +23,5 @@ changes.ts提供网页登录私有版本检查，change-state.ts整理新增、�
 AI只允许新增或修改，不得整条删除或恢复（包括批量）；餐内增减经审核且不得清空整餐。网页手工删除恢复不受影响，取消本次待保存项不删除既有记录。旧待确认申请也在实际写入前验证。
 
 总数变化影响已有运动时，expandEnergyRelations列成独立核对项，逐项或全部选择inclusion；修改总数会作废旧包含选择，来源备注不重复询问。energySnapshot是服务端整批投影，AI日编辑能看到完整运动，未确认不写事实。餐次变化摘要由meals规划器生成，明确增加／移除及修改后总量；照片展开后才请求。
+
+appendPendingImages只允许原AI凭据对有效待审餐次或食材追加本人附件，核对revision与归属，同步统一审核及饮食子审核版本，重复附件不重复追加。原始payload保持不变；营养、日期、文字不在此接口修改；追加后仍等待网页确认。HTTP为POST /api/v1/pending-images，MCP为append_pending_images。

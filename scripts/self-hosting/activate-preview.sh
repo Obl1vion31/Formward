@@ -27,6 +27,21 @@ with tarfile.open(sys.argv[1], 'r:gz') as archive:
     archive.extractall(sys.argv[2], filter='data')
 PY
 test -f "$target/server.js"
+test -f "$target/release-manifest.json"
+test -f "$target/static-files.json"
+# 仅继承上一代自己构建的哈希资源，避免连续发布无限累积。
+if [[ -n "$old" ]]; then
+ python3 - "$old" "$target" <<'PY'
+import json,pathlib,shutil,sys
+old,new=map(pathlib.Path,sys.argv[1:]); listing=old/"static-files.json"
+files=json.loads(listing.read_text()) if listing.exists() else [str(p.relative_to(old/".next/static")) for p in (old/".next/static").rglob("*") if p.is_file()]
+for name in files:
+ part=pathlib.PurePosixPath(name)
+ if part.is_absolute() or ".." in part.parts: raise SystemExit("静态资源路径无效")
+ src=old/".next/static"/name; dst=new/".next/static"/name
+ if src.is_file() and not dst.exists(): dst.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(src,dst)
+PY
+fi
 chown -R root:formward "$target"
 chmod -R g+rX,o-rwx "$target"
 install -d -o formward -g formward -m 0700 "$target/.next/cache"
@@ -34,7 +49,7 @@ ln -s "$target" "$root/.current-$release"
 mv -Tf "$root/.current-$release" "$root/current"
 preview_healthy() {
   for attempt in {1..30}; do
-    if curl --fail --silent --output /dev/null --max-time 3 http://127.0.0.1:8080/; then
+    if /opt/node-v24.21.0-linux-x64/bin/node --env-file=/etc/formward/preview.env /usr/local/lib/formward/check-release.mjs "$root/current/release-manifest.json" >/dev/null 2>&1; then
       return 0
     fi
     sleep 1
@@ -46,7 +61,12 @@ if systemctl reset-failed formward-preview.service && systemctl restart formward
   printf '预览应用已激活：%s\n' "$release"
   exit 0
 fi
-if [[ -n "$old" ]]; then
+if [[ -n "$old" && -f "$old/release-manifest.json" ]] && python3 - "$old/release-manifest.json" "$target/release-manifest.json" <<'PY'
+import json,sys
+a,b=[json.load(open(p)) for p in sys.argv[1:]]
+raise SystemExit(0 if a.get("protocol")==b.get("protocol") and a.get("schema")==b.get("schema") else 1)
+PY
+then
   if ln -s "$old" "$root/.rollback-$release" && mv -Tf "$root/.rollback-$release" "$root/current" \
       && systemctl reset-failed formward-preview.service && systemctl restart formward-preview.service && preview_healthy; then
     echo '新版本健康检查未通过，旧版本已恢复并通过 HTTP 健康检查。' >&2

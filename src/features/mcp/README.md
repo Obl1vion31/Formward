@@ -23,3 +23,5 @@ search_foods 与 HTTP 食材查询共用 queryFoods，在实时结果附 foodLib
 完整接入使用authorize_formward统一检查并申请身体、饮食／食材、消耗的查询与提交预览权限。该工具只返回连接状态，不读取健康内容、不生成预览或保存事实；OAuth同意仍由用户完成。缺权限时保留原有授权，并合并申请三类记录权限；只有读取权限的连接在日常查询补授权时只申请三类读取，明确调用完整接入或提交工具才申请提交权限。已有令牌不会因请求授权而自动扩权，旧客户端与单类授权继续可用。
 
 新增每份营养与可靠包装换算、运动included／additional包含关系；旧nutrition总量与无关系明细保持原语义。AI不提供整条删除恢复或批量删除，用户只在网页统一确认后保存，不增加OAuth权限。
+
+区域部署继续采用固定BETTER_AUTH_URL作为OAuth issuer／MCP resource，AI接入页由服务端提供地址，不跟随浏览器选区。import_meal_images接受可选processingRegion，国内下载失败后先询问用户再用global重试；旧连接默认使用其实际处理区。append_pending_images使用meals:write，仅追加原授权待审附件，不扩权或正式保存。当前共14个工具。

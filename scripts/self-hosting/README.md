@@ -5,8 +5,8 @@
 ## 文件与运行关系
 
 - bootstrap.sh：显式使用 --apply 后安装必要软件、建立专用目录与数据库角色、配置本机代理及定时备份。初次运行拒绝接管既有应用、PostgreSQL 集群或 Nginx；重复运行只更新带本项目管理标记的配置。
-- package-release.sh：把已验收的 standalone 构建、静态文件和公开素材打包到被忽略的 .codex/mainland-setup，保留源码提交、工作区差异摘要与 BUILD_ID，排除环境文件和私钥；相同发布标识拒绝覆盖。
-- activate-preview.sh：核对归档 SHA-256，安全解包到新的版本目录，原子更新 current 并重启；健康检查失败时切回上个版本。首次发布失败时停止服务，不留下错误的 current。
+- package-release.sh／build-regional-release.mts：仅从干净提交的源码归档重新构建，同时生成上海 standalone 与国际 Build Output 网关，输出在被忽略的 .codex/regional-releases。产物绑定源码、锁文件、migration、BUILD_ID及协议摘要，不复用工作区旧 .next，不复制环境文件；相同发布标识拒绝覆盖。
+- activate-preview.sh：核对归档 SHA-256，安全解包到新的版本目录，原子更新 current 并重启；核对实际版本、构建及数据库readiness；失败时只回退到理解同一schema和协议的版本。首次发布失败时停止服务，不留下错误的 current。
 - formward-preview.service：用 formward 用户运行 current/server.js，仅监听 127.0.0.1:3000；异常退出后重启，读取 root 专有的 /etc/formward/preview.env。
 - nginx-preview.conf：仅监听 127.0.0.1:8080；将请求转给应用，并覆盖代理来源头。外部仅通过 SSH 转发本机 3300 访问。
 - backup-preview.sh、formward-backup-preview.service、formward-backup-preview.timer：每天 UTC 19:00（北京时间次日 03:00）后随机延迟最多 15 分钟，备份 formward_preview，保留 14 天。
@@ -72,3 +72,14 @@ sudo journalctl -u formward-backup-preview.service -n 20 --no-pager
 ## 维护
 
 修改部署配置后先做 bash 语法检查、Nginx 与 systemd 配置检查，再在隔离服务器验证。已有数据库只通过 Drizzle migration 演进，bootstrap 不修改业务 schema。升级 Node 或 PostgreSQL 大版本应先核对兼容性、备份及恢复流程；当前参数不用于直接开放正式公网网站。
+
+## 双区发布与私有HTTPS
+
+- build-regional-release.mts 通过 pnpm release:regional 唯一发布标识执行；国际包只含网关与海外图片处理，不包含数据库驱动、schema或COS SDK。源码归档单独保留用于追溯，不作为部署公开文件。
+- activate-preview.sh 需先将 check-release.mjs 安装到 /usr/local/lib/formward，并在 root 专有的 preview.env 配置独立 FORMWARD_READINESS_SECRET。上一代不兼容时失败后停服，不回退到会错误读取COS的版本。当前与上一代自有哈希资源共存，缺失资源仍为404。
+- regional.env.example 给出两节点分工。国际实例禁止配置数据库连接和 Better Auth secret；两区独立 Cookie，共用上海业务校验。
+- nginx-regional.conf 仅监听回环8443，明确TLS1.2／1.3并拒绝未知SNI／Host；备案前不替换公网监听。
+- install-certificate.sh --apply fullchain.pem privkey.pem 检查四个SAN、有效期与公钥匹配，版本化安装，测试或reload失败时恢复旧入口。check-certificate.sh 验证实际四个SNI握手与十四天期限。
+- formward-certificate-renew.service／timer 为已验证安装的 /opt/formward-acme/acme.sh 及 root私有 /etc/formward/dns.env 准备。只有限定formward.top记录权限的DNS接口配置和固定版本客户端就绪后才启用；未实际签发／续期不能记录为通过。
+- cleanup-images.mts 私有环境文件 blob|cos 不可变位置 [--apply] 默认为只读预览，只处理v2命名空间超过24小时的对象，账号行锁内核对数据库；不清理旧照片前缀。加--apply才删除确认未登记对象。
+- rehearse-migration.mts 私有环境文件 check|migrate|backup 只接显式REHEARSAL_DATABASE_URL，限制回环独立演练库，不读取.env.local，也不使用父进程DATABASE_MIGRATION_URL。正式切换仍需停写、最新一致性备份、恢复核对和两区同时切换，不能直接回退旧快照。

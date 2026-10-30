@@ -218,3 +218,8 @@ FORMWARD_FRAME_STRESS_ONLY=1配合FORMWARD_FRAME_ONLY=1运行长整数专项；�
 
 
 FORMWARD_FRAME_TOUCH_ONLY=1配合FORMWARD_FRAME_ONLY=1检查四页390×640及844×390的hasTouch/isMobile浏览器上下文，截图和touch-report.json独立保存；Chromium/WebKit均运行，不等同真实iOS或系统软键盘实测。
+
+## 双区专项
+
+pnpm test包含auth/regional.test.ts的服务证明、伪造头、入口约束、Cookie、禁止重放及OAuth请求材料隔离。pnpm test:regional-concurrency通过独立embedded-postgres集群、多连接和真实HTTP存储模拟验证上传／撤销竞争、迟到重复完成保留正式对象及附件、统一审核追加照片与跨账号拒绝。使用/tmp/formward-account-tooling中的既有测试运行时，不使用Neon或真实用户数据。COS策略检查和模拟服务不代表真实COS的IAM、CORS或公网网络验收。
+pnpm test:regional-browser使用生产构建、独立PostgreSQL与虚构账号，通过三个私有HTTPS入口验收地区选择和两区账号流程，截图保存在被忽略的.codex/regional-visual；Chromium与WebKit分别执行，真实iOS和公网跨境网络另测。

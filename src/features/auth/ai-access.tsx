@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { usePageLoading } from "@/components/page-loading-state";
 import { LoadingLink } from "@/components/loading-link";
 import type { createAiToken, listAiTokens } from "./ai-tokens";
@@ -9,9 +9,6 @@ import { mealOperationStatus, type MealOperationView } from "../meals/model";
 import { useOperationClock } from "../meals/use-operation-clock";
 import type { listOauthConnections } from "./oauth-connections";
 import styles from "./ai-access.module.css";
-const subscribeOrigin = () => () => {};
-const currentOrigin = () => window.location.origin;
-const serverOrigin = () => "";
 type Tokens = Awaited<ReturnType<typeof listAiTokens>>;
 type Created = Awaited<ReturnType<typeof createAiToken>>;
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -23,9 +20,9 @@ function connectionAccessLabel(scopes: string[]) {
   const write = recordDomains.every(([, domain]) => scopes.includes(domain + ":write"));
   return read && write ? "全部记录查询与提交预览" : read && !scopes.some(scope => scope.endsWith(":write")) ? "全部记录只读" : "部分授权";
 }
-export function AiAccess({ tokens, operations, mealOperations = [], recordOperations = [], connections, create, revoke, revokeConnection }: { tokens: Tokens; recordOperations?: Awaited<ReturnType<typeof import("../records/operations").listRecordOperations>>; mealOperations?: MealOperationView[]; operations: Awaited<ReturnType<typeof listAiMeasurementOperations>>; connections: Awaited<ReturnType<typeof listOauthConnections>>; create: (name: string, permission: "read" | "write") => Promise<Result<Created>>; revoke: (id: string) => Promise<Result<{ id: string }>>; revokeConnection: (id: string) => Promise<Result<{ id: string }>> }) {
+export function AiAccess({ canonicalOrigin, tokens, operations, mealOperations = [], recordOperations = [], connections, create, revoke, revokeConnection }: { canonicalOrigin: string; tokens: Tokens; recordOperations?: Awaited<ReturnType<typeof import("../records/operations").listRecordOperations>>; mealOperations?: MealOperationView[]; operations: Awaited<ReturnType<typeof listAiMeasurementOperations>>; connections: Awaited<ReturnType<typeof listOauthConnections>>; create: (name: string, permission: "read" | "write") => Promise<Result<Created>>; revoke: (id: string) => Promise<Result<{ id: string }>>; revokeConnection: (id: string) => Promise<Result<{ id: string }>> }) {
   const now = useOperationClock();
-  const baseURL = useSyncExternalStore(subscribeOrigin, currentOrigin, serverOrigin);
+  const baseURL = canonicalOrigin;
   const [created, setCreated] = useState<Created | null>(null), [feedback, setFeedback] = useState<Feedback>(null), [working, setWorking] = useState(false), [advancedOpen, setAdvancedOpen] = useState(false);
   const [revoked, setRevoked] = useState<string[]>([]);
   const [transitionPending, startTransition] = useTransition(), busy = working || transitionPending;

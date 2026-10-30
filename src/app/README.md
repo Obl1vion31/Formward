@@ -40,3 +40,5 @@
 页面组成、业务模块与数据流的主要文件见 [架构与代码索引](../../docs/code-study.md)。源码注释说明关键边界与实现细节；页面入口、模块职责或调用链改变时同步更新索引。
 
 页面滚动距离不参与动画进度计算。视频控制、黑底透明化和与静态端点的匹配集中在 `turn-video.ts`；同一视频按正向或反向寻帧，未完成的寻帧只保留最新目标，组件卸载时清理监听及 GPU 资源。更换素材后更新校准和 `scripts/prepare-turn-video.sh`，第 13 张保持独立。表单输入保留在内存，真实认证请求调用 `src/features/auth/client.ts`。服务端入口通过 `src/features/auth/server.ts` 验证身份；`api/auth/` 提供认证接口，`dashboard/` 提供受保护主页和退出。新增页面和 API 时按实际需要创建路由目录，并为每个项目维护的目录创建 README。
+
+/region由主域名根路径重写显示固定地区入口。src/proxy.ts仅在FORMWARD_REGIONAL=1启用地区与回源限制；所有外来x-formward-*头清除后重建。api/internal的OAuth预检／执行仅供经过服务认证的国际节点，readiness另使用独立凭据。未通过备案与公开验收前，域名网页解析和上海公网80／443保持关闭。

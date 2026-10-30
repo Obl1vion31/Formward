@@ -9,6 +9,7 @@ import { listOauthConnections } from "@/features/auth/oauth-connections";
 import { listAiMeasurementOperations } from "@/features/measurements/ai-operations";
 import { listMealOperations } from "@/features/meals/records";
 import { listRecordOperations } from "@/features/records/operations";
+import { regionConfig } from "@/features/auth/regions";
 import { AiAccess } from "@/features/auth/ai-access";
 import { DashboardHeader } from "../header";
 import { createTokenAction, revokeTokenAction, revokeConnectionAction } from "./actions";
@@ -23,5 +24,5 @@ async function AiAccessContent({ user }: { user: NonNullable<Awaited<ReturnType<
   const recordOperations = await listRecordOperations(db, user.id);
   const mealOperations = (await listMealOperations(db, user.id)).filter(operation => !recordOperations.some(record => record.mealOperationId === operation.id));
   const standaloneBodies = operations.filter(operation => !recordOperations.some(record => record.measurementOperationId === operation.id));
-  return <main className="dashboard-page"><DashboardHeader email={user.email} owner={user.role === "owner"} /><AiAccess recordOperations={recordOperations} mealOperations={mealOperations} tokens={tokens} operations={standaloneBodies} connections={connections} create={createTokenAction} revoke={revokeTokenAction} revokeConnection={revokeConnectionAction} /></main>;
+  return <main className="dashboard-page"><DashboardHeader email={user.email} owner={user.role === "owner"} /><AiAccess canonicalOrigin={regionConfig().canonical} recordOperations={recordOperations} mealOperations={mealOperations} tokens={tokens} operations={standaloneBodies} connections={connections} create={createTokenAction} revoke={revokeTokenAction} revokeConnection={revokeConnectionAction} /></main>;
 }
