@@ -1,6 +1,6 @@
 # 国内服务器隔离预览部署
 
-本目录提供 Ubuntu 24.04 amd64 上的原生部署配置。应用采用独立非登录用户与 systemd，数据库采用 PostgreSQL 18，Nginx 仅监听回环地址。它用于服务器验收和迁移准备；正式域名、HTTPS、COS 与双区数据路由需在对应功能完成后另行验收。
+本目录提供 Ubuntu 24.04 amd64 上的原生部署配置。应用采用独立非登录用户与 systemd，数据库采用 PostgreSQL 18，Nginx 仅监听回环地址。它用于双区代码、服务器私有验收和迁移准备；真实 COS、公网回源、正式证书及续期、备案和正式数据切换分别验收。
 
 ## 文件与运行关系
 
@@ -79,7 +79,7 @@ sudo journalctl -u formward-backup-preview.service -n 20 --no-pager
 - activate-preview.sh 需先将 check-release.mjs 安装到 /usr/local/lib/formward，并在 root 专有的 preview.env 配置独立 FORMWARD_READINESS_SECRET。上一代不兼容时失败后停服，不回退到会错误读取COS的版本。当前与上一代自有哈希资源共存，缺失资源仍为404。
 - regional.env.example 给出两节点分工。国际实例禁止配置数据库连接和 Better Auth secret；两区独立 Cookie，共用上海业务校验。
 - nginx-regional.conf 仅监听回环8443，明确TLS1.2／1.3并拒绝未知SNI／Host；备案前不替换公网监听。
-- install-certificate.sh --apply fullchain.pem privkey.pem 检查四个SAN、有效期与公钥匹配，版本化安装，测试或reload失败时恢复旧入口。check-certificate.sh 验证实际四个SNI握手与十四天期限。
+- install-certificate.sh --apply fullchain.pem privkey.pem 检查四个SAN、系统信任链、有效期与公钥匹配，版本化安装，测试或reload失败时恢复旧入口。check-certificate.sh 验证实际四个SNI握手与十四天期限。
 - formward-certificate-renew.service／timer 为已验证安装的 /opt/formward-acme/acme.sh 及 root私有 /etc/formward/dns.env 准备。只有限定formward.top记录权限的DNS接口配置和固定版本客户端就绪后才启用；未实际签发／续期不能记录为通过。
 - cleanup-images.mts 私有环境文件 blob|cos 不可变位置 [--apply] 默认为只读预览，只处理v2命名空间超过24小时的对象，账号行锁内核对数据库；不清理旧照片前缀。加--apply才删除确认未登记对象。
 - rehearse-migration.mts 私有环境文件 check|migrate|backup 只接显式REHEARSAL_DATABASE_URL，限制回环独立演练库，不读取.env.local，也不使用父进程DATABASE_MIGRATION_URL。正式切换仍需停写、最新一致性备份、恢复核对和两区同时切换，不能直接回退旧快照。

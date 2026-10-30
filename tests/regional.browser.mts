@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
+import {createHash,randomUUID} from "node:crypto";
 import {mkdir,writeFile} from "node:fs/promises";
 import {resolve} from "node:path";
 import {eq} from "drizzle-orm";
 import {regionalFixture} from "./regional-fixture.mjs";
-import {session} from "../src/db/schema";
+import {session,mealImage} from "../src/db/schema";
 import {unlockAccountAdmin,manageAccount} from "../src/features/auth/account-management";
 const fixture=await regionalFixture(),engine=process.env.FORMWARD_REGIONAL_BROWSER??"chromium";
 const playwright=await import(process.env.PLAYWRIGHT_MODULE??"/tmp/formward-account-tooling/node_modules/playwright/index.mjs");
@@ -26,7 +27,7 @@ try{
   if(page.url()!=="about:blank")await page.waitForLoadState("networkidle");
   await page.goto(url);
  }
- async function shot(name:string){await page.evaluate(()=>document.fonts.ready);const path=resolve(artifacts,name+".png");await page.screenshot({path});screenshots.push(path);}
+ async function shot(name:string,target=page){await target.evaluate(()=>document.fonts.ready);const path=resolve(artifacts,name+".png");await target.screenshot({path});screenshots.push(path);}
  await page.goto(fixture.selector);await page.getByRole("heading",{name:"选择访问地区"}).waitFor();
  for(const [width,height]of [[1440,900],[320,560],[390,640],[430,780],[844,390]]){
   await page.setViewportSize({width,height});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await shot("selector-"+width+"x"+height);
@@ -50,6 +51,19 @@ try{
   for(const path of ["/dashboard","/dashboard/meals","/dashboard/energy","/dashboard/measurements"]){await navigate(fixture.cn+path);await page.locator("main").waitFor();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await shot("cn-"+path.split("/").pop()+"-"+width+"x"+height);}
  }
  checks.push("两区四业务页面与固定MCP地址、320／390／430手机及触屏横屏截图");
+ const png=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j6WQAAAAASUVORK5CYII=","base64"),imageId=randomUUID();
+ await fixture.db.insert(mealImage).values({id:imageId,userId:fixture.personId,pathname:"meals/"+fixture.personId+"/"+imageId,sha256:createHash("sha256").update(png).digest("hex"),mimeType:"image/png",byteSize:png.length,fileName:"虚构国际旧图.png",source:"manual",createdBy:fixture.personId});
+ const photoPage=await context.newPage();photoPage.on("pageerror",(error:Error)=>errors.push(error.message));await photoPage.setViewportSize({width:390,height:640});
+ await photoPage.route("**/api/meal-images/"+imageId,async(route:{fulfill:(value:object)=>Promise<void>})=>route.fulfill({status:200,contentType:"image/png",body:png}));
+ await photoPage.goto(fixture.cn+"/dashboard/meals");await photoPage.getByRole("button",{name:"录入",exact:true}).first().click();
+ const photoDialog=photoPage.locator("dialog:not(.page-loading-dialog)");
+ await photoDialog.locator('input[type="file"]').setInputFiles({name:"虚构国际旧图.png",mimeType:"image/png",buffer:png});
+ const notice=photoDialog.getByText("已复用国际存储的原附件，国内读取可能受网络影响；本次没有复制到国内存储。",{exact:true});await notice.waitFor();await notice.scrollIntoViewIfNeeded();await shot("photo-reused-international",photoPage);
+ const distinct=Buffer.concat([png,Buffer.from("fictional-new-image")]);await photoDialog.locator('input[type="file"]').setInputFiles({name:"虚构新图.png",mimeType:"image/png",buffer:distinct});
+ const failure=photoDialog.getByRole("alert").filter({hasText:"国内照片存储尚未配置"});await failure.waitFor();await failure.scrollIntoViewIfNeeded();assert.equal(await photoDialog.getByRole("img",{name:"原图 1"}).count(),1);await shot("photo-missing-configuration",photoPage);
+ await photoPage.waitForLoadState("networkidle");await photoPage.close();
+ checks.push("照片界面：真实准备接口复用Blob旧附件并说明未复制；新图缺COS配置时明确失败且保留成功附件。原图GET仅用虚构PNG模拟");
+
  const call=await context.request.post(fixture.global+"/api/mcp",{headers:{Authorization:"Bearer "+fixture.oldTokens.access_token,Accept:"application/json, text/event-stream"},data:{jsonrpc:"2.0",id:1,method:"tools/call",params:{name:"get_profile",arguments:{}}}});
  assert.equal(call.status(),200,await call.text());assert.ok((await call.text()).includes(fixture.personId));checks.push("架构切换前签发的OAuth访问令牌通过production入口和内部JWKS验证");
  const refreshed=await context.request.post(fixture.global+"/api/auth/oauth2/token",{headers:{Origin:fixture.global},form:{grant_type:"refresh_token",client_id:fixture.clientId,refresh_token:fixture.oldTokens.refresh_token,resource:fixture.global+"/api/mcp"}});

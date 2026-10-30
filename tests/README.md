@@ -222,4 +222,6 @@ FORMWARD_FRAME_TOUCH_ONLY=1配合FORMWARD_FRAME_ONLY=1检查四页390×640及844
 ## 双区专项
 
 pnpm test包含auth/regional.test.ts的服务证明、伪造头、入口约束、Cookie、禁止重放及OAuth请求材料隔离。pnpm test:regional-concurrency通过独立embedded-postgres集群、多连接和真实HTTP存储模拟验证上传／撤销竞争、迟到重复完成保留正式对象及附件、统一审核追加照片与跨账号拒绝。使用/tmp/formward-account-tooling中的既有测试运行时，不使用Neon或真实用户数据。COS策略检查和模拟服务不代表真实COS的IAM、CORS或公网网络验收。
-pnpm test:regional-browser使用生产构建、独立PostgreSQL与虚构账号，通过三个私有HTTPS入口验收地区选择和两区账号流程，截图保存在被忽略的.codex/regional-visual；Chromium与WebKit分别执行，真实iOS和公网跨境网络另测。
+FORMWARD_TEST_RELEASE 指向同一提交生成的产物目录后，pnpm test:regional-browser 将 standalone 与国际包复制到仓库外临时目录，再使用独立 PostgreSQL、虚构账号和三个私有 HTTPS 入口验收，避免父目录 node_modules 掩盖缺失依赖。覆盖选区、两区登录／四业务页／后台验密、旧 OAuth 访问与刷新、停用恢复和改密。照片界面通过真实准备接口验证旧 Blob 去重复用说明，以及 COS 缺配置失败时保留已有附件；原图 GET 仅使用虚构 PNG 模拟。Chromium／WebKit 各 33 张截图在被忽略的 .codex/regional-visual；真实 iOS、公网跨境及真实存储另测。
+
+FORMWARD_TEST_RELEASE 同样用于 node --import tsx tests/regional-oauth.http.mts。它启动真实 production Next 和国际网关，覆盖旧 DCR、CIMD 授权／同意／私钥断言兑换、JWKS 轮换刷新、错误签名、重放与并行请求材料隔离。跨页面整页导航前等待预取结束，浏览器 pageerror 不过滤；实际私有服务验收与独立认证单测分别记录。
