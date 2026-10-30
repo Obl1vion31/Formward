@@ -5,7 +5,7 @@ import {regionalFixture} from "./regional-fixture.mjs";
 import {serviceHeaders} from "../src/features/auth/regional-transport";
 import {oauthClient,oauthClientAssertion,oauthAccessToken,oauthRefreshToken} from "../src/db/schema";
 import type {OAuthEnvelope} from "../src/features/auth/oauth-preflight";
-const fixture=await regionalFixture(),checks:string[]=[];
+const fixture=await regionalFixture({trustedOrigin:"https://example.com"}),checks:string[]=[];
 try{
  const uri="https://example.com/formward-client-jwks.json";
  function key(kid:string){const pair=generateKeyPairSync("rsa",{modulusLength:2048});return {...pair,jwks:{keys:[{...pair.publicKey.export({format:"jwk"}),kid,alg:"RS256",use:"sig"}]},kid};}
@@ -17,7 +17,7 @@ try{
   return {method:"POST",path:"/api/auth/oauth2/token",headers:{"content-type":"application/x-www-form-urlencoded"},body:Buffer.from(new URLSearchParams({grant_type:"refresh_token",client_id:clientId,client_assertion_type:"urn:ietf:params:oauth:client-assertion-type:jwt-bearer",client_assertion:jwt,refresh_token:refresh,resource:fixture.global+"/api/mcp"}).toString()).toString("base64"),materials:[]};
  }
  async function call(action:string,input:OAuthEnvelope){
-  const path="/api/internal/oauth-"+action;return fetch(fixture.transport+path,{method:"POST",headers:{Host:new URL(fixture.transport).host,"Content-Type":"application/json",...serviceHeaders("POST",path,fixture.global)},body:JSON.stringify(input)});
+  const path="/api/internal/oauth-"+action;return fetch(fixture.transport+path,{method:"POST",headers:{Host:new URL(fixture.transport).host,"Content-Type":"application/json",...serviceHeaders("POST",path,fixture.global)},body:JSON.stringify(input),redirect:"manual"});
  }
  const firstKey=key("first"),[client]=await fixture.db.select().from(oauthClient).where(eq(oauthClient.clientId,fixture.clientId));assert.ok(client);
  await fixture.db.update(oauthClient).set({tokenEndpointAuthMethod:"private_key_jwt",jwks:null,jwksUri:uri}).where(eq(oauthClient.clientId,fixture.clientId));

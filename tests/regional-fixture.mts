@@ -16,9 +16,10 @@ import { createAuth } from "../src/features/auth/auth";
 import { initializeAccountOwner } from "../src/features/auth/account-management";
 import { createAiToken,authenticateAi } from "../src/features/auth/ai-tokens";
 import { submitRecordOperation,reviewRecordOperation } from "../src/features/records/operations";
+import { serviceHeaders } from "../src/features/auth/regional-transport";
 import { OAUTH_SCOPES } from "../src/features/auth/oauth-connections";
 
-export async function regionalFixture() {
+export async function regionalFixture(options:{trustedOrigin?:string}={}) {
  const folder=await mkdtemp(join(tmpdir(),"formward-regional-browser-")),release=resolve(process.env.FORMWARD_TEST_RELEASE??".codex/regional-releases/acceptance-01");
  const standalone=join(release,"standalone"),gatewayFile=join(release,"international/.vercel/output/functions/gateway.func/index.mjs");
  const {default:EmbeddedPostgres}=await import(pathToFileURL(process.env.FORMWARD_EMBEDDED_POSTGRES_MODULE??"/tmp/formward-account-tooling/node_modules/embedded-postgres/dist/index.js").href);
@@ -31,7 +32,7 @@ export async function regionalFixture() {
  await migrate(db,{migrationsFolder:"./drizzle"});
  const owner={email:"owner@regional.example.test",password:"fictional-owner-password"},person={email:"a.long.regional.account.for.mobile@example.test",password:"fictional-person-password"};
  const ownerId=(await provisionAccount(db,owner)).id,personId=(await provisionAccount(db,person)).id;await initializeAccountOwner(db,ownerId);
- const cn="https://localhost:"+cnPort,global="https://127.0.0.1:"+globalPort,selector="https://127.0.0.1:"+rootPort,transport="http://127.0.0.1:"+appPort;
+ const cn=options.trustedOrigin??"https://localhost:"+cnPort,global="https://127.0.0.1:"+globalPort,selector="https://127.0.0.1:"+rootPort,transport="http://127.0.0.1:"+appPort;
  const authSecret="fictional-production-auth-more-than-32-characters",gatewaySecret="fictional-production-gateway-more-than-32-characters";
  const auth=createAuth(db,{baseURL:global,secret:authSecret,rateLimit:false});
  async function authJson(path:string,body:object,cookie?:string){return auth.handler(new Request(global+"/api/auth/"+path,{method:"POST",headers:{"Content-Type":"application/json",Origin:global,...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)}));}
@@ -61,7 +62,8 @@ export async function regionalFixture() {
  const gateway=(await import(pathToFileURL(gatewayFile).href)).default;
  const servers=[tlsServer(tls,proxy),tlsServer(tls,gateway),tlsServer(tls,proxy)];
  await Promise.all(servers.map((server,index)=>new Promise<void>(resolve=>server.listen([cnPort,globalPort,rootPort][index],"127.0.0.1",resolve))));
- for(let i=0;i<100;i++){try{const response=await fetch(transport,{headers:{Host:new URL(cn).host}});if(response.status===200)break;}catch{}if(i===99)throw new Error("区域production服务未启动："+serverLog.slice(-1500));await new Promise(r=>setTimeout(r,200));}
+ try { for(let i=0;i<100;i++){try{const response=await fetch(transport,{headers:serviceHeaders("GET","/",global)});if(response.status===200)break;}catch{}if(i===99)throw new Error("区域production服务未启动："+serverLog.slice(-1500));await new Promise(r=>setTimeout(r,200));}
+ } catch(error) { child.kill("SIGTERM");for(const server of servers){server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}await database.close();await cluster.stop();throw error;}
  await mkdir(resolve(".codex/regional-visual"),{recursive:true});
  return {cn,global,selector,transport,env,db,owner,person,ownerId,personId,oldTokens,clientId,oldCookie,folder,serverLog:()=>serverLog,close:async()=>{
   child.kill("SIGTERM");await Promise.race([once(child,"exit"),new Promise(r=>setTimeout(r,3000))]);if(child.exitCode===null)child.kill("SIGKILL");

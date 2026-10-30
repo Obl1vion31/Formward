@@ -1,3 +1,4 @@
+import { verifyService } from "@/features/auth/regional-transport";
 import { getDatabase } from "@/db/client";
 import { getAuth } from "@/features/auth/server";
 import { regionConfig, publicRequestOrigin } from "@/features/auth/regions";
@@ -5,7 +6,7 @@ import { cleanForwardHeaders } from "@/features/auth/regional-transport";
 import { oauthEnvelopeSchema,validateOAuthMaterials } from "@/features/auth/oauth-preflight";
 import { withOAuthMaterials } from "@/features/auth/oauth-network";
 export async function POST(request:Request){
- if(request.headers.get("x-formward-region")!=="global")return new Response(null,{status:403});
+ if(!verifyService(request.headers,request.method,new URL(request.url).pathname+new URL(request.url).search))return new Response(null,{status:403});
  try{
   if(Number(request.headers.get("content-length"))>300000)return new Response(null,{status:413});
   const input=oauthEnvelopeSchema.parse(await request.json());await validateOAuthMaterials(getDatabase(),input);

@@ -21,8 +21,8 @@ test("区域proxy清除外来身份头，拒绝未认证回源与未知Host，�
  assert.equal(proxy(new NextRequest("https://evil.example/",{headers:{host:"evil.example"}})).status,421);
  assert.equal(proxy(new NextRequest("https://formward.top/account/claim?token=fictional",{headers:{host:"formward.top"}})).status,404);
  const root=proxy(new NextRequest("https://formward.top/?token=fictional",{headers:{host:"formward.top"}}));
- assert.equal(new URL(root.headers.get("x-middleware-rewrite")!).pathname,"/region");
- assert.equal(new URL(root.headers.get("x-middleware-rewrite")!).search,"");
+ assert.equal(root.headers.get("x-middleware-request-x-formward-selector"),"1");
+ assert.equal(root.headers.get("x-middleware-rewrite"),null);
 }));
 test("网关保留原始Cookie/Bearer和多个Set-Cookie，私有响应不缓存且失败不重放",()=>configured(async()=>{
  let calls=0;

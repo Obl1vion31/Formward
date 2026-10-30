@@ -47,3 +47,5 @@ AI新增和修改由ai-write-policy.ts统一限制：不允许整条删除／恢
 
 regions.ts 约束主域名、国内、国际、受保护回源及固定OAuth地址。regional-transport.ts 签名服务请求，src/proxy.ts 清除外来身份头并重建可信来源；回源只有服务证明才能进入，账号仍由原Cookie或Bearer验证。主域名仅提供地区选择，最近选择仅高亮，两区不共享域Cookie。
 OAuth预检只读取客户端配置；海外节点通过官方DNS固定传输获取CIMD和JWKS，原认证仅执行一次。oauth-network.ts 为非CIMD读取提供请求级AsyncLocalStorage适配，未批准地址失败，不共享Response流；CIMD继续用官方钩子，不修改SDK或加密规则。国际产物不持有数据库密码与Better Auth secret。
+
+非CIMD的jwks_uri继续受SDK既有信任来源限制，预检也执行同一来源约束；不会把任意动态注册地址自动加入网页登录可信来源。

@@ -9,9 +9,10 @@ const fixture=await regionalFixture(),engine=process.env.FORMWARD_REGIONAL_BROWS
 const playwright=await import(process.env.PLAYWRIGHT_MODULE??"/tmp/formward-account-tooling/node_modules/playwright/index.mjs");
 const browser=await playwright[engine].launch({headless:true}),artifacts=resolve(".codex/regional-visual",engine);await mkdir(artifacts,{recursive:true});
 const errors:string[]=[],checks:string[]=[],screenshots:string[]=[];
+let captureFailure:(()=>Promise<void>)|undefined;
 try{
  const context=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:1440,height:900},reducedMotion:"reduce"});
- const page=await context.newPage();page.on("pageerror",(error:Error)=>errors.push(error.message));
+ const page=await context.newPage();captureFailure=async()=>{await page.screenshot({path:resolve(artifacts,"failure.png")});await writeFile(resolve(artifacts,"failure.html"),await page.content());};page.on("pageerror",(error:Error)=>errors.push(error.message));
  type Context=typeof context;
  async function login(target:Context,origin:string,credentials=fixture.person){
   const response=await target.request.post(origin+"/api/auth/sign-in/email",{headers:{Origin:origin},data:credentials});assert.equal(response.status(),200,await response.text());
@@ -69,5 +70,6 @@ try{
  assert.deepEqual(errors,[]);await writeFile(resolve(artifacts,"report.json"),JSON.stringify({engine,checks,screenshots,errors,notTested:["真实COS","公网跨境网络","真实iOS软键盘","正式证书续期"]},null,2));console.log(JSON.stringify({engine,checks,screenshotCount:screenshots.length}));
  await ownerContext.close();await context.close();
 } catch(error){
+ await captureFailure?.().catch(()=>{});
  await writeFile(resolve(artifacts,"failure.json"),JSON.stringify({error:error instanceof Error?error.stack:String(error),errors,checks},null,2));await writeFile(resolve(artifacts,"server.log"),fixture.serverLog());throw error;
 }finally{await browser.close();await fixture.close();}

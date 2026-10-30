@@ -1,7 +1,8 @@
+import { verifyService } from "@/features/auth/regional-transport";
 import { getDatabase } from "@/db/client";
 import { oauthEnvelopeSchema, oauthPreflight } from "@/features/auth/oauth-preflight";
 export async function POST(request:Request){
-  if(request.headers.get("x-formward-region")!=="global")return new Response(null,{status:403});
+  if(!verifyService(request.headers,request.method,new URL(request.url).pathname+new URL(request.url).search))return new Response(null,{status:403});
   try{if(Number(request.headers.get("content-length"))>300000)return new Response(null,{status:413});
     const input=oauthEnvelopeSchema.parse(await request.json());
     return Response.json(await oauthPreflight(getDatabase(),input),{headers:{"Cache-Control":"no-store"}});

@@ -83,3 +83,5 @@ sudo journalctl -u formward-backup-preview.service -n 20 --no-pager
 - formward-certificate-renew.service／timer 为已验证安装的 /opt/formward-acme/acme.sh 及 root私有 /etc/formward/dns.env 准备。只有限定formward.top记录权限的DNS接口配置和固定版本客户端就绪后才启用；未实际签发／续期不能记录为通过。
 - cleanup-images.mts 私有环境文件 blob|cos 不可变位置 [--apply] 默认为只读预览，只处理v2命名空间超过24小时的对象，账号行锁内核对数据库；不清理旧照片前缀。加--apply才删除确认未登记对象。
 - rehearse-migration.mts 私有环境文件 check|migrate|backup 只接显式REHEARSAL_DATABASE_URL，限制回环独立演练库，不读取.env.local，也不使用父进程DATABASE_MIGRATION_URL。正式切换仍需停写、最新一致性备份、恢复核对和两区同时切换，不能直接回退旧快照。
+
+固定ACME客户端为3.1.6，源码提交与SHA见acme-pin.json。install-acme-client.sh --apply 已下载官方归档验证摘要后离线安装，不签发证书。issue-certificate.sh通过私有EnvironmentFile注入Tencent_SecretId／Tencent_SecretKey，先独立staging验证，再签发正式证书与安装；只有实际握手、自动续期和失败恢复验证后才启用续期timer。

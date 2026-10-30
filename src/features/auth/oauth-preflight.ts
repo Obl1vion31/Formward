@@ -3,6 +3,7 @@ import { isPublicRoutableHost } from "@better-auth/core/utils/host";
 import type { Database } from "../../db/client";
 import { oauthClient } from "../../db/schema";
 import { z } from "zod";
+import {regionConfig} from "./regions";
 
 export const oauthEnvelopeSchema = z.object({
   method:z.enum(["GET","POST"]), path:z.string().max(8192),
@@ -31,17 +32,21 @@ function candidate(envelope:OAuthEnvelope) {
   if(!id&&params.has("client_assertion"))try {const untrusted=JSON.parse(Buffer.from(params.get("client_assertion")!.split(".")[1],"base64url").toString());id=typeof untrusted.iss==="string"?untrusted.iss:null;}catch{}
   return id?.slice(0,8192);
 }
+function trustedKeyUrl(value:string,clientId:string){
+ const url=metadataUrl(value),config=regionConfig();let clientOrigin:string|undefined;try{clientOrigin=new URL(clientId).origin;}catch{}
+ if(![config.canonical,config.cn,config.global,clientOrigin].includes(new URL(url).origin))throw new Error("客户端公钥来源未受信任。");return url;
+}
 export async function oauthPreflight(db:Database,envelope:OAuthEnvelope) {
   validateOAuthPath(envelope.path);
   const id=candidate(envelope), needed:{url:string;maxBytes:number}[]=[];
   if(!id)return needed;
   const [client]=await db.select().from(oauthClient).where(eq(oauthClient.clientId,id));
-  if(id.startsWith("https://")) {
+  if(id.startsWith("https://")&&(!client||client.clientDiscoveryId)) {
     const url=metadataUrl(id);needed.push({url,maxBytes:5120});
     const doc=envelope.materials.find(m=>m.url===url);
-    if(doc){if(Buffer.byteLength(doc.body)>5120)throw new Error("客户端资料过大。");const value=JSON.parse(doc.body);if(typeof value.jwks_uri==="string")needed.push({url:metadataUrl(value.jwks_uri),maxBytes:65536});}
+    if(doc){if(Buffer.byteLength(doc.body)>5120)throw new Error("客户端资料过大。");const value=JSON.parse(doc.body);if(typeof value.jwks_uri==="string")needed.push({url:trustedKeyUrl(value.jwks_uri,id),maxBytes:65536});}
   }
-  if(client?.jwksUri)needed.push({url:metadataUrl(client.jwksUri),maxBytes:65536});
+  if(client?.jwksUri)needed.push({url:trustedKeyUrl(client.jwksUri,id),maxBytes:65536});
   return [...new Map(needed.map(v=>[v.url,v])).values()];
 }
 export async function validateOAuthMaterials(db:Database,envelope:OAuthEnvelope) {

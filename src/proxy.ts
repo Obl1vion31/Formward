@@ -13,7 +13,7 @@ export function proxy(request: NextRequest) {
   const host = request.headers.get("host"), path = request.nextUrl.pathname, query = request.nextUrl.search;
   if (host === new URL(config.selector).host || host === "www." + new URL(config.selector).host) {
     if (host?.startsWith("www.")) return NextResponse.redirect(config.selector,308);
-    if (path === "/") return NextResponse.rewrite(new URL("/region",request.url),{request:{headers}});
+    if (path === "/") { headers.set("x-formward-selector","1"); return NextResponse.next({request:{headers}}); }
     if (path.startsWith("/_next/static/") || path === "/favicon.ico") return NextResponse.next({request:{headers}});
     return new NextResponse(null,{status:404});
   }
@@ -24,6 +24,7 @@ export function proxy(request: NextRequest) {
     const service = verifyService(request.headers,request.method,path+query);
     if (!service) return new NextResponse(null,{status:403,headers:{"Cache-Control":"no-store"}});
     origin = service.origin; ip = service.ip;
+    for(const name of ["x-formward-service","x-formward-source","x-formward-time","x-formward-ip"]) headers.set(name,request.headers.get(name)??"");
   } else if (host === new URL(config.cn).host && !request.headers.has("x-formward-service")) {
     origin = config.cn; ip = request.headers.get("x-real-ip") ?? "";
   } else return new NextResponse(null,{status:421});
