@@ -1,14 +1,14 @@
 # 双区工作分支状态
 
-当前分支codex/mainland-server-preparation进行formward.top双区与图片存储开发，尚未合入main或切换生产。global.formward.top已添加Vercel且所有权通过，但没有添加网站CNAME；上海仍仅SSH公开。DNS接口凭据尚未提供，真实COS和正式数据切换保持待验收。代码及测试见docs/mainland-deployment.md和scripts/self-hosting/README.md，后续不得把模拟存储、私有测试或脚本准备冒充公网／真实COS／正式证书续期通过。
+当前分支 `codex/mainland-server-preparation` 已实现 formward.top 地区选择、上海统一业务与国际轻量网关、两区独立会话、OAuth 请求级材料传输及 COS／Blob 双存储流程。尚未合入 main、迁移正式数据或切换生产；正式国际站继续使用原 Vercel／Neon／Blob。
 
-## 当前工作：上海服务器私有预览与迁移准备
+上海私有预览已激活 `regional-preview-20261030-01`，应用产物来自干净提交 `e7f3db4`，BUILD_ID 为 `E0QQPwKOnOocE3KRSnUxO`。本机经 SSH 访问地区选择 `http://127.0.0.1:3302`、国内 `http://127.0.0.1:3300`、国际 `http://localhost:3301`；国际入口是本机网关通过 SSH 回源上海，并非已发布的 Vercel 网关。虚构登录资料在被忽略的 `.codex/mainland-setup/preview-login.txt`，不得输出密码或使用真实健康数据截图。
 
-当前分支 `codex/mainland-server-preparation`，本轮只部署上海私有预览，未合入 main 或切换国际生产。完整计划与后续域名／备案安排在 `docs/mainland-deployment.md`，实际证据在 `docs/maintenance-verification.md`。Node 24.21.0／PostgreSQL 18.6／Nginx／systemd 已运行，网页通过 SSH 本机 3300 访问，公网仅 SSH；虚构预览资料在被忽略的 `.codex/mainland-setup/preview-login.txt`，不要输出凭据或使用真实健康数据截图。
+415 项完整单元／集成、真实 PostgreSQL 多连接与 HTTP 模拟存储、真实 production OAuth／CIMD 专项、lint、typecheck、生产构建通过。最终产物在仓库外启动验收，Chromium／WebKit 各 33 张截图、客户端异常为 0；服务器实际完成两入口登录、国际提交和确认后国内查询、两区导出、网页撤销令牌及拒绝旧凭据。故意失败发布已回退至当前版本并重新通过版本／数据库健康检查。0028 仅应用于虚构预览库，迁移前 41 张业务表、147 行的全部旧字段值保持。
 
-Neon 快照在独立演练库恢复，42 表 1,580 行及结构核对通过；真实 systemd 预览备份已取回并恢复到另一个空库，42 表 180 行匹配。409 项现有测试、17 项来源 HTTP 专项、7 项真实 PostgreSQL 恢复专项及技术检查通过；Chromium／WebKit 各 7 组、37 截图，客户端异常和 5xx 为 0。实际失败发布回退与服务器重启自动启动通过。备份仅覆盖虚构预览库，正式库和持续异机备份需单独配置。
+global.formward.top 已在 Vercel 登记并验证所有权，网站 CNAME 未添加。formward.top 备案已由用户提交，处于腾讯云初审。用户已提供专用子账号凭据并确认单域名 DNS 权限。正式 Let’s Encrypt 证书覆盖主域名、www、cn、origin，有效至 2027-01-28；真实四 SNI 握手、TLS 1.2／1.3、拒绝旧协议／未知 SNI、systemd 强制续期、正常定时服务、私钥不匹配拒绝及 Nginx 失败恢复均通过，日常检查 timer 已启用。Chromium／WebKit 经私有测试代理使用真实域名验证两区 Secure host-only 会话、固定旧 MCP 地址和 HTTPS 回源；国内与回源使用正式证书，global 仍是本机测试证书。网站 DNS 与公网 80／443 未启用。
 
-下一阶段先接 COS 和双区受限业务接口、明确 OAuth／MCP 身份迁移，再等域名备案及实际验收完成后统一停写、最终归档、双入口切库。当前源码仍直接依赖数据库和 Blob，不能只改环境变量就宣称双区账号、图片和授权已经融合。下列既有正式发布信息继续有效。
+实际证据与逐项限制见 [双区验收](docs/regional-acceptance.md)、[国内部署](docs/mainland-deployment.md)。真实 COS、Vercel 公网回源、跨境网络、正式迁移与用户实际页面确认仍为上线门槛；本轮不构成 main 合入或公网切换授权。原生归档及恢复演练在独立库完成，正式库与持续异机备份需单独配置。下面既有正式发布信息继续有效。
 
 ## 当前发布：正文与工具把手居中修正
 

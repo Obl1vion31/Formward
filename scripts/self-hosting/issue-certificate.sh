@@ -7,7 +7,6 @@ test -x /opt/formward-acme/acme.sh
 install -d -m 0700 /etc/formward/tls/staged /var/lib/formward/acme-staging/dnsapi
 install -m 0600 /var/lib/formward/acme/dnsapi/dns_tencent.sh /var/lib/formward/acme-staging/dnsapi/dns_tencent.sh
 domains=(-d formward.top -d www.formward.top -d cn.formward.top -d origin.formward.top)
-/opt/formward-acme/acme.sh --issue --home /var/lib/formward/acme-staging --server letsencrypt_test --dns dns_tencent --keylength ec-256 "${domains[@]}"
-/opt/formward-acme/acme.sh --issue --home /var/lib/formward/acme --server letsencrypt --dns dns_tencent --keylength ec-256 "${domains[@]}"
+/opt/formward-acme/acme.sh --issue --home /var/lib/formward/acme-staging --server letsencrypt_test --dns dns_tencent --dnssleep 180 --keylength ec-256 "${domains[@]}"
+/opt/formward-acme/acme.sh --issue --home /var/lib/formward/acme --server letsencrypt --dns dns_tencent --dnssleep 60 --keylength ec-256 "${domains[@]}"
 /opt/formward-acme/acme.sh --install-cert --home /var/lib/formward/acme --ecc -d formward.top --key-file /etc/formward/tls/staged/privkey.pem --fullchain-file /etc/formward/tls/staged/fullchain.pem --reloadcmd '/usr/local/lib/formward/install-certificate.sh --apply /etc/formward/tls/staged/fullchain.pem /etc/formward/tls/staged/privkey.pem'
-/usr/local/lib/formward/check-certificate.sh

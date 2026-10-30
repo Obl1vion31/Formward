@@ -79,9 +79,19 @@ sudo journalctl -u formward-backup-preview.service -n 20 --no-pager
 - activate-preview.sh 需先将 check-release.mjs 安装到 /usr/local/lib/formward，并在 root 专有的 preview.env 配置独立 FORMWARD_READINESS_SECRET。上一代不兼容时失败后停服，不回退到会错误读取COS的版本。当前与上一代自有哈希资源共存，缺失资源仍为404。
 - regional.env.example 给出两节点分工。国际实例禁止配置数据库连接和 Better Auth secret；两区独立 Cookie，共用上海业务校验。
 - nginx-regional.conf 仅监听回环8443，明确TLS1.2／1.3并拒绝未知SNI／Host；备案前不替换公网监听。
-- install-certificate.sh --apply fullchain.pem privkey.pem 检查四个SAN、系统信任链、有效期与公钥匹配，版本化安装，测试或reload失败时恢复旧入口。check-certificate.sh 验证实际四个SNI握手与十四天期限。
+- install-certificate.sh --apply fullchain.pem privkey.pem 检查四个SAN、系统信任链、有效期与公钥匹配，版本化安装，测试或reload失败时恢复旧入口。check-certificate.sh 在十五秒总期限内等待 Nginx worker 完成切换，验证实际四个SNI、信任链、主机名、安装指纹与十四天期限。
 - formward-certificate-renew.service／timer 为已验证安装的 /opt/formward-acme/acme.sh 及 root私有 /etc/formward/dns.env 准备。只有限定formward.top记录权限的DNS接口配置和固定版本客户端就绪后才启用；未实际签发／续期不能记录为通过。
 - cleanup-images.mts 私有环境文件 blob|cos 不可变位置 [--apply] 默认为只读预览，只处理v2命名空间超过24小时的对象，账号行锁内核对数据库；不清理旧照片前缀。加--apply才删除确认未登记对象。
 - rehearse-migration.mts 私有环境文件 check|migrate|backup 只接显式REHEARSAL_DATABASE_URL，限制回环独立演练库，不读取.env.local，也不使用父进程DATABASE_MIGRATION_URL。正式切换仍需停写、最新一致性备份、恢复核对和两区同时切换，不能直接回退旧快照。
 
 固定ACME客户端为3.1.6，源码提交与SHA见acme-pin.json。install-acme-client.sh --apply 已下载官方归档验证摘要后离线安装，不签发证书。issue-certificate.sh通过私有EnvironmentFile注入Tencent_SecretId／Tencent_SecretKey，先独立staging验证，再签发正式证书与安装；只有实际握手、自动续期和失败恢复验证后才启用续期timer。
+
+
+check-dns.mjs 使用专用 EnvironmentFile 默认只读查询 formward.top，区分平台 NS 与网站记录。--cleanup-issue /var/lib/formward/certificate-issue-attemptN.log 默认为预览；再加 --apply 才删除日志中准确匹配的四个签发域名、TXT 类型和验证文字，不删除其他操作或网站记录。node --test scripts/self-hosting/check-dns.test.mjs 验证此边界。私密原始响应和密钥不输出。
+
+issue-certificate.sh 使用官方 --dnssleep：staging 等待 180 秒、正式等待 60 秒，避开上海访问海外公共 DoH 的不稳定性；仍由证书机构完成真实 DNS 验证，保留证书信任链和主机名验证。签发过程中需从两台权威 DNS 核对验证记录；失败记录按原值清理，不能清空全部 TXT。
+
+实际强制续期通过后移除仅用于演练的 systemd override，再启动正常服务并启用 timer。固定客户端的 account.conf 设置 AUTO_UPGRADE=0；日常任务只检查到期与 ARI 建议窗口，不每天重签。生产切换前先统一停写，再核对国际 Vercel 环境仅含网关与 Blob 所需配置，移除旧数据库连接和 Better Auth 签名秘密后部署国际网关，不让旧业务实例继续写入。
+
+
+首次HTTPS入口使用 formward-certificate-issue.service：先安装 nginx-regional.conf 到 /etc/formward/nginx-regional.conf.prepared，再安装 issue／install／check／prepare 四个证书脚本和 service。由 systemd 的私有 EnvironmentFile 注入凭据，执行 systemctl start formward-certificate-issue.service。prepare-certificate-preview.sh 拒绝非回环监听，先签发并安装证书，再配置回环TLS并检查真实握手，避免首次启动时配置引用尚不存在的证书；已有配置失败时恢复原文件。acme.sh 返回2只表示未到续期时间，仍需已有正式证书与实际握手通过，其他错误不计为成功。首次服务不 enable，不承担日常续期；日常使用独立 renew.timer。
