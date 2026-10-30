@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { mkdtemp,mkdir,readFile,writeFile,symlink,cp,rm,readdir } from "node:fs/promises";
+import { mkdtemp,mkdir,readFile,writeFile,cp,rm,readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { resolve,join } from "node:path";
+import { resolve,join,dirname } from "node:path";
 import { build } from "esbuild";
 const root=resolve(import.meta.dirname,"../.."),release=process.argv[2];
 if(!release||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/.test(release))throw new Error("需要唯一发布标识。");
@@ -12,9 +12,9 @@ const target=join(base,release);await mkdir(target);
 const source=await mkdtemp(join(base,"source-"));
 try{
  const archive=join(target,"source.tar");run("git",["archive","--format=tar","--output="+archive,commit]);run("tar",["-xf",archive,"-C",source]);
- await symlink(join(root,"node_modules"),join(source,"node_modules"),"dir");
+ run(join(dirname(process.execPath),"pnpm"),["install","--offline","--frozen-lockfile","--ignore-scripts"],source,{PATH:process.env.PATH,HOME:process.env.HOME,NODE_ENV:"development",CI:"1"});
  const lock=await readFile(join(source,"pnpm-lock.yaml"));const env:NodeJS.ProcessEnv={PATH:process.env.PATH,HOME:process.env.HOME,NODE_ENV:"production",NEXT_TELEMETRY_DISABLED:"1",BETTER_AUTH_URL:"https://formward-ten.vercel.app"};
- const buildResult=spawnSync(process.execPath,[join(root,"node_modules/next/dist/bin/next"),"build","--webpack"],{cwd:source,env,encoding:"utf8",maxBuffer:16*1024*1024});
+ const buildResult=spawnSync(process.execPath,[join(source,"node_modules/next/dist/bin/next"),"build","--webpack"],{cwd:source,env,encoding:"utf8",maxBuffer:16*1024*1024});
  await writeFile(join(target,"build.log"),buildResult.stdout+"\n"+buildResult.stderr);
  if(buildResult.status!==0)throw new Error("Next构建失败，查看私有日志。");
  const standalone=join(target,"standalone");await mkdir(standalone);

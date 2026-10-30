@@ -26,7 +26,7 @@ function candidate(envelope:OAuthEnvelope) {
     if(new Headers(envelope.headers).get("content-type")?.includes("application/json")) {const value=JSON.parse(body);params=new URLSearchParams(Object.entries(value).filter((entry):entry is [string,string]=>typeof entry[1]==="string"));}
     else params=new URLSearchParams(body);
   }
-  let id=params.get("client_id") ?? query.get("client_id");
+  let id=params.get("client_id") ?? query.get("client_id") ?? new URLSearchParams(params.get("oauth_query")??"").get("client_id");
   if(!id) {const basic=new Headers(envelope.headers).get("authorization");if(basic?.startsWith("Basic "))id=decodeURIComponent(Buffer.from(basic.slice(6),"base64").toString().split(":")[0]);}
   if(!id&&params.has("client_assertion"))try {const untrusted=JSON.parse(Buffer.from(params.get("client_assertion")!.split(".")[1],"base64url").toString());id=typeof untrusted.iss==="string"?untrusted.iss:null;}catch{}
   return id?.slice(0,8192);
