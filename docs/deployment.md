@@ -8,6 +8,16 @@
 
 ## 当前正式版本
 
+用户于2026-10-31验收实际手机与电脑页面后明确要求发布。正式域名 https://formward-ten.vercel.app 已核对 READY 部署 dpl_7D4YT9WWAex4TCJpACpetuktb7ej，应用源码 a2c24f14fe0e0cd205d4adc37682c0dbb09aa730，位于独立发布分支 codex/energy-review-release。以已上线品牌版本9bd0da8为基线，仅提取本轮AI确认修改，品牌与既有账号安全保持，未带入双区、COS、0028、环境或DNS变更；main未合并。
+
+同一日期的全天消耗与运动分组，手机纵排、电脑左右对照；来源备注默认收起，真实变化才显示前后对照，分组取消经应用确认。自动核对已有运动只引用ID／版本，保留801运动＋145期间静息分项，不把946全作额外运动。旧自动核对预览须刷新并重选，未批量改写已保存记录或原始请求。
+
+正式基线414项完整单元／集成、lint零警告、类型、production build和目录检查通过；隔离与正式站Chromium／WebKit各19张实际截图、16组检查，最终客户端异常和5xx均0。已实际查看正式手机及电脑页面。正式20项公开／受保护入口与5份品牌图标字节校验通过，部署20分钟Runtime error／fatal与请求5xx均0，无排除区间；CLI精简inspect结果用元数据筛选列表的URL与gitCommitSha交叉核对源码绑定。真实iOS及系统软键盘未测。
+
+发布前后私有备份data/exports/database-before-energy-review-2026-10-31.json、database-after-production-energy-review-2026-10-31.json及energy-review-production-verification.json均0600、Git／部署忽略。42表结构、迁移账本及原有行值保持，新增原表行及旧字段变化均空；两个虚构普通账号、记录、预览、凭据和所属审计已清理。没有migration、历史初始化、公开工具或权限变更。证据在主工作区.codex/energy-review-release/，正式浏览器截图与报告位于production/{chromium,webkit}/；正式源代码与独立发布记录同分支保存。
+
+## 品牌版本发布记录
+
 用户于2026-10-31查看实际页面后明确要求发布公网。正式域名 https://formward-ten.vercel.app 已核对 READY 部署 `dpl_FWmg8Xf75oRAnasTNePGVAmf9Ye7`，应用源码 `273dbb5`，来自独立分支 `codex/brand-logo-release`。以此前正式基线 `42c7e8a` 仅接入 F＋手臂标志、透明导出、全站品牌组件及 favicon／Apple 图标；未带入双区、地区选择、COS 或新 migration。main 未修改，域名 DNS 与私有双区预览未切换。
 
 发布基线 lint、typecheck、409项单元／集成、production build、目录及diff检查通过；隔离 Chromium／WebKit 各48张品牌截图、30组页头检查通过。正式两引擎各30张实际截图、18组页头检查通过，客户端异常及请求5xx为0；20项公开／受保护入口与5份图标文件逐字节SHA256校验通过。正式别名再次核对仍为新部署 READY；该部署20分钟查询窗口 Runtime error／fatal 与请求5xx均0，无排除区间。实际查看正式桌面首页和WebKit手机总览；真实iOS和主屏图标实机显示未测。
