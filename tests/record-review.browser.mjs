@@ -62,6 +62,7 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
   assert.equal((await (await fetch(`${baseURL}/api/v1/foods`, { headers })).json()).foods.filter(food => food.name === "虚构混合审核食品").length, 0);
   const state = await (await fetch(`${baseURL}/api/v1/record-operations/${operation.id}`, { headers })).json(); assert.equal(state.status, "confirmed");
   await page.goto(operation.confirmationUrl); await page.getByRole("heading", { name: "已保存", exact: true }).waitFor(); assert.equal(await save().count(), 0);
+  if (process.env.FORMWARD_REVIEW_FACTS_ONLY === "1") return;
   // 保存一餐不等于当天已记完；人工确认后才验收盈余图形。
   await page.goto(`${baseURL}/dashboard/meals?date=${date}`);
   const dayHistory = page.locator("dialog[open]");

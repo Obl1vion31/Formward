@@ -12,6 +12,9 @@ import { provisionAccount } from "../src/features/auth/provision";
 import { createAiToken } from "../src/features/auth/ai-tokens";
 import { saveMealImage } from "../src/features/meals/images";
 import {checkMealEntry} from "./meal-entry.browser.mjs";
+import { checkEnergyReview } from "./energy-review.browser.mjs";
+import type { EnergyAction } from "../src/features/activities/model";
+import { submitEnergyOperation, decideEnergyOperation } from "../src/features/activities/records";
 import { checkUnifiedReview, checkReviewMaintenance } from "./record-review.browser.mjs";
 async function freePort() { const server = createServer(); server.listen(0, "127.0.0.1"); await once(server, "listening"); const port = (server.address() as { port: number }).port; await new Promise<void>(resolve => server.close(() => resolve())); return port; }
 const pg = new PGlite(), db = drizzle(pg, { schema }), port = await freePort(), dbPort = await freePort(), baseURL = `http://127.0.0.1:${port}`;
@@ -33,9 +36,9 @@ try {
   const page = await context.newPage(), errors: string[] = []; page.on("pageerror", (error: Error) => errors.push(error.message));
   for (const id of images) await page.route(`**/api/meal-images/${id}`, async (route: { fulfill(options: unknown): Promise<void> }) => route.fulfill({ status: 200, contentType: "image/png", body: png }));
   try {
-    if(process.env.FORMWARD_MEAL_ENTRY_ONLY==="1"){await checkMealEntry({baseURL,context,page,db,userId:owner.id,token:token.rawToken,today:new Date(Date.now()+8*3600000).toISOString().slice(0,10),engine:process.env.FORMWARD_EDITOR_BROWSER??"chromium"});}else{
+    if(process.env.FORMWARD_ENERGY_REVIEW_ONLY==="1"){await checkEnergyReview({baseURL,context,page,token:token.rawToken,engine:process.env.FORMWARD_EDITOR_BROWSER??"chromium",saveEnergy:async (actions: EnergyAction[])=>{const pending=await submitEnergyOperation(db,{userId:owner.id,origin:"manual"},{operationId:crypto.randomUUID(),actions});assert.equal(pending.canConfirm,true);await decideEnergyOperation(db,owner.id,pending.id,pending.revision,"confirm");}});}else if(process.env.FORMWARD_MEAL_ENTRY_ONLY==="1"){await checkMealEntry({baseURL,context,page,db,userId:owner.id,token:token.rawToken,today:new Date(Date.now()+8*3600000).toISOString().slice(0,10),engine:process.env.FORMWARD_EDITOR_BROWSER??"chromium"});}else{
     const check = process.env.FORMWARD_REVIEW_MAINTENANCE_ONLY === "1" ? checkReviewMaintenance : checkUnifiedReview;
-    await check({ baseURL, context, page, token: token.rawToken, images, date: new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) });
+    await check({ baseURL, context, page, token: token.rawToken, images, ...(process.env.FORMWARD_REVIEW_ARTIFACTS ? {artifacts:process.env.FORMWARD_REVIEW_ARTIFACTS} : {}), date: new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) });
 
     }
     assert.deepEqual(errors, []);
@@ -45,7 +48,7 @@ try {
 } catch (error) { await writeFile("/tmp/formward-records-server.log", logs);await writeFile("/tmp/formward-"+(process.env.FORMWARD_EDITOR_BROWSER??"chromium")+"-records-server.log",logs); throw error; }
 finally { await browser?.close(); if (child.exitCode === null) { process.kill(-child.pid!, "SIGTERM"); await once(child, "exit"); } await socket.stop(); await new Promise(resolve => setImmediate(resolve)); await pg.close(); }
 
-if(process.env.FORMWARD_MEAL_ENTRY_ONLY!=="1"&&process.env.FORMWARD_REVIEW_MAINTENANCE_ONLY!=="1"){
+if(process.env.FORMWARD_ENERGY_REVIEW_ONLY!=="1"&&process.env.FORMWARD_MEAL_ENTRY_ONLY!=="1"&&process.env.FORMWARD_REVIEW_MAINTENANCE_ONLY!=="1"){
  const entry=spawn(process.execPath,["--import","tsx","tests/records.browser.mts"],{env:{...process.env,FORMWARD_MEAL_ENTRY_ONLY:"1"},stdio:"inherit"});
  const [code]=await once(entry,"exit");assert.equal(code,0,"餐次编辑器视觉门槛失败");
 }

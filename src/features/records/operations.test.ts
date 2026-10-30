@@ -293,3 +293,75 @@ test("更改待确认总数后增加独立运动核对；每份餐项修改清�
  assert.equal(changed.rows[0].meal?.changes?.removed[0].name,"虚构被移除食物");
  assert.equal(Number(changed.rows[0].meal?.meal?.totals.values.caloriesKcal),300);
 });
+
+test("AI消耗确认按整批投影返回每天读数，运动单独修改也包含当天其他运动", async () => {
+  const { userId, identity } = await owner();
+  let initial = await submitRecordOperation(db, identity, input([
+    { key: "exercise", kind: "save_activity", date: "2024-10-30", name: "虚构羽毛球", calorieMode: "components", exerciseActiveKcal: "801", exerciseRestingKcal: "145", sourceSystem: "虚构手表" },
+  ]));
+  await reviewRecordOperation(db, userId, initial.id, { kind: "confirm", revision: initial.revision });
+  let review: RecordReviewView = await submitRecordOperation(db, identity, input([{ key: "day", kind: "save_energy_day", date: "2024-10-30", restingKcal: "2058", activeKcal: "1027" }]));
+  const exercise = review.rows.find(row => row.inclusionReview)!;
+  assert.ok(exercise);
+  assert.equal(exercise.energy?.coverageQuestions?.length, 1, "日记录提出的包含问题也在对应运动旁可回答");
+  review = await reviewRecordOperation(db, userId, review.id, { kind: "energy_inclusion", revision: review.revision, keys: [exercise.key], inclusion: "included" });
+  for (const row of review.rows) assert.equal(Number(row.energy!.day!.totalKcal), 3085);
+  review = await reviewRecordOperation(db, userId, review.id, { kind: "energy_inclusion", revision: review.revision, keys: [exercise.key], inclusion: "additional" });
+  for (const row of review.rows) assert.equal(Number(row.energy!.day!.totalKcal), 3886);
+  review = await reviewRecordOperation(db, userId, review.id, { kind: "energy_inclusion", revision: review.revision, keys: [exercise.key], inclusion: "included" });
+  await reviewRecordOperation(db, userId, review.id, { kind: "confirm", revision: review.revision });
+  const savedReview = await loadRecordReview(db, userId, review.id);
+  const activity = savedReview.rows.find(row => row.inclusionReview)!.energy!.after!;
+  assert.ok("name" in activity);
+  const update = await submitRecordOperation(db, identity, input([{ key: "update", kind: "save_activity", id: activity.id, version: activity.version, date: activity.date, name: activity.name, sourceSystem: "虚构新来源" }]));
+  assert.equal(update.canConfirm, true);
+  assert.ok(update.rows[0].energy?.day);
+  assert.equal(Number(update.rows[0].energy!.day!.totalKcal), 3085);
+  initial = await submitRecordOperation(db, identity, input([
+    { key: "auto", kind: "save_energy_day", date: "2024-10-29", activityMode: "activities", restingKcal: "2058" },
+    { key: "a", kind: "save_activity", date: "2024-10-29", name: "虚构甲", caloriesKcal: "801" },
+    { key: "b", kind: "save_activity", date: "2024-10-29", name: "虚构乙", caloriesKcal: "100" },
+  ]));
+  for (const row of initial.rows) assert.equal(Number(row.energy!.day!.totalKcal), 2959);
+  await reviewRecordOperation(db, userId, initial.id, { kind: "confirm", revision: initial.revision });
+  const saved = await loadRecordReview(db, userId, initial.id);
+  const existing = saved.rows.find(row => row.key === "a")!.energy!.after!;
+  assert.ok("name" in existing);
+  const onlyActivity = await submitRecordOperation(db, identity, input([{ key: "one", kind: "save_activity", id: existing.id, version: existing.version, date: existing.date, name: existing.name, caloriesKcal: "820" }]));
+  assert.equal(onlyActivity.canConfirm, true);
+  assert.equal(Number(onlyActivity.rows[0].energy!.day!.totalKcal), 2978);
+});
+
+test("旧自动运动核对预览阻止直接保存，刷新保留原分项并重新选择", async () => {
+  const { userId, identity } = await owner();
+  const seed = await submitRecordOperation(db, identity, input([{ key: "sport", kind: "save_activity", date: "2024-10-30", name: "虚构旧核对", calorieMode: "components", exerciseActiveKcal: "801.1234", exerciseRestingKcal: "145" }]));
+  await reviewRecordOperation(db, userId, seed.id, { kind: "confirm", revision: seed.revision });
+  const pending = await submitRecordOperation(db, identity, input([{ key: "day", kind: "save_energy_day", date: "2024-10-30", restingKcal: "2058", activeKcal: "1027" }]));
+  const [stored] = await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.id, pending.id));
+  const draft = structuredClone(stored.draft);
+  const target = draft.find(item => item.inclusionReview)!;
+  const before = pending.rows.find(row => row.inclusionReview)!.energy!.before!;
+  assert.ok("name" in before);
+  const oldAction = { kind: "save_activity" as const, id: before.id, version: before.version, date: before.date, name: before.name, caloriesKcal: before.caloriesKcal, durationMinutes: before.durationMinutes, completed: before.completed };
+  target.action = { ...oldAction, inclusion: "additional" };
+  target.originalInput = oldAction;
+  await db.update(schema.recordOperation).set({ draft }).where(eq(schema.recordOperation.id, pending.id));
+  const old = await loadRecordReview(db, userId, pending.id);
+  assert.equal(old.canConfirm, false);
+  assert.match(old.rows.find(row => row.inclusionReview)!.energy!.error!, /需要刷新预览/);
+  let refreshed = await reviewRecordOperation(db, userId, pending.id, { kind: "refresh", revision: old.revision });
+  const sport = refreshed.rows.find(row => row.inclusionReview)!;
+  assert.equal(sport.action.kind, "save_activity");
+  assert.ok(sport.energy?.after && "name" in sport.energy.after);
+  assert.equal(sport.energy.after.calorieMode, "components");
+  assert.equal(sport.energy.after.exerciseActiveKcal, "801.1234");
+  assert.equal(refreshed.canConfirm, false, "刷新后不能沿用旧的包含选择");
+  refreshed = await reviewRecordOperation(db, userId, pending.id, { kind: "energy_inclusion", revision: refreshed.revision, keys: [sport.key], inclusion: "included" });
+  assert.equal(refreshed.canConfirm, true);
+  await reviewRecordOperation(db, userId, pending.id, { kind: "confirm", revision: refreshed.revision });
+  const [saved] = await db.select().from(schema.activity).where(eq(schema.activity.userId, userId));
+  assert.equal(saved.calorieMode, "components");
+  assert.equal(saved.exerciseActiveKcal, "801.1234");
+  const [request] = await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.id, pending.id));
+  assert.deepEqual(request.payload, stored.payload, "原始AI请求不可改写");
+});

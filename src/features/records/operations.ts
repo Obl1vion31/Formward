@@ -13,7 +13,7 @@ import { type MealAction, type MealInput, type PreviewRow, type MealSnapshot } f
 import { category, isBody, isEnergy, recordInputSchema, recordItemSchema, type RecordAction, type RecordInput, type RecordItem, type RecordReviewAction, type RecordReviewView, type RecordRow } from "./model";
 
 import { planEnergyActions, readEnergySnapshot, submitEnergyOperation, getEnergyOperation, displayEnergyOperation, reviseEnergyOperation, decideEnergyOperation } from "../activities/records";
-import { energyBaseline, retiredEnergyAction, type ActivityRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyAction } from "../activities/model";
+import { energyBaseline, energyDays, retiredEnergyAction, type ActivityRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyAction } from "../activities/model";
 
 import { actionDate, summarizeRecordItems } from "./review-summary";
 
@@ -98,8 +98,23 @@ function planner(items: RecordItem[], operationId: string): MealPlanner {
   };
 }
 
+/** 旧自动核对项复制了总热量却没带分项方式；正式保存前必须刷新并重新核对。 */
+function legacyInclusionDraft(item: RecordItem) {
+  if (!item.inclusionReview || item.action.kind !== "save_activity" || item.originalInput.kind !== "save_activity") return false;
+  const { inclusion, ...current } = item.action;
+  const { inclusion: originalInclusion, ...original } = item.originalInput;
+  void inclusion; void originalInclusion;
+  return original.caloriesKcal !== undefined && original.calorieMode === undefined && digest(current) === digest(original);
+}
+
 /** 总数改变影响已有运动时，把这些运动列成独立审核项，不偷偷修改明细。 */
 async function expandEnergyRelations(db:Database,userId:string,items:RecordItem[]){
+ for (const item of items) if (legacyInclusionDraft(item) && item.action.kind === "save_activity") {
+   const action = item.action;
+   item.action = { kind: "save_activity", id: action.id, version: action.version, date: action.date, name: action.name };
+   item.checked = false;
+ }
+
  const entries=energyItems(items);
  if(!entries.some(item=>item.action.kind==="save_energy_day"))return;
  const snapshot=await readEnergySnapshot(db,userId);
@@ -108,7 +123,8 @@ async function expandEnergyRelations(db:Database,userId:string,items:RecordItem[
  for(const record of candidates){
   const stored=snapshot.activities.find(row=>row.id===record.id&&!row.deletedAt);
   if(!stored||items.some(item=>item.action.kind==="save_activity"&&item.action.id===stored.id))continue;
-  const action:Extract<EnergyAction,{kind:"save_activity"}>={kind:"save_activity",id:stored.id,version:stored.version,date:stored.date,name:stored.name,caloriesKcal:stored.caloriesKcal,durationMinutes:stored.durationMinutes,completed:stored.completed,sourceSystem:stored.sourceSystem,sourceRecordId:stored.sourceRecordId,sourceOccurredAt:stored.sourceOccurredAt,timezone:stored.timezone,sourceUnit:stored.sourceUnit};
+  // 仅请求核对包含关系；数值、分项方式、来源和原始精度由已有记录原样继承。
+  const action:Extract<EnergyAction,{kind:"save_activity"}>={kind:"save_activity",id:stored.id,version:stored.version,date:stored.date,name:stored.name};
   const key="inclusion-"+stored.id;
   if(items.some(item=>item.key===key))throw new ApiError(400,"invalid_input","项目key与运动核对项冲突，请更换key。");
   items.push({key,action,originalInput:action,excluded:false,checked:false,inclusionReview:true});
@@ -163,7 +179,15 @@ async function view(db: Database, row: Stored): Promise<RecordReviewView> {
       if (mealRow) mealRow.error = "AI不能删除或恢复整条记录，请取消这一项。";
       if (energyRow) energyRow.error = retiredEnergyAction(item.action.kind) ? "日常默认值和静息公式资料已停用，请取消这一项。" : "AI不能删除或恢复整条记录，请取消这一项。";
     }
-    return { ...item, persisted, ...(bodyRow ? { body: bodyRow } : {}), ...(mealRow ? { meal: { ...mealRow, before } } : {}), ...(energyRow ? { energy: energyRow } : {}), ...(duplicateMeals?.length ? { duplicateMeals } : {}) };
+    const energyDate = energyRow?.after && "date" in energyRow.after ? energyRow.after.date : actionDate(item.action);
+    const energyView = energyRow ? { ...energyRow, ...(energyDate ? { day: energyDays(energySnapshot, [], [energyDate])[0] } : {}) } : undefined;
+    if (energyView?.after && "name" in energyView.after) {
+      const activityId = energyView.after.id;
+      const questions = energy?.rows.flatMap(preview => preview.excluded ? [] : preview.coverageQuestions ?? []).filter(activity => activity.id === activityId) ?? [];
+      if (questions.length) energyView.coverageQuestions = questions;
+    }
+    if (energyView && legacyInclusionDraft(item) && !persisted && !item.excluded) energyView.error = "这份运动包含核对需要刷新预览，原运动数值将保留，请重新核对是否已包含。";
+    return { ...item, persisted, ...(bodyRow ? { body: bodyRow } : {}), ...(mealRow ? { meal: { ...mealRow, before } } : {}), ...(energyView ? { energy: energyView } : {}), ...(duplicateMeals?.length ? { duplicateMeals } : {}) };
   });
   const pending = rows.filter(item => !item.excluded && !item.persisted && item.body?.status !== "skipped");
   const needsUserInput = pending.flatMap(item => {

@@ -105,10 +105,10 @@ export async function checkMaintenance({baseURL,context,page,token,today,db,user
  await page.setViewportSize({width:320,height:560});await page.goto(photoMeal.confirmationUrl);await page.getByRole("button",{name:"确认保存",exact:true}).waitFor();
  const saveBox=await page.getByRole("button",{name:"确认保存",exact:true}).boundingBox();assert.ok(saveBox&&saveBox.y+saveBox.height<=560);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await screenshot("review-short-320");
  await page.getByRole("button",{name:"确认保存",exact:true}).click();await page.waitForURL(baseURL+"/dashboard");
- // Opposite entry order uses independent review rows and an explicit select-all choice.
+ // Opposite entry order uses independent review rows and a choice beside the affected exercise.
  const activityDate=shift(today,-61),first=await post([{key:"run",kind:"save_activity",date:activityDate,name:"虚构先录运动",caloriesKcal:"300"}]);await page.goto(first.confirmationUrl);await page.getByRole("button",{name:"确认保存",exact:true}).click();await page.waitForURL(baseURL+"/dashboard");
  const combined=await post([{key:"total",kind:"save_energy_day",date:activityDate,entryMode:"total",totalKcal:"600"}]);await page.goto(combined.confirmationUrl);
- assert.equal(await page.getByRole("button",{name:"确认保存",exact:true}).isDisabled(),true);await page.getByRole("button",{name:"运动全部已包含",exact:true}).click();
+ assert.equal(await page.getByRole("button",{name:"确认保存",exact:true}).isDisabled(),true);await page.getByRole("button",{name:"已包含，不再增加",exact:true}).click();
  await page.getByRole("button",{name:"确认保存",exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('button[class*="save"]')?.disabled);
  await screenshot("review-inclusion-320");await page.getByRole("button",{name:"确认保存",exact:true}).click();await page.waitForURL(baseURL+"/dashboard");
  const denied=await context.request.post(baseURL+"/api/v1/record-operations",{headers,data:{operationId:randomUUID(),items:[{key:"delete",kind:"delete_meal",id:randomUUID(),version:1}]}});assert.equal(denied.status(),403);

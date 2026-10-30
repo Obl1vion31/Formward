@@ -204,3 +204,11 @@ FORMWARD_FRAME_STRESS_ONLY=1配合FORMWARD_FRAME_ONLY=1运行长整数专项；�
 
 
 FORMWARD_FRAME_TOUCH_ONLY=1配合FORMWARD_FRAME_ONLY=1检查四页390×640及844×390的hasTouch/isMobile浏览器上下文，截图和touch-report.json独立保存；Chromium/WebKit均运行，不等同真实iOS或系统软键盘实测。
+
+## AI消耗确认的事实与视觉
+
+生产构建后，FORMWARD_ENERGY_REVIEW_ONLY=1 pnpm test:records-browser使用隔离PGlite与虚构账号，按日期检查日消耗3085、运动946=801+145、已包含不增加、额外只加801到3886、纯运动累计2859、未知与0、多日、同值不同精度、真正热量修改、分组取消/Escape/恢复、并行草稿冲突、只改草稿和最终重复保存保护。FORMWARD_EDITOR_BROWSER=webkit切换引擎，FORMWARD_ENERGY_REVIEW_ARTIFACTS指定私有截图目录。
+
+截图覆盖320／390／430px手机、矮屏、触屏横屏及1100／1440px桌面；检查主次字号、数字单位完整、长备注折行、底栏遮挡和单项选择。另运行共用餐次填写及原身体／饮食AI确认回归。真实iOS及系统软键盘需实机，模拟不计作通过。energy-review-model.test.ts覆盖十进制语义比较，operations.test.ts覆盖服务端整日投影、核对保留原分项／精度及旧草稿刷新保护。
+
+FORMWARD_REVIEW_FACTS_ONLY=1 pnpm test:records-browser只验混合身体／饮食／消耗确认与保存、取消恢复和并行窗口冲突，再自动执行完整共用餐次填写专项；不运行该脚本中未改动的旧图表流程。FORMWARD_REVIEW_ARTIFACTS与FORMWARD_MEAL_ENTRY_ARTIFACTS分别保存证据，两引擎分目录运行。消耗专项截图在aria-busy结束、字体与布局稳定后保存，矮屏另检查滚到底部运动操作不被保存栏遮挡；WebKit全页跳转前等待预加载结束，不过滤页面异常。

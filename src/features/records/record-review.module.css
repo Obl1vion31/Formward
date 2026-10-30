@@ -109,3 +109,6 @@
 .energyTotal { display:flex; gap:16px; align-items:baseline; color:#b4afa5; }.energyTotal strong { color:#f0e9dd; font-weight:400; font-size:24px; }
 
 .exerciseSummary{margin:14px 0;color:#b8b0a2;font-size:13px;line-height:1.7}.exerciseSummary>strong{display:block;color:#f0e9dd;font-size:24px;font-weight:400}.exerciseSummary p{margin:6px 0;overflow-wrap:anywhere}
+
+.footerScope{font-size:12px;color:var(--muted);line-height:1.5;overflow-wrap:anywhere;max-width:38em}
+@media(max-width:700px),(hover:none) and (pointer:coarse){.footerScope{font-size:11px;max-width:23em}}
