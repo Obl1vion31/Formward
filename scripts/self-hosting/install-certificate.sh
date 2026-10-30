@@ -8,6 +8,7 @@ for host in formward.top www.formward.top cn.formward.top origin.formward.top; d
  openssl x509 -in "$chain" -noout -checkhost "$host" >/dev/null
 done
 openssl x509 -in "$chain" -noout -checkend 86400 >/dev/null
+openssl verify -purpose sslserver -untrusted "$chain" "$chain" >/dev/null
 [[ $(openssl x509 -in "$chain" -pubkey -noout | openssl pkey -pubin -outform DER | sha256sum) == $(openssl pkey -in "$key" -pubout -outform DER | sha256sum) ]] || { echo '证书与私钥不匹配。' >&2; exit 1; }
 root=/etc/formward/tls
 install -d -o root -g root -m 0700 "$root/versions"

@@ -4,7 +4,7 @@ export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const openAiFileSchema = z.object({ download_url: z.string().url(), file_id: z.string().min(1).max(200), mime_type: z.string().optional(), file_name: z.string().max(255).optional() }).strict();
 export const imageImportSchema = z.object({ files: z.array(openAiFileSchema).min(1).max(8), processingRegion: z.enum(["cn","global"]).optional() }).strict();
-export type ImageResult = { id: string; mimeType: string; fileName: string; repeated: boolean };
+export type ImageResult = { id: string; mimeType: string; fileName: string; repeated: boolean; storageProvider?: "blob"|"cos" };
 export type ImageStage = "file_input" | "download" | "validation" | "storage" | "registration";
 
 // 不输出原图地址、签名参数、文件名称、令牌或健康内容。

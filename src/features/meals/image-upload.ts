@@ -30,7 +30,7 @@ export async function prepareImageUpload(db: Database, userId: string, input: un
     const owner = await lockActiveAccount(tx, userId), proof = webSessionContext.getStore();
     if (identity) await requireActiveAiToken(tx, identity, true, "meals");
     const [prior] = await tx.select().from(mealImage).where(and(eq(mealImage.userId, userId), eq(mealImage.sha256, parsed.data.sha256)));
-    if (prior && !download) return { image: { id: prior.id, mimeType: prior.mimeType, fileName: prior.fileName, repeated: true, storageProvider: prior.storageProvider } };
+    if (prior && !download) return { image: { id: prior.id, mimeType: prior.mimeType, fileName: prior.fileName, repeated: true, storageProvider: prior.storageProvider }, notice: prior.storageProvider === "blob" && region === "cn" ? "已复用国际存储的原附件，国内读取可能受网络影响；本次没有复制到国内存储。" : "已复用已有原附件，没有重新上传或复制。" };
     const id = randomUUID(), payload: ImageTicket = { ...parsed.data, fileName: cleanImageName(parsed.data.fileName), v: 2, id, userId, pathname: "meal-tmp-v2/" + userId + "/" + id, expiresAt: Date.now() + 600000, provider: region === "cn" ? "cos" : "blob", location: region === "cn" ? cosLocation() : process.env.FORMWARD_BLOB_LOCATION ?? "legacy", region,
       proof: identity ? { kind: "ai", accessVersion: owner.accessVersion, ...(identity.tokenId ? { tokenId: identity.tokenId } : { oauthConnectionId: identity.oauthConnectionId }) } : proof ? { kind: "session", sessionId: proof.sessionId, accessVersion: owner.accessVersion } : { kind: "maintenance", accessVersion: owner.accessVersion },
       ...(download ? { downloadUrl: download.url, sourceFileId: download.fileId } : {}) };

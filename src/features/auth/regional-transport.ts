@@ -40,6 +40,10 @@ export async function forwardRegionalRequest(request: Request, fetcher: typeof f
   headers.set("accept-encoding","identity");
   const response = await fetcher(target, { method: request.method, headers, body: request.body,
     ...(request.body ? { duplex: "half" } : {}), redirect: "manual", cache: "no-store", signal: request.signal } as RequestInit);
+  const immutable = request.method === "GET" && /^\/_next\/static\/[a-zA-Z0-9/_.,~-]+$/.test(url.pathname) && response.status === 200 && !response.headers.has("set-cookie");
+  return regionalResponse(response,immutable);
+}
+export function regionalResponse(response:Response,immutable=false){
   const returned = cleanForwardHeaders(response.headers);
   returned.delete("content-encoding"); returned.delete("content-length");
   returned.delete("set-cookie");
@@ -47,7 +51,6 @@ export async function forwardRegionalRequest(request: Request, fetcher: typeof f
     if (/;\s*domain=/i.test(cookie)) throw new Error("拒绝共享域 Cookie。");
     returned.append("set-cookie",cookie);
   }
-  const immutable = request.method === "GET" && /^\/_next\/static\/[a-zA-Z0-9/_.,~-]+$/.test(url.pathname) && response.status === 200 && !response.headers.has("set-cookie");
   returned.set("cache-control", immutable ? "public, max-age=31536000, immutable" : "private, no-store");
   returned.set("x-formward-protocol", REGIONAL_PROTOCOL);
   return new Response(response.body,{ status: response.status, headers: returned });

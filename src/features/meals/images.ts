@@ -23,12 +23,12 @@ export async function saveMealImage(db: Database, userId: string, bytes: Uint8Ar
       await requireActiveAiToken(tx,metadata.identity,true,"meals");
     }
     const [prior]=await tx.select().from(mealImage).where(and(eq(mealImage.userId,userId),eq(mealImage.sha256,sha256)));
-    if(prior)return {id:prior.id,mimeType:prior.mimeType,fileName:prior.fileName,repeated:true};
+    if(prior)return {id:prior.id,mimeType:prior.mimeType,fileName:prior.fileName,repeated:true,storageProvider:prior.storageProvider};
     const id=randomUUID(),pathname="meal-formal-v2/"+userId+"/"+id,fileName=cleanImageName(metadata.fileName);
     try{await (store??storage!.write)(pathname,bytes,mimeType);}catch{throw new ApiError(503,"image_unavailable","私有照片保存暂时失败，请重试。");}
     // 不确定的 COMMIT 失败不能即时删除正式文件；延期核对数据库后才清理孤立对象。
     await tx.insert(mealImage).values({id,userId,pathname,sha256,mimeType,byteSize:bytes.length,fileName,source:metadata.source,sourceFileId:metadata.sourceFileId??null,createdBy:metadata.actorId,storageProvider:storage?.ref.storageProvider??"blob",storageLocation:storage?.ref.storageLocation??"legacy"});
-    return {id,mimeType,fileName,repeated:false};
+    return {id,mimeType,fileName,repeated:false,storageProvider:storage?.ref.storageProvider??"blob"};
   }); } catch(error) { if(error instanceof ApiError) throw error; throw new ApiError(503,"image_unavailable","照片登记未完成，请重试。"); }
 }
 export async function importMealImages(db: Database, identity: AiIdentity, input: unknown, dependencies: { download?: typeof downloadMealImage; save?: typeof saveMealImage } = {}) {
@@ -68,7 +68,7 @@ export async function importMealImages(db: Database, identity: AiIdentity, input
   images.sort((a, b) => a.index - b.index); failures.sort((a, b) => a.index - b.index);
   const status = !failures.length ? "complete" : images.length ? "partial" : "failed";
   const rules = (failures.length ? "部分或全部原图未保存。保留成功附件ID，仅重试失败照片；说明具体错误码。image_url_expired须取得新下载地址，不能反复使用旧临时链接。餐次提交expectedImageCount，缺图由用户在网页补传或先保存文字，不声称原图已保存。" : "原图已私有保存，正式餐次／食材尚未保存。使用返回id作为imageIds并提交expectedImageCount。仅图片先核对日期、餐次、身份、实际食用量和额外油酱，再网页登录确认。") + "成功照片仍须放入对应餐次imageIds并提交餐次预览；已有餐次先查询id/version后更新，保留原内容。预览已含照片时说明待网页确认保存，不说需要另行关联；用户确认后查询get_meal_operation或餐次再报告当前关联状态。";
-  return { images, failures, status, expectedImageCount: new Set(images.map(image=>image.id)).size + failures.length, requestId, rules };
+  return { images, failures, status, ...((parsedInput.processingRegion==="cn"&&images.some(image=>image.storageProvider==="blob"))?{storageNotice:"已复用国际存储原附件，本次没有复制到COS，国内读取可能受网络影响。"}:{}), expectedImageCount: new Set(images.map(image=>image.id)).size + failures.length, requestId, rules };
 }
 export async function ownedMealImage(db: Pick<Database, "select">, userId: string, id: string) {
   const [image] = await db.select().from(mealImage).where(and(eq(mealImage.userId, userId), eq(mealImage.id, id)));

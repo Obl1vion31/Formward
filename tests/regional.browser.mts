@@ -11,11 +11,20 @@ const browser=await playwright[engine].launch({headless:true}),artifacts=resolve
 const errors:string[]=[],checks:string[]=[],screenshots:string[]=[];
 let captureFailure:(()=>Promise<void>)|undefined;
 try{
- const context=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:1440,height:900},reducedMotion:"reduce"});
+ const context=await browser.newContext({ignoreHTTPSErrors:true,timezoneId:"Asia/Shanghai",viewport:{width:1440,height:900},reducedMotion:"reduce",extraHTTPHeaders:{"X-Test-Client-IP":"203.0.113.10"}});
  const page=await context.newPage();captureFailure=async()=>{await page.screenshot({path:resolve(artifacts,"failure.png")});await writeFile(resolve(artifacts,"failure.html"),await page.content());};page.on("pageerror",(error:Error)=>errors.push(error.message));
  type Context=typeof context;
  async function login(target:Context,origin:string,credentials=fixture.person){
   const response=await target.request.post(origin+"/api/auth/sign-in/email",{headers:{Origin:origin},data:credentials});assert.equal(response.status(),200,await response.text());
+ }
+ async function navigate(url:string){
+  const target=new URL(url),current=new URL(page.url());
+  if(current.origin===target.origin&&current.pathname.startsWith("/dashboard")&&target.pathname.startsWith("/dashboard")&&current.pathname!==target.pathname){
+   const link=page.locator('a[href="'+target.pathname+'"]:visible').first();
+   if(await link.count()){await link.click();await page.waitForURL(url);return;}
+  }
+  if(page.url()!=="about:blank")await page.waitForLoadState("networkidle");
+  await page.goto(url);
  }
  async function shot(name:string){await page.evaluate(()=>document.fonts.ready);const path=resolve(artifacts,name+".png");await page.screenshot({path});screenshots.push(path);}
  await page.goto(fixture.selector);await page.getByRole("heading",{name:"选择访问地区"}).waitFor();
@@ -31,26 +40,26 @@ try{
  for(const origin of [fixture.cn,fixture.global]){
   await page.setViewportSize({width:1440,height:900});
   for(const path of ["/dashboard","/dashboard/meals","/dashboard/energy","/dashboard/measurements"]){
-   await page.goto(origin+path);await page.locator("main").waitFor();assert.equal(new URL(page.url()).pathname,path);
+   await navigate(origin+path);await page.locator("main").waitFor();assert.equal(new URL(page.url()).pathname,path);
    const name=path.split("/").pop()||"overview";await shot((origin===fixture.cn?"cn":"global")+"-"+name+"-desktop");
   }
-  await page.goto(origin+"/dashboard/ai");assert.equal(await page.getByLabel("MCP 服务器地址").inputValue(),fixture.global+"/api/mcp");
+  await navigate(origin+"/dashboard/ai");assert.equal(await page.getByLabel("MCP 服务器地址").inputValue(),fixture.global+"/api/mcp");
  }
  for(const [width,height]of [[320,560],[390,640],[430,780],[844,390]]){
   await page.setViewportSize({width,height});
-  for(const path of ["/dashboard","/dashboard/meals","/dashboard/energy","/dashboard/measurements"]){await page.goto(fixture.cn+path);await page.locator("main").waitFor();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await shot("cn-"+path.split("/").pop()+"-"+width+"x"+height);}
+  for(const path of ["/dashboard","/dashboard/meals","/dashboard/energy","/dashboard/measurements"]){await navigate(fixture.cn+path);await page.locator("main").waitFor();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await shot("cn-"+path.split("/").pop()+"-"+width+"x"+height);}
  }
  checks.push("两区四业务页面与固定MCP地址、320／390／430手机及触屏横屏截图");
  const call=await context.request.post(fixture.global+"/api/mcp",{headers:{Authorization:"Bearer "+fixture.oldTokens.access_token,Accept:"application/json, text/event-stream"},data:{jsonrpc:"2.0",id:1,method:"tools/call",params:{name:"get_profile",arguments:{}}}});
  assert.equal(call.status(),200,await call.text());assert.ok((await call.text()).includes(fixture.personId));checks.push("架构切换前签发的OAuth访问令牌通过production入口和内部JWKS验证");
- const refreshed=await context.request.post(fixture.global+"/api/auth/oauth2/token",{form:{grant_type:"refresh_token",client_id:fixture.clientId,refresh_token:fixture.oldTokens.refresh_token,resource:fixture.global+"/api/mcp"}});
+ const refreshed=await context.request.post(fixture.global+"/api/auth/oauth2/token",{headers:{Origin:fixture.global},form:{grant_type:"refresh_token",client_id:fixture.clientId,refresh_token:fixture.oldTokens.refresh_token,resource:fixture.global+"/api/mcp"}});
  assert.equal(refreshed.status(),200,await refreshed.text());const currentTokens=await refreshed.json();assert.ok(currentTokens.access_token);checks.push("原OAuth刷新令牌经真实国际网关轮换，issuer与resource保持");
- const ownerContext=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:390,height:640}});
+ const ownerContext=await browser.newContext({ignoreHTTPSErrors:true,timezoneId:"Asia/Shanghai",viewport:{width:390,height:640},extraHTTPHeaders:{"X-Test-Client-IP":"203.0.113.20"}});
  await login(ownerContext,fixture.cn,fixture.owner);await login(ownerContext,fixture.global,fixture.owner);
  const ownerPage=await ownerContext.newPage();ownerPage.on("pageerror",(error:Error)=>errors.push(error.message));await ownerPage.goto(fixture.cn+"/admin");await ownerPage.getByRole("heading",{name:"输入密码以继续管理"}).waitFor();
  await ownerPage.getByLabel("当前密码",{exact:true}).fill(fixture.owner.password);await ownerPage.getByRole("button",{name:"验证并进入"}).click();await ownerPage.getByRole("textbox",{name:"搜索登录邮箱"}).waitFor();
  await ownerPage.getByRole("textbox",{name:"搜索登录邮箱"}).fill("regional");await ownerPage.getByRole("button",{name:"搜索",exact:true}).click();
- await ownerPage.goto(fixture.global+"/admin");await ownerPage.getByRole("heading",{name:"输入密码以继续管理"}).waitFor();checks.push("owner国内再次验密不解锁国际会话");
+ await ownerPage.waitForLoadState("networkidle");await ownerPage.goto(fixture.global+"/admin");await ownerPage.getByRole("heading",{name:"输入密码以继续管理"}).waitFor();checks.push("owner国内再次验密不解锁国际会话");
  const [ownerSession]=await fixture.db.select().from(session).where(eq(session.userId,fixture.ownerId)).orderBy(session.createdAt);
  assert.ok(ownerSession);
  const proof={userId:fixture.ownerId,sessionId:ownerSession.id,accessVersion:ownerSession.accessVersion};
@@ -61,11 +70,11 @@ try{
  await manageAccount(fixture.db,proof,fixture.personId,"restore","",crypto.randomUUID());
  for(const origin of [fixture.cn,fixture.global]){const result=await context.request.get(origin+"/api/auth/get-session");assert.equal(await result.json(),null);}
  checks.push("停用撤销两区网页和旧OAuth；恢复不复活原会话");
- await login(context,fixture.cn);await page.goto(fixture.cn+"/dashboard/account");await page.getByRole("heading",{name:"账号设置",exact:true}).waitFor();
+ await login(context,fixture.cn);await navigate(fixture.cn+"/dashboard/account");await page.getByRole("heading",{name:"账号设置",exact:true}).waitFor();
  await page.getByLabel("当前密码",{exact:true}).fill(fixture.person.password);await page.getByLabel("新密码",{exact:true}).fill("fictional-new-regional-password");await page.getByLabel("确认新密码",{exact:true}).fill("fictional-new-regional-password");
  await shot("account-before-password-change");await page.getByRole("button",{name:"修改密码",exact:true}).click();
  const dialog=page.getByRole("dialog");await dialog.waitFor();await shot("account-password-confirm");await dialog.getByRole("button",{name:/修改.*退出|修改.*登录|确认修改/}).click();await page.waitForURL(fixture.cn+"/",{timeout:20000});
- const failedOld=await context.request.post(fixture.global+"/api/auth/sign-in/email",{headers:{Origin:fixture.global},data:fixture.person});assert.ok(failedOld.status()>=400);
+ const failedOld=await context.request.post(fixture.global+"/api/auth/sign-in/email",{headers:{Origin:fixture.global},data:fixture.person});assert.equal(failedOld.status(),401,await failedOld.text());
  await login(context,fixture.global,{...fixture.person,password:"fictional-new-regional-password"});checks.push("国内Server Action修改密码后，国际旧密码失效、新密码可登录");
  assert.deepEqual(errors,[]);await writeFile(resolve(artifacts,"report.json"),JSON.stringify({engine,checks,screenshots,errors,notTested:["真实COS","公网跨境网络","真实iOS软键盘","正式证书续期"]},null,2));console.log(JSON.stringify({engine,checks,screenshotCount:screenshots.length}));
  await ownerContext.close();await context.close();

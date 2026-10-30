@@ -1,5 +1,5 @@
 import { fetchClientMetadataResource } from "@better-auth/cimd/node";
-import { cleanForwardHeaders, serviceHeaders } from "./regional-transport";
+import { cleanForwardHeaders, serviceHeaders, regionalResponse } from "./regional-transport";
 import { regionConfig } from "./regions";
 import type { OAuthEnvelope } from "./oauth-preflight";
 export async function gatewayOAuthRequest(request:Request,fetcher:typeof fetch=fetch) {
@@ -12,7 +12,7 @@ export async function gatewayOAuthRequest(request:Request,fetcher:typeof fetch=f
   }
   for(let round=0;round<(url.pathname.includes("/oauth2/")?2:0);round++){
     const response=await call("/api/internal/oauth-preflight");
-    if(!response.ok)return response;
+    if(!response.ok)return regionalResponse(response);
     const needed=await response.json() as {url:string;maxBytes:number}[];
     for(const item of needed){
       if(envelope.materials.some(m=>m.url===item.url))continue;
@@ -24,5 +24,5 @@ export async function gatewayOAuthRequest(request:Request,fetcher:typeof fetch=f
     }
   }
   const response=await call("/api/internal/oauth-execute");
-  response.headers.set("Cache-Control","private, no-store");return response;
+  return regionalResponse(response);
 }

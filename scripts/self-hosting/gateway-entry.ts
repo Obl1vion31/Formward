@@ -6,6 +6,7 @@ export default async function handler(req:IncomingMessage,res:ServerResponse){
  const abort=new AbortController();req.once("aborted",()=>abort.abort());res.once("close",()=>{if(!res.writableEnded)abort.abort();});
  try{
   const headers=new Headers();for(let i=0;i<req.rawHeaders.length;i+=2)headers.append(req.rawHeaders[i],req.rawHeaders[i+1]);
+  if(process.env.VERCEL!=="1")headers.set("x-vercel-forwarded-for",req.socket.remoteAddress??"");
   const url=(process.env.FORMWARD_GATEWAY_SCHEME??"https")+"://"+headers.get("host")+(req.url??"/");
   const request=new Request(url,{method:req.method,headers,signal:abort.signal,...(!["GET","HEAD"].includes(req.method??"GET")?{body:Readable.toWeb(req),duplex:"half"}:{})} as RequestInit);
   const response=await handleGatewayRequest(request);

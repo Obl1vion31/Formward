@@ -19,6 +19,7 @@ async function uploadRequest(body: unknown) {
 }
 export function PhotoFields({ ids, change, busy, onBusy, onError, expectedCount = 0, onExpected }: { ids: string[]; change: (ids: string[]) => void; busy: boolean; onBusy: (active: boolean) => void; onError: (error: string) => void; expectedCount?: number; onExpected?: (count: number) => void }) {
   const input = useRef<HTMLInputElement>(null), guard = useRef(false), remaining = useRef<File[]>([]);
+  const [notice,setNotice]=useState("");
   const [error, setError] = useState(""), [uploading, setUploading] = useState(false), [progress, setProgress] = useState("");
   usePageLoading({ active: uploading, label: progress || "正在保存原图…" });
   async function upload(files: File[]) {
@@ -36,7 +37,7 @@ export function PhotoFields({ ids, change, busy, onBusy, onError, expectedCount 
           const hash = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
           const sha256 = [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, "0")).join("");
           const prepared = await uploadRequest({ step: "prepare", file: { fileName: file.name, size: file.size, mimeType: file.type, sha256 } });
-          let image = prepared.image;
+          let image = prepared.image; if (prepared.notice) setNotice(prepared.notice);
           if (!image) {
             if (prepared.provider === "cos") {
               const signed = await uploadRequest({ type: "blob.generate-presigned-url", payload: { pathname: prepared.pathname, clientPayload: prepared.ticket } });
@@ -63,6 +64,7 @@ export function PhotoFields({ ids, change, busy, onBusy, onError, expectedCount 
   }
   return <div className={styles.photoFields}>
     <label>原始照片（最多8张，每张20 MiB）<input ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy || uploading} onChange={e => { remaining.current = []; void upload(Array.from(e.target.files ?? [])); }} /></label>
+    {notice && <p role="status" className={styles.hint}>{notice}</p>}
     {progress && <p role="status" className={styles.hint}>{progress}</p>}<ImageGallery ids={ids} />
     {ids.map((id, i) => <button type="button" key={id} disabled={busy || uploading} onClick={() => change(ids.filter(n => n !== id))}>移除照片 {i + 1}</button>)}
     {error && <><p role="alert" className={styles.error}>{error}</p><button type="button" disabled={busy || uploading} onClick={() => void upload(remaining.current)}>重试未完成照片</button><button type="button" disabled={busy || uploading} onClick={() => { setError(""); onError(""); remaining.current = []; if (input.current) input.current.value = ""; }}>稍后补传</button></>}

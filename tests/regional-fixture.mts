@@ -17,6 +17,9 @@ import { initializeAccountOwner } from "../src/features/auth/account-management"
 import { createAiToken,authenticateAi } from "../src/features/auth/ai-tokens";
 import { submitRecordOperation,reviewRecordOperation } from "../src/features/records/operations";
 import { serviceHeaders } from "../src/features/auth/regional-transport";
+import {meal} from "../src/db/schema";
+import {eq} from "drizzle-orm";
+import {readMealDayViews,setMealDayStatus} from "../src/features/meals/day-status";
 import { OAUTH_SCOPES } from "../src/features/auth/oauth-connections";
 
 export async function regionalFixture(options:{trustedOrigin?:string}={}) {
@@ -45,21 +48,25 @@ export async function regionalFixture(options:{trustedOrigin?:string}={}) {
  const code=new URL((await consent.json()).url).searchParams.get("code")!;
  const exchange=await auth.handler(new Request(global+"/api/auth/oauth2/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"authorization_code",client_id:clientId,code,code_verifier:verifier,redirect_uri:"https://example.com/callback",resource:global+"/api/mcp"})}));assert.equal(exchange.status,200);const oldTokens=await exchange.json();
  const manual=await createAiToken(db,personId,"虚构预览授权","write"),identity=await authenticateAi(db,"Bearer "+manual.rawToken,true);
+ const date=new Date(Date.now()-86400000).toLocaleDateString("sv-SE",{timeZone:"Asia/Shanghai"}),today=new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Shanghai"});
  const preview=await submitRecordOperation(db,identity,{operationId:randomUUID(),items:[
-  {key:"body",kind:"save_record",date:"2026-01-02",period:"evening",weightKg:"70.20",bodyFatPercent:"18.50",deviceLabel:"虚构体脂秤",timezone:"+08:00"},
-  {key:"meal",kind:"save_meal",date:"2026-01-02",mealType:"lunch",timezone:"+08:00",items:[{kind:"food",name:"虚构午餐",unit:"份",quantity:"1",nutritionBasis:"consumed_total",nutrition:{caloriesKcal:"520",proteinG:"35",carbsG:"60",fatG:"16"},sourceKind:"estimated"}]},
-  {key:"energy",kind:"save_energy_day",date:"2026-01-02",entryMode:"total",totalKcal:"2150",timezone:"+08:00"}
+  {key:"morning",kind:"save_record",date:today,period:"daytime",fasting:true,weightKg:"70.00",bodyFatPercent:"18.40",deviceLabel:"虚构体脂秤",timezone:"+08:00"},
+  {key:"body",kind:"save_record",date,period:"evening",weightKg:"70.20",bodyFatPercent:"18.50",deviceLabel:"虚构体脂秤",timezone:"+08:00"},
+  {key:"meal",kind:"save_meal",date,mealType:"lunch",timezone:"+08:00",items:[{kind:"food",name:"虚构午餐",unit:"份",quantity:"1",nutritionBasis:"consumed_total",nutrition:{caloriesKcal:"520",proteinG:"35",carbsG:"60",fatG:"16"},sourceKind:"estimated"}]},
+  {key:"energy",kind:"save_energy_day",date,entryMode:"total",totalKcal:"2150",timezone:"+08:00"}
  ]});
  await reviewRecordOperation(db,personId,preview.id,{kind:"confirm",revision:preview.revision});
+ const meals=await db.select().from(meal).where(eq(meal.userId,personId)),day=(await readMealDayViews(db,personId,meals)).get(date)!;
+ await setMealDayStatus(db,personId,{operationId:randomUUID(),date,status:"complete",version:day.version,contentDigest:day.contentDigest});
  const key=join(folder,"localhost-key.pem"),cert=join(folder,"localhost-cert.pem");
  const generated=spawnSync("openssl",["req","-x509","-newkey","rsa:2048","-nodes","-days","2","-keyout",key,"-out",cert,"-subj","/CN=localhost","-addext","subjectAltName=DNS:localhost,IP:127.0.0.1","-addext","basicConstraints=critical,CA:TRUE"],{stdio:"ignore"});assert.equal(generated.status,0);
- const env:NodeJS.ProcessEnv={PATH:process.env.PATH,HOME:process.env.HOME,NODE_ENV:"production",NEXT_TELEMETRY_DISABLED:"1",NODE_EXTRA_CA_CERTS:cert,DATABASE_URL:"postgresql://postgres:fictional-browser-postgres@127.0.0.1:"+pgPort+"/formward_regional_browser?max=6",BETTER_AUTH_URL:global,BETTER_AUTH_SECRET:authSecret,FORMWARD_REGIONAL:"1",FORMWARD_CN_ORIGIN:cn,FORMWARD_GLOBAL_ORIGIN:global,FORMWARD_SELECTOR_ORIGIN:selector,FORMWARD_ORIGIN_URL:transport,FORMWARD_GATEWAY_SECRET:gatewaySecret,FORMWARD_IMAGE_SECRET:"fictional-production-image-more-than-32-characters",FORMWARD_INTERNAL_JWKS_URL:transport+"/api/auth/jwks",FORMWARD_IMAGE_WORKER_URL:global,FORMWARD_IMAGE_REGION:"cn",FORMWARD_READINESS_SECRET:"fictional-readiness-more-than-32-characters",HOSTNAME:"127.0.0.1",PORT:String(appPort)};
+ const env:NodeJS.ProcessEnv={PATH:process.env.PATH,HOME:process.env.HOME,NODE_ENV:"production",NEXT_TELEMETRY_DISABLED:"1",NODE_EXTRA_CA_CERTS:cert,DATABASE_URL:"postgresql://postgres:fictional-browser-postgres@127.0.0.1:"+pgPort+"/formward_regional_browser?max=6",BETTER_AUTH_URL:global,BETTER_AUTH_SECRET:authSecret,FORMWARD_REGIONAL:"1",FORMWARD_TIMEZONE:"Asia/Shanghai",FORMWARD_ENVIRONMENT:"test",FORMWARD_EXPECTED_DATABASE:"formward_regional_browser",FORMWARD_CN_ORIGIN:cn,FORMWARD_GLOBAL_ORIGIN:global,FORMWARD_SELECTOR_ORIGIN:selector,FORMWARD_ORIGIN_URL:transport,FORMWARD_GATEWAY_SECRET:gatewaySecret,FORMWARD_IMAGE_SECRET:"fictional-production-image-more-than-32-characters",FORMWARD_INTERNAL_JWKS_URL:transport+"/api/auth/jwks",FORMWARD_IMAGE_WORKER_URL:global,FORMWARD_IMAGE_REGION:"cn",FORMWARD_READINESS_SECRET:"fictional-readiness-more-than-32-characters",HOSTNAME:"127.0.0.1",PORT:String(appPort)};
  Object.assign(process.env,Object.fromEntries(Object.entries(env).filter(([key])=>key.startsWith("FORMWARD_")||key==="BETTER_AUTH_URL")));
  const child:ChildProcess=spawn(process.execPath,[join(standalone,"server.js")],{cwd:standalone,env,stdio:["ignore","pipe","pipe"]});
  let serverLog="";child.stdout?.on("data",v=>serverLog+=v);child.stderr?.on("data",v=>serverLog+=v);
  const tls={key:await readFile(key),cert:await readFile(cert)};
- function proxy(req:import("node:http").IncomingMessage,res:import("node:http").ServerResponse){const upstream=httpRequest({hostname:"127.0.0.1",port:appPort,path:req.url,method:req.method,headers:{...req.headers,"x-real-ip":"127.0.0.1"}},response=>{res.writeHead(response.statusCode??502,response.headers);response.pipe(res);});upstream.on("error",()=>{res.statusCode=503;res.end();});req.pipe(upstream);}
- const gateway=(await import(pathToFileURL(gatewayFile).href)).default;
+ function proxy(req:import("node:http").IncomingMessage,res:import("node:http").ServerResponse){const upstream=httpRequest({hostname:"127.0.0.1",port:appPort,path:req.url,method:req.method,headers:{...req.headers,"x-real-ip":String(req.headers["x-test-client-ip"]??"127.0.0.1")}},response=>{res.writeHead(response.statusCode??502,response.headers);response.pipe(res);});upstream.on("error",()=>{res.statusCode=503;res.end();});req.pipe(upstream);}
+ const gateway=(await import(process.env.FORMWARD_TEST_GATEWAY_SOURCE==="1" ? "../scripts/self-hosting/gateway-entry.js" : pathToFileURL(gatewayFile).href)).default;
  const servers=[tlsServer(tls,proxy),tlsServer(tls,gateway),tlsServer(tls,proxy)];
  await Promise.all(servers.map((server,index)=>new Promise<void>(resolve=>server.listen([cnPort,globalPort,rootPort][index],"127.0.0.1",resolve))));
  try { for(let i=0;i<100;i++){try{const response=await fetch(transport,{headers:serviceHeaders("GET","/",global)});if(response.status===200)break;}catch{}if(i===99)throw new Error("区域production服务未启动："+serverLog.slice(-1500));await new Promise(r=>setTimeout(r,200));}

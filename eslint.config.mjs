@@ -7,5 +7,5 @@ export default defineConfig([
   ...nextVitals,
   ...nextTs,
   // 构建产物和自动生成的类型入口无需人工检查，实际源码仍会经过 pnpm lint。
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+  globalIgnores([".codex/**", ".vercel/**", ".next/**", "out/**", "build/**", "next-env.d.ts"]),
 ]);

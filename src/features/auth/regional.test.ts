@@ -4,6 +4,19 @@ import { serviceHeaders,verifyService,forwardRegionalRequest } from "./regional-
 import { withOAuthMaterials,oauthMetadataFetch } from "./oauth-network";
 import { proxy } from "../../proxy";
 import { NextRequest } from "next/server";
+
+test("真实HTTP fetch响应不可变，网关复制解压流与多条Cookie后仍可返回",async()=>{
+ const {createServer}=await import("node:http"),{gzipSync}=await import("node:zlib");
+ const server=createServer((_request,response)=>{response.writeHead(200,{"Content-Encoding":"gzip","Set-Cookie":["first=1; Secure; HttpOnly","second=2; Secure; HttpOnly"]});response.end(gzipSync("fictional gzip response"));});
+ await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+ try{const address=server.address();assert.ok(address&&typeof address==="object");
+ const original=await fetch("http://127.0.0.1:"+address.port);
+ const {regionalResponse}=await import("./regional-transport");
+ const response=regionalResponse(original);
+ assert.equal(response.headers.get("content-encoding"),null);assert.equal(response.headers.getSetCookie().length,2);
+ assert.equal(await response.text(),"fictional gzip response");
+ }finally{server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));}
+});
 const env={FORMWARD_REGIONAL:"1",BETTER_AUTH_URL:"https://formward-ten.vercel.app",FORMWARD_GATEWAY_SECRET:"fictional-service-key-32-characters-long"};
 async function configured(work:()=>Promise<void>|void){const old={...process.env};Object.assign(process.env,env);try{await work();}finally{for(const key of Object.keys(process.env))if(!(key in old))delete process.env[key];Object.assign(process.env,old);}}
 test("区域服务证明绑定来源、方法、路径、时间与客户端地址，拒绝伪造",()=>configured(()=>{
@@ -47,3 +60,5 @@ test("OAuth外部材料并发隔离、重复读取各有独立流，未批准地
   await assert.rejects(fetch("https://client.example/unapproved"),/未通过预检/);
  })));
 });
+
+test("OAuth官方网络传输拒绝回环公钥地址，不访问私有服务",async()=>{await assert.rejects(async()=>await oauthMetadataFetch("https://127.0.0.1/private"),/public-routable/);});
