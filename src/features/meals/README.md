@@ -40,4 +40,5 @@ images.ts 管原图下载与存储，image-upload.ts 管限账号／路径／摘
 
 0028为meal_images增加storage_provider和storage_location，旧图片默认blob／legacy；位置不接受客户端输入。image-bytes.ts集中类型、大小和下载校验，image-storage.ts与blob-storage.ts选择私有COS或Blob，image-worker.ts是国际节点的字节处理。
 v2上传票据绑定原登录会话或AI授权、访问版本、区域、位置、摘要和期限。浏览器只直传meal-tmp-v2，校验真实字节后生成不同路径的meal-formal-v2正式对象，再在账号锁内复核并登记。旧票据拒绝；旧已登记图片保持可读。即时清理只处理本次临时路径，未知提交结果的正式对象延期24小时核对后处理，不能因重复或撤销误删原图。
+COS表单提交的时间字段使用`q-key-time`，签名策略内对应条件仍为`q-sign-time`，两者不可混用；`image-storage.test.ts`覆盖此协议差异。真实服务的权限、加密、CORS与完整上传流程由`tests/real-cos.http.mts`在虚构私有预览中单独验收，不能以模拟服务代替。
 国际原图由海外worker读取／处理，返回登记信息不含图片字节。网页图片读取始终先验证会话归属，国际入口直接流式返回Blob原件；国内读取国际旧图可能受跨区网络影响。新处理区需要用户明确选择，失败不自动改变GPT授权地址。

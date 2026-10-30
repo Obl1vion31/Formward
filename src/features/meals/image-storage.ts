@@ -29,10 +29,12 @@ export function imageStorage(ref:Pick<StorageRef,"storageProvider"|"storageLocat
     remove:async path=>{await cos.deleteObject({Bucket:config.Bucket,Region:config.Region,Key:path});},
     list:async prefix=>{const rows:{pathname:string;createdAt:Date}[]=[];let Marker:string|undefined;for(;;){const page=await cos.getBucket({Bucket:config.Bucket,Region:config.Region,Prefix:prefix,Marker,MaxKeys:1000});rows.push(...page.Contents.map(v=>({pathname:v.Key,createdAt:new Date(v.LastModified)})));if(page.IsTruncated!=="true")break;Marker=page.NextMarker;}return rows;}};
 }
-export function cosPostPolicy(pathname:string,size:number,mimeType:string,expiresAt:number,now=Date.now()){
+export function cosPostPolicy(pathname:string,size:number,mimeType:string,expiresAt:number,now=Date.now()): {url:string;fields:Record<string,string>} {
   const {Bucket,Region,SecretId,SecretKey}=cosConfig(),time=Math.floor(now/1000)-30+";"+Math.floor(expiresAt/1000);
+  // COS 的表单字段为 q-key-time，签名策略内的条件名仍是 q-sign-time。
   const fields:Record<string,string>={key:pathname,"Content-Type":mimeType,"q-sign-algorithm":"sha1","q-ak":SecretId,"q-sign-time":time,success_action_status:"204"};
   const policy=JSON.stringify({expiration:new Date(expiresAt).toISOString(),conditions:[{bucket:Bucket},...Object.entries(fields).map(([key,value])=>({[key]:value})),["content-length-range",size,size]]});
   const signKey=createHmac("sha1",SecretKey).update(time).digest("hex");
-  return {url:"https://"+Bucket+".cos."+Region+".myqcloud.com/",fields:{...fields,policy:Buffer.from(policy).toString("base64"),"q-signature":createHmac("sha1",signKey).update(createHash("sha1").update(policy).digest("hex")).digest("hex")}};
+  const formFields: Record<string,string> = { ...fields, "q-key-time": time }; delete formFields["q-sign-time"];
+  return {url:"https://"+Bucket+".cos."+Region+".myqcloud.com/",fields:{...formFields,policy:Buffer.from(policy).toString("base64"),"q-signature":createHmac("sha1",signKey).update(createHash("sha1").update(policy).digest("hex")).digest("hex")}};
 }

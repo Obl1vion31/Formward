@@ -221,6 +221,10 @@ FORMWARD_FRAME_TOUCH_ONLY=1配合FORMWARD_FRAME_ONLY=1检查四页390×640及844
 
 ## 双区专项
 
+`node --import tsx tests/real-cos.http.mts 私有配置文件` 验收真实上海 COS 与已部署的 production 预览，配置权限必须为0600；只允许回环 `formward_preview`、全部 `.test` 账号和明确的 `FORMWARD_COS_ACCEPT_DISPOSABLE_TEST=yes`。配置使用显式 `DATABASE_URL`、`FORMWARD_COS_BUCKET`、`FORMWARD_COS_REGION`、`FORMWARD_COS_SECRET_ID` 和 `FORMWARD_COS_SECRET_KEY`，不得使用生产环境文件。固定国内／国际预览为3300／3301，Playwright运行时沿用本目录已有外部工具环境。
+
+专项核对实际IAM前缀／公开ACL拒绝、桶默认加密、CORS来源、表单签名路径和大小、真实应用字节校验与两区鉴权读取，以及成功上传后撤销、重新登录迟到完成不删除原图。报告和原图截图放入被忽略的 `.codex/real-cos`；只清理本轮明确创建的临时对象，已登记的虚构正式原图保留供人工检查。此入口产生少量真实COS请求与存储用量，不加入默认离线测试；不能把脚本存在或模拟COS通过记作真实服务验收。
+
 pnpm test包含auth/regional.test.ts的服务证明、伪造头、入口约束、Cookie、禁止重放及OAuth请求材料隔离。pnpm test:regional-concurrency通过独立embedded-postgres集群、多连接和真实HTTP存储模拟验证上传／撤销竞争、迟到重复完成保留正式对象及附件、统一审核追加照片与跨账号拒绝。使用/tmp/formward-account-tooling中的既有测试运行时，不使用Neon或真实用户数据。COS策略检查和模拟服务不代表真实COS的IAM、CORS或公网网络验收。
 FORMWARD_TEST_RELEASE 指向同一提交生成的产物目录后，pnpm test:regional-browser 将 standalone 与国际包复制到仓库外临时目录，再使用独立 PostgreSQL、虚构账号和三个私有 HTTPS 入口验收，避免父目录 node_modules 掩盖缺失依赖。覆盖选区、两区登录／四业务页／后台验密、旧 OAuth 访问与刷新、停用恢复和改密。照片界面通过真实准备接口验证旧 Blob 去重复用说明，以及 COS 缺配置失败时保留已有附件；原图 GET 仅使用虚构 PNG 模拟。Chromium／WebKit 各 33 张截图在被忽略的 .codex/regional-visual；真实 iOS、公网跨境及真实存储另测。
 
