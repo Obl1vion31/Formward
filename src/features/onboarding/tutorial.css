@@ -112,3 +112,8 @@ html:has(.onboarding-tutorial .lesson-stage:fullscreen),html:has(.onboarding-tut
 .onboarding-tutorial [data-tutorial-guide][data-mode=mobile] .tutorial-actions{position:static;padding:16px 0 max(16px,env(safe-area-inset-bottom));background:transparent}
 
 .onboarding-tutorial .mobile-guide .lesson[data-started=false] .lesson-controls,.onboarding-tutorial .mobile-guide .lesson[data-started=false] .lesson-steps{display:none}
+
+/* 大预览不把观看入口推到首屏外；按钮与预览标题同行。 */
+.onboarding-tutorial .directory-preview{position:relative}
+.onboarding-tutorial .preview-heading{padding-right:160px;margin-bottom:8px}
+.onboarding-tutorial .preview-open{position:absolute;right:0;top:0;margin:0}
