@@ -1,5 +1,10 @@
 # 当前实现与验证
 
+## 首次使用与教程
+
+已接入账号资料、首次填写／说明、新旧账号分流、owner只读演练和大画面教程。424项自动测试及两引擎各40项实际浏览器检查通过；正式发布状态见交接与验收记录。
+
+
 ## AI消耗确认：已发布公网
 
 用户于2026-10-31验收实际手机与电脑页面后明确要求发布。正式域名 https://formward-ten.vercel.app 已核对 READY 部署 dpl_7D4YT9WWAex4TCJpACpetuktb7ej，应用源码 a2c24f14fe0e0cd205d4adc37682c0dbb09aa730，位于独立发布分支 codex/energy-review-release。以已上线品牌版本9bd0da8为基线，仅提取本轮AI确认修改，品牌与既有账号安全保持，未带入双区、COS、0028、环境或DNS变更；main未合并。

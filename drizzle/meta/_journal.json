@@ -197,6 +197,13 @@
       "when": 1793259334127,
       "tag": "0027_account_management",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793465691141,
+      "tag": "0029_personal_profiles",
+      "breakpoints": true
     }
   ]
 }

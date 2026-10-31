@@ -48,3 +48,6 @@ OAuth Provider 的客户端、资源、授权同意、摘要令牌、刷新轮�
 0023_amused_master_mold新增meal_days／meal_day_events，保存每天是否记完、版本与餐次摘要、幂等和审计；39张应用表加迁移账本。用户确认截至2026-10-23已有有效餐次的历史日期视为已记完，migration只建结构；指定授权账号的一次性维护初始化状态，空日不建、其他账号不处理；旧表与所有健康事实保持。后续餐次保存与状态失效同一事务，不能沿用历史默认。
 
 0024_tan_starjammers只增加六列：foods包装换算、meal_items每份输入口径与营养、activities包含关系与基准；配对约束拒绝半套元数据。旧行默认consumed_total或null，旧营养、数量、时间、来源和审计不变，无个人数值回填。
+
+
+0029_personal_profiles只新增personal_profiles：user_id主键外键，选填height_cm／birth_date，onboarding_step、version及创建／更新时间。旧账号无行视为已完成，引导状态仅新建账号显式初始化；与energy_profiles和每日measurement独立。42张应用表及迁移账本共43表。

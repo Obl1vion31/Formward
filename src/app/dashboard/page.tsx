@@ -1,3 +1,4 @@
+import { requireCompletedOnboarding } from "@/features/onboarding/server";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { currentPageUser } from "@/features/auth/server";
@@ -14,7 +15,7 @@ import { RouteLoading } from "@/components/page-loading";
 import { DashboardHeader } from "./header";
 export const metadata = { title: "Formward · 总览" };
 export default async function DashboardPage() {
- const user = await currentPageUser(); if (!user) redirect("/");
+ const user = await currentPageUser(); if (!user) redirect("/"); await requireCompletedOnboarding();
  return <Suspense fallback={<RouteLoading/>}><Content user={user}/></Suspense>;
 }
 async function Content({ user }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>> }) {

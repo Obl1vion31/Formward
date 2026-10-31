@@ -212,3 +212,5 @@ FORMWARD_FRAME_TOUCH_ONLY=1配合FORMWARD_FRAME_ONLY=1检查四页390×640及844
 截图覆盖320／390／430px手机、矮屏、触屏横屏及1100／1440px桌面；检查主次字号、数字单位完整、长备注折行、底栏遮挡和单项选择。另运行共用餐次填写及原身体／饮食AI确认回归。真实iOS及系统软键盘需实机，模拟不计作通过。energy-review-model.test.ts覆盖十进制语义比较，operations.test.ts覆盖服务端整日投影、核对保留原分项／精度及旧草稿刷新保护。
 
 FORMWARD_REVIEW_FACTS_ONLY=1 pnpm test:records-browser只验混合身体／饮食／消耗确认与保存、取消恢复和并行窗口冲突，再自动执行完整共用餐次填写专项；不运行该脚本中未改动的旧图表流程。FORMWARD_REVIEW_ARTIFACTS与FORMWARD_MEAL_ENTRY_ARTIFACTS分别保存证据，两引擎分目录运行。消耗专项截图在aria-busy结束、字体与布局稳定后保存，矮屏另检查滚到底部运动操作不被保存栏遮挡；WebKit全页跳转前等待预加载结束，不过滤页面异常。
+
+首次使用专项：pnpm test:onboarding-browser。使用独立内存PGlite、虚构新旧账号和owner，覆盖资料云端保存／冲突／失败／清空、跨设备进度、只读演练、五项选择与十段播放、缩放与横屏。TUTORIAL_BROWSER=webkit切换引擎，TUTORIAL_ARTIFACTS指定私有截图目录。

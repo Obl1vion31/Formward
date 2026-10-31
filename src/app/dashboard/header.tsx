@@ -65,10 +65,10 @@ export function DashboardHeader({ email, owner = false }: { email: string; owner
   return <><header className={"dashboard-header " + styles.header + (review ? " dashboard-review-header" : "")}>
     <LoadingLink className="dashboard-logo" href="/dashboard" aria-label="Formward 主页"><BrandLogo compactOnMobile /></LoadingLink>
     {!page && pathname !== "/dashboard" && <LoadingLink className="dashboard-back" href="/dashboard">← 总览</LoadingLink>}
-    <span className="mobile-page-name" role={review ? "heading" : undefined} aria-level={review ? 1 : undefined}>{review ? "确认记录" : page?.[1] ?? (pathname.startsWith("/dashboard/export") ? "导出数据" : pathname === "/dashboard/account" ? "账号设置" : "AI 接入")}</span>
+    <span className="mobile-page-name" role={review ? "heading" : undefined} aria-level={review ? 1 : undefined}>{review ? "确认记录" : page?.[1] ?? (pathname.startsWith("/dashboard/export") ? "导出数据" : pathname === "/dashboard/account" ? "账号设置" : pathname === "/dashboard/profile" ? "个人资料" : pathname === "/dashboard/tutorial" ? "使用说明" : "AI 接入")}</span>
     <div className={styles.actions}>
       <details className="dashboard-menu" ref={menu} onKeyDown={event => { if (event.key === "Escape" && menu.current) { menu.current.open = false; menu.current.querySelector("summary")?.focus(); } }}>
-        <summary aria-label="账号菜单"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9" r="3"/><path d="M5.5 18c1-5 12-5 13 0"/></svg></summary><div><span>{email}</span><LoadingLink href="/dashboard/account">账号设置</LoadingLink>{owner && <LoadingLink href="/admin">账号管理</LoadingLink>}<LogoutButton /></div>
+        <summary aria-label="账号菜单"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9" r="3"/><path d="M5.5 18c1-5 12-5 13 0"/></svg></summary><div><span>{email}</span><LoadingLink href="/dashboard/profile">个人资料</LoadingLink><LoadingLink href="/dashboard/account">账号设置</LoadingLink>{owner && <><LoadingLink href="/onboarding?mode=test">测试初次登录</LoadingLink><LoadingLink href="/admin">账号管理</LoadingLink></>}<LogoutButton /></div>
       </details>
     </div>
   </header>
@@ -79,7 +79,8 @@ export function DashboardHeader({ email, owner = false }: { email: string; owner
   </nav>}
   {hasTools && <button type="button" className={styles.toolsTrigger + (page ? "" : " " + styles.standaloneTools)} data-chart-controls aria-label="工具" aria-haspopup="dialog" aria-expanded={toolsOpen} onClick={openTools}><span className={styles.toolsHint}>工具</span><span className={styles.toolsHandle}><ToolsIcon edge/></span></button>}
   {toolsOpen && <Inspector title="工具" close={() => setToolsOpen(false)} onCloseReady={close => { closeTools.current = close; }} className={inspectorStyles.drawer + " " + styles.drawer} header={<div className={styles.drawerHeading}><h2>工具</h2><button type="button" aria-label="关闭工具栏" onClick={() => closeTools.current()}>×</button></div>}>
-    <nav className={styles.toolLinks} aria-label="连接与导出">
+    <nav className={styles.toolLinks} aria-label="教程、连接与导出">
+      <LoadingLink href="/dashboard/tutorial" onNavigate={event => { event.preventDefault(); navigateFromTools("/dashboard/tutorial"); }}><span><strong>查看教程</strong><small>看看饮食、身体和消耗怎么记</small></span><span className={styles.arrow} aria-hidden="true">→</span></LoadingLink>
       <LoadingLink href="/dashboard/ai" aria-label="AI 接入" onNavigate={event => { event.preventDefault(); navigateFromTools("/dashboard/ai"); }}><span><strong>AI 接入</strong><small>连接你正在使用的 AI 助手</small></span><span className={styles.arrow} aria-hidden="true">→</span></LoadingLink>
       <LoadingLink href="/dashboard/export" aria-label="导出 Excel" onNavigate={event => { event.preventDefault(); navigateFromTools("/dashboard/export"); }}><span><strong>导出 Excel</strong><small>下载你的记录</small></span><span className={styles.arrow} aria-hidden="true">→</span></LoadingLink>
     </nav>

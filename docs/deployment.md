@@ -171,3 +171,6 @@ Vercel的生产敏感变量不能下载，env pull的[SENSITIVE]占位符不能�
 正式报告与虚构截图在私有.codex/body-energy-release/，Chromium／WebKit分别为production-chromium.json与production-webkit.json；READY见.codex/body-energy-inspect-final.log。测试账号及所属记录、待确认操作、令牌与会话已全部清理。发布前、迁移后和发布后三份私有备份为data/exports/database-before-body-energy-2026-10-28.json、database-after-body-energy-migration-2026-10-28.json和database-after-body-energy-production-2026-10-28.json，均0600、Git与部署忽略。
 
 body-energy-migration-verification.json与body-energy-production-verification.json核对40表原有列、健康事实、请求和审计保持，0026只加三列及一条账本，旧运动新列保持NULL。期间已有账号正常新增的图片、待确认提交及授权轮换均保留，未代确认、删除或回滚；body-energy-concurrent-verification.json单独核对新增归属与测试数据清理。回退必须保留运动分项计算及新列，不切回无法理解components的旧后端。
+
+
+首次使用发布需应用0029_personal_profiles，只建个人资料表，不回填旧用户。生产基线不含未发布双区0028，严禁整包应用主工作区migration或配置。迁移前后私有备份核对旧表和值，正式验证仅虚构账号；清理时包括personal_profiles。双区分支未来合并必须重核迁移依赖和时间顺序。

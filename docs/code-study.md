@@ -1123,3 +1123,8 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 AI确认页面将同一天的日消耗与运动放在一起。例如静息2058、活动合计1027，服务端给出当天3085；羽毛球801运动加145期间静息，本次946，已包含时不再增加。切换额外增加后，仍由同一业务函数返回3886，不在浏览器重复算一遍。
 
 records/operations.ts整理整批草稿的服务端读数；records/energy-review.tsx显示结果；records/energy-review-model.ts只判断哪些字段确实改变、按日期分组。801和801.0000是同一数，不应显示成修改。核对已有运动只传记录ID和版本，原运动的填写方式与分项继续保留；这些动作只改待确认内容，底部确认后才正式保存。
+
+
+## 第一次使用、个人资料和教程从哪里开始
+
+首次使用与个人资料：想改“第一次进来先填身高生日”，看app/onboarding入口和features/onboarding/flow.tsx；想改保存，依次看app/onboarding/actions.ts→features/onboarding/records.ts→db/schema.ts的personalProfile。这条链在登录身份下只写自己的personal_profiles，和每天身体记录、饮食及消耗分开。教程在dashboard/tutorial入口，tutorial-view.tsx挂载播放器，public/tutorials只放虚构演示媒体。管理员演练走相同界面但只保留当前临时输入，不调用真实保存。

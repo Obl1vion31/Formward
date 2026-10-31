@@ -1,3 +1,4 @@
+import { requireCompletedOnboarding } from "@/features/onboarding/server";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { currentPageUser } from "@/features/auth/server";
@@ -15,7 +16,7 @@ import { listEnergySources } from "@/features/activities/sources";
 export const metadata = { title: "Formward · 消耗" };
 export const maxDuration = 60;
 export default async function EnergyPage({ searchParams }: { searchParams: Promise<{ date?: string | string[] }> }) {
-  const user = await currentPageUser(); if (!user) redirect("/");
+  const user = await currentPageUser(); if (!user) redirect("/"); await requireCompletedOnboarding();
   return <Suspense fallback={<RouteLoading />}><Content user={user} date={linkedDate((await searchParams).date)} /></Suspense>;
 }
 async function Content({ user, date }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date: string | null }) {

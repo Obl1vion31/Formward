@@ -1,3 +1,4 @@
+import { requireCompletedOnboarding } from "@/features/onboarding/server";
 import { linkedDate } from "@/features/measurements/calendar";
 import type { Metadata } from "next";
 import { Suspense } from "react";
@@ -16,7 +17,7 @@ export const metadata: Metadata = { title: "Formward · 身体记录" };
 
 export default async function DashboardPage({searchParams}:{searchParams:Promise<{date?:string|string[]}>}) {
   const user = await currentPageUser();
-  if (!user) redirect("/");
+  if (!user) redirect("/"); await requireCompletedOnboarding();
   return <Suspense fallback={<RouteLoading />}><DashboardContent user={user} date={linkedDate((await searchParams).date)} /></Suspense>;
 }
 

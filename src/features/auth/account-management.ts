@@ -1,3 +1,4 @@
+import { initializePersonalProfile } from "../onboarding/records";
 import { randomBytes, randomUUID } from "node:crypto";
 import { hashPassword, verifyPassword } from "better-auth/crypto";
 import { and, count, desc, eq, gt, ilike, isNull, sql } from "drizzle-orm";
@@ -193,6 +194,7 @@ export async function claimAccountLink(db: Database, raw: string, password: stri
       if ((await tx.select({ id: user.id }).from(user).where(eq(user.email, link.email))).length) throw invalid("此账号已存在，邀请不能覆盖已有账号。");
       userId = randomUUID();
       await tx.insert(user).values({ id: userId, email: link.email, name: link.email.split("@")[0], role: "user", emailVerified: false });
+      await initializePersonalProfile(tx, userId);
       await tx.insert(account).values({ id: randomUUID(), userId, accountId: userId, providerId: "credential", password: passwordHash });
     } else {
       const target = await requireActiveAccount(tx, userId!);

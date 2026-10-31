@@ -1,3 +1,4 @@
+import { initializePersonalProfile } from "../onboarding/records";
 import { randomUUID } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
 import { eq } from "drizzle-orm";
@@ -17,6 +18,7 @@ export async function provisionAccount(db: Database, input: { email: string; pas
       const [existing] = await tx.select({ id: user.id }).from(user).where(eq(user.email, email));
       return { id: existing.id, created: false };
     }
+    await initializePersonalProfile(tx, id);
     await tx.insert(account).values({ id: randomUUID(), userId: id, accountId: id, providerId: "credential", password });
     return { id, created: true };
   });

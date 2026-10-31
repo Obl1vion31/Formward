@@ -1,0 +1,114 @@
+.onboarding-tutorial{
+--fw-bg:#10100f;--fw-surface:#191917;--fw-text:#f0e9dd;--fw-muted:#aba59a;--fw-gold:#bea478;--fw-line:#f0e9dd29;--fw-field:#d2c2a852;
+color:var(--fw-text);font-size:14px;line-height:1.6;
+button{cursor:pointer;font:inherit}button:disabled{opacity:.65;cursor:wait}
+button:focus-visible,input:focus-visible{outline:2px solid var(--fw-gold);outline-offset:3px}
+[hidden]{display:none!important}h1,h2,h3,p{margin:0}
+.primary,.quiet{min-height:44px;padding:10px 18px;border-radius:6px;font-size:14px;line-height:22px;border:1px solid transparent}
+.primary{background:var(--fw-gold);color:var(--fw-bg);min-width:136px}.quiet{background:transparent;color:var(--fw-muted)}
+.tutorial-journey{width:calc(100% - 48px);max-width:1440px;margin:auto;padding:32px 0;flex:none}
+.guide-heading{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.guide-heading h1{font-size:28px;font-weight:500}
+.guide-reference{font-size:12px;color:var(--fw-muted);white-space:nowrap}
+.guide-intro{font-size:14px;line-height:1.7;color:var(--fw-muted);margin-top:8px}
+.guide-directory{display:grid;grid-template-columns:208px minmax(0,1fr);gap:24px;margin-top:24px}
+.directory-topics{padding-top:44px;display:flex;flex-direction:column;justify-content:center}
+.directory-topic{display:flex;align-items:center;justify-content:space-between;position:relative;gap:12px;width:100%;min-height:64px;padding:8px 12px 8px 20px;text-align:left;border:0;border-radius:0;background:transparent;color:var(--fw-text)}
+.directory-topic::before{content:"";position:absolute;left:0;top:20px;bottom:20px;width:2px;background:transparent}
+.directory-topic[aria-current=true]::before{background:var(--fw-gold)}
+.directory-topic[aria-current=true] .directory-name,.directory-topic:hover .directory-name{color:var(--fw-gold)}
+.directory-topic:hover,.directory-topic:focus-visible{background:#bea47806}
+.directory-copy{min-width:0}.directory-name{display:block;font-size:19px;font-weight:500;line-height:1.4;transition:color 150ms}
+.directory-summary{display:block;font-size:13px;line-height:1.6;color:var(--fw-muted);margin-top:4px}
+.directory-arrow{font-size:16px;color:var(--fw-gold);flex:none}
+.directory-preview{min-width:0}
+.preview-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;height:44px}
+.preview-heading h2{font-size:16px;font-weight:500}
+.preview-toggle{min-height:44px;padding:8px 0 8px 16px;border:0;background:transparent;font-size:12px;color:var(--fw-gold);white-space:nowrap}
+.preview-picture{position:relative;display:block;width:100%;aspect-ratio:8/5;padding:0;border:1px solid #f0e9dd70;border-radius:7px;overflow:hidden;background:#1b1b18;color:var(--fw-text)}
+.preview-picture img,.preview-picture video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.preview-picture video{opacity:0}.directory-preview[data-previewing=true] video{opacity:1}
+.preview-picture img{opacity:1}.directory-preview[data-previewing=true] img{opacity:0}
+.preview-open{position:relative;margin:12px 0 0 auto;min-height:44px;border:1px solid #bea47865;color:var(--fw-text);display:flex;align-items:center;gap:8px;padding:9px 14px;background:#202019;border-radius:4px;font-size:12px}
+.preview-open svg{width:15px;height:15px}
+.mobile-guide{display:none}
+.tutorial-actions{margin-top:24px}
+.tutorial-action-inner{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.tutorial-action-inner .quiet{padding-left:0}
+.tutorial-topics{display:flex;gap:5px;margin-top:16px}
+.tutorial-topic{flex:1;min-width:0;min-height:44px;padding:8px 2px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--fw-muted);font-size:13px}
+.tutorial-topic[aria-selected=true]{color:var(--fw-text);border-bottom-color:var(--fw-gold)}
+.tutorial-modal{position:fixed;inset:16px;margin:auto;width:min(1440px,calc(100vw - 32px));height:max-content;max-width:none;max-height:calc(100dvh - 32px);padding:0;border:1px solid var(--fw-line);border-radius:9px;background:#141412;color:var(--fw-text);box-shadow:0 24px 100px #0009;overflow:hidden}
+.tutorial-modal[open]{display:flex;flex-direction:column}.tutorial-modal::backdrop{background:#000b}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex:none;padding:8px 18px;border-bottom:1px solid var(--fw-line)}
+.modal-head h2{font-size:20px;line-height:1.5;font-weight:500}
+.modal-head-actions{display:flex;align-items:center;gap:12px;flex:none}
+.text-switch{display:inline-flex;align-items:center;justify-content:center;min-width:56px;min-height:44px;padding:8px 4px;border:0;background:transparent;color:var(--fw-gold);font-size:13px;white-space:nowrap}
+.modal-close{display:grid;place-items:center;width:44px;height:44px;border:0;background:transparent;color:var(--fw-text);font-size:27px;line-height:1}
+.modal-body{padding:16px 18px;overflow:auto;overscroll-behavior:contain;min-height:0}
+body:has(.tutorial-modal[open]) .tutorial-actions{visibility:hidden;pointer-events:none}
+.lesson{--frame-height:480px;min-width:0}
+.lesson-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;margin:12px 0 8px}
+.lesson-head h2{font-size:19px;line-height:1.5;font-weight:500}
+.lesson-stage{scroll-margin-top:8px;min-width:0}
+.lesson-frame{position:relative;height:var(--frame-height);background:#1b1b18;overflow:hidden;border:1px solid #f0e9dd70;border-radius:5px}
+.lesson-frame video,.lesson-poster{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain}
+.lesson-poster{z-index:1;pointer-events:none}
+.lesson-play{z-index:2;position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:0;border:0;background:#10100f16;color:var(--fw-text);font-size:14px}
+.lesson-play>svg{width:52px;height:52px;padding:13px;border:1px solid #f0e9dd66;border-radius:50%;background:#10100fe6}
+.lesson-play>span{padding:6px 12px;border:1px solid var(--fw-line);border-radius:4px;background:#10100ff2}
+.lesson-controls{display:grid;grid-template-columns:44px minmax(0,1fr) max-content 44px;align-items:center;gap:8px;min-height:44px;margin-top:6px}
+.lesson-controls button{display:grid;place-items:center;min-width:0;width:44px;height:44px;padding:10px;border:0;background:transparent;color:var(--fw-text)}
+.lesson-controls button:hover{color:var(--fw-gold)}.lesson-controls svg{width:21px;height:21px}
+.lesson-range{display:block;min-width:0;width:100%;height:44px;padding:0;margin:0;background:transparent;accent-color:var(--fw-gold);cursor:pointer}
+.lesson-time{display:block;min-width:64px;text-align:center;font-size:12px;font-variant-numeric:tabular-nums;color:var(--fw-muted);white-space:nowrap}
+.lesson-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px 0 0;padding:0;list-style:none}
+.lesson-steps li{min-width:0}
+.lesson-step{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;width:100%;min-height:44px;padding:6px 2px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--fw-muted);font-size:13px;line-height:1.5}
+.lesson-step[aria-current=step]{color:var(--fw-gold);border-bottom-color:var(--fw-gold)}
+.step-number{font-size:11px;font-variant-numeric:tabular-nums}
+.lesson-text{max-width:680px;margin:0 auto;padding:4px 0 8px}
+.text-steps{list-style:none;padding:0;margin:0;counter-reset:lesson}
+.text-steps li{position:relative;padding-left:32px;counter-increment:lesson}
+.text-steps li::before{position:absolute;left:0;top:1px;content:counter(lesson,decimal-leading-zero);font-size:12px;color:var(--fw-gold)}
+.text-steps li+li{margin-top:18px}
+.text-steps h3{font-size:16px;font-weight:500;line-height:1.5}
+.text-steps p{font-size:14px;line-height:1.75;color:var(--fw-muted);margin-top:4px}
+.lesson-note,.ai-connection{font-size:13px;line-height:1.75;color:var(--fw-muted);margin-top:16px}
+.ai-connection strong{font-weight:500;color:var(--fw-text)}
+.lesson-error{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 16px;margin-bottom:16px;padding:10px 12px;border-left:2px solid var(--fw-gold);background:#bea4780a;font-size:13px;line-height:1.7}
+.lesson-error button{min-height:44px;padding:8px 4px;border:0;background:transparent;color:var(--fw-gold);font-size:13px}
+.guide-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;border:0;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap}
+.lesson-stage:fullscreen,.lesson-stage:-webkit-full-screen{display:flex;flex-direction:column;width:100vw;height:100dvh;padding:10px;background:#10100f}
+.lesson-stage:fullscreen .lesson-frame,.lesson-stage:-webkit-full-screen .lesson-frame{flex:1;min-height:0;height:auto}
+.lesson-stage:fullscreen .lesson-controls,.lesson-stage:fullscreen .lesson-steps,.lesson-stage:-webkit-full-screen .lesson-controls,.lesson-stage:-webkit-full-screen .lesson-steps{flex:none}
+[data-tutorial-guide][data-mode=mobile] .guide-directory{display:none}
+[data-tutorial-guide][data-mode=mobile] .mobile-guide{display:block}
+[data-tutorial-guide][data-mode=mobile]{width:calc(100% - 32px);margin:0 auto;padding:20px 0 calc(var(--tutorial-actions-height,69px) + 18px)}
+[data-tutorial-guide][data-mode=mobile] .guide-heading{align-items:center;gap:12px}
+[data-tutorial-guide][data-mode=mobile] .guide-heading h1{font-size:23px}
+[data-tutorial-guide][data-mode=mobile] .guide-reference{font-size:11px}
+[data-tutorial-guide][data-mode=mobile] .guide-intro{font-size:13px}
+[data-tutorial-guide][data-mode=mobile] .tutorial-actions{position:fixed;left:0;right:0;bottom:0;z-index:20;margin:0;padding:10px max(16px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));border-top:1px solid var(--fw-line);background:var(--fw-bg)}
+[data-tutorial-guide][data-mode=mobile] .tutorial-action-inner{max-width:960px;margin:auto}
+[data-tutorial-guide][data-mode=mobile] .lesson-head{margin-top:12px}
+[data-tutorial-guide][data-mode=mobile] .lesson-frame{border-radius:4px}
+@media(max-width:700px){[data-unused-reference-header]{width:calc(100% - 32px)}.tutorial-modal{inset:8px;width:calc(100vw - 16px);max-height:calc(100dvh - 16px)}.modal-body{padding:12px}.modal-head{padding:8px 12px}}
+@media(prefers-reduced-motion:reduce){.directory-name{transition:none}}
+.tutorial-journey{margin:0 auto}
+.preview-open:hover{border-color:var(--fw-gold);background:#29271f}
+@media(max-width:900px) and (min-width:701px){.guide-directory{grid-template-columns:176px minmax(0,1fr);gap:20px}.directory-topic{padding-left:14px}.directory-name{font-size:18px}}
+}
+html:has(.onboarding-tutorial .lesson-stage:fullscreen),html:has(.onboarding-tutorial .lesson-stage:-webkit-full-screen){scrollbar-gutter:auto}
+.onboarding-tutorial .tutorial-fallback{max-width:960px;margin:24px auto;padding:16px}.onboarding-tutorial .tutorial-fallback li{margin:16px 0;line-height:1.8}
+
+/* 页面边距只留一层，避免手机和电脑的播放器被重复缩窄。 */
+.tutorial-page.dashboard-page{padding-inline:0}
+.tutorial-page .dashboard-header{margin-inline:24px}
+@media(max-width:700px){.tutorial-page .dashboard-header{margin-inline:16px}.profile-page.dashboard-page{padding-inline:0}}
+
+/* 手机原片按实际宽度显示，底部操作随内容滚动，不挤窄画面或遮住控制。 */
+.onboarding-tutorial [data-tutorial-guide][data-mode=mobile]{padding-bottom:24px}
+.onboarding-tutorial [data-tutorial-guide][data-mode=mobile] .tutorial-actions{position:static;padding:16px 0 max(16px,env(safe-area-inset-bottom));background:transparent}
+
+.onboarding-tutorial .mobile-guide .lesson[data-started=false] .lesson-controls,.onboarding-tutorial .mobile-guide .lesson[data-started=false] .lesson-steps{display:none}

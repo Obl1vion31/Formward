@@ -504,3 +504,18 @@ export const recordOperation = pgTable("record_operations", {
   revision: integer("revision").notNull().default(1), status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
 }, t => [foreignKey({columns:[t.userId,t.energyOperationId],foreignColumns:[energyOperation.userId,energyOperation.id]}), uniqueIndex("record_operations_energy_idx").on(t.energyOperationId), uniqueIndex("record_operations_owner_request_idx").on(t.userId,t.operationId), uniqueIndex("record_operations_measurement_idx").on(t.measurementOperationId), uniqueIndex("record_operations_meal_idx").on(t.mealOperationId), index("record_operations_owner_created_idx").on(t.userId,t.createdAt), check("record_operations_status_valid", sql`${t.status} IN ('pending','confirmed','cancelled','completed')`)]);
+
+// 账号资料独立于每日身体记录与退役静息公式；旧账号不回填。
+export const personalProfile = pgTable("personal_profiles", {
+  userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
+  heightCm: numeric("height_cm", { precision: 6, scale: 2 }),
+  birthDate: date("birth_date"),
+  onboardingStep: text("onboarding_step").$type<"profile" | "tutorial" | "complete">().notNull().default("complete"),
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  check("personal_profiles_height_valid", sql`${t.heightCm} IS NULL OR (${t.heightCm} >= 30 AND ${t.heightCm} <= 300)`),
+  check("personal_profiles_step_valid", sql`${t.onboardingStep} IN ('profile', 'tutorial', 'complete')`),
+  check("personal_profiles_version_positive", sql`${t.version} > 0`),
+]);
