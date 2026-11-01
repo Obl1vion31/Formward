@@ -1,5 +1,15 @@
 # 完善任务验收
 
+## 六位密码与手机历史来源：正式发布验收
+
+密码至少六位与手机历史来源点选修复已发布。正式域名https://formward-ten.vercel.app指向READY部署dpl_5WnHbK1FTZtuSG1GjMYatBhxz84J，应用源码c11c977ab15f81a7d000d9b4c290d0c509b3cab6，构建8fcb296d-a9eb-4a75-b744-bb2399a5ef34。分支codex/password-minimum-six，工作区仍为Formward-worktrees/meal-entry-macros；本轮仅发布，未推GitHub main，主工作区双区／COS／DNS及其他未上线内容保持隔离。
+
+新密码统一6–128字符，邀请激活、重设、本人改密、owner本地恢复、内部创建、认证配置和页面提示共用password-policy.ts；原有密码保持。SourceInput候选改成真实按钮，触屏不取消按下事件，输入先失焦时不抢先收起；身体、消耗与AI确认共用，选中仍先进入草稿，再按原流程保存。
+
+本地440项单元／集成、lint、类型、production build及结构通过。正式Chromium／WebKit最终各18组来源检查、16张截图通过；来源触屏／失焦／重复／中文／键盘、身体及消耗保存、AI应用后统一保存、建议移除与旧来源保持均复验。普通虚构账号在正式网页验证五位不提交、六位改密后登录、旧会话和AI令牌失效；邀请／重设和owner维护六位流程仅在隔离环境验证，没有仿造生产管理员。首轮WebKit出现Load failed，追踪复跑发现AI收据2秒回总览与脚本提前跳页竞争；测试现等待真实返回再继续。两轮失败留档不计通过，最终WebKit复跑无页面异常、无过滤异常。真实iPhone与系统键盘未测。
+
+7项公开／保护入口通过，正式别名与源码绑定再次核对；最终通过组客户端异常及5xx为0，部署最近20分钟Runtime error／fatal和请求5xx均0，无排除区间及后续分页。4个本轮虚构账号及所属数据已清理；发布前后43表结构、29条迁移账本和既有行值严格对照通过，issues为空。备份database-before／after-source-password-2026-11-02.json及source-password-production-verification-2026-11-02.json均位于私有data/exports、0600并被Git／部署忽略。证据.codex/password-minimum-six/release，最终截图为production/chromium及production-final/webkit；前两轮WebKit记录保留。没有数据库迁移、历史初始化、运行依赖或公开权限变化。上一READY部署dpl_9NN2wRePFTmKhbXnQ7Zit6xJcDfq保留供应用回退，不回滚健康数据。
+
 ## 密码至少六位：本地验收
 
 密码长度统一为6–128字符，password-policy.ts被网页表单、认证配置、邀请／重设／改密保存及维护脚本共用。只调整长度校验和提示，不修改现有密码，不新增公开注册，不改变身份、会话撤销、限流、审计及健康数据规则。
@@ -12,7 +22,7 @@
 | 页面与提示 | 通过 | 390手机和1440电脑的邀请与改密、电脑重设实际截图；账号设置另覆盖320／430／1100及844×390，6–128提示正确，布局沿用原样 |
 | 质量门槛 | 通过 | 440项单元／集成、lint、typecheck、production build、结构与diff检查通过；两引擎各25张截图，客户端异常和请求5xx均0 |
 | 实际设备 | 未测 | 真实iPhone、系统键盘；浏览器模拟不计为实机 |
-| 发布与数据 | 未执行／保持 | 仅隔离PGlite和虚构账号，没有生产数据访问；未发布公网、未推main，无数据库迁移 |
+| 发布与数据 | 已发布 | 本地阶段仅隔离PGlite；正式使用普通虚构账号复验并清理，详见本节正式记录；main未推，无数据库迁移 |
 
 适用D3／D4／D6，实际查看改动相关表单的手机／电脑截图；其他账号管理截图保留供回归，不用无溢出替代视觉结论。浏览器快捷入口为FORMWARD_PASSWORD_ONLY=1 pnpm test:account-browser，完整入口仍保留后续后台及业务回归。证据在主工作区私有.codex/password-minimum-six；测试服务与内存数据库结束后关闭。
 
@@ -29,7 +39,7 @@
 | 建议移除 | 通过 | 网络失败保留建议和当前输入；成功软移除不改变已保存记录来源 |
 | 源码与数据边界 | 通过 | 439项单元／集成、lint、typecheck、production build、结构检查；仅隔离临时PostgreSQL和虚构资料，没有读取或写入生产数据库 |
 | 物理设备 | 未测 | 真实iPhone、系统软键盘、WebKit物理滑动；不得以模拟通过代替 |
-| 发布 | 未执行 | 未发布公网、未推main，未修改主工作区未上线功能 |
+| 发布 | 已发布 | 正式验证见本节发布记录；未推main，主工作区未上线内容保持 |
 
 每引擎19组检查、14张实际截图，客户端异常与请求5xx均0；原版失败追踪、修复后报告和截图在主工作区私有.codex/source-history-touch-fix，临时数据库和测试服务结束后停止。来源选中按钮至少44px高，长名称自然换行；输入内长字符串仍保留原生左右滚动能力，不缩字。实际查看手机、桌面、横屏及候选展开截图。此次不新增依赖、迁移或公开协议。
 

@@ -8,13 +8,13 @@
 
 ## 当前正式版本
 
-手机独立食材库换行与电脑重复按钮已修正并发布。正式域名https://formward-ten.vercel.app指向READY部署dpl_9NN2wRePFTmKhbXnQ7Zit6xJcDfq，应用源码2157ed8c415f0680c37fdeccd656000d4a1d3087，分支codex/meal-library-width-fix（工作区仍为Formward-worktrees/meal-entry-macros）。这是刚上线餐次功能的后续纠错，main未更新；主工作区双区／COS／DNS及其他未上线改动保持隔离。
+密码至少六位与手机历史来源点选修复已发布。正式域名https://formward-ten.vercel.app指向READY部署dpl_5WnHbK1FTZtuSG1GjMYatBhxz84J，应用源码c11c977ab15f81a7d000d9b4c290d0c509b3cab6，构建8fcb296d-a9eb-4a75-b744-bb2399a5ef34。分支codex/password-minimum-six，工作区仍为Formward-worktrees/meal-entry-macros；本轮仅发布，未推GitHub main，主工作区双区／COS／DNS及其他未上线内容保持隔离。
 
-原因是独立食材库切换为手机网格列表后，仍被旧电脑名称32%列宽压缩，390px触屏复现名称仅75.72px。现仅在宽容器表格采用32%，手机名称占满实际分配的四列区域（约227–237px，随视口和滚动条变化），不缩字、不靠禁止换行遮住长名。电脑双栏时取消“自己填写／从食材库添加”和“返回本餐”，直接使用左右两栏；窄屏单栏保留必要切换。餐次窗口内食材选择及独立食材库分别检查；热量计算、保存、数据库结构和公开协议没有改动。
+新密码统一6–128字符，邀请激活、重设、本人改密、owner本地恢复、内部创建、认证配置和页面提示共用password-policy.ts；原有密码保持。SourceInput候选改成真实按钮，触屏不取消按下事件，输入先失焦时不抢先收起；身体、消耗与AI确认共用，选中仍先进入草稿，再按原流程保存。
 
-439项单元／集成、lint、类型检查、production build、结构及链接通过。隔离和正式Chromium／WebKit分别各20组餐次场景、15组详情、12组独立库深浅主题与六种屏宽检查通过，各76张实际截图；新增名称框实际宽度应等于其网格分配宽度的断言。正式手机390、浅色320、电脑1440和修复前后截图已正常比例查看；两个库入口、按钮显示、包装换算、旧值精度、4／4／9和AI确认回归均通过。客户端异常与请求5xx为0，部署最近20分钟查询窗口Runtime error／fatal及请求5xx为0，无排除区间和后续分页。7项公开／保护入口通过，构建标识21875fc8-97d9-45f3-b206-a8aac62b0cf2。真实iPhone及系统软键盘未测。
+本地440项单元／集成、lint、类型、production build及结构通过。正式Chromium／WebKit最终各18组来源检查、16张截图通过；来源触屏／失焦／重复／中文／键盘、身体及消耗保存、AI应用后统一保存、建议移除与旧来源保持均复验。普通虚构账号在正式网页验证五位不提交、六位改密后登录、旧会话和AI令牌失效；邀请／重设和owner维护六位流程仅在隔离环境验证，没有仿造生产管理员。首轮WebKit出现Load failed，追踪复跑发现AI收据2秒回总览与脚本提前跳页竞争；测试现等待真实返回再继续。两轮失败留档不计通过，最终WebKit复跑无页面异常、无过滤异常。真实iPhone与系统键盘未测。
 
-43表结构和迁移账本保持；2个本轮虚构账号及所属数据清理。首次严格对照发现正式账号期间一次正常网页消耗保存（含来源使用时间）和一次管理员解锁，已用原／新快照、操作、前后审计、操作者、确认者、版本和时间逐项对应；这些合法更新原样保留，其余原行无未解释变化。严格原报告留档，最终逐行核对issues为空，不把正常使用回滚。备份database-before／after-meal-library-width-2026-11-02.json、严格及最终meal-library-width-production-verification报告均在私有data/exports、权限0600并被Git／部署忽略。第一次备份进程未完成，保持生产只读，重试成功后才发布。私有证据.codex/meal-picker-width-fix；没有新迁移、依赖、权限、公开字段或历史初始化。
+7项公开／保护入口通过，正式别名与源码绑定再次核对；最终通过组客户端异常及5xx为0，部署最近20分钟Runtime error／fatal和请求5xx均0，无排除区间及后续分页。4个本轮虚构账号及所属数据已清理；发布前后43表结构、29条迁移账本和既有行值严格对照通过，issues为空。备份database-before／after-source-password-2026-11-02.json及source-password-production-verification-2026-11-02.json均位于私有data/exports、0600并被Git／部署忽略。证据.codex/password-minimum-six/release，最终截图为production/chromium及production-final/webkit；前两轮WebKit记录保留。没有数据库迁移、历史初始化、运行依赖或公开权限变化。上一READY部署dpl_9NN2wRePFTmKhbXnQ7Zit6xJcDfq保留供应用回退，不回滚健康数据。
 
 
 ## 品牌版本发布记录

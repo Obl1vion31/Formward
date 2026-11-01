@@ -109,6 +109,8 @@ export async function checkSourceInput({baseURL,context,page,db,userId,token,tod
   }
   assert.equal((await readEnergySnapshot(db,userId)).days.some(d=>d.date===aiDate),false);
   await page.getByRole("button",{name:"确认保存",exact:true}).click();await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
+  // 收据会在2秒后自动回总览，等待真实流程结束再导航，避免测试与定时跳转竞争。
+  await page.waitForURL(baseURL+"/dashboard");await page.waitForLoadState("networkidle");
   assert.equal((await readEnergySnapshot(db,userId)).days.find(d=>d.date===aiDate).sourceSystem,energyA);
   const aiBody=await db.select().from(measurement).where(and(eq(measurement.userId,userId),eq(measurement.recordDate,aiDate)));assert.ok(aiBody.some(r=>!r.deletedAt&&r.deviceLabel===bodyA));checks.push({aiBodyAndEnergySaved:true});
   // Failed removal preserves both the suggestion and the current input; a successful removal does not edit a saved record.

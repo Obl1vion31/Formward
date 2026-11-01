@@ -1,18 +1,16 @@
 # Formward 项目交接
 
-## 当前本地修改：密码至少六位（未发布）
+## 当前发布：六位密码与历史来源点选
 
-统一新密码为6–128字符，邀请激活、密码重设、本人改密、owner本地恢复、内部账号创建和认证配置共用src/features/auth/password-policy.ts，页面原生长度限制与提示也取自同一处。原有密码、哈希、健康记录及授权规则保持，不批量改密码，没有迁移、运行依赖或公开注册变化。
+密码至少六位与手机历史来源点选修复已发布。正式域名https://formward-ten.vercel.app指向READY部署dpl_5WnHbK1FTZtuSG1GjMYatBhxz84J，应用源码c11c977ab15f81a7d000d9b4c290d0c509b3cab6，构建8fcb296d-a9eb-4a75-b744-bb2399a5ef34。分支codex/password-minimum-six，工作区仍为Formward-worktrees/meal-entry-macros；本轮仅发布，未推GitHub main，主工作区双区／COS／DNS及其他未上线内容保持隔离。
 
-本地分支codex/password-minimum-six，工作区仍为/home/obl1vion/projects/Formward-worktrees/meal-entry-macros，基于077a0d9，包含上一轮已完成但尚未发布的手机来源修复。440项单元／集成、lint、类型、production build、结构检查通过；Chromium／WebKit账号浏览器各8项流程、25张截图通过，五位原生表单不能提交，六位激活／重设／改密后可登录，旧会话与AI授权按原规则失效。修改范围的手机和电脑截图已自检，真实iPhone和系统键盘未测。仅隔离PGlite与虚构账号，没有读取或写入生产数据库。未发布公网、未推main；正式版本仍为此前食材库修正。证据在主工作区私有.codex/password-minimum-six。
+新密码统一6–128字符，邀请激活、重设、本人改密、owner本地恢复、内部创建、认证配置和页面提示共用password-policy.ts；原有密码保持。SourceInput候选改成真实按钮，触屏不取消按下事件，输入先失焦时不抢先收起；身体、消耗与AI确认共用，选中仍先进入草稿，再按原流程保存。
 
-## 当前本地修复：手机历史来源点选（未发布）
+本地440项单元／集成、lint、类型、production build及结构通过。正式Chromium／WebKit最终各18组来源检查、16张截图通过；来源触屏／失焦／重复／中文／键盘、身体及消耗保存、AI应用后统一保存、建议移除与旧来源保持均复验。普通虚构账号在正式网页验证五位不提交、六位改密后登录、旧会话和AI令牌失效；邀请／重设和owner维护六位流程仅在隔离环境验证，没有仿造生产管理员。首轮WebKit出现Load failed，追踪复跑发现AI收据2秒回总览与脚本提前跳页竞争；测试现等待真实返回再继续。两轮失败留档不计通过，最终WebKit复跑无页面异常、无过滤异常。真实iPhone与系统键盘未测。
 
-独立分支codex/source-history-touch-fix，工作区/home/obl1vion/projects/Formward-worktrees/meal-entry-macros，以最近正式代码和文档dbfcb23为基线。已复现旧候选在WebKit触屏只有按下／抬起、没有click，以及输入先失焦导致候选收起的两条路径。共用SourceInput改用真实按钮，触屏不拦截按下，relatedTarget为空不抢先关闭；点外部、焦点离开、Tab、Escape继续关闭，中文输入法确认不会误选。
+7项公开／保护入口通过，正式别名与源码绑定再次核对；最终通过组客户端异常及5xx为0，部署最近20分钟Runtime error／fatal和请求5xx均0，无排除区间及后续分页。4个本轮虚构账号及所属数据已清理；发布前后43表结构、29条迁移账本和既有行值严格对照通过，issues为空。备份database-before／after-source-password-2026-11-02.json及source-password-production-verification-2026-11-02.json均位于私有data/exports、0600并被Git／部署忽略。证据.codex/password-minimum-six/release，最终截图为production/chromium及production-final/webkit；前两轮WebKit记录保留。没有数据库迁移、历史初始化、运行依赖或公开权限变化。上一READY部署dpl_9NN2wRePFTmKhbXnQ7Zit6xJcDfq保留供应用回退，不回滚健康数据。
 
-身体、消耗及AI确认共用本次修复，来源点选只改草稿，正式保存和建议软移除语义不变。未改热量规则、健康数据、数据库、权限或公开接口。当前只完成本地修复与验收，未发布公网、未推GitHub main；上次正式部署仍为下节记录。主工作区其他未上线内容保持。
-
-## 当前发布：食材库名称与电脑重复按钮修正
+## 此前发布：食材库名称与电脑重复按钮修正
 
 手机独立食材库换行与电脑重复按钮已修正并发布。正式域名https://formward-ten.vercel.app指向READY部署dpl_9NN2wRePFTmKhbXnQ7Zit6xJcDfq，应用源码2157ed8c415f0680c37fdeccd656000d4a1d3087，分支codex/meal-library-width-fix（工作区仍为Formward-worktrees/meal-entry-macros）。这是刚上线餐次功能的后续纠错，main未更新；主工作区双区／COS／DNS及其他未上线改动保持隔离。
 

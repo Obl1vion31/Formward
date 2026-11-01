@@ -37,7 +37,7 @@ pnpm test:account-concurrency
 
 ## 来源历史触屏回填
 
-production build后设置FORMWARD_SOURCE_INPUT_ONLY=1运行pnpm test:records-browser，FORMWARD_SOURCE_INPUT_ARTIFACTS指定私有截图目录，FORMWARD_EDITOR_BROWSER=webkit切换引擎。source-input.browser.mjs在隔离账号验证身体、消耗和AI确认中的真实候选点选、重复选择、原生失焦先于点击、Tab／Escape／外部关闭、中文输入法确认与实际保存后数据库来源；同时验证建议移除失败保留输入、成功移除不改旧记录。手机使用isMobile与hasTouch上下文，覆盖320／390／430及横屏，并改变可视高度；Chromium使用原生触摸拖动列表，WebKit另检查程序滚动后点选，后者不冒充真实手势。物理iPhone和系统键盘须另记未测。
+production build后设置FORMWARD_SOURCE_INPUT_ONLY=1运行pnpm test:records-browser，FORMWARD_SOURCE_INPUT_ARTIFACTS指定私有截图目录，FORMWARD_EDITOR_BROWSER=webkit切换引擎。source-input.browser.mjs在AI统一确认后等待收据真实返回总览，再进入下一页面，避免脚本与2秒定时导航竞争；不以过滤页面异常代替完整流程。该脚本在隔离账号验证身体、消耗和AI确认中的真实候选点选、重复选择、原生失焦先于点击、Tab／Escape／外部关闭、中文输入法确认与实际保存后数据库来源；同时验证建议移除失败保留输入、成功移除不改旧记录。手机使用isMobile与hasTouch上下文，覆盖320／390／430及横屏，并改变可视高度；Chromium使用原生触摸拖动列表，WebKit另检查程序滚动后点选，后者不冒充真实手势。物理iPhone和系统键盘须另记未测。
 
 ## 当前验证入口
 
