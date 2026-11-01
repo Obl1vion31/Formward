@@ -1,3 +1,4 @@
+import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, PASSWORD_LENGTH_LABEL } from "./password-policy";
 import { initializePersonalProfile } from "../onboarding/records";
 import { randomBytes, randomUUID } from "node:crypto";
 import { hashPassword, verifyPassword } from "better-auth/crypto";
@@ -30,7 +31,7 @@ export function normalizeAccountEmail(value: string) {
   return email;
 }
 export function validateNewPassword(password: string) {
-  if (typeof password !== "string" || password.length < 12 || password.length > 128) throw invalid("新密码长度须为 12–128 个字符。");
+  if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) throw invalid(`新密码长度须为 ${PASSWORD_LENGTH_LABEL}。`);
 }
 function requestKey(value: string) {
   if (typeof value !== "string" || !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(value)) throw invalid("请求标识无效，请刷新后重试。");

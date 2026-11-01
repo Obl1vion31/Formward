@@ -62,6 +62,19 @@ try {
     const cookie = response.headers.getSetCookie().map(value => value.split(";")[0]).join("; ");
     const identity = await auth.api.getSession({ headers: new Headers({ cookie }) }); assert.ok(identity); return identity;
   }
+  async function checkMinimum(page: TestPage, labels: string[], submit: string) {
+    for (const label of labels) {
+      const field = page.getByLabel(label, { exact: true });
+      assert.equal(await field.getAttribute("minlength"), "6");
+      await field.fill(""); await field.pressSequentially("12345");
+      assert.equal(await field.evaluate((input: HTMLInputElement) => input.validity.tooShort), true);
+    }
+    let posts = 0;
+    const watchSubmit = (request: { method(): string }) => { if (request.method() === "POST") posts++; };
+    page.on("request", watchSubmit);
+    try { await page.getByRole("button", { name: submit, exact: true }).click(); await page.waitForTimeout(150); assert.equal(posts, 0, "五位密码不能提交表单"); }
+    finally { page.off("request", watchSubmit); }
+  }
   async function capture(page: TestPage, name: string, fullPage = false) {
     await page.waitForLoadState("networkidle");
     await page.waitForFunction(() => !document.querySelector(".page-loading-dialog[open], .page-loading-fallback:not([hidden])"));
@@ -133,7 +146,8 @@ try {
   const claimContext = await launched.newContext({ viewport: { width: 390, height: 640 } }), claimPage = await claimContext.newPage(); watch(claimPage);
   await claimPage.goto(inviteURL); await claimPage.getByLabel("设置密码", { exact: true }).waitFor(); await capture(claimPage, "claim-mobile");
   await claimPage.setViewportSize({ width: 1440, height: 900 }); await capture(claimPage, "claim-desktop");
-  await claimPage.getByLabel("设置密码", { exact: true }).fill("fictional-invited-password"); await claimPage.getByLabel("确认密码", { exact: true }).fill("fictional-invited-password");
+  await checkMinimum(claimPage, ["设置密码", "确认密码"], "激活账号");
+  await claimPage.getByLabel("设置密码", { exact: true }).fill("135790"); await claimPage.getByLabel("确认密码", { exact: true }).fill("135790");
   await claimPage.getByRole("button", { name: "激活账号", exact: true }).click(); await claimPage.getByRole("heading", { name: "密码已设置" }).waitFor();
   assert.equal(new URL(claimPage.url()).hash, ""); assert.equal((await claimContext.request.get(`${baseURL}/api/auth/get-session`)).status(), 200);
   assert.equal(await (await claimContext.request.get(`${baseURL}/api/auth/get-session`)).json(), null);
@@ -158,7 +172,8 @@ try {
   assert.ok(await (await ordinaryContext.request.get(`${baseURL}/api/auth/get-session`)).json());
   const ai = await createAiToken(db, personId, "浏览器测试", "write");
   await claimPage.goto(resetURL); await claimPage.getByRole("heading", { name: "重新设置密码" }).waitFor(); await capture(claimPage, "reset-password-desktop");
-  await claimPage.getByLabel("设置密码", { exact: true }).fill("fictional-reset-password"); await claimPage.getByLabel("确认密码", { exact: true }).fill("fictional-reset-password"); await claimPage.getByRole("button", { name: "保存新密码" }).click();
+  await checkMinimum(claimPage, ["设置密码", "确认密码"], "保存新密码");
+  await claimPage.getByLabel("设置密码", { exact: true }).fill("246810"); await claimPage.getByLabel("确认密码", { exact: true }).fill("246810"); await claimPage.getByRole("button", { name: "保存新密码" }).click();
   await claimPage.getByRole("heading", { name: "密码已设置" }).waitFor();
   assert.equal(await (await ordinaryContext.request.get(`${baseURL}/api/auth/get-session`)).json(), null);
   assert.equal((await ordinaryContext.request.get(`${baseURL}/api/meal-images/fictional-private-image`)).status(), 401);
@@ -167,13 +182,18 @@ try {
   await assert.rejects(authenticateAi(db, `Bearer ${ai.rawToken}`));
   checks.push("弹窗底部、键盘／Escape；重设后旧会话、私有图片、导出与 AI 令牌失效");
 
-  await login(ordinaryContext, { email: person.email, password: "fictional-reset-password" }); await ordinaryPage.goto(`${baseURL}/dashboard/account`);
+  await login(ordinaryContext, { email: person.email, password: "246810" }); await ordinaryPage.goto(`${baseURL}/dashboard/account`);
   for (const [width, height] of [[1440, 900], [1100, 850], [430, 780], [390, 640], [320, 560], [844, 390]]) { await ordinaryPage.setViewportSize({ width, height }); await ordinaryPage.evaluate(() => scrollTo(0, 0)); await capture(ordinaryPage, `account-settings-${width}`); }
   await ordinaryPage.setViewportSize({ width: 390, height: 640 }); await ordinaryPage.getByRole("heading", { name: "撤销全部访问" }).scrollIntoViewIfNeeded(); await capture(ordinaryPage, "account-access-mobile");
-  await ordinaryPage.getByLabel("当前密码", { exact: true }).fill("fictional-reset-password"); await ordinaryPage.getByLabel("新密码", { exact: true }).fill("fictional-final-password"); await ordinaryPage.getByLabel("确认新密码", { exact: true }).fill("fictional-final-password");
+  await ordinaryPage.getByLabel("当前密码", { exact: true }).fill("246810");
+  await checkMinimum(ordinaryPage, ["新密码", "确认新密码"], "修改密码");
+  await ordinaryPage.getByLabel("当前密码", { exact: true }).fill("246810"); await ordinaryPage.getByLabel("新密码", { exact: true }).fill("864210"); await ordinaryPage.getByLabel("确认新密码", { exact: true }).fill("864210");
   await ordinaryPage.getByRole("button", { name: "修改密码", exact: true }).click(); await ordinaryPage.getByRole("dialog", { name: "修改密码", exact: true }).getByRole("button", { name: "修改并退出" }).click(); await ordinaryPage.waitForURL(baseURL + "/");
+  assert.equal((await ordinaryContext.request.post(baseURL + "/api/auth/sign-in/email", { headers: { Origin: baseURL }, data: { email: person.email, password: "864210" } })).status(), 200);
+  checks.push("六位密码激活／重设／改密与登录成功，五位密码由表单拒绝");
   checks.push("个人账号设置全视口、访问控制底部和修改密码后完整退出");
 
+  if (process.env.FORMWARD_PASSWORD_ONLY !== "1") {
   await page.getByRole("article").filter({ hasText: person.email }).getByRole("button", { name: "管理", exact: true }).click(); manageDialog = page.getByRole("dialog", { name: "管理账号", exact: true });
   await manageDialog.getByLabel("停用原因").fill("保留中的停用草稿");
   await db.update(schema.session).set({ adminVerifiedAt: new Date(0) }).where(eq(schema.session.id, identity.session.id));
@@ -186,7 +206,7 @@ try {
   const suspendedPage = await suspendedContext.newPage(); watch(suspendedPage); await suspendedPage.goto(baseURL);
   await suspendedPage.waitForSelector('main[data-images-ready="true"]');
   await suspendedPage.locator(".home-stage").tap({ position: { x: 12, y: 110 } }); await suspendedPage.waitForSelector('main[data-phase="LOGIN_READY"]');
-  await suspendedPage.locator("#email").fill(person.email); await suspendedPage.locator("#password").fill("fictional-final-password"); await suspendedPage.locator("button[type=submit]").click();
+  await suspendedPage.locator("#email").fill(person.email); await suspendedPage.locator("#password").fill("864210"); await suspendedPage.locator("button[type=submit]").click();
   await suspendedPage.getByRole("alert").filter({ hasText: "账号已停用" }).waitFor(); await suspendedPage.getByText("忘记密码？", { exact: true }).click(); await capture(suspendedPage, "login-suspended-mobile"); await suspendedContext.close();
   await page.getByRole("article").filter({ hasText: person.email }).getByRole("button", { name: "管理", exact: true }).click(); await page.getByRole("dialog", { name: "管理账号", exact: true }).getByRole("button", { name: "恢复账号", exact: true }).click(); await page.getByRole("dialog", { name: "恢复账号", exact: true }).getByRole("button", { name: "确认", exact: true }).click();
   await page.getByRole("article").getByText("正常", { exact: true }).waitFor(); await page.getByRole("button", { name: "操作记录", exact: true }).click(); await capture(page, "admin-events-mobile");
@@ -220,6 +240,7 @@ try {
   checks.push("原消耗录入顶部／中段／底部与实际保存，验证网页会话上下文兼容");
   await page.locator("summary[aria-label='账号菜单']").click(); await page.getByRole("link", { name: "账号管理", exact: true }).waitFor(); await capture(page, "owner-menu-mobile");
   checks.push("原四页桌面／手机与 owner 菜单入口回归");
+  }
   assert.deepEqual(errors, []); assert.deepEqual(requestErrors, []);
   await writeFile(resolve(artifacts, "report.json"), JSON.stringify({ engine, passed: checks, screenshots, pageErrors: errors, server5xx: requestErrors, realIOS: "未测", productionAccess: false }, null, 2));
   console.log(JSON.stringify({ engine, passed: checks.length, screenshots: screenshots.length, pageErrors: errors.length, server5xx: requestErrors.length }));

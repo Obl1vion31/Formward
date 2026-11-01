@@ -1,3 +1,4 @@
+import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, PASSWORD_LENGTH_LABEL } from "./password-policy";
 import { initializePersonalProfile } from "../onboarding/records";
 import { randomUUID } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
@@ -9,7 +10,7 @@ import { account, user } from "../../db/schema";
 export async function provisionAccount(db: Database, input: { email: string; password: string; name?: string }) {
   const email = input.email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) throw new Error("请输入有效邮箱。");
-  if (input.password.length < 6 || input.password.length > 128) throw new Error("密码长度需为 6–128 个字符。");
+  if (input.password.length < MIN_PASSWORD_LENGTH || input.password.length > MAX_PASSWORD_LENGTH) throw new Error(`密码长度需为 ${PASSWORD_LENGTH_LABEL}。`);
   const password = await hashPassword(input.password);
   return db.transaction(async (tx) => {
     const id = randomUUID();

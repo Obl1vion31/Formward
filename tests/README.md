@@ -18,6 +18,8 @@ production build后设置FORMWARD_FRAME_ONLY=1运行pnpm test:energy-browser。u
 
 ## 账号管理验收
 
+新密码边界覆盖5字符拒绝、6／11／128字符通过、129及非字符串拒绝；邀请激活、重设、本人改密、owner本地恢复分别实写六位密码并登录，非法长度不消费链接或撤销原会话。账号浏览器流程输入五位检查原生表单拒绝，再用六位完成激活、重设、修改及重新登录。production build后可用FORMWARD_PASSWORD_ONLY=1 pnpm test:account-browser只执行账号与密码相关流程；两引擎与截图路径仍用FORMWARD_ACCOUNT_BROWSER／FORMWARD_ACCOUNT_ARTIFACTS。
+
 `pnpm test` 包含 account-management.test.ts，覆盖普通用户与过期／跨会话拒绝、邀请摘要／重复／并发／过期／撤销、激活审计失败回滚、改密与停用联动、旧版本会话、原生接口旁路和 owner 维护。OAuth 集成覆盖后台停用与真实刷新竞争、旧 JWT／刷新／审核失效及恢复后重新连接。身体迁移测试在核对旧结构后升级到当前认证结构再调用当前业务函数。
 
 `pnpm test:account-browser` 自行建立隔离 PGlite 和独立 production 服务，验证真实 Server Action 越权、后台解锁、邀请／激活／重设、个人改密、过期保留筛选与草稿、停用恢复和审计。五种宽度、矮屏与横屏截图包含长邮箱、弹窗、设置底部、原四页及菜单；`FORMWARD_ACCOUNT_BROWSER=webkit` 切换引擎，`FORMWARD_ACCOUNT_ARTIFACTS` 指定私有证据目录。需要先构建，不能与修改同一 `.next` 的构建同时运行。

@@ -1,3 +1,4 @@
+import { PASSWORD_LENGTH_LABEL } from "../src/features/auth/password-policy";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { createDatabase } from "../src/db/client";
@@ -41,7 +42,7 @@ try {
       const prompt = createInterface({ input: stdin, output: stdout });
       const confirmation = await prompt.question("输入目标邮箱以确认："); prompt.close();
       if (confirmation.trim().toLowerCase() !== target.email) throw new Error("目标确认不匹配，未执行。");
-      const password = await hiddenPassword("新密码（12–128 字符，输入不显示）：");
+      const password = await hiddenPassword(`新密码（${PASSWORD_LENGTH_LABEL}，输入不显示）：`);
       if (password !== await hiddenPassword("再次输入新密码：")) throw new Error("两次密码不一致，未执行。");
       await recoverAccountOwner(database.db, target.id, password);
       console.log("owner 密码已恢复，旧访问已撤销，维护审计已保存。");

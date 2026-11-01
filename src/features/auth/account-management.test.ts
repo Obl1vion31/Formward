@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "../../db/schema";
 import { createAuth, currentUser } from "./auth";
 import { provisionAccount } from "./provision";
-import { claimAccountLink, createAccountInvitation, initializeAccountOwner, inspectAccountLink, loadAccountAdmin, manageAccount, recoverAccountOwner, revokeAccountInvitation, unlockAccountAdmin, changePersonalPassword, loadPersonalAccount, revokePersonalAccess, revokePersonalSession } from "./account-management";
+import { validateNewPassword, claimAccountLink, createAccountInvitation, initializeAccountOwner, inspectAccountLink, loadAccountAdmin, manageAccount, recoverAccountOwner, revokeAccountInvitation, unlockAccountAdmin, changePersonalPassword, loadPersonalAccount, revokePersonalAccess, revokePersonalSession } from "./account-management";
 import { ADMIN_VERIFICATION_MS, hashAccountToken, requireSessionProof, webSessionContext } from "./account-security";
 import { createAiToken, authenticateAi } from "./ai-tokens";
 import { lockOwner } from "./owner-lock";
@@ -86,10 +86,12 @@ test("邀请只存摘要与邀请，不提前建账号；预览不消费；激�
   for (let i = 0; i < 2; i++) assert.equal((await inspectAccountLink(db, link.rawToken)).email, email);
   const repeat = await createAccountInvitation(db, proof, email, request);
   assert.equal(repeat.repeated, true); assert.equal(repeat.rawToken, null);
-  await claimAccountLink(db, link.rawToken, "fictional-invited-password", "claim-test");
+  await assert.rejects(claimAccountLink(db, link.rawToken, "12345", "claim-test"), /6–128/);
+  assert.equal((await inspectAccountLink(db, link.rawToken)).email, email);
+  await claimAccountLink(db, link.rawToken, "135790", "claim-test");
   const [created] = await db.select().from(schema.user).where(eq(schema.user.email, email));
   assert.equal(created.emailVerified, false); assert.equal(created.role, "user");
-  assert.equal((await signIn(email, "fictional-invited-password")).response.status, 200);
+  assert.equal((await signIn(email, "135790")).response.status, 200);
   await assert.rejects(claimAccountLink(db, link.rawToken, "fictional-new-password", "claim-test"), /失效或已使用/);
 });
 
@@ -123,11 +125,13 @@ test("密码重设在兑换前保留访问，成功后撤销全部访问和其�
   assert.ok(link?.rawToken);
   assert.ok(await currentUser(new Headers({ cookie: person.cookie }), auth));
   assert.ok(await authenticateAi(db, `Bearer ${token.rawToken}`));
-  await claimAccountLink(db, link.rawToken, "fictional-replacement-password", "reset");
+  await assert.rejects(claimAccountLink(db, link.rawToken, "12345", "reset"), /6–128/);
+  assert.ok(await currentUser(new Headers({ cookie: person.cookie }), auth));
+  await claimAccountLink(db, link.rawToken, "357913", "reset");
   assert.equal(await currentUser(new Headers({ cookie: person.cookie }), auth), null);
   await assert.rejects(authenticateAi(db, `Bearer ${token.rawToken}`), /撤销/);
   assert.equal((await signIn(person.email, person.password)).response.status, 401);
-  assert.equal((await signIn(person.email, "fictional-replacement-password")).response.status, 200);
+  assert.equal((await signIn(person.email, "357913")).response.status, 200);
 });
 
 test("停用／恢复保持数据；恢复不复活旧会话、令牌或重设链接", async () => {
@@ -175,13 +179,13 @@ test("普通用户可管理自己的设备，跨账号设备操作失败", async
   await assert.rejects(loadPersonalAccount(db, first.proof), /登录已失效/);
 });
 
-test("修改密码校验旧密码与新长度，成功后撤销访问；六位旧密码继续可登录", async () => {
+test("修改密码接受六位新密码，校验旧密码与长度并撤销访问；旧密码仍兼容", async () => {
   const person = await ordinary();
   await assert.rejects(changePersonalPassword(db, person.proof, "wrong", "fictional-new-password", "own-change"), /当前密码/);
-  await assert.rejects(changePersonalPassword(db, person.proof, person.password, "short", "own-change"), /12–128/);
-  await changePersonalPassword(db, person.proof, person.password, "fictional-new-password", "own-change");
+  await assert.rejects(changePersonalPassword(db, person.proof, person.password, "short", "own-change"), /6–128/);
+  await changePersonalPassword(db, person.proof, person.password, "246810", "own-change");
   assert.equal(await currentUser(new Headers({ cookie: person.cookie }), auth), null);
-  assert.equal((await signIn(person.email, "fictional-new-password")).response.status, 200);
+  assert.equal((await signIn(person.email, "246810")).response.status, 200);
   const old = await provisionAccount(db, { email: "six@account.example.test", password: "123456" });
   assert.ok(old.id); assert.equal((await signIn("six@account.example.test", "123456")).response.status, 200);
 });
@@ -199,6 +203,10 @@ test("owner 本地恢复撤销访问而不改健康数据，普通账号不可�
   const person = await ordinary();
   await assert.rejects(recoverAccountOwner(db, person.id, "fictional-recovery-password"), /owner/);
   const proof = await ownerProof();
+  await assert.rejects(recoverAccountOwner(db, ownerId, "12345"), /6–128/);
+  assert.ok(await loadAccountAdmin(db, proof));
+  await recoverAccountOwner(db, ownerId, "864210");
+  assert.equal((await signIn("owner@account.example.test", "864210")).response.status, 200);
   await recoverAccountOwner(db, ownerId, ownerPassword);
   await assert.rejects(loadAccountAdmin(db, proof), /登录已失效/);
 });
@@ -212,4 +220,9 @@ test("激活审计失败时账号、密码与令牌消费全部回滚", async ()
     assert.equal((await db.select().from(schema.user).where(eq(schema.user.email, email))).length, 0);
     assert.equal((await inspectAccountLink(db, link.rawToken!)).email, email);
   } finally { await pg.exec("DROP TRIGGER account_fail_audit ON account_events; DROP FUNCTION account_fail_audit();"); }
+});
+
+test("新密码长度边界为6至128字符，短值、超长与非字符串拒绝", () => {
+  for (const value of ["", "12345", "x".repeat(129), null, undefined, 123456]) assert.throws(() => validateNewPassword(value as string), /6–128/);
+  for (const value of ["123456", "x".repeat(11), "x".repeat(128)]) assert.doesNotThrow(() => validateNewPassword(value));
 });

@@ -1,5 +1,11 @@
 # Formward 项目交接
 
+## 当前本地修改：密码至少六位（未发布）
+
+统一新密码为6–128字符，邀请激活、密码重设、本人改密、owner本地恢复、内部账号创建和认证配置共用src/features/auth/password-policy.ts，页面原生长度限制与提示也取自同一处。原有密码、哈希、健康记录及授权规则保持，不批量改密码，没有迁移、运行依赖或公开注册变化。
+
+本地分支codex/password-minimum-six，工作区仍为/home/obl1vion/projects/Formward-worktrees/meal-entry-macros，基于077a0d9，包含上一轮已完成但尚未发布的手机来源修复。440项单元／集成、lint、类型、production build、结构检查通过；Chromium／WebKit账号浏览器各8项流程、25张截图通过，五位原生表单不能提交，六位激活／重设／改密后可登录，旧会话与AI授权按原规则失效。修改范围的手机和电脑截图已自检，真实iPhone和系统键盘未测。仅隔离PGlite与虚构账号，没有读取或写入生产数据库。未发布公网、未推main；正式版本仍为此前食材库修正。证据在主工作区私有.codex/password-minimum-six。
+
 ## 当前本地修复：手机历史来源点选（未发布）
 
 独立分支codex/source-history-touch-fix，工作区/home/obl1vion/projects/Formward-worktrees/meal-entry-macros，以最近正式代码和文档dbfcb23为基线。已复现旧候选在WebKit触屏只有按下／抬起、没有click，以及输入先失焦导致候选收起的两条路径。共用SourceInput改用真实按钮，触屏不拦截按下，relatedTarget为空不抢先关闭；点外部、焦点离开、Tab、Escape继续关闭，中文输入法确认不会误选。

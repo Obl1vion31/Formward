@@ -1,3 +1,4 @@
+import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from "./password-policy";
 import { betterAuth } from "better-auth/minimal";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { getDatabase, type Database } from "../../db/client";
@@ -34,7 +35,7 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
     baseURL: config.baseURL,
     trustedOrigins,
     database: drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
-    emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: 6, maxPasswordLength: 128 },
+    emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: MIN_PASSWORD_LENGTH, maxPasswordLength: MAX_PASSWORD_LENGTH },
     user: { additionalFields: { accessVersion: { type: "number", defaultValue: 0, input: false }, lastLoginAt: { type: "date", required: false, input: false } } },
     session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24, cookieCache: { enabled: false }, additionalFields: {
       accessVersion: { type: "number", defaultValue: 0, input: false }, adminVerifiedAt: { type: "date", required: false, input: false, returned: false },

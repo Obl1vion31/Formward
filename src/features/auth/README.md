@@ -10,6 +10,7 @@
 - `site-url.ts`：公网链接采用 BETTER_AUTH_URL 的 HTTPS 根地址，忽略代理内部地址和请求 Host；本机兼容 localhost、127.0.0.1 与 IPv6。`site-url.test.ts` 覆盖审核链接、OpenAPI、错误配置和云服务默认时区。
 - `server.ts`：Next.js 的 server-only 入口，避免认证配置被客户端导入；currentPageUser 使用 React cache 在同次 Server Component 请求中复用身份查询，不跨请求缓存。页面和 Server Actions 继续分别验证身份。
 - `client.ts`：浏览器登录与退出请求、超时与中文错误提示；不保存密码或令牌。
+- `password-policy.ts`：浏览器表单、认证配置、邀请激活、密码重设、本人改密和维护脚本共用6–128字符限制及提示；不修改已有密码。
 - `provision.ts`：维护脚本创建普通账号，规范化邮箱并在事务中写用户和 credential，密码保存 scrypt 哈希；重复请求不创建重复账号或重置密码。
 - `auth.test.ts`：独立内存 PostgreSQL 的正常、无效、重复、跨账号、撤销、过期、来源检查和限流验证。
 
