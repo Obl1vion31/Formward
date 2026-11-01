@@ -20,7 +20,32 @@ export async function checkMealEntry({baseURL,context,page,db,userId,token,today
  async function fillFree(){await form().getByLabel("自由填写食物名称",{exact:true}).fill("虚构鸡胸肉本次总量");await form().getByLabel("单位 1",{exact:true}).fill("g");await form().getByLabel("数量 1",{exact:true}).fill("150");for(const [field,value]of[["热量","240"],["蛋白质","30"],["碳水","12"],["脂肪","8"]])await form().getByLabel("本次"+field+" 1",{exact:true}).fill(value);}
  async function total(value){assert.match((await form().getByLabel("本餐合计",{exact:true}).innerText()).replaceAll(",",""),new RegExp(String(value)));}
  async function closeEditor(dirty=false){await modal().getByRole("button",{name:"关闭编辑",exact:true}).click();if(dirty)await page.getByRole("dialog",{name:"放弃尚未保存的输入？",exact:true}).getByRole("button",{name:"放弃修改",exact:true}).click();await page.locator("dialog[open]").filter({has:page.getByRole("heading",{name:/^(记录一餐|编辑餐次)$/})}).waitFor({state:"hidden"});}
- const cases=[],details=[];
+ async function showPicker(){
+  const button=form().getByRole("button",{name:"从食材库添加",exact:true});
+  if(await button.isVisible())await button.click();
+ }
+ async function backToEntry(){
+  const button=form().getByRole("button",{name:/^返回本餐 · /});
+  if(await button.isVisible())await button.click();
+ }
+ const cases=[],details=[],libraries=[];
+ // The standalone library is a separate screen from the meal picker's results.
+ for(const theme of ["dark","light"])for(const [width,height]of[[320,560],[390,720],[430,780],[844,390],[1100,900],[1440,900]]){
+  await page.setViewportSize({width,height});await page.goto(baseURL+"/dashboard/meals");await page.waitForLoadState("networkidle");
+  await page.evaluate(t=>{localStorage.setItem("formward-theme",t);document.documentElement.dataset.theme=t;dispatchEvent(new Event("formward-theme-change"));},theme);
+  await page.getByRole("button",{name:"食材库",exact:true}).click();await page.evaluate(()=>document.fonts.ready);
+  const rows=await page.locator("table[class*=foodTable] tbody tr").evaluateAll(nodes=>nodes.map(row=>{
+   const name=row.querySelector("th"),r=name.getBoundingClientRect(),b=row.getBoundingClientRect(),style=getComputedStyle(row);
+   const expected=style.display==="grid"?style.gridTemplateColumns.split(" ").slice(0,4).reduce((a,v)=>a+parseFloat(v),0)+parseFloat(style.columnGap)*3:null;
+   return {name:name.textContent.trim(),width:r.width,rowWidth:b.width,expected,grid:style.display==="grid",top:r.top,bottom:r.bottom};
+  }));
+  assert.ok(rows.length>=2);
+  for(const row of rows)if(row.grid)assert.ok(Math.abs(row.width-row.expected)<=1,"手机名称被电脑列宽挤窄："+JSON.stringify(row));
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+  await page.screenshot({path:artifacts+"/"+engine+"-standalone-library-"+theme+"-"+width+".png"});
+  libraries.push({theme,width,height,status:"PASS",rows});
+ }
+
  async function dateBounds(){
   const boxes=await form().locator('input[type="date"],input[aria-label="餐次"]').evaluateAll(nodes=>nodes.map(n=>{const visible=n.closest("[class*=mealDate]")??n,b=visible.getBoundingClientRect(),p=visible.parentElement.getBoundingClientRect();return {left:b.left,right:b.right,width:b.width,parentRight:p.right,top:b.top,height:b.height};}));
   assert.equal(boxes.length,2);assert.ok(boxes[0].right+10<=boxes[1].left,"日期与餐次重叠");assert.ok(Math.abs(boxes[0].top-boxes[1].top)<1);
@@ -87,15 +112,19 @@ export async function checkMealEntry({baseURL,context,page,db,userId,token,today
 
  for(const [width,height]of[[1440,1050],[1100,1000],[430,844],[390,844],[320,740]]){
   await page.setViewportSize({width,height});await openNew();await dateBounds();
+  const side=await form().getAttribute("data-picker")==="side";
+  assert.equal(await form().getByRole("button",{name:"自己填写",exact:true}).isVisible(),!side);
+  assert.equal(await form().getByRole("button",{name:"从食材库添加",exact:true}).isVisible(),!side);
+  assert.equal(await form().getByRole("button",{name:/^返回本餐 · /}).isVisible(),false);
   await page.screenshot({path:artifacts+"/"+engine+"-empty-"+width+".png"});
   await fillFree();await total(240);await fourNutrients();
-  await form().getByRole("button",{name:"从食材库添加",exact:true}).click();
+  await showPicker();assert.equal(await form().getByRole("button",{name:/^返回本餐 · /}).isVisible(),!side);
   await form().getByLabel("搜索食材",{exact:true}).fill("Chicken");
   await page.screenshot({path:artifacts+"/"+engine+"-library-"+width+".png"});
-  await form().getByRole("button",{name:"返回本餐 · 1项",exact:true}).click();
+  await backToEntry();
   assert.equal(await form().getByLabel("食物名称 1",{exact:true}).inputValue(),"虚构鸡胸肉本次总量");
-  await form().getByRole("button",{name:"从食材库添加",exact:true}).click();await form().getByLabel("搜索食材",{exact:true}).fill("");
-  await form().getByRole("button",{name:"返回本餐 · 1项",exact:true}).click();
+  await showPicker();await form().getByLabel("搜索食材",{exact:true}).fill("");
+  await backToEntry();
   await form().getByLabel("数量 1",{exact:true}).fill("200");await total(240);await form().getByLabel("数量 1",{exact:true}).fill("150");
   assert.equal(await form().getByText("每份营养",{exact:true}).count(),0);
   const row=form().locator("tbody tr").first();
@@ -106,10 +135,10 @@ export async function checkMealEntry({baseURL,context,page,db,userId,token,today
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await row.scrollIntoViewIfNeeded();await page.screenshot({path:artifacts+"/"+engine+"-entry-"+width+".png"});cases.push({width,height,status:"PASS",inputHeight:boxes[0].height,labelGap});
   // Packaging and metric-library rows keep automatic calculation and an independent unit column.
-  if(await form().getByRole("button",{name:"从食材库添加",exact:true}).isVisible())await form().getByRole("button",{name:"从食材库添加",exact:true}).click();
+  if(await form().getByRole("button",{name:"从食材库添加",exact:true}).isVisible())await showPicker();
   await form().getByRole("button",{name:"添加 Chicken Breast Herbs 香草鸡胸肉 · 虚构包装食材",exact:true}).click();await form().getByLabel("数量 2",{exact:true}).fill("0.5");await total(330);
   await geometry();await inspectDetails(1,width,"package");await form().getByLabel("单位 2",{exact:true}).selectOption("g");assert.equal(Number(await form().getByLabel("数量 2",{exact:true}).inputValue()),45);await total(330);
-  if(await form().getByRole("button",{name:"从食材库添加",exact:true}).isVisible())await form().getByRole("button",{name:"从食材库添加",exact:true}).click();
+  if(await form().getByRole("button",{name:"从食材库添加",exact:true}).isVisible())await showPicker();
   await form().getByRole("button",{name:"添加 虚构按克食材",exact:true}).click();await form().getByLabel("数量 3",{exact:true}).fill("150");await total(495);
   const measured=await geometry();cases.at(-1).geometry=measured;await inspectDetails(0,width,"free");
   await form().getByLabel("餐次备注",{exact:true}).fill("虚构备注，用于检查标签与边框间距");
@@ -197,6 +226,6 @@ export async function checkMealEntry({baseURL,context,page,db,userId,token,today
  // The AI preview's authoritative total flows through the same editor; updating is not a formal save.
  const aiDate=addCalendarDays(today,-3),response=await context.request.post(baseURL+"/api/v1/record-operations",{headers:{Authorization:"Bearer "+token},data:{operationId:randomUUID(),items:[{key:"meal",kind:"save_meal",date:aiDate,mealType:"虚构审核总量",items:[{kind:"food",name:"虚构审核按份项",quantity:"1.5",unit:"个",nutritionBasis:"per_portion",perPortionNutrition:nutrition("90"),sourceKind:"estimated"}]}]}});
  assert.equal(response.status(),200);const preview=await response.json();await page.waitForLoadState("networkidle");await page.goto(preview.confirmationUrl);await page.waitForLoadState("networkidle");await page.getByRole("button",{name:"修改",exact:true}).first().click();await form().getByLabel("本次热量 1",{exact:true}).waitFor();assert.equal(Number(await form().getByLabel("本次热量 1",{exact:true}).inputValue()),135);await form().getByLabel("数量 1",{exact:true}).fill("2");await total(135);await form().getByLabel("本次蛋白质 1",{exact:true}).fill("17");await form().getByLabel("本次碳水 1",{exact:true}).fill("4");await form().getByLabel("本次脂肪 1",{exact:true}).fill("1");await total(93);await page.screenshot({path:artifacts+"/"+engine+"-ai-macro.png"});await form().getByRole("button",{name:"应用修改",exact:true}).click();await page.getByRole("heading",{name:"修改待保存内容",exact:true}).waitFor({state:"hidden"});assert.equal((await snapshot()).meals.some(m=>m.mealType==="虚构审核总量"),false);await page.getByRole("button",{name:"确认保存",exact:true}).click();await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();const ai=(await snapshot()).meals.find(m=>m.mealType==="虚构审核总量");assert.equal(Number(ai.items[0].nutrition.caloriesKcal),93);assert.equal(ai.items[0].nutritionBasis,"consumed_total");
- assert.deepEqual(errors,[]);await writeFile(artifacts+"/"+engine+"-report.json",JSON.stringify({passed:true,cases,details,clientErrors:errors,fullNavigationAborts:errorDetails.filter(e=>e.expectedNavigationAbort),totalMode:true,legacyPreserved:true,libraryScaling:true,aiPreview:true},null,2));console.log(engine+"：输入对齐、总量保存、旧记录精度、包装换算与AI审核通过。");return errorDetails.filter(e=>e.expectedNavigationAbort).map(e=>e.message);
+ assert.deepEqual(errors,[]);await writeFile(artifacts+"/"+engine+"-report.json",JSON.stringify({passed:true,cases,details,libraries,clientErrors:errors,fullNavigationAborts:errorDetails.filter(e=>e.expectedNavigationAbort),totalMode:true,legacyPreserved:true,libraryScaling:true,aiPreview:true},null,2));console.log(engine+"：输入对齐、总量保存、旧记录精度、包装换算与AI审核通过。");return errorDetails.filter(e=>e.expectedNavigationAbort).map(e=>e.message);
  }catch(error){await writeFile(artifacts+"/"+engine+"-errors.json",JSON.stringify({errors:errorDetails,failedRequests},null,2));await page.screenshot({path:artifacts+"/"+engine+"-failure.png"});await writeFile(artifacts+"/"+engine+"-failure.html",await page.content());throw error;}
 }

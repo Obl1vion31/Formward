@@ -134,7 +134,7 @@
 .nutritionTable th strong, .foodTable th strong { display: block; font-weight: 500; }
 .foodTable th span { display: block; margin-top: 3px; max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.5; color: var(--muted); }
 .foodTable td { white-space: nowrap; }
-.foodTable th:first-child { width: 32%; }
+@container(min-width:701px) { .foodTable th:first-child { width:32%; } }
 .foodTable details { margin-top: 8px; font-size: 12px; color: var(--muted); }
 .foodTable details p { max-width: 380px; }
 .foodTable summary { cursor: pointer; min-height: 30px; }
@@ -228,6 +228,10 @@
 :global(dialog):has(.mealForm) { width:min(1280px,100%); }
 .mealColumns { display:block; }
 .mealForm[data-picker=side] .mealColumns { display:grid; grid-template-columns:220px minmax(0,1fr); gap:24px; }
+.mealForm[data-picker=side] .entryPaths,.mealForm[data-picker=side] .pickerHeading>button { display:none; }
+.mealForm[data-picker=side] .pickerHeading { display:block; margin-bottom:0; }
+.mealForm[data-picker=side] .pickerHeading h3 { margin:12px 0 16px; }
+
 
 .mealForm[data-picker=tabs] .mealColumns[data-step=entry] .foodPicker,.mealForm[data-picker=tabs] .mealColumns[data-step=picker] .mealEntry { display:none; }
 .mealColumns h3 { font-size:14px; font-weight:500; margin:12px 0 16px; }

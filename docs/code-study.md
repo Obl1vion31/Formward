@@ -1147,3 +1147,6 @@ build.mjs给每次构建一个版本号，根页面和GET /api/app-version使用
 这条网页检查写在[web-entry.ts](../src/features/records/web-entry.ts)。浏览器用它控制按钮；点击保存后，[web-entry-server.ts](../src/features/records/web-entry-server.ts)读取本人数据库记录，使用同一检查再核对一次。旧餐只改备注时，后台确认营养和版本没变，保留原来的精度；不是把画面上的整数重新写回数据库。普通AI提交和未经手工修改的旧确认不增加这条限制。
 
 “最近记录”的外观由[daily-records.tsx](../src/components/daily-records.tsx)和[record-ui.module.css](../src/components/record-ui.module.css)共用：饮食、消耗、身体传各自日期、摘要和操作，按钮的字号、边框、悬停和焦点由这一处决定。上方选日、读数、区间、标题与图例则由[record-trend-panel.tsx](../src/components/record-trend-panel.tsx)组织；图里的数据仍由原来的业务函数提供。
+
+
+同样叫“食材库”，实际上有两个画面：记录一餐时的搜索由[meal-editor.tsx](../src/features/meals/meal-editor.tsx)负责；从最近记录进入的独立列表由[presets.tsx](../src/features/meals/presets.tsx)里的FoodTable负责。它们共用[meals.module.css](../src/features/meals/meals.module.css)，改完其中一处还要打开另一处检查。电脑名称列的百分比宽度只给宽屏表格使用；手机变成列表后，名称应占满分配空间，否则会出现每个英文单词都换行的情况。
