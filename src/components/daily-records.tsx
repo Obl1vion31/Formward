@@ -2,7 +2,7 @@
 import {useId,useState,type ReactNode} from "react";
 import {recordDateLabel} from "./record-dates";
 import styles from "./record-ui.module.css";
-export function SelectedDateHeading({date,view}:{date:string;view:()=>void}){return <div className={styles.selected} data-selected-date={date}><time dateTime={date}>{date.replaceAll("-",".")}</time><button type="button" onClick={view}>查看记录 →</button></div>;}
+export function SelectedDateHeading({date,view,status}:{date:string;view:()=>void;status?:ReactNode}){return <div className={styles.selected} data-selected-date={date}>{status!==undefined?<span className={styles.selectedInfo}><time dateTime={date}>{date.replaceAll("-",".")}</time>{status}</span>:<time dateTime={date}>{date.replaceAll("-",".")}</time>}<button type="button" onClick={view}>查看记录 →</button></div>;}
 export function DailyRecords({children,history,actions}:{children:ReactNode;history:ReactNode;actions?:ReactNode}){
  const id=useId(),[expanded,setExpanded]=useState(false),[opened,setOpened]=useState(false);
  return <section className={styles.records} aria-label="最近记录"><div className={styles.heading}><h2>最近记录</h2>{actions}</div>{children}

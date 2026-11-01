@@ -227,3 +227,7 @@ pnpm test:app-version需要VERSION_APP_A指向预先保留的另一份生产构�
 ui-consistency.browser.mjs使用隔离内存数据库和虚构账号，对四页两主题、六项读数、紧凑七日、三页描边操作及历史展开、可填边框、固定顶部保存、餐次／每日消耗空白零值和已知部分进行实际检查。VISUAL_BROWSER=chromium或webkit，VISUAL_ARTIFACTS指定私有证据路径。须先production build，检查期间不重建.next；浏览器截图还需逐张人工查看。web-entry.test.ts检查网页后台和公开提交的差异、本人旧值保留、幂等及AI本批食材引用兼容，不读取真实数据库。
 
 餐次编辑专项在频繁整页换页时，PGlite Socket可能不能模拟完整PostgreSQL协议；可用FORMWARD_BROWSER_DATABASE_URL指定独立本机库，仅接受127.0.0.1且库名以formward_browser_开头，禁止用生产连接。WebKit在测试主动整页跳转时取消同源RSC预加载属于该次导航的预期中断，单独记录；实际操作中的异常仍全部失败。
+
+## 总览两排读数
+
+production build后，overview-readings.browser.mjs接受FORMWARD_BROWSER_DATABASE_URL指定的全新回环PostgreSQL，库名必须以formward_browser_开头，拒绝已有用户库且不读.env.local。FORMWARD_OVERVIEW_BROWSER选chromium／webkit，FORMWARD_OVERVIEW_ARTIFACTS指定私有报告。覆盖手机三主项加三次级项、前后晨重、七日直接显示、电脑六项保持、提示行与选日几何、未知／0、七日部分、两主题、原有日期详情／自定义／估计开关及其他三页提示位置；使用虚构账号与本地服务。

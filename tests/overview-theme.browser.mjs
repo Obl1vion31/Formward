@@ -85,9 +85,9 @@ try{
   checks.push("four-pages-both-themes-"+w+"x"+h);
  }
  await p.setViewportSize({width:390,height:720});await go(p,"/dashboard");
- assert.equal(await p.locator("[data-overview-week]>button").getAttribute("aria-expanded"),"false");
- await p.locator("[data-overview-week]>button").click();await shot(p,"phone-week-expanded");assert.equal(await p.locator("[data-overview-week]>button").getAttribute("aria-expanded"),"true");
- await p.locator("[data-overview-week]>button").click();checks.push("phone-week-collapsed-until-requested");
+ assert.equal(await p.locator("[data-overview-week] button").count(),0);
+ assert.equal(await p.locator("[data-overview-secondary]>div").count(),3);
+ await shot(p,"phone-two-row-readings");checks.push("phone-week-and-next-morning-directly-visible");
  await p.setViewportSize({width:1440,height:900});await theme(p,"light");await go(p,"/dashboard/energy");
  await p.locator('[data-record-date="'+today+'"]').getByRole("button",{name:"录入",exact:true}).click();
  const dialog=p.getByRole("dialog",{name:"每日消耗",exact:true});await dialog.waitFor();await shot(p,"light-energy-editor-top");await dialog.getByLabel("静息 · kcal",{exact:true}).fill("1950");await dialog.getByLabel("活动合计 · kcal",{exact:true}).fill("215");

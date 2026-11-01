@@ -73,7 +73,7 @@ try{
    for(const[name,path]of paths){
     await go(p,path);await p.evaluate(()=>scrollTo(0,0));
     if(name==="overview"){
-     assert.equal(await p.locator('[data-record-slot="metrics"]>div').count(),6);
+     assert.equal(await p.locator('[data-record-slot="metrics"]>div').count(),w<=700?3:6);
      if(w>=1100){
       const ys=await p.locator('[data-record-slot="metrics"]>div>span:first-child').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().y));assert.ok(Math.max(...ys)-Math.min(...ys)<2,"six desktop metrics in one row");const baselines=await p.locator('[data-metric-number]>span').evaluateAll(ns=>ns.map(n=>{const marker=document.createElement("i");Object.assign(marker.style,{display:"inline-block",width:"0",height:"0",padding:"0",margin:"0",verticalAlign:"baseline"});n.append(marker);const y=marker.getBoundingClientRect().y;marker.remove();return y;}));assert.ok(Math.max(...baselines)-Math.min(...baselines)<=2,"six numbers share a baseline: "+JSON.stringify(baselines));
       assert.ok((await p.locator("[data-overview-week]").boundingBox()).height<=58,"weekly summary compact");

@@ -1,5 +1,9 @@
 # Formward 项目交接
 
+## 本地待验收：手机两排总览与七日空带
+
+独立分支codex/overview-mobile-readings从a9988ea建立，保留已上线版本和主工作区其他改动。按用户确认图实现手机两排三项：摄入／消耗／收支；次晨变化附前后晨重／近7天收支／近7天体重变化。电脑保留六项与原有排法，仅取消七日详情并直接显示依据、清除下方提示占位。日期行承载必要短提示，其他三页默认不变。无数据库、计算或公开协议变化；用户随后明确要求停止追加修改并先发布上一轮实际页面版本；本轮只发布，不推main，刚才追加的进一步压缩调整已撤回。本地435项单元／集成、lint／类型／production build、结构及链接核对通过；Chromium／WebKit各22组／28图，另各1张粗指针横屏图，异常和5xx为0。普通选日几何差≤1px，窄横屏和重复分隔线已修正后重跑。实际页面截图已交付待验收，物理iPhone、系统键盘和原生字号放大未测；详细结果见本轮维护验收记录。
+
 ## 当前发布：总览、饮食填写与公共记录区统一
 
 正式域名 https://formward-ten.vercel.app 已指向 READY 部署 dpl_2CUg9wgqE4EfJjkJbzg9MWarSnVQ，应用源码为25ed59cf9dfbd9cedf83b7c013fae03a6d4b5d7d。以main的fdf2dba建立隔离分支codex/ui-consistency-release，用户仅本轮明确授权测试及实际浏览器自检通过后直接发布并同步GitHub main；主工作区双区、COS、DNS和未上线迁移保持隔离。

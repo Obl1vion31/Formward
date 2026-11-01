@@ -53,3 +53,5 @@ app-updates.tsx仅检查构建版本，与record-updates.tsx的健康记录变�
 DailyRecords／DailyRecordRow及RecordHistory提供三页最近记录的统一标题、44px描边操作和历史展开，业务页面不得再用“所有按钮”高优先级样式覆盖。RecordTrendPanel支持六项读数按6／3／2退让、数值基线对齐；电脑图表标题、单位与图例同排，手机图例另行。控件边界使用主题control-border，深浅两套均须核对对比。
 
 RecordTrendPanel的metricVariants传入当前区间已算好的各日读数字符串，按数字实际字体缓存最长宽度；列数不随鼠标选日反复变化，换区间或窗口再测量。不生成或修改健康读数。
+
+总览通过RecordTrendPanel的可选statusInDate将短提示放入既有日期行，其他页面默认行为保持。SelectedDateHeading的可选status只提供同排内容，不扩展业务计算。

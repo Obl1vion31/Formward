@@ -10,3 +10,5 @@
 .records .historyToggle{margin:8px 0}
 .historyDate input{border-color:var(--control-border);border-radius:6px;color-scheme:var(--color-scheme);font-size:16px}
 @media(prefers-reduced-motion:reduce){.records .actions button,.records .heading button,.records .historyToggle{transition:none}}
+
+.selectedInfo{display:flex;align-items:center;gap:8px;min-width:0}.selectedInfo time{white-space:nowrap}

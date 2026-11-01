@@ -5,3 +5,7 @@
 .readingArea{display:flex;align-items:start;gap:24px}.readingArea>.metrics{flex:0 0 27%}.readingArea>:last-child{flex:1;min-width:0}
 
 @media(max-width:700px),(hover:none) and (pointer:coarse){.metrics[data-metric-count="6"][data-record-columns="6"]{grid-template-columns:repeat(3,minmax(0,1fr))}.metrics[data-metric-count="6"] .metric:nth-child(n+4) strong>span{font-size:23px}.metrics[data-metric-count="6"] .metric:nth-child(4){border-top:0}.plotHeading{gap:4px 12px;margin-bottom:12px}.plotHeading>.legend{order:3;flex-basis:100%}.range{margin-bottom:12px}}
+
+.dateStatus{font-size:12px;line-height:20px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}@media(max-width:700px),(hover:none) and (pointer:coarse){.dateStatus{font-size:11px;max-width:90px}}
+
+@media(max-width:700px),(hover:none) and (pointer:coarse){.panel[data-status-in-date] .range{border-top:0;margin-top:0}}

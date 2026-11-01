@@ -178,12 +178,13 @@
 .weekNumbers small{font-size:12px;color:var(--muted);margin:0}
 .weekNumbers .weekDeficit{color:var(--data-blue)}.weekNumbers .weekSurplus{color:var(--data-surplus)}
 .weekCoverage{margin-left:auto;color:var(--muted);font-size:12px;white-space:nowrap}
-.weekDetailsToggle{min-height:44px;background:none;border:0;padding:8px 0;font:inherit;font-size:13px;color:var(--gold);cursor:pointer}
-.weekDetailsToggle:focus-visible,.weekToggle:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
-.weekBasis{flex-basis:100%;margin:0 0 10px;font-size:12px;line-height:1.6;color:var(--muted)}
-.weekToggle{display:none}
-@media(max-width:700px),(hover:none) and (pointer:coarse){
- .weekToggle{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:0;width:100%;border:0;background:transparent;text-align:left;font:inherit;font-size:12px;color:var(--muted);cursor:pointer}
- .weekToggle time{font-size:11px;margin-left:8px}.weekContent{display:none}.weekReadings[data-expanded=true] .weekContent{display:flex;padding-bottom:8px;gap:8px 12px}
- .weekContent>header{display:none}.weekNumbers{width:100%;gap:24px}.weekNumbers>div{display:block}.weekNumbers span{display:block;font-size:12px}.weekNumbers strong{font-size:23px}.weekCoverage{margin-left:0}.weekDetailsToggle{margin-left:auto}
-}
+.weekBasis{margin:0;font-size:12px;line-height:1.6;color:var(--muted)}
+.secondaryReadings{display:flex;flex-wrap:wrap;align-items:start;gap:8px 10px;border-bottom:1px solid var(--line-soft);padding:6px 0 12px;font-variant-numeric:tabular-nums}
+.secondaryReadings>div{flex:1 1 calc((100% - 20px)/3);min-width:min-content}
+.secondaryReadings>div>span{display:block;color:var(--muted);font-size:12px;line-height:20px;white-space:nowrap}
+.secondaryReadings strong{display:block;white-space:nowrap;font:400 23px/32px Arial,sans-serif;color:var(--warm-white)}
+.secondaryReadings strong small{font:400 11px/1.2 Arial,sans-serif;color:var(--muted);margin-left:3px}
+.secondaryReadings p{margin:2px 0 0;color:var(--muted);font-size:11px;line-height:17px}
+.secondaryReadings p>span{white-space:nowrap}.secondaryReadings em{font:inherit;margin-left:4px}
+.secondaryReadings .weekDeficit{color:var(--data-blue)}.secondaryReadings .weekSurplus{color:var(--data-surplus)}
+@media(max-width:1000px){.weekBasis{flex-basis:100%}}
