@@ -1,5 +1,27 @@
 # 完善任务验收
 
+## 2026-11-01 总览、教程与双色主题：正式发布验收
+
+总览七日统计、手机折叠、教程修正、双色主题和版本提醒已发布。正式域名https://formward-ten.vercel.app，READY部署dpl_3vbWKmAhFfULQDjRALD68qWv96vW，应用源码6f2c0454700947ee481c15137dde7700b33d521c。用户已验收实际页面并明确授权发布及更新GitHub main；此前已上线的品牌、AI确认和首次使用代码一并同步，不包含主工作区未上线的双区、COS、DNS或0028。无新迁移，原结构与全部既有健康记录、请求及审计保持。
+
+正式Chromium／WebKit各28组检查、39张截图通过，客户端异常与请求5xx均0；64项公开入口、媒体SHA256及十段MP4 Range206通过。手机近7天默认收起、展开及真实七日合计／覆盖数、四页两套主题、身体预览播放、手机完整录屏、个人资料、新旧账号和首次使用流程均复验。5个本轮虚构账号及其健康记录、操作、审计、资料和会话已清理（首轮2个、修正测试后3个）；43表的发布前后私有备份核对通过，迁移账本不变。部署验收日志查询无Runtime error／fatal和5xx，无排除区间及后续分页。
+
+| 项目 | 结果 |
+|---|---|
+| 自动验证 | 428项完整单元／集成；饮食颜色相关76项再验；lint、类型、production build及结构检查通过 |
+| 本地浏览器 | 两引擎各23组四页／主题检查、80图；各44组首次使用／教程回归、40图；原生PostgreSQL双构建版本提醒8项通过 |
+| 正式浏览器 | Chromium／WebKit各28组、39图；320／390／430手机、390矮屏、844横屏、1100／1366／1440电脑 |
+| 实际视觉 | 已查看正式手机默认／展开总览、浅色饮食、电脑总览和身体预览、WebKit手机完整教程；不以无溢出代替视觉判断 |
+| 媒体与入口 | 64项入口、脚本／40份媒体SHA256及十段Range206；版本接口本次固定UUID、no-store |
+| 来源绑定 | 正式别名READY，部署元数据releaseCommit与应用源码6f2c045一致；Git项目未连接自动部署，main正常快进同步 |
+| 数据 | 43表定义和账本不变；原行值保持，仅正常使用元数据允许变化；5个所属虚构账号、健康事实、操作和审计无残留 |
+| 真实设备 | 物理iPhone、系统软键盘和系统原生全屏未测；不以桌面WebKit替代 |
+| 首次启用更新提醒 | 发布前已打开的旧页面需先手动刷新一次；后续发现新构建只提示，不擅自刷新 |
+
+证据在私有.codex/overview-theme-tutorial/release/，正式截图和报告为production/{chromium,webkit}/；第一次自动播放断言因测试先启用减少动态效果而失败，调整为导航前确定设置后重验，失败记录及所属清理报告在production-attempt-1/，未为迎合测试改动应用。
+
+备份data/exports/database-{before,after}-overview-theme-2026-11-01.json及overview-theme-production-verification-2026-11-01.json均0600、Git和部署忽略。没有迁移、环境变量、DNS、个人健康初始化或公开健康协议变化；回滚可指向上一READY应用，不回滚用户合法数据。
+
 ## 首次使用、个人资料与教程：正式验收
 
 正式域名https://formward-ten.vercel.app对应READY部署dpl_FANbZV1926TEotnBfbL2ae17Ah89，应用源码95f10004f8d29a422b8a6259620dc4678e68b0cf。用户当次授权直接发布；main未合并。
@@ -332,8 +354,8 @@ lint、typecheck、354项单元／集成、production build、维护专项、消
 | D10：主题 | 四页、AI确认、消耗填写／切换确认、资料与教程两套主题；修正浅色次晨线、柱内P／C／F对比及窄屏演练页头；菜单和键盘切换、重进恢复偏好 |
 | D10：版本提醒 | 两份真实production构建经同一回环地址切换，临时原生PostgreSQL；8项通过，取消保留172草稿，明确确认后加载新版本、地址与登录保持；已有个人／健康记录未写入 |
 | 技术门槛 | 428项完整单元／集成；饮食颜色相关76项再验；lint、类型检查、production build、脚本语法及Markdown本地引用检查通过 |
-| 发布与真实设备 | 用户已验收并授权发布及main；正式站核对进行中。物理iPhone、系统软键盘、原生系统全屏未测，不列作通过 |
+| 发布与真实设备 | 用户已验收并授权发布及main；正式核对通过，结果见本文最新正式验收。物理iPhone、系统软键盘、原生系统全屏未测，不列作通过 |
 
-证据统一在私有 `/home/obl1vion/projects/Formward/.codex/overview-theme-tutorial`；`chromium/report.json`、`webkit/report.json`分别记录四页／主题／更新／确认页，`regression-chromium/report.json`、`regression-webkit/report.json`分别记录首次使用和十段影片；`versions/report.json`记录真实双构建验证。原片、点击坐标和解码报告在`tutorial-production/evidence`。检查使用虚构数据；备份生产、迁移和正式验收不属于这一阶段。
+证据统一在私有 `/home/obl1vion/projects/Formward/.codex/overview-theme-tutorial`；`chromium/report.json`、`webkit/report.json`分别记录四页／主题／更新／确认页，`regression-chromium/report.json`、`regression-webkit/report.json`分别记录首次使用和十段影片；`versions/report.json`记录真实双构建验证。原片、点击坐标和解码报告在`tutorial-production/evidence`。本地检查使用虚构数据；本轮正式备份、无迁移核对及公网验收已完成，见本文最新正式验收。
 
 本机只有PostgreSQL客户端，原生测试服务端及liburing下载后仅解压在仓库外私有工具目录，没有安装系统服务或加入应用依赖。可用FORMWARD_PG_BIN指定其bin目录；测试结束停止并清理独立临时数据库。
