@@ -9,7 +9,7 @@ import { energyBands, energyLineScale, fadeEdgeFraction, linePath } from "./char
 import type { OverviewDay } from "./model";
 import styles from "./overview.module.css";
 
-const palette = { intake: "#92B9D6", expenditure: "#D89490", surplus: "#D8B38A", deficit: "#92B2C2", weight: "#EEE5D5" };
+const palette = { intake: "var(--data-blue)", expenditure: "var(--data-red)", surplus: "var(--data-surplus)", deficit: "var(--data-deficit)", weight: "var(--data-weight)" };
 export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unpin }: { days: OverviewDay[]; selected: string; inspect:(date:string)=>void;preview:(date:string)=>void;leave:()=>void;pin:(date:string)=>void;unpin:()=>void }) {
   const container = useRef<HTMLDivElement>(null), id = useId().replaceAll(":", "");
   const [viewportRoom,setViewportRoom]=useState<number|null>(null);
@@ -81,7 +81,7 @@ export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unp
         <g data-chart-line className={styles.plotData}>{days.map((day, i) => i > 0 && day.weightChangeKg !== null && days[i - 1].weightChangeKg !== null && <line key={day.date} x1={x(i - 1)} x2={x(i)} y1={weightY(days[i - 1].weightChangeKg!)} y2={weightY(day.weightChangeKg)} stroke={palette.weight} strokeWidth="1.6" strokeLinecap="round" strokeDasharray={day.differenceEstimated || days[i - 1].differenceEstimated ? "4 4" : undefined} />)}</g>
         {!days.some(day => day.weightChangeKg !== null) && <text x={(left + w - right) / 2} y={weightTop + 24} textAnchor="middle" className={styles.emptyPlot}>暂无相邻两日晨重</text>}
       </g>
-      <rect x={left + selectedIndex * slot} y={top} width={slot} height={weightBottom - top} fill="rgba(240,233,221,.025)" className={styles.plotData} />
+      <rect x={left + selectedIndex * slot} y={top} width={slot} height={weightBottom - top} fill="color-mix(in srgb,var(--warm-white) 2.5%,transparent)" className={styles.plotData} />
       <line data-crosshair-date={selected} x1={x(selectedIndex)} x2={x(selectedIndex)} y1={top} y2={weightBottom} className={styles.crosshair} />
       {days.map((day, i) => <g key={day.date} style={{ outline: "none" }} role="button" tabIndex={day.date === selected ? 0 : -1} data-overview-date={day.date} data-balance={day.energyBalance ?? undefined} data-meal-day-status={day.mealDayStatus} aria-label={`${day.date} · 摄入 ${day.nutrition?.values.caloriesKcal ?? "未记录"} kcal${day.nutrition && day.mealDayStatus !== "complete" ? day.mealDayStatus === "incomplete" ? "，当天未记全" : "，全天待确认" : ""} · 消耗 ${day.energy.totalKcal ?? "未记录"} kcal · 盈余 ${day.energyBalance ?? "未知"} kcal · 次晨变化 ${day.weightChangeKg ?? "未知"} kg`} onFocus={() => inspect(day.date)} onClick={() => pin(day.date)} onKeyDown={event => {
         if (["Enter", " "].includes(event.key)) { event.preventDefault(); pin(day.date); }
@@ -92,9 +92,9 @@ export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unp
         <g className={styles.plotData}>{[intake[i], expenditure[i]].map((point, n) => {
           if (!point) return null;
           const radius = i === selectedIndex ? 3.6 : days.length > 90 ? 1.4 : ![intake, expenditure][n][i - 1] || ![intake, expenditure][n][i + 1] ? 2.5 : 1.8;
-          return n ? <rect key={n} data-series="expenditure" data-overview-value={day.energy.totalKcal ?? undefined} x={point.x - radius} y={point.y - radius} width={radius * 2} height={radius * 2} fill={palette.expenditure} /> : <circle key={n} data-series="intake" data-overview-value={day.nutrition?.values.caloriesKcal} cx={point.x} cy={point.y} r={radius} stroke={palette.intake} strokeWidth="1.2" fill={day.mealDayStatus !== "complete" ? "#151513" : palette.intake} />;
+          return n ? <rect key={n} data-series="expenditure" data-overview-value={day.energy.totalKcal ?? undefined} x={point.x - radius} y={point.y - radius} width={radius * 2} height={radius * 2} fill={palette.expenditure} /> : <circle key={n} data-series="intake" data-overview-value={day.nutrition?.values.caloriesKcal} cx={point.x} cy={point.y} r={radius} stroke={palette.intake} strokeWidth="1.2" fill={day.mealDayStatus !== "complete" ? "var(--surface)" : palette.intake} />;
         })}
-          {day.weightChangeKg !== null && <circle data-series="weight-change" data-overview-value={day.weightChangeKg} data-estimated={day.differenceEstimated} cx={x(i)} cy={weightY(day.weightChangeKg)} r={i === selectedIndex ? 3.4 : days.length > 90 ? 1.4 : 2.5} stroke={palette.weight} strokeWidth="1.2" fill={day.differenceEstimated ? "#151513" : palette.weight} />}
+          {day.weightChangeKg !== null && <circle data-series="weight-change" data-overview-value={day.weightChangeKg} data-estimated={day.differenceEstimated} cx={x(i)} cy={weightY(day.weightChangeKg)} r={i === selectedIndex ? 3.4 : days.length > 90 ? 1.4 : 2.5} stroke={palette.weight} strokeWidth="1.2" fill={day.differenceEstimated ? "var(--surface)" : palette.weight} />}
         </g>
         {(i % stride === 0 && days.length - 1 - i >= stride / 2 || i === days.length - 1) && <text x={x(i)} y={height - 5} textAnchor={days.length === 1 ? "middle" : i === 0 ? "start" : i === days.length - 1 ? "end" : "middle"} data-overview-date-label="" className={styles.axis}>{w < 440 && days.length <= 7 ? day.date.slice(8) : days.length > 366 ? day.date.slice(2, 7).replace("-", ".") : day.date.slice(5).replace("-", ".")}</text>}
       </g>)}

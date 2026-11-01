@@ -43,3 +43,5 @@
 
 
 onboarding/提供首次资料→教程与owner演练，dashboard/profile/为本人资料，dashboard/tutorial/为可反复查看的说明。四个普通主页面调用onboarding检查；AI确认、OAuth和账号设置不被截走。资料写入集中在onboarding/actions.ts，按请求会话与来源调用共用业务。
+
+根布局在首绘前恢复本设备的深浅色选择，挂载仅供已登录页面使用的版本提醒。api/app-version只返回当前构建版本、不缓存；不加入/api/v1健康接口或MCP权限。

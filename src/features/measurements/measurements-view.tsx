@@ -128,7 +128,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
         <p className={styles.rulesPrinciples}>真实测量始终优先。估计只用于辅助趋势，不作为真实测量参与实测统计。</p>
       </section>}
        </ChartOptions>}
-       legend={<><span><i style={{background:"#bea478",borderRadius:"50%"}}/>晨间空腹</span>{showEvening&&<span><i style={{background:"#93adb5",borderRadius:"50%"}}/>晚间</span>}{showEstimates&&visibleRecords.some(row=>row.recordKind==="estimated")&&<span>虚线 · 估计</span>}</>}
+       legend={<><span><i style={{background:"var(--gold)",borderRadius:"50%"}}/>晨间空腹</span>{showEvening&&<span><i style={{background:"var(--data-deficit)",borderRadius:"50%"}}/>晚间</span>}{showEstimates&&visibleRecords.some(row=>row.recordKind==="estimated")&&<span>虚线 · 估计</span>}</>}
       ><div data-chart-metric="weightKg"><TrendPlot records={visibleRecords} metric="weightKg" showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={chartPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
        <div className={styles.additionalMetric} data-chart-metric="bodyFatPercent"><div className={styles.metricHeading}><h2>体脂 · %</h2></div><TrendPlot records={visibleRecords} metric="bodyFatPercent" showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={chartPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
       </RecordTrendPanel>

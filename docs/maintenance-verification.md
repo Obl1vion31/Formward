@@ -320,3 +320,20 @@ lint、typecheck、354项单元／集成、production build、维护专项、消
 正式域名https://formward-ten.vercel.app已核对READY部署dpl_5yW5kVWVmjozc837AaRpXeMUtgLU、运行代码83a773c，数据库0024，功能分支已推送、未合入main。正式站用虚构账号再次通过五种宽度的固定／解除日期、折叠详情、延后原图、每份与包装、运动包含关系、普通单次审核、缺图保存及减少动态效果。MCP经虚构账号OAuth授权实测1.10.0、13工具、删除限制与消耗查询；手动令牌供HTTP验证。OpenAPI1.12.0、15项公开／保护入口通过；客户端异常、请求5xx为0，验收时段最近10分钟Runtime error／fatal为0。
 
 四份私有备份为database-before-stage3-2026-10-25.json、database-after-stage3-migration-2026-10-25.json、database-after-stage3-package-2026-10-25.json、database-after-stage3-production-2026-10-25.json。stage3-migration-verification.json、stage3-package-verification.json和stage3-production-verification.json逐项对照40表通过。仅新增六列与一次迁移账本；指定包装维护只增加一项操作与一个食材事件。旧健康事实、原始请求、来源、旧营养／克数、既有审计与权限保持，仅排除正常限流和授权使用／会话续期元数据。虚构账号、OAuth客户端及所属数据全部清理；备份和核对均在data/exports、0600，Git与部署忽略。
+
+
+## 总览、教程、双色主题与应用更新
+
+| 标准 | 结果与证据 |
+|---|---|
+| D1／D3：读数优先、手机空间 | 当天收支、两日晨重与变化在前；手机近7天默认折叠、电脑展开；320／390／430、矮屏、844横屏、1100／1366／1440实页检查 |
+| D5：事实与统计 | 七天后台聚合、缺失／0、五天覆盖、严格起始晨至结束次晨及既有估计开关；不写初始化或健康事实 |
+| D9：影片与引导 | 两引擎均逐个播放、章节跳转十段；五个手机影片49次实际坐标命中，完整解码；身体预览0.4秒对1.8／2.8秒有3762／3859个变化像素；实际关键帧另核查 |
+| D10：主题 | 四页、AI确认、消耗填写／切换确认、资料与教程两套主题；修正浅色次晨线、柱内P／C／F对比及窄屏演练页头；菜单和键盘切换、重进恢复偏好 |
+| D10：版本提醒 | 两份真实production构建经同一回环地址切换，临时原生PostgreSQL；8项通过，取消保留172草稿，明确确认后加载新版本、地址与登录保持；已有个人／健康记录未写入 |
+| 技术门槛 | 428项完整单元／集成；饮食颜色相关76项再验；lint、类型检查、production build、脚本语法及Markdown本地引用检查通过 |
+| 发布与真实设备 | 用户已验收并授权发布及main；正式站核对进行中。物理iPhone、系统软键盘、原生系统全屏未测，不列作通过 |
+
+证据统一在私有 `/home/obl1vion/projects/Formward/.codex/overview-theme-tutorial`；`chromium/report.json`、`webkit/report.json`分别记录四页／主题／更新／确认页，`regression-chromium/report.json`、`regression-webkit/report.json`分别记录首次使用和十段影片；`versions/report.json`记录真实双构建验证。原片、点击坐标和解码报告在`tutorial-production/evidence`。检查使用虚构数据；备份生产、迁移和正式验收不属于这一阶段。
+
+本机只有PostgreSQL客户端，原生测试服务端及liburing下载后仅解压在仓库外私有工具目录，没有安装系统服务或加入应用依赖。可用FORMWARD_PG_BIN指定其bin目录；测试结束停止并清理独立临时数据库。

@@ -5,3 +5,5 @@
 model.ts提供表单校验与年龄；records.ts负责本人资料和引导事务；server.ts只在四个主页面检查未完成引导，不拦AI确认和OAuth。profile-form.tsx复用已认可布局；tutorial-view.tsx挂载经过核对的播放器，教程媒体与无用户数据的浏览器运行代码在public/tutorials。
 
 管理员演练由网站后台验证owner身份，使用同样的页面组件，但不调用真实保存或修改完成状态。新菜单入口在DashboardHeader；Next.js页面和Server Actions位于app。
+
+填写不再重复“以后再补”“未知留空”等辅助行；选填和跳过已说明用途，实际年龄放在生日标签旁。演练不保存只在页头标一次。教程短预览的按钮反映实际播放状态，受限时可主动播放；手机素材390×640、连续真实滚动及坐标命中已核查。

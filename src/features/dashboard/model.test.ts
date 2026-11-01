@@ -129,3 +129,37 @@ test("服务端展示算式使用必要的小数，既有记录精度与真实�
  assert.equal(energyEquationReadings("2000.4","1900.6",99.8).intake,"2,000.4");
  assert.equal(energyEquationReadings("0",null,null).balance,"—");
 });
+
+test("七天收支使用选中日前6日至当天，晨重严格覆盖这七天的次晨结果",()=>{
+ const dates=["2024-02-24","2024-02-25","2024-02-26","2024-02-27","2024-02-28","2024-02-29","2024-03-01"];
+ const meals=dates.map(date=>meal(date,"2100"));
+ const energy={...emptyEnergy(),days:dates.map(date=>expenditure(date,"2400"))};
+ const records=[observed(dates[0],{weightKg:"70.50"}),observed("2024-03-02",{weightKg:"69.70"})];
+ const day=overviewDays(meals,records,["2024-03-01"],false,energy,"2024-03-02")[0];
+ assert.deepEqual({from:day.week?.from,to:day.week?.through,next:day.week?.nextDate,count:day.week?.coveredDays,balance:day.week?.energyBalance,change:day.week?.weightChangeKg},{from:"2024-02-24",to:"2024-03-01",next:"2024-03-02",count:7,balance:-2100,change:-.8});
+ assert.equal(day.weightChangeKg,null);
+});
+test("七天不把缺失、未确认当成零，明确零参与覆盖天数；原小数先相加后显示",()=>{
+ const dates=["2024-03-01","2024-03-02","2024-03-03","2024-03-04"];
+ const meals=[meal(dates[0],"0"),meal(dates[1],"100.4"),meal(dates[2],"100.4"),{...meal(dates[3],"300"),day:{...meal(dates[3],"300").day!,status:"incomplete" as const}}];
+ const energy={...emptyEnergy(),days:dates.map(date=>expenditure(date,"0"))};
+ const day=overviewDays(meals,[],["2024-03-06"],false,energy)[0];
+ assert.equal(day.week?.coveredDays,3);assert.equal(day.week?.energyBalance,200.8);assert.equal(day.energyBalance,null);
+ assert.deepEqual(day.week?.missingMorningDates,["2024-02-29","2024-03-07"]);
+ const empty=overviewDays([],[],["2024-03-06"])[0].week!;
+ assert.equal(empty.energyBalance,null);assert.equal(empty.coveredDays,0);assert.equal(empty.weightChangeKg,null);
+});
+test("七天体重开关只采用已有估计，缺端点不跨日、不提前使用未来",()=>{
+ const records=[observed("2024-03-01"),observed("2024-03-07",{weightKg:"69.5"}),observed("2024-03-08",{recordKind:"estimated",weightKg:"69.25"})];
+ assert.equal(overviewDays([],records,["2024-03-07"],false)[0].week?.weightChangeKg,null);
+ const estimated=overviewDays([],records,["2024-03-07"],true)[0].week!;
+ assert.equal(estimated.weightChangeKg,-.75);assert.equal(estimated.estimated,true);
+ assert.equal(overviewDays([],records,["2024-03-07"],true,emptyEnergy(),"2024-03-07")[0].week?.weightChangeKg,null);
+ assert.equal(overviewDays([],records.slice(1),["2024-03-07"],true)[0].week?.weightChangeKg,null);
+});
+test("没有当日记录的选中日仍有独立七天统计，绘图区边界不裁掉支持日期",()=>{
+ const presentation=overviewPresentation([meal("2024-03-02","300")],[],{...emptyEnergy(),days:[expenditure("2024-03-02","200")]},"2024-03-05");
+ assert.equal(presentation.days.find(day=>day.date==="2024-03-04")?.week?.energyBalance,100);
+ assert.equal(presentation.days.find(day=>day.date==="2024-03-04")?.week?.coveredDays,1);
+ assert.equal(presentation.recordDates.includes("2024-03-04"),false);
+});

@@ -26,7 +26,6 @@ function render(options){
  return [
  '<main class="journey tutorial-journey" data-tutorial-guide data-mode="'+(device.matches?'mobile':'desktop')+'">',
  '<div class="guide-heading"><h1>使用说明</h1><span class="guide-reference">演示使用虚构数据</span></div>',
- '<p class="guide-intro">选一项，看一遍怎么记。</p>',
  '<section class="guide-directory" aria-label="教程目录与预览"><nav class="directory-topics" aria-label="五项教程">',
  topics.map(t=>'<button type="button" class="directory-topic" data-directory-topic="'+t.id+'" aria-label="'+t.name+'：'+t.summary+'，选择教程"><span class="directory-copy"><span class="directory-name">'+t.name+'</span><span class="directory-summary">'+t.summary+'</span></span><span class="directory-arrow" aria-hidden="true">›</span></button>').join(''),
  '</nav><div class="directory-preview" data-preview-topic="'+selected+'"><div class="preview-heading"><h2 data-preview-title>'+topicFor(selected).title+'</h2><button type="button" class="preview-toggle" data-preview-toggle aria-label="自动播放短预览" aria-pressed="'+!reduced.matches+'">'+(reduced.matches?'播放预览':'暂停预览')+'</button></div>',
@@ -44,14 +43,18 @@ function bind(container){
  const modal=root.querySelector('.tutorial-modal'),modalBody=modal.querySelector('.modal-body');
  const inline=root.querySelector('#mobile-lesson'),footer=root.querySelector('.tutorial-actions');
  const preview=root.querySelector('.directory-preview'),previewVideo=preview.querySelector('video'),previewPoster=preview.querySelector('img');
- let lesson=null,previewTopic=selected,previewEnabled=!reduced.matches,previewVisible=false,previewGeneration=0;
+ let lesson=null,previewTopic=selected,previewEnabled=!reduced.matches,previewPending=false,previewVisible=false,previewGeneration=0;
  let engaged=false,modalOpen=false,origin=null,oldOverflow=null,generation=0,dead=false;
  const off=[];
  const listen=(el,event,fn)=>{el.addEventListener(event,fn);off.push(()=>el.removeEventListener(event,fn));};
- function pausePreview(){previewVideo.pause();preview.removeAttribute('data-previewing');}
- function syncPreview(){
+ function reflectPreview(){
+  const playing=!previewVideo.paused&&!previewVideo.ended&&preview.getAttribute('data-previewing')==='true';
   const button=root.querySelector('[data-preview-toggle]');
-  button.textContent=previewEnabled?'暂停预览':'播放预览';button.setAttribute('aria-pressed',String(previewEnabled));
+  button.textContent=playing?'暂停预览':previewPending?'正在加载…':'播放预览';button.setAttribute('aria-pressed',String(playing));button.setAttribute('aria-label',button.textContent);
+ }
+ function pausePreview(){++previewGeneration;previewPending=false;previewVideo.pause();preview.removeAttribute('data-previewing');reflectPreview();}
+ function syncPreview(){
+  reflectPreview();
   if(dead||device.matches){pausePreview();return;}
   const a=assetFor(previewTopic,false);if(!a)return;
   if(previewPoster.getAttribute('src')!==a.poster)previewPoster.src=a.poster;
@@ -59,7 +62,9 @@ function bind(container){
   if(!allowed){pausePreview();return;}
   if(previewVideo.getAttribute('src')!==a.preview){pausePreview();previewVideo.src=a.preview;}
   const ticket=++previewGeneration;
-  previewVideo.play().catch(()=>{if(ticket===previewGeneration)preview.removeAttribute('data-previewing');});
+  previewPending=true;reflectPreview();
+  previewVideo.play().then(()=>{if(ticket===previewGeneration){previewPending=false;reflectPreview();}}).catch(()=>{if(ticket===previewGeneration){previewPending=false;previewEnabled=false;preview.removeAttribute('data-previewing');reflectPreview();}});
+
  }
  function setPreview(id){
   if(!topics.some(t=>t.id===id))return;
@@ -72,9 +77,10 @@ function bind(container){
  }
  listen(previewVideo,'playing',()=>{
   const a=assetFor(previewTopic,false);
-  if(!dead&&a&&previewVideo.currentSrc===new URL(a.preview,location.href).href&&previewEnabled&&!modalOpen&&!device.matches&&!document.hidden)preview.dataset.previewing='true';
+  if(!dead&&a&&previewVideo.currentSrc===new URL(a.preview,location.href).href&&previewEnabled&&!modalOpen&&!device.matches&&!document.hidden){preview.dataset.previewing='true';previewPending=false;reflectPreview();}
  });
- listen(previewVideo,'error',()=>preview.removeAttribute('data-previewing'));
+ listen(previewVideo,'pause',reflectPreview);
+ listen(previewVideo,'error',()=>{previewEnabled=false;previewPending=false;preview.removeAttribute('data-previewing');reflectPreview();});
  const previewObserver=new IntersectionObserver(entries=>{previewVisible=Boolean(entries[0]?.isIntersecting);syncPreview();},{threshold:.1});previewObserver.observe(preview);
  const footerObserver=new ResizeObserver(()=>requestAnimationFrame(()=>{
   if(!dead&&root.isConnected){root.style.setProperty('--tutorial-actions-height',footer.getBoundingClientRect().height+'px');lesson?.layout();}
@@ -90,7 +96,7 @@ function bind(container){
   const cues=a?.cues?.length?a.cues:[{id:'entry',step:0,start:0,end:30,text:topic.steps[0][1]}];
   const node=document.createElement('section');node.className='lesson';node.dataset.lesson=topic.id;node.dataset.view='video';node.dataset.started='false';
   node.innerHTML=[
-   mobile?'<header class="lesson-head"><h2>'+topic.title+'</h2><button type="button" class="text-switch" data-view-switch aria-pressed="false">文字版</button></header>':'',
+   mobile?'<header class="lesson-head"><h2>'+topic.title+'</h2><div class="lesson-head-actions"><button type="button" class="text-switch" data-control="fullscreen" aria-label="全屏观看">全屏</button><button type="button" class="text-switch" data-view-switch aria-pressed="false">文字版</button></div></header>':'',
    '<div class="lesson-error" role="alert" hidden><span data-error-message></span><button type="button" data-control="retry">重试视频</button></div>',
    '<div class="lesson-video-pane"><div class="lesson-stage"><div class="lesson-frame">',
    '<video muted playsinline preload="none" tabindex="-1" aria-label="'+topic.name+'操作演示"></video>',
@@ -145,8 +151,9 @@ function bind(container){
   }
   async function align(){
    layout();
+   if(document.fullscreenElement===stage||video.webkitDisplayingFullscreen)return;
    if(mobile){
-    const r=node.getBoundingClientRect(),bottom=footer.getBoundingClientRect().top;
+    const r=node.getBoundingClientRect(),bottom=Math.min(window.visualViewport?.height||innerHeight,footer.getBoundingClientRect().top);
     if(r.top<8||r.bottom>bottom-8)window.scrollTo({top:Math.max(0,scrollY+r.top-8),behavior:reduced.matches?'instant':'smooth'});
    }else if(modalBody.scrollTop)modalBody.scrollTo({top:0,behavior:reduced.matches?'instant':'smooth'});
    await new Promise(r=>setTimeout(r,reduced.matches?20:360));

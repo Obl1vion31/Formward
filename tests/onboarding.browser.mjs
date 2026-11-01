@@ -233,6 +233,27 @@ try{
  await settle();
  const row=(await db.select().from(schema.personalProfile).where(eq(schema.personalProfile.userId,identities.legacy.id)))[0];assert.equal(row.heightCm,null);assert.equal(row.onboardingStep,"complete");
  checks.push("saving-state","save-failure-preserves-draft","cancel-restores","clear-cancel-and-confirm");
+ phase="compact first-use headers and playback restriction";
+ for(const width of [320,390,430]){
+  await op.setViewportSize({width,height:720});
+  for(const mode of ["dark","light"]){
+   await go(op,"/onboarding?mode=test");
+   await op.getByRole("radio",{name:mode==="dark"?"深色":"浅色",exact:true}).click();
+   const headerFits=await op.locator("header").evaluate(el=>el.scrollWidth<=el.clientWidth+1);assert.equal(headerFits,true,"rehearsal header "+width);
+   await op.getByLabel("身高",{exact:true}).fill("172");await op.getByLabel("出生日期",{exact:true}).fill("1997-04-12");
+   await shot(op,mode+"-first-use-"+width);
+  }
+ }
+ const selectedRadio=op.getByRole("radio",{name:"浅色",exact:true});await selectedRadio.focus();await selectedRadio.press("ArrowRight");
+ assert.equal(await op.locator("html").getAttribute("data-theme"),"dark");await op.getByRole("radio",{name:"深色",exact:true}).press("Home");assert.equal(await op.locator("html").getAttribute("data-theme"),"light");
+ checks.push("compact-rehearsal-header-320-390-430","profile-both-themes-and-age","theme-keyboard-radio");
+ await op.setViewportSize({width:1440,height:900});await op.emulateMedia({reducedMotion:"no-preference"});
+ await op.addInitScript({content:'let allowPreview=false;document.addEventListener("click",event=>{if(event.target instanceof Element&&event.target.closest("[data-preview-toggle]"))allowPreview=true;},true);const originalPlay=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){if(this.hasAttribute("data-directory-preview")&&!allowPreview)return Promise.reject(new DOMException("simulated browser autoplay policy","NotAllowedError"));return originalPlay.call(this);};'});
+ await go(op,"/dashboard/tutorial");await op.locator("[data-tutorial-guide]").waitFor();await op.getByRole("button",{name:"播放预览",exact:true}).waitFor();
+ assert.equal(await op.getByRole("button",{name:"暂停预览",exact:true}).count(),0);
+ await op.getByRole("button",{name:"播放预览",exact:true}).click();
+ await op.waitForFunction(()=>{const v=document.querySelector("[data-directory-preview]");return v&&!v.paused&&v.currentTime>.1});
+ assert.equal(await op.getByRole("button",{name:"暂停预览",exact:true}).count(),1);await shot(op,"desktop-preview-policy-recovery");checks.push("blocked-autoplay-honest-label-and-click-retry");
  phase="anonymous routes";const anonymous=await browser.newContext(),ap=await anonymous.newPage();
  for(const route of ["/onboarding","/dashboard/profile","/dashboard/tutorial"]){await go(ap,route);assert.equal(new URL(ap.url()).pathname,"/");}
  await anonymous.close();checks.push("new-routes-require-login");

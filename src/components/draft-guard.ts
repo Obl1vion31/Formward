@@ -21,3 +21,7 @@ export function useDraftGuard(dirty: boolean, busy = false, records?:VisibleReco
 export function useDraftClose(fallback: () => void) {
   return useContext(DraftCloseContext) ?? fallback;
 }
+
+let refreshApprovedUntil=0;
+export function approvePageRefresh(){refreshApprovedUntil=Date.now()+2000;}
+export const pageRefreshApproved=()=>Date.now()<refreshApprovedUntil;

@@ -3,14 +3,14 @@ import {useCallback,useEffect,useId,useRef,useState,type ReactNode} from "react"
 import {confirmAction} from "./confirmation-state";
 import {lockPageScroll} from "./scroll-lock";
 import {useBackdropDismiss} from "./use-backdrop-dismiss";
-import {DraftGuardContext,DraftCloseContext,type DraftState} from "./draft-guard";
+import {pageRefreshApproved,DraftGuardContext,DraftCloseContext,type DraftState} from "./draft-guard";
 import styles from "./inspector.module.css";
 export function Inspector({title,close,busy=false,children,wide=false,compact=false,header,className,onCloseReady}:{title:string;close:()=>void;busy?:boolean;children:ReactNode;wide?:boolean;compact?:boolean;header?:ReactNode;className?:string;onCloseReady?:(close:()=>void)=>void}){
  const titleId=useId(),ref=useRef<HTMLDialogElement>(null),drafts=useRef(new Map<symbol,DraftState>()),timer=useRef<ReturnType<typeof setTimeout>|null>(null),[closing,setClosing]=useState(false),callback=useRef(close);
  useEffect(()=>{callback.current=close;},[close]);
  const register=useCallback((state:DraftState)=>{const id=Symbol();drafts.current.set(id,state);return()=>{drafts.current.delete(id);};},[]);
  useEffect(()=>{const node=ref.current!,previous=document.activeElement,origin=previous?.closest('section[aria-label="最近记录"]'),date=previous?.closest("[data-record-date]")?.getAttribute("data-record-date"),scroll={x:window.scrollX,y:window.scrollY};node.showModal();node.dataset.motion=window.matchMedia("(prefers-reduced-motion: reduce)").matches?"open":"opening";const unlock=lockPageScroll();return()=>{if(timer.current)clearTimeout(timer.current);node.close();unlock();window.scrollTo(scroll.x,scroll.y);if((previous instanceof HTMLElement||previous instanceof SVGElement)&&previous.isConnected)previous.focus({preventScroll:true});else if(origin?.isConnected){const row=[...origin.querySelectorAll<HTMLElement>("[data-record-date]")].find(row=>row.dataset.recordDate===date&&row.getClientRects().length>0);const target=row?.querySelector<HTMLElement>("button")??origin.querySelector<HTMLElement>("[data-history-toggle]");target?.focus({preventScroll:true});}};},[]);
- useEffect(()=>{const protect=(e:BeforeUnloadEvent)=>{if([...drafts.current.values()].some(s=>s.dirty)){e.preventDefault();e.returnValue="";}};window.addEventListener("beforeunload",protect);return()=>window.removeEventListener("beforeunload",protect);},[]);
+ useEffect(()=>{const protect=(e:BeforeUnloadEvent)=>{if(!pageRefreshApproved()&&[...drafts.current.values()].some(s=>s.dirty)){e.preventDefault();e.returnValue="";}};window.addEventListener("beforeunload",protect);return()=>window.removeEventListener("beforeunload",protect);},[]);
  async function requestClose(){if(busy||closing||[...drafts.current.values()].some(s=>s.busy))return;if([...drafts.current.values()].some(s=>s.dirty)&&!await confirmAction({title:"放弃尚未保存的输入？",message:"关闭会放弃本次尚未提交的修改。",confirmLabel:"放弃修改"}))return;if(!ref.current?.open)return;if(window.matchMedia("(prefers-reduced-motion: reduce)").matches)callback.current();else{setClosing(true);timer.current=setTimeout(()=>callback.current(),240);}}
  useEffect(()=>{onCloseReady?.(requestClose);});
  const backdrop=useBackdropDismiss(requestClose);

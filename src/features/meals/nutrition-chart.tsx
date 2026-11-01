@@ -8,7 +8,7 @@ import {useChartViewport} from "@/components/use-chart-viewport";
 import { chartScale } from "@/components/chart-scale";
 import styles from "./meals.module.css";
 
-const calorieColor = "#7F9EAF";
+const calorieColor = "var(--data-deficit)";
 const macros: Metric[] = ["proteinG", "carbsG", "fatG"];
 export function NutritionChart({ dates, groups, selection, mode }: { dates: string[]; groups: ReturnType<typeof dailyTotals>; selection:ReturnType<typeof useChartDateSelection>; mode: MacroMode }) {
   const viewport = useRef<HTMLDivElement>(null);
@@ -27,7 +27,7 @@ export function NutritionChart({ dates, groups, selection, mode }: { dates: stri
   return <>
     <div className={styles.barViewport} ref={viewport} onMouseLeave={selection.leave}>
       <svg {...drag} className={styles.chart} style={{ touchAction:"pan-y", visibility: containerWidth ? undefined : "hidden" }} viewBox={`0 0 ${width} 194`} role="group" aria-label={`热量柱状图，单位${unit}`}>
-        <defs><pattern id={patternId} width="5" height="5" patternUnits="userSpaceOnUse"><path d="M-1 1L1 -1M0 5L5 0M4 6L6 4" stroke="#f0e9dd" strokeOpacity=".3" strokeWidth="1" /></pattern></defs>
+        <defs><pattern id={patternId} width="5" height="5" patternUnits="userSpaceOnUse"><path d="M-1 1L1 -1M0 5L5 0M4 6L6 4" stroke="var(--warm-white)" strokeOpacity=".3" strokeWidth="1" /></pattern></defs>
         {scale.ticks.map(tick => <g key={tick}><line className={styles.grid} x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} /><text className={styles.axis} data-calorie-tick={tick} x={left - 8} y={y(tick) + 4} textAnchor="end">{tick}</text></g>)}
         <text className={styles.axis} x={left - 8} y="18" textAnchor="end">{unit}</text>
         {dates.map((date, index) => {
@@ -40,7 +40,7 @@ export function NutritionChart({ dates, groups, selection, mode }: { dates: stri
             {energy!=null&&(()=>{
               const segments=macroDistribution(daily, mode);let below=0;
               if(!segments)return Number(energy)>0?<rect data-chart-bar data-chart-zero="154" data-metric="caloriesKcal" data-incomplete="true" x={x+(slot-barWidth)/2} y={y(Number(energy))} width={barWidth} height={y(0)-y(Number(energy))} fill={calorieColor} className={styles.bar}/>:null;
-              return segments.map(segment=>{const start=below;below+=segment.calories;const height=y(start)-y(below);return <g key={segment.metric}><rect data-chart-bar data-chart-zero="154" data-metric={segment.metric} data-energy-ratio={mode==="energy"?segment.ratio:undefined} data-macro-ratio={segment.ratio} data-macro-mode={mode} data-incomplete={Boolean(daily?.incomplete.caloriesKcal)} x={x+(slot-barWidth)/2} y={y(below)} width={barWidth} height={height} fill={macroColors[segment.metric]} className={styles.bar}/>{barWidth>=11&&height>=14&&<text className={styles.stackLetter} x={x+slot/2} y={y(below)+height/2+3.5} textAnchor="middle" fill={segment.metric==="proteinG"?"#f0e9dd":"#182b38"}>{segment.metric==="proteinG"?"P":segment.metric==="carbsG"?"C":"F"}</text>}</g>});
+              return segments.map(segment=>{const start=below;below+=segment.calories;const height=y(start)-y(below);return <g key={segment.metric}><rect data-chart-bar data-chart-zero="154" data-metric={segment.metric} data-energy-ratio={mode==="energy"?segment.ratio:undefined} data-macro-ratio={segment.ratio} data-macro-mode={mode} data-incomplete={Boolean(daily?.incomplete.caloriesKcal)} x={x+(slot-barWidth)/2} y={y(below)} width={barWidth} height={height} fill={macroColors[segment.metric]} className={styles.bar}/>{barWidth>=11&&height>=14&&<text className={styles.stackLetter} x={x+slot/2} y={y(below)+height/2+3.5} textAnchor="middle" fill={segment.metric==="proteinG"?"var(--on-data-dark)":"var(--on-data-light)"}>{segment.metric==="proteinG"?"P":segment.metric==="carbsG"?"C":"F"}</text>}</g>});
             })()}
             {incompleteDay && energy != null && Number(energy) > 0 && <rect data-day-incomplete="true" x={x + (slot - barWidth) / 2} y={y(Number(energy))} width={barWidth} height={y(0) - y(Number(energy))} fill={`url(#${patternId})`} className={styles.bar} />}
             {allDates && energy != null && slot >= valueLabel.length * 6.5 + 6 && <text className={styles.barValue} x={x + slot / 2} y={y(Number(energy)) - 7} textAnchor="middle">{valueLabel}{daily?.incomplete.caloriesKcal ? "*" : ""}</text>}

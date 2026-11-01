@@ -8,7 +8,7 @@
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build --webpack",
+    "build": "node scripts/build.mjs",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -29,7 +29,9 @@
     "test:meals-browser": "node --import tsx tests/meals.browser.mts",
     "meals:preview": "node --env-file=.env.local --import tsx scripts/preview-meals.mts",
     "test:energy-browser": "node --import tsx tests/energy.browser.mts",
-    "test:onboarding-browser": "node --import tsx tests/onboarding.browser.mjs"
+    "test:onboarding-browser": "node --import tsx tests/onboarding.browser.mjs",
+    "test:visual": "node --import tsx tests/overview-theme.browser.mjs",
+    "test:app-version": "node --import tsx tests/app-version.browser.mjs"
   },
   "dependencies": {
     "@better-auth/cimd": "1.7.7",

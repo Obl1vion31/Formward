@@ -1128,3 +1128,12 @@ records/operations.ts整理整批草稿的服务端读数；records/energy-revie
 ## 第一次使用、个人资料和教程从哪里开始
 
 首次使用与个人资料：想改“第一次进来先填身高生日”，看app/onboarding入口和features/onboarding/flow.tsx；想改保存，依次看app/onboarding/actions.ts→features/onboarding/records.ts→db/schema.ts的personalProfile。这条链在登录身份下只写自己的personal_profiles，和每天身体记录、饮食及消耗分开。教程在dashboard/tutorial入口，tutorial-view.tsx挂载播放器，public/tutorials只放虚构演示媒体。管理员演练走相同界面但只保留当前临时输入，不调用真实保存。
+
+
+## 查阅补充：七天统计、外观与版本提醒
+
+总览的七天收支不是浏览器把柱子相加。dashboard/model.ts先准备选中日及前6日的有效结果，缺失仍是空；体重使用这七天开始的晨重和结束后的次晨重。presentation.ts把两种体重估计显示口径一起准备，overview-trend.tsx只选取相应日期并排版。手机“近7天”的展开按钮不会写入健康记录。
+
+app/theme.css是一张语义配色表：背景、正文、边线以及摄入／消耗／晨重各有变量。appearance-state.ts只在浏览器记住浅色或深色；它不保存健康草稿，Logo使用currentColor随主题变化，照片和录屏本身没有反色。
+
+build.mjs给每次构建一个版本号，根页面和GET /api/app-version使用同一个值。app-updates.tsx发现正式站版本不同，先提醒用户；刷新前通过draft-guard和应用确认框保护尚未保存的输入。它和record-updates.tsx不同：前者查软件更新，后者查本人记录被其他页面修改。

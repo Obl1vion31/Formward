@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
 import { confirmAction } from "@/components/confirmation-state";
+import {useDraftGuard,pageRefreshApproved} from "@/components/draft-guard";
 import { usePageLoading } from "@/components/page-loading-state";
 import { saveProfileAction, advanceOnboardingAction, loadProfileAction } from "@/app/onboarding/actions";
 import { profileAge, validateProfile, type PersonalProfile } from "./model";
@@ -12,9 +13,10 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
   const [editing,setEditing]=useState(onboarding),[busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[failed,setFailed]=useState(false),[conflict,setConflict]=useState(false);
   const submitting=useRef(false);
   const dirty=height!==(saved.heightCm??"")||birth!==(saved.birthDate??"");
+  useDraftGuard(dirty,busy);
   const age=profileAge(birth||null,today);
   usePageLoading({active:busy,label:"正在保存资料…"});
-  useEffect(()=>{if(!dirty||test)return;const guard=(event:BeforeUnloadEvent)=>{event.preventDefault();};addEventListener("beforeunload",guard);return()=>removeEventListener("beforeunload",guard);},[dirty,test]);
+  useEffect(()=>{if(!dirty||test)return;const guard=(event:BeforeUnloadEvent)=>{if(!pageRefreshApproved())event.preventDefault();};addEventListener("beforeunload",guard);return()=>removeEventListener("beforeunload",guard);},[dirty,test]);
   async function submit(skip=false) {
     if(submitting.current)return;
     setNotice("");setFailed(false);setConflict(false);
@@ -50,13 +52,12 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
   }
   return <section className={styles.personal}>
     {!onboarding&&<LoadingLink href="/dashboard" className={styles.back}>← 返回总览</LoadingLink>}
-    {test&&<p className={styles.test}>管理员演练 · 测试，不保存</p>}
     <h1>{onboarding?"先认识一下你":"个人资料"}</h1>
-    <p className={styles.intro}>{onboarding?"这些资料可以以后再补。":editing?"修改后，点保存才会生效。":"不是每天要填的资料，变化时再来修改。"}</p>
+    {!onboarding&&<p className={styles.intro}>{editing?"修改后，点保存才会生效。":"不是每天要填的资料，变化时再来修改。"}</p>}
     {editing?<form noValidate onSubmit={event=>{event.preventDefault();void submit();}}>
       <div className={styles.fields}>
-        <label><span className={styles.label}>身高 <small>选填</small></span><span className={styles.input}><input aria-label="身高" inputMode="decimal" placeholder="例如172" value={height} onChange={e=>setHeight(e.target.value)} disabled={busy}/><span>cm</span></span><span className={styles.hint}>不知道可以留空</span></label>
-        <label><span className={styles.label}>出生日期 <small>选填</small></span><span className={styles.input}><input aria-label="出生日期" type="date" min="1900-01-01" max={today} value={birth} onChange={e=>setBirth(e.target.value)} disabled={busy}/></span><span className={styles.hint}>{age!==null&&age>=0?`${age}岁`:"年龄按出生日期自动计算"}</span></label>
+        <label><span className={styles.label}>身高 <small>选填</small></span><span className={styles.input}><input aria-label="身高" inputMode="decimal" placeholder="例如172" value={height} onChange={e=>setHeight(e.target.value)} disabled={busy}/><span>cm</span></span></label>
+        <label><span className={styles.label}>出生日期 <small>{age!==null&&age>=0?age+"岁":"选填"}</small></span><span className={styles.input}><input aria-label="出生日期" type="date" min="1900-01-01" max={today} value={birth} onChange={e=>setBirth(e.target.value)} disabled={busy}/></span></label>
       </div>
       {notice&&<p className={styles.notice} role={failed?"alert":"status"}>{notice}</p>}
       {conflict&&<button className={styles.quiet} type="button" onClick={()=>void latest()}>查看最新资料</button>}

@@ -44,3 +44,8 @@ use-chart-date-selection.ts统一四页的实际鼠标移动预览、自定义�
 Disclosure关闭时不挂载内容，只在展开后请求原图或显示较长的详情，避免总览和审核首屏加载全部附件。
 
 use-chart-viewport.ts按实际坐标字体测量刻度宽度，统一总览、饮食及消耗的图宽与左边距；数据或区间换刻度时先完成测量，悬停不改变坐标。长整数不缩字、不裁切。
+
+
+appearance-state.ts保存本设备主题的读取、早期初始化和跨窗口通知；appearance-switch.tsx只提供浅色／深色操作。颜色集中在app/theme.css，图表也使用同一语义变量，图片不反色。
+
+app-updates.tsx仅检查构建版本，与record-updates.tsx的健康记录变化分开。可见时90秒、恢复前台检查；不缓存的版本接口不带身份或旧部署标记。草稿确认复用confirmation及draft-guard；approvePageRefresh只允许用户明确批准的这次刷新跳过重复离开弹窗，不存健康草稿。

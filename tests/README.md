@@ -214,3 +214,12 @@ FORMWARD_FRAME_TOUCH_ONLY=1配合FORMWARD_FRAME_ONLY=1检查四页390×640及844
 FORMWARD_REVIEW_FACTS_ONLY=1 pnpm test:records-browser只验混合身体／饮食／消耗确认与保存、取消恢复和并行窗口冲突，再自动执行完整共用餐次填写专项；不运行该脚本中未改动的旧图表流程。FORMWARD_REVIEW_ARTIFACTS与FORMWARD_MEAL_ENTRY_ARTIFACTS分别保存证据，两引擎分目录运行。消耗专项截图在aria-busy结束、字体与布局稳定后保存，矮屏另检查滚到底部运动操作不被保存栏遮挡；WebKit全页跳转前等待预加载结束，不过滤页面异常。
 
 首次使用专项：pnpm test:onboarding-browser。使用独立内存PGlite、虚构新旧账号和owner，覆盖资料云端保存／冲突／失败／清空、跨设备进度、只读演练、五项选择与十段播放、缩放与横屏。TUTORIAL_BROWSER=webkit切换引擎，TUTORIAL_ARTIFACTS指定私有截图目录。
+
+
+## 总览补充、双色主题与应用版本
+
+生产构建后，pnpm test:visual用隔离PGlite及虚构账号检查七天后台读数、手机折叠、八组视口四页两套主题、AI确认、教程播放、清空活动确认及有草稿时刷新。VISUAL_BROWSER=webkit切换引擎，VISUAL_ARTIFACTS指定私有截图位置。所有截图要再逐张查看，自动无溢出不代替视觉验收。
+
+pnpm test:app-version需要VERSION_APP_A指向预先保留的另一份生产构建（只复制.next但跳过cache、public、package.json、next.config.ts，并链接node_modules；不得复制.env或健康数据库）。脚本使用本机PostgreSQL 18（FORMWARD_PG_BIN可指定bin目录），启动独立临时数据库并在结束后停止清理；用两个真实构建、同一回环代理地址和虚构账号验证升级检测、取消保留输入、明确确认后重载新版本、登录与地址保持。VERSION_ARTIFACTS指定私有证据，不接触公网。
+
+视频生产原片、帧时间表和实际点击命中证据放私有制作目录；public只保存虚构教程。物理iPhone、系统键盘及原生系统全屏未实测时列为未测。

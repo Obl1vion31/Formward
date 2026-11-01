@@ -52,10 +52,11 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
        {label:"消耗",value:energyValue(day?.energy.totalKcal),unit:"kcal",tone:"red"},
        {label:day?.energyBalance==null?"收支":day.energyBalance<0?"缺口":"盈余",value:signedIntegerNumber(day?.energyBalance??null),unit:"kcal",tone:day?.energyBalance!=null&&day.energyBalance<0?"blue":"gold"}
       ]}
+      supplementary={<OverviewReadings day={day}/>}
       flags={overviewFlags(day)} flagVariants={days.map(overviewFlags)}
       title="热量收支"
       options={<InlineChartControls><label><input type="checkbox" checked={estimates} onChange={event=>setEstimates(event.target.checked)} aria-label="显示体重估计"/>显示体重估计</label></InlineChartControls>}
-      legend={<><span><i style={{background:"#92B9D6"}}/>摄入</span><span><i style={{background:"#D89490"}}/>消耗</span><span><i style={{background:"#D8B38A"}}/>盈余</span><span><i style={{background:"#92B2C2"}}/>缺口</span></>}
+      legend={<><span><i style={{background:"var(--data-blue)"}}/>摄入</span><span><i style={{background:"var(--data-red)"}}/>消耗</span><span><i style={{background:"var(--data-surplus)"}}/>盈余</span><span><i style={{background:"var(--data-deficit)"}}/>缺口</span></>}
     >{dates.length?<RelationshipPlot days={days} selected={selected} inspect={selection.choose} preview={selection.preview} leave={selection.leave} pin={selection.pin} unpin={selection.release}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     {dialogDay&&<EditorDialog title={dialogDay.date+" · 当日记录"} close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}
   </section>;
@@ -71,5 +72,29 @@ function OverviewDayDetails({day}:{day:OverviewDay}){
   <section className={styles.detailNutrition}>{day.nutrition&&day.mealDayStatus!=="complete"&&<p>饮食修改后需要重新确认是否已记全，确认后显示热量收支。</p>}<h3>当日总摄入 <small>{day.meals.length} 餐</small></h3><div>{(["caloriesKcal","proteinG","carbsG","fatG"] as const).map((metric,i)=><span key={metric}><small>{["热量","蛋白质","碳水","脂肪"][i]}</small><strong>{formatNutrition(day.nutrition?.values[metric]??null,metric)}<small>{i?"g":"kcal"}</small></strong>{day.nutrition?.incomplete[metric]&&<small>已知部分</small>}</span>)}</div></section>
   <div>{day.meals.slice(0,3).map(mealRow)}{day.meals.length>3&&<Disclosure className={styles.moreMeals} summary={"还有 "+(day.meals.length-3)+" 餐"}>{day.meals.slice(3).map(mealRow)}</Disclosure>}{!day.meals.length&&<p>没有饮食记录。</p>}</div>
   <LoadingLink href={"/dashboard/meals?date="+day.date}>查看饮食记录 →</LoadingLink>
+ </div>;
+}
+
+/** 服务端已算好当天配对和七天统计，这里只排版与格式化。 */
+function OverviewReadings({day}:{day?:OverviewDay}){
+ const week=day?.week,[weekOpen,setWeekOpen]=useState(false);
+ const short=(date?:string)=>date?.slice(5).replace("-",".")??"—";
+ return <div className={styles.supplementary} data-overview-supplementary>
+  <div className={styles.morningReadings} role="group" aria-label="选中日晨重与次晨变化">
+   <div><span>晨重 <time>{short(day?.date)}</time>{day?.morning?.recordKind==="estimated"&&<em>估计</em>}</span><strong>{formatRecordNumber(day?.morning?.weightKg??null)}<small>kg</small></strong></div>
+   <div><span>次晨 <time>{short(day?.nextDate)}</time>{day?.nextMorning?.recordKind==="estimated"&&<em>估计</em>}</span><strong>{formatRecordNumber(day?.nextMorning?.weightKg??null)}<small>kg</small></strong></div>
+   <div><span>次晨变化</span><strong>{signed(day?.weightChangeKg??null)}<small>kg</small></strong></div>
+  </div>
+  <section className={styles.weekReadings} aria-label="选中日七天统计" data-overview-week data-expanded={weekOpen}>
+   <button type="button" className={styles.weekToggle} aria-expanded={weekOpen} onClick={()=>setWeekOpen(open=>!open)}><span>近7天 <time>{short(week?.from)}—{short(week?.through)}</time></span><span aria-hidden="true">{weekOpen?"收起 −":"展开 ＋"}</span></button>
+   <div className={styles.weekContent}>
+   <header><span>近7天 <time>{short(week?.from)}—{short(week?.through)}</time></span><span>已计{week?.coveredDays??0}/7天</span></header>
+   <div className={styles.weekNumbers}>
+    <div><span>{week?.energyBalance==null?"热量收支":week.energyBalance<0?"热量缺口":"热量盈余"}</span><strong className={week?.energyBalance!=null&&week.energyBalance<0?styles.weekDeficit:styles.weekSurplus}>{signedIntegerNumber(week?.energyBalance??null)}<small>kcal</small></strong></div>
+    <div><span>体重变化{week?.estimated&&week.weightChangeKg!==null?" · 含估计":""}</span><strong>{signed(week?.weightChangeKg??null)}<small>kg</small></strong></div>
+   </div>
+   <p className={styles.weekBasis}>{week?.missingMorningDates.length?"缺"+week.missingMorningDates.map(short).join("、")+"晨重":week?"晨重 "+short(week.from)+" → "+short(week.nextDate):"暂无记录"}</p>
+   </div>
+  </section>
  </div>;
 }

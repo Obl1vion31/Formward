@@ -11,5 +11,5 @@ export function DecimalInput({value,onValue,precision=2,...props}:Omit<InputHTML
  const text=event.target.value,valid=!text||(precision===0?/^\d+$/:/^\d*(?:\.\d{0,2})?$/).test(text);
  if(valid){setInvalid(false);event.currentTarget.setCustomValidity("");setEditing(text);onValue(text);}
  else if(precision===0){setEditing(text);setInvalid(true);event.currentTarget.setCustomValidity("请输入整数");}
- }}/>{invalid&&<span id={errorId} role="alert" style={{fontSize:12,color:"#d89490",lineHeight:1.5}}>请输入整数，不填写小数。</span>}</>;
+ }}/>{invalid&&<span id={errorId} role="alert" style={{fontSize:12,color:"var(--data-red)",lineHeight:1.5}}>请输入整数，不填写小数。</span>}</>;
 }

@@ -19,7 +19,7 @@
 .address input { font-family:monospace; flex:1; }
 .settings .disclosure > summary { font-size:14px; }
 .settings .disclosure > section { margin-top:20px; }
-.settings .http { padding-top:22px; border-top:1px solid rgba(240,233,221,.12); }
+.settings .http { padding-top:22px; border-top:1px solid color-mix(in srgb,var(--warm-white) 12.0%,transparent); }
 .settings :global(.ai-list) li { align-items:flex-start; }
 .settings :global(.ai-list) li > span { max-width:110px; white-space:normal; text-align:right; font-size:12px; }
 .settings :global(.ai-list) li a { display:inline-block; line-height:1.5; }

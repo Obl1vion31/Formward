@@ -7,6 +7,7 @@ import { Inspector } from "@/components/inspector";
 import { usePageLoading } from "@/components/page-loading-state";
 import inspectorStyles from "@/components/inspector.module.css";
 import styles from "./header.module.css";
+import {AppearanceSwitch} from "@/components/appearance-switch";
 import { BrandLogo } from "@/components/brand-logo";
 
 const pages = [["/dashboard", "总览"], ["/dashboard/meals", "饮食"], ["/dashboard/energy", "消耗"], ["/dashboard/measurements", "身体"]] as const;
@@ -68,7 +69,7 @@ export function DashboardHeader({ email, owner = false }: { email: string; owner
     <span className="mobile-page-name" role={review ? "heading" : undefined} aria-level={review ? 1 : undefined}>{review ? "确认记录" : page?.[1] ?? (pathname.startsWith("/dashboard/export") ? "导出数据" : pathname === "/dashboard/account" ? "账号设置" : pathname === "/dashboard/profile" ? "个人资料" : pathname === "/dashboard/tutorial" ? "使用说明" : "AI 接入")}</span>
     <div className={styles.actions}>
       <details className="dashboard-menu" ref={menu} onKeyDown={event => { if (event.key === "Escape" && menu.current) { menu.current.open = false; menu.current.querySelector("summary")?.focus(); } }}>
-        <summary aria-label="账号菜单"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9" r="3"/><path d="M5.5 18c1-5 12-5 13 0"/></svg></summary><div><span>{email}</span><LoadingLink href="/dashboard/profile">个人资料</LoadingLink><LoadingLink href="/dashboard/account">账号设置</LoadingLink>{owner && <><LoadingLink href="/onboarding?mode=test">测试初次登录</LoadingLink><LoadingLink href="/admin">账号管理</LoadingLink></>}<LogoutButton /></div>
+        <summary aria-label="账号菜单"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9" r="3"/><path d="M5.5 18c1-5 12-5 13 0"/></svg></summary><div><span>{email}</span><LoadingLink href="/dashboard/profile">个人资料</LoadingLink><LoadingLink href="/dashboard/account">账号设置</LoadingLink>{owner && <><LoadingLink href="/onboarding?mode=test">测试初次登录</LoadingLink><LoadingLink href="/admin">账号管理</LoadingLink></>}<AppearanceSwitch/><LogoutButton /></div>
       </details>
     </div>
   </header>

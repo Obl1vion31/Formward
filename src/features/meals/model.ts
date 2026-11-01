@@ -117,7 +117,7 @@ export function defaultFoodQuantity(unit: string): string | null {
 export function suggestedMealType(hour: number) {
   return hour < 5 || hour >= 22 ? "夜宵" : hour < 10 ? "早餐" : hour < 14 ? "午餐" : hour < 17 ? "加餐" : "晚餐";
 }
-export const macroColors = { proteinG: "#365E78", carbsG: "#6C96B3", fatG: "#AFCDDE" };
+export const macroColors = { proteinG: "var(--data-protein)", carbsG: "var(--data-carbs)", fatG: "var(--data-fat)" };
 export type MacroMode = "grams" | "energy";
 /** 分段口径可切换，展示高度仍归一到已记录 kcal，不改写营养事实。 */
 export function macroDistribution(totals: Totals | undefined, mode: MacroMode = "grams") {
