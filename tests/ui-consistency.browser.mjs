@@ -81,7 +81,7 @@ try{
      }
     }else{
      const recent=p.getByRole("region",{name:"最近记录",exact:true});const buttons=recent.locator('[data-record-date="'+today+'"] [data-record-actions] button');
-     const first=buttons.first();await first.waitFor();signatures[name]=await first.evaluate(n=>{const s=getComputedStyle(n);return[s.fontFamily,s.fontSize,s.lineHeight,s.color,s.borderTopWidth,s.borderTopColor,s.borderRadius,s.padding,s.minHeight].join("|")});
+     const first=buttons.first();await first.waitFor();if(w>=1100){const offset=await first.evaluate(n=>{const row=n.closest("[data-record-date]");return n.getBoundingClientRect().y-row.getBoundingClientRect().y-parseFloat(getComputedStyle(row).paddingTop);});assert.ok(Math.abs(offset)<=2,"record controls align to row top");}signatures[name]=await first.evaluate(n=>{const s=getComputedStyle(n);return[s.fontFamily,s.fontSize,s.lineHeight,s.color,s.borderTopWidth,s.borderTopColor,s.borderRadius,s.padding,s.minHeight].join("|")});
      const axes=await contrast(name==="body"?'[data-chart-metric="weightKg"] svg text:not([class*="empty"])':'[data-record-slot="plot"] svg text[class*="axis"]');assert.ok(axes.every(n=>n>=4.5),name+" readable axes");
     }
     await shot(p,mode+"-"+name+"-"+w+"x"+h);

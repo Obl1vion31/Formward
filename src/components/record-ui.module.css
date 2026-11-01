@@ -2,7 +2,7 @@
 
 /* 公共列表与历史按钮不受业务页面的按钮重置影响。 */
 .records{font-family:"Avenir Next","Segoe UI","PingFang SC",sans-serif;color:var(--warm-white)}
-.records .actions{gap:12px}.records .actions>div{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.records .row{line-height:20px}.records .actions{align-self:start;gap:12px}.records .actions>div{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .records .actions button,.records .heading button,.records .historyToggle{appearance:none;box-sizing:border-box;min-height:44px;min-width:44px;padding:10px 14px;border:1px solid var(--control-border);border-radius:6px;background:transparent;color:var(--warm-white);font-family:inherit;font-size:14px;font-weight:400;line-height:20px;cursor:pointer;white-space:nowrap;transition:background .16s,color .16s,border-color .16s}
 .records .actions button:hover,.records .heading button:hover,.records .historyToggle:hover{border-color:var(--gold);color:var(--gold);background:var(--surface-hover)}
 .records button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
