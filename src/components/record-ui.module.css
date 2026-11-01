@@ -9,4 +9,4 @@
 .records button:disabled{cursor:not-allowed;opacity:.5;background:transparent;color:var(--muted);border-color:var(--control-border)}
 .records .historyToggle{margin:8px 0}
 .historyDate input{border-color:var(--control-border);border-radius:6px;color-scheme:var(--color-scheme);font-size:16px}
-@media(prefers-reduced-motion:reduce){.records button{transition:none}}
+@media(prefers-reduced-motion:reduce){.records .actions button,.records .heading button,.records .historyToggle{transition:none}}
