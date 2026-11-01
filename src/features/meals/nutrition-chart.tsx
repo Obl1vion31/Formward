@@ -29,7 +29,6 @@ export function NutritionChart({ dates, groups, selection, mode }: { dates: stri
       <svg {...drag} className={styles.chart} style={{ touchAction:"pan-y", visibility: containerWidth ? undefined : "hidden" }} viewBox={`0 0 ${width} 194`} role="group" aria-label={`热量柱状图，单位${unit}`}>
         <defs><pattern id={patternId} width="5" height="5" patternUnits="userSpaceOnUse"><path d="M-1 1L1 -1M0 5L5 0M4 6L6 4" stroke="var(--warm-white)" strokeOpacity=".3" strokeWidth="1" /></pattern></defs>
         {scale.ticks.map(tick => <g key={tick}><line className={styles.grid} x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} /><text className={styles.axis} data-calorie-tick={tick} x={left - 8} y={y(tick) + 4} textAnchor="end">{tick}</text></g>)}
-        <text className={styles.axis} x={left - 8} y="18" textAnchor="end">{unit}</text>
         {dates.map((date, index) => {
           const daily = byDate.get(date), x = left + index * slot, barWidth = Math.min(30, slot * .68), energy = daily?.values.caloriesKcal;
           const incompleteDay = !!daily && statusByDate.get(date) !== "complete";

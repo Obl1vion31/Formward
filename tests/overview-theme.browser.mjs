@@ -61,7 +61,8 @@ try{
  assert.equal((await context.request.post(base+"/api/auth/sign-in/email",{headers:{Origin:base},data:account})).status(),200);
  const p=await context.newPage();watch(p);await p.clock.install();p.setDefaultTimeout(15000);
  await go(p,"/dashboard");await p.locator('[data-overview-date="'+yesterday+'"]').focus();
- assert.equal(await p.locator("[data-overview-week] header").innerText(),"近7天 "+addCalendarDays(yesterday,-6).slice(5).replace("-",".")+"—"+yesterday.slice(5).replace("-",".")+"\n已计5/7天");
+ assert.equal(await p.locator("[data-overview-week] header").innerText(),"近7天 "+addCalendarDays(yesterday,-6).slice(5).replace("-",".")+"—"+yesterday.slice(5).replace("-","."));
+ assert.equal(await p.locator("[data-overview-week] [class*=weekCoverage]").innerText(),"已计5/7天");
  const values=await p.locator("[data-overview-week] strong").allTextContents();
  assert.equal(Number(values[0].replace(/[^\d.-]/g,"")),expectedWeek);
  checks.push("actual-server-seven-day-sum-and-coverage","selected-morning-and-next-morning");
@@ -84,9 +85,9 @@ try{
   checks.push("four-pages-both-themes-"+w+"x"+h);
  }
  await p.setViewportSize({width:390,height:720});await go(p,"/dashboard");
- assert.equal(await p.locator("[data-overview-week] button").getAttribute("aria-expanded"),"false");
- await p.locator("[data-overview-week] button").click();await shot(p,"phone-week-expanded");assert.equal(await p.locator("[data-overview-week] button").getAttribute("aria-expanded"),"true");
- await p.locator("[data-overview-week] button").click();checks.push("phone-week-collapsed-until-requested");
+ assert.equal(await p.locator("[data-overview-week]>button").getAttribute("aria-expanded"),"false");
+ await p.locator("[data-overview-week]>button").click();await shot(p,"phone-week-expanded");assert.equal(await p.locator("[data-overview-week]>button").getAttribute("aria-expanded"),"true");
+ await p.locator("[data-overview-week]>button").click();checks.push("phone-week-collapsed-until-requested");
  await p.setViewportSize({width:1440,height:900});await theme(p,"light");await go(p,"/dashboard/energy");
  await p.locator('[data-record-date="'+today+'"]').getByRole("button",{name:"录入",exact:true}).click();
  const dialog=p.getByRole("dialog",{name:"每日消耗",exact:true});await dialog.waitFor();await shot(p,"light-energy-editor-top");await dialog.getByLabel("静息 · kcal",{exact:true}).fill("1950");await dialog.getByLabel("活动合计 · kcal",{exact:true}).fill("215");

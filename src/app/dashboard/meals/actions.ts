@@ -1,4 +1,5 @@
 "use server";
+import {checkWebMeals} from "@/features/records/web-entry-server";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { withCurrentSession } from "@/features/auth/server";
@@ -11,7 +12,7 @@ async function perform<T>(work: (userId: string) => Promise<T>) {
   catch(error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }
 export async function saveMealAction(input: MealInput, allowMissingImages = false) { return perform(async userId => {
-  const db=getDatabase(), op=await submitMealOperation(db,{userId,origin:"manual"},input);
+  const db=getDatabase();await checkWebMeals(db,userId,input);const op=await submitMealOperation(db,{userId,origin:"manual"},input);
   if (op.status !== "confirmed" && !op.canConfirm && !(allowMissingImages && op.canConfirmWithoutImages)) throw new Error(op.rows.find(r=>r.error)?.error ?? "请检查录入内容。");
   const result=await decideMealOperation(db,userId,op.id,op.revision,"confirm",allowMissingImages,{strictManualVersions:true});
   return { snapshot:await readMealSnapshot(db,userId), message:result.result?.message ?? "已保存。" };
@@ -25,7 +26,7 @@ export async function refreshMealAction(id: string, revision: number) { return p
 export async function editMealPreviewAction(id: string, revision: number, index: number, action: MealAction) { return perform(async userId=>{
   const db=getDatabase(), current=await getMealOperation(db,userId,id), actions=[...current.draft.actions];
   if (!Number.isInteger(index) || index<0 || index>=actions.length) throw new Error("审核条目不存在。");
-  actions[index]=action; return reviseMealOperation(db,userId,id,revision,actions);
+  actions[index]=action; if(action.kind==="save_meal")await checkWebMeals(db,userId,{operationId:crypto.randomUUID(),actions:[action]});return reviseMealOperation(db,userId,id,revision,actions);
 }); }
 
 export async function permanentlyDeleteAction(input: import("@/features/meals/recently-deleted").PermanentDeletion) { return perform(async userId => {

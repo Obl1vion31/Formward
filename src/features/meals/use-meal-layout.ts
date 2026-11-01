@@ -11,7 +11,7 @@ export function useMealLayout(sheet:RefObject<HTMLDivElement|null>,cells:string[
    const style=getComputedStyle(table);context.font="16px "+style.fontFamily;
    const rows=JSON.parse(signature) as string[][],minimum=[88,80,88,80,80,80];
    const widths=minimum.map((base,index)=>Math.max(base,...rows.map(row=>Math.ceil(context.measureText(row[index]??"").width)+(index===0?54:30))));
-   const total=220+88+widths.reduce((a,b)=>a+b,0),picker=form.clientWidth>=total+264?"side":"tabs";
+   const total=220+120+widths.reduce((a,b)=>a+b,0),picker=form.clientWidth>=total+264?"side":"tabs";
    const sheetStyle=getComputedStyle(node),available=node.clientWidth-parseFloat(sheetStyle.paddingLeft)-parseFloat(sheetStyle.paddingRight);
    const next={picker,mode:available>=total?"table":"cards",stack:Math.max(...widths)>(available-10)/2,widths};
    setLayout(previous=>JSON.stringify(previous)===JSON.stringify(next)?previous:next);

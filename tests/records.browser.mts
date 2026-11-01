@@ -7,7 +7,10 @@ import { PGlite } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
+import { migrate as migrateNative } from "drizzle-orm/postgres-js/migrator";
+import {createDatabase} from "../src/db/client";
 import * as schema from "../src/db/schema";
+import {eq} from "drizzle-orm";
 import { provisionAccount } from "../src/features/auth/provision";
 import { createAiToken } from "../src/features/auth/ai-tokens";
 import { saveMealImage } from "../src/features/meals/images";
@@ -17,14 +20,18 @@ import type { EnergyAction } from "../src/features/activities/model";
 import { submitEnergyOperation, decideEnergyOperation } from "../src/features/activities/records";
 import { checkUnifiedReview, checkReviewMaintenance } from "./record-review.browser.mjs";
 async function freePort() { const server = createServer(); server.listen(0, "127.0.0.1"); await once(server, "listening"); const port = (server.address() as { port: number }).port; await new Promise<void>(resolve => server.close(() => resolve())); return port; }
-const pg = new PGlite(), db = drizzle(pg, { schema }), port = await freePort(), dbPort = await freePort(), baseURL = `http://127.0.0.1:${port}`;
-await migrate(db, { migrationsFolder: "./drizzle" });
+const nativeUrl=process.env.FORMWARD_BROWSER_DATABASE_URL;
+if(nativeUrl){const u=new URL(nativeUrl);assert.equal(u.hostname,"127.0.0.1");assert.ok(u.pathname.startsWith("/formward_browser_"),"Only isolated browser databases are allowed");}
+const pg=nativeUrl?null:new PGlite(),native=nativeUrl?createDatabase(nativeUrl):null,db=native?.db??drizzle(pg!,{schema}),port=await freePort(),dbPort=await freePort(),baseURL = `http://127.0.0.1:${port}`;
+if(native)await migrateNative(native.db,{migrationsFolder:"./drizzle"});else await migrate(drizzle(pg!,{schema}),{migrationsFolder:"./drizzle"});
 const account = { email: "record-review@example.test", password: "fictional-record-review-password" };
 const owner = await provisionAccount(db, { ...account, name: "虚构统一审核" }), token = await createAiToken(db, owner.id, "虚构HTTP", "write");
+// These cases exercise the existing recording flow, independently of first-use guidance.
+await db.delete(schema.personalProfile).where(eq(schema.personalProfile.userId,owner.id));
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j6WQAAAAASUVORK5CYII=", "base64"), images: string[] = [];
 for (let i = 0; i < 2; i++) images.push((await saveMealImage(db, owner.id, Buffer.concat([png, Buffer.from(String(i))]), { fileName: `虚构图片${i}.png`, source: "manual", actorId: owner.id }, async () => {})).id);
-const socket = new PGLiteSocketServer({ db: pg, host: "127.0.0.1", port: dbPort }); await socket.start();
-const child = spawn("pnpm", ["start", "--hostname", "127.0.0.1", "--port", String(port)], { env: { ...process.env, TZ: "UTC", DATABASE_URL: `postgresql://postgres:postgres@127.0.0.1:${dbPort}/postgres?max=1`, BETTER_AUTH_URL: baseURL, BETTER_AUTH_SECRET: "fictional-record-review-secret-of-more-than-32-characters", FORMWARD_TIMEZONE: "Asia/Shanghai", NODE_ENV: "production" }, detached: true, stdio: ["ignore", "pipe", "pipe"] });
+const socket = pg?new PGLiteSocketServer({ db: pg, host: "127.0.0.1", port: dbPort }):null; await socket?.start();
+const child = spawn("pnpm", ["start", "--hostname", "127.0.0.1", "--port", String(port)], { env: { ...process.env, TZ: "UTC", DATABASE_URL: nativeUrl??`postgresql://postgres:postgres@127.0.0.1:${dbPort}/postgres?max=1`, BETTER_AUTH_URL: baseURL, BETTER_AUTH_SECRET: "fictional-record-review-secret-of-more-than-32-characters", FORMWARD_TIMEZONE: "Asia/Shanghai", NODE_ENV: "production" }, detached: true, stdio: ["ignore", "pipe", "pipe"] });
 let logs = ""; child.stdout.on("data", data => { logs += data; }); child.stderr.on("data", data => { logs += data; });
 let browser: { close(): Promise<void> } | undefined;
 try {
@@ -36,7 +43,7 @@ try {
   const page = await context.newPage(), errors: string[] = []; page.on("pageerror", (error: Error) => errors.push(error.message));
   for (const id of images) await page.route(`**/api/meal-images/${id}`, async (route: { fulfill(options: unknown): Promise<void> }) => route.fulfill({ status: 200, contentType: "image/png", body: png }));
   try {
-    if(process.env.FORMWARD_ENERGY_REVIEW_ONLY==="1"){await checkEnergyReview({baseURL,context,page,token:token.rawToken,engine:process.env.FORMWARD_EDITOR_BROWSER??"chromium",saveEnergy:async (actions: EnergyAction[])=>{const pending=await submitEnergyOperation(db,{userId:owner.id,origin:"manual"},{operationId:crypto.randomUUID(),actions});assert.equal(pending.canConfirm,true);await decideEnergyOperation(db,owner.id,pending.id,pending.revision,"confirm");}});}else if(process.env.FORMWARD_MEAL_ENTRY_ONLY==="1"){await checkMealEntry({baseURL,context,page,db,userId:owner.id,token:token.rawToken,today:new Date(Date.now()+8*3600000).toISOString().slice(0,10),engine:process.env.FORMWARD_EDITOR_BROWSER??"chromium"});}else{
+    if(process.env.FORMWARD_ENERGY_REVIEW_ONLY==="1"){await checkEnergyReview({baseURL,context,page,token:token.rawToken,engine:process.env.FORMWARD_EDITOR_BROWSER??"chromium",saveEnergy:async (actions: EnergyAction[])=>{const pending=await submitEnergyOperation(db,{userId:owner.id,origin:"manual"},{operationId:crypto.randomUUID(),actions});assert.equal(pending.canConfirm,true);await decideEnergyOperation(db,owner.id,pending.id,pending.revision,"confirm");}});}else if(process.env.FORMWARD_MEAL_ENTRY_ONLY==="1"){const navigationAborts=await checkMealEntry({baseURL,context,page,db,userId:owner.id,token:token.rawToken,today:new Date(Date.now()+8*3600000).toISOString().slice(0,10),engine:process.env.FORMWARD_EDITOR_BROWSER??"chromium"});for(const message of navigationAborts){const index=errors.indexOf(message);if(index>=0)errors.splice(index,1);}}else{
     const check = process.env.FORMWARD_REVIEW_MAINTENANCE_ONLY === "1" ? checkReviewMaintenance : checkUnifiedReview;
     await check({ baseURL, context, page, token: token.rawToken, images, ...(process.env.FORMWARD_REVIEW_ARTIFACTS ? {artifacts:process.env.FORMWARD_REVIEW_ARTIFACTS} : {}), date: new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) });
 
@@ -46,7 +53,7 @@ try {
   catch (error) { await page.screenshot({ path: "/tmp/formward-records-failure.png", fullPage: true }); await writeFile("/tmp/formward-records-failure.html", await page.content()); throw error; }
   await context.close();
 } catch (error) { await writeFile("/tmp/formward-records-server.log", logs);await writeFile("/tmp/formward-"+(process.env.FORMWARD_EDITOR_BROWSER??"chromium")+"-records-server.log",logs); throw error; }
-finally { await browser?.close(); if (child.exitCode === null) { process.kill(-child.pid!, "SIGTERM"); await once(child, "exit"); } await socket.stop(); await new Promise(resolve => setImmediate(resolve)); await pg.close(); }
+finally { await browser?.close(); if (child.exitCode === null) { process.kill(-child.pid!, "SIGTERM"); await once(child, "exit"); } await socket?.stop(); await new Promise(resolve => setImmediate(resolve)); await pg?.close();await native?.close(); }
 
 if(process.env.FORMWARD_ENERGY_REVIEW_ONLY!=="1"&&process.env.FORMWARD_MEAL_ENTRY_ONLY!=="1"&&process.env.FORMWARD_REVIEW_MAINTENANCE_ONLY!=="1"){
  const entry=spawn(process.execPath,["--import","tsx","tests/records.browser.mts"],{env:{...process.env,FORMWARD_MEAL_ENTRY_ONLY:"1"},stdio:"inherit"});

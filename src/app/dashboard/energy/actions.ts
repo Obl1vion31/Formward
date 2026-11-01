@@ -1,4 +1,5 @@
 "use server";
+import {checkWebEnergy} from "@/features/records/web-entry-server";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { withCurrentSession } from "@/features/auth/server";
@@ -14,7 +15,7 @@ import type { SourceRemovalResult } from "@/components/source-input";
 export async function saveEnergyAction(input: EnergyInput) {
   try {
     return await withCurrentSession(await headers(), async user => {
-    const db = getDatabase(), operation = await submitEnergyOperation(db, { userId: user.id, origin: "manual" }, input);
+    const db = getDatabase();await checkWebEnergy(db,user.id,input);const operation = await submitEnergyOperation(db, { userId: user.id, origin: "manual" }, input);
     if (operation.status !== "confirmed" && !operation.canConfirm) throw new Error(operation.rows.find(row => row.error)?.error ?? "请检查输入。");
     await decideEnergyOperation(db, user.id, operation.id, operation.revision, "confirm", {permanentManualDeletion:true});
     const snapshot = await readEnergySnapshot(db, user.id);

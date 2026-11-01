@@ -1,44 +1,54 @@
 "use client";
 import {useEffect,useRef,useState,type ReactNode,type ComponentPropsWithoutRef,type CSSProperties} from "react";
+import {useMobileMode} from "./use-mobile-mode";
 import {SelectedDateHeading} from "./daily-records";
 import styles from "./record-trend-panel.module.css";
 export type RecordMetric={label:string;value:string;unit:string;tone?:"blue"|"red"|"gold";note?:string;reserveNote?:boolean;inlineUnit?:boolean};
 export function RecordWorkspace({title,headingId,className="",children,...props}:ComponentPropsWithoutRef<"section">&{title:string;headingId?:string}){
  return <section {...props} className={styles.workspace+" "+className} data-record-workspace><header className={styles.pageHeading}><h1 id={headingId}>{title}</h1></header>{children}</section>;
 }
-export function RecordTrendPanel({range,custom,date,view,metrics,title,options,legend,children,readoutLabel="选中日读数",flags,flagVariants=[],statistics,supplementary}:{
- range:ReactNode;custom?:ReactNode;date:string;view:()=>void;metrics:RecordMetric[];title:string;options?:ReactNode;legend:ReactNode;children:ReactNode;readoutLabel?:string;flags?:string;flagVariants?:string[];statistics?:ReactNode;supplementary?:ReactNode;
+export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,options,legend,children,readoutLabel="选中日读数",metricVariants=[],flags,flagVariants=[],statistics,supplementary}:{
+ range:ReactNode;custom?:ReactNode;date:string;view:()=>void;metrics:RecordMetric[];title:string;unit?:string;options?:ReactNode;legend:ReactNode;children:ReactNode;readoutLabel?:string;metricVariants?:string[][];flags?:string;flagVariants?:string[];statistics?:ReactNode;supplementary?:ReactNode;
 }){
+ const mobile=useMobileMode();
  const metricRef=useRef<HTMLDivElement>(null),[columnLimit,setColumnLimit]=useState(metrics.length);
- const readingKey=metrics.map(metric=>metric.value+metric.unit).join("|");
+ const readingKey=metrics.map(metric=>metric.value+metric.unit).join("|"),variantKey=JSON.stringify(metricVariants);
+ const widthCache=useRef<{key:string;widths:number[]}>({key:"",widths:[]});
  useEffect(()=>{
   const group=metricRef.current;if(!group)return;
   const measure=()=>{
-   const gap=parseFloat(getComputedStyle(group).columnGap)||0,values=[...group.querySelectorAll<HTMLElement>("[data-metric-number]")].map(node=>node.scrollWidth);
-   let count=metrics.length;
+   const gap=parseFloat(getComputedStyle(group).columnGap)||0,nodes=[...group.querySelectorAll<HTMLElement>("[data-metric-number]")];
+   const typography=nodes.map(node=>{const number=node.querySelector("span")!,unit=node.querySelector("small"),style=getComputedStyle(number);return {font:style.font||style.fontWeight+" "+style.fontSize+" "+style.fontFamily,unit:unit?unit.getBoundingClientRect().width+(parseFloat(getComputedStyle(unit).marginLeft)||0):0};});
+   const cacheKey=variantKey+JSON.stringify(typography);
+   if(widthCache.current.key!==cacheKey){
+    const context=document.createElement("canvas").getContext("2d");
+    const variants=JSON.parse(variantKey) as string[][];
+    widthCache.current={key:cacheKey,widths:typography.map((style,index)=>{if(!context)return 0;context.font=style.font;return Math.ceil(Math.max(0,...variants.map(values=>context.measureText(values[index]??"—").width+style.unit)));})};
+   }
+   const values=nodes.map((node,index)=>Math.max(node.scrollWidth,widthCache.current.widths[index]??0));
+   let count=metrics.length===6&&(mobile||group.clientWidth<860)?3:metrics.length;
    while(count>1){
     const available=group.clientWidth-gap*(count-1),weights=count===4?[1.5,1,1,1]:Array(count).fill(1),total=weights.reduce((a,b)=>a+b,0);
     if(values.every((width,index)=>width<=available*weights[index%count]/total+1))break;
-    count=count>2?2:1;
+    count=count===6?3:count>2?2:1;
    }
    setColumnLimit(current=>current===count?current:count);
   };
   const observer=new ResizeObserver(measure);observer.observe(group);
   const frame=requestAnimationFrame(measure);
   return()=>{observer.disconnect();cancelAnimationFrame(frame);};
- },[readingKey,metrics.length]);
+ },[readingKey,variantKey,metrics.length,mobile]);
  const columns=Math.min(columnLimit,metrics.length);
  const statusVariants=[...new Set([...flagVariants,flags].filter((value):value is string=>Boolean(value)))];
  return <div className={styles.panel} data-record-trend>
   <div className={styles.date} data-record-slot="date"><SelectedDateHeading date={date} view={view}/></div>
   <div className={statistics?styles.readingArea:undefined}>
-  <div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-metric-count={metrics.length} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map(metric=><div key={metric.label} className={styles.metric}><span>{metric.label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span><strong data-metric-number className={metric.tone?styles[metric.tone]:undefined}><span>{metric.value}</span>{metric.inlineUnit&&<small>{metric.unit}</small>}</strong>{metric.note?<em>{metric.note}</em>:<span className={metric.reserveNote?styles.noteSpace:styles.noNote} aria-hidden="true"/>}</div>)}</div>
+  <div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-metric-count={metrics.length} data-record-columns={columns} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map(metric=><div key={metric.label} className={styles.metric}><span>{metric.label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span><strong data-metric-number className={metric.tone?styles[metric.tone]:undefined}><span>{metric.value}</span>{metric.inlineUnit&&<small>{metric.unit}</small>}</strong>{metric.note?<em>{metric.note}</em>:<span className={metric.reserveNote?styles.noteSpace:styles.noNote} aria-hidden="true"/>}</div>)}</div>
   {statistics}</div>
   {supplementary}
   {statusVariants.length>0&&<div className={styles.flags} data-record-slot="status">{statusVariants.map(value=><span key={value} aria-hidden="true" className={styles.flagMeasure}>{value}</span>)}<span role="status">{flags??""}</span></div>}
   <div className={styles.range} data-record-slot="range">{range}</div>{custom}
-  <div className={styles.plotHeading} data-record-slot="title"><h2>{title}</h2>{options}</div>
-  <div className={styles.legend} data-record-slot="legend">{legend}</div>
+  <div className={styles.plotHeading} data-record-slot="title"><h2>{title}{unit&&<small>{unit}</small>}</h2><div className={styles.legend} data-record-slot="legend">{legend}</div>{options&&<div className={styles.plotOptions}>{options}</div>}</div>
   <div className={styles.plot} data-record-slot="plot">{children}</div>
  </div>;
 }

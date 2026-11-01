@@ -117,6 +117,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
        custom={calendarOpen&&<CustomRecordRange label="身体" value={{from:draftRange.start,to:draftRange.end}} change={next=>setDraftRange({start:next.from,end:next.to})} apply={()=>{setCustomRange(draftRange);selectRange("custom",draftRange);}} cancel={()=>setCalendarOpen(false)}/>}
        date={activeDate} view={()=>{selection.release();inspectDay(activeDate,chartPeriod);}} readoutLabel="选中日身体记录"
        metrics={metrics.map(metric=>{const selected=buildMeasurementDays(displayedRecords.filter(row=>row.recordDate===activeDate),choices,metric,[activeDate])[0].daytimeRecord;const row=selected?.fasting===true?selected:null;return {label:"晨间"+metricName(metric),value:formatRecordNumber(row?.[metric]),unit:unitFor(metric),note:row?.recordKind==="estimated"?"估计":undefined};})}
+       metricVariants={displayedRecords.filter(row=>row.recordDate>=range.start&&row.recordDate<=range.end).map(row=>metrics.map(metric=>formatRecordNumber(row[metric])))}
        statistics={!mobileMode?summaryContent:undefined}
        title="体重 · kg"
        options={<ChartOptions label={mobileMode?"统计与选项":"图表设置"}>
@@ -141,7 +142,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
 function Missing() { return <span aria-label="未记录" className={styles.missing}>—</span>; }
 function DayActions({ date, today, records, onView, onEntry }: { date: string; today: string; records: MeasurementDisplay[]; onView: () => void; onEntry: (editing: boolean) => void }) {
   const action = measurementDayAction(records, date, today);
-  return <div className={styles.rowActions}><button type="button" aria-label={`查看 ${date}`} onClick={onView}>查看</button><button type="button" aria-label={`${action} ${date}`} onClick={() => onEntry(action === "编辑")}>{action}</button></div>;
+  return <><button type="button" aria-label={`${action} ${date}`} onClick={() => onEntry(action === "编辑")}>{action}</button><button type="button" aria-label={`查看 ${date}`} onClick={onView}>查看</button></>;
 }
 function TableReading({ row, metric, pendingLabel, onInspect, onInspectCandidates }: {
   row: MeasurementDisplay | null; metric: MeasurementMetric; pendingLabel: string | null;

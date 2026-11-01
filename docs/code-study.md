@@ -1137,3 +1137,11 @@ records/operations.ts整理整批草稿的服务端读数；records/energy-revie
 app/theme.css是一张语义配色表：背景、正文、边线以及摄入／消耗／晨重各有变量。appearance-state.ts只在浏览器记住浅色或深色；它不保存健康草稿，Logo使用currentColor随主题变化，照片和录屏本身没有反色。
 
 build.mjs给每次构建一个版本号，根页面和GET /api/app-version使用同一个值。app-updates.tsx发现正式站版本不同，先提醒用户；刷新前通过draft-guard和应用确认框保护尚未保存的输入。它和record-updates.tsx不同：前者查软件更新，后者查本人记录被其他页面修改。
+
+### 网页为什么有时不能点“保存”？
+
+在“记录一餐”里只写“鸡肉饭”，却没填任何已知营养时，网站还没有可保存的营养数据，所以保存按钮变灰；填蛋白质20克、热量留空，则可以保存已知部分。消耗同理：静息2058、活动0可以保存，只有活动300也可以保存；“只记总数”里总量空白时，藏起来的静息不会替它凑数。
+
+这条网页检查写在[web-entry.ts](../src/features/records/web-entry.ts)。浏览器用它控制按钮；点击保存后，[web-entry-server.ts](../src/features/records/web-entry-server.ts)读取本人数据库记录，使用同一检查再核对一次。旧餐只改备注时，后台确认营养和版本没变，保留原来的精度；不是把画面上的整数重新写回数据库。普通AI提交和未经手工修改的旧确认不增加这条限制。
+
+“最近记录”的外观由[daily-records.tsx](../src/components/daily-records.tsx)和[record-ui.module.css](../src/components/record-ui.module.css)共用：饮食、消耗、身体传各自日期、摘要和操作，按钮的字号、边框、悬停和焦点由这一处决定。上方选日、读数、区间、标题与图例则由[record-trend-panel.tsx](../src/components/record-trend-panel.tsx)组织；图里的数据仍由原来的业务函数提供。

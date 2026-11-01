@@ -1,4 +1,4 @@
-.workspace, .drawer { --ink: var(--warm-white); --muted: var(--muted); --gold: var(--gold); --blue: var(--data-deficit); --rule: color-mix(in srgb,var(--warm-white) 12.0%,transparent); color: var(--ink); font-size: 14px; font-variant-numeric: tabular-nums; }
+.workspace, .drawer { --ink: var(--warm-white); --blue: var(--data-deficit); --rule: color-mix(in srgb,var(--warm-white) 12.0%,transparent); color: var(--ink); font-size: 14px; font-variant-numeric: tabular-nums; }
 .workspace { max-width: 1120px; margin: auto; padding: 20px 0 40px; }
 .workspace button, .drawer button { appearance: none; background: none; border: 0; color: var(--muted); font: inherit; min-height: 44px; cursor: pointer; padding: 6px 8px; }
 .workspace button:hover, .drawer button:hover { color: var(--ink); }
@@ -12,7 +12,7 @@
 .tabs { display: flex; gap: 24px; margin: 14px 0 12px; border-bottom: 1px solid var(--rule); }
 .tabs button { padding-inline: 0; }
 .tabs button[aria-pressed="true"] { color: var(--ink); border-bottom: 1px solid var(--gold); }
-.workspace input, .drawer input, .drawer select, .drawer textarea, .toolbar input { min-width: 0; min-height: 44px; background: transparent; border: 0; border-bottom: 1px solid var(--rule); border-radius: 0; color: var(--ink); font: inherit; color-scheme: dark; padding: 8px 0; }
+.workspace input, .drawer input, .drawer select, .drawer textarea, .toolbar input { min-width: 0; min-height: 44px; background: transparent; border: 0; border-bottom: 1px solid var(--rule); border-radius: 0; color: var(--ink); font: inherit; color-scheme: var(--color-scheme); padding: 8px 0; }
 .workspace input[type="date"] { width: 145px; }
 .summary { display: grid; grid-template-columns: repeat(4,1fr); padding: 28px 0; gap: 24px; border-bottom: 1px solid var(--rule); }
 .summary span { font-size: 13px; color: var(--muted); }
@@ -311,7 +311,7 @@
 .calendarRow > strong { font-size:18px; font-weight:400; white-space:nowrap; }.calendarRow small { font-size:12px; color:var(--muted); }
 .calendarRow button { min-height:44px; }.calendarDay > details > summary { min-height:36px; align-content:center; color:var(--muted); cursor:pointer; font-size:12px; }
 .calendarPicker { display:flex; align-items:center; flex-wrap:wrap; gap:6px; font-size:12px; color:var(--muted); }
-.calendarPicker input { background:none; color:inherit; color-scheme:dark; border:1px solid color-mix(in srgb,var(--warm-white) 13.333%,transparent); padding:7px; border-radius:3px; min-width:0; max-width:145px; font:inherit; }
+.calendarPicker input { background:none; color:inherit; color-scheme:var(--color-scheme); border:1px solid color-mix(in srgb,var(--warm-white) 13.333%,transparent); padding:7px; border-radius:3px; min-width:0; max-width:145px; font:inherit; }
 @media(max-width:700px),(hover:none) and (pointer:coarse) {
  .calendarRow { flex-wrap:wrap; gap:4px 10px; }.calendarRow > div { flex-basis:45%; }.calendarPicker input { max-width:130px; }
 }
@@ -339,7 +339,7 @@
 .nutritionBubble { position:fixed; inset:auto; margin:0; width:min(320px,calc(100vw - 32px)); overflow:auto; overscroll-behavior:contain; padding:16px; border:1px solid color-mix(in srgb,var(--gold) 50.196%,transparent); border-radius:8px; background:var(--surface); color:var(--warm-white); box-shadow:0 8px 28px #0007; font:14px/1.6 "Avenir Next","Segoe UI","PingFang SC",sans-serif; }
 .nutritionBubble::backdrop { background:transparent; }
 .nutritionBubble h3 { font-size:14px; margin:0 0 10px; }.nutritionBubble p { font-size:13px; color:var(--muted); line-height:1.6; margin:8px 0; overflow-wrap:anywhere; }
-.nutritionBubble label { display:grid; gap:8px; font-size:14px; }.nutritionBubble select { width:100%; min-height:44px; padding:8px; border:1px solid color-mix(in srgb,var(--gold) 50.196%,transparent); border-radius:4px; background:var(--surface); color:var(--warm-white); font:inherit; color-scheme:dark; }
+.nutritionBubble label { display:grid; gap:8px; font-size:14px; }.nutritionBubble select { width:100%; min-height:44px; padding:8px; border:1px solid color-mix(in srgb,var(--gold) 50.196%,transparent); border-radius:4px; background:var(--surface); color:var(--warm-white); font:inherit; color-scheme:var(--color-scheme); }
 .nutritionBubble button { min-height:44px; color:var(--gold); }.nutritionBubble .checkbox { display:flex; align-items:center; }
 .nutritionBubble { white-space:normal; text-align:left; }
 
@@ -352,3 +352,22 @@
 .macroTools .macroMode{flex:none;flex-wrap:nowrap}.macroTools .macroLegend{flex:1;min-width:0}@media(max-width:700px),(hover:none) and (pointer:coarse){.trend{padding-top:4px}.macroTools .macroMode button{white-space:nowrap}}
 
 .mobileLibrary.mobileLibrary{display:block;padding:8px 0}
+
+.mealForm input:not([type=checkbox]):not([type=file]),.mealForm textarea,.mealForm select,.toolbar input{border:1px solid var(--control-border);border-radius:6px;background:var(--surface-raised);padding:10px 12px;font-size:16px;line-height:22px;color-scheme:var(--color-scheme)}
+.mealForm input:not([type=checkbox]):hover,.mealForm textarea:hover,.mealForm select:hover{border-color:var(--gold)}
+.mealForm input:focus-visible,.mealForm textarea:focus-visible,.mealForm select:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.stickyMealTotal{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0;background:var(--surface);border-bottom:1px solid var(--line-soft);margin-bottom:18px}
+.stickyMealTotal>div{min-width:0;flex:1}.headerNutrition{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}.headerNutrition strong{display:inline-flex;align-items:baseline;gap:5px;font-size:30px;font-weight:400;white-space:nowrap}.headerNutrition small{font-size:12px;color:var(--muted)}.headerNutrition>span{font-size:12px;color:var(--muted);line-height:1.6}.entryIssue{color:var(--muted);font-size:12px;line-height:1.5;margin:6px 0 0}
+.mealForm .save{flex:none;margin:0;padding:12px 16px;min-height:44px;border:1px solid var(--gold);border-radius:6px;background:var(--gold);color:var(--graphite);font-size:14px;font-weight:500;white-space:nowrap}
+.mealForm .save:hover{background:color-mix(in srgb,var(--gold) 88%,var(--warm-white));color:var(--graphite)}
+.mealForm .save:disabled{background:var(--surface-hover);color:var(--muted);border-color:var(--control-border);opacity:.65;cursor:not-allowed}
+.entryTitle{margin:0 0 12px;font-size:16px;font-weight:500}.entryTitle small{font-size:12px;color:var(--muted);margin-left:8px}
+.mealForm .entryActions button,.photoFields button{min-height:44px;min-width:44px;padding:8px 12px;border:1px solid var(--control-border);border-radius:6px;background:transparent;color:var(--warm-white);font-size:14px}
+.mealForm .entryActions button:hover,.photoFields button:hover{border-color:var(--gold);background:var(--surface-hover);color:var(--gold)}
+.mealForm .entryActions{gap:8px}.mealForm .calculated{color:var(--muted)}.mealForm input[readonly]{border-color:transparent;background:transparent;color:var(--muted)}
+.photoLabel{display:block;color:var(--muted);font-size:13px;margin-bottom:8px}.photoUpload{display:flex;align-items:center;gap:14px}.photoUpload>span{font-size:13px;color:var(--muted)}
+.photoFields .fileInput{position:absolute;width:1px;height:1px;min-height:0;padding:0;border:0;overflow:hidden;clip-path:inset(50%)}
+@media(max-width:600px){.stickyMealTotal{top:0;padding:12px 0;align-items:flex-start}.headerNutrition{gap:4px 10px}.headerNutrition>span{font-size:11px}.mealForm .save{font-size:12px;padding:10px}.headerNutrition strong{font-size:27px}}
+
+.mealForm .entryTable[data-layout=table] .entryActions>button:last-child{margin-left:8px}.mealForm .entryTable[data-layout=cards] .entryName{padding-right:120px}.mealForm .entryTable[data-layout=cards] .entryActions{width:108px}
+.mealForm .entryTable td input:not([type=checkbox]):not([type=file]){padding:10px}.mealForm .entryTable td.entryUnit input:not([type=checkbox]):not([type=file]){padding-right:32px}

@@ -47,14 +47,18 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       custom={customOpen&&<CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
       date={selected} view={()=>{selection.release();setOpened(selected);}}
       readoutLabel="日期对照"
+      metricVariants={days.map(day=>[formatNutrition(day.nutrition?.values.caloriesKcal??null,"caloriesKcal"),energyValue(day.energy.totalKcal),signedIntegerNumber(day.energyBalance),formatRecordNumber(day.morning?.weightKg??null),formatRecordNumber(day.nextMorning?.weightKg??null),signed(day.weightChangeKg)])}
       metrics={[
        {label:"摄入",value:formatNutrition(day?.nutrition?.values.caloriesKcal??null,"caloriesKcal"),unit:"kcal",tone:"blue"},
        {label:"消耗",value:energyValue(day?.energy.totalKcal),unit:"kcal",tone:"red"},
-       {label:day?.energyBalance==null?"收支":day.energyBalance<0?"缺口":"盈余",value:signedIntegerNumber(day?.energyBalance??null),unit:"kcal",tone:day?.energyBalance!=null&&day.energyBalance<0?"blue":"gold"}
+       {label:day?.energyBalance==null?"收支":day.energyBalance<0?"缺口":"盈余",value:signedIntegerNumber(day?.energyBalance??null),unit:"kcal",tone:day?.energyBalance!=null&&day.energyBalance<0?"blue":"gold"},
+       {label:"晨重 "+selected.slice(5).replace("-",".")+(day?.morning?.recordKind==="estimated"?" · 估计":""),value:formatRecordNumber(day?.morning?.weightKg??null),unit:"kg",inlineUnit:true},
+       {label:"次晨 "+(day?.nextDate??addCalendarDays(selected,1)).slice(5).replace("-",".")+(day?.nextMorning?.recordKind==="estimated"?" · 估计":""),value:formatRecordNumber(day?.nextMorning?.weightKg??null),unit:"kg",inlineUnit:true},
+       {label:"次晨变化",value:signed(day?.weightChangeKg??null),unit:"kg",inlineUnit:true}
       ]}
       supplementary={<OverviewReadings day={day}/>}
       flags={overviewFlags(day)} flagVariants={days.map(overviewFlags)}
-      title="热量收支"
+      title="热量收支" unit="kcal"
       options={<InlineChartControls><label><input type="checkbox" checked={estimates} onChange={event=>setEstimates(event.target.checked)} aria-label="显示体重估计"/>显示体重估计</label></InlineChartControls>}
       legend={<><span><i style={{background:"var(--data-blue)"}}/>摄入</span><span><i style={{background:"var(--data-red)"}}/>消耗</span><span><i style={{background:"var(--data-surplus)"}}/>盈余</span><span><i style={{background:"var(--data-deficit)"}}/>缺口</span></>}
     >{dates.length?<RelationshipPlot days={days} selected={selected} inspect={selection.choose} preview={selection.preview} leave={selection.leave} pin={selection.pin} unpin={selection.release}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
@@ -79,22 +83,18 @@ function OverviewDayDetails({day}:{day:OverviewDay}){
 function OverviewReadings({day}:{day?:OverviewDay}){
  const week=day?.week,[weekOpen,setWeekOpen]=useState(false);
  const short=(date?:string)=>date?.slice(5).replace("-",".")??"—";
- return <div className={styles.supplementary} data-overview-supplementary>
-  <div className={styles.morningReadings} role="group" aria-label="选中日晨重与次晨变化">
-   <div><span>晨重 <time>{short(day?.date)}</time>{day?.morning?.recordKind==="estimated"&&<em>估计</em>}</span><strong>{formatRecordNumber(day?.morning?.weightKg??null)}<small>kg</small></strong></div>
-   <div><span>次晨 <time>{short(day?.nextDate)}</time>{day?.nextMorning?.recordKind==="estimated"&&<em>估计</em>}</span><strong>{formatRecordNumber(day?.nextMorning?.weightKg??null)}<small>kg</small></strong></div>
-   <div><span>次晨变化</span><strong>{signed(day?.weightChangeKg??null)}<small>kg</small></strong></div>
-  </div>
-  <section className={styles.weekReadings} aria-label="选中日七天统计" data-overview-week data-expanded={weekOpen}>
+ const [details,setDetails]=useState(false);
+ return <section className={styles.weekReadings} aria-label="选中日七天统计" data-overview-week data-expanded={weekOpen}>
    <button type="button" className={styles.weekToggle} aria-expanded={weekOpen} onClick={()=>setWeekOpen(open=>!open)}><span>近7天 <time>{short(week?.from)}—{short(week?.through)}</time></span><span aria-hidden="true">{weekOpen?"收起 −":"展开 ＋"}</span></button>
    <div className={styles.weekContent}>
-   <header><span>近7天 <time>{short(week?.from)}—{short(week?.through)}</time></span><span>已计{week?.coveredDays??0}/7天</span></header>
-   <div className={styles.weekNumbers}>
-    <div><span>{week?.energyBalance==null?"热量收支":week.energyBalance<0?"热量缺口":"热量盈余"}</span><strong className={week?.energyBalance!=null&&week.energyBalance<0?styles.weekDeficit:styles.weekSurplus}>{signedIntegerNumber(week?.energyBalance??null)}<small>kcal</small></strong></div>
-    <div><span>体重变化{week?.estimated&&week.weightChangeKg!==null?" · 含估计":""}</span><strong>{signed(week?.weightChangeKg??null)}<small>kg</small></strong></div>
+    <header><span>近7天 <time>{short(week?.from)}—{short(week?.through)}</time></span></header>
+    <div className={styles.weekNumbers}>
+     <div><span>{week?.energyBalance==null?"热量收支":week.energyBalance<0?"热量缺口":"热量盈余"}</span><strong className={week?.energyBalance!=null&&week.energyBalance<0?styles.weekDeficit:styles.weekSurplus}>{signedIntegerNumber(week?.energyBalance??null)}<small>kcal</small></strong></div>
+     <div><span>体重变化{week?.estimated&&week.weightChangeKg!==null?" · 含估计":""}</span><strong>{signed(week?.weightChangeKg??null)}<small>kg</small></strong></div>
+    </div>
+    <span className={styles.weekCoverage}>已计{week?.coveredDays??0}/7天</span>
+    <button className={styles.weekDetailsToggle} type="button" aria-expanded={details} onClick={()=>setDetails(open=>!open)}>详情 {details?"−":"＋"}</button>
+    {details&&<p className={styles.weekBasis}>{week?.missingMorningDates.length?"缺"+week.missingMorningDates.map(short).join("、")+"晨重":week?"晨重 "+short(week.from)+" → "+short(week.nextDate):"暂无记录"}</p>}
    </div>
-   <p className={styles.weekBasis}>{week?.missingMorningDates.length?"缺"+week.missingMorningDates.map(short).join("、")+"晨重":week?"晨重 "+short(week.from)+" → "+short(week.nextDate):"暂无记录"}</p>
-   </div>
-  </section>
- </div>;
+  </section>;
 }

@@ -49,3 +49,7 @@ use-chart-viewport.ts按实际坐标字体测量刻度宽度，统一总览、�
 appearance-state.ts保存本设备主题的读取、早期初始化和跨窗口通知；appearance-switch.tsx只提供浅色／深色操作。颜色集中在app/theme.css，图表也使用同一语义变量，图片不反色。
 
 app-updates.tsx仅检查构建版本，与record-updates.tsx的健康记录变化分开。可见时90秒、恢复前台检查；不缓存的版本接口不带身份或旧部署标记。草稿确认复用confirmation及draft-guard；approvePageRefresh只允许用户明确批准的这次刷新跳过重复离开弹窗，不存健康草稿。
+
+DailyRecords／DailyRecordRow及RecordHistory提供三页最近记录的统一标题、44px描边操作和历史展开，业务页面不得再用“所有按钮”高优先级样式覆盖。RecordTrendPanel支持六项读数按6／3／2退让、数值基线对齐；电脑图表标题、单位与图例同排，手机图例另行。控件边界使用主题control-border，深浅两套均须核对对比。
+
+RecordTrendPanel的metricVariants传入当前区间已算好的各日读数字符串，按数字实际字体缓存最长宽度；列数不随鼠标选日反复变化，换区间或窗口再测量。不生成或修改健康读数。

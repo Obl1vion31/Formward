@@ -97,7 +97,8 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
         {label:"静息",value:energyValue(chosen?.restingKcal),unit:"kcal",tone:"blue"},
         {label:"活动",value:energyValue(chosen?.activeKcal),unit:"kcal",tone:"red"}
        ]}
-       title="每日消耗"
+       metricVariants={chartDays.map(day=>[energyValue(day.totalKcal),energyValue(day.restingKcal),energyValue(day.activeKcal)])}
+       title="每日消耗" unit="kcal"
        legend={<><span><i style={{background:"var(--data-protein)"}}/>静息</span><span><i style={{background:"var(--data-red)"}}/>活动</span><span><i style={{background:"var(--data-neutral)"}}/>录入总数</span></>}
       >{dates.length?<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     </section>
@@ -119,7 +120,7 @@ function EnergyPlot({ days, selected, selection }: { days: EnergyDay[]; selected
   const bottom = w < 650 ? 164 : 220;
   const y = (value: number) => bottom - value / maximum * (bottom - 30), barWidth = Math.min(30, slot * .65), x = (index: number) => left + (index + .5) * slot;
   return <div className={styles.plot} ref={container} onMouseLeave={selection.leave}><svg {...drag} viewBox={`0 0 ${w} ${bottom + 34}`} style={{ touchAction:"pan-y", visibility: width ? undefined : "hidden" }} role="group" aria-label="每日消耗柱状图">
-    {scale.ticks.map(tick => <g key={tick}><line x1={left} x2={w - right} y1={y(tick)} y2={y(tick)} className={styles.grid} /><text x={left - 7} y={y(tick) + 4} textAnchor="end" className={styles.axis}>{tick}</text></g>)}<text x={left - 7} y="15" textAnchor="end" className={styles.axis}>kcal</text>
+    {scale.ticks.map(tick => <g key={tick}><line x1={left} x2={w - right} y1={y(tick)} y2={y(tick)} className={styles.grid} /><text x={left - 7} y={y(tick) + 4} textAnchor="end" className={styles.axis}>{tick}</text></g>)}
     {days.map((day, index) => { const resting = Number(day.restingKcal ?? 0), active = Number(day.activeKcal ?? 0), onlyTotal = day.restingKcal === null && day.activeKcal === null && day.totalKcal !== null; return <g key={day.date} role="button" tabIndex={day.date === selected ? 0 : -1} data-energy-date={day.date} aria-label={`${day.date} · 总消耗 ${day.totalKcal ?? "未填写"} kcal`} data-chart-date={day.date} onMouseMove={()=>selection.preview(day.date)} onFocus={()=>selection.choose(day.date)} onClick={()=>selection.pin(day.date)} onKeyDown={event=>selection.keyDown(event,day.date)}>
       <rect className={styles.hit} x={left + index * slot} y="22" width={slot} height={bottom - 18} />
       {day.restingKcal !== null && <rect data-chart-bar data-chart-zero={bottom} data-energy-series="resting" data-value={day.restingKcal} x={x(index) - barWidth / 2} y={y(resting)} width={barWidth} height={y(0) - y(resting)} fill="var(--data-protein)" opacity={day.restingBasis ? .55 : .9} className={styles.mark} />}

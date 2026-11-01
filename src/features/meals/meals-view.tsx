@@ -98,15 +98,15 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
        custom={customOpen&&<CustomRecordRange label="饮食" value={customDraft} change={setCustomDraft} apply={()=>{setCustomFrom(customDraft.from);setCustomTo(customDraft.to);setRange("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
        date={summaryDate} view={()=>{chart.release();viewDay(summaryDate);}} readoutLabel="选中日营养"
        metrics={metrics.map(metric=>({label:metricLabels[metric],value:formatNutrition(chosen?.totals.values[metric]??null,metric),unit:unitFor(metric),inlineUnit:metric!=="caloriesKcal",tone:metric==="caloriesKcal"?"blue":undefined,note:chosen?.totals.incomplete[metric]?"已知部分":undefined,reserveNote:groups.some(group=>group.date>=from&&group.date<=to&&group.totals.incomplete[metric])}))}
-       title="每日摄入"
+       metricVariants={groups.filter(group=>group.date>=from&&group.date<=to).map(group=>metrics.map(metric=>formatNutrition(group.totals.values[metric],metric)))}
+       title="每日摄入" unit="kcal"
        options={<InlineChartControls><div role="group" aria-label="营养占比口径">{([["grams","克数占比"],["energy","能量占比"]] as const).map(([value,label])=><button type="button" key={value} aria-pressed={macroMode===value} onClick={()=>setMacroMode(value)}>{label}</button>)}</div></InlineChartControls>}
        legend={<>{(["proteinG","carbsG","fatG"] as const).map(metric=><span key={metric}><i style={{background:macroColors[metric]}}/>{metricLabels[metric]}</span>)}{groups.some(group=>group.day.status!=="complete")&&<span>未记全／待确认</span>}</>}
       >{validRange?<NutritionChart dates={dates} groups={groups} mode={macroMode} selection={chart}/>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}</RecordTrendPanel>
       </div>
       {error&&!editing&&<p role="alert" className={styles.error}>{error}</p>}{notice&&<p role="status" className={styles.hint}>{notice}</p>}
       {operations.filter(op=>mealOperationStatus(op,now)==="pending"&&op.origin!=="manual").map(op=><LoadingLink key={op.id} className={styles.reviewLink} href={op.confirmationPath}>AI 饮食预览 · {op.rows.length} 项待确认 <span>查看 →</span></LoadingLink>)}
-      <div className={styles.mobileLibrary}><button onClick={()=>setTab("foods")}>食材库 →</button></div>
-      <DailyRecords history={<RecordHistory today={today} dates={[...new Set([...recentRecordDates(today),...groups.map(g=>g.date)])].filter(date=>!recentDates.includes(date)).sort().reverse()} renderRow={renderDay} view={viewDay}/>}>{recentDates.map(renderDay)}</DailyRecords>
+      <DailyRecords actions={<button type="button" onClick={()=>setTab("foods")}>食材库</button>} history={<RecordHistory today={today} dates={[...new Set([...recentRecordDates(today),...groups.map(g=>g.date)])].filter(date=>!recentDates.includes(date)).sort().reverse()} renderRow={renderDay} view={viewDay}/>}>{recentDates.map(renderDay)}</DailyRecords>
     </>:<>
       <button type="button" onClick={()=>setTab("meals")}>← 饮食记录</button>
       <div className={styles.categoryTabs}>{[["all","全部"],["meal","整餐"],["ingredient","食材"]].map(([key,label])=><button key={key} aria-pressed={foodCategory===key} onClick={()=>setFoodCategory(key)}>{label}</button>)}</div><div className={styles.toolbar}><input aria-label="搜索食材" placeholder="搜索名称、品牌或做法" value={foodQuery} onChange={e=>setFoodQuery(e.target.value)}/><button className={styles.primary} onClick={()=>{setError("");setEditing({kind:"save_food",name:"",brand:null,preparation:null,baseQuantity:"1",unit:"份",nutrition:emptyNutrition(),sourceKind:"reference"});}}>添加食材 ＋</button></div>

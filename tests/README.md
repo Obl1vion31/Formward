@@ -223,3 +223,7 @@ FORMWARD_REVIEW_FACTS_ONLY=1 pnpm test:records-browser只验混合身体／饮�
 pnpm test:app-version需要VERSION_APP_A指向预先保留的另一份生产构建（只复制.next但跳过cache、public、package.json、next.config.ts，并链接node_modules；不得复制.env或健康数据库）。脚本使用本机PostgreSQL 18（FORMWARD_PG_BIN可指定bin目录），启动独立临时数据库并在结束后停止清理；用两个真实构建、同一回环代理地址和虚构账号验证升级检测、取消保留输入、明确确认后重载新版本、登录与地址保持。VERSION_ARTIFACTS指定私有证据，不接触公网。
 
 视频生产原片、帧时间表和实际点击命中证据放私有制作目录；public只保存虚构教程。物理iPhone、系统键盘及原生系统全屏未实测时列为未测。
+
+ui-consistency.browser.mjs使用隔离内存数据库和虚构账号，对四页两主题、六项读数、紧凑七日、三页描边操作及历史展开、可填边框、固定顶部保存、餐次／每日消耗空白零值和已知部分进行实际检查。VISUAL_BROWSER=chromium或webkit，VISUAL_ARTIFACTS指定私有证据路径。须先production build，检查期间不重建.next；浏览器截图还需逐张人工查看。web-entry.test.ts检查网页后台和公开提交的差异、本人旧值保留、幂等及AI本批食材引用兼容，不读取真实数据库。
+
+餐次编辑专项在频繁整页换页时，PGlite Socket可能不能模拟完整PostgreSQL协议；可用FORMWARD_BROWSER_DATABASE_URL指定独立本机库，仅接受127.0.0.1且库名以formward_browser_开头，禁止用生产连接。WebKit在测试主动整页跳转时取消同源RSC预加载属于该次导航的预期中断，单独记录；实际操作中的异常仍全部失败。

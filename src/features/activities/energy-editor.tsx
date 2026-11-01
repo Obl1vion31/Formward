@@ -1,4 +1,5 @@
 "use client";
+import {energyWebIssue,sameEnergyAmounts,adoptedEnergyAction} from "../records/web-entry";
 import {useEffect,useId,useRef,useState} from "react";
 import {confirmAction} from "@/components/confirmation-state";
 import {confirmNumbers} from "@/components/number-change";
@@ -117,7 +118,7 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
  const source=(key:"sourceSystem"|"restingSourceSystem"|"activeSourceSystem",label:string)=><SourceInput label={label} value={key in draft?(draft as Record<string,unknown>)[key] as string??"":key!=="sourceSystem"&&"sourceSystem" in draft?draft.sourceSystem??"":""} sources={sources} removeSource={removeSource} disabled={busy} maxLength={200} onChange={value=>set(key,value||null)}/>;
  const field=(key:"restingKcal"|"totalKcal",label:string)=><label>{label}<DecimalInput precision={0} min={0} max={1000000} aria-label={label} placeholder="未知可留空" value={key in draft?(draft as Record<string,unknown>)[key] as string:null} onFocus={()=>key==="totalKcal"&&setAggregateEditing(true)} onBlur={aggregateFinished} onValue={value=>{if(key==="totalKcal")setAggregateEpoch(epoch=>epoch+1);set(key,value||null);}}/></label>;
  async function submit(){
-  if(submitting.current||busy||switchingAggregate.current)return;if(aggregateWasCleared.current){void requestActivityAccumulation();return;}submitting.current=true;
+  if(submitting.current||busy||switchingAggregate.current||entryIssue)return;if(aggregateWasCleared.current){void requestActivityAccumulation();return;}submitting.current=true;
   try{
    if(single){
     if(singleRequires&&!selectedRelation)return;
@@ -127,8 +128,7 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
    if(!daily){save(draft);return;}
    if(saveBatch&&unresolved.length)return;
    if(!await confirmNumbers((["restingKcal","activeKcal","totalKcal"] as const).map(key=>({label:key==="restingKcal"?"静息":key==="activeKcal"?"活动合计":"总消耗",unit:"kcal",value:key==="activeKcal"&&modes.activityMode==="activities"?autoActive:draft[key],previous:day?.[key]})),numberAcknowledgements.current))return;
-   const {restingKcal,activeKcal,totalKcal,...base}=draft;
-   const dayAction:EnergyAction=modes.entryMode==="total"?{...base,entryMode:"total",activityMode:modes.activityMode,totalKcal:totalKcal??null}:{...base,entryMode:"components",activityMode:modes.activityMode,restingKcal:restingKcal??null,...(modes.activityMode==="total"?{activeKcal:activeKcal??null}:{})};
+   const dayAction:EnergyAction=adoptedEnergyAction({...draft,...modes});
    if(!saveBatch){save(dayAction);return;}
    const changes:EnergyAction[]=[dayAction];
    for(const item of items){const {key,initialBasis,choiceSignature,inclusion,...action}=item;void key;void initialBasis;void choiceSignature;void inclusion;const choice=relation(item);changes.push({...action,date:draft.date,...(baseline&&choice?{inclusion:choice}:{})});}
@@ -138,12 +138,13 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
    saveBatch(changes);
   }finally{submitting.current=false;}
  }
- const retired=draft.kind.includes("energy_defaults")||draft.kind.includes("energy_profile"),blocked=busy||confirmingAggregate||retired||!!(saveBatch&&daily&&unresolvedCount)||!!(singleRequires&&!selectedRelation);
+ const entryIssue=energyWebIssue(draft,autoActive,!!day&&!!projected&&draft.kind==="save_energy_day"&&initial.kind==="save_energy_day"&&sameEnergyAmounts(projected,day)&&items.every(item=>!changed(item))&&items.length===activities.filter(row=>!row.deletedAt&&row.date===targetDate).length);
+ const retired=draft.kind.includes("energy_defaults")||draft.kind.includes("energy_profile"),blocked=!!entryIssue||busy||confirmingAggregate||retired||!!(saveBatch&&daily&&unresolvedCount)||!!(singleRequires&&!selectedRelation);
  const missing= modes.entryMode==="total"&&projected?.totalKcal==null?"还没填当天总数":modes.entryMode==="components"&&projected?.restingKcal==null?"还没填当天静息":modes.activityMode==="total"&&projected?.activeKcal==null?"还没填活动合计":"有运动热量未知";
  const saveLabel=busy?submitLabel==="应用修改"?"正在应用…":"正在保存…":submitLabel==="保存"&&targetDate?"保存 · "+targetDate:submitLabel;
  function addItem(){if(!daily)return;const key=crypto.randomUUID();setItems(rows=>[...rows,{key,kind:"save_activity",date:draft.date,name:"",calorieMode:"total",completed:true,timezone:draft.timezone}]);setExpanded(values=>new Set([...values,key]));}
  return <form className={styles.form+" "+styles.energyEntry} aria-busy={busy} onSubmit={event=>{event.preventDefault();void submit();}}>
-  <div className={styles.stickyTotal}><div>{targetDate&&<RecordDateContext date={targetDate} openedOn={openedOn}/>}<span>当天总消耗 <small>kcal</small></span><strong>{energyValue(total)}</strong>{(unresolvedCount>0||total==null)&&<small>{unresolvedCount?unresolvedCount+"项运动待核对":missing+"，可保存已有部分"}</small>}</div><button className={styles.headerSave} type="submit" disabled={blocked}>{saveLabel}</button></div>
+  <div className={styles.stickyTotal}><div>{targetDate&&<RecordDateContext date={targetDate} openedOn={openedOn}/>}<span>当天总消耗 <small>kcal</small></span><strong>{energyValue(total)}</strong>{entryIssue&&<small role="status">{entryIssue}</small>}{!entryIssue&&(unresolvedCount>0||total==null)&&<small>{unresolvedCount?unresolvedCount+"项运动待核对":missing+"，可保存已有部分"}</small>}</div><button className={styles.headerSave} type="submit" disabled={blocked}>{saveLabel}</button></div>
   <fieldset disabled={busy||retired||confirmingAggregate}>
    {retired?<p role="alert">日常默认值和静息公式资料已停用，请取消这一项。</p>:daily||single?<>
    <section className={styles.entrySection}><h3>{modes.entryMode==="total"?"总消耗":"静息与活动"}</h3>

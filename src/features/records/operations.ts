@@ -52,7 +52,7 @@ function normalize(input: RecordInput): RecordItem[] {
 }
 
 /** 复用饮食规划器，只在此解析批内引用与独立入库选择。 */
-function planner(items: RecordItem[], operationId: string): MealPlanner {
+export function recordMealPlanner(items: RecordItem[], operationId: string): MealPlanner {
   return (_input, state, origin) => {
     const working = structuredClone(state), rows = new Map<string, PreviewRow>();
     const entries = mealItems(items), refs = new Map<string, NonNullable<PreviewRow["food"]>>();
@@ -235,7 +235,7 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
     for (const item of energyItems(items)) if (item.action.kind === "save_energy_day" || item.action.kind === "save_activity") item.action = { ...item.action, timezone: item.action.timezone ?? input.timezone ?? timezone };
     await expandEnergyRelations(connection,identity.userId,items);
     const energy = energyItems(items).length ? await submitEnergyOperation(connection, { userId: identity.userId, origin: "ai", identity }, { operationId: `records-${id}`, actions: energyItems(items).map(item => item.action) }) : null;
-    const meal = mealItems(items).length ? await submitMealOperation(connection, { userId: identity.userId, origin: "ai", identity }, mealInput(`records-${id}`, items), planner(items, id)) : null;
+    const meal = mealItems(items).length ? await submitMealOperation(connection, { userId: identity.userId, origin: "ai", identity }, mealInput(`records-${id}`, items), recordMealPlanner(items, id)) : null;
     const [row] = await tx.insert(recordOperation).values({ id, userId: identity.userId, operationId: input.operationId, requestDigest: digest(input), payload: input, draft: items, measurementOperationId: body?.id, mealOperationId: meal?.id, measurementRevision: body?.revision, mealRevision: meal?.revision, energyOperationId: energy?.id, energyRevision: energy?.revision, status: !meal && !energy && body && !body.counts.pending ? "completed" : "pending" }).returning();
     return { ...await view(connection, row), repeated: false };
   });
@@ -329,7 +329,7 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
       if (action.kind === "refresh" && row.measurementOperationId) { const body = await getAiMeasurementOperation(connection, userId, row.measurementOperationId); if (body.counts.pending) await reviewAiMeasurementOperation(connection, userId, body.id, { kind: "refresh", revision: body.revision }); }
       if (row.mealOperationId && action.kind !== "check") {
         const meal = await getMealOperation(connection, userId, row.mealOperationId);
-        if (meal.status === "pending") await reviseMealOperation(connection, userId, meal.id, meal.revision, mealInput(meal.draft.operationId, items).actions, planner(items, row.id));
+        if (meal.status === "pending") await reviseMealOperation(connection, userId, meal.id, meal.revision, mealInput(meal.draft.operationId, items).actions, recordMealPlanner(items, row.id));
       }
       if (row.energyOperationId && action.kind !== "check") {
         await expandEnergyRelations(connection,userId,items);
