@@ -231,3 +231,6 @@ ui-consistency.browser.mjs使用隔离内存数据库和虚构账号，对四页
 ## 总览两排读数
 
 production build后，overview-readings.browser.mjs接受FORMWARD_BROWSER_DATABASE_URL指定的全新回环PostgreSQL，库名必须以formward_browser_开头，拒绝已有用户库且不读.env.local。FORMWARD_OVERVIEW_BROWSER选chromium／webkit，FORMWARD_OVERVIEW_ARTIFACTS指定私有报告。覆盖手机三主项加三次级项、前后晨重、七日直接显示、电脑六项保持、提示行与选日几何、未知／0、七日部分、两主题、原有日期详情／自定义／估计开关及其他三页提示位置；使用虚构账号与本地服务。
+
+
+餐次专项 checkMealEntry 另验实际输入17／4／1→93、手填后下一次宏量编辑重算、自动热量缺项清空、0／未知、非法小数阻止保存、数据库真实总量及AI手改后统一确认。320／390／430与1100／1440深浅主题核对日期框不重叠、四项营养同排、长值自动退让、路径切换保留草稿；另使用isMobile＋hasTouch与减少动态效果留实际截图。原有包装换算、旧精度、数量不重乘与气泡边界回归保持。编辑器私有状态单元测试覆盖旧四位值、库值不回算、超限阻止保存和元数据不进入请求。

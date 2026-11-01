@@ -85,12 +85,12 @@ try {
   await dialog.getByLabel("自由填写食物名称",{exact:true}).fill("虚构配餐");
   for (const [label,value] of [["本次热量 1","60"],["本次蛋白质 1","3"],["本次碳水 1","10"],["本次脂肪 1","1"]]) await dialog.getByLabel(label,{exact:true}).fill(value);
   await dialog.getByLabel("搜索食材",{exact:true}).fill("虚构蛋白");
-  await dialog.getByRole("button",{name:"选择 虚构蛋白食物",exact:true}).click();
+  await dialog.getByRole("button",{name:"添加 虚构蛋白食物",exact:true}).click();
   if(await dialog.getByRole("button",{name:"数量 2",exact:true}).count())await dialog.getByRole("button",{name:"数量 2",exact:true}).dblclick();
   assert.equal(await dialog.getByLabel("数量 2",{exact:true}).inputValue(),"1");
   await dialog.getByLabel("数量 2",{exact:true}).fill("2");await page.keyboard.press("Enter");
   await dialog.getByLabel("搜索食材",{exact:true}).fill("虚构组合");
-  await dialog.getByRole("button",{name:"选择 虚构组合餐",exact:true}).dragTo(dialog.getByRole("table",{name:"本餐食物表",exact:true}));
+  await dialog.getByRole("button",{name:"添加 虚构组合餐",exact:true}).dragTo(dialog.getByRole("table",{name:"本餐食物表",exact:true}));
   await dialog.getByRole("button",{name:"移除 虚构组合餐",exact:true}).click();
   assert.equal(await dialog.locator('[data-blank-row="true"]').count(),1);
   assert.equal(await dialog.getByRole("button",{name:"自由填写",exact:true}).count(),0);

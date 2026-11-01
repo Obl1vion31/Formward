@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
-import {editorDecimal,editorItem,editorItemInput,freeEditorItem,mealEditorInput} from "./meal-editor-state";
+import {editorDecimal,editorItem,editorItemInput,freeEditorItem,mealEditorInput,updateEditorNutrition,type EditorItem} from "./meal-editor-state";
 import {emptyNutrition,type ItemDraft} from "./model";
 const nutrition={...emptyNutrition(),caloriesKcal:"135.1234",proteinG:"0",carbsG:null,fatG:"0.0001"};
 const old:ItemDraft={kind:"food",name:"虚构鸡蛋",quantity:"1.5",unit:"个",nutritionBasis:"per_portion",perPortionNutrition:{...nutrition,caloriesKcal:"90"},sourceKind:"estimated"};
@@ -41,4 +41,37 @@ test("仅清除末尾零，包装换算和旧项的有效四位小数保持",()=
  for(const [raw,shown]of[["45.0000","45"],["1.2000","1.2"],["0.0001","0.0001"],["135.1234","135.1234"],["0.0000","0"]])assert.equal(editorDecimal(raw),shown);
  const input={...old,quantity:"1.5000"};const row=editorItem(input,0,{...nutrition,caloriesKcal:"135.0000",proteinG:"0.0000"});
  assert.equal(row.quantity,"1.5");assert.equal(row.nutrition?.caloriesKcal,"135");assert.deepEqual(editorItemInput(row),input);
+});
+
+test("自由项三项填全以4/4/9算本次总量，零可计算且数量不重复乘",()=>{
+ let row:EditorItem={...freeEditorItem(0),name:"虚构三明治",quantity:"2"};
+ for(const [metric,value]of[["proteinG","17"],["carbsG","4"],["fatG","1"]] as const)row=updateEditorNutrition(row,metric,value);
+ assert.equal(row.nutrition?.caloriesKcal,"93");
+ assert.equal(editorItemInput(row).nutrition?.caloriesKcal,"93");
+ row=updateEditorNutrition(row,"fatG","0");assert.equal(row.nutrition?.caloriesKcal,"84");
+ row=updateEditorNutrition(row,"proteinG","0");row=updateEditorNutrition(row,"carbsG","0");assert.equal(row.nutrition?.caloriesKcal,"0");
+});
+test("手填热量立即生效，下一次实际宏量编辑重算；同值和只改备注不重算",()=>{
+ let row=editorItem({kind:"food",name:"虚构包装",nutritionBasis:"consumed_total",sourceKind:"reference",nutrition:{caloriesKcal:"100.1234",proteinG:"17",carbsG:"4",fatG:"1"}},0);
+ const before=structuredClone(row);
+ assert.equal(updateEditorNutrition(row,"proteinG","17"),row);
+ assert.equal(mealEditorInput({date:"2026-11-01",mealType:"午餐",notes:"只改备注",items:[row]}).items[0].nutrition?.caloriesKcal,"100.1234");
+ row=updateEditorNutrition(row,"caloriesKcal","120");assert.equal(row.nutrition?.caloriesKcal,"120");
+ row=updateEditorNutrition(row,"carbsG","5");assert.equal(row.nutrition?.caloriesKcal,"97");
+ row=updateEditorNutrition(row,"fatG","");assert.equal(row.nutrition?.caloriesKcal,null);
+ row=updateEditorNutrition(row,"caloriesKcal","90");row=updateEditorNutrition(row,"proteinG","18");assert.equal(row.nutrition?.caloriesKcal,"90");
+ assert.deepEqual(before.nutrition,{caloriesKcal:"100.1234",proteinG:"17",carbsG:"4",fatG:"1"});
+});
+test("库营养不套用宏量公式；未触碰旧数和编辑元数据不进入请求",()=>{
+ const original={kind:"food" as const,name:"虚构库项",sourceKind:"reference" as const,nutrition:{caloriesKcal:"93.1234",proteinG:"17",carbsG:"4",fatG:"2"}};
+ const row=editorItem(original,0,undefined,true);
+ assert.equal(updateEditorNutrition(row,"fatG","1"),row);assert.deepEqual(editorItemInput(row),original);
+ assert.equal(JSON.stringify(editorItemInput(row)).includes("caloriesAutomatic"),false);
+});
+test("旧宏量保留四位精度计算，不逐项提前取整；未知和超限不能冒充总热量",()=>{
+ let row=editorItem({kind:"food",name:"虚构旧值",sourceKind:"estimated",nutrition:{caloriesKcal:"1",proteinG:"0.0001",carbsG:"0.0001",fatG:null}},0);
+ row=updateEditorNutrition(row,"fatG","1");assert.equal(row.nutrition?.caloriesKcal,"9.0008");
+ row=updateEditorNutrition(row,"fatG","");assert.equal(row.nutrition?.caloriesKcal,null);
+ row=updateEditorNutrition(row,"fatG","1000000");assert.match(row.editor.calorieIssue!,/超过/);assert.equal(row.nutrition?.caloriesKcal,null);
+ row=updateEditorNutrition(row,"fatG","2");assert.equal(row.editor.calorieIssue,undefined);assert.equal(row.nutrition?.caloriesKcal,"18.0008");
 });

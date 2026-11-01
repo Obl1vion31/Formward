@@ -75,7 +75,7 @@ export async function checkMaintenance({baseURL,context,page,token,today,db,user
  await dialog().getByRole("button",{name:"保存餐次 · "+today,exact:true}).click();await page.locator("dialog[open]:not(.page-loading-dialog)").waitFor({state:"hidden"});
  let latest=(await readMealSnapshot(db,userId)).meals.find(row=>row.date===today);assert.equal(Number(latest.totals.values.caloriesKcal),135);
  // Packaging defaults to a count, not a guessed weight.
- await page.getByRole("button",{name:"记录一餐",exact:false}).click();await dialog().getByRole("button",{name:"选择 "+foodName,exact:true}).click();
+ await page.getByRole("button",{name:"记录一餐",exact:false}).click();await dialog().getByRole("button",{name:"添加 "+foodName,exact:true}).click();
  assert.equal(await dialog().getByLabel("数量 1",{exact:true}).inputValue(),"1");await dialog().getByLabel("数量 1",{exact:true}).fill("0.5");
  assert.match(await dialog().getByLabel("本餐合计",{exact:true}).innerText(),/50/);
  for(const width of [390,320]){await page.setViewportSize({width,height:700});await screenshot("meal-editor-"+width);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
