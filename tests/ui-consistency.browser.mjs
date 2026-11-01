@@ -117,7 +117,7 @@ try{
    const bounds=await dialog.locator('input:not([type="file"]),textarea,select').evaluateAll(ns=>ns.filter(n=>n.getBoundingClientRect().width>0&&!n.readOnly).map(n=>{const s=getComputedStyle(n);return [s.borderTopStyle,parseFloat(s.borderTopWidth),parseFloat(s.fontSize),n.getBoundingClientRect().height]}));assert.ok(bounds.every(v=>v[0]==="solid"&&v[1]>=1&&v[2]>=16&&v[3]>=44),"visible editable controls");
    await shot(p,mode+"-meal-filled-top-"+w);
    await dialog.getByLabel("餐次备注",{exact:true}).fill("仅为虚构测试");await dialog.getByLabel("餐次备注",{exact:true}).scrollIntoViewIfNeeded();await shot(p,mode+"-meal-bottom-"+w);
-   assert.equal(await dialog.getByRole("button",{name:"＋ 添加照片",exact:true}).count(),1);
+   assert.equal(await dialog.getByRole("button",{name:"＋ 添加照片",exact:true}).count(),1);assert.equal(await dialog.getByLabel("添加原始照片",{exact:true}).getAttribute("tabindex"),"-1");
    const sb=await save.boundingBox(),dbox=await dialog.boundingBox();assert.ok(sb.y>=dbox.y&&sb.y+sb.height<=dbox.y+dbox.height,"save remains visible");
    if(w===1440&&mode==="dark"){
     let release;await p.route("**/api/meal-images/upload",async route=>{await new Promise(r=>{release=r;});await route.fulfill({status:400,contentType:"application/json",body:JSON.stringify({error:"虚构测试：照片上传失败"})});});
