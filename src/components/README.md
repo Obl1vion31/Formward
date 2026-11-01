@@ -31,7 +31,7 @@ record-updates.tsx提供跨页面更新提示，record-change-client.ts负责只
 
 `record-dates.ts`只推导最近7个日历日、今天／昨天标签、默认有效日期和容纳日期的最短区间，不创建记录或计算健康数值。`record-date-context.tsx`在饮食／消耗编辑器显示目标日期与补录状态；跨零点提示保持原草稿日期。
 
-`source-input.tsx`与同名CSS模块提供身体、消耗及AI审核共用的来源输入、全部历史展开、搜索、键盘／触控选择与软移除交互；数据和移除接口由各feature提供，maxLength分别为300／200。
+`source-input.tsx`与同名CSS模块提供身体、消耗及AI审核共用的来源输入、全部历史展开、搜索、键盘／触控选择与软移除交互；数据和移除接口由各feature提供，maxLength分别为300／200。候选使用真实按钮，触屏不取消pointerdown默认行为；输入框失焦且relatedTarget为空时不抢先收起，改由点击／聚焦外部、Tab离开、Escape及窗口失焦关闭。鼠标选择保留输入焦点，中文输入法确认不触发历史选中。
 
 use-chart-date-selection.ts统一四页的实际鼠标移动预览、自定义期间暂停预览、点击固定、图外／Escape解除和键盘选日；仅维护界面日期。chart-ranges.tsx复用区间按钮，日期输入保留在各模块的自定义表单。
 

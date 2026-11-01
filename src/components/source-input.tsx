@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { usePageLoading } from "@/components/page-loading-state";
 import styles from "./source-input.module.css";
 
@@ -11,15 +11,30 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
   label: string; value: string; sources: string[]; onChange: (value: string) => void;
   removeSource: (label: string) => Promise<SourceRemovalResult>; disabled?: boolean; maxLength?: number;
 }) {
-  const id = useId(), input = useRef<HTMLInputElement>(null), removing = useRef(false);
+  const id = useId(), root = useRef<HTMLDivElement>(null), input = useRef<HTMLInputElement>(null), removing = useRef(false);
   const [open, setOpen] = useState(false), [active, setActive] = useState(-1), [column, setColumn] = useState(0);
   const [query, setQuery] = useState("");
   const [error, setError] = useState(""), [busy, startTransition] = useTransition();
   usePageLoading({ active: busy, label: "正在移除来源建议…" });
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: Event) => {
+      if (event.target instanceof Node && !root.current?.contains(event.target)) { setOpen(false); setActive(-1); }
+    };
+    const closeWindow = () => { setOpen(false); setActive(-1); };
+    document.addEventListener("pointerdown", closeOutside, true);
+    document.addEventListener("focusin", closeOutside);
+    window.addEventListener("blur", closeWindow);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside, true);
+      document.removeEventListener("focusin", closeOutside);
+      window.removeEventListener("blur", closeWindow);
+    };
+  }, [open]);
   const options = sources.filter(source => source.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   function showHistory() { setQuery(""); setOpen(true); setActive(-1); setColumn(0); }
   function closeHistory() { setOpen(false); setActive(-1); }
-  function choose(source: string) { if (disabled || busy) return; onChange(source); input.current?.focus(); closeHistory(); }
+  function choose(source: string) { if (disabled || busy) return; onChange(source); input.current?.focus({ preventScroll: true }); closeHistory(); }
   function remove(source: string) {
     if (disabled || removing.current) return;
     removing.current = true; setError("");
@@ -29,13 +44,24 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
       finally { removing.current = false; }
     });
   }
-  return <div className={styles.sourceInput} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) closeHistory(); }} onKeyDown={event => { if (event.key === "Escape" && open) { event.preventDefault(); event.stopPropagation(); closeHistory(); } }}>
+  return <div ref={root} className={styles.sourceInput} onBlur={event => {
+    // 手机收起键盘／点历史时可能没有 relatedTarget，不能在点击前隐藏候选。
+    if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) closeHistory();
+  }} onKeyDown={event => {
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+    if (event.key === "Escape" && open) { event.preventDefault(); event.stopPropagation(); closeHistory(); }
+    if (event.key === "Tab" && open) {
+      const node = event.currentTarget;
+      requestAnimationFrame(() => { if (!node.contains(document.activeElement)) closeHistory(); });
+    }
+  }}>
     <label htmlFor={id}>{label}</label>
     <input ref={input} id={id} role="combobox" aria-label={label} autoComplete="off" maxLength={maxLength} placeholder="输入或选择来源" value={value} disabled={disabled || busy}
       aria-autocomplete="list" aria-haspopup="grid" aria-expanded={open} aria-controls={`${id}-options`} aria-activedescendant={open && active >= 0 && active < options.length ? `${id}-cell-${active}-${column}` : undefined}
       onFocus={showHistory} onClick={showHistory}
       onChange={event => { onChange(event.target.value); setQuery(event.target.value); setOpen(true); setActive(-1); setColumn(0); setError(""); }}
       onKeyDown={event => {
+        if (event.nativeEvent.isComposing || event.keyCode === 229) return;
         if (event.key === "ArrowDown" || event.key === "ArrowUp") {
           event.preventDefault(); setOpen(true); setColumn(0);
           if (options.length) {
@@ -49,8 +75,8 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
       }} />
     <div id={`${id}-options`} className={styles.sourceOptions} role="grid" aria-label={`${label}历史建议`} hidden={!open}>
       {options.map((source, index) => <div role="row" key={source}>
-        <div id={`${id}-cell-${index}-0`} role="gridcell" aria-selected={index === active && column === 0} className={styles.sourceOption} onPointerDown={event => event.preventDefault()} onClick={() => choose(source)}>{source}</div>
-        <div id={`${id}-cell-${index}-1`} role="gridcell" aria-selected={index === active && column === 1}><button type="button" aria-label={`移除来源建议 ${source}`} title="移除来源建议" disabled={disabled || busy} onPointerDown={event => event.preventDefault()} onClick={() => remove(source)}>×</button></div>
+        <div id={`${id}-cell-${index}-0`} role="gridcell" aria-selected={index === active && column === 0} className={styles.sourceOption}><button className={styles.sourcePick} type="button" tabIndex={-1} disabled={disabled || busy} onPointerDown={event => { if (event.pointerType === "mouse") event.preventDefault(); }} onClick={() => choose(source)}>{source}</button></div>
+        <div id={`${id}-cell-${index}-1`} role="gridcell" aria-selected={index === active && column === 1}><button type="button" aria-label={`移除来源建议 ${source}`} title="移除来源建议" disabled={disabled || busy} onPointerDown={event => { if (event.pointerType === "mouse") event.preventDefault(); }} onClick={() => remove(source)}>×</button></div>
       </div>)}
       {!options.length && <div role="row"><div role="gridcell" className={styles.sourceEmpty}>{sources.length ? "没有匹配的来源。" : "暂无历史来源。"}</div></div>}
     </div>

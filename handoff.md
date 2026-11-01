@@ -1,5 +1,11 @@
 # Formward 项目交接
 
+## 当前本地修复：手机历史来源点选（未发布）
+
+独立分支codex/source-history-touch-fix，工作区/home/obl1vion/projects/Formward-worktrees/meal-entry-macros，以最近正式代码和文档dbfcb23为基线。已复现旧候选在WebKit触屏只有按下／抬起、没有click，以及输入先失焦导致候选收起的两条路径。共用SourceInput改用真实按钮，触屏不拦截按下，relatedTarget为空不抢先关闭；点外部、焦点离开、Tab、Escape继续关闭，中文输入法确认不会误选。
+
+身体、消耗及AI确认共用本次修复，来源点选只改草稿，正式保存和建议软移除语义不变。未改热量规则、健康数据、数据库、权限或公开接口。当前只完成本地修复与验收，未发布公网、未推GitHub main；上次正式部署仍为下节记录。主工作区其他未上线内容保持。
+
 ## 当前发布：食材库名称与电脑重复按钮修正
 
 手机独立食材库换行与电脑重复按钮已修正并发布。正式域名https://formward-ten.vercel.app指向READY部署dpl_9NN2wRePFTmKhbXnQ7Zit6xJcDfq，应用源码2157ed8c415f0680c37fdeccd656000d4a1d3087，分支codex/meal-library-width-fix（工作区仍为Formward-worktrees/meal-entry-macros）。这是刚上线餐次功能的后续纠错，main未更新；主工作区双区／COS／DNS及其他未上线改动保持隔离。
