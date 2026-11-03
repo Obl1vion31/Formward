@@ -1,6 +1,6 @@
 type Reading = string | number | null | undefined;
 const bodyNumbers = new Intl.NumberFormat("zh-CN", {minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:false});
-const nutritionNumbers = new Intl.NumberFormat("zh-CN", {maximumFractionDigits:2,useGrouping:false});
+const nutritionNumbers = new Intl.NumberFormat("zh-CN", {maximumFractionDigits:1,useGrouping:false});
 const wholeNumbers = new Intl.NumberFormat("zh-CN", {maximumFractionDigits:0,useGrouping:false});
 function formatted(value:Reading, formatter:Intl.NumberFormat):string {
  if(value==null||value==="")return "—";

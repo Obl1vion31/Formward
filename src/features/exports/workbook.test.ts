@@ -98,7 +98,7 @@ test("账号导出读取拒绝未登录且隔离他人健康数据和凭据表",
 
 test("运动分项导出区分本次总数和当天计入值，旧运动原值保留",async()=>{const sample=data(),base=sample.energy.activities[0];sample.energy.days=[energy(date,{activityMode:"activities"})];sample.energy.activities=[{...base,completed:true,calorieMode:"components",exerciseRestingKcal:"50",exerciseActiveKcal:"400",caloriesKcal:"450"},{...base,id:randomUUID(),name:"旧运动",completed:true,caloriesKcal:"450"}];const book=await read(await buildAccountWorkbook(sample,{from:date,to:date},context));assert.equal(value(book,"每日消耗",2,"最终消耗 · kcal"),2850);assert.equal(value(book,"活动明细",2,"运动填写方式"),"分开填写");assert.equal(value(book,"活动明细",2,"期间静息 · kcal"),50);assert.equal(value(book,"活动明细",2,"纯运动 · kcal"),400);assert.equal(value(book,"活动明细",2,"本次总数 · kcal"),450);assert.equal(value(book,"活动明细",2,"计入当天 · kcal"),400);assert.equal(value(book,"活动明细",3,"运动填写方式"),"只记总数");assert.equal(value(book,"活动明细",3,"计入当天 · kcal"),450);});
 
-test("Excel宏量最多两位、能量整数、身体两位且底层旧精度不变",async()=>{
+test("Excel宏量最多一位、能量整数、身体两位且底层旧精度不变",async()=>{
  const sample=data(), rawNutrition={caloriesKcal:"100.4000",proteinG:"17.5000",carbsG:"4.2500",fatG:"1.1234"};
  const items=[{...sample.meals.meals[0].items[0],nutrition:rawNutrition,perPortionNutrition:rawNutrition,nutritionBasis:"per_portion" as const}];
  sample.meals.meals=[meal(date,"complete",{items,totals:sumNutrition(items.map(item=>item.nutrition))}),meal(date,"complete",{items,totals:sumNutrition(items.map(item=>item.nutrition))})];
@@ -107,9 +107,9 @@ test("Excel宏量最多两位、能量整数、身体两位且底层旧精度不
  const format=(sheetName:string,header:string)=>{const page=book.getWorksheet(sheetName)!;return page.getCell(2,(page.getRow(1).values as string[]).indexOf(header)).numFmt;};
  for(const sheetName of ["每日汇总","餐次","食物明细","食材库"]){
   assert.equal(format(sheetName,"热量 · kcal"),"0");
-  for(const header of ["蛋白质 · g","碳水 · g","脂肪 · g"])assert.equal(format(sheetName,header),"0.##");
+  for(const header of ["蛋白质 · g","碳水 · g","脂肪 · g"])assert.equal(format(sheetName,header),"0.#");
  }
- for(const header of ["每份蛋白质 · g","每份碳水 · g","每份脂肪 · g"])assert.equal(format("食物明细",header),"0.##");
+ for(const header of ["每份蛋白质 · g","每份碳水 · g","每份脂肪 · g"])assert.equal(format("食物明细",header),"0.#");
  assert.equal(format("食物明细","每份热量 · kcal"),"0");
  assert.equal(format("每日汇总","盈余 · kcal"),"0");assert.equal(format("每日消耗","最终消耗 · kcal"),"0");
  assert.equal(format("每日汇总","晨重 · kg"),"0.00");assert.equal(format("身体记录","体脂率 · %"),"0.00");
