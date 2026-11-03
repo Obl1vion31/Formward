@@ -1,6 +1,6 @@
 # Formward：从零看懂网页、后端与数据库
 
-> 四页共同外壳在 src/components/record-trend-panel.tsx：先日期和查看，再主要读数、区间、标题、图例和图。各页只传自己的指标和图形。身体顶部跟着你选的日期变，无值不借别天的值。每日消耗先从运动累计，手填活动合计才核对“是否已包含”；例如自动400＋静息2000为2400。小型确认框在 confirmation.tsx，number-format.ts让饮食／消耗显示整数、身体显示两位；decimal-input.tsx只有真正有效输入才改草稿，营养／消耗新手填只收整数，所以旧400.1234显示400，单纯打开或改备注仍保留原数。
+> 四页共同外壳在 src/components/record-trend-panel.tsx：先日期和查看，再主要读数、区间、标题、图例和图。各页只传自己的指标和图形。身体顶部跟着你选的日期变，无值不借别天的值。每日消耗先从运动累计，手填活动合计才核对“是否已包含”；例如自动400＋静息2000为2400。小型确认框在 confirmation.tsx，number-format.ts让蛋白质／碳水／脂肪最多显示两位小数并去掉末尾0，热量／消耗显示整数、身体显示两位；decimal-input.tsx只有真正有效输入才改草稿，宏量手填最多接受四位小数，热量／消耗手填仍只收整数。旧热量400.1234显示400，单纯打开、聚焦、失焦或改备注仍保留原数；热量计算与落库不提前取整，未知与0及公开接口原精度保持。
 
 
 这份指南从一个问题开始：**我在网页里填了一餐，点了保存，这些文字和数字到底去了哪里？**
@@ -1144,7 +1144,7 @@ build.mjs给每次构建一个版本号，根页面和GET /api/app-version使用
 
 在“记录一餐”里只写“鸡肉饭”，却没填任何已知营养时，网站还没有可保存的营养数据，所以保存按钮变灰；填蛋白质20克、热量留空，则可以保存已知部分。消耗同理：静息2058、活动0可以保存，只有活动300也可以保存；“只记总数”里总量空白时，藏起来的静息不会替它凑数。
 
-这条网页检查写在[web-entry.ts](../src/features/records/web-entry.ts)。浏览器用它控制按钮；点击保存后，[web-entry-server.ts](../src/features/records/web-entry-server.ts)读取本人数据库记录，使用同一检查再核对一次。旧餐只改备注时，后台确认营养和版本没变，保留原来的精度；不是把画面上的整数重新写回数据库。普通AI提交和未经手工修改的旧确认不增加这条限制。
+这条网页检查写在[web-entry.ts](../src/features/records/web-entry.ts)。浏览器用它控制按钮；点击保存后，[web-entry-server.ts](../src/features/records/web-entry-server.ts)读取本人数据库记录，使用同一检查再核对一次。旧餐只改备注时，后台确认营养和版本没变，保留原来的精度；画面上的格式化读数不回写数据库。普通AI提交和未经手工修改的旧确认不增加这条限制。
 
 “最近记录”的外观由[daily-records.tsx](../src/components/daily-records.tsx)和[record-ui.module.css](../src/components/record-ui.module.css)共用：饮食、消耗、身体传各自日期、摘要和操作，按钮的字号、边框、悬停和焦点由这一处决定。上方选日、读数、区间、标题与图例则由[record-trend-panel.tsx](../src/components/record-trend-panel.tsx)组织；图里的数据仍由原来的业务函数提供。
 

@@ -75,3 +75,11 @@ test("旧宏量保留四位精度计算，不逐项提前取整；未知和超�
  row=updateEditorNutrition(row,"fatG","1000000");assert.match(row.editor.calorieIssue!,/超过/);assert.equal(row.nutrition?.caloriesKcal,null);
  row=updateEditorNutrition(row,"fatG","2");assert.equal(row.editor.calorieIssue,undefined);assert.equal(row.nutrition?.caloriesKcal,"18.0008");
 });
+
+test("小数宏量按原精度计算热量，取整仅用于展示",()=>{
+ let row:EditorItem={...freeEditorItem(0),name:"虚构小数营养"};
+ for(const [metric,value]of[["proteinG","1.2345"],["carbsG","0"],["fatG","0.1"]] as const)row=updateEditorNutrition(row,metric,value);
+ assert.deepEqual(row.nutrition,{caloriesKcal:"5.838",proteinG:"1.2345",carbsG:"0",fatG:"0.1"});
+ assert.equal(editorItemInput(row).nutrition?.caloriesKcal,"5.838");
+ assert.equal(updateEditorNutrition(row,"fatG","0.1"),row);
+});
