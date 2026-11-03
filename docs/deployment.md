@@ -1,12 +1,20 @@
 # 公网 HTTPS 部署
 
+## 当前正式版本：营养最多一位小数
+
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_7HXQr3oesTodRoLNQN3xGFeAXtVC，应用源码332115d0d2bc86f2588539d920af1cf4a6082e6a，构建0a48dc57-73d1-49da-a67b-1275d2741d2e。来自独立工作区Formward-worktrees/meal-entry-macros、分支codex/nutrition-decimal-input；仅发布本轮营养精度调整，未推main，主工作区双区／COS／DNS等未上线内容保持隔离。
+
+蛋白质／碳水／脂肪的网页手填、AI手工修改与显示统一最多一位小数，去掉末尾0，第二位小数明确报错并阻止提交。热量仍按原精度计算和合计后四舍五入显示整数；1.2／0／0.1保留5.7kcal、显示6，17.5／4.3／1.1保留97.1kcal、显示97。Excel宏量列0.#，能量0，身体0.00。旧四位数只聚焦、失焦或改备注不舍入写回；公开HTTP／MCP、包装换算及计算落库原精度保持，没有迁移、依赖或权限变化，其他交互审查建议未实施。
+
+443项测试及本地／正式两引擎复验通过；2个虚构账号清理，43表与29条迁移账本严格核对无差异，原记录保持。完整截图、日志及数据证据见handoff.md与maintenance-verification.md。
+
 ## 账号管理与安全边界
 
 0027已应用生产，并按用户指定的已有邮箱预览、核对ID后初始化唯一owner。用户已验收实际页面并明确授权本轮发布、更新main；迁移与源码先提交，再保存私有备份、迁移、初始化、部署并复核。迁移默认旧用户普通／正常，旧密码、验证状态和健康事实保持；初始化只变更指定角色及对应审计。日常管理从站内完成，维护命令见 [账号接入](auth-setup.md)。
 
 正式核对使用虚构账号、只清理所属测试数据，不破坏真实健康数据；不使用或仿造真实owner密码／会话。完整后台再次验密、停用恢复、权限与并发在隔离数据库验证，生产验证普通账号拒绝、激活／重设、本人改密、会话与AI统一失效。回滚优先回滚界面，保留新增结构和安全鉴权；不能退回忽略banned／access_version的旧认证代码或复活已撤销凭据，必要时先关闭管理写入口。
 
-## 当前正式版本
+## 此前正式版本：营养小数与整数热量
 
 P／C／F小数录入与整数热量展示已发布。正式域名https://formward-ten.vercel.app指向READY部署dpl_DpXQjf62CNDgHQSXqPtupeexqUF5，应用源码560e9a93f2597682acf061f5c5bf5f9a88156e04，构建16afb946-18f8-48b4-bcff-9bc58a9dfcef。分支codex/nutrition-decimal-input，独立工作区Formward-worktrees/meal-entry-macros。本轮仅发布，未推GitHub main，主工作区双区／COS／DNS及其他未上线内容保持隔离。
 

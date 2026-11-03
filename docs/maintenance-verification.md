@@ -1,5 +1,17 @@
 # 完善任务验收
 
+## 营养最多一位小数：正式发布验收
+
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_7HXQr3oesTodRoLNQN3xGFeAXtVC，应用源码332115d0d2bc86f2588539d920af1cf4a6082e6a，构建0a48dc57-73d1-49da-a67b-1275d2741d2e。来自独立工作区Formward-worktrees/meal-entry-macros、分支codex/nutrition-decimal-input；仅发布本轮营养精度调整，未推main，主工作区双区／COS／DNS等未上线内容保持隔离。
+
+蛋白质／碳水／脂肪的网页手填、AI手工修改与显示统一最多一位小数，去掉末尾0，第二位小数明确报错并阻止提交。热量仍按原精度计算和合计后四舍五入显示整数；1.2／0／0.1保留5.7kcal、显示6，17.5／4.3／1.1保留97.1kcal、显示97。Excel宏量列0.#，能量0，身体0.00。旧四位数只聚焦、失焦或改备注不舍入写回；公开HTTP／MCP、包装换算及计算落库原精度保持，没有迁移、依赖或权限变化，其他交互审查建议未实施。
+
+443项单元／集成、lint、类型、production build、结构检查及目标Impeccable检测通过。隔离原生PostgreSQL及正式Chromium／WebKit均通过每引擎20组餐次场景、15组详情、12组独立库和3项小数专项；正式各79张截图，实际检查手机深浅主题小数输入及电脑AI结果。覆盖一位允许、第二位拒绝、真实保存、旧四位只改备注保持、未知／0、换算及AI统一确认。新增旧值夹具的已有备注导致首次测试严格标签定位超时，修正测试定位后重跑通过，原失败证据保留，未过滤客户端异常。真实iPhone与系统软键盘未测。
+
+正式7项公开／保护入口通过，sourceCommit与gitCommitSha严格对应上述应用源码、canonical别名及build一致。两引擎正式客户端异常和5xx均0；最终UTC11:15:08—11:35:08完整20分钟Runtime error／fatal及请求5xx为0，无排除区间及后续分页。2个本轮虚构账号与34张所属表数据已清理。前后私有一致性备份严格核对43表、29条迁移账本及全部既有行值，issues为空，无本轮OAuth特例或真实健康记录改写。
+
+证据位于主仓ignored .codex/nutrition-one-decimal-release，生产run为2026-11-03T11-25-21-797Z-41405b14；本地证据位于独立工作区.codex/nutrition-one-decimal-check。nutrition-one-decimal-before／after-2026-11-03.json及production-verification在私有data/exports、0600、Git及部署忽略。上一READY部署dpl_DpXQjf62CNDgHQSXqPtupeexqUF5保留供应用回退；不回滚用户合法数据。
+
 ## 营养小数与整数热量：正式发布验收
 
 P／C／F小数录入与整数热量展示已发布。正式域名https://formward-ten.vercel.app指向READY部署dpl_DpXQjf62CNDgHQSXqPtupeexqUF5，应用源码560e9a93f2597682acf061f5c5bf5f9a88156e04，构建16afb946-18f8-48b4-bcff-9bc58a9dfcef。分支codex/nutrition-decimal-input，独立工作区Formward-worktrees/meal-entry-macros。本轮仅发布，未推GitHub main，主工作区双区／COS／DNS及其他未上线内容保持隔离。
