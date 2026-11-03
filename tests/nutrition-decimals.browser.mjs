@@ -36,7 +36,7 @@ export async function checkNutritionDecimals({baseURL,context,page,db,userId,tok
  await page.locator('[data-review-key="decimal-food"]').getByRole("button",{name:"修改",exact:true}).click();
  for(const [label,value]of[["蛋白质","17.5"],["碳水","4.25"],["脂肪","1.1"]])await dialog().getByLabel(label,{exact:true}).fill(value);
  await dialog().getByLabel("热量",{exact:true}).focus();await dialog().getByLabel("热量",{exact:true}).blur();
- await dialog().getByRole("button",{name:"应用修改",exact:true}).click();await page.getByRole("heading",{name:"修改待保存内容",exact:true}).waitFor({state:"hidden"});
+ await dialog().getByRole("button",{name:"应用修改",exact:true}).click();const numberCheck=page.getByRole("dialog",{name:"请核对数值",exact:true});await numberCheck.waitFor();assert.match(await numberCheck.innerText(),/17\.5 g/);await numberCheck.getByRole("button",{name:"继续保存",exact:true}).click();await page.getByRole("heading",{name:"修改待保存内容",exact:true}).waitFor({state:"hidden"});
  await page.waitForLoadState("networkidle");assert.equal((await readMealSnapshot(db,userId)).foods.some(f=>f.name===aiName),false);
  const item=page.locator('[data-review-key="decimal-food"]');await item.getByText(/17\.5/).first().waitFor();assert.match(await item.innerText(),/17\.5/);assert.match(await item.innerText(),/4\.25/);assert.match(await item.innerText(),/1\.1/);
  await page.screenshot({path:artifacts+"/"+engine+"-ai-decimal-summary.png"});
