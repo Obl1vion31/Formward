@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type FormEvent } from "react";
+import {confirmDraftDiscard,approvePageRefresh} from "@/components/draft-guard";
 import { signOut } from "@/features/auth/client";
 import { usePageLoading } from "@/components/page-loading-state";
 
@@ -11,14 +12,14 @@ export function LogoutButton() {
   usePageLoading({ active: pending, label: "正在退出登录…" });
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (lock.current) return;
+    if (lock.current||!await confirmDraftDiscard()) return;
     lock.current = true;
     setPending(true);
     setError(false);
     try {
       await signOut();
       // 完整导航清空上一账号的客户端页面缓存。
-      window.location.replace("/");
+      approvePageRefresh();window.location.replace("/");
     } catch {
       setError(true);
       setPending(false);

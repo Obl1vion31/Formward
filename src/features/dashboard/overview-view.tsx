@@ -1,4 +1,6 @@
 "use client";
+import {DailyReminders} from "./daily-reminders-view";
+import type {ReminderCatalog} from "./daily-reminders";
 import {RecordWorkspace} from "@/components/record-trend-panel";
 import {formatRecordNumber} from "@/components/number-format";
 import { useEffect } from "react";
@@ -10,11 +12,12 @@ import { energyValue } from "../activities/model";
 import { OverviewTrend } from "./overview-trend";
 import type { OverviewPresentation } from "./presentation";
 import styles from "./overview.module.css";
-export function OverviewView({ presentation }: { presentation: OverviewPresentation }) {
+export function OverviewView({ presentation,reminders }: { presentation: OverviewPresentation;reminders?:{catalog:ReminderCatalog;accountId:string;createdAt:string} }) {
   const { today, body, latestIntake: intake, latestEnergy: energy } = presentation;
   const localToday = useLocalToday(today), router = useRouter();
   useEffect(() => { if (localToday !== today) router.refresh(); }, [localToday, today, router]);
   return <RecordWorkspace title="总览" className={styles.workspace}>
+    {reminders&&<DailyReminders {...reminders}/>}
     <OverviewTrend data={presentation} />
     <div className={styles.cards}>
       <LoadingLink href="/dashboard/measurements" className={styles.card} aria-label="身体记录"><div><h2>身体状况</h2><span aria-hidden="true">→</span></div><strong>{body ? formatRecordNumber(body.weightKg) : "—"}<small>kg</small></strong><p>{body ? `${body.recordDate} · 晨间空腹` : "暂无晨间体重"}</p></LoadingLink>

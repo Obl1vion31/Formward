@@ -1,3 +1,4 @@
+import {numericDraftValue} from "../../components/form-draft";
 import {decimal,emptyNutrition,scaled,type ItemDraft,type MealDraft,type Nutrition,type Metric} from "./model";
 
 export type EditorItem = ItemDraft & {editor:{key:number;original:ItemDraft;initial:ItemDraft;library:boolean;caloriesAutomatic?:boolean;calorieIssue?:string}};
@@ -23,10 +24,10 @@ export function freeEditorItem(key:number):EditorItem{
 }
 export function editorItemInput(item:EditorItem):ItemDraft{
  const {editor,...value}=item;
- return JSON.stringify(value)===JSON.stringify(editor.initial)?structuredClone(editor.original):value;
+ return itemSignature(value)===itemSignature(editor.initial)?structuredClone(editor.original):value;
 }
 export function mealEditorInput(meal:EditorMeal):MealDraft{
- return {...meal,items:meal.items.filter(item=>item.name.trim()).map(editorItemInput)};
+ return {...meal,items:meal.items.filter(item=>!emptyEditorItem(item)).map(editorItemInput)};
 }
 
 /** 只处理网页真实营养编辑；原项、库值和未触碰的旧精度不做公式回填。 */
@@ -56,4 +57,20 @@ export function updateEditorNutrition(item:EditorItem,metric:Metric,value:string
   }
  }
  return {...item,nutrition,editor};
+}
+
+export function emptyEditorItem(item:EditorItem){
+ return !item.foodId&&!item.foodRef&&!item.foodDraft&&!item.originalItemId&&!item.name.trim()
+ &&numericDraftValue(item.quantity)==="1"&&item.unit==="份"&&item.sourceKind==="estimated"
+ &&Object.values(item.nutrition??emptyNutrition()).every(v=>v==null||v==="")
+ &&!item.basis&&!item.evidenceUrl&&item.amountDecision!=="unknown_accepted";
+}
+function itemSignature(item:ItemDraft){
+ const {reviewExplanation,editor,...value}=item as ItemDraft&{editor?:unknown};void reviewExplanation;void editor;
+ const nutrition=(n:Nutrition|undefined)=>n?Object.fromEntries(Object.entries(n).map(([k,v])=>[k,numericDraftValue(v)])):undefined;
+ return JSON.stringify({...value,name:value.name.trim(),quantity:numericDraftValue(value.quantity),amountDecision:value.quantity?"provided":value.amountDecision,nutrition:nutrition(value.nutrition),perPortionNutrition:nutrition(value.perPortionNutrition)});
+}
+export function mealDraftSignature(meal:EditorMeal){
+ const items=meal.items.filter(item=>!emptyEditorItem(item)).map(item=>itemSignature(item));
+ return JSON.stringify([meal.id??null,items.length||meal.id?meal.date:null,items.length||meal.id?meal.mealType:null,meal.notes?.trim()??"",meal.imageIds??[],meal.expectedImageCount??0,items]);
 }

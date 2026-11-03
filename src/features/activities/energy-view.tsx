@@ -34,7 +34,12 @@ export function EnergySources({ day }: { day: EnergyDay }) {
   const sources = day.totalSource === "override" ? [["总消耗", day.record?.sourceSystem]] : [["静息", rest], ["活动", active]];
   return <div className={styles.sourceLine}>{day.additionalKcal!=null&&Number(day.additionalKcal)>0&&<span>额外运动 · {energyValue(day.additionalKcal)} kcal</span>}{sources.filter(([, source]) => source).map(([label, source]) => <span key={label}>{label} · {source}</span>)}</div>;
 }
-export function EnergyView({ presentation, save, removeSource, initialDate = null }: { presentation: EnergyPresentation; save: SaveEnergy; removeSource: (label: string) => Promise<SourceRemovalResult>; initialDate?: string | null }) {
+function dayEditInput(date:string,days:EnergyPresentation["snapshot"]["days"]):EnergyAction {
+ const current=days.find(day=>day.date===date&&!day.deletedAt);
+ return { kind: "save_energy_day", date, ...(current ? { id: current.id, version: current.version, entryMode: current.entryMode ?? undefined, activityMode: current.activityMode ?? undefined, restingSourceSystem: current.restingSourceSystem ?? current.sourceSystem, activeSourceSystem: current.activeSourceSystem ?? current.sourceSystem, restingEstimated: current.restingEstimated ?? false, restingKcal: current.restingKcal, activeKcal: current.activeKcal, activeEstimated: current.activeEstimated ?? false, notes: current.notes ?? null, totalKcal: current.totalKcal, timezone: current.timezone, sourceSystem: current.sourceSystem, sourceRecordId: current.sourceRecordId, sourceOccurredAt: current.sourceOccurredAt } : { entryMode: "components", activityMode: "activities", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }) };
+}
+
+export function EnergyView({ presentation, save, removeSource, initialDate = null, initialEntry=false }: { presentation: EnergyPresentation; save: SaveEnergy; removeSource: (label: string) => Promise<SourceRemovalResult>; initialDate?: string | null;initialEntry?:boolean }) {
   const today = useLocalToday(presentation.today), mobile = useMobileMode();
   const router = useRouter();
   useEffect(() => { if (today !== presentation.today) router.refresh(); }, [today, presentation.today, router]);
@@ -46,6 +51,7 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
   const sources = sourceResult?.base === data.sources ? sourceResult.sources : data.sources;
   async function remove(label: string) { const result = await removeSource(label); if (result.ok) setSourceResult({ base: data.sources, sources: result.sources }); return result; }
   const byDate = new Map(data.days.map(day => [day.date, day]));
+  const [addActivity,setAddActivity]=useState(false);
   const [viewing,setViewing]=useState<string|null>(null);
   const latest = preferredRecordedDate(data.days, today, day => day.totalKcal !== null, day => !!day.record || day.activities.length > 0);
   const [editing, setEditing] = useState<EnergyAction | null>(null), [error, setError] = useState(""), [notice, setNotice] = useState("");
@@ -61,12 +67,13 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
   useEffect(()=>{const latest=()=>{setEditing(null);setViewing(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
   const historyDates=[...new Set([...recentRecordDates(today),...state.days.filter(d=>!d.deletedAt).map(d=>d.date),...state.activities.filter(a=>!a.deletedAt).map(a=>a.date)])].sort().reverse();
   usePageLoading({ active: busy, label: "正在保存消耗记录…" });
-  function edit(action: EnergyAction) { setError(""); setNotice(""); setEditing(action); }
-  function editDay(date: string, _details = false) {
-    void _details;
-    const current = state.days.find(day => day.date === date && !day.deletedAt);
-    edit({ kind: "save_energy_day", date, ...(current ? { id: current.id, version: current.version, entryMode: current.entryMode ?? undefined, activityMode: current.activityMode ?? undefined, restingSourceSystem: current.restingSourceSystem ?? current.sourceSystem, activeSourceSystem: current.activeSourceSystem ?? current.sourceSystem, restingEstimated: current.restingEstimated ?? false, restingKcal: current.restingKcal, activeKcal: current.activeKcal, activeEstimated: current.activeEstimated ?? false, notes: current.notes ?? null, totalKcal: current.totalKcal, timezone: current.timezone, sourceSystem: current.sourceSystem, sourceRecordId: current.sourceRecordId, sourceOccurredAt: current.sourceOccurredAt } : { entryMode: "components", activityMode: "activities", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }) });
+  function edit(action: EnergyAction) { setAddActivity(false); setError(""); setNotice(""); setEditing(action); }
+  function editDay(date: string, add = false) {
+    edit(dayEditInput(date,state.days));
+    setAddActivity(add);
   }
+  const openedIntent=useRef("");
+  useEffect(()=>{if(!initialDate||!initialEntry||openedIntent.current===initialDate)return;const timer=setTimeout(()=>{openedIntent.current=initialDate;setEditing(dayEditInput(initialDate,state.days));},0);return()=>clearTimeout(timer);},[initialDate,initialEntry,state.days]);
   function execute(input: EnergyAction | EnergyAction[]) {
     const actions = Array.isArray(input) ? input : [input];
     if (guard.current) return; guard.current = true; setError(""); setNotice("");
@@ -104,7 +111,7 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
     </section>
     <DailyRecords history={<RecordHistory today={today} dates={historyDates.filter(date=>!recentDates.includes(date))} renderRow={renderDay} view={setViewing}/>}>{recentDates.map(renderDay)}</DailyRecords>
     {viewing&&<EditorDialog title={viewing+" · 消耗记录"} busy={busy} close={()=>setViewing(null)}>{error&&<p role="alert" className={styles.error}>{error}</p>}{details(viewing)}</EditorDialog>}
-    {editing && <EditorDialog title={editing.kind === "save_energy_profile" ? "公式资料" : editing.kind === "save_activity" ? "活动记录" : "每日消耗"} busy={busy} close={() => { if (!busy) { setEditing(null); setError(""); } }}><EnergyEditor dayRecords={state.days} initial={editing} error={error} busy={busy} save={execute} saveBatch={execute} sources={sources} removeSource={remove} activities={state.activities} /></EditorDialog>}
+    {editing && <EditorDialog title={editing.kind === "save_energy_profile" ? "公式资料" : editing.kind === "save_activity" ? "活动记录" : "每日消耗"} busy={busy} close={() => { if (!busy) { setEditing(null); setError(""); } }}><EnergyEditor addActivity={addActivity} dayRecords={state.days} initial={editing} error={error} busy={busy} save={execute} saveBatch={execute} sources={sources} removeSource={remove} activities={state.activities} /></EditorDialog>}
   </RecordWorkspace>;
 }
 

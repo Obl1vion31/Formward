@@ -73,7 +73,7 @@
 .form select { background: var(--surface); }
 .form textarea { resize: vertical; line-height: 1.7; }
 .formColumns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.nutritionFields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; }
+.nutritionFields { display: grid; grid-template-columns:repeat(var(--nutrition-columns,4),minmax(0,1fr)); gap: 8px; }
 .nutritionFields label { display: block; }
 .nutritionFields input { font-size: 26px; margin-top: 6px; letter-spacing: -.02em; }
 .nutritionFields input[readonly] { color: var(--blue); }
@@ -407,3 +407,17 @@
 .mealForm .mealDate input[type=date] { position:absolute; inset:0; height:100%; min-height:44px; margin:0; opacity:0; cursor:pointer; }
 .mealDate:hover { border-color:var(--gold); }.mealDate:focus-within { outline:2px solid var(--gold); outline-offset:2px; }
 @media(max-width:360px){.mealForm .entryPaths button{font-size:14px;padding-inline:8px;white-space:nowrap}.mealForm .formColumns{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}.mealDate>span{padding-inline:8px;gap:4px}}
+
+/* 独立食材编辑沿用餐次控件语言；不以“未知”作为主读数。 */
+.form[data-entry-form=food]>fieldset{display:grid;gap:12px}.form[data-entry-form=food] label{font-size:14px;gap:6px;margin:0}.form[data-entry-form=food] .formColumns{grid-template-columns:repeat(auto-fit,minmax(min(100%,7.5em),1fr));gap:12px}.fieldCaption{display:flex;align-items:baseline;justify-content:space-between;gap:4px;flex-wrap:wrap}.fieldCaption small{font-size:12px;white-space:nowrap}.form[data-entry-form=food] .nutritionFields{gap:8px}.form[data-entry-form=food] .nutritionFields label{display:grid;grid-template-columns:1fr auto;gap:6px}.form[data-entry-form=food] .nutritionFields input{grid-column:1/-1;width:100%;margin:0;padding-inline:6px;letter-spacing:normal;appearance:textfield}.form[data-entry-form=food] .nutritionFields small{font-size:12px;margin:0}.form[data-entry-form=food] .sourceFields{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin:0}.form[data-entry-form=food] .sourceChoices{flex:1 0 auto;gap:8px}.form[data-entry-form=food] .sourceChoices legend{margin-bottom:0}.form[data-entry-form=food] .sourceChoices label{gap:6px}.form[data-entry-form=food] .evidence{margin:0;flex:0 0 auto}.form[data-entry-form=food] .evidence[open]{flex-basis:100%}.form[data-entry-form=food] .evidence summary{gap:4px}.form[data-entry-form=food] .photoFields{margin:0}.foodBasis{display:flex;flex-wrap:wrap;gap:4px 12px;margin:0;color:var(--muted);font-size:12px;line-height:18px}.foodBasis>span{white-space:nowrap}
+.form[data-entry-form=food] .save{margin-top:0;justify-self:start}.foodTable .actions button{min-height:44px;padding:8px 12px;border:1px solid var(--control-border);border-radius:6px;font-size:14px;background:transparent}.foodTable .actions button:hover{border-color:var(--gold);background:var(--surface-hover);color:var(--gold)}
+.foodTable th strong{font-size:15px;line-height:1.6}.foodTable th,.foodTable td{padding-block:12px}.foodTable td{font-size:14px}
+
+.workspace .toolbar>input{min-width:0;min-height:44px;border:1px solid var(--control-border);border-radius:6px;background:var(--surface-raised);color:var(--warm-white);padding:10px 12px;font-size:16px;line-height:22px}
+.workspace .toolbar>input:hover{border-color:var(--gold)}.workspace .toolbar>input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.workspace .toolbar>.primary{min-height:44px;padding:10px 14px;border:1px solid var(--control-border);border-radius:6px;background:var(--surface-raised);font-size:14px;color:var(--gold)}
+.workspace .toolbar>.primary:hover{border-color:var(--gold);background:var(--surface-hover)}
+.foodNutrients{display:flex;flex-wrap:wrap;gap:18px 28px;margin:20px 0}.foodNutrients>div{flex:1 1 100px;min-width:max-content;max-width:100%}
+.foodNutrients dt{font-size:13px;color:var(--muted)}.foodNutrients dd{margin:6px 0 0;font-size:24px;white-space:nowrap;font-variant-numeric:tabular-nums}.foodNutrients dd small{font-size:13px;color:var(--muted);margin-left:4px}
+
+.form[data-entry-form=food] .nutritionFields input::-webkit-inner-spin-button,.form[data-entry-form=food] .nutritionFields input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}

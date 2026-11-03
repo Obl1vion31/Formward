@@ -926,3 +926,24 @@ input:focus-visible {
 .login-recovery summary::-webkit-details-marker{display:none}
 .login-recovery p{margin:4px 0 0;max-width:260px;text-align:center}
 .login-recovery:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+
+/* 录入共用控件：组件功能决定外观，业务页不得退回透明文字输入。 */
+.dashboard-page form[data-entry-form] :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea) {
+  min-width:0;max-width:100%;min-height:44px;border:1px solid var(--control-border);border-radius:6px;
+  background:var(--surface-raised);color:var(--warm-white);font-size:16px;line-height:22px;
+  padding:10px 12px;color-scheme:var(--color-scheme);
+}
+.dashboard-page form[data-entry-form] :is(input,select,textarea):hover:not(:disabled):not([readonly]) {border-color:var(--gold)}
+.dashboard-page form[data-entry-form] :is(input,select,textarea,button):focus-visible {outline:2px solid var(--gold);outline-offset:2px}
+.dashboard-page form[data-entry-form] :is(input,select,textarea)::placeholder {color:var(--muted);font-size:16px;letter-spacing:normal}
+.dashboard-page form[data-entry-form] :is(input,select,textarea)[aria-invalid=true] {border-color:var(--data-red)}
+.dashboard-page form[data-entry-form] :is(input,select,textarea)[readonly] {background:var(--surface);border-style:dashed;color:var(--muted)}
+.dashboard-page form[data-entry-form] :is(input,select,textarea):disabled {opacity:.65;cursor:not-allowed}
+.dashboard-page form[data-entry-form] button[type=submit] {min-height:44px;flex:none;padding:10px 16px;border:1px solid var(--gold);border-radius:6px;background:var(--gold);color:var(--graphite);font-size:14px;line-height:22px;text-decoration:none}
+.dashboard-page form[data-entry-form] button[type=submit]:hover:not(:disabled) {filter:brightness(1.08)}
+.dashboard-page form[data-entry-form] button[type=submit]:disabled {background:var(--surface-hover);border-color:var(--control-border);color:var(--muted);cursor:not-allowed;opacity:.7}
+.dashboard-page form[data-entry-form] button:not([type=submit]) {min-height:44px}
+
+/* 身高的单位与输入共用外框，避免双边框和双焦点环。 */
+.dashboard-page form[data-entry-form="profile"] input {border:0;background:transparent;border-radius:0;color-scheme:inherit}
+.dashboard-page form[data-entry-form="profile"] input:focus-visible {outline:0}

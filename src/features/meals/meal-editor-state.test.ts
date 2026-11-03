@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
-import {editorDecimal,editorItem,editorItemInput,freeEditorItem,mealEditorInput,updateEditorNutrition,type EditorItem} from "./meal-editor-state";
+import {editorDecimal,editorItem,editorItemInput,freeEditorItem,mealEditorInput,mealDraftSignature,emptyEditorItem,updateEditorNutrition,type EditorItem} from "./meal-editor-state";
 import {emptyNutrition,type ItemDraft} from "./model";
 const nutrition={...emptyNutrition(),caloriesKcal:"135.1234",proteinG:"0",carbsG:null,fatG:"0.0001"};
 const old:ItemDraft={kind:"food",name:"虚构鸡蛋",quantity:"1.5",unit:"个",nutritionBasis:"per_portion",perPortionNutrition:{...nutrition,caloriesKcal:"90"},sourceKind:"estimated"};
@@ -83,3 +83,21 @@ test("小数宏量按原精度计算热量，取整仅用于展示",()=>{
  assert.equal(editorItemInput(row).nutrition?.caloriesKcal,"5.838");
  assert.equal(updateEditorNutrition(row,"fatG","0.1"),row);
 });
+
+
+test("未命名营养及明确0不能被过滤，默认空白占位不制造草稿",()=>{
+ const item=freeEditorItem(0),meal={date:"2026-11-03",mealType:"午餐",items:[item]};
+ const baseline=mealDraftSignature(meal);assert.equal(emptyEditorItem(item),true);assert.equal(mealEditorInput(meal).items.length,0);
+ for(const value of ["20","0"]){const next=updateEditorNutrition(item,"proteinG",value);assert.equal(emptyEditorItem(next),false);assert.equal(mealEditorInput({...meal,items:[next]}).items[0].nutrition?.proteinG,value);assert.notEqual(mealDraftSignature({...meal,items:[next]}),baseline);}
+ const typed=updateEditorNutrition(item,"proteinG","20"),cleared=updateEditorNutrition(typed,"proteinG","");
+ assert.equal(mealDraftSignature({...meal,items:[cleared]}),baseline);
+});
+test("数值去尾零与派生说明不算草稿，真实历史精度变化仍计为修改",()=>{
+ const item=editorItem({kind:"food",name:"虚构食物",quantity:"1",unit:"份",sourceKind:"reference",nutritionBasis:"consumed_total",nutrition:{...emptyNutrition(),proteinG:"17.51"}},0);
+ const meal={date:"2026-11-03",mealType:"午餐",items:[item]};
+ assert.equal(mealDraftSignature({...meal,items:[{...item,quantity:"1.00"}]}),mealDraftSignature(meal));
+ assert.notEqual(mealDraftSignature({...meal,items:[{...item,nutrition:{...item.nutrition!,proteinG:"17.5"}}]}),mealDraftSignature(meal));
+ assert.deepEqual(editorItemInput({...item,quantity:"1.00"}),item.editor.original);
+});
+
+test("公式已自动计算后，全部删除回初始空白不提示草稿",()=>{let item=freeEditorItem(0);const meal={date:"2026-11-03",mealType:"午餐",items:[item]},signature=mealDraftSignature(meal);for(const metric of ["proteinG","carbsG","fatG"] as const)item=updateEditorNutrition(item,metric,"1");for(const metric of ["proteinG","carbsG","fatG"] as const)item=updateEditorNutrition(item,metric,"");assert.equal(mealDraftSignature({...meal,items:[item]}),signature);});

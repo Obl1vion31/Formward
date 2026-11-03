@@ -15,13 +15,13 @@ import { listMeasurementSources } from "@/features/measurements/sources";
 
 export const metadata: Metadata = { title: "Formward · 身体记录" };
 
-export default async function DashboardPage({searchParams}:{searchParams:Promise<{date?:string|string[]}>}) {
+export default async function DashboardPage({searchParams}:{searchParams:Promise<{date?:string|string[];entry?:string}>}) {
   const user = await currentPageUser();
   if (!user) redirect("/"); await requireCompletedOnboarding();
-  return <Suspense fallback={<RouteLoading />}><DashboardContent user={user} date={linkedDate((await searchParams).date)} /></Suspense>;
+  const params=await searchParams;return <Suspense fallback={<RouteLoading />}><DashboardContent user={user} date={linkedDate(params.date)} period={params.entry==="daytime"||params.entry==="evening"?params.entry:null} /></Suspense>;
 }
 
-async function DashboardContent({ user, date }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date:string|null }) {
+async function DashboardContent({ user, date, period }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date:string|null;period:"daytime"|"evening"|null }) {
   const db = getDatabase();
   // 本地 PGlite 使用单连接多路复用，按顺序读取以保持结果与查询对应。
   const records = await listMeasurements(db, user.id);
@@ -31,7 +31,7 @@ async function DashboardContent({ user, date }: { user: NonNullable<Awaited<Retu
   return (
     <main className="dashboard-page">
       <DashboardHeader email={user.email} owner={user.role === "owner"} />
-      <MeasurementsView initialDate={date} records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ deleteCell:deleteCellAction, save: saveDayAction, estimate: estimateCellAction, removeSource: removeSourceAction }} />
+      <MeasurementsView initialDate={date} initialPeriod={period} records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ deleteCell:deleteCellAction, save: saveDayAction, estimate: estimateCellAction, removeSource: removeSourceAction }} />
     </main>
   );
 }

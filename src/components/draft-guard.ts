@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useContext, useEffect } from "react";
+import {confirmAction} from "./confirmation-state";
 
 export type VisibleRecord = {key:string;version:string;summary?:string};
 export type DraftState = { dirty: boolean; busy: boolean; records?:VisibleRecord[] };
@@ -25,3 +26,9 @@ export function useDraftClose(fallback: () => void) {
 let refreshApprovedUntil=0;
 export function approvePageRefresh(){refreshApprovedUntil=Date.now()+2000;}
 export const pageRefreshApproved=()=>Date.now()<refreshApprovedUntil;
+
+/** 站内离开与内部返回共用；不把切标签或默认值当作编辑。 */
+export async function confirmDraftDiscard(){
+ if(draftIsBusy())return false;
+ return !draftIsDirty()||await confirmAction({title:"放弃尚未保存的输入？",message:"尚未保存的修改会被放弃，已保存记录保持。",confirmLabel:"放弃修改",cancelLabel:"继续编辑"});
+}

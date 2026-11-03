@@ -1,4 +1,5 @@
 "use client";
+import {energyDraftSignature,exerciseHasInput} from "./energy-editor-state";
 import {energyWebIssue,sameEnergyAmounts,adoptedEnergyAction} from "../records/web-entry";
 import {useEffect,useId,useRef,useState} from "react";
 import {confirmAction} from "@/components/confirmation-state";
@@ -21,8 +22,8 @@ function activityRecord(action:ActivityAction,key:string,prior?:ActivityRecord):
 function itemDraft(row:ActivityRecord):ActivityDraft{
  return {kind:"save_activity",key:row.id,id:row.id,version:row.version,date:row.date,name:row.name,calorieMode:row.calorieMode??undefined,caloriesKcal:row.caloriesKcal,exerciseActiveKcal:row.exerciseActiveKcal,exerciseRestingKcal:row.exerciseRestingKcal,durationMinutes:row.durationMinutes,completed:row.completed,sourceSystem:row.sourceSystem,sourceRecordId:row.sourceRecordId,sourceOccurredAt:row.sourceOccurredAt,timezone:row.timezone,inclusion:row.inclusion,initialBasis:row.inclusionBasis};
 }
-export function EnergyEditor({initial,activities=[],dayRecords=[],activityPreview,sources,removeSource,busy,error,save,saveBatch,submitLabel="保存"}:{
- initial:EnergyAction;activities?:ActivityRecord[];dayRecords?:EnergyDayRecord[];activityPreview?:ActivityRecord;sources:string[];removeSource:(label:string)=>Promise<SourceRemovalResult>;busy:boolean;error:string;save:(action:EnergyAction)=>void;saveBatch?:(actions:EnergyAction[])=>void;submitLabel?:string;
+export function EnergyEditor({initial,activities=[],dayRecords=[],activityPreview,sources,removeSource,busy,error,save,saveBatch,submitLabel="保存",addActivity=false}:{
+ initial:EnergyAction;activities?:ActivityRecord[];dayRecords?:EnergyDayRecord[];activityPreview?:ActivityRecord;sources:string[];removeSource:(label:string)=>Promise<SourceRemovalResult>;busy:boolean;error:string;save:(action:EnergyAction)=>void;saveBatch?:(actions:EnergyAction[])=>void;submitLabel?:string;addActivity?:boolean;
 }){
  const numberAcknowledgements=useRef(new Set<string>()),submitting=useRef(false);
  const methodMenu=useRef<HTMLDetailsElement>(null),switchingAggregate=useRef(false),aggregateWasCleared=useRef(false),aggregateId=useId();
@@ -42,8 +43,10 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
  const originalActivity=activityPreview??activities.find(row=>"id" in initial&&row.id===initial.id);
  const targetDate="date" in draft?draft.date:originalActivity?.date;
  const day=dayRecords.find(row=>!row.deletedAt&&row.date===targetDate);
- const [items,setItems]=useState<ActivityDraft[]>(()=>activities.filter(row=>!row.deletedAt&&initial.kind==="save_energy_day"&&row.date===initial.date).map(itemDraft));
- const [expanded,setExpanded]=useState<Set<string>>(()=>new Set(items.length?[items[0].key]:[]));
+ const [items,setItems]=useState<ActivityDraft[]>(()=>[...activities.filter(row=>!row.deletedAt&&initial.kind==="save_energy_day"&&row.date===initial.date).map(itemDraft),...(addActivity&&initial.kind==="save_energy_day"?[{key:"new-activity",kind:"save_activity" as const,date:initial.date,name:"",calorieMode:"total" as const,completed:true,timezone:initial.timezone}]:[])]);
+ const form=useRef<HTMLFormElement>(null);
+ useEffect(()=>{if(!addActivity)return;const timer=setTimeout(()=>{const input=form.current?.querySelector<HTMLInputElement>('[data-new-activity] input');input?.scrollIntoView({block:"nearest",behavior:"smooth"});input?.focus({preventScroll:true});},300);return()=>clearTimeout(timer);},[addActivity]);
+ const [expanded,setExpanded]=useState<Set<string>>(()=>new Set(addActivity?["new-activity"]:items.length?[items[0].key]:[]));
  const [adjusting,setAdjusting]=useState<Set<string>>(new Set());
  const [aggregateEditing,setAggregateEditing]=useState(false),[aggregateEpoch,setAggregateEpoch]=useState(0);
  const originalBaseline=energyBaseline(day);
@@ -75,7 +78,7 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
  const autoActive=accumulation?.activeKcal??null;
  const unresolvedCount=daily?unresolved.length:singleRequires&&!selectedRelation?1:0;
  const total=unresolvedCount?null:projected?energyDays({days:[projected],activities:projectedItems,profiles:[]},[],[projected.date])[0].totalKcal:null;
- const signature=JSON.stringify([draft,items,singleChoice]),[firstSignature]=useState(signature);useDraftGuard(signature!==firstSignature||clearedAggregate,busy);
+ const signature=energyDraftSignature(single?{...draft,inclusion:selectedRelation}:draft,items),[firstSignature]=useState(signature);useDraftGuard(signature!==firstSignature||clearedAggregate,busy);
  const set=(key:string,value:unknown)=>setDraft(current=>({...current,[key]:value,...(key==="restingKcal"?{restingEstimated:false}:key==="activeKcal"?{activeEstimated:false}:{}),...(key.endsWith("SourceSystem")||key==="sourceSystem"?{sourceRecordId:null}:{})}));
  function aggregate(value:string){
   if(!daily||switchingAggregate.current)return;
@@ -138,13 +141,14 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
    saveBatch(changes);
   }finally{submitting.current=false;}
  }
- const entryIssue=energyWebIssue(draft,autoActive,!!day&&!!projected&&draft.kind==="save_energy_day"&&initial.kind==="save_energy_day"&&sameEnergyAmounts(projected,day)&&items.every(item=>!changed(item))&&items.length===activities.filter(row=>!row.deletedAt&&row.date===targetDate).length);
+ const incompleteExercise=items.find(item=>exerciseHasInput(item)&&!item.name.trim());
+ const entryIssue=incompleteExercise?"请填写运动名称。":energyWebIssue(draft,autoActive,!!day&&!!projected&&draft.kind==="save_energy_day"&&initial.kind==="save_energy_day"&&sameEnergyAmounts(projected,day)&&items.every(item=>!changed(item))&&items.length===activities.filter(row=>!row.deletedAt&&row.date===targetDate).length);
  const retired=draft.kind.includes("energy_defaults")||draft.kind.includes("energy_profile"),blocked=!!entryIssue||busy||confirmingAggregate||retired||!!(saveBatch&&daily&&unresolvedCount)||!!(singleRequires&&!selectedRelation);
  const missing= modes.entryMode==="total"&&projected?.totalKcal==null?"还没填当天总数":modes.entryMode==="components"&&projected?.restingKcal==null?"还没填当天静息":modes.activityMode==="total"&&projected?.activeKcal==null?"还没填活动合计":"有运动热量未知";
  const saveLabel=busy?submitLabel==="应用修改"?"正在应用…":"正在保存…":submitLabel==="保存"&&targetDate?"保存 · "+targetDate:submitLabel;
  function addItem(){if(!daily)return;const key=crypto.randomUUID();setItems(rows=>[...rows,{key,kind:"save_activity",date:draft.date,name:"",calorieMode:"total",completed:true,timezone:draft.timezone}]);setExpanded(values=>new Set([...values,key]));}
- return <form className={styles.form+" "+styles.energyEntry} aria-busy={busy} onSubmit={event=>{event.preventDefault();void submit();}}>
-  <div className={styles.stickyTotal}><div>{targetDate&&<RecordDateContext date={targetDate} openedOn={openedOn}/>}<span>当天总消耗 <small>kcal</small></span><strong>{energyValue(total)}</strong>{entryIssue&&<small role="status">{entryIssue}</small>}{!entryIssue&&(unresolvedCount>0||total==null)&&<small>{unresolvedCount?unresolvedCount+"项运动待核对":missing+"，可保存已有部分"}</small>}</div><button className={styles.headerSave} type="submit" disabled={blocked}>{saveLabel}</button></div>
+ return <form ref={form} data-entry-form="energy" className={styles.form+" "+styles.energyEntry} aria-busy={busy} onSubmit={event=>{event.preventDefault();void submit();}}>
+  <div className={styles.stickyTotal}><div>{targetDate&&<RecordDateContext date={targetDate} openedOn={openedOn}/>}<span>当天总消耗 <small>kcal</small></span><strong>{energyValue(total)}</strong>{entryIssue&&<small role="status">{entryIssue}</small>}{!entryIssue&&(unresolvedCount>0||total==null)&&<small>{unresolvedCount?unresolvedCount+"项运动待核对":missing+"，可保存已有部分"}</small>}{error&&<p role="alert" className={styles.error}>{error}</p>}</div><button className={styles.headerSave} type="submit" disabled={blocked}>{saveLabel}</button></div>
   <fieldset disabled={busy||retired||confirmingAggregate}>
    {retired?<p role="alert">日常默认值和静息公式资料已停用，请取消这一项。</p>:daily||single?<>
    <section className={styles.entrySection}><h3>{modes.entryMode==="total"?"总消耗":"静息与活动"}</h3>
@@ -154,9 +158,9 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
    </section>
    <section className={styles.entrySection}><div className={styles.title}><h3>运动明细 <small>{daily?items.length:"1"}项</small></h3>{unresolvedCount>0&&<span className={styles.pendingBadge}>{unresolvedCount}项待核对</span>}</div>
     {daily?saveBatch?<>{unresolved.length>1&&<div className={styles.bulkChoices}><button type="button" onClick={()=>setItems(rows=>rows.map(item=>item.completed===false?item:{...item,inclusion:"included",choiceSignature:relationKey(item)}))}>全部已包含</button><button type="button" onClick={()=>setItems(rows=>rows.map(item=>item.completed===false?item:{...item,inclusion:"additional",choiceSignature:relationKey(item)}))}>全部额外增加</button></div>}
-    {items.map((item,index)=><details className={styles.activityDraft} key={item.key} open={expanded.has(item.key)||!aggregateEditing&&unresolved[0]?.key===item.key} onToggle={event=>{if(event.target!==event.currentTarget)return;const open=event.currentTarget.open;setExpanded(previous=>{if(previous.has(item.key)===open)return previous;const next=new Set(previous);if(open)next.add(item.key);else next.delete(item.key);return next;});}}>
+    {items.map((item,index)=><details data-new-activity={item.key==="new-activity"||undefined} className={styles.activityDraft} key={item.key} open={expanded.has(item.key)||!aggregateEditing&&unresolved[0]?.key===item.key} onToggle={event=>{if(event.target!==event.currentTarget)return;const open=event.currentTarget.open;setExpanded(previous=>{if(previous.has(item.key)===open)return previous;const next=new Set(previous);if(open)next.add(item.key);else next.delete(item.key);return next;});}}>
      <summary><span>{item.name||"运动 "+(index+1)}</span><span>{energyValue(activityReadings({...item,caloriesKcal:item.caloriesKcal??null}).totalKcal)} kcal{needsReview(item)&&!relation(item)&&item.completed!==false?" · 待核对":""}</span></summary>
-     <label>运动名称<input aria-label={"运动名称 "+(index+1)} maxLength={200} required value={item.name} onChange={event=>setItems(rows=>rows.map(row=>row.key===item.key?{...row,name:event.target.value}:row))}/></label>
+     <label>运动名称<input aria-label={"运动名称 "+(index+1)} maxLength={200} required={exerciseHasInput(item)} value={item.name} onChange={event=>setItems(rows=>rows.map(row=>row.key===item.key?{...row,name:event.target.value}:row))}/></label>
      <ExerciseFields value={item} change={next=>setItems(rows=>rows.map(row=>row.key===item.key?{...row,...next}:row))} day={projected} relation={relation(item)} pending={needsReview(item)&&!relation(item)} suffix={" "+(index+1)}/>
      <div className={styles.fields}><SourceInput label={"运动来源 "+(index+1)} sources={sources} removeSource={removeSource} disabled={busy} maxLength={200} value={item.sourceSystem??""} onChange={value=>setItems(rows=>rows.map(row=>row.key===item.key?{...row,sourceSystem:value||null,sourceRecordId:null}:row))}/><label>时长 · 分钟（选填）<DecimalInput precision={0} aria-label={"运动时长 · 分钟 "+(index+1)} min={0} max={1000000} value={item.durationMinutes} onValue={value=>setItems(rows=>rows.map(row=>row.key===item.key?{...row,durationMinutes:value||null}:row))}/></label></div>
      {item.completed===false&&<p className={styles.hint}>历史未计入，原记录保持。</p>}
@@ -172,7 +176,7 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
    </section>
    <details className={styles.entrySection}><summary>时间与备注</summary><div className={styles.fields}><label>日期<input aria-label="日期" type="date" required value={draft.date} onChange={event=>set("date",event.target.value)}/></label><label>时区<input aria-label="时区" maxLength={100} value={draft.timezone??""} onChange={event=>set("timezone",event.target.value)}/></label>{daily&&<label>备注<input aria-label="备注" maxLength={2000} value={draft.notes??""} onChange={event=>set("notes",event.target.value||null)}/></label>}</div></details>
    </>:draft.kind==="restore_activity"?<><h3>恢复 {originalActivity?.name??"运动"}</h3><p>请返回对应日期核对当前记录。</p></>:null}
-   {error&&<p className={styles.error} role="alert">{error}</p>}
+
    {submitLabel!=="保存"&&<p className={styles.hint}>应用修改后返回确认页面，确认保存后才正式记录。</p>}
   </fieldset>
  </form>;

@@ -15,12 +15,12 @@ import { saveEnergyAction, removeEnergySourceAction } from "./actions";
 import { listEnergySources } from "@/features/activities/sources";
 export const metadata = { title: "Formward · 消耗" };
 export const maxDuration = 60;
-export default async function EnergyPage({ searchParams }: { searchParams: Promise<{ date?: string | string[] }> }) {
+export default async function EnergyPage({ searchParams }: { searchParams: Promise<{ date?: string | string[];entry?:string }> }) {
   const user = await currentPageUser(); if (!user) redirect("/"); await requireCompletedOnboarding();
-  return <Suspense fallback={<RouteLoading />}><Content user={user} date={linkedDate((await searchParams).date)} /></Suspense>;
+  const params=await searchParams;return <Suspense fallback={<RouteLoading />}><Content user={user} date={linkedDate(params.date)} entry={params.entry==="1"} /></Suspense>;
 }
-async function Content({ user, date }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date: string | null }) {
+async function Content({ user, date, entry }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date: string | null;entry:boolean }) {
   const db = getDatabase(), snapshot = await readEnergySnapshot(db, user.id);
   const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
-  return <main className="dashboard-page"><DashboardHeader email={user.email} owner={user.role === "owner"} /><EnergyView presentation={energyPresentation(snapshot, [], today, await listEnergySources(db, user.id))} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date} /></main>;
+  return <main className="dashboard-page"><DashboardHeader email={user.email} owner={user.role === "owner"} /><EnergyView presentation={energyPresentation(snapshot, [], today, await listEnergySources(db, user.id))} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date} initialEntry={entry} /></main>;
 }

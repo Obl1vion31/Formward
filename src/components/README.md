@@ -1,5 +1,7 @@
 # Components
 
+form-draft.ts比较有效数字文本而不舍入，draft-guard.ts集中“继续编辑／放弃修改”。LoadingLink保留Next原有链接能力，站内导航先处理真实草稿；Inspector、内部返回和退出登录遵从相同判定。record-history.tsx使用显式日期查看表单，Enter与同日重复查看可用。主表单以data-entry-form标记使用globals.css公共边框、16px输入、44px操作和逐态样式；带单位的个人资料沿用一个外框。
+
 `brand-logo.tsx` 和同名 CSS 模块统一 F＋手臂图标、formward 字标和金色圆点。图形用 `/icons/formward-mark.svg` 的透明遮罩跟随文字颜色；工作区的 `compactOnMobile` 在窄屏／触屏仅显示图标。可访问名称由外层图片语义或链接提供，内部图形与文字不重复朗读。
 
 ## 四页共用框架、确认和读数

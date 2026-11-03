@@ -19,14 +19,19 @@ async function uploadRequest(body: unknown) {
 }
 export function PhotoFields({ ids, change, busy, onBusy, onError, expectedCount = 0, onExpected }: { ids: string[]; change: (ids: string[]) => void; busy: boolean; onBusy: (active: boolean) => void; onError: (error: string) => void; expectedCount?: number; onExpected?: (count: number) => void }) {
   const input = useRef<HTMLInputElement>(null), guard = useRef(false), remaining = useRef<File[]>([]);
+  const [retryAvailable,setRetryAvailable]=useState(false);
   const [error, setError] = useState(""), [uploading, setUploading] = useState(false), [progress, setProgress] = useState("");
   usePageLoading({ active: uploading, label: progress || "正在保存原图…" });
   async function upload(files: File[]) {
     if (!files.length || guard.current) return;
+    if(ids.length+files.length>8){
+      setError("最多8张照片，还可添加"+Math.max(0,8-ids.length)+"张。");onError("");
+      if(input.current)input.current.value="";return;
+    }
+    remaining.current=[];setRetryAvailable(false);
     guard.current = true; setUploading(true); onBusy(true); setError(""); onError("");
     const next = [...ids], failed: File[] = [], messages: string[] = [];
     try {
-      if (next.length + files.length > 8) throw new Error("最多关联8张照片。");
       for (let index = 0; index < files.length; index++) {
         const file = files[index];
         try {
@@ -46,21 +51,21 @@ export function PhotoFields({ ids, change, busy, onBusy, onError, expectedCount 
           change([...next]);
         } catch (e) { failed.push(file); messages.push(file.name + "：" + (e instanceof Error ? e.message : "上传未完成，请重试。")); }
       }
-      remaining.current = failed;
+      remaining.current = failed;setRetryAvailable(failed.length>0);
       onExpected?.(Math.max(expectedCount, next.length + failed.length));
       if (failed.length) throw new Error(messages.join("；"));
       if (input.current) input.current.value = "";
     } catch (e) {
       if (!remaining.current.length) remaining.current = files;
       const message = e instanceof Error ? e.message : "照片上传失败，请重试。";
-      setError(message); onError(message);
+      setError(message); onError(message);setRetryAvailable(remaining.current.length>0);
       onExpected?.(Math.max(expectedCount, next.length + remaining.current.length));
     } finally { guard.current = false; setUploading(false); onBusy(false); setProgress(""); }
   }
   return <div className={styles.photoFields}>
-    <span className={styles.photoLabel}>照片（最多8张，每张20 MiB）</span><div className={styles.photoUpload}><button type="button" disabled={busy||uploading} onClick={()=>input.current?.click()}>＋ 添加照片</button><span>{ids.length?ids.length+" 张照片":"未添加照片"}</span></div><input aria-label="添加原始照片" tabIndex={-1} className={styles.fileInput} ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy || uploading} onChange={e => { remaining.current = []; void upload(Array.from(e.target.files ?? [])); }} />
+    <span className={styles.photoLabel}>照片（最多8张，每张20 MiB）</span><div className={styles.photoUpload}><button type="button" disabled={busy||uploading} onClick={()=>input.current?.click()}>＋ 添加照片</button><span>{ids.length?ids.length+" 张照片":"未添加照片"}</span></div><input aria-label="添加原始照片" tabIndex={-1} className={styles.fileInput} ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy || uploading} onChange={e => { void upload(Array.from(e.target.files ?? [])); }} />
     {progress && <p role="status" className={styles.hint}>{progress}</p>}<ImageGallery ids={ids} />
     {ids.map((id, i) => <button type="button" key={id} disabled={busy || uploading} onClick={() => change(ids.filter(n => n !== id))}>移除照片 {i + 1}</button>)}
-    {error && <><p role="alert" className={styles.error}>{error}</p><button type="button" disabled={busy || uploading} onClick={() => void upload(remaining.current)}>重试未完成照片</button><button type="button" disabled={busy || uploading} onClick={() => { setError(""); onError(""); remaining.current = []; if (input.current) input.current.value = ""; }}>稍后补传</button></>}
+    {error && <><p role="alert" className={styles.error}>{error}</p>{retryAvailable&&<button type="button" disabled={busy || uploading} onClick={() => void upload(remaining.current)}>重试未完成照片</button>}<button type="button" disabled={busy || uploading} onClick={() => { setError(""); onError(""); remaining.current = [];setRetryAvailable(false); if (input.current) input.current.value = ""; }}>{retryAvailable?"稍后补传":"关闭提示"}</button></>}
   </div>;
 }

@@ -7,7 +7,7 @@ import { RecordDateContext } from "@/components/record-date-context";
 import { mealTypeLabel } from "./model";
 import { useId, useRef, useState } from "react";
 import { decimal, defaultFoodQuantity, emptyNutrition, foodSpecification, formatNutrition, metricLabels, metrics, scaled, nutritionFor, sumNutrition, type FoodView, type ItemDraft, type ItemView, type MealView,type MealDraft } from "./model";
-import {editorDecimal,editorItem,freeEditorItem,mealEditorInput,updateEditorNutrition,type EditorItem,type EditorMeal} from "./meal-editor-state";
+import {editorDecimal,editorItem,freeEditorItem,mealEditorInput,mealDraftSignature,emptyEditorItem,updateEditorNutrition,type EditorItem,type EditorMeal} from "./meal-editor-state";
 import { PhotoFields } from "./photos";
 import {MealItemDetails} from "./meal-item-details";
 import {useMealLayout} from "./use-meal-layout";
@@ -30,7 +30,7 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
  const [query,setQuery]=useState(""),[category,setCategory]=useState("all"),[step,setStep]=useState<"picker"|"entry">("entry"),[replacing,setReplacing]=useState<number|null>(null),[dragging,setDragging]=useState(false);
  const bubbleId=useId(),nutritionHint=bubbleId+"-nutrition";
  const [uploading,setUploading]=useState(false),[photoError,setPhotoError]=useState(""),table=useRef<HTMLDivElement>(null);
- const draftSignature = JSON.stringify(mealEditorInput(draft));
+ const draftSignature = mealDraftSignature(draft);
  const [initialSignature] = useState(draftSignature);
  useDraftGuard(draftSignature !== initialSignature, uploading);
  function itemFood(item:ItemDraft){return item.foodRef?foodRefs[item.foodRef]:item.foodId?historicalFoods.find(food=>food.id===item.foodId&&food.version===item.foodVersion)??foods.find(food=>food.id===item.foodId):item.foodDraft??historicalItems.find(previous=>previous.id===item.originalItemId)?.foodSnapshot;}
@@ -52,9 +52,9 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
  setReplacing(null);setFreeKey(null);setStep("entry");
  }
  const results=foods.filter(food=>!food.deletedAt&&(category==="all"||(food.category??"ingredient")===category)&&`${food.name} ${food.brand??""} ${food.preparation??""}`.toLowerCase().includes(query.trim().toLowerCase()));
- const entered=draft.items.filter(item=>item.name.trim()),totals=sumNutrition(entered.map(values));
+ const entered=draft.items.filter(item=>!emptyEditorItem(item)),totals=sumNutrition(entered.map(values));
  const input=mealEditorInput(draft),unchanged=!!initial.id&&initial.version===input.version&&sameMealAmounts(input,initial);
- const entryIssue=entered.find(item=>item.editor.calorieIssue)?.editor.calorieIssue??mealWebIssue(input,totals.values,unchanged),blocked=busy||uploading||invalid||!!entryIssue;
+ const entryIssue=entered.some(item=>!item.name.trim())?"请填写食物名称。":entered.find(item=>item.editor.calorieIssue)?.editor.calorieIssue??mealWebIssue(input,totals.values,unchanged),blocked=busy||uploading||invalid||!!entryIssue;
  const layout=useMealLayout(table,draft.items.map(item=>[item.unit??"",item.quantity??"",...metrics.map(metric=>{const value=values(item)[metric];return itemFood(item)?formatNutrition(value,metric):value??"";})]));
 
  function openFree(){
@@ -63,7 +63,7 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
  }
  function openPicker(){setStep("picker");requestAnimationFrame(()=>search.current?.focus());}
 
- return <form className={`${styles.form} ${styles.mealForm}`} data-picker={layout.picker} aria-busy={busy} onChange={event=>setInvalid(Boolean(event.currentTarget.querySelector(":invalid")))} onSubmit={async event=>{event.preventDefault();if(blocked||submitting.current)return;submitting.current=true;try{const original=historicalItems.length?sumNutrition(historicalItems.map(item=>item.nutrition)):recentMeals.filter(meal=>meal.date<=draft.date&&!meal.deletedAt&&mealTypeLabel(meal.mealType)===mealTypeLabel(draft.mealType)).sort((a,b)=>b.date.localeCompare(a.date))[0]?.totals;if(!await confirmNumbers(metrics.map(metric=>({label:metricLabels[metric],unit:metric==="caloriesKcal"?"kcal":"g",value:totals.values[metric],previous:original?.values[metric]})),numberAcknowledgements.current))return;await save(mealEditorInput(draft),true);}finally{submitting.current=false;}}}>
+ return <form data-entry-form="meal" className={`${styles.form} ${styles.mealForm}`} data-picker={layout.picker} aria-busy={busy} onChange={event=>setInvalid(Boolean(event.currentTarget.querySelector(":invalid")))} onSubmit={async event=>{event.preventDefault();if(blocked||submitting.current)return;submitting.current=true;try{const original=historicalItems.length?sumNutrition(historicalItems.map(item=>item.nutrition)):recentMeals.filter(meal=>meal.date<=draft.date&&!meal.deletedAt&&mealTypeLabel(meal.mealType)===mealTypeLabel(draft.mealType)).sort((a,b)=>b.date.localeCompare(a.date))[0]?.totals;if(!await confirmNumbers(metrics.map(metric=>({label:metricLabels[metric],unit:metric==="caloriesKcal"?"kcal":"g",value:totals.values[metric],previous:original?.values[metric]})),numberAcknowledgements.current))return;await save(mealEditorInput(draft),true);}finally{submitting.current=false;}}}>
  <div className={styles.stickyMealTotal}><div><RecordDateContext date={draft.date} openedOn={openedOn}/><div className={styles.headerNutrition} aria-label="本餐合计"><strong>{formatNutrition(totals.values.caloriesKcal,"caloriesKcal")}<small>kcal</small></strong><span>{totals.incomplete.caloriesKcal?"已知部分 · ":""}{metrics.filter(metric=>metric!=="caloriesKcal").map(metric=>metricLabels[metric]+" "+formatNutrition(totals.values[metric],metric)+"\u00a0g").join(" · ")}</span></div>{entryIssue&&<p className={styles.entryIssue} role="status">{entryIssue}</p>}</div><button disabled={blocked} className={styles.save} type="submit">{busy?"正在处理…":submitLabel==="应用修改"?submitLabel:submitLabel+" · "+draft.date}</button></div><fieldset disabled={busy||uploading}>
  <div className={styles.formColumns}><label>日期<span className={styles.mealDate}><span aria-hidden="true">{draft.date||"选择日期"}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="4" y="6" width="16" height="15" rx="2"/><path d="M8 3v6m8-6v6M4 12h16"/></svg></span><input aria-label="日期" type="date" required value={draft.date} onChange={event=>setDraft({...draft,date:event.target.value,occurredAt:null})}/></span></label><label>餐次<input aria-label="餐次" required maxLength={50} list="meal-types" value={draft.mealType} onChange={event=>setDraft({...draft,mealType:event.target.value})}/><datalist id="meal-types">{["早餐","午餐","晚餐","加餐","夜宵"].map(name=><option key={name}>{name}</option>)}</datalist></label></div>
  <div className={styles.entryPaths} aria-label="添加食物方式"><button type="button" aria-pressed={step==="entry"} onClick={openFree}>自己填写</button><button type="button" aria-pressed={step==="picker"} onClick={openPicker}>从食材库添加</button></div>
@@ -77,10 +77,10 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
  <div ref={table} className={styles.mealSheet} data-dragging={dragging} onDragOver={event=>{if(event.dataTransfer.types.includes(dragType)){event.preventDefault();event.dataTransfer.dropEffect="copy";setDragging(true);}}} onDragLeave={event=>{if(!event.currentTarget.contains(event.relatedTarget as Node))setDragging(false);}} onDrop={event=>{event.preventDefault();setDragging(false);try{const payload=JSON.parse(event.dataTransfer.getData(dragType)),food=foods.find(food=>food.id===payload.id&&food.version===payload.version&&!food.deletedAt);if(food)choose(food);}catch{}}}>
  <table className={styles.entryTable} data-layout={layout.mode} data-stack-fields={layout.stack} data-nutrient-columns={layout.nutrientColumns} style={layout.variables} aria-label="本餐食物表"><colgroup><col/>{layout.widths.map((_,index)=><col key={index} style={{width:"var(--entry-col-"+index+")"}}/>)}<col style={{width:120}}/></colgroup><thead><tr><th>食物</th><th>单位</th><th>数量</th><th>kcal</th><th>P · g</th><th>C · g</th><th>F · g</th><th>操作</th></tr></thead><tbody>
  {draft.items.map((item,index)=>{
- const food=itemFood(item),nutrition=values(item),blank=index===draft.items.length-1,raw=item.nutrition??emptyNutrition(),popup=bubbleId+"-"+item.editor.key;
+ const food=itemFood(item),nutrition=values(item),blank=index===draft.items.length-1&&emptyEditorItem(item),raw=item.nutrition??emptyNutrition(),popup=bubbleId+"-"+item.editor.key;
  if(blank&&freeKey!==item.editor.key)return null;
  return <tr key={item.editor.key} data-blank-row={blank} data-nutrition-basis={food?"food_library":"consumed_total"}>
- <td className={styles.entryName}>{food?<strong>{food.name}</strong>:<Cell label={blank?"自由填写食物名称":"食物名称 "+(index+1)} value={item.name} placeholder="食物名称" change={name=>setItem(index,{...item,name})}/>}</td>
+ <td className={styles.entryName}>{food?<strong>{food.name}</strong>:<Cell label={blank?"自由填写食物名称":"食物名称 "+(index+1)} value={item.name} placeholder="食物名称" change={name=>setItem(index,{...item,name})}/>}{!emptyEditorItem(item)&&!item.name.trim()&&<small className={styles.error} role="status">请填写食物名称</small>}</td>
  <td className={styles.entryUnit} data-label="单位">{food?food.servingQuantity&&food.servingUnit?<select aria-label={"单位 "+(index+1)} value={item.unit??food.unit} onChange={event=>{
   const unit=event.target.value,q=item.quantity?unit===food.unit?scaled(item.quantity,food.servingQuantity!,"1"):scaled(item.quantity,"1",food.servingQuantity!):null;
   setItem(index,{...item,unit,quantity:q?editorDecimal(q):null});

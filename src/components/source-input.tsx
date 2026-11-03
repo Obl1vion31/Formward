@@ -7,9 +7,9 @@ import styles from "./source-input.module.css";
 export type SourceRemovalResult = { ok: true; sources: string[] } | { ok: false; error: string };
 
 /** 两列 grid 支持选择与移除；方向键导航时焦点留在来源输入框。 */
-export function SourceInput({ label, value, sources, onChange, removeSource, disabled = false, maxLength = 300 }: {
+export function SourceInput({ label, value, sources, onChange, removeSource, disabled = false, maxLength = 300,hint }: {
   label: string; value: string; sources: string[]; onChange: (value: string) => void;
-  removeSource: (label: string) => Promise<SourceRemovalResult>; disabled?: boolean; maxLength?: number;
+  removeSource: (label: string) => Promise<SourceRemovalResult>; disabled?: boolean; maxLength?: number;hint?:string;
 }) {
   const id = useId(), root = useRef<HTMLDivElement>(null), input = useRef<HTMLInputElement>(null), removing = useRef(false);
   const [open, setOpen] = useState(false), [active, setActive] = useState(-1), [column, setColumn] = useState(0);
@@ -55,7 +55,7 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
       requestAnimationFrame(() => { if (!node.contains(document.activeElement)) closeHistory(); });
     }
   }}>
-    <label htmlFor={id}>{label}</label>
+    <label htmlFor={id}>{label}{hint&&<small>{hint}</small>}</label>
     <input ref={input} id={id} role="combobox" aria-label={label} autoComplete="off" maxLength={maxLength} placeholder="输入或选择来源" value={value} disabled={disabled || busy}
       aria-autocomplete="list" aria-haspopup="grid" aria-expanded={open} aria-controls={`${id}-options`} aria-activedescendant={open && active >= 0 && active < options.length ? `${id}-cell-${active}-${column}` : undefined}
       onFocus={showHistory} onClick={showHistory}

@@ -1,4 +1,5 @@
 "use client";
+import {numericDraftValue} from "@/components/form-draft";
 import { useEffect, useRef, useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
 import { confirmAction } from "@/components/confirmation-state";
@@ -12,7 +13,7 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
   const [saved,setSaved]=useState(initial),[height,setHeight]=useState(initial.heightCm??""),[birth,setBirth]=useState(initial.birthDate??"");
   const [editing,setEditing]=useState(onboarding),[busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[failed,setFailed]=useState(false),[conflict,setConflict]=useState(false);
   const submitting=useRef(false);
-  const dirty=height!==(saved.heightCm??"")||birth!==(saved.birthDate??"");
+  const dirty=numericDraftValue(height)!==numericDraftValue(saved.heightCm)||birth!==(saved.birthDate??"");
   useDraftGuard(dirty,busy);
   const age=profileAge(birth||null,today);
   usePageLoading({active:busy,label:"正在保存资料…"});
@@ -32,7 +33,7 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
     finally{submitting.current=false;setBusy(false);}
   }
   async function cancel() {
-    if(dirty&&!await confirmAction({title:"放弃这次修改？",message:"尚未保存的身高和出生日期将恢复，已保存资料保持。",confirmLabel:"放弃修改"}))return;
+    if(dirty&&!await confirmAction({title:"放弃这次修改？",message:"尚未保存的身高和出生日期将恢复，已保存资料保持。",confirmLabel:"放弃修改",cancelLabel:"继续编辑"}))return;
     setHeight(saved.heightCm??"");setBirth(saved.birthDate??"");setEditing(false);setNotice("");setConflict(false);
   }
   async function clear() {
@@ -45,8 +46,8 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
     finally{submitting.current=false;setBusy(false);}
   }
   async function latest() {
-    const result=await loadProfileAction();
-    if(!result.ok){setNotice(result.error);return;}
+    let result;try{result=await loadProfileAction();}catch{setFailed(true);setNotice("暂时无法读取最新资料，输入已保留，请重试。");return;}
+    if(!result.ok){setFailed(true);setNotice(result.error);return;}
     const p=result.data;
     if(await confirmAction({title:"查看最新资料",message:`身高：${p.heightCm??"未填写"}${p.heightCm?"厘米":""}；生日：${p.birthDate??"未填写"}。是否采用最新资料？当前未保存的输入将被替换。`,confirmLabel:"采用最新资料"})){setSaved(p);setHeight(p.heightCm??"");setBirth(p.birthDate??"");setConflict(false);setNotice("");}
   }
@@ -54,7 +55,7 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
     {!onboarding&&<LoadingLink href="/dashboard" className={styles.back}>← 返回总览</LoadingLink>}
     <h1>{onboarding?"先认识一下你":"个人资料"}</h1>
     {!onboarding&&<p className={styles.intro}>{editing?"修改后，点保存才会生效。":"不是每天要填的资料，变化时再来修改。"}</p>}
-    {editing?<form noValidate onSubmit={event=>{event.preventDefault();void submit();}}>
+    {editing?<form data-entry-form="profile" noValidate onSubmit={event=>{event.preventDefault();void submit();}}>
       <div className={styles.fields}>
         <label><span className={styles.label}>身高 <small>选填</small></span><span className={styles.input}><input aria-label="身高" inputMode="decimal" placeholder="例如172" value={height} onChange={e=>setHeight(e.target.value)} disabled={busy}/><span>cm</span></span></label>
         <label><span className={styles.label}>出生日期 <small>{age!==null&&age>=0?age+"岁":"选填"}</small></span><span className={styles.input}><input aria-label="出生日期" type="date" min="1900-01-01" max={today} value={birth} onChange={e=>setBirth(e.target.value)} disabled={busy}/></span></label>

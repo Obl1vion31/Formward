@@ -1,4 +1,4 @@
-export type ConfirmationOptions={title:string;message:string;confirmLabel?:string;danger?:boolean};
+export type ConfirmationOptions={title:string;message:string;confirmLabel?:string;cancelLabel?:string;danger?:boolean};
 export type ConfirmationRequest=ConfirmationOptions&{resolve:(value:boolean)=>void};
 let receive:((request:ConfirmationRequest)=>void)|null=null;
 let open=false;

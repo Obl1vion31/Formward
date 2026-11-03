@@ -23,7 +23,7 @@
 .entryGroups { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 .entryGroups fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
 .entryGroups legend { padding: 0 0 14px; font-size: 14px; }
-.entryCell { margin-bottom: 22px; }
+.entryCell { margin-bottom: 0; }
 .entryCell > label { display: flex; justify-content: space-between; color: var(--body-muted); font-size: 12px; margin-bottom: 6px; }
 .entryCell small { font-size: 12px; color: var(--body-muted); }
 .entryInputRow { display: flex; align-items: center; gap: 12px; min-height: 44px; border-bottom: 1px solid var(--body-rule); }
@@ -49,7 +49,7 @@
 @media (max-width: 600px) {
   .heading { gap: 10px; }
   .entryGroups { grid-template-columns: 1fr; gap: 24px; }
-  .entryCell { margin-bottom: 14px; }
+  .entryCell { margin-bottom: 0; }
   .entryIntroduction { margin-bottom: 20px; }
   .rowActions { flex-direction: column; gap: 0; align-items: stretch; }
   .rowActions button { min-width: 0; width: 100%; }
@@ -337,3 +337,30 @@
 
 .panelStats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;padding:8px 0 4px;align-items:baseline}.panelStats>div{min-width:0}.panelStats span{display:block;line-height:20px}.panelStats strong{display:block;white-space:nowrap;font-size:22px;line-height:1.4;margin:4px 0 0}.panelStats small{font-size:12px;margin-left:4px;color:var(--muted)}.panelStats p{font-size:12px;margin:2px 0 0;line-height:18px}
 @media(max-width:700px),(hover:none) and (pointer:coarse){.panelStats{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 10px;padding:0 0 16px}.panelStats strong{font-size:20px}.panelStats span{font-size:12px}.panelStats small{margin-left:3px}}
+
+/* 身体录入：以当前填写为中心；详情仍保留原概览。 */
+.entryForm{padding:0;margin:0}.entrySaveBar{position:sticky;top:0;z-index:3;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:12px 0;background:var(--surface);border-bottom:1px solid var(--body-rule)}
+.entrySaveBar>div{min-width:0}.entrySaveBar strong{font-size:14px;font-weight:500}.entrySaveBar p{margin:5px 0 0;font-size:13px}.entrySaveBar .saveEntry{margin:0;white-space:nowrap}
+.entryPeriodBar{display:none}.entryGroups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;padding-top:18px}
+.entryGroups>fieldset{min-width:0;margin:0;padding:0;border:0}.entryGroups legend{display:flex;width:100%;align-items:center;justify-content:space-between;font-size:14px;padding:0;margin:0 0 4px}
+.entryGroups legend button,.entryPeriodBar button{background:transparent;border:0;color:var(--gold);font-size:14px;padding:6px 10px;cursor:pointer}
+.bodyMetricFields{container-type:inline-size;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9em),1fr));gap:12px}.entryCell>label{display:flex;align-items:baseline;gap:6px;font-size:14px;margin-bottom:4px}.entryCell>label small,.entryCell>label>span{font-size:12px;font-weight:400;white-space:nowrap}
+.entryInputRow{display:flex;align-items:center;gap:4px;border-bottom:0}.entryInputRow input{width:100%;flex:1}.entryInputRow>.estimateAction{min-width:44px;margin:0;padding:6px 0;white-space:nowrap}
+.entrySource{position:relative;margin-top:12px}.entrySource>div{margin-top:0}.sourceDefault{position:absolute;right:0;top:0;color:var(--muted);font-size:12px}
+.estimatedCell{display:flex;align-items:center;justify-content:space-between;gap:4px;min-height:44px;padding:0}.estimatedCell strong{font-size:22px;font-weight:400;white-space:nowrap}.estimatedCell small,.estimatedCell>span{font-size:12px;color:var(--muted)}.estimatedCell button{flex:none;min-width:44px;min-height:44px;white-space:nowrap;padding:0;background:none;border:0;color:var(--gold);font-size:13px;cursor:pointer}
+.entryTimezone{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;margin-top:14px;font-size:13px}.entryTimezone button{grid-column:2;background:none;border:0;color:var(--gold)}
+@media(max-width:700px),(hover:none) and (pointer:coarse){
+ .entryGroups{grid-template-columns:minmax(0,1fr);padding-top:12px}.entryGroups>[data-selected=false]{display:none}.entryGroups legend{display:none}
+ .entryPeriodBar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--body-rule)}
+ .entryPeriodBar>div{display:flex;gap:8px}.entryPeriodBar button[aria-pressed=true]{color:var(--warm-white);box-shadow:inset 0 -2px var(--gold)}
+ .bodyMetricFields{gap:10px}.entrySource{margin-top:12px}.entrySaveBar{padding:10px 0}
+}
+
+.entryPeriodBar button{white-space:nowrap}
+
+.entryForm input[type=number]{appearance:textfield}
+.entryForm input[type=number]::-webkit-inner-spin-button,.entryForm input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+
+.drawerHeader[data-editing=true]{min-height:68px;padding-block:12px}
+.periodCondition{font-size:12px;color:var(--body-muted);white-space:nowrap;margin-right:auto}
+@container(max-width:300px){.entryCell[data-estimated-wide=true]{grid-column:1/-1}}

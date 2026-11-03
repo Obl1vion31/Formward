@@ -13,6 +13,6 @@ function ConfirmationDialog({request,finish}:{request:ConfirmationRequest;finish
  const ref=useRef<HTMLDialogElement>(null),cancel=useRef<HTMLButtonElement>(null);
  useEffect(()=>{const node=ref.current!,previous=document.activeElement,unlock=lockPageScroll();node.showModal();cancel.current?.focus();return()=>{node.close();unlock();if(previous instanceof HTMLElement&&previous.isConnected)previous.focus({preventScroll:true});};},[]);
  return <dialog ref={ref} className={styles.dialog} aria-label={request.title} onKeyDown={event=>{if(event.key==="Escape")event.stopPropagation();}} onCancel={event=>{event.preventDefault();event.stopPropagation();finish(false);}} onClick={event=>{if(event.target!==event.currentTarget)return;const rect=event.currentTarget.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)finish(false);}}>
-  <h2>{request.title}</h2><p>{request.message}</p><div className={styles.actions}><button ref={cancel} onClick={()=>finish(false)}>取消</button><button className={request.danger?styles.danger:styles.confirm} onClick={()=>finish(true)}>{request.confirmLabel??"继续"}</button></div>
+  <h2>{request.title}</h2><p>{request.message}</p><div className={styles.actions}><button ref={cancel} onClick={()=>finish(false)}>{request.cancelLabel??"取消"}</button><button className={request.danger?styles.danger:styles.confirm} onClick={()=>finish(true)}>{request.confirmLabel??"继续"}</button></div>
  </dialog>;
 }
