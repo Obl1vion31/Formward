@@ -1,6 +1,22 @@
 # 公网 HTTPS 部署
 
-## 当前正式版本：录入交互与表单密度（2026-11-04）
+## 当前正式版本：图表交互与 Unslop 界面（2026-11-04）
+
+用户认可共同规则与B方案后明确要求发布，本次仅发布，不更新GitHub main。正式域名https://formward-ten.vercel.app已核对READY部署dpl_HKAXv65zohYhmp8UWHhSkk2my21W，源码ad7c6391ac298288adbebcec9d4aa5f7f713ef00，构建unslop-ad7c639-20261104。分支codex/unslop-shared-rules；源码包含已确认的登录舞台稳定、图表选日、营养环图及B版界面。主工作区双区、COS、DNS与未上线0028等保持隔离，没有新增迁移、依赖、公开接口或权限。
+
+电脑鼠标选日采用约220ms慢快慢过渡，点击不固定；离开完整面板返回最近完整日，移至查看入口保留当前日期与晨晚目标；手机与键盘规则分别保留。饮食日期详情显示全天／每餐供能环图，四项营养同排、占比在下，餐次之后左侧添加／右侧已记全。身体日期合入标题、保存紧跟字段并靠右。食材库使用B的工具区与手机密度，消耗统一输入对齐及层级；Unslop与Mobile Design、Impeccable共用长期设计规则。
+
+沿用已验证的458项单元／集成、typecheck、生产构建与结构检查；本次应用源码与已验收B一致，仅协作/文档提交不同。Vercel远程构建与类型检查通过。正式Chromium／WebKit合计80张实际页面、16组录入流程、14组图表交互及8组登录阶段结果通过；另以虚构账号真实保存身体、餐次及295千卡宏量换算。15项公开／保护入口与当前清单10段媒体Range206及首32字节校验通过。客户端异常和页面请求5xx为0。运行日志窗口2026-11-04 12:21:09—12:48:44 UTC，Runtime error/fatal与请求5xx均0，无排除区间、无后续分页。真实iPhone、系统键盘、系统原生全屏与真实系统文字放大未测。
+
+发布前后私有一致性备份unslop-before／after-2026-11-04-ad7c639.json及unslop-production-verification-2026-11-04.json保存在主工作区data/exports，0600且Git／部署忽略。43表结构、29条迁移账本、原健康事实、请求与审计保持，issues为空；正常限流及认证使用元数据按既有规则核对。2个本轮虚构账号与34表所属数据均清理，无残留。私有证据.codex/unslop-release，实际图C:/Users/14878/.codex/visualizations/2026/11/04/formward-unslop-production。
+
+主检查末尾的持久化断言误用了valueKind，导致本地核对失败；实际schema为recordKind。80张页面、16组流程、图表与登录结果在此之前均已完成，原始失败和首轮脚本保留；独立正确字段的两项真实保存复验通过，并非将失败冒充通过。另一次媒体探测包含未引用旧文件，已改以当前manifest检查十段；未改应用或删旧媒体。详细证据见maintenance-verification.md。
+
+回退基线为上一READY部署dpl_9uJUw8RmFGxcq5xup3S3Yab1A27X（源码2e358ae65323453436a95f279eb0aed60105f5c9）；只回退应用，不回滚用户合法数据和审计。main仍为a9988ea8996706d548a0ee6e9999455da3ab4d0c。
+
+
+
+## 此前正式版本：录入交互与表单密度（2026-11-04）
 
 用户验看本地修正后明确要求发布。正式域名https://formward-ten.vercel.app已核对READY部署dpl_4GmECkX4DT8Wg7wLVjDC78gRZRA7，应用源码0af9b635b5f74bc742a29c6e13c6133b31083790，构建a679c6b1-713e-43b5-94a7-69e58d3f1223。独立分支codex/entry-interaction-unification；本轮只发布，未推送、合并或更新GitHub main。主工作区双区、COS、DNS、0028及其他未上线修改保持隔离。
 

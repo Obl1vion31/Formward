@@ -8,7 +8,17 @@
 
 **提醒节点：交付本轮 Unslop 对比、对齐下一轮方向时，主动提醒讨论本事项。**
 
-## 当前：用户同意纳入 Unslop，B 为后续本地基准
+## 当前正式发布：Unslop B 与图表交互（2026-11-04）
+
+用户本轮明确要求发布，没有授权更新main。正式域名https://formward-ten.vercel.app已核对READY部署dpl_HKAXv65zohYhmp8UWHhSkk2my21W，源码ad7c6391ac298288adbebcec9d4aa5f7f713ef00，构建unslop-ad7c639-20261104；B的应用代码与已验收f77938e一致。main仍a9988ea；主工作区双区／COS／DNS／0028等未上线内容保持隔离。
+
+登录上跳、图表平滑选日／离开恢复与查看目标、日期详情营养环图，以及共同规则和B的食材库／编辑、消耗样式均已上线。正式两引擎80张页面、16组操作、14组图表、8组登录结果与两项真实保存复验通过。15项入口及十段当前媒体检查通过。2个虚构账号与34表所属数据清理，43表与29条迁移账本、旧健康记录／请求／审计保持。日志窗口27分35秒Runtime error/fatal及请求5xx均0，无排除／后续分页。
+
+备份unslop-before／after-2026-11-04-ad7c639.json在主工作区私有data/exports。私有发布脚本与完整原始失败记录在本工作区.codex/unslop-release；末尾验证字段valueKind误写已纠正，独立用recordKind完成真实保存复验，产品源码未为此改动。完整结果见docs/deployment.md和docs/maintenance-verification.md；正式截图在C:/Users/14878/.codex/visualizations/2026/11/04/formward-unslop-production。真实iPhone、系统键盘、系统原生全屏及系统文字放大未测。
+
+后续从本分支当前应用基准继续，发布元数据绑定上述源码，不把后续纯文档提交误认为新的应用部署。上一READY dpl_9uJUw8RmFGxcq5xup3S3Yab1A27X保留用于应用回退。首屏小助手仍待对齐，未实现；Unslop已纳入长期工作流。下一轮发布或main更新仍以用户当次授权为准。
+
+## 发布前：用户同意纳入 Unslop，B 为本地基准
 
 A应用48c6cc4，B应用f77938e。两版都包含已认可的去竖线、清楚按钮及最新D12规则；A先落共同规则，B仅额外调整食材库/编辑和消耗样式。饮食详情与身体录入采用同一共同方案，不强行制造差异。应用差异仅两份CSS，20组DOM/控件状态签名相同。
 

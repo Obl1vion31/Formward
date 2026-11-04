@@ -1,6 +1,14 @@
 # 当前实现与验证
 
-## 晨间空腹说明归入按钮：已授权发布（2026-11-04）
+## 当前正式版本：Unslop B 与图表交互
+
+正式域名https://formward-ten.vercel.app，READY部署dpl_HKAXv65zohYhmp8UWHhSkk2my21W，源码ad7c639，构建unslop-ad7c639-20261104。用户本轮只授权发布，main未更新；双区、COS、DNS及未上线迁移未夹带。
+
+登录舞台稳定、图表220ms选日过渡与离开恢复、日期详情供能环图、饮食底部操作、身体标题日期／字段后保存、食材库和消耗B样式均已上线。正式两引擎80张页面、16组操作、14组图表、8组登录结果与两项真实保存复验通过；2个虚构账号清理，43表、29条账本和原记录保持。版本、备份、脚本首轮失败与纠正、日志和未测项统一见[部署](deployment.md)及[验收](maintenance-verification.md)。
+
+
+
+## 发布前归档：晨间空腹说明归入按钮（2026-11-04）
 
 用户已验看实际页面并明确要求发布；本轮仅发布该修正，不更新GitHub main。
 
@@ -11,7 +19,7 @@ Chromium／WebKit各检查深浅主题的320／390／430px、触屏横屏844及�
 检查脚本首轮按71.2原始字符串比较，碰到正常的两位格式71.20后改为数值比较；随后过密重复登录触发本地限流，改为每引擎一次登录并复用会话；WebKit提前换页中断背景请求的失败也保留，改为直接进入目标页并等待网络稳定后完整重验。没有放宽应用限流、过滤页面异常或修改实际录入行为。
 
 
-## 当前正式版本：录入交互与表单密度（2026-11-04）
+## 此前正式版本：录入交互与表单密度（2026-11-04）
 
 用户验看本地修正后明确要求发布。正式域名https://formward-ten.vercel.app已核对READY部署dpl_4GmECkX4DT8Wg7wLVjDC78gRZRA7，应用源码0af9b635b5f74bc742a29c6e13c6133b31083790，构建a679c6b1-713e-43b5-94a7-69e58d3f1223。独立分支codex/entry-interaction-unification；本轮只发布，未推送、合并或更新GitHub main。主工作区双区、COS、DNS、0028及其他未上线修改保持隔离。
 
@@ -39,7 +47,7 @@ Chromium／WebKit各检查深浅主题的320／390／430px、触屏横屏844及�
 私有证据在.codex/interaction-check/density；最后两引擎专项实测桌面时段标题44px、营养四列、客户端异常0。交付图位于C:/Users/14878/.codex/visualizations/2026/11/04/formward-form-density，含手机三屏对照及两引擎电脑实际图，仍待用户视觉验收。预览复用原隔离虚构数据库，未清空验收输入；未发布公网、未推送或更新main，继续等待用户验收。前次截图与录像保留作对照。
 
 
-## 录入交互统一：本地待用户验收
+## 发布前归档：录入交互统一本地验收
 
 分支codex/entry-interaction-unification，独立工作区Formward-worktrees/entry-interaction-unification，从正式源码及发布记录f85e489建立。没有连接生产数据库、发布公网或更新main；原主工作区双区／COS／DNS等改动保持。无schema、migration、运行依赖、公开HTTP／MCP或权限变化。以下为本地实现，不能当作正式站已上线。
 
