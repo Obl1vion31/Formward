@@ -1,102 +1,55 @@
 import assert from "node:assert/strict";
-import { join } from "node:path";
-
-/** 由隔离浏览器入口提供虚构账号的页面；本检查只选择和查看，不保存健康记录。 */
-export async function checkChartInteractions({ baseURL, page, artifacts }) {
-  const cases = [
-    { name: "overview", path: "/dashboard", label: "总览图表日期", points: "[data-overview-date]", dateAttribute: "data-overview-date", action: "查看记录 →" },
-    { name: "meals", path: "/dashboard/meals", label: "饮食图表日期", points: "[data-bar-date]", dateAttribute: "data-bar-date", action: "查看记录 →" },
-    { name: "energy", path: "/dashboard/energy", label: "消耗图表日期", points: "[data-energy-date]", dateAttribute: "data-energy-date", action: /^(编辑|录入)所选日/ },
-    { name: "body", path: "/dashboard/measurements", label: "身体图表日期", points: "[data-point-id]", dateAttribute: "data-date", action: "查看体重所选日记录" },
-  ];
-  const errors = [], writes = [], outcomes = [];
-  const onError = error => errors.push(error.message);
-  const onRequest = request => { if (request.method() === "POST") writes.push(new URL(request.url()).pathname); };
-  page.on("pageerror", onError); page.on("request", onRequest);
-  try {
-    for (const width of [1440, 1100, 390, 320]) {
-      await page.setViewportSize({ width, height: width <= 390 ? 740 : 1000 });
-      for (const entry of cases) {
-        await page.goto(new URL(entry.path, baseURL).href);
-        const input = page.locator('input[type="date"]').and(page.getByLabel(entry.label, { exact: true }));
-        if (entry.name !== "overview") await input.waitFor();
-        else await page.locator("[data-overview-date]").first().waitFor();
-        await page.getByRole("button", { name: "30D", exact: true }).click();
-        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-        if (entry.name === "overview") {
-          assert.equal(await input.count(), 0);
-          const points = page.locator(entry.points), first = points.first(), last = points.last();
-          await first.focus(); await page.keyboard.press("Enter");
-          assert.equal(await page.getByLabel("日期对照", {exact:true}).getAttribute("data-selected-date"), await first.getAttribute(entry.dateAttribute));
-          await page.keyboard.press("End");
-          assert.equal(await last.evaluate(node => node === document.activeElement), true);
-          await page.keyboard.press("Enter"); await page.keyboard.press("Escape");
-          await page.getByRole("button", {name:entry.action, exact:true}).click();
-          await page.locator("dialog[open]").last().waitFor();
-          await page.keyboard.press("Escape");
-          await page.locator("dialog[open]").waitFor({state:"hidden"});
-          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-          outcomes.push({page:entry.name, width, passed:true});
-          console.log("图表通过",entry.name,width);
-          continue;
-        }
-        const min = await input.getAttribute("min"), max = await input.getAttribute("max");
-        assert.ok(min && max && min <= max);
-        const point = page.locator(entry.points).first();
-        if (await point.count()) {
-          const date = await point.getAttribute(entry.dateAttribute);
-          await point.dispatchEvent("click");
-          assert.equal(await input.inputValue(), date, `${entry.name}: 点击图表只选择日期`);
-          assert.equal(await page.locator("dialog[open]").count(), 0);
-          await point.press("Enter");
-          assert.equal(await page.locator("dialog[open]").count(), 0, `${entry.name}: Enter不隐式打开编辑器`);
-        }
-        await input.fill(min);
-        assert.equal(await input.inputValue(), min);
-        assert.equal(await page.getByRole("button", { name: entry.label + "前一天", exact: true }).isDisabled(), true);
-        if (min !== max) {
-          await page.getByRole("button", { name: entry.label + "后一天", exact: true }).click();
-          const next = new Date(Date.parse(min + "T12:00:00Z") + 86400000).toISOString().slice(0, 10);
-          assert.equal(await input.inputValue(), next);
-          await page.getByRole("button", { name: entry.label + "前一天", exact: true }).click();
-          assert.equal(await input.inputValue(), min);
-        }
-        await input.fill(max);
-        assert.equal(await page.getByRole("button", { name: entry.label + "后一天", exact: true }).isDisabled(), true);
-        const before = await input.inputValue(), beyond = new Date(Date.parse(max + "T12:00:00Z") + 86400000).toISOString().slice(0, 10);
-        await input.fill(beyond); await input.blur();
-        assert.equal(await input.inputValue(), before, `${entry.name}: 区间外日期不改变选择`);
-        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-        assert.ok(overflow <= 1, `${entry.name}/${width}: 横向溢出${overflow}px`);
-        const small = await page.locator("svg text").evaluateAll(elements => elements.filter(element => {
-          if (!element.textContent?.trim() || !element.getClientRects().length) return false;
-          const matrix = element.getScreenCTM();
-          return matrix && parseFloat(getComputedStyle(element).fontSize) * Math.min(Math.hypot(matrix.a, matrix.b), Math.hypot(matrix.c, matrix.d)) < 11.9;
-        }).map(element => element.textContent));
-        assert.deepEqual(small, [], `${entry.name}/${width}: 图表文字屏上不足12px`);
-        if (entry.name === "meals") {
-          const ticks = await page.locator("[data-calorie-tick]").evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-calorie-tick"))));
-          assert.ok(ticks.length >= 2 && ticks[0] === 0);
-          const step = ticks[1] - ticks[0];
-          assert.ok(ticks.slice(1).every((tick, index) => Math.abs(tick - ticks[index] - step) < .0001));
-          assert.ok(await page.locator("[data-date-tick]").count() >= 3);
-        }
-        await page.getByRole("button", { name: entry.action, exact: typeof entry.action === "string" }).first().click();
-        await page.locator("dialog[open]").last().waitFor();
-        const accept=dialog=>dialog.accept();page.once("dialog",accept);
-        try { await page.locator("dialog[open]").last().getByRole("button", { name: /^关闭/ }).click();
-        await page.locator("dialog[open]").waitFor({ state: "hidden" }); } finally {page.off("dialog",accept);}
-        assert.equal(await input.inputValue(), before);
-        await page.evaluate(() => window.scrollTo(0, 0));
-        await page.waitForTimeout(500);
-        if (artifacts) await page.screenshot({ path: join(artifacts, `chart-${entry.name}-${width}.png`), fullPage: true });
-        console.log("图表通过",entry.name,width);
-        outcomes.push({ page: entry.name, width, passed: true });
-      }
-    }
-    assert.deepEqual(errors, []); assert.deepEqual(writes, [], "选择、查看与精确选日不发起写入");
-    return { passed: true, outcomes, clientErrors: errors, writes };
-  } finally {
-    page.off("pageerror", onError); page.off("request", onRequest);
+import {mkdir,writeFile} from "node:fs/promises";
+import {addCalendarDays} from "../src/features/measurements/calendar.ts";
+export async function checkChartInteractions({page,context=page.context(),baseURL,today=new Date(Date.now()+8*3600_000).toISOString().slice(0,10),engine="chromium",artifacts}){
+ await mkdir(artifacts,{recursive:true});const checks=[],errors=[];page.on("pageerror",e=>errors.push(e.message));
+ async function visit(path){await page.goto(baseURL+path);await page.waitForLoadState("networkidle");await page.waitForTimeout(260);}
+ const root=()=>page.locator("[data-chart-selection]");
+ const close=async()=>{await page.keyboard.press("Escape");await page.locator('dialog[open]:not(.page-loading-dialog)').waitFor({state:"hidden"});};
+ for(const [route,selector] of [["/dashboard","[data-overview-date]"],["/dashboard/meals","[data-bar-date]"],["/dashboard/energy","[data-energy-date]"],["/dashboard/measurements","[data-point-id]"]]){
+  await page.setViewportSize({width:1440,height:900});await visit(route);
+  const initial=await root().getAttribute("data-selected-date"),a=addCalendarDays(today,-3),b=addCalendarDays(today,-4);
+  const point=date=>page.locator(selector+'[data-chart-date="'+date+'"]').first();
+  async function at(date,click=false){
+   const target=point(date),hit=target.locator(selector==="[data-point-id]"?":scope > circle":":scope > rect").first();await hit.scrollIntoViewIfNeeded();
+   const box=await hit.boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);if(click)await page.mouse.click(box.x+box.width/2,box.y+box.height/2);
+   await page.waitForTimeout(40);
   }
+  await at(a);assert.equal(await root().getAttribute("data-selected-date"),a);
+  await at(a,true);await at(b);assert.equal(await root().getAttribute("data-selected-date"),b,"鼠标点击不能固定");
+  await page.mouse.move(2,75);assert.equal(await root().getAttribute("data-selected-date"),initial,"完整面板外恢复默认");
+  await at(a);const view=page.getByRole("button",{name:"查看记录 →",exact:true});await view.hover();
+  assert.equal(await root().getAttribute("data-selected-date"),a,"移至查看入口仍保留目标日期");
+  await view.click();await page.locator('dialog[open]:not(.page-loading-dialog)').waitFor();assert.ok((await page.locator('dialog[open]:not(.page-loading-dialog)').last().innerText()).replaceAll(".","-").includes(a));
+  await close();await page.mouse.move(2,75);assert.equal(await root().getAttribute("data-selected-date"),initial);
+  await page.keyboard.press("Tab");await point(a).focus();await page.keyboard.press("Enter");await page.mouse.move(2,75);
+  assert.equal(await root().getAttribute("data-selected-date"),a,"鼠标离开不打断键盘选日");
+  await view.focus();await page.keyboard.press("Enter");await page.locator('dialog[open]:not(.page-loading-dialog)').waitFor();
+  assert.ok((await page.locator('dialog[open]:not(.page-loading-dialog)').last().innerText()).replaceAll(".","-").includes(a));await close();
+  checks.push(route+" desktop hover/click/region/view/keyboard");
+ }
+ await visit("/dashboard/measurements");const a=addCalendarDays(today,-3),evening=page.locator('[data-chart-metric="weightKg"] [data-point-id][data-chart-date="'+a+'"][data-period="evening"]');
+ const eb=await evening.locator("circle").first().boundingBox();await page.mouse.move(eb.x+eb.width/2,eb.y+eb.height/2);
+ await page.getByRole("button",{name:"查看记录 →",exact:true}).click();await page.waitForTimeout(350);
+ const expanded=await page.locator("dialog[open] details[open]").allTextContents();assert.ok(expanded.join(" ").includes("晚间"),"晚间点的查看应展开晚间");await close();checks.push("body evening target captured");
+ // Observe intermediate transforms; the curve moves selection only.
+ await visit("/dashboard");await page.getByRole("button",{name:"7D",exact:true}).click();await page.mouse.move(2,75);
+ const marker=page.locator("[data-chart-selection-marker]").first();
+ const value=()=>marker.evaluate(n=>getComputedStyle(n).transform);
+ const p=page.locator('[data-overview-date="'+addCalendarDays(today,-4)+'"] > rect').first(),pb=await p.boundingBox();
+ const before=await value();await page.mouse.move(pb.x+pb.width/2,pb.y+pb.height/2);
+ await page.waitForTimeout(70);const middle=await value();await page.waitForTimeout(220);const end=await value();
+ assert.notEqual(before,end);assert.notEqual(middle,before);assert.notEqual(middle,end);
+ await page.emulateMedia({reducedMotion:"reduce"});await page.mouse.move(2,75);await page.waitForTimeout(30);
+ assert.equal(await marker.evaluate(n=>n.getAnimations().length),0);await page.emulateMedia({reducedMotion:"no-preference"});checks.push("220ms intermediate motion and reduced motion");
+ const touch=await context.browser().newContext({storageState:await context.storageState(),locale:"zh-CN",timezoneId:"Asia/Shanghai",viewport:{width:390,height:720},isMobile:true,hasTouch:true});
+ const t=await touch.newPage();try{
+  await t.goto(baseURL+"/dashboard");await t.waitForLoadState("networkidle");
+  const hit=t.locator('[data-overview-date="'+addCalendarDays(today,-3)+'"] > rect').first();await hit.tap();await t.waitForTimeout(40);
+  assert.equal(await t.locator("[data-chart-selection]").getAttribute("data-selected-date"),addCalendarDays(today,-3));
+  assert.equal(await t.locator("[data-chart-selection-marker]").first().evaluate(n=>n.getAnimations().length),0,"触屏跟手，不排队动画");
+  await t.getByRole("button",{name:"查看记录 →",exact:true}).tap();await t.waitForTimeout(350);
+  assert.ok((await t.locator("dialog[open]").last().innerText()).includes(addCalendarDays(today,-3)));checks.push("touch selection persists and view target matches");
+ }finally{await touch.close();}
+ assert.deepEqual(errors,[]);await writeFile(artifacts+"/"+engine+"-interactions.json",JSON.stringify({checks,errors,before,middle,end},null,2));return checks;
 }

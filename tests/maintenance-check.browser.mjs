@@ -49,7 +49,7 @@ export async function checkMaintenance({baseURL,context,page,token,today,db,user
  
  // Click the real date hit rectangle at its energy row rather than a label's broad SVG bounds.
  const clickDate=async d=>{const box=await page.locator('[data-overview-date="'+d+'"]>rect').first().boundingBox();await page.mouse.click(box.x+box.width/2,box.y+30);};
- await clickDate(a);await mouseAt(b);assert.equal(await readout.getAttribute("data-selected-date"),a);assert.equal(await page.locator("[data-pinned-date]").getAttribute("data-pinned-date"),a);
+ await clickDate(a);await mouseAt(b);assert.equal(await readout.getAttribute("data-selected-date"),b);assert.equal(await page.locator("[data-pinned-date]").count(),0);
  await clickDate(b);await page.mouse.move(10,10);assert.equal(await readout.getAttribute("data-selected-date"),b);
  await page.locator('[data-overview-date="'+b+'"]').focus();await page.keyboard.press("Escape");assert.equal(await page.locator("[data-pinned-date]").count(),0);
  await clickDate(date);await page.getByRole("button",{name:"查看记录 →",exact:true}).click();await dialog().waitFor();

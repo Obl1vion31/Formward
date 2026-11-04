@@ -947,3 +947,9 @@ input:focus-visible {
 /* 身高的单位与输入共用外框，避免双边框和双焦点环。 */
 .dashboard-page form[data-entry-form="profile"] input {border:0;background:transparent;border-radius:0;color-scheme:inherit}
 .dashboard-page form[data-entry-form="profile"] input:focus-visible {outline:0}
+
+/* Loading dialogs lock body overflow; a viewport stage must not acquire that scroll ancestor. */
+@media (min-width: 701px) {
+  html:has(.home-page:not([data-mobile="true"])) { scrollbar-gutter: stable; }
+  .home-page:not([data-mobile="true"]) .home-stage { position: fixed; inset: 0; }
+}

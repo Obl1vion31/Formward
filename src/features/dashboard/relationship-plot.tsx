@@ -4,13 +4,15 @@ import {signedRecordNumber} from "@/components/number-format";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { useMobileMode } from "@/components/use-mobile-mode";
+import { ChartSelectionMarker } from "@/components/chart-selection-marker";
+import type {useChartDateSelection} from "@/components/use-chart-date-selection";
 import { useChartMotion } from "@/components/use-chart-motion";
 import { energyBands, energyLineScale, fadeEdgeFraction, linePath } from "./chart-geometry";
 import type { OverviewDay } from "./model";
 import styles from "./overview.module.css";
 
 const palette = { intake: "var(--data-blue)", expenditure: "var(--data-red)", surplus: "var(--data-surplus)", deficit: "var(--data-deficit)", weight: "var(--data-weight)" };
-export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unpin }: { days: OverviewDay[]; selected: string; inspect:(date:string)=>void;preview:(date:string)=>void;leave:()=>void;pin:(date:string)=>void;unpin:()=>void }) {
+export function RelationshipPlot({days,selected,selection}:{days:OverviewDay[];selected:string;selection:ReturnType<typeof useChartDateSelection>}) {
   const container = useRef<HTMLDivElement>(null), id = useId().replaceAll(":", "");
   const [viewportRoom,setViewportRoom]=useState<number|null>(null);
   const mobile = useMobileMode(), [shortViewport, setShortViewport] = useState(false);
@@ -47,17 +49,17 @@ export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unp
   const expenditure = days.map((day, i) => day.energy.totalKcal != null ? { x: x(i), y: energyY(Number(day.energy.totalKcal)) } : null);
   const paired = days.map((day, i) => intake[i] && expenditure[i] && day.energyBalance !== null ? { intake: intake[i]!, expenditure: expenditure[i]!, balance: day.energyBalance } : null);
   const selectedIndex = Math.max(0, days.findIndex(day => day.date === selected)), stride = Math.max(1, Math.ceil((days.length - 1) / (w < 440 ? 3 : 6)));
-  const pick = (svg: SVGSVGElement, clientX: number, action=preview) => { const bounds = svg.getBoundingClientRect(); action(days[Math.max(0, Math.min(days.length - 1, Math.floor(((clientX - bounds.left) * w / bounds.width - left) / slot)))].date); };
+  const pick = (svg: SVGSVGElement, clientX: number, action=selection.preview) => { const bounds = svg.getBoundingClientRect(); action(days[Math.max(0, Math.min(days.length - 1, Math.floor(((clientX - bounds.left) * w / bounds.width - left) / slot)))].date); };
   return <div ref={container} role="group" aria-label="摄入、消耗、盈余与次晨体重变化" className={styles.relationship}>
 
     <div className={styles.plot}><svg viewBox={`0 0 ${w} ${height}`} style={{ visibility: width ? undefined : "hidden" }} role="group" aria-label="双层日期关联图" aria-describedby={`${id}-help`}
-      onPointerDown={event => { if (event.button !== 0) return; gesture.current = { x: event.clientX, y: event.clientY, horizontal: false }; if(event.pointerType!=="mouse")pick(event.currentTarget,event.clientX,inspect); }}
+      onPointerDown={event => { if (event.button !== 0) return; gesture.current = { x: event.clientX, y: event.clientY, horizontal: false }; if(event.pointerType!=="mouse")pick(event.currentTarget,event.clientX,selection.choose); }}
       onPointerMove={event => {
         if (event.pointerType === "mouse" && event.buttons === 0) gesture.current = null;
         const start = gesture.current;
         if (start && !start.horizontal && Math.abs(event.clientX - start.x) > 8 && Math.abs(event.clientX - start.x) > Math.abs(event.clientY - start.y)) { start.horizontal = true; event.currentTarget.setPointerCapture(event.pointerId); }
-        if(event.pointerType==="mouse")pick(event.currentTarget,event.clientX);else if(start?.horizontal)pick(event.currentTarget,event.clientX,inspect);
-      }} onPointerUp={event => { gesture.current = null; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }} onPointerCancel={() => { gesture.current = null; }} onPointerLeave={leave} onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();event.stopPropagation();unpin();}}}>
+        if(event.pointerType==="mouse")pick(event.currentTarget,event.clientX);else if(start?.horizontal)pick(event.currentTarget,event.clientX,selection.choose);
+      }} onPointerUp={event => { gesture.current = null; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }} onPointerCancel={() => { gesture.current = null; }} onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();event.stopPropagation();selection.release();}}}>
       <desc id={`${id}-help`}>上下两图使用同一日期。点击、左右方向键及Enter选择日期，查看记录按钮打开详情。摄入用圆点，消耗用方点，空心摄入点表示当天未记全或尚未确认全天。热量填色只用于已确认完整日，体重变化对应当日到次日晨间。</desc>
       <g data-overview-panel="energy">
         {energyTicks.map(tick => <g key={tick} data-axis-tick={tick}><line x1={left} x2={w - right} y1={energyY(tick)} y2={energyY(tick)} className={styles.grid} /><text x={left - 8} y={energyY(tick) + 4} textAnchor="end" className={styles.axis}>{tick}</text></g>)}
@@ -81,20 +83,19 @@ export function RelationshipPlot({ days, selected, inspect,preview,leave,pin,unp
         <g data-chart-line className={styles.plotData}>{days.map((day, i) => i > 0 && day.weightChangeKg !== null && days[i - 1].weightChangeKg !== null && <line key={day.date} x1={x(i - 1)} x2={x(i)} y1={weightY(days[i - 1].weightChangeKg!)} y2={weightY(day.weightChangeKg)} stroke={palette.weight} strokeWidth="1.6" strokeLinecap="round" strokeDasharray={day.differenceEstimated || days[i - 1].differenceEstimated ? "4 4" : undefined} />)}</g>
         {!days.some(day => day.weightChangeKg !== null) && <text x={(left + w - right) / 2} y={weightTop + 24} textAnchor="middle" className={styles.emptyPlot}>暂无相邻两日晨重</text>}
       </g>
-      <rect x={left + selectedIndex * slot} y={top} width={slot} height={weightBottom - top} fill="color-mix(in srgb,var(--warm-white) 2.5%,transparent)" className={styles.plotData} />
-      <line data-crosshair-date={selected} x1={x(selectedIndex)} x2={x(selectedIndex)} y1={top} y2={weightBottom} className={styles.crosshair} />
-      {days.map((day, i) => <g key={day.date} style={{ outline: "none" }} role="button" tabIndex={day.date === selected ? 0 : -1} data-overview-date={day.date} data-balance={day.energyBalance ?? undefined} data-meal-day-status={day.mealDayStatus} aria-label={`${day.date} · 摄入 ${day.nutrition?.values.caloriesKcal ?? "未记录"} kcal${day.nutrition && day.mealDayStatus !== "complete" ? day.mealDayStatus === "incomplete" ? "，当天未记全" : "，全天待确认" : ""} · 消耗 ${day.energy.totalKcal ?? "未记录"} kcal · 盈余 ${day.energyBalance ?? "未知"} kcal · 次晨变化 ${day.weightChangeKg ?? "未知"} kg`} onFocus={() => inspect(day.date)} onClick={() => pin(day.date)} onKeyDown={event => {
-        if (["Enter", " "].includes(event.key)) { event.preventDefault(); pin(day.date); }
-        const next = event.key === "ArrowLeft" ? i - 1 : event.key === "ArrowRight" ? i + 1 : event.key === "Home" ? 0 : event.key === "End" ? days.length - 1 : null;
-        if (next !== null) { event.preventDefault(); event.currentTarget.parentElement?.querySelectorAll<SVGGElement>("[data-overview-date]")[Math.max(0, Math.min(days.length - 1, next))]?.focus(); }
-      }}>
+      <ChartSelectionMarker x={x(selectedIndex)} resetKey={`${w}:${height}:${days.map(d=>d.date).join("|")}`} direct={selection.direct}>
+        <rect x={-slot/2} y={top} width={slot} height={weightBottom-top} fill="color-mix(in srgb,var(--warm-white) 2.5%,transparent)" />
+        <line data-crosshair-date={selected} x1="0" x2="0" y1={top} y2={weightBottom} className={styles.crosshair}/>
+      </ChartSelectionMarker>
+      {[{point:intake[selectedIndex],color:palette.intake},{point:expenditure[selectedIndex],color:palette.expenditure},{point:days[selectedIndex]?.weightChangeKg!=null?{x:x(selectedIndex),y:weightY(days[selectedIndex].weightChangeKg!)}:null,color:palette.weight}].map(({point,color},i)=><ChartSelectionMarker key={i} x={point?.x??null} y={point?.y??0} resetKey={`${w}:${height}:${energyScale.min}:${energyScale.max}:${weightScale.min}:${weightScale.max}:${days.map(d=>d.date).join("|")}`} direct={selection.direct}><circle r="5.6" fill="none" stroke={color} strokeWidth="1.2"/></ChartSelectionMarker>)}
+      {days.map((day, i) => <g key={day.date} style={{ outline: "none" }} role="button" tabIndex={day.date === selected ? 0 : -1} data-overview-date={day.date} data-balance={day.energyBalance ?? undefined} data-meal-day-status={day.mealDayStatus} aria-label={`${day.date} · 摄入 ${day.nutrition?.values.caloriesKcal ?? "未记录"} kcal${day.nutrition && day.mealDayStatus !== "complete" ? day.mealDayStatus === "incomplete" ? "，当天未记全" : "，全天待确认" : ""} · 消耗 ${day.energy.totalKcal ?? "未记录"} kcal · 盈余 ${day.energyBalance ?? "未知"} kcal · 次晨变化 ${day.weightChangeKg ?? "未知"} kg`} data-chart-date={day.date} onFocus={event=>selection.focus(event,day.date)} onClick={()=>selection.activate(day.date)} onKeyDown={event=>selection.keyDown(event,day.date)}>
         <rect x={left + i * slot} y={top} width={slot} height={weightBottom - top} className={styles.plotHit} />
         <g className={styles.plotData}>{[intake[i], expenditure[i]].map((point, n) => {
           if (!point) return null;
-          const radius = i === selectedIndex ? 3.6 : days.length > 90 ? 1.4 : ![intake, expenditure][n][i - 1] || ![intake, expenditure][n][i + 1] ? 2.5 : 1.8;
+          const radius = days.length > 90 ? 1.4 : ![intake, expenditure][n][i - 1] || ![intake, expenditure][n][i + 1] ? 2.5 : 1.8;
           return n ? <rect key={n} data-series="expenditure" data-overview-value={day.energy.totalKcal ?? undefined} x={point.x - radius} y={point.y - radius} width={radius * 2} height={radius * 2} fill={palette.expenditure} /> : <circle key={n} data-series="intake" data-overview-value={day.nutrition?.values.caloriesKcal} cx={point.x} cy={point.y} r={radius} stroke={palette.intake} strokeWidth="1.2" fill={day.mealDayStatus !== "complete" ? "var(--surface)" : palette.intake} />;
         })}
-          {day.weightChangeKg !== null && <circle data-series="weight-change" data-overview-value={day.weightChangeKg} data-estimated={day.differenceEstimated} cx={x(i)} cy={weightY(day.weightChangeKg)} r={i === selectedIndex ? 3.4 : days.length > 90 ? 1.4 : 2.5} stroke={palette.weight} strokeWidth="1.2" fill={day.differenceEstimated ? "var(--surface)" : palette.weight} />}
+          {day.weightChangeKg !== null && <circle data-series="weight-change" data-overview-value={day.weightChangeKg} data-estimated={day.differenceEstimated} cx={x(i)} cy={weightY(day.weightChangeKg)} r={days.length > 90 ? 1.4 : 2.5} stroke={palette.weight} strokeWidth="1.2" fill={day.differenceEstimated ? "var(--surface)" : palette.weight} />}
         </g>
         {(i % stride === 0 && days.length - 1 - i >= stride / 2 || i === days.length - 1) && <text x={x(i)} y={height - 5} textAnchor={days.length === 1 ? "middle" : i === 0 ? "start" : i === days.length - 1 ? "end" : "middle"} data-overview-date-label="" className={styles.axis}>{w < 440 && days.length <= 7 ? day.date.slice(8) : days.length > 366 ? day.date.slice(2, 7).replace("-", ".") : day.date.slice(5).replace("-", ".")}</text>}
       </g>)}

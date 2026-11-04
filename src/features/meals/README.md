@@ -51,3 +51,5 @@ images.ts 管原图下载与存储，image-upload.ts 管限账号／路径／摘
 
 
 独立食材库由presets.tsx的FoodTable显示，与MealEditor内的食材选择是两个入口，必须分别验收。桌面32%名称列宽仅在容器大于700px时生效；窄屏切换成网格列表后，名称铺满分配的四列区域，不继承桌面百分比宽度。检查实际名称宽度与网格分配宽度相等，避免没有溢出却每词换行。
+
+nutrition-composition.tsx在总览及饮食日期详情共用全天／每餐供能环图，macroComposition复用4P／4C／9F原精度占比；未知、部分、0与未记全保持区分，标签kcal不作分母，不新增存储。

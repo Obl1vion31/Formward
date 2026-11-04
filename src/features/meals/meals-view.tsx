@@ -23,6 +23,7 @@ import { ImageGallery, PhotoFields } from "./photos";
 import { MealEvidence, NutritionTable } from "./review-details";
 import { MealDayControl } from "./meal-day-control";
 import type { MealDayInput } from "./model";
+import {DayNutritionSummary,NutritionComposition,CompositionLegend} from "./nutrition-composition";
 import { NutritionChart } from "./nutrition-chart";
 import { useDraftGuard } from "@/components/draft-guard";
 import { Inspector as EditorDialog } from "@/components/inspector";
@@ -57,16 +58,16 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   const busyRef=useRef(false),request=useRef<{data:string;id:string}|null>(null);
   usePageLoading({active:busy,label:"正在保存饮食记录…"});
   useEffect(()=>{const latest=()=>{setEditing(null);setHistoryOpen(false);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
-  const groups=dailyTotals(state.meals), preferred=initialDate??groups.find(day=>day.date<=today)?.date??today,end=groups[0]?.date>today?groups[0].date:today;
+  const groups=dailyTotals(state.meals), preferred=initialDate??groups.find(day=>day.date<=today&&day.day.status==="complete"&&day.totals.values.caloriesKcal!==null)?.date??groups.find(day=>day.date<=today)?.date??today,end=groups[0]?.date>today?groups[0].date:today;
   const first=groups.at(-1)?.date??today,from=range==="all"?first:range==="custom"?customFrom:dateAt(dateNumber(end)-Number(range)+1),to=range==="custom"?customTo:end;
   const validRange=/^\d{4}-\d{2}-\d{2}$/.test(from)&&/^\d{4}-\d{2}-\d{2}$/.test(to)&&dateNumber(from)<=dateNumber(to)&&dateNumber(to)-dateNumber(from)<=3660;
   const dates=validRange?Array.from({length:dateNumber(to)-dateNumber(from)+1},(_,i)=>dateAt(dateNumber(from)+i)):[];
-  const chart=useChartDateSelection(dates,preferred,dates.findLast(date=>groups.some(g=>g.date===date))??today,customOpen),summaryDate=chart.selected,chosen=groups.find(g=>g.date===summaryDate);
+  const chart=useChartDateSelection(dates,preferred,dates.findLast(date=>groups.some(g=>g.date===date&&g.day.status==="complete"&&g.totals.values.caloriesKcal!==null))??dates.findLast(date=>groups.some(g=>g.date===date))??today,customOpen),summaryDate=chart.selected,chosen=groups.find(g=>g.date===summaryDate);
   function viewDay(date:string){setSelectedDate(date);setHistoryOpen(true);}
   const dailySummary=(date:string)=>{const group=groups.find(g=>g.date===date);return group?<>{group.meals.length} 餐 · {formatNutrition(group.totals.values.caloriesKcal,"caloriesKcal")} kcal{group.totals.incomplete.caloriesKcal?" · 部分":""}</>:"尚无记录";};
   const recentDates=pendingRecordDates(today,date=>groups.find(g=>g.date===date)?.day.status!=="complete");
   const renderDay=(date:string)=>{const group=groups.find(g=>g.date===date);return <DailyRecordRow key={date} date={date} today={today} value={dailySummary(date)} status={group&&saveDay?<MealDayControl day={group.day} busy={busy} save={performDay}/>:null}><button onClick={()=>addMeal(date)}>{group?"添加一餐":date<today?"补录":"录入"}</button><button onClick={()=>viewDay(date)}>查看</button></DailyRecordRow>;};
-  const dayDetails=(date:string)=>{const group=groups.find(g=>g.date===date);return <><h3>{date.replaceAll("-",".")}</h3>{group?.day.source==="record_change"&&group.day.status!=="complete"&&<p className={styles.hint}>这一天的饮食有修改，请重新确认是否已记全，确认后显示热量收支。</p>}<MetricValues compact totals={group?.totals??{values:emptyNutrition(),incomplete:{caloriesKcal:false,proteinG:false,carbsG:false,fatG:false}}}/><div className={styles.actions}>{group&&saveDay&&<MealDayControl day={group.day} busy={busy} save={performDay}/>}<button onClick={()=>addMeal(date)}>{group?"添加一餐":date<today?"补录":"录入"}</button></div><MealList meals={group?.meals??[]} busy={busy} edit={editMeal} remove={m=>void confirmPurge({id:m.id,version:m.version,recordType:"meal",name:m.date+" · "+m.mealType})}/></>;};
+  const dayDetails=(date:string)=>{const group=groups.find(g=>g.date===date);return <><h3>{date.replaceAll("-",".")}</h3>{group?.day.source==="record_change"&&group.day.status!=="complete"&&<p className={styles.hint}>这一天的饮食有修改，请重新确认是否已记全，确认后显示热量收支。</p>}<DayNutritionSummary totals={group?.totals} partial={group?.day.status!=="complete"}/><div className={styles.actions}>{group&&saveDay&&<MealDayControl day={group.day} busy={busy} save={performDay}/>}<button onClick={()=>addMeal(date)}>{group?"添加一餐":date<today?"补录":"录入"}</button></div><MealList meals={group?.meals??[]} busy={busy} edit={editMeal} remove={m=>void confirmPurge({id:m.id,version:m.version,recordType:"meal",name:m.date+" · "+m.mealType})}/></>;};
   async function perform(action:MealAction, allowMissingImages = false){
     if(busyRef.current)return false;busyRef.current=true;setBusy(true);setError("");setNotice("");
     try{if(action.id&&(action.kind==="save_meal"||action.kind==="save_food")){const key=(action.kind==="save_meal"?"meal:":"food:")+action.id;const latest=await verifyRecordVersions([{key,version:String(action.version)}]);action={...action,version:Number(latest.get(key)!.version)};}}catch(e){setError(e instanceof Error?e.message:"请重试");busyRef.current=false;setBusy(false);return false;}
@@ -95,11 +96,11 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   const visibleFoods=state.foods.filter(f=>!f.deletedAt&&(foodCategory==="all"||(f.category??"ingredient")===foodCategory)&&`${f.name} ${f.brand??""} ${f.preparation??""}`.toLowerCase().includes(foodQuery.toLowerCase()));
   return <RecordWorkspace title="饮食" className={styles.workspace} data-active-tab={tab}>
     {tab==="meals"?<>
-      <div data-chart-selection={chart.regionId} data-selected-date={chart.selected} data-pinned-date={chart.pinned??undefined}>
+      <div data-chart-selection={chart.regionId} data-selected-date={chart.selected} data-selection-origin={chart.origin} {...chart.regionProps}>
       <RecordTrendPanel
        range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft({from:customFrom||from,to:customTo});setCustomOpen(true);}else{setRange(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="饮食" value={customDraft} change={setCustomDraft} apply={()=>{setCustomFrom(customDraft.from);setCustomTo(customDraft.to);setRange("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
-       date={summaryDate} view={()=>{chart.release();viewDay(summaryDate);}} readoutLabel="选中日营养"
+       date={summaryDate} view={()=>{const target=summaryDate;viewDay(target);chart.release();}} readoutLabel="选中日营养"
        metrics={metrics.map(metric=>({label:metricLabels[metric],value:formatNutrition(chosen?.totals.values[metric]??null,metric),unit:unitFor(metric),inlineUnit:metric!=="caloriesKcal",tone:metric==="caloriesKcal"?"blue":undefined,note:chosen?.totals.incomplete[metric]?"已知部分":undefined,reserveNote:groups.some(group=>group.date>=from&&group.date<=to&&group.totals.incomplete[metric])}))}
        metricVariants={groups.filter(group=>group.date>=from&&group.date<=to).map(group=>metrics.map(metric=>formatNutrition(group.totals.values[metric],metric)))}
        title="每日摄入" unit="kcal"
@@ -123,7 +124,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
 }
 function MealList({meals,busy,edit,remove}:{meals:MealView[];busy:boolean;edit:(m:MealView)=>void;remove:(m:MealView)=>void}) {
  const label=(name:string)=>({breakfast:"早餐",lunch:"午餐",dinner:"晚餐",snack:"加餐",supper:"夜宵"} as Record<string,string>)[name.toLowerCase()]??name;
- return <div className={styles.dayMeals}>{meals.map(m=><Disclosure key={m.id} className={styles.meal} summary={<div className={styles.mealHeading}><strong>{label(m.mealType)} · {m.items.map(i=>i.name).join("、")}</strong><span>{formatNutrition(m.totals.values.caloriesKcal,"caloriesKcal")} kcal{m.totals.incomplete.caloriesKcal?" · 部分":""}</span></div>}><MetricValues totals={m.totals} compact/><NutritionTable items={m.items} saved/><MealEvidence notes={m.notes}/><ImageGallery ids={m.imageIds}/><div className={styles.actions}><button className={recordUI.secondary} disabled={busy} onClick={()=>edit(m)}>编辑</button><button className={recordUI.secondary} disabled={busy} onClick={()=>remove(m)}>删除</button></div></Disclosure>)}{!meals.length&&<p className={styles.hint}>这一天还没有饮食记录。</p>}</div>;
+ return <div className={styles.dayMeals}>{meals.map(m=><Disclosure key={m.id} className={styles.meal} summary={<div className={styles.mealHeading}><NutritionComposition totals={m.totals} small/><strong>{label(m.mealType)} · {m.items.map(i=>i.name).join("、")}</strong><span>{formatNutrition(m.totals.values.caloriesKcal,"caloriesKcal")} kcal{m.totals.incomplete.caloriesKcal?" · 部分":""}</span></div>}><CompositionLegend totals={m.totals}/><MetricValues totals={m.totals} compact/><NutritionTable items={m.items} saved/><MealEvidence notes={m.notes}/><ImageGallery ids={m.imageIds}/><div className={styles.actions}><button className={recordUI.secondary} disabled={busy} onClick={()=>edit(m)}>编辑</button><button className={recordUI.secondary} disabled={busy} onClick={()=>remove(m)}>删除</button></div></Disclosure>)}{!meals.length&&<p className={styles.hint}>这一天还没有饮食记录。</p>}</div>;
 }
 export { Inspector as EditorDialog } from "@/components/inspector";
 export function FoodEditor({ initial, submitLabel = "保存食材", error, busy, save }: { initial: FoodDraft; submitLabel?: string; error: string; busy: boolean; save: (f: FoodDraft, allowMissingImages?: boolean) => Promise<void> }) {

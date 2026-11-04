@@ -3,6 +3,8 @@ import {useDraftGuard,confirmDraftDiscard} from "@/components/draft-guard";
 import {measurementVersions} from "@/components/record-change-client";
 import {RecordWorkspace,RecordTrendPanel,ChartOptions,CustomRecordRange} from "@/components/record-trend-panel";
 import {formatRecordNumber} from "@/components/number-format";
+import { ChartSelectionMarker } from "@/components/chart-selection-marker";
+import {useChartDrag} from "@/components/use-chart-drag";
 import { useChartMotion } from "@/components/use-chart-motion";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
@@ -12,7 +14,7 @@ import { Inspector } from "@/components/inspector";
 
 import { useEffect, useId, useRef, useState } from "react";
 import { buildMeasurementDays, recentMeasurementDays } from "./days";
-import { measurementCalendarPage, measurementCalendarRange } from "./calendar";
+import { addCalendarDays, measurementCalendarPage, measurementCalendarRange } from "./calendar";
 import { measurementSummary } from "./summary";
 import { calendarOrdinal, measurementDateTicks, measurementRange, measurementTrend, normalScale, type MeasurementInterval, type MeasurementMetric, type MeasurementRange } from "./trend";
 import styles from "./measurements-view.module.css";
@@ -77,8 +79,11 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const recentInterval = { start: catalog.start, end: today || catalog.end };
   const recent = recentMeasurementDays(displayedRecords, recentInterval, choices, 7).filter(day => day.date === today || (!dates.some(row => row.date === day.date && row.reminderSkipped) && measurementNeedsEntry(records, day.date, choices)));
   const chartDates=measurementCalendarPage(range,calendarOrdinal(range.end)-calendarOrdinal(range.start)+1).reverse();
-  const preferred=displayedRecords.filter(row=>row.recordDate<=(today||latestDate)&&row.period==="daytime").map(row=>row.recordDate).sort().at(-1)??(today||range.end);
-  const selection=useChartDateSelection(chartDates,initialDate??preferred,visibleRecords.map(row=>row.recordDate).sort().at(-1)??range.end,calendarOpen),activeDate=selection.selected;
+  const availablePoints=metrics.flatMap(metric=>measurementTrend(visibleRecords,metric,showEvening,choices).points).filter(row=>row.recordDate<=(today||range.end));
+  const defaultPoints=availablePoints.some(row=>row.recordKind!=="estimated")?availablePoints.filter(row=>row.recordKind!=="estimated"):availablePoints;
+  const fallbackDate=defaultPoints.map(row=>row.recordDate).sort().at(-1)??range.end;
+  const selection=useChartDateSelection(chartDates,initialDate??fallbackDate,fallbackDate,calendarOpen,`${showEvening}:${showEstimates}:${JSON.stringify(choices)}`),activeDate=selection.selected;
+  const selectedPeriod=selection.active?chartPeriod:undefined;
   const summaries = metrics.map(metric => ({ metric, ...measurementSummary(records.filter(row=>row.recordDate<=(today||localMeasurementDate(new Date(),"Asia/Shanghai"))), metric, choices) }));
 
   const summaryContent=<div className={styles.panelStats} aria-label="最近值与近7日统计">{summaries.flatMap(summary=>[
@@ -111,11 +116,11 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   }
 
   return <RecordWorkspace title="身体" headingId="body-records-title" className={styles.workspace} aria-labelledby="body-records-title">
-    <section data-chart-selection={selection.regionId} data-selected-date={activeDate} data-pinned-date={selection.pinned??undefined} onMouseLeave={selection.leave} aria-label="身体指标趋势" data-range={mode} style={{visibility:mobileMode===null||!today?"hidden":undefined}}>
+    <section data-chart-selection={selection.regionId} data-selected-date={activeDate} data-selection-origin={selection.origin} {...selection.regionProps} aria-label="身体指标趋势" data-range={mode} style={{visibility:mobileMode===null||!today?"hidden":undefined}}>
       <RecordTrendPanel
        range={<ChartRanges value={mode} items={[...ranges.map(item=>[item.value,item.label]),["custom","自定义"]]} change={value=>{if(value==="custom"){setDraftRange(range);setCalendarOpen(true);}else selectRange(value as MeasurementRange);}}/>}
        custom={calendarOpen&&<CustomRecordRange label="身体" value={{from:draftRange.start,to:draftRange.end}} change={next=>setDraftRange({start:next.from,end:next.to})} apply={()=>{setCustomRange(draftRange);selectRange("custom",draftRange);}} cancel={()=>setCalendarOpen(false)}/>}
-       date={activeDate} view={()=>{selection.release();inspectDay(activeDate,chartPeriod);}} readoutLabel="选中日身体记录"
+       date={activeDate} view={()=>{const target={date:activeDate,period:selection.active?chartPeriod:undefined};setDrawer({kind:"day",...target,metric:"weightKg"});selection.release();}} readoutLabel="选中日身体记录"
        metrics={metrics.map(metric=>{const selected=buildMeasurementDays(displayedRecords.filter(row=>row.recordDate===activeDate),choices,metric,[activeDate])[0].daytimeRecord;const row=selected?.fasting===true?selected:null;return {label:"晨间"+metricName(metric),value:formatRecordNumber(row?.[metric]),unit:unitFor(metric),note:row?.recordKind==="estimated"?"估计":undefined};})}
        metricVariants={displayedRecords.filter(row=>row.recordDate>=range.start&&row.recordDate<=range.end).map(row=>metrics.map(metric=>formatRecordNumber(row[metric])))}
        statistics={!mobileMode?summaryContent:undefined}
@@ -130,8 +135,8 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
       </section>}
        </ChartOptions>}
        legend={<><span><i style={{background:"var(--gold)",borderRadius:"50%"}}/>晨间空腹</span>{showEvening&&<span><i style={{background:"var(--data-deficit)",borderRadius:"50%"}}/>晚间</span>}{showEstimates&&visibleRecords.some(row=>row.recordKind==="estimated")&&<span>虚线 · 估计</span>}</>}
-      ><div data-chart-metric="weightKg"><TrendPlot records={visibleRecords} metric="weightKg" showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={chartPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
-       <div className={styles.additionalMetric} data-chart-metric="bodyFatPercent"><div className={styles.metricHeading}><h2>体脂 · %</h2></div><TrendPlot records={visibleRecords} metric="bodyFatPercent" showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={chartPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
+      ><div data-chart-metric="weightKg"><TrendPlot records={visibleRecords} metric="weightKg" showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
+       <div className={styles.additionalMetric} data-chart-metric="bodyFatPercent"><div className={styles.metricHeading}><h2>体脂 · %</h2></div><TrendPlot records={visibleRecords} metric="bodyFatPercent" showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
       </RecordTrendPanel>
     </section>
     <DailyRecords history={<RecordHistory today={today} dates={(catalog.start&&catalog.end?measurementCalendarPage(catalog,calendarOrdinal(catalog.end)-calendarOrdinal(catalog.start)+1):[]).filter(date=>!recent.some(day=>day.date===date))} renderRow={renderDay} view={inspectDay}/>}>{recent.map(day=>renderDay(day.date))}</DailyRecords>
@@ -330,17 +335,20 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, selec
   const ticks = measurementDateTicks(interval, width < 500 ? 4 : width < 900 ? 6 : 8);
   const unit = unitFor(metric);
   const pointLabel = (row: MeasurementDisplay) => `${row.recordDate} · ${row.period === "daytime" ? "空腹" : "晚间非空腹"} · ${formatRecordNumber(row[metric])} ${unit} · ${row.recordKind === "estimated" ? `估计 · ${estimateUserExplanation(row.estimation, row.recordDate, metric).method}` : "实测"}`;
-  const hintedRecord = points.find((row) => row.id === hintRecordId) ?? points.find(row => row.recordDate === selectedDate && row.period === (selectedPeriod ?? "daytime")) ?? points.find(row => row.recordDate === selectedDate);
-  const activate = (row: MeasurementDisplay) => {selection.pin(row.recordDate);onPeriod(row.period);};
+  const hintedRecord = points.find((row) => row.id === hintRecordId && row.recordDate===selectedDate && selection.active) ?? points.find(row => row.recordDate === selectedDate && row.period === (selectedPeriod ?? "daytime")) ?? points.find(row => row.recordDate === selectedDate);
+  const drag=useChartDrag(Array.from({length:span+1},(_,i)=>addCalendarDays(interval.start,i)),width,48,24,selection.choose);
+  const markerKey=`${width}:${height}:${interval.start}:${interval.end}:${scale?.ticks.join("|")}`;
+  const activate = (row: MeasurementDisplay) => {selection.activate(row.recordDate);onPeriod(row.period);};
 
 
   return <>
     <div className={styles.plotViewport} ref={viewport}>
-      <svg className={styles.plot} style={{ visibility: viewportWidth > 0 ? undefined : "hidden" }} width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={`${metricName(metric)}趋势，数值越高位置越高`}>
+      <svg {...drag} className={styles.plot} style={{touchAction:"pan-y", visibility: viewportWidth > 0 ? undefined : "hidden"}} width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={`${metricName(metric)}趋势，数值越高位置越高`}>
         <title>{`${metricName(metric)}趋势`}</title>
         {scale?.ticks.map((value) => <g key={value}><line x1="48" x2={width - 24} y1={y(String(value))} y2={y(String(value))} className={styles.grid} /><text x="37" y={y(String(value)) + 4} textAnchor="end" className={styles.axis}>{value.toFixed(1)}</text></g>)}
         {ticks.map((date) => <text key={date} x={x(date)} y={height-10} textAnchor="middle" className={styles.axis}>{date.slice(5).replace("-", "/")}</text>)}
-        {selectedDate && <line x1={x(selectedDate)} x2={x(selectedDate)} y1="14" y2={plotBottom+6} className={styles.selectedDayLine} />}
+        <ChartSelectionMarker x={selectedDate?x(selectedDate):null} resetKey={markerKey} direct={selection.direct}><line x1="0" x2="0" y1="14" y2={plotBottom+6} className={styles.selectedDayLine}/></ChartSelectionMarker>
+        {(["daytime","evening"] as const).map(period=>{const point=points.find(row=>row.recordDate===selectedDate&&row.period===period);return <ChartSelectionMarker key={period} x={point?x(point.recordDate):null} y={point?y(point[metric]):0} resetKey={markerKey} direct={selection.direct}><circle r="8" className={styles.selectedPoint}/></ChartSelectionMarker>;})}
         {pairs.map((day) => <line data-pair={day.date} key={day.date} x1={x(day.date)} x2={x(day.date)} y1={y(day.daytimeRecord![metric])} y2={y(day.eveningRecord![metric])} className={styles.pairLine} />)}
         {segments.map(({ a, b, period, estimated, missingDayCount }) => <line data-chart-line key={`${a.id}:${b.id}`} data-segment={estimated ? "estimated" : missingDayCount ? "gap" : "continuous"} data-period={period} x1={x(a.recordDate)} y1={y(a[metric])} x2={x(b.recordDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} ${estimated ? styles.estimateLine : missingDayCount ? styles.gapLine : ""}`} />)}
         {[...points].sort((a, b) => Number(a.period === "daytime") - Number(b.period === "daytime")).map((row) => {
@@ -357,11 +365,10 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, selec
           const clipTop = midpoint !== null && !coincident && ownY > companionY! ? midpoint : 0;
           const clipBottom = midpoint !== null && !coincident && ownY < companionY! ? midpoint : height;
           const clipId = `${plotId}-${row.id}`;
-          return <g key={row.id} data-point-id={row.id} data-date={row.recordDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.recordDate === selectedDate} data-chart-date={row.recordDate} onMouseMove={() => { if(!selection.pinned){setHintRecordId(row.id);selection.preview(row.recordDate);onPeriod(row.period);} }} onMouseLeave={() => setHintRecordId(null)} onFocus={() => {setHintRecordId(row.id);selection.choose(row.recordDate);onPeriod(row.period);}} onBlur={() => setHintRecordId(null)} onClick={() => activate(row)} onKeyDown={(event) => {selection.keyDown(event,row.recordDate);if(event.key==="Enter"||event.key===" ")activate(row);}}>
+          return <g key={row.id} data-point-id={row.id} data-date={row.recordDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.recordDate === selectedDate} data-chart-date={row.recordDate} onMouseMove={() => {setHintRecordId(row.id);selection.preview(row.recordDate);onPeriod(row.period);}} onMouseLeave={() => setHintRecordId(null)} onFocus={event => {selection.focus(event,row.recordDate);if(event.currentTarget.matches(":focus-visible")){setHintRecordId(row.id);onPeriod(row.period);}}} onBlur={() => setHintRecordId(null)} onClick={() => activate(row)} onKeyDown={(event) => {selection.keyDown(event,row.recordDate);if(event.key==="Enter"||event.key===" ")activate(row);}}>
             <title>{estimated ? label : `${recordTimeLabel(row)} · ${label}`}</title>
             <defs><clipPath id={clipId}><rect x={clipLeft} y={clipTop} width={clipRight - clipLeft} height={clipBottom - clipTop} /></clipPath></defs>
             <circle cx={x(row.recordDate)} cy={ownY} r="14" className={styles.hitTarget} clipPath={`url(#${clipId})`} />
-            {row.recordDate === selectedDate && <circle cx={x(row.recordDate)} cy={y(row[metric])} r="8" className={styles.selectedPoint} />}
             {estimated ? <path d={`M ${x(row.recordDate)} ${y(row[metric]) - 4} l 4 4 l -4 4 l -4 -4 Z`} className={`${styles.estimatePoint} ${row.period === "daytime" ? styles.dayEstimate : styles.nightEstimate}`} /> : <circle cx={x(row.recordDate)} cy={y(row[metric])} r={row.period === "daytime" ? "4" : "3.2"} className={row.period === "daytime" ? styles.dayPoint : styles.nightPoint} />}
           </g>;
         })}

@@ -57,3 +57,5 @@ DailyRecords／DailyRecordRow及RecordHistory提供三页最近记录的统一�
 RecordTrendPanel的metricVariants传入当前区间已算好的各日读数字符串，按数字实际字体缓存最长宽度；列数不随鼠标选日反复变化，换区间或窗口再测量。不生成或修改健康读数。
 
 总览通过RecordTrendPanel的可选statusInDate将短提示放入既有日期行，其他页面默认行为保持。SelectedDateHeading的可选status只提供同排内容，不扩展业务计算。
+
+chart-selection-marker.tsx以永久SVG图层平滑移动选日线与高亮点，220ms慢快慢，快速变化续接当前视觉位置；use-chart-date-selection.ts区分鼠标临时预览、键盘焦点内选择与触屏持久选择。完整趋势面板负责离开及焦点边界，查看入口先捕获目标日期。

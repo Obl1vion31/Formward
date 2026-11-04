@@ -88,9 +88,9 @@ export async function checkOverviewFirstScreen({baseURL, page, artifacts = ".cod
     const baseline=await readout.getAttribute("data-selected-date");
     await at(a);assert.equal(await readout.getAttribute("data-selected-date"),a);
     await page.mouse.move(0,0);assert.equal(await readout.getAttribute("data-selected-date"),baseline);
-    await at(a,"click");await at(b);assert.equal(await readout.getAttribute("data-selected-date"),a);
+    await at(a,"click");await at(b);assert.equal(await readout.getAttribute("data-selected-date"),b);
     await page.getByRole("button",{name:"7D",exact:true}).click();
-    assert.equal(await page.locator("[data-pinned-date]").getAttribute("data-pinned-date"),a);
+    assert.equal(await page.locator("[data-pinned-date]").count(),0);
     await at(b,"click");await page.mouse.click(2,2);assert.equal(await page.locator("[data-pinned-date]").count(),0);
     await at(a,"click");await page.getByRole("button",{name:"查看记录 →",exact:true}).click();
     await page.locator("dialog[open]").waitFor();assert.equal(await page.locator("[data-pinned-date]").count(),0);await page.keyboard.press("Escape");
@@ -107,7 +107,7 @@ export async function checkOverviewFirstScreen({baseURL, page, artifacts = ".cod
     assert.equal(await page.getByRole("button",{name:"自定义",exact:true}).getAttribute("aria-pressed"),"true");
     await page.getByRole("button",{name:"30D",exact:true}).click();
     await at(dates[0],"click");await page.getByRole("button",{name:"7D",exact:true}).click();
-    assert.equal(await page.locator("[data-pinned-date]").count(),0,"越出新区间解除固定");
+    assert.equal(await page.locator("[data-pinned-date]").count(),0,"新区间重新选择默认日");
     await page.getByRole("button",{name:"自定义",exact:true}).click();
     await page.getByLabel("总览开始日期",{exact:true}).fill(dates.at(-1));
     await page.getByLabel("总览结束日期",{exact:true}).fill(dates[0]);

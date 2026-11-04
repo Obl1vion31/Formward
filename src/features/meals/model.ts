@@ -131,3 +131,11 @@ export function macroDistribution(totals: Totals | undefined, mode: MacroMode = 
 export const macroEnergy = (totals: Totals | undefined) => totals?.values.caloriesKcal == null ? null : macroDistribution(totals, "energy");
 
 export function mealTypeLabel(name:string){return ({breakfast:"早餐",lunch:"午餐",dinner:"晚餐",snack:"加餐",supper:"夜宵"} as Record<string,string>)[name.trim().toLowerCase()]??name;}
+
+/** Shares use 4P:4C:9F, independent of label kcal and its rounding. */
+export function macroComposition(totals:Totals|undefined|null){
+ const keys=["proteinG","carbsG","fatG"] as const;
+ if(!totals||keys.some(key=>totals.values[key]===null||totals.incomplete[key]))return {kind:"unknown" as const,segments:[]};
+ const segments=macroDistribution(totals,"energy");
+ return segments?{kind:"known" as const,segments}:{kind:"zero" as const,segments:[]};
+}
