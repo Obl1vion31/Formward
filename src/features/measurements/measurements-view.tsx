@@ -238,9 +238,9 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
     }
     onUpdated(result);
   }
-  return <Inspector title="身体记录详情" close={onClose} onCloseReady={close=>{dismiss.current=close;}} className={styles.drawer} header={(
+  return <Inspector title={editor?"身体录入 "+editor.date:"身体记录详情"} close={onClose} onCloseReady={close=>{dismiss.current=close;}} className={styles.drawer} header={(
     <header className={styles.drawerHeader} data-editing={!!editor}><div>
-      <h2 ref={heading} tabIndex={-1} id="measurement-drawer-title">{editor ? "身体录入" : active ? displayDate(active.date) || "记录详情" : "记录详情"}</h2>
+      <h2 ref={heading} tabIndex={-1} id="measurement-drawer-title">{editor ? <>身体录入<time className={styles.entryHeadingDate} dateTime={editor.date}>{displayDate(editor.date)}</time></> : active ? displayDate(active.date) || "记录详情" : "记录详情"}</h2>
       {!editor&&<p>{(active?weekday(active.date):"")+" · 晨间／晚间"}</p>}
     </div><button type="button" autoFocus aria-label="关闭记录详情" onClick={requestClose}>×</button></header>)}>
     {!editor && active && <DayOverview date={active.date} records={records} choices={choices} />}

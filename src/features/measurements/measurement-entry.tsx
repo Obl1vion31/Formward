@@ -126,7 +126,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
     return result;
   }
   return <form data-editing={editing} data-entry-form="body" data-selected-period={selected} className={styles.entryForm} aria-label="当天四项录入" onSubmit={save} aria-busy={busy}>
-    <div className={styles.entrySaveBar}><div><strong>{date}</strong>{error&&<p role="alert" className={styles.entryError}>{error}</p>}{message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button type="submit" className={styles.saveEntry} disabled={busy||!dirty||future}>{busy?busyLabel:"保存录入"}</button></div>
+
     <div className={styles.entryPeriodBar}><div role="group" aria-label="选择录入时段">{(["daytime","evening"] as const).map(period=><button type="button" key={period} aria-label={period==="daytime"?"晨间（空腹）":periodName(period)} aria-pressed={selected===period} onClick={()=>setSelected(period)}>{periodName(period)}{period==="daytime"&&"（空腹）"}{periodDirty(period)&&<span aria-label="有未保存修改"> ·</span>}</button>)}</div><button type="button" aria-expanded={advanced.has(selected)} onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(selected))next.delete(selected);else next.add(selected);return next;})}>更多设置</button></div>
     <div className={styles.entryGroups}>
       {groups.map(group=><fieldset key={group.period} data-period={group.period} data-selected={selected===group.period} disabled={busy||group.blocked}>
@@ -152,6 +152,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       </fieldset>)}
     </div>
     {future&&<p role="alert" className={styles.entryError}>不能录入未来日期的身体记录。</p>}
-    {hasUnsavedValues&&<p className={styles.entryHint}>先保存实测，再估算剩余项。</p>}
+    {hasUnsavedValues&&groups.some(group=>entryMetrics.some(metric=>group.fields[metric].kind==="missing"&&!draft[group.period][metric]))&&<p className={styles.entryHint}>先保存实测，再估算剩余项。</p>}
+    <div className={styles.entryFooter}><div>{error&&<p role="alert" className={styles.entryError}>{error}</p>}{message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button type="submit" className={styles.saveEntry} disabled={busy||!dirty||future}>{busy?busyLabel:"保存录入"}</button></div>
   </form>;
 }
