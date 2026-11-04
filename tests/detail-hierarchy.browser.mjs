@@ -58,13 +58,14 @@ export async function checkDetailHierarchy({browser,storageState,baseURL,today,e
 
 export async function checkDetailActions({page,baseURL,today,artifacts,engine}){
  const errors=[],serverErrors=[];page.on("pageerror",e=>errors.push(e.message));page.on("response",r=>{if(r.status()>=500)serverErrors.push(r.status());});
- const go=async()=>{await page.goto(baseURL+"/dashboard/meals?date="+today);await page.waitForLoadState("networkidle");await page.locator("[data-meal-day-actions]").waitFor();};
+ // 保存反馈可能先于附带的RSC重验证流结束；刻意整页重开前等待请求完成。
+ const go=async()=>{await page.waitForLoadState("networkidle");await page.goto(baseURL+"/dashboard/meals?date="+today);await page.waitForLoadState("networkidle");await page.locator("[data-meal-day-actions]").waitFor();};
  const drawer=()=>page.locator("dialog[open]:not(.page-loading-dialog)").last(),control=()=>drawer().locator("[data-meal-day-actions]").getByRole("checkbox",{name:/已记全$/});
  await go();assert.equal(await control().getAttribute("aria-checked"),"false");
  await drawer().getByRole("button",{name:"添加一餐",exact:true}).click();await page.locator('form[data-entry-form="meal"]').waitFor();await page.keyboard.press("Escape");await page.locator('form[data-entry-form="meal"]').waitFor({state:"hidden"});assert.equal(await control().getAttribute("aria-checked"),"false");
- await control().click();await page.waitForFunction(()=>document.querySelector("[data-meal-day-actions] [role=checkbox]")?.getAttribute("aria-checked")==="true");
+ await control().click();await page.waitForFunction(()=>document.querySelector("[data-meal-day-actions] [role=checkbox]")?.getAttribute("aria-checked")==="true");await page.waitForLoadState("networkidle");
  const edit=async value=>{
-  const row=drawer().locator("[data-meal-day-list]>details").first();if(await row.getAttribute("open")===null)await row.locator(":scope>summary").click();await row.getByRole("button",{name:"编辑",exact:true}).click();const form=page.locator('form[data-entry-form="meal"]');await form.waitFor();const name=form.getByRole("textbox",{name:/^(自由填写食物名称|食物名称 1)$/}).first(),original=await name.inputValue();await name.fill(value??original+" · 修改验收");await form.getByRole("button",{name:"保存餐次 · "+today,exact:true}).click();await form.waitFor({state:"hidden"});return original;
+  const row=drawer().locator("[data-meal-day-list]>details").first();if(await row.getAttribute("open")===null)await row.locator(":scope>summary").click();await row.getByRole("button",{name:"编辑",exact:true}).click();const form=page.locator('form[data-entry-form="meal"]');await form.waitFor();const name=form.getByRole("textbox",{name:/^(自由填写食物名称|食物名称 1)$/}).first(),original=await name.inputValue();await name.fill(value??original+" · 修改验收");await form.getByRole("button",{name:"保存餐次 · "+today,exact:true}).click();await form.waitFor({state:"hidden"});await page.waitForLoadState("networkidle");return original;
  };
  const original=await edit();await page.waitForFunction(()=>document.querySelector("[data-meal-day-actions] [role=checkbox]")?.getAttribute("aria-checked")==="false");
  assert.ok(!(await page.locator("body").innerText()).includes("请重新确认"),"保存成功不重复追加催确认");assert.ok((await drawer().locator("[data-day-nutrition-summary] strong").first().innerText()).includes("1190"));await edit(original);await go();assert.equal(await control().getAttribute("aria-checked"),"false");
