@@ -445,3 +445,33 @@
 .libraryNavigation{display:flex;align-items:center;gap:12px;margin:4px 0 12px}
 .libraryNavigation h2{display:none;font-size:18px;font-weight:500;margin:0}
 @media(max-width:700px),(hover:none) and (pointer:coarse){.libraryNavigation h2{display:block}}
+
+/* Unslop: shared rules stay fixed; only the complex library surface is refined. */
+.workspace[data-active-tab=foods] .categoryTabs{gap:20px;align-items:center}
+.workspace[data-active-tab=foods] .categoryTabs button{font-size:14px;min-height:44px}
+.workspace[data-active-tab=foods] .toolbar>.primary{background:var(--gold);color:var(--graphite);border-color:var(--gold);font-weight:500}
+.workspace[data-active-tab=foods] .toolbar>.primary:hover{background:color-mix(in srgb,var(--gold) 88%,var(--warm-white));color:var(--graphite)}
+.foodTable .rowEnergy{font-size:18px;font-weight:500}
+.foodTable tbody tr{transition:background-color 160ms}
+.foodTable tbody tr:focus-within{background:var(--surface-hover)}
+@media(hover:hover) and (pointer:fine){.foodTable tbody tr:hover{background:var(--surface-hover)}}
+.form[data-entry-form=food]>fieldset>label:first-child{display:flex;align-items:center;gap:12px}
+.form[data-entry-form=food]>fieldset>label:first-child select{width:min(200px,65%);margin-left:auto}
+@media(min-width:701px) and (hover:hover) and (pointer:fine){
+ .workspace[data-active-tab=foods]{display:grid;grid-template-columns:minmax(200px,.42fr) minmax(0,1fr);gap:12px 24px}
+ .workspace[data-active-tab=foods]>*{grid-column:1/-1}
+ .workspace[data-active-tab=foods]>header{grid-column:1;grid-row:1;margin:0}
+ .workspace[data-active-tab=foods]>.libraryNavigation{grid-column:2;grid-row:1;justify-content:flex-end;margin:0}
+ .workspace[data-active-tab=foods]>.categoryTabs{grid-column:1;grid-row:2;margin:0}
+ .workspace[data-active-tab=foods]>.toolbar{grid-column:2;grid-row:2;margin:0;padding:0}
+ .foodTable th,.foodTable td{padding-block:16px}
+}
+@media(max-width:700px),(hover:none) and (pointer:coarse){
+ .workspace[data-active-tab=foods] .libraryNavigation{justify-content:space-between;margin:0 0 8px}
+ .workspace[data-active-tab=foods] .libraryNavigation h2{order:-1}
+ .workspace[data-active-tab=foods] .categoryTabs{margin-bottom:8px}
+ .workspace[data-active-tab=foods] .toolbar{gap:8px;margin-bottom:8px}
+ .foodTable th,.foodTable td{padding-block:0}
+ .foodTable .rowEnergy{font-size:16px!important}
+}
+@media(prefers-reduced-motion:reduce){.foodTable tbody tr{transition:none}}
