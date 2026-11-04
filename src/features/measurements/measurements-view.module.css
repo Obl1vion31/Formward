@@ -362,5 +362,4 @@
 .entryForm input[type=number]::-webkit-inner-spin-button,.entryForm input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 
 .drawerHeader[data-editing=true]{min-height:68px;padding-block:12px}
-.periodCondition{font-size:12px;color:var(--body-muted);white-space:nowrap;margin-right:auto}
 @container(max-width:300px){.entryCell[data-estimated-wide=true]{grid-column:1/-1}}
