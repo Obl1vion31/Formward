@@ -1,5 +1,9 @@
 # 当前实现与验证
 
+## 当前本地待验收：图表100ms与统一高亮
+
+四页选日提速、同日去重和共用日期底纹／辅助线／高亮圈已在codex/chart-selection-consistency完成；触屏直接跟手，总览纵向滚动不误选。未发布公网、未更新main；下方正式版本仍为上一轮220ms版本。实际截图、原速短录屏、测试与未测项见[验收](maintenance-verification.md)及[交接](../handoff.md)。
+
 ## 当前正式版本：Unslop B 与图表交互
 
 正式域名https://formward-ten.vercel.app，READY部署dpl_HKAXv65zohYhmp8UWHhSkk2my21W，源码ad7c639，构建unslop-ad7c639-20261104。用户本轮只授权发布，main未更新；双区、COS、DNS及未上线迁移未夹带。

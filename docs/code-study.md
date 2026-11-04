@@ -1154,3 +1154,5 @@ build.mjs给每次构建一个版本号，根页面和GET /api/app-version使用
 
 
 同样叫“食材库”，实际上有两个画面：记录一餐时的搜索由[meal-editor.tsx](../src/features/meals/meal-editor.tsx)负责；从最近记录进入的独立列表由[presets.tsx](../src/features/meals/presets.tsx)里的FoodTable负责。它们共用[meals.module.css](../src/features/meals/meals.module.css)，改完其中一处还要打开另一处检查。电脑名称列的百分比宽度只给宽屏表格使用；手机变成列表后，名称应占满分配空间，否则会出现每个英文单词都换行的情况。
+
+图表选日由use-chart-date-selection维护输入来源与同日去重；chart-selection-marker的Column／Point只移动永久标记层，100ms中断续接，不插值健康读数。绘图区边界与已有日期命中范围由业务图表传入，共用CSS负责底纹、线和空心圈规格；实际数据入场动画仍由use-chart-motion独立处理。

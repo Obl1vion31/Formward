@@ -1,5 +1,21 @@
 # 完善任务验收
 
+## 本地验收：图表100ms与共同高亮（2026-11-04）
+
+工作区chart-selection-consistency，来源2189d27／应用ad7c639；用户明确只交付本地，不发布、不更新main。Mobile Design先检查触屏点选／横拖／纵向滚动，Impeccable比较四页逐态一致性，Unslop按既定轻量方向打磨标记；已认可品牌、页面布局、图形、数字和命中区保持。长期规范只更新[设计D5](design-reference.md#d5外观不改写事实)。
+
+| 验收项 | 结果 |
+|---|---|
+| 代码检查 | 458项单元／集成测试、typecheck、production build、结构及diff通过。lint无错误，已审阅原第三方技能story.mjs有1项未使用导入警告，不修改第三方原件。 |
+| 实际运动 | Chromium／WebKit真实RAF帧观察100ms及新曲线；快速跨日／反向、同日微移不排队或重启动画，约100ms收敛（测试容差150ms）。尺寸／范围替换、触屏和减少动态效果直接定位；健康读数立即显示目标值。 |
+| 四页交互 | 两引擎合计24组主交互，核对完整面板离开、点击不固定、移向查看、键盘和准确日期／晚间详情。四页触屏点选，Chromium另有原生模拟手势横拖／纵向滚动回归。总览原先按下就选日已改为复用共用手势判断。 |
+| 边界 | 两引擎合计7组结果，包含仅总数、明确0、只有活动而全天未知、营养部分未知、坐标不随选日改变、底纹位于数据下方、四页键盘100ms与清楚焦点。健康快照前后哈希相同。 |
+| 尺寸与主题 | 两引擎×两主题×1100×900、1440×900、320×560、390×720、430×780、390×560、844×390×四页，共112张实际视口截图；最终总览另外复拍28张。客户端异常和5xx均0。两主题的同组日期底纹、线和空心点一致，刻度及晨晚含义可辨。 |
+| 人工视觉 | 逐组查看手机窄屏、横屏、电脑及四页实际图形，主要检查4%底纹能辨认但不覆盖数据、虚线与底纹同步、金色短标记及空心圈清楚、文字和刻度不受挤压。短录屏保留原速、稳定视角，四页快速横扫与离开恢复均可见。 |
+| 未测 | 真实iPhone、系统软键盘、系统原生全屏、真实设备减少动态效果；浏览器模拟不得冒充真机。 |
+
+证据根目录：C:/Users/14878/.codex/visualizations/2026/11/04/formward-chart-selection。visual-checks.json、overview-touch-visual-checks.json、chromium／webkit-interactions.json与edge-checks.json保存检查项和帧数据；chart-selection-demo.mp4为实际四页录屏，chart-selection-raw.webm及video-timeline.json保留来源。录制时指针位置环仅用于看清移动，不属于产品界面。虚构验收数据库保留用于本地复查，生产、公开接口、依赖与迁移未改。
+
 ## 当前正式验收：Unslop B 发布完成（2026-11-04）
 
 READY dpl_HKAXv65zohYhmp8UWHhSkk2my21W，源码ad7c6391ac298288adbebcec9d4aa5f7f713ef00，构建unslop-ad7c639-20261104；正式别名https://formward-ten.vercel.app、项目、sourceCommit及gitCommitSha严格一致。发布前版本2e358ae为本轮源码祖先，差异不含数据库、包依赖或部署配置，主工作区未带入。用户仅授权发布，main保持a9988ea。

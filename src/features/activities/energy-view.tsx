@@ -10,7 +10,7 @@ import { useLocalToday } from "@/components/use-local-today";
 import { useMobileMode } from "@/components/use-mobile-mode";
 import { preferredRecordedDate, rangeContaining, recentRecordDates, pendingRecordDates } from "@/components/record-dates";
 import {useChartDrag} from "@/components/use-chart-drag";
-import { ChartSelectionMarker } from "@/components/chart-selection-marker";
+import { ChartSelectionColumn } from "@/components/chart-selection-marker";
 import { useChartMotion } from "@/components/use-chart-motion";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
@@ -127,9 +127,11 @@ function EnergyPlot({ days, selected, selection }: { days: EnergyDay[]; selected
   const drag=useChartDrag(days.map(day=>day.date),w,left,right,selection.choose);
   const bottom = w < 650 ? 164 : 220;
   const y = (value: number) => bottom - value / maximum * (bottom - 30), barWidth = Math.min(30, slot * .65), x = (index: number) => left + (index + .5) * slot;
+  const selectedIndex=days.findIndex(day=>day.date===selected),selectedX=selectedIndex<0?null:x(selectedIndex);
   return <div className={styles.plot} ref={container}><svg {...drag} viewBox={`0 0 ${w} ${bottom + 34}`} style={{ touchAction:"pan-y", visibility: width ? undefined : "hidden" }} role="group" aria-label="每日消耗柱状图">
     {scale.ticks.map(tick => <g key={tick}><line x1={left} x2={w - right} y1={y(tick)} y2={y(tick)} className={styles.grid} /><text x={left - 7} y={y(tick) + 4} textAnchor="end" className={styles.axis}>{tick}</text></g>)}
-    {days.map((day, index) => { const resting = Number(day.restingKcal ?? 0), active = Number(day.activeKcal ?? 0), onlyTotal = day.restingKcal === null && day.activeKcal === null && day.totalKcal !== null; return <g key={day.date} role="button" tabIndex={day.date === selected ? 0 : -1} data-energy-date={day.date} aria-label={`${day.date} · 总消耗 ${day.totalKcal ?? "未填写"} kcal`} data-chart-date={day.date} onMouseMove={()=>selection.preview(day.date)} onFocus={event=>selection.focus(event,day.date)} onClick={()=>selection.activate(day.date)} onKeyDown={event=>selection.keyDown(event,day.date)}>
+    <ChartSelectionColumn x={selectedX} date={selected} column={selectedX===null?null:{left:selectedX-slot/2,right:selectedX+slot/2}} plot={{left,right:w-right,top:22,bottom}} resetKey={`${w}:${days.map(d=>d.date).join("|")}`} direct={selection.direct} baselineTick/>
+    {days.map((day, index) => { const resting = Number(day.restingKcal ?? 0), active = Number(day.activeKcal ?? 0), onlyTotal = day.restingKcal === null && day.activeKcal === null && day.totalKcal !== null; return <g key={day.date} role="button" tabIndex={day.date === selected ? 0 : -1} data-energy-date={day.date} data-selected={day.date===selected} aria-pressed={day.date===selected} aria-label={`${day.date} · 总消耗 ${day.totalKcal ?? "未填写"} kcal`} data-chart-date={day.date} onMouseMove={()=>selection.preview(day.date)} onFocus={event=>selection.focus(event,day.date)} onClick={()=>selection.activate(day.date)} onKeyDown={event=>selection.keyDown(event,day.date)}>
       <rect className={styles.hit} x={left + index * slot} y="22" width={slot} height={bottom - 18} />
       {day.restingKcal !== null && <rect data-chart-bar data-chart-zero={bottom} data-energy-series="resting" data-value={day.restingKcal} x={x(index) - barWidth / 2} y={y(resting)} width={barWidth} height={y(0) - y(resting)} fill="var(--data-protein)" opacity={day.restingBasis ? .55 : .9} className={styles.mark} />}
       {day.activeKcal !== null && <rect data-chart-bar data-chart-zero={bottom} data-energy-series="active" data-value={day.activeKcal} x={x(index) - barWidth / 2} y={y(resting + active)} width={barWidth} height={y(resting) - y(resting + active)} fill="var(--data-red)" className={styles.mark} />}
@@ -137,6 +139,5 @@ function EnergyPlot({ days, selected, selection }: { days: EnergyDay[]; selected
       {day.totalSource === "override" && <line data-energy-total={day.totalKcal!} x1={x(index) - barWidth / 2 - 2} x2={x(index) + barWidth / 2 + 2} y1={y(Number(day.totalKcal))} y2={y(Number(day.totalKcal))} stroke="var(--gold)" strokeWidth="2" className={styles.mark} />}
       {(index % stride === 0 && days.length - 1 - index >= stride / 2 || index === days.length - 1) && <text x={x(index)} y={bottom + 25} textAnchor={days.length === 1 ? "middle" : index === 0 ? "start" : index === days.length - 1 ? "end" : "middle"} className={styles.axis}>{days.length <= 7 && slot < 46 ? day.date.slice(8) : day.date.slice(5)}</text>}
     </g>; })}
-    <ChartSelectionMarker x={x(days.findIndex(day=>day.date===selected))} resetKey={`${w}:${days.map(d=>d.date).join("|")}`} direct={selection.direct}><line x1="0" x2="0" y1="22" y2={bottom+5} className={styles.crosshair}/></ChartSelectionMarker>
   </svg></div>;
 }

@@ -29,13 +29,15 @@ record-updates.tsx提供跨页面更新提示，record-change-client.ts负责只
 
 `use-chart-motion.ts`供总览、身体、摄入及消耗SVG共用。首次进入视口450ms，数据变化200ms，仅对带标记的数据图形使用原生动画；悬停不重放，卸载／减少动态效果时取消。数字、坐标、命中区域和页面布局保持最终状态。
 
+use-chart-drag供四页共用横拖选择与纵向滚动判断；手指按下不立即选日，确认横拖或完成点击后才选中，拖动后抑制额外合成点击。
+
 `chart-scale.ts`为各页面柱图提供独立的等距整倍数刻度，包含零并覆盖整个区间；kg步长至少0.1，空图使用固定中性范围，不随选中日期改变。总览能量折线的局部刻度在dashboard/chart-geometry.ts，不改变这里柱图包含零点的默认值。
 
 `record-dates.ts`只推导最近7个日历日、今天／昨天标签、默认有效日期和容纳日期的最短区间，不创建记录或计算健康数值。`record-date-context.tsx`在饮食／消耗编辑器显示目标日期与补录状态；跨零点提示保持原草稿日期。
 
 `source-input.tsx`与同名CSS模块提供身体、消耗及AI审核共用的来源输入、全部历史展开、搜索、键盘／触控选择与软移除交互；数据和移除接口由各feature提供，maxLength分别为300／200。候选使用真实按钮，触屏不取消pointerdown默认行为；输入框失焦且relatedTarget为空时不抢先收起，改由点击／聚焦外部、Tab离开、Escape及窗口失焦关闭。鼠标选择保留输入焦点，中文输入法确认不触发历史选中。
 
-use-chart-date-selection.ts统一四页的鼠标临时预览、自定义期间暂停、完整面板离开恢复，以及键盘和触屏选择；点击不固定日期，仅维护界面状态。chart-ranges.tsx复用区间按钮，日期输入保留在各模块的自定义表单。
+use-chart-date-selection.ts统一四页的鼠标临时预览、自定义期间暂停、完整面板离开恢复，以及键盘和触屏选择；点击不固定日期，同日同输入方式去重，仅维护界面状态。chart-ranges.tsx复用区间按钮，日期输入保留在各模块的自定义表单。
 
  daily-records.tsx与record-ui.module.css统一日期行、查看入口及次要状态位置；record-history.tsx提供页面内日期查找与每批50行加载；daily-records.tsx在最近行下方提供展开／收起历史。单日查看或编辑才开Inspector，关闭保留列表加载状态及页面位置。主列表由record-dates.ts推导今天及前6天待处理日期，不计算健康数值。
 
@@ -58,4 +60,4 @@ RecordTrendPanel的metricVariants传入当前区间已算好的各日读数字�
 
 总览通过RecordTrendPanel的可选statusInDate将短提示放入既有日期行，其他页面默认行为保持。SelectedDateHeading的可选status只提供同排内容，不扩展业务计算。
 
-chart-selection-marker.tsx以永久SVG图层平滑移动选日线与高亮点，220ms慢快慢，快速变化续接当前视觉位置；use-chart-date-selection.ts区分鼠标临时预览、键盘焦点内选择与触屏持久选择。完整趋势面板负责离开及焦点边界，查看入口先捕获目标日期。
+chart-selection-marker.tsx及同名CSS集中管理ChartSelectionColumn底纹／辅助线／柱图短标记、ChartSelectionPoint空心高亮圈。永久SVG图层100ms（cubic-bezier(.2,0,0,1)）短过渡，中断时取消旧动画并续接当前视觉位置；列层位于数据之前、裁在绘图区，底纹与线使用同一变换。触屏、首次定位、区间／尺寸更换和减少动态效果直接就位，首次450ms／数据更新200ms动画仍由use-chart-motion独立负责；use-chart-date-selection.ts区分鼠标临时预览、键盘焦点内选择与触屏持久选择。完整趋势面板负责离开及焦点边界，查看入口先捕获目标日期。

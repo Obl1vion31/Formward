@@ -19,7 +19,7 @@ export function useChartDateSelection(dates: string[], initial: string, fallback
   const active=choice?.range===range&&dates.includes(choice.date)?choice:null;
   const selected=active?.date??(dates.includes(fallback)?fallback:dates.at(-1)??fallback);
   const release=()=>setChoice(null);
-  const select=(date:string,origin:Origin)=>{if(dates.includes(date))setChoice({date,origin,range});};
+  const select=(date:string,origin:Origin)=>{if(dates.includes(date))setChoice(current=>current?.date===date&&current.origin===origin&&current.range===range?current:{date,origin,range});};
   const choose=(date:string)=>select(date,"touch");
   const activate=(date:string)=>select(date,input.current==="mouse"?"pointer":input.current);
   const preview=(date:string)=>{if(!previewPaused)select(date,"pointer");};

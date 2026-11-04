@@ -1,0 +1,6 @@
+.column{pointer-events:none}
+.band{fill:color-mix(in srgb,var(--warm-white) 4%,transparent)}
+.line{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 4;vector-effect:non-scaling-stroke}
+.tick{stroke:var(--gold);stroke-width:2;vector-effect:non-scaling-stroke}
+.point{fill:none;stroke-width:1.5;vector-effect:non-scaling-stroke;pointer-events:none}
+:global(svg:has([data-chart-date]:focus-visible)) .line{stroke:var(--gold);stroke-dasharray:none}

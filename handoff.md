@@ -8,6 +8,14 @@
 
 **提醒节点：交付本轮 Unslop 对比、对齐下一轮方向时，主动提醒讨论本事项。**
 
+## 本地交付：图表选日提速与高亮统一（2026-11-04）
+
+独立工作区Formward-worktrees/chart-selection-consistency，分支codex/chart-selection-consistency，从2189d27建立，应用基线仍为已上线ad7c639。四页选日统一100ms及cubic-bezier(.2,0,0,1)，同日去重、中断续接；共用4%底纹、1px虚线、柱图金色短标记及6px／1.5px空心点。背景位于数据下方并裁在绘图区，真实曲线、柱宽、命中区和健康计算保持。总览同时复用use-chart-drag，修正手指刚按下就改日导致纵向滑动误选的问题。
+
+可操作本地页http://localhost:4200；隔离虚构账号selection@formward.example.test，私有配置在.codex/chart-selection/preview.json，未读取生产数据库。截图、视频及报告位于C:/Users/14878/.codex/visualizations/2026/11/04/formward-chart-selection。458项测试、生产构建、typecheck与结构通过；浏览器两引擎24组主交互加7组边界结果通过，112张主题／尺寸截图并对最终总览复拍。第三方原技能story.mjs保留1项lint警告，应用无错误。原始数据快照前后保持。
+
+本轮用户明确要求先本地交付，不自动发布公网或更新main。生产仍为下述READY版本，main仍a9988ea；主工作区双区／COS／DNS等不相关内容未带入。真实iPhone、系统键盘及原生全屏未测。首屏小助手仍在顶部待对齐，本轮未实现。
+
 ## 当前正式发布：Unslop B 与图表交互（2026-11-04）
 
 用户本轮明确要求发布，没有授权更新main。正式域名https://formward-ten.vercel.app已核对READY部署dpl_HKAXv65zohYhmp8UWHhSkk2my21W，源码ad7c6391ac298288adbebcec9d4aa5f7f713ef00，构建unslop-ad7c639-20261104；B的应用代码与已验收f77938e一致。main仍a9988ea；主工作区双区／COS／DNS／0028等未上线内容保持隔离。

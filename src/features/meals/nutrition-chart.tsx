@@ -2,7 +2,7 @@
 import { useId, useRef } from "react";
 import { dailyTotals, macroColors, macroDistribution, formatNutrition, metricLabels, type Metric, type MacroMode } from "./model";
 import {useChartDrag} from "@/components/use-chart-drag";
-import { ChartSelectionMarker } from "@/components/chart-selection-marker";
+import { ChartSelectionColumn } from "@/components/chart-selection-marker";
 import { useChartMotion } from "@/components/use-chart-motion";
 import type { useChartDateSelection } from "@/components/use-chart-date-selection";
 import {useChartViewport} from "@/components/use-chart-viewport";
@@ -30,12 +30,13 @@ export function NutritionChart({ dates, groups, selection, mode }: { dates: stri
       <svg {...drag} className={styles.chart} style={{ touchAction:"pan-y", visibility: containerWidth ? undefined : "hidden" }} viewBox={`0 0 ${width} 194`} role="group" aria-label={`热量柱状图，单位${unit}`}>
         <defs><pattern id={patternId} width="5" height="5" patternUnits="userSpaceOnUse"><path d="M-1 1L1 -1M0 5L5 0M4 6L6 4" stroke="var(--warm-white)" strokeOpacity=".3" strokeWidth="1" /></pattern></defs>
         {scale.ticks.map(tick => <g key={tick}><line className={styles.grid} x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} /><text className={styles.axis} data-calorie-tick={tick} x={left - 8} y={y(tick) + 4} textAnchor="end">{tick}</text></g>)}
+        <ChartSelectionColumn x={selectedX} date={inspected} column={{left:selectedX-slot/2,right:selectedX+slot/2}} plot={{left,right:width-right,top:25,bottom:154}} resetKey={`${width}:${dates.join("|")}`} direct={selection.direct} baselineTick/>
         {dates.map((date, index) => {
           const daily = byDate.get(date), x = left + index * slot, barWidth = Math.min(30, slot * .68), energy = daily?.values.caloriesKcal;
           const incompleteDay = !!daily && statusByDate.get(date) !== "complete";
           const label = `${date} · ${daily ? ["caloriesKcal" as const, ...macros].map(metric => `${metricLabels[metric]} ${formatNutrition(daily.values[metric], metric)} ${metric === "caloriesKcal" ? "kcal" : "g"}${daily.incomplete[metric] ? "（已知合计，不完整）" : ""}`).join(" · ") : "未记录"}${incompleteDay ? statusByDate.get(date) === "incomplete" ? " · 当天未记全" : " · 全天待确认" : ""}`;
           const valueLabel = formatNutrition(energy ?? null, "caloriesKcal");
-          return <g key={date} role="button" tabIndex={date === inspected ? 0 : -1} data-bar-date={date} data-selected={date === inspected} data-day-status={statusByDate.get(date)} aria-label={label} data-chart-date={date} onMouseMove={()=>selection.preview(date)} onFocus={event=>selection.focus(event,date)} onClick={()=>selection.activate(date)} onKeyDown={event=>selection.keyDown(event,date)}>
+          return <g key={date} role="button" tabIndex={date === inspected ? 0 : -1} data-bar-date={date} data-selected={date === inspected} aria-pressed={date===inspected} data-day-status={statusByDate.get(date)} aria-label={label} data-chart-date={date} onMouseMove={()=>selection.preview(date)} onFocus={event=>selection.focus(event,date)} onClick={()=>selection.activate(date)} onKeyDown={event=>selection.keyDown(event,date)}>
             <title>{label}</title><rect className={styles.barHit} x={x} y="25" width={slot} height="134" />
             {energy!=null&&(()=>{
               const segments=macroDistribution(daily, mode);let below=0;
@@ -47,7 +48,6 @@ export function NutritionChart({ dates, groups, selection, mode }: { dates: stri
             {(index % stride === 0 && dates.length - 1 - index >= stride / 2 || index === dates.length - 1) && <text className={styles.axis} data-date-tick x={x + slot / 2} y="185" textAnchor={index === 0 ? "start" : index === dates.length - 1 ? "end" : "middle"}>{allDates && slot < 46 ? date.slice(8) : date.slice(5)}</text>}
           </g>;
         })}
-        <ChartSelectionMarker x={selectedX} resetKey={`${width}:${dates.join("|")}`} direct={selection.direct}><path className={styles.selectedDay} d="M 0 158 v 6" /><line x1="0" x2="0" y1="25" y2="154" stroke="var(--muted)" strokeOpacity=".5" strokeDasharray="3 4" /></ChartSelectionMarker>
       </svg>
     </div>
   </>;

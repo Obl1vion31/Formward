@@ -94,7 +94,6 @@
 .grid { stroke: var(--body-rule); stroke-width: .6; }
 .axis { fill: var(--body-muted); font: 12px ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 .pairLine { stroke: var(--body-blue); stroke-width: .65; opacity: .23; pointer-events: none; }
-.selectedDayLine { stroke: var(--body-muted); stroke-width: .65; opacity: .2; stroke-dasharray: 2 5; pointer-events: none; }
 .dayLine { stroke: var(--body-gold); stroke-width: 1.7; pointer-events: none; }
 .nightLine { stroke: var(--body-blue); stroke-width: 1.1; opacity: .55; pointer-events: none; }
 .gapLine { stroke-width: 1; stroke-dasharray: 1 6; stroke-linecap: round; opacity: .3; pointer-events: none; }
@@ -106,7 +105,6 @@
 .dayPoint { fill: var(--body-gold); stroke: var(--graphite); stroke-width: 1; pointer-events: none; }
 .nightPoint { fill: var(--graphite); stroke: var(--body-blue); stroke-width: 1.4; pointer-events: none; }
 .hitTarget { fill: transparent; cursor: pointer; }
-.selectedPoint { fill: none; stroke: var(--body-ink); stroke-width: .7; pointer-events: none; }
 .plot g[role="button"] { outline: none; }
 .plot g[role="button"]:focus-visible .hitTarget { fill: color-mix(in srgb,var(--gold) 12.0%,transparent); stroke: var(--body-ink); stroke-width: .8; }
 .emptyChart { fill: var(--body-muted); font-size: 14px; }

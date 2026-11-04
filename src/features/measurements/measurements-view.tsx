@@ -3,7 +3,7 @@ import {useDraftGuard,confirmDraftDiscard} from "@/components/draft-guard";
 import {measurementVersions} from "@/components/record-change-client";
 import {RecordWorkspace,RecordTrendPanel,ChartOptions,CustomRecordRange} from "@/components/record-trend-panel";
 import {formatRecordNumber} from "@/components/number-format";
-import { ChartSelectionMarker } from "@/components/chart-selection-marker";
+import { ChartSelectionColumn, ChartSelectionPoint } from "@/components/chart-selection-marker";
 import {useChartDrag} from "@/components/use-chart-drag";
 import { useChartMotion } from "@/components/use-chart-motion";
 import { ChartRanges } from "@/components/chart-ranges";
@@ -338,6 +338,9 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, selec
   const hintedRecord = points.find((row) => row.id === hintRecordId && row.recordDate===selectedDate && selection.active) ?? points.find(row => row.recordDate === selectedDate && row.period === (selectedPeriod ?? "daytime")) ?? points.find(row => row.recordDate === selectedDate);
   const drag=useChartDrag(Array.from({length:span+1},(_,i)=>addCalendarDays(interval.start,i)),width,48,24,selection.choose);
   const markerKey=`${width}:${height}:${interval.start}:${interval.end}:${scale?.ticks.join("|")}`;
+  const selectedX=selectedDate?x(selectedDate):null,selectedHit=selectedDate?hitColumns.get(selectedDate):null;
+  const dayHalfWidth=span?(width-72)/span/2:(width-72)/2;
+  const selectedColumn=selectedX===null?null:selectedHit?{left:Math.max(selectedHit.left,selectedX-14),right:Math.min(selectedHit.right,selectedX+14)}:{left:selectedX-dayHalfWidth,right:selectedX+dayHalfWidth};
   const activate = (row: MeasurementDisplay) => {selection.activate(row.recordDate);onPeriod(row.period);};
 
 
@@ -347,8 +350,8 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, selec
         <title>{`${metricName(metric)}趋势`}</title>
         {scale?.ticks.map((value) => <g key={value}><line x1="48" x2={width - 24} y1={y(String(value))} y2={y(String(value))} className={styles.grid} /><text x="37" y={y(String(value)) + 4} textAnchor="end" className={styles.axis}>{value.toFixed(1)}</text></g>)}
         {ticks.map((date) => <text key={date} x={x(date)} y={height-10} textAnchor="middle" className={styles.axis}>{date.slice(5).replace("-", "/")}</text>)}
-        <ChartSelectionMarker x={selectedDate?x(selectedDate):null} resetKey={markerKey} direct={selection.direct}><line x1="0" x2="0" y1="14" y2={plotBottom+6} className={styles.selectedDayLine}/></ChartSelectionMarker>
-        {(["daytime","evening"] as const).map(period=>{const point=points.find(row=>row.recordDate===selectedDate&&row.period===period);return <ChartSelectionMarker key={period} x={point?x(point.recordDate):null} y={point?y(point[metric]):0} resetKey={markerKey} direct={selection.direct}><circle r="8" className={styles.selectedPoint}/></ChartSelectionMarker>;})}
+        <ChartSelectionColumn x={selectedX} date={selectedDate} column={selectedColumn} plot={{left:48,right:width-24,top:14,bottom:plotBottom}} resetKey={markerKey} direct={selection.direct}/>
+        {(["daytime","evening"] as const).map(period=>{const point=points.find(row=>row.recordDate===selectedDate&&row.period===period);return <ChartSelectionPoint key={period} x={point?x(point.recordDate):null} y={point?y(point[metric]):0} resetKey={markerKey} direct={selection.direct} color={period==="daytime"?"var(--body-gold)":"var(--body-blue)"}/>;})}
         {pairs.map((day) => <line data-pair={day.date} key={day.date} x1={x(day.date)} x2={x(day.date)} y1={y(day.daytimeRecord![metric])} y2={y(day.eveningRecord![metric])} className={styles.pairLine} />)}
         {segments.map(({ a, b, period, estimated, missingDayCount }) => <line data-chart-line key={`${a.id}:${b.id}`} data-segment={estimated ? "estimated" : missingDayCount ? "gap" : "continuous"} data-period={period} x1={x(a.recordDate)} y1={y(a[metric])} x2={x(b.recordDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} ${estimated ? styles.estimateLine : missingDayCount ? styles.gapLine : ""}`} />)}
         {[...points].sort((a, b) => Number(a.period === "daytime") - Number(b.period === "daytime")).map((row) => {
@@ -365,7 +368,7 @@ function TrendPlot({ records, metric, showEvening, interval, selectedDate, selec
           const clipTop = midpoint !== null && !coincident && ownY > companionY! ? midpoint : 0;
           const clipBottom = midpoint !== null && !coincident && ownY < companionY! ? midpoint : height;
           const clipId = `${plotId}-${row.id}`;
-          return <g key={row.id} data-point-id={row.id} data-date={row.recordDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.recordDate === selectedDate} data-chart-date={row.recordDate} onMouseMove={() => {setHintRecordId(row.id);selection.preview(row.recordDate);onPeriod(row.period);}} onMouseLeave={() => setHintRecordId(null)} onFocus={event => {selection.focus(event,row.recordDate);if(event.currentTarget.matches(":focus-visible")){setHintRecordId(row.id);onPeriod(row.period);}}} onBlur={() => setHintRecordId(null)} onClick={() => activate(row)} onKeyDown={(event) => {selection.keyDown(event,row.recordDate);if(event.key==="Enter"||event.key===" ")activate(row);}}>
+          return <g key={row.id} data-point-id={row.id} data-date={row.recordDate} data-selected={row.recordDate===selectedDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.recordDate === selectedDate} data-chart-date={row.recordDate} onMouseMove={() => {setHintRecordId(row.id);selection.preview(row.recordDate);onPeriod(row.period);}} onMouseLeave={() => setHintRecordId(null)} onFocus={event => {selection.focus(event,row.recordDate);if(event.currentTarget.matches(":focus-visible")){setHintRecordId(row.id);onPeriod(row.period);}}} onBlur={() => setHintRecordId(null)} onClick={() => activate(row)} onKeyDown={(event) => {selection.keyDown(event,row.recordDate);if(event.key==="Enter"||event.key===" ")activate(row);}}>
             <title>{estimated ? label : `${recordTimeLabel(row)} · ${label}`}</title>
             <defs><clipPath id={clipId}><rect x={clipLeft} y={clipTop} width={clipRight - clipLeft} height={clipBottom - clipTop} /></clipPath></defs>
             <circle cx={x(row.recordDate)} cy={ownY} r="14" className={styles.hitTarget} clipPath={`url(#${clipId})`} />
