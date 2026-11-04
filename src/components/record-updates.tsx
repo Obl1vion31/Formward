@@ -16,7 +16,7 @@ export function RecordUpdates(){
  useEffect(()=>{let active=true;
   async function check(){if(document.hidden||inflight.current||draftIsBusy())return;inflight.current=true;const epoch=generation.current;
    try{const next=await fetchRecordStamps();if(!active||epoch!==generation.current||draftIsBusy())return;
-    if(baseline.current){const difference=changedRecords(baseline.current.map(row=>({...row,summary:visibleRecordSummary(row.key,row.version)})),next);if(difference.length)setChanges(previous=>[...new Map([...previous,...difference].map(row=>[row.record.key,row])).values()]);}
+    if(baseline.current){const difference=changedRecords(baseline.current.map(row=>({...row,summary:visibleRecordSummary(row.key,row.version)})),next);if(difference.length){window.dispatchEvent(new Event("formward-record-context-stale"));setChanges(previous=>[...new Map([...previous,...difference].map(row=>[row.record.key,row])).values()]);}}
     baseline.current=next;
    }catch{}finally{inflight.current=false;}}
   const visible=()=>{if(!document.hidden)void check();};

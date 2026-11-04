@@ -2,7 +2,7 @@ import {numberChangeMessages} from "../../components/number-change";
 import { retiredEnergyAction } from "./model";
 import { requireAiUpserts } from "../auth/ai-write-policy";
 import { createHash, randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { activity, energyDay, energyDefault, energyEvent, energyOperation, energyProfile } from "../../db/schema";
 import { ApiError, type AiIdentity } from "../auth/ai-identity";
@@ -30,11 +30,11 @@ function plain<T extends { userId: string; createdAt: Date; updatedAt: Date; del
   void userId; void createdAt; void updatedAt;
   return { ...record, deletedAt: deletedAt?.toISOString() ?? null };
 }
-export async function readEnergySnapshot(db: Pick<Database, "select">, userId: string): Promise<EnergySnapshot> {
-  const defaults = await db.select().from(energyDefault).where(eq(energyDefault.userId, userId)).orderBy(asc(energyDefault.id));
-  const profiles = await db.select().from(energyProfile).where(eq(energyProfile.userId, userId)).orderBy(asc(energyProfile.id));
-  const days = await db.select().from(energyDay).where(eq(energyDay.userId, userId)).orderBy(asc(energyDay.id));
-  const activities = await db.select().from(activity).where(eq(activity.userId, userId)).orderBy(asc(activity.id));
+export async function readEnergySnapshot(db: Pick<Database, "select">, userId: string, dates?: string[]): Promise<EnergySnapshot> {
+  const defaults = dates ? [] : await db.select().from(energyDefault).where(eq(energyDefault.userId, userId)).orderBy(asc(energyDefault.id));
+  const profiles = dates ? [] : await db.select().from(energyProfile).where(eq(energyProfile.userId, userId)).orderBy(asc(energyProfile.id));
+  const days = await db.select().from(energyDay).where(and(eq(energyDay.userId, userId), dates ? inArray(energyDay.date,dates) : undefined)).orderBy(asc(energyDay.id));
+  const activities = await db.select().from(activity).where(and(eq(activity.userId, userId), dates ? inArray(activity.date,dates) : undefined)).orderBy(asc(activity.id));
   const sourced = <T extends Parameters<typeof plain>[0] & { sourceOccurredAt: Date | null; sourceUnit: string; syncStatus: string }>(row: T) => ({ ...plain(row), sourceOccurredAt: row.sourceOccurredAt?.toISOString() ?? null, sourceUnit: "kcal" as const, syncStatus: "confirmed" as const });
   return { defaults: defaults.map(plain), profiles: profiles.map(row => ({ ...plain(row), sex: row.sex as "male" | "female" })), days: days.map(sourced), activities: activities.map(sourced) };
 }

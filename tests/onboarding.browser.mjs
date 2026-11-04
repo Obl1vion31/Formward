@@ -153,7 +153,7 @@ try{
  await op.getByRole("button",{name:"保存并继续",exact:true}).click();await op.locator("[data-tutorial-guide]").waitFor();
  await shot(op,"desktop-rehearsal-guide",true);
  await op.getByRole("button",{name:"返回资料",exact:true}).click();assert.equal(await op.getByLabel("身高",{exact:true}).inputValue(),"181");
- await op.getByRole("button",{name:"保存并继续",exact:true}).click();await op.getByRole("button",{name:"结束演练",exact:true}).click();
+ await op.getByRole("button",{name:"保存并继续",exact:true}).click();await op.locator("[data-tutorial-guide]").waitFor();await op.locator(".tutorial-fallback").waitFor({state:"hidden"});await op.getByRole("button",{name:"结束演练",exact:true}).click();
  await op.getByRole("heading",{name:"演练完成"}).waitFor();
  await settle();
  assert.deepEqual(await db.select().from(schema.personalProfile).where(eq(schema.personalProfile.userId,identities.owner.id)),before);assert.deepEqual(posts,[]);
@@ -189,8 +189,8 @@ try{
  await page.waitForFunction(()=>{const v=document.querySelector(".tutorial-modal video");return v?.readyState>=2&&!v.paused;});
  await page.locator(".tutorial-modal [data-close-lesson]").click();checks.push("media-failure-text-and-retry");
  phase="tools";
- await go(page,"/dashboard");await page.getByRole("button",{name:"工具",exact:true}).last().click();
- await page.getByRole("link",{name:/查看教程/}).click();await page.locator("[data-tutorial-guide]").waitFor();checks.push("tools-tutorial-link");
+ await go(page,"/dashboard");await page.getByRole("button",{name:/^助手(?:，|$)/}).last().click();
+ await page.getByText("常用功能",{exact:true}).click();await page.getByRole("link",{name:/查看教程/}).click();await page.locator("[data-tutorial-guide]").waitFor();checks.push("tools-tutorial-link");
 
  phase="extra playback and layouts";
  await page.setViewportSize({width:1440,height:900});await page.emulateMedia({reducedMotion:"no-preference"});await go(page,"/dashboard/tutorial");

@@ -5,11 +5,11 @@ import {draftIsBusy,draftIsDirty,approvePageRefresh} from "./draft-guard";
 import {confirmAction} from "./confirmation-state";
 import styles from "./app-updates.module.css";
 const currentVersion=process.env.NEXT_PUBLIC_APP_VERSION??"development";
-const overlaySnapshot=()=>Boolean(document.querySelector("dialog[open]"))||Boolean(document.fullscreenElement);
+const overlaySnapshot=()=>Boolean(document.querySelector("dialog[open], [data-assistant-open]"))||Boolean(document.fullscreenElement);
 const serverOverlay=()=>false;
 const subscribeNothing=()=>()=>{};
 function subscribeOverlay(notify:()=>void){
- const observer=new MutationObserver(notify);observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["open"]});document.addEventListener("fullscreenchange",notify);
+ const observer=new MutationObserver(notify);observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["open","data-assistant-open"]});document.addEventListener("fullscreenchange",notify);
  return()=>{observer.disconnect();document.removeEventListener("fullscreenchange",notify);};
 }
 export function AppUpdates(){

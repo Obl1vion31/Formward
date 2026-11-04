@@ -49,7 +49,7 @@ export function TutorialView({startText="返回总览",backText,onStart,onBack,b
         <li>身体：先选晨间或晚间，晨间必须空腹；体重、体脂只填知道的部分，点击“保存录入”。估计有独立标识，不能当实测。</li>
         <li>消耗：填写静息和活动，或只填全天总数。已包含在合计中的运动不再额外增加。</li>
         <li>补录：最近日期直接点“补录”；更早从“查看全部”选择日期并点“查看”，保存前核对日期。</li>
-        <li>AI录入：先从“工具 → AI接入”连接外部AI，打开确认链接，检查修改后点“确认保存”。站内聊天暂未开放。</li>
+        <li>AI录入：先从“助手 → 常用功能 → AI接入”连接外部AI，打开确认链接，检查修改后点“确认保存”。站内聊天暂未开放。</li>
       </ol></details>
       {error&&<button className="quiet" onClick={()=>{setError(false);setAttempt(n=>n+1);}}>重新加载教程</button>}
       {onBack&&<button className="quiet" disabled={busy} onClick={onBack}>{backText}</button>}

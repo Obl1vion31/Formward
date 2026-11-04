@@ -5,7 +5,7 @@ const topics=[
  {id:'body',name:'身体',title:'记录体重与体脂',summary:'晨晚体重与体脂',short:['选时段','填实测','保存查看'],steps:[['日期与时段','找到称重日期，点“录入”或“编辑”；手机先选晨间或晚间，切换保留两侧输入。'],['只填实测值','晨间必须空腹；体重、体脂只填知道的部分，不知道的留空。'],['保存后查看','核对日期、公斤和百分比，点“保存录入”一次保存晨晚修改，再回到那一天查看。']],note:'不知道的数不填0。每日体重、体脂在身体页记录，不用去个人资料重复填写。'},
  {id:'energy',name:'消耗',title:'记录当天消耗',summary:'静息、活动与总数',short:['找日期','填消耗','核对保存'],steps:[['找到当天','在对应日期点“录入”或“补录”。'],['选择填写方式','填静息和活动，或只填全天总数；运动明细按需添加。'],['核对后保存','某项运动已在活动合计中时选“已包含”，避免重复增加，再核对总数。']],note:'示例：静息1800＋活动400＝2200千卡。400里已有的320快走只留明细，不再多加一次。来源可以留空。'},
  {id:'backfill',name:'补录',title:'补到正确那一天',summary:'昨天和更早日期',short:['补昨天','选更早','核对日期'],steps:[['先补昨天','在昨天那行点“补录”，核对窗口和保存按钮都是昨天的日期。'],['找更早日期','点“查看全部”，在“查看日期”选好那一天并点“查看”，再补录。'],['核对日期与结果','保存前再看日期，保存后从对应日期找到记录，避免误存到今天。']],note:'最近7天只是快捷入口。已有餐次仍可追加一餐；补录或修改饮食后，重新确认那天是否“已记全”。'},
- {id:'ai',name:'AI录入',title:'AI提交与确认',summary:'外部AI提交，网页确认',short:['AI提交','检查修改','确认保存'],steps:[['告诉外部AI','说清日期、餐次和吃了什么，打开AI返回的待确认链接。'],['检查并修改','核对日期、本餐总量和食物；“应用修改”还没有正式保存。'],['确认保存','最后点“确认保存”，再从“查看记录”找到这餐。']],note:'片中聊天明确为示例，随后是测试账号的实际网页操作。站内聊天录入尚未开放。'}
+ {id:'ai',name:'AI录入',title:'AI提交与确认',summary:'外部AI提交，网页确认',short:['AI提交','检查修改','确认保存'],steps:[['连接并提交','从助手的常用功能进入AI接入；连接后说清日期、餐次和食物，打开待确认链接。'],['检查并修改','核对日期、本餐总量和食物；“应用修改”还没有正式保存。'],['确认保存','最后点“确认保存”，再从“查看记录”找到这餐。']],note:'片中聊天明确为示例，随后是测试账号的实际网页操作。站内聊天录入尚未开放。'}
 ];
 const device=matchMedia('(max-width:700px), (hover:none) and (pointer:coarse)');
 const reduced=matchMedia('(prefers-reduced-motion:reduce)');
@@ -107,7 +107,7 @@ function bind(container){
    '<output class="lesson-time">0:00/'+clock(a?.duration||30)+'</output><button type="button" data-control="fullscreen" aria-label="全屏观看">'+fullIcon+'</button></div>',
    '<ol class="lesson-steps">'+topic.steps.map((s,i)=>'<li><button type="button" class="lesson-step" data-step="'+i+'" aria-label="重看：'+s[0]+'"><span class="step-number">'+String(i+1).padStart(2,'0')+'</span><span class="step-label">'+topic.short[i]+'</span></button></li>').join('')+'</ol></div></div>',
    '<div class="lesson-text" hidden><ol class="text-steps">'+topic.steps.map(s=>'<li><h3>'+s[0]+'</h3><p>'+s[1]+'</p></li>').join('')+'</ol><p class="lesson-note">'+topic.note+'</p>',
-   topic.id==='ai'?'<p class="ai-connection"><strong>第一次连接AI</strong><br>工具 → AI接入 → 按页面指引连接外部AI并授权。连接后再提交，最后回网页确认保存。</p>':'',
+   topic.id==='ai'?'<p class="ai-connection"><strong>第一次连接AI</strong><br>助手 → 常用功能 → AI接入 → 按页面指引连接外部AI并授权。连接后再提交，最后回网页确认保存。</p>':'',
    '</div><p class="guide-sr-only lesson-status" role="status" aria-live="polite"></p>'
   ].join('');
   const video=node.querySelector('video'),stage=node.querySelector('.lesson-stage'),frame=node.querySelector('.lesson-frame');

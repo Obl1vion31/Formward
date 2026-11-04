@@ -5,3 +5,5 @@
 `v1/` 提供身体记录 Bearer API 与公开 OpenAPI；查询、提交预览和操作状态共用 measurements feature。网页 cookie 不能代替令牌，接口没有确认保存端点。详见 [AI 接入](../../../docs/ai-api.md)。
 
 `mcp/` 提供 OAuth Bearer 保护的 Streamable HTTP POST，通过 mcp feature 调用同一业务函数。客户端通过根 `.well-known/` 发现 OAuth；手动 HTTP 令牌不用于 MCP，网页登录 cookie 不代替 MCP 授权。
+
+`assistant-context/`仅接受网页登录会话和有效设备时区，私有、不缓存，返回今天／昨天的最小事项上下文；不接受userId或AI令牌，不创建预览或写入健康资料。

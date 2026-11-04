@@ -1,7 +1,7 @@
 import { latestMeasurement } from "./days";
 import { localMeasurementDate } from "./entry-state";
 import { createHash, randomUUID } from "node:crypto";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, inArray } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { measurement, measurementEvent, measurementImport } from "../../db/schema";
 import { lockActiveAccount } from "../auth/account-security";
@@ -63,10 +63,10 @@ export function validateDecimal(value: string, label: string, min: number, max: 
   return number.toFixed(2);
 }
 
-export async function listMeasurements(db: Database, userId: string) {
+export async function listMeasurements(db: Database, userId: string, dates?: string[]) {
   requireUser(userId);
   return db.select().from(measurement)
-    .where(and(eq(measurement.userId, userId), isNull(measurement.deletedAt)))
+    .where(and(eq(measurement.userId, userId), isNull(measurement.deletedAt), dates ? inArray(measurement.recordDate,dates) : undefined))
     .orderBy(desc(measurement.sourceLocalTime));
 }
 

@@ -10,6 +10,7 @@ import {submitEnergyOperation,decideEnergyOperation,readEnergySnapshot} from "..
 export async function checkEnergyTools({baseURL,page,context,db,userId,today,token,engine}){
  const artifacts=process.env.FORMWARD_ENERGY_TOOLS_ARTIFACTS??".codex/energy-tools-visual/"+engine;
  await mkdir(artifacts,{recursive:true});
+ await page.addInitScript(id=>{localStorage.setItem("formward:assistant:auto:"+id,"off");},userId);
  const checks=[],screens=[],native=[],geometry=[];
  page.on("dialog",async dialog=>{native.push(dialog.message());await dialog.dismiss();});
  const date=offset=>addCalendarDays(today,offset);
@@ -41,16 +42,14 @@ export async function checkEnergyTools({baseURL,page,context,db,userId,today,tok
   console.log("Checking tools viewport",width,height);await page.setViewportSize({width,height});
   for(const [name,path] of pages){
    await visit("/dashboard"+path);await page.getByRole("button",{name:"7D",exact:true}).click();await page.evaluate(()=>scrollTo(0,0));await shot(name+"-closed-"+width);
-   const before=await bounds(),trigger=page.getByRole("button",{name:"工具",exact:true});
+   const before=await bounds(),trigger=page.getByRole("button",{name:/^助手(?:，|$)/});
    const visibleWidth=await page.evaluate(()=>document.body.getBoundingClientRect().right),header=await page.locator(".dashboard-header").boundingBox(),triggerBox=await trigger.boundingBox();assert.ok(triggerBox.height>=44&&triggerBox.width>=44);
    await page.getByLabel("账号菜单",{exact:true}).click();assert.ok(await page.locator(".dashboard-menu").evaluate(node=>node.open));
-   await trigger.click();const drawer=page.getByRole("dialog",{name:"工具",exact:true});await drawer.waitFor();await page.waitForTimeout(400);
+   await trigger.click();const drawer=page.getByRole("dialog",{name:"小助手",exact:true});await drawer.waitFor();await page.waitForTimeout(400);
    assert.equal(await page.locator(".dashboard-menu").evaluate(node=>node.open),false,"opening tools closes account");
-   assert.equal(await drawer.getByRole("button",{name:"打卡记录",exact:true}).isDisabled(),true);
-   assert.equal(await drawer.getByRole("button",{name:"最近总结",exact:true}).isDisabled(),true);
-   assert.equal(await drawer.getByRole("button",{name:"AI 录入",exact:true}).isDisabled(),true);
-   assert.ok(await drawer.getByText("站内聊天录入，暂未开放",{exact:true}).isVisible());
-   const box=await drawer.boundingBox();assert.ok(box.width<=Math.min(320,width-16)+1&&box.x>=15);assert.ok(box.x+box.width<=width+1);
+   assert.equal(await drawer.getByRole("button",{name:"打卡记录",exact:true}).count(),0);
+   await drawer.getByText("常用功能",{exact:true}).click();assert.equal(await drawer.getByRole("link",{name:"查看教程",exact:true}).count(),1);assert.equal(await drawer.getByRole("link",{name:"AI 接入",exact:true}).count(),1);assert.equal(await drawer.getByRole("link",{name:"导出 Excel",exact:true}).count(),1);
+   const box=await drawer.boundingBox();assert.ok(box.width<=Math.min(400,width)+1&&box.x>=-1);assert.ok(box.x+box.width<=width+1);
    const after=await bounds();for(const key of ["date","metrics","range","plot"])for(const dim of ["x","y","width"])assert.ok(Math.abs(before[key][dim]-after[key][dim])<=1,name+" tools shifts "+key+" "+dim);
    const nav=page.locator(width<=430?".mobile-bottom-nav":".desktop-record-nav");
    assert.ok(await nav.isVisible(),"chosen navigation visible");
@@ -61,20 +60,20 @@ export async function checkEnergyTools({baseURL,page,context,db,userId,today,tok
    assert.equal(await nav.locator("a svg").count(),4,"icons accompany labels");
    const navBox=await nav.boundingBox();
    if(width<=430){assert.ok(header.height<=50,"one-line mobile header");assert.ok(triggerBox.y>=navBox.y&&triggerBox.y+triggerBox.height<=height,"mobile tools in bottom bar");assert.ok(Math.abs(navBox.y+navBox.height-height)<=1,"bar is pinned to bottom");}
-   else{assert.ok(navBox.x+navBox.width<=before.metrics.x,"desktop rail leaves content clear");assert.ok(Math.abs(triggerBox.x+triggerBox.width-visibleWidth)<=1,"desktop tools on right visible edge "+JSON.stringify({visibleWidth,triggerBox}));assert.ok(Math.abs(triggerBox.y+triggerBox.height/2-height/2)<=1,"side handle vertically centered");}
+   else{assert.ok(navBox.x+navBox.width<=before.metrics.x,"desktop rail leaves content clear");assert.ok(Math.abs(triggerBox.x+triggerBox.width-(visibleWidth-24))<=1,"desktop assistant right inset");assert.ok(Math.abs(triggerBox.y+triggerBox.height-(height-24))<=1,"assistant bottom inset");}
    await shot(name+"-tools-"+width);geometry.push({name,width,height,header,drawer:box,before,after});
-   const focusables=drawer.locator("button:not(:disabled),a[href]");await focusables.last().focus();await page.keyboard.press("Tab");assert.equal(await focusables.first().evaluate(node=>node===document.activeElement),true,"focus trap");
+   if(width<=430){const focusables=drawer.locator("button:not(:disabled),a[href],input,summary");await focusables.last().focus();await page.keyboard.press("Tab");assert.equal(await drawer.evaluate(node=>node.contains(document.activeElement)),true,"mobile focus trap");}else{assert.equal(await drawer.evaluate(node=>node.matches(":modal")),false,"desktop stays nonmodal");}
    await page.keyboard.press("Escape");await drawer.waitFor({state:"hidden"});assert.equal(await trigger.evaluate(node=>node===document.activeElement),true,"return trigger focus");
    assert.equal(await page.evaluate(()=>document.body.style.overflow),"","scroll restored");
   }
-  await edit();await form().evaluate(node=>node.scrollTop=0);assert.equal(await total().textContent(),"2273");await page.getByRole("button",{name:"工具",exact:true}).evaluate(node=>node.click());assert.equal(await page.getByRole("dialog",{name:"工具",exact:true}).count(),0,"editing blocks tools");
+  await edit();await form().evaluate(node=>node.scrollTop=0);assert.equal(await total().textContent(),"2273");await page.getByRole("button",{name:/^助手(?:，|$)/}).evaluate(node=>node.click());assert.equal(await page.getByRole("dialog",{name:"小助手",exact:true}).count(),0,"editing blocks tools");
   await shot("activity-manual-"+width);await menuSwitch();await confirmation().waitFor();const copy=await confirmation().innerText();assert.match(copy,/215/);assert.match(copy,/2273.*2058/);assert.match(copy,/没有运动明细/);
   assert.equal(await input().getAttribute("data-calorie-origin"),"manual","no premature mode switch");assert.equal(await total().textContent(),"2273");
   const cb=await confirmation().boundingBox();assert.ok(cb.x>=16&&cb.x+cb.width<=width-16+1);assert.equal(await confirmation().getByRole("button",{name:"取消",exact:true}).evaluate(node=>node===document.activeElement),true);
   await shot("activity-switch-confirm-"+width);await acceptSwitch();assert.equal(await input().inputValue(),"0");assert.equal(await input().getAttribute("data-calorie-origin"),"automatic");assert.equal(await total().textContent(),"2058");assert.equal(await form().getByLabel("活动来源",{exact:true}).count(),0);
   await shot("activity-automatic-"+width);await closeEditor();
  }
- if(process.env.FORMWARD_ENERGY_TOOLS_FLOW_ONLY!=="1")checks.push("Five sizes/four actual pages: tools overlay leaves content geometry unchanged, mobile header one line; disabled future items, keyboard loop, Escape focus/scroll restore; actual closed/open and manual/auto/confirm screenshots");
+ if(process.env.FORMWARD_ENERGY_TOOLS_FLOW_ONLY!=="1")checks.push("Five sizes/four actual pages: assistant window leaves content geometry unchanged, mobile header one line; real common links, mobile keyboard loop, Escape focus/scroll restore; actual closed/open and manual/auto/confirm screenshots");
  // All four real links navigate and highlight consistently; scrolling keeps the navigation available.
  for(const width of [390,1440]){
   await page.setViewportSize({width,height:900});await visit("/dashboard");
@@ -88,15 +87,15 @@ export async function checkEnergyTools({baseURL,page,context,db,userId,today,tok
  }
  // Touch landscape keeps four destinations and a separate tools button available.
  const touch=await context.browser().newContext({viewport:{width:844,height:390},hasTouch:true,isMobile:true,locale:"zh-CN",timezoneId:"Asia/Shanghai",storageState:await context.storageState()});
- try{const tp=await touch.newPage();await tp.goto(baseURL+"/dashboard");await tp.waitForLoadState("networkidle");await tp.locator(".mobile-bottom-nav").waitFor();await tp.getByRole("button",{name:"工具",exact:true}).tap();await tp.getByRole("dialog",{name:"工具",exact:true}).waitFor();await tp.getByRole("button",{name:"关闭工具栏",exact:true}).tap();await tp.getByRole("dialog",{name:"工具",exact:true}).waitFor({state:"hidden"});assert.ok(await tp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await tp.screenshot({path:artifacts+"/navigation-touch-landscape.png"});screens.push("navigation-touch-landscape.png");}finally{await touch.close();}
+ try{const tp=await touch.newPage();await tp.goto(baseURL+"/dashboard");await tp.waitForLoadState("networkidle");await tp.locator(".mobile-bottom-nav").waitFor();await tp.getByRole("button",{name:/^助手(?:，|$)/}).tap();await tp.getByRole("dialog",{name:"小助手",exact:true}).waitFor();await tp.getByRole("button",{name:"收起小助手",exact:true}).tap();await tp.getByRole("dialog",{name:"小助手",exact:true}).waitFor({state:"hidden"});assert.ok(await tp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await tp.screenshot({path:artifacts+"/navigation-touch-landscape.png"});screens.push("navigation-touch-landscape.png");}finally{await touch.close();}
  checks.push("Desktop left rail/mobile icon-and-label bar with separated tools: all actual links/highlights, fixed positioning, clear gutters, touch landscape");
  // Moving keyboard focus into tools ends the chart selection task.
- await page.setViewportSize({width:390,height:640});await visit("/dashboard");await page.getByRole("button",{name:"7D",exact:true}).click();const pinnedDate=date(-1),pinned=page.locator('[data-overview-date="'+pinnedDate+'"]');await pinned.focus();await page.keyboard.press("Enter");const trend=page.getByRole("region",{name:"热量与晨重趋势",exact:true});assert.equal(await trend.getAttribute("data-selected-date"),pinnedDate);await page.getByRole("button",{name:"工具",exact:true}).click();await page.getByRole("dialog",{name:"工具",exact:true}).waitFor();assert.notEqual(await trend.getAttribute("data-selection-origin"),"keyboard","工具获得焦点后结束图表键盘任务");await page.keyboard.press("Escape");await page.getByRole("dialog",{name:"工具",exact:true}).waitFor({state:"hidden"});assert.equal(await trend.getAttribute("data-selection-origin"),"default");
+ await page.setViewportSize({width:390,height:640});await visit("/dashboard");await page.getByRole("button",{name:"7D",exact:true}).click();const pinnedDate=date(-1),pinned=page.locator('[data-overview-date="'+pinnedDate+'"]');await pinned.focus();await page.keyboard.press("Enter");const trend=page.getByRole("region",{name:"热量与晨重趋势",exact:true});assert.equal(await trend.getAttribute("data-selected-date"),pinnedDate);await page.getByRole("button",{name:/^助手(?:，|$)/}).click();await page.getByRole("dialog",{name:"小助手",exact:true}).waitFor();assert.notEqual(await trend.getAttribute("data-selection-origin"),"keyboard","助手获得焦点后结束图表键盘任务");await page.keyboard.press("Escape");await page.getByRole("dialog",{name:"小助手",exact:true}).waitFor({state:"hidden"});assert.equal(await trend.getAttribute("data-selection-origin"),"default");
  checks.push("Tool focus ends keyboard chart selection; Escape restores tool trigger focus");
  // The account menu has no duplicate navigation. Tools links close before navigating.
  await page.setViewportSize({width:390,height:640});
- await visit("/dashboard");await page.getByLabel("账号菜单",{exact:true}).click();const accountMenu=page.locator(".dashboard-menu");assert.equal(await accountMenu.getByRole("link").count(),0);assert.ok(await accountMenu.getByRole("button",{name:/退出/}).isVisible());await page.getByRole("button",{name:"工具",exact:true}).click();await page.getByRole("dialog",{name:"工具",exact:true}).getByRole("link",{name:"AI 接入",exact:true}).click();await page.waitForURL("**/dashboard/ai");await page.waitForLoadState("networkidle");assert.equal(await page.getByRole("dialog",{name:"工具",exact:true}).count(),0);await page.getByRole("button",{name:"工具",exact:true}).click();await page.getByRole("dialog",{name:"工具",exact:true}).getByRole("link",{name:"导出 Excel",exact:true}).click();await page.waitForURL("**/dashboard/export");await page.waitForLoadState("networkidle");await page.getByRole("button",{name:"工具",exact:true}).click();await page.getByRole("dialog",{name:"工具",exact:true}).getByRole("button",{name:"关闭工具栏",exact:true}).click();await page.getByRole("dialog",{name:"工具",exact:true}).waitFor({state:"hidden"});
- await page.getByRole("button",{name:"工具",exact:true}).click();await page.mouse.click(5,250);await page.getByRole("dialog",{name:"工具",exact:true}).waitFor({state:"hidden"});
+ await visit("/dashboard");await page.getByLabel("账号菜单",{exact:true}).click();const accountMenu=page.locator(".dashboard-menu");assert.ok(await accountMenu.getByRole("link",{name:"账号设置",exact:true}).isVisible());assert.ok(await accountMenu.getByRole("button",{name:/退出/}).isVisible());await page.getByRole("button",{name:/^助手(?:，|$)/}).click();await page.getByRole("dialog",{name:"小助手",exact:true}).getByText("常用功能",{exact:true}).click();await page.getByRole("dialog",{name:"小助手",exact:true}).getByRole("link",{name:"AI 接入",exact:true}).click();await page.waitForURL("**/dashboard/ai");await page.waitForLoadState("networkidle");assert.equal(await page.getByRole("dialog",{name:"小助手",exact:true}).count(),0);await page.getByRole("button",{name:/^助手(?:，|$)/}).click();await page.getByRole("dialog",{name:"小助手",exact:true}).getByText("常用功能",{exact:true}).click();await page.getByRole("dialog",{name:"小助手",exact:true}).getByRole("link",{name:"导出 Excel",exact:true}).click();await page.waitForURL("**/dashboard/export");await page.waitForLoadState("networkidle");await page.getByRole("button",{name:/^助手(?:，|$)/}).click();await page.getByRole("dialog",{name:"小助手",exact:true}).getByRole("button",{name:"收起小助手",exact:true}).click();await page.getByRole("dialog",{name:"小助手",exact:true}).waitFor({state:"hidden"});
+ await page.getByRole("button",{name:/^助手(?:，|$)/}).click();await page.mouse.click(5,250);await page.getByRole("dialog",{name:"小助手",exact:true}).waitFor({state:"hidden"});
  checks.push("Account-only menu; AI/export actual navigation closes drawer; close button/backdrop work");
  console.log("Checking aggregate cancellation and input preservation");
  // Clear and blur is the same protected switch, with no loss of pending source/notes.
@@ -128,7 +127,7 @@ export async function checkEnergyTools({baseURL,page,context,db,userId,today,tok
  // The same shared editor in AI confirmation changes only the draft, not saved health data.
  const old=(await readEnergySnapshot(db,userId)).days.find(row=>row.date===today&&!row.deletedAt);
  const response=await context.request.post(baseURL+"/api/v1/record-operations",{headers:{Authorization:"Bearer "+token},data:{operationId:randomUUID(),items:[{key:"daily-switch",kind:"save_energy_day",id:old.id,version:old.version,date:today,entryMode:"components",activityMode:"total",restingKcal:"2058",activeKcal:"215",activeSourceSystem:"虚构手表"}]}});
- assert.equal(response.status(),200);const operation=await response.json();await visit(new URL(operation.confirmationUrl).pathname);assert.equal(await page.getByRole("button",{name:"工具",exact:true}).count(),0,"AI confirmation stays compact");
+ assert.equal(response.status(),200);const operation=await response.json();await visit(new URL(operation.confirmationUrl).pathname);assert.equal(await page.getByRole("button",{name:/^助手(?:，|$)/}).count(),0,"AI confirmation stays compact");
  await page.getByRole("button",{name:"修改",exact:true}).click();const ai=page.getByRole("dialog",{name:"修改待保存内容",exact:true});
  await ai.getByText("填写方式",{exact:true}).click();await ai.getByRole("button",{name:"改用运动累计",exact:true}).click();await confirmation().waitFor();assert.match(await confirmation().innerText(),/应用修改返回后.*统一确认保存/);await shot("ai-switch-confirm-390");await page.keyboard.press("Escape");assert.equal(await ai.getByLabel("活动合计 · kcal",{exact:true}).inputValue(),"215");
  await ai.getByLabel("活动合计 · kcal",{exact:true}).fill("");await ai.getByRole("heading",{name:"静息与活动",exact:true}).click();await acceptSwitch();assert.equal(await ai.getByLabel("活动合计 · kcal",{exact:true}).inputValue(),"0");await shot("ai-switch-draft-390");await ai.getByRole("button",{name:"应用修改",exact:true}).click();await ai.waitFor({state:"hidden"});await page.waitForLoadState("networkidle");
@@ -138,7 +137,7 @@ export async function checkEnergyTools({baseURL,page,context,db,userId,today,tok
  // Meaningful diet notes occupy one interval-sized row; legacy energy estimates never surface.
  for(const width of [320,390,1440]){
   await page.setViewportSize({width,height:width<700?640:900});await visit("/dashboard");await page.getByRole("button",{name:"7D",exact:true}).click();await page.waitForTimeout(500);
-  assert.equal(await page.getByText("消耗含估计",{exact:false}).count(),0);assert.equal(await page.locator("[data-record-slot=status]").count(),1);
+  assert.equal(await page.getByText("消耗含估计",{exact:false}).count(),0);assert.equal(await page.locator("[data-record-slot=date] [role=status]").count(),1);
   let previous=null;const cases=[];
   for(const d of [today,date(-1),date(-2),date(-4),today]){
    const hit=page.locator('[data-overview-date="'+d+'"]');const box=await hit.boundingBox();await page.mouse.move(box.x+Math.max(1,box.width*.5),box.y+30);await page.waitForTimeout(80);assert.equal(await page.getByRole("region",{name:"热量与晨重趋势",exact:true}).getAttribute("data-selected-date"),d);
@@ -146,13 +145,13 @@ export async function checkEnergyTools({baseURL,page,context,db,userId,today,tok
    cases.push({date:d,geometry:result});previous=result;
   }
   await shot("overview-stable-status-"+width);geometry.push({width,statusCases:cases});
-  await page.getByRole("button",{name:"自定义",exact:true}).click();const custom=page.getByRole("form",{name:"自定义日期范围",exact:true});await custom.getByLabel(/开始日期/).fill(today);await custom.getByLabel(/结束日期/).fill(today);await custom.getByRole("button",{name:"应用",exact:true}).click();assert.equal(await page.locator("[data-record-slot=status]").count(),0,"no empty status spacer for clean interval");
+  await page.getByRole("button",{name:"自定义",exact:true}).click();const custom=page.getByRole("form",{name:"自定义日期范围",exact:true});await custom.getByLabel(/开始日期/).fill(today);await custom.getByLabel(/结束日期/).fill(today);await custom.getByRole("button",{name:"应用",exact:true}).click();assert.equal((await page.locator("[data-record-slot=date] [role=status]").innerText()).trim(),"","clean date row has no status text");
   await visit("/dashboard/energy");await page.getByRole("button",{name:"7D",exact:true}).click();let eprevious=null;
   for(const d of [today,date(-1),date(-2),date(-4),today]){const hit=page.locator('[data-energy-date="'+d+'"]');const box=await hit.boundingBox();await page.mouse.move(box.x+Math.max(1,box.width*.5),box.y+30);await page.waitForTimeout(80);assert.equal(await page.getByRole("region",{name:"消耗历史趋势",exact:true}).getAttribute("data-selected-date"),d);const result=await bounds();if(eprevious)for(const key of ["date","metrics","range","plot"])for(const dim of ["x","y","width","height"])assert.ok(Math.abs(eprevious[key][dim]-result[key][dim])<=1,"energy hover changed "+key+" "+dim);eprevious=result;}
   assert.equal(await page.locator("[data-record-slot=metrics]").getByText(/估计/).count(),0);await shot("energy-stable-readings-"+width);
  }
  checks.push("320/390/1440 normal/legacy-estimated/diet-incomplete/unknown/missing hover leaves date/readings/range/plot bounds stable; clean range creates no status spacer");
- await page.emulateMedia({reducedMotion:"reduce"});await visit("/dashboard");await page.getByRole("button",{name:"工具",exact:true}).click();await page.getByRole("dialog",{name:"工具",exact:true}).waitFor();await page.keyboard.press("Escape");await page.getByRole("dialog",{name:"工具",exact:true}).waitFor({state:"hidden"});await page.emulateMedia({reducedMotion:"no-preference"});
+ await page.emulateMedia({reducedMotion:"reduce"});await visit("/dashboard");await page.getByRole("button",{name:/^助手(?:，|$)/}).click();await page.getByRole("dialog",{name:"小助手",exact:true}).waitFor();await page.keyboard.press("Escape");await page.getByRole("dialog",{name:"小助手",exact:true}).waitFor({state:"hidden"});await page.emulateMedia({reducedMotion:"no-preference"});
  assert.deepEqual(native,[]);
  await writeFile(artifacts+"/report.json",JSON.stringify({passed:true,flowOnly:process.env.FORMWARD_ENERGY_TOOLS_FLOW_ONLY==="1",engine,checks,screens,geometry,native,realIOS:"未测",softwareKeyboard:"未测"},null,2));
  console.log(engine+" energy tools checks passed: "+checks.length+" groups, "+screens.length+" screenshots");

@@ -264,3 +264,12 @@ checkDetailHierarchy逐态核对七种视口和深浅主题：当天合计及结
 详情浏览器入口同时检查单行食物摘要、完整事实按需挂载、运动短状态／完整依据、更多Escape与外部关闭、删除取消、键盘和收起恢复；详情仍按七种尺寸及深浅主题比较，200%页面缩放作为模拟，真机文字放大不冒充已测。
 
 保存结果出现后仍可能有Server Action附带重验证流收尾；脚本刻意整页重开前等待networkidle，不能用关闭输入框代替请求结束。保留客户端异常检查，不过滤WebKit加载错误；本轮原始请求取消及修正后完整重验记录见维护验收。
+
+
+## 小助手与区间摘要
+
+`pnpm test:assistant-browser`在build后运行`assistant-suite.browser.mts`：建立独立内存PostgreSQL、虚构账号、最小两日事项及混合实测／估计数据，启动临时production端口，再调用`assistant.browser.mjs`与`assistant-edge.browser.mjs`。不读取`.env.local`，不向正式账号写入；结束关闭浏览器、应用与数据库。Playwright可用`PLAYWRIGHT_MODULE`指定，浏览器用`FORMWARD_ASSISTANT_BROWSER=webkit`切换，证据目录由`FORMWARD_ASSISTANT_ARTIFACTS`指定。
+
+覆盖会话与非法参数、账号隔离、每天一次及手动重开、旧收起偏好、多标签、设备时区、跨日／过期响应、失败与401、实际记全成功后的重判、编辑互斥、AI与Excel真实去向、深浅主题、320／390／430px、矮屏／触屏横屏、1100／1440px、200%等效可用区及减少动态效果。估计专项以真实鼠标反复移至实测／估计点，逐帧比较读数、区间、标题、图形及scrollY，变化不超过1px并核对静止日期。模拟浏览器不代替真实iPhone、系统文字放大与软键盘。
+
+`assistant.test.ts`验证纯事项／偏好、有界读取、不写入及跨账号；`range-coverage.test.ts`验证已有日级收支的区间覆盖与原因，不重算能量或体重。旧总览提醒条退出，旧当日收起键仍由助手读取兼容。

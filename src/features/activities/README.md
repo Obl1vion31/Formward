@@ -38,3 +38,5 @@ activity-summary.ts统一填写窗口、日期详情和AI确认的运动总数�
 
 
 运动详情默认显示名称、本次总数、分项和共用activitySummary的短状态；展开本条查看时长、来源、完整计入解释和编辑，删除位于本条更多且仍须确认。短状态不另算合计，填写与AI原有完整说明保持。
+
+readEnergySnapshot的可选dates参数供助手只读今天／昨天，省略退役defaults与profiles；全天总数继续复用energyDays的正式记录模式和运动包含规则，不因仅有运动就认定全天完整。完整页面与写入预览仍读取原快照。

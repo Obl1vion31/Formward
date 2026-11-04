@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type { Database } from "../../db/client";
 import { meal, mealDay, mealDayEvent } from "../../db/schema";
@@ -13,8 +13,8 @@ export function mealDayDigest(rows: MealVersion[]) {
   return createHash("sha256").update([...rows].sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0).map(row=>row.id+":"+row.version).join("|")).digest("hex");
 }
 export async function readMealDayViews(db: Pick<Database,"select">, userId: string, meals: {id:string;version:number;localDate:string;deletedAt:Date|null}[]) {
-  const states = await db.select().from(mealDay).where(eq(mealDay.userId,userId));
   const dates = [...new Set(meals.filter(row=>!row.deletedAt).map(row=>row.localDate))];
+  const states = dates.length ? await db.select().from(mealDay).where(and(eq(mealDay.userId,userId),inArray(mealDay.date,dates))) : [];
   return new Map(dates.map(date=>{
     const row=states.find(day=>day.date===date), contentDigest=mealDayDigest(meals.filter(m=>!m.deletedAt&&m.localDate===date));
     const status=row && row.contentDigest===contentDigest ? row.status : "unconfirmed";

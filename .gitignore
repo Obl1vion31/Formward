@@ -38,3 +38,6 @@ Thumbs.db
 *.log
 # Windows 下载来源附带文件，不属于人物素材
 *:Zone.Identifier
+
+# 界面验收截图与检测证据
+/.impeccable/review/

@@ -3,27 +3,39 @@ import {useEffect,useRef,useState,type ReactNode,type ComponentPropsWithoutRef,t
 import {useMobileMode} from "./use-mobile-mode";
 import {SelectedDateHeading} from "./daily-records";
 import styles from "./record-trend-panel.module.css";
-export type RecordMetric={label:string;value:string;unit:string;tone?:"blue"|"red"|"gold";note?:string;reserveNote?:boolean;inlineUnit?:boolean};
+export type RecordMetric={id?:string;label:string;value:string;unit:string;tone?:"blue"|"red"|"gold";note?:string;reserveNote?:boolean;inlineUnit?:boolean};
 export function RecordWorkspace({title,headingId,className="",children,...props}:ComponentPropsWithoutRef<"section">&{title:string;headingId?:string}){
  return <section {...props} className={styles.workspace+" "+className} data-record-workspace><header className={styles.pageHeading}><h1 id={headingId}>{title}</h1></header>{children}</section>;
 }
-export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,options,legend,children,readoutLabel="选中日读数",metricVariants=[],flags,flagVariants=[],statistics,supplementary,statusInDate=false}:{
- range:ReactNode;custom?:ReactNode;date:string;view:()=>void;metrics:RecordMetric[];title:string;unit?:string;options?:ReactNode;legend:ReactNode;children:ReactNode;readoutLabel?:string;metricVariants?:string[][];flags?:string;flagVariants?:string[];statistics?:ReactNode;supplementary?:ReactNode;statusInDate?:boolean;
+export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,options,legend,children,readoutLabel="选中日读数",metricVariants=[],labelVariants=[],noteVariants=[],flags,flagVariants=[],statistics,supplementary,statusInDate=false}:{
+ range:ReactNode;custom?:ReactNode;date:string;view:()=>void;metrics:RecordMetric[];title:string;unit?:string;options?:ReactNode;legend:ReactNode;children:ReactNode;readoutLabel?:string;metricVariants?:string[][];labelVariants?:string[][];noteVariants?:string[][];flags?:string;flagVariants?:string[];statistics?:ReactNode;supplementary?:ReactNode;statusInDate?:boolean;
 }){
  const mobile=useMobileMode();
  const metricRef=useRef<HTMLDivElement>(null),[columnLimit,setColumnLimit]=useState(metrics.length);
  const readingKey=metrics.map(metric=>metric.value+metric.unit).join("|"),variantKey=JSON.stringify(metricVariants);
+ const labelKey=JSON.stringify(metrics.map((metric,index)=>[metric.label,...labelVariants.map(row=>row[index]).filter(Boolean)]));
+ const noteKey=JSON.stringify(metrics.map((metric,index)=>[metric.note,...noteVariants.map(row=>row[index])].filter(Boolean)));
  const widthCache=useRef<{key:string;widths:number[]}>({key:"",widths:[]});
  useEffect(()=>{
   const group=metricRef.current;if(!group)return;
   const measure=()=>{
    const gap=parseFloat(getComputedStyle(group).columnGap)||0,nodes=[...group.querySelectorAll<HTMLElement>("[data-metric-number]")];
    const typography=nodes.map(node=>{const number=node.querySelector("span")!,unit=node.querySelector("small"),style=getComputedStyle(number);return {font:style.font||style.fontWeight+" "+style.fontSize+" "+style.fontFamily,unit:unit?unit.getBoundingClientRect().width+(parseFloat(getComputedStyle(unit).marginLeft)||0):0};});
-   const cacheKey=variantKey+JSON.stringify(typography);
+   const labelNodes=[...group.querySelectorAll<HTMLElement>("[data-metric-label]")],noteNodes=[...group.querySelectorAll<HTMLElement>("[data-metric-note]")];
+   const textFont=(node:HTMLElement)=>{const style=getComputedStyle(node);return style.font||style.fontWeight+" "+style.fontSize+" "+style.fontFamily;};
+   const textStyles=labelNodes.map((node,index)=>({label:textFont(node),note:textFont(noteNodes[index])}));
+   const cacheKey=variantKey+labelKey+noteKey+JSON.stringify([typography,textStyles]);
    if(widthCache.current.key!==cacheKey){
     const context=document.createElement("canvas").getContext("2d");
     const variants=JSON.parse(variantKey) as string[][];
-    widthCache.current={key:cacheKey,widths:typography.map((style,index)=>{if(!context)return 0;context.font=style.font;return Math.ceil(Math.max(0,...variants.map(values=>context.measureText(values[index]??"—").width+style.unit)));})};
+    const labels=JSON.parse(labelKey) as string[][],notes=JSON.parse(noteKey) as string[][];
+    widthCache.current={key:cacheKey,widths:typography.map((style,index)=>{
+     if(!context)return 0;
+     context.font=style.font;const values=variants.map(values=>context.measureText(values[index]??"—").width+style.unit);
+     context.font=textStyles[index].label;const labelWidths=labels[index].map(label=>context.measureText(label+(metrics[index].inlineUnit?"":" · "+metrics[index].unit)).width);
+     context.font=textStyles[index].note;const noteWidths=notes[index].map(note=>context.measureText(note).width);
+     return Math.ceil(Math.max(0,...values,...labelWidths,...noteWidths));
+    })};
    }
    const values=nodes.map((node,index)=>Math.max(node.scrollWidth,widthCache.current.widths[index]??0));
    let count=metrics.length===6&&(mobile||group.clientWidth<860)?3:metrics.length;
@@ -37,13 +49,21 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
   const observer=new ResizeObserver(measure);observer.observe(group);
   const frame=requestAnimationFrame(measure);
   return()=>{observer.disconnect();cancelAnimationFrame(frame);};
- },[readingKey,variantKey,metrics.length,mobile]);
+ },[readingKey,variantKey,labelKey,noteKey,metrics.length,mobile,metrics]);
  const columns=Math.min(columnLimit,metrics.length);
  const statusVariants=[...new Set([...flagVariants,flags].filter((value):value is string=>Boolean(value)))];
  return <div className={styles.panel} data-record-trend data-status-in-date={statusInDate||undefined}>
   <div className={styles.date} data-record-slot="date"><SelectedDateHeading date={date} view={view} status={statusInDate?<span className={styles.dateStatus} role="status" title={flags||undefined}>{flags??""}</span>:undefined}/></div>
   <div className={statistics?styles.readingArea:undefined}>
-  <div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-metric-count={metrics.length} data-record-columns={columns} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map(metric=><div key={metric.label} className={styles.metric}><span>{metric.label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span><strong data-metric-number className={metric.tone?styles[metric.tone]:undefined}><span>{metric.value}</span>{metric.inlineUnit&&<small>{metric.unit}</small>}</strong>{metric.note?<em>{metric.note}</em>:<span className={metric.reserveNote?styles.noteSpace:styles.noNote} aria-hidden="true"/>}</div>)}</div>
+  <div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-metric-count={metrics.length} data-record-columns={columns} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map((metric,index)=>{
+   const labels=[...new Set([metric.label,...labelVariants.map(row=>row[index]).filter(Boolean)])];
+   const notes=[...new Set([metric.note,...noteVariants.map(row=>row[index])].filter((value):value is string=>Boolean(value)))];
+   return <div key={metric.id??index} className={styles.metric}>
+    <div className={styles.metricLabel} data-metric-label>{labels.map(label=><span key={label} className={styles.metricMeasure} aria-hidden="true">{label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span>)}<span>{metric.label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span></div>
+    <strong data-metric-number className={metric.tone?styles[metric.tone]:undefined}><span>{metric.value}</span>{metric.inlineUnit&&<small>{metric.unit}</small>}</strong>
+    <div className={styles.metricNote} data-metric-note>{notes.map(note=><em key={note} className={styles.metricMeasure} aria-hidden="true">{note}</em>)}{metric.note?<em>{metric.note}</em>:metric.reserveNote?<em className={styles.metricMeasure} aria-hidden="true">{"\u00a0"}</em>:null}</div>
+   </div>;
+  })}</div>
   {statistics}</div>
   {supplementary}
   {!statusInDate&&statusVariants.length>0&&<div className={styles.flags} data-record-slot="status">{statusVariants.map(value=><span key={value} aria-hidden="true" className={styles.flagMeasure}>{value}</span>)}<span role="status">{flags??""}</span></div>}

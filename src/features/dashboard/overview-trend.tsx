@@ -1,8 +1,9 @@
 "use client";
-import {RecordTrendPanel,InlineChartControls,CustomRecordRange} from "@/components/record-trend-panel";
+import {RecordTrendPanel,InlineChartControls,CustomRecordRange,type RecordMetric} from "@/components/record-trend-panel";
 import {formatRecordNumber,formatIntegerNumber,signedRecordNumber,signedIntegerNumber} from "@/components/number-format";
 import {DayNutritionSummary,NutritionComposition,CompositionLegend} from "../meals/nutrition-composition";
 import {mealTypeLabel} from "../meals/model";
+import {RangeCoverage} from "./range-coverage-view";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
 import { Disclosure } from "@/components/disclosure";
@@ -49,25 +50,38 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       date={selected} view={()=>{const target=selected;setOpened(target);selection.release();}}
       readoutLabel="日期对照"
       metricVariants={days.map(day=>[formatNutrition(day.nutrition?.values.caloriesKcal??null,"caloriesKcal"),energyValue(day.energy.totalKcal),signedIntegerNumber(day.energyBalance),formatRecordNumber(day.morning?.weightKg??null),formatRecordNumber(day.nextMorning?.weightKg??null),signed(day.weightChangeKg)].slice(0,mobile?3:6))}
-      metrics={[
-       {label:"摄入",value:formatNutrition(day?.nutrition?.values.caloriesKcal??null,"caloriesKcal"),unit:"kcal",tone:"blue"},
-       {label:"消耗",value:energyValue(day?.energy.totalKcal),unit:"kcal",tone:"red"},
-       {label:day?.energyBalance==null?"收支":day.energyBalance<0?"缺口":"盈余",value:signedIntegerNumber(day?.energyBalance??null),unit:"kcal",tone:day?.energyBalance!=null&&day.energyBalance<0?"blue":"gold"},
-       ...(!mobile? [
-       {label:"晨重 "+selected.slice(5).replace("-",".")+(day?.morning?.recordKind==="estimated"?" · 估计":""),value:formatRecordNumber(day?.morning?.weightKg??null),unit:"kg",inlineUnit:true},
-       {label:"次晨 "+(day?.nextDate??addCalendarDays(selected,1)).slice(5).replace("-",".")+(day?.nextMorning?.recordKind==="estimated"?" · 估计":""),value:formatRecordNumber(day?.nextMorning?.weightKg??null),unit:"kg",inlineUnit:true},
-       {label:"次晨变化",value:signed(day?.weightChangeKg??null),unit:"kg",inlineUnit:true}
-       ]:[])
-      ]}
+      metrics={overviewMetrics(day??blankDay(selected),!!mobile)}
+      labelVariants={days.map(row=>overviewMetrics(row,!!mobile).map(metric=>metric.label))}
       supplementary={<OverviewReadings day={day} mobile={!!mobile} variants={days}/>} statusInDate
       flags={overviewFlags(day)} flagVariants={days.map(overviewFlags)}
       title="热量收支" unit="kcal"
       options={<InlineChartControls><label><input type="checkbox" checked={estimates} onChange={event=>setEstimates(event.target.checked)} aria-label="显示体重估计"/>显示体重估计</label></InlineChartControls>}
       legend={<><span><i style={{background:"var(--data-blue)"}}/>摄入</span><span><i style={{background:"var(--data-red)"}}/>消耗</span><span><i style={{background:"var(--data-surplus)"}}/>盈余</span><span><i style={{background:"var(--data-deficit)"}}/>缺口</span></>}
     >{dates.length?<RelationshipPlot days={days} selected={selected} selection={selection}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
+    <RangeCoverage key={from+to} days={days} today={today} from={from} to={to}/>
     {dialogDay&&<EditorDialog title={dialogDay.date+" · 当日记录"} close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}
   </section>;
 }
+
+function overviewMetrics(day:OverviewDay,mobile:boolean):RecordMetric[]{
+ return [
+  {id:"intake",label:"摄入",value:formatNutrition(day.nutrition?.values.caloriesKcal??null,"caloriesKcal"),unit:"kcal",tone:"blue"},
+  {id:"energy",label:"消耗",value:energyValue(day.energy.totalKcal),unit:"kcal",tone:"red"},
+  {id:"balance",label:day.energyBalance==null?"收支":day.energyBalance<0?"缺口":"盈余",value:signedIntegerNumber(day.energyBalance),unit:"kcal",tone:day.energyBalance!=null&&day.energyBalance<0?"blue":"gold"},
+  ...(!mobile?[
+   {id:"morning",label:"晨重 "+day.date.slice(5).replace("-",".")+(day.morning?.recordKind==="estimated"?" · 估计":""),value:formatRecordNumber(day.morning?.weightKg??null),unit:"kg",inlineUnit:true},
+   {id:"next",label:"次晨 "+day.nextDate.slice(5).replace("-",".")+(day.nextMorning?.recordKind==="estimated"?" · 估计":""),value:formatRecordNumber(day.nextMorning?.weightKg??null),unit:"kg",inlineUnit:true},
+   {id:"change",label:"次晨变化",value:signed(day.weightChangeKg),unit:"kg",inlineUnit:true}
+  ]:[])
+ ];
+}
+function StableReadingText({value,variants}:{value:string;variants:string[]}){
+ return <span className={styles.stableText}>{[...new Set(variants.filter(Boolean))].map(text=><span className={styles.stableMeasure} aria-hidden="true" key={text}>{text}</span>)}<span>{value}</span></span>;
+}
+const morningPair=(day?:OverviewDay)=>day?.morning?.weightKg!=null&&day.nextMorning?.weightKg!=null?formatRecordNumber(day.morning.weightKg)+" → "+formatRecordNumber(day.nextMorning.weightKg):!day?.morning?"缺当天晨重":!day.nextMorning?"缺次晨重":"未配对";
+const coverageNote=(day?:OverviewDay)=>(day?.week?.coveredDays??0)<7?"已计"+(day?.week?.coveredDays??0)+"/7天":"";
+const estimateNote=(day?:OverviewDay)=>day?.week?.estimated&&day.week.weightChangeKg!==null?"估计":"";
+const weekBasis=(day?:OverviewDay)=>day?.week?(day.week.missingMorningDates.length?"缺"+day.week.missingMorningDates.map(date=>date.slice(5).replace("-",".")).join("、")+"晨重":"晨重 "+day.week.from.slice(5).replace("-",".")+" "+formatRecordNumber(day.week.startWeightKg)+" → "+day.week.nextDate.slice(5).replace("-",".")+" "+formatRecordNumber(day.week.endWeightKg)+" kg"):"暂无记录";
 
 function OverviewDayDetails({day}:{day:OverviewDay}){
  const mealRow=(meal:OverviewDay["meals"][number])=><Disclosure key={meal.id} className={styles.compactMeal} summary={<><NutritionComposition totals={meal.totals} small/><span><strong>{mealTypeLabel(meal.mealType)}</strong><span>{meal.items.map(item=>item.name).join("、")}</span></span><b>{formatNutrition(meal.totals.values.caloriesKcal,"caloriesKcal")} <small>kcal</small></b></>}><CompositionLegend totals={meal.totals}/><NutritionTable items={meal.items} saved/><MealEvidence notes={meal.notes}/><ImageGallery ids={meal.imageIds}/><LoadingLink href={"/dashboard/meals?date="+day.date}>编辑这一日饮食 →</LoadingLink></Disclosure>;
@@ -102,21 +116,21 @@ function OverviewReadings({day,mobile,variants}:{day?:OverviewDay;mobile:boolean
  const week=day?.week;
  const short=(date?:string)=>date?.slice(5).replace("-",".")??"—";
  const weekLabel=week?.energyBalance==null||week.energyBalance===0?"收支":week.energyBalance<0?"缺口":"盈余";
- const weightPair=day?.morning?.weightKg!=null&&day?.nextMorning?.weightKg!=null;
+
  if(mobile)return <section ref={group} className={styles.secondaryReadings} aria-label="次晨与七天统计" data-overview-secondary data-overview-week>
-  <div data-overview-next style={{minWidth:widths[0]||undefined}}><span>次晨变化{day?.differenceEstimated?" · 估计":""}</span><strong>{signed(day?.weightChangeKg??null)}<small>kg</small></strong><p>{weightPair?<span>{formatRecordNumber(day.morning!.weightKg)} → {formatRecordNumber(day.nextMorning!.weightKg)}</span>:<span>{!day?.morning?"缺当天晨重":!day?.nextMorning?"缺次晨重":"未配对"}</span>}</p></div>
-  <div data-overview-week-energy style={{minWidth:widths[1]||undefined}}><span>近7天{weekLabel}</span><strong className={week?.energyBalance!=null&&week.energyBalance<0?styles.weekDeficit:styles.weekSurplus}>{formatIntegerNumber(week?.energyBalance==null?null:Math.abs(week.energyBalance))}<small>kcal</small></strong>{(week?.coveredDays??0)<7&&<p>已计{week?.coveredDays??0}/7天</p>}</div>
-  <div data-overview-week-weight style={{minWidth:widths[2]||undefined}}><span>近7天体重变化</span><strong>{signed(week?.weightChangeKg??null)}<small>kg</small></strong>{week?.estimated&&week.weightChangeKg!==null&&<p>估计</p>}</div>
+  <div data-overview-next style={{minWidth:widths[0]||undefined}}><StableReadingText value={"次晨变化"+(day?.differenceEstimated?" · 估计":"")} variants={variants.map(row=>"次晨变化"+(row.differenceEstimated?" · 估计":""))}/><strong>{signed(day?.weightChangeKg??null)}<small>kg</small></strong><p><StableReadingText value={morningPair(day)} variants={variants.map(morningPair)}/></p></div>
+  <div data-overview-week-energy style={{minWidth:widths[1]||undefined}}><span>近7天{weekLabel}</span><strong className={week?.energyBalance!=null&&week.energyBalance<0?styles.weekDeficit:styles.weekSurplus}>{formatIntegerNumber(week?.energyBalance==null?null:Math.abs(week.energyBalance))}<small>kcal</small></strong>{variants.some(row=>coverageNote(row))&&<p><StableReadingText value={coverageNote(day)} variants={variants.map(coverageNote)}/></p>}</div>
+  <div data-overview-week-weight style={{minWidth:widths[2]||undefined}}><span>近7天体重变化</span><strong>{signed(week?.weightChangeKg??null)}<small>kg</small></strong>{variants.some(row=>estimateNote(row))&&<p><StableReadingText value={estimateNote(day)} variants={variants.map(estimateNote)}/></p>}</div>
  </section>;
  return <section className={styles.weekReadings} aria-label="选中日七天统计" data-overview-week>
    <div className={styles.weekContent}>
     <header><span>近7天 <time>{short(week?.from)}—{short(week?.through)}</time></span></header>
     <div className={styles.weekNumbers}>
      <div data-overview-week-energy><span>{week?.energyBalance==null?"热量收支":week.energyBalance<0?"热量缺口":"热量盈余"}</span><strong className={week?.energyBalance!=null&&week.energyBalance<0?styles.weekDeficit:styles.weekSurplus}>{signedIntegerNumber(week?.energyBalance??null)}<small>kcal</small></strong></div>
-     <div data-overview-week-weight><span>体重变化{week?.estimated&&week.weightChangeKg!==null?" · 含估计":""}</span><strong>{signed(week?.weightChangeKg??null)}<small>kg</small></strong></div>
+     <div data-overview-week-weight><StableReadingText value={"体重变化"+(estimateNote(day)?" · 含估计":"")} variants={variants.map(row=>"体重变化"+(estimateNote(row)?" · 含估计":""))}/><strong>{signed(week?.weightChangeKg??null)}<small>kg</small></strong></div>
     </div>
     <span className={styles.weekCoverage}>已计{week?.coveredDays??0}/7天</span>
-    <p className={styles.weekBasis}>{week?.missingMorningDates.length?"缺"+week.missingMorningDates.map(short).join("、")+"晨重":week?"晨重 "+short(week.from)+" "+formatRecordNumber(week.startWeightKg)+" → "+short(week.nextDate)+" "+formatRecordNumber(week.endWeightKg)+" kg":"暂无记录"}</p>
+    <p className={styles.weekBasis}><StableReadingText value={weekBasis(day)} variants={variants.map(weekBasis)}/></p>
    </div>
   </section>;
 }

@@ -1,6 +1,6 @@
 # 总览
 
-daily-reminders.ts复用采用中的身体实测、dailyTotals与energyDays构造最小提醒目录，daily-reminders-view.tsx按本机日期与时刻选择昨日两项及今日晨晚任务。仅在localStorage存本人／日期的收起偏好，不存健康值；无任务不占行，与图表选日独立。动作使用内部网页entry意图，不新增接口和打卡存储。
+daily-reminders.ts仅构造最小记录目录，复用采用中的身体实测、dailyTotals和energyDays，供features/assistant判断今天／昨天的事项；原总览提醒条已退出。总览服务端快照派生助手种子，不因小助手读取完整历史；其他页面手动打开时按需读取私有接口。助手和图表选日互不改写。range-coverage.ts从已有OverviewDay结果统计区间收支覆盖，未知不当0；range-coverage-view.tsx在双图后展示摘要并原位加载每批50日的缺口。
 
 四页共同框架提供日期与查看、主要读数、区间、标题与实际选项及图例；总览保留原双层关联图。手机短视口按导航实际占用重新分配绘图区，不缩放字形；能量读数显示整数，身体和kg差显示两位，数据与坐标范围不因悬停改写。
 
