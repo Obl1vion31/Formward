@@ -1,5 +1,22 @@
 # 完善任务验收
 
+## 本轮本地交付：A/B对照已完成（2026-11-04）
+
+应用基线A为769bd5c，试用B为9c01a05，分别运行于http://localhost:4194与http://localhost:4195；对照目录http://localhost:4196。三个端口均从Windows宿主实测HTTP200。A构建3c9294cd-4198-44da-9d12-9bedbffe0240，B构建9418c122-5a9a-48dd-9893-cb70c291d093；均为各自冻结源码的本地production build，未发布公网、未更新main。main仍为a9988ea8996706d548a0ee6e9999455da3ab4d0c，主工作区未动。
+
+A已通过458项基础单元／集成；A/B均通过类型、生产构建、结构与diff检查，lint无错误。A旧私有发布脚本、B原版Unslop story脚本各保留1项未使用导入警告，不隐藏为“零警告”，没有改写第三方脚本。B新工作区首次单独tsc因尚未生成next-env而无法解析图片声明，构建生成后typecheck完整通过；原文件记录保留。
+
+A/B各完成两引擎7组核心图表交互、两主题9组尺寸×3界面=108张截图，合计216张；另查零、未知、未记全、200%放大。Chromium原生合成触屏手势验证横拖，WebKit覆盖触屏点选；真实iPhone、系统键盘及系统原生全屏仍未测。人工实看重点包括390深浅两端、320窄屏、844横屏、1440电脑的字体、留白、对齐及控件，不把自动几何通过称作用户认可。
+
+同数据同状态的总览主屏在两主题、两引擎、390／1440共8组逐像素一致，说明B未强改总览主屏。饮食B移除重复日期、强调全天热量、分开餐次与食物说明、数字对齐并增强添加入口；没有叠加新外框。身体B仅使时段选中态更清楚，并明确约束来源说明同行；当前A样本也已能同行，所以这部分收益很小，不夸大差别。共享营养摘要样式在两处日期详情入口均生效，主总览读数与七日结构保持。
+
+对照目录48组切换、原图加载、录屏播放及实际链接通过，客户端异常和截图检查5xx均0。7.32秒1440×900录屏展示真实选日与离开恢复。12张拼图来自原截图；电脑详情拼图仅取1440原图的x=800起640px窗口局部，完整原图全部保留。输出位于C:/Users/14878/.codex/visualizations/2026/11/04/formward-chart-unslop，含index.html、compare图、216原图、两份screens.json、delivery-checks.json及chart-selection.mp4。
+
+虚构数据库的身体、餐次、食材、消耗快照前后均49341字节，SHA256为805b3fcbbafcf88091ea25c6e1beb256d5908b80d314389587cfde59b3ec256d。仅保留隔离虚构账号供继续验收；没有访问或写入生产健康记录，无数据库／接口／权限／运行依赖变化。私有服务配置与会话在A工作区.codex/chart-comparison，未纳入Git。
+
+Unslop使用与署名见本文件的B方向记录；技能副本仅在B工作区.agents/skills/unslop，下次从该工作区继续可复用。A仍保留原设计，B未被正式采用。交付比较时须主动提醒“首屏小助手”待对齐，尚未实现、未替用户决定出现频率或训练功能。
+
+
 ## Unslop 独立 B 对照：方向与取舍（本地，待用户选择）
 
 A基线769bd5c。独立工作区chart-unslop-comparison，分支codex/chart-unslop-a6f121e。通过Skill Installer安装heydamir/unslop的a6f121eee5f29c2f74976b75456feae8b66afb3a，读取SKILL、signs、tokens、visuals及refs；技能与LICENSE保留在该工作区被忽略的.agents/skills/unslop，不成为运行依赖。作者Damir Sokolovsky（@heydamir），CC BY 4.0，来源https://github.com/heydamir/unslop/tree/a6f121eee5f29c2f74976b75456feae8b66afb3a 。没有复制作者页面或品牌，产品代码为现有Formward组件的轻量调整。
