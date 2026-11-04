@@ -363,3 +363,12 @@
 
 .drawerHeader[data-editing=true]{min-height:68px;padding-block:12px}
 @container(max-width:300px){.entryCell[data-estimated-wide=true]{grid-column:1/-1}}
+
+/* Independent comparison: time selection owns the accent; hints stay with their field. */
+.entryPeriodBar button{color:var(--muted);transition:color 160ms,background-color 160ms}
+.entryPeriodBar button[aria-pressed=true],.entryPeriodBar button[aria-expanded=true]{color:var(--gold)}
+.entryPeriodBar button:hover{background:var(--surface-hover)}
+.entrySource.entrySource label{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 8px;margin-bottom:8px}
+.entrySource.entrySource label small{font-size:12px;line-height:20px;font-weight:400}
+.entryInputRow input{font-variant-numeric:tabular-nums}
+@media(prefers-reduced-motion:reduce){.entryPeriodBar button{transition:none}}

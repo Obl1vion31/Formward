@@ -21,3 +21,11 @@
 .caption{font-size:12px;color:var(--muted);margin:7px 0 3px}
 @media(max-width:700px){.summary{grid-template-columns:72px minmax(0,1fr);gap:12px}.numbers{gap:6px 12px}.numbers>div{flex-basis:calc((100% - 12px)/2)}.numbers strong{font-size:20px}.numbers>div>span{margin-bottom:1px}}
 
+
+/* One daily total leads; the three macro figures keep equal emphasis. */
+.numbers>div{flex:1 0 auto}
+.numbers>div:first-child{flex-basis:100%;margin-bottom:4px}
+.numbers>div:first-child strong{font-size:32px;line-height:1.2}
+.numbers>div:not(:first-child) strong{font-size:20px}
+.summary{align-items:center;margin-block:4px 16px}
+@media(max-width:700px){.numbers{gap:8px}.numbers>div{flex-basis:auto}.numbers>div:first-child{flex-basis:100%}.numbers>div:not(:first-child) strong{font-size:19px}}
