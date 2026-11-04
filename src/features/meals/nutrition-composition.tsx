@@ -21,10 +21,10 @@ export function CompositionLegend({totals}:{totals:Totals|null|undefined}){
 
 export function DayNutritionSummary({totals,partial=false}:{totals:Totals|null|undefined;partial?:boolean}){
  const state=macroComposition(totals);
- return <div className={styles.summary} data-day-nutrition-summary>
+ return <div className={styles.summary} data-day-nutrition-summary role="group" aria-label={partial?"当天已记录营养合计":"当天营养合计"}>
   <NutritionComposition totals={totals} ringOnly/>
-  <div className={styles.content}><div className={styles.numbers}>{(["caloriesKcal","proteinG","carbsG","fatG"] as const).map(metric=><div key={metric}><span>{metricLabels[metric]}{totals?.incomplete[metric]&&<small> · 已知部分</small>}</span><strong>{formatNutrition(totals?.values[metric]??null,metric)}<small>{metric==="caloriesKcal"?"kcal":"g"}</small></strong></div>)}</div>
-   <div className={styles.shares}><p className={styles.caption}>{state.kind==="known"?(partial?"已记录营养构成":"营养供能占比"):state.kind==="zero"?"三项均为0，暂无供能占比":"营养未齐，暂不计算占比"}</p><CompositionLegend totals={totals}/></div>
+  <div className={styles.content}><div className={styles.numbers}>{(["caloriesKcal","proteinG","carbsG","fatG"] as const).map(metric=><div key={metric}><span>{metric==="caloriesKcal"?"当天合计":metricLabels[metric]}{totals?.incomplete[metric]&&<small> · 已知部分</small>}</span><strong>{formatNutrition(totals?.values[metric]??null,metric)}<small>{metric==="caloriesKcal"?"kcal":"g"}</small></strong></div>)}</div>
+   <div className={styles.shares}>{state.kind!=="known"&&<p className={styles.caption}>{state.kind==="zero"?"零供能":"营养未齐"}</p>}<CompositionLegend totals={totals}/></div>
   </div>
  </div>;
 }

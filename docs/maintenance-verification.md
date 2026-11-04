@@ -1,8 +1,22 @@
 # 完善任务验收
 
-## 本地验收：图表100ms与共同高亮（2026-11-04）
+## 详情本地验收（2026-11-05）
 
-工作区chart-selection-consistency，来源2189d27／应用ad7c639；用户明确只交付本地，不发布、不更新main。Mobile Design先检查触屏点选／横拖／纵向滚动，Impeccable比较四页逐态一致性，Unslop按既定轻量方向打磨标记；已认可品牌、页面布局、图形、数字和命中区保持。长期规范只更新[设计D5](design-reference.md#d5外观不改写事实)。
+458项单元／集成、类型、production build与结构检查通过；lint无错误，原第三方Unslop story.mjs保留1项未使用导入警告。两引擎56组常规视口／主题和18组部分、0、未知、多餐及长值检查通过，另留展开、抽屉和320px长值／200%页面缩放截图。真实iPhone、系统键盘、系统原生全屏与系统文字放大未测。
+
+单餐1190及多餐1854的总分横线和四项同排可辨；消耗日期不重复，正常三项及单位同行，3415／851／741事实保持。餐次真实确认后编辑会失效并保留1190；空白新增退出、名称还原、键盘展开与Escape通过。独立PGlite入口可复现，原生隔离库两引擎只读矩阵前后健康哈希相同；动作演示只写自身虚构账号。
+
+浏览器复查拦下并修正了：旧样式覆盖餐次padding、WebKit 320px数值宽度导致换行、200%页面缩放下比例区和餐次的最小宽度。没有缩小普通数字或裁切，正常尺寸不重排。测试脚本的日期定位改为实际选择目标列再查看；独立PGlite收尾修正close回调排空，原始记录保留。截图及报告位于C:/Users/14878/.codex/visualizations/2026/11/04/formward-detail-hierarchy。
+
+## 已正式发布：图表100ms与统一高亮（2026-11-04）
+
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_jji9NBprqzDd9J7NUcCje9UBdNto，源码3d0d41588133b1b7752eca9b49aefff81863f96b，构建chart-100ms-3d0d415-20261104。四页100ms、共同底纹／辅助线／高亮圈及总览纵向滚动不误选已上线；main仍a9988ea，未带入其他工作区内容。
+
+正式Chromium14组、WebKit10组图表交互及两引擎48张深浅／手机电脑页面通过。两项虚构账号及34表所属数据清理，43表结构、29条账本及原健康事实／请求／审计核对保持。首个逐日夹具创建阶段已中止并清理，改为相同目标的批量夹具；相关私有记录保留，并非忽略测试失败。正式日志窗口2026-11-04 15:11:34—15:28:25 UTC，运行error／fatal与请求5xx均0，无排除区间或后续分页。备份chart-100ms-3d0d415-20261104-before／after.json及verification.json在主工作区私有data/exports；证据在chart-selection-consistency/.codex/chart-release，截图C:/Users/14878/.codex/visualizations/2026/11/04/formward-chart-production。
+
+## 图表本地验收基线（已另行完成发布）
+
+工作区chart-selection-consistency，来源2189d27／应用ad7c639；该轮最初只交付本地，随后用户单独授权发布，正式结果见上节；main未更新。Mobile Design先检查触屏点选／横拖／纵向滚动，Impeccable比较四页逐态一致性，Unslop按既定轻量方向打磨标记；已认可品牌、页面布局、图形、数字和命中区保持。长期规范只更新[设计D5](design-reference.md#d5外观不改写事实)。
 
 | 验收项 | 结果 |
 |---|---|
@@ -16,7 +30,7 @@
 
 证据根目录：C:/Users/14878/.codex/visualizations/2026/11/04/formward-chart-selection。visual-checks.json、overview-touch-visual-checks.json、chromium／webkit-interactions.json与edge-checks.json保存检查项和帧数据；chart-selection-demo.mp4为实际四页录屏，chart-selection-raw.webm及video-timeline.json保留来源。录制时指针位置环仅用于看清移动，不属于产品界面。虚构验收数据库保留用于本地复查，生产、公开接口、依赖与迁移未改。
 
-## 当前正式验收：Unslop B 发布完成（2026-11-04）
+## 此前正式验收：Unslop B 发布完成（2026-11-04）
 
 READY dpl_HKAXv65zohYhmp8UWHhSkk2my21W，源码ad7c6391ac298288adbebcec9d4aa5f7f713ef00，构建unslop-ad7c639-20261104；正式别名https://formward-ten.vercel.app、项目、sourceCommit及gitCommitSha严格一致。发布前版本2e358ae为本轮源码祖先，差异不含数据库、包依赖或部署配置，主工作区未带入。用户仅授权发布，main保持a9988ea。
 

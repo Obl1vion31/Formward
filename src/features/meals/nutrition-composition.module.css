@@ -9,7 +9,7 @@
 .legend b{font-weight:400;color:var(--warm-white);font-variant-numeric:tabular-nums}
 .small{display:inline-flex;flex:none}
 .small svg{width:48px;height:48px;display:block}
-.summary{container-type:inline-size;display:grid;grid-template-columns:80px minmax(0,1fr);align-items:center;gap:16px;margin:4px 0 16px}
+.summary{container-type:inline-size;display:grid;grid-template-columns:80px minmax(0,1fr);align-items:center;gap:16px;margin:4px 0 0}
 .content{min-width:0}
 .numbers{display:flex;flex-wrap:wrap;align-items:baseline;align-items:last baseline;gap:8px 16px}
 .numbers>div{min-width:max-content;flex:1 0 auto}
@@ -33,4 +33,9 @@
  .content{display:contents}
  .numbers{grid-row:1;grid-column:1/-1;gap:8px 4px}
  .shares{grid-row:2;grid-column:2;margin-top:0}
+}
+
+@container(max-width:200px){
+ .summary>.composition{grid-column:1/-1;grid-row:2}
+ .shares{grid-column:1/-1;grid-row:3}
 }

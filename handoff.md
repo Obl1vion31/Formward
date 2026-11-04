@@ -8,15 +8,19 @@
 
 **提醒节点：交付本轮 Unslop 对比、对齐下一轮方向时，主动提醒讨论本事项。**
 
-## 本地交付：图表选日提速与高亮统一（2026-11-04）
+## 当前本地：饮食与消耗详情修正
 
-独立工作区Formward-worktrees/chart-selection-consistency，分支codex/chart-selection-consistency，从2189d27建立，应用基线仍为已上线ad7c639。四页选日统一100ms及cubic-bezier(.2,0,0,1)，同日去重、中断续接；共用4%底纹、1px虚线、柱图金色短标记及6px／1.5px空心点。背景位于数据下方并裁在绘图区，真实曲线、柱宽、命中区和健康计算保持。总览同时复用use-chart-drag，修正手指刚按下就改日导致纵向滑动误选的问题。
+独立分支codex/detail-hierarchy、工作区Formward-worktrees/detail-hierarchy，从正式图表源码3d0d415建立。饮食“当天合计”、总分横线、单层12px餐次间距及删重复催确认已完成；消耗只在标题显示日期，摘要12px、数字上距4px／行高1.2、单位同行，长值整项退让。常规两端结构保持，极窄有效宽度／200%页面缩放允许自然纵向阅读。真实已记全确认、编辑后失效、1190及来源／包含关系保持。
 
-可操作本地页http://localhost:4200；隔离虚构账号selection@formward.example.test，私有配置在.codex/chart-selection/preview.json，未读取生产数据库。截图、视频及报告位于C:/Users/14878/.codex/visualizations/2026/11/04/formward-chart-selection。458项测试、生产构建、typecheck与结构通过；浏览器两引擎24组主交互加7组边界结果通过，112张主题／尺寸截图并对最终总览复拍。第三方原技能story.mjs保留1项lint警告，应用无错误。原始数据快照前后保持。
+用户已授权本地自检通过后单独发布，不再增加确认轮次；没有授权更新main。此处尚未代表详情已上线，正式基线为下一节图表版。最终版须补充对应READY、源码、正式截图、数据对照与日志。真实iPhone、系统键盘、系统原生全屏及系统文字放大未测。
 
-本轮用户明确要求先本地交付，不自动发布公网或更新main。生产仍为下述READY版本，main仍a9988ea；主工作区双区／COS／DNS等不相关内容未带入。真实iPhone、系统键盘及原生全屏未测。首屏小助手仍在顶部待对齐，本轮未实现。
+## 已正式发布：图表100ms与统一高亮（2026-11-04）
 
-## 当前正式发布：Unslop B 与图表交互（2026-11-04）
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_jji9NBprqzDd9J7NUcCje9UBdNto，源码3d0d41588133b1b7752eca9b49aefff81863f96b，构建chart-100ms-3d0d415-20261104。四页100ms、共同底纹／辅助线／高亮圈及总览纵向滚动不误选已上线；main仍a9988ea，未带入其他工作区内容。
+
+正式Chromium14组、WebKit10组图表交互及两引擎48张深浅／手机电脑页面通过。两项虚构账号及34表所属数据清理，43表结构、29条账本及原健康事实／请求／审计核对保持。首个逐日夹具创建阶段已中止并清理，改为相同目标的批量夹具；相关私有记录保留，并非忽略测试失败。正式日志窗口2026-11-04 15:11:34—15:28:25 UTC，运行error／fatal与请求5xx均0，无排除区间或后续分页。备份chart-100ms-3d0d415-20261104-before／after.json及verification.json在主工作区私有data/exports；证据在chart-selection-consistency/.codex/chart-release，截图C:/Users/14878/.codex/visualizations/2026/11/04/formward-chart-production。
+
+## 此前正式发布：Unslop B 与图表交互（2026-11-04）
 
 用户本轮明确要求发布，没有授权更新main。正式域名https://formward-ten.vercel.app已核对READY部署dpl_HKAXv65zohYhmp8UWHhSkk2my21W，源码ad7c6391ac298288adbebcec9d4aa5f7f713ef00，构建unslop-ad7c639-20261104；B的应用代码与已验收f77938e一致。main仍a9988ea；主工作区双区／COS／DNS／0028等未上线内容保持隔离。
 

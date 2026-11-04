@@ -36,7 +36,7 @@
 .tableHeading h2 { margin: 0; font-size: 14px; font-weight: 500; }
 .tableHeading button { font-size: 12px; }
 .dayMeals { padding: 0 18px 12px; border-inline-start: 1px solid color-mix(in srgb,var(--gold) 30.0%,transparent); margin-bottom: 14px; }
-.meal { padding-block: 14px; border-bottom: 1px solid var(--rule); }
+.meal { padding-block: 12px; border-bottom: 1px solid var(--rule); }
 .meal:last-child { border-bottom: 0; }
 .mealHeading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .mealHeading h3 { margin: 0; font-size: 15px; font-weight: 500; }
@@ -48,7 +48,7 @@
 .notes, .foodRow p, .itemDetail p { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); font-size: 12px; line-height: 1.8; }
 .meal summary { cursor: pointer; color: var(--muted); font-size: 12px; min-height: 44px; display: flex; align-items: center; }
 .meal summary::after { content: "＋"; margin-left: 12px; color: var(--gold); }
-.meal details[open] > summary::after { content: "−"; }
+.meal[open] > summary::after { content: "−"; }
 .itemDetail { padding: 14px 0; border-bottom: 1px solid var(--rule); }
 .itemDetail > span { margin-left: 12px; font-size: 12px; color: var(--muted); }
 .itemDetail a { color: var(--gold); font-size: 12px; }
@@ -424,9 +424,8 @@
 @media(max-width:700px){.mealHeading{flex-wrap:nowrap}.mealHeading>span{margin-right:0}}
 
 /* Independent Unslop comparison: hierarchy and quiet list chrome, not a new layout. */
-.dayMeals{border-inline-start:0;padding:0;margin-top:12px}
-.meal{padding-block:0}
-.meal>summary{min-height:72px;padding-block:8px;box-sizing:border-box;transition:background-color 160ms,border-color 160ms}
+.dayMeals{container-type:inline-size;border-inline-start:0;border-top:1px solid var(--rule);padding:0;margin:12px 0 0}
+.meal>summary{min-height:44px;padding-block:0;box-sizing:border-box;transition:background-color 160ms,border-color 160ms}
 .meal>summary:hover{background:var(--surface-hover)}
 .meal>summary:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .mealHeading{width:100%;flex-wrap:nowrap;gap:12px}
@@ -473,3 +472,10 @@
  .foodTable .rowEnergy{font-size:16px!important}
 }
 @media(prefers-reduced-motion:reduce){.foodTable tbody tr{transition:none}}
+
+@container(max-width:200px){
+ .meal>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
+ .meal>summary::after{margin-left:0;align-self:start}
+ .mealHeading{min-width:0;flex-wrap:wrap}
+ .mealHeading>.mealTitle{flex:1 1 100%;white-space:normal}
+}

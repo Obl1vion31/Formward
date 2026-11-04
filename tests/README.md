@@ -253,3 +253,9 @@ production build后，overview-readings.browser.mjs接受FORMWARD_BROWSER_DATABA
 餐次专项额外覆盖独立食材库：两主题×320／390／430／844／1100／1440共12种场景，测量每行名称实际宽度是否等于其手机网格分配的四列宽度；保留长中英文食材截图。餐次窗口按是否双栏检查切换按钮／返回本餐是否隐藏；窄屏仍需切换、添加和草稿保留。不能用餐次内食材选择通过代替独立食材库通过。
 
 chart-interactions.browser.mjs由隔离账号入口提供page/context，核对四页完整面板离开边界、鼠标点击不固定、查看目标捕获、晨晚详情、键盘、触屏及100ms真实中间帧／快速反向重定向／同日动画对象保持／尺寸和区间直接定位／减少动态效果；四页同时核对共用4%底纹、1px线、6px／1.5px空心圈及柱图短标记，逐页触屏直接定位与准确查看；Chromium用原生模拟触屏事件回归横拖与纵向滚动不误选，WebKit检查真实触屏上下文点选；只读选择和查看，不保存健康记录。login-stage.browser.mjs在有真实滚动偏移时检查加载中与失败后的舞台位置、宽度，并用虚构账号验证成功动画导航。
+
+## 饮食与消耗详情
+
+production build后运行pnpm test:detail-browser；FORMWARD_DETAIL_BROWSER=webkit切换引擎，FORMWARD_DETAIL_ARTIFACTS指定私有截图。入口自行创建隔离PGlite、普通虚构账号及独立应用端口，不读.env.local。detail-hierarchy-fixture.mjs提供单餐1190、多餐、部分／未知／0、长数值及3415／851／741运动包含样本；也可供已经建立隔离账号的浏览器入口复用，禁止用于既有真实账号。
+
+checkDetailHierarchy逐态核对七种视口和深浅主题：当天合计及结构横线、餐次单层12px间距／44px展开、正常四项营养同排、消耗日期只在标题、三项单位同排、12px摘要及长值退让；checkDetailScale另查320px长值及200%页面缩放后操作可到达。checkDetailActions真实确认已记全、编辑后失效并保持1190、还原名称、空白添加退出、保存不追加催确认，以及键盘展开／Escape；不把结构改动当作改写确认逻辑。保留失败记录；pglite-socket的close回调在排空后才关闭引擎。

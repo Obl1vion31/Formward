@@ -1,5 +1,12 @@
 # 公网 HTTPS 部署
 
+## 已正式发布：图表100ms与统一高亮（2026-11-04）
+
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_jji9NBprqzDd9J7NUcCje9UBdNto，源码3d0d41588133b1b7752eca9b49aefff81863f96b，构建chart-100ms-3d0d415-20261104。四页100ms、共同底纹／辅助线／高亮圈及总览纵向滚动不误选已上线；main仍a9988ea，未带入其他工作区内容。
+
+正式Chromium14组、WebKit10组图表交互及两引擎48张深浅／手机电脑页面通过。两项虚构账号及34表所属数据清理，43表结构、29条账本及原健康事实／请求／审计核对保持。首个逐日夹具创建阶段已中止并清理，改为相同目标的批量夹具；相关私有记录保留，并非忽略测试失败。正式日志窗口2026-11-04 15:11:34—15:28:25 UTC，运行error／fatal与请求5xx均0，无排除区间或后续分页。备份chart-100ms-3d0d415-20261104-before／after.json及verification.json在主工作区私有data/exports；证据在chart-selection-consistency/.codex/chart-release，截图C:/Users/14878/.codex/visualizations/2026/11/04/formward-chart-production。
+
+
 ## 当前正式版本：图表交互与 Unslop 界面（2026-11-04）
 
 用户认可共同规则与B方案后明确要求发布，本次仅发布，不更新GitHub main。正式域名https://formward-ten.vercel.app已核对READY部署dpl_HKAXv65zohYhmp8UWHhSkk2my21W，源码ad7c6391ac298288adbebcec9d4aa5f7f713ef00，构建unslop-ad7c639-20261104。分支codex/unslop-shared-rules；源码包含已确认的登录舞台稳定、图表选日、营养环图及B版界面。主工作区双区、COS、DNS与未上线0028等保持隔离，没有新增迁移、依赖、公开接口或权限。

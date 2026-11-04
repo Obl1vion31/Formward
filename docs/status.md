@@ -1,10 +1,18 @@
 # 当前实现与验证
 
-## 当前本地待验收：图表100ms与统一高亮
+## 当前本地：饮食与消耗详情修正
 
-四页选日提速、同日去重和共用日期底纹／辅助线／高亮圈已在codex/chart-selection-consistency完成；触屏直接跟手，总览纵向滚动不误选。未发布公网、未更新main；下方正式版本仍为上一轮220ms版本。实际截图、原速短录屏、测试与未测项见[验收](maintenance-verification.md)及[交接](../handoff.md)。
+独立分支codex/detail-hierarchy、工作区Formward-worktrees/detail-hierarchy，从正式图表源码3d0d415建立。饮食“当天合计”、总分横线、单层12px餐次间距及删重复催确认已完成；消耗只在标题显示日期，摘要12px、数字上距4px／行高1.2、单位同行，长值整项退让。常规两端结构保持，极窄有效宽度／200%页面缩放允许自然纵向阅读。真实已记全确认、编辑后失效、1190及来源／包含关系保持。
 
-## 当前正式版本：Unslop B 与图表交互
+用户已授权本地自检通过后单独发布，不再增加确认轮次；没有授权更新main。此处尚未代表详情已上线，正式基线为下一节图表版。最终版须补充对应READY、源码、正式截图、数据对照与日志。真实iPhone、系统键盘、系统原生全屏及系统文字放大未测。
+
+## 已正式发布：图表100ms与统一高亮（2026-11-04）
+
+正式域名https://formward-ten.vercel.app已核对READY部署dpl_jji9NBprqzDd9J7NUcCje9UBdNto，源码3d0d41588133b1b7752eca9b49aefff81863f96b，构建chart-100ms-3d0d415-20261104。四页100ms、共同底纹／辅助线／高亮圈及总览纵向滚动不误选已上线；main仍a9988ea，未带入其他工作区内容。
+
+正式Chromium14组、WebKit10组图表交互及两引擎48张深浅／手机电脑页面通过。两项虚构账号及34表所属数据清理，43表结构、29条账本及原健康事实／请求／审计核对保持。首个逐日夹具创建阶段已中止并清理，改为相同目标的批量夹具；相关私有记录保留，并非忽略测试失败。正式日志窗口2026-11-04 15:11:34—15:28:25 UTC，运行error／fatal与请求5xx均0，无排除区间或后续分页。备份chart-100ms-3d0d415-20261104-before／after.json及verification.json在主工作区私有data/exports；证据在chart-selection-consistency/.codex/chart-release，截图C:/Users/14878/.codex/visualizations/2026/11/04/formward-chart-production。
+
+## 此前正式版本：Unslop B 与图表交互
 
 正式域名https://formward-ten.vercel.app，READY部署dpl_HKAXv65zohYhmp8UWHhSkk2my21W，源码ad7c639，构建unslop-ad7c639-20261104。用户本轮只授权发布，main未更新；双区、COS、DNS及未上线迁移未夹带。
 
