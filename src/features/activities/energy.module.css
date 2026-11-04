@@ -120,4 +120,24 @@
 .dayDetails>.actions,.dayDetails>.details{margin-top:8px;margin-bottom:0}
 .dayDetails>.actions button{min-height:44px}
 .dayDetails .summary strong small{font-size:12px;margin-left:4px}
-.dayDetails .row>div:first-child{min-width:min(160px,100%);max-width:100%}
+
+
+/* 收起只展示识别、主数值、分项与短状态；完整依据在同一记录中展开。 */
+.activityDetail{border-bottom:1px solid var(--rule);padding:12px 0}
+.activityDetail>summary{display:flex;align-items:center;gap:12px;list-style:none;min-height:44px;cursor:pointer;border-radius:4px;transition:background-color 160ms}
+.activityDetail>summary::-webkit-details-marker{display:none}
+.activityDetail>summary::after{content:"+";flex:none;width:16px;text-align:center;color:var(--gold);font-size:16px}
+.activityDetail[open]>summary::after{content:"−"}
+.activityDetail>summary:hover{background:var(--surface-hover)}
+.activityDetail>summary:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.activityOverview{flex:1;min-width:0}
+.activityHeading{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px}
+.activityHeading>span{flex:1;min-width:min(120px,100%);overflow-wrap:anywhere;font-size:15px;line-height:24px}
+.activityHeading>strong{font-size:20px;font-weight:400;white-space:nowrap;line-height:24px}
+.activityHeading small{font-size:12px;color:var(--muted);margin-left:4px}
+.activityFacts{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:4px;font-size:12px;line-height:20px;color:var(--muted)}
+.activityFacts>[data-exercise-status]{max-width:100%;text-wrap:balance}
+.activityExplanation{margin-top:12px;color:var(--muted);font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.activityExplanation p{margin:0}
+.activityExplanation p+p{margin-top:4px}
+@media(prefers-reduced-motion:reduce){.activityDetail>summary{transition:none}}

@@ -259,3 +259,6 @@ chart-interactions.browser.mjs由隔离账号入口提供page/context，核对�
 production build后运行pnpm test:detail-browser；FORMWARD_DETAIL_BROWSER=webkit切换引擎，FORMWARD_DETAIL_ARTIFACTS指定私有截图。入口自行创建隔离PGlite、普通虚构账号及独立应用端口，不读.env.local。detail-hierarchy-fixture.mjs提供单餐1190、多餐、部分／未知／0、长数值及3415／851／741运动包含样本；也可供已经建立隔离账号的浏览器入口复用，禁止用于既有真实账号。
 
 checkDetailHierarchy逐态核对七种视口和深浅主题：当天合计及结构横线、餐次单层12px间距／44px展开、正常四项营养同排、消耗日期只在标题、三项单位同排、12px摘要及长值退让；checkDetailScale另查320px长值及200%页面缩放后操作可到达。checkDetailActions真实确认已记全、编辑后失效并保持1190、还原名称、空白添加退出、保存不追加催确认，以及键盘展开／Escape；不把结构改动当作改写确认逻辑。保留失败记录；pglite-socket的close回调在排空后才关闭引擎。
+
+
+详情浏览器入口同时检查单行食物摘要、完整事实按需挂载、运动短状态／完整依据、更多Escape与外部关闭、删除取消、键盘和收起恢复；详情仍按七种尺寸及深浅主题比较，200%页面缩放作为模拟，真机文字放大不冒充已测。

@@ -61,3 +61,6 @@ RecordTrendPanel的metricVariants传入当前区间已算好的各日读数字�
 总览通过RecordTrendPanel的可选statusInDate将短提示放入既有日期行，其他页面默认行为保持。SelectedDateHeading的可选status只提供同排内容，不扩展业务计算。
 
 chart-selection-marker.tsx及同名CSS集中管理ChartSelectionColumn底纹／辅助线／柱图短标记、ChartSelectionPoint空心高亮圈。永久SVG图层100ms（cubic-bezier(.2,0,0,1)）短过渡，中断时取消旧动画并续接当前视觉位置；列层位于数据之前、裁在绘图区，底纹与线使用同一变换。触屏、首次定位、区间／尺寸更换和减少动态效果直接就位，首次450ms／数据更新200ms动画仍由use-chart-motion独立负责；use-chart-date-selection.ts区分鼠标临时预览、键盘焦点内选择与触屏持久选择。完整趋势面板负责离开及焦点边界，查看入口先捕获目标日期。
+
+
+record-detail-actions.tsx在已展开的餐次／运动中统一编辑及更多删除；删除保留业务原有确认，Escape先关闭更多并返回焦点，外部点击或焦点离开关闭菜单。Disclosure继续只在展开后挂载完整内容。

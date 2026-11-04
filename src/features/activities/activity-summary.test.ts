@@ -28,3 +28,19 @@ test("自动累计、手填零、未知、旧未计入与旧无关系说明准�
  assert.match(activitySummary(activity,onlyTotal,{relation:"included"}).effect,/当天总消耗 3415/);
  assert.match(activitySummary({...activity,calorieMode:"total",caloriesKcal:"450"},automatic).effect,/累计 450/);
 });
+
+test("短状态与完整说明采用同一包含关系，未知和历史状态不丢失",()=>{
+ const included={...activity,inclusion:"included" as const,inclusionBasis:energyBaseline(day)};
+ assert.equal(activitySummary(included,day).status,"已含在活动合计");
+ assert.equal(activitySummary(included,{...day,entryMode:"total",totalKcal:"3415"},{relation:"included"}).status,"已含在全天总数");
+ assert.equal(activitySummary({...included,inclusion:"additional"},day).status,"额外增加 741 kcal");
+ assert.equal(activitySummary({...included,inclusion:"additional",exerciseActiveKcal:null},day).status,"额外热量未知");
+ assert.equal(activitySummary(activity,day,{pending:true}).status,"待核对包含关系");
+ assert.equal(activitySummary({...activity,completed:false},day).status,"历史未计入");
+ assert.equal(activitySummary(activity,day).status,"沿用原计入方式");
+ const automatic={...day,activityMode:"activities" as const,activeKcal:null};
+ assert.equal(activitySummary(activity,automatic).status,"按运动明细累计");
+ assert.equal(activitySummary({...activity,exerciseActiveKcal:null},automatic).status,"运动热量未知");
+ assert.equal(activitySummary(activity,{...day,entryMode:"total",totalKcal:null}).status,"全天总数未填写");
+ assert.equal(activitySummary({...included,exerciseActiveKcal:"0"},day).status,"已含在活动合计");
+});

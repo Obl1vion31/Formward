@@ -12,6 +12,8 @@ export async function checkDetailHierarchy({browser,storageState,baseURL,today,e
     const values=await summary.locator("strong").allTextContents();assert.ok(values[0].replace(/\s/g,"").startsWith("1190"));assert.equal(await list.locator(":scope > details").count(),1);assert.ok((await list.innerText()).includes("1190"));
     geometry=await list.evaluate(n=>{const row=n.querySelector(":scope>details"),trigger=row.querySelector(":scope>summary"),s=getComputedStyle(n),r=getComputedStyle(row),t=getComputedStyle(trigger),b=trigger.getBoundingClientRect();return {border:s.borderTopWidth,borderStyle:s.borderTopStyle,vertical:s.borderInlineStartWidth,rowTop:r.paddingTop,rowBottom:r.paddingBottom,triggerTop:t.paddingTop,triggerBottom:t.paddingBottom,hitHeight:b.height};});
     assert.equal(geometry.border,"1px");assert.equal(geometry.borderStyle,"solid");assert.equal(geometry.vertical,"0px");assert.equal(geometry.rowTop,"12px");assert.equal(geometry.rowBottom,"12px");assert.equal(geometry.triggerTop,"0px");assert.equal(geometry.triggerBottom,"0px");assert.ok(geometry.hitHeight>=44);
+    const preview=await list.locator("[data-meal-preview]").evaluate(n=>({height:n.getBoundingClientRect().height,line:parseFloat(getComputedStyle(n).lineHeight),overflow:getComputedStyle(n).textOverflow,whiteSpace:getComputedStyle(n).whiteSpace}));
+    assert.ok(preview.height<=preview.line+1,"收起摘要最多一行");assert.equal(preview.overflow,"ellipsis");assert.equal(preview.whiteSpace,"nowrap");
     const metricBoxes=await summary.locator("strong").evaluateAll(ns=>ns.map(n=>{const b=n.getBoundingClientRect();return {bottom:b.bottom,right:b.right,left:b.left};}));assert.ok(Math.max(...metricBoxes.map(b=>b.bottom))-Math.min(...metricBoxes.map(b=>b.bottom))<=8,"普通营养四项同排");
     const footer=drawer.locator("[data-meal-day-actions]"),add=footer.getByRole("button",{name:"添加一餐",exact:true}),complete=footer.getByRole("checkbox",{name:/已记全$/});const ab=await add.boundingBox(),cb=await complete.boundingBox();assert.ok(ab.height>=44&&cb.height>=44);assert.ok(ab.x<cb.x);assert.equal(await complete.getAttribute("aria-checked"),"false");
    }else{
@@ -20,7 +22,9 @@ export async function checkDetailHierarchy({browser,storageState,baseURL,today,e
     assert.equal(geometry.paddingTop,"12px");assert.equal(geometry.paddingBottom,"12px");assert.equal(geometry.values.length,3);
     for(const v of geometry.values){assert.equal(v.marginTop,"4px");assert.equal(v.marginBottom,"0px");assert.ok(Math.abs(v.lineHeight/v.font-1.2)<.03);assert.notEqual(v.display,"block");assert.ok(v.unitTop>=v.top-1&&v.unitBottom<=v.bottom+1,"单位与数字同行");}
     assert.ok(Math.max(...geometry.values.map(v=>v.top))-Math.min(...geometry.values.map(v=>v.top))<=1,"普通消耗三项同排");
-    assert.ok((await detail.innerText()).includes("3415"));assert.ok((await detail.innerText()).includes("851"));assert.ok((await detail.innerText()).includes("741"));assert.ok((await detail.innerText()).includes("不再额外增加"));
+    assert.ok((await detail.innerText()).includes("3415"));assert.ok((await detail.innerText()).includes("851"));assert.ok((await detail.innerText()).includes("741"));assert.equal(await detail.locator("[data-exercise-status]").innerText(),"已含在活动合计");
+    assert.equal(await detail.locator("[data-exercise-effect]").count(),0,"完整说明只在展开后挂载");
+    assert.equal(await detail.getByRole("button",{name:"删除活动",exact:true}).count(),0,"删除不常驻");
    }
    await page.screenshot({path:artifacts+"/"+engine+"-"+theme+"-"+surface+"-"+width+"x"+height+".png"});
    if(width===1440||width===390&&height===720)await drawer.screenshot({path:artifacts+"/"+engine+"-"+theme+"-"+surface+"-drawer-"+width+".png"});
@@ -42,6 +46,11 @@ export async function checkDetailHierarchy({browser,storageState,baseURL,today,e
   }
   for(const[offset,content]of[[-2,"2200"],[-3,"0"],[-4,"300"],[-7,"99998"]]){
    await p.goto(baseURL+"/dashboard/energy?date="+addCalendarDays(today,offset));await p.waitForLoadState("networkidle");await p.locator('[data-energy-date="'+addCalendarDays(today,offset)+'"]').focus();await p.keyboard.press("Enter");await p.getByRole("button",{name:"查看记录 →",exact:true}).click();const d=p.locator("[data-energy-day-detail]");assert.ok(await d.evaluate(n=>n.scrollWidth<=n.clientWidth+1),"长消耗值不撑宽详情");assert.ok((await d.innerText()).includes(content),"所选日应显示 "+content+"；"+await d.innerText());assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await p.screenshot({path:artifacts+"/"+engine+"-state-energy-"+(-offset)+".png"});extras.push({surface:"energy",offset,passed:true});
+  }
+  for(const[offset,status,total]of[[-8,"额外增加 741 kcal","4156"],[-9,"按运动明细累计","2799"],[-10,"运动热量未知",null]]){
+   const date=addCalendarDays(today,offset);await p.goto(baseURL+"/dashboard/energy?date="+date);await p.waitForLoadState("networkidle");await p.locator('[data-energy-date="'+date+'"]').focus();await p.keyboard.press("Enter");await p.getByRole("button",{name:"查看记录 →",exact:true}).click();
+   const d=p.locator("[data-energy-day-detail]");assert.equal(await d.locator("[data-exercise-status]").innerText(),status);if(total)assert.ok((await d.locator(":scope>div:first-child strong").first().innerText()).includes(total));
+   assert.equal(await d.locator("[data-exercise-effect]").count(),0);await p.screenshot({path:artifacts+"/"+engine+"-state-exercise-"+(-offset)+".png"});extras.push({surface:"exercise",offset,status,passed:true});
   }
  }finally{await ctx.close();}
  assert.deepEqual(errors,[]);assert.deepEqual(serverErrors,[]);await writeFile(artifacts+"/"+engine+"-detail-checks.json",JSON.stringify({cases,extras,errors,serverErrors},null,2));return {cases:cases.length,extras:extras.length,passed:true};
@@ -65,6 +74,39 @@ export async function checkDetailActions({page,baseURL,today,artifacts,engine}){
  return {passed:true};
 }
 
+
+/** 验证摘要与展开内容、更多菜单和删除取消，不能靠裁切隐藏真实字段。 */
+export async function checkDetailDisclosure({page,baseURL,today,artifacts,engine}){
+ const errors=[];page.on("pageerror",e=>errors.push(e.message));const results=[];
+ for(const width of [320,390,1440]){
+  await page.setViewportSize({width,height:width===1440?900:720});
+  for(const surface of ["meals","energy"]){
+   const date=surface==="meals"?today:addCalendarDays(today,-1);
+   await page.goto(baseURL+"/dashboard/"+surface+"?date="+date);await page.waitForLoadState("networkidle");
+   if(surface==="energy"){await page.locator('[data-energy-date="'+date+'"]').focus();await page.keyboard.press("Enter");await page.getByRole("button",{name:"查看记录 →",exact:true}).click();}
+   const drawer=page.locator("dialog[open]:not(.page-loading-dialog)").last();await drawer.waitFor();
+   const row=surface==="meals"?drawer.locator("[data-meal-day-list]>details").first():drawer.locator("details").filter({has:page.locator("[data-exercise-summary]")}).first();
+   const trigger=row.locator(":scope>summary");assert.equal(await row.getAttribute("open"),null);
+   assert.equal(await row.locator("[data-record-detail-actions]").count(),0);
+   if(surface==="meals"){const preview=row.locator("[data-meal-preview]");assert.ok((await preview.textContent()).includes("炖土豆"));assert.ok(await preview.evaluate(n=>n.scrollWidth>n.clientWidth),"长食物名需单行省略");}
+   else{assert.equal(await row.locator("[data-exercise-status]").innerText(),"已含在活动合计");assert.ok(!(await row.innerText()).includes("1357"),"顶部总数不在收起行重复解释");}
+   await trigger.focus();await page.keyboard.press("Enter");
+   const actions=row.locator("[data-record-detail-actions]");await actions.waitFor();assert.equal(await row.getByRole("button",{name:surface==="meals"?"删除":"删除活动",exact:true}).isVisible(),false);
+   if(surface==="meals")assert.ok((await row.innerText()).includes("炖土豆"),"完整食物展开后仍可读");
+   else{assert.ok((await row.locator("[data-exercise-effect]").innerText()).includes("1357 千卡中，本次不再额外增加"));assert.ok((await row.locator("[data-exercise-explanation]").innerText()).includes("60 分钟"));}
+   assert.ok(await drawer.evaluate(n=>n.scrollWidth<=n.clientWidth+1));
+   await page.screenshot({path:artifacts+"/"+engine+"-"+surface+"-expanded-"+width+".png"});
+   const more=actions.locator("details"),moreTrigger=more.locator("summary");
+   await moreTrigger.click();const remove=more.getByRole("button",{name:surface==="meals"?"删除":"删除活动",exact:true});await remove.waitFor({state:"visible"});assert.ok((await remove.boundingBox()).height>=44);
+   await page.keyboard.press("Escape");assert.equal(await more.getAttribute("open"),null);assert.ok(await drawer.isVisible(),"Escape先关闭更多菜单");assert.ok(await moreTrigger.evaluate(n=>document.activeElement===n),"关闭菜单回到触发焦点");
+   await moreTrigger.click();await trigger.click();await actions.waitFor({state:"detached"});assert.equal(await row.locator("[data-record-detail-actions]").count(),0,"收起记录同时清理更多菜单");await trigger.click();await actions.waitFor();
+   await moreTrigger.click();await remove.click();const confirm=page.getByRole("dialog").last();assert.ok((await confirm.innerText()).includes("删除"));await confirm.getByRole("button",{name:/取消|继续保留/}).click();assert.ok(await row.isVisible());assert.ok(await drawer.isVisible());
+   await trigger.click();assert.equal(await row.getAttribute("open"),null);await actions.waitFor({state:"detached"});assert.equal(await row.locator("[data-record-detail-actions]").count(),0);await page.keyboard.press("Escape");await drawer.waitFor({state:"hidden"});
+   results.push({surface,width,summaryAndDetails:true,fullFactsRetained:true,menuEscapeAndOutside:true,deleteCancelled:true});
+  }
+ }
+ assert.deepEqual(errors,[]);await writeFile(artifacts+"/"+engine+"-disclosure.json",JSON.stringify({passed:true,results,errors},null,2));return {passed:true,cases:results.length};
+}
 
 export async function checkDetailScale({page,baseURL,today,artifacts,engine}){
  await page.setViewportSize({width:320,height:560});
@@ -94,7 +136,7 @@ async function runInIsolation(){
  try{
   for(let i=0;i<100;i++){try{if((await fetch(baseURL)).ok)break;}catch{}if(i===99)throw Error("Isolated app did not start: "+log);await new Promise(r=>setTimeout(r,150));}
   const pw=await import(process.env.PLAYWRIGHT_MODULE??"/home/obl1vion/.local/formward-tools/node_modules/playwright/index.mjs");browser=await pw[engine].launch({headless:true,args:engine==="chromium"?["--no-sandbox"]:[]});const ctx=await browser.newContext();assert.equal((await ctx.request.post(baseURL+"/api/auth/sign-in/email",{headers:{Origin:baseURL},data:account})).status(),200);const storageState=await ctx.storageState();await ctx.close();
-  console.log(engine,await checkDetailHierarchy({browser,storageState,baseURL,today,engine,artifacts}));const interaction=await browser.newContext({storageState,viewport:{width:390,height:720},isMobile:true,hasTouch:true,reducedMotion:"reduce"});console.log("scale",await checkDetailScale({page:await interaction.newPage(),baseURL,today,artifacts,engine}));console.log("actions",await checkDetailActions({page:await interaction.newPage(),baseURL,today,artifacts,engine}));await interaction.close();
+  console.log(engine,await checkDetailHierarchy({browser,storageState,baseURL,today,engine,artifacts}));const interaction=await browser.newContext({storageState,viewport:{width:390,height:720},isMobile:true,hasTouch:true,reducedMotion:"reduce"});console.log("scale",await checkDetailScale({page:await interaction.newPage(),baseURL,today,artifacts,engine}));console.log("disclosure",await checkDetailDisclosure({page:await interaction.newPage(),baseURL,today,artifacts,engine}));console.log("actions",await checkDetailActions({page:await interaction.newPage(),baseURL,today,artifacts,engine}));await interaction.close();
  }finally{await browser?.close();if(app.exitCode===null){app.kill("SIGTERM");await once(app,"exit");}await socket.stop();
   // pglite-socket在setImmediate中处理close回调，先排空再关闭引擎。
   await new Promise(r=>setImmediate(r));await pg.close();}

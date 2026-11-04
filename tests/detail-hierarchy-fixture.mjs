@@ -17,6 +17,10 @@ export async function seedDetailHierarchy(db,userId,today){
  const mp=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:meals});assert.equal(mp.canConfirm,true);await decideMealOperation(db,userId,mp.id,mp.revision,"confirm");
  const energy=[4,3,2,1].map(i=>({kind:"save_energy_day",date:date(-i),entryMode:i===2?"total":"components",activityMode:"total",...(i===2?{totalKcal:"2200",restingKcal:null,activeKcal:null}:{restingKcal:i===4?null:"2058",activeKcal:i===3?"0":i===1?"1357":"300"}),restingSourceSystem:"虚构手表",activeSourceSystem:"虚构手表",timezone:"Asia/Shanghai"}));
  energy.push({kind:"save_activity",date:date(-1),name:"羽毛球 · 虚构",calorieMode:"components",exerciseActiveKcal:"741",exerciseRestingKcal:"110",inclusion:"included",durationMinutes:"60",completed:true,sourceSystem:"虚构手表",timezone:"Asia/Shanghai"},{kind:"save_energy_day",date:date(-7),entryMode:"components",activityMode:"total",restingKcal:"49999",activeKcal:"49999"});
+ for(const[offset,mode,relation]of[[-8,"total","additional"],[-9,"activities",undefined],[-10,"activities",undefined]]){
+  energy.push({kind:"save_energy_day",date:date(offset),entryMode:"components",activityMode:mode,restingKcal:"2058",activeKcal:mode==="total"?"1357":null});
+  energy.push({kind:"save_activity",date:date(offset),name:"骑行 · 虚构",calorieMode:"components",exerciseActiveKcal:offset===-10?null:"741",exerciseRestingKcal:"110",...(relation?{inclusion:relation}:{}),durationMinutes:"60",completed:true,sourceSystem:"虚构手表",timezone:"Asia/Shanghai"});
+ }
  const ep=await submitEnergyOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:energy});assert.equal(ep.canConfirm,true);await decideEnergyOperation(db,userId,ep.id,ep.revision,"confirm");
  const day=dailyTotals((await readMealSnapshot(db,userId)).meals).find(d=>d.date===date(-1)).day;await setMealDayStatus(db,userId,{operationId:randomUUID(),date:date(-1),status:"complete",version:day.version,contentDigest:day.contentDigest});
  return {today,yesterday:date(-1)};

@@ -1158,3 +1158,6 @@ build.mjs给每次构建一个版本号，根页面和GET /api/app-version使用
 图表选日由use-chart-date-selection维护输入来源与同日去重；chart-selection-marker的Column／Point只移动永久标记层，100ms中断续接，不插值健康读数。绘图区边界与已有日期命中范围由业务图表传入，共用CSS负责底纹、线和空心圈规格；实际数据入场动画仍由use-chart-motion独立处理。
 
 饮食日期详情的DayNutritionSummary只展示已算好的总量及宏量比例，MealList负责餐次边界和行间距；已记全失效仍在业务事务处理，删除重复提示不等于自动确认。消耗dayDetails只包裹查看内容，避免紧凑样式影响填写预览。详情浏览器专项和可复用虚构夹具保留在tests，检查布局及真实确认／编辑流程。
+
+
+阅读详情时，meals-view.tsx仅以一行摘要预览餐次，完整NutritionTable随Disclosure展开；energy-view.tsx使用activitySummary同一次判断产出的status与effect分别呈现简短状态和完整依据。record-detail-actions.tsx统一展开后的编辑与更多删除，不参与健康计算。

@@ -1,0 +1,8 @@
+.actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px}
+.more{position:relative;margin:0;color:var(--warm-white);font-size:14px}
+.more>summary{display:flex;align-items:center;justify-content:center;gap:8px;list-style:none}
+.more>summary::-webkit-details-marker{display:none}
+.more>summary::after{content:"";width:6px;height:6px;border-right:1px solid currentColor;border-bottom:1px solid currentColor;transform:translateY(-2px) rotate(45deg)}
+.more[open]>summary::after{transform:translateY(2px) rotate(225deg)}
+.more>div{position:absolute;z-index:10;top:calc(100% + 4px);left:0;max-width:calc(100vw - 40px);padding:4px;background:var(--surface-raised);border:1px solid var(--control-border);border-radius:6px}
+.more>div>button{color:var(--danger);min-width:100%;text-align:left}

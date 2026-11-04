@@ -24,6 +24,8 @@ import { chartScale } from "@/components/chart-scale";
 import type { EnergyPresentation } from "./presentation";
 import type { Result } from "../meals/model";
 import {activitySummary} from "./activity-summary";
+import {Disclosure} from "@/components/disclosure";
+import {RecordDetailActions} from "@/components/record-detail-actions";
 import { EnergyEditor } from "./energy-editor";
 import { blankEnergyDay, energyValue, type EnergyAction, type EnergyDay, type EnergyInput } from "./model";
 import styles from "./energy.module.css";
@@ -92,7 +94,19 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
   const summary=(date:string)=>{const day=byDate.get(date);return day?<>{energyValue(day.totalKcal)} kcal · 静息 {energyValue(day.restingKcal)} · 活动 {energyValue(day.activeKcal)}</>:"尚无记录";};
   const recentDates=pendingRecordDates(today,date=>byDate.get(date)?.totalKcal==null);
   const renderDay=(date:string)=>{const day=byDate.get(date);return <DailyRecordRow key={date} date={date} today={today} value={summary(date)}><button disabled={busy} onClick={()=>editDay(date)}>{day?.record?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>setViewing(date)}>查看</button></DailyRecordRow>;};
-  const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <div className={styles.dayDetails} data-energy-day-detail><div className={styles.summary}>{([["总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>kcal</small></strong></div>)}</div><EnergySources day={day}/><div className={styles.actions}><button onClick={()=>editDay(date)}>{day.record?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>editDay(date,true)}>添加活动</button></div>{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=>{const reading=activitySummary(activity,day.record);return <article key={activity.id} className={styles.row}><div><h3>{activity.name}</h3><p>{activity.durationMinutes!==null?energyValue(activity.durationMinutes)+" 分钟 · ":""}{activity.sourceSystem}</p>{reading.breakdown&&<p>{reading.breakdown}</p>}<p className={styles.inclusionStatus} data-exercise-effect>{reading.effect}</p></div><strong>{energyValue(reading.totalKcal)}<small>kcal</small></strong><div className={styles.actions}><button onClick={()=>activityEdit(activity)}>编辑活动</button><button disabled={busy} onClick={()=>removeRecord({kind:"delete_activity",id:activity.id,version:activity.version},activity.name)}>删除活动</button></div></article>;})}{day.record&&<details className={styles.details}><summary>更多操作</summary><button disabled={busy} onClick={()=>removeRecord({kind:"delete_energy_day",id:day.record!.id,version:day.record!.version},date+" 消耗记录")}>永久删除日记录</button></details>}</div>;};
+  const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <div className={styles.dayDetails} data-energy-day-detail><div className={styles.summary}>{([["总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>kcal</small></strong></div>)}</div><EnergySources day={day}/><div className={styles.actions}><button onClick={()=>editDay(date)}>{day.record?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>editDay(date,true)}>添加活动</button></div>{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=>{
+ const reading=activitySummary(activity,day.record);
+ return <Disclosure key={activity.id} className={styles.activityDetail} summary={<div className={styles.activityOverview} data-exercise-summary>
+  <div className={styles.activityHeading}><span>{activity.name}</span><strong>{energyValue(reading.totalKcal)}<small>kcal</small></strong></div>
+  <div className={styles.activityFacts}>{reading.breakdown&&<span>{reading.breakdown}</span>}<span data-exercise-status>{reading.status}</span></div>
+ </div>}>
+  <div className={styles.activityExplanation} data-exercise-explanation>
+   {(activity.durationMinutes!==null||activity.sourceSystem)&&<p>{[activity.durationMinutes!==null?energyValue(activity.durationMinutes)+" 分钟":null,activity.sourceSystem].filter(Boolean).join(" · ")}</p>}
+   <p data-exercise-effect>{reading.effect}</p>
+  </div>
+  <RecordDetailActions busy={busy} edit={()=>activityEdit(activity)} remove={()=>void removeRecord({kind:"delete_activity",id:activity.id,version:activity.version},activity.name)} editLabel="编辑活动" removeLabel="删除活动" recordLabel={activity.name}/>
+ </Disclosure>;
+})}{day.record&&<details className={styles.details}><summary>更多操作</summary><button disabled={busy} onClick={()=>removeRecord({kind:"delete_energy_day",id:day.record!.id,version:day.record!.version},date+" 消耗记录")}>永久删除日记录</button></details>}</div>;};
   return <RecordWorkspace title="消耗" className={styles.workspace}>
     {error && !editing && <p className={styles.error} role="alert">{error}</p>}{notice && <p className={styles.notice} role="status">{notice}</p>}
     <section aria-label="消耗历史趋势" data-chart-selection={selection.regionId} data-selected-date={selection.selected} data-selection-origin={selection.origin} {...selection.regionProps}>

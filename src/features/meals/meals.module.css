@@ -46,8 +46,8 @@
 .compactMetrics span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
 .compactMetrics strong { font-size: 19px; font-weight: 400; white-space: nowrap; }
 .notes, .foodRow p, .itemDetail p { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); font-size: 12px; line-height: 1.8; }
-.meal summary { cursor: pointer; color: var(--muted); font-size: 12px; min-height: 44px; display: flex; align-items: center; }
-.meal summary::after { content: "＋"; margin-left: 12px; color: var(--gold); }
+.meal > summary { cursor: pointer; color: var(--muted); font-size: 12px; min-height: 44px; display: flex; align-items: center; }
+.meal > summary::after { content: "＋"; margin-left: 12px; color: var(--gold); }
 .meal[open] > summary::after { content: "−"; }
 .itemDetail { padding: 14px 0; border-bottom: 1px solid var(--rule); }
 .itemDetail > span { margin-left: 12px; font-size: 12px; color: var(--muted); }
@@ -425,13 +425,14 @@
 
 /* Independent Unslop comparison: hierarchy and quiet list chrome, not a new layout. */
 .dayMeals{container-type:inline-size;border-inline-start:0;border-top:1px solid var(--rule);padding:0;margin:12px 0 0}
-.meal>summary{min-height:44px;padding-block:0;box-sizing:border-box;transition:background-color 160ms,border-color 160ms}
+.meal>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;min-height:44px;padding-block:0;box-sizing:border-box;transition:background-color 160ms,border-color 160ms}
 .meal>summary:hover{background:var(--surface-hover)}
 .meal>summary:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-.mealHeading{width:100%;flex-wrap:nowrap;gap:12px}
+.meal>summary::after{margin-left:0;width:16px;text-align:center}
+.mealHeading{width:100%;min-width:0;flex-wrap:nowrap;gap:12px}
 .mealHeading .mealTitle{display:block;min-width:0;flex:1;margin-right:auto;white-space:normal}
 .mealTitle strong{display:block;color:var(--warm-white);font-size:16px;font-weight:500;line-height:24px}
-.mealTitle small{display:block;color:var(--muted);font-size:13px;line-height:20px;font-weight:400;overflow-wrap:anywhere}
+.mealTitle small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:13px;line-height:20px;font-weight:400}
 .mealHeading .mealEnergy{font-size:20px;font-weight:400;color:var(--warm-white);white-space:nowrap;margin-right:0;font-variant-numeric:tabular-nums}
 @media(max-width:700px){.mealHeading{gap:8px}.mealHeading .mealEnergy{font-size:18px}.mealTitle strong{font-size:15px}.mealTitle small{font-size:12px}}
 @media(prefers-reduced-motion:reduce){.meal>summary{transition:none}}
