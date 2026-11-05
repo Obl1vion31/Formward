@@ -1,8 +1,8 @@
 # 完善任务验收
 
-## 当前开发验收：独立助手与总览（2026-11-05，未正式发布）
+## 当前正式验收：独立助手与总览（2026-11-05）
 
-分支`codex/assistant-overview`基于统一main的6142fb9；原主工作区及正式环境未改。本地production预览`http://localhost:4210/dashboard`使用原生PostgreSQL隔离虚构库；可复现浏览器入口`pnpm test:assistant-browser`自行建立PGlite、虚构账号和独立应用端口，不读取`.env.local`。
+分支`codex/assistant-overview`基于统一main的6142fb9；已按本轮授权发布并统一main，原主工作区双区／COS／DNS及未提交内容保留。本地production预览`http://localhost:4210/dashboard`使用原生PostgreSQL隔离虚构库；可复现浏览器入口`pnpm test:assistant-browser`自行建立PGlite、虚构账号和独立应用端口，不读取`.env.local`。
 
 | 适用标准 | 实际验证 | 结果 |
 | --- | --- | --- |
@@ -21,9 +21,21 @@ Chromium和WebKit各29组助手检查、42张最终截图，客户端异常及�
 
 专项回归曾抓到未生效的说明预留、单项估计基线5px差异、空font简写造成过早换列、版本提示遮住助手入口及保存后计数刷新延迟，均已修复并复跑。测试脚本的初始化about:blank存储访问、旧h3定位、演练异步重复按钮及错误文案背景/弹窗双份匹配已按真实结构修正；原始失败保留，不计入通过。
 
-未测：真实iPhone、系统软键盘、硬件安全区、系统原生全屏及系统级文字设置。桌面和手机为模拟浏览器验收，未把这些限制计为通过。当前没有未解决的功能失败；正式发布和main更新按后续授权执行。
+未测：真实iPhone、系统软键盘、硬件安全区、系统原生全屏及系统级文字设置。桌面和手机为模拟浏览器验收，未把这些限制计为通过。当前没有未解决的功能失败；本轮正式发布及main统一按用户明确授权完成。
 
-## 当前正式版本：详情信息取舍与原位展开（2026-11-05）
+### 正式复验、数据核对与回退
+
+正式域名https://formward-ten.vercel.app的READY部署为`dpl_A9LrFGGKCuzrSnqfa43ve2hRcecK`，应用源码`9307ed63ca11c67a51b19839ce08971232a84e96`，版本`assistant-9307ed6-20261105`。部署前从该提交导出干净源码，再次通过465项单元／集成、lint（0错误0警告）、typecheck、production build与结构检查；上传清单无私有资料，`.impeccable/`已明确忽略。项目、别名及sourceCommit／gitCommitSha核对通过。
+
+正式Chromium／WebKit各31组、46张最终图通过，沿用上表D1—D12适用项，覆盖实际鼠标估计稳定、部分指标估计、键盘／触屏、字体放大、每日一次、跨标签／跨日／时区、401／失败／过期响应、真实确认失败及成功、记录变化优先、AI链接和实际Excel下载。视口和主题矩阵与本地一致，正式390×640另在完整脚本内采集；客户端异常及非预期5xx均0。19项公开／保护入口和OAuth／MCP协议检查、8个更新媒体文件完整SHA256校验通过；本地十段播放及完整教程回归见上文。真实iPhone、系统软键盘、硬件安全区、系统原生全屏与系统文字设置仍未测。
+
+正式首轮记录变化优先级检查发现测试时序竞态：首次focus的旧查询尚未结束，第二次focus被正常合并，模拟响应未接到请求。已用完整相同时序诊断，改为等待对应`/api/record-changes`响应`finished()`，保留全部异常断言；修正后两引擎完整重跑通过。应用请求规则未改，初次失败、网络时间线、诊断图及最终报告均保留，不以失败组充作通过。
+
+发布前后`assistant-20261105-before.json`／`after.json`及`verification.json`位于主工作区`data/exports`，0600且Git／部署忽略。43表结构、29条迁移账本及既有健康事实保持。期间一笔已有账号经网页确认的AI餐次（4项、1照片、新未确认饮食日）及一次同权限OAuth续期，已与操作、审计、MCP和确认／token端点HTTP200对应；仅放行由快照哈希绑定的精确新增行及旧令牌revoked／rotated_at，最终issues为空，正常写入保留。两个虚构账号及34表所属数据已清理，无残留，无数据库migration或授权范围变化。
+
+运行日志窗口2026-11-05T04:48:26.000Z—2026-11-05T05:17:07.000Z，Runtime error／fatal及请求5xx均0，无排除区间与后续分页。私有证据`.codex/assistant-release`；最终报告`production/chromium-final/report.json`和`production/webkit-final/report.json`，正式实际截图`C:/Users/14878/.codex/visualizations/2026/11/05/formward-assistant-production/desktop.png`及`mobile.png`已按正常比例检查。立即应用回退为上一READY `dpl_HfTwrwJYqBCdnA4YTcA3GMfHVdiV`（ff4357a），不回滚用户合法数据和审计。main包含已发布应用及本验收记录；后续纯测试／文档提交不触发新的正式应用部署。
+
+## 此前正式版本：详情信息取舍与原位展开（2026-11-05）
 
 正式域名https://formward-ten.vercel.app指向READY部署dpl_HfTwrwJYqBCdnA4YTcA3GMfHVdiV，应用源码ff4357a7fc141d5865f2d2b03a081da5bc719ec0，构建detail-disclosure-ff4357a-20261105；正式别名、项目、sourceCommit／gitCommitSha和版本接口已核对。本轮按用户授权直接发布，未推送或合并main；main保持a9988ea8996706d548a0ee6e9999455da3ab4d0c，主工作区双区／COS／DNS等内容未夹带。
 
@@ -227,7 +239,7 @@ Chromium／WebKit各检查深浅主题的320／390／430px、触屏横屏844及�
 检查脚本首轮按71.2原始字符串比较，碰到正常的两位格式71.20后改为数值比较；随后过密重复登录触发本地限流，改为每引擎一次登录并复用会话；WebKit提前换页中断背景请求的失败也保留，改为直接进入目标页并等待网络稳定后完整重验。没有放宽应用限流、过滤页面异常或修改实际录入行为。
 
 
-## 当前正式版本：录入交互与表单密度（2026-11-04）
+## 此前正式版本：录入交互与表单密度（2026-11-04）
 
 用户验看本地修正后明确要求发布。正式域名https://formward-ten.vercel.app已核对READY部署dpl_4GmECkX4DT8Wg7wLVjDC78gRZRA7，应用源码0af9b635b5f74bc742a29c6e13c6133b31083790，构建a679c6b1-713e-43b5-94a7-69e58d3f1223。独立分支codex/entry-interaction-unification；本轮只发布，未推送、合并或更新GitHub main。主工作区双区、COS、DNS、0028及其他未上线修改保持隔离。
 

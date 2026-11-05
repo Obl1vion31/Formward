@@ -1,8 +1,8 @@
 # Formward 项目交接
 
-## 当前开发：小助手、区间摘要与估计读数稳定
+## 当前正式版本：小助手、区间摘要与估计读数稳定（2026-11-05）
 
-工作分支`codex/assistant-overview`从统一后的main（6142fb9）创建，工作区`/home/obl1vion/projects/Formward-worktrees/assistant-overview`。本轮交付实际本地页面；未更新main、未推送或正式发布。原主工作区的双区、COS、DNS及未提交内容保持隔离，正式版本见下文。
+用户已明确授权本轮发布并合并推送main。正式总览https://formward-ten.vercel.app/dashboard已上线，READY部署`dpl_A9LrFGGKCuzrSnqfa43ve2hRcecK`，应用源码`9307ed63ca11c67a51b19839ce08971232a84e96`，构建`assistant-9307ed6-20261105`；项目、正式别名及元数据核对通过。main包含本次发布应用及验收记录，后续纯测试／文档提交不代表另一次应用部署。功能从main的6142fb9在`codex/assistant-overview`独立开发，工作区`/home/obl1vion/projects/Formward-worktrees/assistant-overview`；原主工作区双区、COS、DNS及未提交内容保持隔离。
 
 前三批作为一次交付：电脑右下角400px非模态助手、手机85dvh底部面板替换旧工具；教程、AI接入和Excel迁入常用功能。仅昨日饮食未确认／未记全／修改后失效计入待核对；缺饮食、全天消耗不可得、身体无实测为可补充建议。今天／昨天的助手独立于图表选日；账号、设备、当地日期每天最多自动一次，有明确事项才出现，手动也计当天展示。兼容旧收起偏好、多标签同步，编辑、保存、确认、授权及教程优先。
 
@@ -10,7 +10,7 @@
 
 身体与总览把数字、单位、标签、估计／含估计及辅助说明纳入布局；同区间悬停只换内容。身体共用估计说明预留，区间无说明不留空行；稳定id不因标签变更重新挂载。双图后区间摘要从已有日级收支统计，缺口原位展开，每批50日，与悬停独立。AI教程两段及封面、预览、字幕和媒体清单已更新，旧媒体保留。
 
-复现入口为`pnpm test:assistant-browser`（先build，需Playwright）；自行创建内存PostgreSQL、虚构账号和临时端口，不读取真实环境。465项单元／集成、lint、typecheck、production build及双引擎助手／教程回归通过，独立视觉审阅ship。完整验收状态、截图及未测项统一记录在[维护验收](docs/maintenance-verification.md)。本地预览`http://localhost:4210/dashboard`使用独立虚构数据库。
+复现入口为`pnpm test:assistant-browser`（先build，需Playwright），自行创建内存PostgreSQL、虚构账号和临时端口。部署前干净源码再次通过465项单元／集成、lint（0错误0警告）、typecheck、production build和结构检查。正式Chromium／WebKit各31组、46图通过，19项入口／协议及8个更新媒体SHA256通过；本地完整助手／教程回归和独立视觉审阅ship保留。43表、29条迁移账本及既有健康事实保持，正常并行录入和授权续期逐项审计后保留；两个虚构账号及34表所属数据已清理。正式日志error／fatal与5xx均0。备份位于主工作区私有`data/exports/assistant-20261105-*`，发布证据`.codex/assistant-release`；完整状态、截图、未测项及回退基线见[维护验收](docs/maintenance-verification.md)和[部署说明](docs/deployment.md)。本地预览`http://localhost:4210/dashboard`仍为独立虚构数据库。
 
 ## 第四批：目标 → 真实训练会话 → 训练计划与排期
 
@@ -19,15 +19,15 @@
 3. **计划与排期**：从可复用训练模板开始，再落到具体日期的计划实例，支持部分完成、跳过和改期。计划版本与已执行会话分别保存，改排期不改写训练事实；先完成单周流程，再考虑循环排期。
 4. **消息能力并行规划**：沿用当前助手的内容区与底部操作区，先做查询、解释和导航，再做经预览与确认的记录／目标／计划修改。实施前明确模型、费用、会话保留与跨设备同步；复用feature及既有AI权限，不增加第二套业务规则。
 
-## main 开发基线（2026-11-05）
+## 本次开发起点（2026-11-05）
 
 用户已明确要求先统一并推送main。main从a9988ea快进至最新正式发布分支codex/detail-disclosure的8760792，包含此前已上线的餐次、来源、密码、录入、图表及详情展开改动与验收记录；后续仅补充本次基线说明。应用源码仍与正式ff4357a一致，本次不产生新的应用发布。
 
 本次重新通过459项单元／集成、typecheck与production build；统一后的main工作区lint为0错误、0警告。应用目录、公开素材、构建脚本、依赖及Next配置与ff4357a逐项无差异，沿用该版本已有正式视觉验收。
 
-后续功能从统一后的main建立工作分支。原主工作区codex/mainland-server-preparation及其未提交内容保留，双区、COS、DNS和未上线迁移不随本次进入main。小助手当前开发进展见本文开头，基线正式应用不包含该功能。
+后续功能从统一后的main建立工作分支。原主工作区codex/mainland-server-preparation及其未提交内容保留，双区、COS、DNS和未上线迁移不随本次进入main。该开发起点尚不包含小助手，本次正式交付见本文开头。
 
-## 当前正式版本：详情信息取舍与原位展开（2026-11-05）
+## 此前正式版本：详情信息取舍与原位展开（2026-11-05）
 
 正式域名https://formward-ten.vercel.app指向READY部署dpl_HfTwrwJYqBCdnA4YTcA3GMfHVdiV，应用源码ff4357a7fc141d5865f2d2b03a081da5bc719ec0，构建detail-disclosure-ff4357a-20261105；正式别名、项目、sourceCommit／gitCommitSha和版本接口已核对。该版本已发布，后续按用户要求统一到main；main包含截至8760792的全部已上线变更与验收记录，主工作区双区／COS／DNS等未上线内容保持隔离。
 

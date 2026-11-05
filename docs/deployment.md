@@ -1,14 +1,26 @@
 # 公网 HTTPS 部署
 
-## main 开发基线（2026-11-05）
+## 当前正式版本：小助手与总览（2026-11-05）
+
+按用户本轮明确授权发布并统一main。正式总览https://formward-ten.vercel.app/dashboard指向READY部署`dpl_A9LrFGGKCuzrSnqfa43ve2hRcecK`，应用源码`9307ed63ca11c67a51b19839ce08971232a84e96`，构建`assistant-9307ed6-20261105`；项目、正式别名、sourceCommit／gitCommitSha及版本接口核对通过。代码从main的6142fb9独立开发，main包含本次已发布应用及发布验收记录；原主工作区的双区、COS、DNS和未上线修改保持隔离。后续纯测试／文档提交不改变该应用部署；项目未连接Git自动部署。
+
+电脑右下角非模态助手、手机底部面板替换工具，提供每日最多一次且有事项才出现的两日核对、补录和真实操作入口；总览新增区间摘要及每批50日的缺口展开。身体和总览的估计标识、读数说明共同参与稳定布局，真实鼠标切换实测／估计时各配置位置变化≤1px；更新两段AI教程，保留旧媒体。只读`/api/assistant-context`仅用网页会话，无数据库migration、公开HTTP v1、MCP或AI授权范围变更。
+
+部署前从9307ed6导出干净源码重新通过465项单元／集成、lint（0错误0警告）、typecheck、production build和目录结构检查；`.impeccable/`已加入部署忽略，实际上传清单不含私有资料。正式Chromium／WebKit各31组、46张截图全部通过，客户端异常与非预期5xx均0；19项入口／协议检查及8个更新媒体文件完整SHA256校验通过。实际核看正式电脑、手机截图，完整视口与未测项见[维护验收](maintenance-verification.md)。
+
+发布前后私有备份`assistant-20261105-before.json`、`assistant-20261105-after.json`及`assistant-20261105-verification.json`位于主工作区`data/exports`，0600且Git／部署忽略。43表结构、29条迁移账本及既有健康事实保持；期间已有账号正常新增一笔经网页确认的AI餐次、4食物项、1照片及一次OAuth续期，已按操作、审计和成功HTTP请求核实，仅放行由两份快照哈希绑定的精确新增行及旧令牌两项轮换字段，issues为空。两个虚构账号及34表所属数据已清理，正常用户写入保留。
+
+日志窗口2026-11-05T04:48:26.000Z—2026-11-05T05:17:07.000Z，Runtime error／fatal及请求5xx均0，无排除区间、无后续分页。私有证据在本工作区`.codex/assistant-release`，最终正式报告为`production/chromium-final/report.json`与`production/webkit-final/report.json`；正式截图位于`C:/Users/14878/.codex/visualizations/2026/11/05/formward-assistant-production`。立即应用回退基线为上一READY部署`dpl_HfTwrwJYqBCdnA4YTcA3GMfHVdiV`（ff4357a）；保留用户合法写入及审计。
+
+## 本次开发起点（2026-11-05）
 
 用户已明确要求先统一并推送main。main从a9988ea快进至最新正式发布分支codex/detail-disclosure的8760792，包含此前已上线的餐次、来源、密码、录入、图表及详情展开改动与验收记录；后续仅补充本次基线说明。应用源码仍与正式ff4357a一致，本次不产生新的应用发布。
 
 本次重新通过459项单元／集成、typecheck与production build；统一后的main工作区lint为0错误、0警告。应用目录、公开素材、构建脚本、依赖及Next配置与ff4357a逐项无差异，沿用该版本已有正式视觉验收。
 
-后续功能从统一后的main建立工作分支。原主工作区codex/mainland-server-preparation及其未提交内容保留，双区、COS、DNS和未上线迁移不随本次进入main。首屏小助手需求保留在handoff顶部，仍待对齐出现频率、无待补内容、关闭与重开行为，尚未实现。
+后续功能从统一后的main建立工作分支。原主工作区codex/mainland-server-preparation及其未提交内容保留，双区、COS、DNS和未上线迁移不随本次进入main。小助手与总览已按本文当前正式版本交付。
 
-## 当前正式版本：详情信息取舍与原位展开（2026-11-05）
+## 此前正式版本：详情信息取舍与原位展开（2026-11-05）
 
 正式域名https://formward-ten.vercel.app指向READY部署dpl_HfTwrwJYqBCdnA4YTcA3GMfHVdiV，应用源码ff4357a7fc141d5865f2d2b03a081da5bc719ec0，构建detail-disclosure-ff4357a-20261105；正式别名、项目、sourceCommit／gitCommitSha和版本接口已核对。该版本已发布，后续按用户要求统一到main；main包含截至8760792的全部已上线变更与验收记录，主工作区双区／COS／DNS等未上线内容保持隔离。
 
@@ -20,7 +32,7 @@
 
 发布前后私有一致性备份detail-disclosure-20261105-before／after.json及verification.json位于主工作区data/exports、权限0600且Git／部署忽略。43表结构及29条迁移账本保持，原已存健康条目、请求和审计对照通过，issues为空；期间真实录入、记全确认及授权续期已按对应操作、审计与成功请求逐项核实，仅为快照哈希绑定的精确行／字段放行，保留用户合法更新，未对健康表整体豁免。3个本轮虚构账号及34表所属数据已清理，含首轮与诊断账号。正式日志窗口2026-11-04T16:51:53.000Z—2026-11-04T17:10:53.000Z：Runtime error／fatal和请求5xx均0，无排除区间或后续分页。
 
-私有证据.codex/disclosure-release；正式实际截图C:/Users/14878/.codex/visualizations/2026/11/05/formward-disclosure-production/final，含review.html。立即回退基线是上一READY dpl_CAopGdr6YKGyFL7kpustjnSpUK1c（ce3a141）；仅回退应用，保留用户合法写入及审计。正式应用绑定ff4357a，后续验证脚本／文档提交不代表新的应用部署。首屏小助手仍待对齐，未实现。
+私有证据.codex/disclosure-release；正式实际截图C:/Users/14878/.codex/visualizations/2026/11/05/formward-disclosure-production/final，含review.html。立即回退基线是上一READY dpl_CAopGdr6YKGyFL7kpustjnSpUK1c（ce3a141）；仅回退应用，保留用户合法写入及审计。正式应用绑定ff4357a，后续验证脚本／文档提交不代表新的应用部署。小助手当前状态见本文开头。
 
 
 ## 此前正式版本：详情层级与图表100ms（2026-11-05）
@@ -35,7 +47,7 @@
 
 正式日志窗口2026-11-04 16:10:41—16:25:04 UTC，Runtime error／fatal与请求5xx均0，无排除区间和后续分页。私有备份detail-hierarchy-20261104-before／after.json及verification.json位于主工作区data/exports，0600且Git／部署忽略；任务跨11月4–5日，沿用起始日文件标签，实际时间见快照createdAt。证据在本工作区.codex/details-release；正式截图C:/Users/14878/.codex/visualizations/2026/11/05/formward-details-production。
 
-真实iPhone、系统软键盘、系统原生全屏与系统原生文字放大未测；200%页面缩放仅为浏览器模拟。立即回退基线是图表READY dpl_jji9NBprqzDd9J7NUcCje9UBdNto，只回退应用，不回滚用户合法写入或授权续期。正式应用绑定ce3a141，后续纯文档提交不代表新的部署。首屏小助手仍待对齐，未实现。
+真实iPhone、系统软键盘、系统原生全屏与系统原生文字放大未测；200%页面缩放仅为浏览器模拟。立即回退基线是图表READY dpl_jji9NBprqzDd9J7NUcCje9UBdNto，只回退应用，不回滚用户合法写入或授权续期。正式应用绑定ce3a141，后续纯文档提交不代表新的部署。小助手当前状态见本文开头。
 
 
 ## 已正式发布：图表100ms与统一高亮（2026-11-04）
@@ -45,7 +57,7 @@
 正式Chromium14组、WebKit10组图表交互及两引擎48张深浅／手机电脑页面通过。两项虚构账号及34表所属数据清理，43表结构、29条账本及原健康事实／请求／审计核对保持。首个逐日夹具创建阶段已中止并清理，改为相同目标的批量夹具；相关私有记录保留，并非忽略测试失败。正式日志窗口2026-11-04 15:11:34—15:28:25 UTC，运行error／fatal与请求5xx均0，无排除区间或后续分页。备份chart-100ms-3d0d415-20261104-before／after.json及verification.json在主工作区私有data/exports；证据在chart-selection-consistency/.codex/chart-release，截图C:/Users/14878/.codex/visualizations/2026/11/04/formward-chart-production。
 
 
-## 当前正式版本：图表交互与 Unslop 界面（2026-11-04）
+## 此前正式版本：图表交互与 Unslop 界面（2026-11-04）
 
 用户认可共同规则与B方案后明确要求发布，本次仅发布，不更新GitHub main。正式域名https://formward-ten.vercel.app已核对READY部署dpl_HKAXv65zohYhmp8UWHhSkk2my21W，源码ad7c6391ac298288adbebcec9d4aa5f7f713ef00，构建unslop-ad7c639-20261104。分支codex/unslop-shared-rules；源码包含已确认的登录舞台稳定、图表选日、营养环图及B版界面。主工作区双区、COS、DNS与未上线0028等保持隔离，没有新增迁移、依赖、公开接口或权限。
 

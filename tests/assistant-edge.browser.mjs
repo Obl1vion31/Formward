@@ -35,7 +35,9 @@ export async function checkAssistantEdges({ createContext, config, payload, read
   try {
     const page = await priority.newPage(); await page.goto(config.baseURL + "/dashboard/energy"); await ready(page); await open(page);
     await page.route("**/api/app-version", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ version: "assistant-qa-update" }) }));
-    const version = page.waitForResponse(response => response.url().endsWith("/api/app-version")); await page.evaluate(() => dispatchEvent(new Event("focus"))); await version;
+    const version = page.waitForResponse(response => response.url().endsWith("/api/app-version"));
+    const records = page.waitForResponse(response => new URL(response.url()).pathname === "/api/record-changes");
+    await page.evaluate(() => dispatchEvent(new Event("focus"))); await version; await (await records).finished(); await ready(page);
     assert.equal(await page.getByRole("complementary", { name: "应用版本更新" }).count(), 0, "版本提醒不盖住助手");
     await close(page); const notice = page.getByRole("complementary", { name: "应用版本更新" }); await notice.waitFor(); await notice.getByRole("button", { name: "稍后", exact: true }).click();
     await open(page);
