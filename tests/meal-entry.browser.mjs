@@ -60,12 +60,13 @@ export async function checkMealEntry({baseURL,context,page,db,userId,token,today
  }
 
  async function geometry(){
-  await page.waitForTimeout(80);
+  // 输入触发的布局测量和React提交须完成；不能用固定毫秒数假定WebKit已绘制。
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   const result=await form().locator("table").evaluate(table=>{
    const canvas=document.createElement("canvas"),ctx=canvas.getContext("2d"),heads=[...table.querySelectorAll("th")],rows=[...table.querySelectorAll("tbody tr")];
    const values=rows.flatMap((row,rowIndex)=>[...row.querySelectorAll("td")].slice(0,7).flatMap((cell,col)=>{
     const field=cell.querySelector("input,select,span[class*=\"calculated\"]"),name=cell.querySelector("strong");
-    const node=field??name;if(!node)return[];const b=node.getBoundingClientRect(),s=getComputedStyle(node);ctx.font=s.font;
+    const node=field??name;if(!node)return[];const b=node.getBoundingClientRect(),s=getComputedStyle(node);ctx.font=s.font||`${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
     const text=node.tagName==="SELECT"?node.selectedOptions[0]?.textContent:node.tagName==="INPUT"?node.value:node.textContent;
     const reserve=node.tagName==="SELECT"?22:col===1&&node.tagName==="INPUT"?0:0;
     const available=b.width-parseFloat(s.paddingLeft)-parseFloat(s.paddingRight)-parseFloat(s.borderLeftWidth)-parseFloat(s.borderRightWidth)-reserve;
@@ -147,7 +148,7 @@ export async function checkMealEntry({baseURL,context,page,db,userId,token,today
   // The complete unit glyph must fit before any focus/selection, including native datalist controls.
   for(const unit of ["份","包","g","mL"]){await form().getByLabel("单位 1",{exact:true}).fill(unit);await geometry();}
   await form().getByLabel("单位 1",{exact:true}).fill("g");
-  await form().getByLabel("本次脂肪 1",{exact:true}).fill("12345.67");await geometry();
+   await form().getByLabel("本次脂肪 1",{exact:true}).fill("12345.67");await geometry();assert.equal(await form().getByLabel("本次脂肪 1",{exact:true}).inputValue(),"12345.67","长的非法输入仍须保留供修改");
   await form().getByLabel("本次脂肪 1",{exact:true}).fill("8");
   await closeEditor(true);
  }

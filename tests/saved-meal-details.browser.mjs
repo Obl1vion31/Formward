@@ -9,7 +9,7 @@ export async function checkSavedMealDetails({ browser, storageState, baseURL, fi
   const sizes = [[320, 560], [390, 640], [430, 780], [390, 560], [844, 390], [1100, 900], [1440, 900]];
   for (const theme of ["dark", "light"]) for (const [width, height] of sizes) {
     const context = await browser.newContext({ storageState, viewport: { width, height }, locale: "zh-CN", timezoneId: "Asia/Shanghai", isMobile: width < 1000, hasTouch: width < 1000, reducedMotion: "reduce" });
-    await context.addInitScript(value => localStorage.setItem("formward-theme", value), theme);
+    await context.addInitScript(value => { if (location.protocol === "http:" || location.protocol === "https:") localStorage.setItem("formward-theme", value); }, theme);
     const photos = [];
     await context.route("**/api/meal-images/*", route => {
       photos.push(new URL(route.request().url()).pathname);
