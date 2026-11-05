@@ -1,5 +1,7 @@
+import {seedSavedMealDetails} from "./saved-meal-details-fixture.mjs";
+import {checkSavedMealDetails} from "./saved-meal-details.browser.mjs";
 import assert from"node:assert/strict";import{mkdir,writeFile}from"node:fs/promises";import{addCalendarDays}from"../src/features/measurements/calendar.ts";
-export async function checkDetailHierarchy({browser,storageState,baseURL,today,engine,artifacts,sizes=[[320,560],[390,720],[430,780],[390,560],[844,390],[1100,900],[1440,900]]}){
+export async function checkDetailHierarchy({browser,storageState,baseURL,today,engine,artifacts,stressOffset=-7,sizes=[[320,560],[390,720],[430,780],[390,560],[844,390],[1100,900],[1440,900]]}){
  await mkdir(artifacts,{recursive:true});const cases=[],errors=[],serverErrors=[];
  for(const theme of["dark","light"])for(const[width,height]of sizes){
   const context=await browser.newContext({storageState,viewport:{width,height},locale:"zh-CN",timezoneId:"Asia/Shanghai",isMobile:width<1000,hasTouch:width<1000,reducedMotion:"reduce"});await context.addInitScript(t=>localStorage.setItem("formward-theme",t),theme);const page=await context.newPage();page.setDefaultTimeout(20000);page.on("pageerror",e=>errors.push(e.message));page.on("response",r=>{if(r.status()>=500)serverErrors.push({status:r.status(),path:new URL(r.url()).pathname});});
@@ -14,7 +16,7 @@ export async function checkDetailHierarchy({browser,storageState,baseURL,today,e
     assert.equal(geometry.border,"1px");assert.equal(geometry.borderStyle,"solid");assert.equal(geometry.vertical,"0px");assert.equal(geometry.rowTop,"12px");assert.equal(geometry.rowBottom,"12px");assert.equal(geometry.triggerTop,"0px");assert.equal(geometry.triggerBottom,"0px");assert.ok(geometry.hitHeight>=44);
     const preview=await list.locator("[data-meal-preview]").evaluate(n=>({height:n.getBoundingClientRect().height,line:parseFloat(getComputedStyle(n).lineHeight),overflow:getComputedStyle(n).textOverflow,whiteSpace:getComputedStyle(n).whiteSpace}));
     assert.ok(preview.height<=preview.line+1,"收起摘要最多一行");assert.equal(preview.overflow,"ellipsis");assert.equal(preview.whiteSpace,"nowrap");
-    const metricBoxes=await summary.locator("strong").evaluateAll(ns=>ns.map(n=>{const b=n.getBoundingClientRect();return {bottom:b.bottom,right:b.right,left:b.left};}));assert.ok(Math.max(...metricBoxes.map(b=>b.bottom))-Math.min(...metricBoxes.map(b=>b.bottom))<=8,"普通营养四项同排");
+    const metricBoxes=await summary.locator("strong").evaluateAll(ns=>ns.map(n=>{const b=n.getBoundingClientRect();return {bottom:b.bottom,right:b.right,left:b.left};}));const columnCount=Number(await summary.locator("[data-nutrition-columns]").getAttribute("data-nutrition-columns"));assert.ok([4,2,1].includes(columnCount),"营养整组换列，不出现三加一");if(width>=390)assert.equal(columnCount,4,"普通读数在足够宽度下同排");if(columnCount===4)assert.ok(Math.max(...metricBoxes.map(b=>b.bottom))-Math.min(...metricBoxes.map(b=>b.bottom))<=8,"普通营养四项同排");
     const footer=drawer.locator("[data-meal-day-actions]"),add=footer.getByRole("button",{name:"添加一餐",exact:true}),complete=footer.getByRole("checkbox",{name:/已记全$/});const ab=await add.boundingBox(),cb=await complete.boundingBox();assert.ok(ab.height>=44&&cb.height>=44);assert.ok(ab.x<cb.x);assert.equal(await complete.getAttribute("aria-checked"),"false");
    }else{
     const detail=drawer.locator("[data-energy-day-detail]");assert.equal(await drawer.locator("h2").count(),1);assert.equal((await drawer.locator("h2").innerText()).split(date).length-1,1);assert.ok(!(await detail.innerText()).includes(date.replaceAll("-",".")),"日期只在标题出现");
@@ -30,21 +32,21 @@ export async function checkDetailHierarchy({browser,storageState,baseURL,today,e
    if(width===1440||width===390&&height===720)await drawer.screenshot({path:artifacts+"/"+engine+"-"+theme+"-"+surface+"-drawer-"+width+".png"});
    if(surface==="meals"&&theme==="dark"&&(width===1440||width===390&&height===720)){
     const row=drawer.locator("[data-meal-day-list]>details").first(),trigger=row.locator(":scope>summary");await trigger.click();await row.getByRole("button",{name:"编辑",exact:true}).waitFor();
-    assert.ok(await trigger.evaluate(n=>getComputedStyle(n,"::after").content.includes("−")),"展开标记跟随实际展开状态");await page.screenshot({path:artifacts+"/"+engine+"-meals-open-"+width+".png"});await trigger.click();await row.getByRole("button",{name:"编辑",exact:true}).waitFor({state:"hidden"});
+    assert.equal(await row.getAttribute("open"),"","展开标记跟随实际展开状态");assert.ok(await trigger.locator(":scope>svg").evaluate(n=>getComputedStyle(n).transform!=="none"));await page.screenshot({path:artifacts+"/"+engine+"-meals-open-"+width+".png"});await trigger.click();await row.getByRole("button",{name:"编辑",exact:true}).waitFor({state:"hidden"});
    }
    cases.push({surface,theme,width,height,geometry,passed:true});
   }}catch(e){await page.screenshot({path:artifacts+"/"+engine+"-failure.png",fullPage:true});throw e;}finally{await context.close();}
  }
  const ctx=await browser.newContext({storageState,viewport:{width:390,height:720},locale:"zh-CN",timezoneId:"Asia/Shanghai",hasTouch:true,isMobile:true,reducedMotion:"reduce"}),p=await ctx.newPage();p.setDefaultTimeout(20000);const extras=[];
  try{
-  for(const[offset,expected]of[[-1,"known"],[-2,"unknown"],[-5,"zero"],[-6,"unknown"],[-7,"known"]]){
+  for(const[offset,expected]of[[-1,"known"],[-2,"unknown"],[-5,"zero"],[-6,"unknown"],[stressOffset,"known"]]){
    await p.goto(baseURL+"/dashboard/meals?date="+addCalendarDays(today,offset));await p.waitForLoadState("networkidle");const d=p.locator("dialog[open]:not(.page-loading-dialog)").last();await d.waitFor();assert.equal(await d.locator("[data-day-nutrition-summary] [data-nutrition-composition]").getAttribute("data-nutrition-composition"),expected);
    if(expected!=="known"){assert.equal(await d.locator("[data-day-nutrition-summary] [data-macro-share]").count(),0);assert.ok((await d.innerText()).includes(expected==="zero"?"零供能":"营养未齐"));}
    assert.ok(await d.evaluate(n=>n.scrollWidth<=n.clientWidth+1),"长营养值整项退让，不撑宽详情");
    if(offset===-1)assert.equal(await d.locator("[data-meal-day-list]>details").count(),2);
    await p.screenshot({path:artifacts+"/"+engine+"-state-meals-"+(-offset)+".png"});extras.push({surface:"meals",offset,expected,passed:true});
   }
-  for(const[offset,content]of[[-2,"2200"],[-3,"0"],[-4,"300"],[-7,"99998"]]){
+  for(const[offset,content]of[[-2,"2200"],[-3,"0"],[-4,"300"],[stressOffset,"99998"]]){
    await p.goto(baseURL+"/dashboard/energy?date="+addCalendarDays(today,offset));await p.waitForLoadState("networkidle");await p.locator('[data-energy-date="'+addCalendarDays(today,offset)+'"]').focus();await p.keyboard.press("Enter");await p.getByRole("button",{name:"查看记录 →",exact:true}).click();const d=p.locator("[data-energy-day-detail]");assert.ok(await d.evaluate(n=>n.scrollWidth<=n.clientWidth+1),"长消耗值不撑宽详情");assert.ok((await d.innerText()).includes(content),"所选日应显示 "+content+"；"+await d.innerText());assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await p.screenshot({path:artifacts+"/"+engine+"-state-energy-"+(-offset)+".png"});extras.push({surface:"energy",offset,passed:true});
   }
   for(const[offset,status,total]of[[-8,"额外增加 741 kcal","4156"],[-9,"按运动明细累计","2799"],[-10,"运动热量未知",null]]){
@@ -69,7 +71,7 @@ export async function checkDetailActions({page,baseURL,today,artifacts,engine}){
  };
  const original=await edit();await page.waitForFunction(()=>document.querySelector("[data-meal-day-actions] [role=checkbox]")?.getAttribute("aria-checked")==="false");
  assert.ok(!(await page.locator("body").innerText()).includes("请重新确认"),"保存成功不重复追加催确认");assert.ok((await drawer().locator("[data-day-nutrition-summary] strong").first().innerText()).includes("1190"));await edit(original);await go();assert.equal(await control().getAttribute("aria-checked"),"false");
- const row=drawer().locator("[data-meal-day-list]>details").first();if(await row.getAttribute("open")!==null)await row.locator(":scope>summary").click();await row.locator(":scope>summary").focus();await page.keyboard.press("Enter");await row.getByRole("button",{name:"编辑",exact:true}).waitFor();await page.keyboard.press("Escape");await page.locator("dialog[open]:not(.page-loading-dialog)").waitFor({state:"hidden"});
+ const row=drawer().locator("[data-meal-day-list]>details").first();if(await row.getAttribute("open")!==null)await row.locator(":scope>summary").click();await row.locator(":scope>summary").focus();await page.keyboard.press("Enter");await row.getByRole("button",{name:"编辑",exact:true}).waitFor();await page.keyboard.press("Escape");assert.equal(await row.getAttribute("open"),null,"Escape先收起餐次");await page.keyboard.press("Escape");await page.locator("dialog[open]:not(.page-loading-dialog)").waitFor({state:"hidden"});
  assert.deepEqual(errors,[]);assert.deepEqual(serverErrors,[]);
  await writeFile(artifacts+"/"+engine+"-detail-actions.json",JSON.stringify({passed:true,emptyAddCloses:true,explicitCompletionSaved:true,editingInvalidatesCompletion:true,caloriesRemain1190:true,noRepeatedPrompt:true,keyboardAndEscape:true},null,2));
  return {passed:true};
@@ -89,7 +91,13 @@ export async function checkDetailDisclosure({page,baseURL,today,artifacts,engine
    const row=surface==="meals"?drawer.locator("[data-meal-day-list]>details").first():drawer.locator("details").filter({has:page.locator("[data-exercise-summary]")}).first();
    const trigger=row.locator(":scope>summary");assert.equal(await row.getAttribute("open"),null);
    assert.equal(await row.locator("[data-record-detail-actions]").count(),0);
-   if(surface==="meals"){const preview=row.locator("[data-meal-preview]");assert.ok((await preview.textContent()).includes("炖土豆"));assert.ok(await preview.evaluate(n=>n.scrollWidth>n.clientWidth),"长食物名需单行省略");}
+    if(surface==="meals"){
+     const preview=row.locator("[data-meal-preview]");assert.ok((await preview.textContent()).includes("炖土豆"));
+     const bounds=await preview.evaluate(n=>{const s=getComputedStyle(n);return{height:n.getBoundingClientRect().height,lineHeight:parseFloat(s.lineHeight),overflow:n.scrollWidth>n.clientWidth,clip:s.overflowX,ellipsis:s.textOverflow};});
+     assert.ok(bounds.height<=bounds.lineHeight+1,"收起摘要保持一行");
+     if(width<=430)assert.ok(bounds.overflow,"窄屏长食物名确实超出单行");
+     if(bounds.overflow){assert.equal(bounds.clip,"hidden");assert.equal(bounds.ellipsis,"ellipsis");}
+    }
    else{assert.equal(await row.locator("[data-exercise-status]").innerText(),"已含在活动合计");assert.ok(!(await row.innerText()).includes("1357"),"顶部总数不在收起行重复解释");}
    await trigger.focus();await page.keyboard.press("Enter");
    const actions=row.locator("[data-record-detail-actions]");await actions.waitFor();assert.equal(await row.getByRole("button",{name:surface==="meals"?"删除":"删除活动",exact:true}).isVisible(),false);
@@ -109,11 +117,11 @@ export async function checkDetailDisclosure({page,baseURL,today,artifacts,engine
  assert.deepEqual(errors,[]);await writeFile(artifacts+"/"+engine+"-disclosure.json",JSON.stringify({passed:true,results,errors},null,2));return {passed:true,cases:results.length};
 }
 
-export async function checkDetailScale({page,baseURL,today,artifacts,engine}){
+export async function checkDetailScale({page,baseURL,today,artifacts,engine,stressOffset=-7}){
  await page.setViewportSize({width:320,height:560});
  const show=async(surface,date)=>{await page.goto(baseURL+"/dashboard/"+surface+"?date="+date);await page.waitForLoadState("networkidle");if(surface==="energy"){await page.locator('[data-energy-date="'+date+'"]').focus();await page.keyboard.press("Enter");await page.getByRole("button",{name:"查看记录 →",exact:true}).click();}const d=page.locator("dialog[open]:not(.page-loading-dialog)").last();await d.waitFor();return d;};
  for(const surface of["meals","energy"]){
-  const d=await show(surface,addCalendarDays(today,-7));assert.ok(await d.evaluate(n=>n.scrollWidth<=n.clientWidth+1),"320px长值完整、不撑宽详情");
+  const d=await show(surface,addCalendarDays(today,stressOffset));assert.ok(await d.evaluate(n=>n.scrollWidth<=n.clientWidth+1),"320px长值完整、不撑宽详情");
   const top=await d.locator(surface==="meals"?"[data-day-nutrition-summary] strong":"[data-energy-day-detail]>div:first-child strong").evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().top));assert.ok(Math.max(...top)-Math.min(...top)>5,"长值应整项退让");
   await page.screenshot({path:artifacts+"/"+engine+"-long-"+surface+"-320.png"});
  }
@@ -130,14 +138,14 @@ async function runInIsolation(){
  ]);
  const pg=new PGlite(),db=drizzle(pg,{schema});await migrate(db,{migrationsFolder:"./drizzle"});
  const account={email:"detail-browser@example.test",password:"fictional-detail-browser"},user=await provisionAccount(db,{...account,name:"虚构详情验收"}),today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
- await db.delete(schema.personalProfile).where(eq(schema.personalProfile.userId,user.id));await db.update(schema.user).set({createdAt:new Date(addCalendarDays(today,-18)+"T00:00:00Z")}).where(eq(schema.user.id,user.id));await seedDetailHierarchy(db,user.id,today);
+ await db.delete(schema.personalProfile).where(eq(schema.personalProfile.userId,user.id));await db.update(schema.user).set({createdAt:new Date(addCalendarDays(today,-18)+"T00:00:00Z")}).where(eq(schema.user.id,user.id));await seedDetailHierarchy(db,user.id,today);const savedFixture=await seedSavedMealDetails(db,user.id,today);
  const socket=new PGLiteSocketServer({db:pg,host:"127.0.0.1",port:0,maxConnections:10});await socket.start();const net=createServer();net.listen(0,"127.0.0.1");await once(net,"listening");const port=net.address().port;await new Promise(r=>net.close(r));const baseURL="http://127.0.0.1:"+port;
  const app=spawn(process.execPath,["node_modules/next/dist/bin/next","start","--hostname","127.0.0.1","--port",String(port)],{env:{PATH:process.env.PATH,LD_LIBRARY_PATH:process.env.LD_LIBRARY_PATH,FONTCONFIG_FILE:process.env.FONTCONFIG_FILE,NODE_ENV:"production",NEXT_TELEMETRY_DISABLED:"1",DATABASE_URL:"postgresql://postgres:postgres@"+socket.getServerConn()+"/postgres?max=1",BETTER_AUTH_URL:baseURL,BETTER_AUTH_SECRET:"fictional-detail-browser-secret-at-least-32-characters",FORMWARD_TIMEZONE:"Asia/Shanghai"},stdio:["ignore","pipe","pipe"]});
  let log="",browser;app.stdout.on("data",b=>{log+=b});app.stderr.on("data",b=>{log+=b});const engine=process.env.FORMWARD_DETAIL_BROWSER??"chromium",artifacts=resolve(process.env.FORMWARD_DETAIL_ARTIFACTS??".codex/detail-hierarchy/"+engine);
  try{
   for(let i=0;i<100;i++){try{if((await fetch(baseURL)).ok)break;}catch{}if(i===99)throw Error("Isolated app did not start: "+log);await new Promise(r=>setTimeout(r,150));}
   const pw=await import(process.env.PLAYWRIGHT_MODULE??"/home/obl1vion/.local/formward-tools/node_modules/playwright/index.mjs");browser=await pw[engine].launch({headless:true,args:engine==="chromium"?["--no-sandbox"]:[]});const ctx=await browser.newContext();assert.equal((await ctx.request.post(baseURL+"/api/auth/sign-in/email",{headers:{Origin:baseURL},data:account})).status(),200);const storageState=await ctx.storageState();await ctx.close();
-  console.log(engine,await checkDetailHierarchy({browser,storageState,baseURL,today,engine,artifacts}));const interaction=await browser.newContext({storageState,viewport:{width:390,height:720},isMobile:true,hasTouch:true,reducedMotion:"reduce"});console.log("scale",await checkDetailScale({page:await interaction.newPage(),baseURL,today,artifacts,engine}));console.log("disclosure",await checkDetailDisclosure({page:await interaction.newPage(),baseURL,today,artifacts,engine}));console.log("actions",await checkDetailActions({page:await interaction.newPage(),baseURL,today,artifacts,engine}));await interaction.close();
+  console.log("saved meals",await checkSavedMealDetails({browser,storageState,baseURL,fixture:savedFixture,artifacts,engine}));console.log(engine,await checkDetailHierarchy({browser,storageState,baseURL,today,engine,artifacts}));const interaction=await browser.newContext({storageState,viewport:{width:390,height:720},isMobile:true,hasTouch:true,reducedMotion:"reduce"});console.log("scale",await checkDetailScale({page:await interaction.newPage(),baseURL,today,artifacts,engine}));console.log("disclosure",await checkDetailDisclosure({page:await interaction.newPage(),baseURL,today,artifacts,engine}));console.log("actions",await checkDetailActions({page:await interaction.newPage(),baseURL,today,artifacts,engine}));await interaction.close();
  }finally{await browser?.close();if(app.exitCode===null){app.kill("SIGTERM");await once(app,"exit");}await socket.stop();
   // pglite-socket在setImmediate中处理close回调，先排空再关闭引擎。
   await new Promise(r=>setImmediate(r));await pg.close();}

@@ -64,3 +64,5 @@ chart-selection-marker.tsx及同名CSS集中管理ChartSelectionColumn底纹／�
 
 
 record-detail-actions.tsx在已展开的餐次／运动中统一编辑及更多删除；删除保留业务原有确认，Escape先关闭更多并返回焦点，外部点击或焦点离开关闭菜单。Disclosure继续只在展开后挂载完整内容。
+
+Inspector的titleParts仅为只读日期详情按完整文字块换行，stableScroll只在该类详情预留滚动条空间；其他填写窗口沿用原布局和草稿保护。极窄或放大视口中标题与关闭按钮分行，44px关闭操作保持可到达。

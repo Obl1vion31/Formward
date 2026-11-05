@@ -10,21 +10,20 @@ import { useEffect, useRef, useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
 import { usePageLoading } from "@/components/page-loading-state";
 import { useMobileMode } from "@/components/use-mobile-mode";
-import { macroColors,dailyTotals, suggestedMealType, mealOperationStatus, emptyNutrition, formatNutrition, metricLabels, metrics, type FoodDraft, type MealAction,  type MealInput, type MacroMode, type MealOperationView, type MealSnapshot, type MealView, type Metric,  type Result, type Totals } from "./model";
+import { macroColors,dailyTotals, suggestedMealType, mealOperationStatus, emptyNutrition, formatNutrition, metricLabels, metrics, type FoodDraft, type MealAction,  type MealInput, type MacroMode, type MealOperationView, type MealSnapshot, type MealView, type Metric,  type Result } from "./model";
 import { recentRecordDates, pendingRecordDates, rangeContaining } from "@/components/record-dates";
 import { DailyRecords,DailyRecordRow } from "@/components/daily-records";
 import { RecordHistory } from "@/components/record-history";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
-import { Disclosure } from "@/components/disclosure";
 import {RecordDetailActions} from "@/components/record-detail-actions";
 import { useLocalToday } from "@/components/use-local-today";
 import { FoodDetails, FoodTable } from "./presets";
-import { ImageGallery, PhotoFields } from "./photos";
-import { MealEvidence, NutritionTable } from "./review-details";
+import { PhotoFields } from "./photos";
+import { SavedMealList } from "./saved-meal-list";
 import { MealDayControl } from "./meal-day-control";
 import type { MealDayInput } from "./model";
-import {DayNutritionSummary,NutritionComposition,CompositionLegend} from "./nutrition-composition";
+import {DayNutritionSummary} from "./nutrition-composition";
 import { NutritionChart } from "./nutrition-chart";
 import { useDraftGuard } from "@/components/draft-guard";
 import { Inspector as EditorDialog } from "@/components/inspector";
@@ -38,9 +37,6 @@ export type SaveMeals = (input: MealInput, allowMissingImages?: boolean) => Prom
 const unitFor = (metric: Metric) => metric === "caloriesKcal" ? "kcal" : "g";
 const dateNumber = (d: string) => Date.parse(`${d}T00:00:00Z`) / 86400000;
 const dateAt = (n: number) => new Date(n * 86400000).toISOString().slice(0, 10);
-function MetricValues({ totals, compact = false }: { totals: Totals; compact?: boolean }) {
-  return <div className={compact ? styles.compactMetrics : styles.summary}>{metrics.map(metric => <div key={metric}><span>{metricLabels[metric]}</span><strong>{formatNutrition(totals.values[metric], metric)}<small>{unitFor(metric)}</small></strong>{!compact && totals.incomplete[metric] && <p>部分</p>}{compact && totals.incomplete[metric] && <small>部分</small>}</div>)}</div>;
-}
 export function MealsView({ snapshot, today: initialToday, operations, save, saveDay, purge, initialDate = null,initialEntry=false }: { snapshot: MealSnapshot; today: string; operations: MealOperationView[]; save: SaveMeals; saveDay?: (input: MealDayInput) => ReturnType<SaveMeals>; purge: (input: import("./recently-deleted").PermanentDeletion) => ReturnType<SaveMeals>; initialDate?: string|null;initialEntry?:boolean }) {
   const today=useLocalToday(initialToday), now=useOperationClock();
   const [local,setLocal]=useState<MealSnapshot|null>(null),[base,setBase]=useState(snapshot);
@@ -68,7 +64,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   const dailySummary=(date:string)=>{const group=groups.find(g=>g.date===date);return group?<>{group.meals.length} 餐 · {formatNutrition(group.totals.values.caloriesKcal,"caloriesKcal")} kcal{group.totals.incomplete.caloriesKcal?" · 部分":""}</>:"尚无记录";};
   const recentDates=pendingRecordDates(today,date=>groups.find(g=>g.date===date)?.day.status!=="complete");
   const renderDay=(date:string)=>{const group=groups.find(g=>g.date===date);return <DailyRecordRow key={date} date={date} today={today} value={dailySummary(date)} status={group&&saveDay?<MealDayControl day={group.day} busy={busy} save={performDay}/>:null}><button onClick={()=>addMeal(date)}>{group?"添加一餐":date<today?"补录":"录入"}</button><button onClick={()=>viewDay(date)}>查看</button></DailyRecordRow>;};
-  const dayDetails=(date:string)=>{const group=groups.find(g=>g.date===date);return <><DayNutritionSummary totals={group?.totals} partial={group?.day.status!=="complete"}/><MealList meals={group?.meals??[]} busy={busy} edit={editMeal} remove={m=>void confirmPurge({id:m.id,version:m.version,recordType:"meal",name:m.date+" · "+m.mealType})}/><footer className={styles.dayFooter} data-meal-day-actions><button data-meal-add type="button" className={recordUI.secondary} onClick={()=>addMeal(date)}><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M9 3v12M3 9h12"/></svg>添加一餐</button>{group&&saveDay&&<MealDayControl day={group.day} busy={busy} save={performDay}/>}</footer></>;};
+  const dayDetails=(date:string)=>{const group=groups.find(g=>g.date===date);return <><DayNutritionSummary totals={group?.totals} partial={group?.day.status!=="complete"}/><SavedMealList meals={group?.meals??[]} renderActions={m=><RecordDetailActions busy={busy} edit={()=>editMeal(m)} remove={()=>void confirmPurge({id:m.id,version:m.version,recordType:"meal",name:m.date+" · "+m.mealType})} recordLabel={m.mealType}/>}/><footer className={styles.dayFooter} data-meal-day-actions><button data-meal-add type="button" className={recordUI.secondary} onClick={()=>addMeal(date)}><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M9 3v12M3 9h12"/></svg>添加一餐</button>{group&&saveDay&&<MealDayControl day={group.day} busy={busy} save={performDay}/>}</footer></>;};
   async function perform(action:MealAction, allowMissingImages = false){
     if(busyRef.current)return false;busyRef.current=true;setBusy(true);setError("");setNotice("");
     try{if(action.id&&(action.kind==="save_meal"||action.kind==="save_food")){const key=(action.kind==="save_meal"?"meal:":"food:")+action.id;const latest=await verifyRecordVersions([{key,version:String(action.version)}]);action={...action,version:Number(latest.get(key)!.version)};}}catch(e){setError(e instanceof Error?e.message:"请重试");busyRef.current=false;setBusy(false);return false;}
@@ -117,15 +113,11 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
       <div className={styles.categoryTabs}>{[["all","全部"],["meal","整餐"],["ingredient","食材"]].map(([key,label])=><button key={key} aria-pressed={foodCategory===key} onClick={()=>setFoodCategory(key)}>{label}</button>)}</div><div className={styles.toolbar}><input aria-label="搜索食材" placeholder="搜索名称、品牌或做法" value={foodQuery} onChange={e=>setFoodQuery(e.target.value)}/><button className={styles.primary} onClick={()=>{setError("");setEditing({kind:"save_food",name:"",brand:null,preparation:null,baseQuantity:"1",unit:"份",nutrition:emptyNutrition(),sourceKind:"reference"});}}>添加食材 ＋</button></div>
       {visibleFoods.length ? <FoodTable foods={visibleFoods} details={setViewingFood} actions={f=><><button className={recordUI.secondary} onClick={()=>{setError("");setEditing({kind:"save_food",...f});}}>编辑</button><button className={recordUI.secondary} disabled={busy} onClick={()=>void confirmPurge({id:f.id,version:f.version,recordType:"food",name:f.name})}>删除</button></>}/> : <p className={styles.hint}>还没有匹配的条目，可以添加食材或整餐。</p>}
     </>}
-    {historyOpen&&<EditorDialog title={selectedDate+" · 饮食记录"} close={()=>setHistoryOpen(false)} busy={busy}>{error&&<p role="alert" className={styles.error}>{error}</p>}{dayDetails(selectedDate)}</EditorDialog>}
+    {historyOpen&&<EditorDialog title={selectedDate+" · 饮食记录"} titleParts={[selectedDate,"饮食记录"]} stableScroll close={()=>setHistoryOpen(false)} busy={busy}>{error&&<p role="alert" className={styles.error}>{error}</p>}{dayDetails(selectedDate)}</EditorDialog>}
 
     {viewingFood&&<EditorDialog title="食材详情" close={()=>setViewingFood(null)} busy={false}><FoodDetails food={viewingFood}/><div className={styles.actions}><button className={recordUI.secondary} onClick={()=>{setEditing({kind:"save_food",...viewingFood});setViewingFood(null);}}>编辑</button>{viewingFood.id&&<button className={recordUI.secondary} disabled={busy} onClick={()=>{void confirmPurge({id:viewingFood.id!,version:viewingFood.version!,recordType:"food",name:viewingFood.name});}}>删除</button>}</div></EditorDialog>}
     {editing&&<EditorDialog wide={editing.kind==="save_meal"} title={editing.kind==="save_food"?"食材规格":editing.id?"编辑餐次":"记录一餐"} close={()=>{if(!busy){setEditing(null);setError("");}}} busy={busy}>{editing.kind==="save_food"?<FoodEditor initial={editing} error={error} busy={busy} save={async (f,allowMissingImages)=>{if(await perform({kind:"save_food",...f},allowMissingImages))setEditing(null);}}/>:editing.kind==="save_meal"?<MealEditor recentMeals={state.meals} historicalItems={state.meals.find(m=>m.id===editing.id)?.items??[]} historicalFoods={state.meals.find(m=>m.id===editing.id)?.items.flatMap(i=>i.foodSnapshot?[i.foodSnapshot]:[])??[]} initial={editing} foods={state.foods} error={error} busy={busy} save={async (m,allowMissingImages)=>{if(await perform({kind:"save_meal",...m},allowMissingImages))setEditing(null);}}/>:null}</EditorDialog>}
   </RecordWorkspace>;
-}
-function MealList({meals,busy,edit,remove}:{meals:MealView[];busy:boolean;edit:(m:MealView)=>void;remove:(m:MealView)=>void}) {
- const label=(name:string)=>({breakfast:"早餐",lunch:"午餐",dinner:"晚餐",snack:"加餐",supper:"夜宵"} as Record<string,string>)[name.toLowerCase()]??name;
- return <div className={styles.dayMeals} data-meal-day-list>{meals.map(m=><Disclosure key={m.id} className={styles.meal} summary={<div className={styles.mealHeading}><NutritionComposition totals={m.totals} small/><span className={styles.mealTitle}><strong>{label(m.mealType)}</strong><small data-meal-preview>{m.items.map(i=>i.name).join("、")}</small></span><span className={styles.mealEnergy}>{formatNutrition(m.totals.values.caloriesKcal,"caloriesKcal")} kcal{m.totals.incomplete.caloriesKcal?" · 部分":""}</span></div>}><CompositionLegend totals={m.totals}/><MetricValues totals={m.totals} compact/><NutritionTable items={m.items} saved/><MealEvidence notes={m.notes}/><ImageGallery ids={m.imageIds}/><RecordDetailActions busy={busy} edit={()=>edit(m)} remove={()=>remove(m)} recordLabel={label(m.mealType)}/></Disclosure>)}{!meals.length&&<p className={styles.hint}>这一天还没有饮食记录。</p>}</div>;
 }
 export { Inspector as EditorDialog } from "@/components/inspector";
 export function FoodEditor({ initial, submitLabel = "保存食材", error, busy, save }: { initial: FoodDraft; submitLabel?: string; error: string; busy: boolean; save: (f: FoodDraft, allowMissingImages?: boolean) => Promise<void> }) {

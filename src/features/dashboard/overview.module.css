@@ -142,26 +142,11 @@
 .detailTop p b { color:var(--data-weight); font-weight:400; margin-left:6px; white-space:nowrap; }
 .detailNutrition { padding:14px 0 18px; border-bottom:1px solid color-mix(in srgb,var(--warm-white) 9.412%,transparent); }
 .dayDetails .detailNutrition h3 { margin:0 0 10px; font-size:15px; }
-.detailNutrition .nutritionNumbers { display:grid; grid-template-columns:1.3fr 1fr 1fr 1fr; gap:8px; }
-.detailNutrition .nutritionNumbers>span { display:flex; flex-direction:column; min-width:0; }
-.detailNutrition strong { font-size:24px; font-variant-numeric:tabular-nums; }
-.detailNutrition strong small { font-size:11px; margin-left:3px; }
-.detailNutrition span>small { margin:0; font-size:12px; }
-.compactMeal { border-bottom:1px solid color-mix(in srgb,var(--warm-white) 9.412%,transparent); }
-.compactMeal>summary { display:flex; align-items:center; gap:16px; min-height:62px; cursor:pointer; list-style:none; }
-.compactMeal>summary:after { content:"›"; color:var(--gold); }
-.compactMeal[open]>summary:after { transform:rotate(90deg); }
-.compactMeal>summary>span { display:flex; align-items:baseline; gap:12px; min-width:0; flex:1; }
-.compactMeal>summary>span>span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); }
-.compactMeal>summary strong { flex-shrink:0; font-size:15px; }
-.compactMeal>summary>b { font-weight:400; font-size:17px; white-space:nowrap; }
-.compactMeal>div { padding-bottom:14px; }
-.moreMeals>summary { min-height:44px; padding:12px 0; color:var(--gold); cursor:pointer; }
 @media(max-width:600px) {
  .detailTop { gap:12px; }.detailReading strong { font-size:26px; }
  .detailTop p { line-height:1.6; }.detailTop p b { display:block; margin-left:0; }
  .detailNutrition strong { font-size:19px; }.detailNutrition .nutritionNumbers { gap:4px; }
- .compactMeal>summary { gap:8px; }.compactMeal>summary>span { flex-direction:column; gap:0; }.compactMeal>summary>span>span { max-width:100%; }
+
 }
 
 /* 七天结果独立为紧凑条，不与单日读数争抢空间。 */
@@ -189,7 +174,8 @@
 
 
 
-.compactMeal>summary>figure{flex:none}
 
 .stableText{display:inline-grid;min-width:0;vertical-align:baseline}.stableText>span{grid-area:1/1}.stableText>.stableMeasure{visibility:hidden;pointer-events:none;user-select:none}.secondaryReadings>div>.stableText{display:grid}.secondaryReadings p .stableText{display:grid}
 .rangeCoverage{margin:20px 0 8px;padding:12px 0;border-top:1px solid var(--line-soft);font-variant-numeric:tabular-nums}.rangeCoverage>div{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 20px}.rangeCoverage>div>span{font-size:12px;color:var(--muted)}.rangeCoverage p{margin:0;font-size:13px;line-height:1.6}.rangeCoverage summary{display:inline-flex;align-items:center;min-height:44px;list-style:none;font-size:13px;color:var(--gold);cursor:pointer}.rangeCoverage summary::-webkit-details-marker{display:none}.rangeCoverage summary::after{content:"";width:6px;height:6px;border-right:1px solid currentColor;border-bottom:1px solid currentColor;transform:rotate(45deg);margin-left:12px}.rangeCoverage details[open]>summary::after{transform:rotate(225deg)}.rangeCoverage .coverageHint{font-size:12px;color:var(--muted);margin-bottom:8px}.rangeCoverage ul{list-style:none;padding:0;margin:0}.rangeCoverage li{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 20px;padding:8px 0;border-top:1px solid var(--line-soft)}.rangeCoverage time{font-size:13px}.rangeCoverage li>div{display:flex;flex-wrap:wrap;gap:0 20px}.rangeCoverage a,.rangeCoverage button{display:inline-flex;align-items:center;min-height:44px;color:var(--gold);font:inherit;font-size:13px;text-decoration:none;background:none;border:0;padding:0;cursor:pointer}.rangeCoverage :focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+
+.detailNutrition .mealDayStatus{display:block;min-height:0;margin-bottom:8px;font-size:13px}.detailNutrition{padding-bottom:0;border-bottom:0}

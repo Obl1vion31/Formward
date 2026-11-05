@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 
 export async function checkUnifiedReview({ baseURL, context, page, token, date, images = /** @type {string[]} */ ([]), artifacts = "/tmp/formward-records-visual" }) {
   await mkdir(artifacts, { recursive: true });
@@ -27,6 +27,12 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
     await page.screenshot({ path: `${artifacts}/review-${width}.png`, fullPage: true });
   }
   const stalePage = await context.newPage(); await stalePage.goto(operation.confirmationUrl);
+  await stalePage.getByRole("heading", { name: "确认记录", exact: true }).waitFor();
+  await stalePage.waitForLoadState("networkidle");
+  // 先建立第二个窗口的实际草稿，再更新第一窗口；仅发起导航不能保证旧版本已加载。
+  await stalePage.locator('[data-review-key="morning"]').getByRole("button", { name: "修改", exact: true }).click();
+  const staleDialog = stalePage.getByRole("dialog", { name: "修改待保存内容", exact: true });
+  await staleDialog.getByLabel("测量来源", { exact: true }).fill("保留的并发草稿");
   await row("morning").getByRole("button", { name: "修改", exact: true }).click();
   let dialog = page.getByRole("dialog", { name: "修改待保存内容", exact: true });
   await dialog.getByLabel("体重（kg）", { exact: true }).fill("70.40");
@@ -35,11 +41,15 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
   assert.equal((await readBody()).find(record => record.id === morning?.id)?.weightKg, morning?.weightKg, "应用修改不写事实");
   assert.equal(await row("morning").getByRole("button",{name:"标记已核对",exact:true}).count(),0);
   assert.equal((await readMeals()).length, beforeMeals);
-  await stalePage.locator('[data-review-key="morning"]').getByRole("button", { name: "修改", exact: true }).click();
-  const staleDialog = stalePage.getByRole("dialog", { name: "修改待保存内容", exact: true });
-  await staleDialog.getByLabel("测量来源", { exact: true }).fill("保留的并发草稿");
+  const latestOperation = async () => (await fetch(`${baseURL}/api/v1/record-operations/${operation.id}`, { headers })).json();
+  const changedRevision = (await latestOperation()).revision;
   await staleDialog.getByRole("button", { name: "应用修改", exact: true }).click();
-  await staleDialog.getByRole("alert").filter({ hasText: "另一个页面" }).waitFor();
+  await stalePage.waitForLoadState("networkidle");
+  await stalePage.screenshot({ path: `${artifacts}/concurrent-draft.png`, fullPage: true });
+  await writeFile(`${artifacts}/concurrent-draft.json`, JSON.stringify({ dialogs: await stalePage.getByRole("dialog").allTextContents(), alerts: await stalePage.getByRole("alert").allTextContents() }, null, 2));
+  // 子预览快照与父审核版本都会拒绝旧草稿，保留两种既有冲突反馈。
+  await staleDialog.getByRole("alert").filter({ hasText: /预览已改变，请刷新后修改。|审核已在另一个页面变化/ }).first().waitFor();
+  assert.equal((await latestOperation()).revision, changedRevision, "过期草稿不能再次更新审核");
   assert.equal(await staleDialog.getByLabel("测量来源", { exact: true }).inputValue(), "保留的并发草稿");
   await staleDialog.getByRole("button", { name: "加载最新状态，保留输入", exact: true }).click();
   await staleDialog.getByRole("button", { name: "加载最新状态，保留输入", exact: true }).waitFor({ state: "hidden" });

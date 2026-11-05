@@ -1,12 +1,10 @@
 "use client";
 import {RecordTrendPanel,InlineChartControls,CustomRecordRange,type RecordMetric} from "@/components/record-trend-panel";
 import {formatRecordNumber,formatIntegerNumber,signedRecordNumber,signedIntegerNumber} from "@/components/number-format";
-import {DayNutritionSummary,NutritionComposition,CompositionLegend} from "../meals/nutrition-composition";
-import {mealTypeLabel} from "../meals/model";
+import {DayNutritionSummary} from "../meals/nutrition-composition";
 import {RangeCoverage} from "./range-coverage-view";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
-import { Disclosure } from "@/components/disclosure";
 import { preferredRecordedDate, rangeContaining } from "@/components/record-dates";
 import { useEffect,useRef,useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
@@ -17,8 +15,7 @@ import type { OverviewPresentation } from "./presentation";
 import type { MeasurementDisplay } from "../measurements/entry-state";
 import { formatNutrition } from "../meals/model";
 import { EditorDialog } from "../meals/meals-view";
-import { NutritionTable, MealEvidence } from "../meals/review-details";
-import { ImageGallery } from "../meals/photos";
+import { SavedMealList } from "../meals/saved-meal-list";
 import { blankEnergyDay, energyValue } from "../activities/model";
 import type { OverviewDay } from "./model";
 import styles from "./overview.module.css";
@@ -59,7 +56,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       legend={<><span><i style={{background:"var(--data-blue)"}}/>摄入</span><span><i style={{background:"var(--data-red)"}}/>消耗</span><span><i style={{background:"var(--data-surplus)"}}/>盈余</span><span><i style={{background:"var(--data-deficit)"}}/>缺口</span></>}
     >{dates.length?<RelationshipPlot days={days} selected={selected} selection={selection}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     <RangeCoverage key={from+to} days={days} today={today} from={from} to={to}/>
-    {dialogDay&&<EditorDialog title={dialogDay.date+" · 当日记录"} close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}
+    {dialogDay&&<EditorDialog title={dialogDay.date+" · 当日记录"} titleParts={[dialogDay.date,"当日记录"]} stableScroll close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}
   </section>;
 }
 
@@ -84,14 +81,13 @@ const estimateNote=(day?:OverviewDay)=>day?.week?.estimated&&day.week.weightChan
 const weekBasis=(day?:OverviewDay)=>day?.week?(day.week.missingMorningDates.length?"缺"+day.week.missingMorningDates.map(date=>date.slice(5).replace("-",".")).join("、")+"晨重":"晨重 "+day.week.from.slice(5).replace("-",".")+" "+formatRecordNumber(day.week.startWeightKg)+" → "+day.week.nextDate.slice(5).replace("-",".")+" "+formatRecordNumber(day.week.endWeightKg)+" kg"):"暂无记录";
 
 function OverviewDayDetails({day}:{day:OverviewDay}){
- const mealRow=(meal:OverviewDay["meals"][number])=><Disclosure key={meal.id} className={styles.compactMeal} summary={<><NutritionComposition totals={meal.totals} small/><span><strong>{mealTypeLabel(meal.mealType)}</strong><span>{meal.items.map(item=>item.name).join("、")}</span></span><b>{formatNutrition(meal.totals.values.caloriesKcal,"caloriesKcal")} <small>kcal</small></b></>}><CompositionLegend totals={meal.totals}/><NutritionTable items={meal.items} saved/><MealEvidence notes={meal.notes}/><ImageGallery ids={meal.imageIds}/><LoadingLink href={"/dashboard/meals?date="+day.date}>编辑这一日饮食 →</LoadingLink></Disclosure>;
  return <div className={styles.dayDetails}>
   <div className={styles.detailTop}>
    <section><h3>晨间体重</h3><div className={styles.detailReading}><WeightReading record={day.morning}/></div><p>次晨 {day.nextDate.slice(5)} · {day.nextMorning?formatRecordNumber(day.nextMorning.weightKg):"—"} kg <b>{signed(day.weightChangeKg)} kg</b>{day.differenceEstimated&&day.weightChangeKg!==null?" · 含估计":""}</p><LoadingLink href={"/dashboard/measurements?date="+day.date}>身体记录 →</LoadingLink></section>
    <section><h3>消耗</h3><div className={styles.detailReading}><strong>{energyValue(day.energy.totalKcal)}<small>kcal</small></strong></div><p>静息 {energyValue(day.energy.restingKcal)} · 活动 {energyValue(day.energy.activeKcal)} kcal</p><LoadingLink href={"/dashboard/energy?date="+day.date}>消耗记录 →</LoadingLink></section>
   </div>
-  <section className={styles.detailNutrition}>{day.nutrition&&day.mealDayStatus!=="complete"&&<p>饮食修改后需要重新确认是否已记全，确认后显示热量收支。</p>}<h3>当日总摄入 <small>{day.meals.length} 餐</small></h3><DayNutritionSummary totals={day.nutrition} partial={day.mealDayStatus!=="complete"}/></section>
-  <div>{day.meals.slice(0,3).map(mealRow)}{day.meals.length>3&&<Disclosure className={styles.moreMeals} summary={"还有 "+(day.meals.length-3)+" 餐"}>{day.meals.slice(3).map(mealRow)}</Disclosure>}{!day.meals.length&&<p>没有饮食记录。</p>}</div>
+  <section className={styles.detailNutrition}>{day.nutrition&&day.mealDayStatus!=="complete"&&<LoadingLink className={styles.mealDayStatus} href={"/dashboard/meals?date="+day.date}>饮食待确认 →</LoadingLink>}<DayNutritionSummary totals={day.nutrition} partial={day.mealDayStatus!=="complete"}/></section>
+  <SavedMealList meals={day.meals} initialLimit={3}/>
   <LoadingLink href={"/dashboard/meals?date="+day.date}>查看饮食记录 →</LoadingLink>
  </div>;
 }
