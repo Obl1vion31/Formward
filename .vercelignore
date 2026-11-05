@@ -9,6 +9,7 @@ data/
 .aws/
 .agents/
 .codex/
+.impeccable/
 .vercel/
 node_modules/
 .next/
