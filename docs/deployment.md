@@ -1,6 +1,20 @@
 # 公网 HTTPS 部署
 
-## 当前正式版本：小助手与总览（2026-11-05）
+## 当前正式版本：饮食详情精简与输入对齐（2026-11-05）
+
+正式饮食页https://formward-ten.vercel.app/dashboard/meals指向READY部署`dpl_HFeRzEVLnECg3wbReUGhEZ2gzgAP`，应用源码`0a566c184b72edc072bf35592661fd22397a9cd0`，构建`meal-details-0a566c1-20261105`；项目、正式别名、sourceCommit／gitCommitSha及版本接口已核对。main统一本轮已发布应用与验收记录，纯测试／文档提交不代表另一次应用部署；Vercel项目未连接Git自动部署。原主工作区双区、COS、DNS及未提交内容保持隔离。
+
+饮食与总览共用SavedMealList，只保留当天一个供能环图。展开餐次隐藏摘要，保留一次三项宏量与完整食物清单；食物的营养、来源和依据原位展开，备注／照片按需打开，打开附件后请求原图。每餐环图、百分比、中间重复热量块和来源数量退出；编辑／更多在餐末，添加一餐／已记全在全部餐次之后，总览只保留一个饮食跳转。手机读数按完整内容切换四列／2×2／极窄一列，触屏横屏全宽，固定滚动条空间，日期标题按完整文字块换行。 餐次编辑器表内10px内距优先于通用12px默认值，手填／下拉单位与表头内容边缘实测偏差由2px降至0px，输入16px与44px点击范围保持。布局测量同时包含实际控件文字、补足的小数位及待修改的长输入，使用真实字体与内距；空间不足切换布局，聚焦／失焦后复测，不改写输入、计算、精度或保存规则。助手窗口与主图表保持现有布局。
+
+干净源码通过lint（0错误0警告）、typecheck、465项单元／集成、production build和结构检查。正式Chromium／WebKit各60种新详情、28组原详情及12组边界、6组展开、缩放与真实记全／编辑／删除取消通过；完整编辑器每引擎20组输入场景、15组气泡和12组独立食材库，含包装换算、旧精度及AI审核通过。十段教程每引擎实际播放与跳转通过；AI及补录四片与封面／预览已更新，其余六片和全部旧媒体保留，16个新媒体完整SHA256、8项Range及19项入口／协议检查通过。
+
+六个虚构账号及34表所属数据已按明确ID清理；43表结构、29条迁移账本与既有健康事实核对通过，最终issues为空。私有快照`meal-details-20261105-before.json`、`-after.json`及`-verification.json`位于原主工作区data/exports，0600且Git／部署忽略。正式最终部署日志窗口2026-11-05T09:48:47.000Z—2026-11-05T10:20:01.000Z，Runtime error／fatal与请求5xx均0，无排除区间及后续分页。
+
+真实iPhone、系统软键盘、原生全屏和系统级文字放大未测；浏览器模拟与CSS缩放分别记录。正式实际截图位于`C:/Users/14878/.codex/visualizations/2026/11/05/formward-meal-details-production`，全部自动化样本为虚构数据；已在Chrome实际打开正式饮食日期详情核看展开效果。私有证据`.codex/meal-final-release`，首次失败保留在`.codex/meal-publish/production-initial`，完整技术说明见维护验收。
+
+本轮无数据库迁移、公开HTTP v1／MCP或AI权限变化。发布前的应用回退基线为READY `dpl_A9LrFGGKCuzrSnqfa43ve2hRcecK`（9307ed6）；只回退应用，保留用户合法更新和审计。正式应用绑定0a566c1，后续纯测试／文档提交不会重建部署。
+
+## 此前正式版本：小助手与总览（2026-11-05）
 
 按用户本轮明确授权发布并统一main。正式总览https://formward-ten.vercel.app/dashboard指向READY部署`dpl_A9LrFGGKCuzrSnqfa43ve2hRcecK`，应用源码`9307ed63ca11c67a51b19839ce08971232a84e96`，构建`assistant-9307ed6-20261105`；项目、正式别名、sourceCommit／gitCommitSha及版本接口核对通过。代码从main的6142fb9独立开发，main包含本次已发布应用及发布验收记录；原主工作区的双区、COS、DNS和未上线修改保持隔离。后续纯测试／文档提交不改变该应用部署；项目未连接Git自动部署。
 

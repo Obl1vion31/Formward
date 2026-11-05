@@ -60,19 +60,25 @@ export async function checkDetailHierarchy({browser,storageState,baseURL,today,e
 
 export async function checkDetailActions({page,baseURL,today,artifacts,engine}){
  const errors=[],serverErrors=[];page.on("pageerror",e=>errors.push(e.message));page.on("response",r=>{if(r.status()>=500)serverErrors.push(r.status());});
- // 保存反馈可能先于附带的RSC重验证流结束；刻意整页重开前等待请求完成。
- const go=async()=>{await page.waitForLoadState("networkidle");await page.goto(baseURL+"/dashboard/meals?date="+today);await page.waitForLoadState("networkidle");await page.locator("[data-meal-day-actions]").waitFor();};
+  // loadState可能仍为旧文档的idle；跟踪保存后新发起的RSC预取，避免整页导航取消它们。
+  const pending=new Set();let lastActivity=Date.now();
+  const relevant=request=>{const url=new URL(request.url());return url.origin===new URL(baseURL).origin&&(request.method()==="POST"||url.searchParams.has("_rsc"));};
+  page.on("request",request=>{if(relevant(request)){pending.add(request);lastActivity=Date.now();}});
+  const finished=request=>{if(pending.delete(request))lastActivity=Date.now();};page.on("requestfinished",finished);page.on("requestfailed",finished);
+  const quiet=async()=>{const start=Date.now();while(pending.size||Date.now()-lastActivity<500){assert.ok(Date.now()-start<30000,"保存及RSC响应未在30秒内结束");await new Promise(resolve=>setTimeout(resolve,25));}};
+  const go=async()=>{await quiet();await page.goto(baseURL+"/dashboard/meals?date="+today);await page.waitForLoadState("networkidle");await quiet();await page.locator("[data-meal-day-actions]").waitFor();};
+  const submit=async click=>{const pending=page.waitForResponse(response=>response.request().method()==="POST"&&new URL(response.url()).pathname==="/dashboard/meals");await click();const response=await pending;assert.equal(response.status(),200);assert.equal(await response.finished(),null,"保存响应流须完整结束，再进行整页导航");};
  const drawer=()=>page.locator("dialog[open]:not(.page-loading-dialog)").last(),control=()=>drawer().locator("[data-meal-day-actions]").getByRole("checkbox",{name:/已记全$/});
  await go();assert.equal(await control().getAttribute("aria-checked"),"false");
  await drawer().getByRole("button",{name:"添加一餐",exact:true}).click();await page.locator('form[data-entry-form="meal"]').waitFor();await page.keyboard.press("Escape");await page.locator('form[data-entry-form="meal"]').waitFor({state:"hidden"});assert.equal(await control().getAttribute("aria-checked"),"false");
- await control().click();await page.waitForFunction(()=>document.querySelector("[data-meal-day-actions] [role=checkbox]")?.getAttribute("aria-checked")==="true");await page.waitForLoadState("networkidle");
+  await submit(()=>control().click());await page.waitForFunction(()=>document.querySelector("[data-meal-day-actions] [role=checkbox]")?.getAttribute("aria-checked")==="true");await quiet();
  const edit=async value=>{
-  const row=drawer().locator("[data-meal-day-list]>details").first();if(await row.getAttribute("open")===null)await row.locator(":scope>summary").click();await row.getByRole("button",{name:"编辑",exact:true}).click();const form=page.locator('form[data-entry-form="meal"]');await form.waitFor();const name=form.getByRole("textbox",{name:/^(自由填写食物名称|食物名称 1)$/}).first(),original=await name.inputValue();await name.fill(value??original+" · 修改验收");await form.getByRole("button",{name:"保存餐次 · "+today,exact:true}).click();await form.waitFor({state:"hidden"});await page.waitForLoadState("networkidle");return original;
+   const row=drawer().locator("[data-meal-day-list]>details").first();if(await row.getAttribute("open")===null)await row.locator(":scope>summary").click();await row.getByRole("button",{name:"编辑",exact:true}).click();const form=page.locator('form[data-entry-form="meal"]');await form.waitFor();const name=form.getByRole("textbox",{name:/^(自由填写食物名称|食物名称 1)$/}).first(),original=await name.inputValue();await name.fill(value??original+" · 修改验收");await submit(()=>form.getByRole("button",{name:"保存餐次 · "+today,exact:true}).click());await form.waitFor({state:"hidden"});await quiet();return original;
  };
  const original=await edit();await page.waitForFunction(()=>document.querySelector("[data-meal-day-actions] [role=checkbox]")?.getAttribute("aria-checked")==="false");
  assert.ok(!(await page.locator("body").innerText()).includes("请重新确认"),"保存成功不重复追加催确认");assert.ok((await drawer().locator("[data-day-nutrition-summary] strong").first().innerText()).includes("1190"));await edit(original);await go();assert.equal(await control().getAttribute("aria-checked"),"false");
  const row=drawer().locator("[data-meal-day-list]>details").first();if(await row.getAttribute("open")!==null)await row.locator(":scope>summary").click();await row.locator(":scope>summary").focus();await page.keyboard.press("Enter");await row.getByRole("button",{name:"编辑",exact:true}).waitFor();await page.keyboard.press("Escape");assert.equal(await row.getAttribute("open"),null,"Escape先收起餐次");await page.keyboard.press("Escape");await page.locator("dialog[open]:not(.page-loading-dialog)").waitFor({state:"hidden"});
- assert.deepEqual(errors,[]);assert.deepEqual(serverErrors,[]);
+  await quiet();assert.deepEqual(errors,[]);assert.deepEqual(serverErrors,[]);
  await writeFile(artifacts+"/"+engine+"-detail-actions.json",JSON.stringify({passed:true,emptyAddCloses:true,explicitCompletionSaved:true,editingInvalidatesCompletion:true,caloriesRemain1190:true,noRepeatedPrompt:true,keyboardAndEscape:true},null,2));
  return {passed:true};
 }
