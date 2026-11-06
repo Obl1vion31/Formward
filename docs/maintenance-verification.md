@@ -1,5 +1,22 @@
 # 完善任务验收
 
+## 正式发布验收：面板方向、加载交接与身体卡片（2026-11-06）
+
+按用户授权直接发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署`dpl_DE2Y5AcWt1Lgp1APabmZ3KkGZ7KG`，应用源码`2f1052b97df77755c2e992ed1e49357c2f63f99c`，构建`panel-flow-2f1052b-20261106`；正式别名、sourceCommit／gitCommitSha、版本接口与客户端JS一致。来自codex/panel-flow干净应用提交，724项上传清单排除私有数据、环境文件和本机工具；未合入或推送main，原主工作区的国内基础设施改动保持隔离。后续纯文档提交不改变正式应用。
+
+手机记录、详情、设置和管理面板统一从底部进入并向下退出；账号菜单与助手在各自按钮附近展开，助手取消底部把手并采用稳定高度外壳。餐次、食材及消耗详情转编辑复用同一容器，助手／菜单先退出再进入下一面板。动画退出保持末态，取消旧完成回调；保存忙碌状态在首绘前传入关闭控件。返回总览并入顶栏，图形交接层位于导航下方。饮食／消耗骨架提供网格、占位图形及与正式页一致的语义色，未知不造数值。身体复用主卡、次卡与唯一完整趋势：晨重和真实7日小图始终保留；开启体脂时显示体脂／7日均重，关闭时显示前日差／7日均重，所选日期和隐藏原值保持。
+
+478项单元／集成、lint、独立typecheck、本地及远程production build通过，18项公开／保护／协议检查通过。隔离环境检查320／390／430px、667×375横屏和1100／1440／1920px、深浅主题及慢响应；本批正式站复核390×780与1440×900。正式摄入加载交接各槽位最大偏差0.013 CSS px，只启动一次图形运动；餐次详情转编辑保持同一dialog，助手转录入不叠加两个面板。虚构餐次60kcal保存后日总1250，消耗静息2058／活动0保存后总2058；体脂关闭时体重保存70.19，再开启仍为20.81，第二标签读取同一云端偏好。正式身体图底666.8低于底栏起点704，只有一个可见标题；手机和电脑客户端error均0。
+
+本轮无数据库结构、migration、公开接口、依赖或生产环境变量变更。发布前后44表及30条迁移账本、原字段与既有健康事实核对通过；虚构账号及36张所属表已精确清理。14项预期限流／授权使用／会话元数据差异有私有哈希留档，issues为空。最终20分钟Runtime error／fatal和请求5xx均0，无排除区间及后续分页。私有0600备份与核对在原工作区data/exports/panel-flow-20261106-*，发布证据在.codex/panel-release。上一正式READY `dpl_7oC5LtFqVuMekcnwh9swwvpoL3ia`保留供应用回退，保留用户合法写入。
+
+设计规则统一在docs/design-reference.md，实际证据在[维护验收](maintenance-verification.md)。实际截图、坐标及低频操作录像位于C:/Users/14878/.codex/visualizations/2026/11/06/01a1af0c-e81b-7cd2-84c9-9702574d032c/panel-flow。物理iPhone／WebKit、系统软键盘／VoiceOver、系统200%文字与减少动态效果现场切换、真触屏帧率未测，不列为通过。
+
+正式截图：public-body-final.png、public-desktop-final.png、public-final-checks.json；实际图形交接public-final-intake-handoff.json，槽位最大差0.0125px；实际面板public-final-meal-details.json、public-final-assistant-open.json及public-final-assistant-to-record.json。后三类实际操作中的助手展开、转记录和图形交接已按原时间戳编码为同名mp4，不插帧，不作为真机帧率证明。餐次详情与编辑的aria-labelledby同为_r_c_、同时仅一个dialog。截图与记录全部为虚构账号；浏览器验收结束后已关闭临时标签并重置视口。公开站复测中未执行改密码、撤销授权、停用账号或发送邀请；这些不列为新增实测通过。
+
+完整性初核单独标出三条过期限流桶的清理，随后对照已安装Better Auth的deleteExpiredRows实现、原行SHA256和发生时间逐条确认；三条在结束快照时均已超过78分钟。仅为这三条精确哈希记录缓存到期例外，保留初核及复核证据，没有放宽健康事实或账号数据的核对。
+
+
 ## 面板方向与身体卡片：隔离验收（2026-11-06）
 
 本轮从a9f7198独立分支codex/panel-flow实施，使用本地production构建与虚构PGlite账号。全量搜索Inspector／EditorDialog别名、原生dialog与animateSurface调用，区分底部、侧边、按钮锚定和居中确认；没有新增数据库表、迁移、公开接口或依赖。
