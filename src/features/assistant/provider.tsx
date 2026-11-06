@@ -11,7 +11,7 @@ import { AssistantSurface } from "./surface";
 
 function preferenceStore() { try { return window.localStorage; } catch { return null; } }
 function deviceTime() { const now = new Date(); return { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, date: localMeasurementDate(now), period: now.getHours() < 6 ? 0 : now.getHours() < 18 ? 1 : 2 }; }
-function occupied() { return document.hidden || document.documentElement.dataset.chartTravel==="active" || !!document.querySelector('[data-workspace-pending="true"]') || draftIsBusy() || draftIsDirty() || confirmationIsOpen() || !!document.fullscreenElement || !!document.querySelector(".dashboard-menu[open]") || !!document.querySelector('dialog[open]:not([data-assistant-surface])'); }
+function occupied() { return document.hidden || document.documentElement.dataset.chartTravel==="active" || !!document.querySelector('[data-workspace-pending="true"]') || draftIsBusy() || draftIsDirty() || confirmationIsOpen() || !!document.fullscreenElement || !!document.querySelector(".dashboard-menu[open]:not([data-closing=true])") || !!document.querySelector('dialog[open]:not([data-assistant-surface])'); }
 
 export function AssistantProvider({ accountId, children }: { accountId: string; children: ReactNode }) {
   const pathname = usePathname(), available = assistantAvailable(pathname);

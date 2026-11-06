@@ -1,5 +1,5 @@
 "use client";
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { LoadingLink } from "./loading-link";
 import { useChartTransition } from "./chart-transition-state";
 import { TrendGlyph } from "./trend-glyph";
@@ -7,10 +7,12 @@ import type { MetricTrendModel } from "./metric-trend-model";
 import styles from "./metric-card-rail.module.css";
 
 export type MetricCard = { title: string; value: string; unit: string; date: string; fact?: string; href: string; trend: MetricTrendModel };
-export function MetricCardRail({ cards, preview }: { cards: MetricCard[]; preview?: (card:MetricCard)=>void }) {
+export function MetricCardRail({ cards, preview, accountId }: { accountId?:string; cards: MetricCard[]; preview?: (card:MetricCard)=>void }) {
   const rail=useRef<HTMLDivElement>(null), transition=useChartTransition();
   const pointer=useRef<{x:number;y:number;left:number;moved:boolean}|null>(null), suppressed=useRef(false);
   useLayoutEffect(()=>{if(rail.current&&!preview)transition.restore(rail.current);},[transition,preview]);
+  useEffect(()=>{const node=rail.current;if(!node||preview||!accountId||matchMedia('(prefers-reduced-motion: reduce)').matches)return;const key='formward:rail-hint:'+accountId;try{if(localStorage.getItem(key))return;}catch{return;}let animation:Animation|undefined;const stop=()=>{clearTimeout(timer);animation?.cancel();};const timer=setTimeout(()=>{if(node.scrollLeft>1||document.hidden||document.documentElement.dataset.chartTravel)return;const card=node.querySelector<HTMLElement>('[data-metric-card="morning-weight"]');if(!card||!card.getClientRects().length)return;try{localStorage.setItem(key,'seen');}catch{}animation=card.animate([{transform:'translateX(0)'},{transform:'translateX(-8px)',offset:.24},{transform:'translateX(0)',offset:.48},{transform:'translateX(-8px)',offset:.74},{transform:'translateX(0)'}],{duration:1050,easing:'ease-in-out'});},650);node.addEventListener('pointerdown',stop,{passive:true});node.addEventListener('scroll',stop,{passive:true});node.addEventListener('focusin',stop);return()=>{stop();node.removeEventListener('pointerdown',stop);node.removeEventListener('scroll',stop);node.removeEventListener('focusin',stop);};},[accountId,preview]);
+  useLayoutEffect(()=>{const node=rail.current;if(!node)return;const measure=()=>{for(const card of node.querySelectorAll<HTMLElement>('[data-metric-card]')){const strong=card.querySelector('strong');if(!strong)continue;const range=document.createRange();range.selectNodeContents(strong);const available=card.clientWidth-32-Math.max(80,(card.clientWidth-32-12)*.3)-12;card.dataset.stack=String(range.getBoundingClientRect().width>available);}};const observer=new ResizeObserver(measure);observer.observe(node);measure();void document.fonts.ready.then(measure);return()=>observer.disconnect();},[cards]);
   return <div ref={rail} className={styles.rail} data-metric-rail aria-label="最近状态，可左右滑动" onDragStart={event=>event.preventDefault()}
     onPointerDown={event=>{suppressed.current=false;if(event.button!==0||!event.isPrimary)return;pointer.current={x:event.clientX,y:event.clientY,left:event.currentTarget.scrollLeft,moved:false};}}
     onPointerMove={event=>{const p=pointer.current;if(!p)return;const dx=event.clientX-p.x,dy=event.clientY-p.y;if(!p.moved&&Math.abs(dy)>Math.abs(dx)+4){pointer.current=null;return;}if(Math.abs(dx)>7)p.moved=true;if(p.moved&&event.pointerType==="mouse"){event.currentTarget.style.scrollSnapType="none";event.currentTarget.setPointerCapture(event.pointerId);event.currentTarget.scrollLeft=p.left-dx;}}}

@@ -51,8 +51,8 @@ export function missingMeasurementCells(records: DailyMeasurement[], date: strin
   return measurementEntryState(records, date, choices).flatMap(group => entryMetrics.filter(metric => group.fields[metric].kind === "missing").map(metric => ({ period: group.period, metric })));
 }
 
-export function measurementNeedsEntry(records: DailyMeasurement[], date: string, choices: Record<string, string> = {}) {
-  return measurementEntryState(records, date, choices).some(group => group.pending || entryMetrics.some(metric => group.fields[metric].kind === "missing"));
+export function measurementNeedsEntry(records: DailyMeasurement[], date: string, choices: Record<string, string> = {}, activeMetrics:readonly MeasurementMetric[]=entryMetrics) {
+  return measurementEntryState(records, date, choices).some(group => group.pending || activeMetrics.some(metric => group.fields[metric].kind === "missing"));
 }
 
 export function measurementDayAction(records: DailyMeasurement[], date: string, today: string) {

@@ -5,14 +5,14 @@ import { trendColor, trendKey } from "./metric-trend-model";
 import { useChartTransition } from "./chart-transition-state";
 
 /** 缩略图与业务页共用 2:1 数据平面；文字、坐标和命中区不参与缩放。 */
-export function TrendGlyph({ model, target = false, x, y, width, height, className }: {
-  model: MetricTrendModel; target?: boolean; x?: number; y?: number; width?: number | string; height?: number | string; className?: string;
+export function TrendGlyph({ model, target = false, skeleton = false, x, y, width, height, className }: {
+  model: MetricTrendModel; target?: boolean; skeleton?: boolean; x?: number; y?: number; width?: number | string; height?: number | string; className?: string;
 }) {
   const ref = useRef<SVGSVGElement>(null), transition = useChartTransition(), key = trendKey(model);
   useLayoutEffect(() => {
     if (!target || !ref.current) return;
-    return transition.register({ kind: model.kind, element: ref.current, model });
-  }, [target, key, transition, model]);
+    return transition.register({ kind: model.kind, element: ref.current, model, skeleton });
+  }, [target, skeleton, key, transition, model]);
   const color = trendColor(model.kind), count = model.points.length, slot = 240 / Math.max(1, count);
   const pointX = (index: number) => model.kind === "morning-weight" ? count > 1 ? 5 + index / (count - 1) * 230 : 120 : (index + .5) * slot;
   const pointY = (value: number) => 115 - (value - model.min) / (model.max - model.min || 1) * 110;

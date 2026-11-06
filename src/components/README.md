@@ -2,7 +2,7 @@
 
 手机Inspector通过--inspector-sticky-offset为把手预留44px，饮食与消耗的粘性保存条复用该偏移，长表单滚动不能盖住把手。
 
-metric-card-rail.tsx提供B横滑卡片与拖后点击抑制，trend-glyph.tsx共用2:1数据平面，metric-trend-model.ts只管绘图尺度和内部趋势链接校验。chart-transition.tsx挂在已认证持久框架中，等真实目标就绪后等比交接；无配对／减少动态效果／异常超时走普通导航。移动专页入口用mobile-record-action.tsx；mobile-navigation.tsx复用原四目的地、指示器及拖动行为，workspace-pages.ts统一目的地名称。
+metric-card-rail.tsx提供B横滑卡片与拖后点击抑制，trend-glyph.tsx共用2:1数据平面，metric-trend-model.ts只管绘图尺度和内部趋势链接校验。chart-transition.tsx挂在已认证持久框架中，先在结构骨架落位，再由真实图形接管；无配对／减少动态效果／异常超时走普通导航。专页保留趋势返回和日期行录入；mobile-navigation.tsx复用原四目的地、指示器及拖动行为，workspace-pages.ts统一目的地名称。
 
 Inspector在手机提供底部面板：只读stableScroll详情默认半屏，录入默认近全屏，把手可拖动及点击切换。所有关闭路径仍经过同一个草稿/忙碌保护；正文自行滚动，桌面侧栏和compact确认框保持各自用途。工作区的PageLoadingProvider显示非模态任务反馈，登录等工作区外流程继续使用原反馈；AssistantProvider显式识别工作区pending。
 
@@ -74,3 +74,5 @@ chart-selection-marker.tsx及同名CSS集中管理ChartSelectionColumn底纹／�
 record-detail-actions.tsx在已展开的餐次／运动中统一编辑及更多删除；删除保留业务原有确认，Escape先关闭更多并返回焦点，外部点击或焦点离开关闭菜单。Disclosure继续只在展开后挂载完整内容。
 
 Inspector的titleParts仅为只读日期详情按完整文字块换行，stableScroll只在该类详情预留滚动条空间；其他填写窗口沿用原布局和草稿保护。极窄或放大视口中标题与关闭按钮分行，44px关闭操作保持可到达。
+
+workspace-skeleton.tsx与四主页面共用RecordTrendPanel读数槽位，route loading和内部Suspense统一骨架；只对占位扫光。导航不注册全局加载提示，保存、估算与认证等待保持。chart-transition将骨架几何与真实图形注册分开，已有真实小图先到槽位、真实数据接管且不重复入场；失败和8秒等待提供重试与返回。metric-card-rail采用单张宽卡与约24px下一卡预览，按账号／设备一次8px双次引导，交互即取消。surface-motion.ts提供来源矩形与面板的可中断裁切／位移交接，Inspector和GlassMenu退出后再卸载。

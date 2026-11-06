@@ -14,7 +14,7 @@ import { energyValue } from "../activities/model";
 import { OverviewTrend } from "./overview-trend";
 import type { OverviewPresentation } from "./presentation";
 import styles from "./overview.module.css";
-export function OverviewView({ presentation,assistant }: { presentation: OverviewPresentation;assistant?:AssistantContext }) {
+export function OverviewView({ presentation,assistant,accountId }: { accountId?:string; presentation: OverviewPresentation;assistant?:AssistantContext }) {
   const { today, body, latestIntake: intake, latestEnergy: energy } = presentation;
   const localToday = useLocalToday(today), router = useRouter();
   useEffect(() => { if (localToday !== today) router.refresh(); }, [localToday, today, router]);
@@ -27,7 +27,7 @@ export function OverviewView({ presentation,assistant }: { presentation: Overvie
         <LoadingLink href={`/dashboard/measurements?date=${localToday}&entry=daytime`}><Plus/>记录测量</LoadingLink>
         <LoadingLink href={`/dashboard/energy?date=${localToday}&entry=1`}><Plus/>记录消耗</LoadingLink>
       </nav>
-      <MetricCardRail cards={summaryCards(presentation,localToday)}/>
+      <MetricCardRail accountId={accountId} cards={summaryCards(presentation,localToday)}/>
     </div>
     <OverviewTrend data={presentation} />
     <div className={styles.cards}>

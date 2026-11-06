@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import { draftIsBusy, confirmDraftDiscard } from "./draft-guard";
-import { usePageLoading } from "./page-loading-state";
+
 import { ChartTransitionContext, useChartTransition, type ChartOrigin, type ChartTarget } from "./chart-transition-state";
 import type { MetricTrendModel } from "./metric-trend-model";
 import { TrendGlyph } from "./trend-glyph";
@@ -24,24 +24,26 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   const [flight,setFlight] = useState<Flight|null>(null), active = useRef<Flight|null>(null), overlay = useRef<HTMLDivElement>(null);
   const serial = useRef(0), origin = useRef<ChartOrigin|null>(null), returning=useRef(false), target = useRef<ChartTarget|null>(null), route = useRef(pathname);
   const lastTarget=useRef<{model:MetricTrendModel;rect:Rect}|null>(null);
-  usePageLoading({active:pending,label:"正在加载趋势…"});
+
   const clear = useCallback(() => {
     const current=active.current;active.current=null;clearTimeout(current?.deadline);current?.animation?.cancel();current?.hidden?.removeAttribute("data-chart-travelling");
     document.documentElement.removeAttribute("data-chart-travel");setFlight(null);
   },[]);
-  const land = useCallback((element: SVGSVGElement) => {
+  const land = useCallback((element: SVGSVGElement, skeleton=false) => {
     const current = active.current, node=overlay.current;
-    if(!current||!node||current.landing||!element.isConnected)return;
+    if(!current||!node||!element.isConnected)return;
     const dest=rectOf(element);if(!dest.width||!dest.height)return;
     if(reduced()||typeof node.animate!=="function"){clear();return;}
+    const from=getComputedStyle(node).transform;current.animation?.cancel();current.hidden?.removeAttribute("data-chart-travelling");
     current.landing=true;current.hidden=element;element.setAttribute("data-chart-travelling", "true");
     const scale=dest.width/current.rect.width;
     // 两个数据平面的长宽比相同，只允许等比缩放。
     if(Math.abs(dest.height/current.rect.height-scale)>.035){clear();return;}
-    const animation=node.animate([{transform:"translate(0px,0px) scale(1)"},{transform:`translate(${dest.left-current.rect.left}px,${dest.top-current.rect.top}px) scale(${scale})`}],{duration:460,easing:"cubic-bezier(.16,1,.3,1)",fill:"forwards"});
+    const animation=node.animate([{transform:from==="none"?"translate(0px,0px) scale(1)":from},{transform:`translate(${dest.left-current.rect.left}px,${dest.top-current.rect.top}px) scale(${scale})`}],{duration:460,easing:"cubic-bezier(.16,1,.3,1)",fill:"forwards"});
     current.animation=animation;
     void animation.finished.then(()=>{
-      if(active.current?.id!==current.id)return;
+      if(active.current?.id!==current.id||current.animation!==animation)return;
+      if(skeleton){current.landing=false;return;}
       const back=current.direction==="back";clear();
       if(back){document.querySelector<HTMLElement>(`[data-metric-card="${current.model.kind}"]`)?.focus({preventScroll:true});origin.current=null;returning.current=false;}
       else element.closest("[data-chart-arrival]")?.animate([{opacity:.7},{opacity:1}],{duration:180});
@@ -50,14 +52,14 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   const start = useCallback((model:MetricTrendModel, source:SVGSVGElement|Rect, direction:Flight["direction"])=>{
     clear();const next:Flight={id:++serial.current,model,rect:source instanceof SVGSVGElement?rectOf(source):source,direction,landing:false};
     // 目标异常时退回正常导航反馈；不把悬空缩略图当成无限等待层。
-    next.deadline=setTimeout(()=>{if(active.current?.id===next.id&&!next.landing)clear();},8000);
+    next.deadline=setTimeout(()=>{if(active.current?.id===next.id)clear();},8000);
     active.current=next;document.documentElement.setAttribute("data-chart-travel","active");setFlight(next);
   },[clear]);
   const register=useCallback((next:ChartTarget)=>{
     target.current=next;
-    lastTarget.current={model:next.model,rect:rectOf(next.element)};
+    if(!next.skeleton)lastTarget.current={model:next.model,rect:rectOf(next.element)};
     const current=active.current;
-    if(current?.direction==="forward"&&current.model.kind===next.kind)requestAnimationFrame(()=>land(next.element));
+    if(current?.direction==="forward"&&current.model.kind===next.kind)requestAnimationFrame(()=>land(next.element,next.skeleton));
     return ()=>{if(location.pathname==="/dashboard"&&next.element.isConnected)lastTarget.current={model:next.model,rect:rectOf(next.element)};else lastTarget.current=null;if(target.current?.element===next.element)target.current=null;};
   },[land]);
   const navigate=useCallback(async(href:string,model:MetricTrendModel,source:SVGSVGElement,rail:HTMLElement|null)=>{
@@ -88,13 +90,17 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     else clear();
   },[start,clear]);
   const back=useCallback(()=>{
-    if(origin.current){prepareBack();startTransition(()=>router.back());}
+    if(origin.current){
+      // loading 边界提交后 React pending 可能已结束，但目标数据仍在流入。
+      const waiting=pending||!!target.current?.skeleton||!!document.querySelector('.workspace-skeleton');
+      prepareBack();startTransition(()=>{if(waiting)router.replace('/dashboard');else router.back();});
+    }
     else startTransition(()=>router.push("/dashboard"));
-  },[router,prepareBack]);
+  },[router,prepareBack,pending]);
   useEffect(()=>{
     const pop=()=>{if(location.pathname==="/dashboard"&&origin.current&&route.current!=="/dashboard")prepareBack();else clear();};
-    const cancel=()=>clear();window.addEventListener("popstate",pop,true);window.addEventListener("resize",cancel);
-    return()=>{window.removeEventListener("popstate",pop,true);window.removeEventListener("resize",cancel);};
+    const cancel=()=>clear();window.addEventListener("formward-record-saved",cancel);window.addEventListener("formward-record-context-stale",cancel);window.addEventListener("popstate",pop,true);window.addEventListener("resize",cancel);
+    return()=>{window.removeEventListener("formward-record-saved",cancel);window.removeEventListener("formward-record-context-stale",cancel);window.removeEventListener("popstate",pop,true);window.removeEventListener("resize",cancel);};
   },[prepareBack,clear]);
   useEffect(()=>{const query=matchMedia("(prefers-reduced-motion: reduce)");const changed=()=>{if(query.matches)clear();};query.addEventListener("change",changed);return()=>query.removeEventListener("change",changed);},[clear]);
   useEffect(()=>{
@@ -108,13 +114,13 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(!pending&&current&&!current.landing) {
       const frame=requestAnimationFrame(()=>requestAnimationFrame(()=>{
         const live=active.current;if(!live||live.id!==current.id||live.landing)return;
-        if(live.direction==="forward"&&target.current?.kind===live.model.kind)land(target.current.element);
+        if(live.direction==="forward"&&target.current?.kind===live.model.kind)land(target.current.element,target.current.skeleton);
         // 专页还要等客户端尺寸与图形就绪；路由提交不等于目标已经可测量。
       }));return()=>cancelAnimationFrame(frame);
     }
   },[pathname,pending,clear,land,restore,prepareBack]);
   useEffect(()=>()=>{clearTimeout(active.current?.deadline);active.current?.animation?.cancel();active.current?.hidden?.removeAttribute("data-chart-travelling");document.documentElement.removeAttribute("data-chart-travel");},[]);
-  const value=useMemo(()=>({navigate,register,restore,back}),[navigate,register,restore,back]);
+  const value=useMemo(()=>({navigate,register,restore,back,preview:flight?.model??null}),[navigate,register,restore,back,flight?.model]);
   return <ChartTransitionContext value={value}>{children}{flight&&createPortal(<div ref={overlay} className="chart-flight" aria-hidden="true" style={{left:flight.rect.left,top:flight.rect.top,width:flight.rect.width,height:flight.rect.height}}><TrendGlyph model={flight.model}/></div>,document.body)}</ChartTransitionContext>;
 }
 

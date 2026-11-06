@@ -9,7 +9,7 @@ import { saveProfileAction, advanceOnboardingAction, loadProfileAction } from "@
 import { profileAge, validateProfile, type PersonalProfile } from "./model";
 import styles from "./profile.module.css";
 
-export function ProfileForm({initial,today,onboarding=false,test=false,onContinue}:{initial:PersonalProfile;today:string;onboarding?:boolean;test?:boolean;onContinue?:(profile:PersonalProfile)=>void}) {
+export function ProfileForm({initial,today,onboarding=false,test=false,onContinue,embedded=false}:{embedded?:boolean;initial:PersonalProfile;today:string;onboarding?:boolean;test?:boolean;onContinue?:(profile:PersonalProfile)=>void}) {
   const [saved,setSaved]=useState(initial),[height,setHeight]=useState(initial.heightCm??""),[birth,setBirth]=useState(initial.birthDate??"");
   const [editing,setEditing]=useState(onboarding),[busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[failed,setFailed]=useState(false),[conflict,setConflict]=useState(false);
   const submitting=useRef(false);
@@ -52,8 +52,8 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
     if(await confirmAction({title:"查看最新资料",message:`身高：${p.heightCm??"未填写"}${p.heightCm?"厘米":""}；生日：${p.birthDate??"未填写"}。是否采用最新资料？当前未保存的输入将被替换。`,confirmLabel:"采用最新资料"})){setSaved(p);setHeight(p.heightCm??"");setBirth(p.birthDate??"");setConflict(false);setNotice("");}
   }
   return <section className={styles.personal}>
-    {!onboarding&&<LoadingLink href="/dashboard" className={styles.back}>← 返回总览</LoadingLink>}
-    <h1>{onboarding?"先认识一下你":"个人资料"}</h1>
+    {!onboarding&&!embedded&&<LoadingLink href="/dashboard" className={styles.back}>← 返回总览</LoadingLink>}
+    {!embedded&&<h1>{onboarding?"先认识一下你":"个人资料"}</h1>}
     {!onboarding&&<p className={styles.intro}>{editing?"修改后，点保存才会生效。":"不是每天要填的资料，变化时再来修改。"}</p>}
     {editing?<form data-entry-form="profile" noValidate onSubmit={event=>{event.preventDefault();void submit();}}>
       <div className={styles.fields}>

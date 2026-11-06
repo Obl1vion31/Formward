@@ -88,7 +88,7 @@ erDiagram
 
 身体 AI 操作的 `token_id`／`oauth_connection_id` 恰有一个非空；饮食操作按 `origin` 校验手动、AI 或初始化对应的凭据与导入关系。OAuth 的 `client_id` 引用客户端业务标识 `oauth_client.client_id`，资源关联引用 `oauth_resource.identifier`，不应一律理解成关联对应表的 `id`。
 
-下列基础设施表没有图中的用户外键：`verifications` 按 `identifier` 管理验证状态；`rate_limits` 保存认证前来源与入口限流；`oauth_client_assertion` 保存协议断言的期限；`jwks` 保存签名密钥。账号管理另外保存 `account_links`、`account_events`，通过签发人、操作者及目标关联 users；合计 41 张应用表。迁移账本 `drizzle.__drizzle_migrations` 另由工具管理。
+下列基础设施表没有图中的用户外键：`verifications` 按 `identifier` 管理验证状态；`rate_limits` 保存认证前来源与入口限流；`oauth_client_assertion` 保存协议断言的期限；`jwks` 保存签名密钥。账号管理另外保存 `account_links`、`account_events`，通过签发人、操作者及目标关联 users；合计 43 张应用表。迁移账本 `drizzle.__drizzle_migrations` 另由工具管理。
 
 `created_by`、`actor_id` 等操作者快照保留文本标识，不是数据归属外键；真正归属由可信身份与 `user_id` 校验。体重单位固定 kg，体脂固定 %；外部原值、来源标识和批次状态独立保存。
 
@@ -741,4 +741,17 @@ meal_operations.payload／draft保存可选expectedImageCount，preview中的mis
 
 ## 个人资料与引导状态
 
-personal_profiles（0029）：每账号最多一行，user_id为users外键和主键，height_cm为可空numeric(6,2)、birth_date为可空date，onboarding_step取profile／tutorial／complete，version为正整数，created_at／updated_at记录时间。年龄不存；既有账号无行不强制引导，新账号创建同事务写profile状态。独立于历史energy_profiles，不复制体重或2058，不自动影响热量。42张应用表，含迁移账本共43表。
+personal_profiles（0029）：每账号最多一行，user_id为users外键和主键，height_cm为可空numeric(6,2)、birth_date为可空date，onboarding_step取profile／tutorial／complete，version为正整数，created_at／updated_at记录时间。年龄不存；既有账号无行不强制引导，新账号创建同事务写profile状态。独立于历史energy_profiles，不复制体重或2058，不自动影响热量。当前加上账号偏好为43张应用表，含迁移账本共44表。
+
+## 账号显示偏好
+
+account_preferences由0030_account_preferences创建，不回填或修改旧健康事实。仅网页私有Server Actions读写，账号来自有效会话，不接受客户端指定user_id；保存先锁定有效账号与会话并校验版本，同值重试幂等，过期版本且值不同返回409并重新读取云端。
+
+| 字段 | 类型与约束 | 含义 |
+| --- | --- | --- |
+| user_id | text，主键，users外键，删除cascade | 每账号最多一行 |
+| show_body_fat | boolean，非空 | 用户明确选择的体脂展示开关 |
+| version | integer，默认1，CHECK > 0 | 乐观并发版本 |
+| updated_at | timestamptz，非空，默认now() | 最近明确修改时间 |
+
+无显式行时根据该账号有效实测是否含体脂决定默认，不保存推断结果。关闭仅影响网页摘要、图表、历史和普通录入；旧记录隐藏体脂保持原值，AI审核、HTTP／MCP和导出保留完整事实。有草稿时延后外部偏好同步；进入身体页及恢复前台重新读取。

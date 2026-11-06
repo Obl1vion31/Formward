@@ -51,3 +51,5 @@ OAuth Provider 的客户端、资源、授权同意、摘要令牌、刷新轮�
 
 
 0029_personal_profiles只新增personal_profiles：user_id主键外键，选填height_cm／birth_date，onboarding_step、version及创建／更新时间。旧账号无行视为已完成，引导状态仅新建账号显式初始化；与energy_profiles和每日measurement独立。42张应用表及迁移账本共43表。
+
+account_preferences按user_id保存show_body_fat、version及updated_at，新增0030 migration只建偏好表及约束，不回填或更改健康事实。

@@ -1,4 +1,5 @@
 "use client";
+import {TrendBackLink} from "@/components/chart-transition";
 import {numericDraftValue} from "@/components/form-draft";
 import recordUI from "@/components/record-ui.module.css";
 import {RecordWorkspace,RecordTrendPanel,InlineChartControls,CustomRecordRange} from "@/components/record-trend-panel";
@@ -10,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
 import { usePageLoading } from "@/components/page-loading-state";
 import { useMobileMode } from "@/components/use-mobile-mode";
-import { macroColors,dailyTotals, suggestedMealType, mealOperationStatus, emptyNutrition, formatNutrition, metricLabels, metrics, type FoodDraft, type MealAction,  type MealInput, type MacroMode, type MealOperationView, type MealSnapshot, type MealView, type Metric,  type Result } from "./model";
+import { macroComposition,macroColors,dailyTotals, suggestedMealType, mealOperationStatus, emptyNutrition, formatNutrition, metricLabels, metrics, type FoodDraft, type MealAction,  type MealInput, type MacroMode, type MealOperationView, type MealSnapshot, type MealView, type Metric,  type Result } from "./model";
 import { recentRecordDates, pendingRecordDates, rangeContaining } from "@/components/record-dates";
 import { DailyRecords,DailyRecordRow } from "@/components/daily-records";
 import { RecordHistory } from "@/components/record-history";
@@ -23,7 +24,7 @@ import { PhotoFields } from "./photos";
 import { SavedMealList } from "./saved-meal-list";
 import { MealDayControl } from "./meal-day-control";
 import type { MealDayInput } from "./model";
-import {DayNutritionSummary} from "./nutrition-composition";
+import {DayNutritionSummary,NutritionComposition} from "./nutrition-composition";
 import { NutritionChart } from "./nutrition-chart";
 import { useDraftGuard } from "@/components/draft-guard";
 import { Inspector as EditorDialog } from "@/components/inspector";
@@ -33,7 +34,7 @@ export { MealEditor } from "./meal-editor";
 import { useOperationClock } from "./use-operation-clock";
 import styles from "./meals.module.css";
 import type { TrendRoute } from "@/components/metric-trend-model";
-import { MobileRecordAction } from "@/components/mobile-record-action";
+
 
 export type SaveMeals = (input: MealInput, allowMissingImages?: boolean) => Promise<Result<{ snapshot: MealSnapshot; message: string }>>;
 const unitFor = (metric: Metric) => metric === "caloriesKcal" ? "kcal" : "g";
@@ -95,13 +96,14 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   const visibleFoods=state.foods.filter(f=>!f.deletedAt&&(foodCategory==="all"||(f.category??"ingredient")===foodCategory)&&`${f.name} ${f.brand??""} ${f.preparation??""}`.toLowerCase().includes(foodQuery.toLowerCase()));
   return <RecordWorkspace title={tab==="foods"?"食材库":"饮食"} className={styles.workspace} data-active-tab={tab} data-shared-route={initialTrend?true:undefined}>
     {tab==="meals"?<>
-      {mobile&&<MobileRecordAction label="记录饮食" date={today} back={!!initialTrend} record={()=>addMeal(today)}/>}
+      {mobile&&initialTrend&&<div className="trend-return"><TrendBackLink/></div>}
+
       <div data-chart-selection={chart.regionId} data-selected-date={chart.selected} data-selection-origin={chart.origin} {...chart.regionProps}>
-      <RecordTrendPanel
+      <RecordTrendPanel presentation="nutrition" graphic={<NutritionComposition totals={chosen?.totals}/>}
        range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft({from:customFrom||from,to:customTo});setCustomOpen(true);}else{setRange(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="饮食" value={customDraft} change={setCustomDraft} apply={()=>{setCustomFrom(customDraft.from);setCustomTo(customDraft.to);setRange("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
        date={summaryDate} view={()=>{const target=summaryDate;viewDay(target);chart.release();}} readoutLabel="选中日营养"
-       metrics={metrics.map(metric=>({label:metricLabels[metric],value:formatNutrition(chosen?.totals.values[metric]??null,metric),unit:unitFor(metric),inlineUnit:metric!=="caloriesKcal",tone:metric==="caloriesKcal"?"blue":undefined,note:chosen?.totals.incomplete[metric]?"已知部分":undefined,reserveNote:groups.some(group=>group.date>=from&&group.date<=to&&group.totals.incomplete[metric])}))}
+       metrics={metrics.map(metric=>({label:metricLabels[metric],value:formatNutrition(chosen?.totals.values[metric]??null,metric),unit:unitFor(metric),inlineUnit:metric!=="caloriesKcal",tone:metric==="caloriesKcal"?"blue":undefined,note:chosen?.totals.incomplete[metric]?"已知部分":metric!=="caloriesKcal"&&macroComposition(chosen?.totals).kind==="known"?((macroComposition(chosen?.totals).segments.find(s=>s.metric===metric)?.ratio??0)*100).toFixed(1)+'%':undefined,reserveNote:metric!=="caloriesKcal"||groups.some(group=>group.date>=from&&group.date<=to&&group.totals.incomplete[metric])}))}
        metricVariants={groups.filter(group=>group.date>=from&&group.date<=to).map(group=>metrics.map(metric=>formatNutrition(group.totals.values[metric],metric)))}
        title="每日摄入" unit="kcal"
        options={<InlineChartControls><div role="group" aria-label="营养占比口径">{([["grams","克数占比"],["energy","能量占比"]] as const).map(([value,label])=><button type="button" key={value} aria-pressed={macroMode===value} onClick={()=>setMacroMode(value)}>{label}</button>)}</div></InlineChartControls>}

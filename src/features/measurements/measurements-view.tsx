@@ -15,7 +15,10 @@ import { Inspector } from "@/components/inspector";
 import { useEffect, useId, useRef, useState } from "react";
 import { buildMeasurementDays, recentMeasurementDays } from "./days";
 import { addCalendarDays, measurementCalendarPage, measurementCalendarRange } from "./calendar";
-import { measurementSummary } from "./summary";
+import type {AccountPreferences} from "@/features/auth/preferences";
+import {useBodyPreferences} from "./preferences-control";
+import {BodyFatContext,useBodyMetrics} from "./visibility";
+import { measurementSummaryAt } from "./summary";
 import { calendarOrdinal, measurementDateTicks, measurementRange, measurementTrend, normalScale, type MeasurementInterval, type MeasurementMetric, type MeasurementRange } from "./trend";
 import styles from "./measurements-view.module.css";
 import { estimateModeLabel, estimateUserExplanation } from "./estimate-explanation";
@@ -24,13 +27,13 @@ import { MeasurementEntry } from "./measurement-entry";
 import { timezoneLabel } from "./timezone";
 import { useMobileMode } from "@/components/use-mobile-mode";
 import type { TrendRoute } from "@/components/metric-trend-model";
-import { MobileRecordAction } from "@/components/mobile-record-action";
+import { TrendBackLink } from "@/components/chart-transition";
 import { MorningWeightPlot } from "./morning-weight-plot";
 export type { MeasurementDisplay } from "./entry-state";
 
 type MeasurementDay = ReturnType<typeof buildMeasurementDays<MeasurementDisplay>>[number];
 type DrawerView = { kind: "entry"; date: string; editing?: boolean; period?:"daytime"|"evening" } | { kind: "day"; date: string; period?: "daytime" | "evening"; metric: MeasurementMetric } | { kind: "record"; recordId: string; metric: MeasurementMetric };
-const metrics = ["weightKg", "bodyFatPercent"] as const;
+
 const ranges: { value: MeasurementRange; label: string }[] = [{ value: "7d", label: "7D" }, { value: "30d", label: "30D" }, { value: "90d", label: "90D" }, { value: "all", label: "全部" }];
 const weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const displayDate = (date: string) => date.replaceAll("-", ".");
@@ -38,7 +41,7 @@ const weekday = (date: string) => weekdays[new Date(calendarOrdinal(date) * 86_4
 const unitFor = (metric: MeasurementMetric) => metric === "weightKg" ? "kg" : "%";
 const metricName = (metric: MeasurementMetric) => metric === "weightKg" ? "体重" : "体脂率";
 
-export function MeasurementsView({ records: serverRecords, dates: serverDates, sources: serverSources, accountCreatedAt, actions, initialDate = null, initialPeriod = null,initialTrend=null }: { records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; accountCreatedAt: string; actions: MeasurementActions; initialDate?:string|null; initialPeriod?:"daytime"|"evening"|null;initialTrend?:TrendRoute|null }) {
+export function MeasurementsView({ records: serverRecords, dates: serverDates, sources: serverSources, accountCreatedAt, actions, initialDate = null, initialPeriod = null,initialTrend=null,preferences={showBodyFat:true,version:0,updatedAt:null} }: { preferences?:AccountPreferences; records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; accountCreatedAt: string; actions: MeasurementActions; initialDate?:string|null; initialPeriod?:"daytime"|"evening"|null;initialTrend?:TrendRoute|null }) {
   const mobileMode = useMobileMode();
   const [actionResult, setActionResult] = useState<(Extract<EntryResult, { ok: true }> & { base: MeasurementDisplay[] }) | null>(null);
   // 保存结果即时反馈；新的服务端快照抵达后接管，不能长期保留首次加载数据。
@@ -73,6 +76,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const [rulesOpen, setRulesOpen] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [drawer, setDrawer] = useState<DrawerView | null>(initialDate&&!initialTrend ? initialPeriod?{kind:"entry",date:initialDate,period:initialPeriod}:{kind:"day",date:initialDate,metric:"weightKg"} : null);
+  const preference=useBodyPreferences(preferences,!!drawer),metrics=preference.showBodyFat?['weightKg','bodyFatPercent'] as const:['weightKg'] as const;
   function updated(result: Extract<EntryResult, { ok: true }>) { setSourceResult(null); setActionResult({ ...result, base: serverRecords }); }
 
   useEffect(()=>{const latest=()=>{setDrawer(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
@@ -80,21 +84,19 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const displayedRecords = records.filter((row) => showEstimates || row.recordKind !== "estimated");
   const visibleRecords = displayedRecords.filter((row) => row.recordDate >= range.start && row.recordDate <= range.end);
   const recentInterval = { start: catalog.start, end: today || catalog.end };
-  const recent = recentMeasurementDays(displayedRecords, recentInterval, choices, 7).filter(day => day.date === today || (!dates.some(row => row.date === day.date && row.reminderSkipped) && measurementNeedsEntry(records, day.date, choices)));
+  const recent = recentMeasurementDays(displayedRecords, recentInterval, choices, 7).filter(day => day.date === today || (!dates.some(row => row.date === day.date && row.reminderSkipped) && measurementNeedsEntry(records, day.date, choices,metrics)));
   const chartDates=measurementCalendarPage(range,calendarOrdinal(range.end)-calendarOrdinal(range.start)+1).reverse();
   const availablePoints=metrics.flatMap(metric=>measurementTrend(visibleRecords,metric,showEvening,choices).points).filter(row=>row.recordDate<=(today||range.end));
   const defaultPoints=availablePoints.some(row=>row.recordKind!=="estimated")?availablePoints.filter(row=>row.recordKind!=="estimated"):availablePoints;
   const fallbackDate=defaultPoints.map(row=>row.recordDate).sort().at(-1)??range.end;
   const selection=useChartDateSelection(chartDates,initialDate??fallbackDate,fallbackDate,calendarOpen,`${showEvening}:${showEstimates}:${JSON.stringify(choices)}`),activeDate=selection.selected;
   const selectedPeriod=selection.active?chartPeriod:undefined;
-  const summaries = metrics.map(metric => ({ metric, ...measurementSummary(records.filter(row=>row.recordDate<=(today||localMeasurementDate(new Date(),"Asia/Shanghai"))), metric, choices) }));
-
-  const summaryContent=<div className={styles.panelStats} aria-label="最近值与近7日统计">{summaries.flatMap(summary=>[
-   <div key={summary.metric+":latest"}><span>最近{metricName(summary.metric)}</span><strong>{formatRecordNumber(summary.current?.[summary.metric])}<small>{unitFor(summary.metric)}</small></strong><p>{summary.current?displayDate(summary.current.recordDate):"暂无空腹实测"}</p></div>,
-   <div key={summary.metric+":change"}><span>近7日{metricName(summary.metric)}变化</span><strong>{formatDifference(summary.change,summary.metric,false)??"—"}</strong></div>,
-   <div key={summary.metric+":average"}><span>近7日{metricName(summary.metric)}均值</span><strong>{formatRecordNumber(summary.average)}<small>{unitFor(summary.metric)}</small></strong><p>{summary.coverage}/7天</p></div>
-  ])}</div>;
-
+  const weight=measurementSummaryAt(records,'weightKg',activeDate,choices),fat=measurementSummaryAt(records,'bodyFatPercent',activeDate,choices);
+  const readings=preference.showBodyFat?[
+   {label:'晨间体重',value:formatRecordNumber(weight.value),unit:'kg'}, {label:'晨间体脂率',value:formatRecordNumber(fat.value),unit:'%'},
+   {label:'7日平均体重',value:formatRecordNumber(weight.average),unit:'kg'}, {label:'7日平均体脂率',value:formatRecordNumber(fat.average),unit:'%'}
+  ]:[{label:'晨间体重',value:formatRecordNumber(weight.value),unit:'kg'},{label:'较前一日',value:formatDifference(weight.previousChange,'weightKg',false)??'—',unit:'kg'},
+   {label:'7日变化',value:formatDifference(weight.change,'weightKg',false)??'—',unit:'kg',note:weight.start&&weight.end?weight.start.slice(5)+'—'+weight.end.slice(5):undefined}, {label:'7日平均体重',value:formatRecordNumber(weight.average),unit:'kg'}];
   function selectRange(nextMode: MeasurementRange, nextInterval = customRange) {
     measurementRange(latestDate,nextMode,nextMode==="custom"?nextInterval:{start:earliestDate,end:latestDate});
     setMode(nextMode);
@@ -118,19 +120,18 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
     return <DailyRecordRow key={date} date={date} today={today} value={<div className={styles.dailyReadings}>{(["daytime","evening"] as const).map(period=><span key={period}><span className={styles.periodLabel}>{period==="daytime"?"晨间":"晚间"}</span>{metrics.map((metric,index)=>{const day=days[index],row=period==="daytime"?day.daytimeRecord:day.eveningRecord;return <TableReading key={metric} row={row} metric={metric} pendingLabel={day[period].length>1?"待选择":null} onInspect={record=>inspectRecord(record,metric)} onInspectCandidates={()=>inspectDay(date,period,metric)}/>;})}</span>)}</div>}><DayActions date={date} today={today} records={records} onView={()=>inspectDay(date)} onEntry={editing=>setDrawer({kind:"entry",date,editing})}/></DailyRecordRow>;
   }
 
-  return <RecordWorkspace title="身体" headingId="body-records-title" className={styles.workspace} aria-labelledby="body-records-title" data-shared-route={initialTrend?true:undefined}>
-    {mobileMode&&today&&<MobileRecordAction label="记录测量" date={today} back={!!initialTrend} record={()=>setDrawer({kind:"entry",date:today,period:"daytime"})}/>}
+  return <BodyFatContext value={preference.showBodyFat}><RecordWorkspace title="身体" headingId="body-records-title" className={styles.workspace} aria-labelledby="body-records-title" data-shared-route={initialTrend?true:undefined}>
+    {mobileMode&&initialTrend&&<div className="trend-return"><TrendBackLink/></div>}
+    <div className="body-preference"><label>显示体脂率<input type="checkbox" role="switch" aria-label="显示体脂率" checked={preference.showBodyFat} disabled={preference.busy||!!drawer} onChange={event=>void preference.change(event.target.checked)}/></label>{preference.error&&<p role="status">{preference.error}</p>}</div>
     <section data-chart-selection={selection.regionId} data-selected-date={activeDate} data-selection-origin={selection.origin} {...selection.regionProps} aria-label="身体指标趋势" data-range={mode} style={{visibility:mobileMode===null||!today?"hidden":undefined}}>
-      <RecordTrendPanel
+      <RecordTrendPanel presentation="body"
        range={<ChartRanges value={mode} items={[...ranges.map(item=>[item.value,item.label]),["custom","自定义"]]} change={value=>{if(value==="custom"){setDraftRange(range);setCalendarOpen(true);}else selectRange(value as MeasurementRange);}}/>}
        custom={calendarOpen&&<CustomRecordRange label="身体" value={{from:draftRange.start,to:draftRange.end}} change={next=>setDraftRange({start:next.from,end:next.to})} apply={()=>{setCustomRange(draftRange);selectRange("custom",draftRange);}} cancel={()=>setCalendarOpen(false)}/>}
        date={activeDate} view={()=>{const target={date:activeDate,period:selection.active?chartPeriod:undefined};setDrawer({kind:"day",...target,metric:"weightKg"});selection.release();}} readoutLabel="选中日身体记录"
-       metrics={metrics.map(metric=>{const selected=buildMeasurementDays(displayedRecords.filter(row=>row.recordDate===activeDate),choices,metric,[activeDate])[0].daytimeRecord;const row=selected?.fasting===true?selected:null;return {label:"晨间"+metricName(metric),value:formatRecordNumber(row?.[metric]),unit:unitFor(metric),id:metric,note:row?.recordKind==="estimated"?"估计":undefined,reserveNote:buildMeasurementDays(displayedRecords,choices,metric).some(day=>day.date>=range.start&&day.date<=range.end&&day.daytimeRecord?.fasting===true&&day.daytimeRecord.recordKind==="estimated"&&day.daytimeRecord[metric]!==null)};})}
-       metricVariants={displayedRecords.filter(row=>row.recordDate>=range.start&&row.recordDate<=range.end).map(row=>metrics.map(metric=>formatRecordNumber(row[metric])))}
-       statistics={!mobileMode?summaryContent:undefined}
+       metrics={readings}
+
        title="体重 · kg"
-       options={<ChartOptions label={mobileMode?"统计与选项":"图表设置"}>
-         {mobileMode&&summaryContent}
+       options={<ChartOptions label="图表选项">
          <div className={styles.chartControls}><label className={styles.toggle}><span>晚间</span><input aria-label="晚间数据" type="checkbox" checked={showEvening} onChange={event=>setShowEvening(event.target.checked)}/></label><label className={styles.toggle}><span>估计</span><input aria-label="估计补全" type="checkbox" checked={showEstimates} onChange={event=>setShowEstimates(event.target.checked)}/></label><button type="button" aria-expanded={rulesOpen} onClick={()=>setRulesOpen(!rulesOpen)}>估算规则 {rulesOpen?"−":"＋"}</button></div>
          {rulesOpen && <section id="measurement-estimate-rules" className={styles.rules} aria-label="估算规则">
         <div><h2>历史初始化</h2><p>第一次补齐已有的历史缺口，利用已经存在的前后真实测量恢复中间趋势。</p><p>补全后结果固定，以后新增数据不会反向改写；真实补录会替代对应的估计值。</p></div>
@@ -140,12 +141,12 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
        </ChartOptions>}
        legend={<><span><i style={{background:"var(--gold)",borderRadius:"50%"}}/>晨间空腹</span>{showEvening&&<span><i style={{background:"var(--data-deficit)",borderRadius:"50%"}}/>晚间</span>}{showEstimates&&visibleRecords.some(row=>row.recordKind==="estimated")&&<span>虚线 · 估计</span>}</>}
       ><div data-chart-metric="weightKg"><TrendPlot records={visibleRecords} metric="weightKg" showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
-       <div className={styles.additionalMetric} data-chart-metric="bodyFatPercent"><div className={styles.metricHeading}><h2>体脂 · %</h2></div><TrendPlot records={visibleRecords} metric="bodyFatPercent" showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
+       {preference.showBodyFat&&<div className={styles.additionalMetric} data-chart-metric="bodyFatPercent"><div className={styles.metricHeading}><h2>体脂 · %</h2></div><TrendPlot records={visibleRecords} metric="bodyFatPercent" showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>}
       </RecordTrendPanel>
     </section>
     <DailyRecords history={<RecordHistory today={today} dates={(catalog.start&&catalog.end?measurementCalendarPage(catalog,calendarOrdinal(catalog.end)-calendarOrdinal(catalog.start)+1):[]).filter(date=>!recent.some(day=>day.date===date))} renderRow={renderDay} view={inspectDay}/>}>{recent.map(day=>renderDay(day.date))}</DailyRecords>
     {drawer && <MeasurementInspector view={drawer} records={records} sources={sources} today={today} timezone={timezone} actions={sourceActions} onUpdated={updated} choices={choices} onChoose={chooseRecord} onClose={() => setDrawer(null)} />}
-  </RecordWorkspace>;
+  </RecordWorkspace></BodyFatContext>;
 }
 
 function Missing() { return <span aria-label="未记录" className={styles.missing}>—</span>; }
@@ -164,6 +165,7 @@ function TableReading({ row, metric, pendingLabel, onInspect, onInspectCandidate
   </button>;
 }
 function RecordDetails({ row, metric, onMetric }: { row: MeasurementDisplay; metric: MeasurementMetric; onMetric: (metric: MeasurementMetric) => void }) {
+  const activeMetrics=useBodyMetrics();
   const estimated = row.recordKind === "estimated";
   const otherMetric = metric === "weightKg" ? "bodyFatPercent" : "weightKg";
   const explanation = estimated ? estimateUserExplanation(row.estimation, row.recordDate, metric) : null;
@@ -172,7 +174,7 @@ function RecordDetails({ row, metric, onMetric }: { row: MeasurementDisplay; met
     <p className={`${styles.recordReading} ${row.period === "daytime" ? styles.dayValue : styles.nightValue}`} data-record-value={metric} data-estimate-value={estimated ? metric : undefined}>
       <strong>{formatRecordNumber(row[metric])}</strong><span>{unitFor(metric)}</span>
     </p>
-    {(row[otherMetric] !== null) && <div className={styles.otherReadings} aria-label="同条记录的其他指标">
+    {(activeMetrics.some(m=>m===otherMetric)&&row[otherMetric] !== null) && <div className={styles.otherReadings} aria-label="同条记录的其他指标">
       {row[otherMetric] !== null && <button type="button" aria-label={`查看${metricName(otherMetric)}记录值`} onClick={() => onMetric(otherMetric)}><span>{metricName(otherMetric)}</span><strong>{row[otherMetric]} <small>{unitFor(otherMetric)}</small></strong></button>}
     </div>}
     {explanation && <section className={styles.estimateBasis} aria-label="估计依据">
@@ -272,6 +274,7 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
   </Inspector>;
 }
 function DayOverview({ date, records, choices }: { date: string; records: MeasurementDisplay[]; choices: Record<string, string> }) {
+  const metrics=useBodyMetrics();
   const days = metrics.map(metric => buildMeasurementDays(records.filter(row => row.recordDate === date), choices, metric, [date])[0]);
   return <section className={styles.dayOverview} aria-label="当天晨晚概览">
     {(["daytime", "evening"] as const).map(period => <div key={period} className={period === "daytime" ? styles.dayValue : styles.nightValue} data-overview-period={period}>

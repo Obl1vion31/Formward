@@ -9,14 +9,14 @@ import { energyPresentation } from "@/features/activities/presentation";
 import { localMeasurementDate } from "@/features/measurements/entry-state";
 import { systemMeasurementTimezone } from "@/features/measurements/timezone";
 import { linkedDate } from "@/features/measurements/calendar";
-import { RouteLoading } from "@/components/page-loading";
+import { WorkspaceSkeleton } from "@/components/workspace-skeleton";
 import { saveEnergyAction, removeEnergySourceAction } from "./actions";
 import { listEnergySources } from "@/features/activities/sources";
 export const metadata = { title: "Formward · 消耗" };
 export const maxDuration = 60;
 export default async function EnergyPage({ searchParams }: { searchParams: Promise<{ date?: string | string[];entry?:string }> }) {
   const user = await currentPageUser(); if (!user) redirect("/"); await requireCompletedOnboarding();
-  const params=await searchParams;return <Suspense fallback={<RouteLoading />}><Content user={user} date={linkedDate(params.date)} entry={params.entry==="1"} /></Suspense>;
+  const params=await searchParams;return <Suspense fallback={<WorkspaceSkeleton kind="energy"/>}><Content user={user} date={linkedDate(params.date)} entry={params.entry==="1"} /></Suspense>;
 }
 async function Content({ user, date, entry }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date: string | null;entry:boolean }) {
   const db = getDatabase(), snapshot = await readEnergySnapshot(db, user.id);

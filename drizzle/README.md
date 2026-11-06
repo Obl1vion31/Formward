@@ -45,3 +45,5 @@
 0024_tan_starjammers只增加六列：foods包装换算、meal_items每份输入口径与营养、activities包含关系与基准；配对约束拒绝半套元数据。旧行默认consumed_total或null，旧营养、数量、时间、来源和审计不变，无个人数值回填。
 
 0026_dark_tana_nile只增加activities三列：calorie_mode、resting_kcal、active_kcal及非负／模式约束，旧行NULL，不回算旧运动，不新增表。migration纳入版本控制后才允许生产执行，先备份、后核对原列和健康事实。
+
+0030_account_preferences新增按账号隔离的体脂显示偏好表；现有健康表、旧migration及原值不改。

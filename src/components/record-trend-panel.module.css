@@ -11,3 +11,36 @@
 @media(max-width:700px),(hover:none) and (pointer:coarse){.panel[data-status-in-date] .range{border-top:0;margin-top:0}}
 
 .metricLabel{display:grid;min-height:20px;color:var(--muted);font-size:13px;line-height:20px;min-width:0}.metricLabel>span,.metricNote>em{grid-area:1/1}.metricLabel small{font-size:12px;color:inherit}.metricNote{display:grid;align-self:start;min-width:0;font:400 12px/1.5 Arial,sans-serif}.metricMeasure{visibility:hidden;pointer-events:none;user-select:none}.metricLabel>span{overflow-wrap:anywhere}
+
+.metricGraphic{display:none}
+@media(max-width:700px),(hover:none) and (pointer:coarse){
+ .metrics[data-presentation]{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px;margin:0;padding:0}
+ .metrics[data-presentation] .metric{position:relative;min-width:0;min-height:94px;padding:14px 12px;border-radius:20px;background:var(--card-surface);box-shadow:var(--card-shadow);box-sizing:border-box}
+ .metrics[data-presentation] .metric:first-child{grid-column:1/-1;min-height:124px;padding:18px;display:flex;flex-direction:column;justify-content:center}
+ .metrics[data-presentation] .metricLabel{font-size:14px;line-height:1.4}
+ .metrics[data-presentation] .metric strong{font-size:28px;line-height:1.25;margin-top:6px;max-width:100%;overflow-wrap:anywhere}
+ .metrics[data-presentation] .metric:first-child strong{font-size:32px}
+ .metrics[data-presentation] .metricGraphic{display:block}
+ .metrics[data-presentation=nutrition] .metric:first-child{padding-right:116px}
+ .metrics[data-presentation=nutrition] .metricGraphic{position:absolute;right:16px;top:16px;width:84px}
+ .metrics[data-presentation=nutrition] .metricGraphic figure{margin:0;width:84px;height:84px}
+ .metrics[data-presentation=nutrition] .metricGraphic svg{width:84px;height:84px}
+ .metrics[data-presentation=nutrition] .metricGraphic>span{display:none}
+ .metrics[data-presentation=energy]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .metrics[data-presentation=energy] .metricGraphic{margin-top:12px}
+ .metrics[data-presentation=body]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .metrics[data-presentation=body] .metric:first-child{grid-column:auto;min-height:112px;padding:14px 12px;display:block}
+ .metrics[data-presentation=body] .metric:first-child strong{font-size:28px}
+ .metrics[data-loading] .metric strong{color:transparent;position:relative;user-select:none}
+ .metrics[data-loading] .metric strong::after{content:'';position:absolute;inset:4px 0;background:var(--line-soft);border-radius:6px}
+}
+@media(max-width:360px){.metrics[data-presentation=nutrition]{gap:8px}.metrics[data-presentation=nutrition] .metric{padding:12px 8px}.metrics[data-presentation=nutrition] .metric strong{font-size:26px}}
+@media(max-width:300px){.metrics[data-presentation]{grid-template-columns:1fr!important}.metrics[data-presentation=nutrition] .metric:first-child{padding-right:18px}.metrics[data-presentation=nutrition] .metricGraphic{position:static;margin-top:12px}}
+
+@media(max-width:700px),(hover:none) and (pointer:coarse){.metrics[data-presentation][data-rich-stack=true]{grid-template-columns:1fr!important}.metrics[data-presentation] .metric strong{overflow-wrap:normal}.metrics[data-presentation=nutrition] .metric strong{font-size:28px}}
+
+@media(max-width:700px),(hover:none) and (pointer:coarse){.metrics[data-presentation] .metric{grid-row:auto;grid-template-rows:auto auto auto;align-content:start}.metrics[data-presentation] .metric strong>span{font-size:inherit}}
+
+@media(max-width:700px),(hover:none) and (pointer:coarse){.metrics[data-presentation=body] .metric{min-height:112px}}
+
+@media(max-width:700px),(hover:none) and (pointer:coarse){.metrics[data-presentation=nutrition] .metric:not(:first-child) .metricLabel{padding-left:12px;position:relative}.metrics[data-presentation=nutrition] .metric:not(:first-child) .metricLabel::before{content:'';position:absolute;left:0;top:7px;width:6px;height:6px;border-radius:50%;background:var(--data-protein)}.metrics[data-presentation=nutrition] .metric:nth-child(3) .metricLabel::before{background:var(--data-carbs)}.metrics[data-presentation=nutrition] .metric:nth-child(4) .metricLabel::before{background:var(--data-fat)}}

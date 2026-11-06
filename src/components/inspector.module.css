@@ -23,3 +23,5 @@
  @keyframes sheetExit{to{transform:translateY(48px);opacity:0}}
 }
 @media(prefers-reduced-motion:reduce){.mobileSheet:not(.compact){animation:none;transition:none}}
+
+.drawer,.mobileSheet{background:var(--surface);isolation:isolate}.heading{background:var(--nav-glass);box-shadow:inset 0 1px 0 var(--nav-rim);border-radius:20px;padding:8px 12px;margin-inline:-8px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}.sheetHandle{background:var(--nav-glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}

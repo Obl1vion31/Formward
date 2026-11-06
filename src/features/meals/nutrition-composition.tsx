@@ -4,7 +4,7 @@ import {formatNutrition,macroComposition,macroColors,metricLabels,type Totals} f
 import styles from "./nutrition-composition.module.css";
 
 const percent=(value:number)=>new Intl.NumberFormat("zh-CN",{maximumFractionDigits:1}).format(value*100)+"%";
-function NutritionComposition({totals}:{totals:Totals|null|undefined}){
+export function NutritionComposition({totals}:{totals:Totals|null|undefined}){
  const {kind,segments}=macroComposition(totals);
  const description=kind==="known"?segments.map(s=>metricLabels[s.metric]+percent(s.ratio)).join("、"):kind==="zero"?"三项均为0，暂无供能占比":"营养未齐，暂不计算占比";
  return <figure className={styles.composition} data-nutrition-composition={kind}>

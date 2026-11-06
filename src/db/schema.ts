@@ -519,3 +519,8 @@ export const personalProfile = pgTable("personal_profiles", {
   check("personal_profiles_step_valid", sql`${t.onboardingStep} IN ('profile', 'tutorial', 'complete')`),
   check("personal_profiles_version_positive", sql`${t.version} > 0`),
 ]);
+
+export const accountPreferences = pgTable("account_preferences", {
+ userId:text("user_id").primaryKey().references(()=>user.id,{onDelete:"cascade"}),
+ showBodyFat:boolean("show_body_fat").notNull(),version:integer("version").notNull().default(1),updatedAt:timestamp("updated_at",{withTimezone:true}).notNull().defaultNow(),
+},t=>[check("account_preferences_version_positive",sql`${t.version}>0`)]);

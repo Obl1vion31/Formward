@@ -1,4 +1,5 @@
 "use client";
+import {useBodyMetrics} from "./visibility";
 import {numericDraftValue} from "@/components/form-draft";
 import {habitualMeasurementSource} from "./source-habit";
 import {DecimalInput} from "@/components/decimal-input";
@@ -33,6 +34,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
   editing?: boolean; initialPeriod?:EntryPeriod; onUpdated: (result: Extract<EntryResult, { ok: true }>) => void;
   onChoose: (date: string, period: EntryPeriod, id: string) => void;
 }) {
+  const visibleMetrics=useBodyMetrics();
   const [baseRecords, setBaseRecords] = useState(records);
   const [lastRecords, setLastRecords] = useState(records);
   const [defaultTimezone, setDefaultTimezone] = useState(systemMeasurementTimezone);
@@ -125,14 +127,14 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
     }
     return result;
   }
-  return <form data-editing={editing} data-entry-form="body" data-selected-period={selected} className={styles.entryForm} aria-label="当天四项录入" onSubmit={save} aria-busy={busy}>
+  return <form data-editing={editing} data-entry-form="body" data-selected-period={selected} className={styles.entryForm} aria-label="当天身体录入" onSubmit={save} aria-busy={busy}>
 
     <div className={styles.entryPeriodBar}><div role="group" aria-label="选择录入时段">{(["daytime","evening"] as const).map(period=><button type="button" key={period} aria-label={period==="daytime"?"晨间（空腹）":periodName(period)} aria-pressed={selected===period} onClick={()=>setSelected(period)}>{periodName(period)}{period==="daytime"&&"（空腹）"}{periodDirty(period)&&<span aria-label="有未保存修改"> ·</span>}</button>)}</div><button type="button" aria-expanded={advanced.has(selected)} onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(selected))next.delete(selected);else next.add(selected);return next;})}>更多设置</button></div>
     <div className={styles.entryGroups}>
       {groups.map(group=><fieldset key={group.period} data-period={group.period} data-selected={selected===group.period} disabled={busy||group.blocked}>
         <legend><span>{periodName(group.period)} · {group.blocked?"空腹条件未确认":group.period==="daytime"?"空腹":"非空腹"}</span><button type="button" aria-expanded={advanced.has(group.period)} onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(group.period))next.delete(group.period);else next.add(group.period);return next;})}>更多设置</button></legend>
         {group.pending?<label>选择已有实测<select aria-label={"录入"+periodName(group.period)+"候选记录"} value="" onChange={event=>onChoose(date,group.period,event.target.value)}><option value="">选择已有记录</option>{group.candidates.map(row=><option value={row.id} key={row.id}>{row.sourceLocalTime}</option>)}</select></label>:<>
-          <div className={styles.bodyMetricFields}>{entryMetrics.map(metric=>{
+          <div className={styles.bodyMetricFields}>{visibleMetrics.map(metric=>{
             const cell=group.fields[metric],label=periodName(group.period)+metricName(metric),key=group.period+":"+metric,estimated=cell.kind==="estimated"&&!draft[group.period][metric]&&!realEditing.has(key),editable=!group.blocked&&!future;
             return <div className={styles.entryCell} key={metric} data-entry-cell={key} data-kind={cell.kind} data-estimated-wide={estimated&&formatRecordNumber(cell.value).length>5}>
               <label htmlFor={estimated?undefined:"entry-"+group.period+"-"+metric}>{metricName(metric)}{estimated?<span role="status">估计 · 已保存</span>:<small>{metric==="weightKg"?"kg":"%"}</small>}</label>
@@ -152,7 +154,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       </fieldset>)}
     </div>
     {future&&<p role="alert" className={styles.entryError}>不能录入未来日期的身体记录。</p>}
-    {hasUnsavedValues&&groups.some(group=>entryMetrics.some(metric=>group.fields[metric].kind==="missing"&&!draft[group.period][metric]))&&<p className={styles.entryHint}>先保存实测，再估算剩余项。</p>}
+    {hasUnsavedValues&&groups.some(group=>visibleMetrics.some(metric=>group.fields[metric].kind==="missing"&&!draft[group.period][metric]))&&<p className={styles.entryHint}>先保存实测，再估算剩余项。</p>}
     <div className={styles.entryFooter}><div>{error&&<p role="alert" className={styles.entryError}>{error}</p>}{message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button type="submit" className={styles.saveEntry} disabled={busy||!dirty||future}>{busy?busyLabel:"保存录入"}</button></div>
   </form>;
 }

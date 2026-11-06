@@ -204,6 +204,13 @@
       "when": 1793465691141,
       "tag": "0029_personal_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793961448023,
+      "tag": "0030_account_preferences",
+      "breakpoints": true
     }
   ]
 }

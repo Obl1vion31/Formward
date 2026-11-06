@@ -29,7 +29,8 @@ import {RecordDetailActions} from "@/components/record-detail-actions";
 import { EnergyEditor } from "./energy-editor";
 import { blankEnergyDay, energyValue, type EnergyAction, type EnergyDay, type EnergyInput } from "./model";
 import styles from "./energy.module.css";
-import { MobileRecordAction } from "@/components/mobile-record-action";
+import {EnergyComposition} from "./energy-composition";
+
 
 export type SaveEnergy = (input: EnergyInput) => Promise<Result<{ presentation: EnergyPresentation; message: string;changedKeys?:string[] }>>;
 export function EnergySources({ day }: { day: EnergyDay }) {
@@ -109,10 +110,10 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
  </Disclosure>;
 })}{day.record&&<details className={styles.details}><summary>更多操作</summary><button disabled={busy} onClick={()=>removeRecord({kind:"delete_energy_day",id:day.record!.id,version:day.record!.version},date+" 消耗记录")}>永久删除日记录</button></details>}</div>;};
   return <RecordWorkspace title="消耗" className={styles.workspace}>
-    {mobile&&<MobileRecordAction label="记录消耗" date={today} record={()=>edit(dayEditInput(today,state.days))}/>}
+
     {error && !editing && <p className={styles.error} role="alert">{error}</p>}{notice && <p className={styles.notice} role="status">{notice}</p>}
     <section aria-label="消耗历史趋势" data-chart-selection={selection.regionId} data-selected-date={selection.selected} data-selection-origin={selection.origin} {...selection.regionProps}>
-      <RecordTrendPanel
+      <RecordTrendPanel presentation="energy" graphic={<EnergyComposition resting={chosen?.restingKcal} active={chosen?.activeKcal}/>}
        range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="消耗" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
        date={inspected} view={()=>{const target=inspected;setViewing(target);selection.release();}} readoutLabel="选中日消耗"

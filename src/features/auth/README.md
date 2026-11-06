@@ -46,3 +46,5 @@ AI新增和修改由ai-write-policy.ts统一限制：不允许整条删除／恢
 
 
 新邀请兑换与provisionAccount在创建账号同事务初始化personal_profiles的待填写状态。既有账号不补空行；密码重设和重复创建不重置引导。个人资料、教程和演练由onboarding feature负责，不新增AI权限。
+
+preferences.ts管理按账号同步的体脂显示偏好，account_preferences与个人资料／引导版本独立；没有偏好行时按本人有效体脂实测推导默认，明确保存后优先。所有读写验证会话，写入再锁账号与核对版本；同值重试安全，跨账号拒绝。account-surfaces.tsx复用资料和安全业务用于手机底部面板，密码不持久化，关闭有草稿／忙碌保护。

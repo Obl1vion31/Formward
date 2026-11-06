@@ -11,3 +11,5 @@ layout持续挂载身份对应的确认、小助手、主题同步及DashboardHe
 page.tsx 顺序读取当前账号饮食、身体与消耗快照，委托 dashboard feature 汇总；单连接 PGlite 不并发查询。身体 actions.ts 复用 measurements，饮食 actions 调用 meals，消耗actions调用activities；保存和确认刷新对应详情及总览。工作区异步状态共用非模态反馈，表单管理自己的忙碌和失败状态；登录等工作区外流程保留原反馈。
 
 独立身体入口保留六项实测摘要、双折线图、最近记录及 Inspector；首屏实际宽度和默认区间就绪后显示图表。详细规则见各 feature README，页面不实现 SQL、营养计算或估算规则。
+
+四主页面的loading.tsx与内部Suspense复用对应业务骨架，error.tsx保留导航并提供重试／返回。手机账号菜单中的设置、资料及安全使用底部面板；独立URL仍可直达。电脑左侧为整块暖雾玻璃导航及纵向选中胶囊，不挤压正文。
