@@ -12,8 +12,8 @@ export function useChartMotion(container: RefObject<HTMLElement | null>, changeK
     const cancel = () => { cancelAnimationFrame(frame); animations.forEach(animation => animation.cancel()); animations = []; };
     const run = () => {
       if (reduced.matches || typeof Element.prototype.animate !== "function") return;
-      const duration = entered.current ? 200 : 450;
-      entered.current = true;
+      if(!entered.current){entered.current=true;return;}
+      const duration = 160;
       frame = requestAnimationFrame(() => {
         for (const element of node.querySelectorAll<SVGElement>("[data-chart-bar]")) {
           const origin = element.getAttribute("data-chart-zero") ?? "0";

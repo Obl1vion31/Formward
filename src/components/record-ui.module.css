@@ -15,3 +15,5 @@
 
 form.historyDate{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;margin:12px 0 18px}
 form.historyDate label{display:grid;gap:6px;font-size:13px}form.historyDate .historyToggle{margin:0;min-width:66px}form.historyDate input{min-height:44px;font-size:16px;border:1px solid var(--control-border);border-radius:6px;background:var(--surface-raised);color-scheme:var(--color-scheme);padding:8px 10px}
+
+.selected.selected button{box-sizing:border-box;min-height:44px;padding:8px 4px;border:0;background:none;color:var(--warm-white);font:inherit;font-size:14px;cursor:pointer}.selected.selected button:hover{color:var(--gold)}.selected.selected button:disabled{opacity:1;color:var(--muted);cursor:default}

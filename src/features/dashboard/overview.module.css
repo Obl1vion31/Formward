@@ -188,3 +188,5 @@
  .mobileTrend{padding-top:4px}.mobileTrend .relationship{margin-top:8px}.mobileTrend .plotNotes{font-size:12px}.mobileTrend .weekReadings{padding-bottom:8px}.mobileTrend .weekNumbers{gap:12px;flex-wrap:wrap}
  .relationship .axis{font-size:12px}.cards{display:none}
 }
+
+@media(min-width:701px) and (hover:hover){.weekReadings{box-sizing:border-box;min-height:72px}}

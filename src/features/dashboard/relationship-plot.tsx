@@ -85,8 +85,6 @@ export function RelationshipPlot({days,selected,selection,compactMode}:{days:Ove
         {(i % stride === 0 && days.length - 1 - i >= stride / 2 || i === days.length - 1) && <text x={x(i)} y={height - 5} textAnchor={days.length === 1 ? "middle" : i === 0 ? "start" : i === days.length - 1 ? "end" : "middle"} data-overview-date-label="" className={styles.axis}>{w < 440 && days.length <= 7 ? day.date.slice(8) : days.length > 366 ? day.date.slice(2, 7).replace("-", ".") : day.date.slice(5).replace("-", ".")}</text>}
       </g>)}
     </svg></div>
-    {!compact&&days.some(day => day.nutrition && day.mealDayStatus !== "complete") && <div className={styles.plotNotes}>
-      {days.some(day => day.nutrition && day.mealDayStatus !== "complete") && <span><i className={styles.unconfirmedKey} />空心点：未记全／待确认</span>}
-    </div>}
+
   </div>;
 }

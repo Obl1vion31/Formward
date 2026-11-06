@@ -23,6 +23,12 @@ export function measurementSummary<T extends DailyMeasurement>(records: T[], met
 }
 
 /** 同一日历锚点的实测摘要；不以最近两条冒充相邻日。 */
+export function preferredMorningDate<T extends DailyMeasurement>(records:T[],metric:MeasurementMetric,through:string,choices:Record<string,string>={}){
+ const days=buildMeasurementDays(records.filter(row=>row.recordKind!=='estimated'&&row.recordDate<=through),choices,metric);
+ return days.filter(day=>day.daytimeRecord?.fasting===true&&day.daytimeRecord[metric]!==null).map(day=>day.date).sort().at(-1)??through;
+}
+
+/** 同一日历锚点的实测摘要；不以最近两条冒充相邻日。 */
 export function measurementSummaryAt<T extends DailyMeasurement>(records:T[],metric:MeasurementMetric,date:string,choices:Record<string,string>={}){
  const valid=buildMeasurementDays(records.filter(r=>r.recordKind!=='estimated'),choices,metric).map(day=>day.daytimeRecord).filter((row):row is T=>!!row&&row.fasting===true&&row[metric]!==null);
  const start=addCalendarDays(date,-6),window=valid.filter(r=>r.recordDate>=start&&r.recordDate<=date).sort((a,b)=>a.recordDate.localeCompare(b.recordDate));

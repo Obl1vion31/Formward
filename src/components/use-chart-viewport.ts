@@ -1,10 +1,10 @@
 "use client";
-import {useEffect,useState,type RefObject} from "react";
+import {useLayoutEffect,useState,type RefObject} from "react";
 /** 按实际字体测量刻度；数据范围未变化时，悬停和选日不改变绘图区。 */
 export function useChartViewport(ref:RefObject<HTMLElement|null>,labels:readonly (string|number)[],minimumLeft=54){
  const key=labels.map(String).join("|");
  const [measured,setMeasured]=useState({width:0,left:minimumLeft,key:""});
- useEffect(()=>{
+ useLayoutEffect(()=>{
   const node=ref.current;if(!node)return;
   let active=true;
   const canvas=document.createElement("canvas"),context=canvas.getContext("2d");
@@ -16,9 +16,9 @@ export function useChartViewport(ref:RefObject<HTMLElement|null>,labels:readonly
    const next={width:node.clientWidth,left:Math.max(minimumLeft,Math.ceil(labelWidth+12)),key};
    setMeasured(previous=>previous.width===next.width&&previous.left===next.left&&previous.key===next.key?previous:next);
   };
-  const observer=new ResizeObserver(measure);observer.observe(node);
+  measure();const observer=new ResizeObserver(measure);observer.observe(node);
   void document.fonts.ready.then(measure);
   return()=>{active=false;observer.disconnect();};
  },[ref,key,minimumLeft]);
- return {width:measured.key===key?measured.width:0,left:measured.left};
+ return {width:measured.width,left:measured.left};
 }

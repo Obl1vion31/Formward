@@ -60,7 +60,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       flags={overviewFlags(day)} flagVariants={days.map(overviewFlags)}
       title="热量收支" unit="kcal"
       options={<InlineChartControls><label><input type="checkbox" checked={estimates} onChange={event=>setEstimates(event.target.checked)} aria-label="显示体重估计"/>显示体重估计</label></InlineChartControls>}
-      legend={<><span><i style={{background:"var(--data-blue)"}}/>摄入</span><span><i style={{background:"var(--data-red)"}}/>消耗</span><span><i style={{background:"var(--data-surplus)"}}/>盈余</span><span><i style={{background:"var(--data-deficit)"}}/>缺口</span></>}
+      legend={<><span><i style={{background:"var(--data-blue)"}}/>摄入</span><span><i style={{background:"var(--data-red)"}}/>消耗</span><span><i style={{background:"var(--data-surplus)"}}/>盈余</span><span><i style={{background:"var(--data-deficit)"}}/>缺口</span><span><i style={{background:"transparent",border:"1px solid var(--data-blue)",borderRadius:"50%",width:7,height:7}}/>空心点：未记全／待确认</span></>}
     >{dates.length?<RelationshipPlot days={days} selected={selected} selection={selection}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>}
     {!mobile&&<RangeCoverage key={from+to} days={days} today={today} from={from} to={to}/>}
     {dialogDay&&<EditorDialog title={dialogDay.date+" · 当日记录"} titleParts={[dialogDay.date,"当日记录"]} stableScroll close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}
@@ -100,7 +100,7 @@ function OverviewDayDetails({day}:{day:OverviewDay}){
 }
 
 /** 服务端已算好当天配对和七天统计，这里只排版与格式化。 */
-function OverviewReadings({day,mobile,variants}:{day?:OverviewDay;mobile:boolean;variants:OverviewDay[]}){
+export function OverviewReadings({day,mobile,variants}:{day?:OverviewDay;mobile:boolean;variants:OverviewDay[]}){
  const group=useRef<HTMLElement>(null),[widths,setWidths]=useState<number[]>([]);
  const readings=JSON.stringify(variants.map(row=>[signed(row.weightChangeKg),formatIntegerNumber(row.week?.energyBalance==null?null:Math.abs(row.week.energyBalance)),signed(row.week?.weightChangeKg??null)]));
  useEffect(()=>{

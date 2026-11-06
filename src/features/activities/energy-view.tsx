@@ -129,7 +129,7 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
     </section>
     <DailyRecords history={<RecordHistory today={today} dates={historyDates.filter(date=>!recentDates.includes(date))} renderRow={renderDay} view={setViewing}/>}>{recentDates.map(renderDay)}</DailyRecords>
     {viewing&&<EditorDialog title={viewing+" · 消耗记录"} busy={busy} close={()=>setViewing(null)}>{error&&<p role="alert" className={styles.error}>{error}</p>}{details(viewing)}</EditorDialog>}
-    {editing && <EditorDialog title={editing.kind === "save_energy_profile" ? "公式资料" : editing.kind === "save_activity" ? "活动记录" : "每日消耗"} busy={busy} close={() => { if (!busy) { setEditing(null); setError(""); } }}><EnergyEditor addActivity={addActivity} dayRecords={state.days} initial={editing} error={error} busy={busy} save={execute} saveBatch={execute} sources={sources} removeSource={remove} activities={state.activities} /></EditorDialog>}
+    {editing && <EditorDialog routeEntry={initialEntry&&editing.kind==="save_energy_day"&&editing.date===initialDate} title={editing.kind === "save_energy_profile" ? "公式资料" : editing.kind === "save_activity" ? "活动记录" : "每日消耗"} busy={busy} close={() => { if (!busy) { setEditing(null); setError(""); } }}><EnergyEditor addActivity={addActivity} dayRecords={state.days} initial={editing} error={error} busy={busy} save={execute} saveBatch={execute} sources={sources} removeSource={remove} activities={state.activities} /></EditorDialog>}
   </RecordWorkspace>;
 }
 

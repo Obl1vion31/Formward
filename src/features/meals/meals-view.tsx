@@ -1,5 +1,4 @@
 "use client";
-import {TrendBackLink} from "@/components/chart-transition";
 import {numericDraftValue} from "@/components/form-draft";
 import recordUI from "@/components/record-ui.module.css";
 import {RecordWorkspace,RecordTrendPanel,InlineChartControls,CustomRecordRange} from "@/components/record-trend-panel";
@@ -96,7 +95,6 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   const visibleFoods=state.foods.filter(f=>!f.deletedAt&&(foodCategory==="all"||(f.category??"ingredient")===foodCategory)&&`${f.name} ${f.brand??""} ${f.preparation??""}`.toLowerCase().includes(foodQuery.toLowerCase()));
   return <RecordWorkspace title={tab==="foods"?"食材库":"饮食"} className={styles.workspace} data-active-tab={tab} data-shared-route={initialTrend?true:undefined}>
     {tab==="meals"?<>
-      {mobile&&initialTrend&&<div className="trend-return"><TrendBackLink/></div>}
 
       <div data-chart-selection={chart.regionId} data-selected-date={chart.selected} data-selection-origin={chart.origin} {...chart.regionProps}>
       <RecordTrendPanel presentation="nutrition" graphic={<NutritionComposition totals={chosen?.totals}/>}
@@ -121,7 +119,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
     {historyOpen&&<EditorDialog title={selectedDate+" · 饮食记录"} titleParts={[selectedDate,"饮食记录"]} stableScroll close={()=>setHistoryOpen(false)} busy={busy}>{error&&<p role="alert" className={styles.error}>{error}</p>}{dayDetails(selectedDate)}</EditorDialog>}
 
     {viewingFood&&<EditorDialog title="食材详情" close={()=>setViewingFood(null)} busy={false}><FoodDetails food={viewingFood}/><div className={styles.actions}><button className={recordUI.secondary} onClick={()=>{setEditing({kind:"save_food",...viewingFood});setViewingFood(null);}}>编辑</button>{viewingFood.id&&<button className={recordUI.secondary} disabled={busy} onClick={()=>{void confirmPurge({id:viewingFood.id!,version:viewingFood.version!,recordType:"food",name:viewingFood.name});}}>删除</button>}</div></EditorDialog>}
-    {editing&&<EditorDialog wide={editing.kind==="save_meal"} title={editing.kind==="save_food"?"食材规格":editing.id?"编辑餐次":"记录一餐"} close={()=>{if(!busy){setEditing(null);setError("");}}} busy={busy}>{editing.kind==="save_food"?<FoodEditor initial={editing} error={error} busy={busy} save={async (f,allowMissingImages)=>{if(await perform({kind:"save_food",...f},allowMissingImages))setEditing(null);}}/>:editing.kind==="save_meal"?<MealEditor recentMeals={state.meals} historicalItems={state.meals.find(m=>m.id===editing.id)?.items??[]} historicalFoods={state.meals.find(m=>m.id===editing.id)?.items.flatMap(i=>i.foodSnapshot?[i.foodSnapshot]:[])??[]} initial={editing} foods={state.foods} error={error} busy={busy} save={async (m,allowMissingImages)=>{if(await perform({kind:"save_meal",...m},allowMissingImages))setEditing(null);}}/>:null}</EditorDialog>}
+    {editing&&<EditorDialog routeEntry={initialEntry&&editing.kind==="save_meal"&&editing.date===initialDate} wide={editing.kind==="save_meal"} title={editing.kind==="save_food"?"食材规格":editing.id?"编辑餐次":"记录一餐"} close={()=>{if(!busy){setEditing(null);setError("");}}} busy={busy}>{editing.kind==="save_food"?<FoodEditor initial={editing} error={error} busy={busy} save={async (f,allowMissingImages)=>{if(await perform({kind:"save_food",...f},allowMissingImages))setEditing(null);}}/>:editing.kind==="save_meal"?<MealEditor recentMeals={state.meals} historicalItems={state.meals.find(m=>m.id===editing.id)?.items??[]} historicalFoods={state.meals.find(m=>m.id===editing.id)?.items.flatMap(i=>i.foodSnapshot?[i.foodSnapshot]:[])??[]} initial={editing} foods={state.foods} error={error} busy={busy} save={async (m,allowMissingImages)=>{if(await perform({kind:"save_meal",...m},allowMissingImages))setEditing(null);}}/>:null}</EditorDialog>}
   </RecordWorkspace>;
 }
 export { Inspector as EditorDialog } from "@/components/inspector";

@@ -22,7 +22,7 @@ record-updates.tsx沿用现有变化检测并发出formward-record-context-stale
 
 `page-loading.tsx` 提供根布局使用的 `PageLoadingProvider` 和路由后备 `RouteLoading`，`page-loading-state.ts` 提供绑定真实等待状态的 `usePageLoading({ active, label })` 与共享 Context。组件模块只导出组件，保留 Fast Refresh 的状态边界。操作立即反馈，工作区超过200ms显示非模态状态；以下模态反馈仅用于工作区外流程：多个来源各自登记，全部结束才收起，路由阶段交接不重置延迟。模态层使用原生 dialog，以视口宽度覆盖滚动条预留区域，位于业务弹窗上方，等待时阻止操作、Escape 和 Tab，结束后恢复可用焦点。保存前若需要用户确认，等待层暂停展示，确认结束后按实际请求恢复，避免盖住确认按钮。异常与卸载清理各自状态，不自动重试。首屏路由后备可由服务器输出，客户端模态层出现后隐藏后备。
 
-`loading-link.tsx` 包装 Next.js Link，通过其后代的 useLinkStatus 登记实际导航等待；保留预取、新标签和下载语义，预取与即时页面操作不显示加载层。程序导航使用 useTransition，再将 pending 交给共享加载组件。
+`loading-link.tsx`包装Next.js Link并保留草稿保护、预取、新标签和下载语义。普通导航不登记全局等待；直接录入不预取，保存与真实任务继续使用原反馈。
 
 `scroll-lock.ts` 为 Inspector 和加载层共用滚动锁。首次锁定保存 html／body 原 overflow 和 body paddingRight，仅补偿 body 实际释放的宽度；Dashboard 已预留稳定 gutter 时不重复补偿；最后一层释放时恢复，不重复叠加，也不因一层提前关闭而解除其他层。
 
@@ -76,3 +76,5 @@ record-detail-actions.tsx在已展开的餐次／运动中统一编辑及更多�
 Inspector的titleParts仅为只读日期详情按完整文字块换行，stableScroll只在该类详情预留滚动条空间；其他填写窗口沿用原布局和草稿保护。极窄或放大视口中标题与关闭按钮分行，44px关闭操作保持可到达。
 
 workspace-skeleton.tsx与四主页面共用RecordTrendPanel读数槽位，route loading和内部Suspense统一骨架；只对占位扫光。导航不注册全局加载提示，保存、估算与认证等待保持。chart-transition将骨架几何与真实图形注册分开，已有真实小图先到槽位、真实数据接管且不重复入场；失败和8秒等待提供重试与返回。metric-card-rail采用单张宽卡与约24px下一卡预览，按账号／设备一次8px双次引导，交互即取消。surface-motion.ts提供来源矩形与面板的可中断裁切／位移交接，Inspector和GlassMenu退出后再卸载。
+
+workspace-frame.tsx在四主页面共享标题、返回和首页固定记录入口；页面仅返回业务内容，loading.tsx为单一加载边界。workspace-skeleton.tsx按正式区块呈现，SkeletonBlock把底色与扫光裁切在同一圆角。entry-surface.tsx持有即时录入面板，entry-surface-state.tsx经portal把原表单及自定义标题接入同一外壳，显式接续草稿／关闭Context，保留原业务Context。初次设备识别由外壳承接，图形测量在首绘前完成；use-chart-motion跳过首次生长，只保留主动数据变更的短反馈。来源无候选时不显示覆盖保存按钮的空建议框。

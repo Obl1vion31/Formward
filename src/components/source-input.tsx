@@ -32,6 +32,7 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
     };
   }, [open]);
   const options = sources.filter(source => source.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
+  const visible=open&&options.length>0;
   function showHistory() { setQuery(""); setOpen(true); setActive(-1); setColumn(0); }
   function closeHistory() { setOpen(false); setActive(-1); }
   function choose(source: string) { if (disabled || busy) return; onChange(source); input.current?.focus({ preventScroll: true }); closeHistory(); }
@@ -57,7 +58,7 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
   }}>
     <label htmlFor={id}>{label}{hint&&<small>{hint}</small>}</label>
     <input ref={input} id={id} role="combobox" aria-label={label} autoComplete="off" maxLength={maxLength} placeholder="输入或选择来源" value={value} disabled={disabled || busy}
-      aria-autocomplete="list" aria-haspopup="grid" aria-expanded={open} aria-controls={`${id}-options`} aria-activedescendant={open && active >= 0 && active < options.length ? `${id}-cell-${active}-${column}` : undefined}
+      aria-autocomplete="list" aria-haspopup="grid" aria-expanded={visible} aria-controls={`${id}-options`} aria-activedescendant={open && active >= 0 && active < options.length ? `${id}-cell-${active}-${column}` : undefined}
       onFocus={showHistory} onClick={showHistory}
       onChange={event => { onChange(event.target.value); setQuery(event.target.value); setOpen(true); setActive(-1); setColumn(0); setError(""); }}
       onKeyDown={event => {
@@ -73,7 +74,7 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
         if (open && active >= 0 && (event.key === "ArrowLeft" || event.key === "ArrowRight")) { event.preventDefault(); setColumn(event.key === "ArrowRight" ? 1 : 0); }
         if (event.key === "Enter" && open && active >= 0 && options[active]) { event.preventDefault(); if (column === 1) remove(options[active]); else choose(options[active]); }
       }} />
-    <div id={`${id}-options`} className={styles.sourceOptions} role="grid" aria-label={`${label}历史建议`} hidden={!open}>
+    <div id={`${id}-options`} className={styles.sourceOptions} role="grid" aria-label={`${label}历史建议`} hidden={!visible}>
       {options.map((source, index) => <div role="row" key={source}>
         <div id={`${id}-cell-${index}-0`} role="gridcell" aria-selected={index === active && column === 0} className={styles.sourceOption}><button className={styles.sourcePick} type="button" tabIndex={-1} disabled={disabled || busy} onPointerDown={event => { if (event.pointerType === "mouse") event.preventDefault(); }} onClick={() => choose(source)}>{source}</button></div>
         <div id={`${id}-cell-${index}-1`} role="gridcell" aria-selected={index === active && column === 1}><button type="button" aria-label={`移除来源建议 ${source}`} title="移除来源建议" disabled={disabled || busy} onPointerDown={event => { if (event.pointerType === "mouse") event.preventDefault(); }} onClick={() => remove(source)}>×</button></div>

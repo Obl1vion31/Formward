@@ -10,6 +10,7 @@ export type ChartTransitionState = {
   register: (target: ChartTarget) => () => void;
   restore: (rail: HTMLElement) => void;
   back: () => void;
+  invalidate: () => void;
 };
-export const ChartTransitionContext = createContext<ChartTransitionState>({ preview:null, navigate: async()=>{}, register:()=>()=>{}, restore:()=>{}, back:()=>{} });
+export const ChartTransitionContext = createContext<ChartTransitionState>({ preview:null, navigate: async()=>{}, register:()=>()=>{}, restore:()=>{}, back:()=>{}, invalidate:()=>{} });
 export const useChartTransition = () => useContext(ChartTransitionContext);

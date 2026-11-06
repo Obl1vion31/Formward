@@ -12,13 +12,13 @@ import { DailyRecords,DailyRecordRow } from "@/components/daily-records";
 import { RecordHistory } from "@/components/record-history";
 import { Inspector } from "@/components/inspector";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useId, useRef, useState } from "react";
 import { buildMeasurementDays, recentMeasurementDays } from "./days";
 import { addCalendarDays, measurementCalendarPage, measurementCalendarRange } from "./calendar";
 import type {AccountPreferences} from "@/features/auth/preferences";
 import {useBodyPreferences} from "./preferences-control";
 import {BodyFatContext,useBodyMetrics} from "./visibility";
-import { measurementSummaryAt } from "./summary";
+import { measurementSummaryAt,preferredMorningDate } from "./summary";
 import { calendarOrdinal, measurementDateTicks, measurementRange, measurementTrend, normalScale, type MeasurementInterval, type MeasurementMetric, type MeasurementRange } from "./trend";
 import styles from "./measurements-view.module.css";
 import { estimateModeLabel, estimateUserExplanation } from "./estimate-explanation";
@@ -27,7 +27,7 @@ import { MeasurementEntry } from "./measurement-entry";
 import { timezoneLabel } from "./timezone";
 import { useMobileMode } from "@/components/use-mobile-mode";
 import type { TrendRoute } from "@/components/metric-trend-model";
-import { TrendBackLink } from "@/components/chart-transition";
+import {useChartTransition} from '@/components/chart-transition-state';
 import { MorningWeightPlot } from "./morning-weight-plot";
 export type { MeasurementDisplay } from "./entry-state";
 
@@ -76,7 +76,8 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const [rulesOpen, setRulesOpen] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [drawer, setDrawer] = useState<DrawerView | null>(initialDate&&!initialTrend ? initialPeriod?{kind:"entry",date:initialDate,period:initialPeriod}:{kind:"day",date:initialDate,metric:"weightKg"} : null);
-  const preference=useBodyPreferences(preferences,!!drawer),metrics=preference.showBodyFat?['weightKg','bodyFatPercent'] as const:['weightKg'] as const;
+  const transition=useChartTransition(),[selectedMetric,setSelectedMetric]=useState<MeasurementMetric>('weightKg');
+  const preference=useBodyPreferences(preferences,!!drawer),activeMetric:MeasurementMetric=preference.showBodyFat?selectedMetric:'weightKg',metrics=preference.showBodyFat?['weightKg','bodyFatPercent'] as const:['weightKg'] as const;
   function updated(result: Extract<EntryResult, { ok: true }>) { setSourceResult(null); setActionResult({ ...result, base: serverRecords }); }
 
   useEffect(()=>{const latest=()=>{setDrawer(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
@@ -86,17 +87,14 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const recentInterval = { start: catalog.start, end: today || catalog.end };
   const recent = recentMeasurementDays(displayedRecords, recentInterval, choices, 7).filter(day => day.date === today || (!dates.some(row => row.date === day.date && row.reminderSkipped) && measurementNeedsEntry(records, day.date, choices,metrics)));
   const chartDates=measurementCalendarPage(range,calendarOrdinal(range.end)-calendarOrdinal(range.start)+1).reverse();
-  const availablePoints=metrics.flatMap(metric=>measurementTrend(visibleRecords,metric,showEvening,choices).points).filter(row=>row.recordDate<=(today||range.end));
-  const defaultPoints=availablePoints.some(row=>row.recordKind!=="estimated")?availablePoints.filter(row=>row.recordKind!=="estimated"):availablePoints;
-  const fallbackDate=defaultPoints.map(row=>row.recordDate).sort().at(-1)??range.end;
+  const fallbackDate=preferredMorningDate(visibleRecords,activeMetric,today||range.end,choices);
   const selection=useChartDateSelection(chartDates,initialDate??fallbackDate,fallbackDate,calendarOpen,`${showEvening}:${showEstimates}:${JSON.stringify(choices)}`),activeDate=selection.selected;
   const selectedPeriod=selection.active?chartPeriod:undefined;
   const weight=measurementSummaryAt(records,'weightKg',activeDate,choices),fat=measurementSummaryAt(records,'bodyFatPercent',activeDate,choices);
-  const readings=preference.showBodyFat?[
-   {label:'晨间体重',value:formatRecordNumber(weight.value),unit:'kg'}, {label:'晨间体脂率',value:formatRecordNumber(fat.value),unit:'%'},
-   {label:'7日平均体重',value:formatRecordNumber(weight.average),unit:'kg'}, {label:'7日平均体脂率',value:formatRecordNumber(fat.average),unit:'%'}
-  ]:[{label:'晨间体重',value:formatRecordNumber(weight.value),unit:'kg'},{label:'较前一日',value:formatDifference(weight.previousChange,'weightKg',false)??'—',unit:'kg'},
-   {label:'7日变化',value:formatDifference(weight.change,'weightKg',false)??'—',unit:'kg',note:weight.start&&weight.end?weight.start.slice(5)+'—'+weight.end.slice(5):undefined}, {label:'7日平均体重',value:formatRecordNumber(weight.average),unit:'kg'}];
+  const selectedSummary=activeMetric==='weightKg'?weight:fat,deltaUnit=activeMetric==='weightKg'?'kg':'百分点';
+  const readings=[{label:'晨间'+metricName(activeMetric),value:formatRecordNumber(selectedSummary.value),unit:unitFor(activeMetric),inlineUnit:true,reserveNote:true,
+   note:'较前一日 '+(formatDifference(selectedSummary.previousChange,activeMetric,false)??'—')+' '+deltaUnit+'\n7日均值 '+formatRecordNumber(selectedSummary.average)+' '+unitFor(activeMetric)+' · 7日变化 '+(formatDifference(selectedSummary.change,activeMetric,false)??'—')+' '+deltaUnit+(selectedSummary.start&&selectedSummary.end?' ('+selectedSummary.start.slice(5)+'—'+selectedSummary.end.slice(5)+')':'')}];
+  if(!preference.showBodyFat&&selectedMetric!=='weightKg')setSelectedMetric('weightKg');
   function selectRange(nextMode: MeasurementRange, nextInterval = customRange) {
     measurementRange(latestDate,nextMode,nextMode==="custom"?nextInterval:{start:earliestDate,end:latestDate});
     setMode(nextMode);
@@ -121,8 +119,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   }
 
   return <BodyFatContext value={preference.showBodyFat}><RecordWorkspace title="身体" headingId="body-records-title" className={styles.workspace} aria-labelledby="body-records-title" data-shared-route={initialTrend?true:undefined}>
-    {mobileMode&&initialTrend&&<div className="trend-return"><TrendBackLink/></div>}
-    <div className="body-preference"><label>显示体脂率<input type="checkbox" role="switch" aria-label="显示体脂率" checked={preference.showBodyFat} disabled={preference.busy||!!drawer} onChange={event=>void preference.change(event.target.checked)}/></label>{preference.error&&<p role="status">{preference.error}</p>}</div>
+    <div className="body-metric-picker" role={preference.showBodyFat?"group":undefined} aria-label="查看身体指标">{preference.showBodyFat?(["weightKg","bodyFatPercent"] as const).map(metric=><button key={metric} type="button" aria-pressed={activeMetric===metric} onClick={()=>{if(metric!==activeMetric){selection.choose(activeDate);transition.invalidate();setSelectedMetric(metric);}}}>{metricName(metric)}</button>):<span>体重</span>}</div>
     <section data-chart-selection={selection.regionId} data-selected-date={activeDate} data-selection-origin={selection.origin} {...selection.regionProps} aria-label="身体指标趋势" data-range={mode} style={{visibility:mobileMode===null||!today?"hidden":undefined}}>
       <RecordTrendPanel presentation="body"
        range={<ChartRanges value={mode} items={[...ranges.map(item=>[item.value,item.label]),["custom","自定义"]]} change={value=>{if(value==="custom"){setDraftRange(range);setCalendarOpen(true);}else selectRange(value as MeasurementRange);}}/>}
@@ -130,7 +127,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
        date={activeDate} view={()=>{const target={date:activeDate,period:selection.active?chartPeriod:undefined};setDrawer({kind:"day",...target,metric:"weightKg"});selection.release();}} readoutLabel="选中日身体记录"
        metrics={readings}
 
-       title="体重 · kg"
+       title={metricName(activeMetric)+" · "+unitFor(activeMetric)}
        options={<ChartOptions label="图表选项">
          <div className={styles.chartControls}><label className={styles.toggle}><span>晚间</span><input aria-label="晚间数据" type="checkbox" checked={showEvening} onChange={event=>setShowEvening(event.target.checked)}/></label><label className={styles.toggle}><span>估计</span><input aria-label="估计补全" type="checkbox" checked={showEstimates} onChange={event=>setShowEstimates(event.target.checked)}/></label><button type="button" aria-expanded={rulesOpen} onClick={()=>setRulesOpen(!rulesOpen)}>估算规则 {rulesOpen?"−":"＋"}</button></div>
          {rulesOpen && <section id="measurement-estimate-rules" className={styles.rules} aria-label="估算规则">
@@ -140,12 +137,11 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
       </section>}
        </ChartOptions>}
        legend={<><span><i style={{background:"var(--gold)",borderRadius:"50%"}}/>晨间空腹</span>{showEvening&&<span><i style={{background:"var(--data-deficit)",borderRadius:"50%"}}/>晚间</span>}{showEstimates&&visibleRecords.some(row=>row.recordKind==="estimated")&&<span>虚线 · 估计</span>}</>}
-      ><div data-chart-metric="weightKg"><TrendPlot records={visibleRecords} metric="weightKg" showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
-       {preference.showBodyFat&&<div className={styles.additionalMetric} data-chart-metric="bodyFatPercent"><div className={styles.metricHeading}><h2>体脂 · %</h2></div><TrendPlot records={visibleRecords} metric="bodyFatPercent" showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>}
+      ><div data-chart-metric={activeMetric}><TrendPlot records={visibleRecords} metric={activeMetric} showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
       </RecordTrendPanel>
     </section>
     <DailyRecords history={<RecordHistory today={today} dates={(catalog.start&&catalog.end?measurementCalendarPage(catalog,calendarOrdinal(catalog.end)-calendarOrdinal(catalog.start)+1):[]).filter(date=>!recent.some(day=>day.date===date))} renderRow={renderDay} view={inspectDay}/>}>{recent.map(day=>renderDay(day.date))}</DailyRecords>
-    {drawer && <MeasurementInspector view={drawer} records={records} sources={sources} today={today} timezone={timezone} actions={sourceActions} onUpdated={updated} choices={choices} onChoose={chooseRecord} onClose={() => setDrawer(null)} />}
+    {drawer && <MeasurementInspector routeEntry={!!initialPeriod&&drawer.kind==="entry"&&drawer.date===initialDate} view={drawer} records={records} sources={sources} today={today} timezone={timezone} actions={sourceActions} onUpdated={updated} choices={choices} onChoose={chooseRecord} onClose={() => setDrawer(null)} />}
   </RecordWorkspace></BodyFatContext>;
 }
 
@@ -208,8 +204,8 @@ function formatDifference(value: number | null, metric: MeasurementMetric, withU
   return value === null ? withUnit ? "—" : null : `${value > 0 ? "+" : ""}${value.toFixed(2)}${withUnit ? metric === "weightKg" ? " kg" : " 百分点" : ""}`;
 }
 type InspectorSelection = { date: string; recordId: string | null; metric: MeasurementMetric; period?: "daytime" | "evening" };
-function MeasurementInspector({ view, records, sources, today, timezone, actions, onUpdated, choices, onChoose, onClose }: {
-  view: DrawerView; records: MeasurementDisplay[]; sources: string[]; today: string; timezone: string; actions: MeasurementActions;
+function MeasurementInspector({ routeEntry=false,view, records, sources, today, timezone, actions, onUpdated, choices, onChoose, onClose }: {
+  routeEntry?:boolean;view: DrawerView; records: MeasurementDisplay[]; sources: string[]; today: string; timezone: string; actions: MeasurementActions;
   onUpdated: (result: Extract<EntryResult, { ok: true }>) => void; choices: Record<string, string>;
   onChoose: (date: string, period: "daytime" | "evening", id: string) => void; onClose: () => void;
 }) {
@@ -234,7 +230,7 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
   const navigationKey = editor ? `entry:${editor.date}` : active ? `${active.date}:${active.recordId ?? active.period ?? "candidates"}` : "history";
   function requestClose(){dismiss.current();}
   useEffect(() => {
-    content.current!.scrollTop = 0;
+    if(content.current)content.current.scrollTop = 0;
     heading.current?.focus({ preventScroll: true });
   }, [navigationKey]);
   function entryUpdated(result: Extract<EntryResult, { ok: true }>) {
@@ -244,7 +240,7 @@ function MeasurementInspector({ view, records, sources, today, timezone, actions
     }
     onUpdated(result);
   }
-  return <Inspector title={editor?"身体录入 "+editor.date:"身体记录详情"} close={onClose} onCloseReady={close=>{dismiss.current=close;}} className={styles.drawer} header={(
+  return <Inspector routeEntry={routeEntry} title={editor?"身体录入 "+editor.date:"身体记录详情"} close={onClose} onCloseReady={close=>{dismiss.current=close;}} className={styles.drawer} header={(
     <header className={styles.drawerHeader} data-editing={!!editor}><div>
       <h2 ref={heading} tabIndex={-1} id="measurement-drawer-title">{editor ? <>身体录入<time className={styles.entryHeadingDate} dateTime={editor.date}>{displayDate(editor.date)}</time></> : active ? displayDate(active.date) || "记录详情" : "记录详情"}</h2>
       {!editor&&<p>{(active?weekday(active.date):"")+" · 晨间／晚间"}</p>}
@@ -324,7 +320,8 @@ function FullTrendPlot({ records, metric, showEvening, interval, selectedDate, s
   const plotId = useId(), mobile=useMobileMode();
   const [viewportWidth, setViewportWidth] = useState(0);
   const [hintRecordId, setHintRecordId] = useState<string | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
+    setViewportWidth(viewport.current!.clientWidth);
     const observer = new ResizeObserver(([entry]) => setViewportWidth(entry.contentRect.width));
     observer.observe(viewport.current!);
     return () => observer.disconnect();

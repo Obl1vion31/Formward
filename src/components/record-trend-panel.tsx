@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useRef,useState,type ReactNode,type ComponentPropsWithoutRef,type CSSProperties} from "react";
 import {useMobileMode} from "./use-mobile-mode";
+import {SkeletonBlock} from './skeleton-block';
 import {SelectedDateHeading} from "./daily-records";
 import styles from "./record-trend-panel.module.css";
 export type RecordMetric={id?:string;label:string;value:string;unit:string;tone?:"blue"|"red"|"gold";note?:string;reserveNote?:boolean;inlineUnit?:boolean};
@@ -44,7 +45,7 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
     if(values.every((width,index)=>width<=available*weights[index%count]/total+1))break;
     count=count===6?3:count>2?2:1;
    }
-   if(presentation){const relevant=presentation==='nutrition'?values.slice(1):values;const cols=presentation==='nutrition'?3:2;group.dataset.richStack=String(relevant.some(width=>width+24>(group.clientWidth-gap*(cols-1))/cols));}
+   if(presentation){group.dataset.heroStack=String(presentation!=='body'&&values[0]+160>group.clientWidth);const relevant=presentation==='nutrition'?values.slice(1):values;const cols=presentation==='nutrition'?3:2;group.dataset.richStack=String(relevant.some(width=>width+24>(group.clientWidth-gap*(cols-1))/cols));}
    setColumnLimit(current=>current===count?current:count);
   };
   const observer=new ResizeObserver(measure);observer.observe(group);
@@ -61,8 +62,8 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
    const notes=[...new Set([metric.note,...noteVariants.map(row=>row[index])].filter((value):value is string=>Boolean(value)))];
    return <div key={metric.id??index} className={styles.metric}>
     <div className={styles.metricLabel} data-metric-label>{labels.map(label=><span key={label} className={styles.metricMeasure} aria-hidden="true">{label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span>)}<span>{metric.label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span></div>
-    <strong aria-hidden={loading||undefined} data-metric-number className={metric.tone?styles[metric.tone]:undefined}><span>{metric.value}</span>{metric.inlineUnit&&<small>{metric.unit}</small>}</strong>
-    <div className={styles.metricNote} data-metric-note>{notes.map(note=><em key={note} className={styles.metricMeasure} aria-hidden="true">{note}</em>)}{metric.note?<em>{metric.note}</em>:metric.reserveNote?<em className={styles.metricMeasure} aria-hidden="true">{"\u00a0"}</em>:null}</div>
+    <strong aria-hidden={loading||undefined} data-metric-number className={metric.tone?styles[metric.tone]:undefined}>{loading?<SkeletonBlock width={index===0?"2.5em":"2em"} height={index===0?36:28} radius={18}/>:<><span>{metric.value}</span>{metric.inlineUnit&&<small>{metric.unit}</small>}</>}</strong>
+    <div className={styles.metricNote} data-metric-note data-reserve-note={metric.reserveNote||undefined}>{notes.map(note=><em key={note} className={styles.metricMeasure} aria-hidden="true">{note}</em>)}{loading&&metric.reserveNote?<SkeletonBlock width="75%" height={presentation==="body"?42:14} radius={7}/>:metric.note?<em>{metric.note}</em>:metric.reserveNote?<em className={styles.metricMeasure} aria-hidden="true">{"\u00a0"}</em>:null}</div>
     {index===0&&graphic&&<div className={styles.metricGraphic}>{graphic}</div>}
    </div>;
   })}</div>

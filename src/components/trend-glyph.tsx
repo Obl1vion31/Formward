@@ -8,11 +8,11 @@ import { useChartTransition } from "./chart-transition-state";
 export function TrendGlyph({ model, target = false, skeleton = false, x, y, width, height, className }: {
   model: MetricTrendModel; target?: boolean; skeleton?: boolean; x?: number; y?: number; width?: number | string; height?: number | string; className?: string;
 }) {
-  const ref = useRef<SVGSVGElement>(null), transition = useChartTransition(), key = trendKey(model);
+  const ref = useRef<SVGSVGElement>(null), {register} = useChartTransition(), key = trendKey(model);
   useLayoutEffect(() => {
     if (!target || !ref.current) return;
-    return transition.register({ kind: model.kind, element: ref.current, model, skeleton });
-  }, [target, skeleton, key, transition, model]);
+    const snapshot=JSON.parse(key) as MetricTrendModel;return register({ kind: snapshot.kind, element: ref.current, model:snapshot, skeleton });
+  }, [target, skeleton, key, register]);
   const color = trendColor(model.kind), count = model.points.length, slot = 240 / Math.max(1, count);
   const pointX = (index: number) => model.kind === "morning-weight" ? count > 1 ? 5 + index / (count - 1) * 230 : 120 : (index + .5) * slot;
   const pointY = (value: number) => 115 - (value - model.min) / (model.max - model.min || 1) * 110;

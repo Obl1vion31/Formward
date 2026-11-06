@@ -9,7 +9,7 @@ import type { MetricTrendModel } from "./metric-trend-model";
 import { TrendGlyph } from "./trend-glyph";
 
 type Rect = { left: number; top: number; width: number; height: number };
-type Flight = { id: number; model: MetricTrendModel; rect: Rect; direction: "forward" | "back"; landing: boolean; animation?: Animation; hidden?: Element; deadline?: ReturnType<typeof setTimeout> };
+type Flight = { id: number; model: MetricTrendModel; rect: Rect; direction: "forward" | "back"; landing: boolean; destination?: Rect; arrived?: boolean; ready?: boolean; animation?: Animation; hidden?: Element; deadline?: ReturnType<typeof setTimeout> };
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const rectOf = (element: SVGSVGElement): Rect => {
   // 嵌套 SVG 的 DOMRect 可能只包住非空数据，不能把缺测留白裁掉再放大。
@@ -29,26 +29,30 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     const current=active.current;active.current=null;clearTimeout(current?.deadline);current?.animation?.cancel();current?.hidden?.removeAttribute("data-chart-travelling");
     document.documentElement.removeAttribute("data-chart-travel");setFlight(null);
   },[]);
-  const land = useCallback((element: SVGSVGElement, skeleton=false) => {
-    const current = active.current, node=overlay.current;
-    if(!current||!node||!element.isConnected)return;
-    const dest=rectOf(element);if(!dest.width||!dest.height)return;
-    if(reduced()||typeof node.animate!=="function"){clear();return;}
-    const from=getComputedStyle(node).transform;current.animation?.cancel();current.hidden?.removeAttribute("data-chart-travelling");
-    current.landing=true;current.hidden=element;element.setAttribute("data-chart-travelling", "true");
-    const scale=dest.width/current.rect.width;
-    // 两个数据平面的长宽比相同，只允许等比缩放。
-    if(Math.abs(dest.height/current.rect.height-scale)>.035){clear();return;}
-    const animation=node.animate([{transform:from==="none"?"translate(0px,0px) scale(1)":from},{transform:`translate(${dest.left-current.rect.left}px,${dest.top-current.rect.top}px) scale(${scale})`}],{duration:460,easing:"cubic-bezier(.16,1,.3,1)",fill:"forwards"});
-    current.animation=animation;
-    void animation.finished.then(()=>{
-      if(active.current?.id!==current.id||current.animation!==animation)return;
-      if(skeleton){current.landing=false;return;}
-      const back=current.direction==="back";clear();
-      if(back){document.querySelector<HTMLElement>(`[data-metric-card="${current.model.kind}"]`)?.focus({preventScroll:true});origin.current=null;returning.current=false;}
-      else element.closest("[data-chart-arrival]")?.animate([{opacity:.7},{opacity:1}],{duration:180});
-    }).catch(()=>{});
+  const finish = useCallback((current:Flight)=>{
+    if(active.current?.id!==current.id)return;
+    const back=current.direction==='back';clear();
+    if(back){document.querySelector<HTMLElement>(`[data-metric-card="${current.model.kind}"]`)?.focus({preventScroll:true});origin.current=null;returning.current=false;}
   },[clear]);
+  const land = useCallback((element: SVGSVGElement, skeleton=false) => {
+    const current=active.current,node=overlay.current;if(!current||!node||!element.isConnected)return;
+    const dest=rectOf(element);if(!dest.width||!dest.height)return;
+    if(reduced()||typeof node.animate!=='function'){clear();return;}
+    if(current.destination){
+      const d=current.destination;
+      // Same slot, new data: hand over without a second movement. A changed layout cancels the flight.
+      if(Math.max(Math.abs(d.left-dest.left),Math.abs(d.top-dest.top),Math.abs(d.width-dest.width),Math.abs(d.height-dest.height))>1){clear();return;}
+      current.hidden?.removeAttribute('data-chart-travelling');current.hidden=element;element.setAttribute('data-chart-travelling','true');
+      if(!skeleton)current.ready=true;
+      if(current.arrived&&current.ready)finish(current);return;
+    }
+    const scale=dest.width/current.rect.width;
+    if(Math.abs(dest.height/current.rect.height-scale)>.035){clear();return;}
+    current.destination=dest;current.landing=true;current.ready=!skeleton;current.hidden=element;element.setAttribute('data-chart-travelling','true');node.dataset.motionStarts='1';
+    const animation=node.animate([{transform:'translate(0px,0px) scale(1)'},{transform:`translate(${dest.left-current.rect.left}px,${dest.top-current.rect.top}px) scale(${scale})`}],{duration:300,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});
+    current.animation=animation;
+    void animation.finished.then(()=>{if(active.current?.id!==current.id)return;current.arrived=true;current.landing=false;if(current.ready)finish(current);}).catch(()=>{});
+  },[clear,finish]);
   const start = useCallback((model:MetricTrendModel, source:SVGSVGElement|Rect, direction:Flight["direction"])=>{
     clear();const next:Flight={id:++serial.current,model,rect:source instanceof SVGSVGElement?rectOf(source):source,direction,landing:false};
     // 目标异常时退回正常导航反馈；不把悬空缩略图当成无限等待层。
@@ -120,8 +124,9 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     }
   },[pathname,pending,clear,land,restore,prepareBack]);
   useEffect(()=>()=>{clearTimeout(active.current?.deadline);active.current?.animation?.cancel();active.current?.hidden?.removeAttribute("data-chart-travelling");document.documentElement.removeAttribute("data-chart-travel");},[]);
-  const value=useMemo(()=>({navigate,register,restore,back,preview:flight?.model??null}),[navigate,register,restore,back,flight?.model]);
-  return <ChartTransitionContext value={value}>{children}{flight&&createPortal(<div ref={overlay} className="chart-flight" aria-hidden="true" style={{left:flight.rect.left,top:flight.rect.top,width:flight.rect.width,height:flight.rect.height}}><TrendGlyph model={flight.model}/></div>,document.body)}</ChartTransitionContext>;
+  const invalidate=useCallback(()=>{clear();target.current=null;lastTarget.current=null;},[clear]);
+  const value=useMemo(()=>({navigate,register,restore,back,invalidate,preview:flight?.model??null}),[navigate,register,restore,back,invalidate,flight?.model]);
+  return <ChartTransitionContext value={value}>{children}{flight&&createPortal(<div ref={overlay} className="chart-flight" data-chart-flight={flight.id} aria-hidden="true" style={{left:flight.rect.left,top:flight.rect.top,width:flight.rect.width,height:flight.rect.height}}><TrendGlyph model={flight.model}/></div>,document.body)}</ChartTransitionContext>;
 }
 
 export function TrendBackLink(){const {back}=useChartTransition();return <button type="button" className="trend-back-link" onClick={back}><span aria-hidden="true">←</span> 总览</button>;}

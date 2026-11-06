@@ -378,3 +378,5 @@
 .entryFooter p{font-size:13px;margin:0;line-height:20px}
 .entryFooter .saveEntry{margin:0;white-space:nowrap}
 @media(max-width:700px),(hover:none) and (pointer:coarse){.entryGroups{padding-top:12px}}
+
+@media(min-width:701px) and (hover:hover){.plotHint{display:block}}
