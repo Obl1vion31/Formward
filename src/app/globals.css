@@ -953,3 +953,19 @@ input:focus-visible {
   html:has(.home-page:not([data-mobile="true"])) { scrollbar-gutter: stable; }
   .home-page:not([data-mobile="true"]) .home-stage { position: fixed; inset: 0; }
 }
+
+/* 工作区外壳独立于业务数据，切页时保持导航与助手入口。 */
+.workspace-shell .dashboard-page{min-height:calc(100svh - 64px);padding-inline:112px}
+.workspace-loading{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:90;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:20px;background:var(--surface-raised);color:var(--warm-white);box-shadow:0 6px 24px var(--nav-shadow);font-size:13px;pointer-events:none}
+.workspace-loading .page-loading-spinner{width:16px;height:16px;border-width:2px}
+.workspace-shell .page-loading-fallback{position:static;min-height:180px;background:none;backdrop-filter:none}
+:root{--nav-glass:rgba(42,41,37,.79);--nav-lens:rgba(238,222,190,.13);--nav-shadow:rgba(0,0,0,.22);--action-fill:#cbb083;--action-ink:#29241b}
+:root[data-theme="light"]{--nav-glass:rgba(255,253,248,.8);--nav-lens:rgba(225,218,203,.82);--nav-shadow:rgba(49,37,20,.14);--action-fill:#e4c899;--action-ink:#29241b}
+@media(max-width:700px),(hover:none) and (pointer:coarse){
+ :root{--data-weight:#d8bc8c}
+ :root[data-theme="light"]{--graphite:#f3f0e9;--surface:#fffdf8;--surface-raised:#fffefb;--warm-white:#24231f;--muted:#6b665e;--gold:#795b2c;--data-weight:#795b2c}
+ .workspace-shell .dashboard-page{padding:0 16px calc(100px + env(safe-area-inset-bottom));min-height:calc(100svh - 64px)}
+ .workspace-shell .dashboard-page{animation:workspace-enter 220ms cubic-bezier(.2,.8,.2,1)}
+ @keyframes workspace-enter{from{opacity:.7;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+}
+@media(prefers-reduced-motion:reduce){.workspace-shell .dashboard-page{animation:none}}

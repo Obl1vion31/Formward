@@ -8,7 +8,6 @@ import { currentPageUser } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { listMeasurements } from "@/features/measurements/records";
 import { MeasurementsView } from "@/features/measurements/measurements-view";
-import { DashboardHeader } from "../header";
 import { listMeasurementDates, measurementDisplay } from "@/features/measurements/editing";
 import { deleteCellAction, estimateCellAction, removeSourceAction, saveDayAction } from "../actions";
 import { listMeasurementSources } from "@/features/measurements/sources";
@@ -30,7 +29,7 @@ async function DashboardContent({ user, date, period }: { user: NonNullable<Awai
 
   return (
     <main className="dashboard-page">
-      <DashboardHeader email={user.email} owner={user.role === "owner"} />
+
       <MeasurementsView initialDate={date} initialPeriod={period} records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ deleteCell:deleteCellAction, save: saveDayAction, estimate: estimateCellAction, removeSource: removeSourceAction }} />
     </main>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {usePathname} from "next/navigation";
 import {confirmationIsOpen} from "./confirmation-state";
 import { lockPageScroll } from "./scroll-lock";
 import { LoadingContext, LoadingVisibleContext, usePageLoading } from "./page-loading-state";
@@ -44,6 +45,7 @@ function LoadingDialog({ label }: { label: string }) {
 }
 
 export function PageLoadingProvider({ children }: { children: ReactNode }) {
+  const workspace=usePathname().startsWith("/dashboard");
   const [confirming,setConfirming]=useState(confirmationIsOpen);
   useEffect(()=>{const update=()=>setConfirming(confirmationIsOpen());window.addEventListener("formward-confirmation-change",update);return()=>window.removeEventListener("formward-confirmation-change",update);},[]);
   const tasks = useRef(new Map<symbol, string>());
@@ -86,8 +88,8 @@ export function PageLoadingProvider({ children }: { children: ReactNode }) {
     tasks.current.clear();
   }, []);
   return <LoadingContext.Provider value={controller}><LoadingVisibleContext.Provider value={visible}>
-    <div data-page-content aria-busy={label !== null}>{children}</div>
-    {visible && !confirming && label && <LoadingDialog label={label} />}
+    <div data-page-content data-workspace-pending={workspace&&label!==null?"true":undefined} aria-busy={label !== null}>{children}</div>
+    {visible && !confirming && label && (workspace?<div className="workspace-loading" role="status"><span className="page-loading-spinner" aria-hidden="true"/>{label}</div>:<LoadingDialog label={label}/>)}
   </LoadingVisibleContext.Provider></LoadingContext.Provider>;
 }
 

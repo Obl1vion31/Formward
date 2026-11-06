@@ -1,5 +1,23 @@
 # 完善任务验收
 
+## 手机工作区第一批：本地页面接入（2026-11-06）
+
+codex/mobile-workspace基于main 840207f隔离实施，未发布、未合并main，未连接生产数据。隔离PGlite使用既有assistant-fixture虚构账号，实际预览http://localhost:4234/dashboard。此记录不代表完整改版或正式发布通过。
+
+| 检查 | 结果与边界 |
+| --- | --- |
+| 技术门槛 | lint、production build及其中TypeScript检查通过；465项现有单元/集成全部通过。未改数据库、公开HTTP/MCP或业务计算。header/Inspector的Impeccable检测未返回问题 |
+| D1/D3总览 | 三类真实快捷入口、明确日期状态卡、共轴双层图、区间/估计/七日统计/覆盖与日期详情保留。最近晨重不冒充今天；未记全不计算热量差，0与未知区分 |
+| D4导航 | 实际拖动总览→饮食成功。初次发现原生链接dragstart抢占，修复后通过。工作区加载保持导航可用，不显示阻塞全屏dialog |
+| D10设置 | 仅账号菜单的设置内显示外观。浅/深两端与面板一致；跟随系统解析结果与matchMedia一致，已有手动偏好保留。系统现场切换、跨标签尚未实测 |
+| D4/D11面板与保存 | 只读详情半屏拖到近全屏。消耗完整编辑器中输入虚构2058，收起后下拉触发草稿确认，取消后保留值；真实保存后图表与历史更新2058。身体保留晨晚四项/估算/来源，专用样式接入统一面板，修复opening横向动画覆盖问题；最终顶部48px、圆角28px、公共sheetEnter生效 |
+| D6/D7实际网页 | IAB Chromium检查390×780、320×560、430×780、1440×900。320可用宽305px（滚动条15px），无横向溢出，图表日期12px；矮屏自然滚动看完整双图。1440正文1120px且中心误差<1px；电脑助手宽400px且非模态。最终捕获JS error为0 |
+| 业务入口对照 | 饮食P/C/F历史图、口径切换、食材库与记录；消耗双模式、运动明细、包含关系；身体晨晚体重/体脂双图和录入均沿用真实组件。助手显示实际昨日待核对，并保留建议、三类快捷录入、教程/AI接入/导出及提醒偏好 |
+
+实际截图均为虚构数据，位于C:/Users/14878/.codex/visualizations/2026/11/06/01a1af0c-e81b-7cd2-84c9-9702574d032c/：workspace-home-light.jpg、workspace-home-dark.jpg、workspace-home-320.jpg、workspace-home-430.jpg、workspace-settings-light.jpg、workspace-detail-expanded.jpg、workspace-body-entry.jpg、workspace-assistant-light.jpg、workspace-desktop-light.jpg、workspace-desktop-dark.jpg、workspace-desktop-assistant.jpg。
+
+未测：真实iPhone/软键盘、VoiceOver、WebKit、触屏横屏、1100/1920桌面、减少动态效果现场切换、慢网/故障注入、所有编辑器附件与并发场景。未录屏或采样帧率，不以静态截图证明性能达标。下一批继续饮食/消耗/身体的手机布局及完整操作回归，发布遵守D8。
+
 ## 当前正式验收：饮食详情与输入对齐（2026-11-05）
 
 正式饮食页https://formward-ten.vercel.app/dashboard/meals指向READY部署`dpl_HFeRzEVLnECg3wbReUGhEZ2gzgAP`，应用源码`0a566c184b72edc072bf35592661fd22397a9cd0`，构建`meal-details-0a566c1-20261105`；项目、正式别名、sourceCommit／gitCommitSha及版本接口已核对。main统一本轮已发布应用与验收记录，纯测试／文档提交不代表另一次应用部署；Vercel项目未连接Git自动部署。原主工作区双区、COS、DNS及未提交内容保持隔离。 工作分支codex/meal-detail-simplification以统一main的a3ed2a2为起点；本地预览仍在http://localhost:4224/comparison，全部为虚构数据。

@@ -1,5 +1,9 @@
 # Formward 项目交接
 
+## 本地手机工作区第一批
+
+分支codex/mobile-workspace基于main 840207f隔离开发，未发布。已接入持久导航、集中外观设置、既有小助手、手机底部详情与真实总览；四业务模块继续使用完整原有业务能力，饮食／消耗／身体的进一步版式整理按批推进。源码与验收见docs/mobile-interaction-research.md及docs/maintenance-verification.md。原主工作区的国内部署与其他修改保持隔离。
+
 ## 当前正式版本：饮食详情精简与输入对齐（2026-11-05）
 
 正式饮食页https://formward-ten.vercel.app/dashboard/meals指向READY部署`dpl_HFeRzEVLnECg3wbReUGhEZ2gzgAP`，应用源码`0a566c184b72edc072bf35592661fd22397a9cd0`，构建`meal-details-0a566c1-20261105`；项目、正式别名、sourceCommit／gitCommitSha及版本接口已核对。main统一本轮已发布应用与验收记录，纯测试／文档提交不代表另一次应用部署；Vercel项目未连接Git自动部署。原主工作区双区、COS、DNS及未提交内容保持隔离。

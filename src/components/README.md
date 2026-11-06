@@ -1,5 +1,9 @@
 # Components
 
+Inspector在手机提供底部面板：只读stableScroll详情默认半屏，录入默认近全屏，把手可拖动及点击切换。所有关闭路径仍经过同一个草稿/忙碌保护；正文自行滚动，桌面侧栏和compact确认框保持各自用途。工作区的PageLoadingProvider显示非模态任务反馈，登录等工作区外流程继续使用原反馈；AssistantProvider显式识别工作区pending。
+
+appearance-state区分用户选择system/light/dark与实际data-theme，早期初始化保留本机既有偏好；AppearanceSync在持久框架内保持系统监听，设置面板关闭后仍响应。AppearanceSwitch只在统一设置入口提供。
+
 form-draft.ts比较有效数字文本而不舍入，draft-guard.ts集中“继续编辑／放弃修改”。LoadingLink保留Next原有链接能力，站内导航先处理真实草稿；Inspector、内部返回和退出登录遵从相同判定。record-history.tsx使用显式日期查看表单，Enter与同日重复查看可用。主表单以data-entry-form标记使用globals.css公共边框、16px输入、44px操作和逐态样式；带单位的个人资料沿用一个外框。
 
 `brand-logo.tsx` 和同名 CSS 模块统一 F＋手臂图标、formward 字标和金色圆点。图形用 `/icons/formward-mark.svg` 的透明遮罩跟随文字颜色；工作区的 `compactOnMobile` 在窄屏／触屏仅显示图标。可访问名称由外层图片语义或链接提供，内部图形与文字不重复朗读。
@@ -12,7 +16,7 @@ record-updates.tsx沿用现有变化检测并发出formward-record-context-stale
 
 本目录保存多个页面共同使用的界面组件，例如按钮、输入、导航、日期范围和图表外壳。业务专用组件留在对应页面或 feature 附近，避免形成无边界组件仓库。
 
-`page-loading.tsx` 提供根布局使用的 `PageLoadingProvider` 和路由后备 `RouteLoading`，`page-loading-state.ts` 提供绑定真实等待状态的 `usePageLoading({ active, label })` 与共享 Context。组件模块只导出组件，保留 Fast Refresh 的状态边界。操作立即反馈，持续超过 200ms 才显示全屏虚化与居中动画／动作文字；多个来源各自登记，全部结束才收起，路由阶段交接不重置延迟。模态层使用原生 dialog，以视口宽度覆盖滚动条预留区域，位于业务弹窗上方，等待时阻止操作、Escape 和 Tab，结束后恢复可用焦点。保存前若需要用户确认，等待层暂停展示，确认结束后按实际请求恢复，避免盖住确认按钮。异常与卸载清理各自状态，不自动重试。首屏路由后备可由服务器输出，客户端模态层出现后隐藏后备。
+`page-loading.tsx` 提供根布局使用的 `PageLoadingProvider` 和路由后备 `RouteLoading`，`page-loading-state.ts` 提供绑定真实等待状态的 `usePageLoading({ active, label })` 与共享 Context。组件模块只导出组件，保留 Fast Refresh 的状态边界。操作立即反馈，工作区超过200ms显示非模态状态；以下模态反馈仅用于工作区外流程：多个来源各自登记，全部结束才收起，路由阶段交接不重置延迟。模态层使用原生 dialog，以视口宽度覆盖滚动条预留区域，位于业务弹窗上方，等待时阻止操作、Escape 和 Tab，结束后恢复可用焦点。保存前若需要用户确认，等待层暂停展示，确认结束后按实际请求恢复，避免盖住确认按钮。异常与卸载清理各自状态，不自动重试。首屏路由后备可由服务器输出，客户端模态层出现后隐藏后备。
 
 `loading-link.tsx` 包装 Next.js Link，通过其后代的 useLinkStatus 登记实际导航等待；保留预取、新标签和下载语义，预取与即时页面操作不显示加载层。程序导航使用 useTransition，再将 pending 交给共享加载组件。
 
@@ -50,7 +54,7 @@ Disclosure关闭时不挂载内容，只在展开后请求原图或显示较长�
 use-chart-viewport.ts按实际坐标字体测量刻度宽度，统一总览、饮食及消耗的图宽与左边距；数据或区间换刻度时先完成测量，悬停不改变坐标。长整数不缩字、不裁切。
 
 
-appearance-state.ts保存本设备主题的读取、早期初始化和跨窗口通知；appearance-switch.tsx只提供浅色／深色操作。颜色集中在app/theme.css，图表也使用同一语义变量，图片不反色。
+appearance-state.ts保存本设备主题的读取、早期初始化和跨窗口通知；appearance-switch.tsx在统一设置内提供跟随系统／浅色／深色操作。颜色集中在app/theme.css，图表也使用同一语义变量，图片不反色。
 
 app-updates.tsx仅检查构建版本，与record-updates.tsx的健康记录变化分开。可见时90秒、恢复前台检查；不缓存的版本接口不带身份或旧部署标记。草稿确认复用confirmation及draft-guard；approvePageRefresh只允许用户明确批准的这次刷新跳过重复离开弹窗，不存健康草稿。
 

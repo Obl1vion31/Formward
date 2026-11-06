@@ -13,7 +13,8 @@
 - [code-study.md](code-study.md)：面向仅有初步 HTML／TypeScript 知识的项目学习指南；从浏览器、服务器和组件开始，区分组件函数名、定义文件与职责，逐项对应饮食页组件并示范查找定义、引入和使用；用虚构午餐讲清读取、输入、保存与数据库，后半部提供其他业务流程、观察工具、模块、全部表、设计取舍和开发检查。
 - `product.md`：定位、用户价值、首版范围和长期路线。
 - `milestones.md`：首版交付顺序和各阶段完成标准。
-- `interface.md`：已确定页面的内容、布局与交互。
+- [mobile-interaction-research.md](mobile-interaction-research.md)：认可的手机基准、现有业务迁移对照、实施状态与案例依据。
+- `interface.md`：本地实施页面及保留业务的内容、布局与交互。
 - `frame-calibration.md`：首页静态人物测量、离线拟合方式，以及视频首尾与静态端点的校准。
 - [design-reference.md](design-reference.md)：手机与桌面设计、首屏信息层级和每次界面验收必用的统一标准；保留产品设计参考。
 - [visual-research.md](visual-research.md)：总览的视觉调研、官方依据及双层关联参考图；趋势与单日读数联动、配色和缺测处理原则。
