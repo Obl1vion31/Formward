@@ -22,7 +22,7 @@ test("状态卡的小图保留零、未知与各自记录日期，进入专页�
   assert.deepEqual(cards.map(card=>card.date),["2024-08-02","2024-08-01","2024-07-31"]);
   assert.equal(cards[0].title,"最近摄入");assert.equal(cards[0].value,"0");
   assert.equal(cards[0].trend.points.at(-1)?.value,0);assert.equal(cards[0].trend.points[0].value,null);
-  for(const card of cards.slice(0,2)){
+  for(const card of cards){
     const url=new URL(card.href,"https://example.test"),query=Object.fromEntries(url.searchParams);
     const linked=linkedTrend(query);assert.equal(linked?.date,card.date);
     assert.equal(linked?.from,card.trend.points[0].date);assert.equal(linked?.to,card.trend.points.at(-1)?.date);

@@ -30,6 +30,8 @@ import { EnergyEditor } from "./energy-editor";
 import { blankEnergyDay, energyValue, type EnergyAction, type EnergyDay, type EnergyInput } from "./model";
 import styles from "./energy.module.css";
 import {EnergyComposition} from "./energy-composition";
+import type {TrendRoute} from '@/components/metric-trend-model';
+import {MobileEnergyPlot} from './mobile-energy-plot';
 
 
 export type SaveEnergy = (input: EnergyInput) => Promise<Result<{ presentation: EnergyPresentation; message: string;changedKeys?:string[] }>>;
@@ -44,7 +46,7 @@ function dayEditInput(date:string,days:EnergyPresentation["snapshot"]["days"]):E
  return { kind: "save_energy_day", date, ...(current ? { id: current.id, version: current.version, entryMode: current.entryMode ?? undefined, activityMode: current.activityMode ?? undefined, restingSourceSystem: current.restingSourceSystem ?? current.sourceSystem, activeSourceSystem: current.activeSourceSystem ?? current.sourceSystem, restingEstimated: current.restingEstimated ?? false, restingKcal: current.restingKcal, activeKcal: current.activeKcal, activeEstimated: current.activeEstimated ?? false, notes: current.notes ?? null, totalKcal: current.totalKcal, timezone: current.timezone, sourceSystem: current.sourceSystem, sourceRecordId: current.sourceRecordId, sourceOccurredAt: current.sourceOccurredAt } : { entryMode: "components", activityMode: "activities", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }) };
 }
 
-export function EnergyView({ presentation, save, removeSource, initialDate = null, initialEntry=false }: { presentation: EnergyPresentation; save: SaveEnergy; removeSource: (label: string) => Promise<SourceRemovalResult>; initialDate?: string | null;initialEntry?:boolean }) {
+export function EnergyView({ presentation, save, removeSource, initialDate = null, initialEntry=false,initialTrend=null }: { presentation: EnergyPresentation; save: SaveEnergy; removeSource: (label: string) => Promise<SourceRemovalResult>; initialDate?: string | null;initialEntry?:boolean;initialTrend?:TrendRoute|null }) {
   const today = useLocalToday(presentation.today), mobile = useMobileMode();
   const router = useRouter();
   useEffect(() => { if (today !== presentation.today) router.refresh(); }, [today, presentation.today, router]);
@@ -61,7 +63,7 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
   const latest = preferredRecordedDate(data.days, today, day => day.totalKcal !== null, day => !!day.record || day.activities.length > 0);
   const [editing, setEditing] = useState<EnergyAction | null>(null), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [busy, startTransition] = useTransition(), guard = useRef(false), request = useRef<{ content: string; id: string } | null>(null);
-  const [mode, setMode] = useState<string | null>(null), [custom, setCustom] = useState({ from: addCalendarDays(initialDate ?? today, -29), to: initialDate ?? today });
+  const [mode, setMode] = useState<string | null>(initialTrend?'custom':null), [custom, setCustom] = useState({ from: initialTrend?.from??addCalendarDays(initialDate ?? today, -29), to: initialTrend?.to??initialDate ?? today });
   const [customOpen,setCustomOpen]=useState(false),[customDraft,setCustomDraft]=useState(custom);
   const end = initialDate ?? today, range = mode ?? rangeContaining(initialDate ?? latest, end, mobile ? "7" : "30");
   const earliest = [end, today, ...state.days.map(day => day.date), ...state.activities.map(row => row.date)].sort()[0];
@@ -110,7 +112,7 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
   <RecordDetailActions busy={busy} edit={()=>activityEdit(activity)} remove={()=>void removeRecord({kind:"delete_activity",id:activity.id,version:activity.version},activity.name)} editLabel="编辑活动" removeLabel="删除活动" recordLabel={activity.name}/>
  </Disclosure>;
 })}{day.record&&<details className={styles.details}><summary>更多操作</summary><button disabled={busy} onClick={()=>removeRecord({kind:"delete_energy_day",id:day.record!.id,version:day.record!.version},date+" 消耗记录")}>永久删除日记录</button></details>}</div>;};
-  return <RecordWorkspace title="消耗" className={styles.workspace}>
+  return <RecordWorkspace title="消耗" className={styles.workspace} data-shared-route={initialTrend?true:undefined}>
 
     {error && !editing && <p className={styles.error} role="alert">{error}</p>}{notice && <p className={styles.notice} role="status">{notice}</p>}
     <section aria-label="消耗历史趋势" data-chart-selection={selection.regionId} data-selected-date={selection.selected} data-selection-origin={selection.origin} {...selection.regionProps}>
@@ -126,7 +128,7 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
        metricVariants={chartDays.map(day=>[energyValue(day.totalKcal),energyValue(day.restingKcal),energyValue(day.activeKcal)])}
        title="每日消耗" unit="kcal"
        legend={<><span><i style={{background:"var(--data-protein)"}}/>静息</span><span><i style={{background:"var(--data-red)"}}/>活动</span><span><i style={{background:"var(--data-neutral)"}}/>录入总数</span></>}
-      >{dates.length?<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
+      >{dates.length?mobile?<MobileEnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     </section>
     <DailyRecords history={<RecordHistory today={today} dates={historyDates.filter(date=>!recentDates.includes(date))} renderRow={renderDay} view={setViewing}/>}>{recentDates.map(renderDay)}</DailyRecords>
     {(viewing||editing)&&<EditorDialog routeEntry={!!(initialEntry&&editing?.kind==='save_energy_day'&&editing.date===initialDate)} title={editing?editing.kind==='save_energy_profile'?'公式资料':editing.kind==='save_activity'?'活动记录':'每日消耗':viewing+' · 消耗记录'} busy={busy} onSavedCloseReady={close=>{savedClose.current=close;}} close={()=>{setViewing(null);setEditing(null);setError('');}}>{editing?<EnergyEditor addActivity={addActivity} dayRecords={state.days} initial={editing} error={error} busy={busy} save={execute} saveBatch={execute} sources={sources} removeSource={remove} activities={state.activities} />:<>{error&&<p role="alert" className={styles.error}>{error}</p>}{viewing&&details(viewing)}</>}</EditorDialog>}

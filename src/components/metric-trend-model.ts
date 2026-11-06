@@ -1,7 +1,7 @@
 import { chartScale } from "./chart-scale";
 
 export type TrendKind = "intake" | "morning-weight" | "energy";
-export type TrendPoint = { date: string; value: number | null; partial?: boolean; segments?: {value:number;color:string}[] };
+export type TrendPoint = { date: string; value: number | null; partial?: boolean; segments?: {value:number;color:string;opacity?:number;series?:string}[]; totalMarker?:number|null };
 export type MetricTrendModel = {
   kind: TrendKind; points: TrendPoint[]; min: number; max: number; ticks: number[];
 };
@@ -9,11 +9,12 @@ export type MetricTrendModel = {
 /** 只准备绘图坐标；传入的数值已由业务模块计算。空值始终保留空缺。 */
 export function metricTrendModel(kind: TrendKind, points: TrendPoint[], scale?: { low: number; high: number; ticks: number[] }): MetricTrendModel {
   if (scale) return { kind, points, min: scale.low, max: scale.high, ticks: scale.ticks };
-  const bars = chartScale(points.map(point => point.value));
+  const bars = chartScale(points.flatMap(point => kind === 'energy' ? [point.value,point.segments?.length?point.segments.reduce((sum,segment)=>sum+segment.value,0):null] : [point.value]));
   return { kind, points, min: 0, max: bars.max, ticks: bars.ticks };
 }
 
 export const trendKey = (model: MetricTrendModel) => JSON.stringify(model);
+export const trendRangeKey = (model: MetricTrendModel) => JSON.stringify([model.kind,model.points.map(point=>point.date)]);
 export const trendColor = (kind: TrendKind) => kind === "intake" ? "var(--data-blue)" : kind === "energy" ? "var(--data-red)" : "var(--data-weight)";
 
 export type TrendRoute = { from: string; to: string; date: string };

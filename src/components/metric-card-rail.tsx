@@ -22,7 +22,7 @@ export function MetricCardRail({ cards, preview, accountId }: { accountId?:strin
     {cards.map(card=><LoadingLink key={card.trend.kind} href={card.href} className={styles.card} data-metric-card={card.trend.kind} aria-label={`${card.title} ${card.value} ${card.unit}，${card.date}${card.fact?"，"+card.fact:""}。查看趋势和记录`} onNavigate={event=>{
       const element=rail.current?.querySelector<SVGSVGElement>(`[data-metric-card="${card.trend.kind}"] [data-trend-glyph]`);
       if(preview){event.preventDefault();preview(card);return;}
-      if(card.trend.kind==="energy"||!element)return;
+      if(!element)return;
       event.preventDefault();void transition.navigate(card.href,card.trend,element,rail.current);
     }}>
       <span className={styles.title}>{card.title}</span><svg className={styles.arrow} width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" strokeWidth="1.3" fill="none" aria-hidden="true"><path d="M4 12 12 4M5 4h7v7"/></svg>

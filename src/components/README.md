@@ -4,6 +4,8 @@
 
 metric-card-rail.tsx提供B横滑卡片与拖后点击抑制，trend-glyph.tsx共用2:1数据平面，metric-trend-model.ts只管绘图尺度和内部趋势链接校验。chart-transition.tsx挂在已认证持久框架中，先在结构骨架落位，再由真实图形接管；无配对／减少动态效果／异常超时走普通导航。专页保留趋势返回和日期行录入；mobile-navigation.tsx复用原四目的地、指示器及拖动行为，workspace-pages.ts统一目的地名称。
 
+chart-flight.ts集中管理一次图形转场的所有权、返回幂等及取消清理。按钮返回、popstate和路由提交复用同一回程；取消前先隐藏旧图层，旧完成回调只可清理自己的id。摄入、晨重和消耗统一携带日期区间；回程使用保存的来源几何立即收束，再由实际卡片接管。配对校验指标、日期轴、可见目标及视口，变更区间／指标或无目标时正常返回，不用旧缓存强行配对。
+
 Inspector在手机提供底部面板：只读stableScroll详情默认半屏，录入默认近全屏，把手可拖动及点击切换。所有关闭路径仍经过同一个草稿/忙碌保护；正文自行滚动，桌面侧栏和compact确认框保持各自用途。工作区的PageLoadingProvider显示非模态任务反馈，登录等工作区外流程继续使用原反馈；AssistantProvider显式识别工作区pending。
 
 appearance-state区分用户选择system/light/dark与实际data-theme，早期初始化保留本机既有偏好；AppearanceSync在持久框架内保持系统监听，设置面板关闭后仍响应。AppearanceSwitch只在统一设置入口提供。

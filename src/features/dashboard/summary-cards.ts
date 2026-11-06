@@ -7,6 +7,7 @@ import { formatNutrition } from "../meals/model";
 import { energyValue } from "../activities/model";
 import type { OverviewPresentation } from "./presentation";
 import { intakeTrendPoint } from "../meals/trend-preview";
+import { energyTrendPoint } from '../activities/trend-preview';
 
 export function summaryCards(data: OverviewPresentation, today: string): MetricCard[] {
   const intake=data.latestIntake, body=data.body, energy=data.latestEnergy;
@@ -20,6 +21,6 @@ export function summaryCards(data: OverviewPresentation, today: string): MetricC
   return [
     {title:intakeDate===today?"今日摄入":"最近摄入",value:formatNutrition(intake?.totals.values.caloriesKcal??null,"caloriesKcal"),unit:"kcal",date:intake?.date??"",fact:intake?`${intake.meals.length}餐`:undefined,href:destination("/dashboard/meals",intakeDate),trend:metricTrendModel("intake",points(intakeDate,()=>null).map(point=>{const day=byDate.get(point.date);return intakeTrendPoint(point.date,day?.nutrition,day?.mealDayStatus);}))},
     {title:weightDate===today?"今晨体重":"最近晨重",value:formatRecordNumber(body?.weightKg),unit:"kg",date:body?.recordDate??"",href:destination("/dashboard/measurements",weightDate),trend:metricTrendModel("morning-weight",weight,normalScale(weight.flatMap(point=>point.value===null?[]:[point.value])))},
-    {title:energyDate===today?"今日消耗":"最近消耗",value:energyValue(energy?.totalKcal),unit:"kcal",date:energy?.date??"",href:"/dashboard/energy",trend:metricTrendModel("energy",points(energyDate,day=>day?.energy.totalKcal!=null?Number(day.energy.totalKcal):null).map(({date,value})=>({date,value})))},
+    {title:energyDate===today?"今日消耗":"最近消耗",value:energyValue(energy?.totalKcal),unit:"kcal",date:energy?.date??"",href:destination('/dashboard/energy',energyDate),trend:metricTrendModel("energy",points(energyDate,()=>null).map(point=>energyTrendPoint(point.date,byDate.get(point.date)?.energy)))},
   ];
 }
