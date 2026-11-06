@@ -3,7 +3,8 @@ import recordUI from '@/components/record-ui.module.css';
 import {confirmAction} from "@/components/confirmation-state";
 import {RecordWorkspace,RecordTrendPanel,CustomRecordRange} from "@/components/record-trend-panel";
 import {useDraftGuard} from "@/components/draft-guard";
-import {energyVersions,verifyRecordVersions,acknowledgeRecordChanges} from "@/components/record-change-client";
+import {energyVersions,verifyRecordVersions,acknowledgeRecordChanges,RecordVersionError} from "@/components/record-change-client";
+import {energySaveExpectations,applyEnergyVersions,energyDateMoveIssue,EnergySaveError} from "./energy-save-state";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { usePageLoading } from "@/components/page-loading-state";
@@ -65,7 +66,7 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
   const [viewing,setViewing]=useState<string|null>(null);
   const latest = preferredRecordedDate(data.days, today, day => day.totalKcal !== null, day => !!day.record || day.activities.length > 0);
   const [editing, setEditing] = useState<EnergyAction | null>(null), [error, setError] = useState(""), [notice, setNotice] = useState("");
-  const [busy, startTransition] = useTransition(), guard = useRef(false), request = useRef<{ content: string; id: string } | null>(null);
+  const [busy, startTransition] = useTransition(), guard = useRef(false), request = useRef<{ content: string; actions:EnergyAction[]; id: string } | null>(null);
   const [mode, setMode] = useState<string | null>(initialTrend?'custom':null), [custom, setCustom] = useState({ from: initialTrend?.from??addCalendarDays(initialDate ?? today, -29), to: initialTrend?.to??initialDate ?? today });
   const [customOpen,setCustomOpen]=useState(false),[customDraft,setCustomDraft]=useState(custom);
   const end = initialDate ?? today, range = mode ?? rangeContaining(initialDate ?? latest, end, mobile ? "7" : "30");
@@ -102,11 +103,16 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
     const actions = Array.isArray(input) ? input : [input];
     if (guard.current) return; guard.current = true; setError(""); setNotice("");
     startTransition(async () => {
-      try { const expected=actions.flatMap(action=>(action.kind==="save_energy_day"||action.id&&action.version)?[{key:action.kind.includes("energy_day")?"energyDay:"+("date" in action?action.date:state.days.find(d=>d.id===action.id)?.date):"activity:"+action.id,version:action.version?String(action.version):null}]:[]);
-        const latest=await verifyRecordVersions(expected);const current=actions.map(action=>{const stamp=latest.get(action.kind.includes("energy_day")?"energyDay:"+("date" in action?action.date:state.days.find(d=>d.id===action.id)?.date):"activity:"+action.id);return stamp?{...action,id:stamp.id,version:Number(stamp.version)}:action;});
-        const content=JSON.stringify(current);if(request.current?.content!==content)request.current={content,id:crypto.randomUUID()};
-        const result = await save({ operationId:request.current.id, actions:current }); if (!result.ok) { setError(result.error); return; } acknowledgeRecordChanges(result.data.changedKeys??actions.map(action=>action.kind.includes("energy_day")?"energyDay:"+("date" in action?action.date:state.days.find(d=>d.id===action.id)?.date):"activity:"+(action.id??result.data.presentation.snapshot.activities.find(a=>!state.activities.some(old=>old.id===a.id)&&"name" in action&&a.name===action.name)?.id)),energyVersions(result.data.presentation.snapshot));setLocal(result.data.presentation); const changed = actions.find(action => "date" in action); if (changed && "date" in changed) selection.choose(changed.date); setNotice(result.data.message); void savedClose.current(); request.current = null; }
-      catch { setError("保存未完成，当前输入已保留，请重试。"); }
+      try {
+        const content=JSON.stringify(actions);
+        // 响应中断时以原请求编号重试；已成功改期也不再按旧日期重复查询。
+        if(request.current?.content!==content){
+          const issue=energyDateMoveIssue(actions,state);if(issue)throw new EnergySaveError(issue);
+          const latest=await verifyRecordVersions(energySaveExpectations(actions,state));
+          request.current={content,actions:applyEnergyVersions(actions,state,latest),id:crypto.randomUUID()};
+        }
+        const result = await save({ operationId:request.current.id, actions:request.current.actions }); if (!result.ok) { request.current=null;setError(result.error); return; } acknowledgeRecordChanges(result.data.changedKeys??actions.map(action=>action.kind.includes("energy_day")?"energyDay:"+("date" in action?action.date:state.days.find(d=>d.id===action.id)?.date):"activity:"+(action.id??result.data.presentation.snapshot.activities.find(a=>!state.activities.some(old=>old.id===a.id)&&"name" in action&&a.name===action.name)?.id)),energyVersions(result.data.presentation.snapshot));setLocal(result.data.presentation); const changed = actions.find(action => "date" in action); if (changed && "date" in changed) selection.choose(changed.date); setNotice(result.data.message); void savedClose.current(); request.current = null; }
+      catch (error) { setError(error instanceof RecordVersionError||error instanceof EnergySaveError?error.message:"保存未完成，当前输入已保留，请重试。"); }
       finally { guard.current = false; }
     });
   }

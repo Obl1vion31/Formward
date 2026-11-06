@@ -42,7 +42,8 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
  const daily=draft.kind==="save_energy_day",single=draft.kind==="save_activity";
  const originalActivity=activityPreview??activities.find(row=>"id" in initial&&row.id===initial.id);
  const targetDate="date" in draft?draft.date:originalActivity?.date;
- const day=dayRecords.find(row=>!row.deletedAt&&row.date===targetDate);
+ const sourceDate=initial.kind==="save_energy_day"?initial.date:undefined;
+ const day=dayRecords.find(row=>!row.deletedAt&&(daily?(initial.id?row.id===initial.id:row.date===sourceDate):row.date===targetDate));
  const [items,setItems]=useState<ActivityDraft[]>(()=>[...activities.filter(row=>!row.deletedAt&&initial.kind==="save_energy_day"&&row.date===initial.date).map(itemDraft),...(addActivity&&initial.kind==="save_energy_day"?[{key:"new-activity",kind:"save_activity" as const,date:initial.date,name:"",calorieMode:"total" as const,completed:true,timezone:initial.timezone}]:[])]);
  const form=useRef<HTMLFormElement>(null);
  useEffect(()=>{if(!addActivity)return;const timer=setTimeout(()=>{const input=form.current?.querySelector<HTMLInputElement>('[data-new-activity] input');input?.scrollIntoView({block:"nearest",behavior:"smooth"});input?.focus({preventScroll:true});},300);return()=>clearTimeout(timer);},[addActivity]);
@@ -138,11 +139,13 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
    for(const row of activities.filter(row=>!row.deletedAt&&row.date===(initial.kind==="save_energy_day"?initial.date:draft.date)&&!items.some(item=>item.id===row.id)))changes.push({kind:"delete_activity",id:row.id,version:row.version});
    const removed=changes.filter(action=>action.kind==="delete_activity");
    if(removed.length&&!await confirmAction({title:"删除已移除的运动？",message:"保存后将永久删除 "+removed.length+" 条已记录运动，其他记录保留。",confirmLabel:"确认删除并保存",danger:true}))return;
+   const moving=sourceDate!==draft.date?items.filter(item=>item.id&&item.name.trim()):[];
+   if(moving.length&&!await confirmAction({title:"一起更正记录日期？",message:`${sourceDate} → ${draft.date}\n每日汇总和以下 ${moving.length} 项运动一起移动：\n${moving.map(item=>item.name).join("\n")}\n目标日期已有记录时不会合并或覆盖。`,confirmLabel:"确认改期并保存"}))return;
    saveBatch(changes);
   }finally{submitting.current=false;}
  }
  const incompleteExercise=items.find(item=>exerciseHasInput(item)&&!item.name.trim());
- const entryIssue=incompleteExercise?"请填写运动名称。":energyWebIssue(draft,autoActive,!!day&&!!projected&&draft.kind==="save_energy_day"&&initial.kind==="save_energy_day"&&sameEnergyAmounts(projected,day)&&items.every(item=>!changed(item))&&items.length===activities.filter(row=>!row.deletedAt&&row.date===targetDate).length);
+ const entryIssue=incompleteExercise?"请填写运动名称。":energyWebIssue(draft,autoActive,!!day&&!!projected&&draft.kind==="save_energy_day"&&initial.kind==="save_energy_day"&&sameEnergyAmounts(projected,day)&&items.every(item=>!changed(item))&&items.length===activities.filter(row=>!row.deletedAt&&row.date===sourceDate).length);
  const retired=draft.kind.includes("energy_defaults")||draft.kind.includes("energy_profile"),blocked=!!entryIssue||busy||confirmingAggregate||retired||!!(saveBatch&&daily&&unresolvedCount)||!!(singleRequires&&!selectedRelation);
  const missing= modes.entryMode==="total"&&projected?.totalKcal==null?"还没填当天总数":modes.entryMode==="components"&&projected?.restingKcal==null?"还没填当天静息":modes.activityMode==="total"&&projected?.activeKcal==null?"还没填活动合计":"有运动热量未知";
  const saveLabel=busy?submitLabel==="应用修改"?"正在应用…":"正在保存…":submitLabel;
@@ -174,7 +177,7 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
      {singleRequires&&relationButtons(selectedRelation,value=>setSingleChoice({signature:relationKey(draft),value}),"活动包含关系")}
     </>}
    </section>
-   <details className={styles.entrySection}><summary>时间与备注</summary><div className={styles.fields}><label>日期<input aria-label="日期" type="date" required value={draft.date} onChange={event=>set("date",event.target.value)}/></label><label>时区<input aria-label="时区" maxLength={100} value={draft.timezone??""} onChange={event=>set("timezone",event.target.value)}/></label>{daily&&<label>备注<input aria-label="备注" maxLength={2000} value={draft.notes??""} onChange={event=>set("notes",event.target.value||null)}/></label>}</div></details>
+   <details className={styles.entrySection}><summary>时间与备注</summary><div className={styles.timeFields}><label>日期<input aria-label="日期" type="date" required value={draft.date} onChange={event=>set("date",event.target.value)}/></label><label>时区<input aria-label="时区" maxLength={100} value={draft.timezone??""} onChange={event=>set("timezone",event.target.value)}/></label>{daily&&<label className={styles.notesField}>备注<input aria-label="备注" maxLength={2000} value={draft.notes??""} onChange={event=>set("notes",event.target.value||null)}/></label>}</div></details>
    </>:draft.kind==="restore_activity"?<><h3>恢复 {originalActivity?.name??"运动"}</h3><p>请返回对应日期核对当前记录。</p></>:null}
 
    {submitLabel!=="保存"&&<p className={styles.hint}>应用修改后返回确认页面，确认保存后才正式记录。</p>}

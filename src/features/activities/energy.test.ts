@@ -8,7 +8,9 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { eq } from "drizzle-orm";
 import * as schema from "../../db/schema";
 import { createAiToken, authenticateAi, revokeAiToken } from "../auth/ai-tokens";
-import { activityCalorieFields, energyBaseline, activityReadings, energyDays, emptyEnergy, restingEstimate, type EnergyProfile, type ActivityRecord, type EnergyDayRecord } from "./model";
+import { activityCalorieFields, energyBaseline, activityReadings, energyDays, emptyEnergy, restingEstimate, type EnergyProfile, type ActivityRecord, type EnergyDayRecord, type EnergyAction } from "./model";
+import {checkWebEnergy} from "../records/web-entry-server";
+import {energyChangedKeys} from "./energy-save-state";
 import { submitEnergyOperation, decideEnergyOperation, readEnergySnapshot, planEnergyActions, reviseEnergyOperation } from "./records";
 import { submitRecordOperation, reviewRecordOperation, getRecordOperation } from "../records/operations";
 import type { MeasurementDisplay } from "../measurements/entry-state";
@@ -192,3 +194,58 @@ test("更新检查只列本人记录，能识别状态和运动版本",async()=>
 test("分项运动的包含关系只采用纯运动，未知额外运动不补零",()=>{const record=day({entryMode:"components",activityMode:"total",activeKcal:"600"});const workout=activity({calorieMode:"components",caloriesKcal:"450",exerciseActiveKcal:"400",exerciseRestingKcal:"50",inclusion:"additional",inclusionBasis:energyBaseline(record)});const state={...emptyEnergy(),days:[record],activities:[workout]};assert.equal(Number(energyDays(state,[],[date])[0].totalKcal),3000);workout.inclusion="included";assert.equal(Number(energyDays(state,[],[date])[0].totalKcal),2600);workout.inclusion="additional";workout.exerciseActiveKcal=null;assert.equal(energyDays(state,[],[date])[0].totalKcal,null);workout.inclusion="included";assert.equal(Number(energyDays(state,[],[date])[0].totalKcal),2600);});
 
 test("旧请求编辑新分项运动仍按显式提供的总数采用",()=>{const prior=activity({calorieMode:"components",exerciseActiveKcal:"400",exerciseRestingKcal:"50",caloriesKcal:"450"});const after=activityCalorieFields({caloriesKcal:"650"},prior);assert.equal(after.calorieMode,"total");assert.equal(activityReadings(after).countedKcal,"650");});
+
+test("网页改期保持编号、四位原值、零、时区与来源时间；原请求重试不重复写入",async()=>{
+ const {userId}=await owner(),actor={userId,origin:"manual" as const},from="2026-11-07",to="2026-11-06",id=randomUUID();
+ await db.insert(schema.energyDay).values({id,userId,date:from,entryMode:"components",activityMode:"total",restingKcal:"2000.1234",activeKcal:"0",totalKcal:null,timezone:"Asia/Singapore",sourceSystem:"虚构手表",restingSourceSystem:"虚构静息来源",activeSourceSystem:"虚构活动来源",sourceOccurredAt:new Date("2026-11-06T16:10:00Z"),notes:"虚构原备注"});
+ const before=(await readEnergySnapshot(db,userId)).days[0];
+ const input={operationId:randomUUID(),actions:[{kind:"save_energy_day" as const,id,version:before.version,date:to}]};
+ await checkWebEnergy(db,userId,input,undefined,{emptyDateMoveTarget:true});
+ const op=await submitEnergyOperation(db,actor,input,{emptyDateMoveTarget:true});assert.equal(op.canConfirm,true);
+ assert.deepEqual(energyChangedKeys(op.rows),["energyDay:"+from,"energyDay:"+to]);
+ await decideEnergyOperation(db,userId,op.id,op.revision,"confirm");
+ const moved=await readEnergySnapshot(db,userId);assert.equal(moved.days.length,1);
+ assert.deepEqual(moved.days[0],{...before,date:to,version:before.version+1});
+ await checkWebEnergy(db,userId,input,undefined,{emptyDateMoveTarget:true});
+ const retry=await submitEnergyOperation(db,actor,input,{emptyDateMoveTarget:true});assert.equal(retry.status,"confirmed");
+ await decideEnergyOperation(db,userId,retry.id,retry.revision,"confirm");
+ assert.deepEqual(await readEnergySnapshot(db,userId),moved);
+ assert.equal((await db.select().from(schema.energyEvent).where(eq(schema.energyEvent.userId,userId))).length,1);
+});
+
+test("日汇总与运动整体改期，日期包含关系重新核对，不能漏移或合并目标日运动",async()=>{
+ const {userId}=await owner(),actor={userId,origin:"manual" as const},from="2026-11-07",to="2026-11-06";
+ const seed=await submitEnergyOperation(db,actor,{operationId:randomUUID(),actions:[{kind:"save_energy_day",date:from,entryMode:"total",totalKcal:"3000"},{kind:"save_activity",date:from,name:"虚构散步",caloriesKcal:"200",inclusion:"additional"}]});
+ await decideEnergyOperation(db,userId,seed.id,seed.revision,"confirm");
+ const before=await readEnergySnapshot(db,userId),day=before.days[0],item=before.activities[0];
+ const actions:EnergyAction[]=[{kind:"save_energy_day",id:day.id,version:day.version,date:to},{kind:"save_activity",id:item.id,version:item.version,date:to,name:item.name,inclusion:"additional"}];
+ await assert.rejects(submitEnergyOperation(db,actor,{operationId:randomUUID(),actions:actions.slice(0,1)},{emptyDateMoveTarget:true}),/同时移动当天运动/);
+ const missingRelation=await submitEnergyOperation(db,actor,{operationId:randomUUID(),actions:[actions[0],{...actions[1],inclusion:undefined}]},{emptyDateMoveTarget:true});assert.equal(missingRelation.canConfirm,false);
+ const op=await submitEnergyOperation(db,actor,{operationId:randomUUID(),actions},{emptyDateMoveTarget:true});assert.equal(op.canConfirm,true);
+ await decideEnergyOperation(db,userId,op.id,op.revision,"confirm");
+ const moved=await readEnergySnapshot(db,userId);assert.equal(moved.days[0].date,to);assert.equal(moved.activities[0].date,to);assert.equal(moved.activities[0].id,item.id);
+ assert.equal(moved.activities[0].inclusionBasis,energyBaseline(moved.days[0]));assert.equal(Number(energyDays(moved,[],[to])[0].totalKcal),3200);
+ await db.insert(schema.activity).values({id:randomUUID(),userId,date:from,name:"虚构目标日运动",timezone:"Asia/Shanghai",completed:false});
+ const occupied=await readEnergySnapshot(db,userId);
+ await assert.rejects(submitEnergyOperation(db,actor,{operationId:randomUUID(),actions:[{kind:"save_energy_day",id:day.id,version:moved.days[0].version,date:from},{kind:"save_activity",id:item.id,version:moved.activities[0].version,date:from,name:item.name,inclusion:"additional"}]},{emptyDateMoveTarget:true}),/目标日期已有/);
+ assert.deepEqual(await readEnergySnapshot(db,userId),occupied);
+});
+
+test("改期提交后并发新增目标日记录阻止确认；跨账号编号不能移动",async()=>{
+ const {userId}=await owner(),actor={userId,origin:"manual" as const},from="2026-11-07",to="2026-11-06",id=randomUUID();
+ await db.insert(schema.energyDay).values({id,userId,date:from,entryMode:"total",totalKcal:"2400",timezone:"Asia/Shanghai"});
+ const move=await submitEnergyOperation(db,actor,{operationId:randomUUID(),actions:[{kind:"save_energy_day",id,version:1,date:to}]},{emptyDateMoveTarget:true});assert.equal(move.canConfirm,true);
+ await db.insert(schema.activity).values({id:randomUUID(),userId,date:to,name:"虚构并发运动",timezone:"Asia/Shanghai",caloriesKcal:"100"});
+ const before=await readEnergySnapshot(db,userId);await assert.rejects(decideEnergyOperation(db,userId,move.id,move.revision,"confirm"),/已改变/);assert.deepEqual(await readEnergySnapshot(db,userId),before);
+ const other=await owner(),foreign=await submitEnergyOperation(db,{userId:other.userId,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_energy_day",id,version:1,date:to}]},{emptyDateMoveTarget:true});
+ assert.equal(foreign.canConfirm,false);assert.match(foreign.rows[0].error!,/不属于当前账号/);assert.deepEqual(await readEnergySnapshot(db,userId),before);
+});
+
+test("改期审计失败整批回滚，汇总与运动不会只移动一部分",async()=>{
+ const {userId}=await owner(),actor={userId,origin:"manual" as const},from="2026-11-07",to="2026-11-06";
+ const seed=await submitEnergyOperation(db,actor,{operationId:randomUUID(),actions:[{kind:"save_energy_day",date:from,entryMode:"components",activityMode:"activities",restingKcal:"2000"},{kind:"save_activity",date:from,name:"虚构散步",caloriesKcal:"200"}]});await decideEnergyOperation(db,userId,seed.id,seed.revision,"confirm");
+ const before=await readEnergySnapshot(db,userId),day=before.days[0],item=before.activities[0];
+ const operation=await submitEnergyOperation(db,actor,{operationId:randomUUID(),actions:[{kind:"save_energy_day",id:day.id,version:day.version,date:to},{kind:"save_activity",id:item.id,version:item.version,date:to,name:item.name}]},{emptyDateMoveTarget:true});assert.equal(operation.canConfirm,true);
+ await pg.exec("CREATE FUNCTION reject_date_move() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.snapshot->'after'->>'date' = '2026-11-06' THEN RAISE EXCEPTION 'fictional date move audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_date_move BEFORE INSERT ON energy_events FOR EACH ROW EXECUTE FUNCTION reject_date_move();");
+ try{await assert.rejects(decideEnergyOperation(db,userId,operation.id,operation.revision,"confirm"));assert.deepEqual(await readEnergySnapshot(db,userId),before);}finally{await pg.exec("DROP TRIGGER reject_date_move ON energy_events; DROP FUNCTION reject_date_move();");}
+});

@@ -9,6 +9,7 @@ import { ApiError, type AiIdentity } from "../auth/ai-identity";
 import { requireActiveAiToken } from "../auth/ai-tokens";
 import { lockOwner, type Transaction } from "../auth/owner-lock";
 import { rememberEnergySources } from "./sources";
+import {energyDateMoveIssue} from "./energy-save-state";
 import { systemMeasurementTimezone, validateMeasurementTimezone } from "../measurements/timezone";
 import { energyDays, energyBaseline, activityEnergyChanged, activityCalories, activityCalorieFields, ageOn, energyInputSchema, type EnergyAction, type EnergyInput, type EnergyOperationView, type EnergyPreview, type EnergyRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyProvenance } from "./model";
 
@@ -147,7 +148,7 @@ function parse(input: unknown): EnergyInput {
   if (!result.success) throw new ApiError(400, "invalid_input", result.error.issues[0]?.message ?? "消耗记录无效。");
   return result.data;
 }
-export async function submitEnergyOperation(db: Database, actor: EnergyActor, raw: unknown) {
+export async function submitEnergyOperation(db: Database, actor: EnergyActor, raw: unknown, options:{emptyDateMoveTarget?:boolean}={}) {
   const input = parse(raw);
   if (actor.origin === "ai") requireAiUpserts(input.actions);
   return db.transaction(async tx => {
@@ -163,6 +164,8 @@ export async function submitEnergyOperation(db: Database, actor: EnergyActor, ra
     }
     if (input.actions.some(action => retiredEnergyAction(action.kind))) throw new ApiError(400, "retired_action", "日常默认值和静息公式资料已停用，请记录具体日期的消耗。");
     const state = await readEnergySnapshot(tx, actor.userId);
+    const moveIssue=options.emptyDateMoveTarget?energyDateMoveIssue(input.actions,state):null;
+    if(moveIssue)throw new ApiError(409,"date_move_conflict",moveIssue);
     const [row] = await tx.insert(energyOperation).values({ id: randomUUID(), userId: actor.userId, operationId: input.operationId, origin: actor.origin, tokenId: actor.identity?.tokenId, oauthConnectionId: actor.identity?.oauthConnectionId, requestDigest: digest(input), snapshotDigest: snapshotDigest(state), payload: input, draft: input, preview: planEnergyActions(input.actions, state), expiresAt: actor.origin === "ai" ? new Date(Date.now() + 15 * 60000) : null }).returning();
     return { ...displayEnergyOperation(row), repeated: false };
   });

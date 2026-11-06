@@ -125,6 +125,12 @@
 .energyEntry .stickyTotal>:global(.record-date-context){grid-column:1/-1;margin:0;padding:0;min-width:0}
 .energyEntry .stickyTotal>:global(.record-date-context) strong{font:inherit;color:var(--muted);white-space:nowrap;display:inline-block}
 .energyEntry .stickyTotal>div{grid-column:1;grid-row:2}
+.energyEntry{container-type:inline-size}
+.energyEntry .timeFields{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin-block:16px}
+.energyEntry .timeFields>label{min-inline-size:0;max-inline-size:100%}
+.energyEntry .timeFields input{inline-size:100%;min-inline-size:0;max-inline-size:100%;box-sizing:border-box;font-size:16px}
+.energyEntry .notesField{grid-column:1/-1}
+@container(min-width:600px){.energyEntry .timeFields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .dayDetails .summary strong small{font-size:12px;margin-left:4px}
 
 

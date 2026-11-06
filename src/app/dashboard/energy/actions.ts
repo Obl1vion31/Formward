@@ -12,16 +12,17 @@ import { localMeasurementDate } from "@/features/measurements/entry-state";
 import { systemMeasurementTimezone } from "@/features/measurements/timezone";
 import { listEnergySources, removeEnergySource } from "@/features/activities/sources";
 import type { SourceRemovalResult } from "@/components/source-input";
+import {energyChangedKeys} from "@/features/activities/energy-save-state";
 export async function saveEnergyAction(input: EnergyInput) {
   try {
     return await withCurrentSession(await headers(), async user => {
-    const db = getDatabase();await checkWebEnergy(db,user.id,input);const operation = await submitEnergyOperation(db, { userId: user.id, origin: "manual" }, input);
+    const db = getDatabase();await checkWebEnergy(db,user.id,input,undefined,{emptyDateMoveTarget:true});const operation = await submitEnergyOperation(db, { userId: user.id, origin: "manual" }, input,{emptyDateMoveTarget:true});
     if (operation.status !== "confirmed" && !operation.canConfirm) throw new Error(operation.rows.find(row => row.error)?.error ?? "请检查输入。");
     await decideEnergyOperation(db, user.id, operation.id, operation.revision, "confirm", {permanentManualDeletion:true});
     const snapshot = await readEnergySnapshot(db, user.id);
     revalidatePath("/dashboard/energy"); revalidatePath("/dashboard"); revalidatePath("/dashboard/ai", "layout");
     const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
-    return { ok: true as const, data: { presentation: energyPresentation(snapshot, [], today, await listEnergySources(db, user.id)), changedKeys:operation.rows.flatMap(row=>row.after&&"date" in row.after?["name" in row.after?"activity:"+row.after.id:"energyDay:"+row.after.date]:[]),message: "已保存。" } };
+    return { ok: true as const, data: { presentation: energyPresentation(snapshot, [], today, await listEnergySources(db, user.id)), changedKeys:energyChangedKeys(operation.rows),message: "已保存。" } };
     });
   } catch (error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }

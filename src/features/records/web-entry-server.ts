@@ -7,6 +7,7 @@ import {digest,prepareMealActions,readMealSnapshot,type MealPlanner} from "../me
 import {energyInputSchema,energyModes,type EnergyInput} from "../activities/model";
 import {planEnergyActions,readEnergySnapshot} from "../activities/records";
 import {energyWebIssue,mealWebIssue,sameEnergyAmounts,sameMealAmounts} from "./web-entry";
+import {energyDateMoveIssue} from "../activities/energy-save-state";
 
 /** 只由网页手工入口调用。公开提交／预览／确认不收紧未知和0的兼容。 */
 export async function checkWebMeals(db:Database,userId:string,input:MealInput,planner:MealPlanner=prepareMealActions,targetKey?:string){
@@ -24,12 +25,14 @@ export async function checkWebMeals(db:Database,userId:string,input:MealInput,pl
   if(issue)throw new ApiError(400,"invalid_input",issue);
  }
 }
-export async function checkWebEnergy(db:Database,userId:string,input:EnergyInput,targetIndex?:number){
+export async function checkWebEnergy(db:Database,userId:string,input:EnergyInput,targetIndex?:number,options:{emptyDateMoveTarget?:boolean}={}){
  const parsed=energyInputSchema.safeParse(input);
  if(!parsed.success)throw new ApiError(400,"invalid_input","请检查录入内容。");
  const [repeated]=await db.select().from(energyOperation).where(and(eq(energyOperation.userId,userId),eq(energyOperation.operationId,parsed.data.operationId)));
  if(repeated?.status==="confirmed"&&repeated.origin==="manual"&&repeated.requestDigest===digest(parsed.data))return;
- const state=await readEnergySnapshot(db,userId),rows=planEnergyActions(parsed.data.actions,state);
+ const state=await readEnergySnapshot(db,userId),moveIssue=options.emptyDateMoveTarget?energyDateMoveIssue(parsed.data.actions,state):null;
+ if(moveIssue)throw new ApiError(409,"date_move_conflict",moveIssue);
+ const rows=planEnergyActions(parsed.data.actions,state);
  const activityChanged=(date:string)=>rows.some(row=>row.action.kind.endsWith("activity")&&((row.before&&"date" in row.before&&row.before.date===date)||("date" in row.action&&row.action.date===date))&&(!row.before||!row.after||!("name" in row.before)||!("name" in row.after)||JSON.stringify([row.before.date,row.before.name,row.before.caloriesKcal,row.before.exerciseActiveKcal,row.before.exerciseRestingKcal,row.before.calorieMode,row.before.completed,row.before.inclusion])!==JSON.stringify([row.after.date,row.after.name,row.after.caloriesKcal,row.after.exerciseActiveKcal,row.after.exerciseRestingKcal,row.after.calorieMode,row.after.completed,row.after.inclusion])));
  for(const [index,row] of rows.entries())if(row.action.kind==="save_energy_day"&&(targetIndex===undefined||index===targetIndex)){
   if(row.error)throw new ApiError(400,"invalid_input",row.error);

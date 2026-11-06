@@ -24,6 +24,8 @@ record-updates.tsx沿用现有变化检测并发出formward-record-context-stale
 
 本目录保存多个页面共同使用的界面组件，例如按钮、输入、导航、日期范围和图表外壳。业务专用组件留在对应页面或 feature 附近，避免形成无边界组件仓库。
 
+workspace-motion.ts只管理四模块普通导航的正文轻横移与淡变，方向来自workspace-pages顺序；WorkspaceFrame持久挂载同一容器，骨架替换不重播。图形交接、日期详情、录入、同页刷新及初次打开不叠加，顶栏／导航与面板不在动画容器内。200ms、手机16px／电脑12px；快速反向从当前姿态续接，取消前撤销所有权，过期完成回调不影响新动画，减少动态效果即时完成。record-change-client的可选id校验防止同版本不同编号被误认；已知核对错误使用RecordVersionError供业务保留具体原因。
+
 `page-loading.tsx` 提供根布局使用的 `PageLoadingProvider` 和路由后备 `RouteLoading`，`page-loading-state.ts` 提供绑定真实等待状态的 `usePageLoading({ active, label })` 与共享 Context。组件模块只导出组件，保留 Fast Refresh 的状态边界。操作立即反馈，工作区超过200ms显示非模态状态；以下模态反馈仅用于工作区外流程：多个来源各自登记，全部结束才收起，路由阶段交接不重置延迟。模态层使用原生 dialog，以视口宽度覆盖滚动条预留区域，位于业务弹窗上方，等待时阻止操作、Escape 和 Tab，结束后恢复可用焦点。保存前若需要用户确认，等待层暂停展示，确认结束后按实际请求恢复，避免盖住确认按钮。异常与卸载清理各自状态，不自动重试。首屏路由后备可由服务器输出，客户端模态层出现后隐藏后备。
 
 `loading-link.tsx`包装Next.js Link并保留草稿保护、预取、新标签和下载语义。普通导航不登记全局等待；直接录入不预取，保存与真实任务继续使用原反馈。
