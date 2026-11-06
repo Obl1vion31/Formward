@@ -1,6 +1,6 @@
 # Formward
 
-面板方向、加载交接与身体卡片已发布到[正式总览](https://formward-ten.vercel.app/dashboard)，手机和电脑共用地址。手机记录与详情统一从底部进入，账号菜单与助手沿按钮展开；身体采用晨重主卡、相关次卡与唯一完整趋势，隐藏历史值保留。正式应用2f1052b来自codex/panel-flow，尚未合入main；478项测试及生产构建通过。规则见[设计规范](docs/design-reference.md)，实际发布和未测边界见[部署](docs/deployment.md)。
+手机卡片双向转场与消耗关联已发布到[正式总览](https://formward-ten.vercel.app/dashboard)。摄入、晨重和消耗沿真实日期范围进入专页，返回一次缩回原卡；取消先隐藏旧图层，恢复横滑、滚动及焦点。正式应用e6fef44来自codex/chart-roundtrip，尚未合入main；487项测试及生产构建通过。规则见[设计规范](docs/design-reference.md)，正式核对和未测边界见[部署](docs/deployment.md)。
 
 身体每天晨间／晚间各采用最后保存的一条记录，编辑覆盖、单项删除先确认；运动可只填总数或分开填写纯运动与期间静息。跨页面修改会提示并保留输入，手机图表支持横拖选日。详细规则与当前发布状态见[交接](handoff.md)。
 
