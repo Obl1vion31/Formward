@@ -1,5 +1,22 @@
 # 完善任务验收
 
+## 正式连续交接与双端导航发布验收（2026-11-06）
+
+按用户明确授权，整套完成后直接发布到[正式总览](https://formward-ten.vercel.app/dashboard)，手机和电脑共用地址。READY部署`dpl_BpjgYXhaLGu6GueuAPTEL4FGMWEn`，应用源码`239f97cdaf03f0add02eea10935b4453eab7e2f4`，构建`continuity-239f97c-20261106`；正式别名、sourceCommit／gitCommitSha、版本接口及已发布客户端JS一致。干净codex/mobile-continuity应用提交导出，717项上传清单不含私有数据、环境文件和本机工具；未合入或推送main，原主工作区国内部署／COS／DNS改动保持隔离。后续发布记录提交不改变正式应用。
+
+手机首页改为一张宽卡加下一卡露出，保留真实小图及一次双次微动引导；饮食为热量／供能环图主卡及三宏量卡，消耗为真实静息／活动比例，未知和零分开。三专页右上额外记录动作移除，首页、日期行和助手仍进入完整表单。四页共用布局骨架与扫光，源图先到骨架再交给实际图表，快速返回恢复卡片位置和焦点；8秒未就绪有局部恢复入口。身体随账号体脂开关切换四项摘要、图、历史和录入，按同一所选日统计；隐藏历史值不丢失。菜单、设置／资料／安全与助手复用可中断面板和原表单，保留草稿／保存保护；电脑左侧四模块统一84px浮动暖雾导航与纵向胶囊，正文留白及原图表保持。
+
+472项单元／集成、lint、typecheck、本地及正式production build通过；18项公开／保护／协议检查通过。隔离环境已注入1.8秒／9.5秒慢响应及偏好保存503，检查共享图形交接、8秒恢复、快速反向、位置／焦点恢复、失败回滚、版本冲突及账号隔离。正式Chromium核对320／390／430px手机、矮屏、深浅主题，以及1100／1440／1920px电脑；虚构餐次165 kcal真实保存后摄入为1355，身体70.19保存后旧体脂20.81保留，静息2058和活动0保存后总数2058，新标签读取云端偏好。助手、设置及资料表单实际加载，手机和电脑客户端error均0。
+
+先备份并核对29个已发布migration的完整SHA256，仅新增0030_account_preferences；迁移后44表、30条迁移账本，旧43表结构及既有健康事实核对通过。独立虚构账号及36张所属表数据已按精确ID清理，发布后完整性报告issues为空，保留合法用户更新；正常认证限流／会话时间变化有私有精确哈希留档。最终部署20分钟Runtime error／fatal及请求5xx均0，无排除区间、无后续分页。备份、核对位于原主工作区data/exports/continuity-20261106-*，0600且Git／部署忽略；发布证据在本工作区.codex/continuity-release。上一READY `dpl_91NTmbnYDMzWo8jddqkGfnuEzebS`保留供应用回退，不删除新表或回退用户合法写入。
+
+设计规则统一在docs/design-reference.md；截图、实际操作低频录屏及检查边界见docs/maintenance-verification.md。真实iPhone／WebKit、系统软键盘／VoiceOver、系统200%文字与减少动态效果现场切换、真触屏帧率未测；不把浏览器视口和低频录屏当作实机证明。本轮无公开HTTP v1／MCP、AI权限、运行依赖或生产环境变量调整。
+
+
+正式实际截图位于C:/Users/14878/.codex/visualizations/2026/11/06/01a1af0c-e81b-7cd2-84c9-9702574d032c/continuity：public-mobile-dark-390.png、public-{320x560,430x780,1100x900,1440x900,1920x900}.png、public-meals-light.png、public-meal-saved.png、public-body-saved-hidden.png、public-body-light.png、public-energy-light.png、public-energy-saved.png、public-assistant.png、public-settings-dark.png、public-desktop-body-dark.png、public-desktop-meals-dark.png、public-size-checks.json及public-browser-checks.json，全部为虚构账号。正式浏览器操作结束后关闭临时标签并重置视口，随后清理该账号，截图保留供复核。
+
+发布后私有备份首次CLI连接短暂超时，IPv4优先重新连接后完整快照和核对成功；没有调整生产环境变量。此项与正式应用Runtime／5xx检查分别记录。
+
 ## 连续交接与双端导航：隔离环境验收（2026-11-06）
 
 codex/mobile-continuity基于上次正式暖雾应用独立实施。本节为隔离PGlite、虚构账号和本地production build的实际检查；发布信息另在正式验收中记录。没有连接真实用户进行浏览器操作。

@@ -1,6 +1,6 @@
 # Formward
 
-暖雾材质、B横向真实数据卡、摄入／晨重共享图形转场及专页记录入口已发布到[正式总览](https://formward-ten.vercel.app/dashboard)。持久导航、集中外观设置、小助手与可拖动底部详情继续复用，饮食、消耗和身体原有能力保留；正式应用源码166f715，发布来自codex/mobile-workspace，尚未合入main。实施对照见[手机交互与迁移](docs/mobile-interaction-research.md)，发布与验收见[部署](docs/deployment.md)。
+手机连续交接、真实营养／消耗卡片、账号同步体脂开关与双端暖雾导航已发布到[正式总览](https://formward-ten.vercel.app/dashboard)。手机与电脑使用同一地址；完整记录表单、真实小助手、历史图表与草稿保护继续复用。正式应用源码239f97c，来自codex/mobile-continuity，尚未合入main。实施对照见[手机交互与迁移](docs/mobile-interaction-research.md)，发布与验收见[部署](docs/deployment.md)。
 
 身体每天晨间／晚间各采用最后保存的一条记录，编辑覆盖、单项删除先确认；运动可只填总数或分开填写纯运动与期间静息。跨页面修改会提示并保留输入，手机图表支持横拖选日。详细规则与当前发布状态见[交接](handoff.md)。
 
