@@ -1,6 +1,22 @@
 # 完善任务验收
 
-## 正式发布验收：底部面板与记录任务（2026-11-07）
+## 正式发布验收：消耗改期与主导航（2026-11-07）
+
+已按用户授权发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署`dpl_9KYWuxTQUQDTchCYXW8RBtt4oB4c`，应用源码`6f0a2f64e6d17c1513199561f0d5f7fb3fe6d14b`，构建`date-navigation-6f0a2f6-20261107`；formward-ten.vercel.app与global.formward.top、源码元数据、版本接口和客户端JS一致。来自codex/energy-date-navigation的干净提交，736项上传文件不含私有数据、环境文件与本机工具；未合入或推送main，原主工作区的国内基础设施修改保持隔离。后续纯文档提交不改变正式应用。
+
+消耗改期按原编号、原日期及版本核对，禁止采用目标日另一编号；日汇总与原日运动同批移动，日期相关包含关系重新核对。目标日已有日记录或运动时不合并，失败保留草稿并说明原因；响应中断沿用原请求编号，成功同时确认原日与目标日变化。窄编辑区日期／时区分行，原生日期控件、16px输入和44px触控保持。四模块普通导航按顺序200ms轻横移并淡变，手机16px、电脑12px；骨架替换不重播，图形关联、录入及详情不叠加，顶栏和导航稳定。
+
+504项单元／集成、lint、独立typecheck、本地与正式production build及目录结构检查通过；18项公开／保护／协议检查和客户端版本核对通过。本地15段与公网6段有效全程录像均结束后至少500ms无旧内容闪回；普通导航每个目标只启动一次，图形关联不叠加。饮食与消耗慢响应下可见骨架的日期、读数和图表槽位最大偏差0.1126 CSS px（扣除共同正文位移，隐藏节点不计）。12组深浅表单、12组1100／1440／1920px电脑四模块布局通过，正文中心最大误差0.00004px。
+
+发布前后44表结构、30条迁移账本及全部既有健康事实保持，issues为空。临时虚构账号及36张所属表已精确清理；公网改期单独核对原编号、原值、时区及备注不变，无重复记录。15项变化仅为认证使用／续期与限流元数据；初核额外3项为两条已过期限流缓存清理和一次退出限流，按已安装Better Auth清理规则、实际时间与精确行哈希逐条核对，初核报告保留，不宽泛豁免健康表。私有0600备份与核对为原主工作区data/exports/date-navigation-20261107-*，发布证据为.codex/energy-date-navigation-release。最终20分钟Runtime error／fatal及请求5xx均0，无排除区间与后续分页。没有migration、公开HTTP／MCP、依赖或生产环境变量变化。上一READY `dpl_3cJVUyukZMA7PsN3SbRQrCtT2Nrc`保留供应用回退，保留用户合法更新。
+
+实际截图、逐帧位置及录像位于C:/Users/14878/.codex/visualizations/2026/11/06/01a1af0c-e81b-7cd2-84c9-9702574d032c/date-navigation；public-time-fields.png、public-desktop-final.png、public-overview-meals.mp4和public-date-move-save.mp4可直接核看，内容均虚构。视频按实际采样时间编码、不插帧，只作偶数像素编码补边，不作为真机帧率证明。
+
+物理iPhone／WebKit、真触屏横屏指针、系统软键盘／VoiceOver、系统200%文字、现场系统减少动态效果切换及真机帧率未实测，不计为通过；减少动态效果与取消清理由控制器测试覆盖。浏览器标签及临时视口已清理，临时账号已退出。
+
+录像mobile-rapid-reverse在浏览器后退重新打开编辑任务后点了底层导航，未实际导航，不计通过；mobile-slow-overview-energy的定位器点击未触发导航，原样保留，改用真实输入重录后计入。首轮日期测试的旧来源空分项会沿用已有全局来源；改为显式分项来源的虚构样本后检验改期保持，未为迁就断言修改旧兼容规则。
+
+## 此前正式发布验收：底部面板与记录任务（2026-11-07）
 
 已按用户授权发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署`dpl_3cJVUyukZMA7PsN3SbRQrCtT2Nrc`，应用源码`aa2036827d8bcf79f35f61fee1c3475abcbc431d`，构建`record-modes-aa20368-20261107`；正式别名、源码元数据、版本接口和客户端JS一致。从codex/record-modes干净提交导出732项文件，私有数据、环境文件及本机工具未上传；未合入或推送main，原主工作区国内基础设施改动未参与发布。后续纯文档提交不改变正式应用。
 
