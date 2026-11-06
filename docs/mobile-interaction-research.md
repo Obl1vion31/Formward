@@ -2,7 +2,7 @@
 
 已认可的交互方向来自本轮formward-mobile-focus原型：记录入口同组、状态卡、可见共轴双层趋势、玻璃导航、有限弹性和底部详情。原型为虚构数据演示，样式认可不代表正式业务验收。
 
-当前正式实现来自codex/chart-roundtrip，应用e6fef44已按用户授权发布到https://formward-ten.vercel.app/dashboard，尚未合入main。摄入、晨重、消耗均携带真实日期及同一七日范围，单次进入／回程复用图形；取消先隐藏，返回恢复卡片带和焦点。消耗小图／骨架／正式图共用最终业务读数，未知和0保持。暖雾材质、身体卡片及完整记录／助手继续保留；实际证据见[维护验收](maintenance-verification.md)。
+当前正式实现来自codex/record-modes，应用aa20368已按用户授权发布到https://formward-ten.vercel.app/dashboard，尚未合入main。底部面板标题与把手净化、日期完整显示，四类查看与编辑分开；同地址重复任务经来源退出后重开，三类快捷录入一个外壳与表单。既有摄入／晨重／消耗双向图形交接继续保留，未知与0、账号偏好及完整保存／助手规则保持；实际证据见[维护验收](maintenance-verification.md)。
 
 迁移对照：
 

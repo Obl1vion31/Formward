@@ -1,6 +1,6 @@
 # Formward
 
-手机卡片双向转场与消耗关联已发布到[正式总览](https://formward-ten.vercel.app/dashboard)。摄入、晨重和消耗沿真实日期范围进入专页，返回一次缩回原卡；取消先隐藏旧图层，恢复横滑、滚动及焦点。正式应用e6fef44来自codex/chart-roundtrip，尚未合入main；487项测试及生产构建通过。规则见[设计规范](docs/design-reference.md)，正式核对和未测边界见[部署](docs/deployment.md)。
+底部面板净化及查看／编辑分离已发布到[正式总览](https://formward-ten.vercel.app/dashboard)。日期完整，保存按钮精简；四类详情只读、编辑和维护入口独立，同日期再次进入及快捷录入保持一个面板。正式应用aa20368来自codex/record-modes，未合入main；493项测试及生产构建通过。规则见[设计规范](docs/design-reference.md)，正式核对与未测边界见[部署](docs/deployment.md)。
 
 身体每天晨间／晚间各采用最后保存的一条记录，编辑覆盖、单项删除先确认；运动可只填总数或分开填写纯运动与期间静息。跨页面修改会提示并保留输入，手机图表支持横拖选日。详细规则与当前发布状态见[交接](handoff.md)。
 
