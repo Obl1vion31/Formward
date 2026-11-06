@@ -9,10 +9,33 @@ import { emptyNutrition, type MealView } from "../meals/model";
 import { emptyEnergy, type EnergySnapshot } from "../activities/model";
 import { linkedDate } from "../measurements/calendar";
 import type { MeasurementDisplay } from "../measurements/entry-state";
+import { summaryCards } from "./summary-cards";
+import { linkedTrend } from "../../components/metric-trend-model";
 const observed = (date: string, patch: Partial<MeasurementDisplay> = {}): MeasurementDisplay => ({ id: date, recordDate: date, period: "daytime", weightKg: "70.00", bodyFatPercent: "20.00", fasting: true, sourceLocalTime: date + " 08:00:00", recordKind: "observed", timezone: "Asia/Shanghai", sourceType: "manual", sourceSystem: null, sourceRecordId: null, entryChannel: "manual", deviceLabel: "虚构秤", estimation: null, timePrecision: "minute", updatedAt: date, ...patch });
 const makeMeal = (date: string, caloriesKcal: string): MealView => prepareMealActions({ operationId: "fictional-overview", actions: [{ kind: "save_meal", date, mealType: "午餐", items: [{ kind: "food", name: "虚构食物", sourceKind: "reference", nutrition: { ...emptyNutrition(), caloriesKcal } }] }] }, { foods: [], meals: [] }, "manual")[0].meal!;
 const meal = (date:string,caloriesKcal:string):MealView => ({...makeMeal(date,caloriesKcal),day:{date,status:"complete",version:1,contentDigest:"fictional",source:"user"}});
 const expenditure = (date: string, totalKcal: string) => ({ id: date, version: 1, deletedAt: null, date, restingKcal: null, activeKcal: null, totalKcal, timezone: "Asia/Shanghai", sourceSystem: null, sourceRecordId: null, sourceOccurredAt: null, sourceUnit: "kcal" as const, syncStatus: "confirmed" as const });
+
+test("状态卡的小图保留零、未知与各自记录日期，进入专页使用同一段日历日",()=>{
+  const presentation=overviewPresentation([meal("2024-08-02","0")],[observed("2024-08-01")],{...emptyEnergy(),days:[expenditure("2024-07-31","2400")]},"2024-08-03");
+  const cards=summaryCards(presentation,"2024-08-03");
+  assert.deepEqual(cards.map(card=>card.date),["2024-08-02","2024-08-01","2024-07-31"]);
+  assert.equal(cards[0].title,"最近摄入");assert.equal(cards[0].value,"0");
+  assert.equal(cards[0].trend.points.at(-1)?.value,0);assert.equal(cards[0].trend.points[0].value,null);
+  for(const card of cards.slice(0,2)){
+    const url=new URL(card.href,"https://example.test"),query=Object.fromEntries(url.searchParams);
+    const linked=linkedTrend(query);assert.equal(linked?.date,card.date);
+    assert.equal(linked?.from,card.trend.points[0].date);assert.equal(linked?.to,card.trend.points.at(-1)?.date);
+  }
+});
+
+test("空账号小图不补零，趋势链接拒绝非法日期、超长和不相交范围",()=>{
+  const cards=summaryCards(overviewPresentation([],[],emptyEnergy(),"2024-08-03"),"2024-08-03");
+  assert.ok(cards.every(card=>card.value==="—"&&card.trend.points.every(point=>point.value===null)));
+  const valid={view:"trend",date:"2024-08-03",from:"2024-07-28",to:"2024-08-03"};
+  assert.ok(linkedTrend(valid));
+  for(const patch of [{from:"2024-99-99"},{from:"2024-02-31"},{date:"2024-08-04"},{from:"2000-01-01"},{view:"record"},{date:["2024-08-03","2024-08-04"]}])assert.equal(linkedTrend({...valid,...patch}),null);
+});
 
 test("总览卡片各取最近记录日，跨零点保留昨日餐次且不影响当天汇总", () => {
   const meals = [meal("2024-08-02", "200"), meal("2024-08-02", "300"), meal("2024-08-01", "400")];

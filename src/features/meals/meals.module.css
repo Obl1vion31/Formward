@@ -336,7 +336,7 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
 .mealForm input:not([type=checkbox]):not([type=file]),.mealForm textarea,.mealForm select,.toolbar input{border:1px solid var(--control-border);border-radius:6px;background:var(--surface-raised);padding:10px 12px;font-size:16px;line-height:22px;color-scheme:var(--color-scheme)}
 .mealForm input:not([type=checkbox]):hover,.mealForm textarea:hover,.mealForm select:hover{border-color:var(--gold)}
 .mealForm input:focus-visible,.mealForm textarea:focus-visible,.mealForm select:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-.stickyMealTotal{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0;background:var(--surface);border-bottom:1px solid var(--line-soft);margin-bottom:18px}
+.stickyMealTotal{position:sticky;top:var(--inspector-sticky-offset,0px);z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0;background:var(--surface);border-bottom:1px solid var(--line-soft);margin-bottom:18px}
 .stickyMealTotal>div{min-width:0;flex:1}.headerNutrition{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}.headerNutrition strong{display:inline-flex;align-items:baseline;gap:5px;font-size:30px;font-weight:400;white-space:nowrap}.headerNutrition small{font-size:12px;color:var(--muted)}.headerNutrition>span{font-size:12px;color:var(--muted);line-height:1.6}.entryIssue{color:var(--muted);font-size:12px;line-height:1.5;margin:6px 0 0}
 .mealForm .save{flex:none;margin:0;padding:12px 16px;min-height:44px;border:1px solid var(--gold);border-radius:6px;background:var(--gold);color:var(--graphite);font-size:14px;font-weight:500;white-space:nowrap}
 .mealForm .save:hover{background:color-mix(in srgb,var(--gold) 88%,var(--warm-white));color:var(--graphite)}
@@ -347,7 +347,7 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
 .mealForm .entryActions{gap:8px}.mealForm .calculated{color:var(--muted)}.mealForm input[readonly]{border-color:transparent;background:transparent;color:var(--muted)}
 .photoLabel{display:block;color:var(--muted);font-size:13px;margin-bottom:8px}.photoUpload{display:flex;align-items:center;gap:14px}.photoUpload>span{font-size:13px;color:var(--muted)}
 .photoFields .fileInput{position:absolute;width:1px;height:1px;min-height:0;padding:0;border:0;overflow:hidden;clip-path:inset(50%)}
-@media(max-width:600px){.stickyMealTotal{top:0;padding:12px 0;align-items:flex-start}.headerNutrition{gap:4px 10px}.headerNutrition>span{font-size:11px}.mealForm .save{font-size:12px;padding:10px}.headerNutrition strong{font-size:27px}}
+@media(max-width:600px){.stickyMealTotal{top:var(--inspector-sticky-offset,0px);padding:12px 0;align-items:flex-start}.headerNutrition{gap:4px 10px}.headerNutrition>span{font-size:12px}.mealForm .save{font-size:12px;padding:10px}.headerNutrition strong{font-size:27px}}
 
 .mealForm .entryTable[data-layout=table] .entryActions>button:last-child{margin-left:8px}.mealForm .entryTable[data-layout=cards] .entryName{padding-right:0}.mealForm .entryTable[data-layout=cards] .entryActions{width:auto;grid-row:auto;gap:8px}
 
@@ -426,3 +426,5 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
  .foodTable .rowEnergy{font-size:16px!important}
 }
 @media(prefers-reduced-motion:reduce){.foodTable tbody tr{transition:none}}
+
+.headerNutrition>.headerMacros{display:flex;flex-wrap:wrap;gap:2px 10px}.headerMacros>span{white-space:nowrap}

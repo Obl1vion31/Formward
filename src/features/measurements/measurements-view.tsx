@@ -23,6 +23,9 @@ import { localMeasurementDate, measurementDayAction, measurementNeedsEntry, type
 import { MeasurementEntry } from "./measurement-entry";
 import { timezoneLabel } from "./timezone";
 import { useMobileMode } from "@/components/use-mobile-mode";
+import type { TrendRoute } from "@/components/metric-trend-model";
+import { MobileRecordAction } from "@/components/mobile-record-action";
+import { MorningWeightPlot } from "./morning-weight-plot";
 export type { MeasurementDisplay } from "./entry-state";
 
 type MeasurementDay = ReturnType<typeof buildMeasurementDays<MeasurementDisplay>>[number];
@@ -35,7 +38,7 @@ const weekday = (date: string) => weekdays[new Date(calendarOrdinal(date) * 86_4
 const unitFor = (metric: MeasurementMetric) => metric === "weightKg" ? "kg" : "%";
 const metricName = (metric: MeasurementMetric) => metric === "weightKg" ? "体重" : "体脂率";
 
-export function MeasurementsView({ records: serverRecords, dates: serverDates, sources: serverSources, accountCreatedAt, actions, initialDate = null, initialPeriod = null }: { records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; accountCreatedAt: string; actions: MeasurementActions; initialDate?:string|null; initialPeriod?:"daytime"|"evening"|null }) {
+export function MeasurementsView({ records: serverRecords, dates: serverDates, sources: serverSources, accountCreatedAt, actions, initialDate = null, initialPeriod = null,initialTrend=null }: { records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; accountCreatedAt: string; actions: MeasurementActions; initialDate?:string|null; initialPeriod?:"daytime"|"evening"|null;initialTrend?:TrendRoute|null }) {
   const mobileMode = useMobileMode();
   const [actionResult, setActionResult] = useState<(Extract<EntryResult, { ok: true }> & { base: MeasurementDisplay[] }) | null>(null);
   // 保存结果即时反馈；新的服务端快照抵达后接管，不能长期保留首次加载数据。
@@ -59,17 +62,17 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const catalog = measurementCalendarRange(today, localMeasurementDate(new Date(accountCreatedAt), timezone || "UTC"), records.map(row => row.recordDate), dateCatalog);
   const latestDate = catalog.end;
   const earliestDate = catalog.start;
-  const [selectedMode, setMode] = useState<MeasurementRange | null>(null);
+  const [selectedMode, setMode] = useState<MeasurementRange | null>(initialTrend?"custom":null);
   const mode = selectedMode ?? (mobileMode ? "7d" : "30d");
-  const [customRange, setCustomRange] = useState<MeasurementInterval>({ start: earliestDate, end: latestDate });
+  const [customRange, setCustomRange] = useState<MeasurementInterval>({ start: initialTrend?.from??earliestDate, end: initialTrend?.to??latestDate });
   const [draftRange, setDraftRange] = useState(customRange);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [chartPeriod, setChartPeriod] = useState<"daytime" | "evening" | undefined>();
-  const [showEvening, setShowEvening] = useState(true);
-  const [showEstimates, setShowEstimates] = useState(true);
+  const [showEvening, setShowEvening] = useState(!initialTrend);
+  const [showEstimates, setShowEstimates] = useState(!initialTrend);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
-  const [drawer, setDrawer] = useState<DrawerView | null>(initialDate ? initialPeriod?{kind:"entry",date:initialDate,period:initialPeriod}:{kind:"day",date:initialDate,metric:"weightKg"} : null);
+  const [drawer, setDrawer] = useState<DrawerView | null>(initialDate&&!initialTrend ? initialPeriod?{kind:"entry",date:initialDate,period:initialPeriod}:{kind:"day",date:initialDate,metric:"weightKg"} : null);
   function updated(result: Extract<EntryResult, { ok: true }>) { setSourceResult(null); setActionResult({ ...result, base: serverRecords }); }
 
   useEffect(()=>{const latest=()=>{setDrawer(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
@@ -115,7 +118,8 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
     return <DailyRecordRow key={date} date={date} today={today} value={<div className={styles.dailyReadings}>{(["daytime","evening"] as const).map(period=><span key={period}><span className={styles.periodLabel}>{period==="daytime"?"晨间":"晚间"}</span>{metrics.map((metric,index)=>{const day=days[index],row=period==="daytime"?day.daytimeRecord:day.eveningRecord;return <TableReading key={metric} row={row} metric={metric} pendingLabel={day[period].length>1?"待选择":null} onInspect={record=>inspectRecord(record,metric)} onInspectCandidates={()=>inspectDay(date,period,metric)}/>;})}</span>)}</div>}><DayActions date={date} today={today} records={records} onView={()=>inspectDay(date)} onEntry={editing=>setDrawer({kind:"entry",date,editing})}/></DailyRecordRow>;
   }
 
-  return <RecordWorkspace title="身体" headingId="body-records-title" className={styles.workspace} aria-labelledby="body-records-title">
+  return <RecordWorkspace title="身体" headingId="body-records-title" className={styles.workspace} aria-labelledby="body-records-title" data-shared-route={initialTrend?true:undefined}>
+    {mobileMode&&today&&<MobileRecordAction label="记录测量" date={today} back={!!initialTrend} record={()=>setDrawer({kind:"entry",date:today,period:"daytime"})}/>}
     <section data-chart-selection={selection.regionId} data-selected-date={activeDate} data-selection-origin={selection.origin} {...selection.regionProps} aria-label="身体指标趋势" data-range={mode} style={{visibility:mobileMode===null||!today?"hidden":undefined}}>
       <RecordTrendPanel
        range={<ChartRanges value={mode} items={[...ranges.map(item=>[item.value,item.label]),["custom","自定义"]]} change={value=>{if(value==="custom"){setDraftRange(range);setCalendarOpen(true);}else selectRange(value as MeasurementRange);}}/>}
@@ -305,7 +309,11 @@ function RepresentativeChoices({ day, metric, choices, period: onlyPeriod, onCho
   </label>)}</>;
 }
 
-function TrendPlot({ records, metric, showEvening, interval, selectedDate, selectedPeriod, selection, onPeriod, choices }: {
+function TrendPlot(props:Parameters<typeof FullTrendPlot>[0]) {
+  const mobile=useMobileMode();
+  return mobile&&props.metric==="weightKg"&&!props.showEvening&&!props.records.some(row=>row.recordKind==="estimated")?<MorningWeightPlot records={props.records} interval={props.interval} selection={props.selection} choices={props.choices}/>:<FullTrendPlot {...props}/>;
+}
+function FullTrendPlot({ records, metric, showEvening, interval, selectedDate, selectedPeriod, selection, onPeriod, choices }: {
   records: MeasurementDisplay[]; metric: MeasurementMetric; showEvening: boolean; interval: MeasurementInterval;
   selectedDate: string | null; selectedPeriod?: "daytime" | "evening"; selection:ReturnType<typeof useChartDateSelection>; onPeriod:(period:"daytime"|"evening")=>void; choices: Record<string, string>;
 }) {

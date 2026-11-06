@@ -13,9 +13,8 @@ import type { OverviewDay } from "./model";
 import styles from "./overview.module.css";
 
 const palette = { intake: "var(--data-blue)", expenditure: "var(--data-red)", surplus: "var(--data-surplus)", deficit: "var(--data-deficit)", weight: "var(--data-weight)" };
-export function RelationshipPlot({days,selected,selection}:{days:OverviewDay[];selected:string;selection:ReturnType<typeof useChartDateSelection>}) {
+export function RelationshipPlot({days,selected,selection,compactMode}:{days:OverviewDay[];selected:string;selection:ReturnType<typeof useChartDateSelection>;compactMode?:boolean}) {
   const container = useRef<HTMLDivElement>(null), id = useId().replaceAll(":", "");
-  const [viewportRoom,setViewportRoom]=useState<number|null>(null);
   const mobile = useMobileMode(), [shortViewport, setShortViewport] = useState(false);
   useEffect(() => {
     const query = window.matchMedia("(max-height: 600px)");
@@ -23,17 +22,11 @@ export function RelationshipPlot({days,selected,selection}:{days:OverviewDay[];s
     update(); query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, []);
-  useEffect(() => {
-    const node=container.current!,nav=document.querySelector(".mobile-bottom-nav");
-    const measure=()=>{setViewportRoom(nav&&getComputedStyle(nav).display!=="none"?Math.floor(nav.getBoundingClientRect().top-node.getBoundingClientRect().top-window.scrollY-4):null);};
-    const observer=new ResizeObserver(measure);observer.observe(node);if(nav)observer.observe(nav,{box:"border-box"});window.addEventListener("resize",measure);measure();
-    return()=>{observer.disconnect();window.removeEventListener("resize",measure);};
-  }, []);
   const energyScale = energyLineScale(days.flatMap(day => [day.nutrition?.values.caloriesKcal, day.energy.totalKcal])), weightScale = energyLineScale(days.map(day => day.weightChangeKg), "kg");
   const {width,left}=useChartViewport(container,[...energyScale.ticks,...weightScale.ticks.map(tick=>(tick>0?"+":"")+tick)],49);
   useChartMotion(container, width ? days.map(day => `${day.date}:${day.nutrition?.values.caloriesKcal}:${day.energy.totalKcal}:${day.energyBalance}:${day.weightChangeKg}:${day.differenceEstimated}`).join("|") : "pending");
-  const w = width || 280, compact = mobile ?? w < 650, right = 13, top = compact ? 16 : 26;
-  const energyHeight=compact?Math.min(shortViewport?96:124,Math.max(60,(viewportRoom??1000)-top-32-(shortViewport?56:68)-28)):220;
+  const w = width || 280, compact = compactMode ?? mobile ?? w < 650, right = 13, top = compact ? 16 : 26;
+  const energyHeight=compact?(shortViewport?104:132):220;
   const energyBottom = top + energyHeight;
   const weightTop = energyBottom + (compact ? 32 : 56), weightBottom = weightTop + (compact ? shortViewport ? 56 : 68 : 112), height = weightBottom + (compact ? 28 : 34);
   // 只减少标签密度，保持全区间的数据范围与零线。
@@ -92,7 +85,7 @@ export function RelationshipPlot({days,selected,selection}:{days:OverviewDay[];s
         {(i % stride === 0 && days.length - 1 - i >= stride / 2 || i === days.length - 1) && <text x={x(i)} y={height - 5} textAnchor={days.length === 1 ? "middle" : i === 0 ? "start" : i === days.length - 1 ? "end" : "middle"} data-overview-date-label="" className={styles.axis}>{w < 440 && days.length <= 7 ? day.date.slice(8) : days.length > 366 ? day.date.slice(2, 7).replace("-", ".") : day.date.slice(5).replace("-", ".")}</text>}
       </g>)}
     </svg></div>
-    {days.some(day => day.nutrition && day.mealDayStatus !== "complete") && <div className={styles.plotNotes}>
+    {!compact&&days.some(day => day.nutrition && day.mealDayStatus !== "complete") && <div className={styles.plotNotes}>
       {days.some(day => day.nutrition && day.mealDayStatus !== "complete") && <span><i className={styles.unconfirmedKey} />空心点：未记全／待确认</span>}
     </div>}
   </div>;

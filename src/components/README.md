@@ -1,5 +1,9 @@
 # Components
 
+手机Inspector通过--inspector-sticky-offset为把手预留44px，饮食与消耗的粘性保存条复用该偏移，长表单滚动不能盖住把手。
+
+metric-card-rail.tsx提供B横滑卡片与拖后点击抑制，trend-glyph.tsx共用2:1数据平面，metric-trend-model.ts只管绘图尺度和内部趋势链接校验。chart-transition.tsx挂在已认证持久框架中，等真实目标就绪后等比交接；无配对／减少动态效果／异常超时走普通导航。移动专页入口用mobile-record-action.tsx；mobile-navigation.tsx复用原四目的地、指示器及拖动行为，workspace-pages.ts统一目的地名称。
+
 Inspector在手机提供底部面板：只读stableScroll详情默认半屏，录入默认近全屏，把手可拖动及点击切换。所有关闭路径仍经过同一个草稿/忙碌保护；正文自行滚动，桌面侧栏和compact确认框保持各自用途。工作区的PageLoadingProvider显示非模态任务反馈，登录等工作区外流程继续使用原反馈；AssistantProvider显式识别工作区pending。
 
 appearance-state区分用户选择system/light/dark与实际data-theme，早期初始化保留本机既有偏好；AppearanceSync在持久框架内保持系统监听，设置面板关闭后仍响应。AppearanceSwitch只在统一设置入口提供。

@@ -1,8 +1,8 @@
 # Formward 项目交接
 
-## 本地手机工作区第一批
+## 本地手机视觉工作区
 
-分支codex/mobile-workspace基于main 840207f隔离开发，未发布。已接入持久导航、集中外观设置、既有小助手、手机底部详情与真实总览；四业务模块继续使用完整原有业务能力，饮食／消耗／身体的进一步版式整理按批推进。源码与验收见docs/mobile-interaction-research.md及docs/maintenance-verification.md。原主工作区的国内部署与其他修改保持隔离。
+分支codex/mobile-workspace基于main 840207f隔离开发，未发布。已接入持久导航、集中设置、真实小助手、底部详情、暖雾材质与B横向数据卡。摄入／晨重共用图形组件，从卡片按真实路由及相同日期范围等比进入专页；返回恢复位置与焦点。手机首页删除统计／覆盖／缺口区域，消耗并入卡片带；三专页顶部可直接记录，保留完整原有业务。局部材质对照在显式本地开关下开放，正式环境默认404。源码与验收见docs/mobile-interaction-research.md及docs/maintenance-verification.md。原主工作区的国内部署与其他修改保持隔离。
 
 ## 当前正式版本：饮食详情精简与输入对齐（2026-11-05）
 

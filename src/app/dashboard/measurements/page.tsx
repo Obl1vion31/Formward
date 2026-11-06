@@ -11,16 +11,17 @@ import { MeasurementsView } from "@/features/measurements/measurements-view";
 import { listMeasurementDates, measurementDisplay } from "@/features/measurements/editing";
 import { deleteCellAction, estimateCellAction, removeSourceAction, saveDayAction } from "../actions";
 import { listMeasurementSources } from "@/features/measurements/sources";
+import { linkedTrend, type TrendRoute } from "@/components/metric-trend-model";
 
 export const metadata: Metadata = { title: "Formward · 身体记录" };
 
-export default async function DashboardPage({searchParams}:{searchParams:Promise<{date?:string|string[];entry?:string}>}) {
+export default async function DashboardPage({searchParams}:{searchParams:Promise<{date?:string|string[];entry?:string;view?:string;from?:string;to?:string}>}) {
   const user = await currentPageUser();
   if (!user) redirect("/"); await requireCompletedOnboarding();
-  const params=await searchParams;return <Suspense fallback={<RouteLoading />}><DashboardContent user={user} date={linkedDate(params.date)} period={params.entry==="daytime"||params.entry==="evening"?params.entry:null} /></Suspense>;
+  const params=await searchParams;return <Suspense fallback={<RouteLoading />}><DashboardContent user={user} date={linkedDate(params.date)} period={params.entry==="daytime"||params.entry==="evening"?params.entry:null} trend={params.entry?null:linkedTrend(params)} /></Suspense>;
 }
 
-async function DashboardContent({ user, date, period }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date:string|null;period:"daytime"|"evening"|null }) {
+async function DashboardContent({ user, date, period, trend }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date:string|null;period:"daytime"|"evening"|null;trend:TrendRoute|null }) {
   const db = getDatabase();
   // 本地 PGlite 使用单连接多路复用，按顺序读取以保持结果与查询对应。
   const records = await listMeasurements(db, user.id);
@@ -30,7 +31,7 @@ async function DashboardContent({ user, date, period }: { user: NonNullable<Awai
   return (
     <main className="dashboard-page">
 
-      <MeasurementsView initialDate={date} initialPeriod={period} records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ deleteCell:deleteCellAction, save: saveDayAction, estimate: estimateCellAction, removeSource: removeSourceAction }} />
+      <MeasurementsView initialDate={date} initialPeriod={period} initialTrend={trend} records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ deleteCell:deleteCellAction, save: saveDayAction, estimate: estimateCellAction, removeSource: removeSourceAction }} />
     </main>
   );
 }

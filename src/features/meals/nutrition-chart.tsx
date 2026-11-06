@@ -8,10 +8,13 @@ import type { useChartDateSelection } from "@/components/use-chart-date-selectio
 import {useChartViewport} from "@/components/use-chart-viewport";
 import { chartScale } from "@/components/chart-scale";
 import styles from "./meals.module.css";
+import { useMobileMode } from "@/components/use-mobile-mode";
+import { MobileNutritionPlot } from "./mobile-nutrition-plot";
 
 const calorieColor = "var(--data-deficit)";
 const macros: Metric[] = ["proteinG", "carbsG", "fatG"];
 export function NutritionChart({ dates, groups, selection, mode }: { dates: string[]; groups: ReturnType<typeof dailyTotals>; selection:ReturnType<typeof useChartDateSelection>; mode: MacroMode }) {
+  const mobile=useMobileMode();
   const viewport = useRef<HTMLDivElement>(null);
   const patternId = useId().replaceAll(":", "");
   const byDate = new Map(groups.map(group => [group.date, group.totals]));
@@ -25,6 +28,7 @@ export function NutritionChart({ dates, groups, selection, mode }: { dates: stri
   const drag=useChartDrag(dates,width,left,right,selection.choose);
   const allDates = dates.length <= 7, selectedX = left + (dates.indexOf(inspected) + .5) * slot;
   const stride = Math.max(1, Math.ceil((dates.length - 1) / (width < 440 ? 3 : 6)));
+  if(mobile)return <MobileNutritionPlot dates={dates} groups={groups} mode={mode} selection={selection}/>;
   return <>
     <div className={styles.barViewport} ref={viewport} >
       <svg {...drag} className={styles.chart} style={{ touchAction:"pan-y", visibility: containerWidth ? undefined : "hidden" }} viewBox={`0 0 ${width} 194`} role="group" aria-label={`热量柱状图，单位${unit}`}>

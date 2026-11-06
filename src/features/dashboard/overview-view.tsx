@@ -7,6 +7,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLocalToday } from "@/components/use-local-today";
 import { LoadingLink } from "@/components/loading-link";
+import { MetricCardRail } from "@/components/metric-card-rail";
+import { summaryCards } from "./summary-cards";
 import { formatNutrition } from "../meals/model";
 import { energyValue } from "../activities/model";
 import { OverviewTrend } from "./overview-trend";
@@ -21,14 +23,11 @@ export function OverviewView({ presentation,assistant }: { presentation: Overvie
     <div className={styles.mobileHome}>
       <div className={styles.mobileIntro}><h2>今天</h2><time dateTime={localToday}>{localToday.replaceAll("-",".")}</time></div>
       <nav className={styles.quickRecord} aria-label="快捷记录">
-        <LoadingLink href={`/dashboard/meals?date=${localToday}&entry=1`}>记饮食</LoadingLink>
-        <LoadingLink href={`/dashboard/measurements?date=${localToday}&entry=daytime`}>记身体</LoadingLink>
-        <LoadingLink href={`/dashboard/energy?date=${localToday}&entry=1`}>记消耗</LoadingLink>
+        <LoadingLink href={`/dashboard/meals?date=${localToday}&entry=1`}><Plus/>记录饮食</LoadingLink>
+        <LoadingLink href={`/dashboard/measurements?date=${localToday}&entry=daytime`}><Plus/>记录测量</LoadingLink>
+        <LoadingLink href={`/dashboard/energy?date=${localToday}&entry=1`}><Plus/>记录消耗</LoadingLink>
       </nav>
-      <div className={styles.homeStatus}>
-        <LoadingLink href={"/dashboard/meals"+(intake?"?date="+intake.date:"")}><span>{intake?.date===localToday?"今日摄入":"最近摄入"}</span><strong>{formatNutrition(intake?.totals.values.caloriesKcal??null,"caloriesKcal")}<small>kcal</small></strong><p>{intake?<>{intake.date===localToday?"":intake.date+" · "}{intake.meals.length}餐 · {intake.day.status==="complete"?"已记全":intake.day.status==="incomplete"?"未记全":"待确认"}{intake.totals.incomplete.caloriesKcal?" · 部分已知":""}</>:"今天可以开始记录"}</p></LoadingLink>
-        <LoadingLink href={"/dashboard/measurements"+(body?"?date="+body.recordDate:"")}><span>{body?.recordDate===localToday?"今晨体重":"最近晨重"}</span><strong>{body?formatRecordNumber(body.weightKg):"—"}<small>kg</small></strong><p>{body?body.recordDate===localToday?"晨间空腹":body.recordDate:"暂无晨间实测"}</p></LoadingLink>
-      </div>
+      <MetricCardRail cards={summaryCards(presentation,localToday)}/>
     </div>
     <OverviewTrend data={presentation} />
     <div className={styles.cards}>
@@ -38,3 +37,4 @@ export function OverviewView({ presentation,assistant }: { presentation: Overvie
     </div>
   </RecordWorkspace>;
 }
+function Plus(){return <svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>;}
