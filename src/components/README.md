@@ -75,6 +75,6 @@ record-detail-actions.tsx在已展开的餐次／运动中统一编辑及更多�
 
 Inspector的titleParts仅为只读日期详情按完整文字块换行，stableScroll只在该类详情预留滚动条空间；其他填写窗口沿用原布局和草稿保护。极窄或放大视口中标题与关闭按钮分行，44px关闭操作保持可到达。
 
-workspace-skeleton.tsx与四主页面共用RecordTrendPanel读数槽位，route loading和内部Suspense统一骨架；只对占位扫光。导航不注册全局加载提示，保存、估算与认证等待保持。chart-transition将骨架几何与真实图形注册分开，已有真实小图先到槽位、真实数据接管且不重复入场；失败和8秒等待提供重试与返回。metric-card-rail采用单张宽卡与约24px下一卡预览，按账号／设备一次8px双次引导，交互即取消。surface-motion.ts提供来源矩形与面板的可中断裁切／位移交接，Inspector和GlassMenu退出后再卸载。
+workspace-skeleton.tsx复用正式卡片、语义色图例与图形槽位，空数据时绘制明确的网格／图形占位；已有真实缩略图先到目标，数据接管不二次入场。导航不注册全局加载提示，保留8秒重试及保存／认证反馈。surface-motion显式区分sheet／drawer／anchored／center；底部面板不读取来源位置，退出先保持末态再撤销动画。
 
-workspace-frame.tsx在四主页面共享标题、返回和首页固定记录入口；页面仅返回业务内容，loading.tsx为单一加载边界。workspace-skeleton.tsx按正式区块呈现，SkeletonBlock把底色与扫光裁切在同一圆角。entry-surface.tsx持有即时录入面板，entry-surface-state.tsx经portal把原表单及自定义标题接入同一外壳，显式接续草稿／关闭Context，保留原业务Context。初次设备识别由外壳承接，图形测量在首绘前完成；use-chart-motion跳过首次生长，只保留主动数据变更的短反馈。来源无候选时不显示覆盖保存按钮的空建议框。
+workspace-frame.tsx提供固定首页动作及桌面标题，手机返回并入DashboardHeader，不额外占行。SkeletonBlock裁切数字占位与扫光，EntrySurface先开录入面板，原表单portal接管并保留草稿上下文。Inspector自定义标题关闭按钮复用InspectorCloseButton；onSavedCloseReady仅在服务器确认保存成功后用于退出，普通关闭继续检查忙碌和草稿。饮食／消耗在同一Inspector中切换查看与编辑，不叠加两个dialog。

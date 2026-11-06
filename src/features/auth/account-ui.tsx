@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState, type ReactNode } from "react";
 import { LoadingLink } from "@/components/loading-link";
-import { Inspector } from "@/components/inspector";
+import { Inspector,InspectorCloseButton } from "@/components/inspector";
 import { usePageLoading } from "@/components/page-loading-state";
 import type { AccountResult } from "./account-management";
 import styles from "./account.module.css";
@@ -36,7 +36,7 @@ export function accountDate(value: Date | string | null) {
 }
 export function SecretAccountLink({ url, expiresAt, close }: { url: string; expiresAt: string; close: () => void }) {
   const [copied, setCopied] = useState(false), [error, setError] = useState("");
-  return <Inspector title="链接已生成" close={close} className={styles.dialog} header={<div className={styles.dialogHeader}><h2>链接已生成</h2><button type="button" onClick={close} aria-label="关闭链接">×</button></div>}>
+  return <Inspector title="链接已生成" close={close} className={styles.dialog} header={<div className={styles.dialogHeader}><h2>链接已生成</h2><InspectorCloseButton label="关闭链接"/></div>}>
     <p className={styles.muted}>请复制并通过原联系渠道交给本人。关闭后无法再次查看，可重新生成。</p>
     <label className={styles.field}>一次性链接<textarea autoFocus readOnly value={url} rows={4} onFocus={event => event.currentTarget.select()} /></label>
     <p className={styles.muted}>有效至 {accountDate(expiresAt)}（北京时间）</p>

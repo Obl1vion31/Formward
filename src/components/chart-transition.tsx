@@ -126,7 +126,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   useEffect(()=>()=>{clearTimeout(active.current?.deadline);active.current?.animation?.cancel();active.current?.hidden?.removeAttribute("data-chart-travelling");document.documentElement.removeAttribute("data-chart-travel");},[]);
   const invalidate=useCallback(()=>{clear();target.current=null;lastTarget.current=null;},[clear]);
   const value=useMemo(()=>({navigate,register,restore,back,invalidate,preview:flight?.model??null}),[navigate,register,restore,back,invalidate,flight?.model]);
-  return <ChartTransitionContext value={value}>{children}{flight&&createPortal(<div ref={overlay} className="chart-flight" data-chart-flight={flight.id} aria-hidden="true" style={{left:flight.rect.left,top:flight.rect.top,width:flight.rect.width,height:flight.rect.height}}><TrendGlyph model={flight.model}/></div>,document.body)}</ChartTransitionContext>;
+  return <ChartTransitionContext value={value}>{children}{flight&&createPortal(<div className="chart-flight-layer"><div ref={overlay} className="chart-flight" data-chart-flight={flight.id} aria-hidden="true" style={{left:flight.rect.left,top:flight.rect.top,width:flight.rect.width,height:flight.rect.height}}><TrendGlyph model={flight.model}/></div></div>,document.body)}</ChartTransitionContext>;
 }
 
 export function TrendBackLink(){const {back}=useChartTransition();return <button type="button" className="trend-back-link" onClick={back}><span aria-hidden="true">←</span> 总览</button>;}

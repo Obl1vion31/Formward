@@ -1,7 +1,7 @@
 "use client";
 import {useDraftGuard,confirmDraftDiscard} from "@/components/draft-guard";
 import {measurementVersions} from "@/components/record-change-client";
-import {RecordWorkspace,RecordTrendPanel,ChartOptions,CustomRecordRange} from "@/components/record-trend-panel";
+import {RecordWorkspace,RecordTrendPanel,ChartOptions,CustomRecordRange,type RecordMetric} from "@/components/record-trend-panel";
 import {formatRecordNumber} from "@/components/number-format";
 import { ChartSelectionColumn, ChartSelectionPoint } from "@/components/chart-selection-marker";
 import {useChartDrag} from "@/components/use-chart-drag";
@@ -28,6 +28,8 @@ import { timezoneLabel } from "./timezone";
 import { useMobileMode } from "@/components/use-mobile-mode";
 import type { TrendRoute } from "@/components/metric-trend-model";
 import {useChartTransition} from '@/components/chart-transition-state';
+import {TrendGlyph} from "@/components/trend-glyph";
+import {metricTrendModel} from "@/components/metric-trend-model";
 import { MorningWeightPlot } from "./morning-weight-plot";
 export type { MeasurementDisplay } from "./entry-state";
 
@@ -92,8 +94,13 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const selectedPeriod=selection.active?chartPeriod:undefined;
   const weight=measurementSummaryAt(records,'weightKg',activeDate,choices),fat=measurementSummaryAt(records,'bodyFatPercent',activeDate,choices);
   const selectedSummary=activeMetric==='weightKg'?weight:fat,deltaUnit=activeMetric==='weightKg'?'kg':'百分点';
-  const readings=[{label:'晨间'+metricName(activeMetric),value:formatRecordNumber(selectedSummary.value),unit:unitFor(activeMetric),inlineUnit:true,reserveNote:true,
-   note:'较前一日 '+(formatDifference(selectedSummary.previousChange,activeMetric,false)??'—')+' '+deltaUnit+'\n7日均值 '+formatRecordNumber(selectedSummary.average)+' '+unitFor(activeMetric)+' · 7日变化 '+(formatDifference(selectedSummary.change,activeMetric,false)??'—')+' '+deltaUnit+(selectedSummary.start&&selectedSummary.end?' ('+selectedSummary.start.slice(5)+'—'+selectedSummary.end.slice(5)+')':'')}];
+  const chooseMetric=(metric:MeasurementMetric)=>{if(metric!==activeMetric){selection.choose(activeDate);transition.invalidate();setSelectedMetric(metric);}};
+  const readings:RecordMetric[]=[
+   {label:'晨间体重',value:formatRecordNumber(weight.value),unit:'kg',inlineUnit:true,select:()=>chooseMetric('weightKg'),selected:activeMetric==='weightKg',graphic:<BodySpark records={records} date={activeDate} metric="weightKg" choices={choices}/>,action:<button type="button" onClick={()=>window.dispatchEvent(new Event('formward-open-body-settings'))}>身体设置</button>},
+   preference.showBodyFat?{label:'晨间体脂率',value:formatRecordNumber(fat.value),unit:'%',inlineUnit:true,select:()=>chooseMetric('bodyFatPercent'),selected:activeMetric==='bodyFatPercent',graphic:<BodySpark records={records} date={activeDate} metric="bodyFatPercent" choices={choices}/>}:{label:'较前一日',value:formatDifference(weight.previousChange,'weightKg',false)??'—',unit:'kg',inlineUnit:true},
+   {label:'7日平均体重',value:formatRecordNumber(weight.average),unit:'kg',inlineUnit:true}
+  ];
+  const changeSummary=metricName(activeMetric)+' · 7日变化 '+(formatDifference(selectedSummary.change,activeMetric,false)??'—')+' '+deltaUnit+(selectedSummary.start&&selectedSummary.end?' ('+selectedSummary.start.slice(5)+'—'+selectedSummary.end.slice(5)+')':'');
   if(!preference.showBodyFat&&selectedMetric!=='weightKg')setSelectedMetric('weightKg');
   function selectRange(nextMode: MeasurementRange, nextInterval = customRange) {
     measurementRange(latestDate,nextMode,nextMode==="custom"?nextInterval:{start:earliestDate,end:latestDate});
@@ -119,13 +126,13 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   }
 
   return <BodyFatContext value={preference.showBodyFat}><RecordWorkspace title="身体" headingId="body-records-title" className={styles.workspace} aria-labelledby="body-records-title" data-shared-route={initialTrend?true:undefined}>
-    <div className="body-metric-picker" role={preference.showBodyFat?"group":undefined} aria-label="查看身体指标">{preference.showBodyFat?(["weightKg","bodyFatPercent"] as const).map(metric=><button key={metric} type="button" aria-pressed={activeMetric===metric} onClick={()=>{if(metric!==activeMetric){selection.choose(activeDate);transition.invalidate();setSelectedMetric(metric);}}}>{metricName(metric)}</button>):<span>体重</span>}</div>
+
     <section data-chart-selection={selection.regionId} data-selected-date={activeDate} data-selection-origin={selection.origin} {...selection.regionProps} aria-label="身体指标趋势" data-range={mode} style={{visibility:mobileMode===null||!today?"hidden":undefined}}>
       <RecordTrendPanel presentation="body"
        range={<ChartRanges value={mode} items={[...ranges.map(item=>[item.value,item.label]),["custom","自定义"]]} change={value=>{if(value==="custom"){setDraftRange(range);setCalendarOpen(true);}else selectRange(value as MeasurementRange);}}/>}
        custom={calendarOpen&&<CustomRecordRange label="身体" value={{from:draftRange.start,to:draftRange.end}} change={next=>setDraftRange({start:next.from,end:next.to})} apply={()=>{setCustomRange(draftRange);selectRange("custom",draftRange);}} cancel={()=>setCalendarOpen(false)}/>}
        date={activeDate} view={()=>{const target={date:activeDate,period:selection.active?chartPeriod:undefined};setDrawer({kind:"day",...target,metric:"weightKg"});selection.release();}} readoutLabel="选中日身体记录"
-       metrics={readings}
+       metrics={readings} chartSummary={changeSummary}
 
        title={metricName(activeMetric)+" · "+unitFor(activeMetric)}
        options={<ChartOptions label="图表选项">
@@ -389,3 +396,5 @@ function FullTrendPlot({ records, metric, showEvening, interval, selectedDate, s
     <output className={styles.plotHint} aria-live="polite">{hintedRecord?pointLabel(hintedRecord):""}</output>
   </>;
 }
+
+function BodySpark({records,date,metric,choices}:{records:MeasurementDisplay[];date:string;metric:MeasurementMetric;choices:Record<string,string>}){const days=buildMeasurementDays(records.filter(row=>row.recordKind!=='estimated'),choices,metric),byDate=new Map(days.map(day=>[day.date,day.daytimeRecord])),points=Array.from({length:7},(_,i)=>{const at=addCalendarDays(date,i-6),row=byDate.get(at);return{date:at,value:row?.fasting===true&&row[metric]!==null?Number(row[metric]):null};}),scale=normalScale(points.filter(point=>point.value!==null).map(point=>point.value!));return <div className="body-spark" aria-label="最近7日晨间实测，缺测断开"><TrendGlyph model={metricTrendModel('morning-weight',points,scale)}/></div>;}

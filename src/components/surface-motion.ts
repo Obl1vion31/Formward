@@ -1,19 +1,30 @@
-type Box={left:number;top:number;width:number;height:number};
-const origins=new WeakMap<HTMLElement,Box>(),animations=new WeakMap<HTMLElement,Animation>();
-let pending:Box|null=null;
-export function rememberSurfaceOrigin(element:Element){const r=element.getBoundingClientRect();if(r.width&&r.height)pending={left:r.left,top:r.top,width:r.width,height:r.height};}
-export function animateSurface(node:HTMLElement,direction:'open'|'close',source?:Element|null){
- const prior=animations.get(node),style=getComputedStyle(node),current=prior?{transform:style.transform,clipPath:style.clipPath,opacity:style.opacity}:null;
- prior?.cancel();node.style.animation='none';
- if(direction==='open'&&!origins.has(node)){
-  const r=pending??source?.getBoundingClientRect();pending=null;
-  const target=node.getBoundingClientRect();origins.set(node,r&&r.width?{left:r.left,top:r.top,width:r.width,height:r.height}:{left:target.left+target.width/2-24,top:target.bottom-44,width:48,height:44});
+export type SurfaceMode='sheet'|'drawer'|'anchored'|'center';
+type Pose={transform:string;clipPath:string;opacity:string};
+const origins=new WeakMap<HTMLElement,{x:number;y:number}>(),animations=new WeakMap<HTMLElement,Animation>();
+
+/** 容器明确选择方向；按钮位置只属于本次锚定面板，不传给后续详情。 */
+export async function animateSurface(node:HTMLElement,direction:'open'|'close',source?:Element|null,mode:SurfaceMode='anchored'):Promise<boolean>{
+ const prior=animations.get(node),style=getComputedStyle(node);
+ const current:Pose|undefined=prior?{transform:style.transform,clipPath:style.clipPath,opacity:style.opacity}:undefined;
+ if(current)Object.assign(node.style,current);
+ prior?.cancel();node.style.animation='none';node.dataset.surfaceMode=mode;node.dataset.surfacePhase=direction==='open'?'opening':'closing';
+ const full:Pose={transform:'translate(0px,0px)',clipPath:'none',opacity:'1'};
+ let folded:Pose;
+ if(mode==='sheet')folded={transform:`translateY(${node.getBoundingClientRect().height+24}px)`,clipPath:'none',opacity:'1'};
+ else if(mode==='drawer')folded={transform:'translateX(100%)',clipPath:'none',opacity:'1'};
+ else if(mode==='center')folded={transform:'scale(.97)',clipPath:'none',opacity:'0'};
+ else{
+  const rect=node.getBoundingClientRect();
+  if(direction==='open'&&!origins.has(node)){const r=source?.getBoundingClientRect();origins.set(node,{x:r?r.left+r.width/2:rect.right-24,y:r?r.top+r.height/2:rect.top});}
+  const origin=origins.get(node)??{x:rect.right-24,y:rect.top};
+  node.style.transformOrigin=`${Math.max(0,Math.min(rect.width,origin.x-rect.left))}px ${Math.max(0,Math.min(rect.height,origin.y-rect.top))}px`;
+  folded={transform:`translateY(${origin.y<rect.top+rect.height/2?-10:10}px) scale(.94)`,clipPath:'none',opacity:'0'};
  }
- const r=node.getBoundingClientRect(),o=origins.get(node)??r;
- const x=Math.max(0,Math.min(r.width-44,o.left-r.left)),y=Math.max(0,Math.min(r.height-44,o.top-r.top));
- const folded={transform:`translate(${o.left-r.left-x}px,${o.top-r.top-y}px)`,clipPath:`inset(${y}px ${Math.max(0,r.width-x-44)}px ${Math.max(0,r.height-y-44)}px ${x}px round 22px)`,opacity:'.6'};
- const full={transform:'translate(0px,0px)',clipPath:'inset(0px 0px 0px 0px round 0px)',opacity:'1'};
- if(matchMedia('(prefers-reduced-motion: reduce)').matches||typeof node.animate!=='function')return Promise.resolve();
- const animation=node.animate([current??(direction==='open'?folded:full),direction==='open'?full:folded],{duration:direction==='open'?360:240,easing:'cubic-bezier(.18,.85,.22,1)',fill:'forwards'});animations.set(node,animation);
- return animation.finished.then(()=>{if(animations.get(node)===animation){animation.cancel();animations.delete(node);}}).catch(()=>{});
+ const end=direction==='open'?full:folded;
+ if(matchMedia('(prefers-reduced-motion: reduce)').matches||typeof node.animate!=='function'){Object.assign(node.style,end);node.dataset.surfacePhase=direction==='open'?'open':'closed';return true;}
+ const animation=node.animate([current??(direction==='open'?folded:full),end],{duration:direction==='open'?300:210,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});animations.set(node,animation);
+ try{await animation.finished;}catch{return false;}
+ if(animations.get(node)!==animation)return false;
+ // 先提交末态再撤销动画；退出容器在卸载前始终留在屏幕外。
+ Object.assign(node.style,end);animation.cancel();animations.delete(node);node.dataset.surfacePhase=direction==='open'?'open':'closed';return true;
 }

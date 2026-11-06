@@ -4,12 +4,12 @@ import {useMobileMode} from "./use-mobile-mode";
 import {SkeletonBlock} from './skeleton-block';
 import {SelectedDateHeading} from "./daily-records";
 import styles from "./record-trend-panel.module.css";
-export type RecordMetric={id?:string;label:string;value:string;unit:string;tone?:"blue"|"red"|"gold";note?:string;reserveNote?:boolean;inlineUnit?:boolean};
+export type RecordMetric={id?:string;label:string;value:string;unit:string;tone?:"blue"|"red"|"gold";note?:string;reserveNote?:boolean;inlineUnit?:boolean;select?:()=>void;selected?:boolean;graphic?:ReactNode;action?:ReactNode};
 export function RecordWorkspace({title,headingId,className="",children,...props}:ComponentPropsWithoutRef<"section">&{title:string;headingId?:string}){
  return <section {...props} className={styles.workspace+" "+className} data-record-workspace><header className={styles.pageHeading}><h1 id={headingId}>{title}</h1></header>{children}</section>;
 }
-export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,options,legend,children,readoutLabel="选中日读数",metricVariants=[],labelVariants=[],noteVariants=[],flags,flagVariants=[],statistics,supplementary,statusInDate=false,presentation,graphic,loading=false}:{
- presentation?:"nutrition"|"energy"|"body";graphic?:ReactNode;loading?:boolean;range:ReactNode;custom?:ReactNode;date:string;view:()=>void;metrics:RecordMetric[];title:string;unit?:string;options?:ReactNode;legend:ReactNode;children:ReactNode;readoutLabel?:string;metricVariants?:string[][];labelVariants?:string[][];noteVariants?:string[][];flags?:string;flagVariants?:string[];statistics?:ReactNode;supplementary?:ReactNode;statusInDate?:boolean;
+export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,options,legend,children,readoutLabel="选中日读数",metricVariants=[],labelVariants=[],noteVariants=[],flags,flagVariants=[],statistics,supplementary,statusInDate=false,presentation,graphic,loading=false,chartSummary}:{
+ chartSummary?:ReactNode;presentation?:"nutrition"|"energy"|"body";graphic?:ReactNode;loading?:boolean;range:ReactNode;custom?:ReactNode;date:string;view:()=>void;metrics:RecordMetric[];title:string;unit?:string;options?:ReactNode;legend:ReactNode;children:ReactNode;readoutLabel?:string;metricVariants?:string[][];labelVariants?:string[][];noteVariants?:string[][];flags?:string;flagVariants?:string[];statistics?:ReactNode;supplementary?:ReactNode;statusInDate?:boolean;
 }){
  const mobile=useMobileMode();
  const metricRef=useRef<HTMLDivElement>(null),[columnLimit,setColumnLimit]=useState(metrics.length);
@@ -45,7 +45,7 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
     if(values.every((width,index)=>width<=available*weights[index%count]/total+1))break;
     count=count===6?3:count>2?2:1;
    }
-   if(presentation){group.dataset.heroStack=String(presentation!=='body'&&values[0]+160>group.clientWidth);const relevant=presentation==='nutrition'?values.slice(1):values;const cols=presentation==='nutrition'?3:2;group.dataset.richStack=String(relevant.some(width=>width+24>(group.clientWidth-gap*(cols-1))/cols));}
+   if(presentation){group.dataset.heroStack=String(values[0]+160>group.clientWidth);const relevant=values.slice(1);const cols=presentation==='nutrition'?3:2;group.dataset.richStack=String(relevant.some(width=>width+24>(group.clientWidth-gap*(cols-1))/cols));}
    setColumnLimit(current=>current===count?current:count);
   };
   const observer=new ResizeObserver(measure);observer.observe(group);
@@ -60,11 +60,13 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
   <div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-presentation={presentation} data-loading={loading||undefined} aria-busy={loading||undefined} data-metric-count={metrics.length} data-record-columns={columns} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map((metric,index)=>{
    const labels=[...new Set([metric.label,...labelVariants.map(row=>row[index]).filter(Boolean)])];
    const notes=[...new Set([metric.note,...noteVariants.map(row=>row[index])].filter((value):value is string=>Boolean(value)))];
-   return <div key={metric.id??index} className={styles.metric}>
-    <div className={styles.metricLabel} data-metric-label>{labels.map(label=><span key={label} className={styles.metricMeasure} aria-hidden="true">{label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span>)}<span>{metric.label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span></div>
+   return <div key={metric.id??index} className={styles.metric} data-selected={metric.selected||undefined}>
+    {metric.select&&<button type="button" className={styles.metricSelect} aria-label={"查看"+metric.label+"趋势"} aria-pressed={metric.selected} onClick={metric.select}/>}
+    {metric.action&&<div className={styles.metricAction}>{metric.action}</div>}
+    <div className={styles.metricLabel} data-metric-label>{loading&&!metric.label&&<SkeletonBlock width={56} height={14}/>}{labels.map(label=><span key={label} className={styles.metricMeasure} aria-hidden="true">{label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span>)}<span>{metric.label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span></div>
     <strong aria-hidden={loading||undefined} data-metric-number className={metric.tone?styles[metric.tone]:undefined}>{loading?<SkeletonBlock width={index===0?"2.5em":"2em"} height={index===0?36:28} radius={18}/>:<><span>{metric.value}</span>{metric.inlineUnit&&<small>{metric.unit}</small>}</>}</strong>
     <div className={styles.metricNote} data-metric-note data-reserve-note={metric.reserveNote||undefined}>{notes.map(note=><em key={note} className={styles.metricMeasure} aria-hidden="true">{note}</em>)}{loading&&metric.reserveNote?<SkeletonBlock width="75%" height={presentation==="body"?42:14} radius={7}/>:metric.note?<em>{metric.note}</em>:metric.reserveNote?<em className={styles.metricMeasure} aria-hidden="true">{"\u00a0"}</em>:null}</div>
-    {index===0&&graphic&&<div className={styles.metricGraphic}>{graphic}</div>}
+    {(metric.graphic||index===0&&graphic)&&<div className={styles.metricGraphic}>{metric.graphic??graphic}</div>}
    </div>;
   })}</div>
   {statistics}</div>
@@ -72,6 +74,7 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
   {!statusInDate&&statusVariants.length>0&&<div className={styles.flags} data-record-slot="status">{statusVariants.map(value=><span key={value} aria-hidden="true" className={styles.flagMeasure}>{value}</span>)}<span role="status">{flags??""}</span></div>}
   <div className={styles.range} data-record-slot="range">{range}</div>{custom}
   <div className={styles.plotHeading} data-record-slot="title"><h2>{title}{unit&&<small>{unit}</small>}</h2><div className={styles.legend} data-record-slot="legend">{legend}</div>{options&&<div className={styles.plotOptions}>{options}</div>}</div>
+  {chartSummary&&<div className={styles.chartSummary} data-record-slot="summary">{chartSummary}</div>}
   <div className={styles.plot} data-record-slot="plot">{children}</div>
  </div>;
 }

@@ -18,7 +18,10 @@ export function AssistantProvider({ accountId, children }: { accountId: string; 
   const [open, setOpen] = useState(false), [data, setData] = useState<AssistantContext | null>(null), [error, setError] = useState(""), [loading, setLoading] = useState(false), [automatic, setAutomatic] = useState(() => typeof window === "undefined" ? true : assistantAutoEnabled(preferenceStore(), accountId));
   const dataRef = useRef(data), request = useRef<AbortController | null>(null), epoch = useRef(0), stale = useRef(true), attempted = useRef(false), origin = useRef<"manual" | "auto">("manual"), claimDone = useRef<(() => void) | null>(null), shown = useRef(new Set<string>()), previousRoute = useRef(pathname), activeRoute = useRef(pathname);
   useEffect(() => { dataRef.current = data; activeRoute.current = pathname; }, [data, pathname]);
-  const hide = useCallback(() => { setOpen(false); claimDone.current?.(); claimDone.current = null; }, []);
+  const dismissRef=useRef<(()=>Promise<void>)|null>(null);
+  const finishHide=useCallback(()=>{setOpen(false);claimDone.current?.();claimDone.current=null;},[]);
+  const dismissReady=useCallback((callback:(()=>Promise<void>)|null)=>{dismissRef.current=callback;},[]);
+  const hide=useCallback(async()=>{if(dismissRef.current)await dismissRef.current();else finishHide();},[finishHide]);
   const refresh = useCallback(async () => {
     if (!assistantAvailable(activeRoute.current) || document.hidden) return;
     request.current?.abort(); const controller = new AbortController(), generation = ++epoch.current, time = deviceTime(); request.current = controller;
@@ -94,5 +97,5 @@ export function AssistantProvider({ accountId, children }: { accountId: string; 
   }, [open, refresh]);
   useEffect(() => () => { request.current?.abort(); epoch.current++; claimDone.current?.(); }, []);
   const value = useMemo(() => ({ open: open && available, count: error ? 0 : data?.pending.length ?? 0, show, hide, seed }), [open, available, error, data, show, hide, seed]);
-  return <AssistantStateContext.Provider value={value}>{children}{open && available && <AssistantSurface data={data} error={error} loading={loading} automatic={automatic} close={hide} presented={presented} retry={() => void refresh()} changeAutomatic={enabled => { setAutomatic(enabled); try { preferenceStore()?.setItem(assistantAutoKey(accountId), enabled ? "on" : "off"); } catch {} }}/>}</AssistantStateContext.Provider>;
+  return <AssistantStateContext.Provider value={value}>{children}{open && available && <AssistantSurface data={data} error={error} loading={loading} automatic={automatic} close={finishHide} dismissReady={dismissReady} presented={presented} retry={() => void refresh()} changeAutomatic={enabled => { setAutomatic(enabled); try { preferenceStore()?.setItem(assistantAutoKey(accountId), enabled ? "on" : "off"); } catch {} }}/>}</AssistantStateContext.Provider>;
 }

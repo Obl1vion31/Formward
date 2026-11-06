@@ -28,9 +28,9 @@
  .metrics[data-presentation=nutrition] .metricGraphic>span{display:none}
  .metrics[data-presentation=energy]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
  .metrics[data-presentation=energy] .metricGraphic{margin-top:12px}
- .metrics[data-presentation=body]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
- .metrics[data-presentation=body] .metric:first-child{grid-column:auto;min-height:112px;padding:14px 12px;display:block}
- .metrics[data-presentation=body] .metric:first-child strong{font-size:28px}
+
+
+
  .metrics[data-loading] .metric strong{color:transparent;position:relative;user-select:none}
  .metrics[data-loading] .metric strong::after{content:'';position:absolute;inset:4px 0;background:var(--line-soft);border-radius:6px}
 }
@@ -41,18 +41,24 @@
 
 @media(max-width:700px),(hover:none) and (pointer:coarse){.metrics[data-presentation] .metric{grid-row:auto;grid-template-rows:auto auto auto;align-content:start}.metrics[data-presentation] .metric strong>span{font-size:inherit}}
 
-@media(max-width:700px),(hover:none) and (pointer:coarse){.metrics[data-presentation=body] .metric{min-height:112px}}
+@media(max-width:700px),(hover:none) and (pointer:coarse){}
 
 @media(max-width:700px),(hover:none) and (pointer:coarse){.metrics[data-presentation=nutrition] .metric:not(:first-child) .metricLabel{padding-left:12px;position:relative}.metrics[data-presentation=nutrition] .metric:not(:first-child) .metricLabel::before{content:'';position:absolute;left:0;top:7px;width:6px;height:6px;border-radius:50%;background:var(--data-protein)}.metrics[data-presentation=nutrition] .metric:nth-child(3) .metricLabel::before{background:var(--data-carbs)}.metrics[data-presentation=nutrition] .metric:nth-child(4) .metricLabel::before{background:var(--data-fat)}}
 
-.metrics[data-presentation=body]{grid-template-columns:1fr!important;padding:6px 0 4px}.metrics[data-presentation=body] .metric{grid-column:1/-1;display:grid;grid-template-rows:auto auto auto;min-height:126px;padding:0;background:transparent;box-shadow:none;border-radius:0}.metrics[data-presentation=body] .metric strong{font-size:32px;margin-top:4px}.metrics[data-presentation=body] .metric strong>span{font-size:32px}.metrics[data-presentation=body] .metricNote{white-space:pre-line;min-height:54px;line-height:18px}.metrics[data-loading] .metricNote{min-height:0}.metrics[data-loading] .metricNote[data-reserve-note]{min-height:18px}.metrics[data-loading][data-presentation=body] .metricNote{min-height:54px}
-@media(max-width:700px),(hover:none) and (pointer:coarse){.metrics[data-presentation] .metric{background:var(--card-material,var(--card-surface));box-shadow:inset 0 1px 0 var(--card-rim),var(--card-shadow)}.metrics[data-loading] .metric strong::after{content:none}.metrics[data-loading] .metric strong{height:auto;min-height:35px}.metrics[data-presentation=energy] .metric:first-child{padding-right:148px}.metrics[data-presentation=energy] .metricGraphic{position:absolute;right:18px;top:38px;width:112px;margin:0}.metrics[data-presentation=energy] .metricGraphic figcaption{display:grid;gap:2px;margin-top:8px;line-height:17px}.metrics[data-presentation=body]{grid-template-columns:1fr!important}.metrics[data-presentation=body] .metric:first-child{grid-column:1/-1;display:grid;min-height:126px;padding:0;background:transparent;box-shadow:none;border-radius:0}.metrics[data-presentation=body] .metric:first-child strong{font-size:32px}.metrics[data-presentation=body] .metricLabel{font-size:14px}.metrics[data-presentation=body] .metricNote{font-size:12px}}
-@media(max-width:700px),(hover:none) and (pointer:coarse){.metrics[data-hero-stack=true] .metric:first-child{padding-right:18px}.metrics[data-hero-stack=true] .metricGraphic{position:static;margin-top:12px}.metrics[data-presentation=body] .metric:first-child{padding:0}}
+.metrics[data-loading] .metricNote{min-height:0}.metrics[data-loading] .metricNote[data-reserve-note]{min-height:18px}
+@media(max-width:700px),(hover:none) and (pointer:coarse){.metrics[data-presentation] .metric{background:var(--card-material,var(--card-surface));box-shadow:inset 0 1px 0 var(--card-rim),var(--card-shadow)}.metrics[data-loading] .metric strong::after{content:none}.metrics[data-loading] .metric strong{height:auto;min-height:35px}.metrics[data-presentation=energy] .metric:first-child{padding-right:148px}.metrics[data-presentation=energy] .metricGraphic{position:absolute;right:18px;top:38px;width:112px;margin:0}.metrics[data-presentation=energy] .metricGraphic figcaption{display:grid;gap:2px;margin-top:8px;line-height:17px}}
+@media(max-width:700px),(hover:none) and (pointer:coarse){.metrics[data-hero-stack=true] .metric:first-child{padding-right:18px}.metrics[data-hero-stack=true] .metricGraphic{position:static;margin-top:12px}}
 
-.metrics[data-presentation=body] .metric:first-child{grid-template-columns:minmax(0,1fr);justify-content:stretch;align-content:start}
 
-.metrics[data-presentation=body]{grid-template-rows:auto}
+
+
 
 .controls.controls button{padding:0;min-width:44px}
 
 @media(max-width:360px){.metrics[data-presentation=nutrition]{grid-template-columns:1fr!important}}
+
+.metricSelect{position:absolute;inset:0;border:0;border-radius:inherit;background:none;cursor:pointer;z-index:2}.metricSelect:focus-visible{outline:2px solid var(--gold);outline-offset:3px}.metricAction{position:absolute;right:12px;top:4px;z-index:3}.metricAction button{min-height:44px;padding:0 4px;background:none;border:0;color:var(--warm-white);font:inherit;font-size:12px;cursor:pointer}.chartSummary{min-height:18px;line-height:18px;margin:0 0 6px;color:var(--muted);font-size:12px}.metric[data-selected=true]{outline:1px solid var(--nav-rim);outline-offset:-1px}.metrics[data-presentation=body]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:auto auto;gap:8px;padding:0}.metrics[data-presentation=body] .metric{position:relative;grid-column:auto;grid-row:auto;display:grid;grid-template-rows:auto auto;min-height:86px;padding:12px;background:var(--card-material);box-shadow:inset 0 1px 0 var(--card-rim),var(--card-shadow);border-radius:20px}.metrics[data-presentation=body] .metric:first-child{grid-column:1/-1;display:flex;flex-direction:column;justify-content:center;min-height:112px;padding:16px 132px 16px 16px;border-radius:20px;background:var(--card-material);box-shadow:inset 0 1px 0 var(--card-rim),var(--card-shadow)}.metrics[data-presentation=body] .metric:first-child .metricGraphic{display:block;position:absolute;right:16px;top:48px;width:100px;height:50px}.metrics[data-presentation=body] .metric:not(:first-child) .metricGraphic{display:block;position:absolute;right:10px;bottom:12px;width:44px;height:22px}.metrics[data-presentation=body] .metric:nth-child(2):has(.metricGraphic){padding-right:58px}.metrics[data-presentation=body] .metric strong{margin:0;font-size:24px;line-height:30px}.metrics[data-presentation=body] .metric strong>span{font-size:inherit}.metrics[data-presentation=body] .metric:first-child strong{font-size:32px;line-height:40px}.metrics[data-presentation=body] .metricNote{min-height:0;display:none}.metrics[data-presentation=body] .metricGraphic .body-spark{width:100%;height:100%}.metrics[data-presentation=body] .metricGraphic svg{width:100%;height:100%}.metrics[data-presentation=body] .metricLabel{line-height:20px;font-size:14px}
+@media(min-width:701px) and (hover:hover){.metrics[data-presentation=body] .metricAction{display:none}}
+@media(max-width:700px),(hover:none) and (pointer:coarse){.metrics[data-presentation]{gap:8px}.metrics[data-presentation]:not([data-presentation=body]) .metric:first-child{min-height:112px;padding-top:14px;padding-bottom:14px}.metrics[data-presentation]:not([data-presentation=body]) .metric:not(:first-child){min-height:86px;padding:10px;grid-template-rows:18px 30px 18px;align-content:center}.metrics[data-presentation]:not([data-presentation=body]) .metric:not(:first-child) .metricLabel{font-size:13px;line-height:18px}.metrics[data-presentation]:not([data-presentation=body]) .metric:not(:first-child) strong{font-size:24px;line-height:30px;margin:0}.metrics[data-presentation] .metric:not(:first-child) .metricNote{line-height:18px}.metrics[data-presentation=body][data-rich-stack=true]{grid-template-columns:1fr!important}.plotHeading{margin-bottom:6px}.range{margin-top:10px;margin-bottom:8px}}
+@media(max-width:360px){.metrics[data-presentation=body]{grid-template-columns:1fr!important}}
+.metrics[data-presentation=body]{align-items:start}.metrics[data-loading][data-presentation=body] .metric strong{min-height:0;height:30px;display:flex;align-items:center}.metrics[data-loading][data-presentation=body] .metric:first-child strong{height:40px}
