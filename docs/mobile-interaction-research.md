@@ -2,7 +2,7 @@
 
 已认可的交互方向来自本轮formward-mobile-focus原型：记录入口同组、状态卡、可见共轴双层趋势、玻璃导航、有限弹性和底部详情。原型为虚构数据演示，样式认可不代表正式业务验收。
 
-本地实现位于codex/mobile-workspace，尚未发布。真实Next.js页面已采用暖雾材质、B横向数据卡、摄入／晨重共享图形转场、专页顶部记录动作；持久导航、集中设置、小助手、手机Inspector及完整业务继续复用。桌面同步颜色和控件，保留左侧导航、完整图表与统计。
+正式实现来自codex/mobile-workspace，应用166f715已按用户明确授权发布到https://formward-ten.vercel.app/dashboard，尚未合入main。真实Next.js页面采用暖雾材质、B横向数据卡、摄入／晨重共享图形转场、专页顶部记录动作；持久导航、集中设置、小助手、手机Inspector及完整业务继续复用。桌面同步颜色和控件，保留左侧导航、完整图表与统计。正式与隔离环境的检查范围分别记录在[维护验收](maintenance-verification.md)。
 
 迁移对照：
 

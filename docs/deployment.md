@@ -1,6 +1,16 @@
 # 公网 HTTPS 部署
 
-## 当前正式版本：饮食详情精简与输入对齐（2026-11-05）
+## 当前正式版本：暖雾材质与手机交互（2026-11-06）
+
+用户已查看实际页面并明确要求发布公网，以便在手机实际操作。正式总览https://formward-ten.vercel.app/dashboard已指向READY部署`dpl_91NTmbnYDMzWo8jddqkGfnuEzebS`，应用源码`166f715831d734a9694102158bef3cebec9a8921`，构建`mobile-warm-166f715-20261106`。项目、正式别名、sourceCommit／gitCommitSha与版本接口一致；从codex/mobile-workspace的干净提交导出部署，上传清单695项，不含私有数据、环境文件或本机工具。main未合并或推送，国内部署、COS、DNS及其他未提交内容保持隔离；项目未连接Git自动部署。
+
+本轮包含暖雾深浅主题、B真实数据横带、同级记录动作、摄入／晨重共享图形转场、底部详情与完整记录入口，保留真实小助手及原有业务。电脑同步配色和控件。技术门槛467项单元／集成、lint、typecheck及本地production build通过，正式远程构建成功；18项入口／保护／协议检查通过。正式手机与桌面实际页面、虚构保存、助手及外观已核对，材质对照页在正式登录后404。实际视口、截图和未测项见[维护验收](maintenance-verification.md)。
+
+发布前后43表结构、29条迁移账本与既有健康事实、请求及审计保持；独立虚构账号及35表所属数据已清理。认证限流仅8条过期缓存删除、5条本轮登录／发现请求缓存新增、1条发现请求计数／时间刷新，逐行哈希、路由与时间界定留档，未宽泛忽略健康表。备份与核对`mobile-warm-20261106-{before,after,verification}.json`在原主工作区私有data/exports，0600且Git／部署忽略；初始严格差异报告保留。最终部署20分钟Runtime error／fatal及请求5xx均0，无排除区间、无后续分页。
+
+没有数据库迁移、公开HTTP v1／MCP、AI权限、运行依赖或生产配置变化。本地视觉对照开关未进入生产变量。应用回退基线保留上一READY `dpl_HFeRzEVLnECg3wbReUGhEZ2gzgAP`（0a566c1）；只回退应用，保留用户合法记录和审计。后续纯发布记录提交不重新部署。
+
+## 此前正式版本：饮食详情精简与输入对齐（2026-11-05）
 
 正式饮食页https://formward-ten.vercel.app/dashboard/meals指向READY部署`dpl_HFeRzEVLnECg3wbReUGhEZ2gzgAP`，应用源码`0a566c184b72edc072bf35592661fd22397a9cd0`，构建`meal-details-0a566c1-20261105`；项目、正式别名、sourceCommit／gitCommitSha及版本接口已核对。main统一本轮已发布应用与验收记录，纯测试／文档提交不代表另一次应用部署；Vercel项目未连接Git自动部署。原主工作区双区、COS、DNS及未提交内容保持隔离。
 

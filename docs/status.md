@@ -1,6 +1,14 @@
 # 当前实现与验证
 
-## 当前正式版本：饮食详情与输入对齐（2026-11-05）
+## 当前正式版本：暖雾材质与手机交互（2026-11-06）
+
+正式地址https://formward-ten.vercel.app/dashboard已发布应用`166f715831d734a9694102158bef3cebec9a8921`，构建`mobile-warm-166f715-20261106`，READY部署`dpl_91NTmbnYDMzWo8jddqkGfnuEzebS`。发布来自独立分支codex/mobile-workspace，尚未合入或推送main；原主工作区的国内基础设施改动保持隔离。
+
+手机已采用暖雾深浅主题、同色记录动作、摄入／晨重／消耗横向真实数据卡、可见的能量／次晨关系图和摄入／晨重共享图形转场；三专页顶部直接打开完整业务录入，集中设置、小助手与底部详情保留。电脑同步配色与控件，保留成熟导航和图表。实际业务对照见[手机交互与迁移](mobile-interaction-research.md)。
+
+467项单元／集成、lint、typecheck、本地和正式production build通过。正式IAB Chromium核对手机320／390／430px、矮屏、深浅外观及1100／1440px电脑；身体与消耗实际保存回看、饮食完整面板、助手和趋势返回通过，18项公开／保护／协议检查通过。一个虚构账号及35表所属数据已清理，前后43表及既有健康事实核对通过；最终Runtime error／fatal和5xx为0。真实iPhone、系统键盘、WebKit、系统文字放大和真机帧率未测；完整证据、其余边界与回退见[维护验收](maintenance-verification.md)和[部署](deployment.md)。
+
+## 此前正式版本：饮食详情与输入对齐（2026-11-05）
 
 正式饮食页https://formward-ten.vercel.app/dashboard/meals指向READY部署`dpl_HFeRzEVLnECg3wbReUGhEZ2gzgAP`，应用源码`0a566c184b72edc072bf35592661fd22397a9cd0`，构建`meal-details-0a566c1-20261105`；项目、正式别名、sourceCommit／gitCommitSha及版本接口已核对。main统一本轮已发布应用与验收记录，纯测试／文档提交不代表另一次应用部署；Vercel项目未连接Git自动部署。原主工作区双区、COS、DNS及未提交内容保持隔离。
 

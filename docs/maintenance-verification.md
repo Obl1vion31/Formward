@@ -1,8 +1,28 @@
 # 完善任务验收
 
+## 正式暖雾版本发布验收（2026-11-06）
+
+用户认可本轮实际页面并明确要求发布公网，用手机试用。本轮从codex/mobile-workspace干净应用提交`166f715831d734a9694102158bef3cebec9a8921`导出并发布，正式https://formward-ten.vercel.app/dashboard指向READY `dpl_91NTmbnYDMzWo8jddqkGfnuEzebS`，构建`mobile-warm-166f715-20261106`；项目、正式别名、sourceCommit／gitCommitSha、版本接口一致。main未合并或推送；本节之后的纯发布记录提交不会改变应用部署。
+
+| 检查 | 结果与边界 |
+| --- | --- |
+| 源码与构建 | 复用同一应用提交已通过的lint、typecheck、467项单元／集成及本地production build；正式远程production build成功。干净导出上传清单695项，不含环境文件、私有data、.codex、依赖或构建缓存 |
+| 正式手机实际页面 | IAB Chromium，390×780深色／浅色、320×560、390×560、430×780浅色；无模拟系统工具栏或额外安全区。三动作48px且同色、完整数值和小图可读、横带保留下一卡、无页面横溢出。矮屏自然滚动；窗口缩放过程中捕获的未稳定430px底栏截图不计验收，稳定后实际重拍并核对四项导航 |
+| 真实业务与转场入口 | 摄入1190进入同日期范围的真实营养页，关闭空白餐次不产生草稿提醒；晨重70.18进入同日期范围的身体趋势并返回。身体录入虚构70.10及来源、真实保存后显示已保存；消耗录入2058静息和明确0活动、真实保存后图表与列表均为2058。小助手显示真实空待办并提供三项记录、教程／AI接入／导出，未用静态占位冒充业务 |
+| 外观与电脑 | 深浅切换仅在账号设置中，面板与页面生效；1100／1440×900实际桌面页面无横溢出，保留左侧导航与完整双图，1100px正文中线相对可用视口误差约0.1px。1440px最初按innerWidth量到滚动条差不作为内容偏移结论 |
+| 公开与保护入口 | 18项首页／版本／OpenAPI／OAuth发现／JWKS／登录保护／MCP挑战／私有路径检查通过。初次脚本错误地期望独立login路径，实际设计为307到首页登录，按源码修正断言后通过。正式登录后材质对照页面实际404 |
+| 日志 | IAB本轮完整error日志为空；部署最终20分钟Runtime error／fatal和请求5xx均0，无排除区间、无后续分页。真实真机帧率未量测 |
+| 数据完整性 | 发布前后43表结构、29条迁移账本、原账号及健康事实／请求／审计保持；独立虚构账号及35张表所属数据按精确ID清理并复查。严格初报只发现认证限流缓存：8条既有缓存早于备份至少9小时被Better Auth过期清理；5条本轮登录与发现请求缓存新增；1条OAuth发现计数和时间刷新。按源码、精确行哈希、已检查路由及时间窗口界定，最终issues为空，未宽泛放行健康或授权记录 |
+
+私有证据位于本工作区`.codex/mobile-warm-release`；前后备份、严格初报及最终核对在原主工作区`data/exports/mobile-warm-20261106-{before,after,verification,verification-initial}.json`，0600并被Git／部署忽略。无数据库迁移、HTTP v1／MCP、AI权限、运行依赖或生产配置变化；本地对照开关没有加入生产。上一READY `dpl_HFeRzEVLnECg3wbReUGhEZ2gzgAP`保留供应用回退，不回退用户合法写入或审计。
+
+正式截图与浏览器记录在`C:/Users/14878/.codex/visualizations/2026/11/06/01a1af0c-e81b-7cd2-84c9-9702574d032c/`：formward-public-mobile.png、formward-public-mobile-light.png、formward-public-{320x560,390x560,430x780}.png、formward-public-body-trend.png、formward-public-body-saved.png、formward-public-meal-entry.png、formward-public-energy-entry.png、formward-public-assistant.png、formward-public-settings-light.png、formward-public-desktop-{1100,1440}.png及formward-public-browser-checks.json，均为独立虚构数据。
+
+未测继续明确保留：真实iPhone／WebKit、系统软键盘与VoiceOver、真实触屏横屏、系统200%文字、减少动态效果／透明度现场切换、慢网／保存失败注入、全套包装／按克／附件上传及AI审核表单专项。已有实现和此前专项不冒充本轮正式环境通过；用户用手机试用后的反馈作为下一轮调整依据。
+
 ## 本地暖雾视觉与共享图形验收（2026-11-06）
 
-工作分支codex/mobile-workspace，未发布、未合入main。预览http://localhost:4234/dashboard，材质对照http://localhost:4234/dashboard/visual-review。应用按production build运行，数据库为隔离PGlite及虚构账号，未连接正式健康数据。对照页固定虚构日期为11月7日，实际应用验收的设备当地今天为11月6日，不能混作同一时钟。
+本节记录发布前codex/mobile-workspace的隔离环境检查，对应应用166f715现已发布，main仍未合入。预览http://localhost:4234/dashboard，材质对照http://localhost:4234/dashboard/visual-review。应用按production build运行，数据库为隔离PGlite及虚构账号，未连接正式健康数据。对照页固定虚构日期为11月7日，实际应用验收的设备当地今天为11月6日，不能混作同一时钟。
 
 本批采用暖雾材质与B横带：三类完整记录动作同色，摄入／晨重／消耗各最小240×128px，真实七日小图；底栏20px模糊及较轻胶囊。手机首页移除统计与显示选项、七日汇总、覆盖和查看缺口，消耗归入卡片带；日期详情保留实际状态原因。摄入／晨重在同一2:1数据平面上等比交接到真实业务页，三专页顶部直接记录。没有增加数据库、公开业务API、业务设置或运行依赖。
 
@@ -19,7 +39,7 @@
 | D4／D7 | 饮食P/C/F口径、全部餐次与食材库入口；消耗总数／分项、运动明细与包含入口；身体晨晚／估计及体脂第二图；真实助手事项与快捷入口 | 主要路径通过；未用单一补全框替代原能力 |
 | D7／D10 | 1440×900双色总览、1100／1920×900浅色；左侧导航、原六项／七日统计／共轴双图保留；正文中线偏差约0.1px，无横向溢出 | 通过；桌面仅同步主题与控件规则 |
 | D5／D10 | 当前／暖雾对照下滚动亮白与深黑内容经过底栏，浅深色文字及选中标记可辨认；按实际CSS填充与胶囊作极端背景合成 | 通过；普通／选中标签最差分别6.00／4.97:1，主体文字≥4.5，关键图线及营养蓝色组成≥3 |
-| D8 | 本地真实页面、关键状态、桌面及表单截图已整理，未发布 | 待用户实际页面验收 |
+| D8 | 本地真实页面、关键状态、桌面及表单截图已整理，用户随后明确要求直接发布 | 已按本轮授权发布；正式验收见本节前的发布记录 |
 
 技术检查：全仓lint、typecheck及production build通过，467项单元／集成测试通过；新增测试覆盖卡片真实日期、零／未知及非法趋势链接。Impeccable源文件扫描为[]，仅作静态补充；浏览器错误日志为空。没有用截图或测试数量证明真机帧率。
 

@@ -1,10 +1,16 @@
 # Formward 项目交接
 
-## 本地手机视觉工作区
+## 当前正式版本：暖雾材质与手机交互（2026-11-06）
 
-分支codex/mobile-workspace基于main 840207f隔离开发，未发布。已接入持久导航、集中设置、真实小助手、底部详情、暖雾材质与B横向数据卡。摄入／晨重共用图形组件，从卡片按真实路由及相同日期范围等比进入专页；返回恢复位置与焦点。手机首页删除统计／覆盖／缺口区域，消耗并入卡片带；三专页顶部可直接记录，保留完整原有业务。局部材质对照在显式本地开关下开放，正式环境默认404。源码与验收见docs/mobile-interaction-research.md及docs/maintenance-verification.md。原主工作区的国内部署与其他修改保持隔离。
+用户查看实际页面后明确要求直接发布公网、用手机试用。本轮从基于main 840207f的独立分支codex/mobile-workspace发布，应用源码`166f715831d734a9694102158bef3cebec9a8921`，构建`mobile-warm-166f715-20261106`。正式地址https://formward-ten.vercel.app/dashboard已核对READY部署`dpl_91NTmbnYDMzWo8jddqkGfnuEzebS`、项目、正式别名及sourceCommit／gitCommitSha；main未合并或推送，原主工作区国内部署、COS、DNS和未提交内容保持隔离。后续纯发布记录提交不改变正式应用源码。
 
-## 当前正式版本：饮食详情精简与输入对齐（2026-11-05）
+已接入持久导航、集中设置、真实小助手、底部详情、暖雾材质与B横向数据卡。摄入／晨重共用图形组件，从卡片按真实路由及相同日期范围等比进入专页；返回恢复位置与焦点。手机首页删除统计／覆盖／缺口区域，消耗并入卡片带；三专页顶部可直接记录，保留完整原有业务。电脑同步配色与控件，保留左侧导航、完整图表和统计。局部材质对照仅本地显式开关开放，正式登录后实际核对404。
+
+467项单元／集成、lint、typecheck、本地production build及正式远程构建通过。正式IAB Chromium核对手机320×560、390×560／780、430×780和电脑1100／1440×900；检查深浅外观、三类录入、摄入／晨重进入和返回、真实小助手，虚构账号实际保存70.10kg及2058kcal并回看更新。18项公开／保护／协议检查通过，客户端异常0；最终部署20分钟Runtime error／fatal和请求5xx均0，无排除区间或后续分页。
+
+一个独立虚构账号及35表所属数据已按精确ID清理。前后43表结构、29条迁移账本及既有健康事实、请求、审计保持，仅正常认证限流缓存变化经逐行哈希与时间核对放行。无数据库迁移、业务API、权限或运行依赖变化。私有证据`.codex/mobile-warm-release`；备份和最终核对位于原主工作区data/exports/mobile-warm-20261106-{before,after,verification}.json，0600并被Git／部署忽略。真实iPhone、系统键盘、WebKit和真机帧率未测，交由用户实际手机试用；更多边界见docs/maintenance-verification.md。上一READY `dpl_HFeRzEVLnECg3wbReUGhEZ2gzgAP`保留供应用回退，不回滚用户合法更新。
+
+## 此前正式版本：饮食详情精简与输入对齐（2026-11-05）
 
 正式饮食页https://formward-ten.vercel.app/dashboard/meals指向READY部署`dpl_HFeRzEVLnECg3wbReUGhEZ2gzgAP`，应用源码`0a566c184b72edc072bf35592661fd22397a9cd0`，构建`meal-details-0a566c1-20261105`；项目、正式别名、sourceCommit／gitCommitSha及版本接口已核对。main统一本轮已发布应用与验收记录，纯测试／文档提交不代表另一次应用部署；Vercel项目未连接Git自动部署。原主工作区双区、COS、DNS及未提交内容保持隔离。
 
