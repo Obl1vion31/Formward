@@ -16,7 +16,7 @@
 
 截图、坐标和实际低频操作采样在C:/Users/14878/.codex/visualizations/2026/11/06/01a1af0c-e81b-7cd2-84c9-9702574d032c/panel-flow。包含baseline-assistant-*、baseline-meal-detail、meal-detail-to-edit、food-detail-to-editor、energy-detail-to-edit、*-quick-save*、account-*、admin-manage-*、final-meals-slow、final-body-slow、intake-timeout-and-handoff、layering及size-results-initial。未将模态尚未关闭时点击背景导航的无效采样计为通过；消耗初次位置数据另在同级loading-body/energy-slow-verified.json。
 
-管理账号仅在本地虚构owner检查容器和关闭，不执行停用、撤销或生成密码重设链接；链接结果窗口和外部更新窗口完成共用容器／关闭绑定检查，未新增真实凭据操作。物理iPhone／WebKit、系统键盘／VoiceOver、系统200%字体、系统减少动态效果现场切换及真触屏帧率未测，低频采样不用于帧率结论。公网发布和清理另记正式验收。
+管理账号仅在本地虚构owner检查容器和关闭，不执行停用、撤销或生成密码重设链接；链接结果窗口和外部更新窗口完成共用容器／关闭绑定检查，未新增真实凭据操作。物理iPhone／WebKit、系统键盘／VoiceOver、系统200%字体、系统减少动态效果现场切换及真触屏帧率未测，低频采样不用于帧率结论。公网复查发现助手外壳在数据到达后由约558px缩到510px，改为固定640px（受实际视口上限约束）。另修正保存消息早于过渡完成时关闭按钮看似可点的问题：忙碌和关闭回调在首绘前同步，并将忙碌Context接入portal自定义标题。1.5秒Action延迟的实际轨迹记录87个忙碌样本，保存消息首次出现时仍禁用关闭，约2091ms结束后第一次有效点击成功关闭。原数据和草稿保护保持。食物营养依据的小popover使用按钮附近定位，无跨屏展开。公网发布和清理另记正式验收。
 
 ## 正式发布验收：加载稳定性与身体单图（2026-11-06）
 

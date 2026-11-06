@@ -78,3 +78,5 @@ Inspector的titleParts仅为只读日期详情按完整文字块换行，stableS
 workspace-skeleton.tsx复用正式卡片、语义色图例与图形槽位，空数据时绘制明确的网格／图形占位；已有真实缩略图先到目标，数据接管不二次入场。导航不注册全局加载提示，保留8秒重试及保存／认证反馈。surface-motion显式区分sheet／drawer／anchored／center；底部面板不读取来源位置，退出先保持末态再撤销动画。
 
 workspace-frame.tsx提供固定首页动作及桌面标题，手机返回并入DashboardHeader，不额外占行。SkeletonBlock裁切数字占位与扫光，EntrySurface先开录入面板，原表单portal接管并保留草稿上下文。Inspector自定义标题关闭按钮复用InspectorCloseButton；onSavedCloseReady仅在服务器确认保存成功后用于退出，普通关闭继续检查忙碌和草稿。饮食／消耗在同一Inspector中切换查看与编辑，不叠加两个dialog。
+
+草稿登记、关闭回调和InspectorBusyContext在首绘前同步；portal转交忙碌Context，自定义标题使用同一关闭按钮，避免保存尚未完全结束时看似能关闭却没有反应。助手外壳固定在视口许可的高度，数据就绪只更新内部内容。

@@ -10,7 +10,7 @@ import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
 import { DailyRecords,DailyRecordRow } from "@/components/daily-records";
 import { RecordHistory } from "@/components/record-history";
-import { Inspector } from "@/components/inspector";
+import { Inspector,InspectorCloseButton } from "@/components/inspector";
 
 import { useEffect, useLayoutEffect, useId, useRef, useState } from "react";
 import { buildMeasurementDays, recentMeasurementDays } from "./days";
@@ -235,7 +235,6 @@ function MeasurementInspector({ routeEntry=false,view, records, sources, today, 
   const activeDay = active ? buildMeasurementDays(records.filter(row => row.recordDate === active.date), choices, active.metric, [active.date])[0] : null;
   const row = activeDay?.records.find(row => row.id === active?.recordId);
   const navigationKey = editor ? `entry:${editor.date}` : active ? `${active.date}:${active.recordId ?? active.period ?? "candidates"}` : "history";
-  function requestClose(){dismiss.current();}
   useEffect(() => {
     if(content.current)content.current.scrollTop = 0;
     heading.current?.focus({ preventScroll: true });
@@ -251,7 +250,7 @@ function MeasurementInspector({ routeEntry=false,view, records, sources, today, 
     <header className={styles.drawerHeader} data-editing={!!editor}><div>
       <h2 ref={heading} tabIndex={-1} id="measurement-drawer-title">{editor ? <>身体录入<time className={styles.entryHeadingDate} dateTime={editor.date}>{displayDate(editor.date)}</time></> : active ? displayDate(active.date) || "记录详情" : "记录详情"}</h2>
       {!editor&&<p>{(active?weekday(active.date):"")+" · 晨间／晚间"}</p>}
-    </div><button type="button" autoFocus aria-label="关闭记录详情" onClick={requestClose}>×</button></header>)}>
+    </div><InspectorCloseButton label="关闭记录详情"/></header>)}>
     {!editor && active && <DayOverview date={active.date} records={records} choices={choices} />}
     <div ref={content} className={styles.drawerContent}>
       {editor && <>{view.kind!=="entry"&&<button type="button" className={styles.historyBack} onClick={() => { void confirmDraftDiscard().then(allowed=>{if(allowed)setEditor(null);}); }}>← 返回记录详情</button>}<MeasurementEntry key={editor.date} date={editor.date} timezone={timezone} records={records} sources={sources} choices={{ ...choices, ...editorChoices }} actions={actions} editing={editor.editing} initialPeriod={editor.period} onUpdated={entryUpdated} onChoose={(date, period, id) => setEditorChoices(previous => ({ ...previous, [`${date}:${period}`]: id }))} /></>}
