@@ -24,7 +24,7 @@ test("已有饮食未确认／未记全／修改后失效需要核对，已记�
   for (const status of ["unconfirmed", "incomplete", "complete"]) {
     const result = context({ ...blank, meals: [{ date: "2024-08-01", status, source: "record_change", complete: status === "complete" }] });
     assert.equal(result.pending.length, status === "complete" ? 0 : 1);
-    if (result.pending.length) assert.equal(result.pending[0].action.href, "/dashboard/meals?date=2024-08-01");
+    if (result.pending.length) assert.equal(result.pending[0].action.href, "/dashboard/meals?date=2024-08-01&intent=edit");
   }
 });
 test("消耗部分和未知仅建议补充，明确0的可用总数不提示", () => {

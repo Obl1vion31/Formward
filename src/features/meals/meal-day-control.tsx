@@ -13,3 +13,7 @@ export function MealDayControl({day,busy,save}:{day:MealDayView;busy:boolean;sav
   }
   return <button type="button" role="checkbox" className={styles.control} data-meal-day-status={day.status} aria-label={day.date+" 已记全"} aria-checked={day.status==="complete"} aria-busy={working} disabled={busy||working} onClick={()=>void choose(day.status==="complete"?"incomplete":"complete")}><span className={styles.check} aria-hidden="true">{day.status==="complete"?"✓":""}</span><span>已记全</span></button>;
 }
+
+export function MealDayStatus({day}:{day:MealDayView}) {
+  return <span className={styles.status} data-meal-day-status={day.status}>{day.status==='complete'?'已记全':day.status==='incomplete'?'未记全':'待确认'}</span>;
+}

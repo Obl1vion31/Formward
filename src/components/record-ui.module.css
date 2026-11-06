@@ -17,3 +17,12 @@ form.historyDate{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;margi
 form.historyDate label{display:grid;gap:6px;font-size:13px}form.historyDate .historyToggle{margin:0;min-width:66px}form.historyDate input{min-height:44px;font-size:16px;border:1px solid var(--control-border);border-radius:6px;background:var(--surface-raised);color-scheme:var(--color-scheme);padding:8px 10px}
 
 .selected.selected button{box-sizing:border-box;min-height:44px;padding:8px 4px;border:0;background:none;color:var(--warm-white);font:inherit;font-size:14px;cursor:pointer}.selected.selected button:hover{color:var(--gold)}.selected.selected button:disabled{opacity:1;color:var(--muted);cursor:default}
+
+.records .actions button[data-record-action=edit],.editAction.editAction{appearance:none;box-sizing:border-box;min-height:44px;min-width:44px;padding:10px 14px;border:1px solid var(--control-border);border-radius:6px;background:var(--surface-hover);color:var(--warm-white);font:inherit;font-size:14px;line-height:20px;cursor:pointer;white-space:nowrap}
+.records .actions button[data-record-action=edit]:hover,.editAction.editAction:hover{background:var(--surface-raised);border-color:var(--gold);color:var(--warm-white)}
+.editAction.editAction:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.editAction.editAction:disabled{opacity:.5;cursor:not-allowed}
+.editMaintenance{margin-top:24px;padding-top:16px;border-top:1px solid var(--line-soft);font-size:14px}
+.editMaintenance>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--muted)}
+.editMaintenance button{min-height:44px;padding:10px 14px;border:1px solid var(--control-border);border-radius:6px;background:transparent;color:var(--data-red);font:inherit;cursor:pointer}
+.editMaintenance button:disabled{opacity:.5;cursor:not-allowed}

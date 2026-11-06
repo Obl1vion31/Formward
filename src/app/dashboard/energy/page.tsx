@@ -11,14 +11,15 @@ import { linkedDate } from "@/features/measurements/calendar";
 import { saveEnergyAction, removeEnergySourceAction } from "./actions";
 import { listEnergySources } from "@/features/activities/sources";
 import { linkedTrend, type TrendRoute } from '@/components/metric-trend-model';
+import {recordOpenIntent,type RecordIntent} from '@/components/record-intent';
 export const metadata = { title: "Formward · 消耗" };
 export const maxDuration = 60;
-export default async function EnergyPage({ searchParams }: { searchParams: Promise<{ date?: string | string[];entry?:string;view?:string;from?:string;to?:string }> }) {
+export default async function EnergyPage({ searchParams }: { searchParams: Promise<{ date?: string | string[];entry?:string;intent?:string|string[];view?:string;from?:string;to?:string }> }) {
   const user = await currentPageUser(); if (!user) redirect("/"); await requireCompletedOnboarding();
-  const params=await searchParams;return <Content user={user} date={linkedDate(params.date)} entry={params.entry==="1"} trend={params.entry?null:linkedTrend(params)} />;
+  const params=await searchParams,entry=params.entry==='1',trend=params.entry?null:linkedTrend(params);return <Content user={user} date={linkedDate(params.date)} entry={entry} trend={trend} intent={recordOpenIntent(params,entry,!!trend)}/>;
 }
-async function Content({ user, date, entry,trend }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date: string | null;entry:boolean;trend:TrendRoute|null }) {
+async function Content({ user, date, entry,trend,intent }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date: string | null;entry:boolean;trend:TrendRoute|null;intent:RecordIntent }) {
   const db = getDatabase(), snapshot = await readEnergySnapshot(db, user.id);
   const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
-  return <><EnergyView presentation={energyPresentation(snapshot, [], today, await listEnergySources(db, user.id))} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date} initialEntry={entry} initialTrend={trend} /></>;
+  return <><EnergyView key={`${date}:${intent}:${trend?.from}:${trend?.to}`} initialIntent={intent} presentation={energyPresentation(snapshot, [], today, await listEnergySources(db, user.id))} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date} initialEntry={entry} initialTrend={trend} /></>;
 }

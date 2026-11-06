@@ -93,7 +93,7 @@ function OverviewDayDetails({day}:{day:OverviewDay}){
    <section><h3>晨间体重</h3><div className={styles.detailReading}><WeightReading record={day.morning}/></div><p>次晨 {day.nextDate.slice(5)} · {day.nextMorning?formatRecordNumber(day.nextMorning.weightKg)+" kg":"未记录"}{day.weightChangeKg!==null?<b>变化 {signed(day.weightChangeKg)} kg</b>:day.nextMorning?<b>未配对</b>:null}{day.differenceEstimated&&day.weightChangeKg!==null?" · 含估计":""}</p><LoadingLink href={"/dashboard/measurements?date="+day.date}>身体记录 →</LoadingLink></section>
    <section><h3>消耗</h3><div className={styles.detailReading}><strong>{energyValue(day.energy.totalKcal)}<small>kcal</small></strong></div><p>静息 {energyValue(day.energy.restingKcal)} · 活动 {energyValue(day.energy.activeKcal)} kcal</p><LoadingLink href={"/dashboard/energy?date="+day.date}>消耗记录 →</LoadingLink></section>
   </div>
-  <section className={styles.detailNutrition}>{day.nutrition&&day.mealDayStatus!=="complete"&&<LoadingLink className={styles.mealDayStatus} href={"/dashboard/meals?date="+day.date}>饮食待确认 →</LoadingLink>}<DayNutritionSummary totals={day.nutrition} partial={day.mealDayStatus!=="complete"}/></section>
+  <section className={styles.detailNutrition}>{day.nutrition&&day.mealDayStatus!=="complete"&&<span className={styles.mealDayStatus}>{day.mealDayStatus==='incomplete'?'饮食未记全':'饮食待确认'}</span>}<DayNutritionSummary totals={day.nutrition} partial={day.mealDayStatus!=="complete"}/></section>
   <SavedMealList meals={day.meals} initialLimit={3}/>
   <LoadingLink href={"/dashboard/meals?date="+day.date}>查看饮食记录 →</LoadingLink>
  </div>;

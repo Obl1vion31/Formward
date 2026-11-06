@@ -1,4 +1,5 @@
 "use client";
+import recordUI from '@/components/record-ui.module.css';
 import {confirmAction} from "@/components/confirmation-state";
 import {RecordWorkspace,RecordTrendPanel,CustomRecordRange} from "@/components/record-trend-panel";
 import {useDraftGuard} from "@/components/draft-guard";
@@ -25,7 +26,9 @@ import type { EnergyPresentation } from "./presentation";
 import type { Result } from "../meals/model";
 import {activitySummary} from "./activity-summary";
 import {Disclosure} from "@/components/disclosure";
-import {RecordDetailActions} from "@/components/record-detail-actions";
+import {confirmDraftDiscard} from "@/components/draft-guard";
+import type {RecordIntent} from "@/components/record-intent";
+import {useRepeatedRecordTask} from '@/components/record-intent-client';
 import { EnergyEditor } from "./energy-editor";
 import { blankEnergyDay, energyValue, type EnergyAction, type EnergyDay, type EnergyInput } from "./model";
 import styles from "./energy.module.css";
@@ -46,7 +49,7 @@ function dayEditInput(date:string,days:EnergyPresentation["snapshot"]["days"]):E
  return { kind: "save_energy_day", date, ...(current ? { id: current.id, version: current.version, entryMode: current.entryMode ?? undefined, activityMode: current.activityMode ?? undefined, restingSourceSystem: current.restingSourceSystem ?? current.sourceSystem, activeSourceSystem: current.activeSourceSystem ?? current.sourceSystem, restingEstimated: current.restingEstimated ?? false, restingKcal: current.restingKcal, activeKcal: current.activeKcal, activeEstimated: current.activeEstimated ?? false, notes: current.notes ?? null, totalKcal: current.totalKcal, timezone: current.timezone, sourceSystem: current.sourceSystem, sourceRecordId: current.sourceRecordId, sourceOccurredAt: current.sourceOccurredAt } : { entryMode: "components", activityMode: "activities", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }) };
 }
 
-export function EnergyView({ presentation, save, removeSource, initialDate = null, initialEntry=false,initialTrend=null }: { presentation: EnergyPresentation; save: SaveEnergy; removeSource: (label: string) => Promise<SourceRemovalResult>; initialDate?: string | null;initialEntry?:boolean;initialTrend?:TrendRoute|null }) {
+export function EnergyView({ presentation, save, removeSource, initialDate = null, initialEntry=false,initialTrend=null,initialIntent='view' }: { presentation: EnergyPresentation; save: SaveEnergy; removeSource: (label: string) => Promise<SourceRemovalResult>; initialDate?: string | null;initialEntry?:boolean;initialTrend?:TrendRoute|null;initialIntent?:RecordIntent }) {
   const today = useLocalToday(presentation.today), mobile = useMobileMode();
   const router = useRouter();
   useEffect(() => { if (today !== presentation.today) router.refresh(); }, [today, presentation.today, router]);
@@ -74,13 +77,26 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
   useEffect(()=>{const latest=()=>{setEditing(null);setViewing(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
   const historyDates=[...new Set([...recentRecordDates(today),...state.days.filter(d=>!d.deletedAt).map(d=>d.date),...state.activities.filter(a=>!a.deletedAt).map(a=>a.date)])].sort().reverse();
   usePageLoading({ active: busy, label: "正在保存消耗记录…" });
-  function edit(action: EnergyAction) { setAddActivity(false); setError(""); setNotice(""); setEditing(action); }
+  function edit(action: EnergyAction) { setViewing(null); setAddActivity(false); setError(""); setNotice(""); setEditing(action); }
   function editDay(date: string, add = false) {
     edit(dayEditInput(date,state.days));
     setAddActivity(add);
   }
+  useRepeatedRecordTask('/dashboard/energy',task=>{
+    if(task.intent==='view'){setEditing(null);setViewing(task.date);}
+    else editDay(task.date);
+  });
   const openedIntent=useRef("");
-  useEffect(()=>{if(!initialDate||!initialEntry||openedIntent.current===initialDate)return;const timer=setTimeout(()=>{openedIntent.current=initialDate;setEditing(dayEditInput(initialDate,state.days));},0);return()=>clearTimeout(timer);},[initialDate,initialEntry,state.days]);
+  useEffect(()=>{
+    const key=initialDate+':'+initialIntent+':'+initialEntry;
+    if(!initialDate||initialTrend||openedIntent.current===key)return;
+    const timer=setTimeout(()=>{
+      openedIntent.current=key;
+      if(initialEntry||initialIntent==='edit'){setViewing(null);setEditing(dayEditInput(initialDate,state.days));}
+      else{setEditing(null);setViewing(initialDate);}
+    },0);
+    return()=>clearTimeout(timer);
+  },[initialDate,initialEntry,initialIntent,initialTrend,state.days]);
   const savedClose=useRef<()=>Promise<void>>(()=>Promise.resolve());
   function execute(input: EnergyAction | EnergyAction[]) {
     const actions = Array.isArray(input) ? input : [input];
@@ -89,17 +105,16 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
       try { const expected=actions.flatMap(action=>(action.kind==="save_energy_day"||action.id&&action.version)?[{key:action.kind.includes("energy_day")?"energyDay:"+("date" in action?action.date:state.days.find(d=>d.id===action.id)?.date):"activity:"+action.id,version:action.version?String(action.version):null}]:[]);
         const latest=await verifyRecordVersions(expected);const current=actions.map(action=>{const stamp=latest.get(action.kind.includes("energy_day")?"energyDay:"+("date" in action?action.date:state.days.find(d=>d.id===action.id)?.date):"activity:"+action.id);return stamp?{...action,id:stamp.id,version:Number(stamp.version)}:action;});
         const content=JSON.stringify(current);if(request.current?.content!==content)request.current={content,id:crypto.randomUUID()};
-        const result = await save({ operationId:request.current.id, actions:current }); if (!result.ok) { setError(result.error); return; } acknowledgeRecordChanges(result.data.changedKeys??actions.map(action=>action.kind.includes("energy_day")?"energyDay:"+("date" in action?action.date:state.days.find(d=>d.id===action.id)?.date):"activity:"+(action.id??result.data.presentation.snapshot.activities.find(a=>!state.activities.some(old=>old.id===a.id)&&"name" in action&&a.name===action.name)?.id)),energyVersions(result.data.presentation.snapshot));setLocal(result.data.presentation); const changed = actions.find(action => "date" in action); if (changed && "date" in changed) selection.choose(changed.date); setNotice(result.data.message); if(viewing)setEditing(null);else void savedClose.current(); request.current = null; }
+        const result = await save({ operationId:request.current.id, actions:current }); if (!result.ok) { setError(result.error); return; } acknowledgeRecordChanges(result.data.changedKeys??actions.map(action=>action.kind.includes("energy_day")?"energyDay:"+("date" in action?action.date:state.days.find(d=>d.id===action.id)?.date):"activity:"+(action.id??result.data.presentation.snapshot.activities.find(a=>!state.activities.some(old=>old.id===a.id)&&"name" in action&&a.name===action.name)?.id)),energyVersions(result.data.presentation.snapshot));setLocal(result.data.presentation); const changed = actions.find(action => "date" in action); if (changed && "date" in changed) selection.choose(changed.date); setNotice(result.data.message); void savedClose.current(); request.current = null; }
       catch { setError("保存未完成，当前输入已保留，请重试。"); }
       finally { guard.current = false; }
     });
   }
-  function activityEdit(activity:EnergyDay["activities"][number]){const {deletedAt,syncStatus,inclusionBasis,...fields}=activity;void deletedAt;void syncStatus;void inclusionBasis;edit({kind:"save_activity",...fields,calorieMode:fields.calorieMode??undefined});}
   async function removeRecord(action:EnergyAction,label:string){if(await confirmAction({title:"删除这条消耗记录？",message:"永久删除"+label+"？此操作无法恢复，其他记录保留。",confirmLabel:"确认删除",danger:true}))execute(action);}
   const summary=(date:string)=>{const day=byDate.get(date);return day?<>{energyValue(day.totalKcal)} kcal · 静息 {energyValue(day.restingKcal)} · 活动 {energyValue(day.activeKcal)}</>:"尚无记录";};
   const recentDates=pendingRecordDates(today,date=>byDate.get(date)?.totalKcal==null);
-  const renderDay=(date:string)=>{const day=byDate.get(date);return <DailyRecordRow key={date} date={date} today={today} value={summary(date)}><button disabled={busy} onClick={()=>editDay(date)}>{day?.record?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>setViewing(date)}>查看</button></DailyRecordRow>;};
-  const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <div className={styles.dayDetails} data-energy-day-detail><div className={styles.summary}>{([["总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>kcal</small></strong></div>)}</div><EnergySources day={day}/><div className={styles.actions}><button onClick={()=>editDay(date)}>{day.record?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>editDay(date,true)}>添加活动</button></div>{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=>{
+  const renderDay=(date:string)=>{const day=byDate.get(date);return <DailyRecordRow key={date} date={date} today={today} value={summary(date)}><button data-record-action="edit" disabled={busy} onClick={()=>editDay(date)}>{day?.record||day?.activities.length?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>setViewing(date)}>查看</button></DailyRecordRow>;};
+  const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <div className={styles.dayDetails} data-energy-day-detail><div className={styles.summary}>{([["总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>kcal</small></strong></div>)}</div><EnergySources day={day}/>{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=>{
  const reading=activitySummary(activity,day.record);
  return <Disclosure key={activity.id} className={styles.activityDetail} summary={<div className={styles.activityOverview} data-exercise-summary>
   <div className={styles.activityHeading}><span>{activity.name}</span><strong>{energyValue(reading.totalKcal)}<small>kcal</small></strong></div>
@@ -109,9 +124,8 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
    {(activity.durationMinutes!==null||activity.sourceSystem)&&<p>{[activity.durationMinutes!==null?energyValue(activity.durationMinutes)+" 分钟":null,activity.sourceSystem].filter(Boolean).join(" · ")}</p>}
    <p data-exercise-effect>{reading.effect}</p>
   </div>
-  <RecordDetailActions busy={busy} edit={()=>activityEdit(activity)} remove={()=>void removeRecord({kind:"delete_activity",id:activity.id,version:activity.version},activity.name)} editLabel="编辑活动" removeLabel="删除活动" recordLabel={activity.name}/>
  </Disclosure>;
-})}{day.record&&<details className={styles.details}><summary>更多操作</summary><button disabled={busy} onClick={()=>removeRecord({kind:"delete_energy_day",id:day.record!.id,version:day.record!.version},date+" 消耗记录")}>永久删除日记录</button></details>}</div>;};
+})}</div>;};
   return <RecordWorkspace title="消耗" className={styles.workspace} data-shared-route={initialTrend?true:undefined}>
 
     {error && !editing && <p className={styles.error} role="alert">{error}</p>}{notice && <p className={styles.notice} role="status">{notice}</p>}
@@ -131,7 +145,14 @@ export function EnergyView({ presentation, save, removeSource, initialDate = nul
       >{dates.length?mobile?<MobileEnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     </section>
     <DailyRecords history={<RecordHistory today={today} dates={historyDates.filter(date=>!recentDates.includes(date))} renderRow={renderDay} view={setViewing}/>}>{recentDates.map(renderDay)}</DailyRecords>
-    {(viewing||editing)&&<EditorDialog routeEntry={!!(initialEntry&&editing?.kind==='save_energy_day'&&editing.date===initialDate)} title={editing?editing.kind==='save_energy_profile'?'公式资料':editing.kind==='save_activity'?'活动记录':'每日消耗':viewing+' · 消耗记录'} busy={busy} onSavedCloseReady={close=>{savedClose.current=close;}} close={()=>{setViewing(null);setEditing(null);setError('');}}>{editing?<EnergyEditor addActivity={addActivity} dayRecords={state.days} initial={editing} error={error} busy={busy} save={execute} saveBatch={execute} sources={sources} removeSource={remove} activities={state.activities} />:<>{error&&<p role="alert" className={styles.error}>{error}</p>}{viewing&&details(viewing)}</>}</EditorDialog>}
+    {(viewing||editing)&&<EditorDialog closeLabel={editing?'关闭编辑':'关闭详情'} routeEntry={!!(initialEntry&&editing?.kind==='save_energy_day'&&editing.date===initialDate)} title={editing?editing.kind==='save_energy_profile'?'公式资料':editing.kind==='save_activity'?'活动记录':'每日消耗':viewing+' · 消耗记录'} titleParts={!editing&&viewing?[viewing,'消耗记录']:undefined} stableScroll={!editing} busy={busy} onSavedCloseReady={close=>{savedClose.current=close;}} close={()=>{setViewing(null);setEditing(null);setError('');}}>
+      <div data-record-intent={editing?editing.id?'edit':'create':'view'}>
+        {editing?<>
+          <EnergyEditor addActivity={addActivity} dayRecords={state.days} initial={editing} error={error} busy={busy} save={execute} saveBatch={execute} sources={sources} removeSource={remove} activities={state.activities}/>
+          {editing.kind==='save_energy_day'&&state.days.some(day=>day.id===editing.id&&!day.deletedAt)&&<details className={recordUI.editMaintenance}><summary>更多操作</summary><button type="button" disabled={busy} onClick={async()=>{if(await confirmDraftDiscard())await removeRecord({kind:'delete_energy_day',id:editing.id!,version:editing.version!},editing.date+' 消耗记录');}}>永久删除日记录</button></details>}
+        </>:<>{error&&<p role="alert" className={styles.error}>{error}</p>}{viewing&&details(viewing)}</>}
+      </div>
+    </EditorDialog>}
   </RecordWorkspace>;
 }
 

@@ -1,6 +1,8 @@
 # Components
 
-手机Inspector通过--inspector-sticky-offset为把手预留44px，饮食与消耗的粘性保存条复用该偏移，长表单滚动不能盖住把手。
+手机Inspector通过--inspector-sticky-offset为把手预留44px，饮食与消耗的粘性保存条复用该偏移，长表单滚动不能盖住把手。标题透明且无独立圆角外壳，把手区与面板底色连续；键盘焦点仅围绕小把手，不在整宽拖动区画线。电脑保留原侧栏外壳。record-intent.ts集中校验网页view／edit／create打开意图，record-ui统一列表编辑实底与查看次级样式，业务组件决定各任务可用内容。
+
+record-intent-client.ts将同地址再次点击交给当前已挂载业务，沿用LoadingLink的草稿确认及来源退出顺序；EntrySurface仅为重复create重开稳定外壳，三类业务重新打开对应内容。不拦截趋势、其他日期／来源／查询的正常导航，不存储健康快照或增加接口。
 
 metric-card-rail.tsx提供B横滑卡片与拖后点击抑制，trend-glyph.tsx共用2:1数据平面，metric-trend-model.ts只管绘图尺度和内部趋势链接校验。chart-transition.tsx挂在已认证持久框架中，先在结构骨架落位，再由真实图形接管；无配对／减少动态效果／异常超时走普通导航。专页保留趋势返回和日期行录入；mobile-navigation.tsx复用原四目的地、指示器及拖动行为，workspace-pages.ts统一目的地名称。
 

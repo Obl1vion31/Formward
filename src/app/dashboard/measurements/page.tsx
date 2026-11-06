@@ -13,16 +13,17 @@ import { listMeasurementDates, measurementDisplay } from "@/features/measurement
 import { deleteCellAction, estimateCellAction, removeSourceAction, saveDayAction } from "../actions";
 import { listMeasurementSources } from "@/features/measurements/sources";
 import { linkedTrend, type TrendRoute } from "@/components/metric-trend-model";
+import {recordOpenIntent,type RecordIntent} from '@/components/record-intent';
 
 export const metadata: Metadata = { title: "Formward · 身体记录" };
 
-export default async function DashboardPage({searchParams}:{searchParams:Promise<{date?:string|string[];entry?:string;view?:string;from?:string;to?:string}>}) {
+export default async function DashboardPage({searchParams}:{searchParams:Promise<{date?:string|string[];entry?:string;intent?:string|string[];view?:string;from?:string;to?:string}>}) {
   const user = await currentPageUser();
   if (!user) redirect("/"); await requireCompletedOnboarding();
-  const params=await searchParams;return <DashboardContent user={user} date={linkedDate(params.date)} period={params.entry==="daytime"||params.entry==="evening"?params.entry:null} trend={params.entry?null:linkedTrend(params)} />;
+  const params=await searchParams,period=params.entry==='daytime'||params.entry==='evening'?params.entry:null,trend=params.entry?null:linkedTrend(params);return <DashboardContent user={user} date={linkedDate(params.date)} period={period} trend={trend} intent={recordOpenIntent(params,!!period,!!trend)}/>;
 }
 
-async function DashboardContent({ user, date, period, trend }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date:string|null;period:"daytime"|"evening"|null;trend:TrendRoute|null }) {
+async function DashboardContent({ user, date, period, trend,intent }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date:string|null;period:"daytime"|"evening"|null;trend:TrendRoute|null;intent:RecordIntent }) {
   const db = getDatabase();
   // 本地 PGlite 使用单连接多路复用，按顺序读取以保持结果与查询对应。
   const records = await listMeasurements(db, user.id);
@@ -33,7 +34,7 @@ async function DashboardContent({ user, date, period, trend }: { user: NonNullab
   return (
     <>
 
-      <MeasurementsView preferences={preferences} initialDate={date} initialPeriod={period} initialTrend={trend} records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ deleteCell:deleteCellAction, save: saveDayAction, estimate: estimateCellAction, removeSource: removeSourceAction }} />
+      <MeasurementsView key={`${date}:${intent}:${period}:${trend?.from}:${trend?.to}`} initialIntent={intent} preferences={preferences} initialDate={date} initialPeriod={period} initialTrend={trend} records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ deleteCell:deleteCellAction, save: saveDayAction, estimate: estimateCellAction, removeSource: removeSourceAction }} />
     </>
   );
 }

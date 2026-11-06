@@ -2,7 +2,9 @@
 
 餐次顶部营养摘要按完整的名称／数字／单位词组换行，至少12px；粘性保存条继承Inspector把手偏移，保持长表单操作可达。
 
-手机使用mobile-nutrition-plot.tsx与首页共用TrendGlyph，trend-preview.ts复用macroDistribution准备同一营养组成；进入链接对齐日期范围，不误开日期详情。专页顶部记录动作打开原MealEditor，克数／能量占比、已记全、食材库、全部历史与原图保留。
+手机使用mobile-nutrition-plot.tsx与首页共用TrendGlyph，trend-preview.ts复用macroDistribution准备同一营养组成；进入链接对齐日期范围，不误开日期详情。记录从首页快捷入口、日期行或助手进入，克数／能量占比、已记全、食材库、全部历史与原图保留。
+
+日期和食材详情仅查看事实、来源、照片与静态记全状态，不挂载表单或写入操作。日期行“编辑”进入当天餐次管理，集中添加、编辑、删除和记全；单餐保存返回当天编辑。食材列表并列查看／编辑，永久删除只在编辑任务的更多操作，保留原确认及失败留稿。record-intent定义内部view／edit／create：普通日期默认查看，intent=edit显式编辑，旧entry录入兼容。AI审核继续复用原表单与确认流程。
 
 独立食材营养默认四项同排；nutrition-fields.tsx按实际标签、数值和容器宽度退让，不缩小16px输入。字段去掉层叠margin，包装与营养基准合为短事实行；品牌／规格选填标签保持配对基线。
 

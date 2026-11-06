@@ -119,6 +119,12 @@
 .dayDetails>.sourceLine{margin-top:8px}
 .dayDetails>.actions,.dayDetails>.details{margin-top:8px;margin-bottom:0}
 .dayDetails>.actions button{min-height:44px}
+
+.energyEntry .stickyTotal{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px}
+.energyEntry .stickyTotal>.headerSave{grid-column:2;grid-row:2;max-width:none;white-space:nowrap;min-width:72px}
+.energyEntry .stickyTotal>:global(.record-date-context){grid-column:1/-1;margin:0;padding:0;min-width:0}
+.energyEntry .stickyTotal>:global(.record-date-context) strong{font:inherit;color:var(--muted);white-space:nowrap;display:inline-block}
+.energyEntry .stickyTotal>div{grid-column:1;grid-row:2}
 .dayDetails .summary strong small{font-size:12px;margin-left:4px}
 
 

@@ -167,9 +167,9 @@
   .rowAmount { grid-column:1 / 3; grid-row:2; color:var(--muted); white-space:normal; overflow-wrap:anywhere; }
   .rowMacro { grid-row:2; color:var(--ink); }
   .rowMacro::before { content:attr(data-label); display:block; font-size:12px; color:var(--muted); margin-bottom:2px; }
-  .rowActions { grid-column:6; grid-row:2; justify-self:end; }
-  .foodTable .rowActions { grid-column:6; grid-row:2; }
-  .foodTable .foodInlineActions { display:none; }
+  .rowActions { grid-column:1/-1; grid-row:3; justify-self:stretch; }
+  .foodTable .rowActions { grid-column:1/-1; grid-row:3; margin-top:8px; }
+  .foodTable .foodInlineActions { display:inline-flex; }
   .foodTable .rowActions .actions { gap:10px; }
   .foodTable .rowActions button { padding-inline:0; }
   .mobileUnit { display:inline; font-size:12px; color:var(--muted); font-weight:400; }
@@ -376,6 +376,7 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
 /* 独立食材编辑沿用餐次控件语言；不以“未知”作为主读数。 */
 .form[data-entry-form=food]>fieldset{display:grid;gap:12px}.form[data-entry-form=food] label{font-size:14px;gap:6px;margin:0}.form[data-entry-form=food] .formColumns{grid-template-columns:repeat(auto-fit,minmax(min(100%,7.5em),1fr));gap:12px}.fieldCaption{display:flex;align-items:baseline;justify-content:space-between;gap:4px;flex-wrap:wrap}.fieldCaption small{font-size:12px;white-space:nowrap}.form[data-entry-form=food] .nutritionFields{gap:8px}.form[data-entry-form=food] .nutritionFields label{display:grid;grid-template-columns:1fr auto;gap:6px}.form[data-entry-form=food] .nutritionFields input{grid-column:1/-1;width:100%;margin:0;padding-inline:6px;letter-spacing:normal;appearance:textfield}.form[data-entry-form=food] .nutritionFields small{font-size:12px;margin:0}.form[data-entry-form=food] .sourceFields{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin:0}.form[data-entry-form=food] .sourceChoices{flex:1 0 auto;gap:8px}.form[data-entry-form=food] .sourceChoices legend{margin-bottom:0}.form[data-entry-form=food] .sourceChoices label{gap:6px}.form[data-entry-form=food] .evidence{margin:0;flex:0 0 auto}.form[data-entry-form=food] .evidence[open]{flex-basis:100%}.form[data-entry-form=food] .evidence summary{gap:4px}.form[data-entry-form=food] .photoFields{margin:0}.foodBasis{display:flex;flex-wrap:wrap;gap:4px 12px;margin:0;color:var(--muted);font-size:12px;line-height:18px}.foodBasis>span{white-space:nowrap}
 .form[data-entry-form=food] .save{margin-top:0;justify-self:end}.foodTable .actions button{min-height:44px;padding:8px 12px;border:1px solid var(--control-border);border-radius:6px;font-size:14px;background:transparent}.foodTable .actions button:hover{border-color:var(--gold);background:var(--surface-hover);color:var(--gold)}
+.foodTable .actions button[data-record-action=edit]{background:var(--surface-hover);color:var(--warm-white)}
 .foodTable th strong{font-size:15px;line-height:1.6}.foodTable th,.foodTable td{padding-block:12px}.foodTable td{font-size:14px}
 
 .workspace .toolbar>input{min-width:0;min-height:44px;border:1px solid var(--control-border);border-radius:6px;background:var(--surface-raised);color:var(--warm-white);padding:10px 12px;font-size:16px;line-height:22px}

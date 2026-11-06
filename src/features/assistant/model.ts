@@ -24,7 +24,7 @@ export function assistantContext(catalog: ReminderCatalog, now: Date, timezone: 
     if (meal && !meal.complete) pending.push({
       id: `meals:${yesterday}`, category: "meals", date: yesterday, title: "昨日饮食待核对",
       detail: meal.status === "incomplete" ? "这一天标记为未记全，可以继续补充" : meal.source === "record_change" ? "记录有变化，请重新确认是否已记全" : "已有餐次，尚未确认是否已记全",
-      action: { label: meal.status === "incomplete" ? "查看并补充" : "查看并确认", href: `/dashboard/meals?date=${yesterday}` },
+      action: { label: meal.status === "incomplete" ? "编辑并补充" : "编辑并确认", href: `/dashboard/meals?date=${yesterday}&intent=edit` },
     });
     if (!meal) suggestions.push({ id: `meals:${yesterday}`, category: "meals", date: yesterday, title: "昨日尚无饮食记录", detail: "如有需要，可以补充已吃的餐次", action: { label: "补录饮食", href: `/dashboard/meals?date=${yesterday}&entry=1` } });
     const energy = catalog.energy.find(day => day.date === yesterday);

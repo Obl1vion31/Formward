@@ -6,10 +6,12 @@ import {EntrySurfaceContext,type EntryMetadata,type EntryGuards} from './entry-s
 import {DraftGuardContext,DraftCloseContext,InspectorBusyContext} from './draft-guard';
 import {SkeletonBlock} from './skeleton-block';
 import {useChartTransition} from './chart-transition-state';
+import {useRepeatedRecordTask} from './record-intent-client';
 export function EntrySurface({children}:{children:ReactNode}){
  const path=usePathname(),query=useSearchParams(),router=useRouter(),entry=query.get('entry'),routeKey=path+'?'+query.toString();
  const requested=!!entry&&['/dashboard/meals','/dashboard/measurements','/dashboard/energy'].includes(path),[closed,setClosed]=useState('');
  const [intent,setIntent]=useState({url:routeKey,requested,id:0});
+ useRepeatedRecordTask(path,task=>{if(task.intent!=='create')return false;setIntent(current=>({...current,id:current.id+1}));});
  if(intent.url!==routeKey||intent.requested!==requested)setIntent({url:routeKey,requested,id:intent.id+1});
  const key=routeKey+'#'+intent.id;
  const [binding,setBinding]=useState<{key:string;meta:EntryMetadata}|null>(null),[slot,setSlot]=useState<HTMLElement|null>(null),[headerSlot,setHeaderSlot]=useState<HTMLElement|null>(null),[guards,setGuards]=useState<EntryGuards|null>(null);
