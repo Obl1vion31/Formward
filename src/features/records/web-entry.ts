@@ -15,7 +15,7 @@ export function sameMealAmounts(a:MealDraft,b:MealDraft){
 }
 export function mealWebIssue(input:MealDraft,values:Nutrition):string|null{
  const {kind,...clean}=input as MealDraft&{kind?:unknown};void kind;
- if(!input.items.length)return "先添加食物，填写已知营养后即可保存。";
+ if(!input.items.length)return "先添加食物即可保存。";
  if(!input.mealType.trim())return "请填写餐次。";
  if(input.items.some(item=>!item.name.trim()))return "请填写食物名称。";
  if(!mealDraftSchema.safeParse(clean).success)return "请检查食物数量、营养数值或照片数量。";
