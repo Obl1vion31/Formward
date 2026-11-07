@@ -26,7 +26,7 @@ export async function bindPersonalSource(db: Database, userId: string, raw: unkn
     const [existing] = await tx.select().from(dataConnection).where(and(eq(dataConnection.userId, userId), eq(dataConnection.provider, "garmin-personal")));
     if ((existing?.version ?? 0) !== input.data.version) throw new ApiError(409, "version_conflict", "连接已经改变，请重新读取后重试。");
     const id = existing?.id ?? randomUUID(), credential = encryptCredential(input.data.apiKey, userId, id), now = new Date();
-    if (existing) await tx.update(dataConnection).set({ credential, accessVersion: owner.accessVersion, adoptedAt: null, status: "active", syncToken: null, syncStartedAt: null, lastError: null, version: existing.version + 1, updatedAt: now }).where(and(eq(dataConnection.userId, userId), eq(dataConnection.id, id)));
+    if (existing) await tx.update(dataConnection).set({ credential, accessVersion: owner.accessVersion, adoptedAt: null, lastSuccessAt:null, lastAttemptAt:null, status: "active", syncToken: null, syncStartedAt: null, lastError: null, version: existing.version + 1, updatedAt: now }).where(and(eq(dataConnection.userId, userId), eq(dataConnection.id, id)));
     else {
       await tx.insert(dataConnection).values({ id, userId, provider: "garmin-personal", label: "Garmin Personal", credential, metrics: [...sourceMetrics], timezone: input.data.timezone, accessVersion: owner.accessVersion });
       await tx.insert(dataSourcePolicy).values({ userId, strategy: "total", sources: Object.fromEntries(sourceMetrics.map(m => [m, id])) as ReturnType<typeof emptySources>, effectiveFrom: sevenDays(now, input.data.timezone).to }).onConflictDoNothing();
@@ -45,7 +45,7 @@ export async function configureConnection(db: Database, userId: string, id: stri
     if (connection.version !== input.data.version) throw new ApiError(409, "version_conflict", "连接已在其他设备改变，请重新读取。");
     const owner = await requireActiveAccount(tx, userId);
     if (connection.accessVersion !== owner.accessVersion && input.data.active) throw new ApiError(409, "rebind_required", "访问已撤销，请重新绑定密钥。");
-    await tx.update(dataConnection).set({ metrics: input.data.metrics, status: input.data.active ? "active" : "paused", syncToken: null, syncStartedAt: null, version: connection.version + 1, updatedAt: new Date() }).where(and(eq(dataConnection.userId, userId), eq(dataConnection.id, id)));
+    await tx.update(dataConnection).set({ metrics: input.data.metrics, lastAttemptAt:null, status: input.data.active ? "active" : "paused", syncToken: null, syncStartedAt: null, version: connection.version + 1, updatedAt: new Date() }).where(and(eq(dataConnection.userId, userId), eq(dataConnection.id, id)));
     const [policy] = await tx.select().from(dataSourcePolicy).where(eq(dataSourcePolicy.userId, userId));
     if (policy) {
       const sources = { ...policy.sources };

@@ -1,14 +1,21 @@
 import { createHash } from "node:crypto";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { dataConnection, dataSourceConflict, dataSourceFact, dataSourcePolicy, energyDayAdoption } from "../../db/schema";
 import { readEnergySnapshot } from "../activities/records";
 import { energyDays, energyModes } from "../activities/model";
 import { sevenDays } from "../garmin/client";
-import { emptySources, sourcePilotEnabled, type AdoptionMetadata, type DailyFact, type ComparisonDay, type SourcePolicy, type SourcesView } from "./model";
+import { emptySources, metricLabels, sourcePilotEnabled, type AdoptionMetadata, type ConnectionView, type DailyFact, type ComparisonDay, type SourcePolicy, type SourcesView } from "./model";
 export const fingerprint = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 export type Connection = typeof dataConnection.$inferSelect;
 export type Fact = typeof dataSourceFact.$inferSelect;
+
+/** 普通消耗页只读取连接元数据，不为状态条重新查询七日健康对照。 */
+export async function loadEnergyConnection(db: Pick<Database, "select">, userId: string): Promise<ConnectionView | null> {
+  if (!sourcePilotEnabled(userId)) return null;
+  const [c] = await db.select({ id:dataConnection.id,label:dataConnection.label,provider:dataConnection.provider,status:dataConnection.status,metrics:dataConnection.metrics,timezone:dataConnection.timezone,version:dataConnection.version,adoptedAt:dataConnection.adoptedAt,syncStartedAt:dataConnection.syncStartedAt,lastAttemptAt:dataConnection.lastAttemptAt,lastSuccessAt:dataConnection.lastSuccessAt,lastError:dataConnection.lastError }).from(dataConnection).where(and(eq(dataConnection.userId,userId),eq(dataConnection.provider,"garmin-personal")));
+  return c ? { id:c.id,label:c.label,provider:c.provider,status:c.status,metrics:c.metrics,timezone:c.timezone,version:c.version,adopted:!!c.adoptedAt,syncing:!!c.syncStartedAt&&Date.now()-+c.syncStartedAt<90000,lastAttemptAt:c.lastAttemptAt?.toISOString()??null,lastSuccessAt:c.lastSuccessAt?.toISOString()??null,error:c.lastError } : null;
+}
 
 export async function readSourceState(db: Pick<Database, "select">, userId: string, now = new Date()) {
   const connections = await db.select().from(dataConnection).where(eq(dataConnection.userId, userId)).orderBy(asc(dataConnection.id));
@@ -26,7 +33,7 @@ export function proposeDay(state: SourceState, date: string, policy = state.poli
   const current = energyDays(state.snapshot, [], [date])[0], record = current.record;
   const chosen = (metric: "total" | "resting" | "active" | "steps") => {
     const connectionId = policy.sources[metric], connection = state.connections.find(c => c.id === connectionId);
-    const fact = connection?.status === "active" && connection.metrics.includes(metric) ? state.facts.find(f => f.connectionId === connectionId && f.kind === "day" && f.date === date) : undefined;
+    const fact = connection?.status === "active" && connection.lastSuccessAt && connection.metrics.includes(metric) ? state.facts.find(f => f.connectionId === connectionId && f.kind === "day" && f.date === date && f.payload.kind === "day" && f.payload.metrics?.includes(metric)) : undefined;
     return fact?.payload.kind === "day" ? { fact, value: fact.payload[metric] } : null;
   };
   const total = chosen("total"), resting = chosen("resting"), active = chosen("active"), steps = chosen("steps");
@@ -38,7 +45,8 @@ export function proposeDay(state: SourceState, date: string, policy = state.poli
   // 跨来源仅在来源日历边界相同且用户明确选择 components 时相加；占比图要求同一快照。
   const zones = new Set(state.connections.filter(c => componentSources.includes(c.id)).map(c => c.timezone));
   let reason: string | null = zones.size > 1 && policy.strategy === "components" ? "静息与活动的来源时区不同，请统一日期边界。" : null;
-  const activityConnection = state.connections.find(c => c.id === policy.sources.activities && c.status === "active" && c.metrics.includes("activities"));
+  for (const metric of ["total", "resting", "active", "steps"] as const) if (policy.sources[metric] && !chosen(metric)) reason ??= `${metricLabels[metric]}来源尚未读取本日数据。`;
+  const activityConnection = state.connections.find(c => c.id === policy.sources.activities && c.status === "active" && c.lastSuccessAt && c.metrics.includes("activities"));
   const activityFacts = activityConnection ? state.facts.filter(f => f.connectionId === activityConnection.id && f.kind === "activity" && f.date === date) : [];
   if (!used.length && !activityFacts.length) reason ??= "还没有选中来源的可用数据。";
   if (used.length && ![proposed.total, proposed.resting, proposed.active, proposed.steps].some(v => v !== null) && !activityFacts.length) reason ??= "来源数值尚未就绪，保留现有记录。";

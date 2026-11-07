@@ -65,8 +65,8 @@ test("V2 白名单只保留选中字段，0 与未知分开，秒转分钟且不
   assert.equal(event.payload.durationMinutes, "30"); assert.equal(event.payload.caloriesKcal, "300"); assert.equal(event.payload.bmrKcal, "40");
 });
 test("重复或不安全活动 ID、多份同日汇总、父子记录和无效时间不擅自合并", () => {
-  const capture = sample(2300, 6500, [activity(), activity(), activity({ activityId: 10002, parentId: 10001 }), activity({ activityId: Number.MAX_SAFE_INTEGER + 1 })]);
-  const out = normalizeGarmin(capture, [...sourceMetrics]); assert.equal(out.facts.filter(f => f.kind === "activity").length, 1); assert.equal(out.activitiesComplete, false);
+  const capture = sample(2300, 6500, [activity(), activity(), activity({ activityId: 10002, parentId: 10001 }), activity({ activityId: 10003, parentId: 0 }), activity({ activityId: Number.MAX_SAFE_INTEGER + 1 })]);
+  const out = normalizeGarmin(capture, [...sourceMetrics]); assert.equal(out.facts.filter(f => f.kind === "activity").length, 2); assert.equal(out.activitiesComplete, false);
   const duplicate = sample(); if (duplicate.daily.ok) duplicate.daily.data = { data: [ { calendarDate: today }, { calendarDate: today } ] };
   assert.equal(normalizeGarmin(duplicate, ["total"]).facts.length, 0);
 });
@@ -75,7 +75,8 @@ test("首次同步仅保存来源事实，正式记录须经七日对照明确�
   assert.equal((await readEnergySnapshot(db, userId)).days.length, 0);
   const view = await loadSources(db, userId, now), day = view.comparison.find(d => d.date === today)!;
   assert.equal(day.proposed.total, "2300"); assert.equal(day.proposed.steps, 6500); assert.equal(day.mode, "unadopted");
-  await adopt(userId); const snapshot = await readEnergySnapshot(db, userId), resolved = energyDays(snapshot, [], [today])[0];
+  const adopted=await adopt(userId); const snapshot = await readEnergySnapshot(db, userId), resolved = energyDays(snapshot, [], [today])[0];
+  assert.equal(adopted.changes.find(c=>c.key==="energyDay:"+today)?.version,String(snapshot.days[0].version));
   assert.equal(Number(resolved.totalKcal), 2300); assert.equal(resolved.restingKcal, "2000"); assert.equal(resolved.activeKcal, "300"); assert.equal(resolved.steps, 6500); assert.equal(resolved.record?.adoption?.mode, "source");
   assert.equal(snapshot.days[0].entryMode, "total"); assert.equal(snapshot.days[0].totalKcal, "2300.0000"); // 旧应用回退仍读到正确总数。
 });
@@ -90,6 +91,7 @@ test("重复同步不增加事实或正式版本，后台旧请求不会重置�
   await write(userId, { notes: "虚构备注" }); const before = (await readEnergySnapshot(db, userId)).days[0];
   await sync(userId, sample(), 6); const after = (await readEnergySnapshot(db, userId)).days[0];
   assert.equal(after.version, before.version); assert.equal(after.notes, "虚构备注"); assert.equal(after.adoption?.mode, "source");
+  await write(userId,{sourceSystem:"虚构新来源"});assert.equal((await readEnergySnapshot(db,userId)).days[0].adoption?.mode,"manual");
 });
 test("手动改数保护整天，后续同步保留手动值，重新采用显示最新差异", async () => {
   const userId = await owner(); await sync(userId); await adopt(userId); await write(userId, { totalKcal: "2400", steps: 6800 });
@@ -169,4 +171,63 @@ test("分项策略复用同一日汇总，未知分项不补零也不绘制虚�
   const capture = sample(); if (capture.daily.ok) capture.daily.data = { data: [{ calendarDate: today, calories: { burnedTotal: 2400, burnedResting: 2000, burnedActive: null }, movement: { steps: { value: 0 } } }] };
   await sync(userId, capture, 6); day = energyDays(await readEnergySnapshot(db, userId), [], [today])[0]; assert.equal(day.activeKcal, null); assert.equal(day.totalKcal, null); assert.equal(day.steps, 0); assert.equal(day.record?.adoption?.metadata?.compositionKnown, false);
   view = await loadSources(db, userId, now); assert.equal(view.comparison.find(d => d.date === today)?.proposed.active, null);
+});
+
+test("即使另一个账号被设为试运行，也不能操作原账号连接或伪造归属外键", async () => {
+  const first = await owner(), [connection] = (await loadSources(db, first, now)).connections, second = await owner(false);
+  await assert.rejects(configureConnection(db, second, connection.id, { version: connection.version, metrics: ["steps"], active: true }), /不存在/);
+  const view = await loadSources(db, second, now); assert.equal(view.connections.length, 0);
+  await assert.rejects(configurePolicy(db, second, { version: 0, strategy: "total", sources: { total: connection.id, resting: null, active: null, steps: null, activities: null } }), /本账号/);
+  await assert.rejects(db.insert(schema.dataSourceFact).values({ id: randomUUID(), userId: second, connectionId: connection.id, kind: "day", sourceRecordId: today, date: today, timezone: "Asia/Shanghai", payload: { kind: "day", total: "1", resting: null, active: null, steps: null, coverageUntil: null }, digest: "fake", observedAt: now }));
+});
+test("格式异常的成功响应不覆盖上次采用，明确0仍可保存", async () => {
+  const userId = await owner(); await sync(userId); await adopt(userId);
+  const bad = sample(); if (bad.daily.ok) bad.daily.data = { data: [{ calendarDate: today, calories: { burnedTotal: "broken" }, movement: { steps: { value: 123.5 } } }] };
+  assert.equal((await sync(userId, bad, 6)).status, "failed"); assert.equal(Number(energyDays(await readEnergySnapshot(db, userId), [], [today])[0].totalKcal), 2300);
+  const zero = sample(); if (zero.daily.ok) zero.daily.data = { data: [{ calendarDate: today, calories: { burnedTotal: 0, burnedResting: 0, burnedActive: 0 }, movement: { steps: { value: 0 } } }] };
+  await sync(userId, zero, 12); const day = energyDays(await readEnergySnapshot(db, userId), [], [today])[0]; assert.equal(Number(day.totalKcal), 0); assert.equal(day.steps, 0);
+});
+test("取消运动同步后不继续展示或采集尚未采用的运动冲突", async () => {
+  const userId = await owner(); await db.insert(schema.activity).values({ id: randomUUID(), userId, date: today, name: "虚构跑步", durationMinutes: "30", caloriesKcal: "300", timezone: "Asia/Shanghai" });
+  await sync(userId, sample(2300, 6500, [activity()])); let view = await loadSources(db, userId, now); assert.equal(view.conflicts.length, 1);
+  const connection = view.connections[0]; await configureConnection(db, userId, connection.id, { version: connection.version, metrics: ["total", "steps"], active: true });
+  view = await loadSources(db, userId, now); assert.equal(view.conflicts.length, 0); assert.equal(view.policy.sources.activities, null);
+  await synchronizeSource(db, userId, { now: new Date(+now + 6 * 60000), capture: async input => { assert.equal(input.activities, false); assert.equal(input.daily, true); return sample(); } });
+  assert.equal((await readEnergySnapshot(db, userId)).activities.length, 1);
+});
+test("错日的旧记录不自动移动，新对照采用不会复制原备注到另一日期", async () => {
+  const userId = await owner(), yesterday = window.dates.at(-2)!;
+  await db.insert(schema.energyDay).values({ id: randomUUID(), userId, date: today, entryMode: "total", activityMode: "total", totalKcal: "2194", notes: "虚构旧日误录备注", timezone: "Asia/Shanghai" });
+  const capture = sample(); if (capture.daily.ok) capture.daily.data = { data: [{ calendarDate: yesterday, calories: { burnedTotal: 2194, burnedResting: 2000, burnedActive: 194 } }, { calendarDate: today, calories: { burnedTotal: 1180, burnedResting: 1120, burnedActive: 60 } }] };
+  await sync(userId, capture); const before = await readEnergySnapshot(db, userId); assert.equal(before.days.length, 1); assert.equal(before.days[0].date, today);
+  const view = await loadSources(db, userId, now), row = view.comparison.find(d => d.date === yesterday)!;
+  await adoptSourceDays(db, userId, { days: [{ date: yesterday, digest: row.digest, includedActivityIds: [] }] }, now);
+  const after = await readEnergySnapshot(db, userId); assert.equal(after.days.find(d => d.date === today)?.notes, "虚构旧日误录备注"); assert.equal(after.days.find(d => d.date === yesterday)?.notes, null); assert.equal(Number(after.days.find(d => d.date ===today)?.totalKcal), 2194);
+});
+
+test("更换密钥后旧快照不可采用，必须重新读取且重新确认", async () => {
+  const userId = await owner(); await sync(userId); await adopt(userId); const before = await loadSources(db, userId, now), connection = before.connections[0];
+  await bindPersonalSource(db, userId, { apiKey: "fictional-replacement-personal-key", version: connection.version });
+  const pending = await loadSources(db, userId, now); assert.equal(pending.connections[0].lastSuccessAt, null); assert.equal(pending.connections[0].adopted, false); assert.equal(pending.comparison.find(d => d.date === today)?.canAdopt, false);
+  await sync(userId, sample(2600)); const reading = energyDays(await readEnergySnapshot(db, userId), [], [today])[0]; assert.equal(Number(reading.totalKcal), 2300);
+  await adopt(userId); assert.equal(Number(energyDays(await readEnergySnapshot(db, userId), [], [today])[0].totalKcal), 2600);
+});
+test("新勾选的字段不能采用旧范围快照，配置后可立即按新内容读取", async () => {
+  const userId = await owner(); let view = await loadSources(db, userId, now), connection = view.connections[0];
+  await configureConnection(db, userId, connection.id, { version: connection.version, metrics: ["total"], active: true }); await sync(userId);
+  view = await loadSources(db, userId, now); connection = view.connections[0]; await configureConnection(db, userId, connection.id, { version: connection.version, metrics: ["total", "steps"], active: true });
+  view = await loadSources(db, userId, now); await configurePolicy(db, userId, { version: view.policy.version, strategy: view.policy.strategy, sources: { ...view.policy.sources, steps: connection.id } });
+  view = await loadSources(db, userId, now); assert.equal(view.comparison.find(d => d.date === today)?.canAdopt, false);
+  assert.equal((await sync(userId)).status, "synced"); view = await loadSources(db, userId, now); assert.equal(view.comparison.find(d => d.date === today)?.proposed.steps, 6500); assert.equal(view.comparison.find(d => d.date === today)?.canAdopt, true);
+});
+
+test("采用分项改变但日总数不变时仍更新正式版本并精确返回本次变更", async () => {
+  const userId = await owner(); await sync(userId); await adopt(userId); const before = (await readEnergySnapshot(db, userId)).days[0];
+  const capture = sample(); if (capture.daily.ok) capture.daily.data = { data: [{ calendarDate: today, calories: { burnedTotal: 2300, burnedResting: 1900, burnedActive: 400 }, movement: { steps: { value: 6500 } } }] };
+  const result = await sync(userId, capture, 6), after = (await readEnergySnapshot(db, userId)).days[0]; assert.equal(after.version, before.version+1); assert.equal(energyDays(await readEnergySnapshot(db, userId), [], [today])[0].restingKcal, "1900"); assert.deepEqual(result.changes,[{key:"energyDay:"+today,version:String(after.version)}]);
+});
+
+test("只手动修改步数会保护整天但保留仍与总数一致的已知来源分项", async () => {
+  const userId = await owner(); await sync(userId); await adopt(userId); await write(userId, {steps:7000});
+  const day=energyDays(await readEnergySnapshot(db,userId),[],[today])[0];assert.equal(day.record?.adoption?.mode,"manual");assert.equal(day.steps,7000);assert.equal(day.restingKcal,"2000");assert.equal(day.activeKcal,"300");assert.equal(Number(day.totalKcal),2300);
 });

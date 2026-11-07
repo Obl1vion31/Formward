@@ -8,14 +8,15 @@ import { bindPersonalSource, configureConnection, configurePolicy } from "@/feat
 import { adoptSourceDays, resolveSourceConflict } from "@/features/data-sources/adoption";
 import { loadSources } from "@/features/data-sources/state";
 import { synchronizeSource } from "@/features/data-sources/sync";
+import type { SourceRecordChange } from "@/features/data-sources/model";
 
-async function change(work: (userId: string) => Promise<unknown>, health = false) {
+async function change(work: (userId: string) => Promise<void | { changes?: SourceRecordChange[] }>, health = false) {
   try {
     return await withCurrentSession(await headers(), async user => {
-      await work(user.id);
+      const result=await work(user.id);
       revalidatePath("/dashboard/sources");
       if (health) { revalidatePath("/dashboard/energy"); revalidatePath("/dashboard"); }
-      return { ok: true as const, data: await loadSources(getDatabase(), user.id) };
+      return { ok: true as const, data: await loadSources(getDatabase(), user.id), recordChanges:result?.changes??[] };
     });
   } catch (error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }

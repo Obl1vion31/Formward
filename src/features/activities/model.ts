@@ -87,7 +87,9 @@ export function energyDays(snapshot: EnergySnapshot, records: MeasurementDisplay
     const record = snapshot.days.find(day => day.date === date && !day.deletedAt) ?? null;
     const activities = snapshot.activities.filter(activity => activity.date === date && !activity.deletedAt && activity.completed);
     const modes = energyModes(record), onlyTotal = modes.entryMode === "total";
-    const sourceParts = onlyTotal && record?.adoption?.mode === "source" ? record.adoption.metadata : null;
+    const metadata = record?.adoption?.metadata;
+    const partsStillMatch = metadata?.restingKcal != null && metadata.activeKcal != null && record?.totalKcal != null && Math.abs(Number(metadata.restingKcal)+Number(metadata.activeKcal)-Number(record.totalKcal))<=1 && !activities.some(a=>a.inclusion==="additional"&&a.inclusionBasis===energyBaseline(record));
+    const sourceParts = onlyTotal && (record?.adoption?.mode === "source" || partsStillMatch) ? metadata : null;
     const restingKcal = onlyTotal ? sourceParts?.restingKcal ?? null : record?.restingKcal ?? null;
     const restingSource = restingKcal != null ? "record" as const : null;
     const activityKnown = activities.length > 0 && activities.every(activity => activityCalories(activity) !== null);

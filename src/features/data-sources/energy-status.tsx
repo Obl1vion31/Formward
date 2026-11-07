@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { draftIsDirty } from "@/components/draft-guard";
 import { LoadingLink } from "@/components/loading-link";
+import { acknowledgeRecordChanges } from "@/components/record-change-client";
 import { synchronizeSourceAction } from "@/app/dashboard/sources/actions";
 import type { ConnectionView } from "./model";
 import styles from "./sources.module.css";
@@ -21,8 +22,8 @@ export function EnergySourceStatus({ initial, steps, cumulative, protectedDay }:
           const result = await synchronizeSourceAction(false);
           if (result.ok) {
             setConnection(result.data.connections[0] ?? null);
-            if (result.sync.adoptedDates.length) { if (draftIsDirty()) setPendingRefresh(true); else router.refresh(); }
-          }
+            if (result.sync.adoptedDates.length) { if (draftIsDirty()) setPendingRefresh(true); else { const changes=result.sync.changes??[];if(changes.length)acknowledgeRecordChanges(changes.map(c=>c.key),changes);router.refresh(); } }
+          } else setConnection(c=>c?{...c,error:result.error}:c);
         } catch { setConnection(c => c ? { ...c, error: "同步未完成，保留上次数据。" } : c); }
         finally { running.current = false; setWorking(false); }
       });

@@ -35,7 +35,7 @@ export function normalizeGarmin(capture: Capture, metrics: SourceMetric[]) {
           if (selected.has(metric) && value != null && (numeric(value, metric === "steps" ? 10000000 : 1000000) === null || metric === "steps" && !Number.isInteger(value))) { malformed = true; dailyComplete = false; issues.push(`${date} 的${metric === "steps" ? "步数" : "消耗"}格式异常。`); }
         }
         if (malformed) continue;
-        facts.push({ kind: "day", sourceRecordId: date, date, occurredAt: garminUtc(at(row, "wellnessChronology.endTimestampGmt")), payload: { kind: "day", total, resting, active, steps: steps !== null && Number.isInteger(steps) ? steps : null, coverageUntil: garminUtc(at(row, "wellnessChronology.endTimestampGmt"))?.toISOString() ?? null } });
+        facts.push({ kind: "day", sourceRecordId: date, date, occurredAt: garminUtc(at(row, "wellnessChronology.endTimestampGmt")), payload: { kind: "day", metrics:metrics.filter(m=>m!=="activities"), total, resting, active, steps: steps !== null && Number.isInteger(steps) ? steps : null, coverageUntil: garminUtc(at(row, "wellnessChronology.endTimestampGmt"))?.toISOString() ?? null } });
       }
     }
   }
@@ -56,7 +56,7 @@ export function normalizeGarmin(capture: Capture, metrics: SourceMetric[]) {
       const localDate = local && /^\d{4}-\d{2}-\d{2}[ T](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(local) && validDate(local.slice(0, 10)) ? local.slice(0, 10) : null;
       const date = localDate ?? (utc ? new Intl.DateTimeFormat("en-CA", { timeZone: capture.window.timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(utc) : null);
       if (!date || !capture.window.dates.includes(date)) { if (!date) { activitiesComplete = false; issues.push("运动开始日期无效，未导入该条。 "); } continue; }
-      if (row.parentId != null) continue; // 父记录已经涵盖的子运动不重复导入。
+      if (row.parentId != null && row.parentId !== 0 && row.parentId !== "0") continue; // 有父记录的子运动不重复导入；无效的零ID不代表父记录。
       const type = cleanText(at(row, "activityType.typeKey"), 100), seconds = numeric(row.duration, 60000000);
       facts.push({ kind: "activity", sourceRecordId: id, date, occurredAt: utc, payload: { kind: "activity", name: cleanText(row.activityName) || type || "Garmin 运动", type, durationMinutes: seconds === null ? null : String(Math.round(seconds / 60 * 10000) / 10000), caloriesKcal: decimal(row.calories), bmrKcal: decimal(row.bmrCalories), distanceMeters: numeric(row.distance, 100000000), averageHR: numeric(row.averageHR, 300), localTime: localDate ? local : null, parentId: safeId(row.parentId), isParent: row.isParent === true } });
     }

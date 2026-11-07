@@ -9,5 +9,8 @@
 @media(max-width:360px){.sourceFields{grid-template-columns:1fr}.numbers{grid-template-columns:1fr;gap:4px}.numbers>div{display:flex;justify-content:space-between;gap:10px;align-items:baseline}.dayHeading{gap:0}.sectionHeading{flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){.panel button{transition:none}}
 .numbers>div,.numbers>div>span,.numbers p{min-width:0}
+.syncBar button{min-height:44px;padding:8px 12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);color:var(--warm-white);font:inherit;cursor:pointer}.syncBar button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 @media(max-width:700px){.sourceFields{grid-template-columns:1fr}}
 @media(max-width:360px){.numbers>div{flex-wrap:wrap}}
+.section{margin-top:20px;padding-top:20px}.settings{margin-top:8px}
+@media(max-width:700px){.heading h1{display:block;position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}}

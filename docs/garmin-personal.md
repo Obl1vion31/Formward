@@ -1,18 +1,78 @@
-# Garmin Personal API 只读核对
+# Garmin Personal 与设备数据来源
 
-## 当前范围
+## 账号定向试运行
 
-个人账号的最近七个日历日（含今天），按 `Asia/Shanghai` 或明确配置的 IANA 时区确定窗口。读取官方 Personal API 的每日 V2 汇总和分页运动列表，生成本机私有 HTML、字段观察及脱敏 JSON。当前没有自动同步、正式导入、公开 HTTP／MCP 接口、数据库变更或训练计划写入。
+设备与数据来源位于账号菜单的设置及账号与安全，独立地址为 `/dashboard/sources`。手机复用既有底部面板，电脑使用设置页。仅服务器明确配置的本人账号开放绑定、同步、对照和正式采用；其他账号看到“暂未开放”，继续手动记录。不能用 owner 角色或前端隐藏代替服务器资格校验。当前仅接国际站 Garmin Personal，连接代表 Garmin 账号，不虚构每块手表独立来源。
 
-本阶段不会连接 Formward 数据库；生产站与已有饮食、身体、消耗记录保持独立。每日汇总不再叠加运动热量，未知不补零，原始值不因显示取整而改写。今天标记为累计值，不冒充全天最终值。来源的 `includesActivityData` 标记不等于每日活动消耗为零，也不能据此推算活动热量。
+手表需先通过 Garmin Connect 上传数据；本站读取云端已有记录，不会通过刷新唤醒手表。首轮读取最近七个日历日，时区为 Asia/Shanghai。今天为累计值，不能据此声称全天最终消耗或收支；来源覆盖结束时间不是手表最后同步时间。
 
-## 密钥配置
+## 配置与凭据
 
-配置由当前操作系统用户持有，与代码仓库、网页及正式部署分离：
+初次部署复用用户已填写的 `/home/obl1vion/.config/formward/garmin-personal.env`，只读校验归属和0600权限后，把密钥绑定到已核验账号。网站以后可在“更换个人密钥”中更新；输入不存入浏览器，绑定成功即清空。更换后重新核对采用。不要把密钥贴到聊天、命令行、Git、公共截图或 public。
 
-- Ubuntu：`/home/obl1vion/.config/formward/garmin-personal.env`
-- Windows 编辑入口：`\\wsl$\Ubuntu-24.04\home\obl1vion\.config\formward\garmin-personal.env`
-- 通用默认路径：`~/.config/formward/garmin-personal.env`
+服务器配置：
+
+| 变量 | 用途 |
+|---|---|
+| `FORMWARD_DATA_SOURCE_USER_ID` | 唯一试运行账号的固定 user_id，缺失默认关闭 |
+| `FORMWARD_DATA_SOURCE_ENCRYPTION_KEY` | 独立随机32字节的64位hex主密钥，用于AES-256-GCM，附加认证数据绑定账号与连接 |
+| `CRON_SECRET` | 内部每日任务的独立Bearer密钥，不能用于用户接口 |
+
+部署维护的私有主密钥副本放在用户配置目录 `data-sources-production.json`，0600且不进入源码归档。数据库只保存上游凭据密文；主密钥不可随意重建，否则已有连接无法解密。Formward 自己签发的 AI／OAuth 访问令牌仍只存不可逆摘要。
+
+## 同步与采用
+
+可以分别勾选总消耗、静息消耗、活动消耗、步数与运动记录。勾选是 Formward 的采集及采用策略，不会缩小 Personal API 密钥在 Garmin 的权限。适配器丢弃未选的新字段、身份、坐标与设备号，不持久化整份上游 JSON。关闭字段和暂停连接均保留已采用历史。
+
+采用规则区分两种消耗依据：每日总数，或明确选择静息＋活动。标量每项只有一个采用来源，不将多设备总数、步数或活动热量相加。日总数不会再加单次运动；只有同一来源快照且分项与总数一致时展示占比。不同来源的分项须有同一日期边界，不能拼成虚假占比。
+
+首次读取只保存来源事实，不改正式记录。七日对照展示当前值、来源值、未知与零、今天累计及已有运动；用户选择日期并确认采用后开始更新相应日期。现有运动必须明确确认已包含，额外运动继续用手动任务核对；不按相等数值自动移动错日记录。设置改变默认从今天生效，历史需单独选择。
+
+手动或用户确认的 AI 修改消耗数值、步数、日期／方式或活动事实时，整天转为手动保护；备注不冻结。新来源仍可读取作比较，但不能覆盖保护日。重新采用前比对最新正式版本、来源版本及规则，冲突必须重新核对。
+
+## 后台任务与失败
+
+Vercel 每日任务安排在22:00 UTC（上海次日06:00），不保证精确时刻；消费现有套餐，不增加付费升级。进入消耗页、恢复前台及手动刷新补充同步，自动前台刷新至少间隔5分钟，手动刷新至少15秒。同一连接有90秒租约；请求在事务外执行，提交前重新锁账号，核对资格、会话／访问版本、连接及规则版本。关闭、撤销、停用及设置变化使在途旧结果失效。
+
+后续从上次成功日向前回看6天，补齐未同步间隔并接收迟到更新。活动分页不完整明确报错，已存在记录不因来源缺席被删除。失败保留正式值、上次成功时间与草稿；部分成功保存有效来源区域，不伪装成全部成功。无变化不增加正式记录版本。密钥过期需重新绑定；关闭同步不删除历史。
+
+[Garmin Personal API 官方文档](https://developer.garmin.com/gc-developer-program/personal/swagger-docs/)、[官方客户端](https://github.com/garmin/connect-personal-api-python)、[热量口径](https://support.garmin.com/en-CA/?faq=lkl4cwCLlK7ox362uGQEV7)、[Vercel每日调度](https://vercel.com/docs/schedules/cron-jobs/manage-cron-jobs)。
+
+## JSON 字段对应
+
+业务 GET 返回 JSON；Personal 密钥换令牌的 POST 按官方客户端使用 `Accept: */*`，返回纯文本 JWT。固定解析结构，不依靠 AI 每次猜字段。
+
+| 来源路径 | 单位／含义 | 正式用途 |
+|---|---|---|
+| `daily.data[].calendarDate` | 来源日历日 | 消耗日期，不按服务器时区移动 |
+| `daily.data[].calories.burnedTotal` | kcal | 来源每日总消耗 |
+| `daily.data[].calories.burnedResting` | kcal | 静息分项 |
+| `daily.data[].calories.burnedActive` | kcal | 全天活动分项，已涵盖相应运动 |
+| `daily.data[].movement.steps.value` | 整数步数 | 可空 steps，未知不补零 |
+| `daily.data[].wellnessChronology.endTimestampGmt` | GMT时间 | 汇总覆盖结束，不能冒充设备同步时间 |
+| `activities[].activityId` | 来源ID | 连接＋活动ID去重 |
+| `activities[].activityName / activityType.typeKey` | 名称／类型 | 活动详情，不推断无氧程度 |
+| `activities[].startTimeLocal / startTimeGMT` | 当地／UTC开始时间 | 发生时间、来源日期、时区；不把本地字符串当UTC |
+| `activities[].duration` | 秒 | 转为 durationMinutes，最多4位小数 |
+| `activities[].calories` | 运动gross kcal | 采用快照 sourceDetails.caloriesKcal，可能含期间静息 |
+| `activities[].bmrCalories` | 期间BMR kcal | 来源快照及期间静息，不自行相减猜纯活动 |
+| `activities[].averageHR / distance` | 次／分钟、米 | 采用的活动详情 |
+| `activities[].isParent / parentId` | 包含关系 | 请求排除子活动，返回子项仍不重复导入 |
+| `activities[].caloriesEstimated` | kJ | 暂不采用，不能当kcal |
+
+每日响应为对象中的 data 数组；活动响应本身是数组。重复同日汇总、冲突活动ID、无效日期或不安全整数不自动择一；格式异常不覆盖上次采用。纯活动热量尚无可靠字段时保持未知，活动本次总数可从已采用快照展示。
+
+运动与手工记录疑似重合时列出待核对，用户可以关联已有记录、保留独立来源运动或忽略。关联只去重、不覆盖手工事实；独立来源运动仍需采用对应日期。源事实与采用快照分开，尚未采用的更新不能改变网页、AI查询或导出的正式事实。
+
+## 存储与公共健康接口
+
+0031创建六个来源表及可空步数，0032增加活动采用快照。连接、来源事实、策略、人工保护、冲突与事件均关联账号，跨账号外键及服务验证共同生效。旧记录和值不回算；采用日总数仍保存为兼容旧应用的 total 模式，同来源分项通过采用元数据展示。
+
+现有 HTTP／MCP 消耗查询返回可空 steps、record.adoption 与已采用活动 sourceDetails，Excel 同用采用后的计算；凭据和未采用 JSON 不进入这些接口。现有 AI 写入仍只创建待网页确认预览，不增加管理数据连接的 MCP 工具。正式发布及实际联调边界以[部署](deployment.md)和[维护验收](maintenance-verification.md)为准。
+
+## 独立本机只读预览
+
+`pnpm garmin:preview --serve` 仍是完全独立的离线核对入口，不加载正式数据库或写入正式／审核记录。配置示例：
 
 ```dotenv
 GARMIN_PERSONAL_API_KEY="在本机编辑器填写自己的密钥"
@@ -20,62 +80,10 @@ GARMIN_PREVIEW_TIMEZONE="Asia/Shanghai"
 GARMIN_PERSONAL_REGION="global"
 ```
 
-本次用户已明确使用国际站，省略 region 时采用 `global`，只向 `https://personal.connectapi.garmin.com` 发送认证和读取请求。中国站必须显式选择 `china`，对应官方 Swagger 列出的 `https://personal.connectapi.garmin.cn`；没有跨站点自动重试。中国站尚未真实联调。
+省略region默认国际站 `https://personal.connectapi.garmin.com`，中国站须显式china，不跨站重试；本轮中国站没有真实联调。配置Linux0600并归当前用户，目录建议0700；不接受命令行明文密钥，令牌只在进程。`--demo` 为明确标记的虚构数据，`--config` 可指定私有配置。
 
-Linux 配置须归当前用户所有、文件权限为 `600`；目录建议 `700`。脚本不打印密钥，不接受命令行明文密钥，不加载含正式数据库凭据的 `.env.local`。访问令牌只驻留本次进程，不落盘。配置文件、原始健康响应和报告都不应提交或放入 `public/`。
+业务请求20秒超时、4MiB响应上限，活动50条一页／最多1000条，重复分页或超过上限明确表示不完整。读取错误不透传响应正文、headers或原始异常。
 
-## 运行
+只读工具的原始响应保存在被忽略的 `data/imports/garmin-personal-*.raw.json`；报告JSON、白名单sample与自包含HTML在 `data/exports`，均0600，不含认证响应。HTML只展示白名单健康字段，隐藏身份、GPS、自由活动名称与真实来源ID；未知字段只观察类型。报告仍属健康数据，不能当公开样本。
 
-在当前开发分支的项目根目录运行，使用 Node.js 24 和已有依赖：
-
-```sh
-pnpm garmin:preview --serve
-```
-
-脚本打印本机临时预览地址及私有文件位置。浏览器刷新只查看已生成快照，不再次请求佳明；重新执行命令才读取最新七天。服务仅监听 `127.0.0.1`，随机地址只提供该份脱敏 HTML，不提供目录、原始 JSON 或任何写入入口，按 Ctrl+C 关闭。本机地址不能当作手机可访问的公网地址。
-
-其他方式：
-
-```sh
-pnpm garmin:preview                  # 只生成私有文件
-pnpm garmin:preview --demo --serve   # 虚构数据，页面显著标注
-pnpm garmin:preview --config /私有路径/garmin.env
-```
-
-认证接口按官方客户端使用 `Accept: */*`，返回纯文本 JWT；业务 GET 接口返回 JSON。不能把 Personal 认证响应当作业务 OAuth 的 `access_token` JSON。20 秒请求超时、4 MiB 单响应上限、活动每页 50 条／最多 1000 条；重复分页或达到上限明确标记未读完整。失败正文和上游异常不透传，避免它们携带凭据；认证失败不进入数据查询。不启用 `--serve` 时，退出码 0 表示生成成功且没有区域级错误，2 表示已生成含局部问题的报告，1 表示无法生成；预览服务通过 Ctrl+C 正常关闭。
-
-## 字段对应
-
-依据 [官方 Personal API Swagger](https://developer.garmin.com/gc-developer-program/personal/swagger-docs/) 的 `UserDailySummaryV2DTO`、`CaloriesV2DTO`、`SummarizedActivityDTO`，以及 [官方客户端](https://github.com/garmin/connect-personal-api-python)。实际字段存在次数、类型、null、明确零及缺失关系显示在每次报告中；没有活动样本时，活动字段仅为文档依据，不算已验证。
-
-| 来源路径 | 单位／含义 | Formward 拟用途 |
-|---|---|---|
-| `daily.data[].calendarDate` | 来源日历日 | 消耗记录日期 |
-| `daily.data[].calories.burnedTotal` | 每日总消耗，kcal | 总数，直接采用来源值 |
-| `daily.data[].calories.burnedResting` | 每日静息，kcal | 静息分项 |
-| `daily.data[].calories.burnedActive` | 每日活动，kcal | 活动分项，不再加单次运动 |
-| `daily.data[].movement.steps.value` | 步数 | 只读核对 |
-| `daily.data[].wellnessChronology.endTimestampGmt` | 汇总覆盖结束时间 | 来源时间，不能冒充最后同步时间 |
-| `daily.data[].includesWellnessData / includesActivityData` | 包含的数据类别 | 来源状态，不能据此断言全天完整 |
-| `activities[].activityId` | int64 来源标识 | 后续去重；预览使用别名 |
-| `activities[].activityType.typeKey` | 运动类型代码 | 活动分类，不推断无氧程度 |
-| `activities[].startTimeLocal` | 无 UTC 后缀的当地时间 | 日期与来源时间 |
-| `activities[].startTimeGMT` | GMT／UTC 时间，可能无 Z | UTC 发生时间；当地时间缺失时按配置时区换算并注明 |
-| `activities[].duration` | 秒 | 显示分钟，不混用经过时长或毫秒 |
-| `activities[].calories` | 单次运动总消耗，kcal | 仅核对；可能包含期间静息 |
-| `activities[].bmrCalories` | 单次运动期间 BMR，kcal | 独立来源分项，本阶段不自动相减入账 |
-| `activities[].averageHR` | 次／分钟 | 运动详情 |
-| `activities[].distance` | 米 | 运动详情 |
-| `activities[].caloriesEstimated` | **kJ** | 暂不采用，不能直接当 kcal |
-| `activities[].isParent / parentId` | 多项运动包含关系 | 防止父子活动重复累计 |
-
-来源可能更新结构；未知字段只列路径和类型，默认不展示其值。同日多份汇总不自动选择或合并，分项与总数不一致时保留原数并提示。读取活动时显式排除子活动，按来源 ID 去重；不将超出窗口的记录混入。来源 ID 超出 JavaScript 安全整数范围时标记待核对，原响应文本仍保留。
-
-## 私有输出与验收
-
-- `data/imports/garmin-personal-*.raw.json`：原始成功响应及响应文本、查询范围、区域读取结果；不包含认证响应或令牌。
-- `data/exports/garmin-personal-*.report.json`：七日读数、活动、问题、字段对应与观察。
-- `data/exports/garmin-personal-*.sample.json`：字段白名单样本。移除身份、位置、活动自由名称和设备号，标识替换为本次别名。
-- `data/exports/garmin-personal-*.html`：自包含、无外部请求的只读预览，支持日期选择、字段搜索、深浅主题及 JSON 展开。
-
-输出文件均 `0600`、独立命名且不覆盖之前响应。脱敏样本仍包含健康事实，供本次用户核对，不能当作公开演示数据。开发／截图演示使用 `--demo`，页面与文件均带 demo 标记。界面验收依照 [设计规范](design-reference.md)；真实联调、截图与未测范围见 [维护验证](maintenance-verification.md)。
+预览仅监听127.0.0.1随机地址，不暴露文件目录；浏览器刷新只读快照，不重新请求Garmin，Ctrl+C关闭。非serve退出码0为成功，2为局部错误，1为未生成。它不能作为手机公网地址；手机请使用正式站已认证入口。

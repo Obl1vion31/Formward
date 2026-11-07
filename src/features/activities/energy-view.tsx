@@ -49,7 +49,7 @@ export function EnergySources({ day }: { day: EnergyDay }) {
 }
 function dayEditInput(date:string,days:EnergyPresentation["snapshot"]["days"]):EnergyAction {
  const current=days.find(day=>day.date===date&&!day.deletedAt);
- return { kind: "save_energy_day", date, ...(current ? { id: current.id, version: current.version, steps:current.steps??null, entryMode: current.entryMode ?? undefined, activityMode: current.activityMode ?? undefined, restingSourceSystem: current.restingSourceSystem ?? current.sourceSystem, activeSourceSystem: current.activeSourceSystem ?? current.sourceSystem, restingEstimated: current.restingEstimated ?? false, restingKcal: current.restingKcal, activeKcal: current.activeKcal, activeEstimated: current.activeEstimated ?? false, notes: current.notes ?? null, totalKcal: current.totalKcal, timezone: current.timezone, sourceSystem: current.sourceSystem, sourceRecordId: current.sourceRecordId, sourceOccurredAt: current.sourceOccurredAt } : { entryMode: "components", activityMode: "activities", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }) };
+ return { kind: "save_energy_day", date, ...(current ? { id: current.id, version: current.version, steps:current.steps??null, entryMode: current.entryMode ?? undefined, activityMode: current.activityMode ?? undefined, restingSourceSystem: current.adoption?current.restingSourceSystem??null:current.restingSourceSystem ?? current.sourceSystem, activeSourceSystem: current.adoption?current.activeSourceSystem??null:current.activeSourceSystem ?? current.sourceSystem, restingEstimated: current.restingEstimated ?? false, restingKcal: current.restingKcal, activeKcal: current.activeKcal, activeEstimated: current.activeEstimated ?? false, notes: current.notes ?? null, totalKcal: current.totalKcal, timezone: current.timezone, sourceSystem: current.sourceSystem, sourceRecordId: current.sourceRecordId, sourceOccurredAt: current.sourceOccurredAt } : { entryMode: "components", activityMode: "activities", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }) };
 }
 
 export function EnergyView({ presentation, sourceStatus=null, save, removeSource, initialDate = null, initialEntry=false,initialTrend=null,initialIntent='view' }: { presentation: EnergyPresentation; sourceStatus?:ConnectionView|null; save: SaveEnergy; removeSource: (label: string) => Promise<SourceRemovalResult>; initialDate?: string | null;initialEntry?:boolean;initialTrend?:TrendRoute|null;initialIntent?:RecordIntent }) {
@@ -130,7 +130,8 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
   <div className={styles.activityFacts}>{reading.breakdown&&<span>{reading.breakdown}</span>}<span data-exercise-status>{reading.status}</span></div>
  </div>}>
   <div className={styles.activityExplanation} data-exercise-explanation>
-   {(activity.durationMinutes!==null||activity.sourceSystem)&&<p>{[activity.durationMinutes!==null?energyValue(activity.durationMinutes)+" 分钟":null,activity.sourceSystem].filter(Boolean).join(" · ")}</p>}
+   {(activity.durationMinutes!==null||activity.sourceSystem)&&<p>{[activity.durationMinutes!==null?energyValue(activity.durationMinutes)+" 分钟":null,energySourceLabel(activity.sourceSystem)].filter(Boolean).join(" · ")}</p>}
+   {activity.sourceDetails&&<p>{[activity.sourceDetails.localTime?"开始 "+activity.sourceDetails.localTime.replace("T"," "):null,activity.sourceDetails.distanceMeters!=null?"距离 "+energyValue(activity.sourceDetails.distanceMeters)+" m":null,activity.sourceDetails.averageHR!=null?"平均心率 "+energyValue(activity.sourceDetails.averageHR)+" 次／分钟":null].filter(Boolean).join(" · ")}</p>}
    <p data-exercise-effect>{reading.effect}</p>
   </div>
  </Disclosure>;

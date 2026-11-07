@@ -9,7 +9,7 @@ export function energyFactsChanged(before?: EnergyRecord, after?: EnergyRecord) 
   if (!before || !after || !!before.deletedAt !== !!after.deletedAt) return true;
   const fields = "name" in after ? ["date", "name", "durationMinutes", "calorieMode", "exerciseActiveKcal", "exerciseRestingKcal", "caloriesKcal", "completed", "inclusion"] : ["date", "entryMode", "activityMode", "restingKcal", "activeKcal", "totalKcal", "steps", "restingEstimated", "activeEstimated", "timezone"];
   const b = before as unknown as Record<string, unknown>, a = after as unknown as Record<string, unknown>;
-  return fields.some(key => { const left = b[key] ?? null, right = a[key] ?? null; return /Kcal$/.test(key) || key === "durationMinutes" ? (left === null) !== (right === null) || left !== null && Number(left) !== Number(right) : left !== right; });
+  return [...fields,"sourceSystem","sourceRecordId","sourceOccurredAt","restingSourceSystem","activeSourceSystem","timezone"].some(key => { const left = b[key] ?? null, right = a[key] ?? null; return /Kcal$/.test(key) || key === "durationMinutes" ? (left === null) !== (right === null) || left !== null && Number(left) !== Number(right) : left !== right; });
 }
 
 /** 调用方已经持有账号锁。用户确认的 AI 修改也按人工维护保护。 */

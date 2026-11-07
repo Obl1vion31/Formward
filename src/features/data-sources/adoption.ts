@@ -10,6 +10,7 @@ import type { ActivityRecord, EnergyAction } from "../activities/model";
 import { energyFactsChanged } from "./manual-protection";
 import { dayComparison, fingerprint, proposeDay, readSourceState, type Fact, type SourceState } from "./state";
 import { requireSourcePilot, sourceEvent } from "./mutations";
+import type { SourceRecordChange } from "./model";
 
 export const sourceSystemFor = (connectionId: string) => `Garmin Personal:${connectionId}`;
 export function duplicateActivityCandidates(fact: Fact, activities: ActivityRecord[]) {
@@ -40,7 +41,7 @@ export async function recordActivityConflicts(tx: Transaction, userId: string, s
   }
 }
 
-export async function adoptDate(tx: Transaction, userId: string, state: SourceState, date: string, options: { force: boolean; includedActivityIds?: string[]; actor: string }) {
+export async function adoptDate(tx: Transaction, userId: string, state: SourceState, date: string, options: { force: boolean; includedActivityIds?: string[]; actor: string; changes?: SourceRecordChange[] }) {
   const previous = state.adoptions.find(a => a.date === date);
   const policy = !options.force && date < state.policy.effectiveFrom && previous?.metadata ? { ...state.policy, strategy: previous.metadata.strategy, sources: previous.metadata.sources } : state.policy;
   const p = proposeDay(state, date, policy);
@@ -82,8 +83,13 @@ export async function adoptDate(tx: Transaction, userId: string, state: SourceSt
   const changed = rows.filter(row => energyFactsChanged(row.before, row.after) || row.after&&"sourceDetails" in row.after&&fingerprint(row.after.sourceDetails)!==fingerprint(row.before&&"sourceDetails" in row.before?row.before.sourceDetails:null) || row.before && row.after && "inclusionBasis" in row.after && "inclusionBasis" in row.before && row.before.inclusionBasis !== row.after.inclusionBasis);
   const beforeMeta = previous?.metadata;
   const newMeta = { ...p.metadata, syncedAt: beforeMeta && fingerprint({ ...beforeMeta, syncedAt: null }) === fingerprint({ ...p.metadata, syncedAt: null }) ? beforeMeta.syncedAt : p.metadata.syncedAt };
+  const visibleMetadata=(value:typeof beforeMeta)=>value?{strategy:value.strategy,sources:value.sources,restingKcal:value.restingKcal,activeKcal:value.activeKcal,compositionKnown:value.compositionKnown,label:value.label}:null;
+  if (fingerprint(previous?.mode==="source"?visibleMetadata(beforeMeta):null)!==fingerprint(visibleMetadata(newMeta)) && !changed.includes(rows[0])) changed.unshift(rows[0]);
   if (!changed.length && previous?.mode === "source" && fingerprint(beforeMeta) === fingerprint(newMeta)) return false;
-  for (const row of changed) await persistEnergyPreview(tx, userId, row);
+  for (const row of changed) {
+    await persistEnergyPreview(tx, userId, row);
+    if (row.after && "date" in row.after) options.changes?.push({ key: "name" in row.after ? "activity:"+row.after.id : "energyDay:"+row.after.date, version:String(row.after.version) });
+  }
   await tx.insert(energyDayAdoption).values({ userId, date, mode: "source", metadata: newMeta }).onConflictDoUpdate({ target: [energyDayAdoption.userId, energyDayAdoption.date], set: { mode: "source", metadata: newMeta, protectedAt: null, version: (previous?.version ?? 0) + 1, updatedAt: new Date() } });
   await sourceEvent(tx, userId, p.used[0]?.connectionId ?? p.activityFacts[0]?.connectionId ?? null, "adopt", options.actor, { date, before: p.record, after: changed.includes(rows[0]) ? rows[0].after : p.record, activities: changed.filter(r => r.after && "name" in r.after).map(r => ({ before: r.before ?? null, after: r.after })), metadata: newMeta });
   return true;
@@ -97,9 +103,10 @@ export async function adoptSourceDays(db: Database, userId: string, raw: unknown
     await lockOwner(tx, userId); requireSourcePilot(userId);
     const state = await readSourceState(tx, userId, now);
     for (const item of input.data.days) if (!state.window.dates.includes(item.date) || dayComparison(state, item.date).digest !== item.digest) throw new ApiError(409, "source_changed", "来源或正式记录已经改变，请重新读取对照后采用。 ");
-    for (const item of input.data.days) await adoptDate(tx, userId, state, item.date, { force: true, includedActivityIds: item.includedActivityIds, actor: userId });
+    const changes:SourceRecordChange[]=[];
+    for (const item of input.data.days) await adoptDate(tx, userId, state, item.date, { force: true, includedActivityIds: item.includedActivityIds, actor: userId, changes });
     for (const connection of state.connections.filter(c => c.status === "active" && Object.values(state.policy.sources).includes(c.id))) await tx.update(dataConnection).set({ adoptedAt: connection.adoptedAt ?? now, updatedAt: now }).where(and(eq(dataConnection.userId, userId), eq(dataConnection.id, connection.id)));
-    return { dates: input.data.days.map(d => d.date) };
+    return { dates: input.data.days.map(d => d.date), changes };
   });
 }
 

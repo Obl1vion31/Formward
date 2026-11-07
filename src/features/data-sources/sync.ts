@@ -12,8 +12,9 @@ import { normalizeGarmin } from "./garmin-adapter";
 import { adoptDate, recordActivityConflicts } from "./adoption";
 import { requireSourcePilot, sourceEvent } from "./mutations";
 import { fingerprint, readSourceState } from "./state";
+import type { SourceRecordChange } from "./model";
 
-export type SyncResult = { status: "synced" | "fresh" | "busy" | "paused" | "discarded" | "failed"; changed: boolean; adoptedDates: string[]; error?: string };
+export type SyncResult = { status: "synced" | "fresh" | "busy" | "paused" | "discarded" | "failed"; changed: boolean; adoptedDates: string[]; changes?: SourceRecordChange[]; error?: string };
 type Options = { manual?: boolean; background?: boolean; now?: Date; capture?: (input: Parameters<typeof capturePersonal>[0]) => Promise<Capture> };
 const quiet = (status: SyncResult["status"]): SyncResult => ({ status, changed: false, adoptedDates: [] });
 function syncMessage(error: unknown) { return error instanceof GarminError ? error.message : error instanceof ApiError && ["source_credential", "source_config"].includes(error.code) ? error.message : "同步未完成，已保留上次成功数据，请稍后重试。"; }
@@ -57,21 +58,22 @@ export async function synchronizeSource(db: Database, userId: string, options: O
     const existing = await tx.select().from(dataSourceFact).where(and(eq(dataSourceFact.userId, userId), eq(dataSourceFact.connectionId, connection.id)));
     for (const fact of normalized?.facts ?? []) {
       const prior = existing.find(f => f.kind === fact.kind && f.sourceRecordId === fact.sourceRecordId);
-      const digest = fingerprint({ date: fact.date, occurredAt: fact.occurredAt, timezone: connection.timezone, payload: fact.payload });
+      const digest = fingerprint({ credentialBinding:fingerprint(connection.credential), date: fact.date, occurredAt: fact.occurredAt, timezone: connection.timezone, payload: fact.payload });
       if (prior?.digest === digest) continue;
       const values = { date: fact.date, occurredAt: fact.occurredAt, timezone: connection.timezone, payload: fact.payload, digest, version: (prior?.version ?? 0) + 1, observedAt: now };
       if (prior) await tx.update(dataSourceFact).set(values).where(and(eq(dataSourceFact.userId, userId), eq(dataSourceFact.id, prior.id)));
       else await tx.insert(dataSourceFact).values({ id: randomUUID(), userId, connectionId: connection.id, kind: fact.kind, sourceRecordId: fact.sourceRecordId, ...values });
       changed = true;
     }
+    await tx.update(dataConnection).set({lastError:errorMessage,...(complete?{lastSuccessAt:now}:{})}).where(and(eq(dataConnection.userId,userId),eq(dataConnection.id,connection.id)));
     let state = await readSourceState(tx, userId, now);
     await recordActivityConflicts(tx, userId, state);
     state = await readSourceState(tx, userId, now);
-    const adoptedDates: string[] = [];
+    const adoptedDates: string[] = [], changes:SourceRecordChange[]=[];
     const affectedDates = [...new Set(normalized?.facts.map(f => f.date) ?? [])].sort();
-    for (const date of affectedDates) if (await adoptDate(tx, userId, state, date, { force: false, actor: options.background ? "scheduled-sync" : "foreground-sync" })) adoptedDates.push(date);
+    for (const date of affectedDates) if (await adoptDate(tx, userId, state, date, { force: false, actor: options.background ? "scheduled-sync" : "foreground-sync", changes })) adoptedDates.push(date);
     await tx.update(dataConnection).set({ syncToken: null, syncStartedAt: null, lastError: errorMessage, ...(complete ? { lastSuccessAt: now } : {}), updatedAt: now }).where(and(eq(dataConnection.userId, userId), eq(dataConnection.id, connection.id)));
     await sourceEvent(tx, userId, connection.id, complete ? "sync" : "sync_partial", options.background ? "scheduler" : userId, { facts: normalized?.facts.length ?? 0, adoptedDates, complete, error: errorMessage });
-    return { status: complete ? "synced" : "failed", changed: changed || adoptedDates.length > 0, adoptedDates, ...(errorMessage ? { error: errorMessage } : {}) };
+    return { status: complete ? "synced" : "failed", changed: changed || adoptedDates.length > 0, adoptedDates, changes, ...(errorMessage ? { error: errorMessage } : {}) };
   });
 }

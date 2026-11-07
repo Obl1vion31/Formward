@@ -2,11 +2,12 @@ import { z } from "zod";
 
 export const sourceMetrics = ["total", "resting", "active", "steps", "activities"] as const;
 export type SourceMetric = typeof sourceMetrics[number];
+export type SourceRecordChange = { key: string; version: string };
 export const metricLabels: Record<SourceMetric, string> = { total: "总消耗", resting: "静息消耗", active: "活动消耗", steps: "步数", activities: "运动记录" };
 export type MetricSources = Record<SourceMetric, string | null>;
 export const emptySources = (): MetricSources => ({ total: null, resting: null, active: null, steps: null, activities: null });
 export type SourcePolicy = { strategy: "total" | "components"; sources: MetricSources; effectiveFrom: string; version: number };
-export type DailyFact = { kind: "day"; total: string | null; resting: string | null; active: string | null; steps: number | null; coverageUntil: string | null };
+export type DailyFact = { kind: "day"; metrics?: SourceMetric[]; total: string | null; resting: string | null; active: string | null; steps: number | null; coverageUntil: string | null };
 export type ActivityFact = { kind: "activity"; name: string; type: string | null; durationMinutes: string | null; caloriesKcal: string | null; bmrKcal: string | null; distanceMeters: number | null; averageHR: number | null; localTime: string | null; parentId: string | null; isParent: boolean };
 export type SourceFact = DailyFact | ActivityFact;
 export type AdoptionMetadata = { strategy: SourcePolicy["strategy"]; sources: MetricSources; facts: { connectionId: string; factId: string; version: number }[]; restingKcal: string | null; activeKcal: string | null; compositionKnown: boolean; coverageUntil: string | null; syncedAt: string; label: string };
