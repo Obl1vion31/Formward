@@ -20,7 +20,7 @@ form-draft.ts比较有效数字文本而不舍入，draft-guard.ts集中“继�
 
 record-trend-panel.tsx统一正文、日期与查看、主要读数、区间、标题与实际选项、图例和绘图区。InlineChartControls直接呈现单个勾选与占比切换，ChartOptions只放真正需展开的业务选项，自定义日期须应用才生效。数值、单位及完整标签共同决定列数，labelVariants／noteVariants按当前区间全部状态预留高度；reserveNote保留身体估计说明行，稳定id避免标签变化重新挂载。必要状态按当前区间的可能文字预留紧凑高度，无提示区间不占行。确认由confirmation.tsx与confirmation-state.ts集中排队、取消/Escape、焦点和滚动锁；没有挂载时不降级到浏览器确认。number-format.ts按业务显示蛋白质／碳水／脂肪最多一位小数并去掉末尾0、热量／消耗整数和身体两位；decimal-input.tsx的宏量输入最多接受一位小数，手填热量／消耗仍只收整数。格式化、聚焦和失焦不写回未修改原值，未知与0保持区别；热量计算与落库不提前取整，公开请求和查询精度保持。健康计算仍在各feature共用模型。
 
-record-updates.tsx沿用现有变化检测并发出formward-record-context-stale供助手失效重查，提供跨页面更新提示，record-change-client.ts负责只读检查、保存前核对和本窗口保存确认；draft-guard.ts登记草稿供明确采用最新时保护输入。use-chart-drag.ts仅处理水平手势，竖向滚动交还页面。number-change.ts以十倍／十分之一提示输入量级，不作健康判断。
+record-updates.tsx沿用现有变化检测并发出formward-record-context-stale供助手失效重查，提供跨页面更新提示，record-change-client.ts负责只读检查、保存前核对和本窗口保存确认；draft-guard.ts登记草稿供明确采用最新时保护输入。use-chart-drag.ts仅处理水平手势，竖向滚动交还页面。number-change.ts仅为身体、消耗与运动保留十倍／十分之一输入量级提示，不用于饮食或食材。
 
 本目录保存多个页面共同使用的界面组件，例如按钮、输入、导航、日期范围和图表外壳。业务专用组件留在对应页面或 feature 附近，避免形成无边界组件仓库。
 

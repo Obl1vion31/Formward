@@ -1,4 +1,4 @@
-import {numberChangeMessages} from "../../components/number-change";
+import {currentMealPreview, duplicateMealNotice, mealContentKey} from "./model";
 import { mealTypeLabel } from "./model";
 import { aiActionAllowed, requireAiUpserts } from "../auth/ai-write-policy";
 import { createHash, randomUUID } from "node:crypto";
@@ -102,9 +102,6 @@ function prepareItem(input: ItemDraft, state: MealSnapshot, previous?: ItemView)
   if(input.perPortionNutrition)throw new ApiError(400,"invalid_input","请明确采用每份营养口径。");
   return { ...input, id: previous?.id, nutritionBasis:"consumed_total",nutrition: input.nutrition ?? emptyNutrition() };
 }
-function mealFingerprint(m: Pick<MealView, "date" | "mealType" | "notes" | "items">) {
-  return digest([m.date, norm(mealTypeLabel(m.mealType)), norm(m.notes), m.items.map(i => [i.kind, norm(i.name), i.quantity == null ? null : Number(i.quantity), norm(i.unit), metrics.map(k => i.nutrition[k] === null ? null : Number(i.nutrition[k]))])]);
-}
 export type MealPlanner = (input: MealInput, state: MealSnapshot, origin: MealActor["origin"], history?: Map<string,ItemView>) => PreviewRow[];
 export function prepareMealActions(input: MealInput, state: MealSnapshot, origin: MealActor["origin"], history?: Map<string,ItemView>): PreviewRow[] {
   const working: MealSnapshot = structuredClone(state), targets = new Set<string>();
@@ -132,8 +129,6 @@ export function prepareMealActions(input: MealInput, state: MealSnapshot, origin
           return entry;
         });
         row.meal = { ...action, mealType:mealTypeLabel(action.mealType), imageIds:action.imageIds ?? old?.imageIds ?? [], id: old?.id ?? randomUUID(), version: (old?.version ?? 0) + 1, items, totals: sumNutrition(items.map(i => i.nutrition)), source: old?.source ?? origin, deletedAt: null };
-        const priorNutrition=old?.totals.values??working.meals.filter(m=>!m.deletedAt&&m.date<=action.date&&mealTypeLabel(m.mealType)===mealTypeLabel(action.mealType)).sort((a,b)=>b.date.localeCompare(a.date))[0]?.totals.values;
-        row.warnings.push(...numberChangeMessages(metrics.map(metric=>({label:metric==="caloriesKcal"?"本餐热量":metric==="proteinG"?"蛋白质":metric==="carbsG"?"碳水":"脂肪",unit:metric==="caloriesKcal"?"kcal":"g",value:row.meal!.totals.values[metric],previous:priorNutrition?.[metric]}))));
         if(old){
           const used=new Set<string>(),added:ItemView[]=[],changed:{before:ItemView;after:ItemView}[]=[];
           for(const item of items){
@@ -148,8 +143,8 @@ export function prepareMealActions(input: MealInput, state: MealSnapshot, origin
             ...((old.notes??"")!==(action.notes??"")?["餐次备注已修改"]:[])
           ]};
         }
-        row.duplicateIds = working.meals.filter(m => !m.deletedAt && m.id !== action.id && mealFingerprint(m) === mealFingerprint(row.meal!)).map(m => m.id);
-        if (row.duplicateIds.length && !action.allowDuplicate) row.error = "发现内容相同的餐次。确认是另一次进食后勾选“仍然新增”，或取消重复录入。";
+        row.duplicateIds = working.meals.filter(m => !m.deletedAt && m.id !== action.id && mealContentKey(m) === mealContentKey(row.meal!)).map(m => m.id);
+        if (row.duplicateIds.length) row.warnings.push(duplicateMealNotice);
         if (items.some(i => metrics.some(k => i.nutrition[k] === null))) row.warnings.push("部分营养未知，合计仅包含已知数据。");
         if (items.some(i => i.kind === "misc")) row.warnings.push("杂只包含未单列的剩余食物。");
         working.meals = [...working.meals.filter(m => m.id !== row.meal!.id), row.meal];
@@ -172,8 +167,9 @@ export function prepareMealActions(input: MealInput, state: MealSnapshot, origin
 const stateDigest = (state: MealSnapshot) => digest([state.foods.map(f => [f.id, f.version, f.deletedAt]).sort(), state.meals.map(m => [m.id, m.version, m.deletedAt]).sort()]);
 export function displayMealOperation(row: typeof mealOperation.$inferSelect): MealOperationView {
   const status = row.status === "pending" && row.expiresAt && row.expiresAt <= new Date() ? "expired" : row.status;
-  const healthy = status === "pending" && row.preview.filter(p => !p.excluded).every(p => !p.error && !p.needsUserInput?.length), missingImages = missingMealImages(row.preview);
-  return { id: row.id, revision: row.revision, origin: row.origin, status, rows: row.preview, canConfirm: healthy, canConfirmWithoutImages: healthy && missingImages > 0, missingImages, needsUserInput: row.preview.flatMap((p,index)=>p.needsUserInput?.length ? [{index,questions:p.needsUserInput}] : []), createdAt: row.createdAt.toISOString(), expiresAt: row.expiresAt?.toISOString() ?? null, confirmationPath: `/dashboard/meals/review/${row.id}`, result: row.result };
+  const preview = row.status === "pending" ? currentMealPreview(row.preview) : row.preview;
+  const healthy = status === "pending" && preview.filter(p => !p.excluded).every(p => !p.error && !p.needsUserInput?.length), missingImages = missingMealImages(preview);
+  return { id: row.id, revision: row.revision, origin: row.origin, status, rows: preview, canConfirm: healthy, canConfirmWithoutImages: healthy && missingImages > 0, missingImages, needsUserInput: preview.flatMap((p,index)=>p.needsUserInput?.length ? [{index,questions:p.needsUserInput}] : []), createdAt: row.createdAt.toISOString(), expiresAt: row.expiresAt?.toISOString() ?? null, confirmationPath: `/dashboard/meals/review/${row.id}`, result: row.result };
 }
 export async function getMealOperation(db: Pick<Database, "select">, userId: string, id: string) {
   const [row] = await db.select().from(mealOperation).where(and(eq(mealOperation.userId, userId), eq(mealOperation.id, id)));
@@ -281,6 +277,7 @@ export async function decideMealOperation(db: Database, userId: string, id: stri
       op.snapshotDigest=stateDigest(before);
     }
     validateFoodDescriptions(op.draft);
+    op.preview = currentMealPreview(op.preview);
     await validatePreviewImages(tx,userId,op.preview);
     if (op.preview.some(r => !r.excluded && (r.error || r.needsUserInput?.length))) throw new ApiError(400, "review_required", "请先修正预览中的问题。");
     const missingImages = missingMealImages(op.preview);

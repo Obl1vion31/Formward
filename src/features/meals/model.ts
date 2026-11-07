@@ -40,7 +40,7 @@ export const mealDraftSchema = z.object({
   id: z.string().uuid().optional(), version: z.number().int().positive().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), mealType: text(50).min(1),
   timezone: text(100).nullable().optional(), occurredAt: z.string().datetime({ offset: true }).nullable().optional(),
-  imageIds, expectedImageCount: z.number().int().min(0).max(8).optional(), photoReview: photoReviewSchema.optional(), notes: text(12000).nullable().optional(), items: z.array(itemSchema).min(1).max(50), allowDuplicate: z.boolean().optional(),
+  imageIds, expectedImageCount: z.number().int().min(0).max(8).optional(), photoReview: photoReviewSchema.optional(), notes: text(12000).nullable().optional(), items: z.array(itemSchema).min(1).max(50), allowDuplicate: z.boolean().optional().describe("兼容旧客户端；相同餐次只提示，不需要额外确认。"),
 }).strict();
 export type MealDraft = z.infer<typeof mealDraftSchema>;
 export const actionSchema = z.discriminatedUnion("kind", [
@@ -60,8 +60,24 @@ export type MealDayInput = { operationId: string; date: string; status: "complet
 export const mealDayLabels: Record<MealDayStatus,string> = {complete:"已记完",incomplete:"未记全",unconfirmed:"待确认是否记完"};
 export type MealView = Omit<MealDraft, "items"> & { id: string; version: number; day?: MealDayView; items: ItemView[]; totals: Totals; source: "manual" | "ai" | "initialization"; deletedAt: string | null };
 export type MealSnapshot = { meals: MealView[]; foods: FoodView[] };
+export const duplicateMealNotice = "本日已有相同内容的餐次";
+/** 与既有严格匹配相同：日期、餐次、备注、食物顺序、数量、单位及营养均相同。 */
+export function mealContentKey(meal: Pick<MealView, "date" | "mealType" | "notes" | "items">) {
+  const norm = (value?: string | null) => (value ?? "").normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
+  return JSON.stringify([meal.date, norm(mealTypeLabel(meal.mealType)), norm(meal.notes), meal.items.map(item => [item.kind, norm(item.name), item.quantity == null ? null : Number(item.quantity), norm(item.unit), metrics.map(metric => item.nutrition[metric] === null ? null : Number(item.nutrition[metric]))])]);
+}
 export type MealChanges={added:ItemView[];removed:ItemView[];changed:{before:ItemView;after:ItemView}[];metadata:string[]};
 export type PreviewRow = {changes?:MealChanges; excluded?: boolean; before?: FoodView | MealView; review?: { itemId: string; operationId: string; originalInput: unknown; reviewedInput: unknown; editedBy?: { userId: string; at: string } }; action: MealAction; food?: FoodView; meal?: MealView; error?: string; duplicateIds: string[]; warnings: string[]; needsUserInput?: string[] };
+const legacyDuplicateMealError = "发现内容相同的餐次。确认是另一次进食后勾选“仍然新增”，或取消重复录入。";
+const legacyNutritionWarning = /^(?:本餐热量|热量|蛋白质|碳水|脂肪)：本次 [\d,.\u00a0\u202f]+ (?:kcal|g)，上次 [\d,.\u00a0\u202f]+ (?:kcal|g)，保存前请核对。$/;
+/** 仅适配待确认预览中的退役系统提示，不改原始请求、草稿、其他错误或已保存审计。 */
+export function currentMealPreview(rows: PreviewRow[]): PreviewRow[] {
+  return rows.map(row => {
+    if (row.action.kind !== "save_meal" && row.action.kind !== "save_food") return row;
+    const duplicate = row.action.kind === "save_meal" && row.duplicateIds.length > 0;
+    return { ...row, ...(duplicate && row.error === legacyDuplicateMealError ? { error: undefined } : {}), warnings: [...new Set([...row.warnings.filter(warning => !legacyNutritionWarning.test(warning)), ...(duplicate ? [duplicateMealNotice] : [])])], ...(row.needsUserInput ? { needsUserInput: row.needsUserInput.filter(question => !(duplicate && question === legacyDuplicateMealError)) } : {}) };
+  });
+}
 export type MealOperationView = { id: string; revision: number; status: string; origin: string; rows: PreviewRow[]; canConfirm: boolean; canConfirmWithoutImages?: boolean; missingImages?: number; needsUserInput?: { index: number; questions: string[] }[]; createdAt: string; expiresAt: string | null; confirmationPath: string; result: { saved: number; message: string } | null };
 export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 

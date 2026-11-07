@@ -4,7 +4,6 @@ import recordUI from "@/components/record-ui.module.css";
 import {RecordWorkspace,RecordTrendPanel,InlineChartControls,CustomRecordRange} from "@/components/record-trend-panel";
 import {confirmAction} from "@/components/confirmation-state";
 import {DecimalInput} from "@/components/decimal-input";
-import {confirmNumbers} from "@/components/number-change";
 import {mealVersions,verifyRecordVersions,acknowledgeRecordChanges} from "@/components/record-change-client";
 import { useEffect, useRef, useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
@@ -154,12 +153,11 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
 export { Inspector as EditorDialog } from "@/components/inspector";
 export function FoodEditor({ initial, submitLabel = "保存食材", error, busy, save }: { initial: FoodDraft; submitLabel?: string; error: string; busy: boolean; save: (f: FoodDraft, allowMissingImages?: boolean) => Promise<void> }) {
   const [draft, setDraft] = useState<FoodDraft>(() => { const {id,version,category,name,brand,preparation,baseQuantity,unit,servingQuantity,servingUnit,nutrition,sourceKind,basis,evidenceUrl,imageIds,expectedImageCount}=initial;return structuredClone({id,version,category,name,brand,preparation,baseQuantity,unit,servingQuantity,servingUnit,nutrition,sourceKind,basis,evidenceUrl,imageIds,expectedImageCount}); });
-  const numberAcknowledgements=useRef(new Set<string>());
   const [uploading,setUploading]=useState(false),[photoError,setPhotoError]=useState("");
   const signature=(value:FoodDraft)=>JSON.stringify({...value,name:value.name.trim(),baseQuantity:numericDraftValue(value.baseQuantity),nutrition:Object.fromEntries(Object.entries(value.nutrition).map(([k,v])=>[k,numericDraftValue(v)]))});
   const [initialSignature] = useState(() => signature(draft));
   useDraftGuard(signature(draft) !== initialSignature, uploading);
-  return <form data-entry-form="food" className={styles.form} aria-busy={busy} onSubmit={async e => { e.preventDefault(); if(!await confirmNumbers(metrics.map(metric=>({label:metricLabels[metric],unit:metric==="caloriesKcal"?"kcal":"g",value:draft.nutrition[metric],previous:initial.nutrition[metric]})),numberAcknowledgements.current))return;void save(draft,true); }}><fieldset disabled={busy||uploading}>
+  return <form data-entry-form="food" className={styles.form} aria-busy={busy} onSubmit={e => { e.preventDefault(); void save(draft,true); }}><fieldset disabled={busy||uploading}>
     <label>分类<select aria-label="食材分类" value={draft.category??"ingredient"} onChange={e=>setDraft({...draft,category:e.target.value as "meal"|"ingredient"})}><option value="ingredient">食材</option><option value="meal">整餐</option></select></label>
     <label>食材／产品名称<input required maxLength={200} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} /></label><div className={styles.formColumns}><label><span className={styles.fieldCaption}>品牌<small>选填</small></span><input aria-label="品牌（可选）" value={draft.brand ?? ""} onChange={e => setDraft({ ...draft, brand: e.target.value || null })} /></label><label><span className={styles.fieldCaption}>规格／做法<small>选填</small></span><input aria-label="规格／做法（可选）" placeholder="口味、净重、生／熟…" value={draft.preparation ?? ""} onChange={e => setDraft({ ...draft, preparation: e.target.value || null })} /></label></div>
     <div className={styles.formColumns}><label>营养对应数量<DecimalInput min={0.01} max={1000000} required value={draft.baseQuantity} onValue={value=>setDraft({...draft,baseQuantity:value})}/></label><label>单位<input required maxLength={30} placeholder="包／只／份／g／ml" value={draft.unit} onChange={e => setDraft({ ...draft, unit: e.target.value })} /></label></div>
