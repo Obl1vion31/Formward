@@ -10,7 +10,8 @@
 - `mcp/`：远程 MCP 协议、工具说明与 OAuth 身份适配，调用已有 feature。
 - `meals/`：饮食记录。
 - `activities/`：每日消耗、活动明细、公式资料与共用审核业务。
-- `garmin/`：Personal API 七日只读读取、字段核对与本机私有预览，不连接正式数据库。
+- `garmin/`：Personal API 限时读取客户端、字段核对与独立本机私有预览，不直接连接数据库。
+- `data-sources/`：按账号的数据连接、来源事实、指标采用规则、同步、冲突和人工保护；首批仅固定账号开放 Garmin Personal。
 - `measurements/`：身体测量。
 - `dashboard/`：汇总与趋势。
 - `records/`：身体、摄入和食材的统一审核草稿与事务协调。

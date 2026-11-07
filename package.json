@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test --test-isolation=none src/app/*.test.mjs src/features/auth/*.test.ts src/features/measurements/*.test.ts src/features/meals/*.test.ts src/features/dashboard/*.test.ts src/features/records/*.test.ts src/features/activities/*.test.ts src/features/exports/*.test.ts src/features/onboarding/*.test.ts src/features/assistant/*.test.ts src/features/garmin/*.test.ts",
+    "test": "node --import tsx --test --test-isolation=none src/app/*.test.mjs src/features/auth/*.test.ts src/features/measurements/*.test.ts src/features/meals/*.test.ts src/features/dashboard/*.test.ts src/features/records/*.test.ts src/features/activities/*.test.ts src/features/exports/*.test.ts src/features/onboarding/*.test.ts src/features/assistant/*.test.ts src/features/garmin/*.test.ts src/features/data-sources/*.test.ts",
     "garmin:preview": "node --import tsx scripts/preview-garmin.mts",
     "db:local": "pglite-server --db=./data/postgres/storage --host=127.0.0.1 --port=5432 --max-connections=10",
     "db:generate": "drizzle-kit generate",

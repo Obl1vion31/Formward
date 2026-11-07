@@ -476,10 +476,12 @@ export const energyProfile = pgTable("energy_profiles", {
   ...energyIdentityColumns(), effectiveFrom: date("effective_from").notNull(), heightCm: numeric("height_cm", { precision: 7, scale: 4 }).notNull(), birthDate: date("birth_date").notNull(), sex: text("sex").notNull(),
 }, t => [uniqueIndex("energy_profiles_owner_date_idx").on(t.userId, t.effectiveFrom).where(sql`${t.deletedAt} IS NULL`), check("energy_profiles_valid", sql`${t.heightCm}>0 AND ${t.heightCm}<=300 AND ${t.sex} IN ('male','female') AND ${t.birthDate}<${t.effectiveFrom} AND ${t.version}>0`)]);
 export const energyDay = pgTable("energy_days", {
+  steps: integer("steps"),
   entryMode: text("entry_mode").$type<"components" | "total">(), activityMode: text("activity_mode").$type<"total" | "activities">(), restingSourceSystem: text("resting_source_system"), activeSourceSystem: text("active_source_system"), restingEstimated: boolean("resting_estimated").notNull().default(false),
   ...energyIdentityColumns(), ...energySourceColumns(), activeEstimated: boolean("active_estimated").notNull().default(false), notes: text("notes"), date: date("local_date").notNull(), restingKcal: numeric("resting_kcal", { precision: 14, scale: 4 }), activeKcal: numeric("active_kcal", { precision: 14, scale: 4 }), totalKcal: numeric("total_kcal", { precision: 14, scale: 4 }),
-}, t => [uniqueIndex("energy_days_owner_date_idx").on(t.userId,t.date).where(sql`${t.deletedAt} IS NULL`), check("energy_days_modes_valid", sql`${t.entryMode} IN ('components','total') AND ${t.activityMode} IN ('total','activities')`), check("energy_days_values_valid", sql`(${t.restingKcal} IS NULL OR ${t.restingKcal}>=0) AND (${t.activeKcal} IS NULL OR ${t.activeKcal}>=0) AND (${t.totalKcal} IS NULL OR ${t.totalKcal}>=0) AND ${t.version}>0 AND ${t.sourceUnit}='kcal' AND ${t.syncStatus}='confirmed'`)]);
+}, t => [uniqueIndex("energy_days_owner_date_idx").on(t.userId,t.date).where(sql`${t.deletedAt} IS NULL`), check("energy_days_modes_valid", sql`${t.entryMode} IN ('components','total') AND ${t.activityMode} IN ('total','activities')`), check("energy_days_steps_valid",sql`${t.steps} IS NULL OR ${t.steps} BETWEEN 0 AND 10000000`), check("energy_days_values_valid", sql`(${t.restingKcal} IS NULL OR ${t.restingKcal}>=0) AND (${t.activeKcal} IS NULL OR ${t.activeKcal}>=0) AND (${t.totalKcal} IS NULL OR ${t.totalKcal}>=0) AND ${t.version}>0 AND ${t.sourceUnit}='kcal' AND ${t.syncStatus}='confirmed'`)]);
 export const activity = pgTable("activities", {
+  sourceDetails: jsonb("source_details").$type<import("../features/data-sources/model").ActivityFact>(),
   calorieMode:text("calorie_mode").$type<"total"|"components">(), exerciseRestingKcal:numeric("resting_kcal",{precision:14,scale:4}), exerciseActiveKcal:numeric("active_kcal",{precision:14,scale:4}),
   inclusion:text("inclusion").$type<"included"|"additional">(), inclusionBasis:text("inclusion_basis"),
   ...energyIdentityColumns(), ...energySourceColumns(), date: date("local_date").notNull(), name: text("name").notNull(), durationMinutes: numeric("duration_minutes", { precision: 14, scale: 4 }), caloriesKcal: numeric("calories_kcal", { precision: 14, scale: 4 }), completed: boolean("completed").notNull().default(true),
@@ -493,6 +495,48 @@ export const energyOperation = pgTable("energy_operations", {
 export const energyEvent = pgTable("energy_events", {
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), operationId: text("operation_id").notNull(), recordId: text("record_id").notNull(), recordType: text("record_type").notNull(), actorType: text("actor_type").notNull(), actorId: text("actor_id").notNull(), confirmedBy: text("confirmed_by").notNull().references(() => user.id), snapshot: jsonb("snapshot").$type<{ originalInput: import("../features/activities/model").EnergyAction; action: import("../features/activities/model").EnergyAction; before: import("../features/activities/model").EnergyRecord | null; after: import("../features/activities/model").EnergyRecord | null; permanentDeletion?:boolean }>().notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => [foreignKey({columns:[t.userId,t.operationId],foreignColumns:[energyOperation.userId,energyOperation.id]}), index("energy_events_owner_record_idx").on(t.userId,t.recordId)]);
+
+// 上游可复用凭据用独立服务器密钥加密；仅试运行账号可创建连接。
+export const dataConnection = pgTable("data_connections", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(), label: text("label").notNull(), credential: text("credential").notNull(),
+  status: text("status").$type<"active" | "paused">().notNull().default("active"), metrics: jsonb("metrics").$type<import("../features/data-sources/model").SourceMetric[]>().notNull(),
+  timezone: text("timezone").notNull(), version: integer("version").notNull().default(1), accessVersion: integer("access_version").notNull(),
+  adoptedAt: timestamp("adopted_at", { withTimezone: true }), syncToken: text("sync_token"), syncStartedAt: timestamp("sync_started_at", { withTimezone: true }),
+  lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }), lastSuccessAt: timestamp("last_success_at", { withTimezone: true }), lastError: text("last_error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex("data_connections_owner_id_idx").on(t.userId, t.id), uniqueIndex("data_connections_owner_provider_idx").on(t.userId, t.provider), check("data_connections_valid", sql`${t.status} IN ('active','paused') AND ${t.version}>0 AND jsonb_typeof(${t.metrics})='array'`)]);
+
+export const dataSourceFact = pgTable("data_source_facts", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }), connectionId: text("connection_id").notNull(),
+  kind: text("kind").$type<"day" | "activity">().notNull(), sourceRecordId: text("source_record_id").notNull(), date: date("local_date").notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }), timezone: text("timezone").notNull(), unit: text("unit").notNull().default("kcal"),
+  payload: jsonb("payload").$type<import("../features/data-sources/model").SourceFact>().notNull(), digest: text("digest").notNull(), version: integer("version").notNull().default(1),
+  observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+}, t => [foreignKey({ columns: [t.userId, t.connectionId], foreignColumns: [dataConnection.userId, dataConnection.id] }), uniqueIndex("data_source_facts_owner_id_idx").on(t.userId, t.id), uniqueIndex("data_source_facts_source_idx").on(t.connectionId, t.kind, t.sourceRecordId), index("data_source_facts_owner_date_idx").on(t.userId, t.date), check("data_source_facts_valid", sql`${t.kind} IN ('day','activity') AND ${t.version}>0 AND ${t.unit}='kcal'`)]);
+
+export const dataSourcePolicy = pgTable("data_source_policies", {
+  userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }), strategy: text("strategy").$type<"total" | "components">().notNull().default("total"),
+  sources: jsonb("sources").$type<import("../features/data-sources/model").MetricSources>().notNull(), effectiveFrom: date("effective_from").notNull(),
+  version: integer("version").notNull().default(1), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [check("data_source_policies_valid", sql`${t.strategy} IN ('total','components') AND ${t.version}>0`)]);
+
+export const energyDayAdoption = pgTable("energy_day_adoptions", {
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }), date: date("local_date").notNull(),
+  mode: text("mode").$type<"source" | "manual">().notNull(), metadata: jsonb("metadata").$type<import("../features/data-sources/model").AdoptionMetadata>(),
+  protectedAt: timestamp("protected_at", { withTimezone: true }), version: integer("version").notNull().default(1), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex("energy_day_adoptions_owner_date_idx").on(t.userId, t.date), check("energy_day_adoptions_valid", sql`${t.mode} IN ('source','manual') AND ${t.version}>0 AND (${t.mode}<>'source' OR ${t.metadata} IS NOT NULL)`)]);
+
+export const dataSourceConflict = pgTable("data_source_conflicts", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }), factId: text("fact_id").notNull(),
+  candidates: jsonb("candidates").$type<string[]>().notNull(), status: text("status").$type<"pending" | "adopted" | "linked" | "ignored">().notNull().default("pending"),
+  linkedActivityId: text("linked_activity_id"), version: integer("version").notNull().default(1), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [foreignKey({ columns: [t.userId, t.factId], foreignColumns: [dataSourceFact.userId, dataSourceFact.id] }), uniqueIndex("data_source_conflicts_fact_idx").on(t.userId, t.factId), check("data_source_conflicts_valid", sql`${t.status} IN ('pending','adopted','linked','ignored') AND ${t.version}>0`)]);
+
+export const dataSourceEvent = pgTable("data_source_events", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }), connectionId: text("connection_id"),
+  action: text("action").notNull(), actor: text("actor").notNull(), snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [foreignKey({ columns: [t.userId, t.connectionId], foreignColumns: [dataConnection.userId, dataConnection.id] }), index("data_source_events_owner_created_idx").on(t.userId, t.createdAt)]);
 
 // 一个审核批次关联既有业务操作；事实写入仍由对应 feature 完成。
 export const recordOperation = pgTable("record_operations", {

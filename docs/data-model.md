@@ -88,7 +88,7 @@ deleted_at
 → 保存同步结果
 ```
 
-首版不创建完整 Connector 表，但 schema 中的来源字段不能省略。真正接入第一个平台时，再增加连接账号、授权状态、同步游标、错误和冲突记录。
+Garmin Personal 为首个真实连接：data-sources 保存账号连接、白名单来源事实、按指标采用规则、同步时间、租约、错误及冲突。来源事实与正式采用分离；energy_day_adoptions 标记来源同步／人工保护，活动 source_details 保存采用时的来源快照。后台任务与人工、AI 写入复用 activities 业务校验及正式持久化，不创建多层连接器框架。
 
 ## AI 数据规则
 

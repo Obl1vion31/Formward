@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import type { Database } from "../../db/client";
-import { accountLink, aiToken, oauthAccessToken, oauthConnection, oauthConsent, oauthRefreshToken, rateLimit, session, user } from "../../db/schema";
+import { accountLink, aiToken, oauthAccessToken, oauthConnection, oauthConsent, oauthRefreshToken, rateLimit, session, user, dataConnection } from "../../db/schema";
 import { ApiError } from "./ai-identity";
 
 export type SecurityTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -55,6 +55,7 @@ export async function limitAccountAttempt(db: Database, category: string, subjec
 export async function revokeAccountAccess(tx: SecurityTransaction, userId: string) {
   const now = new Date();
   await tx.update(user).set({ accessVersion: sql`${user.accessVersion} + 1`, updatedAt: now }).where(eq(user.id, userId));
+  await tx.update(dataConnection).set({status:"paused",syncToken:null,syncStartedAt:null,version:sql`${dataConnection.version}+1`,updatedAt:now}).where(eq(dataConnection.userId,userId));
   await tx.update(aiToken).set({ revokedAt: now }).where(and(eq(aiToken.userId, userId), isNull(aiToken.revokedAt)));
   await tx.update(oauthConnection).set({ revokedAt: now }).where(and(eq(oauthConnection.userId, userId), isNull(oauthConnection.revokedAt)));
   await tx.update(oauthRefreshToken).set({ revoked: now }).where(and(eq(oauthRefreshToken.userId, userId), isNull(oauthRefreshToken.revoked)));

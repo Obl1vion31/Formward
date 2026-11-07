@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { currentPageUser } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { readEnergySnapshot } from "@/features/activities/records";
+import {loadSources} from "@/features/data-sources/state";
+import {sourcePilotEnabled} from "@/features/data-sources/model";
 import { EnergyView } from "@/features/activities/energy-view";
 import { energyPresentation } from "@/features/activities/presentation";
 import { localMeasurementDate } from "@/features/measurements/entry-state";
@@ -21,5 +23,6 @@ export default async function EnergyPage({ searchParams }: { searchParams: Promi
 async function Content({ user, date, entry,trend,intent }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date: string | null;entry:boolean;trend:TrendRoute|null;intent:RecordIntent }) {
   const db = getDatabase(), snapshot = await readEnergySnapshot(db, user.id);
   const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
-  return <><EnergyView key={`${date}:${intent}:${trend?.from}:${trend?.to}`} initialIntent={intent} presentation={energyPresentation(snapshot, [], today, await listEnergySources(db, user.id))} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date} initialEntry={entry} initialTrend={trend} /></>;
+  const sourceStatus=sourcePilotEnabled(user.id)?(await loadSources(db,user.id)).connections[0]??null:null;
+  return <><EnergyView sourceStatus={sourceStatus} key={`${date}:${intent}:${trend?.from}:${trend?.to}`} initialIntent={intent} presentation={energyPresentation(snapshot, [], today, await listEnergySources(db, user.id),user.id)} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date} initialEntry={entry} initialTrend={trend} /></>;
 }

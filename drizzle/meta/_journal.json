@@ -211,6 +211,20 @@
       "when": 1793961448023,
       "tag": "0030_account_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1794045079891,
+      "tag": "0031_data_source_pilot",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1794045704794,
+      "tag": "0032_adopted_activity_details",
+      "breakpoints": true
     }
   ]
 }

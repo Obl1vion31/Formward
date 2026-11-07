@@ -10,7 +10,7 @@ export function overview(meals: MealView[], records: MeasurementDisplay[], today
   const nutrition = day?.totals ?? { values: emptyNutrition(), incomplete: { caloriesKcal: false, proteinG: false, carbsG: false, fatG: false } };
   return { today, mealCount: day?.meals.length ?? 0, nutrition, energy,
     body: (["weightKg", "bodyFatPercent"] as const).map(metric => ({ metric, ...measurementSummary(records.filter(row => row.recordDate <= today), metric) })),
-    energyBalance: day?.day.status === "complete" && nutrition.values.caloriesKcal !== null && energy.totalKcal !== null ? difference(nutrition.values.caloriesKcal, energy.totalKcal, 10000) : null,
+    energyBalance: day?.day.status === "complete" && nutrition.values.caloriesKcal !== null && energy.totalKcal !== null && !energy.cumulative ? difference(nutrition.values.caloriesKcal, energy.totalKcal, 10000) : null,
     activities: energy.activities };
 }
 const difference = (a: string, b: string, precision: number) => (Math.round(Number(a) * precision) - Math.round(Number(b) * precision)) / precision;
@@ -49,7 +49,7 @@ export function overviewDays(meals: MealView[], records: MeasurementDisplay[], d
   const rows: OverviewDay[] = calculationDates.map((date, index) => {
     const nextDate = addCalendarDays(date, 1), current = morning(date), next = morning(nextDate), day = nutrition.get(date), expenditure = energy[index];
     const ambiguous = [date, nextDate].some(date => (mornings.get(date)?.daytime.filter(record => record.recordKind !== "estimated").length ?? 0) > 1);
-    const energyBalance=day?.day.status === "complete" && day?.totals.values.caloriesKcal != null && expenditure.totalKcal !== null ? difference(day.totals.values.caloriesKcal, expenditure.totalKcal, 10000) : null;
+    const energyBalance=day?.day.status === "complete" && day?.totals.values.caloriesKcal != null && expenditure.totalKcal !== null && !expenditure.cumulative ? difference(day.totals.values.caloriesKcal, expenditure.totalKcal, 10000) : null;
     return { displayEnergy:energyEquationReadings(day?.totals.values.caloriesKcal??null,expenditure.totalKcal,energyBalance),date, nextDate, meals: day?.meals ?? [], nutrition: day?.totals ?? null, morning: current, nextMorning: next,
       weightChangeKg: !ambiguous && current?.weightKg != null && next?.weightKg != null ? difference(next.weightKg, current.weightKg, 100) : null,
       differenceEstimated: !!(current && next && (current.recordKind === "estimated" || next.recordKind === "estimated")), ambiguous, mealDayStatus:day?.day.status??"unconfirmed",balanceEligible:day?.day.status==="complete", energy: expenditure,

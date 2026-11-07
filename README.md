@@ -1,6 +1,6 @@
 # Formward
 
-Garmin Personal API 第一阶段提供本机七日只读预览、字段对应和脱敏 JSON，不连接正式数据库。运行 `pnpm garmin:preview --serve`；密钥放在用户目录，详见 [配置与使用](docs/garmin-personal.md)。正式站继续沿用下面已发布版本。
+设备与数据来源支持 Garmin Personal 的账号定向试运行：选择同步内容、七日对照采用、步数与运动冲突核对，人工改动保护整天。其他账号只有未开放入口；本机独立只读预览仍可使用。配置、字段和同步规则见 [Garmin 接入](docs/garmin-personal.md)，正式发布状态见 [部署](docs/deployment.md)。
 
 消耗改期、日期／时区布局和四模块切换已发布到[正式总览](https://formward-ten.vercel.app/dashboard)。改期保留原编号，汇总与运动整批处理；目标日已有记录时明确阻止合并并保留输入。手机与电脑普通导航采用一次轻横移淡变，图形关联及录入面板不叠加。正式应用6f0a2f6来自codex/energy-date-navigation，未合入main；504项测试与生产构建通过。规则见[设计规范](docs/design-reference.md)，实际证据及未测边界见[部署](docs/deployment.md)。
 
@@ -50,7 +50,7 @@ AI 接入支持身体、摄入、食材和消耗任意组合，一次提交一�
 - 面向 AI 的查询与记录 API。
 - AI 访问令牌、数据来源和基本操作记录。
 
-个性化训练计划、营养策略、器材连接和外部健康平台同步属于后续阶段，但首版数据必须保留扩展所需的时间、单位、来源和外部标识。
+Garmin Personal 已接入账号定向试运行；个性化训练计划、营养策略、器材及其他健康平台连接属于后续阶段，但首版数据必须保留扩展所需的时间、单位、来源和外部标识。
 
 ## 技术方向
 

@@ -3,5 +3,6 @@
   "framework": "nextjs",
   "regions": ["cle1"],
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm build"
+  "buildCommand": "pnpm build",
+  "crons": [{ "path": "/api/internal/source-sync", "schedule": "0 22 * * *" }]
 }

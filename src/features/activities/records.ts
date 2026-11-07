@@ -1,10 +1,11 @@
+import {protectManualEnergyDays,energyFactsChanged} from "../data-sources/manual-protection";
 import {numberChangeMessages} from "../../components/number-change";
 import { retiredEnergyAction } from "./model";
 import { requireAiUpserts } from "../auth/ai-write-policy";
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { Database } from "../../db/client";
-import { activity, energyDay, energyDefault, energyEvent, energyOperation, energyProfile } from "../../db/schema";
+import { activity, energyDay, energyDayAdoption, energyDefault, energyEvent, energyOperation, energyProfile } from "../../db/schema";
 import { ApiError, type AiIdentity } from "../auth/ai-identity";
 import { requireActiveAiToken } from "../auth/ai-tokens";
 import { lockOwner, type Transaction } from "../auth/owner-lock";
@@ -37,7 +38,9 @@ export async function readEnergySnapshot(db: Pick<Database, "select">, userId: s
   const days = await db.select().from(energyDay).where(and(eq(energyDay.userId, userId), dates ? inArray(energyDay.date,dates) : undefined)).orderBy(asc(energyDay.id));
   const activities = await db.select().from(activity).where(and(eq(activity.userId, userId), dates ? inArray(activity.date,dates) : undefined)).orderBy(asc(activity.id));
   const sourced = <T extends Parameters<typeof plain>[0] & { sourceOccurredAt: Date | null; sourceUnit: string; syncStatus: string }>(row: T) => ({ ...plain(row), sourceOccurredAt: row.sourceOccurredAt?.toISOString() ?? null, sourceUnit: "kcal" as const, syncStatus: "confirmed" as const });
-  return { defaults: defaults.map(plain), profiles: profiles.map(row => ({ ...plain(row), sex: row.sex as "male" | "female" })), days: days.map(sourced), activities: activities.map(sourced) };
+  const adoptions = days.length ? await db.select().from(energyDayAdoption).where(and(eq(energyDayAdoption.userId,userId),inArray(energyDayAdoption.date,days.map(day=>day.date)))) : [];
+  const adopted = new Map(adoptions.map(row=>[row.date,{mode:row.mode,metadata:row.metadata,protectedAt:row.protectedAt?.toISOString()??null}]));
+  return { defaults: defaults.map(plain), profiles: profiles.map(row => ({ ...plain(row), sex: row.sex as "male" | "female" })), days: days.map(row=>({...sourced(row),...(adopted.has(row.date)?{adoption:adopted.get(row.date)}:{})})), activities: activities.map(row=>({...sourced(row),...(row.sourceDetails?{sourceDetails:row.sourceDetails}:{sourceDetails:undefined})})) };
 }
 function provenance(action: EnergyAction, before?: EnergyRecord): EnergyProvenance {
   const prior = before && "timezone" in before ? before : undefined;
@@ -83,11 +86,12 @@ export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnaps
         if (action.entryMode === "components" && action.totalKcal != null) throw new ApiError(400, "invalid_input", "分开记录时请使用自动合计，不要同时填写总数。");
         if (action.entryMode === "total" && (action.restingKcal != null || action.activeKcal != null)) throw new ApiError(400, "invalid_input", "只记总数时请勿同时提交分项。");
         if (action.activityMode === "activities" && action.activeKcal != null) throw new ApiError(400, "invalid_input", "按运动累计时请勿同时填写活动合计。因未采用的旧值仍会保留，可直接省略该字段。");
-        row.after = { ...base, ...provenance(action, before), date: action.date, entryMode, activityMode, restingSourceSystem: action.restingSourceSystem === undefined ? prior?.restingSourceSystem ?? prior?.sourceSystem ?? null : action.restingSourceSystem, activeSourceSystem: action.activeSourceSystem === undefined ? prior?.activeSourceSystem ?? prior?.sourceSystem ?? null : action.activeSourceSystem, restingEstimated: action.restingEstimated ?? prior?.restingEstimated ?? false, activeEstimated: action.activeEstimated ?? prior?.activeEstimated ?? false, notes: action.notes === undefined ? prior?.notes ?? null : action.notes, restingKcal, activeKcal, totalKcal };
+        row.after = { ...base, ...provenance(action, before), date: action.date, steps: action.steps === undefined ? prior?.steps ?? null : action.steps, ...(prior?.adoption?{adoption:prior.adoption}:{}), entryMode, activityMode, restingSourceSystem: action.restingSourceSystem === undefined ? prior?.restingSourceSystem ?? prior?.sourceSystem ?? null : action.restingSourceSystem, activeSourceSystem: action.activeSourceSystem === undefined ? prior?.activeSourceSystem ?? prior?.sourceSystem ?? null : action.activeSourceSystem, restingEstimated: action.restingEstimated ?? prior?.restingEstimated ?? false, activeEstimated: action.activeEstimated ?? prior?.activeEstimated ?? false, notes: action.notes === undefined ? prior?.notes ?? null : action.notes, restingKcal, activeKcal, totalKcal };
+      if (prior?.adoption?.mode === "source" && energyFactsChanged(prior,row.after)) (row.after as EnergyDayRecord).adoption = {...prior.adoption,mode:"manual",protectedAt:new Date().toISOString()};
       } else if (action.kind === "save_activity") {
         if (before?.deletedAt) throw new ApiError(409, "deleted", "请先恢复该活动。");
         const prior = before && "name" in before ? before : undefined;
-        row.after = { ...base, ...provenance(action, before), date: action.date, inclusion:prior?.inclusion??null,inclusionBasis:prior?.inclusionBasis??null,name: action.name, ...activityCalorieFields(action, prior), durationMinutes: action.durationMinutes === undefined ? prior?.durationMinutes ?? null : action.durationMinutes, completed: action.completed ?? prior?.completed ?? true };
+        row.after = { ...base, ...provenance(action, before), date: action.date, inclusion:prior?.inclusion??null,inclusionBasis:prior?.inclusionBasis??null,name: action.name, ...(prior?.sourceDetails?{sourceDetails:prior.sourceDetails}:{}), ...activityCalorieFields(action, prior), durationMinutes: action.durationMinutes === undefined ? prior?.durationMinutes ?? null : action.durationMinutes, completed: action.completed ?? prior?.completed ?? true };
       } else {
         if (!before) throw new ApiError(404, "not_found", "记录不存在。");
         const deleting = action.kind.startsWith("delete_");
@@ -185,7 +189,8 @@ export async function reviseEnergyOperation(db: Database, userId: string, id: st
     return displayEnergyOperation(updated);
   });
 }
-async function write(tx: Transaction, userId: string, row: EnergyPreview) {
+/** 内部正式写入：调用方须先锁账号并完成预览、版本与审计检查。 */
+export async function persistEnergyPreview(tx: Transaction, userId: string, row: EnergyPreview) {
   const record = row.after!;
   const common = { version: record.version, deletedAt: record.deletedAt ? new Date(record.deletedAt) : null, updatedAt: new Date() };
   if ("restingFrom" in record) {
@@ -199,11 +204,11 @@ async function write(tx: Transaction, userId: string, row: EnergyPreview) {
   } else {
     const source = { timezone: record.timezone, sourceSystem: record.sourceSystem, sourceRecordId: record.sourceRecordId, sourceOccurredAt: record.sourceOccurredAt ? new Date(record.sourceOccurredAt) : null, sourceUnit: record.sourceUnit, syncStatus: record.syncStatus };
     if ("restingKcal" in record) {
-      const values = { ...common, ...source, date: record.date, entryMode: record.entryMode ?? null, activityMode: record.activityMode ?? null, restingSourceSystem: record.restingSourceSystem ?? null, activeSourceSystem: record.activeSourceSystem ?? null, restingEstimated: record.restingEstimated ?? false, activeEstimated: record.activeEstimated ?? false, notes: record.notes ?? null, restingKcal: record.restingKcal, activeKcal: record.activeKcal, totalKcal: record.totalKcal };
+      const values = { ...common, ...source, date: record.date, entryMode: record.entryMode ?? null, activityMode: record.activityMode ?? null, restingSourceSystem: record.restingSourceSystem ?? null, activeSourceSystem: record.activeSourceSystem ?? null, restingEstimated: record.restingEstimated ?? false, activeEstimated: record.activeEstimated ?? false, notes: record.notes ?? null, steps:record.steps??null, restingKcal: record.restingKcal, activeKcal: record.activeKcal, totalKcal: record.totalKcal };
       if (row.before) await tx.update(energyDay).set(values).where(and(eq(energyDay.userId, userId), eq(energyDay.id, record.id)));
       else await tx.insert(energyDay).values({ id: record.id, userId, ...values });
     } else {
-      const values = { ...common, ...source, date: record.date, name: record.name, durationMinutes: record.durationMinutes, caloriesKcal: record.caloriesKcal, calorieMode:record.calorieMode??null,exerciseRestingKcal:record.exerciseRestingKcal??null,exerciseActiveKcal:record.exerciseActiveKcal??null, inclusion:record.inclusion??null,inclusionBasis:record.inclusionBasis??null,completed: record.completed };
+      const values = { ...common, ...source, date: record.date, sourceDetails:record.sourceDetails??null, name: record.name, durationMinutes: record.durationMinutes, caloriesKcal: record.caloriesKcal, calorieMode:record.calorieMode??null,exerciseRestingKcal:record.exerciseRestingKcal??null,exerciseActiveKcal:record.exerciseActiveKcal??null, inclusion:record.inclusion??null,inclusionBasis:record.inclusionBasis??null,completed: record.completed };
       if (row.before) await tx.update(activity).set(values).where(and(eq(activity.userId, userId), eq(activity.id, record.id)));
       else await tx.insert(activity).values({ id: record.id, userId, ...values });
     }
@@ -227,12 +232,13 @@ export async function decideEnergyOperation(db: Database, userId: string, id: st
       for (const entry of selected) {
         const permanent=options.permanentManualDeletion&&entry.action.kind.startsWith("delete_");
         if(permanent){const table=entry.action.kind==="delete_energy_day"?energyDay:activity;await tx.delete(table).where(and(eq(table.userId,userId),eq(table.id,entry.before!.id)));}
-        else await write(tx, userId, entry);
+        else await persistEnergyPreview(tx, userId, entry);
         await rememberEnergySources(tx, userId, entry);
         const index = row.preview.indexOf(entry);
         await tx.insert(energyEvent).values({ id: randomUUID(), userId, operationId: row.id, recordId: entry.after!.id, recordType: typeOf(entry.action), actorType: row.origin === "ai" ? "ai" : "user", actorId: row.tokenId ?? row.oauthConnectionId ?? userId, confirmedBy: userId, snapshot: { originalInput: row.payload.actions[index] ?? entry.action, action: entry.action, before: entry.before ?? null, after: permanent?null:entry.after!, ...(permanent?{permanentDeletion:true}:{}) } });
       }
     }
+    if (decision === "confirm") await protectManualEnergyDays(tx,userId,row.preview.filter(entry=>!entry.excluded));
     const [updated] = await tx.update(energyOperation).set({ status, revision: row.revision + 1, confirmedAt: decision === "confirm" ? new Date() : null }).where(eq(energyOperation.id, id)).returning();
     return displayEnergyOperation(updated);
   });

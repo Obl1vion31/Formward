@@ -53,3 +53,5 @@ OAuth Provider 的客户端、资源、授权同意、摘要令牌、刷新轮�
 0029_personal_profiles只新增personal_profiles：user_id主键外键，选填height_cm／birth_date，onboarding_step、version及创建／更新时间。旧账号无行视为已完成，引导状态仅新建账号显式初始化；与energy_profiles和每日measurement独立。42张应用表及迁移账本共43表。
 
 account_preferences按user_id保存show_body_fat、version及updated_at，新增0030 migration只建偏好表及约束，不回填或更改健康事实。
+
+0031_data_source_pilot 新增 data_connections、data_source_facts、data_source_policies、energy_day_adoptions、data_source_conflicts、data_source_events 及 energy_days.steps；0032_adopted_activity_details 添加 activities.source_details。旧字段、旧值及原迁移不变，共49张应用表。连接与事实通过复合归属外键隔离，凭据加密，来源事实与采用快照分别存放。0031 的复合唯一索引须先于引用它的外键创建。

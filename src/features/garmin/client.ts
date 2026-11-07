@@ -44,9 +44,10 @@ function httpError(status: number, token = false) {
   return new GarminError(`http_${status}`, message, status);
 }
 
-async function request(fetcher: typeof fetch, url: URL, method: "POST" | "GET", authorization: string) {
+async function request(fetcher: typeof fetch, url: URL, method: "POST" | "GET", authorization: string, signal?: AbortSignal) {
   try {
-    const response = await fetcher(url, { method, headers: { Authorization: authorization, Accept: method === "POST" ? "*/*" : "application/json" }, redirect: "error", cache: "no-store", signal: AbortSignal.timeout(20000) });
+    const timeout = AbortSignal.timeout(20000);
+    const response = await fetcher(url, { method, headers: { Authorization: authorization, Accept: method === "POST" ? "*/*" : "application/json" }, redirect: "error", cache: "no-store", signal: signal ? AbortSignal.any([timeout, signal]) : timeout });
     if (!response.ok) { await response.body?.cancel(); throw httpError(response.status, method === "POST"); }
     return await readJson(response, method === "POST");
   } catch (error) {
@@ -61,21 +62,27 @@ function failed(error: unknown): ReadResult {
   return { ok: false, code: e.code, message: e.message, ...(e.httpStatus ? { httpStatus: e.httpStatus } : {}) };
 }
 
-export async function capturePersonal(input: { apiKey: string; region: Region; timeZone: string; now?: Date }, fetcher: typeof fetch = fetch): Promise<Capture> {
+export async function capturePersonal(input: { apiKey: string; region: Region; timeZone: string; now?: Date; from?: string; daily?: boolean; activities?: boolean; signal?: AbortSignal }, fetcher: typeof fetch = fetch): Promise<Capture> {
   if (!input.apiKey.trim() || /[\r\n]/.test(input.apiKey)) throw new GarminError("missing_key", "请先在私有配置文件填写 GARMIN_PERSONAL_API_KEY，再重新运行。");
   if (!Object.hasOwn(personalHosts, input.region)) throw new GarminError("region", "站点只能选择 global 或 china。");
   const window = sevenDays(input.now, input.timeZone), host = personalHosts[input.region];
-  const token = await request(fetcher, new URL(tokenPath, host), "POST", `ApiKey ${input.apiKey.trim()}`);
+  if (input.from) {
+    const first = Date.parse(input.from + "T00:00:00Z"), last = Date.parse(window.to + "T00:00:00Z"), count = (last - first) / 86400000 + 1;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.from) || !Number.isInteger(count) || count < 1 || count > 3661 || new Date(first).toISOString().slice(0, 10) !== input.from) throw new GarminError("date_range", "读取日期范围无效。");
+    window.from = input.from; window.dates = Array.from({ length: count }, (_, i) => new Date(first + i * 86400000).toISOString().slice(0, 10));
+  }
+  const token = await request(fetcher, new URL(tokenPath, host), "POST", `ApiKey ${input.apiKey.trim()}`, input.signal);
   // Personal API 认证返回纯文本 JWT，不是业务 JSON，也不是业务 OAuth 的 token JSON。
   if (typeof token.data !== "string" || !token.data || token.data.length > 20000 || !/^[a-zA-Z0-9._~-]+$/.test(token.data)) throw new GarminError("token_shape", "佳明认证响应未包含可用的访问令牌，请检查接口状态。");
   const authorization = `Bearer ${token.data}`;
   const get = async (path: string, params: Record<string, string>): Promise<ReadResult> => {
     const url = new URL(path, host); for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
-    try { return { ok: true, ...await request(fetcher, url, "GET", authorization) }; } catch (error) { return failed(error); }
+    try { return { ok: true, ...await request(fetcher, url, "GET", authorization, input.signal) }; } catch (error) { return failed(error); }
   };
-  const dailyTask = get("/usersummary-service/v2/dailysummaries", { startDate: window.from, endDate: window.to });
+  const dailyTask: Promise<ReadResult> = input.daily === false ? Promise.resolve({ ok: true, data: { data: [] }, rawText: "" }) : get("/usersummary-service/v2/dailysummaries", { startDate: window.from, endDate: window.to });
   const activitiesTask = (async () => {
     const pages: ReadResult[] = [], seen = new Set<string>(), limit = 50;
+    if (input.activities === false) return { pages, complete: true };
     for (let page = 0; page < 20; page++) {
       const result = await get("/activitylist-service/activities/search/activities", { start: String(page * limit), limit: String(limit), startDate: window.from, endDate: window.to, excludeChildren: "true", sortOrder: "desc" });
       pages.push(result);

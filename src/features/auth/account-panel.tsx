@@ -24,7 +24,7 @@ export function AccountPanel({ initial,embedded=false }: { initial: PersonalAcco
   async function changePassword(event: FormEvent) {
     event.preventDefault();
     if (newPassword !== confirmation) { task.setError("两次新密码不一致。"); return; }
-    if (!await confirmAction({ title: "修改密码", message: "修改成功后会退出全部登录设备并断开 AI 授权，需要重新登录和连接。", confirmLabel: "修改并退出" })) return;
+    if (!await confirmAction({ title: "修改密码", message: "修改成功后会退出全部登录设备、断开 AI 授权并暂停设备同步，需要重新登录和连接。", confirmLabel: "修改并退出" })) return;
     const result = await task.run("正在修改密码…", () => changePersonalPasswordAction(oldPassword, newPassword));
     if (result?.ok) { setOldPassword(""); setNewPassword(""); setConfirmation(""); signedOut(); }
   }
@@ -40,7 +40,7 @@ export function AccountPanel({ initial,embedded=false }: { initial: PersonalAcco
   }
   async function revokeAll(event: FormEvent) {
     event.preventDefault();
-    if (!await confirmAction({ title: "撤销全部访问", message: "将退出全部登录设备、断开全部 AI 授权，并使未使用的密码重设链接失效。", danger: true, confirmLabel: "撤销并退出" })) return;
+    if (!await confirmAction({ title: "撤销全部访问", message: "将退出全部登录设备、断开全部 AI 授权，暂停设备数据同步，并使未使用的密码重设链接失效。", danger: true, confirmLabel: "撤销并退出" })) return;
     const result = await task.run("正在撤销访问…", () => revokePersonalAccessAction(accessPassword));
     if (result?.ok) { setAccessPassword(""); signedOut(); }
   }
@@ -48,7 +48,8 @@ export function AccountPanel({ initial,embedded=false }: { initial: PersonalAcco
     <AccountFeedback error={task.error} />
     <div className={styles.settingsGrid}>
     <div><section className={styles.section}><h2>登录设备</h2><div className={styles.deviceList}>{data.devices.map(device => <article className={styles.device} key={device.id}><div><strong>{deviceName(device.userAgent)}</strong>{device.id === data.currentSessionId && <span className={styles.badge}>当前设备</span>}<small>登录于 {accountDate(device.createdAt)}</small></div><button type="button" disabled={task.busy} onClick={() => void revokeDevice(device.id)}>退出</button></article>)}</div></section>
+    <section className={styles.section}><h2>设备与数据来源</h2><p className={styles.muted}>管理健康设备连接、同步内容与采用来源。</p><LoadingLink className={styles.inlineLink} href="/dashboard/sources">管理数据来源 <span aria-hidden="true">→</span></LoadingLink></section>
     <section className={styles.section}><h2>AI 接入</h2><p className={styles.muted}>查看连接中的 AI 助手，管理访问令牌和授权。</p><LoadingLink className={styles.inlineLink} href="/dashboard/ai">管理 AI 接入 <span aria-hidden="true">→</span></LoadingLink></section></div><section className={styles.section}><h2>修改密码</h2><form onSubmit={changePassword}><label className={styles.field}>当前密码<input name="currentPassword" type="password" value={oldPassword} onChange={event => setOldPassword(event.target.value)} required maxLength={128} autoComplete="current-password" disabled={task.busy} /></label><label className={styles.field}>新密码<input name="newPassword" type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} required minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_LENGTH} autoComplete="new-password" disabled={task.busy} /></label><label className={styles.field}>确认新密码<input name="confirmPassword" type="password" value={confirmation} onChange={event => setConfirmation(event.target.value)} required minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_LENGTH} autoComplete="new-password" disabled={task.busy} /></label><p className={styles.muted}>{PASSWORD_LENGTH_LABEL}，可以粘贴密码管理器生成的密码。</p><button type="submit" className={styles.primary} disabled={task.busy}>修改密码</button></form></section></div>
-    <section className={`${styles.section} ${styles.accessSection}`}><div><h2>撤销全部访问</h2><p className={styles.muted}>退出全部设备并断开 AI 授权。记录保留，之后可重新登录。</p></div><form onSubmit={revokeAll}><label className={styles.field}>再次输入当前密码<input type="password" name="accessPassword" value={accessPassword} onChange={event => setAccessPassword(event.target.value)} required maxLength={128} autoComplete="current-password" disabled={task.busy} /></label><button type="submit" className={styles.danger} disabled={task.busy}>撤销全部访问</button></form></section>
+    <section className={`${styles.section} ${styles.accessSection}`}><div><h2>撤销全部访问</h2><p className={styles.muted}>退出全部设备、断开 AI 授权并暂停设备同步。记录保留，之后可重新登录。</p></div><form onSubmit={revokeAll}><label className={styles.field}>再次输入当前密码<input type="password" name="accessPassword" value={accessPassword} onChange={event => setAccessPassword(event.target.value)} required maxLength={128} autoComplete="current-password" disabled={task.busy} /></label><button type="submit" className={styles.danger} disabled={task.busy}>撤销全部访问</button></form></section>
   </div>;
 }

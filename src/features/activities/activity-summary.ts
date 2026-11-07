@@ -1,5 +1,5 @@
 import {activityReadings,energyBaseline,energyModes,energyValue,type ActivityRecord,type EnergyDayRecord} from "./model";
-type Activity = Partial<Pick<ActivityRecord,"calorieMode"|"caloriesKcal"|"exerciseActiveKcal"|"exerciseRestingKcal"|"completed"|"inclusion"|"inclusionBasis">>;
+type Activity = Partial<Pick<ActivityRecord,"sourceDetails"|"calorieMode"|"caloriesKcal"|"exerciseActiveKcal"|"exerciseRestingKcal"|"completed"|"inclusion"|"inclusionBasis">>;
 /** 解释已有读数与包含关系，不改变每天的计算。 */
 export function activitySummary(activity:Activity,day?:EnergyDayRecord|null,options:{relation?:"included"|"additional"|null;pending?:boolean}={}){
  const readings=activityReadings({...activity,caloriesKcal:activity.caloriesKcal??null}),baseline=energyBaseline(day),modes=energyModes(day);

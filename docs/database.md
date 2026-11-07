@@ -755,3 +755,18 @@ account_preferences由0030_account_preferences创建，不回填或修改旧健�
 | updated_at | timestamptz，非空，默认now() | 最近明确修改时间 |
 
 无显式行时根据该账号有效实测是否含体脂决定默认，不保存推断结果。关闭仅影响网页摘要、图表、历史和普通录入；旧记录隐藏体脂保持原值，AI审核、HTTP／MCP和导出保留完整事实。有草稿时延后外部偏好同步；进入身体页及恢复前台重新读取。
+
+## 外部数据来源
+
+0031及0032只新建六表并增加两列，不修改旧值。energy_days.steps 为可空整数（0至10000000）；activities.source_details 为采用时 ActivityFact JSON，仅服务器可写，公开动作不能伪造。
+
+| 表 | 主要字段与约束 |
+|---|---|
+| data_connections | user_id、provider、加密credential、metrics、timezone、status、version、access_version、adopted_at、sync_token及同步时间／错误；账号＋提供方唯一 |
+| data_source_facts | user_id＋connection_id归属外键、kind、source_record_id、当地日期、原始发生时间、timezone、unit、白名单payload、digest、version、observed_at；连接＋类型＋来源编号唯一 |
+| data_source_policies | 每账号唯一，strategy、各指标sources、effective_from、version |
+| energy_day_adoptions | 账号＋日期唯一，来源／人工mode、采用metadata、protected_at、version；metadata保留来源与事实版本，不放凭据 |
+| data_source_conflicts | 账号＋fact_id归属外键与唯一约束、候选编号、pending／adopted／linked／ignored、关联记录与version |
+| data_source_events | 本账号及连接归属外键、action、actor、时间、前后快照；不保存明文密钥或完整上游响应 |
+
+活动采用详情为独立快照，未采用的来源更新不能改变正式查询。凭据解密主密钥独立保存在服务端配置；备份数据库不包含解密主密钥。
