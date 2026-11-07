@@ -1,3 +1,4 @@
+import { readTraining } from '../training/records';
 import assert from "node:assert/strict";
 import { before, after, test } from "node:test";
 import { createServer } from "node:http";
@@ -10,7 +11,7 @@ import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/cli
 import * as schema from "../../db/schema";
 import { createAuth } from "./auth";
 import { provisionAccount } from "./provision";
-import { CONNECTION_CLAIM, READ_SCOPE, WRITE_SCOPE, MEALS_READ_SCOPE, MEALS_WRITE_SCOPE, ENERGY_READ_SCOPE, ENERGY_WRITE_SCOPE, listOauthConnections, revokeOauthConnection } from "./oauth-connections";
+import { CONNECTION_CLAIM, READ_SCOPE, WRITE_SCOPE, MEALS_READ_SCOPE, MEALS_WRITE_SCOPE, ENERGY_READ_SCOPE, ENERGY_WRITE_SCOPE, TRAINING_READ_SCOPE, TRAINING_WRITE_SCOPE, listOauthConnections, revokeOauthConnection } from "./oauth-connections";
 import { decideMealOperation, readMealSnapshot } from "../meals/records";
 import { oauthPageRequest } from "./oauth-pages";
 import { createMcpEndpoint } from "../mcp/server";
@@ -165,7 +166,7 @@ test("现代与旧 MCP 客户端发现工具、查询、提交预览、网页确
   for (const mode of ["legacy", "auto"] as const) {
     const client = await mcpClient(connected.tokens.access_token, mode);
     try {
-      const tools = await client.listTools(); assert.deepEqual(tools.tools.map(tool => tool.name).sort(), ["authorize_formward", "get_meal_operation", "get_measurement_operation", "get_profile", "get_record_operation", "import_meal_images", "query_energy", "query_meals", "query_measurements", "search_foods", "submit_meal_operation", "submit_measurement_operation", "submit_record_operation"]);
+      const tools = await client.listTools(); assert.deepEqual(tools.tools.map(tool => tool.name).sort(), ["authorize_formward", "get_meal_operation", "get_measurement_operation", "get_profile", "get_record_operation", "import_meal_images", "query_energy", "query_meals", "query_measurements", "search_foods", "submit_meal_operation", "submit_measurement_operation", "submit_record_operation", "search_exercises", "query_training", "submit_training_operation", "get_training_operation"].sort());
       const profile = await client.callTool({ name: "get_profile", arguments: {} }); assert.equal((profile.structuredContent as Record<string, unknown>)?.id, connected.userId);
       const input = { operationId: randomUUID(), items: [{ kind: "save_record", date: mode === "legacy" ? "2024-06-01" : "2024-06-02", period: "evening", weightKg: "70.20", deviceLabel: "虚构 MCP 秤" }] };
       const result = await client.callTool({ name: "submit_measurement_operation", arguments: input }); assert.ok(!result.isError);
@@ -356,7 +357,7 @@ function requestedScopes(result: { _meta?: Record<string, unknown> }) {
   assert.ok(challenges?.length);
   return challenges[0].match(/scope="([^"]*)"/)![1].split(" ");
 }
-const allRecordScopes = [READ_SCOPE, MEALS_READ_SCOPE, ENERGY_READ_SCOPE, WRITE_SCOPE, MEALS_WRITE_SCOPE, ENERGY_WRITE_SCOPE];
+const allRecordScopes = [READ_SCOPE, MEALS_READ_SCOPE, ENERGY_READ_SCOPE, TRAINING_READ_SCOPE, WRITE_SCOPE, MEALS_WRITE_SCOPE, ENERGY_WRITE_SCOPE, TRAINING_WRITE_SCOPE];
 
 test("已有提交权限的连接缺新类别权限时一次申请全部记录读写，不改变授权或生成预览", async () => {
   const connected = await connect(), client = await mcpClient(connected.tokens.access_token), before = await recordState(connected.userId);
@@ -377,8 +378,8 @@ test("只读查询补齐全部读取而不请求提交；用户明确完整接�
   const connected = await connect(credentials, ["openid", "profile", "offline_access", READ_SCOPE]), client = await mcpClient(connected.tokens.access_token);
   try {
     const denied = await client.callTool({ name: "query_energy", arguments: {} }), requested = requestedScopes(denied);
-    for (const scope of [READ_SCOPE, MEALS_READ_SCOPE, ENERGY_READ_SCOPE]) assert.ok(requested.includes(scope));
-    for (const scope of [WRITE_SCOPE, MEALS_WRITE_SCOPE, ENERGY_WRITE_SCOPE]) assert.ok(!requested.includes(scope));
+    for (const scope of [READ_SCOPE, MEALS_READ_SCOPE, ENERGY_READ_SCOPE, TRAINING_READ_SCOPE]) assert.ok(requested.includes(scope));
+    for (const scope of [WRITE_SCOPE, MEALS_WRITE_SCOPE, ENERGY_WRITE_SCOPE, TRAINING_WRITE_SCOPE]) assert.ok(!requested.includes(scope));
     const full = await client.callTool({ name: "authorize_formward", arguments: {} });
     for (const scope of allRecordScopes) assert.ok(requestedScopes(full).includes(scope));
   } finally { await client.close(); }
@@ -394,7 +395,7 @@ test("完整授权的连接检查可重复且不读写健康事实或预览，�
     for (let i = 0; i < 2; i++) {
       const status = await client.callTool({ name: "authorize_formward", arguments: {} });
       assert.ok(!status.isError);
-      assert.deepEqual(status.structuredContent, { connected: true, access: "read_and_submit_previews", domains: ["measurements", "meals", "energy"], requiresWebConfirmation: true });
+      assert.deepEqual(status.structuredContent, { connected: true, access: "read_and_submit_previews", domains: ["measurements", "meals", "energy", "training"], requiresWebConfirmation: true });
     }
     assert.equal((await client.callTool({ name: "authorize_formward", arguments: { userId: randomUUID() } })).isError, true);
     assert.deepEqual(await recordState(connected.userId), before);
@@ -420,4 +421,26 @@ test("同一客户端在一次网页同意后从部分授权升级完整读写�
     assert.equal((await old.callTool({ name: "authorize_formward", arguments: {} })).isError, true);
     assert.deepEqual(await recordState(connected.userId), before);
   } finally { await upgraded.close(); await old.close(); }
+});
+
+test('训练独立OAuth通过真实MCP查询、模板和多日排期确认，旧权限不自动扩展', async () => {
+  const connected = await connect(credentials, ['openid','profile','offline_access',TRAINING_READ_SCOPE,TRAINING_WRITE_SCOPE]), client = await mcpClient(connected.tokens.access_token);
+  const before = await readTraining(db, connected.userId);
+  try {
+    const library = await client.callTool({ name: 'search_exercises', arguments: { q: 'plank' } }); assert.ok(!library.isError); assert.equal((library.structuredContent as {total:number}).total, 150);
+    const definitions = await client.listTools(); assert.deepEqual((definitions.tools.find(tool => tool.name === 'submit_training_operation')!._meta?.securitySchemes as {scopes:string[]}[])[0].scopes, [TRAINING_WRITE_SCOPE]);
+    const raw = { operationId: randomUUID(), items: [{ key: 'template', kind: 'save_training_template', template: { name: '虚构GPT排期', exercises: [{ name: '平板支撑', catalogId: 'plank', recordingType: 'duration', sets: 2, reps: null, durationSeconds: 30 }] } }, { key: 'plan', kind: 'schedule_training', date: '2026-11-11', templateRef: 'template' }] };
+    const submitted = await client.callTool({ name: 'submit_training_operation', arguments: raw }); assert.ok(!submitted.isError, JSON.stringify(submitted));
+    const preview = submitted.structuredContent as {id:string;revision:number;status:string;confirmationUrl:string}; assert.equal(preview.status, 'pending'); assert.match(preview.confirmationUrl, /dashboard\/ai\/operations/);
+    assert.equal((await readTraining(db, connected.userId)).plans.length, before.plans.length);
+    const repeated = await client.callTool({ name: 'submit_training_operation', arguments: raw }); assert.equal((repeated.structuredContent as {id:string}).id, preview.id);
+    await reviewRecordOperation(db, connected.userId, preview.id, { kind: 'confirm', revision: preview.revision });
+    const queried = await client.callTool({ name: 'query_training', arguments: { from:'2026-11-01', to:'2026-11-30', timezone:'Asia/Shanghai' } }); assert.ok(!queried.isError); assert.ok((queried.structuredContent as {plans:{date:string}[]}).plans.some(p => p.date === '2026-11-11'));
+    assert.equal(((await client.callTool({ name:'get_training_operation', arguments:{id:preview.id} })).structuredContent as {status:string})?.status, 'confirmed');
+    const pending = await client.callTool({ name:'submit_training_operation', arguments:{...raw,operationId:randomUUID()} }); const pendingView = pending.structuredContent as {id:string;revision:number};
+    await revokeOauthConnection(db, connected.userId, connected.claims[CONNECTION_CLAIM]); await assert.rejects(reviewRecordOperation(db, connected.userId, pendingView.id, {kind:'confirm',revision:pendingView.revision}));
+  } finally { await client.close(); }
+  const readonly = await connect(credentials, ['openid','profile','offline_access',TRAINING_READ_SCOPE]), read = await mcpClient(readonly.tokens.access_token);
+  const old = await connect(), oldClient = await mcpClient(old.tokens.access_token);
+  try { assert.ok(!(await read.callTool({name:'query_training',arguments:{}})).isError); assert.equal((await read.callTool({name:'submit_training_operation',arguments:{operationId:randomUUID(),items:[{key:'bad',kind:'schedule_training',date:'2026-11-12',templateId:randomUUID()}]}})).isError,true); const denied = await oldClient.callTool({name:'query_training',arguments:{}}); assert.equal(denied.isError,true); assert.ok(requestedScopes(denied).includes(TRAINING_READ_SCOPE)); } finally { await read.close(); await oldClient.close(); }
 });

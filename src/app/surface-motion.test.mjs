@@ -31,5 +31,15 @@ test('快速反向继承当前姿态，旧关闭不会被当作已完成',()=>fi
  assert.equal(await closing,false);calls[1].finish();assert.equal(await opening,true);assert.equal(node.dataset.surfacePhase,'open');
 }));
 test('减少动态效果直接提交末态，不等待动画',()=>fixture(async(node,calls)=>{
- assert.equal(await animateSurface(node,'close',null,'drawer'),true);assert.equal(calls.length,0);assert.equal(node.style.transform,'translateX(100%)');
+ assert.equal(await animateSurface(node,'close',null,'drawer'),true);assert.equal(calls.length,0);assert.equal(node.style.transform,'translateX(384px)');
 },{reduced:true}));
+
+for(const width of [1440,1728,1920])test('居中620px面板在'+width+'px视口完整退出',()=>fixture(async(node,calls)=>{
+ const previous=Object.getOwnPropertyDescriptor(globalThis,'innerWidth');Object.defineProperty(globalThis,'innerWidth',{configurable:true,value:width});
+ const left=(width-620)/2;node.getBoundingClientRect=()=>({left,right:left+620,top:120,bottom:620,width:620,height:500});
+ try{const closing=animateSurface(node,'close',null,'drawer');const offset=Number(calls[0].frames[1].transform.match(/([\d.]+)px/)[1]);assert.ok(left+offset>=width+24);calls[0].finish();assert.equal(await closing,true);assert.equal(node.style.transform,calls[0].frames[1].transform);}finally{if(previous)Object.defineProperty(globalThis,'innerWidth',previous);else delete globalThis.innerWidth;}
+}));
+test('抽屉快速反向的目标仍以静止几何计算',()=>fixture(async(node,calls)=>{
+ const first=animateSurface(node,'open',null,'drawer');node.style.transform='matrix(1, 0, 0, 1, 200, 0)';
+ const second=animateSurface(node,'close',null,'drawer');assert.equal(await first,false);assert.equal(calls[1].frames[0].transform,'matrix(1, 0, 0, 1, 200, 0)');assert.equal(calls[1].frames[1].transform,'translateX(384px)');calls[1].finish();assert.equal(await second,true);
+}));

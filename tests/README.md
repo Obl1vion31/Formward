@@ -297,3 +297,5 @@ checkDetailHierarchy逐态核对七种视口和深浅主题：当天合计及结
 production build后运行pnpm test:training-browser。training.browser.mts自建独立PGlite、两个虚构账号和临时端口，不读.env.local；training-check.browser.mjs覆盖真实开始、动作组次自动保存、未知重量、暂停／刷新恢复、结束回看、模板排期、空训练放弃和原消耗页，另查两主题七种手机／桌面尺寸。FORMWARD_TRAINING_BROWSER=webkit切换引擎，FORMWARD_TRAINING_ARTIFACTS指定私有截图目录；本机浏览器缓存位置通过PLAYWRIGHT_BROWSERS_PATH指定。FORMWARD_TRAINING_PREVIEW=1仅保留独立预览供人工验收。
 
 training.test.ts覆盖输入、归属、幂等与重复结束、版本冲突、会话撤销、未知／0、暂停计时、不改变消耗与0033仅新增四表。模拟截图不代表真实iPhone或系统键盘已测。
+
+训练动作库与加载验收覆盖150项标识／分类／别名、三类记录、目标不冒充实测，以及真实MCP OAuth训练读写、原授权撤销、幂等和跨账号。training-delayed-db.ts只在隔离fixture中延迟真实数据库查询，未向应用增加等待开关；浏览器复用登录会话，不降低正式限流。training-stability.browser.mjs记录冷加载全过程，比较首屏相交的稳定标题、日期、读数、月历和绘图区槽位≤1px；屏外未知列表增长保留原始帧另查，不冒充同高数据。检查宽屏按钮／Escape／遮罩／入场中关闭和减少动态效果，并演示GPT四类动作模板、人工修改、确认排期与实际目标分离。证据均为虚构账号。

@@ -30,11 +30,18 @@ try {
     }
   } checks.push("两主题七种尺寸");
   await page.setViewportSize({ width: 390, height: 640 }); await page.evaluate(() => document.documentElement.dataset.theme = "dark");
-  await page.getByRole("button", { name: "开始训练", exact: true }).click(); await page.locator("[data-training-editor]").waitFor();
+  await page.getByRole("button", { name: "按计划训练", exact: true }).click(); await page.locator("[data-training-editor]").waitFor();
   await page.getByLabel("杠铃卧推第1组重量公斤", { exact: true }).fill("40.5"); await page.getByLabel("杠铃卧推第1组次数", { exact: true }).fill("10");
   await page.getByLabel("杠铃卧推第1组完成", { exact: true }).click(); await saved(); await shot("session-top");
-  await page.getByRole("button", { name: "添加动作", exact: true }).click(); await page.getByPlaceholder("搜索或输入自己的动作").fill("自定义长名称哑铃推举与训练动作");
-  await page.getByRole("button", { name: "添加这个动作", exact: true }).click(); await page.getByLabel("自定义长名称哑铃推举与训练动作第1组次数", { exact: true }).fill("12"); await page.getByLabel("自定义长名称哑铃推举与训练动作第1组完成", { exact: true }).click(); await saved(); await shot("session-bottom");
+  await page.getByRole("button", { name: "添加动作", exact: true }).click(); await page.getByRole("button", { name: "自定义动作", exact: true }).click(); await page.getByLabel("动作名称", {exact:true}).fill("自定义长名称哑铃推举与训练动作");
+  await page.getByRole("button", { name: "选入清单", exact: true }).click(); await page.getByRole("button", { name: "添加1个动作", exact: true }).click(); await page.getByLabel("自定义长名称哑铃推举与训练动作第1组次数", { exact: true }).fill("12"); await page.getByLabel("自定义长名称哑铃推举与训练动作第1组完成", { exact: true }).click(); await saved(); await shot("session-bottom");
+  await page.getByRole('button', {name:'添加动作',exact:true}).click();
+  for(const name of ['平板支撑','跑步机跑步','腘绳肌静态拉伸']){await page.getByLabel('搜索动作',{exact:true}).fill(name);await page.getByRole('button',{name:new RegExp('^'+name)}).click();}
+  await shot('catalog-multiselect'); await page.getByRole('button',{name:'添加3个动作',exact:true}).click();
+  await page.getByLabel('平板支撑第1组秒数',{exact:true}).fill('35');await page.getByLabel('平板支撑第1组完成',{exact:true}).click();
+  await page.getByLabel('跑步机跑步第1组秒数',{exact:true}).fill('600');await page.getByLabel('跑步机跑步第1组米数',{exact:true}).fill('1500');await page.getByLabel('跑步机跑步第1组完成',{exact:true}).click();
+  await page.getByLabel('腘绳肌静态拉伸第1组秒数',{exact:true}).fill('30');await page.getByLabel('腘绳肌静态拉伸第1组完成',{exact:true}).click();
+  await page.getByRole('button',{name:'上移跑步机跑步',exact:true}).click();await saved();await shot('session-duration-distance');checks.push('动作库多选、排序、时长与距离真实保存');
   await page.getByRole("button", { name: "暂停", exact: true }).click(); await page.getByRole("button", { name: "继续计时", exact: true }).waitFor(); await ready();
   await page.getByRole("button", { name: "稍后继续", exact: true }).click(); await page.locator("[data-training-editor]").waitFor({ state: "detached" }); await ready();
   await page.reload(); await ready(); await page.getByRole("button", { name: "继续训练", exact: true }).click();
@@ -46,7 +53,7 @@ try {
   await page.unroute("**/dashboard/training",failSave);await page.getByRole("button",{name:"重试保存",exact:true}).click();await saved();
   await page.getByLabel("杠铃卧推第1组完成",{exact:true}).click();await saved();checks.push("网络失败保留输入并重试");
   await page.getByRole("button", { name: "结束训练", exact: true }).click(); await page.getByRole("button", { name: "结束并保存", exact: true }).click(); await page.getByText("训练已完成并保存。", { exact: true }).waitFor(); await ready(); await shot("finished");
-  assert.ok(await page.getByText("重量未记 · 12次", { exact: false }).isVisible()); checks.push("结束与未知重量回看");
+  assert.ok(await page.getByText('第1组 · 12次', { exact: true }).isVisible()); assert.ok(await page.getByText('第1组 · 600秒 · 1500米',{exact:true}).isVisible()); checks.push("结束与未知重量回看");
   await page.getByRole("button", { name: "存为模板", exact: true }).click(); await page.getByLabel("模板名称", { exact: true }).fill("完成后保存的模板"); await page.getByRole("button", { name: "保存模板", exact: true }).click(); await page.getByText("训练模板已保存。", { exact: true }).waitFor(); await ready();
   await page.getByRole("button", { name: "安排训练", exact: true }).click(); await page.getByRole("combobox", { name: "训练模板", exact: true }).selectOption({ label: "完成后保存的模板" }); await page.getByRole("button", { name: "加入日历", exact: true }).click(); await page.getByText("已安排到", { exact: false }).waitFor(); await ready(); checks.push("模板与排期真实保存");
   await page.setViewportSize({width:1440,height:900});const target=config.today.slice(0,8)+String(Number(config.today.slice(8))===1?2:Number(config.today.slice(8))-1).padStart(2,"0");
@@ -55,6 +62,7 @@ try {
   await page.getByRole("button", { name: "自由训练", exact: true }).click(); await page.locator("[data-training-editor]").waitFor(); await page.getByRole("button", { name: "结束训练", exact: true }).click(); await page.getByRole("button", { name: "放弃训练", exact: true }).click(); await page.locator("[data-training-editor]").waitFor({ state: "detached" }); checks.push("误触开始可单独放弃");
   await page.getByRole("navigation", { name: "训练与消耗", exact: true }).getByRole("link", { name: "消耗", exact: true }).click(); await ready();
   await page.waitForURL("**/dashboard/energy"); await page.getByRole("region", { name: "消耗历史趋势", exact: true }).waitFor({state:"visible"}); assert.ok(await page.locator("svg").count() > 0); await shot("energy-preserved"); checks.push("原消耗图表保留");
+  {const {checkTrainingStability}=await import('./training-stability.browser.mjs');await checkTrainingStability({browser,config,folder,engine,checks,screenshots});}
   assert.deepEqual(errors, []); assert.deepEqual(failures, []);
   await writeFile(folder + "/report.json", JSON.stringify({ passed: true, engine, checks, screenshots, errors, failures }, null, 2)); console.log(engine + " training browser passed: " + checks.length + " checks, " + screenshots.length + " screenshots");
 } catch (error) { await page.screenshot({ path: folder + "/failure.png" }); await writeFile(folder + "/failure.json", JSON.stringify({ error: String(error), errors, failures, checks }, null, 2)); throw error; }

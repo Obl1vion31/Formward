@@ -19,10 +19,10 @@ export async function readTraining(db: ReadDb, userId: string): Promise<Training
     plans: plans.filter(p => p.status !== "skipped").map(p => ({ id: p.id, date: p.date, templateId: p.templateId, content: p.content, status: p.status, version: p.version })),
   };
 }
-export async function mutateTraining(db: Database, userId: string, input: unknown, now = new Date()) {
+export async function mutateTraining(db: Database, userId: string, input: unknown, now = new Date(), origin: "manual" | "ai" = "manual") {
   const parsed = trainingInputSchema.safeParse(input);
   if (!parsed.success) throw new ApiError(400, "invalid_input", parsed.error.issues[0]?.message === "完成组请填写次数" ? "完成组请填写次数。" : "请检查动作、组次、日期和数值。");
-  const value = parsed.data, digest = createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  const value = parsed.data, digest = createHash("sha256").update((origin === "ai" ? "ai:" : "") + JSON.stringify(value)).digest("hex");
   return db.transaction(async tx => {
     await lockActiveAccount(tx, userId);
     const [repeated] = await tx.select().from(trainingEvent).where(and(eq(trainingEvent.userId, userId), eq(trainingEvent.operationId, value.operationId)));
@@ -31,7 +31,7 @@ export async function mutateTraining(db: Database, userId: string, input: unknow
       return { snapshot: await readTraining(tx, userId), entityId: repeated.entityId };
     }
     async function noChange(entityId: string, row: unknown) {
-      await tx.insert(trainingEvent).values({ id: randomUUID(), userId, operationId: value.operationId, requestDigest: digest, entityId, action: value.kind, actorId: userId, snapshot: { before: row, after: row }, createdAt: now });
+      await tx.insert(trainingEvent).values({ id: randomUUID(), userId, operationId: value.operationId, requestDigest: digest, entityId, action: value.kind, origin, actorId: userId, snapshot: { before: row, after: row }, createdAt: now });
       return { snapshot: await readTraining(tx, userId), entityId };
     }
     const entityId = value.id; let before: unknown = null, after: unknown;
@@ -51,6 +51,21 @@ export async function mutateTraining(db: Database, userId: string, input: unknow
       [after] = await tx.insert(trainingSession).values({ id: value.id, userId, date: value.date, timezone: value.timezone, name: content?.name ?? "自由训练", exercises: content ? templateExercises(content) : [], startedAt: now, resumedAt: now, planId, createdBy: userId }).returning();
     } else if (value.kind === "template") {
       [after] = await tx.insert(trainingTemplate).values({ id: value.id, userId, content: value.template, createdBy: userId }).returning();
+    } else if (value.kind === 'update_template') {
+      const [template] = await tx.select().from(trainingTemplate).where(and(eq(trainingTemplate.id, value.id), eq(trainingTemplate.userId, userId)));
+      if (!template) throw new ApiError(404, 'not_found', '训练模板不存在。');
+      if (template.version !== value.version) throw conflict();
+      before = template; [after] = await tx.update(trainingTemplate).set({ content: value.template, version: template.version + 1 }).where(and(eq(trainingTemplate.id, value.id), eq(trainingTemplate.userId, userId))).returning();
+    } else if (value.kind === 'reschedule') {
+      const [plan] = await tx.select().from(trainingPlan).where(and(eq(trainingPlan.id, value.id), eq(trainingPlan.userId, userId)));
+      const [template] = await tx.select().from(trainingTemplate).where(and(eq(trainingTemplate.id, value.templateId), eq(trainingTemplate.userId, userId)));
+      if (!plan || !template) throw new ApiError(404, 'not_found', '训练计划或模板不存在。');
+      if (plan.status !== 'planned' || plan.version !== value.version) throw conflict();
+      const [active] = await tx.select().from(trainingSession).where(and(eq(trainingSession.planId, plan.id), eq(trainingSession.userId, userId), inArray(trainingSession.status, ['active', 'paused'])));
+      if (active) throw new ApiError(409, 'invalid_plan', '这项计划正在训练中，请先完成当前训练。');
+      const [duplicate] = await tx.select().from(trainingPlan).where(and(eq(trainingPlan.userId, userId), eq(trainingPlan.templateId, template.id), eq(trainingPlan.date, value.date), eq(trainingPlan.status, 'planned')));
+      if (duplicate && duplicate.id !== plan.id) throw new ApiError(409, 'invalid_plan', '目标日期已有相同模板的计划。');
+      before = plan; [after] = await tx.update(trainingPlan).set({ templateId: template.id, date: value.date, content: template.content, version: plan.version + 1, updatedAt: now }).where(and(eq(trainingPlan.id, plan.id), eq(trainingPlan.userId, userId))).returning();
     } else if (value.kind === "schedule") {
       const [template] = await tx.select().from(trainingTemplate).where(and(eq(trainingTemplate.id, value.templateId), eq(trainingTemplate.userId, userId)));
       if (!template) throw new ApiError(404, "not_found", "训练模板不存在。");
@@ -88,7 +103,7 @@ export async function mutateTraining(db: Database, userId: string, input: unknow
       }
       [after] = await tx.update(trainingSession).set(update).where(and(eq(trainingSession.id, row.id), eq(trainingSession.userId, userId))).returning();
     }
-    await tx.insert(trainingEvent).values({ id: randomUUID(), userId, operationId: value.operationId, requestDigest: digest, entityId, action: value.kind, actorId: userId, snapshot: { before, after }, createdAt: now });
+    await tx.insert(trainingEvent).values({ id: randomUUID(), userId, operationId: value.operationId, requestDigest: digest, entityId, action: value.kind, origin, actorId: userId, snapshot: { before, after }, createdAt: now });
     return { snapshot: await readTraining(tx, userId), entityId };
   });
 }

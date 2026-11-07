@@ -5,13 +5,15 @@ const origins=new WeakMap<HTMLElement,{x:number;y:number}>(),animations=new Weak
 /** 容器明确选择方向；按钮位置只属于本次锚定面板，不传给后续详情。 */
 export async function animateSurface(node:HTMLElement,direction:'open'|'close',source?:Element|null,mode:SurfaceMode='anchored'):Promise<boolean>{
  const prior=animations.get(node),style=getComputedStyle(node);
- const current:Pose|undefined=prior?{transform:style.transform,clipPath:style.clipPath,opacity:style.opacity}:undefined;
+ const current:Pose|undefined=prior||direction==='close'?{transform:style.transform,clipPath:style.clipPath,opacity:style.opacity}:undefined;
  if(current)Object.assign(node.style,current);
  prior?.cancel();node.style.animation='none';node.dataset.surfaceMode=mode;node.dataset.surfacePhase=direction==='open'?'opening':'closing';
+ // 测量无变换的静止几何，快速反向时不把当前位移重复算入退出距离。
+ const savedTransform=node.style.transform;node.style.transform='none';const resting=node.getBoundingClientRect();node.style.transform=savedTransform;
  const full:Pose={transform:'translate(0px,0px)',clipPath:'none',opacity:'1'};
  let folded:Pose;
- if(mode==='sheet')folded={transform:`translateY(${node.getBoundingClientRect().height+24}px)`,clipPath:'none',opacity:'1'};
- else if(mode==='drawer')folded={transform:'translateX(100%)',clipPath:'none',opacity:'1'};
+ if(mode==='sheet')folded={transform:`translateY(${Math.max(resting.height,(globalThis.innerHeight||resting.bottom)-resting.top)+24}px)`,clipPath:'none',opacity:'1'};
+ else if(mode==='drawer')folded={transform:`translateX(${Math.max(resting.width,(globalThis.innerWidth||resting.right)-resting.left)+24}px)`,clipPath:'none',opacity:'1'};
  else if(mode==='center')folded={transform:'scale(.97)',clipPath:'none',opacity:'0'};
  else{
   const rect=node.getBoundingClientRect();

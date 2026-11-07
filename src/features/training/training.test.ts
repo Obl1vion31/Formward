@@ -110,3 +110,15 @@ test("0033迁移仅新增训练四表，全部既有表字段和数据保持", a
     assert.equal((await local.query("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'")).rows.length, tables.length + 4);
   } finally { await local.close(); }
 });
+
+test('时长和距离完整保存回看，模板目标不自动计为完成', async () => {
+  const userId = await owner(), templateId = randomUUID();
+  await mutateTraining(db, userId, { kind: 'template', operationId: randomUUID(), id: templateId, template: { name: '混合训练演示', exercises: [{ name: '平板支撑', recordingType: 'duration', sets: 1, reps: null, durationSeconds: 30 }, { name: '跑步机跑步', recordingType: 'cardio', sets: 1, reps: null, distanceMeters: 2000 }] } });
+  let result = await mutateTraining(db, userId, { ...startInput(), templateId }), session = result.snapshot.sessions[0];
+  assert.equal(session.exercises[0].sets[0].completed, false); assert.equal(session.exercises[0].sets[0].durationSeconds, null);
+  session.exercises[0].sets[0] = { ...session.exercises[0].sets[0], durationSeconds: 35, completed: true };
+  session.exercises[1].sets[0] = { ...session.exercises[1].sets[0], durationSeconds: 900, distanceMeters: 2100, completed: true };
+  result = await mutateTraining(db, userId, { kind: 'save', id: session.id, version: session.version, operationId: randomUUID(), name: session.name, exercises: session.exercises }); session = result.snapshot.sessions[0];
+  const finished = await mutateTraining(db, userId, change('finish', session.id, session.version));
+  assert.equal(finished.snapshot.sessions[0].exercises[0].sets[0].durationSeconds, 35); assert.equal(finished.snapshot.sessions[0].exercises[1].sets[0].distanceMeters, 2100); assert.equal(finished.snapshot.templates[0].exercises[0].durationSeconds, 30);
+});

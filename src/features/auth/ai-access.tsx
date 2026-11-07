@@ -16,8 +16,8 @@ type Tokens = Awaited<ReturnType<typeof listAiTokens>>;
 type Created = Awaited<ReturnType<typeof createAiToken>>;
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 type Feedback = { area: string; error: boolean; message: string } | null;
-const recordDomains = [["身体", "measurements"], ["饮食与食材", "meals"], ["消耗", "energy"]] as const;
-const authorizationInstruction = "请调用 Formward 的 authorize_formward，统一检查并申请身体、饮食与食材、消耗的查询和提交预览权限；只检查连接，不创建健康记录预览。";
+const recordDomains = [["身体", "measurements"], ["饮食与食材", "meals"], ["消耗", "energy"], ["训练计划", "training"]] as const;
+const authorizationInstruction = "请调用 Formward 的 authorize_formward，统一检查并申请身体、饮食与食材、消耗、训练计划的查询和提交预览权限；只检查连接，不创建健康记录预览。";
 function connectionAccessLabel(scopes: string[]) {
   const read = recordDomains.every(([, domain]) => scopes.includes(domain + ":read"));
   const write = recordDomains.every(([, domain]) => scopes.includes(domain + ":write"));

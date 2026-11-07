@@ -1,6 +1,6 @@
 import { category, type RecordAction, type RecordItem, type RecordRow } from "./model";
 
-const labels = { body: "身体", meals: "摄入", foods: "食材库", energy: "消耗" } as const;
+const labels = { body: "身体", meals: "摄入", foods: "食材库", energy: "消耗", training: "训练" } as const;
 type SummaryItem = Pick<RecordItem, "key" | "action" | "excluded" | "persisted"> & { businessDate?: string | null; skipped?: boolean };
 export function actionDate(action: RecordAction): string | null {
   const value = "date" in action ? action.date : "effectiveFrom" in action ? action.effectiveFrom : "restingFrom" in action ? action.restingFrom : null;
@@ -15,7 +15,7 @@ export function summarizeRecordItems(items: SummaryItem[], status: string) {
   const pending = status === "pending" ? items.filter(item => !item.excluded && !item.persisted && !item.skipped) : [];
   const selected = status === "confirmed" ? items.filter(item => item.persisted) : status === "pending" ? pending : items;
   const dates = [...new Set(selected.flatMap(item => item.businessDate ?? actionDate(item.action) ?? []))].sort();
-  const counts = { body: 0, meals: 0, foods: 0, energy: 0 };
+  const counts = { body: 0, meals: 0, foods: 0, energy: 0, training: 0 };
   for (const item of selected) counts[category(item.action)]++;
   const types = (Object.keys(labels) as (keyof typeof labels)[]).filter(key => counts[key]).map(key => labels[key]);
   const description = (Object.keys(labels) as (keyof typeof labels)[]).filter(key => counts[key]).map(key => labels[key] + counts[key] + (key === "meals" && selected.filter(item => category(item.action) === key).every(item => item.action.kind === "save_meal") ? "餐" : "项")).join("、");
@@ -28,7 +28,7 @@ export function recordReceipt(rows: RecordRow[]) {
     const date = reviewDate(row), kind = category(row.action), key = kind + ":" + (date ?? "");
     const existing = groups.get(key);
     if (existing) { existing.count++; continue; }
-    const path = kind === "body" ? "/dashboard/measurements" : kind === "energy" ? "/dashboard/energy" : "/dashboard/meals";
+    const path = kind === "body" ? "/dashboard/measurements" : kind === "training" ? "/dashboard/training" : kind === "energy" ? "/dashboard/energy" : "/dashboard/meals";
     groups.set(key, { date, type: labels[kind], count: 1, href: path + (date && kind !== "foods" ? "?date=" + date : "") });
   }
   return [...groups.values()].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));

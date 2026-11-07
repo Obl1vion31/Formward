@@ -1,3 +1,7 @@
+import { isTraining } from '../training/ai-model';
+import { planTrainingItems } from '../training/ai-plans';
+import { readTraining, mutateTraining } from '../training/records';
+import { lockActiveAccount } from '../auth/account-security';
 import { aiActionAllowed, requireAiUpserts } from "../auth/ai-write-policy";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
@@ -20,7 +24,8 @@ import { actionDate, summarizeRecordItems } from "./review-summary";
 type Stored = typeof recordOperation.$inferSelect;
 type Source = "body" | "meal";
 
-const mealItems = (items: RecordItem[]) => items.filter(item => !isBody(item.action) && !isEnergy(item.action));
+const mealItems = (items: RecordItem[]) => items.filter(item => !isBody(item.action) && !isEnergy(item.action) && !isTraining(item.action));
+const trainingItems = (items: RecordItem[]) => items.filter(item => isTraining(item.action));
 const energyItems = (items: RecordItem[]) => items.filter(item => isEnergy(item.action));
 const mealInput = (id: string, items: RecordItem[]): MealInput => ({ operationId: id, actions: mealItems(items).map(item => item.action as MealAction) });
 
@@ -162,10 +167,12 @@ async function view(db: Database, row: Stored): Promise<RecordReviewView> {
     else if("date" in record) energySnapshot.days=[...energySnapshot.days.filter(item=>item.id!==record.id),record as EnergyDayRecord];
   }
 
+  const training = trainingItems(row.draft).length ? planTrainingItems(await readTraining(db, row.userId), row.draft, row.id) : {};
+  const trainingExpiry = trainingItems(row.draft).filter(item => !item.excluded && !item.persisted).map(item => item.trainingExpiresAt ?? new Date(row.createdAt.getTime() + 86400000).toISOString());
   const needsBody = row.draft.some(item => isBody(item.action) && !item.excluded && !item.persisted && body?.items.find(candidate => candidate.id === item.measurementItemId)?.status === "pending");
   const needsMeal = mealItems(row.draft).some(item => !item.excluded && !item.persisted);
   const needsEnergy = energyItems(row.draft).some(item => !item.excluded && !item.persisted);
-  const expirations = [needsBody ? body?.expiresAt : null, needsMeal ? meal?.expiresAt : null, needsEnergy ? energy?.expiresAt : null].filter((value): value is string => !!value).sort();
+  const expirations = [...trainingExpiry, needsBody ? body?.expiresAt : null, needsMeal ? meal?.expiresAt : null, needsEnergy ? energy?.expiresAt : null].filter((value): value is string => !!value).sort();
   const rows: RecordRow[] = row.draft.map(item => {
     const bodyRow = body?.items.find(candidate => candidate.id === item.measurementItemId);
     const index = mealItems(row.draft).findIndex(candidate => candidate.key === item.key);
@@ -173,7 +180,7 @@ async function view(db: Database, row: Stored): Promise<RecordReviewView> {
     const energyRow = energy?.rows[energyItems(row.draft).findIndex(candidate => candidate.key === item.key)];
     const targetId = "id" in item.action ? item.action.id : undefined;
     const before = mealRow?.before ?? (targetId ? [...snapshot.foods, ...snapshot.meals].find(record => record.id === targetId) : undefined);
-    const persisted = item.persisted || bodyRow?.status === "confirmed" || (!!meal && meal.status === "confirmed" && !item.excluded && !isBody(item.action) && !isEnergy(item.action)) || (!!energy && energy.status === "confirmed" && !item.excluded && isEnergy(item.action));
+    const persisted = item.persisted || bodyRow?.status === "confirmed" || (!!meal && meal.status === "confirmed" && !item.excluded && !isBody(item.action) && !isEnergy(item.action) && !isTraining(item.action)) || (!!energy && energy.status === "confirmed" && !item.excluded && isEnergy(item.action));
     const duplicateMeals = mealRow?.duplicateIds?.flatMap(id => snapshot.meals.filter(meal => meal.id === id && !meal.deletedAt));
     if (!aiActionAllowed(item.action.kind) || retiredEnergyAction(item.action.kind)) {
       if (mealRow) mealRow.error = "AI不能删除或恢复整条记录，请取消这一项。";
@@ -187,11 +194,11 @@ async function view(db: Database, row: Stored): Promise<RecordReviewView> {
       if (questions.length) energyView.coverageQuestions = questions;
     }
     if (energyView && legacyInclusionDraft(item) && !persisted && !item.excluded) energyView.error = "这份运动包含核对需要刷新预览，原运动数值将保留，请重新核对是否已包含。";
-    return { ...item, persisted, ...(bodyRow ? { body: bodyRow } : {}), ...(mealRow ? { meal: { ...mealRow, before } } : {}), ...(energyView ? { energy: energyView } : {}), ...(duplicateMeals?.length ? { duplicateMeals } : {}) };
+    return { ...item, persisted, ...(training[item.key] ? { training: training[item.key] } : {}), ...(bodyRow ? { body: bodyRow } : {}), ...(mealRow ? { meal: { ...mealRow, before } } : {}), ...(energyView ? { energy: energyView } : {}), ...(duplicateMeals?.length ? { duplicateMeals } : {}) };
   });
   const pending = rows.filter(item => !item.excluded && !item.persisted && item.body?.status !== "skipped");
   const needsUserInput = pending.flatMap(item => {
-    const questions = isBody(item.action) ? item.body?.preview.canConfirm ? [] : item.body?.preview.needsUserInput?.map(issue => issue.message) ?? [item.body?.preview.message ?? "身体记录需要核对。"] : isEnergy(item.action) ? item.energy?.error ? [item.energy.error] : !item.energy ? ["消耗记录需要核对。"] : [] : item.meal?.needsUserInput?.length ? [...item.meal.needsUserInput] : item.meal?.error ? [item.meal.error] : [];
+    const questions = isTraining(item.action) ? item.training?.error ? [item.training.error] : !item.training ? ["训练计划需要核对。"] : [] : isBody(item.action) ? item.body?.preview.canConfirm ? [] : item.body?.preview.needsUserInput?.map(issue => issue.message) ?? [item.body?.preview.message ?? "身体记录需要核对。"] : isEnergy(item.action) ? item.energy?.error ? [item.energy.error] : !item.energy ? ["消耗记录需要核对。"] : [] : item.meal?.needsUserInput?.length ? [...item.meal.needsUserInput] : item.meal?.error ? [item.meal.error] : [];
     return questions.length ? [{ key: item.key, questions }] : [];
   });
   return { id: row.id, revision: row.revision, status: row.status, createdAt: row.createdAt.toISOString(), expiresAt: expirations[0] ?? null, confirmationPath: `/dashboard/ai/operations/${row.id}`, foods: snapshot.foods.filter(food => !food.deletedAt), energySnapshot, mealOperation: meal, energyOperation: energy, rows, needsUserInput, canConfirm: row.status === "pending" && pending.length > 0 && !needsUserInput.length && (!expirations[0] || Date.parse(expirations[0]) > Date.now()), saved: rows.filter(item => item.persisted).length };
@@ -212,11 +219,13 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
   return db.transaction(async tx => {
     await lockOwner(tx, identity.userId); const connection = tx as unknown as Database;
     if (input.items.some(item => item.kind === "save_record" || item.kind === "estimate_cell")) await requireActiveAiToken(tx, identity, true);
-    if (input.items.some(item => item.kind !== "save_record" && item.kind !== "estimate_cell" && !isEnergy(item))) await requireActiveAiToken(tx, identity, true, "meals");
+    if (input.items.some(item => item.kind !== "save_record" && item.kind !== "estimate_cell" && !isEnergy(item) && !isTraining(item))) await requireActiveAiToken(tx, identity, true, "meals");
+    if (input.items.some(isTraining)) await requireActiveAiToken(tx, identity, true, "training");
     if (input.items.some(isEnergy)) await requireActiveAiToken(tx, identity, true, "energy");
     const [prior] = await tx.select().from(recordOperation).where(and(eq(recordOperation.userId, identity.userId), eq(recordOperation.operationId, input.operationId)));
     if (prior) {
       if (prior.requestDigest !== digest(input)) throw new ApiError(409, "request_conflict", "同一 operationId 不能替换内容。");
+      if (trainingItems(prior.draft).some(item => item.trainingGrant?.tokenId !== identity.tokenId || item.trainingGrant?.oauthConnectionId !== identity.oauthConnectionId)) throw new ApiError(409, "request_conflict", "不能替换提交授权。");
       const child = prior.mealOperationId ? await getMealOperation(connection, identity.userId, prior.mealOperationId) : null;
       if (child && (child.tokenId !== (identity.tokenId ?? null) || child.oauthConnectionId !== (identity.oauthConnectionId ?? null))) throw new ApiError(409, "request_conflict", "不能替换提交授权。");
       if (prior.measurementOperationId) {
@@ -230,6 +239,7 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
       return { ...await view(connection, prior), repeated: true };
     }
     const id = randomUUID(), items = normalize(input), bodies = items.filter(item => isBody(item.action));
+    for (const item of trainingItems(items)) { item.trainingGrant = { ...(identity.tokenId ? { tokenId: identity.tokenId } : {}), ...(identity.oauthConnectionId ? { oauthConnectionId: identity.oauthConnectionId } : {}) }; item.trainingExpiresAt = new Date(Date.now() + 86400000).toISOString(); }
     const body = bodies.length ? await submitAiMeasurementOperation(connection, identity, { kind: "batch", operationId: `records-${id}`, items: bodies.map(item => item.action) }, input.timezone ?? timezone) : null;
     bodies.forEach((item, index) => { item.measurementItemId = body!.items[index].id; item.action = body!.items[index].input; });
     for (const item of energyItems(items)) if (item.action.kind === "save_energy_day" || item.action.kind === "save_activity") item.action = { ...item.action, timezone: item.action.timezone ?? input.timezone ?? timezone };
@@ -256,6 +266,7 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
       throw new ApiError(409, "closed_review", "本次审核已结束。");
     }
     if (row.revision !== action.revision) throw new ApiError(409, "review_changed", "审核已在另一个页面变化，请加载最新状态；当前输入仍保留。");
+    if (action.kind === "confirm" && trainingItems(row.draft).length) await lockActiveAccount(tx, userId);
     const items = structuredClone(row.draft), before = await view(connection, row);
     for (const item of items) if (before.rows.find(current => current.key === item.key)?.persisted) item.persisted = true;
     const bodyRevision = row.measurementOperationId ? (await getAiMeasurementOperation(connection, userId, row.measurementOperationId)).revision : null;
@@ -266,7 +277,14 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
       const selected = before.rows.filter(item => !item.excluded && !item.persisted && item.body?.status !== "skipped");
       requireAiUpserts(selected.map(item => item.action));
       if (!selected.length) throw new ApiError(400, "no_changes", "没有待保存内容。");
-      if (selected.some(item => isBody(item.action) ? !item.body?.preview.canConfirm : isEnergy(item.action) ? !item.energy || item.energy.error : !item.meal || item.meal.error || item.meal.needsUserInput?.length)) throw new ApiError(400, "review_required", "请修改或取消仍需核对的项目。");
+      if (selected.some(item => isTraining(item.action) ? !item.training || item.training.error : isBody(item.action) ? !item.body?.preview.canConfirm : isEnergy(item.action) ? !item.energy || item.energy.error : !item.meal || item.meal.error || item.meal.needsUserInput?.length)) throw new ApiError(400, "review_required", "请修改或取消仍需核对的项目。");
+      if (trainingItems(items).length && before.expiresAt && Date.parse(before.expiresAt) <= Date.now()) throw new ApiError(409, "preview_expired", "预览已过期，请刷新后重新核对。");
+      for (const item of trainingItems(items).filter(item => !item.excluded && !item.persisted)) {
+        if (!item.trainingGrant) throw new ApiError(401, "invalid_token", "缺少训练提交授权，请重新提交。");
+        const grant = item.trainingGrant;
+        if (Boolean(grant.tokenId) === Boolean(grant.oauthConnectionId)) throw new ApiError(401, "invalid_token", "训练提交授权无效。");
+        await requireActiveAiToken(tx, grant.oauthConnectionId ? { userId, permission: "write", oauthConnectionId: grant.oauthConnectionId } : { userId, permission: "write", tokenId: grant.tokenId! }, true, "training");
+      }
       const missingKeys = selected.filter(item => item.meal && (item.action.kind === "save_meal" || item.action.kind === "save_food") && (item.action.expectedImageCount ?? 0) > (item.meal.meal?.imageIds?.length ?? item.meal.food?.imageIds?.length ?? 0)).map(item => item.key);
       if (row.measurementOperationId) {
         let body = await getAiMeasurementOperation(connection, userId, row.measurementOperationId);
@@ -277,11 +295,20 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
       }
       if (row.mealOperationId) {
         const meal = await getMealOperation(connection, userId, row.mealOperationId);
-        await decideMealOperation(connection, userId, meal.id, meal.revision, selected.some(item => !isBody(item.action) && !isEnergy(item.action)) ? "confirm" : "cancel", missingKeys.length > 0);
+        await decideMealOperation(connection, userId, meal.id, meal.revision, selected.some(item => !isBody(item.action) && !isEnergy(item.action) && !isTraining(item.action)) ? "confirm" : "cancel", missingKeys.length > 0);
       }
       if (row.energyOperationId) {
         const energy = await getEnergyOperation(connection, userId, row.energyOperationId);
         await decideEnergyOperation(connection, userId, energy.id, energy.revision, selected.some(item => isEnergy(item.action)) ? "confirm" : "cancel");
+      }
+      const trainingSelected = selected.filter(item => isTraining(item.action));
+      for (const item of [...trainingSelected.filter(item => item.action.kind === 'save_training_template'), ...trainingSelected.filter(item => item.action.kind === 'schedule_training')]) {
+        const preview = before.rows.find(row => row.key === item.key)?.training;
+        if (!preview?.input || preview.error) throw new ApiError(400, 'review_required', '训练计划需要重新核对。');
+        const result = await mutateTraining(connection, userId, preview.input, new Date(), 'ai');
+        const stored = items.find(entry => entry.key === item.key)!;
+        stored.trainingEntityId = result.entityId;
+        stored.trainingSaved = { before: preview.before, after: item.action.kind === 'save_training_template' ? result.snapshot.templates.find(t => t.id === result.entityId) : result.snapshot.plans.find(p => p.id === result.entityId) };
       }
       for (const item of items) if (selected.some(selected => selected.key === item.key)) item.persisted = true;
     } else if (action.kind === "cancel") {
@@ -336,7 +363,7 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
         const energy = await getEnergyOperation(connection, userId, row.energyOperationId), entries = energyItems(items);
         if (energy.status === "pending") await reviseEnergyOperation(connection, userId, energy.id, energy.revision, entries.map(item => item.action as EnergyAction), entries.flatMap((item,index) => item.excluded ? [index] : []));
       }
-      if (action.kind === "refresh") for (const item of items) item.checked = false;
+      if (action.kind === "refresh") for (const item of items) { item.checked = false; if (isTraining(item.action) && !item.persisted) item.trainingExpiresAt = new Date(Date.now() + 86400000).toISOString(); }
     }
     const latestBody = row.measurementOperationId ? await getAiMeasurementOperation(connection, userId, row.measurementOperationId) : null;
     const latestBodyRevision = latestBody?.revision ?? null;
@@ -368,7 +395,9 @@ export async function listRecordOperations(db: Database, userId: string) {
       return { ...item, businessDate, skipped: bodyItem?.status === "skipped" };
     });
     const active = summaryItems.filter(item => !item.excluded && !item.persisted && !item.skipped);
-    const expirations = [active.some(item => isBody(item.action)) ? body?.expiresAt : null, active.some(item => !isBody(item.action) && !isEnergy(item.action)) ? meal?.expiresAt : null, active.some(item => isEnergy(item.action)) ? energy?.expiresAt : null].filter((date): date is Date => !!date).map(date => date.toISOString()).sort();
+    const expirations = [active.some(item => isBody(item.action)) ? body?.expiresAt : null, active.some(item => !isBody(item.action) && !isEnergy(item.action) && !isTraining(item.action)) ? meal?.expiresAt : null, active.some(item => isEnergy(item.action)) ? energy?.expiresAt : null].filter((date): date is Date => !!date).map(date => date.toISOString()).sort();
+    if (active.some(item => isTraining(item.action))) expirations.push(...active.filter(item => isTraining(item.action)).map(item => item.trainingExpiresAt ?? new Date(row.createdAt.getTime() + 86400000).toISOString()));
+    expirations.sort();
     const expiresAt = expirations[0] ?? null;
     return { id: row.id, status: row.status, count: row.draft.length, ...summarizeRecordItems(summaryItems, row.status), expiresAt, expired: row.status === "pending" && !!expiresAt && Date.parse(expiresAt) <= Date.now(), createdAt: row.createdAt.toISOString(), measurementOperationId: row.measurementOperationId, mealOperationId: row.mealOperationId, energyOperationId: row.energyOperationId, confirmationPath: `/dashboard/ai/operations/${row.id}` };
   });
@@ -380,6 +409,7 @@ export async function getRecordOperation(db: Database, identity: AiIdentity, id:
   if (row.measurementOperationId) await requireActiveAiToken(db as unknown as Parameters<typeof requireActiveAiToken>[0], identity, false);
   if (row.mealOperationId) await requireActiveAiToken(db as unknown as Parameters<typeof requireActiveAiToken>[0], identity, false, "meals");
   if (row.energyOperationId) await requireActiveAiToken(db as unknown as Parameters<typeof requireActiveAiToken>[0], identity, false, "energy");
+  if (trainingItems(row.draft).length) await requireActiveAiToken(db as unknown as Parameters<typeof requireActiveAiToken>[0], identity, false, "training");
   // 查询与提交返回相同结果，调用端仍须以 status 判定是否正式保存。
   return view(db, row);
 }

@@ -1,3 +1,5 @@
+import { createAiToken, authenticateAi } from '../src/features/auth/ai-tokens';
+import { submitRecordOperation } from '../src/features/records/operations';
 import { randomUUID } from "node:crypto";
 import type { Database } from "../src/db/client";
 import { provisionAccount } from "../src/features/auth/provision";
@@ -22,5 +24,16 @@ export async function seedTrainingFixture(db: Database) {
     await mutateTraining(db, user.id, { kind: "finish", id: sessionId, operationId: randomUUID(), version: result.snapshot.sessions.find(s => s.id === sessionId)!.version }, new Date(startedAt.getTime() + (30 + offset * 5) * 60000));
   }
   await db.insert(energyDay).values({ id: randomUUID(), userId: user.id, date: today, timezone: "Asia/Shanghai", entryMode: "total", activityMode: "total", totalKcal: "2400.1250" });
-  return { email, password, userId: user.id, empty: { email: "training-empty-" + suffix + "@example.test", userId: empty.id, password }, today };
+  const token = await createAiToken(db, empty.id, '虚构训练MCP演示', 'write'), identity = await authenticateAi(db, 'Bearer ' + token.rawToken);
+  const ai = await submitRecordOperation(db, identity, { operationId: randomUUID(), items: [
+    { key:'template',kind:'save_training_template',template:{name:'GPT演示 · 全身训练',exercises:[
+      {name:'杠铃卧推',catalogId:'barbell-bench-press',recordingType:'reps',sets:3,reps:10,weightKg:20},
+      {name:'平板支撑',catalogId:'plank',recordingType:'duration',sets:2,reps:null,durationSeconds:30},
+      {name:'跑步机跑步',catalogId:'treadmill-run',recordingType:'cardio',sets:1,reps:null,durationSeconds:1200,distanceMeters:3000},
+      {name:'腘绳肌静态拉伸',catalogId:'standing-hamstring-stretch',recordingType:'duration',sets:2,reps:null,durationSeconds:30},
+    ]}},
+    {key:'today',kind:'schedule_training',date:today,templateRef:'template'},
+    {key:'later',kind:'schedule_training',date:addCalendarDays(today,2),templateRef:'template'},
+  ] });
+  return { trainingPreviewPath: ai.confirmationPath, email, password, userId: user.id, empty: { email: "training-empty-" + suffix + "@example.test", userId: empty.id, password }, today };
 }

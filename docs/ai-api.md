@@ -9,13 +9,13 @@ OpenAPI1.13.0／MCP1.11.0，工具及权限种类保持。身体按同一天晨�
 
 ## 统一连接与授权
 
-完整接入使用authorize_formward统一检查并申请身体、饮食／食材、消耗的查询与提交预览权限。该工具只返回连接状态，不读取健康内容、不生成预览或保存事实；OAuth同意仍由用户完成。缺权限时保留原有授权，并合并申请三类记录权限；只有读取权限的连接在日常查询补授权时只申请三类读取，明确调用完整接入或提交工具才申请提交权限。已有令牌不会因请求授权而自动扩权，旧客户端与单类授权继续可用。
+完整接入使用authorize_formward统一检查并申请身体、饮食／食材、消耗和训练的查询与提交预览权限。该工具只返回连接状态，不读取健康内容、不生成预览或保存事实；OAuth同意仍由用户完成。缺权限时保留原有授权，并合并申请四类记录权限；只有读取权限的连接在日常查询补授权时只申请四类读取，明确调用完整接入或提交工具才申请提交权限。已有令牌不会因请求授权而自动扩权，旧客户端与单类授权继续可用。
 
-在客户端刷新Formward工具列表后，可让AI“统一连接并授权Formward的全部记录能力”。授权页一次列出三类查询与提交预览，允许后再检查连接；AI接入页按同一格式展示三类权限，并提供“复制统一授权指令”。刷新工具只更新定义，不代表已同意新增权限。
+在客户端刷新Formward工具列表后，可让AI“统一连接并授权Formward的全部记录能力”。授权页一次列出四类查询与提交预览，允许后再检查连接；AI接入页按同一格式展示四类权限，并提供“复制统一授权指令”。刷新工具只更新定义，不代表已同意新增权限。
 
 ## 混合记录接口
 
-MCP 1.9.0 提供13个工具，统一连接检查为authorize_formward，混合审核为 `submit_record_operation`／`get_record_operation`；HTTP 为 `POST /api/v1/record-operations` 和 `GET /api/v1/record-operations/{id}`。支持只提交一类或任意组合，最多100项（包含展开的新食材）、64 KiB，统一链接 `/dashboard/ai/operations/{id}`。原单类接口和链接保持兼容，确认只能由登录网页执行。
+MCP 1.13.0 提供17个工具，统一连接检查为authorize_formward，混合审核为 `submit_record_operation`／`get_record_operation`；HTTP 为 `POST /api/v1/record-operations` 和 `GET /api/v1/record-operations/{id}`。支持只提交一类或任意组合，最多100项（包含展开的新食材）、64 KiB，统一链接 `/dashboard/ai/operations/{id}`。原单类接口和链接保持兼容，确认只能由登录网页执行。
 
 请求为 `{ operationId, timezone?, items }`，每项包含唯一 `key` 和既有 `save_record`、`estimate_cell`、`save_meal`、`save_food` 或饮食删除／恢复字段。餐项通过 `foodRef` 引用同批 `save_food.key`，不同时提供 `foodId`、`foodDraft` 或 `nutrition`；内嵌 `foodDraft` 兼容并自动展开。以下仅为虚构格式：
 
@@ -35,7 +35,7 @@ MCP 1.9.0 提供13个工具，统一连接检查为authorize_formward，混合�
 
 | 工具 | 输入与行为 | 权限 |
 | --- | --- | --- |
-| `authorize_formward` | 无参数；检查完整连接、缺权限时请求一次统一OAuth授权，不生成健康预览 | 身体／饮食／消耗读写 |
+| `authorize_formward` | 无参数；检查完整连接、缺权限时请求一次统一OAuth授权，不生成健康预览 | 身体／饮食／消耗／训练读写 |
 | `query_energy` | from／to／timezone查询最终消耗、录入分项、额外运动及包含关系 | `energy:read` |
 | `submit_record_operation` | items混合预览，返回统一确认链接 | 按内容检查对应write权限 |
 | `get_record_operation` | 查询混合审核状态 | 按内容检查对应read权限 |
@@ -55,7 +55,7 @@ OAuth 使用授权码 + S256 PKCE，授权码有效 5 分钟；访问令牌有�
 
 登录后的“AI 接入”展示客户端、权限、授权／最近使用时间与状态，可随时撤销。撤销立即阻止访问、续期及未确认预览；重新授权创建新连接，不恢复旧连接的预览。OAuth 凭据和客户端密钥按摘要保存，JWT 签名私钥加密保存；不要把网页登录密码或数据库凭据交给模型。
 
-公开发现入口为 `/.well-known/oauth-protected-resource/api/mcp` 和 `/.well-known/oauth-authorization-server/api/auth`，公开 JWKS 在 `/api/auth/jwks`。发现信息和工具定义不含健康数据；未授权 MCP 请求返回 401 和 OAuth discovery challenge，默认同时请求账号识别、续期和身体／饮食／消耗读写范围，客户端可明确申请较小范围。
+公开发现入口为 `/.well-known/oauth-protected-resource/api/mcp` 和 `/.well-known/oauth-authorization-server/api/auth`，公开 JWKS 在 `/api/auth/jwks`。发现信息和工具定义不含健康数据；未授权 MCP 请求返回 401 和 OAuth discovery challenge，默认同时请求账号识别、续期和身体／饮食／消耗／训练读写范围，客户端可明确申请较小范围。
 
 ## 饮食照片与补问
 
@@ -173,3 +173,7 @@ AI只允许新增或修改，不得整条删除或恢复（包括批量）；餐
 ## 网页数字展示与手工修改
 
 蛋白质／碳水／脂肪在网页查看时最多显示一位小数并去掉末尾0，网页填写及AI确认中的手工修改最多接受一位小数。摄入热量、消耗及热量差仍四舍五入显示整数，网页手填热量及消耗仍只接受整数；身体和kg变化保留两位。AI提交营养时保留用户提供的有效精度，公开HTTP／MCP既有字段、最多四位小数兼容和查询原精度保持。热量计算、合计与落库不因展示提前取整；换算结果及未修改旧值也不因打开、聚焦、失焦或只改备注而改写。未知仍为null，明确0保留为0。运动本次总数与当天额外增加分开解释：已包含的运动不重复加入当天总数。
+
+## 训练动作与计划
+
+search_exercises、query_training、submit_training_operation、get_training_operation使用独立training:read／training:write，旧连接刷新定义后仍须重新授权。GPT可查询统一150项动作库、本人模板和安排，创建或修改模板、一次排多天；新模板以templateRef引用同批key，已有项目带id/version。提交复用统一网页审核，预览24小时有效，确认后保存到同一训练日历；pending不等于已同步。目标与实际完成分开，不生成热量或完成记录，取消不删除既有事实。完整字段、单位及演示见[训练记录](training.md)。统一HTTP记录预览同样接受这两种动作，OpenAPI版本1.14.0；不增加HTTP确认入口。

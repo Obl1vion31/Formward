@@ -33,7 +33,7 @@ export async function revokeAiToken(db: Database, userId: string, id: string) {
     if (!row && !(await tx.select({ id: aiToken.id }).from(aiToken).where(and(eq(aiToken.userId, userId), eq(aiToken.id, id)))).length) throw new ApiError(404, "not_found", "令牌不存在。");
   });
 }
-export async function requireActiveAiToken(tx: MeasurementTransaction, identity: AiIdentity, write = false, domain: "measurements" | "meals" | "energy" = "measurements") {
+export async function requireActiveAiToken(tx: MeasurementTransaction, identity: AiIdentity, write = false, domain: "measurements" | "meals" | "energy" | "training" = "measurements") {
   await requireActiveAccount(tx, identity.userId);
   if (identity.oauthConnectionId) {
     if (write && identity.permission !== "write") throw new ApiError(403, "read_only", "只读授权不能提交操作。");

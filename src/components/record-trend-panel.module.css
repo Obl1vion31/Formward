@@ -87,3 +87,5 @@
  .metrics[data-presentation=body] .metric:first-child .metricGraphic{top:50%;right:18px;transform:translateY(-50%)}
  .metrics[data-presentation=body][data-hero-stack=true] .metric:first-child .metricGraphic{position:static;transform:none;margin-top:12px}
 }
+
+.metrics[data-loading][data-presentation=energy] .metric strong{position:relative;min-height:0}.metricSkeleton{position:absolute;top:50%;left:0;transform:translateY(-50%);width:2.5em;line-height:0}

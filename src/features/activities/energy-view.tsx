@@ -37,6 +37,7 @@ import { blankEnergyDay, energySourceLabel, energyValue, type EnergyAction, type
 import styles from "./energy.module.css";
 import {EnergyComposition} from "./energy-composition";
 import type {TrendRoute} from '@/components/metric-trend-model';
+import {EnergyPlotFrame} from "./energy-plot-frame";
 import {MobileEnergyPlot} from './mobile-energy-plot';
 
 
@@ -172,16 +173,16 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
 function EnergyPlot({ days, selected, selection }: { days: EnergyDay[]; selected: string; selection:ReturnType<typeof useChartDateSelection> }) {
   const container = useRef<HTMLDivElement>(null);
   const scale = chartScale(days.flatMap(day => [day.restingKcal == null && day.activeKcal == null ? null : Number(day.restingKcal ?? 0) + Number(day.activeKcal ?? 0), day.totalKcal]));
-  const {width,left}=useChartViewport(container,scale.ticks,56);
+  const {width,left,height}=useChartViewport(container,scale.ticks,56);
   useChartMotion(container, width ? days.map(day => `${day.date}:${day.restingKcal}:${day.activeKcal}:${day.totalKcal}`).join("|") : "pending");
   const stride = Math.max(1, Math.ceil((days.length - 1) / (width < 440 ? 3 : 6)));
 
   const w = width || 280, right = 12, slot = (w - left - right) / days.length, maximum = scale.max;
   const drag=useChartDrag(days.map(day=>day.date),w,left,right,selection.choose);
-  const bottom = w < 650 ? 164 : 220;
+  const bottom = height ? height - 34 : w < 650 ? 164 : 220;
   const y = (value: number) => bottom - value / maximum * (bottom - 30), barWidth = Math.min(30, slot * .65), x = (index: number) => left + (index + .5) * slot;
   const selectedIndex=days.findIndex(day=>day.date===selected),selectedX=selectedIndex<0?null:x(selectedIndex);
-  return <div className={styles.plot} ref={container}><svg {...drag} viewBox={`0 0 ${w} ${bottom + 34}`} style={{ touchAction:"pan-y", visibility: width ? undefined : "hidden" }} role="group" aria-label="每日消耗柱状图">
+  return <EnergyPlotFrame frameRef={container}><svg {...drag} viewBox={`0 0 ${w} ${bottom + 34}`} style={{ touchAction:"pan-y", visibility: width ? undefined : "hidden" }} role="group" aria-label="每日消耗柱状图">
     {scale.ticks.map(tick => <g key={tick}><line x1={left} x2={w - right} y1={y(tick)} y2={y(tick)} className={styles.grid} /><text x={left - 7} y={y(tick) + 4} textAnchor="end" className={styles.axis}>{tick}</text></g>)}
     <ChartSelectionColumn x={selectedX} date={selected} column={selectedX===null?null:{left:selectedX-slot/2,right:selectedX+slot/2}} plot={{left,right:w-right,top:22,bottom}} resetKey={`${w}:${days.map(d=>d.date).join("|")}`} direct={selection.direct} baselineTick/>
     {days.map((day, index) => { const resting = Number(day.restingKcal ?? 0), active = Number(day.activeKcal ?? 0), onlyTotal = day.restingKcal === null && day.activeKcal === null && day.totalKcal !== null; return <g key={day.date} role="button" tabIndex={day.date === selected ? 0 : -1} data-energy-date={day.date} data-selected={day.date===selected} aria-pressed={day.date===selected} aria-label={`${day.date} · 总消耗 ${day.totalKcal ?? "未填写"} kcal`} data-chart-date={day.date} onMouseMove={()=>selection.preview(day.date)} onFocus={event=>selection.focus(event,day.date)} onClick={()=>selection.activate(day.date)} onKeyDown={event=>selection.keyDown(event,day.date)}>
@@ -192,5 +193,5 @@ function EnergyPlot({ days, selected, selection }: { days: EnergyDay[]; selected
       {day.totalSource === "override" && day.record?.adoption?.mode!=="source" && <line data-energy-total={day.totalKcal!} x1={x(index) - barWidth / 2 - 2} x2={x(index) + barWidth / 2 + 2} y1={y(Number(day.totalKcal))} y2={y(Number(day.totalKcal))} stroke="var(--gold)" strokeWidth="2" className={styles.mark} />}
       {(index % stride === 0 && days.length - 1 - index >= stride / 2 || index === days.length - 1) && <text x={x(index)} y={bottom + 25} textAnchor={days.length === 1 ? "middle" : index === 0 ? "start" : index === days.length - 1 ? "end" : "middle"} className={styles.axis}>{days.length <= 7 && slot < 46 ? day.date.slice(8) : day.date.slice(5)}</text>}
     </g>; })}
-  </svg></div>;
+  </svg></EnergyPlotFrame>;
 }

@@ -1,3 +1,4 @@
+import { mutateTraining, readTraining } from '../training/records';
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, before, test } from "node:test";
@@ -364,4 +365,55 @@ test("旧自动运动核对预览阻止直接保存，刷新保留原分项并�
   assert.equal(saved.exerciseActiveKcal, "801.1234");
   const [request] = await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.id, pending.id));
   assert.deepEqual(request.payload, stored.payload, "原始AI请求不可改写");
+});
+
+const trainingTemplateItem = () => ({ key: 'template', kind: 'save_training_template' as const, template: { name: '虚构GPT混合模板', exercises: [{ name: '杠铃卧推', catalogId: 'barbell-bench-press', recordingType: 'reps', sets: 3, reps: 10, weightKg: 20 }, { name: '平板支撑', catalogId: 'plank', recordingType: 'duration', sets: 2, reps: null, durationSeconds: 30 }] } });
+test('训练模板和多日排期先预览，确认同事务保存、重试不重复、保留AI审计', async () => {
+  const { userId, identity } = await owner(), raw = input([trainingTemplateItem(), { key: 'mon', kind: 'schedule_training', date: '2026-11-09', templateRef: 'template' }, { key: 'thu', kind: 'schedule_training', date: '2026-11-12', templateRef: 'template' }]);
+  let op: RecordReviewView = await submitRecordOperation(db, identity, raw); assert.equal(op.canConfirm, true); assert.equal((await readTraining(db, userId)).templates.length, 0); assert.ok(op.expiresAt);
+  assert.equal((await submitRecordOperation(db, identity, raw)).id, op.id);
+  op = await reviewRecordOperation(db, userId, op.id, { kind: 'confirm', revision: op.revision }); assert.equal(op.saved, 3); assert.equal(op.status, 'confirmed');
+  const snapshot = await readTraining(db, userId); assert.equal(snapshot.templates.length, 1); assert.equal(snapshot.plans.length, 2); assert.equal(snapshot.sessions.length, 0);
+  assert.equal((await reviewRecordOperation(db, userId, op.id, { kind: 'confirm', revision: 1 })).saved, 3); assert.equal((await readTraining(db, userId)).plans.length, 2);
+  assert.ok((await db.select().from(schema.trainingEvent).where(eq(schema.trainingEvent.userId, userId))).every(row => row.origin === 'ai'));
+  assert.ok((await listRecordOperations(db, userId))[0].summary.includes('训练3项')); assert.equal((await getRecordOperation(db, identity, op.id)).status, 'confirmed');
+});
+test('训练预览的取消依赖、跨账号引用、版本冲突和原授权撤销均受保护', async () => {
+  const a = await owner(), b = await owner();
+  let op: RecordReviewView = await submitRecordOperation(db, a.identity, input([trainingTemplateItem(), { key: 'plan', kind: 'schedule_training', date: '2026-11-09', templateRef: 'template' }]));
+  op = await reviewRecordOperation(db, a.userId, op.id, { kind: 'exclude', revision: op.revision, keys: ['template'] }); assert.equal(op.canConfirm, false); assert.ok(op.rows.find(row => row.key === 'plan')!.training?.error);
+  await reject(reviewRecordOperation(db, a.userId, op.id, { kind: 'confirm', revision: op.revision }), 'review_required'); assert.equal((await readTraining(db, a.userId)).plans.length, 0);
+  await reject(getRecordOperation(db, b.identity, op.id), 'not_found');
+  const ready: RecordReviewView = await submitRecordOperation(db, a.identity, input([trainingTemplateItem()])); await reviewRecordOperation(db, a.userId, ready.id, { kind: 'confirm', revision: ready.revision });
+  const template = (await readTraining(db, a.userId)).templates[0];
+  const wrong = await submitRecordOperation(db, b.identity, input([{ key: 'plan', kind: 'schedule_training', date: '2026-11-09', templateId: template.id }])); assert.equal(wrong.canConfirm, false);
+  let stale: RecordReviewView = await submitRecordOperation(db, a.identity, input([{ ...trainingTemplateItem(), id: template.id, version: template.version }]));
+  await mutateTraining(db, a.userId, { kind: 'update_template', operationId: randomUUID(), id: template.id, version: template.version, template: { name: '手动新版本', exercises: template.exercises } });
+  stale = await loadRecordReview(db, a.userId, stale.id); assert.equal(stale.canConfirm, false); await reject(reviewRecordOperation(db, a.userId, stale.id, { kind: 'confirm', revision: stale.revision }), 'review_required');
+  const pending = await submitRecordOperation(db, a.identity, input([trainingTemplateItem()])); await revokeAiToken(db, a.userId, a.token.token.id);
+  await reject(reviewRecordOperation(db, a.userId, pending.id, { kind: 'confirm', revision: pending.revision }), 'invalid_token');
+  const latestToken = await createAiToken(db, a.userId, '新授权', 'write'), nextIdentity = await authenticateAi(db, 'Bearer ' + latestToken.rawToken);
+  const replay = { operationId: randomUUID(), items: [trainingTemplateItem()] }; await submitRecordOperation(db, nextIdentity, replay);
+  const another = await createAiToken(db, a.userId, '另一授权', 'write'), anotherIdentity = await authenticateAi(db, 'Bearer ' + another.rawToken);
+  await reject(submitRecordOperation(db, anotherIdentity, replay), 'request_conflict');
+});
+test('已有训练计划改期保留历史快照，并拒绝无版本、无效日期和重复目标', async () => {
+  const { userId, identity } = await owner();
+  let op: RecordReviewView = await submitRecordOperation(db, identity, input([trainingTemplateItem(), { key: 'plan', kind: 'schedule_training', date: '2026-11-09', templateRef: 'template' }])); await reviewRecordOperation(db, userId, op.id, { kind: 'confirm', revision: op.revision });
+  const state = await readTraining(db, userId), plan = state.plans[0], template = state.templates[0];
+  op = await submitRecordOperation(db, identity, input([{ key: 'move', kind: 'schedule_training', id: plan.id, version: plan.version, date: '2026-11-10', templateId: template.id }])); assert.equal(op.canConfirm, true); assert.equal((op.rows[0].training?.before as {date:string}).date, '2026-11-09');
+  await reviewRecordOperation(db, userId, op.id, { kind: 'confirm', revision: op.revision }); assert.equal((await readTraining(db, userId)).plans[0].date, '2026-11-10');
+  const missing = await submitRecordOperation(db, identity, input([{ key: 'move', kind: 'schedule_training', id: plan.id, date: '2026-11-11', templateId: template.id }])); assert.equal(missing.canConfirm, false);
+  await reject(submitRecordOperation(db, identity, input([{ key: 'bad', kind: 'schedule_training', date: '2026-02-30', templateId: template.id }])), 'invalid_input');
+});
+
+test('训练预览过期须刷新；训练审计失败会回滚同批模板和身体事实', async () => {
+  const { userId, identity } = await owner(); let op: RecordReviewView = await submitRecordOperation(db, identity, input([trainingTemplateItem()]));
+  const [stored] = await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.id, op.id));
+  await db.update(schema.recordOperation).set({ draft: stored.draft.map(item => ({ ...item, trainingExpiresAt:'2000-01-01T00:00:00.000Z' })) }).where(eq(schema.recordOperation.id, op.id));
+  op = await loadRecordReview(db,userId,op.id);assert.equal(op.canConfirm,false);await reject(reviewRecordOperation(db,userId,op.id,{kind:'confirm',revision:op.revision}),'preview_expired');
+  op = await reviewRecordOperation(db,userId,op.id,{kind:'refresh',revision:op.revision});assert.equal(op.canConfirm,true);
+  const mixed = await submitRecordOperation(db,identity,input([trainingTemplateItem(), {...body,date:'2024-08-21'}]));
+  await pg.exec("CREATE FUNCTION fail_training_audit() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'fictional training audit failure'; END; $$ LANGUAGE plpgsql; CREATE TRIGGER fail_training_audit BEFORE INSERT ON training_events FOR EACH ROW EXECUTE FUNCTION fail_training_audit();");
+  try{await assert.rejects(reviewRecordOperation(db,userId,mixed.id,{kind:'confirm',revision:mixed.revision}),error=>String((error as {cause?:unknown}).cause??error).includes('fictional training audit failure'));assert.equal((await readTraining(db,userId)).templates.length,0);assert.equal((await db.select().from(schema.measurement).where(eq(schema.measurement.userId,userId))).length,0);assert.equal((await loadRecordReview(db,userId,mixed.id)).status,'pending');}finally{await pg.exec('DROP TRIGGER fail_training_audit ON training_events; DROP FUNCTION fail_training_audit();');}
 });

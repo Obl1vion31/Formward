@@ -1,3 +1,4 @@
+import { delayedTrainingDatabase } from './training-delayed-db';
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:net";
@@ -16,10 +17,11 @@ const fixture = await seedTrainingFixture(db as unknown as Database);
 const socket = new PGLiteSocketServer({ db: pg, host: "127.0.0.1", port: 0, maxConnections: 10 }); await socket.start();
 const probe = createServer(); probe.listen(0, "127.0.0.1"); await once(probe, "listening");
 const port = (probe.address() as { port: number }).port; await new Promise<void>(resolve => probe.close(() => resolve()));
-const baseURL = "http://127.0.0.1:" + port, databaseUrl = "postgresql://postgres:postgres@" + socket.getServerConn() + "/postgres?max=1";
+const delayed = await delayedTrainingDatabase(socket.getServerConn());
+const baseURL = "http://127.0.0.1:" + port, databaseUrl = "postgresql://postgres:postgres@" + delayed.connection + "/postgres?max=1";
 const folder = process.env.FORMWARD_TRAINING_ARTIFACTS ?? ".codex/training-browser";
 await mkdir(folder, { recursive: true });
-const configPath = folder + "/config.json"; await writeFile(configPath, JSON.stringify({ ...fixture, baseURL, databaseUrl, isolatedFixture: true }), { mode: 0o600 });
+const configPath = folder + "/config.json"; await writeFile(configPath, JSON.stringify({ ...fixture, baseURL, databaseUrl, delayControlURL: delayed.controlURL, isolatedFixture: true }), { mode: 0o600 });
 const child = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)], {
   env: { PATH: process.env.PATH, LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH, NODE_ENV: "production", NEXT_TELEMETRY_DISABLED: "1", DATABASE_URL: databaseUrl, BETTER_AUTH_URL: baseURL, BETTER_AUTH_SECRET: "fictional-training-secret-longer-than-32-characters", FORMWARD_TIMEZONE: "Asia/Shanghai" }, stdio: ["ignore", "pipe", "pipe"],
 });
@@ -32,4 +34,4 @@ try {
   if (process.env.FORMWARD_TRAINING_PREVIEW !== "1") await import("./training-check.browser.mjs");
   else { console.log(JSON.stringify({ baseURL, email: fixture.email, password: fixture.password, configPath, fictional: true })); await new Promise(() => {}); }
 } catch (error) { await writeFile(folder + "/server-failure.log", log); throw error; }
-finally { if (child.exitCode === null) { child.kill("SIGTERM"); await once(child, "exit"); } await socket.stop(); await new Promise(resolve => setImmediate(resolve)); await pg.close(); }
+finally { if (child.exitCode === null) { child.kill("SIGTERM"); await once(child, "exit"); } await delayed.close(); await socket.stop(); await new Promise(resolve => setImmediate(resolve)); await pg.close(); }

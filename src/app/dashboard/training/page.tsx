@@ -1,3 +1,4 @@
+import { linkedDate } from '@/features/measurements/calendar';
 import { redirect } from "next/navigation";
 import { getDatabase } from "@/db/client";
 import { currentPageUser } from "@/features/auth/server";
@@ -9,9 +10,10 @@ import { TrainingView } from "@/features/training/view";
 import { refreshTrainingAction, saveTrainingAction } from "./actions";
 export const metadata = { title: "Formward · 训练" };
 export const maxDuration = 60;
-export default async function TrainingPage() {
+export default async function TrainingPage({searchParams}:{searchParams:Promise<{date?:string|string[]}>}) {
   const user = await currentPageUser(); if (!user) redirect("/");
   await requireCompletedOnboarding();
+  const linked=linkedDate((await searchParams).date), date=linked && linked >= "2000-01-01" && linked <= "2100-12-31" ? linked : null;
   const snapshot = await readTraining(getDatabase(), user.id);
-  return <TrainingView initial={snapshot} today={localMeasurementDate(new Date(),systemMeasurementTimezone(new Date(),process.env.FORMWARD_TIMEZONE))} save={saveTrainingAction} refresh={refreshTrainingAction} />;
+  return <TrainingView key={date??"today"} initialDate={date} initial={snapshot} today={localMeasurementDate(new Date(),systemMeasurementTimezone(new Date(),process.env.FORMWARD_TIMEZONE))} save={saveTrainingAction} refresh={refreshTrainingAction} />;
 }
