@@ -568,3 +568,45 @@ export const accountPreferences = pgTable("account_preferences", {
  userId:text("user_id").primaryKey().references(()=>user.id,{onDelete:"cascade"}),
  showBodyFat:boolean("show_body_fat").notNull(),version:integer("version").notNull().default(1),updatedAt:timestamp("updated_at",{withTimezone:true}).notNull().defaultNow(),
 },t=>[check("account_preferences_version_positive",sql`${t.version}>0`)]);
+
+// 训练事实、可复用模板与排期独立保存，不参与消耗累计。
+export const trainingTemplate = pgTable("training_templates", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),
+  content: jsonb("content").$type<import("../features/training/model").TemplateContent>().notNull(),
+  version: integer("version").notNull().default(1), createdBy: text("created_by").notNull().references(() => user.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex("training_templates_owner_id_idx").on(t.userId, t.id), check("training_templates_valid", sql.raw("version > 0 AND jsonb_typeof(content) = 'object'"))]);
+export const trainingPlan = pgTable("training_plans", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), templateId: text("template_id").notNull(),
+  date: date("local_date").notNull(), content: jsonb("content").$type<import("../features/training/model").TemplateContent>().notNull(),
+  status: text("status").$type<"planned" | "completed" | "skipped">().notNull().default("planned"),
+  version: integer("version").notNull().default(1), createdBy: text("created_by").notNull().references(() => user.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex("training_plans_owner_id_idx").on(t.userId, t.id), index("training_plans_owner_date_idx").on(t.userId, t.date),
+  uniqueIndex("training_plans_scheduled_idx").on(t.userId, t.templateId, t.date).where(sql.raw("status = 'planned'")),
+  foreignKey({ columns: [t.userId, t.templateId], foreignColumns: [trainingTemplate.userId, trainingTemplate.id] }),
+  check("training_plans_valid", sql.raw("version > 0 AND status IN ('planned','completed','skipped') AND jsonb_typeof(content) = 'object'")),
+]);
+export const trainingSession = pgTable("training_sessions", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),
+  date: date("local_date").notNull(), timezone: text("timezone").notNull(), name: text("name").notNull(),
+  status: text("status").$type<"active" | "paused" | "completed" | "discarded">().notNull().default("active"),
+  exercises: jsonb("exercises").$type<import("../features/training/model").TrainingExercise[]>().notNull(),
+  version: integer("version").notNull().default(1), elapsedSeconds: integer("elapsed_seconds").notNull().default(0),
+  planId: text("plan_id"), startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+  resumedAt: timestamp("resumed_at", { withTimezone: true }), endedAt: timestamp("ended_at", { withTimezone: true }),
+  sourceSystem: text("source_system").notNull().default("formward"), sourceUnit: text("source_unit").notNull().default("kg"),
+  syncStatus: text("sync_status").notNull().default("confirmed"), createdBy: text("created_by").notNull().references(() => user.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex("training_sessions_owner_id_idx").on(t.userId, t.id), index("training_sessions_owner_date_idx").on(t.userId, t.date),
+  uniqueIndex("training_sessions_open_idx").on(t.userId).where(sql.raw("status IN ('active','paused')")),
+  foreignKey({ columns: [t.userId, t.planId], foreignColumns: [trainingPlan.userId, trainingPlan.id] }),
+  check("training_sessions_valid", sql.raw("version > 0 AND elapsed_seconds >= 0 AND length(trim(name)) > 0 AND status IN ('active','paused','completed','discarded') AND jsonb_typeof(exercises) = 'array' AND source_unit = 'kg' AND sync_status = 'confirmed'")),
+  check("training_sessions_clock_valid", sql.raw("(status = 'active' AND resumed_at IS NOT NULL AND ended_at IS NULL) OR (status = 'paused' AND resumed_at IS NULL AND ended_at IS NULL) OR (status IN ('completed','discarded') AND resumed_at IS NULL AND ended_at IS NOT NULL)")),
+]);
+export const trainingEvent = pgTable("training_events", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),
+  operationId: text("operation_id").notNull(), requestDigest: text("request_digest").notNull(), entityId: text("entity_id").notNull(),
+  action: text("action").notNull(), origin: text("origin").notNull().default("manual"), actorId: text("actor_id").notNull().references(() => user.id),
+  snapshot: jsonb("snapshot").$type<{ before: unknown; after: unknown }>().notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex("training_events_owner_request_idx").on(t.userId, t.operationId), index("training_events_owner_entity_idx").on(t.userId, t.entityId)]);

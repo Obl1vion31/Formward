@@ -291,3 +291,9 @@ checkDetailHierarchy逐态核对七种视口和深浅主题：当天合计及结
 统一审核并发检查先在第二窗口实际建立草稿，再更新第一窗口；子预览快照与父审核revision都可拒绝旧草稿，接受对应的两种明确反馈，同时核对输入保留、revision未再次改变及加载最新状态后可继续。不能只依赖开始导航证明第二窗口拿到旧版本，也不能只按某一句冲突文案判断防覆盖是否有效。
 
 详情主题初始化仅在HTTP／HTTPS文档写本地偏好，初始about:blank不访问localStorage；应用页面的异常仍全部记录。餐次字段几何检查等待两次实际绘制，完整字体简写为空时按实际字形、字重、字号和字体族测量，保持原对齐与完整显示断言。长的非法输入仍须原样保留供修改，不能靠清空或缩字通过。干净发布源码放在仓库外的临时构建目录，避免嵌套构建产物进入当前仓库的lint与typecheck扫描。
+
+## 训练会话
+
+production build后运行pnpm test:training-browser。training.browser.mts自建独立PGlite、两个虚构账号和临时端口，不读.env.local；training-check.browser.mjs覆盖真实开始、动作组次自动保存、未知重量、暂停／刷新恢复、结束回看、模板排期、空训练放弃和原消耗页，另查两主题七种手机／桌面尺寸。FORMWARD_TRAINING_BROWSER=webkit切换引擎，FORMWARD_TRAINING_ARTIFACTS指定私有截图目录；本机浏览器缓存位置通过PLAYWRIGHT_BROWSERS_PATH指定。FORMWARD_TRAINING_PREVIEW=1仅保留独立预览供人工验收。
+
+training.test.ts覆盖输入、归属、幂等与重复结束、版本冲突、会话撤销、未知／0、暂停计时、不改变消耗与0030仅新增四表。模拟截图不代表真实iPhone或系统键盘已测。

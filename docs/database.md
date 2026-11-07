@@ -770,3 +770,9 @@ account_preferences由0030_account_preferences创建，不回填或修改旧健�
 | data_source_events | 本账号及连接归属外键、action、actor、时间、前后快照；不保存明文密钥或完整上游响应 |
 
 活动采用详情为独立快照，未采用的来源更新不能改变正式查询。凭据解密主密钥独立保存在服务端配置；备份数据库不包含解密主密钥。
+
+## 训练数据
+
+0033_training_sessions新增四表：training_sessions保存账号、当地日期与时区、原始开始时间、动作组次JSON、状态、版本、有效秒数、恢复／结束时间、计划关联、来源系统、kg单位、同步状态与创建者；training_templates保存账号、内容JSON、版本和创建者；training_plans保存账号、模板关联、日期、内容快照、计划／完成／跳过状态及版本；training_events保存账号、请求ID及摘要、目标ID、动作、来源、操作者、前后快照和时间。所有表保留创建时间；会话和计划保留更新时间。
+
+账号／模板、账号／计划使用组合外键；每账号最多一场active／paused会话，同日同模板最多一条planned计划，事件按账号／operation_id唯一。旧表字段和值不变。训练不自动写activities或energy_days；详见[训练记录](training.md)。

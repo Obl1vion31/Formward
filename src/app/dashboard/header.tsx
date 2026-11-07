@@ -23,11 +23,12 @@ export function DashboardHeader({email,owner=false,sourcePilot=false}:{email:str
  const pathname=usePathname(),mobile=useMobileMode(),[settings,setSettings]=useState<false|"profile"|"account"|"sources">(false),{open:assistantOpen,show:showAssistant,hide:hideAssistant,count}=useAssistant();
  const menuClose=useRef<()=>Promise<void>>(()=>Promise.resolve()),params=useSearchParams(),trend=!!pagePath(pathname)&&!!linkedTrend(Object.fromEntries(params));
  const openSettings=async(value:"profile"|"account"|"sources")=>{await menuClose.current();setSettings(value);};
- const page=pages.find(([path])=>path===pathname),visualReview=pathname==="/dashboard/visual-review",review=pathname.includes("/operations/")||pathname.includes("/review/"),hasTools=!review&&(!!page||pathname==="/dashboard/ai"||pathname==="/dashboard/export"||pathname==="/dashboard/sources");
+ const activePath=pathname==="/dashboard/energy"?"/dashboard/training":pathname;
+ const page=pages.find(([path])=>path===activePath),visualReview=pathname==="/dashboard/visual-review",review=pathname.includes("/operations/")||pathname.includes("/review/"),hasTools=!review&&(!!page||pathname==="/dashboard/ai"||pathname==="/dashboard/export"||pathname==="/dashboard/sources");
  const openAssistant=async()=>{await menuClose.current();if(assistantOpen)await hideAssistant();else showAssistant();};
  return <><header className={"dashboard-header "+styles.header+(review?" dashboard-review-header":"")}>
   {trend&&<div className={styles.back}><TrendBackLink/></div>}<LoadingLink className={"dashboard-logo"+(trend?" "+styles.linkedLogo:"")} href="/dashboard" aria-label="Formward 主页"><BrandLogo compactOnMobile/></LoadingLink>
-  <span className="mobile-page-name" role={page?"heading":undefined} aria-level={page?1:undefined}>{review?"确认记录":visualReview?"视觉验收":page?.[1]??(pathname.includes("/account")?"账号设置":pathname.includes("/profile")?"个人资料":pathname.includes("/tutorial")?"使用说明":pathname.includes("/export")?"导出数据":pathname.includes("/sources")?"数据来源":"AI 接入")}</span>
+  <span className="mobile-page-name" role={page?"heading":undefined} aria-level={page?1:undefined}>{review?"确认记录":visualReview?"视觉验收":(pathname==="/dashboard/energy"?"消耗":page?.[1])??(pathname.includes("/account")?"账号设置":pathname.includes("/profile")?"个人资料":pathname.includes("/tutorial")?"使用说明":pathname.includes("/export")?"导出数据":pathname.includes("/sources")?"数据来源":"AI 接入")}</span>
   <div className={styles.actions}>
    {hasTools&&<button type="button" className={styles.headerAssistant} aria-label={"助手"+(count?`，${count}条待核对记录`:"")} aria-haspopup="dialog" aria-expanded={assistantOpen} onClick={openAssistant}><AssistantIcon/>{count>0&&<small>{count}</small>}</button>}
    <AppearanceToggle/>
@@ -36,10 +37,10 @@ export function DashboardHeader({email,owner=false,sourcePilot=false}:{email:str
    </GlassMenu>
   </div>
  </header>
- {!review&&!visualReview&&<><nav className={"desktop-record-nav "+styles.desktopNav} aria-label="主导航"><span className={styles.desktopLens} aria-hidden="true" style={{transform:"translateY("+Math.max(0,pages.findIndex(([href])=>href===pathname))*74+"px)"}}/>{pages.map(([href,label],i)=><LoadingLink key={href} href={href} aria-current={pathname===href?"page":undefined}><NavigationIcon index={i}/><span>{label}</span></LoadingLink>)}</nav><MobileNavigation pathname={pathname}/></>}
+ {!review&&!visualReview&&<><nav className={"desktop-record-nav "+styles.desktopNav} aria-label="主导航"><span className={styles.desktopLens} aria-hidden="true" style={{transform:"translateY("+Math.max(0,pages.findIndex(([href])=>href===activePath))*74+"px)"}}/>{pages.map(([href,label],i)=><LoadingLink key={href} href={href} aria-current={activePath===href?"page":undefined}><NavigationIcon index={i}/><span>{label}</span></LoadingLink>)}</nav><MobileNavigation pathname={activePath}/></>}
  {hasTools&&<button type="button" className={styles.assistantTrigger} aria-label="打开小助手" aria-haspopup="dialog" aria-expanded={assistantOpen} onClick={openAssistant}><AssistantIcon/><span>小助手</span>{count>0&&<small>{count}</small>}</button>}
  {settings&&<Inspector title={settings==="sources"?"连接设备与数据来源":settings==="profile"?"个人资料":"账号与安全"} close={()=>setSettings(false)}>{settings==="sources"?<DataSourcesPanel available={sourcePilot}/>:<AccountSurface kind={settings}/>}</Inspector>}
  </>;
 }
 
-function pagePath(path:string){return pages.some(([href])=>href===path)&&path!=="/dashboard";}
+function pagePath(path:string){return pages.some(([href])=>href===(path==="/dashboard/energy"?"/dashboard/training":path))&&path!=="/dashboard";}
