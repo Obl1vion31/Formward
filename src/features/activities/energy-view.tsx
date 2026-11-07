@@ -45,7 +45,9 @@ export function EnergySources({ day }: { day: EnergyDay }) {
   const rest = day.record?.restingSourceSystem ?? day.record?.sourceSystem;
   const active = day.activeSource === "activities" ? [...new Set(day.activities.map(row => row.sourceSystem).filter(Boolean))].join("、") : day.record?.activeSourceSystem ?? day.record?.sourceSystem;
   const sources = day.totalSource === "override" ? [["总消耗", day.record?.sourceSystem]] : [["静息", rest], ["活动", active]];
-  return <div className={styles.sourceLine}>{day.additionalKcal!=null&&Number(day.additionalKcal)>0&&<span>额外运动 · {energyValue(day.additionalKcal)} kcal</span>}{sources.filter(([, source]) => source).map(([label, source]) => <span key={label}>{label} · {energySourceLabel(source)}</span>)}{day.cumulative&&<span>今日累计，尚非全天总数</span>}</div>;
+  const known=sources.filter(([,source])=>source),unique=[...new Set(known.map(([,source])=>energySourceLabel(source)))];
+  const labels=[day.steps!=null?energyValue(day.steps)+" 步":null,...(unique.length===1?unique:known.map(([label,source])=>label+" · "+energySourceLabel(source))),day.record?.adoption?.mode==="manual"?"手动保留":null,day.additionalKcal!=null&&Number(day.additionalKcal)>0?"额外运动 "+energyValue(day.additionalKcal)+" kcal":null].filter(Boolean);
+  return labels.length?<div className={styles.sourceLine}>{labels.join(" · ")}</div>:null;
 }
 function dayEditInput(date:string,days:EnergyPresentation["snapshot"]["days"]):EnergyAction {
  const current=days.find(day=>day.date===date&&!day.deletedAt);
@@ -123,16 +125,16 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
   const summary=(date:string)=>{const day=byDate.get(date);return day?<>{energyValue(day.totalKcal)} kcal · 静息 {energyValue(day.restingKcal)} · 活动 {energyValue(day.activeKcal)}</>:"尚无记录";};
   const recentDates=pendingRecordDates(today,date=>byDate.get(date)?.totalKcal==null);
   const renderDay=(date:string)=>{const day=byDate.get(date);return <DailyRecordRow key={date} date={date} today={today} value={summary(date)}><button data-record-action="edit" disabled={busy} onClick={()=>editDay(date)}>{day?.record||day?.activities.length?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>setViewing(date)}>查看</button></DailyRecordRow>;};
-  const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <div className={styles.dayDetails} data-energy-day-detail><div className={styles.summary}>{([["总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>kcal</small></strong></div>)}</div><EnergySources day={day}/>{day.steps!=null&&<p>步数 · {energyValue(day.steps)} 步</p>}{day.record?.adoption&&<p>{day.record.adoption.mode==="manual"?"手动保护 · 自动同步不会覆盖":"来源同步 · "+day.record.adoption.metadata?.label}{day.cumulative?" · 今日累计":""}</p>}{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=>{
+  const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <div className={styles.dayDetails} data-energy-day-detail><div className={styles.summary}>{([[day.cumulative?"今日已消耗":"总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>kcal</small></strong></div>)}</div><EnergySources day={day}/>{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=>{
  const reading=activitySummary(activity,day.record);
  return <Disclosure key={activity.id} className={styles.activityDetail} summary={<div className={styles.activityOverview} data-exercise-summary>
   <div className={styles.activityHeading}><span>{activity.name}</span><strong>{energyValue(reading.totalKcal)}<small>kcal</small></strong></div>
-  <div className={styles.activityFacts}>{reading.breakdown&&<span>{reading.breakdown}</span>}<span data-exercise-status>{reading.status}</span></div>
+  <div className={styles.activityFacts}>{reading.breakdown&&!(activity.sourceDetails&&activity.exerciseActiveKcal==null)&&<span>{reading.breakdown}</span>}<span data-exercise-status>{activity.sourceDetails?"运动明细，不额外累计":reading.status}</span></div>
  </div>}>
   <div className={styles.activityExplanation} data-exercise-explanation>
    {(activity.durationMinutes!==null||activity.sourceSystem)&&<p>{[activity.durationMinutes!==null?energyValue(activity.durationMinutes)+" 分钟":null,energySourceLabel(activity.sourceSystem)].filter(Boolean).join(" · ")}</p>}
-   {activity.sourceDetails&&<p>{[activity.sourceDetails.localTime?"开始 "+activity.sourceDetails.localTime.replace("T"," "):null,activity.sourceDetails.distanceMeters!=null?"距离 "+energyValue(activity.sourceDetails.distanceMeters)+" m":null,activity.sourceDetails.averageHR!=null?"平均心率 "+energyValue(activity.sourceDetails.averageHR)+" 次／分钟":null].filter(Boolean).join(" · ")}</p>}
-   <p data-exercise-effect>{reading.effect}</p>
+   {activity.sourceDetails&&<p>{[activity.sourceDetails.localTime?"开始 "+activity.sourceDetails.localTime.replace("T"," "):null,activity.sourceDetails.distanceMeters!=null?"距离 "+energyValue(activity.sourceDetails.distanceMeters)+" m":null,activity.sourceDetails.averageHR!=null?"平均心率 "+energyValue(activity.sourceDetails.averageHR)+" 次／分钟":null,activity.sourceDetails.bmrKcal!=null?"期间静息 "+energyValue(activity.sourceDetails.bmrKcal)+" kcal":null].filter(Boolean).join(" · ")}</p>}
+   {!activity.sourceDetails&&<p data-exercise-effect>{reading.effect}</p>}
   </div>
  </Disclosure>;
 })}</div>;};
@@ -145,7 +147,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
        custom={customOpen&&<CustomRecordRange label="消耗" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
        date={inspected} view={()=>{const target=inspected;setViewing(target);selection.release();}} readoutLabel="选中日消耗"
        metrics={[
-        {label:"总消耗",value:energyValue(chosen?.totalKcal),unit:"kcal"},
+        {label:chosen?.cumulative?"今日已消耗":"总消耗",value:energyValue(chosen?.totalKcal),unit:"kcal"},
         {label:"静息",value:energyValue(chosen?.restingKcal),unit:"kcal",tone:"blue"},
         {label:"活动",value:energyValue(chosen?.activeKcal),unit:"kcal",tone:"red"}
        ]}
@@ -154,7 +156,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
        legend={<><span><i style={{background:"var(--data-protein)"}}/>静息</span><span><i style={{background:"var(--data-red)"}}/>活动</span><span><i style={{background:"var(--data-neutral)"}}/>仅有总数</span></>}
       >{dates.length?mobile||linkedPlot?<MobileEnergyPlot days={chartDays} selected={inspected} selection={selection} linked={linkedPlot}/>:<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     </section>
-    {data.sourcePilot&&<EnergySourceStatus initial={sourceStatus} steps={chosen?.steps??null} cumulative={chosen?.cumulative===true} protectedDay={chosen?.record?.adoption?.mode==="manual"}/>}
+    {data.sourcePilot&&<EnergySourceStatus initial={sourceStatus} steps={chosen?.steps??null} protectedDay={chosen?.record?.adoption?.mode==="manual"}/>}
     <DailyRecords history={<RecordHistory today={today} dates={historyDates.filter(date=>!recentDates.includes(date))} renderRow={renderDay} view={setViewing}/>}>{recentDates.map(renderDay)}</DailyRecords>
     {(viewing||editing)&&<EditorDialog closeLabel={editing?'关闭编辑':'关闭详情'} routeEntry={!!(initialEntry&&editing?.kind==='save_energy_day'&&editing.date===initialDate)} title={editing?editing.kind==='save_energy_profile'?'公式资料':editing.kind==='save_activity'?'活动记录':'每日消耗':viewing+' · 消耗记录'} titleParts={!editing&&viewing?[viewing,'消耗记录']:undefined} stableScroll={!editing} busy={busy} onSavedCloseReady={close=>{savedClose.current=close;}} close={()=>{setViewing(null);setEditing(null);setError('');}}>
       <div data-record-intent={editing?editing.id?'edit':'create':'view'}>

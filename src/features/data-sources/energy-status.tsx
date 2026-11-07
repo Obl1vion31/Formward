@@ -8,7 +8,7 @@ import { synchronizeSourceAction } from "@/app/dashboard/sources/actions";
 import type { ConnectionView } from "./model";
 import styles from "./sources.module.css";
 
-export function EnergySourceStatus({ initial, steps, cumulative, protectedDay }: { initial: ConnectionView | null; steps: number | null; cumulative: boolean; protectedDay: boolean }) {
+export function EnergySourceStatus({ initial, steps, protectedDay }: { initial: ConnectionView | null; steps: number | null; protectedDay: boolean }) {
   const [connection, setConnection] = useState(initial), [working, setWorking] = useState(false), [pendingRefresh, setPendingRefresh] = useState(false), [, startTransition] = useTransition();
   const router = useRouter(), running = useRef(false), lastAttempt = useRef(initial?.lastAttemptAt ? +new Date(initial.lastAttemptAt) : 0);
   const [base, setBase] = useState(initial);
@@ -31,6 +31,6 @@ export function EnergySourceStatus({ initial, steps, cumulative, protectedDay }:
     update(); document.addEventListener("visibilitychange", update); window.addEventListener("focus", update);
     return () => { document.removeEventListener("visibilitychange", update); window.removeEventListener("focus", update); };
   }, [connection?.status, initial?.lastAttemptAt, router]);
-  const state = working ? "正在同步…" : connection?.status === "paused" ? "同步已暂停" : connection?.error ? "同步未完成，保留上次数据" : connection && !connection.adopted ? "数据已读取，待对照采用" : connection?.lastSuccessAt ? "上次成功 " + new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(connection.lastSuccessAt)) : "连接设备同步消耗";
-  return <div className={styles.syncBar} data-energy-source-status><span>{steps === null ? "步数未知" : new Intl.NumberFormat("zh-CN").format(steps) + " 步"}{protectedDay ? " · 手动保护" : ""}{cumulative ? " · 今日累计" : ""}</span>{pendingRefresh ? <button type="button" onClick={() => { if (!draftIsDirty()) { router.refresh(); setPendingRefresh(false); } }}>查看同步更新</button> : <LoadingLink href="/dashboard/sources">{state} <span aria-hidden="true">→</span></LoadingLink>}</div>;
+  const state = working ? "正在同步…" : connection?.status === "paused" ? "同步已暂停" : connection?.error ? "同步未完成" : connection?.lastSuccessAt ? "同步 " + new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(connection.lastSuccessAt)) : "连接设备";
+  return <div className={styles.syncBar} data-energy-source-status><span>{[steps===null?null:new Intl.NumberFormat("zh-CN").format(steps)+" 步",protectedDay?"手动保留":null].filter(Boolean).join(" · ")}</span>{pendingRefresh ? <button type="button" onClick={() => { if (!draftIsDirty()) { router.refresh(); setPendingRefresh(false); } }}>查看同步更新</button> : <LoadingLink href="/dashboard/sources">{state} <span aria-hidden="true">→</span></LoadingLink>}</div>;
 }

@@ -41,19 +41,65 @@ export async function recordActivityConflicts(tx: Transaction, userId: string, s
   }
 }
 
-export async function adoptDate(tx: Transaction, userId: string, state: SourceState, date: string, options: { force: boolean; includedActivityIds?: string[]; actor: string; changes?: SourceRecordChange[] }) {
+type AdoptionOptions = { force: boolean; includedActivityIds?: string[]; actor: string; changes?: SourceRecordChange[]; independent?: boolean; historical?: boolean; newActivityIds?: Set<string>; readActivityIds?: Set<string>; issues?: string[] };
+
+function sourceActivityAction(fact: Fact, prior?: ActivityRecord): EnergyAction {
+  if (fact.payload.kind !== "activity") throw new Error("Expected activity fact");
+  const value = fact.payload;
+  return { kind: "save_activity", ...(prior ? { id: prior.id, version: prior.version } : {}), date: fact.date, name: value.name, durationMinutes: value.durationMinutes, calorieMode: "components", exerciseRestingKcal: value.bmrKcal, exerciseActiveKcal: null, completed: true, inclusion: "included", sourceSystem: sourceSystemFor(fact.connectionId), sourceRecordId: fact.sourceRecordId, sourceOccurredAt: fact.occurredAt?.toISOString() ?? null, timezone: fact.timezone };
+}
+
+async function markIndependent(tx: Transaction, userId: string, state: SourceState, fact: Fact) {
+  const conflict = state.conflicts.find(c => c.factId === fact.id);
+  if (conflict?.status === "pending") await tx.update(dataSourceConflict).set({ status: "adopted", version: conflict.version + 1, updatedAt: new Date() }).where(and(eq(dataSourceConflict.userId, userId), eq(dataSourceConflict.id, conflict.id)));
+}
+
+/** 保护日只补全新来源明细，不改日汇总、手工事实或已经人工维护／删除的来源运动。 */
+async function importActivityDetails(tx: Transaction, userId: string, state: SourceState, date: string, options: AdoptionOptions, protectedDay: boolean) {
+  let changed = false;
+  for (const fact of state.facts.filter(f => f.kind === "activity" && f.date === date && state.policy.sources.activities === f.connectionId && state.connections.some(c => c.id === f.connectionId && c.status === "active" && c.metrics.includes("activities")))) {
+    if (!options.readActivityIds?.has(fact.sourceRecordId)) continue;
+    const prior = state.snapshot.activities.find(a => a.sourceSystem === sourceSystemFor(fact.connectionId) && a.sourceRecordId === fact.sourceRecordId);
+    if (prior?.deletedAt || protectedDay && (prior || !options.newActivityIds?.has(fact.sourceRecordId))) continue;
+    const conflict = state.conflicts.find(c => c.factId === fact.id);
+    if (conflict?.status === "ignored" || conflict?.status === "linked") continue;
+    const [row] = planEnergyActions([sourceActivityAction(fact, prior)], state.snapshot);
+    if (row.error || !row.after || !("name" in row.after)) { options.issues?.push(`${date} 有运动未能载入，来源数据已保留。`); continue; }
+    if (fact.payload.kind !== "activity") continue;
+    row.after.sourceDetails = fact.payload;
+    if (!energyFactsChanged(row.before, row.after) && fingerprint(prior?.sourceDetails ?? null) === fingerprint(row.after.sourceDetails)) continue;
+    await persistEnergyPreview(tx, userId, row);
+    await markIndependent(tx, userId, state, fact);
+    options.changes?.push({ key: "activity:" + row.after.id, version: String(row.after.version) });
+    await sourceEvent(tx, userId, fact.connectionId, "import_activity", options.actor, { date, before: row.before ?? null, after: row.after, preservedDay: protectedDay });
+    changed = true;
+  }
+  return changed;
+}
+
+export async function adoptDate(tx: Transaction, userId: string, state: SourceState, date: string, options: AdoptionOptions) {
   const previous = state.adoptions.find(a => a.date === date);
   const policy = !options.force && date < state.policy.effectiveFrom && previous?.metadata ? { ...state.policy, strategy: previous.metadata.strategy, sources: previous.metadata.sources } : state.policy;
   const p = proposeDay(state, date, policy);
-  if (p.reason) { if (options.force) throw new ApiError(409, "source_not_ready", p.reason); return false; }
+  const authorized = state.connections.some(c => c.adoptedAt && c.status === "active" && Object.values(policy.sources).includes(c.id));
+  if (options.independent && !authorized) return false;
+  if (p.reason) { if (options.force) throw new ApiError(409, "source_not_ready", p.reason); return options.independent ? importActivityDetails(tx, userId, state, date, options, previous?.mode === "manual") : false; }
   if (!options.force) {
-    if (previous?.mode === "manual") return false;
-    if (!previous && (date < policy.effectiveFrom || p.record || state.snapshot.activities.some(a => !a.deletedAt && a.date === date))) return false;
-    if (!state.connections.some(c => c.adoptedAt && c.status === "active" && Object.values(policy.sources).includes(c.id))) return false;
+    const differentManualTotal = !previous && p.record && (p.current.totalKcal === null || p.proposed.total === null || Math.abs(Number(p.current.totalKcal) - Number(p.proposed.total)) > .0001);
+    const extra = state.snapshot.activities.some(a => !a.deletedAt && a.date === date && a.inclusion === "additional");
+    if (previous?.mode === "manual" || options.independent && (differentManualTotal || extra)) {
+      if(options.independent && !previous){
+        await tx.insert(energyDayAdoption).values({userId,date,mode:"manual",protectedAt:new Date()}).onConflictDoNothing();
+        await sourceEvent(tx,userId,p.used[0]?.connectionId??null,"preserve_manual",options.actor,{date});
+      }
+      return options.independent ? importActivityDetails(tx, userId, state, date, options, true) : false;
+    }
+    if (!previous && (date < policy.effectiveFrom && !options.historical || !options.independent && (p.record || state.snapshot.activities.some(a => !a.deletedAt && a.date === date)))) return false;
+    if (!authorized) return false;
   }
   const existing = state.snapshot.activities.filter(a => !a.deletedAt && a.date === date), manual = existing.filter(a => !a.sourceSystem?.startsWith("Garmin Personal:"));
   if (options.force && manual.some(a => !options.includedActivityIds?.includes(a.id))) throw new ApiError(409, "activity_inclusion", "请逐项确认现有运动已经包含在来源汇总中；额外运动请保留该天手动记录。");
-  if (!options.force && existing.some(a => a.inclusion === "additional" || !a.inclusion && !a.sourceSystem?.startsWith("Garmin Personal:"))) return false;
+  if (!options.force && !options.independent && existing.some(a => a.inclusion === "additional" || !a.inclusion && !a.sourceSystem?.startsWith("Garmin Personal:"))) return false;
   const sourceTotal = policy.strategy === "total" && !!policy.sources.total;
   const sourceComponents = policy.strategy === "components" && !!(policy.sources.resting || policy.sources.active);
   const day: EnergyAction = { kind: "save_energy_day", date, ...(p.record ? { id: p.record.id, version: p.record.version } : {}), entryMode: p.modes.entryMode, activityMode: p.modes.activityMode, restingKcal: sourceTotal ? null : sourceComponents ? p.proposed.resting : p.record?.restingKcal ?? null, activeKcal: sourceTotal ? null : sourceComponents ? p.proposed.active : p.record?.activeKcal ?? null, totalKcal: sourceTotal ? p.proposed.total : p.modes.entryMode === "total" ? p.record?.totalKcal ?? null : null, steps: p.proposed.steps, timezone: state.connections.find(c => c.id === (policy.sources.total ?? policy.sources.resting ?? policy.sources.steps))?.timezone ?? p.record?.timezone ?? state.window.timeZone, sourceSystem: p.metadata.label, sourceRecordId: date, restingSourceSystem: sourceComponents ? state.connections.find(c => c.id === policy.sources.resting)?.label ?? p.record?.restingSourceSystem ?? null : null, activeSourceSystem: sourceComponents ? state.connections.find(c => c.id === policy.sources.active)?.label ?? p.record?.activeSourceSystem ?? null : null, sourceOccurredAt: p.metadata.coverageUntil, restingEstimated: false, activeEstimated: false };
@@ -62,13 +108,13 @@ export async function adoptDate(tx: Transaction, userId: string, state: SourceSt
   for (const fact of p.activityFacts) {
     if (fact.payload.kind !== "activity") continue;
     const conflict = state.conflicts.find(c => c.factId === fact.id);
-    if (conflict && conflict.status !== "adopted") continue;
-    const prior = state.snapshot.activities.find(a => !a.deletedAt && a.sourceSystem === sourceSystemFor(fact.connectionId) && a.sourceRecordId === fact.sourceRecordId);
+    if (conflict && conflict.status !== "adopted" && !(options.independent && conflict.status === "pending")) continue;
+    const prior = state.snapshot.activities.find(a => a.sourceSystem === sourceSystemFor(fact.connectionId) && a.sourceRecordId === fact.sourceRecordId);
+    if (prior?.deletedAt) continue;
     if (prior && prior.date !== date && state.adoptions.some(a => a.date === prior.date && a.mode === "manual")) continue;
-    if (!prior && duplicateActivityCandidates(fact, state.snapshot.activities).length && !conflict) continue;
-    const value = fact.payload;
+    if (!options.independent && !prior && duplicateActivityCandidates(fact, state.snapshot.activities).length && !conflict) continue;
     // gross kcal 与期间静息保留在来源事实中。未核实纯活动热量前，不自行相减后参与运动累计。
-    actions.push({ kind: "save_activity", ...(prior ? { id: prior.id, version: prior.version } : {}), date, name: value.name, durationMinutes: value.durationMinutes, calorieMode: "components", exerciseRestingKcal: value.bmrKcal, exerciseActiveKcal: null, completed: true, inclusion: "included", sourceSystem: sourceSystemFor(fact.connectionId), sourceRecordId: fact.sourceRecordId, sourceOccurredAt: fact.occurredAt?.toISOString() ?? null, timezone: fact.timezone });
+    actions.push(sourceActivityAction(fact, prior));
     if (prior) activityIds.add(prior.id);
   }
   // 日汇总变化后重绑已确认的 included 关系，不能使旧额外运动悄悄消失。
@@ -77,7 +123,7 @@ export async function adoptDate(tx: Transaction, userId: string, state: SourceSt
     actions.push({ kind: "save_activity", id: a.id, version: a.version, date, name: a.name, durationMinutes: a.durationMinutes, calorieMode: a.calorieMode ?? "total", exerciseRestingKcal: a.exerciseRestingKcal ?? null, exerciseActiveKcal: a.exerciseActiveKcal ?? null, caloriesKcal: a.caloriesKcal, completed: a.completed, inclusion: "included" });
   }
   const rows = planEnergyActions(actions, state.snapshot);
-  const error = rows.find(r => r.error); if (error) { if (options.force) throw new ApiError(409, "source_conflict", error.error!); return false; }
+  const error = rows.find(r => r.error); if (error) { if (options.force) throw new ApiError(409, "source_conflict", error.error!); if(options.independent){options.issues?.push(`${date} 的日汇总保持原值。`);return importActivityDetails(tx,userId,state,date,options,true);}return false; }
   // 完全相同的同步不更新正式版本，不使正在编辑的表单无故冲突。
   for(const row of rows){if(!row.after||!("name" in row.after))continue;const fact=p.activityFacts.find(f=>row.after&&"sourceRecordId" in row.after&&f.sourceRecordId===row.after.sourceRecordId&&sourceSystemFor(f.connectionId)===row.after.sourceSystem);if(fact?.payload.kind==="activity")row.after.sourceDetails=fact.payload;}
   const changed = rows.filter(row => energyFactsChanged(row.before, row.after) || row.after&&"sourceDetails" in row.after&&fingerprint(row.after.sourceDetails)!==fingerprint(row.before&&"sourceDetails" in row.before?row.before.sourceDetails:null) || row.before && row.after && "inclusionBasis" in row.after && "inclusionBasis" in row.before && row.before.inclusionBasis !== row.after.inclusionBasis);
@@ -90,6 +136,7 @@ export async function adoptDate(tx: Transaction, userId: string, state: SourceSt
     await persistEnergyPreview(tx, userId, row);
     if (row.after && "date" in row.after) options.changes?.push({ key: "name" in row.after ? "activity:"+row.after.id : "energyDay:"+row.after.date, version:String(row.after.version) });
   }
+  if (options.independent) for (const fact of p.activityFacts) if (rows.some(row => row.after && "name" in row.after && row.after.sourceRecordId === fact.sourceRecordId && row.after.sourceSystem === sourceSystemFor(fact.connectionId))) await markIndependent(tx, userId, state, fact);
   await tx.insert(energyDayAdoption).values({ userId, date, mode: "source", metadata: newMeta }).onConflictDoUpdate({ target: [energyDayAdoption.userId, energyDayAdoption.date], set: { mode: "source", metadata: newMeta, protectedAt: null, version: (previous?.version ?? 0) + 1, updatedAt: new Date() } });
   await sourceEvent(tx, userId, p.used[0]?.connectionId ?? p.activityFacts[0]?.connectionId ?? null, "adopt", options.actor, { date, before: p.record, after: changed.includes(rows[0]) ? rows[0].after : p.record, activities: changed.filter(r => r.after && "name" in r.after).map(r => ({ before: r.before ?? null, after: r.after })), metadata: newMeta });
   return true;

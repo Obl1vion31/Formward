@@ -48,9 +48,9 @@ export async function configureConnection(db: Database, userId: string, id: stri
     await tx.update(dataConnection).set({ metrics: input.data.metrics, lastAttemptAt:null, status: input.data.active ? "active" : "paused", syncToken: null, syncStartedAt: null, version: connection.version + 1, updatedAt: new Date() }).where(and(eq(dataConnection.userId, userId), eq(dataConnection.id, id)));
     const [policy] = await tx.select().from(dataSourcePolicy).where(eq(dataSourcePolicy.userId, userId));
     if (policy) {
-      const sources = { ...policy.sources };
-      for (const metric of sourceMetrics) if (sources[metric] === id && !input.data.metrics.includes(metric)) sources[metric] = null;
-      if (JSON.stringify(sources) !== JSON.stringify(policy.sources)) await tx.update(dataSourcePolicy).set({ sources, version: policy.version + 1, effectiveFrom: sevenDays(new Date(), connection.timezone).to, updatedAt: new Date() }).where(eq(dataSourcePolicy.userId, userId));
+      const sources = Object.fromEntries(sourceMetrics.map(metric => [metric, input.data.metrics.includes(metric) ? id : null])) as ReturnType<typeof emptySources>;
+      const strategy = input.data.metrics.includes("total") ? "total" : "components";
+      if (strategy !== policy.strategy || JSON.stringify(sources) !== JSON.stringify(policy.sources)) await tx.update(dataSourcePolicy).set({ strategy, sources, version: policy.version + 1, effectiveFrom: sevenDays(new Date(), connection.timezone).to, updatedAt: new Date() }).where(eq(dataSourcePolicy.userId, userId));
     }
     await sourceEvent(tx, userId, id, "configure", userId, { metrics: input.data.metrics, active: input.data.active });
   });

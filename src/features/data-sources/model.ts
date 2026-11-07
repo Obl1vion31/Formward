@@ -21,6 +21,7 @@ export type ConnectionView = { id: string; label: string; provider: string; stat
 export type ComparisonDay = { date: string; digest: string; current: { total: string | null; resting: string | null; active: string | null; steps: number | null }; proposed: { total: string | null; resting: string | null; active: string | null; steps: number | null }; mode: "source" | "manual" | "unadopted"; canAdopt: boolean; reason: string | null; activityCount: number; manualActivities: { id: string; name: string; version: number }[]; coverageUntil: string | null };
 export type ConflictView = { id: string; version: number; date: string; name: string; sourceId: string; candidates: { id: string; version: number; name: string; durationMinutes: string | null; caloriesKcal: string | null }[] };
 export type SourcesView = { enabled: boolean; connections: ConnectionView[]; policy: SourcePolicy; comparison: ComparisonDay[]; conflicts: ConflictView[]; today: string };
+export type SourceSettingsView = Pick<SourcesView, "enabled" | "connections" | "today">;
 
 /** 只检查服务器固定账号，不把 owner 角色当作试运行资格。 */
 export function sourcePilotEnabled(userId: string, configured = process.env.FORMWARD_DATA_SOURCE_USER_ID) {

@@ -1,5 +1,9 @@
 # 当前实现与验证
 
+## 当前开发：主题与设备直接同步
+
+独立分支codex/sources-theme-history正在实施顶栏圆形主题切换、直接连接入口、同结构来源加载、历史全部载入与消耗详情去重。556项测试、lint和production build通过，实际页面验收正在收尾；本轮尚未发布，当前正式版本仍为下节Garmin试运行。用户已授权验收后发布，仅本人账号同步；不自动合入main。
+
 ## 当前正式版本：本人账号 Garmin 数据源（2026-11-07）
 
 已按授权发布到[设备与数据来源](https://formward-ten.vercel.app/dashboard/sources)。READY部署 dpl_BKvm6vCXWqHAwgaSUUbuK1iBsNVT，应用源码 4c96a4cf1b640f15357f8642e9f7d60cc5a95e4a，构建 source-pilot-4c96a4c-20261107；项目、正式别名、sourceCommit／gitCommitSha与no-store版本接口一致。来自干净分支codex/garmin-personal-preview，已包含最新桌面交互161057a，本轮没有合入或推送main；其他工作区保持。后续纯文档提交不改变已发布应用。

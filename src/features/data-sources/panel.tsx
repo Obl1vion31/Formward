@@ -1,79 +1,98 @@
 "use client";
 import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { useDraftGuard } from "@/components/draft-guard";
-import { confirmAction } from "@/components/confirmation-state";
 import { LoadingLink } from "@/components/loading-link";
+import { SkeletonBlock } from "@/components/skeleton-block";
 import { acknowledgeRecordChanges } from "@/components/record-change-client";
-import { adoptSourceDaysAction, bindPersonalSourceAction, configureConnectionAction, configureSourcePolicyAction, loadSourcesAction, resolveSourceConflictAction, synchronizeSourceAction } from "@/app/dashboard/sources/actions";
-import { metricLabels, sourceMetrics, emptySources, type SourceMetric, type SourcePolicy, type SourcesView, type SourceRecordChange } from "./model";
+import { backfillSourceHistoryAction, bindPersonalSourceAction, configureConnectionAction, loadSourcesAction, synchronizeSourceAction } from "@/app/dashboard/sources/actions";
+import { metricLabels, sourceMetrics, type SourceMetric, type SourceSettingsView, type SourceRecordChange } from "./model";
+import type { SyncResult } from "./sync";
 import styles from "./sources.module.css";
 
-type Response = { ok: true; data: SourcesView; recordChanges?:SourceRecordChange[]; sync?: { status: string; error?: string; changes?:SourceRecordChange[] } } | { ok: false; error: string };
-const display = (value: string | number | null) => value === null ? "未知" : new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 0 }).format(Number(value));
-const time = (value: string | null) => value ? new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value)) : "尚未同步";
-const defaultPolicy = (): SourcePolicy => ({ strategy: "total", sources: emptySources(), effectiveFrom: "", version: 0 });
-export function DataSourcesPanel({ initial, embedded = true, available=true }: { initial?: SourcesView; embedded?: boolean; available?:boolean }) {
-  const [data, setData] = useState<SourcesView|null>(initial ?? (!available?{enabled:false,connections:[],policy:defaultPolicy(),comparison:[],conflicts:[],today:""}:null)), [error, setError] = useState(""), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [, startTransition] = useTransition();
-  const [apiKey, setApiKey] = useState(""), [metrics, setMetrics] = useState<SourceMetric[]>(initial?.connections[0]?.metrics ?? [...sourceMetrics]), [active, setActive] = useState(initial?.connections[0]?.status !== "paused"), [policy, setPolicy] = useState(initial?.policy ?? defaultPolicy());
-  const [selected, setSelected] = useState<string[]>(initial?.comparison.filter(d => d.canAdopt && d.mode === "unadopted").map(d => d.date) ?? []), [included, setIncluded] = useState<string[]>([]);
+type Response = { ok: true; data: SourceSettingsView; recordChanges?: SourceRecordChange[]; sync?: SyncResult; settingsSaved?: boolean } | { ok: false; error: string };
+const time = (value: string | null) => value ? new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value)) : "";
+const unavailable: SourceSettingsView = { enabled: false, connections: [], today: "" };
+type ContentProps = {
+  data: SourceSettingsView | null; embedded: boolean; pending?: boolean; busy?: boolean;
+  metrics?: SourceMetric[]; active?: boolean; apiKey?: string; historyFrom?: string; dirty?: boolean;
+  notice?: string; error?: string;
+  setMetrics?: (value: SourceMetric[]) => void; setActive?: (value: boolean) => void; setApiKey?: (value: string) => void; setHistoryFrom?: (value: string) => void;
+  save?: (event: FormEvent) => void; bind?: (event: FormEvent) => void; history?: (event: FormEvent) => void; sync?: () => void; retry?: () => void;
+};
+function SourceContent({ data, embedded, pending = false, busy = false, metrics = [], active = true, apiKey = "", historyFrom = "2026-10-18", dirty = false, notice = "", error = "", setMetrics, setActive, setApiKey, setHistoryFrom, save, bind, history, sync, retry }: ContentProps) {
+  const connection = data?.connections[0], disabled = pending || busy;
+  const status = error || notice || (connection?.status === "paused" ? "已暂停同步" : connection?.error || (connection?.lastSuccessAt ? "上次读取 " + time(connection.lastSuccessAt) : connection ? "已连接" : "连接后同步消耗、步数与运动"));
+  return <div className={styles.panel} aria-busy={pending || busy} data-source-access={data?.enabled === false ? "unavailable" : "pilot"}>
+    {!embedded && <div className={styles.heading}><h1>连接设备与数据来源</h1><LoadingLink href="/dashboard/energy">返回消耗</LoadingLink></div>}
+    {data?.enabled === false ? <section className={styles.empty}><h2>暂未开放</h2><p>当前账号可以继续手动记录消耗、运动和身体数据。</p><LoadingLink href="/dashboard/energy">查看消耗记录 →</LoadingLink></section> :
+      <section className={styles.connection} aria-label="已连接设备">
+        <div className={styles.sectionHeading}><h2>Garmin Personal</h2><button type="button" disabled={disabled || !connection || !active || !metrics.length || dirty || !!apiKey} onClick={sync}>{busy ? "正在同步…" : "立即同步"}</button></div>
+        <div className={styles.status} role={error || !notice && connection?.error ? "alert" : "status"}>{pending ? <SkeletonBlock width={190} height={21}/> : status}</div>
+        {!pending && !data && error ? <button type="button" onClick={retry}>重新读取连接</button> : <>
+          <form onSubmit={save} className={styles.contentForm}>
+            <fieldset disabled={disabled || !connection || !!apiKey}><legend>同步内容与连接</legend>
+              <div className={styles.checks}>{sourceMetrics.map(metric => <label key={metric} className={styles.check}><span className={styles.checkbox}>{pending ? <SkeletonBlock width={18} height={18} radius={4}/> : <input type="checkbox" checked={metrics.includes(metric)} onChange={event => setMetrics?.(event.target.checked ? [...metrics, metric] : metrics.filter(m => m !== metric))}/>}</span>{metricLabels[metric]}</label>)}</div>
+              <label className={styles.check}><span className={styles.checkbox}>{pending ? <SkeletonBlock width={18} height={18} radius={4}/> : <input type="checkbox" checked={active} onChange={event => setActive?.(event.target.checked)}/>}</span>开启自动同步</label>
+              <button type="submit" disabled={disabled || !connection || !dirty || !!apiKey}>保存并同步</button>
+            </fieldset>
+          </form>
+          <details className={styles.settings} open={!pending && !connection ? true : undefined}><summary>{connection || pending ? "更换个人密钥" : "连接个人密钥"}</summary>
+            <form onSubmit={bind}><label className={styles.field}>Personal API 密钥<input type="password" value={apiKey} onChange={event => setApiKey?.(event.target.value)} autoComplete="off" spellCheck={false} required minLength={10} maxLength={4096} disabled={disabled || dirty}/></label><button type="submit" disabled={disabled || dirty || apiKey.trim().length < 10}>{connection ? "更换并同步" : "连接并同步"}</button></form>
+          </details>
+          <details className={styles.settings}><summary>补齐历史</summary><form onSubmit={history}><label className={styles.field}>起始日期<input type="date" value={historyFrom} max={data?.today || undefined} required onChange={event => setHistoryFrom?.(event.target.value)} disabled={disabled}/></label><button type="submit" disabled={disabled || !connection || !active || !metrics.length || dirty || !!apiKey}>同步至今天</button></form></details>
+        </>}
+      </section>}
+  </div>;
+}
+export function DataSourcesSkeleton({ embedded = true }: { embedded?: boolean }) { return <SourceContent data={null} embedded={embedded} pending/>; }
+
+export function DataSourcesPanel({ initial, embedded = true, available = true }: { initial?: SourceSettingsView; embedded?: boolean; available?: boolean }) {
+  const [data, setData] = useState<SourceSettingsView | null>(initial ?? (available ? null : unavailable));
+  const [metrics, setMetrics] = useState<SourceMetric[]>(initial?.connections[0]?.metrics ?? [...sourceMetrics]);
+  const [active, setActive] = useState(initial?.connections[0]?.status !== "paused");
+  const [apiKey, setApiKey] = useState(""), [historyFrom, setHistoryFrom] = useState("2026-10-18");
+  const [notice, setNotice] = useState(""), [error, setError] = useState(""), [busy, setBusy] = useState(false), [, startTransition] = useTransition();
   const lock = useRef(false), connection = data?.connections[0];
-  const connectionDirty = !!connection && (JSON.stringify([...metrics].sort()) !== JSON.stringify([...connection.metrics].sort()) || active !== (connection.status === "active"));
-  const policyDirty = !!data && JSON.stringify(policy) !== JSON.stringify(data.policy), settingsDirty = connectionDirty || policyDirty;
-  useDraftGuard(!!apiKey || settingsDirty, busy);
-  function accept(value: SourcesView) {
-    setData(value); setMetrics(value.connections[0]?.metrics ?? [...sourceMetrics]); setActive(value.connections[0]?.status !== "paused"); setPolicy(value.policy);
-    setSelected(value.comparison.filter(d => d.canAdopt && d.mode === "unadopted").map(d => d.date)); setIncluded([]);
-  }
-  function run(work: () => Promise<Response>, success = "", clearKey = false) {
+  const dirty = !!connection && (JSON.stringify([...metrics].sort()) !== JSON.stringify([...connection.metrics].sort()) || active !== (connection.status === "active"));
+  useDraftGuard(dirty || !!apiKey, busy);
+  function accept(value: SourceSettingsView) { setData(value); setMetrics(value.connections[0]?.metrics ?? [...sourceMetrics]); setActive(value.connections[0]?.status !== "paused"); }
+  function run(work: () => Promise<Response>, task: "load" | "sync" | "save" | "bind" | "history") {
     if (lock.current) return;
     lock.current = true; setBusy(true); setError(""); setNotice("");
     startTransition(async () => {
       try {
         const result = await work();
         if (!result.ok) { setError(result.error); return; }
-        const changes=result.recordChanges??result.sync?.changes??[];
-        if(changes.length)acknowledgeRecordChanges(changes.map(c=>c.key),changes);
-        accept(result.data); if (clearKey) setApiKey("");
-        setNotice(result.sync?.error ?? (result.sync?.status === "busy" ? "已有同步正在进行，请稍后重新读取。" : result.sync?.status === "fresh" ? "刚刚已读取，保留当前数据。" : result.sync?.status === "paused" ? "同步已暂停或尚未选择同步内容。" : result.sync?.status === "discarded" ? "设置已改变，本次旧结果未采用。" : success));
-      } catch { setError("连接未完成，当前设置已保留，请重试。"); }
+        const changes = result.recordChanges ?? result.sync?.changes ?? [];
+        if (changes.length) acknowledgeRecordChanges(changes.map(c => c.key), changes);
+        accept(result.data);
+        if (task === "bind" && result.settingsSaved) setApiKey("");
+        const sync = result.sync, prefix = result.settingsSaved ? "设置已保存。" : "";
+        if (sync?.error) setError(prefix + sync.error);
+        else if (sync?.status === "fresh") setNotice(prefix + (task === "history" ? "请间隔15秒再补齐历史。" : "刚刚已读取。"));
+        else if (sync?.status === "busy") setNotice(prefix + "已有同步正在进行。");
+        else if (sync?.status === "discarded") setNotice("连接已改变，请重新读取。");
+        else if (sync?.status === "paused") setNotice(prefix + (active ? "尚未选择同步内容。" : "同步已暂停。"));
+        else if (task === "history" && sync?.loaded) setNotice("已读取 " + sync.loaded.days + " 天汇总、" + sync.loaded.activities + " 条运动。");
+        else if (task !== "load") setNotice(prefix + "同步完成。");
+      } catch { setError("连接未完成，当前输入已保留，请重试。"); }
       finally { lock.current = false; setBusy(false); }
     });
   }
   useEffect(() => {
-    if (initial||!available) return;
+    if (initial || !available) return;
     let live = true;
     startTransition(async () => {
       try { const result = await loadSourcesAction(); if (live) { if (result.ok) accept(result.data); else setError(result.error); } }
       catch { if (live) setError("暂时无法读取连接，请重试。"); }
     });
     return () => { live = false; };
-  }, [initial,available]);
-  const bind = (event: FormEvent) => { event.preventDefault(); run(() => bindPersonalSourceAction({ apiKey, version: connection?.version ?? 0, timezone: "Asia/Shanghai" }), "密钥已绑定。读取最近七天后，可逐日对照采用。", true); };
-  async function adopt() {
-    const rows = data!.comparison.filter(d => selected.includes(d.date));
-    if (!rows.length || busy || settingsDirty) return;
-    if (!await confirmAction({ title: "采用选中日期的数据？", message: `${rows.map(r => r.date).join("、")}：采用对照中所列的消耗、步数与运动，并开启这些日期的来源同步。以后手动改动会保护整天，自动同步不会覆盖。`, confirmLabel: "确认采用" })) return;
-    run(() => adoptSourceDaysAction({ days: rows.map(d => ({ date: d.date, digest: d.digest, includedActivityIds: d.manualActivities.filter(a => included.includes(a.id)).map(a => a.id) })) }), "已采用。手动修改当天数据后会自动保护该天。");
-  }
-  const heading = !embedded && <div className={styles.heading}><h1>设备与数据来源</h1><LoadingLink href="/dashboard/energy">返回消耗</LoadingLink></div>;
-  if (!data) return <div className={styles.panel}>{heading}{error ? <p role="alert">{error}<button onClick={() => run(loadSourcesAction)}>重试</button></p> : <div aria-busy="true" aria-label="正在读取数据连接" className={styles.skeleton}><div className="skeleton-card"/><div className="skeleton-card"/></div>}</div>;
-  if (!data.enabled) return <div className={styles.panel} data-source-access="unavailable">{heading}<section className={styles.empty}><h2>暂未开放</h2><p>当前账号可以继续手动记录消耗、运动和身体数据。</p><LoadingLink href="/dashboard/energy">查看消耗记录 <span aria-hidden="true">→</span></LoadingLink></section></div>;
-  const canAdopt = selected.length > 0 && data.comparison.filter(d => selected.includes(d.date)).every(d => d.canAdopt && d.manualActivities.every(a => included.includes(a.id)));
-  return <div className={styles.panel} aria-busy={busy} data-source-access="pilot">{heading}
-    <div className={styles.feedback} aria-live="polite">{error && <p role="alert" className={styles.error}>{error}</p>}{notice && <p role="status">{notice}</p>}</div>
-    <section className={styles.connection} aria-label="Garmin 连接"><div className={styles.sectionHeading}><div><h2>Garmin Personal</h2><p>{connection ? connection.status === "paused" ? "已暂停同步" : connection.adopted ? "已连接" : "已连接 · 待采用" : "连接国际站个人账号"}</p></div>{connection && <button disabled={busy || settingsDirty || !active} onClick={() => run(() => synchronizeSourceAction(true), "最近数据已读取，请核对下方对照。")}>{busy ? "处理中…" : "立即同步"}</button>}</div>
-      {connection && <><p className={styles.muted}>上次读取成功 · {time(connection.lastSuccessAt)}</p>{connection.error && <p className={styles.error} role="status">{connection.error}</p>}
-      <details className={styles.settings}><summary>同步内容与连接</summary><form onSubmit={event => { event.preventDefault(); run(() => configureConnectionAction(connection.id, { version: connection.version, metrics, active }), "同步设置已保存。"); }}><fieldset disabled={busy||policyDirty}><legend>同步到 Formward 的内容</legend><p className={styles.muted}>日期边界 · {connection.timezone}</p><div className={styles.checks}>{sourceMetrics.map(metric => <label key={metric}><input type="checkbox" checked={metrics.includes(metric)} onChange={event => setMetrics(values => event.target.checked ? [...values, metric] : values.filter(v => v !== metric))}/>{metricLabels[metric]}</label>)}</div><label className={styles.check}><input type="checkbox" checked={active} onChange={event => setActive(event.target.checked)}/>开启自动同步</label><p className={styles.muted}>请先在 Garmin Connect 完成手表同步。暂停后保留历史；这里的勾选不会改变个人密钥本身的权限。</p><button type="submit" disabled={busy}>保存同步设置</button></fieldset></form></details></>}
-      <details className={styles.settings} open={!connection}><summary>{connection ? "更换个人密钥" : "绑定 Personal API 密钥"}</summary><form onSubmit={bind}><label className={styles.field}>国际站 Personal API Key<input type="password" autoComplete="off" spellCheck={false} value={apiKey} maxLength={4096} onChange={event => setApiKey(event.target.value)} disabled={busy||settingsDirty}/></label><p className={styles.muted}>密钥只发送到本站服务器及 Garmin 国际站。更换后需要重新核对采用。</p><button type="submit" disabled={busy || settingsDirty || !apiKey.trim()}>{connection ? "更新密钥" : "绑定账号"}</button></form></details>
-    </section>
-    {connection && <>
-      <section className={styles.section}><h2>采用来源</h2><p className={styles.muted}>{data.policy.strategy==="total"?"采用每日总消耗":"静息＋活动"} · {data.connections.find(c=>c.id===(data.policy.strategy==="total"?data.policy.sources.total:data.policy.sources.active))?.label??"手动记录"}</p><details className={styles.settings}><summary>调整采用来源</summary><p className={styles.muted}>设置保存后从今天生效。历史日期通过下方对照单独采用。</p><form onSubmit={event => { event.preventDefault(); run(() => configureSourcePolicyAction({ version: data.policy.version, strategy: policy.strategy, sources: policy.sources }), "采用规则已保存，从今天生效。"); }}><fieldset disabled={busy||connectionDirty}><label className={styles.field}>消耗统计依据<select value={policy.strategy} onChange={event => setPolicy(p => ({ ...p, strategy: event.target.value as SourcePolicy["strategy"] }))}><option value="total">采用每日总消耗</option><option value="components">静息消耗＋活动消耗</option></select></label><div className={styles.sourceFields}>{sourceMetrics.map(metric => <label className={styles.field} key={metric}>{metricLabels[metric]}<select value={policy.sources[metric] ?? "manual"} onChange={event => setPolicy(p => ({ ...p, sources: { ...p.sources, [metric]: event.target.value === "manual" ? null : event.target.value } }))}><option value="manual">手动记录</option>{data.connections.filter(c => c.metrics.includes(metric)).map(c => <option key={c.id} value={c.id} disabled={c.status === "paused"}>{c.label}{c.status === "paused" ? "（已暂停）" : ""}</option>)}</select></label>)}</div><p className={styles.muted}>每日总数和运动明细分别保存，运动不会再加到设备日总数上。</p><button type="submit" disabled={busy}>保存采用来源</button></fieldset></form></details></section>
-      <section className={styles.section} aria-label="最近七天来源对照"><div className={styles.sectionHeading}><div><h2>最近七天对照</h2><p>正式记录 → 选中来源</p></div><button disabled={busy || settingsDirty} onClick={() => run(loadSourcesAction)}>重新读取</button></div><p className={styles.muted}>今天是累计值。手动保护的日期需要重新勾选并确认，才会被来源替换。</p>
-        <div className={styles.comparison}>{[...data.comparison].reverse().map(day => <article key={day.date} id={`source-${day.date}`} className={styles.day}><div className={styles.dayHeading}><label><input type="checkbox" aria-label={`采用 ${day.date}`} disabled={busy || !day.canAdopt || settingsDirty} checked={selected.includes(day.date)} onChange={event => setSelected(values => event.target.checked ? [...values, day.date] : values.filter(d => d !== day.date))}/><time>{day.date}</time></label><span>{day.date === data.today ? "今日累计 · " : ""}{day.mode === "manual" ? "手动保护" : day.mode === "source" ? "来源同步" : "待采用"}</span></div><div className={styles.numbers}><div><span>总消耗 · kcal</span><p><span>{display(day.current.total)}</span><span aria-hidden="true">→</span><strong>{display(day.proposed.total)}</strong></p></div><div><span>步数</span><p><span>{display(day.current.steps)}</span><span aria-hidden="true">→</span><strong>{display(day.proposed.steps)}</strong></p></div></div>
-          {day.reason && <p className={styles.muted}>{day.reason}</p>}<details><summary>分项与运动{day.activityCount ? ` · ${day.activityCount} 项来源运动` : ""}</summary><dl className={styles.breakdown}><div><dt>静息 · kcal</dt><dd>{display(day.current.resting)} → {display(day.proposed.resting)}</dd></div><div><dt>活动 · kcal</dt><dd>{display(day.current.active)} → {display(day.proposed.active)}</dd></div>{day.coverageUntil && <div><dt>来源覆盖至</dt><dd>{time(day.coverageUntil)}</dd></div>}</dl>{day.manualActivities.length > 0 && <p className={styles.muted}>如果是额外运动，请不采用该天，继续使用手动记录。</p>}</details>{selected.includes(day.date)&&day.manualActivities.map(a=><label className={styles.check} key={a.id}><input type="checkbox" disabled={busy} checked={included.includes(a.id)} onChange={event=>setIncluded(values=>event.target.checked?[...values,a.id]:values.filter(id=>id!==a.id))}/>{a.name}已包含在来源汇总中</label>)}
-        </article>)}</div><div className={styles.adopt}><span>{selected.length ? `已选 ${selected.length} 天` : "选择需要采用的日期"}</span><button disabled={busy || settingsDirty || !canAdopt} onClick={() => void adopt()}>{busy ? "处理中…" : "采用选中日期"}</button></div>
-      </section>
-      {data.conflicts.length > 0 && <section className={styles.section}><h2>运动冲突待核对</h2><p className={styles.muted}>疑似同一运动暂不重复导入。关联后保留现有记录，不自动覆盖。</p>{data.conflicts.map(conflict => <article className={styles.day} key={conflict.id}><h3>{conflict.name}</h3><p>{conflict.date}</p>{conflict.candidates.map(candidate => <div className={styles.candidate} key={candidate.id}><span>{candidate.name} · {display(candidate.durationMinutes)} 分钟</span><button disabled={busy} onClick={() => run(() => resolveSourceConflictAction({ id: conflict.id, version: conflict.version, decision: "link", activityId: candidate.id, activityVersion: candidate.version }), "已关联，保留现有运动。")} >关联此记录</button></div>)}<div className={styles.buttons}><button disabled={busy} onClick={async () => { if (await confirmAction({ title: "作为独立运动保留？", message: "这条来源运动与现有记录分别保留，仍不会重复增加到设备日总消耗。采用对应日期后进入正式记录。", confirmLabel: "保留独立运动" })) run(() => resolveSourceConflictAction({ id: conflict.id, version: conflict.version, decision: "adopt", activityId: null, activityVersion: null }), "已保留独立运动，请采用对应日期。"); }}>保留独立运动</button><button disabled={busy} onClick={() => run(() => resolveSourceConflictAction({ id: conflict.id, version: conflict.version, decision: "ignore", activityId: null, activityVersion: null }), "已忽略这条来源运动。")}>忽略来源运动</button></div></article>)}</section>}
-    </>}
-  </div>;
+  }, [initial, available]);
+  return <SourceContent data={data} embedded={embedded} pending={!data && !error} busy={busy} metrics={metrics} active={active} apiKey={apiKey} historyFrom={historyFrom} dirty={dirty} notice={notice} error={error}
+    setMetrics={setMetrics} setActive={setActive} setApiKey={setApiKey} setHistoryFrom={setHistoryFrom}
+    sync={() => run(() => synchronizeSourceAction(true), "sync")}
+    save={event => { event.preventDefault(); if (connection) run(() => configureConnectionAction(connection.id, { version: connection.version, metrics, active }), "save"); }}
+    bind={event => { event.preventDefault(); run(() => bindPersonalSourceAction({ apiKey, version: connection?.version ?? 0, timezone: "Asia/Shanghai" }), "bind"); }}
+    history={event => { event.preventDefault(); run(() => backfillSourceHistoryAction(historyFrom), "history"); }}
+    retry={() => run(loadSourcesAction, "load")}/>;
 }

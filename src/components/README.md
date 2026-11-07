@@ -10,7 +10,7 @@ chart-flight.ts集中管理一次图形转场的所有权、返回幂等及取�
 
 Inspector在手机提供底部面板：只读stableScroll详情默认半屏，录入默认近全屏，把手可拖动及点击切换。所有关闭路径仍经过同一个草稿/忙碌保护；正文自行滚动，桌面侧栏和compact确认框保持各自用途。工作区的PageLoadingProvider显示非模态任务反馈，登录等工作区外流程继续使用原反馈；AssistantProvider显式识别工作区pending。
 
-appearance-state区分用户选择system/light/dark与实际data-theme，早期初始化保留本机既有偏好；AppearanceSync在持久框架内保持系统监听，设置面板关闭后仍响应。AppearanceSwitch只在统一设置入口提供。
+appearance-state区分用户选择system/light/dark与实际data-theme，早期初始化保留本机既有偏好；AppearanceSync在持久框架内保持系统监听，设置面板关闭后仍响应。AppearanceToggle在顶栏直接切换，FollowSystemAppearance提供账号菜单单个系统外观开关；首次使用的AppearanceSwitch保持。appearance-motion使用原生View Transition揭示真实主题，快速反向取消旧层及旧回调，失败／减少动态效果立即交接，不复制表单或重挂载页面。
 
 form-draft.ts比较有效数字文本而不舍入，draft-guard.ts集中“继续编辑／放弃修改”。LoadingLink保留Next原有链接能力，站内导航先处理真实草稿；Inspector、内部返回和退出登录遵从相同判定。record-history.tsx使用显式日期查看表单，Enter与同日重复查看可用。主表单以data-entry-form标记使用globals.css公共边框、16px输入、44px操作和逐态样式；带单位的个人资料沿用一个外框。
 
@@ -64,7 +64,7 @@ Disclosure关闭时不挂载内容，只在展开后请求原图或显示较长�
 use-chart-viewport.ts按实际坐标字体测量刻度宽度，统一总览、饮食及消耗的图宽与左边距；数据或区间换刻度时先完成测量，悬停不改变坐标。长整数不缩字、不裁切。
 
 
-appearance-state.ts保存本设备主题的读取、早期初始化和跨窗口通知；appearance-switch.tsx在统一设置内提供跟随系统／浅色／深色操作。颜色集中在app/theme.css，图表也使用同一语义变量，图片不反色。
+appearance-state.ts保存本设备主题的读取、早期初始化和跨窗口通知；appearance-switch.tsx提供顶栏日／月切换及账号菜单的跟随系统开关。颜色集中在app/theme.css，图表也使用同一语义变量，图片不反色。
 
 app-updates.tsx仅检查构建版本，与record-updates.tsx的健康记录变化分开。可见时90秒、恢复前台检查；不缓存的版本接口不带身份或旧部署标记。草稿确认复用confirmation及draft-guard；approvePageRefresh只允许用户明确批准的这次刷新跳过重复离开弹窗，不存健康草稿。
 

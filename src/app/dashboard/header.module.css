@@ -20,3 +20,5 @@
 @supports not (backdrop-filter:blur(1px)){.desktopNav{background:var(--nav-solid)}}@media(prefers-reduced-motion:reduce){.desktopLens{transition:none}}
 
 .back{display:none}@media(max-width:700px),(hover:none) and (pointer:coarse){.back{display:flex;align-items:center;min-height:44px;max-width:88px}.back button{min-height:44px;padding:0 8px 0 0;border:0;background:none;color:var(--warm-white);font:inherit;font-size:13px;white-space:nowrap}.linkedLogo{display:none!important}}
+.header:global(.dashboard-header) .actions [role=menuitemcheckbox]{display:flex;align-items:center;justify-content:space-between;gap:16px}
+@media(max-width:700px),(hover:none) and (pointer:coarse){.header:global(.dashboard-header){display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px}.header:global(.dashboard-header) :global(.mobile-page-name){position:static;transform:none;min-width:0;text-align:center;white-space:nowrap}.header .actions{margin-left:0}.header .actions>button{flex:none}.linkedLogo{display:none!important}}

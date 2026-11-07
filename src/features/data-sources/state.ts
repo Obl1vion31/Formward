@@ -10,6 +10,13 @@ export const fingerprint = (value: unknown) => createHash("sha256").update(JSON.
 export type Connection = typeof dataConnection.$inferSelect;
 export type Fact = typeof dataSourceFact.$inferSelect;
 
+/** 管理连接不需要读取健康快照、历史差异或运动清单。 */
+export async function loadSourceSettings(db: Pick<Database, "select">, userId: string, now = new Date()) {
+  const enabled = sourcePilotEnabled(userId);
+  const connection = enabled ? await loadEnergyConnection(db, userId) : null;
+  return { enabled, connections: connection ? [connection] : [], today: sevenDays(now, connection?.timezone).to };
+}
+
 /** 普通消耗页只读取连接元数据，不为状态条重新查询七日健康对照。 */
 export async function loadEnergyConnection(db: Pick<Database, "select">, userId: string): Promise<ConnectionView | null> {
   if (!sourcePilotEnabled(userId)) return null;
@@ -37,7 +44,7 @@ export function proposeDay(state: SourceState, date: string, policy = state.poli
     return fact?.payload.kind === "day" ? { fact, value: fact.payload[metric] } : null;
   };
   const total = chosen("total"), resting = chosen("resting"), active = chosen("active"), steps = chosen("steps");
-  const select = (metric: "total" | "resting" | "active") => policy.sources[metric] ? chosen(metric)?.value as string | null | undefined ?? null : current[metric === "total" ? "totalKcal" : metric === "resting" ? "restingKcal" : "activeKcal"];
+  const select = (metric: "total" | "resting" | "active") => policy.sources[metric] ? chosen(metric)?.value as string | null | undefined ?? null : policy.strategy === "components" && (policy.sources.resting || policy.sources.active) ? null : current[metric === "total" ? "totalKcal" : metric === "resting" ? "restingKcal" : "activeKcal"];
   const proposed = { total: policy.strategy === "total" ? select("total") : select("resting") !== null && select("active") !== null ? String(Math.round((Number(select("resting")) + Number(select("active"))) * 10000) / 10000) : null, resting: select("resting"), active: select("active"), steps: policy.sources.steps ? steps?.value as number | null | undefined ?? null : record?.steps ?? null };
   const used = [...new Map([total, resting, active, steps].filter(x => x !== null).map(x => [x!.fact.id, x!.fact])).values()];
   const sameParts = total && resting && active && total.fact.id === resting.fact.id && total.fact.id === active.fact.id && total.value !== null && resting.value !== null && active.value !== null && Math.abs(Number(total.value) - Number(resting.value) - Number(active.value)) <= 1;
