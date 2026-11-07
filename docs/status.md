@@ -1,6 +1,18 @@
 # 当前实现与验证
 
-## 当前正式版本：主题、连接与历史同步（2026-11-07）
+## 当前正式版本：图表点选与电脑读数卡片（2026-11-07）
+
+已发布到[正式总览](https://formward-ten.vercel.app/dashboard)及[饮食](https://formward-ten.vercel.app/dashboard/meals)／[消耗](https://formward-ten.vercel.app/dashboard/energy)。READY部署 dpl_FRd4pBug5G73NSymfFMzyubhoDxG，应用源码 553fbbccfea107ce06ad0b57ecbe573e31011c67，构建 chart-cards-553fbbc-20261107；正式别名、项目、sourceCommit／gitCommitSha及no-store版本接口一致。来自干净分支codex/chart-selection-cards，未合入或推送main；后续纯文档提交不改变正式应用。
+
+修复四页把鼠标点击当悬停、移开即失去选择的问题：悬停仍临时预览，点击后保持，后续悬停及离开不取消；Escape或换区间解除，打开／关闭详情保留明确选择。身体点击后晨晚读数也保持，切换指标保留日期并建立新指标的选择。电脑饮食／消耗卡片原本仅在手机断点启用材质，现复用主页／身体的暖雾卡片、20px圆角、高光和阴影，显示真实供能环图与紧凑静息／活动比例；按全区间文字宽度稳定换列，骨架使用同一组件。手机原有卡片构图、业务表单和全部记录能力保持。
+
+71文件561项测试、lint（0错误0警告）、独立typecheck及37页production build通过；Vercel远程构建成功，774项上传文件不含私有材料。20组实际选日／详情／键盘／区间／指标／三种关联图及数据边界检查通过；1100／1440／1920深浅主题、320／390／430窄屏点选与布局通过，浏览器错误0。25项公网／授权／协议检查通过，本轮未实际调用同步任务或创建正式测试账号。Runtime error／fatal与请求5xx均0，无排除区间或后续分页；这是上线后的实际观测，不等于已运行满20分钟。
+
+前后0600私有一致性备份均50表、32条migration，schema、健康事实及采用的来源事实保持；6条Garmin与1条非重复手工运动保持，未复活已清理重复项。最终逐行核对issues0，9项允许变化均为正常限流，期间没有来源同步事件。没有数据库、HTTP／MCP、依赖或生产变量变化。证据为.codex/chart-selection-release与data/exports/chart-cards-20261107-{before,published}.json，均不进入Git／部署；上一READY dpl_CA9ZXvSNhX7kaaGn4C1Ti4dZKK1z保留供应用回退，保留用户合法更新。
+
+实际截图与25帧关联进入录像位于C:/Users/14878/.codex/visualizations/2026/11/07/formward-chart-selection，均为隔离虚构账号；最多一层共享图形、结束后无浮层或隐藏目标，未以本地截图冒充正式登录账号页面。物理手机／真实触摸横拖、WebKit、系统减少动态／200%文字、真机帧率及电脑冷加载逐像素偏差本轮未实测。正式入口使用formward-ten.vercel.app，本轮未修改既有自定义域名DNS。
+
+## 此前正式版本：主题、连接与历史同步（2026-11-07）
 
 已发布到[正式总览](https://formward-ten.vercel.app/dashboard)及[连接设备与数据来源](https://formward-ten.vercel.app/dashboard/sources)。READY部署 dpl_CA9ZXvSNhX7kaaGn4C1Ti4dZKK1z，应用源码 a0d651715b8d1080e13a11c97456f15413b9b72c，构建 theme-sources-a0d6517-20261107；正式别名、项目、sourceCommit／gitCommitSha及no-store版本接口一致。来自干净分支codex/sources-theme-history，包含原有电脑关联交互；本轮未合入或推送main，后续纯文档提交不改变已发布应用。
 
