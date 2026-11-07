@@ -1,8 +1,8 @@
 # Formward
 
-电脑关联交互在独立分支 `codex/desktop-linked-interactions` 本地实现：总览三张趋势卡前置，双端共享七日趋势进入与返回，电脑 Inspector 标题取消独立玻璃装饰。显示状态只保存在当前账号内存，切换尺寸后重新绑定实际绘图区。该分支尚未发布或更新 main；本地验收与操作入口见[交接](handoff.md)。
+电脑关联交互与 Inspector 修正已发布到[正式总览](https://formward-ten.vercel.app/dashboard)：三张趋势卡前置，双端共享七日趋势进入与返回，电脑标题取消独立玻璃装饰。显示状态只保存在当前账号内存，切换尺寸后重新绑定实际绘图区。应用源码161057a来自独立分支 `codex/desktop-linked-interactions`，本轮未合并或推送main；发布与验收见[交接](handoff.md)。
 
-消耗改期、日期／时区布局和四模块切换已发布到[正式总览](https://formward-ten.vercel.app/dashboard)。改期保留原编号，汇总与运动整批处理；目标日已有记录时明确阻止合并并保留输入。手机与电脑普通导航采用一次轻横移淡变，图形关联及录入面板不叠加。正式应用6f0a2f6来自codex/energy-date-navigation，未合入main；504项测试与生产构建通过。规则见[设计规范](docs/design-reference.md)，实际证据及未测边界见[部署](docs/deployment.md)。
+消耗改期保留原编号，汇总与运动整批处理；目标日已有记录时明确阻止合并并保留输入。手机与电脑普通导航采用一次轻横移淡变，图形关联及录入面板不叠加。规则见[设计规范](docs/design-reference.md)，实际证据及未测边界见[部署](docs/deployment.md)。
 
 身体每天晨间／晚间各采用最后保存的一条记录，编辑覆盖、单项删除先确认；运动可只填总数或分开填写纯运动与期间静息。跨页面修改会提示并保留输入，手机图表支持横拖选日。详细规则与当前发布状态见[交接](handoff.md)。
 

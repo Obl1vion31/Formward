@@ -1,6 +1,20 @@
 # 公网 HTTPS 部署
 
-## 当前正式版本：消耗改期与主导航（2026-11-07）
+## 当前正式版本：电脑关联交互与 Inspector（2026-11-07）
+
+用户在本地验收后明确要求直接发布，已部署到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署 `dpl_8J4m5x2QYWUsGD1fPcTjzNpHvFNm`，应用源码 `161057a0e53c348009dfab46c9e3b849a5bedca1`，构建 `desktop-linked-161057a-20261107`；项目、正式别名、sourceCommit／gitCommitSha、版本接口及客户端JS一致。来自 `codex/desktop-linked-interactions` 干净提交，本轮未合并或推送main，其他工作区保持。后续纯发布记录提交不改变正式应用。
+
+电脑总览三张真实七日趋势卡前置，双端共用日期／区间／指标链接及一次300ms图形交接；电脑关联图区最大640px，返回恢复卡片、滚动、焦点和总览区间／估计选项。保留完整双图、六项读数、七日统计和区间摘要。Inspector标题直接排列在面板底色，桌面圆弧及把手占位退出；手机外壳保持。营养测量随实际组件挂载，手机／电脑切换不再空图；骨架高度、字体、刻度和真实数据平面匹配。
+
+固定源码独立导出后重新通过505项单元／集成、lint（0错误0警告）、独立typecheck、production build和结构检查，Vercel远程构建成功。738项上传文件不含私有资料、环境文件或本机验收材料。18项公开／保护／协议检查与客户端版本检查通过；正式Chromium／WebKit各12组深浅首页、三类完整往返、18次尺寸切换、两种编辑器及三种触屏往返通过，页面异常和5xx各0，共46张截图。实际核看桌面／手机、关联趋势及普通／身体自定义Inspector。完整范围与原始失败见[维护验收](maintenance-verification.md)。
+
+发布前后44表结构、30条迁移账本和既有健康事实保持，issues为空；独立虚构账号及36张所属表已按ID清理。仅正常限流及一行显示偏好版本更新经精确核对放行：九条缓存均在部署创建前过期，偏好最终选项不变，仅version及updated_at改变，与对应时段Windows网页成功请求及现有会话写入规则相符；前后备份及该行哈希绑定，不豁免健康表。私有0600备份与初核／最终核对在原主工作区 `data/exports/desktop-linked-20261107-*`，发布证据为本工作树 `.codex/desktop-linked-release`。
+
+最终Runtime窗口2026-11-07T08:00:17.860Z—08:20:17.860Z、请求窗口08:00:19Z—08:20:19Z，error／fatal与5xx均0，无排除区间或后续分页；初轮日志也保留。没有migration、API／MCP、依赖或生产环境变量变化。上一READY `dpl_9KYWuxTQUQDTchCYXW8RBtt4oB4c`保留供应用回退，保留用户合法数据。
+
+正式入口使用formward-ten.vercel.app。global.formward.top虽已绑定相同Vercel部署，本机与Cloudflare公共DNS查询均返回NXDOMAIN，未计实际访问通过；本轮未修改DNS。真实iPhone、系统键盘、VoiceOver、系统200%文字及真机帧率未测。实际截图位于 `C:/Users/14878/.codex/visualizations/2026/11/07/formward-desktop-linked-production`，全部为虚构数据。
+
+## 此前正式版本：消耗改期与主导航（2026-11-07）
 
 已按用户授权发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署`dpl_9KYWuxTQUQDTchCYXW8RBtt4oB4c`，应用源码`6f0a2f64e6d17c1513199561f0d5f7fb3fe6d14b`，构建`date-navigation-6f0a2f6-20261107`；formward-ten.vercel.app与global.formward.top、源码元数据、版本接口和客户端JS一致。来自codex/energy-date-navigation的干净提交，736项上传文件不含私有数据、环境文件与本机工具；未合入或推送main，原主工作区的国内基础设施修改保持隔离。后续纯文档提交不改变正式应用。
 

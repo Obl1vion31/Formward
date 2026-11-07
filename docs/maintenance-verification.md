@@ -1,8 +1,28 @@
 # 完善任务验收
 
+## 正式发布验收：电脑关联交互与 Inspector（2026-11-07）
+
+用户追加“直接发布”授权后，已发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署 `dpl_8J4m5x2QYWUsGD1fPcTjzNpHvFNm`，应用源码 `161057a0e53c348009dfab46c9e3b849a5bedca1`，构建 `desktop-linked-161057a-20261107`。来自独立分支codex/desktop-linked-interactions；正式别名、项目、sourceCommit／gitCommitSha、版本接口及客户端JS一致。本轮仅发布，没有main合并或推送，其他工作区保持。
+
+固定161057a导出的干净源码重新通过505项单元／集成、lint（0错误0警告）、独立typecheck、production build及结构检查，Vercel远程构建成功。738项上传文件逐项检查不含data、凭据、私有报告、环境文件及本机工具。无migration、API／MCP、健康计算、运行依赖或生产变量变化。D1／D3／D4／D5／D6／D7／D10／D11／D12的实施核对见下节，本轮正式复查对应的实际页面与操作。
+
+正式Chromium／WebKit各通过12组深浅首页（1440×900、1100×800、320×560、390×640、430×780、844×390）、三种趋势进入／返回、18次三页手机／电脑宽度切换、身体及消耗编辑器、三种390×780触屏上下文往返。关联真实图为2:1、图区不超过640px，前后方向各单图层并有真实中间帧；链接日期与详情日期准确，查看无表单，返回恢复来源焦点、90D及估计关闭。普通／自定义标题无圆弧、模糊、阴影或负边距，关闭44×44px，桌面把手不占位。助手实际可打开，编辑Escape可退出；保存、取消、草稿与改期的完整本地回归见下节，不将正式只读检查冒充正式写入。
+
+最终报告为 `.codex/desktop-linked-release/production/final/chromium/report.json` 与 `production/final-2/webkit/report.json`，各23张截图，共46张；页面异常与5xx各0，两个引擎顺序执行。实际核看电脑三卡、完整图、手机深浅及320／390px、关联趋势、餐次／消耗／身体只读详情和编辑器。关键原图保存在 `C:/Users/14878/.codex/visualizations/2026/11/07/formward-desktop-linked-production`；全部为独立虚构账号，不含真实用户健康截图。物理iPhone、真实触屏手感、系统键盘／VoiceOver、系统200%文字及真机帧率未测，不由浏览器模拟代替。
+
+18项公开／保护／协议检查通过，包含版本no-store、OAuth能力、MCP未授权challenge、页面／导出／健康查询保护和私有路径404；客户端JS含本次构建版本。Vercel同时绑定global.formward.top，但该域名本机解析失败，Cloudflare公共DNS状态为3（NXDOMAIN），未计实际请求通过；当前正式入口为formward-ten.vercel.app，本轮未变更DNS。证据为 `alias-network.json`、`custom-domain-dns.json`、`public.json`及`client-version.json`。
+
+发布前后44表结构、30条迁移账本及既有健康事实保持，最终issues为空；一个本轮虚构账号及36张所属表已按ID／邮箱／名称精确核对清理。严格初核拦下两条期间过期的限流行与一行显示偏好版本更新；随后按已安装Better Auth的最长60秒窗口、部署创建时间和精确行哈希核实九条旧缓存清理。偏好按真实主键user_id匹配，最终show_body_fat不变，仅version19→21及updated_at变化；对应时段有Windows网页的成功POST，与现有按会话和版本写入规则相符。该结论基于来源代码、时间和请求证据，绑定前后备份及该行完整哈希，仅放行该次显示元数据，不豁免健康表或其他偏好。
+
+私有0600备份为原主工作区 `data/exports/desktop-linked-20261107-before.json`、`-after.json`、`-verification.json`，初核 `-verification-initial.json`保留。完整哈希核实与日志为 `.codex/desktop-linked-release/integrity-audit.json`、`integrity-diagnostic.json`、`preference-request-audit.json`、`expired-rate-before.json`、`rate-windows.json`及`cleanup.json`，均私有且Git／部署忽略。最终12项允许变化为正常限流及该次显示偏好元数据，健康数据例外为0。
+
+最终20分钟Runtime窗口2026-11-07T08:00:17.860Z—08:20:17.860Z，error／fatal为0；请求窗口08:00:19Z—08:20:19Z，5xx为0；均无排除区间或后续分页，初轮日志保留。上一READY `dpl_9KYWuxTQUQDTchCYXW8RBtt4oB4c`保留供应用回退，保留用户合法更新。本轮浏览器使用独立自动化上下文，未改动用户真实账号的浏览器会话。
+
+首次正式Chromium检查误将身体自定义日期的点分隔显示与链接的横线格式作字符串直接比较；界面日期正确，现只规范分隔符后核对同一日期。WebKit第一次尺寸检查在旧SVG卸载和新SVG挂载之间读取到null，失败截图中最终图表可见；现等待两次实际绘制，并从当前DOM原子读取宽度和visibility，仍要求已连接、宽度>100且不隐藏。两次原始失败保留在 `production/chromium`及`production/final/webkit`，最终完整重跑通过，未修改正式应用或降低动效／错误断言。
+
 ## 本地验收：电脑关联交互与 Inspector（2026-11-07）
 
-本轮从 `codex/energy-date-navigation` 的干净56e7984建立独立 `codex/desktop-linked-interactions`，工作树为 `/home/obl1vion/projects/Formward-worktrees/desktop-linked-interactions`。只交付本地页面、截图、录像与文档；没有发布、main合并或推送。正式版本仍为下节6f0a2f6，其他工作区未纳入本轮修改。
+本地实施从 `codex/energy-date-navigation` 的干净56e7984建立独立 `codex/desktop-linked-interactions`，工作树为 `/home/obl1vion/projects/Formward-worktrees/desktop-linked-interactions`。该阶段交付本地页面、截图、录像与文档，未发布或更新main；用户后续追加的正式发布见上节，其他工作区未纳入修改。
 
 ### 实现与设计条目
 
