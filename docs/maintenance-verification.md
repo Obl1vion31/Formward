@@ -1,5 +1,13 @@
 # 完善任务验收
 
+## 本地验收：电脑身体读数横排（2026-11-07）
+
+按用户截图将电脑身体三张读数卡接入已有饮食／消耗横排网格，主卡略宽，真实小折线仍与数字并排；移除仅电脑端的主卡整行跨度。复用现有文本测量，宽度不足整项换行；手机原有主卡／次卡结构保持，骨架仍共用RecordTrendPanel。体脂设置、指标切换、日期、统计及数据规则没有变化。适用D1／D3／D5／D7／D10已实施前、验收前阅读并核看实际页面。
+
+71文件561项测试、lint（0错误0警告）、独立typecheck及37页production build通过。Chromium实际检查10组电脑布局：1100／1440／1920px、深浅主题及体脂开启／关闭，两种模式均为三卡同一行，常规高度136px、数字完整、无水平溢出。320／390／430×780保持原手机结构，320次卡逐项退让，390／430两次卡并排。实际点击卡片切换体脂后仍三卡同排，浏览器错误0。
+
+截图及checks.json为C:/Users/14878/.codex/visualizations/2026/11/07/formward-body-row，均来自本机隔离PGlite虚构账号；冻结报告为.codex/body-cards-release/local-qa.json与tests.json。本轮没有新增动效、依赖、公开接口、数据库或migration。物理手机、真实触摸、WebKit、系统文字放大及电脑冷加载逐像素偏差未实测；不将本地视口检查冒充真机或正式账号页面验收。正式发布与前后数据核对另记。
+
 ## 正式发布验收：图表点选与电脑读数卡片（2026-11-07）
 
 已发布到[正式总览](https://formward-ten.vercel.app/dashboard)及[饮食](https://formward-ten.vercel.app/dashboard/meals)／[消耗](https://formward-ten.vercel.app/dashboard/energy)。READY部署 dpl_FRd4pBug5G73NSymfFMzyubhoDxG，应用源码 553fbbccfea107ce06ad0b57ecbe573e31011c67，构建 chart-cards-553fbbc-20261107；正式别名、项目、sourceCommit／gitCommitSha及no-store版本接口一致。来自干净分支codex/chart-selection-cards，未合入或推送main；后续纯文档提交不改变正式应用。

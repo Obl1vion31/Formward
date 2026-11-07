@@ -64,15 +64,15 @@
 .metrics[data-presentation=body]{align-items:start}.metrics[data-loading][data-presentation=body] .metric strong{min-height:0;height:30px;display:flex;align-items:center}.metrics[data-loading][data-presentation=body] .metric:first-child strong{height:40px}
 
 @media(min-width:701px) and (hover:hover) and (pointer:fine){
- .metrics:is([data-presentation=nutrition],[data-presentation=energy]){grid-template-columns:var(--record-layout)!important;grid-template-rows:auto;gap:12px;padding:0;align-items:stretch}
- .metrics:is([data-presentation=nutrition],[data-presentation=energy]) .metric{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:start;grid-row:auto;min-height:136px;padding:18px;box-sizing:border-box;border-radius:20px;background:var(--card-material,var(--card-surface));box-shadow:inset 0 1px 0 var(--card-rim),var(--card-shadow)}
- .metrics:is([data-presentation=nutrition],[data-presentation=energy]) .metric:first-child{padding-right:126px}
- .metrics:is([data-presentation=nutrition],[data-presentation=energy]) .metricLabel{font-size:14px;line-height:20px}
- .metrics:is([data-presentation=nutrition],[data-presentation=energy]) .metric strong{font-size:28px;line-height:35px;margin-top:6px}
- .metrics:is([data-presentation=nutrition],[data-presentation=energy]) .metric strong>span{font-size:inherit}
- .metrics:is([data-presentation=nutrition],[data-presentation=energy]) .metric:first-child strong{font-size:32px;line-height:40px}
- .metrics:is([data-presentation=nutrition],[data-presentation=energy]) .metricNote{line-height:18px}
- .metrics:is([data-presentation=nutrition],[data-presentation=energy]) .metricGraphic{display:block;position:absolute;right:18px;top:50%;transform:translateY(-50%);width:84px}
+ .metrics[data-presentation]{grid-template-columns:var(--record-layout)!important;grid-template-rows:auto;gap:12px;padding:0;align-items:stretch}
+ .metrics[data-presentation] .metric{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:start;grid-row:auto;min-height:136px;padding:18px;box-sizing:border-box;border-radius:20px;background:var(--card-material,var(--card-surface));box-shadow:inset 0 1px 0 var(--card-rim),var(--card-shadow)}
+ .metrics[data-presentation] .metric:first-child{padding-right:126px}
+ .metrics[data-presentation] .metricLabel{font-size:14px;line-height:20px}
+ .metrics[data-presentation] .metric strong{font-size:28px;line-height:35px;margin-top:6px}
+ .metrics[data-presentation] .metric strong>span{font-size:inherit}
+ .metrics[data-presentation] .metric:first-child strong{font-size:32px;line-height:40px}
+ .metrics[data-presentation] .metricNote{line-height:18px}
+ .metrics[data-presentation] .metricGraphic{display:block;position:absolute;right:18px;top:50%;transform:translateY(-50%);width:84px}
  .metrics[data-presentation=nutrition] .metricGraphic figure,.metrics[data-presentation=nutrition] .metricGraphic svg{width:84px;height:84px;margin:0}
  .metrics[data-presentation=nutrition] .metric:not(:first-child) .metricLabel{position:relative;padding-left:12px}
  .metrics[data-presentation=nutrition] .metric:not(:first-child) .metricLabel::before{content:'';position:absolute;left:0;top:7px;width:6px;height:6px;border-radius:50%;background:var(--data-protein)}
@@ -81,6 +81,9 @@
  .metrics[data-presentation=energy] .metric:first-child{padding-right:154px}
  .metrics[data-presentation=energy] .metricGraphic{width:112px}
  .metrics[data-presentation=energy] .metricGraphic figcaption{display:grid;gap:2px;margin-top:8px;line-height:17px}
- .metrics:is([data-presentation=nutrition],[data-presentation=energy])[data-hero-stack=true] .metric:first-child{padding-right:18px}
- .metrics:is([data-presentation=nutrition],[data-presentation=energy])[data-hero-stack=true] .metricGraphic{position:static;transform:none;margin-top:12px}
+ .metrics[data-presentation][data-hero-stack=true] .metric:first-child{padding-right:18px}
+ .metrics[data-presentation][data-hero-stack=true] .metricGraphic{position:static;transform:none;margin-top:12px}
+ .metrics[data-presentation=body] .metric:first-child{grid-column:auto;min-height:136px;padding:18px 136px 18px 18px}
+ .metrics[data-presentation=body] .metric:first-child .metricGraphic{top:50%;right:18px;transform:translateY(-50%)}
+ .metrics[data-presentation=body][data-hero-stack=true] .metric:first-child .metricGraphic{position:static;transform:none;margin-top:12px}
 }
