@@ -1,5 +1,23 @@
 # 完善任务验收
 
+## 正式发布验收：本人账号 Garmin 数据源（2026-11-07）
+
+已按授权发布到[设备与数据来源](https://formward-ten.vercel.app/dashboard/sources)。READY部署 dpl_BKvm6vCXWqHAwgaSUUbuK1iBsNVT，应用源码 4c96a4cf1b640f15357f8642e9f7d60cc5a95e4a，构建 source-pilot-4c96a4c-20261107；项目、正式别名、sourceCommit／gitCommitSha与no-store版本接口一致。来自干净分支codex/garmin-personal-preview，已包含最新桌面交互161057a，本轮没有合入或推送main；其他工作区保持。后续纯文档提交不改变已发布应用。
+
+仅私有固定user_id对应的本人账号开放Garmin Personal绑定、同步、七日对照和采用，配置缺失默认关闭；owner角色不自动获权。其他账号同步设置／安全入口，进入只有“暂未开放”，继续原有手动功能。国际站密钥已从0600本机配置绑定，账号／连接AAD与独立AES-256-GCM主密钥加密；凭据、主密钥和原始上游JSON不返回浏览器或AI。
+
+真实来源读取成功：最近七天总消耗、静息、活动和步数各7日非空；当前活动为0条。正式采用为0，原消耗和错日记录没有自动移动或覆盖。用户须在页面核对11月6／7日及其他日期差异，再确认采用。采用以后按已选来源同步，手动事实变更保护整天，备注不冻结；运动及步数不再加到设备日总数。
+
+每日后台任务已在Vercel项目实际登记，路径/api/internal/source-sync、UTC 0 22 * * *（上海每日早间，平台调度不保证精确分钟）；本轮凭据验证请求为fresh、只返回状态。首次未来定时触发尚未发生，不计为实测通过。前台进入／恢复至少5分钟，失败保留旧数据、上次成功时间和草稿。
+
+68个文件544项单元／集成、lint（0错误0警告）、独立typecheck及37页production build通过；Vercel远程构建成功。769项上传文件不含环境、凭据、私有数据或本机验收材料。26项公网／保护／协议检查通过，包括未登录来源页跳转、既有健康接口和导出401、MCP challenge、私有路径404、内部任务缺失／伪造密钥401及伪造账号参数400。
+
+本地已检查两个隔离虚构账号、深浅主题及320／390／430／1100／1440×780，保存87帧实际操作序列和按时间编码的面板录像。首次确认、运动冲突、手动保护、失败／慢响应、草稿与暂停／恢复均通过。正式环境未创建测试账号或虚构健康记录；真实登录账号网页未代验，不能将本地截图当作正式账号页面实测。真实活动仍为空，活动字段及冲突仅虚构样本覆盖；物理iPhone、系统键盘／VoiceOver／200%文字／减少动态切换及本轮WebKit未测。
+
+发布前后私有一致性备份核对通过：44→50表，仅新增6表及两个可空兼容字段；旧字段、旧行与30条原迁移保持，新增0031／0032。新来源行仅属于本人账号，4项允许变化仅为正常限流，健康事实例外为0，issues为空。没有生产验收数据需清理，用户合法更新保留。证据为本工作树.codex/source-release，备份为data/exports/source-pilot-20261107-{before,migrated,published}.json，均0600并被Git／部署忽略。
+
+最终日志查询Runtime error／fatal与请求5xx均0，无排除区间或后续分页；这是新部署上线后的实际观测，不代表已运行满20分钟。上一READY dpl_8J4m5x2QYWUsGD1fPcTjzNpHvFNm保留供应用回退；不反向删除新表或回滚用户合法更新。正式入口使用formward-ten.vercel.app，global.formward.top的既有DNS问题未在本轮修改。设计规则见D13，字段与配置见[Garmin接入](garmin-personal.md)。
+
 ## 本地验收：本人账号 Garmin 数据源（2026-11-07）
 
 应用逻辑冻结于d591325，并已合入最新正式电脑交互161057a及其发布文档。使用现有Mobile Design／Impeccable指导，按D1／D3／D4／D5／D6／D7／D10／D11／D12／D13核对。来源页面复用暖雾、导航与Inspector；设置、密钥、规则按需展开，七日差异和必要运动包含确认保持可见。没有引入依赖。
@@ -16,7 +34,7 @@ Chromium实际检查320／390／430／1100／1440×780、深浅主题；文档�
 
 本地证据为.codex/source-release/local-qa.json、.codex/source-checks/unit-summary.json和上述截图／录像。物理iPhone、系统键盘、VoiceOver、系统200%文字、系统减少动态效果切换及本轮WebKit未实测；已有相关控制器测试不冒充真机结果。真实账号当前活动响应为空，运动字段和冲突通过虚构响应验证，待首次真实活动返回后再核实。不以本地页面验收冒充正式登录账号页面验收。
 
-此阶段尚未发布；正式备份、迁移、真实来源读取和版本核对在发布完成后记录。
+上述本地检查不计为正式账号网页实测；正式备份、迁移、来源读取、公开协议及构建核对见本节前的正式发布记录。
 ## 正式发布验收：电脑关联交互与 Inspector（2026-11-07）
 
 用户追加“直接发布”授权后，已发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署 `dpl_8J4m5x2QYWUsGD1fPcTjzNpHvFNm`，应用源码 `161057a0e53c348009dfab46c9e3b849a5bedca1`，构建 `desktop-linked-161057a-20261107`。来自独立分支codex/desktop-linked-interactions；正式别名、项目、sourceCommit／gitCommitSha、版本接口及客户端JS一致。本轮仅发布，没有main合并或推送，其他工作区保持。

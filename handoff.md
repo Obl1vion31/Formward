@@ -1,14 +1,24 @@
 # Formward 项目交接
 
-## 当前开发：本人账号 Garmin 正式接入
+## 当前正式版本：本人账号 Garmin 数据源（2026-11-07）
 
-开发分支 codex/garmin-personal-preview 位于 /home/obl1vion/projects/Formward-worktrees/mobile-workspace。用户明确要求正式站仅对本人账号开放 Garmin Personal，其他账号同步入口但显示未开放；已授权验收后直接发布，不自动合入main。固定账号来自已核验的唯一既有 owner，服务端实际以固定 user_id 控制，owner 角色不自动获得资格。
+已按授权发布到[设备与数据来源](https://formward-ten.vercel.app/dashboard/sources)。READY部署 dpl_BKvm6vCXWqHAwgaSUUbuK1iBsNVT，应用源码 4c96a4cf1b640f15357f8642e9f7d60cc5a95e4a，构建 source-pilot-4c96a4c-20261107；项目、正式别名、sourceCommit／gitCommitSha与no-store版本接口一致。来自干净分支codex/garmin-personal-preview，已包含最新桌面交互161057a，本轮没有合入或推送main；其他工作区保持。后续纯文档提交不改变已发布应用。
 
-当前代码支持连接加密、按指标来源、七日对照采用、步数、运动冲突及整天人工保护；本地联合验收已通过，准备备份、迁移和发布；此时仍不能声称已上线。用户原密钥在 /home/obl1vion/.config/formward/garmin-personal.env，0600且国际站，不打印或公开。首次采用须由用户查看当前差异后明确确认，不能自动移动此前错日记录。独立只读预览及私有输出保持，真实记录不写入公共文档或演示。
+仅私有固定user_id对应的本人账号开放Garmin Personal绑定、同步、七日对照和采用，配置缺失默认关闭；owner角色不自动获权。其他账号同步设置／安全入口，进入只有“暂未开放”，继续原有手动功能。国际站密钥已从0600本机配置绑定，账号／连接AAD与独立AES-256-GCM主密钥加密；凭据、主密钥和原始上游JSON不返回浏览器或AI。
 
-已纳入下面最新正式桌面交互及发布文档，避免覆盖另一任务成果。
+真实来源读取成功：最近七天总消耗、静息、活动和步数各7日非空；当前活动为0条。正式采用为0，原消耗和错日记录没有自动移动或覆盖。用户须在页面核对11月6／7日及其他日期差异，再确认采用。采用以后按已选来源同步，手动事实变更保护整天，备注不冻结；运动及步数不再加到设备日总数。
 
-## 当前正式版本：电脑关联交互与 Inspector（2026-11-07）
+每日后台任务已在Vercel项目实际登记，路径/api/internal/source-sync、UTC 0 22 * * *（上海每日早间，平台调度不保证精确分钟）；本轮凭据验证请求为fresh、只返回状态。首次未来定时触发尚未发生，不计为实测通过。前台进入／恢复至少5分钟，失败保留旧数据、上次成功时间和草稿。
+
+68个文件544项单元／集成、lint（0错误0警告）、独立typecheck及37页production build通过；Vercel远程构建成功。769项上传文件不含环境、凭据、私有数据或本机验收材料。26项公网／保护／协议检查通过，包括未登录来源页跳转、既有健康接口和导出401、MCP challenge、私有路径404、内部任务缺失／伪造密钥401及伪造账号参数400。
+
+本地已检查两个隔离虚构账号、深浅主题及320／390／430／1100／1440×780，保存87帧实际操作序列和按时间编码的面板录像。首次确认、运动冲突、手动保护、失败／慢响应、草稿与暂停／恢复均通过。正式环境未创建测试账号或虚构健康记录；真实登录账号网页未代验，不能将本地截图当作正式账号页面实测。真实活动仍为空，活动字段及冲突仅虚构样本覆盖；物理iPhone、系统键盘／VoiceOver／200%文字／减少动态切换及本轮WebKit未测。
+
+发布前后私有一致性备份核对通过：44→50表，仅新增6表及两个可空兼容字段；旧字段、旧行与30条原迁移保持，新增0031／0032。新来源行仅属于本人账号，4项允许变化仅为正常限流，健康事实例外为0，issues为空。没有生产验收数据需清理，用户合法更新保留。证据为本工作树.codex/source-release，备份为data/exports/source-pilot-20261107-{before,migrated,published}.json，均0600并被Git／部署忽略。
+
+最终日志查询Runtime error／fatal与请求5xx均0，无排除区间或后续分页；这是新部署上线后的实际观测，不代表已运行满20分钟。上一READY dpl_8J4m5x2QYWUsGD1fPcTjzNpHvFNm保留供应用回退；不反向删除新表或回滚用户合法更新。正式入口使用formward-ten.vercel.app，global.formward.top的既有DNS问题未在本轮修改。设计规则见D13，字段与配置见[Garmin接入](docs/garmin-personal.md)，完整实际验收见[维护验收](docs/maintenance-verification.md)。
+
+## 此前正式版本：电脑关联交互与 Inspector（2026-11-07）
 
 用户追加明确发布授权后，已发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署 `dpl_8J4m5x2QYWUsGD1fPcTjzNpHvFNm`，应用源码 `161057a0e53c348009dfab46c9e3b849a5bedca1`，构建 `desktop-linked-161057a-20261107`；正式别名、源码元数据、版本接口及客户端JS一致。分支 `codex/desktop-linked-interactions` 基于干净56e7984，目录为 `/home/obl1vion/projects/Formward-worktrees/desktop-linked-interactions`。本轮未合并或推送main，其他工作区保持。
 
