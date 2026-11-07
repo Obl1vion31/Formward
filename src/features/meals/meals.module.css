@@ -429,3 +429,6 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
 @media(prefers-reduced-motion:reduce){.foodTable tbody tr{transition:none}}
 
 .headerNutrition>.headerMacros{display:flex;flex-wrap:wrap;gap:2px 10px}.headerMacros>span{white-space:nowrap}
+
+.duplicateNotice { display:flex; flex-wrap:wrap; align-items:center; gap:0 12px; margin:8px 0; color:var(--muted); font-size:14px; line-height:1.5; }
+.duplicateNotice a { display:inline-flex; align-items:center; min-height:44px; color:var(--warm-white); text-underline-offset:3px; }

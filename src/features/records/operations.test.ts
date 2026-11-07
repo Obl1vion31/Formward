@@ -173,25 +173,22 @@ test("未知批内食材引用明确阻止保存，可取消错误餐次独立�
 });
 
 
-test("重复餐次对照只返回本账号已有事实，另一次进食仍须明确选择", async () => {
+test("重复餐次对照只返回本账号已有事实，不阻止直接确认", async () => {
   const first = await owner(), other = await owner();
   let saved: RecordReviewView = await submitRecordOperation(db, first.identity, input([meal]));
   saved = await reviewRecordOperation(db, first.userId, saved.id, {kind:"confirm",revision:saved.revision});
   assert.equal(saved.status,"confirmed");
   const original = (await readMealSnapshot(db, first.userId)).meals[0];
-  let repeated: RecordReviewView = await submitRecordOperation(db, first.identity, input([meal]));
-  assert.match(repeated.rows[0].meal!.error!, /相同/);
+  const repeated: RecordReviewView = await submitRecordOperation(db, first.identity, input([meal]));
+  assert.equal(repeated.rows[0].meal!.error,undefined);
+  assert.equal(repeated.canConfirm,true);
+  assert.deepEqual(repeated.needsUserInput,[]);
   assert.deepEqual(repeated.rows[0].duplicateMeals?.map(row=>[row.id,row.date,row.items[0].name,Number(row.totals.values.caloriesKcal)]), [[original.id,meal.date,"虚构食品",200]]);
   assert.equal((await readMealSnapshot(db, first.userId)).meals.length,1);
   const otherPreview = await submitRecordOperation(db, other.identity, input([meal]));
   assert.equal(otherPreview.rows[0].duplicateMeals,undefined);
   await reject(getRecordOperation(db,other.identity,repeated.id),"not_found");
-  const repeatedAction = repeated.rows[0].action;
-  assert.equal(repeatedAction.kind,"save_meal");
-  if (repeatedAction.kind !== "save_meal") throw new Error("虚构餐次类型不符");
-  repeated = await reviewRecordOperation(db, first.userId, repeated.id, {kind:"update",key:"meal",revision:repeated.revision,action:{...repeatedAction,allowDuplicate:true}});
-  assert.equal(repeated.rows[0].meal!.error,undefined);
-  assert.equal((await readMealSnapshot(db, first.userId)).meals.length,1,"更新预览不写入餐次");
+  assert.equal((await readMealSnapshot(db, first.userId)).meals.length,1,"提示及预览不写入餐次");
   await reviewRecordOperation(db, first.userId, repeated.id, {kind:"confirm",revision:repeated.revision});
   assert.equal((await readMealSnapshot(db, first.userId)).meals.length,2);
 });

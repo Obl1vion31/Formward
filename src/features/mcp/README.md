@@ -12,7 +12,7 @@ authorize_formward检查并申请身体、饮食／食材、消耗、训练四�
 
 食材返回分类、稳定id/version、规格、来源和foodLibraryRules。说明保留实际组成、分量及来源／计算／结果，不写个人餐次背景；用户明确要求入库才另建食材。已有餐项用originalItemId保留身份与快照，已永久删除食材不得用于新餐。普通记餐只创建餐次。
 
-import_meal_images沿用meals:write，顶层files声明openai/fileParams，最多8张、每张20 MiB。原图私有保存，返回附件ID、status和逐文件failures；部分成功只重试失败项。成功附件还须关联到待网页确认的餐次或食材。照片不要求五项勾选，缺图可保存文字；只询问真实缺失、重复餐或包含关系。
+import_meal_images沿用meals:write，顶层files声明openai/fileParams，最多8张、每张20 MiB。原图私有保存，返回附件ID、status和逐文件failures；部分成功只重试失败项。成功附件还须关联到待网页确认的餐次或食材。照片不要求五项勾选，缺图可保存文字；只询问真实缺失或包含关系。重复餐仅轻提示，无需allowDuplicate或追加询问；饮食及食材不按历史倍数核对，营养允许明确0或null。search_foods返回兼容的空presets；query_meals可传timezone取得日期上下文。
 
 统一提交支持最多100项、64 KiB，依内容检查measurements／meals／energy／training权限。修改与取消只更新草稿，底部统一确认后才保存。消耗区分分开／总数、活动累计／手填合计、纯运动／含期间静息以及included／additional；不提供退役的日常默认值或公式动作。
 

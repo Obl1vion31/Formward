@@ -1,10 +1,10 @@
 "use client";
-import {mealWebIssue,sameMealAmounts} from "../records/web-entry";
+import {mealWebIssue} from "../records/web-entry";
 import {DecimalInput} from "@/components/decimal-input";
-import {confirmNumbers} from "@/components/number-change";
 import { useDraftGuard } from "@/components/draft-guard";
 import { RecordDateContext } from "@/components/record-date-context";
-import { mealTypeLabel } from "./model";
+import { mealContentKey, mealTypeLabel } from "./model";
+import { MealDuplicateNotice } from "./meal-duplicate-notice";
 import { useId, useRef, useState } from "react";
 import { decimal, defaultFoodQuantity, emptyNutrition, foodSpecification, formatNutrition, metricLabels, metrics, scaled, nutritionFor, sumNutrition, type FoodView, type ItemDraft, type ItemView, type MealView,type MealDraft } from "./model";
 import {editorDecimal,editorItem,freeEditorItem,mealEditorInput,mealDraftSignature,emptyEditorItem,updateEditorNutrition,type EditorItem,type EditorMeal} from "./meal-editor-state";
@@ -20,7 +20,6 @@ function Cell({value,label,placeholder="—",numeric=false,integer=false,precisi
 export function MealEditor({ initial, foods, historicalFoods=[], historicalItems=[], foodRefs={}, recentMeals=[], submitLabel="保存餐次", error, busy, save }: { initial:MealDraft;foods:FoodView[];historicalFoods?:FoodView[];historicalItems?:ItemView[];foodRefs?:Record<string,FoodView>;recentMeals?:MealView[];submitLabel?:string;error:string;busy:boolean;save:(input:MealDraft,allowMissingImages?:boolean)=>Promise<void> }) {
  const submitting=useRef(false),[invalid,setInvalid]=useState(false);
  const search=useRef<HTMLInputElement>(null);
- const numberAcknowledgements=useRef(new Set<string>());
  const [openedOn]=useState(()=>new Date().toLocaleDateString("en-CA"));
  const [draft,setDraft]=useState<EditorMeal>(()=>({...structuredClone(initial),mealType:mealTypeLabel(initial.mealType),items:[...initial.items.map((item,index)=>{
   const saved=item.originalItemId?historicalItems.find(previous=>previous.id===item.originalItemId):historicalItems[index];
@@ -53,8 +52,10 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
  }
  const results=foods.filter(food=>!food.deletedAt&&(category==="all"||(food.category??"ingredient")===category)&&`${food.name} ${food.brand??""} ${food.preparation??""}`.toLowerCase().includes(query.trim().toLowerCase()));
  const entered=draft.items.filter(item=>!emptyEditorItem(item)),totals=sumNutrition(entered.map(values));
- const input=mealEditorInput(draft),unchanged=!!initial.id&&initial.version===input.version&&sameMealAmounts(input,initial);
- const entryIssue=entered.some(item=>!item.name.trim())?"请填写食物名称。":entered.find(item=>item.editor.calorieIssue)?.editor.calorieIssue??mealWebIssue(input,totals.values,unchanged),blocked=busy||uploading||invalid||!!entryIssue;
+ const input=mealEditorInput(draft);
+ const entryIssue=entered.some(item=>!item.name.trim())?"请填写食物名称。":entered.find(item=>item.editor.calorieIssue)?.editor.calorieIssue??mealWebIssue(input,totals.values),blocked=busy||uploading||invalid||!!entryIssue;
+ const contentKey=mealContentKey({...input,items:input.items.map((item,index)=>({...item,name:itemFood(entered[index])?.name??item.name,nutrition:values(entered[index])}))});
+ const duplicate=!entryIssue&&recentMeals.some(meal=>!meal.deletedAt&&meal.id!==draft.id&&mealContentKey(meal)===contentKey);
  const layout=useMealLayout(table,draft.items.map(item=>[item.unit??"",item.quantity??"",...metrics.map(metric=>{const value=values(item)[metric];return itemFood(item)?formatNutrition(value,metric):value??"";})]));
 
  function openFree(){
@@ -63,9 +64,10 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
  }
  function openPicker(){setStep("picker");requestAnimationFrame(()=>search.current?.focus());}
 
- return <form data-entry-form="meal" className={`${styles.form} ${styles.mealForm}`} data-picker={layout.picker} aria-busy={busy} onChange={event=>setInvalid(Boolean(event.currentTarget.querySelector(":invalid")))} onSubmit={async event=>{event.preventDefault();if(blocked||submitting.current)return;submitting.current=true;try{const original=historicalItems.length?sumNutrition(historicalItems.map(item=>item.nutrition)):recentMeals.filter(meal=>meal.date<=draft.date&&!meal.deletedAt&&mealTypeLabel(meal.mealType)===mealTypeLabel(draft.mealType)).sort((a,b)=>b.date.localeCompare(a.date))[0]?.totals;if(!await confirmNumbers(metrics.map(metric=>({label:metricLabels[metric],unit:metric==="caloriesKcal"?"kcal":"g",value:totals.values[metric],previous:original?.values[metric]})),numberAcknowledgements.current))return;await save(mealEditorInput(draft),true);}finally{submitting.current=false;}}}>
- <div className={styles.stickyMealTotal}><div><RecordDateContext date={draft.date} openedOn={openedOn}/><div className={styles.headerNutrition} aria-label="本餐合计"><strong>{formatNutrition(totals.values.caloriesKcal,"caloriesKcal")}<small>kcal</small></strong><span className={styles.headerMacros}>{totals.incomplete.caloriesKcal&&<span>已知部分</span>}{metrics.filter(metric=>metric!=="caloriesKcal").map(metric=><span key={metric}>{metricLabels[metric]} {formatNutrition(totals.values[metric],metric)}{"\u00a0g"}</span>)}</span></div>{entryIssue&&<p className={styles.entryIssue} role="status">{entryIssue}</p>}</div><button disabled={blocked} className={styles.save} type="submit">{busy?"正在处理…":submitLabel==="应用修改"?submitLabel:submitLabel+" · "+draft.date}</button></div><fieldset disabled={busy||uploading}>
+ return <form data-entry-form="meal" className={`${styles.form} ${styles.mealForm}`} data-picker={layout.picker} aria-busy={busy} onChange={event=>setInvalid(Boolean(event.currentTarget.querySelector(":invalid")))} onSubmit={async event=>{event.preventDefault();if(blocked||submitting.current)return;submitting.current=true;try{await save(mealEditorInput(draft),true);}finally{submitting.current=false;}}}>
+ <div className={styles.stickyMealTotal}><div><RecordDateContext date={draft.date} openedOn={openedOn}/><div className={styles.headerNutrition} aria-label="本餐合计"><strong>{formatNutrition(totals.values.caloriesKcal,"caloriesKcal")}<small>kcal</small></strong><span className={styles.headerMacros}>{totals.incomplete.caloriesKcal&&totals.values.caloriesKcal!==null&&<span>已知部分</span>}{metrics.filter(metric=>metric!=="caloriesKcal").map(metric=><span key={metric}>{metricLabels[metric]} {formatNutrition(totals.values[metric],metric)}{"\u00a0g"}</span>)}</span></div>{entryIssue&&<p className={styles.entryIssue} role="status">{entryIssue}</p>}</div><button disabled={blocked} className={styles.save} type="submit">{busy?"正在处理…":submitLabel==="应用修改"?submitLabel:submitLabel+" · "+draft.date}</button></div><fieldset disabled={busy||uploading}>
  <div className={styles.formColumns}><label>日期<span className={styles.mealDate}><span aria-hidden="true">{draft.date||"选择日期"}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="4" y="6" width="16" height="15" rx="2"/><path d="M8 3v6m8-6v6M4 12h16"/></svg></span><input aria-label="日期" type="date" required value={draft.date} onChange={event=>setDraft({...draft,date:event.target.value,occurredAt:null})}/></span></label><label>餐次<input aria-label="餐次" required maxLength={50} list="meal-types" value={draft.mealType} onChange={event=>setDraft({...draft,mealType:event.target.value})}/><datalist id="meal-types">{["早餐","午餐","晚餐","加餐","夜宵"].map(name=><option key={name}>{name}</option>)}</datalist></label></div>
+ {duplicate&&<MealDuplicateNotice date={draft.date}/>}
  <div className={styles.entryPaths} aria-label="添加食物方式"><button type="button" aria-pressed={step==="entry"} onClick={openFree}>自己填写</button><button type="button" aria-pressed={step==="picker"} onClick={openPicker}>从食材库添加</button></div>
  <div className={styles.mealColumns} data-step={step}>
  <section className={styles.foodPicker} aria-label="选择食材库"><div className={styles.pickerHeading}><h3>食材库</h3><button type="button" onClick={()=>{setReplacing(null);setStep("entry");}}>返回本餐 · {entered.length}项</button></div><label>搜索食材<input ref={search} type="search" placeholder="名称、品牌或规格" value={query} onChange={event=>setQuery(event.target.value)}/></label>

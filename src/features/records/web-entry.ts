@@ -13,14 +13,14 @@ export function sameMealAmounts(a:MealDraft,b:MealDraft){
  })]);
  return key(a)===key(b);
 }
-export function mealWebIssue(input:MealDraft,values:Nutrition,unchanged=false):string|null{
+export function mealWebIssue(input:MealDraft,values:Nutrition):string|null{
  const {kind,...clean}=input as MealDraft&{kind?:unknown};void kind;
- if(!input.items.length)return "先添加食物，填写已知营养后即可保存。";
+ if(!input.items.length)return "先添加食物即可保存。";
  if(!input.mealType.trim())return "请填写餐次。";
  if(input.items.some(item=>!item.name.trim()))return "请填写食物名称。";
  if(!mealDraftSchema.safeParse(clean).success)return "请检查食物数量、营养数值或照片数量。";
  try{calendarOrdinal(input.date);}catch{return "请选择有效日期。";}
- return hasPositiveReading(metrics.map(k=>values[k]))||unchanged?null:"请填写至少一项大于0的已知营养数值。";
+ return metrics.every(metric=>values[metric]===null||Number.isFinite(Number(values[metric]))&&Number(values[metric])>=0)?null:"请检查营养数值。";
 }
 type DayAmounts=Pick<EnergyDayRecord,"date"|"entryMode"|"activityMode"|"restingKcal"|"activeKcal"|"totalKcal">;
 export function sameEnergyAmounts(a:DayAmounts,b:DayAmounts){

@@ -6,7 +6,7 @@ import {operationSchema,type MealInput,type MealDraft} from "../meals/model";
 import {digest,prepareMealActions,readMealSnapshot,type MealPlanner} from "../meals/records";
 import {energyInputSchema,energyModes,type EnergyInput} from "../activities/model";
 import {planEnergyActions,readEnergySnapshot} from "../activities/records";
-import {energyWebIssue,mealWebIssue,sameEnergyAmounts,sameMealAmounts} from "./web-entry";
+import {energyWebIssue,mealWebIssue,sameEnergyAmounts} from "./web-entry";
 import {energyDateMoveIssue} from "../activities/energy-save-state";
 
 /** 只由网页手工入口调用。公开提交／预览／确认不收紧未知和0的兼容。 */
@@ -19,9 +19,7 @@ export async function checkWebMeals(db:Database,userId:string,input:MealInput,pl
  for(const row of rows)if(row.action.kind==="save_meal"&&(!targetKey||row.review?.itemId===targetKey)){
   if(row.error)throw new ApiError(400,"invalid_input",row.error);
   if(!row.meal)throw new ApiError(400,"invalid_input","请检查餐次内容。");
-  const before=row.before&&"items" in row.before?row.before:undefined;
-  const unchanged=!!before&&row.action.version===before.version&&sameMealAmounts(row.meal,before);
-  const issue=mealWebIssue(row.action as MealDraft,row.meal.totals.values,unchanged);
+  const issue=mealWebIssue(row.action as MealDraft,row.meal.totals.values);
   if(issue)throw new ApiError(400,"invalid_input",issue);
  }
 }

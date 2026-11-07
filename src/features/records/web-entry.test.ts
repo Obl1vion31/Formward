@@ -16,12 +16,16 @@ before(async()=>{await migrate(db,{migrationsFolder:"./drizzle"});});
 after(async()=>{await pg.close();});
 const meal=(nutrition=emptyNutrition()):MealDraft=>({date:"2026-10-30",mealType:"午餐",items:[{name:"虚构食物",kind:"food",unit:"份",quantity:"1",sourceKind:"reference",nutritionBasis:"consumed_total",nutrition}]});
 const owner=async()=>{const id=randomUUID();await db.insert(schema.user).values({id,email:id+"@example.test",name:"虚构填写验收"});return id;};
-test("网页拒绝空或全零营养，保留已知部分与合法零",()=>{
- assert.ok(mealWebIssue(meal(),emptyNutrition()));
+test("网页允许营养未知或全零，仍拒绝空餐、非法数量和日期",()=>{
+ assert.equal(mealWebIssue(meal(),emptyNutrition()),null);
  const zero={caloriesKcal:"0",proteinG:"0",carbsG:"0",fatG:"0"};
- assert.ok(mealWebIssue(meal(zero),zero));
+ assert.equal(mealWebIssue(meal(zero),zero),null);
+ assert.ok(mealWebIssue({...meal(),items:[]},emptyNutrition()));
+ assert.ok(mealWebIssue({...meal(),items:[{...meal().items[0],name:" "}]},emptyNutrition()));
  const partial={...emptyNutrition(),proteinG:"20"};
  assert.equal(mealWebIssue(meal(partial),partial),null);
+ const large={caloriesKcal:"700000",proteinG:null,carbsG:null,fatG:null};
+ assert.equal(mealWebIssue({...meal(large),items:[meal(large).items[0],meal(large).items[0]]},{...large,caloriesKcal:"1400000.0000"}),null);
  assert.ok(mealWebIssue({...meal(partial),items:[{...meal(partial).items[0],quantity:"0"}]},partial));
  assert.ok(mealWebIssue({...meal(partial),date:"2026-02-30"},partial));
 });
@@ -32,9 +36,9 @@ test("消耗只检查采用模式，分项未知与活动零不误判",()=>{
  assert.ok(energyWebIssue({kind:"save_energy_day",date:"2026-10-30",entryMode:"total",totalKcal:null,restingKcal:"2058"},"300"));
  assert.equal(energyWebIssue({kind:"save_energy_day",date:"2026-10-30",entryMode:"total",totalKcal:"2000",restingKcal:"invalid"},"0"),null);
 });
-test("网页后台同样拒绝空白与零，公开提交仍兼容",async()=>{
+test("网页后台允许未知和零营养，消耗保留原正值门槛",async()=>{
  const id=await owner(),input:MealInput={operationId:randomUUID(),actions:[{kind:"save_meal",...meal()}]};
- await assert.rejects(checkWebMeals(db,id,input));
+ await checkWebMeals(db,id,input);
  const operation=await submitMealOperation(db,{userId:id,origin:"manual"},input);
  await decideMealOperation(db,id,operation.id,operation.revision,"confirm",true);
  assert.equal((await readMealSnapshot(db,id)).meals.length,1);
@@ -68,7 +72,9 @@ test("已确认的相同网页请求保持幂等，换内容不能绕过新校�
  const id=await owner(),m={operationId:randomUUID(),actions:[{kind:"save_meal" as const,...meal({caloriesKcal:"100",proteinG:null,carbsG:null,fatG:null})}]};
  await checkWebMeals(db,id,m);const op=await submitMealOperation(db,{userId:id,origin:"manual"},m);await decideMealOperation(db,id,op.id,op.revision,"confirm",true);
  await checkWebMeals(db,id,m);
- await assert.rejects(checkWebMeals(db,id,{...m,actions:[{kind:"save_meal",...meal()}]}));
+ const changed={...m,actions:[{kind:"save_meal" as const,...meal()}]};
+ await checkWebMeals(db,id,changed);
+ await assert.rejects(submitMealOperation(db,{userId:id,origin:"manual"},changed),error=>error instanceof Error&&"code" in error&&error.code==="request_conflict");
  const e={operationId:randomUUID(),actions:[{kind:"save_energy_day" as const,date:"2026-10-29",restingKcal:"2058",activeKcal:"0"}]};
  await checkWebEnergy(db,id,e);const ep=await submitEnergyOperation(db,{userId:id,origin:"manual"},e);await decideEnergyOperation(db,id,ep.id,ep.revision,"confirm");
  await checkWebEnergy(db,id,e);
@@ -84,7 +90,7 @@ test("AI手工修改沿用本批食材换算，不重新限制未修改的旧预
  const actions=[{key:"food",action:food,originalInput:food,excluded:false,checked:false},{key:"meal",action,originalInput:action,excluded:false,checked:false},{key:"old-unknown",action:{kind:"save_meal" as const,...meal()},originalInput:{kind:"save_meal" as const,...meal()},excluded:false,checked:false}];
  await checkWebMeals(db,id,{operationId:randomUUID(),actions:[action]},recordMealPlanner(actions,"preview"),"meal");
  const empty=actions.map(item=>item.key==="food"?{...item,action:{...food,nutrition:emptyNutrition()}}:item);
- await assert.rejects(checkWebMeals(db,id,{operationId:randomUUID(),actions:[action]},recordMealPlanner(empty,"preview"),"meal"));
+ await checkWebMeals(db,id,{operationId:randomUUID(),actions:[action]},recordMealPlanner(empty,"preview"),"meal");
 });
 
 test("AI仅限制正在手工修改的消耗，其他旧零值预览不被重新限制",async()=>{

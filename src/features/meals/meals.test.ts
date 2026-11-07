@@ -98,10 +98,10 @@ test("标签需要依据，负数与额外字段无效；未知可留空", async
   await reject(submitMealOperation(db, { userId, origin: "manual" }, { operationId: randomUUID(), userId: "fake", actions: [lunch()] }), "invalid_input");
   await save(userId, [lunch({ items: [{ kind: "misc", name: "杂", sourceKind: "unknown" }] })]); assert.equal((await readMealSnapshot(db, userId)).meals[0].totals.values.caloriesKcal, null);
 });
-test("餐次允许同日期同餐次不同内容；相同内容提示并可确认另一餐", async () => {
+test("餐次允许同日期同餐次不同内容；相同内容只提示即可直接确认", async () => {
   const userId = await owner(); await save(userId, [lunch()]); await save(userId, [lunch({ notes: "另外一次独立进食" })]);
-  let op = await submitMealOperation(db, { userId, origin: "manual" }, { operationId: randomUUID(), actions: [lunch()] }); assert.equal(op.canConfirm, false); assert.equal(op.rows[0].duplicateIds.length, 1);
-  op = { ...op, ...await reviseMealOperation(db, userId, op.id, op.revision, [lunch({ allowDuplicate: true })]) };
+  const op = await submitMealOperation(db, { userId, origin: "manual" }, { operationId: randomUUID(), actions: [lunch()] }); assert.equal(op.canConfirm, true); assert.equal(op.rows[0].duplicateIds.length, 1);
+  assert.deepEqual(op.rows[0].warnings,["本日已有相同内容的餐次","杂只包含未单列的剩余食物。"]);
   await decideMealOperation(db, userId, op.id, op.revision, "confirm"); assert.equal((await readMealSnapshot(db, userId)).meals.length, 3);
 });
 test("请求与确认幂等，不同内容及其他令牌不能复用标识", async () => {
