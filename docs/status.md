@@ -340,3 +340,7 @@ Formward采用Next.js16.3.7、React、TypeScript、Node.js24.21.0和pnpm9.15.9�
 正式报告与虚构截图在私有.codex/body-energy-release/，Chromium／WebKit分别为production-chromium.json与production-webkit.json；READY见.codex/body-energy-inspect-final.log。测试账号及所属记录、待确认操作、令牌与会话已全部清理。发布前、迁移后和发布后三份私有备份为data/exports/database-before-body-energy-2026-10-28.json、database-after-body-energy-migration-2026-10-28.json和database-after-body-energy-production-2026-10-28.json，均0600、Git与部署忽略。
 
 body-energy-migration-verification.json与body-energy-production-verification.json核对40表原有列、健康事实、请求和审计保持，0026只加三列及一条账本，旧运动新列保持NULL。期间已有账号正常新增的图片、待确认提交及授权轮换均保留，未代确认、删除或回滚；body-energy-concurrent-verification.json单独核对新增归属与测试数据清理。回退必须保留运动分项计算及新列，不切回无法理解components的旧后端。
+
+## 训练入口
+
+训练会话、自动保存、暂停继续、结束回看、模板与月历已接入，消耗保留独立视图。按本轮授权直接发布，验收与部署状态见handoff.md及maintenance-verification.md。0033仅新增训练四表，现有设备同步与消耗规则保持。

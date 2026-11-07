@@ -47,12 +47,14 @@ test("开始、自动保存、暂停继续、结束与回看不改变全天消�
   assert.equal((await mutateTraining(db, userId, change("finish", session.id, session.version))).snapshot.sessions.length, 1);
 });
 test("开始与请求重试幂等，并发开始只产生一场进行中训练", async () => {
-  const userId = await owner(), input = startInput();
-  const results = await Promise.all([mutateTraining(db, userId, input), mutateTraining(db, userId, startInput())]);
+  const userId = await owner(), input = startInput(), second = startInput();
+  const results = await Promise.all([mutateTraining(db, userId, input), mutateTraining(db, userId, second)]);
   assert.equal(results[0].entityId, results[1].entityId);
   assert.equal((await readTraining(db, userId)).sessions.length, 1);
   assert.equal((await mutateTraining(db, userId, input)).entityId, input.id);
   await assert.rejects(mutateTraining(db, userId, { ...input, date: "2026-11-09" }), /同一请求/);
+  await mutateTraining(db,userId,change("discard",results[0].entityId,1));
+  assert.equal((await mutateTraining(db,userId,second)).snapshot.sessions.length,0);
 });
 test("无完成组不能结束，放弃保留审计且允许重新开始", async () => {
   const userId = await owner(), result = await mutateTraining(db, userId, startInput()), s = result.snapshot.sessions[0];
@@ -84,6 +86,9 @@ test("模板排期独立保存快照，完成才标记计划，取消不改训�
   result = await mutateTraining(db, a, { kind: "save", operationId: randomUUID(), id: s.id, version: s.version, name: s.name, exercises: exercises() }); s = result.snapshot.sessions[0];
   result = await mutateTraining(db, a, change("finish", s.id, s.version)); plan = result.snapshot.plans[0];
   assert.equal(plan.status, "completed"); assert.equal(result.snapshot.sessions[0].status, "completed");
+  const later=await mutateTraining(db,a,{kind:"schedule",operationId:randomUUID(),id:randomUUID(),templateId,date:"2026-11-09"}),p=later.snapshot.plans.find(p=>p.date==="2026-11-09")!;
+  const cancelled=await mutateTraining(db,a,{kind:"unschedule",operationId:randomUUID(),id:p.id,version:p.version});
+  assert.equal(cancelled.snapshot.sessions[0].status,"completed");assert.equal(cancelled.snapshot.plans.some(row=>row.id===p.id),false);
 });
 test("账号停用与会话撤销后拒绝训练写入", async () => {
   const id = await owner(); await db.update(schema.user).set({ banned: true }).where(eq(schema.user.id, id));

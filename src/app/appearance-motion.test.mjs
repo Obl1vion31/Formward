@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import {afterEach,test} from 'node:test';
+import {afterEach,test,describe} from 'node:test';
 import {cancelAppearanceReveal,revealAppearance} from '../components/appearance-motion.ts';
 
+describe('外观转场的隔离环境',()=>{
 const originals=Object.fromEntries(['document','matchMedia','innerWidth','innerHeight'].map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
 function setup({supported=true,reduced=false}={}){
  const attributes=new Map(),calls=[],queued=[];let active;
@@ -30,4 +31,6 @@ test('连续反向点击采用最后选择，旧更新回调不得改回主题�
 test('浏览器拒绝转场时保留已完成主题更新，清理状态并可继续使用',async()=>{
  const env=setup();let updated=0;revealAppearance(()=>updated++,env.origin);env.active.update();env.active.fail(Error('unavailable'));await tick();
  assert.equal(updated,1);assert.equal(env.attributes.size,0);assert.equal(env.calls.length,0);
+});
+
 });

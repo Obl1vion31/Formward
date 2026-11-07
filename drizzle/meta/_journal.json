@@ -225,6 +225,13 @@
       "when": 1794045704794,
       "tag": "0032_adopted_activity_details",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1794077028109,
+      "tag": "0033_training_sessions",
+      "breakpoints": true
     }
   ]
 }

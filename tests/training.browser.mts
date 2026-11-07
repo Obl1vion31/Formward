@@ -32,4 +32,4 @@ try {
   if (process.env.FORMWARD_TRAINING_PREVIEW !== "1") await import("./training-check.browser.mjs");
   else { console.log(JSON.stringify({ baseURL, email: fixture.email, password: fixture.password, configPath, fictional: true })); await new Promise(() => {}); }
 } catch (error) { await writeFile(folder + "/server-failure.log", log); throw error; }
-finally { if (child.exitCode === null) { child.kill("SIGTERM"); await once(child, "exit"); } await socket.stop(); await pg.close(); }
+finally { if (child.exitCode === null) { child.kill("SIGTERM"); await once(child, "exit"); } await socket.stop(); await new Promise(resolve => setImmediate(resolve)); await pg.close(); }

@@ -40,13 +40,21 @@ try {
   await page.reload(); await ready(); await page.getByRole("button", { name: "继续训练", exact: true }).click();
   assert.equal(await page.getByLabel("杠铃卧推第1组重量公斤", { exact: true }).inputValue(), "40.5"); assert.equal(await page.getByLabel("杠铃卧推第1组完成", { exact: true }).getAttribute("aria-pressed"), "true");
   assert.ok(await page.getByRole("button", { name: "继续计时", exact: true }).isVisible()); checks.push("真实保存、暂停与刷新恢复");
+  const failSave=route=>route.request().method()==="POST"?route.abort("failed"):route.continue();
+  await page.route("**/dashboard/training",failSave);await page.getByLabel("杠铃卧推第1组次数",{exact:true}).fill("11");
+  await page.getByText("保存未完成，当前输入已保留，请重试。",{exact:true}).waitFor();assert.equal(await page.getByLabel("杠铃卧推第1组次数",{exact:true}).inputValue(),"11");
+  await page.unroute("**/dashboard/training",failSave);await page.getByRole("button",{name:"重试保存",exact:true}).click();await saved();
+  await page.getByLabel("杠铃卧推第1组完成",{exact:true}).click();await saved();checks.push("网络失败保留输入并重试");
   await page.getByRole("button", { name: "结束训练", exact: true }).click(); await page.getByRole("button", { name: "结束并保存", exact: true }).click(); await page.getByText("训练已完成并保存。", { exact: true }).waitFor(); await ready(); await shot("finished");
   assert.ok(await page.getByText("重量未记 · 12次", { exact: false }).isVisible()); checks.push("结束与未知重量回看");
   await page.getByRole("button", { name: "存为模板", exact: true }).click(); await page.getByLabel("模板名称", { exact: true }).fill("完成后保存的模板"); await page.getByRole("button", { name: "保存模板", exact: true }).click(); await page.getByText("训练模板已保存。", { exact: true }).waitFor(); await ready();
   await page.getByRole("button", { name: "安排训练", exact: true }).click(); await page.getByRole("combobox", { name: "训练模板", exact: true }).selectOption({ label: "完成后保存的模板" }); await page.getByRole("button", { name: "加入日历", exact: true }).click(); await page.getByText("已安排到", { exact: false }).waitFor(); await ready(); checks.push("模板与排期真实保存");
+  await page.setViewportSize({width:1440,height:900});const target=config.today.slice(0,8)+String(Number(config.today.slice(8))===1?2:Number(config.today.slice(8))-1).padStart(2,"0");
+  await page.getByRole("complementary",{name:"训练模板",exact:true}).locator("article").filter({hasText:"胸 · 肩 · 三头"}).dragTo(page.locator("[data-training-date=\""+target+"\"]"));
+  await page.getByText("已安排到"+Number(target.slice(5,7))+"月"+Number(target.slice(8))+"日",{exact:true}).waitFor();checks.push("电脑拖放真实排期");await page.setViewportSize({width:390,height:640});
   await page.getByRole("button", { name: "自由训练", exact: true }).click(); await page.locator("[data-training-editor]").waitFor(); await page.getByRole("button", { name: "结束训练", exact: true }).click(); await page.getByRole("button", { name: "放弃训练", exact: true }).click(); await page.locator("[data-training-editor]").waitFor({ state: "detached" }); checks.push("误触开始可单独放弃");
   await page.getByRole("navigation", { name: "训练与消耗", exact: true }).getByRole("link", { name: "消耗", exact: true }).click(); await ready();
-  await page.waitForURL("**/dashboard/energy"); assert.ok(await page.getByRole("region", { name: "消耗历史趋势", exact: true }).isVisible()); assert.ok(await page.locator("svg").count() > 0); await shot("energy-preserved"); checks.push("原消耗图表保留");
+  await page.waitForURL("**/dashboard/energy"); await page.getByRole("region", { name: "消耗历史趋势", exact: true }).waitFor({state:"visible"}); assert.ok(await page.locator("svg").count() > 0); await shot("energy-preserved"); checks.push("原消耗图表保留");
   assert.deepEqual(errors, []); assert.deepEqual(failures, []);
   await writeFile(folder + "/report.json", JSON.stringify({ passed: true, engine, checks, screenshots, errors, failures }, null, 2)); console.log(engine + " training browser passed: " + checks.length + " checks, " + screenshots.length + " screenshots");
 } catch (error) { await page.screenshot({ path: folder + "/failure.png" }); await writeFile(folder + "/failure.json", JSON.stringify({ error: String(error), errors, failures, checks }, null, 2)); throw error; }

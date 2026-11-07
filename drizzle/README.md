@@ -47,3 +47,5 @@
 0026_dark_tana_nile只增加activities三列：calorie_mode、resting_kcal、active_kcal及非负／模式约束，旧行NULL，不回算旧运动，不新增表。migration纳入版本控制后才允许生产执行，先备份、后核对原列和健康事实。
 
 0030_account_preferences新增按账号隔离的体脂显示偏好表；现有健康表、旧migration及原值不改。
+
+0033_training_sessions新增训练会话、模板、排期和事件四表，先建立归属唯一索引再建立组合外键；不修改旧表或回填健康数据。共享环境执行后不修改此迁移。

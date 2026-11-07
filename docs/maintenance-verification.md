@@ -1281,3 +1281,15 @@ lint、typecheck、354项单元／集成、production build、维护专项、消
 证据统一在私有 `/home/obl1vion/projects/Formward/.codex/overview-theme-tutorial`；`chromium/report.json`、`webkit/report.json`分别记录四页／主题／更新／确认页，`regression-chromium/report.json`、`regression-webkit/report.json`分别记录首次使用和十段影片；`versions/report.json`记录真实双构建验证。原片、点击坐标和解码报告在`tutorial-production/evidence`。本地检查使用虚构数据；本轮正式备份、无迁移核对及公网验收已完成，见本文最新正式验收。
 
 本机只有PostgreSQL客户端，原生测试服务端及liburing下载后仅解压在仓库外私有工具目录，没有安装系统服务或加入应用依赖。可用FORMWARD_PG_BIN指定其bin目录；测试结束停止并清理独立临时数据库。
+
+## 训练入口本地验收（2026-11-08）
+
+训练功能基于当前正式250a4ec及其交接8342ba6实现，保留设备同步、主题及持续手机导航。今日训练下直接是月历，不放消耗摘要；原消耗页通过独立视图保留。自动保存、暂停／继续、组次、结束回看、模板与拖放排期已实现。
+
+569项单元／集成测试、lint（0错误0警告）、独立类型检查、production build及结构检查通过。训练新增8项包含账号隔离、撤销、幂等／版本、未知／0、计时、排期快照和0033保留旧表；补充重试后放弃与取消计划断言通过。既有外观测试的afterEach被限定到自己的suite，避免污染其他测试，不改变应用主题逻辑。
+
+Chromium／WebKit各9组操作与18张截图通过，含两主题、320×560／390×560／390×640／430×780／640×390／1100×800／1440×900。检查真实保存、暂停／刷新、网络失败保留输入与重试、结束回看、未知重量、模板保存、点选与电脑拖放排期、空训练单独放弃及旧消耗图表。截图实际核看，手机训练标题置于原面板把手下方，正文居中和无横向溢出已测。
+
+D1／D2／D3／D4／D5／D7适用条目通过；D6浏览器实测通过，真机与系统能力仍未测。D8依本轮明确“直接发布”授权执行，不再要求发布前确认。D9不适用。真实iPhone／Android、系统软键盘、屏幕阅读器和系统文字放大未测；减少动态效果在浏览器开启。生产迁移和发布结果另记，不将本地截图当作正式账号验收。
+
+私有报告及截图位于.codex/training-release/final-chromium和final-webkit；可展示截图保存于C:/Users/14878/.codex/visualizations/2026/11/08/formward-training。全部为隔离虚构账号。
