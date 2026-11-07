@@ -10,13 +10,13 @@ import { dailyTotals, formatNutrition, type MacroMode } from "./model";
 import { intakeTrendPoint } from "./trend-preview";
 import styles from "./meals.module.css";
 
-export function MobileNutritionPlot({dates,groups,mode,selection}:{dates:string[];groups:ReturnType<typeof dailyTotals>;mode:MacroMode;selection:ReturnType<typeof useChartDateSelection>}) {
+export function MobileNutritionPlot({dates,groups,mode,selection,linked=false}:{dates:string[];groups:ReturnType<typeof dailyTotals>;mode:MacroMode;selection:ReturnType<typeof useChartDateSelection>;linked?:boolean}) {
   const viewport=useRef<HTMLDivElement>(null), byDate=new Map(groups.map(group=>[group.date,group]));
   const model=metricTrendModel("intake",dates.map(date=>{const group=byDate.get(date);return intakeTrendPoint(date,group?.totals,group?.day.status,mode);}));
   const {width:measured,left}=useChartViewport(viewport,model.ticks,50), width=measured||280,right=10,top=20,plotWidth=width-left-right,plotHeight=plotWidth/2,bottom=top+plotHeight;
   const slot=plotWidth/dates.length,x=(index:number)=>left+(index+.5)*slot,y=(value:number)=>bottom-value/model.max*plotHeight;
   const drag=useChartDrag(dates,width,left,right,selection.choose), selected=dates.indexOf(selection.selected),stride=Math.max(1,Math.ceil((dates.length-1)/3));
-  return <div className={styles.barViewport} ref={viewport} data-chart-arrival>
+  return <div className={styles.barViewport+(linked?" linked-trend-plot":"")} ref={viewport} data-chart-arrival data-linked-plot={linked||undefined}>
     <svg {...drag} className={styles.chart} style={{height:"auto",maxHeight:"none",touchAction:"pan-y",visibility:measured?undefined:"hidden"}} viewBox={`0 0 ${width} ${bottom+32}`} role="group" aria-label="每日摄入，kcal；P、C、F 组成">
       {model.ticks.filter((_,index)=>index%Math.max(1,Math.ceil(24*(model.ticks.length-1)/plotHeight))===0).map(tick=><g key={tick}><line className={styles.grid} x1={left} x2={width-right} y1={y(tick)} y2={y(tick)}/><text className={styles.axis} x={left-8} y={y(tick)+4} textAnchor="end">{tick}</text></g>)}
       <ChartSelectionColumn x={x(selected)} date={selection.selected} column={{left:x(selected)-slot/2,right:x(selected)+slot/2}} plot={{left,right:width-right,top,bottom}} resetKey={`${width}:${dates.join("|")}`} direct={selection.direct} baselineTick/>

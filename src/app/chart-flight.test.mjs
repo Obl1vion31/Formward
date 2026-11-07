@@ -34,6 +34,16 @@ test('旧完成回调和超时不得清掉已经反向的新图层',()=>{
   assert.equal(owner.active,incoming);assert.equal(incoming.node.style.visibility,'visible');
  }finally{owner.clear();}
 });
+test('取消尚未起步的转场会撤销下一帧任务，旧取消不能影响新图层',()=>{
+ const previous=globalThis.cancelAnimationFrame,cancelled=[],owner=createChartFlights(()=>{});
+ globalThis.cancelAnimationFrame=id=>cancelled.push(id);
+ try{
+  const first=owner.start(model,rect,'forward');first.startFrame=37;
+  const second=owner.start(model,rect,'back');second.startFrame=41;
+  assert.deepEqual(cancelled,[37]);assert.equal(owner.clear(first.id),false);assert.deepEqual(cancelled,[37]);
+  owner.clear(second.id);assert.deepEqual(cancelled,[37,41]);
+ }finally{owner.clear();if(previous)globalThis.cancelAnimationFrame=previous;else delete globalThis.cancelAnimationFrame;}
+});
 test('无有效目标的返回也保持幂等，下一次正常进入可重新开始',()=>{
  const owner=createChartFlights(()=>{});
  try{

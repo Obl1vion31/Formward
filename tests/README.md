@@ -1,5 +1,15 @@
 # Tests
 
+## 双端卡片关联与 Inspector
+
+production build 后运行 pnpm test:desktop-linked-browser。入口自行建立本机隔离 PGlite、执行现有 migration 并创建虚构账号，不读取环境文件或接受外部数据库连接。FORMWARD_DESKTOP_BROWSER=webkit 切换引擎，FORMWARD_DESKTOP_ARTIFACTS 指定私有证据目录；Chromium保留实际页面录屏，两引擎均记录真实帧和布局。
+
+desktop-linked-check.browser.mjs检查首页三卡前置／自适应排列、三类七日链接、2:1真实目标及骨架、单次双向移动、浏览器前进后退、原滚动／焦点／区间／估计选项恢复、新标签、快速反向、慢网中断及迟到响应。骨架和目标使用相同轴字体、长刻度及数据平面，位置尺寸逐项相差不超过1px。复查手机／电脑反复切换的图表测量、鼠标／键盘估计读数≤1px稳定性、模拟触屏上下文选日、横屏与文字放大。Inspector覆盖普通／自定义标题、设置、身体／消耗／餐次编辑，实际验证失败留稿、继续编辑、放弃与成功保存后营养原值保持；另验真实记全、消耗改期取消／确认后的编号与事实，以及助手先收起再进入正确日期的编辑。
+
+FORMWARD_DESKTOP_PREVIEW=1 启动持久虚构预览，默认4240、慢响应4241；FORMWARD_DESKTOP_PORT可改端口。可用FORMWARD_DESKTOP_BASELINE_ROOT指定由固定提交导出的独立已构建副本，预览使用4242，并以同一虚构数据库生成前后截图；不得依赖其他活跃任务会重新构建的.next。private preview.json保存本机进程和演示连接，不能复制到public或提交Git。真实iPhone、系统键盘与系统级文字放大不由这些模拟检查代替。
+
+两引擎的完整动效检查顺序运行，避免录屏、布局采样和并行构建争用资源；不降低单图层、实际中间帧、一次300ms或≤1px断言。等待器持续跟踪POST／RSC，只有主文档已替换时才退役旧GET及已退出的sign-out运输事件，并写入报告；业务POST仍必须完成，页面异常与5xx全部保留。FORMWARD_DESKTOP_FOCUS=flows仅用于三组关联诊断，不能代替完整验收。
+
 FORMWARD_FORM_DENSITY_ONLY=1 pnpm test:records-browser运行form-density.browser.mjs：两主题九种尺寸验证营养四项实际同排、长数字退让且字号不变、品牌与规格输入基线、身体来源间距、估算前后来源位置与同行操作；另外检查200%文字、触屏时段和更多设置。此项不以无溢出代替密度验收。
 
 ## 录入任务与公共表单

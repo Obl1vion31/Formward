@@ -1,5 +1,13 @@
 # 当前实现与验证
 
+## 当前本地实现：电脑关联交互与 Inspector（2026-11-07）
+
+`codex/desktop-linked-interactions` 基于正式版本所属分支的干净56e7984，未发布、合并或推送main。电脑首页三张七日卡片前置，共享手机的日期链接及2:1图形交接；关联专页图区最大640px、可见返回总览，恢复来源卡片／滚动／焦点及总览区间／估计显示选项。普通桌面图、六项读数、七日统计和区间摘要保持；手机继续横滑。
+
+Inspector标题取消独立玻璃弧线，保留侧栏及手机底部面板、44px关闭和草稿保护。营养图测量随实际组件重新挂载，手机／电脑切换不再空图；关联骨架与真实目标匹配高度、字体、刻度及数据平面，一次300ms交接，取消同时清理待执行帧。API、数据库、计算和依赖不变。
+
+本地虚构预览 http://localhost:4240/dashboard；固定基线 http://localhost:4242/dashboard。505项单元／集成、lint（0错误0警告）、typecheck、production build与结构检查通过；完整Chromium／WebKit通过，页面异常及5xx各0，保留72张截图和双端录像。最终证据与模拟限制见[维护验收](maintenance-verification.md)，演示方式见[交接](../handoff.md)。正式版本仍为下节6f0a2f6。
+
 ## 当前正式版本：消耗改期与主导航（2026-11-07）
 
 已按用户授权发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署`dpl_9KYWuxTQUQDTchCYXW8RBtt4oB4c`，应用源码`6f0a2f64e6d17c1513199561f0d5f7fb3fe6d14b`，构建`date-navigation-6f0a2f6-20261107`；formward-ten.vercel.app与global.formward.top、源码元数据、版本接口和客户端JS一致。来自codex/energy-date-navigation的干净提交，736项上传文件不含私有数据、环境文件与本机工具；未合入或推送main，原主工作区的国内基础设施修改保持隔离。后续纯文档提交不改变正式应用。

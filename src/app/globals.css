@@ -974,6 +974,7 @@ html[data-chart-travel=active] [data-shared-route] :is([data-record-slot="date"]
 html[data-chart-travel=active] [data-shared-route] [data-chart-arrival] svg>:not([data-trend-glyph]){opacity:0}
 .trend-back-link{display:inline-flex;align-items:center;gap:8px;min-height:44px;margin:0 0 8px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:14px;cursor:pointer}
 .trend-back-link:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.linked-trend-plot{width:100%;max-width:640px;margin-inline:auto}
 @media(prefers-reduced-motion:reduce){.chart-flight{display:none}}
 @media(prefers-reduced-motion:reduce){.workspace-shell .dashboard-page{animation:none}}
 
@@ -1004,7 +1005,7 @@ html[data-chart-travel=active] [data-shared-route] [data-chart-arrival] svg>:not
 .workspace-skeleton [data-metric-number]::before,.workspace-skeleton [data-metric-number]::after{display:none!important}
 .skeleton-block{display:inline-block;position:relative;vertical-align:middle;max-width:100%;overflow:hidden;isolation:isolate;background:var(--line-soft);flex:none}
 .skeleton-block>[data-skeleton-sheen]{display:block;position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent,rgba(215,205,183,.23),transparent);transform:translateX(-110%);animation:skeleton-sweep 1.6s linear infinite;pointer-events:none}
-.skeleton-plot{width:100%;font:12px Arial,sans-serif;min-height:180px}.skeleton-plot svg{display:block;width:100%;height:auto}.skeleton-plot[data-plot-kind=body]:not([data-shared-plot]){height:252px}.skeleton-plot[data-plot-kind=body]:not([data-shared-plot]) svg{height:100%}
+.skeleton-plot{width:100%;font:12px ui-monospace,monospace;min-height:180px}.skeleton-plot svg{display:block;width:100%;height:auto}.skeleton-plot[data-plot-kind=body]:not([data-shared-plot]){height:252px}.skeleton-plot[data-plot-kind=body]:not([data-shared-plot]) svg{height:100%}
 .skeleton-relationship{display:grid;gap:56px;padding-top:26px;padding-bottom:34px}.skeleton-relationship .skeleton-block{width:100%}
 .skeleton-rail{display:flex;gap:12px;overflow:hidden;margin:0 -16px;padding:4px 16px 16px}.skeleton-rail>div{flex:none;width:calc(100% - 24px);box-sizing:border-box;min-height:128px;padding:16px;border-radius:22px;background:var(--card-material);box-shadow:var(--card-shadow);display:flex;flex-direction:column;gap:12px}.skeleton-rail>div>span:first-child{font-size:15px}
 .body-metric-picker{display:flex;align-items:center;gap:4px;min-height:44px;margin:0 0 8px}.body-metric-picker button,.body-metric-picker>span{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:72px;box-sizing:border-box;padding:8px 16px;font:inherit;font-size:14px;border:0;border-radius:15px;background:transparent;color:var(--muted)}.body-metric-picker button{cursor:pointer}.body-metric-picker button[aria-pressed=true]{color:var(--warm-white);background:var(--card-material);box-shadow:inset 0 1px 0 var(--card-rim)}.body-metric-picker>span{justify-content:start;padding-left:0;color:var(--warm-white)}.body-metric-picker button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}

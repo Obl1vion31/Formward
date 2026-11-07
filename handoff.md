@@ -1,5 +1,21 @@
 # Formward 项目交接
 
+## 当前本地交付：电脑关联交互与 Inspector（2026-11-07）
+
+工作分支为 `codex/desktop-linked-interactions`，从 `codex/energy-date-navigation` 的干净提交 `56e7984c98cfb36af9602003720a15981c0e2e3e` 建立，目录为 `/home/obl1vion/projects/Formward-worktrees/desktop-linked-interactions`。本轮按已批准计划只交付本地可操作页面；没有新的正式发布、main 合并或推送，其他工作区内容保持。
+
+电脑总览先显示摄入／晨重／消耗三张真实七日趋势卡，再显示六项日读数、七日统计、完整关系双图及区间记录摘要；图后重复卡片退出。电脑自适应网格、手机横滑，卡片日期与大图所选日期独立。两端共用链接和图形交接，卡片进入正确专页日期及七日范围，电脑关联数据区最大640px、保持2:1，普通区间继续完整桌面图。
+
+电脑关联页提供“返回总览”，恢复来源卡片、滚动、焦点及总览已应用区间／估计显示选项。返回状态仅在账号内存保存，不恢复旧健康数值；改区间／指标、记录更新、尺寸变化及无匹配来源时取消旧交接。减少动态效果直接完成。查看先捕获日期及晨晚，只读详情与明确录入／编辑继续分离。
+
+Inspector 标题直接排列在面板底色上，移除桌面圆角玻璃、内高光、模糊和负边距；桌面把手不占空间，关闭44px，手机底部面板保持。营养绘图区测量跟随真实桌面组件挂载，修复手机切回电脑空图；三类关联骨架与目标使用相同数据平面、高度、刻度字体及体重小数格式，真实目标接管不取消或重播交接。交接首个可见帧在移动前绘出，取消同时清理待执行帧。
+
+本地预览为 http://localhost:4240/dashboard，固定基线对照为 http://localhost:4242/dashboard，均只连接本轮隔离虚构库。演示账号为 `assistant@example.test`，口令 `formward-assistant-demo`；私有启动状态在 `.codex/desktop-linked/preview/preview.json`。基线由固定56e7984导出至独立临时副本，不依赖其他活跃工作区的构建产物。
+
+lint（0错误0警告）、typecheck、505项单元／集成、production build及结构检查通过。完整Chromium／WebKit各三类往返、18次尺寸切换、12组首页与12组边界通过，客户端异常及5xx均0；72张截图和双端实际进入／返回录像位于 `C:/Users/14878/.codex/visualizations/2026/11/07/formward-desktop-linked`，打开review.html可比较。原始失败与未测边界见[维护验收](docs/maintenance-verification.md)；页面与设计规则见[界面说明](docs/interface.md)及[设计规范](docs/design-reference.md)。物理iPhone、系统键盘、VoiceOver、系统文字放大和真机帧率未测，浏览器模拟不代替真机。
+
+后续第四批顺序保持：用户目标 → 真实训练会话 → 训练计划与排期；目标、执行和全天消耗分别管理。消息能力先查询／解释／导航，再规划有预览与确认的写入。
+
 ## 当前正式版本：消耗改期与主导航（2026-11-07）
 
 已按用户授权发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署`dpl_9KYWuxTQUQDTchCYXW8RBtt4oB4c`，应用源码`6f0a2f64e6d17c1513199561f0d5f7fb3fe6d14b`，构建`date-navigation-6f0a2f6-20261107`；formward-ten.vercel.app与global.formward.top、源码元数据、版本接口和客户端JS一致。来自codex/energy-date-navigation的干净提交，736项上传文件不含私有数据、环境文件与本机工具；未合入或推送main，原主工作区的国内基础设施修改保持隔离。后续纯文档提交不改变正式应用。
