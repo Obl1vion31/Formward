@@ -229,5 +229,5 @@ test("采用分项改变但日总数不变时仍更新正式版本并精确返�
 
 test("只手动修改步数会保护整天但保留仍与总数一致的已知来源分项", async () => {
   const userId = await owner(); await sync(userId); await adopt(userId); await write(userId, {steps:7000});
-  const day=energyDays(await readEnergySnapshot(db,userId),[],[today])[0];assert.equal(day.record?.adoption?.mode,"manual");assert.equal(day.steps,7000);assert.equal(day.restingKcal,"2000");assert.equal(day.activeKcal,"300");assert.equal(Number(day.totalKcal),2300);
+  const day=energyDays(await readEnergySnapshot(db,userId),[],[today])[0];assert.equal(day.record?.adoption?.mode,"manual");assert.equal(day.steps,7000);assert.equal(day.cumulative,true);assert.equal(day.restingKcal,"2000");assert.equal(day.activeKcal,"300");assert.equal(Number(day.totalKcal),2300);
 });
