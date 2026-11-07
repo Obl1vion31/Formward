@@ -1,6 +1,18 @@
 # 公网 HTTPS 部署
 
-## 当前正式版本：图表点选与电脑读数卡片（2026-11-07）
+## 当前正式版本：电脑身体三卡横排（2026-11-07）
+
+已发布到[身体页](https://formward-ten.vercel.app/dashboard/measurements)。READY部署 dpl_9d4tebN6GHjDXvNSPuLSB2Z2JzFW，应用源码 250a4ec855b5242b6d81a4b29e58a2e6882ef724，构建 body-cards-250a4ec-20261107，来自独立分支codex/body-cards-row；正式别名、项目、源码元数据与版本接口一致，没有合入或推送main。后续纯文档提交不改变正式应用。
+
+电脑身体三张卡使用饮食／消耗同一横排网格，晨重卡略宽，数字和真实小折线并排，不再独占整行；体脂开启／关闭都保持三卡同排，空间不足整项退让。手机原有主卡／次卡构图、指标设置、统计口径、图表点选及全部编辑能力保持，骨架共用同一布局。没有新增动效、依赖、公开接口、生产变量或migration。
+
+71文件561项测试、lint（0错误0警告）、独立typecheck、37页production build及Vercel远程构建通过；774项上传文件不含私有材料。实际10组电脑布局及3组窄屏检查通过，覆盖1100／1440／1920、深浅主题、体脂两种模式、320／390／430手机结构与指标卡切换。25项公网／授权／协议检查通过，浏览器错误、Runtime error／fatal及请求5xx均0。日志是上线后的实际观测，不表示新应用已运行满20分钟。
+
+前后私有一致性备份均50表、32条migration，健康事实及来源事实保持，6条Garmin和1条非重复手工运动保持。逐行核对issues0，允许元数据变化7项，来源同步事件0项；真实更新按精确审计保留，未创建正式测试账号。证据为.codex/body-cards-release及data/exports/body-cards-20261107-{before,published}.json，均0600且Git／部署忽略。上一READY dpl_FRd4pBug5G73NSymfFMzyubhoDxG保留供应用回退，不反向改写用户数据。
+
+截图及checks.json位于C:/Users/14878/.codex/visualizations/2026/11/07/formward-body-row，均为隔离虚构账号；不当作正式登录账号或真机页面验收。物理手机、真实触摸、WebKit、系统文字放大及电脑冷加载逐像素偏差本轮未实测。正式入口继续使用formward-ten.vercel.app，未修改既有自定义域名DNS。
+
+## 此前正式版本：图表点选与电脑读数卡片（2026-11-07）
 
 已发布到[正式总览](https://formward-ten.vercel.app/dashboard)及[饮食](https://formward-ten.vercel.app/dashboard/meals)／[消耗](https://formward-ten.vercel.app/dashboard/energy)。READY部署 dpl_FRd4pBug5G73NSymfFMzyubhoDxG，应用源码 553fbbccfea107ce06ad0b57ecbe573e31011c67，构建 chart-cards-553fbbc-20261107；正式别名、项目、sourceCommit／gitCommitSha及no-store版本接口一致。来自干净分支codex/chart-selection-cards，未合入或推送main；后续纯文档提交不改变正式应用。
 
