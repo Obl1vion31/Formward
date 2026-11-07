@@ -1,10 +1,22 @@
 # Formward 项目交接
 
-## 当前开发：主题与设备直接同步
+## 当前正式版本：主题、连接与历史同步（2026-11-07）
 
-独立分支codex/sources-theme-history正在实施顶栏圆形主题切换、直接连接入口、同结构来源加载、历史全部载入与消耗详情去重。556项测试、lint和production build通过，实际页面验收正在收尾；本轮尚未发布，当前正式版本仍为下节Garmin试运行。用户已授权验收后发布，仅本人账号同步；不自动合入main。
+已发布到[正式总览](https://formward-ten.vercel.app/dashboard)及[连接设备与数据来源](https://formward-ten.vercel.app/dashboard/sources)。READY部署 dpl_CA9ZXvSNhX7kaaGn4C1Ti4dZKK1z，应用源码 a0d651715b8d1080e13a11c97456f15413b9b72c，构建 theme-sources-a0d6517-20261107；正式别名、项目、sourceCommit／gitCommitSha及no-store版本接口一致。来自干净分支codex/sources-theme-history，包含原有电脑关联交互；本轮未合入或推送main，后续纯文档提交不改变已发布应用。
 
-## 当前正式版本：本人账号 Garmin 数据源（2026-11-07）
+顶栏日／月按钮从图标中心以450ms圆形揭示新主题，跟随系统为账号菜单单个开关；不刷新页面、重挂载表单或丢失滚动。连接入口直接进入电脑独立页／手机底部面板；只保留设备、最近读取、立即同步、内容勾选与保存并同步、换密钥及按需历史补齐。勾选直接采用同一Garmin来源，七日对照和再次采用流程退出。页面／面板骨架共用正式结构，冷加载实测前后偏差0px；消耗详情只保留一次来源与步数，今天为“今日已消耗”。
+
+已正式载入2026-10-18—2026-11-07共21天汇总与6条Garmin活动；3条原手工运动的编号、发生事实和来源保留，两条相似运动不拦截或合并。6条真实活动的类型、本地／UTC时间、时长、gross热量、BMR、距离和平均心率均非空，已核验采用快照。21日计算均等于每日汇总，不再叠加运动；原日编号和备注保持。第二次读取新增活动、正式日版本变化、运动版本变化及写入通知均0。同一activityId稳定对应同一条记录。
+
+仅原固定本人user_id可同步，其他账号只有未开放入口；没有新增账号、连接或生产虚构数据。后台继续UTC22点（上海次日约6点），进入／恢复消耗页补读至少隔5分钟，手动15秒保护；手表先通过Garmin Connect上传，本站不能主动唤醒手表。配置保存后读取失败明确区分，只需重试读取，已有手动保护继续生效。
+
+70文件556项测试、lint（0错误0警告）、独立typecheck及37页production build通过，Vercel远程构建成功。773项上传文件不含私有数据、凭据、环境或验收材料。26项公网／授权／协议检查通过，内部任务为fresh。Runtime error／fatal与请求5xx均0，无排除区间或后续分页；这是新部署上线后的实际观测，不表示新版本已运行满20分钟。
+
+本地Chromium实际检查320／390／430与1100／1440／1920深浅主题、圆形中间帧、来源冷加载、慢／失败保存、草稿及两个账号门禁，保存截图和按采样时间编码的完整录像。正式登录账号网页未代验，本地截图均为隔离虚构账号；真实活动联调依据正式服务与数据库，不冒充真机视觉验收。物理iPhone、系统键盘／VoiceOver／200%文字、原生减少动态切换及本轮WebKit未实测。
+
+发布前／载入后／发布后私有一致性备份均50表、32条migration，schema及旧迁移不变；没有migration、生产变量或公开HTTP／MCP变更。逐行核对只允许精确来源审计对应的本人写入和正常限流，最终issues为0；没有笼统豁免本人健康表，用户合法更新保留。证据为本工作树.codex/theme-sources-release，0600备份为data/exports/theme-sources-20261107-{before,imported,published}.json，均不进入Git／部署。上一READY dpl_BKvm6vCXWqHAwgaSUUbuK1iBsNVT保留供应用回退，不反向删除健康数据。正式入口使用formward-ten.vercel.app，本轮未修改global.formward.top的既有DNS配置。
+
+## 此前正式版本：本人账号 Garmin 数据源（2026-11-07）
 
 已按授权发布到[设备与数据来源](https://formward-ten.vercel.app/dashboard/sources)。READY部署 dpl_BKvm6vCXWqHAwgaSUUbuK1iBsNVT，应用源码 4c96a4cf1b640f15357f8642e9f7d60cc5a95e4a，构建 source-pilot-4c96a4c-20261107；项目、正式别名、sourceCommit／gitCommitSha与no-store版本接口一致。来自干净分支codex/garmin-personal-preview，已包含最新桌面交互161057a，本轮没有合入或推送main；其他工作区保持。后续纯文档提交不改变已发布应用。
 

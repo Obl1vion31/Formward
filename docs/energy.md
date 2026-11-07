@@ -13,7 +13,9 @@
 运动calorieMode为total／components。只记总数时caloriesKcal原样计入；分开填exerciseActiveKcal纯运动、exerciseRestingKcal期间静息，只将纯运动计入当天。比如全天静息2000、运动静息50和纯运动400，本次450、计入400，全天2400；仅知总450时全天2450，不猜拆分。纯运动已知而静息未知时可以计入，本次总数留空；0有效，未完成不计。只有当天有采用中的活动合计或全天总消耗才核对是否已包含，已包含不加，额外增加按计入值加。新运动列由0026增加，旧值不回算；查询、AI、网页与Excel共用结果。
 
 
-网页入口是 /dashboard/energy，业务代码在 src/features/activities。这里只记录用户提供的热量，不连接手表，不估算额外日常活动，也不提供静息公式、训练计划或预算。
+网页入口是 /dashboard/energy，业务代码在 src/features/activities；Garmin云端读取和采用由src/features/data-sources负责，两者复用同一消耗模型。手动记录与已采用来源事实共同展示，不估算额外日常活动，也不提供静息公式、训练计划或预算。
+
+设备日总消耗优先采用Garmin官方总数，运动明细不再次累加；步数与唯一来源合并为一行，今天用“今日已消耗”表示当前累计。相似手工运动独立保留，同连接／activityId幂等；历史不同手工总数和已有手动保护不被覆盖。连接勾选、历史补齐、字段与同步频率见[Garmin接入](garmin-personal.md)。
 
 ## 两种录入方式
 
