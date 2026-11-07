@@ -122,7 +122,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
       <RecordTrendPanel presentation="nutrition" graphic={<NutritionComposition totals={chosen?.totals}/>}
        range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft({from:customFrom||from,to:customTo});setCustomOpen(true);}else{setRange(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="饮食" value={customDraft} change={setCustomDraft} apply={()=>{setCustomFrom(customDraft.from);setCustomTo(customDraft.to);setRange("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
-       date={summaryDate} view={()=>{const target=summaryDate;viewDay(target);chart.release();}} readoutLabel="选中日营养"
+       date={summaryDate} view={()=>{const target=summaryDate;viewDay(target);chart.releasePreview();}} readoutLabel="选中日营养"
        metrics={metrics.map(metric=>({label:metricLabels[metric],value:formatNutrition(chosen?.totals.values[metric]??null,metric),unit:unitFor(metric),inlineUnit:metric!=="caloriesKcal",tone:metric==="caloriesKcal"?"blue":undefined,note:chosen?.totals.incomplete[metric]?"已知部分":metric!=="caloriesKcal"&&macroComposition(chosen?.totals).kind==="known"?((macroComposition(chosen?.totals).segments.find(s=>s.metric===metric)?.ratio??0)*100).toFixed(1)+'%':undefined,reserveNote:metric!=="caloriesKcal"||groups.some(group=>group.date>=from&&group.date<=to&&group.totals.incomplete[metric])}))}
        metricVariants={groups.filter(group=>group.date>=from&&group.date<=to).map(group=>metrics.map(metric=>formatNutrition(group.totals.values[metric],metric)))}
        title="每日摄入" unit="kcal"

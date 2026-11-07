@@ -51,7 +51,7 @@ use-chart-drag供四页共用横拖选择与纵向滚动判断；手指按下不
 
 `source-input.tsx`与同名CSS模块提供身体、消耗及AI审核共用的来源输入、全部历史展开、搜索、键盘／触控选择与软移除交互；数据和移除接口由各feature提供，maxLength分别为300／200。候选使用真实按钮，触屏不取消pointerdown默认行为；输入框失焦且relatedTarget为空时不抢先收起，改由点击／聚焦外部、Tab离开、Escape及窗口失焦关闭。鼠标选择保留输入焦点，中文输入法确认不触发历史选中。
 
-use-chart-date-selection.ts统一四页的鼠标临时预览、自定义期间暂停、完整面板离开恢复，以及键盘和触屏选择；点击不固定日期，同日同输入方式去重，仅维护界面状态。chart-ranges.tsx复用区间按钮，日期输入保留在各模块的自定义表单。
+use-chart-date-selection.ts统一四页的鼠标临时预览、自定义期间暂停、完整面板离开恢复，以及键盘和触屏选择；鼠标点击后保持日期并忽略后续悬停，Escape／换区间解除；未点击的悬停离开后恢复默认，同日同输入方式去重，仅维护界面状态。chart-ranges.tsx复用区间按钮，日期输入保留在各模块的自定义表单。
 
  daily-records.tsx与record-ui.module.css统一日期行、查看入口及次要状态位置；record-history.tsx提供页面内日期查找与每批50行加载；daily-records.tsx在最近行下方提供展开／收起历史。单日查看或编辑才开Inspector，关闭保留列表加载状态及页面位置。主列表由record-dates.ts推导今天及前6天待处理日期，不计算健康数值。
 
@@ -74,7 +74,7 @@ RecordTrendPanel的metricVariants传入当前区间已算好的各日读数字�
 
 总览通过RecordTrendPanel的可选statusInDate将短提示放入既有日期行，其他页面默认行为保持。SelectedDateHeading的可选status只提供同排内容，不扩展业务计算。
 
-chart-selection-marker.tsx及同名CSS集中管理ChartSelectionColumn底纹／辅助线／柱图短标记、ChartSelectionPoint空心高亮圈。永久SVG图层100ms（cubic-bezier(.2,0,0,1)）短过渡，中断时取消旧动画并续接当前视觉位置；列层位于数据之前、裁在绘图区，底纹与线使用同一变换。触屏、首次定位、区间／尺寸更换和减少动态效果直接就位，首次450ms／数据更新200ms动画仍由use-chart-motion独立负责；use-chart-date-selection.ts区分鼠标临时预览、键盘焦点内选择与触屏持久选择。完整趋势面板负责离开及焦点边界，查看入口先捕获目标日期。
+chart-selection-marker.tsx及同名CSS集中管理ChartSelectionColumn底纹／辅助线／柱图短标记、ChartSelectionPoint空心高亮圈。永久SVG图层100ms（cubic-bezier(.2,0,0,1)）短过渡，中断时取消旧动画并续接当前视觉位置；列层位于数据之前、裁在绘图区，底纹与线使用同一变换。触屏、首次定位、区间／尺寸更换和减少动态效果直接就位，首次450ms／数据更新200ms动画仍由use-chart-motion独立负责；use-chart-date-selection.ts区分鼠标临时预览、点击保持、键盘焦点内选择与触屏持久选择。完整趋势面板负责离开及焦点边界，查看入口先捕获目标日期。
 
 
 record-detail-actions.tsx在已展开的餐次／运动中统一编辑及更多删除；删除保留业务原有确认，Escape先关闭更多并返回焦点，外部点击或焦点离开关闭菜单。Disclosure继续只在展开后挂载完整内容。
@@ -86,3 +86,5 @@ workspace-skeleton.tsx复用正式卡片、语义色图例与图形槽位，空�
 workspace-frame.tsx提供固定首页动作及桌面标题，手机返回并入DashboardHeader，不额外占行。SkeletonBlock裁切数字占位与扫光，EntrySurface先开录入面板，原表单portal接管并保留草稿上下文。Inspector自定义标题关闭按钮复用InspectorCloseButton；onSavedCloseReady仅在服务器确认保存成功后用于退出，普通关闭继续检查忙碌和草稿。饮食／消耗在同一Inspector中切换查看与编辑，不叠加两个dialog。
 
 草稿登记、关闭回调和InspectorBusyContext在首绘前同步；portal转交忙碌Context，自定义标题使用同一关闭按钮，避免保存尚未完全结束时看似能关闭却没有反应。助手外壳固定在视口许可的高度，数据就绪只更新内部内容。
+
+电脑饮食／消耗的RecordTrendPanel读数复用现有主页／身体暖雾卡片材质、圆角、高光及阴影：常规横排，主卡内显示真实供能环图或静息／活动比例，语义色点与数值一致。骨架共用同一结构，宽度不足按整个区间的实际文字宽度稳定换行，不缩字；未知与0不伪造比例。手机沿用已验收布局。

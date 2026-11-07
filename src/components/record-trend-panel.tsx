@@ -39,13 +39,14 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
     })};
    }
    const values=nodes.map((node,index)=>Math.max(node.scrollWidth,widthCache.current.widths[index]??0));
+   const desktopCards=mobile===false&&(presentation==='nutrition'||presentation==='energy');
    let count=metrics.length===6&&(mobile||group.clientWidth<860)?3:metrics.length;
    while(count>1){
-    const available=group.clientWidth-gap*(count-1),weights=count===4?[1.5,1,1,1]:Array(count).fill(1),total=weights.reduce((a,b)=>a+b,0);
-    if(values.every((width,index)=>width<=available*weights[index%count]/total+1))break;
+    const available=group.clientWidth-gap*(count-1),weights=count===4?[1.5,1,1,1]:count===3&&desktopCards&&presentation==='energy'?[1.5,1,1]:Array(count).fill(1),total=weights.reduce((a,b)=>a+b,0);
+    if(values.every((width,index)=>width+(desktopCards?36+(index===0?(presentation==='energy'?136:108):0):0)<=available*weights[index%count]/total+1))break;
     count=count===6?3:count>2?2:1;
    }
-   if(presentation){group.dataset.heroStack=String(values[0]+160>group.clientWidth);const relevant=values.slice(1);const cols=presentation==='nutrition'?3:2;group.dataset.richStack=String(relevant.some(width=>width+24>(group.clientWidth-gap*(cols-1))/cols));}
+   if(presentation){group.dataset.heroStack=String(values[0]+160>(group.firstElementChild?.clientWidth??group.clientWidth));const relevant=values.slice(1);const cols=presentation==='nutrition'?3:2;group.dataset.richStack=String(relevant.some(width=>width+24>(group.clientWidth-gap*(cols-1))/cols));}
    setColumnLimit(current=>current===count?current:count);
   };
   const observer=new ResizeObserver(measure);observer.observe(group);
@@ -57,7 +58,7 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
  return <div className={styles.panel} data-record-trend data-status-in-date={statusInDate||undefined}>
   <div className={styles.date} data-record-slot="date"><SelectedDateHeading date={date} view={view} status={statusInDate?<span className={styles.dateStatus} role="status" title={flags||undefined}>{flags??""}</span>:undefined}/></div>
   <div className={statistics?styles.readingArea:undefined}>
-  <div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-presentation={presentation} data-loading={loading||undefined} aria-busy={loading||undefined} data-metric-count={metrics.length} data-record-columns={columns} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map((metric,index)=>{
+  <div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-presentation={presentation} data-loading={loading||undefined} aria-busy={loading||undefined} data-metric-count={metrics.length} data-record-columns={columns} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":columns===3&&presentation==='energy'?"1.5fr repeat(2,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map((metric,index)=>{
    const labels=[...new Set([metric.label,...labelVariants.map(row=>row[index]).filter(Boolean)])];
    const notes=[...new Set([metric.note,...noteVariants.map(row=>row[index])].filter((value):value is string=>Boolean(value)))];
    return <div key={metric.id??index} className={styles.metric} data-selected={metric.selected||undefined}>

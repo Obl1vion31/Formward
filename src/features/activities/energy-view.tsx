@@ -145,7 +145,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
       <RecordTrendPanel presentation="energy" graphic={<EnergyComposition resting={chosen?.record?.adoption?.mode==="source"&&chosen.record.adoption.metadata?.compositionKnown===false?null:chosen?.restingKcal} active={chosen?.activeKcal}/>}
        range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="消耗" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
-       date={inspected} view={()=>{const target=inspected;setViewing(target);selection.release();}} readoutLabel="选中日消耗"
+       date={inspected} view={()=>{const target=inspected;setViewing(target);selection.releasePreview();}} readoutLabel="选中日消耗"
        metrics={[
         {label:chosen?.cumulative?"今日已消耗":"总消耗",value:energyValue(chosen?.totalKcal),unit:"kcal"},
         {label:"静息",value:energyValue(chosen?.restingKcal),unit:"kcal",tone:"blue"},

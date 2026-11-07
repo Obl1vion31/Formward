@@ -46,7 +46,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const selection=useChartDateSelection(dates,preferred,fallback,customOpen,String(estimates)),selected=selection.selected,day=days.find(day=>day.date===selected),dialogDay=opened?byDate.get(opened)??blankDay(opened):null;
   return <section aria-label="热量与晨重趋势" style={{visibility:mobile===null?"hidden":undefined}} data-chart-selection={selection.regionId} data-selected-date={selected} data-selection-origin={selection.origin} {...selection.regionProps}>
     {mobile?<div className={styles.mobileTrend}>
-      <div className={styles.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" onClick={()=>{const target=selected;setOpened(target);selection.release();}}>查看记录 →</button></div>
+      <div className={styles.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" onClick={()=>{const target=selected;setOpened(target);selection.releasePreview();}}>查看记录 →</button></div>
       <ChartRanges value={range} change={key=>{selection.leave();if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>
       {customOpen&&<CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
       <div className={styles.mobileSelected} aria-live="polite"><time>{selected}</time><strong>{day?.energyBalance==null?"收支未知":day.energyBalance<0?"缺口 "+formatIntegerNumber(Math.abs(day.energyBalance)):"盈余 "+formatIntegerNumber(day.energyBalance)}<small>kcal</small></strong></div>
@@ -55,7 +55,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
     </div>:<RecordTrendPanel
       range={<ChartRanges value={range} change={key=>{selection.leave();if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>}
       custom={customOpen&&<CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
-      date={selected} view={()=>{const target=selected;setOpened(target);selection.release();}}
+      date={selected} view={()=>{const target=selected;setOpened(target);selection.releasePreview();}}
       readoutLabel="日期对照"
       metricVariants={days.map(day=>[formatNutrition(day.nutrition?.values.caloriesKcal??null,"caloriesKcal"),energyValue(day.energy.totalKcal),signedIntegerNumber(day.energyBalance),formatRecordNumber(day.morning?.weightKg??null),formatRecordNumber(day.nextMorning?.weightKg??null),signed(day.weightChangeKg)].slice(0,mobile?3:6))}
       metrics={overviewMetrics(day??blankDay(selected),!!mobile)}
