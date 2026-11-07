@@ -150,7 +150,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
       </section>}
        </ChartOptions>}
        legend={<><span><i style={{background:"var(--gold)",borderRadius:"50%"}}/>晨间空腹</span>{showEvening&&<span><i style={{background:"var(--data-deficit)",borderRadius:"50%"}}/>晚间</span>}{showEstimates&&visibleRecords.some(row=>row.recordKind==="estimated")&&<span>虚线 · 估计</span>}</>}
-      ><div data-chart-metric={activeMetric}><TrendPlot records={visibleRecords} metric={activeMetric} showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
+      ><div data-chart-metric={activeMetric}><TrendPlot linked={!!initialTrend&&range.start===initialTrend.from&&range.end===initialTrend.to&&!showEstimates} records={visibleRecords} metric={activeMetric} showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
       </RecordTrendPanel>
     </section>
     <DailyRecords history={<RecordHistory today={today} dates={(catalog.start&&catalog.end?measurementCalendarPage(catalog,calendarOrdinal(catalog.end)-calendarOrdinal(catalog.start)+1):[]).filter(date=>!recent.some(day=>day.date===date))} renderRow={renderDay} view={inspectDay}/>}>{recent.map(day=>renderDay(day.date))}</DailyRecords>
@@ -306,9 +306,9 @@ function RecordList({ day, metric, activeId, period, onInspect }: {
     </button>; })}
   </div>;
 }
-function TrendPlot(props:Parameters<typeof FullTrendPlot>[0]) {
+function TrendPlot({linked=false,...props}:Parameters<typeof FullTrendPlot>[0]&{linked?:boolean}) {
   const mobile=useMobileMode();
-  return mobile&&props.metric==="weightKg"&&!props.showEvening&&!props.records.some(row=>row.recordKind==="estimated")?<MorningWeightPlot records={props.records} interval={props.interval} selection={props.selection} choices={props.choices}/>:<FullTrendPlot {...props}/>;
+  return (mobile||linked)&&props.metric==="weightKg"&&!props.showEvening&&!props.records.some(row=>row.recordKind==="estimated")?<MorningWeightPlot linked={linked} records={props.records} interval={props.interval} selection={props.selection} choices={props.choices}/>:<FullTrendPlot {...props}/>;
 }
 function FullTrendPlot({ records, metric, showEvening, interval, selectedDate, selectedPeriod, selection, onPeriod, choices }: {
   records: MeasurementDisplay[]; metric: MeasurementMetric; showEvening: boolean; interval: MeasurementInterval;

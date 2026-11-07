@@ -34,7 +34,8 @@
     "test:visual": "node --import tsx tests/overview-theme.browser.mjs",
     "test:app-version": "node --import tsx tests/app-version.browser.mjs",
     "test:detail-browser": "node --import tsx tests/detail-hierarchy.browser.mjs",
-    "test:assistant-browser": "node --import tsx tests/assistant-suite.browser.mts"
+    "test:assistant-browser": "node --import tsx tests/assistant-suite.browser.mts",
+    "test:desktop-linked-browser": "node --import tsx tests/desktop-linked.browser.mts"
   },
   "dependencies": {
     "@better-auth/cimd": "1.7.7",

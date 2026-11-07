@@ -13,8 +13,12 @@ import { MobileNutritionPlot } from "./mobile-nutrition-plot";
 
 const calorieColor = "var(--data-deficit)";
 const macros: Metric[] = ["proteinG", "carbsG", "fatG"];
-export function NutritionChart({ dates, groups, selection, mode }: { dates: string[]; groups: ReturnType<typeof dailyTotals>; selection:ReturnType<typeof useChartDateSelection>; mode: MacroMode }) {
+type NutritionChartProps={dates:string[];groups:ReturnType<typeof dailyTotals>;selection:ReturnType<typeof useChartDateSelection>;mode:MacroMode;linked?:boolean};
+export function NutritionChart(props:NutritionChartProps) {
   const mobile=useMobileMode();
+  return mobile||props.linked?<MobileNutritionPlot {...props}/>:<DesktopNutritionChart {...props}/>;
+}
+function DesktopNutritionChart({ dates, groups, selection, mode }: NutritionChartProps) {
   const viewport = useRef<HTMLDivElement>(null);
   const patternId = useId().replaceAll(":", "");
   const byDate = new Map(groups.map(group => [group.date, group.totals]));
@@ -28,7 +32,6 @@ export function NutritionChart({ dates, groups, selection, mode }: { dates: stri
   const drag=useChartDrag(dates,width,left,right,selection.choose);
   const allDates = dates.length <= 7, selectedX = left + (dates.indexOf(inspected) + .5) * slot;
   const stride = Math.max(1, Math.ceil((dates.length - 1) / (width < 440 ? 3 : 6)));
-  if(mobile)return <MobileNutritionPlot dates={dates} groups={groups} mode={mode} selection={selection}/>;
   return <>
     <div className={styles.barViewport} ref={viewport} >
       <svg {...drag} className={styles.chart} style={{ touchAction:"pan-y", visibility: containerWidth ? undefined : "hidden" }} viewBox={`0 0 ${width} 194`} role="group" aria-label={`热量柱状图，单位${unit}`}>

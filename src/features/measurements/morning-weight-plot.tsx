@@ -11,14 +11,14 @@ import { addCalendarDays, calendarOrdinal, measurementTrend, normalScale, type M
 import type { MeasurementDisplay } from "./entry-state";
 import styles from "./measurements-view.module.css";
 
-export function MorningWeightPlot({records,interval,selection,choices}:{records:MeasurementDisplay[];interval:MeasurementInterval;selection:ReturnType<typeof useChartDateSelection>;choices:Record<string,string>}) {
+export function MorningWeightPlot({records,interval,selection,choices,linked=false}:{records:MeasurementDisplay[];interval:MeasurementInterval;selection:ReturnType<typeof useChartDateSelection>;choices:Record<string,string>;linked?:boolean}) {
   const viewport=useRef<HTMLDivElement>(null), dates=Array.from({length:calendarOrdinal(interval.end)-calendarOrdinal(interval.start)+1},(_,i)=>addCalendarDays(interval.start,i));
   const {points}=measurementTrend(records,"weightKg",false,choices), byDate=new Map(points.map(row=>[row.recordDate,row]));
   const scale=normalScale(points.map(row=>Number(row.weightKg))),model=metricTrendModel("morning-weight",dates.map(date=>({date,value:byDate.get(date)?.weightKg!=null?Number(byDate.get(date)!.weightKg):null})),scale);
   const {width:measured,left}=useChartViewport(viewport,scale.ticks.map(value=>value.toFixed(1)),48),width=measured||280,right=16,top=14,plotWidth=width-left-right,plotHeight=plotWidth/2,bottom=top+plotHeight;
   const x=(index:number)=>left+(dates.length>1?(5+index/(dates.length-1)*230)/240: .5)*plotWidth,y=(value:number)=>top+(5+scale.position(value)*110)/120*plotHeight;
   const drag=useChartDrag(dates,width,left,right,selection.choose),slot=plotWidth/Math.max(1,dates.length-1),index=dates.indexOf(selection.selected),stride=Math.max(1,Math.ceil((dates.length-1)/3));
-  return <div className={styles.plotViewport} ref={viewport} data-chart-arrival>
+  return <div className={styles.plotViewport+(linked?" linked-trend-plot":"")} ref={viewport} data-chart-arrival data-linked-plot={linked||undefined}>
     <svg {...drag} className={styles.plot} style={{height:"auto",maxHeight:"none",touchAction:"pan-y",visibility:measured?undefined:"hidden"}} viewBox={`0 0 ${width} ${bottom+32}`} role="group" aria-label="晨间空腹体重趋势，kg，缺测断开">
       {scale.ticks.filter((_,i)=>i%Math.max(1,Math.ceil(24*(scale.ticks.length-1)/plotHeight))===0).map(tick=><g key={tick}><line className={styles.grid} x1={left} x2={width-right} y1={y(tick)} y2={y(tick)}/><text className={styles.axis} x={left-8} y={y(tick)+4} textAnchor="end">{tick.toFixed(1)}</text></g>)}
       <ChartSelectionColumn x={x(index)} date={selection.selected} column={{left:Math.max(left,x(index)-slot/2),right:Math.min(width-right,x(index)+slot/2)}} plot={{left,right:width-right,top,bottom}} resetKey={`${width}:${dates.join("|")}`} direct={selection.direct}/>

@@ -1,5 +1,61 @@
 # 完善任务验收
 
+## 正式发布验收：电脑关联交互与 Inspector（2026-11-07）
+
+用户追加“直接发布”授权后，已发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署 `dpl_8J4m5x2QYWUsGD1fPcTjzNpHvFNm`，应用源码 `161057a0e53c348009dfab46c9e3b849a5bedca1`，构建 `desktop-linked-161057a-20261107`。来自独立分支codex/desktop-linked-interactions；正式别名、项目、sourceCommit／gitCommitSha、版本接口及客户端JS一致。本轮仅发布，没有main合并或推送，其他工作区保持。
+
+固定161057a导出的干净源码重新通过505项单元／集成、lint（0错误0警告）、独立typecheck、production build及结构检查，Vercel远程构建成功。738项上传文件逐项检查不含data、凭据、私有报告、环境文件及本机工具。无migration、API／MCP、健康计算、运行依赖或生产变量变化。D1／D3／D4／D5／D6／D7／D10／D11／D12的实施核对见下节，本轮正式复查对应的实际页面与操作。
+
+正式Chromium／WebKit各通过12组深浅首页（1440×900、1100×800、320×560、390×640、430×780、844×390）、三种趋势进入／返回、18次三页手机／电脑宽度切换、身体及消耗编辑器、三种390×780触屏上下文往返。关联真实图为2:1、图区不超过640px，前后方向各单图层并有真实中间帧；链接日期与详情日期准确，查看无表单，返回恢复来源焦点、90D及估计关闭。普通／自定义标题无圆弧、模糊、阴影或负边距，关闭44×44px，桌面把手不占位。助手实际可打开，编辑Escape可退出；保存、取消、草稿与改期的完整本地回归见下节，不将正式只读检查冒充正式写入。
+
+最终报告为 `.codex/desktop-linked-release/production/final/chromium/report.json` 与 `production/final-2/webkit/report.json`，各23张截图，共46张；页面异常与5xx各0，两个引擎顺序执行。实际核看电脑三卡、完整图、手机深浅及320／390px、关联趋势、餐次／消耗／身体只读详情和编辑器。关键原图保存在 `C:/Users/14878/.codex/visualizations/2026/11/07/formward-desktop-linked-production`；全部为独立虚构账号，不含真实用户健康截图。物理iPhone、真实触屏手感、系统键盘／VoiceOver、系统200%文字及真机帧率未测，不由浏览器模拟代替。
+
+18项公开／保护／协议检查通过，包含版本no-store、OAuth能力、MCP未授权challenge、页面／导出／健康查询保护和私有路径404；客户端JS含本次构建版本。Vercel同时绑定global.formward.top，但该域名本机解析失败，Cloudflare公共DNS状态为3（NXDOMAIN），未计实际请求通过；当前正式入口为formward-ten.vercel.app，本轮未变更DNS。证据为 `alias-network.json`、`custom-domain-dns.json`、`public.json`及`client-version.json`。
+
+发布前后44表结构、30条迁移账本及既有健康事实保持，最终issues为空；一个本轮虚构账号及36张所属表已按ID／邮箱／名称精确核对清理。严格初核拦下两条期间过期的限流行与一行显示偏好版本更新；随后按已安装Better Auth的最长60秒窗口、部署创建时间和精确行哈希核实九条旧缓存清理。偏好按真实主键user_id匹配，最终show_body_fat不变，仅version19→21及updated_at变化；对应时段有Windows网页的成功POST，与现有按会话和版本写入规则相符。该结论基于来源代码、时间和请求证据，绑定前后备份及该行完整哈希，仅放行该次显示元数据，不豁免健康表或其他偏好。
+
+私有0600备份为原主工作区 `data/exports/desktop-linked-20261107-before.json`、`-after.json`、`-verification.json`，初核 `-verification-initial.json`保留。完整哈希核实与日志为 `.codex/desktop-linked-release/integrity-audit.json`、`integrity-diagnostic.json`、`preference-request-audit.json`、`expired-rate-before.json`、`rate-windows.json`及`cleanup.json`，均私有且Git／部署忽略。最终12项允许变化为正常限流及该次显示偏好元数据，健康数据例外为0。
+
+最终20分钟Runtime窗口2026-11-07T08:00:17.860Z—08:20:17.860Z，error／fatal为0；请求窗口08:00:19Z—08:20:19Z，5xx为0；均无排除区间或后续分页，初轮日志保留。上一READY `dpl_9KYWuxTQUQDTchCYXW8RBtt4oB4c`保留供应用回退，保留用户合法更新。本轮浏览器使用独立自动化上下文，未改动用户真实账号的浏览器会话。
+
+首次正式Chromium检查误将身体自定义日期的点分隔显示与链接的横线格式作字符串直接比较；界面日期正确，现只规范分隔符后核对同一日期。WebKit第一次尺寸检查在旧SVG卸载和新SVG挂载之间读取到null，失败截图中最终图表可见；现等待两次实际绘制，并从当前DOM原子读取宽度和visibility，仍要求已连接、宽度>100且不隐藏。两次原始失败保留在 `production/chromium`及`production/final/webkit`，最终完整重跑通过，未修改正式应用或降低动效／错误断言。
+
+## 本地验收：电脑关联交互与 Inspector（2026-11-07）
+
+本地实施从 `codex/energy-date-navigation` 的干净56e7984建立独立 `codex/desktop-linked-interactions`，工作树为 `/home/obl1vion/projects/Formward-worktrees/desktop-linked-interactions`。该阶段交付本地页面、截图、录像与文档，未发布或更新main；用户后续追加的正式发布见上节，其他工作区未纳入修改。
+
+### 实现与设计条目
+
+| 适用条目 | 实际检查与结果 |
+| --- | --- |
+| D1／D2／D7 | 电脑三张真实七日卡前置、自适应并排及整卡换行，保留六项读数、七日统计、完整双图及区间摘要；图后重复卡片退出。手机继续横滑，三类最近记录日期不被大图预览改写。深浅与窄屏截图已核看。 |
+| D3／D5 | 三类关联页使用同一2:1数据平面，电脑数据容器不超过640px；骨架与目标的x／y／宽／高差≤1px，体重小数刻度及长能量刻度使用真实图的字体。真实鼠标在实测／估计／单项估计之间每种停留8帧，读数、区间、图形和scrollY变化≤1px，静止日期不往复；键盘与移出保持。 |
+| D4／D10 | 三卡真实进入、可见返回、浏览器前进／后退、直接链接及新标签通过；日期、七日区间、初始指标正确且不打开编辑器。返回恢复来源卡片、滚动、焦点及90D／估计关闭等显示状态；消耗来源scrollY=80也正确恢复。 |
+| D5／D6 | 单次300ms交接有真实可见中间帧、每方向仅一层；快速返回、改区间、减少动态效果、慢网中断与迟到响应无残留隐藏图形。保存和尺寸变化取消旧配对，重新读取事实；三页共18次手机／电脑宽度来回切换均有可见图表。 |
+| D11／D12 | 日期详情、自定义身体标题、餐次／消耗／身体编辑和设置均无标题玻璃弧线、内高光、模糊或负边距；桌面把手隐藏且不占空间，关闭44×44px，手机底部面板保持。查看不挂载表单；编辑失败留稿、继续编辑、放弃、保存及真实记全通过。 |
+| D11／D12 | 消耗改期先重新核对包含关系，再核对整批移动；取消后数据库快照不变，确认后原编号、热量、来源、原始时间保持，包含依据对应新日期。助手先收起再进入昨日饮食的明确编辑入口。 |
+| D6／D8 | Chrome实际打开本地虚构账号，核看电脑卡片进入／返回、只读Inspector、390px手机晨重进入，以及手机切回完整桌面饮食图。720×450紧凑有效区无横向溢出，完成后恢复临时视口并保留本地总览标签。正式发布与main更新不在本轮范围。 |
+
+### 自动检查与证据
+
+lint为0错误、0警告，独立typecheck、505项单元／集成、production build（`desktop-linked-local-20261107`）、目录结构及Git空白检查通过。新控制器测试验证：清理待启动帧后，旧回调不会重新播放；其他504项既有规则回归通过。API、数据库结构、migration、公开HTTP／MCP、健康计算及运行依赖没有变化。
+
+最终完整报告为 `.codex/desktop-linked/final-chromium-2/chromium/report.json` 与 `final-webkit-2/webkit/report.json`。两引擎各通过12组深浅首页、三类完整进入／返回、18次宽度切换、12组边界、两组估计稳定性和八组编辑／业务回归，页面异常及HTTP 5xx各0。Chromium39张、WebKit33张实际截图共72张；先核看全图联系表，再核看总览深浅、320／390手机、三种关联图、200%卡片文字和普通／自定义Inspector等关键原图。两引擎顺序执行，诊断用focus=flows结果不计入完整通过。
+
+视口为1440×900、1100×800、320×560、390×640、430×780、844×390，另用hasTouch／isMobile的390×780与844×390检查点选、返回及横屏。最终估计读数几何最大变化为Chromium 1px、WebKit 0px；每类前后方向都有实际中间帧。200%卡片字号为CSS模拟，720×450为浏览器放大后的等效有效区检查；未把这些记录为系统文字放大或真实浏览器200%缩放通过。物理iPhone、系统软键盘、VoiceOver、系统原生缩放、实际触屏拖动手感及真机帧率未测。
+
+私有素材目录为 `C:/Users/14878/.codex/visualizations/2026/11/07/formward-desktop-linked`：`review.html`提供同数据前后对照，`dark-home-1440.png`／`after-inspector-1440.png`为最终桌面，`light-home-390.png`／`after-inspector-390.png`为手机，`chrome-live-*.jpg`为实际Chrome核看。`desktop-enter-return.mp4`及`mobile-enter-return.mp4`为实际三卡进入／返回录像；仅裁掉开头空白并按原采样编码，不插帧或替换图形，不用于证明硬件帧率。原始视频及动作URL在工作树 `.codex/desktop-linked/demos`。
+
+本地可操作页面 http://localhost:4240/dashboard，固定基线 http://localhost:4242/dashboard，慢响应对照4241。三个端口只使用本轮隔离PGlite虚构库，不读环境文件或连接正式数据库。演示账号 `assistant@example.test`，口令 `formward-assistant-demo`；私有启动信息 `.codex/desktop-linked/preview/preview.json` 为0600且被Git忽略。固定基线来自56e7984独立导出副本 `/tmp/formward-desktop-before-56e7984-20261107`，不再复用活跃任务的.next。
+
+### 诊断与修正
+
+- 实际营养图空白来自父组件测量钩子绑定已卸载节点；将桌面绘图与测量一起挂载／卸载，宽度切换重新测量。WebKit早期还暴露骨架固定194／252px与真实2:1图区不一致，交接在真实图到达时被取消；已按真实高度、轴字体及体重刻度格式统一，并在移动前先绘制来源帧。最终严格中间帧与≤1px断言保持。
+- 早期检查器只识别通用标题、把收起餐次当作已展开、把Next播报区和表单错误混为一个alert；已按真实自定义标题、逐层展开及表单内错误定位。新增改期检查首次被“日期变化须重新核对包含关系”正确拦住，脚本现明确重新选择已包含，并断言新包含依据，未修改业务保护。
+- 退出后新文档接管，旧sign-out运输事件有时不再回传完成，曾导致等待器超时。等待器现仅在真实主文档替换时退役旧GET及已确认退出的运输事件并记入report；业务POST仍保留至完成，页面错误和5xx不作过滤。
+- 基线首次曾因另一个活跃工作区重新构建而无法启动，后改为固定提交独立导出构建。并行浏览器曾出现单帧采样，最终两引擎分开完整运行；不能据此声称真机性能。原始失败、诊断及首次成功均保留在 `.codex/desktop-linked` 各子目录，失败组不计为通过。
+- 首轮演示脚本仅等待networkidle，曾在新页面接管前结束晨重停留，未计为有效三卡录像。最终按目标URL和对应真实绘图区就绪逐项等待后重录；原片保留，交付录像的三种目标页面及返回均已核看。
+
 ## Garmin Personal API 本机只读核对（2026-11-07）
 
 `codex/garmin-personal-preview` 提供本机 Personal API 读取与私有报告，正式站仍保持下方已发布版本。用户自行填入用户目录的0600配置，并明确选择国际站；实际完成纯文本 JWT 认证、七日 V2 汇总及活动列表查询。结果、原始响应和脱敏样本仅在本机私有目录，本文不收录真实健康值。活动字段无真实样本的部分明确保留“尚无样本”，不把文档定义当作实际返回。读取进程不加载数据库配置、不导入数据库模块或业务写入函数，没有migration、公开接口、正式记录、MCP权限或生产环境变更。

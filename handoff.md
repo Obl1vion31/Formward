@@ -1,12 +1,34 @@
 # Formward 项目交接
 
-## 当前本机任务：Garmin Personal API 只读预览
+## 当前开发：本人账号 Garmin 正式接入
 
-开发分支`codex/garmin-personal-preview`位于`/home/obl1vion/projects/Formward-worktrees/mobile-workspace`。用户已在`/home/obl1vion/.config/formward/garmin-personal.env`自行配置个人密钥，明确选择国际站；不打印、复制到代码或公开部署该配置。`pnpm garmin:preview --serve`读取最近七个日历日V2每日汇总与分页活动，生成私有HTML、字段观察及脱敏JSON；认证为纯文本JWT，令牌不落盘。本阶段不连接Formward数据库、不创建正式或审核记录，不提供新HTTP／MCP接口，不改变正式站或main。
+开发分支 codex/garmin-personal-preview 位于 /home/obl1vion/projects/Formward-worktrees/mobile-workspace。用户明确要求正式站仅对本人账号开放 Garmin Personal，其他账号同步入口但显示未开放；已授权验收后直接发布，不自动合入main。固定账号来自已核验的唯一既有 owner，服务端实际以固定 user_id 控制，owner 角色不自动获得资格。
 
-国际站实际联调、518项测试、lint、typecheck及生产构建通过；手机／电脑两主题、日期位置稳定、零／未知、字段筛选与键盘检查已完成。实际记录值只在被忽略的data/imports、data/exports与本机私有证据，不写入交接或公开演示。活动无真实样本的字段仍依文档待核对。用法见[Garmin说明](docs/garmin-personal.md)，边界与截图见[验收](docs/maintenance-verification.md)。当前保留的本机服务地址和最终私有文件位置在`.codex/garmin-preview-session.json`；它是本机快照，不是公网或自动同步。
+当前代码支持连接加密、按指标来源、七日对照采用、步数、运动冲突及整天人工保护；尚在联合验收，不能声称已上线。用户原密钥在 /home/obl1vion/.config/formward/garmin-personal.env，0600且国际站，不打印或公开。首次采用须由用户查看当前差异后明确确认，不能自动移动此前错日记录。独立只读预览及私有输出保持，真实记录不写入公共文档或演示。
 
-## 当前正式版本：消耗改期与主导航（2026-11-07）
+已纳入下面最新正式桌面交互及发布文档，避免覆盖另一任务成果。
+
+## 当前正式版本：电脑关联交互与 Inspector（2026-11-07）
+
+用户追加明确发布授权后，已发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署 `dpl_8J4m5x2QYWUsGD1fPcTjzNpHvFNm`，应用源码 `161057a0e53c348009dfab46c9e3b849a5bedca1`，构建 `desktop-linked-161057a-20261107`；正式别名、源码元数据、版本接口及客户端JS一致。分支 `codex/desktop-linked-interactions` 基于干净56e7984，目录为 `/home/obl1vion/projects/Formward-worktrees/desktop-linked-interactions`。本轮未合并或推送main，其他工作区保持。
+
+电脑总览先显示摄入／晨重／消耗三张真实七日趋势卡，再显示六项日读数、七日统计、完整关系双图及区间记录摘要；图后重复卡片退出。电脑自适应网格、手机横滑，卡片日期与大图所选日期独立。两端共用链接和图形交接，卡片进入正确专页日期及七日范围，电脑关联数据区最大640px、保持2:1，普通区间继续完整桌面图。
+
+电脑关联页提供“返回总览”，恢复来源卡片、滚动、焦点及总览已应用区间／估计显示选项。返回状态仅在账号内存保存，不恢复旧健康数值；改区间／指标、记录更新、尺寸变化及无匹配来源时取消旧交接。减少动态效果直接完成。查看先捕获日期及晨晚，只读详情与明确录入／编辑继续分离。
+
+Inspector 标题直接排列在面板底色上，移除桌面圆角玻璃、内高光、模糊和负边距；桌面把手不占空间，关闭44px，手机底部面板保持。营养绘图区测量跟随真实桌面组件挂载，修复手机切回电脑空图；三类关联骨架与目标使用相同数据平面、高度、刻度字体及体重小数格式，真实目标接管不取消或重播交接。交接首个可见帧在移动前绘出，取消同时清理待执行帧。
+
+本地对照仍为 http://localhost:4240/dashboard 与固定基线 http://localhost:4242/dashboard，均只连接隔离虚构库；演示账号 `assistant@example.test`，口令 `formward-assistant-demo`，启动状态在私有 `.codex/desktop-linked/preview/preview.json`。正式资料与本地虚构库分开。基线由固定56e7984独立导出，不依赖其他活跃工作区的.next。
+
+固定源码独立导出后重新通过lint（0错误0警告）、typecheck、505项单元／集成、production build及结构检查，远程构建通过，738项上传文件不含私有材料。正式Chromium／WebKit各12组首页、三类完整往返、18次尺寸切换、两种编辑器及三种触屏往返通过，页面异常与5xx各0，共46张截图，位于 `C:/Users/14878/.codex/visualizations/2026/11/07/formward-desktop-linked-production`。本地完整验收另保留72张截图、双端录像及review.html，目录为同级formward-desktop-linked。原始失败与未测边界见[维护验收](docs/maintenance-verification.md)；页面与设计规则见[界面说明](docs/interface.md)及[设计规范](docs/design-reference.md)。物理iPhone、系统键盘、VoiceOver、系统文字放大和真机帧率未测，浏览器模拟不代替真机。
+
+18项公开／保护／协议检查及客户端版本通过，最终20分钟Runtime error／fatal与请求5xx各0，无排除区间或后续分页。发布前后44表结构、30条迁移账本及既有健康事实保持，临时虚构账号与36张所属表已清理，issues为空。正常限流及一行显示偏好版本更新按精确快照／行哈希和对应请求核对保留，没有健康数据例外。私有0600备份为原主工作区data/exports/desktop-linked-20261107-*，发布证据为本工作树.codex/desktop-linked-release。
+
+后续第四批顺序保持：用户目标 → 真实训练会话 → 训练计划与排期；目标、执行和全天消耗分别管理。消息能力先查询／解释／导航，再规划有预览与确认的写入。
+
+当前正式入口使用formward-ten.vercel.app。Vercel同时保留global.formward.top别名，但本机与Cloudflare公共DNS检查均返回NXDOMAIN；不能将该域名计为实际访问通过，本轮未改动DNS。应用回退保留上一READY `dpl_9KYWuxTQUQDTchCYXW8RBtt4oB4c`，保留合法用户数据；完整正式验收、备份与日志见[部署](docs/deployment.md)和[维护验收](docs/maintenance-verification.md)。
+
+## 此前正式版本：消耗改期与主导航（2026-11-07）
 
 已按用户授权发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署`dpl_9KYWuxTQUQDTchCYXW8RBtt4oB4c`，应用源码`6f0a2f64e6d17c1513199561f0d5f7fb3fe6d14b`，构建`date-navigation-6f0a2f6-20261107`；formward-ten.vercel.app与global.formward.top、源码元数据、版本接口和客户端JS一致。来自codex/energy-date-navigation的干净提交，736项上传文件不含私有数据、环境文件与本机工具；未合入或推送main，原主工作区的国内基础设施修改保持隔离。后续纯文档提交不改变正式应用。
 

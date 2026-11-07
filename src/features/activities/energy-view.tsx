@@ -76,6 +76,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
   const from = range === "all" ? earliest : range === "custom" ? custom.from : addCalendarDays(end, 1 - Number(range)), to = range === "custom" ? custom.to : end;
   const dates = useMemo(() => { try { const length = calendarOrdinal(to) - calendarOrdinal(from) + 1; return length > 0 && length <= 3661 ? Array.from({ length }, (_, index) => addCalendarDays(from, index)) : []; } catch { return []; } }, [from, to]);
   const chartDays = dates.map(date => byDate.get(date) ?? blankEnergyDay(date));
+  const linkedPlot=!!initialTrend&&from===initialTrend.from&&to===initialTrend.to;
   const selection=useChartDateSelection(dates,initialDate??latest,preferredRecordedDate(chartDays,today,day=>day.totalKcal!==null,day=>!!day.record||day.activities.length>0),customOpen),inspected=selection.selected,chosen=chartDays.find(day=>day.date===inspected);
   useEffect(()=>{const latest=()=>{setEditing(null);setViewing(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
   const historyDates=[...new Set([...recentRecordDates(today),...state.days.filter(d=>!d.deletedAt).map(d=>d.date),...state.activities.filter(a=>!a.deletedAt).map(a=>a.date)])].sort().reverse();
@@ -150,7 +151,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
        metricVariants={chartDays.map(day=>[energyValue(day.totalKcal),energyValue(day.restingKcal),energyValue(day.activeKcal)])}
        title="每日消耗" unit="kcal"
        legend={<><span><i style={{background:"var(--data-protein)"}}/>静息</span><span><i style={{background:"var(--data-red)"}}/>活动</span><span><i style={{background:"var(--data-neutral)"}}/>仅有总数</span></>}
-      >{dates.length?mobile?<MobileEnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
+      >{dates.length?mobile||linkedPlot?<MobileEnergyPlot days={chartDays} selected={inspected} selection={selection} linked={linkedPlot}/>:<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     </section>
     {data.sourcePilot&&<EnergySourceStatus initial={sourceStatus} steps={chosen?.steps??null} cumulative={inspected===today&&chosen?.record?.adoption?.mode==="source"} protectedDay={chosen?.record?.adoption?.mode==="manual"}/>}
     <DailyRecords history={<RecordHistory today={today} dates={historyDates.filter(date=>!recentDates.includes(date))} renderRow={renderDay} view={setViewing}/>}>{recentDates.map(renderDay)}</DailyRecords>

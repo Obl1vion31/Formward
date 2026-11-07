@@ -10,12 +10,12 @@ import { energyTrendPoint } from './trend-preview';
 import type { EnergyDay } from './model';
 import styles from './energy.module.css';
 
-export function MobileEnergyPlot({days,selected,selection}:{days:EnergyDay[];selected:string;selection:ReturnType<typeof useChartDateSelection>}) {
+export function MobileEnergyPlot({days,selected,selection,linked=false}:{days:EnergyDay[];selected:string;selection:ReturnType<typeof useChartDateSelection>;linked?:boolean}) {
   const viewport=useRef<HTMLDivElement>(null),model=metricTrendModel('energy',days.map(day=>energyTrendPoint(day.date,day)));
   const {width:measured,left}=useChartViewport(viewport,model.ticks,50),width=measured||280,right=10,top=20,plotWidth=width-left-right,plotHeight=plotWidth/2,bottom=top+plotHeight;
   const dates=days.map(day=>day.date),slot=plotWidth/days.length,x=(i:number)=>left+(i+.5)*slot,y=(value:number)=>bottom-value/model.max*plotHeight;
   const drag=useChartDrag(dates,width,left,right,selection.choose),index=dates.indexOf(selected),stride=Math.max(1,Math.ceil((days.length-1)/3));
-  return <div className={styles.plot} ref={viewport} data-chart-arrival>
+  return <div className={styles.plot+(linked?" linked-trend-plot":"")} ref={viewport} data-chart-arrival data-linked-plot={linked||undefined}>
     <svg {...drag} style={{height:'auto',maxHeight:'none',touchAction:'pan-y',visibility:measured?undefined:'hidden'}} viewBox={`0 0 ${width} ${bottom+32}`} role="group" aria-label="每日消耗柱状图">
       {model.ticks.filter((_,i)=>i%Math.max(1,Math.ceil(24*(model.ticks.length-1)/plotHeight))===0).map(tick=><g key={tick}><line x1={left} x2={width-right} y1={y(tick)} y2={y(tick)} className={styles.grid}/><text x={left-8} y={y(tick)+4} textAnchor="end" className={styles.axis}>{tick}</text></g>)}
       <ChartSelectionColumn x={index<0?null:x(index)} date={selected} column={index<0?null:{left:x(index)-slot/2,right:x(index)+slot/2}} plot={{left,right:width-right,top,bottom}} resetKey={`${width}:${dates.join('|')}`} direct={selection.direct} baselineTick/>

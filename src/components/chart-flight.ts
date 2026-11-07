@@ -4,7 +4,7 @@ export type ChartRect = { left: number; top: number; width: number; height: numb
 export type ChartFlight = {
   id: number; model: MetricTrendModel; rect: ChartRect; direction: 'forward' | 'back';
   node?: HTMLElement; destination?: ChartRect; landing?: boolean; arrived?: boolean; ready?: boolean;
-  animation?: Animation; hidden?: SVGSVGElement; deadline?: ReturnType<typeof setTimeout>;
+  animation?: Animation; hidden?: SVGSVGElement; deadline?: ReturnType<typeof setTimeout>; startFrame?:number;
 };
 type ChartFlights = {
   active: ChartFlight | null; returning: boolean;
@@ -26,6 +26,7 @@ export function createChartFlights(publish: (flight: ChartFlight | null) => void
       // cancel 会撤掉 fill:forwards。先退出可见合成，不能让原始大图再画一帧。
       if (current.node) current.node.style.visibility = 'hidden';
       clearTimeout(current.deadline);
+      if(current.startFrame!==undefined)cancelAnimationFrame(current.startFrame);
       current.animation?.cancel();
       current.hidden?.removeAttribute('data-chart-travelling');
       publish(null);

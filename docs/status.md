@@ -1,10 +1,18 @@
 # 当前实现与验证
 
-## 本机只读工具：Garmin Personal API
+## 当前开发：本人账号 Garmin 正式接入
 
-`codex/garmin-personal-preview` 已完成个人密钥的最近七日读取、字段对应、脱敏JSON及本机HTML预览。国际站已真实联调；访问令牌仅在进程内，配置和输出为用户私有文件。此阶段不连接数据库或保存正式记录，不改变正式站。518项测试、lint、typecheck、生产构建及双主题响应式核对通过；详见[接入说明](garmin-personal.md)与[验收证据](maintenance-verification.md)。
+设备与数据来源已实现账号定向开放、七日对照采用、步数及活动同步、冲突与手动保护。正在与最新正式电脑交互基线联合验收；部署前不视为已发布。独立本机只读工具继续可用，配置与口径见[Garmin接入](garmin-personal.md)。
 
-## 当前正式版本：消耗改期与主导航（2026-11-07）
+## 当前正式版本：电脑关联交互与 Inspector（2026-11-07）
+
+已发布到[正式总览](https://formward-ten.vercel.app/dashboard)，READY部署 `dpl_8J4m5x2QYWUsGD1fPcTjzNpHvFNm`，应用161057a，构建 `desktop-linked-161057a-20261107`。`codex/desktop-linked-interactions` 基于干净56e7984，本轮未合并或推送main。电脑首页三张七日卡片前置，共享手机的日期链接及2:1图形交接；关联专页图区最大640px、可见返回总览，恢复来源卡片／滚动／焦点及总览区间／估计显示选项。普通桌面图、六项读数、七日统计和区间摘要保持；手机继续横滑。
+
+Inspector标题取消独立玻璃弧线，保留侧栏及手机底部面板、44px关闭和草稿保护。营养图测量随实际组件重新挂载，手机／电脑切换不再空图；关联骨架与真实目标匹配高度、字体、刻度及数据平面，一次300ms交接，取消同时清理待执行帧。API、数据库、计算和依赖不变。
+
+本地虚构预览 http://localhost:4240/dashboard；固定基线 http://localhost:4242/dashboard。505项单元／集成、lint（0错误0警告）、typecheck、production build与结构检查通过；本地完整Chromium／WebKit保留72张截图和双端录像。干净源复验、远程构建、18项入口／协议及版本绑定通过；正式两引擎各三种往返及18次尺寸切换等通过，共46张截图，页面异常与5xx各0。44表、30条迁移及既有健康事实保持，虚构账号与36张所属表已清理，正常限流和显示偏好版本更新经精确核对保留；最终20分钟Runtime error／fatal及5xx为0。证据与未测项见[维护验收](maintenance-verification.md)及[部署](deployment.md)。global.formward.top虽保留Vercel别名，当前DNS为NXDOMAIN，未计实际访问通过。
+
+## 此前正式版本：消耗改期与主导航（2026-11-07）
 
 已按用户授权发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署`dpl_9KYWuxTQUQDTchCYXW8RBtt4oB4c`，应用源码`6f0a2f64e6d17c1513199561f0d5f7fb3fe6d14b`，构建`date-navigation-6f0a2f6-20261107`；formward-ten.vercel.app与global.formward.top、源码元数据、版本接口和客户端JS一致。来自codex/energy-date-navigation的干净提交，736项上传文件不含私有数据、环境文件与本机工具；未合入或推送main，原主工作区的国内基础设施修改保持隔离。后续纯文档提交不改变正式应用。
 

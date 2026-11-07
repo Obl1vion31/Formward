@@ -2,7 +2,7 @@
 
 餐次顶部营养摘要按完整的名称／数字／单位词组换行，至少12px；粘性保存条继承Inspector把手偏移，保持长表单操作可达。
 
-手机使用mobile-nutrition-plot.tsx与首页共用TrendGlyph，trend-preview.ts复用macroDistribution准备同一营养组成；进入链接对齐日期范围，不误开日期详情。记录从首页快捷入口、日期行或助手进入，克数／能量占比、已记全、食材库、全部历史与原图保留。
+手机及卡片关联进入的电脑七日图使用mobile-nutrition-plot.tsx，与首页共用TrendGlyph；trend-preview.ts复用macroDistribution准备相同营养组成。关联图最大宽640px居中，其他桌面区间使用DesktopNutritionChart；设备分支与测量组件分开，切换宽度重新挂载并测量，不沿用空ref。进入链接对齐日期范围，不误开日期详情。记录从首页快捷入口、日期行或助手进入，克数／能量占比、已记全、食材库、全部历史与原图保留。
 
 日期和食材详情仅查看事实、来源、照片与静态记全状态，不挂载表单或写入操作。日期行“编辑”进入当天餐次管理，集中添加、编辑、删除和记全；单餐保存返回当天编辑。食材列表并列查看／编辑，永久删除只在编辑任务的更多操作，保留原确认及失败留稿。record-intent定义内部view／edit／create：普通日期默认查看，intent=edit显式编辑，旧entry录入兼容。AI审核继续复用原表单与确认流程。
 

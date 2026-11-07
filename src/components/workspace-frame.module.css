@@ -4,3 +4,4 @@
 @media(max-width:700px),(hover:none) and (pointer:coarse){.heading[data-body]{display:none}}
 .content{min-width:0}
 .content[data-workspace-moving]{will-change:transform,opacity}
+.pageTitle{display:flex;align-items:center;gap:20px;flex-wrap:wrap}.heading .pageTitle button{margin:0;padding:0;color:var(--muted)}
