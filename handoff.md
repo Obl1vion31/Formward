@@ -1,5 +1,11 @@
 # Formward 项目交接
 
+## 当前本机任务：Garmin Personal API 只读预览
+
+开发分支`codex/garmin-personal-preview`位于`/home/obl1vion/projects/Formward-worktrees/mobile-workspace`。用户已在`/home/obl1vion/.config/formward/garmin-personal.env`自行配置个人密钥，明确选择国际站；不打印、复制到代码或公开部署该配置。`pnpm garmin:preview --serve`读取最近七个日历日V2每日汇总与分页活动，生成私有HTML、字段观察及脱敏JSON；认证为纯文本JWT，令牌不落盘。本阶段不连接Formward数据库、不创建正式或审核记录，不提供新HTTP／MCP接口，不改变正式站或main。
+
+国际站实际联调、518项测试、lint、typecheck及生产构建通过；手机／电脑两主题、日期位置稳定、零／未知、字段筛选与键盘检查已完成。实际记录值只在被忽略的data/imports、data/exports与本机私有证据，不写入交接或公开演示。活动无真实样本的字段仍依文档待核对。用法见[Garmin说明](docs/garmin-personal.md)，边界与截图见[验收](docs/maintenance-verification.md)。当前保留的本机服务地址和最终私有文件位置在`.codex/garmin-preview-session.json`；它是本机快照，不是公网或自动同步。
+
 ## 当前正式版本：消耗改期与主导航（2026-11-07）
 
 已按用户授权发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署`dpl_9KYWuxTQUQDTchCYXW8RBtt4oB4c`，应用源码`6f0a2f64e6d17c1513199561f0d5f7fb3fe6d14b`，构建`date-navigation-6f0a2f6-20261107`；formward-ten.vercel.app与global.formward.top、源码元数据、版本接口和客户端JS一致。来自codex/energy-date-navigation的干净提交，736项上传文件不含私有数据、环境文件与本机工具；未合入或推送main，原主工作区的国内基础设施修改保持隔离。后续纯文档提交不改变正式应用。

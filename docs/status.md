@@ -1,5 +1,9 @@
 # 当前实现与验证
 
+## 本机只读工具：Garmin Personal API
+
+`codex/garmin-personal-preview` 已完成个人密钥的最近七日读取、字段对应、脱敏JSON及本机HTML预览。国际站已真实联调；访问令牌仅在进程内，配置和输出为用户私有文件。此阶段不连接数据库或保存正式记录，不改变正式站。518项测试、lint、typecheck、生产构建及双主题响应式核对通过；详见[接入说明](garmin-personal.md)与[验收证据](maintenance-verification.md)。
+
 ## 当前正式版本：消耗改期与主导航（2026-11-07）
 
 已按用户授权发布到[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署`dpl_9KYWuxTQUQDTchCYXW8RBtt4oB4c`，应用源码`6f0a2f64e6d17c1513199561f0d5f7fb3fe6d14b`，构建`date-navigation-6f0a2f6-20261107`；formward-ten.vercel.app与global.formward.top、源码元数据、版本接口和客户端JS一致。来自codex/energy-date-navigation的干净提交，736项上传文件不含私有数据、环境文件与本机工具；未合入或推送main，原主工作区的国内基础设施修改保持隔离。后续纯文档提交不改变正式应用。

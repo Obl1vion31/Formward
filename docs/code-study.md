@@ -1,5 +1,9 @@
 # Formward：从零看懂网页、后端与数据库
 
+## 外部数据的只读阅读入口
+
+佳明第一阶段从 `scripts/preview-garmin.mts` 开始：`garmin/private-files.ts`读取用户私有配置，`garmin/client.ts`向官方Personal API换取纯文本令牌并GET七日汇总与分页活动，`garmin/model.ts`按真实schema整理字段及缺失关系，`garmin/report.ts`生成本机HTML。报告有每日读数、活动、字段用途和脱敏JSON，原始响应另存私有目录。这条调用链不进入数据库或现有保存函数，适合先学习“外部JSON如何对应业务字段”。配置及字段表见[Garmin说明](garmin-personal.md)。
+
 ## 当前录入交互的阅读入口
 
 先读components/form-draft.ts理解“有效内容相同”和“显示一样”不同：70与70.00等价，但不能将旧小数先舍入再比。draft-guard.ts登记未保存输入，LoadingLink与Inspector在离开时统一确认。measurement-entry.tsx将手机晨晚显示和实际两侧草稿分开，估计只显示结果，不进入实测输入；source-habit.ts仅从目标之前已采用的实测槽推断来源。daily-reminders.ts复用原有汇总判断任务，不另算热量。export-form.tsx展示一次客户端检查、受保护下载请求与原位错误处理。视觉与任务检查统一遵循[设计规范D11](design-reference.md#d11录入任务草稿与反馈)。

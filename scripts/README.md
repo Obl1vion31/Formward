@@ -1,5 +1,7 @@
 # Scripts
 
+`preview-garmin.mts`（`pnpm garmin:preview --serve`）读取用户目录的私有 Personal API 配置，获取最近七日佳明 V2 汇总和分页活动，生成本机只读预览、字段观察和脱敏样本；不加载正式数据库配置或写入记录。原始响应存 `data/imports/`，其余报告存 `data/exports/`，均为 0600。配置和运行见 [Garmin Personal API](../docs/garmin-personal.md)。
+
 ## 目的
 
 本目录保存开发者或管理员主动运行的维护工具。
