@@ -1,5 +1,15 @@
 # 完善任务验收
 
+## 数据维护验收：已确认的重复手工运动（2026-11-07）
+
+用户提供10月30日重复运动截图并明确要求删除；另一次询问确认10月27日数值和时长稍有不同的两条也是同一场，保留Garmin。已仅对固定本人账号的两个精确手工记录编号执行永久删除，6条Garmin记录和1条非重复手工运动保留。Garmin来源ID、快照、原始时间及来源事实不变，所有日记录、总热量、静息、活动、步数及两天的采用行均保持。未修改其他账号、旧软删除项或任何自动同步／公开AI删除权限。
+
+操作在账号锁内重新校验归属、活跃状态、原编号／版本、完整事实及对应来源记录。保留真实执行者codex:explicit-user-authorization和两次具体用户授权依据，delete_confirmed_duplicate审计含被删记录快照、保留记录、备份引用及前后验证；没有伪装成网页人工点击。删除后在同一事务核对全部日读数、其他运动和来源事实，任何异常整批回滚。这里只执行本次用户明确授权的清理，不将相似度变成自动删除规则。
+
+私有0600一致性备份为本工作树data/exports/activity-duplicates-20261107-{before,after,final}.json；after为第一条删除后的中间快照，final为两条清理完成。50表及迁移结构不变，最终逐行核对issues为0。期间既有前台同步产生7次adopt与1次sync：逐项核实仅连接读取时间和七个近日期的采用版本／更新时间变化，审计before／after健康事实相同，没有新增运动或改变消耗；正常更新保留，未回滚或笼统放行健康表。备份SQL date与审计Drizzle属性通过schema及明确列名映射后逐字段核对。完整证据为.codex/activity-duplicates，凭据、真实记录及原始编号不纳入Git或部署。
+
+本轮仅修改正式数据并更新维护说明，应用源码仍为a0d651715b8d1080e13a11c97456f15413b9b72c，没有界面、运行代码、公开接口、依赖或migration变更，无需重新发布或重复运行未改动应用的全量构建；本次验证是事务内不变量及前后全库差异核对。刷新现有正式消耗页即可读取结果。
+
 ## 正式发布验收：主题、连接与历史同步（2026-11-07）
 
 已发布到[正式总览](https://formward-ten.vercel.app/dashboard)及[连接设备与数据来源](https://formward-ten.vercel.app/dashboard/sources)。READY部署 dpl_CA9ZXvSNhX7kaaGn4C1Ti4dZKK1z，应用源码 a0d651715b8d1080e13a11c97456f15413b9b72c，构建 theme-sources-a0d6517-20261107；正式别名、项目、sourceCommit／gitCommitSha及no-store版本接口一致。来自干净分支codex/sources-theme-history，包含原有电脑关联交互；本轮未合入或推送main，后续纯文档提交不改变已发布应用。
