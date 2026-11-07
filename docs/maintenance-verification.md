@@ -1293,3 +1293,15 @@ Chromium／WebKit各9组操作与18张截图通过，含两主题、320×560／3
 D1／D2／D3／D4／D5／D7适用条目通过；D6浏览器实测通过，真机与系统能力仍未测。D8依本轮明确“直接发布”授权执行，不再要求发布前确认。D9不适用。真实iPhone／Android、系统软键盘、屏幕阅读器和系统文字放大未测；减少动态效果在浏览器开启。生产迁移和发布结果另记，不将本地截图当作正式账号验收。
 
 私有报告及截图位于.codex/training-release/final-chromium和final-webkit；可展示截图保存于C:/Users/14878/.codex/visualizations/2026/11/08/formward-training。全部为隔离虚构账号。
+
+## 当前正式版本：训练入口与真实训练会话（2026-11-08）
+
+已按本轮明确“直接发布”授权上线[训练页](https://formward-ten.vercel.app/dashboard/training)。READY部署dpl_rKAT7xqZmc1unBoqxqPBM3AH5tkA，应用源码ff08c99f5ca3b3a7ef7601cb0fd2dfb868edb624，构建training-ff08c99f-20261108；正式别名、项目、源码元数据和版本接口均已核对。代码基于当前正式250a4ec及交接8342ba6，来自codex/training-entry，未合入或推送main。后续纯文档提交不改变正式应用。
+
+主导航第三项为训练，今日训练下直接月历，不放消耗统计；原/dashboard/energy图表、设备同步、来源与录入保留，通过页内“消耗”进入。自由／模板训练、动作和组次自动保存、暂停继续、结束确认回看、空训练单独放弃、模板保存及点选／电脑拖放排期已接通。训练不自动估算或叠加热量，未知重量不补0，计划与完成分开。
+
+569项单元／集成、lint零错误零警告、独立typecheck、38页production build、结构检查与Vercel远程构建通过。Chromium／WebKit本地各9组操作、18图通过，正式Chromium同样9组与18图通过，涵盖两主题、七种尺寸、网络失败保留输入并重试、真实保存与刷新恢复、结束回看、模板排期和消耗回归。Chrome已实际打开正式训练页，只读核看真实空态；全部写入测试限定虚构账号。手机标题被原面板把手遮挡的问题已修正并实际看图复验。
+
+0033_training_sessions只新增训练四表，迁移前50表、迁移／发布后54表，账本由32增为33。前后私有备份逐表核对通过，既有字段和事实不变；仅普通限流元数据由4行变为6行，未豁免健康数据。两个虚构账号及45类所属数据已清理并确认无残留。备份data/exports/training-20261108-{before,migration,published}.json、证据.codex/training-release均0600／Git与部署忽略。当前来源同步及既有Garmin事实保留。
+
+正式日志UTC2026-11-07T18:56:55—19:02:50，Runtime error／fatal及请求5xx均0，无排除区间或后续分页；这是实际观测窗口，不表示新应用已运行满20分钟。可展示截图位于C:/Users/14878/.codex/visualizations/2026/11/08/formward-training，production-entry.png为正式入口，其余为虚构验收样本。真实手机、系统软键盘、屏幕阅读器和系统文字放大未测。上一READY dpl_9d4tebN6GHjDXvNSPuLSB2Z2JzFW供应用回退；保留训练新表及所有合法写入，不回退或删除数据。

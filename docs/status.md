@@ -343,4 +343,4 @@ body-energy-migration-verification.json与body-energy-production-verification.js
 
 ## 训练入口
 
-训练会话、自动保存、暂停继续、结束回看、模板与月历已接入，消耗保留独立视图。按本轮授权直接发布，验收与部署状态见handoff.md及maintenance-verification.md。0033仅新增训练四表，现有设备同步与消耗规则保持。
+训练会话、自动保存、暂停继续、结束回看、模板与月历已接入，消耗保留独立视图。已按本轮授权发布，READY dpl_rKAT7xqZmc1unBoqxqPBM3AH5tkA，应用源码ff08c99；验收与部署状态见handoff.md及maintenance-verification.md。0033仅新增训练四表，现有设备同步与消耗规则保持。
