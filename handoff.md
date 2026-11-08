@@ -2,7 +2,7 @@
 
 ## 双入口与服务器主库切换准备（未切换）
 
-用户确认国服使用公网IP、国际服保留Vercel，两边共用上海主库并保留已有GPT／Garmin连接。当前分支codex/mainland-dual-entry基于最新正式及饮食行内勾选版本，合并区域网关、图片双存储与授权传输；新增0034，不改正式已有migration。603项、lint、typecheck通过；完整真实源在隔离PostgreSQL18.6恢复54表／2604行摘要一致，新增字段后原业务值保持。JWKS与Garmin密文使用原密钥解密通过，现有MCP get_profile正常。
+用户确认国服使用公网IP、国际服保留Vercel，两边共用上海主库并保留已有GPT／Garmin连接。当前分支codex/mainland-dual-entry基于最新正式及饮食行内勾选版本，合并区域网关、图片双存储与授权传输；新增0034，不改正式已有migration。603项、lint、typecheck通过；完整真实源在隔离PostgreSQL18.6恢复54表／2604行摘要一致，新增字段后原业务值保持。JWKS与Garmin密文使用原密钥解密通过，现有MCP get_profile正常。干净提交9ef235e4的双端生产包42/42通过，release dual-entry-9ef235e-20261109／BUILD_ID zU_2ZTWkjVB7COwugw4Wk；隔离真实TLS的原会话、访问／刷新令牌保持及CIMD等7项HTTP检查通过，两脚本退出0。
 
 当前公网IP仍为独立虚构演示库，国际正式仍为Neon；尚未改正式环境、停写或切流。腾讯云免密终端等待本人微信MFA，已保留OrcaTerm页面。后续先完成真实TLS／OAuth与服务器恢复验收，再按双入口部署文档执行最终停写快照和一致切换。私有归档／密钥不上传Git或public，不能把准备阶段快照当最终切换数据。详情见docs/mainland-deployment.md与docs/regional-acceptance.md。
 
