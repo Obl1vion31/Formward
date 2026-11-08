@@ -1,2 +1,11 @@
-.control.control{display:inline-flex;align-items:center;gap:6px;min-height:44px;border:0;background:none;color:var(--gold);padding:4px;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}.control[data-meal-day-status=complete]{color:var(--muted)}.check{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1px solid currentColor;border-radius:3px;font-size:12px;line-height:1;flex:none}.control:disabled{opacity:.6;cursor:wait}.control:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.field{display:flex;flex-direction:column;align-items:flex-end;max-width:min(22rem,46vw)}
+.control.control,.control.control:hover{display:inline-flex;align-items:center;gap:6px;min-height:44px;border:0;background:none;color:var(--gold);padding:4px;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.control.control[data-meal-day-status=complete]{color:var(--muted)}
+.check{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1px solid currentColor;border-radius:3px;font-size:12px;line-height:1;flex:none}
+.control[aria-disabled=true]{opacity:.6;cursor:wait}
+.control:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.spinner{width:9px;height:9px;border:1px solid currentColor;border-right-color:transparent;border-radius:50%;animation:turn .7s linear infinite}
+.error{max-width:100%;color:var(--danger);font-size:12px;line-height:1.5;text-align:right;overflow-wrap:anywhere}
 .status{display:inline-flex;align-items:center;min-height:28px;padding:0 4px;color:var(--muted);font-size:12px;white-space:nowrap}
+@keyframes turn{to{transform:rotate(1turn)}}
+@media(prefers-reduced-motion:reduce){.spinner{animation:none}}

@@ -9,18 +9,24 @@ import {PGlite} from "@electric-sql/pglite";
 import {PGLiteSocketServer} from "@electric-sql/pglite-socket";
 import {drizzle} from "drizzle-orm/pglite";
 import {migrate} from "drizzle-orm/pglite/migrator";
+import {migrate as migrateNative} from "drizzle-orm/postgres-js/migrator";
+import {createDatabase} from "../src/db/client";
 import {eq} from "drizzle-orm";
 import * as schema from "../src/db/schema";
 import {localMeasurementDate} from "../src/features/measurements/entry-state";
 import {seedAssistantFixture} from "./assistant-fixture.mjs";
 import {checkDesktopLinked} from "./desktop-linked-check.browser.mjs";
+import {checkMealDayInline} from "./meal-day-inline-check.browser.mjs";
 
-// 只创建本机 PGlite；不读取 .env 或接受外部数据库地址。
+// 默认使用本机 PGlite；原生协议验收只接受全新、明确指定的回环浏览器测试库，不读取 .env。
 const artifacts=resolve(process.env.FORMWARD_DESKTOP_ARTIFACTS??".codex/desktop-linked");
 const preview=process.env.FORMWARD_DESKTOP_PREVIEW==="1";
 await mkdir(artifacts,{recursive:true});
-const pg=new PGlite(preview?resolve(artifacts,"fixture-db"):undefined),db=drizzle(pg,{schema});
-await migrate(db,{migrationsFolder:"./drizzle"});
+const nativeURL=process.env.FORMWARD_BROWSER_DATABASE_URL;
+if(nativeURL){const url=new URL(nativeURL);assert.equal(url.hostname,"127.0.0.1");assert.ok(url.pathname.startsWith("/formward_browser_"),"仅允许隔离浏览器数据库");}
+const native=nativeURL?createDatabase(nativeURL):null,pg=native?null:new PGlite(preview?resolve(artifacts,"fixture-db"):undefined),db=native?.db??drizzle(pg!,{schema});
+if(native)await migrateNative(native.db,{migrationsFolder:"./drizzle"});else await migrate(drizzle(pg!,{schema}),{migrationsFolder:"./drizzle"});
+if(native&&!preview)assert.equal((await db.select({id:schema.user.id}).from(schema.user)).length,0,"原生浏览器验收必须使用全新虚构账号库");
 const today=localMeasurementDate(new Date(),"Asia/Shanghai");
 const existing=await db.select().from(schema.user).where(eq(schema.user.email,"assistant@example.test"));
 const fixture=existing.length?{userId:existing[0].id,today,account:{email:"assistant@example.test",password:"formward-assistant-demo"}}:await seedAssistantFixture(db,today);
@@ -32,9 +38,9 @@ async function freePort(){
 const port=preview?Number(process.env.FORMWARD_DESKTOP_PORT??4240):await freePort();
 assert.ok(Number.isInteger(port)&&port>1024&&port<65535);
 const baseURL="http://localhost:"+port;
-const socket=new PGLiteSocketServer({db:pg,host:"127.0.0.1",port:0,maxConnections:10});
-await socket.start();
-const databaseURL="postgresql://postgres:postgres@"+socket.getServerConn()+"/postgres?max=1";
+const socket=pg?new PGLiteSocketServer({db:pg,host:"127.0.0.1",port:0,maxConnections:10}):null;
+await socket?.start();
+const databaseURL=nativeURL??"postgresql://postgres:postgres@"+socket!.getServerConn()+"/postgres?max=1";
 const children:ReturnType<typeof spawn>[]=[],logs:string[]=[];
 async function start(root:string,appPort:number){
  const child=spawn(process.execPath,["node_modules/next/dist/bin/next","start","--hostname","0.0.0.0","--port",String(appPort)],{
@@ -55,7 +61,7 @@ async function stop(){
  if(slow)await new Promise<void>(done=>slow!.close(()=>done()));
  for(const child of children)if(child.exitCode===null){child.kill("SIGTERM");await once(child,"exit");}
  await writeFile(resolve(artifacts,"server.log"),logs.join(""));
- await socket.stop();await pg.close();
+ await socket?.stop();await pg?.close();await native?.close();
 }
 try{
  await start(process.cwd(),port);
@@ -78,6 +84,7 @@ try{
   const {chromium,webkit}=await import(process.env.PLAYWRIGHT_MODULE??"/tmp/formward-browser-check/node_modules/playwright/index.mjs");
   const engine=process.env.FORMWARD_DESKTOP_BROWSER??"chromium";
   browser=await(engine==="webkit"?webkit:chromium).launch({headless:true,args:engine==="webkit"?[]:["--no-sandbox","--disable-dev-shm-usage"]});
-  await checkDesktopLinked({browser,baseURL,baselineURL,slowURL,fixture,db,artifacts:resolve(artifacts,engine)});
+  if(process.env.FORMWARD_MEAL_DAY_INLINE==="1")await checkMealDayInline({browser,baseURL,fixture,db,artifacts:resolve(artifacts,engine)});
+  else await checkDesktopLinked({browser,baseURL,baselineURL,slowURL,fixture,db,artifacts:resolve(artifacts,engine)});
  }
 }finally{await stop();}

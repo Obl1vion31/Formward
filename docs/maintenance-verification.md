@@ -24,6 +24,18 @@ Chromium／WebKit各80组两主题布局检查通过，覆盖320×560、390×560
 
 证据为私有.codex/static-loading-reviewed/chromium、.codex/static-loading-webkit-accepted/webkit、.codex/static-loading-fullpage及.codex/static-loading-release；原始诊断目录保留。C:/Users/14878/.codex/visualizations/2026/11/08/formward-static-loading含可展示截图和30.76秒实际操作录像，均为虚构数据；录像仅转码，未补帧或伪造动效。真实iPhone／Android、系统软键盘、屏幕阅读器、系统文字放大和真机帧率未测，不记作通过。
 
+## 饮食列表直接勾选已记全（本地）
+
+日期列表在电脑和手机直接复用MealDayControl，最近记录与展开历史均可勾选／取消，空餐日不显示；查看详情仍只有静态状态，日期编辑保留原控件。当前页操作过的日期保持所在列表，刷新后再分类。成功只更新控件和数据，局部忙碌与错误不触发全屏等待或插入顶部回执；完成文字在悬停时也保持次级颜色。没有新增接口、表或migration，保存继续使用原归属、版本、摘要、幂等和审计事务。
+
+按D1、D2、D3、D6、D7及加载稳定性适用条目，使用虚构账号、production build和本机全新回环PostgreSQL18验收。Chromium与WebKit各通过13项交互场景和12组尺寸／主题：320×560、390×640、430×780、844×390、1100×850、1440×1000，两种主题均检查。覆盖真实勾选、取消、键盘、刷新持久化、原位保留、历史不重复、连续点击、空账号、未知／明确0、只读／编辑、断网失败重试、服务器已提交但响应丢失后的原请求幂等重试、版本冲突刷新重试，以及手机触屏上下文的慢速保存与局部错误。数据库逐次核对版本和审计数；没有通过替换成功响应模拟保存。
+
+普通保存矩阵的标题、日期、读数、图形、日期行及控件锚点全过程偏差均为0 CSS px；独立手机慢速保存样本最大为1 CSS px，滚动最大1px，满足≤1px。记录默认选日、明确选日、7D和自定义区间保持，焦点仍在同一控件，保存期间不出现全屏等待。错误内容允许自然增高，手机错误不横溢且可再次点击恢复。减少动态效果下忙碌标记不旋转。
+
+私有交互证据：.codex/meal-day-inline-final-chromium/chromium及.codex/meal-day-inline-verified-webkit/webkit，各含results.json、保存过程frames.json和20张状态截图。常规双端截图逐张复核，补查慢速、错误、历史和空账号；记录区日期、勾选及编辑／查看排列正常。固定尺寸的首屏和滚动后实际视口截图另存.codex/meal-day-inline-local/viewport，避免用整页截图代替真实可视区域。真机iOS／Android、系统软键盘与系统文字放大未测，不将模拟触屏计为真机。
+
+lint、typecheck、595项单元／集成测试及production build通过；Impeccable机械检查无发现。本轮在codex/meal-day-inline独立工作区交付本地预览http://localhost:4250/dashboard/meals，沿用虚构演示账号，保留其他工作区内容；没有发布公网或修改正式记录。测试入口与隔离约束见[tests/README.md](../tests/README.md)。
+
 ## 训练页精简、触屏排期与完成记录删除
 
 依据D1、D2、D3、D6、D7、D12与加载态强制标准完成本地验收。训练／消耗并入原桌面标题行和手机64px顶栏，320px下品牌、两个切换项、助手、主题及账号入口无重叠，操作区域至少44px。顶部只呈现日期、实际名称和必要状态；模板紧接开始区、默认收起、各项可原位展开动作目标，月度统计移到日历底部。

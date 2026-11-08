@@ -57,20 +57,25 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   const [macroMode,setMacroMode]=useState<MacroMode>("grams");
   const [viewingFood,setViewingFood]=useState<FoodDraft|null>(null);
   const [error,setError]=useState(""),[notice,setNotice]=useState(""),[busy,setBusy]=useState(false);
+  const [daySavingDate,setDaySavingDate]=useState<string|null>(null),[dayErrors,setDayErrors]=useState<Record<string,string>>({});
+  const [dayPlacements,setDayPlacements]=useState<Record<string,"recent"|"history">>({});
+  const [dayChartFallback,setDayChartFallback]=useState<{from:string;to:string;date:string}|null>(null);
   const savedClose=useRef<()=>Promise<void>>(()=>Promise.resolve());
   const busyRef=useRef(false),request=useRef<{data:string;id:string}|null>(null);
-  usePageLoading({active:busy,label:"正在保存饮食记录…"});
-  useEffect(()=>{const latest=()=>{setEditing(null);setHistoryOpen(false);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
+  usePageLoading({active:busy&&daySavingDate===null,label:"正在保存饮食记录…"});
+  useEffect(()=>{const latest=()=>{setEditing(null);setHistoryOpen(false);setDayPlacements({});setDayErrors({});setDayChartFallback(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
   const groups=dailyTotals(state.meals), preferred=initialDate??groups.find(day=>day.date<=today&&day.day.status==="complete"&&day.totals.values.caloriesKcal!==null)?.date??groups.find(day=>day.date<=today)?.date??today,end=groups[0]?.date>today?groups[0].date:today;
   const first=groups.at(-1)?.date??today,from=range==="all"?first:range==="custom"?customFrom:dateAt(dateNumber(end)-Number(range)+1),to=range==="custom"?customTo:end;
   const validRange=/^\d{4}-\d{2}-\d{2}$/.test(from)&&/^\d{4}-\d{2}-\d{2}$/.test(to)&&dateNumber(from)<=dateNumber(to)&&dateNumber(to)-dateNumber(from)<=3660;
   const dates=validRange?Array.from({length:dateNumber(to)-dateNumber(from)+1},(_,i)=>dateAt(dateNumber(from)+i)):[];
-  const chart=useChartDateSelection(dates,preferred,dates.findLast(date=>groups.some(g=>g.date===date&&g.day.status==="complete"&&g.totals.values.caloriesKcal!==null))??dates.findLast(date=>groups.some(g=>g.date===date))??today,customOpen),summaryDate=chart.selected,chosen=groups.find(g=>g.date===summaryDate);
+  const defaultChartDate=dates.findLast(date=>groups.some(g=>g.date===date&&g.day.status==="complete"&&g.totals.values.caloriesKcal!==null))??dates.findLast(date=>groups.some(g=>g.date===date))??today;
+  const chart=useChartDateSelection(dates,preferred,dayChartFallback?.from===from&&dayChartFallback.to===to?dayChartFallback.date:defaultChartDate,customOpen),summaryDate=chart.selected,chosen=groups.find(g=>g.date===summaryDate);
   function viewDay(date:string){setDayIntent('view');setSelectedDate(date);setHistoryOpen(true);}
   function editDay(date:string){setDayIntent('edit');setSelectedDate(date);setHistoryOpen(true);setError('');}
   const dailySummary=(date:string)=>{const group=groups.find(g=>g.date===date);return group?<>{group.meals.length} 餐 · {formatNutrition(group.totals.values.caloriesKcal,"caloriesKcal")} kcal{group.totals.incomplete.caloriesKcal?" · 部分":""}</>:"尚无记录";};
-  const recentDates=pendingRecordDates(today,date=>groups.find(g=>g.date===date)?.day.status!=="complete");
-  const renderDay=(date:string)=>{const group=groups.find(g=>g.date===date);return <DailyRecordRow key={date} date={date} today={today} value={dailySummary(date)} status={group?<MealDayStatus day={group.day}/>:null}><button data-record-action="edit" onClick={()=>group?editDay(date):addMeal(date)}>{group?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>viewDay(date)}>查看</button></DailyRecordRow>;};
+  // 本页操作过的日期保留所在列表；Action 重新验证也不能移除焦点所在行。
+  const recentDates=pendingRecordDates(today,date=>dayPlacements[date]==="recent"||(dayPlacements[date]!=="history"&&groups.find(g=>g.date===date)?.day.status!=="complete"));
+  const renderDay=(date:string)=>{const group=groups.find(g=>g.date===date);return <DailyRecordRow key={date} date={date} today={today} value={dailySummary(date)} status={group?(saveDay?<MealDayControl day={group.day} busy={busy} error={dayErrors[date]} save={performDay}/>:<MealDayStatus day={group.day}/>):null}><button data-record-action="edit" onClick={()=>group?editDay(date):addMeal(date)}>{group?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>viewDay(date)}>查看</button></DailyRecordRow>;};
   const dayDetails=(date:string)=>{
     const group=groups.find(g=>g.date===date), editable=dayIntent==='edit';
     return <>
@@ -79,7 +84,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
       <SavedMealList meals={group?.meals??[]} renderActions={editable?m=><RecordDetailActions busy={busy} edit={()=>editMeal(m)} remove={()=>void confirmPurge({id:m.id,version:m.version,recordType:"meal",name:m.date+" · "+m.mealType})} recordLabel={m.mealType}/>:undefined}/>
       {editable&&<footer className={styles.dayFooter} data-meal-day-actions>
         <button data-meal-add type="button" className={recordUI.editAction} onClick={()=>addMeal(date)}><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M9 3v12M3 9h12"/></svg>添加一餐</button>
-        {group&&saveDay&&<MealDayControl day={group.day} busy={busy} save={performDay}/>}
+        {group&&saveDay&&<MealDayControl day={group.day} busy={busy} error={dayErrors[date]} save={performDay}/>}
       </footer>}
     </>;
   };
@@ -92,13 +97,16 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   }
   async function performDay(input: MealDayInput) {
     if (!saveDay || busyRef.current) return false;
-    busyRef.current = true; setBusy(true); setError(""); setNotice("");
+    busyRef.current = true; setBusy(true); setDaySavingDate(input.date);
+    setDayPlacements(current=>({...current,[input.date]:current[input.date]??(recentDates.includes(input.date)?"recent":"history")}));
+    setDayChartFallback({from,to,date:chart.selected});
+    setDayErrors(current=>({...current,[input.date]:""}));
     try {
       const result = await saveDay(input);
-      if (!result.ok) { setError(result.error); return false; }
-      acknowledgeRecordChanges(["mealDay:"+input.date],mealVersions(result.data.snapshot));setLocal(result.data.snapshot); setNotice(result.data.message); return true;
-    } catch { setError("当天记录状态未保存，请重试。"); return false; }
-    finally { busyRef.current = false; setBusy(false); }
+      if (!result.ok) { setDayErrors(current=>({...current,[input.date]:result.error})); return false; }
+      acknowledgeRecordChanges(["mealDay:"+input.date],mealVersions(result.data.snapshot));setLocal(result.data.snapshot);return true;
+    } catch { setDayErrors(current=>({...current,[input.date]:"状态未保存，请再次点击重试。"})); return false; }
+    finally { busyRef.current = false; setBusy(false); setDaySavingDate(null); }
   }
   function addMeal(date:string){setError("");setEditing({kind:"save_meal",date,mealType:suggestedMealType(new Date().getHours()),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,items:[]});}
   useRepeatedRecordTask('/dashboard/meals',task=>{

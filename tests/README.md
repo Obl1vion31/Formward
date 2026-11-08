@@ -8,9 +8,17 @@ workspace-loading-check.browser.mjs逐页检查总览、饮食、训练、消耗
 
 FORMWARD_LOADING_PREVIEW=1保留本机虚构预览供人工核看，SIGTERM／SIGINT会关闭本人测试应用和数据库。FORMWARD_LOADING_DIAGNOSE=1只用于小范围定位并保留失败报告，不能作为最终通过证据；实际浏览器／真机未测项仍单独注明。
 
+## 饮食列表直接记全
+
+production build 后设置 FORMWARD_MEAL_DAY_INLINE=1，运行 pnpm test:desktop-linked-browser。沿用同一隔离应用与虚构账号，meal-day-inline-check.browser.mjs 通过真实 Server Action 验证最近及展开历史的勾选／取消、原位保留与刷新分类、键盘、只读详情、编辑入口、空日、未知及明确0。延迟、请求中断和已提交但响应丢失分别检验当前控件的反馈、重复点击保护、幂等重试、审计次数和版本冲突；逐帧记录图表选日、7D／自定义区间、滚动、焦点及布局锚点。
+
+FORMWARD_DESKTOP_BROWSER 选择 chromium／webkit，FORMWARD_DESKTOP_ARTIFACTS 指定私有证据目录。两主题覆盖320×560、390×640、430×780、844×390、1100×850和1440×1000；手机另查实际触屏上下文的慢速保存与错误重试。原生回环 PostgreSQL 适合运输中断专项，FORMWARD_BROWSER_DATABASE_URL 只接受127.0.0.1、formward_browser_前缀的全新测试库，已有用户库会被拒绝，不读取.env.local。每次原生验收准备新库；默认仍可使用隔离PGlite。WebKit的整页刷新预取取消只在对应GET RSC请求确实被主动文档切换取消时单独归档，操作中的其他异常继续失败。
+
+证据包含保存全过程的frames.json、results.json及双端状态截图；正常保存最大偏差须≤1 CSS px。真实iOS／Android设备未测，不以模拟触屏结果代替真机。
+
 ## 双端卡片关联与 Inspector
 
-production build 后运行 pnpm test:desktop-linked-browser。入口自行建立本机隔离 PGlite、执行现有 migration 并创建虚构账号，不读取环境文件或接受外部数据库连接。FORMWARD_DESKTOP_BROWSER=webkit 切换引擎，FORMWARD_DESKTOP_ARTIFACTS 指定私有证据目录；Chromium保留实际页面录屏，两引擎均记录真实帧和布局。
+production build 后运行 pnpm test:desktop-linked-browser。入口默认建立本机隔离 PGlite，或使用显式指定的全新回环 PostgreSQL 测试库；执行现有 migration 并创建虚构账号，不读取环境文件或接受生产数据库。FORMWARD_DESKTOP_BROWSER=webkit 切换引擎，FORMWARD_DESKTOP_ARTIFACTS 指定私有证据目录；Chromium保留实际页面录屏，两引擎均记录真实帧和布局。
 
 desktop-linked-check.browser.mjs检查首页三卡前置／自适应排列、三类七日链接、2:1真实目标及骨架、单次双向移动、浏览器前进后退、原滚动／焦点／区间／估计选项恢复、新标签、快速反向、慢网中断及迟到响应。骨架和目标使用相同轴字体、长刻度及数据平面，位置尺寸逐项相差不超过1px。复查手机／电脑反复切换的图表测量、鼠标／键盘估计读数≤1px稳定性、模拟触屏上下文选日、横屏与文字放大。Inspector覆盖普通／自定义标题、设置、身体／消耗／餐次编辑，实际验证失败留稿、继续编辑、放弃与成功保存后营养原值保持；另验真实记全、消耗改期取消／确认后的编号与事实，以及助手先收起再进入正确日期的编辑。
 
