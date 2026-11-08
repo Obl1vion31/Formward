@@ -1,6 +1,18 @@
 # Formward 项目交接
 
-## 当前正式版本：训练页精简、触屏排期与完成记录删除（2026-11-08）
+## 当前正式版本：全站静态内容与局部加载反馈（2026-11-08）
+
+已按本会话此前明确的修改后直接发布授权更新[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署dpl_Ds7qyEAu1jfhdWZyVqantWprDqkb，源码61eda5541ab7acd26a3b7e378b49a44aaac779de，构建static-loading-61eda554-20261108，来自codex/static-loading；正式别名、项目、sourceCommit／gitCommitSha及版本接口均一致，未合入或推送main。后续纯文档提交不改变正式应用。
+
+总览、饮食、训练、消耗与身体的固定标题、操作入口、最近记录、历史入口及语义色从首帧显示，仅未知日期和数据占位。训练保留开始训练操作槽；资料、安全及连接采用200ms局部反馈，缓存命中直接接管。取消、迟到响应、真实重试、草稿和账号焦点恢复保持；根AGENTS及设计文档覆盖全站。
+
+595项单元／集成、lint零错误零警告、独立typecheck、production build（静态生成38/38）及Vercel远程构建通过。本地Chromium／WebKit各80组布局和19组完整操作检查通过，固定锚点最大偏差1 CSS px；六组已知日期及完整记录区补查通过，实际截图和录屏已核看。正式站14项公开／保护入口通过，本轮不创建正式测试账号，登录状态与故障写入测试均限定本机隔离虚构数据库，不将本机验收冒充正式登录页面或真机验收。
+
+发布前后0600私有备份均54表、33条migration；字段、账本、既有历史和旧审计保持；部署前的一次Garmin前台同步更新1条来源日汇总与步数，7日采用及8条新增审计的before／after逐项匹配。最终数据核对为concurrent-data-verification.json，原始严格差异保留。所有合法更新均保留，其他允许的元数据变化8项。无新增migration、公开接口、依赖或产品设置。Runtime error／fatal及请求5xx在实际观测窗口UTC 2026-11-08T10:04:36.000Z—2026-11-08T10:11:06.000Z均0，无排除区间或分页遗漏；不宣称新应用已持续运行20分钟。上一READY dpl_5LHExKEqQRyn73VJwEgm3ZbXyoop已核对保留供应用回退，不回退或删除合法用户更新。
+
+私有证据为.codex/static-loading-release、.codex/static-loading-reviewed/chromium、.codex/static-loading-webkit-accepted/webkit和.codex/static-loading-fullpage；备份data/exports/static-loading-20261108-{before,published}.json不进入Git或部署。可展示截图、完整实录及连续导航片段位于C:/Users/14878/.codex/visualizations/2026/11/08/formward-static-loading，均为虚构验收数据。真实iPhone／Android、系统软键盘、屏幕阅读器、系统文字放大及真机帧率未测。
+
+## 此前正式版本：训练页精简、触屏排期与完成记录删除（2026-11-08）
 
 已发布[训练页](https://formward-ten.vercel.app/dashboard/training)，READY dpl_5LHExKEqQRyn73VJwEgm3ZbXyoop，源码a0d580b26adaa5c420a2af90cfa3169f25617a49，版本training-compact-a0d580b2-20261108。来自codex/training-entry，基于上一正式a2ac651并保留全部已发布功能；未合入main，后续纯文档提交不改变正式应用。
 
