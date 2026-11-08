@@ -20,6 +20,7 @@ async function uploadRequest(body: unknown) {
 export function PhotoFields({ ids, change, busy, onBusy, onError, expectedCount = 0, onExpected }: { ids: string[]; change: (ids: string[]) => void; busy: boolean; onBusy: (active: boolean) => void; onError: (error: string) => void; expectedCount?: number; onExpected?: (count: number) => void }) {
   const input = useRef<HTMLInputElement>(null), guard = useRef(false), remaining = useRef<File[]>([]);
   const [retryAvailable,setRetryAvailable]=useState(false);
+  const [notice,setNotice]=useState("");
   const [error, setError] = useState(""), [uploading, setUploading] = useState(false), [progress, setProgress] = useState("");
   usePageLoading({ active: uploading, label: progress || "正在保存原图…" });
   async function upload(files: File[]) {
@@ -41,9 +42,13 @@ export function PhotoFields({ ids, change, busy, onBusy, onError, expectedCount 
           const hash = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
           const sha256 = [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, "0")).join("");
           const prepared = await uploadRequest({ step: "prepare", file: { fileName: file.name, size: file.size, mimeType: file.type, sha256 } });
-          let image = prepared.image;
+          let image = prepared.image; if (prepared.notice) setNotice(prepared.notice);
           if (!image) {
-            await uploadPresigned(prepared.pathname, file, { access: "private", handleUploadUrl: "/api/meal-images/upload", clientPayload: prepared.ticket, contentType: file.type, multipart: file.size > 4 * 1024 * 1024, onUploadProgress: event => setProgress("照片 " + (index + 1) + "/" + files.length + " · " + Math.round(event.percentage) + "%") });
+            if (prepared.provider === "cos") {
+              const signed = await uploadRequest({ type: "blob.generate-presigned-url", payload: { pathname: prepared.pathname, clientPayload: prepared.ticket } });
+              const data = new FormData(); for (const [key,value] of Object.entries(signed.fields)) data.append(key,String(value)); data.append("file",file);
+              const uploaded = await fetch(signed.url,{method:"POST",body:data}); if (!uploaded.ok) throw new Error("国内原图上传未完成，请重试。");
+            } else await uploadPresigned(prepared.pathname, file, { access: "private", handleUploadUrl: "/api/meal-images/upload", clientPayload: prepared.ticket, contentType: file.type, multipart: file.size > 4 * 1024 * 1024, onUploadProgress: event => setProgress("照片 " + (index + 1) + "/" + files.length + " · " + Math.round(event.percentage) + "%") });
             setProgress("正在核对并保存原图…");
             image = await uploadRequest({ step: "complete", ticket: prepared.ticket });
           }
@@ -64,6 +69,7 @@ export function PhotoFields({ ids, change, busy, onBusy, onError, expectedCount 
   }
   return <div className={styles.photoFields}>
     <span className={styles.photoLabel}>照片（最多8张，每张20 MiB）</span><div className={styles.photoUpload}><button type="button" disabled={busy||uploading} onClick={()=>input.current?.click()}>＋ 添加照片</button><span>{ids.length?ids.length+" 张照片":"未添加照片"}</span></div><input aria-label="添加原始照片" tabIndex={-1} className={styles.fileInput} ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy || uploading} onChange={e => { void upload(Array.from(e.target.files ?? [])); }} />
+    {notice && <p role="status" className={styles.hint}>{notice}</p>}
     {progress && <p role="status" className={styles.hint}>{progress}</p>}<ImageGallery ids={ids} />
     {ids.map((id, i) => <button type="button" key={id} disabled={busy || uploading} onClick={() => change(ids.filter(n => n !== id))}>移除照片 {i + 1}</button>)}
     {error && <><p role="alert" className={styles.error}>{error}</p>{retryAvailable&&<button type="button" disabled={busy || uploading} onClick={() => void upload(remaining.current)}>重试未完成照片</button>}<button type="button" disabled={busy || uploading} onClick={() => { setError(""); onError(""); remaining.current = [];setRetryAvailable(false); if (input.current) input.current.value = ""; }}>{retryAvailable?"稍后补传":"关闭提示"}</button></>}

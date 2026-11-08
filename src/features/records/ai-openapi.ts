@@ -17,6 +17,7 @@ export const recordSchemas = {
   } },
 };
 export const recordPaths = {
+  "/pending-images": {"post":{"operationId":"appendPendingImages","summary":"向原授权的待审餐次或食材追加照片，仍需网页登录确认","requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["id","revision","imageIds"],"properties":{"id":{"type":"string","format":"uuid"},"revision":{"type":"integer","minimum":1},"key":{"type":"string"},"index":{"type":"integer","minimum":0,"maximum":99},"imageIds":{"type":"array","minItems":1,"maxItems":8,"items":{"type":"string","format":"uuid"}}}}}}},"responses":{"200":{"description":"附件草稿已更新或已存在"},"403":{"description":"账号或原授权不匹配"},"409":{"description":"预览过期、结束或版本冲突"}}}},
   "/record-operations": { post: { operationId: "submitRecordOperation", summary: "一次提交身体、摄入、食材、消耗与活动审核", description: recordAiInstructions, requestBody: { required: true, content: { "application/json": { schema: ref("RecordInput") } } }, responses: { "200": { description: "待网页统一确认的混合预览；status=confirmed 才已保存" }, "400": { description: "输入无效" }, "401": { description: "授权无效" }, "403": { description: "缺少对应记录权限" }, "409": { description: "请求标识冲突" } } } },
   "/record-operations/{id}": { get: { operationId: "getRecordOperation", summary: "查询统一审核结果", parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }], responses: { "200": { description: "本账号批次及逐项结果" }, "404": { description: "操作不存在或不属于本账号" } } } },
 };

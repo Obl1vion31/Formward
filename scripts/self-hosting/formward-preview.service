@@ -1,0 +1,48 @@
+# formward-self-hosting-managed-v1
+[Unit]
+Description=Formward private preview
+After=network-online.target postgresql@18-main.service
+Wants=network-online.target
+Requires=postgresql@18-main.service
+ConditionPathExists=/srv/formward/preview/current/server.js
+ConditionPathExists=/etc/formward/preview.env
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=formward
+Group=formward
+WorkingDirectory=/srv/formward/preview/current
+EnvironmentFile=/etc/formward/preview.env
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3000
+Environment=NEXT_TELEMETRY_DISABLED=1
+Environment=PATH=/opt/node-v24.21.0-linux-x64/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/opt/node-v24.21.0-linux-x64/bin/node server.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/formward/preview/current/.next/cache
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LimitNOFILE=8192
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=formward-preview
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=200
+
+[Install]
+WantedBy=multi-user.target

@@ -3,7 +3,7 @@ import { queryTraining } from '../training/ai-api';
 import { isTraining, trainingActionSchemas, trainingAiInstructions } from '../training/ai-model';
 import { requireActiveAiToken } from '../auth/ai-tokens';
 import { publicRecordInputSchema } from "../records/model";
-import { submitRecordOperation, getRecordOperation } from "../records/operations";
+import { appendPendingImagesSchema, appendPendingImages, submitRecordOperation, getRecordOperation } from "../records/operations";
 import { recordAiInstructions } from "../records/ai-openapi";
 import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { requireMcpAuth } from "@better-auth/mcp";
@@ -12,6 +12,7 @@ import { z } from "zod";
 import type { Database } from "../../db/client";
 import { oauthConnection, user } from "../../db/schema";
 import type { createAuth } from "../auth/auth";
+import { processingRegion,regionConfig } from "../auth/regions";
 import { siteOrigin } from "../auth/site-url";
 import { ApiError, type AiIdentity } from "../auth/ai-identity";
 import { CONNECTION_CLAIM, READ_SCOPE, WRITE_SCOPE, MEALS_READ_SCOPE, MEALS_WRITE_SCOPE, ENERGY_READ_SCOPE, ENERGY_WRITE_SCOPE, TRAINING_READ_SCOPE, TRAINING_WRITE_SCOPE, requireOauthConnection } from "../auth/oauth-connections";
@@ -54,8 +55,8 @@ function toolPolicy(scopes: string[], readOnly: boolean, profile = false) {
 }
 
 export function createFormwardMcp(db: Database, identity: AiIdentity, grantedScopes: string[], request: Request) {
-  const resource = new URL("/api/mcp", siteOrigin(request)).href;
-  const server = new McpServer({ name: "Formward", version: "1.13.0" }, { instructions: "用户明确要求完整接入或补齐授权时，先调用authorize_formward一次请求身体、饮食、消耗和训练的查询与提交预览权限；此工具不生成健康预览，仍需用户OAuth同意。查询自己的身体记录时使用 query_measurements。身体记录的新录入、历史修改、估算通过 submit_measurement_operation 生成预览，将 confirmationUrl 完整提供给用户，等待用户在 Formward 网页确认。不要声称预览已经保存。未知值为 null，实测与估计必须区分，不把体重差解释为确定的热量或因果。重复提交沿用相同 operationId。用户未提供测量来源时，先询问实际设备／应用来源或是否确认不填写；可以列出查询返回的历史 sources 供选择，不能擅自沿用，也不能把 ChatGPT／手动提供当作测量来源。用户明确留空时传 deviceLabel:null 和 sourceUnspecifiedConfirmed:true。响应 needsUserInput 非空时说明待补信息，询问用户或让其在网页补填，不能把有问题的预览说成可直接保存。" + mealAiInstructions + recordAiInstructions + energyAiInstructions + trainingAiInstructions });
+  const resource = new URL("/api/mcp", regionConfig().enabled ? regionConfig().canonical : siteOrigin(request)).href;
+  const server = new McpServer({ name: "Formward", version: "1.14.0" }, { instructions: "用户明确要求完整接入或补齐授权时，先调用authorize_formward一次请求身体、饮食、消耗和训练的查询与提交预览权限；此工具不生成健康预览，仍需用户OAuth同意。查询自己的身体记录时使用 query_measurements。身体记录的新录入、历史修改、估算通过 submit_measurement_operation 生成预览，将 confirmationUrl 完整提供给用户，等待用户在 Formward 网页确认。不要声称预览已经保存。未知值为 null，实测与估计必须区分，不把体重差解释为确定的热量或因果。重复提交沿用相同 operationId。用户未提供测量来源时，先询问实际设备／应用来源或是否确认不填写；可以列出查询返回的历史 sources 供选择，不能擅自沿用，也不能把 ChatGPT／手动提供当作测量来源。用户明确留空时传 deviceLabel:null 和 sourceUnspecifiedConfirmed:true。响应 needsUserInput 非空时说明待补信息，询问用户或让其在网页补填，不能把有问题的预览说成可直接保存。" + mealAiInstructions + recordAiInstructions + energyAiInstructions + trainingAiInstructions });
   async function execute(scopes: string[], work: () => Promise<Record<string, unknown>>) {
     try {
       if (scopes.some(scope => !grantedScopes.includes(scope))) throw new ApiError(403, "insufficient_scope", "当前账号连接缺少权限，请重新授权。");
@@ -88,7 +89,7 @@ export function createFormwardMcp(db: Database, identity: AiIdentity, grantedSco
   }));
   server.registerTool("get_measurement_operation", { title: "查询审核结果", description: "按提交返回的 id 查询当前账号的审核状态、逐行结果与数量。confirmed/completed 中的 counts 才表示已保存或已取消；pending 表示仍等待网页确认。", inputSchema: z.object({ id: z.string() }).strict(), ...toolPolicy([READ_SCOPE], true) }, args => execute([READ_SCOPE], async () => getAiMeasurementOperation(db, identity.userId, args.id)));
   server.registerTool("search_foods", { title: "查找食材规格", description: "搜索当前账号的食物名称、品牌和做法，返回稳定id、version、基准数量、单位、营养、来源及食材说明规则。查询后再引用，估算保留成分分量与计算，不写个人餐次背景。", inputSchema: z.object({ q: z.string().max(200).optional() }).strict(), ...toolPolicy([MEALS_READ_SCOPE], true) }, args => execute([MEALS_READ_SCOPE], () => queryFoods(db, identity.userId, args.q)));
-  server.registerTool("import_meal_images", { title:"保存饮食原图", description:"接收用户上传的1–8张JPEG／PNG／WebP原图（每张最大20 MiB），私有保存后返回稳定附件ID；不保存正式餐次。使用返回id作为餐次或食材的imageIds。仅图片先问日期、餐次、身份、实际食用量与额外油酱。", inputSchema:imageImportSchema, ...toolPolicy([MEALS_WRITE_SCOPE],false), _meta:{...toolPolicy([MEALS_WRITE_SCOPE],false)._meta,"openai/fileParams":["files"]} }, args=>execute([MEALS_WRITE_SCOPE],async()=>importMealImages(db,identity,args)));
+  server.registerTool("import_meal_images", { title:"保存饮食原图", description:"接收用户上传的1–8张JPEG／PNG／WebP原图（每张最大20 MiB），私有保存后返回稳定附件ID；不保存正式餐次。使用返回id作为餐次或食材的imageIds。仅图片先问日期、餐次、身份、实际食用量与额外油酱。", inputSchema:imageImportSchema, ...toolPolicy([MEALS_WRITE_SCOPE],false), _meta:{...toolPolicy([MEALS_WRITE_SCOPE],false)._meta,"openai/fileParams":["files"]} }, args=>execute([MEALS_WRITE_SCOPE],async()=>importMealImages(db,identity,{...args,processingRegion:args.processingRegion??processingRegion(request.headers)})));
   server.registerTool('search_exercises', { title: '查找训练动作', description: '查询Formward统一动作库，含中文、英文、别名、类型、主要部位、器械、动作模式和记录方式。创建训练模板前先查询稳定catalogId；reps记录次数和可选重量，duration记录秒，cardio记录秒或米。', inputSchema: z.object({ q: z.string().max(200).optional(), category: z.enum(['strength','cardio','mobility']).optional(), bodyPart: z.string().max(40).optional(), equipment: z.string().max(40).optional() }).strict(), ...toolPolicy([TRAINING_READ_SCOPE], true) }, args => execute([TRAINING_READ_SCOPE], async () => {
     await requireActiveAiToken(db as unknown as Parameters<typeof requireActiveAiToken>[0], identity, false, 'training');
     return { exercises: searchExercises(args.q, args.category, args.bodyPart, args.equipment), total: exerciseCatalog.length, units: { weightKg: 'kg', durationSeconds: 's', distanceMeters: 'm' } };
@@ -116,6 +117,7 @@ export function createFormwardMcp(db: Database, identity: AiIdentity, grantedSco
     if (recordScopes(operation.rows.map(row => row.action), false).some(scope => !grantedScopes.includes(scope))) throw new ApiError(403, "insufficient_scope", "当前连接缺少该批次读取权限，请重新授权。");
     return { ...operation, confirmationUrl: aiConfirmationUrl(request, operation.confirmationPath) };
   }));
+  server.registerTool("append_pending_images",{title:"补齐待审照片",description:"经用户确认重试照片后，向原授权仍有效的待审餐次或食材追加附件；提供统一审核的key或独立饮食审核的index，revision采用刚查询的值。保留原文字、成功附件和operationId；不正式保存，仍需网页登录确认。",inputSchema:appendPendingImagesSchema,...toolPolicy([MEALS_WRITE_SCOPE],false)},args=>execute([MEALS_WRITE_SCOPE],async()=>appendPendingImages(db,identity,args)));
   return server;
 }
 
@@ -132,7 +134,7 @@ export function createMcpEndpoint(db: Database, auth: ReturnType<typeof createAu
     const handler = createMcpHandler(() => createFormwardMcp(db, identity, scopes.filter(scope => connection.scopes.includes(scope)), request), { legacy: "stateless", maxRequestBodySize: 131072 });
     await traceMcpRequest(request);
     return handler.fetch(request);
-  }, { resource, challengeScopes: ["openid", "profile", "offline_access", READ_SCOPE, WRITE_SCOPE, MEALS_READ_SCOPE, MEALS_WRITE_SCOPE, ENERGY_READ_SCOPE, ENERGY_WRITE_SCOPE, TRAINING_READ_SCOPE, TRAINING_WRITE_SCOPE] });
+  }, { resource, issuer: new URL("/api/auth", auth.options.baseURL as string).href, ...(process.env.FORMWARD_INTERNAL_JWKS_URL ? { jwksUrl: process.env.FORMWARD_INTERNAL_JWKS_URL } : {}), challengeScopes: ["openid", "profile", "offline_access", READ_SCOPE, WRITE_SCOPE, MEALS_READ_SCOPE, MEALS_WRITE_SCOPE, ENERGY_READ_SCOPE, ENERGY_WRITE_SCOPE, TRAINING_READ_SCOPE, TRAINING_WRITE_SCOPE] });
   return async (request: Request) => {
     try {
       const response = await protectedHandler(request);

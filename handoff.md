@@ -1,5 +1,12 @@
 # Formward 项目交接
 
+## 双入口与服务器主库切换准备（未切换）
+
+用户确认国服使用公网IP、国际服保留Vercel，两边共用上海主库并保留已有GPT／Garmin连接。当前分支codex/mainland-dual-entry基于最新正式及饮食行内勾选版本，合并区域网关、图片双存储与授权传输；新增0034，不改正式已有migration。603项、lint、typecheck通过；完整真实源在隔离PostgreSQL18.6恢复54表／2604行摘要一致，新增字段后原业务值保持。JWKS与Garmin密文使用原密钥解密通过，现有MCP get_profile正常。
+
+当前公网IP仍为独立虚构演示库，国际正式仍为Neon；尚未改正式环境、停写或切流。腾讯云免密终端等待本人微信MFA，已保留OrcaTerm页面。后续先完成真实TLS／OAuth与服务器恢复验收，再按双入口部署文档执行最终停写快照和一致切换。私有归档／密钥不上传Git或public，不能把准备阶段快照当最终切换数据。详情见docs/mainland-deployment.md与docs/regional-acceptance.md。
+
+
 ## 当前正式版本：全站静态内容与局部加载反馈（2026-11-08）
 
 已按本会话此前明确的修改后直接发布授权更新[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署dpl_Ds7qyEAu1jfhdWZyVqantWprDqkb，源码61eda5541ab7acd26a3b7e378b49a44aaac779de，构建static-loading-61eda554-20261108，来自codex/static-loading；正式别名、项目、sourceCommit／gitCommitSha及版本接口均一致，未合入或推送main。后续纯文档提交不改变正式应用。

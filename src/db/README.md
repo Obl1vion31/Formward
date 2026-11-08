@@ -57,3 +57,5 @@ account_preferences按user_id保存show_body_fat、version及updated_at，新增
 0031_data_source_pilot 新增 data_connections、data_source_facts、data_source_policies、energy_day_adoptions、data_source_conflicts、data_source_events 及 energy_days.steps；0032_adopted_activity_details 添加 activities.source_details。旧字段、旧值及原迁移不变，共49张应用表。连接与事实通过复合归属外键隔离，凭据加密，来源事实与采用快照分别存放。0031 的复合唯一索引须先于引用它的外键创建。
 
 0033_training_sessions仅新增training_sessions、training_templates、training_plans、training_events。各表关联账号，组合外键阻止跨账号关联；进行中会话按账号唯一，事件按账号／请求ID唯一。旧表、原数据、旧migration保持。训练JSON、来源、单位、计时和归属规则见[训练记录](../../docs/training.md)。
+
+0034_regional_image_storage 只增加 meal_images 的 storage_provider 与 storage_location，既有附件默认 blob／legacy。历史区域原型 0028 不加入正式 migration journal，生产既有 migration 不修改。

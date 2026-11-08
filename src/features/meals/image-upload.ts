@@ -1,82 +1,94 @@
-import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { del, get, issueSignedToken } from "@vercel/blob";
-import { handleUploadPresigned, type HandleUploadPresignedBody } from "@vercel/blob/client";
-import { z } from "zod";
-import { mealImage } from "../../db/schema";
+import { type HandleUploadPresignedBody } from "@vercel/blob/client";
 import type { Database } from "../../db/client";
-import { lockOwner } from "../auth/owner-lock";
-import { ApiError } from "../auth/ai-identity";
-import { MAX_IMAGE_BYTES, IMAGE_TYPES, cleanImageName, imageDiagnostic, imageMime, readImageBytes } from "./images";
+import { mealImage } from "../../db/schema";
+import { lockActiveAccount, requireSessionProof, webSessionContext } from "../auth/account-security";
+import { requireActiveAiToken } from "../auth/ai-tokens";
+import { ApiError, type AiIdentity } from "../auth/ai-identity";
+import { serviceHeaders } from "../auth/regional-transport";
+import { regionConfig } from "../auth/regions";
+import { imageFileSchema, signImageTicket, verifyImageUploadTicket, ticketIdentity, ticketSession, type ImageTicket } from "./image-ticket";
+import { cosLocation, cosPostPolicy, imageStorage, type ImageStorage } from "./image-storage";
+import { cleanImageName } from "./image-bytes";
+import { promoteImage,signBlobImageUpload } from "./image-worker";
+export { verifyImageUploadTicket } from "./image-ticket";
 
-const fileSchema = z.object({ fileName: z.string().max(255), size: z.number().int().positive().max(MAX_IMAGE_BYTES), mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]), sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
-const ticketSchema = fileSchema.extend({ userId: z.string().min(1), pathname: z.string(), id: z.string().uuid(), expiresAt: z.number() }).strict();
-function signingKey(secret: string | undefined) {
-  if (!secret) throw new ApiError(503, "image_configuration", "照片上传暂不可用，请稍后重试。");
-  return createHmac("sha256", secret).update("formward-private-image-upload-v1").digest();
+export type ImageReceipt = { pathname: string; sha256: string; size: number; mimeType: string };
+export async function assertImageTicket(db: Database, ticket: ImageTicket) {
+  const owner = await lockActiveAccount(db as never, ticket.userId);
+  if (owner.accessVersion !== ticket.proof.accessVersion) throw new ApiError(401, "invalid_token", "照片上传授权已失效。");
+  if(ticket.expiresAt<=Date.now())throw new ApiError(409,"image_ticket_expired","上传凭据已过期。");
+  const proof = ticketSession(ticket); if (proof) { const current=webSessionContext.getStore();if(current&&current.sessionId!==proof.sessionId)throw new ApiError(403,"image_owner","上传凭据不属于当前登录会话。");await requireSessionProof(db, proof); }
+  const identity = ticketIdentity(ticket); if (identity) await requireActiveAiToken(db as never, identity, true, "meals");
+  if (ticket.proof.kind === "maintenance" && process.env.NODE_ENV === "production") throw new ApiError(401, "invalid_session", "请重新登录。");
 }
-export function verifyImageUploadTicket(raw: string, userId: string, secret = process.env.BETTER_AUTH_SECRET, now = Date.now()) {
-  const [encoded, signature, extra] = raw.split(".");
-  if (!encoded || !signature || extra) throw new ApiError(400, "image_ticket", "上传凭据无效，请重新选择照片。");
-  const expected = createHmac("sha256", signingKey(secret)).update(encoded).digest(), actual = Buffer.from(signature, "base64url");
-  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) throw new ApiError(400, "image_ticket", "上传凭据无效。");
-  let value: unknown;
-  try { value = JSON.parse(Buffer.from(encoded, "base64url").toString()); } catch { throw new ApiError(400, "image_ticket", "上传凭据无效。"); }
-  const parsed = ticketSchema.safeParse(value);
-  if (!parsed.success || parsed.data.userId !== userId || parsed.data.pathname !== "meal-uploads/" + userId + "/" + parsed.data.id) throw new ApiError(403, "image_owner", "上传凭据不属于当前账号。");
-  if (parsed.data.expiresAt <= now) throw new ApiError(409, "image_ticket_expired", "上传凭据已过期，请重试上传；已完成照片不会重复保存。");
-  return parsed.data;
-}
-export async function prepareImageUpload(db: Database, userId: string, input: unknown, secret = process.env.BETTER_AUTH_SECRET) {
-  const parsed = fileSchema.safeParse(input);
+export async function prepareImageUpload(db: Database, userId: string, input: unknown, secret?: string, region: "cn" | "global" = process.env.FORMWARD_IMAGE_REGION === "cn" ? "cn" : "global", identity?: AiIdentity, download?: { url: string; fileId: string }) {
+  const parsed = imageFileSchema.safeParse(input);
   if (!parsed.success) throw new ApiError(400, "image_file", "请选择最大20 MiB的 JPEG、PNG 或 WebP 原图。");
-  const file = parsed.data;
-  const [prior] = await db.select().from(mealImage).where(and(eq(mealImage.userId, userId), eq(mealImage.sha256, file.sha256)));
-  if (prior) return { image: { id: prior.id, mimeType: prior.mimeType, fileName: prior.fileName, repeated: true } };
-  const id = randomUUID(), payload = { ...file, fileName: cleanImageName(file.fileName), id, userId, pathname: "meal-uploads/" + userId + "/" + id, expiresAt: Date.now() + 10 * 60_000 };
-  const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const ticket = encoded + "." + createHmac("sha256", signingKey(secret)).update(encoded).digest("base64url");
-  return { ticket, pathname: payload.pathname };
+  return db.transaction(async tx => {
+    const owner = await lockActiveAccount(tx, userId), proof = webSessionContext.getStore();
+    if (identity) await requireActiveAiToken(tx, identity, true, "meals");
+    const [prior] = await tx.select().from(mealImage).where(and(eq(mealImage.userId, userId), eq(mealImage.sha256, parsed.data.sha256)));
+    if (prior && !download) return { image: { id: prior.id, mimeType: prior.mimeType, fileName: prior.fileName, repeated: true, storageProvider: prior.storageProvider }, notice: prior.storageProvider === "blob" && region === "cn" ? "已复用国际存储的原附件，国内读取可能受网络影响；本次没有复制到国内存储。" : "已复用已有原附件，没有重新上传或复制。" };
+    const id = randomUUID(), payload: ImageTicket = { ...parsed.data, fileName: cleanImageName(parsed.data.fileName), v: 2, id, userId, pathname: "meal-tmp-v2/" + userId + "/" + id, expiresAt: Date.now() + 600000, provider: region === "cn" ? "cos" : "blob", location: region === "cn" ? cosLocation() : process.env.FORMWARD_BLOB_LOCATION ?? "legacy", region,
+      proof: identity ? { kind: "ai", accessVersion: owner.accessVersion, ...(identity.tokenId ? { tokenId: identity.tokenId } : { oauthConnectionId: identity.oauthConnectionId }) } : proof ? { kind: "session", sessionId: proof.sessionId, accessVersion: owner.accessVersion } : { kind: "maintenance", accessVersion: owner.accessVersion },
+      ...(download ? { downloadUrl: download.url, sourceFileId: download.fileId } : {}) };
+    if (payload.proof.kind === "maintenance" && process.env.NODE_ENV === "production") throw new ApiError(401, "invalid_session", "请重新登录。");
+    return { ticket: signImageTicket(payload, secret), pathname: payload.pathname, provider: payload.provider };
+  });
+}
+export async function callImageWorker(ticket: string, command: string, body?: unknown) {
+  const config = regionConfig(), target = new URL("/api/internal/image-worker", process.env.FORMWARD_IMAGE_WORKER_URL ?? config.global);
+  const response = await fetch(target, { method: "POST", headers: { "Content-Type": "application/json", ...serviceHeaders("POST", target.pathname, config.canonical) }, body: JSON.stringify({ ticket, command, body }), redirect: "error", cache: "no-store", signal: AbortSignal.timeout(85000) });
+  if (!response.ok) throw new ApiError(503, "image_region_unavailable", "国际照片处理暂时不可用，请稍后重试。");
+  return response;
+}
+export async function signLocalImageUpload(request: Request, body: HandleUploadPresignedBody, ticket: ImageTicket) {
+  if (ticket.provider === "cos") return { provider: "cos", ...cosPostPolicy(ticket.pathname, ticket.size, ticket.mimeType, ticket.expiresAt) };
+  return signBlobImageUpload(request,body,ticket);
 }
 export async function signImageUpload(request: Request, body: HandleUploadPresignedBody, userId: string) {
-  if (body.type !== "blob.generate-presigned-url") throw new ApiError(400, "image_input", "上传请求无效。");
-  return handleUploadPresigned({ request, body, getSignedToken: async (pathname, clientPayload) => {
-    const ticket = verifyImageUploadTicket(clientPayload ?? "", userId);
-    if (pathname !== ticket.pathname) throw new ApiError(403, "image_owner", "上传路径不匹配。");
-    const options = { pathname, operations: ["put"] as ("put")[], validUntil: ticket.expiresAt, allowedContentTypes: IMAGE_TYPES, maximumSizeInBytes: ticket.size };
-    return { token: await issueSignedToken(options), urlOptions: { access: "private", validUntil: ticket.expiresAt, allowedContentTypes: IMAGE_TYPES, maximumSizeInBytes: ticket.size, addRandomSuffix: false, allowOverwrite: false } };
-  } });
+  const raw = body.type === "blob.generate-presigned-url" ? body.payload.clientPayload : null;
+  const ticket = verifyImageUploadTicket(raw ?? "", userId);
+  if (ticket.region === "global" && regionConfig().enabled) return (await callImageWorker(raw!, "sign", body)).json();
+  return signLocalImageUpload(request, body, ticket);
 }
-const readUploaded = async (pathname: string) => {
-  const result = await get(pathname, { access: "private", useCache: false, abortSignal: AbortSignal.timeout(30_000) });
-  if (!result || result.statusCode !== 200) throw new ApiError(409, "image_not_uploaded", "照片尚未上传完成，请重试。");
-  return readImageBytes(result.stream);
-};
-export async function completeImageUpload(db: Database, userId: string, raw: string, dependencies: { read?: typeof readUploaded; remove?: typeof del; secret?: string } = {}) {
-  const ticket = verifyImageUploadTicket(raw, userId, dependencies.secret ?? process.env.BETTER_AUTH_SECRET);
-  const remove = dependencies.remove ?? del;
-  let committed = false;
+export async function registerImageReceipt(db: Database, ticket: ImageTicket, receipt: ImageReceipt) {
+  if (!receipt.pathname.startsWith("meal-formal-v2/" + ticket.userId + "/") || !/^meal-formal-v2\/[^/]+\/[a-f0-9-]{36}$/.test(receipt.pathname) || !/^[a-f0-9]{64}$/.test(receipt.sha256) || receipt.size <= 0 || receipt.size > 20971520 || !["image/jpeg","image/png","image/webp"].includes(receipt.mimeType)) throw new ApiError(400, "image_receipt", "照片登记信息无效。");
+  if (!ticket.downloadUrl && (receipt.sha256 !== ticket.sha256 || receipt.size !== ticket.size || receipt.mimeType !== ticket.mimeType)) throw new ApiError(400, "image_mismatch", "照片信息不一致。");
+  return db.transaction(async tx => {
+    await assertImageTicket(tx as never, ticket);
+    const [prior] = await tx.select().from(mealImage).where(and(eq(mealImage.userId, ticket.userId), eq(mealImage.sha256, receipt.sha256)));
+    if (prior) return { id: prior.id, mimeType: prior.mimeType, fileName: prior.fileName, repeated: true, storageProvider: prior.storageProvider };
+    await tx.insert(mealImage).values({ id: ticket.id, userId: ticket.userId, pathname: receipt.pathname, storageProvider: ticket.provider, storageLocation: ticket.location, sha256: receipt.sha256, mimeType: receipt.mimeType, byteSize: receipt.size, fileName: ticket.fileName, source: ticket.proof.kind === "ai" ? "ai" : "manual", sourceFileId: ticket.sourceFileId, createdBy: ticket.proof.kind === "ai" ? (ticketIdentity(ticket)!.tokenId ?? ticketIdentity(ticket)!.oauthConnectionId!) : ticket.userId });
+    return { id: ticket.id, mimeType: receipt.mimeType, fileName: ticket.fileName, repeated: false, storageProvider: ticket.provider };
+  });
+}
+export async function completeImageUpload(db: Database, userId: string, raw: string, dependencies: { read?: (path: string) => Promise<Uint8Array>; remove?: (path: string) => Promise<unknown>; write?: ImageStorage["write"]; secret?: string } = {}) {
+  const ticket = verifyImageUploadTicket(raw, userId, dependencies.secret);
+  // 正式对象提交结果不确定时留给24小时后的核对清理，只即时删除独立临时路径。
   try {
-    const result = await db.transaction(async tx => {
-      await lockOwner(tx, userId);
-      const [prior] = await tx.select().from(mealImage).where(and(eq(mealImage.userId, userId), eq(mealImage.sha256, ticket.sha256)));
-      if (prior) {
-        committed = prior.pathname === ticket.pathname;
-        return { id: prior.id, mimeType: prior.mimeType, fileName: prior.fileName, repeated: true };
-      }
-      const bytes = await (dependencies.read ?? readUploaded)(ticket.pathname), mimeType = imageMime(bytes);
-      if (bytes.length !== ticket.size || createHash("sha256").update(bytes).digest("hex") !== ticket.sha256 || mimeType !== ticket.mimeType) throw new ApiError(400, "image_mismatch", "照片内容与上传信息不一致，请重新选择原图。");
-      await tx.insert(mealImage).values({ id: ticket.id, userId, pathname: ticket.pathname, sha256: ticket.sha256, mimeType, byteSize: bytes.length, fileName: ticket.fileName, source: "manual", createdBy: userId });
-      return { id: ticket.id, mimeType, fileName: ticket.fileName, repeated: false };
-    });
-    if (!result.repeated) committed = true;
-    if (!committed) await remove(ticket.pathname).catch(() => {});
-    imageDiagnostic("registration", "saved", { bytes: ticket.size });
-    return result;
-  } catch (error) {
-    if (!committed) await remove(ticket.pathname).catch(() => {});
-    imageDiagnostic("registration", error instanceof ApiError ? error.code : "image_unavailable");
-    if (error instanceof ApiError) throw error;
-    throw new ApiError(503, "image_unavailable", "照片登记未完成，请重试，当前草稿已保留。");
+    await db.transaction(tx => assertImageTicket(tx as never, ticket));
+    const [prior] = await db.select().from(mealImage).where(and(eq(mealImage.userId, userId), eq(mealImage.sha256, ticket.sha256)));
+    if (prior) return { id: prior.id, mimeType: prior.mimeType, fileName: prior.fileName, repeated: true, storageProvider: prior.storageProvider };
+    let receipt: ImageReceipt;
+    if (ticket.region === "global" && regionConfig().enabled && !dependencies.read) receipt = await (await callImageWorker(raw, "promote")).json();
+    else {
+      const storage: ImageStorage = dependencies.read ? { ref: { storageProvider: ticket.provider, storageLocation: ticket.location }, read: async path => new Response(Buffer.from(await dependencies.read!(path))).body!, write: dependencies.write ?? (async () => { throw new Error("测试须提供独立写入存储。"); }), remove: async path => { await dependencies.remove?.(path); }, list: async () => [] } : imageStorage({ storageProvider: ticket.provider, storageLocation: ticket.location });
+      receipt = await promoteImage(ticket, storage);
+    }
+    return await registerImageReceipt(db, ticket, receipt);
+  } catch (error) { if (error instanceof ApiError) throw error; throw new ApiError(503, "image_unavailable", "照片登记未完成，请重试，当前草稿已保留。"); }
+  finally {
+    if (ticket.region === "global" && regionConfig().enabled && !dependencies.read) await callImageWorker(raw, "remove-temp").catch(() => {});
+    else await (dependencies.remove ?? imageStorage({ storageProvider: ticket.provider, storageLocation: ticket.location }).remove)(ticket.pathname).catch(() => {});
   }
+}
+export async function importGlobalImage(db: Database, identity: AiIdentity, file: { download_url: string; file_id: string; file_name?: string }) {
+  const prepared = await prepareImageUpload(db, identity.userId, { fileName: file.file_name ?? "照片", size: 1, mimeType: "image/png", sha256: "0".repeat(64) }, undefined, "global", identity, { url: file.download_url, fileId: file.file_id });
+  const ticket = verifyImageUploadTicket(prepared.ticket!, identity.userId);
+  await db.transaction(tx => assertImageTicket(tx as never, ticket));
+  const receipt = await (await callImageWorker(prepared.ticket!, "import")).json() as ImageReceipt;
+  return registerImageReceipt(db, ticket, receipt);
 }

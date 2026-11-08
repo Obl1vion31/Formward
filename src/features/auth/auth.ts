@@ -13,6 +13,8 @@ import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { getOAuthProviderState } from "@better-auth/oauth-provider";
 import { OAUTH_SCOPES, oauthAccessClaims, oauthConnectionReference } from "./oauth-connections";
 import { limitAccountAttempt, requireSessionProof } from "./account-security";
+import { regionConfig } from "./regions";
+import { oauthMetadataFetch } from "./oauth-network";
 
 type LoginSnapshot = { id: string; accessVersion: number };
 type SecurityContext = { formwardLogin?: LoginSnapshot };
@@ -22,6 +24,7 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
   if (config.secret.length < 32) throw new Error("BETTER_AUTH_SECRET 需要至少 32 个随机字符。");
   const url = new URL(config.baseURL);
   const trustedOrigins = [url.origin];
+  if (regionConfig().enabled) trustedOrigins.push(regionConfig().cn, regionConfig().global);
   if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
     trustedOrigins.push(`http://localhost:${url.port || "80"}`, `http://127.0.0.1:${url.port || "80"}`);
   }
@@ -93,7 +96,7 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
     } } } },
     plugins: [
       adminPlugin,
-      jwt(),
+      jwt({ jwt: { issuer: new URL("/api/auth", url).href } }),
       mcp({
         resource: new URL("/api/mcp", url).href,
         loginPage: "/oauth/login",
@@ -125,7 +128,7 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
           catch { throw new APIError("BAD_REQUEST", { error: "invalid_grant", error_description: "账号授权已失效，请重新连接。" }); }
         } } }],
       }),
-      cimd({ fetchClientMetadataResource, metadataProfile: "mcp-2026-07-28" }),
+      cimd({ fetchClientMetadataResource: regionConfig().enabled ? oauthMetadataFetch : fetchClientMetadataResource, metadataProfile: "mcp-2026-07-28" }),
     ],
   });
 }

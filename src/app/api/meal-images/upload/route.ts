@@ -1,12 +1,14 @@
 import { withCurrentSession } from "@/features/auth/server";
+import { isAccountRequestOrigin } from "@/features/auth/site-url";
 import { getDatabase } from "@/db/client";
 import { saveMealImage } from "@/features/meals/images";
 import { prepareImageUpload, completeImageUpload, signImageUpload } from "@/features/meals/image-upload";
 import { safeAiError } from "@/features/measurements/ai-api";
 import type { HandleUploadPresignedBody } from "@vercel/blob/client";
+import { processingRegion } from "@/features/auth/regions";
 export const maxDuration = 60;
 export async function POST(request: Request) {
-  if (request.headers.get("origin") !== new URL(request.url).origin) return Response.json({ error: "上传来源无效。" }, { status: 403 });
+  if (!isAccountRequestOrigin(request.headers)) return Response.json({ error: "上传来源无效。" }, { status: 403 });
   try {
     return await withCurrentSession(request.headers, async user => {
     let result;
@@ -19,7 +21,7 @@ export async function POST(request: Request) {
     } else {
       if (Number(request.headers.get("content-length")) > 8192) return Response.json({ error: "上传请求过大。" }, { status: 413 });
       const body = await request.json();
-      if (body.step === "prepare") result = await prepareImageUpload(getDatabase(), user.id, body.file);
+      if (body.step === "prepare") result = await prepareImageUpload(getDatabase(), user.id, body.file, undefined, processingRegion(request.headers));
       else if (body.step === "complete" && typeof body.ticket === "string" && body.ticket.length <= 4096) result = await completeImageUpload(getDatabase(), user.id, body.ticket);
       else result = await signImageUpload(request, body as HandleUploadPresignedBody, user.id);
     }

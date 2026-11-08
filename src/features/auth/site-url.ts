@@ -1,15 +1,18 @@
+import { publicRequestOrigin, regionConfig } from "./regions";
 const localHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 export function isAccountRequestOrigin(headers: Headers, baseURL = process.env.BETTER_AUTH_URL) {
   if (!baseURL || !headers.get("origin")) return false;
   try {
-    const configured = new URL(siteOrigin(new Request(baseURL), baseURL)), origin = new URL(headers.get("origin")!);
-    return origin.origin === configured.origin || (localHosts.has(configured.hostname) && localHosts.has(origin.hostname) && origin.protocol === configured.protocol && origin.port === configured.port);
+    const configured = new URL(siteOrigin(new Request(baseURL, { headers }), baseURL)), origin = new URL(headers.get("origin")!);
+    const expected = regionConfig().enabled ? publicRequestOrigin(headers) : configured.origin;
+    return origin.origin === expected || (localHosts.has(configured.hostname) && localHosts.has(origin.hostname) && origin.protocol === configured.protocol && origin.port === configured.port);
   } catch { return false; }
 }
 
 // 公网地址由管理员配置，不能采用代理内部地址或客户端提供的 Host。
 export function siteOrigin(request: Request, baseURL = process.env.BETTER_AUTH_URL) {
+  if (regionConfig().enabled) return publicRequestOrigin(request.headers);
   if (baseURL) {
     const configured = new URL(baseURL);
     if (configured.username || configured.password || configured.search || configured.hash || configured.pathname !== "/") {

@@ -52,3 +52,5 @@ preferences.ts管理按账号同步的体脂显示偏好，account_preferences�
 账号全部撤销、改密和停用同时暂停数据连接、作废租约；恢复账号不会恢复旧上游访问。数据来源试运行资格仅由固定服务器 user_id 决定，owner 角色不自动获得。上游可复用凭据按账号／连接加密，与本平台只存摘要的访问令牌分开。
 
 训练新增training:read／training:write，授权页与AI接入页单独展示。统一授权涵盖身体、饮食／食材、消耗和训练四类，旧连接不会自动扩权；训练预览确认复核原连接／令牌有效性。
+
+双入口使用 regions、regional-transport、regional-gateway 与 OAuth 预检／材料隔离。国服 IP 与国际回源可共用同一 HTTPS 入口；回源验证服务证明后重建来源头，认证 issuer／resource 固定为原 Vercel 地址，原 Cookie、JWT／刷新与撤销规则保持。详见 docs/mainland-deployment.md。

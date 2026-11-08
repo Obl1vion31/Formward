@@ -450,6 +450,8 @@ export const mealEvent = pgTable("meal_events", {
 
 // 饮食原图独立于营养请求；原图保留，记录删除仅影响可见状态。
 export const mealImage = pgTable("meal_images", {
+  storageProvider: text("storage_provider").$type<"blob" | "cos">().notNull().default("blob"),
+  storageLocation: text("storage_location").notNull().default("legacy"),
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),
   pathname: text("pathname").notNull(), sha256: text("sha256").notNull(), mimeType: text("mime_type").notNull(),
   byteSize: integer("byte_size").notNull(), fileName: text("file_name").notNull(), source: text("source").notNull(),

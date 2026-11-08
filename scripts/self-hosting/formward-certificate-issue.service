@@ -1,0 +1,13 @@
+[Unit]
+Description=Formward initial private HTTPS preparation
+After=network-online.target nginx.service
+Wants=network-online.target
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+EnvironmentFile=/etc/formward/dns.env
+ExecStart=/usr/local/lib/formward/prepare-certificate-preview.sh --apply
+TimeoutStartSec=900
+PrivateTmp=true
+ProtectHome=true

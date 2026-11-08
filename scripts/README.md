@@ -23,6 +23,7 @@
 - `prepare-turn-video.sh`：使用 FFmpeg 将 v6 原始一秒转身视频生成 960×1440、逐帧关键帧的播放文件，不覆盖原始视频。
 - `check-structure.sh`：检查所有项目自有目录是否包含非空 README；工具生成并被忽略的 .vercel 项目关联目录与依赖、缓存一起跳过。
 - `backup-database.mts`：在结构迁移前导出 public／drizzle 全表及字段信息；repeatable read 只读事务，私有 JSON 权限 0600、拒绝覆盖。用法：`node --env-file=.env.local --import tsx scripts/backup-database.mts data/exports/私有备份.json`。备份含认证与健康数据，保持 Git 忽略，恢复按对应版本结构及外键顺序进行。
+- `rehearse-database.mts`：使用原生 `pg_dump` 归档并恢复到独立空库，验证 PostgreSQL 跨机器迁移。源端始终只读；目标必须是回环地址或 SSH 隧道，库名限定 `formward_rehearsal` 或其下划线后缀。源目标同名、目标非空、归档位于私有目录外或输出已存在均拒绝。执行方法和验证范围见下文。
 - `fill-measurement-sources.mts`：仅用于已授权的账号未知实测来源补齐。私有请求 JSON 为 `{ userId, deviceLabel }`；用法：`node --env-file=.env.local --import tsx scripts/fill-measurement-sources.mts data/exports/私有请求.json --preview|--write`。写入前保存目标实测私有快照，只改未知来源及修改时间，审计保存前后内容；估计、已知来源、测量时间、数值和删除状态保持。
 - `migrate.mts`：使用 DATABASE_MIGRATION_URL 或 DATABASE_URL 执行版本化 Drizzle migration。
 - `create-account.mts`：交互式读取邮箱和隐藏密码，调用认证 feature 创建内部账号；重复执行保留原密码。
@@ -31,6 +32,39 @@
 脚本与业务模块的对应位置见 [架构与代码索引](../docs/code-study.md)，具体入口和用途以本文为准。脚本中的中文注释供需要查看实现细节时参考。
 
 配置读取 `.env.local`，不把账号密码放在命令行参数、源码或公开文件中。账号创建和数据库接入步骤见 [接入指南](../docs/auth-setup.md)。后续导入预览和数据一致性检查也调用正式 feature，不复制业务规则。
+
+## 数据库迁移演练
+
+`rehearse-database.mts` 从 `DATABASE_MIGRATION_URL`（优先）或 `DATABASE_URL` 读取源连接；目标只从独立的 `FORMWARD_REHEARSAL_DATABASE_URL` 读取。目标 URL 必须明确指定本机回环主机、用户名和隔离库名，例如通过 SSH 隧道连接服务器上的 `formward_rehearsal_20261030`。源和目标使用相同 PostgreSQL 主版本、编码和排序规则；客户端 `pg_dump`、`pg_restore` 也必须为同主版本。当前演练只自动处理 `plpgsql`，额外扩展需先审核迁移方案。
+
+目标连接等配置放在私有 `.env.rehearsal.local`，文件权限设为 0600。可用 `FORMWARD_PG_DUMP`、`FORMWARD_PG_RESTORE` 指定客户端绝对路径；省略时从 PATH 查找。先新建专用空库，再执行：
+
+```bash
+node --env-file=.env.local --env-file=.env.rehearsal.local --import tsx scripts/rehearse-database.mts --dry-run data/exports/唯一演练名称.dump
+node --env-file=.env.local --env-file=.env.rehearsal.local --import tsx scripts/rehearse-database.mts --execute data/exports/唯一演练名称.dump
+```
+
+`--dry-run` 仅检查连接、版本、空目标及输出路径，不创建归档、不恢复数据。`--execute` 在源库 repeatable-read 只读事务中导出快照，表内容摘要与 `pg_dump --snapshot` 使用同一快照；源端之后的新写入不会被误判为恢复差异。按 PostgreSQL 原始 JSON 文本散列全部字段，保留时间戳微秒、numeric 精度、NULL、数组与 JSONB；同时核对 public／drizzle 的表、列、CHECK／外键／唯一约束、索引和序列状态。序列不受 MVCC 快照约束，导出期间推进则停止并要求使用新名称重试。
+
+列位置采用按实际列顺序排列的逻辑序号，忽略历史 DROP 列留下的物理 attnum 空洞，同时保留列顺序差异检查。已有归档和恢复目标可只读复核；先核对归档 SHA256 与源摘要，再读取目标库生成摘要，不连接源库，不重复恢复非空目标：
+
+```bash
+node --env-file=.env.rehearsal.local --import tsx scripts/rehearse-database.mts --verify data/exports/已有名称.manifest.json data/exports/新的名称.verification.json
+```
+
+此模式从同名 `.dump` 读取归档，兼容旧摘要中的物理列序号；仍限制目标为本机回环地址、`formward_rehearsal` 系列库名，报告必须使用新名称，第一次失败报告和原始摘要保持。报告只含完整性核对状态，不输出业务行。
+
+原生归档、源摘要、验证报告分别为 `.dump`、`.manifest.json`、`.verification.json`，均在 `data/exports/`、权限 0600 且拒绝覆盖；归档包含认证和健康数据，不包含 Blob 原图字节。恢复采用单事务、遇错终止，不导入 Neon 所有者和 ACL；默认空库已有 public schema 时只跳过重复的 schema 创建，保留其下全部对象和数据。输出只含阶段和核对结果，不打印连接串、用户名、密码、原行或 PostgreSQL 原始错误。临时密码文件权限 0600，结束后清理。失败时保留已生成的私有归档与报告用于核查；不自动删除或清空目标库。
+
+此工具验证隔离快照可恢复，不负责正式流量切换。正式迁移仍需一致的停写窗口和最终归档，不能把演练时的旧快照直接作为之后的生产主库。`backup-database.mts` 的 JSON 快照继续用于既有审计；原生归档负责跨机器恢复，避免只靠 JS 日期序列化或不完整 DDL 恢复。
+
+安全与恢复测试使用独立本机 PostgreSQL 和虚构数据，不读取 `.env.local`：
+
+```bash
+node --import tsx --test scripts/rehearse-database.test.mts
+```
+
+测试复用 `tests/accounts.concurrent.mts` 的临时 `embedded-postgres` 工具，可通过 `FORMWARD_EMBEDDED_POSTGRES_MODULE` 指定模块路径。验证真实归档恢复、导出快照建立后的并发写入、微秒和高精度 numeric、密码／停用字段、序列、DROP 列后恢复及列顺序变化、旧摘要只读复核、损坏归档 SHA 拒绝、0600、dry-run 零目标写入、错误目标和覆盖拒绝；客户端路径沿用上述两个环境变量。
 
 旧补全私有请求的拆分设备字段仅在 `complete-measurements.mts` 入口转换为 deviceLabel；旧 BMI 被忽略，原文件不改写。当前 feature 及新维护请求只使用合并来源。数据库字段及迁移检查见 [数据库字典](../docs/database.md)。
 

@@ -51,10 +51,10 @@ test("ChatGPT Azure 文件支持跨地区直连与重定向，其他命名族及
  assert.equal(imported.status,"complete");assert.deepEqual(imported.failures,[]);assert.equal(imported.expectedImageCount,1);
  assert.equal((await ownedMealImage(db,id,imported.images[0].id)).byteSize,png.length);
 });
-test("原图上传后数据库写入失败时清理文件，不依赖静态读写令牌",async()=>{
+test("原图上传后提交结果不确定时保留正式文件，延期核对清理",async()=>{
  const id=await owner(),uploaded:string[]=[],removed:string[]=[];
  await reject(saveMealImage(db,id,png,{fileName:"虚构失败照片.png",source:"manual",actorId:null as unknown as string},async(pathname)=>{uploaded.push(pathname);},async(pathname)=>{removed.push(pathname);}),"image_unavailable");
- assert.equal(uploaded.length,1);assert.deepEqual(removed,uploaded);
+ assert.equal(uploaded.length,1);assert.deepEqual(removed,[]);
  assert.equal((await db.select().from(schema.mealImage).where(eq(schema.mealImage.userId,id))).length,0);
 });
 test("照片不要求五项勾选，直接保存未知文字且编辑删除恢复保留原图",async()=>{

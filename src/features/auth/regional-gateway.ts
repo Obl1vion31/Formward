@@ -1,0 +1,29 @@
+import { forwardRegionalRequest,verifyService } from "./regional-transport";
+import { gatewayOAuthRequest } from "./regional-oauth-client";
+import { regionConfig } from "./regions";
+import { runImageWorker } from "../meals/image-worker";
+import { readWorkerImage } from "../meals/image-read";
+
+export async function handleGatewayRequest(request:Request) {
+ try{
+  const config=regionConfig(),url=new URL(request.url);
+  if(![config.canonical,config.global].includes(url.origin))return new Response(null,{status:421});
+  if(url.pathname==="/api/internal/image-worker"){
+   if(request.method!=="POST"||!verifyService(request.headers,"POST",url.pathname))return new Response(null,{status:403});
+   if(Number(request.headers.get("content-length"))>20000)return new Response(null,{status:413});
+   const input=await request.clone().json();
+   if(input.command==="read")return readWorkerImage(input.ticket);
+   return await runImageWorker(request);
+  }
+  if(url.pathname.startsWith("/api/internal/"))return new Response(null,{status:404});
+  if(url.pathname.startsWith("/api/auth/")||url.pathname.startsWith("/.well-known/")){
+    if(!["GET","POST"].includes(request.method))return new Response(null,{status:405});
+    return await gatewayOAuthRequest(request);
+  }
+  const response=await forwardRegionalRequest(request);
+  if(response.headers.get("x-image-worker")==="1" && response.ok) {
+   const data=await response.json();return await readWorkerImage(data.ticket);
+  }
+  return response;
+ }catch{return Response.json({error:"访问暂时中断，请稍后重试。当前操作不会自动重新提交。"},{status:503,headers:{"Cache-Control":"private, no-store"}});}
+}

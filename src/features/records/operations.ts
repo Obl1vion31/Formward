@@ -2,11 +2,12 @@ import { isTraining } from '../training/ai-model';
 import { planTrainingItems } from '../training/ai-plans';
 import { readTraining, mutateTraining } from '../training/records';
 import { lockActiveAccount } from '../auth/account-security';
+import { z } from "zod";
 import { aiActionAllowed, requireAiUpserts } from "../auth/ai-write-policy";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import type { Database } from "../../db/client";
-import { recordOperation, measurementOperation, mealOperation, energyOperation } from "../../db/schema";
+import { recordOperation, measurementOperation, mealOperation, energyOperation, mealImage } from "../../db/schema";
 import { lockOwner } from "../auth/owner-lock";
 import { requireActiveAiToken } from "../auth/ai-tokens";
 import { ApiError, type AiIdentity } from "../auth/ai-identity";
@@ -412,4 +413,34 @@ export async function getRecordOperation(db: Database, identity: AiIdentity, id:
   if (trainingItems(row.draft).length) await requireActiveAiToken(db as unknown as Parameters<typeof requireActiveAiToken>[0], identity, false, "training");
   // 查询与提交返回相同结果，调用端仍须以 status 判定是否正式保存。
   return view(db, row);
+}
+
+export const appendPendingImagesSchema = z.object({
+  id:z.string().uuid(), revision:z.number().int().positive(), key:z.string().max(120).optional(),
+  index:z.number().int().min(0).max(99).default(0), imageIds:z.array(z.string().uuid()).min(1).max(8)
+}).strict();
+export async function appendPendingImages(db:Database,identity:AiIdentity,raw:unknown) {
+ const input=appendPendingImagesSchema.parse(raw);
+ return db.transaction(async tx=>{
+  await lockOwner(tx,identity.userId);await requireActiveAiToken(tx,identity,true,"meals");
+  const connection=tx as unknown as Database;
+  const [parent]=await tx.select().from(recordOperation).where(and(eq(recordOperation.userId,identity.userId),eq(recordOperation.id,input.id)));
+  const mealId=parent?.mealOperationId??input.id,meal=await getMealOperation(connection,identity.userId,mealId);
+  if(meal.origin!=="ai"||meal.tokenId!==(identity.tokenId??null)||meal.oauthConnectionId!==(identity.oauthConnectionId??null))throw new ApiError(403,"forbidden","只能补齐原授权提交的附件。");
+  if(meal.status!=="pending"||(meal.expiresAt&&meal.expiresAt.getTime()<=Date.now())||(parent&&parent.status!=="pending"))throw new ApiError(409,"review_changed","预览已结束或过期，请重新提交。");
+  const items=parent?structuredClone(parent.draft):null,actions=structuredClone(meal.draft.actions);
+  const target=items?items.find(item=>item.key===input.key):null;
+  const action=items?target?.action:actions[input.index];
+  if(!action||(target?.excluded)||!["save_meal","save_food"].includes(action.kind))throw new ApiError(400,"invalid_input","请选择待保存的餐次或食材项目。");
+  const mutable=action as Extract<MealAction,{kind:"save_meal"|"save_food"}>,prior=mutable.imageIds??[],ids=[...new Set([...prior,...input.imageIds])];
+  if(ids.length>8)throw new ApiError(400,"invalid_input","最多关联8张照片。");
+  const owned=await tx.select({id:mealImage.id}).from(mealImage).where(and(eq(mealImage.userId,identity.userId),inArray(mealImage.id,ids)));
+  if(owned.length!==ids.length)throw new ApiError(403,"image_owner","照片不属于当前账号。");
+  if(ids.length===prior.length)return {id:input.id,revision:parent?.revision??meal.revision,repeated:true,confirmationPath:parent?"/dashboard/ai/operations/"+parent.id:"/dashboard/meals/review/"+meal.id};
+  if((parent?.revision??meal.revision)!==input.revision||(parent&&parent.mealRevision!==meal.revision))throw new ApiError(409,"version_conflict","预览已变化，请重新读取。");
+  mutable.imageIds=ids;if(target)target.checked=false;
+  const updated=await reviseMealOperation(connection,identity.userId,meal.id,meal.revision,items?mealInput(meal.draft.operationId,items).actions:actions,items?recordMealPlanner(items,parent!.id):prepareMealActions);
+  if(parent)await tx.update(recordOperation).set({draft:items!,mealRevision:updated.revision,revision:parent.revision+1}).where(eq(recordOperation.id,parent.id));
+  return {id:input.id,revision:parent?parent.revision+1:updated.revision,repeated:false,confirmationPath:parent?"/dashboard/ai/operations/"+parent.id:"/dashboard/meals/review/"+meal.id};
+ });
 }

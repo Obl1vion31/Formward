@@ -16,10 +16,10 @@ async function perform<T>(work: (proof: import("@/features/auth/account-security
     });
   } catch (error) { return accountFailure(error); }
 }
-function linkResult(result: { rawToken: string | null; expiresAt: string; repeated: boolean } | null) {
+async function linkResult(result: { rawToken: string | null; expiresAt: string; repeated: boolean } | null) {
   if (!result) return null;
   const base = process.env.BETTER_AUTH_URL!;
-  return { url: result.rawToken ? `${new URL("/account/claim", siteOrigin(new Request(base), base)).href}#token=${result.rawToken}` : null, expiresAt: result.expiresAt, repeated: result.repeated };
+  return { url: result.rawToken ? `${new URL("/account/claim", siteOrigin(new Request(base, { headers: await headers() }), base)).href}#token=${result.rawToken}` : null, expiresAt: result.expiresAt, repeated: result.repeated };
 }
 export async function unlockAdminAction(password: string) { return perform((proof, requestHeaders) => unlockAccountAdmin(getDatabase(), proof, password, accountRequestSource(requestHeaders))); }
 export async function loadAdminAction(filter: AdminFilter) { return perform(proof => loadAccountAdmin(getDatabase(), proof, filter)); }
