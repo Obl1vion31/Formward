@@ -1,6 +1,15 @@
 # 当前实现与验证
 
-## 当前正式版本：饮食录入简化（2026-11-08）
+## 当前正式版本：训练动作库、GPT排期与稳定加载（2026-11-08）
+
+[训练页](https://formward-ten.vercel.app/dashboard/training)已上线，源码a2ac651b4d7b5bcda137031946658d555a343e8a，版本training-library-a2ac651b-20261108；包含最新饮食简化发布，无main合并。无计划单一开始，有计划分按计划／自由，训练下面直接月历。150项动作库与模板共用，支持次数重量、时长、距离，计划目标不作为已完成记录。
+
+MCP已扩展为17工具，支持动作、本人模板／计划／训练查询及模板、多日排期预览；training读写需重新同意，所有正式AI保存仍走统一网页确认。训练与消耗共用真实加载槽位、固定六周月历及完整右侧退出；长期规则已写入AGENTS与设计文档。
+
+588项完整测试、lint、typecheck与构建通过，本地双引擎及线上操作、加载与MCP验证通过。54表／33条migration保持，验收账号及客户端已清理，健康与来源事实未变；后台同步元数据按审计核验。详见[部署](deployment.md)与[验收](maintenance-verification.md)，真机及系统输入辅助检查未计通过。
+
+
+## 此前正式版本：饮食录入简化（2026-11-08）
 
 已按授权发布到[正式饮食页](https://formward-ten.vercel.app/dashboard/meals)。READY部署dpl_7joUqvbuPZfoQdoqPYSjRAiH5vMT，应用源码ade4f71e5e2722a4b98a6a27ee6579a111cfe941，构建meal-entry-ade4f71-20261108，来自codex/meal-entry-simplify；正式别名、项目、sourceCommit／gitCommitSha、版本接口及公开allowDuplicate兼容说明已核对。基于最新正式训练应用ff08c99及交接60d302d，保留训练导航、会话和0033四表；没有合入或推送main。后续纯文档提交不改变正式应用。
 
@@ -13,7 +22,7 @@
 证据为.codex/meal-entry-release，备份data/exports/meal-entry-20261108-{before,published}.json，均不进入Git／部署。实际截图和采样录像位于C:/Users/14878/.codex/visualizations/2026/11/08/formward-meal-entry，全部为本机独立PGlite虚构账号；测试进程已关闭。真实手机／触摸、WebKit、系统软键盘及系统文字放大未测，不计通过。上一READY dpl_rKAT7xqZmc1unBoqxqPBM3AH5tkA保留供应用回退，不回退用户数据。
 
 
-## 当前正式版本：电脑身体三卡横排（2026-11-07）
+## 此前正式版本：电脑身体三卡横排（2026-11-07）
 
 已发布到[身体页](https://formward-ten.vercel.app/dashboard/measurements)。READY部署 dpl_9d4tebN6GHjDXvNSPuLSB2Z2JzFW，应用源码 250a4ec855b5242b6d81a4b29e58a2e6882ef724，构建 body-cards-250a4ec-20261107，来自独立分支codex/body-cards-row；正式别名、项目、源码元数据与版本接口一致，没有合入或推送main。后续纯文档提交不改变正式应用。
 

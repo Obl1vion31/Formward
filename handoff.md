@@ -1,6 +1,17 @@
 # Formward 项目交接
 
-## 当前正式版本：饮食录入简化（2026-11-08）
+## 当前正式版本：训练动作库、GPT排期与稳定加载（2026-11-08）
+
+已发布[训练页](https://formward-ten.vercel.app/dashboard/training)，READY dpl_eck1LqL2t7tC81Uu8pjHHXnxTkqj，应用源码a2ac651b4d7b5bcda137031946658d555a343e8a，版本training-library-a2ac651b-20261108。来自codex/training-entry，已合并最新饮食发布ade4f71／交接ffc1177，未合入main；后续纯文档提交不改变正式应用。
+
+入口按无计划／有计划／进行中显示单一开始、按计划＋自由或继续；下面直接月历。150项动作库已接模板与训练，重量次数、时长、距离及目标／实测分别保存。训练和消耗骨架共用实页槽位，面板完全离屏后卸载；加载稳定性已成为根AGENTS强制规则。
+
+GPT MCP已支持动作库、本人计划查询、模板与多日排期，服务17工具／OpenAPI1.14.0。旧连接须刷新并重新授权training读写；写入仍先生成预览，用户网页登录确认后保存。没有新表或migration，继续使用现有JSONB。
+
+588项测试、lint、typecheck、production build、双引擎本地流程及正式站13组流程通过；线上8组普通／慢网固定槽位最大偏差0px。虚构账号和客户端已清理，54表／33条migration及健康事实保持，正常后台同步差异已逐字段核对。证据、观察窗口、真机限制及兼容回退要求见[部署](docs/deployment.md)与[验收](docs/maintenance-verification.md)。
+
+
+## 此前正式版本：饮食录入简化（2026-11-08）
 
 已按授权发布到[正式饮食页](https://formward-ten.vercel.app/dashboard/meals)。READY部署dpl_7joUqvbuPZfoQdoqPYSjRAiH5vMT，应用源码ade4f71e5e2722a4b98a6a27ee6579a111cfe941，构建meal-entry-ade4f71-20261108，来自codex/meal-entry-simplify；正式别名、项目、sourceCommit／gitCommitSha、版本接口及公开allowDuplicate兼容说明已核对。基于最新正式训练应用ff08c99及交接60d302d，保留训练导航、会话和0033四表；没有合入或推送main。后续纯文档提交不改变正式应用。
 
@@ -245,7 +256,7 @@ Chromium／WebKit各检查深浅主题的320／390／430px、触屏横屏844及�
 检查脚本首轮按71.2原始字符串比较，碰到正常的两位格式71.20后改为数值比较；随后过密重复登录触发本地限流，改为每引擎一次登录并复用会话；WebKit提前换页中断背景请求的失败也保留，改为直接进入目标页并等待网络稳定后完整重验。没有放宽应用限流、过滤页面异常或修改实际录入行为。
 
 
-## 当前正式版本：录入交互与表单密度（2026-11-04）
+## 此前正式版本：录入交互与表单密度（2026-11-04）
 
 用户验看本地修正后明确要求发布。正式域名https://formward-ten.vercel.app已核对READY部署dpl_4GmECkX4DT8Wg7wLVjDC78gRZRA7，应用源码0af9b635b5f74bc742a29c6e13c6133b31083790，构建a679c6b1-713e-43b5-94a7-69e58d3f1223。独立分支codex/entry-interaction-unification；本轮只发布，未推送、合并或更新GitHub main。主工作区双区、COS、DNS、0028及其他未上线修改保持隔离。
 

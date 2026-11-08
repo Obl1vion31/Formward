@@ -1,6 +1,25 @@
 # 公网 HTTPS 部署
 
-## 当前正式版本：饮食录入简化（2026-11-08）
+## 当前正式版本：训练动作库、GPT排期与稳定加载（2026-11-08）
+
+已按授权发布到[训练页](https://formward-ten.vercel.app/dashboard/training)。READY部署dpl_eck1LqL2t7tC81Uu8pjHHXnxTkqj，应用源码a2ac651b4d7b5bcda137031946658d555a343e8a，构建training-library-a2ac651b-20261108，来自codex/training-entry。正式别名、项目、sourceCommit／gitCommitSha及版本接口一致。发布前检测到饮食版本更新，合并ade4f71及交接ffc1177，保留零／未知营养保存、严格重复餐轻提示及旧预览兼容；没有合入或推送main。后续纯文档提交不改变正式应用。
+
+训练无计划只显示开始，有计划显示按计划／自由，进行中显示继续；主操作下面直接月历，消耗图表仍在消耗页。统一150项力量、有氧与拉伸动作库共用于模板和训练，支持搜索、筛选、多选、自定义及排序，记录次数／kg、秒和米；模板目标与实际完成分开。加载、设备识别及实页共用结构和槽位，月历固定六周；面板按静止位置到视口边界计算完整退出。强制加载规则已写入根AGENTS及设计文档。
+
+MCP服务1.13.0共17工具，OpenAPI1.14.0，新增动作查询、本人模板／计划／训练查询、模板与多日排期预览及状态查询。复用record_operations JSONB、现有训练feature和统一网页确认，独立training:read／training:write；旧连接需刷新工具并重新授权。GPT提交只创建24小时预览，网页登录最终确认后才保存，不代写训练完成或热量。
+
+合并后588项单元／集成、lint零错误零警告、独立typecheck、38页production build及Vercel远程构建通过。合并前Chromium／WebKit各15组操作／60图，合并后Chromium再验15组／60图；各18组慢查询的首屏固定锚点最大偏差0 CSS px。120张原图、合并后的关键页面及线上24图均实际查看；覆盖两主题、手机／横屏／电脑、空态／计划／进行中、失败重试、四种关闭路径及减少动态效果。真机、系统软键盘、屏幕阅读器和系统文字放大未测。
+
+正式Chromium13组操作／24图通过，包含GPT四类动作预览、人工改目标、确认排期、正常站内进入训练及实测空值核对。真实HTTPS OAuth PKCE MCP验证17工具、150动作、查询、幂等与待确认状态。14项公网／协议保护检查通过。线上两视口、训练／消耗、普通／限速网络共8组加载过程最大偏差0px；6组观察到多帧骨架，另2组训练仅1帧骨架，完整慢查询覆盖以本地双引擎证据为准。
+
+前后0600私有备份均54表、33条migration，字段、账本、既有健康读数、来源事实、设置与凭据一致，无新增表或migration。初次比对命中后台定时同步，逐字段及审计核实：7天采用仅版本与时间增加，before／after健康快照相同，保留8条正常同步审计和3项连接时间变化；其余差异仅限流。两个完整虚构账号、一个中断准备账号及临时OAuth客户端已清理，45类所属表及前后全表比对无残留。
+
+Runtime error／fatal及请求5xx在实际复查窗口UTC2026-11-08T05:08:00—05:14:55均0，无排除区间或后续分页；不表示自发布起持续观测。私有证据.codex/training-refine-release，备份data/exports/training-library-20261108-{before,published}.json；此前基线、初次差异、失败与恢复记录保留。演示截图C:/Users/14878/.codex/visualizations/2026/11/08/formward-training-library全部来自虚构账号，均不进入Git／部署。
+
+上一READY dpl_7joUqvbuPZfoQdoqPYSjRAiH5vMT保留。应用回退须兼容新增的训练记录字段、模板目标及training权限，先准备兼容版本；保留新旧记录与审计，不回退数据。
+
+
+## 此前正式版本：饮食录入简化（2026-11-08）
 
 已按授权发布到[正式饮食页](https://formward-ten.vercel.app/dashboard/meals)。READY部署dpl_7joUqvbuPZfoQdoqPYSjRAiH5vMT，应用源码ade4f71e5e2722a4b98a6a27ee6579a111cfe941，构建meal-entry-ade4f71-20261108，来自codex/meal-entry-simplify；正式别名、项目、sourceCommit／gitCommitSha、版本接口及公开allowDuplicate兼容说明已核对。基于最新正式训练应用ff08c99及交接60d302d，保留训练导航、会话和0033四表；没有合入或推送main。后续纯文档提交不改变正式应用。
 
