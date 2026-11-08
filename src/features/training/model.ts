@@ -32,7 +32,7 @@ const versioned = { id, version: z.number().int().positive() };
 export const trainingInputSchema = z.discriminatedUnion("kind", [
   z.object({ ...request, kind: z.literal("start"), id, date, timezone: timezoneSchema, templateId: id.optional(), planId: id.optional() }).strict(),
   z.object({ ...request, ...versioned, kind: z.literal("save"), name, exercises: exercisesSchema }).strict(),
-  z.object({ ...request, ...versioned, kind: z.enum(["pause", "resume", "finish", "discard"]) }).strict(),
+  z.object({ ...request, ...versioned, kind: z.enum(["pause", "resume", "finish", "discard", "delete_completed"]) }).strict(),
   z.object({ ...request, kind: z.literal("template"), id, template: templateSchema }).strict(),
   z.object({ ...request, ...versioned, kind: z.literal("update_template"), template: templateSchema }).strict(),
   z.object({ ...request, ...versioned, kind: z.literal("reschedule"), templateId: id, date }).strict(),
@@ -67,4 +67,14 @@ export function templateDescription(e: TemplateContent['exercises'][number]) { c
 export function exerciseToTemplate(e: TrainingExercise): TemplateContent['exercises'][number] {
   const first = e.sets.find(s => s.completed) ?? e.sets[0];
   return { name: e.name, ...(e.catalogId ? { catalogId: e.catalogId } : {}), recordingType: e.recordingType ?? 'reps', sets: Math.max(1, e.sets.length), reps: first?.reps ?? null, weightKg: first?.weightKg ?? null, durationSeconds: first?.durationSeconds ?? null, distanceMeters: first?.distanceMeters ?? null };
+}
+
+/** 今日入口只选择一项具体训练；同日多场按实际结束时间取最近一场。 */
+export function trainingEntry(snapshot: TrainingSnapshot, today: string) {
+  const active = snapshot.sessions.find(s => s.status === 'active' || s.status === 'paused');
+  if (active) return { kind: 'active' as const, session: active };
+  const plan = snapshot.plans.find(p => p.date === today && p.status === 'planned');
+  if (plan) return { kind: 'plan' as const, plan };
+  const completed = snapshot.sessions.filter(s => s.status === 'completed' && s.date === today).sort((a, b) => Date.parse(b.endedAt ?? b.startedAt) - Date.parse(a.endedAt ?? a.startedAt) || b.id.localeCompare(a.id))[0];
+  return completed ? { kind: 'completed' as const, session: completed } : { kind: 'free' as const };
 }

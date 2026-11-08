@@ -299,3 +299,5 @@ production build后运行pnpm test:training-browser。training.browser.mts自建
 training.test.ts覆盖输入、归属、幂等与重复结束、版本冲突、会话撤销、未知／0、暂停计时、不改变消耗与0033仅新增四表。模拟截图不代表真实iPhone或系统键盘已测。
 
 训练动作库与加载验收覆盖150项标识／分类／别名、三类记录、目标不冒充实测，以及真实MCP OAuth训练读写、原授权撤销、幂等和跨账号。training-delayed-db.ts只在隔离fixture中延迟真实数据库查询，未向应用增加等待开关；浏览器复用登录会话，不降低正式限流。training-stability.browser.mjs记录冷加载全过程，比较首屏相交的稳定标题、日期、读数、月历和绘图区槽位≤1px；屏外未知列表增长保留原始帧另查，不冒充同高数据。检查宽屏按钮／Escape／遮罩／入场中关闭和减少动态效果，并演示GPT四类动作模板、人工修改、确认排期与实际目标分离。证据均为虚构账号。
+
+training-compact.browser.mjs随训练完整流程运行，复查标题栏点击区、默认折叠与原位展开、删除取消／失败／重试／计划恢复、边缘滚动及重复排期。Chromium通过CDP发送真实触点序列；WebKit验证原生触屏点按、实际指针捕获和连续拖动，当前Playwright没有WebKit连续触点输入接口，报告不将其计为原生连续触摸或真机验收。全过程保留输入类型与isTrusted；不通过伪造capture接口让测试通过。

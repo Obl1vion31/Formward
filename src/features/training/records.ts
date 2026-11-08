@@ -22,6 +22,7 @@ export async function readTraining(db: ReadDb, userId: string): Promise<Training
 export async function mutateTraining(db: Database, userId: string, input: unknown, now = new Date(), origin: "manual" | "ai" = "manual") {
   const parsed = trainingInputSchema.safeParse(input);
   if (!parsed.success) throw new ApiError(400, "invalid_input", parsed.error.issues[0]?.message === "完成组请填写次数" ? "完成组请填写次数。" : "请检查动作、组次、日期和数值。");
+  if (parsed.data.kind === 'delete_completed' && origin !== 'manual') throw new ApiError(403, 'forbidden', '已完成训练只能由本人在网页确认删除。');
   const value = parsed.data, digest = createHash("sha256").update((origin === "ai" ? "ai:" : "") + JSON.stringify(value)).digest("hex");
   return db.transaction(async tx => {
     await lockActiveAccount(tx, userId);
@@ -72,6 +73,25 @@ export async function mutateTraining(db: Database, userId: string, input: unknow
       const [existing] = await tx.select().from(trainingPlan).where(and(eq(trainingPlan.userId, userId), eq(trainingPlan.date, value.date), eq(trainingPlan.templateId, template.id), eq(trainingPlan.status, "planned")));
       if (existing) return noChange(existing.id, existing);
       [after] = await tx.insert(trainingPlan).values({ id: value.id, userId, templateId: template.id, date: value.date, content: template.content, createdBy: userId }).returning();
+    } else if (value.kind === 'delete_completed') {
+      const [session] = await tx.select().from(trainingSession).where(and(eq(trainingSession.id, value.id), eq(trainingSession.userId, userId)));
+      if (!session) throw new ApiError(404, 'not_found', '训练记录不存在。');
+      if (session.version !== value.version) throw conflict();
+      if (session.status !== 'completed') throw new ApiError(409, 'invalid_training', '只能删除已完成的训练。');
+      let previousPlan = null, restoredPlan = null;
+      if (session.planId) {
+        const [plan] = await tx.select().from(trainingPlan).where(and(eq(trainingPlan.id, session.planId), eq(trainingPlan.userId, userId)));
+        if (plan) {
+          previousPlan = plan;
+          const completed = await tx.select({ id: trainingSession.id }).from(trainingSession).where(and(eq(trainingSession.userId, userId), eq(trainingSession.planId, plan.id), eq(trainingSession.status, 'completed')));
+          if (completed.length === 1 && plan.status === 'completed') {
+            [restoredPlan] = await tx.update(trainingPlan).set({ status: 'planned', version: plan.version + 1, updatedAt: now }).where(and(eq(trainingPlan.id, plan.id), eq(trainingPlan.userId, userId))).returning();
+          }
+        }
+      }
+      await tx.delete(trainingSession).where(and(eq(trainingSession.id, session.id), eq(trainingSession.userId, userId), eq(trainingSession.version, value.version)));
+      before = { session, plan: previousPlan };
+      after = { deletedSessionId: session.id, plan: restoredPlan ?? previousPlan };
     } else if (value.kind === "unschedule") {
       const [plan] = await tx.select().from(trainingPlan).where(and(eq(trainingPlan.id, value.id), eq(trainingPlan.userId, userId)));
       if (!plan) throw new ApiError(404, "not_found", "训练计划不存在。");

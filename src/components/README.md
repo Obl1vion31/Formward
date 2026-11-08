@@ -92,3 +92,5 @@ workspace-frame.tsx提供固定首页动作及桌面标题，手机返回并入D
 主导航第三项为训练，原消耗仍由同一导航分组进入，WorkspaceFrame为训练提供持续页面外壳和标题，不将其识别为身体页。训练与消耗的内容及图表语义保持独立。
 
 训练与消耗加载态按目标路由呈现；消耗骨架与正式页共用RecordWorkspace、切换栏、日期、读数和EnergyPlotFrame首帧容器，设备识别期间沿用同一槽位。Inspector支持beforeClose异步保护，onSavedCloseReady在完整退出结束后才完成；退出距离按无变换静止位置与视口边界计算，快速反向保留当前位置。
+
+训练／消耗切换由持久WorkspaceFrame标题行（电脑）与DashboardHeader页名位置（手机）承载，不依赖业务快照；目标骨架与实页不再各自重复切换栏。两端仅显示对应的一组可用链接，保留关联返回、可访问页名与44px操作。
