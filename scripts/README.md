@@ -1,5 +1,7 @@
 # Scripts
 
+`prepare-ip-preview.mts`只初始化回环地址上的formward_ip_preview测试库，读取root私有的虚构账号配置；迁移使用既有Drizzle文件，重复执行保留已有账号与记录，不连接Neon或其他库。FORMWARD_STANDALONE=1构建可独立运行的服务器产物，默认构建方式保持。
+
 `preview-garmin.mts`（`pnpm garmin:preview --serve`）读取用户目录的私有 Personal API 配置，获取最近七日佳明 V2 汇总和分页活动，生成本机只读预览、字段观察和脱敏样本；不加载正式数据库配置或写入记录。原始响应存 `data/imports/`，其余报告存 `data/exports/`，均为 0600。配置和运行见 [Garmin Personal API](../docs/garmin-personal.md)。
 
 ## 目的
