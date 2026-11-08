@@ -10,7 +10,7 @@ Chromium／WebKit各21组操作、65张实际视口截图通过，私有证据�
 
 完成记录删除经更多菜单与明确确认，取消、网络失败、重试、刷新持久化及关联计划恢复通过。595项完整单元／集成测试、lint零错误零警告、独立typecheck、38页production build和diff检查通过。新增事务测试覆盖归属、完成状态、版本、重复请求、同计划多次完成、审计失败整批回滚、停用账号与撤销会话；保留完整审计、模板目标及消耗，MCP不提供删除。无新增依赖、表或migration。
 
-原始定位器与异步等待失败记录保留，修正浏览器断言而未改变产品来迎合测试。动作素材、视频评估及数据集许可选型维护于[训练功能](training.md)，本轮未采购素材、接入摄像头或部署模型。正式发布与数据核对结果将在完成后补入本节及[部署记录](deployment.md)。
+原始定位器与异步等待失败记录保留，修正浏览器断言而未改变产品来迎合测试。动作素材、视频评估及数据集许可选型维护于[训练功能](training.md)，本轮未采购素材、接入摄像头或部署模型。正式站已发布training-compact-a0d580b2-20261108（dpl_5LHExKEqQRyn73VJwEgm3ZbXyoop），19组操作／29张截图逐项复核通过；HTTPS OAuth PKCE MCP验证17工具、150动作、幂等和待确认状态，14项公网保护检查通过。线上8组普通／限速加载帧采样最大锚点偏差0px，5组多帧骨架、3组训练仅1帧，原始过程保留。两个虚构账号及45类所属数据、临时OAuth客户端已清理；前后54表／33条migration、字段及所有既有健康与来源事实一致，仅限流元数据14→9行。Runtime error／fatal和5xx在UTC2026-11-08T07:17:20—07:23:00均0，无排除区间或遗漏分页，仅描述实际观测窗口。正式证据.codex/training-compact-release，私有备份data/exports/training-compact-20261108-{before,published}.json，虚构演示图C:/Users/14878/.codex/visualizations/2026/11/08/formward-training-compact；详见[部署记录](deployment.md)。
 
 ## 训练动作库、GPT排期与加载稳定性
 

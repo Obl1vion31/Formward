@@ -61,7 +61,7 @@ training_sessions、training_templates、training_plans和training_events均关�
 
 | 方向 | 选型建议与来源 |
 | --- | --- |
-| 授权动画／插画 | 优先用少量[GymVisual](https://gymvisual.com/content/9-license)购买素材匹配现有catalogId，验证GIF／视频在训练详情的效果；购买版许可列明App和网页用途，不直接复用网页缩略图。 |
+| 授权动画／插画 | 优先用少量[GymVisual](https://gymvisual.com/content/9-license)购买素材匹配现有catalogId，验证GIF／视频在训练详情的效果；购买版许可列明App和网页用途，不直接复用网页缩略图；条款禁止用素材进行AI媒体处理、生成或训练，应用内文字分析功能不在该禁令范围内。 |
 | 真人演示 | [MuscleWiki](https://api.musclewiki.com/documentation)提供多角度视频；[API条款](https://api.musclewiki.com/api-terms)限制永久存储、要求保留品牌，训练模型需另获书面许可。 |
 | 自有3D | 先做统一人物与骨骼，复用少量动作动画并渲染循环视频，教练核对姿态、器械接触和节奏后再扩充。 |
 | 现成纠错 | [KinesteX Camera Component](https://www.kinestex.com/docs/integration/camera-component)有计次和动作反馈接口，先用目标场景实拍验证，不把供应商宣传当成本产品准确率。 |
@@ -69,4 +69,4 @@ training_sessions、training_templates、training_plans和training_events均关�
 
 [FitAQA评测](https://arxiv.org/html/2608.08736v2)显示通用视频大模型对精细姿态证据与错误时间定位仍有限制；优先验证SDK或关键点加规则基线，保留无法判断的情况，不先承诺覆盖150项动作的纠错效果。
 
-[Fitness-AQA](https://github.com/ParitoshParmar/Fitness-AQA)含深蹲、肩上推举、杠铃划船，需要申请且限非商业用途。[MyoMechanix作者项目](https://github.com/HaoYin116/MyoMechanix)整合多视角、3D姿态及专家知识，研究数据需申请，商用另获许可，当前模型发布状态仍需核查。[Fit3D](https://fit3d.imar.ro/fit3d)有多视角、三维姿态及重复次数标注，适合姿态／计次研究；本轮未核实下载授权。商业训练采用另获训练授权或自采并由教练标注的视频，按参与者拆分评估，分别检查误报、漏报和机位遮挡。
+[Fitness-AQA](https://github.com/ParitoshParmar/Fitness-AQA)含深蹲、肩上推举、杠铃划船，需要申请且限非商业用途。[MyoMechanix作者项目](https://github.com/HaoYin116/MyoMechanix)整合多视角、3D姿态及专家知识，研究数据需申请，商用另获许可，截至2026-11-08，代码与预训练模型仍标为待发布。[Fit3D](https://fit3d.imar.ro/fit3d)有多视角、三维姿态及重复次数标注，适合姿态／计次研究；本轮未核实下载授权。商业训练采用另获训练授权或自采并由教练标注的视频，按参与者拆分评估，分别检查误报、漏报和机位遮挡。

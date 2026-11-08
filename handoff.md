@@ -1,6 +1,14 @@
 # Formward 项目交接
 
-## 当前正式版本：训练动作库、GPT排期与稳定加载（2026-11-08）
+## 当前正式版本：训练页精简、触屏排期与完成记录删除（2026-11-08）
+
+已发布[训练页](https://formward-ten.vercel.app/dashboard/training)，READY dpl_5LHExKEqQRyn73VJwEgm3ZbXyoop，源码a0d580b26adaa5c420a2af90cfa3169f25617a49，版本training-compact-a0d580b2-20261108。来自codex/training-entry，基于上一正式a2ac651并保留全部已发布功能；未合入main，后续纯文档提交不改变正式应用。
+
+训练／消耗位于原标题行和手机顶栏；入口只保留日期、具体名称及开始／继续操作。默认收起模板置于开始区下方，展开看目标，44px手柄支持桌面／手机拖到月历、边缘滚动和取消，点选排期保留。完成记录更多菜单新增明确确认删除，最后一条完成删除后关联计划恢复待练；事务保留完整审计、幂等、归属和版本校验，MCP没有删除入口。
+
+595项测试、lint、typecheck、production build及本地双引擎各21组／65图通过，正式站19组／29图和MCP通过；线上8组普通／慢网最大锚点偏差0px。54表、33条migration和既有健康／来源事实完全保持，唯一差异为限流元数据；两个虚构账号与临时客户端已清理。真实手机未测，WebKit连续原生touch受测试接口限制。素材与视频评估调研见[训练](docs/training.md)，证据、窗口及限制见[部署](docs/deployment.md)和[验收](docs/maintenance-verification.md)。
+
+## 此前正式版本：训练动作库、GPT排期与稳定加载（2026-11-08）
 
 已发布[训练页](https://formward-ten.vercel.app/dashboard/training)，READY dpl_eck1LqL2t7tC81Uu8pjHHXnxTkqj，应用源码a2ac651b4d7b5bcda137031946658d555a343e8a，版本training-library-a2ac651b-20261108。来自codex/training-entry，已合并最新饮食发布ade4f71／交接ffc1177，未合入main；后续纯文档提交不改变正式应用。
 

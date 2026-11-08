@@ -1,6 +1,20 @@
 # 公网 HTTPS 部署
 
-## 当前正式版本：训练动作库、GPT排期与稳定加载（2026-11-08）
+## 当前正式版本：训练页精简、触屏排期与完成记录删除（2026-11-08）
+
+已按授权发布到[训练页](https://formward-ten.vercel.app/dashboard/training)。READY部署dpl_5LHExKEqQRyn73VJwEgm3ZbXyoop，应用源码a0d580b26adaa5c420a2af90cfa3169f25617a49，构建training-compact-a0d580b2-20261108，来自codex/training-entry；正式别名、项目、sourceCommit／gitCommitSha及版本接口一致。发布前确认上一正式a2ac651未发生漂移，保留动作库、GPT排期、饮食简化及其他已发布功能；未合入或推送main，后续纯文档提交不改变正式应用。
+
+训练／消耗并入电脑原标题行与手机64px顶栏，不再占独立行。顶部按进行中、今日计划、最近完成、自由训练选择，只保留具体名称与日期状态。模板紧接开始区、默认收起，展开可看动作目标，通过手柄拖动到日历或点选排期；浮层、高亮、边缘滚动及取消保护已接通。月历位于模板下方，月度汇总在底部。完成记录的更多菜单可经明确确认永久删除，最后一场关联完成记录删除后恢复待练；同计划仍有完成记录时保持完成，完整审计与事务回滚保护保留，MCP不提供删除。
+
+595项单元／集成、lint零错误零警告、独立typecheck、38页production build及Vercel远程构建通过。Chromium／WebKit本地各21组操作／65张截图通过，每引擎18组慢查询固定首屏锚点最大偏差0 CSS px，普通切换、缓存与返回通过。Chromium实际连续touch拖动、取消、边缘滚动及模板正文129px原生触摸滚动通过；WebKit验证原生tap与持续pointer，其测试接口不支持连续touch，不记作原生连续触摸或真机通过。真实手机、系统软键盘、屏幕阅读器和系统文字放大未测。
+
+正式Chromium19组操作／29张截图通过，截图实际逐项复核；包含训练保存、删除取消／失败重试／刷新持久化／计划恢复、触屏拖拽、重复排期、点选替代及GPT人工修改确认。真实HTTPS OAuth PKCE MCP验证17工具、150动作、查询、请求幂等和pending预览，14项公开／保护入口检查通过，OpenAPI未暴露删除。正式站390与1440视口、普通／CDP限速网络、训练与消耗共8组加载帧采样最大偏差0px；5组观察到多帧骨架，3组训练仅1帧，完整慢查询证据以本地双引擎为准。
+
+前后0600私有备份均54表、33条migration；逐表核对字段、账本、既有健康记录、来源、凭据与设置全部一致，无新表、migration或后台同步差异。唯一变化为正常限流元数据14→9行。两个虚构账号及45类所属表、临时OAuth客户端全部清理，无残留。Runtime error／fatal与请求5xx在实际复查窗口UTC2026-11-08T07:17:20—07:23:00均0，无排除区间或分页遗漏；不宣称自发布起持续观测。
+
+证据.codex/training-compact-release及本地双引擎报告，备份data/exports/training-compact-20261108-{before,published}.json，均不进入Git／部署。演示截图C:/Users/14878/.codex/visualizations/2026/11/08/formward-training-compact来自虚构账号。素材、视频评估和数据集许可调研见[训练功能](training.md)，本轮未采购、接入摄像头或部署模型。上一READY dpl_eck1LqL2t7tC81Uu8pjHHXnxTkqj保留供应用回退，保留合法写入、删除审计与当前数据。
+
+## 此前正式版本：训练动作库、GPT排期与稳定加载（2026-11-08）
 
 已按授权发布到[训练页](https://formward-ten.vercel.app/dashboard/training)。READY部署dpl_eck1LqL2t7tC81Uu8pjHHXnxTkqj，应用源码a2ac651b4d7b5bcda137031946658d555a343e8a，构建training-library-a2ac651b-20261108，来自codex/training-entry。正式别名、项目、sourceCommit／gitCommitSha及版本接口一致。发布前检测到饮食版本更新，合并ade4f71及交接ffc1177，保留零／未知营养保存、严格重复餐轻提示及旧预览兼容；没有合入或推送main。后续纯文档提交不改变正式应用。
 
