@@ -1386,3 +1386,19 @@ D1／D2／D3／D4／D5／D7适用条目通过；D6浏览器实测通过，真机
 0033_training_sessions只新增训练四表，迁移前50表、迁移／发布后54表，账本由32增为33。前后私有备份逐表核对通过，既有字段和事实不变；仅普通限流元数据由4行变为6行，未豁免健康数据。两个虚构账号及45类所属数据已清理并确认无残留。备份data/exports/training-20261108-{before,migration,published}.json、证据.codex/training-release均0600／Git与部署忽略。当前来源同步及既有Garmin事实保留。
 
 正式日志UTC2026-11-07T18:56:55—19:02:50，Runtime error／fatal及请求5xx均0，无排除区间或后续分页；这是实际观测窗口，不表示新应用已运行满20分钟。可展示截图位于C:/Users/14878/.codex/visualizations/2026/11/08/formward-training，production-entry.png为正式入口，其余为虚构验收样本。真实手机、系统软键盘、屏幕阅读器和系统文字放大未测。上一READY dpl_9d4tebN6GHjDXvNSPuLSB2Z2JzFW供应用回退；保留训练新表及所有合法写入，不回退或删除数据。
+
+## 公网 IP 隔离测试环境（2026-11-09）
+
+范围为 [公网 IP 测试环境](ip-preview.md) 的服务器部署与联网冒烟，未切换正式网站或数据库。使用独立虚构账号和夹具，不复制真实健康记录。
+
+- 质量检查：lint、typecheck、595 项 unit/integration tests 和 standalone production build 全部通过。发布源为 b0155db；构建版本 `ip-preview-b0155db-20261109`。
+- 网络：外部 curl 直连公网 IP，HTTPS 校验证书成功（ssl_verify_result=0），`/api/app-version` 返回目标版本；HTTP 根地址返回 308 至 HTTPS；匿名 `/dashboard` 返回 307 至登录页。
+- 隔离：应用连接 `formward_ip_preview`、角色 `formward_ip_preview_app`，库内仅一个虚构账号。该角色连接其他数据库被 HBA 拒绝；PostgreSQL 继续监听 `127.0.0.1:5432`。新应用、原私有应用、Nginx、PostgreSQL 均为 active。
+- 正式站：复查 `/api/app-version` 仍为 `static-loading-61eda554-20261108`。未修改正式环境变量、Neon 数据、域名解析或原私有应用。
+- 浏览器：Chrome 在默认桌面视口下成功登录；饮食列表勾选“已记全”，保存成功后刷新仍打勾。390×844 模拟视口下取消勾选成功，日期、状态与编辑／查看入口正常排列；这是视口模拟，未冒充真机或 WebKit 验收。
+- 训练：从空态开始自由训练，动作库显示 150 项；添加杠铃卧推，填写虚构的 20kg×10次一组并勾选完成，结束保存成功；刷新后顶部、月历和回看保留同一完成记录。
+- 身体：身体空态正常读取；保存虚构的晨重 75.20kg、来源“公网测试·虚构”后显示成功回执。消耗页正常读取既有夹具的 3415kcal 与分项图表。
+- 维护：新服务重启后恢复目标版本；短暂停机中的在途身体读取进入错误态，完整刷新后恢复。原位重试在这次中断场景未确认恢复，不把本轮冒烟表述为完整异常流程或零停机验收。
+- HTTPS 续期：IP 专用每六小时定时任务已启用并运行一次检查；证书续期真正发生后的结果仍需到期前监测。测试库每日备份已启用，首份归档通过 pg_restore 目录检查；尚未做完整恢复演练。
+
+证据位于本工作区被忽略的 `.codex/ip-preview/evidence/`：`desktop-overview.jpg`、`mobile-training.jpg`、`mobile-meals.jpg`、`mobile-meal-rows.jpg`。本轮未修改界面结构；不以这些最终截图代替既有完整加载过程、1 CSS px、Chromium／WebKit、真机或慢网矩阵验收。照片存储、设备同步和新 MCP 连接未在这个测试环境配置。
