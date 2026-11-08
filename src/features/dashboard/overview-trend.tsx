@@ -20,6 +20,7 @@ import { SavedMealList } from "../meals/saved-meal-list";
 import { blankEnergyDay, energyValue } from "../activities/model";
 import type { OverviewDay } from "./model";
 import styles from "./overview.module.css";
+import {OverviewLegend} from '@/components/chart-legend';
 const signed=signedRecordNumber;
 function WeightReading({ record }: { record: MeasurementDisplay | null }) {
   return <><strong>{record ? formatRecordNumber(record.weightKg) : "—"}<small>kg</small></strong>{record?.recordKind === "estimated" && <em>估计</em>}</>;
@@ -50,7 +51,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       <ChartRanges value={range} change={key=>{selection.leave();if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>
       {customOpen&&<CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
       <div className={styles.mobileSelected} aria-live="polite"><time>{selected}</time><strong>{day?.energyBalance==null?"收支未知":day.energyBalance<0?"缺口 "+formatIntegerNumber(Math.abs(day.energyBalance)):"盈余 "+formatIntegerNumber(day.energyBalance)}<small>kcal</small></strong></div>
-      <div className={styles.mobileLegend}><span><i style={{background:"var(--data-blue)"}}/>摄入</span><span><i style={{background:"var(--data-red)"}}/>消耗</span><span>金／蓝填色：盈余／缺口</span></div>
+      <div className={styles.mobileLegend}><OverviewLegend compact/></div>
       {dates.length?<RelationshipPlot days={days} selected={selected} selection={selection}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}
     </div>:<RecordTrendPanel
       range={<ChartRanges value={range} change={key=>{selection.leave();if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>}
@@ -64,7 +65,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       flags={overviewFlags(day)} flagVariants={days.map(overviewFlags)}
       title="热量收支" unit="kcal"
       options={<InlineChartControls><label><input type="checkbox" checked={estimates} onChange={event=>setEstimates(event.target.checked)} aria-label="显示体重估计"/>显示体重估计</label></InlineChartControls>}
-      legend={<><span><i style={{background:"var(--data-blue)"}}/>摄入</span><span><i style={{background:"var(--data-red)"}}/>消耗</span><span><i style={{background:"var(--data-surplus)"}}/>盈余</span><span><i style={{background:"var(--data-deficit)"}}/>缺口</span><span><i style={{background:"transparent",border:"1px solid var(--data-blue)",borderRadius:"50%",width:7,height:7}}/>空心点：未记全／待确认</span></>}
+      legend={<OverviewLegend/>}
     >{dates.length?<RelationshipPlot days={days} selected={selected} selection={selection}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>}
     {!mobile&&<RangeCoverage key={from+to} days={days} today={today} from={from} to={to}/>}
     {dialogDay&&<EditorDialog title={dialogDay.date+" · 当日记录"} titleParts={[dialogDay.date,"当日记录"]} stableScroll close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}

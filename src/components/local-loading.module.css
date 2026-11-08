@@ -1,0 +1,7 @@
+.status{display:inline-flex;align-items:center;gap:8px;min-height:24px;color:var(--muted);font:400 14px/24px "Avenir Next","Segoe UI","PingFang SC",sans-serif;visibility:hidden}
+.status[data-visible]{visibility:visible}
+.spinner{box-sizing:border-box;display:inline-block;flex:none;width:14px;height:14px;border:1.5px solid var(--line-strong);border-top-color:currentColor;border-radius:50%;animation:local-read-spin .85s linear infinite}
+.status[data-icon-only]{position:absolute;right:0;bottom:0;min-height:18px;width:18px;justify-content:center;border-radius:50%;background:var(--surface);pointer-events:none}
+.accessible{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+@keyframes local-read-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spinner{animation:none}}

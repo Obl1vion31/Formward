@@ -26,7 +26,7 @@ export function EntrySurface({children}:{children:ReactNode}){
  const done=()=>{setClosed(key);if(meta)meta.close();else if(seen!==key)router.replace(path);};
  const title=path.endsWith('/meals')?'记录一餐':path.endsWith('/energy')?'每日消耗':'身体录入';
  return <EntrySurfaceContext value={context}>{children}{active&&<Inspector title={meta?.title??title} titleParts={meta?.titleParts} wide={meta?.wide??path.endsWith('/meals')} stableScroll={meta?.stableScroll} compact={meta?.compact} className={meta?.className} busy={meta?.busy??false} closeLabel={meta?.closeLabel} close={done} onCloseReady={close=>{closeHost.current=close;meta?.onCloseReady?.(close);}} onSavedCloseReady={close=>meta?.onSavedCloseReady?.(close)} header={meta?.customHeader?<div ref={setHeaderSlot}/>:undefined}>
-  <CaptureGuards change={setGuards}/><div ref={setSlot} data-entry-surface-slot>{!meta&&seen!==key&&<PendingFields key={key} date={query.get('date')} failed={failure?.key===key} retry={()=>{if(failure?.key===key)failure.reset();setFailure(null);router.refresh();}}/>}</div>
+  <CaptureGuards change={setGuards}/><div ref={setSlot} data-entry-surface-slot>{!meta&&seen!==key&&<PendingFields key={key} date={query.get('date')} failed={failure?.key===key} retry={()=>{if(failure?.key===key)failure.reset();else router.refresh();setFailure(null);}}/>}</div>
  </Inspector>}</EntrySurfaceContext>;
 }
 function CaptureGuards({change}:{change:(value:EntryGuards|null)=>void}){const register=useContext(DraftGuardContext),close=useContext(DraftCloseContext),busy=useContext(InspectorBusyContext);useLayoutEffect(()=>{if(register&&close)change({register,close,busy});return()=>change(null);},[register,close,busy,change]);return null;}

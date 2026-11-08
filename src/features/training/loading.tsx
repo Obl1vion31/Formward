@@ -2,10 +2,11 @@
 import { SkeletonBlock } from '@/components/skeleton-block';
 import { TrainingLayout, TodayTrainingCard, TrainingTemplates, TrainingMonthControls, calendarCellCount } from './layout';
 import styles from './training.module.css';
+import {TrainingIcon} from './icon';
 export function TrainingSkeleton() {
   const block = (width: number | string, height = 14) => <SkeletonBlock width={width} height={height} />;
   return <TrainingLayout loading>
-    <TodayTrainingCard label={block(120)} title={block('min(240px, 85%)', 28)} actions={block('100%', 46)} />
+    <TodayTrainingCard label={block(120)} title={block('min(240px, 85%)', 28)} actions={<button type="button" className={styles.primary} disabled aria-label="开始训练，正在读取当前训练状态"><TrainingIcon/>开始训练</button>} />
     <TrainingTemplates loading />
     <section className={styles.calendarSection} aria-label="训练日历加载中">
       <div className={styles.sectionHeading}><h2>训练日历</h2><TrainingMonthControls loading /></div>

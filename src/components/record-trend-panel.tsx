@@ -56,7 +56,7 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
  const columns=Math.min(columnLimit,metrics.length);
  const statusVariants=[...new Set([...flagVariants,flags].filter((value):value is string=>Boolean(value)))];
  return <div className={styles.panel} data-record-trend data-status-in-date={statusInDate||undefined}>
-  <div className={styles.date} data-record-slot="date"><SelectedDateHeading date={date} view={view} status={statusInDate?<span className={styles.dateStatus} role="status" title={flags||undefined}>{flags??""}</span>:undefined}/></div>
+  <div className={styles.date} data-record-slot="date"><SelectedDateHeading date={date} view={view} pending={loading} status={statusInDate?<span className={styles.dateStatus} role="status" title={flags||undefined}>{flags??""}</span>:undefined}/></div>
   <div className={statistics?styles.readingArea:undefined}>
   <div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-presentation={presentation} data-loading={loading||undefined} aria-busy={loading||undefined} data-metric-count={metrics.length} data-record-columns={columns} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":columns===3&&(presentation==='energy'||presentation==='body')?"1.5fr repeat(2,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map((metric,index)=>{
    const labels=[...new Set([metric.label,...labelVariants.map(row=>row[index]).filter(Boolean)])];
@@ -82,10 +82,10 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
 export function InlineChartControls({children}:{children:ReactNode}){
  return <div className={styles.controls} data-chart-controls>{children}</div>;
 }
-export function ChartOptions({children,label="显示选项"}:{children:ReactNode;label?:string}){
+export function ChartOptions({children,label="显示选项",disabled=false}:{children:ReactNode;label?:string;disabled?:boolean}){
  const ref=useRef<HTMLDetailsElement>(null);
  useEffect(()=>{const outside=(event:PointerEvent)=>{if(ref.current&&!ref.current.contains(event.target as Node))ref.current.open=false;};document.addEventListener("pointerdown",outside);return()=>document.removeEventListener("pointerdown",outside);},[]);
- return <details ref={ref} className={styles.options} data-chart-controls onKeyDown={event=>{if(event.key==="Escape"&&ref.current?.open){event.preventDefault();event.stopPropagation();ref.current.open=false;ref.current.querySelector("summary")?.focus();}}}><summary>{label}</summary><div>{children}</div></details>;
+ return <details ref={ref} className={styles.options} data-chart-controls onKeyDown={event=>{if(event.key==="Escape"&&ref.current?.open){event.preventDefault();event.stopPropagation();ref.current.open=false;ref.current.querySelector("summary")?.focus();}}}><summary aria-disabled={disabled||undefined} onClick={event=>{if(disabled)event.preventDefault();}}>{label}</summary><div>{children}</div></details>;
 }
 export function CustomRecordRange({label,value,change,apply,cancel}:{label:string;value:{from:string;to:string};change:(next:{from:string;to:string})=>void;apply:()=>void;cancel:()=>void}){
  const valid=(date:string)=>/^\d{4}-\d{2}-\d{2}$/.test(date)&&Number.isFinite(Date.parse(date))&&new Date(date).toISOString().slice(0,10)===date;

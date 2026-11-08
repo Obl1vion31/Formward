@@ -1,5 +1,13 @@
 # Tests
 
+## 全站固定内容与加载反馈
+
+production build后运行pnpm test:loading-browser。workspace-loading.browser.mts自行创建本机隔离PGlite、虚构饮食／测量／消耗及训练账号，不读取环境文件或接受外部数据库。FORMWARD_LOADING_ENGINE=webkit切换引擎，PLAYWRIGHT_BROWSERS_PATH指定本机浏览器缓存，FORMWARD_LOADING_ARTIFACTS指定私有证据位置。
+
+workspace-loading-check.browser.mjs逐页检查总览、饮食、训练、消耗、身体的固定标题、查看／历史入口、图例及颜色；必须先存在且可见，再比较前后固定槽位≤1px。两主题覆盖320／390／430、矮屏、横屏及1100／1440／1920；保留首帧、完整采样及接管后至少500ms，真实列表行数变化单独记录。资料及安全面板检查200ms局部反馈、失败、关闭和迟到响应，页面导航保留草稿及焦点保护。减少动态效果不冒充完整动效验收。
+
+FORMWARD_LOADING_PREVIEW=1保留本机虚构预览供人工核看，SIGTERM／SIGINT会关闭本人测试应用和数据库。FORMWARD_LOADING_DIAGNOSE=1只用于小范围定位并保留失败报告，不能作为最终通过证据；实际浏览器／真机未测项仍单独注明。
+
 ## 双端卡片关联与 Inspector
 
 production build 后运行 pnpm test:desktop-linked-browser。入口自行建立本机隔离 PGlite、执行现有 migration 并创建虚构账号，不读取环境文件或接受外部数据库连接。FORMWARD_DESKTOP_BROWSER=webkit 切换引擎，FORMWARD_DESKTOP_ARTIFACTS 指定私有证据目录；Chromium保留实际页面录屏，两引擎均记录真实帧和布局。

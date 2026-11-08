@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useTransition, type FormEvent } from "reac
 import { useDraftGuard } from "@/components/draft-guard";
 import { LoadingLink } from "@/components/loading-link";
 import { SkeletonBlock } from "@/components/skeleton-block";
+import {LocalLoading} from '@/components/local-loading';
 import { acknowledgeRecordChanges } from "@/components/record-change-client";
 import { backfillSourceHistoryAction, bindPersonalSourceAction, configureConnectionAction, loadSourcesAction, synchronizeSourceAction } from "@/app/dashboard/sources/actions";
 import { metricLabels, sourceMetrics, type SourceMetric, type SourceSettingsView, type SourceRecordChange } from "./model";
@@ -27,7 +28,7 @@ function SourceContent({ data, embedded, pending = false, busy = false, metrics 
     {data?.enabled === false ? <section className={styles.empty}><h2>暂未开放</h2><p>当前账号可以继续手动记录消耗、运动和身体数据。</p><LoadingLink href="/dashboard/energy">查看消耗记录 →</LoadingLink></section> :
       <section className={styles.connection} aria-label="已连接设备">
         <div className={styles.sectionHeading}><h2>Garmin Personal</h2><button type="button" disabled={disabled || !connection || !active || !metrics.length || dirty || !!apiKey} onClick={sync}>{busy ? "正在同步…" : "立即同步"}</button></div>
-        <div className={styles.status} role={error || !notice && connection?.error ? "alert" : "status"}>{pending ? <SkeletonBlock width={190} height={21}/> : status}</div>
+        <div className={styles.status} role={error || !notice && connection?.error ? "alert" : "status"}>{pending ? <LocalLoading label="正在读取连接…"/> : status}</div>
         {!pending && !data && error ? <button type="button" onClick={retry}>重新读取连接</button> : <>
           <form onSubmit={save} className={styles.contentForm}>
             <fieldset disabled={disabled || !connection || !!apiKey}><legend>同步内容与连接</legend>

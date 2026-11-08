@@ -1,5 +1,11 @@
 # Components
 
+加载只遮盖未知数据。chart-legend.tsx统一总览、营养及消耗的静态图例，骨架和真实页使用同一语义色；daily-records.tsx在读取时保留日期操作、最近记录标题和历史入口，依赖未就绪数据的按钮分别禁用。workspace-skeleton.tsx覆盖总览、饮食、消耗和身体的完整固定结构，训练沿用自己的同结构外壳。
+
+local-loading.tsx提供真实等待超过200ms才出现的局部指示，取消和卸载清理计时，减少动态效果不旋转。LoadingLink可通过onPendingChange读取原生Link及自定义草稿导航的实际pending，普通导航不登记全局等待；账号菜单关闭后的指示留在账号按钮，资料／安全面板只显示短读取状态。
+
+workspace-error.tsx使用当前Next.js的retry重新请求并渲染失败页面；reset只清除错误，不能用于服务端读取重试。快捷录入把同一个retry交给EntrySurface，失败时不再追加一次router.refresh；普通慢读取仍可单独刷新。
+
 Inspector标题两端均直接排列在面板底色上，不增加独立圆角、内高光、模糊或负边距。电脑保留原侧栏尺寸和滚动，隐藏把手且不占位；手机通过--inspector-sticky-offset预留44px，饮食与消耗的粘性保存条复用该偏移，长表单滚动不盖住把手。手机把手区与面板底色连续，键盘焦点仅围绕小把手；关闭按钮保持44px。record-intent.ts集中校验网页view／edit／create打开意图，record-ui统一列表编辑实底与查看次级样式，业务组件决定各任务可用内容。
 
 record-intent-client.ts将同地址再次点击交给当前已挂载业务，沿用LoadingLink的草稿确认及来源退出顺序；EntrySurface仅为重复create重开稳定外壳，三类业务重新打开对应内容。不拦截趋势、其他日期／来源／查询的正常导航，不存储健康快照或增加接口。

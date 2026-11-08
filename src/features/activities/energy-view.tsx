@@ -1,4 +1,5 @@
 "use client";
+import {EnergyLegend} from '@/components/chart-legend';
 import {EnergySourceStatus} from "../data-sources/energy-status";
 import type {ConnectionView} from "../data-sources/model";
 import recordUI from '@/components/record-ui.module.css';
@@ -154,7 +155,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
        ]}
        metricVariants={chartDays.map(day=>[energyValue(day.totalKcal),energyValue(day.restingKcal),energyValue(day.activeKcal)])}
        title="每日消耗" unit="kcal"
-       legend={<><span><i style={{background:"var(--data-protein)"}}/>静息</span><span><i style={{background:"var(--data-red)"}}/>活动</span><span><i style={{background:"var(--data-neutral)"}}/>仅有总数</span></>}
+       legend={<EnergyLegend/>}
       >{dates.length?mobile||linkedPlot?<MobileEnergyPlot days={chartDays} selected={inspected} selection={selection} linked={linkedPlot}/>:<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     </section>
     {data.sourcePilot&&<EnergySourceStatus initial={sourceStatus} steps={chosen?.steps??null} protectedDay={chosen?.record?.adoption?.mode==="manual"}/>}

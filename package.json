@@ -36,6 +36,7 @@
     "test:detail-browser": "node --import tsx tests/detail-hierarchy.browser.mjs",
     "test:assistant-browser": "node --import tsx tests/assistant-suite.browser.mts",
     "test:desktop-linked-browser": "node --import tsx tests/desktop-linked.browser.mts",
+    "test:loading-browser": "node --import tsx tests/workspace-loading.browser.mts",
     "test:training-browser": "node --import tsx tests/training.browser.mts"
   },
   "dependencies": {

@@ -7,6 +7,9 @@ import { acknowledgeRecordChanges } from "@/components/record-change-client";
 import { synchronizeSourceAction } from "@/app/dashboard/sources/actions";
 import type { ConnectionView } from "./model";
 import styles from "./sources.module.css";
+import {SkeletonBlock} from '@/components/skeleton-block';
+
+export function EnergySourceStatusSkeleton(){return <div className={styles.syncBar} data-energy-source-status><SkeletonBlock width={90} height={16}/><LoadingLink href="/dashboard/sources">设备与数据来源 <span aria-hidden="true">→</span></LoadingLink></div>;}
 
 export function EnergySourceStatus({ initial, steps, protectedDay }: { initial: ConnectionView | null; steps: number | null; protectedDay: boolean }) {
   const [connection, setConnection] = useState(initial), [working, setWorking] = useState(false), [pendingRefresh, setPendingRefresh] = useState(false), [, startTransition] = useTransition();

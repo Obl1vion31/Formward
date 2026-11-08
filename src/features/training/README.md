@@ -13,3 +13,5 @@ records.ts 集中账号锁、归属、幂等、版本和审计。每账号最多
 ai-model.ts／ai-plans.ts／ai-api.ts 为GPT提供动作查询、本人模板／计划查询及模板／排期投影，复用records的统一审核存储，不新增表。新模板可通过同批templateRef排多天；AI提交只有预览，原授权有效且用户在网页确认后才调用同一training事务写入，审计origin=ai。plan-review.tsx提供预览及修改目标／日期。OAuth独立training:read／training:write，旧连接不自动扩权；预览24小时有效，取消不删除既有事实。
 
 layout.tsx／loading.tsx与正式页共用稳定外壳；加载全过程及面板退出按[设计与视觉验收](../../../docs/design-reference.md)检查。界面不估算热量，不自动写入activities或energy_days。维护规则与MCP例子见[训练记录](../../../docs/training.md)。
+
+训练操作槽在加载首帧保留“开始训练”按钮；当前会话未核验时禁用，就绪后按真实状态显示开始、按计划或继续。训练模板、日历标题和固定图例始终显示，仅计划名称、日期及实际记录占位。
