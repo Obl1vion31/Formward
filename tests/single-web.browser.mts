@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 
 const fixture = await regionalFixture({ singleWeb: true });
 const engine = process.env.FORMWARD_SINGLE_WEB_ENGINE ?? "chromium";
-const artifacts = resolve(".codex/single-web", engine);
+const artifacts = resolve(process.env.FORMWARD_SINGLE_WEB_ARTIFACTS??".codex/single-web", engine);
 await mkdir(artifacts, { recursive: true });
 const playwright = await import(process.env.PLAYWRIGHT_MODULE ?? "/tmp/formward-account-tooling/node_modules/playwright/index.mjs");
 const browser = await playwright[engine].launch({ headless: true });
@@ -120,11 +120,17 @@ try {
   assert.equal(await food.inputValue(), "虚构切换前草稿");
   await shot("existing-draft-kept");
   for(const name of ["本次蛋白质 1","本次碳水 1","本次脂肪 1"])await dialog.getByLabel(name,{exact:true}).fill("1");
-  const saved=page.waitForResponse((response:{request():{method():string};url():string})=>response.request().method()==="POST"&&response.url().startsWith(fixture.global+"/dashboard/meals"));
+  const submitStart=performance.now();
+  const saved=page.waitForResponse((response:{request():{method():string;postData():string|null};url():string})=>response.request().method()==="POST"&&response.url().startsWith(fixture.global+"/dashboard/meals")&&!!response.request().postData()?.includes("虚构切换前草稿"));
   await dialog.getByRole("button",{name:/^保存餐次/}).click();
-  const savedResponse=await saved;assert.equal(savedResponse.status(),200);await savedResponse.finished();
+  const savedResponse=await saved;assert.equal(savedResponse.status(),200);
+  // Chromium跨旧来源继续操作后可能不发Playwright的完成事件；以真实面板、入库和服务器响应结束共同验收。
   await dialog.waitFor({state:"hidden"});
   const afterMeals=await fixture.db.select().from(meal).where(eq(meal.userId,fixture.personId));assert.equal(afterMeals.length,meals.length+1);
+  for(let i=0;i<80&&!fixture.gatewayResponses.some(v=>v.started>=submitStart&&v.path.startsWith("/dashboard/meals")&&v.event==="finish"&&v.ended);i++)await new Promise(done=>setTimeout(done,100));
+  const transportEnded=fixture.gatewayResponses.filter(v=>v.started>=submitStart&&v.path.startsWith("/dashboard/meals"));
+  await writeFile(resolve(artifacts,"save-transport.json"),JSON.stringify({saved:true,dialogClosed:true,responses:transportEnded}));
+  assert.ok(transportEnded.some(v=>v.event==="finish"&&v.ended),"旧页保存响应必须在服务器完整结束");
   checks.push("切换不刷新旧页或丢草稿；旧页实际保存成功，新打开的旧地址立即转国服");
 
   assert.deepEqual(errors, []);

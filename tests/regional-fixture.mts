@@ -69,12 +69,18 @@ export async function regionalFixture(options:{trustedOrigin?:string;singleWeb?:
  const tls={key:await readFile(key),cert:await readFile(cert)};
  function proxy(req:import("node:http").IncomingMessage,res:import("node:http").ServerResponse){const upstream=httpRequest({hostname:"127.0.0.1",port:appPort,path:req.url,method:req.method,headers:{...req.headers,"x-real-ip":String(req.headers["x-test-client-ip"]??"127.0.0.1")}},response=>{res.writeHead(response.statusCode??502,response.headers);response.pipe(res);});upstream.on("error",()=>{res.statusCode=503;res.end();});req.pipe(upstream);}
  const gateway=(await import(process.env.FORMWARD_TEST_GATEWAY_SOURCE==="1" ? "../scripts/self-hosting/gateway-entry.js" : pathToFileURL(gatewayFile).href)).default;
- const servers=[tlsServer(tls,proxy),tlsServer(tls,gateway),tlsServer(tls,proxy)];
+ const gatewayResponses:{method:string;path:string;started:number;finished:number;ended:boolean;event:string}[]=[];
+ const observeGateway=(req:import("node:http").IncomingMessage,res:import("node:http").ServerResponse)=>{
+  const started=performance.now(),method=req.method??"",path=req.url??"";
+  if(method==="POST"&&path.startsWith("/dashboard/")){for(const event of["finish","close"])res.once(event,()=>gatewayResponses.push({method,path,started,finished:performance.now(),ended:res.writableEnded,event}));}
+  return gateway(req,res);
+ };
+ const servers=[tlsServer(tls,proxy),tlsServer(tls,observeGateway),tlsServer(tls,proxy)];
  await Promise.all(servers.map((server,index)=>new Promise<void>(resolve=>server.listen([cnPort,globalPort,rootPort][index],"127.0.0.1",resolve))));
  try { for(let i=0;i<100;i++){try{const response=await fetch(transport,{headers:serviceHeaders("GET","/",global)});if(response.status===200)break;}catch{}if(i===99)throw new Error("区域production服务未启动："+serverLog.slice(-1500));await new Promise(r=>setTimeout(r,200));}
  } catch(error) { child.kill("SIGTERM");for(const server of servers){server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}await database.close();await cluster.stop();throw error;}
  await mkdir(resolve(".codex/regional-visual"),{recursive:true});
- return {cn,global,selector,transport,env,db,owner,person,ownerId,personId,oldTokens,clientId,oldCookie,folder,serverLog:()=>serverLog,close:async()=>{
+ return {cn,global,selector,transport,env,db,owner,person,ownerId,personId,oldTokens,clientId,oldCookie,folder,gatewayResponses,serverLog:()=>serverLog,close:async()=>{
   child.kill("SIGTERM");await Promise.race([once(child,"exit"),new Promise(r=>setTimeout(r,3000))]);if(child.exitCode===null)child.kill("SIGKILL");
   for(const server of servers){server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}
   await database.close();await cluster.stop();
