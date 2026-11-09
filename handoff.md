@@ -6,7 +6,7 @@
 
 身体估算已完整退役：网页录入、总览／身体估计开关、曲线标记、依据、助手／教程、AI能力、导出及初始化／补全／重建算法与脚本均移除。晨晚实测、体脂偏好、真实7日均值与变化保留，缺测为null并断线；饮食及热量估算保持。旧estimate_cell返回410 feature_removed，含该项的旧混合任务整批停止，原草稿及审计保留。
 
-应用源码171f2492373be2e6d49353c8f65df5d7e8a3042f，分支codex/retire-body-estimates；版本dual-entry-171f2492-body-observed-20261109，BUILD_ID vHmep1SfdwCGO4zNwyCb2。国际READY dpl_4fNL8bJcnQtaaTwVeMPfzXia4BUg，两正式别名API均核对指向该部署。三个入口版本、OpenAPI1.15.0、原issuer、私有查询保护及实际身体JS的SHA均一致。后续文档提交不改变正式应用；未合入或推送main，未覆盖共享原工作区变更。
+应用源码171f2492373be2e6d49353c8f65df5d7e8a3042f，分支codex/retire-body-estimates；版本dual-entry-171f2492-body-observed-20261109，BUILD_ID vHmep1SfdwCGO4zNwyCb2。国际READY dpl_4fNL8bJcnQtaaTwVeMPfzXia4BUg，两正式别名API均核对指向该部署。三个入口版本、OpenAPI1.15.0、原issuer、私有查询保护及实际身体JS的SHA均一致。后续文档提交不改变正式应用。本次身体估算退役分支已合入并推送main；原有8份未提交文档修改原样保留在overview-theme-tutorial工作区的codex/preserve-main-docs-20261109分支，其他工作区内容保持。
 
 0035_retire_body_estimates已在上海主库完成：32条有效estimated归档，现有效估计0；90条observed（89条有效）及全部原始导入、既有审计在同一事务内按行摘要核对不变。估计仅为私有审计载体保留，数据库约束禁止其成为有效记录，估计专用索引移除。正式共54表（53张public业务表及1张drizzle账本）、35条migration。没有正式虚构账号或新增实测测试数据。
 
