@@ -74,4 +74,4 @@ ROLLBACK;
 
 每日03:20（上海时间）运行 formward-primary-backup.timer，生成原生归档与 AES-256-GCM 加密副本，匹配命名的日备份保留14天；每日06:00运行 formward-primary-source-sync.timer。两项已启用并实际执行成功。一次性完整恢复演练已通过；日常作业只自动校验归档目录，不应称为每天完整恢复。
 
-原生与加密备份位于 /var/backups/formward-primary（root 0700）；密钥为 /etc/formward/backup-key（root 0600）。本次加密副本已经验证解密后 SHA-256 相同。异机自动归档尚未配置，单次异机下载结果见验收记录；数据库备份不含 Blob／COS 图片原件。
+原生与加密备份位于 /var/backups/formward-primary（root 0700）；密钥为 /etc/formward/backup-key（root 0600）。本次加密副本已经验证解密后 SHA-256 相同。单次加密副本已在用户电脑Downloads和工作区私有目录保存，并验证认证解密及原生归档SHA一致。异机自动归档尚未配置；数据库备份不含 Blob／COS 图片原件。

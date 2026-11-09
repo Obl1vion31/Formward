@@ -1,28 +1,44 @@
-# 双入口与主库迁移验收
+# 双入口与上海主库验收
 
-## 目标
+## 当前正式状态
 
-国服公网 IP 与国际 Vercel 共用上海主库，保留既有账号、GPT OAuth 和 Garmin 连接。本文件只记录已完成检查与仍待完成项，不把本机演练当作线上切换。
+国服 https://43.142.148.58 与国际 https://formward-ten.vercel.app 共用上海 formward_primary。2026年11月9日19:25:25（上海时间）开放写入，Neon旧服务凭据已失效并保持停写。开发与演练副本不参与正式写入。
 
-| 检查项 | 当前证据 | 状态 |
-|---|---|---|
-| 正式源结构 | PostgreSQL 18.6、54 表、33 条 migration；文件摘要逐项匹配 | 只读通过 |
-| 旧连接密钥 | 原 JWKS 私钥与 Garmin 凭据均可用既有密钥解密；不输出秘密 | 只读通过 |
-| 现有 GPT 连接 | 原插件 get_profile 成功，迁移前基线保存于本次工具会话 | 迁移前通过 |
-| 完整备份恢复 | 只读一致快照、原生 dump；隔离 PostgreSQL 18.6 恢复 54 表／2,604 行，摘要差异 0 | 本机通过 |
-| 新迁移 | 0034 只增加图片提供方与位置；原业务行、旧图片字段及授权数据保持 | 本机通过 |
-| 完整单元／集成 | 最终 603 项、lint、typecheck 通过，含共用 IP 场景 | 通过 |
-| 真实 PostgreSQL | 恢复工具 7 项、图片登记／撤销竞争、追加待审图片幂等与跨账号校验通过 | 本机通过 |
-| 国服／国际同 HTTPS 回源 | 直达与签名回源区分、伪造证明拒绝 | 单元通过，服务器待验 |
-| 旧会话、令牌与 CIMD 刷新 | 生产包与受信任测试 CA：原 Cookie／JWT、刷新保持同一连接；私钥断言、CIMD、公钥轮换、重放拒绝、并发隔离共 7 项 | 本机真实 TLS HTTP 通过 |
-| 同源双端生产包 | 干净提交 9ef235e4；上海 standalone 与国际网关及静态 CDN，42/42；BUILD_ID zU_2ZTWkjVB7COwugw4Wk | 构建通过 |
-| 上海完整恢复与主库备份 | 原生基线54表／2604行已恢复并严格核对；正式库尚未创建或切换 | 最终切换待完成 |
-| 真实 Garmin 与照片 | 上海原凭据换令牌、每日与活动接口成功；旧Blob原图SHA一致、COS临时图片写／读／删成功 | 网络与存储通过 |
-| 实际双端网页 | 手机／电脑，登录、查看、保存、取消与加载结构 | 切换前待验 |
-| 正式切换 | 最新停写快照、两入口一致及原连接连续性 | 尚未执行 |
+应用提交3d57f4b762881c7a92ba2cb28bc0cdc3ee0942d9，发布dual-entry-static-20261109，BUILD_ID hg_j1Z9SuUZbEVNJlHYvQ。上海standalone与国际Build Output来自同一干净提交。国际READY部署dpl_FFBeba8ftG5Wdx8qnhSF44EGtJC9，运行区域cle1；原Vercel域与global.formward.top的实际别名API均指向此部署。未合入或推送main。
 
-私有证据位于本工作区 `.codex/dual-cutover/`；原生归档与 manifest／verification 位于 `data/exports/dual-entry-baseline-*`，均不进入 Git 或部署。准备阶段归档 SHA-256 为 `8265d33296621fba11ce73ef1b9c8b9563de30b1dd5a97ff98158f13be0bb4f0`。行摘要采用 UTC、ISO 日期与固定浮点格式，新增存储字段与既有字段分别核对。
+## 数据与授权
 
-真实手机、完整跨境运营商矩阵、自然到期续证与长期备份保留周期不因一次检查而算作通过。当前独立虚构 IP 测试入口的已上线结果另见 [IP 环境](ip-preview.md)。
+| 检查 | 实际结果 |
+|---|---|
+| 最终源归档 | PostgreSQL18.6、54表、2624行、33条migration；原生归档完整恢复通过 |
+| 原生恢复对照 | 行摘要、列、约束、索引、序列及数据库编码逐项零差异 |
+| 0034 | 只增加图片存储提供方／位置及迁移账本一行；54表、34条migration，原业务与授权摘要零差异 |
+| 密钥 | 原Better Auth secret、JWKS私钥、Garmin主密钥保持；既有密文解密通过 |
+| 旧GPT连接 | 切换及最终发布后get_profile均成功，同一账号，无重新授权 |
+| 旧网页会话 | 原国际站已登录页面刷新后可读；国服独立Cookie，首次用原账号登录 |
+| Garmin | 原连接保持active；上海换令牌、每日和活动API成功，正式同步service实际成功 |
+| 数据库权限 | 仅回环5432，APP角色仅日常DML，迁移与APP角色分离；应用零行写入事务回滚验证通过 |
 
-海外网关回源的原生fetch在真实Vercel环境超时；相同环境的Node原生HTTPS在约0.3～0.7秒连接上海成功。regional-http固定配置目标并保留TLS、签名、流、多Cookie、取消和不重放，新增真实HTTP检查通过；更新后完整607项通过，正式同源发布包及最终连接验收待执行。global与origin两条专用DNS记录及证书已配置，原GPT issuer与resource不变。
+长时间跨境导出的收尾连接失败后，完成的原生归档保持不变。源库隔离期间重新用只读事务生成全量摘要，恢复库严格核对通过后才执行0034和正式开放。源端摘要采用与逐行UTF-8长度前缀SHA-256相同的SQL计算，并独立验证算法等价；0034后的本机逐行校验再次零差异。未通过改写健康数据消除差异。
+
+## 网页与图片
+
+两入口版本API均200并返回dual-entry-3d57f4b7-dual-entry-static-20261109；原OAuth issuer及端点保持。实际国服登录封面、进入表单和原国际网页可用。Next图片优化器内部读取公开构建资源时不带Host，已允许 /_next/static/ 在清除外来身份头后正常读取；业务、OAuth和健康接口的来源检查保持。实际优化图响应200、123359字节，三张封面图片解码正常。
+
+最终国际部署的私有Blob旧照片读取600911字节，SHA与原附件相同；上海COS虚构68字节PNG写／读／删成功。GPT原图下载仍在海外工作节点执行，上海只登记归属、摘要和附件引用；国内新上传使用私有COS。没有迁移或公开旧照片原件，没有新增永久Blob静态密钥。
+
+## 备份与运维
+
+正式库首次原生备份已完整恢复到隔离库并核对。每日03:20备份及06:00 Garmin同步timer已启用，两项service实际执行成功。日备份执行原生目录校验并生成AES-256-GCM副本，匹配日备份命名保留14天；每日作业不宣称每天完整恢复。
+
+单次加密备份997186字节已下载到用户电脑，AEAD认证解密成功，解密后SHA与服务器原生归档相同，密钥未写入文档。副本位于用户Downloads及本工作区被忽略的.codex/dual-cutover/offserver。服务器原生与加密文件在/var/backups/formward-primary，仅root可读。自动异机归档尚未配置，数据库备份不包含Blob／COS图片原件。
+
+IP证书续期timer每6小时检查并处于active，续期间隔配置3天；已核对下一次计划早于证书到期。自然到期续证、长期备份保留、灾难恢复演练和跨境运营商长期性能尚未经过完整周期。CPU、内存、网络与只读表结构入口见[服务器查看指南](server-operations.md)。
+
+## 技术检查与边界
+
+608项单元／集成、lint、typecheck和同源production build通过。原生HTTP传输4项、旧Cookie／JWT／refresh／CIMD及并发隔离7项真实HTTP验证通过，原生数据库恢复工具7项及加密篡改／覆盖保护验证通过。新静态资源回归同时验证无Host读取、外来身份头清理、业务来源拒绝及维护状态。
+
+本轮线上检查不向真实饮食、身体或训练写入虚构记录；业务写入及账号隔离使用已有隔离测试，线上实际写入为正常Garmin同步与认证使用元数据。本轮未重做全套Chromium／WebKit界面矩阵，真实手机和系统键盘未测，不以桌面截图冒充真机验收。
+
+私有证据：服务器/var/lib/formward/dual-cutover/final-data、final-status.json、activation-status.json、static-installed.json、postcutover-final-20261109；本工作区.codex/dual-cutover及.codex/regional-releases/dual-entry-static-20261109。公开首屏与监控截图位于用户Windows临时目录formward-ip-preview，健康截图、备份、凭据和临时图片地址不放入public、Git或部署包。

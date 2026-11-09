@@ -8,13 +8,13 @@
 
 原GPT get_profile成功且账号不变；原国际网页会话刷新后可用，Garmin原连接换令牌／每日／活动及定时同步成功，旧Blob照片600911字节SHA一致，COS虚构PNG往返68字节成功。两入口版本API均200、原OAuth issuer不变。国服首次需要用原账号登录，因为两域Cookie独立。
 
-当前应用源码2fe90d1d，dual-entry-native-20261109，BUILD_ID KZbooTdVC0rXyqufcTsdV；网关 dpl_8F556ELyQxTqy7jR3XpCUL6VDGRG，CLE1、原生HTTPS回源公网IP。国服登录封面优化器误拦的修复正在构建发布：公开 /_next/static/ 内部请求不带Host，业务请求仍严格校验，回归纳入regional.test.ts。
+当前应用源码3d57f4b762881c7a92ba2cb28bc0cdc3ee0942d9，dual-entry-static-20261109，BUILD_ID hg_j1Z9SuUZbEVNJlHYvQ；READY网关dpl_FFBeba8ftG5Wdx8qnhSF44EGtJC9／formward-6y770ctls-opgobl1v-5358.vercel.app，CLE1、原生HTTPS回源公网IP。原域和global别名API均确认指向此部署。两端版本API及旧GPT再次通过；608项、lint、typecheck与干净production build通过。公开构建图片内部读取缺少Host的问题已修复，实际优化器200、封面及登录表单可用，旧静态哈希资源保留。
 
 root私有证据 /var/lib/formward/dual-cutover/final-status.json、activation-status.json、final-data、postcutover-v1；server-final-status已更新为activated。导出收尾失败后复用完成的原生归档，重新只读生成源摘要并严格核对恢复库，不跳过一致性检查。最终SHA和报告均私有。原迁移凭据只在root私有JSON，不打印或重新生成；源凭据已由pooler改为同库直连作只读复核。
 
-上海原生PostgreSQL只监听回环5432，APP仅DML；国际网关无数据库／认证签名密钥。global.formward.top用于上海访问海外图片服务，origin域不用于当前回源。IP和origin证书由6小时ACME timer维护，自然到期续期与长期异机自动归档未验。监控与表结构查看见docs/server-operations.md；尚未完成的异机单次加密下载须如实更新验收，不把同盘副本当异机。
+上海原生PostgreSQL只监听回环5432，APP仅DML；国际网关无数据库／认证签名密钥。global.formward.top用于上海访问海外图片服务，origin域不用于当前回源。IP和origin证书由6小时ACME timer维护，自然到期续期与长期异机自动归档未验。监控与表结构查看见docs/server-operations.md。997186字节异机加密副本已落到用户Downloads及.codex/dual-cutover/offserver，认证解密、明文归档SHA与服务器一致；自动异机归档尚未配置。
 
-CUA Chrome3，OrcaTerm249599766，国服新tab249599823，原国际tab249599539、监控249599759。不再需要用户调整TUN；旧异步回复已说明。CUA仍在收尾，不要提前completion_summary。未合入或推送main，不触碰共享工作区其他变更。
+迁移和CUA验收已完成，不再需要用户调整TUN，旧异步回复已说明。原公网IP与国际站均已正式开放，不能重复源隔离、重置授权或重新初始化正式库。未合入或推送main，不触碰共享工作区其他变更。详细结果和未测范围见docs/regional-acceptance.md。
 
 ## 此前版本：全站静态内容与局部加载反馈（2026-11-08）
 

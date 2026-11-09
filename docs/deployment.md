@@ -1,6 +1,10 @@
 # 公网 HTTPS 部署
 
-## 当前正式版本：全站静态内容与局部加载反馈（2026-11-08）
+## 当前正式部署：上海主库与国际入口
+
+国服https://43.142.148.58与国际https://formward-ten.vercel.app共用上海formward_primary，Neon已停写。应用3d57f4b762881c7a92ba2cb28bc0cdc3ee0942d9，dual-entry-static-20261109，BUILD_ID hg_j1Z9SuUZbEVNJlHYvQ；国际READY部署dpl_FFBeba8ftG5Wdx8qnhSF44EGtJC9，CLE1，两条国际别名已核对。原GPT和Garmin保持，608项及构建／线上检查通过。当前部署、数据保护、备份与未测边界以[双入口部署](mainland-deployment.md)、[验收记录](regional-acceptance.md)为准，CPU／网络和表结构见[查看指南](server-operations.md)。未合入或推送main；后续纯文档提交不改变线上应用。
+
+## 此前版本：全站静态内容与局部加载反馈（2026-11-08）
 
 已按本会话此前明确的修改后直接发布授权更新[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署dpl_Ds7qyEAu1jfhdWZyVqantWprDqkb，源码61eda5541ab7acd26a3b7e378b49a44aaac779de，构建static-loading-61eda554-20261108，来自codex/static-loading；正式别名、项目、sourceCommit／gitCommitSha及版本接口均一致，未合入或推送main。后续纯文档提交不改变正式应用。
 
