@@ -46,7 +46,7 @@ try {
   assert.ok(maxDelta <= 1, "连接页加载锚点不得位移超过1px：" + maxDelta); checks.push("慢速数据库读取全过程锚点偏差≤1px");
   await page.getByText("输入个人密钥", { exact: true }).click();
   const key = page.getByLabel("Personal API 密钥", { exact: true });
-  const station = page.getByLabel("Garmin 站点", { exact: true });
+  const station = page.getByLabel("Garmin 站点");
   assert.equal(await station.inputValue(), "global");
   await station.selectOption("china");
   assert.equal(await key.getAttribute("type"), "password");
@@ -101,7 +101,7 @@ try {
   assert.equal(await page.getByRole("button", { name: "立即同步", exact: true }).isEnabled(), true);
   assert.equal(await station.inputValue(), "china");
   const other = await login(1);
-  assert.equal(await other.page.getByLabel("Garmin 站点", {exact:true}).inputValue(), "global");
+  assert.equal(await other.page.getByLabel("Garmin 站点").inputValue(), "global");
   await other.page.getByRole("button", { name: "立即同步", exact: true }).click();
   await other.page.getByText("同步完成。", { exact: true }).waitFor();
   const state = await (await context.request.get(config.controlURL + "/state")).json();
