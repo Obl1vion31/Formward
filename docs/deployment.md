@@ -1,12 +1,12 @@
 # 公网 HTTPS 部署
 
-## 当前正式部署：单一国服网页与海外后台
+## 当前正式部署：统一工作区
 
-唯一日常网页为[国服](https://43.142.148.58)，Vercel保留GPT／MCP、OAuth和海外图片后台，普通旧网页转国服，AI确认链接直接回国服。正式记录仍统一写入上海formward_primary；原GPT与Garmin已验证保持，Neon继续停写。
+[正式网页](https://43.142.148.58)继续使用上海主库，海外别名仅承担GPT／MCP、OAuth和图片后台。应用0f3434dc1a214a5ef2903d8042f712d6b06d6566、发布workspace-flow-final-20261110、BUILD_ID 6FLCAWvI2_4s7z1de3R4P，海外READY dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp、CLE1，已合入并推送main。后续纯验收文档提交不改变应用。
 
-应用141445b0474c0fa0723d243ad44bbd1ec94fb286，single-web-current-20261109，BUILD_ID C2tZf20bDMFuElnOE4wd1；海外READY dpl_24PpPLF4KJeSZroWPnJijGKodMNQ、CLE1，两条正式别名已核对。已保留身体实测及0035，54表／35 migration，本次无数据库变更；发布前后业务、审计、授权与配置摘要通过，仅正常使用时间和限流元数据改变。保留当前版本46项表单标识及密钥，旧页面实际保存通过。
+0036只增加按账号／日期忽略提醒的表；54业务表加账本共55表、36条migration。已有健康、来源、审计、授权与配置摘要保持。迁移必须使用独立数据库管理身份，不能给运行账号扩大CREATE权限；为新增表授予实际需要的读取／插入权限。公开API、MCP及已有连接保持。
 
-571项单元／集成、lint、typecheck、同源production build、严格TLS原Cookie／JWT／刷新验证，以及Chromium／WebKit完整确认和旧页保存流程通过，24张截图及录像已核看。公网跳转、原GPT、Garmin及私有Blob／COS检查成功。当前职责、数据保护、回退和未测边界以[国服与海外后台](mainland-deployment.md)、[验收记录](regional-acceptance.md)为准；CPU／网络和表结构见[查看指南](server-operations.md)。未合入或推送main，后续纯测试／文档提交不改变线上应用。
+574项测试、lint、typecheck、同源production build、双引擎加载／助手／图形与隔离TLS旧页保存通过。实际证据、数据对照和未测边界见[维护验收](maintenance-verification.md)与[交接](../handoff.md)。保留上一应用workspace-flow-20261110和对应海外部署，回退只改应用，不恢复旧数据库。
 
 ## 此前版本：全站静态内容与局部加载反馈（2026-11-08）
 

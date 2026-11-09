@@ -4,9 +4,9 @@
 
 日常网页统一为 [https://43.142.148.58](https://43.142.148.58)。Vercel 原地址 https://formward-ten.vercel.app 保留为 GPT／MCP、OAuth 与海外图片后台；普通网页 GET／HEAD 临时跳转到国服并保留页面路径和查询。GPT 生成的身体、饮食、训练及混合审核链接直接采用国服，未登录时登录后返回原确认页。
 
-上海 standalone 与 Vercel Build Output 来自同一干净应用提交141445b0474c0fa0723d243ad44bbd1ec94fb286，发布single-web-current-20261109，BUILD_ID C2tZf20bDMFuElnOE4wd1。海外READY部署dpl_24PpPLF4KJeSZroWPnJijGKodMNQ，CLE1；formward-ten.vercel.app与global.formward.top均指向该部署。后续测试与文档提交不改变正式应用，未合入或推送main。
+上海standalone与海外Build Output来自干净提交0f3434dc1a214a5ef2903d8042f712d6b06d6566，发布workspace-flow-final-20261110，BUILD_ID 6FLCAWvI2_4s7z1de3R4P。海外READY dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp、CLE1，两个正式别名一致。应用已合入并推送main；后续验收文档不改变该运行版本。
 
-唯一正式库为上海formward_primary，PostgreSQL18.6、54表、35条migration。0035身体实测规则及已有界面改动保持；本次入口收拢没有数据库迁移或健康数据写入。Neon旧服务凭据已失效并保持停写，不能重新初始化主库或把正式入口切回旧快照。原IP演示服务停止，独立formward_preview与formward_ip_preview保持隔离。
+唯一正式库为上海formward_primary，PostgreSQL18、54业务表及Drizzle账本共55表，36条migration。0035身体实测规则保持，0036只添加提醒忽略表，不写健康事实。Neon继续停写，原IP演示库保持隔离。结构变更使用独立数据库管理身份和版本化migration，应用账号维持最小权限。
 
 ## 入口与职责
 

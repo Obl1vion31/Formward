@@ -1,20 +1,24 @@
 # Formward 项目交接
 
-## 当前部署：一个国服网页与海外AI后台
+## 当前部署：统一工作区与小助手
 
-日常使用 [https://43.142.148.58](https://43.142.148.58)。Vercel原域名 https://formward-ten.vercel.app 与global.formward.top保留GPT／MCP、OAuth和海外图片服务；普通网页GET／HEAD转到国服，路径和查询保持。四类AI审核链接统一国服，未登录后返回原确认页。两个域Cookie独立，不搬运凭据；原GPT和Garmin无需重连。
+日常使用 [https://43.142.148.58](https://43.142.148.58)。formward-ten.vercel.app与global.formward.top继续承担GPT／MCP、OAuth和海外图片后台，普通网页跳转国服；原账号、连接及确认链接保持。
 
-应用141445b0474c0fa0723d243ad44bbd1ec94fb286，分支codex/mainland-dual-entry，发布single-web-current-20261109，版本dual-entry-141445b0-single-web-current-20261109，BUILD_ID C2tZf20bDMFuElnOE4wd1。两端同源构建，海外READY dpl_24PpPLF4KJeSZroWPnJijGKodMNQ、CLE1，两正式别名API已核对。后续测试／文档提交不改变该应用，未合入或推送main，其他工作区保持。
+应用源码0f3434dc1a214a5ef2903d8042f712d6b06d6566已合入并推送main，发布workspace-flow-final-20261110，BUILD_ID 6FLCAWvI2_4s7z1de3R4P，版本dual-entry-0f3434dc-workspace-flow-final-20261110。海外READY dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp、CLE1，两正式别名已核对。同一提交生成上海standalone与海外Build Output；后续验收文档提交不改变运行应用。
 
-唯一主库为上海formward_primary，54表、35条migration。已合入当前上线身体实测版本171f249与其文档，未回退0035或新上线界面。本轮没有migration、账号重置或正式虚构健康记录。发布前后结构与所有业务／审计表摘要一致；仅oauth_connections.last_used_at及rate_limits变化，OAuth安全摘要和除FORMWARD_SINGLE_WEB之外的配置摘要保持。Neon继续停写，不能重新初始化、重复迁移或恢复旧Neon入口。
+后续代码修改在WSL的/home/obl1vion/projects/Formward-worktrees/main-current进行，提交到main后构建发布至服务器/srv/formward-primary/releases；当前会话的验收资料另存于workspace-flow工作树。
 
-Next proxy保留原始URL及RSC头，完整查询参与签名；避免框架移除_rsc导致403。保留切换前当前版本46项Server Action标识和加密密钥、旧静态文件；Chromium／WebKit实际验证旧页草稿继续保存。国服匿名审核经真实登录回原预览、确认保存、旧OAuth查询和跨账号404均通过，原Cookie／JWT／refresh的受信任CA实请求验证通过。
+主导航统一总览、饮食、训练、消耗、身体。账号菜单按外部接入、账号管理收拢，owner另有管理与测试；跟随系统外观为明确开关。手机小助手在导航右侧，默认收起；常用功能从面板底部向上展开。AI待确认、今日尚未开始的训练及昨日饮食形成角标和本设备每日一次轻提示，消耗与身体只作按需补记。忽略这一天按账号／日期跨设备保存，不修改健康事实。
 
-571项单元／集成、lint、typecheck、干净production build通过；两引擎各12张深浅主题／手机／电脑截图及完整录屏已核看。线上原GPT get_profile同一账号通过；上海Garmin令牌、每日、活动接口成功；旧私有Blob600911字节SHA及COS临时68字节PNG写／读／清理通过。真实手机、系统键盘与长期跨境性能未测。本轮未重新宣称全站慢网1px矩阵通过，原身体实测专项证据仍保留。
+7D、30D及对应自定义区间采用同一居中图区，7D晨重线和数据点加粗。主导航、Logo与浏览器返回恢复来源位置，向实际骨架或正式卡片回缩一次，取消时先隐藏浮层。饮食／身体骨架首帧通过容器比例预留高度，不再用默认280px宽度校正；静息／活动分卡居中。无模糊及减少透明度回退采用足够的选择器优先级。
 
-上海实际启用时间2026-11-09T15:41:04.276160Z；应用观察至15:47:42.228836Z，journal匹配错误0；不据此宣称完整请求历史或20分钟观察。备份、Garmin、IP证书timer均active；发布前异机备份已回读校验。安全应用回退保留body-observed-20261109及海外dpl_4fNL8bJcnQtaaTwVeMPfzXia4BUg，兼容0035，只回退应用、不恢复旧数据。
+574项单元／集成、lint、typecheck、干净production build通过。Chromium与WebKit各80组全站加载矩阵、各17组助手检查、三类关联图与编辑／保存完整流程通过；固定槽位最大偏差不超过1 CSS px。另录制修复前69次、修复后138次往返，修复版落地残留0，监听器未逐次增加；不把本机采样作为真机帧率证明。200%文字为CSS模拟。旧页保存同时核对面板关闭、真实入库和服务端响应结束，原Cookie／JWT／refresh及跨账号隔离通过。
 
-私有证据为本工作树.codex/single-web、.codex/regional-releases/single-web-current-20261109与服务器/var/lib/formward/single-web-20261109。只读摘要采用服务器postgres本地身份，不扩大程序账号权限；失败保护脚本和候选服务重试均保留，正式数据未受影响。公开国服入口截图在C:/Users/14878/.codex/visualizations/2026/11/09/formward-single-web。部署职责、恢复顺序及验收见[国服与后台](docs/mainland-deployment.md)、[验收记录](docs/regional-acceptance.md)。
+唯一正式库为上海formward_primary，54张业务表加Drizzle账本共55表、36条migration。0036只增加assistant_reminder_dismissals；没有正式虚构账号或健康测试记录。迁移及发布后的旧结构、全部旧业务／来源／审计表摘要、OAuth安全摘要和完整配置摘要保持，账本仅新增0036，另有正常限流元数据变化，提醒表为空。运行账号不取得建表权限；迁移以数据库管理身份执行，并只为新增表授予必要读取／插入权限。Neon继续停写。
+
+公开IP首页及版本、旧网页跳转、OAuth／MCP与私有路径保护通过。服务观察窗口UTC 2026-11-09T19:35:37.597208+00:00至2026-11-09T19:39:39.085899+00:00，应用journal错误0；海外Runtime error／fatal与5xx查询无记录、无排除区间或后续分页。国服站点原本关闭access log，不能据此宣称完整请求历史5xx为0；已执行的公开探测没有5xx，不宣称20分钟观察。真实手机、系统键盘、屏幕阅读器和真机帧率未测。
+
+保留应用workspace-flow-20261110及海外dpl_5fQPQ49soiTXs27Gu71QEcdwtcPR供回退；同样兼容0036且不恢复身体估算。只回退应用，不删除新表或恢复旧数据库，不覆盖合法用户更新。备份服务已成功并完成异地回读。私有部署证据在.codex/release-control、.codex/final-release-control、.codex/regional-releases及服务器/var/lib/formward/workspace-flow-20261110、workspace-flow-final-20261110。浏览器证据在.codex/loading-final、loading-native-webkit、loading-native-flows、assistant-r3、assistant-final、linked-r3、linked-final-webkit、final-preview和visual-final。可播放实录在C:/Users/14878/.codex/visualizations/2026/11/10/formward-workspace-flow。
 
 ## 保留能力：身体仅保留实测
 
