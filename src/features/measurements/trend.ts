@@ -51,7 +51,7 @@ export function measurementTrend<T extends DailyMeasurement>(records: T[], metri
   const connect = (points: T[], period: "daytime" | "evening") => points.slice(1).flatMap((b, index) => {
     const a = points[index];
     const unresolved = days.some((day) => day.date > a.recordDate && day.date < b.recordDate && day[period].length > 1 && !(period === "daytime" ? day.daytimeRecord : day.eveningRecord));
-    return unresolved ? [] : [{ a, b, period, estimated: a.recordKind === "estimated" || b.recordKind === "estimated", missingDayCount: calendarOrdinal(b.recordDate) - calendarOrdinal(a.recordDate) - 1 }];
+    return unresolved || calendarOrdinal(b.recordDate) - calendarOrdinal(a.recordDate) !== 1 ? [] : [{ a, b, period }];
   });
   const segments = [...connect(morning, "daytime"), ...connect(evening, "evening")];
   const pairs = showEvening ? days.filter((day) => metricDifference(day.daytimeRecord, day.eveningRecord, metric) !== null) : [];

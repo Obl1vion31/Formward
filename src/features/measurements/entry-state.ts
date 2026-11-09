@@ -1,8 +1,7 @@
 import { adoptedMeasurements } from "./days";
 import type { DailyMeasurement } from "./days";
 import type { MeasurementMetric } from "./trend";
-import type { EstimationMetadata } from "./estimation";
-import type { SaveMeasurementDayInput, EstimateCellInput } from "./editing";
+import type { SaveMeasurementDayInput } from "./editing";
 
 export const entryPeriods = ["daytime", "evening"] as const;
 export const entryMetrics = ["weightKg", "bodyFatPercent"] as const;
@@ -15,14 +14,13 @@ export type MeasurementDisplay = DailyMeasurement & {
   utcOffsetMinutes?: number | null;
   sourceType: string; sourceSystem: string | null; sourceRecordId: string | null;
   recordKind: "observed" | "estimated"; entryChannel: "api" | "manual" | "development_backend" | null;
-  deviceLabel: string | null; estimation: EstimationMetadata | null;
+  deviceLabel: string | null;
   timePrecision: string; updatedAt: string;
 };
 export type EntryResult = { ok: true; records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; message: string } | { ok: false; error: string };
 export type SourceRemovalResult = { ok: true; sources: string[] } | { ok: false; error: string };
 export type MeasurementActions = {
   save: (input: SaveMeasurementDayInput) => Promise<EntryResult>;
-  estimate: (input: EstimateCellInput) => Promise<EntryResult>;
   deleteCell?: (input: {recordId:string;version:string;metric:MeasurementMetric;operationId:string}) => Promise<EntryResult>;
   removeSource: (label: string) => Promise<SourceRemovalResult>;
 };
@@ -40,9 +38,9 @@ export function measurementEntryState<T extends DailyMeasurement>(records: T[], 
     const selected = observed.find(row => row.id === choices[`${date}:${period}`]) ?? (observed.length === 1 ? observed[0] : null);
     const pending = observed.length > 1 && !selected;
     const fields = Object.fromEntries(entryMetrics.map(metric => {
-      const row = selected?.[metric] != null ? selected : rows.find(row => row.recordKind === "estimated" && row[metric] != null);
-      return [metric, { value: pending ? null : row?.[metric] ?? null, kind: pending ? "pending" as const : row ? row.recordKind === "estimated" ? "estimated" as const : "observed" as const : "missing" as const }];
-    })) as Record<MeasurementMetric, { value: string | null; kind: "pending" | "missing" | "observed" | "estimated" }>;
+      const row = selected?.[metric] != null ? selected : null;
+      return [metric, { value: pending ? null : row?.[metric] ?? null, kind: pending ? "pending" as const : row ? "observed" as const : "missing" as const }];
+    })) as Record<MeasurementMetric, { value: string | null; kind: "pending" | "missing" | "observed" }>;
     return { period, observed: selected, candidates: observed, pending, fields };
   });
 }

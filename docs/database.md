@@ -140,7 +140,7 @@ user_id 有索引，令牌只通过完整随机原文摘要查找并映射账号
 | oauth_connection_id | text FK nullable | OAuth 发起连接，关联 oauth_connections |
 | operation_id | text | 客户端稳定请求 ID，按账号唯一 |
 | request_digest | text | 规范化请求摘要，重试须同内容和发起凭据 |
-| snapshot_digest | text | 身体记录及初始化冻结依据快照摘要 |
+| snapshot_digest | text | 有效身体实测快照摘要 |
 | payload | jsonb | 不可变的批量／兼容单日／单项原始请求，幂等摘要绑定此内容 |
 | preview | jsonb | 前后值、冲突、估算依据；items 内保存稳定行 ID、原始内容、当前草稿、编辑者与逐行状态／结果 |
 | revision | integer | 默认 1，网页修改／刷新／确认／取消递增，拒绝旧版本覆盖 |
@@ -370,30 +370,30 @@ JWT 签名公私钥。私钥由 Better Auth 加密保存，公开端点只返回
 | `occurred_at` | `timestamp with time zone` | 可空：未提供／不适用，具体见用途 | 准确测量的 UTC 时刻；未知时区或占位／日期时段／估计时为空 | `records.ts／time.ts` |
 | `timezone` | `text` | 可空：未提供／不适用，具体见用途 | 当次 IANA 时区；空值表示未知，不用当前所在地改旧数据 | `records.ts／time.ts` |
 | `utc_offset_minutes` | `integer` | 可空：未提供／不适用，具体见用途 | 当次相对 UTC 的分钟偏移；空值表示没有准确时刻或未知 | `time.ts` |
-| `time_precision` | `text` | 无空值；默认 'second' | second 为准确时间；day_period 为日期时段；assumed 为明确授权占位 | `records.ts／估计 feature` |
+| `time_precision` | `text` | 无空值；默认 'second' | second 为准确时间；day_period 为日期时段；assumed 为明确授权占位 | `records.ts` |
 | `record_date` | `date` | 无空值 | 唯一记录日期，用于日历、晨晚配对和估计；凌晨仍放前一天晚间 | `records.ts／editing.ts／assignment.ts` |
 | `period` | `text` | 无空值 | daytime 或 evening；当地凌晨按前日晚间归属 | `assignment.ts／records.ts` |
-| `assignment_method` | `text` | 无空值 | 归属方式，例如 clock、user_period、estimated_target | `assignment.ts／records.ts／estimate-records.ts` |
-| `assignment_rule_version` | `text` | 无空值 | 归属规则版本，旧记录不自动重分组 | `assignment.ts／records.ts／estimate-records.ts` |
+| `assignment_method` | `text` | 无空值 | 归属方式，例如 clock、user_period、estimated_target | `assignment.ts／records.ts` |
+| `assignment_rule_version` | `text` | 无空值 | 归属规则版本，旧记录不自动重分组 | `assignment.ts／records.ts` |
 | `fasting` | `boolean` | 可空：未提供／不适用，具体见用途 | 空腹条件；空值表示未确认，不等同非空腹 | `records.ts／授权 maintenance.ts` |
-| `fasting_source` | `text` | 可空：未提供／不适用，具体见用途 | 空腹确认依据；空值表示条件未知 | `records.ts／estimate-records.ts／授权 maintenance.ts` |
-| `weight_kg` | `numeric(7, 2)` | 可空：未提供／不适用，具体见用途 | 体重 kg；空值表示该指标未知，不能用 0 代替 | `records.ts／editing.ts／estimate-records.ts` |
-| `body_fat_percent` | `numeric(5, 2)` | 可空：未提供／不适用，具体见用途 | 体脂百分比；空值表示未知，0 可为已知数值 | `records.ts／editing.ts／estimate-records.ts` |
-| `source_type` | `text` | 无空值 | 原始采集方式：import、manual 或 estimate | `records.ts／estimate-records.ts` |
-| `record_kind` | `text` | 无空值；默认 'observed' | observed 为实测，estimated 为系统估计 | `records.ts／estimate-records.ts` |
+| `fasting_source` | `text` | 可空：未提供／不适用，具体见用途 | 空腹确认依据；空值表示条件未知 | `records.ts／授权 maintenance.ts` |
+| `weight_kg` | `numeric(7, 2)` | 可空：未提供／不适用，具体见用途 | 体重 kg；空值表示该指标未知，不能用 0 代替 | `records.ts／editing.ts` |
+| `body_fat_percent` | `numeric(5, 2)` | 可空：未提供／不适用，具体见用途 | 体脂百分比；空值表示未知，0 可为已知数值 | `records.ts／editing.ts` |
+| `source_type` | `text` | 无空值 | 原始采集方式：import、manual 或 estimate | `records.ts` |
+| `record_kind` | `text` | 无空值；默认 'observed' | 有效记录仅observed；estimated必须已归档 | `records.ts` |
 | `entry_channel` | `text` | 可空：未提供／不适用，具体见用途 | api、manual、development_backend；空值表示旧入口未知 | `records.ts；编辑保留原入口` |
 | `device_label` | `text` | 可空：未提供／不适用，具体见用途 | 设备与连接应用的合并名称快照；空值表示未知，估计保持为空 | `editing.ts／records.ts／sources.ts／授权来源维护` |
-| `estimation` | `jsonb` | 可空：未提供／不适用，具体见用途 | 估计规则、真实依据和样本快照；实测为空 | `estimate-records.ts／initialization.ts／rebuild.ts` |
+| `estimation` | `jsonb` | 可空：未提供／不适用，具体见用途 | 仅保留旧估计审计JSON，当前实测恒为空 | `0035迁移后的私有历史载体，无业务写入` |
 | `source_system` | `text` | 可空：未提供／不适用，具体见用途 | 真实外部来源系统；空值表示未提供，不能把输入工具当外部同步 | `records.ts／后续连接器` |
 | `source_record_id` | `text` | 可空：未提供／不适用，具体见用途 | 外部稳定记录标识；空值表示来源未提供 | `records.ts／后续连接器` |
-| `import_id` | `text` | 可空：未提供／不适用，具体见用途 | 导入或操作批次关联；空值表示无批次 | `records.ts／editing.ts／估计 feature` |
+| `import_id` | `text` | 可空：未提供／不适用，具体见用途 | 导入或操作批次关联；空值表示无批次 | `records.ts／editing.ts` |
 | `source_row` | `integer` | 可空：未提供／不适用，具体见用途 | 原文件行号；非文件来源为空 | `imports/measurements.ts／records.ts` |
-| `original_values` | `jsonb` | 无空值 | 不可覆盖的原始输入快照；既有 BMI 可留在历史输入中，新增业务输入无 BMI | `records.ts／estimate-records.ts；编辑不改写` |
-| `deduplication_key` | `text` | 无空值 | 账号内唯一写入指纹；旧键保持，重导另核对原始时间和体重／体脂 | `records.ts／estimate-records.ts` |
+| `original_values` | `jsonb` | 无空值 | 不可覆盖的原始输入快照；既有 BMI 可留在历史输入中，新增业务输入无 BMI | `records.ts；编辑不改写` |
+| `deduplication_key` | `text` | 无空值 | 账号内唯一写入指纹；旧键保持，重导另核对原始时间和体重／体脂 | `records.ts` |
 | `created_by` | `text` | 无空值 | 创建操作者标识，与来源真实性分开 | `各写入 feature` |
 | `created_at` | `timestamp with time zone` | 无空值；默认 now() | 创建时间；不是测量时间 | `创建记录时由数据库／feature 写入` |
 | `updated_at` | `timestamp with time zone` | 无空值；默认 now() | 最近修改时间；测量编辑用它作并发版本 | `对应 feature 更新` |
-| `deleted_at` | `timestamp with time zone` | 可空：未提供／不适用，具体见用途 | 软删除时刻；空值表示有效，可由授权维护恢复 | `maintenance.ts／estimate-records.ts／初始化与重建` |
+| `deleted_at` | `timestamp with time zone` | 可空：未提供／不适用，具体见用途 | 软删除时刻；空值表示有效，可由授权维护恢复 | `maintenance.ts／初始化与重建` |
 
 约束与索引：
 
@@ -424,7 +424,7 @@ JWT 签名公私钥。私钥由 Better Auth 加密保存，公开端点只返回
 | `created_by` | `text` | 无空值 | 创建操作者标识，与来源真实性分开 | `各写入 feature` |
 | `created_at` | `timestamp with time zone` | 无空值；默认 now() | 创建时间；不是测量时间 | `创建记录时由数据库／feature 写入` |
 | `updated_at` | `timestamp with time zone` | 无空值；默认 now() | 最近修改时间；测量编辑用它作并发版本 | `对应 feature 更新` |
-| `deleted_at` | `timestamp with time zone` | 可空：未提供／不适用，具体见用途 | 软删除时刻；空值表示有效，可由授权维护恢复 | `maintenance.ts／estimate-records.ts／初始化与重建` |
+| `deleted_at` | `timestamp with time zone` | 可空：未提供／不适用，具体见用途 | 软删除时刻；空值表示有效，可由授权维护恢复 | `maintenance.ts／初始化与重建` |
 
 约束与索引：
 
@@ -776,3 +776,5 @@ account_preferences由0030_account_preferences创建，不回填或修改旧健�
 0033_training_sessions新增四表：training_sessions保存账号、当地日期与时区、原始开始时间、动作组次JSON、状态、版本、有效秒数、恢复／结束时间、计划关联、来源系统、kg单位、同步状态与创建者；training_templates保存账号、内容JSON、版本和创建者；training_plans保存账号、模板关联、日期、内容快照、计划／完成／跳过状态及版本；training_events保存账号、请求ID及摘要、目标ID、动作、来源、操作者、前后快照和时间。所有表保留创建时间；会话和计划保留更新时间。
 
 账号／模板、账号／计划使用组合外键；每账号最多一场active／paused会话，同日同模板最多一条planned计划，事件按账号／operation_id唯一。旧表字段和值不变。训练不自动写activities或energy_days；详见[训练记录](training.md)。
+
+身体估算已退役：0035将有效estimated行归档并追加审计，observed_active约束禁止恢复或新增有效估计；不改实测、原始导入和旧审计。

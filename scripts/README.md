@@ -12,11 +12,8 @@
 
 - `manage-account.mts`（`pnpm account:owner`）：首次指定已有账号为唯一 owner，或在交互终端恢复 owner 密码。先 `--preview 邮箱` 核对用户 ID，再 `--write 邮箱 用户ID`；恢复用 `--recover 邮箱 用户ID`，隐藏输入并确认6–128字符新密码，长度与网页共用password-policy.ts，撤销全部访问并留维护审计。读取私有配置，预览不写入；不能通过此入口新增第二个 owner、恢复普通账号或删除健康数据。日常邀请、停用、恢复、重设和设备管理均从网页完成。
 
-- `initialize-measurement-history.mts`：执行明确授权的一次性历史初始化，与正常估计完全分开。用法：`node --env-file=.env.local --import tsx scripts/initialize-measurement-history.mts data/exports/私有请求.json --preview|--write 预览摘要`。JSON 包含 `userId`、`request: { operationId, range: { start, end } }`，范围最多 366 天。只接受私有 `data/exports/` 请求；预览可使用指定范围内后续已存在的真实配对与晨间记录，执行绑定账号快照、软删除旧估计、生成独立批次并冻结整个范围。每账号只能完成一次；相同请求返回原报告，不同请求不能重做。执行后输出同请求名的 `.report.json` 和 `.report.md`，文件权限 0600，完整报告同时保存在数据库批次中，导出失败可重试恢复。执行前备份账号记录、批次和事件。不得把报告或实际数值提交 Git／放入 public。
 
-- `rebuild-measurement-estimates.mts`：仅用正常过去数据规则重建指定账号与范围的估计，禁止与初始化冻结范围重叠，不修改真实记录及来源。格式：`node --env-file=.env.local --import tsx scripts/rebuild-measurement-estimates.mts 私有请求JSON --preview|--write 预览摘要`。JSON 包含 `userId` 和 `request: { operationId, range: { start, end } }`，日期为 YYYY-MM-DD、范围最多 366 天。预览列出旧估计、结果和缺项原因；执行绑定账号快照，软删除旧估计后生成晨间基准版本，样本不足留空。仅用于已经授权的历史重建；事务审计、幂等和私有报告约定与其他维护工具相同。
 
-- `complete-measurements.mts`：通过 measurements feature 为指定账号预览／写入历史来源标记、用户提供的实测和缺测估计。格式：`node --env-file=.env.local --import tsx scripts/complete-measurements.mts 私有请求JSON --preview|--write 预览摘要`。JSON 包含 `userId` 与 `request`，后者包含 `operationId`、补全 `range`、最多 28 天的来源维护阶段 `trainingRange`（模型独立按目标日前 28 天采样）、`deviceLabel` 和实测 `records`；日期为 YYYY-MM-DD，时段为 daytime／evening，指标为十进制字符串，空腹显式确认。准确当地时间可用 `measuredAt: YYYY-MM-DD HH:mm:ss`，验证跨午夜归属并保存时区与 UTC；同数值时可确认原占位时间。占位时间可用 `assumedTime: HH:mm`，存储为 assumed、UTC 为空；完全未知时间仅存日期时段。预览绑定当前账号快照，写入须已授权，重复请求幂等，普通补全保留已有估计；该明确补全任务可刷新冻结外受影响日的缺项，冻结内只移除实测替代指标；普通写入、编辑、导入或恢复不自动估算；真实数值和模型报告放在被 Git 忽略的私有目录。脚本审计记录 AI 代执行，数值是否实测与执行者分别保存。
 
 - `maintain-measurements.mts`：指定内部账号，预览当前晚间条件修正及同日同时段候选；按真实发生时间保留较早一条，其他软删除，可按记录恢复。格式：`node --env-file=.env.local --import tsx scripts/maintain-measurements.mts 账号邮箱 --preview`；核对后用 `--write 预览摘要` 执行已授权操作，用 `--restore 记录ID` 恢复。摘要绑定账号当前记录，数据改变须重新预览；事务保存前后快照、操作者和时间，重复执行幂等。工具不会在导入或页面加载时自动运行。
 
@@ -66,7 +63,6 @@ node --import tsx --test scripts/rehearse-database.test.mts
 
 测试复用 `tests/accounts.concurrent.mts` 的临时 `embedded-postgres` 工具，可通过 `FORMWARD_EMBEDDED_POSTGRES_MODULE` 指定模块路径。验证真实归档恢复、导出快照建立后的并发写入、微秒和高精度 numeric、密码／停用字段、序列、DROP 列后恢复及列顺序变化、旧摘要只读复核、损坏归档 SHA 拒绝、0600、dry-run 零目标写入、错误目标和覆盖拒绝；客户端路径沿用上述两个环境变量。
 
-旧补全私有请求的拆分设备字段仅在 `complete-measurements.mts` 入口转换为 deviceLabel；旧 BMI 被忽略，原文件不改写。当前 feature 及新维护请求只使用合并来源。数据库字段及迁移检查见 [数据库字典](../docs/database.md)。
 
 测量维护请求的日期使用 `recordDate`；旧私有 JSON 的 `analysisDate` 在读取入口兼容，双字段不同则拒绝，原文件不改写。旧补全请求指纹仍返回原批次；结构迁移前的预览须重新生成。
 
@@ -83,3 +79,5 @@ node --import tsx --test scripts/rehearse-database.test.mts
 `preview-energy-history.mts` 为明确账号与日期范围生成一次性消耗补缺预览，不写正式事实、不建立默认值。私有JSON包含userId、operationId、正式baseURL、可选from、to、restingKcal、可选restingSourceSystem及cleanupDate。省略from时读取该账号最早事实日期，保护已填静息、活动、总数与来源；只有没有活动合计或运动记录的日期补0。用法：`node --env-file=.env.local --import tsx scripts/preview-energy-history.mts data/exports/私有请求.json --preview|--stage`。stage使用已有同账号write令牌调用正式统一审核入口，仍须用户网页登录确认。误加日期若有正式静息记录，必须先核对来源，再在私有请求提供cleanupRecord（id／version／expectedRestingKcal），只清理该分项；没有正式值时无需删除。预览、原快照、请求和操作结果均0600，禁止提交或放入public。
 
 build.mjs是pnpm build的入口，为一次构建产生同一非敏感版本标识并交给Next.js内联；浏览器与/api/app-version共用，运行服务不重新生成。FORMWARD_BUILD_VERSION只在需要可重复验收的构建中显式指定，不能以运行时随机值替代构建版本。
+
+身体维护仅处理实测与来源；估算、历史补全、初始化和重建脚本已移除，不能恢复归档估计。

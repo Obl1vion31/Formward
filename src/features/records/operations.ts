@@ -1,3 +1,4 @@
+import { assertBodyEstimateRemoved, containsRetiredBodyEstimate } from "../measurements/retirement";
 import { isTraining } from '../training/ai-model';
 import { planTrainingItems } from '../training/ai-plans';
 import { readTraining, mutateTraining } from '../training/records';
@@ -140,6 +141,7 @@ async function expandEnergyRelations(db:Database,userId:string,items:RecordItem[
 
 async function find(db: Database, userId: string, id: string, source?: Source) {
   const [row] = await db.select().from(recordOperation).where(and(eq(recordOperation.userId, userId), source ? eq(source === "body" ? recordOperation.measurementOperationId : recordOperation.mealOperationId, id) : or(eq(recordOperation.id, id), eq(recordOperation.measurementOperationId, id))));
+  if (row) { assertBodyEstimateRemoved(row.payload); assertBodyEstimateRemoved(row.draft); }
   return row;
 }
 async function legacy(db: Database, userId: string, id: string, source: Source): Promise<Stored> {
@@ -157,6 +159,7 @@ async function legacy(db: Database, userId: string, id: string, source: Source):
   return { id, userId, operationId: payload.operationId, payload, requestDigest: digest(payload), draft, revision: 1, status, createdAt, confirmedAt: null, measurementOperationId: source === "body" ? id : null, mealOperationId: source === "meal" ? id : null, energyOperationId: null, energyRevision: null, measurementRevision: source === "body" ? (await getAiMeasurementOperation(db, userId, id)).revision : null, mealRevision: source === "meal" ? (await getMealOperation(db, userId, id)).revision : null };
 }
 async function view(db: Database, row: Stored): Promise<RecordReviewView> {
+  assertBodyEstimateRemoved(row.payload); assertBodyEstimateRemoved(row.draft);
   const body = row.measurementOperationId ? await getAiMeasurementOperation(db, row.userId, row.measurementOperationId) : null;
   const meal = row.mealOperationId ? displayMealOperation(await getMealOperation(db, row.userId, row.mealOperationId)) : undefined;
   const energy = row.energyOperationId ? displayEnergyOperation(await getEnergyOperation(db, row.userId, row.energyOperationId)) : undefined;
@@ -212,6 +215,7 @@ export async function loadRecordReview(db: Database, userId: string, id: string,
   return view(db, await legacy(db, userId, id, "body"));
 }
 export async function submitRecordOperation(db: Database, identity: AiIdentity, raw: unknown, timezone = systemMeasurementTimezone()) {
+  assertBodyEstimateRemoved(raw);
   const parsed = recordInputSchema.safeParse(raw);
   if (!parsed.success) throw new ApiError(400, "invalid_input", parsed.error.issues[0]?.message ?? "记录无效。");
   const input = parsed.data;
@@ -219,8 +223,8 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
   if (Buffer.byteLength(JSON.stringify(input)) > 65536) throw new ApiError(413, "invalid_input", "单次提交最多64 KiB。");
   return db.transaction(async tx => {
     await lockOwner(tx, identity.userId); const connection = tx as unknown as Database;
-    if (input.items.some(item => item.kind === "save_record" || item.kind === "estimate_cell")) await requireActiveAiToken(tx, identity, true);
-    if (input.items.some(item => item.kind !== "save_record" && item.kind !== "estimate_cell" && !isEnergy(item) && !isTraining(item))) await requireActiveAiToken(tx, identity, true, "meals");
+    if (input.items.some(item => item.kind === "save_record")) await requireActiveAiToken(tx, identity, true);
+    if (input.items.some(item => item.kind !== "save_record" && !isEnergy(item) && !isTraining(item))) await requireActiveAiToken(tx, identity, true, "meals");
     if (input.items.some(isTraining)) await requireActiveAiToken(tx, identity, true, "training");
     if (input.items.some(isEnergy)) await requireActiveAiToken(tx, identity, true, "energy");
     const [prior] = await tx.select().from(recordOperation).where(and(eq(recordOperation.userId, identity.userId), eq(recordOperation.operationId, input.operationId)));
@@ -384,7 +388,7 @@ export async function listRecordOperations(db: Database, userId: string) {
   const bodies = bodyIds.length ? await db.select().from(measurementOperation).where(and(eq(measurementOperation.userId, userId), inArray(measurementOperation.id, bodyIds))) : [];
   const meals = mealIds.length ? await db.select().from(mealOperation).where(and(eq(mealOperation.userId, userId), inArray(mealOperation.id, mealIds))) : [];
   const energies = energyIds.length ? await db.select().from(energyOperation).where(and(eq(energyOperation.userId, userId), inArray(energyOperation.id, energyIds))) : [];
-  return rows.map(row => {
+  return rows.filter(row => !containsRetiredBodyEstimate(row.payload) && !containsRetiredBodyEstimate(row.draft)).map(row => {
     const body = bodies.find(child => child.id === row.measurementOperationId), meal = meals.find(child => child.id === row.mealOperationId), energy = energies.find(child => child.id === row.energyOperationId);
     const summaryItems = row.draft.map(item => {
       const index = mealItems(row.draft).findIndex(candidate => candidate.key === item.key);

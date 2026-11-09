@@ -16,7 +16,7 @@ function meal(day: string, status: "complete" | "incomplete" | "unconfirmed", pa
   const items = [{ kind: "food" as const, name: malicious, quantity: "2", unit: "份", nutrition, sourceKind: "estimated" as const }, { kind: "food" as const, name: "未知项目", nutrition: emptyNutrition(), sourceKind: "unknown" as const }];
   return { id: randomUUID(), version: 1, date: day, mealType: "午餐", timezone: "Asia/Shanghai", source: "manual", deletedAt: null, imageIds: [randomUUID()], items, totals: sumNutrition(items.map(row => row.nutrition)), day: { date: day, status, version: 1, contentDigest: "a".repeat(64), source: "user" }, ...patch };
 }
-function weight(day: string, value: string, estimated = false): MeasurementDisplay { return { id: randomUUID(), recordDate: day, period: "daytime", weightKg: value, bodyFatPercent: null, fasting: true, sourceLocalTime: day, timezone: "Asia/Shanghai", sourceType: "manual", sourceSystem: "虚构应用", sourceRecordId: null, recordKind: estimated ? "estimated" : "observed", deviceLabel: estimated ? null : "虚构秤", estimation: null, entryChannel: estimated ? null : "manual", timePrecision: "day_period", updatedAt: day }; }
+function weight(day: string, value: string, estimated = false): MeasurementDisplay { return { id: randomUUID(), recordDate: day, period: "daytime", weightKg: value, bodyFatPercent: null, fasting: true, sourceLocalTime: day, timezone: "Asia/Shanghai", sourceType: "manual", sourceSystem: "虚构应用", sourceRecordId: null, recordKind: estimated ? "estimated" : "observed", deviceLabel: estimated ? null : "虚构秤", entryChannel: estimated ? null : "manual", timePrecision: "day_period", updatedAt: day }; }
 const source = { timezone: "Asia/Shanghai", sourceSystem: "虚构手表", sourceRecordId: null, sourceOccurredAt: null, sourceUnit: "kcal" as const, syncStatus: "confirmed" as const };
 function energy(day: string, patch: Partial<EnergyDayRecord> = {}): EnergyDayRecord { return { id: randomUUID(), date: day, version: 1, deletedAt: null, ...source, entryMode: "components", activityMode: "total", restingKcal: "2000", activeKcal: "0", totalKcal: null, ...patch }; }
 const context = { today: next, timezone: "Asia/Shanghai", exportedAt: new Date("2024-08-03T00:00:00Z") };
@@ -46,7 +46,8 @@ test("原生xlsx回读保留数字、零、未知、来源、日完整状态与�
   assert.equal(value(book, "每日消耗", 2, "活动 · kcal"), 0);
   assert.equal(value(book, "每日消耗", 3, "最终消耗 · kcal"), 2800);
   assert.equal(value(book, "每日消耗", 3, "静息 · kcal"), null, "总数模式不暴露未采用旧分项");
-  assert.equal(value(book, "身体记录", 3, "实测或估计"), "估计");
+  assert.equal(book.getWorksheet("身体记录")!.rowCount,2,"只导出实测");
+  assert.ok(!(book.getWorksheet("身体记录")!.getRow(1).values as string[]).some(label=>/估计|估算/.test(label)));
   assert.equal(value(book, "身体记录", 2, "来源"), "虚构秤");
   assert.equal(value(book, "活动明细", 2, "热量 · kcal"), null);
   assert.equal(value(book, "活动明细", 2, "时长 · 分钟"), 0);
@@ -58,8 +59,8 @@ test("范围含首末日且保留末日次晨配对，参考食材与已生效�
   assert.equal(book.getWorksheet("每日汇总")!.rowCount, 2);
   assert.equal(book.getWorksheet("身体记录")!.rowCount, 2);
   assert.equal(value(book, "每日汇总", 2, "次晨日期"), next);
-  assert.equal(value(book, "每日汇总", 2, "次晨变化 · kg"), 0.5);
-  assert.equal(value(book, "每日汇总", 2, "体重变化含估计"), "是");
+  assert.equal(value(book, "每日汇总", 2, "次晨变化 · kg"), null,"估计次晨不参与配对");
+  assert.ok(!(book.getWorksheet("每日汇总")!.getRow(1).values as string[]).includes("体重变化含估计"));
   assert.equal(book.getWorksheet("食材库")!.rowCount, 2);
   assert.equal(book.getWorksheet("公式资料"), undefined);
 });

@@ -5,9 +5,6 @@ import type { Database } from "../../db/client";
 import { measurement, measurementDay, measurementEvent, measurementImport } from "../../db/schema";
 import { archiveMeasurementCandidates, insertReportedMeasurement, lockMeasurementOwner, validateReportedMeasurement, type MeasurementActor, type MeasurementTransaction } from "./records";
 import { calendarOrdinal, type MeasurementMetric } from "./trend";
-import { buildHistoricalEstimates } from "./estimation";
-import { insertEstimate, supersedeEstimates } from "./estimate-records";
-import { getInitializationBatch, isFrozenDate } from "./initialization";
 import { entryMetrics, entryPeriods, localMeasurementDate, type EntryPeriod, type MeasurementDisplay } from "./entry-state";
 
 import { rememberMeasurementSource, resolveMeasurementSource } from "./sources";
@@ -25,15 +22,15 @@ export type PeriodEdit = {
   timezone?: string | null;
 };
 export type SaveMeasurementDayInput = { date: string; timezone: string | null; periods: Partial<Record<EntryPeriod, PeriodEdit>>; operationId: string };
-export type EstimateCellInput = { date: string; period: EntryPeriod; metric: MeasurementMetric; operationId: string };
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 export function measurementDisplay(row: typeof measurement.$inferSelect): MeasurementDisplay {
+  if (row.recordKind !== "observed") throw new Error("历史估计仅作私有审计归档，不能展示为实测。");
   return { id: row.id, recordDate: row.recordDate, period: row.period,
     weightKg: row.weightKg, bodyFatPercent: row.bodyFatPercent, fasting: row.fasting,
     sourceLocalTime: row.sourceLocalTime, timezone: row.timezone, timezoneLabel: timezoneLabel(row.timezone, row.recordDate, row.utcOffsetMinutes), utcOffsetMinutes: row.utcOffsetMinutes, sourceType: row.sourceType,
-    sourceSystem: row.sourceSystem, sourceRecordId: row.sourceRecordId, recordKind: row.recordKind,
+    sourceSystem: row.sourceSystem, sourceRecordId: row.sourceRecordId, recordKind: "observed",
     entryChannel: row.entryChannel, deviceLabel: row.deviceLabel,
-    estimation: row.estimation, timePrecision: row.timePrecision, createdAt:row.createdAt.toISOString(),sourceRow:row.sourceRow, updatedAt: row.updatedAt.toISOString() };
+    timePrecision: row.timePrecision, createdAt:row.createdAt.toISOString(),sourceRow:row.sourceRow, updatedAt: row.updatedAt.toISOString() };
 }
 function requireActor(actor: MeasurementActor) {
   if (!actor.userId?.trim() || actor.actorId !== actor.userId) throw new Error("操作者与账号不一致。");
@@ -123,7 +120,6 @@ export async function saveMeasurementDay(db: Database, actor: MeasurementActor, 
         await archiveMeasurementCandidates(tx,actor,input.date,period,before.id);
         const [after] = await tx.update(measurement).set({ weightKg: valid.weightKg, bodyFatPercent: valid.bodyFatPercent, deviceLabel, fasting: valid.fasting, fastingSource: valid.fastingSource, ...(time ?? {}), updatedAt: new Date(Math.max(Date.now(), before.updatedAt.getTime() + 1)) }).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, before.id))).returning();
         await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: after.id, action: "update", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { ai: actor.aiContext, before, after, sourceUnspecifiedConfirmed, reason: actor.actorType === "ai" ? "ai_measurement_edit" : "manual_measurement_edit", importId: batch.id } });
-        if (before.weightKg !== valid.weightKg || before.bodyFatPercent !== valid.bodyFatPercent) await supersedeEstimates(tx, actor, input.date, period);
       } else {
         await insertReportedMeasurement(tx, actor, valid, batch.id, { entryChannel: actor.actorType === "ai" ? "api" : "manual", deviceLabel, sourceUnspecifiedConfirmed });
       }
@@ -136,51 +132,6 @@ export async function saveMeasurementDay(db: Database, actor: MeasurementActor, 
   });
 }
 
-/** 单项估算预览和执行共用模型及冻结／缺项校验。 */
-export async function prepareMeasurementEstimate(tx: MeasurementTransaction, actor: MeasurementActor, input: EstimateCellInput) {
-  requireActor(actor); calendarOrdinal(input.date);
-  if (!entryPeriods.includes(input.period) || !entryMetrics.includes(input.metric)) throw new Error("估算指标无效。");
-  const initialization = await getInitializationBatch(tx, actor.userId);
-  if (isFrozenDate(initialization, input.date)) throw new Error("历史补全已固定，可补录实测，不再新增估计。");
-  const records = await tx.select().from(measurement).where(and(eq(measurement.userId, actor.userId), isNull(measurement.deletedAt)));
-  const samePeriod = records.filter(row => row.recordDate === input.date && row.period === input.period);
-  if (samePeriod.some(row => row[input.metric] !== null)) throw new Error("该指标已有数值，请刷新查看；没有覆盖。");
-  const calculated = buildHistoricalEstimates(records, { start: input.date, end: input.date }, { preserveExisting: false });
-  const prediction = calculated.estimates.find(row => row.period === input.period);
-  const evidence = prediction?.estimation[input.metric];
-  if (!prediction || !evidence) {
-    const reason = calculated.outcomes.find(row => row.period === input.period && row.metric === input.metric)?.reason;
-    return { message: `${reason ?? "真实依据不足"}，此项保持空白。`, prediction: null };
-  }
-  const existing = samePeriod.find(row => row.recordKind === "estimated");
-  if (existing && (existing.estimation?.method !== "morning-baseline-v3" || prediction.estimation.method !== "morning-baseline-v3")) throw new Error("旧估计不支持增补，请保留原值并补录实测。");
-  return { message: "已估算此项，仅用于辅助趋势。", prediction, evidence, existing };
-}
-
-/** 明确点击单项估算才调用；预测其他项只作内部计算，不保存它们。 */
-export async function estimateMeasurementCell(db: Database, actor: MeasurementActor, input: EstimateCellInput) {
-  requireActor(actor); calendarOrdinal(input.date);
-  if (!entryPeriods.includes(input.period) || !entryMetrics.includes(input.metric)) throw new Error("估算指标无效。");
-  return db.transaction(async tx => {
-    await lockMeasurementOwner(tx, actor.userId);
-    const batch = await startOperation(tx, actor, input.operationId, ["estimate", input.date, input.period, input.metric]);
-    if (batch.repeated) return { message: "此估算请求已处理。", repeated: true };
-    const { prediction, evidence, existing, message } = await prepareMeasurementEstimate(tx, actor, input);
-    if (!prediction) return { message, repeated: false };
-    if (existing) {
-      if (existing.estimation?.method !== "morning-baseline-v3" || prediction.estimation.method !== "morning-baseline-v3") throw new Error("旧估计不支持增补，请保留原值并补录实测。");
-      const [after] = await tx.update(measurement).set({ [input.metric]: prediction[input.metric], estimation: { ...existing.estimation, [input.metric]: evidence }, updatedAt: new Date() }).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, existing.id))).returning();
-      await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: after.id, action: "estimate", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { ai: actor.aiContext, before: existing, after, metric: input.metric, reason: "explicit_single_metric_estimate", importId: batch.id } });
-    } else {
-      const otherMetric = input.metric === "weightKg" ? "bodyFatPercent" : "weightKg";
-      await insertEstimate(tx, actor, { ...prediction, [otherMetric]: null, estimation: { ...prediction.estimation, [otherMetric]: null } }, { operationKey: batch.id, importId: batch.id, reason: "explicit_single_metric_estimate", entryChannel: actor.actorType === "ai" ? "api" : "manual" });
-    }
-    await ensureDate(tx, actor, input.date);
-    await tx.update(measurementImport).set({ insertedCount: 1 }).where(eq(measurementImport.id, batch.id));
-    return { message: "已估算此项，仅用于辅助趋势。", repeated: false };
-  });
-}
-
 export async function deleteMeasurementCell(db:Database,actor:MeasurementActor,input:{recordId:string;version:string;metric:MeasurementMetric;operationId:string}) {
   requireActor(actor);
   if(actor.actorType==="ai"||!entryMetrics.includes(input.metric))throw new Error("仅限本人在网页删除一个指标。");
@@ -188,13 +139,9 @@ export async function deleteMeasurementCell(db:Database,actor:MeasurementActor,i
     await lockMeasurementOwner(tx,actor.userId);
     const batch=await startOperation(tx,actor,input.operationId,["delete_cell",input]);if(batch.repeated)return;
     const [before]=await tx.select().from(measurement).where(and(eq(measurement.userId,actor.userId),eq(measurement.id,input.recordId),isNull(measurement.deletedAt)));
-    if(!before||before.updatedAt.toISOString()!==input.version)throw new Error("记录已变化，请查看最新记录后再删除。");
+    if(!before||before.recordKind!=="observed"||before.updatedAt.toISOString()!==input.version)throw new Error("记录已变化，请查看最新记录后再删除。");
     if(before.recordKind==="observed")await archiveMeasurementCandidates(tx,actor,before.recordDate,before.period,before.id);
     const other=input.metric==="weightKg"?"bodyFatPercent":"weightKg";
-    if(before.recordKind==="observed"){
-      const estimates=await tx.select().from(measurement).where(and(eq(measurement.userId,actor.userId),eq(measurement.recordDate,before.recordDate),eq(measurement.period,before.period),eq(measurement.recordKind,"estimated"),isNull(measurement.deletedAt)));
-      for(const prior of estimates.filter(row=>row[input.metric]!==null)){const [afterEstimate]=await tx.update(measurement).set({[input.metric]:prior[other]===null?prior[input.metric]:null,deletedAt:prior[other]===null?new Date():null,updatedAt:new Date()}).where(eq(measurement.id,prior.id)).returning();await tx.insert(measurementEvent).values({id:randomUUID(),userId:actor.userId,measurementId:prior.id,action:"delete",actorType:"user",actorId:actor.actorId,snapshot:{before:prior,after:afterEstimate,metric:input.metric,reason:"manual_single_metric_delete"}});}
-    }
 
     const [after]=await tx.update(measurement).set({[input.metric]:before[other]===null?before[input.metric]:null,deletedAt:before[other]===null?new Date():null,updatedAt:new Date(Math.max(Date.now(),before.updatedAt.getTime()+1))}).where(and(eq(measurement.userId,actor.userId),eq(measurement.id,before.id))).returning();
     await tx.insert(measurementEvent).values({id:randomUUID(),userId:actor.userId,measurementId:before.id,action:"delete",actorType:"user",actorId:actor.actorId,snapshot:{before,after,metric:input.metric,reason:"manual_single_metric_delete"}});

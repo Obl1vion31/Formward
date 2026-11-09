@@ -23,7 +23,7 @@ const source = { timezone: "Asia/Shanghai", sourceSystem: "虚构手表", source
 const day = (patch: Partial<EnergyDayRecord> = {}): EnergyDayRecord => ({ id: randomUUID(), version: 1, deletedAt: null, date, restingKcal: "2000", activeKcal: null, totalKcal: null, ...source, ...patch });
 const activity = (patch: Partial<ActivityRecord> = {}): ActivityRecord => ({ id: randomUUID(), version: 1, deletedAt: null, date, name: "虚构跑步", durationMinutes: "60", caloriesKcal: "800", completed: true, ...source, ...patch });
 const profile = (patch: Partial<EnergyProfile> = {}): EnergyProfile => ({ id: randomUUID(), version: 1, deletedAt: null, effectiveFrom: "2024-01-01", heightCm: "175", birthDate: "1994-08-01", sex: "male", ...patch });
-const weight = (recordDate = date, patch: Partial<MeasurementDisplay> = {}): MeasurementDisplay => ({ id: randomUUID(), recordDate, period: "daytime", weightKg: "70", bodyFatPercent: null, fasting: true, sourceLocalTime: recordDate + " 08:00:00", recordKind: "observed", timezone: "Asia/Shanghai", sourceType: "manual", sourceSystem: null, sourceRecordId: null, entryChannel: "manual", deviceLabel: "虚构秤", estimation: null, timePrecision: "minute", updatedAt: recordDate, ...patch });
+const weight = (recordDate = date, patch: Partial<MeasurementDisplay> = {}): MeasurementDisplay => ({ id: randomUUID(), recordDate, period: "daytime", weightKg: "70", bodyFatPercent: null, fasting: true, sourceLocalTime: recordDate + " 08:00:00", recordKind: "observed", timezone: "Asia/Shanghai", sourceType: "manual", sourceSystem: null, sourceRecordId: null, entryChannel: "manual", deviceLabel: "虚构秤", timePrecision: "minute", updatedAt: recordDate, ...patch });
 async function owner() {
   const userId = randomUUID(); await db.insert(schema.user).values({ id: userId, email: `${userId}@example.test`, name: "虚构消耗用户" });
   const token = await createAiToken(db, userId, "虚构消耗令牌", "write"), identity = await authenticateAi(db, `Bearer ${token.rawToken}`);
@@ -55,7 +55,7 @@ test("公式按日期年龄及性别计算，录入静息优先，资料从生�
   assert.equal(energyDays({ ...emptyEnergy(), profiles: [profile()], days: [day({ activeKcal: "0" })] }, [weight()], [date])[0].restingBasis, null);
 });
 test("体重回退复用已有估计及30日内晨重，多候选、过期与未来记录不擅用", () => {
-  assert.equal(restingEstimate(date, [profile()], [weight(date, { recordKind: "estimated" })])?.basis.weightEstimated, true);
+  assert.equal(restingEstimate(date, [profile()], [weight(date, { recordKind: "estimated" })]), null);
   assert.equal(restingEstimate(date, [profile()], [weight("2024-07-02")])?.basis.carried, true);
   assert.equal(restingEstimate(date, [profile()], [weight("2024-07-01")]), null);
   assert.equal(restingEstimate(date, [profile()], [weight("2024-08-02")]), null);

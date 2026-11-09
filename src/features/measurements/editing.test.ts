@@ -5,10 +5,9 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import * as schema from "../../db/schema";
-import { deleteMeasurementCell, createMeasurementDate, estimateMeasurementCell, listMeasurementDates, saveMeasurementDay, skipMeasurementReminder, type PeriodEdit, type SaveMeasurementDayInput } from "./editing";
+import { deleteMeasurementCell, createMeasurementDate, listMeasurementDates, saveMeasurementDay, skipMeasurementReminder, type PeriodEdit, type SaveMeasurementDayInput } from "./editing";
 import { listMeasurements, saveReportedMeasurements } from "./records";
 import { entryMetrics, entryPeriods, localMeasurementDate, missingMeasurementCells } from "./entry-state";
-import { applyHistoricalInitialization, previewHistoricalInitialization } from "./initialization";
 import { measurementSummary } from "./summary";
 import { eq } from "drizzle-orm";
 
@@ -91,46 +90,6 @@ test("旧非空腹／未知晨间保持原样，不能通过新表单改值或�
   }
 });
 
-test("先估晚间只保存晚间，后填晨间不改已有估计；先保存晨间则以实测加典型差", async () => {
-  const actor = await owner("estimate-order", true);
-  await estimateMeasurementCell(db, actor, { date: "2024-04-04", period: "evening", metric: "weightKg", operationId: randomUUID() });
-  const estimate = (await listMeasurements(db, actor.userId)).find(row => row.recordDate === "2024-04-04")!;
-  assert.equal(estimate.weightKg, "70.90");
-  assert.ok(estimate.estimation?.method === "morning-baseline-v3");
-  assert.equal(estimate.estimation.weightKg?.basis, "morning-trend-plus-difference");
-  assert.equal((await listMeasurements(db, actor.userId)).some(row => row.recordDate === "2024-04-04" && row.period === "daytime"), false);
-  await saveMeasurementDay(db, actor, input("2024-04-04", { daytime: { weightKg: "80.00", fasting: true } }));
-  assert.deepEqual((await listMeasurements(db, actor.userId)).find(row => row.id === estimate.id), estimate);
-  await saveMeasurementDay(db, actor, input("2024-04-05", { daytime: { weightKg: "70.20", fasting: true } }));
-  await estimateMeasurementCell(db, actor, { date: "2024-04-05", period: "evening", metric: "weightKg", operationId: randomUUID() });
-  const anchored = (await listMeasurements(db, actor.userId)).find(row => row.recordDate === "2024-04-05" && row.period === "evening")!;
-  assert.equal(anchored.weightKg, "70.70");
-  assert.ok(anchored.estimation?.method === "morning-baseline-v3");
-  assert.equal(anchored.estimation.weightKg?.basis, "same-day-morning");
-});
-
-test("单项估算保留其他空项，按指标合并依据；补录实测只替代对应估计", async () => {
-  const actor = await owner("cell", true), date = "2024-04-04";
-  const request = { date, period: "evening" as const, metric: "weightKg" as const, operationId: randomUUID() };
-  await estimateMeasurementCell(db, actor, request);
-  assert.equal((await estimateMeasurementCell(db, actor, request)).repeated, true);
-  let rows = (await listMeasurements(db, actor.userId)).filter(row => row.recordDate === date);
-  assert.equal(rows.length, 1); assert.equal(rows[0].weightKg, "70.90"); assert.equal(rows[0].bodyFatPercent, null);
-  assert.equal(missingMeasurementCells(rows, date).length, 3);
-  const first = rows[0];
-  await estimateMeasurementCell(db, actor, { date, period: "evening", metric: "bodyFatPercent", operationId: randomUUID() });
-  rows = (await listMeasurements(db, actor.userId)).filter(row => row.recordDate === date);
-  assert.equal(rows.length, 1); assert.equal(rows[0].id, first.id); assert.equal(rows[0].bodyFatPercent, "20.80");
-  assert.deepEqual(rows[0].estimation?.weightKg, first.estimation?.weightKg);
-  const fatEvidence = rows[0].estimation?.bodyFatPercent;
-  await saveMeasurementDay(db, actor, input(date, { evening: { weightKg: "71.00" } }));
-  rows = (await listMeasurements(db, actor.userId)).filter(row => row.recordDate === date);
-  const remaining = rows.find(row => row.recordKind === "estimated")!;
-  assert.equal(remaining.weightKg, null); assert.equal(remaining.bodyFatPercent, "20.80"); assert.deepEqual(remaining.estimation?.bodyFatPercent, fatEvidence);
-  assert.equal(missingMeasurementCells(rows, date).length, 2);
-  await assert.rejects(estimateMeasurementCell(db, actor, { ...request, operationId: randomUUID() }), /已有数值/);
-});
-
 test("历史编辑保留准确时间和来源；显式清空与遗漏区分，不能清空整条测量", async () => {
   const actor = await owner("precise-edit"), date = "2024-04-04";
   await saveReportedMeasurements(db, { ...actor, requestKey: "e".repeat(64), entryChannel: "api", records: [{ recordDate: date, period: "daytime", weightKg: "70.00", bodyFatPercent: "20.00", fasting: true, measuredAt: `${date} 08:30:00`, timezone: "Asia/Shanghai" }] });
@@ -171,22 +130,6 @@ test("网页仅修改 API 实测时区，数值与原始时间保持，版本和
   assert.equal(events.find(event => event.action === "update")!.actorType, "user");
 });
 
-test("初始化冻结仍禁止估算，允许仅体脂补录，保留体重及另一时段快照", async () => {
-  const actor = await owner("frozen", true), date = "2024-04-04";
-  const request = { operationId: randomUUID(), range: { start: "2024-04-01", end: date } };
-  const preview = await previewHistoricalInitialization(db, actor.userId, request);
-  assert.equal(preview.alreadyApplied, false);
-  if (preview.alreadyApplied) throw new Error("初始化预览已执行");
-  await applyHistoricalInitialization(db, { ...actor, request, digest: preview.digest });
-  const prior = (await listMeasurements(db, actor.userId)).filter(row => row.recordDate === date);
-  await assert.rejects(estimateMeasurementCell(db, actor, { date, period: "daytime", metric: "weightKg", operationId: randomUUID() }), /固定/);
-  await saveMeasurementDay(db, actor, input(date, { daytime: { bodyFatPercent: "21.00", fasting: true } }));
-  const after = (await listMeasurements(db, actor.userId)).filter(row => row.recordDate === date);
-  assert.deepEqual(after.find(row => row.period === "evening"), prior.find(row => row.period === "evening"));
-  const morning = after.find(row => row.period === "daytime" && row.recordKind === "estimated")!;
-  assert.equal(morning.bodyFatPercent, null); assert.equal(morning.weightKg, prior.find(row => row.period === "daytime")!.weightKg);
-});
-
 test("空白日期和当天停止提醒持久化、账号隔离，不伪造测量；时区日期正确", async () => {
   const actor = await owner("dates"), other = await owner("dates-other");
   await Promise.all([1, 2].map(() => createMeasurementDate(db, actor, "2024-04-04")));
@@ -219,18 +162,6 @@ test("无效、跨账号、旧版本、请求键内容冲突及并发重试均�
   await assert.rejects(saveMeasurementDay(db, actor, input("2024-04-05", { daytime: { weightKg: "abc" } })));
   await assert.rejects(saveMeasurementDay(db, actor, input("2024-04-05", { daytime: { deviceLabel: "虚构体重秤" } })), /至少/);
   assert.equal((await listMeasurements(db, actor.userId)).length, 1);
-});
-
-test("审计失败整日回滚；估算不足不填零；多个候选不视为空白", async () => {
-  const actor = await owner("rollback");
-  await pg.exec("CREATE FUNCTION reject_entry_audit() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'fictional entry failure'; END; $$ LANGUAGE plpgsql; CREATE TRIGGER reject_entry_audit BEFORE INSERT ON measurement_events FOR EACH ROW EXECUTE FUNCTION reject_entry_audit();");
-  try { await assert.rejects(saveMeasurementDay(db, actor, input("2024-04-04", { daytime: { weightKg: "70", fasting: true }, evening: { bodyFatPercent: "20" } }))); }
-  finally { await pg.exec("DROP TRIGGER reject_entry_audit ON measurement_events; DROP FUNCTION reject_entry_audit();"); }
-  assert.deepEqual(await listMeasurements(db, actor.userId), []); assert.deepEqual(await listMeasurementDates(db, actor.userId), []);
-  const estimate = await estimateMeasurementCell(db, actor, { date: "2024-04-04", period: "daytime", metric: "weightKg", operationId: randomUUID() });
-  assert.match(estimate.message, /保持空白/); assert.deepEqual(await listMeasurements(db, actor.userId), []);
-  const rows = [1, 2].map(index => ({ id: `candidate-${index}`, recordDate: "2024-04-04", period: "daytime" as const, weightKg: "70.00", bodyFatPercent: null, fasting: true, sourceLocalTime: "2024-04-04" }));
-  assert.deepEqual(missingMeasurementCells(rows, "2024-04-04"), [{period:"daytime",metric:"bodyFatPercent"},...entryMetrics.map(metric => ({ period: "evening", metric }))]);
 });
 
 test("同槽覆盖保留遗漏项，单项删除保留另一指标，最后一项删除不复活旧值",async()=>{

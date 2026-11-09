@@ -46,15 +46,13 @@ test("长区间只生成少量刻度，包含边界，按真实日历间距定�
   assert.deepEqual(measurementDateTicks(measurementRange("2024-03-01", "7d")), ["2024-02-24", "2024-02-25", "2024-02-26", "2024-02-27", "2024-02-28", "2024-02-29", "2024-03-01"]);
 });
 
-test("缺测段只连接真实空腹端点，不生成读数", () => {
+test("缺测段断开，保留所有真实端点且不生成读数", () => {
   const records = [row("a", "2025-01-01", "daytime"), row("b", "2025-01-02", "daytime"), row("c", "2025-01-05", "daytime")];
   const trend = measurementTrend(records, "weightKg", false);
   assert.equal(trend.points.length, 3);
-  assert.equal(trend.segments.length, 2);
-  assert.equal(trend.segments[0].missingDayCount, 0);
-  assert.equal(trend.segments[1].missingDayCount, 2);
-  assert.equal(trend.segments[1].a.id, "b");
-  assert.equal(trend.segments[1].b.id, "c");
+  assert.equal(trend.segments.length, 1);
+  assert.equal(trend.segments[0].a.id, "a");
+  assert.equal(trend.segments[0].b.id, "b");
 });
 
 test("晚间连线和同日配对保留异常数值，开关只影响图", () => {

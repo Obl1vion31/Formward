@@ -13,6 +13,6 @@ export function overviewPresentation(meals: MealView[], records: MeasurementDisp
   const dates = [...new Set([...knownDates, ...Array.from({ length: calendarOrdinal(today) - calendarOrdinal(first) + 1 }, (_, i) => addCalendarDays(first, i))])].sort();
   const latestIntake = dailyTotals(meals).find(day => day.date <= today) ?? null;
   const latestEnergy = energyDays(snapshot, records, recordDates).filter(day => day.record || day.activities.length > 0).at(-1) ?? null;
-  return { today, recordDates, days: overviewDays(meals, records, dates, false, snapshot, today), estimatedDays: overviewDays(meals, records, dates, true, snapshot, today), summary: overview(meals, records, today, snapshot), body: latestMorningWeight(records, today), latestIntake, latestEnergy };
+  return { today, recordDates, days: overviewDays(meals, records, dates, snapshot, today), summary: overview(meals, records, today, snapshot), body: latestMorningWeight(records, today), latestIntake, latestEnergy };
 }
 export type OverviewPresentation = ReturnType<typeof overviewPresentation>;

@@ -1,5 +1,16 @@
 # 完善任务验收
 
+## 身体估算退役验收
+
+本轮移除体重和体脂估算的完整产品能力，保留真实测量、体脂偏好、晨晚统计和7日统计。0035仅归档明确标为estimated的有效行，保留原始导入、实测、审计外键和备份；旧估算及混合任务整体拒绝，不部分执行。实际部署结果以[交接](../handoff.md)为准。
+
+本机隔离PGlite虚构数据560项单元／集成全部通过；20项退役与OAuth专项通过，lint、typecheck及production build通过。Chromium五页、八种视口和深浅主题80组完整加载检查通过，最大固定锚点偏差1 CSS px，缺失槽位、脚本错误及失败均0。身体14张深浅尺寸截图及真实保存／刷新、体脂关闭／开启、图形往返录屏已核看，未见已退役入口或空占位。
+
+私有证据位于独立工作树.codex/body-retirement：qa/chromium、forms、motion-contact.png、design-detector.json及测试日志。所有健康样本和账号均为虚构，验收库不连接正式库。Impeccable机械检查未报问题，视觉仍以实际页面截图／连续录像为准。
+
+真实手机、系统软键盘、系统文字放大与长期生产观察未测，不计通过。发布前执行当前上海主库原生及异机加密备份，兼容应用先停止估算，再执行0035并核对实测与审计，保留同样禁用估算的回退应用；不能恢复旧Neon部署。
+
+
 ## 全站静态内容与局部反馈正式发布验收（2026-11-08）
 
 已按本会话此前明确的修改后直接发布授权更新[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署dpl_Ds7qyEAu1jfhdWZyVqantWprDqkb，源码61eda5541ab7acd26a3b7e378b49a44aaac779de，构建static-loading-61eda554-20261108，来自codex/static-loading；正式别名、项目、sourceCommit／gitCommitSha及版本接口均一致，未合入或推送main。后续纯文档提交不改变正式应用。

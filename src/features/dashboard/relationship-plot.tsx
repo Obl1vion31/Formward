@@ -24,7 +24,7 @@ export function RelationshipPlot({days,selected,selection,compactMode}:{days:Ove
   }, []);
   const energyScale = energyLineScale(days.flatMap(day => [day.nutrition?.values.caloriesKcal, day.energy.totalKcal])), weightScale = energyLineScale(days.map(day => day.weightChangeKg), "kg");
   const {width,left}=useChartViewport(container,[...energyScale.ticks,...weightScale.ticks.map(tick=>(tick>0?"+":"")+tick)],49);
-  useChartMotion(container, width ? days.map(day => `${day.date}:${day.nutrition?.values.caloriesKcal}:${day.energy.totalKcal}:${day.energyBalance}:${day.weightChangeKg}:${day.differenceEstimated}`).join("|") : "pending");
+  useChartMotion(container, width ? days.map(day => `${day.date}:${day.nutrition?.values.caloriesKcal}:${day.energy.totalKcal}:${day.energyBalance}:${day.weightChangeKg}`).join("|") : "pending");
   const w = width || 280, compact = compactMode ?? mobile ?? w < 650, right = 13, top = compact ? 16 : 26;
   const energyHeight=compact?(shortViewport?104:132):220;
   const energyBottom = top + energyHeight;
@@ -67,9 +67,9 @@ export function RelationshipPlot({days,selected,selection,compactMode}:{days:Ove
       </g>
       <g data-overview-panel="weight">
         {!compact && <line x1="0" x2={w} y1={energyBottom + 16} y2={energyBottom + 16} className={styles.grid} />}
-        <text data-weight-readout x={w - right} y={weightTop - 10} textAnchor="end" className={styles.axis}>{compact?days[selectedIndex]?.nextDate.slice(5).replace("-",".")+" ":""}次晨变化：{(days[selectedIndex]?.ambiguous ? "待选择" : days[selectedIndex]?.weightChangeKg == null ? "未配对 · kg" : signedRecordNumber(days[selectedIndex].weightChangeKg) + (days[selectedIndex].differenceEstimated ? " kg · 含估计" : " kg"))}</text>
+        <text data-weight-readout x={w - right} y={weightTop - 10} textAnchor="end" className={styles.axis}>{compact?days[selectedIndex]?.nextDate.slice(5).replace("-",".")+" ":""}次晨变化：{(days[selectedIndex]?.ambiguous ? "待选择" : days[selectedIndex]?.weightChangeKg == null ? "未配对 · kg" : signedRecordNumber(days[selectedIndex].weightChangeKg) + " kg")}</text>
         {weightTicks.map(tick => <g key={tick} data-axis-tick={tick}><line data-overview-zero={tick === 0 ? "" : undefined} x1={left} x2={w - right} y1={weightY(tick)} y2={weightY(tick)} className={tick === 0 ? styles.zeroLine : styles.grid} /><text x={left - 8} y={weightY(tick) + 4} textAnchor="end" className={styles.axis}>{tick > 0 ? "+" : ""}{tick}</text></g>)}
-        <g data-chart-line className={styles.plotData}>{days.map((day, i) => i > 0 && day.weightChangeKg !== null && days[i - 1].weightChangeKg !== null && <line key={day.date} x1={x(i - 1)} x2={x(i)} y1={weightY(days[i - 1].weightChangeKg!)} y2={weightY(day.weightChangeKg)} stroke={palette.weight} strokeWidth="1.6" strokeLinecap="round" strokeDasharray={day.differenceEstimated || days[i - 1].differenceEstimated ? "4 4" : undefined} />)}</g>
+        <g data-chart-line className={styles.plotData}>{days.map((day, i) => i > 0 && day.weightChangeKg !== null && days[i - 1].weightChangeKg !== null && <line key={day.date} x1={x(i - 1)} x2={x(i)} y1={weightY(days[i - 1].weightChangeKg!)} y2={weightY(day.weightChangeKg)} stroke={palette.weight} strokeWidth="1.6" strokeLinecap="round" />)}</g>
         {!days.some(day => day.weightChangeKg !== null) && <text x={(left + w - right) / 2} y={weightTop + 24} textAnchor="middle" className={styles.emptyPlot}>暂无相邻两日晨重</text>}
       </g>
       {[{point:intake[selectedIndex],color:palette.intake},{point:expenditure[selectedIndex],color:palette.expenditure},{point:days[selectedIndex]?.weightChangeKg!=null?{x:x(selectedIndex),y:weightY(days[selectedIndex].weightChangeKg!)}:null,color:palette.weight}].map(({point,color},i)=><ChartSelectionPoint key={i} x={point?.x??null} y={point?.y??0} resetKey={`${w}:${height}:${energyScale.min}:${energyScale.max}:${weightScale.min}:${weightScale.max}:${days.map(d=>d.date).join("|")}`} direct={selection.direct} color={color}/>)}
@@ -80,7 +80,7 @@ export function RelationshipPlot({days,selected,selection,compactMode}:{days:Ove
           const radius = days.length > 90 ? 1.4 : ![intake, expenditure][n][i - 1] || ![intake, expenditure][n][i + 1] ? 2.5 : 1.8;
           return n ? <rect key={n} data-series="expenditure" data-overview-value={day.energy.totalKcal ?? undefined} x={point.x - radius} y={point.y - radius} width={radius * 2} height={radius * 2} fill={palette.expenditure} /> : <circle key={n} data-series="intake" data-overview-value={day.nutrition?.values.caloriesKcal} cx={point.x} cy={point.y} r={radius} stroke={palette.intake} strokeWidth="1.2" fill={day.mealDayStatus !== "complete" ? "var(--surface)" : palette.intake} />;
         })}
-          {day.weightChangeKg !== null && <circle data-series="weight-change" data-overview-value={day.weightChangeKg} data-estimated={day.differenceEstimated} cx={x(i)} cy={weightY(day.weightChangeKg)} r={days.length > 90 ? 1.4 : 2.5} stroke={palette.weight} strokeWidth="1.2" fill={day.differenceEstimated ? "var(--surface)" : palette.weight} />}
+          {day.weightChangeKg !== null && <circle data-series="weight-change" data-overview-value={day.weightChangeKg} cx={x(i)} cy={weightY(day.weightChangeKg)} r={days.length > 90 ? 1.4 : 2.5} stroke={palette.weight} strokeWidth="1.2" fill={palette.weight} />}
         </g>
         {(i % stride === 0 && days.length - 1 - i >= stride / 2 || i === days.length - 1) && <text x={x(i)} y={height - 5} textAnchor={days.length === 1 ? "middle" : i === 0 ? "start" : i === days.length - 1 ? "end" : "middle"} data-overview-date-label="" className={styles.axis}>{w < 440 && days.length <= 7 ? day.date.slice(8) : days.length > 366 ? day.date.slice(2, 7).replace("-", ".") : day.date.slice(5).replace("-", ".")}</text>}
       </g>)}

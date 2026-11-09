@@ -31,9 +31,7 @@
 .entryForm [role="combobox"] { border-bottom: 1px solid var(--body-rule); font-size: 13px; }
 .entryInputRow input { font-size: 26px; letter-spacing: -.02em; }
 .entryInputRow input::placeholder { color: var(--body-muted); font-size: 14px; letter-spacing: 0; }
-.entryInputRow .estimateAction { padding: 0 4px; flex: 0 0 auto; min-width: 44px; font-size: 12px; color: inherit; }
 .entryRecorded { display: flex; flex: 1; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 26px; }
-.entryReference { display: block; margin-top: 6px; line-height: 1.5; }
 .entryCandidate { display: grid; gap: 8px; color: var(--body-muted); font-size: 12px; }
 .entryForm select { background: var(--surface); color: var(--body-ink); border: 0; border-bottom: 1px solid var(--body-rule); font: inherit; min-height: 44px; min-width: 0; width: 100%; }
 .entryTimezone { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; margin-top: 18px; }
@@ -76,7 +74,6 @@
 .toggle input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--body-muted); }
 .toggle input:checked { border-color: var(--body-blue); background: color-mix(in srgb,var(--data-deficit) 16.0%,transparent); }
 .toggle input:checked::after { left: 15px; background: var(--body-blue); }
-.estimateControls { display: flex; align-items: center; gap: 12px; }
 .workspace .rulesButton { display: flex; align-items: center; gap: 8px; padding: 0; font-size: 12px; white-space: nowrap; }
 .rulesButton span { color: var(--body-gold); }
 .rules { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 36px; padding: 18px 0 20px; margin-bottom: 16px; border-top: 1px solid var(--body-rule); border-bottom: 1px solid var(--body-rule); }
@@ -97,11 +94,6 @@
 .dayLine { stroke: var(--body-gold); stroke-width: 1.7; pointer-events: none; }
 .nightLine { stroke: var(--body-blue); stroke-width: 1.1; opacity: .55; pointer-events: none; }
 .gapLine { stroke-width: 1; stroke-dasharray: 1 6; stroke-linecap: round; opacity: .3; pointer-events: none; }
-.estimateLine { stroke-dasharray: 4 5; opacity: .5; }
-.estimatePoint { fill: var(--graphite); stroke-width: 1.2; pointer-events: none; }
-.dayEstimate { stroke: var(--body-gold); }
-.nightEstimate { stroke: var(--body-blue); }
-.estimateNote { color: var(--body-muted); font-size: 12px; line-height: 1.5; margin: 6px 0 0; overflow-wrap: anywhere; }
 .dayPoint { fill: var(--body-gold); stroke: var(--graphite); stroke-width: 1; pointer-events: none; }
 .nightPoint { fill: var(--graphite); stroke: var(--body-blue); stroke-width: 1.4; pointer-events: none; }
 .hitTarget { fill: transparent; cursor: pointer; }
@@ -114,7 +106,6 @@
 .legend i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
 .dayDot { background: var(--body-gold); }
 .nightDot { border: 1px solid var(--body-blue); }
-.legend .estimateDot { border: 1px solid var(--body-muted); border-radius: 0; transform: rotate(45deg); }
 .plotHint { color: var(--body-muted); font-size: 12px; line-height: 1.5; height: 18px; min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
 .history { width: 100%; min-width: 0; margin-top: 18px; }
 .sectionTitle { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 0 0 8px; }
@@ -200,13 +191,6 @@
 .recordEntry strong { flex-shrink: 0; font-size: 18px; font-weight: 400; }
 .recordEntry strong small { display: inline; margin: 0; }
 .recordEntry[aria-pressed="true"] > span { color: var(--body-gold); }
-.estimateBasis { margin-top: 28px; color: var(--body-ink); font-size: 14px; line-height: 1.6; }
-.estimateBasis h3 { margin: 0 0 8px; color: var(--body-muted); font-size: 12px; font-weight: 400; }
-.estimateBasis > p { margin: 8px 0; }
-.estimateBasis > ul { list-style: none; padding: 0; margin: 14px 0; }
-.estimateBasis li { margin: 5px 0; }
-.estimateBasis .estimateNote { color: var(--body-muted); font-size: 12px; }
-.estimateBasis .estimateDisclaimer { margin: 24px 0 8px; color: var(--body-ink); font-size: 13px; line-height: 1.6; }
 .formula { margin: 14px 0; padding: 12px 0; border-top: 1px solid var(--body-rule); border-bottom: 1px solid var(--body-rule); color: var(--body-ink); font-variant-numeric: tabular-nums; line-height: 1.6; overflow-wrap: anywhere; }
 .references { margin-top: 12px; color: var(--body-muted); font-size: 12px; line-height: 1.6; }
 .references summary { cursor: pointer; min-height: 44px; display: list-item; padding: 12px 0; }
@@ -216,7 +200,6 @@
 .workspace .tableReading { display: inline-flex; justify-content: flex-end; align-items: center; gap: 5px; color: inherit; min-height: 44px; width: 100%; padding: 0; text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
 .history .tableLine small { display: inline; font-size: 12px; }
 .readingStatus { font-size: 8px; color: var(--body-muted); }
-.tableReading[data-kind="estimated"] .readingStatus { font-size: 12px; }
 .metricPlot { padding: 12px 0 16px; }
 .metricHeading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .metricHeading > button { min-height:44px; padding:0; color:var(--body-gold); font-size:12px; white-space:nowrap; }
@@ -259,7 +242,6 @@
   .rangeTabs button:last-child { gap: 4px; }
   .rangeTabs button:last-child svg { width: 14px; }
   .toggle { gap: 6px; }
-  .estimateControls { gap: 10px; }
   .rules { grid-template-columns: 1fr; gap: 18px; padding: 16px 0; }
   .rules .rulesPrinciples { grid-column: auto; }
   .chartPanel { padding: 8px 0 10px; }
@@ -286,7 +268,6 @@
   .workspace .tableReading { font-size: 12px; gap: 2px; flex-wrap:wrap; }
   .history .tableLine small { font-size: 12px; }
   .history td:nth-child(4) .tableLine { flex-direction: column; justify-content: center; gap: 2px; }
-  .tableReading[data-kind="estimated"] .readingStatus { font-size: 12px; }
   .history th, .history td { height: 88px; padding: 0 6px; font-size: 13px; }
   .history tbody th button { min-height: 44px; font-size: 13px; text-align: left; }
   .history tbody th small { display: block; margin: 3px 0 0; font-size: 12px; }
@@ -342,9 +323,8 @@
 .entryGroups>fieldset{min-width:0;margin:0;padding:0;border:0}.entryGroups legend{display:flex;width:100%;align-items:center;justify-content:space-between;font-size:14px;padding:0;margin:0 0 4px}
 .entryGroups legend button,.entryPeriodBar button{background:transparent;border:0;color:var(--gold);font-size:14px;padding:6px 10px;cursor:pointer}
 .bodyMetricFields{container-type:inline-size;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9em),1fr));gap:12px}.entryCell>label{display:flex;align-items:baseline;gap:6px;font-size:14px;margin-bottom:4px}.entryCell>label small,.entryCell>label>span{font-size:12px;font-weight:400;white-space:nowrap}
-.entryInputRow{display:flex;align-items:center;gap:4px;border-bottom:0}.entryInputRow input{width:100%;flex:1}.entryInputRow>.estimateAction{min-width:44px;margin:0;padding:6px 0;white-space:nowrap}
+.entryInputRow{display:flex;align-items:center;gap:4px;border-bottom:0}.entryInputRow input{width:100%;flex:1}
 .entrySource{position:relative;margin-top:12px}.entrySource>div{margin-top:0}.sourceDefault{position:absolute;right:0;top:0;color:var(--muted);font-size:12px}
-.estimatedCell{display:flex;align-items:center;justify-content:space-between;gap:4px;min-height:44px;padding:0}.estimatedCell strong{font-size:22px;font-weight:400;white-space:nowrap}.estimatedCell small,.estimatedCell>span{font-size:12px;color:var(--muted)}.estimatedCell button{flex:none;min-width:44px;min-height:44px;white-space:nowrap;padding:0;background:none;border:0;color:var(--gold);font-size:13px;cursor:pointer}
 .entryTimezone{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;margin-top:14px;font-size:13px}.entryTimezone button{grid-column:2;background:none;border:0;color:var(--gold)}
 @media(max-width:700px),(hover:none) and (pointer:coarse){
  .entryGroups{grid-template-columns:minmax(0,1fr);padding-top:12px}.entryGroups>[data-selected=false]{display:none}.entryGroups legend{display:none}

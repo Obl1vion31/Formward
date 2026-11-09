@@ -120,9 +120,8 @@ try {
     await stablePage.setViewportSize({ width, height: width === 390 ? 720 : 900 }); await visit(stablePage, route);
     if (await surface(stablePage).isVisible()) await close(stablePage);
     const point = date => route === "/dashboard" ? stablePage.locator(`[data-overview-date="${date}"] > rect`).first() : stablePage.locator(`[data-chart-metric="weightKg"] [data-chart-date="${date}"][data-period="daytime"] circle`).first();
-    if (route.endsWith("measurements") && !await point(config.estimated).count()) { await stablePage.getByRole("button", { name: "图表设置", exact: true }).click(); await stablePage.getByLabel("估计补全", { exact: true }).check(); await stablePage.keyboard.press("Escape"); }
     await point(config.observed).scrollIntoViewIfNeeded(); const observedBox = await point(config.observed).boundingBox(); await stablePage.mouse.move(observedBox.x + observedBox.width / 2, observedBox.y + observedBox.height / 2); await stablePage.waitForTimeout(150); const baseline = await geometry();
-    for (const date of [config.estimated, config.observed, config.partialWeight, config.partialFat, config.estimated].filter(Boolean)) {
+    for (const date of [config.anotherObserved, config.observed, config.partialWeight, config.partialFat, config.anotherObserved].filter(Boolean)) {
       const box = await point(date).boundingBox(); await stablePage.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
       const samples = []; for (let i = 0; i < 12; i++) { samples.push(await geometry()); await stablePage.waitForTimeout(20); }
       for (const sample of samples) { assert.ok(Math.abs(sample.scroll - baseline.scroll) <= 1, "scroll position stable"); assert.ok(sample.values.every((n, i) => Math.abs(n - baseline.values[i]) <= 1), `estimate geometry stable ${JSON.stringify({ width, route, date, baseline, sample })}`); }
@@ -139,15 +138,14 @@ try {
     for (const route of ["/dashboard/measurements", "/dashboard"]) {
       await visit(touchPage, route); if (await surface(touchPage).isVisible()) await close(touchPage);
       await touchPage.getByRole("button", { name: "7D", exact: true }).click();
-      if (route.endsWith("measurements")) { await touchPage.getByText("统计与选项", { exact: true }).click(); await touchPage.getByLabel("估计补全", { exact: true }).check(); await touchPage.keyboard.press("Escape"); }
       const point = date => route === "/dashboard" ? touchPage.locator(`[data-overview-date="${date}"] > rect`).first() : touchPage.locator(`[data-chart-metric="weightKg"] [data-chart-date="${date}"][data-period="daytime"] circle`).first();
-      await point(config.observed).tap(); const baseline = await geometry(touchPage); await point(config.estimated).tap();
+      await point(config.observed).tap(); const baseline = await geometry(touchPage); await point(config.anotherObserved).tap();
       const next = await geometry(touchPage); assert.ok(next.values.every((n, i) => Math.abs(n - baseline.values[i]) <= 1), "触屏选日稳定");
-      assert.equal(await touchPage.locator("[data-chart-selection]").getAttribute("data-selected-date"), config.estimated);
+      assert.equal(await touchPage.locator("[data-chart-selection]").getAttribute("data-selected-date"), config.anotherObserved);
       if (route.endsWith("measurements")) {
         await touchPage.addStyleTag({ content: '[data-metric-label]{font-size:26px!important;line-height:40px!important}[data-metric-label] small{font-size:24px!important}[data-metric-number]{font-size:64px!important;line-height:80px!important}[data-metric-number] span{font-size:inherit!important}[data-metric-note] em{font-size:24px!important;line-height:36px!important}' });
         await point(config.observed).scrollIntoViewIfNeeded(); await point(config.observed).tap(); const enlarged = await geometry(touchPage);
-        await point(config.estimated).tap(); const enlargedEstimate = await geometry(touchPage);
+        await point(config.anotherObserved).tap(); const enlargedEstimate = await geometry(touchPage);
         assert.ok(enlargedEstimate.values.every((n, i) => Math.abs(n - enlarged.values[i]) <= 1), "200%读数字体实测与估计布局稳定");
         await shot(touchPage, "body-text-200");
       } else await shot(touchPage, "overview-touch-7d");

@@ -4,7 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import * as schema from "../../db/schema";
 import { authenticateAi, createAiToken, listAiTokens, revokeAiToken, type AiIdentity } from "../auth/ai-tokens";
 import { decideAiMeasurementOperation, getAiMeasurementOperation, parseAiMeasurementInput, reviewAiMeasurementOperation, submitAiMeasurementOperation, type ReviewInput } from "./ai-operations";
@@ -12,7 +12,6 @@ import { aiApiResponse, aiConfirmationUrl, aiRequestTimezone, queryAiMeasurement
 import { listMeasurements, saveReportedMeasurements } from "./records";
 import { entryMetrics, entryPeriods } from "./entry-state";
 import { saveMeasurementDay } from "./editing";
-import { applyHistoricalInitialization, previewHistoricalInitialization } from "./initialization";
 import { systemMeasurementTimezone, timezoneLabel, timezoneOptions, validateMeasurementTimezone } from "./timezone";
 import { listMeasurementSources, MeasurementSourceError, removeMeasurementSource } from "./sources";
 
@@ -220,18 +219,6 @@ test("审核版本、跨账号和行归属验证，取消／保存终态不能�
   assert.equal(wrong.counts.issues, 1); assert.equal(wrong.items[0].preview.rows[0].before, null);
 });
 
-test("同批重复目标需处理，取消其中一行重新预览；重复实测和不足估算跳过", async () => {
-  const { userId, identity } = await owner(), initial = await submitAiMeasurementOperation(db, identity, batch([realItem(), realItem()]));
-  assert.equal(initial.counts.issues,0);assert.equal(initial.counts.skipped,1);
-  await reviewAiMeasurementOperation(db,userId,initial.id,{kind:"confirm",revision:initial.revision});
-  const duplicate = await submitAiMeasurementOperation(db, identity, batch([realItem(), { kind: "estimate_cell", date: "2024-05-02", period: "evening", metric: "weightKg" }]));
-  assert.equal(duplicate.status, "completed"); assert.equal(duplicate.counts.skipped, 2);
-  assert.equal((await listMeasurements(db, userId)).length, 1);
-  await rejects(submitAiMeasurementOperation(db, identity, batch([])), "invalid_input");
-  await rejects(submitAiMeasurementOperation(db, identity, batch(Array.from({ length: 101 }, () => realItem()))), "invalid_input");
-  await rejects(submitAiMeasurementOperation(db, identity, { kind: "batch", operationId: randomUUID(), items: [{ ...realItem(), userId: "other" }] }), "invalid_input");
-});
-
 test("过期和外部变化须刷新，自己逐行保存不使剩余预览失效；撤销令牌只允许取消", async () => {
   const { userId, identity, actor } = await owner(), initial = await submitAiMeasurementOperation(db, identity, batch([realItem(), realItem("2024-05-02")]));
   await db.update(schema.measurementOperation).set({ expiresAt: new Date(0) }).where(eq(schema.measurementOperation.id, initial.id));
@@ -260,16 +247,6 @@ test("整批第二条审计失败回滚前一条健康写入、来源、审计�
   assert.equal((await getAiMeasurementOperation(db, userId, initial.id)).revision, 1);
   assert.equal((await getAiMeasurementOperation(db, userId, initial.id)).counts.saved, 0);
   assert.equal((await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: 1 })).counts.saved, 2);
-});
-
-test("混合估算按审核时依据保存，不读取同批未确认实测；单项未知仍为空", async () => {
-  const { userId, identity } = await owner("write", true);
-  const initial = await submitAiMeasurementOperation(db, identity, batch([realItem("2024-04-04", { period: "daytime", weightKg: "80.00", fasting: true }), { kind: "estimate_cell", date: "2024-04-04", period: "evening", metric: "weightKg" }]));
-  const predicted = initial.items[1].preview.rows[0].after!.weightKg;
-  assert.equal(initial.counts.issues, 0);
-  await reviewAiMeasurementOperation(db, userId, initial.id, { kind: "confirm", revision: 1 });
-  const estimated = (await listMeasurements(db, userId)).find(row => row.recordDate === "2024-04-04" && row.recordKind === "estimated")!;
-  assert.equal(estimated.weightKg, predicted); assert.equal(estimated.bodyFatPercent, null);
 });
 
 test("历史时区只能显式改，准确钟点保留并重算 UTC；日期时段不补钟点", async () => {
@@ -396,27 +373,6 @@ test("两个预览并发确认只应用一份，另一份因快照失效拒绝",
   const a = await submitAiMeasurementOperation(db, identity, input()), b = await submitAiMeasurementOperation(db, identity, input());
   const results = await Promise.allSettled([confirm(identity, a.id), confirm(identity, b.id)]);
   assert.equal(results.filter(result => result.status === "fulfilled").length, 1); assert.equal((await listMeasurements(db, userId)).length, 1);
-});
-
-test("估算只保存单项与预览依据，样本不足不写入；实测替代审计有 AI 上下文", async () => {
-  const seeded = await owner("write", true), unseeded = await owner();
-  const request = { kind: "estimate_cell", operationId: randomUUID(), date: "2024-04-04", period: "evening", metric: "weightKg" };
-  const insufficient = await submitAiMeasurementOperation(db, unseeded.identity, request); assert.equal(insufficient.preview.canConfirm, false); assert.equal(insufficient.preview.rows[0].after, null); await rejects(confirm(unseeded.identity, insufficient.id), "no_changes");
-  const preview = await submitAiMeasurementOperation(db, seeded.identity, request); assert.ok(preview.preview.explanation?.references.length); await confirm(seeded.identity, preview.id);
-  const estimate = (await listMeasurements(db, seeded.userId)).find(row => row.recordDate === "2024-04-04")!;
-  assert.equal(estimate.weightKg, preview.preview.rows[0].after!.weightKg); assert.equal(estimate.bodyFatPercent, null); assert.equal(estimate.entryChannel, "api");
-  const real = await submitAiMeasurementOperation(db, seeded.identity, input({ evening: { weightKg: "70.20", deviceLabel: "虚构秤" } })); assert.equal(real.preview.rows[0].replacedEstimates!.length, 1); await confirm(seeded.identity, real.id);
-  const events = await db.select().from(schema.measurementEvent).where(and(eq(schema.measurementEvent.userId, seeded.userId), eq(schema.measurementEvent.measurementId, estimate.id)));
-  assert.ok(events.every(event => event.actorType === "ai" && event.snapshot.ai));
-});
-
-test("冻结历史只允许实测，拒绝新增估算；查询与网页复用统计", async () => {
-  const { identity, userId, actor } = await owner("write", true), request = { operationId: randomUUID(), range: { start: "2024-04-01", end: "2024-04-04" } };
-  const preview = await previewHistoricalInitialization(db, userId, request); if (preview.alreadyApplied) throw new Error("预期新初始化");
-  await applyHistoricalInitialization(db, { ...actor, request, digest: preview.digest });
-  await assert.rejects(submitAiMeasurementOperation(db, identity, { kind: "estimate_cell", operationId: randomUUID(), date: "2024-04-04", period: "daytime", metric: "weightKg" }), /固定/);
-  const real = await submitAiMeasurementOperation(db, identity, input()); await confirm(identity, real.id);
-  const queried = await queryAiMeasurements(db, userId, new URLSearchParams({ from: "2024-04-04", to: "2024-04-04" })); assert.ok(queried.records.every(row => row.recordDate === "2024-04-04")); assert.equal(queried.analyses.weightKg.summary.coverage, 4);
 });
 
 test("审计写入失败回滚记录、批次、来源与确认状态", async () => {

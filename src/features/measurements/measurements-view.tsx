@@ -3,7 +3,7 @@ import {useDraftGuard} from "@/components/draft-guard";
 import type {RecordIntent} from "@/components/record-intent";
 import {useRepeatedRecordTask} from '@/components/record-intent-client';
 import {measurementVersions} from "@/components/record-change-client";
-import {RecordWorkspace,RecordTrendPanel,ChartOptions,CustomRecordRange,type RecordMetric} from "@/components/record-trend-panel";
+import {RecordWorkspace,RecordTrendPanel,CustomRecordRange,type RecordMetric} from "@/components/record-trend-panel";
 import {formatRecordNumber} from "@/components/number-format";
 import { ChartSelectionColumn, ChartSelectionPoint } from "@/components/chart-selection-marker";
 import {useChartDrag} from "@/components/use-chart-drag";
@@ -23,7 +23,6 @@ import {BodyFatContext,useBodyMetrics} from "./visibility";
 import { measurementSummaryAt,preferredMorningDate } from "./summary";
 import { calendarOrdinal, measurementDateTicks, measurementRange, measurementTrend, normalScale, type MeasurementInterval, type MeasurementMetric, type MeasurementRange } from "./trend";
 import styles from "./measurements-view.module.css";
-import { estimateModeLabel, estimateUserExplanation } from "./estimate-explanation";
 import { localMeasurementDate, measurementDayAction, measurementNeedsEntry, type EntryResult, type MeasurementActions, type MeasurementDateDisplay, type MeasurementDisplay } from "./entry-state";
 import { MeasurementEntry } from "./measurement-entry";
 import { timezoneLabel } from "./timezone";
@@ -76,8 +75,6 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [chartPeriod, setChartPeriod] = useState<"daytime" | "evening" | undefined>();
   const [showEvening, setShowEvening] = useState(!initialTrend);
-  const [showEstimates, setShowEstimates] = useState(!initialTrend);
-  const [rulesOpen, setRulesOpen] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [drawer, setDrawer] = useState<DrawerView | null>(initialDate&&!initialTrend ? initialPeriod||initialIntent==='edit'?{kind:"entry",date:initialDate,period:initialPeriod??'daytime',editing:initialIntent==='edit'}:{kind:"day",date:initialDate,metric:"weightKg"} : null);
   const transition=useChartTransition(),[selectedMetric,setSelectedMetric]=useState<MeasurementMetric>('weightKg');
@@ -86,13 +83,13 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
 
   useEffect(()=>{const latest=()=>{setDrawer(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
   const range = measurementRange(latestDate, mode, mode === "custom" ? customRange : { start: earliestDate, end: latestDate });
-  const displayedRecords = records.filter((row) => showEstimates || row.recordKind !== "estimated");
+  const displayedRecords = records.filter((row) => row.recordKind !== "estimated");
   const visibleRecords = displayedRecords.filter((row) => row.recordDate >= range.start && row.recordDate <= range.end);
   const recentInterval = { start: catalog.start, end: today || catalog.end };
   const recent = recentMeasurementDays(displayedRecords, recentInterval, choices, 7).filter(day => day.date === today || (!dates.some(row => row.date === day.date && row.reminderSkipped) && measurementNeedsEntry(records, day.date, choices,metrics)));
   const chartDates=measurementCalendarPage(range,calendarOrdinal(range.end)-calendarOrdinal(range.start)+1).reverse();
   const fallbackDate=preferredMorningDate(visibleRecords,activeMetric,today||range.end,choices);
-  const selection=useChartDateSelection(chartDates,initialDate??fallbackDate,fallbackDate,calendarOpen,`${showEvening}:${showEstimates}:${JSON.stringify(choices)}`),activeDate=selection.selected;
+  const selection=useChartDateSelection(chartDates,initialDate??fallbackDate,fallbackDate,calendarOpen,`${showEvening}:${JSON.stringify(choices)}`),activeDate=selection.selected;
   const selectedPeriod=selection.active?chartPeriod:undefined;
   const weight=measurementSummaryAt(records,'weightKg',activeDate,choices),fat=measurementSummaryAt(records,'bodyFatPercent',activeDate,choices);
   const selectedSummary=activeMetric==='weightKg'?weight:fat,deltaUnit=activeMetric==='weightKg'?'kg':'百分点';
@@ -141,16 +138,9 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
        metrics={readings} chartSummary={changeSummary}
 
        title={metricName(activeMetric)+" · "+unitFor(activeMetric)}
-       options={<ChartOptions label="图表选项">
-         <div className={styles.chartControls}><label className={styles.toggle}><span>晚间</span><input aria-label="晚间数据" type="checkbox" checked={showEvening} onChange={event=>setShowEvening(event.target.checked)}/></label><label className={styles.toggle}><span>估计</span><input aria-label="估计补全" type="checkbox" checked={showEstimates} onChange={event=>setShowEstimates(event.target.checked)}/></label><button type="button" aria-expanded={rulesOpen} onClick={()=>setRulesOpen(!rulesOpen)}>估算规则 {rulesOpen?"−":"＋"}</button></div>
-         {rulesOpen && <section id="measurement-estimate-rules" className={styles.rules} aria-label="估算规则">
-        <div><h2>历史初始化</h2><p>第一次补齐已有的历史缺口，利用已经存在的前后真实测量恢复中间趋势。</p><p>补全后结果固定，以后新增数据不会反向改写；真实补录会替代对应的估计值。</p></div>
-        <div><h2>日常估计</h2><p>只参考目标日期之前的真实历史，有当天实测时以它为基准。优先使用个人真实晨晚差，必要时使用近期真实晨间趋势。</p><p>真实依据不足时保留空缺，不强行补齐。</p></div>
-        <p className={styles.rulesPrinciples}>真实测量始终优先。估计只用于辅助趋势，不作为真实测量参与实测统计。</p>
-      </section>}
-       </ChartOptions>}
-       legend={<><span><i style={{background:"var(--gold)",borderRadius:"50%"}}/>晨间空腹</span>{showEvening&&<span><i style={{background:"var(--data-deficit)",borderRadius:"50%"}}/>晚间</span>}{showEstimates&&visibleRecords.some(row=>row.recordKind==="estimated")&&<span>虚线 · 估计</span>}</>}
-      ><div data-chart-metric={activeMetric}><TrendPlot linked={!!initialTrend&&range.start===initialTrend.from&&range.end===initialTrend.to&&!showEstimates} records={visibleRecords} metric={activeMetric} showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
+       options={<label className={styles.toggle}><span>晚间</span><input aria-label="晚间数据" type="checkbox" checked={showEvening} onChange={event=>setShowEvening(event.target.checked)}/></label>}
+       legend={<><span><i style={{background:"var(--gold)",borderRadius:"50%"}}/>晨间空腹</span>{showEvening&&<span><i style={{background:"var(--data-deficit)",borderRadius:"50%"}}/>晚间</span>}</>}
+      ><div data-chart-metric={activeMetric}><TrendPlot linked={!!initialTrend&&range.start===initialTrend.from&&range.end===initialTrend.to} records={visibleRecords} metric={activeMetric} showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
       </RecordTrendPanel>
     </section>
     <DailyRecords history={<RecordHistory today={today} dates={(catalog.start&&catalog.end?measurementCalendarPage(catalog,calendarOrdinal(catalog.end)-calendarOrdinal(catalog.start)+1):[]).filter(date=>!recent.some(day=>day.date===date))} renderRow={renderDay} view={inspectDay}/>}>{recent.map(day=>renderDay(day.date))}</DailyRecords>
@@ -169,47 +159,35 @@ function TableReading({ row, metric, pendingLabel, onInspect, onInspectCandidate
 }) {
   if (!row) return pendingLabel ? <button type="button" className={styles.tableReading} aria-label={pendingLabel} onClick={onInspectCandidates}>待选择</button> : <Missing />;
   if (row[metric] === null) return <Missing />;
-  return <button type="button" className={styles.tableReading} data-kind={row.recordKind} aria-label={`查看 ${row.recordDate} ${periodLabel(row)}${metricName(metric)}${row.recordKind === "estimated" ? "估计依据" : "实测记录"}`} onClick={() => onInspect(row)}>
-    <span className={styles.readingStatus} title={row.recordKind === "estimated" ? "估计" : "实测"} aria-hidden="true">{row.recordKind === "estimated" ? "◇" : "●"}</span>{formatRecordNumber(row[metric])}<small>{unitFor(metric)}</small>
+  return <button type="button" className={styles.tableReading} data-kind={row.recordKind} aria-label={`查看 ${row.recordDate} ${periodLabel(row)}${metricName(metric)}实测记录`} onClick={() => onInspect(row)}>
+    <span className={styles.readingStatus} title="实测" aria-hidden="true">●</span>{formatRecordNumber(row[metric])}<small>{unitFor(metric)}</small>
   </button>;
 }
 function RecordDetails({ row, metric, onMetric }: { row: MeasurementDisplay; metric: MeasurementMetric; onMetric: (metric: MeasurementMetric) => void }) {
   const activeMetrics=useBodyMetrics();
-  const estimated = row.recordKind === "estimated";
   const otherMetric = metric === "weightKg" ? "bodyFatPercent" : "weightKg";
-  const explanation = estimated ? estimateUserExplanation(row.estimation, row.recordDate, metric) : null;
   return <article className={styles.recordDetails} data-inspector-record={row.id} data-kind={row.recordKind} aria-label="记录详情">
     <p className={styles.recordMetric}>{metricName(metric)}</p>
-    <p className={`${styles.recordReading} ${row.period === "daytime" ? styles.dayValue : styles.nightValue}`} data-record-value={metric} data-estimate-value={estimated ? metric : undefined}>
+    <p className={`${styles.recordReading} ${row.period === "daytime" ? styles.dayValue : styles.nightValue}`} data-record-value={metric}>
       <strong>{formatRecordNumber(row[metric])}</strong><span>{unitFor(metric)}</span>
     </p>
     {(activeMetrics.some(m=>m===otherMetric)&&row[otherMetric] !== null) && <div className={styles.otherReadings} aria-label="同条记录的其他指标">
       {row[otherMetric] !== null && <button type="button" aria-label={`查看${metricName(otherMetric)}记录值`} onClick={() => onMetric(otherMetric)}><span>{metricName(otherMetric)}</span><strong>{row[otherMetric]} <small>{unitFor(otherMetric)}</small></strong></button>}
     </div>}
-    {explanation && <section className={styles.estimateBasis} aria-label="估计依据">
-      <h3>估计依据</h3><p>{explanation.method}</p>
-      {explanation.basis.length > 0 && <ul>{explanation.basis.map(basis => <li key={basis}>{basis}</li>)}</ul>}
-      {explanation.formula && <p className={styles.formula}>{explanation.formula}</p>}
-      {explanation.sampleSummary.map(summary => <p className={styles.estimateNote} key={summary}>{summary}</p>)}
-      {explanation.fallbackNote && <p className={styles.estimateNote}>{explanation.fallbackNote}</p>}
-      <p className={styles.estimateDisclaimer}>用于辅助趋势，并非实际测量。</p>
-    </section>}
     <section className={styles.recordInfo} aria-label="记录信息">
       <h3>记录信息</h3>
       <dl>
         <div><dt>来源</dt><dd>{sourceLabel(row)}</dd></div>
-        <div><dt>测量时间</dt><dd>{estimated ? "无" : recordTimeLabel(row)}</dd></div>
+        <div><dt>测量时间</dt><dd>{recordTimeLabel(row)}</dd></div>
         <div><dt>时区</dt><dd>{row.timezoneLabel ?? timezoneLabel(row.timezone, row.recordDate, row.utcOffsetMinutes)}</dd></div>
-        <div><dt>设备</dt><dd>{estimated ? "无" : row.deviceLabel ?? "无"}</dd></div>
-        {!estimated && row.sourceSystem && row.sourceSystem !== sourceLabel(row) && <div><dt>来源系统</dt><dd>{row.sourceSystem}</dd></div>}
+        <div><dt>设备</dt><dd>{row.deviceLabel ?? "无"}</dd></div>
+        {row.sourceSystem && row.sourceSystem !== sourceLabel(row) && <div><dt>来源系统</dt><dd>{row.sourceSystem}</dd></div>}
       </dl>
     </section>
-    {explanation && explanation.references.length > 0 && <details className={styles.references}><summary>查看真实参考记录（{explanation.references.length} 条）</summary><ul>{explanation.references.map((reference, index) => <li key={index}>{reference}</li>)}</ul></details>}
   </article>;
 }
 function periodLabel(row: Pick<MeasurementDisplay, "period" | "fasting">) { return row.period === "evening" ? "晚间" : row.fasting === false || row.fasting === null ? "白天" : "晨间"; }
 function sourceLabel(row: MeasurementDisplay) {
-  if (row.recordKind === "estimated") return `系统估计 · ${estimateModeLabel(row.estimation)}`;
   return row.entryChannel === "development_backend" ? "维护录入" : row.entryChannel === "manual" ? "手动录入" : row.entryChannel === "api" ? "外部录入" : row.sourceSystem ?? (row.sourceType === "import" ? "导入 · 来源系统未提供" : row.sourceType === "manual" ? "手动录入" : row.sourceType);
 }
 function recordTimeLabel(row: MeasurementDisplay) { return row.timePrecision === "second" ? row.sourceLocalTime : "无"; }
@@ -246,10 +224,6 @@ function MeasurementInspector({ routeEntry=false,view, records, sources, timezon
     heading.current?.focus({ preventScroll: true });
   }, [navigationKey]);
   function entryUpdated(result: Extract<EntryResult, { ok: true }>) {
-    if (active && row?.recordKind === "estimated") {
-      const replacement = result.records.find(candidate => candidate.recordKind === "observed" && candidate.recordDate === active.date && candidate.period === row.period && candidate[active.metric] !== null);
-      if (replacement) setActive({ ...active, recordId: replacement.id });
-    }
     onUpdated(result);
   }
   return <Inspector routeEntry={routeEntry} title={editor?(editor.editing?'编辑身体记录 ':'身体录入 ')+editor.date:"身体记录详情"} close={onClose} onCloseReady={close=>{dismiss.current=close;}} className={styles.drawer} header={(
@@ -288,7 +262,7 @@ function DayOverview({ date, records, choices }: { date: string; records: Measur
       {metrics.map((metric, index) => {
         const day = days[index], row = period === "daytime" ? day.daytimeRecord : day.eveningRecord;
         const value = row?.[metric] ?? null;
-        return <div className={styles.overviewReading} key={metric} data-overview-metric={metric}><span>{metricName(metric)}</span><strong>{value ?? "—"}<small>{unitFor(metric)}</small></strong><small>{row && value !== null ? row.recordKind === "estimated" ? "◇ 估计" : "● 实测" : day[period].length > 1 ? "待选择" : "无"}</small></div>;
+        return <div className={styles.overviewReading} key={metric} data-overview-metric={metric}><span>{metricName(metric)}</span><strong>{value ?? "—"}<small>{unitFor(metric)}</small></strong><small>{row && value !== null ? "实测" : day[period].length > 1 ? "待选择" : "无"}</small></div>;
       })}
     </div>)}
   </section>;
@@ -301,14 +275,14 @@ function RecordList({ day, metric, activeId, period, onInspect }: {
     {[...day.records].filter(row => !period || row.period === period).sort((a, b) => a.period.localeCompare(b.period) || a.sourceLocalTime.localeCompare(b.sourceLocalTime) || a.recordKind.localeCompare(b.recordKind)).map(row => {
       const availableMetric = row[metric] === null ? metric === "weightKg" ? "bodyFatPercent" : "weightKg" : metric;
       return <button type="button" key={row.id} className={styles.recordEntry} aria-pressed={row.id === activeId} onClick={event => onInspect(row, event.currentTarget, availableMetric)}>
-      <span>{periodLabel(row)} · {row.recordKind === "estimated" ? "◇ 估计" : "实测"}<small>{row.recordKind === "estimated" ? estimateModeLabel(row.estimation) : recordTimeLabel(row)}</small></span>
+      <span>{periodLabel(row)} · {"实测"}<small>{recordTimeLabel(row)}</small></span>
       <strong className={row.period === "daytime" ? styles.dayValue : styles.nightValue}>{row[availableMetric] ?? "—"} <small>{unitFor(availableMetric)}</small></strong>
     </button>; })}
   </div>;
 }
 function TrendPlot({linked=false,...props}:Parameters<typeof FullTrendPlot>[0]&{linked?:boolean}) {
   const mobile=useMobileMode();
-  return (mobile||linked)&&props.metric==="weightKg"&&!props.showEvening&&!props.records.some(row=>row.recordKind==="estimated")?<MorningWeightPlot linked={linked} records={props.records} interval={props.interval} selection={props.selection} choices={props.choices}/>:<FullTrendPlot {...props}/>;
+  return (mobile||linked)&&props.metric==="weightKg"&&!props.showEvening?<MorningWeightPlot linked={linked} records={props.records} interval={props.interval} selection={props.selection} choices={props.choices}/>:<FullTrendPlot {...props}/>;
 }
 function FullTrendPlot({ records, metric, showEvening, interval, selectedDate, selectedPeriod, selection, onPeriod, choices }: {
   records: MeasurementDisplay[]; metric: MeasurementMetric; showEvening: boolean; interval: MeasurementInterval;
@@ -340,7 +314,7 @@ function FullTrendPlot({ records, metric, showEvening, interval, selectedDate, s
   const pointByPeriod = new Map(points.map(row => [`${row.recordDate}:${row.period}`, row]));
   const ticks = measurementDateTicks(interval, width < 500 ? 4 : width < 900 ? 6 : 8);
   const unit = unitFor(metric);
-  const pointLabel = (row: MeasurementDisplay) => `${row.recordDate} · ${row.period === "daytime" ? "空腹" : "晚间非空腹"} · ${formatRecordNumber(row[metric])} ${unit} · ${row.recordKind === "estimated" ? `估计 · ${estimateUserExplanation(row.estimation, row.recordDate, metric).method}` : "实测"}`;
+  const pointLabel = (row: MeasurementDisplay) => `${row.recordDate} · ${row.period === "daytime" ? "空腹" : "晚间非空腹"} · ${formatRecordNumber(row[metric])} ${unit} · 实测`;
   const hintedRecord = points.find((row) => row.id === hintRecordId && row.recordDate===selectedDate && selection.active) ?? points.find(row => row.recordDate === selectedDate && row.period === (selectedPeriod ?? "daytime")) ?? points.find(row => row.recordDate === selectedDate);
   const drag=useChartDrag(Array.from({length:span+1},(_,i)=>addCalendarDays(interval.start,i)),width,48,24,selection.choose);
   const markerKey=`${width}:${height}:${interval.start}:${interval.end}:${scale?.ticks.join("|")}`;
@@ -359,9 +333,8 @@ function FullTrendPlot({ records, metric, showEvening, interval, selectedDate, s
         <ChartSelectionColumn x={selectedX} date={selectedDate} column={selectedColumn} plot={{left:48,right:width-24,top:14,bottom:plotBottom}} resetKey={markerKey} direct={selection.direct}/>
         {(["daytime","evening"] as const).map(period=>{const point=points.find(row=>row.recordDate===selectedDate&&row.period===period);return <ChartSelectionPoint key={period} x={point?x(point.recordDate):null} y={point?y(point[metric]):0} resetKey={markerKey} direct={selection.direct} color={period==="daytime"?"var(--body-gold)":"var(--body-blue)"}/>;})}
         {pairs.map((day) => <line data-pair={day.date} key={day.date} x1={x(day.date)} x2={x(day.date)} y1={y(day.daytimeRecord![metric])} y2={y(day.eveningRecord![metric])} className={styles.pairLine} />)}
-        {segments.map(({ a, b, period, estimated, missingDayCount }) => <line data-chart-line key={`${a.id}:${b.id}`} data-segment={estimated ? "estimated" : missingDayCount ? "gap" : "continuous"} data-period={period} x1={x(a.recordDate)} y1={y(a[metric])} x2={x(b.recordDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} ${estimated ? styles.estimateLine : missingDayCount ? styles.gapLine : ""}`} />)}
+        {segments.map(({ a, b, period }) => <line data-chart-line key={`${a.id}:${b.id}`} data-segment="continuous" data-period={period} x1={x(a.recordDate)} y1={y(a[metric])} x2={x(b.recordDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} `} />)}
         {[...points].sort((a, b) => Number(a.period === "daytime") - Number(b.period === "daytime")).map((row) => {
-          const estimated = row.recordKind === "estimated";
           const label = pointLabel(row);
           // 相邻日期与同日晨晚点各用中线划分点击区域，避免透明命中区遮住另一条记录。
           const companion = pointByPeriod.get(`${row.recordDate}:${row.period === "daytime" ? "evening" : "daytime"}`);
@@ -375,10 +348,10 @@ function FullTrendPlot({ records, metric, showEvening, interval, selectedDate, s
           const clipBottom = midpoint !== null && !coincident && ownY < companionY! ? midpoint : height;
           const clipId = `${plotId}-${row.id}`;
           return <g key={row.id} data-point-id={row.id} data-date={row.recordDate} data-selected={row.recordDate===selectedDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.recordDate === selectedDate} data-chart-date={row.recordDate} onMouseMove={() => {if(!selection.locked){setHintRecordId(row.id);selection.preview(row.recordDate);onPeriod(row.period);}}} onMouseLeave={() => setHintRecordId(null)} onFocus={event => {selection.focus(event,row.recordDate);if(event.currentTarget.matches(":focus-visible")){setHintRecordId(row.id);onPeriod(row.period);}}} onBlur={() => setHintRecordId(null)} onClick={() => activate(row)} onKeyDown={(event) => {selection.keyDown(event,row.recordDate);if(event.key==="Enter"||event.key===" ")activate(row);}}>
-            <title>{estimated ? label : `${recordTimeLabel(row)} · ${label}`}</title>
+            <title>{`${recordTimeLabel(row)} · ${label}`}</title>
             <defs><clipPath id={clipId}><rect x={clipLeft} y={clipTop} width={clipRight - clipLeft} height={clipBottom - clipTop} /></clipPath></defs>
             <circle cx={x(row.recordDate)} cy={ownY} r="14" className={styles.hitTarget} clipPath={`url(#${clipId})`} />
-            {estimated ? <path d={`M ${x(row.recordDate)} ${y(row[metric]) - 4} l 4 4 l -4 4 l -4 -4 Z`} className={`${styles.estimatePoint} ${row.period === "daytime" ? styles.dayEstimate : styles.nightEstimate}`} /> : <circle cx={x(row.recordDate)} cy={y(row[metric])} r={row.period === "daytime" ? "4" : "3.2"} className={row.period === "daytime" ? styles.dayPoint : styles.nightPoint} />}
+            <circle cx={x(row.recordDate)} cy={y(row[metric])} r={row.period === "daytime" ? "4" : "3.2"} className={row.period === "daytime" ? styles.dayPoint : styles.nightPoint} />
           </g>;
         })}
         {!points.length && <text x={width / 2} y="118" textAnchor="middle" className={styles.emptyChart}>{`此区间暂无${showEvening ? "" : "空腹"}${metricName(metric)}记录`}</text>}

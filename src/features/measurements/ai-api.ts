@@ -1,3 +1,4 @@
+import { currentMeasurementFacts } from "./retirement";
 import {adoptedMeasurements} from "./days";
 import type { Database } from "../../db/client";
 import { ApiError, authenticateAi, type AiIdentity } from "../auth/ai-tokens";
@@ -8,7 +9,6 @@ import { listMeasurementSources, MeasurementSourceError } from "./sources";
 import { buildMeasurementDays } from "./days";
 import { measurementSummary } from "./summary";
 import { calendarOrdinal, measurementTrend, metricDifference } from "./trend";
-import { estimateUserExplanation } from "./estimate-explanation";
 import { systemMeasurementTimezone, timezoneLabel, validateMeasurementTimezone } from "./timezone";
 import { localMeasurementDate } from "./entry-state";
 
@@ -70,6 +70,6 @@ export async function queryAiMeasurements(db: Database, userId: string, params: 
     summary: measurementSummary(all.filter(row=>row.recordDate<=localMeasurementDate(new Date(),timezone)), metric, choices), trend: measurementTrend(records, metric, true, choices),
     days: buildMeasurementDays(records, choices, metric, dates.filter(row => visible(row.date)).map(row => row.date)).map(day => ({ date: day.date, needsSelection: day.needsSelection, daytime: day.daytimeRecord, evening: day.eveningRecord, candidates: { daytime: day.daytime, evening: day.evening }, difference: metricDifference(day.daytimeRecord, day.eveningRecord, metric) })),
   }]));
-  return { context: { timezone, timezoneLabel: timezoneLabel(timezone), localDate: localMeasurementDate(new Date(), timezone) }, units: { weightKg: "kg", bodyFatPercent: "%", bodyFatDifference: "percentage_points" }, range: { from, to }, records: records.map(row => ({ ...row, estimateExplanation: row.estimation ? { weightKg: estimateUserExplanation(row.estimation, row.recordDate, "weightKg"), bodyFatPercent: estimateUserExplanation(row.estimation, row.recordDate, "bodyFatPercent") } : null })), dates: dates.filter(row => visible(row.date)), sources, analyses,
-    rules: "晨间只接受明确空腹实测；摘要仅统计实测。同一天晨间／晚间各采用最后保存的一条实测，新录入覆盖已有值，未知字段保留；未来身体日期禁止写入。未知值为 null。测量来源须由用户提供；未提供先询问补填或明确留空，不能用 ChatGPT／手动提供／设备未注明等代填。sources 只供用户选择，不擅自沿用；明确留空使用 deviceLabel:null 和 sourceUnspecifiedConfirmed:true。" };
+  return currentMeasurementFacts({ context: { timezone, timezoneLabel: timezoneLabel(timezone), localDate: localMeasurementDate(new Date(), timezone) }, units: { weightKg: "kg", bodyFatPercent: "%", bodyFatDifference: "percentage_points" }, range: { from, to }, records, dates: dates.filter(row => visible(row.date)), sources, analyses,
+    rules: "晨间只接受明确空腹实测；摘要仅统计实测。同一天晨间／晚间各采用最后保存的一条实测，新录入覆盖已有值，未知字段保留；未来身体日期禁止写入。未知值为 null。测量来源须由用户提供；未提供先询问补填或明确留空，不能用 ChatGPT／手动提供／设备未注明等代填。sources 只供用户选择，不擅自沿用；明确留空使用 deviceLabel:null 和 sourceUnspecifiedConfirmed:true。" });
 }

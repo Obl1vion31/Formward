@@ -36,7 +36,7 @@ export type EnergySnapshot = { days: EnergyDayRecord[]; activities: ActivityReco
 export const emptyEnergy = (): EnergySnapshot => ({ days: [], activities: [], profiles: [] });
 export type EnergyPreview = { action: EnergyAction; before?: EnergyRecord; after?: EnergyRecord; error?: string; warnings?:string[]; day?:EnergyDay; coverageQuestions?: ActivityRecord[]; excluded: boolean };
 export type EnergyOperationView = { id: string; revision: number; status: string; rows: EnergyPreview[]; canConfirm: boolean; expiresAt: string | null; createdAt: string; repeated?: boolean };
-export type RestingBasis = { method: "mifflin-st-jeor"; profileId: string; profileVersion: number; heightCm: string; age: number; sex: "male" | "female"; weightKg: string; weightDate: string; weightId: string; weightEstimated: boolean; carried: boolean };
+export type RestingBasis = { method: "mifflin-st-jeor"; profileId: string; profileVersion: number; heightCm: string; age: number; sex: "male" | "female"; weightKg: string; weightDate: string; weightId: string; carried: boolean };
 export type EnergyDay = { cumulative?:boolean; steps?: number | null; date: string; record: EnergyDayRecord | null; activities: ActivityRecord[]; restingKcal: string | null; activeKcal: string | null; totalKcal: string | null; restingBasis: RestingBasis | null; totalSource: "override" | "sum" | null; activeSource: "override" | "activities" | "default-zero" | null; restingSource: "record" | "average" | "formula" | null; estimated: boolean; additionalKcal?:string|null; recordedTotalKcal?:string|null;recordedActiveKcal?:string|null };
 const amount = (value: number) => (Math.round((value + Number.EPSILON) * 10000) / 10000).toFixed(4);
 
@@ -50,7 +50,7 @@ export function restingEstimate(date: string, profiles: EnergyProfile[], records
   const age = ageOn(profile.birthDate, date);
   if (age < 18 || age > 120) return null;
   if(records.filter(r=>r.recordDate===date&&r.recordKind!=="estimated"&&r.period==="daytime").length>1)return null;
-  const days = buildMeasurementDays(records.filter(record => record.recordDate <= date), {}, "weightKg");
+  const days = buildMeasurementDays(records.filter(record => record.recordKind !== "estimated" && record.recordDate <= date), {}, "weightKg");
   const today = days.find(day => day.date === date);
   // 同日多候选是待选择，不能用旧值掩盖这个问题。
   if (today && today.daytime.filter(record => record.recordKind !== "estimated").length > 1) return null;
@@ -67,7 +67,7 @@ export function restingEstimate(date: string, profiles: EnergyProfile[], records
   if (!weight || weight.weightKg === null || weight.fasting !== true) return null;
   const calculated = 10 * Number(weight.weightKg) + 6.25 * Number(profile.heightCm) - 5 * age + (profile.sex === "male" ? 5 : -161);
   if (!Number.isFinite(calculated) || calculated <= 0) return null;
-  return { value: amount(calculated), basis: { method: "mifflin-st-jeor", profileId: profile.id, profileVersion: profile.version, heightCm: profile.heightCm, age, sex: profile.sex, weightKg: weight.weightKg, weightDate: weight.recordDate, weightId: weight.id, weightEstimated: weight.recordKind === "estimated", carried } };
+  return { value: amount(calculated), basis: { method: "mifflin-st-jeor", profileId: profile.id, profileVersion: profile.version, heightCm: profile.heightCm, age, sex: profile.sex, weightKg: weight.weightKg, weightDate: weight.recordDate, weightId: weight.id, carried } };
 }
 
 export function energyModes(record?: Pick<EnergyDayRecord, "entryMode" | "activityMode" | "totalKcal" | "activeKcal"> | null) {

@@ -10,7 +10,7 @@ import { getDatabase } from "@/db/client";
 import { listMeasurements } from "@/features/measurements/records";
 import { MeasurementsView } from "@/features/measurements/measurements-view";
 import { listMeasurementDates, measurementDisplay } from "@/features/measurements/editing";
-import { deleteCellAction, estimateCellAction, removeSourceAction, saveDayAction } from "../actions";
+import { deleteCellAction, removeSourceAction, saveDayAction } from "../actions";
 import { listMeasurementSources } from "@/features/measurements/sources";
 import { linkedTrend, type TrendRoute } from "@/components/metric-trend-model";
 import {recordOpenIntent,type RecordIntent} from '@/components/record-intent';
@@ -34,7 +34,7 @@ async function DashboardContent({ user, date, period, trend,intent }: { user: No
   return (
     <>
 
-      <MeasurementsView key={`${date}:${intent}:${period}:${trend?.from}:${trend?.to}`} initialIntent={intent} preferences={preferences} initialDate={date} initialPeriod={period} initialTrend={trend} records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ deleteCell:deleteCellAction, save: saveDayAction, estimate: estimateCellAction, removeSource: removeSourceAction }} />
+      <MeasurementsView key={`${date}:${intent}:${period}:${trend?.from}:${trend?.to}`} initialIntent={intent} preferences={preferences} initialDate={date} initialPeriod={period} initialTrend={trend} records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ deleteCell:deleteCellAction, save: saveDayAction, removeSource: removeSourceAction }} />
     </>
   );
 }

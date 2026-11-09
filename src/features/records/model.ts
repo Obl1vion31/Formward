@@ -10,7 +10,6 @@ const key = z.string().regex(/^[a-zA-Z0-9_-]{1,120}$/);
 const decimal = z.string().nullable().optional();
 export const recordItemSchema = z.union([
   z.object({ key, kind: z.literal("save_record"), date: z.string(), period: z.enum(["daytime", "evening"]), recordId: z.string().optional(), version: z.string().optional(), weightKg: decimal, bodyFatPercent: decimal, deviceLabel: decimal, fasting: z.boolean().nullable().optional(), timezone: decimal, sourceUnspecifiedConfirmed: z.boolean().optional() }).strict(),
-  z.object({ key, kind: z.literal("estimate_cell"), date: z.string(), period: z.enum(["daytime", "evening"]), metric: z.enum(["weightKg", "bodyFatPercent"]) }).strict(),
   ...actionSchema.options.map(schema => schema.extend({ key })),
   ...trainingActionSchemas.map(schema => schema.extend({ key })),
   ...energyActionSchemas.map(schema => schema.extend({ key })),
@@ -20,7 +19,7 @@ export type RecordAction = ReviewInput | MealAction | EnergyAction | TrainingPla
 export const publicRecordInputSchema = recordInputSchema.extend({ items: z.array(z.union(recordItemSchema.options.filter(schema => !schema.shape.kind.value.includes("energy_defaults") && !schema.shape.kind.value.includes("energy_profile") && !schema.shape.kind.value.startsWith("delete_") && !schema.shape.kind.value.startsWith("restore_")))).min(1).max(100) });
 export type RecordInput = z.infer<typeof recordInputSchema>;
 export type RecordItem = { key: string; action: RecordAction; originalInput: RecordAction; excluded: boolean; checked: boolean; persisted?: boolean; measurementItemId?: string; editedBy?: { userId: string; at: string }; inclusionReview?:boolean; trainingGrant?: { tokenId?: string; oauthConnectionId?: string }; trainingExpiresAt?: string; trainingEntityId?: string; trainingSaved?: TrainingPreview };
-export const isBody = (action: RecordAction): action is ReviewInput => action.kind === "save_record" || action.kind === "estimate_cell";
+export const isBody = (action: RecordAction): action is ReviewInput => action.kind === "save_record";
 export const category = (action: RecordAction) => isBody(action) ? "body" : isTraining(action) ? "training" : isEnergy(action) ? "energy" : action.kind.endsWith("food") ? "foods" : "meals";
 export type RecordRow = RecordItem & { training?: TrainingPreview; body?: ReviewItem; meal?: PreviewRow; energy?: EnergyPreview; duplicateMeals?: MealView[] };
 export type RecordReviewView = { id: string; revision: number; status: string; rows: RecordRow[]; expiresAt: string | null; confirmationPath: string; createdAt: string; foods: FoodView[]; energySnapshot?: EnergySnapshot; mealOperation?: MealOperationView; energyOperation?: EnergyOperationView; saved: number; canConfirm: boolean; needsUserInput: { key: string; questions: string[] }[] };

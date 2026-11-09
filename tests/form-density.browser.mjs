@@ -47,13 +47,10 @@ export async function checkFormDensity({page,context,db,userId,baseURL,today,eng
  }
  await page.setViewportSize({width:390,height:720});await go("/dashboard");await page.evaluate(()=>localStorage.setItem("formward-theme","dark"));
  const bf=await body(),before=(await bf.getByRole("combobox",{name:"晨间数据来源",exact:true}).boundingBox()).y;
- await bf.getByRole("button",{name:"估算晨间体重",exact:true}).click();await bf.getByText("估计 · 已保存",{exact:true}).waitFor();await settle();
- const estimate=bf.locator('[data-entry-cell="daytime:weightKg"]'),value=await estimate.locator("strong").boundingBox(),action=await estimate.getByRole("button",{name:"录入实测",exact:true}).boundingBox();
- assert.ok(Math.abs((value.y+value.height/2)-(action.y+action.height/2))<=2);
- assert.ok(action.height>=44);
- const after=(await bf.getByRole("combobox",{name:"晨间数据来源",exact:true}).boundingBox()).y;assert.ok(Math.abs(before-after)<=2,"estimate must not add an action row");
- assert.equal(await bf.getByText("已估算此项，仅用于辅助趋势。",{exact:true}).count(),0);
- await shot("estimated-inline-390");await estimate.getByRole("button",{name:"录入实测",exact:true}).click();await bf.getByLabel("晨间体重",{exact:true}).fill("71.2");await bf.getByLabel("晨间体重",{exact:true}).fill("");await close();checks.push("estimate-value-and-measured-entry-inline-and-source-position-stable");
+ assert.equal(await bf.getByRole("button",{name:/估算/}).count(),0);
+ await bf.getByLabel("晨间体重",{exact:true}).fill("71.2");await bf.getByLabel("晨间体重",{exact:true}).fill("");
+ const after=(await bf.getByRole("combobox",{name:"晨间数据来源",exact:true}).boundingBox()).y;assert.ok(Math.abs(before-after)<=1);
+ await shot("actual-entry-390");await close();checks.push("actual-entry-and-source-position-stable");
  await food();await page.addStyleTag({content:"body{zoom:2}"});await shot("food-text-200");
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);await close();checks.push("200-percent-text-natural-reflow");
  const tc=await context.browser().newContext({storageState:await context.storageState(),viewport:{width:390,height:720},isMobile:true,hasTouch:true,locale:"zh-CN",timezoneId:"Asia/Shanghai",reducedMotion:"reduce"});

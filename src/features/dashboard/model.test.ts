@@ -11,7 +11,7 @@ import { linkedDate } from "../measurements/calendar";
 import type { MeasurementDisplay } from "../measurements/entry-state";
 import { summaryCards } from "./summary-cards";
 import { linkedTrend } from "../../components/metric-trend-model";
-const observed = (date: string, patch: Partial<MeasurementDisplay> = {}): MeasurementDisplay => ({ id: date, recordDate: date, period: "daytime", weightKg: "70.00", bodyFatPercent: "20.00", fasting: true, sourceLocalTime: date + " 08:00:00", recordKind: "observed", timezone: "Asia/Shanghai", sourceType: "manual", sourceSystem: null, sourceRecordId: null, entryChannel: "manual", deviceLabel: "虚构秤", estimation: null, timePrecision: "minute", updatedAt: date, ...patch });
+const observed = (date: string, patch: Partial<MeasurementDisplay> = {}): MeasurementDisplay => ({ id: date, recordDate: date, period: "daytime", weightKg: "70.00", bodyFatPercent: "20.00", fasting: true, sourceLocalTime: date + " 08:00:00", recordKind: "observed", timezone: "Asia/Shanghai", sourceType: "manual", sourceSystem: null, sourceRecordId: null, entryChannel: "manual", deviceLabel: "虚构秤", timePrecision: "minute", updatedAt: date, ...patch });
 const makeMeal = (date: string, caloriesKcal: string): MealView => prepareMealActions({ operationId: "fictional-overview", actions: [{ kind: "save_meal", date, mealType: "午餐", items: [{ kind: "food", name: "虚构食物", sourceKind: "reference", nutrition: { ...emptyNutrition(), caloriesKcal } }] }] }, { foods: [], meals: [] }, "manual")[0].meal!;
 const meal = (date:string,caloriesKcal:string):MealView => ({...makeMeal(date,caloriesKcal),day:{date,status:"complete",version:1,contentDigest:"fictional",source:"user"}});
 const expenditure = (date: string, totalKcal: string) => ({ id: date, version: 1, deletedAt: null, date, restingKcal: null, activeKcal: null, totalKcal, timezone: "Asia/Shanghai", sourceSystem: null, sourceRecordId: null, sourceOccurredAt: null, sourceUnit: "kcal" as const, syncStatus: "confirmed" as const });
@@ -79,18 +79,11 @@ test("跨闰日严格配对D+1与D晨重，末日使用范围外的次日记录"
 test("缺日不跨越配对，晚间不混入，未来晨重不提前展示", () => {
   const rows = [observed("2024-03-01"), observed("2024-03-03", { weightKg: "69.5" }), observed("2024-03-01", { id: "evening", period: "evening", fasting: false, weightKg: "80" })];
   assert.equal(overviewDays([], rows, ["2024-03-01"])[0].weightChangeKg, null);
-  assert.equal(overviewDays([], [observed("2024-03-01"), observed("2024-03-02")], ["2024-03-01"], true, emptyEnergy(), "2024-03-01")[0].weightChangeKg, null);
-});
-test("已有估计通过开关展示，同槽采用最后保存，零变化保留", () => {
-  const rows = [observed("2024-03-01"), observed("2024-03-02", { recordKind: "estimated", weightKg: "70.2" })];
-  assert.equal(overviewDays([], rows, ["2024-03-01"], false)[0].weightChangeKg, null);
-  const estimate = overviewDays([], rows, ["2024-03-01"], true)[0]; assert.equal(estimate.weightChangeKg, .2); assert.equal(estimate.differenceEstimated, true);
-  const ambiguous = overviewDays([], [...rows, observed("2024-03-01", { id: "second" })], ["2024-03-01"], true)[0]; assert.equal(ambiguous.weightChangeKg, .2); assert.equal(ambiguous.ambiguous, false);
-  assert.equal(overviewDays([], [observed("2024-03-01"), observed("2024-03-02")], ["2024-03-01"])[0].weightChangeKg, 0);
+  assert.equal(overviewDays([], [observed("2024-03-01"), observed("2024-03-02")], ["2024-03-01"], emptyEnergy(), "2024-03-01")[0].weightChangeKg, null);
 });
 test("摄入减最终消耗得到带符号盈余，未知与实际零不同", () => {
   const energy: EnergySnapshot = { ...emptyEnergy(), days: [expenditure("2024-03-01", "500"), expenditure("2024-03-02", "600"), expenditure("2024-03-03", "0")] };
-  const days = overviewDays([meal("2024-03-01", "600"), meal("2024-03-02", "400"), meal("2024-03-03", "0")], [], ["2024-03-01", "2024-03-02", "2024-03-03", "2024-03-04"], false, energy);
+  const days = overviewDays([meal("2024-03-01", "600"), meal("2024-03-02", "400"), meal("2024-03-03", "0")], [], ["2024-03-01", "2024-03-02", "2024-03-03", "2024-03-04"], energy);
   assert.deepEqual(days.map(day => day.energyBalance), [100, -200, 0, null]);
   assert.equal(days[3].energy.totalKcal, null); assert.equal(days[3].nutrition, null);
   assert.equal(overview([meal("2024-03-01", "600")], [], "2024-03-01", energy).energyBalance, 100);
@@ -110,7 +103,7 @@ test("部分摄入和估算消耗仍计算盈余，缺失与明确零保持区�
   const partial = prepareMealActions({ operationId: "fictional-partial", actions: [{ kind: "save_meal", date: "2024-03-01", mealType: "午餐", items: [{ kind: "food", name: "已知食物", sourceKind: "estimated", nutrition: { ...emptyNutrition(), caloriesKcal: "300" } }, { kind: "food", name: "未知食物", sourceKind: "unknown", nutrition: emptyNutrition() }] }] }, { foods: [], meals: [] }, "manual")[0].meal!;
   const energy = { ...emptyEnergy(), days: [{ ...expenditure("2024-03-01", "200"), totalKcal: null, restingKcal: "200", activeKcal: "0", restingEstimated: true }] };
   partial.day={date:partial.date,status:"complete",version:1,contentDigest:"fictional",source:"user"};
-  const day = overviewDays([partial], [], ["2024-03-01"], false, energy)[0];
+  const day = overviewDays([partial], [], ["2024-03-01"], energy)[0];
   assert.equal(day.nutrition?.incomplete.caloriesKcal, true); assert.equal(day.energy.estimated, true); assert.equal(day.energyBalance, 100);
   assert.equal(overview([partial], [], "2024-03-01", energy).energyBalance, 100);
 });
@@ -135,11 +128,11 @@ test("未确认与未记全保留摄入，但不生成盈余；确认后恢复�
  const date="2024-03-01", energy={...emptyEnergy(),days:[expenditure(date,"200")]};
  for(const status of ["unconfirmed","incomplete"] as const){
   const record={...meal(date,"300"),day:{...meal(date,"300").day!,status}};
-  const day=overviewDays([record],[],[date],false,energy)[0];
+  const day=overviewDays([record],[],[date],energy)[0];
   assert.equal(day.nutrition?.values.caloriesKcal,"300.0000");assert.equal(day.energyBalance,null);assert.equal(day.balanceEligible,false);assert.equal(day.mealDayStatus,status);
   assert.equal(overview([record],[],date,energy).energyBalance,null);
  }
- assert.equal(overviewDays([meal(date,"0")],[],[date],false,energy)[0].energyBalance,-200);
+ assert.equal(overviewDays([meal(date,"0")],[],[date],energy)[0].energyBalance,-200);
 });
 
 test("服务端展示算式使用必要的小数，既有记录精度与真实差值不变",()=>{
@@ -158,7 +151,7 @@ test("七天收支使用选中日前6日至当天，晨重严格覆盖这七天�
  const meals=dates.map(date=>meal(date,"2100"));
  const energy={...emptyEnergy(),days:dates.map(date=>expenditure(date,"2400"))};
  const records=[observed(dates[0],{weightKg:"70.50"}),observed("2024-03-02",{weightKg:"69.70"})];
- const day=overviewDays(meals,records,["2024-03-01"],false,energy,"2024-03-02")[0];
+ const day=overviewDays(meals,records,["2024-03-01"],energy,"2024-03-02")[0];
  assert.deepEqual({from:day.week?.from,to:day.week?.through,next:day.week?.nextDate,count:day.week?.coveredDays,balance:day.week?.energyBalance,change:day.week?.weightChangeKg},{from:"2024-02-24",to:"2024-03-01",next:"2024-03-02",count:7,balance:-2100,change:-.8});
  assert.equal(day.weightChangeKg,null);
 });
@@ -166,19 +159,11 @@ test("七天不把缺失、未确认当成零，明确零参与覆盖天数；�
  const dates=["2024-03-01","2024-03-02","2024-03-03","2024-03-04"];
  const meals=[meal(dates[0],"0"),meal(dates[1],"100.4"),meal(dates[2],"100.4"),{...meal(dates[3],"300"),day:{...meal(dates[3],"300").day!,status:"incomplete" as const}}];
  const energy={...emptyEnergy(),days:dates.map(date=>expenditure(date,"0"))};
- const day=overviewDays(meals,[],["2024-03-06"],false,energy)[0];
+ const day=overviewDays(meals,[],["2024-03-06"],energy)[0];
  assert.equal(day.week?.coveredDays,3);assert.equal(day.week?.energyBalance,200.8);assert.equal(day.energyBalance,null);
  assert.deepEqual(day.week?.missingMorningDates,["2024-02-29","2024-03-07"]);
  const empty=overviewDays([],[],["2024-03-06"])[0].week!;
  assert.equal(empty.energyBalance,null);assert.equal(empty.coveredDays,0);assert.equal(empty.weightChangeKg,null);
-});
-test("七天体重开关只采用已有估计，缺端点不跨日、不提前使用未来",()=>{
- const records=[observed("2024-03-01"),observed("2024-03-07",{weightKg:"69.5"}),observed("2024-03-08",{recordKind:"estimated",weightKg:"69.25"})];
- assert.equal(overviewDays([],records,["2024-03-07"],false)[0].week?.weightChangeKg,null);
- const estimated=overviewDays([],records,["2024-03-07"],true)[0].week!;
- assert.equal(estimated.weightChangeKg,-.75);assert.equal(estimated.estimated,true);
- assert.equal(overviewDays([],records,["2024-03-07"],true,emptyEnergy(),"2024-03-07")[0].week?.weightChangeKg,null);
- assert.equal(overviewDays([],records.slice(1),["2024-03-07"],true)[0].week?.weightChangeKg,null);
 });
 test("没有当日记录的选中日仍有独立七天统计，绘图区边界不裁掉支持日期",()=>{
  const presentation=overviewPresentation([meal("2024-03-02","300")],[],{...emptyEnergy(),days:[expenditure("2024-03-02","200")]},"2024-03-05");
