@@ -2,11 +2,12 @@
 
 ## 当前部署
 
-日常网页统一为 [https://43.142.148.58](https://43.142.148.58)。Vercel 原地址 https://formward-ten.vercel.app 保留为 GPT／MCP、OAuth 与海外图片后台；普通网页 GET／HEAD 临时跳转到国服并保留页面路径和查询。GPT 生成的身体、饮食、训练及混合审核链接直接采用国服，未登录时登录后返回原确认页。
+日常网页为[国服](https://43.142.148.58)，原GPT／MCP、OAuth与海外图片后台继续由Vercel承担，正式数据统一写入上海。国服应用688081179e63f10f0e5e2e12400cd392c4894572，发布garmin-regions-current-20261110，BUILD_ID -7gprMm9zSgOPO2Tv7euh；已合入并推送main，保留workspace-flow-final的界面与0036。正式库55表、36条migration，本轮没有新增表或migration。
 
-上海 standalone 与 Vercel Build Output 来自同一干净应用提交141445b0474c0fa0723d243ad44bbd1ec94fb286，发布single-web-current-20261109，BUILD_ID C2tZf20bDMFuElnOE4wd1。海外READY部署dpl_24PpPLF4KJeSZroWPnJijGKodMNQ，CLE1；formward-ten.vercel.app与global.formward.top均指向该部署。后续测试与文档提交不改变正式应用，未合入或推送main。
+Garmin已启用personal：有效登录账号从“账号菜单 → 外部接入 → 设备与数据来源”选择中国站／国际站，填写本人密钥并同步。旧v1连接仍按国际站读取且密文不变；明确换站创建独立连接并保留历史。仅调整FORMWARD_DATA_SOURCE_ACCESS，原Garmin与OAuth安全摘要及其他私有配置保持，Neon继续停写。
 
-唯一正式库为上海formward_primary，PostgreSQL18.6、54表、35条migration。0035身体实测规则及已有界面改动保持；本次入口收拢没有数据库迁移或健康数据写入。Neon旧服务凭据已失效并保持停写，不能重新初始化主库或把正式入口切回旧快照。原IP演示服务停止，独立formward_preview与formward_ip_preview保持隔离。
+578项测试、lint、typecheck、干净构建，以及最终standalone双引擎各8组／19图通过，慢查询最大布局偏差0px；线上双端已核看。原GPT连接及Garmin国际站真实只读读取成功；中国站网络可达，缺少真实中国站密钥，完整认证仅用隔离响应验证。真实手机与系统键盘未测。发布、备份、原数据核对、观察窗口、截图及兼容恢复边界见[部署](deployment.md)和[验收](regional-acceptance.md)。
+
 
 ## 入口与职责
 
@@ -24,7 +25,7 @@
 
 - BETTER_AUTH_URL、OAuth issuer、MCP resource、JWKS、原Better Auth secret、账号accessVersion、会话、刷新令牌和授权保持。原GPT连接已在线get_profile验证，无需重连。
 - 两个域的host-only Secure Cookie继续隔离。网页跳转不转交Cookie、Authorization或请求正文；国服使用本人在国服的会话，首次进入可正常登录。
-- 切换前已打开页面的RSC读取、预取及POST保存继续原路径；不跨域重放写入。保留当前上线版本46项Server Action标识、绑定参数加密密钥与旧静态资源，已用真实旧页草稿保存验证。
+- 切换前已打开页面的RSC读取、预取及POST保存继续原路径；不跨域重放写入。保留当前上线版本47项Server Action标识、绑定参数加密密钥与旧静态资源，已用真实旧页草稿保存验证。
 - Next proxy保留原始URL及RSC头，服务证明绑定完整路径与全部查询。不能为修复框架归一化而忽略业务查询或放宽签名。
 - Garmin原连接编号、密文、AES-GCM主密钥、来源事实及人工保护保持；上海只读网络检查验证换取令牌、每日和活动接口成功。
 - 海外网关不包含数据库驱动、数据库凭据或认证签名密钥。上海重新检查Cookie／Bearer、账号和权限。公网IP同一HTTPS入口区分国服直达与已签名回源，伪造身份头不能提升来源。
@@ -33,11 +34,11 @@
 
 1. 从最新已发布应用合入当前授权变更，保留其他上线功能；从同一干净提交生成两端产物并绑定锁文件、migration摘要、BUILD_ID和协议。
 2. 完成隔离测试、必要浏览器验收和实际异机备份校验。只读核对完整库时使用服务器本地管理身份，不扩大应用角色权限。
-3. 在私有回环端口检查新应用与正式库身份，验证当前版本表单兼容；原子切换上海应用，再提升海外后台别名。保留兼容当前schema的应用回退。
+3. 在私有回环端口检查新应用与正式库身份，验证当前版本表单兼容；原子切换上海应用；海外协议未变时保留原部署，仅网关变更时更新海外别名。恢复版本同时兼容当前schema及凭据格式。
 4. 验证原GPT、Garmin、私有图片、网页跳转和登录返回；比较发布前后结构、业务、审计、授权及配置。正常使用时间与限流元数据单独核对，不笼统豁免健康表。
-5. 本次安全应用回退为/srv/formward-primary/releases/body-observed-20261109及其海外READY dpl_4fNL8bJcnQtaaTwVeMPfzXia4BUg；两者兼容0035。只切应用，保留用户新增记录，不恢复旧估算能力或旧Neon快照。
+5. 保留切换前workspace-flow-final-20261110供审计与无v2连接时的紧急退回；已有v2区域凭据时不能直接启用只识别v1的旧应用。采用兼容0036及v2的修复产物，保留用户新增记录，不恢复旧估算能力或旧Neon快照。
 
-数据库灾难恢复须另行停写并保全新增记录与撤销状态；先将最新加密归档恢复到隔离库完整核对，再制定正式恢复方案。已完成的0034／0035不重复执行，不修改已发布migration。
+数据库灾难恢复须另行停写并保全新增记录与撤销状态；先将最新加密归档恢复到隔离库完整核对，再制定正式恢复方案。已完成的0034／0035／0036不重复执行，不修改已发布migration。
 
 ## 图片、备份与维护
 

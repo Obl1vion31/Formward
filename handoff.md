@@ -1,20 +1,13 @@
 # Formward 项目交接
 
-## 当前部署：一个国服网页与海外AI后台
+## 当前部署：国服Garmin双站点与本人密钥
 
-日常使用 [https://43.142.148.58](https://43.142.148.58)。Vercel原域名 https://formward-ten.vercel.app 与global.formward.top保留GPT／MCP、OAuth和海外图片服务；普通网页GET／HEAD转到国服，路径和查询保持。四类AI审核链接统一国服，未登录后返回原确认页。两个域Cookie独立，不搬运凭据；原GPT和Garmin无需重连。
+日常网页为[国服](https://43.142.148.58)，原GPT／MCP、OAuth与海外图片后台继续由Vercel承担，正式数据统一写入上海。国服应用688081179e63f10f0e5e2e12400cd392c4894572，发布garmin-regions-current-20261110，BUILD_ID -7gprMm9zSgOPO2Tv7euh；已合入并推送main，保留workspace-flow-final的界面与0036。正式库55表、36条migration，本轮没有新增表或migration。
 
-应用141445b0474c0fa0723d243ad44bbd1ec94fb286，分支codex/mainland-dual-entry，发布single-web-current-20261109，版本dual-entry-141445b0-single-web-current-20261109，BUILD_ID C2tZf20bDMFuElnOE4wd1。两端同源构建，海外READY dpl_24PpPLF4KJeSZroWPnJijGKodMNQ、CLE1，两正式别名API已核对。后续测试／文档提交不改变该应用，未合入或推送main，其他工作区保持。
+Garmin已启用personal：有效登录账号从“账号菜单 → 外部接入 → 设备与数据来源”选择中国站／国际站，填写本人密钥并同步。旧v1连接仍按国际站读取且密文不变；明确换站创建独立连接并保留历史。仅调整FORMWARD_DATA_SOURCE_ACCESS，原Garmin与OAuth安全摘要及其他私有配置保持，Neon继续停写。
 
-唯一主库为上海formward_primary，54表、35条migration。已合入当前上线身体实测版本171f249与其文档，未回退0035或新上线界面。本轮没有migration、账号重置或正式虚构健康记录。发布前后结构与所有业务／审计表摘要一致；仅oauth_connections.last_used_at及rate_limits变化，OAuth安全摘要和除FORMWARD_SINGLE_WEB之外的配置摘要保持。Neon继续停写，不能重新初始化、重复迁移或恢复旧Neon入口。
+578项测试、lint、typecheck、干净构建，以及最终standalone双引擎各8组／19图通过，慢查询最大布局偏差0px；线上双端已核看。原GPT连接及Garmin国际站真实只读读取成功；中国站网络可达，缺少真实中国站密钥，完整认证仅用隔离响应验证。真实手机与系统键盘未测。发布、备份、原数据核对、观察窗口、截图及兼容恢复边界见[部署](docs/deployment.md)和[验收](docs/regional-acceptance.md)。
 
-Next proxy保留原始URL及RSC头，完整查询参与签名；避免框架移除_rsc导致403。保留切换前当前版本46项Server Action标识和加密密钥、旧静态文件；Chromium／WebKit实际验证旧页草稿继续保存。国服匿名审核经真实登录回原预览、确认保存、旧OAuth查询和跨账号404均通过，原Cookie／JWT／refresh的受信任CA实请求验证通过。
-
-571项单元／集成、lint、typecheck、干净production build通过；两引擎各12张深浅主题／手机／电脑截图及完整录屏已核看。线上原GPT get_profile同一账号通过；上海Garmin令牌、每日、活动接口成功；旧私有Blob600911字节SHA及COS临时68字节PNG写／读／清理通过。真实手机、系统键盘与长期跨境性能未测。本轮未重新宣称全站慢网1px矩阵通过，原身体实测专项证据仍保留。
-
-上海实际启用时间2026-11-09T15:41:04.276160Z；应用观察至15:47:42.228836Z，journal匹配错误0；不据此宣称完整请求历史或20分钟观察。备份、Garmin、IP证书timer均active；发布前异机备份已回读校验。安全应用回退保留body-observed-20261109及海外dpl_4fNL8bJcnQtaaTwVeMPfzXia4BUg，兼容0035，只回退应用、不恢复旧数据。
-
-私有证据为本工作树.codex/single-web、.codex/regional-releases/single-web-current-20261109与服务器/var/lib/formward/single-web-20261109。只读摘要采用服务器postgres本地身份，不扩大程序账号权限；失败保护脚本和候选服务重试均保留，正式数据未受影响。公开国服入口截图在C:/Users/14878/.codex/visualizations/2026/11/09/formward-single-web。部署职责、恢复顺序及验收见[国服与后台](docs/mainland-deployment.md)、[验收记录](docs/regional-acceptance.md)。
 
 ## 保留能力：身体仅保留实测
 

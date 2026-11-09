@@ -1,12 +1,17 @@
 # 公网 HTTPS 部署
 
-## 当前正式部署：单一国服网页与海外后台
+## 当前正式部署：国服Garmin双站点与海外后台
 
-唯一日常网页为[国服](https://43.142.148.58)，Vercel保留GPT／MCP、OAuth和海外图片后台，普通旧网页转国服，AI确认链接直接回国服。正式记录仍统一写入上海formward_primary；原GPT与Garmin已验证保持，Neon继续停写。
+日常网页为[国服](https://43.142.148.58)，Vercel继续承担原GPT／MCP、OAuth与海外图片后台，正式数据统一写入上海formward_primary。国服应用688081179e63f10f0e5e2e12400cd392c4894572，发布garmin-regions-current-20261110，BUILD_ID -7gprMm9zSgOPO2Tv7euh；已合入并推送main。保留最新workspace-flow-final-20261110的界面及0036，55表、36条migration；本轮Garmin功能没有新增表或migration。本轮未执行海外后台发布，两个入口的版本接口均返回当前国服应用版本，原GPT get_profile仍对应原账号。
 
-应用141445b0474c0fa0723d243ad44bbd1ec94fb286，single-web-current-20261109，BUILD_ID C2tZf20bDMFuElnOE4wd1；海外READY dpl_24PpPLF4KJeSZroWPnJijGKodMNQ、CLE1，两条正式别名已核对。已保留身体实测及0035，54表／35 migration，本次无数据库变更；发布前后业务、审计、授权与配置摘要通过，仅正常使用时间和限流元数据改变。保留当前版本46项表单标识及密钥，旧页面实际保存通过。
+设备与数据来源已按personal模式向已登录有效账号开放。入口为“账号菜单 → 外部接入 → 设备与数据来源”；首次“输入个人密钥／连接并同步”，选择中国站或国际站后填写相应密钥，各账号独立加密和同步。已有连接显示“更换个人密钥／更换并同步”。原v1连接继续按国际站读取且不重写密文；明确换站才归档旧连接并新建独立连接，保留历史。仅改变服务器FORMWARD_DATA_SOURCE_ACCESS，其他私有配置、原Garmin连接及OAuth安全摘要保持。
 
-571项单元／集成、lint、typecheck、同源production build、严格TLS原Cookie／JWT／刷新验证，以及Chromium／WebKit完整确认和旧页保存流程通过，24张截图及录像已核看。公网跳转、原GPT、Garmin及私有Blob／COS检查成功。当前职责、数据保护、回退和未测边界以[国服与海外后台](mainland-deployment.md)、[验收记录](regional-acceptance.md)为准；CPU／网络和表结构见[查看指南](server-operations.md)。未合入或推送main，后续纯测试／文档提交不改变线上应用。
+578项单元／集成、lint、独立typecheck和干净production build通过。最终standalone在Chromium／WebKit各8组流程、19张截图通过，涵盖两主题、320／390／430、横屏及1100／1440、失败留稿／重试、重复提交、账号隔离、旧v1不变、刷新、冲突与多人调度；慢数据库全过程最大固定锚点偏差0px。线上电脑和390px界面已核看，输入16px、高46px、无横向溢出。原生手机与系统软键盘未测。
+
+正式库只读核对结构及各表摘要通过，保留原47项表单标识、加密密钥及208项旧静态资源。发布前加密异机备份回读校验通过，应用、Nginx、PostgreSQL、备份／Garmin／证书timer均active。短观察窗2026-11-09T19:41:17Z—19:42:35Z应用日志匹配错误0，不代表长期或全量请求监控。原Garmin只读实测令牌、每日及活动均200（约1932／334／853ms）；中国站匿名请求400、约537ms证明网络可达，未持有真实中国站密钥，完整中国站认证仅在隔离响应下验证，不能冒充真实联调。
+
+私有证据为本工作树.codex/garmin-region-current及服务器/var/lib/formward/garmin-regions-current-20261110；线上双端截图在C:/Users/14878/.codex/visualizations/2026/11/10/formward-garmin-regions。保留原GPT、Garmin和图片位置，未创建正式虚构健康记录；Neon继续停写。恢复须兼容0036和v2区域凭据，不能在出现v2连接后直接回退至只支持v1的旧应用；保留数据，采用兼容修复版本。
+
 
 ## 此前版本：全站静态内容与局部加载反馈（2026-11-08）
 

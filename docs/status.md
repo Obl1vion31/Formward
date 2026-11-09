@@ -1,6 +1,15 @@
 # 当前实现与验证
 
-## 当前正式版本：全站静态内容与局部加载反馈（2026-11-08）
+## 当前正式版本：Garmin双站点与本人密钥
+
+日常网页为[国服](https://43.142.148.58)，原GPT／MCP、OAuth与海外图片后台继续由Vercel承担，正式数据统一写入上海。国服应用688081179e63f10f0e5e2e12400cd392c4894572，发布garmin-regions-current-20261110，BUILD_ID -7gprMm9zSgOPO2Tv7euh；已合入并推送main，保留workspace-flow-final的界面与0036。正式库55表、36条migration，本轮没有新增表或migration。
+
+Garmin已启用personal：有效登录账号从“账号菜单 → 外部接入 → 设备与数据来源”选择中国站／国际站，填写本人密钥并同步。旧v1连接仍按国际站读取且密文不变；明确换站创建独立连接并保留历史。仅调整FORMWARD_DATA_SOURCE_ACCESS，原Garmin与OAuth安全摘要及其他私有配置保持，Neon继续停写。
+
+578项测试、lint、typecheck、干净构建，以及最终standalone双引擎各8组／19图通过，慢查询最大布局偏差0px；线上双端已核看。原GPT连接及Garmin国际站真实只读读取成功；中国站网络可达，缺少真实中国站密钥，完整认证仅用隔离响应验证。真实手机与系统键盘未测。发布、备份、原数据核对、观察窗口、截图及兼容恢复边界见[部署](deployment.md)和[验收](regional-acceptance.md)。
+
+
+## 此前版本：全站静态内容与局部加载反馈（2026-11-08）
 
 已按本会话此前明确的修改后直接发布授权更新[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署dpl_Ds7qyEAu1jfhdWZyVqantWprDqkb，源码61eda5541ab7acd26a3b7e378b49a44aaac779de，构建static-loading-61eda554-20261108，来自codex/static-loading；正式别名、项目、sourceCommit／gitCommitSha及版本接口均一致，未合入或推送main。后续纯文档提交不改变正式应用。
 
