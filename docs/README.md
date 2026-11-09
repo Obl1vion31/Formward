@@ -21,6 +21,7 @@
 - `architecture.md`：轻量 Next.js 模块化单体边界。
 - `ai-api.md`：身体与饮食 MCP + OAuth、原图传输、AI 令牌、HTTP 协议、网页预览确认和本地 Codex 试验步骤。
 - `auth-setup.md`：Neon 配置、数据库 migration、内部账号创建、登录顺序与验证。
+- [服务器与数据库查看](server-operations.md)：腾讯云 CPU／网络监控、PostgreSQL 表结构、只读查询与服务位置。
 - [公网 IP 测试环境](ip-preview.md)：服务器隔离测试库、HTTPS、服务与备份。
 - `deployment.md`：Vercel 公网 HTTPS、正式地址、生产环境变量、共享限流和发布验收。
 - `database.md`：数据库连接流程、逻辑关系图、全部物理字段与索引／约束字典、维护入口。

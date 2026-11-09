@@ -97,3 +97,7 @@ issue-certificate.sh 使用官方 --dnssleep：staging 等待 180 秒、正式�
 
 
 首次HTTPS入口使用 formward-certificate-issue.service：先安装 nginx-regional.conf 到 /etc/formward/nginx-regional.conf.prepared，再安装 issue／install／check／prepare 四个证书脚本和 service。由 systemd 的私有 EnvironmentFile 注入凭据，执行 systemctl start formward-certificate-issue.service。prepare-certificate-preview.sh 拒绝非回环监听，先签发并安装证书，再配置回环TLS并检查真实握手，避免首次启动时配置引用尚不存在的证书；已有配置失败时恢复原文件。acme.sh 返回2只表示未到续期时间，仍需已有正式证书与实际握手通过，其他错误不计为成功。首次服务不 enable，不承担日常续期；日常使用独立 renew.timer。
+
+## 正式主库维护工具
+
+primary-backup.py固定备份formward_primary，原生归档、清单与SHA保存在root专用目录，保留14天；backup-crypto.mjs以AES-256-GCM加密并拒绝越界和覆盖，密钥单独保存在root 0600文件。primary-sync.py读取本机正式配置调用定时同步入口，不输出上游凭据。正式库、维护开关和账号规则与预览脚本分开，不能将本目录旧预览脚本直接改名后用于正式库。实际定时器启用、异机备份与恢复演练状态见docs/regional-acceptance.md；监控、表结构与维护入口见docs/server-operations.md。

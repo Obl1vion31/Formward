@@ -1,11 +1,18 @@
 # Formward 项目交接
 
-## 双入口与服务器主库切换准备（未切换）
+## 双入口主库迁移准备：原正式站保持运行
 
-用户确认国服使用公网IP、国际服保留Vercel，两边共用上海主库并保留已有GPT／Garmin连接。当前分支codex/mainland-dual-entry基于最新正式及饮食行内勾选版本，合并区域网关、图片双存储与授权传输；新增0034，不改正式已有migration。603项、lint、typecheck通过；完整真实源在隔离PostgreSQL18.6恢复54表／2604行摘要一致，新增字段后原业务值保持。JWKS与Garmin密文使用原密钥解密通过，现有MCP get_profile正常。干净提交9ef235e4的双端生产包42/42通过，release dual-entry-9ef235e-20261109／BUILD_ID zU_2ZTWkjVB7COwugw4Wk；隔离真实TLS的原会话、访问／刷新令牌保持及CIMD等7项HTTP检查通过，两脚本退出0。
+用户确认国服公网 IP、国际 Vercel 与 GPT／Garmin 共用上海主库，GPT 保留原入口和授权。当前正式别名仍指向原 READY dpl_Ds7qyEAu1jfhdWZyVqantWprDqkb，版本 static-loading-61eda554-20261108、Neon 仍可写；公网 IP 普通访问仍为独立演示库。上海 formward-primary.service 在3200运行，连接隔离基线 formward_rehearsal_primary_20261109，维护开关开启。最终停写、最新快照与正式 formward_primary 尚未执行，不能开放准备阶段的旧副本。
 
-当前公网IP仍为独立虚构演示库，国际正式仍为Neon；尚未改正式环境、停写或切流。腾讯云免密终端等待本人微信MFA，已保留OrcaTerm页面。后续先完成真实TLS／OAuth与服务器恢复验收，再按双入口部署文档执行最终停写快照和一致切换。私有归档／密钥不上传Git或public，不能把准备阶段快照当最终切换数据。详情见docs/mainland-deployment.md与docs/regional-acceptance.md。
+上海已恢复54表／2604行，原始摘要一致；0034只加图片存储字段，旧业务、授权与图片字段保持。原JWKS与Garmin凭据保留并可解密；真实上海Garmin换令牌、每日和活动API通过，连接未重建。原Blob图片经海外worker读取并SHA一致，COS临时1像素对象写／读／删通过，桶继续私有。实际图片证据在服务器 image-worker-check.json。
 
+global.formward.top 已配置为Vercel海外服务别名，origin.formward.top 指向上海带签名回源；根域和国服入口保持。IP与独立回源均有有效证书，现有每6小时ACME定时器维护两份证书。上海解析Vercel默认域名会异常，使用专用global域名；Vercel原生fetch连接上海超时，但同环境原生Node HTTPS到IP与域名均在约0.3～0.7秒成功，因此网关改用regional-http，并保持证书、流、Cookie、签名、取消、固定目标及不重放。正式issuer／resource仍是原Vercel地址。
+
+本分支保留最新已发布界面与饮食勾选，未合入或推送main，未触碰共享工作区其他脏改动。新传输实现已通过真实HTTP流式正文、压缩、多Cookie、取消、重定向和目标限制检查；完整607项、lint、typecheck通过，随后微调的响应错误监听需随最终包再验。最终发布必须重新从干净提交构建同源双端，不能使用临时诊断网关作为最终版本。
+
+服务器私有目录为 /var/lib/formward/dual-cutover，transfer-v1保存原密钥和基线归档，tools-v2保存摘要与密钥检查，ops-v1保存最终恢复、开放及作业工具。备份／同步systemd单元已安装并验证，但尚未启动定时器。AES-GCM脚本与篡改／越界／覆盖拒绝测试通过。最终切换前先维护、Neon停写和拒写验证，再重新导出一致快照并恢复空主库、0034与旧字段严格核对、备份完整恢复，最后开放两个入口并验证原GPT、同步和实际备份。开始上海正式写入后不得指回Neon旧快照。
+
+维护方法见[服务器与数据库查看](docs/server-operations.md)，当前证据见[双入口验收](docs/regional-acceptance.md)。CUA使用Chrome3 OrcaTerm249599766；每次按新AX索引输入，结果看截图，不读取隐藏终端状态。MFA已验证，不需再次登录，最终CUA结果观察后再completion_summary。
 
 ## 当前正式版本：全站静态内容与局部加载反馈（2026-11-08）
 
