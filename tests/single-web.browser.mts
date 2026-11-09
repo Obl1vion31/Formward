@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { regionalFixture } from "./regional-fixture.mjs";
-import { oauthConnection, meal } from "../src/db/schema";
+import { oauthConnection, meal, personalProfile } from "../src/db/schema";
 import { eq } from "drizzle-orm";
 
 const fixture = await regionalFixture({ singleWeb: true });
@@ -12,12 +12,14 @@ const artifacts = resolve(".codex/single-web", engine);
 await mkdir(artifacts, { recursive: true });
 const playwright = await import(process.env.PLAYWRIGHT_MODULE ?? "/tmp/formward-account-tooling/node_modules/playwright/index.mjs");
 const browser = await playwright[engine].launch({ headless: true });
-const errors: string[] = [], checks: string[] = [], screenshots: string[] = [];
+const errors: string[] = [], checks: string[] = [], screenshots: string[] = [], network:object[]=[];
 let page: Awaited<ReturnType<Awaited<ReturnType<typeof browser.newContext>>["newPage"]>> | undefined;
 try {
   const context = await browser.newContext({ ignoreHTTPSErrors: true, timezoneId: "Asia/Shanghai", viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
   page = await context.newPage();
   page.on("pageerror", (error: Error) => errors.push(error.message));
+  page.on("response", (r:{status():number;url():string;request():{method():string}})=>{if(r.request().method()==="POST"||r.status()>=400)network.push({status:r.status(),url:r.url(),method:r.request().method()});});
+  page.on("requestfailed",(r:{url():string;failure():unknown})=>network.push({failed:r.url(),error:r.failure()}));
   async function shot(name: string) {
     await page!.evaluate(() => document.fonts.ready);
     const path = resolve(artifacts, name + ".png");
@@ -95,11 +97,12 @@ try {
   assert.deepEqual((await fixture.db.select().from(oauthConnection)).map(row => row.id).sort(), connections);
   checks.push("不同账号不能查看同一确认链接，原OAuth连接编号保持");
 
+  await fixture.db.insert(personalProfile).values({userId:fixture.personId,onboardingStep:"complete"}).onConflictDoUpdate({target:personalProfile.userId,set:{onboardingStep:"complete"}});
   await login(fixture.global);
+  const existingSession=await context.request.get(fixture.global+"/api/auth/get-session");assert.equal((await existingSession.json()).user.id,fixture.personId);
   process.env.FORMWARD_SINGLE_WEB = "0";
   await page.setViewportSize({ width: 390, height: 640 });
-  await page.goto(fixture.global + "/dashboard/meals");
-  await page.getByRole("button", { name: "录入", exact: true }).first().click();
+  await page.goto(fixture.global + "/dashboard/meals?entry=" + date);
   const dialog = page.locator("dialog:not(.page-loading-dialog)");
   await dialog.getByRole("button", { name: /自己填写/ }).click();
   const food = dialog.getByLabel(/食物名称|食物/).first();
@@ -117,8 +120,8 @@ try {
   console.log(JSON.stringify({ engine, checks, screenshotCount: screenshots.length }));
   await context.close();
 } catch (error) {
-  if (page) await page.screenshot({ path: resolve(artifacts, "failure.png") }).catch(() => {});
-  await writeFile(resolve(artifacts, "failure.json"), JSON.stringify({ error: error instanceof Error ? error.stack : String(error), checks, errors }, null, 2));
+  if (page) {await page.screenshot({ path: resolve(artifacts, "failure.png") }).catch(() => {});await writeFile(resolve(artifacts,"failure.html"),await page.content());}
+  await writeFile(resolve(artifacts, "failure.json"), JSON.stringify({ error: error instanceof Error ? error.stack : String(error), checks, errors, network }, null, 2));
   await writeFile(resolve(artifacts, "server.log"), fixture.serverLog());
   throw error;
 } finally { await browser.close(); await fixture.close(); }
