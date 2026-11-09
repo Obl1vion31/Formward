@@ -4,11 +4,13 @@ import { regionConfig } from "./regions";
 import { regionalHttpFetch } from "./regional-http";
 import { runImageWorker } from "../meals/image-worker";
 import { readWorkerImage } from "../meals/image-read";
+import { singleWebRedirect } from "./web-entry";
 
 export async function handleGatewayRequest(request:Request) {
  try{
   const config=regionConfig(),url=new URL(request.url);
   if(![config.canonical,config.global].includes(url.origin))return new Response(null,{status:421});
+  const webRedirect=singleWebRedirect(request);if(webRedirect)return webRedirect;
   if(url.pathname==="/api/internal/image-worker"){
    if(request.method!=="POST"||!verifyService(request.headers,"POST",url.pathname))return new Response(null,{status:403});
    if(Number(request.headers.get("content-length"))>20000)return new Response(null,{status:413});

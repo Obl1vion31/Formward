@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { RouteLoading } from "@/components/page-loading";
-import { redirect } from "next/navigation";
-import { currentPageUser } from "@/features/auth/server";
+import { currentPageUser, requirePageUser } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { listAiTokens } from "@/features/auth/ai-tokens";
 import { listOauthConnections } from "@/features/auth/oauth-connections";
@@ -14,7 +13,7 @@ import { AiAccess } from "@/features/auth/ai-access";
 import { createTokenAction, revokeTokenAction, revokeConnectionAction } from "./actions";
 export const metadata: Metadata = { title: "Formward · AI 接入", referrer: "no-referrer" };
 export default async function AiAccessPage() {
-  const user = await currentPageUser(); if (!user) redirect("/");
+  const user = await requirePageUser();
   return <Suspense fallback={<RouteLoading />}><AiAccessContent user={user} /></Suspense>;
 }
 

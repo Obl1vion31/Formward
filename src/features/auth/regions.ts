@@ -9,7 +9,7 @@ export function configuredOrigin(value: string) {
 }
 export function regionConfig(env = process.env) {
   const canonical = configuredOrigin(env.BETTER_AUTH_URL ?? "http://localhost:3000");
-  return { enabled: env.FORMWARD_REGIONAL === "1", canonical,
+  return { enabled: env.FORMWARD_REGIONAL === "1", singleWeb: env.FORMWARD_SINGLE_WEB === "1", canonical,
     selector: configuredOrigin(env.FORMWARD_SELECTOR_ORIGIN ?? "https://formward.top"),
     cn: configuredOrigin(env.FORMWARD_CN_ORIGIN ?? "https://cn.formward.top"),
     global: configuredOrigin(env.FORMWARD_GLOBAL_ORIGIN ?? "https://global.formward.top"),

@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "@/features/auth/client";
+import { loginDestination } from "@/features/auth/login-return";
 import { BodySequence } from "./body-sequence";
 import { HomeHeader } from "./home-header";
 import { HomeIntroBackdrop } from "./home-intro-backdrop";
@@ -358,7 +359,7 @@ export default function HomeExperience() {
     }
     if (imageErrorRef.current) {
       changePhase("FINAL");
-      startNavigation(() => router.replace("/dashboard"));
+      startNavigation(() => router.replace(loginDestination(new URLSearchParams(window.location.search).get("next"))));
     } else changePhase("FINAL_TRANSITION");
   }
 
@@ -366,7 +367,7 @@ export default function HomeExperience() {
     // 使用实际 CSS 动画完成事件，不把网络时长或 React 提交延迟算作动画播放。
     if (event.animationName !== "final-presence" || phaseRef.current !== "FINAL_TRANSITION") return;
     changePhase("FINAL");
-    startNavigation(() => router.replace("/dashboard"));
+    startNavigation(() => router.replace(loginDestination(new URLSearchParams(window.location.search).get("next"))));
   }
 
   function revealLogin() {

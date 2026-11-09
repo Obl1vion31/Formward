@@ -1,5 +1,9 @@
 # Tests
 
+## 单一国服网页与海外后台
+
+同源production release后，FORMWARD_TEST_RELEASE指向该产物，运行node --import tsx tests/single-web.browser.mts；FORMWARD_SINGLE_WEB_ENGINE选择chromium／webkit。复用隔离真实PostgreSQL与本机TLS fixture，使用虚构账号验证原OAuth连接、国服确认链接、登录后返回目标、真实确认、跨账号404、旧网页跳转及已有草稿保留。FORMWARD_SINGLE_WEB=1运行tests/shared-primary.http.mts，验证原Cookie／JWT／refresh在严格信任测试CA的真实HTTP链路中保持。所有截图、日志与录像留在被忽略的.codex/single-web，不读取正式凭据或写入真实账号。
+
 ## 全站固定内容与加载反馈
 
 production build后运行pnpm test:loading-browser。workspace-loading.browser.mts自行创建本机隔离PGlite、虚构饮食／测量／消耗及训练账号，不读取环境文件或接受外部数据库。FORMWARD_LOADING_ENGINE=webkit切换引擎，PLAYWRIGHT_BROWSERS_PATH指定本机浏览器缓存，FORMWARD_LOADING_ARTIFACTS指定私有证据位置。

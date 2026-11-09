@@ -4,7 +4,7 @@ import {readFile} from "node:fs/promises";
 import {join} from "node:path";
 import {regionalFixture} from "./regional-fixture.mjs";
 import {oauthConnection} from "../src/db/schema";
-const fixture=await regionalFixture(),checks:string[]=[];
+const fixture=await regionalFixture({singleWeb:process.env.FORMWARD_SINGLE_WEB==="1"}),checks:string[]=[];
 try{
  const ca=await readFile(join(fixture.folder,"localhost-cert.pem"));
  async function call(path:string,method="GET",headers:Record<string,string>={},body?:string){

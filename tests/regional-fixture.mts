@@ -22,7 +22,7 @@ import {eq} from "drizzle-orm";
 import {readMealDayViews,setMealDayStatus} from "../src/features/meals/day-status";
 import { OAUTH_SCOPES } from "../src/features/auth/oauth-connections";
 
-export async function regionalFixture(options:{trustedOrigin?:string}={}) {
+export async function regionalFixture(options:{trustedOrigin?:string;singleWeb?:boolean}={}) {
  const folder=await mkdtemp(join(tmpdir(),"formward-regional-browser-")),release=resolve(process.env.FORMWARD_TEST_RELEASE??".codex/regional-releases/acceptance-01");
  const standalone=join(folder,"app"),gatewayFile=join(folder,"gateway.mjs");
  await cp(join(release,"standalone"),standalone,{recursive:true,verbatimSymlinks:true});
@@ -62,7 +62,7 @@ export async function regionalFixture(options:{trustedOrigin?:string}={}) {
  await setMealDayStatus(db,personId,{operationId:randomUUID(),date,status:"complete",version:day.version,contentDigest:day.contentDigest});
  const key=join(folder,"localhost-key.pem"),cert=join(folder,"localhost-cert.pem");
  const generated=spawnSync("openssl",["req","-x509","-newkey","rsa:2048","-nodes","-days","2","-keyout",key,"-out",cert,"-subj","/CN=localhost","-addext","subjectAltName=DNS:localhost,IP:127.0.0.1","-addext","basicConstraints=critical,CA:TRUE"],{stdio:"ignore"});assert.equal(generated.status,0);
- const env:NodeJS.ProcessEnv={PATH:process.env.PATH,HOME:process.env.HOME,NODE_ENV:"production",NEXT_TELEMETRY_DISABLED:"1",NODE_EXTRA_CA_CERTS:cert,DATABASE_URL:"postgresql://postgres:fictional-browser-postgres@127.0.0.1:"+pgPort+"/formward_regional_browser?max=6",BETTER_AUTH_URL:global,BETTER_AUTH_SECRET:authSecret,FORMWARD_REGIONAL:"1",FORMWARD_TIMEZONE:"Asia/Shanghai",FORMWARD_ENVIRONMENT:"test",FORMWARD_EXPECTED_DATABASE:"formward_regional_browser",FORMWARD_CN_ORIGIN:cn,FORMWARD_GLOBAL_ORIGIN:global,FORMWARD_SELECTOR_ORIGIN:selector,FORMWARD_ORIGIN_URL:transport,FORMWARD_GATEWAY_SECRET:gatewaySecret,FORMWARD_IMAGE_SECRET:"fictional-production-image-more-than-32-characters",FORMWARD_INTERNAL_JWKS_URL:transport+"/api/auth/jwks",FORMWARD_IMAGE_WORKER_URL:global,FORMWARD_IMAGE_REGION:"cn",FORMWARD_READINESS_SECRET:"fictional-readiness-more-than-32-characters",HOSTNAME:"127.0.0.1",PORT:String(appPort)};
+ const env:NodeJS.ProcessEnv={PATH:process.env.PATH,HOME:process.env.HOME,NODE_ENV:"production",NEXT_TELEMETRY_DISABLED:"1",NODE_EXTRA_CA_CERTS:cert,DATABASE_URL:"postgresql://postgres:fictional-browser-postgres@127.0.0.1:"+pgPort+"/formward_regional_browser?max=6",BETTER_AUTH_URL:global,BETTER_AUTH_SECRET:authSecret,FORMWARD_REGIONAL:"1",FORMWARD_SINGLE_WEB:options.singleWeb?"1":"0",FORMWARD_TIMEZONE:"Asia/Shanghai",FORMWARD_ENVIRONMENT:"test",FORMWARD_EXPECTED_DATABASE:"formward_regional_browser",FORMWARD_CN_ORIGIN:cn,FORMWARD_GLOBAL_ORIGIN:global,FORMWARD_SELECTOR_ORIGIN:selector,FORMWARD_ORIGIN_URL:transport,FORMWARD_GATEWAY_SECRET:gatewaySecret,FORMWARD_IMAGE_SECRET:"fictional-production-image-more-than-32-characters",FORMWARD_INTERNAL_JWKS_URL:transport+"/api/auth/jwks",FORMWARD_IMAGE_WORKER_URL:global,FORMWARD_IMAGE_REGION:"cn",FORMWARD_READINESS_SECRET:"fictional-readiness-more-than-32-characters",HOSTNAME:"127.0.0.1",PORT:String(appPort)};
  Object.assign(process.env,Object.fromEntries(Object.entries(env).filter(([key])=>key.startsWith("FORMWARD_")||key==="BETTER_AUTH_URL")));
  const child:ChildProcess=spawn(process.execPath,[join(standalone,"server.js")],{cwd:standalone,env,stdio:["ignore","pipe","pipe"]});
  let serverLog="";child.stdout?.on("data",v=>serverLog+=v);child.stderr?.on("data",v=>serverLog+=v);

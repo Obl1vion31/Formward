@@ -6,6 +6,7 @@ export function proxy(request: NextRequest) {
   const config = regionConfig();
   const headers = new Headers(request.headers);
   for (const name of [...headers.keys()]) if (/^x-formward-/i.test(name)) headers.delete(name);
+  headers.set("x-formward-web-path", request.nextUrl.pathname + request.nextUrl.search);
   if (!config.enabled) return NextResponse.next({ request: { headers } });
   // Next 图片优化器读取本地构建图片时会创建不带 Host 的内部请求。
   // 构建静态资源本来就公开，不能让业务来源校验阻断这次读取。
@@ -14,7 +15,13 @@ export function proxy(request: NextRequest) {
     return new NextResponse("维护中，请稍后再试。", {status:503,headers:{"Cache-Control":"no-store","Retry-After":"60"}});
   }
   const host = request.headers.get("host"), path = request.nextUrl.pathname, query = request.nextUrl.search;
-  if (host === new URL(config.selector).host || host === "www." + new URL(config.selector).host) {
+  if ((host === new URL(config.selector).host || host === "www." + new URL(config.selector).host) && !(config.singleWeb && host === new URL(config.cn).host)) {
+    if (config.singleWeb && ["GET", "HEAD"].includes(request.method) && path === "/") {
+      const response = NextResponse.redirect(config.cn, 307);
+      response.headers.set("Cache-Control", "private, no-store");
+      response.headers.set("Referrer-Policy", "no-referrer");
+      return response;
+    }
     if (host?.startsWith("www.")) return NextResponse.redirect(config.selector,308);
     if (path === "/") { headers.set("x-formward-selector","1"); return NextResponse.next({request:{headers}}); }
     if (path.startsWith("/_next/static/") || path === "/favicon.ico") return NextResponse.next({request:{headers}});

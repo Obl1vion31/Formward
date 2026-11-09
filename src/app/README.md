@@ -14,7 +14,7 @@
 
 - `api/mcp/` 提供 OAuth 保护的 MCP HTTP 入口，`.well-known/` 转发公开授权发现，`oauth/` 提供签名请求对应的登录与授权页；业务规则位于 auth、mcp 与 measurements feature。
 - 手机首屏点击直接到第 12 张，登录后只通过顶部返回回首帧并保留输入；不使用下滑、不下载转身视频。手机判断和图表默认 7D 共用 `components/use-mobile-mode.ts`，桌面图表仍默认 30D。
-- `page.tsx` 让 `/` 显示 `HomeExperience` 提供的人物、提示和登录体验。
+- `page.tsx` 让 `/` 显示 `HomeExperience` 提供的人物、提示和登录体验。FORMWARD_SINGLE_WEB=1时，唯一日常网页为CN入口，旧海外普通网页跳转；OAuth登录／授权、GPT与图片接口保持原地址，地区选择入口退出。
 - `layout.tsx` 挂载全站加载管理；保存、认证和页面导航超过 200ms 显示虚化背景与居中提示，真实完成或失败后收起。路由加载与业务操作共用组件，既有首页最终动画保持独立。
 - `dashboard/layout.tsx` 在页面流之前检查当前身份，未登录正常重定向。身体记录与 AI 设置页在身份校验后以 Suspense 覆盖数据等待；审核页先校验 operation 归属，保持不存在或跨账号的 404，导航等待由 LoadingLink 跟踪。页面仍逐次校验当前身份，不能只依赖会被复用的 layout。
 - `dashboard/actions.ts` 对四项保存与逐项估算验证当前会话，再调用 measurements feature，返回最新账号快照。

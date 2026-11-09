@@ -1,7 +1,7 @@
 import {adoptedMeasurements} from "./days";
 import type { Database } from "../../db/client";
 import { ApiError, authenticateAi, type AiIdentity } from "../auth/ai-tokens";
-import { siteOrigin } from "../auth/site-url";
+import { confirmationPageUrl } from "../auth/web-entry";
 import { listMeasurements } from "./records";
 import { listMeasurementDates, measurementDisplay } from "./editing";
 import { listMeasurementSources, MeasurementSourceError } from "./sources";
@@ -35,7 +35,7 @@ export async function aiApiResponse(request: Request, db: Database, write: boole
   }
 }
 export function aiConfirmationUrl(request: Request, path: string) {
-  return new URL(path, siteOrigin(request)).href;
+  return confirmationPageUrl(request, path);
 }
 export async function readAiJson(request: Request) {
   if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) throw new ApiError(415, "invalid_input", "请使用 application/json。");

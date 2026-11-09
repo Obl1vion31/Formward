@@ -7,6 +7,8 @@
 ## 当前内容
 
 - `auth.ts`：Drizzle adapter、密码登录、会话验证、可信来源与限流。公开注册关闭；cookie 为 HttpOnly / SameSite=Lax，HTTPS 下使用 Secure。会话有效期 7 天，不启用客户端会话缓存，数据库撤销立即生效。登录按来源限流为每分钟 5 次，存储在数据库 rate_limits；多实例共享原子计数，重建实例不重置限制。
+- `login-return.ts`：普通网页登录只允许本站业务路径作为返回目标；proxy清除外来同名头后记录实际路径，requirePageUser保留目标，首页认证成功后回原确认页。OAuth登录不走此返回逻辑。
+- `web-entry.ts`：FORMWARD_SINGLE_WEB=1时将海外普通网页GET／HEAD跳转到固定CN入口；OAuth、API、静态文件、旧页RSC和POST保存保持原路径。人工确认链接统一CN，OAuth issuer及MCP resource保持。跳转不转交Cookie、Authorization或未保存请求体，不信任外来Host。
 - `site-url.ts`：公网链接采用 BETTER_AUTH_URL 的 HTTPS 根地址，忽略代理内部地址和请求 Host；本机兼容 localhost、127.0.0.1 与 IPv6。`site-url.test.ts` 覆盖审核链接、OpenAPI、错误配置和云服务默认时区。
 - `server.ts`：Next.js 的 server-only 入口，避免认证配置被客户端导入；currentPageUser 使用 React cache 在同次 Server Component 请求中复用身份查询，不跨请求缓存。页面和 Server Actions 继续分别验证身份。
 - `client.ts`：浏览器登录与退出请求、超时与中文错误提示；不保存密码或令牌。
