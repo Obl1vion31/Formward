@@ -15,6 +15,8 @@ try{
  const pnpmEntry=process.env.npm_execpath;
  run(pnpmEntry?process.execPath:join(dirname(process.execPath),"pnpm"),[...(pnpmEntry?[pnpmEntry]:[]),"install","--offline","--frozen-lockfile","--ignore-scripts"],source,{PATH:process.env.PATH,HOME:process.env.HOME,NODE_ENV:"development",CI:"1"});
  const lock=await readFile(join(source,"pnpm-lock.yaml"));const env:NodeJS.ProcessEnv={PATH:process.env.PATH,HOME:process.env.HOME,NODE_ENV:"production",FORMWARD_STANDALONE:"1",FORMWARD_BUILD_VERSION:"dual-entry-"+commit.slice(0,8)+"-"+release,NEXT_TELEMETRY_DISABLED:"1",BETTER_AUTH_URL:"https://formward-ten.vercel.app"};
+ // 复用已验证的表单加密密钥，让已打开页面的绑定参数在发布后仍可读取。不得输出此值。
+ if(process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY)env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY;
  const buildResult=spawnSync(process.execPath,[join(source,"node_modules/next/dist/bin/next"),"build","--webpack"],{cwd:source,env,encoding:"utf8",maxBuffer:16*1024*1024});
  await writeFile(join(target,"build.log"),buildResult.stdout+"\n"+buildResult.stderr);
  if(buildResult.status!==0)throw new Error("Next构建失败，查看私有日志。");
