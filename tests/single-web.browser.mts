@@ -15,7 +15,7 @@ const browser = await playwright[engine].launch({ headless: true });
 const errors: string[] = [], checks: string[] = [], screenshots: string[] = [], network:object[]=[];
 let page: Awaited<ReturnType<Awaited<ReturnType<typeof browser.newContext>>["newPage"]>> | undefined;
 try {
-  const context = await browser.newContext({ ignoreHTTPSErrors: true, timezoneId: "Asia/Shanghai", viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+  const context = await browser.newContext({ ignoreHTTPSErrors: true, timezoneId: "Asia/Shanghai", viewport: { width: 1440, height: 900 }, reducedMotion: "reduce", recordVideo: { dir: resolve(artifacts,"videos"), size: {width:1440,height:900} } });
   page = await context.newPage();
   page.on("pageerror", (error: Error) => errors.push(error.message));
   page.on("response", (r:{status():number;url():string;request():{method():string}})=>{if(r.request().method()==="POST"||r.status()>=400)network.push({status:r.status(),url:r.url(),method:r.request().method()});});
@@ -80,6 +80,12 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await shot("review-" + width + "x" + height);
   }
+  await page.getByRole("button",{name:"切换为浅色",exact:true}).click();
+  for(const [width,height] of [[1440,900],[320,560],[390,640],[430,780]]){
+    await page.setViewportSize({width,height});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+    await shot("review-light-"+width+"x"+height);
+  }
   await page.getByRole("button", { name: /确认保存/ }).click();
   await page.getByText(/已保存|保存成功|已确认/).first().waitFor();
   const result = await rpc("get_record_operation", { id: preview.id });
@@ -102,10 +108,10 @@ try {
   const existingSession=await context.request.get(fixture.global+"/api/auth/get-session");assert.equal((await existingSession.json()).user.id,fixture.personId);
   process.env.FORMWARD_SINGLE_WEB = "0";
   await page.setViewportSize({ width: 390, height: 640 });
-  await page.goto(fixture.global + "/dashboard/meals?entry=" + date);
+  await page.goto(fixture.global + "/dashboard/meals?date=" + date + "&entry=1");
   const dialog = page.locator("dialog:not(.page-loading-dialog)");
   await dialog.getByRole("button", { name: /自己填写/ }).click();
-  const food = dialog.getByLabel(/食物名称|食物/).first();
+  const food = dialog.getByRole("textbox",{name:/食物名称/}).first();
   await food.fill("虚构切换前草稿");
   process.env.FORMWARD_SINGLE_WEB = "1";
   assert.equal(await food.inputValue(), "虚构切换前草稿");
@@ -115,7 +121,7 @@ try {
   await shot("existing-draft-kept");
   for(const name of ["本次蛋白质 1","本次碳水 1","本次脂肪 1"])await dialog.getByLabel(name,{exact:true}).fill("1");
   const saved=page.waitForResponse((response:{request():{method():string};url():string})=>response.request().method()==="POST"&&response.url().startsWith(fixture.global+"/dashboard/meals"));
-  await dialog.getByRole("button",{name:"保存餐次",exact:true}).click();
+  await dialog.getByRole("button",{name:/^保存餐次/}).click();
   const savedResponse=await saved;assert.equal(savedResponse.status(),200);await savedResponse.finished();
   await dialog.waitFor({state:"hidden"});
   const afterMeals=await fixture.db.select().from(meal).where(eq(meal.userId,fixture.personId));assert.equal(afterMeals.length,meals.length+1);
