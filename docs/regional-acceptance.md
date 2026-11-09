@@ -29,16 +29,22 @@
 
 ## 备份与运维
 
-正式库首次原生备份已完整恢复到隔离库并核对。每日03:20备份及06:00 Garmin同步timer已启用，两项service实际执行成功。日备份执行原生目录校验并生成AES-256-GCM副本，匹配日备份命名保留14天；每日作业不宣称每天完整恢复。
+每日03:20（上海时间）的正式库备份和06:00 Garmin同步timer均已启用，对应service实际执行成功。日备份生成原生归档、目录校验和AES-256-GCM副本，随后自动上传到既有私有上海COS的database-backups/formward-primary/v1/目录；完整回读、密文SHA一致后才报告成功。网络失败保留本机文件，每5分钟重试，1小时最多3次。匹配命名的本机日备份保留14天，远端对象暂不自动删除。
 
-单次加密备份997186字节已下载到用户电脑，AEAD认证解密成功，解密后SHA与服务器原生归档相同，密钥未写入文档。副本位于用户Downloads及本工作区被忽略的.codex/dual-cutover/offserver。服务器原生与加密文件在/var/backups/formward-primary，仅root可读。自动异机归档尚未配置，数据库备份不包含Blob／COS图片原件。
+备份使用原服务器存储子账号，用户明确批准后只为专用备份目录增加PutObject／GetObject／HeadObject。桶的私有ACL和照片目录权限保持，没有授予备份删除权限或上传密钥、明文。实际同名重试复用成功，匿名下载真实备份返回403。
 
-IP证书续期timer每6小时检查并处于active，续期间隔配置3天；已核对下一次计划早于证书到期。自然到期续证、长期备份保留、灾难恢复演练和跨境运营商长期性能尚未经过完整周期。CPU、内存、网络与只读表结构入口见[服务器查看指南](server-operations.md)。
+实际systemd日任务生成的formward-primary-20261109T122918474144Z.dump.aesgcm为997366字节。2026年11月9日20:34:52（上海时间）从COS重新下载、认证解密及原生归档SHA核对通过，并完整恢复到独立formward_rehearsal_cos_backup_20261109：54表、34条migration，未验证约束和无效索引均0；正式主库未改动。首次恢复因postgres不能读取root私有文件而失败，已改为root读取pg_restore并将SQL流送入隔离库，不放宽归档权限；失败证据仍保留。每日作业只自动校验归档及云端完整回读，不宣称每天自动完整恢复。
+
+服务器原生与加密文件在/var/backups/formward-primary（root 0700），密钥独立保存在root 0600文件，并有用户电脑受限目录中的独立密钥副本。先前997186字节的电脑离线副本也已认证解密并核对SHA。数据库备份不包含Blob／COS图片原件。授权保存后再次验证旧Blob600911字节SHA一致及虚构COS图片68字节写／读／删通过。
+
+IP证书续期timer每6小时检查并处于active，续期间隔配置3天；已核对下一次计划早于证书到期。自然到期续证、14天保留清理及跨境运营商长期性能尚未经过完整周期；这与已通过的本次异机恢复演练分开记录。CPU、内存、网络与只读表结构入口见[服务器查看指南](server-operations.md)。
 
 ## 技术检查与边界
 
 608项单元／集成、lint、typecheck和同源production build通过。原生HTTP传输4项、旧Cookie／JWT／refresh／CIMD及并发隔离7项真实HTTP验证通过，原生数据库恢复工具7项及加密篡改／覆盖保护验证通过。新静态资源回归同时验证无Host读取、外来身份头清理、业务来源拒绝及维护状态。
 
+备份运维代码20e4ab3b0dd39cd63960a05d6595c6d829d9d684已独立安装到服务器，不改变上述应用构建。新增COS备份工具8项测试、lint、typecheck与Python语法检查通过；上传包摘要、systemd配置及实际服务成功均已核对，无新增依赖、数据库表或migration。
+
 本轮线上检查不向真实饮食、身体或训练写入虚构记录；业务写入及账号隔离使用已有隔离测试，线上实际写入为正常Garmin同步与认证使用元数据。本轮未重做全套Chromium／WebKit界面矩阵，真实手机和系统键盘未测，不以桌面截图冒充真机验收。
 
-私有证据：服务器/var/lib/formward/dual-cutover/final-data、final-status.json、activation-status.json、static-installed.json、postcutover-final-20261109；本工作区.codex/dual-cutover及.codex/regional-releases/dual-entry-static-20261109。公开首屏与监控截图位于用户Windows临时目录formward-ip-preview，健康截图、备份、凭据和临时图片地址不放入public、Git或部署包。
+私有证据：服务器/var/lib/formward/dual-cutover/final-data、final-status.json、activation-status.json、static-installed.json、postcutover-final-20261109，以及backup-closeout-v1中的installed.json、restore-status.json、closeout-status.json、photo-regression；本工作区.codex/dual-cutover及.codex/regional-releases/dual-entry-static-20261109。公开首屏与监控截图位于用户Windows临时目录formward-ip-preview，健康截图、备份、凭据和临时图片地址不放入public、Git或部署包。

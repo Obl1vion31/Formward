@@ -72,6 +72,12 @@ ROLLBACK;
 
 ## 备份和定时任务
 
-每日03:20（上海时间）运行 formward-primary-backup.timer，生成原生归档与 AES-256-GCM 加密副本，匹配命名的日备份保留14天；每日06:00运行 formward-primary-source-sync.timer。两项已启用并实际执行成功。一次性完整恢复演练已通过；日常作业只自动校验归档目录，不应称为每天完整恢复。
+每日03:20（上海时间）运行 formward-primary-backup.timer，生成原生归档与AES-256-GCM加密副本，再自动上传至私有上海COS；云端完整回读及SHA核对通过才报告成功。失败每5分钟重试，1小时最多3次，保留本机文件。匹配命名的本机日备份保留14天，COS备份暂不自动删除。每日06:00运行 formward-primary-source-sync.timer。两项均已启用并实际执行成功。
 
-原生与加密备份位于 /var/backups/formward-primary（root 0700）；密钥为 /etc/formward/backup-key（root 0600）。本次加密副本已经验证解密后 SHA-256 相同。单次加密副本已在用户电脑Downloads和工作区私有目录保存，并验证认证解密及原生归档SHA一致。异机自动归档尚未配置；数据库备份不含 Blob／COS 图片原件。
+在[腾讯云对象存储](https://console.cloud.tencent.com/cos/bucket?bucket=formward-images-1520483841&region=ap-shanghai)进入“文件列表 → database-backups → formward-primary → v1”，可查看加密备份文件、大小和生成时间。该目录仅向原服务器存储子账号授予上传和读取权限，没有新增删除或公开权限；不能把备份地址当作公开下载链接。
+
+原生与加密备份位于 /var/backups/formward-primary（root 0700）；密钥为 /etc/formward/backup-key（root 0600），另有用户电脑受限目录中的独立密钥副本，不能与备份一并上传COS或贴入聊天。电脑中保留的单次离线副本已认证解密并核对SHA。数据库备份不含Blob／COS图片原件。
+
+本次实际日任务的云端副本已重新下载、认证解密，并完整恢复到新隔离库，54表、34条migration及约束／索引检查通过。恢复时保留root专有归档权限，由root运行pg_restore读取归档，再将SQL流送入以postgres身份运行的psql；目标必须是全新隔离库，不能直接覆盖正式主库。首次文件读取权限失败及后续通过证据均私有保留。日常任务自动校验归档和云端回读，不是每天自动完整恢复。
+
+证书续期timer每6小时检查，当前已启用；自然到期后的下一轮续证和长期保留周期仍需按日常运维观察。工具与恢复边界见[服务器维护工具](../scripts/self-hosting/README.md)，本次实际结果见[双入口验收](regional-acceptance.md)。

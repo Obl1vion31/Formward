@@ -1,6 +1,6 @@
 当前双入口主库、原授权保持与验收边界见[双入口部署](../../docs/mainland-deployment.md)。历史私有预览脚本继续只允许 formward_preview，不可直接用于正式主库。
 
-# 国内服务器隔离预览部署
+# 服务器部署与维护工具
 
 本目录提供Ubuntu 24.04 amd64的独立预览脚本、同源发布构建与正式主库维护工具。应用采用独立非登录用户和systemd，数据库为PostgreSQL18。preview脚本固定回环私有环境；当前正式应用回环3200、数据库回环5432，公网入口由Nginx443代理。正式状态、证书、备份及未测范围见双入口部署与验收文档，不把预览脚本直接用于正式主库。
 
@@ -69,7 +69,7 @@ sudo systemctl list-timers formward-backup-preview.timer --no-pager
 sudo journalctl -u formward-backup-preview.service -n 20 --no-pager
 ~~~
 
-脚本会验证 dump 目录可读取，但完整恢复验收还需把备份恢复到另一个隔离数据库，检查 schema、迁移账本、行数与数据摘要，再验证应用读写。备份只包含数据库，不包含 Blob / COS 图片原件。现阶段是本机备份；独立 COS 的加密异机备份和图片原件备份须另行配置并验证，不能把同盘副本当作灾难恢复。
+预览脚本会验证dump目录可读取，但完整恢复验收还需把备份恢复到另一个隔离数据库，检查schema、迁移账本、行数与数据摘要，再验证应用读写。此预览库任务只做本机备份；正式主库的私有COS加密异机备份已经启用，见下方正式主库维护工具。数据库备份均不包含Blob／COS图片原件，不能把同盘副本当作异机恢复保障。
 
 ## 维护
 
@@ -104,6 +104,6 @@ primary-backup.py固定备份formward_primary，原生归档、清单与SHA保�
 
 远端同名对象内容一致时复用，不一致时拒绝覆盖；请求携带禁止覆盖头。远端备份暂不自动删除，本机清理只在本次异机校验成功后执行。网络失败保留本机副本，formward-primary-backup.service每5分钟重试，1小时内最多3次，下一次日计划仍可正常启动。[腾讯云PUT Object说明](https://intl.cloud.tencent.com/document/product/436/7749?lang=en)定义禁止覆盖语义；桶版本控制开启时该请求头无效，因此仍先检查现有对象与完整回读，且任务本身由本机锁串行执行。
 
-恢复时用backup-offsite.mjs download 备份文件名 /var/backups/formward-primary/recovered-备份文件名取回并核对密文；backup-crypto.mjs decrypt解密后，再恢复到全新隔离库验收。恢复命令拒绝已有文件、符号链接与路径越界，不能直接覆盖正式库。node --test scripts/self-hosting/backup-offsite.test.mjs覆盖上传、重复、损坏、断网、权限、明文误传和恢复边界。
+恢复时用backup-offsite.mjs download 备份文件名 /var/backups/formward-primary/recovered-备份文件名取回并核对密文；backup-crypto.mjs decrypt解密后，再恢复到全新隔离库验收。恢复命令拒绝已有文件、符号链接与路径越界，不能直接覆盖正式库。root专有归档不能直接交给postgres读取：由root运行pg_restore --no-owner --no-acl --single-transaction --file=-，将SQL流送入以postgres身份连接新隔离库的psql，并开启ON_ERROR_STOP及显式目标所有者；不要为恢复放宽备份目录权限。实际日任务的COS副本已用此方式完整恢复，结果见验收文档。node --test scripts/self-hosting/backup-offsite.test.mjs覆盖上传、重复、损坏、断网、权限、明文误传和恢复边界。
 
 primary-sync.py读取本机正式配置调用定时同步入口，不输出上游凭据。正式库、维护开关和账号规则与预览脚本分开，不能将本目录旧预览脚本直接改名后用于正式库。实际定时器启用、异机备份与恢复演练状态见[双入口验收](../../docs/regional-acceptance.md)；监控、表结构与维护入口见[查看指南](../../docs/server-operations.md)。

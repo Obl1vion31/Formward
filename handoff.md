@@ -12,7 +12,11 @@
 
 root私有证据 /var/lib/formward/dual-cutover/final-status.json、activation-status.json、final-data、postcutover-v1；server-final-status已更新为activated。导出收尾失败后复用完成的原生归档，重新只读生成源摘要并严格核对恢复库，不跳过一致性检查。最终SHA和报告均私有。原迁移凭据只在root私有JSON，不打印或重新生成；源凭据已由pooler改为同库直连作只读复核。
 
-上海原生PostgreSQL只监听回环5432，APP仅DML；国际网关无数据库／认证签名密钥。global.formward.top用于上海访问海外图片服务，origin域不用于当前回源。IP和origin证书由6小时ACME timer维护，自然到期续期与长期异机自动归档未验。监控与表结构查看见docs/server-operations.md。997186字节异机加密副本已落到用户Downloads及.codex/dual-cutover/offserver，认证解密、明文归档SHA与服务器一致；自动异机归档尚未配置。
+上海原生PostgreSQL只监听回环5432，APP仅DML；国际网关无数据库／认证签名密钥。global.formward.top用于上海访问海外图片服务，origin域不用于当前回源。IP和origin证书由6小时ACME timer维护；自然到期续证、14天本机保留清理及长期跨境性能尚未经过完整周期。监控与表结构查看见docs/server-operations.md。
+
+自动异机备份已完成并实际运行：运维代码20e4ab3b0dd39cd63960a05d6595c6d829d9d684独立安装，不改变当前正式应用。每日03:20原生归档及AES-GCM副本上传私有上海COS的database-backups/formward-primary/v1/，完整回读SHA通过才成功；本机日备份14天，远端暂不自动删除。用户已批准原存储子账号仅在该目录上传／读取并完成MFA，策略已成功保存，无待审批或扫码；匿名下载403，照片权限保持。
+
+实际日任务997366字节加密副本已从COS取回、认证解密及原生SHA一致；UTC 2026-11-09T12:34:52完整恢复到新formward_rehearsal_cos_backup_20261109通过，54表、34条migration、无未验证约束或无效索引。首次恢复因postgres读取root私有归档失败，改为root读取pg_restore并流送隔离库后通过，未放宽权限或改正式主库。证据在/var/lib/formward/dual-cutover/backup-closeout-v1：installed.json、restore-status.json、closeout-status.json及photo-regression。服务、两个每日timer和证书timer均active，图片回归通过；8项新增测试、lint、typecheck、Python语法和实际systemd执行通过。原997186字节电脑离线副本保留，密钥在独立受限目录，不进入Git、文档或COS。数据库备份不包含照片原件。
 
 迁移和CUA验收已完成，不再需要用户调整TUN，旧异步回复已说明。原公网IP与国际站均已正式开放，不能重复源隔离、重置授权或重新初始化正式库。未合入或推送main，不触碰共享工作区其他变更。详细结果和未测范围见docs/regional-acceptance.md。
 
