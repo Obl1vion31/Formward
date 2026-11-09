@@ -3,7 +3,7 @@ import {workspacePages} from "./workspace-pages";
 export type WorkspaceLocation={path:string;search:string};
 /** 普通模块导航才移动正文；图形交接、录入与日期详情保留自己的容器。 */
 export function workspaceMotionDirection(from:WorkspaceLocation,to:WorkspaceLocation,chartActive=false){
- const previous=workspacePages.findIndex(([href])=>href===(from.path==="/dashboard/energy"?"/dashboard/training":from.path)),next=workspacePages.findIndex(([href])=>href===(to.path==="/dashboard/energy"?"/dashboard/training":to.path));
+ const previous=workspacePages.findIndex(([href])=>href===from.path),next=workspacePages.findIndex(([href])=>href===to.path);
  const query=new URLSearchParams(to.search),oldQuery=new URLSearchParams(from.search);
  if(chartActive||previous<0||next<0||previous===next||query.has("entry")||query.has("date")||query.has("intent")||query.get("view")==="trend"||next===0&&oldQuery.get("view")==="trend")return 0;
  return next>previous?1:-1;

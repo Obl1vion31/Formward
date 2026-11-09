@@ -49,3 +49,5 @@
 0030_account_preferences新增按账号隔离的体脂显示偏好表；现有健康表、旧migration及原值不改。
 
 0033_training_sessions新增训练会话、模板、排期和事件四表，先建立归属唯一索引再建立组合外键；不修改旧表或回填健康数据。共享环境执行后不修改此迁移。
+
+0036_assistant_reminder_dismissals仅新增按账号／日期唯一的助手提醒忽略表，不回填旧日期，不改健康事实或记全状态；旧migration保持不变。

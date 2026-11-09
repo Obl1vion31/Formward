@@ -10,9 +10,9 @@ import styles from "./metric-card-rail.module.css";
 
 export type MetricCard = { title: string; value: string; unit: string; date: string; fact?: string; href: string; trend: MetricTrendModel };
 export function MetricCardRail({ cards, preview, accountId }: { accountId?:string; cards: MetricCard[]; preview?: (card:MetricCard)=>void }) {
-  const rail=useRef<HTMLDivElement>(null), transition=useChartTransition(), mobile=useMobileMode();
+  const rail=useRef<HTMLDivElement>(null), transition=useChartTransition(), mobile=useMobileMode(),restore=transition.restore;
   const pointer=useRef<{x:number;y:number;left:number;moved:boolean}|null>(null), suppressed=useRef(false);
-  useLayoutEffect(()=>{if(rail.current&&!preview)transition.restore(rail.current);},[transition,preview]);
+  useLayoutEffect(()=>{if(rail.current&&!preview)restore(rail.current);},[restore,preview]);
   useEffect(()=>{const node=rail.current;if(!mobile||!node||preview||!accountId||matchMedia('(prefers-reduced-motion: reduce)').matches)return;const key='formward:rail-hint:'+accountId;try{if(localStorage.getItem(key))return;}catch{return;}let animation:Animation|undefined;const stop=()=>{clearTimeout(timer);animation?.cancel();};const timer=setTimeout(()=>{if(node.scrollLeft>1||document.hidden||document.documentElement.dataset.chartTravel)return;const card=node.querySelector<HTMLElement>('[data-metric-card="morning-weight"]');if(!card||!card.getClientRects().length)return;try{localStorage.setItem(key,'seen');}catch{}animation=card.animate([{transform:'translateX(0)'},{transform:'translateX(-8px)',offset:.24},{transform:'translateX(0)',offset:.48},{transform:'translateX(-8px)',offset:.74},{transform:'translateX(0)'}],{duration:1050,easing:'ease-in-out'});},650);node.addEventListener('pointerdown',stop,{passive:true});node.addEventListener('scroll',stop,{passive:true});node.addEventListener('focusin',stop);return()=>{stop();node.removeEventListener('pointerdown',stop);node.removeEventListener('scroll',stop);node.removeEventListener('focusin',stop);};},[accountId,preview,mobile]);
   useLayoutEffect(()=>{const node=rail.current;if(!node)return;const measure=()=>{for(const card of node.querySelectorAll<HTMLElement>('[data-metric-card]')){const strong=card.querySelector('strong');if(!strong)continue;const range=document.createRange();range.selectNodeContents(strong);const available=card.clientWidth-32-Math.max(80,(card.clientWidth-32-12)*.3)-12;card.dataset.stack=String(range.getBoundingClientRect().width>available);}};const observer=new ResizeObserver(measure);observer.observe(node);measure();void document.fonts.ready.then(measure);return()=>observer.disconnect();},[cards]);
   return <div ref={rail} className={styles.rail} data-metric-rail data-metric-layout={mobile?"rail":"grid"} aria-label={mobile?"最近状态，可左右滑动":"最近状态"} onDragStart={event=>event.preventDefault()}
@@ -37,12 +37,14 @@ export function MetricCardRail({ cards, preview, accountId }: { accountId?:strin
 }
 
 export function MetricCardRailSkeleton() {
-  return <div className={styles.rail} data-metric-rail-skeleton aria-hidden="true">
-    {["摄入","晨重","消耗"].map(title=><div className={styles.card} key={title}>
-      <span className={styles.title}>{title}</span><span/>
+  const rail=useRef<HTMLDivElement>(null),{preview,restore}=useChartTransition();
+  useLayoutEffect(()=>{if(rail.current)restore(rail.current);},[restore,preview?.kind]);
+  return <div ref={rail} className={styles.rail} data-metric-rail data-metric-rail-skeleton aria-hidden="true">
+    {([["intake","最近摄入"],["morning-weight","最近晨重"],["energy","最近消耗"]] as const).map(([kind,title])=><div className={styles.card} key={kind} data-metric-card={kind}>
+      <span className={styles.title}>{title}</span><span className={styles.arrow}/>
       <strong><SkeletonBlock width={112} height={36}/></strong>
-      <div className={styles.glyph}><SkeletonBlock height={40}/></div>
-      <SkeletonBlock width={84} height={17}/><SkeletonBlock width={92} height={17}/>
+      <div className={styles.glyph}>{preview?.kind===kind?<TrendGlyph model={preview}/>:<SkeletonBlock height={40}/>}</div>
+      <p><SkeletonBlock width={84} height={17}/></p><span className={styles.range}><SkeletonBlock width={92} height={17}/></span>
     </div>)}
   </div>;
 }

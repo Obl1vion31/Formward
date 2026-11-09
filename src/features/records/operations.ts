@@ -380,8 +380,8 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
   });
 }
 
-export async function listRecordOperations(db: Database, userId: string) {
-  const rows = await db.select().from(recordOperation).where(eq(recordOperation.userId, userId)).orderBy(desc(recordOperation.createdAt)).limit(30);
+export async function listRecordOperations(db: Database, userId: string, pendingOnly = false) {
+  const rows = await db.select().from(recordOperation).where(and(eq(recordOperation.userId, userId), pendingOnly ? eq(recordOperation.status, "pending") : undefined)).orderBy(desc(recordOperation.createdAt)).limit(pendingOnly ? 100 : 30);
   if (!rows.length) return [];
   // 列表按顺序批量读取子预览，仅用于业务摘要和当前有效期；不查询其他账号。
   const bodyIds = rows.flatMap(row => row.measurementOperationId ?? []), mealIds = rows.flatMap(row => row.mealOperationId ?? []), energyIds = rows.flatMap(row => row.energyOperationId ?? []);

@@ -1,36 +1,81 @@
 "use client";
-import {useCallback,useLayoutEffect,useRef,useState} from 'react';
-import {animateSurface} from '@/components/surface-motion';
-import {LoadingLink} from '@/components/loading-link';
-import {lockPageScroll} from '@/components/scroll-lock';
-import {useMobileMode} from '@/components/use-mobile-mode';
-import {assistantQuickActions,assistantTools,type AssistantContext,type AssistantItem} from './model';
-import {localMeasurementDate} from '../measurements/entry-state';
-import {AssistantIcon} from './icon';
-import styles from './surface.module.css';
-export function AssistantSurface({data,error,loading,automatic,close,presented,retry,changeAutomatic,dismissReady}:{data:AssistantContext|null;error:string;loading:boolean;automatic:boolean;close:()=>void;presented:()=>void;retry:()=>void;changeAutomatic:(value:boolean)=>void;dismissReady:(callback:(()=>Promise<void>)|null)=>void}){
- const mobile=useMobileMode(),dialog=useRef<HTMLDialogElement>(null),button=useRef<HTMLButtonElement>(null),pending=useRef<Promise<void>|null>(null),[closing,setClosing]=useState(false);
- const dismiss=useCallback(()=>{if(pending.current)return pending.current;if(!dialog.current)return Promise.resolve();setClosing(true);const task=animateSurface(dialog.current,'close',null,'anchored').then(finished=>{if(finished)close();pending.current=null;});pending.current=task;return task;},[close]);
- useLayoutEffect(()=>{dismissReady(dismiss);return()=>dismissReady(null);},[dismissReady,dismiss]);
- useLayoutEffect(()=>{
-  const node=dialog.current;if(!node||mobile===null)return;
-  const trigger=document.querySelector<HTMLElement>(mobile?'button[aria-label^="助手"]':'button[aria-label="打开小助手"]'),previous=document.activeElement;
-  if(mobile)node.showModal();else node.show();
-  const unlock=mobile?lockPageScroll():()=>{};
-  void animateSurface(node,'open',trigger,'anchored');button.current?.focus({preventScroll:true});presented();
-  const outside=(event:PointerEvent)=>{if(!node.contains(event.target as Node)&&!(event.target as Element).closest('[aria-label="打开小助手"]'))void dismiss();};
-  if(!mobile)document.addEventListener('pointerdown',outside);
-  return()=>{document.removeEventListener('pointerdown',outside);node.close();node.getAnimations().forEach(a=>a.cancel());unlock();if(previous instanceof HTMLElement&&previous.isConnected)previous.focus({preventScroll:true});};
- },[mobile,presented,dismiss]);
- if(mobile===null)return null;
- const today=data?.localDate??localMeasurementDate(new Date());
- const items=(rows:AssistantItem[])=><ul className={styles.items}>{rows.map(item=><li key={item.id}><div><strong>{item.title}</strong><time dateTime={item.date}>{item.date.replaceAll('-','.')}</time></div><p>{item.detail}</p><LoadingLink prefetch={false} href={item.action.href} beforeNavigate={dismiss}>{item.action.label}<span> →</span></LoadingLink></li>)}</ul>;
- return <dialog ref={dialog} className={styles.surface} data-assistant-surface data-closing={closing} aria-labelledby="assistant-title" aria-modal={mobile||undefined} onCancel={event=>{event.preventDefault();void dismiss();}} onClick={event=>{if(event.target===event.currentTarget){const r=event.currentTarget.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)void dismiss();}}} onKeyDown={event=>{if(event.key==='Escape'){event.preventDefault();void dismiss();}if(!mobile||event.key!=='Tab')return;const nodes=[...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input,summary')].filter(e=>e.getClientRects().length>0&&!e.closest('details:not([open]) :not(summary)'));const first=nodes[0],last=nodes.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}}}>
-  <header className={styles.heading}><div><AssistantIcon/><h2 id="assistant-title">小助手</h2></div><button ref={button} type="button" aria-label="收起小助手" onClick={()=>void dismiss()}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
-  <div className={styles.content}><time className={styles.date} dateTime={today}>今天 · {today.replaceAll('-','.')}</time><div className={styles.introduction} aria-live="polite" aria-busy={loading}>{error?<><p role="alert">{error}</p>{error.includes('登录')?<LoadingLink href="/" beforeNavigate={dismiss}>重新登录 →</LoadingLink>:<button type="button" onClick={retry}>重新核对</button>}</>:!data?<div className="skeleton-card"/>:<p className={styles.lead}>{data.pending.length?'有 '+data.pending.length+' 条记录需要核对':'当前没有需要核对的记录'}</p>}</div>
-   {!error&&data&&<>{items(data.pending)}{data.suggestions.length>0&&<details className={styles.disclosure}><summary>可补充记录</summary>{items(data.suggestions)}</details>}</>}
-   <section className={styles.quick}><h3>现在想记录什么</h3><div>{assistantQuickActions(today).map(action=><LoadingLink prefetch={false} key={action.label} href={action.href} beforeNavigate={dismiss}>{action.label}</LoadingLink>)}</div></section>
-   <details className={styles.disclosure}><summary>常用功能</summary><nav className={styles.tools} aria-label="教程、连接与导出">{assistantTools.map(action=><LoadingLink key={action.label} href={action.href} beforeNavigate={dismiss}>{action.label}<span>→</span></LoadingLink>)}</nav></details>
-  </div><footer className={styles.footer}><label><input type="checkbox" checked={automatic} onChange={event=>changeAutomatic(event.target.checked)}/><span>有待处理事项时，每天自动出现一次</span></label><button type="button" onClick={()=>void dismiss()}>先继续浏览</button></footer>
- </dialog>;
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { animateSurface } from "@/components/surface-motion";
+import { LoadingLink } from "@/components/loading-link";
+import { lockPageScroll } from "@/components/scroll-lock";
+import { useMobileMode } from "@/components/use-mobile-mode";
+import { assistantQuickActions, assistantTools, type AssistantContext, type AssistantItem } from "./model";
+import { localMeasurementDate } from "../measurements/entry-state";
+import { AssistantIcon } from "./icon";
+import styles from "./surface.module.css";
+type Controller = { dismiss: () => Promise<boolean>; reopen: () => void };
+export function AssistantSurface({ data, error, loading, close, requestClose, retry, dismissItem, controllerReady }: {
+  data: AssistantContext | null; error: string; loading: boolean; close: () => void; requestClose: () => Promise<void>; retry: () => void;
+  dismissItem: (id: string) => Promise<string>; controllerReady: (value: Controller | null) => void;
+}) {
+  const mobile = useMobileMode(), dialog = useRef<HTMLDialogElement>(null), closeButton = useRef<HTMLButtonElement>(null), toolsButton = useRef<HTMLButtonElement>(null), pending = useRef<Promise<boolean> | null>(null), ticket = useRef(0);
+  const [closing, setClosing] = useState(false), [expanded, setExpanded] = useState(false), [tools, setTools] = useState(false), [busy, setBusy] = useState(""), [failure, setFailure] = useState("");
+  const gesture = useRef<{ y: number; delta: number } | null>(null), suppress = useRef(0);
+  const dismiss = useCallback(() => {
+    if (pending.current) return pending.current;
+    const node = dialog.current; if (!node) return Promise.resolve(true);
+    const id = ++ticket.current; setClosing(true); setTools(false);
+    const task = animateSurface(node, "close", null, mobile ? "sheet" : "anchored").then(finished => {
+      if (finished && ticket.current === id) close();
+      if (pending.current === task) pending.current = null;
+      return finished && ticket.current === id;
+    });
+    pending.current = task; return task;
+  }, [close, mobile]);
+  const reopen = useCallback(() => {
+    ticket.current++; pending.current = null; setClosing(false);
+    if (dialog.current) void animateSurface(dialog.current, "open", null, mobile ? "sheet" : "anchored");
+  }, [mobile]);
+  useLayoutEffect(() => { controllerReady({ dismiss, reopen }); return () => controllerReady(null); }, [controllerReady, dismiss, reopen]);
+  useLayoutEffect(() => {
+    const node = dialog.current; if (!node || mobile === null) return;
+    const previous = document.activeElement, trigger = [...document.querySelectorAll<HTMLElement>("[data-assistant-trigger]")].find(element=>element.getClientRects().length>0);
+    if (mobile) node.showModal(); else node.show();
+    const unlock = mobile ? lockPageScroll() : () => {};
+    void animateSurface(node, "open", trigger, mobile ? "sheet" : "anchored"); closeButton.current?.focus({ preventScroll: true });
+    const outside = (event: PointerEvent) => { if (!node.contains(event.target as Node) && !(event.target as Element).closest("[data-assistant-trigger]")) void requestClose(); };
+    if (!mobile) document.addEventListener("pointerdown", outside);
+    return () => { document.removeEventListener("pointerdown", outside); node.getAnimations().forEach(animation => animation.cancel()); node.close(); unlock(); if (previous instanceof HTMLElement && previous.isConnected) previous.focus({ preventScroll: true }); };
+  }, [mobile, requestClose]);
+  if (mobile === null) return null;
+  const today = data?.localDate ?? localMeasurementDate(new Date());
+  const navigate = async () => { await requestClose(); const phase = dialog.current?.dataset.surfacePhase; return phase !== "open" && phase !== "opening"; };
+  const items = (rows: AssistantItem[]) => <ul className={styles.items}>{rows.map(item => <li key={item.id} data-assistant-item={item.id}>
+    <div><strong>{item.title}</strong><time dateTime={item.date}>{item.date.replaceAll("-", ".")}</time></div><p>{item.detail}</p>
+    <div className={styles.itemActions}><LoadingLink prefetch={false} href={item.action.href} beforeNavigate={navigate}>{item.action.label}<span aria-hidden="true"> →</span></LoadingLink>
+    {item.dismissible && <button type="button" disabled={busy === item.id} onClick={async () => { setBusy(item.id); setFailure(""); try { setFailure(await dismissItem(item.id)); } catch { setFailure("忽略未保存，请重试。"); } finally { setBusy(""); } }}>{busy === item.id ? "保存中…" : "忽略这一天"}</button>}</div>
+  </li>)}</ul>;
+  return <dialog ref={dialog} className={styles.surface} data-assistant-surface data-mobile={mobile} data-expanded={expanded} data-closing={closing} aria-labelledby="assistant-title" aria-modal={mobile || undefined}
+    onCancel={event => { event.preventDefault(); if (tools) {setTools(false);toolsButton.current?.focus();} else void requestClose(); }}
+    onClick={event => { if (event.target === event.currentTarget) { const r = event.currentTarget.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) void requestClose(); } }}
+    onKeyDown={event => {
+      if (event.key === "Escape" && tools) { event.preventDefault(); event.stopPropagation(); setTools(false); toolsButton.current?.focus(); return; }
+      if (!mobile || event.key !== "Tab") return;
+      const nodes = [...event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled),a[href],summary")].filter(node => node.getClientRects().length > 0 && !node.closest("[inert]") && !node.closest("details:not([open]) :not(summary)"));
+      const first = nodes[0], last = nodes.at(-1); if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }}>
+    {mobile && <button type="button" className={styles.handle} aria-label={expanded ? "收起小助手到半屏，可拖动" : "展开小助手，可拖动"} aria-expanded={expanded} onClick={() => { if (performance.now() > suppress.current) setExpanded(value => !value); }}
+      onPointerDown={event => { if (event.button !== 0 || closing) return; gesture.current = { y: event.clientY, delta: 0 }; event.currentTarget.setPointerCapture(event.pointerId); }}
+      onPointerMove={event => { const g = gesture.current; if (!g) return; g.delta = event.clientY - g.y; if (dialog.current) dialog.current.style.transform = `translateY(${g.delta > 0 ? g.delta : -Math.sqrt(-g.delta) * 2}px)`; }}
+      onPointerUp={event => { const g = gesture.current; gesture.current = null; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); if (!g) return; const node = dialog.current; if (Math.abs(g.delta) > 7) suppress.current = performance.now() + 350; if (g.delta < -35) setExpanded(true); else if (g.delta > 65) { if (expanded) setExpanded(false); else { void requestClose(); return; } } if (node) { const from = node.style.transform; node.style.transform = ""; if (!matchMedia("(prefers-reduced-motion: reduce)").matches) node.animate([{ transform: from }, { transform: "translateY(0)" }], { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" }); } }}
+      onPointerCancel={() => { gesture.current = null; if (dialog.current) dialog.current.style.transform = ""; }}><span/></button>}
+    <header className={styles.heading}><div><AssistantIcon/><h2 id="assistant-title">小助手</h2></div><button ref={closeButton} type="button" aria-label="收起小助手" onClick={() => void requestClose()}>×</button></header>
+    <div className={styles.content} onClick={() => { if (tools) setTools(false); }}>
+      <section className={styles.quick} aria-label="快捷记录"><div>{assistantQuickActions(today).map(action => <LoadingLink prefetch={false} key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}</LoadingLink>)}</div></section>
+      <section className={styles.introduction} aria-live="polite" aria-busy={loading}>
+        {error ? <><p role="alert">{error}</p><button type="button" onClick={retry}>重新读取</button></> : !data ? <p className={styles.muted}>正在读取事项…</p> : data.pending.length ? items(data.pending) : <p className={styles.muted}>暂无待确认或待办事项</p>}
+        {failure && <p role="alert">{failure}</p>}
+      </section>
+      {data && data.suggestions.length > 0 && <details className={styles.disclosure}><summary>按需补记</summary>{items(data.suggestions)}</details>}
+    </div>
+    <footer className={styles.footer}>
+      <nav id="assistant-tools" className={styles.tools} aria-label="常用功能" data-open={tools} aria-hidden={!tools} inert={!tools}>{assistantTools.map(action => <LoadingLink key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}<span aria-hidden="true">→</span></LoadingLink>)}</nav>
+      <button ref={toolsButton} type="button" aria-expanded={tools} aria-controls="assistant-tools" onClick={() => setTools(value => !value)}>常用功能 <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" style={{ transform: tools ? "rotate(180deg)" : undefined }}><path d="m4 10 4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg></button>
+    </footer>
+  </dialog>;
 }

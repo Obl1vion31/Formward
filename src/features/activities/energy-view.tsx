@@ -156,7 +156,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
        metricVariants={chartDays.map(day=>[energyValue(day.totalKcal),energyValue(day.restingKcal),energyValue(day.activeKcal)])}
        title="每日消耗" unit="kcal"
        legend={<EnergyLegend/>}
-      >{dates.length?mobile||linkedPlot?<MobileEnergyPlot days={chartDays} selected={inspected} selection={selection} linked={linkedPlot}/>:<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
+      >{dates.length?mobile||linkedPlot||dates.length<=31?<MobileEnergyPlot days={chartDays} selected={inspected} selection={selection} compact={dates.length<=31} linked={linkedPlot}/>:<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     </section>
     {data.sourcePilot&&<EnergySourceStatus initial={sourceStatus} steps={chosen?.steps??null} protectedDay={chosen?.record?.adoption?.mode==="manual"}/>}
     <DailyRecords history={<RecordHistory today={today} dates={historyDates.filter(date=>!recentDates.includes(date))} renderRow={renderDay} view={setViewing}/>}>{recentDates.map(renderDay)}</DailyRecords>

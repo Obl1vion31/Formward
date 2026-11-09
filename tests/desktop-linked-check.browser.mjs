@@ -160,7 +160,7 @@ export async function checkDesktopLinked({browser,baseURL,baselineURL,slowURL,fi
    report.screens.push(await picture(page,artifacts,"desktop-inspector-"+kind));
    await page.getByRole("button",{name:/^关闭.*详情$/}).click();await page.locator("dialog[open]").waitFor({state:"hidden"});
    await installRecorder(page);
-   if(kind==="morning-weight")await page.goBack();else await page.getByRole("button",{name:"返回总览",exact:true}).click();
+   await page.goBack();
    await page.waitForURL(baseURL+"/dashboard");await settled(page);
    const backFrames=await flightRecord(page);flow.backFrames=backFrames;assertMotion(backFrames,"back");
    assert.equal(await page.getByRole("button",{name:"90D",exact:true}).getAttribute("aria-pressed"),"true");
@@ -185,14 +185,14 @@ export async function checkDesktopLinked({browser,baseURL,baselineURL,slowURL,fi
   await page.locator('[data-metric-card="intake"]').click();await settled(page);
   await page.getByRole("button",{name:"30D",exact:true}).click();await settled(page);
   assert.equal(await page.locator("[data-linked-plot]").count(),0);await visiblePlot(page);
-  await installRecorder(page);await page.getByRole("button",{name:"返回总览",exact:true}).click();await settled(page);
+  await installRecorder(page);await page.getByRole("navigation",{name:"主导航",exact:true}).getByRole("link",{name:"总览",exact:true}).click();await settled(page);
   const changedFrames=await flightRecord(page);
   assert.equal(changedFrames.filter(f=>f.direction==="back"&&f.visible==="visible").length,0);
   report.boundaries.push({case:"range-change",frames:changedFrames});
   // 减少动态效果仍保留导航、日期和返回。
   await page.emulateMedia({reducedMotion:"reduce"});await page.goto(baseURL+"/dashboard");await settled(page);
   await installRecorder(page);await page.locator('[data-metric-card="energy"]').click();await settled(page);await visiblePlot(page);
-  await page.getByRole("button",{name:"返回总览",exact:true}).click();await settled(page);
+  await page.getByRole("navigation",{name:"主导航",exact:true}).getByRole("link",{name:"总览",exact:true}).click();await settled(page);
   const reducedFrames=await flightRecord(page);assert.equal(reducedFrames.length,0);
   report.boundaries.push({case:"reduced-motion",frames:reducedFrames});
   await page.emulateMedia({reducedMotion:"no-preference"});
@@ -215,12 +215,12 @@ export async function checkDesktopLinked({browser,baseURL,baselineURL,slowURL,fi
    await page.goto(baseURL+"/dashboard");await settled(page);await installRecorder(page);
    await page.locator('[data-metric-card="'+kind+'"]').click();
    await page.waitForFunction(()=>document.querySelector('[data-chart-flight][data-motion-starts="1"]'));
-   await page.getByRole("button",{name:"返回总览",exact:true}).click();await page.waitForURL(baseURL+"/dashboard");await settled(page);
+   await page.getByRole("navigation",{name:"主导航",exact:true}).getByRole("link",{name:"总览",exact:true}).click();await page.waitForURL(baseURL+"/dashboard");await settled(page);
    const frames=await flightRecord(page);
    for(const direction of ["forward","back"])assert.ok(new Set(frames.filter(f=>f.direction===direction&&f.visible==="visible").map(f=>f.id)).size<=1);
    assert.equal(await page.locator("[data-chart-travelling]").count(),0);report.boundaries.push({case:"quick-return",kind,frames});
   }
-  await checkEstimateStability({page,baseURL,fixture,report,artifacts});
+  await checkSelectionStability({page,baseURL,fixture,report,artifacts});
   await checkEditors({page,context,baseURL,fixture,db,report,artifacts});
   await checkTouch({browser,context,baseURL,fixture,report,artifacts});
   await checkSlowNavigation({browser,context,slowURL,fixture,report,artifacts});
@@ -237,7 +237,7 @@ export async function checkDesktopLinked({browser,baseURL,baselineURL,slowURL,fi
  return report;
 }
 
-async function checkEstimateStability({page,baseURL,fixture,report,artifacts}){
+async function checkSelectionStability({page,baseURL,fixture,report,artifacts}){
  const geometry=()=>page.locator("[data-record-trend]").first().evaluate(root=>{
   const values=["metrics","range","title","plot"].flatMap(slot=>{const r=root.querySelector('[data-record-slot="'+slot+'"]').getBoundingClientRect();return [r.top,r.height];});
   return {scroll:scrollY,values,date:root.closest("[data-chart-selection]")?.dataset.selectedDate};
@@ -250,7 +250,7 @@ async function checkEstimateStability({page,baseURL,fixture,report,artifacts}){
   const point=date=>route==="/dashboard"?page.locator('[data-overview-date="'+date+'"] > rect').first():page.locator('[data-chart-metric="weightKg"] [data-chart-date="'+date+'"][data-period="daytime"] circle').first();
   await point(fixture.observed).scrollIntoViewIfNeeded();await point(fixture.observed).hover();await settled(page);
   const before=await geometry(),samples=[];
-  for(const date of [fixture.estimated,fixture.observed,fixture.partialWeight,fixture.partialFat]){
+  for(const date of [fixture.anotherObserved,fixture.observed,fixture.partialWeight]){
    await point(date).hover();
    for(let frame=0;frame<8;frame++){
     await page.evaluate(()=>new Promise(done=>requestAnimationFrame(done)));
@@ -273,9 +273,10 @@ async function checkEditors({page,context,baseURL,fixture,db,report,artifacts}){
   await page.keyboard.press("Escape");await page.locator("dialog[open]").waitFor({state:"hidden"});
  }
  await page.goto(baseURL+"/dashboard");await settled(page);
- await page.getByLabel("账号菜单",{exact:true}).click();await page.getByRole("button",{name:"设置",exact:true}).click();
- report.editors.push({route:"settings",state:await checkInspector(page,null)});report.screens.push(await picture(page,artifacts,"desktop-settings"));
- await page.getByRole("button",{name:"关闭编辑",exact:true}).click();await page.locator("dialog[open]").waitFor({state:"hidden"});
+ await page.getByLabel("账号菜单",{exact:true}).click();await page.getByRole("button",{name:"账号管理",exact:true}).click();
+ await page.getByRole("link",{name:"个人资料",exact:true}).click();await page.waitForURL("**/dashboard/profile");await settled(page);
+ assert.ok(await page.getByRole("heading",{name:"个人资料",exact:true}).isVisible());
+ report.screens.push(await picture(page,artifacts,"desktop-profile"));
  // 真实餐次表单：失败保留、继续编辑和放弃均通过原保护；最后成功保存备注。
  const before=(await readMealSnapshot(db,fixture.userId)).meals.find(meal=>meal.date===fixture.today);
  await page.goto(baseURL+"/dashboard/meals?date="+fixture.today+"&intent=edit");await settled(page);
@@ -298,8 +299,8 @@ async function checkEditors({page,context,baseURL,fixture,db,report,artifacts}){
  await settled(page);
  const after=(await readMealSnapshot(db,fixture.userId)).meals.find(meal=>meal.id===before.id);
  assert.equal(after.notes,"虚构成功保存备注");assert.deepEqual(after.items.map(item=>item.nutrition),before.items.map(item=>item.nutrition));
- await page.getByRole("checkbox",{name:fixture.today+" 已记全",exact:true}).click();
- await page.waitForFunction(()=>document.querySelector("[data-meal-day-actions] [role=checkbox]")?.getAttribute("aria-checked")==="true");await settled(page);
+ await page.locator("dialog[open]").getByRole("checkbox",{name:fixture.today+" 已记全",exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector("dialog[open] [data-meal-day-actions] [role=checkbox]")?.getAttribute("aria-checked")==="true");await settled(page);
  assert.equal(dailyTotals((await readMealSnapshot(db,fixture.userId)).meals).find(day=>day.date===fixture.today).day.status,"complete");
  report.editors.push({case:"failure-cancel-success",mealId:after.id,nutritionUnchanged:true});
  report.editors.push({case:"meal-day-complete",confirmed:true});
@@ -326,7 +327,7 @@ async function checkEditors({page,context,baseURL,fixture,db,report,artifacts}){
  report.editors.push({case:"energy-date-move",cancelKeptSnapshot:true,idsAndFactsKept:true,activities:activities.length});
  report.screens.push(await picture(page,artifacts,"desktop-energy-moved"));
  // 助手沿用真实业务入口，先收起再打开相应日期的编辑任务。
- await page.goto(baseURL+"/dashboard");await settled(page);await page.getByRole("button",{name:"打开小助手",exact:true}).click();
+ await page.goto(baseURL+"/dashboard");await settled(page);await page.locator("[data-assistant-trigger]:visible").click();
  const assistant=page.locator("[data-assistant-surface]");await assistant.waitFor();await assistant.locator('[aria-busy="false"]').waitFor();
  const action=assistant.locator("ul").first().getByRole("link").first(),href=await action.getAttribute("href");
  assert.ok(href.includes("date="+sourceDate)&&href.includes("intent=edit"));await action.click();await settled(page);
@@ -347,7 +348,7 @@ async function checkTouch({browser,context,baseURL,fixture,report,artifacts}){
    await page.getByRole("button",{name:"查看记录 →",exact:true}).tap();await checkInspector(page);
    report.screens.push(await picture(page,artifacts,"phone-inspector-"+kind));
    await page.getByRole("button",{name:/^关闭.*详情$/}).tap();await page.locator("dialog[open]").waitFor({state:"hidden"});
-   await page.getByRole("button",{name:"返回总览",exact:true}).tap();await settled(page);
+   await page.getByRole("navigation",{name:"主导航",exact:true}).getByRole("link",{name:"总览",exact:true}).tap();await settled(page);
    assert.equal(await page.locator("[data-metric-layout=rail]").count(),1);report.boundaries.push({case:"touch",kind,date});
   }
   await page.setViewportSize({width:844,height:390});await settled(page);assert.equal(await page.locator("[data-metric-layout=rail]").count(),1);
@@ -388,7 +389,7 @@ async function checkEmptyAccount({page,context,baseURL,fixture,report,artifacts}
  if(!fixture.other)return;
  await page.goto(baseURL+"/dashboard");await settled(page);
  await page.getByRole("button",{name:"90D",exact:true}).click();assert.equal(await page.getByLabel("显示体重估计",{exact:true}).count(),0);
- await page.getByLabel("账号菜单",{exact:true}).click();await page.getByRole("button",{name:"退出登录",exact:true}).click();await page.waitForURL(baseURL+"/");
+ await page.getByLabel("账号菜单",{exact:true}).click();await page.getByRole("button",{name:"账号管理",exact:true}).click();await page.getByRole("button",{name:"退出登录",exact:true}).click();await page.waitForURL(baseURL+"/");
  assert.equal((await context.request.post(baseURL+"/api/auth/sign-in/email",{headers:{Origin:baseURL},data:{email:fixture.other.email,password:fixture.other.password}})).status(),200);
  await page.goto(baseURL+"/dashboard");await settled(page);
  assert.equal(await page.locator("[data-metric-card]").count(),3);

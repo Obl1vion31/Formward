@@ -8,7 +8,7 @@ import * as schema from "../../db/schema";
 import { assistantContext, assistantTimezone, assistantAvailable } from "./model";
 import { assistantAlreadyShown, assistantAutoEnabled, markAssistantShown, assistantAutoKey } from "./preferences";
 import type { ReminderCatalog } from "../dashboard/daily-reminders";
-import { readAssistantContext } from "./server";
+import { dismissAssistantMealReminder, readAssistantContext } from "./server";
 import { readMealSnapshot, submitMealOperation, decideMealOperation } from "../meals/records";
 import { readEnergySnapshot, submitEnergyOperation, decideEnergyOperation } from "../activities/records";
 
@@ -16,8 +16,8 @@ const blank: ReminderCatalog = { body: [], meals: [], energy: [] };
 const now = new Date("2024-08-02T12:00:00Z"), created = "2024-07-01T00:00:00Z";
 const context = (catalog = blank, date = now, createdAt = created, timezone = "Asia/Shanghai") => assistantContext(catalog, date, timezone, createdAt);
 
-test("无记录属于可补充，不计入待处理；新账号不追讨昨日", () => {
-  const result = context(); assert.equal(result.pending.length, 0); assert.equal(result.suggestions.length, 4);
+test("昨日无饮食记录计入一条可忽略提醒；新账号不追讨昨日", () => {
+  const result = context(); assert.equal(result.pending.length, 1); assert.equal(result.pending[0].dismissible,true); assert.equal(result.suggestions.length, 3);
   assert.deepEqual(context(blank, now, now.toISOString()).suggestions.map(item => item.category), ["body", "body"]);
 });
 test("已有饮食未确认／未记全／修改后失效需要核对，已记全营养未知不重问", () => {
@@ -29,13 +29,14 @@ test("已有饮食未确认／未记全／修改后失效需要核对，已记�
 });
 test("消耗部分和未知仅建议补充，明确0的可用总数不提示", () => {
   assert.equal(context({ ...blank, energy: [{ date: "2024-08-01", hasTotal: true }] }).suggestions.some(item => item.category === "energy"), false);
-  assert.match(context({ ...blank, energy: [{ date: "2024-08-01", hasTotal: false }] }).suggestions.find(item => item.category === "energy")!.title, /暂不可得/);
+  assert.match(context({ ...blank, energy: [{ date: "2024-08-01", hasTotal: false }] }).suggestions.find(item => item.category === "energy")!.detail, /全天读数/);
 });
-test("身体实测、估计及旧空腹异常区分，建议遵守06／18点边界", () => {
+test("身体仅作按需补记，遵守06／18点边界与旧空腹异常", () => {
   const at = (clock: string) => new Date(`2024-08-02T${clock}+08:00`);
   for (const [clock, count] of [["05:59:59", 0], ["06:00:00", 1], ["17:59:59", 1], ["18:00:00", 2]] as const) assert.equal(context(blank, at(clock), now.toISOString()).suggestions.filter(item => item.category === "body").length, count);
   const catalog: ReminderCatalog = { ...blank, body: [{ date: "2024-08-02", period: "daytime", recorded: false, estimated: true, blocked: false }, { date: "2024-08-02", period: "evening", recorded: true, estimated: false, blocked: false }] };
-  assert.match(context(catalog).suggestions.find(item => item.category === "body")!.title, /尚无实测/);
+  assert.match(context(catalog).suggestions.find(item => item.category === "body")!.title, /晨间测量/);
+  assert.equal(context(catalog).pending.some(item=>item.category==="body"),false);
   catalog.body[0].blocked = true; assert.equal(context(catalog).suggestions.some(item => item.category === "body"), false);
 });
 test("时区控制当地日期；非法时区拒绝，审核及教程不提供助手入口", () => {
@@ -75,5 +76,57 @@ test("有界读取复用业务口径，重复读取无写入且不泄露其他�
   assert.deepEqual(await readAssistantContext(db, users[0], "Asia/Shanghai", now), result);
   assert.deepEqual(await db.select().from(schema.meal), beforeMeals); assert.deepEqual(await db.select().from(schema.mealEvent), beforeEvents);
   const emptyUser = { id: randomUUID(), createdAt: new Date(created) }; await db.insert(schema.user).values({ ...emptyUser, name: "虚构空账号", email: `${emptyUser.id}@example.test` });
-  assert.equal((await readAssistantContext(db, emptyUser, "Asia/Shanghai", now)).pending.length, 0);
+  assert.equal((await readAssistantContext(db, emptyUser, "Asia/Shanghai", now)).pending.length, 1);
+});
+
+
+test("忽略只影响本人昨日提醒，幂等保存、跨读取生效，不改变健康事实或追讨旧日期", async()=>{
+  const owner={id:randomUUID(),createdAt:new Date(created)},other={id:randomUUID(),createdAt:new Date(created)};
+  for(const row of [owner,other])await db.insert(schema.user).values({...row,name:"虚构提醒账号",email:row.id+"@example.test"});
+  const meals=await db.select().from(schema.meal),days=await db.select().from(schema.mealDay),events=await db.select().from(schema.mealEvent);
+  assert.equal((await readAssistantContext(db,owner,"Asia/Shanghai",now)).pending.length,1);
+  await dismissAssistantMealReminder(db,owner,"meals:2024-08-01","Asia/Shanghai",now);
+  await dismissAssistantMealReminder(db,owner,"meals:2024-08-01","Asia/Shanghai",now);
+  assert.equal((await readAssistantContext(db,owner,"Asia/Shanghai",now)).pending.length,0);
+  assert.equal((await readAssistantContext(db,other,"Asia/Shanghai",now)).pending.length,1);
+  const rows=(await db.select().from(schema.assistantReminderDismissal)).filter(row=>row.userId===owner.id);assert.equal(rows.length,1);
+  const next=await readAssistantContext(db,owner,"Asia/Shanghai",new Date("2024-08-03T12:00:00Z"));
+  assert.deepEqual(next.pending.filter(item=>item.category==="meals").map(item=>item.date),["2024-08-02"]);
+  await assert.rejects(()=>dismissAssistantMealReminder(db,owner,"meals:2024-07-31","Asia/Shanghai",now));
+  await assert.rejects(()=>dismissAssistantMealReminder(db,owner,"ai:invalid","Asia/Shanghai",now));
+  await assert.rejects(()=>dismissAssistantMealReminder(db,{id:randomUUID(),createdAt:new Date(created)},"meals:2024-08-01","Asia/Shanghai",now));
+  assert.deepEqual(await db.select().from(schema.meal),meals);assert.deepEqual(await db.select().from(schema.mealDay),days);assert.deepEqual(await db.select().from(schema.mealEvent),events);
+});
+
+test("只有今日尚未开始的真实计划进入角标，开始或跳过后移除",async()=>{
+ const owner={id:randomUUID(),createdAt:new Date(created)},templateId=randomUUID(),planId=randomUUID();
+ await db.insert(schema.user).values({...owner,name:"虚构训练账号",email:owner.id+"@example.test"});
+ await db.insert(schema.trainingTemplate).values({id:templateId,userId:owner.id,createdBy:owner.id,content:{name:"虚构力量训练",exercises:[]}});
+ await db.insert(schema.trainingPlan).values({id:planId,userId:owner.id,templateId,date:"2024-08-02",createdBy:owner.id,content:{name:"虚构力量训练",exercises:[]}});
+ assert.equal((await readAssistantContext(db,owner,"Asia/Shanghai",now)).pending.filter(row=>row.category==="training").length,1);
+ await db.insert(schema.trainingSession).values({id:randomUUID(),userId:owner.id,planId,createdBy:owner.id,date:"2024-08-02",timezone:"Asia/Shanghai",name:"虚构训练",exercises:[],startedAt:now,resumedAt:now});
+ assert.equal((await readAssistantContext(db,owner,"Asia/Shanghai",now)).pending.some(row=>row.category==="training"),false);
+});
+
+test("AI统一批次仅提醒一次，取消、过期、撤销和其他账号不计入",async()=>{
+ const {submitRecordOperation}=await import("../records/operations");
+ const {eq}=await import("drizzle-orm");
+ const owner={id:randomUUID(),createdAt:new Date(created)},tokenId=randomUUID();
+ await db.insert(schema.user).values({...owner,name:"虚构审核账号",email:owner.id+"@example.test"});
+ await db.insert(schema.aiToken).values({id:tokenId,userId:owner.id,name:"虚构令牌",tokenHash:randomUUID(),prefix:"fictional",permission:"write",expiresAt:new Date(Date.now()+3600000)});
+ const review=await submitRecordOperation(db,{userId:owner.id,tokenId,permission:"write"},{operationId:randomUUID(),items:[{key:"snack",kind:"save_meal",date:"2024-08-02",mealType:"加餐",items:[{kind:"food",name:"虚构加餐",quantity:"1",unit:"份",sourceKind:"reference",nutrition:{caloriesKcal:"100",proteinG:null,carbsG:null,fatG:null}}]}]});
+ const pending=await readAssistantContext(db,owner,"Asia/Shanghai",now);
+ assert.equal(pending.pending.filter(row=>row.category==="ai").length,1);
+ const other={id:randomUUID(),createdAt:new Date(created)};await db.insert(schema.user).values({...other,name:"虚构另一账号",email:other.id+"@example.test"});
+ assert.equal((await readAssistantContext(db,other,"Asia/Shanghai",now)).pending.some(row=>row.category==="ai"),false);
+
+ await db.update(schema.aiToken).set({revokedAt:new Date()}).where(eq(schema.aiToken.id,tokenId));
+ assert.equal((await readAssistantContext(db,owner,"Asia/Shanghai",now)).pending.some(row=>row.category==="ai"),false);
+ await db.update(schema.aiToken).set({revokedAt:null}).where(eq(schema.aiToken.id,tokenId));
+ await db.update(schema.recordOperation).set({status:"cancelled"}).where(eq(schema.recordOperation.id,review.id));
+ assert.equal((await readAssistantContext(db,owner,"Asia/Shanghai",now)).pending.some(row=>row.category==="ai"),false);
+ await db.update(schema.recordOperation).set({status:"pending"}).where(eq(schema.recordOperation.id,review.id));
+ const [rootRow]=await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.id,review.id));
+ await db.update(schema.mealOperation).set({expiresAt:new Date("2024-08-01T00:00:00Z")}).where(eq(schema.mealOperation.id,rootRow.mealOperationId!));
+ assert.equal((await readAssistantContext(db,owner,"Asia/Shanghai",now)).pending.some(row=>row.category==="ai"),false);
 });

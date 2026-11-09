@@ -13,7 +13,9 @@ import type { ComponentProps } from "react";
 export function LoadingLink({ children,beforeNavigate,onPendingChange, ...props }: ComponentProps<typeof Link>&{beforeNavigate?:()=>Promise<boolean|void>;onPendingChange?:(pending:boolean)=>void}) {
   const router=useRouter(),[pending,startTransition]=useTransition();
   return <Link {...props} prefetch={props.prefetch ?? (typeof props.href==="string"&&/[?&]entry=/.test(props.href)?false:undefined)} onNavigate={event=>{
-    props.onNavigate?.(event);
+    let intercepted=false;
+    props.onNavigate?.({preventDefault(){intercepted=true;event.preventDefault();}});
+    if(intercepted)return;
     const href=typeof props.href==="string"?props.href:(props.href.pathname??"")+(props.href.query?"?"+new URLSearchParams(Object.entries(props.href.query).flatMap(([k,v])=>(Array.isArray(v)?v:[v]).map(item=>[k,String(item??"")]))).toString():"")+(props.href.hash??"");
     if(!draftIsDirty()&&!beforeNavigate){if(reopenCurrentRecordTask(href))event.preventDefault();return;}
     event.preventDefault();

@@ -61,3 +61,8 @@ account_preferences按user_id保存show_body_fat、version及updated_at，新增
 0034_regional_image_storage 只增加 meal_images 的 storage_provider 与 storage_location，既有附件默认 blob／legacy。历史区域原型 0028 不加入正式 migration journal，生产既有 migration 不修改。
 
 0035_retire_body_estimates仅归档明确标为estimated的有效身体行，追加退役审计并保留外键；实测、原始导入和旧审计不改写。measurements_observed_active禁止估计成为有效记录，估计专用索引退出。历史JSON仅私有归档，不依赖估算引擎。
+
+
+## 助手提醒忽略
+
+0036_assistant_reminder_dismissals新增assistant_reminder_dismissals，仅保存user_id、local_date、ignored_at，账号／日期唯一并关联账号删除。忽略不修改meals、meal_days及健康事件，不与体脂偏好的版本共用。当前Drizzle schema含54张业务表，另有Drizzle迁移账本；正式迁移及发布证据以交接为准。
