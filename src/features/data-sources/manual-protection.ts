@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { dataConnection, dataSourceEvent, energyDayAdoption } from "../../db/schema";
 import type { Transaction } from "../auth/owner-lock";
 import type { EnergyPreview, EnergyRecord } from "../activities/model";
-import { sourcePilotEnabled } from "./model";
+import { sourceAccessEnabled } from "./model";
 
 export function energyFactsChanged(before?: EnergyRecord, after?: EnergyRecord) {
   if (!before || !after || !!before.deletedAt !== !!after.deletedAt) return true;
@@ -14,7 +14,7 @@ export function energyFactsChanged(before?: EnergyRecord, after?: EnergyRecord) 
 
 /** 调用方已经持有账号锁。用户确认的 AI 修改也按人工维护保护。 */
 export async function protectManualEnergyDays(tx: Transaction, userId: string, rows: EnergyPreview[]) {
-  if (!sourcePilotEnabled(userId)) return;
+  if (!sourceAccessEnabled(userId)) return;
   const [connection] = await tx.select({ id: dataConnection.id }).from(dataConnection).where(eq(dataConnection.userId, userId)).limit(1);
   if (!connection) return;
   const dates = new Set<string>();

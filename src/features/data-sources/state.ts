@@ -4,24 +4,25 @@ import type { Database } from "../../db/client";
 import { dataConnection, dataSourceConflict, dataSourceFact, dataSourcePolicy, energyDayAdoption } from "../../db/schema";
 import { readEnergySnapshot } from "../activities/records";
 import { energyDays, energyModes } from "../activities/model";
+import { credentialRegion } from "./credentials";
 import { sevenDays } from "../garmin/client";
-import { emptySources, metricLabels, sourcePilotEnabled, type AdoptionMetadata, type ConnectionView, type DailyFact, type ComparisonDay, type SourcePolicy, type SourcesView } from "./model";
+import { emptySources, metricLabels, sourceAccessEnabled, type AdoptionMetadata, type ConnectionView, type DailyFact, type ComparisonDay, type SourcePolicy, type SourcesView } from "./model";
 export const fingerprint = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 export type Connection = typeof dataConnection.$inferSelect;
 export type Fact = typeof dataSourceFact.$inferSelect;
 
 /** 管理连接不需要读取健康快照、历史差异或运动清单。 */
 export async function loadSourceSettings(db: Pick<Database, "select">, userId: string, now = new Date()) {
-  const enabled = sourcePilotEnabled(userId);
+  const enabled = sourceAccessEnabled(userId);
   const connection = enabled ? await loadEnergyConnection(db, userId) : null;
   return { enabled, connections: connection ? [connection] : [], today: sevenDays(now, connection?.timezone).to };
 }
 
 /** 普通消耗页只读取连接元数据，不为状态条重新查询七日健康对照。 */
 export async function loadEnergyConnection(db: Pick<Database, "select">, userId: string): Promise<ConnectionView | null> {
-  if (!sourcePilotEnabled(userId)) return null;
-  const [c] = await db.select({ id:dataConnection.id,label:dataConnection.label,provider:dataConnection.provider,status:dataConnection.status,metrics:dataConnection.metrics,timezone:dataConnection.timezone,version:dataConnection.version,adoptedAt:dataConnection.adoptedAt,syncStartedAt:dataConnection.syncStartedAt,lastAttemptAt:dataConnection.lastAttemptAt,lastSuccessAt:dataConnection.lastSuccessAt,lastError:dataConnection.lastError }).from(dataConnection).where(and(eq(dataConnection.userId,userId),eq(dataConnection.provider,"garmin-personal")));
-  return c ? { id:c.id,label:c.label,provider:c.provider,status:c.status,metrics:c.metrics,timezone:c.timezone,version:c.version,adopted:!!c.adoptedAt,syncing:!!c.syncStartedAt&&Date.now()-+c.syncStartedAt<90000,lastAttemptAt:c.lastAttemptAt?.toISOString()??null,lastSuccessAt:c.lastSuccessAt?.toISOString()??null,error:c.lastError } : null;
+  if (!sourceAccessEnabled(userId)) return null;
+  const [c] = await db.select({ credential:dataConnection.credential,id:dataConnection.id,label:dataConnection.label,provider:dataConnection.provider,status:dataConnection.status,metrics:dataConnection.metrics,timezone:dataConnection.timezone,version:dataConnection.version,adoptedAt:dataConnection.adoptedAt,syncStartedAt:dataConnection.syncStartedAt,lastAttemptAt:dataConnection.lastAttemptAt,lastSuccessAt:dataConnection.lastSuccessAt,lastError:dataConnection.lastError }).from(dataConnection).where(and(eq(dataConnection.userId,userId),eq(dataConnection.provider,"garmin-personal")));
+  return c ? { id:c.id,label:c.label,provider:c.provider,region:credentialRegion(c.credential),status:c.status,metrics:c.metrics,timezone:c.timezone,version:c.version,adopted:!!c.adoptedAt,syncing:!!c.syncStartedAt&&Date.now()-+c.syncStartedAt<90000,lastAttemptAt:c.lastAttemptAt?.toISOString()??null,lastSuccessAt:c.lastSuccessAt?.toISOString()??null,error:c.lastError } : null;
 }
 
 export async function readSourceState(db: Pick<Database, "select">, userId: string, now = new Date()) {
@@ -71,7 +72,7 @@ export function dayComparison(state: SourceState, date: string): ComparisonDay {
 }
 
 export async function loadSources(db: Pick<Database, "select">, userId: string, now = new Date()): Promise<SourcesView> {
-  if (!sourcePilotEnabled(userId)) return { enabled: false, connections: [], policy: { strategy: "total", sources: emptySources(), effectiveFrom: sevenDays(now).to, version: 0 }, comparison: [], conflicts: [], today: sevenDays(now).to };
+  if (!sourceAccessEnabled(userId)) return { enabled: false, connections: [], policy: { strategy: "total", sources: emptySources(), effectiveFrom: sevenDays(now).to, version: 0 }, comparison: [], conflicts: [], today: sevenDays(now).to };
   const state = await readSourceState(db, userId, now);
-  return { enabled: true, connections: state.connections.map(c => ({ id: c.id, label: c.label, provider: c.provider, status: c.status, metrics: c.metrics, timezone: c.timezone, version: c.version, adopted: !!c.adoptedAt, syncing: !!c.syncStartedAt && +now - +c.syncStartedAt < 90000, lastAttemptAt: c.lastAttemptAt?.toISOString() ?? null, lastSuccessAt: c.lastSuccessAt?.toISOString() ?? null, error: c.lastError })), policy: state.policy, comparison: state.window.dates.map(date => dayComparison(state, date)), conflicts: state.conflicts.filter(c => c.status === "pending" && state.facts.some(f=>f.id===c.factId&&state.policy.sources.activities===f.connectionId&&state.connections.some(conn=>conn.id===f.connectionId&&conn.status==="active"&&conn.metrics.includes("activities")))).flatMap(c => { const fact = state.facts.find(f => f.id === c.factId); return fact?.payload.kind === "activity" ? [{ id: c.id, version: c.version, date: fact.date, name: fact.payload.name, sourceId: fact.sourceRecordId, candidates: state.snapshot.activities.filter(a => c.candidates.includes(a.id) && !a.deletedAt).map(a => ({ id: a.id, version: a.version, name: a.name, durationMinutes: a.durationMinutes, caloriesKcal: a.caloriesKcal })) }] : []; }), today: state.window.to };
+  return { enabled: true, connections: state.connections.map(c => ({ id: c.id, label: c.label, provider: c.provider, region: credentialRegion(c.credential), status: c.status, metrics: c.metrics, timezone: c.timezone, version: c.version, adopted: !!c.adoptedAt, syncing: !!c.syncStartedAt && +now - +c.syncStartedAt < 90000, lastAttemptAt: c.lastAttemptAt?.toISOString() ?? null, lastSuccessAt: c.lastSuccessAt?.toISOString() ?? null, error: c.lastError })), policy: state.policy, comparison: state.window.dates.map(date => dayComparison(state, date)), conflicts: state.conflicts.filter(c => c.status === "pending" && state.facts.some(f=>f.id===c.factId&&state.policy.sources.activities===f.connectionId&&state.connections.some(conn=>conn.id===f.connectionId&&conn.status==="active"&&conn.metrics.includes("activities")))).flatMap(c => { const fact = state.facts.find(f => f.id === c.factId); return fact?.payload.kind === "activity" ? [{ id: c.id, version: c.version, date: fact.date, name: fact.payload.name, sourceId: fact.sourceRecordId, candidates: state.snapshot.activities.filter(a => c.candidates.includes(a.id) && !a.deletedAt).map(a => ({ id: a.id, version: a.version, name: a.name, durationMinutes: a.durationMinutes, caloriesKcal: a.caloriesKcal })) }] : []; }), today: state.window.to };
 }

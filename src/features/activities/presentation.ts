@@ -1,4 +1,4 @@
-import {sourcePilotEnabled} from "../data-sources/model";
+import {sourceAccessEnabled} from "../data-sources/model";
 import type { MeasurementDisplay } from "../measurements/entry-state";
 import { energyDays, type EnergySnapshot } from "./model";
 
@@ -6,6 +6,6 @@ import { energyDays, type EnergySnapshot } from "./model";
 export function energyPresentation(snapshot: EnergySnapshot, records: MeasurementDisplay[], today: string, sources: string[] = [], userId = "") {
   const dates = [...new Set([today, ...snapshot.days.map(day => day.date), ...snapshot.activities.map(row => row.date)])].sort();
   const { defaults, ...visible } = snapshot; void defaults;
-  return { sourcePilot:sourcePilotEnabled(userId), snapshot: {...visible,profiles: []}, days: energyDays(snapshot, records, dates), formula: null, today, sources };
+  return { sourcePilot:sourceAccessEnabled(userId), snapshot: {...visible,profiles: []}, days: energyDays(snapshot, records, dates), formula: null, today, sources };
 }
 export type EnergyPresentation = ReturnType<typeof energyPresentation>;

@@ -2,11 +2,11 @@ import { createServer as createTcpServer, connect, type Socket } from 'node:net'
 import { createServer as createHttpServer } from 'node:http';
 import { setTimeout as delay } from 'node:timers/promises';
 /** 只用于隔离浏览器 fixture：延迟健康查询，不向应用加入测试等待或生产开关。 */
-export async function delayedTrainingDatabase(upstream: string) {
+export async function delayedTrainingDatabase(upstream: string, tables = /\b(training_sessions|training_templates|training_plans|energy_days|activities|meal_items|measurements)\b/i) {
   const endpoint = new URL('tcp://' + upstream), sockets = new Set<Socket>(); let delayMs = 0, delayedQueries = 0;
   const proxy = createTcpServer(front => {
     const back = connect({ host: endpoint.hostname, port: Number(endpoint.port) }); sockets.add(front); sockets.add(back); let queue = Promise.resolve();
-    front.on('data', chunk => { const wait = /\b(training_sessions|training_templates|training_plans|energy_days|activities|meal_items|measurements)\b/i.test(chunk.toString('utf8')) ? delayMs : 0; queue = queue.then(async () => { if(wait) {delayedQueries++; await delay(wait);} if(!back.destroyed)back.write(chunk); }).catch(() => { front.destroy(); }); });
+    front.on('data', chunk => { const wait = tables.test(chunk.toString('utf8')) ? delayMs : 0; queue = queue.then(async () => { if(wait) {delayedQueries++; await delay(wait);} if(!back.destroyed)back.write(chunk); }).catch(() => { front.destroy(); }); });
     back.on('data', chunk => { if(!front.destroyed)front.write(chunk); });
     front.on('error', () => back.destroy()); back.on('error', () => front.destroy()); front.on('close', () => { back.destroy(); sockets.delete(front); }); back.on('close', () => { front.destroy(); sockets.delete(back); });
   });

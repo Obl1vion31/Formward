@@ -1,5 +1,11 @@
 # Tests
 
+## Garmin 个人密钥连接
+
+production build 后运行 `node --import tsx tests/data-sources.browser.mts`。入口自行创建仅回环可访问的隔离 PGlite、两个虚构账号与服务端 Garmin 响应，不读取正式密钥或访问真实 Garmin。`FORMWARD_SOURCES_ENGINE=webkit` 切换引擎，`PLAYWRIGHT_BROWSERS_PATH` 指定浏览器缓存，`FORMWARD_SOURCES_ARTIFACTS` 指定私有证据目录；`FORMWARD_SOURCES_PREVIEW=1` 保留本机演示，SIGTERM／SIGINT关闭。
+
+检查首次“输入个人密钥”与已有“更换个人密钥”、提交后立即读取、刷新持久化、输入掩码／成功清空、网络失败留稿、重复提交保护、版本冲突及两个账号的数据隔离；两主题覆盖320／390／430、横屏、1100／1440。内部任务另验鉴权、拒绝客户端指定账号及多人调度；原生真机未测不计通过。单元／集成测试覆盖开放模式、加密绑定、跨账号拒绝及失败隔离。
+
 ## 单一国服网页与海外后台
 
 同源production release后，FORMWARD_TEST_RELEASE指向该产物，运行node --import tsx tests/single-web.browser.mts；FORMWARD_SINGLE_WEB_ENGINE选择chromium／webkit。复用隔离真实PostgreSQL与本机TLS fixture，使用虚构账号验证原OAuth连接、国服确认链接、登录后返回目标、真实确认、跨账号404、旧网页跳转及已有草稿保留。FORMWARD_SINGLE_WEB=1运行tests/shared-primary.http.mts，验证原Cookie／JWT／refresh在严格信任测试CA的真实HTTP链路中保持。所有截图、日志与录像留在被忽略的.codex/single-web，不读取正式凭据或写入真实账号。
