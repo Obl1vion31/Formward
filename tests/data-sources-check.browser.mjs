@@ -64,7 +64,8 @@ try {
   await page.setViewportSize({ width: 390, height: 640 });
   await page.goto(config.baseURL + "/dashboard/energy"); await page.waitForLoadState("networkidle");
   await page.locator("summary[aria-label='账号菜单']").click();
-  await page.getByRole("button", { name: "连接设备与数据来源", exact: true }).click();
+  await page.getByRole("button", { name: "外部接入", exact: true }).click();
+  await page.getByRole("button", { name: "设备与数据来源", exact: true }).click();
   const sheet = page.getByRole("dialog"); await sheet.getByText("输入个人密钥", { exact: true }).waitFor();
   await sheet.getByText("输入个人密钥", { exact: true }).click();
   await sheet.getByLabel("Personal API 密钥", { exact: true }).waitFor({ state: "visible" });
