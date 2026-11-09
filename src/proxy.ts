@@ -7,6 +7,9 @@ export function proxy(request: NextRequest) {
   const headers = new Headers(request.headers);
   for (const name of [...headers.keys()]) if (/^x-formward-/i.test(name)) headers.delete(name);
   if (!config.enabled) return NextResponse.next({ request: { headers } });
+  // Next 图片优化器读取本地构建图片时会创建不带 Host 的内部请求。
+  // 构建静态资源本来就公开，不能让业务来源校验阻断这次读取。
+  if (request.nextUrl.pathname.startsWith("/_next/static/")) return NextResponse.next({ request: { headers } });
   if (process.env.FORMWARD_MAINTENANCE === "1" && !request.nextUrl.pathname.startsWith("/_next/static/") && request.nextUrl.pathname !== "/api/internal/readiness") {
     return new NextResponse("维护中，请稍后再试。", {status:503,headers:{"Cache-Control":"no-store","Retry-After":"60"}});
   }

@@ -2,7 +2,7 @@
 
 ## 当前部署状态
 
-双入口仍在迁移验收中，正式切换结果以[双入口验收](regional-acceptance.md)和根目录交接为准。公网 IP 目前仍为独立演示库，Vercel 正式站仍连接 Neon。下列结构为已确认的切换目标。
+国服公网 IP 与 Vercel 国际入口均已连接上海正式库 formward_primary，2026年11月9日19:25（上海时间）开放写入。Neon 已隔离停写。恢复和连接验收见[双入口验收](regional-acceptance.md)。
 
 ## 入口和数据位置
 
@@ -19,7 +19,7 @@ flowchart LR
 
 PostgreSQL 保存账号、授权、饮食、身体、训练、Garmin 来源与附件关联。图片原件保存在 Blob 或 COS，不放在数据库字段、Git 或 public 目录。GPT 原图由海外图片服务下载，上海负责归属、状态和附件登记。
 
-迁移后所有正式入口写入同一上海主库；Neon 停写保留为切换备份材料。开发与测试继续使用隔离数据库，不把本机演练副本当成正式数据源。
+所有正式入口写入同一上海主库；Neon 停写保留为切换备份材料。开发与测试继续使用隔离数据库，不把本机演练副本当成正式数据源。
 
 ## CPU、内存和网络
 
@@ -53,7 +53,7 @@ ROLLBACK;
 \q
 ~~~
 
-正式库名称 formward_primary 只在正式切换后生效；隔离恢复库不能代替正式库。表与字段的完整中文解释见[数据库字典](database.md)。
+当前正式库名称为 formward_primary；隔离恢复库不能代替正式库。表与字段的完整中文解释见[数据库字典](database.md)。
 
 图形管理器可通过 SSH 隧道连接数据库回环地址，适合查看关系、筛选和只读 SQL；应用密码及迁移角色密码不放入文档或聊天。当前迁移不对公网开放 5432，也不部署公开的数据库管理后台。
 
@@ -69,3 +69,9 @@ ROLLBACK;
 | 独立演示库 | formward_ip_preview，和正式库分开 |
 
 服务状态可通过 systemctl is-active formward-primary.service nginx postgresql 查询。读取日志时只检查必要错误与请求状态，避免把健康内容、临时图片链接或凭据贴到公开位置。备份和恢复的实际验证结果见双入口验收；同盘备份与异机备份分别记录。
+
+## 备份和定时任务
+
+每日03:20（上海时间）运行 formward-primary-backup.timer，生成原生归档与 AES-256-GCM 加密副本，匹配命名的日备份保留14天；每日06:00运行 formward-primary-source-sync.timer。两项已启用并实际执行成功。一次性完整恢复演练已通过；日常作业只自动校验归档目录，不应称为每天完整恢复。
+
+原生与加密备份位于 /var/backups/formward-primary（root 0700）；密钥为 /etc/formward/backup-key（root 0600）。本次加密副本已经验证解密后 SHA-256 相同。异机自动归档尚未配置，单次异机下载结果见验收记录；数据库备份不含 Blob／COS 图片原件。

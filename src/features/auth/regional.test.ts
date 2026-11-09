@@ -19,6 +19,17 @@ test("真实HTTP fetch响应不可变，网关复制解压流与多条Cookie后�
 });
 const env={FORMWARD_REGIONAL:"1",BETTER_AUTH_URL:"https://formward-ten.vercel.app",FORMWARD_GATEWAY_SECRET:"fictional-service-key-32-characters-long"};
 async function configured(work:()=>Promise<void>|void){const old={...process.env};Object.assign(process.env,env);try{await work();}finally{for(const key of Object.keys(process.env))if(!(key in old))delete process.env[key];Object.assign(process.env,old);}}
+test("图片优化器不带Host读取公开构建图片，来源头被清除且业务请求仍受保护",()=>configured(()=>{
+ const request=new NextRequest("http://localhost/_next/static/media/fictional.png",{headers:{"x-formward-public-origin":"https://evil.example","x-formward-region":"global"}});
+ const image=proxy(request);
+ assert.equal(image.status,200);
+ assert.equal(image.headers.get("x-middleware-request-x-formward-public-origin"),null);
+ assert.equal(image.headers.get("x-middleware-request-x-formward-region"),null);
+ assert.equal(proxy(new NextRequest("http://localhost/api/mcp")).status,421);
+ process.env.FORMWARD_MAINTENANCE="1";
+ assert.equal(proxy(request).status,200);
+ assert.equal(proxy(new NextRequest("https://cn.formward.top/dashboard",{headers:{host:"cn.formward.top"}})).status,503);
+}));
 test("区域服务证明绑定来源、方法、路径、时间与客户端地址，拒绝伪造",()=>configured(()=>{
  const headers=new Headers(serviceHeaders("POST","/api/auth/sign-in/email","https://global.formward.top","203.0.113.1"));
  assert.equal(verifyService(headers,"POST","/api/auth/sign-in/email")?.origin,"https://global.formward.top");

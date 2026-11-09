@@ -61,7 +61,7 @@ Garmin Personal 已接入账号定向试运行；个性化训练计划、营养�
 采用轻量的 Next.js 模块化单体：
 
 - Next.js、React、TypeScript
-- PostgreSQL、Neon、Drizzle ORM
+- PostgreSQL 18（上海正式主库）、Drizzle ORM；Neon保留停写源材料
 - Better Auth
 - Tailwind CSS、shadcn/ui
 - Vitest、Playwright
@@ -146,3 +146,5 @@ AI消耗确认按日期展示当天总数与运动，来源备注按需展开；
 ## 训练
 
 主导航“训练”提供150项动作库、自由／计划训练、模板排序与目标、次数／时长／距离记录、自动保存、暂停继续和结束回看；今日训练下面直接为月历，不展示消耗统计。原有消耗图表与录入保留在页内“消耗”视图。训练不会自动增加全天热量。GPT可通过MCP查询动作、模板和安排，提交模板与排期预览，经网页登录确认后保存到同一日历；旧连接须重新授权训练权限。规则见[训练记录](docs/training.md)。
+
+国服公网IP与国际入口已共用上海主库，原GPT和Garmin连接保持，正式新增记录不再写Neon。部署与恢复边界见[双入口部署](docs/mainland-deployment.md)，CPU／网络和数据库查看见[服务器查看指南](docs/server-operations.md)。

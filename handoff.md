@@ -1,20 +1,22 @@
 # Formward 项目交接
 
-## 双入口主库迁移准备：原正式站保持运行
+## 当前部署：上海唯一主库与国际入口
 
-用户确认国服公网 IP、国际 Vercel 与 GPT／Garmin 共用上海主库，GPT 保留原入口和授权。当前正式别名仍指向原 READY dpl_Ds7qyEAu1jfhdWZyVqantWprDqkb，版本 static-loading-61eda554-20261108、Neon 仍可写；公网 IP 普通访问仍为独立演示库。上海 formward-primary.service 在3200运行，连接隔离基线 formward_rehearsal_primary_20261109，维护开关开启。最终停写、最新快照与正式 formward_primary 尚未执行，不能开放准备阶段的旧副本。
+国服 https://43.142.148.58 与国际 https://formward-ten.vercel.app 已共用上海 formward_primary，UTC 2026-11-09T11:25:25 开放写入。Neon 旧凭据已失效；不要再次执行隔离脚本，也不能把正式别名恢复到旧 Neon 部署。本机旧 .env.local 已失效，开发继续隔离，不能把本机演练库作为正式源。
 
-上海已恢复54表／2604行，原始摘要一致；0034只加图片存储字段，旧业务、授权与图片字段保持。原JWKS与Garmin凭据保留并可解密；真实上海Garmin换令牌、每日和活动API通过，连接未重建。原Blob图片经海外worker读取并SHA一致，COS临时1像素对象写／读／删通过，桶继续私有。实际图片证据在服务器 image-worker-check.json。
+最终原生归档54表／2624源行，严格恢复和0034后业务／授权摘要均零差异；原JWKS、Better Auth secret、Garmin密文和主密钥保持。正式库初次备份完整恢复通过，日备份与加密解密SHA通过。03:20日备份与06:00 Garmin同步timer已启用并执行成功。原IP演示3100已停，原私有formward-preview.service 3000保持。
 
-global.formward.top 已配置为Vercel海外服务别名，origin.formward.top 指向上海带签名回源；根域和国服入口保持。IP与独立回源均有有效证书，现有每6小时ACME定时器维护两份证书。上海解析Vercel默认域名会异常，使用专用global域名；Vercel原生fetch连接上海超时，但同环境原生Node HTTPS到IP与域名均在约0.3～0.7秒成功，因此网关改用regional-http，并保持证书、流、Cookie、签名、取消、固定目标及不重放。正式issuer／resource仍是原Vercel地址。
+原GPT get_profile成功且账号不变；原国际网页会话刷新后可用，Garmin原连接换令牌／每日／活动及定时同步成功，旧Blob照片600911字节SHA一致，COS虚构PNG往返68字节成功。两入口版本API均200、原OAuth issuer不变。国服首次需要用原账号登录，因为两域Cookie独立。
 
-本分支保留最新已发布界面与饮食勾选，未合入或推送main，未触碰共享工作区其他脏改动。新传输实现已通过真实HTTP流式正文、压缩、多Cookie、取消、重定向和目标限制检查；完整607项、lint、typecheck通过，随后微调的响应错误监听需随最终包再验。最终发布必须重新从干净提交构建同源双端，不能使用临时诊断网关作为最终版本。
+当前应用源码2fe90d1d，dual-entry-native-20261109，BUILD_ID KZbooTdVC0rXyqufcTsdV；网关 dpl_8F556ELyQxTqy7jR3XpCUL6VDGRG，CLE1、原生HTTPS回源公网IP。国服登录封面优化器误拦的修复正在构建发布：公开 /_next/static/ 内部请求不带Host，业务请求仍严格校验，回归纳入regional.test.ts。
 
-服务器私有目录为 /var/lib/formward/dual-cutover，transfer-v1保存原密钥和基线归档，tools-v2保存摘要与密钥检查，ops-v1保存最终恢复、开放及作业工具。备份／同步systemd单元已安装并验证，但尚未启动定时器。AES-GCM脚本与篡改／越界／覆盖拒绝测试通过。最终切换前先维护、Neon停写和拒写验证，再重新导出一致快照并恢复空主库、0034与旧字段严格核对、备份完整恢复，最后开放两个入口并验证原GPT、同步和实际备份。开始上海正式写入后不得指回Neon旧快照。
+root私有证据 /var/lib/formward/dual-cutover/final-status.json、activation-status.json、final-data、postcutover-v1；server-final-status已更新为activated。导出收尾失败后复用完成的原生归档，重新只读生成源摘要并严格核对恢复库，不跳过一致性检查。最终SHA和报告均私有。原迁移凭据只在root私有JSON，不打印或重新生成；源凭据已由pooler改为同库直连作只读复核。
 
-维护方法见[服务器与数据库查看](docs/server-operations.md)，当前证据见[双入口验收](docs/regional-acceptance.md)。CUA使用Chrome3 OrcaTerm249599766；每次按新AX索引输入，结果看截图，不读取隐藏终端状态。MFA已验证，不需再次登录，最终CUA结果观察后再completion_summary。
+上海原生PostgreSQL只监听回环5432，APP仅DML；国际网关无数据库／认证签名密钥。global.formward.top用于上海访问海外图片服务，origin域不用于当前回源。IP和origin证书由6小时ACME timer维护，自然到期续期与长期异机自动归档未验。监控与表结构查看见docs/server-operations.md；尚未完成的异机单次加密下载须如实更新验收，不把同盘副本当异机。
 
-## 当前正式版本：全站静态内容与局部加载反馈（2026-11-08）
+CUA Chrome3，OrcaTerm249599766，国服新tab249599823，原国际tab249599539、监控249599759。不再需要用户调整TUN；旧异步回复已说明。CUA仍在收尾，不要提前completion_summary。未合入或推送main，不触碰共享工作区其他变更。
+
+## 此前版本：全站静态内容与局部加载反馈（2026-11-08）
 
 已按本会话此前明确的修改后直接发布授权更新[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署dpl_Ds7qyEAu1jfhdWZyVqantWprDqkb，源码61eda5541ab7acd26a3b7e378b49a44aaac779de，构建static-loading-61eda554-20261108，来自codex/static-loading；正式别名、项目、sourceCommit／gitCommitSha及版本接口均一致，未合入或推送main。后续纯文档提交不改变正式应用。
 
