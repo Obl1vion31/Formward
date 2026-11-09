@@ -16,13 +16,13 @@ export async function checkLoadingFlows({config,folder,createContext,control,sho
    return route.continue();
   });
   const menu=()=>page.locator('summary[aria-label="账号菜单"]');
-  async function openAccount(name){await menu().click();await page.getByRole(mobile?'button':'link',{name,exact:true}).click();}
+  async function openAccount(name){await menu().click();await page.getByRole('button',{name:name==='设备与数据来源'?'外部接入':'账号管理',exact:true}).click();await page.getByRole(mobile?'button':'link',{name,exact:true}).click();}
   async function closeAccount(){await page.getByRole('dialog').getByRole('button',{name:/^关闭/}).first().click();await page.getByRole('dialog').waitFor({state:'detached'});await page.waitForTimeout(550);assert.equal(await menu().evaluate(node=>document.activeElement===node),true,'账号面板关闭后焦点回到账号按钮');}
   async function localEvidence(entry){const local=await page.evaluate(()=>window.__localFrames);for(const f of local.filter(f=>f.dialog&&f.visible))assert.ok(f.time-f.created>=185,'局部指示不能提前显示');frames.push({prefix,entry,local});}
   try{
    await context.addInitScript(()=>{window.__localFrames=[];const created=new WeakMap();const tick=()=>{for(const node of document.querySelectorAll('[data-local-loading]')){if(!created.has(node))created.set(node,performance.now());if(node.closest('dialog')||node.closest('.account-reading-page')||node.dataset.visible)window.__localFrames.push({time:performance.now(),created:created.get(node),visible:!!node.dataset.visible,label:node.textContent,dialog:!!node.closest('dialog')});}requestAnimationFrame(tick);};requestAnimationFrame(tick);});
    await control(0);await page.goto(config.baseURL+'/dashboard/training');await page.waitForLoadState('networkidle');
-   for(const[name,ready]of [['个人资料',()=>page.getByRole('button',{name:'修改资料',exact:true}).waitFor()],['账号与安全',()=>page.getByLabel('当前密码',{exact:true}).waitFor()],['连接设备与数据来源',()=>page.getByRole('button',{name:'连接并同步',exact:true}).waitFor()]]){
+   for(const[name,ready]of [['个人资料',()=>page.getByRole('button',{name:'修改资料',exact:true}).waitFor()],['账号与安全',()=>page.getByLabel('当前密码',{exact:true}).waitFor()],['设备与数据来源',()=>page.getByRole('button',{name:'连接并同步',exact:true}).waitFor()]]){
     transport='slow';await openAccount(name);await page.locator('[data-local-loading][data-visible]').first().waitFor();
     assert.equal(await page.locator('.account-sheet-skeleton').count(),0);assert.equal(await page.locator('.page-loading-dialog[open],.workspace-loading').count(),0);
     await shot(page,prefix+'-'+name+'-reading');await ready();await page.waitForLoadState('networkidle');await page.waitForTimeout(550);await shot(page,prefix+'-'+name+'-ready');
@@ -46,7 +46,7 @@ export async function checkLoadingFlows({config,folder,createContext,control,sho
     assert.ok((await page.evaluate(()=>window.__motionStarts.length))-start<=1,'一次导航只能入场一次');await shot(page,prefix+'-navigation-'+(route||'overview'));
    }
    await control(0);await page.goBack();await page.waitForLoadState('networkidle');await page.goForward();await page.waitForLoadState('networkidle');
-   for(const kind of ['intake','morning-weight','energy']){await page.locator(`[data-metric-card="${kind}"]`).click();await page.waitForLoadState('networkidle');await page.locator('.chart-flight').waitFor({state:'detached',timeout:2000});await page.waitForTimeout(550);assert.equal(await page.locator('.chart-flight').count(),0);await page.getByRole('button',{name:/返回总览/}).filter({visible:true}).first().click();await page.waitForURL(config.baseURL+'/dashboard');await page.waitForLoadState('networkidle');await page.locator('.chart-flight').waitFor({state:'detached',timeout:2000});await page.waitForTimeout(550);assert.equal(await page.locator('.chart-flight').count(),0);}
+   for(const kind of ['intake','morning-weight','energy']){await page.locator(`[data-metric-card="${kind}"]`).click();await page.waitForLoadState('networkidle');await page.locator('.chart-flight').waitFor({state:'detached',timeout:2000});await page.waitForTimeout(550);assert.equal(await page.locator('.chart-flight').count(),0);await page.getByRole('navigation',{name:'主导航',exact:true}).getByRole('link',{name:'总览',exact:true}).click();await page.waitForURL(config.baseURL+'/dashboard');await page.waitForLoadState('networkidle');await page.locator('.chart-flight').waitFor({state:'detached',timeout:2000});await page.waitForTimeout(550);assert.equal(await page.locator('.chart-flight').count(),0);}
    checks.push(prefix+' 普通／热导航、返回与三种图形往返');
    await page.emulateMedia({reducedMotion:'reduce'});await page.locator('a[href="/dashboard/meals"]:visible').first().click();await page.waitForLoadState('networkidle');assert.equal(await page.locator('[data-workspace-moving],.chart-flight').count(),0);await page.emulateMedia({reducedMotion:'no-preference'});
    if(theme==='dark'&&mobile){

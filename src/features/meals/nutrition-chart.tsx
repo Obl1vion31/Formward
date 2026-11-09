@@ -13,10 +13,10 @@ import { MobileNutritionPlot } from "./mobile-nutrition-plot";
 
 const calorieColor = "var(--data-deficit)";
 const macros: Metric[] = ["proteinG", "carbsG", "fatG"];
-type NutritionChartProps={dates:string[];groups:ReturnType<typeof dailyTotals>;selection:ReturnType<typeof useChartDateSelection>;mode:MacroMode;linked?:boolean};
+type NutritionChartProps={dates:string[];groups:ReturnType<typeof dailyTotals>;selection:ReturnType<typeof useChartDateSelection>;mode:MacroMode;linked?:boolean;compact?:boolean};
 export function NutritionChart(props:NutritionChartProps) {
   const mobile=useMobileMode();
-  return mobile||props.linked?<MobileNutritionPlot {...props}/>:<DesktopNutritionChart {...props}/>;
+  return mobile||props.linked||props.compact?<MobileNutritionPlot {...props}/>:<DesktopNutritionChart {...props}/>;
 }
 function DesktopNutritionChart({ dates, groups, selection, mode }: NutritionChartProps) {
   const viewport = useRef<HTMLDivElement>(null);

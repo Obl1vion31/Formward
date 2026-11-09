@@ -22,8 +22,9 @@ test('取消填充动画前先隐藏旧图层，恢复目标后再发布卸载',
  flight.node={style:{visibility:'visible'}};
  flight.hidden={removeAttribute(name){assert.equal(name,'data-chart-travelling');events.push('restore-target');}};
  flight.animation={cancel(){assert.equal(flight.node.style.visibility,'hidden');events.push('cancel-hidden');}};
+ flight.decorations=[{cancel(){assert.equal(flight.node.style.visibility,'hidden');events.push('cancel-details-hidden');}}];
  assert.equal(owner.clear(flight.id),true);
- assert.deepEqual(events,['cancel-hidden','restore-target','unmount']);assert.equal(owner.active,null);
+ assert.deepEqual(events,['cancel-hidden','cancel-details-hidden','restore-target','unmount']);assert.equal(owner.active,null);
 });
 test('旧完成回调和超时不得清掉已经反向的新图层',()=>{
  const owner=createChartFlights(()=>{}),outbound=owner.start(model,rect,'forward');

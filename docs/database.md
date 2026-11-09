@@ -2,22 +2,22 @@
 
 ## 运动分项存储
 
-0026_dark_tana_nile为activities增加calorie_mode、resting_kcal、active_kcal，均可空，旧记录不回填。TypeScript对应calorieMode、exerciseRestingKcal、exerciseActiveKcal，避免与日记录混淆。原calories_kcal保存运动总数；分项模式总数由两项已知时形成，计入值由纯运动产生，未知保持空。账号、来源、版本和审计沿用。当前41张应用表另加Drizzle账本。身体旧实测通过既有deleted_at归档；单指标删除保留另一指标及审计。
+0026_dark_tana_nile为activities增加calorie_mode、resting_kcal、active_kcal，均可空，旧记录不回填。TypeScript对应calorieMode、exerciseRestingKcal、exerciseActiveKcal，避免与日记录混淆。原calories_kcal保存运动总数；分项模式总数由两项已知时形成，计入值由纯运动产生，未知保持空。账号、来源、版本和审计沿用。当前54张业务表另加Drizzle账本。身体旧实测通过既有deleted_at归档；单指标删除保留另一指标及审计。
 
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 41 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。0027 只扩展账号管理，不修改健康表、旧密码或授权值。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 54 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。0027 只扩展账号管理，不修改健康表、旧密码或授权值。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 
 ## 连接与演进流程
 
-1. 使用 Node.js 24 和 pnpm 9，安装依赖。把数据库运行连接配置到私有 `.env.local` 的 `DATABASE_URL`；需要直连的 migration 使用 `DATABASE_MIGRATION_URL`，未设置则使用运行连接。Neon 与本机 PostgreSQL 共用 postgres.js／Drizzle。配置不提交 Git、不打印 URL。
+1. 使用 Node.js 24 和 pnpm 9，安装依赖。把数据库运行连接配置到私有 `.env.local` 的 `DATABASE_URL`；需要直连的 migration 使用 `DATABASE_MIGRATION_URL`，未设置则使用运行连接。正式库使用上海PostgreSQL，Neon保持停写；开发隔离库与正式库共用postgres.js／Drizzle。配置不提交 Git、不打印 URL。
 2. 在现有数据库上执行结构变更前，运行 `node --env-file=.env.local --import tsx scripts/backup-database.mts data/exports/私有备份.json`。工具在 repeatable read 只读事务中导出 public 和 drizzle 表及字段信息，文件以 0600 创建、拒绝覆盖。备份包括认证数据，保持私有；恢复先还原对应版本结构，再按外键顺序恢复数据和 migration journal，切勿对正式库盲目重放。
 3. 修改 `src/db/schema.ts`，执行 `pnpm db:generate`，审阅新 SQL 与快照。已经共享的 migration 不修改；数据转换必须在删列之前完成。生成文件纳入版本控制后，运行 `pnpm db:migrate`。
 4. 应用通过 `getDatabase()` 复用服务端连接池，页面与 Server Action 从当前会话获得账号，再调用 feature。查询按账号顺序执行以兼容 PGlite；所有测量写入锁定 users 中的归属账号并在事务内保存批次、事实、来源建议和审计。
 5. 需要人工查看数据库时，用支持 PostgreSQL 的私有 SQL 客户端导入同一环境连接，按 `user_id` 限定查询；不要将完整连接地址写入文档、终端历史或公共截图。只读排查不直接改结构，结构变化只走 migration。
 
-`0006_living_tarantula.sql` 合并已知设备和应用为 `device_label`，在删旧列前保存来源合并审计；设备或应用只有一项时保留该项。移除 BMI 数值列与检查约束，但不改旧去重键、原始输入、审计、初始化依据、日期与提醒状态。当前账号未知来源实测的授权补齐由 `fill-measurement-sources.mts` 调用 feature 完成；不在 migration 中硬编码账号或给其他账号猜来源。估计不保存设备来源。旧四列 TSV 的 BMI 仅留在原文件；三列格式为测量时间、体重、体脂率。重导用原始时间、时区、偏移与原始体重／体脂核对，人工编辑或软删除后仍跳过原记录。
+`0006_living_tarantula.sql` 合并已知设备和应用为 `device_label`，在删旧列前保存来源合并审计；设备或应用只有一项时保留该项。移除 BMI 数值列与检查约束，但不改旧去重键、原始输入、审计、初始化依据、日期与提醒状态。当前账号未知来源实测的授权补齐由 `fill-measurement-sources.mts` 调用 feature 完成；不在 migration 中硬编码账号或给其他账号猜来源。身体仅保存实测，缺测不补估计。旧四列 TSV 的 BMI 仅留在原文件；三列格式为测量时间、体重、体脂率。重导用原始时间、时区、偏移与原始体重／体脂核对，人工编辑或软删除后仍跳过原记录。
 
 ## 逻辑关系
 
@@ -778,3 +778,8 @@ account_preferences由0030_account_preferences创建，不回填或修改旧健�
 账号／模板、账号／计划使用组合外键；每账号最多一场active／paused会话，同日同模板最多一条planned计划，事件按账号／operation_id唯一。旧表字段和值不变。训练不自动写activities或energy_days；详见[训练记录](training.md)。
 
 身体估算已退役：0035将有效estimated行归档并追加审计，observed_active约束禁止恢复或新增有效估计；不改实测、原始导入和旧审计。
+
+
+## 助手提醒忽略记录
+
+assistant_reminder_dismissals保存账号级昨日饮食提醒的忽略状态。user_id关联users，local_date为被忽略的业务日期，ignored_at为确认忽略时间；user_id与local_date唯一，重复请求不新增行。表中不保存餐次、营养、训练或AI预览，不影响饮食记全及正式统计。公开HTTP／MCP没有忽略接口，网页通过带会话证明的私有Server Action操作。

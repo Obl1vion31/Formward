@@ -1,4 +1,5 @@
 "use client";
+import {useChartViewport} from "@/components/use-chart-viewport";
 import {useDraftGuard} from "@/components/draft-guard";
 import type {RecordIntent} from "@/components/record-intent";
 import {useRepeatedRecordTask} from '@/components/record-intent-client';
@@ -14,7 +15,7 @@ import { DailyRecords,DailyRecordRow } from "@/components/daily-records";
 import { RecordHistory } from "@/components/record-history";
 import { Inspector,InspectorCloseButton } from "@/components/inspector";
 
-import { useEffect, useLayoutEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { buildMeasurementDays, recentMeasurementDays } from "./days";
 import { addCalendarDays, measurementCalendarPage, measurementCalendarRange } from "./calendar";
 import type {AccountPreferences} from "@/features/auth/preferences";
@@ -282,30 +283,25 @@ function RecordList({ day, metric, activeId, period, onInspect }: {
 }
 function TrendPlot({linked=false,...props}:Parameters<typeof FullTrendPlot>[0]&{linked?:boolean}) {
   const mobile=useMobileMode();
-  return (mobile||linked)&&props.metric==="weightKg"&&!props.showEvening?<MorningWeightPlot linked={linked} records={props.records} interval={props.interval} selection={props.selection} choices={props.choices}/>:<FullTrendPlot {...props}/>;
+  const compact=calendarOrdinal(props.interval.end)-calendarOrdinal(props.interval.start)<31;
+  return (mobile||linked||compact)&&props.metric==="weightKg"&&!props.showEvening?<MorningWeightPlot linked={linked} compact={compact} records={props.records} interval={props.interval} selection={props.selection} choices={props.choices}/>:<FullTrendPlot {...props} compact={compact}/>;
 }
-function FullTrendPlot({ records, metric, showEvening, interval, selectedDate, selectedPeriod, selection, onPeriod, choices }: {
-  records: MeasurementDisplay[]; metric: MeasurementMetric; showEvening: boolean; interval: MeasurementInterval;
+function FullTrendPlot({ records, metric, showEvening, interval, selectedDate, selectedPeriod, selection, onPeriod, choices, compact=false }: {
+  compact?: boolean; records: MeasurementDisplay[]; metric: MeasurementMetric; showEvening: boolean; interval: MeasurementInterval;
   selectedDate: string | null; selectedPeriod?: "daytime" | "evening"; selection:ReturnType<typeof useChartDateSelection>; onPeriod:(period:"daytime"|"evening")=>void; choices: Record<string, string>;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
   const plotId = useId(), mobile=useMobileMode();
-  const [viewportWidth, setViewportWidth] = useState(0);
   const [hintRecordId, setHintRecordId] = useState<string | null>(null);
-  useLayoutEffect(() => {
-    setViewportWidth(viewport.current!.clientWidth);
-    const observer = new ResizeObserver(([entry]) => setViewportWidth(entry.contentRect.width));
-    observer.observe(viewport.current!);
-    return () => observer.disconnect();
-  }, []);
   const { points, segments, pairs } = measurementTrend(records, metric, showEvening, choices);
+  const scale = points.length ? normalScale(points.map((row) => Number(row[metric]))) : null;
+  const {width:viewportWidth,left}=useChartViewport(viewport,scale?.ticks.map(value=>value.toFixed(1))??["0.0","99.0"],48);
   useChartMotion(viewport, viewportWidth ? `${metric}:${showEvening}:${interval.start}:${interval.end}:${JSON.stringify(choices)}:${records.map(record => `${record.id}:${record.updatedAt}`).join("|")}` : "pending");
   const width = Math.max(240, viewportWidth);
-  const span = calendarOrdinal(interval.end) - calendarOrdinal(interval.start);
-  const x = (date: string) => span ? 48 + (calendarOrdinal(date) - calendarOrdinal(interval.start)) / span * (width - 72) : (width + 24) / 2;
-  const scale = points.length ? normalScale(points.map((row) => Number(row[metric]))) : null;
-  const height=mobile?180:252, plotBottom=height-34;
-  const y = (value: string | null) => 18 + (scale?.position(Number(value)) ?? .5) * (plotBottom-18);
+  const span = calendarOrdinal(interval.end) - calendarOrdinal(interval.start),right=compact?16:24,top=compact?14:18,plotWidth=width-left-right;
+  const x = (date: string) => span ? left + (calendarOrdinal(date) - calendarOrdinal(interval.start)) / span * plotWidth : left+plotWidth/2;
+  const height=compact?top+plotWidth/2+32:mobile?180:252, plotBottom=height-(compact?32:34);
+  const y = (value: string | null) => top + (scale?.position(Number(value)) ?? .5) * (plotBottom-top);
   const pointDays = [...new Set(points.map(row => row.recordDate))].sort();
   const hitColumns = new Map(pointDays.map((date, index) => [date, {
     left: index ? (x(pointDays[index - 1]) + x(date)) / 2 : 0,
@@ -316,24 +312,24 @@ function FullTrendPlot({ records, metric, showEvening, interval, selectedDate, s
   const unit = unitFor(metric);
   const pointLabel = (row: MeasurementDisplay) => `${row.recordDate} · ${row.period === "daytime" ? "空腹" : "晚间非空腹"} · ${formatRecordNumber(row[metric])} ${unit} · 实测`;
   const hintedRecord = points.find((row) => row.id === hintRecordId && row.recordDate===selectedDate && selection.active) ?? points.find(row => row.recordDate === selectedDate && row.period === (selectedPeriod ?? "daytime")) ?? points.find(row => row.recordDate === selectedDate);
-  const drag=useChartDrag(Array.from({length:span+1},(_,i)=>addCalendarDays(interval.start,i)),width,48,24,selection.choose);
+  const drag=useChartDrag(Array.from({length:span+1},(_,i)=>addCalendarDays(interval.start,i)),width,left,right,selection.choose);
   const markerKey=`${width}:${height}:${interval.start}:${interval.end}:${scale?.ticks.join("|")}`;
   const selectedX=selectedDate?x(selectedDate):null,selectedHit=selectedDate?hitColumns.get(selectedDate):null;
-  const dayHalfWidth=span?(width-72)/span/2:(width-72)/2;
+  const dayHalfWidth=span?plotWidth/span/2:plotWidth/2;
   const selectedColumn=selectedX===null?null:selectedHit?{left:Math.max(selectedHit.left,selectedX-14),right:Math.min(selectedHit.right,selectedX+14)}:{left:selectedX-dayHalfWidth,right:selectedX+dayHalfWidth};
   const activate = (row: MeasurementDisplay) => {selection.activate(row.recordDate);onPeriod(row.period);};
 
 
   return <>
-    <div className={styles.plotViewport} ref={viewport}>
-      <svg {...drag} className={styles.plot} style={{touchAction:"pan-y", visibility: viewportWidth > 0 ? undefined : "hidden"}} width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={`${metricName(metric)}趋势，数值越高位置越高`}>
+    <div className={styles.plotViewport+(compact?" detail-trend-plot":"")} ref={viewport}>
+      <svg {...drag} className={styles.plot} style={{touchAction:"pan-y", height:compact?"auto":undefined, maxHeight:"none", visibility: viewportWidth > 0 ? undefined : "hidden"}} width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={`${metricName(metric)}趋势，数值越高位置越高`}>
         <title>{`${metricName(metric)}趋势`}</title>
-        {scale?.ticks.map((value) => <g key={value}><line x1="48" x2={width - 24} y1={y(String(value))} y2={y(String(value))} className={styles.grid} /><text x="37" y={y(String(value)) + 4} textAnchor="end" className={styles.axis}>{value.toFixed(1)}</text></g>)}
+        {scale?.ticks.map((value) => <g key={value}><line x1={left} x2={width-right} y1={y(String(value))} y2={y(String(value))} className={styles.grid} /><text x={left-8} y={y(String(value)) + 4} textAnchor="end" className={styles.axis}>{value.toFixed(1)}</text></g>)}
         {ticks.map((date) => <text key={date} x={x(date)} y={height-10} textAnchor="middle" className={styles.axis}>{date.slice(5).replace("-", "/")}</text>)}
-        <ChartSelectionColumn x={selectedX} date={selectedDate} column={selectedColumn} plot={{left:48,right:width-24,top:14,bottom:plotBottom}} resetKey={markerKey} direct={selection.direct}/>
+        <ChartSelectionColumn x={selectedX} date={selectedDate} column={selectedColumn} plot={{left,right:width-right,top,bottom:plotBottom}} resetKey={markerKey} direct={selection.direct}/>
         {(["daytime","evening"] as const).map(period=>{const point=points.find(row=>row.recordDate===selectedDate&&row.period===period);return <ChartSelectionPoint key={period} x={point?x(point.recordDate):null} y={point?y(point[metric]):0} resetKey={markerKey} direct={selection.direct} color={period==="daytime"?"var(--body-gold)":"var(--body-blue)"}/>;})}
         {pairs.map((day) => <line data-pair={day.date} key={day.date} x1={x(day.date)} x2={x(day.date)} y1={y(day.daytimeRecord![metric])} y2={y(day.eveningRecord![metric])} className={styles.pairLine} />)}
-        {segments.map(({ a, b, period }) => <line data-chart-line key={`${a.id}:${b.id}`} data-segment="continuous" data-period={period} x1={x(a.recordDate)} y1={y(a[metric])} x2={x(b.recordDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} `} />)}
+        {segments.map(({ a, b, period }) => <line data-chart-line key={`${a.id}:${b.id}`} data-segment="continuous" data-period={period} x1={x(a.recordDate)} y1={y(a[metric])} x2={x(b.recordDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} `} style={{strokeWidth:span<7?2.5:1.75}} vectorEffect="non-scaling-stroke" />)}
         {[...points].sort((a, b) => Number(a.period === "daytime") - Number(b.period === "daytime")).map((row) => {
           const label = pointLabel(row);
           // 相邻日期与同日晨晚点各用中线划分点击区域，避免透明命中区遮住另一条记录。

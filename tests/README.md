@@ -1,5 +1,11 @@
 # Tests
 
+## 助手、菜单与图形往返
+
+production build后运行pnpm test:assistant-browser与pnpm test:desktop-linked-browser，分别用FORMWARD_ASSISTANT_BROWSER／FORMWARD_DESKTOP_BROWSER选择chromium或webkit。均为独立虚构账号：助手验证不自动打开、待办角标、两层菜单、系统开关、底部工具、半全屏、失败重试、跨设备忽略、快速反向和焦点；关联图验证三卡往返、数据平面、选日、范围、晨晚与体脂、草稿保存及跨账号清理。旧估计功能不作为有效测试入口。
+
+加载故障恢复可设置FORMWARD_LOADING_NATIVE=1与FORMWARD_POSTGRES_BIN指向本机PostgreSQL 18的bin目录；测试在临时目录初始化全新集群，仅监听127.0.0.1，不读取真实环境文件，退出停止本人集群。默认PGlite适合普通矩阵，协议层异常须记录原始失败并使用原生库复核，不能删除错误或算作通过。
+
 ## 单一国服网页与海外后台
 
 同源production release后，FORMWARD_TEST_RELEASE指向该产物，运行node --import tsx tests/single-web.browser.mts；FORMWARD_SINGLE_WEB_ENGINE选择chromium／webkit。复用隔离真实PostgreSQL与本机TLS fixture，使用虚构账号验证原OAuth连接、国服确认链接、登录后返回目标、真实确认、跨账号404、旧网页跳转及已有草稿保留。FORMWARD_SINGLE_WEB=1运行tests/shared-primary.http.mts，验证原Cookie／JWT／refresh在严格信任测试CA的真实HTTP链路中保持。所有截图、日志与录像留在被忽略的.codex/single-web，不读取正式凭据或写入真实账号。

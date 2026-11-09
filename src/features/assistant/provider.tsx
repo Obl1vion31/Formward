@@ -3,99 +3,105 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { usePathname } from "next/navigation";
 import { draftIsBusy, draftIsDirty } from "@/components/draft-guard";
 import { confirmationIsOpen } from "@/components/confirmation-state";
+import { dismissAssistantReminderAction } from "@/app/dashboard/assistant-actions";
 import { localMeasurementDate } from "../measurements/entry-state";
 import { assistantAvailable, type AssistantContext } from "./model";
 import { AssistantStateContext } from "./context";
-import { assistantAlreadyShown, assistantAutoEnabled, assistantAutoKey, assistantSeenKey, markAssistantShown } from "./preferences";
+import { assistantAlreadyShown, markAssistantShown } from "./preferences";
 import { AssistantSurface } from "./surface";
+import styles from "./surface.module.css";
 
 function preferenceStore() { try { return window.localStorage; } catch { return null; } }
-function deviceTime() { const now = new Date(); return { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, date: localMeasurementDate(now), period: now.getHours() < 6 ? 0 : now.getHours() < 18 ? 1 : 2 }; }
-function occupied() { return document.hidden || document.documentElement.dataset.chartTravel==="active" || !!document.querySelector('[data-workspace-pending="true"]') || draftIsBusy() || draftIsDirty() || confirmationIsOpen() || !!document.fullscreenElement || !!document.querySelector(".dashboard-menu[open]:not([data-closing=true])") || !!document.querySelector('dialog[open]:not([data-assistant-surface])'); }
+function deviceTime() { return { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, date: localMeasurementDate(new Date()) }; }
+function occupied() { return document.hidden || document.documentElement.dataset.chartTravel === "active" || draftIsBusy() || draftIsDirty() || confirmationIsOpen() || !!document.fullscreenElement || !!document.querySelector(".dashboard-menu[open]:not([data-closing=true])") || !!document.querySelector("dialog[open]:not([data-assistant-surface])"); }
+type SurfaceController = { dismiss: () => Promise<boolean>; reopen: () => void };
 
 export function AssistantProvider({ accountId, children }: { accountId: string; children: ReactNode }) {
   const pathname = usePathname(), available = assistantAvailable(pathname);
-  const [open, setOpen] = useState(false), [data, setData] = useState<AssistantContext | null>(null), [error, setError] = useState(""), [loading, setLoading] = useState(false), [automatic, setAutomatic] = useState(() => typeof window === "undefined" ? true : assistantAutoEnabled(preferenceStore(), accountId));
-  const dataRef = useRef(data), request = useRef<AbortController | null>(null), epoch = useRef(0), stale = useRef(true), attempted = useRef(false), origin = useRef<"manual" | "auto">("manual"), claimDone = useRef<(() => void) | null>(null), shown = useRef(new Set<string>()), previousRoute = useRef(pathname), activeRoute = useRef(pathname);
-  useEffect(() => { dataRef.current = data; activeRoute.current = pathname; }, [data, pathname]);
-  const dismissRef=useRef<(()=>Promise<void>)|null>(null);
-  const finishHide=useCallback(()=>{setOpen(false);claimDone.current?.();claimDone.current=null;},[]);
-  const dismissReady=useCallback((callback:(()=>Promise<void>)|null)=>{dismissRef.current=callback;},[]);
-  const hide=useCallback(async()=>{if(dismissRef.current)await dismissRef.current();else finishHide();},[finishHide]);
-  const refresh = useCallback(async () => {
-    if (!assistantAvailable(activeRoute.current) || document.hidden) return;
-    request.current?.abort(); const controller = new AbortController(), generation = ++epoch.current, time = deviceTime(); request.current = controller;
-    setLoading(true); setError("");
+  const [open, setOpen] = useState(false), [data, setData] = useState<AssistantContext | null>(null), [error, setError] = useState(""), [loading, setLoading] = useState(false), [toast, setToast] = useState(false), [paused, setPaused] = useState(false), [clock, setClock] = useState(0), [local, setLocal] = useState<{date:string;timezone:string}|null>(null);
+  const dataRef = useRef<AssistantContext | null>(null), request = useRef<AbortController | null>(null), revision = useRef(0), lastRead = useRef(0), activeRoute = useRef(pathname), generation = useRef(0), phase = useRef<"open" | "closing" | "closed">("closed"), surface = useRef<SurfaceController | null>(null), ignored = useRef(new Set<string>()), latestRefresh = useRef<(force?:boolean)=>Promise<void>>(async()=>undefined);
+  useEffect(()=>{activeRoute.current=pathname;},[pathname]);
+  const apply = useCallback((next: AssistantContext) => {
+    const value = { ...next, pending: next.pending.filter(item => !ignored.current.has(item.id)) };
+    dataRef.current = value; setData(value);
+  }, []);
+  const refresh = useCallback(async (force = false) => {
+    if (!assistantAvailable(activeRoute.current) || document.hidden || request.current || (!force && Date.now() - lastRead.current < 5000)) return;
+    const controller = new AbortController(), ticket = ++generation.current, stamp = revision.current, time = deviceTime();
+    request.current = controller; lastRead.current = Date.now(); setLoading(true);
     const timeout = setTimeout(() => controller.abort(), 10000);
     try {
       const response = await fetch(`/api/assistant-context?timezone=${encodeURIComponent(time.timezone)}`, { cache: "no-store", credentials: "same-origin", signal: controller.signal });
-      if (response.status === 401) throw new Error("登录已失效，请重新登录。");
-      if (!response.ok) throw new Error("暂时无法核对记录，请重试。");
-      const next: AssistantContext = await response.json();
-      const current = deviceTime();
-      if (generation !== epoch.current || time.date !== current.date || time.timezone !== current.timezone || !assistantAvailable(activeRoute.current)) return;
-      setData(next); stale.current = false;
+      if (!response.ok) throw new Error(response.status === 401 ? "登录已失效，请重新登录。" : "暂时无法读取事项，请重试。");
+      const next: AssistantContext = await response.json(), current = deviceTime();
+      if (ticket !== generation.current || stamp !== revision.current || time.date !== current.date || time.timezone !== current.timezone) return;
+      apply(next); setError("");
     } catch (failure) {
-      if (generation === epoch.current && !controller.signal.aborted) setError(failure instanceof Error ? failure.message : "暂时无法核对记录，请重试。");
-      else if (generation === epoch.current && controller.signal.aborted) setError("核对超时，请重试。");
-    } finally { clearTimeout(timeout); if (generation === epoch.current) setLoading(false); }
-  }, []);
-  const seed = useCallback((next: AssistantContext) => {
-    const time = deviceTime();
-    if (next.localDate !== time.date || next.timezone !== time.timezone) { void refresh(); return; }
-    if (dataRef.current && dataRef.current.generatedAt > next.generatedAt) return;
-    request.current?.abort(); epoch.current++; stale.current = false;
-    setData(next); setError(""); setLoading(false);
-  }, [refresh]);
+      if (ticket === generation.current) setError(controller.signal.aborted ? "读取超时，请重试。" : failure instanceof Error ? failure.message : "暂时无法读取事项，请重试。");
+    } finally {
+      clearTimeout(timeout);
+      if (request.current === controller) request.current = null;
+      if (ticket === generation.current) {
+        setLoading(false);
+        if (stamp !== revision.current) setTimeout(() => void latestRefresh.current(true), 0);
+      }
+    }
+  }, [apply]);
+  useEffect(()=>{latestRefresh.current=refresh;},[refresh]);
+  const finishHide = useCallback(() => { if (phase.current !== "closing") return; phase.current = "closed"; setOpen(false); }, []);
+  const hide = useCallback(async () => {
+    phase.current = "closing";
+    if (surface.current) { if (await surface.current.dismiss()) finishHide(); }
+    else finishHide();
+  }, [finishHide]);
   const show = useCallback(() => {
     if (!assistantAvailable(activeRoute.current) || occupied()) return;
-    origin.current = "manual"; setOpen(true);
-    const current = dataRef.current, time = deviceTime();
-    if (stale.current || !current || current.localDate !== time.date || current.timezone !== time.timezone) void refresh();
-  }, [refresh]);
-  const presented = useCallback(() => {
-    const date = deviceTime().date;
-    shown.current.add(date); markAssistantShown(preferenceStore(), accountId, date);
-    claimDone.current?.(); claimDone.current = null;
-  }, [accountId]);
-
+    phase.current = "open"; setToast(false); setPaused(false); markAssistantShown(preferenceStore(), accountId, deviceTime().date);
+    if (open) surface.current?.reopen(); else setOpen(true);
+    void refresh(true);
+  }, [accountId, open, refresh]);
+  const toggle = useCallback(() => { if (phase.current === "open") void hide(); else show(); }, [hide, show]);
+  const controllerReady = useCallback((next: SurfaceController | null) => { surface.current = next; }, []);
+  const dismissItem = useCallback(async (id: string) => {
+    const result = await dismissAssistantReminderAction({ id, timezone: deviceTime().timezone });
+    if (!result.ok) return result.error;
+    ignored.current.add(id); revision.current++;
+    if (dataRef.current) apply({ ...dataRef.current, pending: dataRef.current.pending.filter(item => item.id !== id) });
+    try { preferenceStore()?.setItem("formward:assistant:changed:" + accountId, String(Date.now())); } catch {}
+    return "";
+  }, [accountId, apply]);
   useEffect(() => {
-    const changed = (event: StorageEvent) => {
-      if (event.key === assistantAutoKey(accountId)) setAutomatic(assistantAutoEnabled(preferenceStore(), accountId));
-      if (event.key === assistantSeenKey(accountId, deviceTime().date) && event.newValue && origin.current === "auto") hide();
-    };
-    window.addEventListener("storage", changed); return () => window.removeEventListener("storage", changed);
-  }, [accountId, hide]);
+    const initialFrame=requestAnimationFrame(()=>{setLocal(deviceTime());setClock(Date.now());void refresh();});
+    const changed = () => { revision.current++; void refresh(true); };
+    const visible = () => { if (!document.hidden) { setLocal(deviceTime());setClock(Date.now()); void refresh(); } };
+    const storage = (event: StorageEvent) => { if (event.key === "formward:assistant:changed:" + accountId) changed(); };
+    const timer = setInterval(() => { if (!document.hidden) { setLocal(deviceTime());setClock(Date.now()); void refresh(); } }, 60000);
+    window.addEventListener("formward-record-saved", changed); window.addEventListener("formward-record-context-stale", changed); window.addEventListener("focus", visible); window.addEventListener("storage", storage); document.addEventListener("visibilitychange", visible);
+    return () => { cancelAnimationFrame(initialFrame);clearInterval(timer); window.removeEventListener("formward-record-saved", changed); window.removeEventListener("formward-record-context-stale", changed); window.removeEventListener("focus", visible); window.removeEventListener("storage", storage); document.removeEventListener("visibilitychange", visible); };
+  }, [accountId, refresh]);
+  useEffect(() => { const frame=requestAnimationFrame(()=>{if (phase.current !== "closed") void hide(); if (available) void refresh();});return()=>cancelAnimationFrame(frame); }, [pathname, available, hide, refresh]);
+  const pending = useMemo(() => {
+    if (!data || !local || data.localDate !== local.date || data.timezone !== local.timezone) return [];
+    return data.pending.filter(item => !item.expiresAt || Date.parse(item.expiresAt) > clock);
+  }, [data, clock, local]);
   useEffect(() => {
-    if (previousRoute.current !== pathname) { attempted.current = false; previousRoute.current = pathname; hide(); }
-    if (!available) { request.current?.abort(); epoch.current++; }
-  }, [pathname, available, hide]);
-  useEffect(() => {
-    if (pathname !== "/dashboard" || !data || !data.pending.length || attempted.current || !automatic) return;
-    const time = deviceTime(); if (data.localDate !== time.date || data.timezone !== time.timezone) return;
-    attempted.current = true;
-    const timer = setTimeout(() => {
-      const claim = async () => {
-        if (occupied() || activeRoute.current !== "/dashboard" || shown.current.has(time.date) || assistantAlreadyShown(preferenceStore(), accountId, time.date) || !assistantAutoEnabled(preferenceStore(), accountId)) return;
-        origin.current = "auto";
-        await new Promise<void>(resolve => { claimDone.current = resolve; setOpen(true); });
-      };
-      if (navigator.locks) void navigator.locks.request(`formward-assistant:${accountId}:${time.date}`, { ifAvailable: true }, lock => lock ? claim() : undefined);
-      else void claim();
-    }, 250);
+    const next = pending.map(item => item.expiresAt && Date.parse(item.expiresAt)).filter((value): value is number => typeof value === "number" && value > Date.now()).sort((a,b)=>a-b)[0];
+    if (!next) return;
+    const timer = setTimeout(() => setClock(Date.now()), Math.min(2147483647, next - Date.now() + 20));
     return () => clearTimeout(timer);
-  }, [pathname, data, automatic, accountId]);
+  }, [pending]);
   useEffect(() => {
-    let time = deviceTime();
-    const invalidated = () => { stale.current = true; void refresh(); };
-    const timeChanged = () => { const next = deviceTime(); const changed = next.date !== time.date || next.timezone !== time.timezone || next.period !== time.period; if (changed) { time = next; stale.current = true; setData(null); } return changed; };
-    const visible = () => { if (!document.hidden) { timeChanged(); if (open) void refresh(); } };
-    const clock = setInterval(() => { if (timeChanged() && open) void refresh(); }, 60000);
-    window.addEventListener("formward-record-saved", invalidated); window.addEventListener("formward-record-context-stale", invalidated);
-    document.addEventListener("visibilitychange", visible); window.addEventListener("focus", visible);
-    return () => { clearInterval(clock); window.removeEventListener("formward-record-saved", invalidated); window.removeEventListener("formward-record-context-stale", invalidated); document.removeEventListener("visibilitychange", visible); window.removeEventListener("focus", visible); };
-  }, [open, refresh]);
-  useEffect(() => () => { request.current?.abort(); epoch.current++; claimDone.current?.(); }, []);
-  const value = useMemo(() => ({ open: open && available, count: error ? 0 : data?.pending.length ?? 0, show, hide, seed }), [open, available, error, data, show, hide, seed]);
-  return <AssistantStateContext.Provider value={value}>{children}{open && available && <AssistantSurface data={data} error={error} loading={loading} automatic={automatic} close={finishHide} dismissReady={dismissReady} presented={presented} retry={() => void refresh()} changeAutomatic={enabled => { setAutomatic(enabled); try { preferenceStore()?.setItem(assistantAutoKey(accountId), enabled ? "on" : "off"); } catch {} }}/>}</AssistantStateContext.Provider>;
+    if (!available || open || error || !pending.length || assistantAlreadyShown(preferenceStore(), accountId, deviceTime().date)) return;
+    const timer = setTimeout(() => { if (!occupied()) { markAssistantShown(preferenceStore(), accountId, deviceTime().date); setPaused(false); setToast(true); } }, 400);
+    return () => clearTimeout(timer);
+  }, [available, open, error, pending, accountId]);
+  useEffect(() => { if (!toast || paused) return; const timer = setTimeout(() => setToast(false), 5000); return () => clearTimeout(timer); }, [toast, paused]);
+  useEffect(() => () => { generation.current++; request.current?.abort(); }, []);
+  const value = useMemo(() => ({ open: open && available, count: pending.length, show, toggle, hide }), [open, available, pending.length, show, toggle, hide]);
+  return <AssistantStateContext.Provider value={value}>{children}
+    {toast && available && !open && pending.length > 0 && <aside className={styles.toast} role="status" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false); }}>
+      <span>{pending.length === 1 ? pending[0].title : `有 ${pending.length} 项待查看`}</span><button type="button" onClick={show}>查看</button><button type="button" aria-label="关闭提醒" onClick={() => setToast(false)}>×</button>
+    </aside>}
+    {open && available && <AssistantSurface data={data ? { ...data, pending } : null} error={error} loading={loading} close={finishHide} requestClose={hide} retry={() => void refresh(true)} dismissItem={dismissItem} controllerReady={controllerReady}/>}
+  </AssistantStateContext.Provider>;
 }

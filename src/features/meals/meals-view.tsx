@@ -136,7 +136,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
        title="每日摄入" unit="kcal"
        options={<InlineChartControls><div role="group" aria-label="营养占比口径">{([["grams","克数占比"],["energy","能量占比"]] as const).map(([value,label])=><button type="button" key={value} aria-pressed={macroMode===value} onClick={()=>setMacroMode(value)}>{label}</button>)}</div></InlineChartControls>}
        legend={<><NutritionLegend/>{!mobile&&groups.some(group=>group.day.status!=="complete")&&<span>未记全／待确认</span>}</>}
-      >{validRange?<NutritionChart dates={dates} groups={groups} mode={macroMode} selection={chart} linked={!!initialTrend&&from===initialTrend.from&&to===initialTrend.to}/>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}</RecordTrendPanel>
+      >{validRange?<NutritionChart dates={dates} groups={groups} mode={macroMode} selection={chart} compact={dates.length<=31} linked={!!initialTrend&&from===initialTrend.from&&to===initialTrend.to}/>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}</RecordTrendPanel>
       </div>
       {error&&!editing&&<p role="alert" className={styles.error}>{error}</p>}{notice&&<p role="status" className={styles.hint}>{notice}</p>}
       {operations.filter(op=>mealOperationStatus(op,now)==="pending"&&op.origin!=="manual").map(op=><LoadingLink key={op.id} className={styles.reviewLink} href={op.confirmationPath}>AI 饮食预览 · {op.rows.length} 项待确认 <span>查看 →</span></LoadingLink>)}

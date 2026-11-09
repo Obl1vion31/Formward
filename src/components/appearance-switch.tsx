@@ -18,5 +18,5 @@ export function AppearanceToggle(){
 
 export function FollowSystemAppearance(){
  const appearance=useSyncExternalStore(subscribeAppearance,appearanceSnapshot,appearanceServerSnapshot);
- return <button type="button" role="menuitemcheckbox" aria-checked={appearance==="system"} onClick={()=>chooseAppearance(appearance==="system"?(document.documentElement.dataset.theme==="light"?"light":"dark"):"system")}><span>跟随系统外观</span><span aria-hidden="true">{appearance==="system"?"✓":""}</span></button>;
+ return <button type="button" role="menuitemcheckbox" data-menu-stay-open aria-checked={appearance==="system"} onClick={()=>chooseAppearance(appearance==="system"?(document.documentElement.dataset.theme==="light"?"light":"dark"):"system")}><span>跟随系统外观</span><span className={styles.systemToggle} data-checked={appearance==="system"} aria-hidden="true"/></button>;
 }

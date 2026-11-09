@@ -571,6 +571,13 @@ export const accountPreferences = pgTable("account_preferences", {
  showBodyFat:boolean("show_body_fat").notNull(),version:integer("version").notNull().default(1),updatedAt:timestamp("updated_at",{withTimezone:true}).notNull().defaultNow(),
 },t=>[check("account_preferences_version_positive",sql`${t.version}>0`)]);
 
+// 仅记录用户对指定日期提醒的忽略，不更改饮食事实或记全状态。
+export const assistantReminderDismissal = pgTable("assistant_reminder_dismissals", {
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  date: date("local_date").notNull(),
+  ignoredAt: timestamp("ignored_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex("assistant_reminder_dismissals_owner_date_idx").on(t.userId, t.date)]);
+
 // 训练事实、可复用模板与排期独立保存，不参与消耗累计。
 export const trainingTemplate = pgTable("training_templates", {
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),

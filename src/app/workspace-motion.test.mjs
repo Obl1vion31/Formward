@@ -4,9 +4,11 @@ import {createWorkspaceMotion,workspaceMotionDirection} from '../components/work
 const route=(path,search='')=>({path,search});
 const overview=route('/dashboard'),meals=route('/dashboard/meals'),energy=route('/dashboard/energy'),body=route('/dashboard/measurements');
 
-test('四模块按真实顺序确定方向，日期、图形、录入和刷新不叠加',()=>{
+test('五模块按真实顺序确定方向，日期、图形、录入和刷新不叠加',()=>{
  assert.equal(workspaceMotionDirection(overview,meals),1);
  assert.equal(workspaceMotionDirection(body,energy),-1);
+ assert.equal(workspaceMotionDirection(route("/dashboard/training"),energy),1);
+ assert.equal(workspaceMotionDirection(energy,route("/dashboard/training")),-1);
  assert.equal(workspaceMotionDirection(meals,overview),-1);
  assert.equal(workspaceMotionDirection(meals,route(meals.path,'from=2026-11-01')),0);
  for(const search of ['date=2026-11-06','entry=1','intent=edit','view=trend'])assert.equal(workspaceMotionDirection(overview,route(energy.path,search)),0);

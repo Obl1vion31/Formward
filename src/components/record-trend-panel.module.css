@@ -89,3 +89,9 @@
 }
 
 .metrics[data-loading][data-presentation=energy] .metric strong{position:relative;min-height:0}.metricSkeleton{position:absolute;top:50%;left:0;transform:translateY(-50%);width:2.5em;line-height:0}
+
+.metrics[data-presentation=energy] .metric:not(:first-child){display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;text-align:center;min-height:94px}
+.metrics[data-presentation=energy] .metric:not(:first-child) .metricLabel{display:block;min-height:20px}
+.metrics[data-presentation=energy] .metric:not(:first-child) .metricLabel>.metricMeasure{display:none}
+.metrics[data-presentation=energy] .metric:not(:first-child) strong{margin-top:0;justify-self:center}
+.metrics[data-presentation=energy] .metric:not(:first-child) .metricNote:empty{display:none}
