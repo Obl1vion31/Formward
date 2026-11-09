@@ -100,4 +100,10 @@ issue-certificate.sh 使用官方 --dnssleep：staging 等待 180 秒、正式�
 
 ## 正式主库维护工具
 
-primary-backup.py固定备份formward_primary，原生归档、清单与SHA保存在root专用目录，保留14天；backup-crypto.mjs以AES-256-GCM加密并拒绝越界和覆盖，密钥单独保存在root 0600文件。primary-sync.py读取本机正式配置调用定时同步入口，不输出上游凭据。正式库、维护开关和账号规则与预览脚本分开，不能将本目录旧预览脚本直接改名后用于正式库。实际定时器启用、异机备份与恢复演练状态见docs/regional-acceptance.md；监控、表结构与维护入口见docs/server-operations.md。
+primary-backup.py固定备份formward_primary，原生归档、清单与SHA保存在root专用目录，匹配的本机日备份保留14天；backup-crypto.mjs以AES-256-GCM加密并拒绝越界和覆盖，密钥单独保存在root 0600文件。备份随后调用backup-offsite.mjs上传加密副本到既有上海私有COS的专用database-backups/formward-primary/v1前缀，完整回读并核对SHA后才报告成功。COS凭据只从root私有配置读取，不上传密钥和明文，也不改照片目录、桶权限或生命周期。
+
+远端同名对象内容一致时复用，不一致时拒绝覆盖；请求携带禁止覆盖头。远端备份暂不自动删除，本机清理只在本次异机校验成功后执行。网络失败保留本机副本，formward-primary-backup.service每5分钟重试，1小时内最多3次，下一次日计划仍可正常启动。[腾讯云PUT Object说明](https://intl.cloud.tencent.com/document/product/436/7749?lang=en)定义禁止覆盖语义；桶版本控制开启时该请求头无效，因此仍先检查现有对象与完整回读，且任务本身由本机锁串行执行。
+
+恢复时用backup-offsite.mjs download 备份文件名 /var/backups/formward-primary/recovered-备份文件名取回并核对密文；backup-crypto.mjs decrypt解密后，再恢复到全新隔离库验收。恢复命令拒绝已有文件、符号链接与路径越界，不能直接覆盖正式库。node --test scripts/self-hosting/backup-offsite.test.mjs覆盖上传、重复、损坏、断网、权限、明文误传和恢复边界。
+
+primary-sync.py读取本机正式配置调用定时同步入口，不输出上游凭据。正式库、维护开关和账号规则与预览脚本分开，不能将本目录旧预览脚本直接改名后用于正式库。实际定时器启用、异机备份与恢复演练状态见[双入口验收](../../docs/regional-acceptance.md)；监控、表结构与维护入口见[查看指南](../../docs/server-operations.md)。

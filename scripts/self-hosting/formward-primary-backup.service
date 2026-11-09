@@ -1,0 +1,22 @@
+[Unit]
+Description=Formward primary native encrypted and offsite backup
+After=postgresql.service network-online.target
+Requires=postgresql.service
+Wants=network-online.target
+ConditionPathExists=/etc/formward/backup-key
+StartLimitIntervalSec=1h
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/python3 /usr/local/libexec/formward-primary-backup.py
+TimeoutStartSec=900
+Restart=on-failure
+RestartSec=5min
+UMask=0077
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/backups/formward-primary
+NoNewPrivileges=false
