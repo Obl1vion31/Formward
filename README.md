@@ -99,7 +99,7 @@ tests/            跨功能与端到端测试
 
 ## 查看首页
 
-公网部署使用 Vercel 与现有 Neon，正式地址为 [https://formward-ten.vercel.app](https://formward-ten.vercel.app)，可用原内部账号登录。外部 AI 可通过 `/api/mcp` 和 OAuth 登录授权连接，或使用公开 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 和独立访问令牌。写入仍需网页登录确认；连接步骤见 [AI 接入](docs/ai-api.md)。MCP 与手机调整已发布，当前状态见 [项目交接](handoff.md)。平台配置、发布与验收方法见 [公网 HTTPS 部署](docs/deployment.md)。
+国内与国际入口共用上海 PostgreSQL 正式库，国际入口由 Vercel 网关提供，正式地址为 [https://formward-ten.vercel.app](https://formward-ten.vercel.app)，可用原内部账号登录。外部 AI 可通过 `/api/mcp` 和 OAuth 登录授权连接，或使用公开 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 和独立访问令牌。写入仍需网页登录确认；连接步骤见 [AI 接入](docs/ai-api.md)。MCP 与手机调整已发布，当前状态见 [项目交接](handoff.md)。平台配置、发布与验收方法见 [公网 HTTPS 部署](docs/deployment.md)。
 
 如果开发服务已经启动，在运行项目的同一台电脑上打开浏览器，访问 [http://localhost:3000](http://localhost:3000) 或 [http://127.0.0.1:3000](http://127.0.0.1:3000)。`next.config.ts` 已允许这两个本地地址加载开发资源。如果项目运行在远程工作区，在编辑器的「端口 / Ports」面板找到或转发 `3000` 端口，再打开面板给出的地址。`localhost` 指的是运行浏览器的电脑；远程工作区不能直接用自己电脑的 `localhost` 访问，除非已经做了端口转发。使用其他转发域名时，把它的主机名加入 `next.config.ts` 的 `allowedDevOrigins`，并重启开发服务，否则页面可能显示但客户端动画无法执行。
 
@@ -111,7 +111,7 @@ tests/            跨功能与端到端测试
 
 ## 自己启动开发服务
 
-国内服务器的原生部署、隔离验收、数据库恢复演练及域名备案安排见[国内服务器与双区部署](docs/mainland-deployment.md)。正式国际站仍以上方公网部署说明为准。
+国内服务器的原生部署、隔离验收、数据库恢复演练及域名备案安排见[国内服务器与双区部署](docs/mainland-deployment.md)。正式国内与国际入口共用上海主库；旧 Neon 不再作为正式数据源。
 
 1. 在终端进入本仓库根目录：`cd /home/obl1vion/projects/Formward`。
 2. 安装 `.nvmrc` 指定的 Node.js `24.21.0`。可从 [Node.js 官方下载页](https://nodejs.org/en/download)安装；安装后打开新终端，运行 `node --version` 确认显示 `v24`。当前共享环境自带的 Node.js 18 不满足本项目要求。

@@ -1,24 +1,22 @@
 # Formward 项目交接
 
-## 当前部署：上海唯一主库与国际入口
+## 当前部署：身体仅保留实测
 
-国服 https://43.142.148.58 与国际 https://formward-ten.vercel.app 已共用上海 formward_primary，UTC 2026-11-09T11:25:25 开放写入。Neon 旧凭据已失效；不要再次执行隔离脚本，也不能把正式别名恢复到旧 Neon 部署。本机旧 .env.local 已失效，开发继续隔离，不能把本机演练库作为正式源。
+[国内入口](https://43.142.148.58)、[国际入口](https://formward-ten.vercel.app)及global.formward.top共用上海formward_primary。旧Neon凭据已失效，不得再次隔离源、重新初始化正式库或把别名恢复到旧Neon应用。两个域Cookie独立，账号、OAuth issuer、JWKS、Better Auth secret、Garmin密文及主密钥保持。
 
-最终原生归档54表／2624源行，严格恢复和0034后业务／授权摘要均零差异；原JWKS、Better Auth secret、Garmin密文和主密钥保持。正式库初次备份完整恢复通过，日备份与加密解密SHA通过。03:20日备份与06:00 Garmin同步timer已启用并执行成功。原IP演示3100已停，原私有formward-preview.service 3000保持。
+身体估算已完整退役：网页录入、总览／身体估计开关、曲线标记、依据、助手／教程、AI能力、导出及初始化／补全／重建算法与脚本均移除。晨晚实测、体脂偏好、真实7日均值与变化保留，缺测为null并断线；饮食及热量估算保持。旧estimate_cell返回410 feature_removed，含该项的旧混合任务整批停止，原草稿及审计保留。
 
-原GPT get_profile成功且账号不变；原国际网页会话刷新后可用，Garmin原连接换令牌／每日／活动及定时同步成功，旧Blob照片600911字节SHA一致，COS虚构PNG往返68字节成功。两入口版本API均200、原OAuth issuer不变。国服首次需要用原账号登录，因为两域Cookie独立。
+应用源码171f2492373be2e6d49353c8f65df5d7e8a3042f，分支codex/retire-body-estimates；版本dual-entry-171f2492-body-observed-20261109，BUILD_ID vHmep1SfdwCGO4zNwyCb2。国际READY dpl_4fNL8bJcnQtaaTwVeMPfzXia4BUg，两正式别名API均核对指向该部署。三个入口版本、OpenAPI1.15.0、原issuer、私有查询保护及实际身体JS的SHA均一致。后续文档提交不改变正式应用；未合入或推送main，未覆盖共享原工作区变更。
 
-当前应用源码3d57f4b762881c7a92ba2cb28bc0cdc3ee0942d9，dual-entry-static-20261109，BUILD_ID hg_j1Z9SuUZbEVNJlHYvQ；READY网关dpl_FFBeba8ftG5Wdx8qnhSF44EGtJC9／formward-6y770ctls-opgobl1v-5358.vercel.app，CLE1、原生HTTPS回源公网IP。原域和global别名API均确认指向此部署。两端版本API及旧GPT再次通过；608项、lint、typecheck与干净production build通过。公开构建图片内部读取缺少Host的问题已修复，实际优化器200、封面及登录表单可用，旧静态哈希资源保留。
+0035_retire_body_estimates已在上海主库完成：32条有效estimated归档，现有效估计0；90条observed（89条有效）及全部原始导入、既有审计在同一事务内按行摘要核对不变。估计仅为私有审计载体保留，数据库约束禁止其成为有效记录，估计专用索引移除。正式共54表（53张public业务表及1张drizzle账本）、35条migration。没有正式虚构账号或新增实测测试数据。
 
-root私有证据 /var/lib/formward/dual-cutover/final-status.json、activation-status.json、final-data、postcutover-v1；server-final-status已更新为activated。导出收尾失败后复用完成的原生归档，重新只读生成源摘要并严格核对恢复库，不跳过一致性检查。最终SHA和报告均私有。原迁移凭据只在root私有JSON，不打印或重新生成；源凭据已由pooler改为同库直连作只读复核。
+先部署停止估算的兼容应用，再备份、迁移及切换最终应用。安全回退为/srv/formward-primary/releases/body-observed-compat-20261109，BUILD_ID agdTOyDzPdc22QHb4PE1n，及国际READY dpl_EMfH8mcsj5seDQzkZsBTJwYWUYSB；该版本同样不含估算能力且兼容0035。回退只切应用，不恢复旧数据或旧估算版本，保留用户合法更新。两份产物均从同一干净源码重新构建，增量安装逐项核对2521份规范产物，静态资源兼容保留。
 
-上海原生PostgreSQL只监听回环5432，APP仅DML；国际网关无数据库／认证签名密钥。global.formward.top用于上海访问海外图片服务，origin域不用于当前回源。IP和origin证书由6小时ACME timer维护；自然到期续证、14天本机保留清理及长期跨境性能尚未经过完整周期。监控与表结构查看见docs/server-operations.md。
+560项最终单元／集成、20项退役与OAuth专项、lint、typecheck及干净production build通过。Chromium全站80组及WebKit总览／身体32组加载矩阵通过，固定锚点最大1 CSS px；19组失败／重试／快速关闭／草稿／导航往返通过。身体14张深浅尺寸截图及保存刷新、体脂双模式和图形往返录像已核看；Impeccable机械检查无问题。原生真机、系统软键盘及系统文字放大未测，不计通过。
 
-自动异机备份已完成并实际运行：运维代码20e4ab3b0dd39cd63960a05d6595c6d829d9d684独立安装，不改变当前正式应用。每日03:20原生归档及AES-GCM副本上传私有上海COS的database-backups/formward-primary/v1/，完整回读SHA通过才成功；本机日备份14天，远端暂不自动删除。用户已批准原存储子账号仅在该目录上传／读取并完成MFA，策略已成功保存，无待审批或扫码；匿名下载403，照片权限保持。
+迁移前及迁移后的原生备份、AES-GCM异机副本与COS完整回读SHA通过。迁移后归档formward-primary-20261109T150658878231Z.dump（SHA f516a97eb0509245ef8767bd8b19440d1a717911f8e1191ca75d54ad7da09cbb）已完整恢复到新隔离库，54表／35 migration、约束和索引有效、有效估计0，演练库随后删除。正式应用、Nginx、PostgreSQL及备份／Garmin timer健康，实际发布观察窗口应用错误0，不冒充长期观察。
 
-实际日任务997366字节加密副本已从COS取回、认证解密及原生SHA一致；UTC 2026-11-09T12:34:52完整恢复到新formward_rehearsal_cos_backup_20261109通过，54表、34条migration、无未验证约束或无效索引。首次恢复因postgres读取root私有归档失败，改为root读取pg_restore并流送隔离库后通过，未放宽权限或改正式主库。证据在/var/lib/formward/dual-cutover/backup-closeout-v1：installed.json、restore-status.json、closeout-status.json及photo-regression。服务、两个每日timer和证书timer均active，图片回归通过；8项新增测试、lint、typecheck、Python语法和实际systemd执行通过。原997186字节电脑离线副本保留，密钥在独立受限目录，不进入Git、文档或COS。数据库备份不包含照片原件。
-
-迁移和CUA验收已完成，不再需要用户调整TUN，旧异步回复已说明。原公网IP与国际站均已正式开放，不能重复源隔离、重置授权或重新初始化正式库。未合入或推送main，不触碰共享工作区其他变更。详细结果和未测范围见docs/regional-acceptance.md。
+私有证据为本工作树.codex/body-retirement及服务器/var/lib/formward/body-retirement。正式备份在/var/backups/formward-primary及私有上海COS的database-backups/formward-primary/v1/；每日03:20原生与异机备份、06:00 Garmin同步和证书维护保持，远端不自动删除，本机日备份14天。备份不包含照片原件。此前切库／恢复证据在/var/lib/formward/dual-cutover及其backup-closeout-v1；详细运维边界见docs/server-operations.md与docs/regional-acceptance.md。
 
 ## 此前版本：全站静态内容与局部加载反馈（2026-11-08）
 
