@@ -113,7 +113,13 @@ try {
   assert.equal(direct.status(), 307);
   assert.equal(await food.inputValue(), "虚构切换前草稿");
   await shot("existing-draft-kept");
-  checks.push("切换不会刷新已有旧页或丢掉草稿，新打开的旧地址立即转国服");
+  for(const name of ["本次蛋白质 1","本次碳水 1","本次脂肪 1"])await dialog.getByLabel(name,{exact:true}).fill("1");
+  const saved=page.waitForResponse((response:{request():{method():string};url():string})=>response.request().method()==="POST"&&response.url().startsWith(fixture.global+"/dashboard/meals"));
+  await dialog.getByRole("button",{name:"保存餐次",exact:true}).click();
+  const savedResponse=await saved;assert.equal(savedResponse.status(),200);await savedResponse.finished();
+  await dialog.waitFor({state:"hidden"});
+  const afterMeals=await fixture.db.select().from(meal).where(eq(meal.userId,fixture.personId));assert.equal(afterMeals.length,meals.length+1);
+  checks.push("切换不刷新旧页或丢草稿；旧页实际保存成功，新打开的旧地址立即转国服");
 
   assert.deepEqual(errors, []);
   await writeFile(resolve(artifacts, "report.json"), JSON.stringify({ engine, checks, screenshots, errors, physicalDevice: false, at: new Date().toISOString() }, null, 2));

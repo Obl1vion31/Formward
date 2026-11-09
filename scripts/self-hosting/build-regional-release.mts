@@ -10,7 +10,12 @@ if(run("git",["status","--porcelain"]))throw new Error("统一发布只能从干
 const commit=run("git",["rev-parse","HEAD"]),base=join(root,".codex/regional-releases");await mkdir(base,{recursive:true});
 const target=join(base,release);await mkdir(target);
 const stableSource=process.env.FORMWARD_BUILD_SOURCE_PATH;
- if(stableSource&&(!isAbsolute(stableSource)||dirname(stableSource)!==base||!/^source-[a-zA-Z0-9_-]+$/.test(stableSource.slice(stableSource.lastIndexOf("/")+1))))throw new Error("兼容构建路径必须是当前私有发布目录的独立source子目录。");
+ // 保留已上线版本的绝对编译路径；仅允许同仓库已登记 worktree 的私有 source 子目录。
+ if(stableSource){
+  const worktrees=run("git",["worktree","list","--porcelain"]).split("\n").filter(line=>line.startsWith("worktree ")).map(line=>line.slice(9));
+  const allowed=worktrees.some(worktree=>dirname(stableSource)===join(worktree,".codex/regional-releases"));
+  if(!isAbsolute(stableSource)||!allowed||await realpath(dirname(stableSource))!==dirname(stableSource)||!/^source-[a-zA-Z0-9_-]+$/.test(stableSource.slice(stableSource.lastIndexOf("/")+1)))throw new Error("兼容构建路径必须是同仓库worktree私有发布目录的独立source子目录。");
+ }
  const source=stableSource?(await mkdir(stableSource,{mode:0o700}),stableSource):await mkdtemp(join(base,"source-"));
 try{
  const archive=join(target,"source.tar");run("git",["archive","--format=tar","--output="+archive,commit]);run("tar",["-xf",archive,"-C",source]);

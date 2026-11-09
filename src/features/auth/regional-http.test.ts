@@ -29,7 +29,7 @@ test("原生回源流式提交完整正文，保留签名、Cookie、Bearer、�
   let calls = 0;
   await withOrigin(async (request, response) => {
     calls++;
-    const headers = new Headers(Object.entries(request.headers).flatMap(([key, value]) => value === undefined ? [] : [[key, Array.isArray(value) ? value.join(",") : value]]));
+    const headers = new Headers(Object.entries(request.headers).flatMap(([key, value]) => value === undefined ? [] : [[key, Array.isArray(value) ? value.join(",") : value] as [string, string]]));
     assert.ok(verifyService(headers, "POST", "/echo"));
     assert.equal(headers.get("authorization"), "Bearer fictional-access");
     assert.equal(headers.get("cookie"), "fictional-session=1");
