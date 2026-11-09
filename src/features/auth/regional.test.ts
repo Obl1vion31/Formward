@@ -90,3 +90,12 @@ test("公网IP同一HTTPS入口区分直达国服和已签名国际回源，旧�
  const forged=proxy(new NextRequest("https://203.0.113.10"+path,{headers:{host:"203.0.113.10","x-formward-service":"invalid","x-formward-source":env.BETTER_AUTH_URL}}));
  assert.equal(forged.status,403);
 }));
+
+
+test("RSC服务证明保留框架查询及业务查询，任一篡改或移除均拒绝",()=>configured(()=>{
+ const path="/dashboard/meals?entry=2026-11-09&_rsc=fixture";
+ const headers=new Headers({host:"origin.formward.top",...serviceHeaders("GET",path,"https://global.formward.top")});
+ const request=(suffix:string)=>new NextRequest("https://origin.formward.top"+suffix,{headers});
+ assert.equal(proxy(request(path)).status,200);
+ for(const changed of ["/dashboard/meals?entry=2026-11-10&_rsc=fixture","/dashboard/meals?entry=2026-11-09&_rsc=other","/dashboard/meals?entry=2026-11-09"])assert.equal(proxy(request(changed)).status,403);
+}));
