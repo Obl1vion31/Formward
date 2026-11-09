@@ -1,26 +1,29 @@
 # Garmin Personal 与设备数据来源
 
-## 账号定向试运行
+## 连接入口与开放范围
 
 正式站已启用直接同步、历史补齐与独立保留相似运动；2026-11-07已载入10月18日起的21天汇总和6条真实活动，首次载入保留3条原手工运动，随后按用户明确确认清理10月27／30日的2条重复手工运动，目前保留6条设备运动与1条非重复手工运动。重复读取未创建记录或增加正式版本，日总数不叠加运动。发布与真实联调边界见[部署](deployment.md)和[维护验收](maintenance-verification.md)。
 
-“连接设备与数据来源”位于账号菜单及账号与安全，独立地址为 `/dashboard/sources`。手机复用既有底部面板，电脑使用连接独立页。仅服务器明确配置的本人账号开放绑定、同步与历史补齐；其他账号看到“暂未开放”，继续手动记录。不能用 owner 角色或前端隐藏代替服务器资格校验。当前仅接国际站 Garmin Personal，连接代表 Garmin 账号，不虚构每块手表独立来源。
+“连接设备与数据来源”位于账号菜单及账号与安全，独立地址为 `/dashboard/sources`。手机复用既有底部面板，电脑使用连接独立页。服务器 `FORMWARD_DATA_SOURCE_ACCESS=personal` 时，已登录账号可填写本人的密钥，各账号独立加密、读取和保存数据；`pilot` 时仅 `FORMWARD_DATA_SOURCE_USER_ID` 指定账号开放，`disabled` 关闭。未配置仍按原 pilot 行为，升级不会自动扩大开放范围；正式环境实际状态见[部署](deployment.md)。不能用 owner 角色或前端隐藏代替服务器校验。支持中国站和国际站 Garmin Personal。绑定前选择密钥所属站点；同步只访问该站点，不跨站重试。连接代表 Garmin 账号，不虚构每块手表独立来源。
+
+首次在卡片状态下点击“输入个人密钥”，选择“中国站／国际站”并填写对应密钥，点“连接并同步”立即读取；已有连接使用“更换个人密钥／更换并同步”。读取最近七日并保存到当前 Formward 账号。Personal API 的技术接入不改变 Garmin 的用途许可；面向多用户的商业应用按官方 Business 接入要求处理。
 
 手表需先通过 Garmin Connect 上传数据；本站读取云端已有记录，不会通过刷新唤醒手表。首轮读取最近七个日历日，时区为 Asia/Shanghai。今天为累计值，不能据此声称全天最终消耗或收支；来源覆盖结束时间不是手表最后同步时间。
 
 ## 配置与凭据
 
-初次部署复用用户已填写的 `/home/obl1vion/.config/formward/garmin-personal.env`，只读校验归属和0600权限后，把密钥绑定到已核验账号。网站以后可在“更换个人密钥”中更新；输入不存入浏览器，绑定成功即清空。更换并同步沿用当前勾选及已有手动保护。不要把密钥贴到聊天、命令行、Git、公共截图或 public。
+每个账号在登录后的网页填写自己的 Personal API 密钥，页面只保留本次输入的内存草稿，不持久化到浏览器；保存成功后清空，不回显已存密钥。试运行账号保留已有加密连接及同步规则，无需重新填写。更换并同步沿用当前勾选及已有手动保护。不要把密钥贴到聊天、命令行、Git、公共截图或 public。
 
 服务器配置：
 
 | 变量 | 用途 |
 |---|---|
-| `FORMWARD_DATA_SOURCE_USER_ID` | 唯一试运行账号的固定 user_id，缺失默认关闭 |
+| `FORMWARD_DATA_SOURCE_ACCESS` | personal：本人密钥自助连接；pilot：固定账号；disabled：关闭；缺失沿用 pilot |
+| `FORMWARD_DATA_SOURCE_USER_ID` | pilot 模式的固定 user_id，缺失时不开放 |
 | `FORMWARD_DATA_SOURCE_ENCRYPTION_KEY` | 独立随机32字节的64位hex主密钥，用于AES-256-GCM，附加认证数据绑定账号与连接 |
 | `CRON_SECRET` | 内部每日任务的独立Bearer密钥，不能用于用户接口 |
 
-部署维护的私有主密钥副本放在用户配置目录 `data-sources-production.json`，0600且不进入源码归档。数据库只保存上游凭据密文；主密钥不可随意重建，否则已有连接无法解密。Formward 自己签发的 AI／OAuth 访问令牌仍只存不可逆摘要。
+部署维护的私有主密钥副本放在用户配置目录 `data-sources-production.json`，0600且不进入源码归档。数据库只保存上游凭据密文。已有v1凭据默认国际站且不重写；新v2格式包含参与AES-GCM认证的站点标记，修改标记无法解密。站点元数据可在服务端读取，密钥及密文不返回浏览器。明确换站时暂停并归档旧连接，保留原记录和来源事实，为新站点创建独立连接及递增版本，避免来源编号冲突和重复绑定。主密钥不可随意重建，否则已有连接无法解密。Formward 自己签发的 AI／OAuth 访问令牌仍只存不可逆摘要。
 
 ## 同步与采用
 
@@ -36,11 +39,11 @@
 
 ## 后台任务与失败
 
-Vercel 每日任务安排在22:00 UTC（上海次日06:00），不保证精确时刻；消费现有套餐，不增加付费升级。进入消耗页、恢复前台及手动刷新补充同步，自动前台刷新至少间隔5分钟，手动刷新至少15秒。同一连接有90秒租约；请求在事务外执行，提交前重新锁账号，核对资格、会话／访问版本、连接及规则版本。关闭、撤销、停用及设置变化使在途旧结果失效。
+服务器每日06:00（上海）执行同步任务，具体服务与调度见[部署](deployment.md)。任务按当前开放模式枚举有效连接，跳过暂停、停用、无勾选或访问版本失效的账号，最多三路读取，共用50秒截止信号；一人失败不阻断其他人，仅返回执行计数，不返回账号或健康内容。超出本轮预算的连接留待后续任务或前台补充同步。进入消耗页、恢复前台及手动刷新补充同步，自动前台刷新至少间隔5分钟，手动刷新至少15秒。同一连接有90秒租约；请求在事务外执行，提交前重新锁账号，核对资格、会话／访问版本、连接及规则版本。关闭、撤销、停用及设置变化使在途旧结果失效。
 
 后续从上次成功日向前回看6天，补齐未同步间隔并接收迟到更新。活动分页不完整明确报错，已存在记录不因来源缺席被删除。失败保留正式值、上次成功时间与草稿；部分成功保存有效来源区域，不伪装成全部成功。无变化不增加正式记录版本。密钥过期需重新绑定；关闭同步不删除历史。
 
-[Garmin Personal API 官方文档](https://developer.garmin.com/gc-developer-program/personal/swagger-docs/)、[官方客户端](https://github.com/garmin/connect-personal-api-python)、[热量口径](https://support.garmin.com/en-CA/?faq=lkl4cwCLlK7ox362uGQEV7)、[Vercel每日调度](https://vercel.com/docs/schedules/cron-jobs/manage-cron-jobs)。
+[Garmin Personal API 官方文档](https://developer.garmin.com/gc-developer-program/personal/swagger-docs/)、[官方客户端](https://github.com/garmin/connect-personal-api-python)、[Personal用途说明](https://developer.garmin.com/gc-developer-program/personal/personal-faq/)、[热量口径](https://support.garmin.com/en-CA/?faq=lkl4cwCLlK7ox362uGQEV7)。
 
 ## JSON 字段对应
 

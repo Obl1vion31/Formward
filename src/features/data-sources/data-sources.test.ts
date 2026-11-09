@@ -12,11 +12,11 @@ import { activityReadings, energyDays } from "../activities/model";
 import { revokeAccountAccess } from "../auth/account-security";
 import { bindPersonalSource, configureConnection, configurePolicy } from "./mutations";
 import { adoptSourceDays, resolveSourceConflict } from "./adoption";
-import { synchronizeSource } from "./sync";
-import { loadSources } from "./state";
+import { synchronizeConnectedSources, synchronizeSource } from "./sync";
+import { loadSources, loadSourceSettings } from "./state";
 import { normalizeGarmin } from "./garmin-adapter";
-import { decryptCredential, encryptCredential } from "./credentials";
-import { sourceMetrics, sourcePilotEnabled } from "./model";
+import { credentialRegion, decryptCredential, encryptCredential } from "./credentials";
+import { sourceMetrics, sourceAccessEnabled } from "./model";
 
 const pg = new PGlite(), db = drizzle(pg, { schema }), now = new Date(), window = sevenDays(now), today = window.to;
 before(async () => { process.env.FORMWARD_DATA_SOURCE_ENCRYPTION_KEY = "a".repeat(64); await migrate(db, { migrationsFolder: "./drizzle" }); });
@@ -42,12 +42,74 @@ async function write(userId: string, patch: Record<string, unknown>) {
 
 test("固定账号开关默认拒绝，owner 角色不自动获得资格，普通账号只看未开放入口", async () => {
   const userId = await owner(false), other = randomUUID();
-  assert.equal(sourcePilotEnabled(userId, undefined), true); assert.equal(sourcePilotEnabled(other), false); assert.equal(sourcePilotEnabled(userId, ""), false);
+  assert.equal(sourceAccessEnabled(userId, undefined), true); assert.equal(sourceAccessEnabled(other), false); assert.equal(sourceAccessEnabled(userId, ""), false);
   await db.insert(schema.user).values({ id: other, name: "虚构其他 owner", email: `${other}@example.test`, role: "owner" });
   const view = await loadSources(db, other, now); assert.equal(view.enabled, false); assert.deepEqual(view.connections, []);
   await assert.rejects(bindPersonalSource(db, other, { apiKey: "fictional-key", version: 0 }), /暂未/);
   await assert.rejects(synchronizeSource(db, other), /暂未/);
   assert.equal((await db.select().from(schema.dataConnection)).filter(c => c.userId === other).length, 0);
+});
+test("个人连接模式可由不同账号独立绑定，非法模式及空账号仍关闭", async () => {
+  assert.equal(sourceAccessEnabled("user-a", "", "personal"), true);
+  assert.equal(sourceAccessEnabled("user-b", "user-a", "personal"), true);
+  assert.equal(sourceAccessEnabled("", "", "personal"), false);
+  assert.equal(sourceAccessEnabled("user-a", "user-a", "disabled"), false);
+  assert.equal(sourceAccessEnabled("user-a", "user-a", "unknown"), false);
+  const previous = process.env.FORMWARD_DATA_SOURCE_ACCESS;
+  process.env.FORMWARD_DATA_SOURCE_ACCESS = "personal";
+  try {
+    const ids = [await owner(false), await owner(false)];
+    for (const [i, id] of ids.entries()) {
+      assert.equal((await loadSourceSettings(db, id)).enabled, true);
+      await bindPersonalSource(db, id, { apiKey: "fictional-personal-key-user-" + i, version: 0 });
+      await synchronizeSource(db, id, { now, activate: true, capture: async input => {
+        assert.equal(input.apiKey, "fictional-personal-key-user-" + i);
+        return sample(2200 + i * 400, 6000 + i, [activity()]);
+      } });
+    }
+    for (const [i, id] of ids.entries()) {
+      const snapshot = await readEnergySnapshot(db, id), view = await loadSourceSettings(db, id);
+      assert.equal(snapshot.days.length, 1); assert.equal(Number(snapshot.days[0].totalKcal), 2200 + i * 400);
+      assert.equal(snapshot.activities.length, 1);
+      const [stored] = await db.select({ userId: schema.activity.userId }).from(schema.activity).where(eq(schema.activity.id, snapshot.activities[0].id));
+      assert.equal(stored.userId, id);
+      assert.equal(view.connections.length, 1);
+      assert.ok(!JSON.stringify(view).includes("fictional-personal-key"));
+      const foreign = (await loadSourceSettings(db, ids[1 - i])).connections[0];
+      await assert.rejects(configureConnection(db, id, foreign.id, { version: foreign.version, active: false, metrics: [] }), /不存在/);
+    }
+    await assert.rejects(bindPersonalSource(db, ids[0], { apiKey: "short", version: 1 }), /请检查/);
+    await assert.rejects(bindPersonalSource(db, ids[0], { apiKey: "fictional-repeat-key", version: 0 }), /已经改变/);
+    await db.update(schema.user).set({ banned: true }).where(eq(schema.user.id, ids[1]));
+    await assert.rejects(bindPersonalSource(db, ids[1], { apiKey: "fictional-banned-key", version: 1 }), /已失效/);
+  } finally {
+    if (previous === undefined) delete process.env.FORMWARD_DATA_SOURCE_ACCESS; else process.env.FORMWARD_DATA_SOURCE_ACCESS = previous;
+  }
+});
+test("多人定时同步分别使用本人密钥，跳过暂停及撤销连接，单人失败不阻止其他账号", async () => {
+  const previous = process.env.FORMWARD_DATA_SOURCE_ACCESS;
+  process.env.FORMWARD_DATA_SOURCE_ACCESS = "personal";
+  try {
+    const ids = [await owner(false), await owner(false), await owner(false), await owner(false)];
+    for (const [i, id] of ids.entries()) await bindPersonalSource(db, id, { apiKey: "fictional-scheduled-key-" + i, version: 0 });
+    const paused = (await loadSourceSettings(db, ids[2])).connections[0];
+    await configureConnection(db, ids[2], paused.id, { version: paused.version, active: false, metrics: ["total"] });
+    await db.transaction(tx => revokeAccountAccess(tx, ids[3]));
+    const observed: string[] = [];
+    const result = await synchronizeConnectedSources(db, { now: new Date(+now + 600000), capture: async input => {
+      observed.push(input.apiKey);
+      if (input.apiKey === "fictional-scheduled-key-0") throw new Error("private upstream diagnostic must not be returned");
+      return sample(2450);
+    } });
+    assert.ok(observed.includes("fictional-scheduled-key-0")); assert.ok(observed.includes("fictional-scheduled-key-1"));
+    assert.ok(!observed.includes("fictional-scheduled-key-2")); assert.ok(!observed.includes("fictional-scheduled-key-3"));
+    assert.equal(result.status, "failed"); assert.ok(result.failed >= 1);
+    assert.ok(!JSON.stringify(result).includes(ids[0])); assert.ok(!JSON.stringify(result).includes("private upstream"));
+    assert.equal((await loadSourceSettings(db, ids[1])).connections[0].lastSuccessAt, new Date(+now + 600000).toISOString());
+    assert.equal((await loadSourceSettings(db, ids[2])).connections[0].lastSuccessAt, null);
+  } finally {
+    if (previous === undefined) delete process.env.FORMWARD_DATA_SOURCE_ACCESS; else process.env.FORMWARD_DATA_SOURCE_ACCESS = previous;
+  }
 });
 test("凭据按账号与连接加密，不能换账号解密，浏览器模型不包含凭据", async () => {
   const userId = await owner(), [connection] = await db.select().from(schema.dataConnection).where(eq(schema.dataConnection.userId, userId));
@@ -55,6 +117,44 @@ test("凭据按账号与连接加密，不能换账号解密，浏览器模型�
   assert.throws(() => decryptCredential(connection.credential, randomUUID(), connection.id), /重新绑定/);
   const encrypted = encryptCredential("fake", userId, connection.id); assert.throws(() => decryptCredential(encrypted.slice(0, -2) + "xx", userId, connection.id));
   const view = JSON.stringify(await loadSources(db, userId, now)); assert.ok(!view.includes(connection.credential)); assert.ok(!view.includes("fictional-personal-key"));
+});
+test("旧凭据默认国际站且读取不重写，站点与新凭据共同认证不能篡改", async () => {
+  const userId = await owner(), [before] = await db.select().from(schema.dataConnection).where(eq(schema.dataConnection.userId, userId));
+  const legacy = encryptCredential("fictional-legacy-key", userId, before.id);
+  await db.update(schema.dataConnection).set({ credential: legacy }).where(eq(schema.dataConnection.id, before.id));
+  assert.equal(credentialRegion(legacy), "global");
+  assert.equal((await loadSourceSettings(db, userId)).connections[0].region, "global");
+  await synchronizeSource(db, userId, { now, capture: async input => { assert.equal(input.region, "global"); assert.equal(input.apiKey, "fictional-legacy-key"); return sample(); } });
+  const [after] = await db.select().from(schema.dataConnection).where(eq(schema.dataConnection.id, before.id));
+  assert.equal(after.credential, legacy); assert.equal(after.version, before.version); assert.deepEqual(after.metrics, before.metrics);
+  for (const region of ["global", "china"] as const) {
+    const value = encryptCredential("fictional-region-key", userId, before.id, region);
+    assert.equal(credentialRegion(value), region); assert.equal(decryptCredential(value, userId, before.id), "fictional-region-key");
+    assert.throws(() => decryptCredential(value.replace("." + region + ".", region === "global" ? ".china." : ".global."), userId, before.id), /重新绑定/);
+  }
+  assert.throws(() => credentialRegion("v2.unknown.nonce.tag.data"), /重新绑定/);
+  await assert.rejects(bindPersonalSource(db, userId, { apiKey: "fictional-key", version: after.version, region: "unknown" }), /请检查/);
+});
+test("中国站按本人密钥读取，切换站点保留旧事实并隔离相同来源编号，重试不能重复绑定", async () => {
+  const userId = await owner(false);
+  await bindPersonalSource(db, userId, { apiKey: "fictional-china-key", region: "china", version: 0 });
+  const prior = (await loadSourceSettings(db, userId)).connections[0]; assert.equal(prior.region, "china");
+  await synchronizeSource(db, userId, { now, activate: true, capture: async input => { assert.equal(input.region, "china"); assert.equal(input.apiKey, "fictional-china-key"); return sample(2400, 7000, [activity()]); } });
+  const oldFacts = await db.select().from(schema.dataSourceFact).where(eq(schema.dataSourceFact.connectionId, prior.id));
+  const [oldConnection] = await db.select().from(schema.dataConnection).where(eq(schema.dataConnection.id, prior.id));
+  await bindPersonalSource(db, userId, { apiKey: "fictional-global-key", region: "global", version: prior.version });
+  const current = (await loadSourceSettings(db, userId)).connections[0]; assert.equal(current.region, "global"); assert.notEqual(current.id, prior.id); assert.equal(current.version, prior.version + 1);
+  const [archived] = await db.select().from(schema.dataConnection).where(eq(schema.dataConnection.id, prior.id));
+  assert.equal(archived.status, "paused"); assert.equal(archived.credential, oldConnection.credential); assert.ok(archived.provider.startsWith("garmin-personal:archived:"));
+  assert.deepEqual(await db.select().from(schema.dataSourceFact).where(eq(schema.dataSourceFact.connectionId, prior.id)), oldFacts);
+  await assert.rejects(configureConnection(db, userId, prior.id, { version: archived.version, active: true, metrics: ["total"] }), /不存在/);
+  await assert.rejects(bindPersonalSource(db, userId, { apiKey: "fictional-global-key", region: "global", version: prior.version }), /已经改变/);
+  const [policy] = await db.select().from(schema.dataSourcePolicy).where(eq(schema.dataSourcePolicy.userId, userId)); assert.equal(policy.sources.total, current.id);
+  const seen: string[] = [];
+  await synchronizeConnectedSources(db, { now: new Date(+now + 600000), capture: async input => { seen.push(input.region + ":" + input.apiKey); return sample(2600, 8000, [activity()]); } });
+  assert.deepEqual(seen, ["global:fictional-global-key"]);
+  const facts = await db.select().from(schema.dataSourceFact).where(eq(schema.dataSourceFact.userId, userId));
+  assert.equal(facts.filter(f => f.kind === "activity" && f.sourceRecordId === "10001").length, 2);
 });
 test("V2 白名单只保留选中字段，0 与未知分开，秒转分钟且不推算纯运动热量", () => {
   const capture = sample(2000, 0, [activity()]), selected = normalizeGarmin(capture, ["steps"]);

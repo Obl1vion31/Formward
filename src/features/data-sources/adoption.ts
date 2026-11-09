@@ -9,7 +9,7 @@ import { persistEnergyPreview, planEnergyActions } from "../activities/records";
 import type { ActivityRecord, EnergyAction } from "../activities/model";
 import { energyFactsChanged } from "./manual-protection";
 import { dayComparison, fingerprint, proposeDay, readSourceState, type Fact, type SourceState } from "./state";
-import { requireSourcePilot, sourceEvent } from "./mutations";
+import { requireSourceAccess, sourceEvent } from "./mutations";
 import type { SourceRecordChange } from "./model";
 
 export const sourceSystemFor = (connectionId: string) => `Garmin Personal:${connectionId}`;
@@ -144,10 +144,10 @@ export async function adoptDate(tx: Transaction, userId: string, state: SourceSt
 
 const adoptSchema = z.object({ days: z.array(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), digest: z.string().regex(/^[a-f0-9]{64}$/), includedActivityIds: z.array(z.string().uuid()).max(100) }).strict()).min(1).max(7) }).strict();
 export async function adoptSourceDays(db: Database, userId: string, raw: unknown, now = new Date()) {
-  requireSourcePilot(userId); const input = adoptSchema.safeParse(raw);
+  requireSourceAccess(userId); const input = adoptSchema.safeParse(raw);
   if (!input.success || new Set(input.data.days.map(d => d.date)).size !== input.data.days.length) throw new ApiError(400, "invalid_input", "请选择有效日期并重新核对来源。 ");
   return db.transaction(async tx => {
-    await lockOwner(tx, userId); requireSourcePilot(userId);
+    await lockOwner(tx, userId); requireSourceAccess(userId);
     const state = await readSourceState(tx, userId, now);
     for (const item of input.data.days) if (!state.window.dates.includes(item.date) || dayComparison(state, item.date).digest !== item.digest) throw new ApiError(409, "source_changed", "来源或正式记录已经改变，请重新读取对照后采用。 ");
     const changes:SourceRecordChange[]=[];
@@ -159,9 +159,9 @@ export async function adoptSourceDays(db: Database, userId: string, raw: unknown
 
 const resolveSchema = z.object({ id: z.string().uuid(), version: z.number().int().positive(), decision: z.enum(["adopt", "link", "ignore"]), activityId: z.string().uuid().nullable(), activityVersion: z.number().int().positive().nullable() }).strict();
 export async function resolveSourceConflict(db: Database, userId: string, raw: unknown) {
-  requireSourcePilot(userId); const input = resolveSchema.safeParse(raw); if (!input.success) throw new ApiError(400, "invalid_input", "冲突处理请求无效。");
+  requireSourceAccess(userId); const input = resolveSchema.safeParse(raw); if (!input.success) throw new ApiError(400, "invalid_input", "冲突处理请求无效。");
   await db.transaction(async tx => {
-    await lockOwner(tx, userId); requireSourcePilot(userId);
+    await lockOwner(tx, userId); requireSourceAccess(userId);
     const state = await readSourceState(tx, userId), value = input.data, conflict = state.conflicts.find(c => c.id === value.id);
     if (!conflict || conflict.status !== "pending" || conflict.version !== value.version) throw new ApiError(409, "source_changed", "冲突已改变，请重新读取。");
     const linked = value.decision === "link" ? state.snapshot.activities.find(a => a.id === value.activityId && !a.deletedAt && a.version === value.activityVersion && conflict.candidates.includes(a.id)) : null;

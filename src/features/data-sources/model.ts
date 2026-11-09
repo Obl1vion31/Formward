@@ -1,4 +1,7 @@
 import { z } from "zod";
+import type { Region } from "../garmin/client";
+
+export const regionLabels: Record<Region, string> = { global: "国际站", china: "中国站" };
 
 export const sourceMetrics = ["total", "resting", "active", "steps", "activities"] as const;
 export type SourceMetric = typeof sourceMetrics[number];
@@ -17,13 +20,16 @@ const sourceId = z.string().uuid().nullable();
 export const policyInputSchema = z.object({ version: z.number().int().nonnegative(), strategy: z.enum(["total", "components"]), sources: z.object({ total: sourceId, resting: sourceId, active: sourceId, steps: sourceId, activities: sourceId }).strict() }).strict();
 export const connectionInputSchema = z.object({ version: z.number().int().positive(), metrics: metricsSchema, active: z.boolean() }).strict();
 
-export type ConnectionView = { id: string; label: string; provider: string; status: "active" | "paused"; metrics: SourceMetric[]; timezone: string; version: number; adopted: boolean; syncing: boolean; lastAttemptAt: string | null; lastSuccessAt: string | null; error: string | null };
+export type ConnectionView = { id: string; label: string; provider: string; region: Region; status: "active" | "paused"; metrics: SourceMetric[]; timezone: string; version: number; adopted: boolean; syncing: boolean; lastAttemptAt: string | null; lastSuccessAt: string | null; error: string | null };
 export type ComparisonDay = { date: string; digest: string; current: { total: string | null; resting: string | null; active: string | null; steps: number | null }; proposed: { total: string | null; resting: string | null; active: string | null; steps: number | null }; mode: "source" | "manual" | "unadopted"; canAdopt: boolean; reason: string | null; activityCount: number; manualActivities: { id: string; name: string; version: number }[]; coverageUntil: string | null };
 export type ConflictView = { id: string; version: number; date: string; name: string; sourceId: string; candidates: { id: string; version: number; name: string; durationMinutes: string | null; caloriesKcal: string | null }[] };
 export type SourcesView = { enabled: boolean; connections: ConnectionView[]; policy: SourcePolicy; comparison: ComparisonDay[]; conflicts: ConflictView[]; today: string };
 export type SourceSettingsView = Pick<SourcesView, "enabled" | "connections" | "today">;
 
-/** 只检查服务器固定账号，不把 owner 角色当作试运行资格。 */
-export function sourcePilotEnabled(userId: string, configured = process.env.FORMWARD_DATA_SOURCE_USER_ID) {
+/** personal 向已登录账号开放本人连接；未配置时保留原固定账号试运行。 */
+export function sourceAccessEnabled(userId: string, configured = process.env.FORMWARD_DATA_SOURCE_USER_ID, access = process.env.FORMWARD_DATA_SOURCE_ACCESS) {
+  if (!userId.trim()) return false;
+  if (access === "personal") return true;
+  if (access && access !== "pilot") return false;
   return !!configured?.trim() && userId === configured.trim();
 }

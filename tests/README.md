@@ -1,5 +1,11 @@
 # Tests
 
+## Garmin 个人密钥连接
+
+production build 后运行 `node --import tsx tests/data-sources.browser.mts`。入口自行创建仅回环可访问的隔离 PGlite、两个虚构账号与服务端 Garmin 响应，不读取正式密钥或访问真实 Garmin。`FORMWARD_SOURCES_ENGINE=webkit` 切换引擎，`PLAYWRIGHT_BROWSERS_PATH` 指定浏览器缓存，`FORMWARD_SOURCES_ARTIFACTS` 指定私有证据目录；`FORMWARD_SOURCES_PREVIEW=1` 保留本机演示，SIGTERM／SIGINT关闭。
+
+检查首次“输入个人密钥”与已有“更换个人密钥”、提交后立即读取、刷新持久化、输入掩码／成功清空、网络失败留稿、重复提交保护、版本冲突及两个账号的数据隔离；两主题覆盖320／390／430、横屏、1100／1440。内部任务另验鉴权、拒绝客户端指定账号及多人调度；原生真机未测不计通过。单元／集成测试覆盖开放模式、加密绑定、跨账号拒绝及失败隔离。
+
 ## 助手、菜单与图形往返
 
 production build后运行pnpm test:assistant-browser与pnpm test:desktop-linked-browser，分别用FORMWARD_ASSISTANT_BROWSER／FORMWARD_DESKTOP_BROWSER选择chromium或webkit。均为独立虚构账号：助手验证不自动打开、待办角标、两层菜单、系统开关、底部工具、半全屏、失败重试、跨设备忽略、快速反向和焦点；关联图验证三卡往返、数据平面、选日、范围、晨晚与体脂、草稿保存及跨账号清理。旧估计功能不作为有效测试入口。
