@@ -13,6 +13,8 @@
 私有证据为本工作树.codex/garmin-region-current及服务器/var/lib/formward/garmin-regions-current-20261110；线上双端截图在C:/Users/14878/.codex/visualizations/2026/11/10/formward-garmin-regions。保留原GPT、Garmin和图片位置，未创建正式虚构健康记录；Neon继续停写。恢复须兼容0036和v2区域凭据，不能在出现v2连接后直接回退至只支持v1的旧应用；保留数据，采用兼容修复版本。
 
 
+海外后台沿用工作区基线的READY dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp、CLE1，两正式别名保持；本轮没有执行海外发布。0036此前以独立管理身份添加提醒忽略表，应用仅保留必要读取／插入权限。工作区加载、助手及严格TLS旧页保存的保留证据见[维护验收](maintenance-verification.md)。
+
 ## 此前版本：全站静态内容与局部加载反馈（2026-11-08）
 
 已按本会话此前明确的修改后直接发布授权更新[正式总览](https://formward-ten.vercel.app/dashboard)。READY部署dpl_Ds7qyEAu1jfhdWZyVqantWprDqkb，源码61eda5541ab7acd26a3b7e378b49a44aaac779de，构建static-loading-61eda554-20261108，来自codex/static-loading；正式别名、项目、sourceCommit／gitCommitSha及版本接口均一致，未合入或推送main。后续纯文档提交不改变正式应用。

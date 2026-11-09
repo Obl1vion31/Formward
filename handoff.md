@@ -9,6 +9,17 @@ Garmin已启用personal：有效登录账号从“账号菜单 → 外部接入 
 578项测试、lint、typecheck、干净构建，以及最终standalone双引擎各8组／19图通过，慢查询最大布局偏差0px；线上双端已核看。原GPT连接及Garmin国际站真实只读读取成功；中国站网络可达，缺少真实中国站密钥，完整认证仅用隔离响应验证。真实手机与系统键盘未测。发布、备份、原数据核对、观察窗口、截图及兼容恢复边界见[部署](docs/deployment.md)和[验收](docs/regional-acceptance.md)。
 
 
+## 随当前版本保留的工作区交互
+
+主导航统一总览、饮食、训练、消耗、身体；账号菜单按外部接入、账号管理分组，owner另有管理与测试。手机助手在导航右侧并默认收起，常用功能由底部向上展开。AI待确认、今日未开始训练与昨日饮食形成角标及每日一次提示；按账号／日期跨设备忽略不会改健康事实。7D、30D及对应自定义采用同一居中图形，返回恢复来源位置并向真实卡片回缩一次，取消先隐藏浮层；饮食／身体骨架按容器比例预留高度，无模糊与减少透明度回退保留。
+
+该基线由0f3434d发布至workspace-flow-final-20261110后进入当前6880811。此前双引擎各80组加载矩阵、各17组助手、19组原生库连续流程及三卡往返验证保留；修复前69次、修复后138次完整往返均有录像，未把本机结果写成真机帧率。574项基线测试及严格TLS旧Cookie／JWT／refresh、匿名回审核、旧页真实保存证据见[维护验收](docs/maintenance-verification.md)。0036只加assistant_reminder_dismissals，以独立管理身份迁移，运行账号只获必要读取／插入权限，不扩CREATE。
+
+海外当前READY为dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp、CLE1，两别名延续原GPT入口。该基线的发布观察窗为UTC 2026-11-09T19:35:37.597208+00:00—19:39:39.085899+00:00，应用journal及海外Runtime／fatal／5xx查询无记录，不代表国服完整access历史或20分钟监控；本轮Garmin发布另有上方观察窗。
+
+工作区交互的私有证据保留在workspace-flow工作树的.codex/release-control、final-release-control、loading-final、loading-native-webkit、loading-native-flows、assistant-final、linked-final-webkit及visual-final；服务器原目录/var/lib/formward/workspace-flow-20261110和workspace-flow-final-20261110保持。实录为C:/Users/14878/.codex/visualizations/2026/11/10/formward-workspace-flow。后续主线工作区为/home/obl1vion/projects/Formward-worktrees/main-current；其他进行中的工作区与私有运维证据不清理。
+
+
 ## 保留能力：身体仅保留实测
 
 身体实测规则和0035已包含于当前应用，以下保留其数据迁移与验收依据。不能恢复旧估计能力。

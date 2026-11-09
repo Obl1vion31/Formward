@@ -9,6 +9,8 @@ Garmin已启用personal：有效登录账号从“账号菜单 → 外部接入 
 578项测试、lint、typecheck、干净构建，以及最终standalone双引擎各8组／19图通过，慢查询最大布局偏差0px；线上双端已核看。原GPT连接及Garmin国际站真实只读读取成功；中国站网络可达，缺少真实中国站密钥，完整认证仅用隔离响应验证。真实手机与系统键盘未测。发布、备份、原数据核对、观察窗口、截图及兼容恢复边界见[部署](deployment.md)和[验收](regional-acceptance.md)。
 
 
+海外后台沿用工作区基线的READY dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp、CLE1，两正式别名保持；本轮没有执行海外发布。0036此前以独立管理身份添加提醒忽略表，应用仅保留必要读取／插入权限。工作区加载、助手及严格TLS旧页保存的保留证据见[维护验收](maintenance-verification.md)。
+
 ## 入口与职责
 
 | 部件 | 当前职责 |
