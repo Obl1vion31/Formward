@@ -1,8 +1,12 @@
 # 公网 HTTPS 部署
 
-## 当前正式部署：上海主库与国际入口
+## 当前正式部署：单一国服网页与海外后台
 
-国服https://43.142.148.58与国际https://formward-ten.vercel.app共用上海formward_primary，Neon已停写。应用3d57f4b762881c7a92ba2cb28bc0cdc3ee0942d9，dual-entry-static-20261109，BUILD_ID hg_j1Z9SuUZbEVNJlHYvQ；国际READY部署dpl_FFBeba8ftG5Wdx8qnhSF44EGtJC9，CLE1，两条国际别名已核对。原GPT和Garmin保持，608项及构建／线上检查通过。当前部署、数据保护、备份与未测边界以[双入口部署](mainland-deployment.md)、[验收记录](regional-acceptance.md)为准，CPU／网络和表结构见[查看指南](server-operations.md)。未合入或推送main；后续纯文档提交不改变线上应用。
+唯一日常网页为[国服](https://43.142.148.58)，Vercel保留GPT／MCP、OAuth和海外图片后台，普通旧网页转国服，AI确认链接直接回国服。正式记录仍统一写入上海formward_primary；原GPT与Garmin已验证保持，Neon继续停写。
+
+应用141445b0474c0fa0723d243ad44bbd1ec94fb286，single-web-current-20261109，BUILD_ID C2tZf20bDMFuElnOE4wd1；海外READY dpl_24PpPLF4KJeSZroWPnJijGKodMNQ、CLE1，两条正式别名已核对。已保留身体实测及0035，54表／35 migration，本次无数据库变更；发布前后业务、审计、授权与配置摘要通过，仅正常使用时间和限流元数据改变。保留当前版本46项表单标识及密钥，旧页面实际保存通过。
+
+571项单元／集成、lint、typecheck、同源production build、严格TLS原Cookie／JWT／刷新验证，以及Chromium／WebKit完整确认和旧页保存流程通过，24张截图及录像已核看。公网跳转、原GPT、Garmin及私有Blob／COS检查成功。当前职责、数据保护、回退和未测边界以[国服与海外后台](mainland-deployment.md)、[验收记录](regional-acceptance.md)为准；CPU／网络和表结构见[查看指南](server-operations.md)。未合入或推送main，后续纯测试／文档提交不改变线上应用。
 
 ## 此前版本：全站静态内容与局部加载反馈（2026-11-08）
 

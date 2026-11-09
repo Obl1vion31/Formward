@@ -2,7 +2,7 @@
 
 ## 当前入口
 
-[https://43.142.148.58](https://43.142.148.58)已接入上海正式库formward_primary，与Vercel国际入口共用账号及正式记录。原演示服务formward-ip-preview.service已经停止并禁用，formward_ip_preview数据库、虚构账号和备份保留，演示账号不能用于正式站。当前服务、权限、备份与运维见[双入口部署](mainland-deployment.md)和[服务器查看指南](server-operations.md)。
+[https://43.142.148.58](https://43.142.148.58)是唯一日常网页，正式记录保存在上海formward_primary。Vercel只保留GPT／MCP、OAuth和海外图片后台；普通旧网页自动转国服。原演示服务formward-ip-preview.service已经停止并禁用，formward_ip_preview数据库、虚构账号和备份保留，演示账号不能用于正式站。当前服务、权限、备份与运维见[国服与海外后台](mainland-deployment.md)和[服务器查看指南](server-operations.md)。
 
 ## 隔离边界
 

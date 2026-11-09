@@ -23,7 +23,8 @@
 - `auth-setup.md`：Neon 配置、数据库 migration、内部账号创建、登录顺序与验证。
 - [服务器与数据库查看](server-operations.md)：腾讯云 CPU／网络监控、PostgreSQL 表结构、只读查询与服务位置。
 - [公网 IP 测试环境](ip-preview.md)：服务器隔离测试库、HTTPS、服务与备份。
-- `deployment.md`：Vercel 公网 HTTPS、正式地址、生产环境变量、共享限流和发布验收。
+- `deployment.md`：单一国服网页、Vercel海外后台、生产环境变量与发布验收。
+- [国服与海外后台](mainland-deployment.md)：上海主库、原GPT／Garmin连接、图片职责、备份和应用恢复边界。
 - `database.md`：数据库连接流程、逻辑关系图、全部物理字段与索引／约束字典、维护入口。
 - `data-model.md`：核心数据、来源信息和外部生态扩展原则。
 - `measurements.md`：身体记录的当前导入与回看、当地晨晚归属、空腹确认、数据库／界面／AI 接口方案，以及当天晨晚差和次晨变化的热量关联。

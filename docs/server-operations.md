@@ -2,15 +2,15 @@
 
 ## 当前部署状态
 
-国服公网 IP 与 Vercel 国际入口均已连接上海正式库 formward_primary，2026年11月9日19:25（上海时间）开放写入。Neon 已隔离停写。恢复和连接验收见[双入口验收](regional-acceptance.md)。
+日常网页只有[上海公网IP入口](https://43.142.148.58)。Vercel保留GPT／MCP、OAuth和海外图片后台，普通旧网页自动转国服；两部分共用上海formward_primary，54表／35条migration。Neon已隔离停写。恢复和连接验收见[验收记录](regional-acceptance.md)。
 
 ## 入口和数据位置
 
 ~~~mermaid
 flowchart LR
   CN["国服网页 · 上海公网 IP"] --> APP["上海 Formward 业务"]
-  GPT["GPT 等海外客户端"] --> GLOBAL["Vercel 国际入口"]
-  WEB["国际网页"] --> GLOBAL
+  GPT["GPT 等海外客户端"] --> GLOBAL["Vercel 海外后台"]
+  OLD["原网页地址"] -->|"临时跳转"| CN
   GLOBAL -->|"已签名业务请求"| APP
   APP --> PG["上海 PostgreSQL · 仅回环监听"]
   GLOBAL --> BLOB["海外私有 Blob"]

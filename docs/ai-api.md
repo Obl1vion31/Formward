@@ -1,11 +1,17 @@
 # 身体、饮食与消耗 AI 接入
 
+## 网页与AI服务地址
+
+日常网页统一为https://43.142.148.58。GPT／MCP、OAuth授权与令牌地址继续使用https://formward-ten.vercel.app，issuer及resource保持，既有GPT与Garmin连接无需重建。海外图片下载和私有Blob读取继续由Vercel后台执行；业务仍由上海检查并写入唯一主库。普通旧网页转国服，API、OAuth、旧页RSC及POST不随网页跳转。
+
+身体、饮食、训练和混合预览返回的confirmationUrl统一为国服；未登录时保留原路径，登录后继续审核，不等于自动保存。不得把网页域名变更当作重新签发或扩大AI授权。两域Cookie独立，详细职责见[部署说明](mainland-deployment.md)。
+
 ## 当前兼容规则
 
-OpenAPI1.13.0／MCP1.11.0，工具及权限种类保持。身体按同一天晨晚最后保存值覆盖，预览显示旧→新，取消不保存，遗漏字段保留，不接收未来身体日期。运动save_activity扩展calorieMode、exerciseRestingKcal、exerciseActiveKcal；分项只计纯运动，旧caloriesKcal原值继续采用，查询activities增加totalKcal／countedKcal。AI正常新增修改、网页登录确认及版本／幂等保护保持。常见英文餐次仍可提交，显示及新保存中文，原请求摘要不改。网页登录私有/api/record-changes不接受AI令牌，不增加工具或权限。
+OpenAPI1.15.0／MCP1.15.0，当前身体能力只接收实测，饮食、消耗和训练沿用各自规则。身体按同一天晨晚最后保存值覆盖，预览显示旧→新，取消不保存，遗漏字段保留，不接收未来身体日期。运动save_activity扩展calorieMode、exerciseRestingKcal、exerciseActiveKcal；分项只计纯运动，旧caloriesKcal原值继续采用，查询activities增加totalKcal／countedKcal。AI正常新增修改、网页登录确认及版本／幂等保护保持。常见英文餐次仍可提交，显示及新保存中文，原请求摘要不改。网页登录私有/api/record-changes不接受AI令牌，不增加工具或权限。
 
 
-接口覆盖晨晚体重／体脂、来源、时区、记录详情与历史、候选分析、摘要与趋势、历史编辑及单项显式估算。网页和 API 使用同一 measurements feature。饮食、食材及其删除／恢复已接入；通用文件导入及身体记录的网页删除／恢复、准确测量时间和历史归属纠正尚未接入。
+接口覆盖晨晚实测体重／体脂、来源、时区、记录详情与历史、摘要与趋势及历史编辑。身体不提供估算或插补，旧estimate_cell返回410。网页和 API 使用同一 measurements feature。饮食、食材及其删除／恢复已接入；通用文件导入及身体记录的网页删除／恢复、准确测量时间和历史归属纠正尚未接入。
 
 ## 统一连接与授权
 
@@ -15,7 +21,7 @@ OpenAPI1.13.0／MCP1.11.0，工具及权限种类保持。身体按同一天晨�
 
 ## 混合记录接口
 
-MCP 1.13.0 提供17个工具，统一连接检查为authorize_formward，混合审核为 `submit_record_operation`／`get_record_operation`；HTTP 为 `POST /api/v1/record-operations` 和 `GET /api/v1/record-operations/{id}`。支持只提交一类或任意组合，最多100项（包含展开的新食材）、64 KiB，统一链接 `/dashboard/ai/operations/{id}`。原单类接口和链接保持兼容，确认只能由登录网页执行。
+当前MCP统一连接检查为authorize_formward，混合审核为 `submit_record_operation`／`get_record_operation`；HTTP 为 `POST /api/v1/record-operations` 和 `GET /api/v1/record-operations/{id}`。支持只提交一类或任意组合，最多100项（包含展开的新食材）、64 KiB，统一链接 `/dashboard/ai/operations/{id}`。原单类接口和链接保持兼容，确认只能由登录网页执行。
 
 餐项通过 `foodRef` 引用同批 `save_food.key`，不同时提供 `foodId`、`foodDraft` 或 `nutrition`；内嵌 `foodDraft` 兼容并自动展开。以下仅为虚构格式：
 

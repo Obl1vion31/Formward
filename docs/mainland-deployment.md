@@ -1,55 +1,52 @@
-# 双入口与服务器主库
+# 单一国服网页与上海主库
 
 ## 当前部署
 
-当前入口为：国服使用 `https://43.142.148.58`，国际服保留 `https://formward-ten.vercel.app`，两个入口连接上海服务器上的同一份权威数据库。账号、已有记录、GPT OAuth 连接和 Garmin 连接保持；不新建两份分别接收正式写入的数据。界面调试与授权配置分开，同账号保存的正式数据会在两边可见。
+日常网页统一为 [https://43.142.148.58](https://43.142.148.58)。Vercel 原地址 https://formward-ten.vercel.app 保留为 GPT／MCP、OAuth 与海外图片后台；普通网页 GET／HEAD 临时跳转到国服并保留页面路径和查询。GPT 生成的身体、饮食、训练及混合审核链接直接采用国服，未登录时登录后返回原确认页。
 
-2026年11月9日19:25（上海时间）完成正式切换。两个入口共用上海 formward_primary，Neon 旧服务凭据已失效且保持停写；原 IP 演示服务已停止，独立 formward_preview 环境保持。原 GPT 连接及国际网页会话已实际验证，无需重连；Garmin 原连接的每日与活动接口、正式定时同步均成功。
+上海 standalone 与 Vercel Build Output 来自同一干净应用提交141445b0474c0fa0723d243ad44bbd1ec94fb286，发布single-web-current-20261109，BUILD_ID C2tZf20bDMFuElnOE4wd1。海外READY部署dpl_24PpPLF4KJeSZroWPnJijGKodMNQ，CLE1；formward-ten.vercel.app与global.formward.top均指向该部署。后续测试与文档提交不改变正式应用，未合入或推送main。
 
-正式库每日03:20自动备份至私有上海COS的专用加密备份目录，完整回读校验后才成功；实际日任务云端副本已取回、认证解密并完整恢复到新隔离库，54表、34条migration通过。用户批准的权限仅含该目录上传／读取，桶保持私有。维护和保留规则见[服务器查看指南](server-operations.md)。
+唯一正式库为上海formward_primary，PostgreSQL18.6、54表、35条migration。0035身体实测规则及已有界面改动保持；本次入口收拢没有数据库迁移或健康数据写入。Neon旧服务凭据已失效并保持停写，不能重新初始化主库或把正式入口切回旧快照。原IP演示服务停止，独立formward_preview与formward_ip_preview保持隔离。
 
 ## 入口与职责
 
 | 部件 | 当前职责 |
 |---|---|
-| 上海公网 IP | 国服网页、业务、账号、MCP 实际校验与 PostgreSQL 主库 |
-| Vercel 原域名 | 国际入口，静态资源由 CDN 提供，动态请求经服务证明回源上海；继续提供海外照片处理与 OAuth 客户端资料获取 |
-| 上海 PostgreSQL | 唯一权威数据库，独立应用与迁移角色，只监听回环地址，不对公网开放 5432 |
-| Neon | 已停写，保留源归档材料；不能直接回切旧快照 |
-| Blob／COS | 旧图保留原 Blob 位置；国际新图进入 Blob，国内新图进入私有上海 COS |
+| 上海公网IP | 唯一日常网页、业务与账号校验、正式记录和PostgreSQL主库 |
+| Vercel原域名 | 保留原GPT／MCP及OAuth地址，签名回源上海；处理海外照片下载、私有Blob读取及OAuth客户端资料获取 |
+| 上海PostgreSQL | 唯一权威数据库，应用与迁移角色分离，只监听回环地址，不公开5432 |
+| Blob／COS | GPT附件在海外后台处理并保存在私有Blob；国服网页新上传使用私有上海COS，旧图保留原位置 |
+| Neon | 停写的旧数据源，仅保留恢复材料，不再接收正式新增记录 |
 
-国服仍使用公网 IP；global.formward.top 为上海访问海外图片服务的 CNAME；实际国际回源采用 CLE1 → 公网 IP 的有效 HTTPS 证书。origin.formward.top 已配 A 记录与证书，但不用于当前回源。根域与 www 记录未启用。既有私有 `formward_preview` 环境与演示库也不复用为正式库。
+国服当前使用有效HTTPS公网IP证书。global.formward.top是海外后台别名；CLE1通过有效HTTPS回源公网IP。origin.formward.top已配A记录与证书，当前不承担回源。根域与www未启用；未来更换网页域名时单独更新CN来源，不改变既有OAuth issuer或MCP resource。
 
-## 连接保持规则
+## 连接与草稿保持
 
-- `BETTER_AUTH_URL`、OAuth issuer、MCP resource 与客户端仍采用 Vercel 原地址。保留原 Better Auth secret、JWKS、账号 accessVersion、会话、刷新令牌、授权和审计，不批量重置或要求重连。
-- 两个网页域各自使用 host-only Secure Cookie；国服初次登录不等于撤销国际站的会话。认证与人工确认仍使用同一业务 feature。
-- Garmin 的固定试运行账号与 AES-GCM 主密钥保留，连接编号、密文凭据、来源事实、采用快照及人工保护一并迁移。不能重新生成主密钥后声称旧连接可用。
-- 国际网关仅持有回源与图片服务证明及 Blob 所需配置，不携带数据库驱动、数据库凭据或认证签名密钥。上海重新验证 Cookie／Bearer、账号与权限。
-- IP 的同一个 HTTPS 入口支持国服直达和已签名国际回源；伪造身份头不会变成国际请求，未签名的独立回源域仍拒绝访问。
+- BETTER_AUTH_URL、OAuth issuer、MCP resource、JWKS、原Better Auth secret、账号accessVersion、会话、刷新令牌和授权保持。原GPT连接已在线get_profile验证，无需重连。
+- 两个域的host-only Secure Cookie继续隔离。网页跳转不转交Cookie、Authorization或请求正文；国服使用本人在国服的会话，首次进入可正常登录。
+- 切换前已打开页面的RSC读取、预取及POST保存继续原路径；不跨域重放写入。保留当前上线版本46项Server Action标识、绑定参数加密密钥与旧静态资源，已用真实旧页草稿保存验证。
+- Next proxy保留原始URL及RSC头，服务证明绑定完整路径与全部查询。不能为修复框架归一化而忽略业务查询或放宽签名。
+- Garmin原连接编号、密文、AES-GCM主密钥、来源事实及人工保护保持；上海只读网络检查验证换取令牌、每日和活动接口成功。
+- 海外网关不包含数据库驱动、数据库凭据或认证签名密钥。上海重新检查Cookie／Bearer、账号和权限。公网IP同一HTTPS入口区分国服直达与已签名回源，伪造身份头不能提升来源。
 
-## 数据与图片迁移
+## 应用发布与恢复
 
-上海正式库为 PostgreSQL 18.6、UTF8，54 张表、34 条 migration；源库为33条。已有 migration 保持；原区域原型的 0028 不并入正式迁移账本，新增 `0034_regional_image_storage` 仅为 meal_images 增加 storage_provider 与 storage_location，已有图片默认 blob／legacy，不改原附件编号、路径、关联及审计。
+1. 从最新已发布应用合入当前授权变更，保留其他上线功能；从同一干净提交生成两端产物并绑定锁文件、migration摘要、BUILD_ID和协议。
+2. 完成隔离测试、必要浏览器验收和实际异机备份校验。只读核对完整库时使用服务器本地管理身份，不扩大应用角色权限。
+3. 在私有回环端口检查新应用与正式库身份，验证当前版本表单兼容；原子切换上海应用，再提升海外后台别名。保留兼容当前schema的应用回退。
+4. 验证原GPT、Garmin、私有图片、网页跳转和登录返回；比较发布前后结构、业务、审计、授权及配置。正常使用时间与限流元数据单独核对，不笼统豁免健康表。
+5. 本次安全应用回退为/srv/formward-primary/releases/body-observed-20261109及其海外READY dpl_4fNL8bJcnQtaaTwVeMPfzXia4BUg；两者兼容0035。只切应用，保留用户新增记录，不恢复旧估算能力或旧Neon快照。
 
-最终原生归档在源库隔离后导出；长时间跨境导出的收尾连接失败后，保留完整归档并重新在只读事务生成源摘要。恢复库的 public／drizzle、全部行、列、约束、索引和序列逐项核对零差异后才执行0034并开放；不导入 Neon 平台角色或 ACL。备份与凭据只保存于受限私有目录，不放入部署归档或 public。
+数据库灾难恢复须另行停写并保全新增记录与撤销状态；先将最新加密归档恢复到隔离库完整核对，再制定正式恢复方案。已完成的0034／0035不重复执行，不修改已发布migration。
 
-最终源归档为54表、2,624行；源与恢复库的摘要零差异，0034后既有业务和授权值保持。正式库另做原生备份并完整恢复通过，不能用准备阶段2,604行基线代替本次结果。
+## 图片、备份与维护
 
-数据库归档不含照片原件。旧 Blob 的读取经国际图片节点完成；COS 保持私有 ACL，CORS 在保留原规则的基础上增加 IP 国服来源，旧图原件回读SHA一致，COS临时图片写／读／删已验证。不得为调试把图片桶改为公开。
+数据库只保存图片归属与引用，不含原件。旧Blob经海外工作节点私有读取；本次600911字节旧图SHA与原附件一致。上海COS虚构68字节PNG写入、回读及清理通过，桶保持私有，没有新增永久Blob静态密钥。
 
-## 再次切换或恢复时的顺序
+每日03:20备份正式库，生成原生归档与AES-256-GCM副本，再上传私有上海COS的database-backups/formward-primary/v1/目录；完整回读及SHA一致才成功。失败保留本机文件，每5分钟重试，1小时最多3次。本机匹配日备份保留14天，远端暂不自动删除。授权仅为该备份目录PutObject／GetObject／HeadObject，不含远端删除或密钥上传。
 
-1. 从同一干净提交构建上海 standalone 与国际 Build Output，绑定源码、锁文件、migration、BUILD_ID 和协议摘要；部署包不含环境文件或健康备份。
-2. 在独立服务器目标恢复并核对，验证 TLS 回源、旧授权、Garmin 网络、Blob／COS 及正式库备份恢复；准备兼容应用回退版本。
-3. 启用明确的短维护窗口，暂停网页、API、OAuth 刷新与后台同步，等待在途事务结束；制作最终一致性归档，恢复到空主库，逐项核对并执行 0034。
-4. 保持原授权配置，原子切换国服与国际入口至同一服务器业务实例；验证现有 GPT 连接、刷新、网页保存及两入口一致后开放写入。旧 Neon 保持停写。
-5. 将 Garmin 定时同步、主库每日备份、证书续期与异机加密备份纳入实际服务器任务；记录恢复演练与未测项。
+原生与加密备份位于/var/backups/formward-primary，root0700；密钥独立root0600并另有用户电脑私有副本。0035后的实际云端副本已完整恢复至隔离库验证54表、35条migration及有效约束，详见[交接](../handoff.md)。备份不含Blob／COS原图；每日自动校验归档和云端回读，不等于每日自动完整恢复。
 
-目标开始产生新记录后，回退不能直接指回旧 Neon 快照；先停写并保全新增记录、撤销状态与审计，再制定同步和恢复方案。应用回退仅允许使用兼容当前 schema 与服务协议的版本。
+每日06:00 Garmin同步、主库备份与IP证书续期timer均保持active。IP续期每6小时检查，配置3天续期间隔；自然续证、14天清理与长期跨境性能仍按完整周期观察。资源、网络与可视化数据库方法见[服务器查看指南](server-operations.md)，本次实际证据和边界见[验收记录](regional-acceptance.md)。
 
-运行代码与配置位于 [服务器维护工具](../scripts/self-hosting/README.md)，当前 IP 演示环境见 [IP 入口](ip-preview.md)，验证边界见 [双入口验收](regional-acceptance.md)。
-
-公开构建资源 /_next/static/ 不要求业务 Host 或服务证明：Next 图片优化器的内部读取不附带 Host。只放行公开构建资源并清除外来身份头；健康 API、OAuth 及网页业务继续执行来源和身份检查。
-
-资源、监控和只读数据库操作见[服务器查看指南](server-operations.md)。
+工具与配置见[维护工具](../scripts/self-hosting/README.md)，隔离演示环境见[IP入口](ip-preview.md)。公开/_next/static/资源在清除外来身份头后允许无Host内部读取，业务来源、授权及健康接口检查继续有效。

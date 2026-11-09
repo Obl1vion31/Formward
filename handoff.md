@@ -1,12 +1,28 @@
 # Formward 项目交接
 
-## 当前部署：身体仅保留实测
+## 当前部署：一个国服网页与海外AI后台
 
-[国内入口](https://43.142.148.58)、[国际入口](https://formward-ten.vercel.app)及global.formward.top共用上海formward_primary。旧Neon凭据已失效，不得再次隔离源、重新初始化正式库或把别名恢复到旧Neon应用。两个域Cookie独立，账号、OAuth issuer、JWKS、Better Auth secret、Garmin密文及主密钥保持。
+日常使用 [https://43.142.148.58](https://43.142.148.58)。Vercel原域名 https://formward-ten.vercel.app 与global.formward.top保留GPT／MCP、OAuth和海外图片服务；普通网页GET／HEAD转到国服，路径和查询保持。四类AI审核链接统一国服，未登录后返回原确认页。两个域Cookie独立，不搬运凭据；原GPT和Garmin无需重连。
+
+应用141445b0474c0fa0723d243ad44bbd1ec94fb286，分支codex/mainland-dual-entry，发布single-web-current-20261109，版本dual-entry-141445b0-single-web-current-20261109，BUILD_ID C2tZf20bDMFuElnOE4wd1。两端同源构建，海外READY dpl_24PpPLF4KJeSZroWPnJijGKodMNQ、CLE1，两正式别名API已核对。后续测试／文档提交不改变该应用，未合入或推送main，其他工作区保持。
+
+唯一主库为上海formward_primary，54表、35条migration。已合入当前上线身体实测版本171f249与其文档，未回退0035或新上线界面。本轮没有migration、账号重置或正式虚构健康记录。发布前后结构与所有业务／审计表摘要一致；仅oauth_connections.last_used_at及rate_limits变化，OAuth安全摘要和除FORMWARD_SINGLE_WEB之外的配置摘要保持。Neon继续停写，不能重新初始化、重复迁移或恢复旧Neon入口。
+
+Next proxy保留原始URL及RSC头，完整查询参与签名；避免框架移除_rsc导致403。保留切换前当前版本46项Server Action标识和加密密钥、旧静态文件；Chromium／WebKit实际验证旧页草稿继续保存。国服匿名审核经真实登录回原预览、确认保存、旧OAuth查询和跨账号404均通过，原Cookie／JWT／refresh的受信任CA实请求验证通过。
+
+571项单元／集成、lint、typecheck、干净production build通过；两引擎各12张深浅主题／手机／电脑截图及完整录屏已核看。线上原GPT get_profile同一账号通过；上海Garmin令牌、每日、活动接口成功；旧私有Blob600911字节SHA及COS临时68字节PNG写／读／清理通过。真实手机、系统键盘与长期跨境性能未测。本轮未重新宣称全站慢网1px矩阵通过，原身体实测专项证据仍保留。
+
+上海实际启用时间2026-11-09T15:41:04.276160Z；应用观察至15:47:42.228836Z，journal匹配错误0；不据此宣称完整请求历史或20分钟观察。备份、Garmin、IP证书timer均active；发布前异机备份已回读校验。安全应用回退保留body-observed-20261109及海外dpl_4fNL8bJcnQtaaTwVeMPfzXia4BUg，兼容0035，只回退应用、不恢复旧数据。
+
+私有证据为本工作树.codex/single-web、.codex/regional-releases/single-web-current-20261109与服务器/var/lib/formward/single-web-20261109。只读摘要采用服务器postgres本地身份，不扩大程序账号权限；失败保护脚本和候选服务重试均保留，正式数据未受影响。公开国服入口截图在C:/Users/14878/.codex/visualizations/2026/11/09/formward-single-web。部署职责、恢复顺序及验收见[国服与后台](docs/mainland-deployment.md)、[验收记录](docs/regional-acceptance.md)。
+
+## 保留能力：身体仅保留实测
+
+身体实测规则和0035已包含于当前应用，以下保留其数据迁移与验收依据。不能恢复旧估计能力。
 
 身体估算已完整退役：网页录入、总览／身体估计开关、曲线标记、依据、助手／教程、AI能力、导出及初始化／补全／重建算法与脚本均移除。晨晚实测、体脂偏好、真实7日均值与变化保留，缺测为null并断线；饮食及热量估算保持。旧estimate_cell返回410 feature_removed，含该项的旧混合任务整批停止，原草稿及审计保留。
 
-应用源码171f2492373be2e6d49353c8f65df5d7e8a3042f，分支codex/retire-body-estimates；版本dual-entry-171f2492-body-observed-20261109，BUILD_ID vHmep1SfdwCGO4zNwyCb2。国际READY dpl_4fNL8bJcnQtaaTwVeMPfzXia4BUg，两正式别名API均核对指向该部署。三个入口版本、OpenAPI1.15.0、原issuer、私有查询保护及实际身体JS的SHA均一致。后续文档提交不改变正式应用；未合入或推送main，未覆盖共享原工作区变更。
+身体实测功能发布时的应用源码171f2492373be2e6d49353c8f65df5d7e8a3042f，分支codex/retire-body-estimates；版本dual-entry-171f2492-body-observed-20261109，BUILD_ID vHmep1SfdwCGO4zNwyCb2。国际READY dpl_4fNL8bJcnQtaaTwVeMPfzXia4BUg，两正式别名API均核对指向该部署。三个入口版本、OpenAPI1.15.0、原issuer、私有查询保护及实际身体JS的SHA均一致。后续文档提交不改变正式应用；未合入或推送main，未覆盖共享原工作区变更。
 
 0035_retire_body_estimates已在上海主库完成：32条有效estimated归档，现有效估计0；90条observed（89条有效）及全部原始导入、既有审计在同一事务内按行摘要核对不变。估计仅为私有审计载体保留，数据库约束禁止其成为有效记录，估计专用索引移除。正式共54表（53张public业务表及1张drizzle账本）、35条migration。没有正式虚构账号或新增实测测试数据。
 
