@@ -22,7 +22,7 @@ export function adoptedMeasurements<T extends DailyMeasurement>(rows:T[]):T[] {
   const slots=new Map<string,T[]>();
   for(const row of rows.filter(row=>!row.deletedAt&&row.recordKind!=="estimated")){const key=row.recordDate+":"+row.period;slots.set(key,[...(slots.get(key)??[]),row]);}
   const chosen=new Set([...slots.values()].map(rows=>latestMeasurement(rows)!.id));
-  return rows.filter(row=>!row.deletedAt&&(row.recordKind==="estimated"||chosen.has(row.id)));
+  return rows.filter(row=>!row.deletedAt&&row.recordKind!=="estimated"&&chosen.has(row.id));
 }
 /** 晨晚差只能来自同归属日的真实、条件明确的配对。 */
 export function isRealMeasurementPair(daytime: DailyMeasurement | null, evening: DailyMeasurement | null) {
@@ -38,7 +38,7 @@ export function measurementWeightDifference(daytime: DailyMeasurement | null, ev
     : null;
 }
 
-/** 各时段共同采用最后保存的实测，实测优先于估计。 */
+/** 各时段共同采用最后保存的实测，缺测保持为空。 */
 export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], _choices: Record<string, string> = {}, metric: "weightKg" | "bodyFatPercent" = "weightKg", dates: string[] = []) {
   void _choices;
   const groups = new Map<string, { date: string; daytime: T[]; evening: T[] }>();
@@ -50,7 +50,6 @@ export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], _
   for (const date of dates) if (!groups.has(date)) groups.set(date, { date, daytime: [], evening: [] });
   return [...groups.values()].sort((a, b) => b.date.localeCompare(a.date)).map((group) => {
     const allRecords = [...group.daytime, ...group.evening];
-    const estimates = allRecords.filter((row) => row.recordKind === "estimated");
     for (const period of ["daytime", "evening"] as const) {
       if (group[period].some((row) => row.recordKind !== "estimated")) group[period] = group[period].filter((row) => row.recordKind !== "estimated");
     }
@@ -60,7 +59,7 @@ export function buildMeasurementDays<T extends DailyMeasurement>(records: T[], _
       const selected = latestMeasurement(observed);
       if (observed.length && !selected) return null;
       if (selected && (selected[metric] !== null || selected.fasting !== (period === "daytime"))) return selected;
-      return estimates.find((row) => row.period === period && row[metric] !== null) ?? selected;
+      return selected;
     };
     const daytime = pick("daytime");
     const evening = pick("evening");

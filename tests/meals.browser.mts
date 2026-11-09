@@ -105,7 +105,7 @@ try {
   let state = await currentMeals();
   await page.getByRole("link",{name:"Formward 主页",exact:true}).click();await page.getByRole("heading",{name:"总览",exact:true}).waitFor();
   assert.ok((await page.getByRole("link",{name:"饮食记录",exact:true}).innerText()).includes("2 餐"));
-  assert.equal(await page.getByRole("button",{name:"30D",exact:true}).getAttribute("aria-pressed"),"true");assert.equal(await page.getByLabel("显示体重估计",{exact:true}).isChecked(),true);
+  assert.equal(await page.getByRole("button",{name:"30D",exact:true}).getAttribute("aria-pressed"),"true");assert.equal(await page.getByLabel("显示体重估计",{exact:true}).count(),0);
   await mkdir("/tmp/formward-overview-visual",{recursive:true});
   for(const width of [1440,1100,390,320]){
     await page.setViewportSize({width,height:1000});

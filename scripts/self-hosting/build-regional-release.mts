@@ -49,7 +49,7 @@ try{
  // 源码归档没有独立.git，必须从仓库根目录读取指定提交；不能让Git按临时目录前缀过滤结果。
  const migration=run("git",["ls-tree","-r",commit,"--","drizzle"]);
  if(!migration.includes("drizzle/0034_regional_image_storage.sql")||!migration.includes("drizzle/meta/_journal.json"))throw new Error("迁移清单缺失，拒绝生成发布包。");
- const manifest={release,commit,lockSha256:createHash("sha256").update(lock).digest("hex"),migrationSha256:createHash("sha256").update(migration).digest("hex"),buildId,protocol:"formward-regional-v1",schema:"0034_regional_image_storage",createdAt:new Date().toISOString()};
+ const manifest={release,commit,lockSha256:createHash("sha256").update(lock).digest("hex"),migrationSha256:createHash("sha256").update(migration).digest("hex"),buildId,protocol:"formward-regional-v1",schema:JSON.parse(await readFile(join(source,"drizzle/meta/_journal.json"),"utf8")).entries.at(-1).tag,createdAt:new Date().toISOString()};
  for(const folder of [standalone,fn]){await writeFile(join(folder,"release-manifest.json"),JSON.stringify(manifest,null,2));await writeFile(join(folder,"SOURCE_COMMIT"),commit+"\n");await writeFile(join(folder,"BUILD_ID"),buildId+"\n");}
  for(const [name,folder]of [["standalone",standalone],["international",join(target,"international")]]){const file=join(target,name+".tar.gz");run("tar",["-czf",file,"-C",folder,"."]);const digest=createHash("sha256").update(await readFile(file)).digest("hex");await writeFile(file+".sha256",digest+"  "+name+".tar.gz\n");}
  await writeFile(join(target,"release-manifest.json"),JSON.stringify(manifest,null,2));console.log(JSON.stringify({release,commit,buildId,path:target}));

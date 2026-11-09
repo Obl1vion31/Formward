@@ -139,7 +139,6 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     await assertLoading("正在保存记录…", "loading-save-mobile-320");
     assert.equal(await loading().locator(".page-loading-spinner").evaluate(node => getComputedStyle(node).animationName), "none");
     await mobileGate.release(); await ready(); await form.getByRole("status").waitFor();
-    await slowAction("正在估算晚间体脂率…", () => form.getByRole("button", { name: "估算晚间体脂率", exact: true }).click());
     assert.equal(await form.getByLabel("晚间体脂率", { exact: true }).inputValue(), "", "样本不足保持空白");
     await page.getByRole("button", { name: "关闭记录详情" }).click(); await page.locator("dialog").waitFor({ state: "detached" });
     assert.equal(await page.evaluate(() => document.body.style.overflow), ""); assert.equal(await page.evaluate(() => document.body.style.paddingRight), "");
@@ -242,7 +241,7 @@ export async function checkPageLoadingBrowser({ baseURL, account, date }) {
     await page.goto(baseURL, { waitUntil: "domcontentloaded" }); await failedImage.wait(); await assertLoading("正在加载登录页面…");
     await failedImage.release("abort"); await ready(); await page.getByText("动画加载失败，请刷新重试", { exact: true }).waitFor();
     assert.deepEqual(errors, []);
-    console.log("通过：加载延迟、真实保存／估算／审核／导航／登录、最上层遮罩、失败草稿、滚动锁、窄屏与减少动态效果。");
+    console.log("通过：加载延迟、真实保存／审核／导航／登录、最上层遮罩、失败草稿、滚动锁、窄屏与减少动态效果。");
   } catch (error) {
     console.log("加载验收诊断：", { warnings, requests: requests.slice(-8), buttons: await page.locator('[aria-label="统一记录确认"] button').allTextContents() });
     throw error;

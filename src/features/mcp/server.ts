@@ -1,3 +1,4 @@
+import { assertBodyEstimateRemoved } from "../measurements/retirement";
 import { exerciseCatalog, searchExercises } from '../training/catalog';
 import { queryTraining } from '../training/ai-api';
 import { isTraining, trainingActionSchemas, trainingAiInstructions } from '../training/ai-model';
@@ -40,13 +41,12 @@ function authorizationScopes(required: string[], granted: string[]) {
 }
 
 function recordScopes(items: { kind: string }[], write: boolean) {
-  return [...new Set(items.map(item => isTraining(item) ? write ? TRAINING_WRITE_SCOPE : TRAINING_READ_SCOPE : isEnergy(item) ? write ? ENERGY_WRITE_SCOPE : ENERGY_READ_SCOPE : item.kind === "save_record" || item.kind === "estimate_cell" ? write ? WRITE_SCOPE : READ_SCOPE : write ? MEALS_WRITE_SCOPE : MEALS_READ_SCOPE))];
+  return [...new Set(items.map(item => isTraining(item) ? write ? TRAINING_WRITE_SCOPE : TRAINING_READ_SCOPE : isEnergy(item) ? write ? ENERGY_WRITE_SCOPE : ENERGY_READ_SCOPE : item.kind === "save_record" ? write ? WRITE_SCOPE : READ_SCOPE : write ? MEALS_WRITE_SCOPE : MEALS_READ_SCOPE))];
 }
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("记录日期 YYYY-MM-DD，包含边界日期");
 const period = z.enum(["daytime", "evening"]).describe("daytime 为晨间空腹；evening 为晚间非空腹");
 const nullableText = z.string().nullable().optional();
 const saveRecord = z.object({ kind: z.literal("save_record"), date, period, recordId: z.string().optional(), version: z.string().optional(), weightKg: nullableText.describe("kg 十进制字符串；未知为 null"), bodyFatPercent: nullableText.describe("百分比十进制字符串；未知为 null"), sourceUnspecifiedConfirmed: z.boolean().optional().describe("仅在用户明确同意不填写来源时为 true，同时 deviceLabel 为 null；未回答不能代确认"), deviceLabel: nullableText.describe("用户提供并确认的真实设备／应用来源名称。未提供时先询问，不能用 ChatGPT 手动提供、设备未注明等描述代填。用户明确不填时传 null 和 sourceUnspecifiedConfirmed=true"), fasting: z.boolean().nullable().optional(), timezone: nullableText.describe("当次 +08:00 等偏移或 IANA 时区；省略新记录采用默认时区，旧记录保留原值") }).strict();
-const estimateCell = z.object({ kind: z.literal("estimate_cell"), date, period, metric: z.enum(["weightKg", "bodyFatPercent"]) }).strict();
 const outputSchema = z.object({}).catchall(z.unknown());
 
 function toolPolicy(scopes: string[], readOnly: boolean, profile = false) {
@@ -56,7 +56,7 @@ function toolPolicy(scopes: string[], readOnly: boolean, profile = false) {
 
 export function createFormwardMcp(db: Database, identity: AiIdentity, grantedScopes: string[], request: Request) {
   const resource = new URL("/api/mcp", regionConfig().enabled ? regionConfig().canonical : siteOrigin(request)).href;
-  const server = new McpServer({ name: "Formward", version: "1.14.0" }, { instructions: "用户明确要求完整接入或补齐授权时，先调用authorize_formward一次请求身体、饮食、消耗和训练的查询与提交预览权限；此工具不生成健康预览，仍需用户OAuth同意。查询自己的身体记录时使用 query_measurements。身体记录的新录入、历史修改、估算通过 submit_measurement_operation 生成预览，将 confirmationUrl 完整提供给用户，等待用户在 Formward 网页确认。不要声称预览已经保存。未知值为 null，实测与估计必须区分，不把体重差解释为确定的热量或因果。重复提交沿用相同 operationId。用户未提供测量来源时，先询问实际设备／应用来源或是否确认不填写；可以列出查询返回的历史 sources 供选择，不能擅自沿用，也不能把 ChatGPT／手动提供当作测量来源。用户明确留空时传 deviceLabel:null 和 sourceUnspecifiedConfirmed:true。响应 needsUserInput 非空时说明待补信息，询问用户或让其在网页补填，不能把有问题的预览说成可直接保存。" + mealAiInstructions + recordAiInstructions + energyAiInstructions + trainingAiInstructions });
+  const server = new McpServer({ name: "Formward", version: "1.15.0" }, { instructions: "用户明确要求完整接入或补齐授权时，先调用authorize_formward一次请求身体、饮食、消耗和训练的查询与提交预览权限；此工具不生成健康预览，仍需用户OAuth同意。查询自己的身体记录时使用 query_measurements。身体记录的新录入、历史修改通过 submit_measurement_operation 生成预览，将 confirmationUrl 完整提供给用户，等待用户在 Formward 网页确认。不要声称预览已经保存。未知值为 null，只接收实测，不把体重差解释为确定的热量或因果。重复提交沿用相同 operationId。用户未提供测量来源时，先询问实际设备／应用来源或是否确认不填写；可以列出查询返回的历史 sources 供选择，不能擅自沿用，也不能把 ChatGPT／手动提供当作测量来源。用户明确留空时传 deviceLabel:null 和 sourceUnspecifiedConfirmed:true。响应 needsUserInput 非空时说明待补信息，询问用户或让其在网页补填，不能把有问题的预览说成可直接保存。" + mealAiInstructions + recordAiInstructions + energyAiInstructions + trainingAiInstructions });
   async function execute(scopes: string[], work: () => Promise<Record<string, unknown>>) {
     try {
       if (scopes.some(scope => !grantedScopes.includes(scope))) throw new ApiError(403, "insufficient_scope", "当前账号连接缺少权限，请重新授权。");
@@ -75,12 +75,12 @@ export function createFormwardMcp(db: Database, identity: AiIdentity, grantedSco
     if (!profile) throw new ApiError(401, "invalid_token", "账号不存在。");
     return profile;
   }));
-  server.registerTool("query_measurements", { title: "查询身体记录", description: "查询授权账号的体重、体脂、来源、时区、候选与趋势。实测和估计分别标记，摘要仅统计实测；体脂变化单位为百分点，未知值为 null。from/to 为记录日期。需要分析之前先查询数据。", inputSchema: z.object({ from: date.optional(), to: date.optional(), choices: z.record(z.string(), z.string()).optional().describe("本次查询选择的候选：日期:时段 → recordId，不修改持久记录"), timezone: z.string().optional().describe("本次用户所在地时区；未知时省略") }).strict(), ...toolPolicy([READ_SCOPE], true) }, args => execute([READ_SCOPE], async () => {
+  server.registerTool("query_measurements", { title: "查询身体记录", description: "查询授权账号的体重、体脂、来源、时区、候选与趋势。只返回实测；体脂变化单位为百分点，未知值为 null。from/to 为记录日期。需要分析之前先查询数据。", inputSchema: z.object({ from: date.optional(), to: date.optional(), choices: z.record(z.string(), z.string()).optional().describe("本次查询选择的候选：日期:时段 → recordId，不修改持久记录"), timezone: z.string().optional().describe("本次用户所在地时区；未知时省略") }).strict(), ...toolPolicy([READ_SCOPE], true) }, args => execute([READ_SCOPE], async () => {
     const params = new URLSearchParams();
     if (args.from) params.set("from", args.from); if (args.to) params.set("to", args.to); if (args.choices) params.set("choices", JSON.stringify(args.choices));
     return queryAiMeasurements(db, identity.userId, params, args.timezone ?? systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
   }));
-  server.registerTool("submit_measurement_operation", { title: "提交身体记录审核", description: "将用户提供的录入、带 recordId+version 的历史修改或显式估算提交为待审核预览，最多 100 条、64 KiB。数值使用十进制字符串，晨间须 fasting=true。提交前先确认来源：用户提供实际名称，或明确同意不填写，使用 deviceLabel:null 和 sourceUnspecifiedConfirmed:true；用户未回答则先询问，不能创造占位来源。重复请求必须沿用同一 operationId，不能用同一 ID 改内容。返回 confirmationUrl 后要求用户登录网页确认；此工具不会保存健康记录。", inputSchema: z.object({ operationId: z.string().regex(/^[a-zA-Z0-9-]{8,120}$/).describe("为本次请求生成唯一标识，重试保持不变"), items: z.array(z.discriminatedUnion("kind", [saveRecord, estimateCell])).min(1).max(100), timezone: z.string().optional().describe("新记录默认使用的用户时区，未提供时采用服务器配置") }).strict(), ...toolPolicy([WRITE_SCOPE], false) }, args => execute([WRITE_SCOPE], async () => {
+  server.registerTool("submit_measurement_operation", { title: "提交身体记录审核", description: "将用户提供的录入、带 recordId+version 的历史修改提交为待审核预览，最多 100 条、64 KiB。数值使用十进制字符串，晨间须 fasting=true。提交前先确认来源：用户提供实际名称，或明确同意不填写，使用 deviceLabel:null 和 sourceUnspecifiedConfirmed:true；用户未回答则先询问，不能创造占位来源。重复请求必须沿用同一 operationId，不能用同一 ID 改内容。返回 confirmationUrl 后要求用户登录网页确认；此工具不会保存健康记录。", inputSchema: z.object({ operationId: z.string().regex(/^[a-zA-Z0-9-]{8,120}$/).describe("为本次请求生成唯一标识，重试保持不变"), items: z.array(z.discriminatedUnion("kind", [saveRecord])).min(1).max(100), timezone: z.string().optional().describe("新记录默认使用的用户时区，未提供时采用服务器配置") }).strict(), ...toolPolicy([WRITE_SCOPE], false) }, args => execute([WRITE_SCOPE], async () => {
     const input = { kind: "batch", operationId: args.operationId, items: args.items };
     if (Buffer.byteLength(JSON.stringify(input)) > 65536) throw new ApiError(413, "invalid_input", "单次操作内容超过 64 KiB。");
     const timezone = args.timezone ?? systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE); validateMeasurementTimezone(timezone);
@@ -158,6 +158,7 @@ async function traceMcpRequest(request: Request) {
     const input = JSON.parse(Buffer.concat(chunks).toString());
     const name = input?.method === "tools/call" ? input?.params?.name : null;
     const known = ["search_exercises","query_training","submit_training_operation","get_training_operation","authorize_formward","get_profile","query_energy","query_measurements","submit_measurement_operation","get_measurement_operation","search_foods","query_meals","submit_meal_operation","get_meal_operation","import_meal_images","submit_record_operation","get_record_operation"];
+    if (["submit_measurement_operation", "submit_record_operation"].includes(name)) assertBodyEstimateRemoved(input?.params?.arguments);
     if (known.includes(name)) {
       const files=input?.params?.arguments?.files, first=Array.isArray(files)?files[0]:null;
       console.info(JSON.stringify({event:"mcp_tool_call",tool:name,...(name==="import_meal_images"?{fileCount:Array.isArray(files)?files.length:null,fileShape:typeof first,hasDownloadUrl:typeof first?.download_url==="string",hasFileId:typeof first?.file_id==="string"}:{})}));

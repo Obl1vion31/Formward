@@ -40,7 +40,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
   const [defaultTimezone, setDefaultTimezone] = useState(systemMeasurementTimezone);
   const [automatic,setAutomatic] = useState(()=>Object.fromEntries((["daytime","evening"] as const).map(period=>[period,habitualMeasurementSource(records,sources,date,period)])) as Record<EntryPeriod,string>);
   const [draft, setDraft] = useState(() => {const value=makeDraft(records,date,choices,defaultTimezone);for(const period of ["daytime","evening"] as const)if(!measurementEntryState(records,date,choices).find(g=>g.period===period)?.observed)value[period].deviceLabel=automatic[period];return value;});
-  const [selected,setSelected]=useState<EntryPeriod>(initialPeriod),[advanced,setAdvanced]=useState(new Set<EntryPeriod>()),[realEditing,setRealEditing]=useState(new Set<string>()),[errorTarget,setErrorTarget]=useState("");
+  const [selected,setSelected]=useState<EntryPeriod>(initialPeriod),[advanced,setAdvanced]=useState(new Set<EntryPeriod>()),[errorTarget,setErrorTarget]=useState("");
   const [touchedSources,setTouchedSources]=useState(new Set<EntryPeriod>());
   const [working, setWorking] = useState(false), [message, setMessage] = useState(""), [error, setError] = useState("");
   const [transitionPending, startTransition] = useTransition();
@@ -61,7 +61,6 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
   };
   const dirty=groups.some(group=>!group.pending&&!group.blocked&&(valuesChanged(group.period)||!!group.observed&&periodDirty(group.period)));
   const hasDraft=(["daytime","evening"] as const).some(periodDirty);
-  const hasUnsavedValues=(["daytime","evening"] as const).some(valuesChanged);
   useDraftGuard(hasDraft,busy);
   // 新服务端快照只更新干净表单；草稿继续绑定开始编辑时的版本。
   if (records !== lastRecords) {
@@ -116,7 +115,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
     run("正在保存记录…", async () => {
       const expected=Object.keys(periods).map(period=>{const row=measurementEntryState(baseRecords,date).find(group=>group.period===period)?.observed;return {key:`measurement:${date}:${period}:observed`,version:row?row.id+":"+row.updatedAt:null,summary:row?`体重 ${row.weightKg??"—"} kg · 体脂 ${row.bodyFatPercent??"—"}%`:undefined};});
       const latest=await verifyRecordVersions(expected);for(const period of Object.keys(periods) as EntryPeriod[]){const row=latest.get(`measurement:${date}:${period}:observed`);if(row){periods[period]!.recordId=row.id;periods[period]!.version=row.version.slice(row.id.length+1);}}
-      const result=await actions.save({...payload,operationId:operationId(["save",payload])});if(result.ok)acknowledgeRecordChanges([...expected.map(row=>row.key),...Object.keys(periods).filter(period=>baseRecords.some(row=>row.recordDate===date&&row.period===period&&row.recordKind==="estimated")).map(period=>`measurement:${date}:${period}:estimated`)],measurementVersions(result.records));return result;
+      const result=await actions.save({...payload,operationId:operationId(["save",payload])});if(result.ok)acknowledgeRecordChanges(expected.map(row=>row.key),measurementVersions(result.records));return result;
     },[],Object.keys(periods) as EntryPeriod[]);
   }
   async function removeSource(label:string){
@@ -135,15 +134,13 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
         <legend><span>{periodName(group.period)} · {group.blocked?"空腹条件未确认":group.period==="daytime"?"空腹":"非空腹"}</span><button type="button" aria-expanded={advanced.has(group.period)} onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(group.period))next.delete(group.period);else next.add(group.period);return next;})}>更多设置</button></legend>
         {group.pending?<label>选择已有实测<select aria-label={"录入"+periodName(group.period)+"候选记录"} value="" onChange={event=>onChoose(date,group.period,event.target.value)}><option value="">选择已有记录</option>{group.candidates.map(row=><option value={row.id} key={row.id}>{row.sourceLocalTime}</option>)}</select></label>:<>
           <div className={styles.bodyMetricFields}>{visibleMetrics.map(metric=>{
-            const cell=group.fields[metric],label=periodName(group.period)+metricName(metric),key=group.period+":"+metric,estimated=cell.kind==="estimated"&&!draft[group.period][metric]&&!realEditing.has(key),editable=!group.blocked&&!future;
-            return <div className={styles.entryCell} key={metric} data-entry-cell={key} data-kind={cell.kind} data-estimated-wide={estimated&&formatRecordNumber(cell.value).length>5}>
-              <label htmlFor={estimated?undefined:"entry-"+group.period+"-"+metric}>{metricName(metric)}{estimated?<span role="status">估计 · 已保存</span>:<small>{metric==="weightKg"?"kg":"%"}</small>}</label>
-              {estimated?<div className={styles.estimatedCell}><strong>{formatRecordNumber(cell.value)} <small>{metric==="weightKg"?"kg":"%"}</small></strong>{editable&&<button type="button" aria-label="录入实测" title="录入实测" onClick={()=>{setRealEditing(previous=>new Set([...previous,key]));requestAnimationFrame(()=>document.getElementById("entry-"+group.period+"-"+metric)?.focus());}}>填实测</button>}</div>:<div className={styles.entryInputRow}>
+            const cell=group.fields[metric],label=periodName(group.period)+metricName(metric),key=group.period+":"+metric,editable=!group.blocked&&!future;
+            return <div className={styles.entryCell} key={metric} data-entry-cell={key} data-kind={cell.kind}>
+              <label htmlFor={"entry-"+group.period+"-"+metric}>{metricName(metric)}<small>{metric==="weightKg"?"kg":"%"}</small></label>
+              <div className={styles.entryInputRow}>
                 {editable?<DecimalInput id={"entry-"+group.period+"-"+metric} aria-label={label} min={0} placeholder="实测值" value={draft[group.period][metric]} onValue={value=>setField(group.period,metric,value)}/>:<span className={styles.entryRecorded}>{formatRecordNumber(cell.value)}</span>}
                 {actions.deleteCell&&group.observed?.[metric]!=null&&<button type="button" className={styles.deleteCell} disabled={busy||hasDraft} aria-label={"删除"+label} onClick={async()=>{const original=group.observed!;if(await confirmAction({title:"删除"+label+"？",danger:true,confirmLabel:"删除"+metricName(metric),message:"删除 "+date+" "+label+" "+formatRecordNumber(original[metric])+"？其他指标保留。"}))run("正在删除这一项…",()=>actions.deleteCell!({recordId:original.id,version:original.updatedAt,metric,operationId:operationId(["delete",original.id,original.updatedAt,metric])}),["measurement:"+date+":"+group.period+":observed"],[group.period]);}}>×</button>}
-                {cell.kind==="missing"&&editable&&<button type="button" className={styles.estimateAction} aria-label={"估算"+label} disabled={busy||hasUnsavedValues} onClick={()=>{const payload={date,period:group.period,metric};run("正在估算"+label+"…",()=>actions.estimate({...payload,operationId:operationId(["estimate",payload])}),["measurement:"+date+":"+group.period+":estimated"],[],key);}}>估算</button>}
-              </div>}
-              {!estimated&&editable&&cell.kind==="estimated"&&<small className={styles.entryReference}>原估计 {formatRecordNumber(cell.value)} · 填写真实读数</small>}
+              </div>
               {error&&errorTarget===key&&<small className={styles.entryError} role="status">{error}</small>}
             </div>;
           })}</div>
@@ -154,7 +151,6 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       </fieldset>)}
     </div>
     {future&&<p role="alert" className={styles.entryError}>不能录入未来日期的身体记录。</p>}
-    {hasUnsavedValues&&groups.some(group=>visibleMetrics.some(metric=>group.fields[metric].kind==="missing"&&!draft[group.period][metric]))&&<p className={styles.entryHint}>先保存实测，再估算剩余项。</p>}
     <div className={styles.entryFooter}><div>{error&&<p role="alert" className={styles.entryError}>{error}</p>}{message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button type="submit" className={styles.saveEntry} disabled={busy||!dirty||future}>{busy?busyLabel:"保存录入"}</button></div>
   </form>;
 }

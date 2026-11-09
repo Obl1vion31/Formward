@@ -132,7 +132,7 @@ export async function checkDesktopLinked({browser,baseURL,baselineURL,slowURL,fi
   for(const kind of kinds){
    await page.goto(baseURL+"/dashboard");await settled(page);
    await page.getByRole("button",{name:"90D",exact:true}).click();
-   await page.getByRole("checkbox",{name:"显示体重估计",exact:true}).uncheck();
+   assert.equal(await page.getByLabel("显示体重估计",{exact:true}).count(),0);
    const card=page.locator('[data-metric-card="'+kind+'"]');
    const href=await card.getAttribute("href"),query=new URL(href,baseURL).searchParams;
    if(kind==="energy")await page.evaluate(()=>scrollTo(0,80));
@@ -164,7 +164,7 @@ export async function checkDesktopLinked({browser,baseURL,baselineURL,slowURL,fi
    await page.waitForURL(baseURL+"/dashboard");await settled(page);
    const backFrames=await flightRecord(page);flow.backFrames=backFrames;assertMotion(backFrames,"back");
    assert.equal(await page.getByRole("button",{name:"90D",exact:true}).getAttribute("aria-pressed"),"true");
-   assert.equal(await page.getByRole("checkbox",{name:"显示体重估计",exact:true}).isChecked(),false);
+   assert.equal(await page.getByLabel("显示体重估计",{exact:true}).count(),0);
    assert.equal(await page.evaluate(()=>document.activeElement?.getAttribute("data-metric-card")),kind);
    assert.ok(Math.abs(await page.evaluate(()=>scrollY)-sourceScroll)<=1,"返回恢复原滚动");
    Object.assign(flow,{inspector,backFrames});
@@ -245,7 +245,7 @@ async function checkEstimateStability({page,baseURL,fixture,report,artifacts}){
  for(const route of ["/dashboard","/dashboard/measurements"]){
   await page.setViewportSize({width:1440,height:900});await page.goto(baseURL+route);await settled(page);
   if(route==="/dashboard"){
-   await page.getByRole("button",{name:"30D",exact:true}).click();await page.getByLabel("显示体重估计",{exact:true}).check();
+   await page.getByRole("button",{name:"30D",exact:true}).click();assert.equal(await page.getByLabel("显示体重估计",{exact:true}).count(),0);
   }
   const point=date=>route==="/dashboard"?page.locator('[data-overview-date="'+date+'"] > rect').first():page.locator('[data-chart-metric="weightKg"] [data-chart-date="'+date+'"][data-period="daytime"] circle').first();
   await point(fixture.observed).scrollIntoViewIfNeeded();await point(fixture.observed).hover();await settled(page);
@@ -387,7 +387,7 @@ async function checkLargeAxis({page,baseURL,fixture,db,report,artifacts}){
 async function checkEmptyAccount({page,context,baseURL,fixture,report,artifacts}){
  if(!fixture.other)return;
  await page.goto(baseURL+"/dashboard");await settled(page);
- await page.getByRole("button",{name:"90D",exact:true}).click();await page.getByLabel("显示体重估计",{exact:true}).uncheck();
+ await page.getByRole("button",{name:"90D",exact:true}).click();assert.equal(await page.getByLabel("显示体重估计",{exact:true}).count(),0);
  await page.getByLabel("账号菜单",{exact:true}).click();await page.getByRole("button",{name:"退出登录",exact:true}).click();await page.waitForURL(baseURL+"/");
  assert.equal((await context.request.post(baseURL+"/api/auth/sign-in/email",{headers:{Origin:baseURL},data:{email:fixture.other.email,password:fixture.other.password}})).status(),200);
  await page.goto(baseURL+"/dashboard");await settled(page);
@@ -395,6 +395,6 @@ async function checkEmptyAccount({page,context,baseURL,fixture,report,artifacts}
  const readings=await page.locator("[data-metric-card] strong").allTextContents();assert.ok(readings.every(text=>/^—\s*(kcal|kg)$/.test(text.trim())));
  assert.equal(await page.locator("[data-metric-card] [data-trend-glyph] :is(rect,line,circle)").count(),0,"空账号不出现前一账号图形");
  assert.equal(await page.getByRole("button",{name:"30D",exact:true}).getAttribute("aria-pressed"),"true");
- assert.equal(await page.getByLabel("显示体重估计",{exact:true}).isChecked(),true);
+ assert.equal(await page.getByLabel("显示体重估计",{exact:true}).count(),0);
  report.boundaries.push({case:"empty-account-and-reset",readings});report.screens.push(await picture(page,artifacts,"empty-account"));
 }

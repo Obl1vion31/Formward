@@ -1,14 +1,13 @@
 import { z } from 'zod';
 import { trainingActionSchemas } from '../training/ai-model';
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
-export const recordAiInstructions = "同一轮涉及身体、摄入、食材、消耗和训练排期的任意组合时，优先使用 submit_record_operation 合并提交，不拆成多个审核链接。各类内容可任意组合，一次返回一个 confirmationUrl。每项有唯一 key，复用 save_record、estimate_cell、save_meal、save_food 、每日消耗及活动保存动作，以及 save_training_template 和 schedule_training；新训练模板通过templateRef引用同批key，修改携带id/version。训练目标与已完成事实分开；AI禁止整条删除、恢复及批量删除。普通记餐只提交餐次，用户明确要求入库时才另提交食材。同批新食材单独 save_food，餐项以 foodRef 引用其 key，不再重复 foodDraft 或 nutrition；内嵌 foodDraft 也兼容并展开为独立审核项。用户可只保存摄入或只入库食材。修改和取消只更新草稿，普通单餐不需要标记已核对，底部统一确认后才正式保存；pending 不代表已经保存。未知为 null，照片可稍后补传，不要求五项照片勾选；同日相同餐次仅轻提示，不要求额外确认；只询问真实缺失或运动包含关系。重试复用 operationId 和原内容，不能通过工具代替网页登录确认。";
+export const recordAiInstructions = "同一轮涉及身体、摄入、食材、消耗和训练排期的任意组合时，优先使用 submit_record_operation 合并提交，不拆成多个审核链接。各类内容可任意组合，一次返回一个 confirmationUrl。每项有唯一 key，复用 save_record、save_meal、save_food 、每日消耗及活动保存动作，以及 save_training_template 和 schedule_training；新训练模板通过templateRef引用同批key，修改携带id/version。训练目标与已完成事实分开；AI禁止整条删除、恢复及批量删除。普通记餐只提交餐次，用户明确要求入库时才另提交食材。同批新食材单独 save_food，餐项以 foodRef 引用其 key，不再重复 foodDraft 或 nutrition；内嵌 foodDraft 也兼容并展开为独立审核项。用户可只保存摄入或只入库食材。修改和取消只更新草稿，普通单餐不需要标记已核对，底部统一确认后才正式保存；pending 不代表已经保存。未知为 null，照片可稍后补传，不要求五项照片勾选；同日相同餐次仅轻提示，不要求额外确认；只询问真实缺失或运动包含关系。重试复用 operationId 和原内容，不能通过工具代替网页登录确认。";
 export const recordSchemas = {
   RecordTrainingItem: z.toJSONSchema(z.union(trainingActionSchemas.map(schema => schema.extend({ key: z.string().regex(/^[a-zA-Z0-9_-]{1,120}$/) })))),
   RecordInput: { type: "object", additionalProperties: false, required: ["operationId", "items"], properties: {
     operationId: { type: "string", pattern: "^[a-zA-Z0-9-]{8,120}$" }, timezone: { type: "string" },
     items: { type: "array", minItems: 1, maxItems: 100, items: { oneOf: [
       { allOf: [ref("RecordMeasurementItem")] },
-      { type: "object", required: ["key", "kind", "date", "period", "metric"], properties: { key: { type: "string" }, kind: { const: "estimate_cell" }, date: { type: "string", format: "date" }, period: { enum: ["daytime", "evening"] }, metric: { enum: ["weightKg", "bodyFatPercent"] } } },
       { allOf: [ref("RecordMealSave")] },
       ref("RecordEnergyItem"),
       ref("RecordTrainingItem"),

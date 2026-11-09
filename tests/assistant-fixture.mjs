@@ -3,9 +3,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "../src/db/schema.ts";
 import { provisionAccount } from "../src/features/auth/provision.ts";
 import { seedDetailHierarchy } from "./detail-hierarchy-fixture.mjs";
-import { saveImportedMeasurements, listMeasurements } from "../src/features/measurements/records.ts";
-import { buildHistoricalEstimates } from "../src/features/measurements/estimation.ts";
-import { insertEstimate } from "../src/features/measurements/estimate-records.ts";
+import { saveImportedMeasurements } from "../src/features/measurements/records.ts";
 import { addCalendarDays } from "../src/features/measurements/calendar.ts";
 import { readMealSnapshot } from "../src/features/meals/records.ts";
 import { dailyTotals } from "../src/features/meals/model.ts";
@@ -26,13 +24,10 @@ export async function seedAssistantFixture(db, today) {
   });
   rows.push(...[{ offset: 4, weightKg: "70.29", bodyFatPercent: null }, { offset: 6, weightKg: null, bodyFatPercent: "20.91" }].map(({ offset, ...values }, index) => ({ ...values, sourceLocalTime: `${addCalendarDays(today, -offset)} 07:25:00`, fasting: true, fastingSource: "user_confirmed", timezone: "Asia/Shanghai", sourceRow: 80 + index })));
   await saveImportedMeasurements(db, { ...actor, fileDigest: createHash("sha256").update(randomUUID()).digest("hex"), sourceLabel: "虚构称重样本", captureChannel: "file", records: rows });
-  const records = await listMeasurements(db, owner.id);
-  const estimates = buildHistoricalEstimates(records, { start: addCalendarDays(today, -18), end: addCalendarDays(today, -1) }, { preserveExisting: false });
-  await db.transaction(async tx => { for (const estimate of estimates.estimates) await insertEstimate(tx, actor, estimate, { operationKey: "fictional-assistant-estimates", reason: "fictional_browser_fixture" }); });
   await resetAssistantPending(db, owner.id, today);
   const other = await provisionAccount(db, { email: "assistant-empty@example.test", password: "formward-assistant-empty", name: "虚构空账号" });
   await db.delete(schema.personalProfile).where(eq(schema.personalProfile.userId, other.id));
-  return { account, userId: owner.id, other: { id: other.id, email: "assistant-empty@example.test", password: "formward-assistant-empty" }, today, observed: addCalendarDays(today, -3), estimated: addCalendarDays(today, -2), partialWeight: addCalendarDays(today, -4), partialFat: addCalendarDays(today, -6) };
+  return { account, userId: owner.id, other: { id: other.id, email: "assistant-empty@example.test", password: "formward-assistant-empty" }, today, observed: addCalendarDays(today, -3), anotherObserved: addCalendarDays(today, -5), partialWeight: addCalendarDays(today, -4), partialFat: addCalendarDays(today, -6) };
 }
 export async function resetAssistantPending(db, userId, today) {
   const date = addCalendarDays(today, -1), day = dailyTotals((await readMealSnapshot(db, userId, [date])).meals)[0].day;

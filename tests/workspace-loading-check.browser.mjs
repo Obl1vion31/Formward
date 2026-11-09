@@ -8,7 +8,7 @@ const engines=await import('/home/obl1vion/.local/formward-tools/node_modules/pl
 const engine=process.env.FORMWARD_LOADING_ENGINE??'chromium',browser=await engines[engine].launch({headless:true});
 const folder=resolve(process.env.FORMWARD_LOADING_ARTIFACTS??'.codex/workspace-loading',engine);await mkdir(folder,{recursive:true});
 const reports=[],failures=[],errors=[],screenshots=[];
-const routes=[['','overview'],['meals','nutrition'],['training','training'],['energy','energy'],['measurements','body']];
+const routes=[['','overview'],['meals','nutrition'],['training','training'],['energy','energy'],['measurements','body']].filter(([,kind])=>!process.env.FORMWARD_LOADING_KINDS||process.env.FORMWARD_LOADING_KINDS.split(',').includes(kind));
 async function control(delayMs){const response=await fetch(config.delayControlURL,{method:'POST',body:JSON.stringify({delayMs})});assert.equal(response.status,200);}
 const login=await browser.newContext();assert.equal((await login.request.post(config.baseURL+'/api/auth/sign-in/email',{headers:{Origin:config.baseURL},data:{email:config.email,password:config.password}})).status(),200);const storageState=await login.storageState();await login.close();
 const sizes=process.env.FORMWARD_LOADING_DIAGNOSE==='1'?[[390,640],[1440,900]]:[[320,560],[390,560],[390,640],[430,780],[640,390],[1100,800],[1440,900],[1920,1080]];

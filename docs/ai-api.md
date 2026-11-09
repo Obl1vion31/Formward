@@ -17,7 +17,7 @@ OpenAPI1.13.0／MCP1.11.0，工具及权限种类保持。身体按同一天晨�
 
 MCP 1.13.0 提供17个工具，统一连接检查为authorize_formward，混合审核为 `submit_record_operation`／`get_record_operation`；HTTP 为 `POST /api/v1/record-operations` 和 `GET /api/v1/record-operations/{id}`。支持只提交一类或任意组合，最多100项（包含展开的新食材）、64 KiB，统一链接 `/dashboard/ai/operations/{id}`。原单类接口和链接保持兼容，确认只能由登录网页执行。
 
-请求为 `{ operationId, timezone?, items }`，每项包含唯一 `key` 和既有 `save_record`、`estimate_cell`、`save_meal`、`save_food` 或饮食删除／恢复字段。餐项通过 `foodRef` 引用同批 `save_food.key`，不同时提供 `foodId`、`foodDraft` 或 `nutrition`；内嵌 `foodDraft` 兼容并自动展开。以下仅为虚构格式：
+餐项通过 `foodRef` 引用同批 `save_food.key`，不同时提供 `foodId`、`foodDraft` 或 `nutrition`；内嵌 `foodDraft` 兼容并自动展开。以下仅为虚构格式：
 
 ```json
 {"operationId":"fictional-mixed-example","items":[{"key":"body","kind":"save_record","date":"2024-08-01","period":"daytime","weightKg":"70.2","fasting":true,"deviceLabel":"虚构秤"},{"key":"food","kind":"save_food","name":"虚构食品","baseQuantity":"100","unit":"g","nutrition":{"caloriesKcal":"200","proteinG":"20","carbsG":"10","fatG":"8"},"sourceKind":"estimated"},{"key":"meal","kind":"save_meal","date":"2024-08-01","mealType":"午餐","items":[{"kind":"food","name":"虚构食品","foodRef":"food","quantity":"50","unit":"g","sourceKind":"estimated"}]}]}
@@ -115,7 +115,6 @@ search_foods返回foods及兼容的presets:[]，不提供基础预设采用；qu
       "deviceLabel": "虚构体重秤"
     },
     {
-      "kind": "estimate_cell",
       "date": "2024-04-04",
       "period": "evening",
       "metric": "weightKg"
@@ -130,7 +129,7 @@ search_foods返回foods及兼容的presets:[]，不提供基础预设采用；qu
 
 估算项仅保存所选 metric，不自动填另一空项。依据只读取已保存实测，同批未确认实测不参与。整批确认先保存估算，使结果与审核依据一致；审核草稿中的实测不会作为同批估算依据。样本不足跳过并保持空白；冻结历史拒绝新增估计。
 
-兼容原 `save_day` 请求：`{kind:"save_day",operationId,date,periods:{daytime:{...},evening:{...}},timezone?}`；历史编辑字段在对应时段内。兼容独立 `estimate_cell` 请求，在估算项外再提供 operationId。已有单日／单项链接使用同一个可编辑审核页。
+兼容原 `save_day` 请求：`{kind:"save_day",operationId,date,periods:{daytime:{...},evening:{...}},timezone?}`；历史编辑字段在对应时段内。已有单日／单项链接使用同一个可编辑审核页。
 
 提交与状态响应中的 `needsUserInput` 列出待核对的 `itemId`、日期、时段、字段、错误码和提示；来源缺失的错误码为 `source_confirmation_required`。AI 应说明并询问待补项；有未解决问题的行不可确认。缺来源也可先保留为待修改预览，用户在网页补填或直接留空后应用修改，再确认保存。原请求和审核草稿分别保留，来源留空确认进入审计。
 
@@ -179,3 +178,7 @@ AI只允许新增或修改，不得整条删除或恢复（包括批量）；餐
 ## 训练动作与计划
 
 search_exercises、query_training、submit_training_operation、get_training_operation使用独立training:read／training:write，旧连接刷新定义后仍须重新授权。GPT可查询统一150项动作库、本人模板和安排，创建或修改模板、一次排多天；新模板以templateRef引用同批key，已有项目带id/version。提交复用统一网页审核，预览24小时有效，确认后保存到同一训练日历；pending不等于已同步。目标与实际完成分开，不生成热量或完成记录，取消不删除既有事实。完整字段、单位及演示见[训练记录](training.md)。统一HTTP记录预览同样接受这两种动作，OpenAPI版本1.14.0；不增加HTTP确认入口。
+
+## 身体记录规则
+
+身体只接收实测，未知保持null，不要求AI猜测体重或体脂。身体估算能力已移除；旧请求返回410 feature_removed，含该项的旧混合任务整批停止且原草稿保留。查询、图表、统计和导出不返回历史估计或计算依据。网页确认、归属校验、版本和请求防重继续有效；饮食及热量估算保持原规则。

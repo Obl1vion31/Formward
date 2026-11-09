@@ -9,9 +9,7 @@ import { assignMeasurement } from "./assignment";
 import { resolveMeasurementTime } from "./time";
 import { validateMeasurementTimezone } from "./timezone";
 import { calendarOrdinal } from "./trend";
-import { supersedeEstimates } from "./estimate-records";
 import { rememberMeasurementSource, validateDeviceLabel } from "./sources";
-export { supersedeEstimates } from "./estimate-records";
 
 export type MeasurementTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export type MeasurementActor = { userId: string; actorId: string; actorType?: "user" | "ai" | "development_backend"; aiContext?: { tokenId?: string | null; oauthConnectionId?: string | null; operationId: string; confirmedBy: string; confirmedAt: string; review?: Record<string, unknown> } };
@@ -66,14 +64,14 @@ export function validateDecimal(value: string, label: string, min: number, max: 
 export async function listMeasurements(db: Database, userId: string, dates?: string[]) {
   requireUser(userId);
   return db.select().from(measurement)
-    .where(and(eq(measurement.userId, userId), isNull(measurement.deletedAt), dates ? inArray(measurement.recordDate,dates) : undefined))
+    .where(and(eq(measurement.userId, userId), isNull(measurement.deletedAt), eq(measurement.recordKind, "observed"), dates ? inArray(measurement.recordDate,dates) : undefined))
     .orderBy(desc(measurement.sourceLocalTime));
 }
 
 export async function getMeasurement(db: Database, userId: string, id: string) {
   requireUser(userId);
   const [row] = await db.select().from(measurement)
-    .where(and(eq(measurement.userId, userId), eq(measurement.id, id), isNull(measurement.deletedAt)));
+    .where(and(eq(measurement.userId, userId), eq(measurement.id, id), eq(measurement.recordKind, "observed"), isNull(measurement.deletedAt)));
   return row ?? null;
 }
 
@@ -149,7 +147,6 @@ export async function saveImportedMeasurements(db: Database, input: {
       if (row) {
         inserted++;
         if (deviceLabel) await rememberMeasurementSource(tx, input.userId, deviceLabel);
-        await supersedeEstimates(tx, input, row.recordDate, row.period);
         await tx.insert(measurementEvent).values({
           id: randomUUID(), userId: input.userId, measurementId: row.id,
           action: "import", actorType: "user", actorId: input.actorId,
@@ -243,14 +240,12 @@ export async function insertReportedMeasurement(tx: MeasurementTransaction, acto
     const [after] = await tx.update(measurement).set({ weightKg: record.weightKg ?? before.weightKg, bodyFatPercent: record.bodyFatPercent ?? before.bodyFatPercent, updatedAt: new Date(),
       ...(confirmedTime ? { sourceLocalTime: record.sourceLocalTime, occurredAt: record.occurredAt, timezone: record.timezone, utcOffsetMinutes: record.utcOffsetMinutes, timePrecision: "second" } : {}),
     }).where(and(eq(measurement.userId, actor.userId), eq(measurement.id, before.id))).returning();
-    await supersedeEstimates(tx, actor, after.recordDate, after.period);
     await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: after.id, action: "update", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { ai: actor.aiContext, before, after, reportedValues: record.originalValues, provenance, importId, reason: confirmedTime ? "reported_exact_time" : "reported_missing_metrics" } });
     if (after.deviceLabel) await rememberMeasurementSource(tx, actor.userId, after.deviceLabel);
     return { ...after, writeKind: "updated" as const };
   }
   const { sourceUnspecifiedConfirmed, ...recordProvenance } = provenance;
   const [row] = await tx.insert(measurement).values({ id: randomUUID(), userId: actor.userId, ...record, deduplicationKey:prior.length?createHash("sha256").update(record.deduplicationKey+":"+importId).digest("hex"):record.deduplicationKey, ...recordProvenance, recordKind: "observed", sourceType: "manual", sourceSystem: null, importId, createdBy: actor.actorId }).returning();
-  await supersedeEstimates(tx, actor, row.recordDate, row.period);
   await tx.insert(measurementEvent).values({ id: randomUUID(), userId: actor.userId, measurementId: row.id, action: "create", actorType: actor.actorType ?? "user", actorId: actor.actorId, snapshot: { ai: actor.aiContext, after: row, ...(sourceUnspecifiedConfirmed !== undefined ? { sourceUnspecifiedConfirmed } : {}), reason: "user_reported_measurement" } });
   if (row.deviceLabel) await rememberMeasurementSource(tx, actor.userId, row.deviceLabel, true);
   return { ...row, writeKind: "inserted" as const };

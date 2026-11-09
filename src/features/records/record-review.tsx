@@ -15,7 +15,7 @@ import { ImageGallery } from "../meals/photos";
 import { MealEvidence } from "../meals/review-details";
 import { formatNutrition, metrics, metricLabels, type FoodView, type MealView, type Result } from "../meals/model";
 import { useOperationClock } from "../meals/use-operation-clock";
-import { MeasurementReviewEditor, MeasurementReviewExplanation } from "../measurements/ai-confirmation";
+import { MeasurementReviewEditor } from "../measurements/ai-confirmation";
 import { timezoneLabel } from "../measurements/timezone";
 import type { SourceRemovalResult } from "../measurements/entry-state";
 import { EnergyEditor } from "../activities/energy-editor";
@@ -34,7 +34,7 @@ function BodyContent({ row }: { row: RecordRow }) {
   const fields = [["weightKg", "体重", "kg"], ["bodyFatPercent", "体脂率", "%"], ["deviceLabel", "来源", ""], ["fasting", "条件", ""], ["timezone", "时区", ""]];
   const editing = !!before && preview?.state !== "new" && !before.candidates;
   const visible = fields.filter(([key]) => editing ? value(key, before?.[key]) !== value(key, after?.[key]) : after?.[key] != null);
-  return <>{preview?.warnings?.length?preview.warnings.map(text=><p role="status" key={text}>{text}</p>):<NumberNotice before={before} after={after}/>}<dl className={styles.bodyValues}>{visible.map(([key, label, unit]) => <div key={key}><dt>{label}</dt><dd>{editing && before?.[key] != null && <><del>{value(key, before?.[key])}{before?.[key] != null ? unit : ""}</del><span aria-label="修改为"> → </span></>}<strong>{value(key, after?.[key])}{after?.[key] != null ? unit : ""}</strong></dd></div>)}</dl>{row.body && <MeasurementReviewExplanation item={row.body} />}</>;
+  return <>{preview?.warnings?.length?preview.warnings.map(text=><p role="status" key={text}>{text}</p>):<NumberNotice before={before} after={after}/>}<dl className={styles.bodyValues}>{visible.map(([key, label, unit]) => <div key={key}><dt>{label}</dt><dd>{editing && before?.[key] != null && <><del>{value(key, before?.[key])}{before?.[key] != null ? unit : ""}</del><span aria-label="修改为"> → </span></>}<strong>{value(key, after?.[key])}{after?.[key] != null ? unit : ""}</strong></dd></div>)}</dl></>;
 }
 function RecordContent({ record,showItems=true }: { record?: FoodView | MealView;showItems?:boolean }) {
   if (!record) return null;
@@ -88,7 +88,7 @@ export function RecordReview({ operation: initial, review, load, sources: initia
     startTransition(async () => {
       try {
         const result = await (action ? review(action) : load());
-        if (result.ok) { setLocal(current => current?.id === result.data.id && current.revision > result.data.revision ? current : result.data); if (action?.kind === "update") { setEditing(null); } if (action?.kind === "confirm" && result.data.status === "confirmed") {const keys=result.data.rows.filter(row=>!row.excluded).flatMap(row=>{if(isBody(row.action))return [`measurement:${row.action.date}:${row.action.period}:${row.action.kind==="estimate_cell"?"estimated":"observed"}`];if(isEnergy(row.action)){const after=row.energy?.after;return after&&"date" in after?["name" in after?"activity:"+after.id:"energyDay:"+after.date]:[];}return row.meal?.meal?["meal:"+row.meal.meal.id,"mealDay:"+row.meal.meal.date]:row.meal?.food?["food:"+row.meal.food.id]:[];});try{acknowledgeRecordChanges(keys,await fetchRecordStamps());}catch{}setSavedNow(true);} }
+        if (result.ok) { setLocal(current => current?.id === result.data.id && current.revision > result.data.revision ? current : result.data); if (action?.kind === "update") { setEditing(null); } if (action?.kind === "confirm" && result.data.status === "confirmed") {const keys=result.data.rows.filter(row=>!row.excluded).flatMap(row=>{if(isBody(row.action))return [`measurement:${row.action.date}:${row.action.period}:${"observed"}`];if(isEnergy(row.action)){const after=row.energy?.after;return after&&"date" in after?["name" in after?"activity:"+after.id:"energyDay:"+after.date]:[];}return row.meal?.meal?["meal:"+row.meal.meal.id,"mealDay:"+row.meal.meal.date]:row.meal?.food?["food:"+row.meal.food.id]:[];});try{acknowledgeRecordChanges(keys,await fetchRecordStamps());}catch{}setSavedNow(true);} }
         else setError(result.error);
       } catch { setError("操作未完成，当前输入已保留，请加载最新状态后重试。"); }
       finally { guard.current = false; }
@@ -110,7 +110,7 @@ export function RecordReview({ operation: initial, review, load, sources: initia
           const change = row.action.kind.startsWith("delete") ? "删除申请 · 可恢复" : row.action.kind.startsWith("restore") ? "恢复申请" : row.body?.preview.rows[0]?.before || row.meal?.before || row.energy?.before ? "修改申请" : "新增";
           const problem = Boolean(!inactive && (isBody(row.action) ? !row.body?.preview.canConfirm : isEnergy(row.action) ? row.energy?.error : row.meal?.error || row.meal?.needsUserInput?.length));
           return <article className={styles.row} id={`record-${row.key}`} key={row.key} data-review-key={row.key} data-excluded={row.excluded} data-checked={row.checked}><header className={styles.rowHeading}><div><h3>{title(row)}</h3><span className={problem ? styles.error : styles.label}>{row.persisted ? "已保存" : skipped ? "已跳过" : row.excluded ? "已取消" : row.inclusionReview?"核对运动是否已包含":change}</span></div>
-            {!row.persisted && !skipped && <div className={styles.actions}>{row.excluded ? <button disabled={busy} onClick={() => command("restore", [row.key])}>恢复本项</button> : <>{["save_record", "estimate_cell", "save_meal", "save_food", "save_energy_day", "save_activity", "save_energy_profile"].includes(row.action.kind) && <button disabled={busy} onClick={() => { setError(""); setEditing(row.key); }}>修改</button>}<button disabled={busy} onClick={() => command("exclude", [row.key])}>{row.action.kind==="save_meal" && !row.meal?.before ? "取消本次新增" : "取消"}</button></>}</div>}</header>
+            {!row.persisted && !skipped && <div className={styles.actions}>{row.excluded ? <button disabled={busy} onClick={() => command("restore", [row.key])}>恢复本项</button> : <>{["save_record", "save_meal", "save_food", "save_energy_day", "save_activity", "save_energy_profile"].includes(row.action.kind) && <button disabled={busy} onClick={() => { setError(""); setEditing(row.key); }}>修改</button>}<button disabled={busy} onClick={() => command("exclude", [row.key])}>{row.action.kind==="save_meal" && !row.meal?.before ? "取消本次新增" : "取消"}</button></>}</div>}</header>
             {!inactive && row.action.kind === "save_meal" && !!row.meal?.duplicateIds.length && <MealDuplicateNotice date={row.action.date}/>}
             {!row.excluded && <>{isBody(row.action) ? <BodyContent row={row} /> : <MealContent row={row} />}
               {problem && <p role="alert" className={styles.error}>{row.body?.preview.needsUserInput?.map(issue => issue.message).join("；") || row.body?.preview.message || row.meal?.needsUserInput?.join("；") || row.meal?.error || row.energy?.error}</p>}

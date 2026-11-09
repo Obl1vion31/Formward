@@ -3,8 +3,6 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { measurement, measurementEvent } from "../../db/schema";
 import { lockMeasurementOwner } from "./records";
-import { getInitializationBatch, isFrozenDate } from "./initialization";
-import { supersedeEstimates } from "./estimate-records";
 
 type MeasurementRow = typeof measurement.$inferSelect;
 
@@ -34,7 +32,7 @@ function previewRows(rows: MeasurementRow[], userId: string) {
 /** 只读预览；执行绑定整个账号当前快照，避免覆盖预览后的修改。 */
 export async function previewMeasurementMaintenance(db: Database, userId: string) {
   requireActor(userId);
-  const rows = await db.select().from(measurement).where(and(eq(measurement.userId, userId), isNull(measurement.deletedAt)));
+  const rows = await db.select().from(measurement).where(and(eq(measurement.userId, userId), eq(measurement.recordKind, "observed"), isNull(measurement.deletedAt)));
   return previewRows(rows, userId);
 }
 
@@ -43,7 +41,7 @@ export async function applyMeasurementMaintenance(db: Database, input: { userId:
   if (!/^[a-f0-9]{64}$/.test(input.digest)) throw new Error("维护预览标识无效。");
   return db.transaction(async (tx) => {
     await lockMeasurementOwner(tx, input.userId);
-    const rows = await tx.select().from(measurement).where(and(eq(measurement.userId, input.userId), isNull(measurement.deletedAt))).for("update");
+    const rows = await tx.select().from(measurement).where(and(eq(measurement.userId, input.userId), eq(measurement.recordKind, "observed"), isNull(measurement.deletedAt))).for("update");
     const [prior] = await tx.select({ id: measurementEvent.id }).from(measurementEvent).where(and(
       eq(measurementEvent.userId, input.userId), sql`${measurementEvent.snapshot}->>'operationDigest' = ${input.digest}`,
     )).limit(1);
@@ -66,7 +64,6 @@ export async function applyMeasurementMaintenance(db: Database, input: { userId:
       id: randomUUID(), userId: input.userId, measurementId: row.id, action: "delete", actorType: "user", actorId: input.actorId,
       snapshot: { before: before.get(row.id), after: row, reason: "keep_earliest_in_period", operationDigest: input.digest, retainedId: preview.duplicates.find((group) => group.deleteIds.includes(row.id))!.keepId },
     })));
-    for (const row of changed) if (row.recordKind === "observed") await supersedeEstimates(tx, input, row.recordDate, row.period);
     return { eveningUpdated: changed.length, deleted: deleted.length, repeated: false };
   });
 }
@@ -79,18 +76,13 @@ export async function restoreMeasurement(db: Database, input: { userId: string; 
     const [before] = await tx.select().from(measurement).where(and(eq(measurement.userId, input.userId), eq(measurement.id, input.id))).for("update");
     if (!before) throw new Error("记录不存在或不属于当前账号。");
     if (before.deletedAt === null) return { restored: false };
-    if (before.recordKind === "estimated") {
-      if (isFrozenDate(await getInitializationBatch(tx, input.userId), before.recordDate)) throw new Error("冻结历史不能恢复旧估计。");
-      const active = await tx.select().from(measurement).where(and(eq(measurement.userId, input.userId), eq(measurement.recordDate, before.recordDate), eq(measurement.period, before.period), isNull(measurement.deletedAt)));
-      if (active.length > 1 || active.some((row) => row.recordKind === "estimated" || row.fasting !== (before.period === "daytime") || (before.weightKg !== null && row.weightKg !== null) || (before.bodyFatPercent !== null && row.bodyFatPercent !== null))) throw new Error("该时段已有有效记录，不能恢复估计值覆盖真实指标。");
-    }
+    if (before.recordKind !== "observed") throw new Error("身体估算功能已移除，历史估计不能恢复。");
     const [after] = await tx.update(measurement).set({ deletedAt: null, updatedAt: new Date(), ...(before.period === "evening" ? { fasting: false, fastingSource: "evening_rule" } : {}) })
       .where(and(eq(measurement.userId, input.userId), eq(measurement.id, input.id))).returning();
     await tx.insert(measurementEvent).values({
       id: randomUUID(), userId: input.userId, measurementId: after.id, action: "restore", actorType: "user", actorId: input.actorId,
       snapshot: { before, after, reason: "user_restore" },
     });
-    if (after.recordKind === "observed") await supersedeEstimates(tx, input, after.recordDate, after.period);
     return { restored: true };
   });
 }

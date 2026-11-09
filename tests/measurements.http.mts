@@ -14,8 +14,6 @@ import { provisionAccount } from "../src/features/auth/provision";
 import { previewMeasurementTsv } from "../src/features/imports/measurements";
 import { listMeasurements, saveImportedMeasurements, saveReportedMeasurements } from "../src/features/measurements/records";
 import { saveMeasurementDay } from "../src/features/measurements/editing";
-import { applyHistoricalCompletion, previewHistoricalCompletion, type HistoricalCompletionRequest } from "../src/features/measurements/completion";
-import { applyHistoricalInitialization, previewHistoricalInitialization } from "../src/features/measurements/initialization";
 import * as schema from "../src/db/schema";
 import { localMeasurementDate } from "../src/features/measurements/entry-state";
 
@@ -79,23 +77,10 @@ const fixtureTsv = [
 ].join("\n");
 const preview = previewMeasurementTsv(fixtureTsv, "Asia/Shanghai", true);
 await saveImportedMeasurements(db, { userId: owner.id, actorId: owner.id, fileDigest: preview.fileDigest, sourceLabel: "fictional-http.tsv", captureChannel: "file", records: preview.records });
-const completionRequest: HistoricalCompletionRequest = {
-  operationId: "fictional-browser-completion", range: { start: "2025-07-01", end: "2025-07-13" }, trainingRange: { start: "2025-06-17", end: "2025-07-14" },
-  deviceLabel: "虚构蓝牙体重秤-虚构连接应用", records: [
-    { recordDate: "2025-07-14", period: "daytime", weightKg: "74.60", bodyFatPercent: "24.90", fasting: true, timezone: "Asia/Shanghai", assumedTime: "08:00" },
-    { recordDate: "2025-07-14", period: "evening", weightKg: "75.10", bodyFatPercent: "25.20", fasting: false, timezone: "Asia/Shanghai", assumedTime: "20:00" },
-  ],
-};
-const completionPreview = await previewHistoricalCompletion(db, owner.id, completionRequest);
-await applyHistoricalCompletion(db, { userId: owner.id, actorId: owner.id, request: completionRequest, digest: completionPreview.digest });
 await saveReportedMeasurements(db, { userId: initializedOwner.id, actorId: initializedOwner.id, requestKey: "9".repeat(64), entryChannel: "api", records: [5, 7, 12].flatMap((day, index) => [
   { recordDate: `2025-08-${String(day).padStart(2, "0")}`, period: "daytime" as const, weightKg: ["80.00", "82.00", "83.00"][index], bodyFatPercent: ["24.00", "25.00", "26.00"][index], fasting: true },
   { recordDate: `2025-08-${String(day).padStart(2, "0")}`, period: "evening" as const, weightKg: ["81.00", "83.00", "85.00"][index], bodyFatPercent: ["24.40", "25.40", "26.60"][index], fasting: false },
 ]) });
-const initializationRequest = { operationId: "fictional-browser-initialization", range: { start: "2025-08-03", end: "2025-08-13" } };
-const initializationPreview = await previewHistoricalInitialization(db, initializedOwner.id, initializationRequest);
-if (initializationPreview.alreadyApplied) throw new Error("预期新初始化");
-await applyHistoricalInitialization(db, { userId: initializedOwner.id, actorId: initializedOwner.id, request: initializationRequest, digest: initializationPreview.digest });
 const socket = new PGLiteSocketServer({ db: pg, host: "127.0.0.1", port: 0, maxConnections: 10 });
 await socket.start();
 const probe = createServer();

@@ -12,8 +12,6 @@
 .ranges { display:flex; align-items:center; gap:6px; }
 .ranges button { appearance:none; background:none; border:0; padding:8px; min-height:44px; color:var(--muted); cursor:pointer; font:inherit; font-size:13px; }
 .ranges button[aria-pressed="true"] { color:var(--warm-white); background:color-mix(in srgb,var(--warm-white) 6.0%,transparent); border-radius:4px; }
-.estimateToggle { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:12px; min-height:44px; }
-.estimateToggle input { accent-color:var(--gold); }
 .customRange { display:flex; align-items:end; flex-wrap:wrap; gap:12px 20px; padding:12px 0; }
 .customRange > div { display:flex; gap:16px; }
 .customRange button { min-height:44px; color:var(--gold); cursor:pointer; }
@@ -99,8 +97,6 @@
  .trendTitle { display:none; }
  .ranges { gap:0; min-width:0; }
  .ranges button { padding:0 6px; min-height:44px; font-size:13px; white-space:nowrap; }
- .estimateToggle { width:auto; margin:0; min-height:44px; gap:4px; white-space:nowrap; font-size:12px; }
- .estimateToggle input { margin:0; }
  .customRange { order:2; gap:8px 14px; padding:0 0 12px; }
  .customRange label { flex:1; min-width:0; }
  .customRange input { width:100%; }

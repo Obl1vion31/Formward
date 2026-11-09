@@ -22,7 +22,6 @@ function draftFor(item: ReviewItem): Draft {
 /** 只提交用户改过的字段；回显的历史值不冒充新输入。 */
 function inputFromDraft(item: ReviewItem, draft: Draft): ReviewInput {
   item = draft.seed;
-  if (item.input.kind === "estimate_cell") return { ...item.input, date: draft.date, period: draft.period };
   const input = { ...item.input, date: draft.date, period: draft.period }, baseline = draftFor(item);
   for (const field of ["weightKg", "bodyFatPercent", "deviceLabel", "timezone"] as const) if (draft[field] !== baseline[field]) input[field] = draft[field].trim() || null;
   // 仅用户应用修改时确认当前空来源；填写来源清除旧请求的留空标记。
@@ -33,11 +32,6 @@ function inputFromDraft(item: ReviewItem, draft: Draft): ReviewInput {
   else if (draft.recordId) { input.recordId = draft.recordId; input.version = draft.version; }
   else { delete input.recordId; delete input.version; }
   return input;
-}
-function Explanation({ item }: { item: ReviewItem }) {
-  const explanation = item.preview.explanation;
-  if (!explanation) return null;
-  return <details className="ai-evidence"><summary>查看估算依据与不确定性</summary><p>{explanation.method}</p>{explanation.basis.map((line, index) => <p key={index}>{line}</p>)}{explanation.formula && <p>{explanation.formula}</p>}{explanation.sampleSummary.map((line, index) => <p key={index}>{line}</p>)}{explanation.fallbackNote && <p>{explanation.fallbackNote}</p>}<details><summary>实测参考</summary>{explanation.references.map((line, index) => <p key={index}>{line}</p>)}</details><p>估计只辅助趋势，不代表实测，不参与实测摘要；结果存在不确定性。</p></details>;
 }
 function DraftForm({ item, draft, change, busy, updating, save, close, sources, removeSource }: { item: ReviewItem; draft: Draft; change: (draft: Draft) => void; busy: boolean; updating: boolean; save: () => void; close: () => void; sources: string[]; removeSource: (label: string) => Promise<SourceRemovalResult> }) {
   const options = candidates(item), set = (patch: Partial<Draft>) => change({ ...draft, ...patch });
@@ -66,4 +60,3 @@ export function MeasurementReviewEditor({ item, busy, save, close, sources, remo
   const closeDraft = useDraftClose(close);
   return <DraftForm item={item} draft={draft} change={setDraft} busy={busy} updating={busy} save={() => save(inputFromDraft(item, draft))} close={closeDraft} sources={sources} removeSource={removeSource} />;
 }
-export { Explanation as MeasurementReviewExplanation };

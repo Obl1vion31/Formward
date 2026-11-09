@@ -26,8 +26,8 @@ test("新餐日待确认；历史截止日前的新补录也不再自动记完",
 test("已记完可计差额，未记全保留摄入但排除；明确0保持",async()=>{
  const id=await owner();await save(id,[action("2026-10-24","0")]);await mark(id,"complete");
  const energy={...emptyEnergy(),days:[{id:randomUUID(),version:1,deletedAt:null,date:"2026-10-24",entryMode:"total" as const,totalKcal:"200",restingKcal:null,activeKcal:null,timezone:"Asia/Shanghai",sourceSystem:null,sourceRecordId:null,sourceOccurredAt:null,sourceUnit:"kcal" as const,syncStatus:"confirmed" as const}]};
- let result=overviewDays((await readMealSnapshot(db,id)).meals,[],["2026-10-24"],false,energy)[0];assert.equal(result.energyBalance,-200);
- await mark(id,"incomplete");result=overviewDays((await readMealSnapshot(db,id)).meals,[],["2026-10-24"],false,energy)[0];assert.equal(result.energyBalance,null);assert.equal(result.nutrition?.values.caloriesKcal,"0.0000");
+ let result=overviewDays((await readMealSnapshot(db,id)).meals,[],["2026-10-24"],energy)[0];assert.equal(result.energyBalance,-200);
+ await mark(id,"incomplete");result=overviewDays((await readMealSnapshot(db,id)).meals,[],["2026-10-24"],energy)[0];assert.equal(result.energyBalance,null);assert.equal(result.nutrition?.values.caloriesKcal,"0.0000");
 });
 test("确认绑定当前餐次，新增餐次需重新确认；重复保存不作废后来的确认",async()=>{
  const id=await owner(),op=await save(id,[action()]);const input=await mark(id,"complete");assert.equal((await state(id)).status,"complete");

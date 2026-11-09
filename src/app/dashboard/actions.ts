@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { withCurrentSession } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { listMeasurements, type MeasurementActor } from "@/features/measurements/records";
-import { deleteMeasurementCell, estimateMeasurementCell, listMeasurementDates, measurementDisplay, saveMeasurementDay, type EstimateCellInput, type SaveMeasurementDayInput } from "@/features/measurements/editing";
+import { deleteMeasurementCell, listMeasurementDates, measurementDisplay, saveMeasurementDay, type SaveMeasurementDayInput } from "@/features/measurements/editing";
 import type { EntryResult, SourceRemovalResult } from "@/features/measurements/entry-state";
 import type { Database } from "@/db/client";
 import { listMeasurementSources, removeMeasurementSource } from "@/features/measurements/sources";
@@ -29,9 +29,6 @@ async function perform(work: (db: Database, actor: MeasurementActor) => Promise<
 }
 export async function saveDayAction(input: SaveMeasurementDayInput) {
   return perform(async (db, actor) => { const result = await saveMeasurementDay(db, actor, input); return result.repeated ? "此录入已保存。" : "已保存录入，其他空项保持空白。"; });
-}
-export async function estimateCellAction(input: EstimateCellInput) {
-  return perform(async (db, actor) => (await estimateMeasurementCell(db, actor, input)).message);
 }
 export async function removeSourceAction(label: string): Promise<SourceRemovalResult> {
   try {
