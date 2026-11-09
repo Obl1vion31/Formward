@@ -64,7 +64,7 @@ try {
   await page.goto(preview.confirmationUrl);
   await page.waitForURL((url: URL) => url.origin === fixture.cn && url.pathname === "/" && url.searchParams.get("next") === new URL(preview.confirmationUrl).pathname);
   await shot("login-return");
-  await page.getByRole("link", { name: "进入登录" }).focus();
+  await page.getByRole("button", { name: "进入登录" }).focus();
   await page.keyboard.press("Enter");
   await page.getByLabel("Email", { exact: true }).fill(fixture.person.email);
   await page.getByLabel("Password", { exact: true }).fill(fixture.person.password);

@@ -9,7 +9,9 @@ function run(cmd:string,args:string[],cwd=root,env:NodeJS.ProcessEnv=process.env
 if(run("git",["status","--porcelain"]))throw new Error("统一发布只能从干净提交构建。");
 const commit=run("git",["rev-parse","HEAD"]),base=join(root,".codex/regional-releases");await mkdir(base,{recursive:true});
 const target=join(base,release);await mkdir(target);
-const source=await mkdtemp(join(base,"source-"));
+const stableSource=process.env.FORMWARD_BUILD_SOURCE_PATH;
+ if(stableSource&&(!isAbsolute(stableSource)||dirname(stableSource)!==base||!/^source-[a-zA-Z0-9_-]+$/.test(stableSource.slice(stableSource.lastIndexOf("/")+1))))throw new Error("兼容构建路径必须是当前私有发布目录的独立source子目录。");
+ const source=stableSource?(await mkdir(stableSource,{mode:0o700}),stableSource):await mkdtemp(join(base,"source-"));
 try{
  const archive=join(target,"source.tar");run("git",["archive","--format=tar","--output="+archive,commit]);run("tar",["-xf",archive,"-C",source]);
  const pnpmEntry=process.env.npm_execpath;
