@@ -1,10 +1,16 @@
 # 身体、饮食与消耗 AI 接入
 
-## 豆包独立协议
+## GPT 与豆包的工具契约
 
-豆包使用 `global.formward.top/api/doubao/mcp` 及独立登录／令牌回调，复用现有18项工具和业务规则，另提供豆包专用的单餐`preview_meal`，不改变下方 GPT 的OAuth issuer、resource、工具与HTTP v1。匿名只发现工具定义；私有调用必须验证平台OpenID、JWT、账号绑定和当前可撤销连接。所有提交仍为预览，正式确认只由用户在国服网页完成。部署与真实平台联调状态见[豆包接入](doubao-onboarding.md)，尚未完成的阶段不能对外宣称可用。
+MCP 1.16.0共21项工具：原18项兼容，GPT与豆包共享preview_meal、preview_meal_changes和preview_energy。OAuth issuer、resource、现有账号与授权不变，不新增scope。豆包仍通过global.formward.top/api/doubao/mcp和独立登录／令牌回调接入；平台整数边界及保留字段只在豆包适配层兼容。
 
-新增一餐优先`preview_meal`，必填operationId、date（明确日期或today／yesterday）、mealType和foods；食物使用name、quantity、unit及平铺的caloriesKcal／proteinG／carbsG／fatG，数值为十进制字符串，未知营养省略。食材引用使用foodId／foodVersion及实际数量单位，服务端按原规格换算。历史修改、食材库维护与混合记录沿用原工具；所有路径仍只提交预览。
+新增单餐用preview_meal，餐内局部修改用preview_meal_changes，消耗／实际运动用preview_energy；跨领域仍用submit_record_operation保持一个审核链接。食材库、训练模板和排期保留原工具。完整场景、参数和返回规则见[AI工具调用规则](ai-tool-contracts.md)。这些工具均只创建或修改待确认预览，正式保存仍由用户登录网页确认。
+
+查询增加可选view=summary／details：摘要用于分析，明细用于查看与修改。MCP可传range=today／yesterday／last7／last30，由服务器按timezone解释；不能与from/to混用。摘要每页最多366日，明细50日，page.hasMore及nextFrom说明剩余范围，不静默截断；老调用省略view时保留原返回。身体新摘要sevenDay锚定本页结束日，旧analyses.summary仍表示当前最新七日并附scope。饮食／消耗HTTP查询也接受view；身体和训练新摘要仅通过MCP提供，原HTTP接口保持。
+
+新增和修改单餐均保留同一operationId及原参数重试，包括today／yesterday文本，服务器固定首次解析日期；改变内容使用新标识。预览过期、版本冲突和授权失败不能用新标识盲目重试。新的简洁返回区分state与保存状态，get_*可选择status；未传view的旧结果仍兼容。
+
+本机隔离测试与实际Next production入口验证不等于真实GPT首轮成功率。没有OpenAI API评测凭据时不生成模型对照结论，也不以schema体积承诺省token或提速。真实豆包模型及手机验证范围见[豆包接入](doubao-onboarding.md)。
 
 ## 网页与AI服务地址
 
@@ -14,7 +20,7 @@
 
 ## 当前兼容规则
 
-OpenAPI1.15.0／MCP1.15.0，当前身体能力只接收实测，饮食、消耗和训练沿用各自规则。身体按同一天晨晚最后保存值覆盖，预览显示旧→新，取消不保存，遗漏字段保留，不接收未来身体日期。运动save_activity扩展calorieMode、exerciseRestingKcal、exerciseActiveKcal；分项只计纯运动，旧caloriesKcal原值继续采用，查询activities增加totalKcal／countedKcal。AI正常新增修改、网页登录确认及版本／幂等保护保持。常见英文餐次仍可提交，显示及新保存中文，原请求摘要不改。网页登录私有/api/record-changes不接受AI令牌，不增加工具或权限。
+OpenAPI1.15.0／MCP1.16.0，当前身体能力只接收实测，饮食、消耗和训练沿用各自规则。身体按同一天晨晚最后保存值覆盖，预览显示旧→新，取消不保存，遗漏字段保留，不接收未来身体日期。运动save_activity扩展calorieMode、exerciseRestingKcal、exerciseActiveKcal；分项只计纯运动，旧caloriesKcal原值继续采用，查询activities增加totalKcal／countedKcal。AI正常新增修改、网页登录确认及版本／幂等保护保持。常见英文餐次仍可提交，显示及新保存中文，原请求摘要不改。网页登录私有/api/record-changes不接受AI令牌，不增加工具或权限。
 
 
 接口覆盖晨晚实测体重／体脂、来源、时区、记录详情与历史、摘要与趋势及历史编辑。身体不提供估算或插补，旧estimate_cell返回410。网页和 API 使用同一 measurements feature。饮食、食材及其删除／恢复已接入；通用文件导入及身体记录的网页删除／恢复、准确测量时间和历史归属纠正尚未接入。
@@ -35,7 +41,7 @@ OpenAPI1.15.0／MCP1.15.0，当前身体能力只接收实测，饮食、消耗�
 {"operationId":"fictional-mixed-example","items":[{"key":"body","kind":"save_record","date":"2024-08-01","period":"daytime","weightKg":"70.2","fasting":true,"deviceLabel":"虚构秤"},{"key":"food","kind":"save_food","name":"虚构食品","baseQuantity":"100","unit":"g","nutrition":{"caloriesKcal":"200","proteinG":"20","carbsG":"10","fatG":"8"},"sourceKind":"estimated"},{"key":"meal","kind":"save_meal","date":"2024-08-01","mealType":"午餐","items":[{"kind":"food","name":"虚构食品","foodRef":"food","quantity":"50","unit":"g","sourceKind":"estimated"}]}]}
 ```
 
-返回 `status`、`rows`、`canConfirm`、按项目汇总的 `needsUserInput`、审核版本及确认链接。`pending` 是草稿，`confirmed` 表示所选记录已保存，`cancelled` 为取消，`completed` 表示无需保存。缺图仍须用户逐项明确选择先保存文字；`needsUserInput` 不得被 AI 当作已确认。重复请求复用原 `operationId` 和内容，改变内容或授权时拒绝复用。
+返回 `status`、`rows`、`canConfirm`、按项目汇总的 `needsUserInput`、审核版本及确认链接。`pending` 是草稿，`confirmed` 表示所选记录已保存，`cancelled` 为取消，`completed` 表示无需保存。缺图提示仍保留，用户可直接确认文字；`needsUserInput` 不得被 AI 当作已确认。重复请求复用原 `operationId` 和内容，改变内容或授权时拒绝复用。
 
 混合写入按所含内容检查 `measurements:write`、`meals:write` 和 `energy:write`，查询批次检查对应读取权限；工具元数据只声明当前已授予的相关权限，不自动扩展旧连接。纯身体或纯饮食连接也可继续使用原单类工具。
 
@@ -43,7 +49,7 @@ OpenAPI1.15.0／MCP1.15.0，当前身体能力只接收实测，饮食、消耗�
 
 在用户当前使用的 ChatGPT「插件 → 添加自定义 MCP」入口，填写服务器地址 `https://formward-ten.vercel.app/api/mcp`，认证方式选择 OAuth。添加后跳转到 Formward 登录，在授权页核对客户端名称和权限，点击“允许连接”。其他支持远程 Streamable HTTP 和 OAuth 的大模型客户端使用同一地址。界面的名称和可用入口以客户端当前账号为准。
 
-服务已发布到上述正式地址，部署维护见 [公网部署](deployment.md)。连接后可以查询自己的记录、提交录入／修改／估算预览，再打开返回的 `confirmationUrl` 登录确认。仅把网站网址发给聊天模型不会建立 MCP 连接。
+服务已发布到上述正式地址，部署维护见 [公网部署](deployment.md)。连接后可以查询自己的记录、提交录入／修改预览，再打开返回的 `confirmationUrl` 登录确认。仅把网站网址发给聊天模型不会建立 MCP 连接。
 
 | 工具 | 输入与行为 | 权限 |
 | --- | --- | --- |

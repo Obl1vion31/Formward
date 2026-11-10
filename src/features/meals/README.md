@@ -80,3 +80,9 @@ readMealSnapshot的可选dates参数仅用于助手有界上下文，省略食�
 电脑饮食／消耗的RecordTrendPanel读数复用现有主页／身体暖雾卡片材质、圆角、高光及阴影：常规横排，主卡内显示真实供能环图或静息／活动比例，语义色点与数值一致。骨架共用同一结构，宽度不足按整个区间的实际文字宽度稳定换行，不缩字；未知与0不伪造比例。手机沿用已验收布局。
 
 图片通过 storage_provider／storage_location 保留不可变位置。0034 扩展既有 Blob 记录，CN 使用私有 COS，global 继续 Blob；图片 worker 与票据不改变账号归属、原图核对及保存事务。照片输入仍沿用当前界面与失败重试。
+
+ai-preview.ts规范化GPT／豆包共享单餐：本次总量不再乘数量，每份由portionNutrition换算，每参考量直接scaled到实际总量并保留依据，kJ显式换为kcal。来源未知与数值未知分别处理；估算须有basis，不自动入库。原始参数摘要固定首次相对日期，跨零点重试仍返回原预览。
+
+ai-changes.ts处理餐内局部修改，服务器合并未改内容、附件、originalItemId与历史食材快照。已保存餐次带版本创建新预览；待确认预览通过records协调器更新原链接、检查原授权／revision／有效期，并在既有JSON草稿记录AI修改账以免重试重复添加。AI修改与人工editedBy分开留审计，不能清空整餐。自由总量改食量须明确keep_total／scale_total；库项和每份自动换算；省略保留，明确清空才改null。
+
+queryMeals的view=summary／details只读指定日期，返回范围与分页；省略view保留旧协议。searchFoods只读食材及相关附件，不再读全部餐次历史。身体与消耗规则不在此重算。

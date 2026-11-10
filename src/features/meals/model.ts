@@ -67,7 +67,7 @@ export function mealContentKey(meal: Pick<MealView, "date" | "mealType" | "notes
   return JSON.stringify([meal.date, norm(mealTypeLabel(meal.mealType)), norm(meal.notes), meal.items.map(item => [item.kind, norm(item.name), item.quantity == null ? null : Number(item.quantity), norm(item.unit), metrics.map(metric => item.nutrition[metric] === null ? null : Number(item.nutrition[metric]))])]);
 }
 export type MealChanges={added:ItemView[];removed:ItemView[];changed:{before:ItemView;after:ItemView}[];metadata:string[]};
-export type PreviewRow = {changes?:MealChanges; excluded?: boolean; before?: FoodView | MealView; review?: { itemId: string; operationId: string; originalInput: unknown; reviewedInput: unknown; editedBy?: { userId: string; at: string } }; action: MealAction; food?: FoodView; meal?: MealView; error?: string; duplicateIds: string[]; warnings: string[]; needsUserInput?: string[] };
+export type PreviewRow = {changes?:MealChanges; excluded?: boolean; before?: FoodView | MealView; review?: { itemId: string; operationId: string; originalInput: unknown; reviewedInput: unknown; editedBy?: { userId: string; at: string }; aiEdits?: import("../records/model").AiDraftEdit[] }; action: MealAction; food?: FoodView; meal?: MealView; error?: string; duplicateIds: string[]; warnings: string[]; needsUserInput?: string[] };
 const legacyDuplicateMealError = "发现内容相同的餐次。确认是另一次进食后勾选“仍然新增”，或取消重复录入。";
 const legacyNutritionWarning = /^(?:本餐热量|热量|蛋白质|碳水|脂肪)：本次 [\d,.\u00a0\u202f]+ (?:kcal|g)，上次 [\d,.\u00a0\u202f]+ (?:kcal|g)，保存前请核对。$/;
 /** 仅适配待确认预览中的退役系统提示，不改原始请求、草稿、其他错误或已保存审计。 */

@@ -63,7 +63,7 @@ export function recordMealPlanner(items: RecordItem[], operationId: string): Mea
   return (_input, state, origin) => {
     const working = structuredClone(state), rows = new Map<string, PreviewRow>();
     const entries = mealItems(items), refs = new Map<string, NonNullable<PreviewRow["food"]>>();
-    const annotate = (item: RecordItem, row: PreviewRow) => ({ ...row, excluded: item.excluded, review: { operationId, itemId: item.key, originalInput: item.originalInput, reviewedInput: item.action, ...(item.editedBy ? { editedBy: item.editedBy } : {}) } });
+    const annotate = (item: RecordItem, row: PreviewRow) => ({ ...row, excluded: item.excluded, review: { operationId, itemId: item.key, originalInput: item.originalInput, reviewedInput: item.action, ...(item.editedBy ? { editedBy: item.editedBy } : {}), ...(item.aiEdits ? { aiEdits: item.aiEdits } : {}) } });
     for (const item of entries.filter(item => category(item.action) === "foods")) {
       const [row] = prepareMealActions({ operationId, actions: [item.action as MealAction] }, working, origin);
       rows.set(item.key, annotate(item, row));
@@ -214,7 +214,7 @@ export async function loadRecordReview(db: Database, userId: string, id: string,
   // 旧身体链接与统一入口共用路径。
   return view(db, await legacy(db, userId, id, "body"));
 }
-export async function submitRecordOperation(db: Database, identity: AiIdentity, raw: unknown, timezone = systemMeasurementTimezone()) {
+export async function submitRecordOperation(db: Database, identity: AiIdentity, raw: unknown, timezone = systemMeasurementTimezone(), options: { requestDigest?: string } = {}) {
   assertBodyEstimateRemoved(raw);
   const parsed = recordInputSchema.safeParse(raw);
   if (!parsed.success) throw new ApiError(400, "invalid_input", parsed.error.issues[0]?.message ?? "记录无效。");
@@ -229,7 +229,7 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
     if (input.items.some(isEnergy)) await requireActiveAiToken(tx, identity, true, "energy");
     const [prior] = await tx.select().from(recordOperation).where(and(eq(recordOperation.userId, identity.userId), eq(recordOperation.operationId, input.operationId)));
     if (prior) {
-      if (prior.requestDigest !== digest(input)) throw new ApiError(409, "request_conflict", "同一 operationId 不能替换内容。");
+      if (prior.requestDigest !== (options.requestDigest ?? digest(input))) throw new ApiError(409, "request_conflict", "同一 operationId 不能替换内容。");
       if (trainingItems(prior.draft).some(item => item.trainingGrant?.tokenId !== identity.tokenId || item.trainingGrant?.oauthConnectionId !== identity.oauthConnectionId)) throw new ApiError(409, "request_conflict", "不能替换提交授权。");
       const child = prior.mealOperationId ? await getMealOperation(connection, identity.userId, prior.mealOperationId) : null;
       if (child && (child.tokenId !== (identity.tokenId ?? null) || child.oauthConnectionId !== (identity.oauthConnectionId ?? null))) throw new ApiError(409, "request_conflict", "不能替换提交授权。");
@@ -251,12 +251,12 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
     await expandEnergyRelations(connection,identity.userId,items);
     const energy = energyItems(items).length ? await submitEnergyOperation(connection, { userId: identity.userId, origin: "ai", identity }, { operationId: `records-${id}`, actions: energyItems(items).map(item => item.action) }) : null;
     const meal = mealItems(items).length ? await submitMealOperation(connection, { userId: identity.userId, origin: "ai", identity }, mealInput(`records-${id}`, items), recordMealPlanner(items, id)) : null;
-    const [row] = await tx.insert(recordOperation).values({ id, userId: identity.userId, operationId: input.operationId, requestDigest: digest(input), payload: input, draft: items, measurementOperationId: body?.id, mealOperationId: meal?.id, measurementRevision: body?.revision, mealRevision: meal?.revision, energyOperationId: energy?.id, energyRevision: energy?.revision, status: !meal && !energy && body && !body.counts.pending ? "completed" : "pending" }).returning();
+    const [row] = await tx.insert(recordOperation).values({ id, userId: identity.userId, operationId: input.operationId, requestDigest: options.requestDigest ?? digest(input), payload: input, draft: items, measurementOperationId: body?.id, mealOperationId: meal?.id, measurementRevision: body?.revision, mealRevision: meal?.revision, energyOperationId: energy?.id, energyRevision: energy?.revision, status: !meal && !energy && body && !body.counts.pending ? "completed" : "pending" }).returning();
     return { ...await view(connection, row), repeated: false };
   });
 }
 
-export async function reviewRecordOperation(db: Database, userId: string, id: string, action: RecordReviewAction, source?: Source) {
+export async function reviewRecordOperation(db: Database, userId: string, id: string, action: RecordReviewAction, source?: Source, aiEdit?: { identity: AiIdentity; operationId: string; digest: string }) {
   if (!action || !Number.isInteger(action.revision) || action.revision < 1 || !["check", "exclude", "restore", "energy_inclusion", "update", "refresh", "cancel", "confirm"].includes(action.kind)) throw new ApiError(400, "invalid_input", "审核操作无效。");
   if (action.kind === "confirm" && action.allowMissingImageKeys !== undefined && (!Array.isArray(action.allowMissingImageKeys) || action.allowMissingImageKeys.length > 100 || action.allowMissingImageKeys.some(key => typeof key !== "string"))) throw new ApiError(400, "invalid_input", "缺图确认项目无效。");
   return db.transaction(async tx => {
@@ -265,6 +265,19 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
     if (!row) {
       const seed = await legacy(connection, userId, id, source ?? "body");
       [row] = await tx.insert(recordOperation).values({ ...seed, id: randomUUID() }).returning();
+    }
+    if (aiEdit) {
+      if (aiEdit.identity.userId !== userId || action.kind !== "update" || action.action.kind !== "save_meal" || !row.mealOperationId) throw new ApiError(403, "forbidden", "只能修改原授权的待确认餐次。");
+      await requireActiveAiToken(tx, aiEdit.identity, true, "meals");
+      const original = await getMealOperation(connection, userId, row.mealOperationId);
+      if (original.origin !== "ai" || original.tokenId !== (aiEdit.identity.tokenId ?? null) || original.oauthConnectionId !== (aiEdit.identity.oauthConnectionId ?? null)) throw new ApiError(403, "forbidden", "只能修改原授权提交的预览。");
+      const repeated = row.draft.flatMap(item => item.aiEdits ?? []).find(edit => edit.operationId === aiEdit.operationId);
+      if (repeated) {
+        if (repeated.digest !== aiEdit.digest) throw new ApiError(409, "request_conflict", "同一修改请求不能用于不同内容。");
+        return { ...await view(connection, row), repeated: true };
+      }
+      if (original.status !== "pending" || original.expiresAt && original.expiresAt.getTime() <= Date.now()) throw new ApiError(409, "preview_expired", "预览已结束或过期，请重新读取后提交。");
+      if (row.draft.reduce((count, item) => count + (item.aiEdits?.length ?? 0), 0) >= 100) throw new ApiError(400, "invalid_input", "本次预览修改过多，请重新提交。");
     }
     if (row.status !== "pending") {
       if ((action.kind === "confirm" && row.status === "confirmed") || (action.kind === "cancel" && row.status === "cancelled")) return view(connection, row);
@@ -329,7 +342,9 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
         if (!parsed.success || action.action.kind !== item.action.kind) throw new ApiError(400, "invalid_input", "修改内容或类型无效。");
         requireAiUpserts([parsed.data]);
         const { key, ...input } = parsed.data; void key;
-        item.action = input as RecordAction; item.checked = false; item.editedBy = { userId, at: new Date().toISOString() };
+        item.action = input as RecordAction; item.checked = false;
+        if (aiEdit) item.aiEdits = [...(item.aiEdits ?? []), { operationId: aiEdit.operationId, digest: aiEdit.digest, at: new Date().toISOString(), ...(aiEdit.identity.tokenId ? { tokenId: aiEdit.identity.tokenId } : {}), ...(aiEdit.identity.oauthConnectionId ? { oauthConnectionId: aiEdit.identity.oauthConnectionId } : {}) }];
+        else item.editedBy = { userId, at: new Date().toISOString() };
         if(item.action.kind==="save_energy_day"){
           const changedDay=item.action;
           const prior=before.energySnapshot?.days.find(day=>day.date===changedDay.date);

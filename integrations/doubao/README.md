@@ -4,7 +4,7 @@
 
 ## 记餐工具
 
-Manifest共19项：原18项保留，新增`preview_meal`作为单餐首选；运行态Skill明确区分单餐新增、历史修改、食材维护及混合预览。变更工具或Skill后需要上传新的测试版本，并在Debugger更新资源；仅发布服务端不会更新手机中的运行态Skill。生产Manifest所有工具继续normal登录，不使用测试fixture的预授权替身。
+Manifest共21项，和共享MCP逐项一致。preview_meal用于新增单餐，preview_meal_changes用于餐内修改，preview_energy用于全天消耗与实际运动；食材维护、身体、训练和混合预览保留原入口。运行态Skill同步相对日期重试、份量换算、摘要分页与保存状态。变更工具或Skill后需要上传新的测试版本，并在Debugger更新资源；仅发布服务端不会更新手机中的运行态Skill。生产Manifest所有工具继续normal登录，不使用测试fixture的预授权替身。
 
 ## 登录与凭据
 

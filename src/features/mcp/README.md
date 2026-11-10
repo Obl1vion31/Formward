@@ -1,6 +1,6 @@
 # MCP
 
-server.ts 为每次请求创建无状态SDK server，兼容当前及2025协议。服务版本1.13.0，共17个工具；账号来自验证后的OAuth令牌，写入只创建预览，没有确认保存工具。网页、HTTP与MCP调用同一feature，不在适配层重写业务规则。
+server.ts 为每次请求创建无状态SDK server，兼容当前及2025协议。服务版本1.16.0，共21个工具；账号来自验证后的OAuth令牌，写入只创建预览，没有确认保存工具。网页、HTTP与MCP调用同一feature，不在适配层重写业务规则。
 
 authorize_formward检查并申请身体、饮食／食材、消耗、训练四类查询与提交预览权限，只返回连接状态，不读取健康内容或创建预览。OAuth同意仍由用户完成；只读连接补查询权限时只申请读取。旧连接不因刷新定义或授权请求自动扩权。
 
@@ -17,3 +17,7 @@ import_meal_images沿用meals:write，顶层files声明openai/fileParams，最�
 统一提交支持最多100项、64 KiB，依内容检查measurements／meals／energy／training权限。修改与取消只更新草稿，底部统一确认后才保存。消耗区分分开／总数、活动累计／手填合计、纯运动／含期间静息以及included／additional；不提供退役的日常默认值或公式动作。
 
 日志只记工具名、文件结构和阶段错误，不记录凭据、下载地址或健康内容。修改工具须同步[AI接入](../../../docs/ai-api.md)、OAuth权限声明、OpenAPI和隔离测试；客户端需要刷新定义，新scope仍需用户同意。
+
+preview_meal、preview_meal_changes、preview_energy为GPT与豆包共享的常用入口。平铺输入由meals／activities feature规范化，再复用原预览；不新建scope、确认工具或事实写入通道。旧18项保留，混合请求仍使用统一批次。mealAiResponse／recordAiResponse只整理AI返回，不改变网页完整审核视图。get_*可按需返回状态；不传新参数的旧调用继续兼容。
+
+queryOptions与日期分页位于records/ai-query.ts，各业务feature执行有界读取及既有汇总。新summary／details显式分页，身体七日统计标明锚点，旧choices仅留兼容校验，不再宣称可以改变采用值。工具数量增加不代表总定义变小；真实模型收益必须单独测量。

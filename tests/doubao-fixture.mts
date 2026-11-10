@@ -93,7 +93,7 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
       await client.connect(new StreamableHTTPClientTransport(new URL(baseURL + "/api/doubao/mcp"), { requestInit: { headers: { "x-db-openid": externalId, "x-db-access-token": tokens.data.access_token } } }));
       try {
         const tools = await client.listTools();
-        assert.equal(tools.tools.length, 19);
+        assert.equal(tools.tools.length, 21);
         assert.ok(tools.tools.some(tool => tool.name === "preview_meal"));
         assert.ok(!JSON.stringify(tools.tools).includes('"exclusiveMinimum":'));
         const profile = await client.callTool({ name: "get_profile", arguments: {} });
@@ -131,10 +131,30 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
         const html = await page.text();
         assert.ok(html.includes("虚构测试午餐") && html.includes("确认"));
         if (process.env.FORMWARD_DOUBAO_PREVIEW === "1") console.info("虚构饮食预览：" + preview.confirmationUrl);
+        const changes = await client.callTool({ name: "preview_meal_changes", arguments: { ...platformContext, operationId: "fictional-production-patch-" + mode, previewId: preview.id, revision: 1, notes: "虚构局部修改，保留食物和营养。" } });
+        assert.notEqual(changes.isError, true);
+        const edited = changes.structuredContent as { id: string; revision: number; confirmationUrl: string; operationType: string };
+        assert.equal(edited.operationType, "record");
+        const changedPage = await fetch(edited.confirmationUrl, { headers: { cookie } });
+        assert.equal(changedPage.status, 200);
+        assert.ok((await changedPage.text()).includes("虚构局部修改"));
+        const state = await client.callTool({ name: "get_record_operation", arguments: { id: edited.id, view: "status" } });
+        assert.notEqual(state.isError, true);
+        assert.equal("rows" in (state.structuredContent as Record<string, unknown>), false);
+        const energy = await client.callTool({ name: "preview_energy", arguments: { ...platformContext, operationId: "fictional-production-energy-" + mode, date: "2026-11-10", restingKcal: "1800", activeKcal: "0", activityMode: "total" } });
+        assert.notEqual(energy.isError, true);
+        assert.equal("energySnapshot" in (energy.structuredContent as Record<string, unknown>), false);
+        for (const tool of ["query_measurements", "query_meals", "query_energy", "query_training"]) {
+          const summary = await client.callTool({ name: tool, arguments: { ...platformContext, range: "last7", view: "summary", timezone: "Asia/Shanghai" } });
+          assert.notEqual(summary.isError, true, tool);
+          const entities = (summary.structuredContent as { entities: Array<{ result_json: string }> }).entities;
+          assert.equal(JSON.parse(entities[0].result_json).page.hasMore, false);
+        }
       } finally { await client.close(); }
     }
     assert.equal((await db.select({ id: schema.measurement.id }).from(schema.measurement)).length, 0);
     assert.equal((await db.select({ id: schema.meal.id }).from(schema.meal)).length, 0);
-    console.info(JSON.stringify({ check: "doubao-production-http", passed: true, toolCount: 19, protocols: ["auto", "legacy"], invalidCredentialsRejected: true, profileOwnerMatched: true, measurementQueryPassed: true, platformContextCompatible: true, simpleMealPreviewPassed: true, previewPagePassed: true, businessValidationPreserved: true, healthRecordsWritten: 0 }));
+    assert.equal((await db.select({ id: schema.energyDay.id }).from(schema.energyDay)).length, 0);
+    console.info(JSON.stringify({ check: "doubao-production-http", passed: true, toolCount: 21, protocols: ["auto", "legacy"], invalidCredentialsRejected: true, profileOwnerMatched: true, measurementQueryPassed: true, platformContextCompatible: true, simpleMealPreviewPassed: true, mealChangesPassed: true, energyPreviewPassed: true, boundedQueriesPassed: true, previewPagePassed: true, businessValidationPreserved: true, healthRecordsWritten: 0 }));
   } finally { if (process.env.FORMWARD_DOUBAO_PREVIEW !== "1") await close(); }
 }

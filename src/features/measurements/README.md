@@ -31,3 +31,5 @@ ai-operations.ts 只接收 save_day、batch 和 save_record，保留归属、版
 0035 migration 仅将明确 record_kind=estimated 的有效行归档，保留 measurement_events 外键、原始导入和审计。数据库禁止估计作为有效正式记录；保留的历史 JSON 不引用可执行估算类型。算法、补全／初始化／重建脚本已删除。
 
 测试使用虚构数据，覆盖真实录入与编辑、来源、时区、缺测、统计、删除、账号隔离、旧任务退役、归档迁移及审计不变。图形和交互以实际网页验收为准。
+
+queryAiMeasurementPage提供MCP可选summary／details，只读取所选日期及七日统计必要的前六天；sevenDay明确锚定page.to，不冒充整段均值或当前最新。旧queryAiMeasurements保留完整结构与最新七日summary，新增scope说明；choices只兼容校验，不要求模型选择候选。缺测、来源、实测与updatedAt版本保持。

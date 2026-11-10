@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, gte, lte } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { trainingEvent, trainingPlan, trainingSession, trainingTemplate } from "../../db/schema";
 import { lockActiveAccount, requireActiveAccount } from "../auth/account-security";
@@ -7,12 +7,12 @@ import { ApiError } from "../auth/ai-identity";
 import { completedSetCount, sessionSeconds, templateExercises, trainingInputSchema, type TrainingInput, type TrainingSnapshot } from "./model";
 
 type ReadDb = Pick<Database, "select">;
-export async function readTraining(db: ReadDb, userId: string): Promise<TrainingSnapshot> {
+export async function readTraining(db: ReadDb, userId: string, range?: { from: string; to: string }): Promise<TrainingSnapshot> {
   await requireActiveAccount(db, userId);
   // 分开读取以兼容独立 PGlite 单连接；仅返回当前账号。
-  const sessions = await db.select().from(trainingSession).where(eq(trainingSession.userId, userId)).orderBy(desc(trainingSession.date));
+  const sessions = await db.select().from(trainingSession).where(and(eq(trainingSession.userId, userId), range ? gte(trainingSession.date, range.from) : undefined, range ? lte(trainingSession.date, range.to) : undefined)).orderBy(desc(trainingSession.date));
   const templates = await db.select().from(trainingTemplate).where(eq(trainingTemplate.userId, userId)).orderBy(desc(trainingTemplate.createdAt));
-  const plans = await db.select().from(trainingPlan).where(eq(trainingPlan.userId, userId)).orderBy(desc(trainingPlan.date));
+  const plans = await db.select().from(trainingPlan).where(and(eq(trainingPlan.userId, userId), range ? gte(trainingPlan.date, range.from) : undefined, range ? lte(trainingPlan.date, range.to) : undefined)).orderBy(desc(trainingPlan.date));
   return {
     sessions: sessions.filter(s => s.status !== "discarded").map(s => ({ id: s.id, date: s.date, timezone: s.timezone, name: s.name, status: s.status, exercises: s.exercises, version: s.version, elapsedSeconds: s.elapsedSeconds, startedAt: s.startedAt.toISOString(), resumedAt: s.resumedAt?.toISOString() ?? null, endedAt: s.endedAt?.toISOString() ?? null, planId: s.planId })),
     templates: templates.map(t => ({ id: t.id, version: t.version, ...t.content })),

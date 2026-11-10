@@ -18,6 +18,7 @@ import { createMcpEndpoint } from "../mcp/server";
 import { listMeasurements } from "../measurements/records";
 import { reviewRecordOperation } from "../records/operations";
 import { reviewAiMeasurementOperation } from "../measurements/ai-operations";
+import type { mealAiResponse, recordAiResponse } from "../records/ai-response";
 import { initializeAccountOwner, manageAccount, unlockAccountAdmin } from "./account-management";
 
 const pg = new PGlite(), db = drizzle(pg, { schema });
@@ -166,7 +167,7 @@ test("现代与旧 MCP 客户端发现工具、查询、提交预览、网页确
   for (const mode of ["legacy", "auto"] as const) {
     const client = await mcpClient(connected.tokens.access_token, mode);
     try {
-      const tools = await client.listTools(); assert.deepEqual(tools.tools.map(tool => tool.name).sort(), ["append_pending_images", "authorize_formward", "get_meal_operation", "get_measurement_operation", "get_profile", "get_record_operation", "import_meal_images", "query_energy", "query_meals", "query_measurements", "search_foods", "submit_meal_operation", "submit_measurement_operation", "submit_record_operation", "search_exercises", "query_training", "submit_training_operation", "get_training_operation"].sort());
+      const tools = await client.listTools(); assert.deepEqual(tools.tools.map(tool => tool.name).sort(), ["append_pending_images", "authorize_formward", "get_meal_operation", "get_measurement_operation", "get_profile", "get_record_operation", "import_meal_images", "preview_meal", "preview_meal_changes", "preview_energy", "query_energy", "query_meals", "query_measurements", "search_foods", "submit_meal_operation", "submit_measurement_operation", "submit_record_operation", "search_exercises", "query_training", "submit_training_operation", "get_training_operation"].sort());
       const profile = await client.callTool({ name: "get_profile", arguments: {} }); assert.equal((profile.structuredContent as Record<string, unknown>)?.id, connected.userId);
       const input = { operationId: randomUUID(), items: [{ kind: "save_record", date: mode === "legacy" ? "2024-06-01" : "2024-06-02", period: "evening", weightKg: "70.20", deviceLabel: "虚构 MCP 秤" }] };
       const result = await client.callTool({ name: "submit_measurement_operation", arguments: input }); assert.ok(!result.isError);
@@ -182,6 +183,43 @@ test("现代与旧 MCP 客户端发现工具、查询、提交预览、网页确
   }
   const events = await db.select().from(schema.measurementEvent).where(eq(schema.measurementEvent.userId, connected.userId));
   assert.ok(events.every(event => (event.snapshot.ai as { oauthConnectionId: string }).oauthConnectionId === connected.claims[CONNECTION_CLAIM]));
+});
+
+test("GPT新旧协议使用新单餐、局部修改、消耗与范围摘要；原入口继续可用", async () => {
+  const scopes = [...fullScopes, MEALS_READ_SCOPE, MEALS_WRITE_SCOPE, ENERGY_READ_SCOPE, ENERGY_WRITE_SCOPE, TRAINING_READ_SCOPE, TRAINING_WRITE_SCOPE];
+  const connected = await connect(credentials, scopes);
+  for (const mode of ["legacy", "auto"] as const) {
+    const client = await mcpClient(connected.tokens.access_token, mode);
+    try {
+      const before = (await readMealSnapshot(db, connected.userId)).meals.length;
+      const single = await client.callTool({ name: "preview_meal", arguments: { operationId: randomUUID(), date: "2024-08-01", mealType: "午餐", foods: [{ name: "虚构两份", quantity: "2", unit: "份", caloriesKcal: "300", proteinG: "0", nutritionBasis: "per_portion", sourceKind: "unknown" }] } });
+      assert.notEqual(single.isError, true);
+      const preview = single.structuredContent as ReturnType<typeof mealAiResponse> & { confirmationUrl: string };
+      assert.equal(preview.state, "awaiting_web_confirmation");
+      assert.equal(Number(preview.rows?.[0].meal?.items[0].nutrition.caloriesKcal), 600);
+      assert.equal(preview.rows?.[0].meal?.items[0].nutrition.carbsG, null);
+      const changed = await client.callTool({ name: "preview_meal_changes", arguments: { operationId: randomUUID(), previewId: preview.id, revision: preview.revision, updateFoods: [{ index: 0, quantity: "3" }] } });
+      assert.notEqual(changed.isError, true);
+      const edited = changed.structuredContent as ReturnType<typeof recordAiResponse>;
+      assert.equal(edited.operationType, "record"); assert.equal(edited.canConfirm, true);
+      const state = await client.callTool({ name: "get_record_operation", arguments: { id: edited.id, view: "status" } });
+      assert.equal("rows" in (state.structuredContent as Record<string, unknown>), false);
+      assert.equal((await readMealSnapshot(db, connected.userId)).meals.length, before);
+      await reviewRecordOperation(db, connected.userId, edited.id, { kind: "confirm", revision: edited.revision });
+      const result = await client.callTool({ name: "get_record_operation", arguments: { id: edited.id, view: "status" } });
+      assert.equal((result.structuredContent as ReturnType<typeof recordAiResponse>).saved, 1);
+      const energy = await client.callTool({ name: "preview_energy", arguments: { operationId: randomUUID(), date: "2024-08-02", activities: [{ name: "虚构散步", caloriesKcal: "0", durationMinutes: "20" }] } });
+      assert.notEqual(energy.isError, true);
+      assert.equal("energySnapshot" in (energy.structuredContent as Record<string, unknown>), false);
+      for (const tool of ["query_measurements", "query_meals", "query_energy", "query_training"]) {
+        const query = await client.callTool({ name: tool, arguments: { range: "last7", view: "summary", timezone: "Asia/Shanghai" } });
+        assert.notEqual(query.isError, true, tool);
+        assert.equal(((query.structuredContent as Record<string, unknown>).page as { hasMore: boolean }).hasMore, false);
+      }
+      const legacy = await client.callTool({ name: "query_meals", arguments: { from: "2024-08-01", to: "2024-08-01" } });
+      assert.ok(Array.isArray((legacy.structuredContent as Record<string, unknown>).meals));
+    } finally { await client.close(); }
+  }
 });
 
 test("MCP 来源缺失提示补填，明确留空可网页确认；工具说明要求先询问真实来源", async () => {

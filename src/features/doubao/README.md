@@ -6,9 +6,9 @@
 
 AppSecret 仅用于服务端向豆包换取已验证的 OpenID，不传到 Vercel 静态文件、前端、Skill 或日志。数据库只保存用于匹配的 OpenID 摘要，不收集豆包手机号、昵称或头像。上海独立入口及平台测试版已启用；本人手机身份交换、网页授权回传和平台换码绑定已验证，查询及网页确认的实际范围见 `docs/doubao-onboarding.md`。
 
-新增单餐使用豆包专用的`preview_meal`。根参数仅operationId、date、mealType、foods必填，食物营养平铺，不接受多种动作／嵌套营养结构；未知字段省略并映射为null，明确0和原精度保留。自由项采用本次总量，食材引用仅使用搜索返回的id／version、食量和单位，换算、归属、版本、预览幂等及网页登录确认复用饮食feature。旧18项工具保留，新入口只在豆包注册，GPT工具集保持18项。
+GPT与豆包共享21项工具。preview_meal使用饮食feature的平铺输入，支持本次总量／每份／每参考量与明确kJ换算；preview_meal_changes保留未改内容并在原预览修正，preview_energy沿用全天与运动规则。meal-preview.ts仅留旧模块导出，实际注册统一位于mcp/server.ts。旧18项、原授权和网页登录确认保持。
 
-`meal-preview.ts`只兼容明确同义的包装标签名称与同单位营养后缀，不推测来源、不换算kg／kJ、不补造营养。估算数值须有basis；食量未知或接受估算必须显式表达。其余字段仍经过原严格schema和业务校验，错误指向可修正的字段。
+营养未知省略并映射null，明确0及原精度保留。来源未知可保留unknown而不丢已知数值；估算须有basis。明确同义标签和同单位后缀可兼容，不推测kg等不同单位。新范围摘要与状态输出减少无关数据，实际能力与模型验证边界见docs/ai-tool-contracts.md。
 
 豆包工具发现把整数`exclusiveMinimum:x`等价转换为`minimum:floor(x)+1`，兼容平台解析器；不改变原schema、服务器校验或GPT输出。该规则须在两种协议的实际HTTP测试中检查。
 

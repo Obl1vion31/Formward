@@ -7,10 +7,12 @@ import { listMeasurements } from "./records";
 import { listMeasurementDates, measurementDisplay } from "./editing";
 import { listMeasurementSources, MeasurementSourceError } from "./sources";
 import { buildMeasurementDays } from "./days";
-import { measurementSummary } from "./summary";
+import { measurementSummary, measurementSummaryAt } from "./summary";
 import { calendarOrdinal, measurementTrend, metricDifference } from "./trend";
 import { systemMeasurementTimezone, timezoneLabel, validateMeasurementTimezone } from "./timezone";
 import { localMeasurementDate } from "./entry-state";
+import { boundedQueryPage } from "../records/ai-query";
+import { addCalendarDays } from "./calendar";
 
 export function aiRequestTimezone(request: Request, configuredTimezone = process.env.FORMWARD_TIMEZONE) {
   const timezone = request.headers.get("x-formward-timezone") ?? systemMeasurementTimezone(new Date(), configuredTimezone);
@@ -67,9 +69,33 @@ export async function queryAiMeasurements(db: Database, userId: string, params: 
   choices={};
   const visible = (date: string) => (!from || date >= from) && (!to || date <= to), records = all.filter(row => visible(row.recordDate));
   const analyses = Object.fromEntries((["weightKg", "bodyFatPercent"] as const).map(metric => [metric, {
-    summary: measurementSummary(all.filter(row=>row.recordDate<=localMeasurementDate(new Date(),timezone)), metric, choices), trend: measurementTrend(records, metric, true, choices),
+    summary: { ...measurementSummary(all.filter(row=>row.recordDate<=localMeasurementDate(new Date(),timezone)), metric, choices), scope: "latest_available_seven_days" as const }, trend: measurementTrend(records, metric, true, choices),
     days: buildMeasurementDays(records, choices, metric, dates.filter(row => visible(row.date)).map(row => row.date)).map(day => ({ date: day.date, needsSelection: day.needsSelection, daytime: day.daytimeRecord, evening: day.eveningRecord, candidates: { daytime: day.daytime, evening: day.evening }, difference: metricDifference(day.daytimeRecord, day.eveningRecord, metric) })),
   }]));
   return currentMeasurementFacts({ context: { timezone, timezoneLabel: timezoneLabel(timezone), localDate: localMeasurementDate(new Date(), timezone) }, units: { weightKg: "kg", bodyFatPercent: "%", bodyFatDifference: "percentage_points" }, range: { from, to }, records, dates: dates.filter(row => visible(row.date)), sources, analyses,
     rules: "晨间只接受明确空腹实测；摘要仅统计实测。同一天晨间／晚间各采用最后保存的一条实测，新录入覆盖已有值，未知字段保留；未来身体日期禁止写入。未知值为 null。测量来源须由用户提供；未提供先询问补填或明确留空，不能用 ChatGPT／手动提供／设备未注明等代填。sources 只供用户选择，不擅自沿用；明确留空使用 deviceLabel:null 和 sourceUnspecifiedConfirmed:true。" });
+}
+
+/** 新摘要不混入当前最新读数；七日统计明确锚定本页结束日期。 */
+export async function queryAiMeasurementPage(db: Database, userId: string, params: URLSearchParams, timezone = systemMeasurementTimezone()) {
+  validateMeasurementTimezone(timezone);
+  if ([...params.keys()].some(key => !["from", "to", "view", "timezone"].includes(key)) || ["from", "to", "view", "timezone"].some(key => params.getAll(key).length > 1)) throw new ApiError(400, "invalid_input", "身体摘要仅支持日期、view和timezone。");
+  const today = localMeasurementDate(new Date(), timezone), query = boundedQueryPage(params, today);
+  const lookback = Array.from({ length: 6 }, (_, index) => addCalendarDays(query.from, -6 + index));
+  const raw = await listMeasurements(db, userId, [...lookback, ...query.dates]);
+  const all = adoptedMeasurements(raw).map(measurementDisplay), records = all.filter(record => record.recordDate >= query.from);
+  const days = buildMeasurementDays(records, {}, "weightKg", query.dates).map(day => ({
+    date: day.date,
+    daytime: day.daytimeRecord ? { weightKg: day.daytimeRecord.weightKg, bodyFatPercent: day.daytimeRecord.bodyFatPercent } : null,
+    evening: day.eveningRecord ? { weightKg: day.eveningRecord.weightKg, bodyFatPercent: day.eveningRecord.bodyFatPercent } : null,
+  }));
+  return currentMeasurementFacts({
+    context: { timezone, localDate: today }, range: { from: query.from, to: query.to }, page: query.page, view: query.view,
+    units: { weightKg: "kg", bodyFatPercent: "%", bodyFatDifference: "percentage_points" },
+    days,
+    sevenDay: { scope: "seven_days_ending_on_page_to", anchorDate: query.end,
+      weightKg: measurementSummaryAt(all, "weightKg", query.end), bodyFatPercent: measurementSummaryAt(all, "bodyFatPercent", query.end) },
+    ...(query.view === "details" ? { records, sources: [...new Set(records.map(record => record.deviceLabel).filter((source): source is string => !!source))] } : {}),
+    rules: "仅实测；每天每时段采用最后保存值，缺测为null。sevenDay按本页结束日及前六天统计，可能读取区间前最多六天作统计，不冒充整段平均或当前最新。修改用details的id/updatedAt版本，来源仍需用户明确提供或确认留空。page.hasMore时继续读取下一段。",
+  });
 }

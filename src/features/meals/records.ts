@@ -43,11 +43,11 @@ const norm = (s?: string | null) => (s ?? "").normalize("NFKC").trim().toLowerCa
 export const foodIdentity = (f: FoodDraft) => digest([norm(f.name), norm(f.brand), norm(f.preparation), Number(f.baseQuantity), norm(f.unit)]);
 const nutrients = (row: { caloriesKcal: string | null; proteinG: string | null; carbsG: string | null; fatG: string | null }): Nutrition => Object.fromEntries(metrics.map(m => [m, row[m]])) as Nutrition;
 const mealItemView = (i: typeof mealItem.$inferSelect):ItemView => ({ id: i.id, kind: i.kind as ItemDraft["kind"], name: i.name, quantity: i.quantity, nutritionBasis:i.nutritionBasis, ...(i.perPortionNutrition?{perPortionNutrition:i.perPortionNutrition}:{}),amountDecision:(i.amountDecision??undefined) as ItemDraft["amountDecision"], ...(i.reviewExplanation ? { reviewExplanation: i.reviewExplanation } : {}), unit: i.unit, ...(i.foodId ? { foodId: i.foodId, foodVersion: i.foodSnapshot?.version } : {}), ...(i.foodSnapshot ? { foodSnapshot: i.foodSnapshot } : {}), nutrition: nutrients(i), sourceKind: i.sourceKind as ItemDraft["sourceKind"], basis: i.basis, evidenceUrl: i.evidenceUrl });
-export async function readMealSnapshot(db: Pick<Database, "select">, userId: string, dates?: string[]): Promise<MealSnapshot> {
+export async function readMealSnapshot(db: Pick<Database, "select">, userId: string, dates?: string[], options: { images?: boolean } = {}): Promise<MealSnapshot> {
   const foods = dates ? [] : (await db.select().from(food).where(eq(food.userId, userId)).orderBy(desc(food.updatedAt))).map(row => ({ id: row.id, version: row.version, category: row.category as FoodDraft["category"], name: row.name, brand: row.brand, preparation: row.preparation, baseQuantity: row.baseQuantity, unit: row.unit, servingQuantity:row.servingQuantity,servingUnit:row.servingUnit,nutrition: nutrients(row), sourceKind: row.sourceKind as FoodDraft["sourceKind"], basis: row.basis, evidenceUrl: row.evidenceUrl, deletedAt: row.deletedAt?.toISOString() ?? null }));
   const meals = await db.select().from(meal).where(and(eq(meal.userId, userId), dates ? inArray(meal.localDate, dates) : undefined)).orderBy(desc(meal.localDate), desc(meal.createdAt), asc(meal.sourceRow), asc(meal.id));
   const items = dates && !meals.length ? [] : await db.select().from(mealItem).where(and(eq(mealItem.userId, userId), isNull(mealItem.deletedAt), dates ? inArray(mealItem.mealId, meals.map(row => row.id)) : undefined)).orderBy(mealItem.position);
-  const links = dates ? [] : await db.select().from(mealImageLink).where(eq(mealImageLink.userId,userId)).orderBy(mealImageLink.position);
+  const links = dates && (!options.images || !meals.length) ? [] : await db.select().from(mealImageLink).where(and(eq(mealImageLink.userId,userId), dates ? inArray(mealImageLink.mealId, meals.map(row => row.id)) : undefined)).orderBy(mealImageLink.position);
   for (const f of foods) Object.assign(f,{imageIds:links.filter(l=>l.foodId===f.id).map(l=>l.imageId)});
   const dayStates=await readMealDayViews(db,userId,meals);
   return { foods, meals: meals.map(row => {
@@ -55,9 +55,13 @@ export async function readMealSnapshot(db: Pick<Database, "select">, userId: str
     return { imageIds:links.filter(l=>l.mealId===row.id).map(l=>l.imageId), id: row.id, version: row.version, day:dayStates.get(row.localDate), date: row.localDate, mealType: mealTypeLabel(row.mealType), timezone: row.timezone, occurredAt: row.occurredAt?.toISOString() ?? null, notes: row.notes, items: entries, totals: sumNutrition(entries.map(i => i.nutrition)), source: row.source as MealView["source"], deletedAt: row.deletedAt?.toISOString() ?? null };
   }) };
 }
-export async function searchFoods(db: Database, userId: string, query = "") {
+export async function searchFoods(db: Database, userId: string, query = ""): Promise<FoodView[]> {
   if (query.length > 200) throw new ApiError(400, "invalid_input", "搜索文字过长。");
-  return (await readMealSnapshot(db, userId)).foods.filter(f => !f.deletedAt && norm(`${f.name} ${f.brand ?? ""} ${f.preparation ?? ""}`).includes(norm(query))).slice(0, 100);
+  // 搜索食材不再读取餐次、餐项或完整健康历史。
+  const rows = await db.select().from(food).where(and(eq(food.userId, userId), isNull(food.deletedAt))).orderBy(desc(food.updatedAt));
+  const selected = rows.filter(f => norm(`${f.name} ${f.brand ?? ""} ${f.preparation ?? ""}`).includes(norm(query))).slice(0, 100);
+  const links = selected.length ? await db.select().from(mealImageLink).where(and(eq(mealImageLink.userId, userId), inArray(mealImageLink.foodId, selected.map(row => row.id)))).orderBy(mealImageLink.position) : [];
+  return selected.map(row => ({ id: row.id, version: row.version, category: row.category as FoodDraft["category"], name: row.name, brand: row.brand, preparation: row.preparation, baseQuantity: row.baseQuantity, unit: row.unit, servingQuantity: row.servingQuantity, servingUnit: row.servingUnit, nutrition: nutrients(row), sourceKind: row.sourceKind as FoodDraft["sourceKind"], basis: row.basis, evidenceUrl: row.evidenceUrl, deletedAt: null, imageIds: links.filter(link => link.foodId === row.id).map(link => link.imageId) }));
 }
 function evidenceValid(f: { sourceKind: string; basis?: string | null; evidenceUrl?: string | null }) {
   if (["label", "composition_table"].includes(f.sourceKind) && !f.basis?.trim() && !f.evidenceUrl) throw new ApiError(400, "source_required", "标签或成分表数据请附转录说明或来源链接。");
@@ -189,8 +193,8 @@ async function manualHistory(tx: Pick<Database,"select">, userId: string, input:
   }
   return history;
 }
-export async function submitMealOperation(db: Database, actor: MealActor, raw: unknown, planner: MealPlanner = prepareMealActions) {
-  const input = parse(raw), hash = digest(input);
+export async function submitMealOperation(db: Database, actor: MealActor, raw: unknown, planner: MealPlanner = prepareMealActions, options: { requestDigest?: string } = {}) {
+  const input = parse(raw), hash = options.requestDigest ?? digest(input);
   if (actor.origin === "ai") requireAiUpserts(input.actions);
   return db.transaction(async tx => {
     await lockOwner(tx, actor.userId);

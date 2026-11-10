@@ -31,3 +31,7 @@ energy-review.tsx及样式提供消耗专用确认展示，energy-review-model.t
 web-entry.ts仅供网页手工填写：餐次校验有效日期、非空食物和合法数量／营养，可全部未知或明确0；消耗沿用原正值门槛及旧值保留例外。web-entry-server.ts复用本人版本、请求幂等与feature换算，AI手工改餐次沿用整批食材引用；公共协议及未修改预览精度保持。
 
 统一审核同时支持save_training_template和schedule_training；同批新模板通过templateRef引用key。训练预览投影复用training feature，保存在现有record_operations JSONB，24小时有效，原授权、归属、版本与事务保护保持。取消待保存模板会阻止其依赖排期，确认按模板后排期顺序写入，AI来源及人工修改留审计；不修改已完成训练或生成热量。plan-review在同一确认页显示动作目标、日期与修改前内容，回执直达训练页。
+
+ai-query.ts统一AI可选的相对日期、summary／details及日历分段，不保存健康值。ai-response.ts投影任务所需结果，区分待补信息／待网页确认／过期与正式保存；旧工具未传view仍返回原结构。原业务预览、网页审核和计算保持。
+
+reviewRecordOperation的内部AI修改上下文仅接受原授权的待确认餐次update，复核账号、meals:write、原连接／令牌、expiry与父子revision。重复修改在既有RecordItem.aiEdits记录operationId摘要，重试不再次合并、不增加revision；不提供MCP确认／删除入口。AI修改账与人工editedBy分别写入原餐次审计，payload不可变。局部修改返回仅包含目标餐次，不回传其他域内容或全部食材库。

@@ -62,8 +62,16 @@ tools:
     description: 新增单餐首选，使用平铺食物字段提交待网页确认的预览。
     login_type: normal
     output: { kind: execution_result }
+  preview_meal_changes:
+    description: 只提交餐内指定字段修改，服务器保留其他内容，仍需网页确认。
+    login_type: normal
+    output: { kind: execution_result }
+  preview_energy:
+    description: 提交全天消耗或实际运动预览，使用平铺字段，仍需网页确认。
+    login_type: normal
+    output: { kind: execution_result }
   submit_meal_operation:
-    description: 修改已有餐次或维护食材库的预览；新增单餐使用preview_meal。
+    description: 食材库维护或高级兼容预览；普通餐内修改使用preview_meal_changes。
     login_type: normal
     output: { kind: execution_result }
   get_meal_operation:

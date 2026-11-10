@@ -12,7 +12,7 @@ production build 后执行 `node --import tsx tests/doubao-fixture.mts`，在回
 
 同一HTTP检查覆盖豆包附加的两个保留上下文字段：连接检查及身体查询成功，原参数和数据不回显；非法日期与其余未知业务字段仍拒绝。两种协议均执行，且不生成健康记录。`oauth.test.ts`先用框架代理请求复现严格schema拒绝平台字段的失败，再验证适配与原鉴权。
 
-`meal-preview.test.ts`覆盖新单餐schema的体积与无组合分支、总量不重复乘算、未知与0、来源／单位格式兼容及严格业务约束。`oauth.test.ts`增加新旧协议下的单餐预览、食材规格换算、幂等冲突、跨账号食材与预览、缺少权限、撤销、平台附加字段及GPT工具集不变；实际Next HTTP fixture验证19项工具、整数边界兼容、真实预览页200且正式健康记录写入0。设置FORMWARD_DOUBAO_PREVIEW=1可在检查后保留该虚构账号预览，供实际浏览器验收；退出仍只停止本人fixture。
+`meal-preview.test.ts`覆盖新单餐schema的体积与无组合分支、总量不重复乘算、未知与0、来源／单位格式兼容及严格业务约束。`oauth.test.ts`增加新旧协议下的单餐预览、食材规格换算、幂等冲突、跨账号食材与预览、缺少权限、撤销、平台附加字段及GPT原工具保留；实际Next HTTP fixture验证21项工具、整数边界兼容、真实预览页200且正式健康记录写入0。设置FORMWARD_DOUBAO_PREVIEW=1可在检查后保留该虚构账号预览，供实际浏览器验收；退出仍只停止本人fixture。
 
 ## Garmin 个人密钥连接
 
@@ -365,3 +365,9 @@ production build 后以 FORMWARD_LOADING_NATIVE=1、FORMWARD_LOADING_PREVIEW=1 �
 FORMWARD_CHART_BODY_ONLY=1只核对各尺寸的坐标、读数、点选、实际点径及线宽，不计为往返动效通过；FORMWARD_CHART_WIDTHS以逗号选择诊断尺寸。FORMWARD_CHART_HEADED=1可配合隔离Xvfb核对GTK WebKit，与默认WPE后端分别保留报告。更换采样后端或关闭录制不能将之前的失败样本改写为通过。
 
 首次引导及演练复验使用 onboarding-feedback.browser.mjs，复用 workspace-loading 的隔离预览配置（FORMWARD_LOADING_CONFIG）。覆盖 owner 填写、跳过、返回资料、演练完成后真实点击返回总览，两主题和七种视口、文字放大及系统外观；真实新账号慢请求、失败保留输入、重试及完成。证据含截图和完整录像，核对演练无 POST／资料或健康记录写入。GUIDANCE_BROWSER、PLAYWRIGHT_MODULE 和 FEEDBACK_ARTIFACTS 分别选择浏览器、运行库与私有证据位置。
+
+## AI常用工具与兼容
+
+records/ai-tools.test.ts用全新虚构数据库验证共享记餐、每份／每参考量与kJ换算、历史快照、餐内修改、清空与省略、跨日重试、父子预览版本、原授权、来源／未知／0，以及摘要范围和分页。auth/oauth.test.ts使用真实OAuth与两种SDK协议调用新增工具，确认前事实不变，再验证网页业务确认及状态查询；旧完整提交仍覆盖。
+
+新summary／status返回不含整库食材或重复的完整能量快照；查询SQL按所选日期，searchFoods不查询餐次。模型样本另行记录，接口／浏览器通过不能代替GPT首轮成功率，未配置OpenAI API时不能声称已经完成GPT模型对照。

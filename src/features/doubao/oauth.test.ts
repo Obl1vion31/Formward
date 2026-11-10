@@ -307,7 +307,7 @@ test("原 GPT OAuth 和 MCP 保持独立，撤销豆包后原连接仍可查询�
   await revokeOauthConnection(db, flow.userId, claims[CONNECTION_CLAIM]);
   const gpt = await mcpClient("/api/mcp", { Authorization: "Bearer " + gptToken });
   try {
-    assert.ok(!(await gpt.listTools()).tools.some(tool => tool.name === "preview_meal"));
+    assert.ok((await gpt.listTools()).tools.some(tool => tool.name === "preview_meal"));
     const result = await gpt.callTool({ name: "get_profile", arguments: {} });
     assert.equal((result.structuredContent as Record<string, unknown>)?.id, logged.userId);
     assert.equal("entities" in (result.structuredContent as Record<string, unknown>), false);

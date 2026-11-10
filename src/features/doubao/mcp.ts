@@ -11,13 +11,12 @@ import { createFormwardMcp } from "../mcp/server";
 import { openIdDigest, type DoubaoConfig } from "./config";
 import { canonicalResource, doubaoScopes, requireDoubaoClient } from "./oauth";
 import { limitedJson, privateJson } from "./http";
-import { registerDoubaoMealPreview } from "./meal-preview";
 
 type JsonObject = Record<string, unknown>;
 const object = (value: unknown): value is JsonObject => !!value && typeof value === "object" && !Array.isArray(value);
 const publicMethods = new Set(["server/discover", "initialize", "notifications/initialized", "tools/list", "ping"]);
 const queryKinds: Record<string, string> = { get_profile: "account", query_measurements: "measurements", query_meals: "meals", query_energy: "energy", query_training: "training", search_foods: "foods", search_exercises: "exercises" };
-const knownTools = new Set([...Object.keys(queryKinds), "authorize_formward", "submit_measurement_operation", "get_measurement_operation", "import_meal_images", "preview_meal", "submit_meal_operation", "get_meal_operation", "submit_training_operation", "get_training_operation", "submit_record_operation", "get_record_operation", "append_pending_images"]);
+const knownTools = new Set([...Object.keys(queryKinds), "authorize_formward", "submit_measurement_operation", "get_measurement_operation", "import_meal_images", "preview_meal", "preview_energy", "preview_meal_changes", "submit_meal_operation", "get_meal_operation", "submit_training_operation", "get_training_operation", "submit_record_operation", "get_record_operation", "append_pending_images"]);
 const platformArgumentNames = ["from_mcp_call", "_miniapp_permitted_data"] as const;
 
 function removeUnusedPlatformArguments(input: JsonObject): string[] {
@@ -109,7 +108,6 @@ export function createDoubaoMcpEndpoint(db: Database, auth: ReturnType<typeof cr
   async function serve(request: Request, input: JsonObject, identity: AiIdentity, scopes: string[], ignoredPlatformArguments: string[] = []) {
     const handler = createMcpHandler(() => {
       const server = createFormwardMcp(db, identity, scopes, request);
-      registerDoubaoMealPreview(server, db, identity, scopes, request);
       return server;
     }, { legacy: "stateless", maxRequestBodySize: 131072 });
     const started = Date.now(), params = object(input.params) ? input.params : {};
