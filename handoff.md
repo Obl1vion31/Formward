@@ -9,19 +9,23 @@
 
 ## AI常用工具与兼容
 
-当前开发分支codex/ai-tool-clarity从统一主线建立。GPT和豆包共享21项工具，原18项保留；新增单餐、餐内局部修改、消耗入口分别为preview_meal、preview_meal_changes、preview_energy。份量换算与历史合并由服务器承担，原OAuth、scope、人工确认和健康计算保持。具体场景见[AI工具调用规则](docs/ai-tool-contracts.md)。
+已合入并推送main，服务端已上线。GPT与豆包共享preview_meal、preview_meal_changes、preview_energy，服务器负责份量换算、保留未改内容、原预览修正及跨日重试；查询可选有界summary／details，旧接口继续兼容。所有正式保存仍由用户在网页确认；没有新scope、数据库迁移或健康计算。完整场景见[AI工具调用规则](docs/ai-tool-contracts.md)。
 
-新查询可选summary／details与相对区间，显式日历分页，身体七日统计标明锚点。跨日重试固定首次解析日期；待确认餐内修改核对原授权与父子revision，并在既有JSON草稿记录AI修改账，不重复添加食物，不冒充人工编辑。没有数据库结构变化。
+626项单元／集成（81个原测试文件独立串行）、lint、typecheck及干净兼容production build通过；原生4项、Manifest校验、本地构建及测试版云构建通过。实际Next production两种协议验证21工具、三个常用预览、四类有界查询、状态查询、非法参数和无效凭据拒绝；确认前正式事实写入0。Chrome实际核对桌面浅色与390×780深色，打开／关闭原编辑器、焦点恢复、局部备注保留，并点击网页确认保存1条虚构餐次，再查到正确日期、600kcal、蛋白质0和其余未知。未改界面样式，不把这些当作真实豆包WebView通过。
 
-625项单元／集成已通过，覆盖81个原测试文件串行独立执行；实际Next production、网页确认、公开链路和平台测试版仍在本轮验收中，不能将开发检查算作已发布。现有GPT实际get_profile已在发布前成功。未配置OpenAI API评测凭据，不声称已测得GPT首轮完成率提升。
+三组官方豆包模型实测：每份300×2为600；原预览改3份为900；静息1800＋活动0为1800。最终各次工具返回pending且canConfirm=true，回复包含真实确认链接，无tool_call_arguments_invalid；正式健康事实未写入。第一轮捕获的漏转录、缺模式及错误回复保留私有记录，服务器自动转录／推导与模型错误处理规则修正后复测。CLI 0.0.41仍因card_binding_missing给完整Verdict未通过，不把工具成功称为整个模拟器通过或总体成功率。
 
-豆包本人连接与身体查询保持此前已确认结果；运行态Skill与Manifest同步21项，原生4项、静态检查、Manifest校验和本地构建已通过。本轮真实模型与手机验证分别记录，不把模拟器工具成功称作真机通过；不提交公开审核。
+本机没有OpenAI API评测配置，真实GPT首轮完成率对照未执行；真实GPT连接发布前后get_profile均成功且同一账号，不能以接口回归替代真实模型效果。本人豆包既有连接与身体查询沿用已确认结果，新测试版的物理手机记餐、局部修改和消耗仍待本人更新Debugger后复测。
 
-## 当前部署：手机引导与外部接入
+测试版0.0.1-dev.20261111.2已云构建succeeded，21项Manifest与最新运行态Skill已上传；本人从版本详情扫码更新Debugger，无需重建GPT连接。GPT客户端需刷新工具定义才能看到新增入口。
 
-用户已授权先用Vercel过渡、后续再迁国内，保留现有GPT连接；官方CLI登录与上海私有AppSecret配置已获授权并完成，不重复索权。
+私有验收归档在main-current工作区.codex/ai-tool-clarity-20261111，包含质量结果、失败与成功模型调用、实际网页截图、最终运行包、发布校验和平台构建状态。截图使用虚构账号，未向正式账号写入测试健康记录。
 
-当前上海应用 `dual-entry-55ac4956-doubao-simple-meal-final-20261111`，源码`55ac4956f59205d480b21e8862cb4d0b4f6e4463`，BUILD_ID `z6eI-7owRfYDkdU2vdBuM`，目录`doubao-simple-meal-final-20261111`。包含此前手机引导与主题完善，新增豆包单餐入口及定义兼容适配；原GPT入口、工具和业务计算保持。
+## 当前部署：AI常用工具与外部接入
+
+当前上海应用为dual-entry-99380910-ai-tool-clarity-final-20261111，源码99380910d15f2a29b856ad55d220aea8fe47b3bd，BUILD_ID kOlTNGXsgrakaKRa54QgO，目录ai-tool-clarity-final-20261111。原OAuth issuer／resource、账号和授权保持；MCP为1.16.0、共21项工具，旧18项仍兼容。
+
+本轮保留47项Server Action及原绑定密钥、339项旧静态资源，配置字节与root 0600凭据保持；上一应用doubao-simple-meal-final-20261111保留回退。海外网关没有重新部署，两原别名仍指向既有iad1版本；三入口版本一致、8项公开资源SHA一致、新旧协议21工具与匿名／无效凭据保护通过。
 
 生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。
 

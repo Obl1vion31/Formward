@@ -1548,3 +1548,16 @@ D1／D2／D3／D4／D5／D7适用条目通过；D6浏览器实测通过，真机
 - HTTPS 续期：IP 专用每六小时定时任务已启用并运行一次检查；证书续期真正发生后的结果仍需到期前监测。测试库每日备份已启用，首份归档通过 pg_restore 目录检查；尚未做完整恢复演练。
 
 证据位于本工作区被忽略的 `.codex/ip-preview/evidence/`：`desktop-overview.jpg`、`mobile-training.jpg`、`mobile-meals.jpg`、`mobile-meal-rows.jpg`。本轮未修改界面结构；不以这些最终截图代替既有完整加载过程、1 CSS px、Chromium／WebKit、真机或慢网矩阵验收。照片存储、设备同步和新 MCP 连接未在这个测试环境配置。
+
+
+## AI常用工具验收
+
+626项单元／集成（81个原测试文件独立串行）、lint、typecheck及干净兼容production build通过；原生4项、Manifest校验、本地构建及测试版云构建通过。实际Next production两种协议验证21工具、三个常用预览、四类有界查询、状态查询、非法参数和无效凭据拒绝；确认前正式事实写入0。Chrome实际核对桌面浅色与390×780深色，打开／关闭原编辑器、焦点恢复、局部备注保留，并点击网页确认保存1条虚构餐次，再查到正确日期、600kcal、蛋白质0和其余未知。未改界面样式，不把这些当作真实豆包WebView通过。
+
+三组官方豆包模型实测：每份300×2为600；原预览改3份为900；静息1800＋活动0为1800。最终各次工具返回pending且canConfirm=true，回复包含真实确认链接，无tool_call_arguments_invalid；正式健康事实未写入。第一轮捕获的漏转录、缺模式及错误回复保留私有记录，服务器自动转录／推导与模型错误处理规则修正后复测。CLI 0.0.41仍因card_binding_missing给完整Verdict未通过，不把工具成功称为整个模拟器通过或总体成功率。
+
+本机没有OpenAI API评测配置，真实GPT首轮完成率对照未执行；真实GPT连接发布前后get_profile均成功且同一账号，不能以接口回归替代真实模型效果。本人豆包既有连接与身体查询沿用已确认结果，新测试版的物理手机记餐、局部修改和消耗仍待本人更新Debugger后复测。
+
+适用设计D1／D2／D3／D12：桌面浅色与390×780深色的实际确认页日期、本餐合计、完整食物、未知／0、按需依据与底部保存均可达；原编辑窗口关闭恢复焦点。随后实际网页确认和饮食日期详情显示同一600kcal、蛋白质0及未知其余项。没有修改CSS或转场，不将本次两视口核对冒充320／430／200%或WebKit全量视觉回归。
+
+截图在主机可视化目录的ai-preview-desktop.png、ai-preview-mobile.png与ai-preview-saved.png，私有证据副本位于main-current/.codex/ai-tool-clarity-20261111/release。正式应用ai-tool-clarity-final-20261111，源码99380910d15f2a29b856ad55d220aea8fe47b3bd，BUILD_ID kOlTNGXsgrakaKRa54QgO；平台测试版0.0.1-dev.20261111.2。原GPT连接前后同一账号，正式域名保护、21项工具与公开资源一致性通过。

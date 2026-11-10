@@ -4,27 +4,25 @@
 
 Formward豆包应用AppID为`db_app_9m6xflq`，本人体验白名单已生效且永久有效；真实UID只在平台配置，不进入代码、文档或公开截图。`https://global.formward.top`的request与WebView域名均已验证生效。当前为本人测试，未提审正式开放。
 
-测试版 **`0.0.1-dev.20261111.1`** 已云构建succeeded，Manifest、运行态Skill、原生源码及业务声明已上传。平台配置预览已核对19项工具、新单餐的完整foods字段及最新Skill；原`0.0.1-dev.20261110.2`保留兼容查看。本人既有登录交换、WebView回传、换码绑定、连接检查及身体查询已通过；本次新记餐工具的真实手机调用和国服最终确认仍待本人复测。
+测试版 **0.0.1-dev.20261111.2** 已云构建succeeded，Manifest、运行态Skill、原生源码及业务声明已上传，21项工具与服务端一致；此前版本保留兼容。本人既有登录交换、WebView回传、换码绑定、连接检查及身体查询已通过。新工具真实手机使用仍待更新Debugger资源后复测。
 
-上海正式应用为`dual-entry-55ac4956-doubao-simple-meal-final-20261111`，源码`55ac4956f59205d480b21e8862cb4d0b4f6e4463`，BUILD_ID `z6eI-7owRfYDkdU2vdBuM`，目录`doubao-simple-meal-final-20261111`。包含此前手机引导与主题完善，不改变现有GPT入口、工具及健康计算。
+当前上海应用为dual-entry-99380910-ai-tool-clarity-final-20261111，源码99380910d15f2a29b856ad55d220aea8fe47b3bd，BUILD_ID kOlTNGXsgrakaKRa54QgO，目录ai-tool-clarity-final-20261111。原OAuth issuer／resource、账号和授权保持；MCP为1.16.0、共21项工具，旧18项仍兼容。
 
-## 新增一餐
+## 常用记餐、修改与消耗
 
-豆包新增`preview_meal`作为单餐首选。模型必填operationId、date、mealType和foods，食物使用平铺的name、quantity、unit、caloriesKcal、proteinG、carbsG、fatG、sourceKind及basis字段，不选择actions、kind或嵌套nutrition。原复杂工具仍承接历史修改、食材维护和混合记录；GPT保持原18项工具。
+GPT与豆包共享21项工具。preview_meal用于新增单餐，模型提供operationId、date、mealType、foods；自由食物营养平铺，默认本次总量不重复乘数量，每份／每参考量与明确kJ由服务器换算。已提供标签数值时，服务器可忠实生成转录；来源未知不丢已知数值，估算仍须basis，不编造食量或来源。
 
-明确日期传YYYY-MM-DD；今天／昨天传today／yesterday，由服务器按用户timezone解析，未知时区采用服务配置。其他相对日期先查询query_meals的context。返回和回复采用已解析的明确日期；成功后重试沿用返回的日期、timezone、原operationId和内容，不跨日重新解释昨天。请求幂等及内容冲突校验继续生效。
+preview_meal_changes只发送改动，服务器保留其余食物、附件和历史快照。保存后的修改带mealId/version生成预览；待确认修改带previewId/revision及必要的key更新原链接，原授权和有效期须匹配；同请求重试不重复添加食物。不能清空整餐，正式保存仍须网页登录确认。
 
-所有数量及营养采用十进制字符串。自由食物是本次实际食用总营养，不再次乘数量；未知营养省略并转换为null，明确0与精度保留。具体食物各自作为独立食物，不把多种食物全部标成互斥杂项。食材引用须先搜索真实foodId／foodVersion并提供实际数量、单位，由原饮食feature按规格换算。
+preview_energy处理全天总数／分项与实际运动，明确0保留。新增时可从提供的数值推导输入模式；没有手填活动合计时沿用运动累计，不补人工0。来源总数与included运动不重复加，未知包含关系交由网页核对。跨领域仍用submit_record_operation保持一个审核链接；食材维护和训练沿用原工具。
 
-包装标签来源为label，成分表为composition_table，估算为estimated并附basis及不确定性。服务器只兼容明确同义的包装标签名称及同单位营养后缀，不推测来源，不换算kg／kJ，不编造营养。食量未知或接受估算必须显式表达；日期、数值、账号归属、食材版本、来源、大小和图片仍由原严格schema及业务验证。
+查询可选summary／details及相对区间，显式返回page.hasMore／nextFrom；身体七日统计标明日期锚点，不混成当前最新读数。所有相对日期由服务器按timezone解析；重试保持原operationId及全部原参数，包括today／yesterday文本，跨零点仍固定首次日期。完整场景、字段、例子见[AI工具调用规则](ai-tool-contracts.md)。
 
-可选timezone、notes、imageIds和expectedImageCount。附件编号只使用import_meal_images真实返回值；原图私有保存不代表餐次已保存。preview_meal只生成pending预览并返回confirmationUrl，必须由用户登录网页确认；模型不得宣称预览已保存。
-
-同一Zod导出方式下，单餐首选inputSchema从原工具10,714字节改用新入口1,687字节，约减少84%；组合分支40处变为0。复杂度指标不等于成功率。豆包发现另把整数exclusiveMinimum:x等价转换为minimum:floor(x)+1，兼容平台解析器；原schema、实际校验及GPT输出保持。
+新工具只创建或修改预览，不能宣称已经保存。canConfirm=false或行内error须先修正，不能让用户忽略错误；未知保持null，明确0继续有效。旧18项继续兼容，总工具定义量有所增加，不以体积承诺省token或模型成功率。
 
 ## 本人手机复测
 
-打开[新测试版本详情](https://developer.doubao.com/agentic_service/db_app_9m6xflq/versions/0.0.1-dev.20261111.1)，点击“调试二维码”。平台当前提示使用豆包15.2.0或以上，通过“设置 → ··· → 应用插件 Debugger”扫码更新资源，再进入新的Formward调试对话，重发原来的昨天午餐内容。该二维码是已上传云构建版本，不是本地dbx device授权。
+打开[新测试版本详情](https://developer.doubao.com/agentic_service/db_app_9m6xflq/versions/0.0.1-dev.20261111.2)，点击“调试二维码”。平台当前提示使用豆包15.2.0或以上，通过“设置 → ··· → 应用插件 Debugger”扫码更新资源，再进入新的Formward调试对话，重发原来的昨天午餐内容。该二维码是已上传云构建版本，不是本地dbx device授权。
 
 既有Formward连接可沿用；若宿主提示登录失效，再按正常流程连接。更新资源与重新授权是两件事，不要求重建现有GPT连接。平台[UGC Bot预览对话](https://inhouse.doubao.com/bot/2xgttdEs)可按本人App提示进入；主对话扫码仍受平台实验配置限制，白名单不代表全面开放。
 
@@ -32,7 +30,7 @@ Formward豆包应用AppID为`db_app_9m6xflq`，本人体验白名单已生效且
 
 ## 链路与授权
 
-豆包App → Vercel已验证域名 → 签名回源 → 上海现有业务与主库。`integrations/doubao`维护Manifest、运行态Skill、原生首页和登录页；`src/features/doubao`维护身份与协议适配。19项工具复用现有MCP工厂及业务feature，不新增数据库、健康计算、HTTP v1或网页确认端点。
+豆包App → Vercel已验证域名 → 签名回源 → 上海现有业务与主库。`integrations/doubao`维护Manifest、运行态Skill、原生首页和登录页；`src/features/doubao`维护身份与协议适配。21项工具复用现有MCP工厂及业务feature，不新增数据库、健康计算、HTTP v1或网页确认端点。
 
 | 入口 | 用途 |
 |---|---|
@@ -68,26 +66,18 @@ AppSecret只由上海服务用于官方OpenAPI身份交换，不进入Vercel静�
 
 服务器配置FORMWARD_DOUBAO_ENABLED、FORMWARD_DOUBAO_APP_ID、FORMWARD_DOUBAO_APP_SECRET、FORMWARD_DOUBAO_ORIGIN；AppSecret保存在上海root 0600配置，原BETTER_AUTH_SECRET保持。DOUBAO_OPENAPI_BASE_DOMAIN使用官方正式地址；沙箱与正式login_code不能混用。原生运行态AppID和apiBaseUrl由Manifest生成，真实AppID只在manifest.yaml维护。
 
-官方CLI 0.0.41已获用户批准登录，SDK固定0.4.2。本轮Manifest及运行态Skill已同步，正式19项工具仍normal登录，不使用回环测试的身份替身。开发检查见integrations/doubao/README.md与tests/README.md。
+官方CLI 0.0.41已获用户批准登录，SDK固定0.4.2。本轮Manifest及运行态Skill已同步，正式配置的21项工具仍normal登录，不使用回环测试的身份替身。开发检查见integrations/doubao/README.md与tests/README.md。
 
 海外网关未重新部署；READY部署`dpl_7LC5LTzjS7zokZa6atCsrHpT5vxa`、网关源码`74754129c3a2c56fc61a6bf579c5f31398cd477e`、实际iad1保持，两别名仍为formward-ten.vercel.app及global.formward.top。后续网关发布必须显式--regions iad1并核对真实回源，不依赖运行日志地区标记。香港TCP失败与美国东部TCP／TLS／HTTP成功的诊断证据保留于先前接入归档。
 
 域名验证文件public/doubao_45g8h0ck.txt的SHA-256为`69022224f241371df358c978cb28384ac663337448e6a939570ac30b7d4cdbe7`。当前公网IP网页不替代已验证request／WebView域名。以后迁国内先验证新域名与完整豆包链路，再切换原生配置和服务；过渡入口与GPT原地址保留，不能承诺全部旧客户端免重新授权。
 
-本次发布保留47项Server Action及原绑定密钥，额外保留335项旧静态资源，配置字节保持，无数据库迁移。上一应用onboarding-polish-20261111保留回退。原临时诊断preload、systemd drop-in与保护绕过令牌已清除，本轮未重新引入。
+本次发布保留47项Server Action及原绑定密钥，额外保留339项旧静态资源，配置字节保持，无数据库迁移。上一应用doubao-simple-meal-final-20261111保留回退。原诊断preload、systemd drop-in与保护绕过令牌保持清除。
 
 ## 验收与待测边界
 
-606项单元／集成（80个测试文件独立串行）、lint、typecheck、原生4项、Manifest校验、原生本地构建及兼容production build通过。实际Next production双协议验证19工具、单餐／多食物预览、未知／0、网页200和无效凭据拒绝，正式健康写入0。Chrome桌面和390×780实际核对预览、依据及修改入口；未修改确认页样式，不把这些结果当作真实豆包WebView通过。
+626项单元／集成（81个原测试文件独立串行）、lint、typecheck及干净兼容production build通过；原生4项、Manifest校验、本地构建及测试版云构建通过。实际Next production两种协议验证21工具、三个常用预览、四类有界查询、状态查询、非法参数和无效凭据拒绝；确认前正式事实写入0。Chrome实际核对桌面浅色与390×780深色，打开／关闭原编辑器、焦点恢复、局部备注保留，并点击网页确认保存1条虚构餐次，再查到正确日期、600kcal、蛋白质0和其余未知。未改界面样式，不把这些当作真实豆包WebView通过。
 
-| 同组虚构样本 | 旧版 | 新版 |
-|---|---|---|
-| 明确日期、单食物、营养未知 | 参数校验失败，未派发 | 可确认预览，未知保持null |
-| 昨日、两份总营养、蛋白质0 | 参数校验失败，未派发 | 日期正确，数值不重复乘算 |
-| 多食物、未知与明确0并存 | 参数校验失败，未派发 | 两项均可确认，未知／0区分 |
+三组官方豆包模型实测：每份300×2为600；原预览改3份为900；静息1800＋活动0为1800。最终各次工具返回pending且canConfirm=true，回复包含真实确认链接，无tool_call_arguments_invalid；正式健康事实未写入。第一轮捕获的漏转录、缺模式及错误回复保留私有记录，服务器自动转录／推导与模型错误处理规则修正后复测。CLI 0.0.41仍因card_binding_missing给完整Verdict未通过，不把工具成功称为整个模拟器通过或总体成功率。
 
-两组在同一回环虚构账号执行官方模拟器，测试Manifest均采用预授权替身；正式配置仍normal登录。旧版出现tool_call_arguments_invalid；新版均实际调用preview_meal，pending且canConfirm=true，事实及链接匹配，模型回复完成。初轮网络错误、package_label、错误相对日期及多杂项问题留档，修正后最终样本均通过上述业务断言。
-
-CLI 0.0.41即使指定--expect-card none仍报card_binding_missing，因此完整模拟器Verdict未通过；本轮没有结果卡片，不能把3次工具成功称为总体成功率或完整上架验收。云构建成功同样不代表真实手机记餐、最终网页保存或公众准入已通过。
-
-本轮私有证据位于main-current工作区`.codex/doubao-simple-meal-20261111`；先前登录、参数及网关证据位于`.codex/doubao-integration-20261111`。只保存虚构样本、必要兼容材料及脱敏元信息，不公开凭据、真实UID或健康结果。本轮本人手机记餐和网页最终确认待测；公众主体准入、卡片呈现与提审属于后续工作。
+本机没有OpenAI API评测配置，真实GPT首轮完成率对照未执行；真实GPT连接发布前后get_profile均成功且同一账号，不能以接口回归替代真实模型效果。本人豆包既有连接与身体查询沿用已确认结果，新测试版的物理手机记餐、局部修改和消耗仍待本人更新Debugger后复测。

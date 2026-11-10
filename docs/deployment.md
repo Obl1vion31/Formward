@@ -25,15 +25,17 @@ python3 scripts/vercel-releases.py policy --project formward --apply
 
 归档位于 Git 公共目录所属工作区的 `.codex/backups/vercel-releases/formward/`，不随临时 worktree 删除。国际候选继续使用现有双区工具并显式部署到 iad1；`publish` 只更新原国际正式版本承担的别名，保留仍指向其他部署的项目域名，不用项目级 promote 接管它们。既有上海服务、数据库、issuer／resource、Server Action 兼容与回退流程不变。网关归档中的协议和 schema 摘要仍须与上海服务核对；本工具不把 Vercel 网关包当成上海全服务备份。受 Vercel 登录保护的旧项目域名只核对绑定和保护入口，不声称完成应用功能验收。
 
-## 当前正式部署：手机引导与外部接入
+## 当前正式部署：AI常用工具与外部接入
 
-本次606项单元／集成（80个原测试文件串行独立执行）、lint、typecheck、原生4项、Manifest校验、原生本地构建及干净兼容production build通过。实际Next production双协议发现19项工具，单餐与多食物预览、未知与0、原页面200、非法参数与无效凭据拒绝均通过，AI正式健康写入0。Chrome实际核对桌面及390×780预览、依据和修改入口；截图位于私有验收归档，不冒充真实豆包WebView通过。
+当前上海应用为dual-entry-99380910-ai-tool-clarity-final-20261111，源码99380910d15f2a29b856ad55d220aea8fe47b3bd，BUILD_ID kOlTNGXsgrakaKRa54QgO，目录ai-tool-clarity-final-20261111。原OAuth issuer／resource、账号和授权保持；MCP为1.16.0、共21项工具，旧18项仍兼容。
 
-测试版`0.0.1-dev.20261111.1`已云构建succeeded，Manifest、运行态Skill、原生源码及未扩权的业务声明已上传。平台配置预览核对19项工具、新增单餐的完整foods字段及最新Skill；Debugger二维码已打开。原`.20261110.2`保留供兼容查看。本人的既有连接检查和身体查询已通过；本次新记餐工具的真实手机调用与国服最终确认仍待复测，不要求重建既有GPT连接。
+626项单元／集成（81个原测试文件独立串行）、lint、typecheck及干净兼容production build通过；原生4项、Manifest校验、本地构建及测试版云构建通过。实际Next production两种协议验证21工具、三个常用预览、四类有界查询、状态查询、非法参数和无效凭据拒绝；确认前正式事实写入0。Chrome实际核对桌面浅色与390×780深色，打开／关闭原编辑器、焦点恢复、局部备注保留，并点击网页确认保存1条虚构餐次，再查到正确日期、600kcal、蛋白质0和其余未知。未改界面样式，不把这些当作真实豆包WebView通过。
 
-本轮保留47项Server Action及原绑定密钥，额外保留335项旧静态资源；配置字节及root 0600凭据保持，无数据库迁移。上一应用`onboarding-polish-20261111`保留供回退。海外网关未重新部署，两个别名仍指向既有iad1版本；三入口版本一致、8项公开资源SHA一致，自动／旧协议19工具及匿名／无效凭据保护通过。现有GPT发布前后get_profile均成功且为同一账号。
+三组官方豆包模型实测：每份300×2为600；原预览改3份为900；静息1800＋活动0为1800。最终各次工具返回pending且canConfirm=true，回复包含真实确认链接，无tool_call_arguments_invalid；正式健康事实未写入。第一轮捕获的漏转录、缺模式及错误回复保留私有记录，服务器自动转录／推导与模型错误处理规则修正后复测。CLI 0.0.41仍因card_binding_missing给完整Verdict未通过，不把工具成功称为整个模拟器通过或总体成功率。
 
-当前上海应用 `dual-entry-55ac4956-doubao-simple-meal-final-20261111`，源码`55ac4956f59205d480b21e8862cb4d0b4f6e4463`，BUILD_ID `z6eI-7owRfYDkdU2vdBuM`，目录`doubao-simple-meal-final-20261111`。包含此前手机引导与主题完善，新增豆包单餐入口及定义兼容适配；原GPT入口、工具和业务计算保持。
+本机没有OpenAI API评测配置，真实GPT首轮完成率对照未执行；真实GPT连接发布前后get_profile均成功且同一账号，不能以接口回归替代真实模型效果。本人豆包既有连接与身体查询沿用已确认结果，新测试版的物理手机记餐、局部修改和消耗仍待本人更新Debugger后复测。
+
+豆包测试版0.0.1-dev.20261111.2已succeeded，未提审公开版本；更新Debugger资源与重新授权分开。47项Server Action与原绑定密钥、339项旧静态资源保留，原配置字节及凭据权限保持，无数据库迁移。上一应用doubao-simple-meal-final-20261111保留回退。三入口版本一致、8项公开资源SHA一致，海外iad1网关和两别名保持，真实GPT发布前后同一账号。私有证据位于main-current的.codex/ai-tool-clarity-20261111。
 
 生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。
 
