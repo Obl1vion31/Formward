@@ -57,7 +57,10 @@ async function close() {
   closing = true;
   controller.close();
   if (child.exitCode === null) { child.kill("SIGTERM"); await once(child, "exit"); }
-  await socket.stop(); await pg.close();
+  await socket.stop();
+  // Socket的close回调经setImmediate排队，先排空事务清理，再关闭WASM数据库。
+  await new Promise<void>(resolve => setImmediate(() => setImmediate(resolve)));
+  await pg.close();
 }
 process.once("SIGTERM", () => void close()); process.once("SIGINT", () => void close());
 
