@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from '@doubao-dev/framework';
 import { exitApp, getAccountInfoSync, login, postLoginResult, request } from '@doubao-dev/framework/api';
 import { createLoginReporter } from './login-result';
+import { runtimeConfig } from '../config/runtime';
 import './connection.scss';
 
-const API_BASE = 'https://global.formward.top';
+const API_BASE = runtimeConfig.apiBaseUrl;
 type StartResponse = { authorizationUrl: string; requestId: string };
 type AuthorizationMessage = { type: string; requestId: string; refused: boolean; code?: string };
 
@@ -28,7 +29,7 @@ export function FormwardConnection({ mcpLogin = false }: { mcpLogin?: boolean })
     reporter.current = resultReporter;
     try {
       const appId = getAccountInfoSync().miniProgram.appId;
-      if (!appId) throw new Error();
+      if (!appId || appId !== runtimeConfig.appId) throw new Error();
       const { code: loginCode } = await login({ timeout: 30000 });
       if (!alive.current || current !== generation.current) return;
       const response = await request({
