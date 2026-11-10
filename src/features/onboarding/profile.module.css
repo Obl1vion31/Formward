@@ -12,3 +12,9 @@
 @media(max-width:700px){.profilePage:global(.dashboard-page) :global(.dashboard-header){margin-inline:16px}}
 
 .headerOptions{display:flex;align-items:center;gap:16px}.headerOptions small{white-space:nowrap}@media(max-width:700px){.headerOptions{gap:8px}}
+
+.birthPicker{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.birthSelect{position:relative;flex:1 1 4.5em;min-width:min(100%,4.5em)}.birthSelect:first-child{flex-grow:1.4;flex-basis:6.5em;min-width:min(100%,6.5em)}
+.birthSelect select{appearance:none;display:block;box-sizing:border-box;width:100%;min-width:0;min-height:50px;padding:10px 26px 10px 10px;border:1px solid var(--control-border);border-radius:6px;background:var(--surface);color:var(--warm-white);font:inherit;font-size:max(16px,1em);line-height:1.5;color-scheme:var(--color-scheme);cursor:pointer}
+.birthSelect select:hover:not(:disabled){border-color:var(--gold)}.birthSelect select:focus-visible{outline:2px solid var(--gold);outline-offset:2px}.birthSelect select:disabled{opacity:.65;cursor:default}
+.birthSelect svg{position:absolute;right:8px;top:calc(50% - 7px);width:14px;height:14px;pointer-events:none;color:var(--muted)}

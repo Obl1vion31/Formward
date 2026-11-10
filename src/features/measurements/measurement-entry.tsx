@@ -133,7 +133,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       {groups.map(group=><fieldset key={group.period} data-period={group.period} data-selected={selected===group.period} disabled={busy||group.blocked}>
         <legend><span>{periodName(group.period)} · {group.blocked?"空腹条件未确认":group.period==="daytime"?"空腹":"非空腹"}</span><button type="button" aria-expanded={advanced.has(group.period)} onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(group.period))next.delete(group.period);else next.add(group.period);return next;})}>更多设置</button></legend>
         {group.pending?<label>选择已有实测<select aria-label={"录入"+periodName(group.period)+"候选记录"} value="" onChange={event=>onChoose(date,group.period,event.target.value)}><option value="">选择已有记录</option>{group.candidates.map(row=><option value={row.id} key={row.id}>{row.sourceLocalTime}</option>)}</select></label>:<>
-          <div className={styles.bodyMetricFields}>{visibleMetrics.map(metric=>{
+          <div data-record-guide-fields className={styles.bodyMetricFields}>{visibleMetrics.map(metric=>{
             const cell=group.fields[metric],label=periodName(group.period)+metricName(metric),key=group.period+":"+metric,editable=!group.blocked&&!future;
             return <div className={styles.entryCell} key={metric} data-entry-cell={key} data-kind={cell.kind}>
               <label htmlFor={"entry-"+group.period+"-"+metric}>{metricName(metric)}<small>{metric==="weightKg"?"kg":"%"}</small></label>
@@ -151,6 +151,6 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       </fieldset>)}
     </div>
     {future&&<p role="alert" className={styles.entryError}>不能录入未来日期的身体记录。</p>}
-    <div className={styles.entryFooter}><div>{error&&<p role="alert" className={styles.entryError}>{error}</p>}{message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button type="submit" className={styles.saveEntry} disabled={busy||!dirty||future}>{busy?busyLabel:"保存录入"}</button></div>
+    <div className={styles.entryFooter}><div>{error&&<p role="alert" className={styles.entryError}>{error}</p>}{message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-record-guide-save type="submit" className={styles.saveEntry} disabled={busy||!dirty||future}>{busy?busyLabel:"保存录入"}</button></div>
   </form>;
 }

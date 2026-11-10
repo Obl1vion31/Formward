@@ -1,5 +1,7 @@
 # Tests
 
+record-guidance.browser.mjs复用workspace-loading的隔离原生PostgreSQL fixture及config，通过GUIDANCE_BROWSER选择Chromium／WebKit，GUIDANCE_ARTIFACTS指定私有截图与录像目录。核查四类真实入口→填写→保存说明、跳过／重播／只提示一次、不可用存储、账号隔离、失败留稿及健康事实不变；生日直接选年、闰日失效、部分草稿和新账号真实保存。覆盖窄屏、横屏、桌面、深浅主题和减少动态效果，不使用正式数据。
+
 ## 豆包接入
 
 `pnpm test` 包含 `src/features/doubao/oauth.test.ts`，在隔离 PGlite 中实际执行 OAuth、PKCE、授权码兑换、刷新轮换、绑定冲突、撤销、双协议 MCP、预览幂等与原 GPT 连接兼容；平台身份响应仅在测试中替换。另在 `integrations/doubao` 运行 `pnpm check`、`pnpm test`、两份 YAML 校验及 `pnpm exec dbx build local`。

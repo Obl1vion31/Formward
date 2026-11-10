@@ -7,6 +7,8 @@ import { useMobileMode } from "@/components/use-mobile-mode";
 import { assistantQuickActions, assistantTools, type AssistantContext, type AssistantItem } from "./model";
 import { localMeasurementDate } from "../measurements/entry-state";
 import { AssistantIcon } from "./icon";
+import {useRecordGuidance} from "../onboarding/record-guidance";
+import {recordGuides,type RecordGuideKind} from "../onboarding/record-guidance-model";
 import styles from "./surface.module.css";
 type Controller = { dismiss: () => Promise<boolean>; reopen: () => void };
 export function AssistantSurface({ data, error, loading, close, requestClose, retry, dismissItem, controllerReady }: {
@@ -14,12 +16,13 @@ export function AssistantSurface({ data, error, loading, close, requestClose, re
   dismissItem: (id: string) => Promise<string>; controllerReady: (value: Controller | null) => void;
 }) {
   const mobile = useMobileMode(), dialog = useRef<HTMLDialogElement>(null), closeButton = useRef<HTMLButtonElement>(null), toolsButton = useRef<HTMLButtonElement>(null), pending = useRef<Promise<boolean> | null>(null), ticket = useRef(0);
-  const [closing, setClosing] = useState(false), [expanded, setExpanded] = useState(false), [tools, setTools] = useState(false), [busy, setBusy] = useState(""), [failure, setFailure] = useState("");
+  const [closing, setClosing] = useState(false), [expanded, setExpanded] = useState(false), [tools, setTools] = useState(false), [guides,setGuides]=useState(false), [busy, setBusy] = useState(""), [failure, setFailure] = useState("");
+  const {replay}=useRecordGuidance();
   const gesture = useRef<{ y: number; delta: number } | null>(null), suppress = useRef(0);
   const dismiss = useCallback(() => {
     if (pending.current) return pending.current;
     const node = dialog.current; if (!node) return Promise.resolve(true);
-    const id = ++ticket.current; setClosing(true); setTools(false);
+    const id = ++ticket.current; setClosing(true); setTools(false);setGuides(false);
     const task = animateSurface(node, "close", null, mobile ? "sheet" : "anchored").then(finished => {
       if (finished && ticket.current === id) close();
       if (pending.current === task) pending.current = null;
@@ -51,10 +54,10 @@ export function AssistantSurface({ data, error, loading, close, requestClose, re
     {item.dismissible && <button type="button" disabled={busy === item.id} onClick={async () => { setBusy(item.id); setFailure(""); try { setFailure(await dismissItem(item.id)); } catch { setFailure("忽略未保存，请重试。"); } finally { setBusy(""); } }}>{busy === item.id ? "保存中…" : "忽略这一天"}</button>}</div>
   </li>)}</ul>;
   return <dialog ref={dialog} className={styles.surface} data-assistant-surface data-mobile={mobile} data-expanded={expanded} data-closing={closing} aria-labelledby="assistant-title" aria-modal={mobile || undefined}
-    onCancel={event => { event.preventDefault(); if (tools) {setTools(false);toolsButton.current?.focus();} else void requestClose(); }}
+    onCancel={event => { event.preventDefault(); if(guides)setGuides(false);else if (tools) {setTools(false);toolsButton.current?.focus();} else void requestClose(); }}
     onClick={event => { if (event.target === event.currentTarget) { const r = event.currentTarget.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) void requestClose(); } }}
     onKeyDown={event => {
-      if (event.key === "Escape" && tools) { event.preventDefault(); event.stopPropagation(); setTools(false); toolsButton.current?.focus(); return; }
+      if (event.key === "Escape" && tools) { event.preventDefault(); event.stopPropagation(); if(guides)setGuides(false);else {setTools(false); toolsButton.current?.focus();} return; }
       if (!mobile || event.key !== "Tab") return;
       const nodes = [...event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled),a[href],summary")].filter(node => node.getClientRects().length > 0 && !node.closest("[inert]") && !node.closest("details:not([open]) :not(summary)"));
       const first = nodes[0], last = nodes.at(-1); if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -65,7 +68,7 @@ export function AssistantSurface({ data, error, loading, close, requestClose, re
       onPointerUp={event => { const g = gesture.current; gesture.current = null; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); if (!g) return; const node = dialog.current; if (Math.abs(g.delta) > 7) suppress.current = performance.now() + 350; if (g.delta < -35) setExpanded(true); else if (g.delta > 65) { if (expanded) setExpanded(false); else { void requestClose(); return; } } if (node) { const from = node.style.transform; node.style.transform = ""; if (!matchMedia("(prefers-reduced-motion: reduce)").matches) node.animate([{ transform: from }, { transform: "translateY(0)" }], { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" }); } }}
       onPointerCancel={() => { gesture.current = null; if (dialog.current) dialog.current.style.transform = ""; }}><span/></button>}
     <header className={styles.heading}><div><AssistantIcon/><h2 id="assistant-title">小助手</h2></div><button ref={closeButton} type="button" aria-label="收起小助手" onClick={() => void requestClose()}>×</button></header>
-    <div className={styles.content} onClick={() => { if (tools) setTools(false); }}>
+    <div className={styles.content} onClick={() => { if (tools) {setTools(false);setGuides(false);} }}>
       <section className={styles.quick} aria-label="快捷记录"><div>{assistantQuickActions(today).map(action => <LoadingLink prefetch={false} key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}</LoadingLink>)}</div></section>
       <section className={styles.introduction} aria-live="polite" aria-busy={loading}>
         {error ? <><p role="alert">{error}</p><button type="button" onClick={retry}>重新读取</button></> : !data ? <p className={styles.muted}>正在读取事项…</p> : data.pending.length ? items(data.pending) : <p className={styles.muted}>暂无待确认或待办事项</p>}
@@ -74,8 +77,8 @@ export function AssistantSurface({ data, error, loading, close, requestClose, re
       {data && data.suggestions.length > 0 && <details className={styles.disclosure}><summary>按需补记</summary>{items(data.suggestions)}</details>}
     </div>
     <footer className={styles.footer}>
-      <nav id="assistant-tools" className={styles.tools} aria-label="常用功能" data-open={tools} aria-hidden={!tools} inert={!tools}>{assistantTools.map(action => <LoadingLink key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}<span aria-hidden="true">→</span></LoadingLink>)}</nav>
-      <button ref={toolsButton} type="button" aria-expanded={tools} aria-controls="assistant-tools" onClick={() => setTools(value => !value)}>常用功能 <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" style={{ transform: tools ? "rotate(180deg)" : undefined }}><path d="m4 10 4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg></button>
+      <nav id="assistant-tools" className={styles.tools} aria-label="常用功能" data-open={tools} aria-hidden={!tools} inert={!tools}>{guides?<><button type="button" onClick={()=>setGuides(false)}>← 返回常用功能</button>{(Object.keys(recordGuides) as RecordGuideKind[]).map(kind=><button type="button" key={kind} onClick={async()=>{if(await navigate())await replay(kind);}}>重播{recordGuides[kind].label}录入引导<span aria-hidden="true">→</span></button>)}</>:<>{assistantTools.map(action => <LoadingLink key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}<span aria-hidden="true">→</span></LoadingLink>)}<button type="button" onClick={()=>setGuides(true)}>重播操作引导<span aria-hidden="true">→</span></button></>}</nav>
+      <button ref={toolsButton} type="button" aria-expanded={tools} aria-controls="assistant-tools" onClick={() => {setTools(value => !value);setGuides(false);}}>常用功能 <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" style={{ transform: tools ? "rotate(180deg)" : undefined }}><path d="m4 10 4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg></button>
     </footer>
   </dialog>;
 }

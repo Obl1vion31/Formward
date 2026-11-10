@@ -8,10 +8,11 @@ import { requirePageUser } from "@/features/auth/server";
 import {DashboardHeader} from "./header";
 import {AppearanceSync} from "@/components/appearance-switch";
 import {ChartTransitionProvider} from "@/components/chart-transition";
+import {RecordGuidanceProvider} from "@/features/onboarding/record-guidance";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   // 登录校验在页面数据的 Suspense 之外，未登录在开始页面流之前正常重定向。
   // 每个页面和 Server Action 继续校验身份，不能只依赖会被复用的 layout。
   const user=await requirePageUser();
-  return <ConfirmationProvider key={user.id}><AssistantProvider key={user.id} accountId={user.id}><ChartTransitionProvider><AppearanceSync/><RecordUpdates/><div className="workspace-shell"><DashboardHeader sourcePilot={sourceAccessEnabled(user.id)} email={user.email} owner={user.role==="owner"}/><WorkspaceFrame sourcePilot={sourceAccessEnabled(user.id)} today={localMeasurementDate(new Date(),process.env.FORMWARD_TIMEZONE||"Asia/Shanghai")}>{children}</WorkspaceFrame></div></ChartTransitionProvider></AssistantProvider></ConfirmationProvider>;
+  return <ConfirmationProvider key={user.id}><RecordGuidanceProvider key={user.id} accountId={user.id}><AssistantProvider key={user.id} accountId={user.id}><ChartTransitionProvider><AppearanceSync/><RecordUpdates/><div className="workspace-shell"><DashboardHeader sourcePilot={sourceAccessEnabled(user.id)} email={user.email} owner={user.role==="owner"}/><WorkspaceFrame sourcePilot={sourceAccessEnabled(user.id)} today={localMeasurementDate(new Date(),process.env.FORMWARD_TIMEZONE||"Asia/Shanghai")}>{children}</WorkspaceFrame></div></ChartTransitionProvider></AssistantProvider></RecordGuidanceProvider></ConfirmationProvider>;
 }
