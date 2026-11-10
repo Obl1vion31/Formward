@@ -6,20 +6,27 @@
 
 本轮仅在既有海外Build Output新增三份公开文件，253个原文件、网关和路由哈希不变，网关源码仍0f3434d。正式HTML／CSS匿名200、无跳转／Cookie、SHA与源码一致；两引擎8组公网手机／电脑及互链通过，页面异常和健康API请求均0，国服版本不变、未授权身体接口仍401。原578测试、lint、typecheck及production build通过；正式稿52组矩阵及16组日期专项通过，日期孤字经独立复核resolved。68张正式稿和公网截图在 `C:/Users/14878/.codex/visualizations/2026/11/10/formward-legal-publication-final`。临时预览及本轮工作区在归档后结束，私有证据移至主线 `.codex/legal-publication`；物理手机、豆包WebView与完整法律评估未测。未执行数据库迁移或健康记录写入，未改变凭据或授权配置。
 
-## 当前部署：国服Garmin双站点与本人密钥
+## 当前部署：统一身体图表与返回交接
 
-日常网页为[国服](https://43.142.148.58)，原GPT／MCP、OAuth与海外图片后台继续由Vercel承担，正式数据统一写入上海。国服应用688081179e63f10f0e5e2e12400cd392c4894572，发布garmin-regions-current-20261110，BUILD_ID -7gprMm9zSgOPO2Tv7euh；已合入并推送main，保留workspace-flow-final的界面与0036。正式库55表、36条migration，本轮没有新增表或migration。
+日常网页为[国服](https://43.142.148.58)，应用版本`dual-entry-2583580b-chart-return-final-20261110`，构建源码`2583580bdeb1af62e9dc770369dd978ba15c55c0`，BUILD_ID `7qKmpqveL87PoHSOFLJHU`，发布目录`chart-return-final-20261110`；已合入并推送main。上海`formward_primary`仍为55表、36条migration，本轮没有数据库、公开接口或业务计算变更。
 
-Garmin已启用personal：有效登录账号从“账号菜单 → 外部接入 → 设备与数据来源”选择中国站／国际站，填写本人密钥并同步。旧v1连接仍按国际站读取且密文不变；明确换站创建独立连接并保留历史。仅调整FORMWARD_DATA_SOURCE_ACCESS，原Garmin与OAuth安全摘要及其他私有配置保持，Neon继续停写。
+晨间、晨晚与体脂采用同一绘图外壳。日期轴为MM.DD、最多4个含首尾的等距刻度；完整日期YYYY.MM.DD，范围MM.DD—MM.DD，跨年显示年份。开启晚间只增加真实系列，缺测保持断线；桌面选中读数位置固定，手机保留顶部读数。完整图的线宽和点径按实际屏幕尺寸保持一致。
 
-578项测试、lint、typecheck、干净构建，以及最终standalone双引擎各8组／19图通过，慢查询最大布局偏差0px；线上双端已核看。原GPT连接及Garmin国际站真实只读读取成功；中国站网络可达，缺少真实中国站密钥，完整认证仅用隔离响应验证。真实手机与系统键盘未测。发布、备份、原数据核对、观察窗口、截图及兼容恢复边界见[部署](docs/deployment.md)和[验收](docs/regional-acceptance.md)。
+返回总览由持久工作区立即显示原布局外壳，先恢复滚动及横滑位置，再进行一次约300ms回缩；准备期保留原图，浮层可见后交接。总览具有独立加载边界，真实数据原位接管。指标、区间或数据变化后正常返回，取消、迟到响应及快速反向共用清理。
 
+Garmin personal、中国站／国际站、旧v1连接、原GPT授权及Blob／COS沿用既有逻辑；配置与OAuth安全摘要校验保持。Vercel继续承担原GPT／MCP、OAuth和海外图片后台，Neon停写。原47项Server Action、绑定加密密钥及234项旧静态资源保留；上一应用`garmin-regions-current-20261110`保留供兼容回退，保留用户合法更新。
+
+579项单元／集成、lint、typecheck和干净production build通过。最终应用的Chromium完整186次往返、24组身体图表检查通过，正常热返回最慢13.2ms启动；WebKit另24组日期、点选、外框及实际笔触检查通过。公共布局实现的双引擎128组四页慢加载最大偏差0.328125px，最终包另32组身体页慢加载偏差0px；失败恢复、重复返回及草稿保护5项通过。
+
+WebKit Linux的完整连续动效采样未通过：部分样本未采到可见回程帧，GTK后端还出现稳定性等待超时；原因未确定，失败原件保留，不计为动效通过。上述WebKit布局与图表专项通过不能代替该项。物理iPhone／Android帧率、系统键盘和真实系统文字放大未测。
+
+本轮已核对正式版本、备份及原数据，详细证据与未测边界见[维护验收](docs/maintenance-verification.md)。公网日常入口保持国服，海外网关与公开协议保留；平台域名验证另见[豆包资料](docs/doubao-onboarding.md)。
 
 ## 随当前版本保留的工作区交互
 
 主导航统一总览、饮食、训练、消耗、身体；账号菜单按外部接入、账号管理分组，owner另有管理与测试。手机助手在导航右侧并默认收起，常用功能由底部向上展开。AI待确认、今日未开始训练与昨日饮食形成角标及每日一次提示；按账号／日期跨设备忽略不会改健康事实。7D、30D及对应自定义采用同一居中图形，返回恢复来源位置并向真实卡片回缩一次，取消先隐藏浮层；饮食／身体骨架按容器比例预留高度，无模糊与减少透明度回退保留。
 
-该基线由0f3434d发布至workspace-flow-final-20261110后进入当前6880811。此前双引擎各80组加载矩阵、各17组助手、19组原生库连续流程及三卡往返验证保留；修复前69次、修复后138次完整往返均有录像，未把本机结果写成真机帧率。574项基线测试及严格TLS旧Cookie／JWT／refresh、匿名回审核、旧页真实保存证据见[维护验收](docs/maintenance-verification.md)。0036只加assistant_reminder_dismissals，以独立管理身份迁移，运行账号只获必要读取／插入权限，不扩CREATE。
+该基线由0f3434d发布至workspace-flow-final-20261110后进入Garmin基线6880811。此前双引擎各80组加载矩阵、各17组助手、19组原生库连续流程及三卡往返验证保留；修复前69次、修复后138次完整往返均有录像，未把本机结果写成真机帧率。574项基线测试及严格TLS旧Cookie／JWT／refresh、匿名回审核、旧页真实保存证据见[维护验收](docs/maintenance-verification.md)。0036只加assistant_reminder_dismissals，以独立管理身份迁移，运行账号只获必要读取／插入权限，不扩CREATE。
 
 海外当前READY为dpl_82o44w2e9c1xGDH3Yxep68LxP7FZ、CLE1；网关仍为原0f3434d，仅增加顶部所述公开协议文件，原dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp保留。旧基线观察窗为UTC 2026-11-09T19:35:37.597208+00:00—19:39:39.085899+00:00，不代表本次发布后监控；本次只计实际静态HTTP与浏览器核对，不冒充国服全量access或20分钟监控。
 

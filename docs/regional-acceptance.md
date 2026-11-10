@@ -2,30 +2,27 @@
 
 ## 当前正式状态
 
-日常网页为[国服](https://43.142.148.58)，Vercel继续承担原GPT／MCP、OAuth与海外图片后台，正式数据统一写入上海formward_primary。国服应用688081179e63f10f0e5e2e12400cd392c4894572，发布garmin-regions-current-20261110，BUILD_ID -7gprMm9zSgOPO2Tv7euh；已合入并推送main。保留最新workspace-flow-final-20261110的界面及0036，55表、36条migration；本轮Garmin功能没有新增表或migration。本轮未执行海外后台发布，两个入口的版本接口均返回当前国服应用版本，原GPT get_profile仍对应原账号。
+日常网页为[国服](https://43.142.148.58)，应用版本`dual-entry-2583580b-chart-return-final-20261110`，构建源码`2583580bdeb1af62e9dc770369dd978ba15c55c0`，BUILD_ID `7qKmpqveL87PoHSOFLJHU`，发布目录`chart-return-final-20261110`；已合入并推送main。上海`formward_primary`仍为55表、36条migration，本轮没有数据库、公开接口或业务计算变更。
 
-设备与数据来源已按personal模式向已登录有效账号开放。入口为“账号菜单 → 外部接入 → 设备与数据来源”；首次“输入个人密钥／连接并同步”，选择中国站或国际站后填写相应密钥，各账号独立加密和同步。已有连接显示“更换个人密钥／更换并同步”。原v1连接继续按国际站读取且不重写密文；明确换站才归档旧连接并新建独立连接，保留历史。仅改变服务器FORMWARD_DATA_SOURCE_ACCESS，其他私有配置、原Garmin连接及OAuth安全摘要保持。
+晨间、晨晚与体脂采用同一绘图外壳。日期轴为MM.DD、最多4个含首尾的等距刻度；完整日期YYYY.MM.DD，范围MM.DD—MM.DD，跨年显示年份。开启晚间只增加真实系列，缺测保持断线；桌面选中读数位置固定，手机保留顶部读数。完整图的线宽和点径按实际屏幕尺寸保持一致。
 
-578项单元／集成、lint、独立typecheck和干净production build通过。最终standalone在Chromium／WebKit各8组流程、19张截图通过，涵盖两主题、320／390／430、横屏及1100／1440、失败留稿／重试、重复提交、账号隔离、旧v1不变、刷新、冲突与多人调度；慢数据库全过程最大固定锚点偏差0px。线上电脑和390px界面已核看，输入16px、高46px、无横向溢出。原生手机与系统软键盘未测。
+返回总览由持久工作区立即显示原布局外壳，先恢复滚动及横滑位置，再进行一次约300ms回缩；准备期保留原图，浮层可见后交接。总览具有独立加载边界，真实数据原位接管。指标、区间或数据变化后正常返回，取消、迟到响应及快速反向共用清理。
 
-正式库只读核对结构及各表摘要通过，保留原47项表单标识、加密密钥及208项旧静态资源。发布前加密异机备份回读校验通过，应用、Nginx、PostgreSQL、备份／Garmin／证书timer均active。短观察窗2026-11-09T19:41:17Z—19:42:35Z应用日志匹配错误0，不代表长期或全量请求监控。原Garmin只读实测令牌、每日及活动均200（约1932／334／853ms）；中国站匿名请求400、约537ms证明网络可达，未持有真实中国站密钥，完整中国站认证仅在隔离响应下验证，不能冒充真实联调。
+Garmin personal、中国站／国际站、旧v1连接、原GPT授权及Blob／COS沿用既有逻辑；配置与OAuth安全摘要校验保持。Vercel继续承担原GPT／MCP、OAuth和海外图片后台，Neon停写。原47项Server Action、绑定加密密钥及234项旧静态资源保留；上一应用`garmin-regions-current-20261110`保留供兼容回退，保留用户合法更新。
 
-私有证据为本工作树.codex/garmin-region-current及服务器/var/lib/formward/garmin-regions-current-20261110；线上双端截图在C:/Users/14878/.codex/visualizations/2026/11/10/formward-garmin-regions。保留原GPT、Garmin和图片位置，未创建正式虚构健康记录；Neon继续停写。恢复须兼容0036和v2区域凭据，不能在出现v2连接后直接回退至只支持v1的旧应用；保留数据，采用兼容修复版本。
+579项单元／集成、lint、typecheck和干净production build通过。最终应用的Chromium完整186次往返、24组身体图表检查通过，正常热返回最慢13.2ms启动；WebKit另24组日期、点选、外框及实际笔触检查通过。公共布局实现的双引擎128组四页慢加载最大偏差0.328125px，最终包另32组身体页慢加载偏差0px；失败恢复、重复返回及草稿保护5项通过。
 
-## 本轮实际检查
+WebKit Linux的完整连续动效采样未通过：部分样本未采到可见回程帧，GTK后端还出现稳定性等待超时；原因未确定，失败原件保留，不计为动效通过。上述WebKit布局与图表专项通过不能代替该项。物理iPhone／Android帧率、系统键盘和真实系统文字放大未测。
 
-| 检查 | 实际结果 |
-|---|---|
-| 本人连接 | 两个隔离登录账号分别绑定中国站及国际站；正式personal配置允许有效账号管理本人连接，跨账号拒绝 |
-| 原连接 | 正式连接编号、v1密文、版本及配置摘要不变；只读实测令牌、每日与活动均200 |
-| 站点隔离 | 绑定站点参与AES-GCM附加认证；篡改标记失败且不发起上游请求，不跨站重试 |
-| 明确换站 | 暂停并归档旧连接及事实，独立连接编号和递增版本，防止两区来源编号冲突 |
-| 网页 | 最终standalone双引擎各8组／19图，慢查询最大偏差0px；真实线上390px及电脑核看 |
-| 旧表单 | 上一正式0f3434d的47项Action及绑定加密密钥保留，208项旧静态资源共存 |
-| 原GPT | 发布后原连接get_profile成功，无重新授权；本轮未执行Vercel发布 |
-| 数据 | 55表／36migration结构、业务及审计核对通过；OAuth只允许使用时间及限流元数据差异，安全摘要保持 |
-| 配置 | 仅FORMWARD_DATA_SOURCE_ACCESS变为personal，原认证、区域证明、COS／Blob及Garmin主密钥保持 |
-| 运维 | 候选3201就绪后切换3200；最新异机加密备份回读，相关服务及timer active |
+## 本轮实际发布核对
+
+发布前备份`formward-primary-20261110T095704321214Z.dump.json`已加密异机回读校验。候选3201就绪后切换3200，2525项产物文件逐项验证；2415项相同文件复用，110项变化文件差量传输。应用构建源码仍为2583580，主线同时合入0f831ea的公开域名校验文件及README；release manifest单独记录staticSourceCommit，编译应用文件与浏览器验收产物一致。
+
+正式库结构、事实及配置摘要前后无差异，OAuth安全摘要保持；应用、Nginx、PostgreSQL及相关timer为active。两个入口版本一致，原OAuth issuer／MCP resource保持；匿名MCP POST返回401，普通海外网页307到国服，原协议HTML／CSS匿名200且SHA与源码一致。本轮没有重发Vercel网关，域名校验的平台进度见[豆包资料](doubao-onboarding.md)。
+
+应用journal观察窗为`2026-11-10T10:01:45.900827+00:00`至`2026-11-10T10:04:51.946343+00:00`，11条消息、匹配错误0条；仅为实际短窗口，不代表长期或全量5xx统计。未创建正式虚构健康记录。
+
+私有证据位于workspace-flow工作树的`.codex/chart-final-motion`、`chart-final-body`、`chart-verified-loading`、`chart-final-body-loading`、`chart-final-edges`及`chart-release`，服务器档案为`/var/lib/formward/chart-return-final-20261110`。可展示截图和往返录像位于`C:/Users/14878/.codex/visualizations/2026/11/10/formward-chart-return`，数据为隔离虚构样本；截图与录像已人工核看，采样不冒充真机帧率。
 
 ## 保留的入口与图片验证
 
@@ -37,7 +34,7 @@
 
 0f3434d的workspace-flow-final先完成0036：仅新增assistant_reminder_dismissals，旧结构、事实、来源、审计与OAuth安全摘要保持。首次使用运行账号迁移因无CREATE权限在切换前停止，随后由独立数据库管理身份执行，应用仅获新表所需权限；未创建正式虚构账号或健康测试记录。该过程不会在本轮重复执行。
 
-工作区双引擎各80组加载、各17组助手、三类卡片及19组原生库流程和TLS旧页保存仍包含于当前应用；详细问题、失败诊断及证据见[维护验收](maintenance-verification.md)。该基线在UTC 2026-11-09T19:35:37.597208+00:00—19:39:39.085899+00:00应用journal匹配错误0，海外Runtime／fatal与HTTP5xx查询无记录且无排除／后续分页，国服access log关闭，不声称全量历史为0。当前海外READY dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp由该基线保留，本轮仅更新上海应用。
+工作区双引擎各80组加载、各17组助手、三类卡片及19组原生库流程和TLS旧页保存仍包含于当前应用；详细问题、失败诊断及证据见[维护验收](maintenance-verification.md)。该基线在UTC 2026-11-09T19:35:37.597208+00:00—19:39:39.085899+00:00应用journal匹配错误0，海外Runtime／fatal与HTTP5xx查询无记录且无排除／后续分页，国服access log关闭，不声称全量历史为0。该基线的海外READY为dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp；后续公开静态文件发布见[豆包资料](doubao-onboarding.md)，本轮仅更新上海应用。
 
 ## 恢复与未测边界
 

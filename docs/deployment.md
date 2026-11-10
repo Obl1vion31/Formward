@@ -4,22 +4,29 @@
 
 [隐私政策](https://formward-ten.vercel.app/privacy.html)与[服务条款](https://formward-ten.vercel.app/terms.html)已公开，用户确认生效日期为2026年11月10日。READY为 `dpl_82o44w2e9c1xGDH3Yxep68LxP7FZ`，文稿源码38a3c611已合入推送main。以旧线上Build Output为基线，只新增两份HTML及legal.css，253个既有文件、网关函数和路由哈希不变；未切换国服业务，不涉及数据库结构或健康记录写入。
 
-三个资源匿名HTTPS直接200、MIME与源码SHA一致、无Set-Cookie；两引擎8组公网390／1440及真实互链通过，页面异常和健康API请求均0。国服版本仍为 `dual-entry-68808117-garmin-regions-current-20261110`，未授权身体接口仍401。完整范围、日期修复、68张截图、未测项与私有归档见[公开协议资料](doubao-onboarding.md)。本次没有执行旧数据库回退或创建正式测试账号。
+三个资源匿名HTTPS直接200、MIME与源码SHA一致、无Set-Cookie；两引擎8组公网390／1440及真实互链通过，页面异常和健康API请求均0。公开协议与下方国服应用独立发布，未授权身体接口仍401。完整范围、日期修复、68张截图、未测项与私有归档见[公开协议资料](doubao-onboarding.md)。本次没有执行旧数据库回退或创建正式测试账号。
 
-## 当前正式部署：国服Garmin双站点与海外后台
+## 当前正式部署：统一身体图表与返回交接
 
-日常网页为[国服](https://43.142.148.58)，Vercel继续承担原GPT／MCP、OAuth与海外图片后台，正式数据统一写入上海formward_primary。国服应用688081179e63f10f0e5e2e12400cd392c4894572，发布garmin-regions-current-20261110，BUILD_ID -7gprMm9zSgOPO2Tv7euh；已合入并推送main。保留最新workspace-flow-final-20261110的界面及0036，55表、36条migration；本轮Garmin功能没有新增表或migration。本轮未执行海外后台发布，两个入口的版本接口均返回当前国服应用版本，原GPT get_profile仍对应原账号。
+日常网页为[国服](https://43.142.148.58)，应用版本`dual-entry-2583580b-chart-return-final-20261110`，构建源码`2583580bdeb1af62e9dc770369dd978ba15c55c0`，BUILD_ID `7qKmpqveL87PoHSOFLJHU`，发布目录`chart-return-final-20261110`；已合入并推送main。上海`formward_primary`仍为55表、36条migration，本轮没有数据库、公开接口或业务计算变更。
 
-设备与数据来源已按personal模式向已登录有效账号开放。入口为“账号菜单 → 外部接入 → 设备与数据来源”；首次“输入个人密钥／连接并同步”，选择中国站或国际站后填写相应密钥，各账号独立加密和同步。已有连接显示“更换个人密钥／更换并同步”。原v1连接继续按国际站读取且不重写密文；明确换站才归档旧连接并新建独立连接，保留历史。仅改变服务器FORMWARD_DATA_SOURCE_ACCESS，其他私有配置、原Garmin连接及OAuth安全摘要保持。
+晨间、晨晚与体脂采用同一绘图外壳。日期轴为MM.DD、最多4个含首尾的等距刻度；完整日期YYYY.MM.DD，范围MM.DD—MM.DD，跨年显示年份。开启晚间只增加真实系列，缺测保持断线；桌面选中读数位置固定，手机保留顶部读数。完整图的线宽和点径按实际屏幕尺寸保持一致。
 
-578项单元／集成、lint、独立typecheck和干净production build通过。最终standalone在Chromium／WebKit各8组流程、19张截图通过，涵盖两主题、320／390／430、横屏及1100／1440、失败留稿／重试、重复提交、账号隔离、旧v1不变、刷新、冲突与多人调度；慢数据库全过程最大固定锚点偏差0px。线上电脑和390px界面已核看，输入16px、高46px、无横向溢出。原生手机与系统软键盘未测。
+返回总览由持久工作区立即显示原布局外壳，先恢复滚动及横滑位置，再进行一次约300ms回缩；准备期保留原图，浮层可见后交接。总览具有独立加载边界，真实数据原位接管。指标、区间或数据变化后正常返回，取消、迟到响应及快速反向共用清理。
 
-正式库只读核对结构及各表摘要通过，保留原47项表单标识、加密密钥及208项旧静态资源。发布前加密异机备份回读校验通过，应用、Nginx、PostgreSQL、备份／Garmin／证书timer均active。短观察窗2026-11-09T19:41:17Z—19:42:35Z应用日志匹配错误0，不代表长期或全量请求监控。原Garmin只读实测令牌、每日及活动均200（约1932／334／853ms）；中国站匿名请求400、约537ms证明网络可达，未持有真实中国站密钥，完整中国站认证仅在隔离响应下验证，不能冒充真实联调。
+Garmin personal、中国站／国际站、旧v1连接、原GPT授权及Blob／COS沿用既有逻辑；配置与OAuth安全摘要校验保持。Vercel继续承担原GPT／MCP、OAuth和海外图片后台，Neon停写。原47项Server Action、绑定加密密钥及234项旧静态资源保留；上一应用`garmin-regions-current-20261110`保留供兼容回退，保留用户合法更新。
 
-私有证据为本工作树.codex/garmin-region-current及服务器/var/lib/formward/garmin-regions-current-20261110；线上双端截图在C:/Users/14878/.codex/visualizations/2026/11/10/formward-garmin-regions。保留原GPT、Garmin和图片位置，未创建正式虚构健康记录；Neon继续停写。恢复须兼容0036和v2区域凭据，不能在出现v2连接后直接回退至只支持v1的旧应用；保留数据，采用兼容修复版本。
+579项单元／集成、lint、typecheck和干净production build通过。最终应用的Chromium完整186次往返、24组身体图表检查通过，正常热返回最慢13.2ms启动；WebKit另24组日期、点选、外框及实际笔触检查通过。公共布局实现的双引擎128组四页慢加载最大偏差0.328125px，最终包另32组身体页慢加载偏差0px；失败恢复、重复返回及草稿保护5项通过。
 
+WebKit Linux的完整连续动效采样未通过：部分样本未采到可见回程帧，GTK后端还出现稳定性等待超时；原因未确定，失败原件保留，不计为动效通过。上述WebKit布局与图表专项通过不能代替该项。物理iPhone／Android帧率、系统键盘和真实系统文字放大未测。
 
-海外网关函数仍沿用工作区基线源码0f3434d，当前READY为dpl_82o44w2e9c1xGDH3Yxep68LxP7FZ、CLE1，仅增加上方公开协议静态文件，原GPT／OAuth地址保持；旧dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp保留。0036此前以独立管理身份添加提醒忽略表，应用仅保留必要读取／插入权限。工作区加载、助手及严格TLS旧页保存的保留证据见[维护验收](maintenance-verification.md)。
+发布前备份`formward-primary-20261110T095704321214Z.dump.json`已加密异机回读校验。候选3201就绪后切换3200，2525项产物文件逐项验证；2415项相同文件复用，110项变化文件差量传输。应用构建源码仍为2583580，主线同时合入0f831ea的公开域名校验文件及README；release manifest单独记录staticSourceCommit，编译应用文件与浏览器验收产物一致。
+
+正式库结构、事实及配置摘要前后无差异，OAuth安全摘要保持；应用、Nginx、PostgreSQL及相关timer为active。两个入口版本一致，原OAuth issuer／MCP resource保持；匿名MCP POST返回401，普通海外网页307到国服，原协议HTML／CSS匿名200且SHA与源码一致。本轮没有重发Vercel网关，域名校验的平台进度见[豆包资料](doubao-onboarding.md)。
+
+应用journal观察窗为`2026-11-10T10:01:45.900827+00:00`至`2026-11-10T10:04:51.946343+00:00`，11条消息、匹配错误0条；仅为实际短窗口，不代表长期或全量5xx统计。未创建正式虚构健康记录。
+
+私有证据位于workspace-flow工作树的`.codex/chart-final-motion`、`chart-final-body`、`chart-verified-loading`、`chart-final-body-loading`、`chart-final-edges`及`chart-release`，服务器档案为`/var/lib/formward/chart-return-final-20261110`。可展示截图和往返录像位于`C:/Users/14878/.codex/visualizations/2026/11/10/formward-chart-return`，数据为隔离虚构样本；截图与录像已人工核看，采样不冒充真机帧率。
 
 ## 此前版本：全站静态内容与局部加载反馈（2026-11-08）
 
