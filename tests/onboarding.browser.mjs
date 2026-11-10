@@ -39,6 +39,7 @@ async function shot(p,name,fullPage=false){
  assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,name+" horizontal overflow");
  const path=resolve(artifacts,name+".png");await p.screenshot({path,fullPage});shots.push(path);
 }
+async function birthDate(page,value){const [year,month,day]=value.split('-');await page.getByLabel('出生年份',{exact:true}).selectOption(year);await page.getByLabel('出生月份',{exact:true}).selectOption(month);await page.getByLabel('出生日期中的日',{exact:true}).selectOption(day);}
 async function settle(){if(!browser)return;for(const c of browser.contexts())for(const p of c.pages())if(!p.isClosed())await p.waitForLoadState("networkidle");}
 async function go(p,path){await p.goto(base+path);await p.waitForLoadState("networkidle");}
 async function login(context,kind){
@@ -64,7 +65,7 @@ try{
  await page.getByRole("link",{name:"个人资料",exact:true}).click();await page.getByRole("button",{name:"修改资料",exact:true}).waitFor();
  await shot(page,"desktop-profile");
  await page.getByRole("button",{name:"修改资料",exact:true}).click();
- await page.getByLabel("身高",{exact:true}).fill("172");await page.getByLabel("出生日期",{exact:true}).fill("1997-04-12");
+ await page.getByLabel("身高",{exact:true}).fill("172");await birthDate(page,"1997-04-12");
  await page.getByRole("button",{name:"保存资料",exact:true}).click();await page.getByRole("status").filter({hasText:"资料已保存"}).waitFor();
  await settle();
  assert.equal((await db.select().from(schema.personalProfile).where(eq(schema.personalProfile.userId,identities.legacy.id)))[0].onboardingStep,"complete");
@@ -148,7 +149,7 @@ try{
  await settle();
  const before=await db.select().from(schema.personalProfile).where(eq(schema.personalProfile.userId,identities.owner.id)),posts=[];
  op.on("request",r=>{if(r.method()==="POST")posts.push(r.url());});
- await op.getByLabel("身高",{exact:true}).fill("181");await op.getByLabel("出生日期",{exact:true}).fill("1994-07-08");
+ await op.getByLabel("身高",{exact:true}).fill("181");await birthDate(op,"1994-07-08");
  await shot(op,"desktop-rehearsal-profile");
  await op.getByRole("button",{name:"保存并继续",exact:true}).click();await op.locator("[data-tutorial-guide]").waitFor();
  await shot(op,"desktop-rehearsal-guide",true);
@@ -165,14 +166,15 @@ try{
  await go(np,"/dashboard/ai");assert.equal(new URL(np.url()).pathname,"/dashboard/ai");await go(np,"/dashboard/ai/operations/not-found");assert.notEqual(new URL(np.url()).pathname,"/onboarding");await go(np,"/dashboard");await np.getByRole("heading",{name:"先认识一下你"}).waitFor();checks.push("pending-onboarding-does-not-intercept-ai");
  for(const route of ["/dashboard/meals","/dashboard/energy","/dashboard/measurements"]){await go(np,route);assert.equal(new URL(np.url()).pathname,"/onboarding");}checks.push("all-four-pages-route-new-account");
  await shot(np,"phone-first-profile");
- await np.getByLabel("出生日期",{exact:true}).fill("2099-01-01");await np.getByRole("button",{name:"保存并继续",exact:true}).click();
- await np.getByRole("alert").filter({hasText:"不能晚于今天"}).waitFor();await shot(np,"phone-profile-invalid");
+ assert.equal(await np.getByLabel('出生年份',{exact:true}).locator('option[value="2099"]').count(),0);
+ await np.getByLabel('出生年份',{exact:true}).selectOption('1997');await np.getByRole("button",{name:"保存并继续",exact:true}).click();
+ await np.getByRole("alert").filter({hasText:"请选择完整的出生日期"}).waitFor();await shot(np,"phone-profile-invalid");
  await np.getByRole("button",{name:"暂时跳过",exact:true}).click();await np.locator("[data-tutorial-guide]").waitFor();
  await settle();
  assert.equal((await db.select().from(schema.personalProfile).where(eq(schema.personalProfile.userId,identities.new.id)))[0].heightCm,null);
  const second=await browser.newContext({viewport:{width:1440,height:900},reducedMotion:"reduce",locale:"zh-CN",timezoneId:"Asia/Shanghai"});await login(second,"new");const sp=await second.newPage();watch(sp);
  await go(sp,"/dashboard");await sp.locator("[data-tutorial-guide]").waitFor();
- await sp.getByRole("button",{name:"返回资料",exact:true}).click();await sp.getByLabel("身高",{exact:true}).fill("172");await sp.getByLabel("出生日期",{exact:true}).fill("1997-04-12");
+ await sp.getByRole("button",{name:"返回资料",exact:true}).click();await sp.getByLabel("身高",{exact:true}).fill("172");await birthDate(sp,"1997-04-12");
  await shot(sp,"desktop-first-profile");
  await sp.getByRole("button",{name:"保存并继续",exact:true}).click();await sp.locator("[data-tutorial-guide]").waitFor();
  await sp.getByRole("button",{name:"开始使用",exact:true}).click();await sp.waitForURL(base+"/dashboard");
@@ -240,7 +242,7 @@ try{
    await go(op,"/onboarding?mode=test");
    await op.getByRole("radio",{name:mode==="dark"?"深色":"浅色",exact:true}).click();
    const headerFits=await op.locator("header").evaluate(el=>el.scrollWidth<=el.clientWidth+1);assert.equal(headerFits,true,"rehearsal header "+width);
-   await op.getByLabel("身高",{exact:true}).fill("172");await op.getByLabel("出生日期",{exact:true}).fill("1997-04-12");
+   await op.getByLabel("身高",{exact:true}).fill("172");await birthDate(op,"1997-04-12");
    await shot(op,mode+"-first-use-"+width);
   }
  }

@@ -7,6 +7,7 @@ import {useDraftGuard,pageRefreshApproved} from "@/components/draft-guard";
 import { usePageLoading } from "@/components/page-loading-state";
 import { saveProfileAction, advanceOnboardingAction, loadProfileAction } from "@/app/onboarding/actions";
 import { profileAge, validateProfile, type PersonalProfile } from "./model";
+import { BirthDateInput } from "./birth-date-input";
 import styles from "./profile.module.css";
 
 export function ProfileForm({initial,today,onboarding=false,test=false,onContinue,embedded=false}:{embedded?:boolean;initial:PersonalProfile;today:string;onboarding?:boolean;test?:boolean;onContinue?:(profile:PersonalProfile)=>void}) {
@@ -15,13 +16,14 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
   const submitting=useRef(false);
   const dirty=numericDraftValue(height)!==numericDraftValue(saved.heightCm)||birth!==(saved.birthDate??"");
   useDraftGuard(dirty,busy);
-  const age=profileAge(birth||null,today);
+  const age=profileAge(/^\d{4}-\d{2}-\d{2}$/.test(birth)?birth:null,today);
   usePageLoading({active:busy,label:"正在保存资料…"});
   useEffect(()=>{if(!dirty||test)return;const guard=(event:BeforeUnloadEvent)=>{if(!pageRefreshApproved())event.preventDefault();};addEventListener("beforeunload",guard);return()=>removeEventListener("beforeunload",guard);},[dirty,test]);
   async function submit(skip=false) {
     if(submitting.current)return;
     setNotice("");setFailed(false);setConflict(false);
     try {
+      if(!skip&&birth&&!/^\d{4}-\d{2}-\d{2}$/.test(birth))throw new Error("请选择完整的出生日期，或清空三项。");
       const value=skip?null:validateProfile({expectedVersion:saved.version,heightCm:height,birthDate:birth,continueOnboarding:onboarding},today);
       if(test) { onContinue?.({...saved,heightCm:value?.heightCm??null,birthDate:value?.birthDate??null,onboardingStep:"tutorial"});return; }
       submitting.current=true;setBusy(true);
@@ -29,7 +31,7 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
       if(!result.ok){setFailed(true);setConflict(result.code==="version_conflict");setNotice(result.error);return;}
       setSaved(result.data);setHeight(result.data.heightCm??"");setBirth(result.data.birthDate??"");
       if(onboarding){onContinue?.(result.data);}else{setEditing(false);setNotice("资料已保存。");}
-    } catch(error){setFailed(true);setNotice(error instanceof Error&&/^(身高请|请选择有效)/.test(error.message)?error.message:"暂时没有保存成功，输入已保留，请重试。");}
+    } catch(error){setFailed(true);setNotice(error instanceof Error&&/^(身高请|请选择有效|请选择完整)/.test(error.message)?error.message:"暂时没有保存成功，输入已保留，请重试。");}
     finally{submitting.current=false;setBusy(false);}
   }
   async function cancel() {
@@ -58,7 +60,7 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
     {editing?<form data-entry-form="profile" noValidate onSubmit={event=>{event.preventDefault();void submit();}}>
       <div className={styles.fields}>
         <label><span className={styles.label}>身高 <small>选填</small></span><span className={styles.input}><input aria-label="身高" inputMode="decimal" placeholder="例如172" value={height} onChange={e=>setHeight(e.target.value)} disabled={busy}/><span>cm</span></span></label>
-        <label><span className={styles.label}>出生日期 <small>{age!==null&&age>=0?age+"岁":"选填"}</small></span><span className={styles.input}><input aria-label="出生日期" type="date" min="1900-01-01" max={today} value={birth} onChange={e=>setBirth(e.target.value)} disabled={busy}/></span></label>
+        <div><span className={styles.label}>出生日期 <small>{age!==null&&age>=0?age+"岁":"选填"}</small></span><BirthDateInput value={birth} today={today} onChange={setBirth} disabled={busy}/></div>
       </div>
       {notice&&<p className={styles.notice} role={failed?"alert":"status"}>{notice}</p>}
       {conflict&&<button className={styles.quiet} type="button" onClick={()=>void latest()}>查看最新资料</button>}
