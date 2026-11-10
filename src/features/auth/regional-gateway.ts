@@ -28,5 +28,10 @@ export async function handleGatewayRequest(request:Request) {
    const data=await response.json();return await readWorkerImage(data.ticket);
   }
   return response;
- }catch{return Response.json({error:"访问暂时中断，请稍后重试。当前操作不会自动重新提交。"},{status:503,headers:{"Cache-Control":"private, no-store"}});}
+ }catch(error){
+  const failure=error as {name?:unknown;code?:unknown;cause?:{code?:unknown}};
+  const code=String(failure?.code??failure?.cause?.code??"unknown");
+  console.warn(JSON.stringify({event:"gateway_transport_failure",code:/^E[A-Z0-9_]{2,60}$/.test(code)?code:"unknown",kind:failure?.name==="AbortError"?"aborted":"failed"}));
+  return Response.json({error:"访问暂时中断，请稍后重试。当前操作不会自动重新提交。"},{status:503,headers:{"Cache-Control":"private, no-store"}});
+ }
 }
