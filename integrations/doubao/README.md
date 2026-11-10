@@ -2,6 +2,10 @@
 
 此工程负责豆包应用插件的 Manifest、运行态 Skill、自定义登录页与主页。通过 Vercel 自定义域名 `https://global.formward.top` 的独立豆包入口，复用上海 Formward 服务和主库。原 GPT 的 MCP 与 OAuth 地址保持。
 
+## 记餐工具
+
+Manifest共19项：原18项保留，新增`preview_meal`作为单餐首选；运行态Skill明确区分单餐新增、历史修改、食材维护及混合预览。变更工具或Skill后需要上传新的测试版本，并在Debugger更新资源；仅发布服务端不会更新手机中的运行态Skill。生产Manifest所有工具继续normal登录，不使用测试fixture的预授权替身。
+
 ## 登录与凭据
 
 真实 AppID 仅在 `manifest.yaml` 的 `app_key` 手工维护，`scripts/sync-runtime.mjs` 从Manifest生成 `src/config/runtime.ts`，`app.config.ts` 与请求共用该公开配置；`pnpm check` 同步并核对，运行时另检查宿主AppID一致。网页采用原有 Formward 邮箱账号登录，不使用手机号、固定验证码或本地 mock 登录。客户端只取得宿主一次性 login_code 和服务端一次性兑换码；长期 access／refresh token 不进入客户端存储。

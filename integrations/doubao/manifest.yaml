@@ -58,8 +58,12 @@ tools:
     login_type: normal
     request_timeout: 120000
     output: { kind: execution_result }
+  preview_meal:
+    description: 新增单餐首选，使用平铺食物字段提交待网页确认的预览。
+    login_type: normal
+    output: { kind: execution_result }
   submit_meal_operation:
-    description: 提交餐次或食材预览，正式保存仍需用户网页登录确认。
+    description: 修改已有餐次或维护食材库的预览；新增单餐使用preview_meal。
     login_type: normal
     output: { kind: execution_result }
   get_meal_operation:

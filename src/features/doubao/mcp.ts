@@ -11,12 +11,13 @@ import { createFormwardMcp } from "../mcp/server";
 import { openIdDigest, type DoubaoConfig } from "./config";
 import { canonicalResource, doubaoScopes, requireDoubaoClient } from "./oauth";
 import { limitedJson, privateJson } from "./http";
+import { registerDoubaoMealPreview } from "./meal-preview";
 
 type JsonObject = Record<string, unknown>;
 const object = (value: unknown): value is JsonObject => !!value && typeof value === "object" && !Array.isArray(value);
 const publicMethods = new Set(["server/discover", "initialize", "notifications/initialized", "tools/list", "ping"]);
 const queryKinds: Record<string, string> = { get_profile: "account", query_measurements: "measurements", query_meals: "meals", query_energy: "energy", query_training: "training", search_foods: "foods", search_exercises: "exercises" };
-const knownTools = new Set([...Object.keys(queryKinds), "authorize_formward", "submit_measurement_operation", "get_measurement_operation", "import_meal_images", "submit_meal_operation", "get_meal_operation", "submit_training_operation", "get_training_operation", "submit_record_operation", "get_record_operation", "append_pending_images"]);
+const knownTools = new Set([...Object.keys(queryKinds), "authorize_formward", "submit_measurement_operation", "get_measurement_operation", "import_meal_images", "preview_meal", "submit_meal_operation", "get_meal_operation", "submit_training_operation", "get_training_operation", "submit_record_operation", "get_record_operation", "append_pending_images"]);
 const platformArgumentNames = ["from_mcp_call", "_miniapp_permitted_data"] as const;
 
 function removeUnusedPlatformArguments(input: JsonObject): string[] {
@@ -36,6 +37,18 @@ function stableJson(value: unknown): string {
   if (Array.isArray(value)) return "[" + value.map(stableJson).join(",") + "]";
   if (object(value)) return "{" + Object.keys(value).sort().map(key => JSON.stringify(key) + ":" + stableJson(value[key])).join(",") + "}";
   return JSON.stringify(value) ?? "null";
+}
+
+/** 豆包解析器不接受数值型exclusiveMinimum；整数的>x等价于>=floor(x)+1。 */
+export function doubaoInputSchema(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(doubaoInputSchema);
+  if (!object(value)) return value;
+  const result = Object.fromEntries(Object.entries(value).map(([key, child]) => [key, doubaoInputSchema(child)]));
+  if (result.type === "integer" && typeof result.exclusiveMinimum === "number") {
+    result.minimum = Math.max(typeof result.minimum === "number" ? result.minimum : -Infinity, Math.floor(result.exclusiveMinimum) + 1);
+    delete result.exclusiveMinimum;
+  }
+  return result;
 }
 
 /** 2025 与新版 SDK 的业务结果采用同一 JSON 响应，保留 JSON-RPC id 和实际工具事实。 */
@@ -67,6 +80,7 @@ function presentResult(body: JsonObject, input: JsonObject, userId: string) {
     body.result.tools = body.result.tools.map(tool => {
       if (!object(tool)) return tool;
       const result = { ...tool };
+      if (object(result.inputSchema)) result.inputSchema = doubaoInputSchema(result.inputSchema);
       if (object(result._meta)) {
         const meta = Object.fromEntries(Object.entries(result._meta).filter(([key]) => key !== "securitySchemes" && !key.startsWith("openai/")));
         if (Object.keys(meta).length) result._meta = meta; else delete result._meta;
@@ -93,7 +107,11 @@ function presentResult(body: JsonObject, input: JsonObject, userId: string) {
 
 export function createDoubaoMcpEndpoint(db: Database, auth: ReturnType<typeof createAuth>, config: DoubaoConfig) {
   async function serve(request: Request, input: JsonObject, identity: AiIdentity, scopes: string[], ignoredPlatformArguments: string[] = []) {
-    const handler = createMcpHandler(() => createFormwardMcp(db, identity, scopes, request), { legacy: "stateless", maxRequestBodySize: 131072 });
+    const handler = createMcpHandler(() => {
+      const server = createFormwardMcp(db, identity, scopes, request);
+      registerDoubaoMealPreview(server, db, identity, scopes, request);
+      return server;
+    }, { legacy: "stateless", maxRequestBodySize: 131072 });
     const started = Date.now(), params = object(input.params) ? input.params : {};
     let status = 503, successful = false;
     try {

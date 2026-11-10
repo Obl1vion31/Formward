@@ -1,5 +1,11 @@
 # Formward 项目交接
 
+## 单餐参数精简
+
+豆包新增单餐专用preview_meal，原18项工具及GPT契约保持。模型参数平铺，服务端映射到原饮食预览；未知、0、食材规格换算、来源依据、幂等、归属、版本和网页确认保持。定义约1.6KB、零组合分支；豆包发现的整数正数边界改为等价minimum，避开平台解析器不兼容。Manifest与运行态Skill共同更新，需要新的测试版本后才能从手机验证工具选择，不能只发布后端。
+
+对照模拟器已经复现旧actions／items参数错位，并成功执行过新单餐预览；初轮来源别名和单位格式错误已按实际样本补充兼容，完整对照与发布验收结果见豆包文档。所有测试使用虚构账号，真实手机记餐及国服确认尚待本人复测，不能从连接／身体查询通过推定。
+
 ## 当前部署：手机引导与外部接入
 
 用户已授权先用Vercel过渡、后续再迁国内，保留现有GPT连接；官方CLI登录与上海私有AppSecret配置已获授权并完成，不重复索权。
@@ -30,7 +36,7 @@
 
 上海临时JSON诊断preload和本人systemd drop-in已移除，实际服务环境无探针；Vercel四个本轮候选／诊断部署已安全删除，临时保护绕过令牌已撤销，两正式别名的诊断路径即使带旧私有头也返回404。只保留不含健康内容的私有证据和兼容回退，不删除其他任务。
 
-本轮私有证据归档至主线main-current工作区的`.codex/doubao-integration-20261111`，包含`doubao-platform-arguments-release`、`doubao-gateway-recovery`、`doubao-research`及前期平台／请求修复材料。真实手机问题已闭环，归档后清理本轮分支与临时工作区；不能公开凭据、真实UID或健康结果。后续网关发布须显式传`--regions iad1`并核对部署API和真实回源；不能只依赖本地vercel.json。
+本轮私有证据归档至主线main-current工作区的`.codex/doubao-integration-20261111`，包含`doubao-platform-arguments-release`、`doubao-gateway-recovery`、`doubao-research`及前期平台／请求修复材料。此前手机连接及身体查询问题已闭环，相关工作归档后清理本轮分支与临时工作区；不能公开凭据、真实UID或健康结果。后续网关发布须显式传`--regions iad1`并核对部署API和真实回源；不能只依赖本地vercel.json。
 
 ## 已发布：公开隐私政策与服务条款
 

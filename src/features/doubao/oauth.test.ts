@@ -19,6 +19,7 @@ import { exchangeOpenId } from "./openid";
 import { openEnvelope, sealEnvelope } from "./envelope";
 import { authorizeDoubao, callbackDoubao, exchangeDoubaoToken, refreshDoubaoToken, startDoubaoLogin } from "./oauth";
 import { createDoubaoMcpEndpoint } from "./mcp";
+import type { MealOperationView } from "../meals/model";
 
 const pg = new PGlite(), db = drizzle(pg, { schema });
 let auth: ReturnType<typeof createAuth>, baseURL: string, config: DoubaoConfig;
@@ -306,10 +307,78 @@ test("原 GPT OAuth 和 MCP 保持独立，撤销豆包后原连接仍可查询�
   await revokeOauthConnection(db, flow.userId, claims[CONNECTION_CLAIM]);
   const gpt = await mcpClient("/api/mcp", { Authorization: "Bearer " + gptToken });
   try {
+    assert.ok(!(await gpt.listTools()).tools.some(tool => tool.name === "preview_meal"));
     const result = await gpt.callTool({ name: "get_profile", arguments: {} });
     assert.equal((result.structuredContent as Record<string, unknown>)?.id, logged.userId);
     assert.equal("entities" in (result.structuredContent as Record<string, unknown>), false);
   } finally { await gpt.close(); }
+});
+
+test("简化记餐在双协议下生成幂等预览，保留未知和0且不写正式记录，拒绝跨账号读取和撤销", async () => {
+  const externalId = "fictional-simple-meal-openid", flow = await grant(first, externalId);
+  if (flow.result.refused) throw new Error();
+  const tokens = await exchangeDoubaoToken(db, auth, config, flow.result.developerLoginCode);
+  const args = { operationId: randomUUID(), date: "2026-11-10", mealType: "午餐", timezone: "Asia/Shanghai", foods: [
+    { name: "虚构蒸饭", quantity: "2", unit: "份", caloriesKcal: "600", proteinG: "0", sourceKind: "estimated", basis: "两份本次总量估计600 kcal，配方及油量不确定。" },
+  ] };
+  const previousMeals = (await db.select().from(schema.meal)).length;
+  const ownFoodId = randomUUID(), foreignFoodId = randomUUID();
+  const [otherAccount] = await db.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.email, second.email));
+  await db.insert(schema.food).values([
+    { id: ownFoodId, userId: flow.userId, identityKey: ownFoodId, name: "虚构燕麦", baseQuantity: "100", unit: "g", servingQuantity: "30", servingUnit: "包", caloriesKcal: "400", proteinG: "0", fatG: "8", sourceKind: "label", basis: "虚构标签" },
+    { id: foreignFoodId, userId: otherAccount.id, identityKey: foreignFoodId, name: "其他账号虚构食材", baseQuantity: "100", unit: "g", caloriesKcal: "400", sourceKind: "label", basis: "虚构标签" },
+  ]);
+  let id = "";
+  for (const legacy of [false, true]) {
+    const client = await mcpClient("/api/framework/doubao/mcp", { "X-DB-OPENID": externalId, "X-DB-ACCESS-TOKEN": tokens.data.access_token }, legacy);
+    try {
+      assert.ok((await client.listTools()).tools.some(tool => tool.name === "preview_meal"));
+      const result = await client.callTool({ name: "preview_meal", arguments: { ...args, from_mcp_call: true, _miniapp_permitted_data: { unused: "fictional-private-context" } } });
+      assert.notEqual(result.isError, true, JSON.stringify(result.structuredContent));
+      const operation = result.structuredContent as MealOperationView & { confirmationUrl: string };
+      if (id) assert.equal(operation.id, id);
+      id = operation.id;
+      assert.equal(operation.status, "pending"); assert.equal(operation.canConfirm, true);
+      assert.equal(operation.confirmationUrl, new URL(operation.confirmationPath, baseURL).href);
+      assert.equal(operation.rows[0].meal?.items[0].nutrition.caloriesKcal, "600");
+      assert.equal(operation.rows[0].meal?.items[0].nutrition.proteinG, "0");
+      assert.equal(operation.rows[0].meal?.items[0].nutrition.carbsG, null);
+      assert.ok(!JSON.stringify(operation).includes("fictional-private-context"));
+      const conflict = await client.callTool({ name: "preview_meal", arguments: { ...args, mealType: "晚餐" } });
+      assert.equal(conflict.isError, true);
+      const invalid = await client.callTool({ name: "preview_meal", arguments: { ...args, operationId: randomUUID(), foods: [{ ...args.foods[0], basis: "" }] } });
+      assert.equal(invalid.isError, true);
+      assert.match(String((invalid.structuredContent as { message: string }).message), /foods.0.basis/);
+      const libraryArgs = { ...args, operationId: randomUUID(), foods: [{ name: "虚构燕麦", foodId: ownFoodId, foodVersion: 1, quantity: "2", unit: "包" }] };
+      const library = await client.callTool({ name: "preview_meal", arguments: libraryArgs });
+      assert.notEqual(library.isError, true);
+      const libraryOperation = library.structuredContent as MealOperationView;
+      assert.equal(libraryOperation.canConfirm, true);
+      assert.equal(Number(libraryOperation.rows[0].meal?.items[0].nutrition.caloriesKcal), 240);
+      assert.equal(libraryOperation.rows[0].meal?.items[0].nutrition.carbsG, null);
+      for (const food of [{ ...libraryArgs.foods[0], foodVersion: 2 }, { ...libraryArgs.foods[0], foodId: foreignFoodId, unit: "g" }]) {
+        const blocked = await client.callTool({ name: "preview_meal", arguments: { ...libraryArgs, operationId: randomUUID(), foods: [food] } });
+        assert.equal((blocked.structuredContent as MealOperationView).canConfirm, false);
+        assert.ok((blocked.structuredContent as MealOperationView).rows[0].error);
+      }
+    } finally { await client.close(); }
+  }
+  assert.equal((await db.select().from(schema.meal)).length, previousMeals);
+  const otherId = "fictional-simple-meal-other", otherFlow = await grant(second, otherId);
+  if (otherFlow.result.refused) throw new Error();
+  const otherTokens = await exchangeDoubaoToken(db, auth, config, otherFlow.result.developerLoginCode);
+  const other = await mcpClient("/api/doubao/mcp", { "X-DB-OPENID": otherId, "X-DB-ACCESS-TOKEN": otherTokens.data.access_token });
+  try { assert.equal((await other.callTool({ name: "get_meal_operation", arguments: { id } })).isError, true); }
+  finally { await other.close(); }
+  const claims = JSON.parse(Buffer.from(tokens.data.access_token.split(".")[1], "base64url").toString());
+  await db.update(schema.oauthConnection).set({ scopes: ["meals:read"] }).where(eq(schema.oauthConnection.id, claims[CONNECTION_CLAIM]));
+  const readOnly = await mcpClient("/api/doubao/mcp", { "X-DB-OPENID": externalId, "X-DB-ACCESS-TOKEN": tokens.data.access_token });
+  try { await assert.rejects(() => readOnly.callTool({ name: "preview_meal", arguments: { ...args, operationId: randomUUID() } })); }
+  finally { await readOnly.close(); }
+  await revokeOauthConnection(db, flow.userId, claims[CONNECTION_CLAIM]);
+  const revoked = await mcpClient("/api/doubao/mcp", { "X-DB-OPENID": externalId, "X-DB-ACCESS-TOKEN": tokens.data.access_token });
+  try { await assert.rejects(() => revoked.callTool({ name: "preview_meal", arguments: { ...args, operationId: randomUUID() } })); }
+  finally { await revoked.close(); }
 });
 
 test("豆包提交只生成可重复查询的预览，不直接写入身体记录", async () => {

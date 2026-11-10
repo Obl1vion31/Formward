@@ -24,7 +24,8 @@ description: 查询用户主动授权的 Formward 饮食、实测身体指标、
 - 用户要求连接或检查完整能力：先调用 authorize_formward，再按实际任务查询；它不读取健康记录。
 - 回看身体、饮食、消耗、训练：分别调用 query_measurements、query_meals、query_energy、query_training，不用历史对话代替当前结果。
 - 记身体：确认日期、晨晚、实测值、空腹条件与来源，再调用 submit_measurement_operation。
-- 记餐：先核对日期、餐次、实际吃的食物与分量，需要引用食材时先 search_foods，再 submit_meal_operation。
+- 新增一餐：核对日期、餐次、实际食物与分量，需要引用食材时先 search_foods，再用 preview_meal。单餐不使用复杂批量接口。
+- 修改已有餐次或用户明确维护食材库：先查询当前记录及版本，再 submit_meal_operation。
 - 新增或修改消耗：先 query_energy，确认全天总数／分项及运动包含关系，再 submit_record_operation。
 - 安排训练：先 search_exercises 和 query_training，使用真实动作、模板和版本，再 submit_training_operation；计划不代表已经完成。
 - 同一句话含多类记录：各类事实核对后优先 submit_record_operation，生成一个确认链接。
@@ -53,9 +54,19 @@ search_exercises 使用 `q` 以及必要的 `category`、`bodyPart`、`equipment
 
 使用实际工具 inputSchema 组织 operationId、items 和可选 timezone。晨间须确认 fasting=true；修改带 recordId 和 version。来源未提供时先问真实设备／应用名称，或询问是否明确不填写。只有用户明确不填才传 deviceLabel:null 与 sourceUnspecifiedConfirmed:true，不能用“AI记录”“来源未知”代填。
 
-## 工具：submit_meal_operation
+## 工具：preview_meal（新增单餐首选）
 
-使用当前 inputSchema，确认日期、餐次、食物身份、实际分量和油酱。自由填写是本次总营养；可靠包装才按包数换算，不猜包装重量。历史修改引用 originalItemId、记录 id 和 version，保留未改部分及原精度。允许营养未知或明确零；不因历史倍数差异追加确认。同日重复提示按工具结果表达，不自行合并删除。
+只提交一餐，根字段为 operationId、date（YYYY-MM-DD）、mealType、foods。可选 timezone、notes、imageIds、expectedImageCount；照片编号只来自 import_meal_images。相对日期先 query_meals 取得 context.localDate／timezone，再换算为明确日期，同一请求重试保留日期、operationId和内容。
+
+foods 每项平铺填写 name、quantity、unit。所有数量及营养为不带单位的十进制字符串，例如fatG:"12.5"；自由食物的 caloriesKcal、proteinG、carbsG、fatG 是本次实际吃下的总营养，不能再乘数量。未知营养字段直接省略，明确0传 "0"，不传null、空字符串或"未知"。有营养数值时填写 sourceKind：包装营养标签为label，成分表为composition_table，已有参考为reference，估算为estimated，未知为unknown。估算在 basis 说明分量、组成、计算和不确定性；标签／成分表提供 basis 或 evidenceUrl。未提供营养可以全部省略，不自行编造；不擅自估算用户未同意的食物或分量。
+
+引用 search_foods 实际返回的食材时，填写 foodId、foodVersion、quantity、unit、name，服务器按规格换算，不同时传营养、sourceKind或evidenceUrl。包装单位须来自该食材返回的规格。用户明确接受估算食量时用 amountDecision:"estimate_accepted" 并提供basis；用户明确食量未知时用 amountDecision:"unknown_accepted" 并省略quantity，不能默认替用户接受。
+
+不要传 actions、kind、nutrition、foodDraft、id、version 等旧批量结构。缺少实际食物或数量时先追问。生成预览后完整展示 confirmationUrl；提示“待网页确认”，不能声称已保存。用返回的id调用 get_meal_operation 查询结果。
+
+## 工具：submit_meal_operation（历史修改及食材维护）
+
+仅在修改已有餐次或用户明确维护食材库时使用当前 inputSchema；新增单餐使用 preview_meal。确认日期、餐次、食物身份、实际分量和油酱。自由填写是本次总营养；可靠包装才按包数换算，不猜包装重量。历史修改引用 originalItemId、记录 id 和 version，保留未改部分及原精度。允许营养未知或明确零；不因历史倍数差异追加确认。同日重复提示按工具结果表达，不自行合并删除。
 
 ## 工具：import_meal_images 与 append_pending_images
 

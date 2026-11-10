@@ -12,6 +12,16 @@ Formward 使用个人运营者施绪飞扬，联系邮箱 opg.obl1v@gmail.com。
 
 官方 CLI 0.0.41 已经用户批准登录，前端 SDK 固定0.4.2。测试版 **`0.0.1-dev.20261110.2`** 已云构建成功，Manifest、运行态Skill、前端和业务声明均已上传；不是正式上架版本。平台配置预览已核对18项工具、完整Skill、三个登录回调地址及扫码入口。本人手机已完成真实身份交换、网页授权回传和平台换码绑定。请求适配和平台参数校验已修复，手机连接检查及身体查询已由本人和服务端双重验证通过；国服写入确认未覆盖本轮。
 
+## 单餐新增契约
+
+`preview_meal`是新增一餐的首选，豆包共有19项工具，原18项及GPT工具集保持兼容。模型只填写operationId、明确date、mealType和foods；食物营养平铺，数量、营养采用十进制字符串。省略未知营养映射为null，明确0保留；自由项是实际食用总量，食材引用由服务器按规格换算。不创建食材库条目，不直接修改历史或保存正式餐次。
+
+可选timezone、notes、imageIds和expectedImageCount沿用现有能力。相对日期先查询日期上下文，重试沿用已解析的日期、operationId和内容。包装标签来源使用label，估算使用estimated并提供basis；服务器只兼容明确等价标签别名与同单位营养后缀，不猜来源、食量或营养。用户仍需网页登录确认。
+
+同一Zod导出方式下，输入schema由10,714字节降为1,647字节（约减少85%），组合分支由40处降为0；这些是契约复杂度指标，不等于成功率。豆包发现同时将整数exclusiveMinimum数值约束等价转换为minimum，原业务验证保持。
+
+旧版本的模拟器对照已复现：模型给submit_meal_operation传items或把date放在根层，平台在派发前拒绝，未命中业务服务。初版简单入口成功生成过预览，但另两样本曾错误生成package_label，已据此补充字段说明、Skill映射及服务端明确别名兼容。原始失败、网络错误与修正后的结果分别留存，不把构建成功或小样本当成真实手机已通过；本人真机仍需更新测试版本后复测记餐。
+
 ## 本人手机预览
 
 打开[测试版本详情](https://developer.doubao.com/agentic_service/db_app_9m6xflq/versions/0.0.1-dev.20261110.2)，点击“调试二维码”。当前平台推荐豆包15.2.0或以上版本，通过“设置 → ··· → 应用插件 Debugger”扫码更新资源并预览。该二维码对应已上传的云构建版本，不是本地 `dbx device` 设备授权。
@@ -88,7 +98,7 @@ H5 使用生产构建，通过 CUA 实际填写错误密码、重试、拒绝、
 
 手机连接与身体查询已通过；国服写入确认、辅助阅读器、系统文字放大、200%及WebKit新登录流程未覆盖本轮。平台准入、主体认证与完整法律评估不由代码、测试版本或隐私页面替代。
 
-本轮私有证据归档至主线main-current工作区的`.codex/doubao-integration-20261111`，包含`doubao-platform-arguments-release`、`doubao-gateway-recovery`、`doubao-research`及前期平台／请求修复材料。真实手机问题已闭环，归档后清理本轮分支与临时工作区；不能公开凭据、真实UID或健康结果。后续网关发布须显式传`--regions iad1`并核对部署API和真实回源；不能只依赖本地vercel.json。
+本轮私有证据归档至主线main-current工作区的`.codex/doubao-integration-20261111`，包含`doubao-platform-arguments-release`、`doubao-gateway-recovery`、`doubao-research`及前期平台／请求修复材料。此前手机连接及身体查询问题已闭环，相关工作归档后清理本轮分支与临时工作区；不能公开凭据、真实UID或健康结果。后续网关发布须显式传`--regions iad1`并核对部署API和真实回源；不能只依赖本地vercel.json。
 
 ## 资料与维护
 

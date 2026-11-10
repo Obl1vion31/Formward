@@ -92,7 +92,10 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
       const client = new Client({ name: "fictional-production-http", version: "1" }, { versionNegotiation: { mode } });
       await client.connect(new StreamableHTTPClientTransport(new URL(baseURL + "/api/doubao/mcp"), { requestInit: { headers: { "x-db-openid": externalId, "x-db-access-token": tokens.data.access_token } } }));
       try {
-        assert.equal((await client.listTools()).tools.length, 18);
+        const tools = await client.listTools();
+        assert.equal(tools.tools.length, 19);
+        assert.ok(tools.tools.some(tool => tool.name === "preview_meal"));
+        assert.ok(!JSON.stringify(tools.tools).includes('"exclusiveMinimum":'));
         const profile = await client.callTool({ name: "get_profile", arguments: {} });
         assert.notEqual(profile.isError, true);
         const entities = (profile.structuredContent as { entities: Array<{ result_json: string }> }).entities;
@@ -111,9 +114,25 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
         assert.equal(invalidDate.isError, true, "平台上下文兼容不能放过非法业务参数");
         const unknownField = await client.callTool({ name: "query_measurements", arguments: { ...platformContext, unexpected_business_field: true } });
         assert.equal(unknownField.isError, true, "其他未知字段继续拒绝");
+        const meal = await client.callTool({ name: "preview_meal", arguments: {
+          ...platformContext, operationId: "fictional-production-lunch-" + mode,
+          date: "2026-11-10", mealType: "午餐", foods: [{ name: "虚构测试午餐", quantity: "2", unit: "份", caloriesKcal: "600", proteinG: "0", sourceKind: "estimated", basis: "两份合计估计600 kcal，油量不确定。" }],
+        } });
+        assert.notEqual(meal.isError, true);
+        const preview = meal.structuredContent as { id: string; status: string; canConfirm: boolean; confirmationUrl: string; rows: Array<{ meal: { items: Array<{ nutrition: { caloriesKcal: string; proteinG: string; carbsG: string | null } }> } }> };
+        assert.equal(preview.status, "pending"); assert.equal(preview.canConfirm, true);
+        assert.equal(preview.rows[0].meal.items[0].nutrition.caloriesKcal, "600");
+        assert.equal(preview.rows[0].meal.items[0].nutrition.proteinG, "0");
+        assert.equal(preview.rows[0].meal.items[0].nutrition.carbsG, null);
+        assert.equal(new URL(preview.confirmationUrl).origin, baseURL);
+        const page = await fetch(preview.confirmationUrl, { headers: { cookie } });
+        assert.equal(page.status, 200);
+        const html = await page.text();
+        assert.ok(html.includes("虚构测试午餐") && html.includes("确认"));
       } finally { await client.close(); }
     }
     assert.equal((await db.select({ id: schema.measurement.id }).from(schema.measurement)).length, 0);
-    console.info(JSON.stringify({ check: "doubao-production-http", passed: true, toolCount: 18, protocols: ["auto", "legacy"], invalidCredentialsRejected: true, profileOwnerMatched: true, measurementQueryPassed: true, platformContextCompatible: true, businessValidationPreserved: true, healthRecordsWritten: 0 }));
+    assert.equal((await db.select({ id: schema.meal.id }).from(schema.meal)).length, 0);
+    console.info(JSON.stringify({ check: "doubao-production-http", passed: true, toolCount: 19, protocols: ["auto", "legacy"], invalidCredentialsRejected: true, profileOwnerMatched: true, measurementQueryPassed: true, platformContextCompatible: true, simpleMealPreviewPassed: true, previewPagePassed: true, businessValidationPreserved: true, healthRecordsWritten: 0 }));
   } finally { await close(); }
 }
