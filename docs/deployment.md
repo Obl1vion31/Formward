@@ -1,18 +1,26 @@
 # 公网 HTTPS 部署
 
-## 当前正式部署：豆包独立接入
+## 当前正式部署：生日选择与录入引导
 
-上海应用为 `dual-entry-0f5c7e24-doubao-mcp-request-20261110`，源码 `0f5c7e240a6e3d8a8be1c6768ced2f03a431f223`，BUILD_ID `a-cKXvLOUnAhAig-m7rcY`，发布目录 `doubao-mcp-request-20261110`。独立豆包入口已启用，用户批准的AppSecret保存在root 0600私有环境文件；原OAuth配置、47项Server Action及282项旧静态资源保留。55表、36条migration不变，无数据库迁移或正式虚构健康记录。
+上海应用为 `dual-entry-395fa322-mobile-onboarding-20261111`，源码 `395fa322eef156996a1a9003b71457dd37dee3bc`，BUILD_ID `TllG814QHTC4pRj-N7WGa`，发布目录 `mobile-onboarding-20261111`。生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。
+
+595项单元／集成、lint、typecheck及干净兼容production build通过。Chromium和WebKit各20组真实录入引导、20组五页加载检查及后退／快速取消复查通过；固定锚点最大偏差分别为0.328125px和0px。
+
+55表、36条migration保持；数据、环境配置和OAuth安全摘要保护检查通过。保留47项Server Action及绑定密钥，额外保留322项旧静态资源；上一正式应用 `doubao-platform-arguments-20261111` 保留供回退。 本轮包含929a9d4的平台上下文字段兼容修复；三个公网入口版本一致，新引导CSS／JS和年份选择JS均匿名200且SHA与构建一致。原OAuth issuer、MCP resource与未授权401保持。
+
+物理手机的原生选择器、系统键盘、帧率及屏幕阅读器未实测。既有WebKit连续图形转场未通过记录保留。 证据见[维护验收](maintenance-verification.md)。
+
+## 豆包与原GPT接入
 
 Vercel READY为 `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129；`formward-ten.vercel.app` 与 `global.formward.top` 均已核对指向此部署。保留257项静态文件和路由，只增加有界错误元数据诊断，不记录URL、查询、凭据或正文。request／WebView域名及本人体验白名单已生效；普通网页仍跳转国服，豆包登录路径留在已验证域名。
 
 早期切换曾出现跨网关API 503，回退应用后仍持续；诊断网关重发后恢复，根因未证实。此后的已登录豆包MCP 503已单独定位为复制Next代理Request的私有状态异常，0f5c7e24改为用已校验JSON及原入口字段构造普通请求。此次仅切换上海应用，Vercel和环境文件未改；未放宽校验或改动原授权。上一应用 `doubao-protocol-20261110` 及更早兼容应用仍保留，回退仅切应用并保留当前数据与撤销状态。
 
-完整592项单元／集成、13项豆包／桥接专项、原生4项、lint、typecheck及干净production build通过。候选与正式入口检查均为18项工具、私有调用保护、无效凭据拒绝及原GPT保护。最终公网三入口版本一致，新旧SDK协议均发现18工具；两个海外别名的验证文件、协议和样式共8资源匿名200且SHA与源码一致。原GPT get_profile实际成功且与发布前同一账号；应用、Nginx、PostgreSQL均active。
+豆包接入基线的完整592项单元／集成、13项豆包／桥接专项、原生4项、lint、typecheck及干净production build通过。候选与正式入口检查均为18项工具、私有调用保护、无效凭据拒绝及原GPT保护。最终公网三入口版本一致，新旧SDK协议均发现18工具；两个海外别名的验证文件、协议和样式共8资源匿名200且SHA与源码一致。原GPT get_profile实际成功且与发布前同一账号；应用、Nginx、PostgreSQL均active。
 
 测试版 `0.0.1-dev.20261110.2` 保持，完整Skill及18工具已核对；首版 `.1` 平台临时失败未计通过。本人手机真实OpenID交换、WebView授权回传及平台换码已成功，修复后查询复测和国服确认链接仍待核对。待发布产物已通过实际Next HTTP虚构登录、同意、换码、双协议账号／身体查询、无效凭据401及零健康写入；具体证据见[豆包接入](doubao-onboarding.md)。
 
-发布使用当日已异机加密回读校验的备份，无migration。最终包2538项文件逐项核对，2482项复用、56项差量；22:21正式切换成功，候选和正式入口均通过无效MCP凭据401专项，环境文件字节保持。正式证据为 `.codex/doubao-request-fix-release`，前期故障及平台材料仍在 `.codex/doubao-release`、`.codex/doubao-protocol-release` 和 `.codex/doubao-research`；私有文件不进入Git／公开目录，不以短日志窗口宣称长期无5xx。
+豆包接入基线发布使用当日已异机加密回读校验的备份，无migration。最终包2538项文件逐项核对，2482项复用、56项差量；22:21正式切换成功，候选和正式入口均通过无效MCP凭据401专项，环境文件字节保持。正式证据为 `.codex/doubao-request-fix-release`，前期故障及平台材料仍在 `.codex/doubao-release`、`.codex/doubao-protocol-release` 和 `.codex/doubao-research`；私有文件不进入Git／公开目录，不以短日志窗口宣称长期无5xx。
 
 ## 公开协议静态发布（2026-11-10）
 

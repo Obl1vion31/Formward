@@ -1,10 +1,18 @@
 # 当前实现与验证
 
-## 当前正式版本：豆包独立接入（2026-11-10）
+## 当前正式版本：生日选择与首次录入（2026-11-11）
 
-上海应用 `dual-entry-0f5c7e24-doubao-mcp-request-20261110`，源码0f5c7e24，BUILD_ID `a-cKXvLOUnAhAig-m7rcY`；Vercel READY `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129。原GPT实际连接保持同一账号，47项Server Action和282项旧静态资源保留，55表／36条migration不变。
+上海应用为 `dual-entry-395fa322-mobile-onboarding-20261111`，源码 `395fa322eef156996a1a9003b71457dd37dee3bc`，BUILD_ID `TllG814QHTC4pRj-N7WGa`，发布目录 `mobile-onboarding-20261111`。生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。
 
-豆包request／WebView域名与本人白名单已生效，测试版 `0.0.1-dev.20261110.2` 保持。本人手机身份交换、WebView回传和平台换码已成功，后续MCP 503已定位并修复上线；环境文件、已授权连接和原GPT保持。完整592项测试、豆包专项、原生4项、lint、typecheck、干净构建及实际Next HTTP双协议查询通过。手机身体查询复测和网页预览确认仍待核对；实际范围见[豆包接入](doubao-onboarding.md)与[部署](deployment.md)。
+595项单元／集成、lint、typecheck及干净兼容production build通过。Chromium和WebKit各20组真实录入引导、20组五页加载检查及后退／快速取消复查通过；固定锚点最大偏差分别为0.328125px和0px。
+
+55表、36条migration保持；数据、环境配置和OAuth安全摘要保护检查通过。保留47项Server Action及绑定密钥，额外保留322项旧静态资源；上一正式应用 `doubao-platform-arguments-20261111` 保留供回退。 三个公网入口及新版资源已核对，正式验收证据见[维护验收](maintenance-verification.md)。
+
+## 接入与未测范围
+
+豆包平台注入的两个保留字段由适配层剥离，业务未知参数仍严格校验；该929a9d4修复已包含在当前应用。原GPT和既有授权保持，测试版仍为 `0.0.1-dev.20261110.2`；本人手机查询与国服预览确认继续按[豆包接入](doubao-onboarding.md)核对。
+
+物理手机的原生选择器、系统键盘、帧率及屏幕阅读器未实测。既有WebKit连续图形转场未通过记录保留。
 
 ## 保留的验收基线：浅色骨架扫光（2026-11-10）
 

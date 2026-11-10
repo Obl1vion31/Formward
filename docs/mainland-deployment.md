@@ -6,9 +6,13 @@
 
 ## 当前部署
 
-日常网页为[国服](https://43.142.148.58)，当前应用 `dual-entry-0f5c7e24-doubao-mcp-request-20261110`，源码0f5c7e24，BUILD_ID `a-cKXvLOUnAhAig-m7rcY`，目录 `doubao-mcp-request-20261110`。上海仍为55表、36条migration，原GPT、Garmin、图片及身体图表／骨架基线保持。原47项Server Action、加密密钥与282项旧静态资源保留；上一豆包应用和骨架应用均保留作兼容回退。
+日常网页为[国服](https://43.142.148.58)。上海应用为 `dual-entry-395fa322-mobile-onboarding-20261111`，源码 `395fa322eef156996a1a9003b71457dd37dee3bc`，BUILD_ID `TllG814QHTC4pRj-N7WGa`，发布目录 `mobile-onboarding-20261111`。生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。
 
-海外READY `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129，保留257项静态文件与路由并增加有界错误元数据诊断。两个海外别名、公网三入口版本、新旧豆包MCP发现及原GPT实际连接已核对。豆包域名与白名单生效、测试版云构建成功，真实手机登录与健康查询仍待本人授权验证；故障恢复与准确验证范围见[部署](deployment.md)和[豆包接入](doubao-onboarding.md)。
+595项单元／集成、lint、typecheck及干净兼容production build通过。Chromium和WebKit各20组真实录入引导、20组五页加载检查及后退／快速取消复查通过；固定锚点最大偏差分别为0.328125px和0px。
+
+55表、36条migration保持；数据、环境配置和OAuth安全摘要保护检查通过。保留47项Server Action及绑定密钥，额外保留322项旧静态资源；上一正式应用 `doubao-platform-arguments-20261111` 保留供回退。 本轮包含最新豆包平台参数兼容修复，Vercel网关未重发。海外READY仍为 `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`；两个别名及国服均返回同一新版版本号。原GPT／豆包的业务验证边界继续见[部署](deployment.md)与[豆包接入](doubao-onboarding.md)。
+
+物理手机的原生选择器、系统键盘、帧率及屏幕阅读器未实测。既有WebKit连续图形转场未通过记录保留。
 
 ## 保留的浅色骨架验收
 

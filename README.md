@@ -1,6 +1,8 @@
 # Formward
 
-豆包独立接入工程位于 `integrations/doubao`，过渡域名与白名单已生效，测试版 `0.0.1-dev.20261110.2` 可预览。本人手机授权与换码已验证，请求适配503已修复；真实工具调用仍返回失败，正在诊断，尚未完成查询验收。原GPT实测正常。当前范围与迁移边界见[豆包接入](docs/doubao-onboarding.md)，不以构建或虚构HTTP通过代替本人App通过。
+生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。 规则见[设计规范](docs/design-reference.md)，验收与正式版本见[部署](docs/deployment.md)。
+
+豆包独立接入工程位于 `integrations/doubao`，过渡域名与白名单已生效，测试版 `0.0.1-dev.20261110.2` 可预览。本人手机授权与换码已验证，请求适配及平台注入参数兼容修复已上线；本人手机工具查询和国服确认仍待复核。原GPT实测正常。当前范围与迁移边界见[豆包接入](docs/doubao-onboarding.md)，不以构建或虚构HTTP通过代替本人App通过。
 
 公开[隐私政策](https://formward-ten.vercel.app/privacy.html)和[服务条款](https://formward-ten.vercel.app/terms.html)已发布，生效日期2026年11月10日；个人运营者、填写资料及发布范围见[豆包资料与公开协议](docs/doubao-onboarding.md)。
 
