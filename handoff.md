@@ -1,30 +1,34 @@
 # Formward 项目交接
 
-## 当前正式交付：生日选择与首次录入
+## 当前部署：手机引导与外部接入
 
-上海应用为 `dual-entry-395fa322-mobile-onboarding-20261111`，源码 `395fa322eef156996a1a9003b71457dd37dee3bc`，BUILD_ID `TllG814QHTC4pRj-N7WGa`，发布目录 `mobile-onboarding-20261111`。已合入推送main并发布[正式站](https://43.142.148.58)。生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。
+用户已授权先用Vercel过渡、后续再迁国内，保留现有GPT连接；官方CLI登录与上海私有AppSecret配置已获授权并完成，不重复索权。
+
+当前上海应用 `dual-entry-395fa322-mobile-onboarding-20261111`，源码`395fa322eef156996a1a9003b71457dd37dee3bc`，BUILD_ID `TllG814QHTC4pRj-N7WGa`，目录`mobile-onboarding-20261111`。豆包适配、OAuth和共用MCP沿用929a9d47的已验证实现。
+
+生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。
 
 595项单元／集成、lint、typecheck及干净兼容production build通过。Chromium和WebKit各20组真实录入引导、20组五页加载检查及后退／快速取消复查通过；固定锚点最大偏差分别为0.328125px和0px。
 
-55表、36条migration保持；数据、环境配置和OAuth安全摘要保护检查通过。保留47项Server Action及绑定密钥，额外保留322项旧静态资源；上一正式应用 `doubao-platform-arguments-20261111` 保留供回退。 本轮包含最新929a9d4豆包平台参数修复，实际版本及证据见[部署](docs/deployment.md)与[维护验收](docs/maintenance-verification.md)。
+当前手机引导版本保留47项Server Action及绑定密钥、322项旧静态资源；55表和36条migration保持，健康数据、环境配置和OAuth安全摘要保护检查通过。上一正式应用 `doubao-platform-arguments-20261111` 保留供回退。
 
-物理手机的原生选择器、系统键盘、帧率及屏幕阅读器未实测。既有WebKit连续图形转场未通过记录保留。
+生日控件与操作引导的物理手机原生选择器、系统键盘、帧率及屏幕阅读器尚未实测；既有WebKit连续图形转场未通过记录保留。 详细证据见[维护验收](docs/maintenance-verification.md)。
 
-## 豆包接入基线与待核对范围
+海外READY `dpl_7LC5LTzjS7zokZa6atCsrHpT5vxa`，网关代码仍为74754129，实际发布区域固定为`iad1`；`formward-ten.vercel.app`与`global.formward.top`均已核对指向该部署，257项静态文件、路由和网关代码哈希保持。
 
-豆包接入基线：用户授权先用Vercel过渡、保留现有GPT连接，官方CLI已获准登录；`global.formward.top` 的 request／WebView 和本人体验白名单均已生效。用户批准的AppSecret已配置到上海root 0600私有环境文件，未进入Git、前端、网关或日志。上海应用 `dual-entry-0f5c7e24-doubao-mcp-request-20261110`，源码0f5c7e24，BUILD_ID `a-cKXvLOUnAhAig-m7rcY`，目录 `doubao-mcp-request-20261110`；代码及测试辅助修正已合入推送main，保留此前身体图表和骨架修改。
+原GPT的issuer、resource、客户端和凭据保持；AppSecret仍只在上海root 0600私有配置，环境文件字节未变。参数修复基线929a9d47保留47项Server Action、原绑定密钥和285项旧静态资源；55表／36条migration保持，无新增健康计算、数据库迁移或正式虚构健康记录。
 
-Vercel当前READY `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129；两个海外别名已核对指向该部署，257项静态文件及路由保持。首轮切换曾出现API 503且回退应用后仍持续，追加有界网关错误元数据诊断并重发后恢复；根因尚未证实，不归因TLS或应用。原GPT已再次实际get_profile成功且与发布前同一账号，issuer、resource与凭据保持。
+本人手机2026年11月10日23:53的“检查连接”已通过令牌和归属校验，但空参数工具收到两项额外字段，在SDK工具入参校验阶段失败；scope完整，刷新也成功。依据豆包平台协议，适配层只移除`from_mcp_call`与`_miniapp_permitted_data`，不使用其数据或推断身份；其他业务字段仍严格校验。隔离测试先复现旧失败、修复后通过；2026年11月11日01:02真机复测中，两项工具实际命中这两个平台字段并完成、HTTP200；用户确认连接检查与身体查询正常，原因已由真实调用闭环。
 
-`features/doubao` 与 `integrations/doubao` 已实现独立绑定、PKCE、一次性兑换、刷新／撤销、18项MCP、运行态Skill和原生自定义登录。显式支持现代 `server/discover`，新旧协议公网发现18工具且匿名私有调用被拒绝。身体仍仅实测，写入仍需网页登录最终确认；55表、36条migration保持，无新增健康计算。47项Server Action、原绑定密钥及282项旧静态资源保留。
+参数修复基线929a9d47的593项单元／集成全部通过，其中14项豆包／桥接专项；lint、typecheck、干净兼容production build及实际Next production HTTP双协议验收通过。带平台保留字段的连接检查与身体查询成功，非法日期、其他未知字段和无效凭据仍拒绝，健康写入0。原无隔离完整运行耗尽本机WSL内存，中断记录保留；最终按78个原测试文件串行独立运行同一套断言，未放宽检查。原生4项、此前H5尺寸与独立review保持原验收范围，不冒充本次手机查询或新视觉验收。
 
-完整592项单元／集成、豆包／桥接专项、原生4项、lint、typecheck和干净兼容production build通过。新增框架代理回归与实际Next production HTTP验收，真实执行虚构账号登录／同意／换码、双协议身体查询和无效凭据401；旧代码／旧产物均先复现503，新产物通过且退出正常。官方模拟器、此前H5尺寸检查及两次独立review的原范围保持，不扩大为完整手机视觉准出。
+发布后另捕获海外回源ETIMEDOUT：上海公开入口200，海外两个别名503，原GPT复核也曾失败。固定公开版本接口的保护探针实测香港`hkg1`无法建立TCP，而美国东部`iad1`的TCP、TLS及HTTP200均通过；切换到iad1后，三入口版本一致，新旧协议发现18工具，8项公开资源SHA一致，原GPT实际get_profile恢复且为同一账号。运行日志的sin1标记不能单独当作函数实际区域；上述探针直接读取VERCEL_REGION。不据此追认更早间歇503的根因。
 
-测试版[0.0.1-dev.20261110.2](https://developer.doubao.com/agentic_service/db_app_9m6xflq/versions/0.0.1-dev.20261110.2)保持，不必重装或重新授权。本人手机已完成真实OpenID交换、网页授权回传及平台换码绑定；随后工具请求503已定位为复制Next代理Request的私有状态异常，22:21修复上线，环境文件、原绑定和GPT保持。手机身体查询复测及国服预览确认仍待核对。入口和验证范围见[豆包接入](docs/doubao-onboarding.md)，本次私有证据在 `.codex/doubao-request-fix-release` 与 `.codex/doubao-research`，此前发布与排障材料继续保留；不公开凭据或真实健康结果。
+测试版`0.0.1-dev.20261110.2`保持，本人OpenID交换、WebView回传、绑定、换码和续期已验证。本人确认手机连接检查与最近七天身体查询正常；服务端两工具complete／HTTP200，分别5ms和126ms。无需重扫或重新授权。国服写入确认及完整真机布局未覆盖本轮。
 
-**后续核对：** 当前应用已包含929a9d4的豆包平台参数兼容修复；本人手机工具查询和国服确认仍待回归。保留此前HTTP200但ToolResult失败的记录及诊断材料，不要求用户反复授权，不以虚构HTTP通过替代本人App通过。
+上海临时JSON诊断preload和本人systemd drop-in已移除，实际服务环境无探针；Vercel四个本轮候选／诊断部署已安全删除，临时保护绕过令牌已撤销，两正式别名的诊断路径即使带旧私有头也返回404。只保留不含健康内容的私有证据和兼容回退，不删除其他任务。
 
-服务器只读检查确认，旧 `70-doubao-response-diagnostic.conf` drop-in与 `doubao-response.cjs` 探针均已移除。本轮未改动其他任务的诊断配置；既有材料继续在原任务私有目录保留，按摘要校验操作，不能删除其他drop-in或输出真实健康结果、凭据。
+本轮私有证据归档至主线main-current工作区的`.codex/doubao-integration-20261111`，包含`doubao-platform-arguments-release`、`doubao-gateway-recovery`、`doubao-research`及前期平台／请求修复材料。真实手机问题已闭环，归档后清理本轮分支与临时工作区；不能公开凭据、真实UID或健康结果。后续网关发布须显式传`--regions iad1`并核对部署API和真实回源；不能只依赖本地vercel.json。
 
 ## 已发布：公开隐私政策与服务条款
 

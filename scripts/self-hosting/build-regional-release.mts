@@ -42,10 +42,10 @@ try{
  await checkLinks(standalone);
 
  const output=join(target,"international/.vercel/output"),fn=join(output,"functions/gateway.func");await mkdir(fn,{recursive:true});
- await writeFile(join(target,"international/vercel.json"),JSON.stringify({$schema:"https://openapi.vercel.sh/vercel.json",framework:null,regions:["cle1"],crons:[]}));
+ await writeFile(join(target,"international/vercel.json"),JSON.stringify({$schema:"https://openapi.vercel.sh/vercel.json",framework:null,regions:["iad1"],crons:[]}));
  const bundle=await build({metafile:true,entryPoints:[join(source,"scripts/self-hosting/gateway-entry.ts")],outfile:join(fn,"index.mjs"),bundle:true,platform:"node",format:"esm",target:"node24",packages:"bundle",banner:{js:'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'},logLevel:"silent"});
  if(Object.keys(bundle.metafile!.inputs).some(path=>/postgres\/|src\/db\/|auth\/auth\.ts|cos-nodejs-sdk/.test(path)))throw new Error("国际产物意外包含数据库或国内存储实现。");
- await writeFile(join(fn,".vc-config.json"),JSON.stringify({runtime:"nodejs24.x",handler:"index.mjs",launcherType:"Nodejs",shouldAddHelpers:false,supportsResponseStreaming:true,maxDuration:120}));
+ await writeFile(join(fn,".vc-config.json"),JSON.stringify({runtime:"nodejs24.x",handler:"index.mjs",launcherType:"Nodejs",shouldAddHelpers:false,supportsResponseStreaming:true,maxDuration:120,regions:["iad1"]}));
  const staticRoot=join(output,"static");await mkdir(staticRoot,{recursive:true});
  await cp(join(source,"public"),staticRoot,{recursive:true,verbatimSymlinks:true});
  await cp(join(source,".next/static"),join(staticRoot,"_next/static"),{recursive:true,verbatimSymlinks:true});

@@ -2,7 +2,7 @@
 
 ## 当前正式状态
 
-当前上海应用为0f5c7e24／`doubao-mcp-request-20261110`，海外READY `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，准确范围见[部署](deployment.md)与[豆包接入](doubao-onboarding.md)。下述骨架专项的验收基线为04d25b30、BUILD_ID `fqTfJlxhDaX7x1bzy7WOH`、目录`skeleton-contrast-20261110`，其改动已包含于当前应用；该次没有数据库、业务计算、公开接口或加载时序变更，上海保持55表、36条migration。
+当前上海应用为395fa322／`mobile-onboarding-20261111`，已包含929a9d47参数修复，海外READY `dpl_7LC5LTzjS7zokZa6atCsrHpT5vxa`、iad1，准确范围见[部署](deployment.md)与[豆包接入](doubao-onboarding.md)。929a9d47基线的593测试及实际Next双协议通过，原GPT实测已恢复。下述骨架专项仍为04d25b30、BUILD_ID `fqTfJlxhDaX7x1bzy7WOH`、目录`skeleton-contrast-20261110`的既有验收，其改动包含于当前应用；55表／36条migration保持。
 
 浅色占位使用#D6D0C4暖灰底与90%暖白扫光，数字、卡片及图形占位共用骨架色。扫光保持1.6秒从左向右，底色与光层继续由同一圆角容器裁切。深色沿用原灰底和米色光；减少动态效果时静止显示。固定标题、图例及操作从首帧显示，真实数据原位接管。
 

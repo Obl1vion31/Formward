@@ -6,13 +6,21 @@
 
 ## 当前部署
 
-日常网页为[国服](https://43.142.148.58)。上海应用为 `dual-entry-395fa322-mobile-onboarding-20261111`，源码 `395fa322eef156996a1a9003b71457dd37dee3bc`，BUILD_ID `TllG814QHTC4pRj-N7WGa`，发布目录 `mobile-onboarding-20261111`。生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。
+当前上海应用 `dual-entry-395fa322-mobile-onboarding-20261111`，源码`395fa322eef156996a1a9003b71457dd37dee3bc`，BUILD_ID `TllG814QHTC4pRj-N7WGa`，目录`mobile-onboarding-20261111`。豆包适配、OAuth和共用MCP沿用929a9d47的已验证实现。
+
+生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。
 
 595项单元／集成、lint、typecheck及干净兼容production build通过。Chromium和WebKit各20组真实录入引导、20组五页加载检查及后退／快速取消复查通过；固定锚点最大偏差分别为0.328125px和0px。
 
-55表、36条migration保持；数据、环境配置和OAuth安全摘要保护检查通过。保留47项Server Action及绑定密钥，额外保留322项旧静态资源；上一正式应用 `doubao-platform-arguments-20261111` 保留供回退。 本轮包含最新豆包平台参数兼容修复，Vercel网关未重发。海外READY仍为 `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`；两个别名及国服均返回同一新版版本号。原GPT／豆包的业务验证边界继续见[部署](deployment.md)与[豆包接入](doubao-onboarding.md)。
+当前手机引导版本保留47项Server Action及绑定密钥、322项旧静态资源；55表和36条migration保持，健康数据、环境配置和OAuth安全摘要保护检查通过。上一正式应用 `doubao-platform-arguments-20261111` 保留供回退。
 
-物理手机的原生选择器、系统键盘、帧率及屏幕阅读器未实测。既有WebKit连续图形转场未通过记录保留。
+生日控件与操作引导的物理手机原生选择器、系统键盘、帧率及屏幕阅读器尚未实测；既有WebKit连续图形转场未通过记录保留。 详细证据见[维护验收](maintenance-verification.md)。
+
+海外READY `dpl_7LC5LTzjS7zokZa6atCsrHpT5vxa`，网关代码仍为74754129，实际发布区域固定为`iad1`；`formward-ten.vercel.app`与`global.formward.top`均已核对指向该部署，257项静态文件、路由和网关代码哈希保持。
+
+原GPT的issuer、resource、客户端和凭据保持；AppSecret仍只在上海root 0600私有配置，环境文件字节未变。参数修复基线929a9d47保留47项Server Action、原绑定密钥和285项旧静态资源；55表／36条migration保持，无新增健康计算、数据库迁移或正式虚构健康记录。
+
+香港回源TCP超时与上海参数校验分别处理；iad1恢复后原GPT实际成功，三入口版本一致，临时诊断已清理。测试版`0.0.1-dev.20261110.2`保持，本人OpenID交换、WebView回传、绑定、换码和续期已验证。本人确认手机连接检查与最近七天身体查询正常；服务端两工具complete／HTTP200，分别5ms和126ms。无需重扫或重新授权。国服写入确认及完整真机布局未覆盖本轮。故障和准确验收范围见[部署](deployment.md)与[豆包接入](doubao-onboarding.md)。
 
 ## 保留的浅色骨架验收
 
