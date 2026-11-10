@@ -1,5 +1,11 @@
 # Formward 项目交接
 
+## 已发布：公开隐私政策与服务条款
+
+用户确认后已发布[隐私政策](https://formward-ten.vercel.app/privacy.html)和[服务条款](https://formward-ten.vercel.app/terms.html)，可直接填入豆包控制台。个人运营者施绪飞扬，联系邮箱opg.obl1v@gmail.com，生效日期2026年11月10日。READY为 `dpl_82o44w2e9c1xGDH3Yxep68LxP7FZ`，文稿源码 `38a3c61139a34f70b28e9c71cf1aa669737a6de4` 已合入推送main；接入后续边界和完整发布证据见[豆包资料](docs/doubao-onboarding.md)。
+
+本轮仅在既有海外Build Output新增三份公开文件，253个原文件、网关和路由哈希不变，网关源码仍0f3434d。正式HTML／CSS匿名200、无跳转／Cookie、SHA与源码一致；两引擎8组公网手机／电脑及互链通过，页面异常和健康API请求均0，国服版本不变、未授权身体接口仍401。原578测试、lint、typecheck及production build通过；正式稿52组矩阵及16组日期专项通过，日期孤字经独立复核resolved。68张正式稿和公网截图在 `C:/Users/14878/.codex/visualizations/2026/11/10/formward-legal-publication-final`。临时预览及本轮工作区在归档后结束，私有证据移至主线 `.codex/legal-publication`；物理手机、豆包WebView与完整法律评估未测。未执行数据库迁移或健康记录写入，未改变凭据或授权配置。
+
 ## 当前部署：国服Garmin双站点与本人密钥
 
 日常网页为[国服](https://43.142.148.58)，原GPT／MCP、OAuth与海外图片后台继续由Vercel承担，正式数据统一写入上海。国服应用688081179e63f10f0e5e2e12400cd392c4894572，发布garmin-regions-current-20261110，BUILD_ID -7gprMm9zSgOPO2Tv7euh；已合入并推送main，保留workspace-flow-final的界面与0036。正式库55表、36条migration，本轮没有新增表或migration。
@@ -15,7 +21,7 @@ Garmin已启用personal：有效登录账号从“账号菜单 → 外部接入 
 
 该基线由0f3434d发布至workspace-flow-final-20261110后进入当前6880811。此前双引擎各80组加载矩阵、各17组助手、19组原生库连续流程及三卡往返验证保留；修复前69次、修复后138次完整往返均有录像，未把本机结果写成真机帧率。574项基线测试及严格TLS旧Cookie／JWT／refresh、匿名回审核、旧页真实保存证据见[维护验收](docs/maintenance-verification.md)。0036只加assistant_reminder_dismissals，以独立管理身份迁移，运行账号只获必要读取／插入权限，不扩CREATE。
 
-海外当前READY为dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp、CLE1，两别名延续原GPT入口。该基线的发布观察窗为UTC 2026-11-09T19:35:37.597208+00:00—19:39:39.085899+00:00，应用journal及海外Runtime／fatal／5xx查询无记录，不代表国服完整access历史或20分钟监控；本轮Garmin发布另有上方观察窗。
+海外当前READY为dpl_82o44w2e9c1xGDH3Yxep68LxP7FZ、CLE1；网关仍为原0f3434d，仅增加顶部所述公开协议文件，原dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp保留。旧基线观察窗为UTC 2026-11-09T19:35:37.597208+00:00—19:39:39.085899+00:00，不代表本次发布后监控；本次只计实际静态HTTP与浏览器核对，不冒充国服全量access或20分钟监控。
 
 工作区交互的私有证据保留在workspace-flow工作树的.codex/release-control、final-release-control、loading-final、loading-native-webkit、loading-native-flows、assistant-final、linked-final-webkit及visual-final；服务器原目录/var/lib/formward/workspace-flow-20261110和workspace-flow-final-20261110保持。实录为C:/Users/14878/.codex/visualizations/2026/11/10/formward-workspace-flow。后续主线工作区为/home/obl1vion/projects/Formward-worktrees/main-current；其他进行中的工作区与私有运维证据不清理。
 
