@@ -1,5 +1,21 @@
 # 完善任务验收
 
+## 浅色骨架扫光对比（2026-11-10）
+
+日常网页为[国服](https://43.142.148.58)，当前应用`dual-entry-04d25b30-skeleton-contrast-20261110`，构建源码`04d25b300dffee62f5669211beee3200c6a5880e`，BUILD_ID `fqTfJlxhDaX7x1bzy7WOH`，发布目录`skeleton-contrast-20261110`；已合入并推送main。上海`formward_primary`保持55表、36条migration，本轮只调整共用骨架颜色，没有数据库、业务计算、公开接口或加载时序变更。
+
+浅色占位使用#D6D0C4暖灰底与90%暖白扫光，数字、卡片及图形占位共用骨架色。扫光保持1.6秒从左向右，底色与光层继续由同一圆角容器裁切。深色沿用原灰底和米色光；减少动态效果时静止显示。固定标题、图例及操作从首帧显示，真实数据原位接管。
+
+579项单元／集成、lint、typecheck及干净production build通过。最终产物在Chromium和WebKit各20组五页面深浅主题慢加载检查通过，覆盖390×640与1440×900，固定槽位最大偏差0px；320／390／430／1440另作6组实际页面像素对照，浅色扫光中心与底色的亮度比约1.02升至1.45，深色取样点保持一致。真实扫光连续播放、数据接管及减少动态效果检查通过。
+
+身体晨晚／体脂共用日期轴、居中图表和返回交接继续保留；Garmin双站点、原GPT授权及Blob／COS沿用既有逻辑。47项Server Action、原绑定密钥与238项旧静态资源保留，上一应用`chart-return-final-20261110`保留供兼容回退。原数据、结构、配置与OAuth安全摘要前后校验无差异。
+
+两入口版本及新版CSS公网SHA核对通过，原OAuth issuer／MCP resource保持，匿名MCP POST为401，原协议HTML／CSS匿名200且SHA一致；本轮未重发Vercel网关。此前WebKit完整连续图形转场的未通过样本仍保留，本次骨架加载检查不代表该问题已解决；物理手机帧率及系统键盘未测。详细证据见[维护验收](maintenance-verification.md)。
+
+发布前`formward-primary-20261110T105752238281Z.dump.json`已异机加密回读校验。候选3201就绪后切换3200，2473项相同文件复用，52项差量传输，完整2525项逐文件验证。应用、Nginx、PostgreSQL及相关timer均active。应用journal观察窗`2026-11-10T11:10:01.970471+00:00`至`2026-11-10T11:11:01.601819+00:00`共11条消息，匹配错误0条；只说明该短窗口，不代表长期或全量5xx统计。正式站未创建虚构健康记录，恢复只切兼容应用并保留合法更新。
+
+私有记录位于workspace-flow工作树`.codex/skeleton-contrast`及服务器`/var/lib/formward/skeleton-contrast-20261110`；可展示对照与实际加载录像位于`C:/Users/14878/.codex/visualizations/2026/11/10/formward-skeleton-contrast`，使用隔离虚构数据。初版取样脚本的无效延迟参数、目标选择和取样时机诊断均保留；最终逐帧、像素与布局检查分别记录，不将中断脚本计为通过。
+
 ## 身体图表统一与返回交接（2026-11-10）
 
 日常网页为[国服](https://43.142.148.58)，应用版本`dual-entry-2583580b-chart-return-final-20261110`，构建源码`2583580bdeb1af62e9dc770369dd978ba15c55c0`，BUILD_ID `7qKmpqveL87PoHSOFLJHU`，发布目录`chart-return-final-20261110`；已合入并推送main。上海`formward_primary`仍为55表、36条migration，本轮没有数据库、公开接口或业务计算变更。

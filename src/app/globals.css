@@ -982,7 +982,7 @@ html[data-chart-travel=active] [data-shared-route] :is([data-record-slot="date"]
 @media(prefers-reduced-motion:reduce){.workspace-shell .dashboard-page{animation:none}}
 
 /* 真实页面与预载骨架共用读数布局；扫光只覆盖尚未载入的内容。 */
-.skeleton-line{width:160px;height:14px;border-radius:7px;background:var(--line-soft)}.skeleton-plot svg{display:block;width:100%;height:auto}.skeleton-home{margin-top:24px}.skeleton-actions{height:48px;margin:24px 0;background:var(--line-soft);border-radius:18px}.skeleton-card{height:140px;margin-bottom:24px;border-radius:22px;background:var(--line-soft)}
+.skeleton-line{width:160px;height:14px;border-radius:7px;background:var(--skeleton-fill)}.skeleton-plot svg{display:block;width:100%;height:auto}.skeleton-home{margin-top:24px}.skeleton-actions{height:48px;margin:24px 0;background:var(--skeleton-fill);border-radius:18px}.skeleton-card{height:140px;margin-bottom:24px;border-radius:22px;background:var(--skeleton-fill)}
 @keyframes skeleton-sweep{to{transform:translateX(110%)}}.skeleton-retry{padding:16px;display:flex;gap:12px;flex-wrap:wrap}.skeleton-retry button{min-height:44px;background:var(--surface);color:var(--warm-white);border:1px solid var(--control-border);border-radius:12px;padding:8px 14px}
 .energy-composition{margin:0}.energy-share-track{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--line-soft)}.energy-share-track span{height:100%;min-width:0}.energy-composition figcaption{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}.trend-return{margin:20px 0 16px}
 .workspace-shell :is(button,a,summary):active{filter:brightness(.94)}
@@ -1007,8 +1007,8 @@ html[data-chart-travel=active] [data-shared-route] :is([data-record-slot="date"]
 .workspace-skeleton [data-record-slot=date]{min-height:44px}
 .workspace-skeleton [data-record-slot=status]{display:none}
 .workspace-skeleton [data-metric-number]::before,.workspace-skeleton [data-metric-number]::after{display:none!important}
-.skeleton-block{display:inline-block;position:relative;vertical-align:middle;max-width:100%;overflow:hidden;isolation:isolate;background:var(--line-soft);flex:none}
-.skeleton-block>[data-skeleton-sheen]{display:block;position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent,rgba(215,205,183,.23),transparent);transform:translateX(-110%);animation:skeleton-sweep 1.6s linear infinite;pointer-events:none}
+.skeleton-block{display:inline-block;position:relative;vertical-align:middle;max-width:100%;overflow:hidden;isolation:isolate;background:var(--skeleton-fill);flex:none}
+.skeleton-block>[data-skeleton-sheen]{display:block;position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent,var(--skeleton-sheen),transparent);transform:translateX(-110%);animation:skeleton-sweep 1.6s linear infinite;pointer-events:none}
 .skeleton-plot{width:100%;font:12px ui-monospace,monospace;min-height:180px}.skeleton-plot svg{display:block;width:100%;height:auto}.skeleton-plot[data-plot-kind=body]:not([data-shared-plot]){height:252px}.skeleton-plot[data-plot-kind=body]:not([data-shared-plot]) svg{height:100%}
 .skeleton-relationship{display:grid;gap:56px;padding-top:26px;padding-bottom:34px}.skeleton-relationship .skeleton-block{width:100%}
 .skeleton-rail{display:flex;gap:12px;overflow:hidden;margin:0 -16px;padding:4px 16px 16px}.skeleton-rail>div{flex:none;width:calc(100% - 24px);box-sizing:border-box;min-height:128px;padding:16px;border-radius:22px;background:var(--card-material);box-shadow:var(--card-shadow);display:flex;flex-direction:column;gap:12px}.skeleton-rail>div>span:first-child{font-size:15px}
@@ -1019,13 +1019,13 @@ html[data-chart-travel=active] [data-shared-route] :is([data-record-slot="date"]
 @media(prefers-reduced-motion:reduce){.skeleton-block>[data-skeleton-sheen]{animation:none}.body-settings input::after{transition:none}}
 .pending-entry-fields{display:grid;gap:18px;padding-top:8px}.pending-entry-fields time{color:var(--muted);font-size:13px}.pending-entry-fields p{font-size:13px;color:var(--muted)}
 
-.skeleton-week{position:relative}.skeleton-week>section{visibility:hidden}.skeleton-week::after{content:"";position:absolute;inset:16px 0 20px;border-radius:8px;background:var(--line-soft)}
+.skeleton-week{position:relative}.skeleton-week>section{visibility:hidden}.skeleton-week::after{content:"";position:absolute;inset:16px 0 20px;border-radius:8px;background:var(--skeleton-fill)}
 .skeleton-plot{position:relative}.skeleton-plot[data-shared-plot]{height:auto;min-height:0;padding:20px 0 32px}.skeleton-plot[data-shared-plot]::before{content:"";display:block;aspect-ratio:2;margin:0 10px 0 var(--skeleton-axis-left,50px)}.skeleton-plot[data-shared-plot] svg{position:absolute;inset:0;width:100%;height:100%}.skeleton-plot[data-plot-kind=body][data-shared-plot]{padding-top:14px}.skeleton-plot[data-plot-kind=body][data-shared-plot]::before{margin-right:16px;margin-left:var(--skeleton-axis-left,48px)}
 
 
 .skeleton-rail.mobile-only{display:none}@media(max-width:700px),(hover:none) and (pointer:coarse){.skeleton-rail.mobile-only{display:flex}}
 
-.chart-flight-layer{position:fixed;inset:0;z-index:19;pointer-events:none;isolation:isolate;clip-path:inset(64px 0 0)}.chart-flight-layer .chart-flight{z-index:1}.skeleton-chart-geometry{animation:skeleton-chart-pulse 1.6s ease-in-out infinite}@keyframes skeleton-chart-pulse{50%{opacity:.45}}.body-spark{width:100%;height:100%}
+.chart-flight-layer{position:fixed;inset:0;z-index:19;pointer-events:none;isolation:isolate;clip-path:inset(64px 0 0)}.chart-flight-layer .chart-flight{z-index:1}.skeleton-chart-geometry{fill:var(--skeleton-fill);animation:skeleton-chart-pulse 1.6s ease-in-out infinite}@keyframes skeleton-chart-pulse{50%{opacity:.45}}.body-spark{width:100%;height:100%}
 @media(max-width:700px),(hover:none) and (pointer:coarse){.chart-flight-layer{clip-path:inset(64px 0 max(88px,calc(env(safe-area-inset-bottom) + 76px)))}.workspace-shell:has([data-workspace-frame=body]) .mobile-page-name{visibility:visible}}
 @media(prefers-reduced-motion:reduce){.skeleton-chart-geometry{animation:none}}
 

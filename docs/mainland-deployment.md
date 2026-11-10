@@ -6,15 +6,15 @@
 
 ## 当前部署
 
-日常网页为[国服](https://43.142.148.58)，应用版本`dual-entry-2583580b-chart-return-final-20261110`，构建源码`2583580bdeb1af62e9dc770369dd978ba15c55c0`，BUILD_ID `7qKmpqveL87PoHSOFLJHU`，发布目录`chart-return-final-20261110`；已合入并推送main。上海`formward_primary`仍为55表、36条migration，本轮没有数据库、公开接口或业务计算变更。
+日常网页为[国服](https://43.142.148.58)，当前应用`dual-entry-04d25b30-skeleton-contrast-20261110`，构建源码`04d25b300dffee62f5669211beee3200c6a5880e`，BUILD_ID `fqTfJlxhDaX7x1bzy7WOH`，发布目录`skeleton-contrast-20261110`；已合入并推送main。上海`formward_primary`保持55表、36条migration，本轮只调整共用骨架颜色，没有数据库、业务计算、公开接口或加载时序变更。
 
-晨间、晨晚与体脂采用同一绘图外壳。日期轴为MM.DD、最多4个含首尾的等距刻度；完整日期YYYY.MM.DD，范围MM.DD—MM.DD，跨年显示年份。开启晚间只增加真实系列，缺测保持断线；桌面选中读数位置固定，手机保留顶部读数。完整图的线宽和点径按实际屏幕尺寸保持一致。
+浅色占位使用#D6D0C4暖灰底与90%暖白扫光，数字、卡片及图形占位共用骨架色。扫光保持1.6秒从左向右，底色与光层继续由同一圆角容器裁切。深色沿用原灰底和米色光；减少动态效果时静止显示。固定标题、图例及操作从首帧显示，真实数据原位接管。
 
-返回总览由持久工作区立即显示原布局外壳，先恢复滚动及横滑位置，再进行一次约300ms回缩；准备期保留原图，浮层可见后交接。总览具有独立加载边界，真实数据原位接管。指标、区间或数据变化后正常返回，取消、迟到响应及快速反向共用清理。
+579项单元／集成、lint、typecheck及干净production build通过。最终产物在Chromium和WebKit各20组五页面深浅主题慢加载检查通过，覆盖390×640与1440×900，固定槽位最大偏差0px；320／390／430／1440另作6组实际页面像素对照，浅色扫光中心与底色的亮度比约1.02升至1.45，深色取样点保持一致。真实扫光连续播放、数据接管及减少动态效果检查通过。
 
-Garmin personal、中国站／国际站、旧v1连接、原GPT授权及Blob／COS沿用既有逻辑；配置与OAuth安全摘要校验保持。Vercel继续承担原GPT／MCP、OAuth和海外图片后台，Neon停写。原47项Server Action、绑定加密密钥及234项旧静态资源保留；上一应用`garmin-regions-current-20261110`保留供兼容回退，保留用户合法更新。
+身体晨晚／体脂共用日期轴、居中图表和返回交接继续保留；Garmin双站点、原GPT授权及Blob／COS沿用既有逻辑。47项Server Action、原绑定密钥与238项旧静态资源保留，上一应用`chart-return-final-20261110`保留供兼容回退。原数据、结构、配置与OAuth安全摘要前后校验无差异。
 
-本轮检查、未通过项、备份与兼容回退见[维护验收](maintenance-verification.md)和[部署](deployment.md)。原GPT／MCP地址及海外静态资源沿用独立发布，不随国服应用自动重发。
+两入口版本及新版CSS公网SHA核对通过，原OAuth issuer／MCP resource保持，匿名MCP POST为401，原协议HTML／CSS匿名200且SHA一致；本轮未重发Vercel网关。此前WebKit完整连续图形转场的未通过样本仍保留，本次骨架加载检查不代表该问题已解决；物理手机帧率及系统键盘未测。详细证据见[维护验收](maintenance-verification.md)。
 
 ## 入口与职责
 
