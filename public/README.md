@@ -6,6 +6,7 @@
 
 ## 内容
 
+- `privacy.html`、`terms.html` 与 `legal.css`：个人运营者的隐私政策、服务条款和独立阅读样式，当前为待确认、未发布草案；填写与发布边界见 [豆包资料](../docs/doubao-onboarding.md)。
 - `icons/`：Formward 品牌图形、透明导出及应用图标，来源记录见目录 README。
 - `fonts/`：首页英文排版使用的本地字体及完整许可证。
 - `images/`：公开页面图片和不含个人数据的演示素材。

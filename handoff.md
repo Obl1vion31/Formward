@@ -1,5 +1,11 @@
 # Formward 项目交接
 
+## 待确认：豆包资料与公开协议
+
+`codex/legal-pages` 基于 ae40def，独立工作区为 `/home/obl1vion/projects/Formward-worktrees/legal-pages`。用户指定个人运营者施绪飞扬，联系邮箱 opg.obl1v@gmail.com。`public/privacy.html`、`public/terms.html` 和 `public/legal.css` 为可审阅的静态协议草案，尚未发布或合入 main；拟地址是原域名下 `/privacy.html` 和 `/terms.html`，匿名核对成功前不能当作已可用 URL。应用描述、数据事实、单独同意及备份保留等待核事项见 [豆包资料](docs/doubao-onboarding.md)。当前正式版本与数据保持下文所述。
+
+本地 Next production 审阅入口为 `http://localhost:4311/privacy.html` 和 `/terms.html`，仅监听回环地址。lint、最终typecheck、578项测试、production build、52组双引擎阅读检查及4个生产模式匿名场景通过，38张截图在 `C:/Users/14878/.codex/visualizations/2026/11/10/formward-legal-pages`。独立视觉复核允许交付本地审阅稿；真实设备、豆包WebView、正式公网与完整法律评估不计通过。按设计D8等待运营者确认实际页面，随后才能移除草案说明、确定生效日期和正式发布；本轮没有更改数据库、授权配置或正式用户数据。
+
 ## 当前部署：国服Garmin双站点与本人密钥
 
 日常网页为[国服](https://43.142.148.58)，原GPT／MCP、OAuth与海外图片后台继续由Vercel承担，正式数据统一写入上海。国服应用688081179e63f10f0e5e2e12400cd392c4894572，发布garmin-regions-current-20261110，BUILD_ID -7gprMm9zSgOPO2Tv7euh；已合入并推送main，保留workspace-flow-final的界面与0036。正式库55表、36条migration，本轮没有新增表或migration。
