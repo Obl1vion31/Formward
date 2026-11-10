@@ -93,7 +93,8 @@ function RecordWalkthrough({tour,onShown,change,finish}:{tour:Tour;onShown:()=>v
    if(observed!==next){resize.disconnect();resize.observe(next);if(tip.current)resize.observe(tip.current);observed=next;}
    if(performance.now()<movingUntil)queue();
   };
-  const click=(event:MouseEvent)=>{const node=event.target;if(!(node instanceof Node)||!target.current?.contains(node))return;if(tour.step===0&&tour.kind!=='training')callbacks.current.change(1);};
+  const click=(event:MouseEvent)=>{const node=event.target;if(!(node instanceof Node)||!target.current?.contains(node))return;if(tour.step===2)callbacks.current.finish();else if(tour.step===0&&tour.kind!=='training')callbacks.current.change(1);};
+  const submit=(event:SubmitEvent)=>{if(event.target instanceof HTMLElement&&event.target.dataset.entryForm===config.form)callbacks.current.finish();};
   const input=()=>queue();
   const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'&&target.current&&!(event.target instanceof HTMLSelectElement)){event.preventDefault();event.stopImmediatePropagation();callbacks.current.finish();}};
   const observer=new MutationObserver(mutations=>{
@@ -101,11 +102,11 @@ function RecordWalkthrough({tour,onShown,change,finish}:{tour:Tour;onShown:()=>v
    if(mutations.some(mutation=>mutation.target instanceof HTMLDialogElement)){movingUntil=performance.now()+400;}
    queue();
   });observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['open','aria-busy','data-selected','data-selected-period','data-surface-phase','data-closing','data-motion','data-sheet-expanded','style']});
-  document.addEventListener('click',click,true);document.addEventListener('keydown',escape,true);document.addEventListener('input',input,true);document.addEventListener('scroll',queue,true);window.addEventListener('resize',queue);window.visualViewport?.addEventListener('resize',queue);window.visualViewport?.addEventListener('scroll',queue);
+  document.addEventListener('click',click,true);document.addEventListener('submit',submit,true);document.addEventListener('keydown',escape,true);document.addEventListener('input',input,true);document.addEventListener('scroll',queue,true);window.addEventListener('resize',queue);window.visualViewport?.addEventListener('resize',queue);window.visualViewport?.addEventListener('scroll',queue);
   queue();
   // 目标长期未就绪不占住页面；失败与重试仍由原任务处理。
   const timeout=setTimeout(()=>{if(!shown.current)callbacks.current.finish();},8000);
-  return()=>{disposed=true;clearTimeout(timeout);cancelAnimationFrame(frame);observer.disconnect();resize.disconnect();document.removeEventListener('click',click,true);document.removeEventListener('keydown',escape,true);document.removeEventListener('input',input,true);document.removeEventListener('scroll',queue,true);window.removeEventListener('resize',queue);window.visualViewport?.removeEventListener('resize',queue);window.visualViewport?.removeEventListener('scroll',queue);};
+  return()=>{disposed=true;clearTimeout(timeout);cancelAnimationFrame(frame);observer.disconnect();resize.disconnect();document.removeEventListener('click',click,true);document.removeEventListener('submit',submit,true);document.removeEventListener('keydown',escape,true);document.removeEventListener('input',input,true);document.removeEventListener('scroll',queue,true);window.removeEventListener('resize',queue);window.visualViewport?.removeEventListener('resize',queue);window.visualViewport?.removeEventListener('scroll',queue);};
  },[config,tour.step,tour.kind]);
  if(!surface)return null;
  const step=tour.step,title=step===0?config.entry:step===1?preparingMeal?'添加这一餐':'填写记录':'确认后保存';

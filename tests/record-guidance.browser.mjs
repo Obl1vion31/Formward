@@ -65,11 +65,11 @@ try{
    await guide(p).getByRole('button',{name:'下一步',exact:true}).click();await p.waitForFunction(()=>document.querySelector('[data-record-guidance][data-ready=true][data-step="3"]'));
    await shot(p,size[0]+'-'+theme+'-'+kind+'-3');await checkGeometry(p);
    const form=p.locator(`[data-entry-form="${recordGuides[kind].form}"]`);
-   await guide(p).getByRole('button',{name:'完成引导',exact:true}).click();assert.equal(await guide(p).count(),0);assert.equal(await form.count(),1,'完成教程保留真实表单');
+   if(kind!=='body'){await guide(p).getByRole('button',{name:'完成引导',exact:true}).click();assert.equal(await guide(p).count(),0);assert.equal(await form.count(),1,'完成教程保留真实表单');}
    if(kind==='body'){
     const input=form.getByLabel('晨间体重',{exact:true}),original=await input.inputValue();await input.fill('70.15');
     await p.route('**/dashboard/measurements**',route=>route.request().method()==='POST'?route.abort('failed'):route.continue());
-    await form.locator('[data-record-guide-save]').click();await form.getByRole('alert').waitFor();assert.equal(await input.inputValue(),'70.15');
+    await form.locator('[data-record-guide-save]').click();await form.getByRole('alert').waitFor();assert.equal(await guide(p).count(),0,'实际提交后引导退出，错误和草稿优先');assert.equal(await input.inputValue(),'70.15');
     await p.unroute('**/dashboard/measurements**');await input.fill(original);
    }
    await p.keyboard.press('Escape');await form.waitFor({state:'hidden'});await p.waitForTimeout(550);
