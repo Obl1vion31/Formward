@@ -4,7 +4,7 @@ import {resolve} from 'node:path';
 const config=JSON.parse(await readFile(process.env.FORMWARD_LOADING_CONFIG,'utf8'));
 assert.equal(config.isolatedFixture,true,'加载验收只接受本机虚构数据库');
 assert.equal(new URL(config.baseURL).hostname,'127.0.0.1');
-const engines=await import('/home/obl1vion/.local/formward-tools/node_modules/playwright/index.mjs');
+const engines=await import(process.env.PLAYWRIGHT_MODULE??'/home/obl1vion/.local/formward-tools/node_modules/playwright/index.mjs');
 const engine=process.env.FORMWARD_LOADING_ENGINE??'chromium',browser=await engines[engine].launch({headless:true});
 const folder=resolve(process.env.FORMWARD_LOADING_ARTIFACTS??'.codex/workspace-loading',engine);await mkdir(folder,{recursive:true});
 const reports=[],failures=[],errors=[],screenshots=[];

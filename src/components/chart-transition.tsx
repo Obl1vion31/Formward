@@ -60,11 +60,13 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(motion.current.active?.id!==id||!node.isConnected)return;
     node.setAttribute('data-motion-starts','1');
     if(current.model.kind==="morning-weight"){
-      const count=current.model.points.length,forward=current.direction==="forward",options={duration:300,easing:"cubic-bezier(.2,.8,.2,1)",fill:"forwards" as const};
-      const strokeFrom=forward?1.25:detailStroke(count),strokeTo=(forward?detailStroke(count):1.25)/scale;
-      const radiusFrom=forward?3.6:detailRadius(count)/(current.rect.width/240),radiusTo=forward?detailRadius(count)/(dest.width/240):3.6;
-      current.decorations=[...node.querySelectorAll("[data-glyph-line]")].map(line=>line.animate([{strokeWidth:strokeFrom+"px"},{strokeWidth:strokeTo+"px"}],options));
-      current.decorations.push(...[...node.querySelectorAll("[data-glyph-point]")].map(point=>point.animate([{r:radiusFrom+"px"},{r:radiusTo+"px"}],options)));
+      const count=current.model.points.length,forward=current.direction==='forward';
+      const from=node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="source"]'),to=node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="destination"]');
+      node.style.setProperty('--flight-stroke',((forward?detailStroke(count):1.25)/scale)+'px');
+      node.style.setProperty('--flight-radius',(forward?detailRadius(count)/(dest.width/240):3.6)+'px');
+      const options={duration:300,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards' as const};
+      // 两张静态同坐标图层一起缩放并交接笔触；不再逐帧重画每条线和圆点。
+      current.decorations=from&&to?[from.animate([{opacity:1},{opacity:0}],options),to.animate([{opacity:0},{opacity:1}],options)]:[];
     }
 
     current.animation=node.animate([{transform:'translate(0px,0px) scale(1)'},{transform:`translate(${dest.left-current.rect.left}px,${dest.top-current.rect.top}px) scale(${scale})`}],{duration:300,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});
@@ -163,5 +165,5 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   useEffect(()=>()=>{motion.current.clear();},[motion]);
   const invalidate=useCallback(()=>{if(origin.current)origin.current.paired=false;clear();lastTarget.current=null;},[clear]);
   const value=useMemo(()=>({navigate,register,restore,back,invalidate,recallOverview,rememberOverview,preview:flight?.model??null}),[navigate,register,restore,back,invalidate,recallOverview,rememberOverview,flight?.model]);
-  return <ChartTransitionContext value={value}>{children}{flight&&createPortal(<div key={flight.id} className="chart-flight-layer"><div ref={node=>{if(node&&motion.current.active?.id===flight.id)motion.current.active.node=node;}} className="chart-flight" data-chart-flight={flight.id} data-chart-direction={flight.direction} aria-hidden="true" style={{left:flight.rect.left,top:flight.rect.top,width:flight.rect.width,height:flight.rect.height,visibility:'hidden'}}><TrendGlyph model={flight.model} detail={flight.direction==="back"} width={flight.rect.width} height={flight.rect.height}/></div></div>,document.body)}</ChartTransitionContext>;
+  return <ChartTransitionContext value={value}>{children}{flight&&createPortal(<div key={flight.id} className="chart-flight-layer"><div ref={node=>{if(node&&motion.current.active?.id===flight.id)motion.current.active.node=node;}} className="chart-flight" data-chart-flight={flight.id} data-chart-direction={flight.direction} aria-hidden="true" style={{left:flight.rect.left,top:flight.rect.top,width:flight.rect.width,height:flight.rect.height,visibility:'hidden'}}>{flight.model.kind==="morning-weight"?<><TrendGlyph flightLayer="source" model={flight.model} detail={flight.direction==="back"} width={flight.rect.width} height={flight.rect.height}/><TrendGlyph flightLayer="destination" model={flight.model} detail={flight.direction==="back"} width={flight.rect.width} height={flight.rect.height}/></>:<TrendGlyph model={flight.model} detail={flight.direction==="back"} width={flight.rect.width} height={flight.rect.height}/>}</div></div>,document.body)}</ChartTransitionContext>;
 }

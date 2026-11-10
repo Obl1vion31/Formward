@@ -8,8 +8,8 @@ export const detailStroke=(count:number)=>count<=7?2.5:1.75;
 export const detailRadius=(count:number)=>count<=7?4.5:3.5;
 
 /** 缩略图与业务页共用 2:1 数据平面；文字、坐标和命中区不参与缩放。 */
-export function TrendGlyph({ model, target = false, skeleton = false, x, y, width, height, className, detail=false }: {
-  model: MetricTrendModel; target?: boolean; skeleton?: boolean; x?: number; y?: number; width?: number | string; height?: number | string; className?: string; detail?:boolean;
+export function TrendGlyph({ model, target = false, skeleton = false, x, y, width, height, className, detail=false,flightLayer }: {
+  model: MetricTrendModel; target?: boolean; skeleton?: boolean; x?: number; y?: number; width?: number | string; height?: number | string; className?: string; detail?:boolean;flightLayer?:'source'|'destination';
 }) {
   const ref = useRef<SVGSVGElement>(null), {register} = useChartTransition(), key = trendKey(model);
   useLayoutEffect(() => {
@@ -20,7 +20,7 @@ export function TrendGlyph({ model, target = false, skeleton = false, x, y, widt
   const pointX = (index: number) => model.kind === "morning-weight" ? count > 1 ? 5 + index / (count - 1) * 230 : 120 : (index + .5) * slot;
   const pointY = (value: number) => 115 - (value - model.min) / (model.max - model.min || 1) * 110;
   const barY = (value: number) => 120-value/model.max*120;
-  return <svg ref={ref} className={className} data-trend-glyph={model.kind} data-trend-range={trendRangeKey(model)} data-trend-key={key} data-trend-ready={target || undefined} x={x} y={y} width={width ?? "100%"} height={height ?? "100%"} viewBox="0 0 240 120" fill="none" aria-hidden="true" style={{ overflow: "visible", pointerEvents: "none" }}>
+  return <svg ref={ref} className={className} data-chart-glyph-layer={flightLayer} data-trend-glyph={model.kind} data-trend-range={trendRangeKey(model)} data-trend-key={key} data-trend-ready={target || undefined} x={x} y={y} width={width ?? "100%"} height={height ?? "100%"} viewBox="0 0 240 120" fill="none" aria-hidden="true" style={{ overflow: "visible", pointerEvents: "none" }}>
     {model.kind === "morning-weight" ? <>
       {model.points.slice(1).map((point, index) => { const before = model.points[index]; return point.value !== null && before.value !== null ? <line data-glyph-line key={point.date} x1={pointX(index)} x2={pointX(index+1)} y1={pointY(before.value)} y2={pointY(point.value)} stroke={color} strokeWidth={full?detailStroke(count):1.25} vectorEffect="non-scaling-stroke" strokeLinecap="round"/> : null; })}
       {model.points.map((point, index) => point.value !== null && <circle data-glyph-point key={point.date} cx={pointX(index)} cy={pointY(point.value)} r={full?detailRadius(count)/scale:3.6} fill={color}/>)}

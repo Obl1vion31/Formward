@@ -345,3 +345,5 @@ shared-primary.http.mts 在受信任的测试 CA 下验证原会话 Cookie、原
 production build 后以 FORMWARD_LOADING_NATIVE=1、FORMWARD_LOADING_PREVIEW=1 启动 workspace-loading.browser.mts 的隔离预览，再将其 config.json 传给 FORMWARD_LOADING_CONFIG，运行 node tests/chart-return.browser.mjs。FORMWARD_CHART_ENGINE=webkit 切换引擎，FORMWARD_CHART_ARTIFACTS 指定私有录像和报告目录。两个引擎并行时各用独立fixture，避免慢查询控制互相影响。
 
 覆盖320／390／430与1100／1440／1920、两主题、晨晚／体脂／7D／30D／关联自定义。390和1440的三张卡各20次往返，其余尺寸各3次，另查慢读取、快速反向、修改指标、减少动态效果与浏览器返回。报告分开记录真实动画启动时刻和首个采样呈现帧，验收探针不逐帧强制整页布局。检查准备期原图可见、每方向只启动一次、落地后至少500ms无残层，轴与读数外框切换偏差≤1px。保留失败证据；FORMWARD_CHART_QUICK 与 FORMWARD_CHART_NO_VIDEO 仅用于定位，不作为完整视觉验收。
+
+最终产物可通过 FORMWARD_LOADING_RELEASE 指向本仓库 .codex/regional-releases 下的 standalone，复用相同隔离数据库与验收流程。PLAYWRIGHT_MODULE 可指定独立测试运行库，不改变应用依赖。Linux WebKit r2370 存在上游毛玻璃渲染回归，相关失败须保留；本轮以Playwright 1.65.0／WebKit r2388复核，不把旧引擎卡帧计作通过，依据见[上游问题](https://github.com/microsoft/playwright/issues/43426)。

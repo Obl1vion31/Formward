@@ -966,6 +966,10 @@ input:focus-visible {
  }
 
 .chart-flight{position:fixed;z-index:35;pointer-events:none;transform-origin:0 0;will-change:transform}
+.chart-flight>[data-chart-glyph-layer]{position:absolute;inset:0;will-change:opacity}
+.chart-flight>[data-chart-glyph-layer=destination]{opacity:0}
+.chart-flight [data-chart-glyph-layer=destination] [data-glyph-line]{stroke-width:var(--flight-stroke)}
+.chart-flight [data-chart-glyph-layer=destination] [data-glyph-point]{r:var(--flight-radius)}
 [data-chart-travelling=true]{visibility:hidden!important}
 html[data-chart-travel=active] .workspace-shell .dashboard-page{animation:none}
 .workspace-shell .dashboard-page:has([data-trend-glyph]){animation:none}

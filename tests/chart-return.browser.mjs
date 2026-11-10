@@ -5,7 +5,7 @@ import {resolve} from 'node:path';
 const config=JSON.parse(await readFile(process.env.FORMWARD_LOADING_CONFIG,'utf8'));
 assert.equal(config.isolatedFixture,true);
 assert.equal(new URL(config.baseURL).hostname,'127.0.0.1');
-const engines=await import('/home/obl1vion/.local/formward-tools/node_modules/playwright/index.mjs');
+const engines=await import(process.env.PLAYWRIGHT_MODULE??'/home/obl1vion/.local/formward-tools/node_modules/playwright/index.mjs');
 const engine=process.env.FORMWARD_CHART_ENGINE??'chromium',browser=await engines[engine].launch({headless:true});
 const out=resolve(process.env.FORMWARD_CHART_ARTIFACTS??'.codex/chart-return',engine);
 await mkdir(out,{recursive:true});
