@@ -17,6 +17,20 @@ const object = (value: unknown): value is JsonObject => !!value && typeof value 
 const publicMethods = new Set(["server/discover", "initialize", "notifications/initialized", "tools/list", "ping"]);
 const queryKinds: Record<string, string> = { get_profile: "account", query_measurements: "measurements", query_meals: "meals", query_energy: "energy", query_training: "training", search_foods: "foods", search_exercises: "exercises" };
 const knownTools = new Set([...Object.keys(queryKinds), "authorize_formward", "submit_measurement_operation", "get_measurement_operation", "import_meal_images", "submit_meal_operation", "get_meal_operation", "submit_training_operation", "get_training_operation", "submit_record_operation", "get_record_operation", "append_pending_images"]);
+const platformArgumentNames = ["from_mcp_call", "_miniapp_permitted_data"] as const;
+
+function removeUnusedPlatformArguments(input: JsonObject): string[] {
+  if (input.method !== "tools/call" || !object(input.params) || !object(input.params.arguments)) return [];
+  const params = input.params, args = params.arguments as JsonObject;
+  const removed = platformArgumentNames.filter(name => Object.hasOwn(args, name));
+  if (!removed.length) return [];
+  // 豆包在业务参数中注入平台上下文；本应用不使用系统权限数据，也不据此鉴权。
+  // 仅丢弃文档中的两个保留字段，其他未知字段继续交给原工具严格校验。
+  const businessArguments = { ...args };
+  for (const name of removed) delete businessArguments[name];
+  input.params = { ...params, arguments: businessArguments };
+  return removed;
+}
 
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return "[" + value.map(stableJson).join(",") + "]";
@@ -78,7 +92,7 @@ function presentResult(body: JsonObject, input: JsonObject, userId: string) {
 }
 
 export function createDoubaoMcpEndpoint(db: Database, auth: ReturnType<typeof createAuth>, config: DoubaoConfig) {
-  async function serve(request: Request, input: JsonObject, identity: AiIdentity, scopes: string[]) {
+  async function serve(request: Request, input: JsonObject, identity: AiIdentity, scopes: string[], ignoredPlatformArguments: string[] = []) {
     const handler = createMcpHandler(() => createFormwardMcp(db, identity, scopes, request), { legacy: "stateless", maxRequestBodySize: 131072 });
     const started = Date.now(), params = object(input.params) ? input.params : {};
     let status = 503, successful = false;
@@ -92,7 +106,7 @@ export function createDoubaoMcpEndpoint(db: Database, auth: ReturnType<typeof cr
       successful = status < 400 && !object(body.error) && !(object(body.result) && body.result.isError);
       return privateJson(presented.body, response.ok ? presented.status : response.status);
     } finally {
-      if (input.method === "tools/call") console.info(JSON.stringify({ event: "doubao_tool", requestId: randomUUID(), endpoint: "mcp", appId: config.appId, tool: knownTools.has(String(params.name)) ? params.name : "unknown", stage: successful ? "complete" : "failed", durationMs: Date.now() - started, status }));
+      if (input.method === "tools/call") console.info(JSON.stringify({ event: "doubao_tool", requestId: randomUUID(), endpoint: "mcp", appId: config.appId, tool: knownTools.has(String(params.name)) ? params.name : "unknown", stage: successful ? "complete" : "failed", durationMs: Date.now() - started, status, ...(ignoredPlatformArguments.length ? { ignoredPlatformArguments } : {}) }));
       await handler.close();
     }
   }
@@ -108,6 +122,7 @@ export function createDoubaoMcpEndpoint(db: Database, auth: ReturnType<typeof cr
       }
       const openId = request.headers.get("x-db-openid"), accessToken = request.headers.get("x-db-access-token");
       if (!openId || openId.length > 512 || !accessToken || accessToken.length > 32768) throw new ApiError(401, "invalid_token", "请先在豆包连接并授权 Formward。");
+      const ignoredPlatformArguments = removeUnusedPlatformArguments(input);
       const headers = new Headers(request.headers);
       headers.set("Authorization", "Bearer " + accessToken);
       // 正文已按128 KiB上限解析。Next的请求代理不能由原生Request复制私有状态，
@@ -126,7 +141,7 @@ export function createDoubaoMcpEndpoint(db: Database, auth: ReturnType<typeof cr
         const granted = (typeof claims.scope === "string" ? claims.scope.split(" ") : []).filter(scope => connection.scopes.includes(scope));
         const identity: AiIdentity = { userId: claims.sub, oauthConnectionId: connection.id, permission: granted.some(scope => scope.endsWith(":write")) ? "write" : "read" };
         await db.update(oauthConnection).set({ lastUsedAt: new Date() }).where(and(eq(oauthConnection.id, connection.id), eq(oauthConnection.userId, claims.sub)));
-        return serve(authenticated, input, identity, granted);
+        return serve(authenticated, input, identity, granted, ignoredPlatformArguments);
       }, { resource: canonicalResource(auth), issuer: new URL("/api/auth", auth.options.baseURL as string).href, ...(process.env.FORMWARD_INTERNAL_JWKS_URL ? { jwksUrl: process.env.FORMWARD_INTERNAL_JWKS_URL } : {}) });
       const response = await protectedHandler(authenticatedRequest);
       const responseHeaders = new Headers(response.headers);

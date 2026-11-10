@@ -8,6 +8,8 @@ production build 后执行 `node --import tsx tests/doubao-fixture.mts`，在回
 
 设置 `FORMWARD_DOUBAO_HTTP_CHECK=1` 运行同一fixture，可自动执行实际Next production入口的虚构账号登录、同意、一次性换码、新旧SDK的账号／身体查询和无效凭据拒绝，完成后自行退出。`FORMWARD_TEST_RELEASE` 可指定本工作区 `.codex/regional-releases/<版本>/standalone`，直接验收待发布产物；默认使用已构建的工作区。框架请求代理的503回归必须在实际Next入口通过，不能仅以普通Node请求的集成测试替代。
 
+同一HTTP检查覆盖豆包附加的两个保留上下文字段：连接检查及身体查询成功，原参数和数据不回显；非法日期与其余未知业务字段仍拒绝。两种协议均执行，且不生成健康记录。`oauth.test.ts`先用框架代理请求复现严格schema拒绝平台字段的失败，再验证适配与原鉴权。
+
 ## Garmin 个人密钥连接
 
 production build 后运行 `node --import tsx tests/data-sources.browser.mts`。入口自行创建仅回环可访问的隔离 PGlite、两个虚构账号与服务端 Garmin 响应，不读取正式密钥或访问真实 Garmin。`FORMWARD_SOURCES_ENGINE=webkit` 切换引擎，`PLAYWRIGHT_BROWSERS_PATH` 指定浏览器缓存，`FORMWARD_SOURCES_ARTIFACTS` 指定私有证据目录；`FORMWARD_SOURCES_PREVIEW=1` 保留本机演示，SIGTERM／SIGINT关闭。

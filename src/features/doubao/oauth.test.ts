@@ -222,6 +222,35 @@ test("框架代理请求通过真实OAuth查询，新旧协议和无效凭据保
   }
 });
 
+test("豆包保留上下文不进入业务参数，连接检查及查询成功且原鉴权和未知字段校验保持", async () => {
+  const externalId = "fictional-platform-context-openid", flow = await grant(first, externalId);
+  if (flow.result.refused) throw new Error();
+  const tokens = await exchangeDoubaoToken(db, auth, config, flow.result.developerLoginCode);
+  const context = { from_mcp_call: true, _miniapp_permitted_data: { unused: "fictional-private-context" } };
+  async function call(name: string, args: Record<string, unknown>, authenticated = true) {
+    const response = await fetch(baseURL + "/api/framework/doubao/mcp", { method: "POST", headers: {
+      "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-11-25",
+      ...(authenticated ? { "x-db-openid": externalId, "x-db-access-token": tokens.data.access_token } : {}),
+    }, body: JSON.stringify({ jsonrpc: "2.0", id: 24, method: "tools/call", params: { name, arguments: args } }) });
+    return { status: response.status, body: await response.json() };
+  }
+  assert.equal((await call("authorize_formward", context, false)).status, 401);
+  const authorized = await call("authorize_formward", context);
+  assert.equal(authorized.status, 200); assert.notEqual(authorized.body.result.isError, true);
+  assert.equal(authorized.body.result.structuredContent.connected, true);
+  const profile = await call("get_profile", context);
+  assert.notEqual(profile.body.result.isError, true);
+  assert.equal(JSON.parse(profile.body.result.structuredContent.entities[0].result_json).id, flow.userId);
+  const query = await call("query_measurements", { ...context, from: "2026-11-01", to: "2026-11-02", timezone: "Asia/Shanghai" });
+  assert.notEqual(query.body.result.isError, true);
+  assert.ok(query.body.result.structuredContent.entities.length > 0);
+  assert.ok(!JSON.stringify(query.body).includes("fictional-private-context"));
+  const invalid = await call("query_measurements", { ...context, from: null });
+  assert.equal(invalid.body.result.isError, true);
+  const unknown = await call("query_measurements", { ...context, unexpected_business_field: true });
+  assert.equal(unknown.body.result.isError, true);
+});
+
 test("豆包 MCP 双协议查询、OpenID 不匹配、伪造令牌与撤销均按真实 OAuth 校验", async () => {
   const externalId = "fictional-mcp-openid", flow = await grant(first, externalId);
   if (flow.result.refused) throw new Error();
