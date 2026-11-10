@@ -4,7 +4,7 @@
 
 豆包使用 `global.formward.top/api/doubao/mcp` 及独立登录／令牌回调，复用现有18项工具和业务规则，另提供豆包专用的单餐`preview_meal`，不改变下方 GPT 的OAuth issuer、resource、工具与HTTP v1。匿名只发现工具定义；私有调用必须验证平台OpenID、JWT、账号绑定和当前可撤销连接。所有提交仍为预览，正式确认只由用户在国服网页完成。部署与真实平台联调状态见[豆包接入](doubao-onboarding.md)，尚未完成的阶段不能对外宣称可用。
 
-新增一餐优先`preview_meal`，必填operationId、date（YYYY-MM-DD）、mealType和foods；食物使用name、quantity、unit及平铺的caloriesKcal／proteinG／carbsG／fatG，数值为十进制字符串，未知营养省略。食材引用使用foodId／foodVersion及实际数量单位，服务端按原规格换算。历史修改、食材库维护与混合记录沿用原工具；所有路径仍只提交预览。
+新增一餐优先`preview_meal`，必填operationId、date（明确日期或today／yesterday）、mealType和foods；食物使用name、quantity、unit及平铺的caloriesKcal／proteinG／carbsG／fatG，数值为十进制字符串，未知营养省略。食材引用使用foodId／foodVersion及实际数量单位，服务端按原规格换算。历史修改、食材库维护与混合记录沿用原工具；所有路径仍只提交预览。
 
 ## 网页与AI服务地址
 

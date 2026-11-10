@@ -116,7 +116,7 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
         assert.equal(unknownField.isError, true, "其他未知字段继续拒绝");
         const meal = await client.callTool({ name: "preview_meal", arguments: {
           ...platformContext, operationId: "fictional-production-lunch-" + mode,
-          date: "2026-11-10", mealType: "午餐", foods: [{ name: "虚构测试午餐", quantity: "2", unit: "份", caloriesKcal: "600", proteinG: "0", sourceKind: "estimated", basis: "两份合计估计600 kcal，油量不确定。" }],
+          date: "2026-11-10", mealType: "午餐", foods: [{ name: "虚构测试午餐", quantity: "2", unit: "份", caloriesKcal: "600", proteinG: "0", sourceKind: "estimated", basis: "两份合计估计600 kcal，油量不确定。" }, { name: "虚构茶", quantity: "250", unit: "ml" }],
         } });
         assert.notEqual(meal.isError, true);
         const preview = meal.structuredContent as { id: string; status: string; canConfirm: boolean; confirmationUrl: string; rows: Array<{ meal: { items: Array<{ nutrition: { caloriesKcal: string; proteinG: string; carbsG: string | null } }> } }> };
@@ -124,15 +124,17 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
         assert.equal(preview.rows[0].meal.items[0].nutrition.caloriesKcal, "600");
         assert.equal(preview.rows[0].meal.items[0].nutrition.proteinG, "0");
         assert.equal(preview.rows[0].meal.items[0].nutrition.carbsG, null);
+        assert.equal(preview.rows[0].meal.items.length, 2);
         assert.equal(new URL(preview.confirmationUrl).origin, baseURL);
         const page = await fetch(preview.confirmationUrl, { headers: { cookie } });
         assert.equal(page.status, 200);
         const html = await page.text();
         assert.ok(html.includes("虚构测试午餐") && html.includes("确认"));
+        if (process.env.FORMWARD_DOUBAO_PREVIEW === "1") console.info("虚构饮食预览：" + preview.confirmationUrl);
       } finally { await client.close(); }
     }
     assert.equal((await db.select({ id: schema.measurement.id }).from(schema.measurement)).length, 0);
     assert.equal((await db.select({ id: schema.meal.id }).from(schema.meal)).length, 0);
     console.info(JSON.stringify({ check: "doubao-production-http", passed: true, toolCount: 19, protocols: ["auto", "legacy"], invalidCredentialsRejected: true, profileOwnerMatched: true, measurementQueryPassed: true, platformContextCompatible: true, simpleMealPreviewPassed: true, previewPagePassed: true, businessValidationPreserved: true, healthRecordsWritten: 0 }));
-  } finally { await close(); }
+  } finally { if (process.env.FORMWARD_DOUBAO_PREVIEW !== "1") await close(); }
 }

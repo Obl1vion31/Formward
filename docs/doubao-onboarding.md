@@ -14,9 +14,9 @@ Formward 使用个人运营者施绪飞扬，联系邮箱 opg.obl1v@gmail.com。
 
 ## 单餐新增契约
 
-`preview_meal`是新增一餐的首选，豆包共有19项工具，原18项及GPT工具集保持兼容。模型只填写operationId、明确date、mealType和foods；食物营养平铺，数量、营养采用十进制字符串。省略未知营养映射为null，明确0保留；自由项是实际食用总量，食材引用由服务器按规格换算。不创建食材库条目，不直接修改历史或保存正式餐次。
+`preview_meal`是新增一餐的首选，豆包共有19项工具，原18项及GPT工具集保持兼容。模型只填写operationId、date、mealType和foods；食物营养平铺，数量、营养采用十进制字符串。省略未知营养映射为null，明确0保留；自由项是实际食用总量，食材引用由服务器按规格换算。不创建食材库条目，不直接修改历史或保存正式餐次。
 
-可选timezone、notes、imageIds和expectedImageCount沿用现有能力。相对日期先查询日期上下文，重试沿用已解析的日期、operationId和内容。包装标签来源使用label，估算使用estimated并提供basis；服务器只兼容明确等价标签别名与同单位营养后缀，不猜来源、食量或营养。用户仍需网页登录确认。
+可选timezone、notes、imageIds和expectedImageCount沿用现有能力。今天／昨天由服务器按用户时区解析，不依赖模型系统日期；其他相对日期先查询日期上下文。成功后重试沿用返回的明确日期、timezone、operationId和内容，不随跨日重新解释。包装标签来源使用label，估算使用estimated并提供basis；服务器只兼容明确等价标签别名与同单位营养后缀，不猜来源、食量或营养。用户仍需网页登录确认。
 
 同一Zod导出方式下，输入schema由10,714字节降为1,647字节（约减少85%），组合分支由40处降为0；这些是契约复杂度指标，不等于成功率。豆包发现同时将整数exclusiveMinimum数值约束等价转换为minimum，原业务验证保持。
 

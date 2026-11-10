@@ -50,6 +50,31 @@ test("实际食用总营养不再乘数量，未知为null、明确0和精度保
   assert.deepEqual(unknown.nutrition, { caloriesKcal: null, proteinG: null, carbsG: null, fatG: null });
 });
 
+test("今天昨天由服务器按时区解析，跨月及夏令时不由模型猜日期", () => {
+  const now = new Date("2026-11-01T00:30:00Z");
+  for (const [date, timezone, expected] of [
+    ["yesterday", "Asia/Shanghai", "2026-10-31"],
+    ["昨天", "America/Los_Angeles", "2026-10-30"],
+    ["today", "America/Los_Angeles", "2026-10-31"],
+    ["today", "Pacific/Kiritimati", "2026-11-01"],
+  ]) {
+    const result = mealPreviewOperation({ ...lunch, date, timezone }, now).actions[0];
+    if (result.kind !== "save_meal") throw new Error();
+    assert.equal(result.date, expected); assert.equal(result.timezone, timezone);
+  }
+  assert.throws(() => mealPreviewOperation({ ...lunch, date: "yesterday", timezone: "invalid-zone" }, now), /timezone/);
+  assert.deepEqual(
+    mealPreviewOperation({ ...lunch, date: "yesterday" }, new Date("2026-11-11T04:00:00Z")),
+    mealPreviewOperation(lunch, new Date("2026-11-12T04:00:00Z")),
+    "收到明确日期后，跨日重试同一日期与内容保持同一幂等摘要",
+  );
+});
+
+test("多个自由食物是具体食物，不映射成多个互斥的杂项", () => {
+  const result = action({ ...lunch, foods: [{ name: "虚构米饭", quantity: "150", unit: "g" }, { name: "虚构茶", quantity: "250", unit: "ml" }] });
+  assert.deepEqual(result.items.map(item => item.kind), ["food", "food"]);
+});
+
 test("食材只映射真实引用，服务器沿用原规格换算", () => {
   const item = action({ ...lunch, foods: [{ name: "虚构库食材", foodId: "8df6cc94-d77f-4edb-8fad-d35eb63e9a84", foodVersion: 3, quantity: "150", unit: "g" }] }).items[0];
   assert.equal(item.kind, "food");

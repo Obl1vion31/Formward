@@ -356,6 +356,13 @@ test("简化记餐在双协议下生成幂等预览，保留未知和0且不写�
       assert.equal(libraryOperation.canConfirm, true);
       assert.equal(Number(libraryOperation.rows[0].meal?.items[0].nutrition.caloriesKcal), 240);
       assert.equal(libraryOperation.rows[0].meal?.items[0].nutrition.carbsG, null);
+      const multiple = await client.callTool({ name: "preview_meal", arguments: {
+        ...args, operationId: randomUUID(), date: "yesterday", foods: [{ name: "虚构米饭", quantity: "150", unit: "g" }, { name: "虚构茶", quantity: "250", unit: "ml", caloriesKcal: "0", sourceKind: "label", basis: "虚构标签" }],
+      } });
+      const multipleOperation = multiple.structuredContent as MealOperationView;
+      assert.equal(multipleOperation.canConfirm, true);
+      assert.equal(multipleOperation.rows[0].meal?.items.length, 2);
+      assert.match(multipleOperation.rows[0].meal?.date ?? "", /^\d{4}-\d{2}-\d{2}$/);
       for (const food of [{ ...libraryArgs.foods[0], foodVersion: 2 }, { ...libraryArgs.foods[0], foodId: foreignFoodId, unit: "g" }]) {
         const blocked = await client.callTool({ name: "preview_meal", arguments: { ...libraryArgs, operationId: randomUUID(), foods: [food] } });
         assert.equal((blocked.structuredContent as MealOperationView).canConfirm, false);
