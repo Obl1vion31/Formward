@@ -6,7 +6,7 @@ const config=JSON.parse(await readFile(process.env.FORMWARD_LOADING_CONFIG,'utf8
 assert.equal(config.isolatedFixture,true);
 assert.equal(new URL(config.baseURL).hostname,'127.0.0.1');
 const engines=await import(process.env.PLAYWRIGHT_MODULE??'/home/obl1vion/.local/formward-tools/node_modules/playwright/index.mjs');
-const engine=process.env.FORMWARD_CHART_ENGINE??'chromium',browser=await engines[engine].launch({headless:true});
+const engine=process.env.FORMWARD_CHART_ENGINE??'chromium',browser=await engines[engine].launch({headless:process.env.FORMWARD_CHART_HEADED!=='1'});
 const out=resolve(process.env.FORMWARD_CHART_ARTIFACTS??'.codex/chart-return',engine);
 await mkdir(out,{recursive:true});
 const results=[],body=[],errors=[];
@@ -75,7 +75,7 @@ try{
   const {context,page}=await create(width,height,width===390||width===1100?'dark':'light');
   try{
    await page.goto(config.baseURL+'/dashboard');await settled(page);
-   const loops=process.env.FORMWARD_CHART_QUICK==='1'?2:width===390||width===1440?20:3;
+   const loops=process.env.FORMWARD_CHART_BODY_ONLY==='1'?0:process.env.FORMWARD_CHART_QUICK==='1'?2:width===390||width===1440?20:3;
    for(const kind of ['intake','morning-weight','energy'])for(let i=0;i<loops;i++){
     await page.locator(`[data-metric-card="${kind}"]`).click();await settled(page);
     await overview(page).click();await inspectReturn(page,`${width}-${kind}-${i+1}`);
@@ -101,6 +101,7 @@ try{
     assert.ok(fat.ticks.length<=4);body.push({width,metric:'bodyFatPercent',geometry:fat});
     await page.screenshot({path:out+`/${width}-body-fat.png`});
    }
+   if(process.env.FORMWARD_CHART_BODY_ONLY==='1'){console.log(JSON.stringify({width,body:body.length}));continue;}
    await overview(page).click();await inspectReturn(page,`${width}-changed-indicator`,{paired:false});
    await page.emulateMedia({reducedMotion:'reduce'});await page.locator('[data-metric-card="energy"]').click();await settled(page);
    await overview(page).click();await inspectReturn(page,`${width}-reduced`,{paired:false});await page.emulateMedia({reducedMotion:'no-preference'});
