@@ -1,10 +1,10 @@
 # Formward 项目交接
 
-## 待确认：豆包资料与公开协议
+## 发布中：公开隐私政策与服务条款
 
-`codex/legal-pages` 基于 ae40def，独立工作区为 `/home/obl1vion/projects/Formward-worktrees/legal-pages`。用户指定个人运营者施绪飞扬，联系邮箱 opg.obl1v@gmail.com。`public/privacy.html`、`public/terms.html` 和 `public/legal.css` 为可审阅的静态协议草案，尚未发布或合入 main；拟地址是原域名下 `/privacy.html` 和 `/terms.html`，匿名核对成功前不能当作已可用 URL。应用描述、数据事实、单独同意及备份保留等待核事项见 [豆包资料](docs/doubao-onboarding.md)。当前正式版本与数据保持下文所述。
+用户已确认两份实际页面并授权直接发布。个人运营者施绪飞扬，联系邮箱 opg.obl1v@gmail.com，生效日期为2026年11月10日。`public/privacy.html`、`public/terms.html` 和 `public/legal.css` 为本轮公开静态文件，目标为原域名下 `/privacy.html` 和 `/terms.html`；发布后须匿名核对实际链接，不把部署提交当作已成功。应用描述、数据事实、单独同意及备份保留等后续待核事项见 [豆包资料](docs/doubao-onboarding.md)。本轮不改变下文所述的国服业务版本与数据。
 
-本地 Next production 审阅入口为 `http://localhost:4311/privacy.html` 和 `/terms.html`，仅监听回环地址。lint、最终typecheck、578项测试、production build、52组双引擎阅读检查及4个生产模式匿名场景通过，38张截图在 `C:/Users/14878/.codex/visualizations/2026/11/10/formward-legal-pages`。独立视觉复核允许交付本地审阅稿；真实设备、豆包WebView、正式公网与完整法律评估不计通过。按设计D8等待运营者确认实际页面，随后才能移除草案说明、确定生效日期和正式发布；本轮没有更改数据库、授权配置或正式用户数据。
+本地 Next production 审阅入口为 `http://localhost:4311/privacy.html` 和 `/terms.html`，仅监听回环地址。已确认文稿的 lint、typecheck、578项测试、production build、52组双引擎阅读检查及4个生产模式匿名场景通过，原审阅38张截图在 `C:/Users/14878/.codex/visualizations/2026/11/10/formward-legal-pages`。正式文稿已移除草案标记并复查，当前发布证据另保存在 formward-legal-publication；真实设备、豆包WebView与完整法律评估不计通过。本轮没有更改数据库、授权配置或正式用户数据。
 
 ## 当前部署：国服Garmin双站点与本人密钥
 
