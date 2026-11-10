@@ -1,0 +1,9 @@
+schema_version: 1
+
+personal_information:
+  need_config: true
+  items:
+    - name: Formward 账号标识
+      description: 连接用户主动登录并授权的账号，校验记录归属。
+    - name: 饮食、身体、消耗和训练记录
+      description: 按用户请求查询记录、解释结果或生成待网页确认的变更预览。

@@ -1,5 +1,9 @@
 # 身体、饮食与消耗 AI 接入
 
+## 豆包独立协议
+
+豆包使用 `global.formward.top/api/doubao/mcp` 及独立登录／令牌回调，复用现有18项工具和业务规则，不改变下方 GPT 的OAuth issuer、resource、工具与HTTP v1。匿名只发现工具定义；私有调用必须验证平台OpenID、JWT、账号绑定和当前可撤销连接。所有提交仍为预览，正式确认只由用户在国服网页完成。部署与真实平台联调状态见[豆包接入](doubao-onboarding.md)，尚未完成的阶段不能对外宣称可用。
+
 ## 网页与AI服务地址
 
 日常网页统一为https://43.142.148.58。GPT／MCP、OAuth授权与令牌地址继续使用https://formward-ten.vercel.app，issuer及resource保持，既有GPT与Garmin连接无需重建。海外图片下载和私有Blob读取继续由Vercel后台执行；业务仍由上海检查并写入唯一主库。普通旧网页转国服，API、OAuth、旧页RSC及POST不随网页跳转。

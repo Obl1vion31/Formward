@@ -1,5 +1,7 @@
 # Formward
 
+豆包独立接入工程位于 `integrations/doubao`，服务端复用现有 OAuth 与业务工具；过渡域名 request／WebView 已验证，平台白名单已生效。服务、测试版本及真实App联调的当前状态统一见[豆包接入](docs/doubao-onboarding.md)，不以代码或本地编译代替正式接通。
+
 公开[隐私政策](https://formward-ten.vercel.app/privacy.html)和[服务条款](https://formward-ten.vercel.app/terms.html)已发布，生效日期2026年11月10日；个人运营者、填写资料及发布范围见[豆包资料与公开协议](docs/doubao-onboarding.md)。
 
 饮食和食材采用本次实际输入，不按历史倍数追加确认。餐次可记录明确0或全部未知营养，未知保持null；空餐、空名称、非法日期／数量／单位仍阻止保存。同日同餐次的严格重复只显示一次“本日已有相同内容的餐次”与查看入口，不要求勾选或再次确认，不自动合并删除。请求幂等、账号归属、版本冲突、草稿保护及AI最终网页登录确认继续有效。消耗、运动及身体原有数值提醒保持。

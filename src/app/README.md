@@ -10,6 +10,8 @@
 
 ## 当前入口
 
+- `doubao/[stage]/` 提供豆包专用的登录、同意和返回页，复用已有账号表单；请求必须具备有效的应用绑定及签名授权状态。业务位于 `features/doubao`，不改写普通 OAuth 页。
+
 - `admin/` 是 owner 的账号／邀请／操作记录后台，先验证会话和十分钟近期验密；`dashboard/account/` 提供本人的密码和设备；`account/claim/` 从 fragment 读取一次性激活／重设令牌。三个入口的业务集中在 auth feature。账号菜单包含设置及 owner 专用管理链接；首页和 OAuth 登录提供人工找回说明。
 
 - `api/mcp/` 提供 OAuth 保护的 MCP HTTP 入口，`.well-known/` 转发公开授权发现，`oauth/` 提供签名请求对应的登录与授权页；业务规则位于 auth、mcp 与 measurements feature。

@@ -2,11 +2,13 @@
 import { useRef, useState, type FormEvent } from "react";
 import { usePageLoading } from "@/components/page-loading-state";
 import { signIn } from "./client";
+import { doubaoNavigation } from "../doubao/navigation";
 
-export function OAuthForm({ kind, query, email }: { kind: "login" | "consent"; query: string; email?: string }) {
+export function OAuthForm({ kind, query, email, doubao }: { kind: "login" | "consent"; query: string; email?: string; doubao?: { origin: string; canonical: string } }) {
   const [working, setWorking] = useState(false), [error, setError] = useState("");
   const lock = useRef(false);
-  usePageLoading({ active: working, label: kind === "login" ? "正在登录并继续授权…" : "正在处理账号授权…" });
+  usePageLoading({ active: working && !doubao, label: kind === "login" ? "正在登录并继续授权…" : "正在处理账号授权…" });
+  const destination = (url: string) => doubao ? doubaoNavigation(url, doubao.origin, doubao.canonical) : url;
   async function perform(accept: boolean, event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     if (lock.current) return;
@@ -16,12 +18,12 @@ export function OAuthForm({ kind, query, email }: { kind: "login" | "consent"; q
         const data = new FormData(event!.currentTarget);
         const result = await signIn(String(data.get("email")), String(data.get("password")), new AbortController().signal, query);
         if (!result.success) throw new Error(result.message);
-        if (result.redirectUrl) { window.location.assign(result.redirectUrl); return; }
+        if (result.redirectUrl) { window.location.assign(destination(result.redirectUrl)); return; }
       }
       const response = await fetch(`/api/auth/oauth2/${kind === "consent" ? "consent" : "continue"}`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ oauth_query: query, ...(kind === "consent" ? { accept } : { selected: true }) }), signal: AbortSignal.timeout(15000) });
       const result = await response.json();
       if (!response.ok || !result.url) throw new Error("授权请求已失效，请返回 AI 客户端重新连接。");
-      window.location.assign(result.url);
+      window.location.assign(destination(result.url));
     } catch (failure) {
       setError(failure instanceof Error && failure.name === "Error" ? failure.message : "连接失败，请稍后重试。");
       lock.current = false; setWorking(false);

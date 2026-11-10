@@ -1,0 +1,18 @@
+{
+  "private": true,
+  "name": "formward-doubao",
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "rstest run"
+  },
+  "dependencies": {
+    "@doubao-dev/framework": "0.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "@doubao-dev/cli": "0.0.41",
+    "@rstest/core": "^0.11.0",
+    "typescript": "6.0.3"
+  }
+}

@@ -7,3 +7,5 @@
 `mcp/` 提供 OAuth Bearer 保护的 Streamable HTTP POST，通过 mcp feature 调用同一业务函数。客户端通过根 `.well-known/` 发现 OAuth；手动 HTTP 令牌不用于 MCP，网页登录 cookie 不代替 MCP 授权。
 
 `assistant-context/`仅接受网页登录会话和有效设备时区，私有、不缓存，返回今天／昨天的最小事项上下文；不接受userId或AI令牌，不创建预览或写入健康资料。
+
+`doubao/[operation]/` 是独立豆包接入：平台身份换取、PKCE 授权、一次性兑换、刷新和 MCP 适配。匿名只公开工具定义；业务调用同时验证平台 OpenID、OAuth 令牌、账号绑定和可撤销连接。它不改变原 MCP、HTTP v1 或确认保存流程，详见 [豆包接入](../../../docs/doubao-onboarding.md)。

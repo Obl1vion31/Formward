@@ -1,0 +1,10 @@
+dist
+node_modules
+.DS_Store
+.dbx
+.env*
+*.log
+
+/**/skills/doubao-agentic-service-development
+/**/skills/doubao-agentic-service-skill-quality-review
+/**/skills/doubao-local-mcp-bridge-preview

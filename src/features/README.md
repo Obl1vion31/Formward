@@ -8,6 +8,7 @@
 
 - `auth/`：邀请制账号管理、登录、Session、AI Token、OAuth Provider 与账号连接。
 - `mcp/`：远程 MCP 协议、工具说明与 OAuth 身份适配，调用已有 feature。
+- `doubao/`：豆包身份交换、独立 OAuth 绑定及 MCP 协议适配，复用既有业务工具与撤销规则。
 - `meals/`：饮食记录。
 - `activities/`：每日消耗、活动明细、公式资料与共用审核业务。
 - `garmin/`：Personal API 限时读取客户端、字段核对与独立本机私有预览，不直接连接数据库。

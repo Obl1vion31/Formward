@@ -1,5 +1,9 @@
 # 公网 HTTPS 部署
 
+## 豆包独立接入
+
+`global.formward.top` 的request／WebView均已验证，校验文件静态READY为 `dpl_72pneM6RmMENjooYjt8YnVC1aSnz`。原Vercel网关保持0f3434d，既有GPT和法律页面已核对正常。独立豆包业务使用上海服务，AppSecret经用户批准root 0600暂存；正式切换时仅追加豆包配置，保留原OAuth、47项Server Action及旧静态资源。当前发布包及平台测试版本仍在准备，结果统一见[豆包接入](doubao-onboarding.md)，不把域名验证当作完成登录或工具联调。
+
 ## 公开协议静态发布（2026-11-10）
 
 [隐私政策](https://formward-ten.vercel.app/privacy.html)与[服务条款](https://formward-ten.vercel.app/terms.html)已公开，用户确认生效日期为2026年11月10日。READY为 `dpl_82o44w2e9c1xGDH3Yxep68LxP7FZ`，文稿源码38a3c611已合入推送main。以旧线上Build Output为基线，只新增两份HTML及legal.css，253个既有文件、网关函数和路由哈希不变；未切换国服业务，不涉及数据库结构或健康记录写入。

@@ -1,5 +1,13 @@
 # Formward 项目交接
 
+## 豆包接入：已验证域名与待发布服务
+
+用户授权先用Vercel过渡、保留现有GPT连接，官方CLI已获准登录；`global.formward.top` 的 request／WebView 均在平台显示已生效，体验白名单生效永久。校验文件已在READY `dpl_72pneM6RmMENjooYjt8YnVC1aSnz` 公开，原网关及256个既有文件哈希保持。用户另已批准AppSecret复制到上海，已root 0600暂存，未公开或写入仓库。
+
+`features/doubao` 与 `integrations/doubao` 已实现独立绑定、PKCE、一次性兑换、刷新／撤销、18项MCP适配、运行态Skill和原生自定义登录。身体仍仅实测，所有正式保存仍需网页确认，不新增数据库结构。分支已同步最新身体图表返回修复；原GPT地址、issuer、resource、凭据及主库保持。
+
+590项完整测试和12项豆包／桥接专项、原生4项测试通过；lint、typecheck、初轮production及原生本地构建通过，最后以干净兼容发布包为准。H5两主题及320至1440含矮屏／横屏、错误密码、拒绝、失效和键盘已实际检查；独立review的两项返回状态／恢复问题修复后均resolved，ship只覆盖这两项，真实官方SDK／WebView仍未测。详情、配置和证据见[豆包接入](docs/doubao-onboarding.md)。发布、平台测试版本及真实用户授权结果须在完成后更新，当前不能标为已接通。
+
 ## 已发布：公开隐私政策与服务条款
 
 用户确认后已发布[隐私政策](https://formward-ten.vercel.app/privacy.html)和[服务条款](https://formward-ten.vercel.app/terms.html)，可直接填入豆包控制台。个人运营者施绪飞扬，联系邮箱opg.obl1v@gmail.com，生效日期2026年11月10日。READY为 `dpl_82o44w2e9c1xGDH3Yxep68LxP7FZ`，文稿源码 `38a3c61139a34f70b28e9c71cf1aa669737a6de4` 已合入推送main；接入后续边界和完整发布证据见[豆包资料](docs/doubao-onboarding.md)。

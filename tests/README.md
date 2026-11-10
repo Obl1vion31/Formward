@@ -1,5 +1,11 @@
 # Tests
 
+## 豆包接入
+
+`pnpm test` 包含 `src/features/doubao/oauth.test.ts`，在隔离 PGlite 中实际执行 OAuth、PKCE、授权码兑换、刷新轮换、绑定冲突、撤销、双协议 MCP、预览幂等与原 GPT 连接兼容；平台身份响应仅在测试中替换。另在 `integrations/doubao` 运行 `pnpm check`、`pnpm test`、两份 YAML 校验及 `pnpm exec dbx build local`。
+
+production build 后执行 `node --import tsx tests/doubao-fixture.mts`，在回环3419启动真实 Next 页面，3420提供新建虚构身份的入口。fixture 只使用临时数据库与 `example.test` 账号，不读取正式环境或健康事实；退出使用 SIGTERM／SIGINT。浏览器交互与截图记录见 [豆包接入](../docs/doubao-onboarding.md)。本机测试不能代替真实豆包 App 的身份交换和 WebView 回传。
+
 ## Garmin 个人密钥连接
 
 production build 后运行 `node --import tsx tests/data-sources.browser.mts`。入口自行创建仅回环可访问的隔离 PGlite、两个虚构账号与服务端 Garmin 响应，不读取正式密钥或访问真实 Garmin。`FORMWARD_SOURCES_ENGINE=webkit` 切换引擎，`PLAYWRIGHT_BROWSERS_PATH` 指定浏览器缓存，`FORMWARD_SOURCES_ARTIFACTS` 指定私有证据目录；`FORMWARD_SOURCES_PREVIEW=1` 保留本机演示，SIGTERM／SIGINT关闭。

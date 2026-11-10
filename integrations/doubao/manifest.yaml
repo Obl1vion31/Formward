@@ -1,0 +1,98 @@
+manifest_version: 2
+app_key: db_app_9m6xflq
+name: Formward
+
+mcp_server:
+  end_point: https://global.formward.top/api/doubao/mcp
+  description: 查询本人健康记录，提交由用户网页登录确认的记录预览。
+  mcp_config:
+    protocol: Streamable
+  user_auth:
+    fetch_token_url: https://global.formward.top/api/doubao/fetch-token
+    refresh_token_url: https://global.formward.top/api/doubao/refresh-token
+    delete_userinfo_url: https://global.formward.top/api/doubao/delete-userinfo
+
+tools:
+  authorize_formward:
+    description: 检查已授权的四类记录能力，不读取健康记录或保存数据。
+    login_type: normal
+    output: { kind: execution_result }
+  get_profile:
+    description: 查看当前已连接的 Formward 账号标识与显示名称。
+    login_type: normal
+    output: { kind: entities, entity_types: [formward_query_result] }
+  query_measurements:
+    description: 查询本人实测体重、体脂和来源，未知保持空值。
+    login_type: normal
+    output: { kind: entities, entity_types: [formward_query_result] }
+  query_meals:
+    description: 查询本人饮食、营养、日期状态和食物明细。
+    login_type: normal
+    output: { kind: entities, entity_types: [formward_query_result] }
+  query_energy:
+    description: 查询本人每日消耗与运动包含关系。
+    login_type: normal
+    output: { kind: entities, entity_types: [formward_query_result] }
+  query_training:
+    description: 查询本人训练模板、日历计划和执行记录。
+    login_type: normal
+    output: { kind: entities, entity_types: [formward_query_result] }
+  search_foods:
+    description: 搜索本人的食材和规格，取得引用所需的稳定编号与版本。
+    login_type: normal
+    output: { kind: entities, entity_types: [formward_query_result] }
+  search_exercises:
+    description: 查询训练动作库的稳定编号、部位、器械和记录方式。
+    login_type: normal
+    output: { kind: entities, entity_types: [formward_query_result] }
+  submit_measurement_operation:
+    description: 提交身体记录预览，返回需用户登录确认的链接。
+    login_type: normal
+    output: { kind: execution_result }
+  get_measurement_operation:
+    description: 查询本人身体记录预览及确认结果。
+    login_type: normal
+    output: { kind: execution_result }
+  import_meal_images:
+    description: 保存用户提供的饮食原图作为私有附件，不保存正式餐次。
+    login_type: normal
+    request_timeout: 120000
+    output: { kind: execution_result }
+  submit_meal_operation:
+    description: 提交餐次或食材预览，正式保存仍需用户网页登录确认。
+    login_type: normal
+    output: { kind: execution_result }
+  get_meal_operation:
+    description: 查询本人饮食预览及保存状态。
+    login_type: normal
+    output: { kind: execution_result }
+  submit_training_operation:
+    description: 提交训练模板与排期预览，不自动完成训练或计算消耗。
+    login_type: normal
+    output: { kind: execution_result }
+  get_training_operation:
+    description: 查询本人训练模板与排期的确认结果。
+    login_type: normal
+    output: { kind: execution_result }
+  submit_record_operation:
+    description: 将身体、饮食、消耗和训练变更提交为一个待确认预览。
+    login_type: normal
+    output: { kind: execution_result }
+  get_record_operation:
+    description: 查询本人统一记录批次的预览、行结果和确认状态。
+    login_type: normal
+    output: { kind: execution_result }
+  append_pending_images:
+    description: 经用户要求向原待审批次补齐照片，不保存正式记录。
+    login_type: normal
+    output: { kind: execution_result }
+
+entities:
+  formward_query_result:
+    schema:
+      entity_id: { type: string, description: 本账号及查询范围的稳定结果编号，不是记录编号。, is_entity_id: true }
+      entity_type: { type: string, llm_visible: false }
+      domain: { type: string, description: 查询类别。 }
+      result_json: { type: string, description: 原业务查询结果的完整 JSON；保留日期、真实记录编号、版本、来源、空值和明确零。 }
+
+permissions: []
