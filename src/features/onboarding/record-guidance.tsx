@@ -62,7 +62,7 @@ function RecordWalkthrough({tour,onShown,change,finish}:{tour:Tour;onShown:()=>v
    const next=tour.step===0?(form?fields:tour.kind==='training'?training:add??entry):tour.step===1?(form?fields:add):form?first('[data-record-guide-save]',form):null;
    const modal=[...document.querySelectorAll<HTMLDialogElement>('dialog[open]')].filter(visible).at(-1);
    // 确认框、助手和其他任务优先；不穿透顶层面板或只读查看。
-   if(!next||modal&&!modal.contains(next)||form?.getAttribute('aria-busy')==='true'){
+   if(!next||modal&&!modal.contains(next)||form?.getAttribute('aria-busy')==='true'||document.documentElement.hasAttribute('data-chart-travel')){
     target.current=null;setPositionedStep(null);return;
    }
    if(tour.step===0&&form){callbacks.current.change(1);return;}
@@ -102,6 +102,7 @@ function RecordWalkthrough({tour,onShown,change,finish}:{tour:Tour;onShown:()=>v
    if(mutations.some(mutation=>mutation.target instanceof HTMLDialogElement)){movingUntil=performance.now()+400;}
    queue();
   });observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['open','aria-busy','data-selected','data-selected-period','data-surface-phase','data-closing','data-motion','data-sheet-expanded','style']});
+  observer.observe(document.documentElement,{attributes:true,attributeFilter:['data-chart-travel']});
   document.addEventListener('click',click,true);document.addEventListener('submit',submit,true);document.addEventListener('keydown',escape,true);document.addEventListener('input',input,true);document.addEventListener('scroll',queue,true);window.addEventListener('resize',queue);window.visualViewport?.addEventListener('resize',queue);window.visualViewport?.addEventListener('scroll',queue);
   queue();
   // 目标长期未就绪不占住页面；失败与重试仍由原任务处理。
