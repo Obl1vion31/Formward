@@ -47,7 +47,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(current.destination){
       const d=current.destination;
       if(Math.max(Math.abs(d.left-dest.left),Math.abs(d.top-dest.top),Math.abs(d.width-dest.width),Math.abs(d.height-dest.height))>1){clear();return;}
-      if(element){current.hidden?.removeAttribute('data-chart-travelling');current.hidden=element;element.setAttribute('data-chart-travelling','true');}
+      motion.current.reveal(id,element);
       if(!skeleton)current.ready=true;
       if(current.arrived&&current.ready)finish(current);
       return;
@@ -55,28 +55,24 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     const scale=dest.width/current.rect.width;
     if(Math.abs(dest.height/current.rect.height-scale)>.035){clear();return;}
     current.destination=dest;current.landing=true;current.ready=!skeleton;
-    if(element){current.hidden=element;element.setAttribute('data-chart-travelling','true');}
-    node.style.setProperty('visibility','visible');
-    // 先绘出来源小图，再启动移动；目标接管的布局工作不能吞掉首个可见帧。
-    current.startFrame=requestAnimationFrame(()=>{
-      current.startFrame=undefined;
-      if(motion.current.active?.id!==id||!node.isConnected)return;
-      node.setAttribute('data-motion-starts','1');
-      if(current.model.kind==="morning-weight"){
-        const count=current.model.points.length,forward=current.direction==="forward",options={duration:300,easing:"cubic-bezier(.2,.8,.2,1)",fill:"forwards" as const};
-        const strokeFrom=forward?1.25:detailStroke(count),strokeTo=(forward?detailStroke(count):1.25)/scale;
-        const radiusFrom=forward?3.6:detailRadius(count)/(current.rect.width/240),radiusTo=forward?detailRadius(count)/(dest.width/240):3.6;
-        current.decorations=[...node.querySelectorAll("[data-glyph-line]")].map(line=>line.animate([{strokeWidth:strokeFrom+"px"},{strokeWidth:strokeTo+"px"}],options));
-        current.decorations.push(...[...node.querySelectorAll("[data-glyph-point]")].map(point=>point.animate([{r:radiusFrom+"px"},{r:radiusTo+"px"}],options)));
-      }
+    motion.current.reveal(id,element);
+    // 来源图已在上一页面显示；目标落位后立即启动，不再等待一次额外的绘制帧。
+    if(motion.current.active?.id!==id||!node.isConnected)return;
+    node.setAttribute('data-motion-starts','1');
+    if(current.model.kind==="morning-weight"){
+      const count=current.model.points.length,forward=current.direction==="forward",options={duration:300,easing:"cubic-bezier(.2,.8,.2,1)",fill:"forwards" as const};
+      const strokeFrom=forward?1.25:detailStroke(count),strokeTo=(forward?detailStroke(count):1.25)/scale;
+      const radiusFrom=forward?3.6:detailRadius(count)/(current.rect.width/240),radiusTo=forward?detailRadius(count)/(dest.width/240):3.6;
+      current.decorations=[...node.querySelectorAll("[data-glyph-line]")].map(line=>line.animate([{strokeWidth:strokeFrom+"px"},{strokeWidth:strokeTo+"px"}],options));
+      current.decorations.push(...[...node.querySelectorAll("[data-glyph-point]")].map(point=>point.animate([{r:radiusFrom+"px"},{r:radiusTo+"px"}],options)));
+    }
 
-      current.animation=node.animate([{transform:'translate(0px,0px) scale(1)'},{transform:`translate(${dest.left-current.rect.left}px,${dest.top-current.rect.top}px) scale(${scale})`}],{duration:300,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});
-      void current.animation.finished.then(()=>{
-        if(motion.current.active?.id!==id)return;
-        current.arrived=true;current.landing=false;
-        if(current.ready)finish(current);
-      }).catch(()=>{});
-    });
+    current.animation=node.animate([{transform:'translate(0px,0px) scale(1)'},{transform:`translate(${dest.left-current.rect.left}px,${dest.top-current.rect.top}px) scale(${scale})`}],{duration:300,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});
+    void current.animation.finished.then(()=>{
+      if(motion.current.active?.id!==id)return;
+      current.arrived=true;current.landing=false;
+      if(current.ready)finish(current);
+    }).catch(()=>{});
   },[motion,clear,finish]);
   const land=useCallback((next:ChartTarget,id:number)=>{
     const current=motion.current.active,saved=origin.current;
@@ -107,6 +103,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     const rect=rectOf(source);
     origin.current={kind:model.kind,destination:new URL(href,location.origin).pathname,scroll:scrollY,rail:rail?.scrollLeft??0,rangeKey:trendRangeKey(model),modelKey:trendKey(model),paired:true,rect,viewport:{width:innerWidth,height:innerHeight}};
     motion.current.returning=false;lastTarget.current=null;
+    router.prefetch('/dashboard');
     if(!reduced()&&visible(source)&&typeof Element.prototype.animate==='function'&&model.points.some(point=>point.value!==null||point.segments?.length))motion.current.start(model,rect,'forward');
     startTransition(()=>router.push(href));
   },[router,motion]);
@@ -117,13 +114,10 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(!motion.current.returning)return;
     window.scrollTo({top:saved.scroll,behavior:'instant'});
     const current=motion.current.active;
-    requestAnimationFrame(()=>{
-      if(origin.current!==saved||!motion.current.returning)return;
-      window.scrollTo({top:saved.scroll,behavior:'instant'});
-      const graph=rail.querySelector<SVGSVGElement>(`[data-metric-card="${saved.kind}"] [data-trend-glyph]`);
-      if(graph&&visible(graph)&&graph.dataset.trendRange===saved.rangeKey&&graph.dataset.trendKey===saved.modelKey&&current?.direction==='back'&&motion.current.active?.id===current.id)landAt(rectOf(graph),graph,false,current.id);
-      else{clear();rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`)?.focus({preventScroll:true});origin.current=null;motion.current.returning=false;lastTarget.current=null;}
-    });
+    // 卡片在 layout effect 中已落位；先恢复再测量，同一帧交给浮层，避免额外等待一帧。
+    const graph=rail.querySelector<SVGSVGElement>(`[data-metric-card="${saved.kind}"] [data-trend-glyph]`);
+    if(graph&&visible(graph)&&graph.dataset.trendRange===saved.rangeKey&&graph.dataset.trendKey===saved.modelKey&&current?.direction==='back'&&motion.current.active?.id===current.id)landAt(rectOf(graph),graph,false,current.id);
+    else{clear();rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`)?.focus({preventScroll:true});origin.current=null;motion.current.returning=false;lastTarget.current=null;}
   },[motion,landAt,clear]);
   const prepareBack=useCallback(()=>{
     const saved=origin.current;if(!saved||motion.current.returning)return;

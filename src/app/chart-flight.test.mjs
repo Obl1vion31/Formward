@@ -6,6 +6,18 @@ import {metricTrendModel,trendRangeKey} from '../components/metric-trend-model.t
 const model=metricTrendModel('intake',[{date:'2026-11-01',value:1200}]);
 const rect={left:200,top:240,width:80,height:40};
 
+test('准备阶段不隐藏原图，浮层可见后才交出目标，过期回调不得再次显示',()=>{
+ const owner=createChartFlights(()=>{}),flight=owner.start(model,rect,'back'),events=[];
+ flight.node={style:{visibility:'hidden'}};
+ const target={setAttribute(){assert.equal(flight.node.style.visibility,'visible');events.push('hide-target');},removeAttribute(){events.push('restore-target');}};
+ assert.equal(flight.hidden,undefined);assert.equal(flight.node.style.visibility,'hidden');
+ assert.equal(owner.reveal(flight.id,target),true);
+ assert.deepEqual(events,['hide-target']);
+ owner.clear(flight.id);
+ assert.equal(flight.node.style.visibility,'hidden');assert.deepEqual(events,['hide-target','restore-target']);
+ assert.equal(owner.reveal(flight.id,target),false);assert.equal(flight.node.style.visibility,'hidden');
+});
+
 test('按钮、popstate和路由提交重复准备返回，只创建一个回程图层',()=>{
  const published=[],owner=createChartFlights(f=>published.push(f?.id??null));
  try{
@@ -34,16 +46,6 @@ test('旧完成回调和超时不得清掉已经反向的新图层',()=>{
   assert.equal(owner.clear(outbound.id),false);
   assert.equal(owner.active,incoming);assert.equal(incoming.node.style.visibility,'visible');
  }finally{owner.clear();}
-});
-test('取消尚未起步的转场会撤销下一帧任务，旧取消不能影响新图层',()=>{
- const previous=globalThis.cancelAnimationFrame,cancelled=[],owner=createChartFlights(()=>{});
- globalThis.cancelAnimationFrame=id=>cancelled.push(id);
- try{
-  const first=owner.start(model,rect,'forward');first.startFrame=37;
-  const second=owner.start(model,rect,'back');second.startFrame=41;
-  assert.deepEqual(cancelled,[37]);assert.equal(owner.clear(first.id),false);assert.deepEqual(cancelled,[37]);
-  owner.clear(second.id);assert.deepEqual(cancelled,[37,41]);
- }finally{owner.clear();if(previous)globalThis.cancelAnimationFrame=previous;else delete globalThis.cancelAnimationFrame;}
 });
 test('无有效目标的返回也保持幂等，下一次正常进入可重新开始',()=>{
  const owner=createChartFlights(()=>{});

@@ -1,10 +1,10 @@
 "use client";
 import {useId,useState,type ReactNode} from "react";
-import {recordDateLabel} from "./record-dates";
+import {displayRecordDate,recordDateLabel} from "./record-dates";
 import styles from "./record-ui.module.css";
 import {SkeletonBlock} from './skeleton-block';
 export function SelectedDateHeading({date,view,status,pending=false}:{date:string;view:()=>void;status?:ReactNode;pending?:boolean}){
- const selectedDate=date?<time dateTime={date}>{date.replaceAll("-",".")}</time>:<span aria-label="正在读取记录日期"><SkeletonBlock width={90} height={16}/></span>;
+ const selectedDate=date?<time dateTime={date}>{displayRecordDate(date)}</time>:<span aria-label="正在读取记录日期"><SkeletonBlock width={90} height={16}/></span>;
  return <div className={styles.selected} data-selected-date={date}>{status!==undefined?<span className={styles.selectedInfo}>{selectedDate}{status}</span>:selectedDate}<button type="button" disabled={pending||!date} onClick={view}>查看记录 →</button></div>;
 }
 export function DailyRecords({children,history,actions,loading=false}:{children?:ReactNode;history?:ReactNode;actions?:ReactNode;loading?:boolean}){

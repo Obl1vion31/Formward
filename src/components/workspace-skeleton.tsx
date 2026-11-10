@@ -1,4 +1,5 @@
 "use client";
+import {displayRecordDate} from "./record-dates";
 import bodyStyles from "@/features/measurements/measurements-view.module.css";
 import {useContext,useEffect,useRef,useState} from 'react';
 import {useSearchParams,useRouter} from 'next/navigation';
@@ -55,7 +56,7 @@ export function WorkspaceSkeleton({kind}:{kind:'overview'|'nutrition'|'energy'|'
 }
 function OverviewSkeleton({date}:{date:string}){return <RecordWorkspace title="总览" className={overview.workspace}>
  <MetricCardRailSkeleton/>
- <div className={overview.mobileTrend+' mobile-only'}><div className={overview.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" disabled>查看记录 →</button></div><ChartRanges value="7" change={()=>{}} loading/><div className={overview.mobileSelected}>{date?<time>{date}</time>:<SkeletonBlock width={90} height={16}/>}<SkeletonBlock width={115} height={20}/></div><div className={overview.mobileLegend}><OverviewLegend compact/></div><div className="skeleton-relationship"><SkeletonBlock height={132}/><SkeletonBlock height={68}/></div></div>
+ <div className={overview.mobileTrend+' mobile-only'}><div className={overview.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" disabled>查看记录 →</button></div><ChartRanges value="7" change={()=>{}} loading/><div className={overview.mobileSelected}>{date?<time dateTime={date}>{displayRecordDate(date)}</time>:<SkeletonBlock width={90} height={16}/>}<SkeletonBlock width={115} height={20}/></div><div className={overview.mobileLegend}><OverviewLegend compact/></div><div className="skeleton-relationship"><SkeletonBlock height={132}/><SkeletonBlock height={68}/></div></div>
  <div className="desktop-only"><RecordTrendPanel date={date} view={()=>{}} loading metrics={['摄入','消耗','收支','晨重','次晨','次晨变化'].map((label,index)=>({label,value:'',unit:index<3?'kcal':'kg',inlineUnit:index>=3}))} title="热量收支" unit="kcal" supplementary={<div className="skeleton-week"><OverviewReadings mobile={false} variants={[]}/></div>} range={<ChartRanges value="30" change={()=>{}} loading/>}  legend={<OverviewLegend/>}><div className="skeleton-relationship"><SkeletonBlock height={220}/><SkeletonBlock height={112}/></div></RecordTrendPanel></div>
  </RecordWorkspace>;}
 function SkeletonPlotFrame({children,kind,frameRef,shared,linked,adaptive,axisLeft}:{children:React.ReactNode;kind:string;frameRef:React.RefObject<HTMLDivElement|null>;shared:boolean;linked:boolean;adaptive:boolean|'auto';axisLeft:string}){

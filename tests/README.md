@@ -339,3 +339,9 @@ training-compact.browser.mjs随训练完整流程运行，复查标题栏点击�
 shared-primary.http.mts 在受信任的测试 CA 下验证原会话 Cookie、原 JWT 与原刷新令牌经过国际网关后保持账号／issuer／resource／连接编号；使用独立虚构 PostgreSQL，不连接正式库。
 
 身体退役浏览器验收覆盖深浅主题、320/390/430、横屏及1100/1440/1920、只读与实测录入、体脂开关和图形往返；复用登录会话避免无意义重复登录。workspace-loading检查可用FORMWARD_LOADING_KINDS按overview/body等类型选择受影响页面，默认仍检查全部主页面。
+
+## 图表样式与返回时序
+
+production build 后以 FORMWARD_LOADING_NATIVE=1、FORMWARD_LOADING_PREVIEW=1 启动 workspace-loading.browser.mts 的隔离预览，再将其 config.json 传给 FORMWARD_LOADING_CONFIG，运行 node tests/chart-return.browser.mjs。FORMWARD_CHART_ENGINE=webkit 切换引擎，FORMWARD_CHART_ARTIFACTS 指定私有录像和报告目录。两个引擎并行时各用独立fixture，避免慢查询控制互相影响。
+
+覆盖320／390／430与1100／1440／1920、两主题、晨晚／体脂／7D／30D／关联自定义。390和1440的三张卡各20次往返，其余尺寸各3次，另查慢读取、快速反向、修改指标、减少动态效果与浏览器返回。报告分开记录真实动画启动时刻和首个采样呈现帧，验收探针不逐帧强制整页布局。检查准备期原图可见、每方向只启动一次、落地后至少500ms无残层，轴与读数外框切换偏差≤1px。保留失败证据；FORMWARD_CHART_QUICK 与 FORMWARD_CHART_NO_VIDEO 仅用于定位，不作为完整视觉验收。

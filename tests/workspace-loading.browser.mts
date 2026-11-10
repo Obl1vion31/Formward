@@ -8,6 +8,7 @@ import { spawn,spawnSync } from "node:child_process";
 import { mkdir, writeFile, mkdtemp } from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
+import {resolve} from "node:path";
 
 import {createDatabase} from "../src/db/client";
 import {migrate as migrateNative} from "drizzle-orm/postgres-js/migrator";
@@ -65,8 +66,10 @@ const baseURL = "http://127.0.0.1:" + port, databaseUrl = native?"postgresql://p
 const folder = process.env.FORMWARD_LOADING_ARTIFACTS ?? ".codex/workspace-loading";
 await mkdir(folder, { recursive: true });
 const configPath = folder + "/config.json"; await writeFile(configPath, JSON.stringify({ ...fixture, baseURL, databaseUrl, delayControlURL: delayed.controlURL, fixtureControlURL,pid: process.pid, isolatedFixture: true }), { mode: 0o600 });
-const child = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)], {
-  env: { PATH: process.env.PATH, LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH, NODE_ENV: "production", NEXT_TELEMETRY_DISABLED: "1", FORMWARD_DATA_SOURCE_USER_ID: fixture.userId, DATABASE_URL: databaseUrl, BETTER_AUTH_URL: baseURL, BETTER_AUTH_SECRET: "fictional-training-secret-longer-than-32-characters", FORMWARD_TIMEZONE: "Asia/Shanghai" }, stdio: ["ignore", "pipe", "pipe"],
+const release=process.env.FORMWARD_LOADING_RELEASE?resolve(process.env.FORMWARD_LOADING_RELEASE):null;
+if(release)assert.ok(release.startsWith(resolve('.codex/regional-releases')+'/')&&release.endsWith('/standalone'),'仅允许本仓库私有发布产物');
+const child = spawn(process.execPath, release?[join(release,'server.js')]:["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)], {
+  env: { PATH: process.env.PATH, LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH, NODE_ENV: "production", PORT:String(port), HOSTNAME:'127.0.0.1', NEXT_TELEMETRY_DISABLED: "1", FORMWARD_DATA_SOURCE_USER_ID: fixture.userId, DATABASE_URL: databaseUrl, BETTER_AUTH_URL: baseURL, BETTER_AUTH_SECRET: "fictional-training-secret-longer-than-32-characters", FORMWARD_TIMEZONE: "Asia/Shanghai" }, stdio: ["ignore", "pipe", "pipe"],
 });
 let log = ""; child.stdout.on("data", chunk => { log += chunk; }); child.stderr.on("data", chunk => { log += chunk; });
 try {

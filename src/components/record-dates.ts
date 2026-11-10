@@ -2,7 +2,10 @@ import { addCalendarDays, calendarOrdinal } from "@/features/measurements/calend
 
 /** 只补界面日历空行，不生成任何健康事实。 */
 export const recentRecordDates = (today: string, count = 7) => Array.from({ length: count }, (_, i) => addCalendarDays(today, -i));
-export const recordDateLabel = (date: string, today: string) => !today ? date : `${date}${date === today ? " · 今天" : date === addCalendarDays(today, -1) ? " · 昨天" : ""}`;
+export const displayRecordDate = (date: string) => date.replaceAll("-", ".");
+export const shortRecordDate = (date: string) => displayRecordDate(date.slice(5));
+export const recordDateRange = (from: string, to: string) => from.slice(0, 4) === to.slice(0, 4) ? `${shortRecordDate(from)}—${shortRecordDate(to)}` : `${displayRecordDate(from)}—${displayRecordDate(to)}`;
+export const recordDateLabel = (date: string, today: string) => `${displayRecordDate(date)}${!today ? "" : date === today ? " · 今天" : date === addCalendarDays(today, -1) ? " · 昨天" : ""}`;
 export function rangeContaining(date: string, today: string, base: "7" | "30") {
   const distance = Math.max(1, calendarOrdinal(today) - calendarOrdinal(date) + 1);
   return [Number(base), 30, 90].find(days => days >= distance)?.toString() ?? "all";

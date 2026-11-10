@@ -6,6 +6,7 @@ import { TrendGlyph } from "./trend-glyph";
 import { SkeletonBlock } from "./skeleton-block";
 import { useMobileMode } from "./use-mobile-mode";
 import type { MetricTrendModel } from "./metric-trend-model";
+import {shortRecordDate,recordDateRange} from "./record-dates";
 import styles from "./metric-card-rail.module.css";
 
 export type MetricCard = { title: string; value: string; unit: string; date: string; fact?: string; href: string; trend: MetricTrendModel };
@@ -30,8 +31,8 @@ export function MetricCardRail({ cards, preview, accountId }: { accountId?:strin
       <span className={styles.title}>{card.title}</span><svg className={styles.arrow} width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" strokeWidth="1.3" fill="none" aria-hidden="true"><path d="M4 12 12 4M5 4h7v7"/></svg>
       <strong>{card.value}<small>{card.unit}</small></strong>
       <div className={styles.glyph}><TrendGlyph model={card.trend}/></div>
-      <p><time dateTime={card.date}>{card.date?card.date.slice(5).replace("-","."):"暂无记录"}</time>{card.fact&&<> · {card.fact}</>}</p>
-      <span className={styles.range}>{card.trend.points[0]?.date.slice(5).replace("-",".")}—{card.trend.points.at(-1)?.date.slice(5).replace("-",".")}</span>
+      <p><time dateTime={card.date}>{card.date?shortRecordDate(card.date):"暂无记录"}</time>{card.fact&&<> · {card.fact}</>}</p>
+      <span className={styles.range}>{card.trend.points.length?recordDateRange(card.trend.points[0].date,card.trend.points.at(-1)!.date):""}</span>
     </LoadingLink>)}
   </div>;
 }

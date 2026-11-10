@@ -1,28 +1,24 @@
 "use client";
-import {useChartViewport} from "@/components/use-chart-viewport";
 import {useDraftGuard} from "@/components/draft-guard";
 import type {RecordIntent} from "@/components/record-intent";
 import {useRepeatedRecordTask} from '@/components/record-intent-client';
 import {measurementVersions} from "@/components/record-change-client";
 import {RecordWorkspace,RecordTrendPanel,CustomRecordRange,type RecordMetric} from "@/components/record-trend-panel";
 import {formatRecordNumber} from "@/components/number-format";
-import { ChartSelectionColumn, ChartSelectionPoint } from "@/components/chart-selection-marker";
-import {useChartDrag} from "@/components/use-chart-drag";
-import { useChartMotion } from "@/components/use-chart-motion";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
 import { DailyRecords,DailyRecordRow } from "@/components/daily-records";
 import { RecordHistory } from "@/components/record-history";
 import { Inspector,InspectorCloseButton } from "@/components/inspector";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { buildMeasurementDays, recentMeasurementDays } from "./days";
 import { addCalendarDays, measurementCalendarPage, measurementCalendarRange } from "./calendar";
 import type {AccountPreferences} from "@/features/auth/preferences";
 import {useBodyPreferences} from "./preferences-control";
 import {BodyFatContext,useBodyMetrics} from "./visibility";
 import { measurementSummaryAt,preferredMorningDate } from "./summary";
-import { calendarOrdinal, measurementDateTicks, measurementRange, measurementTrend, normalScale, type MeasurementInterval, type MeasurementMetric, type MeasurementRange } from "./trend";
+import { calendarOrdinal, measurementRange, normalScale, type MeasurementInterval, type MeasurementMetric, type MeasurementRange } from "./trend";
 import styles from "./measurements-view.module.css";
 import { localMeasurementDate, measurementDayAction, measurementNeedsEntry, type EntryResult, type MeasurementActions, type MeasurementDateDisplay, type MeasurementDisplay } from "./entry-state";
 import { MeasurementEntry } from "./measurement-entry";
@@ -32,7 +28,8 @@ import type { TrendRoute } from "@/components/metric-trend-model";
 import {useChartTransition} from '@/components/chart-transition-state';
 import {TrendGlyph} from "@/components/trend-glyph";
 import {metricTrendModel} from "@/components/metric-trend-model";
-import { MorningWeightPlot } from "./morning-weight-plot";
+import { BodyTrendPlot } from "./body-trend-plot";
+import {displayRecordDate,recordDateRange} from "@/components/record-dates";
 export type { MeasurementDisplay } from "./entry-state";
 
 type MeasurementDay = ReturnType<typeof buildMeasurementDays<MeasurementDisplay>>[number];
@@ -40,7 +37,7 @@ type DrawerView = { kind: "entry"; date: string; editing?: boolean; period?:"day
 
 const ranges: { value: MeasurementRange; label: string }[] = [{ value: "7d", label: "7D" }, { value: "30d", label: "30D" }, { value: "90d", label: "90D" }, { value: "all", label: "全部" }];
 const weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
-const displayDate = (date: string) => date.replaceAll("-", ".");
+const displayDate = displayRecordDate;
 const weekday = (date: string) => weekdays[new Date(calendarOrdinal(date) * 86_400_000).getUTCDay()];
 const unitFor = (metric: MeasurementMetric) => metric === "weightKg" ? "kg" : "%";
 const metricName = (metric: MeasurementMetric) => metric === "weightKg" ? "体重" : "体脂率";
@@ -100,7 +97,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
    preference.showBodyFat?{label:'晨间体脂率',value:formatRecordNumber(fat.value),unit:'%',inlineUnit:true,select:()=>chooseMetric('bodyFatPercent'),selected:activeMetric==='bodyFatPercent',graphic:<BodySpark records={records} date={activeDate} metric="bodyFatPercent" choices={choices}/>}:{label:'较前一日',value:formatDifference(weight.previousChange,'weightKg',false)??'—',unit:'kg',inlineUnit:true},
    {label:'7日平均体重',value:formatRecordNumber(weight.average),unit:'kg',inlineUnit:true}
   ];
-  const changeSummary=metricName(activeMetric)+' · 7日变化 '+(formatDifference(selectedSummary.change,activeMetric,false)??'—')+' '+deltaUnit+(selectedSummary.start&&selectedSummary.end?' ('+selectedSummary.start.slice(5)+'—'+selectedSummary.end.slice(5)+')':'');
+  const changeSummary=metricName(activeMetric)+' · 7日变化 '+(formatDifference(selectedSummary.change,activeMetric,false)??'—')+' '+deltaUnit+(selectedSummary.start&&selectedSummary.end?' ('+recordDateRange(selectedSummary.start,selectedSummary.end)+')':'');
   if(!preference.showBodyFat&&selectedMetric!=='weightKg')setSelectedMetric('weightKg');
   function selectRange(nextMode: MeasurementRange, nextInterval = customRange) {
     measurementRange(latestDate,nextMode,nextMode==="custom"?nextInterval:{start:earliestDate,end:latestDate});
@@ -139,9 +136,9 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
        metrics={readings} chartSummary={changeSummary}
 
        title={metricName(activeMetric)+" · "+unitFor(activeMetric)}
-       options={<label className={styles.toggle}><span>晚间</span><input aria-label="晚间数据" type="checkbox" checked={showEvening} onChange={event=>setShowEvening(event.target.checked)}/></label>}
+       options={<label className={styles.toggle}><span>晚间</span><input aria-label="晚间数据" type="checkbox" checked={showEvening} onChange={event=>{transition.invalidate();setShowEvening(event.target.checked);}}/></label>}
        legend={<><span><i style={{background:"var(--gold)",borderRadius:"50%"}}/>晨间空腹</span>{showEvening&&<span><i style={{background:"var(--data-deficit)",borderRadius:"50%"}}/>晚间</span>}</>}
-      ><div data-chart-metric={activeMetric}><TrendPlot linked={!!initialTrend&&range.start===initialTrend.from&&range.end===initialTrend.to} records={visibleRecords} metric={activeMetric} showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
+      ><div data-chart-metric={activeMetric}><BodyTrendPlot linked={!!initialTrend&&range.start===initialTrend.from&&range.end===initialTrend.to} records={visibleRecords} metric={activeMetric} showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
       </RecordTrendPanel>
     </section>
     <DailyRecords history={<RecordHistory today={today} dates={(catalog.start&&catalog.end?measurementCalendarPage(catalog,calendarOrdinal(catalog.end)-calendarOrdinal(catalog.start)+1):[]).filter(date=>!recent.some(day=>day.date===date))} renderRow={renderDay} view={inspectDay}/>}>{recent.map(day=>renderDay(day.date))}</DailyRecords>
@@ -281,80 +278,4 @@ function RecordList({ day, metric, activeId, period, onInspect }: {
     </button>; })}
   </div>;
 }
-function TrendPlot({linked=false,...props}:Parameters<typeof FullTrendPlot>[0]&{linked?:boolean}) {
-  const mobile=useMobileMode();
-  const compact=calendarOrdinal(props.interval.end)-calendarOrdinal(props.interval.start)<31;
-  return (mobile||linked||compact)&&props.metric==="weightKg"&&!props.showEvening?<MorningWeightPlot linked={linked} compact={compact} records={props.records} interval={props.interval} selection={props.selection} choices={props.choices}/>:<FullTrendPlot {...props} compact={compact}/>;
-}
-function FullTrendPlot({ records, metric, showEvening, interval, selectedDate, selectedPeriod, selection, onPeriod, choices, compact=false }: {
-  compact?: boolean; records: MeasurementDisplay[]; metric: MeasurementMetric; showEvening: boolean; interval: MeasurementInterval;
-  selectedDate: string | null; selectedPeriod?: "daytime" | "evening"; selection:ReturnType<typeof useChartDateSelection>; onPeriod:(period:"daytime"|"evening")=>void; choices: Record<string, string>;
-}) {
-  const viewport = useRef<HTMLDivElement>(null);
-  const plotId = useId(), mobile=useMobileMode();
-  const [hintRecordId, setHintRecordId] = useState<string | null>(null);
-  const { points, segments, pairs } = measurementTrend(records, metric, showEvening, choices);
-  const scale = points.length ? normalScale(points.map((row) => Number(row[metric]))) : null;
-  const {width:viewportWidth,left}=useChartViewport(viewport,scale?.ticks.map(value=>value.toFixed(1))??["0.0","99.0"],48);
-  useChartMotion(viewport, viewportWidth ? `${metric}:${showEvening}:${interval.start}:${interval.end}:${JSON.stringify(choices)}:${records.map(record => `${record.id}:${record.updatedAt}`).join("|")}` : "pending");
-  const width = Math.max(240, viewportWidth);
-  const span = calendarOrdinal(interval.end) - calendarOrdinal(interval.start),right=compact?16:24,top=compact?14:18,plotWidth=width-left-right;
-  const x = (date: string) => span ? left + (calendarOrdinal(date) - calendarOrdinal(interval.start)) / span * plotWidth : left+plotWidth/2;
-  const height=compact?top+plotWidth/2+32:mobile?180:252, plotBottom=height-(compact?32:34);
-  const y = (value: string | null) => top + (scale?.position(Number(value)) ?? .5) * (plotBottom-top);
-  const pointDays = [...new Set(points.map(row => row.recordDate))].sort();
-  const hitColumns = new Map(pointDays.map((date, index) => [date, {
-    left: index ? (x(pointDays[index - 1]) + x(date)) / 2 : 0,
-    right: index < pointDays.length - 1 ? (x(date) + x(pointDays[index + 1])) / 2 : width,
-  }]));
-  const pointByPeriod = new Map(points.map(row => [`${row.recordDate}:${row.period}`, row]));
-  const ticks = measurementDateTicks(interval, width < 500 ? 4 : width < 900 ? 6 : 8);
-  const unit = unitFor(metric);
-  const pointLabel = (row: MeasurementDisplay) => `${row.recordDate} · ${row.period === "daytime" ? "空腹" : "晚间非空腹"} · ${formatRecordNumber(row[metric])} ${unit} · 实测`;
-  const hintedRecord = points.find((row) => row.id === hintRecordId && row.recordDate===selectedDate && selection.active) ?? points.find(row => row.recordDate === selectedDate && row.period === (selectedPeriod ?? "daytime")) ?? points.find(row => row.recordDate === selectedDate);
-  const drag=useChartDrag(Array.from({length:span+1},(_,i)=>addCalendarDays(interval.start,i)),width,left,right,selection.choose);
-  const markerKey=`${width}:${height}:${interval.start}:${interval.end}:${scale?.ticks.join("|")}`;
-  const selectedX=selectedDate?x(selectedDate):null,selectedHit=selectedDate?hitColumns.get(selectedDate):null;
-  const dayHalfWidth=span?plotWidth/span/2:plotWidth/2;
-  const selectedColumn=selectedX===null?null:selectedHit?{left:Math.max(selectedHit.left,selectedX-14),right:Math.min(selectedHit.right,selectedX+14)}:{left:selectedX-dayHalfWidth,right:selectedX+dayHalfWidth};
-  const activate = (row: MeasurementDisplay) => {selection.activate(row.recordDate);onPeriod(row.period);};
-
-
-  return <>
-    <div className={styles.plotViewport+(compact?" detail-trend-plot":"")} ref={viewport}>
-      <svg {...drag} className={styles.plot} style={{touchAction:"pan-y", height:compact?"auto":undefined, maxHeight:"none", visibility: viewportWidth > 0 ? undefined : "hidden"}} width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={`${metricName(metric)}趋势，数值越高位置越高`}>
-        <title>{`${metricName(metric)}趋势`}</title>
-        {scale?.ticks.map((value) => <g key={value}><line x1={left} x2={width-right} y1={y(String(value))} y2={y(String(value))} className={styles.grid} /><text x={left-8} y={y(String(value)) + 4} textAnchor="end" className={styles.axis}>{value.toFixed(1)}</text></g>)}
-        {ticks.map((date) => <text key={date} x={x(date)} y={height-10} textAnchor="middle" className={styles.axis}>{date.slice(5).replace("-", "/")}</text>)}
-        <ChartSelectionColumn x={selectedX} date={selectedDate} column={selectedColumn} plot={{left,right:width-right,top,bottom:plotBottom}} resetKey={markerKey} direct={selection.direct}/>
-        {(["daytime","evening"] as const).map(period=>{const point=points.find(row=>row.recordDate===selectedDate&&row.period===period);return <ChartSelectionPoint key={period} x={point?x(point.recordDate):null} y={point?y(point[metric]):0} resetKey={markerKey} direct={selection.direct} color={period==="daytime"?"var(--body-gold)":"var(--body-blue)"}/>;})}
-        {pairs.map((day) => <line data-pair={day.date} key={day.date} x1={x(day.date)} x2={x(day.date)} y1={y(day.daytimeRecord![metric])} y2={y(day.eveningRecord![metric])} className={styles.pairLine} />)}
-        {segments.map(({ a, b, period }) => <line data-chart-line key={`${a.id}:${b.id}`} data-segment="continuous" data-period={period} x1={x(a.recordDate)} y1={y(a[metric])} x2={x(b.recordDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} `} style={{strokeWidth:span<7?2.5:1.75}} vectorEffect="non-scaling-stroke" />)}
-        {[...points].sort((a, b) => Number(a.period === "daytime") - Number(b.period === "daytime")).map((row) => {
-          const label = pointLabel(row);
-          // 相邻日期与同日晨晚点各用中线划分点击区域，避免透明命中区遮住另一条记录。
-          const companion = pointByPeriod.get(`${row.recordDate}:${row.period === "daytime" ? "evening" : "daytime"}`);
-          const ownY = y(row[metric]), companionY = companion ? y(companion[metric]) : null;
-          const midpoint = companionY === null ? null : (ownY + companionY) / 2;
-          const coincident = companionY === ownY;
-          const column = hitColumns.get(row.recordDate)!;
-          const clipLeft = coincident && row.period === "evening" ? x(row.recordDate) : column.left;
-          const clipRight = coincident && row.period === "daytime" ? x(row.recordDate) : column.right;
-          const clipTop = midpoint !== null && !coincident && ownY > companionY! ? midpoint : 0;
-          const clipBottom = midpoint !== null && !coincident && ownY < companionY! ? midpoint : height;
-          const clipId = `${plotId}-${row.id}`;
-          return <g key={row.id} data-point-id={row.id} data-date={row.recordDate} data-selected={row.recordDate===selectedDate} data-value={row[metric]} data-period={row.period} data-kind={row.recordKind} role="button" tabIndex={0} aria-label={label} aria-pressed={row.recordDate === selectedDate} data-chart-date={row.recordDate} onMouseMove={() => {if(!selection.locked){setHintRecordId(row.id);selection.preview(row.recordDate);onPeriod(row.period);}}} onMouseLeave={() => setHintRecordId(null)} onFocus={event => {selection.focus(event,row.recordDate);if(event.currentTarget.matches(":focus-visible")){setHintRecordId(row.id);onPeriod(row.period);}}} onBlur={() => setHintRecordId(null)} onClick={() => activate(row)} onKeyDown={(event) => {selection.keyDown(event,row.recordDate);if(event.key==="Enter"||event.key===" ")activate(row);}}>
-            <title>{`${recordTimeLabel(row)} · ${label}`}</title>
-            <defs><clipPath id={clipId}><rect x={clipLeft} y={clipTop} width={clipRight - clipLeft} height={clipBottom - clipTop} /></clipPath></defs>
-            <circle cx={x(row.recordDate)} cy={ownY} r="14" className={styles.hitTarget} clipPath={`url(#${clipId})`} />
-            <circle cx={x(row.recordDate)} cy={y(row[metric])} r={row.period === "daytime" ? "4" : "3.2"} className={row.period === "daytime" ? styles.dayPoint : styles.nightPoint} />
-          </g>;
-        })}
-        {!points.length && <text x={width / 2} y="118" textAnchor="middle" className={styles.emptyChart}>{`此区间暂无${showEvening ? "" : "空腹"}${metricName(metric)}记录`}</text>}
-      </svg>
-    </div>
-    <output className={styles.plotHint} aria-live="polite">{hintedRecord?pointLabel(hintedRecord):""}</output>
-  </>;
-}
-
 function BodySpark({records,date,metric,choices}:{records:MeasurementDisplay[];date:string;metric:MeasurementMetric;choices:Record<string,string>}){const days=buildMeasurementDays(records.filter(row=>row.recordKind!=='estimated'),choices,metric),byDate=new Map(days.map(day=>[day.date,day.daytimeRecord])),points=Array.from({length:7},(_,i)=>{const at=addCalendarDays(date,i-6),row=byDate.get(at);return{date:at,value:row?.fasting===true&&row[metric]!==null?Number(row[metric]):null};}),scale=normalScale(points.filter(point=>point.value!==null).map(point=>point.value!));return <div className="body-spark" aria-label="最近7日晨间实测，缺测断开"><TrendGlyph model={metricTrendModel('morning-weight',points,scale)}/></div>;}

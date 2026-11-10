@@ -4,12 +4,13 @@ export type ChartRect = { left: number; top: number; width: number; height: numb
 export type ChartFlight = {
   id: number; model: MetricTrendModel; rect: ChartRect; direction: 'forward' | 'back';
   node?: HTMLElement; destination?: ChartRect; landing?: boolean; arrived?: boolean; ready?: boolean;
-  animation?: Animation; decorations?:Animation[]; hidden?: SVGSVGElement; deadline?: ReturnType<typeof setTimeout>; startFrame?:number;
+  animation?: Animation; decorations?:Animation[]; hidden?: SVGSVGElement; deadline?: ReturnType<typeof setTimeout>;
 };
 type ChartFlights = {
   active: ChartFlight | null; returning: boolean;
   clear: (expectedId?: number) => boolean;
   start: (model: MetricTrendModel, rect: ChartRect, direction: ChartFlight['direction']) => ChartFlight;
+  reveal: (id: number, target: SVGSVGElement | null) => boolean;
   beginReturn: (source?: { model: MetricTrendModel; rect: ChartRect } | null) => boolean;
 };
 
@@ -19,6 +20,18 @@ export function createChartFlights(publish: (flight: ChartFlight | null) => void
   const owner: ChartFlights = {
     active: null as ChartFlight | null,
     returning: false,
+    reveal(id, target) {
+      const current=owner.active;
+      if(!current||current.id!==id||!current.node)return false;
+      // 等待时原图仍可见；同一帧先显示浮层，再交出目标，不能有双双隐藏的空档。
+      current.node.style.visibility='visible';
+      if(current.hidden!==target){
+        current.hidden?.removeAttribute('data-chart-travelling');
+        current.hidden=target??undefined;
+        target?.setAttribute('data-chart-travelling','true');
+      }
+      return true;
+    },
     clear(expectedId = owner.active?.id) {
       const current = owner.active;
       if (!current || current.id !== expectedId) return false;
@@ -26,7 +39,6 @@ export function createChartFlights(publish: (flight: ChartFlight | null) => void
       // cancel 会撤掉 fill:forwards。先退出可见合成，不能让原始大图再画一帧。
       if (current.node) current.node.style.visibility = 'hidden';
       clearTimeout(current.deadline);
-      if(current.startFrame!==undefined)cancelAnimationFrame(current.startFrame);
       current.animation?.cancel();
       current.decorations?.forEach(animation=>animation.cancel());
       current.hidden?.removeAttribute('data-chart-travelling');

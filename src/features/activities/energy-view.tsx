@@ -35,6 +35,7 @@ import type {RecordIntent} from "@/components/record-intent";
 import {useRepeatedRecordTask} from '@/components/record-intent-client';
 import { EnergyEditor } from "./energy-editor";
 import { blankEnergyDay, energySourceLabel, energyValue, type EnergyAction, type EnergyDay, type EnergyInput } from "./model";
+import {shortRecordDate} from "@/components/record-dates";
 import styles from "./energy.module.css";
 import {EnergyComposition} from "./energy-composition";
 import type {TrendRoute} from '@/components/metric-trend-model';
@@ -192,7 +193,7 @@ function EnergyPlot({ days, selected, selection }: { days: EnergyDay[]; selected
       {day.activeKcal !== null && <rect data-chart-bar data-chart-zero={bottom} data-energy-series="active" data-value={day.activeKcal} x={x(index) - barWidth / 2} y={y(resting + active)} width={barWidth} height={y(resting) - y(resting + active)} fill="var(--data-red)" className={styles.mark} />}
       {onlyTotal && <rect data-chart-bar data-chart-zero={bottom} data-energy-series="total-only" data-value={day.totalKcal!} x={x(index) - barWidth / 2} y={y(Number(day.totalKcal))} width={barWidth} height={y(0) - y(Number(day.totalKcal))} fill="var(--data-neutral)" className={styles.mark} />}
       {day.totalSource === "override" && day.record?.adoption?.mode!=="source" && <line data-energy-total={day.totalKcal!} x1={x(index) - barWidth / 2 - 2} x2={x(index) + barWidth / 2 + 2} y1={y(Number(day.totalKcal))} y2={y(Number(day.totalKcal))} stroke="var(--gold)" strokeWidth="2" className={styles.mark} />}
-      {(index % stride === 0 && days.length - 1 - index >= stride / 2 || index === days.length - 1) && <text x={x(index)} y={bottom + 25} textAnchor={days.length === 1 ? "middle" : index === 0 ? "start" : index === days.length - 1 ? "end" : "middle"} className={styles.axis}>{days.length <= 7 && slot < 46 ? day.date.slice(8) : day.date.slice(5)}</text>}
+      {(index % stride === 0 && days.length - 1 - index >= stride / 2 || index === days.length - 1) && <text x={x(index)} y={bottom + 25} textAnchor={days.length === 1 ? "middle" : index === 0 ? "start" : index === days.length - 1 ? "end" : "middle"} className={styles.axis}>{days.length <= 7 && slot < 46 ? day.date.slice(8) : shortRecordDate(day.date)}</text>}
     </g>; })}
   </svg></EnergyPlotFrame>;
 }

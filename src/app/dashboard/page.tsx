@@ -1,5 +1,3 @@
-import { Suspense } from 'react';
-import { WorkspaceSkeleton } from '@/components/workspace-skeleton';
 import { requireCompletedOnboarding } from "@/features/onboarding/server";
 import { redirect } from "next/navigation";
 import { currentPageUser } from "@/features/auth/server";
@@ -15,7 +13,7 @@ import { OverviewView } from "@/features/dashboard/overview-view";
 export const metadata = { title: "Formward · 总览" };
 export default async function DashboardPage() {
  const user = await currentPageUser(); if (!user) redirect("/"); await requireCompletedOnboarding();
- return <Suspense fallback={<WorkspaceSkeleton kind="overview"/>}><Content user={user}/></Suspense>;
+ return <Content user={user}/>;
 }
 async function Content({ user }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>> }) {
  const db=getDatabase(), records=await listMeasurements(db,user.id), snapshot=await readMealSnapshot(db,user.id),energy=await readEnergySnapshot(db,user.id);

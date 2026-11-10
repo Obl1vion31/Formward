@@ -7,6 +7,7 @@ import { useChartMotion } from "@/components/use-chart-motion";
 import type { useChartDateSelection } from "@/components/use-chart-date-selection";
 import {useChartViewport} from "@/components/use-chart-viewport";
 import { chartScale } from "@/components/chart-scale";
+import {shortRecordDate} from "@/components/record-dates";
 import styles from "./meals.module.css";
 import { useMobileMode } from "@/components/use-mobile-mode";
 import { MobileNutritionPlot } from "./mobile-nutrition-plot";
@@ -52,7 +53,7 @@ function DesktopNutritionChart({ dates, groups, selection, mode }: NutritionChar
             })()}
             {incompleteDay && energy != null && Number(energy) > 0 && <rect data-day-incomplete="true" x={x + (slot - barWidth) / 2} y={y(Number(energy))} width={barWidth} height={y(0) - y(Number(energy))} fill={`url(#${patternId})`} className={styles.bar} />}
             {allDates && energy != null && slot >= valueLabel.length * 6.5 + 6 && <text className={styles.barValue} x={x + slot / 2} y={y(Number(energy)) - 7} textAnchor="middle">{valueLabel}{daily?.incomplete.caloriesKcal ? "*" : ""}</text>}
-            {(index % stride === 0 && dates.length - 1 - index >= stride / 2 || index === dates.length - 1) && <text className={styles.axis} data-date-tick x={x + slot / 2} y="185" textAnchor={index === 0 ? "start" : index === dates.length - 1 ? "end" : "middle"}>{allDates && slot < 46 ? date.slice(8) : date.slice(5)}</text>}
+            {(index % stride === 0 && dates.length - 1 - index >= stride / 2 || index === dates.length - 1) && <text className={styles.axis} data-date-tick x={x + slot / 2} y="185" textAnchor={index === 0 ? "start" : index === dates.length - 1 ? "end" : "middle"}>{allDates && slot < 46 ? date.slice(8) : shortRecordDate(date)}</text>}
           </g>;
         })}
       </svg>
