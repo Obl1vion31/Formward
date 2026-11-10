@@ -1,5 +1,16 @@
 # 完善任务验收
 
+## 首次引导、演练返回与主题（2026-11-11）
+
+- 正式应用`dual-entry-2f5f88d9-onboarding-polish-20261111`，源码`2f5f88d91c84d76e805a80cb399b229efa74d7df`，BUILD_ID `-RJ9xA391kipEY1C9nNgv`；已合入并推送main。三个公网入口版本及新版CSS／JS SHA核对通过。
+- 595项unit/integration在f7dafe9通过，之后应用仅修正两处CSS的大字行高／换行；最终2f5f88d的12项引导测试、lint、typecheck及干净production build通过，47项Server Actions及绑定密钥保持。
+- 最终Chromium与WebKit各14组owner演练检查，覆盖320／390／430、640横屏、1100／1440／1920及两主题。填写→返回资料→跳过→结束演练→真正点击返回总览，落地后至少500ms；演练无POST、资料与健康记录摘要保持。每引擎另通过20组高光／重播、账号和浏览器隔离、禁用存储及生日规则检查。
+- 真实新账号在隔离库注入800ms请求延迟与一次网络失败，按钮局部反馈、防重复提交、输入保留、重试和完成状态写入后导航均通过；等待全过程MutationObserver未发现全局加载层。
+- 实际查看深浅主题、大字、完成页、圆形揭示、局部等待截图，并从完整录像提取连续帧核看。首轮320px大字按钮行高不足已保留证据，最终改为相对行高及整项换行后复验；视频保持原录制色彩。证据位于`.codex/onboarding-polish/`和`.codex/onboarding-polish-release/`，首轮位于`.codex/onboarding-feedback/`。
+- 发布先备份并验证异地副本，未迁移数据库。首轮候选因旧失败transient unit名称占用未启动，正式链接仍为旧版；使用本轮独立候选服务并逐文件重验后成功切换，未重建或覆盖正式健康记录。数据、配置及OAuth保护通过，55表／36条migration保持，440项旧静态资源保留；上一正式应用mobile-onboarding-20261111仍可回退。
+- 本轮服务器日志观察窗口匹配错误0；该短窗口不代替长期监测。真机原生选择器、系统键盘、屏幕阅读器及帧率未实测；既有WebKit共享图形连续动效的未通过记录继续保留，不据本次引导回归追认为通过。
+
+
 ## 生日选择与首次录入高光（2026-11-11）
 
 上海应用为 `dual-entry-395fa322-mobile-onboarding-20261111`，源码 `395fa322eef156996a1a9003b71457dd37dee3bc`，BUILD_ID `TllG814QHTC4pRj-N7WGa`，发布目录 `mobile-onboarding-20261111`。 已合入推送main并发布[正式站](https://43.142.148.58)，同时包含929a9d4豆包平台参数兼容修复。

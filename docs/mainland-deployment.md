@@ -6,13 +6,15 @@
 
 ## 当前部署
 
-当前上海应用 `dual-entry-395fa322-mobile-onboarding-20261111`，源码`395fa322eef156996a1a9003b71457dd37dee3bc`，BUILD_ID `TllG814QHTC4pRj-N7WGa`，目录`mobile-onboarding-20261111`。豆包适配、OAuth和共用MCP沿用929a9d47的已验证实现。
+当前上海应用 `dual-entry-2f5f88d9-onboarding-polish-20261111`，源码`2f5f88d91c84d76e805a80cb399b229efa74d7df`，BUILD_ID `-RJ9xA391kipEY1C9nNgv`，目录`onboarding-polish-20261111`。豆包适配、OAuth和共用MCP沿用929a9d47的已验证实现。
 
 生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。
 
-595项单元／集成、lint、typecheck及干净兼容production build通过。Chromium和WebKit各20组真实录入引导、20组五页加载检查及后退／快速取消复查通过；固定锚点最大偏差分别为0.328125px和0px。
+首次使用、owner演练、完成页与个人资料共用最新主题及输入／按钮控件，顶栏日／月圆形揭示与跟随系统选项一致。暂时跳过、保存和步骤更新仅提供按钮内局部等待，失败留稿；演练完成后的返回文字居中且已实际点击走通。高光沿用账号／浏览器／模块v1标记，本次发布不重置，助手可随时重播。320px两倍字号下按钮按整体换行、行高随文字变化。
 
-当前手机引导版本保留47项Server Action及绑定密钥、322项旧静态资源；55表和36条migration保持，健康数据、环境配置和OAuth安全摘要保护检查通过。上一正式应用 `doubao-platform-arguments-20261111` 保留供回退。
+595项单元／集成基线通过；最终CSS修正后12项引导测试、lint、typecheck与兼容production build复验通过。最终产物Chromium／WebKit各14组演练和20组录入高光检查通过，另核对慢请求、失败留稿、真实新账号完成及录像。此前五页加载锚点基线分别为0.328125px和0px，未冒充本轮重新测量。
+
+当前手机引导版本保留47项Server Action及绑定密钥、440项旧静态资源；55表和36条migration保持，健康数据、环境配置和OAuth安全摘要保护检查通过。上一正式应用 `mobile-onboarding-20261111` 保留供回退。
 
 生日控件与操作引导的物理手机原生选择器、系统键盘、帧率及屏幕阅读器尚未实测；既有WebKit连续图形转场未通过记录保留。 详细证据见[维护验收](maintenance-verification.md)。
 
