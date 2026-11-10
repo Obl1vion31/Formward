@@ -1,10 +1,14 @@
 # 当前实现与验证
 
-## 当前正式版本：豆包独立接入（2026-11-10）
+## 当前正式版本：豆包参数兼容（2026-11-11）
 
-上海应用 `dual-entry-0f5c7e24-doubao-mcp-request-20261110`，源码0f5c7e24，BUILD_ID `a-cKXvLOUnAhAig-m7rcY`；Vercel READY `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129。原GPT实际连接保持同一账号，47项Server Action和282项旧静态资源保留，55表／36条migration不变。
+当前上海应用 `dual-entry-395fa322-mobile-onboarding-20261111`，源码`395fa322eef156996a1a9003b71457dd37dee3bc`，BUILD_ID `TllG814QHTC4pRj-N7WGa`，目录`mobile-onboarding-20261111`。手机首次引导任务发布的该版本已包含本次929a9d47参数修复；豆包适配、OAuth和共用MCP源码哈希相同，未覆盖另一任务的发布。
 
-豆包request／WebView域名与本人白名单已生效，测试版 `0.0.1-dev.20261110.2` 保持。本人手机身份交换、WebView回传和平台换码已成功，后续MCP 503已定位并修复上线；环境文件、已授权连接和原GPT保持。完整592项测试、豆包专项、原生4项、lint、typecheck、干净构建及实际Next HTTP双协议查询通过。手机身体查询复测和网页预览确认仍待核对；实际范围见[豆包接入](doubao-onboarding.md)与[部署](deployment.md)。
+海外READY `dpl_7LC5LTzjS7zokZa6atCsrHpT5vxa`，网关代码仍为74754129，实际发布区域固定为`iad1`；`formward-ten.vercel.app`与`global.formward.top`均已核对指向该部署，257项静态文件、路由和网关代码哈希保持。
+
+原GPT的issuer、resource、客户端和凭据保持；AppSecret仍只在上海root 0600私有配置，环境文件字节未变。参数修复基线929a9d47保留47项Server Action、原绑定密钥和285项旧静态资源；后续手机引导发布的兼容及视觉验收由对应任务记录。55表／36条migration保持，无新增健康计算、数据库迁移或正式虚构健康记录。
+
+SDK参数校验失败按豆包平台上下文规范作最小适配；929a9d47基线的593测试、lint、typecheck、干净构建及真实Next HTTP双协议通过。海外回源超时另行定位，iad1恢复后原GPT实测为同一账号；临时诊断已清理。测试版`0.0.1-dev.20261110.2`保持，本人OpenID交换、WebView回传、绑定、换码和续期已验证。本人确认手机连接检查与最近七天身体查询正常；服务端两工具complete／HTTP200，分别5ms和126ms。无需重扫或重新授权。国服写入确认及完整真机布局未覆盖本轮。准确范围见[豆包接入](doubao-onboarding.md)与[部署](deployment.md)。
 
 ## 保留的验收基线：浅色骨架扫光（2026-11-10）
 

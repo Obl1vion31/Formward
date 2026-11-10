@@ -1,6 +1,6 @@
 # Formward
 
-豆包独立接入工程位于 `integrations/doubao`，过渡域名与白名单已生效，测试版 `0.0.1-dev.20261110.2` 可预览。本人手机授权与换码已验证，请求适配503已修复；真实工具调用仍返回失败，正在诊断，尚未完成查询验收。原GPT实测正常。当前范围与迁移边界见[豆包接入](docs/doubao-onboarding.md)，不以构建或虚构HTTP通过代替本人App通过。
+豆包独立接入工程位于`integrations/doubao`，域名、白名单及测试版`.2`保持。平台参数兼容修复已上线，海外回源切至实测可用的iad1，原GPT已恢复并核对同一账号。本人手机连接检查与身体查询已通过，服务端两工具均完成、HTTP200。当前范围见[豆包接入](docs/doubao-onboarding.md)。
 
 公开[隐私政策](https://formward-ten.vercel.app/privacy.html)和[服务条款](https://formward-ten.vercel.app/terms.html)已发布，生效日期2026年11月10日；个人运营者、填写资料及发布范围见[豆包资料与公开协议](docs/doubao-onboarding.md)。
 

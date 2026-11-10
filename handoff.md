@@ -1,20 +1,26 @@
 # Formward 项目交接
 
-## 当前部署：豆包独立接入与测试版本
+## 当前部署：豆包参数兼容与海外回源恢复
 
-用户授权先用Vercel过渡、保留现有GPT连接，官方CLI已获准登录；`global.formward.top` 的 request／WebView 和本人体验白名单均已生效。用户批准的AppSecret已配置到上海root 0600私有环境文件，未进入Git、前端、网关或日志。上海应用 `dual-entry-0f5c7e24-doubao-mcp-request-20261110`，源码0f5c7e24，BUILD_ID `a-cKXvLOUnAhAig-m7rcY`，目录 `doubao-mcp-request-20261110`；代码及测试辅助修正已合入推送main，保留此前身体图表和骨架修改。
+用户已授权先用Vercel过渡、后续再迁国内，保留现有GPT连接；官方CLI登录与上海私有AppSecret配置已获授权并完成，不重复索权。
 
-Vercel当前READY `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129；两个海外别名已核对指向该部署，257项静态文件及路由保持。首轮切换曾出现API 503且回退应用后仍持续，追加有界网关错误元数据诊断并重发后恢复；根因尚未证实，不归因TLS或应用。原GPT已再次实际get_profile成功且与发布前同一账号，issuer、resource与凭据保持。
+当前上海应用 `dual-entry-395fa322-mobile-onboarding-20261111`，源码`395fa322eef156996a1a9003b71457dd37dee3bc`，BUILD_ID `TllG814QHTC4pRj-N7WGa`，目录`mobile-onboarding-20261111`。手机首次引导任务发布的该版本已包含本次929a9d47参数修复；豆包适配、OAuth和共用MCP源码哈希相同，未覆盖另一任务的发布。
 
-`features/doubao` 与 `integrations/doubao` 已实现独立绑定、PKCE、一次性兑换、刷新／撤销、18项MCP、运行态Skill和原生自定义登录。显式支持现代 `server/discover`，新旧协议公网发现18工具且匿名私有调用被拒绝。身体仍仅实测，写入仍需网页登录最终确认；55表、36条migration保持，无新增健康计算。47项Server Action、原绑定密钥及282项旧静态资源保留。
+海外READY `dpl_7LC5LTzjS7zokZa6atCsrHpT5vxa`，网关代码仍为74754129，实际发布区域固定为`iad1`；`formward-ten.vercel.app`与`global.formward.top`均已核对指向该部署，257项静态文件、路由和网关代码哈希保持。
 
-完整592项单元／集成、豆包／桥接专项、原生4项、lint、typecheck和干净兼容production build通过。新增框架代理回归与实际Next production HTTP验收，真实执行虚构账号登录／同意／换码、双协议身体查询和无效凭据401；旧代码／旧产物均先复现503，新产物通过且退出正常。官方模拟器、此前H5尺寸检查及两次独立review的原范围保持，不扩大为完整手机视觉准出。
+原GPT的issuer、resource、客户端和凭据保持；AppSecret仍只在上海root 0600私有配置，环境文件字节未变。参数修复基线929a9d47保留47项Server Action、原绑定密钥和285项旧静态资源；后续手机引导发布的兼容及视觉验收由对应任务记录。55表／36条migration保持，无新增健康计算、数据库迁移或正式虚构健康记录。
 
-测试版[0.0.1-dev.20261110.2](https://developer.doubao.com/agentic_service/db_app_9m6xflq/versions/0.0.1-dev.20261110.2)保持，不必重装或重新授权。本人手机已完成真实OpenID交换、网页授权回传及平台换码绑定；随后工具请求503已定位为复制Next代理Request的私有状态异常，22:21修复上线，环境文件、原绑定和GPT保持。手机身体查询复测及国服预览确认仍待核对。入口和验证范围见[豆包接入](docs/doubao-onboarding.md)，本次私有证据在 `.codex/doubao-request-fix-release` 与 `.codex/doubao-research`，此前发布与排障材料继续保留；不公开凭据或真实健康结果。
+本人手机2026年11月10日23:53的“检查连接”已通过令牌和归属校验，但空参数工具收到两项额外字段，在SDK工具入参校验阶段失败；scope完整，刷新也成功。依据豆包平台协议，适配层只移除`from_mcp_call`与`_miniapp_permitted_data`，不使用其数据或推断身份；其他业务字段仍严格校验。隔离测试先复现旧失败、修复后通过；2026年11月11日01:02真机复测中，两项工具实际命中这两个平台字段并完成、HTTP200；用户确认连接检查与身体查询正常，原因已由真实调用闭环。
 
-**当前未完成项：** 本人22:50的新对话仍收到“可能未授权”，服务器三次 `query_measurements` 和一次 `authorize_formward` 均通过登录、HTTP200但ToolResult报错。绑定、同意、客户端及续期权限均完整；不能让用户反复授权，也不能把查询标为通过。首版诊断只看到适配器转译后的错误，22:55已扩展至原始SDK结果解析、固定参数类型及声明的协议，等待此后的新豆包调用；当前只看到原GPT验证请求，已通过并保持同一账号。用户已被请求在新对话发送“检查 Formward 连接”，不需要再扫码。
+参数修复基线929a9d47的593项单元／集成全部通过，其中14项豆包／桥接专项；lint、typecheck、干净兼容production build及实际Next production HTTP双协议验收通过。带平台保留字段的连接检查与身体查询成功，非法日期、其他未知字段和无效凭据仍拒绝，健康写入0。原无隔离完整运行耗尽本机WSL内存，中断记录保留；最终按78个原测试文件串行独立运行同一套断言，未放宽检查。原生4项、此前H5尺寸与独立review保持原验收范围，不冒充本次手机查询或新视觉验收。
 
-临时诊断仅在上海服务的 `/run/systemd/system/formward-primary.service.d/70-doubao-response-diagnostic.conf` 生效，加载 `/srv/formward-primary/diagnostics/doubao-response.cjs`；扩展版本通过JSON解析边界记录静态错误类别、固定字段类型、协议及已知scope名称，不输出错误原文、参数值、健康数值或令牌。未验证JWT声明单独标注，不代替实际鉴权。`primary.env`保持原字节。源码、更新证明及受控验证在本轮 `.codex/doubao-research/response-diagnostic*`，`read-response-diagnostic.py`读取元数据。定位结束运行同目录 `remove-response-diagnostic.py`按当前证明摘要移除本人drop-in及探针、恢复普通服务，并复核原GPT。不能删除其他drop-in，不能以虚构HTTP通过替代本人App通过；本轮工作区为继续排查而保留。
+发布后另捕获海外回源ETIMEDOUT：上海公开入口200，海外两个别名503，原GPT复核也曾失败。固定公开版本接口的保护探针实测香港`hkg1`无法建立TCP，而美国东部`iad1`的TCP、TLS及HTTP200均通过；切换到iad1后，三入口版本一致，新旧协议发现18工具，8项公开资源SHA一致，原GPT实际get_profile恢复且为同一账号。运行日志的sin1标记不能单独当作函数实际区域；上述探针直接读取VERCEL_REGION。不据此追认更早间歇503的根因。
+
+测试版`0.0.1-dev.20261110.2`保持，本人OpenID交换、WebView回传、绑定、换码和续期已验证。本人确认手机连接检查与最近七天身体查询正常；服务端两工具complete／HTTP200，分别5ms和126ms。无需重扫或重新授权。国服写入确认及完整真机布局未覆盖本轮。
+
+上海临时JSON诊断preload和本人systemd drop-in已移除，实际服务环境无探针；Vercel四个本轮候选／诊断部署已安全删除，临时保护绕过令牌已撤销，两正式别名的诊断路径即使带旧私有头也返回404。只保留不含健康内容的私有证据和兼容回退，不删除其他任务。
+
+本轮私有证据归档至主线main-current工作区的`.codex/doubao-integration-20261111`，包含`doubao-platform-arguments-release`、`doubao-gateway-recovery`、`doubao-research`及前期平台／请求修复材料。真实手机问题已闭环，归档后清理本轮分支与临时工作区；不能公开凭据、真实UID或健康结果。后续网关发布须显式传`--regions iad1`并核对部署API和真实回源；不能只依赖本地vercel.json。
 
 ## 已发布：公开隐私政策与服务条款
 

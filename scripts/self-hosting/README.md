@@ -77,6 +77,8 @@ sudo journalctl -u formward-backup-preview.service -n 20 --no-pager
 
 ## 双区发布与私有HTTPS
 
+当前网关固定iad1：香港回源公开版本接口实测TCP超时，iad1的TCP、TLS及HTTP200通过。国际产物的项目与函数配置均写iad1，发布命令仍须显式传`--regions iad1`，并核对部署API、两个别名和实际回源；仅本地配置或Ready状态不足。业务网关代码、JWT、issuer和resource不因区域改变。
+
 - build-regional-release.mts 通过 pnpm release:regional 唯一发布标识执行；兼容已有表单时传入先前构建的 NEXT_SERVER_ACTIONS_ENCRYPTION_KEY 和 FORMWARD_BUILD_SOURCE_PATH，并核对原 action 标识全部保留。稳定源码路径只接受同仓库已登记 worktree 的私有发布目录下尚不存在的 source-* 子目录，不覆盖已有目录；国际包包含网关、海外图片处理与公开静态 CDN 文件，不包含数据库驱动、schema或COS SDK。源码归档单独保留用于追溯，不作为部署公开文件。
 - activate-preview.sh 需先将 check-release.mjs 安装到 /usr/local/lib/formward，并在 root 专有的 preview.env 配置独立 FORMWARD_READINESS_SECRET。上一代不兼容时失败后停服，不回退到会错误读取COS的版本。当前与上一代自有哈希资源共存，缺失资源仍为404。
 - regional.env.example 给出两节点分工。国际实例禁止配置数据库连接和 Better Auth secret；两区独立 Cookie，共用上海业务校验。
