@@ -1,5 +1,9 @@
 # 单一国服网页与上海主库
 
+## 公开协议
+
+原域名现直接提供[隐私政策](https://formward-ten.vercel.app/privacy.html)和[服务条款](https://formward-ten.vercel.app/terms.html)，生效日期2026年11月10日。两页及legal.css通过Build Output静态文件优先提供，匿名200，无跳转或Cookie；不转至国服登录，也不调用健康API。该发布只新增三份静态文件，253个原文件及网关不变，未重发下方国服应用或改变数据库／授权配置。具体部署与证据见[公开协议资料](doubao-onboarding.md)。
+
 ## 当前部署
 
 日常网页为[国服](https://43.142.148.58)，原GPT／MCP、OAuth与海外图片后台继续由Vercel承担，正式数据统一写入上海。国服应用688081179e63f10f0e5e2e12400cd392c4894572，发布garmin-regions-current-20261110，BUILD_ID -7gprMm9zSgOPO2Tv7euh；已合入并推送main，保留workspace-flow-final的界面与0036。正式库55表、36条migration，本轮没有新增表或migration。
@@ -9,7 +13,7 @@ Garmin已启用personal：有效登录账号从“账号菜单 → 外部接入 
 578项测试、lint、typecheck、干净构建，以及最终standalone双引擎各8组／19图通过，慢查询最大布局偏差0px；线上双端已核看。原GPT连接及Garmin国际站真实只读读取成功；中国站网络可达，缺少真实中国站密钥，完整认证仅用隔离响应验证。真实手机与系统键盘未测。发布、备份、原数据核对、观察窗口、截图及兼容恢复边界见[部署](deployment.md)和[验收](regional-acceptance.md)。
 
 
-海外后台沿用工作区基线的READY dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp、CLE1，两正式别名保持；本轮没有执行海外发布。0036此前以独立管理身份添加提醒忽略表，应用仅保留必要读取／插入权限。工作区加载、助手及严格TLS旧页保存的保留证据见[维护验收](maintenance-verification.md)。
+海外网关函数仍沿用工作区基线源码0f3434d，当前READY为dpl_82o44w2e9c1xGDH3Yxep68LxP7FZ、CLE1，仅增加上方公开协议静态文件，原GPT／OAuth地址保持；旧dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp保留。0036此前以独立管理身份添加提醒忽略表，应用仅保留必要读取／插入权限。工作区加载、助手及严格TLS旧页保存的保留证据见[维护验收](maintenance-verification.md)。
 
 ## 入口与职责
 

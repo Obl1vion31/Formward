@@ -1,5 +1,11 @@
 # 公网 HTTPS 部署
 
+## 公开协议静态发布（2026-11-10）
+
+[隐私政策](https://formward-ten.vercel.app/privacy.html)与[服务条款](https://formward-ten.vercel.app/terms.html)已公开，用户确认生效日期为2026年11月10日。READY为 `dpl_82o44w2e9c1xGDH3Yxep68LxP7FZ`，文稿源码38a3c611已合入推送main。以旧线上Build Output为基线，只新增两份HTML及legal.css，253个既有文件、网关函数和路由哈希不变；未切换国服业务，不涉及数据库结构或健康记录写入。
+
+三个资源匿名HTTPS直接200、MIME与源码SHA一致、无Set-Cookie；两引擎8组公网390／1440及真实互链通过，页面异常和健康API请求均0。国服版本仍为 `dual-entry-68808117-garmin-regions-current-20261110`，未授权身体接口仍401。完整范围、日期修复、68张截图、未测项与私有归档见[公开协议资料](doubao-onboarding.md)。本次没有执行旧数据库回退或创建正式测试账号。
+
 ## 当前正式部署：国服Garmin双站点与海外后台
 
 日常网页为[国服](https://43.142.148.58)，Vercel继续承担原GPT／MCP、OAuth与海外图片后台，正式数据统一写入上海formward_primary。国服应用688081179e63f10f0e5e2e12400cd392c4894572，发布garmin-regions-current-20261110，BUILD_ID -7gprMm9zSgOPO2Tv7euh；已合入并推送main。保留最新workspace-flow-final-20261110的界面及0036，55表、36条migration；本轮Garmin功能没有新增表或migration。本轮未执行海外后台发布，两个入口的版本接口均返回当前国服应用版本，原GPT get_profile仍对应原账号。
@@ -13,7 +19,7 @@
 私有证据为本工作树.codex/garmin-region-current及服务器/var/lib/formward/garmin-regions-current-20261110；线上双端截图在C:/Users/14878/.codex/visualizations/2026/11/10/formward-garmin-regions。保留原GPT、Garmin和图片位置，未创建正式虚构健康记录；Neon继续停写。恢复须兼容0036和v2区域凭据，不能在出现v2连接后直接回退至只支持v1的旧应用；保留数据，采用兼容修复版本。
 
 
-海外后台沿用工作区基线的READY dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp、CLE1，两正式别名保持；本轮没有执行海外发布。0036此前以独立管理身份添加提醒忽略表，应用仅保留必要读取／插入权限。工作区加载、助手及严格TLS旧页保存的保留证据见[维护验收](maintenance-verification.md)。
+海外网关函数仍沿用工作区基线源码0f3434d，当前READY为dpl_82o44w2e9c1xGDH3Yxep68LxP7FZ、CLE1，仅增加上方公开协议静态文件，原GPT／OAuth地址保持；旧dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp保留。0036此前以独立管理身份添加提醒忽略表，应用仅保留必要读取／插入权限。工作区加载、助手及严格TLS旧页保存的保留证据见[维护验收](maintenance-verification.md)。
 
 ## 此前版本：全站静态内容与局部加载反馈（2026-11-08）
 
