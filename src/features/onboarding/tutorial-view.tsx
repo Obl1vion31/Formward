@@ -15,6 +15,9 @@ function loadScript(src:string) {
   });
   pendingScripts.set(src,promise);return promise;
 }
+export function prepareTutorial(){
+  return (async()=>{if(!window.FORMWARD_TUTORIAL_MEDIA)await loadScript("/tutorials/media-manifest.js");if(!window.FormwardTutorial)await loadScript("/tutorials/player.js");})();
+}
 export function TutorialView({startText="返回总览",backText,onStart,onBack,busy=false}:{startText?:string;backText?:string;onStart?:()=>void;onBack?:()=>void;busy?:boolean}) {
   const ref=useRef<HTMLDivElement>(null),handlers=useRef({onStart,onBack}),router=useRouter();
   const [error,setError]=useState(false),[attempt,setAttempt]=useState(0),[loaded,setLoaded]=useState(false);
@@ -29,8 +32,7 @@ export function TutorialView({startText="返回总览",backText,onStart,onBack,b
     host.addEventListener("click",action);
     void (async()=>{
       try{
-        if(!window.FORMWARD_TUTORIAL_MEDIA)await loadScript("/tutorials/media-manifest.js");
-        if(!window.FormwardTutorial)await loadScript("/tutorials/player.js");
+        await prepareTutorial();
         if(!live)return;
         const player=window.FormwardTutorial!;
         host.innerHTML=player.render({startText,...(backText?{backText,backAction:"back"}:{})});
@@ -39,7 +41,7 @@ export function TutorialView({startText="返回总览",backText,onStart,onBack,b
     })();
     return()=>{live=false;host.removeEventListener("click",action);mounted?.dispose();host.replaceChildren();};
   },[startText,backText,attempt,router]);
-  useEffect(()=>{ref.current?.querySelectorAll<HTMLButtonElement>("[data-action]").forEach(button=>button.disabled=busy);},[busy,loaded]);
+  useEffect(()=>{ref.current?.querySelectorAll<HTMLButtonElement>("[data-action]").forEach(button=>{button.disabled=busy;button.setAttribute("aria-busy",String(busy));});},[busy,loaded]);
   return <div className="onboarding-tutorial">
     <div ref={ref}/>
     {!loaded&&<section className="tutorial-fallback"><h1>使用说明</h1>

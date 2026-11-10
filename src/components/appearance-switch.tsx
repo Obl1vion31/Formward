@@ -1,12 +1,8 @@
 "use client";
 import {useSyncExternalStore} from "react";
+import {GlassMenu} from "./glass-menu";
 import styles from "./appearance-switch.module.css";
 import {appearanceSnapshot,appearanceServerSnapshot,subscribeAppearance,chooseAppearance} from "./appearance-state";
-export function AppearanceSwitch({compact=false}:{compact?:boolean}){
- const theme=useSyncExternalStore(subscribeAppearance,appearanceSnapshot,appearanceServerSnapshot);
- const values=["system","light","dark"] as const;
- return <div className={styles.switch+(compact?" "+styles.compact:"")} role="group" aria-label="外观"><div role="radiogroup" aria-label="选择外观" onKeyDown={event=>{if(!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;event.preventDefault();const index=event.key==="Home"?0:event.key==="End"?2:(values.indexOf(theme)+(event.key==="ArrowLeft"?2:1))%3;chooseAppearance(values[index]);event.currentTarget.querySelectorAll<HTMLButtonElement>("button")[index]?.focus();}}>{values.map(value=><button key={value} type="button" role="radio" aria-checked={theme===value} tabIndex={theme===value?0:-1} onClick={()=>chooseAppearance(value)}>{value==="system"?"跟随系统":value==="light"?"浅色":"深色"}</button>)}</div></div>;
-}
 export function AppearanceSync(){useSyncExternalStore(subscribeAppearance,appearanceSnapshot,appearanceServerSnapshot);return null;}
 
 export function AppearanceToggle(){
@@ -20,3 +16,6 @@ export function FollowSystemAppearance(){
  const appearance=useSyncExternalStore(subscribeAppearance,appearanceSnapshot,appearanceServerSnapshot);
  return <button type="button" role="menuitemcheckbox" data-menu-stay-open aria-checked={appearance==="system"} onClick={()=>chooseAppearance(appearance==="system"?(document.documentElement.dataset.theme==="light"?"light":"dark"):"system")}><span>跟随系统外观</span><span className={styles.systemToggle} data-checked={appearance==="system"} aria-hidden="true"/></button>;
 }
+
+/** 首次使用与演练没有账号菜单，系统外观放在同款轻量菜单内。 */
+export function OnboardingAppearance(){return <div className={styles.onboarding}><AppearanceToggle/><GlassMenu label="外观选项" onOpen={()=>{}} icon={<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>}><FollowSystemAppearance/></GlassMenu></div>;}

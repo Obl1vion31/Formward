@@ -361,3 +361,5 @@ production build 后以 FORMWARD_LOADING_NATIVE=1、FORMWARD_LOADING_PREVIEW=1 �
 最终产物可通过 FORMWARD_LOADING_RELEASE 指向本仓库 .codex/regional-releases 下的 standalone，复用相同隔离数据库与验收流程。PLAYWRIGHT_MODULE 可指定独立测试运行库，不改变应用依赖。Linux WebKit r2370 存在上游毛玻璃渲染回归，相关失败须保留；本轮以Playwright 1.65.0／WebKit r2388复核，不把旧引擎卡帧计作通过，依据见[上游问题](https://github.com/microsoft/playwright/issues/43426)。
 
 FORMWARD_CHART_BODY_ONLY=1只核对各尺寸的坐标、读数、点选、实际点径及线宽，不计为往返动效通过；FORMWARD_CHART_WIDTHS以逗号选择诊断尺寸。FORMWARD_CHART_HEADED=1可配合隔离Xvfb核对GTK WebKit，与默认WPE后端分别保留报告。更换采样后端或关闭录制不能将之前的失败样本改写为通过。
+
+首次引导及演练复验使用 onboarding-feedback.browser.mjs，复用 workspace-loading 的隔离预览配置（FORMWARD_LOADING_CONFIG）。覆盖 owner 填写、跳过、返回资料、演练完成后真实点击返回总览，两主题和七种视口、文字放大及系统外观；真实新账号慢请求、失败保留输入、重试及完成。证据含截图和完整录像，核对演练无 POST／资料或健康记录写入。GUIDANCE_BROWSER、PLAYWRIGHT_MODULE 和 FEEDBACK_ARTIFACTS 分别选择浏览器、运行库与私有证据位置。

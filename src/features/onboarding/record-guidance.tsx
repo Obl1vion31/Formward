@@ -18,6 +18,7 @@ export function RecordGuidanceProvider({accountId,children}:{accountId:string;ch
  useEffect(()=>{currentPath.current=path;},[path]);
  const remember=useCallback((kind:RecordGuideKind)=>{const key=recordGuideKey(accountId,kind);seen.current.add(key);try{localStorage.setItem(key,"seen");}catch{/* 禁用存储时，本次登录仍只提示一次。 */}},[accountId]);
  const finish=useCallback(()=>setTour(null),[]);
+ useEffect(()=>{const sync=(event:StorageEvent)=>{if(event.newValue!=="seen")return;for(const kind of Object.keys(recordGuides) as RecordGuideKind[])if(event.key===recordGuideKey(accountId,kind)){seen.current.add(event.key);}};window.addEventListener("storage",sync);return()=>window.removeEventListener("storage",sync);},[accountId]);
  useEffect(()=>{
   // 等真实 DOM 就绪后读取本设备标记；导航取消时清理未执行的帧。
   const frame=requestAnimationFrame(()=>{
