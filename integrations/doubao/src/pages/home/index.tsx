@@ -1,3 +1,4 @@
+import { definePage } from '@doubao-dev/framework';
 import { FormwardConnection } from '../../shared/connection';
 
-export default function HomePage() { return <FormwardConnection />; }
+export default definePage({ render: () => <FormwardConnection /> });
