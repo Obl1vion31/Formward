@@ -1,5 +1,15 @@
 # 完善任务验收
 
+## 豆包单餐参数与预览
+
+本次606项单元／集成（80个原测试文件串行独立执行）、lint、typecheck、原生4项、Manifest校验、原生本地构建及干净兼容production build通过。实际Next production双协议发现19项工具，单餐与多食物预览、未知与0、原页面200、非法参数与无效凭据拒绝均通过，AI正式健康写入0。Chrome实际核对桌面及390×780预览、依据和修改入口；截图位于私有验收归档，不冒充真实豆包WebView通过。
+
+同组3个虚构请求在官方模拟器对照：旧版均在派发前出现tool_call_arguments_invalid；新版均调用preview_meal、返回pending且canConfirm=true，日期、未知／0与食物清单正确，模型回复包含真实确认链接。测试Manifest只在回环fixture用预授权虚构身份，两组设置一致；正式19项工具仍normal登录。CLI 0.0.41即使指定--expect-card none仍报card_binding_missing，因此完整模拟器Verdict未通过，不能把3次工具成功称为总体成功率或整体验收通过。先前网络错误、来源别名、错误相对日期及多杂项失败均留档，最终修正后样本不再出现这些错误。
+
+测试版`0.0.1-dev.20261111.1`已云构建succeeded，Manifest、运行态Skill、原生源码及未扩权的业务声明已上传。平台配置预览核对19项工具、新增单餐的完整foods字段及最新Skill；Debugger二维码已打开。原`.20261110.2`保留供兼容查看。本人的既有连接检查和身体查询已通过；本次新记餐工具的真实手机调用与国服最终确认仍待复测，不要求重建既有GPT连接。
+
+对照、质量检查、实际Next HTTP、构建、公开入口及服务器结果归档在main-current工作区`.codex/doubao-simple-meal-20261111`；桌面和390px截图包含虚构测试午餐、两项食物、未知与明确0。只检查本轮结果页及修改入口可达，未改确认页样式，未重复声称全站尺寸／WebKit或物理手机通过。
+
 ## 首次引导、演练返回与主题（2026-11-11）
 
 - 正式应用`dual-entry-2f5f88d9-onboarding-polish-20261111`，源码`2f5f88d91c84d76e805a80cb399b229efa74d7df`，BUILD_ID `-RJ9xA391kipEY1C9nNgv`；已合入并推送main。三个公网入口版本及新版CSS／JS SHA核对通过。
