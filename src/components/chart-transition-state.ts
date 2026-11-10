@@ -8,6 +8,9 @@ export type ChartOrigin = { kind: TrendKind; destination: string; scroll: number
 export type OverviewViewState={mode:string|null;custom:{from:string;to:string}};
 export type ChartTransitionState = {
   preview: MetricTrendModel | null;
+  returningToOverview:boolean;
+  overviewReady:()=>void;
+  cancelOverviewReturn:(href:string)=>void;
   navigate: (href: string, model: MetricTrendModel, source: SVGSVGElement, rail: HTMLElement | null) => Promise<void>;
   register: (target: ChartTarget) => () => void;
   restore: (rail: HTMLElement) => void;
@@ -16,5 +19,5 @@ export type ChartTransitionState = {
   recallOverview: () => OverviewViewState | null;
   rememberOverview: (state:OverviewViewState) => void;
 };
-export const ChartTransitionContext = createContext<ChartTransitionState>({ preview:null, navigate: async()=>{}, register:()=>()=>{}, restore:()=>{}, back:()=>{}, invalidate:()=>{},recallOverview:()=>null,rememberOverview:()=>{} });
+export const ChartTransitionContext = createContext<ChartTransitionState>({ preview:null, returningToOverview:false, overviewReady:()=>{}, cancelOverviewReturn:()=>{}, navigate: async()=>{}, register:()=>()=>{}, restore:()=>{}, back:()=>{}, invalidate:()=>{},recallOverview:()=>null,rememberOverview:()=>{} });
 export const useChartTransition = () => useContext(ChartTransitionContext);

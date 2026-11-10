@@ -137,7 +137,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
 
        title={metricName(activeMetric)+" · "+unitFor(activeMetric)}
        options={<label className={styles.toggle}><span>晚间</span><input aria-label="晚间数据" type="checkbox" checked={showEvening} onChange={event=>{transition.invalidate();setShowEvening(event.target.checked);}}/></label>}
-       legend={<><span><i style={{background:"var(--gold)",borderRadius:"50%"}}/>晨间空腹</span>{showEvening&&<span><i style={{background:"var(--data-deficit)",borderRadius:"50%"}}/>晚间</span>}</>}
+       legend={<><span><i style={{background:"var(--data-weight)",borderRadius:"50%"}}/>晨间空腹</span>{showEvening&&<span><i style={{background:"var(--data-deficit)",borderRadius:"50%"}}/>晚间</span>}</>}
       ><div data-chart-metric={activeMetric}><BodyTrendPlot linked={!!initialTrend&&range.start===initialTrend.from&&range.end===initialTrend.to} records={visibleRecords} metric={activeMetric} showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
       </RecordTrendPanel>
     </section>

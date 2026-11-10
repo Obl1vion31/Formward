@@ -35,9 +35,9 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
   const plotHeight=compact?plotWidth/2:(mobile?180:252)-top-32,height=top+plotHeight+32,plotBottom=top+plotHeight;
   const x=(date:string)=>left+(span?(5+(calendarOrdinal(date)-calendarOrdinal(interval.start))/span*230)/240:.5)*plotWidth;
   const y=(value:string|null)=>top+(5+scale.position(Number(value))*110)/120*plotHeight;
-  const sharedMorning=metric==="weightKg"&&!showEvening;
-  const byDate=new Map(points.map(row=>[row.recordDate,row]));
-  const model=metricTrendModel("morning-weight",dates.map(date=>({date,value:byDate.get(date)?.weightKg!=null?Number(byDate.get(date)!.weightKg):null})),scale);
+  const canShare=metric==="weightKg"&&!showEvening;
+  const byDate=new Map(points.filter(row=>row.period==='daytime').map(row=>[row.recordDate,row]));
+  const model=metricTrendModel("morning-weight",dates.map(date=>({date,value:byDate.get(date)?.[metric]!=null?Number(byDate.get(date)![metric]):null})),scale);
   const pointDays = [...new Set(points.map(row => row.recordDate))].sort();
   const hitColumns = new Map(pointDays.map((date, index) => [date, {
     left: index ? (x(pointDays[index - 1]) + x(date)) / 2 : 0,
@@ -63,10 +63,10 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
         {scale.ticks.filter((_,i)=>i%Math.max(1,Math.ceil(24*(scale.ticks.length-1)/plotHeight))===0).map((value) => <g key={value}><line x1={left} x2={width-right} y1={y(String(value))} y2={y(String(value))} className={styles.grid} /><text x={left-8} y={y(String(value)) + 4} textAnchor="end" className={styles.axis}>{value.toFixed(1)}</text></g>)}
         {ticks.map((date) => <text key={date} x={x(date)} y={height-10} textAnchor={date===interval.start?"start":date===interval.end?"end":"middle"} className={styles.axis}>{shortRecordDate(date)}</text>)}
         <ChartSelectionColumn x={selectedX} date={selectedDate} column={selectedColumn} plot={{left,right:width-right,top,bottom:plotBottom}} resetKey={markerKey} direct={selection.direct}/>
-        {(["daytime","evening"] as const).map(period=>{const point=points.find(row=>row.recordDate===selectedDate&&row.period===period);return <ChartSelectionPoint key={period} x={point?x(point.recordDate):null} y={point?y(point[metric]):0} resetKey={markerKey} direct={selection.direct} color={period==="daytime"?"var(--body-gold)":"var(--body-blue)"}/>;})}
+        {(["daytime","evening"] as const).map(period=>{const point=points.find(row=>row.recordDate===selectedDate&&row.period===period);return <ChartSelectionPoint key={period} x={point?x(point.recordDate):null} y={point?y(point[metric]):0} resetKey={markerKey} direct={selection.direct} color={period==="daytime"?"var(--data-weight)":"var(--body-blue)"}/>;})}
         {pairs.map((day) => <line data-pair={day.date} key={day.date} x1={x(day.date)} x2={x(day.date)} y1={y(day.daytimeRecord![metric])} y2={y(day.eveningRecord![metric])} className={styles.pairLine} />)}
-        {sharedMorning&&<TrendGlyph target={viewportWidth>0} model={model} x={left} y={top} width={plotWidth} height={plotHeight}/>}
-        {!sharedMorning&&segments.map(({ a, b, period }) => <line data-chart-line key={`${a.id}:${b.id}`} data-segment="continuous" data-period={period} x1={x(a.recordDate)} y1={y(a[metric])} x2={x(b.recordDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} `} style={{strokeWidth:span<7?2.5:1.75}} vectorEffect="non-scaling-stroke" />)}
+        {<TrendGlyph target={viewportWidth>0&&canShare} model={model} x={left} y={top} width={plotWidth} height={plotHeight}/>}
+        {segments.filter(segment=>segment.period==='evening').map(({ a, b, period }) => <line data-chart-line key={`${a.id}:${b.id}`} data-segment="continuous" data-period={period} x1={x(a.recordDate)} y1={y(a[metric])} x2={x(b.recordDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} `} style={{strokeWidth:span<7?2.5:1.75}} vectorEffect="non-scaling-stroke" />)}
         {[...points].sort((a, b) => Number(a.period === "daytime") - Number(b.period === "daytime")).map((row) => {
           const label = pointLabel(row);
           // 相邻日期与同日晨晚点各用中线划分点击区域，避免透明命中区遮住另一条记录。
@@ -84,7 +84,7 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
             <title>{`${row.timePrecision==="second"?row.sourceLocalTime:"无准确时间"} · ${label}`}</title>
             <defs><clipPath id={clipId}><rect x={clipLeft} y={clipTop} width={clipRight - clipLeft} height={clipBottom - clipTop} /></clipPath></defs>
             <circle cx={x(row.recordDate)} cy={ownY} r="14" className={styles.hitTarget} clipPath={`url(#${clipId})`} />
-            {!sharedMorning&&<circle cx={x(row.recordDate)} cy={y(row[metric])} r={row.period === "daytime" ? (span<7?4.5:3.5) : (span<7?4:3.2)} className={row.period === "daytime" ? styles.dayPoint : styles.nightPoint} />}
+            {row.period==='evening'&&<circle cx={x(row.recordDate)} cy={y(row[metric])} r={span<7?4:3.2} className={styles.nightPoint} />}
           </g>;
         })}
         {!points.length && <text x={width / 2} y="118" textAnchor="middle" className={styles.emptyChart}>{`此区间暂无${showEvening ? "" : "空腹"}${metricName(metric)}记录`}</text>}

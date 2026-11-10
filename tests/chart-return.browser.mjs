@@ -21,7 +21,7 @@ async function create(width,height,theme='light'){
  await context.addInitScript(theme=>{
   localStorage.setItem('formward-theme',theme);
   window.chartFrames=[];window.chartMark=null;window.chartStarts=[];
-  document.addEventListener('click',event=>{const link=event.target.closest?.('a[href="/dashboard"]');if(link&&location.pathname!=='/dashboard'){window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];}},true);
+  document.addEventListener('click',event=>{const card=event.target.closest?.('a[data-metric-card]');if(card)window.chartOrigin={rail:card.closest('[data-metric-rail]').scrollLeft,scroll:scrollY};const link=event.target.closest?.('a[href="/dashboard"]');if(link&&location.pathname!=='/dashboard'){window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];}},true);
   new MutationObserver(()=>{
    if(window.chartMark===null)return;
    const node=document.querySelector('[data-chart-flight][data-motion-starts="1"]');
@@ -54,6 +54,8 @@ async function inspectReturn(page,label,{paired=true,warm=true}={}){
  if(paired){assert.ok(first,label+'缺少回程运动');assert.ok(starts[0],label+'缺少运动启动');if(warm)assert.ok(starts[0].t<=100,label+'起步超过100ms: '+starts[0].t);}
  for(const frame of back)if(!frame.visible&&frame.path!=='/dashboard')assert.equal(frame.sourceVisible,true,label+'等待时原图消失');
  assert.equal(await page.locator('[data-chart-flight],[data-chart-travelling]').count(),0);
+ const position=await page.evaluate(()=>({expected:window.chartOrigin,rail:document.querySelector('[data-metric-rail]').scrollLeft,scroll:scrollY}));
+ if(position.expected){assert.ok(Math.abs(position.rail-position.expected.rail)<=1,label+'卡片带未恢复');assert.ok(Math.abs(position.scroll-position.expected.scroll)<=1,label+'页面滚动未恢复');}
  return result;
 }
 async function bodyGeometry(page){return page.evaluate(()=>{
@@ -99,6 +101,9 @@ try{
    await page.locator('[data-metric-card="energy"]').click();await page.waitForTimeout(40);await overview(page).click();await inspectReturn(page,`${width}-quick-reverse`,{warm:false});
    await page.locator('[data-metric-card="morning-weight"]').click();await settled(page);
    await page.evaluate(()=>{window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];});await page.goBack();await inspectReturn(page,`${width}-browser-back`,{warm:false});
+   await page.locator('[data-metric-card="intake"]').click();await settled(page);await delay(650);await overview(page).click();
+   await page.getByRole('navigation',{name:'主导航',exact:true}).getByRole('link',{name:'身体',exact:true}).click();await page.waitForURL(url=>url.pathname==='/dashboard/measurements');await settled(page);
+   assert.equal(await page.locator('[data-workspace-frame=body]').count(),1);assert.equal(await page.locator('[data-chart-flight],[data-return-covered]').count(),0);await delay(0);
    console.log(JSON.stringify({width,returns:results.length,body:body.length}));
   }finally{await delay(0);await context.close();}
  }

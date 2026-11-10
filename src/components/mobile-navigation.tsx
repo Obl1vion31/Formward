@@ -26,8 +26,9 @@ export function MobileNavigation({ pathname, onSelect }: { pathname: string; onS
     return () => { observer.disconnect(); query.removeEventListener("change", sync); cancelAnimationFrame(state.frame); };
   }, [index, count, settle]);
   const select = async (target: number, step: number) => {
-    if (!onSelect && target === 0 && pathname !== "/dashboard") { await chart.back(); return; }
+    if (!onSelect && target === 0 && (pathname !== "/dashboard"||chart.returningToOverview)) { await chart.back(); return; }
     if (draftIsBusy() || !await confirmDraftDiscard()) { settle(index * step); return; }
+    if(!onSelect)chart.cancelOverviewReturn?.(pages[target][0]);
     settle(target * step); if (onSelect) onSelect(pages[target][0]); else startTransition(() => router.push(pages[target][0]));
   };
   return <nav ref={nav} className={"mobile-bottom-nav " + styles.mobileNav + (onSelect ? " " + styles.previewNav : "")} style={{ "--nav-count": count } as CSSProperties} aria-label="主导航" onDragStart={event => event.preventDefault()}
@@ -36,6 +37,6 @@ export function MobileNavigation({ pathname, onSelect }: { pathname: string; onS
     onPointerMove={event => { const d = drag.current; if (!d) return; d.moved ||= Math.abs(event.clientX - d.x) > 7; if (!d.moved) return; event.currentTarget.setPointerCapture(event.pointerId); cancelAnimationFrame(motion.current.frame); const step = (d.width - 12) / count, next = Math.max(-4, Math.min(step * (count - 1) + 4, event.clientX - d.left - 6 - step / 2)); motion.current.v = (next - motion.current.x) * 35; motion.current.x = next; if (lens.current) lens.current.style.transform = `translateX(${next}px)${matchMedia("(prefers-reduced-motion: reduce)").matches ? "" : " scale(1.08,.97)"}`; }}
     onPointerCancel={() => { drag.current = null; settle(index * ((nav.current?.clientWidth ?? 0) - 12) / count); }}
     onPointerUp={event => { const d = drag.current; drag.current = null; if (!d?.moved) return; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); suppress.current = performance.now() + 350; const step = (d.width - 12) / count, target = Math.max(0, Math.min(count - 1, Math.round(motion.current.x / step))); void select(target, step); }}>
-    <span ref={lens} className={styles.navLens} aria-hidden="true"/>{pages.map(([href, label], i) => <LoadingLink key={href} href={href} aria-current={pathname === href ? "page" : undefined} onNavigate={onSelect ? event => { event.preventDefault(); onSelect(href); } : href === "/dashboard" && pathname !== "/dashboard" ? event => { event.preventDefault(); void chart.back(); } : undefined}><NavigationIcon index={i}/><span>{label}</span></LoadingLink>)}
+    <span ref={lens} className={styles.navLens} aria-hidden="true"/>{pages.map(([href, label], i) => <LoadingLink key={href} href={href} aria-current={pathname === href ? "page" : undefined} onNavigate={onSelect ? event => { event.preventDefault(); onSelect(href); } : href === "/dashboard" && (pathname !== "/dashboard"||chart.returningToOverview) ? event => { event.preventDefault(); void chart.back(); } : ()=>chart.cancelOverviewReturn?.(href)}><NavigationIcon index={i}/><span>{label}</span></LoadingLink>)}
   </nav>;
 }

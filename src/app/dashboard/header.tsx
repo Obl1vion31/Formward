@@ -19,14 +19,15 @@ import { LocalLoading } from "@/components/local-loading";
 import styles from "./header.module.css";
 type Group = "root" | "external" | "account" | "admin";
 export function DashboardHeader({ email, owner = false, sourcePilot = false }: { email: string; owner?: boolean; sourcePilot?: boolean }) {
-  const pathname = usePathname(), mobile = useMobileMode(), [settings, setSettings] = useState<false | "profile" | "account" | "sources">(false), [group, setGroup] = useState<Group>("root");
+  const actualPath = usePathname(), mobile = useMobileMode(), [settings, setSettings] = useState<false | "profile" | "account" | "sources">(false), [group, setGroup] = useState<Group>("root");
   const { open: assistantOpen, toggle: toggleAssistant, hide: hideAssistant, count } = useAssistant(), chart = useChartTransition();
+  const pathname=chart.returningToOverview?"/dashboard":actualPath;
   const previousGroup = useRef<Group>("root"), menuClose = useRef<() => Promise<void>>(() => Promise.resolve()), dock = useRef<HTMLDivElement>(null), [pendingAccount, setPendingAccount] = useState<string | null>(null);
   const pendingChanges = useMemo(() => Object.fromEntries(["sources", "profile", "account"].map(kind => [kind, (pending: boolean) => setPendingAccount(current => pending ? kind : current === kind ? null : current)])), []);
   const page = pages.find(([path]) => path === pathname), visualReview = pathname === "/dashboard/visual-review", review = pathname.includes("/operations/") || pathname.includes("/review/"), hasTools = !review && assistantAvailablePage(pathname);
   const openSettings = async (kind: "profile" | "account" | "sources") => { await menuClose.current(); document.querySelector<HTMLElement>('.dashboard-header summary[aria-label="账号菜单"]')?.focus({ preventScroll: true }); setSettings(kind); };
   const openAssistant = async () => { await menuClose.current(); toggleAssistant(); };
-  const overview = (event: { preventDefault(): void }) => { if (pathname !== "/dashboard") { event.preventDefault(); void chart.back(); } };
+  const overview = (event: { preventDefault(): void }) => { if (actualPath !== "/dashboard"||chart.returningToOverview) { event.preventDefault(); void chart.back(); } };
   useLayoutEffect(() => {
     const node = dock.current; if (!node || !mobile) return;
     const measure = () => { document.documentElement.style.setProperty("--workspace-dock-inset", Math.ceil(innerHeight - node.getBoundingClientRect().top + 8) + "px"); };
@@ -53,7 +54,7 @@ export function DashboardHeader({ email, owner = false, sourcePilot = false }: {
       </div>
     </header>
     {!review && !visualReview && <>
-      <nav className={"desktop-record-nav " + styles.desktopNav} aria-label="主导航"><span className={styles.desktopLens} aria-hidden="true" style={{ transform: "translateY(" + Math.max(0, pages.findIndex(([href]) => href === pathname)) * 74 + "px)" }}/>{pages.map(([href, label], index) => <LoadingLink key={href} href={href} onNavigate={href === "/dashboard" ? overview : undefined} aria-current={pathname === href ? "page" : undefined}><NavigationIcon index={index}/><span>{label}</span></LoadingLink>)}</nav>
+      <nav className={"desktop-record-nav " + styles.desktopNav} aria-label="主导航"><span className={styles.desktopLens} aria-hidden="true" style={{ transform: "translateY(" + Math.max(0, pages.findIndex(([href]) => href === pathname)) * 74 + "px)" }}/>{pages.map(([href, label], index) => <LoadingLink key={href} href={href} onNavigate={href === "/dashboard" ? overview : ()=>chart.cancelOverviewReturn?.(href)} aria-current={pathname === href ? "page" : undefined}><NavigationIcon index={index}/><span>{label}</span></LoadingLink>)}</nav>
       <div ref={dock} className={styles.mobileDock} data-workspace-dock><MobileNavigation pathname={pathname}/>{hasTools && assistantButton}</div>
     </>}
     {hasTools && <div className={styles.desktopAssistant}>{assistantButton}</div>}

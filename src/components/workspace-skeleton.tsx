@@ -24,7 +24,7 @@ import {EnergyPlotFrame} from '@/features/activities/energy-plot-frame';
 import overview from '@/features/dashboard/overview.module.css';
 export function WorkspaceSkeleton({kind}:{kind:'overview'|'nutrition'|'energy'|'body'}){
  const sourcePilot=useContext(WorkspaceSourceContext);
- const {preview}=useChartTransition(),ref=useRef<HTMLDivElement>(null),router=useRouter(),[slow,setSlow]=useState(false),params=useSearchParams(),mobile=useMobileMode();
+ const {preview,returningToOverview}=useChartTransition(),ref=useRef<HTMLDivElement>(null),router=useRouter(),[slow,setSlow]=useState(false),params=useSearchParams(),mobile=useMobileMode();
  const model=preview&&((kind==='nutrition'&&preview.kind==='intake')||(kind==='body'&&preview.kind==='morning-weight')||(kind==='energy'&&preview.kind==='energy'))?preview:null;
  const linked=!!linkedTrend(Object.fromEntries(params)),shared=kind!=="overview",adaptive=mobile||shared;
  const tickLabels=kind==='body'?(model?.ticks??[0,99]).map(value=>value.toFixed(1)):model?.ticks??[0,1000];
@@ -32,7 +32,7 @@ export function WorkspaceSkeleton({kind}:{kind:'overview'|'nutrition'|'energy'|'
  useEffect(()=>{const timer=setTimeout(()=>setSlow(true),8000);return()=>clearTimeout(timer);},[]);
  const body=kind==='body',title={overview:'总览',nutrition:'饮食',energy:'消耗',body:'身体'}[kind];
  const labels=kind==='nutrition'?['热量','蛋白质','碳水','脂肪']:body?['晨间体重','','7日平均体重']:['总消耗','静息','活动'];
- const range=params.get('view')==='trend'?'custom':mobile?'7':'30',date=linkedDate(params.get('date'))??'';
+ const range=params.get('view')==='trend'?'custom':mobile?'7':'30',date=kind==='overview'?'':linkedDate(params.get('date'))??'';
  const svgHeight=kind==='energy'&&measuredHeight>0?measuredHeight:kind==='nutrition'?(adaptive?top+plotWidth/2+32:194):kind==='energy'?(adaptive?top+plotWidth/2+32:width<650?198:254):shared?top+plotWidth/2+32:mobile?180:252;
  return <div className="workspace-skeleton" aria-busy="true" aria-label={title+'数据加载中'}>
  {kind==='overview'?<OverviewSkeleton date={date}/>:<RecordWorkspace title={title}>
@@ -40,7 +40,7 @@ export function WorkspaceSkeleton({kind}:{kind:'overview'|'nutrition'|'energy'|'
   metrics={labels.map((label,index)=>({label,value:'',tone:kind==='energy'?index===1?'blue':index===2?'red':undefined:kind==='nutrition'&&index===0?'blue':undefined,action:body&&index===0?<button type="button" onClick={()=>window.dispatchEvent(new Event('formward-open-body-settings'))}>身体设置</button>:undefined,reserveNote:kind==='nutrition'&&index>0,inlineUnit:body||kind==='nutrition'&&index>0,unit:body?index===1?'':'kg':kind==='nutrition'&&index>0?'g':'kcal'}))}
   title={kind==='nutrition'?'每日摄入':body?'体重 · kg':'每日消耗'} unit={body?undefined:'kcal'} range={<ChartRanges value={range} change={()=>{}} loading/>}
   options={kind==='nutrition'?<InlineChartControls><div role="group" aria-label="营养占比口径"><button type="button" disabled aria-pressed>克数占比</button><button type="button" disabled aria-pressed={false}>能量占比</button></div></InlineChartControls>:body?<label className={bodyStyles.toggle}><span>晚间</span><input aria-label="晚间数据" type="checkbox" disabled checked={params.get("view")!=="trend"} readOnly/></label>:undefined}
-  legend={kind==='nutrition'?<NutritionLegend/>:body?<><span><i style={{background:'var(--gold)',borderRadius:'50%'}}/>晨间空腹</span>{params.get('view')!=='trend'&&<span><i style={{background:'var(--data-deficit)',borderRadius:'50%'}}/>晚间</span>}</>:<EnergyLegend/>}
+  legend={kind==='nutrition'?<NutritionLegend/>:body?<><span><i style={{background:'var(--data-weight)',borderRadius:'50%'}}/>晨间空腹</span>{params.get('view')!=='trend'&&<span><i style={{background:'var(--data-deficit)',borderRadius:'50%'}}/>晚间</span>}</>:<EnergyLegend/>}
   graphic={kind==='nutrition'?<SkeletonBlock width={84} height={84} radius={42}/>:kind==='energy'?<EnergyComposition resting={null} active={null}/>:<div className="body-spark"><SkeletonBlock height={32}/></div>}>
  <SkeletonPlotFrame kind={kind} frameRef={ref} shared={shared} linked={linked} adaptive={mobile===null&&!shared?'auto':adaptive} axisLeft={"max("+(kind==="body"?48:50)+"px, calc("+Math.max(...tickLabels.map(value=>String(value).length))+"ch + 12px))"}>
   <svg preserveAspectRatio="none" viewBox={'0 0 '+width+' '+svgHeight} aria-hidden="true"><g data-chart-placeholder stroke="var(--line-soft)">{[0,.33,.66,1].map(part=><line key={part} x1={left} x2={width-right} y1={top+(svgHeight-top-32)*part} y2={top+(svgHeight-top-32)*part}/>)}</g>
@@ -51,7 +51,7 @@ export function WorkspaceSkeleton({kind}:{kind:'overview'|'nutrition'|'energy'|'
  {kind==='energy'&&sourcePilot&&<EnergySourceStatusSkeleton/>}
  <DailyRecords loading actions={kind==='nutrition'?<button type="button" disabled>食材库</button>:undefined}/>
  </RecordWorkspace>}
- {slow&&<div className="skeleton-retry" role="status">读取时间较长。<button onClick={()=>router.refresh()}>重试</button><button onClick={()=>router.push('/dashboard')}>返回总览</button></div>}
+ {slow&&<div className="skeleton-retry" role="status">读取时间较长。<button onClick={()=>kind==='overview'&&returningToOverview?router.push('/dashboard',{scroll:false}):router.refresh()}>重试</button><button onClick={()=>router.push('/dashboard')}>返回总览</button></div>}
  </div>;
 }
 function OverviewSkeleton({date}:{date:string}){return <RecordWorkspace title="总览" className={overview.workspace}>
