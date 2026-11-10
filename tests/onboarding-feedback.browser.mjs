@@ -26,9 +26,9 @@ async function shot(p,name){await p.evaluate(()=>document.fonts.ready);await p.s
 async function noOverlay(p){assert.equal(await p.locator('.page-loading-dialog[open],.workspace-loading,.page-loading-fallback:not([hidden])').count(),0);}
 try{
  for(const size of [[320,640],[390,780],[430,780],[640,360],[1100,780],[1440,900],[1920,1080]])for(const theme of ['light','dark']){
-  const {c,p}=await context(config.empty,size,theme);await p.goto(config.baseURL+'/onboarding?mode=test');await p.getByRole('heading',{name:'先认识一下你'}).waitFor();
+  const {c,p}=await context(config.empty,size,theme,size[0]===390?"no-preference":"reduce");await p.goto(config.baseURL+'/onboarding?mode=test');await p.getByRole('heading',{name:'先认识一下你'}).waitFor();
   assert.equal(await p.getByRole('radiogroup',{name:'选择外观'}).count(),0);
-  await p.getByRole('button',{name:theme==='light'?'切换为深色':'切换为浅色',exact:true}).click();await p.waitForFunction(mode=>document.documentElement.dataset.theme!==mode,theme);
+  await p.getByRole('button',{name:theme==='light'?'切换为深色':'切换为浅色',exact:true}).click();await p.waitForFunction(mode=>document.documentElement.dataset.theme!==mode,theme);if(size[0]===390){await p.waitForTimeout(100);await shot(p,theme+'-circular-reveal');await p.waitForTimeout(450);assert.equal(await p.evaluate(()=>document.documentElement.hasAttribute('data-theme-reveal')),false);}
   await p.getByRole('button',{name:theme==='light'?'切换为浅色':'切换为深色',exact:true}).click();
   await p.getByLabel('外观选项',{exact:true}).click();await p.getByRole('menuitemcheckbox',{name:'跟随系统外观'}).click();assert.equal(await p.evaluate(()=>document.documentElement.dataset.appearance),'system');await p.keyboard.press('Escape');
   await p.getByLabel('身高',{exact:true}).fill('181');await p.getByLabel('出生年份',{exact:true}).selectOption('1994');await p.getByLabel('出生月份',{exact:true}).selectOption('07');await p.getByLabel('出生日期中的日',{exact:true}).selectOption('08');

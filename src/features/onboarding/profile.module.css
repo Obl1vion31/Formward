@@ -19,6 +19,6 @@
 .birthSelect select:hover:not(:disabled){border-color:var(--gold)}.birthSelect select:focus-visible{outline:2px solid var(--gold);outline-offset:2px}.birthSelect select:disabled{opacity:.65;cursor:default}
 .birthSelect svg{position:absolute;right:8px;top:calc(50% - 7px);width:14px;height:14px;pointer-events:none;color:var(--muted)}
 
-.pendingIcon{position:absolute;left:6px;top:50%;transform:translateY(-50%);display:flex}.actions .quiet{min-width:112px}.actions button{padding-inline:28px}.primary:focus-visible,.quiet:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.pendingIcon{position:absolute;left:8px;top:50%;width:18px;height:18px;transform:translateY(-50%);display:flex}.actions .quiet{min-width:112px}.actions button{padding-inline:28px}.primary:focus-visible,.quiet:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 
 .header{height:auto;min-height:64px;padding-block:8px}.headerOptions{min-width:0;max-width:calc(100% - 48px);flex-wrap:wrap;justify-content:flex-end;gap:8px 12px}.headerOptions small{white-space:normal;text-align:right}@media(max-width:700px){.header{min-height:48px;padding-block:2px}}
