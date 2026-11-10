@@ -12,9 +12,9 @@ Vercel当前READY `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129；�
 
 测试版[0.0.1-dev.20261110.2](https://developer.doubao.com/agentic_service/db_app_9m6xflq/versions/0.0.1-dev.20261110.2)保持，不必重装或重新授权。本人手机已完成真实OpenID交换、网页授权回传及平台换码绑定；随后工具请求503已定位为复制Next代理Request的私有状态异常，22:21修复上线，环境文件、原绑定和GPT保持。手机身体查询复测及国服预览确认仍待核对。入口和验证范围见[豆包接入](docs/doubao-onboarding.md)，本次私有证据在 `.codex/doubao-request-fix-release` 与 `.codex/doubao-research`，此前发布与排障材料继续保留；不公开凭据或真实健康结果。
 
-**当前未完成项：** 本人22:26至22:27重试仍提示接口不可用，服务器已通过登录并调用 `query_measurements`／`authorize_formward`，HTTP200但工具结果失败，尚未定位具体类别。用户删除原调试对话后要求重新扫码，已再次交付同一永久有效测试版二维码，等待新对话请求；不要再次要求授权或把查询标为通过。原GPT在临时诊断加载后实测仍为同一账号。
+**当前未完成项：** 本人22:50的新对话仍收到“可能未授权”，服务器三次 `query_measurements` 和一次 `authorize_formward` 均通过登录、HTTP200但ToolResult报错。绑定、同意、客户端及续期权限均完整；不能让用户反复授权，也不能把查询标为通过。首版诊断只看到适配器转译后的错误，22:55已扩展至原始SDK结果解析、固定参数类型及声明的协议，等待此后的新豆包调用；当前只看到原GPT验证请求，已通过并保持同一账号。用户已被请求在新对话发送“检查 Formward 连接”，不需要再扫码。
 
-临时诊断仅在上海服务的 `/run/systemd/system/formward-primary.service.d/70-doubao-response-diagnostic.conf` 生效，加载 `/srv/formward-primary/diagnostics/doubao-response.cjs`，只输出静态错误类别／类型，不输出原文、参数、健康数值或令牌；`primary.env`保持原字节。源码及安装证明在本轮 `.codex/doubao-research/response-diagnostic*`，`read-response-diagnostic.py`读取类别。定位结束运行同目录 `remove-response-diagnostic.py`移除本人drop-in及探针、恢复普通服务，并复核原GPT。不能删除其他drop-in，不能以虚构HTTP通过替代本人App通过；本轮工作区为继续排查而保留。
+临时诊断仅在上海服务的 `/run/systemd/system/formward-primary.service.d/70-doubao-response-diagnostic.conf` 生效，加载 `/srv/formward-primary/diagnostics/doubao-response.cjs`；扩展版本通过JSON解析边界记录静态错误类别、固定字段类型、协议及已知scope名称，不输出错误原文、参数值、健康数值或令牌。未验证JWT声明单独标注，不代替实际鉴权。`primary.env`保持原字节。源码、更新证明及受控验证在本轮 `.codex/doubao-research/response-diagnostic*`，`read-response-diagnostic.py`读取元数据。定位结束运行同目录 `remove-response-diagnostic.py`按当前证明摘要移除本人drop-in及探针、恢复普通服务，并复核原GPT。不能删除其他drop-in，不能以虚构HTTP通过替代本人App通过；本轮工作区为继续排查而保留。
 
 ## 已发布：公开隐私政策与服务条款
 
