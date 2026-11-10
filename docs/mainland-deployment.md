@@ -6,7 +6,13 @@
 
 ## 当前部署
 
-日常网页为[国服](https://43.142.148.58)，当前应用`dual-entry-04d25b30-skeleton-contrast-20261110`，构建源码`04d25b300dffee62f5669211beee3200c6a5880e`，BUILD_ID `fqTfJlxhDaX7x1bzy7WOH`，发布目录`skeleton-contrast-20261110`；已合入并推送main。上海`formward_primary`保持55表、36条migration，本轮只调整共用骨架颜色，没有数据库、业务计算、公开接口或加载时序变更。
+日常网页为[国服](https://43.142.148.58)，当前应用 `dual-entry-d1aaa4e5-doubao-protocol-20261110`，源码d1aaa4e5，BUILD_ID `ACRlYejRZIsOW-PEONU4v`，目录 `doubao-protocol-20261110`。上海仍为55表、36条migration，原GPT、Garmin、图片及身体图表／骨架基线保持。原47项Server Action、加密密钥与278项旧静态资源保留；上一豆包应用和骨架应用均保留作兼容回退。
+
+海外READY `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129，保留257项静态文件与路由并增加有界错误元数据诊断。两个海外别名、公网三入口版本、新旧豆包MCP发现及原GPT实际连接已核对。豆包域名与白名单生效、测试版云构建成功，真实手机登录与健康查询仍待本人授权验证；故障恢复与准确验证范围见[部署](deployment.md)和[豆包接入](doubao-onboarding.md)。
+
+## 保留的浅色骨架验收
+
+以下为已包含在当前应用中的浅色骨架基线，原构建为04d25b30／`skeleton-contrast-20261110`，不代表当前应用版本。
 
 浅色占位使用#D6D0C4暖灰底与90%暖白扫光，数字、卡片及图形占位共用骨架色。扫光保持1.6秒从左向右，底色与光层继续由同一圆角容器裁切。深色沿用原灰底和米色光；减少动态效果时静止显示。固定标题、图例及操作从首帧显示，真实数据原位接管。
 
@@ -22,6 +28,7 @@
 |---|---|
 | 上海公网IP | 唯一日常网页、业务与账号校验、正式记录和PostgreSQL主库 |
 | Vercel原域名 | 保留原GPT／MCP及OAuth地址，签名回源上海；处理海外照片下载、私有Blob读取及OAuth客户端资料获取 |
+| global.formward.top | 同一海外网关的已验证别名，过渡承接豆包request、WebView及独立登录；普通网页仍转国服 |
 | 上海PostgreSQL | 唯一权威数据库，应用与迁移角色分离，只监听回环地址，不公开5432 |
 | Blob／COS | GPT附件在海外后台处理并保存在私有Blob；国服网页新上传使用私有上海COS，旧图保留原位置 |
 | Neon | 停写的旧数据源，仅保留恢复材料，不再接收正式新增记录 |

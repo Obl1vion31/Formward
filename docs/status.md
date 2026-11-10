@@ -1,8 +1,14 @@
 # 当前实现与验证
 
-## 当前正式版本：浅色骨架扫光（2026-11-10）
+## 当前正式版本：豆包独立接入（2026-11-10）
 
-日常网页为[国服](https://43.142.148.58)，当前应用`dual-entry-04d25b30-skeleton-contrast-20261110`，构建源码`04d25b300dffee62f5669211beee3200c6a5880e`，BUILD_ID `fqTfJlxhDaX7x1bzy7WOH`，发布目录`skeleton-contrast-20261110`；已合入并推送main。上海`formward_primary`保持55表、36条migration，本轮只调整共用骨架颜色，没有数据库、业务计算、公开接口或加载时序变更。
+上海应用 `dual-entry-d1aaa4e5-doubao-protocol-20261110`，源码d1aaa4e5，BUILD_ID `ACRlYejRZIsOW-PEONU4v`；Vercel READY `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129。原GPT实际连接保持同一账号，47项Server Action和278项旧静态资源保留，55表／36条migration不变。
+
+豆包request／WebView域名与本人白名单已生效，上海独立身份交换入口已启用。测试版 `0.0.1-dev.20261110.2` 云构建成功，完整Skill、18工具与扫码入口已核对；新旧MCP公网发现及匿名私有调用保护通过。完整591项测试、12项专项、原生4项、lint、typecheck及干净production build通过。真实手机授权、查询和网页预览确认尚待本人完成，不标为已完整接通。手机入口、故障恢复、实际截图及未测边界见[豆包接入](doubao-onboarding.md)与[部署](deployment.md)。
+
+## 保留的验收基线：浅色骨架扫光（2026-11-10）
+
+浅色骨架验收基线为`dual-entry-04d25b30-skeleton-contrast-20261110`，源码`04d25b300dffee62f5669211beee3200c6a5880e`，BUILD_ID `fqTfJlxhDaX7x1bzy7WOH`，目录`skeleton-contrast-20261110`，改动已包含在顶部当前应用。该次只调整共用骨架颜色，没有数据库、业务计算、公开接口或加载时序变更；上海保持55表、36条migration。
 
 浅色占位使用#D6D0C4暖灰底与90%暖白扫光，数字、卡片及图形占位共用骨架色。扫光保持1.6秒从左向右，底色与光层继续由同一圆角容器裁切。深色沿用原灰底和米色光；减少动态效果时静止显示。固定标题、图例及操作从首帧显示，真实数据原位接管。
 

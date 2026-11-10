@@ -1,6 +1,6 @@
 # Formward
 
-豆包独立接入工程位于 `integrations/doubao`，服务端复用现有 OAuth 与业务工具；过渡域名 request／WebView 已验证，平台白名单已生效。服务、测试版本及真实App联调的当前状态统一见[豆包接入](docs/doubao-onboarding.md)，不以代码或本地编译代替正式接通。
+豆包独立接入工程位于 `integrations/doubao`，服务端已启用并复用现有 OAuth 与业务工具；过渡域名 request／WebView 与白名单已生效，测试版 `0.0.1-dev.20261110.2` 云构建成功。原GPT实测正常；本人手机授权及查询仍待验证。入口、测试范围与迁移边界见[豆包接入](docs/doubao-onboarding.md)，不以构建成功代替真实账号接通。
 
 公开[隐私政策](https://formward-ten.vercel.app/privacy.html)和[服务条款](https://formward-ten.vercel.app/terms.html)已发布，生效日期2026年11月10日；个人运营者、填写资料及发布范围见[豆包资料与公开协议](docs/doubao-onboarding.md)。
 

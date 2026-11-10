@@ -1,12 +1,16 @@
 # Formward 项目交接
 
-## 豆包接入：已验证域名与待发布服务
+## 当前部署：豆包独立接入与测试版本
 
-用户授权先用Vercel过渡、保留现有GPT连接，官方CLI已获准登录；`global.formward.top` 的 request／WebView 均在平台显示已生效，体验白名单生效永久。校验文件已在READY `dpl_72pneM6RmMENjooYjt8YnVC1aSnz` 公开，原网关及256个既有文件哈希保持。用户另已批准AppSecret复制到上海，已root 0600暂存，未公开或写入仓库。
+用户授权先用Vercel过渡、保留现有GPT连接，官方CLI已获准登录；`global.formward.top` 的 request／WebView 和本人体验白名单均已生效。用户批准的AppSecret已配置到上海root 0600私有环境文件，未进入Git、前端、网关或日志。上海应用 `dual-entry-d1aaa4e5-doubao-protocol-20261110`，源码d1aaa4e5，BUILD_ID `ACRlYejRZIsOW-PEONU4v`，目录 `doubao-protocol-20261110`；保留最新身体图表和浅色骨架修改，代码已合入推送main。
 
-`features/doubao` 与 `integrations/doubao` 已实现独立绑定、PKCE、一次性兑换、刷新／撤销、18项MCP适配、运行态Skill和原生自定义登录。身体仍仅实测，所有正式保存仍需网页确认，不新增数据库结构。分支已同步最新身体图表返回修复；原GPT地址、issuer、resource、凭据及主库保持。
+Vercel当前READY `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129；两个海外别名已核对指向该部署，257项静态文件及路由保持。首轮切换曾出现API 503且回退应用后仍持续，追加有界网关错误元数据诊断并重发后恢复；根因尚未证实，不归因TLS或应用。原GPT已再次实际get_profile成功且与发布前同一账号，issuer、resource与凭据保持。
 
-590项完整测试和12项豆包／桥接专项、原生4项测试通过；lint、typecheck、初轮production及原生本地构建通过，最后以干净兼容发布包为准。H5两主题及320至1440含矮屏／横屏、错误密码、拒绝、失效和键盘已实际检查；独立review的两项返回状态／恢复问题修复后均resolved，ship只覆盖这两项，真实官方SDK／WebView仍未测。详情、配置和证据见[豆包接入](docs/doubao-onboarding.md)。发布、平台测试版本及真实用户授权结果须在完成后更新，当前不能标为已接通。
+`features/doubao` 与 `integrations/doubao` 已实现独立绑定、PKCE、一次性兑换、刷新／撤销、18项MCP、运行态Skill和原生自定义登录。显式支持现代 `server/discover`，新旧协议公网发现18工具且匿名私有调用被拒绝。身体仍仅实测，写入仍需网页登录最终确认；55表、36条migration保持，无新增健康计算。47项Server Action、原绑定密钥及278项旧静态资源保留。
+
+完整591项单元／集成、12项豆包／桥接专项、原生4项、lint、typecheck和干净兼容production build通过。官方模拟器已实见Tools Loaded(18)及原生主页；H5两主题、320至1440和矮屏／横屏、键盘、错误及拒绝已检查。两次独立review指出的四项问题均修复并resolved，ship只覆盖相应修复范围，不能扩大为真实手机或完整原生视觉准出。
+
+测试版[0.0.1-dev.20261110.2](https://developer.doubao.com/agentic_service/db_app_9m6xflq/versions/0.0.1-dev.20261110.2)已云构建成功，平台完整Skill、18工具和扫码入口已核对；不是公开上架版本。本人手机登录、授权回传、查询及国服预览确认仍待验证。二维码和手机步骤见[豆包接入](docs/doubao-onboarding.md)，截图位于 `C:/Users/14878/.codex/visualizations/2026/11/10/formward-doubao-setup`。私有发布与失败排查证据保留在本轮工作区 `.codex/doubao-release`、`.codex/doubao-protocol-release` 和 `.codex/doubao-research`；不公开凭据或真实健康结果。
 
 ## 已发布：公开隐私政策与服务条款
 
@@ -14,9 +18,9 @@
 
 本轮仅在既有海外Build Output新增三份公开文件，253个原文件、网关和路由哈希不变，网关源码仍0f3434d。正式HTML／CSS匿名200、无跳转／Cookie、SHA与源码一致；两引擎8组公网手机／电脑及互链通过，页面异常和健康API请求均0，国服版本不变、未授权身体接口仍401。原578测试、lint、typecheck及production build通过；正式稿52组矩阵及16组日期专项通过，日期孤字经独立复核resolved。68张正式稿和公网截图在 `C:/Users/14878/.codex/visualizations/2026/11/10/formward-legal-publication-final`。临时预览及本轮工作区在归档后结束，私有证据移至主线 `.codex/legal-publication`；物理手机、豆包WebView与完整法律评估未测。未执行数据库迁移或健康记录写入，未改变凭据或授权配置。
 
-## 当前部署：浅色骨架扫光
+## 保留的验收基线：浅色骨架扫光
 
-日常网页为[国服](https://43.142.148.58)，当前应用`dual-entry-04d25b30-skeleton-contrast-20261110`，构建源码`04d25b300dffee62f5669211beee3200c6a5880e`，BUILD_ID `fqTfJlxhDaX7x1bzy7WOH`，发布目录`skeleton-contrast-20261110`；已合入并推送main。上海`formward_primary`保持55表、36条migration，本轮只调整共用骨架颜色，没有数据库、业务计算、公开接口或加载时序变更。
+浅色骨架的已发布验收基线为`dual-entry-04d25b30-skeleton-contrast-20261110`，源码`04d25b300dffee62f5669211beee3200c6a5880e`，BUILD_ID `fqTfJlxhDaX7x1bzy7WOH`，目录`skeleton-contrast-20261110`，其改动已包含在顶部当前应用。该次只调整共用骨架颜色，没有数据库、业务计算、公开接口或加载时序变更；上海`formward_primary`保持55表、36条migration。
 
 浅色占位使用#D6D0C4暖灰底与90%暖白扫光，数字、卡片及图形占位共用骨架色。扫光保持1.6秒从左向右，底色与光层继续由同一圆角容器裁切。深色沿用原灰底和米色光；减少动态效果时静止显示。固定标题、图例及操作从首帧显示，真实数据原位接管。
 
@@ -32,7 +36,7 @@
 
 该基线由0f3434d发布至workspace-flow-final-20261110后进入Garmin基线6880811。此前双引擎各80组加载矩阵、各17组助手、19组原生库连续流程及三卡往返验证保留；修复前69次、修复后138次完整往返均有录像，未把本机结果写成真机帧率。574项基线测试及严格TLS旧Cookie／JWT／refresh、匿名回审核、旧页真实保存证据见[维护验收](docs/maintenance-verification.md)。0036只加assistant_reminder_dismissals，以独立管理身份迁移，运行账号只获必要读取／插入权限，不扩CREATE。
 
-海外当前READY为dpl_82o44w2e9c1xGDH3Yxep68LxP7FZ、CLE1；网关仍为原0f3434d，仅增加顶部所述公开协议文件，原dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp保留。旧基线观察窗为UTC 2026-11-09T19:35:37.597208+00:00—19:39:39.085899+00:00，不代表本次发布后监控；本次只计实际静态HTTP与浏览器核对，不冒充国服全量access或20分钟监控。
+工作区交互发布时的海外基线为dpl_5Q1VAQn5XMDfJJsNTFhmuG4RELgp、CLE1，网关源码0f3434d；后续公开协议静态发布及当前豆包网关分别见顶部对应范围。旧基线观察窗为UTC 2026-11-09T19:35:37.597208+00:00—19:39:39.085899+00:00，不代表当前发布后的监控；不得冒充国服全量access或20分钟监控。
 
 工作区交互的私有证据保留在workspace-flow工作树的.codex/release-control、final-release-control、loading-final、loading-native-webkit、loading-native-flows、assistant-final、linked-final-webkit及visual-final；服务器原目录/var/lib/formward/workspace-flow-20261110和workspace-flow-final-20261110保持。实录为C:/Users/14878/.codex/visualizations/2026/11/10/formward-workspace-flow。后续主线工作区为/home/obl1vion/projects/Formward-worktrees/main-current；其他进行中的工作区与私有运维证据不清理。
 
@@ -92,7 +96,7 @@ GPT MCP已支持动作库、本人计划查询、模板与多日排期，服务1
 
 饮食与食材取消历史数值倍数比较及额外确认；同日严格重复餐仅一条中性提示和查看入口，无须勾选即可保存。餐次允许全0或全部未知营养，未知不补0，全未知不冒充已知部分；空餐、非法输入、归属、版本、请求防重和草稿保护保持。旧待确认预览仅清除可识别系统提示及重复餐拦截，原请求／草稿／过期及真实错误保持；AI仍通过网页登录最终确认。消耗、运动及身体原有提醒保持。
 
-全量73文件575项测试、最终13项专项复查、lint零错误零警告、独立typecheck、38页production build与Vercel远程构建通过。795项上传文件不含私有配置、健康材料或验收数据。13组实际操作、10组深浅尺寸检查及最终5组复查通过，覆盖320／390／430和1100／1440；未知／零保存、重复与大幅变化、失败留稿、连续点击、键盘草稿、食材编辑与旧审核已实际操作。提示实际对比深色7.43:1、浅色最低5.00:1，查看入口44px。初轮summary定位差异的原始结果及复核均保留，详见[维护验收](maintenance-verification.md)。
+全量73文件575项测试、最终13项专项复查、lint零错误零警告、独立typecheck、38页production build与Vercel远程构建通过。795项上传文件不含私有配置、健康材料或验收数据。13组实际操作、10组深浅尺寸检查及最终5组复查通过，覆盖320／390／430和1100／1440；未知／零保存、重复与大幅变化、失败留稿、连续点击、键盘草稿、食材编辑与旧审核已实际操作。提示实际对比深色7.43:1、浅色最低5.00:1，查看入口44px。初轮summary定位差异的原始结果及复核均保留，详见[维护验收](docs/maintenance-verification.md)。
 
 26项公网／授权／协议检查及公开字段兼容核对通过。Runtime error／fatal与请求5xx均0，无排除区间或后续分页；这是上线后的实际观测，不表示新应用已运行满20分钟。发布前后0600私有备份均54表、33条migration，schema、健康事实及来源事实保持；逐行核对issues0，16项允许变化仅为正常元数据，来源同步事件0。保留6条Garmin及1条非重复手工运动，没有新增migration、生产变量或正式测试账号。
 

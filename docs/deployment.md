@@ -1,8 +1,18 @@
 # 公网 HTTPS 部署
 
-## 豆包独立接入
+## 当前正式部署：豆包独立接入
 
-`global.formward.top` 的request／WebView均已验证，校验文件静态READY为 `dpl_72pneM6RmMENjooYjt8YnVC1aSnz`。原Vercel网关保持0f3434d，既有GPT和法律页面已核对正常。独立豆包业务使用上海服务，AppSecret经用户批准root 0600暂存；正式切换时仅追加豆包配置，保留原OAuth、47项Server Action及旧静态资源。当前发布包及平台测试版本仍在准备，结果统一见[豆包接入](doubao-onboarding.md)，不把域名验证当作完成登录或工具联调。
+上海应用为 `dual-entry-d1aaa4e5-doubao-protocol-20261110`，源码 `d1aaa4e5a3fe8d36c40ad951dc8ac2c54d8ad5f3`，BUILD_ID `ACRlYejRZIsOW-PEONU4v`，发布目录 `doubao-protocol-20261110`。独立豆包入口已启用，用户批准的AppSecret保存在root 0600私有环境文件；原OAuth配置、47项Server Action及278项旧静态资源保留。55表、36条migration不变，无数据库迁移或正式虚构健康记录。
+
+Vercel READY为 `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129；`formward-ten.vercel.app` 与 `global.formward.top` 均已核对指向此部署。保留257项静态文件和路由，只增加有界错误元数据诊断，不记录URL、查询、凭据或正文。request／WebView域名及本人体验白名单已生效；普通网页仍跳转国服，豆包登录路径留在已验证域名。
+
+首轮应用切换后Vercel API出现503，应用回退至浅色骨架版本仍有相同故障；原配置逐项核对未改变。诊断网关重发后恢复，再启用豆包应用并发布兼容现代协议的当前版本。未证实间歇回源故障根因，未放宽TLS、修改issuer／resource、轮换凭据或恢复旧数据；失败及恢复结果均保留。上一应用 `doubao-integration-20261110` 和浅色骨架应用仍在服务器，回退仅切兼容应用并保留当前数据与撤销状态。
+
+完整591项单元／集成、12项豆包／桥接专项、原生4项、lint、typecheck及干净production build通过。候选与正式入口检查均为18项工具、私有调用保护、无效凭据拒绝及原GPT保护。最终公网三入口版本一致，新旧SDK协议均发现18工具；两个海外别名的验证文件、协议和样式共8资源匿名200且SHA与源码一致。原GPT get_profile实际成功且与发布前同一账号；应用、Nginx、PostgreSQL均active。
+
+测试版 `0.0.1-dev.20261110.2` 云构建成功，完整Skill及18工具已在配置预览核对。首版 `.1` 因平台临时服务错误失败，未计通过。真实手机OpenID交换、WebView、健康查询与国服确认链接仍待本人授权验证。H5、原生模拟器、受控fixture各自的验收范围及二维码见[豆包接入](doubao-onboarding.md)，不把模拟器或构建替代真实App通过。
+
+发布使用当日已异机加密回读校验的备份，无migration。最终包2538项文件逐项核对，2483项复用、55项差量；正式发布证据为本轮工作区 `.codex/doubao-protocol-release`，首轮故障／恢复为 `.codex/doubao-release`，平台构建与公网复核为 `.codex/doubao-research`。私有文件不进入Git／部署公开目录，实际短日志窗口单独记录，不宣称长期无5xx。
 
 ## 公开协议静态发布（2026-11-10）
 
@@ -10,9 +20,9 @@
 
 三个资源匿名HTTPS直接200、MIME与源码SHA一致、无Set-Cookie；两引擎8组公网390／1440及真实互链通过，页面异常和健康API请求均0。公开协议与下方国服应用独立发布，未授权身体接口仍401。完整范围、日期修复、68张截图、未测项与私有归档见[公开协议资料](doubao-onboarding.md)。本次没有执行旧数据库回退或创建正式测试账号。
 
-## 当前正式部署：浅色骨架扫光
+## 保留的验收基线：浅色骨架扫光
 
-日常网页为[国服](https://43.142.148.58)，当前应用`dual-entry-04d25b30-skeleton-contrast-20261110`，构建源码`04d25b300dffee62f5669211beee3200c6a5880e`，BUILD_ID `fqTfJlxhDaX7x1bzy7WOH`，发布目录`skeleton-contrast-20261110`；已合入并推送main。上海`formward_primary`保持55表、36条migration，本轮只调整共用骨架颜色，没有数据库、业务计算、公开接口或加载时序变更。
+浅色骨架验收基线为`dual-entry-04d25b30-skeleton-contrast-20261110`，源码`04d25b300dffee62f5669211beee3200c6a5880e`，BUILD_ID `fqTfJlxhDaX7x1bzy7WOH`，目录`skeleton-contrast-20261110`，改动已包含在顶部当前应用。该次只调整共用骨架颜色，没有数据库、业务计算、公开接口或加载时序变更；上海保持55表、36条migration。
 
 浅色占位使用#D6D0C4暖灰底与90%暖白扫光，数字、卡片及图形占位共用骨架色。扫光保持1.6秒从左向右，底色与光层继续由同一圆角容器裁切。深色沿用原灰底和米色光；减少动态效果时静止显示。固定标题、图例及操作从首帧显示，真实数据原位接管。
 
