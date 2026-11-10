@@ -65,7 +65,7 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
         <ChartSelectionColumn x={selectedX} date={selectedDate} column={selectedColumn} plot={{left,right:width-right,top,bottom:plotBottom}} resetKey={markerKey} direct={selection.direct}/>
         {(["daytime","evening"] as const).map(period=>{const point=points.find(row=>row.recordDate===selectedDate&&row.period===period);return <ChartSelectionPoint key={period} x={point?x(point.recordDate):null} y={point?y(point[metric]):0} resetKey={markerKey} direct={selection.direct} color={period==="daytime"?"var(--data-weight)":"var(--body-blue)"}/>;})}
         {pairs.map((day) => <line data-pair={day.date} key={day.date} x1={x(day.date)} x2={x(day.date)} y1={y(day.daytimeRecord![metric])} y2={y(day.eveningRecord![metric])} className={styles.pairLine} />)}
-        {<TrendGlyph target={viewportWidth>0&&canShare} model={model} x={left} y={top} width={plotWidth} height={plotHeight}/>}
+        <TrendGlyph detail target={viewportWidth>0&&canShare} model={model} x={left} y={top} width={plotWidth} height={plotHeight}/>
         {segments.filter(segment=>segment.period==='evening').map(({ a, b, period }) => <line data-chart-line key={`${a.id}:${b.id}`} data-segment="continuous" data-period={period} x1={x(a.recordDate)} y1={y(a[metric])} x2={x(b.recordDate)} y2={y(b[metric])} className={`${period === "daytime" ? styles.dayLine : styles.nightLine} `} style={{strokeWidth:span<7?2.5:1.75}} vectorEffect="non-scaling-stroke" />)}
         {[...points].sort((a, b) => Number(a.period === "daytime") - Number(b.period === "daytime")).map((row) => {
           const label = pointLabel(row);
