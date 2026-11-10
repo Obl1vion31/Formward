@@ -87,6 +87,7 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
       "x-db-openid": externalId, "x-db-access-token": "fictional-invalid-token",
     }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_profile", arguments: {} } }, null, 2) });
     assert.equal(invalid.status, 401, "实际Next入口拒绝无效凭据，不能返回请求复制异常503");
+    const platformContext = { from_mcp_call: true, _miniapp_permitted_data: { unused: "fictional-private-context" } };
     for (const mode of ["auto", "legacy"] as const) {
       const client = new Client({ name: "fictional-production-http", version: "1" }, { versionNegotiation: { mode } });
       await client.connect(new StreamableHTTPClientTransport(new URL(baseURL + "/api/doubao/mcp"), { requestInit: { headers: { "x-db-openid": externalId, "x-db-access-token": tokens.data.access_token } } }));
@@ -99,9 +100,20 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
         const records = await client.callTool({ name: "query_measurements", arguments: { from: "2026-11-01", to: "2026-11-02", timezone: "Asia/Shanghai" } });
         assert.notEqual(records.isError, true);
         assert.ok((records.structuredContent as { entities: unknown[] }).entities.length > 0);
+        const connected = await client.callTool({ name: "authorize_formward", arguments: platformContext });
+        assert.notEqual(connected.isError, true);
+        assert.equal((connected.structuredContent as { connected: boolean }).connected, true);
+        const contextualRecords = await client.callTool({ name: "query_measurements", arguments: { ...platformContext, from: "2026-11-01", to: "2026-11-02", timezone: "Asia/Shanghai" } });
+        assert.notEqual(contextualRecords.isError, true);
+        assert.ok((contextualRecords.structuredContent as { entities: unknown[] }).entities.length > 0);
+        assert.ok(!JSON.stringify(contextualRecords).includes("fictional-private-context"));
+        const invalidDate = await client.callTool({ name: "query_measurements", arguments: { ...platformContext, from: null } });
+        assert.equal(invalidDate.isError, true, "平台上下文兼容不能放过非法业务参数");
+        const unknownField = await client.callTool({ name: "query_measurements", arguments: { ...platformContext, unexpected_business_field: true } });
+        assert.equal(unknownField.isError, true, "其他未知字段继续拒绝");
       } finally { await client.close(); }
     }
     assert.equal((await db.select({ id: schema.measurement.id }).from(schema.measurement)).length, 0);
-    console.info(JSON.stringify({ check: "doubao-production-http", passed: true, toolCount: 18, protocols: ["auto", "legacy"], invalidCredentialsRejected: true, profileOwnerMatched: true, measurementQueryPassed: true, healthRecordsWritten: 0 }));
+    console.info(JSON.stringify({ check: "doubao-production-http", passed: true, toolCount: 18, protocols: ["auto", "legacy"], invalidCredentialsRejected: true, profileOwnerMatched: true, measurementQueryPassed: true, platformContextCompatible: true, businessValidationPreserved: true, healthRecordsWritten: 0 }));
   } finally { await close(); }
 }
