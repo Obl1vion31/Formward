@@ -175,7 +175,7 @@ test("豆包绑定不能覆盖仍有效的其他账号，撤销原连接后才�
 });
 
 async function mcpClient(path: string, headers: Record<string, string> = {}, legacy = false) {
-  const client = new Client({ name: "fictional-doubao-test", version: "1" }, legacy ? { versionNegotiation: { mode: "legacy" } } : undefined);
+  const client = new Client({ name: "fictional-doubao-test", version: "1" }, { versionNegotiation: { mode: legacy ? "legacy" : "auto" } });
   await client.connect(new StreamableHTTPClientTransport(new URL(baseURL + path), { requestInit: { headers } }));
   return client;
 }

@@ -14,7 +14,7 @@ import { limitedJson, privateJson } from "./http";
 
 type JsonObject = Record<string, unknown>;
 const object = (value: unknown): value is JsonObject => !!value && typeof value === "object" && !Array.isArray(value);
-const publicMethods = new Set(["initialize", "notifications/initialized", "tools/list", "ping"]);
+const publicMethods = new Set(["server/discover", "initialize", "notifications/initialized", "tools/list", "ping"]);
 const queryKinds: Record<string, string> = { get_profile: "account", query_measurements: "measurements", query_meals: "meals", query_energy: "energy", query_training: "training", search_foods: "foods", search_exercises: "exercises" };
 const knownTools = new Set([...Object.keys(queryKinds), "authorize_formward", "submit_measurement_operation", "get_measurement_operation", "import_meal_images", "submit_meal_operation", "get_meal_operation", "submit_training_operation", "get_training_operation", "submit_record_operation", "get_record_operation", "append_pending_images"]);
 
@@ -66,7 +66,7 @@ function presentResult(body: JsonObject, input: JsonObject, userId: string) {
     const error = object(structured.error) ? structured.error : null;
     const authentication = error && ["invalid_token", "read_only", "insufficient_scope", "forbidden"].includes(String(error.code));
     const message = error && typeof error.message === "string" ? error.message : "输入未通过校验，请核对字段后重试。";
-    body.result = { content: [{ type: "text", text: message }], structuredContent: { code: authentication ? 401 : 400, message }, isError: true };
+    body.result = { ...(typeof result.resultType === "string" ? { resultType: result.resultType } : {}), content: [{ type: "text", text: message }], structuredContent: { code: authentication ? 401 : 400, message }, isError: true };
     return { body, status: authentication ? 401 : 200 };
   }
   const params = object(input.params) ? input.params : {}, kind = queryKinds[String(params.name)];

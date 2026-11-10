@@ -3,6 +3,7 @@ import { once } from "node:events";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { resolve, sep } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { drizzle } from "drizzle-orm/pglite";
@@ -21,8 +22,11 @@ await provisionAccount(db, { email: "doubao-preview@example.test", password: "fi
 const socket = new PGLiteSocketServer({ db: pg, host: "127.0.0.1", port: 0, maxConnections: 10 });
 await socket.start();
 const auth = createAuth(db, { baseURL, secret: config.secret, rateLimit: false });
-const child = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", "3419"], {
-  env: { ...process.env, DATABASE_URL: `postgresql://postgres:postgres@${socket.getServerConn()}/postgres?max=1`, BETTER_AUTH_URL: baseURL, BETTER_AUTH_SECRET: config.secret, FORMWARD_REGIONAL: "0", FORMWARD_SINGLE_WEB: "0", FORMWARD_DOUBAO_ENABLED: "1", FORMWARD_DOUBAO_APP_ID: config.appId, FORMWARD_DOUBAO_APP_SECRET: config.appSecret, FORMWARD_DOUBAO_ORIGIN: baseURL },
+const release = process.env.FORMWARD_TEST_RELEASE ? resolve(process.env.FORMWARD_TEST_RELEASE) : undefined;
+if (release) assert.ok(release.startsWith(resolve(".codex/regional-releases") + sep) && release.endsWith(sep + "standalone"), "只使用本工作区的已构建产物");
+const child = spawn(process.execPath, release ? [resolve(release, "server.js")] : ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", "3419"], {
+  ...(release ? { cwd: release } : {}),
+  env: { ...process.env, PORT: "3419", HOSTNAME: "127.0.0.1", DATABASE_URL: `postgresql://postgres:postgres@${socket.getServerConn()}/postgres?max=1`, BETTER_AUTH_URL: baseURL, BETTER_AUTH_SECRET: config.secret, FORMWARD_REGIONAL: "0", FORMWARD_SINGLE_WEB: "0", FORMWARD_DOUBAO_ENABLED: "1", FORMWARD_DOUBAO_APP_ID: config.appId, FORMWARD_DOUBAO_APP_SECRET: config.appSecret, FORMWARD_DOUBAO_ORIGIN: baseURL },
   stdio: ["ignore", "pipe", "pipe"],
 });
 child.stdout.on("data", chunk => process.stdout.write(chunk));

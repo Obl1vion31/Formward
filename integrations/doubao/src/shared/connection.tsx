@@ -82,7 +82,7 @@ export function FormwardConnection({ mcpLogin = false }: { mcpLogin?: boolean })
   if (authorizationUrl) return <view className="connection-frame">
     <view className="connection-webview"><web-view src={authorizationUrl} onMessage={event => void receive(event.data)} onError={() => { void reporter.current.failure().catch(() => {}); if (alive.current) setError('登录页面暂时无法打开，请返回豆包重新连接。'); }} /></view>
     {error && <text className="connection-error">{error}</text>}
-    <button className="connection-secondary" disabled={working} onClick={() => void cancel()}>取消连接</button>
+    <button type="plain" className="connection-secondary" style={{ backgroundColor: 'transparent', minHeight: '48px' }} disabled={working} onClick={() => void cancel()}><text className="connection-secondary-label">取消连接</text></button>
   </view>;
 
   return <scroll-view className="connection-page" scroll-orientation="vertical" enable-scroll={true}>
@@ -91,8 +91,8 @@ export function FormwardConnection({ mcpLogin = false }: { mcpLogin?: boolean })
       <text className="connection-copy">使用已有的 Formward 邮箱账号登录，再选择是否允许豆包查询记录和提交预览。</text>
       <text className="connection-copy">饮食、身体、消耗与训练共用你的原有记录。正式保存仍需在 Formward 网页确认。</text>
       {error && <text className="connection-error">{error}</text>}
-      <button className="connection-primary" disabled={working} onClick={() => void begin()}>{working ? '正在连接…' : '使用 Formward 账号连接'}</button>
-      <button className="connection-secondary" disabled={working} onClick={() => void cancel()}>返回对话</button>
+      <button type="plain" className="connection-primary" style={{ backgroundColor: '#cbb083', minHeight: '48px' }} disabled={working} onClick={() => void begin()}><text className="connection-primary-label">{working ? '正在连接…' : '使用 Formward 账号连接'}</text></button>
+      <button type="plain" className="connection-secondary" style={{ backgroundColor: 'transparent', minHeight: '48px' }} disabled={working} onClick={() => void cancel()}><text className="connection-secondary-label">返回对话</text></button>
     </view>
   </scroll-view>;
 }

@@ -6,6 +6,7 @@
 .connection-primary { margin-top: 8px; background-color: #e4c899; color: #29241b; border: 1px solid #7a826f; }
 .connection-secondary { background-color: transparent; color: #24231f; border: 1px solid #7a826f; }
 .connection-error { font-size: 14px; line-height: 1.7; color: #a34336; }
+.connection-primary-label, .connection-secondary-label { font-size: 16px; line-height: 24px; color: #24231f; }
 .connection-frame { display: flex; flex-direction: column; }
 .connection-webview { flex: 1; min-height: 0; width: 100%; }
 .connection-frame > .connection-secondary, .connection-frame > .connection-error { margin: 12px 20px; }
@@ -13,5 +14,6 @@
   .connection-page, .connection-frame { background-color: #10100f; color: #f0e9dd; }
   .connection-primary { background-color: #cbb083; border-color: #827969; }
   .connection-secondary { color: #f0e9dd; border-color: #827969; }
+  .connection-secondary-label { color: #f0e9dd; }
   .connection-error { color: #e6aaa0; }
 }
