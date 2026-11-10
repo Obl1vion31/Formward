@@ -14,7 +14,8 @@ const engines=await import(process.env.PLAYWRIGHT_MODULE??'/home/obl1vion/.local
 const database=createDatabase(config.databaseUrl),reports=[],errors=[];let activePage;
 const [originalProfile]=await database.db.select().from(personalProfile).where(eq(personalProfile.userId,config.empty.userId));
 const digest=async()=>{const r=await fetch(config.fixtureControlURL+'/health-digest');assert.equal(r.status,200);return r.json();};
-const guide=page=>page.locator('[data-record-guidance][data-ready=true]');
+const guide=page=>page.locator('[data-record-guidance][data-ready=true] > section');
+const guideStep=page=>guide(page).evaluate(node=>node.parentElement.dataset.step);
 const sessions=new Map();
 async function login(context,identity=config){
  if(sessions.has(identity.userId)){await context.addCookies(sessions.get(identity.userId));return;}
@@ -28,7 +29,7 @@ async function context(size,theme='light',motion='no-preference',identity=config
 async function shot(page,name){await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(450);await page.screenshot({path:folder+'/'+name+'.png'});}
 async function enlargeText(page){await page.evaluate(()=>{const nodes=[document.body,...document.body.querySelectorAll('*')].filter(node=>node instanceof HTMLElement),sizes=nodes.map(node=>parseFloat(getComputedStyle(node).fontSize));nodes.forEach((node,i)=>node.style.fontSize=sizes[i]*2+'px');});await page.waitForTimeout(250);}
 async function checkGeometry(page){
- const r=await guide(page).evaluate(node=>{const tip=node.querySelector('section').getBoundingClientRect(),spot=node.firstElementChild.getBoundingClientRect(),v=visualViewport;return{tip:{x:tip.x,y:tip.y,right:tip.right,bottom:tip.bottom,height:tip.height},spot:{x:spot.x,y:spot.y,width:spot.width,height:spot.height},vw:v.width,vh:v.height,top:v.offsetTop,left:v.offsetLeft,overflow:document.documentElement.scrollWidth>innerWidth+1,controls:[...node.querySelectorAll('button')].map(b=>b.getBoundingClientRect().height)};});
+ const r=await guide(page).evaluate(node=>{const tip=node.getBoundingClientRect(),spot=node.parentElement.firstElementChild.getBoundingClientRect(),v=visualViewport;return{tip:{x:tip.x,y:tip.y,right:tip.right,bottom:tip.bottom,height:tip.height},spot:{x:spot.x,y:spot.y,width:spot.width,height:spot.height},vw:v.width,vh:v.height,top:v.offsetTop,left:v.offsetLeft,overflow:document.documentElement.scrollWidth>innerWidth+1,controls:[...node.querySelectorAll('button')].map(b=>b.getBoundingClientRect().height)};});
  assert.ok(r.tip.x>=r.left+10&&r.tip.right<=r.left+r.vw-10,JSON.stringify(r));assert.ok(r.tip.y>=r.top+10&&r.tip.bottom<=r.top+r.vh-10,JSON.stringify(r));assert.equal(r.overflow,false);assert.ok(r.controls.every(h=>h>=44));
  assert.equal(await page.locator('dialog[open]').evaluateAll(nodes=>nodes.every(node=>node.scrollWidth<=node.clientWidth+1)),true,'教程不制造面板横向滚动');return r;
 }
@@ -39,7 +40,7 @@ async function openReplay(page,kind){
 }
 async function fields(page,kind){
  const g=guide(page);await g.waitFor();
- if(await g.getAttribute('data-step')==='1'){
+ if(await guideStep(page)==='1'){
   if(kind==='training')await page.locator('[data-record-guide-entry="training"]').click();else await g.getByRole('button',{name:'去填写',exact:true}).click();
  }
  await page.waitForFunction(()=>document.querySelector('[data-record-guidance][data-ready=true][data-step="2"]'));
@@ -51,7 +52,7 @@ try{
  for(const [size,theme]of [[[390,640],'light'],[[1440,900],'dark']]){
   const c=await context(size,theme),p=activePage=await c.newPage();
   for(const kind of ['meals','energy','body','training']){
-   await p.goto(config.baseURL+recordGuides[kind].path);await guide(p).waitFor();assert.equal(await guide(p).getAttribute('data-step'),'1');
+   await p.goto(config.baseURL+recordGuides[kind].path);await guide(p).waitFor();assert.equal(await guideStep(p),'1');
    await shot(p,size[0]+'-'+theme+'-'+kind+'-1');await checkGeometry(p);
    if(kind==='training'){
     await guide(p).getByRole('button',{name:'先不训练',exact:true}).click();assert.equal(await p.locator('[data-training-editor]').count(),0);
@@ -86,7 +87,9 @@ try{
  for(const size of [[320,560],[390,560],[430,780],[640,390],[1100,800],[1920,1080]])for(const theme of ['light','dark']){
   const c=await context(size,theme,'reduce'),p=activePage=await c.newPage();await p.goto(config.baseURL+'/dashboard/measurements');await guide(p).waitFor();
   await fields(p,'body');await shot(p,size.join('x')+'-'+theme+'-body');const geometry=await checkGeometry(p);
-  if(size[0]===320&&theme==='light'){await enlargeText(p);await checkGeometry(p);await shot(p,'320-body-large-text');}
+  if(size[0]===320&&theme==='light'){
+   await enlargeText(p);const large=await checkGeometry(p);assert.ok(large.tip.bottom<=large.spot.y||large.tip.y>=large.spot.y+large.spot.height,'有空间时大字提示不覆盖填写目标');await shot(p,'320-body-large-text');
+  }
   await guide(p).getByRole('button',{name:'下一步',exact:true}).click();await guide(p).waitFor();await p.waitForTimeout(150);await checkGeometry(p);
   await p.keyboard.press('Escape');assert.equal(await guide(p).count(),0);assert.equal(await p.locator('[data-entry-form="body"]').count(),1,'Escape先收起教程，保留编辑器');
   await p.keyboard.press('Escape');await p.locator('[data-entry-form="body"]').waitFor({state:'hidden'});

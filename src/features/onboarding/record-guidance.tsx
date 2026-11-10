@@ -84,11 +84,14 @@ function RecordWalkthrough({tour,onShown,change,finish}:{tour:Tour;onShown:()=>v
     const bounds=parent.getBoundingClientRect(),right=Math.min(area.left+area.width,bounds.left+parent.clientLeft+parent.clientWidth),bottom=Math.min(area.top+area.height,bounds.top+parent.clientTop+parent.clientHeight);
     area.left=Math.max(area.left,bounds.left+parent.clientLeft);area.top=Math.max(area.top,bounds.top+parent.clientTop);area.width=right-area.left;area.height=bottom-area.top;
    }
-   const place=guidePlacement(rect,area,{width:336,height:Math.ceil(Math.max(tip.current.getBoundingClientRect().height,tip.current.scrollHeight+2))});
+   // 先确定可用宽度和避让高度，再测实际边框；大字说明在卡片内滚动。
+   const space=Math.max(rect.top-area.top-24,area.top+area.height-rect.bottom-24);
+   tip.current.style.width=`${Math.min(336,area.width-24)}px`;tip.current.style.maxHeight=`${Math.max(44,space>=180?Math.min(area.height-24,space):area.height-24)}px`;
+   const place=guidePlacement(rect,area,{width:336,height:Math.ceil(tip.current.getBoundingClientRect().height)});
    const node=layer.current!;
    node.style.setProperty('--guide-x',`${rect.left-base.left-5}px`);node.style.setProperty('--guide-y',`${rect.top-base.top-5}px`);
    node.style.setProperty('--guide-w',`${rect.width+10}px`);node.style.setProperty('--guide-h',`${rect.height+10}px`);
-   tip.current.style.left=`${place.left-base.left}px`;tip.current.style.top=`${place.top-base.top}px`;tip.current.style.width=`${place.width}px`;tip.current.style.maxHeight=`${area.height-24}px`;
+   tip.current.style.left=`${place.left-base.left}px`;tip.current.style.top=`${place.top-base.top}px`;
    setPositionedStep(tour.step);
    if(observed!==next){resize.disconnect();resize.observe(next);if(tip.current)resize.observe(tip.current);observed=next;}
    if(performance.now()<movingUntil)queue();
