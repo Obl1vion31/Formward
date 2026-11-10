@@ -371,3 +371,8 @@ FORMWARD_CHART_BODY_ONLY=1只核对各尺寸的坐标、读数、点选、实际
 records/ai-tools.test.ts用全新虚构数据库验证共享记餐、每份／每参考量与kJ换算、历史快照、餐内修改、清空与省略、跨日重试、父子预览版本、原授权、来源／未知／0，以及摘要范围和分页。auth/oauth.test.ts使用真实OAuth与两种SDK协议调用新增工具，确认前事实不变，再验证网页业务确认及状态查询；旧完整提交仍覆盖。
 
 新summary／status返回不含整库食材或重复的完整能量快照；查询SQL按所选日期，searchFoods不查询餐次。模型样本另行记录，接口／浏览器通过不能代替GPT首轮成功率，未配置OpenAI API时不能声称已经完成GPT模型对照。
+
+
+## Vercel 发布归档工具
+
+修改 `scripts/vercel-releases.py` 时运行 `python3 tests/vercel-releases.test.py`，覆盖真实压缩包校验、正式／域名／回滚保护以及故障停止。结合默认只读清单和实际小批次前后服务核对；维护工具不触发网站构建、UI 或 PDF 回归。两个仓库实现相同时复用同一测试结果。
