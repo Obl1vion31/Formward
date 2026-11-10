@@ -36,7 +36,9 @@ h3 { margin: 22px 0 8px; font-size: 17px; }
 p { margin: 12px 0; }
 li + li { margin-top: 7px; }
 ul, ol { margin-block: 12px; padding-inline-start: 24px; }
-.meta { color: var(--muted); font-size: 14px; margin-top: 12px; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--muted); font-size: 14px; margin-top: 12px; }
+.meta > span { display: inline-flex; flex-wrap: wrap; max-width: 100%; }
+.meta time { white-space: nowrap; }
 .intro { font-size: 17px; }
 .contents { margin-block: 24px 34px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
 .contents summary { cursor: pointer; min-height: 44px; align-content: center; font-weight: 600; }
