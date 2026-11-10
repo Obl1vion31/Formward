@@ -6,6 +6,7 @@
 
 ## 内容
 
+- `doubao_45g8h0ck.txt`：豆包为 Vercel 自定义域名 `global.formward.top` 生成的公开所有权校验文件，保持原文件名和内容；不含账号凭据或健康数据。
 - `privacy.html`、`terms.html` 与 `legal.css`：用户已确认的个人运营者隐私政策、服务条款和独立阅读样式，生效日期为2026年11月10日；正式地址和发布核对见 [豆包资料](../docs/doubao-onboarding.md)。
 - `icons/`：Formward 品牌图形、透明导出及应用图标，来源记录见目录 README。
 - `fonts/`：首页英文排版使用的本地字体及完整许可证。
