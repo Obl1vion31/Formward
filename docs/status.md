@@ -2,9 +2,9 @@
 
 ## 当前正式版本：豆包独立接入（2026-11-10）
 
-上海应用 `dual-entry-d1aaa4e5-doubao-protocol-20261110`，源码d1aaa4e5，BUILD_ID `ACRlYejRZIsOW-PEONU4v`；Vercel READY `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129。原GPT实际连接保持同一账号，47项Server Action和278项旧静态资源保留，55表／36条migration不变。
+上海应用 `dual-entry-0f5c7e24-doubao-mcp-request-20261110`，源码0f5c7e24，BUILD_ID `a-cKXvLOUnAhAig-m7rcY`；Vercel READY `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129。原GPT实际连接保持同一账号，47项Server Action和282项旧静态资源保留，55表／36条migration不变。
 
-豆包request／WebView域名与本人白名单已生效，上海独立身份交换入口已启用。测试版 `0.0.1-dev.20261110.2` 云构建成功，完整Skill、18工具与扫码入口已核对；新旧MCP公网发现及匿名私有调用保护通过。完整591项测试、12项专项、原生4项、lint、typecheck及干净production build通过。真实手机授权、查询和网页预览确认尚待本人完成，不标为已完整接通。手机入口、故障恢复、实际截图及未测边界见[豆包接入](doubao-onboarding.md)与[部署](deployment.md)。
+豆包request／WebView域名与本人白名单已生效，测试版 `0.0.1-dev.20261110.2` 保持。本人手机身份交换、WebView回传和平台换码已成功，后续MCP 503已定位并修复上线；环境文件、已授权连接和原GPT保持。完整592项测试、豆包专项、原生4项、lint、typecheck、干净构建及实际Next HTTP双协议查询通过。手机身体查询复测和网页预览确认仍待核对；实际范围见[豆包接入](doubao-onboarding.md)与[部署](deployment.md)。
 
 ## 保留的验收基线：浅色骨架扫光（2026-11-10）
 

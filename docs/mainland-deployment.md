@@ -6,7 +6,7 @@
 
 ## 当前部署
 
-日常网页为[国服](https://43.142.148.58)，当前应用 `dual-entry-d1aaa4e5-doubao-protocol-20261110`，源码d1aaa4e5，BUILD_ID `ACRlYejRZIsOW-PEONU4v`，目录 `doubao-protocol-20261110`。上海仍为55表、36条migration，原GPT、Garmin、图片及身体图表／骨架基线保持。原47项Server Action、加密密钥与278项旧静态资源保留；上一豆包应用和骨架应用均保留作兼容回退。
+日常网页为[国服](https://43.142.148.58)，当前应用 `dual-entry-0f5c7e24-doubao-mcp-request-20261110`，源码0f5c7e24，BUILD_ID `a-cKXvLOUnAhAig-m7rcY`，目录 `doubao-mcp-request-20261110`。上海仍为55表、36条migration，原GPT、Garmin、图片及身体图表／骨架基线保持。原47项Server Action、加密密钥与282项旧静态资源保留；上一豆包应用和骨架应用均保留作兼容回退。
 
 海外READY `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129，保留257项静态文件与路由并增加有界错误元数据诊断。两个海外别名、公网三入口版本、新旧豆包MCP发现及原GPT实际连接已核对。豆包域名与白名单生效、测试版云构建成功，真实手机登录与健康查询仍待本人授权验证；故障恢复与准确验证范围见[部署](deployment.md)和[豆包接入](doubao-onboarding.md)。
 

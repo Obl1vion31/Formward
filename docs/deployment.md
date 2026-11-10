@@ -2,17 +2,17 @@
 
 ## 当前正式部署：豆包独立接入
 
-上海应用为 `dual-entry-d1aaa4e5-doubao-protocol-20261110`，源码 `d1aaa4e5a3fe8d36c40ad951dc8ac2c54d8ad5f3`，BUILD_ID `ACRlYejRZIsOW-PEONU4v`，发布目录 `doubao-protocol-20261110`。独立豆包入口已启用，用户批准的AppSecret保存在root 0600私有环境文件；原OAuth配置、47项Server Action及278项旧静态资源保留。55表、36条migration不变，无数据库迁移或正式虚构健康记录。
+上海应用为 `dual-entry-0f5c7e24-doubao-mcp-request-20261110`，源码 `0f5c7e240a6e3d8a8be1c6768ced2f03a431f223`，BUILD_ID `a-cKXvLOUnAhAig-m7rcY`，发布目录 `doubao-mcp-request-20261110`。独立豆包入口已启用，用户批准的AppSecret保存在root 0600私有环境文件；原OAuth配置、47项Server Action及282项旧静态资源保留。55表、36条migration不变，无数据库迁移或正式虚构健康记录。
 
 Vercel READY为 `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129；`formward-ten.vercel.app` 与 `global.formward.top` 均已核对指向此部署。保留257项静态文件和路由，只增加有界错误元数据诊断，不记录URL、查询、凭据或正文。request／WebView域名及本人体验白名单已生效；普通网页仍跳转国服，豆包登录路径留在已验证域名。
 
-首轮应用切换后Vercel API出现503，应用回退至浅色骨架版本仍有相同故障；原配置逐项核对未改变。诊断网关重发后恢复，再启用豆包应用并发布兼容现代协议的当前版本。未证实间歇回源故障根因，未放宽TLS、修改issuer／resource、轮换凭据或恢复旧数据；失败及恢复结果均保留。上一应用 `doubao-integration-20261110` 和浅色骨架应用仍在服务器，回退仅切兼容应用并保留当前数据与撤销状态。
+早期切换曾出现跨网关API 503，回退应用后仍持续；诊断网关重发后恢复，根因未证实。此后的已登录豆包MCP 503已单独定位为复制Next代理Request的私有状态异常，0f5c7e24改为用已校验JSON及原入口字段构造普通请求。此次仅切换上海应用，Vercel和环境文件未改；未放宽校验或改动原授权。上一应用 `doubao-protocol-20261110` 及更早兼容应用仍保留，回退仅切应用并保留当前数据与撤销状态。
 
-完整591项单元／集成、12项豆包／桥接专项、原生4项、lint、typecheck及干净production build通过。候选与正式入口检查均为18项工具、私有调用保护、无效凭据拒绝及原GPT保护。最终公网三入口版本一致，新旧SDK协议均发现18工具；两个海外别名的验证文件、协议和样式共8资源匿名200且SHA与源码一致。原GPT get_profile实际成功且与发布前同一账号；应用、Nginx、PostgreSQL均active。
+完整592项单元／集成、13项豆包／桥接专项、原生4项、lint、typecheck及干净production build通过。候选与正式入口检查均为18项工具、私有调用保护、无效凭据拒绝及原GPT保护。最终公网三入口版本一致，新旧SDK协议均发现18工具；两个海外别名的验证文件、协议和样式共8资源匿名200且SHA与源码一致。原GPT get_profile实际成功且与发布前同一账号；应用、Nginx、PostgreSQL均active。
 
-测试版 `0.0.1-dev.20261110.2` 云构建成功，完整Skill及18工具已在配置预览核对。首版 `.1` 因平台临时服务错误失败，未计通过。真实手机OpenID交换、WebView、健康查询与国服确认链接仍待本人授权验证。H5、原生模拟器、受控fixture各自的验收范围及二维码见[豆包接入](doubao-onboarding.md)，不把模拟器或构建替代真实App通过。
+测试版 `0.0.1-dev.20261110.2` 保持，完整Skill及18工具已核对；首版 `.1` 平台临时失败未计通过。本人手机真实OpenID交换、WebView授权回传及平台换码已成功，修复后查询复测和国服确认链接仍待核对。待发布产物已通过实际Next HTTP虚构登录、同意、换码、双协议账号／身体查询、无效凭据401及零健康写入；具体证据见[豆包接入](doubao-onboarding.md)。
 
-发布使用当日已异机加密回读校验的备份，无migration。最终包2538项文件逐项核对，2483项复用、55项差量；正式发布证据为本轮工作区 `.codex/doubao-protocol-release`，首轮故障／恢复为 `.codex/doubao-release`，平台构建与公网复核为 `.codex/doubao-research`。私有文件不进入Git／部署公开目录，实际短日志窗口单独记录，不宣称长期无5xx。
+发布使用当日已异机加密回读校验的备份，无migration。最终包2538项文件逐项核对，2482项复用、56项差量；22:21正式切换成功，候选和正式入口均通过无效MCP凭据401专项，环境文件字节保持。正式证据为 `.codex/doubao-request-fix-release`，前期故障及平台材料仍在 `.codex/doubao-release`、`.codex/doubao-protocol-release` 和 `.codex/doubao-research`；私有文件不进入Git／公开目录，不以短日志窗口宣称长期无5xx。
 
 ## 公开协议静态发布（2026-11-10）
 

@@ -2,15 +2,19 @@
 
 ## 当前部署：豆包独立接入与测试版本
 
-用户授权先用Vercel过渡、保留现有GPT连接，官方CLI已获准登录；`global.formward.top` 的 request／WebView 和本人体验白名单均已生效。用户批准的AppSecret已配置到上海root 0600私有环境文件，未进入Git、前端、网关或日志。上海应用 `dual-entry-d1aaa4e5-doubao-protocol-20261110`，源码d1aaa4e5，BUILD_ID `ACRlYejRZIsOW-PEONU4v`，目录 `doubao-protocol-20261110`；保留最新身体图表和浅色骨架修改，代码已合入推送main。
+用户授权先用Vercel过渡、保留现有GPT连接，官方CLI已获准登录；`global.formward.top` 的 request／WebView 和本人体验白名单均已生效。用户批准的AppSecret已配置到上海root 0600私有环境文件，未进入Git、前端、网关或日志。上海应用 `dual-entry-0f5c7e24-doubao-mcp-request-20261110`，源码0f5c7e24，BUILD_ID `a-cKXvLOUnAhAig-m7rcY`，目录 `doubao-mcp-request-20261110`；代码及测试辅助修正已合入推送main，保留此前身体图表和骨架修改。
 
 Vercel当前READY `dpl_DR2jkfpiv7qzxydBP4DVjcVhr9V5`，网关源码74754129；两个海外别名已核对指向该部署，257项静态文件及路由保持。首轮切换曾出现API 503且回退应用后仍持续，追加有界网关错误元数据诊断并重发后恢复；根因尚未证实，不归因TLS或应用。原GPT已再次实际get_profile成功且与发布前同一账号，issuer、resource与凭据保持。
 
-`features/doubao` 与 `integrations/doubao` 已实现独立绑定、PKCE、一次性兑换、刷新／撤销、18项MCP、运行态Skill和原生自定义登录。显式支持现代 `server/discover`，新旧协议公网发现18工具且匿名私有调用被拒绝。身体仍仅实测，写入仍需网页登录最终确认；55表、36条migration保持，无新增健康计算。47项Server Action、原绑定密钥及278项旧静态资源保留。
+`features/doubao` 与 `integrations/doubao` 已实现独立绑定、PKCE、一次性兑换、刷新／撤销、18项MCP、运行态Skill和原生自定义登录。显式支持现代 `server/discover`，新旧协议公网发现18工具且匿名私有调用被拒绝。身体仍仅实测，写入仍需网页登录最终确认；55表、36条migration保持，无新增健康计算。47项Server Action、原绑定密钥及282项旧静态资源保留。
 
-完整591项单元／集成、12项豆包／桥接专项、原生4项、lint、typecheck和干净兼容production build通过。官方模拟器已实见Tools Loaded(18)及原生主页；H5两主题、320至1440和矮屏／横屏、键盘、错误及拒绝已检查。两次独立review指出的四项问题均修复并resolved，ship只覆盖相应修复范围，不能扩大为真实手机或完整原生视觉准出。
+完整592项单元／集成、豆包／桥接专项、原生4项、lint、typecheck和干净兼容production build通过。新增框架代理回归与实际Next production HTTP验收，真实执行虚构账号登录／同意／换码、双协议身体查询和无效凭据401；旧代码／旧产物均先复现503，新产物通过且退出正常。官方模拟器、此前H5尺寸检查及两次独立review的原范围保持，不扩大为完整手机视觉准出。
 
-测试版[0.0.1-dev.20261110.2](https://developer.doubao.com/agentic_service/db_app_9m6xflq/versions/0.0.1-dev.20261110.2)已云构建成功，平台完整Skill、18工具和扫码入口已核对；不是公开上架版本。本人手机登录、授权回传、查询及国服预览确认仍待验证。二维码和手机步骤见[豆包接入](docs/doubao-onboarding.md)，截图位于 `C:/Users/14878/.codex/visualizations/2026/11/10/formward-doubao-setup`。私有发布与失败排查证据保留在本轮工作区 `.codex/doubao-release`、`.codex/doubao-protocol-release` 和 `.codex/doubao-research`；不公开凭据或真实健康结果。
+测试版[0.0.1-dev.20261110.2](https://developer.doubao.com/agentic_service/db_app_9m6xflq/versions/0.0.1-dev.20261110.2)保持，不必重装或重新授权。本人手机已完成真实OpenID交换、网页授权回传及平台换码绑定；随后工具请求503已定位为复制Next代理Request的私有状态异常，22:21修复上线，环境文件、原绑定和GPT保持。手机身体查询复测及国服预览确认仍待核对。入口和验证范围见[豆包接入](docs/doubao-onboarding.md)，本次私有证据在 `.codex/doubao-request-fix-release` 与 `.codex/doubao-research`，此前发布与排障材料继续保留；不公开凭据或真实健康结果。
+
+**当前未完成项：** 本人22:26至22:27重试仍提示接口不可用，服务器已通过登录并调用 `query_measurements`／`authorize_formward`，HTTP200但工具结果失败，尚未定位具体类别。用户删除原调试对话后要求重新扫码，已再次交付同一永久有效测试版二维码，等待新对话请求；不要再次要求授权或把查询标为通过。原GPT在临时诊断加载后实测仍为同一账号。
+
+临时诊断仅在上海服务的 `/run/systemd/system/formward-primary.service.d/70-doubao-response-diagnostic.conf` 生效，加载 `/srv/formward-primary/diagnostics/doubao-response.cjs`，只输出静态错误类别／类型，不输出原文、参数、健康数值或令牌；`primary.env`保持原字节。源码及安装证明在本轮 `.codex/doubao-research/response-diagnostic*`，`read-response-diagnostic.py`读取类别。定位结束运行同目录 `remove-response-diagnostic.py`移除本人drop-in及探针、恢复普通服务，并复核原GPT。不能删除其他drop-in，不能以虚构HTTP通过替代本人App通过；本轮工作区为继续排查而保留。
 
 ## 已发布：公开隐私政策与服务条款
 
