@@ -81,3 +81,6 @@ node --import tsx --test scripts/rehearse-database.test.mts
 build.mjs是pnpm build的入口，为一次构建产生同一非敏感版本标识并交给Next.js内联；浏览器与/api/app-version共用，运行服务不重新生成。FORMWARD_BUILD_VERSION只在需要可重复验收的构建中显式指定，不能以运行时随机值替代构建版本。
 
 身体维护仅处理实测与来源；估算、历史补全、初始化和重建脚本已移除，不能恢复归档估计。
+
+
+`vercel-releases.py` 提供正式发布归档、完整性校验、域名保护、分批清理和七天保留策略；默认只读，显式 `--apply` 执行已批准流程。命令、私有目录和限制见[部署指南](../docs/deployment.md#正式运行包归档与旧部署清理)。

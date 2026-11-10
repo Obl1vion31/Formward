@@ -365,3 +365,8 @@ production build 后以 FORMWARD_LOADING_NATIVE=1、FORMWARD_LOADING_PREVIEW=1 �
 FORMWARD_CHART_BODY_ONLY=1只核对各尺寸的坐标、读数、点选、实际点径及线宽，不计为往返动效通过；FORMWARD_CHART_WIDTHS以逗号选择诊断尺寸。FORMWARD_CHART_HEADED=1可配合隔离Xvfb核对GTK WebKit，与默认WPE后端分别保留报告。更换采样后端或关闭录制不能将之前的失败样本改写为通过。
 
 首次引导及演练复验使用 onboarding-feedback.browser.mjs，复用 workspace-loading 的隔离预览配置（FORMWARD_LOADING_CONFIG）。覆盖 owner 填写、跳过、返回资料、演练完成后真实点击返回总览，两主题和七种视口、文字放大及系统外观；真实新账号慢请求、失败保留输入、重试及完成。证据含截图和完整录像，核对演练无 POST／资料或健康记录写入。GUIDANCE_BROWSER、PLAYWRIGHT_MODULE 和 FEEDBACK_ARTIFACTS 分别选择浏览器、运行库与私有证据位置。
+
+
+## Vercel 发布归档工具
+
+修改 `scripts/vercel-releases.py` 时运行 `python3 tests/vercel-releases.test.py`，覆盖真实压缩包校验、正式／域名／回滚保护以及故障停止。结合默认只读清单和实际小批次前后服务核对；维护工具不触发网站构建、UI 或 PDF 回归。两个仓库实现相同时复用同一测试结果。
