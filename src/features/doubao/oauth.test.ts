@@ -25,12 +25,20 @@ let auth: ReturnType<typeof createAuth>, baseURL: string, config: DoubaoConfig;
 const first = { email: "doubao-first@example.test", password: "fictional-doubao-password" };
 const second = { email: "doubao-second@example.test", password: "fictional-other-password" };
 const openId = "fictional-doubao-openid-first";
+// Next Route Handler 的请求由框架代理；属性可读，但不能交给原生 Request 构造器复制私有状态。
+function frameworkRequest(request: Request) {
+  return new Proxy(request, { get(target, property) {
+    const value = Reflect.get(target, property, target);
+    return typeof value === "function" ? value.bind(target) : value;
+  } });
+}
 const server = createServer(async (req, res) => {
   try {
     const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(Buffer.from(chunk));
     const headers = new Headers(); for (const [key, value] of Object.entries(req.headers)) if (value) headers.set(key, Array.isArray(value) ? value.join(", ") : value);
     const request = new Request(baseURL + req.url, { method: req.method, headers, ...(!["GET", "HEAD"].includes(req.method ?? "GET") ? { body: Buffer.concat(chunks) } : {}) });
     const response = req.url === "/api/doubao/mcp" ? await createDoubaoMcpEndpoint(db, auth, config)(request)
+      : req.url === "/api/framework/doubao/mcp" ? await createDoubaoMcpEndpoint(db, auth, config)(frameworkRequest(request))
       : req.url === "/api/mcp" ? await createMcpEndpoint(db, auth)(request)
       : req.url?.startsWith("/api/doubao/authorize?") ? await authorizeDoubao(db, auth, config, request) : await auth.handler(request);
     res.statusCode = response.status;
@@ -188,6 +196,30 @@ test("豆包工具发现可匿名读取定义，健康调用必须有真实账�
     assert.equal(tools.tools.find(tool => tool.name === "get_profile")?._meta?.securitySchemes, undefined);
     await assert.rejects(() => client.callTool({ name: "get_profile", arguments: {} }));
   } finally { await client.close(); }
+});
+
+test("框架代理请求通过真实OAuth查询，新旧协议和无效凭据保持正确结果", async () => {
+  const externalId = "fictional-framework-openid", flow = await grant(first, externalId);
+  if (flow.result.refused) throw new Error();
+  const tokens = await exchangeDoubaoToken(db, auth, config, flow.result.developerLoginCode);
+  const endpoint = "/api/framework/doubao/mcp";
+  const rejected = await fetch(baseURL + endpoint, { method: "POST", headers: {
+    "content-type": "application/json", accept: "application/json, text/event-stream",
+    "mcp-protocol-version": "2025-03-26", "x-db-openid": externalId, "x-db-access-token": "fictional-invalid-token",
+  }, body: JSON.stringify({ jsonrpc: "2.0", id: 12, method: "tools/call", params: { name: "get_profile", arguments: {} } }, null, 2) });
+  assert.equal(rejected.status, 401);
+  for (const legacy of [false, true]) {
+    const client = await mcpClient(endpoint, { "x-db-openid": externalId, "x-db-access-token": tokens.data.access_token }, legacy);
+    try {
+      const profile = await client.callTool({ name: "get_profile", arguments: {} });
+      assert.notEqual(profile.isError, true);
+      const result = profile.structuredContent as { entities: Array<{ result_json: string }> };
+      assert.equal(JSON.parse(result.entities[0].result_json).id, flow.userId);
+      const measurements = await client.callTool({ name: "query_measurements", arguments: { from: "2026-11-01", to: "2026-11-02", timezone: "Asia/Shanghai" } });
+      assert.notEqual(measurements.isError, true);
+      assert.ok((measurements.structuredContent as { entities: unknown[] }).entities.length > 0);
+    } finally { await client.close(); }
+  }
 });
 
 test("豆包 MCP 双协议查询、OpenID 不匹配、伪造令牌与撤销均按真实 OAuth 校验", async () => {

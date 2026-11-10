@@ -6,6 +6,8 @@
 
 production build 后执行 `node --import tsx tests/doubao-fixture.mts`，在回环3419启动真实 Next 页面，3420提供新建虚构身份的入口。fixture 只使用临时数据库与 `example.test` 账号，不读取正式环境或健康事实；退出使用 SIGTERM／SIGINT。浏览器交互与截图记录见 [豆包接入](../docs/doubao-onboarding.md)。本机测试不能代替真实豆包 App 的身份交换和 WebView 回传。
 
+设置 `FORMWARD_DOUBAO_HTTP_CHECK=1` 运行同一fixture，可自动执行实际Next production入口的虚构账号登录、同意、一次性换码、新旧SDK的账号／身体查询和无效凭据拒绝，完成后自行退出。`FORMWARD_TEST_RELEASE` 可指定本工作区 `.codex/regional-releases/<版本>/standalone`，直接验收待发布产物；默认使用已构建的工作区。框架请求代理的503回归必须在实际Next入口通过，不能仅以普通Node请求的集成测试替代。
+
 ## Garmin 个人密钥连接
 
 production build 后运行 `node --import tsx tests/data-sources.browser.mts`。入口自行创建仅回环可访问的隔离 PGlite、两个虚构账号与服务端 Garmin 响应，不读取正式密钥或访问真实 Garmin。`FORMWARD_SOURCES_ENGINE=webkit` 切换引擎，`PLAYWRIGHT_BROWSERS_PATH` 指定浏览器缓存，`FORMWARD_SOURCES_ARTIFACTS` 指定私有证据目录；`FORMWARD_SOURCES_PREVIEW=1` 保留本机演示，SIGTERM／SIGINT关闭。

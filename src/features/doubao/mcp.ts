@@ -110,6 +110,13 @@ export function createDoubaoMcpEndpoint(db: Database, auth: ReturnType<typeof cr
       if (!openId || openId.length > 512 || !accessToken || accessToken.length > 32768) throw new ApiError(401, "invalid_token", "请先在豆包连接并授权 Formward。");
       const headers = new Headers(request.headers);
       headers.set("Authorization", "Bearer " + accessToken);
+      // 正文已按128 KiB上限解析。Next的请求代理不能由原生Request复制私有状态，
+      // 以相同URL、方法和已校验JSON构造普通请求，并移除原流的长度／分块信息。
+      headers.delete("content-length");
+      headers.delete("transfer-encoding");
+      const authenticatedRequest = new Request(request.url, {
+        method: request.method, headers, body: JSON.stringify(input), signal: request.signal,
+      });
       const protectedHandler = requireMcpAuth(auth, async (authenticated, claims) => {
         if (typeof claims.sub !== "string" || typeof claims.client_id !== "string" || typeof claims[CONNECTION_CLAIM] !== "string") throw new ApiError(401, "invalid_token", "账号连接无效。");
         const client = await requireDoubaoClient(db, config, claims.client_id, openIdDigest(config, openId));
@@ -121,7 +128,7 @@ export function createDoubaoMcpEndpoint(db: Database, auth: ReturnType<typeof cr
         await db.update(oauthConnection).set({ lastUsedAt: new Date() }).where(and(eq(oauthConnection.id, connection.id), eq(oauthConnection.userId, claims.sub)));
         return serve(authenticated, input, identity, granted);
       }, { resource: canonicalResource(auth), issuer: new URL("/api/auth", auth.options.baseURL as string).href, ...(process.env.FORMWARD_INTERNAL_JWKS_URL ? { jwksUrl: process.env.FORMWARD_INTERNAL_JWKS_URL } : {}) });
-      const response = await protectedHandler(new Request(request, { headers }));
+      const response = await protectedHandler(authenticatedRequest);
       const responseHeaders = new Headers(response.headers);
       responseHeaders.set("Cache-Control", "private, no-store"); responseHeaders.set("Referrer-Policy", "no-referrer");
       return new Response(response.body, { status: response.status, headers: responseHeaders });
