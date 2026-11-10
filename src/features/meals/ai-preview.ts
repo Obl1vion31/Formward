@@ -81,6 +81,10 @@ export function normalizeSimpleFood(raw: SimpleFoodInput, index = 0): ItemDraft 
   let nutrition: Nutrition = { ...emptyNutrition(), ...Object.fromEntries(metrics.map(metric => [metric, nutrient(input[metric], metric === "caloriesKcal")])) };
   if (input.caloriesKj !== undefined) nutrition.caloriesKcal = scaled(input.caloriesKj, "1000", "4184");
   const nutritionBasis = input.nutritionBasis ?? "consumed_total";
+  if (hasNutrition && ["label", "composition_table"].includes(sourceKind) && !base.basis && !base.evidenceUrl) {
+    const scope = nutritionBasis === "per_portion" ? "每1" + (input.unit ?? "份") : nutritionBasis === "per_reference" ? "每" + input.referenceQuantity + (input.unit ?? "") : "本次食用" + (input.quantity ?? "未知量") + (input.unit ?? "");
+    base.basis = (sourceKind === "label" ? "营养标签" : "成分表") + "转录（按本次提交字段）：" + scope + "，" + metrics.map(metric => metric + "=" + (nutrition[metric] ?? "未知")).join("，") + (input.caloriesKj !== undefined ? "；原热量" + input.caloriesKj + "kJ，由服务器换为kcal。" : "。");
+  }
   if (nutritionBasis !== "per_reference" && input.referenceQuantity !== undefined) invalidAiInput(field, "referenceQuantity仅用于per_reference。");
   if (nutritionBasis === "per_portion") return { ...base, nutritionBasis, perPortionNutrition: nutrition } as ItemDraft;
   if (nutritionBasis === "per_reference") {

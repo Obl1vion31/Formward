@@ -67,6 +67,18 @@ test("明确kJ转换为kcal，双热量字段和错误单位被拒绝，不猜�
   assert.throws(() => mealPreviewOperation(lunch({ foods: [{ ...food, fatG: "0.1kg" }] })), ApiError);
 });
 
+test("真实模型漏写重复转录或消耗模式时，服务器仅从明确字段生成，不创造新事实", async () => {
+  const { identity } = await owner();
+  const preview = await previewMeal(db, identity, lunch({ foods: [{ name: "虚构包装", quantity: "2", unit: "份", nutritionBasis: "per_portion", caloriesKcal: "300", proteinG: "0", sourceKind: "label" }] }));
+  assert.equal(preview.canConfirm, true);
+  assert.equal(preview.rows[0].meal?.items[0].nutrition.caloriesKcal, "600.0000");
+  assert.match(preview.rows[0].meal?.items[0].basis ?? "", /每1份.*carbsG=未知/);
+  const energy = await previewEnergy(db, identity, { operationId: randomUUID(), date: "2024-08-01", restingKcal: "1800", activeKcal: "0" });
+  assert.equal(energy.canConfirm, true); assert.equal(energy.rows[0].energy?.day?.totalKcal, "1800.0000");
+  const missing = await previewEnergy(db, identity, { operationId: randomUUID(), date: "2024-08-01", restingKcal: "1800" });
+  assert.equal(missing.rows[0].energy?.day?.activeSource, "activities");
+});
+
 test("跨零点重试固定首次日期、相同内容返回同预览，改内容冲突且正式记录仍为0", async () => {
   const { identity, userId } = await owner(), input = lunch({ date: "yesterday" });
   const first = await previewMeal(db, identity, input, new Date("2026-11-10T15:59:59Z"));

@@ -86,3 +86,5 @@ ai-preview.ts规范化GPT／豆包共享单餐：本次总量不再乘数量，�
 ai-changes.ts处理餐内局部修改，服务器合并未改内容、附件、originalItemId与历史食材快照。已保存餐次带版本创建新预览；待确认预览通过records协调器更新原链接、检查原授权／revision／有效期，并在既有JSON草稿记录AI修改账以免重试重复添加。AI修改与人工editedBy分开留审计，不能清空整餐。自由总量改食量须明确keep_total／scale_total；库项和每份自动换算；省略保留，明确清空才改null。
 
 queryMeals的view=summary／details只读指定日期，返回范围与分页；省略view保留旧协议。searchFoods只读食材及相关附件，不再读全部餐次历史。身体与消耗规则不在此重算。
+
+常用入口对明确标签／成分表数值自动生成忠实转录，保留未知，不新增推断来源；已有basis或链接保持。新增消耗按totalKcal／activeKcal是否明确提供推导模式，包括明确0，不要求模型重复指定可确定字段；修改旧记录仍保留原模式。

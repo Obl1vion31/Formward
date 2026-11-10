@@ -41,10 +41,10 @@ export function energyPreviewOperation(raw: EnergyPreviewInput, now = new Date()
   if (Boolean(dayId) !== (dayVersion !== undefined)) throw new ApiError(400, "invalid_input", "修改日消耗须同时提供dayId及dayVersion。");
   if (values.totalKcal !== undefined && (values.restingKcal !== undefined || values.activeKcal !== undefined)) throw new ApiError(400, "invalid_input", "总数和分项不能混填，请按实际来源选择一种。");
   const items = [
-    ...(dayFields || dayId ? [{ key: "day", kind: "save_energy_day", ...resolved, ...values, ...(dayId ? { id: dayId, version: dayVersion } : {}), ...(values.entryMode === undefined && !dayId ? { entryMode: values.totalKcal !== undefined ? "total" : "components" } : {}) }] : []),
+    ...(dayFields || dayId ? [{ key: "day", kind: "save_energy_day", ...resolved, ...values, ...(dayId ? { id: dayId, version: dayVersion } : {}), ...(values.entryMode === undefined && !dayId ? { entryMode: values.totalKcal !== undefined ? "total" : "components" } : {}), ...(values.activityMode === undefined && !dayId ? { activityMode: values.activeKcal !== undefined ? "total" : "activities" } : {}) }] : []),
     ...activities.map((item, index) => {
       if (Boolean(item.id) !== (item.version !== undefined)) throw new ApiError(400, "invalid_input", "修改运动须同时提供id及version。");
-      return { key: "activity-" + index, kind: "save_activity", ...resolved, ...item, completed: true };
+      return { key: "activity-" + index, kind: "save_activity", ...resolved, ...item, ...(!item.id && item.calorieMode === undefined ? { calorieMode: item.exerciseActiveKcal !== undefined || item.exerciseRestingKcal !== undefined ? "components" : "total" } : {}), completed: true };
     }),
   ];
   const result = publicRecordInputSchema.safeParse({ operationId, timezone: resolved.timezone, items });

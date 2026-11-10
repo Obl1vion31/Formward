@@ -13,7 +13,7 @@ export function mealAiResponse(operation: MealOperationView & { repeated?: boole
     createdAt: operation.createdAt, expiresAt: operation.expiresAt,
     canConfirm: resultState === "awaiting_web_confirmation", requiresWebConfirmation: operation.status === "pending",
     confirmationPath: operation.confirmationPath, repeated: operation.repeated ?? false,
-    result: operation.result, needsUserInput: operation.needsUserInput ?? [],
+    result: operation.result, needsUserInput: [...(operation.needsUserInput ?? []), ...operation.rows.flatMap((row, index) => row.error ? [{ index, questions: [row.error] }] : [])],
     ...(view === "summary" ? { rows: operation.rows.map((row, index) => ({
       index, kind: row.action.kind, excluded: row.excluded ?? false, error: row.error ?? null,
       warnings: row.warnings, needsUserInput: row.needsUserInput ?? [],
