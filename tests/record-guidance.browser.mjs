@@ -8,6 +8,7 @@ import {recordGuideKey,recordGuides} from '../src/features/onboarding/record-gui
 
 const config=JSON.parse(await readFile(process.env.FORMWARD_LOADING_CONFIG,'utf8'));
 assert.equal(config.isolatedFixture,true);assert.equal(new URL(config.baseURL).hostname,'127.0.0.1');
+const appVersion=await(await fetch(config.baseURL+'/api/app-version')).json();
 const engine=process.env.GUIDANCE_BROWSER??'chromium',folder=resolve(process.env.GUIDANCE_ARTIFACTS??'.codex/record-guidance',engine);await mkdir(folder,{recursive:true});
 const engines=await import(process.env.PLAYWRIGHT_MODULE??'/home/obl1vion/.local/formward-tools/node_modules/playwright/index.mjs'),browser=await engines[engine].launch({headless:true});
 const database=createDatabase(config.databaseUrl),reports=[],errors=[];let activePage;
@@ -58,6 +59,7 @@ try{
    }
    await fields(p,kind);await shot(p,size[0]+'-'+theme+'-'+kind+'-2');await checkGeometry(p);
    if(kind==='body'&&size[0]===390){
+    await p.evaluate(()=>document.documentElement.setAttribute('data-chart-travel','return'));await p.waitForTimeout(100);assert.equal(await guide(p).count(),0,'图形交接优先于操作引导');await p.evaluate(()=>document.documentElement.removeAttribute('data-chart-travel'));await guide(p).waitFor();
     const handle=p.getByRole('button',{name:/可拖动面板$/});await handle.click();await p.waitForTimeout(500);await checkGeometry(p);
     const aligned=await p.evaluate(()=>{const f=[...document.querySelectorAll('[data-entry-form="body"] [data-record-guide-fields]')].find(n=>n.getClientRects().length),s=document.querySelector('[data-record-guidance] [aria-hidden="true"]').getBoundingClientRect(),r=f.getBoundingClientRect();return Math.abs(s.x-(r.x-5))<=1&&Math.abs(s.y-(r.y-5))<=1;});assert.equal(aligned,true,'面板切换停靠档位后高光跟随');
     await handle.click();await p.waitForTimeout(450);
@@ -111,6 +113,6 @@ try{
  await f.getByLabel('出生年份',{exact:true}).selectOption('1997');await f.getByLabel('出生月份',{exact:true}).selectOption('04');await f.getByLabel('出生日期中的日',{exact:true}).selectOption('12');await shot(f,'phone-onboarding-direct-year');
  await f.getByRole('button',{name:'保存并继续',exact:true}).click();await f.locator('[data-tutorial-guide]').waitFor();
  assert.equal((await database.db.select().from(personalProfile).where(eq(personalProfile.userId,config.empty.userId)))[0].birthDate,'1997-04-12');await firstUse.close();
- assert.deepEqual(errors,[]);await writeFile(folder+'/report.json',JSON.stringify({engine,reports,errors,passed:true,physicalDevice:false},null,2));console.log(JSON.stringify({engine,cases:reports.length,passed:true}));
+ assert.deepEqual(errors,[]);await writeFile(folder+'/report.json',JSON.stringify({engine,appVersion,reports,errors,passed:true,physicalDevice:false},null,2));console.log(JSON.stringify({engine,appVersion,cases:reports.length,passed:true}));
 }catch(error){if(activePage&&!activePage.isClosed()){await activePage.screenshot({path:folder+'/failure.png'});await writeFile(folder+'/failure-state.json',JSON.stringify({url:activePage.url(),text:await activePage.locator('body').innerText()},null,2));}await writeFile(folder+'/failure.json',JSON.stringify({error:String(error),stack:error.stack,reports,errors},null,2));throw error;}
 finally{await browser.close();if(originalProfile)await database.db.update(personalProfile).set({heightCm:originalProfile.heightCm,birthDate:originalProfile.birthDate,onboardingStep:originalProfile.onboardingStep,version:originalProfile.version,updatedAt:originalProfile.updatedAt}).where(eq(personalProfile.userId,config.empty.userId));await database.close();}
