@@ -166,8 +166,8 @@ try {
   await editor.locator('input[type="file"]').setInputFiles({ name: "fictional-browser.png", mimeType: "image/png", buffer: fictionalPhoto(run + "browser") });
   assert.equal((await completion).status(), 200);
   await editor.getByRole("button", { name: "移除照片 1", exact: true }).waitFor();
-  await editor.locator("img").waitFor(); assert.equal(await editor.locator("img").evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth === 320), true);
-  for (const width of [1440, 390, 320]) { await page.setViewportSize({ width, height: 900 }); await page.screenshot({ path: resolve(artifacts, `chromium-upload-${width}.png`), fullPage: true }); }
+  await editor.locator("img").waitFor(); assert.equal(await editor.locator("img").evaluate(async (img: HTMLImageElement) => { await img.decode(); return img.naturalWidth; }), 320);
+  for (const width of [1440, 390, 320]) { await page.setViewportSize({ width, height: 900 }); await editor.locator("img").scrollIntoViewIfNeeded(); await page.screenshot({ path: resolve(artifacts, `chromium-upload-${width}.png`), fullPage: true }); }
   await editor.getByRole("button", { name: "应用修改", exact: true }).click(); await editor.waitFor({ state: "hidden" });
   assert.equal(errors.length, 0);
   checks.push("真实网页选图→浏览器直传COS→应用登记→预览解码→应用修改；1440／390／320截图，无客户端异常");
@@ -176,7 +176,7 @@ try {
     const secondContext = await webkit.newContext({ storageState: await context.storageState(), viewport: { width: 390, height: 844 } });
     const secondPage = await secondContext.newPage(); secondPage.on("pageerror", (error: Error) => errors.push(redact(error.message)));
     await secondPage.goto(cn + "/api/meal-images/" + image.id);
-    assert.equal(await secondPage.locator("img").evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth === 320), true);
+    assert.equal(await secondPage.locator("img").evaluate(async (img: HTMLImageElement) => { await img.decode(); return img.naturalWidth; }), 320);
     await secondPage.screenshot({ path: resolve(artifacts, "webkit-original.png") }); assert.equal(errors.length, 0);
   } finally { await webkit.close(); }
   checks.push("WebKit经应用鉴权读取真实COS原图，正常解码且无客户端异常");
