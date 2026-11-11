@@ -220,6 +220,7 @@ try {
     assert.ok(maxDelta <= 1, `稳定布局锚点偏移 ${maxDelta}px`);
     checks.push(`${width}px数据库延迟${wait}ms：${sequence.length}帧，结构与AI名称七个首帧锚点最大偏移${maxDelta}px`);
     await writeFile(join(artifacts, `${engine}-loading-${width}-${wait}.json`), JSON.stringify({ maxDelta, sequence }, null, 2));
+    await typical.page.waitForLoadState("networkidle");
   }
   await typical.page.setViewportSize({ width: 1440, height: 900 });
   await typical.page.goto(baseURL + "/dashboard/ai", { waitUntil: "commit" });
@@ -233,6 +234,14 @@ try {
   await fetch(delayed.controlURL, { method: "POST", body: JSON.stringify({ delayMs: 0 }) });
   checks.push("历史读取期间可展开管理和记录，数据接管保留面板、焦点及开合状态");
   await writeFile(join(artifacts, `${engine}-frames.json`), JSON.stringify(frames, null, 2));
+  await typical.page.waitForLoadState("networkidle");
+  if (process.env.FORMWARD_AI_ACCESS_LOADING_ONLY !== "1") {
+    await typical.page.setViewportSize({width:390,height:640}); await open(typical.page); await typical.page.getByRole("button",{name:"豆包连接详情",exact:true}).click();
+    await panel(typical.page).getByRole("button",{name:"撤销连接",exact:true}).click(); await typical.page.getByRole("dialog",{name:"撤销 豆包 · Formward 连接",exact:true}).getByRole("button",{name:"撤销连接",exact:true}).click();
+    await panel(typical.page).getByText("连接已撤销。",{exact:true}).waitFor(); await assert.rejects(requireOauthConnection(db,fixture.typicalId,fixture.typicalDoubao.id),/撤销/); await closePanel(typical.page);
+    assert.equal(await typical.page.locator('[data-ai-provider="doubao"] [data-ai-connect]').evaluate((node:Element)=>node===document.activeElement),true,"撤销后的手机面板返回可见重新接入按钮");
+    await typical.page.waitForLoadState("networkidle"); checks.push("手机成功撤销立即失效，关闭后焦点返回可见重新接入入口");
+  }
   await typical.context.close(); await empty.context.close(); await context.close();
   assert.deepEqual(errors, []); assert.deepEqual(failures, []);
   await writeFile(join(artifacts, `${engine}-report.json`), JSON.stringify({ engine, checks, screenshots, layout, errors, failures }, null, 2));

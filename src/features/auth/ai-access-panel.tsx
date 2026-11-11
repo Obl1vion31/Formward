@@ -8,6 +8,11 @@ import styles from "./ai-access.module.css";
 /** 权限与连接管理共用同一入口：电脑锚定，手机沿用现有底部面板。 */
 export function AiAccessPanel({ title, anchor, close, children }: { title: string; anchor: HTMLElement; close: () => void; children: ReactNode }) {
   const mobile = useMobileMode();
+  useLayoutEffect(() => () => { queueMicrotask(() => {
+    if (!anchor.isConnected || anchor.checkVisibility()) return;
+    const next = anchor.closest("[data-ai-provider]")?.querySelector<HTMLButtonElement>("[data-ai-connect]");
+    if (next?.checkVisibility()) next.focus({ preventScroll: true });
+  }); }, [anchor]);
   return mobile ? <Inspector title={title} close={close} closeLabel="关闭连接面板" stableScroll motionDuration={160}><div className={`ai-page ${styles.settings} ${styles.sheetContent}`} data-ai-panel>{children}</div></Inspector> : <AnchoredPanel title={title} anchor={anchor} close={close}>{children}</AnchoredPanel>;
 }
 function AnchoredPanel({ title, anchor, close, children }: { title: string; anchor: HTMLElement; close: () => void; children: ReactNode }) {

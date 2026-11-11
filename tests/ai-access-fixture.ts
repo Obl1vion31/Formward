@@ -63,5 +63,5 @@ export async function seedAiAccessFixture(db: Database) {
   const importId = randomUUID();
   await db.insert(schema.mealImport).values({ id: importId, userId, fileDigest: randomUUID(), sourceLabel: "虚构饮食初始化", originalRows: [], decisions: {}, createdBy: userId });
   const initialization = await submitMealOperation(db, { userId, origin: "initialization", importId }, { operationId: randomUUID(), actions: [meal("2026-10-26")] });
-  return { account, empty, other, typical, userId, emptyId, otherId, typicalId, gpt, readonly, doubao, expired, disabled, noConsent, retired, token, unified, mixed, training, saved, legacy, legacyMeal, unknown, initialization };
+  return { account, empty, other, typical, typicalDoubao, userId, emptyId, otherId, typicalId, gpt, readonly, doubao, expired, disabled, noConsent, retired, token, unified, mixed, training, saved, legacy, legacyMeal, unknown, initialization };
 }
