@@ -33,3 +33,5 @@ ai-operations.ts 只接收 save_day、batch 和 save_record，保留归属、版
 测试使用虚构数据，覆盖真实录入与编辑、来源、时区、缺测、统计、删除、账号隔离、旧任务退役、归档迁移及审计不变。图形和交互以实际网页验收为准。
 
 queryAiMeasurementPage提供MCP可选summary／details，只读取所选日期及七日统计必要的前六天；sevenDay明确锚定page.to，不冒充整段均值或当前最新。旧queryAiMeasurements保留完整结构与最新七日summary，新增scope说明；choices只兼容校验，不要求模型选择候选。缺测、来源、实测与updatedAt版本保持。
+
+AI查询的字段解释由ai-field-definitions.json维护，随MCP与HTTP成功结果的fieldDefinitions返回。新七日摘要的window为锚点及前6个日历日，start/end仍为各指标有效样本日期；change为窗口内首尾有效晨间空腹实测差，previousChange只比较相邻日，均值按有效天数计算。体脂差用百分点，旧当前摘要的scope保持。新增说明不改变既有计算或记录。

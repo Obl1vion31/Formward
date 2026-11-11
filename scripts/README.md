@@ -86,3 +86,13 @@ build.mjs是pnpm build的入口，为一次构建产生同一非敏感版本标�
 
 
 `vercel-releases.py` 提供正式发布归档、完整性校验、域名保护、分批清理和七天保留策略；默认只读，显式 `--apply` 执行已批准流程。命令、私有目录和限制见[部署指南](../docs/deployment.md#正式运行包归档与旧部署清理)。
+
+## 离线导出AI接口说明
+
+export-ai-contracts.mts从正式MCP在内存中取得21项工具定义、工作要求和各业务字段字典，并复制同源字段选择实现。运行Node.js 24：
+
+~~~bash
+node --import tsx scripts/export-ai-contracts.mts /home/obl1vion/projects/Formward/.codex/model-evaluation/contracts.json
+~~~
+
+已有导出需显式加--replace。目标目录须已存在；输出JSON和同名.runtime.mjs为0600，不包含用户健康数据或密钥。脚本不执行任何业务工具，不连接模型API或数据库，不新建工作副本。修改规则后重新导出，评测会校验摘要，旧运行快照保持。

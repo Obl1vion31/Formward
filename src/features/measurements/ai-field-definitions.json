@@ -1,0 +1,41 @@
+{
+  "query": {
+    "days": "所查区间按记录日期展示的实测；每天晨晚分别采用最后保存值，null为缺测，不能补0。",
+    "days.*.daytime": "当天晨间实测，和晚间分开比较；数值未知保留null。",
+    "days.*.evening": "该记录日的晚间实测，凌晨发生时可能归前一记录日；不与晨间混算均值。",
+    "sevenDay.scope": "此摘要是以本页结束日为锚点的7个日历日，不是请求全部区间的均值，也不是与前一周比较。",
+    "sevenDay.anchorDate": "七日窗口结束日；不保证这一天每个指标都有测量。",
+    "sevenDay.window": "完整统计窗口，from为anchorDate前6天，to为anchorDate，均包含；不同于各指标start/end有效样本日期。",
+    "sevenDay.weightKg.value": "锚点当天的有效晨间空腹实测体重，单位kg；锚点缺测则null，不借用更早最近值。",
+    "sevenDay.weightKg.previousChange": "锚点日晨重减前一个日历日晨重，单位kg；任一天缺测为null，不拿最近两次测量冒充相邻日。",
+    "sevenDay.weightKg.average": "七日窗口内有效晨间空腹实测体重的算术均值，单位kg；只除以coverage，不将缺测补0或除以固定7。",
+    "sevenDay.weightKg.change": "七日窗口内最后一条有效晨间空腹实测体重减第一条，单位kg；不足2个有效日期为null，不是与前一周均值比较。",
+    "sevenDay.weightKg.coverage": "七日窗口内有有效晨间空腹体重的天数，每日最多1个样本；不代表全天记录完整或恰好覆盖7天。",
+    "sevenDay.bodyFatPercent.value": "锚点当天有效晨间空腹实测体脂率，单位%；缺测为null，不借用旧值。",
+    "sevenDay.bodyFatPercent.previousChange": "锚点日体脂率减前一个日历日体脂率，单位百分点；任一天缺测为null，不是相对变化百分比。",
+    "sevenDay.bodyFatPercent.average": "七日窗口内有效晨间空腹体脂率的算术均值，单位%；样本数单独看本指标coverage，不混入晚间体脂。",
+    "sevenDay.bodyFatPercent.change": "七日窗口内最后一条有效晨间空腹体脂率减第一条，单位百分点；不足2日为null，不是与前一周比较。",
+    "sevenDay.bodyFatPercent.coverage": "七日窗口内有有效晨间空腹体脂率的天数，独立于体重样本数；缺测不补0。",
+    "sevenDay.*.start": "本指标窗口内第一条有效晨间空腹实测的记录日期；没有样本为null，不一定等于窗口起点。",
+    "sevenDay.*.end": "本指标窗口内最后一条有效晨间空腹实测的记录日期；没有样本为null，不一定等于锚点。",
+    "analyses.*.summary.scope": "旧完整返回的摘要取该指标当前最新有效晨间日及前6天，不随所查历史区间变化；不能当历史区间统计。",
+    "analyses.*.summary.current": "旧摘要当前最新有效晨间空腹实测，未必落在请求区间；不冒充所查历史日。",
+    "analyses.*.summary.start": "旧摘要以该指标最新有效日向前6天的日历窗口起点，不是第一条有效样本日期。",
+    "analyses.*.summary.end": "旧摘要该指标最新有效晨间实测日期，不是请求的to。",
+    "analyses.*.summary.changeStart": "旧摘要首尾差采用的第一条有效样本日期；不足2日为null。",
+    "analyses.weightKg.summary.change": "旧摘要窗口内最后有效晨重减第一有效晨重，单位kg，不是周均环比。",
+    "analyses.bodyFatPercent.summary.change": "旧摘要窗口内最后有效晨间体脂率减第一条，单位百分点，不是相对变化百分比。",
+    "analyses.*.summary.average": "旧摘要自身七日窗口内有效晨间空腹样本的算术平均，不混入晚间、缺测、估计或请求区间外推结论。",
+    "analyses.*.summary.coverage": "旧摘要自身窗口内本指标有效晨间空腹样本天数，不是请求区间覆盖率。",
+    "records": "明细实测及修改所需id/updatedAt；读取不保存，不把来源或测量时间未知改成推测值。",
+    "sources": "历史设备或应用来源候选，只供用户选择，不代表本次来源已确认。"
+  },
+  "operation": {
+    "**.period": "daytime为晨间空腹，evening为晚间；业务记录日可能与凌晨实际发生日期不同，不能虚构准确钟点。",
+    "**.weightKg": "实测体重，单位kg；未知null，不通过体重差倒推出确定脂肪或热量。",
+    "**.bodyFatPercent": "实测体脂率，单位%；差值用百分点，不与相对百分比混用。",
+    "**.sourceUnspecifiedConfirmed": "仅当用户明确同意来源留空时为true，不能由AI代确认。",
+    "**.deviceLabel": "用户提供的设备或应用来源；历史候选不表示本次已确认。",
+    "**.updatedAt": "正式记录并发版本，修改须使用查询返回值，不能凭空生成。"
+  }
+}

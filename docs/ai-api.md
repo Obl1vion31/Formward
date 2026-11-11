@@ -1,5 +1,25 @@
 # 身体、饮食与消耗 AI 接入
 
+## AI结果的字段解释
+
+MCP 1.17.1／OpenAPI 1.15.1保留21项工具、原参数、权限和业务值，在成功结果增加fieldDefinitions。它是字段路径到中文解释的字典：*表示一层数组或对象成员，**表示任意深度；不是可提交的业务参数。只返回当前接口与本种结果实际存在的字段说明，错误和未授权结果保持原结构。
+
+解释分别保存在measurements、meals、activities、training及records目录的ai-field-definitions.json中。MCP工具说明、HTTP协议、返回数据和离线评测引用同一份来源；common guidance只约束如何据数据回答，不替代具体字段定义。
+
+| 内容 | 必须区分的口径 |
+|---|---|
+| 身体sevenDay | window是本页结束日及前6天；各指标start/end是有效样本首末日期。change是本窗口首尾有效晨间空腹实测差，不是前后两周均值比较；previousChange仅比较锚点与前一个日历日，缺任一天为null；average按coverage个有效日求均值，缺测不补0。体重差kg，体脂差百分点。 |
+| 旧analyses.summary | scope=latest_available_seven_days表示各指标当前最新有效晨间日及前6天，不随所查历史区间变化，不能冒充历史区间统计。 |
+| 饮食 | 已保存餐次与全天是否记全分别判断；逐指标已知部分合计不冒充完整摄入。食材基准营养、每份、参考量和本次总量不同，查询已换算营养不重复乘数量。 |
+| 消耗 | totalKcal是正式采用结果；recordedTotalKcal是原值，additionalKcal已参与采用，included运动不再相加；cumulative为当天累计，不冒充完整日。 |
+| 训练 | 模板目标、排期与实际会话分开，按status识别完成；秒、米、kg不混用，排期不自动产生热量。 |
+| 修改及审核 | 省略保留，允许清空的字段只有用户明确要求才传null；version与revision不同。canConfirm不等于保存，completed仍需逐项保存数量支持，取消本次不删除已有记录。 |
+| 附件及授权 | 上传complete只表示原图成功，关联预览与正式餐次保存是后续阶段；connected不代表所有权限已授予或已有健康记录。 |
+
+字段解释由AI出口附加，不写入原请求、草稿摘要、健康表或审计。MCP正文JSON与structuredContent一致；豆包查询实体的result_json包含同一份解释。客户端应刷新工具定义并用新对话核对，不把协议离线检查通过当成模型回答质量通过。
+
+在项目目录运行node --import tsx scripts/export-ai-contracts.mts 私有评测目录/contracts.json可离线导出实际工具、工作规则及字段选择实现，不执行业务工具。当前10道自然题仍覆盖5项本地重放工具，不能据此声称全部21工具的真实模型表现已验证；21项接口说明、传递和权限由隔离测试检查。历史模型回答、快照及用量保持，新增收费对照由另一次测试指令启动。
+
 记餐默认营养估算、关键信息追问、明确不估及历史保留的共用规则见[AI工具调用](ai-tool-contracts.md#默认营养估算与追问)。GPT与豆包规则相同，模型提交估算和依据，服务器不对缺失营养自动补数。
 
 ## GPT 与豆包的工具契约

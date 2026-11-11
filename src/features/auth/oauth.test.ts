@@ -438,7 +438,9 @@ test("完整授权的连接检查可重复且不读写健康事实或预览，�
     for (let i = 0; i < 2; i++) {
       const status = await client.callTool({ name: "authorize_formward", arguments: {} });
       assert.ok(!status.isError);
-      assert.deepEqual(status.structuredContent, { connected: true, access: "read_and_submit_previews", domains: ["measurements", "meals", "energy", "training"], requiresWebConfirmation: true });
+      const { fieldDefinitions, ...businessResult } = status.structuredContent as Record<string, unknown>;
+      assert.deepEqual(businessResult, { connected: true, access: "read_and_submit_previews", domains: ["measurements", "meals", "energy", "training"], requiresWebConfirmation: true });
+      assert.match((fieldDefinitions as Record<string, string>).connected, /不代表已查询健康内容或保存记录/);
     }
     assert.equal((await client.callTool({ name: "authorize_formward", arguments: { userId: randomUUID() } })).isError, true);
     assert.deepEqual(await recordState(connected.userId), before);

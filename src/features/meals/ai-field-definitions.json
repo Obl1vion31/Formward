@@ -1,0 +1,43 @@
+{
+  "query": {
+    "meals": "已保存餐次；day.status表示全天记全与否，不能据它说本餐尚未保存。",
+    "days": "已有饮食记录日期的汇总；没有出现的日期不等于零摄入。",
+    "days.*.day.status": "complete表示用户确认全天记全；incomplete/unconfirmed表示未记全或待重新确认，不表示已有餐次未保存。",
+    "days.*.totals.values": "按营养指标分别合计已知部分；必须结合对应incomplete判断是否完整，不能把部分合计当完整全天摄入。",
+    "days.*.totals.incomplete": "逐指标是否存在未知或不完整；热量完整且全天记全时，宏量缺失不自动阻止已知热量收支计算。",
+    "meals.*.totals": "此餐已保存食物的营养合计，不是全天总量；仍需逐指标检查完整性。",
+    "meals.*.items.*.nutrition": "餐项采用的本次总营养；不要再次乘实际数量。",
+    "meals.*.items.*.nutritionBasis": "说明原营养输入口径；查询的已换算nutrition与原始每份或参考量不能重复相乘。"
+  },
+  "foods": {
+    "foods": "本人食材库匹配；名称相似仍须核对品牌、规格、部位、生熟与单位，不能编造foodId。",
+    "foods.*.id": "可引用的食材库稳定标识，与同条version一起使用。",
+    "foods.*.version": "食材规格版本，引用时用查询返回的foodVersion，不能自造。",
+    "foods.*.baseQuantity": "该库项nutrition对应的基准量，单位为该项unit，不是用户实际吃下的量。",
+    "foods.*.nutrition": "食材库基准量的营养，不是本次实际摄入；按实际quantity和单位由服务端换算。",
+    "foods.*.servingQuantity": "一份可靠包装单位对应的基准数量；缺少规格时不能猜一包重量。",
+    "presets": "兼容旧协议的空列表，不提供基础食材预设采用。"
+  },
+  "operation": {
+    "**.meal.totals": "本餐投影合计，逐指标区分完整、部分和未知；仅有预览不代表正式保存。",
+    "**.meal.date": "该餐业务记录日期，不能凭图片自动当作今天。",
+    "**.meal.items.*.quantity": "用户实际食用量，不是包装整份量；未知不默认1。",
+    "**.meal.items.*.nutrition": "此餐项经服务端换算的本次总营养，不再次乘份数。",
+    "**.nutritionBasis": "输入口径：consumed_total本次总量，per_portion每份，per_reference每参考量；不能把每100克或整包当成实际摄入。",
+    "**.sourceKind": "营养依据的来源种类，estimated为估算，不等于用户确认或真实标签。",
+    "**.basis": "估算、规格、换算及不确定性依据，不能伪造用户确认或未查询的来源。",
+    "**.amountDecision": "provided为实际量已提供；estimate_accepted须用户明确接受食量估算；unknown_accepted须明确保留未知。营养默认估算不授权猜食量。",
+    "**.quantityEffect": "自由项总营养只改数量时，keep_total保持本次总量，scale_total明确按比例缩放；省略不等于任选。",
+    "**.expectedImageCount": "用户原本提供或预期关联的图片数，不是已成功上传数。",
+    "**.imageIds": "已保存且属于本人、用于关联当前餐次或食材的附件标识；关联到预览仍未正式保存餐次。"
+  },
+  "images": {
+    "status": "本次原图导入结果：complete全部成功，partial部分成功，failed全部失败；只表示附件，不表示餐次或食材已保存。",
+    "images": "本次成功保存的私有附件，保留成功ID，仅重试失败项；不重复上传已成功文件。",
+    "images.*.id": "已私有保存的附件标识，须关联到目标餐次或食材预览后再由用户确认。",
+    "failures": "失败文件的具体原因、阶段和请求标识，不能说成全部上传成功。",
+    "failures.*.retryable": "技术失败是否适合重试；临时链接过期需要新地址，不能无限重复旧链接。",
+    "expectedImageCount": "成功附件去重数量加失败文件数，不是已成功或已关联数量。",
+    "requestId": "本次附件处理的追踪标识，用于定位失败，不是正式餐次ID。"
+  }
+}

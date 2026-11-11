@@ -23,3 +23,5 @@ preview_meal、preview_meal_changes、preview_energy为GPT与豆包共享的常�
 queryOptions与日期分页位于records/ai-query.ts，各业务feature执行有界读取及既有汇总。新summary／details显式分页，身体七日统计标明锚点，旧choices仅留兼容校验，不再宣称可以改变采用值。工具数量增加不代表总定义变小；真实模型收益必须单独测量。
 
 饮食新增与餐内新增共用默认营养估算规则；preview_meal、preview_meal_changes、旧饮食及混合提交的模型说明同步。查询历史与局部修改不自动重估，用户明确不估仍可未知；MCP版本1.17.0，21项工具和原授权保持。
+
+MCP 1.17.1的21项工具都在成功结果返回fieldDefinitions，并在工具输出格式与说明中声明。正文JSON和structuredContent保持一致；豆包result_json保留该字典。公共解读规则与各业务字段字典同源。contract-export.ts通过内存SDK发现导出真实工具定义和说明，不执行工具、不读取数据库；供scripts/export-ai-contracts.mts生成私有评测快照。

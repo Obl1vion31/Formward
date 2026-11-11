@@ -1,3 +1,4 @@
+import { aiToolForHttp, withAiFieldDefinitions } from "../records/ai-field-definitions";
 import { currentMeasurementFacts } from "./retirement";
 import {adoptedMeasurements} from "./days";
 import type { Database } from "../../db/client";
@@ -30,7 +31,8 @@ export async function aiApiResponse(request: Request, db: Database, write: boole
   const responseHeaders = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
   try {
     const identity = await authenticateAi(db, request.headers.get("authorization"), write);
-    return Response.json(await work(identity), { headers: responseHeaders });
+    const data = await work(identity), tool = aiToolForHttp(request);
+    return Response.json(tool && data !== null && typeof data === "object" && !Array.isArray(data) ? withAiFieldDefinitions(tool, data as Record<string, unknown>) : data, { headers: responseHeaders });
   } catch (error) {
     const failure = safeAiError(error);
     return Response.json({ error: failure.error }, { status: failure.status, headers: { ...responseHeaders, ...(failure.status === 401 ? { "WWW-Authenticate": "Bearer" } : {}) } });
@@ -94,6 +96,7 @@ export async function queryAiMeasurementPage(db: Database, userId: string, param
     units: { weightKg: "kg", bodyFatPercent: "%", bodyFatDifference: "percentage_points" },
     days,
     sevenDay: { scope: "seven_days_ending_on_page_to", anchorDate: query.end,
+      window: { from: addCalendarDays(query.end, -6), to: query.end },
       weightKg: measurementSummaryAt(all, "weightKg", query.end), bodyFatPercent: measurementSummaryAt(all, "bodyFatPercent", query.end) },
     ...(query.view === "details" ? { records, sources: [...new Set(records.map(record => record.deviceLabel).filter((source): source is string => !!source))] } : {}),
     rules: "仅实测；每天每时段采用最后保存值，缺测为null。sevenDay按本页结束日及前六天统计，可能读取区间前最多六天作统计，不冒充整段平均或当前最新。修改用details的id/updatedAt版本，来源仍需用户明确提供或确认留空。page.hasMore时继续读取下一段。",

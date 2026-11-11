@@ -1,0 +1,26 @@
+{
+  "query": {
+    "days": "服务端按采用规则计算的逐日消耗，不由AI自行叠加来源明细。",
+    "days.*.totalKcal": "正式采用的该日总消耗，单位kcal，已计入按规则应加的运动；不要再加included或已包含的additional。",
+    "days.*.cumulative": "true表示当天截至当前的累计读数，不能当完整全天消耗与完整日比较；false本身也不能补齐未知。",
+    "days.*.restingKcal": "该日采用的静息热量，单位kcal；未知不按默认值补齐。",
+    "days.*.activeKcal": "该日采用的活动热量，单位kcal，可能已包含运动，不与运动明细重复相加。",
+    "days.*.additionalKcal": "明确额外加入且绑定当前总数基准的运动量，已经参与采用结果，不再另加一次。",
+    "days.*.recordedTotalKcal": "录入或同步的原总数，可能不同于计入额外运动后的totalKcal；不能混称最终总消耗。",
+    "days.*.recordedActiveKcal": "录入的活动合计原值，不等于所有运动明细的再次求和。",
+    "days.*.estimated": "是否有采用的估计分项，不表示全部分项都是实测或当前日完整。",
+    "days.*.activities": "summary中为运动数量，旧完整返回中可能为明细列表；都不能据条数推断全天消耗完整。",
+    "activities.*.totalKcal": "该次运动含期间静息的总热量；不一定是参与全天统计的热量。",
+    "activities.*.countedKcal": "按运动记录方式实际计入统计的热量；分项模式只计纯运动，不从未知静息中反推。",
+    "activities.*.inclusion": "included已包含在日总数；additional明确额外加入；未确定须核对，不能按数值大小猜。"
+  },
+  "operation": {
+    "**.day.totalKcal": "服务端对当天完整草稿投影后采用的总消耗，单位kcal；仅预览，不表示已经保存。",
+    "**.day.activeKcal": "当天投影采用的活动热量，不重复加运动明细。",
+    "**.after.calorieMode": "运动采用方式：total用给定总量，components只计exerciseActiveKcal，期间静息仅保留查看。",
+    "**.after.inclusion": "该运动与日总数的包含关系；included不再加，additional明确额外加入，未确定先问。",
+    "**.coverageQuestions": "仍需用户核对的运动包含关系，不能擅自判断为已包含或额外增加。",
+    "**.exerciseActiveKcal": "纯运动热量，单位kcal，不包含期间静息。",
+    "**.exerciseRestingKcal": "运动期间静息热量，单位kcal，分项运动模式不计入纯运动合计。"
+  }
+}

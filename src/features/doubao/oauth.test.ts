@@ -268,9 +268,12 @@ test("框架代理请求通过真实OAuth查询，新旧协议和无效凭据保
       assert.notEqual(profile.isError, true);
       const result = profile.structuredContent as { entities: Array<{ result_json: string }> };
       assert.equal(JSON.parse(result.entities[0].result_json).id, flow.userId);
+      assert.match(JSON.parse(result.entities[0].result_json).fieldDefinitions.id, /当前已验证连接/);
       const measurements = await client.callTool({ name: "query_measurements", arguments: { from: "2026-11-01", to: "2026-11-02", timezone: "Asia/Shanghai" } });
       assert.notEqual(measurements.isError, true);
       assert.ok((measurements.structuredContent as { entities: unknown[] }).entities.length > 0);
+      const measurementData = JSON.parse((measurements.structuredContent as { entities: Array<{ result_json: string }> }).entities[0].result_json);
+      assert.ok(measurementData.fieldDefinitions["analyses.*.summary.scope"]);
     } finally { await client.close(); }
   }
 });

@@ -1,0 +1,21 @@
+{
+  "catalog": {
+    "exercises": "动作目录匹配，包含目标记录方式；查到动作不代表用户已经执行。",
+    "total": "动作目录总量，不是用户训练次数或已完成动作数量。",
+    "units": "weightKg为kg、durationSeconds为秒、distanceMeters为米；与会话时长、能量接口的分钟不能混用。"
+  },
+  "query": {
+    "templates": "可复用的动作及目标模板；目标重量、次数、时长不代表实际完成。",
+    "plans": "日历排期及其状态，已安排不等于已完成；不可据计划生成热量。",
+    "sessions": "实际训练会话，仍须按status区分进行中、完成或放弃，不能把每条都算已完成。",
+    "sessions.*.elapsedSeconds": "训练会话总经过秒数，不是某个动作持续时间，也不是分钟。",
+    "requiresWebConfirmation": "后续新增或修改训练需网页确认；不表示本次查询的已有模板、计划或会话未保存。"
+  },
+  "operation": {
+    "**.before": "原模板或排期；修改不会改写已经完成的训练事实。",
+    "**.after": "待确认的模板或排期目标，不是实际完成结果，也不产生热量。",
+    "**.unchanged": "本项目内容未改变，可跳过写入；不能声称新增完成训练。",
+    "**.templateRef": "同批新模板项目的key引用，不是已经保存的templateId。",
+    "**.recordingType": "reps为次数和可选重量，duration为秒，cardio为秒或米；目标与实际分开，未知不能补成完成。"
+  }
+}

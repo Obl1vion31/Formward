@@ -62,3 +62,5 @@ energy-plot-frame.tsx为消耗骨架与真实SVG共用的首帧尺寸容器。�
 ai-preview.ts提供共享preview_energy，将当天总数／分项及实际运动的平铺输入映射到统一审核。未知与0、活动累计／人工合计、included／additional及源数据保护复用原规划器；省略不改已有字段，null清空。跨零点重试使用原始参数摘要，不产生新的日期或重复正式记录。queryEnergy按日期读取快照，可选summary／details与显式分页，旧默认30日返回保持。
 
 常用入口对明确标签／成分表数值自动生成忠实转录，保留未知，不新增推断来源；已有basis或链接保持。新增消耗按totalKcal／activeKcal是否明确提供推导模式，包括明确0，不要求模型重复指定可确定字段；修改旧记录仍保留原模式。
+
+AI字段解释由ai-field-definitions.json维护并附在成功结果中，明确总消耗、累计读数、原始录入值、已计入额外运动及运动countedKcal的区别；不重新叠加已包含明细。解释仅属于AI输出，不改变全天采用值、包含规则或历史精度。
