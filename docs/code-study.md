@@ -91,22 +91,22 @@ flowchart LR
 | Next.js | 在 React 基础上组织网址、页面生成、服务端函数和请求入口 | `src/app`、`page.tsx`、`layout.tsx`、`route.ts` |
 | Node.js | 在浏览器外运行 JavaScript 的环境 | 本地开发服务、服务端代码、维护脚本 |
 | PostgreSQL | 实际管理表、保存行、执行查询的数据库系统 | 餐次、餐项和账号等表 |
-| Neon | 托管 PostgreSQL 的云服务 | 线上数据库所在地，不是另一种前端框架 |
+| 上海 PostgreSQL | 正式业务的数据库实例 | 运行在上海服务器内部，只接受授权的回环连接 |
 | Drizzle | 帮助 TypeScript 代码描述表和发出数据库查询的工具 | `src/db/schema.ts`，业务代码中的 `db.select()` 等 |
 | Better Auth | 帮助项目处理密码登录、登录状态和 AI 授权的库 | `src/features/auth` 与认证请求入口 |
-| Vercel | 构建和运行线上 Next.js 应用的平台 | 线上部署、运行日志、环境配置 |
+| Vercel | 运行海外网关的平台 | GPT／MCP、OAuth、海外图片后台的部署、日志和环境配置 |
 | Private Blob | 只允许按授权读取的文件存储 | 用户上传的照片原文件 |
 
-例如 React 决定“合计变化后界面如何更新”；Node.js 让服务端程序运行起来；Neon 保存记录。它们不是三个互相替代的选择。
+例如 React 决定“合计变化后界面如何更新”；Node.js 让服务端程序运行起来；PostgreSQL 保存记录。它们分别承担界面、运行和存储职责。
 
 ### 1.4 本地与线上分别在哪里
 
 | 部分 | 本地开发时 | 正式站运行时 |
 | --- | --- | --- |
 | 浏览器 | 你的电脑或手机 | 仍是访问者的电脑或手机 |
-| Formward 程序 | 启动 `pnpm dev` 的那台电脑或远程工作区 | Vercel 提供的运行环境 |
-| 数据库 | 由连接配置决定，可能仍然连接云端 Neon | 使用正式环境配置的 Neon |
-| 图片存储 | 由当前环境的存储配置决定 | 正式站的 Private Blob |
+| Formward 程序 | 启动 `pnpm dev` 的那台电脑或远程工作区 | 上海运行 Next.js 业务，Vercel 运行海外网关 |
+| 数据库 | 由本机配置连接独立的回环开发库 | 上海 formward_primary，海外网关也回源上海 |
+| 图片存储 | 由当前隔离环境的存储配置决定 | 国内 Private COS 与海外 Private Blob，旧图保留原位置 |
 
 `localhost:3000` 表示“访问这台电脑上的 3000 端口”。端口是同一台机器上区分服务的数字。如果程序运行在远程工作区，需要把相应端口转发到浏览器能访问的位置。
 
@@ -720,11 +720,10 @@ flowchart LR
 | 步骤 | 在哪里运行 | 文件／函数 | 收到什么 | 做什么 | 交给谁 |
 | --- | --- | --- | --- | --- | --- |
 | 1. 读取页面资料 | 服务端 | [measurements/page.tsx](../src/app/dashboard/measurements/page.tsx) | 当前账号、可选日期 | 读取测量、日期／提醒状态、来源建议 | `MeasurementsView` |
-| 2. 显示或录入 | 浏览器交互 | [measurements-view.tsx](../src/features/measurements/measurements-view.tsx)、[measurement-entry.tsx](../src/features/measurements/measurement-entry.tsx)、[source-input.tsx](../src/components/source-input.tsx) | 记录、日期、来源与用户输入 | 管理图、历史、详情、四项输入与草稿 | 身体保存或估算动作 |
-| 3A. 保存实测 | 服务端及数据库 | [dashboard/actions.ts](../src/app/dashboard/actions.ts) 的 `saveDayAction` → [editing.ts](../src/features/measurements/editing.ts) 的 `saveMeasurementDay` | 本次填写、版本、来源、时区 | 校验晨晚与空腹条件，保存实测及事件 | 返回最新页面数据 |
-| 3B. 显式估算 | 服务端及数据库 | `estimateCellAction` → `estimateMeasurementCell` → [estimation.ts](../src/features/measurements/estimation.ts)、[estimate-records.ts](../src/features/measurements/estimate-records.ts) | 用户明确点击的日期／时段／指标 | 根据样本计算，条件允许才保存估计与依据 | 返回结果，更新身体页和总览 |
+| 2. 显示或录入 | 浏览器交互 | [measurements-view.tsx](../src/features/measurements/measurements-view.tsx)、[measurement-entry.tsx](../src/features/measurements/measurement-entry.tsx)、[source-input.tsx](../src/components/source-input.tsx) | 记录、日期、来源与用户输入 | 管理图、历史、详情、晨晚输入与草稿 | 身体实测保存动作 |
+| 3. 保存实测 | 服务端及数据库 | [dashboard/actions.ts](../src/app/dashboard/actions.ts) 的 `saveDayAction` → [editing.ts](../src/features/measurements/editing.ts) 的 `saveMeasurementDay` | 本次填写、版本、来源、时区 | 校验晨晚与空腹条件，保存实测及事件 | 返回最新页面数据 |
 
-3A、3B 是分支，不是先保存就自动执行估算。未知体脂不填 0；仅体重也可以是一条有效测量。实测与估计分开标记，实测只替代对应非空指标的估计。初始化冻结范围有额外保护，不应由普通保存顺手重算。
+身体只保存实测体重和体脂率。未知体脂不填 0；仅体重也可以是一条有效测量。缺测留空、图线断开，不能估算、插补、历史补全或重建。旧估计只留在私有审计归档，不进入网页、AI 查询、统计或导出；真实七日均值和实测变化保留。
 
 例如凌晨测量可能归前一天晚间：**实际发生时刻**和**业务记录日期**是不同概念。身体按测量地当地时间和时区归属，不能简单拿服务器当天替代。来源建议是可选名称列表，旧记录另存来源文字副本；移除一个建议不会删掉历史来源。点建议只是把名称填进这次草稿，点击保存才写进数据库；AI确认里还要先应用修改，再统一确认保存。三个位置共用 SourceInput，手机选建议时必须等按钮点击完成再收起列表，不能因为键盘先失去焦点就吞掉选择。
 
@@ -796,7 +795,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 | 浏览器与外部之间的请求 | 开发者工具 → Network／网络 | 文档、脚本、图片、导航和保存请求的时序与响应 | 看不到服务器内部每次普通函数调用，也看不到数据库 SQL 通信 |
 | 浏览器侧错误与代码 | 开发者工具 → Console／控制台、Sources／源代码 | 客户端异常和加载的脚本；开发环境可能映射回源码 | 不代表能够看到所有服务端业务和密钥 |
 | 服务端运行情况 | 本地启动服务的终端；线上查看 Vercel 日志 | 启动、构建与已有的服务端错误日志 | 并非每个函数都自动打印执行过程 |
-| 真实数据库表和行 | 已获授权的数据库管理工具，或 Neon 的数据库管理界面 | 当前所连数据库的结构和记录 | `schema.ts` 不能代替实际数据库查看；也不能由分支名判断环境 |
+| 真实数据库表和行 | 已获授权的 SSH 隧道或服务器只读数据库管理入口，见[服务器查看](server-operations.md) | 当前所连数据库的结构和记录 | `schema.ts` 不能代替实际数据库查看；也不能由分支名判断环境 |
 | 图片原文件及状态 | 受保护的照片查看入口；有权限的 Blob 管理界面 | 图片内容、存储对象等 | 数据库图片行不等于图片字节本身 |
 
 在桌面浏览器通常可按 F12 或菜单中的“开发者工具”打开面板。不同浏览器名称稍有差异，先找 Elements 和 Network 即可，不需要一次认识所有面板。
@@ -855,7 +854,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 | 身体图、点选、详情 | `measurements-view.tsx` | [measurements-view.module.css](../src/features/measurements/measurements-view.module.css)；内部 `TrendPlot`、`MeasurementInspector`、`DayOverview` 对应区域 |
 | 身体日期与同槽最后保存规则 | [days.ts](../src/features/measurements/days.ts)、[calendar.ts](../src/features/measurements/calendar.ts)、[trend.ts](../src/features/measurements/trend.ts)、[summary.ts](../src/features/measurements/summary.ts) | 选择数据与显示数据的口径，不是改 CSS 就能改变 |
 | 身体来源、时间与晨晚归属 | [sources.ts](../src/features/measurements/sources.ts)、[assignment.ts](../src/features/measurements/assignment.ts)、[time.ts](../src/features/measurements/time.ts)、[timezone.ts](../src/features/measurements/timezone.ts) | 输入先看 `measurement-entry.tsx`、[entry-state.ts](../src/features/measurements/entry-state.ts)；网页和 AI 规则需一致 |
-| 身体估算与解释 | `estimation.ts`、[estimate-explanation.ts](../src/features/measurements/estimate-explanation.ts) | 写入在 `editing.ts`、`estimate-records.ts`；[initialization.ts](../src/features/measurements/initialization.ts)、[rebuild.ts](../src/features/measurements/rebuild.ts) 是独立维护能力 |
+| 身体实测与缺测边界 | [editing.ts](../src/features/measurements/editing.ts)、[身体规则](measurements.md) | 只保存实测；估算、初始化补全与重建已退役，不恢复私有归档中的旧估计 |
 | AI 审核编辑、核对、统一确认 | `records/record-review.tsx` | `ai/actions.ts` → `records/operations.ts`；[ai-confirmation.tsx](../src/features/measurements/ai-confirmation.tsx)、[review-details.tsx](../src/features/meals/review-details.tsx) 提供说明组件 |
 | AI 设置与授权撤销 | [ai/page.tsx](../src/app/dashboard/ai/page.tsx)、[ai-access.tsx](../src/features/auth/ai-access.tsx) | [ai-tokens.ts](../src/features/auth/ai-tokens.ts)、[oauth-connections.ts](../src/features/auth/oauth-connections.ts)：凭据与连接状态 |
 | OAuth 登录／同意页面 | [oauth/login/page.tsx](../src/app/oauth/login/page.tsx)、[oauth/consent/page.tsx](../src/app/oauth/consent/page.tsx) | [oauth-form.tsx](../src/features/auth/oauth-form.tsx)、[oauth-pages.ts](../src/features/auth/oauth-pages.ts)：界面与授权请求验证 |
@@ -1001,7 +1000,7 @@ TSV 是用制表符分列的文本格式。当前不是“任意 Excel 文件都
 | Next.js 配置 | [next.config.ts](../next.config.ts) | 开发来源、构建等框架配置 |
 | 环境变量名称 | [.env.example](../.env.example) | 提示程序需要哪些外部配置；实际私有值不提交 Git |
 | 数据库与认证接入 | [auth-setup.md](auth-setup.md) | 明确数据库环境、迁移与内部账号 |
-| 发布环境 | [deployment.md](deployment.md) | Vercel、Neon、Private Blob 和正式发布检查 |
+| 发布环境 | [deployment.md](deployment.md) | 上海业务与 PostgreSQL、Vercel 海外网关、Private Blob／COS 和正式发布检查 |
 
 “环境变量”是运行程序时提供的配置值。`getDatabase()` 读取 `DATABASE_URL`，认证读取自己的配置。变量名可以在源码中看到，实际密钥不属于浏览器页面内容。
 

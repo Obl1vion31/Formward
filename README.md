@@ -71,7 +71,7 @@ Garmin Personal 已支持中国站／国际站及各账号本人密钥连接；�
 采用轻量的 Next.js 模块化单体：
 
 - Next.js、React、TypeScript
-- PostgreSQL 18（上海正式主库）、Drizzle ORM；Neon保留停写源材料
+- PostgreSQL 18（上海正式主库）、Drizzle ORM；本机开发使用隔离数据库
 - Better Auth
 - Tailwind CSS、shadcn/ui
 - Vitest、Playwright
@@ -121,7 +121,7 @@ tests/            跨功能与端到端测试
 
 ## 自己启动开发服务
 
-国内服务器的原生部署、隔离验收、数据库恢复演练及域名备案安排见[国服网页与海外后台](docs/mainland-deployment.md)。唯一网页和海外 AI 后台共用上海主库；旧 Neon 不再作为正式数据源。
+国内服务器的原生部署、隔离验收、数据库恢复演练及域名备案安排见[国服网页与海外后台](docs/mainland-deployment.md)。唯一网页和海外 AI 后台共用上海主库；旧 Neon 项目已删除，最终旧源归档私有保留，恢复验证见[服务器说明](docs/server-operations.md#旧-neon-项目退役)。
 
 1. 在终端进入本仓库根目录：`cd /home/obl1vion/projects/Formward`。
 2. 安装 `.nvmrc` 指定的 Node.js `24.21.0`。可从 [Node.js 官方下载页](https://nodejs.org/en/download)安装；安装后打开新终端，运行 `node --version` 确认显示 `v24`。当前共享环境自带的 Node.js 18 不满足本项目要求。

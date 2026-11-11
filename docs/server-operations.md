@@ -2,7 +2,7 @@
 
 ## 当前部署状态
 
-日常网页只有[上海公网IP入口](https://43.142.148.58)。Vercel保留GPT／MCP、OAuth和海外图片后台，普通旧网页自动转国服；两部分共用上海formward_primary，55表／36条migration。Neon已隔离停写。恢复和连接验收见[验收记录](regional-acceptance.md)。
+日常网页只有[上海公网IP入口](https://43.142.148.58)。Vercel保留GPT／MCP、OAuth和海外图片后台，普通旧网页自动转国服；两部分共用上海formward_primary，55表／36条migration。旧 Neon 项目已删除，旧源只保留私有归档。恢复和连接验收见[验收记录](regional-acceptance.md)。
 
 候选应用服务按唯一发布编号命名，退出后停止并清理该临时服务；不同发布不共用候选服务名。近期已经成功且完成异地回读的备份可供同结构的界面补丁复用，避免重复启动触发备份频次限制。
 
@@ -23,7 +23,22 @@ flowchart LR
 
 PostgreSQL 保存账号、授权、饮食、身体、训练、Garmin 来源与附件关联。图片原件保存在 Blob 或 COS，不放在数据库字段、Git 或 public 目录。GPT 原图由海外图片服务下载，上海负责归属、状态和附件登记。
 
-所有正式入口写入同一上海主库；Neon 停写保留为切换备份材料。开发与测试继续使用隔离数据库，不把本机演练副本当成正式数据源。
+所有正式入口写入同一上海主库；旧 Neon 最终源归档保存在服务器切库证据目录及本机私有 `data/exports/`，不再作为日常开发或正式恢复目标。开发与测试继续使用隔离数据库，不把本机演练副本当成正式数据源。
+
+## 旧 Neon 项目退役
+
+2026年11月11日，Neon 旧项目 Formward（plain-feather-67562814）已删除，项目列表仅余独立的 FRONTEND。平台显示一个项目待恢复期结束后永久删除；本次未执行提前永久清除。上海主库、原 GPT／MCP、OAuth、Blob／COS 及其他项目保持原职责。
+
+本机 `.env.local` 已改为隔离 PGlite 回环连接，migration 沿用本机连接；其他配置保持。Vercel 全部环境变量经 API 核对，无 DATABASE／POSTGRES／NEON 连接或 BETTER_AUTH_SECRET，无需修改或重发网关。已有项目进程环境中也未发现旧 Neon 数据库连接。新开发环境按[账号接入](auth-setup.md)启动本机数据库，不复用正式库。
+
+删除前已完成两项实际恢复，而非仅检查文件存在：
+
+- 使用2026年11月9日切库隔离停写后的最终源归档 `dual-entry-final-20261109T111422336Z.dump`，核对 SHA256 并在全新本机 PostgreSQL 18 隔离库完整恢复；54表、33条源迁移、全部行摘要、列、约束、索引及序列与原始 manifest 一致。
+- 从私有 COS 重新下载2026年11月11日03:20的主库备份，校验密文摘要、AES-256-GCM认证解密及原生归档摘要后，完整恢复到另一个隔离库；55表、36条migration，未发现无效约束或索引。此次完整恢复独立记录，不改写日任务原有的 `fullRestoreForThisDailyRun=false`。
+
+两份原生归档及摘要另存本机私有 `data/exports/`、文件权限0600；旧源原件继续留在服务器 `/var/lib/formward/dual-cutover/final-data/data/exports/`，正常主库备份与 COS 副本按既有策略保留。临时恢复集群已清理，图片原件不包含在数据库归档中。配置核对、完整恢复结果、检查日志及删除后的公网记录在主工作区私有 `.codex/neon-retirement/`，截图在用户电脑私有可视化目录；不提交健康内容或密钥。
+
+634项单元／集成、lint、typecheck、production build和目录结构检查通过。删除后11项公网探测通过：三入口版本及OAuth发现信息与删除前一致，两个海外匿名MCP请求均401；上海业务、Nginx、PostgreSQL及备份timer均active。此次仅配置、注释和文档收尾，没有应用行为或数据库结构变更，不重发应用。
 
 ## CPU、内存和网络
 

@@ -11,7 +11,7 @@
 
 ## 连接与演进流程
 
-1. 使用 Node.js 24 和 pnpm 9，安装依赖。把数据库运行连接配置到私有 `.env.local` 的 `DATABASE_URL`；需要直连的 migration 使用 `DATABASE_MIGRATION_URL`，未设置则使用运行连接。正式库使用上海PostgreSQL，Neon保持停写；开发隔离库与正式库共用postgres.js／Drizzle。配置不提交 Git、不打印 URL。
+1. 使用 Node.js 24 和 pnpm 9，安装依赖。本机 `.env.local` 的 `DATABASE_URL` 只连接隔离开发库；正式库使用上海 PostgreSQL，运行配置由服务器 root 私有管理。需要独立维护身份的 migration 使用 `DATABASE_MIGRATION_URL`，未设置则使用运行连接。开发隔离库与正式库共用 postgres.js／Drizzle，不再连接旧 Neon。配置不提交 Git、不打印 URL。
 2. 在现有数据库上执行结构变更前，运行 `node --env-file=.env.local --import tsx scripts/backup-database.mts data/exports/私有备份.json`。工具在 repeatable read 只读事务中导出 public 和 drizzle 表及字段信息，文件以 0600 创建、拒绝覆盖。备份包括认证数据，保持私有；恢复先还原对应版本结构，再按外键顺序恢复数据和 migration journal，切勿对正式库盲目重放。
 3. 修改 `src/db/schema.ts`，执行 `pnpm db:generate`，审阅新 SQL 与快照。已经共享的 migration 不修改；数据转换必须在删列之前完成。生成文件纳入版本控制后，运行 `pnpm db:migrate`。
 4. 应用通过 `getDatabase()` 复用服务端连接池，页面与 Server Action 从当前会话获得账号，再调用 feature。查询按账号顺序执行以兼容 PGlite；所有测量写入锁定 users 中的归属账号并在事务内保存批次、事实、来源建议和审计。
