@@ -1,6 +1,6 @@
 # Scripts
 
-`prepare-ip-preview.mts`只初始化回环地址上的formward_ip_preview测试库，读取root私有的虚构账号配置；迁移使用既有Drizzle文件，重复执行保留已有账号与记录，不连接Neon或其他库。FORMWARD_STANDALONE=1构建可独立运行的服务器产物，默认构建方式保持。
+`prepare-ip-preview.mts`只初始化回环地址上的formward_ip_preview测试库，读取root私有的虚构账号配置；迁移使用既有Drizzle文件，重复执行保留已有账号与记录，不连接正式主库或其他库。FORMWARD_STANDALONE=1构建可独立运行的服务器产物，默认构建方式保持。
 
 `preview-garmin.mts`（`pnpm garmin:preview --serve`）读取用户目录的私有 Personal API 配置，获取最近七日佳明 V2 汇总和分页活动，生成本机只读预览、字段观察和脱敏样本；不加载正式数据库配置或写入记录。原始响应存 `data/imports/`，其余报告存 `data/exports/`，均为 0600。配置和运行见 [Garmin Personal API](../docs/garmin-personal.md)。
 
@@ -53,7 +53,7 @@ node --env-file=.env.rehearsal.local --import tsx scripts/rehearse-database.mts 
 
 此模式从同名 `.dump` 读取归档，兼容旧摘要中的物理列序号；仍限制目标为本机回环地址、`formward_rehearsal` 系列库名，报告必须使用新名称，第一次失败报告和原始摘要保持。报告只含完整性核对状态，不输出业务行。
 
-原生归档、源摘要、验证报告分别为 `.dump`、`.manifest.json`、`.verification.json`，均在 `data/exports/`、权限 0600 且拒绝覆盖；归档包含认证和健康数据，不包含 Blob 原图字节。恢复采用单事务、遇错终止，不导入 Neon 所有者和 ACL；默认空库已有 public schema 时只跳过重复的 schema 创建，保留其下全部对象和数据。输出只含阶段和核对结果，不打印连接串、用户名、密码、原行或 PostgreSQL 原始错误。临时密码文件权限 0600，结束后清理。失败时保留已生成的私有归档与报告用于核查；不自动删除或清空目标库。
+原生归档、源摘要、验证报告分别为 `.dump`、`.manifest.json`、`.verification.json`，均在 `data/exports/`、权限 0600 且拒绝覆盖；归档包含认证和健康数据，不包含 Blob 原图字节。恢复采用单事务、遇错终止，不导入源库所有者和 ACL；默认空库已有 public schema 时只跳过重复的 schema 创建，保留其下全部对象和数据。输出只含阶段和核对结果，不打印连接串、用户名、密码、原行或 PostgreSQL 原始错误。临时密码文件权限 0600，结束后清理。失败时保留已生成的私有归档与报告用于核查；不自动删除或清空目标库。
 
 此工具验证隔离快照可恢复，不负责正式流量切换。正式迁移仍需一致的停写窗口和最终归档，不能把演练时的旧快照直接作为之后的生产主库。`backup-database.mts` 的 JSON 快照继续用于既有审计；原生归档负责跨机器恢复，避免只靠 JS 日期序列化或不完整 DDL 恢复。
 

@@ -6,7 +6,7 @@
 
 ## 当前内容
 
-- `client.ts`：通过 postgres.js 连接 Neon 或本机 PostgreSQL，按服务端进程复用连接池。创建连接池时将 Node 的单地址自动选择尝试时限设为至少 1000ms，保留进程已有的更长设置；数据库连接时限为 15 秒。默认连接池为 3，连接串的标准 max 参数可指定正整数；本地 PGlite 使用 max=1，避免其单会话多路复用协议混淆未命名 statement，Neon 保持默认。
+- `client.ts`：通过 postgres.js 连接上海主库或本机隔离 PostgreSQL，按服务端进程复用连接池。创建连接池时将 Node 的单地址自动选择尝试时限设为至少 1000ms，保留进程已有的更长设置；数据库连接时限为 15 秒。默认连接池为 3，连接串的标准 max 参数可指定正整数；本地 PGlite 使用 max=1，避免其单会话多路复用协议混淆未命名 statement，原生 PostgreSQL 保持默认。
 - `schema.ts`：Better Auth 的 users、accounts、sessions、verifications 表，以及身体测量 measurements、日期与提醒状态 measurement_days、操作批次 measurement_imports、写入事件 measurement_events；所有健康表关联 user_id。数值为 numeric，保留当地时间、每次测量时区、UTC 时刻、唯一记录日期 record_date和空腹确认；空腹来源区分 `user_confirmed` 与晚间非空腹的 `evening_rule`，真实性 `record_kind` 与录入入口 `entry_channel` 独立，另存合并设备来源及估计依据／样本快照。实测与估计均允许仅体重或仅体脂，至少一个主要指标非空，不能用全空测量代表空日期；估计有效时段唯一，占位或日期时段时间的 UTC 时刻为空；写入／维护事件保存前后快照。`measurement_days` 按账号／日期唯一，保存创建人、时间和当天停止提醒状态，不进入实测统计。`measurement_imports.request_digest` 绑定录入请求内容，`initialization_metadata` 保存独立初始化模式、规则、冻结范围、策略和完整报告；部分唯一索引保证每个账号仅有一个初始化批次。
 
 ## 维护约定

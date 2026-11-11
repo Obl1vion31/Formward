@@ -1,5 +1,13 @@
 # Formward 项目交接
 
+## 旧 Neon 退役与配置收尾（2026-11-11）
+
+Neon 旧 Formward 项目 plain-feather-67562814 已删除，项目列表仅余独立 FRONTEND；平台保留恢复期，本次未提前永久清除。正式服务继续使用上海 formward_primary，本机开发连接已改为隔离 PGlite；Vercel API 核对全部环境均无旧数据库连接或 Better Auth 签名 secret，无需修改网关变量或重发应用。接入示例、部署分工和学习文档已按当前状态重写。
+
+旧源停写最终归档在全新 PostgreSQL 18 中完整恢复，54表／33条源迁移及原始manifest逐项一致；今日03:20主库COS副本重新下载、认证解密及完整恢复通过，55表／36条migration，无无效约束／索引。私有原生副本保存在主工作区data/exports，服务器原件与正常COS备份继续保留；临时恢复集群已清理。证据.codex/neon-retirement，详细位置、备份边界和恢复结果见[服务器说明](docs/server-operations.md#旧-neon-项目退役)。
+
+634项测试、lint、typecheck、production build及目录结构通过。删除后11项公网探测通过，三入口版本与OAuth发现未变，海外匿名MCP仍401，上海业务与备份timer正常。此次没有正式健康写入、数据库迁移或应用发布。
+
 ## Vercel 发布归档与部署保留（2026-11-11）
 
 - 已完成旧部署清理及七天保留策略设置，原正式域名绑定保持。归档、逐批 ID 与前后只读检查保存在 Git 公共目录所属工作区的私有备份；操作入口与保护范围见 docs/deployment.md。每次正式发布先归档，再切换并清理；工具不重新构建网站或替代原功能验收。

@@ -1,18 +1,18 @@
 # 数据库与账号接入
 
-Formward 使用 Neon 托管 PostgreSQL，以 Drizzle 定义表和执行 migration，以 Better Auth 验证邮箱密码与管理网页登录会话。配置保存在根目录 `.env.local`，这个文件被 Git 忽略；`.env.example` 只保存空占位与填写说明。
+Formward 使用上海服务器上的 PostgreSQL 18 正式主库，以 Drizzle 定义表和执行 migration，以 Better Auth 验证邮箱密码与管理网页登录会话。本机开发连接独立的回环数据库；配置保存在被 Git 忽略的根目录 `.env.local`，`.env.example` 提供本机示例与空白 secret，不包含正式凭据。
 
-## 创建 Neon 数据库
+## 配置数据库
 
-1. 打开 [Neon 控制台](https://console.neon.tech)，登录后创建名为 Formward 的项目。
-2. 选择服务部署位置附近的区域。创建完成后点击 **Connect**，选择 branch、database 和 role。
-3. 复制以 `postgresql://` 开头的完整连接串，保留 `sslmode` 等参数，填入 `.env.local` 的 `DATABASE_URL`。如果复制了命令形式的内容，只取引号内的连接串，不包含 `psql`。
-4. 网站可以使用带 `-pooler` 主机名的连接串。需要单独的 migration 连接时，将 Neon 的直接连接串填入 `DATABASE_MIGRATION_URL`；留空时脚本使用 `DATABASE_URL`。[Neon 官方连接说明](https://neon.com/docs/get-started/connect-neon)
+1. 本机运行 `pnpm db:local`，保持隔离 PGlite 服务运行；它只监听 `127.0.0.1:5432`。
+2. 将下方本机连接填入 `.env.local` 的 `DATABASE_URL`。原生 PostgreSQL 开发库也须独立于正式库，且只使用虚构测试数据。
+3. 本机 migration 可将 `DATABASE_MIGRATION_URL` 留空；正式维护使用服务器上的独立管理身份，不把正式连接复制到开发配置。
+4. 上海正式运行连接保存在 `/etc/formward/primary.env`，数据库为 `formward_primary`。Vercel 只运行海外网关，不配置数据库或 Better Auth 签名 secret。权限和维护入口见[服务器查看指南](server-operations.md)。
 
 首次配置可复制 `.env.example` 到 `.env.local`；已有 `.env.local` 时只编辑对应变量，保留已有 secret 和其他配置。
 
 ```env
-DATABASE_URL="这里填完整的 Neon PostgreSQL 连接串"
+DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/postgres?max=1"
 DATABASE_MIGRATION_URL=""
 BETTER_AUTH_SECRET="这里填随机生成的 secret"
 BETTER_AUTH_URL="http://localhost:3000"
@@ -26,7 +26,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 
 `BETTER_AUTH_URL` 是用户实际访问网站的地址。本机开发允许同端口的 localhost 和 127.0.0.1；其他端口、转发域名或正式域名要更新此变量并重启服务。HTTPS 地址会启用 Secure cookie。
 
-正式网站为 [https://formward-ten.vercel.app](https://formward-ten.vercel.app)，通过 Vercel 托管并使用现有 Neon。生产变量与本机配置独立；完整步骤见 [公网 HTTPS 部署](deployment.md)。登录限流使用数据库 rate_limits，多实例共享每分钟五次登录计数；此表由 0010 migration 创建，不修改账号或健康记录。
+日常网站为[上海公网 IP](https://43.142.148.58)，原 Vercel 地址保留 GPT／MCP、OAuth 和海外图片后台，普通网页自动转国服。所有正式入口共用上海主库。生产变量与本机配置独立；完整步骤见[公网 HTTPS 部署](deployment.md)。登录限流使用数据库 rate_limits，多实例共享每分钟五次登录计数；此表由 0010 migration 创建，不修改账号或健康记录。
 
 ## 建表与账号管理
 
@@ -95,9 +95,9 @@ pnpm dev
 
 ## 本机离线开发
 
-没有 Neon 时可在一个终端运行 `pnpm db:local`，保持服务运行，并使用 `postgresql://postgres:postgres@127.0.0.1:5432/postgres?max=1` 作为本机 DATABASE_URL，再执行 migration 和账号创建命令。max=1 限制其单会话协议并发，Neon 默认连接池仍为 3。这个 PGlite 开发数据库持久化在被 Git 忽略的 `data/postgres/storage/`，只监听本机。
+在一个终端运行 `pnpm db:local`，保持服务运行，并使用 `postgresql://postgres:postgres@127.0.0.1:5432/postgres?max=1` 作为本机 DATABASE_URL，再执行 migration 和账号创建命令。max=1 限制其单会话协议并发，原生 PostgreSQL 默认连接池为 3。这个 PGlite 开发数据库持久化在被 Git 忽略的 `data/postgres/storage/`，只监听本机。
 
-本机数据库和 Neon 互相独立。切换连接串不会自动迁移账号；需要在目标数据库执行 migration 并创建内部账号。不要把开发数据库服务暴露为正式网络数据库。
+本机数据库与上海正式主库互相独立。切换连接串不会自动迁移账号；需要在本机目标数据库执行 migration 并创建内部账号。不要把开发数据库服务暴露为正式网络数据库，也不把旧 Neon 或正式备份恢复到日常开发库。
 
 ## 数据库连接超时
 
@@ -105,7 +105,7 @@ pnpm dev
 
 `src/db/client.ts` 在创建连接池时，将服务进程的默认单地址尝试时限设为至少 1000ms。网站、migration 和账号脚本使用同一入口，进程已有的更长设置会保留；数据库连接时限仍为 15 秒。这是 Node 的进程级设置，也适用于该进程内其他使用默认自动地址选择的 TCP 连接。
 
-修改连接代码或 `.env.local` 后重启 `pnpm dev`，让进程缓存的认证实例和连接池重新建立。若仍超时，检查 Neon 域名解析和到 5432 端口的网络访问；仅增加数据库的 `connect_timeout` 不会改变 Node 的单地址尝试时限。
+修改连接代码或 `.env.local` 后重启 `pnpm dev`，让进程缓存的认证实例和连接池重新建立。若仍超时，本机先检查开发数据库服务是否启动；远程维护检查 SSH 隧道和授权目标，不开放正式 5432 公网访问。仅增加数据库的 `connect_timeout` 不会改变 Node 的单地址尝试时限。
 
 ## 验证
 

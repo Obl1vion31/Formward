@@ -45,7 +45,7 @@
 | global.formward.top | 同一海外网关的已验证别名，过渡承接豆包request、WebView及独立登录；普通网页仍转国服 |
 | 上海PostgreSQL | 唯一权威数据库，应用与迁移角色分离，只监听回环地址，不公开5432 |
 | Blob／COS | GPT附件在海外后台处理并保存在私有Blob；国服网页新上传使用私有上海COS，旧图保留原位置 |
-| Neon | 停写的旧数据源，仅保留恢复材料，不再接收正式新增记录 |
+| Neon（退役） | 旧 Formward 项目已删除，平台保留恢复期；最终旧源归档保存在服务器和本机私有目录，恢复验证只使用临时隔离库 |
 
 国服当前使用有效HTTPS公网IP证书。global.formward.top是海外后台别名；CLE1通过有效HTTPS回源公网IP。origin.formward.top已配A记录与证书，当前不承担回源。根域与www未启用；未来更换网页域名时单独更新CN来源，不改变既有OAuth issuer或MCP resource。
 

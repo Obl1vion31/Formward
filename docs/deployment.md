@@ -427,27 +427,30 @@ P／C／F小数录入与整数热量展示已发布。正式域名https://formwa
 
 上一账号管理READY部署dpl_GZNxCaMsEgWT3mwa4ZyhhW3SaF46保留用于界面回退，不回退0027或账号安全检查，不复活已撤销授权。
 
-Next.js由Vercel Hobby托管，数据库沿用Neon PostgreSQL。AI使用正式[OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json)或https://formward-ten.vercel.app/api/mcp，不使用受Deployment Protection保护的单次部署/预览地址。
+Next.js 业务运行在上海服务器，正式数据只保存在上海 PostgreSQL。Vercel 保留海外网关；AI 使用正式 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 或 https://formward-ten.vercel.app/api/mcp，不使用受 Deployment Protection 保护的单次部署／预览地址。
 
 ## 平台与变量
 
-Vercel 项目 `formward`，Framework Next.js，仓库根目录，Node.js 24.x。`ENABLE_EXPERIMENTAL_COREPACK=1` 使用 package.json 的 pnpm 9.15.9。`vercel.json` 固定 frozen-lockfile 安装、`pnpm build` 和函数区域 cle1，靠近 Neon us-east-2。
+上海业务使用 Node.js 24 和 PostgreSQL 18。Vercel 项目 `formward` 使用专用国际 Build Output 产物，发布区域显式指定 `iad1`；不能用根目录完整 Next.js 构建替代网关产物。`ENABLE_EXPERIMENTAL_COREPACK=1` 使用 package.json 的 pnpm 9.15.9，安装继续使用 frozen-lockfile。正式运行包归档和发布入口见本文开头，双区构建见[国服与海外后台](mainland-deployment.md)。
 
 通过 CLI 手动发布，没有 Git 自动部署；Git 推送不会更新正式网站。Standard Protection 保护 Preview 和单次部署地址，正式别名公开。项目关联信息在被忽略的 `.vercel/`。
 
-Production 变量：
+当前正式变量按运行位置分配：
 
-| 变量 | 内容 |
-| --- | --- |
-| DATABASE_URL | 原 Neon pooler 连接串，保留 TLS，敏感变量 |
-| BETTER_AUTH_SECRET | 原认证 secret，敏感变量 |
-| BETTER_AUTH_URL | https://formward-ten.vercel.app |
-| FORMWARD_TIMEZONE | Asia/Shanghai |
-| ENABLE_EXPERIMENTAL_COREPACK | 1 |
-| BLOB_STORE_ID | Private Blob 连接自动配置；SDK 使用部署 OIDC |
-| BLOB_WEBHOOK_PUBLIC_KEY | 平台自动维护，当前预签名流程不依赖 webhook |
+| 变量 | 上海业务／维护 | Vercel 海外网关 |
+| --- | --- | --- |
+| DATABASE_URL | 仅回环连接 formward_primary，应用运行身份 | 不配置 |
+| DATABASE_MIGRATION_URL | 仅维护进程使用独立管理身份 | 不配置 |
+| BETTER_AUTH_SECRET | 保留原认证 secret，只在上海读取 | 不配置 |
+| BETTER_AUTH_URL | https://formward-ten.vercel.app，保留原 issuer／resource | 相同公开入口 |
+| FORMWARD_GATEWAY_SECRET／FORMWARD_IMAGE_SECRET | 私有共享的服务证明和图片能力配置 | 对应独立敏感变量 |
+| FORMWARD_ORIGIN_URL／区域入口 | 已验证的回源和国服入口 | 同一套已验证入口，实际函数区域 iad1 |
+| FORMWARD_TIMEZONE | Asia/Shanghai | Asia/Shanghai |
+| ENABLE_EXPERIMENTAL_COREPACK | 构建时按既有流程设置 | 1 |
+| BLOB_STORE_ID | 按海外图片职责调用网关 | Private Blob 自动关联，SDK 使用部署 OIDC |
+| BLOB_WEBHOOK_PUBLIC_KEY | 当前预签名流程不依赖 webhook | 平台自动维护 |
 
-真实数据库与存储不连接 Preview，不使用 NEXT_PUBLIC_ 变量保存秘密，不覆盖本机 `.env.local`。变量变化后重新部署。确认链接和 OpenAPI 使用 BETTER_AUTH_URL，忽略代理内部地址和请求 Host。默认时区使用 FORMWARD_TIMEZONE，HTTP 请求 X-Formward-Timezone 优先，按发生时的夏令时计算偏移。
+真实数据库与存储不连接 Preview，不使用 NEXT_PUBLIC_ 变量保存秘密。本机 `.env.local` 仅连接隔离开发库，不再保留 Neon 连接；示例见[账号接入](auth-setup.md)。国际项目不配置 DATABASE／POSTGRES／NEON 连接或认证签名 secret；变量变化后重新部署。确认链接和 OpenAPI 使用 BETTER_AUTH_URL，忽略代理内部地址和请求 Host。默认时区使用 FORMWARD_TIMEZONE，HTTP 请求 X-Formward-Timezone 优先，按发生时的夏令时计算偏移。
 
 ## 私有原图
 
