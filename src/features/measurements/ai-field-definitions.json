@@ -3,6 +3,8 @@
     "days": "所查区间按记录日期展示的实测；每天晨晚分别采用最后保存值，null为缺测，不能补0。",
     "days.*.daytime": "当天晨间实测，和晚间分开比较；数值未知保留null。",
     "days.*.evening": "该记录日的晚间实测，凌晨发生时可能归前一记录日；不与晨间混算均值。",
+    "days.*.*.weightKg": "该日对应晨间或晚间的实测体重，单位kg；是单次采用值，不是七日均值，缺测为null。",
+    "days.*.*.bodyFatPercent": "该日对应晨间或晚间的实测体脂率，单位%；两次体脂率相减用百分点，不用相对百分比。",
     "sevenDay.scope": "此摘要是以本页结束日为锚点的7个日历日，不是请求全部区间的均值，也不是与前一周比较。",
     "sevenDay.anchorDate": "七日窗口结束日；不保证这一天每个指标都有测量。",
     "sevenDay.window": "完整统计窗口，from为anchorDate前6天，to为anchorDate，均包含；不同于各指标start/end有效样本日期。",
@@ -28,6 +30,8 @@
     "analyses.*.summary.average": "旧摘要自身七日窗口内有效晨间空腹样本的算术平均，不混入晚间、缺测、估计或请求区间外推结论。",
     "analyses.*.summary.coverage": "旧摘要自身窗口内本指标有效晨间空腹样本天数，不是请求区间覆盖率。",
     "records": "明细实测及修改所需id/updatedAt；读取不保存，不把来源或测量时间未知改成推测值。",
+    "records.*.weightKg": "该条实测体重，单位kg；须结合recordDate、period和fasting，不把晚间或非空腹值混入晨间空腹统计。",
+    "records.*.bodyFatPercent": "该条实测体脂率，单位%；差值为百分点，未知null不当0。",
     "sources": "历史设备或应用来源候选，只供用户选择，不代表本次来源已确认。"
   },
   "operation": {

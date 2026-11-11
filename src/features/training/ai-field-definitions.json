@@ -8,8 +8,19 @@
     "templates": "可复用的动作及目标模板；目标重量、次数、时长不代表实际完成。",
     "plans": "日历排期及其状态，已安排不等于已完成；不可据计划生成热量。",
     "sessions": "实际训练会话，仍须按status区分进行中、完成或放弃，不能把每条都算已完成。",
+    "plans.*.status": "planned仅已安排，completed表示该计划已完成；查询不包括已跳过计划，不凭计划目标推断实际组次。",
+    "sessions.*.status": "active进行中，paused已暂停，completed已结束且保存完成组；查询不包括已放弃会话，进行中或暂停不算整场完成。",
     "sessions.*.elapsedSeconds": "训练会话总经过秒数，不是某个动作持续时间，也不是分钟。",
     "requiresWebConfirmation": "后续新增或修改训练需网页确认；不表示本次查询的已有模板、计划或会话未保存。"
+  },
+  "values": {
+    "**.weightKg": "训练负重，单位kg，不是身体体重；模板、计划和target内为目标，实际组值仍需结合completed判断。",
+    "**.reps": "单组动作次数，单位次；模板和target为目标次数，不能据目标称已完成。null为未知。",
+    "**.durationSeconds": "单组或动作持续时长，单位秒；不是分钟，也不是整场elapsedSeconds；目标与实际组分别读取。",
+    "**.distanceMeters": "单组或动作距离，单位米；不是公里，目标距离不代表已经完成。",
+    "**.sets": "模板中的数字表示目标组数；实际会话中的数组表示各组，须逐组检查completed，不能只看数组长度算完成组数。",
+    "**.sets.*.completed": "true为该实际组已标记完成，false为未完成；整场状态仍看sessions.status，目标值不产生完成事实。",
+    "**.target": "动作参考目标，不是该组实际完成的次数、负重、时长或距离。"
   },
   "operation": {
     "**.before": "原模板或排期；修改不会改写已经完成的训练事实。",
