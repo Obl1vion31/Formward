@@ -27,9 +27,11 @@ python3 scripts/vercel-releases.py policy --project formward --apply
 
 ## 当前正式部署：AI常用工具与外部接入
 
+原生登录恢复已上线：631项根测试、原生9项、lint／typecheck／干净production build及实际Next HTTP通过，普通与虚构手机号入口、可读错误框已在官方Web模拟器核对；0.0.1-dev.20261111.3云构建成功，真实手机恢复仍待更新资源后确认。
+
 豆包续期恢复协议已修正，不可恢复刷新返回50401/token expired以重新登录，服务故障保留503；629项测试及实际Next/public HTTP通过。原始失效原因与真机重新连接仍单独确认，代码、测试和边界见[豆包接入](doubao-onboarding.md)。
 
-当前上海应用为dual-entry-4c254474-doubao-refresh-recovery-20261111，源码4c25447419444b1d48a5ce36f82c0c2e573a8763，BUILD_ID 2Y6jvkUZm_6JgoWpLMLoi，目录doubao-refresh-recovery-20261111。原OAuth issuer／resource、账号和授权保持；MCP为1.16.0、共21项工具，旧18项仍兼容。
+当前上海应用为dual-entry-3b3552da-doubao-login-diagnostics-20261111，源码3b3552da9c1293b8943e9770322adbfb650949cd，BUILD_ID gfn1hgK54fo8jb129I_YT，目录doubao-login-diagnostics-20261111。原OAuth issuer／resource、账号和授权保持；MCP为1.16.0、共21项工具，旧18项仍兼容。
 
 626项单元／集成（81个原测试文件独立串行）、lint、typecheck及干净兼容production build通过；原生4项、Manifest校验、本地构建及测试版云构建通过。实际Next production两种协议验证21工具、三个常用预览、四类有界查询、状态查询、非法参数和无效凭据拒绝；确认前正式事实写入0。Chrome实际核对桌面浅色与390×780深色，打开／关闭原编辑器、焦点恢复、局部备注保留，并点击网页确认保存1条虚构餐次，再查到正确日期、600kcal、蛋白质0和其余未知。未改界面样式，不把这些当作真实豆包WebView通过。
 
@@ -37,7 +39,7 @@ python3 scripts/vercel-releases.py policy --project formward --apply
 
 本机没有OpenAI API评测配置，真实GPT首轮完成率对照未执行；真实GPT连接发布前后get_profile均成功且同一账号，不能以接口回归替代真实模型效果。本人豆包既有连接与身体查询沿用已确认结果，新测试版的物理手机记餐、局部修改和消耗仍待本人更新Debugger后复测。
 
-豆包测试版0.0.1-dev.20261111.2已succeeded，未提审公开版本；更新Debugger资源与重新授权分开。47项Server Action与原绑定密钥、342项旧静态资源保留，原配置字节及凭据权限保持，无数据库迁移。上一应用ai-tool-clarity-final-20261111保留回退。三入口版本一致、8项公开资源SHA一致，海外iad1网关和两别名保持，真实GPT发布前后同一账号。常用工具证据位于main-current的.codex/ai-tool-clarity-20261111，续期修复证据位于.codex/doubao-refresh-recovery-20261111。
+豆包测试版0.0.1-dev.20261111.3已succeeded，未提审公开版本；更新Debugger资源与重新授权分开。47项Server Action与原绑定密钥、345项旧静态资源保留，原配置字节及凭据权限保持，无数据库迁移。上一应用doubao-refresh-recovery-20261111保留回退。三入口版本一致、8项公开资源SHA一致，海外iad1网关和两别名保持，真实GPT发布前后同一账号。常用工具证据位于main-current的.codex/ai-tool-clarity-20261111，续期修复证据位于.codex/doubao-refresh-recovery-20261111，原生恢复证据位于.codex/doubao-login-diagnostics-20261111。
 
 生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。
 
