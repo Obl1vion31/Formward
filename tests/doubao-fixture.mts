@@ -92,6 +92,12 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
     assert.deepEqual(await expired.json(), { code: 50401, msg: "token expired" });
     const wrongApp = await fetch(baseURL + "/api/doubao/refresh-token", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ app_id: "fictional-other-app", refresh_token: "fictional-invalid-refresh" }) });
     assert.equal(wrongApp.status, 401);
+    const diagnostics = { app_id: config.appId, trace: "native_test0002_cccccccccc", build: "login-recovery-3", events: [{ stage: "app_launch", elapsedMs: 0 }] };
+    const diagnosticResponse = await fetch(baseURL + "/api/doubao/client-events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(diagnostics) });
+    assert.equal(diagnosticResponse.status, 200); assert.equal(diagnosticResponse.headers.get("cache-control"), "private, no-store");
+    assert.deepEqual(await diagnosticResponse.json(), { code: 0, msg: "success" });
+    const unsafeDiagnostics = await fetch(baseURL + "/api/doubao/client-events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...diagnostics, login_code: "fictional-sensitive-code" }) });
+    assert.equal(unsafeDiagnostics.status, 400);
     const [account] = await db.select({ id: schema.user.id }).from(schema.user);
     const invalid = await fetch(baseURL + "/api/doubao/mcp", { method: "POST", headers: {
       "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-03-26",
@@ -166,6 +172,6 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
     assert.equal((await db.select({ id: schema.measurement.id }).from(schema.measurement)).length, 0);
     assert.equal((await db.select({ id: schema.meal.id }).from(schema.meal)).length, 0);
     assert.equal((await db.select({ id: schema.energyDay.id }).from(schema.energyDay)).length, 0);
-    console.info(JSON.stringify({ check: "doubao-production-http", passed: true, toolCount: 21, protocols: ["auto", "legacy"], refreshRotationPassed: true, refreshReloginSignalPassed: true, invalidCredentialsRejected: true, profileOwnerMatched: true, measurementQueryPassed: true, platformContextCompatible: true, simpleMealPreviewPassed: true, mealChangesPassed: true, energyPreviewPassed: true, boundedQueriesPassed: true, previewPagePassed: true, businessValidationPreserved: true, healthRecordsWritten: 0 }));
+    console.info(JSON.stringify({ check: "doubao-production-http", passed: true, toolCount: 21, protocols: ["auto", "legacy"], clientDiagnosticsPassed: true, refreshRotationPassed: true, refreshReloginSignalPassed: true, invalidCredentialsRejected: true, profileOwnerMatched: true, measurementQueryPassed: true, platformContextCompatible: true, simpleMealPreviewPassed: true, mealChangesPassed: true, energyPreviewPassed: true, boundedQueriesPassed: true, previewPagePassed: true, businessValidationPreserved: true, healthRecordsWritten: 0 }));
   } finally { if (process.env.FORMWARD_DOUBAO_PREVIEW !== "1") await close(); }
 }

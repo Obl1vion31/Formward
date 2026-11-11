@@ -13,6 +13,16 @@ import { authorizeDoubao, exchangeDoubaoToken, refreshDoubaoToken, startDoubaoLo
 const loginInput = z.object({ app_id: z.string(), login_code: z.string().min(1).max(4096) }).strict();
 const tokenInput = z.object({ app_id: z.string(), code: z.string().min(1).max(16000) }).strict();
 const refreshInput = z.object({ app_id: z.string(), refresh_token: z.string().min(1).max(16000) }).strict();
+const clientEventsInput = z.object({
+  app_id: z.string(), trace: z.string().regex(/^native_[a-z0-9]{6,12}_[a-z0-9]{6,12}$/),
+  build: z.literal("login-recovery-3"),
+  events: z.array(z.object({
+    stage: z.enum(["app_launch", "app_error", "login_page_created", "login_page_destroyed", "connection_mounted", "connection_unmounted", "host_phone_entry", "host_login_refused", "privacy_refused", "identity_check", "login_code_requested", "login_code_received", "login_exchange_requested", "authorization_ready", "login_failed", "webview_loaded", "webview_failed", "result_received", "result_reported", "result_failed", "connection_cancelled"]),
+    elapsedMs: z.number().int().min(0).max(3_600_000),
+    errorKind: z.enum(["Error", "TypeError", "ReferenceError", "RangeError", "SyntaxError", "Unknown"]).optional(),
+    errorNo: z.number().int().min(0).max(1_000_000_000).optional(),
+  }).strict()).min(1).max(12),
+}).strict();
 const deleteInput = z.object({
   request_id: z.string().min(1).max(200), open_id: z.string().min(1).max(512),
   event_time: z.union([z.string(), z.number()]),
@@ -37,8 +47,16 @@ export async function handleDoubaoRequest(db: Database, auth: ReturnType<typeof 
       // 此通知不删除 Formward 资料、健康记录或账号绑定，也不撤销 MCP 连接。
       response = privateJson({ success: true, error_code: 0, error_message: "" });
     } else {
-      const input = await limitedJson(request, 24576);
-      if (operation === "login") {
+      const input = await limitedJson(request, operation === "client-events" ? 3072 : 24576);
+      if (operation === "client-events") {
+        const body = clientEventsInput.parse(input);
+        if (body.app_id !== config.appId) throw new ApiError(401, "invalid_app", "应用不匹配。");
+        const source = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+        await limitAccountAttempt(db, "doubao-client-events", source);
+        // 未认证的客户端自报仅用于排错，不能作为登录、账号或授权成功的证据。
+        console.info(JSON.stringify({ event: "doubao_client_events", requestId, source: "untrusted_client", trace: body.trace, build: body.build, events: body.events }));
+        response = privateJson({ code: 0, msg: "success" });
+      } else if (operation === "login") {
         const body = loginInput.parse(input);
         if (body.app_id !== config.appId) throw new ApiError(401, "invalid_app", "应用不匹配。");
         const source = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -68,6 +86,6 @@ export async function handleDoubaoRequest(db: Database, auth: ReturnType<typeof 
     const message = error instanceof ApiError ? error.message : status === 400 ? "请求内容无效，请核对后重试。" : "豆包接入暂时不可用，请稍后重试。";
     return privateJson({ code: status, msg: message }, status);
   } finally {
-    console.info(JSON.stringify({ event: "doubao_request", requestId, endpoint: ["mcp", "authorize", "login", "fetch-token", "refresh-token", "delete-userinfo"].includes(operation) ? operation : "unknown", appId: config.appId, stage: status < 400 && !errorCode ? "complete" : "failed", durationMs: Date.now() - started, status, ...(errorCode ? { errorCode } : {}) }));
+    console.info(JSON.stringify({ event: "doubao_request", requestId, endpoint: ["mcp", "authorize", "login", "fetch-token", "refresh-token", "delete-userinfo", "client-events"].includes(operation) ? operation : "unknown", appId: config.appId, stage: status < 400 && !errorCode ? "complete" : "failed", durationMs: Date.now() - started, status, ...(errorCode ? { errorCode } : {}) }));
   }
 }

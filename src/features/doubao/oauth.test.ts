@@ -460,3 +460,47 @@ test("豆包提交只生成可重复查询的预览，不直接写入身体记�
     assert.equal((await db.select().from(schema.measurement)).length, previousCount);
   } finally { await client.close(); }
 });
+
+
+test("客户端阶段诊断严格最小化，错误应用、越界数据和其他来源不进入阶段日志", async () => {
+  const captured: string[] = [], info = console.info;
+  const input = { app_id: config.appId, trace: "native_test0000_aaaaaaaaaa", build: "login-recovery-3", events: [{ stage: "app_launch", elapsedMs: 0 }, { stage: "login_failed", elapsedMs: 1200, errorKind: "TypeError", errorNo: 102 }] };
+  const post = (body: unknown, origin = baseURL) => handleDoubaoRequest(db, auth, config, "client-events", new Request(origin + "/api/doubao/client-events", { method: "POST", headers: { "x-forwarded-for": "192.0.2.42" }, body: JSON.stringify(body) }));
+  const connectionsBefore = (await db.select().from(schema.oauthConnection)).length;
+  console.info = line => { captured.push(String(line)); };
+  try {
+    const response = await post(input);
+    assert.equal(response.status, 200); assert.equal(response.headers.get("cache-control"), "private, no-store");
+    assert.deepEqual(await response.json(), { code: 0, msg: "success" });
+    const events = captured.map(line => JSON.parse(line)).filter(row => row.event === "doubao_client_events");
+    assert.equal(events.length, 1); assert.equal(events[0].source, "untrusted_client"); assert.deepEqual(events[0].events, input.events);
+    for (const body of [
+      { ...input, events: [{ stage: "login_failed", elapsedMs: 0, message: "secret-message", access_token: "secret-token" }] },
+      { ...input, events: [{ stage: "invented", elapsedMs: 0 }] },
+      { ...input, events: Array(13).fill(input.events[0]) },
+      { ...input, events: [{ stage: "app_launch", elapsedMs: -1 }] },
+      { ...input, login_code: "secret-code" },
+    ]) assert.equal((await post(body)).status, 400);
+    assert.equal((await post({ ...input, huge: "x".repeat(4000) })).status, 413);
+    assert.equal((await post({ ...input, app_id: "other-app" })).status, 401);
+    assert.equal((await post(input, "https://other.example.test")).status, 404);
+    assert.equal(captured.map(line => JSON.parse(line)).filter(row => row.event === "doubao_client_events").length, 1);
+    assert.ok(!captured.join("\n").includes("secret-"));
+    assert.equal((await db.select().from(schema.oauthConnection)).length, connectionsBefore);
+  } finally { console.info = info; }
+});
+
+test("匿名客户端诊断独立限流，不签发凭据且不改变正常登录限流", async () => {
+  const body = JSON.stringify({ app_id: config.appId, trace: "native_test0001_bbbbbbbbbb", build: "login-recovery-3", events: [{ stage: "connection_mounted", elapsedMs: 1 }] });
+  const original = console.info; console.info = () => {};
+  try {
+    for (let i = 0; i < 6; i++) {
+      const response = await handleDoubaoRequest(db, auth, config, "client-events", new Request(baseURL + "/api/doubao/client-events", { method: "POST", headers: { "x-forwarded-for": "192.0.2.43" }, body }));
+      assert.equal(response.status, i < 5 ? 200 : 429);
+    }
+    const request = new Request(baseURL + "/api/doubao/client-events", { method: "GET" });
+    assert.equal((await handleDoubaoRequest(db, auth, config, "client-events", request)).status, 405);
+    const { limitAccountAttempt } = await import("../auth/account-security");
+    await limitAccountAttempt(db, "doubao-login", "192.0.2.43");
+  } finally { console.info = original; }
+});

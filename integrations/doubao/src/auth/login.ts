@@ -1,15 +1,20 @@
 import { defineLoginApi } from '@doubao-dev/framework';
-import { postLoginResult, showToast } from '@doubao-dev/framework/api';
+import { navigateTo, postLoginResult, showModal } from '@doubao-dev/framework/api';
+import { recordLoginStage } from '../shared/login-diagnostics';
 
 export default defineLoginApi({
   onLogin: async () => {
-    // Formward 采用已有邮箱账号；不读取或关联宿主手机号。
-    await postLoginResult({ result: false });
-    await showToast({ message: '请选择其他方式，使用已有 Formward 账号登录。', type: 'warning' });
+    // 不读取回调中的手机号票据；所有入口统一使用原有邮箱账号及显式授权。
+    recordLoginStage('host_phone_entry', undefined, true);
+    try { await navigateTo({ url: '/pages/mcp-login-page/index' }); }
+    catch (error) {
+      recordLoginStage('login_failed', error, true);
+      await showModal({ title: '连接未完成', content: '未能打开 Formward 登录页，请返回 Debugger 更新资源后重试。', showCancel: false, confirmText: '返回对话' }).catch(() => {});
+      await postLoginResult({ result: false });
+    }
   },
   onRefuseLogin: async () => {
-    await postLoginResult({
-      result: false
-    });
-  }
+    recordLoginStage('host_login_refused', undefined, true);
+    await postLoginResult({ result: false });
+  },
 });

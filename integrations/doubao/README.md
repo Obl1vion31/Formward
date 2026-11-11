@@ -17,3 +17,5 @@ Manifest共21项，和共享MCP逐项一致。preview_meal用于新增单餐，p
 使用 Node.js 24 与 pnpm，安装依赖后运行 `pnpm check`、`pnpm test`、`pnpm exec dbx check --file manifest.yaml --json` 和 `pnpm exec dbx build local`。本地联调使用 `pnpm exec dbx dev --agent --mcp-endpoint <已启动的测试入口>`。只有服务端地址真实可用并完成联调后才运行测试版本云构建。
 
 应用密钥由服务器的独立配置提供，不写进此工程。`.agents`／`.codex` 技能和 `.dbx` 调试状态、产物、环境文件与日志不提交。平台版本、验证范围及未完成项见仓库 `docs/doubao-onboarding.md`。
+
+插件启动、登录页创建、宿主凭证、请求、网页加载及结果回传有固定阶段诊断，服务端仅记录受限的客户端自报，不用作授权事实。登录页销毁与React组件卸载分开处理，失败原因在原生错误框中保留到点击返回，再通知宿主，方便定位“点击后消失”。

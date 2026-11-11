@@ -1,10 +1,17 @@
-import { useEffect, useRef, useState } from '@doubao-dev/framework';
-import { exitApp, getAccountInfoSync, login, postLoginResult, request } from '@doubao-dev/framework/api';
+import { useDestroy, useEffect, useRef, useState } from '@doubao-dev/framework';
+import { exitApp, getAccountInfoSync, login, postLoginResult, request, showModal, showToast } from '@doubao-dev/framework/api';
 import { createLoginReporter } from './login-result';
 import { runtimeConfig } from '../config/runtime';
+import { recordLoginStage } from './login-diagnostics';
+import { loginFailureMessage, withLoginDeadline, type LoginPhase } from './login-errors';
 import './connection.scss';
 
 const API_BASE = runtimeConfig.apiBaseUrl;
+async function showLoginFailure(message: string) {
+  try { await showModal({ title: '连接未完成', content: message, showCancel: false, confirmText: '返回对话' }); }
+  catch { await showToast({ message, type: 'error' }).catch(() => {}); }
+}
+
 type StartResponse = { authorizationUrl: string; requestId: string };
 type AuthorizationMessage = { type: string; requestId: string; refused: boolean; code?: string };
 
@@ -20,8 +27,13 @@ export function FormwardConnection({ mcpLogin = false }: { mcpLogin?: boolean })
   const reporter = useRef(createLoginReporter(postLoginResult));
   useEffect(() => {
     alive.current = true;
-    return () => { alive.current = false; generation.current++; if (attempted.current || mcpLogin) void reporter.current.failure().catch(() => {}); };
-  }, [mcpLogin]);
+    recordLoginStage('connection_mounted');
+    // React子树卸载不等于宿主关闭登录页，不能在此向宿主补发拒绝。
+    return () => { alive.current = false; generation.current++; recordLoginStage('connection_unmounted'); };
+  }, []);
+  useDestroy(() => {
+    if (attempted.current || mcpLogin) void reporter.current.failure().catch(() => {});
+  });
 
   async function begin() {
     if (busy.current || closing.current) return;
@@ -30,27 +42,37 @@ export function FormwardConnection({ mcpLogin = false }: { mcpLogin?: boolean })
     const current = ++generation.current;
     const resultReporter = createLoginReporter(postLoginResult);
     reporter.current = resultReporter;
+    let phase: LoginPhase = 'identity';
     try {
+      recordLoginStage('identity_check');
       const appId = getAccountInfoSync().miniProgram.appId;
       if (!appId || appId !== runtimeConfig.appId) throw new Error();
+      phase = 'login_code'; recordLoginStage('login_code_requested');
       const { code: loginCode } = await login({ timeout: 30000 });
+      recordLoginStage('login_code_received');
       if (!alive.current || current !== generation.current) return;
-      const response = await request({
+      phase = 'exchange'; recordLoginStage('login_exchange_requested');
+      const response = await withLoginDeadline(request({
         url: API_BASE + '/api/doubao/login', method: 'POST',
         header: { 'content-type': 'application/json' }, data: { app_id: appId, login_code: loginCode },
-      });
+      }), 20000);
       if (!alive.current || current !== generation.current) return;
+      phase = 'response';
       const data = response.data as Partial<StartResponse>;
       if (response.statusCode !== 200 || typeof data.authorizationUrl !== 'string' ||
           !data.authorizationUrl.startsWith(API_BASE + '/api/doubao/authorize?') ||
           typeof data.requestId !== 'string' || !/^[A-Za-z0-9_-]{16,80}$/.test(data.requestId)) throw new Error();
       requestId.current = data.requestId;
       setAuthorizationUrl(data.authorizationUrl);
-    } catch {
+      recordLoginStage('authorization_ready', undefined, true);
+    } catch (failure) {
       if (!alive.current || current !== generation.current) return;
+      const message = loginFailureMessage(phase, failure);
+      setError(message);
+      recordLoginStage('login_failed', failure, true);
+      // 宿主收到失败后可能立即关闭登录页，先给出可见原因。
+      await showLoginFailure(message);
       await resultReporter.failure().catch(() => {});
-      if (alive.current && current === generation.current) setError('连接未完成，请返回对话重新发起，或稍后重试。');
-      console.info(JSON.stringify({ event: 'formward_login', stage: 'failed' }));
     } finally {
       if (alive.current && current === generation.current) { busy.current = false; setWorking(false); }
     }
@@ -63,6 +85,7 @@ export function FormwardConnection({ mcpLogin = false }: { mcpLogin?: boolean })
     catch { return; }
     if (!message || message.type !== 'formward.authorization' || message.requestId !== requestId.current || typeof message.refused !== 'boolean') return;
     if (!message.refused && (typeof message.code !== 'string' || !message.code.startsWith('fdb1.') || message.code.length > 16000)) return;
+    recordLoginStage('result_received');
     busy.current = true; posting.current = true; setWorking(true); setResultPosting(true);
     let accepted = false;
     try {
@@ -70,10 +93,12 @@ export function FormwardConnection({ mcpLogin = false }: { mcpLogin?: boolean })
       else if (!await reporter.current.success(message.code!)) return;
       accepted = true;
       if (alive.current) setReported(message.refused ? 'refused' : 'success');
-      console.info(JSON.stringify({ event: 'formward_login', stage: message.refused ? 'refused' : 'complete' }));
-    } catch {
+      recordLoginStage('result_reported', undefined, true);
+    } catch (failure) {
+      recordLoginStage('result_failed', failure, true);
+      if (alive.current) setError('登录结果未能通知豆包，请返回对话重试。');
+      await showLoginFailure('登录结果未能通知豆包，请返回对话重试。');
       await reporter.current.failure().catch(() => {});
-      if (alive.current) setError('暂时无法完成连接，请返回豆包对话重试。');
     } finally {
       posting.current = false;
       if (alive.current) { busy.current = false; setWorking(false); setResultPosting(false); }
@@ -87,6 +112,7 @@ export function FormwardConnection({ mcpLogin = false }: { mcpLogin?: boolean })
   async function cancel() {
     if (posting.current || closing.current) return;
     closing.current = true;
+    recordLoginStage('connection_cancelled', undefined, true);
     generation.current++;
     requestId.current = ''; busy.current = false;
     setWorking(false);
@@ -97,7 +123,11 @@ export function FormwardConnection({ mcpLogin = false }: { mcpLogin?: boolean })
   }
 
   if (authorizationUrl) return <view className="connection-frame">
-    <view className="connection-webview"><web-view src={authorizationUrl} onMessage={event => void receive(event.data)} onError={() => { void reporter.current.failure().catch(() => {}); if (alive.current) setError('登录页面暂时无法打开，请返回豆包重新连接。'); }} /></view>
+    <view className="connection-webview"><web-view src={authorizationUrl} onMessage={event => void receive(event.data)} onLoad={() => recordLoginStage('webview_loaded')} onError={() => {
+      if (alive.current) setError('Formward 登录网页未能加载，请检查网络后重新连接。');
+      recordLoginStage('webview_failed', undefined, true);
+      void showLoginFailure('Formward 登录网页未能加载，请检查网络后重新连接。').then(() => reporter.current.failure()).catch(() => {});
+    }} /></view>
     {error && <text className="connection-error">{error}</text>}
     <button type="plain" className="connection-secondary" style={{ backgroundColor: 'transparent', minHeight: '48px' }} disabled={resultPosting} onClick={() => void cancel()}><text className="connection-secondary-label">{reported ? '返回对话' : '取消连接'}</text></button>
   </view>;
