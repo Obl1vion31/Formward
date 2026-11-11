@@ -3,7 +3,7 @@ type Pose={transform:string;clipPath:string;opacity:string};
 const origins=new WeakMap<HTMLElement,{x:number;y:number}>(),animations=new WeakMap<HTMLElement,Animation>();
 
 /** 容器明确选择方向；按钮位置只属于本次锚定面板，不传给后续详情。 */
-export async function animateSurface(node:HTMLElement,direction:'open'|'close',source?:Element|null,mode:SurfaceMode='anchored'):Promise<boolean>{
+export async function animateSurface(node:HTMLElement,direction:'open'|'close',source?:Element|null,mode:SurfaceMode='anchored',duration?:number):Promise<boolean>{
  const prior=animations.get(node),style=getComputedStyle(node);
  const current:Pose|undefined=prior||direction==='close'?{transform:style.transform,clipPath:style.clipPath,opacity:style.opacity}:undefined;
  if(current)Object.assign(node.style,current);
@@ -24,7 +24,7 @@ export async function animateSurface(node:HTMLElement,direction:'open'|'close',s
  }
  const end=direction==='open'?full:folded;
  if(matchMedia('(prefers-reduced-motion: reduce)').matches||typeof node.animate!=='function'){Object.assign(node.style,end);node.dataset.surfacePhase=direction==='open'?'open':'closed';return true;}
- const animation=node.animate([current??(direction==='open'?folded:full),end],{duration:direction==='open'?300:210,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});animations.set(node,animation);
+ const animation=node.animate([current??(direction==='open'?folded:full),end],{duration:duration??(direction==='open'?300:210),easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});animations.set(node,animation);
  try{await animation.finished;}catch{return false;}
  if(animations.get(node)!==animation)return false;
  // 先提交末态再撤销动画；退出容器在卸载前始终留在屏幕外。

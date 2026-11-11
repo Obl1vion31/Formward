@@ -35,7 +35,10 @@ test("统一、混合、纯训练和旧提交从原授权追溯来源，按时�
   const { submissions } = await loadAiAccessOverview(db, fixture.userId);
   const get = (id: string) => submissions.find(row => row.id === id)!;
   assert.equal(get(fixture.unified.id).source.label, "ChatGPT");
+  assert.equal(get(fixture.unified.id).compactSummary, "11-01 身体·1项");
   assert.equal(get(fixture.mixed.id).source.label, "豆包 · Formward");
+  assert.equal(get(fixture.mixed.id).source.compactLabel, "豆包");
+  assert.match(get(fixture.mixed.id).compactSummary!, /^11-02 身体、摄入、消耗·3项$/);
   assert.equal(get(fixture.training.id).source.key, "chatgpt");
   assert.ok(Date.parse(get(fixture.training.id).expiresAt!) - Date.parse(get(fixture.training.id).createdAt) > 23 * 3600000);
   assert.equal(get(fixture.saved.id).status, "confirmed");
@@ -45,6 +48,9 @@ test("统一、混合、纯训练和旧提交从原授权追溯来源，按时�
   assert.ok(!submissions.some(row => row.id === fixture.initialization.id));
   assert.equal(submissions.length, 7, "统一批次的业务子操作不重复展示");
   assert.ok(submissions.every((row, i) => !i || Date.parse(submissions[i - 1].createdAt) >= Date.parse(row.createdAt)));
+  const typical = await loadAiAccessOverview(db, fixture.typicalId);
+  assert.equal(typical.submissions.length, 5);
+  assert.ok(typical.submissions.some(row => row.status === "expired"), "过期展示依据业务子操作真实期限");
 });
 test("AI 设置空账号与跨账号读取隔离，其他账号凭据名称不泄露", async () => {
   assert.deepEqual(await loadAiAccessOverview(db, fixture.emptyId), { connections: [], submissions: [], tokens: [] });

@@ -43,7 +43,7 @@ export async function loadAiAccessOverview(db: Database, userId: string, existin
     if (grant.oauthConnectionId) {
       const connection = connections.find(row => row.id === grant.oauthConnectionId);
       if (!connection) return unknownSource;
-      return { key: connection.provider === "other" ? "oauth:" + connection.id : connection.provider, label: connection.name || "MCP 客户端", kind: "oauth" };
+      return { key: connection.provider === "other" ? "oauth:" + connection.id : connection.provider, label: connection.name || "MCP 客户端", compactLabel: connection.provider === "doubao" ? "豆包" : connection.name || "MCP 客户端", kind: "oauth" };
     }
     const token = tokens.find(row => row.id === grant.tokenId);
     return token ? { key: "token:" + token.id, label: "手动接入 · " + token.name, kind: "token" } : unknownSource;
@@ -57,13 +57,15 @@ export async function loadAiAccessOverview(db: Database, userId: string, existin
       ...(row.energyOperationId ? [energyGrants.find(item => item.id === row.energyOperationId)] : []),
       ...(parent?.draft.filter(item => isTraining(item.action)).map(item => item.trainingGrant) ?? []),
     ];
-    return { id: row.id, source: source(grants), summary: row.summary || `统一记录 · ${row.count} 项`, status: row.expired ? "expired" : row.status, createdAt: row.createdAt, expiresAt: row.expiresAt, confirmationPath: row.confirmationPath };
+    const dates = row.dates.map(date => date.slice(5)), date = dates.length > 1 ? `${dates[0]}—${dates.at(-1)}` : dates[0];
+    return { id: row.id, source: source(grants), summary: row.summary || `统一记录 · ${row.count} 项`, compactSummary: `${date ? date + " " : ""}${row.types.join("、") || "记录"}·${row.status === "pending" ? row.pendingCount : row.count}项`, status: row.expired ? "expired" : row.status, createdAt: row.createdAt, expiresAt: row.expiresAt, confirmationPath: row.confirmationPath };
   });
-  submissions.push(...bodies.map(row => ({ id: row.id, source: source([bodyGrants.find(item => item.id === row.id)]), summary: `${row.preview.date} · 身体记录 · ${row.counts.total} 条${row.counts.saved && row.status !== "confirmed" ? ` · 已保存 ${row.counts.saved} 条` : ""}`, status: row.status, createdAt: row.createdAt, expiresAt: row.expiresAt, confirmationPath: row.confirmationPath })));
+  submissions.push(...bodies.map(row => ({ id: row.id, source: source([bodyGrants.find(item => item.id === row.id)]), summary: `${row.preview.date} · 身体记录 · ${row.counts.total} 条${row.counts.saved && row.status !== "confirmed" ? ` · 已保存 ${row.counts.saved} 条` : ""}`, compactSummary: `${row.preview.date.slice(5)} 身体·${row.counts.total}条${row.counts.saved && row.status !== "confirmed" ? `·已存${row.counts.saved}条` : ""}`, status: row.status, createdAt: row.createdAt, expiresAt: row.expiresAt, confirmationPath: row.confirmationPath })));
   submissions.push(...meals.map(row => {
     const dates = [...new Set(row.rows.flatMap(item => item.meal?.date ?? (item.before && "date" in item.before ? item.before.date : [])))].sort();
     const date = dates.length > 1 ? `${dates[0]}—${dates.at(-1)}` : dates[0];
-    return { id: row.id, source: source([mealGrants.find(item => item.id === row.id)]), summary: `${date ? date + " · " : ""}饮食与食材 · ${row.rows.length} 项`, status: row.status, createdAt: row.createdAt, expiresAt: row.expiresAt, confirmationPath: row.confirmationPath };
+    const shortDates = dates.map(value => value.slice(5)), shortDate = shortDates.length > 1 ? `${shortDates[0]}—${shortDates.at(-1)}` : shortDates[0];
+    return { id: row.id, source: source([mealGrants.find(item => item.id === row.id)]), summary: `${date ? date + " · " : ""}饮食与食材 · ${row.rows.length} 项`, compactSummary: `${shortDate ? shortDate + " " : ""}饮食·${row.rows.length}项`, status: row.status, createdAt: row.createdAt, expiresAt: row.expiresAt, confirmationPath: row.confirmationPath };
   }));
   submissions.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || a.id.localeCompare(b.id));
   return { tokens, submissions, connections };

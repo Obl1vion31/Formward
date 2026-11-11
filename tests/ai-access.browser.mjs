@@ -26,7 +26,7 @@ export async function checkAiAccessBrowser({ baseURL, account, other, date }) {
     await page.getByRole("heading", { name: "AI 连接", exact: true }).waitFor();
     assert.equal(await page.locator("[data-ai-provider]").count(), 2);
     assert.equal(await page.locator("[data-ai-submissions]").getAttribute("open"), null);
-    await page.getByText("高级接入 · 手动令牌与 HTTP", { exact: true }).click();
+    await page.locator("[data-ai-anchor=advanced]").click();
     await page.getByLabel("令牌名称").fill("虚构 Codex 试验"); await page.getByRole("button", { name: "创建令牌", exact: true }).click();
     await page.getByLabel("新令牌原文").waitFor();
     await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "新建令牌，仅显示一次");
@@ -90,7 +90,7 @@ export async function checkAiAccessBrowser({ baseURL, account, other, date }) {
     try { await otherContext.request.post(`${baseURL}/api/auth/sign-in/email`, { headers: { Origin: baseURL, "x-forwarded-for": "192.0.2.202" }, data: other }); assert.equal((await otherContext.request.get(preview.confirmationUrl)).status(), 404); } finally { await otherContext.close(); }
     await page.goto(`${baseURL}/dashboard/ai`); await page.getByRole("heading", { name: "AI 接入", exact: true }).waitFor();
     for (const width of [390, 320]) { await page.setViewportSize({ width, height: 844 }); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); await page.screenshot({ path: `${artifacts}/ai-access-${width}.png`, fullPage: true }); }
-    await page.getByText("高级接入 · 手动令牌与 HTTP", { exact: true }).click();
+    await page.locator("[data-ai-anchor=advanced]").click();
     await page.getByRole("button", { name: "撤销", exact: true }).click(); await page.getByRole("dialog").getByRole("button", { name: "撤销令牌", exact: true }).click(); await page.getByText("令牌已撤销。", { exact: true }).waitFor();
     assert.equal((await fetch(`${baseURL}/api/v1/measurements`, { headers: { Authorization: `Bearer ${token}` } })).status, 401);
     const spec = await fetch(`${baseURL}/api/v1/openapi.json`); assert.equal(spec.status, 200); assert.equal((await spec.json()).openapi, "3.1.0");

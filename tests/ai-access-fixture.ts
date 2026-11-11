@@ -29,7 +29,7 @@ export async function seedAiAccessFixture(db: Database) {
   for (const id of [userId, emptyId, otherId]) await db.delete(schema.personalProfile).where(eq(schema.personalProfile.userId, id));
   const typicalId = (await provisionAccount(db, typical)).id;
   await db.delete(schema.personalProfile).where(eq(schema.personalProfile.userId, typicalId));
-  await fixtureAiConnection(db, typicalId, "豆包 · Formward", { provider: "doubao" });
+  const typicalDoubao = await fixtureAiConnection(db, typicalId, "豆包 · Formward", { provider: "doubao" });
   await fixtureAiConnection(db, typicalId, "ChatGPT", { expired: true });
   const gpt = await fixtureAiConnection(db, userId, "ChatGPT", { consentScopes: ["measurements:read", "measurements:write", "training:read", "training:write"] });
   const readonly = await fixtureAiConnection(db, userId, "ChatGPT", { scopes: ["measurements:read", "meals:read", "energy:read", "training:read"] });
@@ -43,6 +43,12 @@ export async function seedAiAccessFixture(db: Database) {
   const identity = { userId, tokenId: token.token.id, permission: "write" as const };
   const body = (date: string) => ({ kind: "save_record" as const, date, period: "evening" as const, weightKg: "70.20", deviceLabel: "虚构秤", timezone: "+08:00" });
   const meal = (date: string) => ({ kind: "save_meal" as const, date, mealType: "lunch" as const, timezone: "+08:00", items: [{ kind: "food" as const, name: "虚构午餐", quantity: "1", unit: "份", nutrition: { caloriesKcal: "520", proteinG: "0", carbsG: null, fatG: null }, sourceKind: "unknown" as const }] });
+  for (let index = 0; index < 5; index++) {
+    const preview = await submitRecordOperation(db, typicalDoubao.identity, { operationId: randomUUID(), items: [{ key: "body", ...body(`2026-11-${String(10 - index).padStart(2, "0")}`) }] });
+    if (index === 1 || index === 2) await reviewRecordOperation(db, typicalId, preview.id, { kind: "confirm", revision: preview.revision });
+    if (index === 3) await reviewRecordOperation(db, typicalId, preview.id, { kind: "cancel", revision: preview.revision });
+    if (index === 4) { const [parent] = await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.id, preview.id)); await db.update(schema.measurementOperation).set({ expiresAt: new Date(Date.now() - 60000) }).where(eq(schema.measurementOperation.id, parent.measurementOperationId!)); }
+  }
   const unified = await submitRecordOperation(db, gpt.identity, { operationId: randomUUID(), items: [{ key: "body", ...body("2026-11-01") }] });
   const mixed = await submitRecordOperation(db, doubao.identity, { operationId: randomUUID(), items: [{ key: "body", ...body("2026-11-02") }, { key: "meal", ...meal("2026-11-02") }, { key: "energy", kind: "save_energy_day", date: "2026-11-02", timezone: "+08:00", entryMode: "total", totalKcal: "2100" }] });
   const training = await submitRecordOperation(db, gpt.identity, { operationId: randomUUID(), items: [{ key: "training", kind: "save_training_template", template: { name: "虚构训练模板", exercises: [{ name: "平板支撑", sets: 1, reps: null, recordingType: "duration", durationSeconds: 30 }] } }] });

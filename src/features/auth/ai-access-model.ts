@@ -7,9 +7,9 @@ export type AiAccessConnection = {
   id: string; name: string; provider: AiProvider; state: AiConnectionState;
   scopes: string[]; grantedScopes: string[]; authorizedAt: string; expiresAt: string; lastUsedAt: string | null;
 };
-export type AiSubmissionSource = { key: string; label: string; kind: "oauth" | "token" | "unknown" };
+export type AiSubmissionSource = { key: string; label: string; compactLabel?: string; kind: "oauth" | "token" | "unknown" };
 export type AiSubmission = {
-  id: string; source: AiSubmissionSource; summary: string; status: string;
+  id: string; source: AiSubmissionSource; summary: string; compactSummary?: string; status: string;
   createdAt: string; expiresAt: string | null; confirmationPath: string;
 };
 export type AiAccessOverview = {
