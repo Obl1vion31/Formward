@@ -25,7 +25,21 @@ python3 scripts/vercel-releases.py policy --project formward --apply
 
 归档位于 Git 公共目录所属工作区的 `.codex/backups/vercel-releases/formward/`，不随临时 worktree 删除。国际候选继续使用现有双区工具并显式部署到 iad1；`publish` 只更新原国际正式版本承担的别名，保留仍指向其他部署的项目域名，不用项目级 promote 接管它们。既有上海服务、数据库、issuer／resource、Server Action 兼容与回退流程不变。网关归档中的协议和 schema 摘要仍须与上海服务核对；本工具不把 Vercel 网关包当成上海全服务备份。受 Vercel 登录保护的旧项目域名只核对绑定和保护入口，不声称完成应用功能验收。
 
-## 当前正式部署：共用营养估算与外部接入
+## 当前正式部署：AI字段解释与外部接入
+
+全部21项AI工具成功结果附带fieldDefinitions中文字段解释，正文JSON与structuredContent一致；豆包result_json和原HTTP结果保留相同解释。说明由各业务目录的ai-field-definitions.json维护，只选取实际出现的字段。身体sevenDay.window与有效样本start/end分开，首尾差、相邻日差、均值、覆盖及体脂百分点明确；饮食完整性、消耗包含关系、训练目标／实际、混合批次、修改版本、附件及审核阶段分别说明。原参数、业务数值、权限、计算和网页登录确认保持。
+
+上海运行源码313e19671200d55a71c967b75f81eef698c23e86，版本dual-entry-313e1967-ai-field-definitions-compatible-v9-20261111，BUILD_ID BvdX3-FkAg2sw0oFUvsVq，目录ai-field-definitions-compatible-v9-20261111，北京时间2026-11-11 23:38完成切换。MCP1.17.1／OpenAPI1.15.1，候选与正式均21工具，12项HTTP成功响应说明通过。原47项Server Action及加密密钥保留，额外保留361项旧静态资源；原配置字节与root 0600权限保持，schema仍为0036。即时回退目录为ai-field-definitions-compatible-v8-20261111，任务前nutrition-defaults-final-20261111亦保留。
+
+82个原测试文件共643项完成核对；首次OAuth旧精确对象断言因新增说明失败，已保留原日志，改为同时核对原业务字段及新解释后18项重跑通过。最后字段专项9项、评测脚本15项、lint、typecheck、生产构建通过。实际Next production在隔离PGlite中验证原生MCP／豆包、新旧协议四组21工具、HTTP兼容与拒绝、字段传递、身体窗口和百分点、训练预览单位及未保存事实；未调用收费模型。
+
+三个公网入口版本一致，8项公开资源SHA一致；原iad1网关、两个别名、匿名MCP401及无效凭据拒绝保持。新旧协议均发现21工具及字段说明，未重新部署国际网关。
+
+工具检查通过与模型回答质量分开记录。本轮模型请求0、追加模型费0；未证明GLM回答质量已达标。当前聊天的Formward连接在发布前已要求重新认证，真人账号经这条连接的复测待重新登录；隔离有效授权、原权限拒绝和既有OAuth issuer／resource已验证。没有新增数据库migration或正式健康写入，没有新手机或全站视觉验收。
+
+最终运行包、差量清单、SHA及部署证明位于main-current/.codex/ai-api-contracts/release-shipping；构建产物位于.codex/regional-releases/ai-field-definitions-compatible-v9-20261111。没有迁移或回退数据库，回退仅使用兼容应用指针。
+
+## 既有营养估算与外部接入验收
 
 共用记餐规则已随上海服务发布：新增食物默认估算热量和三项宏量，可靠数值优先；关键食物／食量／做法信息缺失才集中追问，明确不估仍保留未知。追加食物先查目标日并局部增加，查询历史和只改备注不重估；query_meals已保存餐次与全天记全状态分开表达。服务器不自动填数，不改变权限、数据库或网页确认。
 

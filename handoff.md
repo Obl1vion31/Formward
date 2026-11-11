@@ -1,5 +1,21 @@
 # Formward 项目交接
 
+## 全部AI接口的字段解释（2026-11-11）
+
+全部21项AI工具成功结果附带fieldDefinitions中文字段解释，正文JSON与structuredContent一致；豆包result_json和原HTTP结果保留相同解释。说明由各业务目录的ai-field-definitions.json维护，只选取实际出现的字段。身体sevenDay.window与有效样本start/end分开，首尾差、相邻日差、均值、覆盖及体脂百分点明确；饮食完整性、消耗包含关系、训练目标／实际、混合批次、修改版本、附件及审核阶段分别说明。原参数、业务数值、权限、计算和网页登录确认保持。
+
+本地评测从正式实现离线导出21项工具、工作要求及字段选择实现，保留原Key、健康快照、原始回答与配置。当前10道自然题仅重放5项业务工具，不冒充21项真实模型评测；可读报告包含用户问题、调用顺序与参数、模型完整回答、语义复核、用量及费用，自动工具结果和人工回答质量分别记录。
+
+82个原测试文件共643项完成核对；首次OAuth旧精确对象断言因新增说明失败，已保留原日志，改为同时核对原业务字段及新解释后18项重跑通过。最后字段专项9项、评测脚本15项、lint、typecheck、生产构建通过。实际Next production在隔离PGlite中验证原生MCP／豆包、新旧协议四组21工具、HTTP兼容与拒绝、字段传递、身体窗口和百分点、训练预览单位及未保存事实；未调用收费模型。
+
+上海运行源码313e19671200d55a71c967b75f81eef698c23e86，版本dual-entry-313e1967-ai-field-definitions-compatible-v9-20261111，BUILD_ID BvdX3-FkAg2sw0oFUvsVq，目录ai-field-definitions-compatible-v9-20261111，北京时间2026-11-11 23:38完成切换。MCP1.17.1／OpenAPI1.15.1，候选与正式均21工具，12项HTTP成功响应说明通过。原47项Server Action及加密密钥保留，额外保留361项旧静态资源；原配置字节与root 0600权限保持，schema仍为0036。即时回退目录为ai-field-definitions-compatible-v8-20261111，任务前nutrition-defaults-final-20261111亦保留。
+
+三个公网入口版本一致，8项公开资源SHA一致；原iad1网关、两个别名、匿名MCP401及无效凭据拒绝保持。新旧协议均发现21工具及字段说明，未重新部署国际网关。
+
+工具检查通过与模型回答质量分开记录。本轮模型请求0、追加模型费0；未证明GLM回答质量已达标。当前聊天的Formward连接在发布前已要求重新认证，真人账号经这条连接的复测待重新登录；隔离有效授权、原权限拒绝和既有OAuth issuer／resource已验证。没有新增数据库migration或正式健康写入，没有新手机或全站视觉验收。
+
+源码仍在既有main-current工作目录实施并合入推送main，没有新建Git工作副本、移动原目录或清理用户保留的文件。兼容构建只在私有mount namespace映射旧绝对编译路径，磁盘上的已删除目录保持不存在；构建密钥不进入日志。私有证据和运行包在main-current/.codex/ai-api-contracts，最终发布证据在release-shipping。
+
 ## 旧 Neon 退役与配置收尾（2026-11-11）
 
 Neon 旧 Formward 项目 plain-feather-67562814 已删除，项目列表仅余独立 FRONTEND；平台保留恢复期，本次未提前永久清除。正式服务继续使用上海 formward_primary，本机开发连接已改为隔离 PGlite；Vercel API 核对全部环境均无旧数据库连接或 Better Auth 签名 secret，无需修改网关变量或重发应用。接入示例、部署分工和学习文档已按当前状态重写。

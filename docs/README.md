@@ -20,7 +20,7 @@
 - [design-reference.md](design-reference.md)：手机与桌面设计、首屏信息层级和每次界面验收必用的统一标准；保留产品设计参考。
 - [visual-research.md](visual-research.md)：总览的视觉调研、官方依据及双层关联参考图；趋势与单日读数联动、配色和缺测处理原则。
 - `architecture.md`：轻量 Next.js 模块化单体边界。
-- `ai-api.md`：身体与饮食 MCP + OAuth、原图传输、AI 令牌、HTTP 协议、网页预览确认和本地 Codex 试验步骤。
+- `ai-api.md`：全部21项AI工具、共用中文字段解释、MCP／豆包／HTTP传递、授权与网页确认，以及正式说明导出和本地评测边界。
 - `auth-setup.md`：上海主库与本机隔离数据库配置、migration、内部账号创建、登录顺序与验证。
 - [服务器与数据库查看](server-operations.md)：腾讯云 CPU／网络监控、PostgreSQL 表结构、只读查询与服务位置。
 - [公网 IP 测试环境](ip-preview.md)：服务器隔离测试库、HTTPS、服务与备份。
