@@ -117,6 +117,13 @@ test("字段文字明确数量基准、版本、省略与清空、训练实际�
   assert.equal("**.weightKg" in preview, false);
   const bodyOnly = withAiFieldDefinitions("get_training_operation", { rows: [{ body: { after: { weightKg: 70 } } }] }).fieldDefinitions;
   assert.equal(Object.values(bodyOnly).some(text => text.includes("训练负重")), false);
+  assert.match(bodyOnly["rows.*.body.**.weightKg"], /实测体重/);
+  for (const tool of ["preview_meal_changes", "append_pending_images"] as const) {
+    const mixedPreview = withAiFieldDefinitions(tool, { rows: [{ body: { after: { weightKg: 70 } }, training: { after: details.sessions[0] } }] }).fieldDefinitions;
+    assert.match(mixedPreview["rows.*.body.**.weightKg"], /实测体重/);
+    assert.match(mixedPreview["rows.*.training.**.weightKg"], /训练负重/);
+  }
+  assert.match(plan.fieldDefinitions["sessions.*.elapsedSeconds"], /尚未包含当前进行中片段/);
   const mixedTraining = withAiFieldDefinitions("get_record_operation", { rows: [{ training: { after: details.sessions[0] } }] }).fieldDefinitions;
   assert.equal(mixedTraining["rows.*.training.**.weightKg"], trainingDetails["**.weightKg"]);
   const body = withAiFieldDefinitions("query_measurements", { days: [{ daytime: { weightKg: 70, bodyFatPercent: 20 }, evening: null }] }).fieldDefinitions;

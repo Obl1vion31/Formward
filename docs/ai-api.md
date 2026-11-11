@@ -1,10 +1,20 @@
-# 身体、饮食与消耗 AI 接入
+# Formward AI 接口
 
 ## AI结果的字段解释
 
 MCP 1.17.1／OpenAPI 1.15.1保留21项工具、原参数、权限和业务值，在成功结果增加fieldDefinitions。它是字段路径到中文解释的字典：*表示一层数组或对象成员，**表示任意深度；不是可提交的业务参数。只返回当前接口与本种结果实际存在的字段说明，错误和未授权结果保持原结构。
 
 解释分别保存在measurements、meals、activities、training及records目录的ai-field-definitions.json中。MCP工具说明、HTTP协议、返回数据和离线评测引用同一份来源；common guidance只约束如何据数据回答，不替代具体字段定义。
+
+| 要修改的说明 | 正式来源 |
+|---|---|
+| 身体日期、均值和差值 | [measurements/ai-field-definitions.json](../src/features/measurements/ai-field-definitions.json) |
+| 饮食、食材和图片 | [meals/ai-field-definitions.json](../src/features/meals/ai-field-definitions.json) |
+| 消耗及运动包含关系 | [activities/ai-field-definitions.json](../src/features/activities/ai-field-definitions.json) |
+| 训练目标、实际组次和单位 | [training/ai-field-definitions.json](../src/features/training/ai-field-definitions.json) |
+| 查询、审核、连接及共用回答规则 | [records/ai-field-definitions.json](../src/features/records/ai-field-definitions.json) |
+
+工具与字典的对应关系由[records/ai-field-definitions.ts](../src/features/records/ai-field-definitions.ts)维护。混合批次按body、meal、energy、training分别选取解释，训练审核入口也遵守这个边界，避免同名weightKg把身体体重和训练负重混在一起。
 
 | 内容 | 必须区分的口径 |
 |---|---|
@@ -18,13 +28,15 @@ MCP 1.17.1／OpenAPI 1.15.1保留21项工具、原参数、权限和业务值，
 
 字段解释由AI出口附加，不写入原请求、草稿摘要、健康表或审计。MCP正文JSON与structuredContent一致；豆包查询实体的result_json包含同一份解释。客户端应刷新工具定义并用新对话核对，不把协议离线检查通过当成模型回答质量通过。
 
+例如虚构窗口为8月1日至7日，仅2日70kg、6日69kg有效，则change=-1、coverage=2、start=2日、end=6日；window仍是1日至7日。7日缺测时value和previousChange均为null，不能说“7日比昨天下降1kg”或“比前一周均重下降1kg”。
+
 在项目目录运行node --import tsx scripts/export-ai-contracts.mts 私有评测目录/contracts.json可离线导出实际工具、工作规则及字段选择实现，不执行业务工具。当前10道自然题仍覆盖5项本地重放工具，不能据此声称全部21工具的真实模型表现已验证；21项接口说明、传递和权限由隔离测试检查。历史模型回答、快照及用量保持，新增收费对照由另一次测试指令启动。
 
 记餐默认营养估算、关键信息追问、明确不估及历史保留的共用规则见[AI工具调用](ai-tool-contracts.md#默认营养估算与追问)。GPT与豆包规则相同，模型提交估算和依据，服务器不对缺失营养自动补数。
 
 ## GPT 与豆包的工具契约
 
-MCP 1.16.0共21项工具：原18项兼容，GPT与豆包共享preview_meal、preview_meal_changes和preview_energy。OAuth issuer、resource、现有账号与授权不变，不新增scope。豆包仍通过global.formward.top/api/doubao/mcp和独立登录／令牌回调接入；平台整数边界及保留字段只在豆包适配层兼容。
+MCP 1.17.1共21项工具：原18项兼容，GPT与豆包共享preview_meal、preview_meal_changes和preview_energy。OAuth issuer、resource、现有账号与授权不变，不新增scope。豆包仍通过global.formward.top/api/doubao/mcp和独立登录／令牌回调接入；平台整数边界及保留字段只在豆包适配层兼容。
 
 新增单餐用preview_meal，餐内局部修改用preview_meal_changes，消耗／实际运动用preview_energy；跨领域仍用submit_record_operation保持一个审核链接。食材库、训练模板和排期保留原工具。完整场景、参数和返回规则见[AI工具调用规则](ai-tool-contracts.md)。这些工具均只创建或修改待确认预览，正式保存仍由用户登录网页确认。
 
@@ -42,7 +54,7 @@ MCP 1.16.0共21项工具：原18项兼容，GPT与豆包共享preview_meal、pre
 
 ## 当前兼容规则
 
-OpenAPI1.15.0／MCP1.16.0，当前身体能力只接收实测，饮食、消耗和训练沿用各自规则。身体按同一天晨晚最后保存值覆盖，预览显示旧→新，取消不保存，遗漏字段保留，不接收未来身体日期。运动save_activity扩展calorieMode、exerciseRestingKcal、exerciseActiveKcal；分项只计纯运动，旧caloriesKcal原值继续采用，查询activities增加totalKcal／countedKcal。AI正常新增修改、网页登录确认及版本／幂等保护保持。常见英文餐次仍可提交，显示及新保存中文，原请求摘要不改。网页登录私有/api/record-changes不接受AI令牌，不增加工具或权限。
+OpenAPI1.15.1／MCP1.17.1，当前身体能力只接收实测，饮食、消耗和训练沿用各自规则。身体按同一天晨晚最后保存值覆盖，预览显示旧→新，取消不保存，遗漏字段保留，不接收未来身体日期。运动save_activity扩展calorieMode、exerciseRestingKcal、exerciseActiveKcal；分项只计纯运动，旧caloriesKcal原值继续采用，查询activities增加totalKcal／countedKcal。AI正常新增修改、网页登录确认及版本／幂等保护保持。常见英文餐次仍可提交，显示及新保存中文，原请求摘要不改。网页登录私有/api/record-changes不接受AI令牌，不增加工具或权限。
 
 
 接口覆盖晨晚实测体重／体脂、来源、时区、记录详情与历史、摘要与趋势及历史编辑。身体不提供估算或插补，旧estimate_cell返回410。网页和 API 使用同一 measurements feature。饮食、食材及其删除／恢复已接入；通用文件导入及身体记录的网页删除／恢复、准确测量时间和历史归属纠正尚未接入。

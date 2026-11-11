@@ -10,7 +10,7 @@
     "sessions": "实际训练会话，仍须按status区分进行中、完成或放弃，不能把每条都算已完成。",
     "plans.*.status": "planned仅已安排，completed表示该计划已完成；查询不包括已跳过计划，不凭计划目标推断实际组次。",
     "sessions.*.status": "active进行中，paused已暂停，completed已结束且保存完成组；查询不包括已放弃会话，进行中或暂停不算整场完成。",
-    "sessions.*.elapsedSeconds": "训练会话总经过秒数，不是某个动作持续时间，也不是分钟。",
+    "sessions.*.elapsedSeconds": "训练会话已保存的累计秒数；active时尚未包含当前进行中片段，不能据0说未训练。不是某个动作持续时间，也不是分钟。",
     "requiresWebConfirmation": "后续新增或修改训练需网页确认；不表示本次查询的已有模板、计划或会话未保存。"
   },
   "values": {

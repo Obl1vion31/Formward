@@ -21,17 +21,17 @@ export const aiToolDefinitions = {
   search_exercises: [training.catalog],
   query_training: [common.query, training.query, training.values],
   submit_training_operation: [...operation, ...trainingPreview],
-  get_training_operation: [...operation, ...trainingPreview],
+  get_training_operation: [...operation, ...mixed],
   query_energy: [common.query, energy.query],
   query_meals: [common.query, meals.query],
   preview_meal: [...operation, meals.operation],
   preview_energy: [...operation, energy.operation],
-  preview_meal_changes: [...operation, meals.operation],
+  preview_meal_changes: [...operation, meals.operation, ...mixed],
   submit_meal_operation: [...operation, meals.operation],
   get_meal_operation: [...operation, meals.operation],
   submit_record_operation: [...operation, ...mixed],
   get_record_operation: [...operation, ...mixed],
-  append_pending_images: [...operation, meals.operation],
+  append_pending_images: [...operation, meals.operation, ...mixed],
 } satisfies Record<string, readonly Definitions[]>;
 
 export type AiToolName = keyof typeof aiToolDefinitions;
