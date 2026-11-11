@@ -81,6 +81,17 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
     assert.equal(callback.refused, false);
     if (callback.refused) throw new Error("虚构授权未通过");
     const tokens = await exchangeDoubaoToken(db, auth, config, callback.developerLoginCode);
+    const refresh = await fetch(baseURL + "/api/doubao/refresh-token", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ app_id: config.appId, refresh_token: tokens.data.refresh_token }) });
+    assert.equal(refresh.status, 200);
+    const refreshed = await refresh.json() as typeof tokens;
+    assert.equal(refreshed.code, 0); assert.ok(refreshed.data.access_token);
+    assert.notEqual(refreshed.data.refresh_token, tokens.data.refresh_token);
+    tokens.data = refreshed.data;
+    const expired = await fetch(baseURL + "/api/doubao/refresh-token", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ app_id: config.appId, refresh_token: "fictional-invalid-refresh" }) });
+    assert.equal(expired.status, 200);
+    assert.deepEqual(await expired.json(), { code: 50401, msg: "token expired" });
+    const wrongApp = await fetch(baseURL + "/api/doubao/refresh-token", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ app_id: "fictional-other-app", refresh_token: "fictional-invalid-refresh" }) });
+    assert.equal(wrongApp.status, 401);
     const [account] = await db.select({ id: schema.user.id }).from(schema.user);
     const invalid = await fetch(baseURL + "/api/doubao/mcp", { method: "POST", headers: {
       "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-03-26",
@@ -155,6 +166,6 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
     assert.equal((await db.select({ id: schema.measurement.id }).from(schema.measurement)).length, 0);
     assert.equal((await db.select({ id: schema.meal.id }).from(schema.meal)).length, 0);
     assert.equal((await db.select({ id: schema.energyDay.id }).from(schema.energyDay)).length, 0);
-    console.info(JSON.stringify({ check: "doubao-production-http", passed: true, toolCount: 21, protocols: ["auto", "legacy"], invalidCredentialsRejected: true, profileOwnerMatched: true, measurementQueryPassed: true, platformContextCompatible: true, simpleMealPreviewPassed: true, mealChangesPassed: true, energyPreviewPassed: true, boundedQueriesPassed: true, previewPagePassed: true, businessValidationPreserved: true, healthRecordsWritten: 0 }));
+    console.info(JSON.stringify({ check: "doubao-production-http", passed: true, toolCount: 21, protocols: ["auto", "legacy"], refreshRotationPassed: true, refreshReloginSignalPassed: true, invalidCredentialsRejected: true, profileOwnerMatched: true, measurementQueryPassed: true, platformContextCompatible: true, simpleMealPreviewPassed: true, mealChangesPassed: true, energyPreviewPassed: true, boundedQueriesPassed: true, previewPagePassed: true, businessValidationPreserved: true, healthRecordsWritten: 0 }));
   } finally { if (process.env.FORMWARD_DOUBAO_PREVIEW !== "1") await close(); }
 }

@@ -376,3 +376,5 @@ records/ai-tools.test.ts用全新虚构数据库验证共享记餐、每份／�
 ## Vercel 发布归档工具
 
 修改 `scripts/vercel-releases.py` 时运行 `python3 tests/vercel-releases.test.py`，覆盖真实压缩包校验、正式／域名／回滚保护以及故障停止。结合默认只读清单和实际小批次前后服务核对；维护工具不触发网站构建、UI 或 PDF 回归。两个仓库实现相同时复用同一测试结果。
+
+豆包刷新专项用实际OAuth覆盖正常旋转、旧凭据重放、过期、篡改、撤销与错误AppID；不可恢复的刷新凭据返回50401/token expired，临时上游故障保留503。production HTTP fixture同时验证刷新成功、新凭据的双协议查询及失效业务码，不使用正式用户凭据。

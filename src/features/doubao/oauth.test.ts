@@ -79,7 +79,9 @@ test("HTTP 边界拒绝错误应用、畸形和超限正文、过期凭证及其
     assert.equal((await post(operation, JSON.stringify({ huge: "x".repeat(30000) }))).status, 413);
   }
   assert.equal((await post("login", "{}", "https://other.example.test")).status, 404);
-  assert.equal((await post("refresh-token", JSON.stringify({ app_id: config.appId, refresh_token: "invalid" }))).status, 401);
+  const expired = await post("refresh-token", JSON.stringify({ app_id: config.appId, refresh_token: "invalid" }));
+  assert.equal(expired.status, 200);
+  assert.deepEqual(await expired.json(), { code: 50401, msg: "token expired" });
   const request = { request_id: "fictional-delete-request", open_id: "fictional-host-user", event_time: 1, fields: [{ field_name: "PHONE", hard_delete: true }] };
   for (let i = 0; i < 2; i++) {
     const response = await post("delete-userinfo", JSON.stringify(request));
@@ -163,6 +165,56 @@ test("豆包拒绝授权不产生可兑换成功码", async () => {
   const flow = await grant(first, "fictional-refused-openid", false);
   assert.equal(flow.result.refused, true);
   assert.equal("developerLoginCode" in flow.result, false);
+});
+
+test("刷新成功仍旋转凭据；旧、过期和篡改凭据按宿主协议要求重新登录", async () => {
+  const flow = await grant(first, "fictional-refresh-recovery");
+  if (flow.result.refused) throw new Error();
+  const tokens = await exchangeDoubaoToken(db, auth, config, flow.result.developerLoginCode);
+  const post = (refresh: string) => handleDoubaoRequest(db, auth, config, "refresh-token", new Request(baseURL + "/api/doubao/refresh-token", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ app_id: config.appId, refresh_token: refresh }) }));
+  const successful = await post(tokens.data.refresh_token);
+  assert.equal(successful.status, 200);
+  const fresh = await successful.json();
+  assert.equal(fresh.code, 0); assert.ok(fresh.data.access_token);
+  assert.notEqual(fresh.data.refresh_token, tokens.data.refresh_token);
+  const payload = openEnvelope(config, "refresh", fresh.data.refresh_token);
+  const expired = sealEnvelope(config, "refresh", { ...payload, expiresAt: Date.now() - 1000 });
+  const wrong = fresh.data.refresh_token.slice(0, -1) + (fresh.data.refresh_token.endsWith("A") ? "B" : "A");
+  for (const credential of [tokens.data.refresh_token, expired, wrong]) {
+    const response = await post(credential);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { code: 50401, msg: "token expired" });
+    assert.equal(response.headers.get("cache-control"), "private, no-store");
+  }
+  assert.equal((await db.select().from(schema.measurement)).length, 0);
+});
+
+test("续期服务故障或异常响应保持503，不误报凭据失效或要求重新授权", async () => {
+  const flow = await grant(first, "fictional-refresh-service-failure");
+  if (flow.result.refused) throw new Error();
+  const tokens = await exchangeDoubaoToken(db, auth, config, flow.result.developerLoginCode);
+  for (const createResponse of [() => new Response("unavailable", { status: 503 }), () => new Response("limited", { status: 429 }), () => Response.json({ unexpected: true }), () => new Response("not-json")]) {
+    const unavailable = { ...auth, handler: async () => createResponse() };
+    const response = await handleDoubaoRequest(db, unavailable, config, "refresh-token", new Request(baseURL + "/api/doubao/refresh-token", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ app_id: config.appId, refresh_token: tokens.data.refresh_token }) }));
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).code, 503);
+  }
+  assert.equal((await refreshDoubaoToken(db, auth, config, tokens.data.refresh_token)).code, 0);
+});
+
+test("已撤销连接返回重新登录协议但不恢复授权，MCP仍拒绝原访问凭据", async () => {
+  const flow = await grant(first, "fictional-refresh-revoked");
+  if (flow.result.refused) throw new Error();
+  const tokens = await exchangeDoubaoToken(db, auth, config, flow.result.developerLoginCode);
+  const claims = JSON.parse(Buffer.from(tokens.data.access_token.split(".")[1], "base64url").toString());
+  await revokeOauthConnection(db, flow.userId, claims[CONNECTION_CLAIM]);
+  const response = await handleDoubaoRequest(db, auth, config, "refresh-token", new Request(baseURL + "/api/doubao/refresh-token", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ app_id: config.appId, refresh_token: tokens.data.refresh_token }) }));
+  assert.equal(response.status, 200); assert.deepEqual(await response.json(), { code: 50401, msg: "token expired" });
+  const [connection] = await db.select().from(schema.oauthConnection).where(eq(schema.oauthConnection.id, claims[CONNECTION_CLAIM]));
+  assert.ok(connection.revokedAt);
+  const client = await mcpClient("/api/doubao/mcp", { "X-DB-OPENID": "fictional-refresh-revoked", "X-DB-ACCESS-TOKEN": tokens.data.access_token });
+  try { await assert.rejects(() => client.callTool({ name: "get_profile", arguments: {} })); }
+  finally { await client.close(); }
 });
 
 test("豆包绑定不能覆盖仍有效的其他账号，撤销原连接后才允许重新绑定", async () => {

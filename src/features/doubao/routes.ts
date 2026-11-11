@@ -23,6 +23,7 @@ const deleteInput = z.object({
 export async function handleDoubaoRequest(db: Database, auth: ReturnType<typeof createAuth>, config: DoubaoConfig, operation: string, request: Request) {
   const requestId = randomUUID(), started = Date.now();
   let status = 503;
+  let errorCode: string | undefined;
   try {
     const origin = regionConfig().enabled ? publicRequestOrigin(request.headers) : new URL(request.url).origin;
     if (origin !== config.origin) throw new ApiError(404, "not_found", "入口不存在。");
@@ -57,9 +58,16 @@ export async function handleDoubaoRequest(db: Database, auth: ReturnType<typeof 
     return response;
   } catch (error) {
     status = error instanceof ApiError ? error.status : error instanceof z.ZodError ? 400 : 503;
+    errorCode = error instanceof ApiError ? error.code : error instanceof z.ZodError ? "invalid_input" : "unavailable";
+    // 刷新失效须用宿主约定的业务码触发重新登录；不签发凭据、不恢复旧授权。
+    // 官方协议：https://open.doubao.com/apps-plugin/docs/backend-development/login
+    if (operation === "refresh-token" && error instanceof ApiError && status === 401 && ["invalid_doubao_credential", "invalid_doubao_connection", "invalid_token"].includes(error.code)) {
+      status = 200;
+      return privateJson({ code: 50401, msg: "token expired" }, status);
+    }
     const message = error instanceof ApiError ? error.message : status === 400 ? "请求内容无效，请核对后重试。" : "豆包接入暂时不可用，请稍后重试。";
     return privateJson({ code: status, msg: message }, status);
   } finally {
-    console.info(JSON.stringify({ event: "doubao_request", requestId, endpoint: ["mcp", "authorize", "login", "fetch-token", "refresh-token", "delete-userinfo"].includes(operation) ? operation : "unknown", appId: config.appId, stage: status < 400 ? "complete" : "failed", durationMs: Date.now() - started, status }));
+    console.info(JSON.stringify({ event: "doubao_request", requestId, endpoint: ["mcp", "authorize", "login", "fetch-token", "refresh-token", "delete-userinfo"].includes(operation) ? operation : "unknown", appId: config.appId, stage: status < 400 && !errorCode ? "complete" : "failed", durationMs: Date.now() - started, status, ...(errorCode ? { errorCode } : {}) }));
   }
 }

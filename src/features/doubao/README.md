@@ -19,3 +19,5 @@ MCP同时支持现代 `server/discover` 与旧版发现，定义可匿名读取�
 豆包会在工具业务参数内附加平台上下文。适配层仅移除官方文档中的`from_mcp_call`与`_miniapp_permitted_data`，不读取或保存其数据，也不用于身份判断；其余未知字段和非法业务参数仍按原schema拒绝。日志只记录已移除的固定字段名，不记录原参数或值；现有GPT入口和工具schema保持。依据见[系统权限服务端协议](https://open.doubao.com/apps-plugin/docs/backend-development/system-permissions)。
 
 `callback.tsx` 保留用户同意／拒绝的事实，将准备、回传、超时、SDK失败及已通知分别显示。SDK失败提供整页重新加载，回传失败才重发消息；普通浏览器直接提示从豆包App重新发起。`return-bridge.ts` 只发送一次调用所需消息，8秒超时后不因迟到完成改写结果，不向用户透传SDK内部错误。
+
+刷新凭据失效时，refresh-token按宿主协议返回HTTP200、code=50401、msg="token expired"，让平台重新进入交互式登录；错误AppID仍401、畸形输入400、服务故障503，不把暂时故障当作失效。普通MCP无效访问凭据仍401，原OAuth及GPT刷新策略保持。日志仅补充稳定errorCode，不记录凭据、请求正文或账号健康内容。依据为官方登录接入中的“业务主动拉起登录场景”。

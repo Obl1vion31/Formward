@@ -107,8 +107,16 @@ async function providerToken(auth: Auth, parameters: Record<string, string>) {
   const response = await auth.handler(new Request(new URL("/api/auth/oauth2/token", auth.options.baseURL as string), {
     method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(parameters),
   }));
-  if (!response.ok) throw new ApiError(401, "invalid_doubao_credential", "连接已失效，请在豆包重新登录授权。");
-  return tokenSchema.parse(await limitedJson(response, 32768));
+  if (!response.ok) {
+    if (response.status >= 500 || response.status === 429) throw new ApiError(503, "doubao_token_unavailable", "登录续期服务暂时不可用，请稍后重试。");
+    throw new ApiError(401, "invalid_doubao_credential", "连接已失效，请在豆包重新登录授权。");
+  }
+  let body: unknown;
+  try { body = await limitedJson(response, 32768); }
+  catch { throw new ApiError(503, "doubao_token_unavailable", "登录续期服务暂时不可用，请稍后重试。"); }
+  const parsed = tokenSchema.safeParse(body);
+  if (!parsed.success) throw new ApiError(503, "doubao_token_unavailable", "登录续期服务暂时不可用，请稍后重试。");
+  return parsed.data;
 }
 
 async function bindToken(db: Database, config: DoubaoConfig, token: string, envelope: DoubaoEnvelope) {
