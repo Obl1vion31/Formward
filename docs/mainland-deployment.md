@@ -6,7 +6,9 @@
 
 ## 当前部署
 
-当前上海应用 `dual-entry-2f5f88d9-onboarding-polish-20261111`，源码`2f5f88d91c84d76e805a80cb399b229efa74d7df`，BUILD_ID `-RJ9xA391kipEY1C9nNgv`，目录`onboarding-polish-20261111`。豆包适配、OAuth和共用MCP沿用929a9d47的已验证实现。
+当前上海应用`dual-entry-209c3581-ai-access-compact-v3-20261112`，源码`209c35810f3ddbe247904185250b15504a5a9434`，BUILD_ID `ynscn2Rk8zK1ajOmejw1p`，目录`ai-access-compact-v3-20261112`，北京时间2026-11-12 03:52:33切换。AI接入紧凑列表已完成最终运行包双引擎验收及公网核对；即时回退为`ai-access-20261112`。原47项Server Action与密钥、378项旧资源、配置及schema0036保持，原国际网关与别名未重发。数据审计及准确范围见[部署](deployment.md)与[维护验收](maintenance-verification.md)。
+
+### 保留的生日与操作引导基线
 
 生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。
 
@@ -14,7 +16,7 @@
 
 595项单元／集成基线通过；最终CSS修正后12项引导测试、lint、typecheck与兼容production build复验通过。最终产物Chromium／WebKit各14组演练和20组录入高光检查通过，另核对慢请求、失败留稿、真实新账号完成及录像。此前五页加载锚点基线分别为0.328125px和0px，未冒充本轮重新测量。
 
-当前手机引导版本保留47项Server Action及绑定密钥、440项旧静态资源；55表和36条migration保持，健康数据、环境配置和OAuth安全摘要保护检查通过。上一正式应用 `mobile-onboarding-20261111` 保留供回退。
+生日与操作引导基线当时保留47项Server Action及绑定密钥、440项旧资源，未改数据库结构；这段为既有引导验收，不代表本轮重新验证真机或另一次应用发布。当前运行来源与即时回退以上方部署为准。
 
 生日控件与操作引导的物理手机原生选择器、系统键盘、帧率及屏幕阅读器尚未实测；既有WebKit连续图形转场未通过记录保留。 详细证据见[维护验收](maintenance-verification.md)。
 
