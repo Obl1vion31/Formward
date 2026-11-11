@@ -88,3 +88,5 @@ ai-changes.ts处理餐内局部修改，服务器合并未改内容、附件、o
 queryMeals的view=summary／details只读指定日期，返回范围与分页；省略view保留旧协议。searchFoods只读食材及相关附件，不再读全部餐次历史。身体与消耗规则不在此重算。
 
 常用入口对明确标签／成分表数值自动生成忠实转录，保留未知，不新增推断来源；已有basis或链接保持。新增消耗按totalKcal／activeKcal是否明确提供推导模式，包括明确0，不要求模型重复指定可确定字段；修改旧记录仍保留原模式。
+
+AI新增餐项默认估算热量及三项宏量，可靠值优先、关键信息缺失才追问；明确不估仍保留未知。共用规则为ai-nutrition-guidance.json，MCP／HTTP直接使用，豆包Skill及Manifest由scripts/sync-ai-nutrition.mjs生成。默认不改食量同意、历史数值、服务器计算或网页确认规则。

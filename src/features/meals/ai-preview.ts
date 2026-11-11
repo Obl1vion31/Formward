@@ -8,7 +8,7 @@ import { decimal, emptyNutrition, metrics, publicMealInputSchema, scaled, type I
 import { digest, submitMealOperation } from "./records";
 
 const text = (length: number) => z.string().trim().min(1).max(length);
-export const aiOperationId = z.string().regex(/^[a-zA-Z0-9-]{8,120}$/).describe("本次请求的唯一标识；重试沿用，改变内容须用新标识");
+export const aiOperationId = z.string().regex(/^[a-zA-Z0-9-]{8,120}$/).describe("新请求生成新UUID；仅ASCII字母、数字、半角短横线(-)，8至120字符，不能用中文或其他横线；同请求重试沿用，改变内容用新标识");
 export const aiDate = z.string().describe("YYYY-MM-DD或today/yesterday；由服务器按timezone解析相对日期");
 export const simpleFoodSchema = z.object({
   name: text(200),
@@ -19,18 +19,18 @@ export const simpleFoodSchema = z.object({
   foodVersion: z.number().int().positive().optional(),
   nutritionBasis: z.enum(["consumed_total", "per_portion", "per_reference"]).optional().describe("省略为本次总量；per_portion每份，per_reference每referenceQuantity同单位的营养"),
   referenceQuantity: decimal.optional().describe("如每100g填100；单位与实际食用量一致"),
-  caloriesKcal: z.string().optional(),
+  caloriesKcal: z.string().optional().describe("本次热量kcal；可靠值优先，否则按记餐规则默认估算；明确不估或无合理依据时省略"),
   caloriesKj: decimal.optional().describe("仅包装提供kJ时使用；不能同时填caloriesKcal"),
-  proteinG: z.string().optional(),
-  carbsG: z.string().optional(),
-  fatG: z.string().optional(),
+  proteinG: z.string().optional().describe("本次蛋白质g；通常与热量及其他宏量一起估算，可靠值及明确0保留，未知省略"),
+  carbsG: z.string().optional().describe("本次碳水g；通常与热量及其他宏量一起估算，可靠值及明确0保留，未知省略"),
+  fatG: z.string().optional().describe("本次脂肪g；通常与热量及其他宏量一起估算，可靠值及明确0保留，未知省略"),
   sourceKind: z.string().optional().describe("label/composition_table/reference/estimated/unknown；来源未知可用unknown，不编造依据"),
-  basis: z.string().trim().max(4000).optional(),
+  basis: z.string().trim().max(4000).optional().describe("估算须说明实际食量、参考规格或组成与不确定性；区分用户给定值和估算项"),
   evidenceUrl: z.string().url().max(2000).optional(),
-  amountDecision: z.enum(["provided", "estimate_accepted", "unknown_accepted"]).optional(),
+  amountDecision: z.enum(["provided", "estimate_accepted", "unknown_accepted"]).optional().describe("只表达食量决策；默认估算营养不等于已接受食量估算，后者须用户明确同意"),
 }).strict();
 export const mealPreviewSchema = z.object({
-  operationId: aiOperationId, date: aiDate, mealType: text(50),
+  operationId: aiOperationId, date: aiDate, mealType: text(50).describe("按用户指定名称填写；中午写午餐，不能自行换成lunch或snack；修改已有餐保留原餐次"),
   foods: z.array(simpleFoodSchema).min(1).max(50),
   timezone: text(100).optional(), notes: z.string().max(12000).optional(),
   imageIds: z.array(z.string().uuid()).max(8).optional(),

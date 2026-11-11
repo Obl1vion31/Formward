@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+import { normalizeSimpleFood } from "./ai-preview";
 import assert from "node:assert/strict";
 import {after,before,test} from "node:test";
 import {randomUUID} from "node:crypto";
@@ -62,4 +64,28 @@ test("仅补可靠包装规格不改旧餐和原营养，重复请求幂等，�
  assert.equal(state.foods[0].servingQuantity,"50.0000");assert.equal(state.foods[0].servingUnit,"包");assert.equal(state.foods[0].version,f.version+1);
  assert.deepEqual(await applyFoodMaintenance(db,id,request,preview.digest),{id:result.id,repeated:true});
  for(const change of [{servingQuantity:null,servingUnit:"包"},{servingQuantity:"50",servingUnit:"g"}])await assert.rejects(previewFoodMaintenance(db,id,{...request,operationId:randomUUID(),changes:[{...request.changes[0],version:f.version+1,...change}]}));
+});
+
+
+test("共用营养规则生成的豆包Skill与工具描述没有漂移", () => {
+ execFileSync(process.execPath, ["scripts/sync-ai-nutrition.mjs", "--check"], { stdio: "pipe" });
+});
+
+test("常见食物按已报个数提交营养估算，仍需依据且不伪造食量同意", () => {
+ const input = {name:"虚构单个食物",quantity:"1",unit:"个",caloriesKcal:"81",proteinG:"6.1",carbsG:"0",fatG:"5.2",sourceKind:"estimated",basis:"虚构测试估算：按常见单个规格，实际大小未知。"};
+ const food = normalizeSimpleFood(input);
+ assert.equal(food.quantity,"1");assert.equal(food.unit,"个");assert.equal(food.amountDecision,undefined);
+ assert.equal(food.sourceKind,"estimated");assert.equal(food.basis,input.basis);
+ assert.deepEqual(food.nutrition,{caloriesKcal:"81",proteinG:"6.1",carbsG:"0",fatG:"5.2"});
+ assert.throws(()=>normalizeSimpleFood({...input,basis:undefined}),/说明估算/);
+ assert.throws(()=>normalizeSimpleFood({...input,quantity:undefined}),/实际食用量/);
+});
+
+test("明确不估的空营养和部分已知／零不被服务端自动补数", () => {
+ const base={name:"虚构只记名称食物",quantity:"1",unit:"个"};
+ assert.deepEqual(normalizeSimpleFood(base).nutrition,emptyNutrition());
+ const mixed=normalizeSimpleFood({...base,caloriesKcal:"81",proteinG:"0",sourceKind:"unknown"});
+ assert.deepEqual(mixed.nutrition,{caloriesKcal:"81",proteinG:"0",carbsG:null,fatG:null});
+ const amountUnknown=normalizeSimpleFood({name:base.name,amountDecision:"unknown_accepted"});
+ assert.equal(amountUnknown.quantity,null);assert.deepEqual(amountUnknown.nutrition,emptyNutrition());
 });

@@ -192,6 +192,10 @@ test("GPT新旧协议使用新单餐、局部修改、消耗与范围摘要；�
     const client = await mcpClient(connected.tokens.access_token, mode);
     try {
       const before = (await readMealSnapshot(db, connected.userId)).meals.length;
+      const nutritionTools = await client.listTools();
+      for (const name of ["preview_meal", "preview_meal_changes", "submit_meal_operation", "submit_record_operation"]) {
+        assert.match(nutritionTools.tools.find(tool => tool.name === name)!.description!, /默认.*估算/);
+      }
       const single = await client.callTool({ name: "preview_meal", arguments: { operationId: randomUUID(), date: "2024-08-01", mealType: "午餐", foods: [{ name: "虚构两份", quantity: "2", unit: "份", caloriesKcal: "300", proteinG: "0", nutritionBasis: "per_portion", sourceKind: "unknown" }] } });
       assert.notEqual(single.isError, true);
       const preview = single.structuredContent as ReturnType<typeof mealAiResponse> & { confirmationUrl: string };

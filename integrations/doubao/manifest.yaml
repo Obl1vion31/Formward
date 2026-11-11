@@ -59,11 +59,11 @@ tools:
     request_timeout: 120000
     output: { kind: execution_result }
   preview_meal:
-    description: 新增单餐首选，使用平铺食物字段提交待网页确认的预览。
+    description: "新增单餐待确认预览。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；优先用户数值、匹配食材或真实标签，关键信息缺失才集中追问。常见单个食物数量明确时可注明常见规格估算，不猜实际吃了几份。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。给已有餐加食物先查询再局部修改，保留原餐。"
     login_type: normal
     output: { kind: execution_result }
   preview_meal_changes:
-    description: 只提交餐内指定字段修改，服务器保留其他内容，仍需网页确认。
+    description: "餐内局部修改，新增食物默认估算；保留其余内容。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；优先用户数值、匹配食材或真实标签，关键信息缺失才集中追问。常见单个食物数量明确时可注明常见规格估算，不猜实际吃了几份。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。给已有餐加食物先查询再局部修改，保留原餐。"
     login_type: normal
     output: { kind: execution_result }
   preview_energy:
@@ -71,7 +71,7 @@ tools:
     login_type: normal
     output: { kind: execution_result }
   submit_meal_operation:
-    description: 食材库维护或高级兼容预览；普通餐内修改使用preview_meal_changes。
+    description: "食材维护或高级兼容预览。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；优先用户数值、匹配食材或真实标签，关键信息缺失才集中追问。常见单个食物数量明确时可注明常见规格估算，不猜实际吃了几份。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。给已有餐加食物先查询再局部修改，保留原餐。"
     login_type: normal
     output: { kind: execution_result }
   get_meal_operation:
@@ -87,7 +87,7 @@ tools:
     login_type: normal
     output: { kind: execution_result }
   submit_record_operation:
-    description: 将身体、饮食、消耗和训练变更提交为一个待确认预览。
+    description: "多领域统一待确认预览，饮食部分遵循共用规则。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；优先用户数值、匹配食材或真实标签，关键信息缺失才集中追问。常见单个食物数量明确时可注明常见规格估算，不猜实际吃了几份。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。给已有餐加食物先查询再局部修改，保留原餐。"
     login_type: normal
     output: { kind: execution_result }
   get_record_operation:

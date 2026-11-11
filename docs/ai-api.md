@@ -1,5 +1,7 @@
 # 身体、饮食与消耗 AI 接入
 
+记餐默认营养估算、关键信息追问、明确不估及历史保留的共用规则见[AI工具调用](ai-tool-contracts.md#默认营养估算与追问)。GPT与豆包规则相同，模型提交估算和依据，服务器不对缺失营养自动补数。
+
 ## GPT 与豆包的工具契约
 
 MCP 1.16.0共21项工具：原18项兼容，GPT与豆包共享preview_meal、preview_meal_changes和preview_energy。OAuth issuer、resource、现有账号与授权不变，不新增scope。豆包仍通过global.formward.top/api/doubao/mcp和独立登录／令牌回调接入；平台整数边界及保留字段只在豆包适配层兼容。

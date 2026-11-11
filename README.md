@@ -4,6 +4,8 @@
 
 生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。 规则见[设计规范](docs/design-reference.md)，验收与正式版本见[部署](docs/deployment.md)。
 
+GPT与豆包统一默认估算新增餐项的热量及三项宏量，可靠数值优先，关键信息缺失才追问；明确不估仍可保留未知，不自动重估历史。共用规则及边界见[AI工具调用](docs/ai-tool-contracts.md)。
+
 GPT与豆包共享21项MCP工具：原18项兼容，新增单餐、餐内局部修改、消耗三个常用入口，由服务器做换算、保留未改记录及重复保护。查询可按需取有界摘要／明细；既有OAuth连接、未知／0和网页登录确认保持。完整输入场景与兼容规则见[AI工具调用](docs/ai-tool-contracts.md)，实际发布与平台验证见[交接](handoff.md)。豆包工程位于integrations/doubao。
 
 公开[隐私政策](https://formward-ten.vercel.app/privacy.html)和[服务条款](https://formward-ten.vercel.app/terms.html)已发布，生效日期2026年11月10日；个人运营者、填写资料及发布范围见[豆包资料与公开协议](docs/doubao-onboarding.md)。

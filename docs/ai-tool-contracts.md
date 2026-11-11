@@ -20,6 +20,17 @@ GPT和豆包共用健康业务，常见任务使用三个较小入口；原有18
 | 查询是否保存 | 返回operationType=meal用get_meal_operation，为record用get_record_operation；只看状态可view=status |
 | 照片 | 原import_meal_images保留成功附件；补图用append_pending_images，不重复上传成功项 |
 
+## 默认营养估算与追问
+
+GPT、HTTP与豆包共用`src/features/meals/ai-nutrition-guidance.json`。新增餐项默认估算热量及蛋白质／碳水／脂肪，不逐次询问是否需要估算。优先真实用户数值、匹配的本人食材和标签；自由项只有部分数值已知时保留原值，补估部分在basis单独说明，整项标estimated。用户明确只记录或确实无法合理估算时仍保留未知，服务器不会擅自补数。
+
+- “今天中午加个鸡蛋”：实际数量为1个，可用常见单个规格估算并说明大小不确定；不擅自推断水煮或煎炒。“中午”填写午餐，不能变成snack。若当天已有明确午餐，先查询并局部添加，不重复新增一餐。
+- 食物身份、实际食量、生熟／做法、油酱差异明显影响结果时，集中追问缺失的关键信息；常见单个食物未报克重不必先问是否估算。默认营养估算不代表用户接受食量估算，不能冒填estimate_accepted。
+- 估算填写sourceKind=estimated及basis，区分实际食量、参考规格和假设，不伪造来源链接、标签或用户确认。明确0保持，未知不是0。
+- 默认只作用于新增食物（含addFoods）；查询和仅改备注／日期等操作不重估历史。明确要求补估历史项时走局部修改预览，仍需网页确认。
+
+共用规则更新后运行`node scripts/sync-ai-nutrition.mjs`生成豆包Skill及Manifest描述；`--check`用于检查漂移。新请求编号使用新UUID，只含ASCII字母数字及半角短横线(-)，8至120字符，不放宽原校验。更新平台测试资源后才会采用新版运行态Skill。GPT客户端需刷新工具定义／新对话；不撤销原连接、不扩大权限。
+
 ## 四种营养输入
 
 数值使用十进制字符串，未知字段省略，明确零填"0"。来源sourceKind与数值是否已知分开：已知数值而来源不明可保留unknown；不能编造标签或估算依据。estimated必须说明basis，标签／成分表沿用依据校验。
@@ -31,7 +42,7 @@ GPT和豆包共用健康业务，常见任务使用三个较小入口；原有18
 | 吃150g，每100g是200kcal | quantity="150"，unit="g"，nutritionBasis="per_reference"，referenceQuantity="100"，caloriesKcal="200" | 直接按150/100计算300，不先除成每克并舍入；依据保留原参考量 |
 | 包装只有每份418.4kJ，吃一份 | quantity="1"，unit="份"，caloriesKj="418.4" | 换算100kcal；不能同时填caloriesKcal |
 | 本人已有食材规格 | foodId、foodVersion、实际quantity/unit | 按真实规格或历史快照换算，不同时填营养 |
-| 营养全未知 | 只提供名称与实际食量，省略四项营养 | 保持null，不填0，不自动用宏量反推热量 |
+| 用户明确不估或确实无法合理估算，营养全未知 | 只提供名称与实际食量，省略四项营养 | 保持null，不填0，不自动用宏量反推热量 |
 | 食量确实未知且用户明确保留 | amountDecision="unknown_accepted"，省略quantity | 保留未知；不能默认1份 |
 | 用户接受食量估算 | amountDecision="estimate_accepted"及basis | 保留估算身份，不说成实测或用户确认的精确量 |
 

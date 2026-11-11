@@ -10,6 +10,8 @@
 
 ## 当前入口
 
+- `sync-ai-nutrition.mjs`：从饮食feature的`ai-nutrition-guidance.json`生成豆包Skill的共用营养段落及餐次工具描述；`--check`仅检查一致性。GPT的MCP／HTTP直接读取同一规则，不改变接口字段或正式记录。
+
 - `manage-account.mts`（`pnpm account:owner`）：首次指定已有账号为唯一 owner，或在交互终端恢复 owner 密码。先 `--preview 邮箱` 核对用户 ID，再 `--write 邮箱 用户ID`；恢复用 `--recover 邮箱 用户ID`，隐藏输入并确认6–128字符新密码，长度与网页共用password-policy.ts，撤销全部访问并留维护审计。读取私有配置，预览不写入；不能通过此入口新增第二个 owner、恢复普通账号或删除健康数据。日常邀请、停用、恢复、重设和设备管理均从网页完成。
 
 
