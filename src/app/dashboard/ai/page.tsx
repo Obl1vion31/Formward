@@ -1,26 +1,19 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { RouteLoading } from "@/components/page-loading";
-import { currentPageUser, requirePageUser } from "@/features/auth/server";
+import { requirePageUser } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
-import { listAiTokens } from "@/features/auth/ai-tokens";
-import { listOauthConnections } from "@/features/auth/oauth-connections";
-import { listAiMeasurementOperations } from "@/features/measurements/ai-operations";
-import { listMealOperations } from "@/features/meals/records";
-import { listRecordOperations } from "@/features/records/operations";
+import { loadAiAccessConnections, loadAiAccessOverview } from "@/features/auth/ai-access-overview";
 import { regionConfig } from "@/features/auth/regions";
-import { AiAccess } from "@/features/auth/ai-access";
+import { AiAccess, AiAccessReading } from "@/features/auth/ai-access";
 import { createTokenAction, revokeTokenAction, revokeConnectionAction } from "./actions";
 export const metadata: Metadata = { title: "Formward · AI 接入", referrer: "no-referrer" };
 export default async function AiAccessPage() {
   const user = await requirePageUser();
-  return <Suspense fallback={<RouteLoading />}><AiAccessContent user={user} /></Suspense>;
+  return <main className="dashboard-page"><Suspense fallback={<AiAccessReading />}><AiAccessContent userId={user.id} /></Suspense></main>;
 }
 
-async function AiAccessContent({ user }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>> }) {
-  const db = getDatabase(), tokens = await listAiTokens(db, user.id), operations = await listAiMeasurementOperations(db, user.id), connections = await listOauthConnections(db, user.id);
-  const recordOperations = await listRecordOperations(db, user.id);
-  const mealOperations = (await listMealOperations(db, user.id)).filter(operation => !recordOperations.some(record => record.mealOperationId === operation.id));
-  const standaloneBodies = operations.filter(operation => !recordOperations.some(record => record.measurementOperationId === operation.id));
-  return <main className="dashboard-page"><AiAccess canonicalOrigin={regionConfig().canonical} recordOperations={recordOperations} mealOperations={mealOperations} tokens={tokens} operations={standaloneBodies} connections={connections} create={createTokenAction} revoke={revokeTokenAction} revokeConnection={revokeConnectionAction} /></main>;
+async function AiAccessContent({ userId }: { userId: string }) {
+  const connections = await loadAiAccessConnections(getDatabase(), userId);
+  const overviewPromise = loadAiAccessOverview(getDatabase(), userId, connections);
+  return <AiAccess key={userId} canonicalOrigin={regionConfig().canonical} overview={{ connections, tokens: [], submissions: [] }} overviewPromise={overviewPromise} create={createTokenAction} revoke={revokeTokenAction} revokeConnection={revokeConnectionAction} />;
 }

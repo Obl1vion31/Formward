@@ -76,6 +76,14 @@ production build后，FORMWARD_ENERGY_TOOLS_ONLY=1 pnpm test:energy-browser使�
 
 production build后设置FORMWARD_FRAME_ONLY=1运行pnpm test:energy-browser。unified-frame.browser.mjs用同一虚构账号、同日7D并排验证七种视口日期／主要读数共同区域≤2px、读数不裁切、自动累计/手填/明确0/清空、备注保留四位旧数、单运动完整预览、应用内确认与AI整数及身体两位数。FORMWARD_FRAME_ARTIFACTS指定私有输出目录，FORMWARD_OVERVIEW_BROWSER=webkit可复用；真实iOS和软键盘单独记未测。FORMWARD_FRAME_KEYBOARD_ONLY=1另验逐键输入整数、小数明确报错、旧值失焦不回写；连续整页跳转前后等待networkidle，保留全部pageerror检查。
 
+## AI接入设置页
+
+production build后运行`node --import tsx tests/ai-access-settings.browser.mts`。`ai-access-fixture.ts`只创建隔离PGlite中的虚构账号、连接与提交，覆盖当前同意交集、只读、多连接、失效、撤销、纯训练、混合及旧提交、初始化排除与无法识别的来源。`src/features/auth/ai-access.test.ts`验证归属、实际授权、部分保存和真实到期；不使用正式账号。
+
+浏览器入口通过真实Next production和Server Action验证来源／状态筛选、原审核链接与返回、撤销取消／断网重试／即时拒绝、手动令牌创建与一次性原文、复制及Escape焦点。默认Chromium，`FORMWARD_AI_ACCESS_BROWSER=webkit`切换；`PLAYWRIGHT_MODULE`及`PLAYWRIGHT_BROWSERS_PATH`指定已有外部工具，`FORMWARD_AI_ACCESS_ARTIFACTS`指定截图及JSON位置。没有新增运行依赖。
+
+双主题检查320／390／430px、矮屏、横屏、1100／1440px及200%等效文字；计算实际权限列位置、间距、输入字号和44px操作范围。数据库TCP代理分别使用0／220ms延迟，逐帧核对首帧标题及真实连接接管，检查读取期间展开不被重置；折叠内容按实际绘制可见性排除，不能只用getClientRects推断。`FORMWARD_AI_ACCESS_LOADING_ONLY=1`仅运行读取专项。真实手机、系统键盘、屏幕阅读器和系统文字放大须单独记为未测。
+
 ## 目的
 
 本目录保存跨功能、数据库和浏览器端到端测试。单个 feature 的单元测试优先与源文件放在一起。

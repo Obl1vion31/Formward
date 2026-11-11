@@ -5,6 +5,7 @@ import { oauthClient, oauthConnection, oauthConsent, oauthRefreshToken, oauthAcc
 import { lockMeasurementOwner } from "../measurements/records";
 import { ApiError } from "./ai-identity";
 import { requireActiveAccount } from "./account-security";
+import type { AiConnectionState, AiProvider } from "./ai-access-model";
 
 export const READ_SCOPE = "measurements:read";
 export const WRITE_SCOPE = "measurements:write";
@@ -56,8 +57,16 @@ export async function oauthAccessClaims(db: Database, userId: string, clientId: 
 }
 
 export async function listOauthConnections(db: Database, userId: string) {
-  const connections = await db.select({ id: oauthConnection.id, name: oauthClient.name, clientId: oauthConnection.clientId, scopes: oauthConnection.scopes, authorizedAt: oauthConnection.authorizedAt, expiresAt: oauthConnection.expiresAt, revokedAt: oauthConnection.revokedAt, lastUsedAt: oauthConnection.lastUsedAt }).from(oauthConnection).innerJoin(oauthClient, eq(oauthClient.clientId, oauthConnection.clientId)).where(and(eq(oauthConnection.userId, userId), isNotNull(oauthConnection.authorizedAt))).orderBy(desc(oauthConnection.createdAt));
-  return connections.map(row => ({ ...row, expired: row.expiresAt.getTime() <= Date.now() }));
+  const connections = await db.select({ id: oauthConnection.id, name: oauthClient.name, clientId: oauthConnection.clientId, scopes: oauthConnection.scopes, authorizedAt: oauthConnection.authorizedAt, expiresAt: oauthConnection.expiresAt, revokedAt: oauthConnection.revokedAt, lastUsedAt: oauthConnection.lastUsedAt, disabled: oauthClient.disabled, metadata: oauthClient.metadata, consentId: oauthConsent.id, consentScopes: oauthConsent.scopes }).from(oauthConnection)
+    .innerJoin(oauthClient, eq(oauthClient.clientId, oauthConnection.clientId))
+    .leftJoin(oauthConsent, and(eq(oauthConsent.userId, userId), eq(oauthConsent.clientId, oauthConnection.clientId), eq(oauthConsent.referenceId, oauthConnection.id)))
+    .where(and(eq(oauthConnection.userId, userId), isNotNull(oauthConnection.authorizedAt))).orderBy(desc(oauthConnection.createdAt));
+  return connections.map(({ metadata, disabled, consentId, consentScopes, ...row }) => {
+    const expired = row.expiresAt.getTime() <= Date.now();
+    const state: AiConnectionState = row.revokedAt ? "revoked" : disabled ? "disabled" : expired ? "expired" : !consentId ? "unauthorized" : "connected";
+    const provider: AiProvider = metadata?.provider === "doubao" ? "doubao" : row.name?.trim().toLowerCase() === "chatgpt" ? "chatgpt" : "other";
+    return { ...row, expired, state, provider, effectiveScopes: state === "connected" ? row.scopes.filter(scope => consentScopes?.includes(scope)) : [] };
+  });
 }
 
 export async function revokeOauthConnection(db: Database, userId: string, id: string) {
