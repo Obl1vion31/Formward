@@ -6,7 +6,7 @@ Formward豆包应用AppID为`db_app_9m6xflq`，本人体验白名单已生效且
 
 测试版 **0.0.1-dev.20261111.2** 已云构建succeeded，Manifest、运行态Skill、原生源码及业务声明已上传，21项工具与服务端一致；此前版本保留兼容。本人既有登录交换、WebView回传、换码绑定、连接检查及身体查询已通过。新工具真实手机使用仍待更新Debugger资源后复测。
 
-当前上海应用为dual-entry-99380910-ai-tool-clarity-final-20261111，源码99380910d15f2a29b856ad55d220aea8fe47b3bd，BUILD_ID kOlTNGXsgrakaKRa54QgO，目录ai-tool-clarity-final-20261111。原OAuth issuer／resource、账号和授权保持；MCP为1.16.0、共21项工具，旧18项仍兼容。
+当前上海应用为dual-entry-4c254474-doubao-refresh-recovery-20261111，源码4c25447419444b1d48a5ce36f82c0c2e573a8763，BUILD_ID 2Y6jvkUZm_6JgoWpLMLoi，目录doubao-refresh-recovery-20261111。原OAuth issuer／resource、账号和授权保持；MCP为1.16.0、共21项工具，旧18项仍兼容。
 
 ## 常用记餐、修改与消耗
 
@@ -30,9 +30,11 @@ preview_energy处理全天总数／分项与实际运动，明确0保留。新�
 
 ## 登录续期与重新连接
 
-平台持有的刷新凭据可能失效、被消费或撤销。服务端刷新失败须按[官方登录协议](https://open.doubao.com/apps-plugin/docs/backend-development/login)返回code=50401及精确msg="token expired"，由宿主重新拉起登录；本接口用HTTP200承载该业务错误，错误应用、无效访问Token及服务故障仍区分状态，不绕过原鉴权。服务器不恢复或延长旧凭据；用户正常重新连接后才会得到新凭据。重新扫码更新资源不等于重新登录。
+平台持有的刷新凭据可能失效、被消费或撤销。服务端刷新失败须按[官方登录协议](https://open.doubao.com/apps-plugin/docs/backend-development/login)返回code=50401及精确msg="token expired"，由宿主重新拉起登录；本接口已发布HTTP200承载该业务错误，错误应用、无效访问Token及服务故障仍区分状态，不绕过原鉴权。服务器不恢复或延长旧凭据；用户正常重新连接后才会得到新凭据。重新扫码更新资源不等于重新登录。
 
-30502的公开官方对应说明未查到，不仅凭错误码判断模型或记餐故障。本人报告的连接失败已在服务器关联到2026-11-11 13:06及13:08的六次refresh-token／401，当时没有记餐或查询调用；本轮修正通用401未按宿主协议通知重新登录的问题。
+30502的公开官方对应说明未查到，不仅凭错误码判断模型或记餐故障。本人报告的连接失败已在服务器关联到2026-11-11 13:06及13:08的六次refresh-token／401，当时没有记餐或查询调用；本轮修正通用401未按宿主协议通知重新登录的问题。旧刷新凭据最初失效的原因未确证；不能由此认定豆包模型能力或某个健康接口异常。629项测试、实际Next正常旋转／失效信号及公网恢复码已通过，真机重新连接仍待本人反馈。
+
+2026-11-11 13:28真机反馈登录引导卡按钮转圈；13:28至13:33的九次请求仍停留refresh-token，已返回精确50401恢复信号，未收到login／authorize／fetch-token或业务调用。原生源码未变，本地typecheck与build local通过；不能据此认定真机登录通过。当前先退出旧卡片并用新请求重建登录，继续核对宿主到原生登录页这一段。
 
 ## 链路与授权
 
@@ -78,7 +80,7 @@ AppSecret只由上海服务用于官方OpenAPI身份交换，不进入Vercel静�
 
 域名验证文件public/doubao_45g8h0ck.txt的SHA-256为`69022224f241371df358c978cb28384ac663337448e6a939570ac30b7d4cdbe7`。当前公网IP网页不替代已验证request／WebView域名。以后迁国内先验证新域名与完整豆包链路，再切换原生配置和服务；过渡入口与GPT原地址保留，不能承诺全部旧客户端免重新授权。
 
-本次发布保留47项Server Action及原绑定密钥，额外保留339项旧静态资源，配置字节保持，无数据库迁移。上一应用doubao-simple-meal-final-20261111保留回退。原诊断preload、systemd drop-in与保护绕过令牌保持清除。
+本次发布保留47项Server Action及原绑定密钥，额外保留342项旧静态资源，配置字节保持，无数据库迁移。上一应用ai-tool-clarity-final-20261111保留回退。原诊断preload、systemd drop-in与保护绕过令牌保持清除。
 
 ## 验收与待测边界
 

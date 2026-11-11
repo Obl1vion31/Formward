@@ -1561,3 +1561,9 @@ D1／D2／D3／D4／D5／D7适用条目通过；D6浏览器实测通过，真机
 适用设计D1／D2／D3／D12：桌面浅色与390×780深色的实际确认页日期、本餐合计、完整食物、未知／0、按需依据与底部保存均可达；原编辑窗口关闭恢复焦点。随后实际网页确认和饮食日期详情显示同一600kcal、蛋白质0及未知其余项。没有修改CSS或转场，不将本次两视口核对冒充320／430／200%或WebKit全量视觉回归。
 
 截图在主机可视化目录的ai-preview-desktop.png、ai-preview-mobile.png与ai-preview-saved.png，私有证据副本位于main-current/.codex/ai-tool-clarity-20261111/release。正式应用ai-tool-clarity-final-20261111，源码99380910d15f2a29b856ad55d220aea8fe47b3bd，BUILD_ID kOlTNGXsgrakaKRa54QgO；平台测试版0.0.1-dev.20261111.2。原GPT连接前后同一账号，正式域名保护、21项工具与公开资源一致性通过。
+
+## 豆包续期恢复验收
+
+629项测试及production build通过。原HTTP401阻止宿主恢复登录的协议问题改为刷新专用50401/token expired；错误AppID和MCP访问仍401，上游503／429／畸形响应不误报失效。真实OAuth验证旋转、旧／过期／篡改与撤销，实际Next新旧协议及公网精确恢复码均通过。无UI、数据库或scope变化，原GPT同一账号检查通过；不以这些代替用户手机重新登录成功。
+
+生产候选的旧401断言及已加载unit失败均保留日志，未在失败时切换正式版本；修正后候选与正式保护通过，保留47项Server Action、原密钥和342项旧资源，配置权限与字节保持。私有证据main-current/.codex/doubao-refresh-recovery-20261111。
