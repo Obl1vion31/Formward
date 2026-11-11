@@ -25,21 +25,19 @@ python3 scripts/vercel-releases.py policy --project formward --apply
 
 归档位于 Git 公共目录所属工作区的 `.codex/backups/vercel-releases/formward/`，不随临时 worktree 删除。国际候选继续使用现有双区工具并显式部署到 iad1；`publish` 只更新原国际正式版本承担的别名，保留仍指向其他部署的项目域名，不用项目级 promote 接管它们。既有上海服务、数据库、issuer／resource、Server Action 兼容与回退流程不变。网关归档中的协议和 schema 摘要仍须与上海服务核对；本工具不把 Vercel 网关包当成上海全服务备份。受 Vercel 登录保护的旧项目域名只核对绑定和保护入口，不声称完成应用功能验收。
 
-## 当前正式部署：AI常用工具与外部接入
+## 当前正式部署：共用营养估算与外部接入
 
-原生登录恢复已上线：631项根测试、原生9项、lint／typecheck／干净production build及实际Next HTTP通过，普通与虚构手机号入口、可读错误框已在官方Web模拟器核对；0.0.1-dev.20261111.3云构建成功，真实手机恢复仍待更新资源后确认。
+共用记餐规则已随上海服务发布：新增食物默认估算热量和三项宏量，可靠数值优先；关键食物／食量／做法信息缺失才集中追问，明确不估仍保留未知。追加食物先查目标日并局部增加，查询历史和只改备注不重估；query_meals已保存餐次与全天记全状态分开表达。服务器不自动填数，不改变权限、数据库或网页确认。
 
-豆包续期恢复协议已修正，不可恢复刷新返回50401/token expired以重新登录，服务故障保留503；629项测试及实际Next/public HTTP通过。原始失效原因与真机重新连接仍单独确认，代码、测试和边界见[豆包接入](doubao-onboarding.md)。
+运行源码42bcee694ee237727a52b353af2d77ba1666d927，版本dual-entry-42bcee69-nutrition-defaults-final-20261111，BUILD_ID 0yyv24yTcnKNe0srSQ99M，目录nutrition-defaults-final-20261111，2026-11-11 16:38完成切换。MCP 1.17.0仍为21项工具，47项旧Server Action、原加密密钥与349项旧静态资源保留；原配置字节、root 0600权限、OAuth issuer／resource及GPT连接保持。无数据库迁移，上一版本doubao-login-diagnostics-20261111保留回退。
 
-当前上海应用为dual-entry-3b3552da-doubao-login-diagnostics-20261111，源码3b3552da9c1293b8943e9770322adbfb650949cd，BUILD_ID gfn1hgK54fo8jb129I_YT，目录doubao-login-diagnostics-20261111。原OAuth issuer／resource、账号和授权保持；MCP为1.16.0、共21项工具，旧18项仍兼容。
+634项单元／集成、原生9项、lint、typecheck、production build通过；最后的说明补强后45项相关回归及lint／typecheck再次通过。实际Next production双协议21工具、登录续期、查询、预览、未知／0与权限拒绝通过，确认前正式事实写入0。官方豆包模型五组业务用例符合预期：默认估算、关键缺项追问、明确不估、标签及0、只读历史；新增食物均进入已有餐次的修改预览，已有虚构事实保持。完整CLI Verdict仍因既有card_binding_missing未通过，不把业务用例成功称为整体验收通过。
 
-626项单元／集成（81个原测试文件独立串行）、lint、typecheck及干净兼容production build通过；原生4项、Manifest校验、本地构建及测试版云构建通过。实际Next production两种协议验证21工具、三个常用预览、四类有界查询、状态查询、非法参数和无效凭据拒绝；确认前正式事实写入0。Chrome实际核对桌面浅色与390×780深色，打开／关闭原编辑器、焦点恢复、局部备注保留，并点击网页确认保存1条虚构餐次，再查到正确日期、600kcal、蛋白质0和其余未知。未改界面样式，不把这些当作真实豆包WebView通过。
+公网三入口版本一致、8项公开资源SHA一致，双协议工具已包含新共用说明；原iad1网关部署及别名保持。真实GPT连接发布前后get_profile响应一致；没有OpenAI API评测配置，未执行真实GPT模型完成率对照。本人0.3手机登录、身体查询与记餐预览已获反馈及服务端佐证，新默认规则尚无手机复测结论。
 
-三组官方豆包模型实测：每份300×2为600；原预览改3份为900；静息1800＋活动0为1800。最终各次工具返回pending且canConfirm=true，回复包含真实确认链接，无tool_call_arguments_invalid；正式健康事实未写入。第一轮捕获的漏转录、缺模式及错误回复保留私有记录，服务器自动转录／推导与模型错误处理规则修正后复测。CLI 0.0.41仍因card_binding_missing给完整Verdict未通过，不把工具成功称为整个模拟器通过或总体成功率。
+豆包0.0.1-dev.20261111.4提交返回50010002“服务暂时不可用”，平台显示构建失败；四包已上传但新版未成功发布。提交log_id 20261111163209B6F928A759AD785B6EE1，状态查询log_id 2026111116344627D0C8DF0D73C768E9A2，错误文件同样只说明服务暂不可用。按豆包开发技能的远端错误中断规则停止此平台提交，不自动重试；当前可用测试版仍为0.3。源代码、共用服务器说明与网页服务已更新，豆包新版Skill须成功构建并更新一次测试资源后才完整采用；现有授权不撤销。
 
-本机没有OpenAI API评测配置，真实GPT首轮完成率对照未执行；真实GPT连接发布前后get_profile均成功且同一账号，不能以接口回归替代真实模型效果。本人豆包既有连接与身体查询沿用已确认结果，新测试版的物理手机记餐、局部修改和消耗仍待本人更新Debugger后复测。
-
-豆包测试版0.0.1-dev.20261111.3已succeeded，未提审公开版本；更新Debugger资源与重新授权分开。47项Server Action与原绑定密钥、345项旧静态资源保留，原配置字节及凭据权限保持，无数据库迁移。上一应用doubao-refresh-recovery-20261111保留回退。三入口版本一致、8项公开资源SHA一致，海外iad1网关和两别名保持，真实GPT发布前后同一账号。常用工具证据位于main-current的.codex/ai-tool-clarity-20261111，续期修复证据位于.codex/doubao-refresh-recovery-20261111，原生恢复证据位于.codex/doubao-login-diagnostics-20261111。
+本机永久运行包与私有验收证据位于main-current工作区.codex/nutrition-defaults-20261111；原生登录恢复证据仍在.codex/doubao-login-diagnostics-20261111。未改页面样式，本轮不冒充全站视觉矩阵或新手机实测。
 
 生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。
 
