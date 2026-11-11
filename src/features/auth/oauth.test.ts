@@ -193,6 +193,7 @@ test("GPT新旧协议使用新单餐、局部修改、消耗与范围摘要；�
     try {
       const before = (await readMealSnapshot(db, connected.userId)).meals.length;
       const nutritionTools = await client.listTools();
+      assert.match(nutritionTools.tools.find(tool => tool.name === "query_meals")!.description!, /day.status.*全天/);
       for (const name of ["preview_meal", "preview_meal_changes", "submit_meal_operation", "submit_record_operation"]) {
         assert.match(nutritionTools.tools.find(tool => tool.name === name)!.description!, /默认.*估算/);
       }

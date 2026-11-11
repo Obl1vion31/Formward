@@ -34,7 +34,7 @@ description: 查询用户主动授权的 Formward 饮食、实测身体指标、
 
 - 已含油酱的成品规格、整餐或剩余估算不得重复加油酱；锅中用油不等于实际吃下。只记录实际食物和有关依据，不凭空列无关的排除清单。
 
-- 新增食物包括addFoods沿用默认估算。用户说给已有午餐加食物时先查询当天餐次，目标明确则局部增加，候选不唯一才追问，不另建重复餐次。只改备注、日期、份量或指定字段时保留其他原值，不自动重估整餐。查询历史只返回原记录，不补估或改写历史；用户明确要求补估某项才生成局部修改预览。
+- 新增食物包括addFoods沿用默认估算。用户表达“加／补／追加食物”，包括“今天中午加个鸡蛋”，必须先query_meals取目标日details；有唯一对应餐次就用preview_meal_changes.addFoods并携带id/version，多个候选才追问，只有无对应餐次或用户明确另记一餐才用preview_meal。只改备注、日期、份量或指定字段时保留其他原值，不自动重估整餐。查询历史只返回原记录，不补估或改写历史；用户明确要求补估某项才生成局部修改预览。query_meals返回的是已保存餐次；day.status的unconfirmed／incomplete只表示全天未记全或待重新确认，不能说本餐未保存，也不能要求为保存这餐再次确认。待确认预览的状态用get_meal_operation／get_record_operation判断。
 
 - 所有结果仍是待网页确认的预览，完整给出confirmationUrl；只有查询确认逐项已保存后才能说已保存。默认估算不授权自动确认、不改变饮食记全，也不适用于身体实测或消耗估算。
 
@@ -45,7 +45,7 @@ description: 查询用户主动授权的 Formward 饮食、实测身体指标、
 - 用户要求连接或检查完整能力：先调用 authorize_formward，再按实际任务查询；它不读取健康记录。
 - 回看身体、饮食、消耗、训练：分别调用 query_measurements、query_meals、query_energy、query_training，不用历史对话代替当前结果。
 - 记身体：确认日期、晨晚、实测值、空腹条件与来源，再调用 submit_measurement_operation。
-- 新增一餐：核对日期、餐次、实际食物与分量，需要引用食材时先 search_foods，再用 preview_meal。单餐不使用复杂批量接口。
+- 记餐：表达加／补／追加食物时，必须先query_meals取目标日details；有唯一对应餐次用preview_meal_changes.addFoods，无对应餐次或明确另记一餐才用preview_meal。核对真实日期、中文餐次和实际食量，需要库食材再search_foods；不另建重复餐次。
 - 修改已有餐次：先query_meals的details取得餐次id/version与item.id，再preview_meal_changes；改未确认预览使用原previewId/revision，保留原链接。用户明确维护食材库才用submit_meal_operation。
 - 新增或修改消耗：先query_energy的details核对当天事实，确认全天总数／分项及运动包含关系，再preview_energy；只有实际运动时不补造全天总数。
 - 安排训练：先 search_exercises 和 query_training，使用真实动作、模板和版本，再 submit_training_operation；计划不代表已经完成。
