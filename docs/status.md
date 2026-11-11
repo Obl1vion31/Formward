@@ -1,5 +1,13 @@
 # 当前实现与验证
 
+AI接入已按AI组织：有效连接优先，默认展示四类当前有效权限，未接入提供可申请范围和专属步骤，豆包注明内测白名单。连接方法、时间、撤销及旧连接按需展开；AI提交记录默认收起，可按来源和审核状态筛选，真实到期与部分保存状态保持。来源从原OAuth／令牌及训练授权解析，不猜测其他账号凭据名称，初始化保留在饮食页。
+
+当前应用为源码919968c1ad9d97692bc093ee3f20db662f46f52c，版本dual-entry-919968c1-ai-access-20261112，BUILD_ID HHnmU53WbIXnosXVyQHxB，2026-11-12 01:01（北京时间）上线。已合入并推送main，原47项表单接口及密钥、367项旧资源、配置和schema0036保持；即时回退为ai-field-definitions-compatible-v9-20261111。三入口、新资源和原MCP／豆包保护复核通过，数据库结构与九类正式健康事实摘要一致。
+
+83文件当前648项断言完成核对；原全套647中一项既有管理员验密用例首次失败，未修改代码独立复测16项通过，新增部分保存后的AI专项5项通过，原始日志保留。实际发布包Chromium／WebKit各31张图及关键操作、正常／慢读取0px偏移通过；lint、typecheck、目录、机械检测及兼容production build通过。未用正式账号写测试健康数据；真实手机、系统键盘、屏幕阅读器及系统文字放大未测。详细范围及证据见[设计验收](design-reference.md#d14ai-接入与提交来源)和[部署](deployment.md#当前正式部署ai接入与提交记录)。
+
+## AI字段解释基线
+
 全部21项AI工具成功结果附带fieldDefinitions中文字段解释，正文JSON与structuredContent一致；豆包result_json和原HTTP结果保留相同解释。说明由各业务目录的ai-field-definitions.json维护，只选取实际出现的字段。身体sevenDay.window与有效样本start/end分开，首尾差、相邻日差、均值、覆盖及体脂百分点明确；饮食完整性、消耗包含关系、训练目标／实际、混合批次、修改版本、附件及审核阶段分别说明。原参数、业务数值、权限、计算和网页登录确认保持。
 
 上海运行源码313e19671200d55a71c967b75f81eef698c23e86，版本dual-entry-313e1967-ai-field-definitions-compatible-v9-20261111，BUILD_ID BvdX3-FkAg2sw0oFUvsVq，目录ai-field-definitions-compatible-v9-20261111，北京时间2026-11-11 23:38完成切换。MCP1.17.1／OpenAPI1.15.1，候选与正式均21工具，12项HTTP成功响应说明通过。原47项Server Action及加密密钥保留，额外保留361项旧静态资源；原配置字节与root 0600权限保持，schema仍为0036。即时回退目录为ai-field-definitions-compatible-v8-20261111，任务前nutrition-defaults-final-20261111亦保留。
