@@ -138,6 +138,7 @@
   .desktopText,.desktopOnly { display:none!important; }
   .mobileText { display:inline; }
   .textAction { min-width:44px; }
+  .settings .permissionAction { gap:4px; padding-inline:0; }
   .betaNote { font-size:13px; }
   .sectionBar { flex-wrap:wrap; gap:0 8px; }
   .submissionSection { margin-top:20px; }

@@ -200,25 +200,26 @@ try {
     (window as unknown as { aiFrames: unknown[] }).aiFrames = [];
     const start = performance.now(); function record() {
       const root = [...document.querySelectorAll("[data-ai-access]")].find(node => node.checkVisibility());
-      if (root) (window as unknown as { aiFrames: unknown[] }).aiFrames.push({ time: performance.now() - start, ready: root.hasAttribute("data-ai-access-ready"), anchors: [...root.querySelectorAll("[data-ai-anchor]")].filter(node => node.checkVisibility()).map(node => { const box = node.getBoundingClientRect(); return { key: node.getAttribute("data-ai-anchor"), x: box.x, y: box.y }; }) });
+      if (root) (window as unknown as { aiFrames: unknown[] }).aiFrames.push({ time: performance.now() - start, ready: root.hasAttribute("data-ai-access-ready"), anchors: [...root.querySelectorAll("[data-ai-anchor],h2")].filter(node => node.checkVisibility() && (node.hasAttribute("data-ai-anchor") || ["ChatGPT","豆包"].includes(node.textContent ?? ""))).map(node => { const box = node.getBoundingClientRect(); return { key: node.getAttribute("data-ai-anchor") ?? "name:" + node.textContent, x: box.x, y: box.y }; }) });
       if (performance.now() - start < 12000) requestAnimationFrame(record);
     } requestAnimationFrame(record);
   });
-  for (const wait of [0, 220]) {
+  for (const [width,height] of [[320,640],[390,640],[1440,900]]) for (const wait of [0, 220]) {
+    await typical.page.setViewportSize({width,height});
     await fetch(delayed.controlURL, { method: "POST", body: JSON.stringify({ delayMs: wait }) });
     await typical.page.goto(baseURL + "/dashboard/ai", { waitUntil: "commit" });
-    await typical.page.locator("[data-ai-access]:visible").waitFor(); await shot(typical.page, `loading-${wait}-first`);
+    await typical.page.locator("[data-ai-access]:visible").waitFor(); await shot(typical.page, `loading-${width}-${wait}-first`);
     await typical.page.locator("[data-ai-access-ready]:visible").waitFor(); await typical.page.waitForTimeout(100);
     const sequence: typeof frames = await typical.page.evaluate(() => (window as unknown as { aiFrames: typeof frames }).aiFrames); frames.push(...sequence);
-    await writeFile(join(artifacts, `${engine}-loading-${wait}-raw.json`), JSON.stringify(sequence, null, 2)); await shot(typical.page, `loading-${wait}-ready`);
+    await writeFile(join(artifacts, `${engine}-loading-${width}-${wait}-raw.json`), JSON.stringify(sequence, null, 2)); await shot(typical.page, `loading-${width}-${wait}-ready`);
     const final = sequence.at(-1)!; let maxDelta = 0;
-    for (const frame of sequence) for (const key of ["heading", "chatgpt", "doubao", "submissions", "advanced"]) {
+    for (const frame of sequence) for (const key of ["heading", "chatgpt", "doubao", "submissions", "advanced", "name:ChatGPT", "name:豆包"]) {
       const start = frame.anchors.find(anchor => anchor.key === key), end = final.anchors.find(anchor => anchor.key === key);
       assert.ok(start && end, `首帧必需锚点 ${key} 存在且可见`); maxDelta = Math.max(maxDelta, Math.abs(start.x - end.x), Math.abs(start.y - end.y));
     }
     assert.ok(maxDelta <= 1, `稳定布局锚点偏移 ${maxDelta}px`);
-    checks.push(`数据库延迟${wait}ms：${sequence.length}帧，五个首帧锚点最大偏移${maxDelta}px`);
-    await writeFile(join(artifacts, `${engine}-loading-${wait}.json`), JSON.stringify({ maxDelta, sequence }, null, 2));
+    checks.push(`${width}px数据库延迟${wait}ms：${sequence.length}帧，结构与AI名称七个首帧锚点最大偏移${maxDelta}px`);
+    await writeFile(join(artifacts, `${engine}-loading-${width}-${wait}.json`), JSON.stringify({ maxDelta, sequence }, null, 2));
   }
   await typical.page.setViewportSize({ width: 1440, height: 900 });
   await typical.page.goto(baseURL + "/dashboard/ai", { waitUntil: "commit" });
