@@ -112,8 +112,11 @@ test("字段文字明确数量基准、版本、省略与清空、训练实际�
   assert.match(trainingDetails["**.distanceMeters"], /单位米/);
   assert.match(trainingDetails["**.sets.*.completed"], /false为未完成/);
   assert.match(trainingDetails["sessions.*.status"], /进行中或暂停不算整场完成/);
-  const preview = withAiFieldDefinitions("get_training_operation", { rows: [{ after: details.sessions[0] }] }).fieldDefinitions;
-  assert.equal(preview["**.weightKg"], trainingDetails["**.weightKg"]);
+  const preview = withAiFieldDefinitions("get_training_operation", { rows: [{ training: { after: details.sessions[0] }, body: { after: { weightKg: 70 } } }] }).fieldDefinitions;
+  assert.equal(preview["rows.*.training.**.weightKg"], trainingDetails["**.weightKg"]);
+  assert.equal("**.weightKg" in preview, false);
+  const bodyOnly = withAiFieldDefinitions("get_training_operation", { rows: [{ body: { after: { weightKg: 70 } } }] }).fieldDefinitions;
+  assert.equal(Object.values(bodyOnly).some(text => text.includes("训练负重")), false);
   const mixedTraining = withAiFieldDefinitions("get_record_operation", { rows: [{ training: { after: details.sessions[0] } }] }).fieldDefinitions;
   assert.equal(mixedTraining["rows.*.training.**.weightKg"], trainingDetails["**.weightKg"]);
   const body = withAiFieldDefinitions("query_measurements", { days: [{ daytime: { weightKg: 70, bodyFatPercent: 20 }, evening: null }] }).fieldDefinitions;

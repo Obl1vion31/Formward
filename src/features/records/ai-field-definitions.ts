@@ -8,7 +8,8 @@ import training from "../training/ai-field-definitions.json";
 type Definitions = Readonly<Record<string, string>>;
 const operation = [common.operation, common.patch];
 const scoped = (definitions: Definitions, prefix: string): Definitions => Object.fromEntries(Object.entries(definitions).map(([path, text]) => [prefix + "." + path, text]));
-const mixed = [scoped(measurements.operation, "rows.*.body"), scoped(meals.operation, "rows.*.meal"), scoped(energy.operation, "rows.*.energy"), scoped(training.operation, "rows.*.training"), scoped(training.values, "rows.*.training")];
+const trainingPreview = [scoped(training.operation, "rows.*.training"), scoped(training.values, "rows.*.training")];
+const mixed = [scoped(measurements.operation, "rows.*.body"), scoped(meals.operation, "rows.*.meal"), scoped(energy.operation, "rows.*.energy"), ...trainingPreview];
 export const aiToolDefinitions = {
   authorize_formward: [common.authorize],
   get_profile: [common.profile],
@@ -19,8 +20,8 @@ export const aiToolDefinitions = {
   import_meal_images: [meals.images],
   search_exercises: [training.catalog],
   query_training: [common.query, training.query, training.values],
-  submit_training_operation: [...operation, training.operation, training.values],
-  get_training_operation: [...operation, training.operation, training.values],
+  submit_training_operation: [...operation, ...trainingPreview],
+  get_training_operation: [...operation, ...trainingPreview],
   query_energy: [common.query, energy.query],
   query_meals: [common.query, meals.query],
   preview_meal: [...operation, meals.operation],
