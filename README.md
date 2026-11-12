@@ -113,7 +113,7 @@ tests/            跨功能与端到端测试
 
 ## 查看首页
 
-内嵌聊天与提醒的研究入口见[小助手本地原型](prototypes/assistant-chat/README.md)，默认运行于`http://localhost:4177`。它与正式应用隔离，使用虚构数据，不接模型、不写正式记录；[视觉标准与边界](docs/design-reference.md#d15内嵌聊天与提醒的本地研究)和[实际验收](prototypes/assistant-chat/qa.md)分别维护。本轮只保留本地分支，不合入或发布。
+指定owner可在小助手中试用千问、小米MiMo及智谱，默认千问；切换沿用会话与草稿。聊天复用正式查询、照片、补充和预览，正式保存由本人在原审核页确认。三模型共享每日¥2，输入区显示今日百分比；其他账号保留提醒与快捷记录，聊天暂未开放。配置、限制及关闭方式见[站内助手](docs/assistant-chat.md)，双端标准见[设计D15](docs/design-reference.md#d15站内聊天模型选择与每日用量)，实际结果见[聊天验收](docs/assistant-chat-verification.md)。
 
 日常网页统一为 [https://43.142.148.58](https://43.142.148.58)，可用原账号登录。Vercel 原地址保留 GPT／MCP、OAuth 和海外图片后台，普通网页自动跳转国服；正式数据统一保存在上海 PostgreSQL。外部 AI 可通过 `/api/mcp` 和 OAuth 登录授权连接，或使用公开 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 和独立访问令牌。写入仍需网页登录确认；连接步骤见 [AI 接入](docs/ai-api.md)。MCP 与手机调整已发布，当前状态见 [项目交接](handoff.md)。平台配置、发布与验收方法见 [公网 HTTPS 部署](docs/deployment.md)。
 

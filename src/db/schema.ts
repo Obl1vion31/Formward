@@ -619,3 +619,38 @@ export const trainingEvent = pgTable("training_events", {
   action: text("action").notNull(), origin: text("origin").notNull().default("manual"), actorId: text("actor_id").notNull().references(() => user.id),
   snapshot: jsonb("snapshot").$type<{ before: unknown; after: unknown }>().notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => [uniqueIndex("training_events_owner_request_idx").on(t.userId, t.operationId), index("training_events_owner_entity_idx").on(t.userId, t.entityId)]);
+
+// 站内聊天只记录会话与执行，正式健康写入仍由原业务预览和人工确认负责。
+export const assistantConnection = pgTable("assistant_connections", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),
+  provider: text("provider").notNull(), tokenId: text("token_id").notNull().references(() => aiToken.id),
+  enabled: boolean("enabled").notNull().default(true), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex("assistant_connections_owner_provider_idx").on(t.userId, t.provider).where(sql`${t.enabled}=true`), uniqueIndex("assistant_connections_token_idx").on(t.tokenId), check("assistant_connections_provider_valid", sql.raw("provider IN ('qwen','mimo','glm')"))]);
+export const assistantConversation = pgTable("assistant_conversations", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),
+  provider: text("provider").notNull().default("qwen"), active: boolean("active").notNull().default(true), sequence: integer("sequence").notNull().default(0),
+  followup: jsonb("followup").$type<import("../features/assistant/chat-model").Followup | null>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex("assistant_conversations_owner_id_idx").on(t.userId, t.id), uniqueIndex("assistant_conversations_active_idx").on(t.userId).where(sql`${t.active}=true`), check("assistant_conversations_valid", sql.raw("sequence >= 0 AND provider IN ('qwen','mimo','glm')"))]);
+export const assistantMessage = pgTable("assistant_messages", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), conversationId: text("conversation_id").notNull(),
+  seq: integer("seq").notNull(), role: text("role").notNull(), text: text("text").notNull().default(""), provider: text("provider"), state: text("state").notNull().default("complete"),
+  replyToId: text("reply_to_id"), imageIds: jsonb("image_ids").$type<string[]>().notNull().default([]),
+  steps: jsonb("steps").$type<import("../features/assistant/chat-model").ChatStep[]>().notNull().default([]),
+  references: jsonb("references").$type<import("../features/assistant/chat-model").ChatReference[]>().notNull().default([]),
+  error: text("error"), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [foreignKey({ columns: [t.userId, t.conversationId], foreignColumns: [assistantConversation.userId, assistantConversation.id] }), uniqueIndex("assistant_messages_owner_id_idx").on(t.userId, t.id), uniqueIndex("assistant_messages_sequence_idx").on(t.conversationId, t.seq), index("assistant_messages_history_idx").on(t.userId, t.conversationId, t.seq), check("assistant_messages_valid", sql.raw("seq > 0 AND role IN ('user','assistant') AND (provider IS NULL OR provider IN ('qwen','mimo','glm')) AND state IN ('complete','working','stopped','truncated','error')"))]);
+export type AssistantToolResult = { name: string; fingerprint: string; args: Record<string, unknown>; result: Record<string, unknown> };
+export const assistantRun = pgTable("assistant_runs", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), conversationId: text("conversation_id").notNull(),
+  userMessageId: text("user_message_id").notNull(), assistantMessageId: text("assistant_message_id").notNull(),
+  requestId: text("request_id").notNull(), requestDigest: text("request_digest").notNull(), provider: text("provider").notNull(), model: text("model").notNull(), tokenId: text("token_id").references(() => aiToken.id),
+  state: text("state").notNull().default("running"), toolResults: jsonb("tool_results").$type<AssistantToolResult[]>().notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [foreignKey({ columns: [t.userId, t.conversationId], foreignColumns: [assistantConversation.userId, assistantConversation.id] }), foreignKey({ columns: [t.userId, t.userMessageId], foreignColumns: [assistantMessage.userId, assistantMessage.id] }), foreignKey({ columns: [t.userId, t.assistantMessageId], foreignColumns: [assistantMessage.userId, assistantMessage.id] }), uniqueIndex("assistant_runs_owner_request_idx").on(t.userId, t.requestId), uniqueIndex("assistant_runs_active_idx").on(t.userId).where(sql`${t.state}='running'`), uniqueIndex("assistant_runs_owner_id_idx").on(t.userId, t.id), index("assistant_runs_message_idx").on(t.userId, t.userMessageId), check("assistant_runs_valid", sql.raw("provider IN ('qwen','mimo','glm') AND state IN ('running','complete','stopped','truncated','error')"))]);
+export const assistantUsageRequest = pgTable("assistant_usage_requests", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), runId: text("run_id").notNull(), provider: text("provider").notNull(), date: date("date").notNull(),
+  state: text("state").notNull().default("reserved"), reservedCny: numeric("reserved_cny", { precision: 18, scale: 8 }).notNull(), costCny: numeric("cost_cny", { precision: 18, scale: 8 }),
+  usage: jsonb("usage").$type<Record<string, unknown> | null>(), rates: jsonb("rates").$type<import("../features/assistant/chat-config").ChatRates>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [foreignKey({ columns: [t.userId, t.runId], foreignColumns: [assistantRun.userId, assistantRun.id] }), index("assistant_usage_day_idx").on(t.userId, t.date), check("assistant_usage_valid", sql.raw("reserved_cny >= 0 AND (cost_cny IS NULL OR cost_cny >= 0) AND state IN ('reserved','settled','unknown') AND provider IN ('qwen','mimo','glm')"))]);

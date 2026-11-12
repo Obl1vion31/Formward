@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import { uploadPresigned } from "@vercel/blob/client";
+import { uploadPrivateMealPhoto } from "./photo-upload";
 import { usePageLoading } from "@/components/page-loading-state";
 import styles from "./meals.module.css";
 
@@ -10,12 +10,6 @@ export function ImageGallery({ ids = [] }: { ids?: string[] }) {
     {/* eslint-disable-next-line @next/next/no-img-element */}
     <img src={"/api/meal-images/" + id} alt={"原图 " + (index + 1)} loading="lazy" />查看原图 ↗
   </a>)}</div> : null;
-}
-async function uploadRequest(body: unknown) {
-  const response = await fetch("/api/meal-images/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const result = await response.json().catch(() => ({ error: "照片服务响应异常，请重试。" }));
-  if (!response.ok) throw new Error(result.error ?? "照片上传失败，请重试。");
-  return result;
 }
 export function PhotoFields({ ids, change, busy, onBusy, onError, expectedCount = 0, onExpected }: { ids: string[]; change: (ids: string[]) => void; busy: boolean; onBusy: (active: boolean) => void; onError: (error: string) => void; expectedCount?: number; onExpected?: (count: number) => void }) {
   const input = useRef<HTMLInputElement>(null), guard = useRef(false), remaining = useRef<File[]>([]);
@@ -36,22 +30,8 @@ export function PhotoFields({ ids, change, busy, onBusy, onError, expectedCount 
       for (let index = 0; index < files.length; index++) {
         const file = files[index];
         try {
-          if (!file.size || file.size > 20 * 1024 * 1024) throw new Error("照片须为非空文件，最大20 MiB。");
-          if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("支持 JPEG、PNG、WebP，请选择对应原图。");
-          setProgress("正在准备照片 " + (index + 1) + "/" + files.length + "…");
-          const hash = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
-          const sha256 = [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, "0")).join("");
-          const prepared = await uploadRequest({ step: "prepare", file: { fileName: file.name, size: file.size, mimeType: file.type, sha256 } });
-          let image = prepared.image; if (prepared.notice) setNotice(prepared.notice);
-          if (!image) {
-            if (prepared.provider === "cos") {
-              const signed = await uploadRequest({ type: "blob.generate-presigned-url", payload: { pathname: prepared.pathname, clientPayload: prepared.ticket } });
-              const data = new FormData(); for (const [key,value] of Object.entries(signed.fields)) data.append(key,String(value)); data.append("file",file);
-              const uploaded = await fetch(signed.url,{method:"POST",body:data}); if (!uploaded.ok) throw new Error("国内原图上传未完成，请重试。");
-            } else await uploadPresigned(prepared.pathname, file, { access: "private", handleUploadUrl: "/api/meal-images/upload", clientPayload: prepared.ticket, contentType: file.type, multipart: file.size > 4 * 1024 * 1024, onUploadProgress: event => setProgress("照片 " + (index + 1) + "/" + files.length + " · " + Math.round(event.percentage) + "%") });
-            setProgress("正在核对并保存原图…");
-            image = await uploadRequest({ step: "complete", ticket: prepared.ticket });
-          }
+          const image = await uploadPrivateMealPhoto(file, label => setProgress("照片 " + (index + 1) + "/" + files.length + " · " + label));
+          if (image.notice) setNotice(image.notice);
           if (!next.includes(image.id)) next.push(image.id);
           change([...next]);
         } catch (e) { failed.push(file); messages.push(file.name + "：" + (e instanceof Error ? e.message : "上传未完成，请重试。")); }

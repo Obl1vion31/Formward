@@ -9,6 +9,7 @@ import { assistantAvailable, type AssistantContext } from "./model";
 import { AssistantStateContext } from "./context";
 import { assistantAlreadyShown, markAssistantShown } from "./preferences";
 import { AssistantSurface } from "./surface";
+import { AssistantChatProvider } from "./chat-client";
 import styles from "./surface.module.css";
 
 function preferenceStore() { try { return window.localStorage; } catch { return null; } }
@@ -16,7 +17,7 @@ function deviceTime() { return { timezone: Intl.DateTimeFormat().resolvedOptions
 function occupied() { return document.hidden || document.documentElement.dataset.chartTravel === "active" || draftIsBusy() || draftIsDirty() || confirmationIsOpen() || !!document.fullscreenElement || !!document.querySelector(".dashboard-menu[open]:not([data-closing=true])") || !!document.querySelector("dialog[open]:not([data-assistant-surface])"); }
 type SurfaceController = { dismiss: () => Promise<boolean>; reopen: () => void };
 
-export function AssistantProvider({ accountId, children }: { accountId: string; children: ReactNode }) {
+export function AssistantProvider({ accountId, children, chatEnabled = false }: { accountId: string; children: ReactNode; chatEnabled?: boolean }) {
   const pathname = usePathname(), available = assistantAvailable(pathname);
   const [open, setOpen] = useState(false), [data, setData] = useState<AssistantContext | null>(null), [error, setError] = useState(""), [loading, setLoading] = useState(false), [toast, setToast] = useState(false), [paused, setPaused] = useState(false), [clock, setClock] = useState(0), [local, setLocal] = useState<{date:string;timezone:string}|null>(null);
   const dataRef = useRef<AssistantContext | null>(null), request = useRef<AbortController | null>(null), revision = useRef(0), lastRead = useRef(0), activeRoute = useRef(pathname), generation = useRef(0), phase = useRef<"open" | "closing" | "closed">("closed"), surface = useRef<SurfaceController | null>(null), ignored = useRef(new Set<string>()), latestRefresh = useRef<(force?:boolean)=>Promise<void>>(async()=>undefined);
@@ -76,8 +77,8 @@ export function AssistantProvider({ accountId, children }: { accountId: string; 
     const visible = () => { if (!document.hidden) { setLocal(deviceTime());setClock(Date.now()); void refresh(); } };
     const storage = (event: StorageEvent) => { if (event.key === "formward:assistant:changed:" + accountId) changed(); };
     const timer = setInterval(() => { if (!document.hidden) { setLocal(deviceTime());setClock(Date.now()); void refresh(); } }, 60000);
-    window.addEventListener("formward-record-saved", changed); window.addEventListener("formward-record-context-stale", changed); window.addEventListener("focus", visible); window.addEventListener("storage", storage); document.addEventListener("visibilitychange", visible);
-    return () => { cancelAnimationFrame(initialFrame);clearInterval(timer); window.removeEventListener("formward-record-saved", changed); window.removeEventListener("formward-record-context-stale", changed); window.removeEventListener("focus", visible); window.removeEventListener("storage", storage); document.removeEventListener("visibilitychange", visible); };
+    window.addEventListener("formward-assistant-updated", changed); window.addEventListener("formward-record-saved", changed); window.addEventListener("formward-record-context-stale", changed); window.addEventListener("focus", visible); window.addEventListener("storage", storage); document.addEventListener("visibilitychange", visible);
+    return () => { cancelAnimationFrame(initialFrame);clearInterval(timer); window.removeEventListener("formward-assistant-updated", changed); window.removeEventListener("formward-record-saved", changed); window.removeEventListener("formward-record-context-stale", changed); window.removeEventListener("focus", visible); window.removeEventListener("storage", storage); document.removeEventListener("visibilitychange", visible); };
   }, [accountId, refresh]);
   useEffect(() => { const frame=requestAnimationFrame(()=>{if (phase.current !== "closed") void hide(); if (available) void refresh();});return()=>cancelAnimationFrame(frame); }, [pathname, available, hide, refresh]);
   const pending = useMemo(() => {
@@ -98,10 +99,10 @@ export function AssistantProvider({ accountId, children }: { accountId: string; 
   useEffect(() => { if (!toast || paused) return; const timer = setTimeout(() => setToast(false), 5000); return () => clearTimeout(timer); }, [toast, paused]);
   useEffect(() => () => { generation.current++; request.current?.abort(); }, []);
   const value = useMemo(() => ({ open: open && available, count: pending.length, show, toggle, hide }), [open, available, pending.length, show, toggle, hide]);
-  return <AssistantStateContext.Provider value={value}>{children}
+  return <AssistantChatProvider accountId={accountId} enabled={chatEnabled} open={open && available}><AssistantStateContext.Provider value={value}>{children}
     {toast && available && !open && pending.length > 0 && <aside className={styles.toast} role="status" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false); }}>
       <span>{pending.length === 1 ? pending[0].title : `有 ${pending.length} 项待查看`}</span><button type="button" onClick={show}>查看</button><button type="button" aria-label="关闭提醒" onClick={() => setToast(false)}>×</button>
     </aside>}
-    {open && available && <AssistantSurface data={data ? { ...data, pending } : null} error={error} loading={loading} close={finishHide} requestClose={hide} retry={() => void refresh(true)} dismissItem={dismissItem} controllerReady={controllerReady}/>}
-  </AssistantStateContext.Provider>;
+    {open && available && <AssistantSurface chatEnabled={chatEnabled} data={data ? { ...data, pending } : null} error={error} loading={loading} close={finishHide} requestClose={hide} retry={() => void refresh(true)} dismissItem={dismissItem} controllerReady={controllerReady}/>}
+  </AssistantStateContext.Provider></AssistantChatProvider>;
 }

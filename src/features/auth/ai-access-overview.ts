@@ -1,6 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import type { Database } from "../../db/client";
-import { energyOperation, mealOperation, measurementOperation, recordOperation } from "../../db/schema";
+import { assistantConnection, energyOperation, mealOperation, measurementOperation, recordOperation } from "../../db/schema";
+import { chatProviders, providerId } from "../assistant/chat-config";
 import { listAiMeasurementOperations } from "../measurements/ai-operations";
 import { listMealOperations } from "../meals/records";
 import { listRecordOperations } from "../records/operations";
@@ -24,6 +25,7 @@ export async function loadAiAccessOverview(db: Database, userId: string, existin
   // PGlite socket 与正式 PostgreSQL 共用此入口，顺序读取避免抢占同一连接。
   const connections = existingConnections ?? await loadAiAccessConnections(db, userId);
   const tokens = await listAiTokens(db, userId);
+  const embedded = await db.select({ tokenId: assistantConnection.tokenId, provider: assistantConnection.provider }).from(assistantConnection).where(eq(assistantConnection.userId, userId));
   const unified = await listRecordOperations(db, userId);
   const bodies = (await listAiMeasurementOperations(db, userId)).filter(row => !unified.some(parent => parent.measurementOperationId === row.id));
   const meals = (await listMealOperations(db, userId)).filter(row => row.origin === "ai" && !unified.some(parent => parent.mealOperationId === row.id));
@@ -45,6 +47,8 @@ export async function loadAiAccessOverview(db: Database, userId: string, existin
       if (!connection) return unknownSource;
       return { key: connection.provider === "other" ? "oauth:" + connection.id : connection.provider, label: connection.name || "MCP 客户端", compactLabel: connection.provider === "doubao" ? "豆包" : connection.name || "MCP 客户端", kind: "oauth" };
     }
+    const internal = embedded.find(row => row.tokenId === grant.tokenId);
+    if (internal) { const label = chatProviders[providerId(internal.provider)].label; return { key: "embedded:" + internal.provider, label: label + " · 站内助手", compactLabel: label, kind: "embedded" }; }
     const token = tokens.find(row => row.id === grant.tokenId);
     return token ? { key: "token:" + token.id, label: "手动接入 · " + token.name, kind: "token" } : unknownSource;
   }
@@ -68,5 +72,5 @@ export async function loadAiAccessOverview(db: Database, userId: string, existin
     return { id: row.id, source: source([mealGrants.find(item => item.id === row.id)]), summary: `${date ? date + " · " : ""}饮食与食材 · ${row.rows.length} 项`, compactSummary: `${shortDate ? shortDate + " " : ""}饮食·${row.rows.length}项`, status: row.status, createdAt: row.createdAt, expiresAt: row.expiresAt, confirmationPath: row.confirmationPath };
   }));
   submissions.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || a.id.localeCompare(b.id));
-  return { tokens, submissions, connections };
+  return { tokens: tokens.filter(token => !embedded.some(row => row.tokenId === token.id)), submissions, connections };
 }

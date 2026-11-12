@@ -2,10 +2,10 @@
 
 ## 运动分项存储
 
-0026_dark_tana_nile为activities增加calorie_mode、resting_kcal、active_kcal，均可空，旧记录不回填。TypeScript对应calorieMode、exerciseRestingKcal、exerciseActiveKcal，避免与日记录混淆。原calories_kcal保存运动总数；分项模式总数由两项已知时形成，计入值由纯运动产生，未知保持空。账号、来源、版本和审计沿用。当前54张业务表另加Drizzle账本。身体旧实测通过既有deleted_at归档；单指标删除保留另一指标及审计。
+0026_dark_tana_nile为activities增加calorie_mode、resting_kcal、active_kcal，均可空，旧记录不回填。TypeScript对应calorieMode、exerciseRestingKcal、exerciseActiveKcal，避免与日记录混淆。原calories_kcal保存运动总数；分项模式总数由两项已知时形成，计入值由纯运动产生，未知保持空。账号、来源、版本和审计沿用。当前59张业务表另加Drizzle账本。身体旧实测通过既有deleted_at归档；单指标删除保留另一指标及审计。
 
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 54 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。0027 只扩展账号管理，不修改健康表、旧密码或授权值。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 59 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。0027 只扩展账号管理，不修改健康表、旧密码或授权值。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 
@@ -783,3 +783,17 @@ account_preferences由0030_account_preferences创建，不回填或修改旧健�
 ## 助手提醒忽略记录
 
 assistant_reminder_dismissals保存账号级昨日饮食提醒的忽略状态。user_id关联users，local_date为被忽略的业务日期，ignored_at为确认忽略时间；user_id与local_date唯一，重复请求不新增行。表中不保存餐次、营养、训练或AI预览，不影响饮食记全及正式统计。公开HTTP／MCP没有忽略接口，网页通过带会话证明的私有Server Action操作。
+
+## 站内聊天
+
+0037_youthful_wolfsbane只新增以下五表，旧表字段和值不变。所有表具有user_id外键；会话／消息／运行的复合归属外键防止跨账号关联。复合唯一索引先于引用它的外键建立。
+
+| 表 | 字段与用途 | 主要约束 |
+| --- | --- | --- |
+| assistant_connections | id、user_id、provider、token_id、enabled、created_at；三模型独立30天授权关联 | provider限qwen／mimo／glm；每账号每模型最多一个enabled连接，token_id唯一；ai_tokens外键；续期创建新行，保留旧来源 |
+| assistant_conversations | id、user_id、provider、active、sequence、followup JSON、created_at、updated_at | 每账号最多一个active，user_id＋id唯一，sequence≥0；新会话继承模型选择 |
+| assistant_messages | id、user_id、conversation_id、seq、role、text、provider、state、reply_to_id、image_ids JSON、steps JSON、references JSON、error、created_at | 账号＋会话复合外键，账号＋id及会话＋seq唯一；seq>0；角色user／assistant；状态complete／working／stopped／truncated／error |
+| assistant_runs | id、user_id、conversation_id、user_message_id、assistant_message_id、request_id、request_digest、provider、model、token_id、state、tool_results JSON、created_at、heartbeat_at | 账号＋会话和账号＋两类消息复合外键；账号＋request_id唯一；账号最多一个running；状态running／complete／stopped／truncated／error |
+| assistant_usage_requests | id、user_id、run_id、provider、date、state、reserved_cny、cost_cny、usage JSON、rates JSON、created_at | 账号＋运行复合外键；金额numeric(18,8)、非负，未知cost_cny为空；状态reserved／settled／unknown；账号＋date索引 |
+
+引用及附件在feature校验属于本人当前会话或本人私有meal_images；JSON不提供跨账号引用通道。可读历史仅当前最近50条，数据库旧历史不自动删除。工具结果保存幂等依据及真实预览入口，原始私有推理不保存。usage为供应商原始用量；明确HTTP拒绝时保存requestRejected及httpStatus作为结算依据，不伪造token用量。账本按请求开始时北京时间日期归属，不因跨日返回、换模型或新会话清空。

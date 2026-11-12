@@ -9,3 +9,5 @@
 `assistant-context/`仅接受网页登录会话和有效设备时区，私有、不缓存，返回今天／昨天的最小事项上下文；不接受userId或AI令牌，不创建预览或写入健康资料。
 
 `doubao/[operation]/` 是独立豆包接入：平台身份换取、PKCE 授权、一次性兑换、刷新和 MCP 适配。匿名只公开工具定义；业务调用同时验证平台 OpenID、OAuth 令牌、账号绑定和可撤销连接。它不改变原 MCP、HTTP v1 或确认保存流程，详见 [豆包接入](../../../docs/doubao-onboarding.md)。
+
+`assistant-chat/`为指定owner的私有会话、SSE发送及控制入口；同时校验会话、角色和服务器账号ID，写入检查同源。模型地址、Key、计价及业务执行仅在assistant feature，普通用户／匿名不能调用；见[站内助手](../../../docs/assistant-chat.md)。

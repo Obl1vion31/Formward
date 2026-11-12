@@ -11,6 +11,13 @@ export async function GET(request:Request){
  if(!process.env.FORMWARD_EXPECTED_DATABASE||database[0]?.name!==process.env.FORMWARD_EXPECTED_DATABASE||!process.env.FORMWARD_ENVIRONMENT)throw new Error("部署环境不匹配。");
  await getDatabase().execute(sql`select storage_provider,storage_location from meal_images limit 0`);
  await getDatabase().execute(sql`select access_version,banned from users limit 0`);
+ if(process.env.FORMWARD_CHAT_ENABLED==="1"){
+  await getDatabase().execute(sql`select token_id,provider from assistant_connections limit 0`);
+  await getDatabase().execute(sql`select provider,followup from assistant_conversations limit 0`);
+  await getDatabase().execute(sql`select image_ids,"references" from assistant_messages limit 0`);
+  await getDatabase().execute(sql`select request_id,token_id,tool_results from assistant_runs limit 0`);
+  await getDatabase().execute(sql`select date,reserved_cny,cost_cny,usage,rates from assistant_usage_requests limit 0`);
+ }
  return Response.json({ready:true,database:database[0].name,environment:process.env.FORMWARD_ENVIRONMENT,commit:manifest.commit,buildId:manifest.buildId,protocol:manifest.protocol,schema:manifest.schema},{headers:{"Cache-Control":"no-store"}});
  }catch{return Response.json({ready:false},{status:503,headers:{"Cache-Control":"no-store"}});}
 }

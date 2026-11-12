@@ -42,3 +42,6 @@
 - [training.md](training.md)：训练会话、组次保存、暂停／结束、月历、模板排期与消耗隔离。
 
 - [AI工具调用规则](ai-tool-contracts.md)：GPT与豆包的任务选择、份量口径、局部修改、查询分页、重试与人工确认。
+
+- [站内助手](assistant-chat.md)：指定owner的三模型、模型选择、真实工具、每日用量与关闭回退。
+- [聊天验收](assistant-chat-verification.md)：实际浏览器与接口检查、证据和未测项。

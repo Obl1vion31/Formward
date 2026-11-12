@@ -66,3 +66,5 @@ account_preferences按user_id保存show_body_fat、version及updated_at，新增
 ## 助手提醒忽略
 
 0036_assistant_reminder_dismissals新增assistant_reminder_dismissals，仅保存user_id、local_date、ignored_at，账号／日期唯一并关联账号删除。忽略不修改meals、meal_days及健康事件，不与体脂偏好的版本共用。当前Drizzle schema含54张业务表，另有Drizzle迁移账本；正式迁移及发布证据以交接为准。
+
+0037_youthful_wolfsbane只新增assistant_connections、assistant_conversations、assistant_messages、assistant_runs、assistant_usage_requests五表，当前59张业务／认证表另加Drizzle账本。账号、会话、消息与运行以复合归属外键校验；每账号一个活动会话和一个运行任务，request_id按账号唯一。账本保留北京时间归属日、预占、实际费用、原始usage及计价快照。旧表、30天令牌规则和健康数据不改；详见数据库字典与站内助手文档。

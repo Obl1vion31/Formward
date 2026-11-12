@@ -398,3 +398,9 @@ Chromium上传预览和WebKit原图检查先等待img.decode()成功，再断言
 本机延迟／损坏图片检查可验证浏览器等待与截图行为，须与真实COS端到端验收分别记录，不能将前者视作后者通过。
 
 AI接入设置浏览器验收直接断言唯一页面标题、28／24／18／16／14px角色层级、约64px AI行、44—48px普通提交记录、默认收起权限、电脑锚定浮层与手机底部面板；长内容与200%文字允许自然增高。加载逐帧检查标题、两条AI行、提交及高级入口五个结构锚点，以及两个AI名称的首帧位置，未出现的必需锚点视为失败。
+
+## 三模型站内聊天
+
+production build后运行pnpm test:chat-browser，CHAT_BROWSER=webkit切换引擎，CHAT_EXTENDED=1执行照片、补充、原审核往返、余额与网络错误、跨模型重试、停止刷新、撤销取消／失败、共享超额、触屏慢加载和50条分页专项。FORMWARD_TEST_RELEASE可指定本工作区.codex/regional-releases/<版本>/standalone，直接运行候选包并核对五表readiness；FORMWARD_CHAT_ARTIFACTS指定私有截图／录像／逐帧JSON，PLAYWRIGHT_BROWSERS_PATH指定现有浏览器缓存。
+
+chat-pilot.browser.mts自行创建隔离PGlite及虚构owner／普通用户，并以正式postgres.js驱动运行真实Next production。chat-model-fixture.mjs仅通过测试子进程的node --import替换三家模型和虚构私有图片存储；正式应用不引用该文件，没有运行时模拟开关或测试Key。实际MCP、schema、权限、预览和网页审核均执行，验收不确认虚构健康记录，不读取正式.env或调用收费模型。浏览器模拟不等同真机和系统软键盘。
