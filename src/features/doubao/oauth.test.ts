@@ -274,6 +274,14 @@ test("框架代理请求通过真实OAuth查询，新旧协议和无效凭据保
       assert.ok((measurements.structuredContent as { entities: unknown[] }).entities.length > 0);
       const measurementData = JSON.parse((measurements.structuredContent as { entities: Array<{ result_json: string }> }).entities[0].result_json);
       assert.ok(measurementData.fieldDefinitions["analyses.*.summary.scope"]);
+      const combined = await client.callTool({ name: "query_energy", arguments: { from: "2026-11-01", to: "2026-11-02", view: "summary", includeMeals: true } });
+      assert.notEqual(combined.isError, true);
+      const combinedData = JSON.parse((combined.structuredContent as { entities: Array<{ result_json: string }> }).entities[0].result_json);
+      assert.equal(combinedData.balance.net.sum, null); assert.ok(combinedData.fieldDefinitions["balance.coveredDays"]);
+      const badFood = await client.callTool({ name: "preview_meal", arguments: { operationId: randomUUID(), date: "2026-11-01", mealType: "午餐", foods: [{ name: "虚构食物", quantity: "1", unit: "份", caloriesKcal: "100", sourceKind: "estimated" }] } });
+      assert.equal(badFood.isError, true);
+      const failure = badFood.structuredContent as { details?: { fields?: { path: string }[] }; errorCode?: string; nextAction?: string };
+      assert.equal(failure.errorCode, "invalid_input"); assert.ok(failure.details?.fields?.some(field => field.path === "foods.0.basis")); assert.ok(failure.nextAction);
     } finally { await client.close(); }
   }
 });

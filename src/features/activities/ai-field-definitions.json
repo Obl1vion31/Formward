@@ -12,7 +12,24 @@
     "days.*.activities": "summary中为运动数量，旧完整返回中可能为明细列表；都不能据条数推断全天消耗完整。",
     "activities.*.totalKcal": "该次运动含期间静息的总热量；不一定是参与全天统计的热量。",
     "activities.*.countedKcal": "按运动记录方式实际计入统计的热量；分项模式只计纯运动，不从未知静息中反推。",
-    "activities.*.inclusion": "included已包含在日总数；additional明确额外加入；未确定须核对，不能按数值大小猜。"
+    "activities.*.inclusion": "included已包含在日总数；additional明确额外加入；未确定须核对，不能按数值大小猜。",
+    "statistics": "本页消耗统计；finalDays排除当天累计，仍只对已知值统计。",
+    "statistics.window": "本页实际统计日期范围，分页未读完不可冒充完整请求范围。",
+    "statistics.finalDays.**": "非累计且总消耗已知的日期：count天数、sum合计、mean均值、min最小、max最大，热量单位kcal；无有效值为null。",
+    "statistics.cumulativeDates": "截至当前累计的日期；不进入完整日统计。",
+    "balance": "经饮食及消耗查询授权后，服务器对本页可比较完整日交集的统计；不能把任一单域的总和混作同一口径。",
+    "balance.window": "本页联合统计的起止日，包含边界日期。",
+    "balance.scope": "returned_page，仅本页；分页未读完须继续。",
+    "balance.coveredDays": "摄入已记全且热量无缺项、消耗已知且非累计的交集天数。",
+    "balance.excludedDates": "缺数据、摄入未记全或消耗仍累计等未纳入净差统计的日期。",
+    "balance.days.*.included": "本日是否纳入合计、均值和净盈余；false时不能补零。",
+    "balance.days.*.reasons": "排除原因：intake_not_complete未记全，intake_unknown_or_partial热量缺项，expenditure_unknown消耗未知，expenditure_cumulative当天累计。",
+    "balance.days.*.intakeKcal": "本日已记录摄入kcal；未纳入日不能当完整全天。",
+    "balance.days.*.expenditureKcal": "本日最终采用消耗kcal；当天累计须排除。",
+    "balance.days.*.netKcal": "仅纳入日的摄入减消耗；正值盈余，负值赤字；排除日为null。",
+    "balance.intake.**": "同一有效交集日的摄入：count天数、sum合计、mean日均、min最小、max最大，单位kcal。",
+    "balance.expenditure.**": "同一有效交集日的消耗：count天数、sum合计、mean日均、min最小、max最大，单位kcal。",
+    "balance.net.**": "同一有效交集日净差：count天数、sum累计净盈余、mean日均净差、min最小、max最大；正盈余负赤字，单位kcal。"
   },
   "operation": {
     "**.day.totalKcal": "服务端对当天完整草稿投影后采用的总消耗，单位kcal；仅预览，不表示已经保存。",
@@ -21,6 +38,7 @@
     "**.after.inclusion": "该运动与日总数的包含关系；included不再加，additional明确额外加入，未确定先问。",
     "**.coverageQuestions": "仍需用户核对的运动包含关系，不能擅自判断为已包含或额外增加。",
     "**.exerciseActiveKcal": "纯运动热量，单位kcal，不包含期间静息。",
-    "**.exerciseRestingKcal": "运动期间静息热量，单位kcal，分项运动模式不计入纯运动合计。"
+    "**.exerciseRestingKcal": "运动期间静息热量，单位kcal，分项运动模式不计入纯运动合计。",
+    "**.day.cumulative": "true是截至当前的当天累计投影，不能说成全天最终消耗；false也不能补齐未知。"
   }
 }

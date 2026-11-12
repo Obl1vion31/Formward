@@ -37,3 +37,7 @@ ai-query.ts统一AI可选的相对日期、summary／details及日历分段，�
 reviewRecordOperation的内部AI修改上下文仅接受原授权的待确认餐次update，复核账号、meals:write、原连接／令牌、expiry与父子revision。重复修改在既有RecordItem.aiEdits记录operationId摘要，重试不再次合并、不增加revision；不提供MCP确认／删除入口。AI修改账与人工editedBy分别写入原餐次审计，payload不可变。局部修改返回仅包含目标餐次，不回传其他域内容或全部食材库。
 
 AI字段说明由本目录的公共ai-field-definitions.json及各业务目录同名文件维护。ai-field-definitions.ts按21项工具选择字典，在MCP与HTTP成功出口附加fieldDefinitions；只解释实际存在的字段，混合记录按业务子树匹配，避免同名字段串义。ai-field-selection.mjs是正式出口与离线评测共用的选择实现。原业务对象、请求摘要、审计与正式保存逻辑不加入这些元数据。
+
+ai-statistics.ts用四位定点整数计算查询页的合计、均值和范围，未知不补零；联合balance只纳入摄入记全且热量无缺项、消耗已知且非累计的交集。ai-errors.ts返回具体字段路径和下一步。统一提交可带previewId/revision修正同一待审批次，保持原key、类型及历史对象；复核全部原授权、版本与有效期，payload不可变，修改沿用aiEdits审计，不增加正式保存入口。
+
+ai-tool-catalog.json提供21项简短用途目录。ai-tool-session.mjs供受控站内聊天／私有评测复用：未加载调用不执行，只给下一轮补定义；同一用户请求内相同提交复用回执，同批修正关联原草稿。每次用户请求新建session，不做跨请求记忆，不授予权限。外部GPT／豆包的工具调度由各平台控制，不能声称服务端替它们完成按需加载。

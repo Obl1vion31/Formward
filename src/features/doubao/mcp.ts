@@ -43,6 +43,18 @@ export function doubaoInputSchema(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(doubaoInputSchema);
   if (!object(value)) return value;
   const result = Object.fromEntries(Object.entries(value).map(([key, child]) => [key, doubaoInputSchema(child)]));
+  // 仅平铺明确标记的食物分支以适配平台发现；执行仍交给原严格schema。
+  if (typeof result.description === "string" && result.description.startsWith("二选一：") && Array.isArray(result.anyOf) && result.anyOf.every(branch => object(branch) && branch.type === "object")) {
+    const branches = result.anyOf as JsonObject[], properties: JsonObject = {};
+    for (const branch of branches) for (const [key, property] of Object.entries(branch.properties as JsonObject)) {
+      const prior = properties[key];
+      if (object(prior) && object(property) && (Array.isArray(prior.enum) || "const" in prior) && (Array.isArray(property.enum) || "const" in property)) { const { const: _constant, ...rest } = prior; void _constant; properties[key] = { ...rest, enum: [...new Set([...(Array.isArray(prior.enum) ? prior.enum : [prior.const]), ...(Array.isArray(property.enum) ? property.enum : [property.const])])] }; }
+      else properties[key] ??= property;
+    }
+    result.type = "object"; result.properties = properties; result.additionalProperties = false;
+    result.required = (branches[0].required as string[]).filter(key => branches.every(branch => (branch.required as string[]).includes(key)));
+    delete result.anyOf;
+  }
   if (result.type === "integer" && typeof result.exclusiveMinimum === "number") {
     result.minimum = Math.max(typeof result.minimum === "number" ? result.minimum : -Infinity, Math.floor(result.exclusiveMinimum) + 1);
     delete result.exclusiveMinimum;
@@ -92,8 +104,10 @@ function presentResult(body: JsonObject, input: JsonObject, userId: string) {
   if (result.isError === true) {
     const error = object(structured.error) ? structured.error : null;
     const authentication = error && ["invalid_token", "read_only", "insufficient_scope", "forbidden"].includes(String(error.code));
-    const message = error && typeof error.message === "string" ? error.message : "输入未通过校验，请核对字段后重试。";
-    body.result = { ...(typeof result.resultType === "string" ? { resultType: result.resultType } : {}), content: [{ type: "text", text: message }], structuredContent: { code: authentication ? 401 : 400, message }, isError: true };
+    const originalText = Array.isArray(result.content) ? result.content.filter(item => object(item) && item.type === "text" && typeof item.text === "string").map(item => (item as JsonObject).text).join("\n").slice(0, 8000) : "";
+    const message = error && typeof error.message === "string" ? error.message : originalText || "输入未通过校验，请核对字段后重试。";
+    const failure = { code: authentication ? 401 : 400, message, ...(error?.details ? { details: error.details } : {}), ...(error?.code ? { errorCode: error.code } : {}), ...(typeof structured.nextAction === "string" ? { nextAction: structured.nextAction, retryable: structured.retryable === true } : {}) };
+    body.result = { ...(typeof result.resultType === "string" ? { resultType: result.resultType } : {}), content: [{ type: "text", text: JSON.stringify(failure) }], structuredContent: failure, isError: true };
     return { body, status: authentication ? 401 : 200 };
   }
   const params = object(input.params) ? input.params : {}, kind = queryKinds[String(params.name)];

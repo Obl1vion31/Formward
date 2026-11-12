@@ -6,7 +6,7 @@ import { ApiError, type AiIdentity } from "../auth/ai-identity";
 import { requireActiveAiToken } from "../auth/ai-tokens";
 import { lockOwner } from "../auth/owner-lock";
 import { loadRecordReview, reviewRecordOperation } from "../records/operations";
-import { aiDate, aiOperationId, normalizeSimpleFood, resolveAiDate, simpleFoodSchema } from "./ai-preview";
+import { aiDate, aiOperationId, normalizeSimpleFood, resolveAiDate, simpleFoodSchema, aiFoodSchema } from "./ai-preview";
 import { emptyNutrition, itemSchema, metrics, publicMealInputSchema, scaled, type ItemDraft, type ItemView, type MealView, type Nutrition } from "./model";
 import { digest, getMealOperation, readMealSnapshot, submitMealOperation } from "./records";
 
@@ -24,7 +24,7 @@ export const mealChangesSchema = z.object({
   date: aiDate.optional(), timezone: z.string().max(100).optional(),
   mealType: z.string().trim().min(1).max(50).optional(),
   notes: z.string().max(12000).optional(), clearNotes: z.boolean().optional(),
-  addFoods: z.array(simpleFoodSchema).max(50).optional(),
+  addFoods: z.array(aiFoodSchema).max(50).optional(),
   updateFoods: z.array(updateFood).max(50).optional(),
   removeFoods: z.array(z.object(reference).strict()).max(49).optional(),
 }).strict();

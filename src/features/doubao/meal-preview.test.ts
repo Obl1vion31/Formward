@@ -17,9 +17,10 @@ const action = (input = lunch) => {
   return result;
 };
 
-test("模型契约只有对象、数组及简单字段，没有组合分支或引用", () => {
+test("正式食物契约包含互斥分支，豆包发现平铺兼容但执行校验保持", () => {
   const schema = z.toJSONSchema(mealPreviewSchema), previous = z.toJSONSchema(publicMealInputSchema);
   const encoded = JSON.stringify(schema);
+  assert.ok(encoded.includes("anyOf"));
   assert.ok(Buffer.byteLength(encoded) < Buffer.byteLength(JSON.stringify(previous)));
   const inspect = (value: unknown) => {
     if (!value || typeof value !== "object") return;
@@ -87,8 +88,8 @@ test("食量未知或接受估算必须显式表达，不替用户默认同意",
   const item = action({ ...lunch, foods: [{ name: "虚构食物", amountDecision: "unknown_accepted" }] }).items[0];
   assert.equal(item.quantity, null);
   assert.equal(item.amountDecision, "unknown_accepted");
-  assert.throws(() => action({ ...lunch, foods: [{ name: "虚构食物" }] }), /foods.0/);
-  assert.throws(() => action({ ...lunch, foods: [{ name: "虚构食物", quantity: "1", amountDecision: "unknown_accepted" }] }), /foods.0/);
+  assert.throws(() => action({ ...lunch, foods: [{ name: "虚构食物" }] } as MealPreviewInput), /foods.0/);
+  assert.throws(() => action({ ...lunch, foods: [{ name: "虚构食物", quantity: "1", amountDecision: "unknown_accepted" }] } as unknown as MealPreviewInput), /foods.0/);
 });
 
 test("拒绝无依据估算、食材和自由营养混填，错误指出可修正字段", () => {

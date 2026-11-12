@@ -96,3 +96,5 @@ AI新增餐项默认估算热量及三项宏量，可靠值优先、关键信息
 AI字段含义集中在ai-field-definitions.json，按查询、库项、预览及附件阶段返回。全天记全状态不等于餐次保存状态；每份／参考量与本次总营养、实际食量与整包规格分别解释。附件导入的complete仅表示原图成功，追加到预览仍未正式保存。规则与MCP说明、HTTP结果及离线评测同源。
 
 photo-upload.ts复用既有私有原图prepare／签名直传／complete流程，供原餐次表单与站内聊天使用。上传限制、摘要去重和归属检查不变；表单保留全站等待，聊天仅显示局部进度。聊天中已登记原图不因尚未关联餐次而被孤立对象清理删除。
+
+常用AI新餐foods与局部追加addFoods共享aiFoodSchema：库引用与自由填写以互斥分支说明，已知食量须含quantity/unit；unknown_accepted仍要求用户明确接受未知。库引用兼容无害的consumed_total重复标记，但禁止人工营养覆盖。查询statistics区分本页recorded和complete，逐营养保留incompleteDates；它们不能混称全天真实摄入。简洁预览保留当前notes和imageIds，便于核对局部修改。

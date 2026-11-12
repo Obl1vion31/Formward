@@ -1,5 +1,11 @@
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string) { super(message); }
+  constructor(public status: number, public code: string, message: string, public details?: {
+    fields?: { path: string; message: string }[];
+    nextAction?: string;
+    previewId?: string;
+    revision?: number;
+    tool?: string;
+  }) { super(message); }
 }
 
 export type ManualAiIdentity = { userId: string; permission: "read" | "write"; tokenId: string; oauthConnectionId?: never };

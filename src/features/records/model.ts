@@ -14,7 +14,7 @@ export const recordItemSchema = z.union([
   ...trainingActionSchemas.map(schema => schema.extend({ key })),
   ...energyActionSchemas.map(schema => schema.extend({ key })),
 ]);
-export const recordInputSchema = z.object({ operationId: z.string().regex(/^[a-zA-Z0-9-]{8,120}$/), timezone: z.string().optional(), items: z.array(recordItemSchema).min(1).max(100) }).strict();
+export const recordInputSchema = z.object({ operationId: z.string().regex(/^[a-zA-Z0-9-]{8,120}$/), timezone: z.string().optional(), previewId: z.string().uuid().optional().describe("修正本次尚未保存的统一草稿时填写原id，不能借此新建第二份预览"), revision: z.number().int().positive().optional().describe("与previewId同时填写最新revision；items保持原key和业务类型，完整列出修正后的本批内容"), items: z.array(recordItemSchema).min(1).max(100) }).strict();
 export type RecordAction = ReviewInput | MealAction | EnergyAction | TrainingPlanAction;
 export const publicRecordInputSchema = recordInputSchema.extend({ items: z.array(z.union(recordItemSchema.options.filter(schema => !schema.shape.kind.value.includes("energy_defaults") && !schema.shape.kind.value.includes("energy_profile") && !schema.shape.kind.value.startsWith("delete_") && !schema.shape.kind.value.startsWith("restore_")))).min(1).max(100) });
 export type RecordInput = z.infer<typeof recordInputSchema>;

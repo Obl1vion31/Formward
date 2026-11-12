@@ -22,6 +22,7 @@ import { planEnergyActions, readEnergySnapshot, submitEnergyOperation, getEnergy
 import { energyBaseline, energyDays, retiredEnergyAction, type ActivityRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyAction } from "../activities/model";
 
 import { actionDate, summarizeRecordItems } from "./review-summary";
+import { invalidAiSchema } from "./ai-errors";
 
 type Stored = typeof recordOperation.$inferSelect;
 type Source = "body" | "meal";
@@ -217,10 +218,15 @@ export async function loadRecordReview(db: Database, userId: string, id: string,
 export async function submitRecordOperation(db: Database, identity: AiIdentity, raw: unknown, timezone = systemMeasurementTimezone(), options: { requestDigest?: string } = {}) {
   assertBodyEstimateRemoved(raw);
   const parsed = recordInputSchema.safeParse(raw);
-  if (!parsed.success) throw new ApiError(400, "invalid_input", parsed.error.issues[0]?.message ?? "记录无效。");
+  if (!parsed.success) invalidAiSchema(parsed.error);
   const input = parsed.data;
   requireAiUpserts(input.items);
   if (Buffer.byteLength(JSON.stringify(input)) > 65536) throw new ApiError(413, "invalid_input", "单次提交最多64 KiB。");
+  if ((input.previewId === undefined) !== (input.revision === undefined)) throw new ApiError(400, "invalid_input", "修正原草稿须同时提供previewId和revision。");
+  for (const [index, item] of input.items.entries()) if (item.kind === "save_meal") for (const [foodIndex, food] of item.items.entries()) {
+    if (food.quantity != null && !food.unit?.trim()) throw new ApiError(400, "invalid_input", "items." + index + ".items." + foodIndex + ".unit：食量已有数值，但缺少实际单位；补单位后重试，不新建预览。", { fields: [{ path: `items.${index}.items.${foodIndex}.unit`, message: "请填写用户实际提供的单位；不能猜单位。" }], nextAction: "correct_arguments_or_ask_user" });
+  }
+  if (input.previewId) return correctPendingRecord(db, identity, input);
   return db.transaction(async tx => {
     await lockOwner(tx, identity.userId); const connection = tx as unknown as Database;
     if (input.items.some(item => item.kind === "save_record")) await requireActiveAiToken(tx, identity, true);
@@ -229,7 +235,6 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
     if (input.items.some(isEnergy)) await requireActiveAiToken(tx, identity, true, "energy");
     const [prior] = await tx.select().from(recordOperation).where(and(eq(recordOperation.userId, identity.userId), eq(recordOperation.operationId, input.operationId)));
     if (prior) {
-      if (prior.requestDigest !== (options.requestDigest ?? digest(input))) throw new ApiError(409, "request_conflict", "同一 operationId 不能替换内容。");
       if (trainingItems(prior.draft).some(item => item.trainingGrant?.tokenId !== identity.tokenId || item.trainingGrant?.oauthConnectionId !== identity.oauthConnectionId)) throw new ApiError(409, "request_conflict", "不能替换提交授权。");
       const child = prior.mealOperationId ? await getMealOperation(connection, identity.userId, prior.mealOperationId) : null;
       if (child && (child.tokenId !== (identity.tokenId ?? null) || child.oauthConnectionId !== (identity.oauthConnectionId ?? null))) throw new ApiError(409, "request_conflict", "不能替换提交授权。");
@@ -241,6 +246,7 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
         const original = await getEnergyOperation(connection, identity.userId, prior.energyOperationId);
         if (original.tokenId !== (identity.tokenId ?? null) || original.oauthConnectionId !== (identity.oauthConnectionId ?? null)) throw new ApiError(409, "request_conflict", "不能替换提交授权。");
       }
+      if (prior.requestDigest !== (options.requestDigest ?? digest(input))) throw new ApiError(409, "request_conflict", "同一operationId不能替换原请求；请读取并修正原草稿，不要另建批次。", { previewId: prior.id, revision: prior.revision, tool: "submit_record_operation", nextAction: "correct_existing_preview_with_previewId_and_revision" });
       return { ...await view(connection, prior), repeated: true };
     }
     const id = randomUUID(), items = normalize(input), bodies = items.filter(item => isBody(item.action));
@@ -256,7 +262,31 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
   });
 }
 
-export async function reviewRecordOperation(db: Database, userId: string, id: string, action: RecordReviewAction, source?: Source, aiEdit?: { identity: AiIdentity; operationId: string; digest: string }) {
+/** AI只能修改原授权的待审项目。原payload和原请求摘要始终不变。 */
+async function correctPendingRecord(db: Database, identity: AiIdentity, input: RecordInput) {
+  return db.transaction(async tx => {
+    await lockOwner(tx, identity.userId); const connection = tx as unknown as Database;
+    const row = await find(connection, identity.userId, input.previewId!);
+    if (!row) throw new ApiError(404, "not_found", "原草稿不存在或不属于本账号。");
+    const types = [...new Set(row.draft.map(item => category(item.action)))];
+    for (const domain of types) await requireActiveAiToken(tx, identity, true, domain === "body" ? undefined : domain === "foods" ? "meals" : domain as "meals" | "energy" | "training");
+    const sameGrant = (grant: { tokenId: string | null; oauthConnectionId: string | null }) => grant.tokenId === (identity.tokenId ?? null) && grant.oauthConnectionId === (identity.oauthConnectionId ?? null);
+    const children = [row.mealOperationId ? await getMealOperation(connection, identity.userId, row.mealOperationId) : null, row.energyOperationId ? await getEnergyOperation(connection, identity.userId, row.energyOperationId) : null];
+    if (row.measurementOperationId) { const [body] = await tx.select().from(measurementOperation).where(and(eq(measurementOperation.userId, identity.userId), eq(measurementOperation.id, row.measurementOperationId))); if (!body || !sameGrant(body)) throw new ApiError(403, "forbidden", "只能修正原授权创建的草稿。"); }
+    if (children.some(child => child && (child.origin !== "ai" || !sameGrant(child))) || trainingItems(row.draft).some(item => !item.trainingGrant || item.trainingGrant.tokenId !== identity.tokenId || item.trainingGrant.oauthConnectionId !== identity.oauthConnectionId)) throw new ApiError(403, "forbidden", "只能修正原授权创建的草稿。");
+    const requestDigest = digest(input), edits = row.draft.flatMap(item => item.aiEdits ?? []).filter(edit => edit.operationId === input.operationId);
+    if (edits.length) { if (edits.some(edit => edit.digest !== requestDigest)) throw new ApiError(409, "request_conflict", "同一修正请求不能替换内容。"); return { ...await view(connection, row), repeated: true }; }
+    const current = await view(connection, row);
+    if (row.status !== "pending" || current.expiresAt && Date.parse(current.expiresAt) <= Date.now()) throw new ApiError(409, "preview_expired", "草稿已结束或过期，不能原地修正。");
+    if (row.revision !== input.revision) throw new ApiError(409, "review_changed", "草稿版本已变化，请重新读取后再修正。");
+    if (input.items.length !== row.draft.length || new Set(input.items.map(item => item.key)).size !== input.items.length || input.items.some(item => !row.draft.some(prior => prior.key === item.key && prior.action.kind === item.kind && !prior.persisted && ["id", "recordId"].every(field => (item as Record<string, unknown>)[field] === (prior.action as Record<string, unknown>)[field])))) throw new ApiError(400, "invalid_input", "修正须保持原项目key、业务类型和历史对象，不能添加、移除或替换其他项目；局部改餐也可用preview_meal_changes。");
+    let latest = current;
+    for (const { key, ...action } of input.items) latest = await reviewRecordOperation(connection, identity.userId, row.id, { kind: "update", revision: latest.revision, key, action: action as RecordAction }, undefined, { identity, operationId: input.operationId, digest: requestDigest, allowRecordUpdate: true });
+    return { ...latest, repeated: false };
+  });
+}
+
+export async function reviewRecordOperation(db: Database, userId: string, id: string, action: RecordReviewAction, source?: Source, aiEdit?: { identity: AiIdentity; operationId: string; digest: string; allowRecordUpdate?: boolean }) {
   if (!action || !Number.isInteger(action.revision) || action.revision < 1 || !["check", "exclude", "restore", "energy_inclusion", "update", "refresh", "cancel", "confirm"].includes(action.kind)) throw new ApiError(400, "invalid_input", "审核操作无效。");
   if (action.kind === "confirm" && action.allowMissingImageKeys !== undefined && (!Array.isArray(action.allowMissingImageKeys) || action.allowMissingImageKeys.length > 100 || action.allowMissingImageKeys.some(key => typeof key !== "string"))) throw new ApiError(400, "invalid_input", "缺图确认项目无效。");
   return db.transaction(async tx => {
@@ -267,16 +297,21 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
       [row] = await tx.insert(recordOperation).values({ ...seed, id: randomUUID() }).returning();
     }
     if (aiEdit) {
-      if (aiEdit.identity.userId !== userId || action.kind !== "update" || action.action.kind !== "save_meal" || !row.mealOperationId) throw new ApiError(403, "forbidden", "只能修改原授权的待确认餐次。");
-      await requireActiveAiToken(tx, aiEdit.identity, true, "meals");
-      const original = await getMealOperation(connection, userId, row.mealOperationId);
-      if (original.origin !== "ai" || original.tokenId !== (aiEdit.identity.tokenId ?? null) || original.oauthConnectionId !== (aiEdit.identity.oauthConnectionId ?? null)) throw new ApiError(403, "forbidden", "只能修改原授权提交的预览。");
-      const repeated = row.draft.flatMap(item => item.aiEdits ?? []).find(edit => edit.operationId === aiEdit.operationId);
+      let originalExpired = false;
+      if (aiEdit.identity.userId !== userId || action.kind !== "update") throw new ApiError(403, "forbidden", "只能修改原授权的待确认内容。");
+      if (!aiEdit.allowRecordUpdate) {
+        if (action.action.kind !== "save_meal" || !row.mealOperationId) throw new ApiError(403, "forbidden", "只能修改原授权的待确认餐次。");
+        await requireActiveAiToken(tx, aiEdit.identity, true, "meals");
+        const original = await getMealOperation(connection, userId, row.mealOperationId);
+        if (original.origin !== "ai" || original.tokenId !== (aiEdit.identity.tokenId ?? null) || original.oauthConnectionId !== (aiEdit.identity.oauthConnectionId ?? null)) throw new ApiError(403, "forbidden", "只能修改原授权提交的预览。");
+        originalExpired = original.status !== "pending" || !!original.expiresAt && original.expiresAt.getTime() <= Date.now();
+      }
+      const repeated = row.draft.filter(item => !aiEdit.allowRecordUpdate || item.key === action.key).flatMap(item => item.aiEdits ?? []).find(edit => edit.operationId === aiEdit.operationId);
       if (repeated) {
         if (repeated.digest !== aiEdit.digest) throw new ApiError(409, "request_conflict", "同一修改请求不能用于不同内容。");
         return { ...await view(connection, row), repeated: true };
       }
-      if (original.status !== "pending" || original.expiresAt && original.expiresAt.getTime() <= Date.now()) throw new ApiError(409, "preview_expired", "预览已结束或过期，请重新读取后提交。");
+      if (originalExpired) throw new ApiError(409, "preview_expired", "预览已结束或过期，请重新读取后提交。");
       if (row.draft.reduce((count, item) => count + (item.aiEdits?.length ?? 0), 0) >= 100) throw new ApiError(400, "invalid_input", "本次预览修改过多，请重新提交。");
     }
     if (row.status !== "pending") {

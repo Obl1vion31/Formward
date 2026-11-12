@@ -213,7 +213,8 @@ export async function submitMealOperation(db: Database, actor: MealActor, raw: u
     }
     const [prior] = await tx.select().from(mealOperation).where(and(eq(mealOperation.userId, actor.userId), eq(mealOperation.operationId, input.operationId)));
     if (prior) {
-      if (prior.requestDigest !== hash || prior.origin !== actor.origin || prior.tokenId !== (actor.identity?.tokenId ?? null) || prior.oauthConnectionId !== (actor.identity?.oauthConnectionId ?? null) || prior.importId !== (actor.importId ?? null)) throw new ApiError(409, "request_conflict", "同一请求标识不能用于不同内容或授权。");
+      if (prior.origin !== actor.origin || prior.tokenId !== (actor.identity?.tokenId ?? null) || prior.oauthConnectionId !== (actor.identity?.oauthConnectionId ?? null) || prior.importId !== (actor.importId ?? null)) throw new ApiError(409, "request_conflict", "同一请求标识不能用于不同授权。");
+      if (prior.requestDigest !== hash) throw new ApiError(409, "request_conflict", "同一请求标识不能替换内容；本次修正请更新原待审餐次，不要另建一餐。", actor.origin === "ai" ? { previewId: prior.id, revision: prior.revision, tool: "preview_meal_changes", nextAction: "read_existing_preview_then_correct_same_draft" } : undefined);
       return { ...displayMealOperation(prior), repeated: true };
     }
     validateFoodDescriptions(input);
