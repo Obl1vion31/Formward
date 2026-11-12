@@ -169,7 +169,10 @@ async function view(db: Database, row: Stored): Promise<RecordReviewView> {
   for(const preview of energy?.rows??[]) if(!preview.excluded && preview.after){
     const record=preview.after;
     if("date" in record && "name" in record) energySnapshot.activities=[...energySnapshot.activities.filter(item=>item.id!==record.id),record as ActivityRecord];
-    else if("date" in record) energySnapshot.days=[...energySnapshot.days.filter(item=>item.id!==record.id),record as EnergyDayRecord];
+    else if("date" in record) {
+      if(preview.error && energySnapshot.days.some(item=>!item.deletedAt && item.date===record.date && item.id!==record.id)) continue;
+      energySnapshot.days=[...energySnapshot.days.filter(item=>item.id!==record.id),record as EnergyDayRecord];
+    }
   }
 
   const training = trainingItems(row.draft).length ? planTrainingItems(await readTraining(db, row.userId), row.draft, row.id) : {};
@@ -279,6 +282,7 @@ async function correctPendingRecord(db: Database, identity: AiIdentity, input: R
     const current = await view(connection, row);
     if (row.status !== "pending" || current.expiresAt && Date.parse(current.expiresAt) <= Date.now()) throw new ApiError(409, "preview_expired", "草稿已结束或过期，不能原地修正。");
     if (row.revision !== input.revision) throw new ApiError(409, "review_changed", "草稿版本已变化，请重新读取后再修正。");
+    const savedEnergy = row.draft.some(item => item.action.kind === "save_energy_day") ? await readEnergySnapshot(connection, identity.userId) : null;
     function invalidCorrection(path: string, message: string): never { throw new ApiError(400, "invalid_input", path + "：" + message, { fields: [{ path, message }], previewId: row!.id, revision: row!.revision, tool: "submit_record_operation", nextAction: "correct_existing_preview_arguments" }); }
     if (input.items.length !== row.draft.length || new Set(input.items.map(item => item.key)).size !== input.items.length) invalidCorrection("items", "请完整保留原批次的项目和唯一key，不添加或移除项目。");
     for (const [index, item] of input.items.entries()) {
@@ -287,13 +291,18 @@ async function correctPendingRecord(db: Database, identity: AiIdentity, input: R
       for (const field of ["id", "recordId"] as const) {
         const originalId = (prior.action as Record<string, unknown>)[field], nextId = (item as Record<string, unknown>)[field];
         if (originalId === nextId) continue;
-        // 日记录按账号＋日期、身体按账号＋日期＋时段定位；允许补齐遗漏的真实编号，不能换掉已明确的对象。
+        // 核对已保存事实，不能用混有预览after的展示快照认定正式编号。
+        const originalDate = prior.action.kind === "save_energy_day" ? prior.action.date : undefined;
+        const knownDay = savedEnergy?.days.find(day => !day.deletedAt && day.date === originalDate);
         let fillingKnownTarget = false;
-        if (originalId === undefined && typeof nextId === "string") {
-          if (field === "id" && prior.action.kind === "save_energy_day" && item.kind === "save_energy_day" && prior.action.date === item.date) fillingKnownTarget = current.energySnapshot?.days.some(day => !day.deletedAt && day.date === item.date && day.id === nextId) ?? false;
-          if (field === "recordId" && prior.action.kind === "save_record" && item.kind === "save_record" && prior.action.date === item.date && prior.action.period === item.period) fillingKnownTarget = current.rows.find(row => row.key === item.key)?.body?.preview.rows.some(row => row.period === item.period && row.before?.id === nextId) ?? false;
+        if (typeof nextId === "string") {
+          if (field === "id" && prior.action.kind === "save_energy_day" && item.kind === "save_energy_day" && prior.action.date === item.date) fillingKnownTarget = knownDay?.id === nextId && !savedEnergy?.days.some(day => !day.deletedAt && day.id === originalId);
+          if (originalId === undefined && field === "recordId" && prior.action.kind === "save_record" && item.kind === "save_record" && prior.action.date === item.date && prior.action.period === item.period) fillingKnownTarget = current.rows.find(row => row.key === item.key)?.body?.preview.rows.some(row => row.period === item.period && row.before?.id === nextId) ?? false;
         }
-        if (!fillingKnownTarget) invalidCorrection(`items.${index}.${field}`, originalId === undefined ? "本项目原本是新增；预览生成的临时编号不是正式记录编号，请移除该编号及version。只有同账号、同日期的已有日记录或同日时段身体记录可补齐遗漏编号，请先查询核对。" : "必须保留原历史对象的编号；不能借修正换成另一条记录。");
+        if (!fillingKnownTarget) {
+          const hint = knownDay && !savedEnergy?.days.some(day => !day.deletedAt && day.id === originalId) ? " 该日已保存记录的id=" + knownDay.id + "，version=" + knownDay.version + "；只在day项目引用它，新运动仍不要提供id/version。" : "";
+          invalidCorrection(`items.${index}.${field}`, (originalId === undefined ? "预览生成的临时编号不是正式记录编号，请移除新项目的编号及version。已有日记录只能引用本账号同日已保存的编号。" : "已绑定的真实历史对象必须保留编号；未保存或错误编号只能修正为本账号同日已有记录。") + hint);
+        }
       }
     }
     let latest = current;
