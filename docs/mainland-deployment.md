@@ -6,7 +6,7 @@
 
 ## 当前部署
 
-当前上海应用`dual-entry-209c3581-ai-access-compact-v3-20261112`，源码`209c35810f3ddbe247904185250b15504a5a9434`，BUILD_ID `ynscn2Rk8zK1ajOmejw1p`，目录`ai-access-compact-v3-20261112`，北京时间2026-11-12 03:52:33切换。AI接入紧凑列表已完成最终运行包双引擎验收及公网核对；即时回退为`ai-access-20261112`。原47项Server Action与密钥、378项旧资源、配置及schema0036保持，原国际网关与别名未重发。数据审计及准确范围见[部署](deployment.md)与[维护验收](maintenance-verification.md)。
+当前上海应用源码`6f70b9efa4fdfae66baadd10156aca7773ec803a`，版本`dual-entry-6f70b9ef-meal-amount-rules-20261112`，BUILD_ID `li8AMFe97Wsh1kqQF2Fta`，目录`meal-amount-rules-20261112`；北京时间2026-11-12 15:09:37切换。即时兼容回退为`ai-access-compact-v3-20261112`，不回退数据或授权。 记餐先确定本次实际食量，再估算营养。仅有食物名称时先追问，不自行设定常见克数或默认1份，不先建预览再让用户纠正；已明确的克数、毫升、个数或份数不重复追问。营养估算不代表用户接受食量估算，食材规格及历史份量不能证明本次食量。共用JSON同步MCP／HTTP及豆包Skill／Manifest，不新增核验模型、来源校验或会话持久化。 候选与正式均21工具及12项HTTP说明通过；原47项Server Action及加密密钥、配置字节和root 0600保持，382项旧静态资源保留，schema仍为0036。三入口版本、8项公开资源、自动／旧协议工具说明及原鉴权边界核对通过。未重发国际网关、修改域名或执行正式健康写入；Vercel管理接口返回403，别名绑定元数据未重新验证，直接公开入口核对通过。 具体发布、回退及私有证据见[部署](deployment.md)。
 
 ### 保留的生日与操作引导基线
 

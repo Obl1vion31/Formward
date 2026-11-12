@@ -1,16 +1,20 @@
 # 当前实现与验证
 
-AI接入已按AI组织：有效连接优先，默认展示四类当前有效权限，未接入提供可申请范围和专属步骤，豆包注明内测白名单。连接方法、时间、撤销及旧连接按需展开；AI提交记录默认收起，可按来源和审核状态筛选，真实到期与部分保存状态保持。来源从原OAuth／令牌及训练授权解析，不猜测其他账号凭据名称，初始化保留在饮食页。
+记餐先确定本次实际食量，再估算营养。仅有食物名称时先追问，不自行设定常见克数或默认1份，不先建预览再让用户纠正；已明确的克数、毫升、个数或份数不重复追问。营养估算不代表用户接受食量估算，食材规格及历史份量不能证明本次食量。共用JSON同步MCP／HTTP及豆包Skill／Manifest，不新增核验模型、来源校验或会话持久化。
 
-当前应用为源码919968c1ad9d97692bc093ee3f20db662f46f52c，版本dual-entry-919968c1-ai-access-20261112，BUILD_ID HHnmU53WbIXnosXVyQHxB，2026-11-12 01:01（北京时间）上线。已合入并推送main，原47项表单接口及密钥、367项旧资源、配置和schema0036保持；即时回退为ai-field-definitions-compatible-v9-20261111。三入口、新资源和原MCP／豆包保护复核通过，数据库结构与九类正式健康事实摘要一致。
+当前上海应用源码`6f70b9efa4fdfae66baadd10156aca7773ec803a`，版本`dual-entry-6f70b9ef-meal-amount-rules-20261112`，BUILD_ID `li8AMFe97Wsh1kqQF2Fta`，目录`meal-amount-rules-20261112`；北京时间2026-11-12 15:09:37切换。即时兼容回退为`ai-access-compact-v3-20261112`，不回退数据或授权。
 
-83文件当前648项断言完成核对；原全套647中一项既有管理员验密用例首次失败，未修改代码独立复测16项通过，新增部分保存后的AI专项5项通过，原始日志保留。实际发布包Chromium／WebKit各31张图及关键操作、正常／慢读取0px偏移通过；lint、typecheck、目录、机械检测及兼容production build通过。未用正式账号写测试健康数据；真实手机、系统键盘、屏幕阅读器及系统文字放大未测。详细范围及证据见[设计验收](design-reference.md#d14ai-接入与提交来源)和[部署](deployment.md#当前正式部署ai接入与提交记录)。
+19项评测离线检查、648项仓库测试、lint、typecheck和production build通过；21项工具的输入schema、权限注解和字段字典不变，仅四项饮食写入工具说明及共用指令变化。同题GLM单次复测先追问，无业务调用、无预览；旧失败保留，不据单次通过宣称稳定性或全部能力达标。
+
+候选与正式均21工具及12项HTTP说明通过；原47项Server Action及加密密钥、配置字节和root 0600保持，382项旧静态资源保留，schema仍为0036。三入口版本、8项公开资源、自动／旧协议工具说明及原鉴权边界核对通过。未重发国际网关、修改域名或执行正式健康写入；Vercel管理接口返回403，别名绑定元数据未重新验证，直接公开入口核对通过。
+
+AI接入界面沿用已验收的ChatGPT／豆包紧凑列表、默认收起权限与提交记录、桌面浮层／手机面板；界面基线源码209c3581的双引擎及加载稳定性验收见[设计验收](design-reference.md#d14ai-接入与提交来源)和[部署](deployment.md)。本轮只更新AI规则，没有新增界面验收。
 
 ## AI字段解释基线
 
 全部21项AI工具成功结果附带fieldDefinitions中文字段解释，正文JSON与structuredContent一致；豆包result_json和原HTTP结果保留相同解释。说明由各业务目录的ai-field-definitions.json维护，只选取实际出现的字段。身体sevenDay.window与有效样本start/end分开，首尾差、相邻日差、均值、覆盖及体脂百分点明确；饮食完整性、消耗包含关系、训练目标／实际、混合批次、修改版本、附件及审核阶段分别说明。原参数、业务数值、权限、计算和网页登录确认保持。
 
-上海运行源码313e19671200d55a71c967b75f81eef698c23e86，版本dual-entry-313e1967-ai-field-definitions-compatible-v9-20261111，BUILD_ID BvdX3-FkAg2sw0oFUvsVq，目录ai-field-definitions-compatible-v9-20261111，北京时间2026-11-11 23:38完成切换。MCP1.17.1／OpenAPI1.15.1，候选与正式均21工具，12项HTTP成功响应说明通过。原47项Server Action及加密密钥保留，额外保留361项旧静态资源；原配置字节与root 0600权限保持，schema仍为0036。即时回退目录为ai-field-definitions-compatible-v8-20261111，任务前nutrition-defaults-final-20261111亦保留。
+字段解释基线发布源码313e19671200d55a71c967b75f81eef698c23e86，版本dual-entry-313e1967-ai-field-definitions-compatible-v9-20261111，BUILD_ID BvdX3-FkAg2sw0oFUvsVq，目录ai-field-definitions-compatible-v9-20261111，北京时间2026-11-11 23:38完成切换。MCP1.17.1／OpenAPI1.15.1，候选与正式均21工具，12项HTTP成功响应说明通过。原47项Server Action及加密密钥保留，额外保留361项旧静态资源；原配置字节与root 0600权限保持，schema仍为0036。即时回退目录为ai-field-definitions-compatible-v8-20261111，任务前nutrition-defaults-final-20261111亦保留。
 
 82个原测试文件共643项完成核对；首次OAuth旧精确对象断言因新增说明失败，已保留原日志，改为同时核对原业务字段及新解释后18项重跑通过。最后字段专项9项、评测脚本15项、lint、typecheck、生产构建通过。实际Next production在隔离PGlite中验证原生MCP／豆包、新旧协议四组21工具、HTTP兼容与拒绝、字段传递、身体窗口和百分点、训练预览单位及未保存事实；未调用收费模型。
 

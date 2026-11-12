@@ -25,9 +25,21 @@ python3 scripts/vercel-releases.py policy --project formward --apply
 
 归档位于 Git 公共目录所属工作区的 `.codex/backups/vercel-releases/formward/`，不随临时 worktree 删除。国际候选继续使用现有双区工具并显式部署到 iad1；`publish` 只更新原国际正式版本承担的别名，保留仍指向其他部署的项目域名，不用项目级 promote 接管它们。既有上海服务、数据库、issuer／resource、Server Action 兼容与回退流程不变。网关归档中的协议和 schema 摘要仍须与上海服务核对；本工具不把 Vercel 网关包当成上海全服务备份。受 Vercel 登录保护的旧项目域名只核对绑定和保护入口，不声称完成应用功能验收。
 
-## 当前正式部署：AI接入紧凑列表
+## 当前正式部署：先确认实际食量
 
-当前上海应用源码`209c35810f3ddbe247904185250b15504a5a9434`，版本`dual-entry-209c3581-ai-access-compact-v3-20261112`，BUILD_ID `ynscn2Rk8zK1ajOmejw1p`，目录`ai-access-compact-v3-20261112`，北京时间2026-11-12 03:52:33切换。源码已合入推送main，纯文档提交不改变此运行来源。即时兼容回退为`ai-access-20261112`，仅回退应用指针，不回退数据或授权状态。
+当前上海应用源码`6f70b9efa4fdfae66baadd10156aca7773ec803a`，版本`dual-entry-6f70b9ef-meal-amount-rules-20261112`，BUILD_ID `li8AMFe97Wsh1kqQF2Fta`，目录`meal-amount-rules-20261112`；北京时间2026-11-12 15:09:37切换。即时兼容回退为`ai-access-compact-v3-20261112`，不回退数据或授权。
+
+记餐先确定本次实际食量，再估算营养。仅有食物名称时先追问，不自行设定常见克数或默认1份，不先建预览再让用户纠正；已明确的克数、毫升、个数或份数不重复追问。营养估算不代表用户接受食量估算，食材规格及历史份量不能证明本次食量。共用JSON同步MCP／HTTP及豆包Skill／Manifest，不新增核验模型、来源校验或会话持久化。
+
+19项评测离线检查、648项仓库测试、lint、typecheck和production build通过；21项工具的输入schema、权限注解和字段字典不变，仅四项饮食写入工具说明及共用指令变化。同题GLM单次复测先追问，无业务调用、无预览；旧失败保留，不据单次通过宣称稳定性或全部能力达标。
+
+候选与正式均21工具及12项HTTP说明通过；原47项Server Action及加密密钥、配置字节和root 0600保持，382项旧静态资源保留，schema仍为0036。三入口版本、8项公开资源、自动／旧协议工具说明及原鉴权边界核对通过。未重发国际网关、修改域名或执行正式健康写入；Vercel管理接口返回403，别名绑定元数据未重新验证，直接公开入口核对通过。
+
+完整运行包约69.24MB，保存在主工作区`.codex/backups/regional-releases/meal-amount-rules-20261112`；构建与发布证据位于既有main-current的`.codex/ai-api-contracts/meal-amount-20261112`。私有单题报告位于主工作区`.codex/model-evaluation/runs/2026-11-12T07-02-33-068Z-6fdafecc`。GPT需刷新工具定义或新对话；豆包Skill／Manifest源码已同步，客户端运行态仍需上传测试资源并在Debugger更新，本轮没有云构建豆包测试版本。
+
+## AI接入紧凑列表验收基线
+
+AI接入界面验收基线源码`209c35810f3ddbe247904185250b15504a5a9434`，版本`dual-entry-209c3581-ai-access-compact-v3-20261112`，BUILD_ID `ynscn2Rk8zK1ajOmejw1p`，目录`ai-access-compact-v3-20261112`，北京时间2026-11-12 03:52:33切换。源码已合入推送main，纯文档提交不改变此运行来源。即时兼容回退为`ai-access-20261112`，仅回退应用指针，不回退数据或授权状态。
 
 AI页采用ChatGPT／豆包紧凑行、默认收起权限、桌面浮层／手机半屏面板及单行提交记录，按D14统一字号和密度。最终运行包在虚构账号上完成Chromium／WebKit各71张截图；正常与慢读在320／390／1440px共12组过程，七个固定锚点最大偏移0px。角色字号、触控、200%文字、筛选、审核／返回和双端撤销流程通过。具体对照、修正和未测项见`design-qa.md`及维护验收。
 

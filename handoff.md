@@ -1,10 +1,22 @@
 # Formward 项目交接
 
+## 记餐食量规则与单题复测
+
+记餐先确定本次实际食量，再估算营养。仅有食物名称时先追问，不自行设定常见克数或默认1份，不先建预览再让用户纠正；已明确的克数、毫升、个数或份数不重复追问。营养估算不代表用户接受食量估算，食材规格及历史份量不能证明本次食量。共用JSON同步MCP／HTTP及豆包Skill／Manifest，不新增核验模型、来源校验或会话持久化。
+
+当前上海应用源码`6f70b9efa4fdfae66baadd10156aca7773ec803a`，版本`dual-entry-6f70b9ef-meal-amount-rules-20261112`，BUILD_ID `li8AMFe97Wsh1kqQF2Fta`，目录`meal-amount-rules-20261112`；北京时间2026-11-12 15:09:37切换。即时兼容回退为`ai-access-compact-v3-20261112`，不回退数据或授权。
+
+19项评测离线检查、648项仓库测试、lint、typecheck和production build通过；21项工具的输入schema、权限注解和字段字典不变，仅四项饮食写入工具说明及共用指令变化。同题GLM单次复测先追问，无业务调用、无预览；旧失败保留，不据单次通过宣称稳定性或全部能力达标。
+
+完整运行包约69.24MB，保存在主工作区`.codex/backups/regional-releases/meal-amount-rules-20261112`；构建与发布证据位于既有main-current的`.codex/ai-api-contracts/meal-amount-20261112`。私有单题报告位于主工作区`.codex/model-evaluation/runs/2026-11-12T07-02-33-068Z-6fdafecc`。GPT需刷新工具定义或新对话；豆包Skill／Manifest源码已同步，客户端运行态仍需上传测试资源并在Debugger更新，本轮没有云构建豆包测试版本。
+
+实际发布、兼容及公网边界见[部署](docs/deployment.md#当前正式部署先确认实际食量)。
+
 ## AI接入紧凑列表（2026-11-12）
 
 已按认可的ImageGen内容区完成并发布：只保留一个AI接入标题，ChatGPT在前、豆包在后，各64px紧凑行。权限默认收起，电脑锚定浮层／手机半屏面板，多连接独立授权；手机详情含历史，未接入／过期提供所属接入按钮。记录默认收起、展开后普通48px单行，筛选同标题，200%和窄空间自然换行。D14及根目录`design-qa.md`维护字号、密度、并排对照和未测项，不再使用旧的权限默认四行规则。
 
-运行源码`209c35810f3ddbe247904185250b15504a5a9434`已合入main，版本`dual-entry-209c3581-ai-access-compact-v3-20261112`，BUILD_ID `ynscn2Rk8zK1ajOmejw1p`；北京时间03:52:33切换上海服务。原47项Server Action与密钥、378项旧资源、配置字节和schema0036保持，回退目录`ai-access-20261112`；iad1国际网关未重发。三入口版本及公开资源核对通过，数据库／外部API／scope／30天期限未改。
+AI接入界面验收基线源码`209c35810f3ddbe247904185250b15504a5a9434`已合入main，版本`dual-entry-209c3581-ai-access-compact-v3-20261112`，BUILD_ID `ynscn2Rk8zK1ajOmejw1p`；北京时间03:52:33切换上海服务。原47项Server Action与密钥、378项旧资源、配置字节和schema0036保持，回退目录`ai-access-20261112`；iad1国际网关未重发。三入口版本及公开资源核对通过，数据库／外部API／scope／30天期限未改。
 
 83文件648项测试、lint、typecheck、结构及兼容构建通过；最终standalone的Chromium／WebKit各71张截图，320／390／1440px正常与慢读共12组七锚点全部0px。双端撤销取消、失败、重试、即时鉴权及手机关闭后的可见焦点回退通过。8类正式健康摘要及结构一致；消耗差异对应发布前Garmin同步，不回退真实更新，没有正式测试健康写入。
 
