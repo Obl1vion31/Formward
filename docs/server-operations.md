@@ -2,7 +2,7 @@
 
 ## 当前部署状态
 
-日常网页只有[上海公网IP入口](https://43.142.148.58)。Vercel保留GPT／MCP、OAuth和海外图片后台，普通旧网页自动转国服；两部分共用上海formward_primary，55表／36条migration。旧 Neon 项目已删除，旧源只保留私有归档。恢复和连接验收见[验收记录](regional-acceptance.md)。
+日常网页只有[上海公网IP入口](https://43.142.148.58)。Vercel保留GPT／MCP、OAuth和海外图片后台，普通旧网页自动转国服；两部分共用上海formward_primary，59张应用表加Drizzle账本（共60表）／37条migration。旧 Neon 项目已删除，旧源只保留私有归档。恢复和连接验收见[验收记录](regional-acceptance.md)。
 
 候选应用服务按唯一发布编号命名，退出后停止并清理该临时服务；不同发布不共用候选服务名。近期已经成功且完成异地回读的备份可供同结构的界面补丁复用，避免重复启动触发备份频次限制。
 
