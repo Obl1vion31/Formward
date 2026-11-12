@@ -14,6 +14,7 @@ import { budgetDate, usagePercent } from "./chat-model";
 import { chatIdentity, chatSnapshot, chatUsage, controlChat, currentConversation, normalizedUsage, reserveChatUsage, settleChatUsage, startChatRun, type ChatSend, type StoredRun } from "./chat-store";
 import { executeChatRun } from "./chat-runtime";
 import { modelBody, providerFailure, streamModel } from "./chat-provider";
+import { chatToolBridge } from "./chat-tools";
 import { loadAiAccessOverview } from "../auth/ai-access-overview";
 const client = new PGlite(), testDb = drizzle(client,{schema}), db = testDb as unknown as Database, ownerId = randomUUID(), outsider = randomUUID(), secondOwner = randomUUID();
 const previousEnv = new Map<string,string|undefined>();
@@ -96,6 +97,27 @@ test("真实预览不保存事实，来源依原授权追溯，续期不改旧�
   let overview=await loadAiAccessOverview(db,ownerId);assert.ok(overview.submissions.some(item=>item.source.label==="千问 · 站内助手"));assert.equal(overview.tokens.length,0);
   await controlChat(db,ownerId,{action:"revoke",provider:"qwen"});await controlChat(db,ownerId,{action:"enable",provider:"qwen"});overview=await loadAiAccessOverview(db,ownerId);assert.ok(overview.submissions.some(item=>item.source.label==="千问 · 站内助手"));
 });
+test("国服站内预览保留入口验证及同一确认链接，缺少来源验证时不创建草稿",async()=>{
+  const settings={FORMWARD_REGIONAL:"1",FORMWARD_CN_ORIGIN:"https://43.142.148.58",BETTER_AUTH_URL:"https://formward-ten.vercel.app"}, previous=Object.fromEntries(Object.keys(settings).map(key=>[key,process.env[key]]));
+  for(const[key,value]of Object.entries(settings))process.env[key]=value;
+  const identity=await chatIdentity(db,ownerId,"qwen");
+  let bridge:ReturnType<typeof chatToolBridge>|undefined;
+  try {
+    const before=(await db.select().from(schema.mealOperation).where(eq(schema.mealOperation.userId,ownerId))).length;
+    assert.throws(()=>chatToolBridge(db,identity,new Request("https://43.142.148.58/api/assistant-chat")),/来源尚未验证/);
+    assert.equal((await db.select().from(schema.mealOperation).where(eq(schema.mealOperation.userId,ownerId))).length,before);
+    const request=new Request("https://origin.formward.top/api/assistant-chat",{headers:{"x-formward-public-origin":"https://43.142.148.58","x-formward-region":"cn"}});
+    bridge=chatToolBridge(db,identity,request);
+    await bridge.rpc("initialize",{protocolVersion:"2025-11-25",capabilities:{},clientInfo:{name:"fictional-regional-chat",version:"1"}});
+    const params={name:"preview_meal",arguments:{operationId:randomUUID(),date:"2024-08-01",mealType:"午餐",timezone:"Asia/Shanghai",foods:[{name:"虚构米饭",quantity:"150",unit:"g",caloriesKcal:"195",proteinG:"3.9",carbsG:"43",fatG:"0.5",sourceKind:"estimated",basis:"隔离来源验证"}]}};
+    const first=await bridge.rpc("tools/call",params),again=await bridge.rpc("tools/call",params);
+    assert.notEqual(first.isError,true);assert.match(first.structuredContent.confirmationUrl,/^https:\/\/43\.142\.148\.58\/dashboard\/meals\/review\//);
+    assert.equal(again.structuredContent.confirmationUrl,first.structuredContent.confirmationUrl);
+    assert.equal((await db.select().from(schema.mealOperation).where(eq(schema.mealOperation.userId,ownerId))).length,before+1);
+    assert.equal((await db.select().from(schema.meal).where(eq(schema.meal.userId,ownerId))).length,0);
+  } finally {await bridge?.close();for(const[key,value]of Object.entries(previous))if(value===undefined)delete process.env[key];else process.env[key]=value;}
+});
+
 test("正式PostgreSQL驱动支持会话读取、过期运行回收与发送限流日期",async()=>{
   await fresh();const socket=new PGLiteSocketServer({db:client,host:"127.0.0.1",port:0,maxConnections:1});await socket.start();
   const connection=createDatabase(`postgresql://postgres:postgres@${socket.getServerConn()}/postgres?max=1`);

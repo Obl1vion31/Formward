@@ -10,7 +10,7 @@ import purposes from "../records/ai-tool-catalog.json";
 const scopes = ["profile", "measurements:read", "measurements:write", "meals:read", "meals:write", "energy:read", "energy:write", "training:read", "training:write"];
 export function chatToolBridge(db: Database, identity: AiIdentity, request: Request) {
   const url = new URL("/api/mcp", siteOrigin(request)).href;
-  const handler = createMcpHandler(() => createFormwardMcp(db, identity, scopes, new Request(url)), { legacy: "stateless" });
+  const handler = createMcpHandler(() => createFormwardMcp(db, identity, scopes, request), { legacy: "stateless" });
   return {
     async rpc(method: string, params: Record<string, unknown>) {
       const response = await handler.fetch(new Request(url, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-11-25" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) }));
