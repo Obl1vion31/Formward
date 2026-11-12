@@ -118,6 +118,21 @@ test("国服站内预览保留入口验证及同一确认链接，缺少来源�
   } finally {await bridge?.close();for(const[key,value]of Object.entries(previous))if(value===undefined)delete process.env[key];else process.env[key]=value;}
 });
 
+test("跨模型可读历史保持原文，导航定位元数据不冒充助手正文",async()=>{
+  const current=await fresh(),userMessageId=randomUUID(),answerId=randomUUID(),href="/dashboard/meals/review/"+randomUUID();
+  await db.insert(schema.assistantMessage).values([{id:userMessageId,userId:ownerId,conversationId:current.id,seq:1,role:"user",text:"查一下昨天的记录"},{id:answerId,userId:ownerId,conversationId:current.id,seq:2,role:"assistant",provider:"qwen",text:"已查到记录，正式保存仍需你确认。",references:[{href,kind:"preview",title:"查看提交"}]}]);
+  await db.update(schema.assistantConversation).set({sequence:2}).where(eq(schema.assistantConversation.id,current.id));
+  const job=await begin("继续解释这条记录","mimo");
+  await executeChatRun(db,job.row,job.input,new Request("http://localhost:3000/api/assistant-chat"),()=>{},new AbortController().signal,{skipSessionCheck:true,fetcher:async(_url,options)=>{
+    const body=JSON.parse(String(options?.body)),history=body.messages.find((row:{role:string})=>row.role==="assistant");
+    assert.equal(history.content,"已查到记录，正式保存仍需你确认。");
+    assert.ok(body.messages[0].content.includes(href));assert.ok(body.messages[0].content.includes("不属于用户或助手的原话"));
+    assert.equal(body.messages.filter((row:{role:string;content:unknown})=>row.role!=="system"&&JSON.stringify(row.content).includes(href)).length,0);
+    return completion("我会按原记录说明，保存仍由你确认。");
+  }});
+  const [saved]=await db.select().from(schema.assistantMessage).where(eq(schema.assistantMessage.id,answerId));assert.equal(saved.provider,"qwen");assert.equal(saved.text,"已查到记录，正式保存仍需你确认。");
+});
+
 test("正式PostgreSQL驱动支持会话读取、过期运行回收与发送限流日期",async()=>{
   await fresh();const socket=new PGLiteSocketServer({db:client,host:"127.0.0.1",port:0,maxConnections:1});await socket.start();
   const connection=createDatabase(`postgresql://postgres:postgres@${socket.getServerConn()}/postgres?max=1`);

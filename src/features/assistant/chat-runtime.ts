@@ -43,7 +43,7 @@ function toolSummary(name: string, result: Record<string, unknown>) {
 }
 async function imageContent(db: Database, userId: string, row: StoredMessage) {
   if (!row.imageIds.length) return row.text;
-  const content: ({ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } })[] = [{ type: "text", text: row.text + "\n本消息私有附件ID：" + row.imageIds.join("、") + "。这些附件已上传，可直接用于餐次预览的imageIds，不需要再次导入。" }];
+  const content: ({ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } })[] = [{ type: "text", text: row.text }];
   for (const id of row.imageIds) {
     const { stream, mimeType } = await loadMealImage(db, userId, id), bytes = Buffer.from(await new Response(stream).arrayBuffer());
     if (bytes.length > 20 * 1024 * 1024) throw new ApiError(413, "image_too_large", "照片超过20MiB，请换一张照片。");
@@ -119,7 +119,9 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
     }
     const localTime = new Intl.DateTimeFormat("zh-CN", {timeZone:input.timezone,dateStyle:"full",timeStyle:"long"}).format(new Date());
     const transport = `本轮来自站内已鉴权聊天，用户本地时间：${localTime}。${attachmentSource.imageIds.length ? "服务器已验证并私有保存的附件ID："+attachmentSource.imageIds.join("、")+"。这些站内附件不需要通过import_meal_images再次导入；创建预览时沿用对应imageIds。" : "本轮未附加照片。"}`;
-    const messages: ProtocolMessage[] = [{ role: "system", content: prompt + "\n" + transport }, ...history.map(row => ({ role: row.role, content: row.text + (row.imageIds.length ? "\n已上传私有附件ID：" + row.imageIds.join("、") : "") + (row.references.length ? "\n当时的业务入口：" + JSON.stringify(row.references) : "") })), { role: "user", content: await imageContent(db, userId, { ...question,imageIds:attachmentSource.imageIds }) }];
+    const navigation = history.filter(row => row.imageIds.length || row.references.length).map(row => ({ messageId:row.id, imageIds:row.imageIds, references:row.references }));
+    const presentation = "历史导航与附件定位信息仅供工具使用，不属于用户或助手的原话。最终回答不要复述内部JSON、字段名、UUID或加载工具的计划；明确要求技术细节时除外，必要的完整审核链接保留。日期和时间（含预览到期时间）均按用户时区表达，不能将UTC时间直接当成本地时间。";
+    const messages: ProtocolMessage[] = [{ role: "system", content: prompt + "\n" + transport + "\n" + presentation + (navigation.length ? "\n历史定位信息：" + JSON.stringify(navigation) : "") }, ...history.map(row => ({ role: row.role, content: row.text })), { role: "user", content: await imageContent(db, userId, { ...question,imageIds:attachmentSource.imageIds }) }];
     if (input.action === "continue") messages.push({ role: "system", content: "接续上次未完成的回答，只输出后续内容，避免重复。已经生成：" + continuationText });
     if (results.length) messages.push({ role: "system", content: "本问题前次尝试已经执行的工具与结果，先核对并复用，不重复创建预览：" + JSON.stringify(results.map(row => ({ name: row.name, args: row.args, result: row.result }))) });
     await db.update(assistantConversation).set({ followup: null }).where(eq(assistantConversation.id, activeRun.conversationId));
