@@ -6,6 +6,7 @@ import { addCalendarDays, calendarOrdinal } from "../measurements/calendar";
 import { validateMeasurementTimezone } from "../measurements/timezone";
 import { decimal, emptyNutrition, metrics, publicMealInputSchema, scaled, type ItemDraft, type MealInput, type Nutrition } from "./model";
 import { digest, submitMealOperation } from "./records";
+import { invalidAiSchema } from "../records/ai-errors";
 
 const text = (length: number) => z.string().trim().min(1).max(length);
 export const aiOperationId = z.string().regex(/^[a-zA-Z0-9-]{8,120}$/).describe("新请求生成新UUID；仅ASCII字母、数字、半角短横线(-)，8至120字符，不能用中文或其他横线；同请求重试沿用，改变内容用新标识");
@@ -29,9 +30,21 @@ export const simpleFoodSchema = z.object({
   evidenceUrl: z.string().url().max(2000).optional(),
   amountDecision: z.enum(["provided", "estimate_accepted", "unknown_accepted"]).optional().describe("只表达食量决策；默认估算营养不等于已接受食量估算，后者须用户明确同意"),
 }).strict();
+// 展示给模型的结构也表达互斥关系，不只依赖长段说明。
+const libraryFood = simpleFoodSchema.pick({ name: true, kind: true, foodId: true, foodVersion: true, quantity: true, unit: true, basis: true, amountDecision: true }).extend({
+  foodId: z.string().uuid(), foodVersion: z.number().int().positive(),
+  nutritionBasis: z.literal("consumed_total").optional().describe("兼容旧请求的无效重复标记；引用食材的营养始终由服务器换算，请省略"),
+}).strict();
+const freeFood = simpleFoodSchema.omit({ foodId: true, foodVersion: true }).strict();
+export const aiFoodSchema = z.union([
+  libraryFood.extend({ quantity: decimal, unit: text(30), amountDecision: z.enum(["provided", "estimate_accepted"]).optional() }),
+  freeFood.extend({ quantity: decimal, unit: text(30), amountDecision: z.enum(["provided", "estimate_accepted"]).optional() }),
+  libraryFood.omit({ quantity: true }).extend({ unit: text(30), amountDecision: z.literal("unknown_accepted") }),
+  freeFood.omit({ quantity: true }).extend({ amountDecision: z.literal("unknown_accepted"), nutritionBasis: z.literal("consumed_total").optional() }),
+]).describe("二选一：引用食材库（foodId＋foodVersion＋实际食量＋单位，不传营养或来源）；自由填写（实际食量＋单位，可给营养及估算依据）。仅用户明确接受食量未知，才使用unknown_accepted并省略quantity。");
 export const mealPreviewSchema = z.object({
   operationId: aiOperationId, date: aiDate, mealType: text(50).describe("按用户指定名称填写；中午写午餐，不能自行换成lunch或snack；修改已有餐保留原餐次"),
-  foods: z.array(simpleFoodSchema).min(1).max(50),
+  foods: z.array(aiFoodSchema).min(1).max(50),
   timezone: text(100).optional(), notes: z.string().max(12000).optional(),
   imageIds: z.array(z.string().uuid()).max(8).optional(),
   expectedImageCount: z.number().int().min(0).max(8).optional(),
@@ -40,7 +53,7 @@ export type MealPreviewInput = z.infer<typeof mealPreviewSchema>;
 export type SimpleFoodInput = z.infer<typeof simpleFoodSchema>;
 
 export function invalidAiInput(field: string, message: string): never {
-  throw new ApiError(400, "invalid_input", field + "：" + message);
+  throw new ApiError(400, "invalid_input", field + "：" + message, { fields: [{ path: field, message }], nextAction: "correct_arguments_or_ask_user" });
 }
 export function resolveAiDate(date: string, timezone?: string, now = new Date()) {
   const zone = timezone ?? process.env.FORMWARD_TIMEZONE ?? "Asia/Shanghai";
@@ -58,14 +71,17 @@ function nutrient(value: string | undefined, calories: boolean): string | null {
   return result;
 }
 export function normalizeSimpleFood(raw: SimpleFoodInput, index = 0): ItemDraft {
-  const input = simpleFoodSchema.parse(raw), field = "foods." + index;
+  if (raw?.amountDecision !== "unknown_accepted" && raw?.quantity === undefined) invalidAiInput(`foods.${index}.quantity`, "缺少实际食用量，请先问用户，不可自定常见份量。");
+  const parsed = aiFoodSchema.safeParse(raw), field = "foods." + index;
+  if (!parsed.success) invalidAiSchema(parsed.error, field);
+  const input: SimpleFoodInput = parsed.data;
   const library = input.foodId !== undefined, kind = input.kind ?? "food";
   const source = input.sourceKind?.trim().toLowerCase();
   const sourceKind = ({ package_label: "label", nutrition_label: "label", "包装标签": "label", "营养标签": "label" } as Record<string, string>)[source ?? ""] ?? source ?? "unknown";
   const hasNutrition = metrics.some(metric => input[metric] !== undefined) || input.caloriesKj !== undefined;
   if (input.foodVersion !== undefined && !library) invalidAiInput(field, "foodVersion须与foodId一起使用。");
   if (library && input.foodVersion === undefined) invalidAiInput(field + ".foodVersion", "请先搜索并填写食材版本。");
-  if (library && (hasNutrition || input.sourceKind !== undefined || input.nutritionBasis !== undefined || input.referenceQuantity !== undefined || input.evidenceUrl !== undefined)) invalidAiInput(field, "引用食材后由服务器换算，不另填营养、来源或计算口径。");
+  if (library && (hasNutrition || input.sourceKind !== undefined || input.nutritionBasis && input.nutritionBasis !== "consumed_total" || input.referenceQuantity !== undefined || input.evidenceUrl !== undefined)) invalidAiInput(field, "引用食材后由服务器换算，不另填营养、来源或计算口径。");
   if (input.amountDecision === "unknown_accepted") {
     if (input.quantity !== undefined || input.nutritionBasis && input.nutritionBasis !== "consumed_total") invalidAiInput(field, "食量未知时不能按份量换算。");
     if (library && !input.unit) invalidAiInput(field + ".unit", "引用食材仍须保留规格单位；数量保持未知。");
@@ -98,12 +114,16 @@ export function normalizeSimpleFood(raw: SimpleFoodInput, index = 0): ItemDraft 
   return { ...base, nutritionBasis, nutrition } as ItemDraft;
 }
 export function mealPreviewOperation(raw: MealPreviewInput, now = new Date()): MealInput {
+  for (const [index, food] of (Array.isArray(raw?.foods) ? raw.foods as SimpleFoodInput[] : []).entries()) {
+    if (food.foodId && food.foodVersion === undefined) invalidAiInput(`foods.${index}.foodVersion`, "引用食材须提供搜索结果中的版本，不能自行猜版本。");
+    if (food.amountDecision !== "unknown_accepted" && food.quantity === undefined) invalidAiInput(`foods.${index}.quantity`, "缺少实际食用量，请先问用户，不可自定常见份量。");
+  }
   const parsed = mealPreviewSchema.safeParse(raw);
-  if (!parsed.success) invalidAiInput("参数", "请按单餐格式提供日期、餐次及食物清单。");
+  if (!parsed.success) invalidAiSchema(parsed.error);
   const { foods, operationId, ...meal } = parsed.data;
   const input = { operationId, actions: [{ ...meal, ...resolveAiDate(meal.date, meal.timezone, now), kind: "save_meal", items: foods.map(normalizeSimpleFood) }] };
   const result = publicMealInputSchema.safeParse(input);
-  if (!result.success) invalidAiInput("餐次", result.error.issues[0]?.message ?? "内容无效。");
+  if (!result.success) invalidAiSchema(result.error);
   return result.data;
 }
 export async function previewMeal(db: Database, identity: AiIdentity, raw: MealPreviewInput, now = new Date()) {

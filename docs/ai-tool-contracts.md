@@ -122,3 +122,13 @@ query_meals只返回已保存餐次；day.status表示全天是否记全，不�
 新增工具保留旧定义，因此总工具定义可能变大；不据此宣称节省token、降低费用或提高模型首轮完成率。真实GPT和豆包模型分别测量，客户端缓存、工具选择、参数生成和最终网页保存不能互相代替。
 
 常用入口对明确标签／成分表数值自动生成忠实转录，保留未知，不新增推断来源；已有basis或链接保持。新增消耗按totalKcal／activeKcal是否明确提供推导模式，包括明确0，不要求模型重复指定可确定字段；修改旧记录仍保留原模式。
+
+## 统计与同草稿修正
+
+query_meals.statistics返回本页已记录／已记全天的逐营养sum、mean、min、max及已知天数，部分合计保留缺项日期。query_energy.statistics排除累计；询问盈余时可用includeMeals=true，需同时具备饮食和消耗读权限。balance对同一完整日交集给出逐日净差、摄入合计、消耗合计、净差合计与日均，缺数据不补0。分页统计只代表window中的当前页，不代替完整区间。
+
+库食材引用填写name、foodId、foodVersion及实际quantity/unit，不混填sourceKind或营养；自由填写使用相应营养和basis。已知食量缺单位在创建统一预览前拒绝。错误details.fields指出具体路径，已有草稿冲突可返回previewId/revision及建议工具，身份或授权不匹配不返回定位信息。
+
+修正统一待审批次：先get_record_operation取最新状态，再submit_record_operation带previewId、revision、新的operationId和保持原key／类型／历史对象的完整items。仅改原草稿，原payload保留；同次修改重试不重复应用。普通待审餐继续用preview_meal_changes。新任务才新建批次，确认仍只在网页进行。简洁预览包含当前备注、附件和消耗累计标识。
+
+受控运行器每次用户请求创建ai-tool-session：第一轮简短目录＋load_tools，未加载调用先拦截，并仅为下一轮补完整定义；模型读定义后重新生成参数。重复请求协调仅限本次请求，不是长期记忆。外部GPT／豆包仍由各自平台控制工具加载，不能把评测运行器的行为当作外部产品实测结论。

@@ -94,3 +94,5 @@ queryMeals的view=summary／details只读指定日期，返回范围与分页；
 AI新增餐项默认估算热量及三项宏量，可靠值优先、关键信息缺失才追问；明确不估仍保留未知。共用规则为ai-nutrition-guidance.json，MCP／HTTP直接使用，豆包Skill及Manifest由scripts/sync-ai-nutrition.mjs生成。默认不改食量同意、历史数值、服务器计算或网页确认规则。
 
 AI字段含义集中在ai-field-definitions.json，按查询、库项、预览及附件阶段返回。全天记全状态不等于餐次保存状态；每份／参考量与本次总营养、实际食量与整包规格分别解释。附件导入的complete仅表示原图成功，追加到预览仍未正式保存。规则与MCP说明、HTTP结果及离线评测同源。
+
+常用AI新餐foods与局部追加addFoods共享aiFoodSchema：库引用与自由填写以互斥分支说明，已知食量须含quantity/unit；unknown_accepted仍要求用户明确接受未知。库引用兼容无害的consumed_total重复标记，但禁止人工营养覆盖。查询statistics区分本页recorded和complete，逐营养保留incompleteDates；它们不能混称全天真实摄入。简洁预览保留当前notes和imageIds，便于核对局部修改。

@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "../../db/schema";
 import { createAiToken, authenticateAi, revokeAiToken } from "../auth/ai-tokens";
 import { ApiError } from "../auth/ai-identity";
-import { mealPreviewOperation, previewMeal, type MealPreviewInput } from "../meals/ai-preview";
+import { mealPreviewOperation, previewMeal, mealPreviewSchema, type MealPreviewInput } from "../meals/ai-preview";
 import { applyMealChanges, previewMealChanges, savedMealDraft } from "../meals/ai-changes";
 import { getMealOperation, decideMealOperation, readMealSnapshot, searchFoods, submitMealOperation } from "../meals/records";
 import { energyPreviewOperation, previewEnergy } from "../activities/ai-preview";
@@ -21,6 +21,12 @@ import { queryParameters, boundedQueryPage } from "./ai-query";
 import { mealAiResponse, recordAiResponse, aiRecovery } from "./ai-response";
 import { getRecordOperation, reviewRecordOperation, submitRecordOperation } from "./operations";
 import { emptyNutrition, type MealView } from "../meals/model";
+import { balanceStatistics, decimalStatistics } from "./ai-statistics";
+import { setMealDayStatus } from "../meals/day-status";
+import { energyDays } from "../activities/model";
+import { withAiFieldDefinitions } from "./ai-field-definitions";
+import { safeAiError } from "../measurements/ai-api";
+import { createAiToolSession } from "./ai-tool-session.mjs";
 
 const queries: string[] = [], pg = new PGlite(), db = drizzle(pg, { schema, logger: { logQuery(query) { queries.push(query); } } });
 before(async () => { await migrate(db, { migrationsFolder: "./drizzle" }); });
@@ -33,6 +39,82 @@ async function owner(permission: "read" | "write" = "write") {
 }
 const food = { name: "虚构午餐", quantity: "2", unit: "份", caloriesKcal: "600", proteinG: "0", sourceKind: "estimated", basis: "两份合计的虚构估算，油量未知。" };
 const lunch = (patch: Partial<MealPreviewInput> = {}): MealPreviewInput => ({ operationId: randomUUID(), date: "2024-08-01", timezone: "Asia/Shanghai", mealType: "午餐", foods: [food], ...patch });
+
+test("营养总和、范围、负数及均值由整数汇总，缺记录不补零", () => {
+  assert.deepEqual(decimalStatistics(["136", "99", "155", "155", "133", "93", "105"]), { count: 7, sum: "876.0000", mean: "125.1429", min: "93.0000", max: "155.0000" });
+  assert.equal(decimalStatistics(["-287", "-79", "949", "775", "924", "-1109"]).sum, "1173.0000");
+  assert.deepEqual(decimalStatistics([null]), { count: 0, sum: null, mean: null, min: null, max: null });
+  assert.equal(decimalStatistics(["0", null]).mean, "0.0000");
+});
+
+test("食材引用与自由填写在结构中分开，缺单位可定位，库营养不能被覆盖", () => {
+  const reference = { name: "库牛奶", foodId: randomUUID(), foodVersion: 1, quantity: "250", unit: "mL" };
+  assert.ok(mealPreviewSchema.safeParse(lunch({ foods: [reference] })).success);
+  assert.ok(mealPreviewSchema.safeParse(lunch({ foods: [{ ...reference, nutritionBasis: "consumed_total" }] })).success);
+  assert.equal(mealPreviewSchema.safeParse(lunch({ foods: [{ ...reference, caloriesKcal: "999" }] } as unknown as MealPreviewInput)).success, false);
+  const missing = { ...reference } as Record<string, unknown>; delete missing.unit;
+  assert.throws(() => mealPreviewOperation(lunch({ foods: [missing] } as unknown as MealPreviewInput)), error => {
+    const failure = safeAiError(error); assert.equal(failure.error.code, "invalid_input"); assert.ok(failure.error.details?.fields?.some(field => field.path.includes("unit"))); return true;
+  });
+});
+
+test("同一统一草稿原地修正且重试幂等，保留原请求，不写事实，跨账号／新授权／过期受保护", async () => {
+  const actor = await owner(), original = { operationId: randomUUID(), items: [{ ...mealPreviewOperation(lunch()).actions[0], key: "meal" }, { kind: "save_energy_day", key: "energy", date: "2024-08-01", entryMode: "total", totalKcal: "2200" }] };
+  const first = await submitRecordOperation(db, actor.identity, original);
+  const corrected = { ...original, operationId: randomUUID(), previewId: first.id, revision: first.revision, items: original.items.map(item => item.kind === "save_meal" ? { ...item, notes: "修正备注" } : item) };
+  const next = await submitRecordOperation(db, actor.identity, corrected);
+  assert.equal(next.id, first.id); assert.ok(next.revision > first.revision); assert.equal(next.canConfirm, true);
+  const summary = recordAiResponse(next); assert.equal(summary.rows?.find(row => row.meal)?.meal?.meal?.notes, "修正备注");
+  const repeat = await submitRecordOperation(db, actor.identity, corrected); assert.equal(repeat.repeated, true); assert.equal(repeat.revision, next.revision);
+  assert.equal((await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.userId, actor.userId))).length, 1);
+  const [stored] = await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.id, first.id)); assert.deepEqual(stored.payload, JSON.parse(JSON.stringify(original)));
+  assert.equal((await readMealSnapshot(db, actor.userId)).meals.length, 0);
+  await reject(submitRecordOperation(db, actor.identity, { ...corrected, operationId: randomUUID() }), "review_changed");
+  await reject(submitRecordOperation(db, actor.identity, { ...corrected, operationId: randomUUID(), revision: next.revision, items: corrected.items.map(item => ({ ...item, key: "other-" + item.key })) }), "invalid_input");
+  const other = await owner(); await reject(submitRecordOperation(db, other.identity, corrected), "not_found");
+  const secondToken = await createAiToken(db, actor.userId, "另一个连接", "write"), secondIdentity = await authenticateAi(db, "Bearer " + secondToken.rawToken);
+  await reject(submitRecordOperation(db, secondIdentity, corrected), "forbidden");
+  await db.update(schema.mealOperation).set({ expiresAt: new Date(0) }).where(eq(schema.mealOperation.id, stored.mealOperationId!));
+  await reject(submitRecordOperation(db, actor.identity, { ...corrected, operationId: randomUUID(), revision: next.revision }), "preview_expired");
+});
+
+test("盈余只统计同页完整日交集，部分摄入和累计不补零，权限不自动扩大", async () => {
+  const actor = await savedMeal();
+  const energy = await previewEnergy(db, actor.identity, { operationId: randomUUID(), date: actor.meal.date, totalKcal: "500" });
+  await reviewRecordOperation(db, actor.userId, energy.id, { kind: "confirm", revision: energy.revision });
+  const params = new URLSearchParams({ from: actor.meal.date, to: actor.meal.date, view: "summary", includeMeals: "true" });
+  const result = await queryEnergy(db, actor.userId, params, actor.identity);
+  assert.equal(result.balance?.coveredDays, 0); assert.equal(result.balance?.net.sum, null); assert.ok(result.balance?.days[0].reasons.includes("intake_not_complete"));
+  const meals = await queryMeals(db, actor.userId, new URLSearchParams({ from: actor.meal.date, to: actor.meal.date, view: "summary" }));
+  assert.equal(meals.statistics.recorded.caloriesKcal.sum, "600.0000"); assert.equal(meals.statistics.complete.caloriesKcal.sum, null);
+  const day = meals.days[0].day;
+  await setMealDayStatus(db, actor.userId, { operationId: randomUUID(), date: actor.meal.date, status: "complete", version: day.version, contentDigest: day.contentDigest });
+  const complete = await queryEnergy(db, actor.userId, params, actor.identity);
+  assert.equal(complete.balance?.intake.sum, "600.0000"); assert.equal(complete.balance?.expenditure.sum, "500.0000"); assert.equal(complete.balance?.net.sum, "100.0000"); assert.equal(complete.balance?.coveredDays, 1);
+  const fullMeals = await queryMeals(db, actor.userId, new URLSearchParams({ from: actor.meal.date, to: actor.meal.date, view: "summary" }));
+  const energyDaysValue = energyDays(await readEnergySnapshot(db, actor.userId), [], [actor.meal.date]);
+  const cumulative = balanceStatistics(fullMeals.days, energyDaysValue.map(day => ({ ...day, cumulative: true })), { from: actor.meal.date, to: actor.meal.date });
+  assert.equal(cumulative.net.sum, null); assert.ok(cumulative.days[0].reasons.includes("expenditure_cumulative"));
+  const partial = balanceStatistics(fullMeals.days.map(day => ({ ...day, totals: { ...day.totals, incomplete: { ...day.totals.incomplete, caloriesKcal: true } } })), energyDaysValue, { from: actor.meal.date, to: actor.meal.date });
+  assert.equal(partial.net.sum, null); assert.ok(partial.days[0].reasons.includes("intake_unknown_or_partial"));
+  const paged = await queryEnergy(db, actor.userId, new URLSearchParams({ from: "2024-08-01", to: "2025-08-02", view: "summary", includeMeals: "true" }), actor.identity);
+  if (!("page" in paged)) throw new Error("应有分页信息");
+  assert.equal(paged.page.hasMore, true); assert.equal(paged.balance?.window.to, paged.page.to); assert.notEqual(paged.balance?.window.to, paged.range.to);
+  const explained = withAiFieldDefinitions("query_energy", result); assert.ok(explained.fieldDefinitions["balance.coveredDays"]);
+  await reject(queryEnergy(db, actor.userId, params), "insufficient_scope");
+  const other = await owner(); await reject(queryEnergy(db, actor.userId, params, other.identity), "insufficient_scope");
+});
+
+test("未加载工具不执行，只补下一轮定义；相同请求复用回执，修正保留草稿标识", () => {
+  const tool = { name: "submit_record_operation", description: "提交", inputSchema: {} }, session = createAiToolSession({ tools: [tool] });
+  assert.deepEqual(session.names(), []); const blocked = session.missing(tool.name); assert.equal(blocked.executed, false); assert.deepEqual(session.names(), [tool.name]);
+  const args = { operationId: randomUUID(), items: [{ key: "meal", kind: "save_meal", notes: "原" }] }, receipt = { id: randomUUID(), revision: 1, status: "pending" };
+  session.remember(tool.name, args, receipt);
+  assert.equal(session.prepare(tool.name, { ...args, operationId: randomUUID() }).result?.id, receipt.id);
+  const prepared = session.prepare(tool.name, { ...args, items: [{ ...args.items[0], notes: "新" }] }); assert.equal(prepared.args?.previewId, receipt.id); assert.equal(prepared.args?.revision, 1);
+  assert.equal(session.prepare(tool.name, { ...args, items: [{ key: "other", kind: "save_meal" }] }).result?.error, "existing_draft_requires_explicit_correction");
+  assert.deepEqual(createAiToolSession({ tools: [tool] }).names(), []);
+});
 const reject = (promise: Promise<unknown>, code: string) => assert.rejects(promise, error => error instanceof ApiError && error.code === code);
 async function savedMeal(withImage = false) {
   const actor = await owner(), imageId = randomUUID();

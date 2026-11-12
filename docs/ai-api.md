@@ -234,3 +234,7 @@ search_exercises、query_training、submit_training_operation、get_training_ope
 ## 身体记录规则
 
 身体只接收实测，未知保持null，不要求AI猜测体重或体脂。身体估算能力已移除；旧请求返回410 feature_removed，含该项的旧混合任务整批停止且原草稿保留。查询、图表、统计和导出不返回历史估计或计算依据。网页确认、归属校验、版本和请求防重继续有效；饮食及热量估算保持原规则。
+
+## 查询统计与原草稿修正
+
+当前21项工具保留原名称与授权。饮食返回statistics；消耗可includeMeals=true联合统计，额外校验饮食查询权限，默认不读饮食。统计口径、分页、错误details及统一预览previewId/revision修正方式见[AI工具契约](ai-tool-contracts.md#统计与同草稿修正)。pending、累计、缺项与正式保存不能混称；无新增确认工具或数据库迁移。

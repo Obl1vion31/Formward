@@ -14,6 +14,8 @@ import { systemMeasurementTimezone, timezoneLabel, validateMeasurementTimezone }
 import { localMeasurementDate } from "./entry-state";
 import { boundedQueryPage } from "../records/ai-query";
 import { addCalendarDays } from "./calendar";
+import { z } from "zod";
+import { invalidAiSchema } from "../records/ai-errors";
 
 export function aiRequestTimezone(request: Request, configuredTimezone = process.env.FORMWARD_TIMEZONE) {
   const timezone = request.headers.get("x-formward-timezone") ?? systemMeasurementTimezone(new Date(), configuredTimezone);
@@ -22,8 +24,9 @@ export function aiRequestTimezone(request: Request, configuredTimezone = process
 }
 
 export function safeAiError(error: unknown) {
+  if (error instanceof z.ZodError) { try { invalidAiSchema(error); } catch (formatted) { return safeAiError(formatted); } }
   if (error instanceof MeasurementSourceError) return { status: 400, error: { code: error.code, message: error.message } };
-  if (error instanceof ApiError) return { status: error.status, error: { code: error.code, message: error.message } };
+  if (error instanceof ApiError) return { status: error.status, error: { code: error.code, message: error.message, ...(error.details ? { details: error.details } : {}) } };
   if (error instanceof Error && !["query", "code", "cause"].some(key => key in error)) return { status: 400, error: { code: "invalid_input", message: error.message } };
   return { status: 500, error: { code: "unavailable", message: "操作未完成，请稍后重试。" } };
 }

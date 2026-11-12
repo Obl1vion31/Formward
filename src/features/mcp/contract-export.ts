@@ -1,3 +1,4 @@
+import catalog from "../records/ai-tool-catalog.json";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createMcpHandler } from "@modelcontextprotocol/server";
@@ -26,6 +27,7 @@ export async function aiContractSnapshot() {
       contract: {
         format: "formward-ai-contract-v1", serverInfo: initialized.serverInfo,
         instructions: initialized.instructions ?? "", interpretationRules: aiInterpretationRules,
+        catalog: listed.tools.map((tool: { name: keyof typeof catalog; title: string; annotations?: { readOnlyHint?: boolean } }) => ({ name: tool.name, title: tool.title, operation: tool.annotations?.readOnlyHint ? "查询／连接" : "预览／附件", usage: catalog[tool.name] })),
         tools: listed.tools, fieldDefinitions: Object.fromEntries(aiToolNames.map(name => [name, definitionsFor(name)])),
         runtimeSha256: createHash("sha256").update(runtime).digest("hex"),
       },

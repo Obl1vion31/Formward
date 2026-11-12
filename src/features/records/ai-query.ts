@@ -12,7 +12,7 @@ export const queryOptions = {
   view: z.enum(["summary", "details"]).optional().describe("summary取分析所需摘要，details取带id/version的明细；省略兼容旧完整返回"),
 };
 /** 统一日期输入与显式分段，健康汇总仍由各feature执行。 */
-export function queryParameters(args: { from?: string; to?: string; range?: string; timezone?: string; view?: string }, now = new Date()) {
+export function queryParameters(args: { from?: string; to?: string; range?: string; timezone?: string; view?: string; includeMeals?: boolean }, now = new Date()) {
   const timezone = args.timezone ?? process.env.FORMWARD_TIMEZONE ?? "Asia/Shanghai";
   validateMeasurementTimezone(timezone);
   let { from, to } = args;
@@ -22,7 +22,7 @@ export function queryParameters(args: { from?: string; to?: string; range?: stri
     if (args.range === "yesterday") to = addCalendarDays(to, -1);
     from = addCalendarDays(to, args.range === "last30" ? -29 : args.range === "last7" ? -6 : 0);
   }
-  return new URLSearchParams(Object.entries({ from, to, timezone, view: args.view ?? (args.range ? "summary" : undefined) }).filter((entry): entry is [string, string] => entry[1] !== undefined));
+  return new URLSearchParams(Object.entries({ from, to, timezone, view: args.view ?? (args.range ? "summary" : undefined), includeMeals: args.includeMeals === undefined ? undefined : String(args.includeMeals) }).filter((entry): entry is [string, string] => entry[1] !== undefined));
 }
 export function boundedQueryPage(params: URLSearchParams, today: string, defaultDays = 30) {
   const view = params.get("view");

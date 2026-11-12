@@ -61,3 +61,5 @@ preferences.ts管理按账号同步的体脂显示偏好，account_preferences�
 双入口使用 regions、regional-transport、regional-gateway 与 OAuth 预检／材料隔离。国服 IP 与国际回源可共用同一 HTTPS 入口；回源验证服务证明后重建来源头，认证 issuer／resource 固定为原 Vercel 地址，原 Cookie、JWT／刷新与撤销规则保持。详见 docs/mainland-deployment.md。
 
 国际网关经regional-http使用原生Node HTTPS访问部署配置中的上海回源，保留证书验证、服务签名、正文与响应流、多条Cookie、取消及手动重定向；不自动重放失败请求。该客户端仅用于固定回源，OAuth外部资料仍使用原有安全预检。真实HTTP测试覆盖压缩、流式提交、响应取消、来源限制与重复请求防护。
+
+ApiError可携带安全的字段路径、修正要求和原预览定位信息。仅在归属与原授权校验后返回已有草稿编号；不回显原请求内容、密钥或数据库异常。
