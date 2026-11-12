@@ -139,6 +139,9 @@ test("统一草稿可补齐遗漏的同日正式编号，不把新运动预览�
   assert.equal(first.canConfirm, false);
   const correction = { operationId: randomUUID(), previewId: first.id, revision: first.revision, items: [{ ...items[0], id: saved.id, version: saved.version }, items[1]] };
   const temporaryId = first.rows.find(row => row.key === "run")!.energy!.after!.id;
+  const temporaryDayId = first.rows.find(row => row.key === "day")!.energy!.after!.id;
+  assert.ok(!first.energySnapshot?.days.some(day => day.id === temporaryDayId));
+  await assert.rejects(submitRecordOperation(db, actor.identity, { ...correction, operationId: randomUUID(), items: [{ ...correction.items[0], id: temporaryDayId }, items[1]] }), error => error instanceof ApiError && error.details?.fields?.[0]?.path === "items.0.id" && error.message.includes(saved.id));
   await assert.rejects(submitRecordOperation(db, actor.identity, { ...correction, operationId: randomUUID(), items: [correction.items[0], { ...items[1], id: temporaryId, version: 1 }] }), error => error instanceof ApiError && error.details?.fields?.[0]?.path === "items.1.id" && /临时编号/.test(error.message));
   await reject(submitRecordOperation(db, actor.identity, { ...correction, operationId: randomUUID(), items: [{ ...correction.items[0], date: "2024-08-02" }, items[1]] }), "invalid_input");
   const other = await owner(); await reject(submitRecordOperation(db, actor.identity, { ...correction, operationId: randomUUID(), items: [{ ...correction.items[0], id: other.userId }, items[1]] }), "invalid_input");
@@ -147,6 +150,17 @@ test("统一草稿可补齐遗漏的同日正式编号，不把新运动预览�
   assert.equal(corrected.rows[0].energy?.day?.totalKcal, "2200");
   assert.equal((await readEnergySnapshot(db, actor.userId)).days[0].totalKcal, "1000.0000");
   const repeat = await submitRecordOperation(db, actor.identity, correction); assert.equal(repeat.repeated, true); assert.equal(repeat.revision, corrected.revision);
+});
+test("错误初始日编号可修正为同日真实记录，修好后不能换成另一条已保存记录", async () => {
+  const actor = await owner(), date = "2024-08-01";
+  for (const day of [date, "2024-08-02"]) { const seed = await previewEnergy(db, actor.identity, { operationId: randomUUID(), date: day, totalKcal: "1000" }); await reviewRecordOperation(db, actor.userId, seed.id, { kind: "confirm", revision: seed.revision }); }
+  const saved = (await readEnergySnapshot(db, actor.userId)).days, real = saved.find(day => day.date === date)!, other = saved.find(day => day.date !== date)!;
+  const first = await submitRecordOperation(db, actor.identity, { operationId: randomUUID(), items: [{ key: "day", kind: "save_energy_day", date, id: randomUUID(), version: 1, entryMode: "total", totalKcal: "2200" }] });
+  assert.equal(first.canConfirm, false);
+  const corrected = await submitRecordOperation(db, actor.identity, { operationId: randomUUID(), previewId: first.id, revision: first.revision, items: [{ key: "day", kind: "save_energy_day", date, id: real.id, version: real.version, entryMode: "total", totalKcal: "2200" }] });
+  assert.equal(corrected.id, first.id); assert.equal(corrected.canConfirm, true);
+  await reject(submitRecordOperation(db, actor.identity, { operationId: randomUUID(), previewId: corrected.id, revision: corrected.revision, items: [{ key: "day", kind: "save_energy_day", date, id: other.id, version: other.version, entryMode: "total", totalKcal: "2200" }] }), "invalid_input");
+  assert.equal((await readEnergySnapshot(db, actor.userId)).days.find(day => day.id === real.id)?.totalKcal, "1000.0000");
 });
 const reject = (promise: Promise<unknown>, code: string) => assert.rejects(promise, error => error instanceof ApiError && error.code === code);
 async function savedMeal(withImage = false) {
