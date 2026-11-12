@@ -132,3 +132,5 @@ query_meals.statistics返回本页已记录／已记全天的逐营养sum、mean
 修正统一待审批次：先get_record_operation取最新状态，再submit_record_operation带previewId、revision、新的operationId和保持原key／类型／历史对象的完整items。仅改原草稿，原payload保留；同次修改重试不重复应用。普通待审餐继续用preview_meal_changes。新任务才新建批次，确认仍只在网页进行。简洁预览包含当前备注、附件和消耗累计标识。
 
 受控运行器每次用户请求创建ai-tool-session：第一轮简短目录＋load_tools，未加载调用先拦截，并仅为下一轮补完整定义；模型读定义后重新生成参数。重复请求协调仅限本次请求，不是长期记忆。外部GPT／豆包仍由各自平台控制工具加载，不能把评测运行器的行为当作外部产品实测结论。
+
+补齐遗漏编号与更换对象分开校验：原先遗漏编号时，可引用本账号同日期已有消耗或同日时段身体记录；已明确的历史对象仍不可替换。新增运动的预览临时编号不得当正式id/version，错误会指向具体项目并要求移除临时引用。

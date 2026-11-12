@@ -115,6 +115,39 @@ test("未加载工具不执行，只补下一轮定义；相同请求复用回�
   assert.equal(session.prepare(tool.name, { ...args, items: [{ key: "other", kind: "save_meal" }] }).result?.error, "existing_draft_requires_explicit_correction");
   assert.deepEqual(createAiToolSession({ tools: [tool] }).names(), []);
 });
+
+test("单餐或简洁消耗修正也不另建待审，下一轮补修改工具定义，不自动吞并独立任务", () => {
+  const definitions = ["preview_meal", "preview_meal_changes", "preview_energy", "get_record_operation", "submit_record_operation"].map(name => ({ name, description: name, inputSchema: {} }));
+  const session = createAiToolSession({ tools: definitions }), first = { operationId: randomUUID(), date: "today", mealType: "早餐", foods: [{ name: "虚构鸡蛋", quantity: "1", unit: "个" }] }, receipt = { id: randomUUID(), revision: 1, status: "pending", rows: [{ meal: { date: "2024-08-01" } }] };
+  session.remember("preview_meal", first, receipt);
+  const corrected = session.prepare("preview_meal", { ...first, operationId: randomUUID(), date: "2024-08-01", foods: [{ ...first.foods[0], caloriesKcal: "78" }] });
+  assert.equal(corrected.result?.error, "existing_meal_preview_requires_correction"); assert.equal(corrected.result?.previewId, receipt.id); assert.equal(corrected.result?.executed, false); assert.ok(session.names().includes("preview_meal_changes"));
+  assert.ok(session.prepare("preview_meal", { ...first, mealType: "午餐" }).args);
+  const energy = { id: randomUUID(), revision: 1, status: "pending", operationType: "record", rows: [{ key: "day", kind: "save_energy_day" }] };
+  session.remember("preview_energy", { operationId: randomUUID(), date: "today", totalKcal: "1000" }, energy);
+  const changed = session.prepare("preview_energy", { operationId: randomUUID(), date: "today", totalKcal: "1100" });
+  assert.equal(changed.result?.error, "existing_record_preview_requires_correction"); assert.equal(changed.result?.previewId, energy.id); assert.equal(changed.result?.executed, false);
+});
+
+test("统一草稿可补齐遗漏的同日正式编号，不把新运动预览编号当历史记录，也不能换账号或日期", async () => {
+  const actor = await owner(), date = "2024-08-01";
+  const seed = await previewEnergy(db, actor.identity, { operationId: randomUUID(), date, totalKcal: "1000" });
+  await reviewRecordOperation(db, actor.userId, seed.id, { kind: "confirm", revision: seed.revision });
+  const saved = (await readEnergySnapshot(db, actor.userId)).days[0];
+  const items = [{ key: "day", kind: "save_energy_day", date, entryMode: "total", totalKcal: "2200" }, { key: "run", kind: "save_activity", date, name: "跑步", caloriesKcal: "300", inclusion: "included" }];
+  const first = await submitRecordOperation(db, actor.identity, { operationId: randomUUID(), items });
+  assert.equal(first.canConfirm, false);
+  const correction = { operationId: randomUUID(), previewId: first.id, revision: first.revision, items: [{ ...items[0], id: saved.id, version: saved.version }, items[1]] };
+  const temporaryId = first.rows.find(row => row.key === "run")!.energy!.after!.id;
+  await assert.rejects(submitRecordOperation(db, actor.identity, { ...correction, operationId: randomUUID(), items: [correction.items[0], { ...items[1], id: temporaryId, version: 1 }] }), error => error instanceof ApiError && error.details?.fields?.[0]?.path === "items.1.id" && /临时编号/.test(error.message));
+  await reject(submitRecordOperation(db, actor.identity, { ...correction, operationId: randomUUID(), items: [{ ...correction.items[0], date: "2024-08-02" }, items[1]] }), "invalid_input");
+  const other = await owner(); await reject(submitRecordOperation(db, actor.identity, { ...correction, operationId: randomUUID(), items: [{ ...correction.items[0], id: other.userId }, items[1]] }), "invalid_input");
+  const corrected = await submitRecordOperation(db, actor.identity, correction);
+  assert.equal(corrected.id, first.id); assert.equal(corrected.canConfirm, true);
+  assert.equal(corrected.rows[0].energy?.day?.totalKcal, "2200");
+  assert.equal((await readEnergySnapshot(db, actor.userId)).days[0].totalKcal, "1000.0000");
+  const repeat = await submitRecordOperation(db, actor.identity, correction); assert.equal(repeat.repeated, true); assert.equal(repeat.revision, corrected.revision);
+});
 const reject = (promise: Promise<unknown>, code: string) => assert.rejects(promise, error => error instanceof ApiError && error.code === code);
 async function savedMeal(withImage = false) {
   const actor = await owner(), imageId = randomUUID();

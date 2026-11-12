@@ -2,7 +2,7 @@
 const canonical = value => JSON.stringify(value, (_, item) => item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
 const payloadKey = (name, args) => { const copy = { ...args }; delete copy.operationId; return name + ':' + canonical(copy); };
 export function createAiToolSession(contract) {
-  const enabled = new Set(), receipts = new Map(); let pendingRecord = null;
+  const enabled = new Set(), receipts = new Map(), pendingMeals = []; let pendingRecord = null;
   const byName = new Map(contract.tools.map(tool => [tool.name, tool]));
   const loadTool = { type: 'function', function: { name: 'load_tools', description: '申请启用目录中的业务工具。只加载定义，不查询数据、不提交记录。下一轮才能使用新启用的工具。可一次申请多项，按当前任务需要选择。', parameters: { type: 'object', additionalProperties: false, required: ['names'], properties: { names: { type: 'array', minItems: 1, maxItems: contract.tools.length, uniqueItems: true, items: { type: 'string', enum: [...byName.keys()] } } } } } };
   const load = args => {
@@ -21,6 +21,17 @@ export function createAiToolSession(contract) {
     prepare(name, args) {
       const cached = receipts.get(payloadKey(name, args));
       if (cached) return { result: { ...cached, repeated: true }, coordination: '相同请求复用本题已有回执，未再次创建预览' };
+      if (name === 'preview_meal') {
+        const existing = pendingMeals.find(meal => meal.mealType === args.mealType && [meal.date, meal.inputDate].includes(args.date));
+        if (existing) {
+          load({ names: ['preview_meal_changes'] });
+          return { result: { error: 'existing_meal_preview_requires_correction', previewId: existing.id, revision: existing.revision, executed: false, loadedForNextRound: ['preview_meal_changes'], nextAction: 'correct_original_meal_preview', message: '本次请求的这顿餐已有待审草稿。补营养、改数量或备注请用preview_meal_changes携带previewId/revision，updateFoods按index只改对应字段；不要另建一份。若确实是独立的另一餐，先向用户澄清，不自动合并。' } };
+        }
+      }
+      if (name === 'preview_energy' && pendingRecord) {
+        load({ names: ['get_record_operation', 'submit_record_operation'] });
+        return { result: { error: 'existing_record_preview_requires_correction', previewId: pendingRecord.id, revision: pendingRecord.revision, executed: false, loadedForNextRound: ['get_record_operation', 'submit_record_operation'], nextAction: 'read_and_correct_original_record_preview', message: '本次请求已有统一待审草稿。请读取原批次的项目key，使用submit_record_operation的previewId/revision修正，不再创建另一份消耗预览。真正独立的另一项任务需先澄清。' } };
+      }
       if (name === 'submit_record_operation' && pendingRecord && !args.previewId) {
         const order = rows => [...rows].sort(([a], [b]) => a.localeCompare(b));
         const prior = order(pendingRecord.keys), next = Array.isArray(args.items) ? order(args.items.map(item => [item.key, item.kind])) : [];
@@ -34,7 +45,11 @@ export function createAiToolSession(contract) {
       // 一个草稿修正后，旧请求回执也必须指向当前版本，避免再次展示已失效内容。
       for (const [key, receipt] of receipts) if (receipt.id === result.id) receipts.set(key, result);
       if (['preview_meal', 'preview_energy', 'submit_record_operation', 'submit_meal_operation'].includes(name)) receipts.set(payloadKey(name, args), result);
-      if (name === 'submit_record_operation') pendingRecord = { id: result.id, revision: result.revision, keys: args.items.map(item => [item.key, item.kind]) };
+      if (name === 'preview_meal') {
+        const meal = result.rows?.find(row => row.meal)?.meal;
+        pendingMeals.push({ id: result.id, revision: result.revision, date: meal?.date ?? args.date, inputDate: args.date, mealType: args.mealType });
+      } else for (const meal of pendingMeals) if (meal.id === result.id) meal.revision = result.revision;
+      if (name === 'submit_record_operation' || name === 'preview_energy' && result.operationType === 'record') pendingRecord = { id: result.id, revision: result.revision, keys: name === 'submit_record_operation' ? args.items.map(item => [item.key, item.kind]) : (result.rows ?? []).map(row => [row.key, row.kind ?? row.action?.kind]) };
       else if (pendingRecord?.id === result.id) pendingRecord.revision = result.revision;
     },
   };

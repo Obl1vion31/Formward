@@ -279,7 +279,23 @@ async function correctPendingRecord(db: Database, identity: AiIdentity, input: R
     const current = await view(connection, row);
     if (row.status !== "pending" || current.expiresAt && Date.parse(current.expiresAt) <= Date.now()) throw new ApiError(409, "preview_expired", "草稿已结束或过期，不能原地修正。");
     if (row.revision !== input.revision) throw new ApiError(409, "review_changed", "草稿版本已变化，请重新读取后再修正。");
-    if (input.items.length !== row.draft.length || new Set(input.items.map(item => item.key)).size !== input.items.length || input.items.some(item => !row.draft.some(prior => prior.key === item.key && prior.action.kind === item.kind && !prior.persisted && ["id", "recordId"].every(field => (item as Record<string, unknown>)[field] === (prior.action as Record<string, unknown>)[field])))) throw new ApiError(400, "invalid_input", "修正须保持原项目key、业务类型和历史对象，不能添加、移除或替换其他项目；局部改餐也可用preview_meal_changes。");
+    function invalidCorrection(path: string, message: string): never { throw new ApiError(400, "invalid_input", path + "：" + message, { fields: [{ path, message }], previewId: row!.id, revision: row!.revision, tool: "submit_record_operation", nextAction: "correct_existing_preview_arguments" }); }
+    if (input.items.length !== row.draft.length || new Set(input.items.map(item => item.key)).size !== input.items.length) invalidCorrection("items", "请完整保留原批次的项目和唯一key，不添加或移除项目。");
+    for (const [index, item] of input.items.entries()) {
+      const prior = row.draft.find(prior => prior.key === item.key);
+      if (!prior || prior.action.kind !== item.kind || prior.persisted) invalidCorrection(`items.${index}.key`, "只能修正原批次尚未保存的同key、同业务类型项目。");
+      for (const field of ["id", "recordId"] as const) {
+        const originalId = (prior.action as Record<string, unknown>)[field], nextId = (item as Record<string, unknown>)[field];
+        if (originalId === nextId) continue;
+        // 日记录按账号＋日期、身体按账号＋日期＋时段定位；允许补齐遗漏的真实编号，不能换掉已明确的对象。
+        let fillingKnownTarget = false;
+        if (originalId === undefined && typeof nextId === "string") {
+          if (field === "id" && prior.action.kind === "save_energy_day" && item.kind === "save_energy_day" && prior.action.date === item.date) fillingKnownTarget = current.energySnapshot?.days.some(day => !day.deletedAt && day.date === item.date && day.id === nextId) ?? false;
+          if (field === "recordId" && prior.action.kind === "save_record" && item.kind === "save_record" && prior.action.date === item.date && prior.action.period === item.period) fillingKnownTarget = current.rows.find(row => row.key === item.key)?.body?.preview.rows.some(row => row.period === item.period && row.before?.id === nextId) ?? false;
+        }
+        if (!fillingKnownTarget) invalidCorrection(`items.${index}.${field}`, originalId === undefined ? "本项目原本是新增；预览生成的临时编号不是正式记录编号，请移除该编号及version。只有同账号、同日期的已有日记录或同日时段身体记录可补齐遗漏编号，请先查询核对。" : "必须保留原历史对象的编号；不能借修正换成另一条记录。");
+      }
+    }
     let latest = current;
     for (const { key, ...action } of input.items) latest = await reviewRecordOperation(connection, identity.userId, row.id, { kind: "update", revision: latest.revision, key, action: action as RecordAction }, undefined, { identity, operationId: input.operationId, digest: requestDigest, allowRecordUpdate: true });
     return { ...latest, repeated: false };
