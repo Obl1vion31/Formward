@@ -113,6 +113,8 @@ tests/            跨功能与端到端测试
 
 ## 查看首页
 
+内嵌聊天与提醒的研究入口见[小助手本地原型](prototypes/assistant-chat/README.md)，默认运行于`http://localhost:4177`。它与正式应用隔离，使用虚构数据，不接模型、不写正式记录；[视觉标准与边界](docs/design-reference.md#d15内嵌聊天与提醒的本地研究)和[实际验收](prototypes/assistant-chat/qa.md)分别维护。本轮只保留本地分支，不合入或发布。
+
 日常网页统一为 [https://43.142.148.58](https://43.142.148.58)，可用原账号登录。Vercel 原地址保留 GPT／MCP、OAuth 和海外图片后台，普通网页自动跳转国服；正式数据统一保存在上海 PostgreSQL。外部 AI 可通过 `/api/mcp` 和 OAuth 登录授权连接，或使用公开 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 和独立访问令牌。写入仍需网页登录确认；连接步骤见 [AI 接入](docs/ai-api.md)。MCP 与手机调整已发布，当前状态见 [项目交接](handoff.md)。平台配置、发布与验收方法见 [公网 HTTPS 部署](docs/deployment.md)。
 
 如果开发服务已经启动，在运行项目的同一台电脑上打开浏览器，访问 [http://localhost:3000](http://localhost:3000) 或 [http://127.0.0.1:3000](http://127.0.0.1:3000)。`next.config.ts` 已允许这两个本地地址加载开发资源。如果项目运行在远程工作区，在编辑器的「端口 / Ports」面板找到或转发 `3000` 端口，再打开面板给出的地址。`localhost` 指的是运行浏览器的电脑；远程工作区不能直接用自己电脑的 `localhost` 访问，除非已经做了端口转发。使用其他转发域名时，把它的主机名加入 `next.config.ts` 的 `allowedDevOrigins`，并重启开发服务，否则页面可能显示但客户端动画无法执行。

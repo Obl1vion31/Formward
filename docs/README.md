@@ -18,6 +18,7 @@
 - `interface.md`：本地实施页面及保留业务的内容、布局与交互。
 - `frame-calibration.md`：首页静态人物测量、离线拟合方式，以及视频首尾与静态端点的校准。
 - [design-reference.md](design-reference.md)：手机与桌面设计、首屏信息层级和每次界面验收必用的统一标准；保留产品设计参考。
+- [小助手本地原型验收](../prototypes/assistant-chat/qa.md)：内嵌聊天与提醒的虚构交互、浏览器证据和未测边界，与正式发布验收分开维护。
 - [visual-research.md](visual-research.md)：总览的视觉调研、官方依据及双层关联参考图；趋势与单日读数联动、配色和缺测处理原则。
 - `architecture.md`：轻量 Next.js 模块化单体边界。
 - `ai-api.md`：全部21项AI工具、共用中文字段解释、MCP／豆包／HTTP传递、授权与网页确认，以及正式说明导出和本地评测边界。
