@@ -82,13 +82,20 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
     if (!question || !initialAnswer) throw new ApiError(409,"message_unavailable","原消息已不可用，请重新读取当前对话。");
     text = input.action === "continue" ? initialAnswer.text : ""; steps = [...initialAnswer.steps]; references = [...initialAnswer.references];
     const prior = await db.select().from(assistantRun).where(and(eq(assistantRun.userId, userId), eq(assistantRun.userMessageId, activeRun.userMessageId))).orderBy(desc(assistantRun.createdAt)).limit(12);
-    for (const previous of prior.filter(row => row.id !== activeRun.id && row.tokenId)) {
-      try { await db.transaction(async tx => requireActiveAiToken(tx,{userId,tokenId:previous.tokenId!,permission:"write"})); results.push(...previous.toolResults); } catch { /* 失效授权的旧预览不可复活。 */ }
+    const checkedGrants = new Map<string,boolean>();
+    for (const previous of prior.filter(row => row.id !== activeRun.id)) for (const receipt of previous.toolResults) {
+      const tokenId = receipt.tokenId ?? previous.tokenId; if (!tokenId) continue;
+      if (!checkedGrants.has(tokenId)) {
+        try { await db.transaction(async tx => requireActiveAiToken(tx,{userId,tokenId,permission:"write"})); checkedGrants.set(tokenId,true); }
+        catch { checkedGrants.set(tokenId,false); }
+      }
+      if (checkedGrants.get(tokenId)) results.push({...receipt,tokenId});
     }
     const identity = await chatIdentity(db, userId, provider, true);
     runIdentity = identity;
     await db.update(assistantRun).set({ tokenId: identity.tokenId }).where(eq(assistantRun.id, activeRun.id));
     await guard(true); bridge = chatToolBridge(db, identity, request); const catalog = await chatToolCatalog(bridge);
+    for (const receipt of results) catalog.remember(receipt.name,receipt.args,receipt.result);
     const [current] = await db.select().from(assistantConversation).where(and(eq(assistantConversation.id, activeRun.conversationId), eq(assistantConversation.userId, userId)));
     const turns: StoredMessage[][] = [];
     for (const row of [...rows].reverse().filter(row => row.seq < question.seq && row.state !== "working")) {
@@ -138,7 +145,7 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
             if (!text.trim()) text = args.question; else if (!text.includes(args.question)) text += "\n" + args.question;
             result = { awaitingUser: true, message: "已显示补充任务，请等待用户回答。" };
           }
-        } else if (!catalog.loaded(name)) result = { error: "tool_not_loaded", message: "请先load_tools，并在下一轮使用正式参数。" };
+        } else if (!catalog.loaded(name)) result = catalog.missing(name);
         else {
           const definition = catalog.definitions.find(t => t.name === name)!, write = !definition.annotations?.readOnlyHint;
           const normalized = { ...args }; delete normalized.operationId;
@@ -146,16 +153,20 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
           const cached = write ? results.find(row => row.name === name && row.fingerprint === fingerprint && !row.result.error) : undefined;
           const step: ChatStep = { id: randomUUID(), name, title: definition.title ?? name, state: "running" }; steps = [...steps, step]; await save(true);
           const previousPreview = input.action !== "send" && write ? results.find(row => !row.result.error && typeof row.result.confirmationUrl === "string") : null;
+          const prepared = catalog.prepare(name,args);
           if (cached) result = cached.result;
           else if (previousPreview) result = { ...previousPreview.result, message:"本问题已有待确认预览，请沿用该预览，不重复提交。" };
+          else if (prepared.result) result = prepared.result;
           else {
-            if (write && "operationId" in args) args.operationId = "fwchat-" + digestChat({ userId, messageId: question.id, name, fingerprint }).slice(0, 48);
+            args = prepared.args!;
+            if (write && "operationId" in args) args.operationId = "fwchat-" + digestChat({ userId, tokenId:identity.tokenId, messageId: question.id, name, fingerprint }).slice(0, 48);
             const response = await bridge.rpc("tools/call", { name, arguments: args });
             result = response.structuredContent ?? { error: "tool_failed", message: response.content?.find((part: { type: string }) => part.type === "text")?.text ?? "工具未成功完成。" };
             if (response.isError && !result.error) result = { ...result, error: "tool_failed" };
-            results = [...results, { name, fingerprint, args: normalized, result }];
+            results = [...results, { name, fingerprint, args: normalized, result, tokenId:identity.tokenId }];
             await db.update(assistantRun).set({ toolResults: results }).where(and(eq(assistantRun.id, activeRun.id), eq(assistantRun.userId, userId)));
           }
+          catalog.remember(name,args,result);
           steps = steps.map(item => item.id === step.id ? { ...item, state: result.error ? "error" : "complete", summary: toolSummary(name,result) } : item);
           if (!result.error) { const ref = operationReference(name, result); if (ref && !references.some(existing => existing.href === ref.href)) references = [...references, ref]; }
         }

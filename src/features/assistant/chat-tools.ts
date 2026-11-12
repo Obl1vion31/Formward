@@ -5,6 +5,8 @@ import type { AiIdentity } from "../auth/ai-identity";
 import { ApiError } from "../auth/ai-identity";
 import { siteOrigin } from "../auth/site-url";
 import type { ModelTool } from "./chat-provider";
+import { createAiToolSession } from "../records/ai-tool-session.mjs";
+import purposes from "../records/ai-tool-catalog.json";
 const scopes = ["profile", "measurements:read", "measurements:write", "meals:read", "meals:write", "energy:read", "energy:write", "training:read", "training:write"];
 export function chatToolBridge(db: Database, identity: AiIdentity, request: Request) {
   const url = new URL("/api/mcp", siteOrigin(request)).href;
@@ -23,22 +25,20 @@ type ToolDefinition = { name: string; title?: string; description: string; input
 export async function chatToolCatalog(bridge: ReturnType<typeof chatToolBridge>) {
   const initialized = await bridge.rpc("initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "formward-embedded-assistant", version: "1" } });
   const listed = await bridge.rpc("tools/list", {});
-  if (!Array.isArray(listed.tools) || listed.tools.length !== 21) throw new ApiError(503, "tool_catalog", "业务能力暂时未能读取，请稍后重试。");
+  if (!Array.isArray(listed.tools) || listed.tools.length !== Object.keys(purposes).length || listed.tools.some((tool: {name:string}) => !(tool.name in purposes))) throw new ApiError(503, "tool_catalog", "业务能力暂时未能读取，请稍后重试。");
   const definitions = listed.tools as ToolDefinition[];
-  const enabled = new Set<string>();
+  const session = createAiToolSession({tools:definitions});
   const internal: ModelTool[] = [
-    { type: "function", function: { name: "load_tools", description: "按需启用业务工具。只加载定义，不查询数据或保存记录；完整定义在下一轮生效。", parameters: { type: "object", additionalProperties: false, required: ["names"], properties: { names: { type: "array", minItems: 1, maxItems: 21, uniqueItems: true, items: { type: "string", enum: definitions.map(t => t.name) } } } } } },
     { type: "function", function: { name: "request_followup", description: "只有当前任务确实缺少用户必须补充的信息时调用，声明具体问题和任务名称。不是普通寒暄或结束问候。调用后等待用户，不创建不完整预览。", parameters: { type: "object", additionalProperties: false, required: ["question", "subject"], properties: { question: { type: "string", minLength: 1, maxLength: 600 }, subject: { type: "string", minLength: 1, maxLength: 80 } } } } },
   ];
   return {
     instructions: String(initialized.instructions ?? ""), definitions,
-    directory: definitions.map(t => `${t.name}：${t.title ?? t.name}（${t.annotations?.readOnlyHint ? "查询" : "提交预览或处理私有附件，正式保存须网页确认"}）`).join("\n"),
-    tools: (): ModelTool[] => [...internal, ...definitions.filter(t => enabled.has(t.name)).map(t => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: t.inputSchema } }))],
-    loaded: (name: string) => enabled.has(name),
-    load(input: Record<string, unknown>) {
-      if (Object.keys(input).some(key => key !== "names") || !Array.isArray(input.names) || !input.names.length || input.names.length > 21 || input.names.some(name => typeof name !== "string" || !definitions.some(t => t.name === name))) return { error: "invalid_tool_selection", message: "请选择目录中的工具名称。" };
-      for (const name of input.names) enabled.add(String(name));
-      return { loaded: [...enabled], message: "完整定义已加入下一轮tools，本次没有查询或保存业务数据。" };
-    },
+    directory: definitions.map(t => `${t.name}：${purposes[t.name as keyof typeof purposes]}（${t.annotations?.readOnlyHint ? "查询" : "提交预览或处理私有附件，正式保存须网页确认"}）`).join("\n"),
+    tools: (): ModelTool[] => [...session.tools(),...internal] as ModelTool[],
+    loaded: (name: string) => session.names().includes(name),
+    load: (input:Record<string,unknown>) => session.load(input),
+    missing: (name:string) => session.missing(name),
+    prepare: (name:string,args:Record<string,unknown>) => session.prepare(name,args),
+    remember: (name:string,args:Record<string,unknown>,result:Record<string,unknown>) => session.remember(name,args,result),
   };
 }

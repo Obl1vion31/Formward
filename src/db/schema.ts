@@ -640,7 +640,7 @@ export const assistantMessage = pgTable("assistant_messages", {
   references: jsonb("references").$type<import("../features/assistant/chat-model").ChatReference[]>().notNull().default([]),
   error: text("error"), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => [foreignKey({ columns: [t.userId, t.conversationId], foreignColumns: [assistantConversation.userId, assistantConversation.id] }), uniqueIndex("assistant_messages_owner_id_idx").on(t.userId, t.id), uniqueIndex("assistant_messages_sequence_idx").on(t.conversationId, t.seq), index("assistant_messages_history_idx").on(t.userId, t.conversationId, t.seq), check("assistant_messages_valid", sql.raw("seq > 0 AND role IN ('user','assistant') AND (provider IS NULL OR provider IN ('qwen','mimo','glm')) AND state IN ('complete','working','stopped','truncated','error')"))]);
-export type AssistantToolResult = { name: string; fingerprint: string; args: Record<string, unknown>; result: Record<string, unknown> };
+export type AssistantToolResult = { name: string; fingerprint: string; args: Record<string, unknown>; result: Record<string, unknown>; tokenId?: string };
 export const assistantRun = pgTable("assistant_runs", {
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), conversationId: text("conversation_id").notNull(),
   userMessageId: text("user_message_id").notNull(), assistantMessageId: text("assistant_message_id").notNull(),
