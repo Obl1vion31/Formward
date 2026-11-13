@@ -2,6 +2,8 @@
 
 AI共用规则先确定本次实际食量，再估算营养。仅有食物名称时先追问，不自行设定常见克数或创建预览；克数、毫升、个数与份数已明确时不重复追问。食材规格和历史食量不代表本次食量，估算声明不等于用户接受。规则维护在ai-nutrition-guidance.json，MCP／HTTP直接引用，豆包Skill与Manifest由scripts/sync-ai-nutrition.mjs同步；不新增模型核验或改变保存流程。
 
+四项营养填写结构化数值，basis只说明依据；用户给出的个数与假设的中等规格分开。已有每份／每参考量营养时使用per_portion／per_reference交给既有服务器换算，不另写一套矛盾总量。预览的nutritionStatus明确哪些数值已知、哪些未知，0仍是已知；全未知可提示修正原草稿，但不擅自补数或禁止用户保留未知。
+
 餐次顶部营养摘要按完整的名称／数字／单位词组换行，至少12px；粘性保存条继承Inspector把手偏移，保持长表单操作可达。
 
 手机及卡片关联进入的电脑七日图使用mobile-nutrition-plot.tsx，与首页共用TrendGlyph；trend-preview.ts复用macroDistribution准备相同营养组成。关联图最大宽640px居中，其他桌面区间使用DesktopNutritionChart；设备分支与测量组件分开，切换宽度重新挂载并测量，不沿用空ref。进入链接对齐日期范围，不误开日期详情。记录从首页快捷入口、日期行或助手进入，克数／能量占比、已记全、食材库、全部历史与原图保留。

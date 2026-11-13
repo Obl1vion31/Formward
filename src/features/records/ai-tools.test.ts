@@ -40,6 +40,34 @@ async function owner(permission: "read" | "write" = "write") {
 const food = { name: "虚构午餐", quantity: "2", unit: "份", caloriesKcal: "600", proteinG: "0", sourceKind: "estimated", basis: "两份合计的虚构估算，油量未知。" };
 const lunch = (patch: Partial<MealPreviewInput> = {}): MealPreviewInput => ({ operationId: randomUUID(), date: "2024-08-01", timezone: "Asia/Shanghai", mealType: "午餐", foods: [food], ...patch });
 
+test("营养完整性提示不读取basis数字，不补零，不阻止合法未知，也经过混合回执保留", async () => {
+  const actor = await owner();
+  const unknownFood = { name:"虚构食物",quantity:"1",unit:"个",sourceKind:"unknown",basis:"这里只是文字参考：72kcal，不作为结构化营养。" };
+  const unknown = mealAiResponse(await previewMeal(db,actor.identity,lunch({foods:[unknownFood]})));
+  assert.equal(unknown.canConfirm,true);assert.equal(unknown.rows?.[0].meal?.nutritionStatus.state,"unknown");
+  assert.equal(unknown.rows?.[0].meal?.totals.values.caloriesKcal,null);
+  assert.ok(unknown.rows?.[0].warnings.some(w=>w.includes("basis说明文字没有作为营养数值保存")));
+  const zero = mealAiResponse(await previewMeal(db,actor.identity,lunch({foods:[{...unknownFood,caloriesKcal:"0",proteinG:"0",carbsG:"0",fatG:"0"}]})));
+  assert.equal(zero.rows?.[0].meal?.nutritionStatus.state,"complete");assert.equal(zero.rows?.[0].meal?.nutritionStatus.unknown.length,0);
+  const partial = mealAiResponse(await previewMeal(db,actor.identity,lunch({foods:[{...unknownFood,proteinG:"0"}]})));
+  assert.equal(partial.rows?.[0].meal?.nutritionStatus.state,"partial");assert.deepEqual(partial.rows?.[0].meal?.nutritionStatus.known,["proteinG"]);
+  const partialMeal = mealAiResponse(await previewMeal(db,actor.identity,lunch({foods:[{...unknownFood,name:"已知零值食物",caloriesKcal:"0",proteinG:"0",carbsG:"0",fatG:"0"},unknownFood]})));
+  assert.equal(partialMeal.rows?.[0].meal?.nutritionStatus.state,"partial");
+  assert.equal(partialMeal.rows?.[0].meal?.totals.values.caloriesKcal,"0.0000");
+  assert.equal(partialMeal.rows?.[0].meal?.totals.incomplete.caloriesKcal,true);
+  assert.equal(partialMeal.rows?.[0].meal?.nutritionStatus.known.length,4);
+  assert.equal(partialMeal.rows?.[0].meal?.nutritionStatus.unknown.length,0);
+  const session=createAiToolSession({tools:[]},{normalizeUnknownAmounts:true});
+  const normalized=session.prepare("preview_meal",{...lunch(),foods:[{name:"虚构未知项",quantity:"",unit:"",amountDecision:"unknown_accepted"}]}).args;
+  const normalizedPreview=mealAiResponse(await previewMeal(db,actor.identity,mealPreviewSchema.parse(normalized)));
+  assert.equal(normalizedPreview.canConfirm,true);assert.equal(normalizedPreview.rows?.[0].meal?.items[0].quantity,null);
+  assert.equal(normalizedPreview.rows?.[0].meal?.nutritionStatus.state,"unknown");
+  const mixed = recordAiResponse(await submitRecordOperation(db,actor.identity,{operationId:randomUUID(),items:[{...mealPreviewOperation(lunch({foods:[unknownFood]})).actions[0],key:"meal"}]}));
+  assert.equal(mixed.rows?.[0].meal?.meal?.nutritionStatus.state,"unknown");
+  assert.ok(withAiFieldDefinitions("submit_record_operation",mixed).fieldDefinitions["rows.*.meal.**.meal.nutritionStatus"]);
+  assert.equal((await readMealSnapshot(db,actor.userId)).meals.length,0);
+});
+
 test("营养总和、范围、负数及均值由整数汇总，缺记录不补零", () => {
   assert.deepEqual(decimalStatistics(["136", "99", "155", "155", "133", "93", "105"]), { count: 7, sum: "876.0000", mean: "125.1429", min: "93.0000", max: "155.0000" });
   assert.equal(decimalStatistics(["-287", "-79", "949", "775", "924", "-1109"]).sum, "1173.0000");

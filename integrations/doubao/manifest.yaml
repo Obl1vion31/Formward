@@ -59,11 +59,11 @@ tools:
     request_timeout: 120000
     output: { kind: execution_result }
   preview_meal:
-    description: "新增单餐待确认预览。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.addFoods，仅无匹配或明确另记一餐才新增。"
+    description: "新增单餐待确认预览。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.addFoods，仅无匹配或明确另记一餐才新增。 估算数值须填营养字段，不能只写basis；每参考量营养优先交服务器换算。"
     login_type: normal
     output: { kind: execution_result }
   preview_meal_changes:
-    description: "餐内局部修改，新增食物默认估算；保留其余内容。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.addFoods，仅无匹配或明确另记一餐才新增。"
+    description: "餐内局部修改，新增食物默认估算；保留其余内容。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.addFoods，仅无匹配或明确另记一餐才新增。 估算数值须填营养字段，不能只写basis；每参考量营养优先交服务器换算。"
     login_type: normal
     output: { kind: execution_result }
   preview_energy:
@@ -71,7 +71,7 @@ tools:
     login_type: normal
     output: { kind: execution_result }
   submit_meal_operation:
-    description: "食材维护或高级兼容预览。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.addFoods，仅无匹配或明确另记一餐才新增。"
+    description: "食材维护或高级兼容预览。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.addFoods，仅无匹配或明确另记一餐才新增。 估算数值须填营养字段，不能只写basis；每参考量营养优先交服务器换算。"
     login_type: normal
     output: { kind: execution_result }
   get_meal_operation:
@@ -87,7 +87,7 @@ tools:
     login_type: normal
     output: { kind: execution_result }
   submit_record_operation:
-    description: "多领域统一待确认预览，饮食部分遵循共用规则。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.addFoods，仅无匹配或明确另记一餐才新增。"
+    description: "多领域统一待确认预览，饮食部分遵循共用规则。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.addFoods，仅无匹配或明确另记一餐才新增。 估算数值须填营养字段，不能只写basis；每参考量营养优先交服务器换算。"
     login_type: normal
     output: { kind: execution_result }
   get_record_operation:

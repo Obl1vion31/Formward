@@ -1,5 +1,11 @@
 import type { MealOperationView } from "../meals/model";
 import type { RecordReviewView } from "./model";
+import { metrics, type Totals } from "../meals/model";
+
+function nutritionStatus({values,incomplete}: Totals) {
+  const known = metrics.filter(key => values[key] !== null), unknown = metrics.filter(key => values[key] === null);
+  return { state: known.length === 0 ? "unknown" : unknown.length || metrics.some(key => incomplete[key]) ? "partial" : "complete", known, unknown };
+}
 
 function state(status: string, expiresAt: string | null, needsInput: boolean, now: number) {
   if (status === "pending" && expiresAt && Date.parse(expiresAt) <= now) return "expired";
@@ -16,8 +22,10 @@ export function mealAiResponse(operation: MealOperationView & { repeated?: boole
     result: operation.result, needsUserInput: [...(operation.needsUserInput ?? []), ...operation.rows.flatMap((row, index) => row.error ? [{ index, questions: [row.error] }] : [])],
     ...(view === "summary" ? { rows: operation.rows.map((row, index) => ({
       index, kind: row.action.kind, excluded: row.excluded ?? false, error: row.error ?? null,
-      warnings: row.warnings, needsUserInput: row.needsUserInput ?? [],
-      ...(row.meal ? { meal: { id: row.meal.id, date: row.meal.date, mealType: row.meal.mealType, notes: row.meal.notes, imageIds: row.meal.imageIds, totals: row.meal.totals,
+      warnings: row.meal && metrics.every(key => row.meal!.totals.values[key] === null)
+        ? [...row.warnings, "四项营养数值均未知；basis说明文字没有作为营养数值保存。若原任务需要且有合理估算依据，请填写对应营养字段并修正本草稿；用户明确保留未知或无依据时可继续保留未知。"] : row.warnings,
+      needsUserInput: row.needsUserInput ?? [],
+      ...(row.meal ? { meal: { id: row.meal.id, date: row.meal.date, mealType: row.meal.mealType, notes: row.meal.notes, imageIds: row.meal.imageIds, totals: row.meal.totals, nutritionStatus: nutritionStatus(row.meal.totals),
         items: row.meal.items.map((item, index) => ({ index, id: item.id, name: item.name, kind: item.kind, quantity: item.quantity, unit: item.unit, nutrition: item.nutrition, nutritionBasis: item.nutritionBasis, sourceKind: item.sourceKind, basis: item.basis })) } } : {}),
       ...(row.food ? { food: row.food } : {}),
     })) } : {}),

@@ -15,25 +15,25 @@ export function chatToolBridge(db: Database, identity: AiIdentity, request: Requ
     async rpc(method: string, params: Record<string, unknown>) {
       const response = await handler.fetch(new Request(url, { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-11-25" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) }));
       const text = await response.text(), json = response.headers.get("content-type")?.includes("application/json") ? JSON.parse(text) : JSON.parse(text.split(/\r?\n/).filter(line => line.startsWith("data: ")).at(-1)!.slice(6));
-      if (json.error) return { isError: true, content: [{ type: "text", text: "工具参数未通过正式校验，请按定义修正。" }], structuredContent: { error: "invalid_tool_parameters", message: "工具参数未通过正式校验，请按定义修正。" } };
+      if (json.error) { const message = json.error.code === -32602 ? String(json.error.message).slice(0,2400) : "工具暂未成功，请核对已加载定义或稍后重试。"; const failure = {error:"invalid_tool_parameters",message,nextAction:"correct_arguments_using_loaded_definition",retryable:false}; return {isError:true,content:[{type:"text",text:JSON.stringify(failure)}],structuredContent:failure}; }
       return json.result;
     },
     close: () => handler.close(),
   };
 }
 type ToolDefinition = { name: string; title?: string; description: string; inputSchema: Record<string, unknown>; annotations?: { readOnlyHint?: boolean } };
-export async function chatToolCatalog(bridge: ReturnType<typeof chatToolBridge>) {
+export async function chatToolCatalog(bridge: ReturnType<typeof chatToolBridge>, operationIdFor?: (name:string,args:Record<string,unknown>) => string) {
   const initialized = await bridge.rpc("initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "formward-embedded-assistant", version: "1" } });
   const listed = await bridge.rpc("tools/list", {});
   if (!Array.isArray(listed.tools) || listed.tools.length !== Object.keys(purposes).length || listed.tools.some((tool: {name:string}) => !(tool.name in purposes))) throw new ApiError(503, "tool_catalog", "业务能力暂时未能读取，请稍后重试。");
   const definitions = listed.tools as ToolDefinition[];
-  const session = createAiToolSession({tools:definitions});
+  const session = createAiToolSession({tools:definitions}, {managedOperationIds:true,normalizeUnknownAmounts:true,operationIdFor});
   const internal: ModelTool[] = [
     { type: "function", function: { name: "request_followup", description: "只有当前任务确实缺少用户必须补充的信息时调用，声明具体问题和任务名称。不是普通寒暄或结束问候。调用后等待用户，不创建不完整预览。", parameters: { type: "object", additionalProperties: false, required: ["question", "subject"], properties: { question: { type: "string", minLength: 1, maxLength: 600 }, subject: { type: "string", minLength: 1, maxLength: 80 } } } } },
   ];
   return {
     instructions: String(initialized.instructions ?? ""), definitions,
-    directory: definitions.map(t => `${t.name}：${purposes[t.name as keyof typeof purposes]}（${t.annotations?.readOnlyHint ? "查询" : "提交预览或处理私有附件，正式保存须网页确认"}）`).join("\n"),
+    directory: definitions.map(t => `${t.name}：${t.title}（${t.annotations?.readOnlyHint ? "查询／连接" : "预览／附件"}）；${purposes[t.name as keyof typeof purposes]}`).join("\n"),
     tools: (): ModelTool[] => [...session.tools(),...internal] as ModelTool[],
     loaded: (name: string) => session.names().includes(name),
     load: (input:Record<string,unknown>) => session.load(input),

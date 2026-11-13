@@ -41,7 +41,10 @@
     "**.quantityEffect": "自由项总营养只改数量时，keep_total保持本次总量，scale_total明确按比例缩放；省略不等于任选。",
     "**.expectedImageCount": "用户原本提供或预期关联的图片数，不是已成功上传数。",
     "**.imageIds": "已保存且属于本人、用于关联当前餐次或食材的附件标识；关联到预览仍未正式保存餐次。",
-    "**.notes": "当前目标餐次的实际预览备注；省略修改保留，明确清空后为null，不表示正式保存。"
+    "**.notes": "当前目标餐次的实际预览备注；省略修改保留，明确清空后为null，不表示正式保存。",
+    "**.meal.nutritionStatus": "本餐四项结构化营养的完整性：complete四项有值且无缺项（含明确0），partial有未知或仅部分餐项已知，unknown全部未知；有合计不等于整餐记全，需同时核对totals.incomplete。与确认和正式保存独立，basis数字不计入营养字段。",
+    "**.meal.nutritionStatus.known": "已有数值的营养字段名；来自totals.values，但totals.incomplete为true时仅是已知部分合计，不能当完整本餐总量或再次乘份数。",
+    "**.meal.nutritionStatus.unknown": "totals.values仍为null的营养字段名；清单为空也可能存在部分合计，须核对totals.incomplete，不补0或静默读取basis数字。"
   },
   "images": {
     "status": "本次原图导入结果：complete全部成功，partial部分成功，failed全部失败；只表示附件，不表示餐次或食材已保存。",

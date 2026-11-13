@@ -40,6 +40,8 @@ description: 查询用户主动授权的 Formward 饮食、实测身体指标、
 
 - 所有结果仍是待网页确认的预览，完整给出confirmationUrl；只有查询确认逐项已保存后才能说已保存。默认估算不授权自动确认、不改变饮食记全，也不适用于身体实测或消耗估算。
 
+- 营养数值与说明分开：caloriesKcal/proteinG/carbsG/fatG填写结构化数值，basis仅存依据，不能只把数值写进basis。用户给出的实际个数与用于估营养的中等规格分开说明，不能把假设的大小或克重说成用户提供。已有每份或每100克等参考营养时，优先使用per_portion或per_reference及referenceQuantity由服务器换算，不能再在basis写另一套本次总量。实际以个数记录时可用每个的per_portion营养；不要为换算将1个擅改成用户称重的克数。
+
 <!-- END:shared-meal-nutrition -->
 
 ## 意图识别与工具选择

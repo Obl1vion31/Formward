@@ -20,13 +20,13 @@ export const simpleFoodSchema = z.object({
   foodVersion: z.number().int().positive().optional(),
   nutritionBasis: z.enum(["consumed_total", "per_portion", "per_reference"]).optional().describe("省略为本次总量；per_portion每份，per_reference每referenceQuantity同单位的营养"),
   referenceQuantity: decimal.optional().describe("如每100g填100；单位与实际食用量一致"),
-  caloriesKcal: z.string().optional().describe("本次热量kcal；可靠值优先，否则按记餐规则默认估算；明确不估或无合理依据时省略"),
+  caloriesKcal: z.string().optional().describe("热量kcal数值字段，不能只写进basis；consumed_total填本次总量，per_portion填每份，per_reference填参考量；后两者由服务器换算。明确不估或无依据可省略"),
   caloriesKj: decimal.optional().describe("仅包装提供kJ时使用；不能同时填caloriesKcal"),
-  proteinG: z.string().optional().describe("本次蛋白质g；通常与热量及其他宏量一起估算，可靠值及明确0保留，未知省略"),
-  carbsG: z.string().optional().describe("本次碳水g；通常与热量及其他宏量一起估算，可靠值及明确0保留，未知省略"),
-  fatG: z.string().optional().describe("本次脂肪g；通常与热量及其他宏量一起估算，可靠值及明确0保留，未知省略"),
+  proteinG: z.string().optional().describe("蛋白质g数值字段，按nutritionBasis填写本次／每份／参考量，与热量同口径；可靠值及明确0保留，未知省略；不能只写basis"),
+  carbsG: z.string().optional().describe("碳水g数值字段，按nutritionBasis填写本次／每份／参考量，与热量同口径；可靠值及明确0保留，未知省略；不能只写basis"),
+  fatG: z.string().optional().describe("脂肪g数值字段，按nutritionBasis填写本次／每份／参考量，与热量同口径；可靠值及明确0保留，未知省略；不能只写basis"),
   sourceKind: z.string().optional().describe("label/composition_table/reference/estimated/unknown；来源未知可用unknown，不编造依据"),
-  basis: z.string().trim().max(4000).optional().describe("估算须说明实际食量、参考规格或组成与不确定性；区分用户给定值和估算项"),
+  basis: z.string().trim().max(4000).optional().describe("仅存依据，不能代替营养数值字段；分清用户实际提供的食量与假设的参考规格，不能把中等大小或估算克重说成用户提供；每份／参考量由服务器换算，不再另算一套总量"),
   evidenceUrl: z.string().url().max(2000).optional(),
   amountDecision: z.enum(["provided", "estimate_accepted", "unknown_accepted"]).optional().describe("只表达食量决策；默认估算营养不等于已接受食量估算，后者须用户明确同意"),
 }).strict();
@@ -40,8 +40,8 @@ export const aiFoodSchema = z.union([
   libraryFood.extend({ quantity: decimal, unit: text(30), amountDecision: z.enum(["provided", "estimate_accepted"]).optional() }),
   freeFood.extend({ quantity: decimal, unit: text(30), amountDecision: z.enum(["provided", "estimate_accepted"]).optional() }),
   libraryFood.omit({ quantity: true }).extend({ unit: text(30), amountDecision: z.literal("unknown_accepted") }),
-  freeFood.omit({ quantity: true }).extend({ amountDecision: z.literal("unknown_accepted"), nutritionBasis: z.literal("consumed_total").optional() }),
-]).describe("二选一：引用食材库（foodId＋foodVersion＋实际食量＋单位，不传营养或来源）；自由填写（实际食量＋单位，可给营养及估算依据）。仅用户明确接受食量未知，才使用unknown_accepted并省略quantity。");
+  freeFood.omit({ quantity: true }).extend({ amountDecision: z.literal("unknown_accepted"), nutritionBasis: z.literal("consumed_total").optional() }).describe("自由食物也允许用户明确保留食量未知：name及amountDecision=unknown_accepted即可；省略quantity，单位和营养未知也省略，不传null或空字符串。不是只有库食材才可留空。"),
+]).describe("二选一：引用食材库（foodId＋foodVersion＋实际食量＋单位，不传营养或来源）；自由填写（实际食量＋单位，可给营养及估算依据）。库食材和自由食物都支持用户明确接受食量未知：unknown_accepted并省略quantity，不写null或空字符串，不要求补猜数量。");
 export const mealPreviewSchema = z.object({
   operationId: aiOperationId, date: aiDate, mealType: text(50).describe("按用户指定名称填写；中午写午餐，不能自行换成lunch或snack；修改已有餐保留原餐次"),
   foods: z.array(aiFoodSchema).min(1).max(50),

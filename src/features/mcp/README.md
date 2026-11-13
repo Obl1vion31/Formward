@@ -1,6 +1,6 @@
 # MCP
 
-server.ts 为每次请求创建无状态SDK server，兼容当前及2025协议。服务版本1.18.2，共21个工具；账号来自验证后的OAuth令牌，写入只创建预览，没有确认保存工具。网页、HTTP与MCP调用同一feature，不在适配层重写业务规则。
+server.ts 为每次请求创建无状态SDK server，兼容当前及2025协议。服务版本1.18.3，共21个工具；账号来自验证后的OAuth令牌，写入只创建预览，没有确认保存工具。网页、HTTP与MCP调用同一feature，不在适配层重写业务规则。
 
 authorize_formward检查并申请身体、饮食／食材、消耗、训练四类查询与提交预览权限，只返回连接状态，不读取健康内容或创建预览。OAuth同意仍由用户完成；只读连接补查询权限时只申请读取。旧连接不因刷新定义或授权请求自动扩权。
 
@@ -26,4 +26,4 @@ queryOptions与日期分页位于records/ai-query.ts，各业务feature执行有
 
 MCP 1.17.1的21项工具都在成功结果返回fieldDefinitions，并在工具输出格式与说明中声明。正文JSON和structuredContent保持一致；豆包result_json保留该字典。公共解读规则与各业务字段字典同源。contract-export.ts通过内存SDK发现导出真实工具定义和说明，不执行工具、不读取数据库；供scripts/export-ai-contracts.mts生成私有评测快照。
 
-1.18.2补充服务端统计、明确记餐结构、同草稿修正与可执行错误说明。工具仍21项，既有权限不变；query_energy的includeMeals=true额外要求饮食查询授权。成功投影保留备注与累计标识。按需目录由contract-export离线导出；外部平台的实际加载策略仍由平台决定。
+AI出口提供服务端统计、记餐参数结构、同草稿修正与可执行错误说明；营养数值与basis分开，未知食量的自由项也可省略数量，营养完整性区分部分合计。工具仍21项，既有权限不变；query_energy的includeMeals=true额外要求饮食查询授权。成功投影保留备注与累计标识。按需目录由contract-export离线导出；外部平台的实际加载策略仍由平台决定。

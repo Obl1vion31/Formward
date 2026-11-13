@@ -37,6 +37,8 @@ GPT、HTTP与豆包共用`src/features/meals/ai-nutrition-guidance.json`。新�
 
 数值使用十进制字符串，未知字段省略，明确零填"0"。来源sourceKind与数值是否已知分开：已知数值而来源不明可保留unknown；不能编造标签或估算依据。estimated必须说明basis，标签／成分表沿用依据校验。
 
+caloriesKcal、proteinG、carbsG、fatG是实际参与预览与计算的字段；basis只说明依据，写在basis里的数字不会自动成为营养数值。用户提供的实际个数不能改写成用户报告了假设规格的克重。每份／每参考量交给既有换算逻辑计算，避免在文字里另算矛盾总量。预览meal.nutritionStatus返回complete／partial／unknown及known、unknown字段清单；明确0仍已知，全未知提示修正原草稿，不强制估算或改变canConfirm。
+
 | 用户提供的事实 | 食物输入 | 服务器处理 |
 | --- | --- | --- |
 | 吃两份，两份合计600kcal | quantity="2"，caloriesKcal="600"，省略nutritionBasis | 直接采用600，不再乘2 |
@@ -109,6 +111,10 @@ query_meals只返回已保存餐次；day.status表示全天是否记全，不�
 ## 重试、错误和保存
 
 - 新请求生成operationId；同一请求重试保持全部原参数，包括today／yesterday。服务器固定首次解释日期，跨零点不会换日。内容变化使用新标识。
+
+以上是外部MCP／HTTP约定。受控站内会话对模型隐藏operationId，服务器按当前用户消息、授权和业务参数生成；相同内容重试复用，修改内容生成新编号并沿用原草稿定位。不会替模型改日期、对象、食量或权限。站内与隔离评测共享records/ai-prompt.mjs生成器，渠道附加说明与业务规则分开；长短提示词的模型表现仍须实测，离线通过不代表回答质量通过。
+
+受控站内会话只对标为unknown_accepted的新自由餐项规范空quantity／unit为省略，不增加数量、不清空历史字段，不取代用户原话核验。外部MCP／HTTP仍须按定义省略未知数量，不能传null或空字符串。历史餐次已有待审预览后，同任务跨工具全量重建同一目标会被拦截，返回原previewId/revision及确认链接；正确内容复用原预览，继续修改仍须原授权及最新版本。
 - 修改请求也独立幂等；重复添加食物的同一请求不会再添加一次，也不再次增加审核版本。
 - invalid_input／needs_input修正参数或问用户；版本、快照或审核变化先重读；过期重新预览；授权失败重新连接。request_conflict不能换标识盲目重放旧操作。
 - 可重试的服务故障继续沿用原标识与内容。工具参数在平台派发前即解析失败时，服务器无法修正它，需核对实际调用和schema。
