@@ -2,7 +2,7 @@
 
 ## 手机记录优先与紧凑助手
 
-本轮沿用2026-11-14 03:46的4d10237a应用基线与最新main，复用隔离Safari上传修复；保留MCP1.18.3、千问original／小米compact／智谱original及10组上下文，不新增接口字段、迁移或scope。实施与最终包检查记录见design-qa.md及assistant-chat-verification.md，截图及原始过程保持私有。689项单元／集成、lint、typecheck与production build通过；最终运行包及公网核对按部署记录更新。
+本轮沿用2026-11-14 03:46的4d10237a应用基线与最新main，复用隔离Safari上传修复；保留MCP1.18.3、千问original／小米compact／智谱original及10组上下文，不新增接口字段、迁移或scope。实施与最终包检查记录见design-qa.md及assistant-chat-verification.md，截图及原始过程保持私有。689项单元／集成、lint、typecheck与production build通过；最终兼容包及公网已通过；源码d4bd9657、BUILD_ID 3knID6SjzsomOGnfkV8gc，发布和回退细节见部署文档。
 
 ## 记餐食量规则
 

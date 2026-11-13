@@ -1,12 +1,14 @@
 # 手机记录优先与小助手视觉验收
 
+当前结果：通过。正式源码d4bd9657，BUILD_ID 3knID6SjzsomOGnfkV8gc；2026-11-14 06:05:42发布，三个入口同版本。真实iPhone等未测边界保留在下文。最终兼容包Chromium63张专项、WebKit51张聊天扩展及12组趋势慢加载通过。
+
 正常字号下，390×844／390×667的记录主动作完整可见，饮食与消耗首条记录起点293px，身体257px；饮食首个食物输入距面板225px，共用面板头64px。助手头64px、消息区约640px，占820px面板约78%。浮动向下按钮44px命中、36px外观，显隐不占消息行；百分比位于发送左侧，只提示重置时间。桌面完整图表与漂浮导航保持。
 
-实际截图、尺寸JSON及过程录像位于本机私有`C:/Users/14878/.codex/visualizations/2026/11/11/01a1cb4e-f688-7e00-82e5-c39be8e68155/mobile-record-priority`。`final-webkit`与`focus-check`为最终布局检查，`runtime`及`final-candidate`保留早期发现；不能以旧200%截图代表已修正结果。原页面证据在同级`mobile-chrome-audit-20261114`。Chrome实际浏览器复查截图为`final-meals-live-browser.png`、`final-meal-editor-live-browser.png`、`final-chat-live-browser.png`，使用隔离虚构账号。
+实际截图、尺寸JSON及过程录像位于本机私有`C:/Users/14878/.codex/visualizations/2026/11/11/01a1cb4e-f688-7e00-82e5-c39be8e68155/mobile-record-priority`。`release`为最终兼容包Chromium专项，`final-webkit`为同源码WebKit专项，`focus-check`保留焦点修正检查，`runtime`及`final-candidate`保留早期发现；不能以旧200%截图代表已修正结果。原页面证据在同级`mobile-chrome-audit-20261114`。Chrome实际浏览器复查截图为`final-meals-live-browser.png`、`final-meal-editor-live-browser.png`、`final-chat-live-browser.png`，使用隔离虚构账号。
 
 两端覆盖320／390／430、矮屏、触屏横屏、1100／1440、双主题及200%文字。独立看图发现的日期重叠、添加按钮裁切、保存条遮挡聚焦字段已修正：日期餐次整组退为单列，按钮整项换行，输入随字号增高，滚动上下留白采用实测标题及保存条高度。标题空白拖动、44px展开／关闭、草稿取消、记录／趋势返回、身体保存、消耗断网重试和聊天引用／照片／补充／模型菜单由实际页面验证；模型回复和对象存储使用回放，不调用收费API。
 
-加载逐帧证据在候选工作区私有`.codex/mobile-layout`。五页30组WebKit慢加载及20组Chromium正常加载通过，相关三页12组Chromium慢加载通过，稳定锚点最大0.328125px；静态文字、语义色与操作槽首帧可见。早期占位基线及320px首帧退列失败保留，已改为首帧CSS决定常规列数，不等待水合后再退列。异常读取、重试、迟到响应、账号切换及健康表摘要核对另存流程报告。
+加载逐帧证据在原入口私有`.codex/mobile-record-priority`。五页30组WebKit慢加载及20组Chromium正常加载通过，相关三页12组Chromium慢加载通过，稳定锚点最大0.328125px；静态文字、语义色与操作槽首帧可见。早期占位基线及320px首帧退列失败保留，已改为首帧CSS决定常规列数，不等待水合后再退列。异常读取、重试、迟到响应、账号切换及健康表摘要核对另存流程报告。
 
 真实iPhone Safari相册、软键盘、系统字号、屏幕阅读器和物理设备性能未测；WebKit及root字号200%不代替这些项目。旧entry-interactions脚本停在既已变更的助手文案及旧查看转编辑路径，本轮使用当前入口的隔离专项验证，不恢复旧交互来迎合旧测试。Safari字节生命周期兼容修复已纳入，但用户当次失败缺少HTTP／错误码，不能声称已确定其物理设备的唯一原因。
 
@@ -54,3 +56,5 @@ final result: passed
 最终standalone页面：Chromium／WebKit各71张截图；未接入、多连接、只读、部分授权、历史、未知来源、筛选、审核跳转／返回、复制反馈、键盘、双端撤销取消／失败重试及实际撤销鉴权、手动令牌一次性原文均通过。320／390／1440px正常／220ms查询延迟均保留五个结构锚点与两个AI名称，最大偏移0px，数据接管保留面板／焦点。正常动画160ms，减少动态效果即时交接。83文件648项单元／集成测试、lint、typecheck、结构检查、production build通过。
 
 真实手机、系统软键盘、屏幕阅读器、系统文字设置、真实ChatGPT／豆包客户端重连、正式账号登录后界面未测；不把模拟引擎与等效文字放大记为真机。公网仅核对版本、资源、协议及保护行为。当前没有已知待修正P0／P1／P2。连续模拟导航时WebKit曾记录未完成预加载被取消的错误，原日志保留；过程截图和锚点测量完成后等待网络稳定再进入下一场景，最终两引擎页面错误及500响应均为0。
+
+公网截图`public-meal-editor.png`和`public-chat-arrow.png`保存在上述Windows私有目录：实测录入偏移224.8px、头部64px，聊天消息区78.1%，箭头44×44px、居中偏差0，按钮底部与输入上沿间隔12px；返回后隐藏，百分比提示只有重置时间。原47个表单操作／密钥及517项静态资源保留，11张正式健康表摘要不变。

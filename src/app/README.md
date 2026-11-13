@@ -20,7 +20,7 @@
 - `layout.tsx` 挂载全站加载管理；保存、认证和页面导航超过 200ms 显示虚化背景与居中提示，真实完成或失败后收起。路由加载与业务操作共用组件，既有首页最终动画保持独立。
 - `dashboard/layout.tsx` 在页面流之前检查当前身份，未登录正常重定向。身体记录与 AI 设置页在身份校验后以 Suspense 覆盖数据等待；审核页先校验 operation 归属，保持不存在或跨账号的 404，导航等待由 LoadingLink 跟踪。页面仍逐次校验当前身份，不能只依赖会被复用的 layout。
 - `dashboard/actions.ts` 对四项保存与逐项估算验证当前会话，再调用 measurements feature，返回最新账号快照。
-- `dashboard/page.tsx` 验证当前会话后调用 measurements feature 查询自己的测量；有记录时显示最新空腹与 7 日摘要、正常纵轴的晨晚折线及明确标记的估计补全、7D／30D／90D／全部／自定义、最近记录和历史抽屉，没有记录时提供今日四项录入、空行和空趋势。业务校验、日期规则和专用界面位于 `src/features/measurements`，页面不直接写 SQL 或计算晨晚差。
+- `dashboard/page.tsx` 验证当前会话与首次使用状态，读取本人的饮食、身体实测及消耗快照，传给dashboard feature的overviewPresentation和OverviewView。身体只展示实测、缺测留空，不补估计；业务校验、计算和展示分别由对应feature维护，页面不直接写SQL或计算晨晚差。
 - `home-intro-backdrop.tsx` 显示单行同级的 Discipline / NUTRITION、Drive / BUILD YOURSELF、Effortless / AI LOGGING。视觉首尾场景用于 reduced motion 的静态交叠，辅助技术只读取一份文案。手机使用底部三列与细轴；键盘入口获焦时位于文字上方。加载及失败时隐藏，登录与认证保留终点，成功后的最终过渡退出。
 - `home-orbit.ts` 以人物进度计算 150° 倾斜椭圆投影、节点、引线、轻微缩放及明暗。标注文字在节点水平线下方 12px，引线与文字边缘间隔 12px；左右对齐及引线方向连续插值。ResizeObserver 与字体就绪后缓存完整标注尺寸，正常模式直接更新 DOM，不另开动画时钟或逐帧读取布局；文字始终面向读者。
 - `hero-font.ts` 通过 `next/font/local` 提供 Newsreader 正体 400 和 IBM Plex Mono 400。主词使用 Newsreader、自动光学尺寸、0.035em 字距与 1.2 行高；桌面字号为 `clamp(20px, 1.68vw, 26px)`，手机为 14px。微标签及滚动提示使用 IBM Plex Mono，Logo 与产品 UI 沿用系统 sans serif。资源和许可证在 `public/fonts/`。
@@ -49,3 +49,5 @@ onboarding/提供首次资料→教程与owner演练，dashboard/profile/为本�
 根布局在首绘前恢复本设备的深浅色选择，挂载仅供已登录页面使用的版本提醒。api/app-version只返回当前构建版本、不缓存；不加入/api/v1健康接口或MCP权限。
 
 电脑人物舞台固定于视口，首页专用scrollbar-gutter保留宽度；加载滚动锁不再改变sticky祖先造成上跳。155vh方向触发、手机相对舞台及登录动画保持。
+
+业务录入共用样式使用1rem、相对行高与随字号增高的最小高度，正常16px／44px，200%时不被固定像素覆盖。手机记录默认摘要与完整趋势由feature及共享RecordWorkspace呈现；入口不另算营养、实测或消耗。

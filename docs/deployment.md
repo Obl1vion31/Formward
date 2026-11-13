@@ -1,5 +1,15 @@
 # 公网 HTTPS 部署
 
+## 当前手机记录优先发布
+
+北京时间2026-11-14 06:05:42，上海主服务切换至`mobile-record-priority-20261114`；源码`d4bd9657abff6ac839a5ffcde9c001b44e39d6ad`，版本`dual-entry-d4bd9657-mobile-record-priority-20261114`，BUILD_ID `3knID6SjzsomOGnfkV8gc`。main已合入推送，三个公网入口直接核对同版本；没有重新发布国际网关或修改域名。MCP1.18.3、21工具及12项HTTP说明保持，schema仍0037，prompt为original／compact／original，上下文仍10组。
+
+使用当前线上编译路径及加密密钥在私有mount namespace构建，未恢复已清理的旧worktree。原47项Server Action全部保留；新包复用2438文件、更新112文件，激活前保留517项旧静态资源，运行配置字节、root0600及指定owner开放范围不变。既有24小时内异地回读备份通过，仅切应用，不执行迁移或健康写入。发布前后11张正式健康表摘要一致。
+
+永久兼容运行包约70.8MB，SHA-256 `f621d4840e4c145890dd5e00f8d82ed6894d10804fdbf5116b71b9d11bcb6022`，位于原入口私有`.codex/backups/regional-releases/mobile-record-priority-20261114`。构建、发布、逐帧、截图与未测项保存在`.codex/mobile-record-priority`及设计验收所列Windows私有目录；不进入public。即时回退目录`ai-prompts-final-20261114`继续保留，只切应用及必要试用开关，不删除聊天、费用、授权或健康数据。
+
+最终兼容包Chromium63张专项、WebKit51张聊天扩展及12组趋势加载通过，完整矩阵及真机未测范围见design-qa.md、assistant-chat-verification.md。公网已检查手机录入、助手恢复、箭头居中／44px／不占行及重置提示；没有调用收费模型或向正式健康记录写入虚构内容。真实iPhone Safari相册及键盘仍待复测。
+
 ## 正式运行包归档与旧部署清理
 
 GitHub 保存源码历史，本机永久保存每次正式发布的运行包；Vercel 保留最近三个成功 Production 版本、最近三个部署，以及域名绑定、当前目标、回滚目标和本机最近观察到的两个正式版本。实际保留数量可能超过三个。旧预览地址随部署删除失效；应用包不等于真实数据或密钥备份。
