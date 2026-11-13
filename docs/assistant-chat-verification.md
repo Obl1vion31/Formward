@@ -25,7 +25,7 @@
 | 静态与构建 | 相关文件ESLint、TypeScript及production build通过，构建使用虚构数据库和认证配置。 |
 | 正式配置只读核对与存储探测 | 当前服务、签名函数与配置存在；此前使用正式配置签发虚构小图，服务器、独立Chromium／WebKit直传均204，诊断对象均已删除。不调用模型或写入正式健康记录。 |
 
-源码、复现脚本和结果分别保留在分支及忽略目录`.codex/file-lifetime`、原入口`.codex/upload-diagnosis`。此对照证明该不可读File路径及内存快照规避有效，不能单凭它认定真实手机的具体触发条件。[WebKit同类文件发送回归记录](https://bugs.webkit.org/show_bug.cgi?id=319985)提供调查与规避依据；其中服务工作线程、IndexedDB等具体条件并未在本项目确认，不以问题编号冒充真机因果证明。
+源码保留在Git，复现脚本及结果归入原入口私有`.codex/mobile-record-priority/file-lifetime`，早期诊断仍在`.codex/upload-diagnosis`。此对照证明该不可读File路径及内存快照规避有效，不能单凭它认定真实手机的具体触发条件。[WebKit同类文件发送回归记录](https://bugs.webkit.org/show_bug.cgi?id=319985)提供调查与规避依据；其中服务工作线程、IndexedDB等具体条件并未在本项目确认，不以问题编号冒充真机因果证明。
 
 尚未取得用户当次Safari失败的状态／错误码；真实手机相册与键盘复测尚未完成；浏览器模拟及应用发布结果分别记录，不将模拟认定为真机通过。没有改变prompt、业务工具、聊天上下文、数据库、模型计费或用户已有数据；根目录并行任务的未提交修改保持。
 
