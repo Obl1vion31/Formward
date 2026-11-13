@@ -41,7 +41,8 @@
     "test:training-browser": "node --import tsx tests/training.browser.mts",
     "test:regional-concurrency": "node --import tsx tests/regional.concurrent.mts",
     "test:regional-browser": "node --import tsx tests/regional.browser.mts",
-    "release:regional": "node --import tsx scripts/self-hosting/build-regional-release.mts"
+    "release:regional": "node --import tsx scripts/self-hosting/build-regional-release.mts",
+    "test:mobile-records-browser": "FORMWARD_MOBILE_RECORDS=1 node --import tsx tests/chat-pilot.browser.mts"
   },
   "dependencies": {
     "@better-auth/cimd": "1.7.7",

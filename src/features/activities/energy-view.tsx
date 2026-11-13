@@ -1,10 +1,11 @@
 "use client";
+import {LoadingLink} from "@/components/loading-link";
 import {EnergyLegend} from '@/components/chart-legend';
 import {EnergySourceStatus} from "../data-sources/energy-status";
 import type {ConnectionView} from "../data-sources/model";
 import recordUI from '@/components/record-ui.module.css';
 import {confirmAction} from "@/components/confirmation-state";
-import {RecordWorkspace,RecordTrendPanel,CustomRecordRange} from "@/components/record-trend-panel";
+import {RecordWorkspace,RecordTrendPanel,MobileRecordSummary,CustomRecordRange} from "@/components/record-trend-panel";
 import {useDraftGuard} from "@/components/draft-guard";
 import {energyVersions,verifyRecordVersions,acknowledgeRecordChanges,RecordVersionError} from "@/components/record-change-client";
 import {energySaveExpectations,applyEnergyVersions,energyDateMoveIssue,EnergySaveError} from "./energy-save-state";
@@ -141,10 +142,11 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
   </div>
  </Disclosure>;
 })}</div>;};
-  return <RecordWorkspace title="消耗" className={styles.workspace} data-shared-route={initialTrend?true:undefined}>
+  const recordDate=initialDate??today,recordDay=byDate.get(recordDate),hasRecord=!!recordDay?.record||!!recordDay?.activities.length;
+  return <RecordWorkspace title="消耗" className={styles.workspace} data-shared-route={initialTrend?true:undefined} mobilePrimary={!initialTrend?<MobileRecordSummary date={recordDate} title="当天消耗" metrics={[{label:recordDay?.cumulative?"今日已消耗":"总消耗",value:energyValue(recordDay?.totalKcal),unit:"kcal"},{label:"静息",value:energyValue(recordDay?.restingKcal),unit:"kcal",tone:"blue"},{label:"活动",value:energyValue(recordDay?.activeKcal),unit:"kcal",tone:"red"}]} primary={<button type="button" onClick={()=>editDay(recordDate)}>{hasRecord?"编辑消耗":"录入消耗"}</button>} actions={<><button type="button" onClick={()=>setViewing(recordDate)}>查看记录 →</button><LoadingLink href={`/dashboard/energy?view=trend&date=${recordDate}&from=${addCalendarDays(recordDate,-6)}&to=${recordDate}`}>完整趋势 →</LoadingLink></>}/>:undefined}>
 
     {error && !editing && <p className={styles.error} role="alert">{error}</p>}{notice && <p className={styles.notice} role="status">{notice}</p>}
-    <section aria-label="消耗历史趋势" data-chart-selection={selection.regionId} data-selected-date={selection.selected} data-selection-origin={selection.origin} {...selection.regionProps}>
+    <section data-record-trend aria-label="消耗历史趋势" data-chart-selection={selection.regionId} data-selected-date={selection.selected} data-selection-origin={selection.origin} {...selection.regionProps}>
       <RecordTrendPanel presentation="energy" graphic={<EnergyComposition resting={chosen?.record?.adoption?.mode==="source"&&chosen.record.adoption.metadata?.compositionKnown===false?null:chosen?.restingKcal} active={chosen?.activeKcal}/>}
        range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="消耗" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
@@ -159,8 +161,8 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
        legend={<EnergyLegend/>}
       >{dates.length?mobile||linkedPlot||dates.length<=31?<MobileEnergyPlot days={chartDays} selected={inspected} selection={selection} compact={dates.length<=31} linked={linkedPlot}/>:<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     </section>
-    {data.sourcePilot&&<EnergySourceStatus initial={sourceStatus} steps={chosen?.steps??null} protectedDay={chosen?.record?.adoption?.mode==="manual"}/>}
     <DailyRecords history={<RecordHistory today={today} dates={historyDates.filter(date=>!recentDates.includes(date))} renderRow={renderDay} view={setViewing}/>}>{recentDates.map(renderDay)}</DailyRecords>
+    {data.sourcePilot&&<EnergySourceStatus initial={sourceStatus} steps={(!initialTrend&&mobile?recordDay:chosen)?.steps??null} protectedDay={(!initialTrend&&mobile?recordDay:chosen)?.record?.adoption?.mode==="manual"}/>}
     {(viewing||editing)&&<EditorDialog closeLabel={editing?'关闭编辑':'关闭详情'} routeEntry={!!(initialEntry&&editing?.kind==='save_energy_day'&&editing.date===initialDate)} title={editing?editing.kind==='save_energy_profile'?'公式资料':editing.kind==='save_activity'?'活动记录':'每日消耗':viewing+' · 消耗记录'} titleParts={!editing&&viewing?[viewing,'消耗记录']:undefined} stableScroll={!editing} busy={busy} onSavedCloseReady={close=>{savedClose.current=close;}} close={()=>{setViewing(null);setEditing(null);setError('');}}>
       <div data-record-intent={editing?editing.id?'edit':'create':'view'}>
         {editing?<>

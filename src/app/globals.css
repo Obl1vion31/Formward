@@ -929,13 +929,13 @@ input:focus-visible {
 
 /* 录入共用控件：组件功能决定外观，业务页不得退回透明文字输入。 */
 .dashboard-page form[data-entry-form] :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea) {
-  min-width:0;max-width:100%;min-height:44px;border:1px solid var(--control-border);border-radius:6px;
-  background:var(--surface-raised);color:var(--warm-white);font-size:16px;line-height:22px;
+  min-width:0;max-width:100%;min-height:max(44px,calc(1.375em + 22px));border:1px solid var(--control-border);border-radius:6px;
+  background:var(--surface-raised);color:var(--warm-white);font-size:1rem;line-height:1.375;
   padding:10px 12px;color-scheme:var(--color-scheme);
 }
 .dashboard-page form[data-entry-form] :is(input,select,textarea):hover:not(:disabled):not([readonly]) {border-color:var(--gold)}
 .dashboard-page form[data-entry-form] :is(input,select,textarea,button):focus-visible {outline:2px solid var(--gold);outline-offset:2px}
-.dashboard-page form[data-entry-form] :is(input,select,textarea)::placeholder {color:var(--muted);font-size:16px;letter-spacing:normal}
+.dashboard-page form[data-entry-form] :is(input,select,textarea)::placeholder {color:var(--muted);font-size:inherit;letter-spacing:normal}
 .dashboard-page form[data-entry-form] :is(input,select,textarea)[aria-invalid=true] {border-color:var(--data-red)}
 .dashboard-page form[data-entry-form] :is(input,select,textarea)[readonly] {background:var(--surface);border-style:dashed;color:var(--muted)}
 .dashboard-page form[data-entry-form] :is(input,select,textarea):disabled {opacity:.65;cursor:not-allowed}
@@ -1047,3 +1047,5 @@ dialog[data-surface-phase=closing]::backdrop{background-color:transparent}
 dialog::backdrop{transition:background-color 210ms cubic-bezier(.2,.8,.2,1)}
 @starting-style{dialog[data-assistant-surface]::backdrop{background-color:transparent}}
 @media(prefers-reduced-motion:reduce){dialog::backdrop{transition:none}}
+
+.pending-entry-fields.pending-meal-fields{display:block;padding-top:0}

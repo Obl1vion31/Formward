@@ -3,7 +3,8 @@ import {useDraftGuard} from "@/components/draft-guard";
 import type {RecordIntent} from "@/components/record-intent";
 import {useRepeatedRecordTask} from '@/components/record-intent-client';
 import {measurementVersions} from "@/components/record-change-client";
-import {RecordWorkspace,RecordTrendPanel,CustomRecordRange,type RecordMetric} from "@/components/record-trend-panel";
+import {RecordWorkspace,RecordTrendPanel,MobileRecordSummary,CustomRecordRange,type RecordMetric} from "@/components/record-trend-panel";
+import {LoadingLink} from "@/components/loading-link";
 import {formatRecordNumber} from "@/components/number-format";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
@@ -126,9 +127,10 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
     return <DailyRecordRow key={date} date={date} today={today} value={<div className={styles.dailyReadings}>{(["daytime","evening"] as const).map(period=><span key={period}><span className={styles.periodLabel}>{period==="daytime"?"晨间":"晚间"}</span>{metrics.map((metric,index)=>{const day=days[index],row=period==="daytime"?day.daytimeRecord:day.eveningRecord;return <TableReading key={metric} row={row} metric={metric} pendingLabel={day[period].length>1?"待选择":null} onInspect={record=>inspectRecord(record,metric)} onInspectCandidates={()=>inspectDay(date,period,metric)}/>;})}</span>)}</div>}><DayActions date={date} today={today} records={records} onView={()=>inspectDay(date)} onEntry={editing=>setDrawer({kind:"entry",date,editing})}/></DailyRecordRow>;
   }
 
-  return <BodyFatContext value={preference.showBodyFat}><RecordWorkspace title="身体" headingId="body-records-title" className={styles.workspace} aria-labelledby="body-records-title" data-shared-route={initialTrend?true:undefined}>
+  const recordDate=initialDate??today,recordDay=recordDate?buildMeasurementDays(displayedRecords,choices,"weightKg",[recordDate])[0]:null,recordAction=recordDate?measurementDayAction(records,recordDate,today):"录入";
+  return <BodyFatContext value={preference.showBodyFat}><RecordWorkspace title="身体" headingId="body-records-title" className={styles.workspace} aria-labelledby="body-records-title" data-shared-route={initialTrend?true:undefined} mobilePrimary={!initialTrend?<MobileRecordSummary date={recordDate} title="当天身体记录" loading={!recordDate} metrics={[{label:"晨间体重",value:recordDay&&recordDay.daytime.length>1&&!recordDay.daytimeRecord?"待选择":formatRecordNumber(recordDay?.daytimeRecord?.weightKg??null),unit:"kg"},{label:"晚间体重",value:recordDay&&recordDay.evening.length>1&&!recordDay.eveningRecord?"待选择":formatRecordNumber(recordDay?.eveningRecord?.weightKg??null),unit:"kg"}]} primary={<button type="button" disabled={!recordDate} onClick={()=>setDrawer({kind:"entry",date:recordDate,editing:recordAction==="编辑"})}>{recordAction}实测</button>} actions={<><button type="button" disabled={!recordDate} onClick={()=>inspectDay(recordDate)}>查看记录 →</button><button type="button" onClick={()=>window.dispatchEvent(new Event("formward-open-body-settings"))}>身体设置</button>{recordDate?<LoadingLink href={`/dashboard/measurements?view=trend&date=${recordDate}&from=${addCalendarDays(recordDate,-6)}&to=${recordDate}`}>完整趋势 →</LoadingLink>:<button type="button" disabled>完整趋势 →</button>}</>}/>:undefined}>
 
-    <section data-chart-selection={selection.regionId} data-selected-date={activeDate} data-selection-origin={selection.origin} {...selection.regionProps} aria-label="身体指标趋势" data-range={mode} style={{visibility:mobileMode===null||!today?"hidden":undefined}}>
+    <section data-record-trend data-chart-selection={selection.regionId} data-selected-date={activeDate} data-selection-origin={selection.origin} {...selection.regionProps} aria-label="身体指标趋势" data-range={mode} style={{visibility:mobileMode===null||!today?"hidden":undefined}}>
       <RecordTrendPanel presentation="body"
        range={<ChartRanges value={mode} items={[...ranges.map(item=>[item.value,item.label]),["custom","自定义"]]} change={value=>{if(value==="custom"){setDraftRange(range);setCalendarOpen(true);}else selectRange(value as MeasurementRange);}}/>}
        custom={calendarOpen&&<CustomRecordRange label="身体" value={{from:draftRange.start,to:draftRange.end}} change={next=>setDraftRange({start:next.from,end:next.to})} apply={()=>{setCustomRange(draftRange);selectRange("custom",draftRange);}} cancel={()=>setCalendarOpen(false)}/>}
@@ -141,7 +143,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
       ><div data-chart-metric={activeMetric}><BodyTrendPlot linked={!!initialTrend&&range.start===initialTrend.from&&range.end===initialTrend.to} records={visibleRecords} metric={activeMetric} showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
       </RecordTrendPanel>
     </section>
-    <DailyRecords history={<RecordHistory today={today} dates={(catalog.start&&catalog.end?measurementCalendarPage(catalog,calendarOrdinal(catalog.end)-calendarOrdinal(catalog.start)+1):[]).filter(date=>!recent.some(day=>day.date===date))} renderRow={renderDay} view={inspectDay}/>}>{recent.map(day=>renderDay(day.date))}</DailyRecords>
+    <DailyRecords kind="body" loading={!today} history={<RecordHistory today={today} dates={(catalog.start&&catalog.end?measurementCalendarPage(catalog,calendarOrdinal(catalog.end)-calendarOrdinal(catalog.start)+1):[]).filter(date=>!recent.some(day=>day.date===date))} renderRow={renderDay} view={inspectDay}/>}>{recent.map(day=>renderDay(day.date))}</DailyRecords>
     {drawer && <MeasurementInspector routeEntry={!!initialPeriod&&drawer.kind==="entry"&&drawer.date===initialDate} view={drawer} records={records} sources={sources} timezone={timezone} actions={sourceActions} onUpdated={updated} choices={choices} onChoose={chooseRecord} onClose={() => setDrawer(null)} />}
   </RecordWorkspace></BodyFatContext>;
 }

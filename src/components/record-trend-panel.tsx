@@ -1,12 +1,22 @@
 "use client";
-import {useEffect,useRef,useState,type ReactNode,type ComponentPropsWithoutRef,type CSSProperties} from "react";
+import {useEffect,useLayoutEffect,useRef,useState,type ReactNode,type ComponentPropsWithoutRef,type CSSProperties} from "react";
 import {useMobileMode} from "./use-mobile-mode";
 import {SkeletonBlock} from './skeleton-block';
 import {SelectedDateHeading} from "./daily-records";
 import styles from "./record-trend-panel.module.css";
 export type RecordMetric={id?:string;label:string;value:string;unit:string;tone?:"blue"|"red"|"gold";note?:string;reserveNote?:boolean;inlineUnit?:boolean;select?:()=>void;selected?:boolean;graphic?:ReactNode;action?:ReactNode};
-export function RecordWorkspace({title,headingId,className="",children,...props}:ComponentPropsWithoutRef<"section">&{title:string;headingId?:string}){
- return <section {...props} className={styles.workspace+" "+className} data-record-workspace><header className={styles.pageHeading}><h1 id={headingId}>{title}</h1></header>{children}</section>;
+export function RecordWorkspace({title,headingId,className="",children,mobilePrimary,...props}:ComponentPropsWithoutRef<"section">&{title:string;headingId?:string;mobilePrimary?:ReactNode}){
+ return <section {...props} className={styles.workspace+" "+className} data-record-workspace data-mobile-records={mobilePrimary?true:undefined}><header className={styles.pageHeading}><h1 id={headingId}>{title}</h1></header>{mobilePrimary&&<div className={styles.mobilePrimary}>{mobilePrimary}</div>}{children}</section>;
+}
+export function MobileRecordSummary({date,title,metrics,primary,actions,status,loading=false}:{date:string;title:string;metrics:RecordMetric[];primary:ReactNode;actions:ReactNode;status?:ReactNode;loading?:boolean}){
+ const group=useRef<HTMLDivElement>(null),[columns,setColumns]=useState<number|null>(null),signature=JSON.stringify(metrics.map(metric=>[metric.label,metric.value,metric.unit]));
+ // 列数先由字号和稳定槽宽决定，后备与真实读数共用；仅异常长值需要额外退列。
+ useLayoutEffect(()=>{const node=group.current;if(!node)return;const measure=()=>{if(!node.clientWidth)return;const gap=parseFloat(getComputedStyle(node).columnGap)||0,font=parseFloat(getComputedStyle(document.documentElement).fontSize),width=Math.max(9.5*font,...[...node.children].filter((_,index)=>metrics.length!==3||index!==0).map(item=>{const label=item.querySelector('span'),value=item.querySelector('strong');return(label?.scrollWidth??0)+(value?.scrollWidth??0)+8;}));setColumns(node.clientWidth>=width*2+gap?null:1);};measure();const observer=new ResizeObserver(measure);observer.observe(node);document.fonts.ready.then(measure);return()=>observer.disconnect();},[signature,metrics.length,loading]);
+ return <section className={styles.mobileSummary} data-record-mobile-summary aria-label={title} aria-busy={loading||undefined}>
+  <div className={styles.mobileDate} data-record-slot="mobile-date"><span>{date?<time dateTime={date}>{date.replaceAll("-",".")}</time>:<span aria-label="正在读取记录日期"><SkeletonBlock width={96} height={20}/></span>}</span><div>{primary}</div></div>
+  <div ref={group} className={styles.mobileMetrics} data-record-slot="mobile-metrics" data-count={metrics.length} style={columns===1?{gridTemplateColumns:"minmax(0,1fr)"}:undefined}>{metrics.map((metric,index)=><div key={metric.id??index} className={styles.mobileMetric}><span data-tone={metric.tone}>{metric.label}</span><strong className={metric.tone?styles[metric.tone]:undefined}>{loading?<SkeletonBlock width={index===0?64:48} height={24}/>:<>{metric.value}<small>{metric.unit}</small></>}</strong>{metric.note&&<small>{metric.note}</small>}</div>)}</div>
+  <div className={styles.mobileActions} data-record-slot="mobile-actions">{status&&<span className={styles.mobileStatus}>{status}</span>}<div>{actions}</div></div>
+ </section>;
 }
 export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,options,legend,children,readoutLabel="选中日读数",metricVariants=[],labelVariants=[],noteVariants=[],flags,flagVariants=[],statistics,supplementary,statusInDate=false,presentation,graphic,loading=false,chartSummary}:{
  chartSummary?:ReactNode;presentation?:"nutrition"|"energy"|"body";graphic?:ReactNode;loading?:boolean;range:ReactNode;custom?:ReactNode;date:string;view:()=>void;metrics:RecordMetric[];title:string;unit?:string;options?:ReactNode;legend:ReactNode;children:ReactNode;readoutLabel?:string;metricVariants?:string[][];labelVariants?:string[][];noteVariants?:string[][];flags?:string;flagVariants?:string[];statistics?:ReactNode;supplementary?:ReactNode;statusInDate?:boolean;

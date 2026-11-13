@@ -3,7 +3,8 @@ import {displayRecordDate} from "./record-dates";
 import bodyStyles from "@/features/measurements/measurements-view.module.css";
 import {useContext,useEffect,useRef,useState} from 'react';
 import {useSearchParams,useRouter} from 'next/navigation';
-import {RecordWorkspace,RecordTrendPanel,InlineChartControls} from './record-trend-panel';
+import {RecordWorkspace,RecordTrendPanel,MobileRecordSummary,InlineChartControls} from './record-trend-panel';
+import {useLocalToday} from './use-local-today';
 import {useChartTransition} from './chart-transition-state';
 import {ChartRanges} from './chart-ranges';
 import {TrendGlyph} from './trend-glyph';
@@ -32,10 +33,14 @@ export function WorkspaceSkeleton({kind}:{kind:'overview'|'nutrition'|'energy'|'
  useEffect(()=>{const timer=setTimeout(()=>setSlow(true),8000);return()=>clearTimeout(timer);},[]);
  const body=kind==='body',title={overview:'总览',nutrition:'饮食',energy:'消耗',body:'身体'}[kind];
  const labels=kind==='nutrition'?['热量','蛋白质','碳水','脂肪']:body?['晨间体重','','7日平均体重']:['总消耗','静息','活动'];
- const range=params.get('view')==='trend'?'custom':mobile?'7':'30',date=kind==='overview'?'':linkedDate(params.get('date'))??'';
+ const localToday=useLocalToday('');
+ const range=params.get('view')==='trend'?'custom':mobile?'7':'30',date=kind==='overview'?'':linkedDate(params.get('date'))??localToday;
+ const mobileLabels=kind==='nutrition'?['热量','蛋白质','碳水','脂肪']:body?['晨间体重','晚间体重']:['总消耗','静息','活动'];
+ const mobilePrimary=!linked?<MobileRecordSummary date={date} title={body?'当天身体记录':kind==='nutrition'?'当天饮食':'当天消耗'} loading metrics={mobileLabels.map((label,index)=>({label,value:'',unit:body?'kg':kind==='nutrition'&&index>0?'g':'kcal',tone:kind==='nutrition'&&index===0||kind==='energy'&&index===1?'blue':kind==='energy'&&index===2?'red':undefined}))} primary={<button type="button" disabled>{body?'录入实测':kind==='nutrition'?'记录一餐':'录入消耗'}</button>} status={kind==='nutrition'?<SkeletonBlock width="3em" height={18}/>:undefined} actions={<>{body&&<button type="button" disabled>查看记录 →</button>}<button type="button" disabled>{body?'身体设置':'查看记录 →'}</button><button type="button" disabled>完整趋势 →</button></>}/>:undefined;
  const svgHeight=kind==='energy'&&measuredHeight>0?measuredHeight:kind==='nutrition'?(adaptive?top+plotWidth/2+32:194):kind==='energy'?(adaptive?top+plotWidth/2+32:width<650?198:254):shared?top+plotWidth/2+32:mobile?180:252;
  return <div className="workspace-skeleton" aria-busy="true" aria-label={title+'数据加载中'}>
- {kind==='overview'?<OverviewSkeleton date={date}/>:<RecordWorkspace title={title}>
+ {kind==='overview'?<OverviewSkeleton date={date}/>:<RecordWorkspace title={title} mobilePrimary={mobilePrimary}>
+ <div data-record-trend>
  <RecordTrendPanel chartSummary={body?<SkeletonBlock width={180} height={14}/>:undefined} date={date} view={()=>{}} presentation={kind} loading
   metrics={labels.map((label,index)=>({label,value:'',tone:kind==='energy'?index===1?'blue':index===2?'red':undefined:kind==='nutrition'&&index===0?'blue':undefined,action:body&&index===0?<button type="button" onClick={()=>window.dispatchEvent(new Event('formward-open-body-settings'))}>身体设置</button>:undefined,reserveNote:kind==='nutrition'&&index>0,inlineUnit:body||kind==='nutrition'&&index>0,unit:body?index===1?'':'kg':kind==='nutrition'&&index>0?'g':'kcal'}))}
   title={kind==='nutrition'?'每日摄入':body?'体重 · kg':'每日消耗'} unit={body?undefined:'kcal'} range={<ChartRanges value={range} change={()=>{}} loading/>}
@@ -47,9 +52,9 @@ export function WorkspaceSkeleton({kind}:{kind:'overview'|'nutrition'|'energy'|'
   {!model&&<g className="skeleton-chart-geometry" fill="var(--line-soft)" data-chart-placeholder>{kind==='body'?<rect x={left+8} y={top+(svgHeight-top-32)/2} width={plotWidth-16} height={9} rx={4.5}/>:Array.from({length:7},(_,i)=><rect key={i} x={left+plotWidth/7*(i+.24)} y={top+24} width={plotWidth/7*.52} height={Math.max(30,svgHeight-top-70)} rx={4}/>)}{[0,1,2,3].map(i=><rect key={i} x={left+(plotWidth-26)*i/3} y={svgHeight-16} width={26} height={7} rx={3}/>)}</g>}
   {model&&<TrendGlyph model={model} skeleton target={measured>0} x={left} y={top} width={plotWidth} height={plotWidth/2}/>}</svg>
  </SkeletonPlotFrame>{body&&<output className={measurementStyles.plotHint} aria-hidden="true"> </output>}
- </RecordTrendPanel>
+ </RecordTrendPanel></div>
+ <DailyRecords loading kind={body?"body":undefined} actions={kind==='nutrition'?<button type="button" disabled>食材库</button>:undefined}/>
  {kind==='energy'&&sourcePilot&&<EnergySourceStatusSkeleton/>}
- <DailyRecords loading actions={kind==='nutrition'?<button type="button" disabled>食材库</button>:undefined}/>
  </RecordWorkspace>}
  {slow&&<div className="skeleton-retry" role="status">读取时间较长。<button onClick={()=>kind==='overview'&&returningToOverview?router.push('/dashboard',{scroll:false}):router.refresh()}>重试</button><button onClick={()=>router.push('/dashboard')}>返回总览</button></div>}
  </div>;

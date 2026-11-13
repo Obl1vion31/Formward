@@ -42,5 +42,6 @@ export function DayNutritionSummary({totals,partial=false}:{totals:Totals|null|u
   <NutritionComposition totals={totals}/>
   <div ref={numbers} className={styles.numbers} data-nutrition-columns={columns}>{metrics.map(metric=><div key={metric}><span className={styles.metricLabel}><span data-summary-measure>{metric==="caloriesKcal"?"当天合计":metricLabels[metric]}{totals?.incomplete[metric]&&totals.values[metric]!=null&&<small> · 已知部分</small>}</span></span><strong><span data-summary-measure>{formatNutrition(totals?.values[metric]??null,metric)}<small>{metric==="caloriesKcal"?"kcal":"g"}</small></span></strong></div>)}</div>
   <div className={styles.shares}>{state.kind!=="known"&&<p className={styles.caption}>{state.kind==="zero"?"零供能":"营养未齐"}</p>}<CompositionLegend totals={totals}/></div>
+  <details className={styles.mobileDetails}><summary>营养详情{state.kind==="zero"?" · 零供能":state.kind!=="known"?" · 营养未齐":""}</summary><div><NutritionComposition totals={totals}/><CompositionLegend totals={totals}/></div></details>
  </div>;
 }

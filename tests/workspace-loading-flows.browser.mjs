@@ -22,7 +22,7 @@ export async function checkLoadingFlows({config,folder,createContext,control,sho
   try{
    await context.addInitScript(()=>{window.__localFrames=[];const created=new WeakMap();const tick=()=>{for(const node of document.querySelectorAll('[data-local-loading]')){if(!created.has(node))created.set(node,performance.now());if(node.closest('dialog')||node.closest('.account-reading-page')||node.dataset.visible)window.__localFrames.push({time:performance.now(),created:created.get(node),visible:!!node.dataset.visible,label:node.textContent,dialog:!!node.closest('dialog')});}requestAnimationFrame(tick);};requestAnimationFrame(tick);});
    await control(0);await page.goto(config.baseURL+'/dashboard/training');await page.waitForLoadState('networkidle');
-   for(const[name,ready]of [['个人资料',()=>page.getByRole('button',{name:'修改资料',exact:true}).waitFor()],['账号与安全',()=>page.getByLabel('当前密码',{exact:true}).waitFor()],['设备与数据来源',()=>page.getByRole('button',{name:'连接并同步',exact:true}).waitFor()]]){
+   for(const[name,ready]of [['个人资料',()=>page.getByRole('button',{name:'修改资料',exact:true}).waitFor()],['账号与安全',()=>page.getByLabel('当前密码',{exact:true}).waitFor()],['设备与数据来源',()=>page.locator('summary').filter({hasText:'输入个人密钥'}).waitFor()]]){
     transport='slow';await openAccount(name);await page.locator('[data-local-loading][data-visible]').first().waitFor();
     assert.equal(await page.locator('.account-sheet-skeleton').count(),0);assert.equal(await page.locator('.page-loading-dialog[open],.workspace-loading').count(),0);
     await shot(page,prefix+'-'+name+'-reading');await ready();await page.waitForLoadState('networkidle');await page.waitForTimeout(550);await shot(page,prefix+'-'+name+'-ready');
@@ -53,9 +53,9 @@ export async function checkLoadingFlows({config,folder,createContext,control,sho
     await control(0);await page.goto(config.baseURL+'/dashboard/training');await page.waitForLoadState('networkidle');
     negative=true;assert.equal((await fetch(config.fixtureControlURL+'/meals-failure',{method:'POST',body:JSON.stringify({broken:true})})).status,200);
     await page.goto(config.baseURL+'/dashboard/meals',{waitUntil:'commit'});await page.getByRole('alert').getByText('暂时无法读取页面，已保存的记录保持。请重试。',{exact:true}).waitFor();await shot(page,prefix+'-main-read-failure');
-    assert.equal((await fetch(config.fixtureControlURL+'/meals-failure',{method:'POST',body:JSON.stringify({broken:false})})).status,200);await page.getByRole('button',{name:'重新读取',exact:true}).click();await page.getByRole('heading',{name:'最近记录',exact:true}).waitFor();await page.waitForLoadState('networkidle');negative=false;checks.push('真实数据库读取失败、导航保留及局部重试');
+    assert.equal((await fetch(config.fixtureControlURL+'/meals-failure',{method:'POST',body:JSON.stringify({broken:false})})).status,200);await page.getByRole('button',{name:'重新读取',exact:true}).click();await page.getByRole('heading',{name:'最近记录',exact:true}).waitFor();await page.locator('[data-record-mobile-summary]:not([aria-busy])').waitFor();await page.waitForTimeout(550);negative=false;checks.push('真实数据库读取失败、导航保留及局部重试');
     negative=true;await fetch(config.fixtureControlURL+'/meals-failure',{method:'POST',body:JSON.stringify({broken:true})});await page.goto(config.baseURL+'/dashboard/meals?entry=1&date='+config.today,{waitUntil:'commit'});await page.getByRole('dialog').getByText('暂时无法读取已保存的值，请重试。',{exact:true}).waitFor();await fetch(config.fixtureControlURL+'/meals-failure',{method:'POST',body:JSON.stringify({broken:false})});
-    let retries=0;const count=request=>{const url=new URL(request.url());if(request.method()==='GET'&&request.headers().rsc==='1'&&url.pathname==='/dashboard/meals'&&url.searchParams.get('entry')==='1')retries++;};page.on('request',count);await page.getByRole('dialog').getByRole('button',{name:'重新读取',exact:true}).click();await page.locator('form[data-entry-form="meal"]').waitFor();await page.waitForLoadState('networkidle');page.off('request',count);assert.equal(retries,1,'录入失败重试只允许一次重新读取');await page.getByRole('dialog').getByRole('button',{name:/^关闭/}).first().click();await page.getByRole('dialog').waitFor({state:'detached'});negative=false;checks.push('快捷录入失败后一次重试恢复，不重复请求');
+    let retries=0;const count=request=>{const url=new URL(request.url());if(request.method()==='GET'&&request.headers().rsc==='1'&&url.pathname==='/dashboard/meals'&&url.searchParams.get('entry')==='1')retries++;};page.on('request',count);await page.getByRole('dialog').getByRole('button',{name:'重新读取',exact:true}).click();await page.locator('form[data-entry-form="meal"] input[aria-label="自由填写食物名称"]').waitFor();await page.waitForTimeout(550);page.off('request',count);assert.equal(retries,1,'录入失败重试只允许一次重新读取');await page.getByRole('dialog').getByRole('button',{name:/^关闭/}).first().click();await page.getByRole('dialog').waitFor({state:'detached'});negative=false;checks.push('快捷录入失败后一次重试恢复，不重复请求');
    }
    await page.waitForTimeout(550);
   }catch(error){
@@ -66,9 +66,9 @@ export async function checkLoadingFlows({config,folder,createContext,control,sho
  }
  const isolated=await createContext([390,640],'dark','reduce',true),other=await isolated.newPage();
  try{
-  await other.goto(config.baseURL+'/dashboard/measurements');await other.waitForLoadState('networkidle');assert.ok((await other.locator('[data-metric-number]').allTextContents()).some(text=>text.includes('70.14')));
+  await other.goto(config.baseURL+'/dashboard/measurements');await other.waitForLoadState('networkidle');assert.ok((await other.locator('[data-record-mobile-summary] strong').allTextContents()).some(text=>text.includes('70.14')));
   assert.equal((await isolated.request.post(config.baseURL+'/api/auth/sign-in/email',{headers:{Origin:config.baseURL},data:{email:config.empty.email,password:config.empty.password}})).status(),200);
-  await other.reload();await other.waitForLoadState('networkidle');assert.ok((await other.locator('[data-metric-number]').allTextContents()).every(text=>!text.includes('70.14')));
+  await other.reload();await other.waitForLoadState('networkidle');assert.ok((await other.locator('[data-record-mobile-summary] strong').allTextContents()).every(text=>!text.includes('70.14')));
   await other.goto(config.baseURL+'/dashboard/sources');await other.getByRole('heading',{name:'暂未开放',exact:true}).waitFor();checks.push('切换账号清除原健康显示与试运行入口权限');
  }finally{await isolated.close();}
  const after=await(await fetch(config.fixtureControlURL+'/health-digest')).json();assert.deepEqual(after,before,'查看、加载、关闭和重试不得写入健康事实');assert.deepEqual(errors,[]);

@@ -2,7 +2,7 @@
 import {NutritionLegend} from '@/components/chart-legend';
 import {numericDraftValue} from "@/components/form-draft";
 import recordUI from "@/components/record-ui.module.css";
-import {RecordWorkspace,RecordTrendPanel,InlineChartControls,CustomRecordRange} from "@/components/record-trend-panel";
+import {RecordWorkspace,RecordTrendPanel,MobileRecordSummary,InlineChartControls,CustomRecordRange} from "@/components/record-trend-panel";
 import {confirmAction} from "@/components/confirmation-state";
 import {DecimalInput} from "@/components/decimal-input";
 import {mealVersions,verifyRecordVersions,acknowledgeRecordChanges} from "@/components/record-change-client";
@@ -123,10 +123,11 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
     try{const result=await purge({...target,operationId:request.current.id});if(!result.ok){setError(result.error);return false;}acknowledgeRecordChanges([target.recordType+":"+target.id,...(target.recordType==="meal"?["mealDay:"+state.meals.find(m=>m.id===target.id)?.date]:[])], [...mealVersions(result.data.snapshot),...(target.recordType==="meal"?[{key:"mealDay:"+state.meals.find(m=>m.id===target.id)?.date,version:String((state.meals.find(m=>m.id===target.id)?.day?.version??0)+1)}]:[])]);setLocal(result.data.snapshot);setNotice(result.data.message);setViewingFood(current=>current?.id===target.id?null:current);request.current=null;return true;}catch{setError("删除未完成，请重试。");return false;}finally{busyRef.current=false;setBusy(false);}
   }
   const visibleFoods=state.foods.filter(f=>!f.deletedAt&&(foodCategory==="all"||(f.category??"ingredient")===foodCategory)&&`${f.name} ${f.brand??""} ${f.preparation??""}`.toLowerCase().includes(foodQuery.toLowerCase()));
-  return <RecordWorkspace title={tab==="foods"?"食材库":"饮食"} className={styles.workspace} data-active-tab={tab} data-shared-route={initialTrend?true:undefined}>
+  const recordDate=initialDate??today,recordDay=groups.find(group=>group.date===recordDate);
+  return <RecordWorkspace title={tab==="foods"?"食材库":"饮食"} className={styles.workspace} data-active-tab={tab} data-shared-route={initialTrend?true:undefined} mobilePrimary={!initialTrend&&tab==="meals"?<MobileRecordSummary date={recordDate} title="当天饮食" metrics={metrics.map(metric=>({label:metricLabels[metric],value:formatNutrition(recordDay?.totals.values[metric]??null,metric),unit:unitFor(metric),tone:metric==="caloriesKcal"?"blue":undefined}))} primary={<button type="button" onClick={()=>addMeal(recordDate)}>记录一餐</button>} status={recordDay?<><MealDayStatus day={recordDay.day}/>{metrics.some(metric=>recordDay.totals.incomplete[metric]&&recordDay.totals.values[metric]!==null)&&<span> · 已知部分</span>}</>:"尚无饮食记录"} actions={<><button type="button" onClick={()=>viewDay(recordDate)}>查看记录 →</button><LoadingLink href={`/dashboard/meals?view=trend&date=${recordDate}&from=${dateAt(dateNumber(recordDate)-6)}&to=${recordDate}`}>完整趋势 →</LoadingLink></>}/>:undefined}>
     {tab==="meals"?<>
 
-      <div data-chart-selection={chart.regionId} data-selected-date={chart.selected} data-selection-origin={chart.origin} {...chart.regionProps}>
+      <div data-record-trend data-chart-selection={chart.regionId} data-selected-date={chart.selected} data-selection-origin={chart.origin} {...chart.regionProps}>
       <RecordTrendPanel presentation="nutrition" graphic={<NutritionComposition totals={chosen?.totals}/>}
        range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft({from:customFrom||from,to:customTo});setCustomOpen(true);}else{setRange(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="饮食" value={customDraft} change={setCustomDraft} apply={()=>{setCustomFrom(customDraft.from);setCustomTo(customDraft.to);setRange("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
@@ -139,8 +140,8 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
       >{validRange?<NutritionChart dates={dates} groups={groups} mode={macroMode} selection={chart} compact={dates.length<=31} linked={!!initialTrend&&from===initialTrend.from&&to===initialTrend.to}/>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}</RecordTrendPanel>
       </div>
       {error&&!editing&&<p role="alert" className={styles.error}>{error}</p>}{notice&&<p role="status" className={styles.hint}>{notice}</p>}
-      {operations.filter(op=>mealOperationStatus(op,now)==="pending"&&op.origin!=="manual").map(op=><LoadingLink key={op.id} className={styles.reviewLink} href={op.confirmationPath}>AI 饮食预览 · {op.rows.length} 项待确认 <span>查看 →</span></LoadingLink>)}
       <DailyRecords actions={<button type="button" onClick={()=>setTab("foods")}>食材库</button>} history={<RecordHistory today={today} dates={[...new Set([...recentRecordDates(today),...groups.map(g=>g.date)])].filter(date=>!recentDates.includes(date)).sort().reverse()} renderRow={renderDay} view={viewDay}/>}>{recentDates.map(renderDay)}</DailyRecords>
+      {operations.filter(op=>mealOperationStatus(op,now)==="pending"&&op.origin!=="manual").map(op=><LoadingLink key={op.id} className={styles.reviewLink} href={op.confirmationPath}>AI 饮食预览 · {op.rows.length} 项待确认 <span>查看 →</span></LoadingLink>)}
     </>:<>
       <div className={styles.libraryNavigation}><button type="button" className={recordUI.secondary} onClick={()=>setTab("meals")}>← 饮食记录</button><h2>食材库</h2></div>
       <div className={styles.categoryTabs}>{[["all","全部"],["meal","整餐"],["ingredient","食材"]].map(([key,label])=><button key={key} aria-pressed={foodCategory===key} onClick={()=>setFoodCategory(key)}>{label}</button>)}</div><div className={styles.toolbar}><input aria-label="搜索食材" placeholder="搜索名称、品牌或做法" value={foodQuery} onChange={e=>setFoodQuery(e.target.value)}/><button className={styles.primary} onClick={()=>{setError("");setEditing({kind:"save_food",name:"",brand:null,preparation:null,baseQuantity:"1",unit:"份",nutrition:emptyNutrition(),sourceKind:"reference"});}}>添加食材 ＋</button></div>

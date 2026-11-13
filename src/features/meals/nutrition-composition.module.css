@@ -31,3 +31,10 @@
 }
 
 @container(max-width:220px){.summary>.composition{grid-row:2;grid-column:1/-1}.shares{grid-row:3;grid-column:1/-1}}
+
+.mobileDetails{display:none}
+@media(max-width:700px),(hover:none) and (pointer:coarse){
+ .summary{display:block}.summary>.composition,.summary>.shares{display:none}
+ .mobileDetails{display:block;margin-top:4px}.mobileDetails>summary{display:flex;align-items:center;min-height:44px;font-size:.875rem;color:var(--muted);cursor:pointer}
+ .mobileDetails>div{display:flex;align-items:center;gap:12px;padding:4px 0 12px}
+}

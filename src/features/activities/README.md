@@ -66,3 +66,5 @@ ai-preview.ts提供共享preview_energy，将当天总数／分项及实际运�
 AI字段解释由ai-field-definitions.json维护并附在成功结果中，明确总消耗、累计读数、原始录入值、已计入额外运动及运动countedKcal的区别；不重新叠加已包含明细。解释仅属于AI输出，不改变全天采用值、包含规则或历史精度。
 
 query_energy及HTTP查询可显式includeMeals=true，额外校验本人meals:read和energy:read后，复用正式逐日读数返回balance：相同完整日交集的摄入、消耗、净差及统计。默认不读取饮食、不扩大授权。statistics／balance.window仅覆盖当前返回页，page.hasMore仍须继续读取；累计与未记全、缺项分别列排除原因。简洁消耗预览带day.cumulative，不能将当前累计说成全天最终值。
+
+手机默认明确日期、录入／编辑、当天总消耗／静息／活动摘要与最近记录，设备来源状态放在记录之后，完整趋势沿用view=trend。桌面读数、图表及列表顺序保持；未知不补0，不改变累计、包含关系或业务计算。
