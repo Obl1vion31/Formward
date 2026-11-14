@@ -14,7 +14,10 @@ const rectOf = (element: SVGSVGElement): ChartRect => {
   if(matrix&&box.width&&box.height){const a=new DOMPoint(box.x,box.y).matrixTransform(matrix),b=new DOMPoint(box.x+box.width,box.y+box.height).matrixTransform(matrix);return{left:a.x,top:a.y,width:b.x-a.x,height:b.y-a.y};}
   const {left,top,width,height}=element.getBoundingClientRect();return{left,top,width,height};
 };
-const visible = (element: SVGSVGElement) => element.isConnected&&element.getClientRects().length>0&&rectOf(element).width>0&&rectOf(element).height>0;
+const visible = (element: SVGSVGElement) => {
+  if(!element.isConnected||element.closest('[data-return-covered]')||!element.getClientRects().length)return false;
+  const rect=rectOf(element);return rect.width>0&&rect.height>0;
+};
 const inViewport = (rect:ChartRect) => rect.top+rect.height>64&&rect.top<innerHeight-(matchMedia("(max-width:700px),(hover:none) and (pointer:coarse)").matches?88:0)&&rect.left+rect.width>0&&rect.left<innerWidth;
 
 export function ChartTransitionProvider({ children }: { children: React.ReactNode }) {
@@ -115,11 +118,11 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     startTransition(()=>router.push(href));
   },[router,motion]);
   const restore=useCallback((rail:HTMLElement)=>{
-    if(!rail.isConnected||!rail.getClientRects().length||!rail.clientWidth||getComputedStyle(rail).visibility==='hidden')return;
+    if(!rail.isConnected||rail.closest('[data-return-covered]')||!rail.clientWidth)return;
     if(focusAfterLoad.current&&!rail.hasAttribute("data-metric-rail-skeleton")){const card=rail.querySelector<HTMLElement>(`a[data-metric-card="${focusAfterLoad.current}"]`);if(document.activeElement===document.body||document.activeElement?.closest('a[href="/dashboard"]'))card?.focus({preventScroll:true});focusAfterLoad.current=null;}
     const saved=origin.current;if(!saved)return;
-    rail.scrollLeft=saved.rail;
-    if(motion.current.returning||!returnReady.current)window.scrollTo({top:saved.scroll,behavior:'instant'});
+    if(rail.scrollLeft!==saved.rail)rail.scrollLeft=saved.rail;
+    if((motion.current.returning||!returnReady.current)&&scrollY!==saved.scroll)window.scrollTo({top:saved.scroll,behavior:'instant'});
     // 无配对动画也要等真实总览显示后恢复位置，再释放来源；隐藏路由和临时外壳不能提前消费它。
     if(!returningToOverview&&returnReady.current&&!motion.current.active&&!rail.hasAttribute('data-metric-rail-skeleton')&&location.pathname==='/dashboard'){
       if(document.activeElement===document.body||document.activeElement?.closest('a[href="/dashboard"]'))rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`)?.focus({preventScroll:true});
@@ -130,6 +133,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(!current||current.direction!=='back'){motion.current.returning=false;return;}
     // 卡片在 layout effect 中已落位；先恢复再测量，同一帧交给浮层，避免额外等待一帧。
     const graph=rail.querySelector<SVGSVGElement>(`[data-metric-card="${saved.kind}"] [data-trend-glyph]`);
+    if(current.destination&&current.hidden===graph)return;
     if(graph&&visible(graph)&&graph.dataset.trendRange===saved.rangeKey&&graph.dataset.trendKey===saved.modelKey&&current?.direction==='back'&&motion.current.active?.id===current.id)landAt(rectOf(graph),graph,false,current.id);
     else{clear();rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`)?.focus({preventScroll:true});if(returnReady.current)origin.current=null;motion.current.returning=false;lastTarget.current=null;}
   },[motion,landAt,clear,returningToOverview]);

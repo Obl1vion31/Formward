@@ -24,7 +24,7 @@ export function createChartFlights(publish: (flight: ChartFlight | null) => void
       const current=owner.active;
       if(!current||current.id!==id||!current.node)return false;
       // 等待时原图仍可见；同一帧先显示浮层，再交出目标，不能有双双隐藏的空档。
-      current.node.style.visibility='visible';
+      if(current.node.style.visibility!=='visible')current.node.style.visibility='visible';
       if(current.hidden!==target){
         current.hidden?.removeAttribute('data-chart-travelling');
         current.hidden=target??undefined;
