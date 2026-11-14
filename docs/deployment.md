@@ -1,18 +1,21 @@
 # 公网 HTTPS 部署
 
-手机界面／上传候选codex/mobile-ui-upload尚未正式发布。按用户本轮确认，候选合入最新main的MCP2.0.0／18工具规则，保留original／compact／original及10组上下文。实际网页、真实大图及当前iPhone Safari复测通过后再发布；外部平台同步结果仍单独核对。资料保持私有，见[视觉记录](../design-qa.md)。
+手机界面／上传候选codex/mobile-ui-upload尚未正式发布。候选遵循最新main的MCP2.0.0／18工具规则，保留original／compact／original及10组上下文。实际网页、真实大图及当前iPhone Safari复测通过后再发布；资料保持私有，见[视觉记录](../design-qa.md)。
 
-## 18项工具候选：等待豆包同步
+## 当前正式部署：18项AI工具
 
-18项MCP 2.0.0代码f4e69d8ee2a519cba124f78597bfd4c5197cad0c已合入main；候选运行版本dual-entry-f4e69d8e-ai-tools-v2-20261114、BUILD_ID t6dAYGjNWrU20r53dUdZh。千问长版／小米精简版各10题已完成，结果及费用见[工具契约](ai-tool-contracts.md#两模型定向复测)。本轮未新增真实健康记录或数据库迁移。
+当前源码f4e69d8ee2a519cba124f78597bfd4c5197cad0c，版本dual-entry-f4e69d8e-ai-tools-v2-20261114，BUILD_ID t6dAYGjNWrU20r53dUdZh。北京时间2026-11-14 16:07:07恢复上海ai-tools-v2-20261114；三个公网入口同版本，新旧协议均为MCP2.0.0／18项工具。HTTP1.15.1、schema0037、原OAuth和账号权限保持，旧确认链接继续可用。
 
-候选曾完成上海激活、三个公网入口同版本及双协议18工具核对，47项Server Action与加密密钥、521项旧静态资源保留，运行配置字节保持，11张正式健康表摘要一致。随后豆包云构建连续3次在ToolList校验返回50000001“服务暂时不可用”，未生成本轮新测试版本；本机及上海读取global.formward.top均能返回18项，尚未确定平台调用失败的具体原因。
+豆包测试版0.0.1-dev.20261114.1已完成云构建，状态succeeded；18项Manifest、运行态Skill、业务模板和前端源码上传成功。仅为测试版本，未提审公开正式版；旧测试对话需更新资源或重新开启后使用新目录，真实手机操作未由本轮验收。版本页：https://developer.doubao.com/agentic_service/db_app_9m6xflq/versions/0.0.1-dev.20261114.1。
 
-依“同步各接入端后再停旧名”的发布顺序，正式应用已切回下方mobile-record-priority-20261114，当前线上仍为MCP1.18.3／21项兼容工具。只切应用，不恢复数据库、聊天、授权或配置；18项候选及永久运行包保留，等待豆包Manifest／Skill同步成功后再统一切换。不得把Git主线2.0代码、候选公网验证与当前运行版本混为一谈。
+此前50000001发生在平台严格校验的ToolList读取阶段，未执行业务工具。相同源码、相同原地址及相同18项配置恢复后连续通过严格校验，带目录版本的地址也通过，没有证据表明需要改工具内容或地址；平台返回通用错误，内部具体原因未公开，不能认定为模型或参数理解错误。首次后续上传在源码传输阶段fetch failed，重试同一源码后全部上传并完成云构建。所有失败和日志ID保留。
 
-候选完整兼容包70,784,693字节，SHA256 5321883c5dd4ae2eba50379ff0a0946e830a3ca941cb93a5ac3ce6d6987cb872，位于原入口私有.codex/backups/regional-releases/ai-tools-v2-20261114；发布、退回及平台错误资料在.codex/ai-tools-v2。私有评测报告不进入public。
+702项单元／集成、lint、typecheck和production build，以及45项18工具离线检查沿用已验收候选；本轮复用完整发布包，不改接口代码、提示词或模型参数，不新增收费模型调用。恢复后重新核对三个公网入口、两种协议的18项名称／schema／中文说明、原鉴权及11张正式健康表摘要。插件另验类型检查与9项测试。
 
-## 当前手机记录优先发布
+原47项Server Action、加密密钥与521项旧静态资源保持，运行配置字节不变，没有新迁移或数据恢复。完整兼容包70,784,693字节，SHA256 5321883c5dd4ae2eba50379ff0a0946e830a3ca941cb93a5ac3ce6d6987cb872，永久保存在原入口私有.codex/backups/regional-releases/ai-tools-v2-20261114；即时应用回退为mobile-record-priority-20261114，保留聊天、授权、预览和健康事实。未重新发布国际网关，直接核对三个公网入口。
+
+千问长版／小米精简版各10题原答、配置与账本保持，结果见[工具契约](ai-tool-contracts.md#两模型定向复测)。含历史未知预留的累计预算仍占用¥7.56496460／10；本轮排查与发布新增模型费用为0。模型报告私有，诊断、严格校验、上传和激活证据在.codex/doubao-directory-diagnosis。原前端及其他并行工作区保持，不恢复旧工作副本。
+## 保留的手机记录优先发布基线
 
 北京时间2026-11-14 06:05:42，上海主服务切换至`mobile-record-priority-20261114`；源码`d4bd9657abff6ac839a5ffcde9c001b44e39d6ad`，版本`dual-entry-d4bd9657-mobile-record-priority-20261114`，BUILD_ID `3knID6SjzsomOGnfkV8gc`。main已合入推送，三个公网入口直接核对同版本；没有重新发布国际网关或修改域名。MCP1.18.3、21工具及12项HTTP说明保持，schema仍0037，prompt为original／compact／original，上下文仍10组。
 
@@ -47,7 +50,7 @@ python3 scripts/vercel-releases.py policy --project formward --apply
 
 归档位于 Git 公共目录所属工作区的 `.codex/backups/vercel-releases/formward/`，不随临时 worktree 删除。国际候选继续使用现有双区工具并显式部署到 iad1；`publish` 只更新原国际正式版本承担的别名，保留仍指向其他部署的项目域名，不用项目级 promote 接管它们。既有上海服务、数据库、issuer／resource、Server Action 兼容与回退流程不变。网关归档中的协议和 schema 摘要仍须与上海服务核对；本工具不把 Vercel 网关包当成上海全服务备份。受 Vercel 登录保护的旧项目域名只核对绑定和保护入口，不声称完成应用功能验收。
 
-## 当前正式部署：千问／小米提示词与工具协调
+## 保留的提示词发布基线
 
 正式应用源码`4d10237aad644362aac1111ad23565c539356969`，版本`dual-entry-4d10237a-ai-prompts-final-20261114`，BUILD_ID `ltIqNLSlNGDRsnw418ucg`；北京时间2026-11-14 03:46:51切换上海`ai-prompts-final-20261114`，已合入推送main。界面及原三模型管理员入口保持；本轮只对千问与小米付费评测，千问采用original长版、小米采用compact精简版，智谱原配置保留。没有新增UI档位、分类／裁判／核验模型。
 
