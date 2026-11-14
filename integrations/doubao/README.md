@@ -2,9 +2,11 @@
 
 此工程负责豆包应用插件的 Manifest、运行态 Skill、自定义登录页与主页。通过 Vercel 自定义域名 `https://global.formward.top` 的独立豆包入口，复用上海 Formward 服务和主库。原 GPT 的 MCP 与 OAuth 地址保持。
 
-## 记餐工具
+## 工具职责
 
-Manifest共21项，和共享MCP逐项一致。preview_meal用于新增单餐，preview_meal_changes用于餐内修改，preview_energy用于全天消耗与实际运动；食材维护、身体、训练和混合预览保留原入口。运行态Skill同步相对日期重试、份量换算、摘要分页与保存状态。变更工具或Skill后需要上传新的测试版本，并在Debugger更新资源；仅发布服务端不会更新手机中的运行态Skill。生产Manifest所有工具继续normal登录，不使用测试fixture的预授权替身。
+MCP 2.0.0按职责公开18项工具，原名停止执行。新餐preview_meals、正式餐次修改preview_meal_changes、食材维护preview_foods、身体preview_measurements、训练preview_training；组合preview_record_bundle只接受至少两类功能动作。get_preview统一查状态，update_preview只改原草稿及补照片。旧HTTP与确认链接保留，目录、Manifest和字段解释同源；最新完整规范见docs/ai-tool-contracts.md。
+
+变更Manifest或运行态Skill后同步上传测试版本；仅发布服务器不会更新手机中缓存的运行态Skill。所有工具维持normal登录。
 
 ## 登录与凭据
 

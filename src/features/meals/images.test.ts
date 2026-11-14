@@ -49,6 +49,7 @@ test("ChatGPT Azure 文件支持跨地区直连与重定向，其他命名族及
  const id=await owner(),token=await createAiToken(db,id,"虚构Azure照片令牌","write"),identity=await authenticateAi(db,`Bearer ${token.rawToken}`);
  const imported=await importMealImages(db,identity,{files:[{download_url:url,file_id:"file-fictional-azure"}]},{download:async(value)=>downloadMealImage(value,fetcher),save:async(database,userId,bytes,metadata)=>saveMealImage(database,userId,bytes,metadata,store)});
  assert.equal(imported.status,"complete");assert.deepEqual(imported.failures,[]);assert.equal(imported.expectedImageCount,1);
+ assert.match(imported.rules,/update_preview/);assert.match(imported.rules,/get_preview/);assert.doesNotMatch(imported.rules,/get_meal_operation|submit_record_operation/);
  assert.equal((await ownedMealImage(db,id,imported.images[0].id)).byteSize,png.length);
 });
 test("原图上传后提交结果不确定时保留正式文件，延期核对清理",async()=>{

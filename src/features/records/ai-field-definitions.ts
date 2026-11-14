@@ -1,4 +1,5 @@
 import common from "./ai-field-definitions.json";
+import catalog from "./ai-tool-catalog.json";
 import { selectFieldDefinitions } from "./ai-field-selection.mjs";
 import measurements from "../measurements/ai-field-definitions.json";
 import meals from "../meals/ai-field-definitions.json";
@@ -25,17 +26,26 @@ export const aiToolDefinitions = {
   query_energy: [common.query, energy.query],
   query_meals: [common.query, meals.query],
   preview_meal: [...operation, meals.operation],
-  preview_energy: [...operation, energy.operation],
+  preview_energy: [...operation, energy.operation, ...mixed],
   preview_meal_changes: [...operation, meals.operation, ...mixed],
   submit_meal_operation: [...operation, meals.operation],
   get_meal_operation: [...operation, meals.operation],
   submit_record_operation: [...operation, ...mixed],
   get_record_operation: [...operation, ...mixed],
   append_pending_images: [...operation, meals.operation, ...mixed],
+  preview_measurements: [...operation, ...mixed],
+  preview_meals: [...operation, ...mixed],
+  preview_foods: [...operation, ...mixed],
+  preview_training: [...operation, ...mixed],
+  preview_record_bundle: [...operation, ...mixed],
+  get_preview: [...operation, ...mixed],
+  update_preview: [...operation, ...mixed],
 } satisfies Record<string, readonly Definitions[]>;
 
 export type AiToolName = keyof typeof aiToolDefinitions;
-export const aiToolNames = Object.keys(aiToolDefinitions) as AiToolName[];
+// HTTP保留旧业务返回说明，但不再把退役HTTP对应名暴露为MCP工具。
+export const aiToolNames = Object.keys(catalog) as AiToolName[];
+export const retiredAiToolNames = Object.keys(aiToolDefinitions).filter(name => !(name in catalog));
 export const aiInterpretationRules = common.guidance.join("\n");
 export const aiFieldDefinitionsDescription = common.hint;
 

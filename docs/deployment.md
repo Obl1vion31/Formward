@@ -1,6 +1,16 @@
 # 公网 HTTPS 部署
 
-手机界面／上传候选codex/mobile-ui-upload尚未正式发布。以当前公网d4bd9657兼容API为运行基线，main中暂未完成平台同步的2.0工具不进入此发布包，不覆盖其源码；本轮合流和发布须等实际网页、真实大图及当前iPhone Safari复测通过。隔离验收资料保持私有，见[视觉记录](../design-qa.md)。
+手机界面／上传候选codex/mobile-ui-upload尚未正式发布。按用户本轮确认，候选合入最新main的MCP2.0.0／18工具规则，保留original／compact／original及10组上下文。实际网页、真实大图及当前iPhone Safari复测通过后再发布；外部平台同步结果仍单独核对。资料保持私有，见[视觉记录](../design-qa.md)。
+
+## 18项工具候选：等待豆包同步
+
+18项MCP 2.0.0代码f4e69d8ee2a519cba124f78597bfd4c5197cad0c已合入main；候选运行版本dual-entry-f4e69d8e-ai-tools-v2-20261114、BUILD_ID t6dAYGjNWrU20r53dUdZh。千问长版／小米精简版各10题已完成，结果及费用见[工具契约](ai-tool-contracts.md#两模型定向复测)。本轮未新增真实健康记录或数据库迁移。
+
+候选曾完成上海激活、三个公网入口同版本及双协议18工具核对，47项Server Action与加密密钥、521项旧静态资源保留，运行配置字节保持，11张正式健康表摘要一致。随后豆包云构建连续3次在ToolList校验返回50000001“服务暂时不可用”，未生成本轮新测试版本；本机及上海读取global.formward.top均能返回18项，尚未确定平台调用失败的具体原因。
+
+依“同步各接入端后再停旧名”的发布顺序，正式应用已切回下方mobile-record-priority-20261114，当前线上仍为MCP1.18.3／21项兼容工具。只切应用，不恢复数据库、聊天、授权或配置；18项候选及永久运行包保留，等待豆包Manifest／Skill同步成功后再统一切换。不得把Git主线2.0代码、候选公网验证与当前运行版本混为一谈。
+
+候选完整兼容包70,784,693字节，SHA256 5321883c5dd4ae2eba50379ff0a0946e830a3ca941cb93a5ac3ce6d6987cb872，位于原入口私有.codex/backups/regional-releases/ai-tools-v2-20261114；发布、退回及平台错误资料在.codex/ai-tools-v2。私有评测报告不进入public。
 
 ## 当前手机记录优先发布
 

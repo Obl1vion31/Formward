@@ -1,3 +1,4 @@
+import { withV2McpFixtures } from "../mcp/test-client";
 import assert from "node:assert/strict";
 import { before, after, test } from "node:test";
 import { createServer } from "node:http";
@@ -238,14 +239,14 @@ test("豆包绑定不能覆盖仍有效的其他账号，撤销原连接后才�
 async function mcpClient(path: string, headers: Record<string, string> = {}, legacy = false) {
   const client = new Client({ name: "fictional-doubao-test", version: "1" }, { versionNegotiation: { mode: legacy ? "legacy" : "auto" } });
   await client.connect(new StreamableHTTPClientTransport(new URL(baseURL + path), { requestInit: { headers } }));
-  return client;
+  return withV2McpFixtures(client);
 }
 
 test("豆包工具发现可匿名读取定义，健康调用必须有真实账号凭据", async () => {
   const client = await mcpClient("/api/doubao/mcp");
   try {
     const tools = await client.listTools();
-    for (const name of ["get_profile", "query_measurements", "query_meals", "query_energy", "query_training", "submit_record_operation"]) assert.ok(tools.tools.some(tool => tool.name === name));
+    for (const name of ["get_profile", "query_measurements", "query_meals", "query_energy", "query_training", "preview_record_bundle"]) assert.ok(tools.tools.some(tool => tool.name === name));
     assert.equal(tools.tools.find(tool => tool.name === "get_profile")?._meta?.securitySchemes, undefined);
     await assert.rejects(() => client.callTool({ name: "get_profile", arguments: {} }));
   } finally { await client.close(); }
@@ -278,7 +279,7 @@ test("框架代理请求通过真实OAuth查询，新旧协议和无效凭据保
       assert.notEqual(combined.isError, true);
       const combinedData = JSON.parse((combined.structuredContent as { entities: Array<{ result_json: string }> }).entities[0].result_json);
       assert.equal(combinedData.balance.net.sum, null); assert.ok(combinedData.fieldDefinitions["balance.coveredDays"]);
-      const badFood = await client.callTool({ name: "preview_meal", arguments: { operationId: randomUUID(), date: "2026-11-01", mealType: "午餐", foods: [{ name: "虚构食物", quantity: "1", unit: "份", caloriesKcal: "100", sourceKind: "estimated" }] } });
+      const badFood = await client.callTool({ name: "preview_meals", arguments: { operationId: randomUUID(), date: "2026-11-01", mealType: "午餐", foods: [{ name: "虚构食物", quantity: "1", unit: "份", caloriesKcal: "100", sourceKind: "estimated" }] } });
       assert.equal(badFood.isError, true);
       const failure = badFood.structuredContent as { details?: { fields?: { path: string }[] }; errorCode?: string; nextAction?: string };
       assert.equal(failure.errorCode, "invalid_input"); assert.ok(failure.details?.fields?.some(field => field.path === "foods.0.basis")); assert.ok(failure.nextAction);
@@ -370,7 +371,7 @@ test("原 GPT OAuth 和 MCP 保持独立，撤销豆包后原连接仍可查询�
   await revokeOauthConnection(db, flow.userId, claims[CONNECTION_CLAIM]);
   const gpt = await mcpClient("/api/mcp", { Authorization: "Bearer " + gptToken });
   try {
-    assert.ok((await gpt.listTools()).tools.some(tool => tool.name === "preview_meal"));
+    assert.ok((await gpt.listTools()).tools.some(tool => tool.name === "preview_meals"));
     const result = await gpt.callTool({ name: "get_profile", arguments: {} });
     assert.equal((result.structuredContent as Record<string, unknown>)?.id, logged.userId);
     assert.equal("entities" in (result.structuredContent as Record<string, unknown>), false);
@@ -395,8 +396,8 @@ test("简化记餐在双协议下生成幂等预览，保留未知和0且不写�
   for (const legacy of [false, true]) {
     const client = await mcpClient("/api/framework/doubao/mcp", { "X-DB-OPENID": externalId, "X-DB-ACCESS-TOKEN": tokens.data.access_token }, legacy);
     try {
-      assert.ok((await client.listTools()).tools.some(tool => tool.name === "preview_meal"));
-      const result = await client.callTool({ name: "preview_meal", arguments: { ...args, from_mcp_call: true, _miniapp_permitted_data: { unused: "fictional-private-context" } } });
+      assert.ok((await client.listTools()).tools.some(tool => tool.name === "preview_meals"));
+      const result = await client.callTool({ name: "preview_meals", arguments: { ...args, from_mcp_call: true, _miniapp_permitted_data: { unused: "fictional-private-context" } } });
       assert.notEqual(result.isError, true, JSON.stringify(result.structuredContent));
       const operation = result.structuredContent as MealOperationView & { confirmationUrl: string };
       if (id) assert.equal(operation.id, id);
@@ -407,19 +408,19 @@ test("简化记餐在双协议下生成幂等预览，保留未知和0且不写�
       assert.equal(operation.rows[0].meal?.items[0].nutrition.proteinG, "0");
       assert.equal(operation.rows[0].meal?.items[0].nutrition.carbsG, null);
       assert.ok(!JSON.stringify(operation).includes("fictional-private-context"));
-      const conflict = await client.callTool({ name: "preview_meal", arguments: { ...args, mealType: "晚餐" } });
+      const conflict = await client.callTool({ name: "preview_meals", arguments: { ...args, mealType: "晚餐" } });
       assert.equal(conflict.isError, true);
-      const invalid = await client.callTool({ name: "preview_meal", arguments: { ...args, operationId: randomUUID(), foods: [{ ...args.foods[0], basis: "" }] } });
+      const invalid = await client.callTool({ name: "preview_meals", arguments: { ...args, operationId: randomUUID(), foods: [{ ...args.foods[0], basis: "" }] } });
       assert.equal(invalid.isError, true);
       assert.match(String((invalid.structuredContent as { message: string }).message), /foods.0.basis/);
       const libraryArgs = { ...args, operationId: randomUUID(), foods: [{ name: "虚构燕麦", foodId: ownFoodId, foodVersion: 1, quantity: "2", unit: "包" }] };
-      const library = await client.callTool({ name: "preview_meal", arguments: libraryArgs });
+      const library = await client.callTool({ name: "preview_meals", arguments: libraryArgs });
       assert.notEqual(library.isError, true);
       const libraryOperation = library.structuredContent as MealOperationView;
       assert.equal(libraryOperation.canConfirm, true);
       assert.equal(Number(libraryOperation.rows[0].meal?.items[0].nutrition.caloriesKcal), 240);
       assert.equal(libraryOperation.rows[0].meal?.items[0].nutrition.carbsG, null);
-      const multiple = await client.callTool({ name: "preview_meal", arguments: {
+      const multiple = await client.callTool({ name: "preview_meals", arguments: {
         ...args, operationId: randomUUID(), date: "yesterday", foods: [{ name: "虚构米饭", quantity: "150", unit: "g" }, { name: "虚构茶", quantity: "250", unit: "ml", caloriesKcal: "0", sourceKind: "label", basis: "虚构标签" }],
       } });
       const multipleOperation = multiple.structuredContent as MealOperationView;
@@ -427,7 +428,7 @@ test("简化记餐在双协议下生成幂等预览，保留未知和0且不写�
       assert.equal(multipleOperation.rows[0].meal?.items.length, 2);
       assert.match(multipleOperation.rows[0].meal?.date ?? "", /^\d{4}-\d{2}-\d{2}$/);
       for (const food of [{ ...libraryArgs.foods[0], foodVersion: 2 }, { ...libraryArgs.foods[0], foodId: foreignFoodId, unit: "g" }]) {
-        const blocked = await client.callTool({ name: "preview_meal", arguments: { ...libraryArgs, operationId: randomUUID(), foods: [food] } });
+        const blocked = await client.callTool({ name: "preview_meals", arguments: { ...libraryArgs, operationId: randomUUID(), foods: [food] } });
         assert.equal((blocked.structuredContent as MealOperationView).canConfirm, false);
         assert.ok((blocked.structuredContent as MealOperationView).rows[0].error);
       }
@@ -438,16 +439,16 @@ test("简化记餐在双协议下生成幂等预览，保留未知和0且不写�
   if (otherFlow.result.refused) throw new Error();
   const otherTokens = await exchangeDoubaoToken(db, auth, config, otherFlow.result.developerLoginCode);
   const other = await mcpClient("/api/doubao/mcp", { "X-DB-OPENID": otherId, "X-DB-ACCESS-TOKEN": otherTokens.data.access_token });
-  try { assert.equal((await other.callTool({ name: "get_meal_operation", arguments: { id } })).isError, true); }
+  try { assert.equal((await other.callTool({ name: "get_preview", arguments: { id } })).isError, true); }
   finally { await other.close(); }
   const claims = JSON.parse(Buffer.from(tokens.data.access_token.split(".")[1], "base64url").toString());
   await db.update(schema.oauthConnection).set({ scopes: ["meals:read"] }).where(eq(schema.oauthConnection.id, claims[CONNECTION_CLAIM]));
   const readOnly = await mcpClient("/api/doubao/mcp", { "X-DB-OPENID": externalId, "X-DB-ACCESS-TOKEN": tokens.data.access_token });
-  try { await assert.rejects(() => readOnly.callTool({ name: "preview_meal", arguments: { ...args, operationId: randomUUID() } })); }
+  try { await assert.rejects(() => readOnly.callTool({ name: "preview_meals", arguments: { ...args, operationId: randomUUID() } })); }
   finally { await readOnly.close(); }
   await revokeOauthConnection(db, flow.userId, claims[CONNECTION_CLAIM]);
   const revoked = await mcpClient("/api/doubao/mcp", { "X-DB-OPENID": externalId, "X-DB-ACCESS-TOKEN": tokens.data.access_token });
-  try { await assert.rejects(() => revoked.callTool({ name: "preview_meal", arguments: { ...args, operationId: randomUUID() } })); }
+  try { await assert.rejects(() => revoked.callTool({ name: "preview_meals", arguments: { ...args, operationId: randomUUID() } })); }
   finally { await revoked.close(); }
 });
 
@@ -459,14 +460,14 @@ test("豆包提交只生成可重复查询的预览，不直接写入身体记�
   const previousCount = (await db.select().from(schema.measurement)).length;
   try {
     const args = { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-07-01", period: "daytime", fasting: true, weightKg: "74.20", bodyFatPercent: null, deviceLabel: "虚构验收秤" }] };
-    const result = await client.callTool({ name: "submit_measurement_operation", arguments: args });
+    const result = await client.callTool({ name: "preview_measurements", arguments: args });
     assert.ok(!result.isError, JSON.stringify(result.structuredContent));
     const operation = result.structuredContent as Record<string, unknown>;
     assert.equal(typeof operation.confirmationUrl, "string");
     assert.ok(String(operation.confirmationUrl).startsWith(baseURL));
-    const repeated = await client.callTool({ name: "submit_measurement_operation", arguments: args });
+    const repeated = await client.callTool({ name: "preview_measurements", arguments: args });
     assert.equal((repeated.structuredContent as Record<string, unknown>).id, operation.id);
-    const status = await client.callTool({ name: "get_measurement_operation", arguments: { id: operation.id } });
+    const status = await client.callTool({ name: "get_preview", arguments: { id: operation.id } });
     assert.ok(!status.isError);
     assert.equal((await db.select().from(schema.measurement)).length, previousCount);
   } finally { await client.close(); }

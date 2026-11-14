@@ -7,7 +7,8 @@ import { oauthConnection } from "../../db/schema";
 import type { createAuth } from "../auth/auth";
 import { ApiError, type AiIdentity } from "../auth/ai-identity";
 import { CONNECTION_CLAIM, requireOauthConnection } from "../auth/oauth-connections";
-import { createFormwardMcp } from "../mcp/server";
+import { createFormwardMcp, retiredToolFailure } from "../mcp/server";
+import catalog from "../records/ai-tool-catalog.json";
 import { openIdDigest, type DoubaoConfig } from "./config";
 import { canonicalResource, doubaoScopes, requireDoubaoClient } from "./oauth";
 import { limitedJson, privateJson } from "./http";
@@ -16,7 +17,7 @@ type JsonObject = Record<string, unknown>;
 const object = (value: unknown): value is JsonObject => !!value && typeof value === "object" && !Array.isArray(value);
 const publicMethods = new Set(["server/discover", "initialize", "notifications/initialized", "tools/list", "ping"]);
 const queryKinds: Record<string, string> = { get_profile: "account", query_measurements: "measurements", query_meals: "meals", query_energy: "energy", query_training: "training", search_foods: "foods", search_exercises: "exercises" };
-const knownTools = new Set([...Object.keys(queryKinds), "authorize_formward", "submit_measurement_operation", "get_measurement_operation", "import_meal_images", "preview_meal", "preview_energy", "preview_meal_changes", "submit_meal_operation", "get_meal_operation", "submit_training_operation", "get_training_operation", "submit_record_operation", "get_record_operation", "append_pending_images"]);
+const knownTools = new Set(Object.keys(catalog));
 const platformArgumentNames = ["from_mcp_call", "_miniapp_permitted_data"] as const;
 
 function removeUnusedPlatformArguments(input: JsonObject): string[] {
@@ -43,8 +44,9 @@ export function doubaoInputSchema(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(doubaoInputSchema);
   if (!object(value)) return value;
   const result = Object.fromEntries(Object.entries(value).map(([key, child]) => [key, doubaoInputSchema(child)]));
-  // 仅平铺明确标记的食物分支以适配平台发现；执行仍交给原严格schema。
-  if (typeof result.description === "string" && result.description.startsWith("二选一：") && Array.isArray(result.anyOf) && result.anyOf.every(branch => object(branch) && branch.type === "object")) {
+  // 仅平铺标记或结构可确定的食物分支；组合餐项也需要同一平台适配，执行仍严格校验。
+  const foodBranches = Array.isArray(result.anyOf) && result.anyOf.every(branch => object(branch) && object(branch.properties) && "name" in branch.properties) && result.anyOf.some(branch => object(branch) && object(branch.properties) && "foodId" in branch.properties) && result.anyOf.some(branch => object(branch) && object(branch.properties) && "nutrition" in branch.properties);
+  if ((typeof result.description === "string" && result.description.startsWith("二选一：") || foodBranches) && Array.isArray(result.anyOf) && result.anyOf.every(branch => object(branch) && branch.type === "object")) {
     const branches = result.anyOf as JsonObject[], properties: JsonObject = {};
     for (const branch of branches) for (const [key, property] of Object.entries(branch.properties as JsonObject)) {
       const prior = properties[key];
@@ -120,6 +122,7 @@ function presentResult(body: JsonObject, input: JsonObject, userId: string) {
 
 export function createDoubaoMcpEndpoint(db: Database, auth: ReturnType<typeof createAuth>, config: DoubaoConfig) {
   async function serve(request: Request, input: JsonObject, identity: AiIdentity, scopes: string[], ignoredPlatformArguments: string[] = []) {
+    const retired=retiredToolFailure(input);if(retired)return privateJson(retired);
     const handler = createMcpHandler(() => {
       const server = createFormwardMcp(db, identity, scopes, request);
       return server;

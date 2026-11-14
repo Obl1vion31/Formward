@@ -1,6 +1,7 @@
 // 受控聊天／评测的一次用户请求。此模块只管理定义与待审请求，不授予权限、不调用保存。
 const canonical = value => JSON.stringify(value, (_, item) => item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
 const payloadKey = (name, args) => { const copy = { ...args }; delete copy.operationId; return name + ':' + canonical(copy); };
+const previewCreators = new Set(['preview_measurements','preview_meals','preview_foods','preview_training','preview_energy','preview_meal_changes','preview_record_bundle']);
 function normalizeUnknownAmounts(name, args) {
   let changed = false;
   const clean = food => {
@@ -12,8 +13,9 @@ function normalizeUnknownAmounts(name, args) {
   };
   const next = { ...args };
   if (name === 'preview_meal' && Array.isArray(args.foods)) next.foods = args.foods.map(clean);
+  if (name === 'preview_meals' && Array.isArray(args.meals)) next.meals = args.meals.map(meal => ({...meal,foods:Array.isArray(meal.foods)?meal.foods.map(clean):meal.foods}));
   if (name === 'preview_meal_changes' && Array.isArray(args.addFoods)) next.addFoods = args.addFoods.map(clean);
-  if (['submit_record_operation','submit_meal_operation'].includes(name)) for (const key of ['items','actions']) {
+  if (['submit_record_operation','submit_meal_operation','preview_record_bundle'].includes(name)) for (const key of ['items','actions']) {
     if (Array.isArray(args[key])) next[key] = args[key].map(item => item?.kind === 'save_meal' && Array.isArray(item.items) ? { ...item, items: item.items.map(clean) } : item);
   }
   return { args: changed ? next : args, changed };
@@ -28,8 +30,9 @@ function existingMealIds(name,args) {
 export function createAiToolSession(contract, options = {}) {
   const enabled = new Set(), receipts = new Map(), pendingMeals = [], pendingMealEdits = new Map(); let pendingRecord = null;
   const operationIds = new Map(), requestAliases = new Map();
+  let pendingPreview = null;
   const managedArgs = (name, args) => {
-    const key = payloadKey(name, args), content = { ...args }; delete content.operationId;
+    const key = previewCreators.has(name) ? 'v2-task-creation' : payloadKey(name, args), content = { ...args }; delete content.operationId;
     if (!operationIds.has(key)) operationIds.set(key, options.operationIdFor?.(name,content) ?? crypto.randomUUID());
     return { ...content, operationId: operationIds.get(key) };
   };
@@ -62,6 +65,10 @@ export function createAiToolSession(contract, options = {}) {
       const normalizationNote = normalized.changed ? '；已将标为unknown_accepted的新自由餐项空食量转为省略字段，没有决定数量' : '';
       const cached = receipts.get(payloadKey(name, args));
       if (cached) return { result: { ...cached, repeated: true }, coordination: '相同请求复用本题已有回执，未再次创建预览' };
+      if (previewCreators.has(name) && pendingPreview && contract.tools.some(tool=>tool.name==='update_preview')) {
+        const wanted=['get_preview','update_preview'].filter(tool=>byName.has(tool)); if(wanted.length) load({names:wanted});
+        return {result:{error:'existing_preview_requires_update',id:pendingPreview.id,previewId:pendingPreview.id,revision:pendingPreview.revision,confirmationUrl:pendingPreview.confirmationUrl,executed:false,loadedForNextRound:wanted,nextAction:'read_then_update_original_preview',message:'本任务已有预览。内容正确就沿用原链接；需要修改或确实漏项，用update_preview对原id/revision局部修改或appendItems，不改用其他创建入口另建批次。'},coordination:'已有任务草稿，原创建请求未再次执行'};
+      }
       const priorEdit = existingMealIds(name,args).map(id => pendingMealEdits.get(id)).find(edit => edit && edit.id !== args.previewId);
       if (priorEdit) {
         const wanted = [priorEdit.operationType === 'record' ? 'get_record_operation' : 'get_meal_operation','preview_meal_changes'].filter(tool => byName.has(tool));
@@ -94,6 +101,14 @@ export function createAiToolSession(contract, options = {}) {
       return { args, ...(normalizationNote ? {coordination:normalizationNote.slice(1)} : {}) };
     },
     remember(name, args, result) {
+      if (result && !result.error && typeof result.id==='string') {
+        for(const [key,receipt] of receipts) if(receipt.id===result.id) receipts.set(key,result);
+        if (previewCreators.has(name) || name==='update_preview') {
+          if(result.status==='pending') { pendingPreview=result;receipts.set(payloadKey(name,args),result); }
+          else if(pendingPreview?.id===result.id) pendingPreview=null;
+        }
+        if(name==='get_preview' && pendingPreview?.id===result.id) pendingPreview=result.status==='pending'?result:null;
+      }
       if (result?.error || result?.status !== 'pending' || typeof result.id !== 'string') return;
       // 一个草稿修正后，旧请求回执也必须指向当前版本，避免再次展示已失效内容。
       for (const [key, receipt] of receipts) if (receipt.id === result.id) receipts.set(key, result);

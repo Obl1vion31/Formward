@@ -4,7 +4,15 @@ import {buildAiSystemPrompt} from './ai-prompt.mjs';
 import {createAiToolSession} from './ai-tool-session.mjs';
 import {aiContractSnapshot} from '../mcp/contract-export';
 import {chatToolBridge,chatToolCatalog} from '../assistant/chat-tools';
+import {retiredAiToolNames} from './ai-field-definitions';
 import type {Database} from '../../db/client';
+
+test('18项说明及长短提示词不残留退役工具名，加载后的说明也一致',async()=>{
+  const {contract}=await aiContractSnapshot();
+  const options={directory:contract.catalog.map((tool:{name:string})=>tool.name).join('\n'),instructions:contract.instructions,now:'2026-11-11T08:28:04Z',localTime:'2026-11-11 16:28:04',timezone:'Asia/Shanghai'};
+  const texts=[contract.instructions,...contract.tools.map((tool:{description:string})=>tool.description),buildAiSystemPrompt({...options,variant:'original'}),buildAiSystemPrompt({...options,variant:'compact'})];
+  for(const old of retiredAiToolNames)for(const text of texts)assert.doesNotMatch(text,new RegExp('\\b'+old+'\\b'),'退役名仍出现在说明中：'+old);
+});
 
 test('长短提示共用服务边界、目录和时钟，站内专用追问与附件说明单独追加',()=>{
   const input={directory:'query_meals：查饮食',instructions:'完整MCP工作说明只应出现在长版',now:'2026-11-11T08:28:04Z',localTime:'2026-11-11 16:28:04',timezone:'Asia/Shanghai',channelInstructions:'站内使用request_followup；已保存附件直接引用。'};
@@ -19,30 +27,30 @@ test('站内目录与正式导出同源，仅由会话隐藏请求编号；外�
   try{
     const catalog=await chatToolCatalog(bridge);
     assert.equal(catalog.directory,contract.catalog.map((t:{name:string;title:string;operation:string;usage:string})=>`${t.name}：${t.title}（${t.operation}）；${t.usage}`).join('\n'));
-    catalog.load({names:['preview_meal']});
-    const tool=catalog.tools().find(t=>t.function.name==='preview_meal')!;
+    catalog.load({names:['preview_meals']});
+    const tool=catalog.tools().find(t=>t.function.name==='preview_meals')!;
     assert.equal('operationId' in (tool.function.parameters.properties as object),false);
-    const original=contract.tools.find((t:{name:string})=>t.name==='preview_meal')!;assert.ok((original.inputSchema.required as string[]).includes('operationId'));
-    const failure=await bridge.rpc('tools/call',{name:'preview_meal',arguments:{}});
+    const original=contract.tools.find((t:{name:string})=>t.name==='preview_meals')!;assert.ok((original.inputSchema.required as string[]).includes('operationId'));
+    const failure=await bridge.rpc('tools/call',{name:'preview_meals',arguments:{}});
     assert.ok(failure.isError);assert.ok((failure.structuredContent?.message ?? failure.content?.[0]?.text).includes('operationId'));
   }finally{await bridge.close();}
 });
-test('程序管理编号复用同内容重试，更改内容分配新编号；不改其他业务参数',()=>{
-  let ids=0;const contract={tools:[{name:'preview_meal',description:'单餐',inputSchema:{type:'object',properties:{operationId:{type:'string'},date:{type:'string'}},required:['operationId','date']}}]};
+test('程序管理编号复用同内容重试，同任务更改内容仍保持创建编号；不改其他业务参数',()=>{
+  let ids=0;const contract={tools:[{name:'preview_meals',description:'单餐',inputSchema:{type:'object',properties:{operationId:{type:'string'},date:{type:'string'}},required:['operationId','date']}}]};
   const external=createAiToolSession(contract),session=createAiToolSession(contract,{managedOperationIds:true,operationIdFor:()=>`server-op-${++ids}`});
-  session.load({names:['preview_meal']});external.load({names:['preview_meal']});
+  session.load({names:['preview_meals']});external.load({names:['preview_meals']});
   assert.ok(external.tools()[1].function.parameters.required?.includes('operationId'));
-  const a=session.prepare('preview_meal',{date:'today',mealType:'早餐',foods:[]}),b=session.prepare('preview_meal',{date:'today',mealType:'早餐',foods:[]});
+  const a=session.prepare('preview_meals',{date:'today',mealType:'早餐',foods:[]}),b=session.prepare('preview_meals',{date:'today',mealType:'早餐',foods:[]});
   assert.deepEqual(a.args,b.args);assert.equal(a.args?.operationId,'server-op-1');
-  assert.equal(session.prepare('preview_meal',{date:'yesterday',mealType:'早餐',foods:[]}).args?.operationId,'server-op-2');
-  session.remember('preview_meal',a.args!,{id:'pending-1',revision:1,status:'pending',rows:[]});
-  assert.equal(session.prepare('preview_meal',{date:'today',mealType:'早餐',foods:[]}).result?.repeated,true);
+  assert.equal(session.prepare('preview_meals',{date:'yesterday',mealType:'早餐',foods:[]}).args?.operationId,'server-op-1');
+  session.remember('preview_meals',a.args!,{id:'pending-1',revision:1,status:'pending',rows:[]});
+  assert.equal(session.prepare('preview_meals',{date:'today',mealType:'早餐',foods:[]}).result?.repeated,true);
 });
 test('餐次转为统一审核后的原草稿编号与版本及时更新，不另建同餐',()=>{
-  const contract={tools:['preview_meal','preview_meal_changes'].map(name=>({name,description:name,inputSchema:{}}))},s=createAiToolSession(contract);
-  s.remember('preview_meal',{date:'today',mealType:'早餐'},{id:'child',revision:1,status:'pending',rows:[{meal:{date:'2026-11-11'}}]});
-  s.remember('preview_meal_changes',{previewId:'child',revision:1},{id:'parent',revision:2,status:'pending',rows:[]});
-  const blocked=s.prepare('preview_meal',{date:'today',mealType:'早餐',foods:[{name:'新值'}]});
+  const contract={tools:['preview_meals','update_preview','get_preview'].map(name=>({name,description:name,inputSchema:{}}))},s=createAiToolSession(contract);
+  s.remember('preview_meals',{date:'today',mealType:'早餐'},{id:'child',revision:1,status:'pending',rows:[{meal:{date:'2026-11-11'}}]});
+  s.remember('update_preview',{id:'child',revision:1},{id:'parent',revision:2,status:'pending',rows:[]});
+  const blocked=s.prepare('preview_meals',{date:'today',mealType:'早餐',foods:[{name:'新值'}]});
   assert.equal(blocked.result?.previewId,'parent');assert.equal(blocked.result?.revision,2);
 });
 
@@ -59,16 +67,16 @@ test('统一草稿修正的编号同样由程序稳定生成，失败重试不�
 });
 
 test('受控会话只规范明确未知的新自由餐项空值，不猜食量，不改变历史清空及未标记输入',()=>{
-  const contract={tools:[{name:'preview_meal',description:'预览',inputSchema:{properties:{operationId:{type:'string'}}}}]};
+  const contract={tools:[{name:'preview_meals',description:'预览',inputSchema:{properties:{operationId:{type:'string'}}}}]};
   const s=createAiToolSession(contract,{managedOperationIds:true,normalizeUnknownAmounts:true});
   const blank={name:'虚构食物',quantity:'',unit:'',amountDecision:'unknown_accepted'};
-  const raw={date:'today',mealType:'午餐',foods:[blank]};
-  const a=s.prepare('preview_meal',raw),b=s.prepare('preview_meal',{...raw,foods:[{...blank,quantity:null,unit:null}]});
-  assert.deepEqual(a.args,b.args);assert.deepEqual(a.args?.foods,[{name:'虚构食物',amountDecision:'unknown_accepted'}]);assert.equal(raw.foods[0].quantity,'');
-  const notAgreed={...raw,foods:[{...blank,amountDecision:'provided'}]};assert.deepEqual(s.prepare('preview_meal',notAgreed).args?.foods,notAgreed.foods);
+  const raw={meals:[{date:'today',mealType:'午餐',foods:[blank]}]};
+  const a=s.prepare('preview_meals',raw),b=s.prepare('preview_meals',{meals:[{...raw.meals[0],foods:[{...blank,quantity:null,unit:null}]}]});
+  assert.deepEqual(a.args,b.args);assert.deepEqual((a.args?.meals as {foods:unknown[]}[])[0].foods,[{name:'虚构食物',amountDecision:'unknown_accepted'}]);assert.equal(raw.meals[0].foods[0].quantity,'');
+  const notAgreed={meals:[{...raw.meals[0],foods:[{...blank,amountDecision:'provided'}]}]};assert.deepEqual((s.prepare('preview_meals',notAgreed).args?.meals as {foods:unknown[]}[])[0].foods,notAgreed.meals[0].foods);
   const correction={previewId:'existing',revision:1,updateFoods:[{index:0,quantity:null}],addFoods:[blank]};
   const corrected=s.prepare('preview_meal_changes',correction);assert.deepEqual(corrected.args?.updateFoods,correction.updateFoods);assert.deepEqual(corrected.args?.addFoods,[{name:'虚构食物',amountDecision:'unknown_accepted'}]);
-  assert.deepEqual(createAiToolSession(contract).prepare('preview_meal',raw).args,raw);
+  assert.deepEqual(createAiToolSession(contract).prepare('preview_meals',raw).args,raw);
 });
 
 test('同一历史餐次已有预览时拦截跨工具重建，重复调用复用回执，继续修改沿用原预览',()=>{

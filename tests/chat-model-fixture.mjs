@@ -17,10 +17,10 @@ globalThis.fetch=async function(input,init){
  if(text.includes('断网测试'))throw new TypeError('fixture network unavailable');
  if(text.includes('慢速测试'))return result('这是隔离浏览器的慢速流式回答。这里只检查真实界面的停止、继续和固定槽位，不访问收费模型。'.repeat(3),null,true);
  if(text.includes('100克')||text.includes('创建预览')){
-  if(!body.tools.some(tool=>tool.function.name==='preview_meal'))return call('load_tools',{names:['preview_meal']});
+  if(!body.tools.some(tool=>tool.function.name==='preview_meals'))return call('load_tools',{names:['preview_meals']});
   const last=body.messages.at(-1);if(last.role==='tool'&&String(last.content).includes('confirmationUrl'))return result('已生成今天午餐的待确认预览：米饭150克、鸡胸肉100克。请打开提交检查，确认后才会保存。');
   const ids=[...text.matchAll(/[a-f0-9]{8}-[a-f0-9-]{27,}/g)].map(match=>match[0]).filter(id=>id===fixture.imageId);
-  return call('preview_meal',{operationId:'fixture-operation-100',date:'today',mealType:'午餐',timezone:'Asia/Shanghai',foods:[{name:'米饭',quantity:'150',unit:'g',caloriesKcal:'195',proteinG:'3.9',carbsG:'43',fatG:'0.5',sourceKind:'estimated',basis:'虚构验收估算，实际食量由输入提供'},{name:'鸡胸肉',quantity:'100',unit:'g',caloriesKcal:'165',proteinG:'31',carbsG:'0',fatG:'3.6',sourceKind:'estimated',basis:'虚构验收估算，实际食量由输入提供'}],...(ids.length?{imageIds:[...new Set(ids)],expectedImageCount:1}:{})});
+  return call('preview_meals',{operationId:'fixture-operation-100',meals:[{date:'today',mealType:'午餐',timezone:'Asia/Shanghai',foods:[{name:'米饭',quantity:'150',unit:'g',caloriesKcal:'195',proteinG:'3.9',carbsG:'43',fatG:'0.5',sourceKind:'estimated',basis:'虚构验收估算，实际食量由输入提供'},{name:'鸡胸肉',quantity:'100',unit:'g',caloriesKcal:'165',proteinG:'31',carbsG:'0',fatG:'3.6',sourceKind:'estimated',basis:'虚构验收估算，实际食量由输入提供'}],...(ids.length?{imageIds:[...new Set(ids)],expectedImageCount:1}:{})}]});
  }
  if(Array.isArray(lastUser?.content)||text.includes('鸡胸肉'))return call('request_followup',{subject:'今天午餐实际食量',question:'米饭150克已保留，鸡胸肉实际吃了多少？'});
  if(!body.tools.some(tool=>tool.function.name==='query_measurements'))return call('load_tools',{names:['query_measurements']});

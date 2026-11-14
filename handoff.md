@@ -2,7 +2,7 @@
 
 ## 手机界面候选（尚未发布）
 
-本轮codex/mobile-ui-upload基于已发布d4bd9657，修正52px手机顶栏、恢复普通记录图表、紧凑助手及录入、本人同条件真实内容缓存和原图上传恢复。原入口的未提交API／原型内容保持；main已合入但尚未正式切换的2.0工具不进入此兼容验收包，也不以旧源码覆盖main。MCP1.18.3、prompt original／compact／original及10组上下文保持。
+本轮codex/mobile-ui-upload基于已发布d4bd9657，修正52px手机顶栏、恢复普通记录图表、紧凑助手及录入、本人同条件真实内容缓存和原图上传恢复。原入口的未提交API／原型内容保持；按用户最新确认，候选已合入main的MCP2.0.0／18工具规则，保留prompt original／compact／original及10组上下文；最新API合流后重新回归，不以旧源码覆盖main。
 
 实际界面双引擎各71张及Chromium五页70组慢查询已通过；真实大图与iPhone Safari验收尚未闭环，暂不发布。最终证据、未通过项及路径见[视觉记录](design-qa.md)。下文为当前正式站基线，候选不等于已部署。
 

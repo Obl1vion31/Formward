@@ -101,7 +101,7 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
     const identity = await chatIdentity(db, userId, provider, true);
     runIdentity = identity;
     await db.update(assistantRun).set({ tokenId: identity.tokenId }).where(eq(assistantRun.id, activeRun.id));
-    await guard(true); bridge = chatToolBridge(db, identity, request); const catalog = await chatToolCatalog(bridge, (name,args) => "fwchat-" + digestChat({ userId, tokenId:identity.tokenId, messageId: question.id, name, fingerprint: digestChat({ name,args }) }).slice(0,48));
+    await guard(true); bridge = chatToolBridge(db, identity, request); const catalog = await chatToolCatalog(bridge, (name,args) => "fwchat-" + digestChat({ userId, tokenId:identity.tokenId, messageId: question.id, ...(name.startsWith("preview_") ? {purpose:"create-preview"} : {name,fingerprint:digestChat({name,args})}) }).slice(0,48));
     for (const receipt of results) catalog.remember(receipt.name,receipt.args,receipt.result);
     const [current] = await db.select().from(assistantConversation).where(and(eq(assistantConversation.id, activeRun.conversationId), eq(assistantConversation.userId, userId)));
     const turns: StoredMessage[][] = [];

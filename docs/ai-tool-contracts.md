@@ -1,144 +1,70 @@
-# AI 工具调用规则
+# AI工具调用规则
 
-GPT和豆包共用健康业务，常见任务使用三个较小入口；原有18项工具和OAuth连接继续兼容。模型负责听懂用户、核对缺失事实，服务器负责日期解析、份量换算、合并未改内容和重复保护。所有正式保存仍需用户在Formward网页确认。
+MCP 2.0.0公开18项工具，原生MCP、豆包及站内助手引用同一正式实现。旧工具名停止执行，旧会话需要刷新工具目录；旧确认链接、旧预览和HTTP业务路径继续可用。
 
-## 按实际任务选择
+## 按职责选择
 
-| 用户要做什么 | 调用与处理 |
-| --- | --- |
-| 检查连接 | authorize_formward；只检查权限，不读取健康历史 |
-| 看最近七天身体／饮食／消耗／训练 | 对应query工具，range=last7、view=summary；修改前再details |
-| 看指定历史区间 | from/to与view；不能混用range。检查page.hasMore，按nextFrom继续 |
-| 新增单餐 | preview_meal：日期、餐次、foods，营养平铺，服务器组织原预览 |
-| 修改已保存餐次 | details取得meal.id/version及item.id，再preview_meal_changes，仅发改动 |
-| 修正尚未确认的一餐 | previewId/revision，混合批次带key；更新原链接，不另添一条餐次 |
-| 用户明确要求食材入库或改库规格 | search_foods后submit_meal_operation；普通记餐不自动入库 |
-| 全天消耗／静息与活动分项／实际运动 | preview_energy；不经过包含身体与训练的大型混合定义 |
-| 同一句包含身体、饮食、消耗等多个领域 | submit_record_operation，一份审核链接，不拆散 |
-| 晨晚身体新增或修改 | 原submit_measurement_operation；只接收实测，日期、空腹、来源规则保持 |
-| 模板、排期 | 原训练查询与预览工具；计划不等于实际训练，不自动产生消耗 |
-| 查询是否保存 | 返回operationType=meal用get_meal_operation，为record用get_record_operation；只看状态可view=status |
-| 照片 | 原import_meal_images保留成功附件；补图用append_pending_images，不重复上传成功项 |
+|任务|工具|边界|
+|---|---|---|
+|连接、补授权|authorize_formward|用户OAuth同意，不读健康内容、不生成预览|
+|当前账号与权限|get_profile|已连接不等于获得全部权限|
+|实测身体|query_measurements、preview_measurements|查询和新增／历史修改分开，不估算身体|
+|实际饮食|query_meals、preview_meals|查询已保存餐次；新餐可一餐或多餐，不自动入库|
+|正式餐次修改|preview_meal_changes|changes中mealId/version及局部变化，不修改待审草稿|
+|食材库|search_foods、preview_foods|规格与实际食用量分开；明确要求维护才创建库预览|
+|消耗与实际运动|query_energy、preview_energy|days可多日，已包含运动不能重复加|
+|训练|search_exercises、query_training、preview_training|模板与排期可同批，不写实际训练完成|
+|组合任务|preview_record_bundle|至少两类功能动作，一个顶层预览和确认链接|
+|原图导入|import_meal_images|上传成功不等于关联或记餐|
+|预览状态|get_preview|统一查最新版本、待补信息及实际保存结果|
+|待审草稿修改|update_preview|原id/revision、稳定key及局部变化，不另建预览|
 
-## 默认营养估算与追问
+单纯多餐不是组合任务；模板加排期、消耗加实际运动分别归训练和消耗入口。新餐与历史餐次修改、食材入库与记餐则是不同功能动作，可以组合。
 
-GPT、HTTP与豆包共用`src/features/meals/ai-nutrition-guidance.json`。新增餐项默认估算热量及蛋白质／碳水／脂肪，不逐次询问是否需要估算。优先真实用户数值、匹配的本人食材和标签；自由项只有部分数值已知时保留原值，补估部分在basis单独说明，整项标estimated。用户明确只记录或确实无法合理估算时仍保留未知，服务器不会擅自补数。
+## 输入与营养
 
-操作顺序为先确认本次实际食量，再估算对应营养。只给食物名称而没有实际数量时，先集中追问数量、大小或实际吃下的比例，不调用单餐、局部修改或统一提交来创建预览；不能先填常见克数再让用户纠正。食材的每100克／每份规格和历史食量均不能证明本次吃了多少。已有毫升、个数或份数可作为实际食量，不强求克重。用户明确接受某个食量估算或明确保留未知后，才按对应amountDecision继续；basis中的估算声明不能代替用户接受。这是共用提示规则，现有接口仍不独立核验对话来源，也不增加额外的模型审核请求。
+先明确本次实际食量，再默认合理估算营养。只有食物名称时集中追问，不猜常见克数、默认1份或先建预览。已经给克数、毫升、个数或份数就保留，不强求克重。用户明确接受食量估算或未知时才填写对应amountDecision；默认估算营养不代表接受食量估算。
 
-- “今天中午加个鸡蛋”：实际数量为1个，可用常见单个规格估算并说明大小不确定；不擅自推断水煮或煎炒。“中午”填写午餐，不能变成snack。表达加／补／追加食物时必须先查目标日details；唯一对应餐次局部添加，无匹配或明确另记一餐才新增，不重复建立午餐。
-- 食物身份、实际食量、生熟／做法、油酱差异明显影响结果时，集中追问缺失的关键信息；常见单个食物未报克重不必先问是否估算。默认营养估算不代表用户接受食量估算，不能冒填estimate_accepted。
-- 估算填写sourceKind=estimated及basis，区分实际食量、参考规格和假设，不伪造来源链接、标签或用户确认。明确0保持，未知不是0。
-- 默认只作用于新增食物（含addFoods）；查询和仅改备注／日期等操作不重估历史。明确要求补估历史项时走局部修改预览，仍需网页确认。
+优先给定值、匹配本人食材和真实标签；无法合理估算或用户明确不估时未知留空，明确0保留。估算填写对应四项营养数值，basis只保存依据；用户数量与假设参考规格分别说明，不能把假设说成用户报告。历史查询与局部修改不自动重估。
 
-共用规则更新后运行`node scripts/sync-ai-nutrition.mjs`生成豆包Skill及Manifest描述；`--check`用于检查漂移。新请求编号使用新UUID，只含ASCII字母数字及半角短横线(-)，8至120字符，不放宽原校验。更新平台测试资源后才会采用新版运行态Skill。GPT客户端需刷新工具定义／新对话；不撤销原连接、不扩大权限。
+新餐的meals及历史修改changes[].addFoods共用食物结构。库引用填写foodId、foodVersion、实际quantity/unit，不混填手工营养或来源。自由项的caloriesKcal、proteinG、carbsG、fatG平铺；默认本次总量，per_portion每份，per_reference配同单位referenceQuantity，服务器换算。kJ与kcal不能混填。组合入口保留完整嵌套营养结构，但同样区分库引用、同批foodRef引用和自由项，不接受引用后手工覆盖营养。单独食材维护填写baseQuantity/unit和nutrition，不要求用户今天吃多少。
 
-## 四种营养输入
+## 新增与局部修改
 
-数值使用十进制字符串，未知字段省略，明确零填"0"。来源sourceKind与数值是否已知分开：已知数值而来源不明可保留unknown；不能编造标签或估算依据。estimated必须说明basis，标签／成分表沿用依据校验。
+preview_meals只新增；向已保存餐次补食物先query_meals取details定位，再preview_meal_changes。多个候选先澄清，不凭日期或相似内容猜目标。省略字段保留，明确允许的空值才清空，备注可clearNotes，营养或依据可clearFields，不能同字段既设置又清空。
 
-caloriesKcal、proteinG、carbsG、fatG是实际参与预览与计算的字段；basis只说明依据，写在basis里的数字不会自动成为营养数值。用户提供的实际个数不能改写成用户报告了假设规格的克重。每份／每参考量交给既有换算逻辑计算，避免在文字里另算矛盾总量。预览meal.nutritionStatus返回complete／partial／unknown及known、unknown字段清单；明确0仍已知，全未知提示修正原草稿，不强制估算或改变canConfirm。
+update_preview只修改原待审草稿；changes的kind沿返回项目kind，餐次为save_meal，按原key及食物index/itemId局部修改。自由总量项改数量须quantityEffect=keep_total或scale_total，库项与每份自动换算。补照片用addImageIds保留成功附件，替换照片用imageIds；不能同时使用。确实漏项用appendItems及新key追加，检查新增领域权限，不更换已绑定历史对象。不能清空整餐或删除正式记录。
 
-| 用户提供的事实 | 食物输入 | 服务器处理 |
-| --- | --- | --- |
-| 吃两份，两份合计600kcal | quantity="2"，caloriesKcal="600"，省略nutritionBasis | 直接采用600，不再乘2 |
-| 吃两份，每份300kcal | quantity="2"，nutritionBasis="per_portion"，caloriesKcal="300" | 原业务计算为600，保留每份原值 |
-| 吃150g，每100g是200kcal | quantity="150"，unit="g"，nutritionBasis="per_reference"，referenceQuantity="100"，caloriesKcal="200" | 直接按150/100计算300，不先除成每克并舍入；依据保留原参考量 |
-| 包装只有每份418.4kJ，吃一份 | quantity="1"，unit="份"，caloriesKj="418.4" | 换算100kcal；不能同时填caloriesKcal |
-| 本人已有食材规格 | foodId、foodVersion、实际quantity/unit | 按真实规格或历史快照换算，不同时填营养 |
-| 用户明确不估或确实无法合理估算，营养全未知 | 只提供名称与实际食量，省略四项营养 | 保持null，不填0，不自动用宏量反推热量 |
-| 食量确实未知且用户明确保留 | amountDecision="unknown_accepted"，省略quantity | 保留未知；不能默认1份 |
-| 用户接受食量估算 | amountDecision="estimate_accepted"及basis | 保留估算身份，不说成实测或用户确认的精确量 |
+## 防重、授权与保存
 
-kind通常省略即food；misc仅是未单列的剩余食物，whole只能是整餐唯一项。食物总营养与每份营养的业务区别继续存在，由简单入口转换，不能为了缩短定义把它们混成一种。
+所有新创建入口共用统一父预览和请求唯一约束。同一任务同operationId、同内容返回原回执；内容改变返回原编号，须update_preview，不用新编号或其他入口重建。修改有独立operationId，重复修改先查原修改账，避免重复追加；原payload及首次摘要不变。
 
-每参考量输入会转为本次总量并保留文字计算依据。保存后再仅改变食量时，它按自由总量项处理，需要明确保持或同比缩放，不从说明文字猜测原始结构。
+站内按真实用户消息、原授权生成稳定创建编号，不把工具名或参数变化当新任务。外部客户端须沿用原请求编号或预览引用；换编号且不提供引用时，不能仅靠内容相似判定同一次意图。独立任务允许相同内容，不作全局餐次合并。
 
-虚构示例：
+查询和修改按实际领域校验访问凭据、账号及原授权。补项不能借其他连接扩权，原授权撤销、过期、版本冲突、跨账号附件均阻止修改。原预览有效期不因追加延长；新加入领域沿用本业务有效期，混合预览采用最早期限。
 
-```json
-{
-  "operationId": "fictional-lunch-001",
-  "date": "yesterday",
-  "timezone": "Asia/Shanghai",
-  "mealType": "午餐",
-  "foods": [{
-    "name": "虚构包装食品",
-    "quantity": "2",
-    "unit": "份",
-    "nutritionBasis": "per_portion",
-    "caloriesKcal": "300",
-    "proteinG": "0",
-    "sourceKind": "label",
-    "basis": "虚构包装转录：每份300kcal、蛋白质0g，其余未知。"
-  }]
-}
-```
+创建、修改及查询返回统一id/previewRef、revision、status、canConfirm、needsUserInput、逐项结果和confirmationUrl。pending不算保存；confirmed/completed仍须结合persisted和saved判断范围。最终必须本人网页登录确认；上传、关联预览、正式保存、全天记全、模板目标与实际训练完成分别判断。
 
-## 局部修改
+## 查询及字段解释
 
-省略字段保留原值；clearNotes清备注，updateFoods.clearFields明确清营养或依据。不能同时设置和清空同一字段。
+summary用于分析，details用于编辑定位。range、分页范围和完整窗口分开，hasMore=true继续查询；returned_page仅代表本页。优先服务器statistics/balance，不自行心算跨日合计。已记录摄入不是全天完整摄入，累计消耗不是全天最终值，未知null不是0。
 
-| 情况 | 处理 |
-| --- | --- |
-| 只改备注、餐次或日期 | 其他餐项、照片与精度由服务器保留；改日不伪造新的准确发生时间 |
-| 只改一项营养 | updateFoods定位指定食物，仅覆盖该项本次总营养，其余保留 |
-| 库项／每份项只改食量 | 自动按原规格／每份值换算；库规格后来变更不改历史快照 |
-| 自由总量项改食量 | 有已知营养时须明确quantityEffect=keep_total或scale_total；不能按模型猜测自动乘 |
-| 自由项改变单位 | 没有可靠等价关系时不能同比缩放；提供新总营养或明确保持 |
-| 添加／移除餐内食物 | addFoods／removeFoods；不能移除后留下空餐，整条删除只在网页 |
-| 替换库项营养或身份 | 移除该餐项并添加正确的新食物，不改历史库快照 |
-| 修改待确认预览 | 原授权、pending、有效期、父子revision均须匹配；更新AI修改账，人工审核记录不被冒充 |
+成功结果带按本次返回选择的fieldDefinitions，文本JSON和structuredContent相同；豆包result_json及HTTP保留同源解释。字典按业务维护，旧HTTP映射不代表旧工具仍公开。接口执行通过、回答质量通过、网页流程通过分别验收。
 
-已保存餐次修改产生新的待确认预览；修改待确认餐次会保留原链接。返回operationType和最新id/revision是下一步查询依据，不能把预览中的未来meal.id当成已经保存的餐次。
+## 维护与验证
 
-## 消耗与运动
+修改接口需同步用途清单、注册、字段字典、豆包Manifest／运行说明、站内会话和隔离评测。生产只使用正式feature；测试使用隔离数据，模型Key不进入worker、日志或报告，旧快照及原答保持。
 
-全天总数用totalKcal；静息／活动分项用restingKcal、activeKcal，不能混填。只有已完成运动时只传activities，全天未知继续留空。没有手填活动合计时采用activities累计，不补人工0。
+先检查18项覆盖、参数互斥、权限、版本、重复请求、原草稿修改、旧预览、批量和附件，再执行lint、typecheck、单元／集成和production build。两模型定向复测不替代全部模型能力或真实豆包端验收，原始结果和费用按实际回执保留。
 
-运动total采用原caloriesKcal；components只以exerciseActiveKcal纯运动部分计入，exerciseRestingKcal保留查看。included已包含、additional额外增加，只按用户事实表达；没有明确说明则留空，由网页核对，不能按数值大小猜。来源日总数不再叠加其中的运动。
+## 两模型定向复测
 
-修改日记录带dayId/dayVersion，运动带id/version；省略保留、null清空，0是已知。原版本、日期重复、来源保护、包含关系和改期规则继续由activities feature判断。
+本节结果针对18项MCP2.0候选。候选已合入main；豆包云构建目录校验未通过，按先同步各接入端再停旧名的顺序，线上暂保留1.18.3／21项兼容版，详见部署状态。
 
-## 查询、分页和返回
+千问Qwen3.8-Flash长版、小米MiMo V2.6 Flash精简版各10题，每题一次，沿用原模型参数。覆盖新餐、缺食量追问、补充食量、历史追加、引用局部修改、身体与早餐组合、原草稿改量后查状态、补照片及仅维护食材库。7题保留历史同配置对照，3题只作新增验收；均为隔离历史回放，不操作真实健康记录。
 
-query_meals只返回已保存餐次；day.status表示全天是否记全，不能当作本餐是否保存。待确认预览另查get_*_operation。summary用于分析，details用于明细与修改；旧调用不传view时保留原返回结构。新摘要不返回全部食材库、重复完整快照或与任务无关的原始历史。
+本次两家均完成10题，重大错误和重复顶层预览均为0。千问9题完整通过、1题部分通过，质量79.25／80；小米10题完整通过，质量80／80。原草稿改量时两家合计3次参数拒绝，千问最终改为手填标签项而丢失食材库关联；食材来源表述被旧说明校验误拦，两家各恢复1次。已恢复的中途错误只记录开销，不重复扣质量分；最终关联丢失仍扣分。相同7题费用千问略升、小米下降，不能宣称减少工具数必然降低token或一次通过代表长期稳定。
 
-新返回明确requested range及page：摘要每页最多366日，明细每页50日。hasMore=true时用nextFrom至原to继续，下一次仍按当前事实读取，不缓存旧健康数值。日历分页可能遇到空日，不能补0或声称这页以外没有记录。食材搜索仍保留最多100项的原规则，按名称继续缩小搜索。
+正式20题usage核算¥0.38730882；修正前共用说明残留旧名的整批9次尝试另计¥0.18237708，原答和费用全部保留。含历史已知费用累计¥7.49158880，另保留未知费用上限¥0.07337580，预算占用¥7.56496460／¥10。usage核算与平台账单分开，不抵扣赠送额度。原答、输入、执行快照、评分hash及HTML／Markdown报告保留于原入口私有.codex/model-evaluation/runs/2026-11-14T06-19-22-765Z-tools-v2。
 
-身体只返回实测。新sevenDay按本页结束日及前六天统计，必要时读取区间前最多六日；它不是整个长区间的平均。旧analyses.summary仍为当前最新有效七日，scope=latest_available_seven_days明确区分。来源没有获得用户确认时仍需询问，不能因为查询到了历史来源就代填。
-
-## 重试、错误和保存
-
-- 新请求生成operationId；同一请求重试保持全部原参数，包括today／yesterday。服务器固定首次解释日期，跨零点不会换日。内容变化使用新标识。
-
-以上是外部MCP／HTTP约定。受控站内会话对模型隐藏operationId，服务器按当前用户消息、授权和业务参数生成；相同内容重试复用，修改内容生成新编号并沿用原草稿定位。不会替模型改日期、对象、食量或权限。站内与隔离评测共享records/ai-prompt.mjs生成器，渠道附加说明与业务规则分开；长短提示词的模型表现仍须实测，离线通过不代表回答质量通过。
-
-受控站内会话只对标为unknown_accepted的新自由餐项规范空quantity／unit为省略，不增加数量、不清空历史字段，不取代用户原话核验。外部MCP／HTTP仍须按定义省略未知数量，不能传null或空字符串。历史餐次已有待审预览后，同任务跨工具全量重建同一目标会被拦截，返回原previewId/revision及确认链接；正确内容复用原预览，继续修改仍须原授权及最新版本。
-- 修改请求也独立幂等；重复添加食物的同一请求不会再添加一次，也不再次增加审核版本。
-- invalid_input／needs_input修正参数或问用户；版本、快照或审核变化先重读；过期重新预览；授权失败重新连接。request_conflict不能换标识盲目重放旧操作。
-- 可重试的服务故障继续沿用原标识与内容。工具参数在平台派发前即解析失败时，服务器无法修正它，需核对实际调用和schema。
-- pending与awaiting_web_confirmation均未保存。confirmed/completed还要检查saved／counts及逐项结果；取消或跳过不算保存。混合审核允许用户选择保存范围，不承诺所有条目都已保存。
-- AI没有确认、整条删除、恢复或批量删除入口。预览到期以返回expiresAt为准，不能统一称为24小时。
-
-## 验证边界
-
-隔离测试覆盖新旧协议、原工具兼容、未知／0、计算口径、历史快照、部分修改、清空、原授权、版本、取消、过期与重试；实际Next产物和网页确认另外验收。全部使用虚构账号，不向正式账号写入测试健康记录。
-
-新增工具保留旧定义，因此总工具定义可能变大；不据此宣称节省token、降低费用或提高模型首轮完成率。真实GPT和豆包模型分别测量，客户端缓存、工具选择、参数生成和最终网页保存不能互相代替。
-
-常用入口对明确标签／成分表数值自动生成忠实转录，保留未知，不新增推断来源；已有basis或链接保持。新增消耗按totalKcal／activeKcal是否明确提供推导模式，包括明确0，不要求模型重复指定可确定字段；修改旧记录仍保留原模式。
-
-## 统计与同草稿修正
-
-query_meals.statistics返回本页已记录／已记全天的逐营养sum、mean、min、max及已知天数，部分合计保留缺项日期。query_energy.statistics排除累计；询问盈余时可用includeMeals=true，需同时具备饮食和消耗读权限。balance对同一完整日交集给出逐日净差、摄入合计、消耗合计、净差合计与日均，缺数据不补0。分页统计只代表window中的当前页，不代替完整区间。
-
-库食材引用填写name、foodId、foodVersion及实际quantity/unit，不混填sourceKind或营养；自由填写使用相应营养和basis。已知食量缺单位在创建统一预览前拒绝。错误details.fields指出具体路径，已有草稿冲突可返回previewId/revision及建议工具，身份或授权不匹配不返回定位信息。
-
-修正统一待审批次：先get_record_operation取最新状态，再submit_record_operation带previewId、revision、新的operationId和保持原key／类型／历史对象的完整items。仅改原草稿，原payload保留；同次修改重试不重复应用。普通待审餐继续用preview_meal_changes。新任务才新建批次，确认仍只在网页进行。简洁预览包含当前备注、附件和消耗累计标识。
-
-受控运行器每次用户请求创建ai-tool-session：第一轮简短目录＋load_tools，未加载调用先拦截，并仅为下一轮补完整定义；模型读定义后重新生成参数。重复请求协调仅限本次请求，不是长期记忆。外部GPT／豆包仍由各自平台控制工具加载，不能把评测运行器的行为当作外部产品实测结论。
-
-补齐遗漏编号与更换对象分开校验：原先遗漏编号时，可引用本账号同日期已有消耗或同日时段身体记录；已明确的历史对象仍不可替换。新增运动的预览临时编号不得当正式id/version，错误会指向具体项目并要求移除临时引用。
-
-正式编号的归属与版本只核对数据库已保存事实，不使用RecordReviewView.energySnapshot中的预览投影认定正式身份。无效初始日编号也可修正为本账号同日真实记录；已有真实对象不能替换。编号错误返回同日可用id/version，模型仍须明确提交修正；只需重做运动包含核对的合法预览继续展示待确认数值。
+收费复测后仅清除附件及消耗查询回执中的退役工具提示，实际回执离线检查覆盖18项；原收费执行包、原答与分数保持。真实Next入口双协议、统一预览页面和报告桌面／手机阅读单独验收；未用收费回放证明网页正式保存、外部平台缓存刷新或真实手机宿主流程已通过。

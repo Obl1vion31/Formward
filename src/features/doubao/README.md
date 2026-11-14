@@ -6,8 +6,6 @@
 
 AppSecret 仅用于服务端向豆包换取已验证的 OpenID，不传到 Vercel 静态文件、前端、Skill 或日志。数据库只保存用于匹配的 OpenID 摘要，不收集豆包手机号、昵称或头像。上海独立入口及平台测试版已启用；本人手机身份交换、网页授权回传和平台换码绑定已验证，查询及网页确认的实际范围见 `docs/doubao-onboarding.md`。
 
-GPT与豆包共享21项工具。preview_meal使用饮食feature的平铺输入，支持本次总量／每份／每参考量与明确kJ换算；preview_meal_changes保留未改内容并在原预览修正，preview_energy沿用全天与运动规则。meal-preview.ts仅留旧模块导出，实际注册统一位于mcp/server.ts。旧18项、原授权和网页登录确认保持。
-
 营养未知省略并映射null，明确0及原精度保留。来源未知可保留unknown而不丢已知数值；估算须有basis。明确同义标签和同单位后缀可兼容，不推测kg等不同单位。新范围摘要与状态输出减少无关数据，实际能力与模型验证边界见docs/ai-tool-contracts.md。
 
 豆包工具发现把整数`exclusiveMinimum:x`等价转换为`minimum:floor(x)+1`，兼容平台解析器；不改变原schema、服务器校验或GPT输出。该规则须在两种协议的实际HTTP测试中检查。
@@ -25,3 +23,5 @@ MCP同时支持现代 `server/discover` 与旧版发现，定义可匿名读取�
 client-events仅接收插件自报的固定登录阶段、独立随机trace与数值错误码，正文最多3 KiB／12阶段，严格拒绝原始错误、身份、URL、凭据或健康内容；匿名请求独立限流，日志标记untrusted_client，不作为身份或授权事实，也不签发任何凭据。
 
 新食物互斥分支在正式MCP中保持，豆包发现仅将标记的食物分支平铺兼容；字段说明与严格服务端校验保持，不将其他旧工具分支泛化改写。工具错误保留字段路径、原草稿定位与恢复动作；SDK参数校验文字不再被笼统错误覆盖。
+
+MCP 2.0.0按职责公开18项工具，原名停止执行。新餐preview_meals、正式餐次修改preview_meal_changes、食材维护preview_foods、身体preview_measurements、训练preview_training；组合preview_record_bundle只接受至少两类功能动作。get_preview统一查状态，update_preview只改原草稿及补照片。旧HTTP与确认链接保留，目录、Manifest和字段解释同源；最新完整规范见docs/ai-tool-contracts.md。
