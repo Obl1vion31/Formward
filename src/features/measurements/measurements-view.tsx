@@ -26,7 +26,7 @@ import { MeasurementEntry, MeasurementEntryHeader } from "./measurement-entry";
 import { timezoneLabel } from "./timezone";
 import { useMobileMode } from "@/components/use-mobile-mode";
 import type { TrendRoute } from "@/components/metric-trend-model";
-import {useChartTransition} from '@/components/chart-transition-state';
+import {useChartTransitionActions} from '@/components/chart-transition-state';
 import {TrendGlyph} from "@/components/trend-glyph";
 import {metricTrendModel} from "@/components/metric-trend-model";
 import { BodyTrendPlot } from "./body-trend-plot";
@@ -77,7 +77,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const [showEvening, setShowEvening] = useState(!initialTrend);
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [drawer, setDrawer] = useState<DrawerView | null>(initialDate&&!initialTrend ? initialPeriod||initialIntent==='edit'?{kind:"entry",date:initialDate,period:initialPeriod??'daytime',editing:initialIntent==='edit'}:{kind:"day",date:initialDate,metric:"weightKg"} : null);
-  const transition=useChartTransition(),[selectedMetric,setSelectedMetric]=useState<MeasurementMetric>('weightKg');
+  const transition=useChartTransitionActions(),[selectedMetric,setSelectedMetric]=useState<MeasurementMetric>('weightKg');
   const preference=useBodyPreferences(preferences,!!drawer),activeMetric:MeasurementMetric=preference.showBodyFat?selectedMetric:'weightKg',metrics=preference.showBodyFat?['weightKg','bodyFatPercent'] as const:['weightKg'] as const;
   function updated(result: Extract<EntryResult, { ok: true }>) { setSourceResult(null); setActionResult({ ...result, base: serverRecords }); }
 

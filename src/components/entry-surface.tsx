@@ -11,7 +11,7 @@ import {localMeasurementDate} from "@/features/measurements/entry-state";
 import bodyStyles from "@/features/measurements/measurements-view.module.css";
 import {EnergyEditor} from "@/features/activities/energy-editor";
 import {WorkspaceSourceContext} from "./workspace-frame-state";
-import {useChartTransition} from './chart-transition-state';
+import {useChartTransitionActions} from './chart-transition-state';
 import {useRepeatedRecordTask} from './record-intent-client';
 export function EntrySurface({children}:{children:ReactNode}){
  const path=usePathname(),query=useSearchParams(),router=useRouter(),entry=query.get('entry'),routeKey=path+'?'+query.toString();
@@ -22,7 +22,7 @@ export function EntrySurface({children}:{children:ReactNode}){
  const key=routeKey+'#'+intent.id;
  const [binding,setBinding]=useState<{key:string;meta:EntryMetadata}|null>(null),[slot,setSlot]=useState<HTMLElement|null>(null),[headerSlot,setHeaderSlot]=useState<HTMLElement|null>(null),[guards,setGuards]=useState<EntryGuards|null>(null);
  const closeHost=useRef<()=>void>(()=>{}),[seen,setSeen]=useState(''),active=requested&&closed!==key,meta=binding?.key===key?binding.meta:null;
- const {invalidate}=useChartTransition();
+ const {invalidate}=useChartTransitionActions();
  useLayoutEffect(()=>{if(active)invalidate();},[active,invalidate]);
  const [failure,setFailure]=useState<{key:string;reset:()=>void}|null>(null);
  const reportFailure=useCallback((reset:()=>void)=>setFailure({key,reset}),[key]);

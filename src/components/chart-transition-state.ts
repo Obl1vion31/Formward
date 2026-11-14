@@ -21,3 +21,7 @@ export type ChartTransitionState = {
 };
 export const ChartTransitionContext = createContext<ChartTransitionState>({ preview:null, returningToOverview:false, overviewReady:()=>{}, cancelOverviewReturn:()=>{}, navigate: async()=>{}, register:()=>()=>{}, restore:()=>{}, back:()=>{}, invalidate:()=>{},recallOverview:()=>null,rememberOverview:()=>{} });
 export const useChartTransition = () => useContext(ChartTransitionContext);
+
+/** 图形注册与业务失效不订阅飞行状态，避免动画挂载重绘整张业务图。 */
+export const ChartTransitionActionsContext=createContext<Pick<ChartTransitionState,"register"|"invalidate"|"recallOverview"|"rememberOverview">>({register:()=>()=>{},invalidate:()=>{},recallOverview:()=>null,rememberOverview:()=>{}});
+export const useChartTransitionActions=()=>useContext(ChartTransitionActionsContext);

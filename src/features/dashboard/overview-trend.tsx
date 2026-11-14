@@ -7,7 +7,7 @@ import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
 import { preferredRecordedDate, rangeContaining } from "@/components/record-dates";
 import { useEffect,useLayoutEffect,useRef,useState } from "react";
-import {useChartTransition} from "@/components/chart-transition-state";
+import {useChartTransitionActions} from "@/components/chart-transition-state";
 import { LoadingLink } from "@/components/loading-link";
 import { RelationshipPlot } from "./relationship-plot";
 import { addCalendarDays, calendarOrdinal } from "../measurements/calendar";
@@ -29,7 +29,7 @@ const blankDay = (date: string): OverviewDay => ({ date, nextDate: addCalendarDa
 const overviewFlags=(day?:OverviewDay)=>[day?.nutrition&&day.mealDayStatus!=="complete"?"饮食"+(day.mealDayStatus==="incomplete"?"未记全":"待确认"):null,day?.nutrition?.incomplete.caloriesKcal?"营养含未知":null].filter(Boolean).join(" · ");
 export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const today = data.today, mobile = useMobileMode();
-  const {recallOverview,rememberOverview}=useChartTransition();
+  const {recallOverview,rememberOverview}=useChartTransitionActions();
   const [restored]=useState(recallOverview);
   const preferred = preferredRecordedDate(data.days, today, day => day.energyBalance !== null, day => data.recordDates.includes(day.date));
   const [mode, setMode] = useState<string | null>(restored?.mode??null), [custom, setCustom] = useState(restored?.custom??{ from: addCalendarDays(today, -29), to: today }), [opened, setOpened] = useState<string | null>(null);

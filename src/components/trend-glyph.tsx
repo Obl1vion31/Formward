@@ -2,7 +2,7 @@
 import { useLayoutEffect, useRef } from "react";
 import type { MetricTrendModel } from "./metric-trend-model";
 import { trendColor, trendKey, trendRangeKey } from "./metric-trend-model";
-import { useChartTransition } from "./chart-transition-state";
+import { useChartTransitionActions } from "./chart-transition-state";
 
 export const detailStroke=(count:number)=>count<=7?2.5:1.75;
 export const detailRadius=(count:number)=>count<=7?4.5:3.5;
@@ -11,7 +11,7 @@ export const detailRadius=(count:number)=>count<=7?4.5:3.5;
 export function TrendGlyph({ model, target = false, skeleton = false, x, y, width, height, className, detail=false,flightLayer }: {
   model: MetricTrendModel; target?: boolean; skeleton?: boolean; x?: number; y?: number; width?: number | string; height?: number | string; className?: string; detail?:boolean;flightLayer?:'source'|'destination';
 }) {
-  const ref = useRef<SVGSVGElement>(null), {register} = useChartTransition(), key = trendKey(model);
+  const ref = useRef<SVGSVGElement>(null), {register} = useChartTransitionActions(), key = trendKey(model);
   useLayoutEffect(() => {
     if (!target || !ref.current) return;
     const snapshot=JSON.parse(key) as MetricTrendModel;return register({ kind: snapshot.kind, element: ref.current, model:snapshot, skeleton });
