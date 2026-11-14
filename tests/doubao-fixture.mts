@@ -1,3 +1,4 @@
+import { withV2McpFixtures } from "../src/features/mcp/test-client";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -106,12 +107,12 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
     assert.equal(invalid.status, 401, "实际Next入口拒绝无效凭据，不能返回请求复制异常503");
     const platformContext = { from_mcp_call: true, _miniapp_permitted_data: { unused: "fictional-private-context" } };
     for (const mode of ["auto", "legacy"] as const) {
-      const client = new Client({ name: "fictional-production-http", version: "1" }, { versionNegotiation: { mode } });
+      const client = withV2McpFixtures(new Client({ name: "fictional-production-http", version: "1" }, { versionNegotiation: { mode } }));
       await client.connect(new StreamableHTTPClientTransport(new URL(baseURL + "/api/doubao/mcp"), { requestInit: { headers: { "x-db-openid": externalId, "x-db-access-token": tokens.data.access_token } } }));
       try {
         const tools = await client.listTools();
-        assert.equal(tools.tools.length, 21);
-        assert.ok(tools.tools.some(tool => tool.name === "preview_meal"));
+        assert.equal(tools.tools.length, 18);
+        assert.ok(tools.tools.some(tool => tool.name === "preview_meals"));
         assert.ok(!JSON.stringify(tools.tools).includes('"exclusiveMinimum":'));
         const profile = await client.callTool({ name: "get_profile", arguments: {} });
         assert.notEqual(profile.isError, true);
@@ -131,7 +132,7 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
         assert.equal(invalidDate.isError, true, "平台上下文兼容不能放过非法业务参数");
         const unknownField = await client.callTool({ name: "query_measurements", arguments: { ...platformContext, unexpected_business_field: true } });
         assert.equal(unknownField.isError, true, "其他未知字段继续拒绝");
-        const meal = await client.callTool({ name: "preview_meal", arguments: {
+        const meal = await client.callTool({ name: "preview_meals", arguments: {
           ...platformContext, operationId: "fictional-production-lunch-" + mode,
           date: "2026-11-10", mealType: "午餐", foods: [{ name: "虚构测试午餐", quantity: "2", unit: "份", caloriesKcal: "600", proteinG: "0", sourceKind: "estimated", basis: "两份合计估计600 kcal，油量不确定。" }, { name: "虚构茶", quantity: "250", unit: "ml" }],
         } });
@@ -155,7 +156,7 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
         const changedPage = await fetch(edited.confirmationUrl, { headers: { cookie } });
         assert.equal(changedPage.status, 200);
         assert.ok((await changedPage.text()).includes("虚构局部修改"));
-        const state = await client.callTool({ name: "get_record_operation", arguments: { id: edited.id, view: "status" } });
+        const state = await client.callTool({ name: "get_preview", arguments: { id: edited.id, view: "status" } });
         assert.notEqual(state.isError, true);
         assert.equal("rows" in (state.structuredContent as Record<string, unknown>), false);
         const energy = await client.callTool({ name: "preview_energy", arguments: { ...platformContext, operationId: "fictional-production-energy-" + mode, date: "2026-11-10", restingKcal: "1800", activeKcal: "0", activityMode: "total" } });
@@ -172,6 +173,6 @@ if (process.env.FORMWARD_DOUBAO_HTTP_CHECK === "1") {
     assert.equal((await db.select({ id: schema.measurement.id }).from(schema.measurement)).length, 0);
     assert.equal((await db.select({ id: schema.meal.id }).from(schema.meal)).length, 0);
     assert.equal((await db.select({ id: schema.energyDay.id }).from(schema.energyDay)).length, 0);
-    console.info(JSON.stringify({ check: "doubao-production-http", passed: true, toolCount: 21, protocols: ["auto", "legacy"], clientDiagnosticsPassed: true, refreshRotationPassed: true, refreshReloginSignalPassed: true, invalidCredentialsRejected: true, profileOwnerMatched: true, measurementQueryPassed: true, platformContextCompatible: true, simpleMealPreviewPassed: true, mealChangesPassed: true, energyPreviewPassed: true, boundedQueriesPassed: true, previewPagePassed: true, businessValidationPreserved: true, healthRecordsWritten: 0 }));
+    console.info(JSON.stringify({ check: "doubao-production-http", passed: true, toolCount: 18, protocols: ["auto", "legacy"], clientDiagnosticsPassed: true, refreshRotationPassed: true, refreshReloginSignalPassed: true, invalidCredentialsRejected: true, profileOwnerMatched: true, measurementQueryPassed: true, platformContextCompatible: true, simpleMealPreviewPassed: true, mealChangesPassed: true, energyPreviewPassed: true, boundedQueriesPassed: true, previewPagePassed: true, businessValidationPreserved: true, healthRecordsWritten: 0 }));
   } finally { if (process.env.FORMWARD_DOUBAO_PREVIEW !== "1") await close(); }
 }

@@ -16,9 +16,9 @@ FORM：已验收原型的普通扩展，code-led。seed: none (unavailable)
 
 FINISH：独立复核对三项视觉修复及矮屏回归均评分resolved，disposition为ship，范围限于所列助手修复。现行D15与实际验收文档记录普通扩展证据；不重建全站视觉系统，无新增shipping raster。最终兼容包及正式账号验证分别记录。
 
-站内聊天由chat-config按有效登录、owner和指定账号ID共同控制。chat-store管理30天独立授权、当前会话、请求幂等和每日共享预算；chat-provider适配三家流式协议；chat-tools复用21项正式MCP能力及records的按需工具会话协调器；chat-runtime组织按需工具、显式补充、私有照片、版本与预览。chat-client持有本账号输入与当前历史，chat-view和chat.module.css呈现已验收原型的普通扩展。业务及配置见[站内助手](../../../docs/assistant-chat.md)，视觉及验收见D15及[实际记录](../../../docs/assistant-chat-verification.md)。
+站内聊天由chat-config按有效登录、owner和指定账号ID共同控制。chat-store管理30天独立授权、当前会话、请求幂等和每日共享预算；chat-provider适配三家流式协议；chat-tools复用18项正式MCP能力及records的按需工具会话协调器；chat-runtime组织按需工具、显式补充、私有照片、版本与预览。chat-client持有本账号输入与当前历史，chat-view和chat.module.css呈现已验收原型的普通扩展。业务及配置见[站内助手](../../../docs/assistant-chat.md)，视觉及验收见D15及[实际记录](../../../docs/assistant-chat-verification.md)。
 
-提示词通过records/ai-prompt.mjs与隔离评测共用；chat-config.promptVariant显式选择original或compact，当前千问使用original、小米使用compact；智谱保留原配置，不在本轮收费测试范围。36题两版对照及两题接口修复整组回放中，千问长版质量77.24/80、精简版74.19/80；小米长版75.85/80、精简版75.37/80。选择依据是本题库的质量、费用与耗时，不声称更慢必然更聪明；原失败和未验收的网页保存流程单独保留。私有结果见`.codex/model-evaluation`，不能公开健康图片或报告。站内专用补充输入、已保存附件及技术元数据边界单独追加。工具请求编号由服务器按用户消息、授权和业务参数生成，模型无需填写；相同内容重试稳定复用，修正仍关联原待审草稿。外部MCP定义及正式保存保护不变，不增加审核模型。
+提示词通过records/ai-prompt.mjs与隔离评测共用；chat-config.promptVariant显式选择original或compact，当前千问使用original、小米使用compact；智谱保留原配置，不在本轮收费测试范围。36题两版对照及两题接口修复整组回放中，千问长版质量77.24/80、精简版74.19/80；小米长版75.85/80、精简版75.37/80。选择依据是本题库的质量、费用与耗时，不声称更慢必然更聪明；原失败和未验收的网页保存流程单独保留。私有结果见`.codex/model-evaluation`，不能公开健康图片或报告。站内专用补充输入、已保存附件及技术元数据边界单独追加。工具请求编号由服务器按用户消息、授权和业务参数生成，模型无需填写；相同内容重试稳定复用，修正仍关联原待审草稿。外部MCP仍显式传operationId，正式保存保护保持，不增加审核模型。
 
 首次默认千问，模型偏好跨刷新及新对话保留；切换不调用模型或清空输入。当前会话按5条加载、最多50条可访问，不自动删除更早历史。三家共用每日¥2，发送按钮左侧只显示百分比，提示仅含重置时间；费用、预占与未知仅由服务器继续核算。消息使用实际授权追溯来源，正式健康记录仍经原审核网页确认；自动提醒及忽略保持不调用模型。原型的模拟数据和私有评测不进入正式运行包。重试回执逐项保存并验证原授权引用，失效回执不借其他模型的新授权复活；新授权生成独立预览标识。
 
@@ -35,3 +35,5 @@ FINISH：独立复核对三项视觉修复及矮屏回归均评分resolved，dis
 昨日饮食可以忽略这一天。assistant_reminder_dismissals按账号和日期唯一保存，跨设备下一次读取生效，不改餐次、记全状态、训练或AI任务。Server Action采用当前会话证明，事务在账号锁内再次验证；失败保留事项，重试幂等。所有读取有界且校验账号，客户端不持久保存健康摘要；仅保留当日轻提示标记及跨标签失效信号。
 
 聊天消息区使用零占位的居中悬浮向下按钮，距离最新超过80px显示，36px外观／44px命中，返回底部隐藏且不唤起键盘。小于360px以原生下拉切换聊天／待办，其他手机在同一头部切换；模式切换不卸载聊天，保留草稿、附件与阅读位置。输入区域使用稳定底色，移除独立用量行及金额明细。
+
+MCP 2.0.0按职责公开18项工具，原名停止执行。新餐preview_meals、正式餐次修改preview_meal_changes、食材维护preview_foods、身体preview_measurements、训练preview_training；组合preview_record_bundle只接受至少两类功能动作。get_preview统一查状态，update_preview只改原草稿及补照片。旧HTTP与确认链接保留，目录、Manifest和字段解释同源；最新完整规范见docs/ai-tool-contracts.md。

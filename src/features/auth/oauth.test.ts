@@ -1,3 +1,4 @@
+import { withV2McpFixtures } from "../mcp/test-client";
 import { readTraining } from '../training/records';
 import assert from "node:assert/strict";
 import { before, after, test } from "node:test";
@@ -12,12 +13,12 @@ import * as schema from "../../db/schema";
 import { createAuth } from "./auth";
 import { provisionAccount } from "./provision";
 import { CONNECTION_CLAIM, READ_SCOPE, WRITE_SCOPE, MEALS_READ_SCOPE, MEALS_WRITE_SCOPE, ENERGY_READ_SCOPE, ENERGY_WRITE_SCOPE, TRAINING_READ_SCOPE, TRAINING_WRITE_SCOPE, listOauthConnections, revokeOauthConnection } from "./oauth-connections";
-import { decideMealOperation, readMealSnapshot } from "../meals/records";
+import { readMealSnapshot } from "../meals/records";
 import { oauthPageRequest } from "./oauth-pages";
 import { createMcpEndpoint } from "../mcp/server";
 import { listMeasurements } from "../measurements/records";
 import { reviewRecordOperation } from "../records/operations";
-import { reviewAiMeasurementOperation } from "../measurements/ai-operations";
+import catalog from "../records/ai-tool-catalog.json";
 import type { mealAiResponse, recordAiResponse } from "../records/ai-response";
 import { initializeAccountOwner, manageAccount, unlockAccountAdmin } from "./account-management";
 
@@ -91,7 +92,7 @@ async function connect(input = credentials, scopes = fullScopes) {
 async function mcpClient(accessToken: string, mode: "legacy" | "auto" = "auto") {
   const client = new Client({ name: "fictional-client", version: "1.0.0" }, { versionNegotiation: { mode } });
   await client.connect(new StreamableHTTPClientTransport(new URL(`${baseURL}/api/mcp`), { requestInit: { headers: { Authorization: `Bearer ${accessToken}` } } }));
-  return client;
+  return withV2McpFixtures(client);
 }
 
 test("后台停用与 OAuth 刷新竞争后旧 JWT／刷新／审核全部失效，恢复重新连接不复活旧审核", async () => {
@@ -106,7 +107,7 @@ test("后台停用与 OAuth 刷新竞争后旧 JWT／刷新／审核全部失效
   await provisionAccount(db, subject);
   const connected = await connect(subject), client = await mcpClient(connected.tokens.access_token);
   try {
-    const result = await client.callTool({ name: "submit_measurement_operation", arguments: { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-06-29", period: "evening", weightKg: "71.00", deviceLabel: "虚构秤" }] } });
+    const result = await client.callTool({ name: "preview_measurements", arguments: { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-06-29", period: "evening", weightKg: "71.00", deviceLabel: "虚构秤" }] } });
     assert.ok(!result.isError);
     const preview = result.structuredContent as { id: string; revision: number };
     const [refresh] = await Promise.all([
@@ -119,11 +120,11 @@ test("后台停用与 OAuth 刷新竞争后旧 JWT／刷新／审核全部失效
       const denied = await fetch(`${baseURL}/api/mcp`, { method: "POST", headers: { Authorization: `Bearer ${access}`, "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) });
       assert.equal(denied.status, 401);
     }
-    await assert.rejects(reviewAiMeasurementOperation(db, connected.userId, preview.id, { kind: "confirm", revision: preview.revision }));
+    await assert.rejects(reviewRecordOperation(db, connected.userId, preview.id, { kind: "confirm", revision: preview.revision }));
     await manageAccount(db, proof, connected.userId, "restore", "", randomUUID());
     assert.equal((await token({ grant_type: "refresh_token", client_id: connected.clientId, refresh_token: connected.tokens.refresh_token, resource: `${baseURL}/api/mcp` })).status, 400);
     await connect(subject);
-    await assert.rejects(reviewAiMeasurementOperation(db, connected.userId, preview.id, { kind: "confirm", revision: preview.revision }));
+    await assert.rejects(reviewRecordOperation(db, connected.userId, preview.id, { kind: "confirm", revision: preview.revision }));
     assert.equal((await listMeasurements(db, connected.userId)).length, 0);
   } finally { await client.close(); }
 });
@@ -167,17 +168,17 @@ test("现代与旧 MCP 客户端发现工具、查询、提交预览、网页确
   for (const mode of ["legacy", "auto"] as const) {
     const client = await mcpClient(connected.tokens.access_token, mode);
     try {
-      const tools = await client.listTools(); assert.deepEqual(tools.tools.map(tool => tool.name).sort(), ["append_pending_images", "authorize_formward", "get_meal_operation", "get_measurement_operation", "get_profile", "get_record_operation", "import_meal_images", "preview_meal", "preview_meal_changes", "preview_energy", "query_energy", "query_meals", "query_measurements", "search_foods", "submit_meal_operation", "submit_measurement_operation", "submit_record_operation", "search_exercises", "query_training", "submit_training_operation", "get_training_operation"].sort());
+      const tools = await client.listTools(); assert.deepEqual(tools.tools.map(tool => tool.name).sort(), Object.keys(catalog).sort());
       const profile = await client.callTool({ name: "get_profile", arguments: {} }); assert.equal((profile.structuredContent as Record<string, unknown>)?.id, connected.userId);
       const input = { operationId: randomUUID(), items: [{ kind: "save_record", date: mode === "legacy" ? "2024-06-01" : "2024-06-02", period: "evening", weightKg: "70.20", deviceLabel: "虚构 MCP 秤" }] };
-      const result = await client.callTool({ name: "submit_measurement_operation", arguments: input }); assert.ok(!result.isError);
+      const result = await client.callTool({ name: "preview_measurements", arguments: input }); assert.ok(!result.isError);
       const data = result.structuredContent! as { id: string; revision: number; confirmationUrl: string };
       assert.match(data.confirmationUrl, /\/dashboard\/ai\/operations\//);
-      const repeated = await client.callTool({ name: "submit_measurement_operation", arguments: input }); assert.equal((repeated.structuredContent as Record<string, unknown>)?.id, data.id);
+      const repeated = await client.callTool({ name: "preview_measurements", arguments: input }); assert.equal((repeated.structuredContent as Record<string, unknown>)?.id, data.id);
       const beforeCount = (await listMeasurements(db, connected.userId)).length;
-      await reviewAiMeasurementOperation(db, connected.userId, data.id, { kind: "confirm", revision: data.revision });
+      await reviewRecordOperation(db, connected.userId, data.id, { kind: "confirm", revision: data.revision });
       assert.equal((await listMeasurements(db, connected.userId)).length, beforeCount + 1);
-      const operation = await client.callTool({ name: "get_measurement_operation", arguments: { id: data.id } }); assert.equal((operation.structuredContent as Record<string, unknown>)?.status, "confirmed");
+      const operation = await client.callTool({ name: "get_preview", arguments: { id: data.id } }); assert.equal((operation.structuredContent as Record<string, unknown>)?.status, "confirmed");
       const records = await client.callTool({ name: "query_measurements", arguments: {} }); assert.ok(Array.isArray((records.structuredContent as Record<string, unknown>)?.records));
     } finally { await client.close(); }
   }
@@ -194,10 +195,10 @@ test("GPT新旧协议使用新单餐、局部修改、消耗与范围摘要；�
       const before = (await readMealSnapshot(db, connected.userId)).meals.length;
       const nutritionTools = await client.listTools();
       assert.match(nutritionTools.tools.find(tool => tool.name === "query_meals")!.description!, /day.status.*全天/);
-      for (const name of ["preview_meal", "preview_meal_changes", "submit_meal_operation", "submit_record_operation"]) {
+      for (const name of ["preview_meals", "preview_meal_changes", "preview_record_bundle", "preview_record_bundle"]) {
         assert.match(nutritionTools.tools.find(tool => tool.name === name)!.description!, /默认.*估算/);
       }
-      const single = await client.callTool({ name: "preview_meal", arguments: { operationId: randomUUID(), date: "2024-08-01", mealType: "午餐", foods: [{ name: "虚构两份", quantity: "2", unit: "份", caloriesKcal: "300", proteinG: "0", nutritionBasis: "per_portion", sourceKind: "unknown" }] } });
+      const single = await client.callTool({ name: "preview_meals", arguments: { operationId: randomUUID(), date: "2024-08-01", mealType: "午餐", foods: [{ name: "虚构两份", quantity: "2", unit: "份", caloriesKcal: "300", proteinG: "0", nutritionBasis: "per_portion", sourceKind: "unknown" }] } });
       assert.notEqual(single.isError, true);
       const preview = single.structuredContent as ReturnType<typeof mealAiResponse> & { confirmationUrl: string };
       assert.equal(preview.state, "awaiting_web_confirmation");
@@ -207,11 +208,11 @@ test("GPT新旧协议使用新单餐、局部修改、消耗与范围摘要；�
       assert.notEqual(changed.isError, true);
       const edited = changed.structuredContent as ReturnType<typeof recordAiResponse>;
       assert.equal(edited.operationType, "record"); assert.equal(edited.canConfirm, true);
-      const state = await client.callTool({ name: "get_record_operation", arguments: { id: edited.id, view: "status" } });
+      const state = await client.callTool({ name: "get_preview", arguments: { id: edited.id, view: "status" } });
       assert.equal("rows" in (state.structuredContent as Record<string, unknown>), false);
       assert.equal((await readMealSnapshot(db, connected.userId)).meals.length, before);
       await reviewRecordOperation(db, connected.userId, edited.id, { kind: "confirm", revision: edited.revision });
-      const result = await client.callTool({ name: "get_record_operation", arguments: { id: edited.id, view: "status" } });
+      const result = await client.callTool({ name: "get_preview", arguments: { id: edited.id, view: "status" } });
       assert.equal((result.structuredContent as ReturnType<typeof recordAiResponse>).saved, 1);
       const energy = await client.callTool({ name: "preview_energy", arguments: { operationId: randomUUID(), date: "2024-08-02", activities: [{ name: "虚构散步", caloriesKcal: "0", durationMinutes: "20" }] } });
       assert.notEqual(energy.isError, true);
@@ -231,22 +232,22 @@ test("MCP 来源缺失提示补填，明确留空可网页确认；工具说明�
   const connected = await connect(), client = await mcpClient(connected.tokens.access_token);
   const before = await listMeasurements(db, connected.userId);
   try {
-    const tools = await client.listTools(), submit = tools.tools.find(tool => tool.name === "submit_measurement_operation")!;
+    const tools = await client.listTools(), submit = tools.tools.find(tool => tool.name === "preview_measurements")!;
     assert.match(submit.description!, /用户未回答则先询问/);
     assert.match(JSON.stringify(submit.inputSchema), /sourceUnspecifiedConfirmed/);
-    const missing = await client.callTool({ name: "submit_measurement_operation", arguments: { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-06-03", period: "evening", weightKg: "70.20" }] } });
+    const missing = await client.callTool({ name: "preview_measurements", arguments: { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-06-03", period: "evening", weightKg: "70.20" }] } });
     assert.ok(!missing.isError);
-    const pending = missing.structuredContent as { id: string; needsUserInput: { field: string; code: string }[]; preview: { canConfirm: boolean } };
-    assert.equal(pending.preview.canConfirm, false); assert.equal(pending.needsUserInput[0].field, "deviceLabel");
-    assert.equal(pending.needsUserInput[0].code, "source_confirmation_required");
+    const pending = missing.structuredContent as { id: string; canConfirm:boolean; rows:{body:{preview:{needsUserInput:{field:string;code:string}[]}}}[] };
+    assert.equal(pending.canConfirm, false); assert.equal(pending.rows[0].body.preview.needsUserInput[0].field, "deviceLabel");
+    assert.equal(pending.rows[0].body.preview.needsUserInput[0].code, "source_confirmation_required");
     assert.deepEqual(await listMeasurements(db, connected.userId), before);
-    const empty = await client.callTool({ name: "submit_measurement_operation", arguments: { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-06-03", period: "evening", weightKg: "70.20", deviceLabel: null, sourceUnspecifiedConfirmed: true }] } });
+    const empty = await client.callTool({ name: "preview_measurements", arguments: { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-06-03", period: "evening", weightKg: "70.20", deviceLabel: null, sourceUnspecifiedConfirmed: true }] } });
     assert.ok(!empty.isError);
     const ready = empty.structuredContent as { id: string; revision: number; needsUserInput: unknown[] };
     assert.deepEqual(ready.needsUserInput, []);
-    await reviewAiMeasurementOperation(db, connected.userId, ready.id, { kind: "confirm", revision: ready.revision });
+    await reviewRecordOperation(db, connected.userId, ready.id, { kind: "confirm", revision: ready.revision });
     assert.equal((await listMeasurements(db, connected.userId)).find(record => record.recordDate === "2024-06-03")!.deviceLabel, null);
-    const result = await client.callTool({ name: "get_measurement_operation", arguments: { id: ready.id } });
+    const result = await client.callTool({ name: "get_preview", arguments: { id: ready.id } });
     assert.equal((result.structuredContent as Record<string, unknown>).status, "confirmed");
   } finally { await client.close(); }
 });
@@ -254,11 +255,11 @@ test("MCP 来源缺失提示补填，明确留空可网页确认；工具说明�
 test("刷新轮换保持连接与审核归属；授权码重复、错误 verifier、资源和刷新重放被拒绝", async () => {
   const connected = await connect(), client = await mcpClient(connected.tokens.access_token);
   try {
-    const preview = await client.callTool({ name: "submit_measurement_operation", arguments: { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-06-10", period: "evening", weightKg: "71.00", deviceLabel: "虚构 MCP 秤" }] } });
+    const preview = await client.callTool({ name: "preview_measurements", arguments: { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-06-10", period: "evening", weightKg: "71.00", deviceLabel: "虚构 MCP 秤" }] } });
     const data = preview.structuredContent! as { id: string; revision: number };
     const refreshed = await token({ grant_type: "refresh_token", client_id: connected.clientId, refresh_token: connected.tokens.refresh_token, resource: `${baseURL}/api/mcp` }); assert.equal(refreshed.status, 200);
     const next = await refreshed.json(), claims = JSON.parse(Buffer.from(next.access_token.split(".")[1], "base64url").toString()); assert.equal(claims[CONNECTION_CLAIM], connected.claims[CONNECTION_CLAIM]);
-    await reviewAiMeasurementOperation(db, connected.userId, data.id, { kind: "confirm", revision: data.revision });
+    await reviewRecordOperation(db, connected.userId, data.id, { kind: "confirm", revision: data.revision });
     assert.ok((await listOauthConnections(db, connected.userId)).some(row => row.id === claims[CONNECTION_CLAIM]));
     const replayCode = await token({ grant_type: "authorization_code", client_id: connected.clientId, code: connected.code, code_verifier: connected.verifier, redirect_uri: callback, resource: `${baseURL}/api/mcp` }); assert.equal(replayCode.status, 400);
     const replayRefresh = await token({ grant_type: "refresh_token", client_id: connected.clientId, refresh_token: connected.tokens.refresh_token, resource: `${baseURL}/api/mcp` }); assert.equal(replayRefresh.status, 400);
@@ -271,13 +272,13 @@ test("只读授权不能提交，跨账号不能读审核或撤销；撤销后�
   const one = await mcpClient(first.tokens.access_token), two = await mcpClient(other.tokens.access_token), read = await mcpClient(readonly.tokens.access_token);
   try {
     const input = { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-06-20", period: "evening", weightKg: "72.00", deviceLabel: "虚构秤" }] };
-    assert.equal((await read.callTool({ name: "submit_measurement_operation", arguments: input })).isError, true);
-    const result = await one.callTool({ name: "submit_measurement_operation", arguments: input }); const data = result.structuredContent! as { id: string; revision: number };
-    assert.equal((await two.callTool({ name: "get_measurement_operation", arguments: { id: data.id } })).isError, true);
+    assert.equal((await read.callTool({ name: "preview_measurements", arguments: input })).isError, true);
+    const result = await one.callTool({ name: "preview_measurements", arguments: input }); const data = result.structuredContent! as { id: string; revision: number };
+    assert.equal((await two.callTool({ name: "get_preview", arguments: { id: data.id } })).isError, true);
     await assert.rejects(revokeOauthConnection(db, other.userId, first.claims[CONNECTION_CLAIM]));
     await revokeOauthConnection(db, first.userId, first.claims[CONNECTION_CLAIM]);
     const denied = await fetch(`${baseURL}/api/mcp`, { method: "POST", headers: { Authorization: `Bearer ${first.tokens.access_token}`, "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) }); assert.equal(denied.status, 401);
-    await assert.rejects(reviewAiMeasurementOperation(db, first.userId, data.id, { kind: "confirm", revision: data.revision }));
+    await assert.rejects(reviewRecordOperation(db, first.userId, data.id, { kind: "confirm", revision: data.revision }));
     assert.equal((await token({ grant_type: "refresh_token", client_id: first.clientId, refresh_token: first.tokens.refresh_token, resource: `${baseURL}/api/mcp` })).status, 400);
   } finally { await Promise.all([one.close(), two.close(), read.close()]); }
 });
@@ -295,7 +296,7 @@ test("签名正确但过期、错误 issuer／audience 的访问令牌被拒绝�
 test("撤销后未兑换的授权码失效，同一客户端重新授权产生新连接而不恢复旧预览", async () => {
   const connected = await connect(), client = await mcpClient(connected.tokens.access_token);
   try {
-    const preview = await client.callTool({ name: "submit_measurement_operation", arguments: { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-07-20", period: "evening", weightKg: "71.00", deviceLabel: "虚构秤" }] } });
+    const preview = await client.callTool({ name: "preview_measurements", arguments: { operationId: randomUUID(), items: [{ kind: "save_record", date: "2024-07-20", period: "evening", weightKg: "71.00", deviceLabel: "虚构秤" }] } });
     const operation = preview.structuredContent! as { id: string; revision: number };
     const pending = await authorize(connected.clientId, connected.cookie);
     const pendingCode = new URL(pending.redirectUrl, baseURL).searchParams.get("code")!;
@@ -315,51 +316,51 @@ test("撤销后未兑换的授权码失效，同一客户端重新授权产生�
     assert.equal(fresh.status, 200);
     const result = await fresh.json(), claims = JSON.parse(Buffer.from(result.access_token.split(".")[1], "base64url").toString());
     assert.notEqual(claims[CONNECTION_CLAIM], connected.claims[CONNECTION_CLAIM]);
-    await assert.rejects(reviewAiMeasurementOperation(db, connected.userId, operation.id, { kind: "confirm", revision: operation.revision }));
+    await assert.rejects(reviewRecordOperation(db, connected.userId, operation.id, { kind: "confirm", revision: operation.revision }));
   } finally { await client.close(); }
 });
 
 test("饮食独立OAuth权限通过真实MCP预览确认，身体旧授权须重新同意，撤销阻止旧预览", async () => {
   const scopes = ["openid", "profile", "offline_access", MEALS_READ_SCOPE, MEALS_WRITE_SCOPE];
   const connected = await connect(credentials, scopes), client = await mcpClient(connected.tokens.access_token);
-  const payload = () => ({ operationId: randomUUID(), actions: [{ kind: "save_meal", date: "2024-10-01", mealType: "午餐", notes: randomUUID(), items: [{ kind: "misc", name: "杂", sourceKind: "estimated", nutrition: { caloriesKcal: "400", proteinG: "20", carbsG: "50", fatG: "12" } }] }] });
+  const payload = () => ({ operationId: randomUUID(), actions: [{ kind: "save_meal", date: "2024-10-01", mealType: "午餐", notes: randomUUID(), items: [{ kind: "misc", name: "杂", amountDecision:"unknown_accepted", sourceKind: "estimated", basis:"虚构验收：用户明确食量未知，保留给定的本次总营养", nutrition: { caloriesKcal: "400", proteinG: "20", carbsG: "50", fatG: "12" } }] }] });
   try {
     const search = await client.callTool({ name: "search_foods", arguments: {} }); assert.ok(!search.isError);
     assert.match((search.structuredContent as {foodLibraryRules:string}).foodLibraryRules,/组成与分量/);
-    const definitions=await client.listTools();assert.match(definitions.tools.find(tool=>tool.name==="submit_meal_operation")!.description!,/不倒推或编造精确克数/);
-    const bad=await client.callTool({name:"submit_meal_operation",arguments:{operationId:randomUUID(),actions:[{kind:"save_food",name:"虚构说明食材",baseQuantity:"100",unit:"g",nutrition:{caloriesKcal:"100",proteinG:"10",carbsG:"5",fatG:"4"},sourceKind:"estimated",basis:"用户今天吃过，熟重不可直接套用"}]}});
+    const definitions=await client.listTools();assert.match(definitions.tools.find(tool=>tool.name==="preview_record_bundle")!.description!,/不倒推或编造精确克数/);
+    const bad=await client.callTool({name:"preview_record_bundle",arguments:{operationId:randomUUID(),actions:[{kind:"save_food",name:"虚构说明食材",baseQuantity:"100",unit:"g",nutrition:{caloriesKcal:"100",proteinG:"10",carbsG:"5",fatG:"4"},sourceKind:"estimated",basis:"用户今天吃过，熟重不可直接套用"}]}});
     assert.equal(bad.isError,true);assert.equal((bad.structuredContent as {error:{code:string}}).error.code,"food_description");
     const deniedBody = await client.callTool({ name: "query_measurements", arguments: {} }); assert.equal(deniedBody.isError, true);
-    const result = await client.callTool({ name: "submit_meal_operation", arguments: payload() }); assert.ok(!result.isError, JSON.stringify(result.structuredContent));
-    const op = result.structuredContent as { id: string; revision: number; status: string; confirmationUrl: string }; assert.equal(op.status, "pending"); assert.match(op.confirmationUrl, /\/dashboard\/meals\/review\//);
+    const result = await client.callTool({ name: "preview_record_bundle", arguments: payload() }); assert.ok(!result.isError, JSON.stringify(result.structuredContent));
+    const op = result.structuredContent as { id: string; revision: number; status: string; confirmationUrl: string }; assert.equal(op.status, "pending"); assert.match(op.confirmationUrl, /\/dashboard\/ai\/operations\//);
     const beforeCount = (await readMealSnapshot(db, connected.userId)).meals.length;
-    await decideMealOperation(db, connected.userId, op.id, op.revision, "confirm"); assert.equal((await readMealSnapshot(db, connected.userId)).meals.length, beforeCount + 1);
+    await reviewRecordOperation(db, connected.userId, op.id, {revision:op.revision,kind:"confirm"}); assert.equal((await readMealSnapshot(db, connected.userId)).meals.length, beforeCount + 1);
     const query = await client.callTool({ name: "query_meals", arguments: { from: "2024-10-01", to: "2024-10-01" } }); assert.ok(!query.isError); assert.ok(Array.isArray((query.structuredContent as Record<string, unknown>)?.meals));
-    const pending = await client.callTool({ name: "submit_meal_operation", arguments: payload() }), next = pending.structuredContent as { id: string; revision: number };
+    const pending = await client.callTool({ name: "preview_record_bundle", arguments: payload() }), next = pending.structuredContent as { id: string; revision: number };
     const connections = await listOauthConnections(db, connected.userId), claim = JSON.parse(Buffer.from(connected.tokens.access_token.split(".")[1], "base64url").toString());
     const connection = connections.find(c => c.id === claim[CONNECTION_CLAIM])!; await revokeOauthConnection(db, connected.userId, connection.id);
-    await assert.rejects(decideMealOperation(db, connected.userId, next.id, next.revision, "confirm"));
+    await assert.rejects(reviewRecordOperation(db, connected.userId, next.id, {revision:next.revision,kind:"confirm"}));
   } finally { await client.close(); }
   const old = await connect(), oldClient = await mcpClient(old.tokens.access_token);
   try { assert.equal((await oldClient.callTool({ name: "query_meals", arguments: {} })).isError, true); } finally { await oldClient.close(); }
   const readonly = await connect(credentials, ["openid", "profile", "offline_access", MEALS_READ_SCOPE]), readClient = await mcpClient(readonly.tokens.access_token);
-  try { assert.equal((await readClient.callTool({ name: "submit_meal_operation", arguments: payload() })).isError, true); } finally { await readClient.close(); }
+  try { assert.equal((await readClient.callTool({ name: "preview_record_bundle", arguments: payload() })).isError, true); } finally { await readClient.close(); }
 });
 
 
 test("统一MCP使用真实OAuth混合提交，单类旧授权不能跨域写入，确认后幂等查询", async () => {
   const items = [{key:"body",kind:"save_record",date:"2025-01-04",period:"evening",weightKg:"72.10",deviceLabel:"虚构混合秤"},{key:"meal",kind:"save_meal",date:"2025-01-04",mealType:"虚构混合午餐",items:[{kind:"food",name:"虚构食品",sourceKind:"estimated",nutrition:{caloriesKcal:"150",proteinG:"10",carbsG:"20",fatG:"3"}}]}];
   const old = await connect(), oldClient = await mcpClient(old.tokens.access_token);
-  try { assert.equal((await oldClient.callTool({name:"submit_record_operation",arguments:{operationId:randomUUID(),items}})).isError,true); } finally { await oldClient.close(); }
+  try { assert.equal((await oldClient.callTool({name:"preview_record_bundle",arguments:{operationId:randomUUID(),items}})).isError,true); } finally { await oldClient.close(); }
   const connected = await connect(credentials,[...fullScopes,MEALS_READ_SCOPE,MEALS_WRITE_SCOPE]), client = await mcpClient(connected.tokens.access_token);
   try {
-    const raw = {operationId:randomUUID(),items}, response=await client.callTool({name:"submit_record_operation",arguments:raw});
+    const raw = {operationId:randomUUID(),items}, response=await client.callTool({name:"preview_record_bundle",arguments:raw});
     assert.ok(!response.isError,JSON.stringify(response.structuredContent));
     const operation=response.structuredContent as {id:string;revision:number;status:string;canConfirm:boolean;confirmationUrl:string};
     assert.equal(operation.status,"pending");assert.equal(operation.canConfirm,true);assert.match(operation.confirmationUrl,/dashboard\/ai\/operations/);
-    assert.equal(((await client.callTool({name:"submit_record_operation",arguments:raw})).structuredContent as Record<string,unknown>)?.id,operation.id);
+    assert.equal(((await client.callTool({name:"preview_record_bundle",arguments:raw})).structuredContent as Record<string,unknown>)?.id,operation.id);
     await reviewRecordOperation(db,connected.userId,operation.id,{kind:"confirm",revision:operation.revision});
-    assert.equal(((await client.callTool({name:"get_record_operation",arguments:{id:operation.id}})).structuredContent as Record<string,unknown>)?.status,"confirmed");
+    assert.equal(((await client.callTool({name:"get_preview",arguments:{id:operation.id}})).structuredContent as Record<string,unknown>)?.status,"confirmed");
   } finally { await client.close(); }
 });
 
@@ -372,19 +373,19 @@ test("消耗 OAuth 权限独立，旧连接与只读连接不能写；确认后�
   const client = await mcpClient(connected.tokens.access_token);
   try {
     const queried = await client.callTool({ name: "query_energy", arguments: { from: "2024-09-15", to: "2024-09-15" } }); assert.ok(!queried.isError);
-    const submitted = await client.callTool({ name: "submit_record_operation", arguments: { operationId: randomUUID(), items: [{ key: "energy", kind: "save_energy_day", date: "2024-09-15", restingKcal: "2000", activeKcal: "800" }] } }); assert.ok(!submitted.isError, JSON.stringify(submitted.structuredContent));
+    const submitted = await client.callTool({ name: "preview_record_bundle", arguments: { operationId: randomUUID(), items: [{ key: "energy", kind: "save_energy_day", date: "2024-09-15", restingKcal: "2000", activeKcal: "800" }] } }); assert.ok(!submitted.isError, JSON.stringify(submitted.structuredContent));
     const operation = submitted.structuredContent as { id: string; revision: number };
-    assert.ok(!(await client.callTool({ name: "get_record_operation", arguments: { id: operation.id } })).isError);
+    assert.ok(!(await client.callTool({ name: "get_preview", arguments: { id: operation.id } })).isError);
     await reviewRecordOperation(db, connected.userId, operation.id, { kind: "confirm", revision: operation.revision });
     const saved = await client.callTool({ name: "query_energy", arguments: { from: "2024-09-15", to: "2024-09-15" } });
     assert.equal(Number((saved.structuredContent as { days: { totalKcal: string }[] }).days[0].totalKcal), 2800);
-    const pending = await client.callTool({ name: "submit_record_operation", arguments: { operationId: randomUUID(), items: [{ key: "activity", kind: "save_activity", date: "2024-09-16", name: "虚构跑步", caloriesKcal: "800" }] } });
+    const pending = await client.callTool({ name: "preview_record_bundle", arguments: { operationId: randomUUID(), items: [{ key: "activity", kind: "save_activity", date: "2024-09-16", name: "虚构跑步", caloriesKcal: "800" }] } });
     const next = pending.structuredContent as { id: string; revision: number };
     await revokeOauthConnection(db, connected.userId, connected.claims[CONNECTION_CLAIM]);
     await assert.rejects(reviewRecordOperation(db, connected.userId, next.id, { kind: "confirm", revision: next.revision }));
   } finally { await client.close(); }
   const readonly = await connect(credentials, ["openid", "profile", "offline_access", ENERGY_READ_SCOPE]), readClient = await mcpClient(readonly.tokens.access_token);
-  try { assert.ok(!(await readClient.callTool({ name: "query_energy", arguments: {} })).isError); assert.equal((await readClient.callTool({ name: "submit_record_operation", arguments: { operationId: randomUUID(), items: [{ key: "activity", kind: "save_activity", date: "2024-09-17", name: "虚构", caloriesKcal: "800" }] } })).isError, true); }
+  try { assert.ok(!(await readClient.callTool({ name: "query_energy", arguments: {} })).isError); assert.equal((await readClient.callTool({ name: "preview_record_bundle", arguments: { operationId: randomUUID(), items: [{ key: "activity", kind: "save_activity", date: "2024-09-17", name: "虚构", caloriesKcal: "800" }] } })).isError, true); }
   finally { await readClient.close(); }
 });
 
@@ -473,19 +474,19 @@ test('训练独立OAuth通过真实MCP查询、模板和多日排期确认，旧
   const before = await readTraining(db, connected.userId);
   try {
     const library = await client.callTool({ name: 'search_exercises', arguments: { q: 'plank' } }); assert.ok(!library.isError); assert.equal((library.structuredContent as {total:number}).total, 150);
-    const definitions = await client.listTools(); assert.deepEqual((definitions.tools.find(tool => tool.name === 'submit_training_operation')!._meta?.securitySchemes as {scopes:string[]}[])[0].scopes, [TRAINING_WRITE_SCOPE]);
+    const definitions = await client.listTools(); assert.deepEqual((definitions.tools.find(tool => tool.name === 'preview_training')!._meta?.securitySchemes as {scopes:string[]}[])[0].scopes, [TRAINING_WRITE_SCOPE]);
     const raw = { operationId: randomUUID(), items: [{ key: 'template', kind: 'save_training_template', template: { name: '虚构GPT排期', exercises: [{ name: '平板支撑', catalogId: 'plank', recordingType: 'duration', sets: 2, reps: null, durationSeconds: 30 }] } }, { key: 'plan', kind: 'schedule_training', date: '2026-11-11', templateRef: 'template' }] };
-    const submitted = await client.callTool({ name: 'submit_training_operation', arguments: raw }); assert.ok(!submitted.isError, JSON.stringify(submitted));
+    const submitted = await client.callTool({ name: 'preview_training', arguments: raw }); assert.ok(!submitted.isError, JSON.stringify(submitted));
     const preview = submitted.structuredContent as {id:string;revision:number;status:string;confirmationUrl:string}; assert.equal(preview.status, 'pending'); assert.match(preview.confirmationUrl, /dashboard\/ai\/operations/);
     assert.equal((await readTraining(db, connected.userId)).plans.length, before.plans.length);
-    const repeated = await client.callTool({ name: 'submit_training_operation', arguments: raw }); assert.equal((repeated.structuredContent as {id:string}).id, preview.id);
+    const repeated = await client.callTool({ name: 'preview_training', arguments: raw }); assert.equal((repeated.structuredContent as {id:string}).id, preview.id);
     await reviewRecordOperation(db, connected.userId, preview.id, { kind: 'confirm', revision: preview.revision });
     const queried = await client.callTool({ name: 'query_training', arguments: { from:'2026-11-01', to:'2026-11-30', timezone:'Asia/Shanghai' } }); assert.ok(!queried.isError); assert.ok((queried.structuredContent as {plans:{date:string}[]}).plans.some(p => p.date === '2026-11-11'));
-    assert.equal(((await client.callTool({ name:'get_training_operation', arguments:{id:preview.id} })).structuredContent as {status:string})?.status, 'confirmed');
-    const pending = await client.callTool({ name:'submit_training_operation', arguments:{...raw,operationId:randomUUID()} }); const pendingView = pending.structuredContent as {id:string;revision:number};
+    assert.equal(((await client.callTool({ name:'get_preview', arguments:{id:preview.id} })).structuredContent as {status:string})?.status, 'confirmed');
+    const pending = await client.callTool({ name:'preview_training', arguments:{...raw,operationId:randomUUID()} }); const pendingView = pending.structuredContent as {id:string;revision:number};
     await revokeOauthConnection(db, connected.userId, connected.claims[CONNECTION_CLAIM]); await assert.rejects(reviewRecordOperation(db, connected.userId, pendingView.id, {kind:'confirm',revision:pendingView.revision}));
   } finally { await client.close(); }
   const readonly = await connect(credentials, ['openid','profile','offline_access',TRAINING_READ_SCOPE]), read = await mcpClient(readonly.tokens.access_token);
   const old = await connect(), oldClient = await mcpClient(old.tokens.access_token);
-  try { assert.ok(!(await read.callTool({name:'query_training',arguments:{}})).isError); assert.equal((await read.callTool({name:'submit_training_operation',arguments:{operationId:randomUUID(),items:[{key:'bad',kind:'schedule_training',date:'2026-11-12',templateId:randomUUID()}]}})).isError,true); const denied = await oldClient.callTool({name:'query_training',arguments:{}}); assert.equal(denied.isError,true); assert.ok(requestedScopes(denied).includes(TRAINING_READ_SCOPE)); } finally { await read.close(); await oldClient.close(); }
+  try { assert.ok(!(await read.callTool({name:'query_training',arguments:{}})).isError); assert.equal((await read.callTool({name:'preview_training',arguments:{operationId:randomUUID(),items:[{key:'bad',kind:'schedule_training',date:'2026-11-12',templateId:randomUUID()}]}})).isError,true); const denied = await oldClient.callTool({name:'query_training',arguments:{}}); assert.equal(denied.isError,true); assert.ok(requestedScopes(denied).includes(TRAINING_READ_SCOPE)); } finally { await read.close(); await oldClient.close(); }
 });

@@ -1,29 +1,15 @@
 # MCP
 
-server.ts 为每次请求创建无状态SDK server，兼容当前及2025协议。服务版本1.18.3，共21个工具；账号来自验证后的OAuth令牌，写入只创建预览，没有确认保存工具。网页、HTTP与MCP调用同一feature，不在适配层重写业务规则。
+server.ts为每个已验证请求创建无状态SDK服务，MCP版本2.0.0，公开18项工具。原生MCP与豆包共享注册、参数、权限及字段解释；新旧协议均支持，但旧业务工具名已停用，返回刷新目录提示，不隐藏转接。
 
-authorize_formward检查并申请身体、饮食／食材、消耗、训练四类查询与提交预览权限，只返回连接状态，不读取健康内容或创建预览。OAuth同意仍由用户完成；只读连接补查询权限时只申请读取。旧连接不因刷新定义或授权请求自动扩权。
+连接及查询：authorize_formward、get_profile、query_measurements、query_meals、query_energy、query_training、search_foods、search_exercises。连接成功不代表全部权限；身体只查实测，饮食记全与餐次保存分开，消耗联合统计需饮食读权限，模板、计划和实际训练分开。
 
-身体使用query_measurements、submit_measurement_operation、get_measurement_operation；饮食使用search_foods、query_meals、import_meal_images、submit_meal_operation、get_meal_operation；消耗使用query_energy；统一批次使用submit_record_operation／get_record_operation；get_profile只识别当前账号。训练使用search_exercises、query_training、submit_training_operation、get_training_operation，独立training:read／training:write。
+创建预览：preview_measurements、preview_meals、preview_meal_changes、preview_foods、preview_energy、preview_training、preview_record_bundle。专用入口各管单一功能；只有至少两类功能动作才能使用组合入口。单纯多餐、训练模板加排期、消耗加运动分别留在专用入口。所有新预览在records/ai-previews.ts规范化并复用submitRecordOperation，按当前账号和稳定任务请求编号统一防重；不按相似内容全局合并。
 
-训练支持查询统一动作目录、本人模板／计划／实际训练，新增或修改模板与多日排期；新模板可用templateRef引用同批key，修改必须带id/version。统一审核存储原提交授权，24小时预览过期或原授权撤销会阻止确认。返回confirmationUrl须完整交给用户，confirmed才表示保存，计划与已完成训练分开，不自动估算热量。
+get_preview统一读取新旧预览、最新版本、待补项和逐项保存状态。update_preview只修改原授权且有效的待审草稿，按key提交局部变化或明确追加漏项，补照片沿原预览；历史对象、原payload及首次请求摘要保持。新旧确认链接继续可用，正式保存仍只有本人网页登录确认。
 
-身体缺来源先问实际设备／应用名称或是否明确留空；sourceUnspecifiedConfirmed:true配合deviceLabel:null才表示用户确认留空，不能用AI渠道或历史来源代填。needsUserInput非空时说明待补项。未知值为null，所有正式保存均须网页登录确认；AI只新增／修改，不提供整条或批量删除恢复。
+import_meal_images只导入本人附件，最多8张、每张20 MiB，JPEG／PNG／WebP；导入、关联预览和正式保存分别表达。部分失败保留成功附件。AI不提供整条或批量删除、恢复或代确认工具；未知不是0。
 
-食材返回分类、稳定id/version、规格、来源和foodLibraryRules。说明保留实际组成、分量及来源／计算／结果，不写个人餐次背景；用户明确要求入库才另建食材。已有餐项用originalItemId保留身份与快照，已永久删除食材不得用于新餐。普通记餐只创建餐次。
+工具用途目录由records/ai-tool-catalog.json维护，注册、日志、豆包Manifest、合同导出和评测按同一清单核对。中文字段解释由各业务字典维护，成功结果文本与structuredContent一致。旧HTTP路径及其业务函数保留，不再作为重复MCP工具暴露。
 
-import_meal_images沿用meals:write，顶层files声明openai/fileParams，最多8张、每张20 MiB。原图私有保存，返回附件ID、status和逐文件failures；部分成功只重试失败项。成功附件还须关联到待网页确认的餐次或食材。照片不要求五项勾选，缺图可保存文字；只询问真实缺失或包含关系。重复餐仅轻提示，无需allowDuplicate或追加询问；饮食及食材不按历史倍数核对，营养允许明确0或null。search_foods返回兼容的空presets；query_meals可传timezone取得日期上下文。
-
-统一提交支持最多100项、64 KiB，依内容检查measurements／meals／energy／training权限。修改与取消只更新草稿，底部统一确认后才保存。消耗区分分开／总数、活动累计／手填合计、纯运动／含期间静息以及included／additional；不提供退役的日常默认值或公式动作。
-
-日志只记工具名、文件结构和阶段错误，不记录凭据、下载地址或健康内容。修改工具须同步[AI接入](../../../docs/ai-api.md)、OAuth权限声明、OpenAPI和隔离测试；客户端需要刷新定义，新scope仍需用户同意。
-
-preview_meal、preview_meal_changes、preview_energy为GPT与豆包共享的常用入口。平铺输入由meals／activities feature规范化，再复用原预览；不新建scope、确认工具或事实写入通道。旧18项保留，混合请求仍使用统一批次。mealAiResponse／recordAiResponse只整理AI返回，不改变网页完整审核视图。get_*可按需返回状态；不传新参数的旧调用继续兼容。
-
-queryOptions与日期分页位于records/ai-query.ts，各业务feature执行有界读取及既有汇总。新summary／details显式分页，身体七日统计标明锚点，旧choices仅留兼容校验，不再宣称可以改变采用值。工具数量增加不代表总定义变小；真实模型收益必须单独测量。
-
-饮食新增与餐内新增共用默认营养估算规则；preview_meal、preview_meal_changes、旧饮食及混合提交的模型说明同步。查询历史与局部修改不自动重估，用户明确不估仍可未知；MCP版本1.17.0，21项工具和原授权保持。
-
-MCP 1.17.1的21项工具都在成功结果返回fieldDefinitions，并在工具输出格式与说明中声明。正文JSON和structuredContent保持一致；豆包result_json保留该字典。公共解读规则与各业务字段字典同源。contract-export.ts通过内存SDK发现导出真实工具定义和说明，不执行工具、不读取数据库；供scripts/export-ai-contracts.mts生成私有评测快照。
-
-AI出口提供服务端统计、记餐参数结构、同草稿修正与可执行错误说明；营养数值与basis分开，未知食量的自由项也可省略数量，营养完整性区分部分合计。工具仍21项，既有权限不变；query_energy的includeMeals=true额外要求饮食查询授权。成功投影保留备注与累计标识。按需目录由contract-export离线导出；外部平台的实际加载策略仍由平台决定。
+contract-export.ts仅在内存发现定义与工作说明，不执行业务或读取数据库，供隔离评测冻结合同。受控站内聊天使用目录＋按需加载；外部GPT／豆包的调度由平台负责，不能用站内结果冒充外部加载策略验收。日志不记录凭据、健康内容或附件地址。

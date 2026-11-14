@@ -143,6 +143,29 @@ export async function getAiMeasurementOperation(db: Database, userId: string, id
     assertBodyEstimateRemoved(row.payload);
   return operationDisplay(row);
 }
+
+/** 向原AI草稿追加漏项，保留原payload、请求摘要、来源授权和到期时间。 */
+export async function appendAiMeasurementItems(db: Database, identity: AiIdentity, id: string, additions: ReviewInput[]) {
+  return db.transaction(async tx => {
+    await lockMeasurementOwner(tx, identity.userId); await requireActiveAiToken(tx, identity, true);
+    const [row] = await tx.select().from(measurementOperation).where(and(eq(measurementOperation.userId, identity.userId), eq(measurementOperation.id, id)));
+    if (!row || row.tokenId !== (identity.tokenId ?? null) || row.oauthConnectionId !== (identity.oauthConnectionId ?? null)) throw new ApiError(403, "forbidden", "只能追加原授权的待审身体项目。");
+    if (row.status !== "pending" || row.expiresAt.getTime() <= Date.now()) throw new ApiError(409, "preview_expired", "原预览已结束或过期。");
+    const parsed = parseAiMeasurementInput({ kind: "batch", operationId: "append-" + randomUUID(), items: additions });
+    if (parsed.kind !== "batch") throw new ApiError(400, "invalid_input", "追加内容必须是身体项目。");
+    const current = await snapshot(tx, identity.userId), items = operationItems(row);
+    for (const originalInput of parsed.items) {
+      const isNew = !originalInput.recordId && !current.records.some(record => !record.deletedAt && record.recordKind === "observed" && record.recordDate === originalInput.date && record.period === originalInput.period);
+      const input = isNew && !Object.hasOwn(originalInput, "timezone") ? { ...originalInput, timezone: row.preview.defaultTimezone ?? systemMeasurementTimezone() } : originalInput;
+      items.push({ id: randomUUID(), input, originalInput, status: "pending", preview: emptyPreview(input) });
+    }
+    if (items.length > 100) throw new ApiError(400, "invalid_input", "单批最多100项。");
+    await rebuildItems(tx, identity.userId, items, current.records);
+    const preview = { ...combinedPreview("batch", items), defaultTimezone: row.preview.defaultTimezone };
+    const [updated] = await tx.update(measurementOperation).set({ preview, revision: row.revision + 1, snapshotDigest: current.digest, status: reviewStatus(items) }).where(eq(measurementOperation.id, row.id)).returning();
+    return operationDisplay(updated);
+  });
+}
 export async function listAiMeasurementOperations(db: Database, userId: string) {
   return (await db.select().from(measurementOperation).where(eq(measurementOperation.userId, userId)).orderBy(desc(measurementOperation.createdAt)).limit(20)).filter(row => !containsRetiredBodyEstimate(row.payload)).map(operationDisplay);
 }

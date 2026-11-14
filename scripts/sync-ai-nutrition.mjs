@@ -17,11 +17,10 @@ if (current.includes(begin)) {
 }
 const manifestUrl = new URL('integrations/doubao/manifest.yaml', root);
 let manifest = readFileSync(manifestUrl, 'utf8');
-for (const [tool, prefix] of Object.entries({preview_meal:'新增单餐待确认预览。',preview_meal_changes:'餐内局部修改，新增食物默认估算；保留其余内容。',submit_meal_operation:'食材维护或高级兼容预览。',submit_record_operation:'多领域统一待确认预览，饮食部分遵循共用规则。'})) {
-  const pattern = new RegExp('(^  ' + tool + ':\n    description: )[^\n]*', 'm');
-  assert(pattern.test(manifest), '缺少工具 ' + tool);
-  manifest = manifest.replace(pattern, (_, lead) => lead + JSON.stringify(prefix + guidance.toolHint));
-}
+const catalog = JSON.parse(readFileSync(new URL('src/features/records/ai-tool-catalog.json',root),'utf8'));
+const entityTools = new Set(['get_profile','query_measurements','query_meals','query_energy','query_training','search_foods','search_exercises']);
+const toolRows = Object.entries(catalog).map(([name,purpose])=> '  '+name+':\n    description: '+JSON.stringify(purpose+(['preview_meals','preview_meal_changes','preview_record_bundle'].includes(name)?'。'+guidance.toolHint:''))+'\n    login_type: normal\n'+(name==='import_meal_images'?'    request_timeout: 120000\n':'')+'    output: '+(entityTools.has(name)?'{ kind: entities, entity_types: [formward_query_result] }':'{ kind: execution_result }')).join('\n');
+manifest = manifest.replace(/^tools:\n[\s\S]*?\nentities:/m,'tools:\n'+toolRows+'\n\nentities:');
 if (process.argv.includes('--check')) {
   assert.equal(current, next, '豆包Skill营养规则不同步，请运行node scripts/sync-ai-nutrition.mjs');
   assert.equal(readFileSync(manifestUrl, 'utf8'), manifest, '豆包Manifest营养规则不同步');

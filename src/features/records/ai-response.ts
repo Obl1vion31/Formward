@@ -52,6 +52,6 @@ export function recordAiResponse(operation: RecordReviewView & { repeated?: bool
 export function aiRecovery(code: string, status: number) {
   if (status === 401 || status === 403) return { retryable: false, nextAction: "reauthorize" };
   if (["version_conflict", "review_changed", "snapshot_changed", "preview_expired", "expired"].includes(code)) return { retryable: false, nextAction: "read_latest_then_resubmit" };
-  if (code === "request_conflict") return { retryable: false, nextAction: "read_existing_preview_then_correct_same_draft", message: "同一请求不要另建批次。先读取原预览；餐次用preview_meal_changes，统一批次用submit_record_operation的previewId/revision修正。真正独立的新任务才使用新operationId。" };
+  if (code === "request_conflict") return { retryable: false, nextAction: "read_existing_preview_then_correct_same_draft", message: "同一任务不要另建批次。先get_preview读取原id/revision，再用update_preview局部修正原草稿。只有独立的新任务才使用新的创建operationId。" };
   return status >= 500 ? { retryable: true, nextAction: "retry_same_operation_id_and_content" } : { retryable: false, nextAction: code === "needs_input" ? "ask_user" : "correct_input" };
 }

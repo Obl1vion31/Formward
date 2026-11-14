@@ -41,9 +41,9 @@ async function rpc(handler: ReturnType<typeof createMcpHandler>, name: string, a
   return body.result;
 }
 
-test("21项正式工具发现、共用工作规则与字段字典同源，导出不执行工具", async () => {
+test("18项正式工具发现、共用工作规则与字段字典同源，导出不执行工具", async () => {
   const { contract, runtime } = await aiContractSnapshot();
-  assert.equal(contract.tools.length, 21);
+  assert.equal(contract.tools.length, 18);
   assert.deepEqual(contract.tools.map((tool: { name: string }) => tool.name).sort(), [...aiToolNames].sort());
   assert.match(contract.instructions, /比较两个时期须取得两个时期/);
   assert.match(runtime, /selectFieldDefinitions/);
@@ -172,8 +172,8 @@ test("真实MCP文本与结构结果一致，跨域只读及预览得到解释�
       ["query_energy", { range: "last7", view: "summary" }],
       ["query_training", { range: "last7", view: "summary" }],
       ["search_foods", {}], ["search_exercises", {}],
-      ["preview_meal", { operationId: randomUUID(), date: "2024-08-01", mealType: "午餐", foods: [{ name: "虚构测试餐", quantity: "1", unit: "份", caloriesKcal: "500", sourceKind: "estimated", basis: "虚构本次总量" }] }],
-      ["preview_energy", { operationId: randomUUID(), date: "2024-08-01", totalKcal: "2000" }],
+      ["preview_meals", { operationId: randomUUID(), meals:[{date: "2024-08-01", mealType: "午餐", foods: [{ name: "虚构测试餐", quantity: "1", unit: "份", caloriesKcal: "500", sourceKind: "estimated", basis: "虚构本次总量" }]}] }],
+      ["preview_energy", { operationId: randomUUID(), days:[{date: "2024-08-01", totalKcal: "2000"}] }],
     ] as const) {
       const result = await rpc(handler, name, args);
       assert.notEqual(result?.isError, true, JSON.stringify(result));

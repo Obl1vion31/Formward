@@ -12,7 +12,7 @@ import { recordOperation, measurementOperation, mealOperation, energyOperation, 
 import { lockOwner } from "../auth/owner-lock";
 import { requireActiveAiToken } from "../auth/ai-tokens";
 import { ApiError, type AiIdentity } from "../auth/ai-identity";
-import { getAiMeasurementOperation, reviewAiMeasurementOperation, submitAiMeasurementOperation } from "../measurements/ai-operations";
+import { appendAiMeasurementItems, getAiMeasurementOperation, reviewAiMeasurementOperation, submitAiMeasurementOperation } from "../measurements/ai-operations";
 import { systemMeasurementTimezone } from "../measurements/timezone";
 import { decideMealOperation, digest, displayMealOperation, getMealOperation, prepareMealActions, readMealSnapshot, reviseMealOperation, submitMealOperation, type MealPlanner } from "../meals/records";
 import { type MealAction, type MealInput, type PreviewRow, type MealSnapshot } from "../meals/model";
@@ -249,7 +249,7 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
         const original = await getEnergyOperation(connection, identity.userId, prior.energyOperationId);
         if (original.tokenId !== (identity.tokenId ?? null) || original.oauthConnectionId !== (identity.oauthConnectionId ?? null)) throw new ApiError(409, "request_conflict", "不能替换提交授权。");
       }
-      if (prior.requestDigest !== (options.requestDigest ?? digest(input))) throw new ApiError(409, "request_conflict", "同一operationId不能替换原请求；请读取并修正原草稿，不要另建批次。", { previewId: prior.id, revision: prior.revision, tool: "submit_record_operation", nextAction: "correct_existing_preview_with_previewId_and_revision" });
+      if (prior.requestDigest !== (options.requestDigest ?? digest(input))) throw new ApiError(409, "request_conflict", "同一operationId不能替换原请求；请读取并修正原草稿，不要另建批次。", { previewId: prior.id, revision: prior.revision, tool: "update_preview", nextAction: "correct_existing_preview_with_previewId_and_revision" });
       return { ...await view(connection, prior), repeated: true };
     }
     const id = randomUUID(), items = normalize(input), bodies = items.filter(item => isBody(item.action));
@@ -283,7 +283,7 @@ async function correctPendingRecord(db: Database, identity: AiIdentity, input: R
     if (row.status !== "pending" || current.expiresAt && Date.parse(current.expiresAt) <= Date.now()) throw new ApiError(409, "preview_expired", "草稿已结束或过期，不能原地修正。");
     if (row.revision !== input.revision) throw new ApiError(409, "review_changed", "草稿版本已变化，请重新读取后再修正。");
     const savedEnergy = row.draft.some(item => item.action.kind === "save_energy_day") ? await readEnergySnapshot(connection, identity.userId) : null;
-    function invalidCorrection(path: string, message: string): never { throw new ApiError(400, "invalid_input", path + "：" + message, { fields: [{ path, message }], previewId: row!.id, revision: row!.revision, tool: "submit_record_operation", nextAction: "correct_existing_preview_arguments" }); }
+    function invalidCorrection(path: string, message: string): never { throw new ApiError(400, "invalid_input", path + "：" + message, { fields: [{ path, message }], previewId: row!.id, revision: row!.revision, tool: "update_preview", nextAction: "correct_existing_preview_arguments" }); }
     if (input.items.length !== row.draft.length || new Set(input.items.map(item => item.key)).size !== input.items.length) invalidCorrection("items", "请完整保留原批次的项目和唯一key，不添加或移除项目。");
     for (const [index, item] of input.items.entries()) {
       const prior = row.draft.find(prior => prior.key === item.key);
@@ -492,6 +492,68 @@ export async function getRecordOperation(db: Database, identity: AiIdentity, id:
   if (trainingItems(row.draft).length) await requireActiveAiToken(db as unknown as Parameters<typeof requireActiveAiToken>[0], identity, false, "training");
   // 查询与提交返回相同结果，调用端仍须以 status 判定是否正式保存。
   return view(db, row);
+}
+
+/** 所有V2草稿修改在账号锁内核对原授权；只更新原批次，不创建第二个顶层预览。 */
+export async function extendAiRecordPreview(db: Database, identity: AiIdentity, id: string, source: Source | undefined, revision: number, changes: RecordInput["items"], additions: RecordInput["items"], operationId: string, requestDigest: string) {
+  return db.transaction(async tx => {
+    await lockOwner(tx, identity.userId); const connection = tx as unknown as Database;
+    let row = await find(connection, identity.userId, id, source);
+    if (!row) {
+      const seed = await legacy(connection, identity.userId, id, source ?? "body");
+      [row] = await tx.insert(recordOperation).values({ ...seed, id: randomUUID() }).returning();
+    }
+    const same = (grant: { tokenId: string | null; oauthConnectionId: string | null }) => grant.tokenId === (identity.tokenId ?? null) && grant.oauthConnectionId === (identity.oauthConnectionId ?? null);
+    for (const domain of new Set([...row.draft.map(item => category(item.action)), ...additions.map(category)])) await requireActiveAiToken(tx, identity, true, domain === "body" ? undefined : domain === "foods" ? "meals" : domain as "meals" | "energy" | "training");
+    if (row.measurementOperationId) { const [body] = await tx.select().from(measurementOperation).where(and(eq(measurementOperation.userId, identity.userId), eq(measurementOperation.id, row.measurementOperationId))); if (!body || !same(body)) throw new ApiError(403, "forbidden", "只能修改原授权创建的草稿。"); }
+    const children = [row.mealOperationId ? await getMealOperation(connection, identity.userId, row.mealOperationId) : null, row.energyOperationId ? await getEnergyOperation(connection, identity.userId, row.energyOperationId) : null];
+    if (children.some(child => child && (child.origin !== "ai" || !same(child))) || trainingItems(row.draft).some(item => !item.trainingGrant || item.trainingGrant.tokenId !== identity.tokenId || item.trainingGrant.oauthConnectionId !== identity.oauthConnectionId)) throw new ApiError(403, "forbidden", "只能修改原授权创建的草稿。");
+    const repeated = row.draft.flatMap(item => item.aiEdits ?? []).filter(edit => edit.operationId === operationId);
+    if (repeated.length) {
+      if (repeated.some(edit => edit.digest !== requestDigest)) throw new ApiError(409, "request_conflict", "同一修改请求不能替换内容。");
+      return { ...await view(connection, row), repeated: true };
+    }
+    const before = await view(connection, row);
+    if (row.status !== "pending" || before.expiresAt && Date.parse(before.expiresAt) <= Date.now()) throw new ApiError(409, "preview_expired", "草稿已结束或过期，不能继续修改。");
+    if (row.revision !== revision) throw new ApiError(409, "review_changed", "预览已变化，请先get_preview读取最新revision。");
+    const keys = new Set(row.draft.map(item => item.key));
+    requireAiUpserts([...changes, ...additions]);
+    const parsedChanges = changes.length ? recordInputSchema.parse({ operationId, items: changes }).items : [];
+    if (new Set(parsedChanges.map(item => item.key)).size !== parsedChanges.length) throw new ApiError(400, "invalid_input", "修改项目key不能重复。");
+    for (const next of parsedChanges) {
+      const prior = row.draft.find(item => item.key === next.key);
+      if (!prior || prior.persisted || prior.excluded || prior.action.kind !== next.kind) throw new ApiError(400, "invalid_input", "只能修改原草稿尚未保存的同key、同类型项目。");
+      for (const field of ["id", "recordId"] as const) if ((prior.action as Record<string, unknown>)[field] !== (next as Record<string, unknown>)[field]) throw new ApiError(400, "invalid_input", "不能替换原项目绑定的历史记录。");
+    }
+    let latest = before;
+    for (const { key, ...action } of parsedChanges) latest = await reviewRecordOperation(connection, identity.userId, row.id, { kind: "update", key, action: action as RecordAction, revision: latest.revision }, undefined, { identity, operationId, digest: requestDigest, allowRecordUpdate: true });
+    if (!additions.length) return { ...latest, repeated: false };
+    const incoming = normalize(recordInputSchema.parse({ operationId, items: additions }));
+    for (const item of incoming) { if (keys.has(item.key)) throw new ApiError(400, "invalid_input", "追加项目须使用新的唯一key；修改原项目请放入changes。"); keys.add(item.key); }
+    [row] = await tx.select().from(recordOperation).where(eq(recordOperation.id, row.id));
+    const items = [...structuredClone(row.draft), ...incoming];
+    if (items.length > 100 || Buffer.byteLength(JSON.stringify(items)) > 65536) throw new ApiError(413, "invalid_input", "整批最多100项、64 KiB。");
+    const audit = { operationId, digest: requestDigest, at: new Date().toISOString(), ...(identity.tokenId ? { tokenId: identity.tokenId } : {}), ...(identity.oauthConnectionId ? { oauthConnectionId: identity.oauthConnectionId } : {}) };
+    for (const item of incoming) { item.aiEdits = [audit]; if (isTraining(item.action)) { item.trainingGrant = { tokenId: identity.tokenId, oauthConnectionId: identity.oauthConnectionId }; item.trainingExpiresAt = new Date(Date.now() + 86400000).toISOString(); } }
+    let bodyId = row.measurementOperationId, mealId = row.mealOperationId, energyId = row.energyOperationId;
+    const newBodies = incoming.filter(item => isBody(item.action));
+    if (newBodies.length) {
+      const body = bodyId ? await appendAiMeasurementItems(connection, identity, bodyId, newBodies.map(item => item.action as import("../measurements/ai-operations").ReviewInput)) : await submitAiMeasurementOperation(connection, identity, { kind: "batch", operationId: `records-${row.id}`, items: newBodies.map(item => item.action) }, row.payload.timezone ?? systemMeasurementTimezone());
+      bodyId = body.id;
+      const appended = body.items.slice(-newBodies.length); newBodies.forEach((item, index) => { item.measurementItemId = appended[index].id; });
+    }
+    if (mealItems(incoming).length) {
+      if (mealId) { const child = await getMealOperation(connection, identity.userId, mealId); await reviseMealOperation(connection, identity.userId, mealId, child.revision, mealInput(child.draft.operationId, items).actions, recordMealPlanner(items, row.id)); }
+      else mealId = (await submitMealOperation(connection, { userId: identity.userId, origin: "ai", identity }, mealInput(`records-${row.id}`, items), recordMealPlanner(items, row.id))).id;
+    }
+    if (energyItems(incoming).length) {
+      await expandEnergyRelations(connection, identity.userId, items);
+      if (energyId) { const child = await getEnergyOperation(connection, identity.userId, energyId); await reviseEnergyOperation(connection, identity.userId, energyId, child.revision, energyItems(items).map(item => item.action as EnergyAction), energyItems(items).flatMap((item, index) => item.excluded ? [index] : [])); }
+      else energyId = (await submitEnergyOperation(connection, { userId: identity.userId, origin: "ai", identity }, { operationId: `records-${row.id}`, actions: energyItems(items).map(item => item.action as EnergyAction) })).id;
+    }
+    const [updated] = await tx.update(recordOperation).set({ draft: items, measurementOperationId: bodyId, mealOperationId: mealId, energyOperationId: energyId, measurementRevision: bodyId ? (await getAiMeasurementOperation(connection, identity.userId, bodyId)).revision : null, mealRevision: mealId ? (await getMealOperation(connection, identity.userId, mealId)).revision : null, energyRevision: energyId ? (await getEnergyOperation(connection, identity.userId, energyId)).revision : null, revision: row.revision + 1 }).where(eq(recordOperation.id, row.id)).returning();
+    return { ...await view(connection, updated), repeated: false };
+  });
 }
 
 export const appendPendingImagesSchema = z.object({

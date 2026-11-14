@@ -9,7 +9,7 @@ import { digest, submitMealOperation } from "./records";
 import { invalidAiSchema } from "../records/ai-errors";
 
 const text = (length: number) => z.string().trim().min(1).max(length);
-export const aiOperationId = z.string().regex(/^[a-zA-Z0-9-]{8,120}$/).describe("新请求生成新UUID；仅ASCII字母、数字、半角短横线(-)，8至120字符，不能用中文或其他横线；同请求重试沿用，改变内容用新标识");
+export const aiOperationId = z.string().regex(/^[a-zA-Z0-9-]{8,120}$/).describe("独立新任务生成新UUID；仅ASCII字母、数字、半角短横线(-)，8至120字符，不能用中文或其他横线。同任务创建及重试沿用原编号；修改已有草稿用update_preview及新的修改编号，不另建批次");
 export const aiDate = z.string().describe("YYYY-MM-DD或today/yesterday；由服务器按timezone解析相对日期");
 export const simpleFoodSchema = z.object({
   name: text(200),

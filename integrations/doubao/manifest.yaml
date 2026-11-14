@@ -14,88 +14,76 @@ mcp_server:
 
 tools:
   authorize_formward:
-    description: 检查已授权的四类记录能力，不读取健康记录或保存数据。
+    description: "连接或补齐授权；用户在OAuth页面同意，不读健康数据"
     login_type: normal
     output: { kind: execution_result }
   get_profile:
-    description: 查看当前已连接的 Formward 账号标识与显示名称。
+    description: "查看当前连接账号"
     login_type: normal
     output: { kind: entities, entity_types: [formward_query_result] }
   query_measurements:
-    description: 查询本人实测体重、体脂和来源，未知保持空值。
+    description: "查询实测身体、变化和已计算七日统计"
     login_type: normal
     output: { kind: entities, entity_types: [formward_query_result] }
-  query_meals:
-    description: 查询本人饮食、营养、日期状态和食物明细。
+  preview_measurements:
+    description: "仅身体新增或历史修改，可批量；创建待确认预览"
     login_type: normal
-    output: { kind: entities, entity_types: [formward_query_result] }
-  query_energy:
-    description: 查询本人每日消耗与运动包含关系。
-    login_type: normal
-    output: { kind: entities, entity_types: [formward_query_result] }
-  query_training:
-    description: 查询本人训练模板、日历计划和执行记录。
-    login_type: normal
-    output: { kind: entities, entity_types: [formward_query_result] }
+    output: { kind: execution_result }
   search_foods:
-    description: 搜索本人的食材和规格，取得引用所需的稳定编号与版本。
+    description: "先查食材库，取得引用所需foodId、version及规格"
     login_type: normal
     output: { kind: entities, entity_types: [formward_query_result] }
-  search_exercises:
-    description: 查询训练动作库的稳定编号、部位、器械和记录方式。
-    login_type: normal
-    output: { kind: entities, entity_types: [formward_query_result] }
-  submit_measurement_operation:
-    description: 提交身体记录预览，返回需用户登录确认的链接。
-    login_type: normal
-    output: { kind: execution_result }
-  get_measurement_operation:
-    description: 查询本人身体记录预览及确认结果。
-    login_type: normal
-    output: { kind: execution_result }
   import_meal_images:
-    description: 保存用户提供的饮食原图作为私有附件，不保存正式餐次。
+    description: "导入附件；上传成功还不等于关联餐次或保存"
     login_type: normal
     request_timeout: 120000
     output: { kind: execution_result }
-  preview_meal:
-    description: "新增单餐待确认预览。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.addFoods，仅无匹配或明确另记一餐才新增。 估算数值须填营养字段，不能只写basis；每参考量营养优先交服务器换算。"
+  search_exercises:
+    description: "查训练动作库和稳定catalogId"
+    login_type: normal
+    output: { kind: entities, entity_types: [formward_query_result] }
+  query_training:
+    description: "查模板、计划及实际完成训练，三者分开"
+    login_type: normal
+    output: { kind: entities, entity_types: [formward_query_result] }
+  preview_training:
+    description: "仅训练模板及排期，可同批引用新模板；不写实际完成训练"
     login_type: normal
     output: { kind: execution_result }
-  preview_meal_changes:
-    description: "餐内局部修改，新增食物默认估算；保留其余内容。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.addFoods，仅无匹配或明确另记一餐才新增。 估算数值须填营养字段，不能只写basis；每参考量营养优先交服务器换算。"
+  query_energy:
+    description: "查消耗；热量盈余用includeMeals=true返回服务端联合统计，须饮食和消耗读权限"
+    login_type: normal
+    output: { kind: entities, entity_types: [formward_query_result] }
+  query_meals:
+    description: "查已有饮食、记全状态及服务端摄入合计、均值和范围"
+    login_type: normal
+    output: { kind: entities, entity_types: [formward_query_result] }
+  preview_meals:
+    description: "只新增餐次，meals数组可一餐或多餐；不修改已有餐、不自动入食材库。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.changes[].addFoods，仅无匹配或明确另记一餐才新增。 估算数值须填营养字段，不能只写basis；每参考量营养优先交服务器换算。"
     login_type: normal
     output: { kind: execution_result }
   preview_energy:
-    description: 提交全天消耗或实际运动预览，使用平铺字段，仍需网页确认。
+    description: "仅消耗或已完成运动的新建／修改预览，days数组可多日；不是训练计划"
     login_type: normal
     output: { kind: execution_result }
-  submit_meal_operation:
-    description: "食材维护或高级兼容预览。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.addFoods，仅无匹配或明确另记一餐才新增。 估算数值须填营养字段，不能只写basis；每参考量营养优先交服务器换算。"
+  preview_meal_changes:
+    description: "只修改已保存餐次，changes数组使用mealId/version及局部修改；不是待审草稿修改。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.changes[].addFoods，仅无匹配或明确另记一餐才新增。 估算数值须填营养字段，不能只写basis；每参考量营养优先交服务器换算。"
     login_type: normal
     output: { kind: execution_result }
-  get_meal_operation:
-    description: 查询本人饮食预览及保存状态。
+  preview_foods:
+    description: "仅维护本人食材库，foods数组；不表示今天吃过，用户明确要求入库才使用"
     login_type: normal
     output: { kind: execution_result }
-  submit_training_operation:
-    description: 提交训练模板与排期预览，不自动完成训练或计算消耗。
+  preview_record_bundle:
+    description: "至少两类功能动作组合成一个预览，如身体＋饮食；单一功能用专用入口。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.changes[].addFoods，仅无匹配或明确另记一餐才新增。 估算数值须填营养字段，不能只写basis；每参考量营养优先交服务器换算。"
     login_type: normal
     output: { kind: execution_result }
-  get_training_operation:
-    description: 查询本人训练模板与排期的确认结果。
+  get_preview:
+    description: "查询任意本人预览的最新版本、待补项与逐项保存状态；pending未正式保存"
     login_type: normal
     output: { kind: execution_result }
-  submit_record_operation:
-    description: "多领域统一待确认预览，饮食部分遵循共用规则。先确定实际食量，再估算营养。仅有食物名称、没有实际数量时先集中追问，不自行设定克数或默认1份，不创建预览后再让用户纠正；食材规格不代表本次吃了多少。已报克数、毫升、个数等数量时保留，可注明常见规格估算营养，不强求克重。默认估算热量及蛋白质、碳水、脂肪，不逐次问是否估算；营养估算不代表用户接受食量估算。估算填sourceKind=estimated及basis；用户明确只记录或确实无法合理估算时保留未知。用户说加／补／追加食物时，先query_meals取目标日details；有对应餐次用preview_meal_changes.addFoods，仅无匹配或明确另记一餐才新增。 估算数值须填营养字段，不能只写basis；每参考量营养优先交服务器换算。"
-    login_type: normal
-    output: { kind: execution_result }
-  get_record_operation:
-    description: 查询本人统一记录批次的预览、行结果和确认状态。
-    login_type: normal
-    output: { kind: execution_result }
-  append_pending_images:
-    description: 经用户要求向原待审批次补齐照片，不保存正式记录。
+  update_preview:
+    description: "只修改已有待审草稿：原id/revision、项目key及局部变化；补照片、漏项沿用原链接"
     login_type: normal
     output: { kind: execution_result }
 

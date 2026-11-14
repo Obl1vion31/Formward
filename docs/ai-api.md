@@ -2,7 +2,7 @@
 
 ## AI结果的字段解释
 
-MCP 1.17.1／OpenAPI 1.15.1保留21项工具、原参数、权限和业务值，在成功结果增加fieldDefinitions。它是字段路径到中文解释的字典：*表示一层数组或对象成员，**表示任意深度；不是可提交的业务参数。只返回当前接口与本种结果实际存在的字段说明，错误和未授权结果保持原结构。
+MCP 2.0.0公开18项工具；OpenAPI 1.15.1的HTTP路径和旧调用继续可用。成功结果包含fieldDefinitions。它是字段路径到中文解释的字典：*表示一层数组或对象成员，**表示任意深度；不是可提交的业务参数。只返回当前接口与本种结果实际存在的字段说明，错误和未授权结果保持原结构。
 
 解释分别保存在measurements、meals、activities、training及records目录的ai-field-definitions.json中。MCP工具说明、HTTP协议、返回数据和离线评测引用同一份来源；common guidance只约束如何据数据回答，不替代具体字段定义。
 
@@ -30,21 +30,13 @@ MCP 1.17.1／OpenAPI 1.15.1保留21项工具、原参数、权限和业务值，
 
 例如虚构窗口为8月1日至7日，仅2日70kg、6日69kg有效，则change=-1、coverage=2、start=2日、end=6日；window仍是1日至7日。7日缺测时value和previousChange均为null，不能说“7日比昨天下降1kg”或“比前一周均重下降1kg”。
 
-在项目目录运行node --import tsx scripts/export-ai-contracts.mts 私有评测目录/contracts.json可离线导出实际工具、工作规则及字段选择实现，不执行业务工具。当前10道自然题仍覆盖5项本地重放工具，不能据此声称全部21工具的真实模型表现已验证；21项接口说明、传递和权限由隔离测试检查。历史模型回答、快照及用量保持，新增收费对照由另一次测试指令启动。
+在项目目录运行node --import tsx scripts/export-ai-contracts.mts 私有评测目录/contracts.json，可离线导出18项正式工具、共用规则与字段解释，不执行业务工具。模型评测从同一来源导出，并冻结配置、隔离数据和原答；工具覆盖与回答质量分别验收。
 
-记餐默认营养估算、关键信息追问、明确不估及历史保留的共用规则见[AI工具调用](ai-tool-contracts.md#默认营养估算与追问)。GPT与豆包规则相同，模型提交估算和依据，服务器不对缺失营养自动补数。
+记餐营养估算、食量追问、明确不估及历史保留的共用规则见[AI工具调用](ai-tool-contracts.md)。GPT与豆包规则相同，模型提交估算和依据，服务器不对缺失营养自动补数。
 
 ## GPT 与豆包的工具契约
 
-MCP 1.17.1共21项工具：原18项兼容，GPT与豆包共享preview_meal、preview_meal_changes和preview_energy。OAuth issuer、resource、现有账号与授权不变，不新增scope。豆包仍通过global.formward.top/api/doubao/mcp和独立登录／令牌回调接入；平台整数边界及保留字段只在豆包适配层兼容。
-
-新增单餐用preview_meal，餐内局部修改用preview_meal_changes，消耗／实际运动用preview_energy；跨领域仍用submit_record_operation保持一个审核链接。食材库、训练模板和排期保留原工具。完整场景、参数和返回规则见[AI工具调用规则](ai-tool-contracts.md)。这些工具均只创建或修改待确认预览，正式保存仍由用户登录网页确认。
-
-查询增加可选view=summary／details：摘要用于分析，明细用于查看与修改。MCP可传range=today／yesterday／last7／last30，由服务器按timezone解释；不能与from/to混用。摘要每页最多366日，明细50日，page.hasMore及nextFrom说明剩余范围，不静默截断；老调用省略view时保留原返回。身体新摘要sevenDay锚定本页结束日，旧analyses.summary仍表示当前最新七日并附scope。饮食／消耗HTTP查询也接受view；身体和训练新摘要仅通过MCP提供，原HTTP接口保持。
-
-新增和修改单餐均保留同一operationId及原参数重试，包括today／yesterday文本，服务器固定首次解析日期；改变内容使用新标识。预览过期、版本冲突和授权失败不能用新标识盲目重试。新的简洁返回区分state与保存状态，get_*可选择status；未传view的旧结果仍兼容。
-
-本机隔离测试与实际Next production入口验证不等于真实GPT首轮成功率。没有OpenAI API评测凭据时不生成模型对照结论，也不以schema体积承诺省token或提速。真实豆包模型及手机验证范围见[豆包接入](doubao-onboarding.md)。
+MCP 2.0.0公开18项工具，原生MCP、豆包和站内助手共享正式定义。新增餐次preview_meals、已保存餐次修改preview_meal_changes、食材维护preview_foods各有职责；身体preview_measurements、消耗preview_energy、训练preview_training保留各业务规则。组合preview_record_bundle至少两类功能动作，get_preview统一查状态，update_preview只修改原待审草稿及补照片。完整参数和边界见[AI工具调用规则](ai-tool-contracts.md)。
 
 ## 网页与AI服务地址
 
@@ -54,10 +46,7 @@ MCP 1.17.1共21项工具：原18项兼容，GPT与豆包共享preview_meal、pre
 
 ## 当前兼容规则
 
-OpenAPI1.15.1／MCP1.17.1，当前身体能力只接收实测，饮食、消耗和训练沿用各自规则。身体按同一天晨晚最后保存值覆盖，预览显示旧→新，取消不保存，遗漏字段保留，不接收未来身体日期。运动save_activity扩展calorieMode、exerciseRestingKcal、exerciseActiveKcal；分项只计纯运动，旧caloriesKcal原值继续采用，查询activities增加totalKcal／countedKcal。AI正常新增修改、网页登录确认及版本／幂等保护保持。常见英文餐次仍可提交，显示及新保存中文，原请求摘要不改。网页登录私有/api/record-changes不接受AI令牌，不增加工具或权限。
-
-
-接口覆盖晨晚实测体重／体脂、来源、时区、记录详情与历史、摘要与趋势及历史编辑。身体不提供估算或插补，旧estimate_cell返回410。网页和 API 使用同一 measurements feature。饮食、食材及其删除／恢复已接入；通用文件导入及身体记录的网页删除／恢复、准确测量时间和历史归属纠正尚未接入。
+旧MCP业务工具名已停用，不注册隐藏别名、不自动转接执行；旧会话需刷新工具目录。新旧MCP协议、现有OAuth连接和scope保持。旧预览编号、确认链接及HTTP路径继续可用，旧HTTP完整批量输入仍复用原业务函数。HTTP保留能力不代表向模型公开两个同用途入口。
 
 ## 统一连接与授权
 
@@ -67,17 +56,9 @@ OpenAPI1.15.1／MCP1.17.1，当前身体能力只接收实测，饮食、消耗�
 
 ## 混合记录接口
 
-当前MCP统一连接检查为authorize_formward，混合审核为 `submit_record_operation`／`get_record_operation`；HTTP 为 `POST /api/v1/record-operations` 和 `GET /api/v1/record-operations/{id}`。支持只提交一类或任意组合，最多100项（包含展开的新食材）、64 KiB，统一链接 `/dashboard/ai/operations/{id}`。原单类接口和链接保持兼容，确认只能由登录网页执行。
+MCP使用preview_record_bundle提交至少两类功能动作，一个任务只有一个父预览和最终确认链接。单纯多餐用preview_meals，模板加排期用preview_training，消耗加实际运动用preview_energy。已生成草稿统一update_preview，按原id/revision与key只改局部内容，漏项appendItems，不整批重建。
 
-餐项通过 `foodRef` 引用同批 `save_food.key`，不同时提供 `foodId`、`foodDraft` 或 `nutrition`；内嵌 `foodDraft` 兼容并自动展开。以下仅为虚构格式：
-
-```json
-{"operationId":"fictional-mixed-example","items":[{"key":"body","kind":"save_record","date":"2024-08-01","period":"daytime","weightKg":"70.2","fasting":true,"deviceLabel":"虚构秤"},{"key":"food","kind":"save_food","name":"虚构食品","baseQuantity":"100","unit":"g","nutrition":{"caloriesKcal":"200","proteinG":"20","carbsG":"10","fatG":"8"},"sourceKind":"estimated"},{"key":"meal","kind":"save_meal","date":"2024-08-01","mealType":"午餐","items":[{"kind":"food","name":"虚构食品","foodRef":"food","quantity":"50","unit":"g","sourceKind":"estimated"}]}]}
-```
-
-返回 `status`、`rows`、`canConfirm`、按项目汇总的 `needsUserInput`、审核版本及确认链接。`pending` 是草稿，`confirmed` 表示所选记录已保存，`cancelled` 为取消，`completed` 表示无需保存。缺图提示仍保留，用户可直接确认文字；`needsUserInput` 不得被 AI 当作已确认。重复请求复用原 `operationId` 和内容，改变内容或授权时拒绝复用。
-
-混合写入按所含内容检查 `measurements:write`、`meals:write` 和 `energy:write`，查询批次检查对应读取权限；工具元数据只声明当前已授予的相关权限，不自动扩展旧连接。纯身体或纯饮食连接也可继续使用原单类工具。
+HTTP的POST /api/v1/record-operations及GET /api/v1/record-operations/{id}保持旧契约，包括单领域调用和旧完整items修正；只创建预览，最终仍须本人网页登录确认。MCP的组合限制在新工具边界执行，不修改兼容HTTP的计算或保存流程。
 
 ## ChatGPT 与其他 MCP 客户端
 
@@ -89,17 +70,17 @@ OpenAPI1.15.1／MCP1.17.1，当前身体能力只接收实测，饮食、消耗�
 | --- | --- | --- |
 | `authorize_formward` | 无参数；检查完整连接、缺权限时请求一次统一OAuth授权，不生成健康预览 | 身体／饮食／消耗／训练读写 |
 | `query_energy` | from／to／timezone查询最终消耗、录入分项、额外运动及包含关系 | `energy:read` |
-| `submit_record_operation` | items混合预览，返回统一确认链接 | 按内容检查对应write权限 |
-| `get_record_operation` | 查询混合审核状态 | 按内容检查对应read权限 |
+| `preview_record_bundle` | items混合预览，返回统一确认链接 | 按内容检查对应write权限 |
+| `get_preview` | 查询混合审核状态 | 按内容检查对应read权限 |
 | `get_profile` | 返回已连接账号的稳定标识与显示名称 | `profile` |
 | `query_measurements` | 可选 from／to、choices、timezone；返回本账号记录、单位、来源、实测／估计、摘要、趋势与时区上下文 | `measurements:read` |
-| `submit_measurement_operation` | operationId、1–100 条 items、可选 timezone；生成预览并返回网页审核链接 | `measurements:write` |
-| `get_measurement_operation` | 提交返回的 id；查询逐行状态、数量和确认链接 | `measurements:read` |
+| `preview_measurements` | operationId、1–100 条 items、可选 timezone；生成预览并返回网页审核链接 | `measurements:write` |
+| `get_preview` | 提交返回的 id；查询逐行状态、数量和确认链接 | `measurements:read` |
 | `import_meal_images` | files私有保存原图，返回附件id，不保存正式餐次 | `meals:write` |
 | `search_foods` | q搜索食材及规格／营养／版本 | `meals:read` |
 | `query_meals` | from／to查询餐次及每日已记录合计 | `meals:read` |
-| `submit_meal_operation` | operationId、actions生成饮食／食材预览 | `meals:write` |
-| `get_meal_operation` | id查询饮食审核状态 | `meals:read` |
+| `preview_foods` | operationId、actions生成饮食／食材预览 | `meals:write` |
+| `get_preview` | id查询饮食审核状态 | `meals:read` |
 
 工具定义提供名称、说明、JSON Schema、权限和操作提示，MCP 客户端把这些说明交给模型决定调用哪个工具及填写哪些参数。模型获取业务结果，账号密码和令牌由客户端及授权流程管理。网页、HTTP API 与 MCP 调用同一 feature，不分别维护健康规则。
 
@@ -111,11 +92,9 @@ OAuth 使用授权码 + S256 PKCE，授权码有效 5 分钟；访问令牌有�
 
 ## 饮食照片与补问
 
-import_meal_images（meals:write）接收顶层files，工具声明_meta["openai/fileParams"]。每项包含download_url、file_id，可选mime_type、file_name，返回稳定附件id、status（complete／partial／failed）、逐文件failures（index、code、message、stage、retryable、requestId）。部分成功保留ID，仅重试失败项，全部失败为MCP工具错误。HTTP对应POST /api/v1/meal-images；网页提供会话保护的补传和读取。最多8张、每张20 MiB，JPEG／PNG／WebP原图私有保存，临时下载地址不作为长期照片链接。字段机制见[OpenAI官方说明](https://developers.openai.com/plugins/reference#define-file-inputs)。
+import_meal_images只导入当前账号真实附件，最多8张、每张20 MiB，JPEG／PNG／WebP；图片识别由模型完成。模型只依据可见内容，身份模糊时表达候选；实际食量未给先追问，不默认整盒或猜克数。
 
-先识别、查询已有食材，再集中问日期、餐次、身份、实际食用量和额外油酱；只传图片不能默认日期或餐次。整份须确认全部吃完并有已知规格。餐次／食材用imageIds关联原图；照片AI餐次的photoReview核对字段和questions决定needsUserInput，未解决禁止确认，网页可补传、逐项修改并应用修改。模型不得自行代确认。食量未知先询问，再由用户接受估算或明确未知。包装识别保留名称、品牌、规格、标签单位及照片。规则见[饮食记录](meals.md)。
-
-search_foods返回foods及兼容的presets:[]，不提供基础预设采用；query_meals增加可选timezone，context.localDate用于相对日期。新工具沿用饮食权限，已有饮食连接刷新工具列表即可，缺饮食权限的身体连接仍须重新授权。
+成功附件ID仍须加入新预览，或通过update_preview的原key及addImageIds追加到原草稿。部分失败保留成功项，不另建记录；上传、关联预览与正式保存是不同阶段。旧HTTP /pending-images继续可用，MCP只公开统一草稿修改工具。
 
 ## 手动令牌与本地 HTTP 使用
 
@@ -136,7 +115,7 @@ search_foods返回foods及兼容的presets:[]，不提供基础预设采用；qu
 | 入口 | 用途 |
 | --- | --- |
 | `GET /api/v1/measurements` | 本账号记录、来源、日期、摘要、趋势、配对与候选，以及本次系统时区与当地日期 |
-| `POST /api/v1/measurement-operations` | 跨日期批量、兼容单日或单项估算预览；返回一个审核链接 |
+| `POST /api/v1/measurement-operations` | 跨日期实测批量及兼容单日预览；返回一个审核链接 |
 | `GET /api/v1/measurement-operations/{id}` | 预览、草稿、逐条状态、数量与确认链接 |
 | `GET /api/v1/openapi.json` | 公开协议，不含账号数据或令牌 |
 
@@ -207,7 +186,7 @@ search_foods返回foods及兼容的presets:[]，不提供基础预设采用；qu
 
 饮食和食材采用本次实际输入，不按历史倍数追加确认。餐次可记录明确0或全部未知营养，未知保持null；空餐、空名称、非法日期／数量／单位仍阻止保存。同日同餐次的严格重复只显示一次“本日已有相同内容的餐次”与查看入口，不要求勾选或再次确认，不自动合并删除。请求幂等、账号归属、版本冲突、草稿保护及AI最终网页登录确认继续有效。消耗、运动及身体原有数值提醒保持。allowDuplicate仅兼容，duplicateIds及重复提示不进入needsUserInput，也不使canConfirm变为false。旧待确认饮食预览在展示及确认时采用当前规则；真实业务错误与有效期继续生效。
 
-MCP增加search_foods、query_meals、submit_meal_operation、get_meal_operation，分别使用meals:read／meals:write；已有身体连接需重新授权。HTTP提供GET /foods?q=、GET /meals?from=&to=、POST /meal-operations、GET /meal-operations/{id}，公开协议1.11.0。输入operationId、actions；save_meal含date、mealType、items，已有食材用foodId＋foodVersion、同单位quantity，新食材可用foodDraft。杂只估未单列的剩余食物，whole整餐估算须为唯一项。AI 标签与成分表需依据，未知null；手动合并来源 reference 为标签／成分表，旧来源继续兼容。新手动自由项用 kind:food，营养直接表示本次摄入，分量不再次相乘。确认链接为/dashboard/meals/review/{id}，15分钟有效，原请求与修订草稿独立；正式保存仅网页登录确认，权限撤销即时阻止。结构、初始化和实例定位见[饮食记录](meals.md)。
+MCP增加search_foods、query_meals、preview_foods、get_preview，分别使用meals:read／meals:write；已有身体连接需重新授权。HTTP提供GET /foods?q=、GET /meals?from=&to=、POST /meal-operations、GET /meal-operations/{id}，公开协议1.11.0。输入operationId、actions；save_meal含date、mealType、items，已有食材用foodId＋foodVersion、同单位quantity，新食材可用foodDraft。杂只估未单列的剩余食物，whole整餐估算须为唯一项。AI 标签与成分表需依据，未知null；手动合并来源 reference 为标签／成分表，旧来源继续兼容。新手动自由项用 kind:food，营养直接表示本次摄入，分量不再次相乘。确认链接为/dashboard/meals/review/{id}，15分钟有效，原请求与修订草稿独立；正式保存仅网页登录确认，权限撤销即时阻止。结构、初始化和实例定位见[饮食记录](meals.md)。
 \n照片上传需先实际调用import_meal_images，再提交imageIds及expectedImageCount；失败也保留预期张数并说明具体错误。canConfirm表示正常确认可用，canConfirmWithoutImages表示可由用户选择先保存文字。补传与无图保存选择仅在登录网页完成，API没有代确认入口。每项食物可提交reviewExplanation，分别说明identity、amount、cooking、nutrition的来源、basis及uncertainty；已有basis和食材快照继续兼容。
 
 
@@ -229,7 +208,7 @@ AI只允许新增或修改，不得整条删除或恢复（包括批量）；餐
 
 ## 训练动作与计划
 
-search_exercises、query_training、submit_training_operation、get_training_operation使用独立training:read／training:write，旧连接刷新定义后仍须重新授权。GPT可查询统一150项动作库、本人模板和安排，创建或修改模板、一次排多天；新模板以templateRef引用同批key，已有项目带id/version。提交复用统一网页审核，预览24小时有效，确认后保存到同一训练日历；pending不等于已同步。目标与实际完成分开，不生成热量或完成记录，取消不删除既有事实。完整字段、单位及演示见[训练记录](training.md)。统一HTTP记录预览同样接受这两种动作，OpenAPI版本1.14.0；不增加HTTP确认入口。
+search_exercises、query_training、preview_training、get_preview使用独立training:read／training:write，旧连接刷新定义后仍须重新授权。GPT可查询统一150项动作库、本人模板和安排，创建或修改模板、一次排多天；新模板以templateRef引用同批key，已有项目带id/version。提交复用统一网页审核，预览24小时有效，确认后保存到同一训练日历；pending不等于已同步。目标与实际完成分开，不生成热量或完成记录，取消不删除既有事实。完整字段、单位及演示见[训练记录](training.md)。统一HTTP记录预览同样接受这两种动作，OpenAPI版本1.14.0；不增加HTTP确认入口。
 
 ## 身体记录规则
 
@@ -237,4 +216,6 @@ search_exercises、query_training、submit_training_operation、get_training_ope
 
 ## 查询统计与原草稿修正
 
-当前21项工具保留原名称与授权。饮食返回statistics；消耗可includeMeals=true联合统计，额外校验饮食查询权限，默认不读饮食。统计口径、分页、错误details及统一预览previewId/revision修正方式见[AI工具契约](ai-tool-contracts.md#统计与同草稿修正)。pending、累计、缺项与正式保存不能混称；无新增确认工具或数据库迁移。
+查询按summary／details及分页返回服务器统计；只对同口径范围比较，优先statistics和balance，未知不补0。身体窗口、有效样本日期、相邻日差与首尾差各自说明。
+
+get_preview按原编号查询新旧预览，update_preview按最新revision、稳定项目key提交局部变化；原payload及首次摘要不变。修改前验证原授权、全部实际领域权限、有效期、版本和附件归属。源食材引用与自由营养互斥，服务器保留未改内容和精度；实际模型改善须由隔离复测确认，接口成功不代表答案或网页流程通过。
