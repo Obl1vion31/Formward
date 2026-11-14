@@ -27,7 +27,9 @@ export function editorItemInput(item:EditorItem):ItemDraft{
  return itemSignature(value)===itemSignature(editor.initial)?structuredClone(editor.original):value;
 }
 export function mealEditorInput(meal:EditorMeal):MealDraft{
- return {...meal,items:meal.items.filter(item=>!emptyEditorItem(item)).map(editorItemInput)};
+ // 某些录入入口传入save_meal动作；内部动作判别符不能进入私有草稿契约。
+ const {kind,...value}=meal as EditorMeal&{kind?:unknown};void kind;
+ return {...value,items:meal.items.filter(item=>!emptyEditorItem(item)).map(editorItemInput)};
 }
 
 /** 只处理网页真实营养编辑；原项、库值和未触碰的旧精度不做公式回填。 */

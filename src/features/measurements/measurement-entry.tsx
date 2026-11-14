@@ -1,4 +1,7 @@
 "use client";
+import {InspectorCloseButton} from "@/components/inspector";
+import {displayRecordDate} from "@/components/record-dates";
+import type {Ref} from "react";
 import {useBodyMetrics} from "./visibility";
 import {numericDraftValue} from "@/components/form-draft";
 import {habitualMeasurementSource} from "./source-habit";
@@ -29,9 +32,13 @@ function makeDraft(records: MeasurementDisplay[], date: string, choices: Record<
   }])) as Draft;
 }
 
-export function MeasurementEntry({ date, timezone, records, sources, choices, actions, editing = false, initialPeriod = "daytime", onUpdated, onChoose }: {
+export function MeasurementEntryHeader({date,editing=false,headingRef}:{date:string;editing?:boolean;headingRef?:Ref<HTMLHeadingElement>}){
+ return <header className={styles.drawerHeader} data-editing><div><h2 ref={headingRef} tabIndex={-1} id="measurement-drawer-title">{editing?"编辑身体记录":"身体录入"}<time className={styles.entryHeadingDate} dateTime={date}>{displayRecordDate(date)}</time></h2></div><InspectorCloseButton label="关闭记录详情"/></header>;
+}
+
+export function MeasurementEntry({ date, timezone, records, sources, choices, actions, pending=false, editing = false, initialPeriod = "daytime", onUpdated, onChoose }: {
   date: string; timezone: string; records: MeasurementDisplay[]; sources: string[]; choices: Record<string, string>; actions: MeasurementActions;
-  editing?: boolean; initialPeriod?:EntryPeriod; onUpdated: (result: Extract<EntryResult, { ok: true }>) => void;
+  pending?:boolean; editing?: boolean; initialPeriod?:EntryPeriod; onUpdated: (result: Extract<EntryResult, { ok: true }>) => void;
   onChoose: (date: string, period: EntryPeriod, id: string) => void;
 }) {
   const visibleMetrics=useBodyMetrics();
@@ -126,11 +133,11 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
     }
     return result;
   }
-  return <form data-editing={editing} data-entry-form="body" data-selected-period={selected} className={styles.entryForm} aria-label="当天身体录入" onSubmit={save} aria-busy={busy}>
+  return <form data-editing={editing} data-entry-form="body" data-selected-period={selected} className={styles.entryForm} aria-label="当天身体录入" onSubmit={event=>{if(pending)event.preventDefault();else void save(event);}} aria-busy={busy||pending}>
 
-    <div className={styles.entryPeriodBar}><div role="group" aria-label="选择录入时段">{(["daytime","evening"] as const).map(period=><button type="button" key={period} aria-label={period==="daytime"?"晨间（空腹）":periodName(period)} aria-pressed={selected===period} onClick={()=>setSelected(period)}>{periodName(period)}{period==="daytime"&&"（空腹）"}{periodDirty(period)&&<span aria-label="有未保存修改"> ·</span>}</button>)}</div><button type="button" aria-expanded={advanced.has(selected)} onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(selected))next.delete(selected);else next.add(selected);return next;})}>更多设置</button></div>
+    <div className={styles.entryPeriodBar}><div role="group" aria-label="选择录入时段">{(["daytime","evening"] as const).map(period=><button type="button" key={period} aria-label={period==="daytime"?"晨间（空腹）":periodName(period)} aria-pressed={selected===period} disabled={pending} onClick={()=>setSelected(period)}>{periodName(period)}{period==="daytime"&&"（空腹）"}{periodDirty(period)&&<span aria-label="有未保存修改"> ·</span>}</button>)}</div><button type="button" aria-expanded={advanced.has(selected)} disabled={pending} onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(selected))next.delete(selected);else next.add(selected);return next;})}>更多设置</button></div>
     <div className={styles.entryGroups}>
-      {groups.map(group=><fieldset key={group.period} data-period={group.period} data-selected={selected===group.period} disabled={busy||group.blocked}>
+      {groups.map(group=><fieldset key={group.period} data-period={group.period} data-selected={selected===group.period} disabled={busy||pending||group.blocked}>
         <legend><span>{periodName(group.period)} · {group.blocked?"空腹条件未确认":group.period==="daytime"?"空腹":"非空腹"}</span><button type="button" aria-expanded={advanced.has(group.period)} onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(group.period))next.delete(group.period);else next.add(group.period);return next;})}>更多设置</button></legend>
         {group.pending?<label>选择已有实测<select aria-label={"录入"+periodName(group.period)+"候选记录"} value="" onChange={event=>onChoose(date,group.period,event.target.value)}><option value="">选择已有记录</option>{group.candidates.map(row=><option value={row.id} key={row.id}>{row.sourceLocalTime}</option>)}</select></label>:<>
           <div data-record-guide-fields className={styles.bodyMetricFields}>{visibleMetrics.map(metric=>{
@@ -139,18 +146,18 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
               <label htmlFor={"entry-"+group.period+"-"+metric}>{metricName(metric)}<small>{metric==="weightKg"?"kg":"%"}</small></label>
               <div className={styles.entryInputRow}>
                 {editable?<DecimalInput id={"entry-"+group.period+"-"+metric} aria-label={label} min={0} placeholder="实测值" value={draft[group.period][metric]} onValue={value=>setField(group.period,metric,value)}/>:<span className={styles.entryRecorded}>{formatRecordNumber(cell.value)}</span>}
-                {actions.deleteCell&&group.observed?.[metric]!=null&&<button type="button" className={styles.deleteCell} disabled={busy||hasDraft} aria-label={"删除"+label} onClick={async()=>{const original=group.observed!;if(await confirmAction({title:"删除"+label+"？",danger:true,confirmLabel:"删除"+metricName(metric),message:"删除 "+date+" "+label+" "+formatRecordNumber(original[metric])+"？其他指标保留。"}))run("正在删除这一项…",()=>actions.deleteCell!({recordId:original.id,version:original.updatedAt,metric,operationId:operationId(["delete",original.id,original.updatedAt,metric])}),["measurement:"+date+":"+group.period+":observed"],[group.period]);}}>×</button>}
+
               </div>
               {error&&errorTarget===key&&<small className={styles.entryError} role="status">{error}</small>}
             </div>;
           })}</div>
-          <div className={styles.entrySource}><SourceInput hint={!group.observed&&automatic[group.period]&&draft[group.period].deviceLabel===automatic[group.period]&&!touchedSources.has(group.period)?"已沿用常用来源":undefined} label={periodName(group.period)+"数据来源"} value={draft[group.period].deviceLabel} sources={sources} onChange={value=>setField(group.period,"deviceLabel",value)} removeSource={removeSource} disabled={busy||group.blocked}/></div>
-          {advanced.has(group.period)&&<div className={styles.entryTimezone}><label htmlFor={"entry-"+group.period+"-timezone"}>时区</label><select id={"entry-"+group.period+"-timezone"} aria-label={periodName(group.period)+"时区"} value={draft[group.period].timezone} onChange={event=>setField(group.period,"timezone",event.target.value)}><option value="">未指定</option>{draft[group.period].timezone&&!timezoneOptions.some(option=>option.value===draft[group.period].timezone)&&<option value={draft[group.period].timezone}>{timezoneLabel(draft[group.period].timezone,date,group.observed?.utcOffsetMinutes)}（保留原时区）</option>}{timezoneOptions.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select><button type="button" onClick={()=>setField(group.period,"timezone",systemMeasurementTimezone())}>采用系统时区</button></div>}
+          <div className={styles.entrySource}><SourceInput hint={!group.observed&&automatic[group.period]&&draft[group.period].deviceLabel===automatic[group.period]&&!touchedSources.has(group.period)?"已沿用常用来源":undefined} label={periodName(group.period)+"数据来源"} value={draft[group.period].deviceLabel} sources={sources} onChange={value=>setField(group.period,"deviceLabel",value)} removeSource={removeSource} disabled={busy||pending||group.blocked}/></div>
+          {advanced.has(group.period)&&<div className={styles.entryTimezone}><div className={styles.entryDeleteActions}>{visibleMetrics.map(metric=>actions.deleteCell&&group.observed?.[metric]!=null&&<button type="button" key={metric} className={styles.deleteCell} disabled={busy||hasDraft} aria-label={"删除"+(periodName(group.period)+metricName(metric))} onClick={async()=>{const original=group.observed!;if(await confirmAction({title:"删除"+(periodName(group.period)+metricName(metric))+"？",danger:true,confirmLabel:"删除"+metricName(metric),message:"删除 "+date+" "+(periodName(group.period)+metricName(metric))+" "+formatRecordNumber(original[metric])+"？其他指标保留。"}))run("正在删除这一项…",()=>actions.deleteCell!({recordId:original.id,version:original.updatedAt,metric,operationId:operationId(["delete",original.id,original.updatedAt,metric])}),["measurement:"+date+":"+group.period+":observed"],[group.period]);}}>删除{periodName(group.period)}{metricName(metric)}</button>)}</div><label htmlFor={"entry-"+group.period+"-timezone"}>时区</label><select id={"entry-"+group.period+"-timezone"} aria-label={periodName(group.period)+"时区"} value={draft[group.period].timezone} onChange={event=>setField(group.period,"timezone",event.target.value)}><option value="">未指定</option>{draft[group.period].timezone&&!timezoneOptions.some(option=>option.value===draft[group.period].timezone)&&<option value={draft[group.period].timezone}>{timezoneLabel(draft[group.period].timezone,date,group.observed?.utcOffsetMinutes)}（保留原时区）</option>}{timezoneOptions.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select><button type="button" onClick={()=>setField(group.period,"timezone",systemMeasurementTimezone())}>采用系统时区</button></div>}
           {group.blocked&&<p className={styles.entryCondition}>原记录的空腹条件未确认，保留只读。</p>}
         </>}
       </fieldset>)}
     </div>
     {future&&<p role="alert" className={styles.entryError}>不能录入未来日期的身体记录。</p>}
-    <div className={styles.entryFooter}><div>{error&&<p role="alert" className={styles.entryError}>{error}</p>}{message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-record-guide-save type="submit" className={styles.saveEntry} disabled={busy||!dirty||future}>{busy?busyLabel:"保存录入"}</button></div>
+    <div className={styles.entryFooter}><div>{error&&<p role="alert" className={styles.entryError}>{error}</p>}{message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-record-guide-save type="submit" className={styles.saveEntry} disabled={busy||pending||!dirty||future}>{busy?busyLabel:"保存录入"}</button></div>
   </form>;
 }

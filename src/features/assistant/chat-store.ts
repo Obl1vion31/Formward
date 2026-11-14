@@ -1,3 +1,6 @@
+import { chatCapabilities } from "./chat-config";
+import { or } from "drizzle-orm";
+import { followupText, type FollowupSubmission } from "./followup";
 import { createHash, randomUUID } from "node:crypto";
 import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import type { Database } from "../../db/client";
@@ -10,7 +13,7 @@ import { budgetDate, chatProviderIds, nextBudgetReset, usagePercent, type ChatMe
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export type StoredRun = typeof run.$inferSelect;
 export type StoredMessage = typeof message.$inferSelect;
-export type ChatSend = { action: "send" | "retry" | "continue"; requestId: string; provider: ChatProvider; conversationId: string; text?: string; replyToId?: string; imageIds?: string[]; messageId?: string; timezone: string };
+export type ChatSend = { action: "send" | "retry" | "continue"; requestId: string; provider: ChatProvider; conversationId: string; text?: string; replyToId?: string; imageIds?: string[]; messageId?: string; timezone: string; followup?: FollowupSubmission; mealTask?:boolean };
 export const digestChat = (value: unknown) => createHash("sha256").update(JSON.stringify(value, (_key,item) => item && typeof item === "object" && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a],[b]) => a.localeCompare(b))) : item)).digest("hex");
 
 export async function requireChatAccount(db: Pick<Database, "select">, userId: string) { const owner = await requireActiveAccount(db, userId); assertChatAllowed(owner); return owner; }
@@ -18,9 +21,9 @@ async function lockChatAccount(tx: Tx, userId: string) { const owner = await loc
 export async function currentConversation(db: Database, userId: string) {
   return db.transaction(async tx => {
     await lockChatAccount(tx, userId);
-    const [active] = await tx.select().from(conversation).where(and(eq(conversation.userId, userId), eq(conversation.active, true)));
+    const [active] = await tx.select().from(conversation).where(and(eq(conversation.userId, userId), eq(conversation.purpose,"chat"), eq(conversation.active, true)));
     if (active) return active;
-    const [previous] = await tx.select().from(conversation).where(eq(conversation.userId, userId)).orderBy(desc(conversation.createdAt)).limit(1);
+    const [previous] = await tx.select().from(conversation).where(and(eq(conversation.userId,userId),eq(conversation.purpose,"chat"))).orderBy(desc(conversation.createdAt)).limit(1);
     const [created] = await tx.insert(conversation).values({ id: randomUUID(), userId, provider: previous?.provider ?? "qwen" }).returning();
     return created;
   });
@@ -101,23 +104,25 @@ export async function reapChatRuns(db: Database, userId: string) {
     }
   });
 }
-export async function chatSnapshot(db: Database, userId: string, before?: number): Promise<ChatSnapshot> {
+export async function chatSnapshot(db: Database, userId: string, before?: number,taskId?:string): Promise<ChatSnapshot> {
   await requireChatAccount(db, userId); await reapChatRuns(db, userId);
-  const current = await currentConversation(db, userId);
+  const current = taskId?(await db.select().from(conversation).where(and(eq(conversation.id,taskId),eq(conversation.userId,userId),eq(conversation.purpose,"meal_entry"))))[0]:await currentConversation(db,userId);
+  if(!current)throw new ApiError(404,"not_found","此任务不存在或不属于当前账号。");
   const recent = await db.select().from(message).where(and(eq(message.userId, userId), eq(message.conversationId, current.id))).orderBy(desc(message.seq)).limit(50);
   const older = before === undefined ? recent : recent.filter(row => row.seq < before), rows = older.slice(0, 5).reverse();
-  const runs = rows.length ? await db.select().from(run).where(and(eq(run.userId, userId), inArray(run.assistantMessageId, rows.map(row => row.id)))).orderBy(desc(run.createdAt)) : [];
-  const [active] = await db.select({ id: run.id }).from(run).where(and(eq(run.userId, userId), eq(run.conversationId, current.id), eq(run.state, "running")));
+  const runs = rows.length ? await db.select().from(run).where(and(eq(run.userId, userId), or(inArray(run.assistantMessageId, rows.map(row => row.id)),inArray(run.userMessageId, rows.map(row => row.id))))).orderBy(desc(run.createdAt)) : [];
+  const [active] = await db.select({ id: run.id }).from(run).where(and(eq(run.userId,userId),taskId?eq(run.conversationId,current.id):undefined,eq(run.state,"running")));
   const grants = await db.select({ provider: connection.provider, enabled: connection.enabled, expiresAt: aiToken.expiresAt, revokedAt: aiToken.revokedAt }).from(connection).innerJoin(aiToken, and(eq(aiToken.id, connection.tokenId), eq(aiToken.userId, userId))).where(eq(connection.userId, userId)).orderBy(desc(connection.createdAt));
-  return { conversationId: current.id, provider: providerId(current.provider), followup: current.followup, messages: rows.map(row => publicChatMessage(row, recent, runs.find(item => item.assistantMessageId === row.id)?.id)),
+  return { capabilities:chatCapabilities(),conversationId: current.id, provider: providerId(current.provider), followup: current.followup, messages: rows.map(row => publicChatMessage(row,recent,runs.find(item=>item.assistantMessageId===row.id||item.userMessageId===row.id)?.id,runs.find(item=>item.assistantMessageId===row.id||item.userMessageId===row.id)?.requestId,runs.find(item=>item.assistantMessageId===row.id)?.userMessageId)),
     hasMore: older.length > 5, before: rows[0]?.seq ?? null, activeRunId: active?.id ?? null,
     catalog: chatProviderIds.map(id => { const grant = grants.find(row => row.provider === id), configured = providerConfigured(id), valid = !grant || grant.enabled && !grant.revokedAt && grant.expiresAt.getTime() > Date.now();
       return { id, label: chatProviders[id].label, model: chatProviders[id].model, configured, enabled: !!valid, reason: !configured ? "暂未配置或已停用" : !valid ? "授权已撤销或过期" : null, expiresAt: grant?.expiresAt.toISOString() ?? null }; }), usage: await chatUsage(db, userId) };
 }
-export function publicChatMessage(row: StoredMessage, context: StoredMessage[] = [], runId?: string): ChatMessage {
+export function publicChatMessage(row: StoredMessage, context: StoredMessage[] = [], runId?: string, requestId?:string, questionId?:string): ChatMessage {
   const quote = context.find(item => item.id === row.replyToId);
+  const question=row.role==="assistant"?(questionId?context.find(item=>item.id===questionId):[...context].filter(item=>item.role==="user"&&item.seq<row.seq).sort((a,b)=>b.seq-a.seq)[0]):null;
   return { id: row.id, seq: row.seq, role: row.role as "user" | "assistant", text: row.text, provider: row.provider ? providerId(row.provider) : null, state: row.state, createdAt: row.createdAt.toISOString(),
-    replyTo: row.replyToId ? { id: row.replyToId, text: quote?.text.slice(0, 280) || "原消息已超出当前历史范围" } : null, imageIds: row.imageIds, steps: row.steps, references: row.references, error: row.error, ...(runId ? { runId } : {}) };
+    replyTo: row.replyToId ? { id: row.replyToId, text: quote?.text.slice(0, 280) || "原消息已超出当前历史范围" } : null, imageIds: row.imageIds, steps: row.steps, references: row.references, error: row.error, ...(runId ? { runId } : {}),...(requestId?{requestId}:{}),...(question?{question:{id:question.id,text:question.text}}:{}) };
 }
 export async function startChatRun(db: Database, userId: string, input: ChatSend) {
   await requireChatAccount(db, userId); await reapChatRuns(db, userId);
@@ -130,19 +135,19 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
     if (active) throw new ApiError(409, "chat_busy", "已有回答正在生成，请等待或先停止。");
     const recentRequests = await tx.select({ id: run.id }).from(run).where(and(eq(run.userId, userId), gt(run.createdAt, new Date(Date.now() - 60000)))).limit(20);
     if (recentRequests.length >= 20) throw new ApiError(429, "chat_rate_limit", "发送得有些频繁，请一分钟后重试。当前输入保留。");
-    const [current] = await tx.select().from(conversation).where(and(eq(conversation.id, input.conversationId), eq(conversation.userId, userId), eq(conversation.active, true)));
-    if (!current) throw new ApiError(404, "not_found", "当前会话已变化，请重新读取。");
+    const [current] = await tx.select().from(conversation).where(and(eq(conversation.id,input.conversationId),eq(conversation.userId,userId),eq(conversation.purpose,input.mealTask?"meal_entry":"chat"),eq(conversation.active,!input.mealTask)));
+    if (!current || current.context?.cancelled) throw new ApiError(404, "not_found", "当前会话已变化，请重新读取。");
     if (!providerConfigured(input.provider)) throw new ApiError(503, "model_unavailable", "此模型暂不可用，请选择其他模型。");
     let seq = current.sequence, question: StoredMessage, answer: StoredMessage;
     if (input.action === "send") {
-      if (!input.text?.trim() && !input.imageIds?.length) throw new ApiError(400, "empty_message", "请输入内容或选择照片。");
+      if (!input.followup && !input.text?.trim() && !input.imageIds?.length) throw new ApiError(400, "empty_message", "请输入内容或选择照片。");
       if (input.replyToId) {
-        const allowed = await tx.select({ id: message.id }).from(message).where(and(eq(message.userId, userId), eq(message.conversationId, current.id))).orderBy(desc(message.seq)).limit(50);
-        if (!allowed.some(row => row.id === input.replyToId)) throw new ApiError(404, "quote_unavailable", "引用消息不在当前可用历史中，请取消引用或补充说明。");
+        const allowed = await tx.select({ id: message.id,role:message.role,state:message.state }).from(message).where(and(eq(message.userId, userId), eq(message.conversationId, current.id))).orderBy(desc(message.seq)).limit(50);
+        if (!allowed.some(row => row.id === input.replyToId&&row.role==="assistant"&&row.state==="complete")) throw new ApiError(404, "quote_unavailable", "引用消息不在当前可用历史中，请取消引用或补充说明。");
       }
       const ids = input.imageIds ?? [];
       if (ids.length) { const owned = await tx.select({ id: mealImage.id }).from(mealImage).where(and(eq(mealImage.userId, userId), inArray(mealImage.id, ids))); if (owned.length !== ids.length) throw new ApiError(404, "image_unavailable", "照片不存在或不属于当前账号。"); }
-      [question] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "user", text: input.text?.trim() ?? "", replyToId: input.replyToId, imageIds: ids }).returning();
+      [question] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "user", text: input.followup ? followupText(current.followup,input.followup) : input.text?.trim() ?? "", replyToId: input.replyToId, imageIds: ids }).returning();
       [answer] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "assistant", state: "working", provider: input.provider }).returning();
     } else {
       const [original] = await tx.select().from(message).where(and(eq(message.id, input.messageId ?? ""), eq(message.userId, userId), eq(message.conversationId, current.id), eq(message.role, "assistant")));
@@ -179,7 +184,7 @@ export async function controlChat(db: Database, userId: string, input: { action:
     if (input.action === "select_model") { const provider = providerId(input.provider); if (!providerConfigured(provider)) throw new ApiError(503, "model_unavailable", "该模型暂不可用。"); await tx.update(conversation).set({ provider }).where(eq(conversation.id, current.id)); }
     if (input.action === "clear_followup") await tx.update(conversation).set({ followup: null }).where(eq(conversation.id, current.id));
     if (input.action === "new") {
-      await tx.update(conversation).set({ active: false }).where(and(eq(conversation.userId, userId), eq(conversation.active, true)));
+      await tx.update(conversation).set({ active: false }).where(and(eq(conversation.userId, userId), eq(conversation.purpose,"chat"), eq(conversation.active, true)));
       await tx.insert(conversation).values({ id: randomUUID(), userId, provider: current.provider });
     }
     if (input.action === "revoke" || input.action === "enable") {

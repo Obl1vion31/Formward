@@ -2,11 +2,11 @@ export const chatProviderIds = ["qwen", "mimo", "glm"] as const;
 export type ChatProvider = typeof chatProviderIds[number];
 export type ChatStep = { id: string; name: string; title: string; state: "running" | "complete" | "error"; summary?: string };
 export type ChatReference = { title: string; href: string; kind: "record" | "preview"; operationId?: string };
-export type Followup = { question: string; subject: string; messageId: string };
+export type Followup = { question: string; subject: string; messageId: string; questions?: import("./followup").FollowupQuestion[] };
 export type ChatMessage = {
   id: string; seq: number; role: "user" | "assistant"; text: string; provider: ChatProvider | null;
   state: string; createdAt: string; replyTo: { id: string; text: string } | null; imageIds: string[];
-  steps: ChatStep[]; references: ChatReference[]; error: string | null; runId?: string;
+  steps: ChatStep[]; references: ChatReference[]; error: string | null; runId?: string; requestId?: string; question?: { id:string; text:string };
 };
 export type ChatUsage = {
   date: string; limit: number; spent: number; reserved: number; uncertain: number; available: number;
@@ -14,6 +14,7 @@ export type ChatUsage = {
 };
 export type ChatCatalogItem = { id: ChatProvider; label: string; model: string; configured: boolean; enabled: boolean; reason: string | null; expiresAt: string | null };
 export type ChatSnapshot = {
+  capabilities?:{inlinePreviews:boolean;mealEntry:boolean};
   conversationId: string; provider: ChatProvider; followup: Followup | null; messages: ChatMessage[];
   hasMore: boolean; before: number | null; activeRunId: string | null; catalog: ChatCatalogItem[]; usage: ChatUsage;
 };
@@ -25,3 +26,5 @@ export function usagePercent(spent: number, limit: number) {
 }
 export function budgetDate(now = new Date()) { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(now); }
 export function nextBudgetReset(date: string) { return new Date(Date.parse(date + "T00:00:00+08:00") + 86400000).toISOString(); }
+
+export type MealTaskContext={draftKey:string;draft:import("../meals/model").MealDraft;originalDraft?:import("../meals/model").MealDraft;signature:string;imageIds:string[];previewId?:string;previewProvider?:ChatProvider;appliedSignature?:string;savedSignature?:string;cancelled?:boolean};

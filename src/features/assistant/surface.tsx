@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { animateSurface } from "@/components/surface-motion";
 import { LoadingLink } from "@/components/loading-link";
 import { lockPageScroll } from "@/components/scroll-lock";
@@ -19,6 +19,7 @@ export function AssistantSurface({ data, error, loading, close, requestClose, re
 }) {
   const mobile = useMobileMode(), dialog = useRef<HTMLDialogElement>(null), closeButton = useRef<HTMLButtonElement>(null), toolsButton = useRef<HTMLButtonElement>(null), pending = useRef<Promise<boolean> | null>(null), ticket = useRef(0);
   const [chatTab,setChatTab]=useState<ChatTab>("chat");
+  useEffect(()=>{const show=()=>setChatTab("chat");window.addEventListener("formward-assistant-preview",show);return()=>window.removeEventListener("formward-assistant-preview",show);},[]);
   const [closing, setClosing] = useState(false), [expanded, setExpanded] = useState(chatEnabled), [tools, setTools] = useState(false), [guides,setGuides]=useState(false), [busy, setBusy] = useState(""), [failure, setFailure] = useState("");
   const {replay}=useRecordGuidance();
   const gesture = useRef<{ y: number; delta: number } | null>(null), suppress = useRef(0);
@@ -59,23 +60,24 @@ export function AssistantSurface({ data, error, loading, close, requestClose, re
   const navigate = async () => { await requestClose(); const phase = dialog.current?.dataset.surfacePhase; return phase !== "open" && phase !== "opening"; };
   const items = (rows: AssistantItem[]) => <ul className={styles.items}>{rows.map(item => <li key={item.id} data-assistant-item={item.id}>
     <div><strong>{item.title}</strong><time dateTime={item.date}>{item.date.replaceAll("-", ".")}</time></div><p>{item.detail}</p>
-    <div className={styles.itemActions}><LoadingLink prefetch={false} href={item.action.href} beforeNavigate={navigate}>{item.action.label}<span aria-hidden="true"> →</span></LoadingLink>
+    <div className={styles.itemActions}>{item.action.previewId&&chatEnabled?<button type="button" onClick={()=>window.dispatchEvent(new CustomEvent("formward-assistant-preview",{detail:{id:item.action.previewId}}))}>{item.action.label}</button>:<LoadingLink prefetch={false} href={item.action.href} beforeNavigate={navigate}>{item.action.label}<span aria-hidden="true"> →</span></LoadingLink>}
     {item.dismissible && <button type="button" disabled={busy === item.id} onClick={async () => { setBusy(item.id); setFailure(""); try { setFailure(await dismissItem(item.id)); } catch { setFailure("忽略未保存，请重试。"); } finally { setBusy(""); } }}>{busy === item.id ? "保存中…" : "忽略这一天"}</button>}</div>
   </li>)}</ul>;
-  const taskContent = <>
-    <div className={styles.content} onClick={() => { if (tools) {setTools(false);setGuides(false);} }}>
-      <section className={styles.quick} aria-label="快捷记录"><div>{assistantQuickActions(today).map(action => <LoadingLink prefetch={false} key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}</LoadingLink>)}</div></section>
-      <section className={styles.introduction} aria-live="polite" aria-busy={loading}>
-        {error ? <><p role="alert">{error}</p><button type="button" onClick={retry}>重新读取</button></> : !data ? <p className={styles.muted}>正在读取事项…</p> : data.pending.length ? items(data.pending) : <p className={styles.muted}>暂无待确认或待办事项</p>}
-        {failure && <p role="alert">{failure}</p>}
-      </section>
-      {data && data.suggestions.length > 0 && <details className={styles.disclosure}><summary>按需补记</summary>{items(data.suggestions)}</details>}
-    </div>
-    <footer className={styles.footer}>
-      <nav id="assistant-tools" className={styles.tools} aria-label="常用功能" data-open={tools} aria-hidden={!tools} inert={!tools}>{guides?<><button type="button" onClick={()=>setGuides(false)}>← 返回常用功能</button>{(Object.keys(recordGuides) as RecordGuideKind[]).map(kind=><button type="button" key={kind} onClick={async()=>{if(await navigate())await replay(kind);}}>重播{recordGuides[kind].label}录入引导<span aria-hidden="true">→</span></button>)}</>:<>{assistantTools.map(action => <LoadingLink key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}<span aria-hidden="true">→</span></LoadingLink>)}{!chatEnabled && <button type="button" disabled>聊天 · 暂未开放</button>}<button type="button" onClick={()=>setGuides(true)}>重播操作引导<span aria-hidden="true">→</span></button></>}</nav>
-      <button ref={toolsButton} type="button" aria-expanded={tools} aria-controls="assistant-tools" onClick={() => {setTools(value => !value);setGuides(false);}}>常用功能 <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" style={{ transform: tools ? "rotate(180deg)" : undefined }}><path d="m4 10 4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg></button>
-    </footer>
-  </>;
+  const supplements = data ? [...data.pending.filter(item=>item.category!=="ai"&&item.category!=="training"),...data.suggestions] : [];
+  const reviews = data?.pending.filter(item=>item.category==="ai") ?? [];
+  const training = data?.pending.filter(item=>item.category==="training") ?? [];
+  const taskContent = <div className={styles.content}>
+    <section className={styles.quick} aria-label="快捷记录"><div>{assistantQuickActions(today).map(action=><LoadingLink prefetch={false} key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}</LoadingLink>)}</div></section>
+    {error&&<div role="alert">{error}<button type="button" onClick={retry}>重新读取</button></div>}
+    {!data&&loading&&<p className={styles.muted} role="status">正在读取事项…</p>}
+    <details className={styles.disclosure}><summary>按需补记</summary>{supplements.length?items(supplements):data&&<p className={styles.muted}>暂无需要补记的事项</p>}</details>
+    <details className={styles.disclosure}><summary>AI 确认{reviews.length>0&&<span className={styles.count}>{reviews.length}</span>}</summary>{reviews.length?items(reviews):data&&<p className={styles.muted}>暂无待确认提交</p>}</details>
+    <section className={styles.disclosure}>
+      <button ref={toolsButton} className={styles.groupToggle} type="button" aria-expanded={tools} aria-controls="assistant-tools" onClick={()=>{setTools(value=>!value);setGuides(false);}}>常用功能<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" style={{transform:tools?"rotate(180deg)":undefined}}><path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg></button>
+      {tools&&<nav id="assistant-tools" className={styles.toolsList} aria-label="常用功能">{guides?<><button type="button" onClick={()=>setGuides(false)}>返回常用功能</button>{(Object.keys(recordGuides) as RecordGuideKind[]).map(kind=><button type="button" key={kind} onClick={async()=>{if(await navigate())await replay(kind);}}>重播{recordGuides[kind].label}录入引导</button>)}</>:<>{training.length>0&&items(training)}<LoadingLink href={"/dashboard/training?date="+today} beforeNavigate={navigate}>训练计划</LoadingLink>{assistantTools.map(action=><LoadingLink key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}</LoadingLink>)}<button type="button" onClick={()=>setGuides(true)}>重播操作引导</button></>}</nav>}
+    </section>
+    {failure&&<p role="alert">{failure}</p>}
+  </div>;
   return <dialog ref={dialog} className={styles.surface} data-chat={chatEnabled} data-assistant-surface data-mobile={mobile} data-expanded={expanded} data-closing={closing} aria-labelledby="assistant-title" aria-modal={mobile || undefined}
     onCancel={event => { event.preventDefault(); if(guides)setGuides(false);else if (tools) {setTools(false);toolsButton.current?.focus();} else void requestClose(); }}
     onClick={event => { if (event.target === event.currentTarget) { const r = event.currentTarget.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) void requestClose(); } }}

@@ -1,4 +1,5 @@
 "use client";
+import {ModuleSkeleton} from "./module-skeleton";
 import {displayRecordDate} from "./record-dates";
 import bodyStyles from "@/features/measurements/measurements-view.module.css";
 import {useContext,useEffect,useLayoutEffect,useRef,useState} from 'react';
@@ -9,7 +10,6 @@ import {ChartRanges} from './chart-ranges';
 import {TrendGlyph} from './trend-glyph';
 import {useChartViewport} from './use-chart-viewport';
 import {useMobileMode} from './use-mobile-mode';
-import {LocalLoading} from "./local-loading";
 import {WorkspacePending} from "@/features/dashboard/workspace-cache";
 import {DailyRecords} from './daily-records';
 import {WorkspaceSourceContext} from './workspace-frame-state';
@@ -48,7 +48,7 @@ export function WorkspaceSkeleton({kind}:{kind:'overview'|'nutrition'|'energy'|'
  <SkeletonPlotFrame kind={kind} frameRef={ref} shared={shared} linked={linked} adaptive={mobile===null&&!shared?'auto':adaptive} axisLeft={"max("+(kind==="body"?48:50)+"px, calc("+Math.max(...tickLabels.map(value=>String(value).length))+"ch + 12px))"}>
   <svg preserveAspectRatio="none" viewBox={'0 0 '+width+' '+svgHeight} aria-hidden="true"><g data-chart-placeholder stroke="var(--line-soft)">{[0,.33,.66,1].map(part=><line key={part} x1={left} x2={width-right} y1={top+(svgHeight-top-32)*part} y2={top+(svgHeight-top-32)*part}/>)}</g>
 
-  {model&&<TrendGlyph model={model} skeleton target={measured>0} x={left} y={top} width={plotWidth} height={plotWidth/2}/>}</svg>{!model&&<div className="chart-local-wait"><LocalLoading label="正在加载趋势…"/></div>}
+  {model&&<TrendGlyph model={model} skeleton target={measured>0} x={left} y={top} width={plotWidth} height={plotWidth/2}/>}</svg>{!model&&<div className="chart-local-wait"><ModuleSkeleton shape="chart" label="正在加载趋势…"/></div>}
  </SkeletonPlotFrame>{body&&<output className={measurementStyles.plotHint} aria-hidden="true"> </output>}
  </RecordTrendPanel></div>
  <DailyRecords loading kind={body?"body":undefined} actions={kind==='nutrition'?<button type="button" disabled>食材库</button>:undefined}/>
@@ -59,8 +59,8 @@ export function WorkspaceSkeleton({kind}:{kind:'overview'|'nutrition'|'energy'|'
 }
 function OverviewSkeleton({date}:{date:string}){return <RecordWorkspace title="总览" className={overview.workspace}>
  <MetricCardRailSkeleton/>
- <div className={overview.mobileTrend+' mobile-only'}><div className={overview.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" disabled>查看记录 →</button></div><ChartRanges value="7" change={()=>{}} loading/><div className={overview.mobileSelected}>{date?<time dateTime={date}>{displayRecordDate(date)}</time>:<span>—</span>}<span>—</span></div><div className={overview.mobileLegend}><OverviewLegend compact/></div><div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle} data-compact="true"><LocalLoading label="正在加载趋势…"/></div></div>
- <div className="desktop-only"><RecordTrendPanel date={date} view={()=>{}} loading metrics={['摄入','消耗','收支','晨重','次晨','次晨变化'].map((label,index)=>({label,value:'',unit:index<3?'kcal':'kg',inlineUnit:index>=3}))} title="热量收支" unit="kcal" supplementary={<div className="skeleton-week"><OverviewReadings mobile={false} variants={[]}/></div>} range={<ChartRanges value="30" change={()=>{}} loading/>}  legend={<OverviewLegend/>}><div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle} data-compact="false"><LocalLoading label="正在加载趋势…"/></div></RecordTrendPanel></div>
+ <div className={overview.mobileTrend+' mobile-only'}><div className={overview.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" disabled>查看记录 →</button></div><ChartRanges value="7" change={()=>{}} loading/><div className={overview.mobileSelected}>{date?<time dateTime={date}>{displayRecordDate(date)}</time>:<span>—</span>}<span>—</span></div><div className={overview.mobileLegend}><OverviewLegend compact/></div><div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle} data-compact="true"><ModuleSkeleton shape="chart" label="正在加载趋势…"/></div></div>
+ <div className="desktop-only"><RecordTrendPanel date={date} view={()=>{}} loading metrics={['摄入','消耗','收支','晨重','次晨','次晨变化'].map((label,index)=>({label,value:'',unit:index<3?'kcal':'kg',inlineUnit:index>=3}))} title="热量收支" unit="kcal" supplementary={<div className="skeleton-week"><OverviewReadings mobile={false} variants={[]}/></div>} range={<ChartRanges value="30" change={()=>{}} loading/>}  legend={<OverviewLegend/>}><div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle} data-compact="false"><ModuleSkeleton shape="chart" label="正在加载趋势…"/></div></RecordTrendPanel></div>
  </RecordWorkspace>;}
 function SkeletonPlotFrame({children,kind,frameRef,shared,linked,adaptive,axisLeft}:{children:React.ReactNode;kind:string;frameRef:React.RefObject<HTMLDivElement|null>;shared:boolean;linked:boolean;adaptive:boolean|'auto';axisLeft:string}){
  if(kind==='energy')return <EnergyPlotFrame frameRef={frameRef} adaptive={adaptive} className={linked?'linked-trend-plot':'detail-trend-plot'}>{children}</EnergyPlotFrame>;

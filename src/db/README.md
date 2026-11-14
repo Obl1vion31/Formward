@@ -1,5 +1,7 @@
 # Database
 
+0038_assistant_meal_tasks为assistant_conversations追加purpose（默认chat）和可空context。meal_entry任务active=false，保留原主聊天唯一约束；context仅服务器管理草稿／附件／预览关联，原草稿独立保留。没有新公开AI字段、scope或健康表。旧应用可在增加列后回退，不逆向删除任务或健康数据。
+
 ## 目的
 
 本目录集中管理 Drizzle 数据库连接和 PostgreSQL schema。

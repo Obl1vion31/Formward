@@ -87,6 +87,8 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     landAt(rectOf(next.element),next.element,!!next.skeleton,id);
   },[motion,landAt,clear]);
   const register=useCallback((next:ChartTarget)=>{
+    // 设备接管时隐藏分支不能抢走可见图形的转场所有权。
+    if(!visible(next.element))return ()=>{};
     target.current=next;
     if(origin.current&&location.pathname===origin.current.destination&&trendKey(next.model)!==origin.current.modelKey)origin.current.paired=false;
     if(!next.skeleton&&visible(next.element))lastTarget.current={model:next.model,rect:rectOf(next.element),path:location.pathname};

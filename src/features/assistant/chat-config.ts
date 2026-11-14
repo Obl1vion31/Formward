@@ -29,3 +29,5 @@ export function providerConfigured(id: ChatProvider) {
   try { providerEndpoint(id); return !!process.env[chatProviders[id].key]?.trim(); } catch { return false; }
 }
 export const CHAT_DAILY_LIMIT = 2;
+
+export function chatCapabilities(){return {inlinePreviews:process.env.FORMWARD_CHAT_INLINE_PREVIEWS!=="0",mealEntry:process.env.FORMWARD_MEAL_AI_ENABLED!=="0"};}

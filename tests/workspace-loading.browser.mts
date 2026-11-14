@@ -65,11 +65,11 @@ const fixtureControlURL='http://127.0.0.1:'+(fixtureControl.address() as {port:n
 const baseURL = "http://127.0.0.1:" + port, databaseUrl = native?"postgresql://postgres:fictional-loading-postgres@"+delayed.connection+"/formward_browser_loading?max=6":"postgresql://postgres:postgres@" + delayed.connection + "/postgres?max=1";
 const folder = process.env.FORMWARD_LOADING_ARTIFACTS ?? ".codex/workspace-loading";
 await mkdir(folder, { recursive: true });
-const configPath = folder + "/config.json"; await writeFile(configPath, JSON.stringify({ ...fixture, baseURL, databaseUrl, delayControlURL: delayed.controlURL, fixtureControlURL,pid: process.pid, isolatedFixture: true }), { mode: 0o600 });
+const configPath = folder + "/config-"+process.pid+".json"; await writeFile(configPath, JSON.stringify({ ...fixture, baseURL, databaseUrl, delayControlURL: delayed.controlURL, fixtureControlURL,pid: process.pid, isolatedFixture: true }), { mode: 0o600 });
 const release=process.env.FORMWARD_LOADING_RELEASE?resolve(process.env.FORMWARD_LOADING_RELEASE):null;
 if(release)assert.ok(release.startsWith(resolve('.codex/regional-releases')+'/')&&release.endsWith('/standalone'),'仅允许本仓库私有发布产物');
 const child = spawn(process.execPath, release?[join(release,'server.js')]:["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)], {
-  env: { PATH: process.env.PATH, LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH, NODE_ENV: "production", PORT:String(port), HOSTNAME:'127.0.0.1', NEXT_TELEMETRY_DISABLED: "1", FORMWARD_DATA_SOURCE_USER_ID: fixture.userId, DATABASE_URL: databaseUrl, BETTER_AUTH_URL: baseURL, BETTER_AUTH_SECRET: "fictional-training-secret-longer-than-32-characters", FORMWARD_TIMEZONE: "Asia/Shanghai" }, stdio: ["ignore", "pipe", "pipe"],
+  env: { PATH: process.env.PATH, LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH, FONTCONFIG_FILE:process.env.FONTCONFIG_FILE, NODE_ENV: "production", PORT:String(port), HOSTNAME:'127.0.0.1', NEXT_TELEMETRY_DISABLED: "1", FORMWARD_DATA_SOURCE_USER_ID: fixture.userId, DATABASE_URL: databaseUrl, BETTER_AUTH_URL: baseURL, BETTER_AUTH_SECRET: "fictional-training-secret-longer-than-32-characters", FORMWARD_TIMEZONE: "Asia/Shanghai" }, stdio: ["ignore", "pipe", "pipe"],
 });
 let log = ""; child.stdout.on("data", chunk => { log += chunk; }); child.stderr.on("data", chunk => { log += chunk; });
 try {
@@ -77,7 +77,9 @@ try {
   for (let i = 0; i < 100; i++) { assert.equal(child.exitCode, null); try { if ((await fetch(baseURL)).ok) { ready = true; break; } } catch {} await new Promise(resolve => setTimeout(resolve, 250)); }
   assert.ok(ready, "独立训练测试服务启动超时");
   process.env.FORMWARD_LOADING_CONFIG = configPath;
-  if (process.env.FORMWARD_LOADING_PREVIEW !== "1") await import("./workspace-loading-check.browser.mjs");
+  if(process.env.FORMWARD_ENTRY_LOADING==="1"){const {checkEntryLoading}=await import("./entry-loading.driver.mjs");await checkEntryLoading();}
+  else if(process.env.FORMWARD_CHART_RETURN==="1")await import("./chart-return.browser.mjs");
+  else if (process.env.FORMWARD_LOADING_PREVIEW !== "1") await import("./workspace-loading-check.browser.mjs");
   else { console.log(JSON.stringify({ baseURL, email: fixture.email, password: fixture.password, configPath, fictional: true })); await new Promise<void>(done => {process.once("SIGTERM",done);process.once("SIGINT",done);}); }
 } catch (error) { await writeFile(folder + "/server-failure.log", log); throw error; }
 finally { if (child.exitCode === null) { child.kill("SIGTERM"); await once(child, "exit"); } await new Promise<void>(done=>fixtureControl.close(()=>done()));await delayed.close(); await socket?.stop(); await new Promise(resolve => setImmediate(resolve)); await pg?.close();await native?.close();await cluster?.stop(); }

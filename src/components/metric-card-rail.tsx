@@ -1,4 +1,5 @@
 "use client";
+import {ModuleSkeleton} from "./module-skeleton";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { LoadingLink } from "./loading-link";
 import { useChartTransition } from "./chart-transition-state";
@@ -42,8 +43,8 @@ export function MetricCardRailSkeleton() {
   return <div ref={rail} className={styles.rail} data-metric-rail data-metric-rail-skeleton aria-busy="true" aria-label="正在读取最近状态">
     {([["intake","最近摄入"],["morning-weight","最近晨重"],["energy","最近消耗"]] as const).map(([kind,title])=><div className={styles.card} key={kind} data-metric-card={kind}>
       <span className={styles.title}>{title}</span><span className={styles.arrow}/>
-      <strong>—</strong>
-      <div className={styles.glyph}>{preview?.kind===kind?<TrendGlyph model={preview}/>:<span aria-label="正在读取趋势"/>}</div>
+      <strong><ModuleSkeleton shape="number"/></strong>
+      <div className={styles.glyph}>{preview?.kind===kind?<TrendGlyph model={preview}/>:<ModuleSkeleton shape="chart" label="正在读取趋势…"/>}</div>
       <p><span>—</span></p><span className={styles.range}>—</span>
     </div>)}
   </div>;

@@ -1,3 +1,5 @@
+import {chatAllowed,chatCapabilities} from "./chat-config";
+import { assistantConversation,assistantMessage } from "../../db/schema";
 import { and, desc, eq, gt, inArray, notExists } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { assistantReminderDismissal, mealDay, measurementOperation, mealOperation, energyOperation, recordOperation, trainingPlan, trainingSession } from "../../db/schema";
@@ -90,6 +92,15 @@ export async function readAssistantContext(db: Database, user: { id: string; cre
   const started = plans.length ? await db.select({ planId: trainingSession.planId }).from(trainingSession).where(and(eq(trainingSession.userId, user.id), inArray(trainingSession.planId, plans.map(row => row.id)), inArray(trainingSession.status, ["active", "paused", "completed"]))) : [];
   const upcoming = plans.filter(plan => !started.some(session => session.planId === plan.id));
   const reviews = await pendingReviews(db, user.id, today, now);
+  const tasks=await db.select({id:assistantConversation.id,context:assistantConversation.context}).from(assistantConversation).where(eq(assistantConversation.userId,user.id));
+  const answers=await db.select({references:assistantMessage.references}).from(assistantMessage).where(and(eq(assistantMessage.userId,user.id),eq(assistantMessage.role,"assistant"))).limit(1000);
+  const chatPreviews=new Set(answers.flatMap(answer=>answer.references.flatMap(ref=>ref.kind==="preview"&&ref.operationId?[ref.operationId]:[])));
+  for(const item of reviews){
+    const id=item.action.href.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0];if(!id)continue;
+    const task=tasks.find(task=>task.context?.previewId===id&&!task.context.cancelled);
+    if(task?.context&&chatAllowed(user)&&chatCapabilities().mealEntry)item.action={label:"核对并保存",href:"/dashboard/meals?entry=1&date="+encodeURIComponent(task.context.draft.date)+"&aiTask="+task.id};
+    else if(chatPreviews.has(id)&&chatAllowed(user)&&chatCapabilities().inlinePreviews)item.action={...item.action,previewId:id};
+  }
   context.pending.unshift(...reviews);
   if (upcoming.length) context.pending.push({ id: "training:" + today, category: "training", date: today, title: "有训练计划待开始", detail: upcoming.map(plan => plan.content.name).join("、"), action: { label: "查看计划", href: "/dashboard/training?date=" + today } });
   return context;

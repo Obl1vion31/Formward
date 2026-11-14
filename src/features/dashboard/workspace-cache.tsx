@@ -1,7 +1,6 @@
 "use client";
 import {useCallback,useContext,useEffect,useLayoutEffect,useMemo,useState,type ReactNode} from "react";
 import {usePathname,useSearchParams} from "next/navigation";
-import {LocalLoading} from "@/components/local-loading";
 import {WorkspaceCache,workspaceCacheKey} from "./workspace-cache-state";
 import {WorkspaceCacheContext,WorkspaceRefreshingContext} from "./workspace-cache-context";
 const day=()=>new Date().toLocaleDateString("en-CA");
@@ -22,5 +21,5 @@ export function WorkspaceSnapshot({path,query="",children}:{path:string;query?:s
 export function WorkspacePending({children,failed=false}:{children:ReactNode;failed?:boolean}) {
  const cache=useContext(WorkspaceCacheContext),path=usePathname(),query=useSearchParams().toString();
  const content=cache?.read(workspaceCacheKey(path,query));
- return content?<WorkspaceRefreshingContext value><div className="workspace-refresh" aria-busy={!failed} data-workspace-cached>{failed?children:<div className="workspace-refresh-status"><LocalLoading label="正在更新…"/></div>}<fieldset disabled className="workspace-retained">{content}</fieldset></div></WorkspaceRefreshingContext>:children;
+ return content?<WorkspaceRefreshingContext value><div className="workspace-refresh" aria-busy={!failed} data-workspace-cached>{failed&&children}<fieldset disabled className="workspace-retained">{content}</fieldset></div></WorkspaceRefreshingContext>:children;
 }

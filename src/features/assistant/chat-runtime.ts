@@ -1,3 +1,6 @@
+import { chatCapabilities } from "./chat-config";
+import { createMealTaskPreview } from "./meal-task";
+import { followupQuestionsSchema } from "./followup";
 import { buildAiSystemPrompt } from "../records/ai-prompt.mjs";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
@@ -63,7 +66,7 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
     if (controller.signal.aborted) throw new ApiError(409, "stopped", "生成已停止。");
     if (!force && Date.now() - lastCheck < 2000) return;
     if (!dependencies.skipSessionCheck) { const current = await currentSessionIdentity(request.headers); if (current.user.id !== userId) throw new ApiError(401, "invalid_session", "登录已失效，请重新登录。"); }
-    await requireChatAccount(db, userId);
+    await requireChatAccount(db,userId);if(input.mealTask&&!chatCapabilities().mealEntry)throw new ApiError(403,"meal_ai_disabled","饮食 AI 录入已停用，现有内容保留。");
     if (runIdentity) await db.transaction(async tx => { await requireActiveAiToken(tx, runIdentity!); });
     const [row] = await db.select({ state: assistantRun.state }).from(assistantRun).where(and(eq(assistantRun.id, activeRun.id), eq(assistantRun.userId, userId)));
     if (row?.state !== "running") { controller.abort(); throw new ApiError(409, "stopped", "生成已停止。"); }
@@ -101,7 +104,7 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
     const identity = await chatIdentity(db, userId, provider, true);
     runIdentity = identity;
     await db.update(assistantRun).set({ tokenId: identity.tokenId }).where(eq(assistantRun.id, activeRun.id));
-    await guard(true); bridge = chatToolBridge(db, identity, request); const catalog = await chatToolCatalog(bridge, (name,args) => "fwchat-" + digestChat({ userId, tokenId:identity.tokenId, messageId: question.id, ...(name.startsWith("preview_") ? {purpose:"create-preview"} : {name,fingerprint:digestChat({name,args})}) }).slice(0,48));
+    await guard(true); bridge = chatToolBridge(db, identity, request); const catalog = await chatToolCatalog(bridge, (name,args) => "fwchat-" + digestChat({ userId, tokenId:identity.tokenId, messageId: question.id, ...(name.startsWith("preview_") ? {purpose:"create-preview"} : {name,fingerprint:digestChat({name,args})}) }).slice(0,48),input.mealTask?["preview_meals","get_preview","search_foods"]:undefined);
     for (const receipt of results) catalog.remember(receipt.name,receipt.args,receipt.result);
     const [current] = await db.select().from(assistantConversation).where(and(eq(assistantConversation.id, activeRun.conversationId), eq(assistantConversation.userId, userId)));
     const turns: StoredMessage[][] = [];
@@ -111,11 +114,16 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
     }
     const history = turns.filter(turn => turn.length > 1).slice(-10).flat();
     const quoted = question.replyToId ? rows.find(row => row.id === question.replyToId) : null;
+    let quotedQuestion:StoredMessage|undefined;
+    if(quoted?.role==="assistant"){
+      const [sourceRun]=await db.select({userMessageId:assistantRun.userMessageId}).from(assistantRun).where(and(eq(assistantRun.userId,userId),eq(assistantRun.conversationId,activeRun.conversationId),eq(assistantRun.assistantMessageId,quoted.id))).limit(1);
+      if(sourceRun)[quotedQuestion]=await db.select().from(assistantMessage).where(and(eq(assistantMessage.userId,userId),eq(assistantMessage.conversationId,activeRun.conversationId),eq(assistantMessage.id,sourceRun.userMessageId),eq(assistantMessage.role,"user")));
+    }
     const localTime = new Intl.DateTimeFormat("zh-CN", {timeZone:input.timezone,dateStyle:"full",timeStyle:"long"}).format(new Date());
     const prompt = buildAiSystemPrompt({ variant:chatProviders[provider].promptVariant, directory:catalog.directory, instructions:catalog.instructions, now:new Date().toISOString(), localTime, timezone:input.timezone,
-      channelInstructions:"本轮为站内已鉴权对话，请求编号由服务器管理，无需生成。需要用户补充时使用request_followup声明具体问题和任务，再自然说明等待补充。引用仅提供上下文，不代表授权修改；新问题不相关时按新问题处理。不要展示原始思考、Key、工具加载实现或私有传输协议。" })
+      channelInstructions:(input.mealTask?"本轮为饮食页内的独立拍照任务，仅处理本餐新添加的食物。preview_meals只放本次新增食物，已有草稿由服务器保留和合并，不要重复生成；日期和餐次由应用绑定。需要用户补充时用request_followup的questions提供快捷选项及自由填写，optional只用于可选信息，不替用户选择食量或来源。生成预览后结束等待人工核对，不能声称已保存。\n":"")+"本轮为站内已鉴权对话，请求编号由服务器管理，无需生成。需要用户补充时使用request_followup声明具体问题和任务，再自然说明等待补充。引用仅提供上下文，不代表授权修改；新问题不相关时按新问题处理。不要展示原始思考、Key、工具加载实现或私有传输协议。" })
       + (current.followup ? "\n当前待补任务：" + JSON.stringify(current.followup) : "")
-      + (quoted ? "\n用户明确引用的原消息（核对对象和最新版本后才可修改）：" + JSON.stringify({id:quoted.id,text:quoted.text,references:quoted.references,createdAt:quoted.createdAt}) : "");
+      + (quoted ? "\n用户明确引用的原消息（核对对象和最新版本后才可修改）：" + JSON.stringify({id:quoted.id,question:quotedQuestion?{id:quotedQuestion.id,text:quotedQuestion.text}:undefined,text:quoted.text,references:quoted.references,createdAt:quoted.createdAt}) : "");
     const taskSource = current.followup ? rows.find(row => row.id === current.followup!.messageId) : null;
     let attachmentSource = question.imageIds.length ? question : quoted?.imageIds.length ? quoted : taskSource?.imageIds.length ? taskSource : question;
     if (quoted?.role === "assistant" && !attachmentSource.imageIds.length) {
@@ -124,7 +132,7 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
     }
     const transport = `本轮来自站内已鉴权聊天，用户本地时间：${localTime}。${attachmentSource.imageIds.length ? "服务器已验证并私有保存的附件ID："+attachmentSource.imageIds.join("、")+"。这些站内附件不需要通过import_meal_images再次导入；创建预览时沿用对应imageIds。" : "本轮未附加照片。"}`;
     const navigation = history.filter(row => row.imageIds.length || row.references.length).map(row => ({ messageId:row.id, imageIds:row.imageIds, references:row.references }));
-    const presentation = "历史导航与附件定位信息仅供工具使用，不属于用户或助手的原话。最终回答不要复述内部JSON、字段名、UUID或加载工具的计划；明确要求技术细节时除外，必要的完整审核链接保留。日期和时间（含预览到期时间）均按用户时区表达，不能将UTC时间直接当成本地时间。";
+    const presentation = "历史导航与附件定位信息仅供工具使用，不属于用户或助手的原话。最终回答不要复述内部JSON、字段名、UUID或加载工具的计划；明确要求技术细节时除外。本轮预览由应用内卡片或当前餐次编辑器展示，提示用户在当前界面核对并人工确认，不要求跳转审核网页，不重复输出审核URL。日期和时间（含预览到期时间）均按用户时区表达，不能将UTC时间直接当成本地时间。";
     const messages: ProtocolMessage[] = [{ role: "system", content: prompt + "\n" + transport + "\n" + presentation + (navigation.length ? "\n历史定位信息：" + JSON.stringify(navigation) : "") }, ...history.map(row => ({ role: row.role, content: row.text })), { role: "user", content: await imageContent(db, userId, { ...question,imageIds:attachmentSource.imageIds }) }];
     if (input.action === "continue") messages.push({ role: "system", content: "接续上次未完成的回答，只输出后续内容，避免重复。已经生成：" + continuationText });
     if (results.length) messages.push({ role: "system", content: "本问题前次尝试已经执行的工具与结果，先核对并复用，不重复创建预览：" + JSON.stringify(results.map(row => ({ name: row.name, args: row.args, result: row.result }))) });
@@ -151,9 +159,10 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
         const name = call.function.name; let result: Record<string, unknown>;
         if (name === "load_tools") result = catalog.load(args);
         else if (name === "request_followup") {
-          if (typeof args.question !== "string" || !args.question.trim() || args.question.length > 600 || typeof args.subject !== "string" || !args.subject.trim() || args.subject.length > 80) result = { error: "invalid_followup", message: "请提供具体问题和任务名称。" };
+          const questions=args.questions===undefined?null:followupQuestionsSchema.safeParse(args.questions);
+          if (questions&&!questions.success || typeof args.question !== "string" || !args.question.trim() || args.question.length > 600 || typeof args.subject !== "string" || !args.subject.trim() || args.subject.length > 80) result = { error: "invalid_followup", message: "请提供具体问题和任务名称。" };
           else {
-            await db.update(assistantConversation).set({ followup: { question: args.question, subject: args.subject, messageId: question.id } }).where(and(eq(assistantConversation.id, activeRun.conversationId), eq(assistantConversation.userId, userId)));
+            await db.update(assistantConversation).set({ followup: { question: args.question, subject: args.subject, messageId: question.id, ...(questions?.success?{questions:questions.data}:{}) } }).where(and(eq(assistantConversation.id, activeRun.conversationId), eq(assistantConversation.userId, userId)));
             if (!text.trim()) text = args.question; else if (!text.includes(args.question)) text += "\n" + args.question;
             result = { awaitingUser: true, message: "已显示补充任务，请等待用户回答。" };
           }
@@ -171,7 +180,7 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
           else if (prepared.result) result = prepared.result;
           else {
             args = prepared.args!;
-            const response = await bridge.rpc("tools/call", { name, arguments: args });
+            const response = input.mealTask&&name==="preview_meals"?{structuredContent:await createMealTaskPreview(db,identity,activeRun.conversationId,args,provider,activeRun.id),isError:false,content:[]}:await bridge.rpc("tools/call", { name, arguments: args });
             result = response.structuredContent ?? { error: "tool_failed", message: response.content?.find((part: { type: string }) => part.type === "text")?.text ?? "工具未成功完成。" };
             if (response.isError && !result.error) result = { ...result, error: "tool_failed" };
             results = [...results, { name, fingerprint, args: normalized, result, tokenId:identity.tokenId }];
@@ -190,16 +199,16 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
     const completed = await db.update(assistantRun).set({ state: endState }).where(and(eq(assistantRun.id, activeRun.id), eq(assistantRun.state, "running"))).returning({id:assistantRun.id});
     if (!completed.length) throw new ApiError(409,"stopped","生成已停止。");
     const [answer] = await db.update(assistantMessage).set({ text: visibleText(text) || "这次没有取得可显示的回答，可以重试。", steps, references, state: endState }).where(and(eq(assistantMessage.id, activeRun.assistantMessageId), eq(assistantMessage.userId, userId))).returning();
-    emit({ type: "message", message: publicChatMessage(answer, rows, activeRun.id) });
+    emit({ type: "message", message: publicChatMessage(answer, rows, activeRun.id,activeRun.requestId,activeRun.userMessageId) });
   } catch (error) {
     const failure = safeFailure(error, controller.signal.aborted), state = failure.code === "stopped" ? "stopped" : "error";
     await db.update(assistantRun).set({ state }).where(and(eq(assistantRun.id, activeRun.id), eq(assistantRun.state, "running")));
     steps = steps.map(step => step.state === "running" ? { ...step, state: "error", summary: "本步未完成。" } : step);
     const [answer] = await db.update(assistantMessage).set({ text: visibleText(text), steps, references, state, error: failure.message }).where(and(eq(assistantMessage.id, activeRun.assistantMessageId), eq(assistantMessage.userId, userId))).returning();
-    if (answer) emit({ type: "message", message: publicChatMessage(answer, rows, activeRun.id) });
+    if (answer) emit({ type: "message", message: publicChatMessage(answer, rows, activeRun.id,activeRun.requestId,activeRun.userMessageId) });
   } finally {
     controllers.delete(activeRun.id); outerSignal.removeEventListener("abort", stop); await bridge?.close();
-    const snapshot = await chatSnapshot(db, userId).catch(() => null);
+    const snapshot = await chatSnapshot(db,userId,undefined,input.mealTask?activeRun.conversationId:undefined).catch(() => null);
     if (snapshot) emit({ type: "snapshot", snapshot }); emit({ type: "done" });
   }
 }

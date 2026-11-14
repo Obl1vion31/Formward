@@ -13,7 +13,15 @@ globalThis.fetch=async function(input,init){
  if(process.env.FORMWARD_TEST_REAL_COS!=='1'&&url.hostname.endsWith('.cos.ap-shanghai.myqcloud.com'))return new Response(Buffer.from(fixture.imageBytes,'base64'),{headers:{'content-type':'image/png'}});
  if(!allowed.has(url.hostname))return original(input,init);
  const body=JSON.parse(typeof init?.body==='string'?init.body:await input.clone().text()),lastUser=[...body.messages].reverse().find(message=>message.role==='user'),text=typeof lastUser?.content==='string'?lastUser.content:lastUser?.content?.find(part=>part.type==='text')?.text??'';
- if(text.includes('平台余额测试')&&body.model==='glm-5.3-flash')return Response.json({error:{code:'insufficient_balance',message:'insufficient balance'}},{status:402});
+ if(String(body.messages[0]?.content).includes('饮食页内的独立拍照任务')){
+   const last=body.messages.at(-1);
+   if(last.role==='tool'&&/confirmationUrl|confirmationPath/.test(String(last.content)))return result('已整理本餐新增食物，请在当前餐次中核对后保存。');
+   const supplied=text.includes('补充说明：')?text.split('补充说明：')[1].split('\n已有草稿')[0]:text;
+   if(!/1份|一份|100克/.test(supplied))return call('request_followup',{subject:'本餐实际食量',question:'这份实际吃了多少？',questions:[{id:'amount',prompt:'实际食量',options:[{id:'half',label:'半份'},{id:'one',label:'1份'}],allowText:true}]});
+   if(!body.tools.some(tool=>tool.function.name==='preview_meals'))return call('load_tools',{names:['preview_meals']});
+   return call('preview_meals',{meals:[{date:'today',mealType:'午餐',foods:[{name:'AI 识别食物',quantity:'1',unit:'份',caloriesKcal:'290',proteinG:'20',carbsG:'30',fatG:'10',amountDecision:'provided',sourceKind:'estimated',basis:'隔离回放的示例结果，非真实识别'}]}]});
+  }
+  if(text.includes('平台余额测试')&&body.model==='glm-5.3-flash')return Response.json({error:{code:'insufficient_balance',message:'insufficient balance'}},{status:402});
  if(text.includes('断网测试'))throw new TypeError('fixture network unavailable');
  if(text.includes('慢速测试'))return result('这是隔离浏览器的慢速流式回答。这里只检查真实界面的停止、继续和固定槽位，不访问收费模型。'.repeat(3),null,true);
  if(text.includes('100克')||text.includes('创建预览')){
@@ -22,7 +30,7 @@ globalThis.fetch=async function(input,init){
   const ids=[...text.matchAll(/[a-f0-9]{8}-[a-f0-9-]{27,}/g)].map(match=>match[0]).filter(id=>id===fixture.imageId);
   return call('preview_meals',{operationId:'fixture-operation-100',meals:[{date:'today',mealType:'午餐',timezone:'Asia/Shanghai',foods:[{name:'米饭',quantity:'150',unit:'g',caloriesKcal:'195',proteinG:'3.9',carbsG:'43',fatG:'0.5',sourceKind:'estimated',basis:'虚构验收估算，实际食量由输入提供'},{name:'鸡胸肉',quantity:'100',unit:'g',caloriesKcal:'165',proteinG:'31',carbsG:'0',fatG:'3.6',sourceKind:'estimated',basis:'虚构验收估算，实际食量由输入提供'}],...(ids.length?{imageIds:[...new Set(ids)],expectedImageCount:1}:{})}]});
  }
- if(Array.isArray(lastUser?.content)||text.includes('鸡胸肉'))return call('request_followup',{subject:'今天午餐实际食量',question:'米饭150克已保留，鸡胸肉实际吃了多少？'});
+ if(Array.isArray(lastUser?.content)||text.includes('鸡胸肉'))return call('request_followup',{subject:'今天午餐实际食量',question:'米饭150克已保留，鸡胸肉实际吃了多少？',questions:[{id:'amount',prompt:'鸡胸肉食量',options:[{id:'g100',label:'100克'},{id:'g150',label:'150克'}],allowText:true}]});
  if(!body.tools.some(tool=>tool.function.name==='query_measurements'))return call('load_tools',{names:['query_measurements']});
  const last=body.messages.at(-1);
  if(last.role==='tool'&&body.messages.some(message=>message.tool_calls?.some(call=>call.function.name==='query_measurements')))return result('已查询你的近七天实测记录。缺测日保持为空，这次没有创建或修改健康记录。');

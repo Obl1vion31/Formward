@@ -4,6 +4,8 @@ import { requireCompletedOnboarding } from "@/features/onboarding/server";
 import {headers} from "next/headers";
 import {currentSessionIdentity} from "@/features/auth/server";
 import {loadAccountPreferences} from "@/features/auth/preferences";
+import {localMeasurementDate} from "@/features/measurements/entry-state";
+import {systemMeasurementTimezone} from "@/features/measurements/timezone";
 import { linkedDate } from "@/features/measurements/calendar";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -22,7 +24,7 @@ export const metadata: Metadata = { title: "Formward · 身体记录" };
 export default async function DashboardPage({searchParams}:{searchParams:Promise<{date?:string|string[];entry?:string;intent?:string|string[];view?:string;from?:string;to?:string}>}) {
   const user = await currentPageUser();
   if (!user) redirect("/"); await requireCompletedOnboarding();
-  const params=await searchParams,period=params.entry==='daytime'||params.entry==='evening'?params.entry:null,trend=params.entry?null:linkedTrend(params);return <DashboardContent cacheQuery={workspaceQuery(params)} user={user} date={linkedDate(params.date)} period={period} trend={trend} intent={recordOpenIntent(params,!!period,!!trend)}/>;
+  const params=await searchParams,period=(params.date===undefined||linkedDate(params.date)!==null)&&(params.entry==='daytime'||params.entry==='evening')?params.entry:null,trend=params.entry?null:linkedTrend(params);return <DashboardContent cacheQuery={workspaceQuery(params)} user={user} date={linkedDate(params.date)} period={period} trend={trend} intent={recordOpenIntent(params,!!period,!!trend)}/>;
 }
 
 async function DashboardContent({cacheQuery, user, date, period, trend,intent }: {cacheQuery:string; user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date:string|null;period:"daytime"|"evening"|null;trend:TrendRoute|null;intent:RecordIntent }) {
@@ -36,7 +38,7 @@ async function DashboardContent({cacheQuery, user, date, period, trend,intent }:
   return (
     <WorkspaceSnapshot path="/dashboard/measurements" query={cacheQuery}>
 
-      <MeasurementsView key={`${date}:${intent}:${period}:${trend?.from}:${trend?.to}`} initialIntent={intent} preferences={preferences} initialDate={date} initialPeriod={period} initialTrend={trend} records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ deleteCell:deleteCellAction, save: saveDayAction, removeSource: removeSourceAction }} />
+      <MeasurementsView key={`${date}:${intent}:${period}:${trend?.from}:${trend?.to}`} initialIntent={intent} preferences={preferences} initialDate={date??(period?localMeasurementDate(new Date(),systemMeasurementTimezone(new Date(),process.env.FORMWARD_TIMEZONE)):null)} initialPeriod={period} initialTrend={trend} records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ deleteCell:deleteCellAction, save: saveDayAction, removeSource: removeSourceAction }} />
     </WorkspaceSnapshot>
   );
 }

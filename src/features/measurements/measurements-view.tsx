@@ -22,7 +22,7 @@ import { measurementSummaryAt,preferredMorningDate } from "./summary";
 import { calendarOrdinal, measurementRange, normalScale, type MeasurementInterval, type MeasurementMetric, type MeasurementRange } from "./trend";
 import styles from "./measurements-view.module.css";
 import { localMeasurementDate, measurementDayAction, measurementNeedsEntry, type EntryResult, type MeasurementActions, type MeasurementDateDisplay, type MeasurementDisplay } from "./entry-state";
-import { MeasurementEntry } from "./measurement-entry";
+import { MeasurementEntry, MeasurementEntryHeader } from "./measurement-entry";
 import { timezoneLabel } from "./timezone";
 import { useMobileMode } from "@/components/use-mobile-mode";
 import type { TrendRoute } from "@/components/metric-trend-model";
@@ -226,9 +226,9 @@ function MeasurementInspector({ routeEntry=false,view, records, sources, timezon
   function entryUpdated(result: Extract<EntryResult, { ok: true }>) {
     onUpdated(result);
   }
-  return <Inspector routeEntry={routeEntry} title={editor?(editor.editing?'编辑身体记录 ':'身体录入 ')+editor.date:"身体记录详情"} close={onClose} onCloseReady={close=>{dismiss.current=close;}} className={styles.drawer} header={(
-    <header className={styles.drawerHeader} data-editing={!!editor}><div>
-      <h2 ref={heading} tabIndex={-1} id="measurement-drawer-title">{editor ? <>{editor.editing?'编辑身体记录':'身体录入'}<time className={styles.entryHeadingDate} dateTime={editor.date}>{displayDate(editor.date)}</time></> : active ? displayDate(active.date) || "记录详情" : "记录详情"}</h2>
+  return <Inspector routeEntry={routeEntry} title={editor?(editor.editing?'编辑身体记录 ':'身体录入 ')+editor.date:"身体记录详情"} close={onClose} onCloseReady={close=>{dismiss.current=close;}} className={styles.drawer} header={editor?<MeasurementEntryHeader date={editor.date} editing={editor.editing} headingRef={heading}/>: (
+    <header className={styles.drawerHeader} data-editing={false}><div>
+      <h2 ref={heading} tabIndex={-1} id="measurement-drawer-title">{active ? displayDate(active.date) || "记录详情" : "记录详情"}</h2>
       {!editor&&<p>{(active?weekday(active.date):"")+" · 晨间／晚间"}</p>}
     </div><InspectorCloseButton label="关闭记录详情"/></header>)}>
     {!editor && active && <DayOverview date={active.date} records={records} choices={choices} />}

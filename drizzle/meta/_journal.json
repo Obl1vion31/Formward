@@ -260,6 +260,13 @@
       "when": 1794498022185,
       "tag": "0037_youthful_wolfsbane",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1794660415814,
+      "tag": "0038_assistant_meal_tasks",
+      "breakpoints": true
     }
   ]
 }

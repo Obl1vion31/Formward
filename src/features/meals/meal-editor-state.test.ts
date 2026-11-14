@@ -101,3 +101,8 @@ test("数值去尾零与派生说明不算草稿，真实历史精度变化仍�
 });
 
 test("公式已自动计算后，全部删除回初始空白不提示草稿",()=>{let item=freeEditorItem(0);const meal={date:"2026-11-03",mealType:"午餐",items:[item]},signature=mealDraftSignature(meal);for(const metric of ["proteinG","carbsG","fatG"] as const)item=updateEditorNutrition(item,metric,"1");for(const metric of ["proteinG","carbsG","fatG"] as const)item=updateEditorNutrition(item,metric,"");assert.equal(mealDraftSignature({...meal,items:[item]}),signature);});
+
+test("饮食动作入口的kind不进入纯草稿，食物及原精度保留",()=>{
+ const source={kind:"save_meal",date:"2026-11-14",mealType:"早餐",items:[editorItem({kind:"food",name:"测试",quantity:"1",unit:"份",nutrition:emptyNutrition(),sourceKind:"estimated"},0)]};
+ const result=mealEditorInput(source);assert.equal(Object.hasOwn(result,"kind"),false);assert.equal(result.items[0].name,"测试");
+});

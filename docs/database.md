@@ -1,5 +1,9 @@
 # 数据库连接与字段字典
 
+## 站内饮食识别任务
+
+0038_assistant_meal_tasks向assistant_conversations追加purpose（text、非空、默认chat）与context（可空jsonb）。旧会话默认chat；meal_entry任务active=false，不参与当前主聊天切换，现有每账号active唯一索引保留。context由服务器保存草稿键、原手工草稿、当前绑定签名、私有附件、预览及实际提供方、完成回执；消息、运行、授权与用量复用现有表。读取及修改均核验user_id，停止／生成／保存通过账号锁协调。回退仅关闭入口或切兼容应用，不回退共享migration或删除任务数据。
+
 ## 运动分项存储
 
 0026_dark_tana_nile为activities增加calorie_mode、resting_kcal、active_kcal，均可空，旧记录不回填。TypeScript对应calorieMode、exerciseRestingKcal、exerciseActiveKcal，避免与日记录混淆。原calories_kcal保存运动总数；分项模式总数由两项已知时形成，计入值由纯运动产生，未知保持空。账号、来源、版本和审计沿用。当前59张业务表另加Drizzle账本。身体旧实测通过既有deleted_at归档；单指标删除保留另一指标及审计。

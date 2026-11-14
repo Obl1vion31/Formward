@@ -627,6 +627,8 @@ export const assistantConnection = pgTable("assistant_connections", {
   enabled: boolean("enabled").notNull().default(true), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => [uniqueIndex("assistant_connections_owner_provider_idx").on(t.userId, t.provider).where(sql`${t.enabled}=true`), uniqueIndex("assistant_connections_token_idx").on(t.tokenId), check("assistant_connections_provider_valid", sql.raw("provider IN ('qwen','mimo','glm')"))]);
 export const assistantConversation = pgTable("assistant_conversations", {
+  purpose:text("purpose").notNull().default("chat"),
+  context:jsonb("context").$type<import("../features/assistant/chat-model").MealTaskContext|null>(),
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),
   provider: text("provider").notNull().default("qwen"), active: boolean("active").notNull().default(true), sequence: integer("sequence").notNull().default(0),
   followup: jsonb("followup").$type<import("../features/assistant/chat-model").Followup | null>(),

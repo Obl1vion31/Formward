@@ -2,7 +2,7 @@ import { addCalendarDays } from "../measurements/calendar";
 import { localMeasurementDate } from "../measurements/entry-state";
 import type { ReminderCatalog } from "../dashboard/daily-reminders";
 
-export type AssistantAction = { label: string; href: string };
+export type AssistantAction = { label: string; href: string; previewId?:string };
 export type AssistantItem = { id: string; category: "meals" | "energy" | "body" | "ai" | "training"; date: string; title: string; detail: string; action: AssistantAction; dismissible?: boolean; expiresAt?: string };
 export type AssistantContext = { generatedAt: string; localDate: string; timezone: string; pending: AssistantItem[]; suggestions: AssistantItem[] };
 export const assistantRoutes = ["/dashboard", "/dashboard/meals", "/dashboard/training", "/dashboard/energy", "/dashboard/measurements", "/dashboard/ai", "/dashboard/export", "/dashboard/sources"];
@@ -35,9 +35,9 @@ export function assistantContext(catalog: ReminderCatalog, now: Date, timezone: 
 }
 export function assistantQuickActions(today: string): AssistantAction[] {
   return [
-    { label: "记录饮食", href: `/dashboard/meals?date=${today}&entry=1` },
-    { label: "记录测量", href: `/dashboard/measurements?date=${today}&entry=daytime` },
-    { label: "记录消耗", href: `/dashboard/energy?date=${today}&entry=1` },
+    { label: "手动记录饮食", href: `/dashboard/meals?date=${today}&entry=1` },
+    { label: "手动记录测量", href: `/dashboard/measurements?date=${today}&entry=daytime` },
+    { label: "手动记录消耗", href: `/dashboard/energy?date=${today}&entry=1` },
   ];
 }
 export const assistantTools: AssistantAction[] = [

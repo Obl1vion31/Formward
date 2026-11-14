@@ -33,6 +33,14 @@ test("试用资格同时校验开关、指定账号和owner；普通及其他own
   await assert.rejects(()=>chatSnapshot(db,outsider),/暂未开放/);await assert.rejects(()=>chatSnapshot(db,secondOwner),/暂未开放/);
   process.env.FORMWARD_CHAT_ENABLED="0";await assert.rejects(()=>chatSnapshot(db,ownerId),/暂未开放/);process.env.FORMWARD_CHAT_ENABLED="1";
 });
+test("仅引用本人已完成回答，问答关联来自真实消息，不能引用单个问题或生成中的回答",async()=>{
+ const current=await fresh(),questionId=randomUUID(),answerId=randomUUID();
+ await db.insert(schema.assistantMessage).values([{id:questionId,userId:ownerId,conversationId:current.id,seq:1,role:"user",text:"原来的问题"},{id:answerId,userId:ownerId,conversationId:current.id,seq:2,role:"assistant",text:"完整回答",provider:"qwen",state:"working"}]);await db.update(schema.assistantConversation).set({sequence:2}).where(eq(schema.assistantConversation.id,current.id));
+ const input:ChatSend={action:"send",requestId:randomUUID(),conversationId:current.id,provider:"qwen",text:"继续这个问答",timezone:"Asia/Shanghai"};
+ await assert.rejects(()=>startChatRun(db,ownerId,{...input,replyToId:questionId}),/引用消息/);await assert.rejects(()=>startChatRun(db,ownerId,{...input,replyToId:answerId}),/引用消息/);
+ await db.update(schema.assistantMessage).set({state:"complete"}).where(eq(schema.assistantMessage.id,answerId));const snapshot=await chatSnapshot(db,ownerId);assert.equal(snapshot.messages.find(row=>row.id===answerId)?.question?.id,questionId);
+ const accepted=await startChatRun(db,ownerId,{...input,replyToId:answerId});await stop(accepted.row);
+});
 test("5条分页限制在当前会话最近50条，游标不能读到旧会话或其他账号",async()=>{
   const current=await fresh();await db.insert(schema.assistantMessage).values(Array.from({length:57},(_,i)=>({id:randomUUID(),userId:ownerId,conversationId:current.id,seq:i+1,role:i%2?"assistant":"user",text:"虚构消息"+(i+1),provider:i%2?"qwen":null})));
   await db.update(schema.assistantConversation).set({sequence:57}).where(eq(schema.assistantConversation.id,current.id));

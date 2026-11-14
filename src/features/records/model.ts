@@ -29,3 +29,12 @@ export type RecordReviewAction = { revision: number } & (
   { kind: "update"; key: string; action: RecordAction } |
   { kind: "refresh" | "cancel" } | { kind: "confirm"; allowMissingImageKeys?: string[] }
 );
+
+const reviewRevision={revision:z.number().int().positive()};
+export const recordReviewActionSchema=z.discriminatedUnion("kind",[
+ z.object({...reviewRevision,kind:z.enum(["check","exclude","restore"]),keys:z.array(key).max(100)}).strict(),
+ z.object({...reviewRevision,kind:z.literal("energy_inclusion"),keys:z.array(key).max(100),inclusion:z.enum(["included","additional"])}).strict(),
+ z.object({...reviewRevision,kind:z.literal("update"),key,action:z.custom<RecordAction>(input=>!!input&&typeof input==="object"&&!Object.hasOwn(input,"key")&&recordItemSchema.safeParse({...input,key:"review"}).success)}).strict(),
+ z.object({...reviewRevision,kind:z.enum(["refresh","cancel"])}).strict(),
+ z.object({...reviewRevision,kind:z.literal("confirm"),allowMissingImageKeys:z.array(key).max(100).optional()}).strict(),
+]);

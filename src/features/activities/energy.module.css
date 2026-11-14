@@ -186,3 +186,5 @@
  .energyEntry .stickyTotal strong{font-size:1.375rem}
  .energyEntry .activityDraft>summary>span:last-child{font-size:1.125rem;white-space:normal}
 }
+
+.energyEntry>fieldset{gap:12px}.energyEntry .aggregateBlock{margin:0}.energyEntry .fields{margin:0;gap:8px 12px}.energyEntry .aggregateHeading{gap:8px;min-height:44px}.energyEntry .aggregateMenu>summary{font-size:.875rem}.energyEntry .modeSwitch{padding:0;gap:0;border:1px solid var(--control-border);background:var(--surface);overflow:hidden}.energyEntry .modeSwitch button{font-size:.875rem;min-height:44px;padding:8px 12px;line-height:1.5}.energyEntry .modeSwitch button[aria-pressed=true]{color:var(--gold);background:var(--surface-hover)}.energyEntry label{gap:6px}.energyEntry .entrySection{margin:0;padding-block:8px}.energyEntry .entrySection>summary{font-size:.875rem}.energyEntry .aggregateFields{margin:0}

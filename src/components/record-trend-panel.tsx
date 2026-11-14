@@ -1,4 +1,5 @@
 "use client";
+import {ModuleSkeleton} from "./module-skeleton";
 import {useEffect,useRef,useState,type ReactNode,type ComponentPropsWithoutRef,type CSSProperties} from "react";
 import {useMobileMode} from "./use-mobile-mode";
 import {SelectedDateHeading} from "./daily-records";
@@ -64,7 +65,7 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
     {metric.select&&<button type="button" className={styles.metricSelect} aria-label={"查看"+metric.label+"趋势"} aria-pressed={metric.selected} onClick={metric.select}/>}
     {metric.action&&<div className={styles.metricAction}>{metric.action}</div>}
     <div className={styles.metricLabel} data-metric-label>{labels.map(label=><span key={label} className={styles.metricMeasure} aria-hidden="true">{label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span>)}<span>{metric.label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span></div>
-    <strong aria-hidden={loading||undefined} data-metric-number className={metric.tone?styles[metric.tone]:undefined}>{loading?<span aria-label="正在读取">—</span>:<><span>{metric.value}</span>{metric.inlineUnit&&<small>{metric.unit}</small>}</>}</strong>
+    <strong aria-hidden={loading||undefined} data-metric-number className={metric.tone?styles[metric.tone]:undefined}>{loading?<ModuleSkeleton shape="number" label="正在读取读数…"/>:<><span>{metric.value}</span>{metric.inlineUnit&&<small>{metric.unit}</small>}</>}</strong>
     <div className={styles.metricNote} data-metric-note data-reserve-note={metric.reserveNote||undefined}>{notes.map(note=><em key={note} className={styles.metricMeasure} aria-hidden="true">{note}</em>)}{metric.note?<em>{metric.note}</em>:metric.reserveNote?<em className={styles.metricMeasure} aria-hidden="true">{"\u00a0"}</em>:null}</div>
     {(metric.graphic||index===0&&graphic)&&<div className={styles.metricGraphic}>{metric.graphic??graphic}</div>}
    </div>;
