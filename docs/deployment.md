@@ -1,5 +1,15 @@
 # 公网 HTTPS 部署
 
+## 18项工具候选：等待豆包同步
+
+18项MCP 2.0.0代码f4e69d8ee2a519cba124f78597bfd4c5197cad0c已合入main；候选运行版本dual-entry-f4e69d8e-ai-tools-v2-20261114、BUILD_ID t6dAYGjNWrU20r53dUdZh。千问长版／小米精简版各10题已完成，结果及费用见[工具契约](ai-tool-contracts.md#两模型定向复测)。本轮未新增真实健康记录或数据库迁移。
+
+候选曾完成上海激活、三个公网入口同版本及双协议18工具核对，47项Server Action与加密密钥、521项旧静态资源保留，运行配置字节保持，11张正式健康表摘要一致。随后豆包云构建连续3次在ToolList校验返回50000001“服务暂时不可用”，未生成本轮新测试版本；本机及上海读取global.formward.top均能返回18项，尚未确定平台调用失败的具体原因。
+
+依“同步各接入端后再停旧名”的发布顺序，正式应用已切回下方mobile-record-priority-20261114，当前线上仍为MCP1.18.3／21项兼容工具。只切应用，不恢复数据库、聊天、授权或配置；18项候选及永久运行包保留，等待豆包Manifest／Skill同步成功后再统一切换。不得把Git主线2.0代码、候选公网验证与当前运行版本混为一谈。
+
+候选完整兼容包70,784,693字节，SHA256 5321883c5dd4ae2eba50379ff0a0946e830a3ca941cb93a5ac3ce6d6987cb872，位于原入口私有.codex/backups/regional-releases/ai-tools-v2-20261114；发布、退回及平台错误资料在.codex/ai-tools-v2。私有评测报告不进入public。
+
 ## 当前手机记录优先发布
 
 北京时间2026-11-14 06:05:42，上海主服务切换至`mobile-record-priority-20261114`；源码`d4bd9657abff6ac839a5ffcde9c001b44e39d6ad`，版本`dual-entry-d4bd9657-mobile-record-priority-20261114`，BUILD_ID `3knID6SjzsomOGnfkV8gc`。main已合入推送，三个公网入口直接核对同版本；没有重新发布国际网关或修改域名。MCP1.18.3、21工具及12项HTTP说明保持，schema仍0037，prompt为original／compact／original，上下文仍10组。
