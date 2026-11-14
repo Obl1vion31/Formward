@@ -18,6 +18,7 @@ async function settled(page){await page.waitForFunction(()=>!document.querySelec
 function overview(page){return page.getByRole('navigation',{name:'主导航',exact:true}).getByRole('link',{name:'总览',exact:true});}
 async function create(width,height,theme='light'){
  const context=await browser.newContext({viewport:{width,height},storageState,hasTouch:width<1000,isMobile:width<1000,timezoneId:'Asia/Shanghai',locale:'zh-CN',recordVideo:process.env.FORMWARD_CHART_NO_VIDEO==='1'?undefined:{dir:out,size:{width,height}}});
+ await context.addInitScript(userId=>{for(const kind of ['meals','body','energy','training'])localStorage.setItem('formward:record-guide:v1:'+encodeURIComponent(userId)+':'+kind,'seen');},config.userId);
  await context.addInitScript(theme=>{
   localStorage.setItem('formward-theme',theme);
   window.chartFrames=[];window.chartMark=null;window.chartStarts=[];
@@ -55,7 +56,7 @@ async function inspectReturn(page,label,{paired=true,warm=true}={}){
  for(const frame of back)if(!frame.visible&&frame.path!=='/dashboard')assert.equal(frame.sourceVisible,true,label+'等待时原图消失');
  assert.equal(await page.locator('[data-chart-flight],[data-chart-travelling]').count(),0);
  const position=await page.evaluate(()=>({expected:window.chartOrigin,rail:document.querySelector('[data-metric-rail]').scrollLeft,scroll:scrollY}));
- if(position.expected){assert.ok(Math.abs(position.rail-position.expected.rail)<=1,label+'卡片带未恢复');assert.ok(Math.abs(position.scroll-position.expected.scroll)<=1,label+'页面滚动未恢复');}
+ result.position=position;if(position.expected){assert.ok(Math.abs(position.rail-position.expected.rail)<=1,label+'卡片带未恢复');assert.ok(Math.abs(position.scroll-position.expected.scroll)<=1,label+'页面滚动未恢复');}
  return result;
 }
 async function bodyGeometry(page){return page.evaluate(()=>{
@@ -63,7 +64,7 @@ async function bodyGeometry(page){return page.evaluate(()=>{
  const box=node=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};};
  const glyph=svg.querySelector('[data-trend-glyph]'),point=glyph?.querySelector('[data-glyph-point]'),line=glyph?.querySelector('[data-glyph-line]');
  const count=glyph?JSON.parse(glyph.dataset.trendKey).points.length:0;
- return {plot:box(plot),readout:box(readout),ticks:[...svg.querySelectorAll('text')].filter(n=>/^\d{2}\.\d{2}$/.test(n.textContent)).map(n=>({text:n.textContent,...box(n)})),text:readout.textContent,pointDiameter:point?.getBoundingClientRect().width??null,stroke:line?Number(getComputedStyle(line).strokeWidth.replace('px','')):null,count};
+ return {scrollY,plot:box(plot),readout:box(readout),ticks:[...svg.querySelectorAll('text')].filter(n=>/^\d{2}\.\d{2}$/.test(n.textContent)).map(n=>({text:n.textContent,...box(n)})),text:readout.textContent,pointDiameter:point?.getBoundingClientRect().width??null,stroke:line?Number(getComputedStyle(line).strokeWidth.replace('px','')):null,count};
 });}
 function checkBodyInk(geometry,label){
  if(geometry.pointDiameter!==null)assert.ok(Math.abs(geometry.pointDiameter-(geometry.count<=7?9:7))<=.1,label+'数据点随SVG放大');
@@ -75,7 +76,7 @@ try{
   const {context,page}=await create(width,height,width===390||width===1100?'dark':'light');
   try{
    await page.goto(config.baseURL+'/dashboard');await settled(page);
-   const loops=process.env.FORMWARD_CHART_BODY_ONLY==='1'?0:process.env.FORMWARD_CHART_QUICK==='1'?2:width===390||width===1440?20:3;
+   const loops=process.env.FORMWARD_CHART_BODY_ONLY==='1'||process.env.FORMWARD_CHART_POSITION_ONLY==='1'?0:process.env.FORMWARD_CHART_QUICK==='1'?2:width===390||width===1440?20:3;
    for(const kind of ['intake','morning-weight','energy'])for(let i=0;i<loops;i++){
     await page.locator(`[data-metric-card="${kind}"]`).click();await settled(page);
     await overview(page).click();await inspectReturn(page,`${width}-${kind}-${i+1}`);
@@ -85,14 +86,14 @@ try{
    for(const range of ['custom','7D','30D']){
     if(range!=='custom')await page.getByRole('button',{name:range,exact:true}).click();
     const evening=page.getByRole('checkbox',{name:'晚间数据'});await evening.uncheck();await page.waitForTimeout(200);
-    const before=await bodyGeometry(page);await evening.check();await page.waitForTimeout(200);const after=await bodyGeometry(page);
+    const before=await bodyGeometry(page),fixedScroll=await page.evaluate(()=>scrollY);await evening.check();await page.evaluate(top=>window.scrollTo({top,behavior:'instant'}),fixedScroll);await page.waitForTimeout(200);const after=await bodyGeometry(page);body.push({width,range,before,after});
     checkBodyInk(before,`${width}-${range}-morning`);checkBodyInk(after,`${width}-${range}-evening`);
     assert.deepEqual(before.ticks,after.ticks,`${width}-${range}晚间改变日期轴`);
     for(const key of ['plot','readout'])for(const property of ['x','y','width','height'])assert.ok(Math.abs(before[key][property]-after[key][property])<=1,`${width}-${range}-${key}.${property}`);
     assert.ok(after.ticks.length<=4);assert.ok(after.text===''||/^\d{4}\.\d{2}\.\d{2} · (晨间|晚间) · /.test(after.text));
     const points=page.locator('[data-body-plot] [data-point-id]');await points.first().click();
     assert.equal(await points.first().getAttribute('aria-pressed'),'true');
-    body.push({width,range,before,after});await page.screenshot({path:out+`/${width}-body-${range}-evening.png`});
+    await page.screenshot({path:out+`/${width}-body-${range}-evening.png`});
    }
    const fatCard=page.getByRole('button',{name:'查看晨间体脂率趋势'});
    if(await fatCard.count()){

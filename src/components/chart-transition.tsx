@@ -33,7 +33,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   const recallOverview=useCallback(()=>overview.current,[]);
   const rememberOverview=useCallback((state:OverviewViewState)=>{overview.current=state;},[]);
   const lastTarget=useRef<{model:MetricTrendModel;rect:ChartRect;path:string}|null>(null);
-  const overviewReady=useCallback(()=>{returnReady.current=true;setReturnPreview(null);setReturningToOverview(false);if(!motion.current.active)origin.current=null;},[motion]);
+  const overviewReady=useCallback(()=>{returnReady.current=true;setReturnPreview(null);setReturningToOverview(false);},[]);
   const clear=useCallback(()=>{motion.current.clear();},[motion]);
   const finish=useCallback((current:ChartFlight)=>{
     if(!motion.current.clear(current.id))return;
@@ -115,10 +115,16 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     startTransition(()=>router.push(href));
   },[router,motion]);
   const restore=useCallback((rail:HTMLElement)=>{
+    if(!rail.isConnected||!rail.getClientRects().length||!rail.clientWidth||getComputedStyle(rail).visibility==='hidden')return;
     if(focusAfterLoad.current&&!rail.hasAttribute("data-metric-rail-skeleton")){const card=rail.querySelector<HTMLElement>(`a[data-metric-card="${focusAfterLoad.current}"]`);if(document.activeElement===document.body||document.activeElement?.closest('a[href="/dashboard"]'))card?.focus({preventScroll:true});focusAfterLoad.current=null;}
     const saved=origin.current;if(!saved)return;
     rail.scrollLeft=saved.rail;
     if(motion.current.returning||!returnReady.current)window.scrollTo({top:saved.scroll,behavior:'instant'});
+    // 无配对动画也要等真实总览显示后恢复位置，再释放来源；隐藏路由和临时外壳不能提前消费它。
+    if(!returningToOverview&&returnReady.current&&!motion.current.active&&!rail.hasAttribute('data-metric-rail-skeleton')&&location.pathname==='/dashboard'){
+      if(document.activeElement===document.body||document.activeElement?.closest('a[href="/dashboard"]'))rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`)?.focus({preventScroll:true});
+      origin.current=null;
+    }
     if(!motion.current.returning)return;
     const current=motion.current.active;
     if(!current||current.direction!=='back'){motion.current.returning=false;return;}
@@ -126,7 +132,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     const graph=rail.querySelector<SVGSVGElement>(`[data-metric-card="${saved.kind}"] [data-trend-glyph]`);
     if(graph&&visible(graph)&&graph.dataset.trendRange===saved.rangeKey&&graph.dataset.trendKey===saved.modelKey&&current?.direction==='back'&&motion.current.active?.id===current.id)landAt(rectOf(graph),graph,false,current.id);
     else{clear();rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`)?.focus({preventScroll:true});if(returnReady.current)origin.current=null;motion.current.returning=false;lastTarget.current=null;}
-  },[motion,landAt,clear]);
+  },[motion,landAt,clear,returningToOverview]);
   const prepareBack=useCallback(()=>{
     const saved=origin.current;if(!saved||motion.current.returning)return;
     setReturningToOverview(true);returnCancelled.current=false;returnReady.current=false;
