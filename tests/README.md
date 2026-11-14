@@ -405,8 +405,12 @@ production build后运行pnpm test:chat-browser，CHAT_BROWSER=webkit切换引�
 
 chat-pilot.browser.mts自行创建隔离PGlite及虚构owner／普通用户，并以正式postgres.js驱动运行真实Next production。启用区域代理及单一国服网页校验，本地受控入口由代理重建来源头，预览链接经过与正式站相同的来源检查。chat-model-fixture.mjs仅通过测试子进程的node --import替换三家模型和虚构私有图片存储；正式应用不引用该文件，没有运行时模拟开关或测试Key。实际MCP、schema、权限、预览和网页审核均执行，验收不确认虚构健康记录，不读取正式.env或调用收费模型。浏览器模拟不等同真机和系统软键盘。
 
-## 手机记录优先与紧凑助手
+## 手机布局与照片恢复验收
 
-production build后执行pnpm test:mobile-records-browser，复用隔离PGlite账号及真实Next页面，检查三类手机当天摘要、记录起点、64px头部、食物输入位置、草稿保护、趋势返回、200%字段及按钮内部越界、桌面图表、浮动向下按钮零占位与百分比提示。CHAT_BROWSER=webkit切换引擎；聊天只回放显示数据，POST模型调用被拦截。
+production build后执行pnpm test:mobile-interface-browser，使用PGlite虚构账号及真实Next页面。检查普通饮食／消耗／身体图表、52px／20px居中顶栏、紧凑录入、唯一日期边框、短表单保存贴底、200%字段与操作字号、桌面图表、浮动向下按钮零占位、52px助手顶部、16px标签及百分比仅提示重置时间。CHAT_BROWSER=webkit切换引擎；CHAT_ARTIFACTS保存私有证据。聊天显示回放，POST模型调用被拦截。
 
-加载验收可用FORMWARD_LOADING_PART=matrix／flows分别运行，FORMWARD_LOADING_SIZES传JSON视口，FORMWARD_LOADING_DELAY设查询延迟（0为正常），FORMWARD_LOADING_VIEW=trend专项完整趋势。默认记录页测mobile-date／mobile-metrics／mobile-actions及最近记录标题，显式趋势仍测完整图表；未知和语义色必须首帧可辨，锚点容差仍为1CSS px。WebKit模拟不计作真实iPhone Safari或系统键盘验收。
+照片UI回放使用测试专用XHR与接口拦截，覆盖72px附件、0／50／100%核对、200%文字、失败、取消、重试、手动备用和草稿保留。它只证明状态呈现；photo-transfer.test.ts独立验证真实字节进度、停滞、取消及错误分类，image-upload.test.ts验证原图、会话、归属、过期、撤销、大小和幂等。
+
+设置FORMWARD_REAL_PHOTO_CONFIG为权限0600的私有COS配置，运行tests/chat-pilot.browser.mts可执行tests/real-photo-client.browser.mjs。只读取四项COS配置，不复用该文件数据库；应用连接新建PGlite、仅监听127.0.0.1:3300。Chromium／WebKit分别真实直传1 MiB与人工同源备用5 MiB，核对原图字节、匿名拒绝及五张健康表不变，最后仅清理本次虚构账号对象。测试不调用收费模型，不修改真实健康数据。真实iPhone Safari相册、键盘及当前故障须另记，模拟器不能记作真机通过。
+
+加载验收可用FORMWARD_LOADING_PART=matrix／flows分开运行，FORMWARD_LOADING_SIZES传JSON视口，FORMWARD_LOADING_DELAY设查询延迟（0为正常）。逐帧核对五页固定文字、日期／操作槽及真实图表框，锚点容差1CSS px；未知行数自然增长，不用假记录或大留白固定。FORMWARD_LOADING_VIEW=trend检查来源日期、区间与返回。首次、同条件缓存、不同日期、失败重试、设备来源和录入接管分别保存过程。

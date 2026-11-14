@@ -11,11 +11,12 @@ import { useChartMotion } from "@/components/use-chart-motion";
 import { energyBands, energyLineScale, fadeEdgeFraction, linePath } from "./chart-geometry";
 import type { OverviewDay } from "./model";
 import styles from "./overview.module.css";
+import {relationshipFrame,relationshipFrameStyle} from "./relationship-frame";
 
 const palette = { intake: "var(--data-blue)", expenditure: "var(--data-red)", surplus: "var(--data-surplus)", deficit: "var(--data-deficit)", weight: "var(--data-weight)" };
 export function RelationshipPlot({days,selected,selection,compactMode}:{days:OverviewDay[];selected:string;selection:ReturnType<typeof useChartDateSelection>;compactMode?:boolean}) {
   const container = useRef<HTMLDivElement>(null), id = useId().replaceAll(":", "");
-  const mobile = useMobileMode(), [shortViewport, setShortViewport] = useState(false);
+  const mobile = useMobileMode(), [shortViewport, setShortViewport] = useState<boolean|null>(null);
   useEffect(() => {
     const query = window.matchMedia("(max-height: 600px)");
     const update = () => setShortViewport(query.matches);
@@ -25,10 +26,8 @@ export function RelationshipPlot({days,selected,selection,compactMode}:{days:Ove
   const energyScale = energyLineScale(days.flatMap(day => [day.nutrition?.values.caloriesKcal, day.energy.totalKcal])), weightScale = energyLineScale(days.map(day => day.weightChangeKg), "kg");
   const {width,left}=useChartViewport(container,[...energyScale.ticks,...weightScale.ticks.map(tick=>(tick>0?"+":"")+tick)],49);
   useChartMotion(container, width ? days.map(day => `${day.date}:${day.nutrition?.values.caloriesKcal}:${day.energy.totalKcal}:${day.energyBalance}:${day.weightChangeKg}`).join("|") : "pending");
-  const w = width || 280, compact = compactMode ?? mobile ?? w < 650, right = 13, top = compact ? 16 : 26;
-  const energyHeight=compact?(shortViewport?104:132):220;
-  const energyBottom = top + energyHeight;
-  const weightTop = energyBottom + (compact ? 32 : 56), weightBottom = weightTop + (compact ? shortViewport ? 56 : 68 : 112), height = weightBottom + (compact ? 28 : 34);
+  const w=width||280,compact=compactMode??mobile??w<650,right=13;
+  const {top,energyBottom,weightTop,weightBottom,height}=relationshipFrame(compact,!!shortViewport);
   // 只减少标签密度，保持全区间的数据范围与零线。
   const spacedTicks = (ticks: number[], step: number, plotHeight: number) => {
     const stride = Math.max(1, Math.ceil(24 * (ticks.length - 1) / plotHeight));
@@ -44,9 +43,9 @@ export function RelationshipPlot({days,selected,selection,compactMode}:{days:Ove
   const selectedIndex = Math.max(0, days.findIndex(day => day.date === selected)), stride = Math.max(1, Math.ceil((days.length - 1) / (w < 440 ? 3 : 6)));
   const drag=useChartDrag(days.map(day=>day.date),w,left,right,selection.choose);
   const pick = (svg: SVGSVGElement, clientX: number, action=selection.preview) => { const bounds = svg.getBoundingClientRect(); action(days[Math.max(0, Math.min(days.length - 1, Math.floor(((clientX - bounds.left) * w / bounds.width - left) / slot)))].date); };
-  return <div ref={container} role="group" aria-label="摄入、消耗、盈余与次晨体重变化" className={styles.relationship}>
+  return <div ref={container} role="group" aria-label="摄入、消耗、盈余与次晨体重变化" className={styles.relationship} style={relationshipFrameStyle} data-compact={compactMode??mobile??undefined}>
 
-    <div className={styles.plot}><svg viewBox={`0 0 ${w} ${height}`} style={{ visibility: width ? undefined : "hidden" }} role="group" aria-label="双层日期关联图" aria-describedby={`${id}-help`}
+    <div className={styles.plot}><svg viewBox={`0 0 ${w} ${height}`} style={{ visibility: width&&(compactMode!==undefined||mobile!==null)&&(!compact||shortViewport!==null) ? undefined : "hidden" }} role="group" aria-label="双层日期关联图" aria-describedby={`${id}-help`}
       {...drag} onPointerMove={event=>{drag.onPointerMove(event);if(event.pointerType==="mouse")pick(event.currentTarget,event.clientX);}} onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();event.stopPropagation();selection.release();}}}>
       <desc id={`${id}-help`}>上下两图使用同一日期。点击、左右方向键及Enter选择日期，查看记录按钮打开详情。摄入用圆点，消耗用方点，空心摄入点表示当天未记全或尚未确认全天。热量填色只用于已确认完整日，体重变化对应当日到次日晨间。</desc>
       <ChartSelectionColumn x={x(selectedIndex)} date={selected} column={{left:x(selectedIndex)-slot/2,right:x(selectedIndex)+slot/2}} plot={{left,right:w-right,top,bottom:weightBottom}} resetKey={`${w}:${height}:${days.map(d=>d.date).join("|")}`} direct={selection.direct}/>

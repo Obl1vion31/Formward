@@ -5,7 +5,9 @@ import {Inspector} from './inspector';
 import {EntrySurfaceContext,type EntryMetadata,type EntryGuards} from './entry-surface-state';
 import {DraftGuardContext,DraftCloseContext,InspectorBusyContext} from './draft-guard';
 import {MealEditor} from "@/features/meals/meal-editor";
-import {SkeletonBlock} from './skeleton-block';
+import {LocalLoading} from "./local-loading";
+import {EnergyEditor} from "@/features/activities/energy-editor";
+import {WorkspaceSourceContext} from "./workspace-frame-state";
 import {useChartTransition} from './chart-transition-state';
 import {useRepeatedRecordTask} from './record-intent-client';
 export function EntrySurface({children}:{children:ReactNode}){
@@ -32,6 +34,7 @@ export function EntrySurface({children}:{children:ReactNode}){
 }
 function CaptureGuards({change}:{change:(value:EntryGuards|null)=>void}){const register=useContext(DraftGuardContext),close=useContext(DraftCloseContext),busy=useContext(InspectorBusyContext);useLayoutEffect(()=>{if(register&&close)change({register,close,busy});return()=>change(null);},[register,close,busy,change]);return null;}
 function PendingFields({path,date,failed,retry}:{path:string;date:string|null;failed:boolean;retry:()=>void}){
+ const sourcePilot=useContext(WorkspaceSourceContext);
  const[slow,setSlow]=useState(false);useEffect(()=>{const timer=setTimeout(()=>setSlow(true),8000);return()=>clearTimeout(timer);},[]);
- return <div className={path.endsWith("/meals")?"pending-entry-fields pending-meal-fields":"pending-entry-fields"} aria-busy={!failed} aria-label="读取录入所需数据">{failed?<p role="alert">暂时无法读取已保存的值，请重试。</p>:path.endsWith("/meals")?<MealEditor pending initial={{date:date??"",mealType:"",items:[]}} foods={[]} error="" busy={false} save={async()=>{}}/>:<>{date&&<time>{date.replaceAll("-",".")}</time>}<SkeletonBlock height={44}/><SkeletonBlock height={44}/><SkeletonBlock width="70%" height={44}/><p>{slow?"读取时间较长，可以重试或关闭面板返回。":"正在读取已保存的值…"}</p></>}{(failed||slow)&&<button type="button" onClick={retry}>重新读取</button>}</div>;
+ return <div className={path.endsWith("/meals")?"pending-entry-fields pending-meal-fields":"pending-entry-fields"} aria-busy={!failed} aria-label="读取录入所需数据">{failed?<p role="alert">暂时无法读取已保存的值，请重试。</p>:path.endsWith("/meals")?<MealEditor pending initial={{date:date??"",mealType:"",items:[]}} foods={[]} error="" busy={false} save={async()=>{}}/>:path.endsWith("/energy")?<EnergyEditor pending initial={{kind:"save_energy_day",date:date??"",entryMode:"components"}} stepsEnabled={sourcePilot} sources={[]} removeSource={async()=>({ok:false,error:"正在读取"})} busy={false} error="" save={()=>{}}/>:<>{date&&<time>{date.replaceAll("-",".")}</time>}<LocalLoading label="正在读取已保存的值…"/></>}{(failed||slow)&&<button type="button" onClick={retry}>重新读取</button>}</div>;
 }

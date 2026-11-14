@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useContext, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { draftIsDirty } from "@/components/draft-guard";
 import { LoadingLink } from "@/components/loading-link";
@@ -7,16 +7,19 @@ import { acknowledgeRecordChanges } from "@/components/record-change-client";
 import { synchronizeSourceAction } from "@/app/dashboard/sources/actions";
 import type { ConnectionView } from "./model";
 import styles from "./sources.module.css";
-import {SkeletonBlock} from '@/components/skeleton-block';
+import {LocalLoading} from "@/components/local-loading";
+import {WorkspaceRefreshingContext} from "@/features/dashboard/workspace-cache-context";
 
-export function EnergySourceStatusSkeleton(){return <div className={styles.syncBar} data-energy-source-status><SkeletonBlock width={90} height={16}/><LoadingLink href="/dashboard/sources">设备与数据来源 <span aria-hidden="true">→</span></LoadingLink></div>;}
+export function EnergySourceStatusSkeleton(){return <div className={styles.syncBar} data-energy-source-status><LocalLoading label="正在读取同步状态…"/><LoadingLink href="/dashboard/sources">设备与数据来源 <span aria-hidden="true">→</span></LoadingLink></div>;}
 
 export function EnergySourceStatus({ initial, steps, protectedDay }: { initial: ConnectionView | null; steps: number | null; protectedDay: boolean }) {
+  const refreshing=useContext(WorkspaceRefreshingContext);
   const [connection, setConnection] = useState(initial), [working, setWorking] = useState(false), [pendingRefresh, setPendingRefresh] = useState(false), [, startTransition] = useTransition();
   const router = useRouter(), running = useRef(false), lastAttempt = useRef(initial?.lastAttemptAt ? +new Date(initial.lastAttemptAt) : 0);
   const [base, setBase] = useState(initial);
   if (base !== initial) { setBase(initial); setConnection(initial); }
   useEffect(() => {
+    if(refreshing)return;
     const update = () => {
       if (document.visibilityState === "hidden" || running.current || draftIsDirty() || connection?.status !== "active" || Date.now() - Math.max(lastAttempt.current, initial?.lastAttemptAt ? +new Date(initial.lastAttemptAt) : 0) < 300000) return;
       running.current = true; lastAttempt.current = Date.now(); setWorking(true);
@@ -33,7 +36,7 @@ export function EnergySourceStatus({ initial, steps, protectedDay }: { initial: 
     };
     update(); document.addEventListener("visibilitychange", update); window.addEventListener("focus", update);
     return () => { document.removeEventListener("visibilitychange", update); window.removeEventListener("focus", update); };
-  }, [connection?.status, initial?.lastAttemptAt, router]);
+  }, [connection?.status, initial?.lastAttemptAt, router,refreshing]);
   const state = working ? "正在同步…" : connection?.status === "paused" ? "同步已暂停" : connection?.error ? "同步未完成" : connection?.lastSuccessAt ? "同步 " + new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(connection.lastSuccessAt)) : "连接设备";
   return <div className={styles.syncBar} data-energy-source-status><span>{[steps===null?null:new Intl.NumberFormat("zh-CN").format(steps)+" 步",protectedDay?"手动保留":null].filter(Boolean).join(" · ")}</span>{pendingRefresh ? <button type="button" onClick={() => { if (!draftIsDirty()) { router.refresh(); setPendingRefresh(false); } }}>查看同步更新</button> : <LoadingLink href="/dashboard/sources">{state} <span aria-hidden="true">→</span></LoadingLink>}</div>;
 }

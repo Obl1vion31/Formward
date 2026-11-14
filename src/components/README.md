@@ -1,12 +1,12 @@
 # Components
 
-加载只遮盖未知数据。chart-legend.tsx统一总览、营养及消耗的静态图例，骨架和真实页使用同一语义色；daily-records.tsx在读取时保留日期操作、最近记录标题和历史入口，依赖未就绪数据的按钮分别禁用。workspace-skeleton.tsx覆盖总览、饮食、消耗和身体的完整固定结构，训练沿用自己的同结构外壳。
+加载只遮盖未知数据。chart-legend.tsx统一总览、营养及消耗的静态图例，骨架和真实页使用同一语义色；daily-records.tsx在读取时保留日期操作、最近记录标题和历史入口，依赖未就绪数据的按钮分别禁用。workspace-skeleton.tsx保留总览、饮食、消耗和身体的固定结构；未知数值用中性破折号，图表框内一处局部等待，记录列表不绘制虚构行。训练首帧显示真实日期网格，未知状态局部等待。
 
 local-loading.tsx提供真实等待超过200ms才出现的局部指示，取消和卸载清理计时，减少动态效果不旋转。LoadingLink可通过onPendingChange读取原生Link及自定义草稿导航的实际pending，普通导航不登记全局等待；账号菜单关闭后的指示留在账号按钮，资料／安全面板只显示短读取状态。
 
 workspace-error.tsx使用当前Next.js的retry重新请求并渲染失败页面；reset只清除错误，不能用于服务端读取重试。快捷录入把同一个retry交给EntrySurface，失败时不再追加一次router.refresh；普通慢读取仍可单独刷新。
 
-Inspector标题两端均直接排列在面板底色上，不增加独立圆角、内高光、模糊或负边距。电脑保留原侧栏尺寸和滚动，隐藏把手且不占位；手机通过--inspector-sticky-offset预留44px，饮食与消耗的粘性保存条复用该偏移，长表单滚动不盖住把手。手机把手区与面板底色连续，键盘焦点仅围绕小把手；关闭按钮保持44px。record-intent.ts集中校验网页view／edit／create打开意图，record-ui统一列表编辑实底与查看次级样式，业务组件决定各任务可用内容。
+Inspector标题两端均直接排列在面板底色上，不增加独立圆角、内高光、模糊或负边距。电脑保留原侧栏尺寸和滚动，隐藏把手且不占位；手机通过ResizeObserver读取实际头高设置--inspector-sticky-offset，饮食与消耗的粘性区域复用该偏移，长表单滚动不盖住把手。手机把手区与面板底色连续，键盘焦点仅围绕小把手；关闭按钮保持44px。record-intent.ts集中校验网页view／edit／create打开意图，record-ui统一列表编辑实底与查看次级样式，业务组件决定各任务可用内容。
 
 record-intent-client.ts将同地址再次点击交给当前已挂载业务，沿用LoadingLink的草稿确认及来源退出顺序；EntrySurface仅为重复create重开稳定外壳，三类业务重新打开对应内容。不拦截趋势、其他日期／来源／查询的正常导航，不存储健康快照或增加接口。
 
@@ -87,22 +87,24 @@ record-detail-actions.tsx在已展开的餐次／运动中统一编辑及更多�
 
 Inspector的titleParts仅为只读日期详情按完整文字块换行，stableScroll只在该类详情预留滚动条空间；其他填写窗口沿用原布局和草稿保护。极窄或放大视口中标题与关闭按钮分行，44px关闭操作保持可到达。
 
-workspace-skeleton.tsx复用正式卡片、语义色图例与图形槽位，空数据时绘制明确的网格／图形占位；已有真实缩略图先到目标，数据接管不二次入场。导航不注册全局加载提示，保留8秒重试及保存／认证反馈。surface-motion显式区分sheet／drawer／anchored／center；底部面板不读取来源位置，退出先保持末态再撤销动画。
+workspace-skeleton.tsx复用正式卡片、语义色图例与图形槽位，首次未知图形只保留同尺寸框及局部等待；已有真实缩略图先到目标，数据接管不二次入场。导航不注册全局加载提示，保留8秒重试及保存／认证反馈。surface-motion显式区分sheet／drawer／anchored／center；底部面板不读取来源位置，退出先保持末态再撤销动画。
 
 workspace-frame.tsx提供固定首页动作及桌面标题，手机返回并入DashboardHeader，不额外占行。SkeletonBlock裁切数字占位与扫光，EntrySurface先开录入面板，原表单portal接管并保留草稿上下文。Inspector自定义标题关闭按钮复用InspectorCloseButton；onSavedCloseReady仅在服务器确认保存成功后用于退出，普通关闭继续检查忙碌和草稿。饮食／消耗在同一Inspector中切换查看与编辑，不叠加两个dialog。
 
 草稿登记、关闭回调和InspectorBusyContext在首绘前同步；portal转交忙碌Context，自定义标题使用同一关闭按钮，避免保存尚未完全结束时看似能关闭却没有反应。助手外壳固定在视口许可的高度，数据就绪只更新内部内容。
 
-电脑饮食／消耗／身体的RecordTrendPanel读数复用现有主页／身体暖雾卡片材质、圆角、高光及阴影：常规横排，主卡内显示对应的真实供能环图、静息／活动比例或晨重小折线，语义色点与数值一致。骨架共用同一结构，宽度不足按整个区间的实际文字宽度稳定换行，不缩字；未知与0不伪造比例。手机默认记录优先，显式view=trend继续显示完整图表。
+电脑饮食／消耗／身体的RecordTrendPanel读数复用现有主页／身体暖雾卡片材质、圆角、高光及阴影：常规横排，主卡内显示对应的真实供能环图、静息／活动比例或晨重小折线，语义色点与数值一致。骨架共用同一结构，宽度不足按整个区间的实际文字宽度稳定换行，不缩字；未知与0不伪造比例。手机普通页同样保留完整图表；紧凑记录优先只用于录入／编辑。
 
 主导航第三项为训练，原消耗仍由同一导航分组进入，WorkspaceFrame为训练提供持续页面外壳和标题，不将其识别为身体页。训练与消耗的内容及图表语义保持独立。
 
 训练与消耗加载态按目标路由呈现；消耗骨架与正式页共用RecordWorkspace、切换栏、日期、读数和EnergyPlotFrame首帧容器，设备识别期间沿用同一槽位。Inspector支持beforeClose异步保护，onSavedCloseReady在完整退出结束后才完成；退出距离按无变换静止位置与视口边界计算，快速反向保留当前位置。
 
-训练／消耗切换由持久WorkspaceFrame标题行（电脑）与DashboardHeader页名位置（手机）承载，不依赖业务快照；目标骨架与实页不再各自重复切换栏。两端仅显示对应的一组可用链接，保留关联返回、可访问页名与44px操作。
+训练、消耗拥有独立主导航项与准确页名，不再叠加重复切换栏；固定标题不依赖业务快照，保留关联返回、可访问页名与44px操作。
 
 Inspector可通过motionDuration指定所属功能的开合时长；未指定时继续沿用既有面板时长。AI接入权限／管理面板使用160ms，减少动态效果时即时交接。
 
-RecordWorkspace的mobilePrimary挂载手机记录摘要，桌面或显式view=trend继续使用原图表；MobileRecordSummary复用日期／指标／动作槽，后备与真实内容共用尺寸，长值及文字放大按完整项目退列。DailyRecords日期和短状态同排，手机44px操作与紧凑摘要相邻，身体保留晨晚两行。Inspector将把手、标题、展开／半屏与关闭合并为约64px手机头部，标题空白区拖动，粘性偏移通过ResizeObserver读取真实头高；EntrySurface饮食等待直接复用禁用的MealEditor，不用通用骨架替代字段。
+RecordWorkspace双端保留原有读数及完整图表，不增加替代趋势的手机摘要。DailyRecords日期和短状态同排，手机44px操作与紧凑摘要相邻，身体保留晨晚两行。Inspector将把手、标题、展开／半屏与关闭合并为紧凑手机头部，标题空白区拖动，粘性偏移通过ResizeObserver读取真实头高；EntrySurface饮食等待直接复用禁用的MealEditor，不用通用骨架替代字段。
 
 饮食保存条通过ResizeObserver提供--entry-footer-height，Inspector的scroll-padding与实测头高共同避让粘性区域；文字放大后的焦点及显式滚动不落在标题或保存条后。共用录入输入使用1rem及相对行高／最小高度，正常16px／44px，200%自然增高。
+
+DateField为饮食／消耗提供单一可见边界，原生日期控件透明覆盖，焦点和禁用不重复描边；文字16px、44px命中。短饮食／消耗录入通过完整flex容器链将保存区贴底，长表单按实测底部操作高度滚动避让，不用空白或固定内容高度撑高。

@@ -1,5 +1,7 @@
 # 公网 HTTPS 部署
 
+手机界面／上传候选codex/mobile-ui-upload尚未正式发布。以当前公网d4bd9657兼容API为运行基线，main中暂未完成平台同步的2.0工具不进入此发布包，不覆盖其源码；本轮合流和发布须等实际网页、真实大图及当前iPhone Safari复测通过。隔离验收资料保持私有，见[视觉记录](../design-qa.md)。
+
 ## 当前手机记录优先发布
 
 北京时间2026-11-14 06:05:42，上海主服务切换至`mobile-record-priority-20261114`；源码`d4bd9657abff6ac839a5ffcde9c001b44e39d6ad`，版本`dual-entry-d4bd9657-mobile-record-priority-20261114`，BUILD_ID `3knID6SjzsomOGnfkV8gc`。main已合入推送，三个公网入口直接核对同版本；没有重新发布国际网关或修改域名。MCP1.18.3、21工具及12项HTTP说明保持，schema仍0037，prompt为original／compact／original，上下文仍10组。

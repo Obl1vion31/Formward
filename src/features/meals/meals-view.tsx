@@ -2,7 +2,7 @@
 import {NutritionLegend} from '@/components/chart-legend';
 import {numericDraftValue} from "@/components/form-draft";
 import recordUI from "@/components/record-ui.module.css";
-import {RecordWorkspace,RecordTrendPanel,MobileRecordSummary,InlineChartControls,CustomRecordRange} from "@/components/record-trend-panel";
+import {RecordWorkspace,RecordTrendPanel,InlineChartControls,CustomRecordRange} from "@/components/record-trend-panel";
 import {confirmAction} from "@/components/confirmation-state";
 import {DecimalInput} from "@/components/decimal-input";
 import {mealVersions,verifyRecordVersions,acknowledgeRecordChanges} from "@/components/record-change-client";
@@ -123,8 +123,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
     try{const result=await purge({...target,operationId:request.current.id});if(!result.ok){setError(result.error);return false;}acknowledgeRecordChanges([target.recordType+":"+target.id,...(target.recordType==="meal"?["mealDay:"+state.meals.find(m=>m.id===target.id)?.date]:[])], [...mealVersions(result.data.snapshot),...(target.recordType==="meal"?[{key:"mealDay:"+state.meals.find(m=>m.id===target.id)?.date,version:String((state.meals.find(m=>m.id===target.id)?.day?.version??0)+1)}]:[])]);setLocal(result.data.snapshot);setNotice(result.data.message);setViewingFood(current=>current?.id===target.id?null:current);request.current=null;return true;}catch{setError("删除未完成，请重试。");return false;}finally{busyRef.current=false;setBusy(false);}
   }
   const visibleFoods=state.foods.filter(f=>!f.deletedAt&&(foodCategory==="all"||(f.category??"ingredient")===foodCategory)&&`${f.name} ${f.brand??""} ${f.preparation??""}`.toLowerCase().includes(foodQuery.toLowerCase()));
-  const recordDate=initialDate??today,recordDay=groups.find(group=>group.date===recordDate);
-  return <RecordWorkspace title={tab==="foods"?"食材库":"饮食"} className={styles.workspace} data-active-tab={tab} data-shared-route={initialTrend?true:undefined} mobilePrimary={!initialTrend&&tab==="meals"?<MobileRecordSummary date={recordDate} title="当天饮食" metrics={metrics.map(metric=>({label:metricLabels[metric],value:formatNutrition(recordDay?.totals.values[metric]??null,metric),unit:unitFor(metric),tone:metric==="caloriesKcal"?"blue":undefined}))} primary={<button type="button" onClick={()=>addMeal(recordDate)}>记录一餐</button>} status={recordDay?<><MealDayStatus day={recordDay.day}/>{metrics.some(metric=>recordDay.totals.incomplete[metric]&&recordDay.totals.values[metric]!==null)&&<span> · 已知部分</span>}</>:"尚无饮食记录"} actions={<><button type="button" onClick={()=>viewDay(recordDate)}>查看记录 →</button><LoadingLink href={`/dashboard/meals?view=trend&date=${recordDate}&from=${dateAt(dateNumber(recordDate)-6)}&to=${recordDate}`}>完整趋势 →</LoadingLink></>}/>:undefined}>
+  return <RecordWorkspace title={tab==="foods"?"食材库":"饮食"} className={styles.workspace} data-active-tab={tab} data-shared-route={initialTrend?true:undefined}>
     {tab==="meals"?<>
 
       <div data-record-trend data-chart-selection={chart.regionId} data-selected-date={chart.selected} data-selection-origin={chart.origin} {...chart.regionProps}>

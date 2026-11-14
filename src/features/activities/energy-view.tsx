@@ -1,11 +1,9 @@
 "use client";
-import {LoadingLink} from "@/components/loading-link";
 import {EnergyLegend} from '@/components/chart-legend';
 import {EnergySourceStatus} from "../data-sources/energy-status";
 import type {ConnectionView} from "../data-sources/model";
-import recordUI from '@/components/record-ui.module.css';
 import {confirmAction} from "@/components/confirmation-state";
-import {RecordWorkspace,RecordTrendPanel,MobileRecordSummary,CustomRecordRange} from "@/components/record-trend-panel";
+import {RecordWorkspace,RecordTrendPanel,CustomRecordRange} from "@/components/record-trend-panel";
 import {useDraftGuard} from "@/components/draft-guard";
 import {energyVersions,verifyRecordVersions,acknowledgeRecordChanges,RecordVersionError} from "@/components/record-change-client";
 import {energySaveExpectations,applyEnergyVersions,energyDateMoveIssue,EnergySaveError} from "./energy-save-state";
@@ -142,8 +140,8 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
   </div>
  </Disclosure>;
 })}</div>;};
-  const recordDate=initialDate??today,recordDay=byDate.get(recordDate),hasRecord=!!recordDay?.record||!!recordDay?.activities.length;
-  return <RecordWorkspace title="消耗" className={styles.workspace} data-shared-route={initialTrend?true:undefined} mobilePrimary={!initialTrend?<MobileRecordSummary date={recordDate} title="当天消耗" metrics={[{label:recordDay?.cumulative?"今日已消耗":"总消耗",value:energyValue(recordDay?.totalKcal),unit:"kcal"},{label:"静息",value:energyValue(recordDay?.restingKcal),unit:"kcal",tone:"blue"},{label:"活动",value:energyValue(recordDay?.activeKcal),unit:"kcal",tone:"red"}]} primary={<button type="button" onClick={()=>editDay(recordDate)}>{hasRecord?"编辑消耗":"录入消耗"}</button>} actions={<><button type="button" onClick={()=>setViewing(recordDate)}>查看记录 →</button><LoadingLink href={`/dashboard/energy?view=trend&date=${recordDate}&from=${addCalendarDays(recordDate,-6)}&to=${recordDate}`}>完整趋势 →</LoadingLink></>}/>:undefined}>
+  const recordDate=initialDate??today,recordDay=byDate.get(recordDate);
+  return <RecordWorkspace title="消耗" className={styles.workspace} data-shared-route={initialTrend?true:undefined}>
 
     {error && !editing && <p className={styles.error} role="alert">{error}</p>}{notice && <p className={styles.notice} role="status">{notice}</p>}
     <section data-record-trend aria-label="消耗历史趋势" data-chart-selection={selection.regionId} data-selected-date={selection.selected} data-selection-origin={selection.origin} {...selection.regionProps}>
@@ -166,8 +164,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
     {(viewing||editing)&&<EditorDialog closeLabel={editing?'关闭编辑':'关闭详情'} routeEntry={!!(initialEntry&&editing?.kind==='save_energy_day'&&editing.date===initialDate)} title={editing?editing.kind==='save_energy_profile'?'公式资料':editing.kind==='save_activity'?'活动记录':'每日消耗':viewing+' · 消耗记录'} titleParts={!editing&&viewing?[viewing,'消耗记录']:undefined} stableScroll={!editing} busy={busy} onSavedCloseReady={close=>{savedClose.current=close;}} close={()=>{setViewing(null);setEditing(null);setError('');}}>
       <div data-record-intent={editing?editing.id?'edit':'create':'view'}>
         {editing?<>
-          <EnergyEditor stepsEnabled={data.sourcePilot} addActivity={addActivity} dayRecords={state.days} initial={editing} error={error} busy={busy} save={execute} saveBatch={execute} sources={sources} removeSource={remove} activities={state.activities}/>
-          {editing.kind==='save_energy_day'&&state.days.some(day=>day.id===editing.id&&!day.deletedAt)&&<details className={recordUI.editMaintenance}><summary>更多操作</summary><button type="button" disabled={busy} onClick={async()=>{if(await confirmDraftDiscard())await removeRecord({kind:'delete_energy_day',id:editing.id!,version:editing.version!},editing.date+' 消耗记录');}}>永久删除日记录</button></details>}
+          <EnergyEditor stepsEnabled={data.sourcePilot} addActivity={addActivity} dayRecords={state.days} initial={editing} error={error} busy={busy} save={execute} saveBatch={execute} sources={sources} removeSource={remove} activities={state.activities} management={editing.kind==='save_energy_day'&&state.days.some(day=>day.id===editing.id&&!day.deletedAt)&&<details className={styles.management}><summary>更多操作</summary><button type="button" disabled={busy} onClick={async()=>{if(await confirmDraftDiscard())await removeRecord({kind:'delete_energy_day',id:editing.id!,version:editing.version!},editing.date+' 消耗记录');}}>永久删除日记录</button></details>}/>
         </>:<>{error&&<p role="alert" className={styles.error}>{error}</p>}{viewing&&details(viewing)}</>}
       </div>
     </EditorDialog>}

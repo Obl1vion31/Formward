@@ -163,7 +163,7 @@
 
 .detailNutrition .mealDayStatus{display:block;min-height:0;margin-bottom:8px;font-size:13px}.detailNutrition{padding-bottom:0;border-bottom:0}
 .mobileHome{display:none}
-.mobileTrendHeading{display:flex;align-items:center;justify-content:space-between;gap:12px}.mobileTrendHeading h2{font-size:17px;font-weight:600;margin:0}.mobileTrendHeading button{border:0;background:none;color:var(--muted);font:inherit;font-size:12px;min-height:44px;padding:0}
+.mobileTrendHeading{display:flex;align-items:center;justify-content:space-between;gap:12px}.mobileTrendHeading h2{font-size:1rem;font-weight:500;margin:0}.mobileTrendHeading button{border:0;background:none;color:var(--muted);font:inherit;font-size:.875rem;min-height:44px;padding:0}
 
 .mobileTrend :global(.skeleton-relationship){margin-top:8px;padding-top:16px}
 .mobileSelected{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-block:8px;font-size:13px;min-height:40px}.mobileSelected strong{font-size:16px;font-weight:500}.mobileSelected time{color:var(--muted)}.mobileLegend{display:flex;flex-wrap:wrap;gap:8px 12px;color:var(--muted);font-size:12px;align-items:center}.mobileLegend span{display:flex;gap:5px;align-items:center}.mobileLegend i{display:inline-block;width:16px;height:2px}
@@ -175,3 +175,11 @@
 }
 
 @media(min-width:701px) and (hover:hover){.weekReadings{box-sizing:border-box;min-height:72px}}
+
+.relationship{min-height:var(--relationship-full-height,448px)}
+.relationship[data-compact=true]{min-height:0;height:var(--relationship-compact-height,276px)}
+.relationship[data-compact=true]>.plot{height:100%}.relationship[data-compact=true]>.plot svg{height:100%}
+.waitingPlot{display:grid;place-items:center}
+@media(max-width:700px),(hover:none) and (pointer:coarse){.relationship:not([data-compact=false]){min-height:0;height:var(--relationship-compact-height,276px)}.relationship>.plot,.relationship>.plot svg{height:100%}}
+@media(max-height:600px){.relationship[data-compact=true]{height:var(--relationship-short-height,236px)}}
+@media(max-height:600px) and (max-width:700px),(max-height:600px) and (hover:none) and (pointer:coarse){.relationship:not([data-compact=false]){height:var(--relationship-short-height,236px)}}

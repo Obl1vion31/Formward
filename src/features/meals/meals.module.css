@@ -366,12 +366,12 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
 .mealForm .entryTable[data-layout=cards] .entryName strong { line-height:1.6; }
 @media(min-width:1000px){.entryPaths{max-width:440px}.mealForm[data-picker=side] .pickerHeading { flex-wrap:wrap; gap:0; }}
 
-.mealDate { display:block; position:relative; min-width:0; min-height:44px; border:1px solid var(--control-border); border-radius:6px; background:var(--surface-raised); color:var(--warm-white); }
-.mealDate>span { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:10px; font-size:1rem; line-height:1.375; white-space:nowrap; pointer-events:none; }
-.mealDate svg { flex:none; }
-.mealForm .mealDate input[type=date] { position:absolute; inset:0; height:100%; min-height:44px; margin:0; opacity:0; cursor:pointer; }
-.mealDate:hover { border-color:var(--gold); }.mealDate:focus-within { outline:2px solid var(--gold); outline-offset:2px; }
-@media(max-width:360px){.mealDate>span{padding-inline:8px;gap:4px}}
+
+
+
+
+
+@media(max-width:360px){}
 
 /* 独立食材编辑沿用餐次控件语言；不以“未知”作为主读数。 */
 .form[data-entry-form=food]>fieldset{display:grid;gap:12px}.form[data-entry-form=food] label{font-size:14px;gap:6px;margin:0}.form[data-entry-form=food] .formColumns{grid-template-columns:repeat(auto-fit,minmax(min(100%,7.5em),1fr));gap:12px}.fieldCaption{display:flex;align-items:baseline;justify-content:space-between;gap:4px;flex-wrap:wrap}.fieldCaption small{font-size:12px;white-space:nowrap}.form[data-entry-form=food] .nutritionFields{gap:8px}.form[data-entry-form=food] .nutritionFields label{display:grid;grid-template-columns:1fr auto;gap:6px}.form[data-entry-form=food] .nutritionFields input{grid-column:1/-1;width:100%;margin:0;padding-inline:6px;letter-spacing:normal;appearance:textfield}.form[data-entry-form=food] .nutritionFields small{font-size:12px;margin:0}.form[data-entry-form=food] .sourceFields{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin:0}.form[data-entry-form=food] .sourceChoices{flex:1 0 auto;gap:8px}.form[data-entry-form=food] .sourceChoices legend{margin-bottom:0}.form[data-entry-form=food] .sourceChoices label{gap:6px}.form[data-entry-form=food] .evidence{margin:0;flex:0 0 auto}.form[data-entry-form=food] .evidence[open]{flex-basis:100%}.form[data-entry-form=food] .evidence summary{gap:4px}.form[data-entry-form=food] .photoFields{margin:0}.foodBasis{display:flex;flex-wrap:wrap;gap:4px 12px;margin:0;color:var(--muted);font-size:12px;line-height:18px}.foodBasis>span{white-space:nowrap}
@@ -437,5 +437,5 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
 .mealExtra{margin-top:12px;border-top:1px solid var(--line-soft)}.mealExtra>summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font-size:.875rem;color:var(--muted)}.mealExtra>label{display:grid;gap:8px;margin-block:8px 16px}.mealExtra textarea{width:100%}
 @media(max-width:700px),(hover:none) and (pointer:coarse){
  .mealForm>fieldset{gap:12px}.mealForm .mealColumns{margin-top:0}.entryHeading{gap:4px 8px}.entryHeading .entryTitle small{margin-left:4px}
- .stickyMealTotal{gap:8px;padding-top:8px;padding-bottom:max(8px,env(safe-area-inset-bottom));margin-top:12px}.headerNutrition{gap:2px 8px}.headerNutrition strong{font-size:1.375rem;line-height:1.4}.headerNutrition>span{font-size:.8125rem}.headerMacros{display:flex;flex-wrap:wrap;gap:0 8px}.entryIssue{font-size:.8125rem;margin-top:4px}.mealForm .save{font-size:.875rem;line-height:1.5;padding:8px 12px;white-space:normal}
+ .stickyMealTotal{gap:8px;padding-top:8px;padding-bottom:max(8px,env(safe-area-inset-bottom));margin-top:auto}.headerNutrition{gap:2px 8px}.headerNutrition strong{font-size:1.375rem;line-height:1.4}.headerNutrition>span{font-size:.8125rem}.headerMacros{display:flex;flex-wrap:wrap;gap:0 8px}.entryIssue{font-size:.8125rem;margin-top:4px}.mealForm .save{font-size:.875rem;line-height:1.5;padding:8px 12px;white-space:normal}
 }

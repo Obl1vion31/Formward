@@ -1,5 +1,6 @@
 "use client";
 import {useCallback,useContext,useEffect,useLayoutEffect,useId,useRef,useState,type ReactNode,type PointerEvent as ReactPointerEvent} from "react";
+import {WorkspaceRefreshingContext} from "@/features/dashboard/workspace-cache-context";
 import {EntrySurfaceContext,RouteEntryContent} from './entry-surface-state';
 import {animateSurface} from "./surface-motion";
 import {confirmAction} from "./confirmation-state";
@@ -8,7 +9,7 @@ import {useBackdropDismiss} from "./use-backdrop-dismiss";
 import {pageRefreshApproved,InspectorBusyContext,DraftGuardContext,DraftCloseContext,type DraftState} from "./draft-guard";
 import styles from "./inspector.module.css";
 export type InspectorProps={assistant?:boolean;closeLabel?:string;title:string;titleParts?:string[];stableScroll?:boolean;close:()=>void;busy?:boolean;beforeClose?:()=>Promise<boolean>;children:ReactNode;wide?:boolean;compact?:boolean;motionDuration?:number;header?:ReactNode;className?:string;onCloseReady?:(close:()=>void)=>void;onSavedCloseReady?:(close:()=>Promise<void>)=>void;routeEntry?:boolean};
-export function Inspector(props:InspectorProps){const entry=useContext(EntrySurfaceContext);return props.routeEntry&&entry.active?<RouteEntryContent {...props}/>:<InspectorSurface {...props}/>;}
+export function Inspector(props:InspectorProps){const entry=useContext(EntrySurfaceContext),refreshing=useContext(WorkspaceRefreshingContext);return refreshing?null:props.routeEntry&&entry.active?<RouteEntryContent {...props}/>:<InspectorSurface {...props}/>;}
 function InspectorSurface({title,titleParts,stableScroll=false,close,busy=false,beforeClose,children,wide=false,compact=false,motionDuration,header,className,onCloseReady,onSavedCloseReady,assistant=false,closeLabel="关闭编辑"}:InspectorProps){
  const titleId=useId(),ref=useRef<HTMLDialogElement>(null),headingRef=useRef<HTMLDivElement>(null),drafts=useRef(new Map<symbol,DraftState>()),[closing,setClosing]=useState(false),callback=useRef(close),before=useRef(beforeClose),closePending=useRef(false),[expanded,setExpanded]=useState(!stableScroll),gesture=useRef<{y:number;delta:number;start:number}|null>(null),suppressHandle=useRef(0);
  useLayoutEffect(()=>{callback.current=close;before.current=beforeClose;},[close,beforeClose]);

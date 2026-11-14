@@ -35,3 +35,15 @@
 @media(prefers-reduced-motion:reduce){.drawer,.mobileSheet{animation:none;transition:none}}
 
 .mobileSheet{scroll-padding-block-start:calc(var(--inspector-sticky-offset,0px) + 12px);scroll-padding-block-end:calc(var(--entry-footer-height,0px) + 16px)}
+
+@media(max-width:700px),(hover:none) and (pointer:coarse){
+ .mobileSheet[open]:has(form[data-entry-form=meal],form[data-entry-form=meal-pending],form[data-entry-form=energy],form[data-entry-form=energy-pending]){display:flex;flex-direction:column}
+ .mobileSheet:has(form[data-entry-form=meal],form[data-entry-form=meal-pending],form[data-entry-form=energy],form[data-entry-form=energy-pending]) .content{flex:1;display:flex;flex-direction:column;padding-bottom:0}
+ .content>[data-entry-surface-slot],.content>[data-entry-surface-slot]>:global(.pending-entry-fields){display:flex;flex-direction:column;flex:1;min-width:0}
+ .content form[data-entry-form=meal],.content form[data-entry-form=meal-pending],.content form[data-entry-form=energy],.content form[data-entry-form=energy-pending]{display:flex;flex-direction:column;flex:1;min-width:0}
+ .content form[data-entry-form]>fieldset{flex:none}
+}
+
+@media(max-width:700px),(hover:none) and (pointer:coarse){
+ .content [data-record-intent]:has(>form[data-entry-form=meal],>form[data-entry-form=meal-pending],>form[data-entry-form=energy],>form[data-entry-form=energy-pending]){display:flex;flex-direction:column;flex:1;min-width:0}
+}

@@ -10,7 +10,7 @@ function result(content,calls,slow=false){
 function call(name,args){return result('',[{index:0,id:'call-'+name,type:'function',function:{name,arguments:JSON.stringify(args)}}]);}
 globalThis.fetch=async function(input,init){
  const url=new URL(typeof input==='string'||input instanceof URL?String(input):input.url);
- if(url.hostname.endsWith('.cos.ap-shanghai.myqcloud.com'))return new Response(Buffer.from(fixture.imageBytes,'base64'),{headers:{'content-type':'image/png'}});
+ if(process.env.FORMWARD_TEST_REAL_COS!=='1'&&url.hostname.endsWith('.cos.ap-shanghai.myqcloud.com'))return new Response(Buffer.from(fixture.imageBytes,'base64'),{headers:{'content-type':'image/png'}});
  if(!allowed.has(url.hostname))return original(input,init);
  const body=JSON.parse(typeof init?.body==='string'?init.body:await input.clone().text()),lastUser=[...body.messages].reverse().find(message=>message.role==='user'),text=typeof lastUser?.content==='string'?lastUser.content:lastUser?.content?.find(part=>part.type==='text')?.text??'';
  if(text.includes('平台余额测试')&&body.model==='glm-5.3-flash')return Response.json({error:{code:'insufficient_balance',message:'insufficient balance'}},{status:402});

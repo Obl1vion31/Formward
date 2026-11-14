@@ -939,7 +939,7 @@ input:focus-visible {
 .dashboard-page form[data-entry-form] :is(input,select,textarea)[aria-invalid=true] {border-color:var(--data-red)}
 .dashboard-page form[data-entry-form] :is(input,select,textarea)[readonly] {background:var(--surface);border-style:dashed;color:var(--muted)}
 .dashboard-page form[data-entry-form] :is(input,select,textarea):disabled {opacity:.65;cursor:not-allowed}
-.dashboard-page form[data-entry-form] button[type=submit] {min-height:44px;flex:none;padding:10px 16px;border:1px solid var(--gold);border-radius:6px;background:var(--gold);color:var(--graphite);font-size:14px;line-height:22px;text-decoration:none}
+.dashboard-page form[data-entry-form] button[type=submit] {min-height:44px;flex:none;padding:10px 16px;border:1px solid var(--gold);border-radius:6px;background:var(--gold);color:var(--graphite);font-size:.875rem;line-height:1.5;text-decoration:none}
 .dashboard-page form[data-entry-form] button[type=submit]:hover:not(:disabled) {filter:brightness(1.08)}
 .dashboard-page form[data-entry-form] button[type=submit]:disabled {background:var(--surface-hover);border-color:var(--control-border);color:var(--muted);cursor:not-allowed;opacity:.7}
 .dashboard-page form[data-entry-form] button:not([type=submit]) {min-height:44px}
@@ -1049,3 +1049,9 @@ dialog::backdrop{transition:background-color 210ms cubic-bezier(.2,.8,.2,1)}
 @media(prefers-reduced-motion:reduce){dialog::backdrop{transition:none}}
 
 .pending-entry-fields.pending-meal-fields{display:block;padding-top:0}
+
+.workspace-refresh{position:relative;min-width:0}.workspace-refresh-status{position:absolute;right:0;top:-20px;z-index:1;pointer-events:none;font-size:.8125rem;color:var(--muted);background:var(--surface)}
+
+.chart-local-wait{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}.chart-local-frame{display:grid;place-items:center;position:relative}
+
+.workspace-retained{display:block;min-width:0;width:100%;border:0;padding:0;margin:0}

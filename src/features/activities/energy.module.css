@@ -74,14 +74,14 @@
 
 .exerciseFields[data-mode=components]>.fields{grid-template-columns:repeat(2,minmax(0,1fr))}.activityDraft>.fields,.activityFields{grid-template-columns:repeat(2,minmax(0,1fr))}.activityDraft>.fields>label:first-child,.activityFields>label:first-child{grid-column:1/-1}
 
-.energyEntry{padding:0}.energyEntry .stickyTotal{position:sticky;top:var(--inspector-sticky-offset,0px);z-index:5;display:flex;justify-content:space-between;align-items:center;gap:16px;background:var(--surface);border-bottom:1px solid color-mix(in srgb,var(--warm-white) 14.902%,transparent);margin:-4px -2px 14px;padding:14px 2px}.stickyTotal>div{min-width:0}.stickyTotal>div>span{display:block;color:var(--muted);font-size:0.8125rem}.stickyTotal strong{display:block;color:var(--warm-white);font-size:1.875rem;font-weight:400;line-height:1.4;font-variant-numeric:tabular-nums}.stickyTotal>div>small{display:block;color:var(--muted);font-size:0.75rem}.energyEntry .headerSave{flex:none;padding:10px 14px;border:0;border-radius:5px;background:var(--gold);color:var(--surface-raised);min-height:44px;font-size:0.875rem}.energyEntry .headerSave:disabled{background:var(--surface-hover);color:var(--gold);cursor:default}.energyEntry .entrySection{border-top:1px solid color-mix(in srgb,var(--warm-white) 14.902%,transparent);padding-top:16px;margin-top:20px}.entrySection h3{font-size:1.0625rem;font-weight:500;margin:0 0 12px}.energyEntry .fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.energyEntry input{border:1px solid color-mix(in srgb,var(--gold) 53.333%,transparent);border-radius:5px;background:var(--surface-raised);padding:10px;min-height:44px;font-size:1rem}.energyEntry input[data-calorie-origin=automatic]{border-color:var(--data-deficit);color:var(--data-blue)}.pendingBadge{display:inline-block;font-size:0.75rem;background:var(--surface-hover);color:var(--gold);border-radius:4px;padding:5px 8px}.energyEntry .activityDraft{margin:14px 0;border-top:1px solid color-mix(in srgb,var(--warm-white) 12.549%,transparent);padding-top:10px}.activityDraft>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;color:var(--warm-white);font-size:0.875rem;list-style:none;cursor:pointer}.activityDraft>summary>span:last-child{font-size:0.75rem;text-align:right}.activityDraft>summary:after{content:"⌄";color:var(--gold)}.activityDraft[open]>summary:after{content:"⌃"}.activityDraft>label{margin-top:12px}.bulkChoices{display:flex;gap:16px;flex-wrap:wrap}.energyEntry .hint button{margin-left:12px}.contextReadings{display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:0.8125rem;color:var(--muted)}.contextReadings strong{display:block;font-size:1.375rem;font-weight:400;color:var(--warm-white);margin-top:8px}.energyEntry .exerciseFields .fields{margin-block:12px}.energyEntry .exerciseFields .hint{margin:8px 0}.energyEntry .modeSwitch{margin:8px 0 14px}.energyEntry .entrySection>summary{min-height:44px;color:var(--gold);cursor:pointer}
-@media(max-width:600px){.energyEntry .stickyTotal{top:var(--inspector-sticky-offset,0px);padding-top:10px}.stickyTotal strong{font-size:1.6875rem}.energyEntry .fields{grid-template-columns:repeat(2,minmax(0,1fr))}.energyEntry .modeSwitch{width:auto}.energyEntry .modeSwitch button{font-size:0.8125rem;padding:8px}.energyEntry .headerSave{max-width:145px;font-size:0.8125rem}.energyEntry .activityDraft{padding-top:6px}.energyEntry .entrySection{margin-top:16px;padding-top:12px}}
+.energyEntry{padding:0}.energyEntry input{border:1px solid color-mix(in srgb,var(--gold) 53.333%,transparent);border-radius:5px;background:var(--surface-raised);padding:10px;min-height:44px;font-size:1rem}.energyEntry input[data-calorie-origin=automatic]{border-color:var(--data-deficit);color:var(--data-blue)}.pendingBadge{display:inline-block;font-size:0.75rem;background:var(--surface-hover);color:var(--gold);border-radius:4px;padding:5px 8px}.energyEntry .activityDraft{margin:14px 0;border-top:1px solid color-mix(in srgb,var(--warm-white) 12.549%,transparent);padding-top:10px}.activityDraft>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;color:var(--warm-white);font-size:0.875rem;list-style:none;cursor:pointer}.activityDraft>summary>span:last-child{font-size:0.75rem;text-align:right}.activityDraft>summary:after{content:"⌄";color:var(--gold)}.activityDraft[open]>summary:after{content:"⌃"}.activityDraft>label{margin-top:12px}.bulkChoices{display:flex;gap:16px;flex-wrap:wrap}.energyEntry .hint button{margin-left:12px}.contextReadings{display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:0.8125rem;color:var(--muted)}.contextReadings strong{display:block;font-size:1.375rem;font-weight:400;color:var(--warm-white);margin-top:8px}.energyEntry .exerciseFields .fields{margin-block:12px}.energyEntry .exerciseFields .hint{margin:8px 0}
+@media(max-width:600px){.energyEntry .activityDraft{padding-top:6px}}
 
-.energyEntry .stickyTotal :global(.record-date-context){margin:0 0 6px;padding:0;border:0;font-size:0.75rem;line-height:1.5}.energyEntry .stickyTotal :global(.record-date-context) strong{display:inline;font-size:0.75rem;line-height:1.5;color:var(--muted);font-weight:400}.energyEntry .stickyTotal :global(.record-date-context) span{font-size:0.75rem}
 
-.energyEntry .stickyTotal{margin-bottom:0}.energyEntry fieldset>.entrySection:first-of-type{border-top:0;margin-top:0;padding-top:16px}.exerciseActions{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px 24px;margin-top:12px}.exerciseActions button{min-height:44px;margin:0;padding:0 4px}.exerciseActions .removeExercise{color:var(--data-red);margin-left:auto}.exerciseReading{font-size:0.875rem;color:var(--warm-white);margin:12px 0 0}.exerciseReading span{display:block;color:var(--muted);font-size:0.8125rem;margin-top:4px}.inclusionStatus{font-size:0.8125rem;line-height:1.7;color:var(--gold);margin:12px 0 0}.activityDraft>summary>span:last-child{font-size:1.25rem;white-space:nowrap}.activityDraft>summary>span:first-child{min-width:0;overflow-wrap:anywhere}
 
-.energyEntry .stickyTotal:after{content:"";position:absolute;left:0;right:0;bottom:-13px;height:12px;background:var(--surface);pointer-events:none}.energyEntry .activityDraft:first-of-type{border-top:0;margin-top:8px;padding-top:0}
+.exerciseActions{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px 24px;margin-top:12px}.exerciseActions button{min-height:44px;margin:0;padding:0 4px}.exerciseActions .removeExercise{color:var(--data-red);margin-left:auto}.exerciseReading{font-size:0.875rem;color:var(--warm-white);margin:12px 0 0}.exerciseReading span{display:block;color:var(--muted);font-size:0.8125rem;margin-top:4px}.inclusionStatus{font-size:0.8125rem;line-height:1.7;color:var(--gold);margin:12px 0 0}.activityDraft>summary>span:last-child{font-size:1.25rem;white-space:nowrap}.activityDraft>summary>span:first-child{min-width:0;overflow-wrap:anywhere}
+
+.energyEntry .activityDraft:first-of-type{border-top:0;margin-top:8px;padding-top:0}
 
 .energyEntry fieldset>section.entrySection{border-top:0}
 
@@ -92,12 +92,12 @@
 .energyEntry .aggregateFields{align-items:end}
 
 /* Unslop: retain the live total and safe actions; quiet repeated group chrome. */
-.energyEntry .stickyTotal{padding-block:12px}
-.energyEntry .stickyTotal strong{font-size:2.25rem;line-height:1.2}
-.energyEntry .entrySection{border-top:0;padding-top:0;margin-top:24px}
-.energyEntry fieldset>.entrySection:first-of-type{padding-top:16px}
-.energyEntry .entrySection h3{margin-bottom:8px}
-.energyEntry .fields{align-items:end;margin-block:12px;gap:8px 12px}
+
+
+
+
+
+
 .energyEntry .aggregateBlock{margin-block:12px}
 .energyEntry .aggregateFields{margin-top:4px}
 .energyEntry input{border-color:var(--control-border);border-radius:6px;transition:border-color 160ms,background-color 160ms}
@@ -108,8 +108,8 @@
 .energyEntry .exerciseFields{margin-top:8px}
 .energyEntry .exerciseActions{gap:12px 24px}
 @media(max-width:600px){
- .energyEntry .stickyTotal strong{font-size:2rem}
- .energyEntry .entrySection{margin-top:20px}
+
+
 }
 @media(prefers-reduced-motion:reduce){.energyEntry input{transition:none}}
 
@@ -120,17 +120,17 @@
 .dayDetails>.actions,.dayDetails>.details{margin-top:8px;margin-bottom:0}
 .dayDetails>.actions button{min-height:44px}
 
-.energyEntry .stickyTotal{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px}
-.energyEntry .stickyTotal>.headerSave{grid-column:2;grid-row:2;max-width:none;white-space:nowrap;min-width:72px}
-.energyEntry .stickyTotal>:global(.record-date-context){grid-column:1/-1;margin:0;padding:0;min-width:0}
-.energyEntry .stickyTotal>:global(.record-date-context) strong{font:inherit;color:var(--muted);white-space:nowrap;display:inline-block}
-.energyEntry .stickyTotal>div{grid-column:1;grid-row:2}
+
+
+
+
+
 .energyEntry{container-type:inline-size}
-.energyEntry .timeFields{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin-block:16px}
-.energyEntry .timeFields>label{min-inline-size:0;max-inline-size:100%}
-.energyEntry .timeFields input{inline-size:100%;min-inline-size:0;max-inline-size:100%;box-sizing:border-box;font-size:1rem}
-.energyEntry .notesField{grid-column:1/-1}
-@container(min-width:600px){.energyEntry .timeFields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+
+
+@container(min-width:600px){}
 .dayDetails .summary strong small{font-size:0.75rem;margin-left:4px}
 
 
@@ -153,3 +153,36 @@
 .activityExplanation p{margin:0}
 .activityExplanation p+p{margin-top:4px}
 @media(prefers-reduced-motion:reduce){.activityDetail>summary{transition:none}}
+
+/* 录入只有一层间距容器；手机读数与保存跟随底部，桌面仍在上方。 */
+.energyEntry{container-type:inline-size;display:flex;flex-direction:column;gap:16px;padding:0}
+.energyEntry>fieldset{display:grid;gap:16px}
+.energyEntry .entrySection{margin:0;padding:0;border:0}
+.energyEntry .entrySection h3{font-size:1rem;font-weight:500;line-height:1.5;margin:0 0 8px}
+.energyEntry .entrySection h3 small{font-size:.8125rem;font-weight:400;color:var(--muted)}
+.energyEntry .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end;gap:8px 12px;margin:12px 0 0}
+.energyEntry .entryDate{display:flex;align-items:end;flex-wrap:wrap;gap:8px 12px}
+.entryDate>label{width:min(14rem,100%);font-size:.875rem;gap:8px}
+.entryDate :global(.record-date-context){margin:0;padding:8px 0;border:0;font-size:.8125rem}
+.energyEntry .modeSwitch{display:inline-flex;width:fit-content;max-width:100%;gap:4px;margin:0;padding:2px;background:var(--surface-hover)}
+.energyEntry .modeSwitch button{min-height:44px;padding:8px 12px;font-size:.875rem;line-height:1.5}
+.energyEntry .aggregateBlock{margin:12px 0 0}
+.energyEntry .aggregateFields{margin-top:4px}
+.energyEntry .timeFields{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin:8px 0 0}
+.energyEntry .notesField{grid-column:1/-1}
+.energyEntry .stickyTotal{position:relative;order:-1;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 16px;margin:0;padding:12px 0;border-bottom:1px solid var(--line-soft);background:var(--surface)}
+.stickyTotal>div{min-width:0;flex:1;display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:4px 8px}
+.stickyTotal>div>span{font-size:.875rem;color:var(--muted)}
+.stickyTotal strong{font-size:2.25rem;font-weight:500;line-height:1.3;color:var(--warm-white);overflow-wrap:anywhere}
+.stickyTotal>div>small,.stickyTotal p{grid-column:1/-1;margin:0;font-size:.8125rem;line-height:1.5}
+.energyEntry .headerSave{flex:none;min-height:44px;min-width:72px;padding:8px 14px;border:0;border-radius:6px;font-size:.875rem;background:var(--action-fill);color:var(--action-ink)}
+.energyEntry .headerSave:disabled{background:var(--surface-hover);color:var(--muted);cursor:default}
+.energyEntry .management{margin:0;padding:0;border-top:1px solid var(--line-soft)}
+.management>summary{display:flex;align-items:center;min-height:44px;font-size:.875rem;color:var(--muted);cursor:pointer}
+.management>button{min-height:44px;color:var(--danger)}
+@container(min-width:600px){.energyEntry .timeFields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px),(hover:none) and (pointer:coarse){
+ .energyEntry .stickyTotal{order:0;position:sticky;bottom:0;z-index:2;margin-top:auto;padding:8px 0 max(8px,env(safe-area-inset-bottom));border-bottom:0;border-top:1px solid var(--control-border)}
+ .energyEntry .stickyTotal strong{font-size:1.375rem}
+ .energyEntry .activityDraft>summary>span:last-child{font-size:1.125rem;white-space:normal}
+}

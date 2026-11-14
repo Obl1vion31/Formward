@@ -1,22 +1,11 @@
 "use client";
-import {useEffect,useLayoutEffect,useRef,useState,type ReactNode,type ComponentPropsWithoutRef,type CSSProperties} from "react";
+import {useEffect,useRef,useState,type ReactNode,type ComponentPropsWithoutRef,type CSSProperties} from "react";
 import {useMobileMode} from "./use-mobile-mode";
-import {SkeletonBlock} from './skeleton-block';
 import {SelectedDateHeading} from "./daily-records";
 import styles from "./record-trend-panel.module.css";
 export type RecordMetric={id?:string;label:string;value:string;unit:string;tone?:"blue"|"red"|"gold";note?:string;reserveNote?:boolean;inlineUnit?:boolean;select?:()=>void;selected?:boolean;graphic?:ReactNode;action?:ReactNode};
-export function RecordWorkspace({title,headingId,className="",children,mobilePrimary,...props}:ComponentPropsWithoutRef<"section">&{title:string;headingId?:string;mobilePrimary?:ReactNode}){
- return <section {...props} className={styles.workspace+" "+className} data-record-workspace data-mobile-records={mobilePrimary?true:undefined}><header className={styles.pageHeading}><h1 id={headingId}>{title}</h1></header>{mobilePrimary&&<div className={styles.mobilePrimary}>{mobilePrimary}</div>}{children}</section>;
-}
-export function MobileRecordSummary({date,title,metrics,primary,actions,status,loading=false}:{date:string;title:string;metrics:RecordMetric[];primary:ReactNode;actions:ReactNode;status?:ReactNode;loading?:boolean}){
- const group=useRef<HTMLDivElement>(null),[columns,setColumns]=useState<number|null>(null),signature=JSON.stringify(metrics.map(metric=>[metric.label,metric.value,metric.unit]));
- // 列数先由字号和稳定槽宽决定，后备与真实读数共用；仅异常长值需要额外退列。
- useLayoutEffect(()=>{const node=group.current;if(!node)return;const measure=()=>{if(!node.clientWidth)return;const gap=parseFloat(getComputedStyle(node).columnGap)||0,font=parseFloat(getComputedStyle(document.documentElement).fontSize),width=Math.max(9.5*font,...[...node.children].filter((_,index)=>metrics.length!==3||index!==0).map(item=>{const label=item.querySelector('span'),value=item.querySelector('strong');return(label?.scrollWidth??0)+(value?.scrollWidth??0)+8;}));setColumns(node.clientWidth>=width*2+gap?null:1);};measure();const observer=new ResizeObserver(measure);observer.observe(node);document.fonts.ready.then(measure);return()=>observer.disconnect();},[signature,metrics.length,loading]);
- return <section className={styles.mobileSummary} data-record-mobile-summary aria-label={title} aria-busy={loading||undefined}>
-  <div className={styles.mobileDate} data-record-slot="mobile-date"><span>{date?<time dateTime={date}>{date.replaceAll("-",".")}</time>:<span aria-label="正在读取记录日期"><SkeletonBlock width={96} height={20}/></span>}</span><div>{primary}</div></div>
-  <div ref={group} className={styles.mobileMetrics} data-record-slot="mobile-metrics" data-count={metrics.length} style={columns===1?{gridTemplateColumns:"minmax(0,1fr)"}:undefined}>{metrics.map((metric,index)=><div key={metric.id??index} className={styles.mobileMetric}><span data-tone={metric.tone}>{metric.label}</span><strong className={metric.tone?styles[metric.tone]:undefined}>{loading?<SkeletonBlock width={index===0?64:48} height={24}/>:<>{metric.value}<small>{metric.unit}</small></>}</strong>{metric.note&&<small>{metric.note}</small>}</div>)}</div>
-  <div className={styles.mobileActions} data-record-slot="mobile-actions">{status&&<span className={styles.mobileStatus}>{status}</span>}<div>{actions}</div></div>
- </section>;
+export function RecordWorkspace({title,headingId,className="",children,...props}:ComponentPropsWithoutRef<"section">&{title:string;headingId?:string}){
+ return <section {...props} className={styles.workspace+" "+className} data-record-workspace><header className={styles.pageHeading}><h1 id={headingId}>{title}</h1></header>{children}</section>;
 }
 export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,options,legend,children,readoutLabel="选中日读数",metricVariants=[],labelVariants=[],noteVariants=[],flags,flagVariants=[],statistics,supplementary,statusInDate=false,presentation,graphic,loading=false,chartSummary}:{
  chartSummary?:ReactNode;presentation?:"nutrition"|"energy"|"body";graphic?:ReactNode;loading?:boolean;range:ReactNode;custom?:ReactNode;date:string;view:()=>void;metrics:RecordMetric[];title:string;unit?:string;options?:ReactNode;legend:ReactNode;children:ReactNode;readoutLabel?:string;metricVariants?:string[][];labelVariants?:string[][];noteVariants?:string[][];flags?:string;flagVariants?:string[];statistics?:ReactNode;supplementary?:ReactNode;statusInDate?:boolean;
@@ -74,9 +63,9 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
    return <div key={metric.id??index} className={styles.metric} data-selected={metric.selected||undefined}>
     {metric.select&&<button type="button" className={styles.metricSelect} aria-label={"查看"+metric.label+"趋势"} aria-pressed={metric.selected} onClick={metric.select}/>}
     {metric.action&&<div className={styles.metricAction}>{metric.action}</div>}
-    <div className={styles.metricLabel} data-metric-label>{loading&&!metric.label&&<SkeletonBlock width={56} height={14}/>}{labels.map(label=><span key={label} className={styles.metricMeasure} aria-hidden="true">{label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span>)}<span>{metric.label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span></div>
-    <strong aria-hidden={loading||undefined} data-metric-number className={metric.tone?styles[metric.tone]:undefined}>{loading?presentation==="energy"?<><span className={styles.metricMeasure}>0000</span><span className={styles.metricSkeleton}><SkeletonBlock width="100%" height={18}/></span></>:<SkeletonBlock width={index===0?"2.5em":"2em"} height={index===0?36:28} radius={18}/>:<><span>{metric.value}</span>{metric.inlineUnit&&<small>{metric.unit}</small>}</>}</strong>
-    <div className={styles.metricNote} data-metric-note data-reserve-note={metric.reserveNote||undefined}>{notes.map(note=><em key={note} className={styles.metricMeasure} aria-hidden="true">{note}</em>)}{loading&&metric.reserveNote?<SkeletonBlock width="75%" height={presentation==="body"?42:14} radius={7}/>:metric.note?<em>{metric.note}</em>:metric.reserveNote?<em className={styles.metricMeasure} aria-hidden="true">{"\u00a0"}</em>:null}</div>
+    <div className={styles.metricLabel} data-metric-label>{labels.map(label=><span key={label} className={styles.metricMeasure} aria-hidden="true">{label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span>)}<span>{metric.label}{!metric.inlineUnit&&<small> · {metric.unit}</small>}</span></div>
+    <strong aria-hidden={loading||undefined} data-metric-number className={metric.tone?styles[metric.tone]:undefined}>{loading?<span aria-label="正在读取">—</span>:<><span>{metric.value}</span>{metric.inlineUnit&&<small>{metric.unit}</small>}</>}</strong>
+    <div className={styles.metricNote} data-metric-note data-reserve-note={metric.reserveNote||undefined}>{notes.map(note=><em key={note} className={styles.metricMeasure} aria-hidden="true">{note}</em>)}{metric.note?<em>{metric.note}</em>:metric.reserveNote?<em className={styles.metricMeasure} aria-hidden="true">{"\u00a0"}</em>:null}</div>
     {(metric.graphic||index===0&&graphic)&&<div className={styles.metricGraphic}>{metric.graphic??graphic}</div>}
    </div>;
   })}</div>

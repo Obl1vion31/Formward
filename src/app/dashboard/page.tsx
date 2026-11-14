@@ -1,3 +1,4 @@
+import {WorkspaceSnapshot} from "@/features/dashboard/workspace-cache";
 import { requireCompletedOnboarding } from "@/features/onboarding/server";
 import { redirect } from "next/navigation";
 import { currentPageUser } from "@/features/auth/server";
@@ -18,5 +19,5 @@ export default async function DashboardPage() {
 async function Content({ user }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>> }) {
  const db=getDatabase(), records=await listMeasurements(db,user.id), snapshot=await readMealSnapshot(db,user.id),energy=await readEnergySnapshot(db,user.id);
  const today=localMeasurementDate(new Date(),systemMeasurementTimezone(new Date(),process.env.FORMWARD_TIMEZONE));
- return <><OverviewView accountId={user.id} presentation={overviewPresentation(snapshot.meals, records.map(measurementDisplay), energy, today)}/></>;
+ return <WorkspaceSnapshot path="/dashboard"><OverviewView accountId={user.id} presentation={overviewPresentation(snapshot.meals, records.map(measurementDisplay), energy, today)}/></WorkspaceSnapshot>;
 }

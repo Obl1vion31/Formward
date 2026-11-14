@@ -2,7 +2,6 @@
 import { useEffect, useId, useRef, useState, useTransition, type FormEvent } from "react";
 import { useDraftGuard } from "@/components/draft-guard";
 import { LoadingLink } from "@/components/loading-link";
-import { SkeletonBlock } from "@/components/skeleton-block";
 import {LocalLoading} from '@/components/local-loading';
 import { acknowledgeRecordChanges } from "@/components/record-change-client";
 import { backfillSourceHistoryAction, bindPersonalSourceAction, configureConnectionAction, loadSourcesAction, synchronizeSourceAction } from "@/app/dashboard/sources/actions";
@@ -24,6 +23,7 @@ type ContentProps = {
 };
 function SourceContent({ data, embedded, pending = false, busy = false, task = null, metrics = [], active = true, apiKey = "", region = "global", historyFrom = "2026-10-18", dirty = false, notice = "", error = "", setMetrics, setActive, setApiKey, setRegion, setHistoryFrom, save, bind, history, sync, retry }: ContentProps) {
   const keyHelpId = useId();
+  if(pending) return <div className={styles.panel} aria-busy="true">{!embedded&&<div className={styles.heading}><h1>连接设备与数据来源</h1><LoadingLink href="/dashboard/energy">返回消耗</LoadingLink></div>}<section className={styles.connection}><div className={styles.sectionHeading}><h2>Garmin Personal</h2><button type="button" disabled>立即同步</button></div><div className={styles.status}><LocalLoading label="正在读取连接…"/></div></section></div>;
   const connection = data?.connections[0], disabled = pending || busy;
   const regionChanged = !!connection && region !== connection.region, credentialDirty = !!apiKey || regionChanged;
   const prefix = connection ? regionLabels[connection.region] + " · " : "";
@@ -48,8 +48,8 @@ function SourceContent({ data, embedded, pending = false, busy = false, task = n
           </details>
           <form onSubmit={save} className={styles.contentForm}>
             <fieldset disabled={disabled || !connection || credentialDirty}><legend>同步内容与连接</legend>
-              <div className={styles.checks}>{sourceMetrics.map(metric => <label key={metric} className={styles.check}><span className={styles.checkbox}>{pending ? <SkeletonBlock width={18} height={18} radius={4}/> : <input type="checkbox" checked={metrics.includes(metric)} onChange={event => setMetrics?.(event.target.checked ? [...metrics, metric] : metrics.filter(m => m !== metric))}/>}</span>{metricLabels[metric]}</label>)}</div>
-              <label className={styles.check}><span className={styles.checkbox}>{pending ? <SkeletonBlock width={18} height={18} radius={4}/> : <input type="checkbox" checked={active} onChange={event => setActive?.(event.target.checked)}/>}</span>开启自动同步</label>
+              <div className={styles.checks}>{sourceMetrics.map(metric => <label key={metric} className={styles.check}><span className={styles.checkbox}><input type="checkbox" checked={metrics.includes(metric)} onChange={event => setMetrics?.(event.target.checked ? [...metrics, metric] : metrics.filter(m => m !== metric))}/></span>{metricLabels[metric]}</label>)}</div>
+              <label className={styles.check}><span className={styles.checkbox}><input type="checkbox" checked={active} onChange={event => setActive?.(event.target.checked)}/></span>开启自动同步</label>
               <button type="submit" disabled={disabled || !connection || !dirty || credentialDirty}>{task === "save" ? "正在保存并同步…" : "保存并同步"}</button>
             </fieldset>
           </form>

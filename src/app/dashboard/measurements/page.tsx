@@ -1,3 +1,5 @@
+import {WorkspaceSnapshot} from "@/features/dashboard/workspace-cache";
+import {workspaceQuery} from "@/features/dashboard/workspace-cache-state";
 import { requireCompletedOnboarding } from "@/features/onboarding/server";
 import {headers} from "next/headers";
 import {currentSessionIdentity} from "@/features/auth/server";
@@ -20,10 +22,10 @@ export const metadata: Metadata = { title: "Formward · 身体记录" };
 export default async function DashboardPage({searchParams}:{searchParams:Promise<{date?:string|string[];entry?:string;intent?:string|string[];view?:string;from?:string;to?:string}>}) {
   const user = await currentPageUser();
   if (!user) redirect("/"); await requireCompletedOnboarding();
-  const params=await searchParams,period=params.entry==='daytime'||params.entry==='evening'?params.entry:null,trend=params.entry?null:linkedTrend(params);return <DashboardContent user={user} date={linkedDate(params.date)} period={period} trend={trend} intent={recordOpenIntent(params,!!period,!!trend)}/>;
+  const params=await searchParams,period=params.entry==='daytime'||params.entry==='evening'?params.entry:null,trend=params.entry?null:linkedTrend(params);return <DashboardContent cacheQuery={workspaceQuery(params)} user={user} date={linkedDate(params.date)} period={period} trend={trend} intent={recordOpenIntent(params,!!period,!!trend)}/>;
 }
 
-async function DashboardContent({ user, date, period, trend,intent }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date:string|null;period:"daytime"|"evening"|null;trend:TrendRoute|null;intent:RecordIntent }) {
+async function DashboardContent({cacheQuery, user, date, period, trend,intent }: {cacheQuery:string; user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date:string|null;period:"daytime"|"evening"|null;trend:TrendRoute|null;intent:RecordIntent }) {
   const db = getDatabase();
   // 本地 PGlite 使用单连接多路复用，按顺序读取以保持结果与查询对应。
   const records = await listMeasurements(db, user.id);
@@ -32,9 +34,9 @@ async function DashboardContent({ user, date, period, trend,intent }: { user: No
   const {proof}=await currentSessionIdentity(await headers()),preferences=await loadAccountPreferences(db,proof);
 
   return (
-    <>
+    <WorkspaceSnapshot path="/dashboard/measurements" query={cacheQuery}>
 
       <MeasurementsView key={`${date}:${intent}:${period}:${trend?.from}:${trend?.to}`} initialIntent={intent} preferences={preferences} initialDate={date} initialPeriod={period} initialTrend={trend} records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ deleteCell:deleteCellAction, save: saveDayAction, removeSource: removeSourceAction }} />
-    </>
+    </WorkspaceSnapshot>
   );
 }
