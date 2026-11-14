@@ -36,7 +36,7 @@ export function WorkspaceSkeleton({kind}:{kind:'overview'|'nutrition'|'energy'|'
  const labels=kind==='nutrition'?['热量','蛋白质','碳水','脂肪']:body?['晨间体重','','7日平均体重']:['总消耗','静息','活动'];
  const range=params.get('view')==='trend'?'custom':mobile?'7':'30',date=kind==='overview'?'':linkedDate(params.get('date'))??'';
  const svgHeight=kind==='energy'&&measuredHeight>0?measuredHeight:kind==='nutrition'?(adaptive?top+(width-50-right)/2+32:194):kind==='energy'?(adaptive?top+plotWidth/2+32:width<650?198:254):shared?top+(width-(kind==='body'?48:50)-right)/2+32:mobile?180:252;
- return <WorkspacePending><div className="workspace-skeleton" aria-busy="true" aria-label={title+'数据加载中'}>
+ const content=<div className="workspace-skeleton" aria-busy="true" aria-label={title+'数据加载中'}>
  {kind==='overview'?<OverviewSkeleton date={date}/>:<RecordWorkspace title={title}>
  <div data-record-trend>
  <RecordTrendPanel chartSummary={body?<span>正在读取选中日</span>:undefined} date={date} view={()=>{}} presentation={kind} loading
@@ -55,7 +55,9 @@ export function WorkspaceSkeleton({kind}:{kind:'overview'|'nutrition'|'energy'|'
  {kind==='energy'&&sourcePilot&&<EnergySourceStatusSkeleton/>}
  </RecordWorkspace>}
  {slow&&<div className="skeleton-retry" role="status">读取时间较长。<button onClick={()=>kind==='overview'&&returningToOverview?router.push('/dashboard',{scroll:false}):router.refresh()}>重试</button><button onClick={()=>router.push('/dashboard')}>返回总览</button></div>}
- </div></WorkspacePending>;
+ </div>;
+ // 返回意图先于路由提交；此时当前URL仍是详情，不能复用详情缓存替代总览接管槽。
+ return returningToOverview&&kind==='overview'?content:<WorkspacePending>{content}</WorkspacePending>;
 }
 function OverviewSkeleton({date}:{date:string}){return <RecordWorkspace title="总览" className={overview.workspace}>
  <MetricCardRailSkeleton/>

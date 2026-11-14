@@ -21,12 +21,15 @@ async function create(width,height,theme='light'){
  await context.addInitScript(userId=>{for(const kind of ['meals','body','energy','training'])localStorage.setItem('formward:record-guide:v1:'+encodeURIComponent(userId)+':'+kind,'seen');},config.userId);
  await context.addInitScript(theme=>{
   localStorage.setItem('formward-theme',theme);
-  window.chartFrames=[];window.chartMark=null;window.chartStarts=[];
-  document.addEventListener('click',event=>{const card=event.target.closest?.('a[data-metric-card]');if(card)window.chartOrigin={rail:card.closest('[data-metric-rail]').scrollLeft,scroll:scrollY};const link=event.target.closest?.('a[href="/dashboard"]');if(link&&location.pathname!=='/dashboard'){window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];}},true);
+  window.chartFrames=[];window.chartMark=null;window.chartStarts=[];window.chartObservedStarts=[];
+  // MutationObserver在整次React提交后才派发，不能把派发延迟当作动画起步。直接记录真实WAAPI调用，另保留观察时间。
+  const animate=Element.prototype.animate;
+  Element.prototype.animate=function(...args){const animation=animate.apply(this,args);if(window.chartMark!==null&&this.matches('[data-chart-flight][data-chart-direction="back"]'))window.chartStarts.push({id:this.dataset.chartFlight,t:performance.now()-window.chartMark});return animation;};
+  document.addEventListener('click',event=>{const card=event.target.closest?.('a[data-metric-card]');if(card)window.chartOrigin={rail:card.closest('[data-metric-rail]').scrollLeft,scroll:scrollY};const link=event.target.closest?.('a[href="/dashboard"]');if(link&&location.pathname!=='/dashboard'){window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];window.chartObservedStarts=[];}},true);
   new MutationObserver(()=>{
    if(window.chartMark===null)return;
    const node=document.querySelector('[data-chart-flight][data-motion-starts="1"]');
-   if(node&&node.dataset.chartDirection==='back'&&!window.chartStarts.some(start=>start.id===node.dataset.chartFlight))window.chartStarts.push({id:node.dataset.chartFlight,t:performance.now()-window.chartMark});
+   if(node&&node.dataset.chartDirection==='back'&&!window.chartObservedStarts.some(start=>start.id===node.dataset.chartFlight))window.chartObservedStarts.push({id:node.dataset.chartFlight,t:performance.now()-window.chartMark});
   }).observe(document,{subtree:true,attributes:true,attributeFilter:['data-motion-starts']});
   function frame(t){
    if(window.chartMark!==null){
@@ -37,7 +40,7 @@ async function create(width,height,theme='light'){
      const source=document.querySelector('[data-chart-arrival] [data-trend-glyph]'),primitive=source?.querySelector('rect,line,circle');
      sourceVisible=!!primitive&&getComputedStyle(source).visibility!=='hidden'&&+getComputedStyle(primitive).opacity>0;
     }
-    window.chartFrames.push({t:t-window.chartMark,path:location.pathname,id:node?.dataset.chartFlight,dir:node?.dataset.chartDirection,visible,moving:!!node?.dataset.motionStarts,sourceVisible});
+    window.chartFrames.push({t:performance.now()-window.chartMark,rafTime:t-window.chartMark,path:location.pathname,id:node?.dataset.chartFlight,dir:node?.dataset.chartDirection,visible,moving:!!node?.dataset.motionStarts,sourceVisible});
    }
    requestAnimationFrame(frame);
   }requestAnimationFrame(frame);
@@ -47,9 +50,9 @@ async function create(width,height,theme='light'){
 }
 async function inspectReturn(page,label,{paired=true,warm=true}={}){
  await page.waitForURL(url=>url.pathname==='/dashboard');await settled(page);
- const {frames,starts}=await page.evaluate(()=>{const value={frames:window.chartFrames,starts:window.chartStarts};window.chartMark=null;return value;});
+ const {frames,starts,observedStarts}=await page.evaluate(()=>{const value={frames:window.chartFrames,starts:window.chartStarts,observedStarts:window.chartObservedStarts};window.chartMark=null;return value;});
  const back=frames.filter(frame=>frame.dir==='back'),ids=[...new Set(back.map(frame=>frame.id))],first=back.find(frame=>frame.visible&&frame.moving);
- const result={label,paired,firstMotion:starts[0]?.t??null,firstPresentedFrame:first?.t??null,frames};results.push(result);
+ const result={label,paired,firstMotion:starts[0]?.t??null,firstPresentedFrame:first?.t??null,observedStarts,frames};results.push(result);
  assert.ok(ids.length<=1,label+'重复回程');
  assert.ok(starts.length<=1,label+'重复启动动画');
  if(paired){assert.ok(first,label+'缺少回程运动');assert.ok(starts[0],label+'缺少运动启动');if(warm)assert.ok(starts[0].t<=100,label+'起步超过100ms: '+starts[0].t);}
