@@ -13,7 +13,7 @@ export function transferPhoto({url,body,headers={},signal,onProgress,createXHR=(
   const resetIdle=()=>{clearTimeout(idle);idle=setTimeout(()=>fail(new PhotoTransferError("照片传输已停滞，可以重试或换方式上传。","stalled")),stallMs);};
   if(signal?.aborted){cancel();return;}
   xhr.open("POST",url);xhr.timeout=timeoutMs;for(const [key,value] of Object.entries(headers))xhr.setRequestHeader(key,value);
-  xhr.upload.onprogress=event=>{if(settled)return;if(event.loaded>last){last=event.loaded;resetIdle();}if(event.lengthComputable&&event.total>0)onProgress?.(event.loaded,event.total);};
+  xhr.upload.onprogress=event=>{if(settled)return;if(event.loaded>last){last=event.loaded;resetIdle();}if(event.lengthComputable&&event.total>0){if(event.loaded>=event.total)clearTimeout(idle);onProgress?.(event.loaded,event.total);}};
   xhr.onload=()=>{
    if(settled)return;
    if(xhr.status>=200&&xhr.status<300){settled=true;clean();resolve();return;}

@@ -20,12 +20,12 @@ export async function runAssistantRecordingBrowser(db){
   await login();
   if(process.env.FORMWARD_RECORDING_FOCUS!=="photo"){
   for(const width of [320,390,430]){
-   await page.setViewportSize({width,height:width===320?560:844});await entry('meals');await foodRow('界面验收食物');
+   await page.setViewportSize({width,height:width===320?560:844});await entry('meals');await page.getByRole('group',{name:'录入方式',exact:true}).waitFor();for(const name of ['自己填写','从食材库添加','AI 拍照录入'])assert.equal(await page.getByRole('button',{name,exact:true}).isVisible(),true);assert.equal(await page.getByRole('button',{name:'收起本项',exact:true}).count(),0);await shot('meal-empty-'+width);await foodRow('界面验收食物');
    const layout=await geometry('meal-'+width),top=layout.cells.slice(0,3).map(c=>c.y),nutrition=layout.cells.slice(3).map(c=>c.y);
    assert.ok(Math.max(...top)-Math.min(...top)<=1,'名称、单位、数量同排 '+width);assert.ok(Math.max(...nutrition)-Math.min(...nutrition)<=1,'四项营养同排 '+width);
    assert.ok(layout.cells.every(c=>parseFloat(c.font)>=16),'输入16px '+width);await shot('meal-'+width);
    await page.getByRole('button',{name:'＋ 添加食物',exact:true}).click();assert.equal(await page.getByRole('button',{name:'自己填写',exact:true}).count(),1);assert.equal(await page.getByRole('button',{name:'从食材库添加',exact:true}).count(),1);assert.equal(await page.getByRole('button',{name:'AI 拍照录入',exact:true}).count(),1);
-   await page.getByRole('button',{name:'自己填写',exact:true}).click();await foodRow('第二项');assert.equal(await page.locator('table[data-item-focus] tr[data-expanded=true]').count(),1);await page.getByRole('button',{name:/界面验收食物/}).click();assert.equal(await page.getByRole('textbox',{name:'食物名称 1',exact:true}).inputValue(),'界面验收食物');
+   await foodRow('第二项');assert.equal(await page.locator('table[data-item-focus] tr[data-expanded=true]').count(),1);await page.getByRole('button',{name:/界面验收食物/}).click();assert.equal(await page.getByRole('textbox',{name:'食物名称 1',exact:true}).inputValue(),'界面验收食物');
   }
   checks.push('320/390/430正常字号名称单位数量同排、四营养同排、16px输入、三种添加入口、逐项切换保留草稿');
   for(const theme of ['light','dark'])for(const [width,height] of [[390,667],[430,780],[844,390],[1100,780],[1440,900]]){
@@ -35,7 +35,7 @@ export async function runAssistantRecordingBrowser(db){
   for(const width of [320,390]){await page.setViewportSize({width,height:780});await entry('meals');await page.evaluate(()=>document.documentElement.style.fontSize='200%');await settle();await geometry('meal-text200-'+width);await shot('meal-text200-'+width);await page.evaluate(()=>document.documentElement.style.fontSize='');}
   checks.push('消耗/测量双主题、矮屏/横屏/桌面；饮食200%文字自然换行');
   }
-  await page.setViewportSize({width:390,height:844});await entry('meals');await foodRow('保留手填内容');await page.getByRole('button',{name:'＋ 添加食物',exact:true}).click();await page.getByRole('button',{name:'AI 拍照录入',exact:true}).click();await page.getByRole('region',{name:'AI 拍照录入',exact:true}).waitFor();await page.getByRole('button',{name:'识别食物',exact:true}).waitFor();await shot('ai-meal-photo-entry');
+  await page.setViewportSize({width:390,height:844});await entry('meals');await foodRow('保留手填内容');await page.getByRole('button',{name:'AI 拍照录入',exact:true}).click();await page.getByRole('region',{name:'AI 拍照录入',exact:true}).waitFor();await page.getByRole('button',{name:'识别食物',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'拍照',exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'从相册选择',exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'添加照片，可拍照或从相册选择',exact:true}).count(),1);await shot('ai-meal-photo-entry');
   await context.route(/\.cos\.ap-shanghai\.myqcloud\.com\//,async route=>{const request=route.request();if(request.method()==='PUT')await new Promise(resolve=>setTimeout(resolve,300));await route.fulfill({status:request.method()==='OPTIONS'?204:200,headers:{'Access-Control-Allow-Origin':base,'Access-Control-Allow-Methods':'PUT,GET,HEAD,OPTIONS','Access-Control-Allow-Headers':request.headers()['access-control-request-headers']??'*',ETag:'"fixture-upload"'},body:''});});
   await page.locator('section[aria-label="AI 拍照录入"] input[type=file][multiple]').setInputFiles({name:'隔离照片.png',mimeType:'image/png',buffer:Buffer.from(fixture.imageBytes,'base64')});await page.getByAltText('待识别照片 1',{exact:true}).waitFor();await page.getByRole('button',{name:'识别食物',exact:true}).waitFor();await page.waitForFunction(()=>[...document.querySelectorAll('button')].find(button=>button.textContent==='识别食物'&&!button.disabled));await shot('ai-meal-photo-ready');
   const before=(await db.select().from(schema.meal).where(eq(schema.meal.userId,fixture.userId))).length;

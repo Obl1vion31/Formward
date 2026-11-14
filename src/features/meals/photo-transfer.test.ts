@@ -23,3 +23,10 @@ test("取消、超时、网络和服务端拒绝可区分，HTTP原文不泄漏"
  const network=new XHR(),failed=transferPhoto({url:"https://fictional.test",body:new Blob(),createXHR:factory(network)});network.onerror?.();await assert.rejects(failed,error=>error instanceof PhotoTransferError&&error.kind==="network");
  const rejected=new XHR();rejected.status=403;rejected.responseText="<Code>AccessDenied</Code><Message>private-secret</Message>";const request=transferPhoto({url:"https://fictional.test",body:new Blob(),createXHR:factory(rejected)});rejected.onload?.();await assert.rejects(request,error=>error instanceof PhotoTransferError&&error.status===403&&!error.allowRelay&&!error.message.includes("private-secret"));
 });
+
+test("字节传完后的存储响应不误判为传输停滞，仍保留绝对超时",async()=>{
+ const xhr=new XHR();let failure:unknown;
+ const pending=transferPhoto({url:"https://fictional.test",body:new Blob(["photo"]),createXHR:factory(xhr),stallMs:10,timeoutMs:80});void pending.catch(error=>{failure=error;});xhr.progress(100,100);
+ await new Promise(resolve=>setTimeout(resolve,25));assert.equal(failure,undefined);assert.equal(xhr.aborted,false);assert.equal(xhr.timeout,80);xhr.onload?.();await pending;
+ const waiting=new XHR(),timeout=transferPhoto({url:"https://fictional.test",body:new Blob(["photo"]),createXHR:factory(waiting),stallMs:10,timeoutMs:80});waiting.progress(100,100);waiting.ontimeout?.();await assert.rejects(timeout,error=>error instanceof PhotoTransferError&&error.kind==="timeout");
+});

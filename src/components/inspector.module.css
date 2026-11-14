@@ -54,3 +54,8 @@
  .mobileSheet.mobileSheet:has(form[data-entry-form=body]){height:auto;max-height:calc(100dvh - 48px)}
  .mobileSheet.mobileSheet:has(form[data-entry-form=body])[data-sheet-expanded=false]{max-height:56dvh}
 }
+
+@media(max-width:700px),(hover:none) and (pointer:coarse){
+ .mobileSheet.mobileSheet:has([data-meal-photo-entry]){height:auto;max-height:calc(var(--assistant-viewport-height,100dvh) - 24px);bottom:max(0px,calc(100dvh - var(--assistant-viewport-height,100dvh) - var(--assistant-viewport-top,0px)))}
+ .mobileSheet.mobileSheet:has([data-meal-photo-entry])[data-sheet-expanded=false]{max-height:min(56dvh,calc(var(--assistant-viewport-height,100dvh) - 24px))}
+}
