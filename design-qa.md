@@ -1,6 +1,6 @@
 # 手机界面、照片上传与加载验收
 
-当前候选尚未正式发布。分支codex/mobile-ui-upload已合流最新main及正式f4e69d8的MCP2.0.0／18工具；prompt保持千问original、小米compact、智谱original，上下文保持最近10组完整问答＋当前任务与引用。正式部署状态统一见docs/deployment.md。
+本轮已于2026-11-14 18:53发布，源码f1d44df8，版本dual-entry-f1d44df8-mobile-interface-upload-20261114，BUILD_ID g2QARq6nYHhDF2IJ9S3Fs；保留最新main及f4e69d8的MCP2.0.0／18工具；prompt保持千问original、小米compact、智谱original，上下文保持最近10组完整问答＋当前任务与引用。正式部署状态统一见docs/deployment.md。
 
 ## 已实现与实际核对
 
@@ -24,9 +24,27 @@
 
 ## 检查、证据与发布门槛
 
-lint、typecheck、713项单元／集成与production build通过。整套一次既有近期验密断言失败，原文件16项及完整713项复验通过；未修改认证规则，失败日志保留。最后兼容包还须核对旧47项Server Action、加密密钥、静态资源、运行配置和正式健康表摘要，再按授权合入发布，不能将私有手机入口称为正式发布。
+lint、typecheck、713项单元／集成与production build通过。整套一次既有近期验密断言失败，原文件16项及完整713项复验通过；未修改认证规则，失败日志保留。最终兼容包两引擎各73张复验通过，旧47项Server Action及加密密钥、575项旧资源、运行配置字节和发布窗口11张健康表摘要保持。已合入推送main并核对公网，回退保留ai-tools-v2-20261114。
 
 私有证据位于本任务.codex/mobile-interface-qa（enlarged-axis双引擎、extended-api2、原失败与unit日志）、.codex/mobile-loading-final、.codex/mobile-loading-final-flows、.codex/mobile-loading-enlarged-axis及.codex/mobile-phone-preview；真实照片、配置、内部报告和截图不进入public或正式静态资源。
+## 公网与收尾
+
+当前应用源码f1d44df8aca68a84c14de9fa167d2a0dac225221，版本dual-entry-f1d44df8-mobile-interface-upload-20261114，BUILD_ID g2QARq6nYHhDF2IJ9S3Fs；北京时间2026-11-14 18:53:07切换，已合入推送main。
+
+手机52px顶栏、紧凑小助手与录入、普通饮食／身体／消耗完整图表、本人同条件真实内容后台更新及照片原图进度／人工备用已发布。MCP2.0.0／18工具、OpenAPI1.15.1、schema0037、prompt original／compact／original及最近10组问答保持，没有新增迁移、scope或模型参数。
+
+713项单元／集成、lint、typecheck及production build通过；兼容standalone两引擎各73张专项，聊天扩展各51张，五页正常／慢读、放大刻度及原生PostgreSQL失败重试和缓存回归通过。原故障iPhone Safari由用户确认同一照片直传就绪；上海隔离库1 MiB直传、5／20 MiB备用、原图／重复／跨账号检查通过。自动验收未发起收费模型调用或写入正式虚构健康记录。
+
+47项旧Server Action及加密密钥、575项旧静态资源、运行配置字节及唯一指定owner范围保持。发布窗口11张正式健康表摘要一致，后续用户正常记录保留。完整兼容包71,005,615字节，SHA256 405f3548873115a2b0b1f4911783d2cacd4d16a86e1d6bfd2fd82cbb299a9dfa，永久存于原入口.codex/backups/regional-releases/mobile-interface-upload-20261114。即时回退为ai-tools-v2-20261114，只切应用，不回退聊天、授权或健康数据；国际网关未重新发布。
+
+公网页面与API已核对：三个既有域名同版本、新旧协议18项schema／说明一致；手机普通页图表完整，顶栏实测52.8px／页名20px，输入区91.6px，悬浮箭头44px命中、相对输入区中心偏差0px、消息区高度变化0px。浏览器视口已恢复。
+
+同源隔离分流撤除偏晚，导致用户真实账号在测试库登录失败并限流。正式密码与当日03:20备份一致，无改密／重设／撤销审计；撤除分流后用户确认恢复登录。测试路由已关闭，旧测试Cookie不再选择测试应用；隔离测试库、专用进程和4张已登记照片的8条正式／临时对象路径完成清理。未扩大COS权限，不能枚举桶，按已知精确路径删除并HEAD核对404。
+
+实际截图、过程、失败与报告归档到原入口.codex/mobile-interface-upload-20261114；真实Safari备用、系统键盘／原生字号、屏幕阅读器及帧率未测。模拟WebKit不等于真机通过。
+
+公网实际截图位于C:/Users/14878/.codex/visualizations/2026/11/11/01a1cb4e-f688-7e00-82e5-c39be8e68155/mobile-interface-upload-public。composer.png只含输入区；其他含真实健康信息的截图不公开。
+
 ## AI接入兼容证据
 
 # AI接入页既有兼容基线
