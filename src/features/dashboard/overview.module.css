@@ -176,7 +176,8 @@
 
 @media(min-width:701px) and (hover:hover){.weekReadings{box-sizing:border-box;min-height:72px}}
 
-.relationship{min-height:var(--relationship-full-height,448px)}
+.relationship{min-height:0;height:var(--relationship-full-height,448px)}
+.relationship>.plot{position:relative;height:100%}.relationship>.plot svg{height:100%}
 .relationship[data-compact=true]{min-height:0;height:var(--relationship-compact-height,276px)}
 .relationship[data-compact=true]>.plot{height:100%}.relationship[data-compact=true]>.plot svg{height:100%}
 .waitingPlot{display:grid;place-items:center}
