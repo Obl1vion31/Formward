@@ -44,7 +44,9 @@ await saveImportedMeasurements(db as unknown as Database,{userId:fixture.userId,
 const socket = pg?new PGLiteSocketServer({ db: pg, host: "127.0.0.1", port: 0, maxConnections: 10 }):undefined; await socket?.start();
 const probe = createServer(); probe.listen(0, "127.0.0.1"); await once(probe, "listening");
 const port = (probe.address() as { port: number }).port; await new Promise<void>(resolve => probe.close(() => resolve()));
-const delayed = await delayedTrainingDatabase(nativeUpstream||socket!.getServerConn());
+// 次级入口读取不查询健康表；专项把真实会话／连接查询也延迟，避免把已完成的快读取误判为缺少等待。
+const secondaryTables=process.env.FORMWARD_LOADING_PART==="flows"?/\b(training_sessions|training_templates|training_plans|energy_days|activities|meal_items|measurements|sessions|oauth_connections|ai_tokens)\b/i:undefined;
+const delayed = await delayedTrainingDatabase(nativeUpstream||socket!.getServerConn(),secondaryTables);
 let broken=false;
 const fixtureControl=createHttpServer(async(request,response)=>{
  try{

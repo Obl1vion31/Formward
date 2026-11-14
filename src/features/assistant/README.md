@@ -1,6 +1,6 @@
 # 小助手
 
-桌面采用200px左栏，三个手动记录各一行及向下的按需补记／AI确认／常用功能，手机64px头部保留切换。chat-preview与web-review复用正式人工审核；followup提供绑定回答的结构化问题与统一提交。meal-task通过私有assistant-meal入口管理purpose=meal_entry的非当前会话，复用模型／上传／授权／用量，识别只回填草稿、人工一次保存。开关与兼容回退见docs/assistant-chat.md；测试和回放不进入部署资源。
+桌面采用200px左栏，三个手动记录各一行及向下的按需补记／AI确认／常用功能，手机64px头部保留切换，三个简写记录入口同排。chat-preview与web-review复用正式人工审核；followup提供绑定回答的结构化问题与统一提交。meal-task通过私有assistant-meal入口管理purpose=meal_entry的非当前会话，复用模型／上传／授权／用量，识别只回填草稿、人工一次保存。开关与兼容回退见docs/assistant-chat.md；测试和回放不进入部署资源。
 
 ## 站内聊天方向约定
 
@@ -45,3 +45,5 @@ FINISH：按D15核查双端、双主题、长内容、文字放大、等待、�
 MCP 2.0.0按职责公开18项工具，原名停止执行。新餐preview_meals、正式餐次修改preview_meal_changes、食材维护preview_foods、身体preview_measurements、训练preview_training；组合preview_record_bundle只接受至少两类功能动作。get_preview统一查状态，update_preview只改原草稿及补照片。旧HTTP与确认链接保留，目录、Manifest和字段解释同源；最新完整规范见docs/ai-tool-contracts.md。
 
 原文件读出与网络排队分开；失败附件可独立排队重试，其他附件与文字保留。字节100%立即标为核对中，只有服务端登记成功才可发送。
+
+拍照说明独立监听visualViewport，使用面板本地可视高度和底部遮挡量，不依赖聊天开关。键盘出现时底部工具随内容滚动，保持当前输入框可见；焦点与文字不重建。手机待办三项记录同排且省略“手动”，电脑仍逐行；三个分组共享16px／500字重、字体族、颜色和同一SVG开合箭头。

@@ -18,7 +18,34 @@ export function MealPhotoEntry({initial,draftKey,resumeTaskId,onRestore,onApply,
  const [data,setData]=useState<Snapshot|null>(null),[provider,setProvider]=useState<ChatProvider>("qwen"),[text,setText]=useState(""),[error,setError]=useState(""),[running,setRunning]=useState(false),[reset,setReset]=useState(false),[attempt,setAttempt]=useState(0);
  const photos=usePhotoDraft(),album=useRef<HTMLInputElement>(null),request=useRef<AbortController|null>(null),active=useRef(true),identity=useRef<{signature:string;id:string}|null>(null),chat=useOptionalAssistantChat();
  const footer=useRef<HTMLElement>(null);
- useLayoutEffect(()=>{const node=footer.current,dialog=node?.closest("dialog");if(!node||!dialog)return;const measure=()=>dialog.style.setProperty("--entry-footer-height",node.getBoundingClientRect().height+"px");measure();const observer=new ResizeObserver(measure);observer.observe(node);return()=>{observer.disconnect();dialog.style.removeProperty("--entry-footer-height");};},[]);
+ useLayoutEffect(()=>{
+  const node=footer.current,dialog=node?.closest("dialog"),entry=node?.parentElement;if(!node||!dialog||!entry)return;
+  const viewport=window.visualViewport;let frame=0,settleTimer:ReturnType<typeof setTimeout>|undefined;
+  const update=()=>{
+   frame=0;
+   const height=viewport?.height??innerHeight,top=viewport?.offsetTop??0,layoutHeight=Math.max(document.documentElement.clientHeight,innerHeight);
+   const keyboard=height<layoutHeight-100;
+   dialog.style.setProperty("--entry-visible-height",height+"px");
+   dialog.style.setProperty("--entry-hidden-bottom",Math.max(0,layoutHeight-height-top)+"px");
+   dialog.style.setProperty("--entry-footer-height",node.getBoundingClientRect().height+"px");
+   dialog.toggleAttribute("data-photo-keyboard",keyboard);
+   dialog.toggleAttribute("data-photo-short-viewport",height<260);
+   const field=document.activeElement;
+   if(!(field instanceof HTMLElement)||!entry.contains(field)||node.contains(field)||!field.matches("textarea,input:not([type=file]),select"))return;
+   const heading=dialog.firstElementChild,stickyHeading=heading&&getComputedStyle(heading).position==="sticky",stickyFooter=getComputedStyle(node).position==="sticky";
+   const safeTop=Math.max(top+12,stickyHeading?heading.getBoundingClientRect().bottom+12:top+12);
+   const safeBottom=Math.min(top+height-12,stickyFooter?node.getBoundingClientRect().top-12:top+height-12);
+   const box=field.getBoundingClientRect();if(safeBottom<=safeTop)return;
+   const delta=box.height>safeBottom-safeTop?box.top-safeTop:box.bottom>safeBottom?box.bottom-safeBottom:box.top<safeTop?box.top-safeTop:0;
+   if(Math.abs(delta)>1)dialog.scrollTop+=delta;
+  };
+  const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(update);};
+  // Safari在键盘动画与自动平移之后还会再改变visualViewport；焦点不跳转，只调整当前面板滚动。
+  const focus=()=>{schedule();clearTimeout(settleTimer);settleTimer=setTimeout(schedule,350);};
+  update();const observer=new ResizeObserver(schedule);observer.observe(node);
+  entry.addEventListener("focusin",focus);window.addEventListener("resize",schedule);viewport?.addEventListener("resize",schedule);viewport?.addEventListener("scroll",schedule);
+  return()=>{observer.disconnect();cancelAnimationFrame(frame);clearTimeout(settleTimer);entry.removeEventListener("focusin",focus);window.removeEventListener("resize",schedule);viewport?.removeEventListener("resize",schedule);viewport?.removeEventListener("scroll",schedule);for(const name of ["--entry-visible-height","--entry-hidden-bottom","--entry-footer-height"])dialog.style.removeProperty(name);dialog.removeAttribute("data-photo-keyboard");dialog.removeAttribute("data-photo-short-viewport");};
+ },[]);
  const initialized=useRef({initial,draftKey,resumeTaskId,onRestore,onApply});
  useEffect(()=>{active.current=true;const controller=new AbortController(),value=initialized.current;
   void(async()=>{try{const response=value.resumeTaskId?await fetch("/api/assistant-meal?taskId="+encodeURIComponent(value.resumeTaskId),{cache:"no-store",signal:controller.signal}):await post({action:"create",draftKey:value.draftKey,draft:value.initial},controller.signal);const snapshot=await response.json();if(!response.ok)throw Error(snapshot.error??"任务读取失败。");if(!active.current)return;setData(snapshot);setProvider(snapshot.provider);if(value.resumeTaskId&&snapshot.operation&&snapshot.operation.status!=="pending"){setError(snapshot.operation.status==="confirmed"?"本餐已保存，请返回饮食页查看。":snapshot.operation.status==="expired"?"本餐预览已过期，原草稿仍保留；可在原审核页重新核对。":"本次识别已结束，请返回填写。");return;}if(value.resumeTaskId)value.onRestore(snapshot.draft);
