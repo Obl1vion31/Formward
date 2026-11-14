@@ -16,7 +16,7 @@ MCP 2.0.0按职责公开18项工具，原名停止执行。新餐preview_meals�
 
 ## 开发与检查
 
-使用 Node.js 24 与 pnpm，安装依赖后运行 `pnpm check`、`pnpm test`、`pnpm exec dbx check --file manifest.yaml --json` 和 `pnpm exec dbx build local`。本地联调使用 `pnpm exec dbx dev --agent --mcp-endpoint <已启动的测试入口>`。只有服务端地址真实可用并完成联调后才运行测试版本云构建。
+使用 Node.js 24 与 pnpm，安装依赖后运行 `pnpm check`、`pnpm test`、`pnpm exec dbx check --file manifest.yaml --json` 和 `pnpm exec dbx build local`。本地联调使用 `pnpm exec dbx dev --agent --mcp-endpoint <已启动的测试入口>`。只有服务端地址真实可用并完成联调后才运行测试版本云构建。check --file使用compatible模式，不能替代云构建前的strict目录校验；记录上传确认与最终succeeded状态后，才说明测试资源已更新。
 
 应用密钥由服务器的独立配置提供，不写进此工程。`.agents`／`.codex` 技能和 `.dbx` 调试状态、产物、环境文件与日志不提交。平台版本、验证范围及未完成项见仓库 `docs/doubao-onboarding.md`。
 
