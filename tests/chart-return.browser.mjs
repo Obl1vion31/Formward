@@ -24,8 +24,8 @@ async function create(width,height,theme='light'){
   window.chartFrames=[];window.chartMark=null;window.chartStarts=[];window.chartObservedStarts=[];
   // MutationObserver在整次React提交后才派发，不能把派发延迟当作动画起步。直接记录真实WAAPI调用，另保留观察时间。
   const animate=Element.prototype.animate;
-  Element.prototype.animate=function(...args){const animation=animate.apply(this,args);if(window.chartMark!==null&&this.matches('[data-chart-flight][data-chart-direction="back"]'))window.chartStarts.push({id:this.dataset.chartFlight,t:performance.now()-window.chartMark});return animation;};
-  document.addEventListener('click',event=>{const card=event.target.closest?.('a[data-metric-card]');if(card)window.chartOrigin={rail:card.closest('[data-metric-rail]').scrollLeft,scroll:scrollY};const link=event.target.closest?.('a[href="/dashboard"]');if(link&&location.pathname!=='/dashboard'){window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];window.chartObservedStarts=[];}},true);
+  Element.prototype.animate=function(...args){const animation=animate.apply(this,args);if(window.chartMark!==null&&this.matches('[data-chart-flight][data-chart-direction="back"]'))window.chartStarts.push({id:this.dataset.chartFlight,t:performance.now()-window.chartMark,range:document.querySelector('.workspace-skeleton [aria-label="日期视角"] button[aria-pressed=true]')?.textContent});return animation;};
+  document.addEventListener('click',event=>{const card=event.target.closest?.('a[data-metric-card]');if(card)window.chartOrigin={rail:card.closest('[data-metric-rail]').scrollLeft,scroll:scrollY,kind:card.dataset.metricCard};const link=event.target.closest?.('a[href="/dashboard"]');if(link&&location.pathname!=='/dashboard'){window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];window.chartObservedStarts=[];}},true);
   new MutationObserver(()=>{
    if(window.chartMark===null)return;
    const node=document.querySelector('[data-chart-flight][data-motion-starts="1"]');
@@ -52,14 +52,14 @@ async function inspectReturn(page,label,{paired=true,warm=true}={}){
  await page.waitForURL(url=>url.pathname==='/dashboard');await settled(page);
  const {frames,starts,observedStarts}=await page.evaluate(()=>{const value={frames:window.chartFrames,starts:window.chartStarts,observedStarts:window.chartObservedStarts};window.chartMark=null;return value;});
  const back=frames.filter(frame=>frame.dir==='back'),ids=[...new Set(back.map(frame=>frame.id))],first=back.find(frame=>frame.visible&&frame.moving);
- const result={label,paired,firstMotion:starts[0]?.t??null,firstPresentedFrame:first?.t??null,observedStarts,frames};results.push(result);
+ const result={label,paired,firstMotion:starts[0]?.t??null,startedRange:starts[0]?.range??null,firstPresentedFrame:first?.t??null,observedStarts,frames};results.push(result);
  assert.ok(ids.length<=1,label+'重复回程');
  assert.ok(starts.length<=1,label+'重复启动动画');
  if(paired){assert.ok(first,label+'缺少回程运动');assert.ok(starts[0],label+'缺少运动启动');if(warm)assert.ok(starts[0].t<=100,label+'起步超过100ms: '+starts[0].t);}
  for(const frame of back)if(!frame.visible&&frame.path!=='/dashboard')assert.equal(frame.sourceVisible,true,label+'等待时原图消失');
  assert.equal(await page.locator('[data-chart-flight],[data-chart-travelling]').count(),0);
- const position=await page.evaluate(()=>({expected:window.chartOrigin,rail:document.querySelector('[data-metric-rail]').scrollLeft,scroll:scrollY}));
- result.position=position;if(position.expected){assert.ok(Math.abs(position.rail-position.expected.rail)<=1,label+'卡片带未恢复');assert.ok(Math.abs(position.scroll-position.expected.scroll)<=1,label+'页面滚动未恢复');}
+ const position=await page.evaluate(()=>({expected:window.chartOrigin,rail:document.querySelector('[data-metric-rail]').scrollLeft,scroll:scrollY,focus:document.activeElement?.closest('[data-metric-card]')?.dataset.metricCard}));
+ result.position=position;if(position.expected){assert.ok(Math.abs(position.rail-position.expected.rail)<=1,label+'卡片带未恢复');assert.ok(Math.abs(position.scroll-position.expected.scroll)<=1,label+'页面滚动未恢复');assert.equal(position.focus,position.expected.kind,label+'焦点回到原卡片');}
  return result;
 }
 async function bodyGeometry(page){return page.evaluate(()=>{
@@ -85,6 +85,7 @@ try{
     await overview(page).click();await inspectReturn(page,`${width}-${kind}-${i+1}`);
     if(i===0||i===loops-1)await page.screenshot({path:out+`/${width}-${kind}-return-${i+1}.png`});
    }
+   await page.getByRole('button',{name:'90D',exact:true}).click();await page.locator('[data-metric-card="intake"]').click();await settled(page);await overview(page).click();const remembered=await inspectReturn(page,`${width}-overview-range`);assert.equal(remembered.startedRange,'90D','返回首帧保留已应用区间');assert.equal(await page.getByRole('button',{name:'90D',exact:true}).getAttribute('aria-pressed'),'true');await page.getByRole('button',{name:width<700?'7D':'30D',exact:true}).click();
    await page.locator('[data-metric-card="morning-weight"]').click();await settled(page);
    for(const range of ['custom','7D','30D']){
     if(range!=='custom')await page.getByRole('button',{name:range,exact:true}).click();

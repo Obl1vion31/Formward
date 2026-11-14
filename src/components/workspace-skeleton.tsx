@@ -24,20 +24,22 @@ import {EnergyComposition} from '@/features/activities/energy-composition';
 import {EnergyPlotFrame} from '@/features/activities/energy-plot-frame';
 import {relationshipFrameStyle} from "@/features/dashboard/relationship-frame";
 import overview from '@/features/dashboard/overview.module.css';
-export function WorkspaceSkeleton({kind}:{kind:'overview'|'nutrition'|'energy'|'body'}){
+export function WorkspaceSkeleton({kind,returnShell=false}:{kind:'overview'|'nutrition'|'energy'|'body';returnShell?:boolean}){
  const sourcePilot=useContext(WorkspaceSourceContext);
- const {preview,returningToOverview}=useChartTransition(),ref=useRef<HTMLDivElement>(null),router=useRouter(),[slow,setSlow]=useState(false),params=useSearchParams(),mobile=useMobileMode();
+ const {preview,returningToOverview,recallOverview}=useChartTransition(),ref=useRef<HTMLDivElement>(null),router=useRouter(),[slow,setSlow]=useState(false),params=useSearchParams(),mobile=useMobileMode();
  const model=preview&&((kind==='nutrition'&&preview.kind==='intake')||(kind==='body'&&preview.kind==='morning-weight')||(kind==='energy'&&preview.kind==='energy'))?preview:null;
  const linked=!!linkedTrend(Object.fromEntries(params)),shared=kind!=="overview",adaptive=mobile||shared;
  const tickLabels=kind==='body'?(model?.ticks??[0,99]).map(value=>value.toFixed(1)):model?.ticks??[0,1000];
  const {width:measured,left,height:measuredHeight}=useChartViewport(ref,tickLabels,kind==='body'?48:50),width=measured||280,right=kind==='body'?16:10,top=kind==='body'?14:20,plotWidth=width-left-right;
- useEffect(()=>{const timer=setTimeout(()=>setSlow(true),8000);return()=>clearTimeout(timer);},[]);
+ const waiting=!returnShell||returningToOverview,[lastWaiting,setLastWaiting]=useState(waiting);
+ if(lastWaiting!==waiting){setLastWaiting(waiting);if(slow)setSlow(false);}
+ useEffect(()=>{if(!waiting)return;const timer=setTimeout(()=>setSlow(true),8000);return()=>clearTimeout(timer);},[waiting]);
  const body=kind==='body',title={overview:'总览',nutrition:'饮食',energy:'消耗',body:'身体'}[kind];
  const labels=kind==='nutrition'?['热量','蛋白质','碳水','脂肪']:body?['晨间体重','','7日平均体重']:['总消耗','静息','活动'];
  const range=params.get('view')==='trend'?'custom':mobile?'7':'30',date=kind==='overview'?'':linkedDate(params.get('date'))??'';
  const svgHeight=kind==='energy'&&measuredHeight>0?measuredHeight:kind==='nutrition'?(adaptive?top+(width-50-right)/2+32:194):kind==='energy'?(adaptive?top+plotWidth/2+32:width<650?198:254):shared?top+(width-(kind==='body'?48:50)-right)/2+32:mobile?180:252;
- const content=<div className="workspace-skeleton" aria-busy="true" aria-label={title+'数据加载中'}>
- {kind==='overview'?<OverviewSkeleton date={date}/>:<RecordWorkspace title={title}>
+ const content=<div className={returnShell&&!returningToOverview?"workspace-return-prepared":"workspace-skeleton"} aria-busy={returnShell&&!returningToOverview?undefined:true} aria-label={title+'数据加载中'}>
+ {kind==='overview'?<OverviewSkeleton date={date} rangeMode={recallOverview()?.mode??undefined}/>:<RecordWorkspace title={title}>
  <div data-record-trend>
  <RecordTrendPanel chartSummary={body?<span>正在读取选中日</span>:undefined} date={date} view={()=>{}} presentation={kind} loading
   metrics={labels.map((label,index)=>({label,value:'',tone:kind==='energy'?index===1?'blue':index===2?'red':undefined:kind==='nutrition'&&index===0?'blue':undefined,action:body&&index===0?<button type="button" onClick={()=>window.dispatchEvent(new Event('formward-open-body-settings'))}>身体设置</button>:undefined,reserveNote:kind==='nutrition'&&index>0,inlineUnit:body||kind==='nutrition'&&index>0,unit:body?index===1?'':'kg':kind==='nutrition'&&index>0?'g':'kcal'}))}
@@ -57,12 +59,12 @@ export function WorkspaceSkeleton({kind}:{kind:'overview'|'nutrition'|'energy'|'
  {slow&&<div className="skeleton-retry" role="status">读取时间较长。<button onClick={()=>kind==='overview'&&returningToOverview?router.push('/dashboard',{scroll:false}):router.refresh()}>重试</button><button onClick={()=>router.push('/dashboard')}>返回总览</button></div>}
  </div>;
  // 返回意图先于路由提交；此时当前URL仍是详情，不能复用详情缓存替代总览接管槽。
- return returningToOverview&&kind==='overview'?content:<WorkspacePending>{content}</WorkspacePending>;
+ return (returnShell||returningToOverview)&&kind==='overview'?content:<WorkspacePending>{content}</WorkspacePending>;
 }
-function OverviewSkeleton({date}:{date:string}){return <RecordWorkspace title="总览" className={overview.workspace}>
+function OverviewSkeleton({date,rangeMode}:{date:string;rangeMode?:string}){return <RecordWorkspace title="总览" className={overview.workspace}>
  <MetricCardRailSkeleton/>
- <div className={overview.mobileTrend+' mobile-only'}><div className={overview.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" disabled>查看记录 →</button></div><ChartRanges value="7" change={()=>{}} loading/><div className={overview.mobileSelected}>{date?<time dateTime={date}>{displayRecordDate(date)}</time>:<span>—</span>}<span>—</span></div><div className={overview.mobileLegend}><OverviewLegend compact/></div><div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle} data-compact="true"><ModuleSkeleton shape="chart" label="正在加载趋势…"/></div></div>
- <div className="desktop-only"><RecordTrendPanel date={date} view={()=>{}} loading metrics={['摄入','消耗','收支','晨重','次晨','次晨变化'].map((label,index)=>({label,value:'',unit:index<3?'kcal':'kg',inlineUnit:index>=3}))} title="热量收支" unit="kcal" supplementary={<div className="skeleton-week"><OverviewReadings mobile={false} variants={[]}/></div>} range={<ChartRanges value="30" change={()=>{}} loading/>}  legend={<OverviewLegend/>}><div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle} data-compact="false"><ModuleSkeleton shape="chart" label="正在加载趋势…"/></div></RecordTrendPanel></div>
+ <div className={overview.mobileTrend+' mobile-only'}><div className={overview.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" disabled>查看记录 →</button></div><ChartRanges value={rangeMode??"7"} change={()=>{}} loading/><div className={overview.mobileSelected}>{date?<time dateTime={date}>{displayRecordDate(date)}</time>:<span>—</span>}<span>—</span></div><div className={overview.mobileLegend}><OverviewLegend compact/></div><div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle} data-compact="true"><ModuleSkeleton shape="chart" label="正在加载趋势…"/></div></div>
+ <div className="desktop-only"><RecordTrendPanel date={date} view={()=>{}} loading metrics={['摄入','消耗','收支','晨重','次晨','次晨变化'].map((label,index)=>({label,value:'',unit:index<3?'kcal':'kg',inlineUnit:index>=3}))} title="热量收支" unit="kcal" supplementary={<div className="skeleton-week"><OverviewReadings mobile={false} variants={[]}/></div>} range={<ChartRanges value={rangeMode??"30"} change={()=>{}} loading/>}  legend={<OverviewLegend/>}><div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle} data-compact="false"><ModuleSkeleton shape="chart" label="正在加载趋势…"/></div></RecordTrendPanel></div>
  </RecordWorkspace>;}
 function SkeletonPlotFrame({children,kind,frameRef,shared,linked,adaptive,axisLeft}:{children:React.ReactNode;kind:string;frameRef:React.RefObject<HTMLDivElement|null>;shared:boolean;linked:boolean;adaptive:boolean|'auto';axisLeft:string}){
  if(kind==='energy')return <EnergyPlotFrame frameRef={frameRef} adaptive={adaptive} className={linked?'linked-trend-plot':'detail-trend-plot'}>{children}</EnergyPlotFrame>;

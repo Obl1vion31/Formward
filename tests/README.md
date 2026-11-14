@@ -2,7 +2,7 @@
 
 ## 小助手与手机录入专项
 
-`pnpm test:assistant-recording-browser`使用chat-pilot的独立PGlite、虚构账号、正式Next构建和模型回复回放。`CHAT_BROWSER=chromium|webkit`分别验收；`FORMWARD_CHAT_ARTIFACTS`指定Git忽略的私有目录。覆盖320／390／430同排字段、逐项切换、三种添加入口、双主题／矮屏／横屏／桌面／200%文字，照片、结构化补充、回填不保存及最终一次人工保存，桌面单聊天与手机头部。所有数据库写入只属于隔离库；不把fixture导入正式应用，也不使用真实API Key。
+`pnpm test:assistant-recording-browser`使用chat-pilot的独立PGlite、虚构账号、正式Next构建和模型回复回放。`CHAT_BROWSER=chromium|webkit`分别验收；`FORMWARD_CHAT_ARTIFACTS`指定Git忽略的私有目录。覆盖320／390／430同排字段、逐项切换、三种添加入口、双主题／矮屏／横屏／桌面／200%文字，照片、结构化补充、回填不保存及最终一次人工保存，桌面单聊天与手机头部；手机记录同排、三组字体／字号／字重／颜色相等，照片说明的可视区域缩高及平移、焦点与原文保留。模拟键盘明确区分真实iPhone。所有数据库写入只属于隔离库；不把fixture导入正式应用，也不使用真实API Key。
 
 `pnpm test:loading-browser`保存五类页面的正常／慢读与逐帧锚点，`FORMWARD_LOADING_PART=matrix|flows`可分别运行布局矩阵和缓存／失败／草稿流程；无内容骨架与真实图形尺寸应一致，已有内容不出现更新提示。`FORMWARD_ENTRY_LOADING=1`覆盖三个录入面板实际客户端导航的等待与接管；`FORMWARD_CHART_RETURN=1`运行图表往返。chart-return及edge脚本也可通过`FORMWARD_LOADING_PREVIEW=1`的同一独立服务检查三图往返。实际截图、过程与失败记录保存在.codex，不能把WebKit模拟记作物理iPhone的相册、相机或键盘通过。
 
