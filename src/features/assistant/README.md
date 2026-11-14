@@ -41,3 +41,5 @@ FINISH：独立复核对三项视觉修复及矮屏回归均评分resolved，dis
 照片选入即在输入框内显示72px附件，准备使用暗色遮罩、传输显示真实字节百分比圆环，100%标为核对中，登记成功才可发送。每张支持移除／取消、重试，国内网络停滞可人工选择同源备用；选图即读取每张原图，网络排队不再等待临时File；原图字节复用，失败保留文字、引用及其他照片。单文件取消可解除准备等待，独立于模型生成状态；账号退出清理对象URL与上传任务。视觉回放不冒充真实存储或iPhone Safari通过。
 
 MCP 2.0.0按职责公开18项工具，原名停止执行。新餐preview_meals、正式餐次修改preview_meal_changes、食材维护preview_foods、身体preview_measurements、训练preview_training；组合preview_record_bundle只接受至少两类功能动作。get_preview统一查状态，update_preview只改原草稿及补照片。旧HTTP与确认链接保留，目录、Manifest和字段解释同源；最新完整规范见docs/ai-tool-contracts.md。
+
+原文件读出与网络排队分开；失败附件可独立排队重试，其他附件与文字保留。字节100%立即标为核对中，只有服务端登记成功才可发送。

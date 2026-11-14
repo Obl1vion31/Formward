@@ -106,3 +106,5 @@ photo-upload.ts复用既有私有原图prepare／签名直传／complete流程�
 DateField与消耗共用一个可见外框，原生日期选择层保持透明，禁用和焦点不叠加第二个边框。录入等待与实际编辑共用MealEditor及同一个Inspector，避免重复挂载和二次入场；未知食材库仅局部等待。短表单保存贴底，长内容可完整滚动到最后一项及操作。
 
 photo-transfer.ts负责XHR字节进度、取消、120秒超时与30秒停滞；photo-upload.ts协调原字节快照、prepare、签名、传输、complete及隐私诊断。国内人工备用通过image-upload-relay.ts复用票据与原图校验，不绕过会话、归属或登记，不自动重传；国际及旧4 MiB兼容入口保持。
+
+NutritionChart使用固定响应式外框：完整图保持原结构，紧凑图按最小轴槽预留尺寸，刻度按实际字体测量；SVG初始viewBox不决定外框高度。真实数据区仍为2:1，长刻度及放大文字获得相应轴空间，不缩字。

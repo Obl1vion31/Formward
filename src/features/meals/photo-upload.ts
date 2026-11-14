@@ -44,7 +44,7 @@ function abortable<T>(promise:Promise<T>,signal?:AbortSignal):Promise<T>{
 }
 function diagnostic(traceId:string,phase:string,started:number,extra:Record<string,unknown>={}){
  if(typeof window==="undefined")return;
- void fetch("/api/meal-images/upload",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({step:"diagnostic",diagnostic:{traceId,phase,elapsedMs:Math.min(600000,Date.now()-started),...extra}}),keepalive:true,signal:AbortSignal.timeout(5000)}).catch(()=>{});
+ void fetch("/api/meal-images/upload",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({step:"diagnostic",diagnostic:{traceId,phase,elapsedMs:Math.trunc(Math.max(0,Math.min(600000,performance.now()-started))),...extra}}),keepalive:true,signal:AbortSignal.timeout(5000)}).catch(()=>{});
 }
 function validatePhoto(file:File){
  if(!file.size||file.size>20*1024*1024)throw new Error("照片须为非空文件，最大20 MiB。");
@@ -55,7 +55,7 @@ export async function stagePrivateMealPhoto(file:File){validatePhoto(file);retur
 /** 聊天与表单共用私有原图；失败重试复用同一份内存字节，不重新读取Safari临时File。 */
 export async function uploadPrivateMealPhoto(file:File,progress:(label:string)=>void=()=>{},options:PhotoUploadOptions={}){
  validatePhoto(file);
- const traceId=crypto.randomUUID(),started=Date.now();let loaded=0,total=file.size,phase:PhotoUploadPhase="read";
+ const traceId=crypto.randomUUID(),started=performance.now();let loaded=0,total=file.size,phase:PhotoUploadPhase="read";
  const report=(next:PhotoUploadPhase,label:string,percent=0)=>{phase=next;progress(label);options.onProgress?.({phase:next,label,loaded,total,percent});};
  const check=()=>{if(options.signal?.aborted)throw new PhotoTransferError("照片上传已取消，尚未发送到聊天。","abort");};
  try{
@@ -68,13 +68,13 @@ export async function uploadPrivateMealPhoto(file:File,progress:(label:string)=>
    if(prepared.provider==="cos"){
     if(options.transport==="relay"){
      report("relay","正在备用上传…");diagnostic(traceId,phase,started);
-     await transferPhoto({url:"/api/meal-images/upload",body:snapshot.body,headers:{"Content-Type":"application/octet-stream","x-image-upload-ticket":prepared.ticket},signal:options.signal,onProgress:(sent,size)=>{loaded=sent;total=size;report("relay","正在备用上传…",Math.min(100,Math.floor(sent/size*100)));}});
+     await transferPhoto({url:"/api/meal-images/upload",body:snapshot.body,headers:{"Content-Type":"application/octet-stream","x-image-upload-ticket":prepared.ticket},signal:options.signal,onProgress:(sent,size)=>{loaded=sent;total=size;report("relay",sent>=size?"正在等待存储确认…":"正在备用上传…",Math.min(100,Math.floor(sent/size*100)));}});
     }else{
      phase="sign";diagnostic(traceId,phase,started);
      const signed=await request({type:"blob.generate-presigned-url",payload:{pathname:prepared.pathname,clientPayload:prepared.ticket}},"签发上传凭据",options.signal);
      const form=new FormData();for(const [key,value]of Object.entries(signed.fields))form.append(key,String(value));form.append("file",snapshot.body,file.name);
      report("upload","正在上传照片…");diagnostic(traceId,phase,started);
-     await transferPhoto({url:signed.url,body:form,signal:options.signal,onProgress:(sent,size)=>{loaded=sent;total=size;report("upload","正在上传照片…",Math.min(100,Math.floor(sent/size*100)));}});
+     await transferPhoto({url:signed.url,body:form,signal:options.signal,onProgress:(sent,size)=>{loaded=sent;total=size;report("upload",sent>=size?"正在等待存储确认…":"正在上传照片…",Math.min(100,Math.floor(sent/size*100)));}});
     }
    }else{
     if(options.transport==="relay")throw new Error("国际照片请使用原图直传。");
@@ -85,6 +85,7 @@ export async function uploadPrivateMealPhoto(file:File,progress:(label:string)=>
    check();report("complete","正在核对原图…",100);diagnostic(traceId,phase,started,{loaded,total});
    image=await request({step:"complete",ticket:prepared.ticket},"核对原图",options.signal,90000);
   }
+  if(!image||typeof image.id!=="string"||!image.id)throw new Error("照片登记结果不完整，请重试，当前草稿已保留。");
   check();report("ready","照片已就绪",100);diagnostic(traceId,phase,started,{loaded,total});snapshots.delete(file);
   return {id:String(image.id),notice:prepared.notice as string|undefined};
  }catch(error){

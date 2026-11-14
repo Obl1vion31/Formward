@@ -16,8 +16,10 @@ const calorieColor = "var(--data-deficit)";
 const macros: Metric[] = ["proteinG", "carbsG", "fatG"];
 type NutritionChartProps={dates:string[];groups:ReturnType<typeof dailyTotals>;selection:ReturnType<typeof useChartDateSelection>;mode:MacroMode;linked?:boolean;compact?:boolean};
 export function NutritionChart(props:NutritionChartProps) {
-  const mobile=useMobileMode();
-  return mobile||props.linked||props.compact?<MobileNutritionPlot {...props}/>:<DesktopNutritionChart {...props}/>;
+  const mobile=useMobileMode(),adaptive=props.linked||props.compact?"true":mobile===null?"auto":String(mobile);
+  return <div className={styles.nutritionFrame} data-adaptive={adaptive}>
+   {mobile||props.linked||props.compact?<MobileNutritionPlot {...props}/>:<DesktopNutritionChart {...props}/>}
+  </div>;
 }
 function DesktopNutritionChart({ dates, groups, selection, mode }: NutritionChartProps) {
   const viewport = useRef<HTMLDivElement>(null);

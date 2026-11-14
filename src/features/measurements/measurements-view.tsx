@@ -11,7 +11,8 @@ import { DailyRecords,DailyRecordRow } from "@/components/daily-records";
 import { RecordHistory } from "@/components/record-history";
 import { Inspector,InspectorCloseButton } from "@/components/inspector";
 
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
+import {WorkspaceTodayContext} from "@/components/workspace-frame-state";
 import { buildMeasurementDays, recentMeasurementDays } from "./days";
 import { addCalendarDays, measurementCalendarPage, measurementCalendarRange } from "./calendar";
 import type {AccountPreferences} from "@/features/auth/preferences";
@@ -55,7 +56,8 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
     if (result.ok) setSourceResult({ base: serverSources, sources: result.sources });
     return result;
   } };
-  const [today, setToday] = useState("");
+  const suppliedToday=useContext(WorkspaceTodayContext);
+  const [today, setToday] = useState(suppliedToday);
   const [timezone, setTimezone] = useState("");
   useEffect(() => {
     const update = () => { setToday(localMeasurementDate()); setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone); };
@@ -128,7 +130,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
 
   return <BodyFatContext value={preference.showBodyFat}><RecordWorkspace title="身体" headingId="body-records-title" className={styles.workspace} aria-labelledby="body-records-title" data-shared-route={initialTrend?true:undefined}>
 
-    <section data-record-trend data-chart-selection={selection.regionId} data-selected-date={activeDate} data-selection-origin={selection.origin} {...selection.regionProps} aria-label="身体指标趋势" data-range={mode} style={{visibility:mobileMode===null||!today?"hidden":undefined}}>
+    <section data-record-trend data-chart-selection={selection.regionId} data-selected-date={activeDate} data-selection-origin={selection.origin} {...selection.regionProps} aria-label="身体指标趋势" data-range={mode}>
       <RecordTrendPanel presentation="body"
        range={<ChartRanges value={mode} items={[...ranges.map(item=>[item.value,item.label]),["custom","自定义"]]} change={value=>{if(value==="custom"){setDraftRange(range);setCalendarOpen(true);}else selectRange(value as MeasurementRange);}}/>}
        custom={calendarOpen&&<CustomRecordRange label="身体" value={{from:draftRange.start,to:draftRange.end}} change={next=>setDraftRange({start:next.from,end:next.to})} apply={()=>{setCustomRange(draftRange);selectRange("custom",draftRange);}} cancel={()=>setCalendarOpen(false)}/>}

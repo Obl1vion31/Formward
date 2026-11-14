@@ -45,28 +45,28 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const days = dates.map(date => byDate.get(date) ?? blankDay(date));
   const fallback = preferredRecordedDate(days, today, day => day.energyBalance !== null, day => data.recordDates.includes(day.date));
   const selection=useChartDateSelection(dates,preferred,fallback,customOpen),selected=selection.selected,day=days.find(day=>day.date===selected),dialogDay=opened?byDate.get(opened)??blankDay(opened):null;
-  return <section aria-label="热量与晨重趋势" style={{visibility:mobile===null?"hidden":undefined}} data-chart-selection={selection.regionId} data-selected-date={selected} data-selection-origin={selection.origin} {...selection.regionProps}>
-    {mobile?<div className={styles.mobileTrend}>
+  return <section aria-label="热量与晨重趋势" data-chart-selection={selection.regionId} data-selected-date={selected} data-selection-origin={selection.origin} {...selection.regionProps}>
+    {mobile!==false&&<div className={styles.mobileTrend+" mobile-only"}>
       <div className={styles.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" onClick={()=>{const target=selected;setOpened(target);selection.releasePreview();}}>查看记录 →</button></div>
-      <ChartRanges value={range} change={key=>{selection.leave();if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>
+      <ChartRanges value={mobile===null?(mode??rangeContaining(preferred,today,"7")):range} change={key=>{selection.leave();if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>
       {customOpen&&<CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
       <div className={styles.mobileSelected} aria-live="polite"><time>{selected}</time><strong>{day?.energyBalance==null?"收支未知":day.energyBalance<0?"缺口 "+formatIntegerNumber(Math.abs(day.energyBalance)):"盈余 "+formatIntegerNumber(day.energyBalance)}<small>kcal</small></strong></div>
       <div className={styles.mobileLegend}><OverviewLegend compact/></div>
-      {dates.length?<RelationshipPlot days={days} selected={selected} selection={selection}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}
-    </div>:<RecordTrendPanel
+      {dates.length?<RelationshipPlot days={days} selected={selected} selection={selection} compactMode/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}
+    </div>}{mobile!==true&&<div className="desktop-only"><RecordTrendPanel
       range={<ChartRanges value={range} change={key=>{selection.leave();if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>}
       custom={customOpen&&<CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
       date={selected} view={()=>{const target=selected;setOpened(target);selection.releasePreview();}}
       readoutLabel="日期对照"
-      metricVariants={days.map(day=>[formatNutrition(day.nutrition?.values.caloriesKcal??null,"caloriesKcal"),energyValue(day.energy.totalKcal),signedIntegerNumber(day.energyBalance),formatRecordNumber(day.morning?.weightKg??null),formatRecordNumber(day.nextMorning?.weightKg??null),signed(day.weightChangeKg)].slice(0,mobile?3:6))}
-      metrics={overviewMetrics(day??blankDay(selected),!!mobile)}
-      labelVariants={days.map(row=>overviewMetrics(row,!!mobile).map(metric=>metric.label))}
-      supplementary={<OverviewReadings day={day} mobile={!!mobile} variants={days}/>} statusInDate
+      metricVariants={days.map(day=>[formatNutrition(day.nutrition?.values.caloriesKcal??null,"caloriesKcal"),energyValue(day.energy.totalKcal),signedIntegerNumber(day.energyBalance),formatRecordNumber(day.morning?.weightKg??null),formatRecordNumber(day.nextMorning?.weightKg??null),signed(day.weightChangeKg)])}
+      metrics={overviewMetrics(day??blankDay(selected),false)}
+      labelVariants={days.map(row=>overviewMetrics(row,false).map(metric=>metric.label))}
+      supplementary={<OverviewReadings day={day} mobile={false} variants={days}/>} statusInDate
       flags={overviewFlags(day)} flagVariants={days.map(overviewFlags)}
       title="热量收支" unit="kcal"
       legend={<OverviewLegend/>}
-    >{dates.length?<RelationshipPlot days={days} selected={selected} selection={selection}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>}
-    {!mobile&&<RangeCoverage key={from+to} days={days} today={today} from={from} to={to}/>}
+    >{dates.length?<RelationshipPlot days={days} selected={selected} selection={selection} compactMode={false}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel></div>}
+    {mobile!==true&&<div className="desktop-only"><RangeCoverage key={from+to} days={days} today={today} from={from} to={to}/></div>}
     {dialogDay&&<EditorDialog title={dialogDay.date+" · 当日记录"} titleParts={[dialogDay.date,"当日记录"]} stableScroll close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}
   </section>;
 }
