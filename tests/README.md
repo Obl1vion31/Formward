@@ -12,7 +12,7 @@ production build 后执行 `node --import tsx tests/doubao-fixture.mts`，在回
 
 同一HTTP检查覆盖豆包附加的两个保留上下文字段：连接检查及身体查询成功，原参数和数据不回显；非法日期与其余未知业务字段仍拒绝。两种协议均执行，且不生成健康记录。`oauth.test.ts`先用框架代理请求复现严格schema拒绝平台字段的失败，再验证适配与原鉴权。
 
-`meal-preview.test.ts`覆盖新单餐schema的体积与无组合分支、总量不重复乘算、未知与0、来源／单位格式兼容及严格业务约束。`oauth.test.ts`增加新旧协议下的单餐预览、食材规格换算、幂等冲突、跨账号食材与预览、缺少权限、撤销、平台附加字段及GPT原工具保留；实际Next HTTP fixture验证21项工具、整数边界兼容、真实预览页200且正式健康记录写入0。设置FORMWARD_DOUBAO_PREVIEW=1可在检查后保留该虚构账号预览，供实际浏览器验收；退出仍只停止本人fixture。
+`meal-preview.test.ts`覆盖新单餐schema的体积与无组合分支、总量不重复乘算、未知与0、来源／单位格式兼容及严格业务约束。`oauth.test.ts`增加新旧协议下的单餐预览、食材规格换算、幂等冲突、跨账号食材与预览、缺少权限、撤销、平台附加字段及GPT原工具保留；实际Next HTTP fixture验证18项工具、整数边界兼容、真实预览页200且正式健康记录写入0。设置FORMWARD_DOUBAO_PREVIEW=1可在检查后保留该虚构账号预览，供实际浏览器验收；退出仍只停止本人fixture。
 
 ## Garmin 个人密钥连接
 
