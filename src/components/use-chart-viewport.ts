@@ -17,7 +17,7 @@ export function useChartViewport(ref:RefObject<HTMLElement|null>,labels:readonly
    setMeasured(previous=>previous.width===next.width&&previous.height===next.height&&previous.left===next.left&&previous.fontSize===next.fontSize&&previous.key===next.key?previous:next);
   };
   measure();const observer=new ResizeObserver(measure);observer.observe(node);const axis=node.querySelector("svg text");if(axis)observer.observe(axis);
-  void document.fonts.ready.then(measure);
+  if(document.fonts.status==="loading")void document.fonts.ready.then(measure);
   return()=>{active=false;observer.disconnect();};
  },[ref,key,minimumLeft]);
  return {width:measured.width,height:measured.height,left:measured.left,fontSize:measured.fontSize};
