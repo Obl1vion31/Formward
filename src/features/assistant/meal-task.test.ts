@@ -91,7 +91,7 @@ test("0038迁移保留既有结构、会话与消息，默认主聊天且重复�
   await pg.query("insert into users(id,name,email) values ('migration-user','迁移验收','migration@example.test')");
   await pg.query("insert into assistant_conversations(id,user_id,provider,sequence,followup) values ('migration-chat','migration-user','mimo',2,'{\"prompt\":\"保留追问\"}')");
   await pg.query("insert into assistant_messages(id,user_id,conversation_id,seq,role,text) values ('migration-message','migration-user','migration-chat',1,'user','保留原消息')");
-  const columns=async()=> (await pg.query("select table_name,column_name,data_type,is_nullable,column_default from information_schema.columns where table_schema='public' order by table_name,ordinal_position")).rows;
+  const columns=async()=> (await pg.query<{table_name:string;column_name:string;data_type:string;is_nullable:string;column_default:string|null}>("select table_name,column_name,data_type,is_nullable,column_default from information_schema.columns where table_schema='public' order by table_name,ordinal_position")).rows;
   const beforeColumns=await columns(),beforeConversation=(await pg.query("select to_jsonb(t) as value from assistant_conversations t")).rows;
   const beforeMessages=(await pg.query("select to_jsonb(t) as value from assistant_messages t")).rows;
   const ledgerBefore=(await pg.query("select * from drizzle.__drizzle_migrations order by id")).rows;
