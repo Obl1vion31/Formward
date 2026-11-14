@@ -3,7 +3,7 @@ import {useLayoutEffect,useState,type RefObject} from "react";
 /** 按实际字体测量刻度；数据范围未变化时，悬停和选日不改变绘图区。 */
 export function useChartViewport(ref:RefObject<HTMLElement|null>,labels:readonly (string|number)[],minimumLeft=54){
  const key=labels.map(String).join("|");
- const [measured,setMeasured]=useState({width:0,height:0,left:minimumLeft,key:""});
+ const [measured,setMeasured]=useState({width:0,height:0,left:minimumLeft,fontSize:12,key:""});
  useLayoutEffect(()=>{
   const node=ref.current;if(!node)return;
   let active=true;
@@ -13,12 +13,12 @@ export function useChartViewport(ref:RefObject<HTMLElement|null>,labels:readonly
    const axis=node.querySelector("svg text"),style=getComputedStyle(axis??node);
    if(context)context.font=style.fontWeight+" "+style.fontSize+" "+style.fontFamily;
    const labelWidth=Math.max(0,...key.split("|").map(label=>context?context.measureText(label).width:label.length*12));
-   const next={width:node.clientWidth,height:node.clientHeight,left:Math.max(minimumLeft,Math.ceil(labelWidth+12)),key};
-   setMeasured(previous=>previous.width===next.width&&previous.height===next.height&&previous.left===next.left&&previous.key===next.key?previous:next);
+   const next={width:node.clientWidth,height:node.clientHeight,left:Math.max(minimumLeft,Math.ceil(labelWidth+12)),fontSize:parseFloat(style.fontSize)||12,key};
+   setMeasured(previous=>previous.width===next.width&&previous.height===next.height&&previous.left===next.left&&previous.fontSize===next.fontSize&&previous.key===next.key?previous:next);
   };
-  measure();const observer=new ResizeObserver(measure);observer.observe(node);
+  measure();const observer=new ResizeObserver(measure);observer.observe(node);const axis=node.querySelector("svg text");if(axis)observer.observe(axis);
   void document.fonts.ready.then(measure);
   return()=>{active=false;observer.disconnect();};
  },[ref,key,minimumLeft]);
- return {width:measured.width,height:measured.height,left:measured.left};
+ return {width:measured.width,height:measured.height,left:measured.left,fontSize:measured.fontSize};
 }

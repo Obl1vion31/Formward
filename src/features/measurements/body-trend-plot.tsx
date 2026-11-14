@@ -29,7 +29,7 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
   const [hintRecordId, setHintRecordId] = useState<string | null>(null);
   const { points, segments, pairs } = measurementTrend(records, metric, showEvening, choices);
   const scale = normalScale(points.map(row => Number(row[metric])));
-  const {width:viewportWidth,left}=useChartViewport(viewport,scale.ticks.map(value=>value.toFixed(1)),48);
+  const {width:viewportWidth,left,fontSize}=useChartViewport(viewport,scale.ticks.map(value=>value.toFixed(1)),48);
   useChartMotion(viewport, viewportWidth ? `${metric}:${showEvening}:${interval.start}:${interval.end}:${JSON.stringify(choices)}:${records.map(record => `${record.id}:${record.updatedAt}`).join("|")}` : "pending");
   const width=viewportWidth||280,leftEdge=left,right=16,top=14,plotWidth=width-leftEdge-right;
   const plotHeight=compact?plotWidth/2:(mobile?180:252)-top-32,height=compact?top+(width-48-right)/2+32:top+plotHeight+32,plotBottom=top+plotHeight;
@@ -44,7 +44,7 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
     right: index < pointDays.length - 1 ? (x(date) + x(pointDays[index + 1])) / 2 : width,
   }]));
   const pointByPeriod = new Map(points.map(row => [`${row.recordDate}:${row.period}`, row]));
-  const ticks = measurementDateTicks(interval, 4);
+  const ticks = measurementDateTicks(interval, Math.max(2,Math.min(4,Math.floor(plotWidth/(fontSize*3+16)))));
   const unit = unitFor(metric);
   const pointLabel = (row: MeasurementDisplay) => `${displayRecordDate(row.recordDate)} · ${row.period === "daytime" ? "晨间" : "晚间"} · ${formatRecordNumber(row[metric])} ${unit}`;
   const hintedRecord = points.find((row) => row.id === hintRecordId && row.recordDate===selectedDate && selection.active) ?? points.find(row => row.recordDate === selectedDate && row.period === (selectedPeriod ?? "daytime")) ?? points.find(row => row.recordDate === selectedDate);
@@ -60,7 +60,7 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
     <div className={styles.plotViewport+(linked?" linked-trend-plot":compact?" detail-trend-plot":"")} ref={viewport} data-chart-arrival data-body-plot data-adaptive={linked||span<31?"true":mobile===null?"auto":String(mobile)} data-linked-plot={linked||undefined}>
       <svg {...drag} className={styles.plot} style={{touchAction:"pan-y", height:compact?"auto":undefined, maxHeight:"none", visibility: viewportWidth > 0 ? undefined : "hidden"}} width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={`${metricName(metric)}趋势，数值越高位置越高`}>
         <title>{`${metricName(metric)}趋势`}</title>
-        {scale.ticks.filter((_,i)=>i%Math.max(1,Math.ceil(24*(scale.ticks.length-1)/plotHeight))===0).map((value) => <g key={value}><line x1={left} x2={width-right} y1={y(String(value))} y2={y(String(value))} className={styles.grid} /><text x={left-8} y={y(String(value)) + 4} textAnchor="end" className={styles.axis}>{value.toFixed(1)}</text></g>)}
+        {scale.ticks.filter((_,i)=>i%Math.max(1,Math.ceil(Math.max(24,fontSize*1.6)*(scale.ticks.length-1)/plotHeight))===0).map((value) => <g key={value}><line x1={left} x2={width-right} y1={y(String(value))} y2={y(String(value))} className={styles.grid} /><text x={left-8} y={y(String(value)) + 4} textAnchor="end" className={styles.axis}>{value.toFixed(1)}</text></g>)}
         {ticks.map((date) => <text key={date} x={x(date)} y={height-10} textAnchor={date===interval.start?"start":date===interval.end?"end":"middle"} className={styles.axis}>{shortRecordDate(date)}</text>)}
         <ChartSelectionColumn x={selectedX} date={selectedDate} column={selectedColumn} plot={{left,right:width-right,top,bottom:plotBottom}} resetKey={markerKey} direct={selection.direct}/>
         {(["daytime","evening"] as const).map(period=>{const point=points.find(row=>row.recordDate===selectedDate&&row.period===period);return <ChartSelectionPoint key={period} x={point?x(point.recordDate):null} y={point?y(point[metric]):0} resetKey={markerKey} direct={selection.direct} color={period==="daytime"?"var(--data-weight)":"var(--body-blue)"}/>;})}

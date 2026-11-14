@@ -37,6 +37,17 @@ export async function checkLoadingFlows({config,folder,createContext,control,sho
    }
    checks.push(prefix+' 三类次级入口延迟反馈与就绪清理');
    await localEvidence('interruption-and-draft');
+   if(theme==='dark'&&mobile){
+    await control(0);await page.goto(config.baseURL+'/dashboard/training');await page.waitForLoadState('networkidle');
+    const nav=path=>page.locator('a[href="'+path+'"]:visible').first();
+    await nav('/dashboard/meals').click();await page.waitForURL(config.baseURL+'/dashboard/meals');await page.waitForLoadState('networkidle');
+    await page.waitForFunction(()=>[...document.querySelectorAll('[data-record-slot=metrics]:not([aria-busy=true]) strong')].filter(n=>n.checkVisibility()).length>=4);
+    const values=await page.locator('[data-record-slot=metrics]:visible strong').allTextContents();assert.ok(values.length>=4&&values.some(value=>/\d/.test(value)),'先读取本人真实饮食视图');
+    await nav('/dashboard/training').click();await page.waitForURL(config.baseURL+'/dashboard/training');await page.waitForLoadState('networkidle');
+    await control(700);await nav('/dashboard/meals').click();await page.waitForURL(config.baseURL+'/dashboard/meals');await page.waitForTimeout(250);
+    assert.deepEqual(await page.locator('[data-record-slot=metrics]:visible strong').allTextContents(),values,'相同条件返回时保留真实读数');assert.equal(await page.locator('.workspace-skeleton:visible').count(),0,'热进入不重新显示未知读数');
+    await shot(page,prefix+'-retained-real-content');await page.waitForLoadState('networkidle');assert.deepEqual(await page.locator('[data-record-slot=metrics]:visible strong').allTextContents(),values);await control(0);checks.push(prefix+' 同账号相同条件返回：真实读数保留及后台接管');
+   }
    // 普通路由、热进入、反向与历史导航：实际动画保留，数据替换不得二次启动。
    await page.evaluate(()=>{window.__motionStarts=[];new MutationObserver(records=>{for(const r of records)if(r.type==='attributes'&&r.target.hasAttribute('data-workspace-moving'))window.__motionStarts.push({path:location.pathname,id:r.target.getAttribute('data-workspace-moving'),time:performance.now()});}).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['data-workspace-moving']});});
    await control(250);
