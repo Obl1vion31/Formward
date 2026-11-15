@@ -22,14 +22,14 @@ export function MetricCardRail({ cards, preview, accountId }: { accountId?:strin
     onPointerUp={event=>{suppressed.current=!!pointer.current?.moved;pointer.current=null;if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);const node=event.currentTarget;node.style.scrollSnapType="";if(suppressed.current&&event.pointerType==="mouse"){const left=node.getBoundingClientRect().left;const positions=[...node.querySelectorAll<HTMLElement>("[data-metric-card]")].map(card=>card.getBoundingClientRect().left-left+node.scrollLeft-16);const nearest=positions.reduce((a,b)=>Math.abs(b-node.scrollLeft)<Math.abs(a-node.scrollLeft)?b:a,positions[0]??0);node.scrollTo({left:nearest,behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth"});}}}
     onPointerCancel={event=>{event.currentTarget.style.scrollSnapType="";pointer.current=null;suppressed.current=true;}}
     onClickCapture={event=>{if(suppressed.current){event.preventDefault();event.stopPropagation();}}}>
-    {cards.map(card=><LoadingLink key={card.trend.kind} href={card.href} className={styles.card} data-metric-card={card.trend.kind} aria-label={`${card.title} ${card.value} ${card.unit}，${card.date}${card.fact?"，"+card.fact:""}。查看趋势和记录`} onNavigate={event=>{
+    {cards.map(card=><LoadingLink key={card.trend.kind} href={card.href} className={styles.card} data-metric-card={card.trend.kind} aria-label={`${card.title} ${card.value} ${card.unit==="kcal"?"千卡":card.unit}，${card.date}${card.fact?"，"+card.fact:""}。查看趋势和记录`} onNavigate={event=>{
       const element=rail.current?.querySelector<SVGSVGElement>(`[data-metric-card="${card.trend.kind}"] [data-trend-glyph]`);
       if(preview){event.preventDefault();preview(card);return;}
       if(!element)return;
       event.preventDefault();void transition.navigate(card.href,card.trend,element,rail.current);
     }}>
       <span className={styles.title}>{card.title}</span><svg className={styles.arrow} width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" strokeWidth="1.3" fill="none" aria-hidden="true"><path d="M4 12 12 4M5 4h7v7"/></svg>
-      <strong>{card.value}<small>{card.unit}</small></strong>
+      <strong>{card.value}<small>{card.unit==="kcal"?"千卡":card.unit}</small></strong>
       <div className={styles.glyph}><TrendGlyph model={card.trend}/></div>
       <p><time dateTime={card.date}>{card.date?shortRecordDate(card.date):"暂无记录"}</time>{card.fact&&<> · {card.fact}</>}</p>
       <span className={styles.range}>{card.trend.points.length?recordDateRange(card.trend.points[0].date,card.trend.points.at(-1)!.date):""}</span>
@@ -43,7 +43,7 @@ export function MetricCardRailSkeleton() {
   return <div ref={rail} className={styles.rail} data-metric-rail data-metric-rail-skeleton aria-busy="true" aria-label="正在读取最近状态">
     {([["intake","最近摄入"],["morning-weight","最近晨重"],["energy","最近消耗"]] as const).map(([kind,title])=><div className={styles.card} key={kind} data-metric-card={kind}>
       <span className={styles.title}>{title}</span><span className={styles.arrow}/>
-      <strong><ModuleSkeleton shape="number"/></strong>
+      <strong><span className={styles.numberLoading}><span className={styles.numberMeasure} aria-hidden="true">—</span><ModuleSkeleton shape="number"/></span><small>{kind==="morning-weight"?"kg":"千卡"}</small></strong>
       <div className={styles.glyph}>{preview?.kind===kind?<TrendGlyph model={preview}/>:<ModuleSkeleton shape="chart" label="正在读取趋势…"/>}</div>
       <p><span>—</span></p><span className={styles.range}>—</span>
     </div>)}

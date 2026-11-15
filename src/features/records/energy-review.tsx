@@ -25,7 +25,7 @@ function Changes({ row }: { row: RecordRow }) {
   const changes = energyChanges(row), numeric = changes.filter(change => change.numeric || ["name", "date"].includes(change.key));
   const visible = numeric.filter(change => !change.numeric || formatIntegerNumber(change.before as string) !== formatIntegerNumber(change.after as string));
   const precise = numeric.filter(change => change.numeric && !visible.includes(change));
-  return <>{visible.length > 0 && <dl className={styles.changes} aria-label="本次修改">{visible.map(change => <div key={change.key}><dt>{change.label}</dt><dd><del>{change.numeric ? formatIntegerNumber(change.before as string) : String(change.before ?? "未填写")}</del><span aria-label="修改为"> → </span><strong>{change.numeric ? formatIntegerNumber(change.after as string) : String(change.after ?? "未填写")}</strong>{change.numeric && <small>{change.key === "durationMinutes" ? " 分钟" : " kcal"}</small>}</dd></div>)}</dl>}
+  return <>{visible.length > 0 && <dl className={styles.changes} aria-label="本次修改">{visible.map(change => <div key={change.key}><dt>{change.label}</dt><dd><del>{change.numeric ? formatIntegerNumber(change.before as string) : String(change.before ?? "未填写")}</del><span aria-label="修改为"> → </span><strong>{change.numeric ? formatIntegerNumber(change.after as string) : String(change.after ?? "未填写")}</strong>{change.numeric && <small>{change.key === "durationMinutes" ? " 分钟" : " 千卡"}</small>}</dd></div>)}</dl>}
     {precise.length > 0 && <details className={styles.details}><summary>有{precise.length}项小数变化，查看原始值</summary>{precise.map(change => <p key={change.key}>{change.label}：{String(change.before ?? "未知")} → {String(change.after ?? "未知")}</p>)}</details>}</>;
 }
 function Evidence({ row }: { row: RecordRow }) {

@@ -50,7 +50,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       <div className={styles.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" onClick={()=>{const target=selected;setOpened(target);selection.releasePreview();}}>查看记录 →</button></div>
       <ChartRanges value={mobile===null?(mode??rangeContaining(preferred,today,"7")):range} change={key=>{selection.leave();if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>
       {customOpen&&<CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
-      <div className={styles.mobileSelected} aria-live="polite"><time>{selected}</time><strong>{day?.energyBalance==null?"收支未知":day.energyBalance<0?"缺口 "+formatIntegerNumber(Math.abs(day.energyBalance)):"盈余 "+formatIntegerNumber(day.energyBalance)}<small>kcal</small></strong></div>
+      <div className={styles.mobileSelected} aria-live="polite"><time>{selected}</time><strong>{day?.energyBalance==null?"收支未知":day.energyBalance<0?"缺口 "+formatIntegerNumber(Math.abs(day.energyBalance)):"盈余 "+formatIntegerNumber(day.energyBalance)}<small>千卡</small></strong></div>
       <div className={styles.mobileLegend}><OverviewLegend compact/></div>
       {dates.length?<RelationshipPlot days={days} selected={selected} selection={selection} compactMode/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}
     </div>}{mobile!==true&&<div className="desktop-only"><RecordTrendPanel
@@ -94,7 +94,7 @@ function OverviewDayDetails({day}:{day:OverviewDay}){
  return <div className={styles.dayDetails}>
   <div className={styles.detailTop}>
    <section><h3>晨间体重</h3><div className={styles.detailReading}><WeightReading record={day.morning}/></div><p>次晨 {day.nextDate.slice(5)} · {day.nextMorning?formatRecordNumber(day.nextMorning.weightKg)+" kg":"未记录"}{day.weightChangeKg!==null?<b>变化 {signed(day.weightChangeKg)} kg</b>:day.nextMorning?<b>未配对</b>:null}</p><LoadingLink href={"/dashboard/measurements?date="+day.date}>身体记录 →</LoadingLink></section>
-   <section><h3>消耗</h3><div className={styles.detailReading}><strong>{energyValue(day.energy.totalKcal)}<small>kcal</small></strong></div><p>静息 {energyValue(day.energy.restingKcal)} · 活动 {energyValue(day.energy.activeKcal)} kcal</p><LoadingLink href={"/dashboard/energy?date="+day.date}>消耗记录 →</LoadingLink></section>
+   <section><h3>消耗</h3><div className={styles.detailReading}><strong>{energyValue(day.energy.totalKcal)}<small>千卡</small></strong></div><p>静息 {energyValue(day.energy.restingKcal)} · 活动 {energyValue(day.energy.activeKcal)} 千卡</p><LoadingLink href={"/dashboard/energy?date="+day.date}>消耗记录 →</LoadingLink></section>
   </div>
   <section className={styles.detailNutrition}>{day.nutrition&&day.mealDayStatus!=="complete"&&<span className={styles.mealDayStatus}>{day.mealDayStatus==='incomplete'?'饮食未记全':'饮食待确认'}</span>}<DayNutritionSummary totals={day.nutrition} partial={day.mealDayStatus!=="complete"}/></section>
   <SavedMealList meals={day.meals} initialLimit={3}/>
@@ -125,14 +125,14 @@ export function OverviewReadings({day,mobile,variants}:{day?:OverviewDay;mobile:
 
  if(mobile)return <section ref={group} className={styles.secondaryReadings} aria-label="次晨与七天统计" data-overview-secondary data-overview-week>
   <div data-overview-next style={{minWidth:widths[0]||undefined}}><StableReadingText value={"次晨变化"} variants={variants.map(()=>"次晨变化")}/><strong>{signed(day?.weightChangeKg??null)}<small>kg</small></strong><p><StableReadingText value={morningPair(day)} variants={variants.map(morningPair)}/></p></div>
-  <div data-overview-week-energy style={{minWidth:widths[1]||undefined}}><span>近7天{weekLabel}</span><strong className={week?.energyBalance!=null&&week.energyBalance<0?styles.weekDeficit:styles.weekSurplus}>{formatIntegerNumber(week?.energyBalance==null?null:Math.abs(week.energyBalance))}<small>kcal</small></strong>{variants.some(row=>coverageNote(row))&&<p><StableReadingText value={coverageNote(day)} variants={variants.map(coverageNote)}/></p>}</div>
+  <div data-overview-week-energy style={{minWidth:widths[1]||undefined}}><span>近7天{weekLabel}</span><strong className={week?.energyBalance!=null&&week.energyBalance<0?styles.weekDeficit:styles.weekSurplus}>{formatIntegerNumber(week?.energyBalance==null?null:Math.abs(week.energyBalance))}<small>千卡</small></strong>{variants.some(row=>coverageNote(row))&&<p><StableReadingText value={coverageNote(day)} variants={variants.map(coverageNote)}/></p>}</div>
   <div data-overview-week-weight style={{minWidth:widths[2]||undefined}}><span>近7天体重变化</span><strong>{signed(week?.weightChangeKg??null)}<small>kg</small></strong></div>
  </section>;
  return <section className={styles.weekReadings} aria-label="选中日七天统计" data-overview-week>
    <div className={styles.weekContent}>
     <header><span>近7天 <time>{short(week?.from)}—{short(week?.through)}</time></span></header>
     <div className={styles.weekNumbers}>
-     <div data-overview-week-energy><span>{week?.energyBalance==null?"热量收支":week.energyBalance<0?"热量缺口":"热量盈余"}</span><strong className={week?.energyBalance!=null&&week.energyBalance<0?styles.weekDeficit:styles.weekSurplus}>{signedIntegerNumber(week?.energyBalance??null)}<small>kcal</small></strong></div>
+     <div data-overview-week-energy><span>{week?.energyBalance==null?"热量收支":week.energyBalance<0?"热量缺口":"热量盈余"}</span><strong className={week?.energyBalance!=null&&week.energyBalance<0?styles.weekDeficit:styles.weekSurplus}>{signedIntegerNumber(week?.energyBalance??null)}<small>千卡</small></strong></div>
      <div data-overview-week-weight><StableReadingText value={"体重变化"} variants={variants.map(()=>"体重变化")}/><strong>{signed(week?.weightChangeKg??null)}<small>kg</small></strong></div>
     </div>
     <span className={styles.weekCoverage}>已计{week?.coveredDays??0}/7天</span>

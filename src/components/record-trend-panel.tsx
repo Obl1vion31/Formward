@@ -34,7 +34,7 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
     widthCache.current={key:cacheKey,widths:typography.map((style,index)=>{
      if(!context)return 0;
      context.font=style.font;const values=variants.map(values=>context.measureText(values[index]??"—").width+style.unit);
-     context.font=textStyles[index].label;const labelWidths=labels[index].map(label=>context.measureText(label+(metrics[index].inlineUnit?"":" · "+metrics[index].unit)).width);
+     context.font=textStyles[index].label;const labelWidths=labels[index].map(label=>context.measureText(label+(metrics[index].inlineUnit?"":" · "+(metrics[index].unit==="kcal"?"千卡":metrics[index].unit))).width);
      context.font=textStyles[index].note;const noteWidths=notes[index].map(note=>context.measureText(note).width);
      return Math.ceil(Math.max(0,...values,...labelWidths,...noteWidths));
     })};
@@ -76,7 +76,7 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
   {supplementary}
   {!statusInDate&&statusVariants.length>0&&<div className={styles.flags} data-record-slot="status">{statusVariants.map(value=><span key={value} aria-hidden="true" className={styles.flagMeasure}>{value}</span>)}<span role="status">{flags??""}</span></div>}
   <div className={styles.range} data-record-slot="range">{range}</div>{custom}
-  <div className={styles.plotHeading} data-record-slot="title"><h2>{title}{unit&&<small>{unit}</small>}</h2><div className={styles.legend} data-record-slot="legend">{legend}</div>{options&&<div className={styles.plotOptions}>{options}</div>}</div>
+  <div className={styles.plotHeading} data-record-slot="title"><h2>{title}{unit&&<small>{unit==="kcal"?"千卡":unit}</small>}</h2><div className={styles.legend} data-record-slot="legend">{legend}</div>{options&&<div className={styles.plotOptions}>{options}</div>}</div>
   {chartSummary&&<div className={styles.chartSummary} data-record-slot="summary">{chartSummary}</div>}
   <div className={styles.plot} data-record-slot="plot">{children}</div>
  </div>;

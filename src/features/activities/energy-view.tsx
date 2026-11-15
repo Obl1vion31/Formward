@@ -48,7 +48,7 @@ export function EnergySources({ day }: { day: EnergyDay }) {
   const active = day.activeSource === "activities" ? [...new Set(day.activities.map(row => row.sourceSystem).filter(Boolean))].join("、") : day.record?.activeSourceSystem ?? day.record?.sourceSystem;
   const sources = day.totalSource === "override" ? [["总消耗", day.record?.sourceSystem]] : [["静息", rest], ["活动", active]];
   const known=sources.filter(([,source])=>source),unique=[...new Set(known.map(([,source])=>energySourceLabel(source)))];
-  const labels=[day.steps!=null?energyValue(day.steps)+" 步":null,...(unique.length===1?unique:known.map(([label,source])=>label+" · "+energySourceLabel(source))),day.record?.adoption?.mode==="manual"?"手动保留":null,day.additionalKcal!=null&&Number(day.additionalKcal)>0?"额外运动 "+energyValue(day.additionalKcal)+" kcal":null].filter(Boolean);
+  const labels=[day.steps!=null?energyValue(day.steps)+" 步":null,...(unique.length===1?unique:known.map(([label,source])=>label+" · "+energySourceLabel(source))),day.record?.adoption?.mode==="manual"?"手动保留":null,day.additionalKcal!=null&&Number(day.additionalKcal)>0?"额外运动 "+energyValue(day.additionalKcal)+" 千卡":null].filter(Boolean);
   return labels.length?<div className={styles.sourceLine}>{labels.join(" · ")}</div>:null;
 }
 function dayEditInput(date:string,days:EnergyPresentation["snapshot"]["days"]):EnergyAction {
@@ -135,7 +135,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
  </div>}>
   <div className={styles.activityExplanation} data-exercise-explanation>
    {(activity.durationMinutes!==null||activity.sourceSystem)&&<p>{[activity.durationMinutes!==null?energyValue(activity.durationMinutes)+" 分钟":null,energySourceLabel(activity.sourceSystem)].filter(Boolean).join(" · ")}</p>}
-   {activity.sourceDetails&&<p>{[activity.sourceDetails.localTime?"开始 "+activity.sourceDetails.localTime.replace("T"," "):null,activity.sourceDetails.distanceMeters!=null?"距离 "+energyValue(activity.sourceDetails.distanceMeters)+" m":null,activity.sourceDetails.averageHR!=null?"平均心率 "+energyValue(activity.sourceDetails.averageHR)+" 次／分钟":null,activity.sourceDetails.bmrKcal!=null?"期间静息 "+energyValue(activity.sourceDetails.bmrKcal)+" kcal":null].filter(Boolean).join(" · ")}</p>}
+   {activity.sourceDetails&&<p>{[activity.sourceDetails.localTime?"开始 "+activity.sourceDetails.localTime.replace("T"," "):null,activity.sourceDetails.distanceMeters!=null?"距离 "+energyValue(activity.sourceDetails.distanceMeters)+" m":null,activity.sourceDetails.averageHR!=null?"平均心率 "+energyValue(activity.sourceDetails.averageHR)+" 次／分钟":null,activity.sourceDetails.bmrKcal!=null?"期间静息 "+energyValue(activity.sourceDetails.bmrKcal)+" 千卡":null].filter(Boolean).join(" · ")}</p>}
    {!activity.sourceDetails&&<p data-exercise-effect>{reading.effect}</p>}
   </div>
  </Disclosure>;
