@@ -65,7 +65,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     current.current = snapshot; setData(snapshot);
     setMessages(previous => { const merged = new Map((changed ? [] : previous).map(row => [row.id, row])); for (const row of snapshot.messages) merged.set(row.id, row); return [...merged.values()].sort((a,b) => a.seq - b.seq).slice(-50); });
   }, [updateAccess]);
-  const read = useCallback(async (before?: number):Promise<void> => {
+  const read = useCallback(async function readChat(before?: number):Promise<void> {
     if (reading.current){if(!before)deferredRead.current=true;return;}
     if(mutating.current)return;
     const ticket = generation.current; reading.current = true; setLoading(true); setError("");
@@ -74,7 +74,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
       const payload = await response.json(); if (!response.ok) throw Error(payload.error ?? "聊天暂时无法读取。");
       if (ticket === generation.current) apply(payload);
     } catch (failure) { if (ticket === generation.current && alive.current) setError(failure instanceof Error ? failure.message : "读取未完成，请重试。"); }
-    finally { reading.current = false; if (alive.current) {setLoading(false);if(deferredRead.current){deferredRead.current=false;setTimeout(()=>void read(),0);}} }
+    finally { reading.current = false; if (alive.current) {setLoading(false);if(deferredRead.current){deferredRead.current=false;setTimeout(()=>void readChat(),0);}} }
   }, [apply]);
   const refresh = useCallback(async () => { await read(); }, [read]);
   useEffect(()=>{
