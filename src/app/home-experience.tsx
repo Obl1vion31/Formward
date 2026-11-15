@@ -62,7 +62,7 @@ export default function HomeExperience() {
   const [imageError, setImageError] = useState(false);
   const [staticTurn, setStaticTurn] = useState(false);
   const [navigating, startNavigation] = useTransition();
-  usePageLoading({ active: !imagesReady && !imageError, label: "正在加载登录页面…" });
+  // 装饰素材使用下方局部状态，保留首帧品牌、备案链接和独立导航。
   usePageLoading({ active: phase === "AUTHENTICATING", label: "正在验证登录…" });
   usePageLoading({ active: navigating, label: "正在加载身体记录…" });
 
