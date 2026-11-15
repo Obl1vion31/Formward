@@ -1,11 +1,9 @@
-# 62项体验整改视觉验收
+# 当前视觉验收状态
 
-final result: blocked
+最终结果：blocked。62项未全部完成最终视觉验收，不发布本轮候选。
 
-当前阻止项：真实iPhone Safari键盘开合未通过；加载与录入首帧需在冻结构建重新验收。
+用户真机反馈新键盘／面板方案只见背景，已按其要求恢复此前已发布的面板、视口与滚动实现。隔离入口运行bc1847ae，正式站仍为dual-entry-bc1847ae-assistant-verified-20261115-r6。没有把模拟通过写成真机通过。
 
-视觉基准：C:/Users/14878/.codex/visualizations/2026/11/15/formward-experience-audit/final-A.png、final-B.png、proposal-C.png、proposal-D.png、final-followup.png。私有实际截图位于.codex/visual；同一业务／视口状态的并排比较将在候选冻结后归档。
+开发候选48b45250a14675729040942fe6a5017551e32f65的lint、typecheck和99个测试文件共778项测试通过，978个非public源文件与实际执行检查的隔离源逐项SHA一致。新组合候选尚无最终production build及完整页面通过记录。原4项的错误目录展开结果已作废。
 
-已发现与修正：身体加载行盒高5.5px导致图表锚点偏移；构建期间修改代码造成服务端和客户端录入结构不一致，后续只验收冻结源码归档。键盘第一轮收起跳动，第二轮位置补偿尝试导致面板移出可视区域，尚未闭环。
-
-五项审查：字体层级／包围与放大、间距与版面、主题颜色、原有图标与真实图形、业务文案，均需在最终候选逐状态通过，不能以编译或单次截图代替。
+逐项状态及私有证据见原入口.codex/experience-implementation-20261115/ledger.json、status.html、fallback-state.json及Windows私有formward-experience-qa-20261116目录。
