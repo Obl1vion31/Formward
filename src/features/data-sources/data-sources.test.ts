@@ -115,7 +115,10 @@ test("凭据按账号与连接加密，不能换账号解密，浏览器模型�
   const userId = await owner(), [connection] = await db.select().from(schema.dataConnection).where(eq(schema.dataConnection.userId, userId));
   assert.ok(!connection.credential.includes("fictional")); assert.equal(decryptCredential(connection.credential, userId, connection.id), "fictional-personal-key-for-tests");
   assert.throws(() => decryptCredential(connection.credential, randomUUID(), connection.id), /重新绑定/);
-  const encrypted = encryptCredential("fake", userId, connection.id); assert.throws(() => decryptCredential(encrypted.slice(0, -2) + "xx", userId, connection.id));
+  const encrypted = encryptCredential("fake", userId, connection.id).split(".");
+  const ciphertext=Buffer.from(encrypted.at(-1)!,"base64url");ciphertext[0]^=1;encrypted[encrypted.length-1]=ciphertext.toString("base64url");
+  assert.throws(() => decryptCredential(encrypted.join("."), userId, connection.id), /重新绑定/);
+  assert.throws(() => decryptCredential(connection.credential, userId, randomUUID()), /重新绑定/);
   const view = JSON.stringify(await loadSources(db, userId, now)); assert.ok(!view.includes(connection.credential)); assert.ok(!view.includes("fictional-personal-key"));
 });
 test("旧凭据默认国际站且读取不重写，站点与新凭据共同认证不能篡改", async () => {
