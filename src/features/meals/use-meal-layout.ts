@@ -4,7 +4,7 @@ import {useLayoutEffect,useState,type RefObject,type CSSProperties} from "react"
 /** 只测量排版所需的文字宽度，不计算或舍入营养。 */
 export function useMealLayout(sheet:RefObject<HTMLDivElement|null>,cells:string[][],enabled=true){
  const signature=JSON.stringify(cells);
- const [layout,setLayout]=useState({picker:"auto",mode:"auto",stack:false,nutrientColumns:4,widths:[88,80,88,80,80,80]});
+ const [layout,setLayout]=useState({picker:"auto",mode:"auto",stack:false,identityColumns:2,nutrientColumns:4,widths:[88,80,88,80,80,80]});
  useLayoutEffect(()=>{
   if(!enabled||!sheet.current)return;
   const node=sheet.current!,form=node.closest("form")!,table=node.querySelector("table")!,canvas=document.createElement("canvas"),context=canvas.getContext("2d")!;
@@ -19,7 +19,7 @@ export function useMealLayout(sheet:RefObject<HTMLDivElement|null>,cells:string[
     if(!field)return null;
     const value=field instanceof HTMLSelectElement?field.selectedOptions[0]?.textContent??"":field instanceof HTMLInputElement?field.value:field.textContent??"",fieldStyle=getComputedStyle(field);
     const padding=parseFloat(fieldStyle.paddingLeft)+parseFloat(fieldStyle.paddingRight)+parseFloat(fieldStyle.borderLeftWidth)+parseFloat(fieldStyle.borderRightWidth);
-    return {width:textWidth(value,fieldStyle),space:padding+8+(field instanceof HTMLSelectElement?22:0)};
+    return {width:textWidth(value,fieldStyle),space:padding+8};
    }));
    const widths=minimum.map((base,index)=>Math.max(base,...rows.map(row=>textWidth(row[index]??"")+(index===0?54:30)),...liveRows.map(row=>{const field=row[index];return field?field.width+Math.max(index===0?54:30,field.space):0;})));
    const total=220+120+widths.reduce((a,b)=>a+b,0),picker=form.clientWidth>=total+264?"side":"tabs";
@@ -28,7 +28,8 @@ export function useMealLayout(sheet:RefObject<HTMLDivElement|null>,cells:string[
    const nutrientLabelWidth=Math.max(...["热量 千卡","蛋白质 g","碳水 g","脂肪 g"].map(label=>textWidth(label,labelStyle)));
    const nutrientWidth=Math.max(48,nutrientLabelWidth,...rows.flatMap(row=>row.slice(2)).map(value=>textWidth(value)+14),...liveRows.flatMap(row=>row.slice(2)).map(field=>field?field.width+14:0));
    const nutrientColumns=nutrientWidth<=(available-24)/4?4:nutrientWidth<=(available-8)/2?2:1;
-   const next={nutrientColumns,picker,mode:available>=total?"table":"cards",stack:Math.max(56,...rows.flatMap(row=>row.slice(0,2)).map(value=>textWidth(value)+24))>(available-24)/4,widths};
+   const identityWidth=Math.max(56,...rows.flatMap(row=>row.slice(0,2)).map(value=>textWidth(value)+24),...liveRows.flatMap(row=>row.slice(0,2)).map(field=>field?field.width+field.space:0));
+   const next={nutrientColumns,picker,mode:available>=total?"table":"cards",stack:identityWidth>(available-24)/4,identityColumns:identityWidth>(available-8)/2?1:2,widths};
    setLayout(previous=>JSON.stringify(previous)===JSON.stringify(next)?previous:next);
   }
   const queue=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(measure);},events=["input","change","focusin","focusout"] as const;events.forEach(event=>form.addEventListener(event,queue));
