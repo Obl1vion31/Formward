@@ -426,3 +426,5 @@ production build后执行pnpm test:mobile-interface-browser，使用PGlite虚构
 设置FORMWARD_REAL_PHOTO_CONFIG为权限0600的私有COS配置，运行tests/chat-pilot.browser.mts可执行tests/real-photo-client.browser.mjs。只读取四项COS配置，不复用该文件数据库；应用连接新建PGlite、仅监听127.0.0.1:3300。Chromium／WebKit分别真实直传1 MiB与人工同源备用5 MiB，核对原图字节、匿名拒绝及五张健康表不变，最后仅清理本次虚构账号对象。测试不调用收费模型，不修改真实健康数据。真实iPhone Safari相册、键盘及当前故障须另记，模拟器不能记作真机通过。
 
 加载验收可用FORMWARD_LOADING_PART=matrix／flows分开运行，FORMWARD_LOADING_SIZES传JSON视口，FORMWARD_LOADING_DELAY设查询延迟（0为正常）。逐帧核对五页固定文字、日期／操作槽及真实图表框，锚点容差1CSS px；未知行数自然增长，不用假记录或大留白固定。FORMWARD_LOADING_VIEW=trend检查来源日期、区间与返回。首次、同条件缓存、不同日期、失败重试、设备来源和录入接管分别保存过程。
+
+餐次文字放大需按实际输入字号测量可见数值与控件内容宽度；正常125.00及200%普通／长数量都应完整显示，必要时整字段退列。数字输入按明确标签定位，不能假定为textbox；只检查页面无横向溢出不足以判定数值可读。
