@@ -4,7 +4,7 @@
 
 `pnpm test:app-information`读取`FORMWARD_INFORMATION_CONFIG`指向workspace-loading独立fixture的config文件，拒绝非隔离配置。先以`FORMWARD_LOADING_PREVIEW=1`启动`tests/workspace-loading.browser.mts`，使用production build或其支持的正式standalone产物；结束向本人fixture发送SIGTERM。`FORMWARD_INFORMATION_ENGINE=chromium|webkit`选择引擎，`FORMWARD_INFORMATION_ARTIFACTS`指定私有截图，`FORMWARD_HOME_BASELINE`可指向备案前保留运行包进行同视口人物几何比较。
 
-覆盖320／390／430、矮屏、横屏、1100／1440、200%文字、无JS与慢素材连续帧、双端面板和返回、真实登录输入保留、更新状态与失败重试、自动／手动请求合并、确认刷新与取消、业务草稿／保存中保护、两主题和复制失败。虚构账号只读健康摘要前后相同；键盘为visualViewport缩高／平移模拟，不能记作物理iPhone通过。
+覆盖320／390／430、矮屏、横屏、1100／1440、200%文字、无JS与慢素材连续帧、七行入口与逐项展开、双端面板和返回、真实登录输入保留、更新状态与失败重试、自动／手动请求合并、确认刷新与取消、业务草稿／保存中保护、两主题和复制失败。虚构账号只读健康摘要前后相同；键盘为visualViewport缩高／平移模拟，不能记作物理iPhone通过。
 
 ## 小助手与手机录入专项
 

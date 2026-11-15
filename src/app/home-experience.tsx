@@ -126,7 +126,7 @@ export default function HomeExperience() {
     update();
 
     const move = (event: PointerEvent) => {
-      if (event.pointerType !== "mouse") return;
+      if (event.pointerType !== "mouse" || document.querySelector("dialog[open]")) return;
       if (motionGainRef.current === 0) return;
       const rect = stage.getBoundingClientRect();
       if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
@@ -189,6 +189,8 @@ export default function HomeExperience() {
   }, []);
 
   const requestDirection = useCallback((target: TargetProgress) => {
+    // 模态面板中的滚动和按键只操作面板，保留背后人物阶段。
+    if (document.querySelector("dialog[open]")) return;
     // 所有滚轮、触控与键盘意图统一到这里，最终态直接拒绝方向变化。
     if (imageErrorRef.current || ["AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phaseRef.current)) return;
     // 先记住最新目标：解码尚未完成时先不播放，就绪后执行最近一次意图。

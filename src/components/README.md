@@ -28,7 +28,7 @@ record-trend-panel.tsx统一正文、日期与查看、主要读数、区间、�
 
 record-updates.tsx沿用现有变化检测并发出formward-record-context-stale供助手失效重查，提供跨页面更新提示，record-change-client.ts负责只读检查、保存前核对和本窗口保存确认；draft-guard.ts登记草稿供明确采用最新时保护输入。use-chart-drag.ts仅处理水平手势，竖向滚动交还页面。number-change.ts仅为身体、消耗与运动保留十倍／十分之一输入量级提示，不用于饮食或食材。
 
-app-information.tsx提供首页与账号菜单共用的“更多信息”：手机底部面板、电脑compact居中窗。app-information-content.ts集中真实产品版本、网站／ICP、公开邮箱、协议和帮助地址及简短更新说明；公安备案获批后再补号。app-update-state.ts合并手动检查与原自动提醒的在途请求，沿用/api/app-version的公开构建号；检查失败可重试，刷新共用草稿／忙碌保护。复制只包含公开版本或邮箱，失败可手动选择；协议及帮助打开新标签。
+app-information.tsx提供首页与账号菜单共用的“更多信息”：手机按内容自然增高的底部面板、电脑compact居中窗，均以ImageGen定稿的七行三组为基准，初始显示完整入口；版本、更新说明、备案和联系一次展开一项。Inspector的fitContent只对传入的只读短面板启用，隐藏无必要的半屏切换、下拖直接关闭，其他记录面板保持原停靠和草稿规则。app-information-content.ts集中真实产品版本、网站／ICP、公开邮箱、协议和帮助地址及简短更新说明；公安备案获批后再补号。app-update-state.ts合并手动检查与原自动提醒的在途请求，沿用/api/app-version的公开构建号；检查失败可重试，刷新共用草稿／忙碌保护。复制只包含公开版本或邮箱，失败可手动选择；协议及帮助打开新标签。
 
 本目录保存多个页面共同使用的界面组件，例如按钮、输入、导航、日期范围和图表外壳。业务专用组件留在对应页面或 feature 附近，避免形成无边界组件仓库。
 
