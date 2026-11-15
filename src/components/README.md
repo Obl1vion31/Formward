@@ -28,6 +28,8 @@ record-trend-panel.tsx统一正文、日期与查看、主要读数、区间、�
 
 record-updates.tsx沿用现有变化检测并发出formward-record-context-stale供助手失效重查，提供跨页面更新提示，record-change-client.ts负责只读检查、保存前核对和本窗口保存确认；draft-guard.ts登记草稿供明确采用最新时保护输入。use-chart-drag.ts仅处理水平手势，竖向滚动交还页面。number-change.ts仅为身体、消耗与运动保留十倍／十分之一输入量级提示，不用于饮食或食材。
 
+app-information.tsx提供首页与账号菜单共用的“更多信息”：手机底部面板、电脑compact居中窗。app-information-content.ts集中真实产品版本、网站／ICP、公开邮箱、协议和帮助地址及简短更新说明；公安备案获批后再补号。app-update-state.ts合并手动检查与原自动提醒的在途请求，沿用/api/app-version的公开构建号；检查失败可重试，刷新共用草稿／忙碌保护。复制只包含公开版本或邮箱，失败可手动选择；协议及帮助打开新标签。
+
 本目录保存多个页面共同使用的界面组件，例如按钮、输入、导航、日期范围和图表外壳。业务专用组件留在对应页面或 feature 附近，避免形成无边界组件仓库。
 
 workspace-motion.ts只管理四模块普通导航的正文轻横移与淡变，方向来自workspace-pages顺序；WorkspaceFrame持久挂载同一容器，骨架替换不重播。图形交接、日期详情、录入、同页刷新及初次打开不叠加，顶栏／导航与面板不在动画容器内。200ms、手机16px／电脑12px；快速反向从当前姿态续接，取消前撤销所有权，过期完成回调不影响新动画，减少动态效果即时完成。record-change-client的可选id校验防止同版本不同编号被误认；已知核对错误使用RecordVersionError供业务保留具体原因。

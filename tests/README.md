@@ -1,5 +1,11 @@
 # Tests
 
+## 更多信息与完整人物首页
+
+`pnpm test:app-information`读取`FORMWARD_INFORMATION_CONFIG`指向workspace-loading独立fixture的config文件，拒绝非隔离配置。先以`FORMWARD_LOADING_PREVIEW=1`启动`tests/workspace-loading.browser.mts`，使用production build或其支持的正式standalone产物；结束向本人fixture发送SIGTERM。`FORMWARD_INFORMATION_ENGINE=chromium|webkit`选择引擎，`FORMWARD_INFORMATION_ARTIFACTS`指定私有截图，`FORMWARD_HOME_BASELINE`可指向备案前保留运行包进行同视口人物几何比较。
+
+覆盖320／390／430、矮屏、横屏、1100／1440、200%文字、无JS与慢素材连续帧、双端面板和返回、真实登录输入保留、更新状态与失败重试、自动／手动请求合并、确认刷新与取消、业务草稿／保存中保护、两主题和复制失败。虚构账号只读健康摘要前后相同；键盘为visualViewport缩高／平移模拟，不能记作物理iPhone通过。
+
 ## 小助手与手机录入专项
 
 `pnpm test:assistant-recording-browser`使用chat-pilot的独立PGlite、虚构账号、正式Next构建和模型回复回放。`CHAT_BROWSER=chromium|webkit`分别验收；`FORMWARD_CHAT_ARTIFACTS`指定Git忽略的私有目录。覆盖320／390／430同排字段、逐项切换、三种添加入口、双主题／矮屏／横屏／桌面／200%文字，照片、结构化补充、回填不保存及最终一次人工保存，桌面单聊天与手机头部；手机记录同排、三组字体／字号／字重／颜色相等，照片说明的可视区域缩高及平移、焦点与原文保留。模拟键盘明确区分真实iPhone。所有数据库写入只属于隔离库；不把fixture导入正式应用，也不使用真实API Key。

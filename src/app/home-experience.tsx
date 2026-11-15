@@ -18,6 +18,7 @@ import { LoginOverlay } from "./login-overlay";
 import { useDirectionTrigger } from "./use-direction-trigger";
 import { usePageLoading } from "@/components/page-loading-state";
 import { useMobileMode } from "@/components/use-mobile-mode";
+import {useHomeClearance} from "./use-home-clearance";
 import fallbackStyles from "./home-login-fallback.module.css";
 
 // phase 表示交互阶段，不等于帧序号；FORWARD_ANIMATING 内部沿半秒播放时间轴前进（一秒源视频的 2 倍速）。
@@ -62,6 +63,7 @@ export default function HomeExperience() {
   const [imageError, setImageError] = useState(false);
   const [staticTurn, setStaticTurn] = useState(false);
   const [navigating, startNavigation] = useTransition();
+  useHomeClearance(stageRef, mobileMode, phase);
   // 装饰素材使用下方局部状态，保留首帧品牌、备案链接和独立导航。
   usePageLoading({ active: phase === "AUTHENTICATING", label: "正在验证登录…" });
   usePageLoading({ active: navigating, label: "正在加载身体记录…" });

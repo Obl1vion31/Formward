@@ -1056,3 +1056,18 @@ dialog::backdrop{transition:background-color 210ms cubic-bezier(.2,.8,.2,1)}
 
 /* 未知模块与真实内容共用外壳；扫光只在真实等待中出现。 */
 .module-skeleton{display:block;position:relative;overflow:hidden;width:100%;height:1em;border-radius:4px;background:transparent;isolation:isolate}.module-skeleton[data-ready=true]{background:var(--skeleton-fill)}.module-skeleton[data-ready=true]::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(100deg,transparent 15%,color-mix(in srgb,var(--warm-white) 8%,transparent) 50%,transparent 85%);animation:module-scan 1400ms ease-in-out infinite}.module-skeleton[data-shape=number]{width:3ch;height:1lh;min-width:3ch}.module-skeleton[data-shape=chart]{width:100%;height:100%;min-height:48px;border-radius:8px}.module-skeleton[data-shape=records]{height:48px;margin-block:8px}.chart-local-wait{padding:16px;box-sizing:border-box}.chart-local-frame>.module-skeleton[data-shape=chart]{position:absolute;inset:0}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;padding:0;border:0;margin:-1px}@keyframes module-scan{to{transform:translateX(100%)}}@media(prefers-reduced-motion:reduce){.module-skeleton::after{animation:none!important;display:none}}
+
+/* 首页备案与更多信息只占文字层；完整人物舞台维持原始 100svh。 */
+@media(max-width:700px),(hover:none) and (pointer:coarse) {
+ .home-orbit-scene-start {bottom:calc(var(--home-footer-height,48px) + 12px)}
+ .tap-hint {bottom:calc(104px + var(--home-footer-height,48px))}
+ .keyboard-entry:focus-visible {bottom:calc(106px + var(--home-footer-height,48px))}
+ .home-page[data-home-decoration-hidden] .home-intro-backdrop {opacity:0;visibility:hidden}
+ .home-page[data-home-form-overflow] .login-overlay {top:var(--home-form-top,calc(var(--home-header-height,72px) + 12px));max-height:calc(100svh - var(--home-header-height,72px) - var(--home-footer-height,48px) - 24px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;transform:translate(-50%,0)}
+ .home-page[data-image-fallback=true] .home-stage {padding-bottom:calc(var(--home-footer-height,48px) + 24px)}
+}
+.login-form input {height:auto;min-height:44px;font-size:1rem;line-height:1.5}
+.login-form label {font-size:.75rem}
+.login-form button {font-size:.9375rem}
+.login-error {font-size:.75rem}
+.login-recovery {font-size:.6875rem}

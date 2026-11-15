@@ -1,0 +1,33 @@
+/* 与账号设置共用 Inspector 的材质和返回关系，内容按事实分区。 */
+.information {font-size: .875rem; line-height: 1.6;}
+.information section + section, .links {border-top: 1px solid var(--line-soft); margin-top: 20px; padding-top: 20px;}
+.information h3 {margin: 0 0 8px; font-size: 1rem; font-weight: 500; line-height: 1.5;}
+.versionRow {display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap;}
+.versionRow h3 {display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin: 0;}
+.versionRow h3 span {font-size: 1.375rem; font-variant-numeric: tabular-nums; font-weight: 500;}
+.information button, .information a, .changes summary {min-height: 44px;}
+.information button {border: 0; background: none; color: var(--gold); font: inherit; padding: 8px 0; cursor: pointer; text-align: start;}
+.information button:disabled {color: var(--muted); cursor: wait;}
+.information a {color: var(--warm-white); text-decoration: none; overflow-wrap: anywhere; text-underline-offset: 3px;}
+.information :is(button, a, summary):focus-visible, .copyFallback:focus-visible {outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px;}
+.information :is(button, a):hover:not(:disabled) {color: var(--gold); text-decoration: underline;}
+.updateStatus {min-height: 1.6em; margin: 4px 0 0; color: var(--muted);}
+.actions {display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px;}
+.actions .primary {padding-inline: 12px; border: 1px solid var(--control-border); border-radius: 6px;}
+.changes {margin-top: 4px;}
+.changes summary {display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; color: var(--muted); cursor: pointer;}
+.changes summary::-webkit-details-marker {display: none;}
+.changes summary svg {flex: none; transition: transform 160ms ease;}
+.changes[open] summary svg {transform: rotate(180deg);}
+.changes ul {margin: 4px 0 0; padding-left: 20px; color: var(--muted);}
+.changes li + li {margin-top: 8px;}
+.link, .secondaryLink {display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 8px;}
+.information .secondaryLink {color: var(--muted);}
+.information a svg {flex: none; color: var(--muted);}
+.textButton {display: block;}
+.links {display: grid; gap: 4px;}
+.links a {display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 8px;}
+.feedback {margin: 12px 0 0; color: var(--muted);}
+.feedback:empty {display: none;}
+.copyFallback {margin: 12px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8125rem; user-select: text;}
+@media(prefers-reduced-motion:reduce) {.changes summary svg {transition: none;}}
