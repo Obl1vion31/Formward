@@ -14,7 +14,7 @@ function Glyph({ name }: { name: Glyph }) { return <svg width="20" height="20" v
 function ArrivingMessage({message,eligible,composer,className,children}:{message:ChatMessage;eligible:boolean;composer:React.RefObject<HTMLDivElement|null>;className:string;children:ReactNode}){
   const ref=useRef<HTMLElement>(null),{claimArrival}=useAssistantChat();
   const key=message.requestId?message.role+":"+message.requestId:null;
-  useLayoutEffect(()=>{const node=ref.current;if(!node||!eligible||!key||!claimArrival(key)||matchMedia("(prefers-reduced-motion:reduce)").matches)return;const gap=(composer.current?.getBoundingClientRect().top??node.getBoundingClientRect().bottom)-node.getBoundingClientRect().bottom;node.style.setProperty("--message-offset",Math.min(64,Math.max(16,gap))+"px");node.dataset.newMessage="true";},[key,eligible,claimArrival,composer]);
+  useLayoutEffect(()=>{const node=ref.current;if(!node||!eligible||!key||!claimArrival(key)||matchMedia("(prefers-reduced-motion:reduce)").matches)return;queueMicrotask(()=>{if(!node.isConnected||ref.current!==node)return;const gap=(composer.current?.getBoundingClientRect().top??node.getBoundingClientRect().bottom)-node.getBoundingClientRect().bottom;node.style.setProperty("--message-offset",(message.role==="user"?Math.max(16,gap):16)+"px");node.dataset.newMessage="true";});},[key,eligible,claimArrival,composer,message.role]);
   return <article ref={ref} tabIndex={-1} data-chat-message={message.id} className={className}>{children}</article>;
 }
 export function ChatHeaderActions() {
