@@ -71,3 +71,5 @@ ApiError可携带安全的字段路径、修正要求和原预览定位信息。
 ## 会员权益与管理角色
 
 users.membership_tier（Free／内测／Plus，Pro仅预留）独立于owner／user。entitlement_version用于改档并发检查；Better Auth仅返回字段、禁止普通资料写入，cookieCache关闭，下一次会话读取得到最新值。管理员沿用近期验密、目标版本、请求幂等和account_events审计；不修改access_version或撤销登录。assistant feature在每次模型请求按最新权益决定聊天、识图次数或金额预算，设备接入不按会员收费。
+
+AI提交历史按账号仅在内存保留展开、筛选和滚动位置；查看后返回恢复对应链接焦点，使用preventScroll避免焦点再次推移页面。跨账号不复用该状态。

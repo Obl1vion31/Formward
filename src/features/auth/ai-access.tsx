@@ -19,7 +19,7 @@ type Props = {
   revoke: (id: string) => Promise<Result<{ id: string }>>;
   revokeConnection: (id: string) => Promise<Result<{ id: string }>>;
 };
-const viewState=new Map<string,{source:string;status:string;open:boolean;scroll:number}>();
+const viewState=new Map<string,{source:string;status:string;open:boolean;scroll:number;focusHref?:string}>();
 const providers = [["chatgpt", "ChatGPT"], ["doubao", "豆包"]] as const;
 export function AiAccessReading() {
   return <section className={`ai-page ${styles.settings}`} aria-labelledby="ai-title" data-ai-access><PageHeading />
@@ -65,10 +65,10 @@ export function AiAccess({ accountId,canonicalOrigin, overview, overviewPromise,
   const [sourceFilter, setSourceFilter] = useState(()=>accountId?viewState.get(accountId)?.source??"all":"all"), [statusFilter, setStatusFilter] = useState(()=>accountId?viewState.get(accountId)?.status??"all":"all");
   const [submissionsOpen, setSubmissionsOpen] = useState(()=>accountId?viewState.get(accountId)?.open??false:false);
   const savedView=useRef({source:sourceFilter,status:statusFilter,open:submissionsOpen,scroll:0}),restoredView=useRef(false),leavingView=useRef(false);
-  const rememberNavigation=async()=>{if(accountId){leavingView.current=true;viewState.set(accountId,{...savedView.current,scroll:window.scrollY});}return true;};
+  const rememberNavigation=async(focusHref?:string)=>{if(accountId){leavingView.current=true;viewState.set(accountId,{...savedView.current,scroll:window.scrollY,focusHref});}return true;};
   useEffect(()=>{savedView.current={...savedView.current,source:sourceFilter,status:statusFilter,open:submissionsOpen};},[sourceFilter,statusFilter,submissionsOpen]);
   useEffect(()=>{if(!accountId)return;return()=>{if(leavingView.current)return;viewState.set(accountId,{...savedView.current,scroll:window.scrollY});if(viewState.size>8)viewState.delete(viewState.keys().next().value!);};},[accountId]);
-  useEffect(()=>{if(loading||restoredView.current)return;restoredView.current=true;const saved=accountId?viewState.get(accountId):undefined;if(saved)requestAnimationFrame(()=>window.scrollTo({top:saved.scroll,behavior:"instant"}));},[accountId,loading]);
+  useEffect(()=>{if(loading||restoredView.current)return;restoredView.current=true;const saved=accountId?viewState.get(accountId):undefined;if(saved)requestAnimationFrame(()=>{window.scrollTo({top:saved.scroll,behavior:"instant"});if(saved.focusHref)[...document.querySelectorAll<HTMLAnchorElement>("[data-ai-submissions] a[href]")].find(link=>link.getAttribute("href")===saved.focusHref)?.focus({preventScroll:true});});},[accountId,loading]);
   const [panel, setPanel] = useState<{ provider: AiProvider; name: string; kind: "permissions" | "details" | "history" | "connect"; anchor: HTMLElement } | null>(null);
   const [transitionPending, startTransition] = useTransition(), busy = working || transitionPending;
   const [busyLabel, setBusyLabel] = useState(""), [busyArea, setBusyArea] = useState(""), [busyTokenId, setBusyTokenId] = useState<string | null>(null);
@@ -177,7 +177,7 @@ export function AiAccess({ accountId,canonicalOrigin, overview, overviewPromise,
         <div className={styles.submissionColumns} aria-hidden="true"><span>提交时间</span><span>发起 AI</span><span>内容</span><span>状态</span><span /></div>
         {loading ? <LocalLoading label="正在读取提交记录…" /> : readError ? <p className="ai-error" role="alert">提交记录读取失败，请刷新页面重试。</p> : <><ul className={styles.submissions}>{filtered.map(row => {
           const current = aiSubmissionState(row, now);
-          return <li key={row.id} className={styles.submissionRow}><time className={styles.submittedTime} dateTime={row.createdAt} title={aiAccessDate(row.createdAt)}>{aiAccessDate(row.createdAt).slice(5)}</time><span className={styles.submissionSource}><span className={styles.desktopText}>{row.source.label}</span><span className={styles.mobileText}>{row.source.compactLabel ?? row.source.label}</span></span><span className={styles.submissionSummary}><span className={styles.desktopText}>{row.summary}</span><span className={styles.mobileText}>{row.compactSummary ?? row.summary}</span></span><span className={styles.submissionState} data-state={current}>{current === "pending" && row.status === "partially_confirmed" ? "部分已保存 · 待确认" : aiSubmissionLabels[current] ?? current}</span><LoadingLink className={styles.viewAction} beforeNavigate={rememberNavigation} href={row.confirmationPath} aria-label={`查看${row.source.label}提交：${row.summary}，提交于${aiAccessDate(row.createdAt)}`}>查看</LoadingLink></li>;
+          return <li key={row.id} className={styles.submissionRow}><time className={styles.submittedTime} dateTime={row.createdAt} title={aiAccessDate(row.createdAt)}>{aiAccessDate(row.createdAt).slice(5)}</time><span className={styles.submissionSource}><span className={styles.desktopText}>{row.source.label}</span><span className={styles.mobileText}>{row.source.compactLabel ?? row.source.label}</span></span><span className={styles.submissionSummary}><span className={styles.desktopText}>{row.summary}</span><span className={styles.mobileText}>{row.compactSummary ?? row.summary}</span></span><span className={styles.submissionState} data-state={current}>{current === "pending" && row.status === "partially_confirmed" ? "部分已保存 · 待确认" : aiSubmissionLabels[current] ?? current}</span><LoadingLink className={styles.viewAction} beforeNavigate={()=>rememberNavigation(row.confirmationPath)} href={row.confirmationPath} aria-label={`查看${row.source.label}提交：${row.summary}，提交于${aiAccessDate(row.createdAt)}`}>查看</LoadingLink></li>;
         })}</ul>{!filtered.length && <p className="ai-muted" role="status">{submissions.length ? "没有符合筛选条件的提交。" : "还没有 AI 提交的操作。"}</p>}</>}
       </div>}
     </section>
