@@ -567,7 +567,7 @@ input:focus-visible {
 .ai-review-item > p, .ai-evidence { font-size: 14px; }
 .ai-review-item .ai-comparison th:first-child { width: 20%; }
 .ai-row-actions { justify-content: flex-end; }
-.ai-draft { margin-top: 20px; padding: 20px; background: color-mix(in srgb,var(--gold) 4.0%,transparent); border-inline-start: 2px solid var(--gold); }
+.ai-draft { margin-top: 16px; padding: 0; }
 .ai-draft-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .ai-draft-grid label { display: grid; gap: 6px; min-width: 0; font-size: 14px; }
 .ai-draft-wide { grid-column: 1 / -1; }
@@ -586,7 +586,6 @@ input:focus-visible {
   .ai-review-item .ai-comparison { font-size: 13px; }
   .ai-review-item .ai-comparison th, .ai-review-item .ai-comparison td { padding: 10px 4px; }
   .ai-review-item .ai-comparison th:first-child { width: 23%; }
-  .ai-draft { padding: 14px 12px; }
   .ai-draft-grid { grid-template-columns: minmax(0, 1fr); }
   .ai-timezone-field { align-items: stretch; flex-direction: column; }
   .ai-row-actions { justify-content: flex-start; gap: 8px; }

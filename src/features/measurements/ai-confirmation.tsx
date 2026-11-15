@@ -36,7 +36,7 @@ function inputFromDraft(item: ReviewItem, draft: Draft): ReviewInput {
 function DraftForm({ item, draft, change, busy, updating, save, close, sources, removeSource }: { item: ReviewItem; draft: Draft; change: (draft: Draft) => void; busy: boolean; updating: boolean; save: () => void; close: () => void; sources: string[]; removeSource: (label: string) => Promise<SourceRemovalResult> }) {
   const options = candidates(item), set = (patch: Partial<Draft>) => change({ ...draft, ...patch });
   const isRecord = item.input.kind === "save_record", sameTarget = draft.date === item.input.date && draft.period === item.input.period;
-  return <form className="ai-draft" onSubmit={event => { event.preventDefault(); save(); }}>
+  return <form className="ai-draft" data-entry-form="measurement-review" onSubmit={event => { event.preventDefault(); save(); }}>
     <div className="ai-draft-grid">
       <label>日期<input type="date" value={draft.date} onChange={event => set({ date: event.target.value, recordId: "", version: "" })} disabled={busy} required /></label>
       <label>时段<select aria-label="时段" value={draft.period} onChange={event => set({ period: event.target.value as Draft["period"], fasting: false, recordId: "", version: "" })} disabled={busy}><option value="daytime">晨间</option><option value="evening">晚间</option></select></label>
