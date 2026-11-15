@@ -36,9 +36,9 @@ export function MeasurementEntryHeader({date,editing=false,headingRef}:{date:str
  return <header className={styles.drawerHeader} data-editing><div><h2 ref={headingRef} tabIndex={-1} id="measurement-drawer-title">{editing?"编辑身体记录":"身体录入"}<time className={styles.entryHeadingDate} dateTime={date}>{displayRecordDate(date)}</time></h2></div><InspectorCloseButton label="关闭记录详情"/></header>;
 }
 
-export function MeasurementEntry({ date, timezone, records, sources, choices, actions, pending=false, editing = false, initialPeriod = "daytime", onUpdated, onChoose }: {
+export function MeasurementEntry({ date, timezone, records, sources, choices, actions, pending=false,onRetry,readError="", editing = false, initialPeriod = "daytime", onUpdated, onChoose }: {
   date: string; timezone: string; records: MeasurementDisplay[]; sources: string[]; choices: Record<string, string>; actions: MeasurementActions;
-  pending?:boolean; editing?: boolean; initialPeriod?:EntryPeriod; onUpdated: (result: Extract<EntryResult, { ok: true }>) => void;
+  pending?:boolean;onRetry?:()=>void;readError?:string; editing?: boolean; initialPeriod?:EntryPeriod; onUpdated: (result: Extract<EntryResult, { ok: true }>) => void;
   onChoose: (date: string, period: EntryPeriod, id: string) => void;
 }) {
   const visibleMetrics=useBodyMetrics();
@@ -133,7 +133,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
     }
     return result;
   }
-  return <form data-editing={editing} data-entry-form="body" data-selected-period={selected} className={styles.entryForm} aria-label="当天身体录入" onSubmit={event=>{if(pending)event.preventDefault();else void save(event);}} aria-busy={busy||pending}>
+  return <form data-editing={editing} data-entry-form="body" data-selected-period={selected} className={styles.entryForm} aria-label="当天身体录入" onSubmit={event=>{if(pending)event.preventDefault();else void save(event);}} aria-busy={busy||pending&&!readError}>
 
     <div className={styles.entryPeriodBar}><div role="group" aria-label="选择录入时段">{(["daytime","evening"] as const).map(period=><button type="button" key={period} aria-label={period==="daytime"?"晨间（空腹）":periodName(period)} aria-pressed={selected===period} disabled={pending} onClick={()=>setSelected(period)}>{periodName(period)}{period==="daytime"&&"（空腹）"}{periodDirty(period)&&<span aria-label="有未保存修改"> ·</span>}</button>)}</div><button type="button" aria-expanded={advanced.has(selected)} disabled={pending} onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(selected))next.delete(selected);else next.add(selected);return next;})}>更多设置</button></div>
     <div className={styles.entryGroups}>
@@ -158,6 +158,6 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       </fieldset>)}
     </div>
     {future&&<p role="alert" className={styles.entryError}>不能录入未来日期的身体记录。</p>}
-    <div className={styles.entryFooter}><div>{error&&<p role="alert" className={styles.entryError}>{error}</p>}{message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-record-guide-save type="submit" className={styles.saveEntry} disabled={busy||pending||!dirty||future}>{busy?busyLabel:"保存录入"}</button></div>
+    <div className={styles.entryFooter}><div>{(error||readError)&&<p role="alert" className={styles.entryError}>{error||readError}</p>}{message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-record-guide-save type={onRetry?"button":"submit"} onClick={onRetry} className={styles.saveEntry} disabled={onRetry?false:busy||pending||!dirty||future}>{onRetry?"重新读取":busy?busyLabel:"保存录入"}</button></div>
   </form>;
 }
