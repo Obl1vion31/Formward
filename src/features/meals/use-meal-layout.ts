@@ -4,7 +4,7 @@ import {useLayoutEffect,useState,type RefObject,type CSSProperties} from "react"
 /** 只测量排版所需的文字宽度，不计算或舍入营养。 */
 export function useMealLayout(sheet:RefObject<HTMLDivElement|null>,cells:string[][],enabled=true){
  const signature=JSON.stringify(cells);
- const [layout,setLayout]=useState({picker:"tabs",mode:"cards",stack:false,nutrientColumns:4,widths:[88,80,88,80,80,80]});
+ const [layout,setLayout]=useState({picker:"auto",mode:"auto",stack:false,nutrientColumns:4,widths:[88,80,88,80,80,80]});
  useLayoutEffect(()=>{
   if(!enabled||!sheet.current)return;
   const node=sheet.current!,form=node.closest("form")!,table=node.querySelector("table")!,canvas=document.createElement("canvas"),context=canvas.getContext("2d")!;
