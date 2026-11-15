@@ -4,19 +4,19 @@
 
 原域名现直接提供[隐私政策](https://formward-ten.vercel.app/privacy.html)和[服务条款](https://formward-ten.vercel.app/terms.html)，生效日期2026年11月10日。两页及legal.css通过Build Output静态文件优先提供，匿名200，无跳转或Cookie；不转至国服登录，也不调用健康API。该发布只新增三份静态文件，253个原文件及网关不变，未重发下方国服应用或改变数据库／授权配置。具体部署与证据见[公开协议资料](doubao-onboarding.md)。
 
-## 当前备案域名与正式服务
+## 当前正式服务
 
-日常网页为[https://formward.top](https://formward.top)，`www.formward.top`及HTTP保留路径跳转至HTTPS根域。域名与www的A记录均为腾讯云上海`43.142.148.58`；原NS、global及origin记录保持。ICP备案服务为「形序Formward」，网站备案号「沪ICP备2026060534号-1」；首页底部链接至工信部备案系统，电脑固定、手机独立成行，短屏及文字放大自然滚动。装饰素材等待使用局部提示，备案链接不被遮罩阻挡。
+正式站为[formward.top](https://formward.top)，应用`dual-entry-bc1847ae-assistant-verified-20261115-r6`，源码`bc1847ae54696eece6f7034d0bdf3ca00796368c`，BUILD_ID `JbG-Fm3VaZVXJB0G-k64g`，北京时间2026-11-15 20:22:01切换。代码已合入并推送main；后续文档提交不改变运行来源。完整人物首页、更多信息、备案链接、原OAuth issuer和MCP resource保留。
 
-正式应用源码`96b673801a526bf8d543ab86a6ce3b7c70ccc05a`，版本`dual-entry-96b67380-icp-domain-live-20261115`，BUILD_ID `CgfHhlneigVWiRWKbEbfq`；北京时间2026-11-15 14:25:58切换。代码已合入推送main；文档提交不改变运行来源。上海唯一主库、MCP2.0.0／18项、OpenAPI1.15.1及schema0038保持，无migration、收费模型请求或正式虚构健康写入。
+MCP **2.0.1／18项**，HTTP OpenAPI **1.15.1**；共用prompt修订`2026-11-15-preserve-verbatim-v1`，千问original、小米compact、智谱original，最近10组完整问答。接口保留食材关联并容忍同值重复参数，合法营养说明原样保留，错误逐字段说明；窄prompt仅补充明确原文冲突时解释并等待。OKOK等合法自由来源由结构化补充绑定真实任务并映射到预览，不靠品牌白名单。修改保留矩阵、对照原答和未保留候选见[助手验收](assistant-chat-verification.md)。
 
-运行配置只更新`FORMWARD_CN_ORIGIN=https://formward.top`并增加`FORMWARD_CN_LEGACY_ORIGIN=https://43.142.148.58`。原IP新打开的普通网页GET／HEAD转到根域，已有页面POST、RSC及预取仍在原来源执行；Cookie不跨域共享，首次进入新域名用原账号正常登录。`BETTER_AUTH_URL`、OAuth issuer、MCP resource、加密密钥、原GPT／豆包／Garmin配置保持；海外网关未重发。
+新schema为0040；版本化0039／0040已经正式应用并验证重复无操作。59张既有表的原列／值在迁移前后完全相同；最终应用切换10张健康表摘要一致，密码哈希与运行凭据配置不改。Free每天4次饮食识图、无通用聊天；内测¥1、Plus及指定管理员¥2共享聊天／识图预算，Pro预留。改档服务端立即检查，前台恢复及60秒同步，不需退出或重启，不清空用量和草稿。
 
-完整兼容运行包71,738,402字节，SHA256 `67d4242df5e7bb1cdd9b3b31d05b8d380713642f865c491d53ed49ee021051b9`，永久保存在原入口`.codex/backups/regional-releases/icp-domain-live-20261115`。47项旧Server Action及原绑定密钥、678项旧静态资源保留；即时应用回退为`assistant-recording-final-20261115`，仅恢复应用／来源配置，不回退合法数据。DNS已启用后的回退需保留域名HTTPS：根域仅GET／HEAD临时转回旧IP，POST明确失败并保留草稿，不能跨域重放，也不删除已有DNS记录。
+国内COS跨域许可补齐正式精确来源；海外改官方预签名的一次PUT，聊天／饮食共用真实进度、取消及10分钟／60秒停滞期限，每批按当前网络探测，不永久绑定账号。仅国内同源备用走回环3201及660秒，主监听3200的Node期限和普通代理120秒保持。海外网关同步至iad1配置的新构建，两个正式别名指向同一产物，其他别名保持。原图不压缩、不重编码；历史照片不搬迁。
 
-公网四入口同版本、76项资源SHA、www／HTTP／原IP跳转、匿名拒绝及原MCP resource已核对。发布前后11张健康表摘要一致；Chrome实际新域名首页及两引擎双端、无JS、慢加载、200%文字和素材失败登录检查通过。具体证据和未测边界见[维护验收](maintenance-verification.md#备案域名与首页备案展示2026-11-15)。
+lint、typecheck、R5全量771项、production build通过；最终日期修正重新通过lint、typecheck、构建、5项相关单测和两引擎三页6组返回／尺寸回归。正常／慢读、确认卡、上传及手机键盘的证据和未测项见[视觉验收](../design-qa.md)。四公网入口版本一致，14项首页静态资源、匿名拒绝、HTTP版本与MCP resource已核对。新增¥5验证usage计价¥0.66977392、未知预留0，未逐笔核对供应商账单；本轮智谱新增收费调用0，正式健康记录未写入虚构测试内容。
 
-公安联网备案尚未提交；ICP通过后可开通网站，仍需在网站开通之日起30日内提交公安联网备案。数据码有效期页面显示至2026-12-13 08:42:10，保留在腾讯云控制台及私有操作记录，不作为公安备案号展示。[腾讯云办理要求](https://cloud.tencent.com/document/product/243/19142)
+切换前2026-11-15 20:02:33原生备份及AES-256-GCM异机副本已回读；最新备份在隔离库完整恢复、迁移和重复验证通过。完整运行包SHA256 `0d943028fd87ce2846992cf7736eb1f580b70352f50e4b6cf43565e18733a4cd`，归档在原入口`.codex/backups/regional-releases/assistant-verified-20261115-r6`。即时兼容回退为`assistant-verified-20261115-r5`；只切应用或关闭试用，不删除新schema、聊天／任务／健康数据，不恢复旧数据库快照。旧0038网页仅可在禁用站内试用的兼容路径应急使用，不能假定其新授权写入仍兼容。
 
 ## 保留的浅色骨架验收
 
@@ -38,16 +38,16 @@
 | Vercel原域名 | 保留原GPT／MCP及OAuth地址，签名回源上海；处理海外照片下载、私有Blob读取及OAuth客户端资料获取 |
 | global.formward.top | 同一海外网关的已验证别名，过渡承接豆包request、WebView及独立登录；普通网页仍转国服 |
 | 上海PostgreSQL | 唯一权威数据库，应用与迁移角色分离，只监听回环地址，不公开5432 |
-| Blob／COS | GPT附件在海外后台处理并保存在私有Blob；国服网页新上传使用私有上海COS，旧图保留原位置 |
+| Blob／COS | 网页每批上传探测国内COS／海外私有Blob，不按账号永久绑定；GPT附件继续海外处理，旧图保留原位置 |
 | Neon（退役） | 旧 Formward 项目已删除，平台保留恢复期；最终旧源归档保存在服务器和本机私有目录，恢复验证只使用临时隔离库 |
 
-国服当前使用有效HTTPS公网IP证书。global.formward.top是海外后台别名；CLE1通过有效HTTPS回源公网IP。origin.formward.top已配A记录与证书，当前不承担回源。根域已启用为唯一日常网页，www转至根域；CN来源采用formward.top，原IP通过显式legacy来源保持旧页兼容，OAuth issuer及MCP resource保持。
+国服当前使用有效HTTPS公网IP证书。global.formward.top是海外后台别名；网关函数配置iad1，通过有效HTTPS签名回源公网IP。origin.formward.top已配A记录与证书，当前不承担回源。根域已启用为唯一日常网页，www转至根域；CN来源采用formward.top，原IP通过显式legacy来源保持旧页兼容，OAuth issuer及MCP resource保持。
 
 ## 连接与草稿保持
 
 - BETTER_AUTH_URL、OAuth issuer、MCP resource、JWKS、原Better Auth secret、账号accessVersion、会话、刷新令牌和授权保持。原GPT连接已在线get_profile验证，无需重连。
 - 各入口的host-only Secure Cookie继续隔离。网页跳转不转交Cookie、Authorization或请求正文；国服使用本人在国服的会话，首次进入可正常登录。
-- 切换前已打开页面的RSC读取、预取及POST保存继续原路径；不跨域重放写入。保留当前上线版本47项Server Action标识、绑定参数加密密钥与旧静态资源，已用真实旧页草稿保存验证。
+- 切换前已打开页面的RSC读取、预取及POST保存继续原路径；不跨域重放写入。保留48项Server Action及原47项标识、绑定参数加密密钥与旧静态资源，已用真实旧页草稿保存验证。
 - Next proxy保留原始URL及RSC头，服务证明绑定完整路径与全部查询。不能为修复框架归一化而忽略业务查询或放宽签名。
 - Garmin原连接编号、密文、AES-GCM主密钥、来源事实及人工保护保持；上海只读网络检查验证换取令牌、每日和活动接口成功。
 - 海外网关不包含数据库驱动、数据库凭据或认证签名密钥。上海重新检查Cookie／Bearer、账号和权限。公网IP同一HTTPS入口区分国服直达与已签名回源，伪造身份头不能提升来源。
@@ -58,7 +58,7 @@
 2. 完成隔离测试、必要浏览器验收和实际异机备份校验。只读核对完整库时使用服务器本地管理身份，不扩大应用角色权限。
 3. 在私有回环端口检查新应用与正式库身份，验证当前版本表单兼容；原子切换上海应用；海外协议未变时保留原部署，仅网关变更时更新海外别名。恢复版本同时兼容当前schema及凭据格式。
 4. 验证原GPT、Garmin、私有图片、网页跳转和登录返回；比较发布前后结构、业务、审计、授权及配置。正常使用时间与限流元数据单独核对，不笼统豁免健康表。
-5. 保留切换前workspace-flow-final-20261110供审计与无v2连接时的紧急退回；已有v2区域凭据时不能直接启用只识别v1的旧应用。采用兼容0036及v2的修复产物，保留用户新增记录，不恢复旧估算能力或旧Neon快照。
+5. 保留切换前workspace-flow-final-20261110供审计与无v2连接时的紧急退回；已有v2区域凭据时不能直接启用只识别v1的旧应用。采用兼容0040及v2的修复产物，保留用户新增记录，不恢复旧估算能力或旧Neon快照。
 
 数据库灾难恢复须另行停写并保全新增记录与撤销状态；先将最新加密归档恢复到隔离库完整核对，再制定正式恢复方案。已完成的0034／0035／0036不重复执行，不修改已发布migration。
 
@@ -68,7 +68,7 @@
 
 每日03:20备份正式库，生成原生归档与AES-256-GCM副本，再上传私有上海COS的database-backups/formward-primary/v1/目录；完整回读及SHA一致才成功。失败保留本机文件，每5分钟重试，1小时最多3次。本机匹配日备份保留14天，远端暂不自动删除。授权仅为该备份目录PutObject／GetObject／HeadObject，不含远端删除或密钥上传。
 
-原生与加密备份位于/var/backups/formward-primary，root0700；密钥独立root0600并另有用户电脑私有副本。0035后的实际云端副本已完整恢复至隔离库验证54表、35条migration及有效约束，详见[交接](../handoff.md)。备份不含Blob／COS原图；每日自动校验归档和云端回读，不等于每日自动完整恢复。
+当前0040兼容发布前的最新实际备份已完整隔离恢复并迁移，59张既有表原列与值保持；本次结构及费用详见部署文档。原生与加密备份位于/var/backups/formward-primary，root0700；密钥独立root0600并另有用户电脑私有副本。0035后的实际云端副本已完整恢复至隔离库验证54表、35条migration及有效约束，详见[交接](../handoff.md)。备份不含Blob／COS原图；每日自动校验归档和云端回读，不等于每日自动完整恢复。
 
 每日06:00 Garmin同步、主库备份与IP证书续期timer均保持active。IP续期每6小时检查，配置3天续期间隔；自然续证、14天清理与长期跨境性能仍按完整周期观察。资源、网络与可视化数据库方法见[服务器查看指南](server-operations.md)，本次实际证据和边界见[验收记录](regional-acceptance.md)。
 
