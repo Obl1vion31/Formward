@@ -158,6 +158,6 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       </fieldset>)}
     </div>
     {future&&<p role="alert" className={styles.entryError}>不能录入未来日期的身体记录。</p>}
-    <div className={styles.entryFooter}><div>{(error||readError)&&<p role="alert" className={styles.entryError}>{error||readError}</p>}{message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-record-guide-save type={onRetry?"button":"submit"} onClick={onRetry} className={styles.saveEntry} disabled={onRetry?false:busy||pending||!dirty||future}>{onRetry?"重新读取":busy?busyLabel:"保存录入"}</button></div>
+    <div className={styles.entryFooter}><div>{(error||readError)&&<p role="alert" className={styles.entryError}>{error||readError}</p>}{message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-record-guide-save data-entry-primary-action type={onRetry?"button":"submit"} onClick={onRetry} className={styles.saveEntry} disabled={onRetry?false:busy||pending||!dirty||future}>{onRetry?"重新读取":busy?busyLabel:"保存录入"}</button></div>
   </form>;
 }

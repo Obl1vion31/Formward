@@ -939,9 +939,9 @@ input:focus-visible {
 .dashboard-page form[data-entry-form] :is(input,select,textarea)[aria-invalid=true] {border-color:var(--data-red)}
 .dashboard-page form[data-entry-form] :is(input,select,textarea)[readonly] {background:var(--surface);border-style:dashed;color:var(--muted)}
 .dashboard-page form[data-entry-form] :is(input,select,textarea):disabled {opacity:.65;cursor:not-allowed}
-.dashboard-page form[data-entry-form] button[type=submit] {min-height:44px;flex:none;padding:10px 16px;border:1px solid var(--gold);border-radius:6px;background:var(--gold);color:var(--graphite);font-size:.875rem;line-height:1.5;text-decoration:none}
-.dashboard-page form[data-entry-form] button[type=submit]:hover:not(:disabled) {filter:brightness(1.08)}
-.dashboard-page form[data-entry-form] button[type=submit]:disabled {background:var(--surface-hover);border-color:var(--control-border);color:var(--muted);cursor:not-allowed;opacity:.7}
+.dashboard-page form[data-entry-form] :is(button[type=submit],button[data-entry-primary-action]) {min-height:44px;flex:none;padding:10px 16px;border:1px solid var(--gold);border-radius:6px;background:var(--gold);color:var(--graphite);font-size:.875rem;line-height:1.5;text-decoration:none}
+.dashboard-page form[data-entry-form] :is(button[type=submit],button[data-entry-primary-action]):hover:not(:disabled) {filter:brightness(1.08)}
+.dashboard-page form[data-entry-form] :is(button[type=submit],button[data-entry-primary-action]):disabled {background:var(--surface-hover);border-color:var(--control-border);color:var(--muted);cursor:not-allowed;opacity:.7}
 .dashboard-page form[data-entry-form] button:not([type=submit]) {min-height:44px}
 
 /* 身高的单位与输入共用外框，避免双边框和双焦点环。 */
@@ -1078,3 +1078,5 @@ dialog::backdrop{transition:background-color 210ms cubic-bezier(.2,.8,.2,1)}
  [data-record-trend] [data-body-plot][data-adaptive=true],.skeleton-plot[data-plot-kind=body]{box-sizing:border-box;height:clamp(8rem,calc(100svh - 26.625rem),12rem);padding-block:0}
  [data-record-trend] [data-body-plot][data-adaptive=true]::before,.skeleton-plot[data-plot-kind=body]::before{display:none}
 }
+
+.pending-entry-fields [role=alert]{color:var(--danger)}
