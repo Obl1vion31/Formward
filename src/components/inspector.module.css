@@ -73,4 +73,4 @@
 
 .heading h2{flex:1}
 
-@media(max-width:700px),(hover:none) and (pointer:coarse){.content>[data-record-intent]:has([data-meal-editor]){display:flex;flex-direction:column;flex:1;min-width:0}}
+@media(max-width:700px),(hover:none) and (pointer:coarse){.content [data-record-intent]:has([data-meal-editor]){display:flex;flex-direction:column;flex:1;min-width:0}}
