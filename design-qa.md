@@ -1,9 +1,9 @@
-# 当前视觉验收状态
+# 当前视觉验收
 
-最终结果：blocked。62项未全部完成最终视觉验收，不发布本轮候选。
+62项候选已逐项验收：61项通过，T08按用户要求保留已发布的键盘、视口和面板定位。新定位真机失败已撤回并保留证据，不记为通过。
 
-用户真机反馈新键盘／面板方案只见背景，已按其要求恢复此前已发布的面板、视口与滚动实现。隔离入口运行bc1847ae，正式站仍为dual-entry-bc1847ae-assistant-verified-20261115-r6。没有把模拟通过写成真机通过。
+运行来源6898fbb4fe9c82329af9e18c5e978b5421ed9933；lint、typecheck、99文件778项及兼容production build通过。双引擎正常／慢读、卡片、来源补充、录入、200%数值、失败及返回通过。Chromium的录入采用有明确来源的分段覆盖，原定位器失败保留；故障注入的两条419单独记录，不作为正常读取告警放行。
 
-开发候选48b45250a14675729040942fe6a5017551e32f65的lint、typecheck和99个测试文件共778项测试通过，978个非public源文件与实际执行检查的隔离源逐项SHA一致。新组合候选尚无最终production build及完整页面通过记录。原4项的错误目录展开结果已作废。
+逐项报告在原入口.codex/experience-implementation-20261115/ledger.json、status.html和status.md；实际图片与过程保持私有。真机系统文字、屏幕阅读器、硬件帧率与长期跨境性能未全面测试。
 
-逐项状态及私有证据见原入口.codex/experience-implementation-20261115/ledger.json、status.html、fallback-state.json及Windows私有formward-experience-qa-20261116目录。
+候选通过、等待正式切换；当前公网基线为bc1847ae，发布核对完成后以本文件及部署文档更新的实际版本为准。
