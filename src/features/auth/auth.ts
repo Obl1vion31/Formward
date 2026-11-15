@@ -24,7 +24,11 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
   if (config.secret.length < 32) throw new Error("BETTER_AUTH_SECRET 需要至少 32 个随机字符。");
   const url = new URL(config.baseURL);
   const trustedOrigins = [url.origin];
-  if (regionConfig().enabled) trustedOrigins.push(regionConfig().cn, regionConfig().global);
+  const regions = regionConfig();
+  if (regions.enabled) {
+    trustedOrigins.push(regions.cn, regions.global);
+    if (regions.legacyCn) trustedOrigins.push(regions.legacyCn);
+  }
   if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
     trustedOrigins.push(`http://localhost:${url.port || "80"}`, `http://127.0.0.1:${url.port || "80"}`);
   }

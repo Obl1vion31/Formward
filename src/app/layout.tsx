@@ -7,7 +7,7 @@ import { PageLoadingProvider } from "@/components/page-loading";
 
 // 浏览器标签标题及页面描述；不是首页人物旁显示的正文。
 export const metadata: Metadata = {
-  title: "Formward · 登录",
+  title: "形序Formward · 登录",
   description: "在 Formward 记录和回看饮食、训练与身体指标。",
 };
 

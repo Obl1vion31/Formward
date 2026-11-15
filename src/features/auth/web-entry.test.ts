@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { NextRequest } from "next/server";
 import { singleWebRedirect, confirmationPageUrl } from "./web-entry";
 import { regionConfig, canonicalMcpUrl } from "./regions";
-import { siteOrigin } from "./site-url";
+import { siteOrigin, isAccountRequestOrigin } from "./site-url";
 import { proxy } from "../../proxy";
 import { handleGatewayRequest } from "./regional-gateway";
 
@@ -112,4 +112,42 @@ test("关闭统一网页模式保持原区域行为，图片服务仍执行签�
 test("登录返回路径只采用实际URL，伪造同名请求头被覆盖",()=>configured(()=>{
  const response=proxy(new NextRequest(settings.FORMWARD_CN_ORIGIN+"/dashboard/ai/operations/fictional?view=1",{headers:{host:"203.0.113.10","x-formward-web-path":"https://evil.example"}}));
  assert.equal(response.headers.get("x-middleware-request-x-formward-web-path"),"/dashboard/ai/operations/fictional?view=1");
+}));
+
+test("备案域名启用后旧IP仅收拢新网页，旧表单与签名回源各自保持来源边界",()=>configured(()=>{
+  process.env.FORMWARD_CN_LEGACY_ORIGIN = settings.FORMWARD_CN_ORIGIN;
+  process.env.FORMWARD_CN_ORIGIN = "https://site.example";
+  process.env.FORMWARD_SELECTOR_ORIGIN = "https://site.example";
+  const direct = (origin:string, path:string, method="GET", extra:Record<string,string>={}) => proxy(new NextRequest(origin + path, {
+    method, headers: { host:new URL(origin).host, ...extra }, ...(method==="POST"?{body:"fictional-draft"}:{}),
+  }));
+  const primary = direct("https://site.example", "/dashboard");
+  assert.equal(primary.status,200);
+  assert.equal(primary.headers.get("x-middleware-request-x-formward-public-origin"),"https://site.example");
+  for(const method of ["GET","HEAD"]){
+    const moved = direct(settings.FORMWARD_CN_ORIGIN,"/dashboard/meals?entry=2026-11-15",method);
+    assert.equal(moved.status,307);
+    assert.equal(moved.headers.get("location"),"https://site.example/dashboard/meals?entry=2026-11-15");
+    assert.equal(moved.headers.get("set-cookie"),null);
+  }
+  for(const [method,extra] of [["POST",{}],["GET",{RSC:"1"}],["GET",{"Next-Router-Prefetch":"1"}]] as const){
+    const kept = direct(settings.FORMWARD_CN_ORIGIN,"/dashboard/meals",method,extra);
+    assert.equal(kept.status,200);
+    assert.equal(kept.headers.get("x-middleware-request-x-formward-public-origin"),settings.FORMWARD_CN_ORIGIN);
+    assert.equal(kept.headers.get("x-middleware-request-x-formward-region"),"cn");
+    assert.equal(kept.headers.get("location"),null);
+  }
+  const legacyHeaders = new Headers({origin:settings.FORMWARD_CN_ORIGIN,"x-formward-public-origin":settings.FORMWARD_CN_ORIGIN});
+  assert.equal(isAccountRequestOrigin(legacyHeaders),true);
+  legacyHeaders.set("origin","https://site.example");
+  assert.equal(isAccountRequestOrigin(legacyHeaders),false);
+  assert.equal(direct("https://evil.example","/dashboard").status,421);
+  assert.equal(direct(settings.FORMWARD_CN_ORIGIN,"/api/mcp","POST",{"x-formward-service":"forged"}).status,403);
+  const safe = direct("https://site.example","/api/mcp","POST",{"x-formward-public-origin":"https://evil.example","x-formward-region":"global"});
+  assert.equal(safe.headers.get("x-middleware-request-x-formward-public-origin"),"https://site.example");
+  assert.equal(safe.headers.get("x-middleware-request-x-formward-region"),"cn");
+  assert.equal(confirmationPageUrl(new Request(settings.BETTER_AUTH_URL,{headers:{"x-formward-public-origin":settings.BETTER_AUTH_URL}}),"/dashboard/ai/operations/fictional"),"https://site.example/dashboard/ai/operations/fictional");
+  assert.equal(canonicalMcpUrl(),settings.BETTER_AUTH_URL+"/api/mcp");
+  process.env.FORMWARD_CN_LEGACY_ORIGIN="https://evil.example/path";
+  assert.throws(()=>regionConfig());
 }));

@@ -1,5 +1,7 @@
 # Auth
 
+备案域名通过`FORMWARD_CN_ORIGIN`指定；切换期间可显式配置一个`FORMWARD_CN_LEGACY_ORIGIN`保留原IP会话。原IP新打开的普通网页GET／HEAD转至新域名，已有页面POST、RSC读取及预取继续在原来源执行；Cookie不跨域转交，首次进入新域名需正常登录。旧入口与海外签名回源分别校验，未知Host、伪造证明及跨来源操作仍拒绝。OAuth issuer、MCP resource与既有授权由`BETTER_AUTH_URL`保持，不跟随网页域名变更。
+
 ## 目的
 
 负责邀请制邮箱密码登录、Session、账号管理、当前用户和退出。网页入口与 HTTP 认证接口使用同一 Better Auth 配置；独立可撤销 AI Token。

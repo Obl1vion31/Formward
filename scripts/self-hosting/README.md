@@ -77,6 +77,8 @@ sudo journalctl -u formward-backup-preview.service -n 20 --no-pager
 
 ## 双区发布与私有HTTPS
 
+`nginx-primary-domain.conf`为备案后的正式网页域名入口，根域反代上海3200，www及HTTP保留路径跳转至HTTPS根域；使用已验证的`/etc/formward/tls/current`证书及原续期任务。安装前核对域名备案、SAN、信任链和有效期，先在服务器本机以真实SNI／Host验证候选，再启用根域／www解析。应用使用`FORMWARD_CN_ORIGIN=https://formward.top`与`FORMWARD_CN_LEGACY_ORIGIN=https://43.142.148.58`，原IP及签名回源配置并存；不改OAuth issuer、MCP resource、密钥和数据库。恢复时一起回退应用指针、网页来源配置和本次新增Nginx配置，保留合法数据及原IP入口，不删除其他DNS记录。
+
 当前网关固定iad1：香港回源公开版本接口实测TCP超时，iad1的TCP、TLS及HTTP200通过。国际产物的项目与函数配置均写iad1，发布命令仍须显式传`--regions iad1`，并核对部署API、两个别名和实际回源；仅本地配置或Ready状态不足。业务网关代码、JWT、issuer和resource不因区域改变。
 
 - build-regional-release.mts 通过 pnpm release:regional 唯一发布标识执行；兼容已有表单时传入先前构建的 NEXT_SERVER_ACTIONS_ENCRYPTION_KEY 和 FORMWARD_BUILD_SOURCE_PATH，并核对原 action 标识全部保留。稳定源码路径只接受同仓库已登记 worktree 的私有发布目录下尚不存在的 source-* 子目录，不覆盖已有目录；国际包包含网关、海外图片处理与公开静态 CDN 文件，不包含数据库驱动、schema或COS SDK。源码归档单独保留用于追溯，不作为部署公开文件。

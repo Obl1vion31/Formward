@@ -12,6 +12,7 @@ export function regionConfig(env = process.env) {
   return { enabled: env.FORMWARD_REGIONAL === "1", singleWeb: env.FORMWARD_SINGLE_WEB === "1", canonical,
     selector: configuredOrigin(env.FORMWARD_SELECTOR_ORIGIN ?? "https://formward.top"),
     cn: configuredOrigin(env.FORMWARD_CN_ORIGIN ?? "https://cn.formward.top"),
+    legacyCn: env.FORMWARD_CN_LEGACY_ORIGIN ? configuredOrigin(env.FORMWARD_CN_LEGACY_ORIGIN) : undefined,
     global: configuredOrigin(env.FORMWARD_GLOBAL_ORIGIN ?? "https://global.formward.top"),
     transport: configuredOrigin(env.FORMWARD_ORIGIN_URL ?? "https://origin.formward.top"),
   };
@@ -21,7 +22,7 @@ export function publicRequestOrigin(headers: Headers) {
   if (!config.enabled) return config.canonical;
   // 此头只由 proxy 在入口认证后重新生成；原始外来值在 proxy 删除。
   const origin = headers.get("x-formward-public-origin");
-  if (![config.cn, config.global, config.canonical].includes(origin ?? "")) throw new Error("请求来源尚未验证。");
+  if (![config.cn, config.legacyCn, config.global, config.canonical].includes(origin ?? "")) throw new Error("请求来源尚未验证。");
   return origin!;
 }
 export function processingRegion(headers?: Headers): ProcessingRegion {

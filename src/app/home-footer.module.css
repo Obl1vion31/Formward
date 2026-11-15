@@ -1,0 +1,31 @@
+.footer {
+  position: fixed;
+  z-index: 5;
+  inset: auto 16px calc(4px + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.footer a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  overflow-wrap: anywhere;
+  text-underline-offset: 3px;
+}
+
+.footer a:hover {
+  color: var(--warm-white);
+  text-decoration: underline;
+}
+
+.footer a:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
