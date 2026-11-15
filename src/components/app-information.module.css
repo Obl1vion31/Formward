@@ -1,0 +1,44 @@
+/* 以 ImageGen 定稿的七行、三组和逐项展开为视觉基准。 */
+.information {border-top:1px solid var(--line-soft);padding-top:8px;font-size:1.125rem;line-height:1.5}
+.group + .group {margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft)}
+.disclosure h3 {margin:0;font:inherit}
+.row {display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:12px 0;border:0;background:none;color:var(--warm-white);text-align:start;text-decoration:none;font:inherit;cursor:pointer}
+.row > span:first-child {flex:1;min-width:0;overflow-wrap:anywhere}
+.rowValue {flex:none;color:var(--muted);font-size:.875rem;font-variant-numeric:tabular-nums}
+.row svg {flex:none;color:var(--warm-white);transition:transform 160ms ease}
+.row[aria-expanded=true] svg {transform:rotate(180deg)}
+.row:hover {color:var(--gold)}
+.information :is(button,a):focus-visible,.copyFallback:focus-visible {outline:2px solid var(--gold);outline-offset:2px;border-radius:4px}
+.details {padding:0 0 12px;font-size:.875rem;line-height:1.6}
+.details[hidden] {display:none}
+.details button,.details a {min-height:44px;font:inherit;cursor:pointer}
+.details button:disabled {color:var(--muted);cursor:wait;opacity:.7}
+.details .primary,.details .check {display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:44px;padding:10px 14px;border:1px solid var(--control-border);border-radius:6px;color:var(--warm-white);background:none;text-decoration:none;text-align:center;font-size:.875rem;line-height:1.5}
+.details .primary {border-color:var(--gold);background:var(--gold);color:var(--graphite);font-weight:600}
+.details .primary:hover:not(:disabled) {filter:brightness(1.08)}
+.details .check:hover:not(:disabled) {border-color:var(--gold);color:var(--gold)}
+.updateStatus {margin:0 0 10px;color:var(--warm-white)}
+.updateStatus:empty {display:none}
+.secondaryActions {display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0 16px;margin-top:4px}
+.secondaryActions button {min-height:44px;padding:8px 0;border:0;background:none;color:var(--muted);font-size:.8125rem;line-height:1.5;text-align:start}
+.secondaryActions button:hover:not(:disabled) {color:var(--gold);text-decoration:underline;text-underline-offset:3px}
+.changeList {margin:0;padding:0 0 0 20px;color:var(--muted)}
+.changeList li + li {margin-top:8px}
+.filing {margin:0}
+.filing > div + div {margin-top:8px}
+.filing dt {color:var(--muted);font-size:.8125rem}
+.filing dd {margin:0}
+.filing a {display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:8px;color:var(--warm-white);text-decoration:none;overflow-wrap:anywhere}
+.filing a:hover {color:var(--gold);text-decoration:underline;text-underline-offset:3px}
+.filing svg {flex:none}
+.address {margin:0 0 12px;overflow-wrap:anywhere;user-select:text}
+.feedback {margin:8px 0 0;color:var(--muted)}
+.copyFallback {margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8125rem;user-select:text}
+@media(prefers-reduced-motion:reduce) {.row svg {transition:none}}
+
+:global(dialog):has(.information) h2 {font-size:1.375rem;font-weight:600;line-height:1.4}
+:global(dialog):has(.information) > div:first-child button svg {width:24px;height:24px}
+@media(max-width:700px),(hover:none) and (pointer:coarse){
+ :global(dialog[open][data-fit-content]):has(.information) > div:first-child {padding:18px 18px 10px 28px}
+ :global(dialog):has(.information) > div:nth-child(2) {padding-inline:28px}
+}

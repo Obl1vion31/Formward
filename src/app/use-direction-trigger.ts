@@ -18,6 +18,7 @@ export function listenForDirectionIntent(onIntent: (target: TargetProgress) => v
   let touch: { id: number; x: number; y: number; delta: number; horizontal: number; direction: number; triggeredDirection: number } | null = null;
 
   function onWheel(event: WheelEvent) {
+    if (event.target instanceof Element && event.target.closest(".login-overlay")) return;
     // 排除触控板缩放与以横向为主的滚动，不阻止浏览器自己的页面滚动。
     if (event.ctrlKey || event.deltaY === 0 || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
     const direction = Math.sign(event.deltaY);

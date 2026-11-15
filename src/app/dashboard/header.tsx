@@ -15,10 +15,12 @@ import { DataSourcesPanel } from "@/features/data-sources/panel";
 import { AccountSurface } from "@/features/auth/account-surfaces";
 import { useMobileMode } from "@/components/use-mobile-mode";
 import { useChartTransition } from "@/components/chart-transition-state";
+import {useAppInformation} from "@/components/app-information";
 import { LocalLoading } from "@/components/local-loading";
 import styles from "./header.module.css";
 type Group = "root" | "external" | "account" | "admin";
 export function DashboardHeader({ email, owner = false, sourcePilot = false }: { email: string; owner?: boolean; sourcePilot?: boolean }) {
+  const openInformation = useAppInformation();
   const actualPath = usePathname(), mobile = useMobileMode(), [settings, setSettings] = useState<false | "profile" | "account" | "sources">(false), [group, setGroup] = useState<Group>("root");
   const { open: assistantOpen, toggle: toggleAssistant, hide: hideAssistant, count } = useAssistant(), chart = useChartTransition();
   const pathname=chart.returningToOverview?"/dashboard":actualPath;
@@ -26,6 +28,7 @@ export function DashboardHeader({ email, owner = false, sourcePilot = false }: {
   const pendingChanges = useMemo(() => Object.fromEntries(["sources", "profile", "account"].map(kind => [kind, (pending: boolean) => setPendingAccount(current => pending ? kind : current === kind ? null : current)])), []);
   const page = pages.find(([path]) => path === pathname), visualReview = pathname === "/dashboard/visual-review", review = pathname.includes("/operations/") || pathname.includes("/review/"), hasTools = !review && assistantAvailablePage(pathname);
   const openSettings = async (kind: "profile" | "account" | "sources") => { await menuClose.current(); document.querySelector<HTMLElement>('.dashboard-header summary[aria-label="账号菜单"]')?.focus({ preventScroll: true }); setSettings(kind); };
+  const openMoreInformation = async () => { await menuClose.current(); document.querySelector<HTMLElement>('.dashboard-header summary[aria-label="账号菜单"]')?.focus({preventScroll: true}); openInformation(); };
   const openAssistant = async () => { await menuClose.current(); toggleAssistant(); };
   const overview = (event: { preventDefault(): void }) => { if (actualPath !== "/dashboard"||chart.returningToOverview) { event.preventDefault(); void chart.back(); } };
   useLayoutEffect(() => {
@@ -45,7 +48,7 @@ export function DashboardHeader({ email, owner = false, sourcePilot = false }: {
       <span className={"mobile-page-name" + (pathname === "/dashboard/ai" ? " " + styles.aiTitle : "")} role={page || pathname === "/dashboard/ai" ? "heading" : undefined} aria-level={page || pathname === "/dashboard/ai" ? 1 : undefined}>{review ? "确认记录" : visualReview ? "视觉验收" : page?.[1] ?? (pathname.includes("/account") ? "账号与安全" : pathname.includes("/profile") ? "个人资料" : pathname.includes("/tutorial") ? "使用说明" : pathname.includes("/export") ? "导出数据" : pathname.includes("/sources") ? "设备与数据来源" : "AI 接入")}</span>
       <div className={styles.actions}><AppearanceToggle/>
         <GlassMenu onEscape={()=>{if(group!=="root"){changeGroup("root");return true;}return false;}} onCloseReady={close => { menuClose.current = close; }} onOpen={async () => { setGroup("root"); await hideAssistant(); }} icon={<><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9" r="3"/><path d="M5.5 18c1-5 12-5 13 0"/></svg><LocalLoading active={!!pendingAccount} iconOnly label="正在打开账号页面…"/></>}>
-          {group === "root" ? <><span className={styles.menuEmail}>{email}</span><FollowSystemAppearance/>{([["external", "外部接入"], ["account", "账号管理"], ...(owner ? [["admin", "管理与测试"]] : [])] as [Group, string][]).map(([key, label]) => <button key={key} type="button" data-menu-stay-open data-menu-group={key} onClick={() => changeGroup(key)}>{label}<span aria-hidden="true">›</span></button>)}</> : <>{backGroup}
+          {group === "root" ? <><span className={styles.menuEmail}>{email}</span><FollowSystemAppearance/>{([["external", "外部接入"], ["account", "账号管理"], ...(owner ? [["admin", "管理与测试"]] : [])] as [Group, string][]).map(([key, label]) => <button key={key} type="button" data-menu-stay-open data-menu-group={key} onClick={() => changeGroup(key)}>{label}<span aria-hidden="true">›</span></button>)}<button type="button" aria-haspopup="dialog" onClick={() => void openMoreInformation()}>更多信息</button></> : <>{backGroup}
             {group === "external" && <>{mobile ? <button type="button" onClick={() => void openSettings("sources")}>设备与数据来源</button> : <LoadingLink beforeNavigate={() => menuClose.current()} onPendingChange={pendingChanges.sources} href="/dashboard/sources">设备与数据来源</LoadingLink>}<LoadingLink beforeNavigate={() => menuClose.current()} href="/dashboard/ai">AI 接入</LoadingLink></>}
             {group === "account" && <>{mobile ? <><button type="button" onClick={() => void openSettings("profile")}>个人资料</button><button type="button" onClick={() => void openSettings("account")}>账号与安全</button></> : <><LoadingLink beforeNavigate={() => menuClose.current()} onPendingChange={pendingChanges.profile} href="/dashboard/profile">个人资料</LoadingLink><LoadingLink beforeNavigate={() => menuClose.current()} onPendingChange={pendingChanges.account} href="/dashboard/account">账号与安全</LoadingLink></>}<LogoutButton/></>}
             {group === "admin" && owner && <><LoadingLink beforeNavigate={() => menuClose.current()} href="/onboarding?mode=test">测试初次登录</LoadingLink><LoadingLink beforeNavigate={() => menuClose.current()} href="/admin">用户管理</LoadingLink></>}

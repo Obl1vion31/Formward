@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { regionConfig } from "@/features/auth/regions";
 import { RegionSelector } from "./region/selector";
 import styles from "./home-footer.module.css";
+import {HomeFooter} from "./home-footer";
+import {ConfirmationProvider} from "@/components/confirmation";
 
 // Next.js 将 src/app/page.tsx 映射为网站根路径 /。
 // 页面入口只挂载体验组件；滚动、动画和表单协调都在 HomeExperience 中。
@@ -11,7 +13,5 @@ export default async function HomePage() {
   if (config.enabled && !config.singleWeb && requestHeaders.get("host") === new URL(config.selector).host) {
     return <RegionSelector cn={config.cn} global={config.global} />;
   }
-  return <div className={styles.shell}><HomeExperience /><footer className={styles.footer}>
-    <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">沪ICP备2026060534号-1</a>
-  </footer></div>;
+  return <ConfirmationProvider><div className={styles.shell}><HomeExperience /><HomeFooter/></div></ConfirmationProvider>;
 }

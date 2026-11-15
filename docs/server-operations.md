@@ -84,7 +84,7 @@ ROLLBACK;
 | 当前程序 | /srv/formward-primary/current |
 | 原始授权及运行配置 | /etc/formward/primary.env，root 0600 |
 | PostgreSQL | 18/main，回环5432 |
-| 国服入口与证书 | Nginx 443、现有 IP HTTPS 证书与续期任务 |
+| 国服入口与证书 | Nginx 443；formward.top／www使用原域名证书及续期任务，原IP HTTPS与续期任务保留 |
 | 独立演示库 | formward_ip_preview，和正式库分开 |
 
 服务状态可通过 systemctl is-active formward-primary.service nginx postgresql 查询。读取日志时只检查必要错误与请求状态，避免把健康内容、临时图片链接或凭据贴到公开位置。备份和恢复的实际验证结果见双入口验收；同盘备份与异机备份分别记录。

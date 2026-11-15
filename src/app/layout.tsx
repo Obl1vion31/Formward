@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 // 在根布局引入一次，全站即可使用 globals.css 中的类名和颜色变量。
 import "./globals.css";
 import {appearanceBootstrap} from "@/components/appearance-state";
+import {AppInformationProvider} from "@/components/app-information";
 import {AppUpdates} from "@/components/app-updates";
 import { PageLoadingProvider } from "@/components/page-loading";
 
@@ -19,7 +20,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" data-theme="dark" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{__html:appearanceBootstrap}}/></head>
-      <body><PageLoadingProvider><AppUpdates/>{children}</PageLoadingProvider></body>
+      <body><PageLoadingProvider><AppInformationProvider><AppUpdates/>{children}</AppInformationProvider></PageLoadingProvider></body>
     </html>
   );
 }

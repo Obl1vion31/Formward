@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, type FormEvent, type RefObject } from "react";
+import { useEffect, useState, type FormEvent, type RefObject } from "react";
+
+import {useDraftGuard, pageRefreshApproved} from "@/components/draft-guard";
 
 // 父组件决定何时可操作、何时可提交；此组件负责输入值及表单 DOM。
 // onInputFocus / onInputBlur 把焦点通知父级，由父级控制人物回中和阶段锁定。
@@ -19,6 +21,16 @@ export function LoginOverlay({ overlayRef, accessible, canSubmit, pending, error
   // 受控输入：value 来源于 state，onChange 更新 state；倒放不会卸载组件，因此值保留。
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // 共享更新控制器只读取布尔状态，不接收或保存登录凭据。
+  const dirty = email.length > 0 || password.length > 0;
+  useDraftGuard(dirty, pending || (accessible && !canSubmit));
+  useEffect(() => {
+    const protect = (event: BeforeUnloadEvent) => {
+      if (dirty && !pageRefreshApproved()) {event.preventDefault(); event.returnValue = "";}
+    };
+    window.addEventListener("beforeunload", protect);
+    return () => window.removeEventListener("beforeunload", protect);
+  }, [dirty]);
   // 非空只控制按钮；真实凭据由服务端认证。密码不进入 localStorage 或公开资源。
   const canEnter = canSubmit && email.trim().length > 0 && password.length > 0;
 

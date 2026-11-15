@@ -1,57 +1,12 @@
-.footer {
-  position: fixed;
-  z-index: 5;
-  inset: auto 16px calc(4px + env(safe-area-inset-bottom));
-  display: flex;
-  justify-content: center;
-  color: var(--muted);
-  font-size: .75rem;
-  line-height: 1.5;
-  text-align: center;
-}
-
-.footer a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  padding: 8px 12px;
-  overflow-wrap: anywhere;
-  text-underline-offset: 3px;
-}
-
-.footer a:hover {
-  color: var(--warm-white);
-  text-decoration: underline;
-}
-
-.footer a:focus-visible {
-  outline: 2px solid var(--gold);
-  outline-offset: 2px;
-}
-.shell {
-  min-height: 100svh;
-}
-
-
-@media (max-width: 700px), (hover: none) and (pointer: coarse) {
-  .shell {
-    display: grid;
-    grid-template-rows: minmax(560px, 1fr) auto;
-  }
-
-  .shell :global(.home-page[data-mobile]),
-  .shell :global(.home-page[data-mobile]) :global(.home-scroll) {
-    min-height: 0;
-    height: 100%;
-  }
-
-  .shell :global(.home-stage) {
-    height: 100%;
-  }
-
-  .footer {
-    position: static;
-    padding: 0 16px calc(4px + env(safe-area-inset-bottom));
-  }
+/* 信息行叠放在完整舞台上，不再分走人物的视口高度。 */
+.shell {position: relative; min-height: 100svh; --home-footer-height: 48px;}
+.footer {position: fixed; z-index: 5; inset: auto 16px 0; display: flex; align-items: center; justify-content: center; gap: 4px; padding-bottom: calc(4px + env(safe-area-inset-bottom)); color: var(--muted); font-size: .6875rem; line-height: 1.5; text-align: center;}
+.footer a, .footer button {display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px; color: inherit; font: inherit; line-height: inherit; text-underline-offset: 3px;}
+.footer a {min-width: 0; overflow-wrap: anywhere;}
+.footer button {flex: none; border: 0; background: none; cursor: pointer;}
+.footer :is(a, button):hover {color: var(--warm-white); text-decoration: underline;}
+.footer :is(a, button):focus-visible {outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 4px;}
+@media(max-width:700px),(hover:none) and (pointer:coarse) {
+  /* svh 属于布局视口；键盘缩小 visualViewport 时不将页脚抬到输入区。 */
+  .footer {position: absolute; top: 100svh; bottom: auto; transform: translateY(-100%);}
 }
