@@ -1,8 +1,22 @@
 # 公网 HTTPS 部署
 
-## 当前正式部署：小助手、手机录入与加载
+## 当前备案域名与正式服务
 
-当前应用源码10476d440fe55bb426287e85e9ced122c0cd9462，版本dual-entry-10476d44-assistant-recording-final-20261115，BUILD_ID CxKXUAyNchCLIrIh9YroX；北京时间2026-11-15 04:28:17切换上海正式服务。功能代码已合入推送main，文档提交不改变运行来源。
+日常网页为[https://formward.top](https://formward.top)，`www.formward.top`及HTTP保留路径跳转至HTTPS根域。域名与www的A记录均为腾讯云上海`43.142.148.58`；原NS、global及origin记录保持。ICP备案服务为「形序Formward」，网站备案号「沪ICP备2026060534号-1」；首页底部链接至工信部备案系统，电脑固定、手机独立成行，短屏及文字放大自然滚动。装饰素材等待使用局部提示，备案链接不被遮罩阻挡。
+
+正式应用源码`96b673801a526bf8d543ab86a6ce3b7c70ccc05a`，版本`dual-entry-96b67380-icp-domain-live-20261115`，BUILD_ID `CgfHhlneigVWiRWKbEbfq`；北京时间2026-11-15 14:25:58切换。代码已合入推送main；文档提交不改变运行来源。上海唯一主库、MCP2.0.0／18项、OpenAPI1.15.1及schema0038保持，无migration、收费模型请求或正式虚构健康写入。
+
+运行配置只更新`FORMWARD_CN_ORIGIN=https://formward.top`并增加`FORMWARD_CN_LEGACY_ORIGIN=https://43.142.148.58`。原IP新打开的普通网页GET／HEAD转到根域，已有页面POST、RSC及预取仍在原来源执行；Cookie不跨域共享，首次进入新域名用原账号正常登录。`BETTER_AUTH_URL`、OAuth issuer、MCP resource、加密密钥、原GPT／豆包／Garmin配置保持；海外网关未重发。
+
+完整兼容运行包71,738,402字节，SHA256 `67d4242df5e7bb1cdd9b3b31d05b8d380713642f865c491d53ed49ee021051b9`，永久保存在原入口`.codex/backups/regional-releases/icp-domain-live-20261115`。47项旧Server Action及原绑定密钥、678项旧静态资源保留；即时应用回退为`assistant-recording-final-20261115`，仅恢复应用／来源配置，不回退合法数据。DNS已启用后的回退需保留域名HTTPS：根域仅GET／HEAD临时转回旧IP，POST明确失败并保留草稿，不能跨域重放，也不删除已有DNS记录。
+
+公网四入口同版本、76项资源SHA、www／HTTP／原IP跳转、匿名拒绝及原MCP resource已核对。发布前后11张健康表摘要一致；Chrome实际新域名首页及两引擎双端、无JS、慢加载、200%文字和素材失败登录检查通过。具体证据和未测边界见[维护验收](maintenance-verification.md#备案域名与首页备案展示2026-11-15)。
+
+公安联网备案尚未提交；ICP通过后可开通网站，仍需在网站开通之日起30日内提交公安联网备案。数据码有效期页面显示至2026-12-13 08:42:10，保留在腾讯云控制台及私有操作记录，不作为公安备案号展示。[腾讯云办理要求](https://cloud.tencent.com/document/product/243/19142)
+
+## 保留的正式部署：小助手、手机录入与加载功能基线
+
+该功能基线的应用源码10476d440fe55bb426287e85e9ced122c0cd9462，版本dual-entry-10476d44-assistant-recording-final-20261115，BUILD_ID CxKXUAyNchCLIrIh9YroX；北京时间2026-11-15 04:28:17切换上海正式服务。功能代码已合入推送main，文档提交不改变运行来源。
 
 电脑小助手为200px任务侧栏与右侧聊天，三个手动记录各占一行；手机为同排“记录饮食／记录测量／记录消耗”。按需补记、AI确认、常用功能共用16px／500字重、字体与SVG开合箭头。饮食首屏可选手填、食材库或拍照，名称／单位／数量三列，四项营养标签与单位横排；照片仅一个系统选择框。站内预览可在聊天内核对、修改、确认或本次不保存；结构化补充选完再提交，照片识别回填草稿后由用户统一保存。
 

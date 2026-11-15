@@ -4,39 +4,19 @@
 
 原域名现直接提供[隐私政策](https://formward-ten.vercel.app/privacy.html)和[服务条款](https://formward-ten.vercel.app/terms.html)，生效日期2026年11月10日。两页及legal.css通过Build Output静态文件优先提供，匿名200，无跳转或Cookie；不转至国服登录，也不调用健康API。该发布只新增三份静态文件，253个原文件及网关不变，未重发下方国服应用或改变数据库／授权配置。具体部署与证据见[公开协议资料](doubao-onboarding.md)。
 
-## 当前部署
+## 当前备案域名与正式服务
 
-当前应用源码f1d44df8aca68a84c14de9fa167d2a0dac225221，版本dual-entry-f1d44df8-mobile-interface-upload-20261114，BUILD_ID g2QARq6nYHhDF2IJ9S3Fs；北京时间2026-11-14 18:53:07切换，已合入推送main。
+日常网页为[https://formward.top](https://formward.top)，`www.formward.top`及HTTP保留路径跳转至HTTPS根域。域名与www的A记录均为腾讯云上海`43.142.148.58`；原NS、global及origin记录保持。ICP备案服务为「形序Formward」，网站备案号「沪ICP备2026060534号-1」；首页底部链接至工信部备案系统，电脑固定、手机独立成行，短屏及文字放大自然滚动。装饰素材等待使用局部提示，备案链接不被遮罩阻挡。
 
-手机52px顶栏、紧凑小助手与录入、普通饮食／身体／消耗完整图表、本人同条件真实内容后台更新及照片原图进度／人工备用已发布。MCP2.0.0／18工具、OpenAPI1.15.1、schema0037、prompt original／compact／original及最近10组问答保持，没有新增迁移、scope或模型参数。
+正式应用源码`96b673801a526bf8d543ab86a6ce3b7c70ccc05a`，版本`dual-entry-96b67380-icp-domain-live-20261115`，BUILD_ID `CgfHhlneigVWiRWKbEbfq`；北京时间2026-11-15 14:25:58切换。代码已合入推送main；文档提交不改变运行来源。上海唯一主库、MCP2.0.0／18项、OpenAPI1.15.1及schema0038保持，无migration、收费模型请求或正式虚构健康写入。
 
-713项单元／集成、lint、typecheck及production build通过；兼容standalone两引擎各73张专项，聊天扩展各51张，五页正常／慢读、放大刻度及原生PostgreSQL失败重试和缓存回归通过。原故障iPhone Safari由用户确认同一照片直传就绪；上海隔离库1 MiB直传、5／20 MiB备用、原图／重复／跨账号检查通过。自动验收未发起收费模型调用或写入正式虚构健康记录。
+运行配置只更新`FORMWARD_CN_ORIGIN=https://formward.top`并增加`FORMWARD_CN_LEGACY_ORIGIN=https://43.142.148.58`。原IP新打开的普通网页GET／HEAD转到根域，已有页面POST、RSC及预取仍在原来源执行；Cookie不跨域共享，首次进入新域名用原账号正常登录。`BETTER_AUTH_URL`、OAuth issuer、MCP resource、加密密钥、原GPT／豆包／Garmin配置保持；海外网关未重发。
 
-47项旧Server Action及加密密钥、575项旧静态资源、运行配置字节及唯一指定owner范围保持。发布窗口11张正式健康表摘要一致，后续用户正常记录保留。完整兼容包71,005,615字节，SHA256 405f3548873115a2b0b1f4911783d2cacd4d16a86e1d6bfd2fd82cbb299a9dfa，永久存于原入口.codex/backups/regional-releases/mobile-interface-upload-20261114。即时回退为ai-tools-v2-20261114，只切应用，不回退聊天、授权或健康数据；国际网关未重新发布。
+完整兼容运行包71,738,402字节，SHA256 `67d4242df5e7bb1cdd9b3b31d05b8d380713642f865c491d53ed49ee021051b9`，永久保存在原入口`.codex/backups/regional-releases/icp-domain-live-20261115`。47项旧Server Action及原绑定密钥、678项旧静态资源保留；即时应用回退为`assistant-recording-final-20261115`，仅恢复应用／来源配置，不回退合法数据。DNS已启用后的回退需保留域名HTTPS：根域仅GET／HEAD临时转回旧IP，POST明确失败并保留草稿，不能跨域重放，也不删除已有DNS记录。
 
-公网页面与API已核对：三个既有域名同版本、新旧协议18项schema／说明一致；手机普通页图表完整，顶栏实测52.8px／页名20px，输入区91.6px，悬浮箭头44px命中、相对输入区中心偏差0px、消息区高度变化0px。浏览器视口已恢复。
+公网四入口同版本、76项资源SHA、www／HTTP／原IP跳转、匿名拒绝及原MCP resource已核对。发布前后11张健康表摘要一致；Chrome实际新域名首页及两引擎双端、无JS、慢加载、200%文字和素材失败登录检查通过。具体证据和未测边界见[维护验收](maintenance-verification.md#备案域名与首页备案展示2026-11-15)。
 
-同源隔离分流撤除偏晚，导致用户真实账号在测试库登录失败并限流。正式密码与当日03:20备份一致，无改密／重设／撤销审计；撤除分流后用户确认恢复登录。测试路由已关闭，旧测试Cookie不再选择测试应用；隔离测试库、专用进程和4张已登记照片的8条正式／临时对象路径完成清理。未扩大COS权限，不能枚举桶，按已知精确路径删除并HEAD核对404。
-
-实际截图、过程、失败与报告归档到原入口.codex/mobile-interface-upload-20261114；真实Safari备用、系统键盘／原生字号、屏幕阅读器及帧率未测。模拟WebKit不等于真机通过。
-
-### 保留的生日与操作引导基线
-
-生日使用独立年／月／日选择，年份直接展开；饮食、消耗、身体、训练提供入口→填写→保存说明的首次三步高光。每账号、每设备、每模块一次，可跳过，小助手底部“常用功能 → 重播操作引导”可重播。原视频使用说明继续保留。
-
-首次使用、owner演练、完成页与个人资料共用最新主题及输入／按钮控件，顶栏日／月圆形揭示与跟随系统选项一致。暂时跳过、保存和步骤更新仅提供按钮内局部等待，失败留稿；演练完成后的返回文字居中且已实际点击走通。高光沿用账号／浏览器／模块v1标记，本次发布不重置，助手可随时重播。320px两倍字号下按钮按整体换行、行高随文字变化。
-
-595项单元／集成基线通过；最终CSS修正后12项引导测试、lint、typecheck与兼容production build复验通过。最终产物Chromium／WebKit各14组演练和20组录入高光检查通过，另核对慢请求、失败留稿、真实新账号完成及录像。此前五页加载锚点基线分别为0.328125px和0px，未冒充本轮重新测量。
-
-生日与操作引导基线当时保留47项Server Action及绑定密钥、440项旧资源，未改数据库结构；这段为既有引导验收，不代表本轮重新验证真机或另一次应用发布。当前运行来源与即时回退以上方部署为准。
-
-生日控件与操作引导的物理手机原生选择器、系统键盘、帧率及屏幕阅读器尚未实测；既有WebKit连续图形转场未通过记录保留。 详细证据见[维护验收](maintenance-verification.md)。
-
-海外READY `dpl_7LC5LTzjS7zokZa6atCsrHpT5vxa`，网关代码仍为74754129，实际发布区域固定为`iad1`；`formward-ten.vercel.app`与`global.formward.top`均已核对指向该部署，257项静态文件、路由和网关代码哈希保持。
-
-原GPT的issuer、resource、客户端和凭据保持；AppSecret仍只在上海root 0600私有配置，环境文件字节未变。参数修复基线929a9d47保留47项Server Action、原绑定密钥和285项旧静态资源；55表／36条migration保持，无新增健康计算、数据库迁移或正式虚构健康记录。
-
-香港回源TCP超时与上海参数校验分别处理；iad1恢复后原GPT实际成功，三入口版本一致，临时诊断已清理。测试版`0.0.1-dev.20261110.2`保持，本人OpenID交换、WebView回传、绑定、换码和续期已验证。本人确认手机连接检查与最近七天身体查询正常；服务端两工具complete／HTTP200，分别5ms和126ms。无需重扫或重新授权。国服写入确认及完整真机布局未覆盖本轮。故障和准确验收范围见[部署](deployment.md)与[豆包接入](doubao-onboarding.md)。
+公安联网备案尚未提交；ICP通过后可开通网站，仍需在网站开通之日起30日内提交公安联网备案。数据码有效期页面显示至2026-12-13 08:42:10，保留在腾讯云控制台及私有操作记录，不作为公安备案号展示。[腾讯云办理要求](https://cloud.tencent.com/document/product/243/19142)
 
 ## 保留的浅色骨架验收
 
@@ -54,19 +34,19 @@
 
 | 部件 | 当前职责 |
 |---|---|
-| 上海公网IP | 唯一日常网页、业务与账号校验、正式记录和PostgreSQL主库 |
+| formward.top／上海服务器 | 唯一日常网页、业务与账号校验、正式记录和PostgreSQL主库；原IP保留兼容入口 |
 | Vercel原域名 | 保留原GPT／MCP及OAuth地址，签名回源上海；处理海外照片下载、私有Blob读取及OAuth客户端资料获取 |
 | global.formward.top | 同一海外网关的已验证别名，过渡承接豆包request、WebView及独立登录；普通网页仍转国服 |
 | 上海PostgreSQL | 唯一权威数据库，应用与迁移角色分离，只监听回环地址，不公开5432 |
 | Blob／COS | GPT附件在海外后台处理并保存在私有Blob；国服网页新上传使用私有上海COS，旧图保留原位置 |
 | Neon（退役） | 旧 Formward 项目已删除，平台保留恢复期；最终旧源归档保存在服务器和本机私有目录，恢复验证只使用临时隔离库 |
 
-国服当前使用有效HTTPS公网IP证书。global.formward.top是海外后台别名；CLE1通过有效HTTPS回源公网IP。origin.formward.top已配A记录与证书，当前不承担回源。根域与www未启用；未来更换网页域名时单独更新CN来源，不改变既有OAuth issuer或MCP resource。
+国服当前使用有效HTTPS公网IP证书。global.formward.top是海外后台别名；CLE1通过有效HTTPS回源公网IP。origin.formward.top已配A记录与证书，当前不承担回源。根域已启用为唯一日常网页，www转至根域；CN来源采用formward.top，原IP通过显式legacy来源保持旧页兼容，OAuth issuer及MCP resource保持。
 
 ## 连接与草稿保持
 
 - BETTER_AUTH_URL、OAuth issuer、MCP resource、JWKS、原Better Auth secret、账号accessVersion、会话、刷新令牌和授权保持。原GPT连接已在线get_profile验证，无需重连。
-- 两个域的host-only Secure Cookie继续隔离。网页跳转不转交Cookie、Authorization或请求正文；国服使用本人在国服的会话，首次进入可正常登录。
+- 各入口的host-only Secure Cookie继续隔离。网页跳转不转交Cookie、Authorization或请求正文；国服使用本人在国服的会话，首次进入可正常登录。
 - 切换前已打开页面的RSC读取、预取及POST保存继续原路径；不跨域重放写入。保留当前上线版本47项Server Action标识、绑定参数加密密钥与旧静态资源，已用真实旧页草稿保存验证。
 - Next proxy保留原始URL及RSC头，服务证明绑定完整路径与全部查询。不能为修复框架归一化而忽略业务查询或放宽签名。
 - Garmin原连接编号、密文、AES-GCM主密钥、来源事实及人工保护保持；上海只读网络检查验证换取令牌、每日和活动接口成功。

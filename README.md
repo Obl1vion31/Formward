@@ -1,5 +1,7 @@
 # Formward
 
+正式网页已启用[formward.top](https://formward.top)，首页展示「沪ICP备2026060534号-1」及工信部链接；原IP保留旧页保存兼容，新网页转至正式域名。新域名首次使用原账号登录，数据保持。公安联网备案待本人后续提交，流程及回退见[部署](docs/deployment.md)。
+
 手机普通饮食、身体、消耗页保留完整读数、图表和记录；紧凑结构用于录入／编辑。小助手电脑双栏、左侧三行手动记录与统一向下分组，手机64px头部及同排三个简写记录；站内预览可在聊天内核对确认，补充先选择后提交。手机食物名称／单位／数量同排、四营养标签与单位横排，AI拍照在餐次面板内识别回填并一次人工保存。首次主要页使用真实模块结构骨架，已有同条件内容静默更新，次级页直接加载。规范见[设计与验收](docs/design-reference.md)，实际证据、未测范围和发布状态见[视觉记录](design-qa.md)。
 
 AI接入采用ChatGPT／豆包紧凑行，权限默认收起、各连接独立；电脑在按钮旁展开浮层，手机在底部面板查看。接入方法及历史归所属条目，豆包注明内测白名单。AI提交记录默认收起、普通内容单行，来源、真实预览期限及原网页确认保持。手动令牌及其他MCP／HTTP客户端位于高级接入。规范与验收见[设计文档](docs/design-reference.md#d14ai-接入与提交来源)。
@@ -117,7 +119,7 @@ tests/            跨功能与端到端测试
 
 指定owner可在小助手中试用千问、小米MiMo及智谱，默认千问；切换沿用会话与草稿。聊天复用正式查询、照片、补充和预览；站内提交在聊天确认卡核对保存，外部AI沿用原审核页。三模型共享每日¥2，输入区显示今日百分比；其他账号保留提醒与快捷记录，聊天暂未开放。配置、限制及关闭方式见[站内助手](docs/assistant-chat.md)，双端标准见[设计D15](docs/design-reference.md#d15站内聊天模型选择与每日用量)，实际结果见[聊天验收](docs/assistant-chat-verification.md)。
 
-日常网页统一为 [https://43.142.148.58](https://43.142.148.58)，可用原账号登录。Vercel 原地址保留 GPT／MCP、OAuth 和海外图片后台，普通网页自动跳转国服；正式数据统一保存在上海 PostgreSQL。外部 AI 可通过 `/api/mcp` 和 OAuth 登录授权连接，或使用公开 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 和独立访问令牌。写入仍需网页登录确认；连接步骤见 [AI 接入](docs/ai-api.md)。MCP 与手机调整已发布，当前状态见 [项目交接](handoff.md)。平台配置、发布与验收方法见 [公网 HTTPS 部署](docs/deployment.md)。
+日常网页统一为 [https://formward.top](https://formward.top)，可用原账号登录。Vercel 原地址保留 GPT／MCP、OAuth 和海外图片后台，普通网页自动跳转国服；正式数据统一保存在上海 PostgreSQL。外部 AI 可通过 `/api/mcp` 和 OAuth 登录授权连接，或使用公开 [OpenAPI](https://formward-ten.vercel.app/api/v1/openapi.json) 和独立访问令牌。写入仍需网页登录确认；连接步骤见 [AI 接入](docs/ai-api.md)。MCP 与手机调整已发布，当前状态见 [项目交接](handoff.md)。平台配置、发布与验收方法见 [公网 HTTPS 部署](docs/deployment.md)。
 
 如果开发服务已经启动，在运行项目的同一台电脑上打开浏览器，访问 [http://localhost:3000](http://localhost:3000) 或 [http://127.0.0.1:3000](http://127.0.0.1:3000)。`next.config.ts` 已允许这两个本地地址加载开发资源。如果项目运行在远程工作区，在编辑器的「端口 / Ports」面板找到或转发 `3000` 端口，再打开面板给出的地址。`localhost` 指的是运行浏览器的电脑；远程工作区不能直接用自己电脑的 `localhost` 访问，除非已经做了端口转发。使用其他转发域名时，把它的主机名加入 `next.config.ts` 的 `allowedDevOrigins`，并重启开发服务，否则页面可能显示但客户端动画无法执行。
 
