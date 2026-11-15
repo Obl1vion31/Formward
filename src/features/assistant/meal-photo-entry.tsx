@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- 原图只经过本人私有图片入口。 */
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { confirmAction } from "../../components/confirmation-state";
 import type { MealDraft } from "../meals/model";
 import type { RecordReviewView } from "../records/model";
@@ -15,6 +15,7 @@ export type AppliedMeal={taskId:string;draft:MealDraft;operation:RecordReviewVie
 async function post(body:unknown,signal?:AbortSignal){const response=await fetch("/api/assistant-meal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal});if(!response.ok){const value=await response.json();throw Error(value.error??"本次识别未完成，请重试。");}return response;}
 export function MealPhotoEntry({initial,draftKey,resumeTaskId,onRestore,onApply,onBack,onBusy}:{initial:MealDraft;draftKey:string;resumeTaskId?:string;onRestore:(draft:MealDraft)=>void;onApply:(value:AppliedMeal)=>void;onBack:()=>void;onBusy:(busy:boolean)=>void}){
  const [data,setData]=useState<Snapshot|null>(null),[provider,setProvider]=useState<ChatProvider>("qwen"),[text,setText]=useState(""),[error,setError]=useState(""),[running,setRunning]=useState(false),[reset,setReset]=useState(false),[attempt,setAttempt]=useState(0);
+ const acceptSnapshot=useCallback((snapshot:Snapshot)=>setData(prior=>prior?.entitlement&&snapshot.entitlement&&prior.entitlement.version>snapshot.entitlement.version?prior:snapshot),[]);
  const photos=usePhotoDraft(),album=useRef<HTMLInputElement>(null),request=useRef<AbortController|null>(null),active=useRef(true),identity=useRef<{signature:string;id:string}|null>(null);
  const footer=useRef<HTMLElement>(null);
  useLayoutEffect(()=>{
@@ -47,14 +48,14 @@ export function MealPhotoEntry({initial,draftKey,resumeTaskId,onRestore,onApply,
  },[]);
  const initialized=useRef({initial,draftKey,resumeTaskId,onRestore,onApply});
  useEffect(()=>{active.current=true;const controller=new AbortController(),value=initialized.current;
-  void(async()=>{try{const response=value.resumeTaskId?await fetch("/api/assistant-meal?taskId="+encodeURIComponent(value.resumeTaskId),{cache:"no-store",signal:controller.signal}):await post({action:"create",draftKey:value.draftKey,draft:value.initial},controller.signal);const snapshot=await response.json();if(!response.ok)throw Error(snapshot.error??"任务读取失败。");if(!active.current)return;setData(snapshot);setProvider(snapshot.provider);if(value.resumeTaskId&&snapshot.operation&&snapshot.operation.status!=="pending"){setError(snapshot.operation.status==="confirmed"?"本餐已保存，请返回饮食页查看。":snapshot.operation.status==="expired"?"本餐预览已过期，原草稿仍保留；可在原审核页重新核对。":"本次识别已结束，请返回填写。");return;}if(value.resumeTaskId)value.onRestore(snapshot.draft);
+  void(async()=>{try{const response=value.resumeTaskId?await fetch("/api/assistant-meal?taskId="+encodeURIComponent(value.resumeTaskId),{cache:"no-store",signal:controller.signal}):await post({action:"create",draftKey:value.draftKey,draft:value.initial},controller.signal);const snapshot=await response.json();if(!response.ok)throw Error(snapshot.error??"任务读取失败。");if(!active.current)return;acceptSnapshot(snapshot);setProvider(snapshot.provider);if(value.resumeTaskId&&snapshot.operation&&snapshot.operation.status!=="pending"){setError(snapshot.operation.status==="confirmed"?"本餐已保存，请返回饮食页查看。":snapshot.operation.status==="expired"?"本餐预览已过期，原草稿仍保留；可在原审核页重新核对。":"本次识别已结束，请返回填写。");return;}if(value.resumeTaskId)value.onRestore(snapshot.draft);
    if(value.resumeTaskId&&!snapshot.activeRunId&&!snapshot.followup&&snapshot.operation?.status==="pending"){const result=await post({action:"apply",taskId:snapshot.taskId},controller.signal);if(active.current)value.onApply(await result.json());}
   }catch(failure){if(!controller.signal.aborted&&active.current)setError(failure instanceof Error?failure.message:"任务读取未完成。");}})();
   return()=>{active.current=false;controller.abort();request.current?.abort();};
- },[attempt]);
+ },[attempt,acceptSnapshot]);
  useEffect(()=>{onBusy(running||photos.busy);return()=>onBusy(false);},[running,photos.busy,onBusy]);
- async function enableModel(){if(!data||busy||!await confirmAction({title:"重新授权此识别模型？",message:"允许此模型查询饮食和生成待核对预览，有效期30天，可随时撤销。正式记录仍由你确认保存。",confirmLabel:"授权",cancelLabel:"取消"}))return;try{const response=await post({action:"enable_model",taskId:data.taskId,provider});setData(await response.json());setError("");}catch(failure){setError(failure instanceof Error?failure.message:"授权未完成。");}}
- async function refresh(){if(!data)return null;const response=await fetch("/api/assistant-meal?taskId="+data.taskId,{cache:"no-store"});const value=await response.json();if(!response.ok)throw Error(value.error??"任务读取失败。");if(active.current)setData(value);return value as Snapshot;}
+ async function enableModel(){if(!data||busy||!await confirmAction({title:"重新授权此识别模型？",message:"允许此模型查询饮食和生成待核对预览，有效期30天，可随时撤销。正式记录仍由你确认保存。",confirmLabel:"授权",cancelLabel:"取消"}))return;try{const response=await post({action:"enable_model",taskId:data.taskId,provider});acceptSnapshot(await response.json());setError("");}catch(failure){setError(failure instanceof Error?failure.message:"授权未完成。");}}
+ async function refresh(){if(!data)return null;const response=await fetch("/api/assistant-meal?taskId="+data.taskId,{cache:"no-store"});const value=await response.json();if(!response.ok)throw Error(value.error??"任务读取失败。");if(active.current)acceptSnapshot(value);return value as Snapshot;}
  useEffect(()=>{if(!data?.activeRunId||running)return;const timer=setInterval(()=>void refresh().catch(failure=>setError(failure.message)),1800);return()=>clearInterval(timer);/* Snapshot identity is the polling scope. */ // eslint-disable-next-line react-hooks/exhaustive-deps
  },[data?.activeRunId,running]);
  useEffect(()=>{if(!data?.taskId)return;const sync=()=>{if(!document.hidden&&!request.current)void refresh().catch(()=>{});},timer=setInterval(sync,60000);window.addEventListener("focus",sync);document.addEventListener("visibilitychange",sync);return()=>{clearInterval(timer);window.removeEventListener("focus",sync);document.removeEventListener("visibilitychange",sync);}; // eslint-disable-next-line react-hooks/exhaustive-deps
