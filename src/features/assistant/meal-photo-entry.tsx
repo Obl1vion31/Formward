@@ -20,7 +20,7 @@ export function MealPhotoEntry({initial,draftKey,resumeTaskId,onRestore,onApply,
  const footer=useRef<HTMLElement>(null);
  useLayoutEffect(()=>{
   const node=footer.current,dialog=node?.closest("dialog"),entry=node?.parentElement;if(!node||!dialog||!entry)return;
-  const viewport=window.visualViewport;let frame=0,settleTimer:ReturnType<typeof setTimeout>|undefined,finalTimer:ReturnType<typeof setTimeout>|undefined;
+  const viewport=window.visualViewport;let frame=0,settleTimer:ReturnType<typeof setTimeout>|undefined;
   const update=()=>{
    frame=0;
    const height=viewport?.height??innerHeight,top=viewport?.offsetTop??0,layoutHeight=Math.max(document.documentElement.clientHeight,innerHeight);
@@ -41,10 +41,10 @@ export function MealPhotoEntry({initial,draftKey,resumeTaskId,onRestore,onApply,
   };
   const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(update);};
   // Safari在键盘动画与自动平移之后还会再改变visualViewport；焦点不跳转，只调整当前面板滚动。
-  const focus=()=>{schedule();clearTimeout(settleTimer);settleTimer=setTimeout(schedule,350);clearTimeout(finalTimer);finalTimer=setTimeout(schedule,650);};
+  const focus=()=>{schedule();clearTimeout(settleTimer);settleTimer=setTimeout(schedule,350);};
   update();const observer=new ResizeObserver(schedule);observer.observe(node);
   entry.addEventListener("focusin",focus);window.addEventListener("resize",schedule);viewport?.addEventListener("resize",schedule);viewport?.addEventListener("scroll",schedule);
-  return()=>{observer.disconnect();cancelAnimationFrame(frame);clearTimeout(settleTimer);clearTimeout(finalTimer);entry.removeEventListener("focusin",focus);window.removeEventListener("resize",schedule);viewport?.removeEventListener("resize",schedule);viewport?.removeEventListener("scroll",schedule);for(const name of ["--entry-visible-height","--entry-hidden-bottom","--entry-footer-height"])dialog.style.removeProperty(name);dialog.removeAttribute("data-photo-keyboard");dialog.removeAttribute("data-photo-short-viewport");};
+  return()=>{observer.disconnect();cancelAnimationFrame(frame);clearTimeout(settleTimer);entry.removeEventListener("focusin",focus);window.removeEventListener("resize",schedule);viewport?.removeEventListener("resize",schedule);viewport?.removeEventListener("scroll",schedule);for(const name of ["--entry-visible-height","--entry-hidden-bottom","--entry-footer-height"])dialog.style.removeProperty(name);dialog.removeAttribute("data-photo-keyboard");dialog.removeAttribute("data-photo-short-viewport");};
  },[]);
  const initialized=useRef({initial,draftKey,resumeTaskId,onRestore,onApply});
  useEffect(()=>{active.current=true;const controller=new AbortController(),value=initialized.current;

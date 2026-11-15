@@ -44,7 +44,7 @@ export function AssistantChatView({ sidebar, navigate,tab }: { sidebar: ReactNod
     restored.current = true; recordScroll(node.scrollTop,scrollState().stick);
   }, [chat.messages, tab, scrollState, recordScroll]);
   useLayoutEffect(() => { const node = feed.current; if (!node) return; const observer = new ResizeObserver(() => { if (scrollState().stick && !moreAnchor.current) node.scrollTop = node.scrollHeight; setLatest(node.scrollHeight-node.scrollTop-node.clientHeight>80); }); observer.observe(feedContent.current??node); observer.observe(node); return () => observer.disconnect(); }, [scrollState]);
-  useLayoutEffect(()=>{const node=input.current;if(!node)return;let frame=0;const measure=()=>{frame=0;node.style.height="auto";const limit=Math.max(144,parseFloat(getComputedStyle(node).lineHeight)*3);node.style.height=Math.min(limit,node.scrollHeight)+"px";};const schedule=()=>{if(!frame)frame=requestAnimationFrame(measure);};measure();const observer=new ResizeObserver(schedule);observer.observe(node);return()=>{cancelAnimationFrame(frame);observer.disconnect();};},[chat.draft]);
+  useLayoutEffect(() => { const node = input.current; if (node) { node.style.height = "auto"; node.style.height = Math.min(144,node.scrollHeight) + "px"; } }, [chat.draft]);
   useEffect(() => { if (panel && panel !== "models") panelTitle.current?.focus({ preventScroll:true }); }, [panel]);
   useLayoutEffect(() => {
     if (panel !== "models" || !modelMenu.current || !modelButton.current) return;

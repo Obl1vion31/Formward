@@ -56,8 +56,8 @@
 }
 
 @media(max-width:700px),(hover:none) and (pointer:coarse){
- .mobileSheet.mobileSheet:has([data-meal-photo-entry]){height:calc(var(--entry-visible-height,100dvh) - 48px);max-height:calc(var(--entry-visible-height,100dvh) - 48px);transition:none;top:48px;bottom:auto}
- .mobileSheet.mobileSheet:has([data-meal-photo-entry])[data-sheet-expanded=false]{top:calc(var(--entry-visible-height,100svh) - min(56dvh,calc(var(--entry-visible-height,100svh) - 48px)));height:min(56dvh,calc(var(--entry-visible-height,100svh) - 48px));max-height:min(56dvh,calc(var(--entry-visible-height,100dvh) - 24px))}
+ .mobileSheet.mobileSheet:has([data-meal-photo-entry]){height:auto;max-height:calc(var(--entry-visible-height,100dvh) - 24px);bottom:var(--entry-hidden-bottom,0px)}
+ .mobileSheet.mobileSheet:has([data-meal-photo-entry])[data-sheet-expanded=false]{max-height:min(56dvh,calc(var(--entry-visible-height,100dvh) - 24px))}
 }
 
 @media(max-width:700px),(hover:none) and (pointer:coarse){

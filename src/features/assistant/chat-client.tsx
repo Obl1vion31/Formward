@@ -85,6 +85,11 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     void sync();const foreground=()=>void sync(),timer=setInterval(foreground,60000);window.addEventListener("focus",foreground);document.addEventListener("visibilitychange",foreground);
     return()=>{controller.abort();clearInterval(timer);window.removeEventListener("focus",foreground);document.removeEventListener("visibilitychange",foreground);};
   },[accountId,updateAccess,read]);
+  useEffect(() => {
+    const update = () => { const viewport = window.visualViewport; document.documentElement.style.setProperty("--assistant-viewport-height",(viewport?.height ?? innerHeight) + "px"); document.documentElement.style.setProperty("--assistant-viewport-top",(viewport?.offsetTop ?? 0) + "px"); };
+    update(); window.addEventListener("resize",update); window.visualViewport?.addEventListener("resize",update); window.visualViewport?.addEventListener("scroll",update);
+    return () => { window.removeEventListener("resize",update); window.visualViewport?.removeEventListener("resize",update); window.visualViewport?.removeEventListener("scroll",update); };
+  }, [enabled]);
   useEffect(() => { alive.current = true; const epoch = generation.current; return () => { alive.current = false; generation.current = epoch + 1; request.current?.abort(); releasePhotoResources(); }; }, [accountId,releasePhotoResources]);
   useEffect(() => { if (!open) return; const frame = requestAnimationFrame(() => void read()); const focus = () => { if (!document.hidden && !request.current) void read(); }; window.addEventListener("focus", focus); document.addEventListener("visibilitychange", focus); window.addEventListener("formward-record-saved", focus); return () => { cancelAnimationFrame(frame); window.removeEventListener("focus", focus); document.removeEventListener("visibilitychange", focus); window.removeEventListener("formward-record-saved", focus); }; }, [enabled, open, read]);
   useEffect(() => { if (!open || !data?.activeRunId || running) return; const timer = setInterval(() => void read(), 1800); return () => clearInterval(timer); }, [open, data?.activeRunId, running, read]);

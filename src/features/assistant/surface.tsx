@@ -39,14 +39,6 @@ export function AssistantSurface({ data, error, loading, close, requestClose, re
     if (dialog.current) void animateSurface(dialog.current, "open", null, mobile ? "sheet" : "anchored");
   }, [mobile]);
   useLayoutEffect(() => { controllerReady({ dismiss, reopen }); return () => controllerReady(null); }, [controllerReady, dismiss, reopen]);
-  useLayoutEffect(()=>{
-    const node=dialog.current;if(!node||mobile===null)return;
-    let frame=0,last="";
-    const measure=()=>{frame=0;const viewport=window.visualViewport;if(viewport&&Math.abs(viewport.scale-1)>.02)return;const height=Math.round(viewport?.height??innerHeight),top=Math.round(viewport?.offsetTop??0),key=height+":"+top;if(key===last)return;last=key;node.style.setProperty("--assistant-viewport-height",height+"px");};
-    const schedule=()=>{if(!frame)frame=requestAnimationFrame(measure);};
-    measure();window.addEventListener("resize",schedule);window.visualViewport?.addEventListener("resize",schedule);window.visualViewport?.addEventListener("scroll",schedule);
-    return()=>{cancelAnimationFrame(frame);window.removeEventListener("resize",schedule);window.visualViewport?.removeEventListener("resize",schedule);window.visualViewport?.removeEventListener("scroll",schedule);};
-  },[mobile]);
   useLayoutEffect(() => {
     const node = dialog.current; if (!node || mobile === null) return;
     const previous = document.activeElement, trigger = [...document.querySelectorAll<HTMLElement>("[data-assistant-trigger]")].find(element=>element.getClientRects().length>0);
