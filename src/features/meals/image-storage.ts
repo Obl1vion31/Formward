@@ -20,6 +20,7 @@ export function activeImageStorage(region:"cn"|"global"):ImageStorage {
   return imageStorage(region==="cn"?{storageProvider:"cos",storageLocation:cosLocation()}:{storageProvider:"blob",storageLocation:process.env.FORMWARD_BLOB_LOCATION??"legacy"});
 }
 export function cosLocation(){const {Bucket,Region}=cosConfig();return Bucket+"@"+Region;}
+export function cosProbeOrigin(){const {Bucket,Region}=cosConfig();if(!/^[a-z0-9-]+$/.test(Bucket))throw new ApiError(503,"image_configuration","国内照片存储配置无效。");return `https://${Bucket}.cos.${Region}.myqcloud.com/`;}
 export function imageStorage(ref:Pick<StorageRef,"storageProvider"|"storageLocation">):ImageStorage {
   if(ref.storageProvider==="blob")return blobImageStorage(ref.storageLocation);
   const config=cosConfig();if(ref.storageLocation!==config.Bucket+"@"+config.Region)throw new ApiError(503,"image_location","照片存储位置暂不可用。");

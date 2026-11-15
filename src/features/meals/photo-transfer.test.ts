@@ -24,9 +24,7 @@ test("取消、超时、网络和服务端拒绝可区分，HTTP原文不泄漏"
  const rejected=new XHR();rejected.status=403;rejected.responseText="<Code>AccessDenied</Code><Message>private-secret</Message>";const request=transferPhoto({url:"https://fictional.test",body:new Blob(),createXHR:factory(rejected)});rejected.onload?.();await assert.rejects(request,error=>error instanceof PhotoTransferError&&error.status===403&&!error.allowRelay&&!error.message.includes("private-secret"));
 });
 
-test("字节传完后的存储响应不误判为传输停滞，仍保留绝对超时",async()=>{
- const xhr=new XHR();let failure:unknown;
- const pending=transferPhoto({url:"https://fictional.test",body:new Blob(["photo"]),createXHR:factory(xhr),stallMs:10,timeoutMs:80});void pending.catch(error=>{failure=error;});xhr.progress(100,100);
- await new Promise(resolve=>setTimeout(resolve,25));assert.equal(failure,undefined);assert.equal(xhr.aborted,false);assert.equal(xhr.timeout,80);xhr.onload?.();await pending;
- const waiting=new XHR(),timeout=transferPhoto({url:"https://fictional.test",body:new Blob(["photo"]),createXHR:factory(waiting),stallMs:10,timeoutMs:80});waiting.progress(100,100);waiting.ontimeout?.();await assert.rejects(timeout,error=>error instanceof PhotoTransferError&&error.kind==="timeout");
+test("100%尚未取得存储响应时仍受60秒停滞保护，不能无限等待",async()=>{
+ const xhr=new XHR();const pending=transferPhoto({url:"https://fictional.test",body:new Blob(["photo"]),createXHR:factory(xhr),stallMs:10,timeoutMs:80});xhr.progress(100,100);
+ await assert.rejects(pending,error=>error instanceof PhotoTransferError&&error.kind==="stalled"&&error.allowRelay);assert.equal(xhr.aborted,true);assert.equal(xhr.timeout,80);
 });

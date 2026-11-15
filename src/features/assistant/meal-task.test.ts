@@ -30,7 +30,7 @@ await t.test("任务不占用主聊天，创建重试复用草稿，其他账号
  const main=await currentConversation(db,owner),key=randomUUID(),id=await createMealTask(db,owner,key,draft());
  assert.equal((await currentConversation(db,owner)).id,main.id);assert.equal((await getMealTask(db,owner,id)).active,false);
  assert.equal(await createMealTask(db,owner,key,draft()),id);assert.equal((await chatSnapshot(db,owner)).conversationId,main.id);
- await assert.rejects(()=>getMealTask(db,other,id),/暂未开放/);
+ await assert.rejects(()=>getMealTask(db,other,id),/不属于/);
  process.env.FORMWARD_CHAT_PILOT_USER_ID=other;await assert.rejects(()=>getMealTask(db,other,id),/不属于/);process.env.FORMWARD_CHAT_PILOT_USER_ID=owner;
  await assert.rejects(()=>createMealTask(db,owner,randomUUID(),{...draft(),imageIds:[randomUUID()]}),/照片/);
 });
@@ -95,14 +95,14 @@ test("0038迁移保留既有结构、会话与消息，默认主聊天且重复�
   const beforeColumns=await columns(),beforeConversation=(await pg.query("select to_jsonb(t) as value from assistant_conversations t")).rows;
   const beforeMessages=(await pg.query("select to_jsonb(t) as value from assistant_messages t")).rows;
   const ledgerBefore=(await pg.query("select * from drizzle.__drizzle_migrations order by id")).rows;
-  await migrate(connection,{migrationsFolder:"drizzle"});
+  const target=join(prior,"through-0038");await mkdir(join(target,"meta"),{recursive:true});const currentEntries=journal.entries.filter((entry:{idx:number})=>entry.idx<=38);await writeFile(join(target,"meta/_journal.json"),JSON.stringify({...journal,entries:currentEntries}));for(const entry of currentEntries)await copyFile("drizzle/"+entry.tag+".sql",join(target,entry.tag+".sql"));await migrate(connection,{migrationsFolder:target});
   assert.deepEqual((await columns()).filter((row)=>!(row.table_name==="assistant_conversations"&&["purpose","context"].includes(String(row.column_name)))),beforeColumns);
   assert.deepEqual((await pg.query("select to_jsonb(t)-'purpose'-'context' as value from assistant_conversations t")).rows,beforeConversation);
   assert.deepEqual((await pg.query("select to_jsonb(t) as value from assistant_messages t")).rows,beforeMessages);
   assert.deepEqual((await pg.query("select purpose,context from assistant_conversations")).rows,[{purpose:"chat",context:null}]);
   const ledgerAfter=(await pg.query("select * from drizzle.__drizzle_migrations order by id")).rows;
   assert.equal(ledgerAfter.length,ledgerBefore.length+1);assert.deepEqual(ledgerAfter.slice(0,-1),ledgerBefore);
-  await migrate(connection,{migrationsFolder:"drizzle"});
+  await migrate(connection,{migrationsFolder:target});
   assert.deepEqual((await pg.query("select * from drizzle.__drizzle_migrations order by id")).rows,ledgerAfter);
   // 旧INSERT不提供新增列仍有效；饮食任务不抢占主聊天唯一位置。
   await pg.query("insert into assistant_conversations(id,user_id,active) values ('migration-inactive','migration-user',false)");

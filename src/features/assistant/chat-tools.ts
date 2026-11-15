@@ -31,7 +31,7 @@ export async function chatToolCatalog(bridge: ReturnType<typeof chatToolBridge>,
   const definitions = (listed.tools as ToolDefinition[]).filter(tool=>!allowedNames||allowedNames.includes(tool.name));
   const session = createAiToolSession({tools:definitions}, {managedOperationIds:true,normalizeUnknownAmounts:true,operationIdFor});
   const internal: ModelTool[] = [
-    { type: "function", function: { name: "request_followup", description: "只有当前任务确实缺少用户必须补充的信息时调用，声明具体问题和任务名称；可提供questions结构化问题及选项、自由填写和optional选填标记。不替用户选择事实。不是普通寒暄或结束问候。调用后等待用户，不创建不完整预览。", parameters: { type: "object", additionalProperties: false, required: ["question", "subject"], properties: { question: { type: "string", minLength: 1, maxLength: 600 }, subject: { type: "string", minLength: 1, maxLength: 80 }, questions: z.toJSONSchema(followupQuestionsSchema,{target:"openapi-3.0"}) } } } },
+    { type: "function", function: { name: "request_followup", description: "只有当前任务确实缺少信息时调用，声明具体问题和任务；questions提供选项、自由填写和optional标记。测量来源问题须附binding={kind:measurement_source,date:本条当地日期,period:daytime或evening}，服务器提供历史候选及自由填写。候选不是白名单，已提供的来源不重复询问。不替用户选择事实，调用后等待用户。", parameters: { type: "object", additionalProperties: false, required: ["question", "subject"], properties: { question: { type: "string", minLength: 1, maxLength: 600 }, subject: { type: "string", minLength: 1, maxLength: 80 }, questions: z.toJSONSchema(followupQuestionsSchema,{target:"openapi-3.0"}) } } } },
   ];
   return {
     instructions: String(initialized.instructions ?? ""), definitions,

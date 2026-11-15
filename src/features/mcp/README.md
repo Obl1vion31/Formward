@@ -1,6 +1,6 @@
 # MCP
 
-server.ts为每个已验证请求创建无状态SDK服务，MCP版本2.0.0，公开18项工具。原生MCP与豆包共享注册、参数、权限及字段解释；新旧协议均支持，但旧业务工具名已停用，返回刷新目录提示，不隐藏转接。
+server.ts为每个已验证请求创建无状态SDK服务，MCP版本2.0.1，公开18项工具。原生MCP与豆包共享注册、参数、权限及字段解释；新旧协议均支持，但旧业务工具名已停用，返回刷新目录提示，不隐藏转接。
 
 连接及查询：authorize_formward、get_profile、query_measurements、query_meals、query_energy、query_training、search_foods、search_exercises。连接成功不代表全部权限；身体只查实测，饮食记全与餐次保存分开，消耗联合统计需饮食读权限，模板、计划和实际训练分开。
 

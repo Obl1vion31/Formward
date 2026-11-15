@@ -7,7 +7,12 @@ import { prepareImageUpload, completeImageUpload, signImageUpload } from "@/feat
 import { safeAiError } from "@/features/measurements/ai-api";
 import type { HandleUploadPresignedBody } from "@vercel/blob/client";
 import { processingRegion } from "@/features/auth/regions";
-export const maxDuration = 60;
+import { imageUploadRoutes } from "@/features/meals/image-routes";
+export const maxDuration = 600;
+export async function GET(request: Request) {
+  try { return await withCurrentSession(request.headers, async () => Response.json(imageUploadRoutes(processingRegion(request.headers)), { headers: { "Cache-Control": "private, no-store" } })); }
+  catch (error) { const failure = safeAiError(error); return Response.json({ error: failure.error.message, code: failure.error.code }, { status: failure.status, headers: { "Cache-Control": "private, no-store" } }); }
+}
 export async function POST(request: Request) {
   if (!isAccountRequestOrigin(request.headers)) return Response.json({ error: "上传来源无效。" }, { status: 403 });
   try {
@@ -25,7 +30,10 @@ export async function POST(request: Request) {
       if (Number(request.headers.get("content-length")) > 8192) return Response.json({ error: "上传请求过大。" }, { status: 413 });
       const body = await request.json();
       if(body.step==="diagnostic"){recordImageUploadDiagnostic(body.diagnostic);return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});}
-      if (body.step === "prepare") result = await prepareImageUpload(getDatabase(), user.id, body.file, undefined, processingRegion(request.headers));
+      if (body.step === "prepare") {
+        if (body.region !== undefined && body.region !== "cn" && body.region !== "global") return Response.json({ error: "上传通道无效。" }, { status: 400 });
+        result = await prepareImageUpload(getDatabase(), user.id, body.file, undefined, body.region ?? processingRegion(request.headers));
+      }
       else if (body.step === "complete" && typeof body.ticket === "string" && body.ticket.length <= 4096) result = await completeImageUpload(getDatabase(), user.id, body.ticket);
       else result = await signImageUpload(request, body as HandleUploadPresignedBody, user.id);
     }

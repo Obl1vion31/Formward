@@ -91,3 +91,7 @@ test('同一历史餐次已有预览时拦截跨工具重建，重复调用复�
   s.remember('preview_meal_changes',correction,{id:'preview-2',revision:2,operationType:'record',status:'pending'});
   assert.equal(s.prepare('submit_meal_operation',{actions:[{kind:'save_meal',id:'original-meal'}]}).result?.previewId,'preview-2');
 });
+
+test('长短版本都保留已验证的原文冲突规则且不重复注入',()=>{
+ const input={directory:'目录',instructions:'正式说明',now:'2026-11-15T00:00:00Z',localTime:'2026-11-15 08:00:00',timezone:'Asia/Shanghai'};for(const variant of ['original','compact'] as const){const text=buildAiSystemPrompt({...input,variant});assert.match(text,/不得自行删改原文后重新提交/);assert.match(text,/合法的来源说明按原文保留/);}
+});

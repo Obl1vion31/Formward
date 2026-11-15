@@ -2,6 +2,9 @@
 
 0038_assistant_meal_tasks为assistant_conversations追加purpose（默认chat）和可空context。meal_entry任务active=false，保留原主聊天唯一约束；context仅服务器管理草稿／附件／预览关联，原草稿独立保留。没有新公开AI字段、scope或健康表。旧应用可在增加列后回退，不逆向删除任务或健康数据。
 
+
+0039_assistant_entitlements增加users的membership_tier（默认free）及entitlement_version、站内授权purpose（默认chat）、消息supplemental_answer，以及assistant_recognitions任务计次和运行关联。0040_assistant_recognition_relation为运行与识别任务增加复合归属外键及索引。旧账号、会话、消息、健康表和既有迁移不重写；改档不修改access_version、不撤销登录。计次状态与真实成本账本分开，同一任务补充／技术重试复用识别关联。Pro只保留结构，不对外分配。
+
 ## 目的
 
 本目录集中管理 Drizzle 数据库连接和 PostgreSQL schema。

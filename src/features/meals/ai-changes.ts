@@ -13,7 +13,7 @@ import { digest, getMealOperation, readMealSnapshot, submitMealOperation } from 
 const reference = { itemId: z.string().uuid().optional(), index: z.number().int().min(0).max(49).optional() };
 const updateFood = simpleFoodSchema.pick({ name: true, quantity: true, unit: true, caloriesKcal: true, caloriesKj: true, proteinG: true, carbsG: true, fatG: true, sourceKind: true, basis: true, evidenceUrl: true }).partial().extend({
   ...reference,
-  quantityEffect: z.enum(["keep_total", "scale_total"]).optional().describe("自由填写的本次总量只改食量时须明确保持营养或同比缩放；食材库／每份会自动换算"),
+  quantityEffect: z.enum(["keep_total", "scale_total"]).optional().describe("手填总营养改变数量时明确keep_total或scale_total；库项依原快照自动换算，可省略或重复说明scale_total，不接受keep_total"),
   clearFields: z.array(z.enum(["caloriesKcal", "proteinG", "carbsG", "fatG", "basis", "evidenceUrl"])).max(6).optional(),
 }).strict();
 export const mealChangesSchema = z.object({
@@ -69,14 +69,23 @@ export function applyMealChanges(original: MealAction, input: MealChangesInput, 
     if (removed.has(index)) return fail("不能重复移除同一食物。");
     removed.add(index);
   }
-  for (const patch of input.updateFoods ?? []) {
+  for (const [patchIndex, patch] of (input.updateFoods ?? []).entries()) {
     const index = targetIndex(meal.items, patch);
     if (removed.has(index) || updated.has(index)) return fail("同一食物不能重复修改或同时移除。");
     updated.add(index);
     const old = meal.items[index], view = currentItems?.[index];
     const library = !!(old.foodId || old.foodRef || old.foodDraft || view?.foodSnapshot);
     const nutrientsChanged = metrics.some(metric => patch[metric] !== undefined || patch.clearFields?.includes(metric)) || patch.caloriesKj !== undefined;
-    if (library && (nutrientsChanged || patch.sourceKind !== undefined || patch.evidenceUrl !== undefined || patch.clearFields?.length || patch.quantityEffect !== undefined || patch.name !== undefined || patch.unit !== undefined && patch.unit !== old.unit)) return fail("库食材由原快照换算；更换名称、单位或营养请移除本项并添加新食物。");
+    if (library) {
+      const problems: { path: string; message: string }[] = [];
+      const issue = (field: string, message: string) => problems.push({ path: `updateFoods.${patchIndex}.${field}`, message });
+      if (patch.name !== undefined && patch.name !== old.name) issue("name", "库项改量须保留原名称；请移除本次不同的name参数。");
+      if (patch.unit !== undefined && patch.unit !== old.unit) issue("unit", "库项改量须保留原单位；请移除本次不同的unit参数。");
+      if (patch.quantityEffect === "keep_total") issue("quantityEffect", "库项依原食材快照自动换算营养；请删除quantityEffect=keep_total。");
+      for (const field of [...metrics, "caloriesKj", "sourceKind", "basis", "evidenceUrl"] as const) if (patch[field] !== undefined) issue(field, "库项的营养及来源沿用原食材快照，改量时请移除此覆盖参数。");
+      if (patch.clearFields?.length) issue("clearFields", "库项改量不清空原营养或来源，请移除clearFields。");
+      if (problems.length) throw new ApiError(400, "invalid_input", "这项食物引用食材库，改变数量后自动换算营养。" + problems.map(problem => problem.message).join(" ") + "保留原食物定位和新数量。原草稿未修改。", { fields: problems, nextAction: "correct_arguments_keep_original_item" });
+    }
     const next = { ...old };
     for (const field of ["name", "quantity", "unit", "sourceKind", "basis", "evidenceUrl"] as const) if (patch[field] !== undefined) Object.assign(next, { [field]: patch[field] });
     if (patch.quantity !== undefined) next.amountDecision = "provided";

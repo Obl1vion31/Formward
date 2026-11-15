@@ -96,7 +96,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(origin.current&&location.pathname===origin.current.destination&&trendKey(next.model)!==origin.current.modelKey)origin.current.paired=false;
     if(!next.skeleton&&visible(next.element))lastTarget.current={model:next.model,rect:rectOf(next.element),path:location.pathname};
     const current=motion.current.active;
-    if(current?.direction==='forward')requestAnimationFrame(()=>{if(target.current===next)land(next,current.id);});
+    if(current?.direction==='forward')land(next,current.id);
     return()=>{
       // 旧骨架的清理不能撤销已经注册的新图形。
       if(target.current!==next)return;
@@ -182,7 +182,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(pathname==='/dashboard'&&motion.current.returning){const rail=document.querySelector<HTMLElement>('[data-metric-rail]');if(rail)restore(rail);}
     const current=motion.current.active;
     if(changed&&current?.direction==='forward'&&pathname!==origin.current?.destination)clear();
-    if(current?.direction==='forward'&&!current.landing&&target.current){const next=target.current;const frame=requestAnimationFrame(()=>{if(target.current===next)land(next,current.id);});return()=>cancelAnimationFrame(frame);}
+    if(current?.direction==='forward'&&!current.landing&&target.current)land(target.current,current.id);
   },[pathname,pending,motion,clear,land,restore,prepareBack,overviewReady,returningToOverview]);
   useEffect(()=>()=>{motion.current.clear();},[motion]);
   const invalidate=useCallback(()=>{if(origin.current)origin.current.paired=false;clear();lastTarget.current=null;},[clear]);

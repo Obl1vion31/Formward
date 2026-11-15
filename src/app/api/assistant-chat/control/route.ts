@@ -20,7 +20,6 @@ const headers = { "Cache-Control": "private, no-store" };
 export async function POST(request: Request) {
   if (!isAccountRequestOrigin(request.headers)) return Response.json({ error: "请求来源无效。" }, { status: 403, headers });
   try { return await withCurrentSession(request.headers, async owner => {
-    assertChatAllowed(owner);
     if (Number(request.headers.get("content-length")) > 200000) return Response.json({ error: "请求过大。" }, { status: 413, headers });
     const parsed = schema.safeParse(await readChatJson(request,200000));
     if (!parsed.success) return Response.json({ error: "操作格式无效。" }, { status: 400, headers });
@@ -30,6 +29,7 @@ export async function POST(request: Request) {
       const result=input.action==="review_preview"?await reviewWebRecord(db,owner.id,input.previewId,input.review):input.domain==="body"?await removeMeasurementSource(db,{userId:owner.id,actorId:owner.id},input.label):await removeEnergySource(db,{userId:owner.id,actorId:owner.id},input.label);
       revalidatePath("/dashboard","layout");return Response.json(result,{headers});
     }
+    if(input.action!=="stop")assertChatAllowed(owner);
     const stoppedRunId = await controlChat(db, owner.id, input);
     if (stoppedRunId) abortChatRun(stoppedRunId);
     return Response.json(await chatSnapshot(db, owner.id), { headers });

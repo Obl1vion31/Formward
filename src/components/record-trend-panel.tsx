@@ -1,6 +1,6 @@
 "use client";
 import {ModuleSkeleton} from "./module-skeleton";
-import {useEffect,useRef,useState,type ReactNode,type ComponentPropsWithoutRef,type CSSProperties} from "react";
+import {useEffect,useLayoutEffect,useRef,useState,type ReactNode,type ComponentPropsWithoutRef,type CSSProperties} from "react";
 import {useMobileMode} from "./use-mobile-mode";
 import {SelectedDateHeading} from "./daily-records";
 import styles from "./record-trend-panel.module.css";
@@ -17,7 +17,7 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
  const labelKey=JSON.stringify(metrics.map((metric,index)=>[metric.label,...labelVariants.map(row=>row[index]).filter(Boolean)]));
  const noteKey=JSON.stringify(metrics.map((metric,index)=>[metric.note,...noteVariants.map(row=>row[index])].filter(Boolean)));
  const widthCache=useRef<{key:string;widths:number[]}>({key:"",widths:[]});
- useEffect(()=>{
+ useLayoutEffect(()=>{
   const group=metricRef.current;if(!group)return;
   const measure=()=>{
    const gap=parseFloat(getComputedStyle(group).columnGap)||0,nodes=[...group.querySelectorAll<HTMLElement>("[data-metric-number]")];
@@ -50,8 +50,8 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
    setColumnLimit(current=>current===count?current:count);
   };
   const observer=new ResizeObserver(measure);observer.observe(group);
-  const frame=requestAnimationFrame(measure);
-  return()=>{observer.disconnect();cancelAnimationFrame(frame);};
+  measure();
+  return()=>{observer.disconnect();};
  },[readingKey,variantKey,labelKey,noteKey,metrics.length,mobile,metrics,presentation]);
  const columns=Math.min(columnLimit,metrics.length);
  const statusVariants=[...new Set([...flagVariants,flags].filter((value):value is string=>Boolean(value)))];

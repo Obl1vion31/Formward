@@ -1,5 +1,5 @@
 "use client";
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 export const MOBILE_MEDIA = "(max-width: 700px), (hover: none) and (pointer: coarse)";
 function subscribe(changed: () => void) {
@@ -13,4 +13,11 @@ const server = () => null;
 // null 表示服务器尚不知道设备，避免 hydration 使用不一致的 HTML。
 export function useMobileMode(): boolean | null {
   return useSyncExternalStore(subscribe, read, server);
+}
+
+/** 区间默认值仅在设备首次确定时选择；之后缩放或工具栏变化不改用户正在看的范围。 */
+export function useInitialMobileMode() {
+  const mobile=useMobileMode(),[initial,setInitial]=useState<boolean|null>(null);
+  if(initial===null&&mobile!==null)setInitial(mobile);
+  return initial??mobile;
 }

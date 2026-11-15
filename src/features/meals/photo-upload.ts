@@ -1,10 +1,11 @@
 "use client";
 import {uploadPresigned} from "@vercel/blob/client";
+import {choosePhotoRoute,type PhotoRegion,type PhotoRoute} from "./photo-route";
 import {PhotoTransferError,transferPhoto} from "./photo-transfer";
 export {PhotoTransferError} from "./photo-transfer";
-export type PhotoUploadPhase="read"|"prepare"|"sign"|"upload"|"relay"|"complete"|"ready";
-export type PhotoUploadProgress={phase:PhotoUploadPhase;label:string;loaded:number;total:number;percent:number};
-export type PhotoUploadOptions={signal?:AbortSignal;transport?:"direct"|"relay";onProgress?:(state:PhotoUploadProgress)=>void;onPreview?:(body:Blob)=>void};
+export type PhotoUploadPhase="read"|"route"|"prepare"|"sign"|"upload"|"relay"|"complete"|"ready";
+export type PhotoUploadProgress={phase:PhotoUploadPhase;label:string;loaded:number;total:number;percent:number;region?:PhotoRegion};
+export type PhotoUploadOptions={signal?:AbortSignal;region?:PhotoRegion;route?:Promise<PhotoRoute>;transport?:"direct"|"relay";onProgress?:(state:PhotoUploadProgress)=>void;onPreview?:(body:Blob)=>void};
 const snapshots=new WeakMap<File,Promise<{body:Blob;sha256:string}>>();
 function scope(signal:AbortSignal|undefined,ms:number){
  const controller=new AbortController(),abort=()=>controller.abort(signal?.reason),timer=setTimeout(()=>controller.abort(new DOMException("timeout","TimeoutError")),ms);
@@ -44,7 +45,7 @@ function abortable<T>(promise:Promise<T>,signal?:AbortSignal):Promise<T>{
 }
 function diagnostic(traceId:string,phase:string,started:number,extra:Record<string,unknown>={}){
  if(typeof window==="undefined")return;
- void fetch("/api/meal-images/upload",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({step:"diagnostic",diagnostic:{traceId,phase,elapsedMs:Math.trunc(Math.max(0,Math.min(600000,performance.now()-started))),...extra}}),keepalive:true,signal:AbortSignal.timeout(5000)}).catch(()=>{});
+ void fetch("/api/meal-images/upload",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({step:"diagnostic",diagnostic:{traceId,phase,elapsedMs:Math.trunc(Math.max(0,Math.min(900000,performance.now()-started))),...extra}}),keepalive:true,signal:AbortSignal.timeout(5000)}).catch(()=>{});
 }
 function validatePhoto(file:File){
  if(!file.size||file.size>20*1024*1024)throw new Error("照片须为非空文件，最大20 MiB。");
@@ -55,14 +56,16 @@ export async function stagePrivateMealPhoto(file:File){validatePhoto(file);retur
 /** 聊天与表单共用私有原图；失败重试复用同一份内存字节，不重新读取Safari临时File。 */
 export async function uploadPrivateMealPhoto(file:File,progress:(label:string)=>void=()=>{},options:PhotoUploadOptions={}){
  validatePhoto(file);
- const traceId=crypto.randomUUID(),started=performance.now();let loaded=0,total=file.size,phase:PhotoUploadPhase="read";
- const report=(next:PhotoUploadPhase,label:string,percent=0)=>{phase=next;progress(label);options.onProgress?.({phase:next,label,loaded,total,percent});};
+ const traceId=crypto.randomUUID(),started=performance.now();let loaded=0,total=file.size,phase:PhotoUploadPhase="read",region:PhotoRegion|undefined;
+ const report=(next:PhotoUploadPhase,label:string,percent=0)=>{phase=next;progress(label);options.onProgress?.({phase:next,label,loaded,total,percent,region});};
  const check=()=>{if(options.signal?.aborted)throw new PhotoTransferError("照片上传已取消，尚未发送到聊天。","abort");};
  try{
   check();report("read","正在读取照片…");diagnostic(traceId,phase,started);
   const snapshot=await abortable(snapshotPhoto(file),options.signal);check();options.onPreview?.(snapshot.body);
+  report("route","正在选择上传通道…");
+  region=(await abortable(options.region?Promise.resolve({region:options.region}):options.route??choosePhotoRoute(),options.signal)).region;
   report("prepare","正在申请上传凭据…");diagnostic(traceId,phase,started);
-  const prepared=await request({step:"prepare",file:{fileName:file.name,size:file.size,mimeType:file.type,sha256:snapshot.sha256}},"申请上传凭据",options.signal);
+  const prepared=await request({step:"prepare",region,file:{fileName:file.name,size:file.size,mimeType:file.type,sha256:snapshot.sha256}},"申请上传凭据",options.signal);
   let image=prepared.image;check();
   if(!image){
    if(prepared.provider==="cos"){
@@ -78,18 +81,21 @@ export async function uploadPrivateMealPhoto(file:File,progress:(label:string)=>
     }
    }else{
     if(options.transport==="relay")throw new Error("国际照片请使用原图直传。");
-    const timeout=scope(options.signal,120000);report("upload","正在上传照片…");diagnostic(traceId,phase,started);
-    try{await uploadPresigned(prepared.pathname,snapshot.body,{access:"private",handleUploadUrl:"/api/meal-images/upload",clientPayload:prepared.ticket,contentType:file.type,multipart:file.size>4*1024*1024,abortSignal:timeout.signal,onUploadProgress:event=>{loaded=event.loaded;total=event.total;report("upload","正在上传照片…",Math.min(100,Math.floor(event.percentage)));}});}
-    finally{timeout.close();}
+    const timeout=scope(options.signal,600000);let stalled=false,idle:ReturnType<typeof setTimeout>|undefined,last=0;
+    const resetIdle=()=>{clearTimeout(idle);idle=setTimeout(()=>{stalled=true;if(!timeout.signal.aborted)cancelTransfer();},60000);};
+    const cancelTransfer=()=>stop.abort(new DOMException("stalled","TimeoutError")),stop=new AbortController();resetIdle();report("upload","正在上传照片…");diagnostic(traceId,phase,started);
+    try{await uploadPresigned(prepared.pathname,snapshot.body,{access:"private",handleUploadUrl:"/api/meal-images/upload",clientPayload:prepared.ticket,contentType:file.type,multipart:file.size>4*1024*1024,abortSignal:AbortSignal.any([timeout.signal,stop.signal]),onUploadProgress:event=>{if(event.loaded>last){last=event.loaded;resetIdle();}loaded=event.loaded;total=event.total;report("upload","正在上传照片…",Math.min(100,Math.floor(event.percentage)));}});}
+    catch(error){if(options.signal?.aborted)throw new PhotoTransferError("照片上传已取消。","abort");if(stalled)throw new PhotoTransferError("照片传输已停滞，可重试或改用其他通道。","stalled");if(timeout.signal.aborted)throw new PhotoTransferError("照片上传超时，可重试或改用其他通道。","timeout");if(error instanceof TypeError)throw new PhotoTransferError("照片上传连接未完成，可重试或改用其他通道。","network");throw error;}
+    finally{clearTimeout(idle);timeout.close();}
    }
-   check();report("complete","正在核对原图…",100);diagnostic(traceId,phase,started,{loaded,total});
+   check();report("complete","正在核对原图…",100);diagnostic(traceId,phase,started,{loaded,total,region});
    image=await request({step:"complete",ticket:prepared.ticket},"核对原图",options.signal,90000);
   }
   if(!image||typeof image.id!=="string"||!image.id)throw new Error("照片登记结果不完整，请重试，当前草稿已保留。");
-  check();report("ready","照片已就绪",100);diagnostic(traceId,phase,started,{loaded,total});snapshots.delete(file);
+  check();report("ready","照片已就绪",100);diagnostic(traceId,phase,started,{loaded,total,region});snapshots.delete(file);
   return {id:String(image.id),notice:prepared.notice as string|undefined};
  }catch(error){
-  diagnostic(traceId,"error",started,{loaded,total,errorKind:error instanceof PhotoTransferError?error.kind:phase==="read"?"read":"other",...(error instanceof PhotoTransferError?{status:error.status,...(error.requestId?{requestId:error.requestId}:{})}:{})});
+  diagnostic(traceId,"error",started,{loaded,total,region,errorKind:error instanceof PhotoTransferError?error.kind:phase==="read"?"read":"other",...(error instanceof PhotoTransferError?{status:error.status,...(error.requestId?{requestId:error.requestId}:{})}:{})});
   throw error;
  }
 }

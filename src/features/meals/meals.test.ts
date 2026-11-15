@@ -45,6 +45,23 @@ test("食材查询在实时结果附当前说明规则，基础来源无泛化�
   assert.deepEqual((await queryFoods(db,await owner())).foods,[]);
 });
 
+test("正常用户营养来源原样保留，混合违规内容逐字段拒绝且没有写入", async () => {
+  const userId = await owner();
+  for (const basis of ["用户提供的营养标签", "按用户给出的每100毫升数据换算", "用户提供的营养标签，按每份250毫升换算；脂肪未知"]) {
+    const op = await submitMealOperation(db, { userId, origin: "manual" }, { operationId: randomUUID(), actions: [{ kind: "save_food", ...product({ name: basis, basis }) }] });
+    await decideMealOperation(db, userId, op.id, op.revision, "confirm");
+    assert.equal((await searchFoods(db, userId)).find(food => food.name === basis)?.basis, basis);
+  }
+  const before = await readMealSnapshot(db, userId);
+  for (const basis of ["用户提供的营养标签。用户今天吃了半包。", "按用户给出的每100毫升数据，必须调整", "用户提供的营养标签，用户要求加入食材库"]) {
+    await assert.rejects(submitMealOperation(db, { userId, origin: "manual" }, { operationId: randomUUID(), actions: [{ kind: "save_food", ...product({ basis, preparation: "用户昨天上传了照片" }) }] }), error => {
+      const failure = error as { code?: string; details?: { fields?: { path: string }[] } };
+      assert.equal(failure.code, "food_description"); assert.deepEqual(failure.details?.fields?.map(field => field.path), ["actions.0.preparation", "actions.0.basis"]); return true;
+    });
+  }
+  assert.deepEqual(await readMealSnapshot(db, userId), before);
+});
+
 test("旧预览确认也检查食材说明，既有完成请求仍可幂等重试", async () => {
   const userId=await owner(),raw={operationId:randomUUID(),actions:[{kind:"save_food" as const,...product()}]};
   const op=await submitMealOperation(db,{userId,origin:"manual"},raw);

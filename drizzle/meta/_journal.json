@@ -267,6 +267,20 @@
       "when": 1794660415814,
       "tag": "0038_assistant_meal_tasks",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1794724657255,
+      "tag": "0039_assistant_entitlements",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1794727151318,
+      "tag": "0040_assistant_recognition_relation",
+      "breakpoints": true
     }
   ]
 }

@@ -43,7 +43,7 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
     trustedOrigins,
     database: drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
     emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: MIN_PASSWORD_LENGTH, maxPasswordLength: MAX_PASSWORD_LENGTH },
-    user: { additionalFields: { accessVersion: { type: "number", defaultValue: 0, input: false }, lastLoginAt: { type: "date", required: false, input: false } } },
+    user: { additionalFields: { membershipTier: { type: ["free", "beta", "plus", "pro"], defaultValue: "free", input: false }, entitlementVersion: { type: "number", defaultValue: 0, input: false }, accessVersion: { type: "number", defaultValue: 0, input: false }, lastLoginAt: { type: "date", required: false, input: false } } },
     session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24, cookieCache: { enabled: false }, additionalFields: {
       accessVersion: { type: "number", defaultValue: 0, input: false }, adminVerifiedAt: { type: "date", required: false, input: false, returned: false },
     } },

@@ -17,6 +17,8 @@ export const user = pgTable("users", {
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
   role: text("role").notNull().default("user"),
+  membershipTier: text("membership_tier").$type<"free" | "beta" | "plus" | "pro">().notNull().default("free"),
+  entitlementVersion: integer("entitlement_version").notNull().default(0),
   banned: boolean("banned").notNull().default(false),
   banReason: text("ban_reason"),
   banExpires: timestamp("ban_expires", { withTimezone: true }),
@@ -24,7 +26,7 @@ export const user = pgTable("users", {
   accessVersion: integer("access_version").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, table => [check("users_membership_valid", sql`${table.membershipTier} IN ('free','beta','plus','pro') AND ${table.entitlementVersion} >= 0`)]);
 
 export const session = pgTable("sessions", {
   id: text("id").primaryKey(),
@@ -624,8 +626,9 @@ export const trainingEvent = pgTable("training_events", {
 export const assistantConnection = pgTable("assistant_connections", {
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),
   provider: text("provider").notNull(), tokenId: text("token_id").notNull().references(() => aiToken.id),
+  purpose: text("purpose").$type<"chat" | "meal_entry">().notNull().default("chat"),
   enabled: boolean("enabled").notNull().default(true), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, t => [uniqueIndex("assistant_connections_owner_provider_idx").on(t.userId, t.provider).where(sql`${t.enabled}=true`), uniqueIndex("assistant_connections_token_idx").on(t.tokenId), check("assistant_connections_provider_valid", sql.raw("provider IN ('qwen','mimo','glm')"))]);
+}, t => [uniqueIndex("assistant_connections_owner_provider_idx").on(t.userId, t.provider, t.purpose).where(sql`${t.enabled}=true`), uniqueIndex("assistant_connections_token_idx").on(t.tokenId), check("assistant_connections_provider_valid", sql.raw("provider IN ('qwen','mimo','glm') AND purpose IN ('chat','meal_entry')"))]);
 export const assistantConversation = pgTable("assistant_conversations", {
   purpose:text("purpose").notNull().default("chat"),
   context:jsonb("context").$type<import("../features/assistant/chat-model").MealTaskContext|null>(),
@@ -638,18 +641,25 @@ export const assistantMessage = pgTable("assistant_messages", {
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), conversationId: text("conversation_id").notNull(),
   seq: integer("seq").notNull(), role: text("role").notNull(), text: text("text").notNull().default(""), provider: text("provider"), state: text("state").notNull().default("complete"),
   replyToId: text("reply_to_id"), imageIds: jsonb("image_ids").$type<string[]>().notNull().default([]),
+  supplementalAnswer: jsonb("supplemental_answer").$type<import("../features/assistant/followup").ResolvedSupplement | null>(),
   steps: jsonb("steps").$type<import("../features/assistant/chat-model").ChatStep[]>().notNull().default([]),
   references: jsonb("references").$type<import("../features/assistant/chat-model").ChatReference[]>().notNull().default([]),
   error: text("error"), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => [foreignKey({ columns: [t.userId, t.conversationId], foreignColumns: [assistantConversation.userId, assistantConversation.id] }), uniqueIndex("assistant_messages_owner_id_idx").on(t.userId, t.id), uniqueIndex("assistant_messages_sequence_idx").on(t.conversationId, t.seq), index("assistant_messages_history_idx").on(t.userId, t.conversationId, t.seq), check("assistant_messages_valid", sql.raw("seq > 0 AND role IN ('user','assistant') AND (provider IS NULL OR provider IN ('qwen','mimo','glm')) AND state IN ('complete','working','stopped','truncated','error')"))]);
 export type AssistantToolResult = { name: string; fingerprint: string; args: Record<string, unknown>; result: Record<string, unknown>; tokenId?: string };
+export const assistantRecognition = pgTable("assistant_recognitions", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), conversationId: text("conversation_id").notNull(),
+  inputDigest: text("input_digest").notNull(), date: date("date").notNull(), state: text("state").$type<"prepared" | "reserved" | "used" | "refunded">().notNull().default("prepared"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [foreignKey({ columns: [t.userId, t.conversationId], foreignColumns: [assistantConversation.userId, assistantConversation.id] }), uniqueIndex("assistant_recognitions_owner_id_idx").on(t.userId, t.id), index("assistant_recognitions_day_idx").on(t.userId, t.date), check("assistant_recognitions_state_valid", sql`${t.state} IN ('prepared','reserved','used','refunded')`)]);
 export const assistantRun = pgTable("assistant_runs", {
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), conversationId: text("conversation_id").notNull(),
   userMessageId: text("user_message_id").notNull(), assistantMessageId: text("assistant_message_id").notNull(),
   requestId: text("request_id").notNull(), requestDigest: text("request_digest").notNull(), provider: text("provider").notNull(), model: text("model").notNull(), tokenId: text("token_id").references(() => aiToken.id),
+  recognitionId: text("recognition_id"),
   state: text("state").notNull().default("running"), toolResults: jsonb("tool_results").$type<AssistantToolResult[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }).notNull().defaultNow(),
-}, t => [foreignKey({ columns: [t.userId, t.conversationId], foreignColumns: [assistantConversation.userId, assistantConversation.id] }), foreignKey({ columns: [t.userId, t.userMessageId], foreignColumns: [assistantMessage.userId, assistantMessage.id] }), foreignKey({ columns: [t.userId, t.assistantMessageId], foreignColumns: [assistantMessage.userId, assistantMessage.id] }), uniqueIndex("assistant_runs_owner_request_idx").on(t.userId, t.requestId), uniqueIndex("assistant_runs_active_idx").on(t.userId).where(sql`${t.state}='running'`), uniqueIndex("assistant_runs_owner_id_idx").on(t.userId, t.id), index("assistant_runs_message_idx").on(t.userId, t.userMessageId), check("assistant_runs_valid", sql.raw("provider IN ('qwen','mimo','glm') AND state IN ('running','complete','stopped','truncated','error')"))]);
+}, t => [foreignKey({ columns: [t.userId, t.conversationId], foreignColumns: [assistantConversation.userId, assistantConversation.id] }), foreignKey({ columns: [t.userId, t.userMessageId], foreignColumns: [assistantMessage.userId, assistantMessage.id] }), foreignKey({ columns: [t.userId, t.assistantMessageId], foreignColumns: [assistantMessage.userId, assistantMessage.id] }), uniqueIndex("assistant_runs_owner_request_idx").on(t.userId, t.requestId), uniqueIndex("assistant_runs_active_idx").on(t.userId).where(sql`${t.state}='running'`), uniqueIndex("assistant_runs_owner_id_idx").on(t.userId, t.id), index("assistant_runs_message_idx").on(t.userId, t.userMessageId), index("assistant_runs_recognition_idx").on(t.userId,t.recognitionId), foreignKey({columns:[t.userId,t.recognitionId],foreignColumns:[assistantRecognition.userId,assistantRecognition.id]}), check("assistant_runs_valid", sql.raw("provider IN ('qwen','mimo','glm') AND state IN ('running','complete','stopped','truncated','error')"))]);
 export const assistantUsageRequest = pgTable("assistant_usage_requests", {
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), runId: text("run_id").notNull(), provider: text("provider").notNull(), date: date("date").notNull(),
   state: text("state").notNull().default("reserved"), reservedCny: numeric("reserved_cny", { precision: 18, scale: 8 }).notNull(), costCny: numeric("cost_cny", { precision: 18, scale: 8 }),

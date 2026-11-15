@@ -1,0 +1,2 @@
+ALTER TABLE "assistant_runs" ADD CONSTRAINT "assistant_runs_user_id_recognition_id_assistant_recognitions_user_id_id_fk" FOREIGN KEY ("user_id","recognition_id") REFERENCES "public"."assistant_recognitions"("user_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "assistant_runs_recognition_idx" ON "assistant_runs" USING btree ("user_id","recognition_id");

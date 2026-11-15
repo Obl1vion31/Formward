@@ -21,6 +21,13 @@ globalThis.fetch=async function(input,init){
    if(!body.tools.some(tool=>tool.function.name==='preview_meals'))return call('load_tools',{names:['preview_meals']});
    return call('preview_meals',{meals:[{date:'today',mealType:'午餐',foods:[{name:'AI 识别食物',quantity:'1',unit:'份',caloriesKcal:'290',proteinG:'20',carbsG:'30',fatG:'10',amountDecision:'provided',sourceKind:'estimated',basis:'隔离回放的示例结果，非真实识别'}]}]});
   }
+  if(text.includes('来源卡片验收')||text.includes('测量来源')){
+   const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+   if(!text.includes('OKOK')&&!text.includes('okok'))return call('request_followup',{subject:'当前体重',question:'这次测量使用的设备或应用？',questions:[{id:'source',prompt:'测量来源',binding:{kind:'measurement_source',date,period:'daytime'},allowText:true,optional:true}]});
+   if(!body.tools.some(tool=>tool.function.name==='preview_measurements'))return call('load_tools',{names:['preview_measurements']});
+   if(body.messages.at(-1).role==='tool'&&String(body.messages.at(-1).content).includes('confirmationUrl'))return result('已整理这条实测记录，请核对后确认保存。');
+   return call('preview_measurements',{items:[{kind:'save_record',date,period:'daytime',weightKg:'67.00',fasting:true,timezone:'Asia/Shanghai'}]});
+  }
   if(text.includes('平台余额测试')&&body.model==='glm-5.3-flash')return Response.json({error:{code:'insufficient_balance',message:'insufficient balance'}},{status:402});
  if(text.includes('断网测试'))throw new TypeError('fixture network unavailable');
  if(text.includes('慢速测试'))return result('这是隔离浏览器的慢速流式回答。这里只检查真实界面的停止、继续和固定槽位，不访问收费模型。'.repeat(3),null,true);

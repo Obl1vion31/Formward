@@ -24,7 +24,7 @@ import styles from "./measurements-view.module.css";
 import { localMeasurementDate, measurementDayAction, measurementNeedsEntry, type EntryResult, type MeasurementActions, type MeasurementDateDisplay, type MeasurementDisplay } from "./entry-state";
 import { MeasurementEntry, MeasurementEntryHeader } from "./measurement-entry";
 import { timezoneLabel } from "./timezone";
-import { useMobileMode } from "@/components/use-mobile-mode";
+import { useInitialMobileMode } from "@/components/use-mobile-mode";
 import type { TrendRoute } from "@/components/metric-trend-model";
 import {useChartTransitionActions} from '@/components/chart-transition-state';
 import {TrendGlyph} from "@/components/trend-glyph";
@@ -44,7 +44,7 @@ const unitFor = (metric: MeasurementMetric) => metric === "weightKg" ? "kg" : "%
 const metricName = (metric: MeasurementMetric) => metric === "weightKg" ? "体重" : "体脂率";
 
 export function MeasurementsView({ records: serverRecords, dates: serverDates, sources: serverSources, accountCreatedAt, actions, initialDate = null, initialPeriod = null,initialTrend=null,initialIntent='view',preferences={showBodyFat:true,version:0,updatedAt:null} }: { preferences?:AccountPreferences; records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; accountCreatedAt: string; actions: MeasurementActions; initialDate?:string|null; initialPeriod?:"daytime"|"evening"|null;initialTrend?:TrendRoute|null;initialIntent?:RecordIntent }) {
-  const mobileMode = useMobileMode();
+  const mobileMode = useInitialMobileMode();
   const [actionResult, setActionResult] = useState<(Extract<EntryResult, { ok: true }> & { base: MeasurementDisplay[] }) | null>(null);
   // 保存结果即时反馈；新的服务端快照抵达后接管，不能长期保留首次加载数据。
   const { records, dates, sources: snapshotSources } = actionResult?.base === serverRecords ? actionResult : { records: serverRecords, dates: serverDates, sources: serverSources };

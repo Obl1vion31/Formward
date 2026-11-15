@@ -67,3 +67,7 @@ preferences.ts管理按账号同步的体脂显示偏好，account_preferences�
 站内助手三模型分别关联ai_tokens与assistant_connections，按30天有效性、撤销及账号状态执行原令牌校验。ai-access-overview通过真实token_id追溯“千问／小米MiMo／智谱 · 站内助手”，不随当前模型选择改名；已停用旧连接仍保存来源引用。内部令牌不列入高级手动令牌，也不向浏览器返回原文，外部OAuth与scope不变。
 
 ApiError可携带安全的字段路径、修正要求和原预览定位信息。仅在归属与原授权校验后返回已有草稿编号；不回显原请求内容、密钥或数据库异常。
+
+## 会员权益与管理角色
+
+users.membership_tier（Free／内测／Plus，Pro仅预留）独立于owner／user。entitlement_version用于改档并发检查；Better Auth仅返回字段、禁止普通资料写入，cookieCache关闭，下一次会话读取得到最新值。管理员沿用近期验密、目标版本、请求幂等和account_events审计；不修改access_version或撤销登录。assistant feature在每次模型请求按最新权益决定聊天、识图次数或金额预算，设备接入不按会员收费。

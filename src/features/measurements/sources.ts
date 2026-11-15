@@ -3,11 +3,9 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { measurement, measurementEvent, measurementSource } from "../../db/schema";
 import { lockMeasurementOwner, type MeasurementActor, type MeasurementTransaction } from "./records";
+import { validateDeviceLabel } from "./source-label";
+export { validateDeviceLabel } from "./source-label";
 
-export function validateDeviceLabel(value: unknown) {
-  if (typeof value !== "string" || !value.trim() || value.trim().length > 300 || /[\u0000-\u001f\u007f]/.test(value)) throw new Error("实测请填写数据来源，最多 300 个字符。");
-  return value.trim();
-}
 export class MeasurementSourceError extends Error {
   readonly field = "deviceLabel";
   constructor(message = "请填写数据来源，或明确确认不填写来源。", readonly code = "source_confirmation_required") { super(message); }

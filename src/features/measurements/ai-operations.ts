@@ -333,7 +333,9 @@ export async function reviewAiMeasurementOperation(db: Database, userId: string,
       for (const change of action.changes) {
         object(change, ["itemId", "input"]);
         const item = items.find(item => item.id === change.itemId);
-        if (!item || item.status !== "pending") throw new ApiError(409, "closed_item", "只能修改本次操作尚未保存的记录。");
+        const unchangedPending = item?.status === "skipped" && item.preview.rows.length > 0 && item.preview.rows.every(row=>row.state === "duplicate") && item.input.kind === "save_record" && !!item.input.recordId;
+        if (!item || item.status !== "pending" && !unchangedPending) throw new ApiError(409, "closed_item", "只能修改本次操作尚未保存的记录。");
+        if(unchangedPending)item.status="pending";
         const input = parseReviewInput(change.input);
         if (input.kind !== item.input.kind) throw new ApiError(400, "invalid_input", "记录类型不能改变。");
         if (input.kind === "save_record" && item.input.kind === "save_record" && (input.date !== item.input.date || input.period !== item.input.period) && input.recordId === item.input.recordId) { delete input.recordId; delete input.version; }

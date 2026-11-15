@@ -2,7 +2,8 @@
 import { headers } from "next/headers";
 import { getDatabase } from "@/db/client";
 import { accountRequestSource, withCurrentSession } from "@/features/auth/server";
-import { accountFailure, createAccountInvitation, loadAccountAdmin, manageAccount, recordAdminRejection, revokeAccountInvitation, unlockAccountAdmin, type AccountCommand, type AdminFilter } from "@/features/auth/account-management";
+import { accountFailure, createAccountInvitation, loadAccountAdmin, manageAccount, changeAccountTier, recordAdminRejection, revokeAccountInvitation, unlockAccountAdmin, type AccountCommand, type AdminFilter } from "@/features/auth/account-management";
+import type { MembershipTier } from "@/features/auth/entitlements";
 import { siteOrigin, isAccountRequestOrigin } from "@/features/auth/site-url";
 import { ApiError } from "@/features/auth/ai-identity";
 
@@ -26,3 +27,4 @@ export async function loadAdminAction(filter: AdminFilter) { return perform(proo
 export async function inviteAccountAction(email: string, requestId: string) { return perform(async proof => linkResult(await createAccountInvitation(getDatabase(), proof, email, requestId)), { action: "invite_created", email }); }
 export async function revokeInvitationAction(id: string, requestId: string) { return perform(async proof => { await revokeAccountInvitation(getDatabase(), proof, id, requestId); return null; }); }
 export async function manageAccountAction(id: string, command: AccountCommand, reason: string, requestId: string) { return perform(async proof => linkResult(await manageAccount(getDatabase(), proof, id, command, reason, requestId)), { action: ["suspend", "restore", "revoke_access", "reset_password"].includes(command) ? command : "invalid_operation", userId: id }); }
+export async function changeAccountTierAction(id: string, tier: MembershipTier, version: number, requestId: string) { return perform(proof => changeAccountTier(getDatabase(), proof, id, tier, version, requestId), { action: "membership_changed", userId: id }); }

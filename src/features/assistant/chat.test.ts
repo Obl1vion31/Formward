@@ -28,10 +28,10 @@ async function fresh() { await controlChat(db,ownerId,{action:"new"}); return cu
 async function begin(text="查一下身体记录",provider:ChatSend["provider"]="qwen") { const current=await currentConversation(db,ownerId);const input:ChatSend={action:"send",requestId:randomUUID(),conversationId:current.id,provider,text,timezone:"Asia/Shanghai"};return {input,...await startChatRun(db,ownerId,input)}; }
 async function stop(row:StoredRun){await controlChat(db,ownerId,{action:"stop",runId:row.id});}
 function completion(text:string,calls?:unknown[]){ calls=calls?.map((raw:unknown)=>{const item=raw as {function?:{name:string;arguments:string}};if(item.function?.name==="preview_meals"){const args=JSON.parse(item.function.arguments);if(!args.meals){const {operationId,...meal}=args;item.function.arguments=JSON.stringify({operationId,meals:[meal]});}}return item;});return new Response("data: "+JSON.stringify({choices:[{delta:{content:text,...(calls?{tool_calls:calls}:{})},finish_reason:calls?"tool_calls":"stop"}]})+"\n\ndata: "+JSON.stringify({choices:[],usage:{prompt_tokens:100,completion_tokens:40,prompt_tokens_details:{cached_tokens:20}}})+"\n\ndata: [DONE]\n\n",{headers:{"Content-Type":"text/event-stream"}});}
-test("试用资格同时校验开关、指定账号和owner；普通及其他owner不能读会话",async()=>{
+test("聊天资格与本人历史读取分离；普通及其他owner不能发起调用",async()=>{
   assert.throws(()=>assertChatAllowed({id:ownerId,role:"user"}));assert.throws(()=>assertChatAllowed({id:secondOwner,role:"owner"}));
-  await assert.rejects(()=>chatSnapshot(db,outsider),/暂未开放/);await assert.rejects(()=>chatSnapshot(db,secondOwner),/暂未开放/);
-  process.env.FORMWARD_CHAT_ENABLED="0";await assert.rejects(()=>chatSnapshot(db,ownerId),/暂未开放/);process.env.FORMWARD_CHAT_ENABLED="1";
+  assert.equal((await chatSnapshot(db,outsider)).entitlement?.chat,false);assert.equal((await chatSnapshot(db,secondOwner)).entitlement?.chat,false);
+  process.env.FORMWARD_CHAT_ENABLED="0";try{assert.equal((await chatSnapshot(db,ownerId)).entitlement?.chat,false);await assert.rejects(()=>currentConversation(db,ownerId),/暂未开放/);}finally{process.env.FORMWARD_CHAT_ENABLED="1";}
 });
 test("仅引用本人已完成回答，问答关联来自真实消息，不能引用单个问题或生成中的回答",async()=>{
  const current=await fresh(),questionId=randomUUID(),answerId=randomUUID();
@@ -181,7 +181,7 @@ test("到期与在途撤销阻止后续工具，不能自动续期或复活旧�
 });
 test("已有的其他账号消息、图片和运行不能被指定管理员借用",async()=>{
   const conversationId=randomUUID(),messageId=randomUUID(),imageId=randomUUID();
-  await db.insert(schema.assistantConversation).values({id:conversationId,userId:outsider});await db.insert(schema.assistantMessage).values({id:messageId,userId:outsider,conversationId,seq:1,role:"user",text:"不能被读取的另一账号消息"});
+  await db.insert(schema.assistantConversation).values({id:conversationId,userId:outsider,active:false});await db.insert(schema.assistantMessage).values({id:messageId,userId:outsider,conversationId,seq:1,role:"user",text:"不能被读取的另一账号消息"});
   await db.insert(schema.mealImage).values({id:imageId,userId:outsider,pathname:"meal-formal-v2/"+outsider+"/private.png",sha256:"a".repeat(64),mimeType:"image/png",byteSize:64,fileName:"其他账号私有图片.png",source:"manual",createdBy:outsider});
   const current=await fresh(),input:ChatSend={action:"send",requestId:randomUUID(),provider:"qwen",conversationId:current.id,text:"查询",timezone:"Asia/Shanghai"};
   await assert.rejects(()=>startChatRun(db,ownerId,{...input,replyToId:messageId}),/引用消息/);await assert.rejects(()=>startChatRun(db,ownerId,{...input,imageIds:[imageId]}),/照片不存在/);await assert.rejects(()=>startChatRun(db,ownerId,{...input,conversationId}),/会话已变化/);

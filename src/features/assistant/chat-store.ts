@@ -1,6 +1,6 @@
 import { chatCapabilities } from "./chat-config";
 import { or } from "drizzle-orm";
-import { followupText, type FollowupSubmission } from "./followup";
+import { followupText, resolveSupplement, mergeSupplements, type FollowupSubmission } from "./followup";
 import { createHash, randomUUID } from "node:crypto";
 import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import type { Database } from "../../db/client";
@@ -8,7 +8,9 @@ import { assistantConnection as connection, assistantConversation as conversatio
 import { ApiError } from "../auth/ai-identity";
 import { lockActiveAccount, requireActiveAccount } from "../auth/account-security";
 import { requireActiveAiToken } from "../auth/ai-tokens";
-import { assertChatAllowed, CHAT_DAILY_LIMIT, chatProviders, providerConfigured, providerId, type ChatRates } from "./chat-config";
+import { accountEntitlements } from "../auth/entitlements";
+import { prepareRecognition, recognitionUsage, reserveRecognition, refundUnfinishedRecognition } from "./recognition-quota";
+import { assertChatAllowed, chatProviders, providerConfigured, providerId, type ChatRates } from "./chat-config";
 import { budgetDate, chatProviderIds, nextBudgetReset, usagePercent, type ChatMessage, type ChatProvider, type ChatSnapshot, type ChatUsage } from "./chat-model";
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export type StoredRun = typeof run.$inferSelect;
@@ -16,11 +18,11 @@ export type StoredMessage = typeof message.$inferSelect;
 export type ChatSend = { action: "send" | "retry" | "continue"; requestId: string; provider: ChatProvider; conversationId: string; text?: string; replyToId?: string; imageIds?: string[]; messageId?: string; timezone: string; followup?: FollowupSubmission; mealTask?:boolean };
 export const digestChat = (value: unknown) => createHash("sha256").update(JSON.stringify(value, (_key,item) => item && typeof item === "object" && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a],[b]) => a.localeCompare(b))) : item)).digest("hex");
 
-export async function requireChatAccount(db: Pick<Database, "select">, userId: string) { const owner = await requireActiveAccount(db, userId); assertChatAllowed(owner); return owner; }
-async function lockChatAccount(tx: Tx, userId: string) { const owner = await lockActiveAccount(tx, userId); assertChatAllowed(owner); return owner; }
-export async function currentConversation(db: Database, userId: string) {
+export async function requireChatAccount(db: Pick<Database, "select">, userId: string, purpose: "chat" | "meal_entry" = "chat") { const owner = await requireActiveAccount(db, userId); assertChatAllowed(owner, purpose); return owner; }
+async function lockChatAccount(tx: Tx, userId: string, purpose: "chat" | "meal_entry" = "chat") { const owner = await lockActiveAccount(tx, userId); assertChatAllowed(owner, purpose); return owner; }
+export async function currentConversation(db: Database, userId: string, readOnly = false) {
   return db.transaction(async tx => {
-    await lockChatAccount(tx, userId);
+    const owner = await lockActiveAccount(tx, userId); if (!readOnly) assertChatAllowed(owner);
     const [active] = await tx.select().from(conversation).where(and(eq(conversation.userId, userId), eq(conversation.purpose,"chat"), eq(conversation.active, true)));
     if (active) return active;
     const [previous] = await tx.select().from(conversation).where(and(eq(conversation.userId,userId),eq(conversation.purpose,"chat"))).orderBy(desc(conversation.createdAt)).limit(1);
@@ -30,6 +32,7 @@ export async function currentConversation(db: Database, userId: string) {
 }
 export async function chatUsage(db: Pick<Database, "select">, userId: string, now = new Date()): Promise<ChatUsage> {
   const date = budgetDate(now);
+  const entitlement = accountEntitlements(await requireActiveAccount(db, userId)), limit = entitlement.dailyBudgetCny;
   const totals = await db.select({ provider: usageRequest.provider, state: usageRequest.state,
     cost: sql<string>`coalesce(sum(${usageRequest.costCny}),0)::text`, reserved: sql<string>`coalesce(sum(${usageRequest.reservedCny}),0)::text`,
   }).from(usageRequest).where(and(eq(usageRequest.userId, userId), eq(usageRequest.date, date))).groupBy(usageRequest.provider, usageRequest.state);
@@ -39,7 +42,7 @@ export async function chatUsage(db: Pick<Database, "select">, userId: string, no
     if (row.state === "settled") item.spent += Number(row.cost); else if (row.state === "unknown") item.uncertain += Number(row.reserved); else item.reserved += Number(row.reserved);
   }
   const spent = providers.reduce((sum, p) => sum + p.spent, 0), reserved = providers.reduce((sum, p) => sum + p.reserved, 0), uncertain = providers.reduce((sum, p) => sum + p.uncertain, 0);
-  return { date, limit: CHAT_DAILY_LIMIT, spent, reserved, uncertain, available: Math.max(0, CHAT_DAILY_LIMIT - spent - reserved - uncertain), percent: usagePercent(spent, CHAT_DAILY_LIMIT), resetAt: nextBudgetReset(date), providers };
+  return { date, limit, spent, reserved, uncertain, available: Math.max(0, limit - spent - reserved - uncertain), percent: limit ? usagePercent(spent, limit) : "0%", resetAt: nextBudgetReset(date), providers, ...(entitlement.tier === "free" ? { recognition: await recognitionUsage(db, userId, now) } : {}) };
 }
 export function normalizedUsage(raw: Record<string, unknown> | null, rates: ChatRates) {
   if (!raw || !Number.isSafeInteger(raw.prompt_tokens) || !Number.isSafeInteger(raw.completion_tokens) || Number(raw.prompt_tokens) < 0 || Number(raw.completion_tokens) < 0) return null;
@@ -68,52 +71,57 @@ export async function settleChatUsage(db: Database, userId: string, id: string, 
 }
 export async function reserveChatUsage(db: Database, ownerId: string, activeRun: StoredRun, amount: number) {
   return db.transaction(async tx => {
-    await lockChatAccount(tx, ownerId);
+    const [task] = await tx.select({ purpose: conversation.purpose }).from(conversation).where(and(eq(conversation.id, activeRun.conversationId), eq(conversation.userId, ownerId)));
+    if (!task) throw new ApiError(404, "not_found", "当前任务不可用。");
+    const owner = await lockChatAccount(tx, ownerId, task.purpose === "meal_entry" ? "meal_entry" : "chat");
     const [live] = await tx.select().from(run).where(and(eq(run.id, activeRun.id), eq(run.userId, ownerId), eq(run.state, "running")));
     if (!live) throw new ApiError(409, "stopped", "生成已停止。");
+    if (task.purpose === "meal_entry") await reserveRecognition(tx, activeRun);
     const budget = await chatUsage(tx, ownerId);
-    if (budget.available + 1e-9 < amount) throw new ApiError(429, "daily_budget", "今日可用额度不足以开始这次请求。待结算用量也会暂占额度；提醒和手工记录仍可使用。");
+    if (accountEntitlements(owner).tier !== "free" && budget.available + 1e-9 < amount) throw new ApiError(429, "daily_budget", "今日可用额度不足以开始这次请求。待结算用量也会暂占额度；提醒和手工记录仍可使用。");
     const id = randomUUID();
     await tx.insert(usageRequest).values({ id, userId: ownerId, runId: activeRun.id, provider: activeRun.provider, date: budget.date, reservedCny: amount.toFixed(8), rates: chatProviders[providerId(activeRun.provider)].rates });
     return id;
   });
 }
-export async function chatIdentity(db: Database, ownerId: string, provider: ChatProvider, create = false) {
+export async function chatIdentity(db: Database, ownerId: string, provider: ChatProvider, create = false, purpose: "chat" | "meal_entry" = "chat") {
   return db.transaction(async tx => {
-    await lockChatAccount(tx, ownerId);
-    let [row] = await tx.select().from(connection).where(and(eq(connection.userId, ownerId), eq(connection.provider, provider))).orderBy(desc(connection.createdAt)).limit(1);
+    const owner = await lockChatAccount(tx, ownerId, purpose), grantPurpose = purpose === "meal_entry" && !accountEntitlements(owner).chat ? "meal_entry" : "chat";
+    let [row] = await tx.select().from(connection).where(and(eq(connection.userId, ownerId), eq(connection.provider, provider), eq(connection.purpose, grantPurpose))).orderBy(desc(connection.createdAt)).limit(1);
     if (!row && create) {
       // 原文只在此处产生且立即丢弃；站内执行凭有效会话和本人的连接引用，不接受浏览器凭据。
       const tokenId = randomUUID();
-      await tx.insert(aiToken).values({ id: tokenId, userId: ownerId, name: chatProviders[provider].label + " · 站内助手", tokenHash: digestChat(randomUUID() + randomUUID()), prefix: "fw_internal", permission: "write", expiresAt: new Date(Date.now() + 30 * 86400000) });
-      [row] = await tx.insert(connection).values({ id: randomUUID(), userId: ownerId, provider, tokenId }).returning();
+      await tx.insert(aiToken).values({ id: tokenId, userId: ownerId, name: chatProviders[provider].label + (grantPurpose === "meal_entry" ? " · 站内饮食识图" : " · 站内助手"), tokenHash: digestChat(randomUUID() + randomUUID()), prefix: grantPurpose === "meal_entry" ? "fw_internal_meal" : "fw_internal", permission: "write", expiresAt: new Date(Date.now() + 30 * 86400000) });
+      [row] = await tx.insert(connection).values({ id: randomUUID(), userId: ownerId, provider, tokenId, purpose: grantPurpose }).returning();
     }
     if (!row?.enabled) throw new ApiError(403, "chat_grant_revoked", "此模型的站内授权已撤销，请在连接详情中重新启用。");
     const identity = { userId: ownerId, tokenId: row.tokenId, permission: "write" as const };
-    await requireActiveAiToken(tx, identity);
+    await requireActiveAiToken(tx, identity, false, purpose === "meal_entry" ? "meals" : "measurements");
     return identity;
   });
 }
 export async function reapChatRuns(db: Database, userId: string) {
   await db.transaction(async tx => {
-    await lockChatAccount(tx, userId);
+    await lockActiveAccount(tx, userId);
     const stale = await tx.update(run).set({ state: "stopped" }).where(and(eq(run.userId, userId), eq(run.state, "running"), lt(run.heartbeatAt, new Date(Date.now() - 150000)))).returning();
     for (const row of stale) {
       await tx.update(message).set({ state: "stopped", error: "连接已中断，已保存的内容保留。可以继续或重试。" }).where(and(eq(message.id, row.assistantMessageId), eq(message.userId, userId)));
       await tx.update(usageRequest).set({ state: "unknown" }).where(and(eq(usageRequest.runId, row.id), eq(usageRequest.userId, userId), eq(usageRequest.state, "reserved")));
+      await refundUnfinishedRecognition(tx as unknown as Database, userId, row);
     }
   });
 }
 export async function chatSnapshot(db: Database, userId: string, before?: number,taskId?:string): Promise<ChatSnapshot> {
-  await requireChatAccount(db, userId); await reapChatRuns(db, userId);
-  const current = taskId?(await db.select().from(conversation).where(and(eq(conversation.id,taskId),eq(conversation.userId,userId),eq(conversation.purpose,"meal_entry"))))[0]:await currentConversation(db,userId);
+  const owner = await requireActiveAccount(db, userId), entitlement = accountEntitlements(owner); await reapChatRuns(db, userId);
+  const current = taskId?(await db.select().from(conversation).where(and(eq(conversation.id,taskId),eq(conversation.userId,userId),eq(conversation.purpose,"meal_entry"))))[0]:await currentConversation(db,userId,true);
   if(!current)throw new ApiError(404,"not_found","此任务不存在或不属于当前账号。");
   const recent = await db.select().from(message).where(and(eq(message.userId, userId), eq(message.conversationId, current.id))).orderBy(desc(message.seq)).limit(50);
   const older = before === undefined ? recent : recent.filter(row => row.seq < before), rows = older.slice(0, 5).reverse();
   const runs = rows.length ? await db.select().from(run).where(and(eq(run.userId, userId), or(inArray(run.assistantMessageId, rows.map(row => row.id)),inArray(run.userMessageId, rows.map(row => row.id))))).orderBy(desc(run.createdAt)) : [];
   const [active] = await db.select({ id: run.id }).from(run).where(and(eq(run.userId,userId),taskId?eq(run.conversationId,current.id):undefined,eq(run.state,"running")));
-  const grants = await db.select({ provider: connection.provider, enabled: connection.enabled, expiresAt: aiToken.expiresAt, revokedAt: aiToken.revokedAt }).from(connection).innerJoin(aiToken, and(eq(aiToken.id, connection.tokenId), eq(aiToken.userId, userId))).where(eq(connection.userId, userId)).orderBy(desc(connection.createdAt));
-  return { capabilities:chatCapabilities(),conversationId: current.id, provider: providerId(current.provider), followup: current.followup, messages: rows.map(row => publicChatMessage(row,recent,runs.find(item=>item.assistantMessageId===row.id||item.userMessageId===row.id)?.id,runs.find(item=>item.assistantMessageId===row.id||item.userMessageId===row.id)?.requestId,runs.find(item=>item.assistantMessageId===row.id)?.userMessageId)),
+  const grantPurpose = taskId && !entitlement.chat ? "meal_entry" : "chat";
+  const grants = await db.select({ provider: connection.provider, enabled: connection.enabled, expiresAt: aiToken.expiresAt, revokedAt: aiToken.revokedAt }).from(connection).innerJoin(aiToken, and(eq(aiToken.id, connection.tokenId), eq(aiToken.userId, userId))).where(and(eq(connection.userId, userId),eq(connection.purpose, grantPurpose))).orderBy(desc(connection.createdAt));
+  return { capabilities:chatCapabilities(),entitlement,conversationId: current.id, provider: providerId(current.provider), followup: current.followup, messages: rows.map(row => publicChatMessage(row,recent,runs.find(item=>item.assistantMessageId===row.id||item.userMessageId===row.id)?.id,runs.find(item=>item.assistantMessageId===row.id||item.userMessageId===row.id)?.requestId,runs.find(item=>item.assistantMessageId===row.id)?.userMessageId)),
     hasMore: older.length > 5, before: rows[0]?.seq ?? null, activeRunId: active?.id ?? null,
     catalog: chatProviderIds.map(id => { const grant = grants.find(row => row.provider === id), configured = providerConfigured(id), valid = !grant || grant.enabled && !grant.revokedAt && grant.expiresAt.getTime() > Date.now();
       return { id, label: chatProviders[id].label, model: chatProviders[id].model, configured, enabled: !!valid, reason: !configured ? "暂未配置或已停用" : !valid ? "授权已撤销或过期" : null, expiresAt: grant?.expiresAt.toISOString() ?? null }; }), usage: await chatUsage(db, userId) };
@@ -125,9 +133,9 @@ export function publicChatMessage(row: StoredMessage, context: StoredMessage[] =
     replyTo: row.replyToId ? { id: row.replyToId, text: quote?.text.slice(0, 280) || "原消息已超出当前历史范围" } : null, imageIds: row.imageIds, steps: row.steps, references: row.references, error: row.error, ...(runId ? { runId } : {}),...(requestId?{requestId}:{}),...(question?{question:{id:question.id,text:question.text}}:{}) };
 }
 export async function startChatRun(db: Database, userId: string, input: ChatSend) {
-  await requireChatAccount(db, userId); await reapChatRuns(db, userId);
+  await requireChatAccount(db, userId, input.mealTask ? "meal_entry" : "chat"); await reapChatRuns(db, userId);
   return db.transaction(async tx => {
-    await lockChatAccount(tx, userId);
+    await lockChatAccount(tx, userId, input.mealTask ? "meal_entry" : "chat");
     const requestDigest = digestChat(input);
     const [duplicate] = await tx.select().from(run).where(and(eq(run.userId, userId), eq(run.requestId, input.requestId)));
     if (duplicate) { if (duplicate.requestDigest !== requestDigest) throw new ApiError(409, "request_conflict", "同一请求编号不能用于不同内容。"); return { row: duplicate, started: false }; }
@@ -147,7 +155,9 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
       }
       const ids = input.imageIds ?? [];
       if (ids.length) { const owned = await tx.select({ id: mealImage.id }).from(mealImage).where(and(eq(mealImage.userId, userId), inArray(mealImage.id, ids))); if (owned.length !== ids.length) throw new ApiError(404, "image_unavailable", "照片不存在或不属于当前账号。"); }
-      [question] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "user", text: input.followup ? followupText(current.followup,input.followup) : input.text?.trim() ?? "", replyToId: input.replyToId, imageIds: ids }).returning();
+      let supplementalAnswer:StoredMessage["supplementalAnswer"]=null;
+      if(input.followup){const resolved=resolveSupplement(current.followup,input.followup),[predecessor]=await tx.select({answer:message.supplementalAnswer}).from(message).where(and(eq(message.userId,userId),eq(message.conversationId,current.id),eq(message.id,current.followup!.messageId)));supplementalAnswer=mergeSupplements(predecessor?.answer,resolved);}
+      [question] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "user", text: input.followup ? followupText(current.followup,input.followup) : input.text?.trim() ?? "", supplementalAnswer, replyToId: input.replyToId, imageIds: ids }).returning();
       [answer] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "assistant", state: "working", provider: input.provider }).returning();
     } else {
       const [original] = await tx.select().from(message).where(and(eq(message.id, input.messageId ?? ""), eq(message.userId, userId), eq(message.conversationId, current.id), eq(message.role, "assistant")));
@@ -159,21 +169,23 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
       else [answer] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "assistant", state: "working", provider: input.provider }).returning();
     }
     await tx.update(conversation).set({ sequence: seq, provider: input.provider, updatedAt: new Date() }).where(eq(conversation.id, current.id));
-    const [created] = await tx.insert(run).values({ id: randomUUID(), userId, conversationId: current.id, userMessageId: question.id, assistantMessageId: answer.id, requestId: input.requestId, requestDigest, provider: input.provider, model: chatProviders[input.provider].model }).returning();
+    const recognitionId = input.mealTask ? await prepareRecognition(tx, current, digestChat({ text: input.text ?? "", images: input.imageIds ?? [] }), !!input.followup) : null;
+    const [created] = await tx.insert(run).values({ id: randomUUID(), userId, conversationId: current.id, userMessageId: question.id, assistantMessageId: answer.id, requestId: input.requestId, requestDigest, provider: input.provider, model: chatProviders[input.provider].model, recognitionId }).returning();
     return { row: created, started: true };
   });
 }
-export async function controlChat(db: Database, userId: string, input: { action: "select_model" | "new" | "stop" | "enable" | "revoke" | "clear_followup"; provider?: ChatProvider; runId?: string }) {
-  await requireChatAccount(db, userId);
-  await currentConversation(db, userId);
+export async function controlChat(db: Database, userId: string, input: { action: "select_model" | "new" | "stop" | "enable" | "revoke" | "clear_followup"; provider?: ChatProvider; runId?: string; mealTaskId?: string }) {
+  const purpose = input.mealTaskId ? "meal_entry" : "chat";
+  if (input.action === "stop") await requireActiveAccount(db, userId); else await requireChatAccount(db, userId, purpose);
+  if (!input.mealTaskId) await currentConversation(db, userId, input.action === "stop");
   let stoppedRunId: string | undefined;
   await db.transaction(async tx => {
-    await lockChatAccount(tx, userId);
-    const [current] = await tx.select().from(conversation).where(and(eq(conversation.userId,userId),eq(conversation.active,true)));
+    const owner = await lockActiveAccount(tx, userId); if (input.action !== "stop") assertChatAllowed(owner, purpose);
+    const [current] = await tx.select().from(conversation).where(and(eq(conversation.userId,userId), input.mealTaskId ? and(eq(conversation.id, input.mealTaskId), eq(conversation.purpose, "meal_entry")) : and(eq(conversation.purpose,"chat"),eq(conversation.active,true))));
     if (!current) throw new ApiError(409,"conversation_changed","当前会话已变化，请重新读取。");
     const [busy] = await tx.select().from(run).where(and(eq(run.userId, userId), eq(run.state, "running")));
     if (input.action === "stop") {
-      if (!busy || busy.id !== input.runId) return;
+      if (!busy || busy.id !== input.runId || input.mealTaskId && busy.conversationId !== current.id) return;
       await tx.update(run).set({ state: "stopped" }).where(eq(run.id, busy.id));
       await tx.update(message).set({ state: "stopped" }).where(and(eq(message.id, busy.assistantMessageId), eq(message.userId, userId))); stoppedRunId = busy.id; return;
     }
@@ -184,23 +196,26 @@ export async function controlChat(db: Database, userId: string, input: { action:
     if (input.action === "select_model") { const provider = providerId(input.provider); if (!providerConfigured(provider)) throw new ApiError(503, "model_unavailable", "该模型暂不可用。"); await tx.update(conversation).set({ provider }).where(eq(conversation.id, current.id)); }
     if (input.action === "clear_followup") await tx.update(conversation).set({ followup: null }).where(eq(conversation.id, current.id));
     if (input.action === "new") {
+      if (input.mealTaskId) throw new ApiError(400, "invalid_action", "饮食识别使用当前餐次任务。");
       await tx.update(conversation).set({ active: false }).where(and(eq(conversation.userId, userId), eq(conversation.purpose,"chat"), eq(conversation.active, true)));
       await tx.insert(conversation).values({ id: randomUUID(), userId, provider: current.provider });
     }
     if (input.action === "revoke" || input.action === "enable") {
-      const provider = providerId(input.provider), [grant] = await tx.select().from(connection).where(and(eq(connection.userId, userId), eq(connection.provider, provider))).orderBy(desc(connection.createdAt)).limit(1);
+      const grantPurpose = purpose === "meal_entry" && !accountEntitlements(owner).chat ? "meal_entry" : "chat";
+      const provider = providerId(input.provider), [grant] = await tx.select().from(connection).where(and(eq(connection.userId, userId), eq(connection.provider, provider),eq(connection.purpose,grantPurpose))).orderBy(desc(connection.createdAt)).limit(1);
+      const name = chatProviders[provider].label + (grantPurpose === "meal_entry" ? " · 站内饮食识图" : " · 站内助手"), prefix = grantPurpose === "meal_entry" ? "fw_internal_meal" : "fw_internal";
       if (!grant && input.action === "enable") {
         const tokenId = randomUUID();
-        await tx.insert(aiToken).values({ id:tokenId,userId,name:chatProviders[provider].label + " · 站内助手",tokenHash:digestChat(randomUUID()+randomUUID()),prefix:"fw_internal",permission:"write",expiresAt:new Date(Date.now()+30*86400000) });
-        await tx.insert(connection).values({id:randomUUID(),userId,provider,tokenId});
+        await tx.insert(aiToken).values({ id:tokenId,userId,name,tokenHash:digestChat(randomUUID()+randomUUID()),prefix,permission:"write",expiresAt:new Date(Date.now()+30*86400000) });
+        await tx.insert(connection).values({id:randomUUID(),userId,provider,tokenId,purpose:grantPurpose});
       } else if (grant) {
         await tx.update(aiToken).set({ revokedAt: new Date() }).where(and(eq(aiToken.id, grant.tokenId), eq(aiToken.userId, userId)));
         if (input.action === "revoke") await tx.update(connection).set({ enabled: false }).where(eq(connection.id, grant.id));
         else {
           const tokenId = randomUUID();
-          await tx.insert(aiToken).values({ id: tokenId, userId, name: chatProviders[provider].label + " · 站内助手", tokenHash: digestChat(randomUUID() + randomUUID()), prefix: "fw_internal", permission: "write", expiresAt: new Date(Date.now() + 30 * 86400000) });
+          await tx.insert(aiToken).values({ id: tokenId, userId, name, tokenHash: digestChat(randomUUID() + randomUUID()), prefix, permission: "write", expiresAt: new Date(Date.now() + 30 * 86400000) });
           await tx.update(connection).set({ enabled: false }).where(eq(connection.id, grant.id));
-          await tx.insert(connection).values({ id: randomUUID(), userId, provider, tokenId, enabled: true });
+          await tx.insert(connection).values({ id: randomUUID(), userId, provider, tokenId, enabled: true, purpose:grantPurpose });
         }
       }
     }

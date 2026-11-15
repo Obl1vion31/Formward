@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { ApiError } from "../auth/ai-identity";
 import type { Followup } from "./chat-model";
+import { validateDeviceLabel } from "../measurements/source-label";
 
 export const followupQuestionSchema = z.object({
   id: z.string().regex(/^[a-zA-Z0-9_-]{1,40}$/), prompt: z.string().trim().min(1).max(300),
-  options: z.array(z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]{1,40}$/), label: z.string().trim().min(1).max(120) }).strict()).max(8).optional(),
+  options: z.array(z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]{1,40}$/), label: z.string().trim().min(1).max(300) }).strict()).max(8).optional(),
+  binding: z.object({ kind: z.literal("measurement_source"), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), period: z.enum(["daytime", "evening"]) }).strict().optional(),
   allowText: z.boolean().optional(), optional: z.boolean().optional(), multiple: z.boolean().optional(),
 }).strict();
 export type FollowupQuestion = z.infer<typeof followupQuestionSchema>;
@@ -18,6 +20,17 @@ export const followupSubmissionSchema = z.object({
   answers: z.array(z.object({ questionId:z.string().max(40), optionIds:z.array(z.string().max(40)).max(8).optional(), text:z.string().trim().max(2000).optional(), skipped:z.boolean().optional() }).strict()).min(1).max(4),
 }).strict();
 export type FollowupSubmission = z.infer<typeof followupSubmissionSchema>;
+export type ResolvedSupplement = { taskMessageId: string; answers: { questionId: string; prompt: string; optionIds: string[]; text: string; value: string | null; skipped: boolean; binding?: FollowupQuestion["binding"] }[] };
+export function resolveSupplement(followup: Followup | null, submission: FollowupSubmission): ResolvedSupplement {
+  followupText(followup, submission);
+  return { taskMessageId: submission.messageId, answers: followupQuestions(followup!).map(question => {
+    const answer = submission.answers.find(answer => answer.questionId === question.id)!;
+    const labels = (answer.optionIds ?? []).map(id => question.options!.find(option => option.id === id)!.label);
+    const text = answer.text?.trim() ?? "", value = answer.skipped ? null : [...labels, ...(text ? [text] : [])].join("；");
+    if (question.binding && value !== null) validateDeviceLabel(value);
+    return { questionId: question.id, prompt: question.prompt, optionIds: answer.optionIds ?? [], text, value, skipped: !!answer.skipped, ...(question.binding ? { binding: question.binding } : {}) };
+  }) };
+}
 export function followupQuestions(followup:Followup):FollowupQuestion[]{
   return followup.questions?.length?followup.questions:[{id:"answer",prompt:followup.question,allowText:true}];
 }
@@ -36,4 +49,12 @@ export function followupText(followup:Followup|null,submission:FollowupSubmissio
     if(!values.length)throw new ApiError(400,"followup_required","请回答「"+q.prompt+"」"+(q.optional?"，或选择暂不填写。":"。"));
     return q.prompt+"："+values.join("；");
   }).join("\n");
+}
+
+/** 同一补充链保留已确认字段；新话题没有前驱，不继承旧任务答案。 */
+export function mergeSupplements(previous:ResolvedSupplement|null|undefined,current:ResolvedSupplement):ResolvedSupplement{
+ if(!previous)return current;
+ const key=(answer:ResolvedSupplement["answers"][number])=>answer.binding?JSON.stringify(answer.binding):"question:"+answer.questionId;
+ const replacements=new Set(current.answers.map(key));
+ return {taskMessageId:previous.taskMessageId,answers:[...previous.answers.filter(answer=>!replacements.has(key(answer))),...current.answers]};
 }

@@ -42,6 +42,7 @@ export async function requireActiveAiToken(tx: MeasurementTransaction, identity:
   if (!identity.tokenId) throw new ApiError(401, "invalid_token", "令牌无效。");
   const [row] = await tx.select().from(aiToken).where(and(eq(aiToken.id, identity.tokenId), eq(aiToken.userId, identity.userId)));
   if (!row || row.revokedAt || row.expiresAt.getTime() <= Date.now()) throw new ApiError(401, "invalid_token", "令牌无效、已过期或已撤销。");
+  if (row.prefix === "fw_internal_meal" && domain !== "meals") throw new ApiError(403, "missing_scope", "此站内授权仅用于饮食识图。");
   if (write && row.permission !== "write") throw new ApiError(403, "read_only", "只读令牌不能提交操作。");
   return row;
 }

@@ -24,6 +24,7 @@ test("临时File在申请凭据后不可读时，仍上传读取并校验过的�
         assert.deepEqual(new Uint8Array(await uploaded.arrayBuffer()), bytes);
         return new Response(null, { status: 204 });
       }
+      if(options?.method!=="POST")return Response.json({defaultRegion:"cn",routes:[]});
       const body = JSON.parse(String(options!.body)); calls.push(body);
       if (body.step === "prepare") {
         assert.equal(body.file.sha256, createHash("sha256").update(bytes).digest("hex"));
@@ -35,7 +36,7 @@ test("临时File在申请凭据后不可读时，仍上传读取并校验过的�
     };
     assert.deepEqual(await uploadPrivateMealPhoto(file, label => progress.push(label)), { id: "fictional-image", notice: undefined });
     assert.equal(calls.length, 3);
-    assert.deepEqual(progress, ["正在读取照片…", "正在申请上传凭据…", "正在上传照片…", "正在核对原图…", "照片已就绪"]);
+    assert.deepEqual(progress, ["正在读取照片…", "正在选择上传通道…", "正在申请上传凭据…", "正在上传照片…", "正在核对原图…", "照片已就绪"]);
   } finally { globalThis.fetch = previous; }
 });
 
@@ -44,6 +45,7 @@ test("COS拒绝保留状态、错误码和请求号，不暴露XML中的签名�
   try {
     globalThis.fetch = async (url, options) => {
       if (url === "https://fictional.test/upload") return new Response("<Error><Code>EntityTooSmall</Code><Message>secret-signature-and-private-path</Message><RequestId>fictional-request-id</RequestId></Error>", { status: 400 });
+      if(options?.method!=="POST")return Response.json({defaultRegion:"cn",routes:[]});
       const body = JSON.parse(String(options!.body));
       if (body.step === "complete") completed = true;
       return Response.json(body.step === "prepare" ? { provider: "cos", pathname: "fictional", ticket: "fixture" } : { url: "https://fictional.test/upload", fields: {} });
@@ -75,6 +77,7 @@ test("上传网络失败与服务端拒绝分别表达，不重发或complete", 
   try {
     globalThis.fetch = async (url, options) => {
       if (url === "https://fictional.test/upload") throw new DOMException("timeout", "TimeoutError");
+      if(options?.method!=="POST")return Response.json({defaultRegion:"cn",routes:[]});
       const body = JSON.parse(String(options!.body));
       if (body.step === "complete") completed = true;
       return Response.json(body.step === "prepare" ? { provider: "cos", pathname: "fictional", ticket: "fixture" } : { url: "https://fictional.test/upload", fields: {} });
@@ -87,7 +90,7 @@ test("上传网络失败与服务端拒绝分别表达，不重发或complete", 
 test("多张照片在选图时读取，排队及选择器失效后仍复用原图，不提前请求网络",async()=>{
  const previous=globalThis.fetch,files=[new File(["one"],"1.png",{type:"image/png"}),new File(["two"],"2.png",{type:"image/png"})];let calls=0;
  try{
-  globalThis.fetch=async(url,options)=>{calls++;if(url==="https://fictional.test/upload"){const image=(options!.body as FormData).get("file") as File;assert.equal(await image.text(),image.name==="1.png"?"one":"two");return new Response(null,{status:204});}const body=JSON.parse(String(options!.body));return Response.json(body.step==="prepare"?{provider:"cos",pathname:"fixture",ticket:"fixture"}:body.step==="complete"?{id:"photo"}:{url:"https://fictional.test/upload",fields:{}});};
+  globalThis.fetch=async(url,options)=>{if(options?.method!=="POST")return Response.json({defaultRegion:"cn",routes:[]});calls++;if(url==="https://fictional.test/upload"){const image=(options!.body as FormData).get("file") as File;assert.equal(await image.text(),image.name==="1.png"?"one":"two");return new Response(null,{status:204});}const body=JSON.parse(String(options!.body));return Response.json(body.step==="prepare"?{provider:"cos",pathname:"fixture",ticket:"fixture"}:body.step==="complete"?{id:"photo"}:{url:"https://fictional.test/upload",fields:{}});};
   const staged=files.map(file=>stagePrivateMealPhoto(file));await Promise.all(staged);assert.equal(calls,0);
   for(const file of files)Object.defineProperty(file,"arrayBuffer",{value:async()=>{throw Error("temporary file unavailable");}});
   for(const file of files)assert.equal((await uploadPrivateMealPhoto(file)).id,"photo");

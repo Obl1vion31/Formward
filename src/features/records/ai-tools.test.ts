@@ -27,6 +27,7 @@ import { energyDays } from "../activities/model";
 import { withAiFieldDefinitions } from "./ai-field-definitions";
 import { safeAiError } from "../measurements/ai-api";
 import { createAiToolSession } from "./ai-tool-session.mjs";
+import { assertOnlyFieldsChanged } from "./field-preservation.test-support";
 
 const queries: string[] = [], pg = new PGlite(), db = drizzle(pg, { schema, logger: { logQuery(query) { queries.push(query); } } });
 before(async () => { await migrate(db, { migrationsFolder: "./drizzle" }); });
@@ -314,6 +315,53 @@ test("历史食材快照的份量自动换算，不使用修改后的库规格",
   const changed = await previewMealChanges(db, identity, { operationId: randomUUID(), mealId: meal.id, version: meal.version, updateFoods: [{ itemId: meal.items[0].id!, quantity: "150" }] });
   if (changed.operationType !== "meal") throw new Error();
   assert.equal(changed.rows[0].meal?.items[0].nutrition.caloriesKcal, "150.0000");
+});
+
+test("库牛奶改量接受无冲突重复参数，待审及正式餐次保留原关联和其他食物", async () => {
+  for (const saved of [false, true]) {
+    const { identity, userId } = await owner();
+    const created = await submitMealOperation(db, { userId, origin: "manual" }, { operationId: randomUUID(), actions: [{ kind: "save_food", name: "虚构牛奶", baseQuantity: "100", unit: "mL", nutrition: { caloriesKcal: "60", proteinG: "0", carbsG: null, fatG: "3.1234" }, sourceKind: "label", basis: "用户提供的营养标签" }] });
+    await decideMealOperation(db, userId, created.id, created.revision, "confirm");
+    const entry = (await searchFoods(db, userId))[0];
+    const action = mealPreviewOperation(lunch({ notes: "保留备注", foods: [{ name: entry.name, foodId: entry.id, foodVersion: entry.version, quantity: "250", unit: "mL" }, { name: "保留鸡蛋", quantity: "1", unit: "个", caloriesKcal: "75", proteinG: "0", sourceKind: "unknown" }] })).actions[0];
+    const original = await submitRecordOperation(db, identity, { operationId: randomUUID(), items: [{ ...action, key: "meal" }] });
+    if (saved) await reviewRecordOperation(db, userId, original.id, { kind: "confirm", revision: original.revision });
+    const facts = await readMealSnapshot(db, userId), before = saved ? facts.meals[0] : original.rows[0].meal!.meal!;
+    const input = { operationId: randomUUID(), ...(saved ? { mealId: before.id, version: before.version } : { previewId: original.id, revision: original.revision }), updateFoods: [{ index: 0, name: entry.name, unit: "mL", quantity: "200", quantityEffect: "scale_total" as const }] };
+    const next = await previewMealChanges(db, identity, input), after = next.operationType === "meal" ? next.rows[0].meal! : next.rows[0].meal!.meal!;
+    // 新量是本次明确提供；未保存餐次的投影id不属于正式编号，原预览编号必须保持。
+    const allowed = ["items.0.quantity", "items.0.amountDecision", "items.0.nutrition.caloriesKcal", "items.0.nutrition.fatG", "totals.values.caloriesKcal", "totals.values.fatG", "version", ...(saved ? before.items.map((_, index) => `items.${index}.originalItemId`) : ["id"])];
+    // 查询额外附带day状态，预览额外附带kind；统一这两种传输外壳，业务字段完整比较。
+    const comparable = (value: typeof before) => { const copy = JSON.parse(JSON.stringify(value)); delete copy.day; return { ...copy, kind: "save_meal" }; };
+    assertOnlyFieldsChanged(comparable(before), comparable(after), allowed);
+    if (!saved) assert.equal(next.id, original.id);
+    else for (const [index, item] of before.items.entries()) { assert.equal(after.items[index].id, item.id); assert.equal(after.items[index].originalItemId, item.id); }
+    assert.equal(after.items[0].amountDecision, "provided");
+    assert.equal(after.items[0].foodId, entry.id); assert.equal(after.items[0].nutrition.caloriesKcal, "120.0000");
+    assert.equal(after.items[0].nutrition.carbsG, null); assert.equal(after.items[0].nutrition.proteinG, "0.0000");
+    assert.deepEqual(await readMealSnapshot(db, userId), facts);
+    const repeated = await previewMealChanges(db, identity, input); assert.equal(repeated.id, next.id); assert.equal(repeated.repeated, true);
+    if (next.operationType === "meal") await decideMealOperation(db, userId, next.id, next.revision, "confirm");
+    else await reviewRecordOperation(db, userId, next.id, { kind: "confirm", revision: next.revision });
+    const persisted = (await readMealSnapshot(db, userId)).meals[0];
+    assert.equal(persisted.items[0].foodId, entry.id); assert.equal(persisted.items[0].nutrition.caloriesKcal, "120.0000");
+    if (saved) assertOnlyFieldsChanged(before.items[1], persisted.items[1], []);
+    else {
+      assert.equal(persisted.items[1].name, "保留鸡蛋"); assert.equal(persisted.items[1].quantity, "1.0000"); assert.equal(persisted.items[1].unit, "个");
+      assert.deepEqual(persisted.items[1].nutrition, { caloriesKcal: "75.0000", proteinG: "0.0000", carbsG: null, fatG: null });
+    }
+  }
+});
+
+test("库项冲突一次定位全部字段，失败保留原草稿且不建议删除重建", () => {
+  const draft = { kind: "save_meal" as const, date: "2024-08-01", mealType: "午餐", items: [{ kind: "food" as const, name: "虚构牛奶", foodId: randomUUID(), foodVersion: 1, quantity: "250", unit: "mL", sourceKind: "label" as const }] };
+  const before = structuredClone(draft);
+  assert.throws(() => applyMealChanges(draft, { operationId: randomUUID(), updateFoods: [{ index: 0, name: "其他奶", unit: "g", quantity: "200", quantityEffect: "keep_total", caloriesKcal: "0", sourceKind: "estimated", basis: "覆盖原依据" }] }), error => {
+    assert.ok(error instanceof ApiError); assert.equal(error.details?.fields?.length, 6);
+    assert.ok(error.details?.fields?.some(field => field.path === "updateFoods.0.quantityEffect"));
+    assert.doesNotMatch(error.message, /移除本项|删除重建/); return true;
+  });
+  assert.deepEqual(draft, before);
 });
 
 test("待确认修改在原链接更新；重试不重复添加，AI修改不冒充人工", async () => {

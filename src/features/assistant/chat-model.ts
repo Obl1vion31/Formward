@@ -11,10 +11,12 @@ export type ChatMessage = {
 export type ChatUsage = {
   date: string; limit: number; spent: number; reserved: number; uncertain: number; available: number;
   percent: string; resetAt: string; providers: { id: ChatProvider; spent: number; reserved: number; uncertain: number }[];
+  recognition?: { used: number; limit: number; remaining: number; resetAt: string };
 };
 export type ChatCatalogItem = { id: ChatProvider; label: string; model: string; configured: boolean; enabled: boolean; reason: string | null; expiresAt: string | null };
 export type ChatSnapshot = {
   capabilities?:{inlinePreviews:boolean;mealEntry:boolean};
+  entitlement?: import("../auth/entitlements").AccountEntitlements;
   conversationId: string; provider: ChatProvider; followup: Followup | null; messages: ChatMessage[];
   hasMore: boolean; before: number | null; activeRunId: string | null; catalog: ChatCatalogItem[]; usage: ChatUsage;
 };

@@ -17,7 +17,6 @@ const headers = { "Cache-Control": "private, no-store" };
 const inputSchema = z.object({ action: z.enum(["send", "retry", "continue"]), requestId: z.string().uuid(), provider: z.enum(chatProviderIds), conversationId: z.string().uuid(), text: z.string().max(16000).optional(), replyToId: z.string().uuid().optional(), imageIds: z.array(z.string().uuid()).max(8).refine(ids => new Set(ids).size === ids.length).optional(), messageId: z.string().uuid().optional(), timezone: z.string().max(100), followup:followupSubmissionSchema.optional() }).strict();
 export async function GET(request: Request) {
   try { return await withCurrentSession(request.headers, async owner => {
-    assertChatAllowed(owner);
     const previewId=new URL(request.url).searchParams.get("previewId");
     if(previewId){if(!z.string().uuid().safeParse(previewId).success)return Response.json({error:"提交编号无效。"},{status:400,headers});return Response.json(await loadAssistantPreview(getDatabase(),owner.id,previewId),{headers});}
     const value = new URL(request.url).searchParams.get("before");

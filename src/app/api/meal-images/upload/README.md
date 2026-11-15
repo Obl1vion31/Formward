@@ -1,11 +1,13 @@
-# 饮食照片上传
+# 私有照片上传
 
-POST校验有效本人会话及同源请求，委托meals feature处理JSON prepare、签名直传和complete登记。国内使用私有COS，国际继续Private Blob。JPEG／PNG／WebP最多8张、每张20 MiB；原图读取一次，校验与传输共用原始字节，不缩放或重新编码，不进入public或Git。
+GET在有效本人会话下返回当前入口默认区域及服务器配置的受控探测地址，no-store；不读取或创建照片。聊天与饮食每批并行HEAD探测，以首个可达通道继续；均失败使用入口默认，不按账号永久缓存。客户端仅提交cn／global，服务器决定地址、票据及位置；历史照片不搬迁。
 
-凭据限定账号、会话、随机路径、SHA-256、真实类型、大小及10分钟期限；complete验证实际对象后幂等返回附件ID，字节上传100%不代表登记成功。COS使用XHR真实进度，120秒总期限、30秒无新增字节结束等待；取消和错误不自动重传。
+POST验证同源及有效会话，委托meals feature处理prepare、签名和complete。JPEG／PNG／WebP最多8张，每张20MiB，原图一次读取后同时用于校验与上传，不缩放或重新编码。凭据绑定账号、会话、随机路径、SHA256、类型、大小及15分钟期限。complete复核实际对象，按摘要幂等返回本人附件ID；传输100%仅表示核对中。
 
-国内直传网络失败、停滞或超时后，用户可手动选择“换方式上传”。该私有同源入口仍为此POST：application/octet-stream原始字节，x-image-upload-ticket携带既有session票据。Next Proxy缓冲上限与Nginx均为21 MiB，业务服务端严格限制20 MiB及120秒，复核传输前后会话、实际字节、摘要、类型与归属，再写入票据对应暂存对象，客户端继续原complete。国际不启用此恢复通道；旧multipart兼容入口仍仅4 MiB。
+国内COS用XHR报告真实字节，国际Private Blob保留现有直传。总传输期限10分钟，连续60秒无新增字节结束等待；每张独立取消、重试，人工换通道仅覆盖当前批／重试，不静默重传或在中途换路。准备、传输和核对分开反馈，失败保留文字、引用及其他照片。
 
-JSON step=diagnostic仅接收受限请求编号、阶段、耗时、字节、响应状态及错误分类，响应204；不记录文件名、照片、原始URL、签名或凭据。诊断不是业务成功回执，不影响上传结果。
+国内直传网络故障后可人工使用此POST的application/octet-stream同源备用，x-image-upload-ticket沿用原票据。Next Proxy及Nginx上限21MiB，业务严格20MiB；备用读取10分钟、专用代理660秒，其他请求期限不扩大。国际原图不进入旧4MiB multipart兼容入口。完成流程再次验证会话、归属、摘要、类型及期限。
 
-允许来源复用auth/site-url，以BETTER_AUTH_URL配置为准；反向代理内部HTTP地址、端口和Host不能改变允许来源。本机同端口localhost／127.0.0.1兼容隔离验收；缺少Origin、跨站或错误端口拒绝。所有响应no-store，不新增对外MCP字段、scope或迁移。
+私有diagnostic只接受请求编号、受控通道、阶段、耗时、字节数、响应状态和错误分类，204不代表成功。不记录照片、文件名、原始URL、签名或凭据。读取、申请、传输、存储与核对故障分别定位。
+
+来源校验复用auth/site-url，BETTER_AUTH_URL与可信入口为准；不接受任意代理Host。localhost／127.0.0.1只在同端口隔离验收兼容。写入拒绝缺少Origin和跨站请求，不增加MCP字段或scope。

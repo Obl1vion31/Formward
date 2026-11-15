@@ -1,5 +1,13 @@
 # 数据库连接与字段字典
 
+## 站内助手权益与识图计次
+
+0039与0040为兼容新增迁移，不改已发布迁移或正式健康事实。users增加membership_tier（默认free）与entitlement_version，独立于owner管理角色；旧账号和新普通账号均默认Free，指定管理员按服务器配置覆盖。改档只增加权益版本及审计，不增加access_version、不撤销登录，不清空当日费用或任务。
+
+assistant_connections按chat／meal_entry用途关联独立可撤销授权；assistant_messages的supplemental_answer保留真实目标任务、字段类型、原始答案、选项及绑定。assistant_recognitions按请求开始时北京时间保存准备、预占、使用及技术失败退次；同一任务补充和技术重试沿用编号。assistant_runs通过账号组合外键关联识图任务，不能借他人任务计次。每账号生成锁、原用量账本及并发预占保持，Free每日4次，内测与Plus／指定管理员分别共用¥1／¥2。
+
+迁移排演必须先以0038创建旧账号、连接、会话和消息，执行新增迁移两次，核对旧列、授权、健康表与默认值不变，再验证归属外键及新旧应用就绪。正式执行前按既有流程备份并异地回读；回退只切应用，不回退migration或删除聊天、任务及健康数据。
+
 ## 站内饮食识别任务
 
 0038_assistant_meal_tasks向assistant_conversations追加purpose（text、非空、默认chat）与context（可空jsonb）。旧会话默认chat；meal_entry任务active=false，不参与当前主聊天切换，现有每账号active唯一索引保留。context由服务器保存草稿键、原手工草稿、当前绑定签名、私有附件、预览及实际提供方、完成回执；消息、运行、授权与用量复用现有表。读取及修改均核验user_id，停止／生成／保存通过账号锁协调。回退仅关闭入口或切兼容应用，不回退共享migration或删除任务数据。
@@ -25,7 +33,7 @@
 
 ## 逻辑关系
 
-业务对象与物理表的对应方法、全部 37 张表的用途分组，见 [Code Study 的数据库地图](code-study.md#database-map)。下图按健康业务和身份授权分别展示主要物理外键；为便于阅读，省略部分重复的 `user_id` 连线。`o|` 表示可选的单个关联，`o{` 表示零到多个。完整字段、组合外键和检查约束以本文字典及 [schema.ts](../src/db/schema.ts) 为准。
+业务对象与物理表的对应方法、当前物理表的用途分组，见 [Code Study 的数据库地图](code-study.md#database-map)。下图按健康业务和身份授权分别展示主要物理外键；为便于阅读，省略部分重复的 `user_id` 连线。`o|` 表示可选的单个关联，`o{` 表示零到多个。完整字段、组合外键和检查约束以本文字典及 [schema.ts](../src/db/schema.ts) 为准。
 
 ### 健康事实、审核与图片
 
@@ -58,7 +66,7 @@ erDiagram
 
 - `record_operations` 的身体／饮食子操作都可空，每个非空子操作最多关联一个父批次；父子审核版本另外校验。审核确认后才改变正式健康事实，图中的外键本身不代表已经保存。
 - `meal_items` 对 `meals`、`foods`，`meal_image_links` 对图片、餐次、食材，以及餐次／饮食操作对导入的关联使用账号组合外键；部分身体批次、审核与凭据关联使用单 ID 外键，其账号一致性还需 feature 校验。不能从图上的连线推断所有归属都由数据库自动保证。
-- `meal_image_links.meal_id` 与 `food_id` 恰有一个非空；图片元数据保存在 `meal_images`，原文件在 Private Blob。
+- `meal_image_links.meal_id` 与 `food_id` 恰有一个非空；图片元数据保存在 `meal_images`，原文件在国内COS或国际Private Blob。
 - `measurement_days` 保存日期／提醒，`measurement_sources` 保存名称建议；两者均没有外键连接具体测量。测量以 `device_label` 保存来源文本快照，移除建议不会修改历史测量。
 - `meal_items.food_snapshot` 是当时食材规格的 JSON 快照，与当前 `foods` 分别保留；食材永久删除可以解除 `food_id`，历史营养和快照继续存在。
 - `meal_events.record_id` 配合 `record_type` 表达被修改对象，没有到 `meals`／`foods` 的外键；事件通过 `operation_id` 关联饮食操作。身体操作与测量之间的审核依据也包含在 JSON 和审计中，不是图中省略的一条直接事实外键。

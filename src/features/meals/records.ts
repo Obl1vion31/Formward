@@ -2,7 +2,7 @@ import {currentMealPreview, duplicateMealNotice, mealContentKey} from "./model";
 import { mealTypeLabel } from "./model";
 import { aiActionAllowed, requireAiUpserts } from "../auth/ai-write-policy";
 import { createHash, randomUUID } from "node:crypto";
-import { and, asc, desc, eq, isNull, ne, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, ne, inArray, notInArray } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { food, meal, mealEvent, mealImport, mealItem, mealOperation, mealImage, mealImageLink } from "../../db/schema";
 import { ApiError, type AiIdentity } from "../auth/ai-identity";
@@ -12,7 +12,7 @@ import { calendarOrdinal } from "../measurements/trend";
 import { validateMeasurementTimezone } from "../measurements/timezone";
 import { localMeasurementDate } from "../measurements/entry-state";
 import { emptyNutrition, metrics, portionNutrition, nutritionFor, operationSchema, sumNutrition, missingMealImages, type FoodDraft, type FoodView, type ItemDraft, type ItemView, type MealAction, type MealInput, type MealOperationView, type MealSnapshot, type MealView, type Nutrition, type PreviewRow } from "./model";
-import { foodDescriptionProblem } from "./food-description";
+import { foodDescriptionIssues } from "./food-description";
 import { readMealDayViews, invalidateMealDays } from "./day-status";
 
 export type MealActor = { userId: string; origin: "manual" | "ai" | "initialization"; identity?: AiIdentity; importId?: string };
@@ -31,13 +31,11 @@ function parse(raw: unknown): MealInput {
   return result.data;
 }
 function validateFoodDescriptions(input: MealInput) {
-  for (const action of input.actions) {
-    const foods = action.kind === "save_food" ? [action] : action.kind === "save_meal" ? action.items.flatMap(item => item.foodDraft ? [item.foodDraft] : []) : [];
-    for (const food of foods) {
-      const problem = foodDescriptionProblem(food);
-      if (problem) throw new ApiError(400, "food_description", problem);
-    }
-  }
+  const fields = input.actions.flatMap((action, index) => {
+    const foods = action.kind === "save_food" ? [{ food: action, path: `actions.${index}` }] : action.kind === "save_meal" ? action.items.flatMap((item, itemIndex) => item.foodDraft ? [{ food: item.foodDraft, path: `actions.${index}.items.${itemIndex}.foodDraft` }] : []) : [];
+    return foods.flatMap(({ food, path }) => foodDescriptionIssues(food).map(issue => ({ ...issue, path: `${path}.${issue.path}` })));
+  });
+  if (fields.length) throw new ApiError(400, "food_description", fields.map(field => field.message).join(" "), { fields, nextAction: "correct_description_keep_food_identity" });
 }
 const norm = (s?: string | null) => (s ?? "").normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
 export const foodIdentity = (f: FoodDraft) => digest([norm(f.name), norm(f.brand), norm(f.preparation), Number(f.baseQuantity), norm(f.unit)]);
@@ -125,6 +123,8 @@ export function prepareMealActions(input: MealInput, state: MealSnapshot, origin
         if (old && (action.version == null || action.version > old.version || origin !== "manual" && old.version !== action.version)) throw new ApiError(409, "version_conflict", "餐次已被修改，请刷新后重试，草稿会保留。");
         if (action.items.some(i => i.kind === "whole") && action.items.length !== 1) throw new ApiError(400, "whole_meal_conflict", "整餐估算须独立记录，不能再叠加具体食物。");
         if (action.items.filter(i => i.kind === "misc").length > 1) throw new ApiError(400, "invalid_input", "每餐使用一个杂项，合并剩余食物的描述。");
+        const itemReferences = action.items.flatMap(item => item.originalItemId ? [item.originalItemId] : []);
+        if (new Set(itemReferences).size !== itemReferences.length) throw new ApiError(400, "invalid_item", "同一原食物不能被重复引用，请保留唯一的原食物定位。");
         const items = action.items.map(i => {
           const previous = i.originalItemId ? old?.items.find(item => item.id === i.originalItemId) ?? (origin==="manual" ? history?.get(action.id+":"+i.originalItemId) : undefined) : old?.items.find(item => i.foodId && (item.foodId === i.foodId || (!item.foodId && item.foodSnapshot?.id === i.foodId)) && item.foodSnapshot?.version === i.foodVersion);
           if (i.originalItemId && !previous) throw new ApiError(400, "invalid_item", "餐项不属于当前餐次或版本，请刷新后重试。");
@@ -304,8 +304,16 @@ export async function decideMealOperation(db: Database, userId: string, id: stri
           if (row.action.id) await tx.update(meal).set(values).where(and(eq(meal.id, m.id), eq(meal.userId, userId)));
           else await tx.insert(meal).values({ id: m.id, userId, ...values, sourceSystem: op.origin === "initialization" ? "historical-meal-initialization" : "formward", sourceRecordId: op.origin === "initialization" ? `${op.importId}:${index + 2}` : `${op.operationId}:${index}`, importId: op.importId, sourceRow: op.importId ? index + 2 : null, syncStatus: "confirmed" });
           await writeImageLinks(tx,userId,m,false);
-          await tx.update(mealItem).set({ deletedAt: new Date() }).where(and(eq(mealItem.userId, userId), eq(mealItem.mealId, m.id), isNull(mealItem.deletedAt)));
-          await tx.insert(mealItem).values(m.items.map((item, position) => ({ id: randomUUID(), userId, mealId: m.id, position, kind: item.kind, name: item.name, quantity: item.quantity ?? null, nutritionBasis:item.nutritionBasis??"consumed_total",perPortionNutrition:item.perPortionNutrition??null,amountDecision:item.amountDecision??null, reviewExplanation:item.reviewExplanation??null, unit: item.unit ?? null, foodId: item.foodId ?? null, foodSnapshot: item.foodSnapshot, ...item.nutrition, sourceKind: item.sourceKind, basis: item.basis ?? null, evidenceUrl: item.evidenceUrl ?? null })));
+          const retainedIds = m.items.flatMap(item => item.id ? [item.id] : []);
+          await tx.update(mealItem).set({ deletedAt: new Date() }).where(and(eq(mealItem.userId, userId), eq(mealItem.mealId, m.id), isNull(mealItem.deletedAt), retainedIds.length ? notInArray(mealItem.id, retainedIds) : undefined));
+          for (const [position, item] of m.items.entries()) {
+            const values = { position, kind: item.kind, name: item.name, quantity: item.quantity ?? null, nutritionBasis: item.nutritionBasis ?? "consumed_total", perPortionNutrition: item.perPortionNutrition ?? null, amountDecision: item.amountDecision ?? null, reviewExplanation: item.reviewExplanation ?? null, unit: item.unit ?? null, foodId: item.foodId ?? null, foodSnapshot: item.foodSnapshot, ...item.nutrition, sourceKind: item.sourceKind, basis: item.basis ?? null, evidenceUrl: item.evidenceUrl ?? null, deletedAt: null };
+            if (item.id) await tx.update(mealItem).set(values).where(and(eq(mealItem.id, item.id), eq(mealItem.userId, userId), eq(mealItem.mealId, m.id)));
+            else {
+              item.id = randomUUID();
+              await tx.insert(mealItem).values({ id: item.id, userId, mealId: m.id, ...values });
+            }
+          }
         } else await tx.update(meal).set({ version: m.version, deletedAt: m.deletedAt ? new Date(m.deletedAt) : null, updatedAt: new Date() }).where(and(eq(meal.userId, userId), eq(meal.id, m.id)));
       }
       const record = row.food ?? row.meal!;

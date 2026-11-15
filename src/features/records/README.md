@@ -38,7 +38,7 @@ ai-query.ts统一AI可选的相对日期、summary／details及日历分段，�
 
 reviewRecordOperation的内部AI修改上下文仅接受原授权的待确认餐次update，复核账号、meals:write、原连接／令牌、expiry与父子revision。重复修改在既有RecordItem.aiEdits记录operationId摘要，重试不再次合并、不增加revision；不提供MCP确认／删除入口。AI修改账与人工editedBy分别写入原餐次审计，payload不可变。局部修改返回仅包含目标餐次，不回传其他域内容或全部食材库。
 
-AI字段说明由本目录的公共ai-field-definitions.json及各业务目录同名文件维护。ai-field-definitions.ts按21项工具选择字典，在MCP与HTTP成功出口附加fieldDefinitions；只解释实际存在的字段，混合记录按业务子树匹配，避免同名字段串义。ai-field-selection.mjs是正式出口与离线评测共用的选择实现。原业务对象、请求摘要、审计与正式保存逻辑不加入这些元数据。
+AI字段说明由本目录的公共ai-field-definitions.json及各业务目录同名文件维护。ai-field-definitions.ts按18项工具选择字典，在MCP与HTTP成功出口附加fieldDefinitions；只解释实际存在的字段，混合记录按业务子树匹配，避免同名字段串义。ai-field-selection.mjs是正式出口与离线评测共用的选择实现。原业务对象、请求摘要、审计与正式保存逻辑不加入这些元数据。
 
 ai-statistics.ts用四位定点整数计算查询页的合计、均值和范围，未知不补零；联合balance只纳入摄入记全且热量无缺项、消耗已知且非累计的交集。ai-errors.ts返回具体字段路径和下一步。统一提交可带previewId/revision修正同一待审批次，保持原key、类型及历史对象；复核全部原授权、版本与有效期，payload不可变，修改沿用aiEdits审计，不增加正式保存入口。
 
@@ -59,3 +59,5 @@ ai-prompt.mjs为站内与私有评测共用的提示词生成器。长版读取�
 ai-previews.ts维护MCP 2.0的专用创建、统一查询及局部修改契约。新创建全部复用submitRecordOperation；组合入口至少两类功能动作。get_preview适配新旧编号，update_preview按原key合并局部字段与附件，extendAiRecordPreview在账号锁内验证原授权并追加漏项，保留原payload、摘要及既有有效期。单独身体／饮食业务函数保留给HTTP及旧审核；旧MCP工具名不再注册。规范见docs/ai-tool-contracts.md。
 
 聊天内统一审核回执按内容自然增高，已保存／取消状态不沿用独立审核网页的55vh居中外壳；标题、说明及真实回执紧凑左对齐，复杂回执和文字放大自然换行。独立网页继续保留原确认终态外壳。
+
+字段保留检查由field-preservation.test-support提供严格递归差异，各业务提前规定允许路径；integration矩阵执行真实预览／隔离确认、幂等及失败不变，并验证其他事实与已完成训练。私有报告不进入public。

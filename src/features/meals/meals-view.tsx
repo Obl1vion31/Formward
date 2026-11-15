@@ -9,7 +9,7 @@ import {mealVersions,verifyRecordVersions,acknowledgeRecordChanges} from "@/comp
 import { useEffect, useRef, useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
 import { usePageLoading } from "@/components/page-loading-state";
-import { useMobileMode } from "@/components/use-mobile-mode";
+import { useInitialMobileMode } from "@/components/use-mobile-mode";
 import { macroComposition,dailyTotals, suggestedMealType, mealOperationStatus, emptyNutrition, formatNutrition, metricLabels, metrics, type FoodDraft, type MealAction,  type MealInput, type MacroMode, type MealOperationView, type MealSnapshot, type MealView, type Metric,  type Result } from "./model";
 import { recentRecordDates, pendingRecordDates, rangeContaining } from "@/components/record-dates";
 import { DailyRecords,DailyRecordRow } from "@/components/daily-records";
@@ -45,7 +45,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   const today=useLocalToday(initialToday), now=useOperationClock();
   const [local,setLocal]=useState<MealSnapshot|null>(null),[base,setBase]=useState(snapshot);
   if(snapshot!==base){setBase(snapshot);setLocal(null);}
-  const state=local??snapshot,mobile=useMobileMode(),[tab,setTab]=useState<"meals"|"foods">("meals");
+  const state=local??snapshot,mobile=useInitialMobileMode(),[tab,setTab]=useState<"meals"|"foods">("meals");
   useDraftGuard(false,false,mealVersions(state));
   const [selectedDate,setSelectedDate]=useState(initialDate??today),[historyOpen,setHistoryOpen]=useState(Boolean(initialDate)&&!initialEntry&&!initialTrend),[rangeChoice,setRange]=useState<string|null>(initialTrend?"custom":null);
   const [dayIntent,setDayIntent]=useState<RecordIntent>(initialIntent==='edit'?'edit':'view');
@@ -135,7 +135,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
        metricVariants={groups.filter(group=>group.date>=from&&group.date<=to).map(group=>metrics.map(metric=>formatNutrition(group.totals.values[metric],metric)))}
        title="每日摄入" unit="kcal"
        options={<InlineChartControls><div role="group" aria-label="营养占比口径">{([["grams","克数占比"],["energy","能量占比"]] as const).map(([value,label])=><button type="button" key={value} aria-pressed={macroMode===value} onClick={()=>setMacroMode(value)}>{label}</button>)}</div></InlineChartControls>}
-       legend={<><NutritionLegend/>{!mobile&&groups.some(group=>group.day.status!=="complete")&&<span>未记全／待确认</span>}</>}
+       legend={<><NutritionLegend/>{groups.some(group=>group.day.status!=="complete")&&<span className={styles.desktopOnlyLegend}>未记全／待确认</span>}</>}
       >{validRange?<NutritionChart dates={dates} groups={groups} mode={macroMode} selection={chart} compact={dates.length<=31} linked={!!initialTrend&&from===initialTrend.from&&to===initialTrend.to}/>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}</RecordTrendPanel>
       </div>
       {error&&!editing&&<p role="alert" className={styles.error}>{error}</p>}{notice&&<p role="status" className={styles.hint}>{notice}</p>}

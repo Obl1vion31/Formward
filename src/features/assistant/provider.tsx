@@ -10,6 +10,7 @@ import { AssistantStateContext } from "./context";
 import { assistantAlreadyShown, markAssistantShown } from "./preferences";
 import { AssistantSurface } from "./surface";
 import { AssistantChatProvider } from "./chat-client";
+import type { AccountEntitlements } from "../auth/entitlements";
 import styles from "./surface.module.css";
 
 function preferenceStore() { try { return window.localStorage; } catch { return null; } }
@@ -17,7 +18,7 @@ function deviceTime() { return { timezone: Intl.DateTimeFormat().resolvedOptions
 function occupied() { return document.hidden || document.documentElement.dataset.chartTravel === "active" || draftIsBusy() || draftIsDirty() || confirmationIsOpen() || !!document.fullscreenElement || !!document.querySelector(".dashboard-menu[open]:not([data-closing=true])") || !!document.querySelector("dialog[open]:not([data-assistant-surface])"); }
 type SurfaceController = { dismiss: () => Promise<boolean>; reopen: () => void };
 
-export function AssistantProvider({ accountId, children, chatEnabled = false }: { accountId: string; children: ReactNode; chatEnabled?: boolean }) {
+export function AssistantProvider({ accountId, children, chatEnabled = false, initialEntitlement }: { accountId: string; children: ReactNode; chatEnabled?: boolean; initialEntitlement?:AccountEntitlements }) {
   const pathname = usePathname(), available = assistantAvailable(pathname);
   const [open, setOpen] = useState(false), [data, setData] = useState<AssistantContext | null>(null), [error, setError] = useState(""), [loading, setLoading] = useState(false), [toast, setToast] = useState(false), [paused, setPaused] = useState(false), [clock, setClock] = useState(0), [local, setLocal] = useState<{date:string;timezone:string}|null>(null);
   const dataRef = useRef<AssistantContext | null>(null), request = useRef<AbortController | null>(null), revision = useRef(0), lastRead = useRef(0), activeRoute = useRef(pathname), generation = useRef(0), phase = useRef<"open" | "closing" | "closed">("closed"), surface = useRef<SurfaceController | null>(null), ignored = useRef(new Set<string>()), latestRefresh = useRef<(force?:boolean)=>Promise<void>>(async()=>undefined);
@@ -99,10 +100,10 @@ export function AssistantProvider({ accountId, children, chatEnabled = false }: 
   useEffect(() => { if (!toast || paused) return; const timer = setTimeout(() => setToast(false), 5000); return () => clearTimeout(timer); }, [toast, paused]);
   useEffect(() => () => { generation.current++; request.current?.abort(); }, []);
   const value = useMemo(() => ({ open: open && available, count: pending.length, show, toggle, hide }), [open, available, pending.length, show, toggle, hide]);
-  return <AssistantChatProvider accountId={accountId} enabled={chatEnabled} open={open && available}><AssistantStateContext.Provider value={value}>{children}
+  return <AssistantChatProvider accountId={accountId} enabled={chatEnabled} initialEntitlement={initialEntitlement} open={open && available}><AssistantStateContext.Provider value={value}>{children}
     {toast && available && !open && pending.length > 0 && <aside className={styles.toast} role="status" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false); }}>
       <span>{pending.length === 1 ? pending[0].title : `有 ${pending.length} 项待查看`}</span><button type="button" onClick={show}>查看</button><button type="button" aria-label="关闭提醒" onClick={() => setToast(false)}>×</button>
     </aside>}
-    {open && available && <AssistantSurface chatEnabled={chatEnabled} data={data ? { ...data, pending } : null} error={error} loading={loading} close={finishHide} requestClose={hide} retry={() => void refresh(true)} dismissItem={dismissItem} controllerReady={controllerReady}/>}
+    {open && available && <AssistantSurface chatEnabled={!!initialEntitlement||chatEnabled} data={data ? { ...data, pending } : null} error={error} loading={loading} close={finishHide} requestClose={hide} retry={() => void refresh(true)} dismissItem={dismissItem} controllerReady={controllerReady}/>}
   </AssistantStateContext.Provider></AssistantChatProvider>;
 }

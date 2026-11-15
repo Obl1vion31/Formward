@@ -4,7 +4,7 @@
 
 ## 工具职责
 
-MCP 2.0.0按职责公开18项工具，原名停止执行。新餐preview_meals、正式餐次修改preview_meal_changes、食材维护preview_foods、身体preview_measurements、训练preview_training；组合preview_record_bundle只接受至少两类功能动作。get_preview统一查状态，update_preview只改原草稿及补照片。旧HTTP与确认链接保留，目录、Manifest和字段解释同源；最新完整规范见docs/ai-tool-contracts.md。
+MCP 2.0.1按职责公开18项工具，原名停止执行。新餐preview_meals、正式餐次修改preview_meal_changes、食材维护preview_foods、身体preview_measurements、训练preview_training；组合preview_record_bundle只接受至少两类功能动作。get_preview统一查状态，update_preview只改原草稿及补照片。旧HTTP与确认链接保留，目录、Manifest和字段解释同源；最新完整规范见docs/ai-tool-contracts.md。
 
 变更Manifest或运行态Skill后同步上传测试版本；仅发布服务器不会更新手机中缓存的运行态Skill。所有工具维持normal登录。
 

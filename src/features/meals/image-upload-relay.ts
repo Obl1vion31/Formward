@@ -7,7 +7,7 @@ import {verifyImageUploadTicket} from "./image-ticket";
 import {imageStorage,type ImageStorage} from "./image-storage";
 import {imageMime,MAX_IMAGE_BYTES} from "./image-bytes";
 
-export async function readRelayImage(request:Request,expectedSize:number,timeoutMs=120000){
+export async function readRelayImage(request:Request,expectedSize:number,timeoutMs=600000){
  if(!request.body||expectedSize<=0||expectedSize>MAX_IMAGE_BYTES||Number(request.headers.get("content-length"))>MAX_IMAGE_BYTES)throw new ApiError(413,"image_size","照片须为非空文件，最大20 MiB。");
  const reader=request.body.getReader(),chunks:Uint8Array[]=[];let size=0,timer:ReturnType<typeof setTimeout>|undefined;
  let rejectAbort:(reason:unknown)=>void=()=>{};
@@ -37,5 +37,5 @@ export async function relayImageUpload(db:Database,userId:string,request:Request
  await storage.write(ticket.pathname,bytes,ticket.mimeType);
  return {uploaded:true};
 }
-const diagnostic=z.object({traceId:z.string().uuid(),phase:z.enum(["read","prepare","sign","upload","relay","complete","ready","error"]),elapsedMs:z.number().int().min(0).max(600000),loaded:z.number().int().min(0).max(MAX_IMAGE_BYTES+65536).optional(),total:z.number().int().min(0).max(MAX_IMAGE_BYTES+65536).optional(),status:z.number().int().min(0).max(599).optional(),errorKind:z.enum(["network","stalled","timeout","http","read","abort","other"]).optional(),requestId:z.string().regex(/^[A-Za-z0-9+/_=-]{1,160}$/).optional()}).strict();
+const diagnostic=z.object({traceId:z.string().uuid(),phase:z.enum(["read","route","prepare","sign","upload","relay","complete","ready","error"]),elapsedMs:z.number().int().min(0).max(900000),region:z.enum(["cn","global"]).optional(),loaded:z.number().int().min(0).max(MAX_IMAGE_BYTES+65536).optional(),total:z.number().int().min(0).max(MAX_IMAGE_BYTES+65536).optional(),status:z.number().int().min(0).max(599).optional(),errorKind:z.enum(["network","stalled","timeout","http","read","abort","other"]).optional(),requestId:z.string().regex(/^[A-Za-z0-9+/_=-]{1,160}$/).optional()}).strict();
 export function recordImageUploadDiagnostic(input:unknown){const result=diagnostic.safeParse(input);if(!result.success)throw new ApiError(400,"image_diagnostic","上传诊断格式无效。");console.info(JSON.stringify({event:"meal_image_browser",...result.data}));}

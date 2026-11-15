@@ -186,3 +186,11 @@ test("跨实例并发请求原子计数，只有五次请求进入登录校验",
   assert.equal(rows.length, 1);
   assert.equal(rows[0].count, 5);
 });
+
+test("已登录会话下一次读取获得最新档位，不能通过普通资料接口自行升级",async()=>{
+ const cookie=await login(),[user]=await db.select().from(schema.user).where(eq(schema.user.email,credentials.email));
+ try{await db.update(schema.user).set({membershipTier:"beta",entitlementVersion:1}).where(eq(schema.user.id,user.id));const first=await currentUser(new Headers({cookie}),auth);assert.equal(first?.membershipTier,"beta");assert.equal(first?.entitlementVersion,1);
+ await request("update-user",{membershipTier:"plus",entitlementVersion:999},cookie);assert.equal((await db.select().from(schema.user).where(eq(schema.user.id,user.id)))[0].membershipTier,"beta");
+ await db.update(schema.user).set({membershipTier:"plus",entitlementVersion:2}).where(eq(schema.user.id,user.id));const second=await currentUser(new Headers({cookie}),auth);assert.equal(second?.membershipTier,"plus");assert.equal(second?.entitlementVersion,2);assert.equal(second?.accessVersion,user.accessVersion);
+ }finally{await db.update(schema.user).set({membershipTier:"free",entitlementVersion:0}).where(eq(schema.user.id,user.id));}
+});

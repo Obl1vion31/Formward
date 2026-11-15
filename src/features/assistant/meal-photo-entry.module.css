@@ -6,3 +6,11 @@
 .removePhoto::before{content:"";position:absolute;inset:10px;border:1px solid var(--control-border);border-radius:50%;background:var(--surface)}.removePhoto>svg{position:relative;z-index:1}
 
 .entry>footer{padding-bottom:8px}
+
+.entry>footer select{box-sizing:border-box;width:7.5rem;flex:0 0 7.5rem;max-width:45%}.entry .primary{color:var(--surface)}
+
+.modelStatus{font-size:.8125rem;color:var(--muted);margin:0;display:flex;align-items:center;flex-wrap:wrap;gap:8px}.modelStatus button{font-size:.875rem;min-height:44px}
+
+@keyframes photoEntryReveal{from{opacity:.45;transform:translateY(3px)}to{opacity:1;transform:none}}
+.entry{animation:photoEntryReveal 160ms ease-out both}
+@media(prefers-reduced-motion:reduce){.entry{animation:none}}

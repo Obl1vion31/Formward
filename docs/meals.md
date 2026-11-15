@@ -36,15 +36,13 @@
 
 ## 图片上传与恢复
 
-每餐／食材最多 8 张、单张 20 MiB，支持原始 JPEG／PNG／WebP，不自动压缩。所有原图保存在 Private Blob，通过账号鉴权回看，不进入 public、Git 或营养 JSON 请求体。
+聊天与饮食共用私有原图上传器。每批以无照片、无凭据的受控探测选择当前可达且响应较好的国内COS或国际Private Blob；不按账号永久记地区。换网、恢复前台后的新批次重新判断，已开始的照片不自动换路；手动只覆盖本批。历史附件保留原位置、归属与去重，不迁移原图。
 
-MCP `import_meal_images` 和 HTTP `POST /api/v1/meal-images` 接受 ChatGPT files 引用，立即下载临时地址后私有保存，返回稳定 ID。最多两个下载并发，临时网络／5xx 最多重试一次，批次有截止时间；返回 complete／partial／failed、images、expectedImageCount 以及逐图 failures（index、code、stage、retryable、requestId）。部分成功保留已保存附件，只重试失败项。成功附件仍须加入对应餐次预览；已有餐次查询 id/version 后保留原内容更新。预览包含原图时应说明等待网页确认，确认后查询最新审核／餐次再报告关联状态，不把确认前文案当成实时状态。临时地址过期明确返回 image_url_expired，不能反复重用失效地址；服务端只下载允许的 ChatGPT HTTPS 文件域名，不接收任意外部／内网地址。除 oaiusercontent.com、chatgptusercontent.com、openai.com 的文件域名外，兼容 ChatGPT 的 oaisdmntpr 地区存储账号，例如 oaisdmntprnznorth.blob.core.windows.net 和 oaisdmntprwestus.blob.core.windows.net；Azure 账号名限 24 位小写字母／数字，限定完整前缀及 blob.core.windows.net 后缀。重定向每一跳重复校验，拒绝其他命名族、额外子域和伪装后缀。
+选图时一次读取原字节，用于SHA-256校验与实际上传，不缩放、不重新编码。接受JPEG／PNG／WebP，单张20MiB、每餐8张；准备显示暗色缩略格，真实字节驱动百分比圆环。传输最多10分钟，60秒没有新字节或存储响应即提供恢复；票据15分钟。100%仍为核对中，服务端确认大小、摘要、格式和归属并登记后才就绪。
 
-网页使用 prepare → 短期 OIDC 预签名 → 浏览器直传私有 Blob → complete 登记。大图不经过 Vercel Function 请求体；凭据限定账号、随机路径、SHA-256、真实类型、大小和 10 分钟有效期，完成后核对实际字节，重复原图复用 ID。SDK 预签名流程不依赖 webhook。旧 multipart 客户端只兼容 4 MiB，需刷新使用新版直传。
+失败保留文字、引用、其他附件和同一份内存字节，支持单张取消、重试、人工换通道；国内网络失败、停滞和超时可手动同源备用，不自动重复上传。服务器及Nginx上传专用超时覆盖传输上限，普通页面不延长。诊断只记录请求编号、通道、阶段、耗时、字节数和响应码，不记录照片、文件名、签名或凭据。
 
-网页显示进度、缩略图、失败原因及重试入口。照片未齐只提示，可以直接保存文字并之后补传，不需要额外勾选；expectedImageCount与缺图事实进入操作和审计。私有文件归属、实际字节和来源安全检查保留。未完成上传时仍保护草稿，不宣称原图已保存。
-
-内容摘要、user_id、组合外键和 feature 校验保护重复及归属。编辑、软删除恢复、食材快照与审计保留原图；移除附件不销毁审计引用。
+未完成的聊天附件不能发送；手工餐次照片未齐可先保存文字并之后补传，expectedImageCount与缺图事实进入操作和审计。AI识图缺必要信息时在本餐任务内补充，足够后回填当前草稿；保留手填内容、日期、餐次与照片，结果不能覆盖更新后的草稿。正式餐次由用户统一保存一次，保存成功立即更新父页面并返回。
 
 ## AI 录入与审核
 

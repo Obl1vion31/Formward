@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { usePageLoading } from "@/components/page-loading-state";
 import { useLocalToday } from "@/components/use-local-today";
-import { useMobileMode } from "@/components/use-mobile-mode";
+import { useInitialMobileMode } from "@/components/use-mobile-mode";
 import { preferredRecordedDate, rangeContaining, recentRecordDates, pendingRecordDates } from "@/components/record-dates";
 import {useChartDrag} from "@/components/use-chart-drag";
 import { ChartSelectionColumn } from "@/components/chart-selection-marker";
@@ -57,7 +57,7 @@ function dayEditInput(date:string,days:EnergyPresentation["snapshot"]["days"]):E
 }
 
 export function EnergyView({ presentation, sourceStatus=null, save, removeSource, initialDate = null, initialEntry=false,initialTrend=null,initialIntent='view' }: { presentation: EnergyPresentation; sourceStatus?:ConnectionView|null; save: SaveEnergy; removeSource: (label: string) => Promise<SourceRemovalResult>; initialDate?: string | null;initialEntry?:boolean;initialTrend?:TrendRoute|null;initialIntent?:RecordIntent }) {
-  const today = useLocalToday(presentation.today), mobile = useMobileMode();
+  const today = useLocalToday(presentation.today), mobile = useInitialMobileMode();
   const router = useRouter();
   useEffect(() => { if (today !== presentation.today) router.refresh(); }, [today, presentation.today, router]);
   const [local, setLocal] = useState<EnergyPresentation | null>(null), [base, setBase] = useState(presentation);

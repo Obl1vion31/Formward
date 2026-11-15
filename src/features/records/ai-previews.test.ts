@@ -17,6 +17,7 @@ import { emptyNutrition } from "../meals/model";
 import { submitMealOperation, readMealSnapshot } from "../meals/records";
 import { submitAiMeasurementOperation } from "../measurements/ai-operations";
 import { reviewRecordOperation } from "./operations";
+import {aiApiResponse} from "../measurements/ai-api";
 import { doubaoInputSchema } from "../doubao/mcp";
 
 const pg = new PGlite(), testDb = drizzle(pg, { schema }), db = testDb as unknown as Database;
@@ -33,7 +34,7 @@ const make = (operationId=randomUUID()) => ({ operationId, meals:[meal] });
 async function image(userId:string) { const id=randomUUID();await db.insert(schema.mealImage).values({id,userId,pathname:"isolated/"+id,sha256:id,mimeType:"image/png",byteSize:32,fileName:"虚构.png",source:"ai",createdBy:userId});return id; }
 
 test("正式目录恰为18项、退役工具不注册、两种按需会话同源",async()=>{
-  const {contract}=await aiContractSnapshot();assert.equal(contract.tools.length,18);assert.equal(contract.serverInfo.version,"2.0.0");
+  const {contract}=await aiContractSnapshot();assert.equal(contract.tools.length,18);assert.equal(contract.serverInfo.version,"2.0.1");
   const names=contract.tools.map((tool:{name:string})=>tool.name);
   for(const old of ["submit_record_operation","submit_meal_operation","submit_measurement_operation","submit_training_operation","get_record_operation","get_meal_operation","get_measurement_operation","get_training_operation","preview_meal","append_pending_images"])assert.equal(names.includes(old),false);
   const a=await owner(),bridge=chatToolBridge(db,a.identity,new Request("http://localhost/api/mcp"));
@@ -128,4 +129,12 @@ test("单功能组合调用拒绝，消费条目与食材入库可组合，多�
   const many=await createAiPreview(db,a.identity,"preview_meals",{operationId:randomUUID(),meals:[meal,{...meal,mealType:"午餐"}]});assert.equal(many.rows.length,2);
   const energy=await createAiPreview(db,a.identity,"preview_energy",{operationId:randomUUID(),days:[{date:"2024-08-01",totalKcal:"2200"},{date:"2024-08-02",totalKcal:"2300"}]});assert.equal(energy.rows.filter(row=>row.action.kind==="save_energy_day").length,2);
   const train=await createAiPreview(db,a.identity,"preview_training",{operationId:randomUUID(),items:[{key:"plan",kind:"schedule_training",date:"2024-08-01",templateId:randomUUID()}]});assert.equal(train.rows[0].action.kind,"schedule_training");assert.equal(train.canConfirm,false,"不存在模板必须不能确认");
+});
+
+test("库改量字段错误经真实MCP及HTTP出口保留全部位置，失败草稿不变",async()=>{
+ const actor=await owner(),library=await createAiPreview(db,actor.identity,"preview_foods",{operationId:randomUUID(),foods:[{name:"库错误验收牛奶",baseQuantity:"100",unit:"mL",nutrition:{caloriesKcal:"60",proteinG:"3",carbsG:"4.5",fatG:"3.5"},sourceKind:"label",basis:"用户提供的营养标签"}]});await reviewRecordOperation(db,actor.userId,library.id,{kind:"confirm",revision:library.revision});const entry=(await readMealSnapshot(db,actor.userId)).foods[0];
+ const original=await createAiPreview(db,actor.identity,"preview_meals",{operationId:randomUUID(),meals:[{date:"2026-11-15",mealType:"早餐",foods:[{name:entry.name,foodId:entry.id,foodVersion:entry.version,quantity:"250",unit:"mL"}]}]});
+ const args={id:original.id,revision:original.revision,operationId:randomUUID(),changes:[{key:original.rows[0].key,kind:"save_meal",updateFoods:[{index:0,name:"改名",unit:"g",quantity:"200",quantityEffect:"keep_total",caloriesKcal:"0"}]}]};
+ const bridge=chatToolBridge(db,actor.identity,new Request("http://localhost/api/mcp"));try{const reply=await bridge.rpc("tools/call",{name:"update_preview",arguments:args});assert.ok(reply.isError);assert.equal(reply.structuredContent.error.code,"invalid_input");assert.equal(reply.structuredContent.error.details.fields.length,4);}finally{await bridge.close();}
+ const response=await aiApiResponse(new Request("http://localhost/api/v1/record-operations",{method:"POST",headers:{Authorization:"Bearer "+actor.token.rawToken}}),db,true,identity=>updateAiPreview(db,identity,args));assert.equal(response.status,400);const body=await response.json();assert.equal(body.error.details.fields.length,4);assert.ok(body.error.details.fields.every((field:{path:string})=>field.path.startsWith("updateFoods.0.")));assert.equal((await getAiPreview(db,actor.identity,original.id)).revision,original.revision);
 });
