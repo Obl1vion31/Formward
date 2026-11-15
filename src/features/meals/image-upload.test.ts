@@ -11,6 +11,7 @@ import {signImageTicket,type ImageTicket} from "./image-ticket";
 import {cleanForwardHeaders} from "../auth/regional-transport";
 import {webSessionContext} from "../auth/account-security";
 import type {ImageStorage} from "./image-storage";
+import {signBlobImageUploadDirect} from "./image-worker";
 import { prepareImageUpload, verifyImageUploadTicket, completeImageUpload, signDirectImageUpload } from "./image-upload";
 const pg=new PGlite(),db=drizzle(pg,{schema}),secret="fictional-image-ticket-secret";
 before(async()=>{await migrate(db,{migrationsFolder:"./drizzle"});});after(async()=>{await pg.close();});
@@ -95,4 +96,13 @@ test("国际单次签名在签发前验证账号、会话、期限和通道，�
  await assert.rejects(webSessionContext.run({...f.proof,sessionId:randomUUID()},()=>signDirectImageUpload(db,f.userId,raw,deps)),/登录/);
  await db.delete(schema.session).where(eq(schema.session.id,f.proof.sessionId));
  await assert.rejects(webSessionContext.run(f.proof,()=>signDirectImageUpload(db,f.userId,raw,deps)),/登录已失效/);assert.equal(issued,1);
+});
+
+
+test("官方国际PUT签名仅授予当前照片路径、类型、字节上限与票据期限",async()=>{
+ const f=await relayFixture(),ticket:ImageTicket={...f.ticket,provider:"blob",region:"global",location:"fictional-store"};
+ const signed=await signBlobImageUploadDirect(ticket,async options=>{
+  assert.deepEqual(options,{pathname:ticket.pathname,operations:["put"],validUntil:ticket.expiresAt,allowedContentTypes:["image/png"],maximumSizeInBytes:png.length});
+  return {delegationToken:Buffer.from(JSON.stringify(options)).toString("base64url")+".fictional-signature",clientSigningToken:"fictional-test-signing-key",validUntil:ticket.expiresAt};
+ });const url=new URL(signed.url);assert.equal(signed.method,"PUT");assert.equal(url.origin,"https://vercel.com");assert.equal(url.pathname,"/api/blob/");assert.equal(url.searchParams.get("pathname"),ticket.pathname);
 });

@@ -55,7 +55,7 @@ export async function stagePrivateMealPhoto(file:File){validatePhoto(file);retur
 /** 聊天与表单共用私有原图；失败重试复用同一份内存字节，不重新读取Safari临时File。 */
 export async function uploadPrivateMealPhoto(file:File,progress:(label:string)=>void=()=>{},options:PhotoUploadOptions={}){
  validatePhoto(file);
- const traceId=crypto.randomUUID(),started=performance.now();let loaded=0,total=file.size,phase:PhotoUploadPhase="read",region:PhotoRegion|undefined;
+ const traceId=crypto.randomUUID(),started=performance.now();let loaded=0,total=file.size,phase:PhotoUploadPhase="read",region:PhotoRegion|undefined,relayAvailable=false;
  const report=(next:PhotoUploadPhase,label:string,percent=0)=>{phase=next;progress(label);options.onProgress?.({phase:next,label,loaded,total,percent,region});};
  const check=()=>{if(options.signal?.aborted)throw new PhotoTransferError("照片上传已取消，尚未发送到聊天。","abort");};
  try{
@@ -65,10 +65,12 @@ export async function uploadPrivateMealPhoto(file:File,progress:(label:string)=>
   region=(await abortable(options.region?Promise.resolve({region:options.region}):options.route??choosePhotoRoute(),options.signal)).region;
   report("prepare","正在申请上传凭据…");diagnostic(traceId,phase,started);
   const prepared=await request({step:"prepare",region,file:{fileName:file.name,size:file.size,mimeType:file.type,sha256:snapshot.sha256}},"申请上传凭据",options.signal);
+  relayAvailable=prepared.provider==="cos"&&prepared.relayAvailable!==false;
   let image=prepared.image;check();
   if(!image){
    if(prepared.provider==="cos"){
     if(options.transport==="relay"){
+     if(!relayAvailable)throw new Error("当前入口请改用国际通道上传原图。");
      report("relay","正在备用上传…");diagnostic(traceId,phase,started);
      await transferPhoto({url:"/api/meal-images/upload",body:snapshot.body,headers:{"Content-Type":"application/octet-stream","x-image-upload-ticket":prepared.ticket},signal:options.signal,onProgress:(sent,size)=>{loaded=sent;total=size;report("relay",sent>=size?"正在等待存储确认…":"正在备用上传…",Math.min(100,Math.floor(sent/size*100)));}});
     }else{
@@ -94,6 +96,7 @@ export async function uploadPrivateMealPhoto(file:File,progress:(label:string)=>
   check();report("ready","照片已就绪",100);diagnostic(traceId,phase,started,{loaded,total,region});snapshots.delete(file);
   return {id:String(image.id),notice:prepared.notice as string|undefined};
  }catch(error){
+  if(error instanceof PhotoTransferError&&!relayAvailable)error=new PhotoTransferError(error.message,error.kind,error.status,error.requestId,false);
   diagnostic(traceId,"error",started,{loaded,total,region,errorKind:error instanceof PhotoTransferError?error.kind:phase==="read"?"read":"other",...(error instanceof PhotoTransferError?{status:error.status,...(error.requestId?{requestId:error.requestId}:{})}:{})});
   throw error;
  }

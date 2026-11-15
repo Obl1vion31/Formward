@@ -1,7 +1,7 @@
 "use client";
 export class PhotoTransferError extends Error {
- constructor(message:string,public kind:"network"|"stalled"|"timeout"|"http"|"abort",public status=0,public requestId?:string){super(message);this.name="PhotoTransferError";}
- get allowRelay(){return ["network","stalled","timeout"].includes(this.kind);}
+ constructor(message:string,public kind:"network"|"stalled"|"timeout"|"http"|"abort",public status=0,public requestId?:string,private relayEnabled=true){super(message);this.name="PhotoTransferError";}
+ get allowRelay(){return this.relayEnabled&&["network","stalled","timeout"].includes(this.kind);}
 }
 /** 真实网络字节进度；停滞和绝对超时都结束请求，不自动重传。 */
 export function transferPhoto({url,body,method="POST",headers={},signal,onProgress,createXHR=()=>new XMLHttpRequest(),timeoutMs=600000,stallMs=60000}:{url:string;body:Blob|FormData;method?:"POST"|"PUT";headers?:Record<string,string>;signal?:AbortSignal;onProgress?:(loaded:number,total:number)=>void;createXHR?:()=>XMLHttpRequest;timeoutMs?:number;stallMs?:number}){

@@ -115,3 +115,12 @@ test("国际签名不能指向第三方地址，网络失败不静默再次发�
  await assert.rejects(uploadPrivateMealPhoto(new File(["b"],"b.png",{type:"image/png"}),()=>{},{region:"global"}),/连接未完成/);assert.equal(uploads,1);
  }finally{globalThis.fetch=original;}
 });
+
+
+test("国际网页入口不把20MiB国内备用上传送入受限函数，失败仍可手动换通道",async()=>{
+ const original=globalThis.fetch;let sent=0;const file=()=>new File(["fixture"],"fixture.png",{type:"image/png"});
+ try{globalThis.fetch=async(url,init)=>{if(url==="https://fictional.test/upload"){sent++;throw new TypeError("network");}const body=JSON.parse(String(init?.body));if(body.step==="prepare")return Response.json({provider:"cos",ticket:"owned-fictional-ticket",pathname:"owned",relayAvailable:false});return Response.json({url:"https://fictional.test/upload",fields:{}});};
+ await assert.rejects(uploadPrivateMealPhoto(file(),()=>{},{region:"cn"}),error=>{assert.equal((error as import("./photo-transfer").PhotoTransferError).allowRelay,false);return true;});assert.equal(sent,1);
+ await assert.rejects(uploadPrivateMealPhoto(file(),()=>{},{region:"cn",transport:"relay"}),/改用国际通道/);assert.equal(sent,1);
+ }finally{globalThis.fetch=original;}
+});

@@ -28,6 +28,13 @@ globalThis.fetch=async function(input,init){
    if(body.messages.at(-1).role==='tool'&&String(body.messages.at(-1).content).includes('confirmationUrl'))return result('已整理这条实测记录，请核对后确认保存。');
    return call('preview_measurements',{items:[{kind:'save_record',date,period:'daytime',weightKg:'67.00',fasting:true,timezone:'Asia/Shanghai'}]});
   }
+  if(text.includes('消耗卡片验收')||text.includes('训练卡片验收')){
+   const name=text.includes('消耗卡片验收')?'preview_energy':'preview_training';
+   if(body.messages.at(-1).role==='tool'&&String(body.messages.at(-1).content).includes('confirmationUrl'))return result('已整理待核对内容，请确认后保存。');
+   if(!body.tools.some(tool=>tool.function.name===name))return call('load_tools',{names:[name]});
+   if(name==='preview_energy')return call(name,{days:[{date:'2026-09-09',timezone:'Asia/Shanghai',entryMode:'total',totalKcal:'2200',steps:6000,sourceSystem:'隔离设备'}]});
+   return call(name,{items:[{kind:'save_training_template',key:'qa_template',template:{name:'隔离力量计划',exercises:[{name:'俯卧撑',sets:3,reps:10}]}},{kind:'schedule_training',key:'qa_plan',date:'2026-11-16',templateRef:'qa_template'}]});
+  }
   if(text.includes('平台余额测试')&&body.model==='glm-5.3-flash')return Response.json({error:{code:'insufficient_balance',message:'insufficient balance'}},{status:402});
  if(text.includes('断网测试'))throw new TypeError('fixture network unavailable');
  if(text.includes('慢速测试'))return result('这是隔离浏览器的慢速流式回答。这里只检查真实界面的停止、继续和固定槽位，不访问收费模型。'.repeat(3),null,true);
