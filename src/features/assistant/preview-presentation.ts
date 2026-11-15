@@ -5,10 +5,11 @@ export function savedPreviewTargets(view:RecordReviewView):string|null{
   const rows=view.rows.filter(row=>row.persisted);if(!rows.length)return null;
   const targets:string[]=[];
   for(const row of rows){
-    if(isBody(row.action)){const id=row.body?.input.recordId??row.body?.preview.rows[0]?.before?.id;if(typeof id!=="string")return null;targets.push("body:"+id);continue;}
+    if(isBody(row.action)){const after=row.body?.preview.rows[0]?.after;if(typeof after?.id!=="string"||typeof after.version!=="string")return null;targets.push("body:"+after.id+":"+after.version);continue;}
     const record=row.meal?.meal??row.meal?.food??row.energy?.after??row.training?.after;
     const id=record&&"id" in record&&typeof record.id==="string"?record.id:row.trainingEntityId;
-    if(!id)return null;targets.push(category(row.action)+":"+id);
+    const version=record&&"version" in record?record.version:null;
+    if(!id||!(typeof version==="number"&&Number.isSafeInteger(version)&&version>0))return null;targets.push(category(row.action)+":"+id+":"+version);
   }
   return [...new Set(targets)].sort().join("|");
 }
