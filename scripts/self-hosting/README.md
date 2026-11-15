@@ -9,7 +9,7 @@
 - bootstrap.sh：显式使用 --apply 后安装必要软件、建立专用目录与数据库角色、配置本机代理及定时备份。初次运行拒绝接管既有应用、PostgreSQL 集群或 Nginx；重复运行只更新带本项目管理标记的配置。
 - package-release.sh／build-regional-release.mts：仅从干净提交的源码归档重新构建，同时生成上海 standalone 与国际 Build Output 网关，输出在被忽略的 .codex/regional-releases。产物绑定源码、锁文件、migration、BUILD_ID及协议摘要，不复用工作区旧 .next，不复制环境文件；相同发布标识拒绝覆盖。
 - activate-preview.sh：核对归档 SHA-256，安全解包到新的版本目录，原子更新 current 并重启；核对实际版本、构建及数据库readiness；失败时只回退到理解同一schema和协议的版本。首次发布失败时停止服务，不留下错误的 current。
-- formward-preview.service：用 formward 用户运行 current/server.js，仅监听 127.0.0.1:3000；异常退出后重启，读取 root 专有的 /etc/formward/preview.env。
+- formward-preview.service：用 formward 用户运行 current/server.js，普通请求监听127.0.0.1:3000，私有上传监听3001；异常退出后重启，读取 root 专有的 /etc/formward/preview.env。
 - nginx-preview.conf：仅监听 127.0.0.1:8080；将请求转给应用，并覆盖代理来源头。外部仅通过 SSH 转发本机 3300 访问。
 - backup-preview.sh、formward-backup-preview.service、formward-backup-preview.timer：每天 UTC 19:00（北京时间次日 03:00）后随机延迟最多 15 分钟，备份 formward_preview，保留 14 天。
 
@@ -111,3 +111,7 @@ primary-backup.py固定备份formward_primary，原生归档、清单与SHA保�
 恢复时用backup-offsite.mjs download 备份文件名 /var/backups/formward-primary/recovered-备份文件名取回并核对密文；backup-crypto.mjs decrypt解密后，再恢复到全新隔离库验收。恢复命令拒绝已有文件、符号链接与路径越界，不能直接覆盖正式库。root专有归档不能直接交给postgres读取：由root运行pg_restore --no-owner --no-acl --single-transaction --file=-，将SQL流送入以postgres身份连接新隔离库的psql，并开启ON_ERROR_STOP及显式目标所有者；不要为恢复放宽备份目录权限。实际日任务的COS副本已用此方式完整恢复，结果见验收文档。node --test scripts/self-hosting/backup-offsite.test.mjs覆盖上传、重复、损坏、断网、权限、明文误传和恢复边界。
 
 primary-sync.py读取本机正式配置调用定时同步入口，不输出上游凭据。正式库、维护开关和账号规则与预览脚本分开，不能将本目录旧预览脚本直接改名后用于正式库。实际定时器启用、异机备份与恢复演练状态见[双入口验收](../../docs/regional-acceptance.md)；监控、表结构与维护入口见[查看指南](../../docs/server-operations.md)。
+
+## 原图备用上传期限
+
+`start-standalone.mjs`加载原standalone/server.js并复用同一个Next请求处理器，不另建业务应用。正式systemd使用`formward-primary-upload.conf`覆盖启动命令，先将启动器安装到`/usr/local/libexec/formward-start-standalone.mjs`；普通请求仍走回环3200和原Node请求期限，只有精确`/api/meal-images/upload`的GET／POST走回环3201，Node请求期限660秒。预览对应3000／3001。Nginx仅此路径配置660秒，其他代理和模型期限保持120秒。监听器绑定127.0.0.1，其他路径404、方法405；认证、同源、票据和20MiB校验仍在原feature。发布包显式复制启动器，不依赖Next追踪自定义入口。回退旧网页时可继续由此启动器加载旧server.js；不得移除现有新schema或聊天数据。

@@ -55,6 +55,7 @@ try{
  const migration=run("git",["ls-tree","-r",commit,"--","drizzle"]);
  if(!migration.includes("drizzle/0034_regional_image_storage.sql")||!migration.includes("drizzle/meta/_journal.json"))throw new Error("迁移清单缺失，拒绝生成发布包。");
  const manifest={release,commit,lockSha256:createHash("sha256").update(lock).digest("hex"),migrationSha256:createHash("sha256").update(migration).digest("hex"),buildId,protocol:"formward-regional-v1",schema:JSON.parse(await readFile(join(source,"drizzle/meta/_journal.json"),"utf8")).entries.at(-1).tag,createdAt:new Date().toISOString()};
+ await writeFile(join(standalone,"start-standalone.mjs"),await readFile(join(source,"scripts/self-hosting/start-standalone.mjs")));
  for(const folder of [standalone,fn]){await writeFile(join(folder,"release-manifest.json"),JSON.stringify(manifest,null,2));await writeFile(join(folder,"SOURCE_COMMIT"),commit+"\n");await writeFile(join(folder,"BUILD_ID"),buildId+"\n");}
  for(const [name,folder]of [["standalone",standalone],["international",join(target,"international")]]){const file=join(target,name+".tar.gz");run("tar",["-czf",file,"-C",folder,"."]);const digest=createHash("sha256").update(await readFile(file)).digest("hex");await writeFile(file+".sha256",digest+"  "+name+".tar.gz\n");}
  await writeFile(join(target,"release-manifest.json"),JSON.stringify(manifest,null,2));console.log(JSON.stringify({release,commit,buildId,path:target}));

@@ -6,7 +6,7 @@ POST验证同源及有效会话，委托meals feature处理prepare、签名和co
 
 国内COS POST与国际Private Blob官方预签名PUT共用XHR报告真实字节。总传输期限10分钟，连续60秒无新增字节结束等待；每张独立取消、重试，人工换通道仅覆盖当前批／重试，不静默重传或在中途换路。准备、传输和核对分开反馈，失败保留文字、引用及其他照片。
 
-国内网页入口的国内直传网络故障后可人工使用此POST的application/octet-stream同源备用，x-image-upload-ticket沿用原票据。Next Proxy及Nginx上限21MiB，业务严格20MiB；备用读取10分钟、专用代理660秒，其他请求期限不扩大。国际原图不进入旧4MiB multipart兼容入口。完成流程再次验证会话、归属、摘要、类型及期限。prepare的私有relayAvailable仅对国内网页为true；国际网页不提供此恢复动作，服务端也拒绝其备用请求，避免20MiB原图进入受限函数请求体。国际直传仍支持10分钟，总网关普通请求期限120秒保持。
+国内网页入口的国内直传网络故障后可人工使用此POST的application/octet-stream同源备用，x-image-upload-ticket沿用原票据。Next Proxy及Nginx上限21MiB，业务严格20MiB；备用读取10分钟、专用代理及回环上传监听660秒（主监听保持Node原期限），其他请求期限不扩大。国际原图不进入旧4MiB multipart兼容入口。完成流程再次验证会话、归属、摘要、类型及期限。prepare的私有relayAvailable仅对国内网页为true；国际网页不提供此恢复动作，服务端也拒绝其备用请求，避免20MiB原图进入受限函数请求体。国际直传仍支持10分钟，总网关普通请求期限120秒保持。
 
 私有diagnostic只接受请求编号、受控通道、阶段、耗时、字节数、响应状态和错误分类，204不代表成功。不记录照片、文件名、原始URL、签名或凭据。读取、申请、传输、存储与核对故障分别定位。
 

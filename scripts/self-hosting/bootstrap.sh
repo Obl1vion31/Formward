@@ -175,6 +175,7 @@ fi
 [[ $(readlink -f /etc/nginx/sites-enabled/formward-preview.conf) == /etc/nginx/sites-available/formward-preview.conf ]] || fail 'Nginx 预览站点链接不符。'
 nginx -t
 
+install_managed "$script_dir/start-standalone.mjs" /usr/local/libexec/formward-start-standalone.mjs 0644
 install_managed "$script_dir/formward-preview.service" /etc/systemd/system/formward-preview.service 0644
 install_managed "$script_dir/backup-preview.sh" /usr/local/libexec/formward-backup-preview 0755
 install_managed "$script_dir/formward-backup-preview.service" /etc/systemd/system/formward-backup-preview.service 0644

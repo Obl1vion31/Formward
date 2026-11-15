@@ -18,9 +18,10 @@ EnvironmentFile=/etc/formward/preview.env
 Environment=NODE_ENV=production
 Environment=HOSTNAME=127.0.0.1
 Environment=PORT=3000
+Environment=FORMWARD_UPLOAD_PORT=3001
 Environment=NEXT_TELEMETRY_DISABLED=1
 Environment=PATH=/opt/node-v24.21.0-linux-x64/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ExecStart=/opt/node-v24.21.0-linux-x64/bin/node server.js
+ExecStart=/opt/node-v24.21.0-linux-x64/bin/node /usr/local/libexec/formward-start-standalone.mjs /srv/formward/preview/current/server.js
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30
