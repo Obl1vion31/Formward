@@ -1,14 +1,19 @@
 import assert from 'node:assert/strict';
 import {writeFile} from 'node:fs/promises';
 const pause=ms=>new Promise(done=>setTimeout(done,ms));
+// 只接纳已主动破坏隔离餐次表期间的服务端渲染错误；普通／慢读仍要求零告警。
+export function expectedInjectedReadError({negative,url,message}){
+ return negative&&new URL(url).pathname==='/dashboard/meals'&&(/Server Components render/.test(message)||/^Minified React error #419;/.test(message));
+}
+
 export async function checkLoadingFlows({config,folder,createContext,control,shot}){
- const checks=[],errors=[],expectedErrors=[],frames=[],videos=[];
+ const checks=[],errors=[],expectedErrors=[],frames=[],videos=[],errorEvents=[];
  const before=await(await fetch(config.fixtureControlURL+'/health-digest')).json();
  for(const theme of (process.env.FORMWARD_LOADING_FOCUS?['dark']:['dark','light']))for(const size of (process.env.FORMWARD_LOADING_FOCUS?[[390,640]]:[[390,640],[1440,900]])){
   const context=await createContext(size,theme,'no-preference',true),page=await context.newPage(),mobile=size[0]<700,prefix='flows-'+theme+'-'+size[0];
   let transport='normal',negative=false;
   const pendingRequests=new Map();context.on('request',request=>pendingRequests.set(request,{url:request.url(),method:request.method(),type:request.resourceType(),rsc:request.headers().rsc,time:Date.now()}));context.on('requestfinished',request=>pendingRequests.delete(request));context.on('requestfailed',request=>pendingRequests.delete(request));
-  page.on('pageerror',error=>{if(negative&&/Server Components render/.test(error.message))expectedErrors.push(error.message);else errors.push(error.message);});
+  page.on('pageerror',error=>{errorEvents.push({prefix,url:page.url(),negative,transport,lastCheck:checks.at(-1),message:error.message,time:Date.now()});if(expectedInjectedReadError({negative,url:page.url(),message:error.message}))expectedErrors.push(error.message);else errors.push(error.message);});
   await page.route('**/dashboard/**',async route=>{
    const request=route.request(),isRead=request.method()==='POST'&&!!request.headers()['next-action']||request.method()==='GET'&&/\/dashboard\/(profile|account|sources)(?:\?|$)/.test(request.url());
    if(transport==='fail'&&request.method()==='POST'&&request.headers()['next-action'])return route.abort('failed');
@@ -89,6 +94,6 @@ export async function checkLoadingFlows({config,folder,createContext,control,sho
   await other.reload();await other.waitForLoadState('networkidle');assert.ok((await other.locator('[data-record-slot=metrics] strong').allTextContents()).every(text=>!text.includes('70.14')));
   await other.goto(config.baseURL+'/dashboard/sources');await other.getByRole('heading',{name:'暂未开放',exact:true}).waitFor();checks.push('切换账号清除原健康显示与试运行入口权限');
  }finally{await isolated.close();}
- const after=await(await fetch(config.fixtureControlURL+'/health-digest')).json();assert.deepEqual(after,before,'查看、加载、关闭和重试不得写入健康事实');assert.deepEqual(errors,[]);
- await writeFile(folder+'/flows-report.json',JSON.stringify({passed:true,focus:process.env.FORMWARD_LOADING_FOCUS??'full',checks,errors,expectedErrors,healthFactsUnchanged:true,frames,videos},null,2));return checks;
+ const after=await(await fetch(config.fixtureControlURL+'/health-digest')).json();await writeFile(folder+'/flows-diagnostics.json',JSON.stringify({checks,errorEvents,errors,expectedErrors,healthFactsUnchanged:JSON.stringify(after)===JSON.stringify(before)},null,2));assert.deepEqual(after,before,'查看、加载、关闭和重试不得写入健康事实');assert.deepEqual(errors,[]);
+ await writeFile(folder+'/flows-report.json',JSON.stringify({passed:true,focus:process.env.FORMWARD_LOADING_FOCUS??'full',checks,errors,expectedErrors,errorEvents,healthFactsUnchanged:true,frames,videos},null,2));return checks;
 }
