@@ -44,7 +44,16 @@ export function AssistantChatView({ sidebar, navigate,tab }: { sidebar: ReactNod
     restored.current = true; recordScroll(node.scrollTop,scrollState().stick);
   }, [chat.messages, tab, scrollState, recordScroll]);
   useLayoutEffect(() => { const node = feed.current; if (!node) return; const observer = new ResizeObserver(() => { if (scrollState().stick && !moreAnchor.current) node.scrollTop = node.scrollHeight; setLatest(node.scrollHeight-node.scrollTop-node.clientHeight>80); }); observer.observe(feedContent.current??node); observer.observe(node); return () => observer.disconnect(); }, [scrollState]);
-  useLayoutEffect(() => { const node = input.current; if (node) { node.style.height = "auto"; node.style.height = Math.min(144,node.scrollHeight) + "px"; } }, [chat.draft]);
+  useLayoutEffect(() => {
+    const node=input.current;if(!node)return;let frame=0,active=true,last="";
+    const measure=()=>{if(!active||!node.isConnected)return;const css=getComputedStyle(node),width=node.getBoundingClientRect().width,key=[node.value,node.placeholder,width,css.font,css.lineHeight,css.padding,css.borderWidth,css.minHeight].join("|");if(key===last||width<=0)return;last=key;
+      // Safari的空textarea不会把换行占位文字计入scrollHeight；用同样字体与宽度的值测量。
+      const probe=node.cloneNode(false) as HTMLTextAreaElement;probe.removeAttribute("id");probe.removeAttribute("aria-label");probe.removeAttribute("name");probe.setAttribute("aria-hidden","true");probe.inert=true;probe.tabIndex=-1;probe.value=node.value||node.placeholder;
+      Object.assign(probe.style,{position:"absolute",left:"0",top:"0",width:width+"px",height:"0",minHeight:"0",maxHeight:"none",visibility:"hidden",pointerEvents:"none",overflow:"hidden"});node.parentElement?.appendChild(probe);const wanted=probe.scrollHeight+parseFloat(css.borderTopWidth)+parseFloat(css.borderBottomWidth);probe.remove();node.style.height=Math.min(Math.max(144,parseFloat(css.fontSize)*4.8),wanted)+"px";
+    };
+    const schedule=()=>{if(!active)return;cancelAnimationFrame(frame);frame=requestAnimationFrame(measure);};measure();const observer=new ResizeObserver(schedule);observer.observe(node);void document.fonts.ready.then(()=>{last="";schedule();});
+    return()=>{active=false;observer.disconnect();cancelAnimationFrame(frame);};
+  }, [chat.draft]);
   useEffect(() => { if (panel && panel !== "models") panelTitle.current?.focus({ preventScroll:true }); }, [panel]);
   useLayoutEffect(() => {
     if (panel !== "models" || !modelMenu.current || !modelButton.current) return;
