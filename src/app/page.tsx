@@ -11,7 +11,7 @@ export default async function HomePage() {
   if (config.enabled && !config.singleWeb && requestHeaders.get("host") === new URL(config.selector).host) {
     return <RegionSelector cn={config.cn} global={config.global} />;
   }
-  return <><HomeExperience /><footer className={styles.footer}>
+  return <div className={styles.shell}><HomeExperience /><footer className={styles.footer}>
     <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">沪ICP备2026060534号-1</a>
-  </footer></>;
+  </footer></div>;
 }

@@ -29,3 +29,29 @@
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
+.shell {
+  min-height: 100svh;
+}
+
+
+@media (max-width: 700px), (hover: none) and (pointer: coarse) {
+  .shell {
+    display: grid;
+    grid-template-rows: minmax(560px, 1fr) auto;
+  }
+
+  .shell :global(.home-page[data-mobile]),
+  .shell :global(.home-page[data-mobile]) :global(.home-scroll) {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .shell :global(.home-stage) {
+    height: 100%;
+  }
+
+  .footer {
+    position: static;
+    padding: 0 16px calc(4px + env(safe-area-inset-bottom));
+  }
+}
