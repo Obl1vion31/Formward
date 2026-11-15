@@ -88,7 +88,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const recentInterval = { start: catalog.start, end: today || catalog.end };
   const recent = recentMeasurementDays(displayedRecords, recentInterval, choices, 7).filter(day => day.date === today || (!dates.some(row => row.date === day.date && row.reminderSkipped) && measurementNeedsEntry(records, day.date, choices,metrics)));
   const chartDates=measurementCalendarPage(range,calendarOrdinal(range.end)-calendarOrdinal(range.start)+1).reverse();
-  const fallbackDate=preferredMorningDate(visibleRecords,activeMetric,today||range.end,choices);
+  const fallbackDate=chartDates.includes(today)?today:preferredMorningDate(visibleRecords,activeMetric,today||range.end,choices);
   const selection=useChartDateSelection(chartDates,initialDate??today??fallbackDate,initialDate&&chartDates.includes(initialDate)?initialDate:fallbackDate,calendarOpen,`${showEvening}:${JSON.stringify(choices)}`),activeDate=selection.selected;
   const selectedPeriod=selection.active?chartPeriod:undefined;
   const weight=measurementSummaryAt(records,'weightKg',activeDate,choices),fat=measurementSummaryAt(records,'bodyFatPercent',activeDate,choices);

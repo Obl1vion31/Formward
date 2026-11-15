@@ -81,7 +81,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
   const dates = useMemo(() => { try { const length = calendarOrdinal(to) - calendarOrdinal(from) + 1; return length > 0 && length <= 3661 ? Array.from({ length }, (_, index) => addCalendarDays(from, index)) : []; } catch { return []; } }, [from, to]);
   const chartDays = dates.map(date => byDate.get(date) ?? blankEnergyDay(date));
   const linkedPlot=!!initialTrend&&from===initialTrend.from&&to===initialTrend.to;
-  const selection=useChartDateSelection(dates,initialDate??today,initialDate&&dates.includes(initialDate)?initialDate:preferredRecordedDate(chartDays,today,day=>day.totalKcal!==null,day=>!!day.record||day.activities.length>0),customOpen),inspected=selection.selected,chosen=chartDays.find(day=>day.date===inspected);
+  const selection=useChartDateSelection(dates,initialDate??today,initialDate&&dates.includes(initialDate)?initialDate:dates.includes(today)?today:preferredRecordedDate(chartDays,today,day=>day.totalKcal!==null,day=>!!day.record||day.activities.length>0),customOpen),inspected=selection.selected,chosen=chartDays.find(day=>day.date===inspected);
   useEffect(()=>{const latest=()=>{setEditing(null);setViewing(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
   const historyDates=[...new Set([...recentRecordDates(today),...state.days.filter(d=>!d.deletedAt).map(d=>d.date),...state.activities.filter(a=>!a.deletedAt).map(a=>a.date)])].sort().reverse();
   usePageLoading({ active: busy, label: "正在保存消耗记录…" });
