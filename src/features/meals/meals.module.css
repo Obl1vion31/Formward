@@ -338,7 +338,7 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
 .mealForm input:focus-visible,.mealForm textarea:focus-visible,.mealForm select:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .stickyMealTotal{position:sticky;bottom:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0 max(12px,env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line-soft);margin-top:16px}
 .stickyMealTotal>div{min-width:0;flex:1}.headerNutrition{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}.headerNutrition strong{display:inline-flex;align-items:baseline;gap:5px;font-size:30px;font-weight:400;white-space:nowrap}.headerNutrition small{font-size:12px;color:var(--muted)}.headerNutrition>span{font-size:12px;color:var(--muted);line-height:1.6}.entryIssue{color:var(--muted);font-size:12px;line-height:1.5;margin:6px 0 0}
-.mealForm .save{flex:none;margin:0;padding:12px 16px;min-height:44px;border:1px solid var(--gold);border-radius:6px;background:var(--gold);color:var(--graphite);font-size:14px;font-weight:500;white-space:nowrap}
+.mealForm .save{flex:none;align-self:flex-end;margin:0;padding:12px 16px;min-height:44px;border:1px solid var(--gold);border-radius:6px;background:var(--gold);color:var(--graphite);font-size:14px;font-weight:500;white-space:nowrap}
 .mealForm .save:hover{background:color-mix(in srgb,var(--gold) 88%,var(--warm-white));color:var(--graphite)}
 .mealForm .save:disabled{background:var(--surface-hover);color:var(--muted);border-color:var(--control-border);opacity:.65;cursor:not-allowed}
 .entryTitle{margin:0 0 12px;font-size:1rem;font-weight:500}.entryTitle small{font-size:12px;color:var(--muted);margin-left:8px}
