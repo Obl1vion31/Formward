@@ -15,5 +15,5 @@ export default async function AiAccessPage() {
 async function AiAccessContent({ userId }: { userId: string }) {
   const connections = await loadAiAccessConnections(getDatabase(), userId);
   const overviewPromise = loadAiAccessOverview(getDatabase(), userId, connections);
-  return <AiAccess key={userId} canonicalOrigin={regionConfig().canonical} overview={{ connections, tokens: [], submissions: [] }} overviewPromise={overviewPromise} create={createTokenAction} revoke={revokeTokenAction} revokeConnection={revokeConnectionAction} />;
+  return <AiAccess accountId={userId} key={userId} canonicalOrigin={regionConfig().canonical} overview={{ connections, tokens: [], submissions: [] }} overviewPromise={overviewPromise} create={createTokenAction} revoke={revokeTokenAction} revokeConnection={revokeConnectionAction} />;
 }

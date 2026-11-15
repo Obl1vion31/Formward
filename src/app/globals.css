@@ -1071,3 +1071,10 @@ dialog::backdrop{transition:background-color 210ms cubic-bezier(.2,.8,.2,1)}
 .login-form button {font-size:.9375rem}
 .login-error {font-size:.75rem}
 .login-recovery {font-size:.6875rem}
+
+.energy-share-value{display:none}
+
+@media(max-width:700px) and (max-height:700px),(hover:none) and (pointer:coarse) and (max-height:700px){
+ [data-record-trend] [data-body-plot][data-adaptive=true],.skeleton-plot[data-plot-kind=body]{box-sizing:border-box;height:clamp(8rem,calc(100svh - 26.625rem),12rem);padding-block:0}
+ [data-record-trend] [data-body-plot][data-adaptive=true]::before,.skeleton-plot[data-plot-kind=body]::before{display:none}
+}

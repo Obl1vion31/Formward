@@ -29,10 +29,10 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
   const [hintRecordId, setHintRecordId] = useState<string | null>(null);
   const { points, segments, pairs } = measurementTrend(records, metric, showEvening, choices);
   const scale = normalScale(points.map(row => Number(row[metric])));
-  const {width:viewportWidth,left,fontSize}=useChartViewport(viewport,scale.ticks.map(value=>value.toFixed(1)),48);
+  const {width:viewportWidth,height:viewportHeight,left,fontSize}=useChartViewport(viewport,scale.ticks.map(value=>value.toFixed(1)),48);
   useChartMotion(viewport, viewportWidth ? `${metric}:${showEvening}:${interval.start}:${interval.end}:${JSON.stringify(choices)}:${records.map(record => `${record.id}:${record.updatedAt}`).join("|")}` : "pending");
   const width=viewportWidth||280,leftEdge=left,right=16,top=14,plotWidth=width-leftEdge-right;
-  const plotHeight=compact?plotWidth/2:(mobile?180:252)-top-32,height=compact?top+(width-48-right)/2+32:top+plotHeight+32,plotBottom=top+plotHeight;
+  const plotHeight=compact?Math.max(48,(viewportHeight||top+(width-48-right)/2+32)-top-32):(mobile?180:252)-top-32,height=compact?viewportHeight||top+(width-48-right)/2+32:top+plotHeight+32,plotBottom=top+plotHeight;
   const x=(date:string)=>left+(span?(5+(calendarOrdinal(date)-calendarOrdinal(interval.start))/span*230)/240:.5)*plotWidth;
   const y=(value:string|null)=>top+(5+scale.position(Number(value))*110)/120*plotHeight;
   const canShare=metric==="weightKg"&&!showEvening;

@@ -89,7 +89,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const recent = recentMeasurementDays(displayedRecords, recentInterval, choices, 7).filter(day => day.date === today || (!dates.some(row => row.date === day.date && row.reminderSkipped) && measurementNeedsEntry(records, day.date, choices,metrics)));
   const chartDates=measurementCalendarPage(range,calendarOrdinal(range.end)-calendarOrdinal(range.start)+1).reverse();
   const fallbackDate=preferredMorningDate(visibleRecords,activeMetric,today||range.end,choices);
-  const selection=useChartDateSelection(chartDates,initialDate??fallbackDate,initialDate&&chartDates.includes(initialDate)?initialDate:fallbackDate,calendarOpen,`${showEvening}:${JSON.stringify(choices)}`),activeDate=selection.selected;
+  const selection=useChartDateSelection(chartDates,initialDate??today??fallbackDate,initialDate&&chartDates.includes(initialDate)?initialDate:fallbackDate,calendarOpen,`${showEvening}:${JSON.stringify(choices)}`),activeDate=selection.selected;
   const selectedPeriod=selection.active?chartPeriod:undefined;
   const weight=measurementSummaryAt(records,'weightKg',activeDate,choices),fat=measurementSummaryAt(records,'bodyFatPercent',activeDate,choices);
   const selectedSummary=activeMetric==='weightKg'?weight:fat,deltaUnit=activeMetric==='weightKg'?'kg':'百分点';
@@ -135,10 +135,10 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
        range={<ChartRanges value={mode} items={[...ranges.map(item=>[item.value,item.label]),["custom","自定义"]]} change={value=>{if(value==="custom"){setDraftRange(range);setCalendarOpen(true);}else selectRange(value as MeasurementRange);}}/>}
        custom={calendarOpen&&<CustomRecordRange label="身体" value={{from:draftRange.start,to:draftRange.end}} change={next=>setDraftRange({start:next.from,end:next.to})} apply={()=>{setCustomRange(draftRange);selectRange("custom",draftRange);}} cancel={()=>setCalendarOpen(false)}/>}
        date={activeDate} view={()=>{const target={date:activeDate,period:selection.active?chartPeriod:undefined};setDrawer({kind:"day",...target,metric:"weightKg"});selection.releasePreview();}} readoutLabel="选中日身体记录"
-       metrics={readings} chartSummary={changeSummary}
+       metrics={readings} mobileMetrics={[readings[0],{label:"较前一日",value:formatDifference(weight.previousChange,"weightKg",false)??"—",unit:"kg",inlineUnit:true},readings[2]]} chartSummary={changeSummary}
 
        title={metricName(activeMetric)+" · "+unitFor(activeMetric)}
-       options={<label className={styles.toggle}><span>晚间</span><input aria-label="晚间数据" type="checkbox" checked={showEvening} onChange={event=>{transition.invalidate();setShowEvening(event.target.checked);}}/></label>}
+       options={<div className={styles.mobileChartOptions}>{preference.showBodyFat&&<button type="button" className={styles.mobileMetricToggle} aria-pressed={activeMetric==="bodyFatPercent"} onClick={()=>chooseMetric(activeMetric==="weightKg"?"bodyFatPercent":"weightKg")}>体脂</button>}<label className={styles.toggle}><span>晚间</span><input aria-label="晚间数据" type="checkbox" checked={showEvening} onChange={event=>{transition.invalidate();setShowEvening(event.target.checked);}}/></label></div>}
        legend={<><span><i style={{background:"var(--data-weight)",borderRadius:"50%"}}/>晨间空腹</span>{showEvening&&<span><i style={{background:"var(--data-deficit)",borderRadius:"50%"}}/>晚间</span>}</>}
       ><div data-chart-metric={activeMetric}><BodyTrendPlot linked={!!initialTrend&&range.start===initialTrend.from&&range.end===initialTrend.to} records={visibleRecords} metric={activeMetric} showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
       </RecordTrendPanel>

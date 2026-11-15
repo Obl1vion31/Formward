@@ -58,6 +58,18 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
       if(current.arrived&&current.ready)finish(current);
       return;
     }
+    if(current.direction==='forward'){
+      if(skeleton)return;
+      // 新页只在真实目标图框内交接，不在等待期间把源缩略图留在读数卡上。
+      current.destination=dest;current.ready=true;current.landing=true;
+      Object.assign(node.style,{left:dest.left+'px',top:dest.top+'px',width:dest.width+'px',height:dest.height+'px'});
+      node.querySelectorAll<SVGSVGElement>('svg').forEach(svg=>{svg.style.width='100%';svg.style.height='100%';});
+      motion.current.reveal(id,element);
+      node.setAttribute('data-motion-starts','1');
+      current.animation=node.animate([{opacity:.45,transform:'scale(.985)'},{opacity:1,transform:'none'}],{duration:200,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});
+      void current.animation.finished.then(()=>{if(motion.current.active?.id===id)finish(current);}).catch(()=>{});
+      return;
+    }
     const scale=dest.width/current.rect.width;
     if(Math.abs(dest.height/current.rect.height-scale)>.035){clear();return;}
     current.destination=dest;current.landing=true;current.ready=!skeleton;
@@ -66,7 +78,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(motion.current.active?.id!==id||!node.isConnected)return;
     node.setAttribute('data-motion-starts','1');
     if(current.model.kind==="morning-weight"){
-      const count=current.model.points.length,forward=current.direction==='forward';
+      const count=current.model.points.length,forward=false;
       const from=node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="source"]'),to=node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="destination"]');
       node.style.setProperty('--flight-stroke',((forward?detailStroke(count):1.25)/scale)+'px');
       node.style.setProperty('--flight-radius',(forward?detailRadius(count)/(dest.width/240):3.6)+'px');

@@ -44,3 +44,6 @@ Thumbs.db
 
 # Python 维护工具缓存
 __pycache__/
+
+# 私有视觉验收报告
+design-qa.md

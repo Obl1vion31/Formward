@@ -13,7 +13,7 @@
 .inlineMeta,.inlineMacros{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 0 0;font-size:.8125rem;color:var(--muted);overflow-wrap:anywhere}
 .inlineSecondary{font-size:.875rem;line-height:1.5;margin:8px 0 0;overflow-wrap:anywhere}
 .inlineName{font-size:1.125rem;font-weight:600;line-height:1.5;margin:12px 0 0;overflow-wrap:anywhere}
-.inlineOperations{display:flex;float:right;flex-wrap:wrap;gap:8px;margin-top:0;max-width:100%}
+.inlineOperations{display:flex;flex-wrap:wrap;gap:8px;margin-top:0;max-width:100%}
 .inlineOperations button{font-size:.875rem!important;padding:0 8px!important;min-height:44px!important}
 .inlineDetails{font-size:.875rem;color:var(--muted)}
 .inlineDetails>summary{min-height:44px;align-content:center;width:fit-content;cursor:pointer;font-size:.875rem}
@@ -134,3 +134,13 @@
 .workspace[data-embedded=true]{margin:0;max-width:none;font-size:.875rem}.workspace[data-embedded=true] .heading{gap:8px}.workspace[data-embedded=true] .heading h1,.success[data-embedded=true] h1{font-size:1rem;font-weight:500;line-height:1.5}.workspace[data-embedded=true] .section{margin-top:12px}.workspace[data-embedded=true] .row{padding:8px 0}.workspace[data-embedded=true] .rowHeading{flex-wrap:wrap;gap:8px}.workspace[data-embedded=true] .evidence{margin-top:8px}.workspace[data-embedded=true] .rowHeading h3{font-size:1rem}.success[data-embedded=true]{min-height:0;margin:0;padding:0;align-items:stretch;justify-content:flex-start;gap:8px;text-align:left}.success[data-embedded=true] .receipt{width:100%;margin:0}.success[data-embedded=true] .stay{align-self:flex-start}.success[data-embedded=true] .check{display:none}
 
 .workspace[data-embedded=true] summary{min-height:44px;box-sizing:border-box;padding-block:10px;font-size:.875rem;line-height:1.5}
+
+.inlineFoods{list-style:none;margin:10px 0 0;padding:0}.inlineFoods li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:baseline;gap:8px 12px;padding:7px 0;border-top:1px solid var(--line-soft);font-size:.875rem;line-height:1.5}.inlineFoods li>span:first-child{overflow-wrap:anywhere}.inlineFoods li>span:not(:first-child){color:var(--muted);font-variant-numeric:tabular-nums}
+.inlineResult{box-sizing:border-box;display:block;width:100%;min-width:0;margin:0;padding:0;color:var(--warm-white)}.inlineResult>h3{font-size:1rem;font-weight:600;line-height:1.5;margin:0 0 8px}.inlineSavedRow+.inlineSavedRow{border-top:1px solid var(--line-soft);padding-top:12px;margin-top:12px}.inlineHeading h4{margin:0;font-size:.875rem;font-weight:500;line-height:1.5}.inlineReceiptLink{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;font-size:.875rem;line-height:1.5}.inlineReceiptLink a{display:inline-flex;align-items:center;min-height:44px;color:var(--warm-white);text-decoration:none}.inlineReceiptLink>span{color:var(--muted)}.inlineReceiptLink a:hover{text-decoration:underline;text-underline-offset:3px}
+.workspace[data-embedded] .inlineDetails>summary{padding-block:8px}.workspace[data-embedded] .inlineDetails .recordContent{margin-top:0}.workspace[data-embedded] .inlineDetails .foodLine{padding-block:6px}.workspace[data-embedded] .footer{justify-content:space-between;gap:8px;padding-top:10px}.workspace[data-embedded] .footer>button:not(.save){margin:0;padding:8px 12px;min-height:44px;border:1px solid var(--control-border);border-radius:8px}.workspace[data-embedded] .footer .save{margin-left:auto}
+.emptyReview{margin:0;padding:0}.emptyReview h3{font-size:1rem;font-weight:500;margin:0 0 12px}.emptyReviewRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;font-size:.875rem;line-height:1.5}.emptyReviewRow button,.emptyReview>a{display:inline-flex;align-items:center;min-height:44px;font-size:.875rem}
+@media(max-width:360px){.inlineFoods li{gap:4px 8px;grid-template-columns:minmax(0,1fr) auto}.inlineFoods li>span:last-child{grid-column:2}.workspace[data-embedded] .footer{flex-wrap:wrap}}
+
+.inlineMealReading{display:flex;align-items:center;justify-content:space-between;gap:12px}.inlineMealReading>div{min-width:0}.inlineMealReading>figure{flex:none;margin:0}
+
+.inlineResult{min-height:0;align-items:stretch}

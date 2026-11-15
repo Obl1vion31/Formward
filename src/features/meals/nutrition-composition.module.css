@@ -38,3 +38,5 @@
  .mobileDetails{display:block;margin-top:4px}.mobileDetails>summary{display:flex;align-items:center;min-height:44px;font-size:.875rem;color:var(--muted);cursor:pointer}
  .mobileDetails>div{display:flex;align-items:center;gap:12px;padding:4px 0 12px}
 }
+
+.composition[data-compact] svg{width:48px;height:48px}.composition[data-compact] svg text{display:none}

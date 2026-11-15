@@ -382,3 +382,5 @@
 }
 
 .entryDeleteActions{display:flex;flex-wrap:wrap;gap:8px;grid-column:1/-1}.entryDeleteActions:empty{display:none}.entryDeleteActions .deleteCell{position:static;width:auto;min-width:44px;min-height:44px;padding:8px 12px;font:inherit;font-size:.875rem}
+
+.mobileChartOptions{display:flex;align-items:center;gap:12px}.mobileMetricToggle{display:none}@media(max-width:700px),(hover:none) and (pointer:coarse){.mobileMetricToggle{display:inline-flex;min-height:44px;padding:8px 4px;align-items:center;border:0;background:none;color:var(--muted);font:inherit;font-size:.875rem;cursor:pointer}.mobileMetricToggle[aria-pressed=true]{color:var(--gold)}}

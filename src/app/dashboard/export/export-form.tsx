@@ -1,5 +1,6 @@
 "use client";
 import {useRef,useState} from "react";
+import {DateField} from "@/components/date-field";
 import styles from "./page.module.css";
 export function ExportForm(){
  const [from,setFrom]=useState(""),[to,setTo]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[expired,setExpired]=useState(false);
@@ -17,7 +18,7 @@ export function ExportForm(){
   }catch(e){setError(e instanceof TypeError?"网络连接未完成，日期范围已保留，请重试。":e instanceof Error?e.message:"导出未完成，日期范围已保留，请重试。");}
   finally{setBusy(false);lock.current=false;}
  }}>
- <div className={styles.range}><label>开始日期<input type="date" name="from" value={from} onChange={e=>{setFrom(e.target.value);setError("");}} disabled={busy}/></label><label>结束日期<input type="date" name="to" value={to} onChange={e=>{setTo(e.target.value);setError("");}} disabled={busy}/></label></div>
+ <div className={styles.range}><label>开始日期<DateField name="from" value={from} onChange={e=>{setFrom(e.target.value);setError("");}} disabled={busy}/></label><label>结束日期<DateField name="to" value={to} onChange={e=>{setTo(e.target.value);setError("");}} disabled={busy}/></label></div>
  <p className={styles.hint}>留空下载全部有效记录；食材库和公式资料始终完整导出。</p>
  {(issue||error)&&<p role="alert">{issue||error}</p>}{expired&&<a href="/" target="_blank" rel="noreferrer">重新登录后返回此页重试</a>}
  <button type="submit" disabled={busy||!!issue}>{busy?"正在导出…":error?"重试下载 Excel":"下载 Excel · .xlsx"}</button>

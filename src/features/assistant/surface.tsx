@@ -39,6 +39,14 @@ export function AssistantSurface({ data, error, loading, close, requestClose, re
     if (dialog.current) void animateSurface(dialog.current, "open", null, mobile ? "sheet" : "anchored");
   }, [mobile]);
   useLayoutEffect(() => { controllerReady({ dismiss, reopen }); return () => controllerReady(null); }, [controllerReady, dismiss, reopen]);
+  useLayoutEffect(()=>{
+    const node=dialog.current;if(!node||mobile===null)return;
+    let frame=0,last="";
+    const measure=()=>{frame=0;const viewport=window.visualViewport;if(viewport&&Math.abs(viewport.scale-1)>.02)return;const height=Math.round(viewport?.height??innerHeight),top=Math.round(viewport?.offsetTop??0),key=height+":"+top;if(key===last)return;last=key;node.style.setProperty("--assistant-viewport-height",height+"px");};
+    const schedule=()=>{if(!frame)frame=requestAnimationFrame(measure);};
+    measure();window.addEventListener("resize",schedule);window.visualViewport?.addEventListener("resize",schedule);window.visualViewport?.addEventListener("scroll",schedule);
+    return()=>{cancelAnimationFrame(frame);window.removeEventListener("resize",schedule);window.visualViewport?.removeEventListener("resize",schedule);window.visualViewport?.removeEventListener("scroll",schedule);};
+  },[mobile]);
   useLayoutEffect(() => {
     const node = dialog.current; if (!node || mobile === null) return;
     const previous = document.activeElement, trigger = [...document.querySelectorAll<HTMLElement>("[data-assistant-trigger]")].find(element=>element.getClientRects().length>0);
@@ -55,9 +63,9 @@ export function AssistantSurface({ data, error, loading, close, requestClose, re
     onPointerUp(event:ReactPointerEvent<HTMLElement>){const g=gesture.current;gesture.current=null;if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);if(!g)return;const node=dialog.current;if(Math.abs(g.delta)>7)suppress.current=performance.now()+350;if(g.delta<-35)setExpanded(true);else if(g.delta>65){if(expanded)setExpanded(false);else{void requestClose();return;}}if(node){const from=node.style.transform;node.style.transform="";if(!matchMedia("(prefers-reduced-motion:reduce)").matches)node.animate([{transform:from},{transform:"translateY(0)"}],{duration:220,easing:"cubic-bezier(.2,.8,.2,1)"});}},
     onPointerCancel(){gesture.current=null;if(dialog.current)dialog.current.style.transform="";}
   };
+  const navigate = useCallback(async () => { await requestClose(); const phase = dialog.current?.dataset.surfacePhase; return phase !== "open" && phase !== "opening"; },[requestClose]);
   if (mobile === null) return null;
   const today = data?.localDate ?? localMeasurementDate(new Date());
-  const navigate = async () => { await requestClose(); const phase = dialog.current?.dataset.surfacePhase; return phase !== "open" && phase !== "opening"; };
   const items = (rows: AssistantItem[]) => <ul className={styles.items}>{rows.map(item => <li key={item.id} data-assistant-item={item.id}>
     <div><strong>{item.title}</strong><time dateTime={item.date}>{item.date.replaceAll("-", ".")}</time></div><p>{item.detail}</p>
     <div className={styles.itemActions}>{item.action.previewId&&chatEnabled?<button type="button" onClick={()=>window.dispatchEvent(new CustomEvent("formward-assistant-preview",{detail:{id:item.action.previewId}}))}>{item.action.label}</button>:<LoadingLink prefetch={false} href={item.action.href} beforeNavigate={navigate}>{item.action.label}<span aria-hidden="true"> →</span></LoadingLink>}
@@ -87,7 +95,7 @@ export function AssistantSurface({ data, error, loading, close, requestClose, re
       const nodes = [...event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled),a[href],summary,textarea,input:not([type=file]),select")].filter(node => node.getClientRects().length > 0 && !node.closest("[inert]") && !node.closest("details:not([open]) :not(summary)"));
       const first = nodes[0], last = nodes.at(-1); if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }}>
-    <header className={styles.heading} {...drag}><span className={styles.dragIndicator} aria-hidden="true"/><div><AssistantIcon/><h2 id="assistant-title">小助手</h2></div>{chatEnabled&&<div className={styles.mobileNavigation}><ChatNavigation tab={chatTab} onTab={setChatTab} pendingCount={data?.pending.length??0}/></div>}<div className={styles.headingActions}>{mobile&&<button type="button" className={styles.handle} aria-label={expanded?"收起小助手到半屏":"展开小助手"} aria-expanded={expanded} onClick={()=>{if(performance.now()>suppress.current)setExpanded(value=>!value);}}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d={expanded?"m7 10 5 5 5-5":"m7 14 5-5 5 5"}/></svg></button>}{chatEnabled && <ChatHeaderActions/>}<button ref={closeButton} type="button" aria-label="收起小助手" onClick={() => void requestClose()}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div></header>
+    <header className={styles.heading} {...drag}><span className={styles.dragIndicator} aria-hidden="true"/><div><AssistantIcon/><h2 id="assistant-title">小助手</h2></div>{chatEnabled&&<div className={styles.mobileNavigation}><ChatNavigation tab={chatTab} onTab={setChatTab} pendingCount={data?.pending.length??0}/></div>}<div className={styles.headingActions}>{mobile&&<button type="button" className={styles.handle} aria-label={expanded?"收起小助手到半屏":"展开小助手"} aria-expanded={expanded} onClick={()=>{if(performance.now()>suppress.current)setExpanded(value=>!value);}}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d={expanded?"m7 10 5 5 5-5":"m7 14 5-5 5 5"}/></svg></button>}{chatEnabled && (!mobile||chatTab==="chat") && <ChatHeaderActions/>}<button ref={closeButton} type="button" aria-label="收起小助手" onClick={() => void requestClose()}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div></header>
     {chatEnabled ? <AssistantChatView sidebar={taskContent} navigate={navigate} pendingCount={data?.pending.length ?? 0} tab={chatTab} onTab={setChatTab}/> : taskContent}
   </dialog>;
 }

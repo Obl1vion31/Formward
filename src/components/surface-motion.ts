@@ -10,7 +10,7 @@ export async function animateSurface(node:HTMLElement,direction:'open'|'close',s
  prior?.cancel();node.style.animation='none';node.dataset.surfaceMode=mode;node.dataset.surfacePhase=direction==='open'?'opening':'closing';
  // 测量无变换的静止几何，快速反向时不把当前位移重复算入退出距离。
  const savedTransform=node.style.transform;node.style.transform='none';const resting=node.getBoundingClientRect();node.style.transform=savedTransform;
- const full:Pose={transform:'translate(0px,0px)',clipPath:'none',opacity:'1'};
+ const full:Pose={transform:'none',clipPath:'none',opacity:'1'};
  let folded:Pose;
  if(mode==='sheet')folded={transform:`translateY(${Math.max(resting.height,(globalThis.innerHeight||resting.bottom)-resting.top)+24}px)`,clipPath:'none',opacity:'1'};
  else if(mode==='drawer')folded={transform:`translateX(${Math.max(resting.width,(globalThis.innerWidth||resting.right)-resting.left)+24}px)`,clipPath:'none',opacity:'1'};

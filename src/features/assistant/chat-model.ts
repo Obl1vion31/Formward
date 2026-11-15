@@ -1,6 +1,6 @@
 export const chatProviderIds = ["qwen", "mimo", "glm"] as const;
 export type ChatProvider = typeof chatProviderIds[number];
-export type ChatStep = { id: string; name: string; title: string; state: "running" | "complete" | "error"; summary?: string };
+export type ChatStep = { id: string; name: string; title: string; state: "running" | "complete" | "error"; summary?: string; note?:string };
 export type ChatReference = { title: string; href: string; kind: "record" | "preview"; operationId?: string };
 export type Followup = { question: string; subject: string; messageId: string; questions?: import("./followup").FollowupQuestion[] };
 export type ChatMessage = {

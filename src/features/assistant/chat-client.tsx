@@ -9,7 +9,7 @@ import { confirmAction } from "../../components/confirmation-state";
 export type DraftPhoto={key:string;id?:string;name:string;file:File;preview?:string;phase:PhotoUploadPhase|"queued"|"error";percent:number;label:string;error?:string;canRelay?:boolean;region?:PhotoRegion;route?:Promise<PhotoRoute>};
 type ChatClient = {
   scrollState: () => { top: number; stick: boolean }; recordScroll: (top: number, stick: boolean) => void;
-  enabled: boolean; entitlement?: AccountEntitlements; data: ChatSnapshot | null; messages: ChatMessage[]; newRequests:ReadonlySet<string>; draft: string; setDraft: (value: string) => void;
+  enabled: boolean; entitlement?: AccountEntitlements; data: ChatSnapshot | null; messages: ChatMessage[]; newRequests:ReadonlySet<string>; claimArrival:(key:string)=>boolean; draft: string; setDraft: (value: string) => void;
   quote: ChatMessage | null; setQuote: (value: ChatMessage | null) => void; photos: DraftPhoto[]; removePhoto: (key: string) => void; retryPhoto:(key:string,transport?:"direct"|"relay",region?:PhotoRegion)=>Promise<void>;
   error: string; loading: boolean; delayed: boolean; busy: boolean; managing: boolean; uploading: string; refresh: () => Promise<void>; more: () => Promise<void>;
   send: (action?: "send" | "retry" | "continue", messageId?: string,followup?:FollowupSubmission) => Promise<void>;
@@ -33,6 +33,8 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   const pendingRequest=useRef<{signature:string;id:string}|null>(null);
   const [optimistic,setOptimistic]=useState<ChatMessage|null>(null);
   const [newRequests,setNewRequests]=useState<ReadonlySet<string>>(new Set());
+  const arrivals=useRef(new Set<string>());
+  const claimArrival=useCallback((key:string)=>{if(arrivals.current.has(key))return false;arrivals.current.add(key);if(arrivals.current.size>120)arrivals.current.delete(arrivals.current.values().next().value!);return true;},[]);
   const mutating = useRef(false);
   const photoState=useRef<DraftPhoto[]>([]),photoRequests=useRef(new Map<string,AbortController>()),photoQueue=useRef<{key:string;transport:"direct"|"relay";region?:PhotoRegion}[]>([]),photoWorking=useRef(false),photoEpoch=useRef(0);
   const uploading=photos.find(photo=>!["ready","error"].includes(photo.phase))?.label??"";
@@ -83,11 +85,6 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     void sync();const foreground=()=>void sync(),timer=setInterval(foreground,60000);window.addEventListener("focus",foreground);document.addEventListener("visibilitychange",foreground);
     return()=>{controller.abort();clearInterval(timer);window.removeEventListener("focus",foreground);document.removeEventListener("visibilitychange",foreground);};
   },[accountId,updateAccess,read]);
-  useEffect(() => {
-    const update = () => { const viewport = window.visualViewport; document.documentElement.style.setProperty("--assistant-viewport-height",(viewport?.height ?? innerHeight) + "px"); document.documentElement.style.setProperty("--assistant-viewport-top",(viewport?.offsetTop ?? 0) + "px"); };
-    update(); window.addEventListener("resize",update); window.visualViewport?.addEventListener("resize",update); window.visualViewport?.addEventListener("scroll",update);
-    return () => { window.removeEventListener("resize",update); window.visualViewport?.removeEventListener("resize",update); window.visualViewport?.removeEventListener("scroll",update); };
-  }, [enabled]);
   useEffect(() => { alive.current = true; const epoch = generation.current; return () => { alive.current = false; generation.current = epoch + 1; request.current?.abort(); releasePhotoResources(); }; }, [accountId,releasePhotoResources]);
   useEffect(() => { if (!open) return; const frame = requestAnimationFrame(() => void read()); const focus = () => { if (!document.hidden && !request.current) void read(); }; window.addEventListener("focus", focus); document.addEventListener("visibilitychange", focus); window.addEventListener("formward-record-saved", focus); return () => { cancelAnimationFrame(frame); window.removeEventListener("focus", focus); document.removeEventListener("visibilitychange", focus); window.removeEventListener("formward-record-saved", focus); }; }, [enabled, open, read]);
   useEffect(() => { if (!open || !data?.activeRunId || running) return; const timer = setInterval(() => void read(), 1800); return () => clearInterval(timer); }, [open, data?.activeRunId, running, read]);
@@ -161,5 +158,5 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     });
     await processPhotos(incoming.map(photo=>({key:photo.key,transport:"direct"})));
   }
-  return <Context.Provider value={{ scrollState, recordScroll, enabled:canChat, entitlement:access, data, newRequests,messages:optimistic&&!messages.some(row=>row.requestId===optimistic.requestId)?[...messages,optimistic]:messages, draft, setDraft, quote, setQuote, photos, removePhoto, retryPhoto, error, loading, delayed, busy: running || !!data?.activeRunId, managing, uploading, refresh, more: async () => { if (messages[0]) await read(messages[0].seq); }, send, control, addPhotos }}>{children}</Context.Provider>;
+  return <Context.Provider value={{ scrollState, recordScroll, enabled:canChat, entitlement:access, data, newRequests,claimArrival,messages:optimistic&&!messages.some(row=>row.requestId===optimistic.requestId)?[...messages,optimistic]:messages, draft, setDraft, quote, setQuote, photos, removePhoto, retryPhoto, error, loading, delayed, busy: running || !!data?.activeRunId, managing, uploading, refresh, more: async () => { if (messages[0]) await read(messages[0].seq); }, send, control, addPhotos }}>{children}</Context.Provider>;
 }

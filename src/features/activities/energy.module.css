@@ -188,3 +188,5 @@
 }
 
 .energyEntry>fieldset{gap:12px}.energyEntry .aggregateBlock{margin:0}.energyEntry .fields{margin:0;gap:8px 12px}.energyEntry .aggregateHeading{gap:8px;min-height:44px}.energyEntry .aggregateMenu>summary{font-size:.875rem}.energyEntry .modeSwitch{padding:0;gap:0;border:1px solid var(--control-border);background:var(--surface);overflow:hidden}.energyEntry .modeSwitch button{font-size:.875rem;min-height:44px;padding:8px 12px;line-height:1.5}.energyEntry .modeSwitch button[aria-pressed=true]{color:var(--gold);background:var(--surface-hover)}.energyEntry label{gap:6px}.energyEntry .entrySection{margin:0;padding-block:8px}.energyEntry .entrySection>summary{font-size:.875rem}.energyEntry .aggregateFields{margin:0}
+
+.energyEntry .aggregateLabel{display:inline;min-height:0;height:auto;visibility:visible}.energyEntry .aggregateHeading{align-items:center}.energyEntry .fields{gap:12px 16px;margin:12px 0 16px}.energyEntry label{font-size:.875rem;line-height:1.5;gap:8px}.energyEntry .modeHint{margin:8px 0 12px;color:var(--muted);font-size:.8125rem;line-height:1.5}.energyEntry .aggregateFields{align-items:start}.energyEntry .aggregateHeading>div>span{display:none}

@@ -10,6 +10,7 @@ import styles from "./energy-review.module.css";
 
 type Props = {
   rows: RecordRow[];
+  compact?:boolean;
   busy: boolean;
   dayRecords?: EnergyDayRecord[];
   edit: (key: string) => void;
@@ -18,7 +19,7 @@ type Props = {
   choose: (key: string, inclusion: "included" | "additional") => void;
 };
 function NumberUnit({ value, unit = "kcal" }: { value: string | null | undefined; unit?: string }) {
-  return <span className={styles.numberUnit}>{formatIntegerNumber(value)}<small>{unit}</small></span>;
+  return <span className={styles.numberUnit}>{formatIntegerNumber(value)}<small>{unit==="kcal"?"千卡":unit}</small></span>;
 }
 function Changes({ row }: { row: RecordRow }) {
   const changes = energyChanges(row), numeric = changes.filter(change => change.numeric || ["name", "date"].includes(change.key));
@@ -60,7 +61,7 @@ function DayReading({ day, pending }: { day?: EnergyDay; pending: boolean }) {
       ? <><span>录入总数 <NumberUnit value={day?.recordedTotalKcal} /></span><b>＋</b><span>额外运动 <NumberUnit value={day?.additionalKcal} /></span></>
       : <span>直接录入全天总数</span>
       : <><span>静息 <NumberUnit value={day?.restingKcal} unit="" /></span><b>＋</b><span>{modes.activityMode === "activities" ? "运动累计" : "活动合计"} <NumberUnit value={day?.activeKcal} unit="" /></span></>}</div>
-    {extra && modes.entryMode !== "total" && <p className={styles.extraParts}>活动包含手填合计 {formatIntegerNumber(day?.recordedActiveKcal)} 和额外运动 {formatIntegerNumber(day?.additionalKcal)} kcal</p>}
+    {extra && modes.entryMode !== "total" && <p className={styles.extraParts}>活动包含手填合计 {formatIntegerNumber(day?.recordedActiveKcal)} 和额外运动 {formatIntegerNumber(day?.additionalKcal)} 千卡</p>}
     {!pending && day?.totalKcal == null && <p className={styles.notice}>{!day?.record ? "尚未填写当天消耗，可先保存运动。" : "当天消耗尚有缺项，可保存已有部分。"}</p>}
   </div>;
 }
@@ -88,7 +89,7 @@ function Exercise({ row, day, props }: { row: RecordRow; day?: EnergyDayRecord; 
       {row.energy?.warnings?.map(text => <p role="status" className={styles.notice} key={text}>{text}</p>)}
       {row.energy?.error && !unresolved && <p role="alert" className={styles.error}>{row.energy.error}</p>}
       <Changes row={row} /></>}
-    <div className={styles.exerciseFooter}>{!row.excluded && <Evidence row={row} />}<RowActions row={row} props={props} /></div>
+    <div className={styles.exerciseFooter}>{!row.excluded && <Evidence row={row} />}{!props.compact&&<RowActions row={row} props={props} />}</div>
   </article>;
 }
 export function EnergyReview(props: Props) {
@@ -100,11 +101,11 @@ export function EnergyReview(props: Props) {
     const problems = active.some(row => !row.energy || !!row.energy.error);
     const dayRows = group.rows.filter(row => row.action.kind !== "save_activity");
     return <section className={styles.group} key={group.date ?? "unknown"} aria-label={(group.date ?? "") + " 消耗确认"}>
-      <header className={styles.groupHeading}><h2>{group.date ?? "消耗"}<span>消耗确认</span></h2>{active.length > 0 && <details className={styles.groupMenu}><summary aria-label={(group.date ?? "") + "消耗更多操作"}>更多</summary><button type="button" disabled={props.busy} onClick={async event => { const menu = event.currentTarget.closest("details"); if (menu) menu.open = false; if (await confirmAction({ title: "取消本组待保存内容？", message: (group.date ?? "本组") + "有" + active.length + "项待保存内容。\n取消后不会保存这些新增或修改，已有记录保留。", confirmLabel: "取消本组", danger: true })) props.exclude(active.map(row => row.key)); }}>取消本组待保存内容</button></details>}</header>
+      {!props.compact&&<header className={styles.groupHeading}><h2>{group.date ?? "消耗"}<span>消耗确认</span></h2>{active.length > 0 && <details className={styles.groupMenu}><summary aria-label={(group.date ?? "") + "消耗更多操作"}>更多</summary><button type="button" disabled={props.busy} onClick={async event => { const menu = event.currentTarget.closest("details"); if (menu) menu.open = false; if (await confirmAction({ title: "取消本组待保存内容？", message: (group.date ?? "本组") + "有" + active.length + "项待保存内容。\n取消后不会保存这些新增或修改，已有记录保留。", confirmLabel: "取消本组", danger: true })) props.exclude(active.map(row => row.key)); }}>取消本组待保存内容</button></details>}</header>}
       <div className={styles.groupBody} data-has-exercises={group.rows.some(row => row.action.kind === "save_activity")}><div className={styles.dayColumn}>
-      {selected.length ? <DayReading day={day} pending={problems} /> : <p className={styles.notice}>本组待保存内容已取消，已有记录保留。</p>}
+      {!props.compact&&(selected.length ? <DayReading day={day} pending={problems} /> : <p className={styles.notice}>本组待保存内容已取消，已有记录保留。</p>)}
       {dayRows.map(row => <article className={styles.dayRow} id={"record-" + row.key} key={row.key} data-review-key={row.key} data-excluded={row.excluded}>
-        <div className={styles.dayRowHeading}><span className={styles.status}>{row.excluded ? "每日消耗已取消" : row.energy?.before ? "更新当天消耗" : "新增当天消耗"}</span><RowActions row={row} props={props} /></div>
+        <div className={styles.dayRowHeading}><span className={styles.status}>{row.excluded ? "每日消耗已取消" : row.energy?.before ? "更新当天消耗" : "新增当天消耗"}</span>{!props.compact&&<RowActions row={row} props={props} />}</div>
         {!row.excluded && <>{row.energy?.warnings?.map(text => <p role="status" className={styles.notice} key={text}>{text}</p>)}{row.energy?.error && <p role="alert" className={styles.error}>{row.energy.error}</p>}<Changes row={row} /><Evidence row={row} /></>}
       </article>)}
       </div><div className={styles.exerciseColumn}>{group.rows.filter(row => row.action.kind === "save_activity").map(row => <Exercise row={row} key={row.key} day={dayRecord} props={props} />)}</div></div>

@@ -17,3 +17,5 @@ meal-task是purpose=meal_entry、active=false的本餐独立任务，不占主�
 聊天草稿、照片和阅读位置保留。异步卡片增高继续跟随底部；滚轮、触摸、键盘和滚动条的主动上翻解除跟随，居中悬浮箭头恢复，不占一行。食物照片说明单独监听visualViewport，保持焦点、光标和文字可见。
 
 完整能力、开关、回退与接口见[站内助手](../../../docs/assistant-chat.md)；实际证据与未测项见[助手验收](../../../docs/assistant-chat-verification.md)。模型对照是私有隔离测试，不向真实健康记录写入虚构内容，不以单个案例或一次成功宣称准确率提升。
+
+聊天正文通过chat-text的语义Markdown／GFM渲染，宽表局部滚动，不执行原始HTML；chat-presentation只整理站内误导性审核指引，原始消息与审计保持。preview-presentation仅按明确的正式对象标识去重已保存回执，未知目标不猜测。消息从真实requestId衔接，逐条到达动效只播放一次；工具计划收在所属过程摘要。键盘只影响所属面板可用高度，不将visualViewport.offsetTop再次加到fixed面板位置；触屏背景共用滚动锁冻结，需分别验收模拟与真机开合。

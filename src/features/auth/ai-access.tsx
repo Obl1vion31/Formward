@@ -14,20 +14,21 @@ type Created = Awaited<ReturnType<typeof createAiToken>>;
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 type Feedback = { area: string; error: boolean; message: string } | null;
 type Props = {
-  canonicalOrigin: string; overview?: AiAccessOverview; overviewPromise?: Promise<AiAccessOverview>;
+  accountId?:string; canonicalOrigin: string; overview?: AiAccessOverview; overviewPromise?: Promise<AiAccessOverview>;
   create: (name: string, permission: "read" | "write") => Promise<Result<Created>>;
   revoke: (id: string) => Promise<Result<{ id: string }>>;
   revokeConnection: (id: string) => Promise<Result<{ id: string }>>;
 };
+const viewState=new Map<string,{source:string;status:string;open:boolean;scroll:number}>();
 const providers = [["chatgpt", "ChatGPT"], ["doubao", "豆包"]] as const;
 export function AiAccessReading() {
   return <section className={`ai-page ${styles.settings}`} aria-labelledby="ai-title" data-ai-access><PageHeading />
-    <div className={styles.providers}>{providers.map(([provider, name]) => <div className={styles.provider} key={provider}><div className={styles.providerLine} data-ai-anchor={provider}><div className={styles.identity}><h2 className={styles.aiName}>{name}</h2><span className={styles.connectionState}><LocalLoading label="正在读取连接…" iconOnly /></span>{provider === "doubao" && <span className={styles.beta}>内测</span>}</div><button className={styles.textAction + " " + styles.permissionAction} disabled>权限</button><div className={styles.providerActions}><button className={styles.textAction} disabled>详情</button></div></div>{provider === "doubao" && <p className={styles.betaNote}>内测 · 需联系管理员加入白名单</p>}</div>)}</div>
+    <div className={styles.providers}>{providers.map(([provider, name]) => <div className={styles.provider} key={provider}><div className={styles.providerLine} data-ai-anchor={provider}><div className={styles.identity}><h2 className={styles.aiName}>{name}</h2><span className={styles.connectionState}><LocalLoading label="正在读取连接…" iconOnly /></span>{provider === "doubao" && <span className={styles.beta}>内测</span>}</div><button className={styles.textAction + " " + styles.permissionAction} disabled>权限</button><div className={styles.providerActions}><button className={styles.textAction} disabled>详情</button></div></div></div>)}</div>
     <section className={styles.submissionSection}><div className={styles.sectionBar} data-ai-anchor="submissions"><h2 className={styles.sectionTitle}><button className={styles.sectionToggle} disabled><Chevron />AI 提交记录</button></h2></div></section>
     <details className={styles.disclosure}><summary data-ai-anchor="advanced"><h2 className={styles.sectionTitle}>高级接入 <span className={styles.secondary}>手动令牌与 HTTP</span></h2></summary></details>
   </section>;
 }
-function PageHeading() { return <header className={styles.pageHeading} data-ai-anchor="heading"><h1 id="ai-title" className={styles.pageTitle}>AI 接入</h1><p>AI 可查询、提交预览，保存由你确认。</p></header>; }
+function PageHeading() { return <header className={styles.pageHeading} data-ai-anchor="heading"><h1 id="ai-title" className={styles.pageTitle}>AI 接入</h1><p>外部 AI 可查询、提交预览，保存由你确认。站内模型在小助手中切换。</p></header>; }
 function Chevron() { return <svg className={styles.chevron} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>; }
 function closeDetails(event: KeyboardEvent<HTMLDetailsElement>) {
   if (event.key !== "Escape" || event.defaultPrevented || (event.target as Element).matches("select") || (event.target as Element).closest("details") !== event.currentTarget) return;
@@ -49,7 +50,7 @@ function Permissions({ scopes, available = false, loading = false, historical = 
   </div>;
 }
 
-export function AiAccess({ canonicalOrigin, overview, overviewPromise, create, revoke, revokeConnection }: Props) {
+export function AiAccess({ accountId,canonicalOrigin, overview, overviewPromise, create, revoke, revokeConnection }: Props) {
   const [resolvedOverview, setResolvedOverview] = useState<AiAccessOverview | null>(null), [readError, setReadError] = useState(false);
   useEffect(() => {
     let current = true;
@@ -58,11 +59,16 @@ export function AiAccess({ canonicalOrigin, overview, overviewPromise, create, r
   }, [overviewPromise]);
   const now = useOperationClock(), loading = (overviewPromise ? !resolvedOverview : overview === undefined) && !readError;
   const data = resolvedOverview ?? overview;
-  const tokens = data?.tokens ?? [], connections = overview?.connections ?? [], submissions = data?.submissions ?? [];
+  const tokens = data?.tokens ?? [], connections = data?.connections ?? [], submissions = data?.submissions ?? [];
   const [created, setCreated] = useState<Created | null>(null), [feedback, setFeedback] = useState<Feedback>(null);
   const [working, setWorking] = useState(false), [advancedOpen, setAdvancedOpen] = useState(false), [revoked, setRevoked] = useState<string[]>([]);
-  const [sourceFilter, setSourceFilter] = useState("all"), [statusFilter, setStatusFilter] = useState("all");
-  const [submissionsOpen, setSubmissionsOpen] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState(()=>accountId?viewState.get(accountId)?.source??"all":"all"), [statusFilter, setStatusFilter] = useState(()=>accountId?viewState.get(accountId)?.status??"all":"all");
+  const [submissionsOpen, setSubmissionsOpen] = useState(()=>accountId?viewState.get(accountId)?.open??false:false);
+  const savedView=useRef({source:sourceFilter,status:statusFilter,open:submissionsOpen,scroll:0}),restoredView=useRef(false),leavingView=useRef(false);
+  const rememberNavigation=async()=>{if(accountId){leavingView.current=true;viewState.set(accountId,{...savedView.current,scroll:window.scrollY});}return true;};
+  useEffect(()=>{savedView.current={...savedView.current,source:sourceFilter,status:statusFilter,open:submissionsOpen};},[sourceFilter,statusFilter,submissionsOpen]);
+  useEffect(()=>{if(!accountId)return;return()=>{if(leavingView.current)return;viewState.set(accountId,{...savedView.current,scroll:window.scrollY});if(viewState.size>8)viewState.delete(viewState.keys().next().value!);};},[accountId]);
+  useEffect(()=>{if(loading||restoredView.current)return;restoredView.current=true;const saved=accountId?viewState.get(accountId):undefined;if(saved)requestAnimationFrame(()=>window.scrollTo({top:saved.scroll,behavior:"instant"}));},[accountId,loading]);
   const [panel, setPanel] = useState<{ provider: AiProvider; name: string; kind: "permissions" | "details" | "history" | "connect"; anchor: HTMLElement } | null>(null);
   const [transitionPending, startTransition] = useTransition(), busy = working || transitionPending;
   const [busyLabel, setBusyLabel] = useState(""), [busyArea, setBusyArea] = useState(""), [busyTokenId, setBusyTokenId] = useState<string | null>(null);
@@ -136,7 +142,7 @@ export function AiAccess({ canonicalOrigin, overview, overviewPromise, create, r
           {!!history.length && <button type="button" className={styles.textAction + " " + styles.desktopOnly} aria-label={`${name}历史连接（${history.length}）`} aria-haspopup="dialog" aria-expanded={panel?.provider === provider && panel.kind === "history"} onClick={event => openPanel("history", event.currentTarget)}>历史连接</button>}
         </div>
       </div>
-      {provider === "doubao" && <p className={styles.betaNote}>内测 · 需联系管理员加入白名单</p>}
+      {provider === "doubao" && !active.length && <p className={styles.betaNote}>内测 · 需联系管理员加入白名单</p>}
     </div>;
   }
   function panelContent() {
@@ -171,7 +177,7 @@ export function AiAccess({ canonicalOrigin, overview, overviewPromise, create, r
         <div className={styles.submissionColumns} aria-hidden="true"><span>提交时间</span><span>发起 AI</span><span>内容</span><span>状态</span><span /></div>
         {loading ? <LocalLoading label="正在读取提交记录…" /> : readError ? <p className="ai-error" role="alert">提交记录读取失败，请刷新页面重试。</p> : <><ul className={styles.submissions}>{filtered.map(row => {
           const current = aiSubmissionState(row, now);
-          return <li key={row.id} className={styles.submissionRow}><time className={styles.submittedTime} dateTime={row.createdAt} title={aiAccessDate(row.createdAt)}>{aiAccessDate(row.createdAt).slice(5)}</time><span className={styles.submissionSource}><span className={styles.desktopText}>{row.source.label}</span><span className={styles.mobileText}>{row.source.compactLabel ?? row.source.label}</span></span><span className={styles.submissionSummary}><span className={styles.desktopText}>{row.summary}</span><span className={styles.mobileText}>{row.compactSummary ?? row.summary}</span></span><span className={styles.submissionState} data-state={current}>{current === "pending" && row.status === "partially_confirmed" ? "部分已保存 · 待确认" : aiSubmissionLabels[current] ?? current}</span><LoadingLink className={styles.viewAction} href={row.confirmationPath} aria-label={`查看${row.source.label}提交：${row.summary}，提交于${aiAccessDate(row.createdAt)}`}>查看</LoadingLink></li>;
+          return <li key={row.id} className={styles.submissionRow}><time className={styles.submittedTime} dateTime={row.createdAt} title={aiAccessDate(row.createdAt)}>{aiAccessDate(row.createdAt).slice(5)}</time><span className={styles.submissionSource}><span className={styles.desktopText}>{row.source.label}</span><span className={styles.mobileText}>{row.source.compactLabel ?? row.source.label}</span></span><span className={styles.submissionSummary}><span className={styles.desktopText}>{row.summary}</span><span className={styles.mobileText}>{row.compactSummary ?? row.summary}</span></span><span className={styles.submissionState} data-state={current}>{current === "pending" && row.status === "partially_confirmed" ? "部分已保存 · 待确认" : aiSubmissionLabels[current] ?? current}</span><LoadingLink className={styles.viewAction} beforeNavigate={rememberNavigation} href={row.confirmationPath} aria-label={`查看${row.source.label}提交：${row.summary}，提交于${aiAccessDate(row.createdAt)}`}>查看</LoadingLink></li>;
         })}</ul>{!filtered.length && <p className="ai-muted" role="status">{submissions.length ? "没有符合筛选条件的提交。" : "还没有 AI 提交的操作。"}</p>}</>}
       </div>}
     </section>

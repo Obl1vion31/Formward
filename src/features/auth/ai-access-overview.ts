@@ -1,10 +1,12 @@
 import { and, eq, inArray } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { assistantConnection, energyOperation, mealOperation, measurementOperation, recordOperation } from "../../db/schema";
+import { mealTypeLabel } from "../meals/model";
 import { chatProviders, providerId } from "../assistant/chat-config";
 import { listAiMeasurementOperations } from "../measurements/ai-operations";
 import { listMealOperations } from "../meals/records";
 import { listRecordOperations } from "../records/operations";
+import { category } from "../records/model";
 import { isTraining } from "../training/ai-model";
 import { listAiTokens } from "./ai-tokens";
 import { listOauthConnections } from "./oauth-connections";
@@ -53,6 +55,7 @@ export async function loadAiAccessOverview(db: Database, userId: string, existin
     return token ? { key: "token:" + token.id, label: "手动接入 · " + token.name, kind: "token" } : unknownSource;
   }
 
+  const displayKind=(value:string)=>value.replaceAll("摄入","饮食");
   const submissions: AiSubmission[] = unified.map(row => {
     const parent = parents.find(item => item.id === row.id);
     const grants: (Grant | undefined)[] = [
@@ -62,7 +65,11 @@ export async function loadAiAccessOverview(db: Database, userId: string, existin
       ...(parent?.draft.filter(item => isTraining(item.action)).map(item => item.trainingGrant) ?? []),
     ];
     const dates = row.dates.map(date => date.slice(5)), date = dates.length > 1 ? `${dates[0]}—${dates.at(-1)}` : dates[0];
-    return { id: row.id, source: source(grants), summary: row.summary || `统一记录 · ${row.count} 项`, compactSummary: `${date ? date + " " : ""}${row.types.join("、") || "记录"}·${row.status === "pending" ? row.pendingCount : row.count}项`, status: row.expired ? "expired" : row.status, createdAt: row.createdAt, expiresAt: row.expiresAt, confirmationPath: row.confirmationPath };
+    const selected=parent?.draft.filter(item=>row.status==="confirmed"?item.persisted:row.status==="pending"?!item.excluded&&!item.persisted:true)??[];
+    const details=selected.flatMap(item=>{const action=item.action;return action.kind==="save_meal"?[mealTypeLabel(action.mealType)+" "+action.items.map(food=>food.name).filter(Boolean).join("、")]:action.kind==="save_record"?[(action.period==="evening"?"晚间测量":"晨间测量")+(action.weightKg?" "+Number(action.weightKg)+"kg":"")]:[{body:"身体",meals:"饮食",foods:"食材库",energy:"消耗",training:"训练"}[category(action)]];});
+    const description=details.length?details.join("；"):displayKind(row.types.join("、")||"记录")+"·"+(row.status==="pending"?row.pendingCount:row.count)+"项";
+    const ended=row.status==="pending"&&!row.pendingCount;
+    return { id: row.id, source: source(grants), summary: displayKind(row.summary)+(details.length?" · "+details.join("；"):""), compactSummary: `${date ? date + " " : ""}${ended?"没有待保存内容":description}`, status: row.expired ? "expired" : ended?"completed":row.status, createdAt: row.createdAt, expiresAt: row.expiresAt, confirmationPath: row.confirmationPath };
   });
   submissions.push(...bodies.map(row => ({ id: row.id, source: source([bodyGrants.find(item => item.id === row.id)]), summary: `${row.preview.date} · 身体记录 · ${row.counts.total} 条${row.counts.saved && row.status !== "confirmed" ? ` · 已保存 ${row.counts.saved} 条` : ""}`, compactSummary: `${row.preview.date.slice(5)} 身体·${row.counts.total}条${row.counts.saved && row.status !== "confirmed" ? `·已存${row.counts.saved}条` : ""}`, status: row.status, createdAt: row.createdAt, expiresAt: row.expiresAt, confirmationPath: row.confirmationPath })));
   submissions.push(...meals.map(row => {

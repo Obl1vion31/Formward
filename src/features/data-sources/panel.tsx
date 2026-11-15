@@ -23,13 +23,13 @@ type ContentProps = {
 };
 function SourceContent({ data, embedded, pending = false, busy = false, task = null, metrics = [], active = true, apiKey = "", region = "global", historyFrom = "2026-10-18", dirty = false, notice = "", error = "", setMetrics, setActive, setApiKey, setRegion, setHistoryFrom, save, bind, history, sync, retry }: ContentProps) {
   const keyHelpId = useId();
-  if(pending) return <div className={styles.panel} aria-busy="true">{!embedded&&<div className={styles.heading}><h1>连接设备与数据来源</h1><LoadingLink href="/dashboard/energy">返回消耗</LoadingLink></div>}<section className={styles.connection}><div className={styles.sectionHeading}><h2>Garmin Personal</h2><button type="button" disabled>立即同步</button></div><div className={styles.status}><LocalLoading label="正在读取连接…"/></div></section></div>;
+  if(pending) return <div className={styles.panel} aria-busy="true">{!embedded&&<div className={styles.heading}><h1>连接设备与数据来源</h1><LoadingLink href="/dashboard/energy" aria-label="返回消耗">← 返回</LoadingLink></div>}<section className={styles.connection}><div className={styles.sectionHeading}><h2>Garmin Personal</h2><button type="button" disabled>立即同步</button></div><div className={styles.status}><LocalLoading label="正在读取连接…"/></div></section></div>;
   const connection = data?.connections[0], disabled = pending || busy;
   const regionChanged = !!connection && region !== connection.region, credentialDirty = !!apiKey || regionChanged;
   const prefix = connection ? regionLabels[connection.region] + " · " : "";
   const status = error || notice || (connection?.status === "paused" ? prefix + "已暂停同步" : connection?.error || (connection?.lastSuccessAt ? prefix + "上次读取 " + time(connection.lastSuccessAt) : connection ? prefix + "已连接" : "尚未连接"));
   return <div className={styles.panel} aria-busy={pending || busy} data-source-access={data?.enabled === false ? "unavailable" : "available"}>
-    {!embedded && <div className={styles.heading}><h1>连接设备与数据来源</h1><LoadingLink href="/dashboard/energy">返回消耗</LoadingLink></div>}
+    {!embedded && <div className={styles.heading}><h1>连接设备与数据来源</h1><LoadingLink href="/dashboard/energy" aria-label="返回消耗">← 返回</LoadingLink></div>}
     {data?.enabled === false ? <section className={styles.empty}><h2>暂未开放</h2><p>当前账号可以继续手动记录消耗、运动和身体数据。</p><LoadingLink href="/dashboard/energy">查看消耗记录 →</LoadingLink></section> :
       <section className={styles.connection} aria-label="Garmin Personal 连接">
         <div className={styles.sectionHeading}><h2>Garmin Personal</h2><button type="button" disabled={disabled || !connection || !active || !metrics.length || dirty || credentialDirty} onClick={sync}>{task === "sync" ? "正在同步…" : "立即同步"}</button></div>
