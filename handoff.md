@@ -1,10 +1,22 @@
 # Formward 项目交接
 
-## 当前备案域名与正式服务
+## 当前正式版本：完整人物首页与更多信息
+
+[formward.top](https://formward.top)已启用完整人物舞台，底部常显「沪ICP备2026060534号-1 · 更多信息」。备案不分走人物高度；八种视口与备案前真实运行包的图像边界偏差0px。概念词按实际空间避让，矮屏／文字放大时让装饰退让或表单内部滚动。原IP、www、HTTP及原OAuth／MCP去向保持。
+
+首页和账号菜单一级提供相同“更多信息”。按ImageGen参考复刻七行三组、一次一项展开；版本、检查／刷新和复制归版本详情，备案号与网站归备案详情，邮件和复制邮箱归联系详情。更新说明、帮助和协议完整保留；手机按内容自然增高，电脑居中。刷新有草稿／忙碌保护，登录凭据仅在原表单内存，面板开关保留原输入、阶段、滚动和焦点。新增界面先ImageGen定稿再复刻及同状态实景对照，已写入AGENTS.md。
+
+正式应用源码`77d8f0cf9423005a58047dff5623daf64bf54110`，版本`dual-entry-77d8f0cf-more-information-final-20261115`，BUILD_ID `51_LrH1al5X6HLIul-BMT`；北京时间2026-11-15 16:38:20切换，代码已合入推送main。lint、typecheck、726项单元／集成和无警告兼容构建通过；两引擎26组信息面板、8组登录降级及五页80组正常／慢读通过，稳定锚点最大偏差0px。Chrome实际公网已核对首页、七个入口、最新版本反馈及正确备案链接；四公网入口同版本、68项静态资源SHA、匿名拒绝、www／HTTP／原IP跳转和原MCP resource通过。
+
+运行配置字节、DNS、证书及海外网关保持；上海schema0038、MCP2.0.0／18项和OpenAPI1.15.1保持，无迁移、收费模型请求或正式测试健康写入。发布前后11张健康表摘要一致。原47项Server Action／绑定密钥及724项旧静态资源保留；完整兼容运行包71,971,926字节，SHA256 `308450de4a133223553ee8988da93c697ffc1cb5762877a0889fbae5f7ef5dcb`，永久位于原入口`.codex/backups/regional-releases/more-information-final-20261115`。即时应用回退为`icp-domain-live-20261115`，只切应用，不回退合法数据、配置或DNS。
+
+同状态视觉比较、完整交互和未测项见[视觉验收](design-qa.md)及[维护验收](docs/maintenance-verification.md#更多信息与完整人物首页2026-11-15)。物理iPhone键盘、系统字号、屏幕阅读器与硬件帧率未测；WebKit及visualViewport模拟不冒充真机。公安联网备案仍待本人办理，不展示虚构公安号；原ICP备案域名办理说明见下方基线。
+
+## 保留的备案域名启用基线
 
 日常网页为[https://formward.top](https://formward.top)，`www.formward.top`及HTTP保留路径跳转至HTTPS根域。域名与www的A记录均为腾讯云上海`43.142.148.58`；原NS、global及origin记录保持。ICP备案服务为「形序Formward」，网站备案号「沪ICP备2026060534号-1」；首页底部链接至工信部备案系统，电脑固定、手机独立成行，短屏及文字放大自然滚动。装饰素材等待使用局部提示，备案链接不被遮罩阻挡。
 
-正式应用源码`96b673801a526bf8d543ab86a6ce3b7c70ccc05a`，版本`dual-entry-96b67380-icp-domain-live-20261115`，BUILD_ID `CgfHhlneigVWiRWKbEbfq`；北京时间2026-11-15 14:25:58切换。代码已合入推送main；文档提交不改变运行来源。上海唯一主库、MCP2.0.0／18项、OpenAPI1.15.1及schema0038保持，无migration、收费模型请求或正式虚构健康写入。
+该基线应用源码`96b673801a526bf8d543ab86a6ce3b7c70ccc05a`，版本`dual-entry-96b67380-icp-domain-live-20261115`，BUILD_ID `CgfHhlneigVWiRWKbEbfq`；北京时间2026-11-15 14:25:58切换。代码已合入推送main；文档提交不改变运行来源。上海唯一主库、MCP2.0.0／18项、OpenAPI1.15.1及schema0038保持，无migration、收费模型请求或正式虚构健康写入。
 
 运行配置只更新`FORMWARD_CN_ORIGIN=https://formward.top`并增加`FORMWARD_CN_LEGACY_ORIGIN=https://43.142.148.58`。原IP新打开的普通网页GET／HEAD转到根域，已有页面POST、RSC及预取仍在原来源执行；Cookie不跨域共享，首次进入新域名用原账号正常登录。`BETTER_AUTH_URL`、OAuth issuer、MCP resource、加密密钥、原GPT／豆包／Garmin配置保持；海外网关未重发。
 
