@@ -11,7 +11,7 @@ import {signImageTicket,type ImageTicket} from "./image-ticket";
 import {cleanForwardHeaders} from "../auth/regional-transport";
 import {webSessionContext} from "../auth/account-security";
 import type {ImageStorage} from "./image-storage";
-import { prepareImageUpload, verifyImageUploadTicket, completeImageUpload } from "./image-upload";
+import { prepareImageUpload, verifyImageUploadTicket, completeImageUpload, signDirectImageUpload } from "./image-upload";
 const pg=new PGlite(),db=drizzle(pg,{schema}),secret="fictional-image-ticket-secret";
 before(async()=>{await migrate(db,{migrationsFolder:"./drizzle"});});after(async()=>{await pg.close();});
 const png=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j6WQAAAAASUVORK5CYII=","base64");
@@ -81,3 +81,18 @@ test("浏览器上传诊断不接受名称、内容、凭据或原始URL",()=>{
 });
 
 test("备用凭据通过普通业务头传递，区域代理继续移除内部伪造头",()=>{const headers=cleanForwardHeaders(new Headers({"x-image-upload-ticket":"fictional-ticket","x-formward-image-ticket":"forged-reserved-header","x-formward-service":"forged-service"}));assert.equal(headers.get("x-image-upload-ticket"),"fictional-ticket");assert.equal(headers.get("x-formward-image-ticket"),null);assert.equal(headers.get("x-formward-service"),null);});
+
+
+test("国际单次签名在签发前验证账号、会话、期限和通道，不登记健康或附件数据",async()=>{
+ const f=await relayFixture(),ticket:ImageTicket={...f.ticket,provider:"blob",region:"global",location:"fictional-private-store"};let issued=0;
+ const sign=async(received:ImageTicket)=>{issued++;assert.equal(received.pathname,ticket.pathname);assert.equal(received.size,png.length);return {provider:"blob" as const,method:"PUT" as const,url:"https://vercel.com/api/blob/?isolated=1"};};
+ const deps={secret,sign},raw=signImageTicket(ticket,secret);
+ assert.equal((await webSessionContext.run(f.proof,()=>signDirectImageUpload(db,f.userId,raw,deps))).method,"PUT");assert.equal(issued,1);
+ assert.equal((await db.select().from(schema.mealImage).where(eq(schema.mealImage.userId,f.userId))).length,0);
+ await assert.rejects(signDirectImageUpload(db,await owner(),raw,deps),/账号/);
+ await assert.rejects(signDirectImageUpload(db,f.userId,signImageTicket({...ticket,expiresAt:Date.now()-1},secret),deps),/过期/);
+ await assert.rejects(webSessionContext.run(f.proof,()=>signDirectImageUpload(db,f.userId,f.raw,deps)),/国际通道/);
+ await assert.rejects(webSessionContext.run({...f.proof,sessionId:randomUUID()},()=>signDirectImageUpload(db,f.userId,raw,deps)),/登录/);
+ await db.delete(schema.session).where(eq(schema.session.id,f.proof.sessionId));
+ await assert.rejects(webSessionContext.run(f.proof,()=>signDirectImageUpload(db,f.userId,raw,deps)),/登录已失效/);assert.equal(issued,1);
+});

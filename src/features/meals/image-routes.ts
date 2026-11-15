@@ -6,6 +6,6 @@ import { cosProbeOrigin } from "./image-storage";
 export function imageUploadRoutes(defaultRegion: ProcessingRegion) {
   const routes: { region: ProcessingRegion; url: string }[] = [];
   try { routes.push({ region: "cn", url: cosProbeOrigin() }); } catch { /* 当前未配置的通道不列出。 */ }
-  if (regionConfig().enabled || process.env.BLOB_READ_WRITE_TOKEN) routes.push({ region: "global", url: "https://blob.vercel-storage.com/" });
+  if (regionConfig().enabled || process.env.BLOB_READ_WRITE_TOKEN) routes.push({ region: "global", url: "https://vercel.com/api/blob" });
   return { defaultRegion, routes };
 }

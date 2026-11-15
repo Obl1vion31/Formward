@@ -99,3 +99,5 @@ AI确认按单餐展示日期、中文餐次、服务端kcal与P／C／F合计�
 
 
 独立食材库的手机列表名称占满本行分配区域，电脑32%列宽只在宽容器内采用；食材选择和独立食材库两个入口都检查长中英文名，不能以无横向溢出代替名称可读。
+
+国际直传由服务器通过Vercel官方issueSignedToken／presignUrl签发单次PUT地址，与国内共用受控XHR；不经过浏览器SDK的隐式重试或分片重传。旧blob.generate-presigned-url兼容入口保留，新增私有sign_direct步骤及sign-direct内部命令不改变外部MCP／HTTP契约。0%到100%按真实字节，存储响应后仍须核对登记。

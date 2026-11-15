@@ -16,7 +16,7 @@ export async function runAssistantRecordingBrowser(db){
   window.__recordingKeyboard=value=>{state=value;events.dispatchEvent(new Event("resize"));events.dispatchEvent(new Event("scroll"));};
  });
  page.on('response',async response=>{if(response.url().includes('/api/assistant-chat')&&response.status()>=400){console.log('CHAT_HTTP_FAILURE',response.request().method(),response.status(),await response.text());if(response.status()===401)console.log('SESSION_AT_FAILURE',JSON.stringify({cookieNames:(response.request().headers().cookie??'').split(';').map(p=>p.trim().split('=')[0]),session:await(await context.request.get(base+'/api/auth/get-session')).json().then(v=>({present:!!v?.session}))}));}if(response.url().includes('/api/assistant-meal')&&response.status()>=400){console.log('PRIVATE_TASK_FAILURE',response.status(),response.request().postData(),await response.text());}});
- await context.route('https://blob.vercel-storage.com/',route=>route.fulfill({status:200,body:''}));
+ await context.route('https://vercel.com/api/blob',route=>route.fulfill({status:200,body:''}));
  await context.route(/https:\/\/[a-z0-9-]+\.cos\.ap-shanghai\.myqcloud\.com\/$/,route=>route.request().method()==='HEAD'?route.fulfill({status:200,body:''}):route.fallback());
  page.on('pageerror',error=>{errors.push(error.message);console.log('BROWSER_STACK',error.stack);});page.on('dialog',dialog=>dialog.accept());
  async function settle(){await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(450);}

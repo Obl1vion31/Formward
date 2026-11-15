@@ -11,7 +11,7 @@ import { regionConfig } from "../auth/regions";
 import { imageFileSchema, signImageTicket, verifyImageUploadTicket, ticketIdentity, ticketSession, type ImageTicket } from "./image-ticket";
 import { cosLocation, cosPostPolicy, imageStorage, type ImageStorage } from "./image-storage";
 import { cleanImageName } from "./image-bytes";
-import { promoteImage,signBlobImageUpload } from "./image-worker";
+import { promoteImage,signBlobImageUpload,signBlobImageUploadDirect } from "./image-worker";
 export { verifyImageUploadTicket } from "./image-ticket";
 
 export type ImageReceipt = { pathname: string; sha256: string; size: number; mimeType: string };
@@ -53,6 +53,13 @@ export async function signImageUpload(request: Request, body: HandleUploadPresig
   const ticket = verifyImageUploadTicket(raw ?? "", userId);
   if (ticket.region === "global" && regionConfig().enabled) return (await callImageWorker(raw!, "sign", body)).json();
   return signLocalImageUpload(request, body, ticket);
+}
+export async function signDirectImageUpload(db:Database,userId:string,raw:string,dependencies:{secret?:string;sign?:typeof signBlobImageUploadDirect}={}){
+  const ticket=verifyImageUploadTicket(raw,userId,dependencies.secret);
+  await db.transaction(tx=>assertImageTicket(tx as never,ticket));
+  if(ticket.provider!=="blob"||ticket.region!=="global")throw new ApiError(400,"image_region","此上传凭据不属于国际通道。");
+  if(regionConfig().enabled)return(await callImageWorker(raw,"sign-direct")).json();
+  return (dependencies.sign??signBlobImageUploadDirect)(ticket);
 }
 export async function registerImageReceipt(db: Database, ticket: ImageTicket, receipt: ImageReceipt) {
   if (!receipt.pathname.startsWith("meal-formal-v2/" + ticket.userId + "/") || !/^meal-formal-v2\/[^/]+\/[a-f0-9-]{36}$/.test(receipt.pathname) || !/^[a-f0-9]{64}$/.test(receipt.sha256) || receipt.size <= 0 || receipt.size > 20971520 || !["image/jpeg","image/png","image/webp"].includes(receipt.mimeType)) throw new ApiError(400, "image_receipt", "照片登记信息无效。");

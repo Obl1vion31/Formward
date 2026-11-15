@@ -1,5 +1,5 @@
 import {createHash,randomUUID} from "node:crypto";
-import {issueSignedToken} from "@vercel/blob";
+import {issueSignedToken,presignUrl} from "@vercel/blob";
 import {handleUploadPresigned,type HandleUploadPresignedBody} from "@vercel/blob/client";
 import {ApiError} from "../auth/ai-identity";
 import {verifyImageUploadTicket,type ImageTicket} from "./image-ticket";
@@ -14,6 +14,12 @@ export async function signBlobImageUpload(request:Request,body:HandleUploadPresi
     return { token: await issueSignedToken({ pathname, operations: ["put"], validUntil: ticket.expiresAt, allowedContentTypes: [ticket.mimeType], maximumSizeInBytes: ticket.size }), urlOptions: { access: "private", validUntil: ticket.expiresAt, allowedContentTypes: [ticket.mimeType], maximumSizeInBytes: ticket.size, addRandomSuffix: false, allowOverwrite: false } };
   } });
 }
+/** 官方单次PUT预签名；浏览器自行控制真实进度、取消和期限，避免SDK隐式重传。 */
+export async function signBlobImageUploadDirect(ticket:ImageTicket,issue:typeof issueSignedToken=issueSignedToken){
+  const token=await issue({pathname:ticket.pathname,operations:["put"],validUntil:ticket.expiresAt,allowedContentTypes:[ticket.mimeType],maximumSizeInBytes:ticket.size});
+  const signed=await presignUrl(token,{operation:"put",pathname:ticket.pathname,access:"private",validUntil:ticket.expiresAt,allowedContentTypes:[ticket.mimeType],maximumSizeInBytes:ticket.size,addRandomSuffix:false,allowOverwrite:false});
+  return {provider:"blob" as const,method:"PUT" as const,url:signed.presignedUrl};
+}
 export async function promoteImage(ticket: ImageTicket, storage: ImageStorage, bytes?: Uint8Array): Promise<ImageReceipt> {
   const content = bytes ?? await readImageBytes(await storage.read(ticket.pathname)), mimeType = imageMime(content), sha256 = createHash("sha256").update(content).digest("hex");
   if (!ticket.downloadUrl && (content.length !== ticket.size || sha256 !== ticket.sha256 || mimeType !== ticket.mimeType)) throw new ApiError(400, "image_mismatch", "照片内容与上传信息不一致，请重新选择原图。");
@@ -25,6 +31,7 @@ export async function runImageWorker(request: Request) {
   const input = await request.json(), ticket = verifyImageUploadTicket(input.ticket);
   if (ticket.region !== "global" || ticket.provider !== "blob") throw new ApiError(403, "image_region", "处理区不匹配。");
   const storage = blobImageStorage(ticket.location);
+  if (input.command === "sign-direct") return Response.json(await signBlobImageUploadDirect(ticket));
   if (input.command === "sign") return Response.json(await signBlobImageUpload(request, input.body, ticket));
   if (input.command === "promote") return Response.json(await promoteImage(ticket, storage));
   if (input.command === "import" && ticket.downloadUrl) return Response.json(await promoteImage(ticket, storage, await downloadMealImage(ticket.downloadUrl)));

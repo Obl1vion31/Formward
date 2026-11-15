@@ -2,7 +2,7 @@
 export type PhotoRegion = "cn" | "global";
 export type PhotoRoute = { region: PhotoRegion; elapsedMs: number | null };
 type Routes = { defaultRegion: PhotoRegion; routes: { region: PhotoRegion; url: string }[] };
-const allowedProbe = (url: string) => url === "https://blob.vercel-storage.com/" || /^https:\/\/[a-z0-9-]+\.cos\.ap-shanghai\.myqcloud\.com\/$/.test(url);
+const allowedProbe = (url: string) => url === "https://vercel.com/api/blob" || /^https:\/\/[a-z0-9-]+\.cos\.ap-shanghai\.myqcloud\.com\/$/.test(url);
 /** 每批只探测无健康内容的受控入口，不上传照片、不保存地理位置或永久选路结果。 */
 export async function choosePhotoRoute(options: { region?: PhotoRegion; fetcher?: typeof fetch; timeoutMs?: number } = {}): Promise<PhotoRoute> {
   if (options.region) return { region: options.region, elapsedMs: null };

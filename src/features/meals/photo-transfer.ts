@@ -4,7 +4,7 @@ export class PhotoTransferError extends Error {
  get allowRelay(){return ["network","stalled","timeout"].includes(this.kind);}
 }
 /** 真实网络字节进度；停滞和绝对超时都结束请求，不自动重传。 */
-export function transferPhoto({url,body,headers={},signal,onProgress,createXHR=()=>new XMLHttpRequest(),timeoutMs=600000,stallMs=60000}:{url:string;body:Blob|FormData;headers?:Record<string,string>;signal?:AbortSignal;onProgress?:(loaded:number,total:number)=>void;createXHR?:()=>XMLHttpRequest;timeoutMs?:number;stallMs?:number}){
+export function transferPhoto({url,body,method="POST",headers={},signal,onProgress,createXHR=()=>new XMLHttpRequest(),timeoutMs=600000,stallMs=60000}:{url:string;body:Blob|FormData;method?:"POST"|"PUT";headers?:Record<string,string>;signal?:AbortSignal;onProgress?:(loaded:number,total:number)=>void;createXHR?:()=>XMLHttpRequest;timeoutMs?:number;stallMs?:number}){
  return new Promise<void>((resolve,reject)=>{
   const xhr=createXHR();let settled=false,idle:ReturnType<typeof setTimeout>|undefined,last=0;
   const clean=()=>{clearTimeout(idle);signal?.removeEventListener("abort",cancel);};
@@ -12,7 +12,7 @@ export function transferPhoto({url,body,headers={},signal,onProgress,createXHR=(
   const cancel=()=>fail(new PhotoTransferError("照片上传已取消，尚未发送到聊天。","abort"));
   const resetIdle=()=>{clearTimeout(idle);idle=setTimeout(()=>fail(new PhotoTransferError("照片传输已停滞，可以重试或换方式上传。","stalled")),stallMs);};
   if(signal?.aborted){cancel();return;}
-  xhr.open("POST",url);xhr.timeout=timeoutMs;for(const [key,value] of Object.entries(headers))xhr.setRequestHeader(key,value);
+  xhr.open(method,url);xhr.timeout=timeoutMs;for(const [key,value] of Object.entries(headers))xhr.setRequestHeader(key,value);
   xhr.upload.onprogress=event=>{if(settled)return;if(event.loaded>last){last=event.loaded;resetIdle();}if(event.lengthComputable&&event.total>0){onProgress?.(event.loaded,event.total);}};
   xhr.onload=()=>{
    if(settled)return;

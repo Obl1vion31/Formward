@@ -5,9 +5,9 @@ import { uploadPrivateMealPhoto,stagePrivateMealPhoto } from "./photo-upload";
 
 const previousXHR=globalThis.XMLHttpRequest;
 class FetchXHR{
- upload:{onprogress:((event:ProgressEvent)=>void)|null}={onprogress:null};timeout=0;status=0;responseText="";onload:(()=>void)|null=null;onerror:(()=>void)|null=null;ontimeout:(()=>void)|null=null;onabort:(()=>void)|null=null;url="";headers:Record<string,string>={};controller=new AbortController();response:Response|null=null;
- open(_method:string,url:string){this.url=url;}setRequestHeader(key:string,value:string){this.headers[key]=value;}getResponseHeader(key:string){return this.response?.headers.get(key)??null;}abort(){this.controller.abort();}
- send(body:Blob|FormData){void fetch(this.url,{method:"POST",body,headers:this.headers,signal:this.controller.signal}).then(async response=>{this.response=response;this.status=response.status;this.responseText=await response.text();this.onload?.();},()=>this.onerror?.());}
+ upload:{onprogress:((event:ProgressEvent)=>void)|null}={onprogress:null};timeout=0;status=0;responseText="";onload:(()=>void)|null=null;onerror:(()=>void)|null=null;ontimeout:(()=>void)|null=null;onabort:(()=>void)|null=null;url="";method="";headers:Record<string,string>={};controller=new AbortController();response:Response|null=null;
+ open(method:string,url:string){this.method=method;this.url=url;}setRequestHeader(key:string,value:string){this.headers[key]=value;}getResponseHeader(key:string){return this.response?.headers.get(key)??null;}abort(){this.controller.abort();}
+ send(body:Blob|FormData){void fetch(this.url,{method:this.method,body,headers:this.headers,signal:this.controller.signal}).then(async response=>{this.response=response;this.status=response.status;this.responseText=await response.text();this.onload?.();},()=>this.onerror?.());}
 }
 before(()=>{globalThis.XMLHttpRequest=FetchXHR as unknown as typeof XMLHttpRequest;});
 after(()=>{globalThis.XMLHttpRequest=previousXHR;});
@@ -96,4 +96,22 @@ test("多张照片在选图时读取，排队及选择器失效后仍复用原�
   for(const file of files)assert.equal((await uploadPrivateMealPhoto(file)).id,"photo");
   assert.equal(calls,8);
  }finally{globalThis.fetch=previous;}
+});
+
+test("国际原图单次PUT，凭据与核对各自受控，不通过SDK重传",async()=>{
+ const original=globalThis.fetch,bytes=new Uint8Array([8,6,4,2]),file=new File([bytes],"隔离原图.png",{type:"image/png"});let transfers=0,completes=0;
+ try{globalThis.fetch=async(url,init)=>{
+  if(String(url).startsWith("https://vercel.com/api/blob/")){transfers++;assert.equal(init?.method,"PUT");assert.deepEqual(new Uint8Array(await(init?.body as Blob).arrayBuffer()),bytes);return new Response(null,{status:200});}
+  const input=JSON.parse(String(init?.body));if(input.step==="prepare")return Response.json({provider:"blob",ticket:"owned-fictional-ticket",pathname:"meal-tmp-v2/fixture/image"});
+  if(input.step==="sign_direct")return Response.json({provider:"blob",method:"PUT",url:"https://vercel.com/api/blob/?pathname=owned-fictional"});
+  if(input.step==="complete"){completes++;return Response.json({id:"owned-fixture-id"});}return new Response(null,{status:204});
+ };assert.equal((await uploadPrivateMealPhoto(file,()=>{},{region:"global"})).id,"owned-fixture-id");assert.equal(transfers,1);assert.equal(completes,1);
+ }finally{globalThis.fetch=original;}
+});
+test("国际签名不能指向第三方地址，网络失败不静默再次发送照片",async()=>{
+ const original=globalThis.fetch;let uploads=0;let foreign=true;
+ try{globalThis.fetch=async(url,init)=>{if(String(url).startsWith("https://vercel.com/api/blob")){uploads++;throw new TypeError("network");}const input=JSON.parse(String(init?.body));if(input.step==="prepare")return Response.json({provider:"blob",ticket:"fixture",pathname:"owned"});if(input.step==="sign_direct")return Response.json({provider:"blob",method:"PUT",url:foreign?"https://untrusted.test/upload":"https://vercel.com/api/blob/?pathname=owned"});return new Response(null,{status:204});};
+ await assert.rejects(uploadPrivateMealPhoto(new File(["a"],"a.png",{type:"image/png"}),()=>{},{region:"global"}),/国际上传地址无效/);assert.equal(uploads,0);foreign=false;
+ await assert.rejects(uploadPrivateMealPhoto(new File(["b"],"b.png",{type:"image/png"}),()=>{},{region:"global"}),/连接未完成/);assert.equal(uploads,1);
+ }finally{globalThis.fetch=original;}
 });

@@ -1,5 +1,4 @@
 "use client";
-import {uploadPresigned} from "@vercel/blob/client";
 import {choosePhotoRoute,type PhotoRegion,type PhotoRoute} from "./photo-route";
 import {PhotoTransferError,transferPhoto} from "./photo-transfer";
 export {PhotoTransferError} from "./photo-transfer";
@@ -81,12 +80,12 @@ export async function uploadPrivateMealPhoto(file:File,progress:(label:string)=>
     }
    }else{
     if(options.transport==="relay")throw new Error("国际照片请使用原图直传。");
-    const timeout=scope(options.signal,600000);let stalled=false,idle:ReturnType<typeof setTimeout>|undefined,last=0;
-    const resetIdle=()=>{clearTimeout(idle);idle=setTimeout(()=>{stalled=true;if(!timeout.signal.aborted)cancelTransfer();},60000);};
-    const cancelTransfer=()=>stop.abort(new DOMException("stalled","TimeoutError")),stop=new AbortController();resetIdle();report("upload","正在上传照片…");diagnostic(traceId,phase,started);
-    try{await uploadPresigned(prepared.pathname,snapshot.body,{access:"private",handleUploadUrl:"/api/meal-images/upload",clientPayload:prepared.ticket,contentType:file.type,multipart:file.size>4*1024*1024,abortSignal:AbortSignal.any([timeout.signal,stop.signal]),onUploadProgress:event=>{if(event.loaded>last){last=event.loaded;resetIdle();}loaded=event.loaded;total=event.total;report("upload","正在上传照片…",Math.min(100,Math.floor(event.percentage)));}});}
-    catch(error){if(options.signal?.aborted)throw new PhotoTransferError("照片上传已取消。","abort");if(stalled)throw new PhotoTransferError("照片传输已停滞，可重试或改用其他通道。","stalled");if(timeout.signal.aborted)throw new PhotoTransferError("照片上传超时，可重试或改用其他通道。","timeout");if(error instanceof TypeError)throw new PhotoTransferError("照片上传连接未完成，可重试或改用其他通道。","network");throw error;}
-    finally{clearTimeout(idle);timeout.close();}
+    report("sign","正在签发上传凭据…");
+    const signed=await request({step:"sign_direct",ticket:prepared.ticket},"签发上传凭据",options.signal);
+    const target=new URL(String(signed.url));
+    if(signed.provider!=="blob"||signed.method!=="PUT"||target.origin!=="https://vercel.com"||!/^\/api\/blob\/?$/.test(target.pathname)||target.username||target.password||target.hash)throw new Error("国际上传地址无效，请重试。");
+    report("upload","正在上传照片…");diagnostic(traceId,phase,started);
+    await transferPhoto({url:target.href,method:"PUT",body:snapshot.body,headers:{"Content-Type":file.type},signal:options.signal,onProgress:(sent,size)=>{loaded=sent;total=size;report("upload",sent>=size?"正在等待存储确认…":"正在上传照片…",Math.min(100,Math.floor(sent/size*100)));}});
    }
    check();report("complete","正在核对原图…",100);diagnostic(traceId,phase,started,{loaded,total,region});
    image=await request({step:"complete",ticket:prepared.ticket},"核对原图",options.signal,90000);
