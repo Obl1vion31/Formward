@@ -459,7 +459,7 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
  .mealForm .entryTable[data-item-focus] tr{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px 8px;align-items:start;margin:0;padding:12px 0;border-bottom:1px solid var(--rule)}
  .mealForm .entryTable[data-item-focus] td{display:block;min-width:0;padding:0;border:0;text-align:left;grid-column:span 3}
  .mealForm .entryTable[data-item-focus] td::before{display:block;content:attr(data-label);margin:0 0 8px;font-size:.875rem;line-height:1.5;color:var(--muted);white-space:nowrap}
- .mealForm .entryTable[data-item-focus] .entryName{grid-column:span 6}.mealForm .entryTable[data-item-focus] .entryUnit,.mealForm .entryTable[data-item-focus] .entryQuantity{grid-column:span 3}
+ .mealForm .entryTable[data-item-focus] .entryName{grid-column:span 5}.mealForm .entryTable[data-item-focus] .entryUnit{grid-column:span 3}.mealForm .entryTable[data-item-focus] .entryQuantity{grid-column:span 4}
  .mealForm .entryTable[data-item-focus] td[data-nutrient]{grid-column:span 3}.mealForm .entryTable[data-item-focus][data-nutrient-columns="2"] td[data-nutrient]{grid-column:span 6}.mealForm .entryTable[data-item-focus][data-nutrient-columns="1"] td[data-nutrient]{grid-column:1/-1}
  .mealForm .entryTable[data-item-focus][data-stack-fields=true] .entryName{grid-column:1/-1}.mealForm .entryTable[data-item-focus][data-stack-fields=true] .entryUnit,.mealForm .entryTable[data-item-focus][data-stack-fields=true] .entryQuantity{grid-column:span 6}
  .mealForm .entryTable[data-item-focus][data-stack-fields=true][data-identity-columns="1"] .entryUnit,.mealForm .entryTable[data-item-focus][data-stack-fields=true][data-identity-columns="1"] .entryQuantity{grid-column:1/-1}
