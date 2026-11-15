@@ -22,10 +22,12 @@ export function useAssistantChat() { const value = useContext(Context); if (!val
 export function AssistantChatProvider({ enabled, initialEntitlement, open, accountId, children }: { enabled: boolean; initialEntitlement?:AccountEntitlements; open: boolean; accountId: string; children: ReactNode }) {
   const [access,setAccess]=useState(initialEntitlement);
   // 同账号的迟到读取不能把已观察到的新档位覆盖回旧版本。
-  const updateAccess=useCallback((next:AccountEntitlements)=>setAccess(current=>current&&current.version>next.version?current:next),[]);
+  const accessRef=useRef(initialEntitlement);
+  const updateAccess=useCallback((next:AccountEntitlements)=>{if(accessRef.current&&accessRef.current.version>next.version)return false;accessRef.current=next;setAccess(next);return true;},[]);
   const canChat=access?.chat??enabled;
   const [data, setData] = useState<ChatSnapshot | null>(null), [messages, setMessages] = useState<ChatMessage[]>([]), [draft, setDraft] = useState(""), [quote, setQuote] = useState<ChatMessage | null>(null), [photos, setPhotos] = useState<DraftPhoto[]>([]);
   const [error, setError] = useState(""), [loading, setLoading] = useState(false), [delayed, setDelayed] = useState(false), [running, setRunning] = useState(false), [managing, setManaging] = useState(false);
+  const deferredRead=useRef(false);
   const request = useRef<AbortController | null>(null), reading = useRef(false), current = useRef<ChatSnapshot | null>(null), generation = useRef(0), alive = useRef(true);
   const scroll = useRef({ top: 0, stick: true });
   const pendingRequest=useRef<{signature:string;id:string}|null>(null);
@@ -53,32 +55,34 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   }
   async function retryPhoto(key:string,transport:"direct"|"relay"="direct",region?:PhotoRegion){const photo=photoState.current.find(item=>item.key===key);if(!photo||photo.phase!=="error")return;updatePhotos(current=>current.map(item=>item.key===key?{...item,phase:"queued",percent:0,label:"等待上传",error:undefined,canRelay:false}:item));await processPhotos([{key,transport,region}]);}
 
-  useEffect(()=>{
-    const controller=new AbortController();let currentRequest=false;
-    const sync=async()=>{if(document.hidden||currentRequest||controller.signal.aborted)return;currentRequest=true;try{const response=await fetch("/api/account/entitlements",{cache:"no-store",signal:AbortSignal.any([controller.signal,AbortSignal.timeout(10000)])});if(!response.ok)return;const value=await response.json();if(!controller.signal.aborted&&alive.current)updateAccess(value.entitlement);}catch{/* 已知权限和草稿保持，后续请求仍由服务端复核。 */}finally{currentRequest=false;}};
-    void sync();const foreground=()=>void sync(),timer=setInterval(foreground,60000);window.addEventListener("focus",foreground);document.addEventListener("visibilitychange",foreground);
-    return()=>{controller.abort();clearInterval(timer);window.removeEventListener("focus",foreground);document.removeEventListener("visibilitychange",foreground);};
-  },[accountId,updateAccess]);
   const releasePhotoResources=useCallback(()=>{photoEpoch.current++;photoQueue.current=[];for(const controller of photoRequests.current.values())controller.abort();for(const photo of photoState.current)if(photo.preview)URL.revokeObjectURL(photo.preview);},[]);
   const scrollState = useCallback(() => ({ ...scroll.current }), []);
   const recordScroll = useCallback((top:number,stick:boolean) => { scroll.current = { top,stick }; }, []);
   const apply = useCallback((snapshot: ChatSnapshot) => {
     if (!alive.current) return;
+    if(snapshot.entitlement&&!updateAccess(snapshot.entitlement)){deferredRead.current=true;return;}
     const changed = current.current?.conversationId !== snapshot.conversationId;
-    current.current = snapshot; setData(snapshot); if(snapshot.entitlement)updateAccess(snapshot.entitlement);
+    current.current = snapshot; setData(snapshot);
     setMessages(previous => { const merged = new Map((changed ? [] : previous).map(row => [row.id, row])); for (const row of snapshot.messages) merged.set(row.id, row); return [...merged.values()].sort((a,b) => a.seq - b.seq).slice(-50); });
   }, [updateAccess]);
-  const read = useCallback(async (before?: number) => {
-    if (reading.current || mutating.current) return;
+  const read = useCallback(async (before?: number):Promise<void> => {
+    if (reading.current){if(!before)deferredRead.current=true;return;}
+    if(mutating.current)return;
     const ticket = generation.current; reading.current = true; setLoading(true); setError("");
     try {
       const response = await fetch("/api/assistant-chat" + (before ? "?before=" + before : ""), { cache: "no-store", credentials: "same-origin", signal: AbortSignal.timeout(15000) });
       const payload = await response.json(); if (!response.ok) throw Error(payload.error ?? "聊天暂时无法读取。");
       if (ticket === generation.current) apply(payload);
     } catch (failure) { if (ticket === generation.current && alive.current) setError(failure instanceof Error ? failure.message : "读取未完成，请重试。"); }
-    finally { reading.current = false; if (alive.current) setLoading(false); }
+    finally { reading.current = false; if (alive.current) {setLoading(false);if(deferredRead.current){deferredRead.current=false;setTimeout(()=>void read(),0);}} }
   }, [apply]);
   const refresh = useCallback(async () => { await read(); }, [read]);
+  useEffect(()=>{
+    const controller=new AbortController();let currentRequest=false;
+    const sync=async()=>{if(document.hidden||currentRequest||controller.signal.aborted)return;currentRequest=true;try{const response=await fetch("/api/account/entitlements",{cache:"no-store",signal:AbortSignal.any([controller.signal,AbortSignal.timeout(10000)])});if(!response.ok)return;const value=await response.json();if(!controller.signal.aborted&&alive.current){const previous=accessRef.current?.version;const accepted=updateAccess(value.entitlement);if(accepted&&previous!==value.entitlement.version)void read();}}catch{/* 已知权限和草稿保持，后续请求仍由服务端复核。 */}finally{currentRequest=false;}};
+    void sync();const foreground=()=>void sync(),timer=setInterval(foreground,60000);window.addEventListener("focus",foreground);document.addEventListener("visibilitychange",foreground);
+    return()=>{controller.abort();clearInterval(timer);window.removeEventListener("focus",foreground);document.removeEventListener("visibilitychange",foreground);};
+  },[accountId,updateAccess,read]);
   useEffect(() => {
     const update = () => { const viewport = window.visualViewport; document.documentElement.style.setProperty("--assistant-viewport-height",(viewport?.height ?? innerHeight) + "px"); document.documentElement.style.setProperty("--assistant-viewport-top",(viewport?.offsetTop ?? 0) + "px"); };
     update(); window.addEventListener("resize",update); window.visualViewport?.addEventListener("resize",update); window.visualViewport?.addEventListener("scroll",update);
