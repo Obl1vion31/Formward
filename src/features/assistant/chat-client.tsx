@@ -21,6 +21,8 @@ export function useOptionalAssistantChat(){return useContext(Context);}
 export function useAssistantChat() { const value = useContext(Context); if (!value) throw Error("ChatProvider missing"); return value; }
 export function AssistantChatProvider({ enabled, initialEntitlement, open, accountId, children }: { enabled: boolean; initialEntitlement?:AccountEntitlements; open: boolean; accountId: string; children: ReactNode }) {
   const [access,setAccess]=useState(initialEntitlement);
+  // 同账号的迟到读取不能把已观察到的新档位覆盖回旧版本。
+  const updateAccess=useCallback((next:AccountEntitlements)=>setAccess(current=>current&&current.version>next.version?current:next),[]);
   const canChat=access?.chat??enabled;
   const [data, setData] = useState<ChatSnapshot | null>(null), [messages, setMessages] = useState<ChatMessage[]>([]), [draft, setDraft] = useState(""), [quote, setQuote] = useState<ChatMessage | null>(null), [photos, setPhotos] = useState<DraftPhoto[]>([]);
   const [error, setError] = useState(""), [loading, setLoading] = useState(false), [delayed, setDelayed] = useState(false), [running, setRunning] = useState(false), [managing, setManaging] = useState(false);
@@ -53,19 +55,19 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
 
   useEffect(()=>{
     const controller=new AbortController();let currentRequest=false;
-    const sync=async()=>{if(document.hidden||currentRequest||controller.signal.aborted)return;currentRequest=true;try{const response=await fetch("/api/account/entitlements",{cache:"no-store",signal:AbortSignal.any([controller.signal,AbortSignal.timeout(10000)])});if(!response.ok)return;const value=await response.json();if(!controller.signal.aborted&&alive.current)setAccess(value.entitlement);}catch{/* 已知权限和草稿保持，后续请求仍由服务端复核。 */}finally{currentRequest=false;}};
+    const sync=async()=>{if(document.hidden||currentRequest||controller.signal.aborted)return;currentRequest=true;try{const response=await fetch("/api/account/entitlements",{cache:"no-store",signal:AbortSignal.any([controller.signal,AbortSignal.timeout(10000)])});if(!response.ok)return;const value=await response.json();if(!controller.signal.aborted&&alive.current)updateAccess(value.entitlement);}catch{/* 已知权限和草稿保持，后续请求仍由服务端复核。 */}finally{currentRequest=false;}};
     void sync();const foreground=()=>void sync(),timer=setInterval(foreground,60000);window.addEventListener("focus",foreground);document.addEventListener("visibilitychange",foreground);
     return()=>{controller.abort();clearInterval(timer);window.removeEventListener("focus",foreground);document.removeEventListener("visibilitychange",foreground);};
-  },[accountId]);
+  },[accountId,updateAccess]);
   const releasePhotoResources=useCallback(()=>{photoEpoch.current++;photoQueue.current=[];for(const controller of photoRequests.current.values())controller.abort();for(const photo of photoState.current)if(photo.preview)URL.revokeObjectURL(photo.preview);},[]);
   const scrollState = useCallback(() => ({ ...scroll.current }), []);
   const recordScroll = useCallback((top:number,stick:boolean) => { scroll.current = { top,stick }; }, []);
   const apply = useCallback((snapshot: ChatSnapshot) => {
     if (!alive.current) return;
     const changed = current.current?.conversationId !== snapshot.conversationId;
-    current.current = snapshot; setData(snapshot); if(snapshot.entitlement)setAccess(snapshot.entitlement);
+    current.current = snapshot; setData(snapshot); if(snapshot.entitlement)updateAccess(snapshot.entitlement);
     setMessages(previous => { const merged = new Map((changed ? [] : previous).map(row => [row.id, row])); for (const row of snapshot.messages) merged.set(row.id, row); return [...merged.values()].sort((a,b) => a.seq - b.seq).slice(-50); });
-  }, []);
+  }, [updateAccess]);
   const read = useCallback(async (before?: number) => {
     if (reading.current || mutating.current) return;
     const ticket = generation.current; reading.current = true; setLoading(true); setError("");
