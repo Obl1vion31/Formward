@@ -480,10 +480,12 @@ export const energyProfile = pgTable("energy_profiles", {
   ...energyIdentityColumns(), effectiveFrom: date("effective_from").notNull(), heightCm: numeric("height_cm", { precision: 7, scale: 4 }).notNull(), birthDate: date("birth_date").notNull(), sex: text("sex").notNull(),
 }, t => [uniqueIndex("energy_profiles_owner_date_idx").on(t.userId, t.effectiveFrom).where(sql`${t.deletedAt} IS NULL`), check("energy_profiles_valid", sql`${t.heightCm}>0 AND ${t.heightCm}<=300 AND ${t.sex} IN ('male','female') AND ${t.birthDate}<${t.effectiveFrom} AND ${t.version}>0`)]);
 export const energyDay = pgTable("energy_days", {
+  restingInputMethod: text("resting_input_method").$type<import("../features/activities/calculation-model").RestingMethod>(),
+  calculationSnapshot: jsonb("calculation_snapshot").$type<import("../features/activities/calculation-model").CalculationSnapshot>(),
   steps: integer("steps"),
   entryMode: text("entry_mode").$type<"components" | "total">(), activityMode: text("activity_mode").$type<"total" | "activities">(), restingSourceSystem: text("resting_source_system"), activeSourceSystem: text("active_source_system"), restingEstimated: boolean("resting_estimated").notNull().default(false),
   ...energyIdentityColumns(), ...energySourceColumns(), activeEstimated: boolean("active_estimated").notNull().default(false), notes: text("notes"), date: date("local_date").notNull(), restingKcal: numeric("resting_kcal", { precision: 14, scale: 4 }), activeKcal: numeric("active_kcal", { precision: 14, scale: 4 }), totalKcal: numeric("total_kcal", { precision: 14, scale: 4 }),
-}, t => [uniqueIndex("energy_days_owner_date_idx").on(t.userId,t.date).where(sql`${t.deletedAt} IS NULL`), check("energy_days_modes_valid", sql`${t.entryMode} IN ('components','total') AND ${t.activityMode} IN ('total','activities')`), check("energy_days_steps_valid",sql`${t.steps} IS NULL OR ${t.steps} BETWEEN 0 AND 10000000`), check("energy_days_values_valid", sql`(${t.restingKcal} IS NULL OR ${t.restingKcal}>=0) AND (${t.activeKcal} IS NULL OR ${t.activeKcal}>=0) AND (${t.totalKcal} IS NULL OR ${t.totalKcal}>=0) AND ${t.version}>0 AND ${t.sourceUnit}='kcal' AND ${t.syncStatus}='confirmed'`)]);
+}, t => [uniqueIndex("energy_days_owner_date_idx").on(t.userId,t.date).where(sql`${t.deletedAt} IS NULL`), check("energy_days_resting_method_valid",sql`${t.restingInputMethod} IS NULL OR ${t.restingInputMethod} IN ('manual','device','estimate')`), check("energy_days_modes_valid", sql`${t.entryMode} IN ('components','total') AND ${t.activityMode} IN ('total','activities')`), check("energy_days_steps_valid",sql`${t.steps} IS NULL OR ${t.steps} BETWEEN 0 AND 10000000`), check("energy_days_values_valid", sql`(${t.restingKcal} IS NULL OR ${t.restingKcal}>=0) AND (${t.activeKcal} IS NULL OR ${t.activeKcal}>=0) AND (${t.totalKcal} IS NULL OR ${t.totalKcal}>=0) AND ${t.version}>0 AND ${t.sourceUnit}='kcal' AND ${t.syncStatus}='confirmed'`)]);
 export const activity = pgTable("activities", {
   sourceDetails: jsonb("source_details").$type<import("../features/data-sources/model").ActivityFact>(),
   calorieMode:text("calorie_mode").$type<"total"|"components">(), exerciseRestingKcal:numeric("resting_kcal",{precision:14,scale:4}), exerciseActiveKcal:numeric("active_kcal",{precision:14,scale:4}),
@@ -555,6 +557,7 @@ export const recordOperation = pgTable("record_operations", {
 
 // 账号资料独立于每日身体记录与退役静息公式；旧账号不回填。
 export const personalProfile = pgTable("personal_profiles", {
+  sexForCalculation: text("sex_for_calculation").$type<"male" | "female">(),
   userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
   heightCm: numeric("height_cm", { precision: 6, scale: 2 }),
   birthDate: date("birth_date"),
@@ -564,14 +567,17 @@ export const personalProfile = pgTable("personal_profiles", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => [
   check("personal_profiles_height_valid", sql`${t.heightCm} IS NULL OR (${t.heightCm} >= 30 AND ${t.heightCm} <= 300)`),
+  check("personal_profiles_sex_valid", sql`${t.sexForCalculation} IS NULL OR ${t.sexForCalculation} IN ('male','female')`),
   check("personal_profiles_step_valid", sql`${t.onboardingStep} IN ('profile', 'tutorial', 'complete')`),
   check("personal_profiles_version_positive", sql`${t.version} > 0`),
 ]);
 
 export const accountPreferences = pgTable("account_preferences", {
+ energyRestingMethod:text("energy_resting_method").$type<import("../features/activities/calculation-model").RestingMethod>().notNull().default("estimate"),
+ energyFormula:text("energy_formula").$type<import("../features/activities/calculation-model").CalculationMethod>().notNull().default("auto"),
  userId:text("user_id").primaryKey().references(()=>user.id,{onDelete:"cascade"}),
  showBodyFat:boolean("show_body_fat").notNull(),version:integer("version").notNull().default(1),updatedAt:timestamp("updated_at",{withTimezone:true}).notNull().defaultNow(),
-},t=>[check("account_preferences_version_positive",sql`${t.version}>0`)]);
+},t=>[check("account_preferences_energy_valid",sql`${t.energyRestingMethod} IN ('manual','device','estimate') AND ${t.energyFormula} IN ('auto','cunningham','mifflin-st-jeor')`),check("account_preferences_version_positive",sql`${t.version}>0`)]);
 
 // 仅记录用户对指定日期提醒的忽略，不更改饮食事实或记全状态。
 export const assistantReminderDismissal = pgTable("assistant_reminder_dismissals", {

@@ -1,5 +1,7 @@
 # Database
 
+0041_energy_calculation为personal_profiles增加可空sex_for_calculation，为account_preferences增加energy_resting_method（默认estimate）和energy_formula（默认auto），为energy_days增加resting_input_method和服务器生成的calculation_snapshot。仅增列及枚举约束，不回填真实资料、消耗或身体估计；旧应用可在增列后兼容回退。
+
 0038_assistant_meal_tasks为assistant_conversations追加purpose（默认chat）和可空context。meal_entry任务active=false，保留原主聊天唯一约束；context仅服务器管理草稿／附件／预览关联，原草稿独立保留。没有新公开AI字段、scope或健康表。旧应用可在增加列后回退，不逆向删除任务或健康数据。
 
 

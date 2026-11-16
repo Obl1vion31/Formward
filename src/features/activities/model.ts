@@ -5,6 +5,7 @@ import type { EnergyAdoption } from "../data-sources/model";
 import { addCalendarDays, calendarOrdinal } from "../measurements/calendar";
 import { buildMeasurementDays } from "../measurements/days";
 import type { MeasurementDisplay } from "../measurements/entry-state";
+import { calculationRequestSchema, restingMethods, type CalculationSnapshot, type RestingMethod } from "./calculation-model";
 
 const date = z.string().refine(value => { try { calendarOrdinal(value); return true; } catch { return false; } }, "日期无效。");
 const decimal = z.string().regex(/^\d{1,7}(?:\.\d{1,4})?$/).refine(value => Number(value) <= 1000000, "数值超出范围。");
@@ -16,7 +17,7 @@ const provenance = {
 };
 export const energyActionSchemas = [
   z.object({ kind: z.literal("save_energy_defaults"), ...identity, restingFrom: date, restingKcal: decimal.nullable(), zeroActivityFrom: date.nullable() }).strict(),
-  z.object({ kind: z.literal("save_energy_day"), ...identity, date, steps: z.number().int().min(0).max(10000000).nullable().optional(), entryMode: z.enum(["components", "total"]).optional(), activityMode: z.enum(["total", "activities"]).optional(), restingSourceSystem: text(200).nullable().optional(), activeSourceSystem: text(200).nullable().optional(), restingEstimated: z.boolean().optional(), restingKcal: decimal.nullable().optional(), activeKcal: decimal.nullable().optional(), activeEstimated: z.boolean().optional(), notes: text(2000).nullable().optional(), totalKcal: decimal.nullable().optional(), ...provenance }).strict(),
+  z.object({ kind: z.literal("save_energy_day"), ...identity, date, restingInputMethod: z.enum(restingMethods).optional(), calculation: calculationRequestSchema.nullable().optional(), steps: z.number().int().min(0).max(10000000).nullable().optional(), entryMode: z.enum(["components", "total"]).optional(), activityMode: z.enum(["total", "activities"]).optional(), restingSourceSystem: text(200).nullable().optional(), activeSourceSystem: text(200).nullable().optional(), restingEstimated: z.boolean().optional(), restingKcal: decimal.nullable().optional(), activeKcal: decimal.nullable().optional(), activeEstimated: z.boolean().optional(), notes: text(2000).nullable().optional(), totalKcal: decimal.nullable().optional(), ...provenance }).strict(),
   z.object({ kind: z.literal("save_activity"), ...identity, date, inclusion:z.enum(["included","additional"]).nullable().optional(), name: text(200).min(1, "请填写活动名称。"), durationMinutes: decimal.nullable().optional(), calorieMode: z.enum(["total", "components"]).optional(), exerciseRestingKcal: decimal.nullable().optional(), exerciseActiveKcal: decimal.nullable().optional(), caloriesKcal: decimal.nullable().optional(), completed: z.boolean().optional(), ...provenance }).strict(),
   z.object({ kind: z.literal("save_energy_profile"), ...identity, effectiveFrom: date, heightCm: decimal.refine(value => Number(value) > 0 && Number(value) <= 300, "身高须在 0–300 cm 之间。"), birthDate: date, sex: z.enum(["male", "female"]) }).strict(),
   ...(["delete_energy_defaults", "restore_energy_defaults", "delete_energy_day", "restore_energy_day", "delete_activity", "restore_activity", "delete_energy_profile", "restore_energy_profile"] as const).map(kind => z.object({ kind: z.literal(kind), id: z.string().uuid(), version: z.number().int().positive(), inclusion:z.enum(["included","additional"]).nullable().optional() }).strict()),
@@ -27,7 +28,7 @@ export const energyInputSchema = z.object({ operationId: z.string().regex(/^[a-z
 export type EnergyInput = z.infer<typeof energyInputSchema>;
 export type EnergyProvenance = { timezone: string; sourceSystem: string | null; sourceRecordId: string | null; sourceOccurredAt: string | null; sourceUnit: "kcal"; syncStatus: "confirmed" };
 type Versioned = { id: string; version: number; deletedAt: string | null };
-export type EnergyDayRecord = Versioned & EnergyProvenance & { steps?: number | null; adoption?: EnergyAdoption; date: string; entryMode?: "components" | "total" | null; activityMode?: "total" | "activities" | null; restingSourceSystem?: string | null; activeSourceSystem?: string | null; restingEstimated?: boolean; restingKcal: string | null; activeKcal: string | null; totalKcal: string | null; activeEstimated?: boolean; notes?: string | null };
+export type EnergyDayRecord = Versioned & EnergyProvenance & { restingInputMethod?: RestingMethod | null; calculationSnapshot?: CalculationSnapshot | null; steps?: number | null; adoption?: EnergyAdoption; date: string; entryMode?: "components" | "total" | null; activityMode?: "total" | "activities" | null; restingSourceSystem?: string | null; activeSourceSystem?: string | null; restingEstimated?: boolean; restingKcal: string | null; activeKcal: string | null; totalKcal: string | null; activeEstimated?: boolean; notes?: string | null };
 export type ActivityRecord = Versioned & EnergyProvenance & { sourceDetails?: ActivityFact; inclusion?:"included"|"additional"|null;inclusionBasis?:string|null;date: string; name: string; durationMinutes: string | null; calorieMode?: "total"|"components"|null; exerciseRestingKcal?:string|null; exerciseActiveKcal?:string|null; caloriesKcal: string | null; completed: boolean };
 export type EnergyProfile = Versioned & { effectiveFrom: string; heightCm: string; birthDate: string; sex: "male" | "female" };
 export type EnergyDefaults = Versioned & { restingFrom: string; restingKcal: string | null; zeroActivityFrom: string | null };
@@ -73,6 +74,13 @@ export function restingEstimate(date: string, profiles: EnergyProfile[], records
 export function energyModes(record?: Pick<EnergyDayRecord, "entryMode" | "activityMode" | "totalKcal" | "activeKcal"> | null) {
   return { entryMode: record?.entryMode ?? (record?.totalKcal != null ? "total" : "components"), activityMode: record?.activityMode ?? (record?.activeKcal != null ? "total" : "activities") } as const;
 }
+/** 兼容回退应用只认识原字段：数值或模式被旧版改过后，不再冒充旧计算结果。 */
+export function savedCalculationMatches(record:EnergyDayRecord){
+ const saved=record.calculationSnapshot;if(!saved)return true;
+ if(saved.date!==record.date)return false;
+ const mode=energyModes(record).entryMode,value=saved.kind==="daily"?record.totalKcal:record.restingKcal,expected=saved.kind==="daily"?saved.totalKcal:saved.restingKcal;
+ return mode===(saved.kind==="daily"?"total":"components")&&value!=null&&expected!=null&&Number(value)===Number(expected);
+}
 /** 包含关系绑定采用的记录、日期、方式和总数，不受来源／备注版本变化影响。 */
 export function energyBaseline(record?:EnergyDayRecord|null){
  if(!record || record.deletedAt)return null;
@@ -99,7 +107,7 @@ export function energyDays(snapshot: EnergySnapshot, records: MeasurementDisplay
     const activeBase=record?.activeKcal??null;
     const activeKcal = onlyTotal ? sourceParts?.activeKcal ?? null : modes.activityMode === "total" ? activeBase!==null&&additionalKcal!==null?extra.length?amount(Number(activeBase)+Number(additionalKcal)):activeBase:null : detailSum;
     const totalKcal = onlyTotal ? record?.totalKcal!=null&&additionalKcal!==null?extra.length?amount(Number(record.totalKcal)+Number(additionalKcal)):record.totalKcal:null : restingKcal !== null && activeKcal !== null ? amount(Number(restingKcal) + Number(activeKcal)) : null;
-    return { cumulative:!!record?.adoption?.metadata&&new Intl.DateTimeFormat("en-CA",{timeZone:record.timezone,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())===date, steps:record?.steps??null, additionalKcal:baseline?additionalKcal:null,recordedTotalKcal:record?.totalKcal??null,recordedActiveKcal:activeBase,date, record, activities, restingKcal, activeKcal, totalKcal, restingBasis: null, restingSource, totalSource: totalKcal === null ? null : onlyTotal ? "override" : "sum", activeSource: activeKcal === null ? null : modes.activityMode === "total" ? "override" : "activities", estimated: !onlyTotal && totalKcal !== null && (record?.restingEstimated === true || modes.activityMode === "total" && record?.activeEstimated === true) };
+    return { cumulative:record?.calculationSnapshot?.kind!=="daily"&&!!record?.adoption?.metadata&&new Intl.DateTimeFormat("en-CA",{timeZone:record.timezone,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())===date, steps:record?.steps??null, additionalKcal:baseline?additionalKcal:null,recordedTotalKcal:record?.totalKcal??null,recordedActiveKcal:activeBase,date, record, activities, restingKcal, activeKcal, totalKcal, restingBasis: null, restingSource, totalSource: totalKcal === null ? null : onlyTotal ? "override" : "sum", activeSource: activeKcal === null ? null : modes.activityMode === "total" ? "override" : "activities", estimated: !!record?.calculationSnapshot || !onlyTotal && totalKcal !== null && (record?.restingEstimated === true || modes.activityMode === "total" && record?.activeEstimated === true) };
   });
 }
 /** 旧运动原值照用；只有明确分开填写的新运动采用纯运动分项。 */

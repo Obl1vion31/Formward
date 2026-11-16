@@ -1,5 +1,9 @@
 # 数据库连接与字段字典
 
+## 每日消耗计算快照
+
+0041_energy_calculation只为现有三表增列：personal_profiles.sex_for_calculation可空且仅male／female；account_preferences.energy_resting_method默认estimate、energy_formula默认auto；energy_days.resting_input_method与calculation_snapshot可空。快照由服务器生成，保存请求／实际公式、版本、实测引用及版本、必要资料、档位、系数和结果，归属沿用user_id。身体和旧消耗不回填，普通AI返回脱敏摘要。保存复核依据版本；只切兼容应用回退，不回滚数据库或删除新快照。
+
 ## 站内助手权益与识图计次
 
 0039与0040为兼容新增迁移，不改已发布迁移或正式健康事实。users增加membership_tier（默认free）与entitlement_version，独立于owner管理角色；旧账号和新普通账号均默认Free，指定管理员按服务器配置覆盖。改档只增加权益版本及审计，不增加access_version、不撤销登录，不清空当日费用或任务。
@@ -14,10 +18,10 @@ assistant_connections按chat／meal_entry用途关联独立可撤销授权；ass
 
 ## 运动分项存储
 
-0026_dark_tana_nile为activities增加calorie_mode、resting_kcal、active_kcal，均可空，旧记录不回填。TypeScript对应calorieMode、exerciseRestingKcal、exerciseActiveKcal，避免与日记录混淆。原calories_kcal保存运动总数；分项模式总数由两项已知时形成，计入值由纯运动产生，未知保持空。账号、来源、版本和审计沿用。当前59张业务表另加Drizzle账本。身体旧实测通过既有deleted_at归档；单指标删除保留另一指标及审计。
+0026_dark_tana_nile为activities增加calorie_mode、resting_kcal、active_kcal，均可空，旧记录不回填。TypeScript对应calorieMode、exerciseRestingKcal、exerciseActiveKcal，避免与日记录混淆。原calories_kcal保存运动总数；分项模式总数由两项已知时形成，计入值由纯运动产生，未知保持空。账号、来源、版本和审计沿用。当前60张业务表另加Drizzle账本。身体旧实测通过既有deleted_at归档；单指标删除保留另一指标及审计。
 
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 59 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。0027 只扩展账号管理，不修改健康表、旧密码或授权值。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 60 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。0027 只扩展账号管理，不修改健康表、旧密码或授权值。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 

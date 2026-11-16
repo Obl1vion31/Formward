@@ -7,7 +7,7 @@ import { ApiError } from "../auth/ai-identity";
 import { emptyProfile, validateProfile, type PersonalProfile } from "./model";
 
 function display(row: typeof personalProfile.$inferSelect | undefined): PersonalProfile {
-  return row ? { heightCm: row.heightCm===null ? null : String(Number(row.heightCm)), birthDate: row.birthDate, onboardingStep: row.onboardingStep, version: row.version, updatedAt: row.updatedAt.toISOString() } : { ...emptyProfile };
+  return row ? { heightCm: row.heightCm===null ? null : String(Number(row.heightCm)), birthDate: row.birthDate, sexForCalculation: row.sexForCalculation, onboardingStep: row.onboardingStep, version: row.version, updatedAt: row.updatedAt.toISOString() } : { ...emptyProfile };
 }
 /** 只供创建新账号的同一事务调用；缺少资料行的既有账号不被强制引导。 */
 export async function initializePersonalProfile(tx: SecurityTransaction, userId: string) {
@@ -23,9 +23,10 @@ export async function savePersonalProfile(db: Database, proof: SessionProof, inp
     await lockActiveAccount(tx, proof.userId); await requireSessionProof(tx, proof);
     const current=display((await tx.select().from(personalProfile).where(eq(personalProfile.userId, proof.userId)).for("update"))[0]);
     const step=value.continueOnboarding && current.onboardingStep!=="complete" ? "tutorial" : current.onboardingStep;
-    if (current.heightCm===value.heightCm && current.birthDate===value.birthDate && current.onboardingStep===step && current.version>0) return current;
+    const sexForCalculation=value.sexForCalculation===undefined?current.sexForCalculation??null:value.sexForCalculation;
+    if (current.heightCm===value.heightCm && current.birthDate===value.birthDate && current.sexForCalculation===sexForCalculation && current.onboardingStep===step && current.version>0) return current;
     if (current.version!==value.expectedVersion) throw new ApiError(409,"version_conflict","资料已在其他页面修改。当前输入已保留，请查看最新资料后再保存。");
-    const data={ heightCm:value.heightCm, birthDate:value.birthDate, onboardingStep:step, version:current.version+1, updatedAt:new Date() };
+    const data={ heightCm:value.heightCm, birthDate:value.birthDate, sexForCalculation, onboardingStep:step, version:current.version+1, updatedAt:new Date() };
     if (!current.version) return display((await tx.insert(personalProfile).values({ userId:proof.userId,...data }).returning())[0]);
     return display((await tx.update(personalProfile).set(data).where(eq(personalProfile.userId,proof.userId)).returning())[0]);
   });

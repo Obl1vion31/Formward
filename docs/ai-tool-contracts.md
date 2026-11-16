@@ -82,3 +82,7 @@ summary用于分析，details用于编辑定位。range、分页范围和完整�
 所有AI入口使用同一营养说明：总能量与另外两项宏量已知且口径相同，允许按4P+4C+9F推算唯一缺项。结果进入现有营养数值字段，sourceKind=estimated，依据或审核说明交代给定值、公式与推算项。多项缺失须有实际食物、份量与做法依据；仅有总能量时可保留其他未知。负结果、口径冲突及纤维／糖醇等特殊供能不强套公式；明确0、完整标签、明确不估算和局部修改保留规则优先。手工录入不自动补值，无新工具、请求字段、数据库变更或服务端自动反推。
 
 共用prompt修订2026-11-16-energy-macro-completion-v1，千问original、小米compact；仍保留原文冲突处理。HTTP1.15.1路径、scope与确认链接兼容，MCP工具数18。智谱历史协议适配保留，但正式站新聊天与识图不再可选或调用。
+
+## 消耗系统计算
+
+preview_energy.days与preview_record_bundle的save_energy_day均可选calculation：kind为resting或daily，method为auto／cunningham／mifflin-st-jeor，daily另需sedentary／light／moderate／high档位。由服务器生成静息或全天数值，省略受控restingKcal，daily同时省略totalKcal与activeKcal；普通请求仍兼容。计算需measurements:read与energy:write，网页最终确认复核原授权及依据版本。默认体脂优先，指定缺资料不回退。活动档位已包括全天活动，不可再加additional运动；明细可保留为included。只知静息时活动null，历史快照固定，主动新计算才改值；不调用退役默认值或资料动作。

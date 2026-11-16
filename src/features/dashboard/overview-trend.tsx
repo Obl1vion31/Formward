@@ -94,7 +94,7 @@ function OverviewDayDetails({day}:{day:OverviewDay}){
  return <div className={styles.dayDetails}>
   <div className={styles.detailTop}>
    <section><h3>晨间体重</h3><div className={styles.detailReading}><WeightReading record={day.morning}/></div><p>次晨 {day.nextDate.slice(5)} · {day.nextMorning?formatRecordNumber(day.nextMorning.weightKg)+" kg":"未记录"}{day.weightChangeKg!==null?<b>变化 {signed(day.weightChangeKg)} kg</b>:day.nextMorning?<b>未配对</b>:null}</p><LoadingLink href={"/dashboard/measurements?date="+day.date}>身体记录 →</LoadingLink></section>
-   <section><h3>消耗</h3><div className={styles.detailReading}><strong>{energyValue(day.energy.totalKcal)}<small>千卡</small></strong></div><p>静息 {energyValue(day.energy.restingKcal)} · 活动 {energyValue(day.energy.activeKcal)} 千卡</p><LoadingLink href={"/dashboard/energy?date="+day.date}>消耗记录 →</LoadingLink></section>
+   <section><h3>消耗</h3><div className={styles.detailReading}><strong>{energyValue(day.energy.totalKcal)}<small>千卡</small></strong></div><p>静息 {energyValue(day.energy.restingKcal)} · 活动 {energyValue(day.energy.activeKcal)} 千卡</p>{day.energy.record?.calculationSnapshot&&<p>系统估算 · {day.energy.record.calculationSnapshot.method==="cunningham"?"体脂公式":"常规公式"}{day.energy.record.calculationSnapshot.factor?" ×"+day.energy.record.calculationSnapshot.factor:""}</p>}<LoadingLink href={"/dashboard/energy?date="+day.date}>消耗记录 →</LoadingLink></section>
   </div>
   <section className={styles.detailNutrition}>{day.nutrition&&day.mealDayStatus!=="complete"&&<span className={styles.mealDayStatus}>{day.mealDayStatus==='incomplete'?'饮食未记全':'饮食待确认'}</span>}<DayNutritionSummary totals={day.nutrition} partial={day.mealDayStatus!=="complete"}/></section>
   <SavedMealList meals={day.meals} initialLimit={3}/>

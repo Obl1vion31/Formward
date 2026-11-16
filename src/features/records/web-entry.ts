@@ -30,6 +30,7 @@ export function sameEnergyAmounts(a:DayAmounts,b:DayAmounts){
 export function adoptedEnergyAction(action:Extract<EnergyAction,{kind:"save_energy_day"}>){
  const modes=energyModes({entryMode:action.entryMode,activityMode:action.activityMode,activeKcal:action.activeKcal??null,totalKcal:action.totalKcal??null});
  const {restingKcal,activeKcal,totalKcal,...base}=action;
+ if(action.calculation) return action.calculation.kind==="daily"?{...base,entryMode:"total" as const,activityMode:"total" as const}:{...base,entryMode:"components" as const,...(modes.activityMode==="total"?{activeKcal:activeKcal??null}:{})};
  return modes.entryMode==="total"?{...base,...modes,totalKcal:totalKcal??null}:{...base,...modes,restingKcal:restingKcal??null,...(modes.activityMode==="total"?{activeKcal:activeKcal??null}:{})};
 }
 export function energyWebIssue(action:EnergyAction,active:string|null|undefined,unchanged=false):string|null{
@@ -37,5 +38,5 @@ export function energyWebIssue(action:EnergyAction,active:string|null|undefined,
  if(!energyActionSchema.safeParse(adoptedEnergyAction(action)).success)return "请检查日期和热量数值。";
  const modes=energyModes({entryMode:action.entryMode,activityMode:action.activityMode,activeKcal:action.activeKcal??null,totalKcal:action.totalKcal??null});
  const values=modes.entryMode==="total"?[action.totalKcal]:[action.restingKcal,modes.activityMode==="total"?action.activeKcal:active];
- return hasPositiveReading(values)||unchanged||action.steps!=null?null:"请填写至少一项大于0的已知消耗数值。";
+ return hasPositiveReading(values)||unchanged||action.steps!=null||!!action.calculation?null:"请填写至少一项大于0的已知消耗数值。";
 }

@@ -11,8 +11,10 @@ import { requireActiveAiToken } from "../auth/ai-tokens";
 import { lockOwner, type Transaction } from "../auth/owner-lock";
 import { rememberEnergySources } from "./sources";
 import {energyDateMoveIssue} from "./energy-save-state";
+import {calculateEnergy, type CalculationContext} from "./calculation-model";
+import {calculationContexts, rememberCalculationPreferences} from "./calculation";
 import { systemMeasurementTimezone, validateMeasurementTimezone } from "../measurements/timezone";
-import { energyDays, energyBaseline, activityEnergyChanged, activityCalories, activityCalorieFields, ageOn, energyInputSchema, type EnergyAction, type EnergyInput, type EnergyOperationView, type EnergyPreview, type EnergyRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyProvenance } from "./model";
+import { savedCalculationMatches, energyDays, energyBaseline, activityEnergyChanged, activityCalories, activityCalorieFields, ageOn, energyInputSchema, type EnergyAction, type EnergyInput, type EnergyOperationView, type EnergyPreview, type EnergyRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyProvenance } from "./model";
 
 export type EnergyActor = { userId: string; origin: "manual" | "ai"; identity?: AiIdentity };
 function canonical(value: unknown): unknown {
@@ -22,7 +24,7 @@ function canonical(value: unknown): unknown {
 }
 function snapshotDigest(state: EnergySnapshot) {
   const { defaults, ...legacy } = state;
-  return digest({ rules: "explicit-energy-modes-v2", ...legacy, days: legacy.days.map(({ activeEstimated, notes, ...day }) => ({ ...day, ...(activeEstimated ? { activeEstimated } : {}), ...(notes ? { notes } : {}) })), ...(defaults?.length ? { defaults } : {}) });
+  return digest({ rules: "explicit-energy-modes-v2", ...legacy, days: legacy.days.map(({ activeEstimated, notes, calculationSnapshot, restingInputMethod, ...day }) => ({ ...day, ...(calculationSnapshot ? {calculationSnapshot} : {}), ...(restingInputMethod ? {restingInputMethod} : {}), ...(activeEstimated ? { activeEstimated } : {}), ...(notes ? { notes } : {}) })), ...(defaults?.length ? { defaults } : {}) });
 }
 const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex");
 const typeOf = (action: EnergyAction) => action.kind.includes("defaults") ? "defaults" : action.kind.includes("profile") ? "profile" : action.kind.includes("energy_day") ? "day" : "activity";
@@ -40,7 +42,7 @@ export async function readEnergySnapshot(db: Pick<Database, "select">, userId: s
   const sourced = <T extends Parameters<typeof plain>[0] & { sourceOccurredAt: Date | null; sourceUnit: string; syncStatus: string }>(row: T) => ({ ...plain(row), sourceOccurredAt: row.sourceOccurredAt?.toISOString() ?? null, sourceUnit: "kcal" as const, syncStatus: "confirmed" as const });
   const adoptions = days.length ? await db.select().from(energyDayAdoption).where(and(eq(energyDayAdoption.userId,userId),inArray(energyDayAdoption.date,days.map(day=>day.date)))) : [];
   const adopted = new Map(adoptions.map(row=>[row.date,{mode:row.mode,metadata:row.metadata,protectedAt:row.protectedAt?.toISOString()??null}]));
-  return { defaults: defaults.map(plain), profiles: profiles.map(row => ({ ...plain(row), sex: row.sex as "male" | "female" })), days: days.map(row=>({...sourced(row),...(adopted.has(row.date)?{adoption:adopted.get(row.date)}:{})})), activities: activities.map(row=>({...sourced(row),...(row.sourceDetails?{sourceDetails:row.sourceDetails}:{sourceDetails:undefined})})) };
+  return { defaults: defaults.map(plain), profiles: profiles.map(row => ({ ...plain(row), sex: row.sex as "male" | "female" })), days: days.map(row=>{const record={...sourced(row),...(adopted.has(row.date)?{adoption:adopted.get(row.date)}:{})};return savedCalculationMatches(record)?record:{...record,calculationSnapshot:null,restingInputMethod:"manual" as const,restingSourceSystem:record.restingSourceSystem?.startsWith("系统估算")?null:record.restingSourceSystem,sourceSystem:record.sourceSystem==="系统估算"?null:record.sourceSystem};}), activities: activities.map(row=>({...sourced(row),...(row.sourceDetails?{sourceDetails:row.sourceDetails}:{sourceDetails:undefined})})) };
 }
 function provenance(action: EnergyAction, before?: EnergyRecord): EnergyProvenance {
   const prior = before && "timezone" in before ? before : undefined;
@@ -52,7 +54,7 @@ function provenance(action: EnergyAction, before?: EnergyRecord): EnergyProvenan
   if (sourceRecordId && !sourceSystem) throw new ApiError(400, "invalid_input", "来源记录编号需要同时填写来源系统。");
   return { timezone, sourceSystem, sourceRecordId, sourceOccurredAt: input.sourceOccurredAt === undefined ? prior?.sourceOccurredAt ?? null : input.sourceOccurredAt, sourceUnit: "kcal", syncStatus: "confirmed" };
 }
-export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnapshot, excluded: number[] = []): EnergyPreview[] {
+export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnapshot, excluded: number[] = [], contexts: Record<string, CalculationContext> = {}): EnergyPreview[] {
   const state = structuredClone(snapshot), targets = new Set<string>();
   const rows = actions.map((action, index) => {
     const row: EnergyPreview = { action, excluded: excluded.includes(index) };
@@ -77,16 +79,59 @@ export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnaps
       } else if (action.kind === "save_energy_day") {
         if (before?.deletedAt) throw new ApiError(409, "deleted", "请先恢复这一天的记录。");
         const prior = before && "date" in before && "restingKcal" in before ? before : undefined;
-        const restingKcal = action.restingKcal === undefined ? prior?.restingKcal ?? null : action.restingKcal;
-        const activeKcal = action.activeKcal === undefined ? prior?.activeKcal ?? null : action.activeKcal;
-        const totalKcal = action.totalKcal === undefined ? prior?.totalKcal ?? null : action.totalKcal;
+        let restingKcal = action.restingKcal === undefined ? prior?.restingKcal ?? null : action.restingKcal;
+        let activeKcal = action.activeKcal === undefined ? prior?.activeKcal ?? null : action.activeKcal;
+        let totalKcal = action.totalKcal === undefined ? prior?.totalKcal ?? null : action.totalKcal;
         // 无模式的旧请求继续按旧的覆盖优先级解释；新请求始终显式选择。
-        const entryMode = action.entryMode ?? (action.totalKcal !== undefined ? totalKcal !== null ? "total" : "components" : prior?.entryMode ?? (totalKcal !== null ? "total" : "components"));
-        const activityMode = action.activityMode ?? (action.activeKcal !== undefined ? activeKcal !== null ? "total" : "activities" : prior?.activityMode ?? (activeKcal !== null ? "total" : "activities"));
+        let entryMode = action.entryMode ?? (action.totalKcal !== undefined ? totalKcal !== null ? "total" : "components" : prior?.entryMode ?? (totalKcal !== null ? "total" : "components"));
+        let activityMode = action.activityMode ?? (action.activeKcal !== undefined ? activeKcal !== null ? "total" : "activities" : prior?.activityMode ?? (activeKcal !== null ? "total" : "activities"));
         if (action.entryMode === "components" && action.totalKcal != null) throw new ApiError(400, "invalid_input", "分开记录时请使用自动合计，不要同时填写总数。");
         if (action.entryMode === "total" && (action.restingKcal != null || action.activeKcal != null)) throw new ApiError(400, "invalid_input", "只记总数时请勿同时提交分项。");
         if (action.activityMode === "activities" && action.activeKcal != null) throw new ApiError(400, "invalid_input", "按运动累计时请勿同时填写活动合计。因未采用的旧值仍会保留，可直接省略该字段。");
+        let calculationSnapshot = prior?.calculationSnapshot ?? null;
+        let restingInputMethod = action.restingInputMethod ?? prior?.restingInputMethod ?? null;
+        if (action.calculation) {
+          if (action.restingInputMethod && action.restingInputMethod !== "estimate") throw new ApiError(400,"invalid_input","系统计算需选择系统估算方式。");
+          if (action.restingKcal != null || action.calculation.kind === "daily" && (action.totalKcal != null || action.activeKcal != null)) throw new ApiError(400,"invalid_input","估算数值由服务器计算，请省略受计算控制的数值。");
+          const context = contexts[action.date];
+          if (!context) throw new ApiError(400,"calculation_required","请先读取这一天的计算依据。");
+          const result = calculateEnergy(context, action.calculation);
+          if (!result.ok) throw new ApiError(409,"calculation_changed",result.message);
+          calculationSnapshot = result.snapshot; restingInputMethod = "estimate";
+          entryMode = action.calculation.kind === "daily" ? "total" : "components";
+          if (entryMode === "total") { totalKcal = result.snapshot.totalKcal; restingKcal = null; activeKcal = null; activityMode = "total"; }
+          else { restingKcal = result.snapshot.restingKcal; totalKcal = null; if(action.activityMode===undefined&&action.activeKcal===undefined&&(!prior||prior.entryMode==="total")){activityMode="total";activeKcal=null;} }
+        } else {
+          const controlled = prior?.calculationSnapshot?.kind === "daily" ? "totalKcal" : "restingKcal";
+          const nextControlled = controlled === "totalKcal" ? totalKcal : restingKcal;
+          const changed = prior && (prior.date !== action.date || prior.entryMode !== entryMode || (prior[controlled] == null) !== (nextControlled == null) || Number(prior[controlled]) !== Number(nextControlled));
+          const legacyManual = prior?.calculationSnapshot && action.calculation===undefined && action.restingInputMethod===undefined && action.date===prior.date && action[controlled]!==undefined && ((prior[controlled]==null)!==(nextControlled==null)||Number(prior[controlled])!==Number(nextControlled));
+          if(legacyManual)restingInputMethod="manual";
+          if (prior?.calculationSnapshot && prior.date !== action.date && action.calculation !== null && restingInputMethod === "estimate") throw new ApiError(409,"calculation_changed","估算改期需要按新日期重新计算，请核对后保存。");
+          if (action.calculation === null || restingInputMethod === "manual" || changed) calculationSnapshot = null;
+          if (restingInputMethod === "estimate" && !calculationSnapshot) throw new ApiError(400,"calculation_required","请选择公式并重新计算后保存。");
+          if (action.restingInputMethod === "device") {
+            const adoptedResting = prior?.date === action.date ? prior.adoption?.metadata?.restingKcal : null;
+            if (prior?.date!==action.date||!prior.adoption?.metadata||!(prior.adoption.mode==="source"||prior.restingInputMethod==="device"&&!prior.calculationSnapshot)) throw new ApiError(400,"device_required","这一天还没有采用设备数据，请先连接或采用设备记录。");
+            if (action.restingKcal !== undefined && ((action.restingKcal==null)!==(adoptedResting==null)||action.restingKcal!=null&&Number(action.restingKcal)!==Number(adoptedResting))) throw new ApiError(400,"invalid_input","设备静息值须沿用已采用的事实。");
+            if(entryMode==="total"){
+              if(action.totalKcal!==undefined&&((action.totalKcal==null)!==(prior.totalKcal==null)||action.totalKcal!=null&&Number(action.totalKcal)!==Number(prior.totalKcal)))throw new ApiError(400,"invalid_input","设备全天值须沿用已采用的事实。");
+              totalKcal=prior.totalKcal;
+            }else{
+              const adoptedActive=prior.adoption.metadata.activeKcal;
+              if(action.activeKcal!==undefined&&((action.activeKcal==null)!==(adoptedActive==null)||action.activeKcal!=null&&Number(action.activeKcal)!==Number(adoptedActive)))throw new ApiError(400,"invalid_input","设备活动值须沿用已采用的事实。");
+              restingKcal=adoptedResting??null;activeKcal=adoptedActive;
+            }
+            calculationSnapshot = null;
+          }
+        }
         row.after = { ...base, ...provenance(action, before), date: action.date, steps: action.steps === undefined ? prior?.steps ?? null : action.steps, ...(prior?.adoption?{adoption:prior.adoption}:{}), entryMode, activityMode, restingSourceSystem: action.restingSourceSystem === undefined ? prior && Object.hasOwn(prior,"restingSourceSystem") ? prior.restingSourceSystem ?? null : prior?.sourceSystem ?? null : action.restingSourceSystem, activeSourceSystem: action.activeSourceSystem === undefined ? prior && Object.hasOwn(prior,"activeSourceSystem") ? prior.activeSourceSystem ?? null : prior?.sourceSystem ?? null : action.activeSourceSystem, restingEstimated: action.restingEstimated ?? prior?.restingEstimated ?? false, activeEstimated: action.activeEstimated ?? prior?.activeEstimated ?? false, notes: action.notes === undefined ? prior?.notes ?? null : action.notes, restingKcal, activeKcal, totalKcal };
+        Object.assign(row.after, {calculationSnapshot, restingInputMethod, ...(calculationSnapshot ? {restingEstimated:true, restingSourceSystem:calculationSnapshot.method==="cunningham"?"系统估算 · Cunningham":"系统估算 · Mifflin–St Jeor",...(action.calculation?.kind==="daily"?{sourceSystem:"系统估算",sourceRecordId:null,sourceOccurredAt:null}:{})} : {})});
+        if(!calculationSnapshot&&prior?.calculationSnapshot&&restingInputMethod==="manual"){
+          const record=row.after as EnergyDayRecord;record.restingEstimated=action.restingEstimated??false;
+          if(record.restingSourceSystem?.startsWith("系统估算"))record.restingSourceSystem=null;
+          if(record.sourceSystem==="系统估算"){record.sourceSystem=null;record.sourceRecordId=null;}
+        }
       if (prior?.adoption?.mode === "source" && energyFactsChanged(prior,row.after)) (row.after as EnergyDayRecord).adoption = {...prior.adoption,mode:"manual",protectedAt:new Date().toISOString()};
       } else if (action.kind === "save_activity") {
         if (before?.deletedAt) throw new ApiError(409, "deleted", "请先恢复该活动。");
@@ -114,6 +159,10 @@ export function planEnergyActions(actions: EnergyAction[], snapshot: EnergySnaps
     const record=row.after, action=row.action, baseline=energyBaseline(state.days.find(day=>!day.deletedAt&&day.date===record.date));
     if("inclusion" in action && action.inclusion!==undefined){
       record.inclusion=baseline?action.inclusion:null;record.inclusionBasis=record.inclusion?baseline:null;
+    }
+    const dayRecord=state.days.find(day=>!day.deletedAt&&day.date===record.date);
+    if(!record.deletedAt&&record.completed&&dayRecord?.calculationSnapshot?.kind==="daily"&&record.inclusion==="additional"){
+      row.error="活动量估算已包含全天活动，运动明细不能额外相加；请选择已包含，或改用运动明细记录。";
     }
     const prior=row.before && "name" in row.before?row.before:undefined;
     const energyChanged=!prior || activityEnergyChanged(prior,record);
@@ -160,6 +209,7 @@ export async function submitEnergyOperation(db: Database, actor: EnergyActor, ra
     if (actor.origin === "ai") {
       if (!actor.identity || actor.identity.userId !== actor.userId) throw new ApiError(401, "invalid_token", "缺少消耗授权。");
       await requireActiveAiToken(tx, actor.identity, true, "energy");
+      if(input.actions.some(action=>action.kind==="save_energy_day"&&action.calculation))await requireActiveAiToken(tx,actor.identity,false,"measurements");
     }
     const [prior] = await tx.select().from(energyOperation).where(and(eq(energyOperation.userId, actor.userId), eq(energyOperation.operationId, input.operationId)));
     if (prior) {
@@ -170,22 +220,25 @@ export async function submitEnergyOperation(db: Database, actor: EnergyActor, ra
     const state = await readEnergySnapshot(tx, actor.userId);
     const moveIssue=options.emptyDateMoveTarget?energyDateMoveIssue(input.actions,state):null;
     if(moveIssue)throw new ApiError(409,"date_move_conflict",moveIssue);
-    const [row] = await tx.insert(energyOperation).values({ id: randomUUID(), userId: actor.userId, operationId: input.operationId, origin: actor.origin, tokenId: actor.identity?.tokenId, oauthConnectionId: actor.identity?.oauthConnectionId, requestDigest: digest(input), snapshotDigest: snapshotDigest(state), payload: input, draft: input, preview: planEnergyActions(input.actions, state), expiresAt: actor.origin === "ai" ? new Date(Date.now() + 15 * 60000) : null }).returning();
+    const contexts=await calculationContexts(tx,actor.userId,input.actions);
+    const [row] = await tx.insert(energyOperation).values({ id: randomUUID(), userId: actor.userId, operationId: input.operationId, origin: actor.origin, tokenId: actor.identity?.tokenId, oauthConnectionId: actor.identity?.oauthConnectionId, requestDigest: digest(input), snapshotDigest: snapshotDigest(state), payload: input, draft: input, preview: planEnergyActions(input.actions, state,[],contexts), expiresAt: actor.origin === "ai" ? new Date(Date.now() + 15 * 60000) : null }).returning();
     return { ...displayEnergyOperation(row), repeated: false };
   });
 }
-async function checkCredential(tx: Transaction, row: typeof energyOperation.$inferSelect) {
+async function checkCredential(tx: Transaction, row: typeof energyOperation.$inferSelect, actions=row.draft.actions) {
   if (row.origin !== "ai") return;
   const identity: AiIdentity = row.tokenId ? { userId: row.userId, tokenId: row.tokenId, permission: "write" } : { userId: row.userId, oauthConnectionId: row.oauthConnectionId!, permission: "write" };
   await requireActiveAiToken(tx, identity, true, "energy");
+  if(actions.some(action=>action.kind==="save_energy_day"&&action.calculation))await requireActiveAiToken(tx,identity,false,"measurements");
 }
 export async function reviseEnergyOperation(db: Database, userId: string, id: string, revision: number, actions: EnergyAction[], excluded: number[] = []) {
   return db.transaction(async tx => {
     await lockOwner(tx, userId); const row = await getEnergyOperation(tx, userId, id);
     if (row.status !== "pending" || row.revision !== revision) throw new ApiError(409, "review_changed", "消耗审核已改变，请重新加载。");
-    await checkCredential(tx, row);
+    await checkCredential(tx, row, actions);
     const input = parse({ operationId: row.draft.operationId, actions }), state = await readEnergySnapshot(tx, userId);
-    const [updated] = await tx.update(energyOperation).set({ draft: input, preview: planEnergyActions(input.actions, state, excluded), snapshotDigest: snapshotDigest(state), revision: row.revision + 1, expiresAt: row.origin === "ai" ? new Date(Date.now() + 15 * 60000) : null }).where(eq(energyOperation.id, row.id)).returning();
+    const contexts=await calculationContexts(tx,userId,input.actions);
+    const [updated] = await tx.update(energyOperation).set({ draft: input, preview: planEnergyActions(input.actions, state, excluded,contexts), snapshotDigest: snapshotDigest(state), revision: row.revision + 1, expiresAt: row.origin === "ai" ? new Date(Date.now() + 15 * 60000) : null }).where(eq(energyOperation.id, row.id)).returning();
     return displayEnergyOperation(updated);
   });
 }
@@ -204,9 +257,10 @@ export async function persistEnergyPreview(tx: Transaction, userId: string, row:
   } else {
     const source = { timezone: record.timezone, sourceSystem: record.sourceSystem, sourceRecordId: record.sourceRecordId, sourceOccurredAt: record.sourceOccurredAt ? new Date(record.sourceOccurredAt) : null, sourceUnit: record.sourceUnit, syncStatus: record.syncStatus };
     if ("restingKcal" in record) {
-      const values = { ...common, ...source, date: record.date, entryMode: record.entryMode ?? null, activityMode: record.activityMode ?? null, restingSourceSystem: record.restingSourceSystem ?? null, activeSourceSystem: record.activeSourceSystem ?? null, restingEstimated: record.restingEstimated ?? false, activeEstimated: record.activeEstimated ?? false, notes: record.notes ?? null, steps:record.steps??null, restingKcal: record.restingKcal, activeKcal: record.activeKcal, totalKcal: record.totalKcal };
+      const values = { ...common, ...source, date: record.date, restingInputMethod: record.restingInputMethod ?? null, calculationSnapshot: record.calculationSnapshot ?? null, entryMode: record.entryMode ?? null, activityMode: record.activityMode ?? null, restingSourceSystem: record.restingSourceSystem ?? null, activeSourceSystem: record.activeSourceSystem ?? null, restingEstimated: record.restingEstimated ?? false, activeEstimated: record.activeEstimated ?? false, notes: record.notes ?? null, steps:record.steps??null, restingKcal: record.restingKcal, activeKcal: record.activeKcal, totalKcal: record.totalKcal };
       if (row.before) await tx.update(energyDay).set(values).where(and(eq(energyDay.userId, userId), eq(energyDay.id, record.id)));
       else await tx.insert(energyDay).values({ id: record.id, userId, ...values });
+      if (!record.deletedAt && record.restingInputMethod) await rememberCalculationPreferences(tx,userId,record.restingInputMethod,record.calculationSnapshot?.requestedMethod);
     } else {
       const values = { ...common, ...source, date: record.date, sourceDetails:record.sourceDetails??null, name: record.name, durationMinutes: record.durationMinutes, caloriesKcal: record.caloriesKcal, calorieMode:record.calorieMode??null,exerciseRestingKcal:record.exerciseRestingKcal??null,exerciseActiveKcal:record.exerciseActiveKcal??null, inclusion:record.inclusion??null,inclusionBasis:record.inclusionBasis??null,completed: record.completed };
       if (row.before) await tx.update(activity).set(values).where(and(eq(activity.userId, userId), eq(activity.id, record.id)));
@@ -229,6 +283,12 @@ export async function decideEnergyOperation(db: Database, userId: string, id: st
       if (row.origin === "ai") requireAiUpserts(selected.map(entry => entry.action));
       if (selected.some(entry => retiredEnergyAction(entry.action.kind))) throw new ApiError(400, "retired_action", "日常默认值和静息公式资料已停用，请刷新预览并取消这一项。");
       if (!selected.length || selected.some(row => row.error || !row.after)) throw new ApiError(400, "review_required", "请修改或取消有问题的消耗记录。");
+      const contexts=await calculationContexts(tx,userId,selected.map(entry=>entry.action));
+      for(const entry of selected)if(entry.action.kind==="save_energy_day"&&entry.action.calculation){
+        const saved=entry.after&&"calculationSnapshot" in entry.after?entry.after.calculationSnapshot:null;
+        const fresh=calculateEnergy(contexts[entry.action.date],{...entry.action.calculation,basisKey:saved?.basisKey});
+        if(!saved||!fresh.ok||digest(saved)!==digest(fresh.snapshot))throw new ApiError(409,"snapshot_changed","计算依据已改变，请刷新预览并重新核对。");
+      }
       for (const entry of selected) {
         const permanent=options.permanentManualDeletion&&entry.action.kind.startsWith("delete_");
         if(permanent){const table=entry.action.kind==="delete_energy_day"?energyDay:activity;await tx.delete(table).where(and(eq(table.userId,userId),eq(table.id,entry.before!.id)));}

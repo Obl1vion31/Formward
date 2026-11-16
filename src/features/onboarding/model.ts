@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export type OnboardingStep = "profile" | "tutorial" | "complete";
-export type PersonalProfile = { heightCm: string | null; birthDate: string | null; onboardingStep: OnboardingStep; version: number; updatedAt: string | null };
-export const emptyProfile: PersonalProfile = { heightCm: null, birthDate: null, onboardingStep: "complete", version: 0, updatedAt: null };
+export type PersonalProfile = { heightCm: string | null; birthDate: string | null; sexForCalculation?: "male" | "female" | null; onboardingStep: OnboardingStep; version: number; updatedAt: string | null };
+export const emptyProfile: PersonalProfile = { heightCm: null, birthDate: null, sexForCalculation: null, onboardingStep: "complete", version: 0, updatedAt: null };
 
 export function profileToday(now = new Date()) { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(now); }
 export function profileAge(birthDate: string | null, today: string) {
@@ -11,7 +11,7 @@ export function profileAge(birthDate: string | null, today: string) {
   return ty-y-(tm<m || tm===m && td<d ? 1 : 0);
 }
 const optionalText = z.union([z.string().trim().transform(value => value || null), z.null()]);
-export const profileInput = z.object({ expectedVersion: z.number().int().min(0), heightCm: optionalText, birthDate: optionalText, continueOnboarding: z.boolean().optional() }).strict();
+export const profileInput = z.object({ expectedVersion: z.number().int().min(0), heightCm: optionalText, birthDate: optionalText, sexForCalculation: z.enum(["male", "female"]).nullable().optional(), continueOnboarding: z.boolean().optional() }).strict();
 export function validateProfile(input: unknown, today = profileToday()) {
   const value = profileInput.parse(input);
   if (value.heightCm !== null && (!/^\d{1,3}(\.\d{1,2})?$/.test(value.heightCm) || Number(value.heightCm)<30 || Number(value.heightCm)>300)) throw new Error("身高请填写30–300厘米，最多两位小数。");

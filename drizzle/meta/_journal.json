@@ -281,6 +281,13 @@
       "when": 1794727151318,
       "tag": "0040_assistant_recognition_relation",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1794828112839,
+      "tag": "0041_energy_calculation",
+      "breakpoints": true
     }
   ]
 }

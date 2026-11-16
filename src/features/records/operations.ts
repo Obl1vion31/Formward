@@ -19,6 +19,7 @@ import { type MealAction, type MealInput, type PreviewRow, type MealSnapshot } f
 import { category, isBody, isEnergy, recordInputSchema, recordItemSchema, type RecordAction, type RecordInput, type RecordItem, type RecordReviewAction, type RecordReviewView, type RecordRow } from "./model";
 
 import { planEnergyActions, readEnergySnapshot, submitEnergyOperation, getEnergyOperation, displayEnergyOperation, reviseEnergyOperation, decideEnergyOperation } from "../activities/records";
+import {calculationContexts} from "../activities/calculation";
 import { energyBaseline, energyDays, retiredEnergyAction, type ActivityRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyAction } from "../activities/model";
 
 import { actionDate, summarizeRecordItems } from "./review-summary";
@@ -126,7 +127,8 @@ async function expandEnergyRelations(db:Database,userId:string,items:RecordItem[
  const entries=energyItems(items);
  if(!entries.some(item=>item.action.kind==="save_energy_day"))return;
  const snapshot=await readEnergySnapshot(db,userId);
- const previews=planEnergyActions(entries.map(item=>item.action as EnergyAction),snapshot,entries.flatMap((item,index)=>item.excluded?[index]:[]));
+ const actions=entries.map(item=>item.action as EnergyAction);
+ const previews=planEnergyActions(actions,snapshot,entries.flatMap((item,index)=>item.excluded?[index]:[]),await calculationContexts(db,userId,actions));
  const candidates=previews.filter(row=>!row.excluded).flatMap(row=>row.coverageQuestions??[]);
  for(const record of candidates){
   const stored=snapshot.activities.find(row=>row.id===record.id&&!row.deletedAt);
@@ -236,6 +238,7 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
     if (input.items.some(item => item.kind !== "save_record" && !isEnergy(item) && !isTraining(item))) await requireActiveAiToken(tx, identity, true, "meals");
     if (input.items.some(isTraining)) await requireActiveAiToken(tx, identity, true, "training");
     if (input.items.some(isEnergy)) await requireActiveAiToken(tx, identity, true, "energy");
+    if (input.items.some(item=>item.kind==="save_energy_day"&&item.calculation)) await requireActiveAiToken(tx,identity,false,"measurements");
     const [prior] = await tx.select().from(recordOperation).where(and(eq(recordOperation.userId, identity.userId), eq(recordOperation.operationId, input.operationId)));
     if (prior) {
       if (trainingItems(prior.draft).some(item => item.trainingGrant?.tokenId !== identity.tokenId || item.trainingGrant?.oauthConnectionId !== identity.oauthConnectionId)) throw new ApiError(409, "request_conflict", "不能替换提交授权。");
@@ -273,6 +276,7 @@ async function correctPendingRecord(db: Database, identity: AiIdentity, input: R
     if (!row) throw new ApiError(404, "not_found", "原草稿不存在或不属于本账号。");
     const types = [...new Set(row.draft.map(item => category(item.action)))];
     for (const domain of types) await requireActiveAiToken(tx, identity, true, domain === "body" ? undefined : domain === "foods" ? "meals" : domain as "meals" | "energy" | "training");
+    if(input.items.some(item=>item.kind==="save_energy_day"&&item.calculation))await requireActiveAiToken(tx,identity,false,"measurements");
     const sameGrant = (grant: { tokenId: string | null; oauthConnectionId: string | null }) => grant.tokenId === (identity.tokenId ?? null) && grant.oauthConnectionId === (identity.oauthConnectionId ?? null);
     const children = [row.mealOperationId ? await getMealOperation(connection, identity.userId, row.mealOperationId) : null, row.energyOperationId ? await getEnergyOperation(connection, identity.userId, row.energyOperationId) : null];
     if (row.measurementOperationId) { const [body] = await tx.select().from(measurementOperation).where(and(eq(measurementOperation.userId, identity.userId), eq(measurementOperation.id, row.measurementOperationId))); if (!body || !sameGrant(body)) throw new ApiError(403, "forbidden", "只能修正原授权创建的草稿。"); }
@@ -322,6 +326,7 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
       [row] = await tx.insert(recordOperation).values({ ...seed, id: randomUUID() }).returning();
     }
     if (aiEdit) {
+      if(action.kind==="update"&&action.action.kind==="save_energy_day"&&action.action.calculation)await requireActiveAiToken(tx,aiEdit.identity,false,"measurements");
       let originalExpired = false;
       if (aiEdit.identity.userId !== userId || action.kind !== "update") throw new ApiError(403, "forbidden", "只能修改原授权的待确认内容。");
       if (!aiEdit.allowRecordUpdate) {
@@ -409,7 +414,8 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
           const changedDay=item.action;
           const prior=before.energySnapshot?.days.find(day=>day.date===changedDay.date);
           const entries=energyItems(items),state=await readEnergySnapshot(connection,userId);
-          const next=planEnergyActions(entries.map(entry=>entry.action as EnergyAction),state,entries.flatMap((entry,index)=>entry.excluded?[index]:[])).find(preview=>preview.action===item.action)?.after;
+          const actions=entries.map(entry=>entry.action as EnergyAction);
+          const next=planEnergyActions(actions,state,entries.flatMap((entry,index)=>entry.excluded?[index]:[]),await calculationContexts(connection,userId,actions)).find(preview=>preview.action===item.action)?.after;
           if(next && "restingKcal" in next && "date" in next && energyBaseline(prior?{...prior,id:"comparison"}:null)!==energyBaseline({...next,id:"comparison"})){
             for(const dependent of items)if(dependent.action.kind==="save_activity" && [prior?.date,next.date].includes(dependent.action.date)){
               const {inclusion,...rest}=dependent.action;void inclusion;dependent.action=rest;dependent.checked=false;
@@ -505,6 +511,7 @@ export async function extendAiRecordPreview(db: Database, identity: AiIdentity, 
     }
     const same = (grant: { tokenId: string | null; oauthConnectionId: string | null }) => grant.tokenId === (identity.tokenId ?? null) && grant.oauthConnectionId === (identity.oauthConnectionId ?? null);
     for (const domain of new Set([...row.draft.map(item => category(item.action)), ...additions.map(category)])) await requireActiveAiToken(tx, identity, true, domain === "body" ? undefined : domain === "foods" ? "meals" : domain as "meals" | "energy" | "training");
+    if([...changes,...additions].some(item=>item.kind==="save_energy_day"&&item.calculation))await requireActiveAiToken(tx,identity,false,"measurements");
     if (row.measurementOperationId) { const [body] = await tx.select().from(measurementOperation).where(and(eq(measurementOperation.userId, identity.userId), eq(measurementOperation.id, row.measurementOperationId))); if (!body || !same(body)) throw new ApiError(403, "forbidden", "只能修改原授权创建的草稿。"); }
     const children = [row.mealOperationId ? await getMealOperation(connection, identity.userId, row.mealOperationId) : null, row.energyOperationId ? await getEnergyOperation(connection, identity.userId, row.energyOperationId) : null];
     if (children.some(child => child && (child.origin !== "ai" || !same(child))) || trainingItems(row.draft).some(item => !item.trainingGrant || item.trainingGrant.tokenId !== identity.tokenId || item.trainingGrant.oauthConnectionId !== identity.oauthConnectionId)) throw new ApiError(403, "forbidden", "只能修改原授权创建的草稿。");

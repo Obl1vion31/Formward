@@ -2,6 +2,20 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { test } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
+test("0041只扩展三表，旧值、版本、账号和身体事实保持，缺省性别不回填",async()=>{
+ const pg=new PGlite();try{
+  const files=(await readdir("drizzle")).filter(file=>/^\d{4}_.*\.sql$/.test(file)).sort();
+  for(const file of files.filter(file=>file<"0041"))await pg.exec(await readFile("drizzle/"+file,"utf8"));
+  await pg.exec("INSERT INTO users(id,name,email) VALUES ('calculation-migration','虚构迁移用户','calculation-migration@example.test'); INSERT INTO personal_profiles(user_id,height_cm,birth_date,version) VALUES ('calculation-migration',173.5,'2004-06-03',3); INSERT INTO account_preferences(user_id,show_body_fat,version) VALUES ('calculation-migration',true,4); INSERT INTO energy_days(id,user_id,local_date,timezone,entry_mode,activity_mode,resting_kcal,active_kcal) VALUES ('calculation-migration-day','calculation-migration','2025-06-03','Asia/Shanghai','components','total',2058,0)");
+  const tables=(await pg.query<{table_name:string}>("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name")).rows.map(row=>row.table_name),prior=new Map();
+  for(const table of tables)prior.set(table,(await pg.query(`SELECT * FROM "${table}"`)).rows);
+  await pg.exec(await readFile("drizzle/0041_energy_calculation.sql","utf8"));
+  const added:Record<string,string[]>={personal_profiles:["sex_for_calculation"],account_preferences:["energy_resting_method","energy_formula"],energy_days:["resting_input_method","calculation_snapshot"]};
+  for(const table of tables){const rows=(await pg.query<Record<string,unknown>>(`SELECT * FROM "${table}"`)).rows;for(const row of rows){if(table==="personal_profiles")assert.equal(row.sex_for_calculation,null);if(table==="account_preferences"){assert.equal(row.energy_resting_method,"estimate");assert.equal(row.energy_formula,"auto");}for(const column of added[table]??[])delete row[column];}assert.deepEqual(rows,prior.get(table),table);}
+  await assert.rejects(pg.exec("UPDATE personal_profiles SET sex_for_calculation='invalid'"));await assert.rejects(pg.exec("UPDATE account_preferences SET energy_formula='invalid'"));await assert.rejects(pg.exec("UPDATE energy_days SET resting_input_method='invalid'"));
+  await pg.exec("UPDATE energy_days SET notes='旧版备注' WHERE id='calculation-migration-day'");assert.equal((await pg.query<{active_kcal:string}>("SELECT active_kcal FROM energy_days WHERE id='calculation-migration-day'")).rows[0].active_kcal,"0.0000");
+ }finally{await pg.close();}
+});
 test("消耗来源迁移仅增加建议元数据，按账号去重并保留全部旧表和值", async () => {
   const pg = new PGlite();
   try {

@@ -436,3 +436,7 @@ production build后执行pnpm test:mobile-interface-browser，使用PGlite虚构
 加载矩阵以实际业务外壳可见及字体就绪作为完成条件，逐帧检查文字、颜色、日期和1px锚点；不等待所有预取及后台请求进入networkidle，依据[Playwright的完成条件说明](https://playwright.dev/docs/api/class-page#page-wait-for-load-state)。报告保存就绪时仍在途的路径、方法与预取标记，不含查询参数；失败保留同类诊断。后台网络安静不代表内容就绪，真实业务内容就绪也不要求全站预取结束。
 
 手机直达/刷新在尚未触摸时也检查程序焦点：9db8d3ee仅初始化输入方式，Chromium/WebKit各8组双主题触屏尺寸验证无绘制外框，Tab恢复可见焦点。该追加项未另记为真机冷进入或新键盘策略验收。
+
+## 消耗系统估算
+
+energy-estimation.browser.mts创建独立PGlite、虚构资料及实测并启动production build；FORMWARD_ESTIMATE_ENGINE选择chromium／webkit，FORMWARD_ESTIMATE_ARTIFACTS指定私有证据。FORMWARD_ESTIMATE_PREVIEW=1可持续运行供真实浏览器核对，FORMWARD_ESTIMATE_PORT指定本轮独占端口，FORMWARD_ESTIMATE_RELEASE可指向本轮私有standalone运行包，以相同虚构数据库验收实际发布产物。覆盖双主题五尺寸、公式说明、默认估算、活动路径互斥、返回草稿、失败重试、保存快照、主动重算、选填性别与补填；不使用正式资料或收费模型。

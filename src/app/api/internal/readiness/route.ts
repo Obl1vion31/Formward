@@ -11,6 +11,9 @@ export async function GET(request:Request){
  if(!process.env.FORMWARD_EXPECTED_DATABASE||database[0]?.name!==process.env.FORMWARD_EXPECTED_DATABASE||!process.env.FORMWARD_ENVIRONMENT)throw new Error("部署环境不匹配。");
  await getDatabase().execute(sql`select storage_provider,storage_location from meal_images limit 0`);
  await getDatabase().execute(sql`select access_version,banned from users limit 0`);
+ await getDatabase().execute(sql`select sex_for_calculation from personal_profiles limit 0`);
+ await getDatabase().execute(sql`select energy_resting_method,energy_formula from account_preferences limit 0`);
+ await getDatabase().execute(sql`select resting_input_method,calculation_snapshot from energy_days limit 0`);
  if(process.env.FORMWARD_CHAT_ENABLED==="1"){
   await getDatabase().execute(sql`select token_id,provider from assistant_connections limit 0`);
   await getDatabase().execute(sql`select provider,followup,purpose,context from assistant_conversations limit 0`);

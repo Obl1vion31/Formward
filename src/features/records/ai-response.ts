@@ -1,6 +1,8 @@
 import type { MealOperationView } from "../meals/model";
 import type { RecordReviewView } from "./model";
 import { metrics, type Totals } from "../meals/model";
+import {publicEnergyRecord} from "../activities/public-record";
+import {publicCalculation} from "../activities/calculation-model";
 
 function nutritionStatus({values,incomplete}: Totals) {
   const known = metrics.filter(key => values[key] !== null), unknown = metrics.filter(key => values[key] === null);
@@ -43,7 +45,7 @@ export function recordAiResponse(operation: RecordReviewView & { repeated?: bool
     ...(view === "summary" ? { rows: operation.rows.map(row => ({
       key: row.key, kind: row.action.kind, excluded: row.excluded, persisted: row.persisted ?? false,
       ...(row.meal ? { meal: mealAiResponse({ id: operation.id, revision: operation.revision, status: operation.status, origin: "ai", createdAt: operation.createdAt, expiresAt: operation.expiresAt, confirmationPath: operation.confirmationPath, canConfirm: operation.canConfirm, rows: [row.meal], result: null }).rows?.[0] } : {}),
-      ...(row.energy ? { energy: { after: row.energy.after, error: row.energy.error ?? null, warnings: row.energy.warnings ?? [], coverageQuestions: row.energy.coverageQuestions?.map(activity => ({ id: activity.id, date: activity.date, name: activity.name })), day: row.energy.day ? { date: row.energy.day.date, cumulative: row.energy.day.cumulative ?? false, estimated: row.energy.day.estimated, totalKcal: row.energy.day.totalKcal, restingKcal: row.energy.day.restingKcal, activeKcal: row.energy.day.activeKcal } : null } } : {}),
+      ...(row.energy ? { energy: { after: publicEnergyRecord(row.energy.after), error: row.energy.error ?? null, warnings: row.energy.warnings ?? [], coverageQuestions: row.energy.coverageQuestions?.map(activity => ({ id: activity.id, date: activity.date, name: activity.name })), day: row.energy.day ? { date: row.energy.day.date, calculation:publicCalculation(row.energy.day.record?.calculationSnapshot), cumulative: row.energy.day.cumulative ?? false, estimated: row.energy.day.estimated, totalKcal: row.energy.day.totalKcal, restingKcal: row.energy.day.restingKcal, activeKcal: row.energy.day.activeKcal } : null } } : {}),
       ...(row.body ? { body: { input: row.body.input, status: row.body.status, preview: row.body.preview } } : {}),
       ...(row.training ? { training: row.training } : {}),
     })) } : {}),

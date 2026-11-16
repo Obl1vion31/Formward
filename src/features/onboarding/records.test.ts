@@ -26,6 +26,14 @@ test("旧账号缺资料仍为已完成，不回填2058、体重或公式",async
   assert.equal(profile.onboardingStep,"complete");assert.equal(profile.heightCm,null);assert.equal(profile.version,0);
   assert.equal((await db.select().from(schema.personalProfile).where(eq(schema.personalProfile.userId,p.userId))).length,0);
 });
+test("计算用性别可填、修改、清空；旧请求省略保持原值，拒绝无效字段",async()=>{
+ const p=await identity(true);
+ const male=await savePersonalProfile(db,p,{expectedVersion:0,heightCm:"173.5",birthDate:"2004-06-03",sexForCalculation:"male"});assert.equal(male.sexForCalculation,"male");
+ const unchanged=await savePersonalProfile(db,p,{expectedVersion:male.version,heightCm:"173.5",birthDate:"2004-06-03"});assert.equal(unchanged.sexForCalculation,"male");assert.equal(unchanged.version,male.version);
+ const female=await savePersonalProfile(db,p,{expectedVersion:male.version,heightCm:"173.5",birthDate:"2004-06-03",sexForCalculation:"female"});assert.equal(female.sexForCalculation,"female");
+ await assert.rejects(savePersonalProfile(db,p,{expectedVersion:female.version,heightCm:null,birthDate:null,sexForCalculation:"other"}),/格式/);
+ const clear=await savePersonalProfile(db,p,{expectedVersion:female.version,heightCm:null,birthDate:null,sexForCalculation:null});assert.equal(clear.sexForCalculation,null);
+});
 test("维护创建新账号在同事务开启引导；重复创建不重置",async()=>{
   const credentials={email:"created@onboarding.example.test",password:"fictional-onboarding-password"};
   const account=await provisionAccount(db,credentials);

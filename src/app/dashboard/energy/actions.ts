@@ -13,6 +13,23 @@ import { systemMeasurementTimezone } from "@/features/measurements/timezone";
 import { listEnergySources, removeEnergySource } from "@/features/activities/sources";
 import type { SourceRemovalResult } from "@/components/source-input";
 import {energyChangedKeys} from "@/features/activities/energy-save-state";
+import {loadCalculationContext} from "@/features/activities/calculation";
+import {listMeasurements} from "@/features/measurements/records";
+import {measurementDisplay} from "@/features/measurements/editing";
+import {listMeasurementSources} from "@/features/measurements/sources";
+import {calendarOrdinal} from "@/features/measurements/calendar";
+export async function loadEnergyCalculationAction(date:string) {
+ try { return await withCurrentSession(await headers(), async user=>({ok:true as const,data:await loadCalculationContext(getDatabase(),user.id,date)})); }
+ catch(error) { return {ok:false as const,error:safeAiError(error).error.message}; }
+}
+export async function loadEnergySupplementAction(date:string) {
+ try { calendarOrdinal(date);return await withCurrentSession(await headers(),async user=>{const db=getDatabase();return {ok:true as const,data:{records:(await listMeasurements(db,user.id,[date])).map(measurementDisplay),sources:await listMeasurementSources(db,user.id)}};}); }
+ catch(error){return {ok:false as const,error:safeAiError(error).error.message};}
+}
+export async function loadEnergyStateAction(){
+ try{return await withCurrentSession(await headers(),async user=>{const db=getDatabase(),snapshot=await readEnergySnapshot(db,user.id),today=localMeasurementDate(new Date(),systemMeasurementTimezone());return {ok:true as const,data:energyPresentation(snapshot,[],today,await listEnergySources(db,user.id),user.id)};});}
+ catch(error){return {ok:false as const,error:safeAiError(error).error.message};}
+}
 export async function saveEnergyAction(input: EnergyInput) {
   try {
     return await withCurrentSession(await headers(), async user => {
