@@ -1,5 +1,8 @@
 当前双入口主库、原授权保持与验收边界见[双入口部署](../../docs/mainland-deployment.md)。历史私有预览脚本继续只允许 formward_preview，不可直接用于正式主库。
 
+chat-worker.ts及formward-chat-worker.service提供站内聊天／本餐识图的独立执行进程。区域运行包附带chat-worker.mjs与服务模板；先完成0042迁移，再同时启用应用和worker。worker与主应用使用相同环境文件和应用身份，无公开监听端口；读取队列、保存进度并处理停止，网页断线不影响任务。回退时先停worker，只切应用，不回滚数据库。普通本地pnpm build同时构建.next/chat-worker.mjs，使用pnpm worker:chat单独启动，开发环境不得接真实模型和健康库。
+
+
 # 服务器部署与维护工具
 
 本目录提供Ubuntu 24.04 amd64的独立预览脚本、同源发布构建与正式主库维护工具。应用采用独立非登录用户和systemd，数据库为PostgreSQL18。preview脚本固定回环私有环境；当前正式应用回环3200、数据库回环5432，公网入口由Nginx443代理。正式状态、证书、备份及未测范围见双入口部署与验收文档，不把预览脚本直接用于正式主库。

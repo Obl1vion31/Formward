@@ -30,7 +30,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   const deferredRead=useRef(false);
   const request = useRef<AbortController | null>(null), reading = useRef(false), current = useRef<ChatSnapshot | null>(null), generation = useRef(0), alive = useRef(true);
   const scroll = useRef({ top: 0, stick: true });
-  const pendingRequest=useRef<{signature:string;id:string}|null>(null);
+  const pendingRequest=useRef<{signature:string;id:string;sent?:{draft:string;photoKeys:string[];quoteId?:string}}|null>(null);
   const [optimistic,setOptimistic]=useState<ChatMessage|null>(null);
   const [newRequests,setNewRequests]=useState<ReadonlySet<string>>(new Set());
   const arrivals=useRef(new Set<string>());
@@ -64,6 +64,12 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     if (!alive.current) return;
     if(snapshot.entitlement&&!updateAccess(snapshot.entitlement)){deferredRead.current=true;return;}
     const changed = current.current?.conversationId !== snapshot.conversationId;
+    const pending=pendingRequest.current;
+    if(pending&&snapshot.messages.some(message=>message.requestId===pending.id)){
+      if(pending.sent){const sent=pending.sent;setDraft(value=>value===sent.draft?"":value);setQuote(value=>value?.id===sent.quoteId?null:value);
+        const keys=new Set(sent.photoKeys),kept=photoState.current.filter(photo=>!keys.has(photo.key));for(const photo of photoState.current)if(keys.has(photo.key)&&photo.preview)URL.revokeObjectURL(photo.preview);photoState.current=kept;setPhotos(kept);
+      }pendingRequest.current=null;
+    }
     current.current = snapshot; setData(snapshot);
     setMessages(previous => { const merged = new Map((changed ? [] : previous).map(row => [row.id, row])); for (const row of snapshot.messages) merged.set(row.id, row); return [...merged.values()].sort((a,b) => a.seq - b.seq).slice(-50); });
   }, [updateAccess]);
@@ -91,8 +97,8 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     return () => { window.removeEventListener("resize",update); window.visualViewport?.removeEventListener("resize",update); window.visualViewport?.removeEventListener("scroll",update); };
   }, [enabled]);
   useEffect(() => { alive.current = true; const epoch = generation.current; return () => { alive.current = false; generation.current = epoch + 1; request.current?.abort(); releasePhotoResources(); }; }, [accountId,releasePhotoResources]);
-  useEffect(() => { if (!open) return; const frame = requestAnimationFrame(() => void read()); const focus = () => { if (!document.hidden && !request.current) void read(); }; window.addEventListener("focus", focus); document.addEventListener("visibilitychange", focus); window.addEventListener("formward-record-saved", focus); return () => { cancelAnimationFrame(frame); window.removeEventListener("focus", focus); document.removeEventListener("visibilitychange", focus); window.removeEventListener("formward-record-saved", focus); }; }, [enabled, open, read]);
-  useEffect(() => { if (!open || !data?.activeRunId || running) return; const timer = setInterval(() => void read(), 1800); return () => clearInterval(timer); }, [open, data?.activeRunId, running, read]);
+  useEffect(() => { if (!open) return; const frame = requestAnimationFrame(() => void read()); const focus = () => { if(document.hidden)return;request.current?.abort();void read(); }; window.addEventListener("focus", focus); window.addEventListener("pageshow",focus); window.addEventListener("online",focus); document.addEventListener("visibilitychange", focus); window.addEventListener("formward-record-saved", focus); return () => { cancelAnimationFrame(frame); window.removeEventListener("focus", focus); window.removeEventListener("pageshow",focus); window.removeEventListener("online",focus); document.removeEventListener("visibilitychange", focus); window.removeEventListener("formward-record-saved", focus); }; }, [enabled, open, read]);
+  useEffect(() => { if (!open || !data?.activeRunId || running) return; const timer = setInterval(() => {if(!document.hidden)void read();}, 1800); return () => clearInterval(timer); }, [open, data?.activeRunId, running, read]);
   useEffect(() => { if (!open) return; const timer = setInterval(() => { if (!document.hidden && !request.current) void read(); },60000); return () => clearInterval(timer); }, [enabled,open,read]);
   useEffect(() => { if (!open || !data?.usage.resetAt) return; const timer = setTimeout(() => { if (!request.current) void read(); },Math.max(1000,Date.parse(data.usage.resetAt)-Date.now()+200)); return () => clearTimeout(timer); }, [open,data?.usage.resetAt,read]);
   useEffect(() => { if (!loading) return; const timer = setTimeout(() => setDelayed(true), 200); return () => clearTimeout(timer); }, [loading]);
@@ -119,8 +125,8 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     let optimisticText=draft;
     try{if(followup)optimisticText=followupText(snapshot.followup,followup);}catch(failure){setError(failure instanceof Error?failure.message:"补充任务已变化。");return;}
     const controller = new AbortController(); request.current = controller; setRunning(true); setError("");
-    const signature=JSON.stringify({action,draft:followup?"":draft,photos:followup?[]:photos.map(p=>p.id),quote:followup?null:quote?.id,messageId,followup});
-    if(pendingRequest.current?.signature!==signature)pendingRequest.current={signature,id:crypto.randomUUID()};
+    const signature=JSON.stringify({action,provider:snapshot.provider,draft:followup?"":draft,photos:followup?[]:photos.map(p=>p.id),quote:followup?null:quote?.id,messageId,followup});
+    if(pendingRequest.current?.signature!==signature)pendingRequest.current={signature,id:crypto.randomUUID(),...(action==="send"&&!followup?{sent:{draft,photoKeys:photos.map(p=>p.key),quoteId:quote?.id}}:{})};
     const requestId=pendingRequest.current.id;
     scroll.current.stick=true;setNewRequests(previous=>new Set([...previous,requestId].slice(-50)));
     if(action==="send")setOptimistic({id:"local-"+requestId,requestId,seq:(messages.at(-1)?.seq??0)+1,role:"user",text:optimisticText,provider:null,state:"working",createdAt:new Date().toISOString(),replyTo:null,imageIds:followup?[]:photos.flatMap(photo=>photo.id?[photo.id]:[]),steps:[],references:[],error:null});
@@ -145,7 +151,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
         }
         if (part.done) break;
       }
-    } catch (failure) { if (alive.current) setError(controller.signal.aborted ? "连接已中断，已保存的内容可重新读取。" : failure instanceof Error ? failure.message : "回复未完成。"); }
+    } catch (failure) { if (alive.current) setError(controller.signal.aborted ? "连接暂时中断，后台继续生成，正在恢复任务状态。" : failure instanceof Error ? failure.message : "回复未完成。"); }
     finally { if (request.current === controller) request.current = null; if (alive.current) { setOptimistic(null); setRunning(false); await read(); window.dispatchEvent(new Event("formward-assistant-updated")); } }
   }
   async function addPhotos(files:File[]){

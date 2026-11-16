@@ -31,6 +31,9 @@ try{
  for(const name of ["server.js","package.json","node_modules",".next"])await cp(join(source,".next/standalone",name),join(standalone,name),{recursive:true,verbatimSymlinks:true});
  await cp(join(source,".next/static"),join(standalone,".next/static"),{recursive:true,verbatimSymlinks:true});await cp(join(source,"public"),join(standalone,"public"),{recursive:true,verbatimSymlinks:true});
  await rm(join(standalone,".next/cache"),{recursive:true,force:true});
+ await build({entryPoints:[join(source,"scripts/self-hosting/chat-worker.ts")],outfile:join(standalone,"chat-worker.mjs"),bundle:true,platform:"node",format:"esm",target:"node24",packages:"bundle",external:["next/*"],banner:{js:'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'},logLevel:"silent"});
+ await cp(join(source,"scripts/self-hosting/formward-chat-worker.service"),join(standalone,"formward-chat-worker.service"));
+
  async function assetNames(path:string,prefix=""):Promise<string[]>{const rows=await readdir(path,{withFileTypes:true});return (await Promise.all(rows.map(v=>v.isDirectory()?assetNames(join(path,v.name),prefix+v.name+"/"):Promise.resolve([prefix+v.name])))).flat();}
  await writeFile(join(standalone,"static-files.json"),JSON.stringify(await assetNames(join(standalone,".next/static"))));
  async function checkLinks(folder:string):Promise<void>{

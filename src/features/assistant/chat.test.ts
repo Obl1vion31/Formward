@@ -163,7 +163,7 @@ test("正式PostgreSQL驱动支持会话读取、过期运行回收与发送限�
     const snapshot=await chatSnapshot(connection.db,ownerId);
     const input:ChatSend={action:"send",requestId:randomUUID(),conversationId:snapshot.conversationId,provider:"qwen",text:"虚构驱动回归",timezone:"Asia/Shanghai"};
     const job=await startChatRun(connection.db,ownerId,input);
-    await connection.db.update(schema.assistantRun).set({heartbeatAt:new Date(Date.now()-160000)}).where(eq(schema.assistantRun.id,job.row.id));
+    await connection.db.update(schema.assistantRun).set({heartbeatAt:new Date(Date.now()-160000),claimedAt:new Date(Date.now()-170000),workerId:"isolated-dead-worker"}).where(eq(schema.assistantRun.id,job.row.id));
     const restored=await chatSnapshot(connection.db,ownerId);assert.equal(restored.activeRunId,null);assert.equal(restored.messages.at(-1)!.state,"stopped");
     const concurrent=await Promise.allSettled([startChatRun(connection.db,ownerId,{...input,requestId:randomUUID()}),startChatRun(connection.db,ownerId,{...input,requestId:randomUUID()})]);assert.equal(concurrent.filter(row=>row.status==="fulfilled").length,1);assert.equal(concurrent.filter(row=>row.status==="rejected").length,1);const active=await chatSnapshot(connection.db,ownerId);await controlChat(connection.db,ownerId,{action:"stop",runId:active.activeRunId!});
   } finally {await connection.close();await socket.stop();}

@@ -1,5 +1,6 @@
+import { chatAttachmentBinding } from "./chat-attachments";
 import { chatCapabilities } from "./chat-config";
-import { or } from "drizzle-orm";
+import { or, isNull, isNotNull } from "drizzle-orm";
 import { followupText, resolveSupplement, mergeSupplements, type FollowupSubmission } from "./followup";
 import { createHash, randomUUID } from "node:crypto";
 import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
@@ -103,9 +104,14 @@ export async function chatIdentity(db: Database, ownerId: string, provider: Chat
 export async function reapChatRuns(db: Database, userId: string) {
   await db.transaction(async tx => {
     await lockActiveAccount(tx, userId);
-    const stale = await tx.update(run).set({ state: "stopped" }).where(and(eq(run.userId, userId), eq(run.state, "running"), lt(run.heartbeatAt, new Date(Date.now() - 150000)))).returning();
+    const stale = await tx.update(run).set({ state: "stopped" }).where(and(
+      eq(run.userId,userId),eq(run.state,"running"),or(
+        and(or(isNotNull(run.claimedAt),isNull(run.executionInput)),lt(run.heartbeatAt,new Date(Date.now()-150000))),
+        and(isNull(run.claimedAt),lt(run.createdAt,new Date(Date.now()-600000)))
+      )
+    )).returning();
     for (const row of stale) {
-      await tx.update(message).set({ state: "stopped", error: "连接已中断，已保存的内容保留。可以继续或重试。" }).where(and(eq(message.id, row.assistantMessageId), eq(message.userId, userId)));
+      await tx.update(message).set({ state: "stopped", error: "后台任务中断，已有内容已保留。请核对原结果后手动继续或重试。" }).where(and(eq(message.id, row.assistantMessageId), eq(message.userId, userId)));
       await tx.update(usageRequest).set({ state: "unknown" }).where(and(eq(usageRequest.runId, row.id), eq(usageRequest.userId, userId), eq(usageRequest.state, "reserved")));
       await refundUnfinishedRecognition(tx as unknown as Database, userId, row);
     }
@@ -147,6 +153,7 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
     if (!current || current.context?.cancelled) throw new ApiError(404, "not_found", "当前会话已变化，请重新读取。");
     if (!providerConfigured(input.provider)) throw new ApiError(503, "model_unavailable", "此模型暂不可用，请选择其他模型。");
     let seq = current.sequence, question: StoredMessage, answer: StoredMessage;
+    let retainedAttachments:Awaited<ReturnType<typeof chatAttachmentBinding>>|undefined;
     if (input.action === "send") {
       if (!input.followup && !input.text?.trim() && !input.imageIds?.length) throw new ApiError(400, "empty_message", "请输入内容或选择照片。");
       if (input.replyToId) {
@@ -165,12 +172,15 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
       const [previous] = await tx.select().from(run).where(and(eq(run.userId, userId), eq(run.assistantMessageId, original.id))).orderBy(desc(run.createdAt)).limit(1);
       [question] = await tx.select().from(message).where(and(eq(message.userId, userId), eq(message.id, previous?.userMessageId ?? "")));
       if (!question) throw new ApiError(404, "not_found", "原始问题已不可用。");
+      if(previous?.executionInput)retainedAttachments={attachmentSourceId:previous.executionInput.attachmentSourceId,attachmentImageIds:[...previous.executionInput.attachmentImageIds]};
       if (input.action === "continue" && original.provider === input.provider) [answer] = await tx.update(message).set({ state: "working", error: null }).where(eq(message.id, original.id)).returning();
       else [answer] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "assistant", state: "working", provider: input.provider }).returning();
     }
     await tx.update(conversation).set({ sequence: seq, provider: input.provider, updatedAt: new Date() }).where(eq(conversation.id, current.id));
     const recognitionId = input.mealTask ? await prepareRecognition(tx, current, digestChat({ text: input.text ?? "", images: input.imageIds ?? [] }), !!input.followup) : null;
-    const [created] = await tx.insert(run).values({ id: randomUUID(), userId, conversationId: current.id, userMessageId: question.id, assistantMessageId: answer.id, requestId: input.requestId, requestDigest, provider: input.provider, model: chatProviders[input.provider].model, recognitionId }).returning();
+    const [created] = await tx.insert(run).values({ id: randomUUID(), userId, conversationId: current.id, userMessageId: question.id, assistantMessageId: answer.id, requestId: input.requestId, requestDigest, provider: input.provider, model: chatProviders[input.provider].model, recognitionId,
+      executionInput: {action:input.action,requestId:input.requestId,provider:input.provider,conversationId:input.conversationId,timezone:input.timezone,...(input.messageId?{messageId:input.messageId}:{}),...(input.mealTask?{mealTask:true}:{}),...(retainedAttachments??await chatAttachmentBinding(tx as unknown as Database,userId,question,input.followup?current.followup?.messageId:undefined))}
+    }).returning();
     return { row: created, started: true };
   });
 }

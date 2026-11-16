@@ -44,7 +44,8 @@
     "release:regional": "node --import tsx scripts/self-hosting/build-regional-release.mts",
     "test:mobile-interface-browser": "FORMWARD_MOBILE_INTERFACE=1 node --import tsx tests/chat-pilot.browser.mts",
     "test:assistant-recording-browser": "FORMWARD_ASSISTANT_RECORDING=1 node --import tsx tests/chat-pilot.browser.mts",
-    "test:app-information": "node --import tsx tests/app-information.browser.mjs"
+    "test:app-information": "node --import tsx tests/app-information.browser.mjs",
+    "worker:chat": "node .next/chat-worker.mjs"
   },
   "dependencies": {
     "@better-auth/cimd": "1.7.7",

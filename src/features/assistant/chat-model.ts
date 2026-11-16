@@ -1,3 +1,15 @@
+/** 服务器保存的任务参数，不包含Cookie、密钥或重复的用户原文。 */
+export type ChatExecutionInput = {
+  action: "send" | "retry" | "continue"; requestId: string; provider: ChatProvider; conversationId: string;
+  timezone: string; messageId?: string; mealTask?: boolean;
+  attachmentSourceId: string; attachmentImageIds: string[];
+};
+export type ChatRequestDiagnostic = {
+  state:"prepared"|"request_started"|"response_received"|"completed"; requestSha256:string;
+  round: number; provider: ChatProvider; model: string; messageId: string; attachmentSourceId: string;
+  images: {id:string;sha256:string;byteSize:number;mimeType:string}[]; textSha256:string;
+  providerRequestId?:string; returnedModel?:string;
+};
 export const chatProviderIds = ["qwen", "mimo", "glm"] as const;
 export type ChatProvider = typeof chatProviderIds[number];
 export type ChatStep = { id: string; name: string; title: string; state: "running" | "complete" | "error"; summary?: string; note?:string };

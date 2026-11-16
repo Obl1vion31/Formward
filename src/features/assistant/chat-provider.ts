@@ -37,9 +37,9 @@ export async function* ssePayloads(stream: ReadableStream<Uint8Array>) {
       }
       if (next.done) { const data = buffer.split(/\r?\n/).filter(line => line.startsWith("data:")).map(line => line.slice(5).trim()).join("\n"); if (data && data !== "[DONE]") yield JSON.parse(data) as Record<string, unknown>; break; }
     }
-  } finally { reader.releaseLock(); }
+  } finally { await reader.cancel().catch(()=>{});reader.releaseLock(); }
 }
-export async function streamModel(provider: ChatProvider, body: unknown, signal: AbortSignal, onText: (text: string) => Promise<void>, onUsage: (usage: Record<string, unknown>) => Promise<void>, fetcher: typeof fetch = fetch) {
+export async function streamModel(provider: ChatProvider, body: unknown, signal: AbortSignal, onText: (text: string) => Promise<void>, onUsage: (usage: Record<string, unknown>) => Promise<void>, fetcher: typeof fetch = fetch,onDiagnostic?:(value:{providerRequestId?:string;returnedModel?:string})=>Promise<void>) {
   setDefaultAutoSelectFamilyAttemptTimeout(Math.max(3000, getDefaultAutoSelectFamilyAttemptTimeout()));
   const endpoint = providerEndpoint(provider);
   let response: Response;
@@ -47,8 +47,12 @@ export async function streamModel(provider: ChatProvider, body: unknown, signal:
   catch (error) { if (signal.aborted) throw error; throw new ApiError(503,"provider_network","暂时无法连接这个模型。当前内容已保留，可以重试或手动切换模型。"); }
   if (!response.ok) { let payload: unknown; try { payload = await response.json(); } catch {} throw new ProviderRejected(providerFailure(response.status, payload), response.status); }
   if (!response.body) throw new ApiError(502, "empty_response", "模型没有返回可读取的内容。");
+  const diagnostic:{providerRequestId?:string;returnedModel?:string}={};
+  const requestId=response.headers.get("x-request-id")??response.headers.get("request-id");if(requestId&&/^[a-zA-Z0-9_.:-]{1,200}$/.test(requestId))diagnostic.providerRequestId=requestId;
+  await onDiagnostic?.(diagnostic);
   const calls = new Map<number, ToolCall>(); let text = "", reasoning = "", finish = "", sawFinish = false;
   async function consume(payload: Record<string, unknown>) {
+    if(typeof payload.model==="string"&&payload.model!==diagnostic.returnedModel&&/^[a-zA-Z0-9_.:/-]{1,120}$/.test(payload.model)){diagnostic.returnedModel=payload.model;await onDiagnostic?.(diagnostic);}
     if (payload.error) throw providerFailure(503, payload);
     if (payload.usage && typeof payload.usage === "object") await onUsage(payload.usage as Record<string, unknown>);
     const choice = (payload.choices as { delta?: Record<string, unknown>; message?: Record<string, unknown>; finish_reason?: string | null }[] | undefined)?.[0];
@@ -71,5 +75,5 @@ export async function streamModel(provider: ChatProvider, body: unknown, signal:
   if (!sawFinish) throw new ApiError(502, "stream_interrupted", "回复传输中断，已经取得的内容已保留。");
   const toolCalls = [...calls.values()];
   if (toolCalls.some(call => !call.id || !call.function.name)) throw new ApiError(502, "tool_call_invalid", "模型返回的工具调用不完整。");
-  return { text, calls: toolCalls, finish, reasoning };
+  return { text, calls: toolCalls, finish, reasoning, diagnostic };
 }

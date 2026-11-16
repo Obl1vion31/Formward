@@ -1,0 +1,24 @@
+[Unit]
+Description=Formward private chat background worker
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=formward-primary
+Group=formward-primary
+WorkingDirectory=/srv/formward-primary/current
+EnvironmentFile=/etc/formward/primary.env
+Environment=NODE_ENV=production
+ExecStart=/opt/node-v24.21.0-linux-x64/bin/node /srv/formward-primary/current/chat-worker.mjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/formward
+
+[Install]
+WantedBy=multi-user.target

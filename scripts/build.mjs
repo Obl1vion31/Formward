@@ -7,4 +7,9 @@ const version=process.env.FORMWARD_BUILD_VERSION||randomUUID();
 if(!/^[a-zA-Z0-9._-]{1,120}$/.test(version))throw new Error("Invalid build version");
 const child=spawn(process.execPath,[require.resolve("next/dist/bin/next"),"build","--webpack"],{stdio:"inherit",env:{...process.env,FORMWARD_BUILD_VERSION:version}});
 child.on("error",error=>{console.error(error);process.exitCode=1;});
-child.on("exit",(code,signal)=>{if(signal)process.kill(process.pid,signal);else process.exitCode=code??1;});
+child.on("exit",(code,signal)=>{
+ if(signal){process.kill(process.pid,signal);return;}
+ if(code){process.exitCode=code;return;}
+ const worker=spawn(process.execPath,["scripts/build-chat-worker.mjs"],{stdio:"inherit",env:process.env});
+ worker.on("error",()=>{process.exitCode=1;});worker.on("exit",code=>{process.exitCode=code??1;});
+});

@@ -1,5 +1,8 @@
 # 单一国服网页与上海主库
 
+站内后台任务需要同版本的formward-chat-worker.service。新发布先备份及演练0042，再迁移并启用应用和worker；服务使用formward-primary身份、原环境文件，不公开新端口。回退时先停worker，切回兼容应用，保留0042和全部聊天、费用与健康数据。运行包必须包含chat-worker.mjs，部署readiness核对新增列，systemd及隔离网页另验。
+
+
 ## 公开协议
 
 原域名现直接提供[隐私政策](https://formward-ten.vercel.app/privacy.html)和[服务条款](https://formward-ten.vercel.app/terms.html)，生效日期2026年11月10日。两页及legal.css通过Build Output静态文件优先提供，匿名200，无跳转或Cookie；不转至国服登录，也不调用健康API。该发布只新增三份静态文件，253个原文件及网关不变，未重发下方国服应用或改变数据库／授权配置。具体部署与证据见[公开协议资料](doubao-onboarding.md)。
