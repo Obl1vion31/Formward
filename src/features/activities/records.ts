@@ -14,7 +14,7 @@ import {energyDateMoveIssue} from "./energy-save-state";
 import {calculateEnergy, type CalculationContext} from "./calculation-model";
 import {calculationContexts, rememberCalculationPreferences} from "./calculation";
 import { systemMeasurementTimezone, validateMeasurementTimezone } from "../measurements/timezone";
-import { savedCalculationMatches, energyDays, energyBaseline, activityEnergyChanged, activityCalories, activityCalorieFields, ageOn, energyInputSchema, type EnergyAction, type EnergyInput, type EnergyOperationView, type EnergyPreview, type EnergyRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyProvenance } from "./model";
+import { energyRecordingMethod, savedCalculationMatches, energyDays, energyBaseline, activityEnergyChanged, activityCalories, activityCalorieFields, ageOn, energyInputSchema, type EnergyAction, type EnergyInput, type EnergyOperationView, type EnergyPreview, type EnergyRecord, type EnergyDayRecord, type EnergySnapshot, type EnergyProvenance } from "./model";
 
 export type EnergyActor = { userId: string; origin: "manual" | "ai"; identity?: AiIdentity };
 function canonical(value: unknown): unknown {
@@ -260,7 +260,7 @@ export async function persistEnergyPreview(tx: Transaction, userId: string, row:
       const values = { ...common, ...source, date: record.date, restingInputMethod: record.restingInputMethod ?? null, calculationSnapshot: record.calculationSnapshot ?? null, entryMode: record.entryMode ?? null, activityMode: record.activityMode ?? null, restingSourceSystem: record.restingSourceSystem ?? null, activeSourceSystem: record.activeSourceSystem ?? null, restingEstimated: record.restingEstimated ?? false, activeEstimated: record.activeEstimated ?? false, notes: record.notes ?? null, steps:record.steps??null, restingKcal: record.restingKcal, activeKcal: record.activeKcal, totalKcal: record.totalKcal };
       if (row.before) await tx.update(energyDay).set(values).where(and(eq(energyDay.userId, userId), eq(energyDay.id, record.id)));
       else await tx.insert(energyDay).values({ id: record.id, userId, ...values });
-      if (!record.deletedAt && record.restingInputMethod) await rememberCalculationPreferences(tx,userId,record.restingInputMethod,record.calculationSnapshot?.requestedMethod);
+      if (!record.deletedAt && record.restingInputMethod) await rememberCalculationPreferences(tx,userId,energyRecordingMethod(record),record.calculationSnapshot?.requestedMethod);
     } else {
       const values = { ...common, ...source, date: record.date, sourceDetails:record.sourceDetails??null, name: record.name, durationMinutes: record.durationMinutes, caloriesKcal: record.caloriesKcal, calorieMode:record.calorieMode??null,exerciseRestingKcal:record.exerciseRestingKcal??null,exerciseActiveKcal:record.exerciseActiveKcal??null, inclusion:record.inclusion??null,inclusionBasis:record.inclusionBasis??null,completed: record.completed };
       if (row.before) await tx.update(activity).set(values).where(and(eq(activity.userId, userId), eq(activity.id, record.id)));

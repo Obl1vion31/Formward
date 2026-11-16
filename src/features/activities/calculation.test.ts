@@ -10,7 +10,7 @@ import type { Database } from "../../db/client";
 import { calculateEnergy, calculationReferences, type CalculationContext, type CalculationMeasurement } from "./calculation-model";
 import { loadCalculationContext } from "./calculation";
 import { submitEnergyOperation, decideEnergyOperation, readEnergySnapshot, reviseEnergyOperation } from "./records";
-import { energyDays, type EnergyAction } from "./model";
+import { energyRecordingMethod, energyDays, type EnergyAction } from "./model";
 import { createAiToken, authenticateAi } from "../auth/ai-tokens";
 import { createAiPreview, aiPreviewResponse } from "../records/ai-previews";
 import { queryEnergy } from "./ai-api";
@@ -80,6 +80,21 @@ test("依据变更拒绝旧预览，刷新后保存；已保存结果不随身�
  const unchanged=(await readEnergySnapshot(db,a.userId)).days[0];assert.deepEqual(unchanged,frozen);
  const note=await submit(a.userId,[{kind:"save_energy_day",id:frozen.id,version:frozen.version,date,notes:"保留原估算"}]);assert.equal(note.canConfirm,true);await decideEnergyOperation(db,a.userId,note.id,note.revision,"confirm");
  assert.deepEqual((await readEnergySnapshot(db,a.userId)).days[0].calculationSnapshot,frozen.calculationSnapshot);
+});
+test("手填活动搭配系统静息，分别保存来源与四位值；零活动有效，入口偏好仍为手动",async()=>{
+ for(const activeKcal of ["100","0"]){
+  const a=await owner(),action=request();assert.equal(action.kind,"save_energy_day");
+  const preview=await submit(a.userId,[{...action,activeKcal}]);assert.equal(preview.canConfirm,true);
+  await decideEnergyOperation(db,a.userId,preview.id,preview.revision,"confirm");
+  const state=await readEnergySnapshot(db,a.userId),record=state.days[0],day=energyDays(state,[],[date])[0];
+  assert.equal(record.restingInputMethod,"estimate");assert.equal(record.calculationSnapshot?.kind,"resting");assert.equal(record.restingKcal,"1738.0280");assert.equal(record.activeKcal,Number(activeKcal).toFixed(4));assert.equal(record.totalKcal,null);
+  assert.equal(day.totalKcal,(1738.028+Number(activeKcal)).toFixed(4));assert.equal(energyRecordingMethod(record),"manual");
+  assert.deepEqual((await loadCalculationContext(db,a.userId,"2025-06-04")).preferences,{restingMethod:"manual",formula:"auto"});
+  await db.update(schema.measurement).set({weightKg:"75",updatedAt:new Date(Date.now()+2000)}).where(eq(schema.measurement.id,a.measurementId));
+  assert.equal((await readEnergySnapshot(db,a.userId)).days[0].restingKcal,"1738.0280");
+ }
+ const restingOnly={restingInputMethod:"estimate" as const,calculationSnapshot:{kind:"resting" as const},entryMode:"components" as const,activityMode:"total" as const,activeKcal:null,totalKcal:null};
+ assert.equal(energyRecordingMethod(restingOnly),"manual");assert.equal(energyRecordingMethod({...restingOnly,calculationSnapshot:{kind:"daily"},entryMode:"total",totalKcal:"2259.4364"}),"estimate");
 });
 test("重复请求不重复写入，内容冲突和跨账号引用拒绝，计算数值不可由客户注入",async()=>{
  const a=await owner(),b=await owner(),operationId=randomUUID(),one=await submit(a.userId,[request()],operationId);

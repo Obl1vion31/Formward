@@ -33,7 +33,7 @@ import {confirmDraftDiscard} from "@/components/draft-guard";
 import type {RecordIntent} from "@/components/record-intent";
 import {useRepeatedRecordTask} from '@/components/record-intent-client';
 import { EnergyEditor } from "./energy-editor";
-import { blankEnergyDay, energySourceLabel, energyValue, type EnergyAction, type EnergyDay, type EnergyInput } from "./model";
+import { energyRecordingMethod, blankEnergyDay, energySourceLabel, energyValue, type EnergyAction, type EnergyDay, type EnergyInput } from "./model";
 import {shortRecordDate} from "@/components/record-dates";
 import styles from "./energy.module.css";
 import {EnergyComposition} from "./energy-composition";
@@ -65,7 +65,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
     const action=actions.findLast(action=>action.kind==="save_energy_day"&&(action.restingInputMethod!==undefined||action.calculation!=null));
     if(action?.kind!=="save_energy_day")return;
     const record=saved.snapshot.days.find(day=>day.date===action.date&&!day.deletedAt);
-    if(record?.restingInputMethod)energyPreferences.update({restingMethod:record.restingInputMethod,formula:record.calculationSnapshot?.requestedMethod??energyPreferences.value.formula});
+    if(record?.restingInputMethod)energyPreferences.update({restingMethod:energyRecordingMethod(record),formula:record.calculationSnapshot?.requestedMethod??energyPreferences.value.formula});
   }
   const today = useLocalToday(presentation.today), mobile = useInitialMobileMode();
   const router = useRouter();

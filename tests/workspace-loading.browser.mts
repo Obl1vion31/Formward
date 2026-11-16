@@ -39,6 +39,7 @@ if(useNative){
 const pg=native?undefined:new PGlite(),db=native?.db??drizzle(pg!,{schema});
 if(native)await migrateNative(native.db,{migrationsFolder:"./drizzle"});else await migrate(drizzle(pg!,{schema}),{migrationsFolder:"./drizzle"});
 const fixture = await seedTrainingFixture(db as unknown as Database);
+if(process.env.FORMWARD_ENTRY_ENERGY_METHOD==="manual")await db.insert(schema.accountPreferences).values({userId:fixture.userId,showBodyFat:true,energyRestingMethod:"manual"}).onConflictDoUpdate({target:schema.accountPreferences.userId,set:{energyRestingMethod:"manual"}});
 await seedDetailHierarchy(db,fixture.userId,fixture.today,{stressOffset:-37});
 await saveImportedMeasurements(db as unknown as Database,{userId:fixture.userId,actorId:fixture.userId,fileDigest:createHash('sha256').update(randomUUID()).digest('hex'),sourceLabel:'虚构加载验收体重',captureChannel:'file',records:Array.from({length:14},(_,i)=>i).filter(i=>i!==2).flatMap(i=>['daytime','evening'].map((period,j)=>({sourceLocalTime:addCalendarDays(fixture.today,-i)+(j?' 20:12:00':' 07:25:00'),weightKg:(70.14+i*.037+j*.51).toFixed(2),bodyFatPercent:i===4?null:(20.8+i*.014+j*.12).toFixed(2),fasting:!j,fastingSource:j?'evening_rule':'user_confirmed',timezone:'Asia/Shanghai',sourceRow:i*2+j+2})))});
 const socket = pg?new PGLiteSocketServer({ db: pg, host: "127.0.0.1", port: 0, maxConnections: 10 }):undefined; await socket?.start();

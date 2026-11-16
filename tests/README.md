@@ -10,7 +10,7 @@
 
 `pnpm test:assistant-recording-browser`使用chat-pilot的独立PGlite（`FORMWARD_CHAT_NATIVE=1`改用临时原生PostgreSQL，`FORMWARD_POSTGRES_BIN`指定本机二进制）、虚构账号、正式Next构建和模型回复回放。`CHAT_BROWSER=chromium|webkit`分别验收；`FORMWARD_CHAT_ARTIFACTS`指定Git忽略的私有目录。覆盖320／390／430同排字段、逐项切换、三种添加入口、双主题／矮屏／横屏／桌面／200%文字，照片、结构化补充、回填不保存及最终一次人工保存，桌面单聊天与手机头部；手机记录同排、三组字体／字号／字重／颜色相等，照片说明的可视区域缩高及平移、焦点与原文保留。模拟键盘明确区分真实iPhone。所有数据库写入只属于隔离库；不把fixture导入正式应用，也不使用真实API Key。
 
-`pnpm test:loading-browser`保存五类页面的正常／慢读与逐帧锚点，并核对饮食、身体、消耗在设备区间接管后仍采用今天或显式来源日期；`FORMWARD_LOADING_PART=matrix|flows`可分别运行布局矩阵和缓存／失败／草稿流程；无内容骨架与真实图形尺寸应一致，已有内容不出现更新提示。`FORMWARD_ENTRY_LOADING=1`覆盖三个录入面板实际客户端导航的等待与接管；`FORMWARD_CHART_RETURN=1`运行图表往返。chart-return及edge脚本也可通过`FORMWARD_LOADING_PREVIEW=1`的同一独立服务检查三图往返。实际截图、过程与失败记录保存在.codex，不能把WebKit模拟记作物理iPhone的相册、相机或键盘通过。
+`pnpm test:loading-browser`保存五类页面的正常／慢读与逐帧锚点，并核对饮食、身体、消耗在设备区间接管后仍采用今天或显式来源日期；`FORMWARD_LOADING_PART=matrix|flows`可分别运行布局矩阵和缓存／失败／草稿流程；无内容骨架与真实图形尺寸应一致，已有内容不出现更新提示。`FORMWARD_ENTRY_LOADING=1`覆盖三个录入面板实际客户端导航的等待与接管；`FORMWARD_ENTRY_ENERGY_METHOD=manual`可核对手动消耗偏好首帧；`FORMWARD_CHART_RETURN=1`运行图表往返。chart-return及edge脚本也可通过`FORMWARD_LOADING_PREVIEW=1`的同一独立服务检查三图往返。实际截图、过程与失败记录保存在.codex，不能把WebKit模拟记作物理iPhone的相册、相机或键盘通过。
 
 record-guidance.browser.mjs复用workspace-loading的隔离原生PostgreSQL fixture及config，通过GUIDANCE_BROWSER选择Chromium／WebKit，GUIDANCE_ARTIFACTS指定私有截图与录像目录。核查四类真实入口→填写→保存说明、跳过／重播／只提示一次、不可用存储、账号隔离、失败留稿及健康事实不变；生日直接选年、闰日失效、部分草稿和新账号真实保存。覆盖窄屏、横屏、桌面、深浅主题和减少动态效果，不使用正式数据。
 
@@ -439,4 +439,4 @@ production build后执行pnpm test:mobile-interface-browser，使用PGlite虚构
 
 ## 消耗系统估算
 
-energy-estimation.browser.mts创建独立PGlite、虚构资料及实测并启动production build；FORMWARD_ESTIMATE_ENGINE选择chromium／webkit，FORMWARD_ESTIMATE_ARTIFACTS指定私有证据。FORMWARD_ESTIMATE_PREVIEW=1可持续运行供真实浏览器核对，FORMWARD_ESTIMATE_PORT指定本轮独占端口，FORMWARD_ESTIMATE_RELEASE可指向本轮私有standalone运行包，以相同虚构数据库验收实际发布产物。覆盖双主题五尺寸、公式说明、默认估算、活动路径互斥、返回草稿、失败重试、保存快照、主动重算、选填性别与补填；不使用正式资料或收费模型。
+energy-estimation.browser.mts创建独立数据库、虚构资料及实测并启动production build；FORMWARD_POSTGRES_BIN指向本机原生PostgreSQL的bin时，创建仅监听127.0.0.1的临时集群并在结束后关闭清理；未指定时沿用PGlite。原生集群可避免WebKit并发服务端读取遇到PGliteSocket单会话协议冲突。FORMWARD_ESTIMATE_ENGINE选择chromium／webkit，FORMWARD_ESTIMATE_ARTIFACTS指定私有证据。FORMWARD_ESTIMATE_PREVIEW=1可持续运行供真实浏览器核对，FORMWARD_ESTIMATE_PORT指定本轮独占端口，FORMWARD_ESTIMATE_RELEASE可指向本轮私有standalone运行包，以相同虚构数据库验收实际发布产物。覆盖双主题五尺寸、公式说明、默认估算、活动路径互斥、手填活动搭配系统静息、0与未知、缺资料仅存活动、慢读中改期及切换、返回草稿、失败重试、保存快照、主动重算、选填性别与补填；不使用正式资料或收费模型。

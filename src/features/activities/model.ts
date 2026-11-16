@@ -74,6 +74,11 @@ export function restingEstimate(date: string, profiles: EnergyProfile[], records
 export function energyModes(record?: Pick<EnergyDayRecord, "entryMode" | "activityMode" | "totalKcal" | "activeKcal"> | null) {
   return { entryMode: record?.entryMode ?? (record?.totalKcal != null ? "total" : "components"), activityMode: record?.activityMode ?? (record?.activeKcal != null ? "total" : "activities") } as const;
 }
+/** 记录入口与静息来源独立：手填活动可以搭配系统静息，原始来源仍保持 estimate。 */
+export function energyRecordingMethod(record?:Partial<Pick<EnergyDayRecord,"restingInputMethod"|"entryMode"|"activityMode"|"activeKcal"|"totalKcal"|"adoption">>&{calculationSnapshot?:Pick<CalculationSnapshot,"kind">|null}|null):RestingMethod {
+ const method=record?.restingInputMethod??(record?.calculationSnapshot?"estimate":record?.adoption?.mode==="source"?"device":"manual");
+ return method==="estimate"&&record?.calculationSnapshot?.kind==="resting"&&(record.activityMode??(record.activeKcal!=null?"total":"activities"))==="total"?"manual":method;
+}
 /** 兼容回退应用只认识原字段：数值或模式被旧版改过后，不再冒充旧计算结果。 */
 export function savedCalculationMatches(record:EnergyDayRecord){
  const saved=record.calculationSnapshot;if(!saved)return true;

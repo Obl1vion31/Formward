@@ -10,22 +10,47 @@ import { MeasurementEntry } from "../measurements/measurement-entry";
 import { BodyFatContext } from "../measurements/visibility";
 import { confirmAction } from "@/components/confirmation-state";
 import { LocalLoading } from "@/components/local-loading";
-import { activityLevels, formulaLabel, type CalculationMethod, type CalculationSnapshot, type RestingMethod } from "./calculation-model";
+import { calculateEnergy, activityLevels, formulaLabel, type CalculationContext, type CalculationMethod, type CalculationSnapshot, type RestingMethod } from "./calculation-model";
 import styles from "./energy.module.css";
+import {energyValue} from "./model";
 
 export function RestingMethodControl({value,change}:{value:RestingMethod;change:(value:RestingMethod)=>void}) {
- return <label className={styles.restingMethod}><span>静息填写方式</span><select aria-label="静息填写方式" value={value} onChange={event=>change(event.target.value as RestingMethod)}><option value="manual">手动填写</option><option value="device">设备录入</option><option value="estimate">系统估算</option></select></label>;
+ return <div className={styles.recordMethod} data-record-guide-fields><span>记录方式</span><div className={styles.recordMethodButtons} role="group" aria-label="记录方式">{([["estimate","帮我估算"],["manual","手动输入"],["device","从设备同步"]] as const).map(([method,label])=><button key={method} type="button" aria-pressed={value===method} onClick={()=>change(method)}>{label}</button>)}</div></div>;
 }
 export function ActivityMethodControl({quick,change}:{quick:boolean;change:(quick:boolean)=>void}) {
  return <div className={styles.activityMethod} role="group" aria-label="活动记录方式"><button type="button" aria-pressed={quick} onClick={()=>change(true)}>活动估算</button><button type="button" aria-pressed={!quick} onClick={()=>change(false)}>运动明细</button></div>;
 }
-export function FormulaControl({value,change,snapshot,recalculate,loading,message,missing,supplement}:{value:CalculationMethod;change:(value:CalculationMethod)=>void;snapshot:CalculationSnapshot|null;recalculate:()=>void;loading:boolean;message:string;missing:readonly string[];supplement:(kind:"profile"|"body")=>void}) {
- return <div className={styles.calculationControls}>
-  <div className={styles.formulaRow}><label><span className="sr-only">计算方式</span><select aria-label="计算方式" value={value} onChange={event=>change(event.target.value as CalculationMethod)}><option value="auto">自动选择</option><option value="cunningham">体脂公式</option><option value="mifflin-st-jeor">常规公式</option></select></label><CalculationDetails snapshot={snapshot}/><button type="button" className={styles.recalculate} disabled={loading} onClick={recalculate}><span className={styles.calculationLoading}><LocalLoading active={loading} iconOnly label="正在读取计算依据…"/></span>重新计算</button></div>
+export function RestingEstimate({value,change,snapshot,recalculate,loading,message,missing,supplement,label="静息消耗"}:{value:CalculationMethod;change:(value:CalculationMethod)=>void;snapshot:CalculationSnapshot|null;recalculate:()=>void;loading:boolean;message:string;missing:readonly string[];supplement:(kind:"profile"|"body")=>void;label?:string}) {
+ const [settings,setSettings]=useState(false),settingsId=useId();
+ return <section className={styles.restingEstimate} aria-label="静息计算结果">
+  <div className={styles.estimateHeading}><span>{label}<CalculationDetails snapshot={snapshot}/></span><button type="button" aria-expanded={settings} aria-controls={settingsId} onClick={()=>setSettings(open=>!open)}>计算设置</button></div>
+  <div className={styles.estimateReading} data-resting-result><strong>{energyValue(snapshot?.restingKcal)}</strong><span>千卡</span></div>
+  <div id={settingsId} hidden={!settings} className={styles.calculationControls}><label className={styles.formulaLabel} htmlFor={settingsId+"-formula"}>静息计算公式</label><div className={styles.formulaRow}><label><span className="sr-only">静息计算公式</span><select id={settingsId+"-formula"} aria-label="静息计算公式" value={value} onChange={event=>change(event.target.value as CalculationMethod)}><option value="auto">自动选择</option><option value="cunningham">体脂公式</option><option value="mifflin-st-jeor">常规公式</option></select></label><button type="button" className={styles.recalculate} disabled={loading} onClick={recalculate}><span className={styles.calculationLoading}><LocalLoading active={loading} iconOnly label="正在读取计算依据…"/></span>重新计算</button></div></div>
   {message&&<div className={styles.calculationStatus}><p role="status">{message}</p>
    {missing.includes("profile")&&<button type="button" onClick={()=>supplement("profile")}>补填个人资料</button>}{(missing.includes("weight")||missing.includes("bodyFat"))&&<button type="button" onClick={()=>supplement("body")}>补填身体记录</button>}
   </div>}
- </div>;
+ </section>;
+}
+export function RestingEstimator({context,value,loading,error,apply,close,supplement}:{context:CalculationContext|null;value:CalculationMethod;loading:boolean;error:string;apply:(method:CalculationMethod)=>void;close:()=>void;supplement:(kind:"profile"|"body")=>void}){
+ const [choice,setChoice]=useState(value);
+ const methods=([["auto","自动选择"],["cunningham","体重与体脂"],["mifflin-st-jeor","身高、年龄与性别"]] as const).map(([method,label])=>({method,label,result:context?calculateEnergy(context,{kind:"resting",method}):null}));
+ const selected=methods.find(method=>method.method===choice)!.result;
+ return <section className={styles.restingEstimator} aria-label="估算静息消耗">
+  <div className={styles.estimatorHeading}><h3>估算静息消耗</h3><button type="button" onClick={close} aria-label="关闭静息估算">收起</button></div>
+  <div role="radiogroup" aria-label="静息估算方法">{methods.map(({method,label,result})=><label key={method} className={styles.estimatorChoice}>
+   <input type="radio" name="resting-estimate-method" value={method} checked={choice===method} onChange={()=>setChoice(method)}/>
+   <span><span className={styles.estimatorChoiceHeading}><strong>{label}</strong><b>{energyValue(!loading&&result?.ok?result.snapshot.restingKcal:null)} <small>千卡</small></b></span>
+    {!loading&&result?.ok?<small>{method==="auto"?"本次采用"+formulaLabel(result.snapshot.method):method==="cunningham"?"500 + 22 × 体重 × (1 − 体脂率 ÷ 100)":"10 × 体重 + 6.25 × 身高 − 5 × 年龄 + 性别项"}<span>体重 {Number(result.snapshot.weight.value)} kg · {result.snapshot.weight.date} · {result.snapshot.weight.source??"来源未填写"}{result.snapshot.bodyFat&&<>；体脂 {Number(result.snapshot.bodyFat.value)}% · {result.snapshot.bodyFat.date} · {result.snapshot.bodyFat.source??"来源未填写"}</>}{result.snapshot.profile&&<>；{Number(result.snapshot.profile.heightCm)} cm · {result.snapshot.profile.age} 岁 · {result.snapshot.profile.sexForCalculation==="male"?"男性项 +5":"女性项 −161"}</>}</span></small>:<small>{loading?"正在读取计算依据…":result&&!result.ok?result.message:error||"暂时没有计算依据。"}</small>}
+   </span>
+  </label>)}</div>
+  {!loading&&selected&&!selected.ok&&<div className={styles.calculationStatus}>{selected.missing.includes("profile")&&<button type="button" onClick={()=>supplement("profile")}>补填个人资料</button>}{(selected.missing.includes("weight")||selected.missing.includes("bodyFat"))&&<button type="button" onClick={()=>supplement("body")}>补填身体记录</button>}</div>}
+  {error&&<p role="status">{error}</p>}<p className={styles.hint}>按所选日期及此前30天的实测计算。估算值可继续手动修改。</p>
+  <button type="button" className={styles.applyEstimate} disabled={loading||!!error||!selected?.ok} onClick={()=>apply(choice)}>使用估算值</button>
+ </section>;
+}
+export function ActivityEnergyHelp(){
+ const id=useId();
+ return <><button type="button" className={styles.calculationInfo} popoverTarget={id} aria-label="活动热量说明"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 2-2.5 4M12 16v1"/></svg></button><div id={id} popover="auto" className={styles.fieldHelp} role="dialog" aria-label="活动热量说明"><h4>活动热量</h4><p>填写当天已知的活动热量；不知道可以留空，明确没有活动才填0。</p><p>另记运动明细时，需核对是否已包含在活动合计中，避免重复相加。</p></div></>;
 }
 export function ActivityLevelControl({value,change}:{value:string|null;change:(value:typeof activityLevels[number]["id"])=>void}) {
  return <section className={styles.activityLevels}><h3>今天的活动量</h3><div role="radiogroup" aria-label="全天活动量">{activityLevels.map(level=><label key={level.id} className={styles.activityLevel}><input type="radio" name="energy-activity-level" value={level.id} checked={value===level.id} onChange={()=>change(level.id)}/><span><strong>{level.label}</strong><small>{level.example}</small></span><b>×{level.factor.toFixed(1)}</b></label>)}</div><p className={styles.hint}>粗略估算全天消耗，已包含日常活动和训练，不再叠加运动明细。</p></section>;
