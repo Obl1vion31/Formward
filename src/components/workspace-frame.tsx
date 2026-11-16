@@ -14,8 +14,10 @@ import {useChartTransition} from './chart-transition-state';
 import {WorkspaceSourceContext,WorkspaceTodayContext} from './workspace-frame-state';
 export function WorkspaceFrame({children,today,sourcePilot=false}:{children:ReactNode;today:string;sourcePilot?:boolean}){
  // 输入方式只影响控件焦点提示，不参与键盘、视口或面板几何定位。
- useEffect(()=>{
+ useLayoutEffect(()=>{
   const root=document.documentElement;
+  // 手机直达／刷新没有先前触摸事件，程序聚焦不先闪出键盘外框。
+  root.dataset.inputMethod=matchMedia("(max-width:700px),(hover:none) and (pointer:coarse)").matches?"pointer":"keyboard";
   const pointer=()=>{root.dataset.inputMethod="pointer";};
   const keyboard=(event:KeyboardEvent)=>{if(["Tab","ArrowDown","ArrowUp","ArrowLeft","ArrowRight","Escape"].includes(event.key)||["Enter"," "].includes(event.key)&&event.target instanceof Element&&!event.target.closest("input,textarea,[contenteditable=true]"))root.dataset.inputMethod="keyboard";};
   document.addEventListener("pointerdown",pointer,true);document.addEventListener("keydown",keyboard,true);
