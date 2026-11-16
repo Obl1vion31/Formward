@@ -103,7 +103,7 @@ export function AssistantChatView({ sidebar, navigate,tab }: { sidebar: ReactNod
       <div ref={composer} className={styles.composerArea} inert={panel === "connections"||!!pinnedPreview}>
         {notice && <p className={styles.notice} role="status">{notice}</p>}
         {chat.error && <div className={styles.failure} role="alert">{chat.error}<button onClick={() => void chat.refresh()} disabled={chat.loading}>重新读取</button></div>}
-        {chat.quote && <div className={styles.quote}><button onClick={() => jump(chat.quote!.id)}><span>引用{chat.quote.role === "user" ? "你的消息" : "回答"}</span><span>{chat.quote.question?chat.quote.question.text+" · ":""}{chat.quote.text.slice(0,240)}</span></button><button className={styles.icon} aria-label="取消引用" onClick={() => chat.setQuote(null)}><Glyph name="close"/></button></div>}
+        {chat.quote && <div className={styles.quote}><button onClick={() => jump(chat.quote!.id)}><span>引用{chat.quote.role === "user" ? "你的消息" : "回答"}</span><span>{chat.quote.question?chat.quote.question.text+" · ":""}{chatDisplayText(chat.quote,chat.data?.capabilities?.inlinePreviews===true).slice(0,240)}</span></button><button className={styles.icon} aria-label="取消引用" onClick={() => chat.setQuote(null)}><Glyph name="close"/></button></div>}
         {chat.enabled?<div className={styles.composer}>
           <DraftPhotos/>
           <textarea ref={input} rows={1} aria-label="给小助手发消息" value={chat.draft} placeholder="想聊点什么，或记录些什么？" onChange={event => chat.setDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && matchMedia("(min-width:701px) and (hover:hover) and (pointer:fine)").matches) { event.preventDefault(); submit(); } }}/>
