@@ -48,12 +48,13 @@ async function createContext(size,theme='dark',motion='reduce',recording=false){
 try{
  const delay=Number(process.env.FORMWARD_LOADING_DELAY??900);assert.ok(Number.isFinite(delay)&&delay>=0);await control(delay);
  for(const theme of (process.env.FORMWARD_LOADING_PART==='flows'?[]:process.env.FORMWARD_LOADING_DIAGNOSE==='1'?['dark']:['dark','light']))for(const size of sizes)for(const[route,kind]of routes){
-  const context=await createContext(size,theme),page=await context.newPage(),prefix=theme+'-'+(route||'overview')+'-'+size.join('x');
+  const context=await createContext(size,theme),page=await context.newPage(),pendingRequests=new Map(),prefix=theme+'-'+(route||'overview')+'-'+size.join('x');
+  page.on('request',request=>pendingRequests.set(request,{path:new URL(request.url()).pathname,method:request.method(),resource:request.resourceType(),prefetch:request.headers()['next-router-prefetch']==='1'}));page.on('requestfinished',request=>pendingRequests.delete(request));page.on('requestfailed',request=>pendingRequests.delete(request));
   try{
    const trend=process.env.FORMWARD_LOADING_VIEW==='trend'&&['nutrition','energy','body'].includes(kind),from=new Date(Date.parse(config.today+'T00:00:00Z')-6*86400000).toISOString().slice(0,10);await page.goto(config.baseURL+'/dashboard'+(route?'/'+route:'')+(trend?'?view=trend&date='+config.today+'&from='+from+'&to='+config.today:''),{waitUntil:'commit'});
    if(delay>0)await page.locator(kind==='training'?'[data-training-loading]:visible':'.workspace-skeleton:visible').waitFor({state:'visible'});await shot(page,prefix+'-loading');
    const required=kind==='training'?['开始训练','训练模板','训练日历']:kind==='overview'?['摄入','消耗','盈余','缺口']:['查看记录','最近记录','查看全部',...(kind==='nutrition'?['食材库','蛋白质','碳水','脂肪']:[])];
-   await page.locator(kind==='training'?'[data-training-view]:visible':'[data-record-workspace]:not(.workspace-skeleton [data-record-workspace]):visible').waitFor({state:'visible'});await page.waitForLoadState('networkidle');await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(550);await shot(page,prefix+'-actual');
+   await page.locator(kind==='training'?'[data-training-view]:visible':'[data-record-workspace]:not(.workspace-skeleton [data-record-workspace]):visible').waitFor({state:'visible'});await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(550);await shot(page,prefix+'-actual');
    if(['nutrition','energy','body'].includes(kind)){assert.equal(await page.locator('main [data-record-slot=metrics]:visible').getAttribute('data-selected-date'),config.today,prefix+'响应式接管后仍采用明确日期或今天');assert.equal(await page.locator('main [data-record-slot=date] time').getAttribute('datetime'),config.today,prefix+'可见日期与实际读数一致');}
    const frames=await page.evaluate(()=>window.__loadingFrames),loading=frames.filter(f=>f.phase==='loading'),actual=frames.filter(f=>f.phase==='actual');if(delay>0)assert.ok(loading.length>=2);assert.ok(actual.length>=2);
    // 在实际加载帧核对，避免截图命令完成时内容已就绪而误查卸载的骨架。
@@ -65,9 +66,9 @@ try{
     const expected=kind==='overview'?['摄入','消耗','盈余','缺口']:kind==='nutrition'?(baseline.recordMode?['热量','蛋白质','碳水','脂肪']:['蛋白质','碳水','脂肪']):(baseline.recordMode?['总消耗','静息','活动']:['静息','活动','仅有总数']);
     for(const label of expected){const color=baseline.colors.find(c=>c.label===label);assert.ok(color,prefix+'缺少颜色 '+label);assert.notEqual(color.color,'rgba(0, 0, 0, 0)');assert.equal(actual.at(-1).colors.find(c=>c.label===label)?.color,color.color,prefix+'颜色交接变化 '+label);}
    }
-   const report={theme,size,route:route||'overview',delay,view:process.env.FORMWARD_LOADING_VIEW??'records',max,loadingFrames:loading.length,actualFrames:actual.length,frames};reports.push(report);await writeFile(folder+'/'+prefix+'-frames.json',JSON.stringify(report));if(max.delta>1)failures.push({prefix,max});if(reports.length%10===0)console.log(JSON.stringify({engine,cases:reports.length,failures:failures.length}));
+   const report={theme,size,route:route||'overview',delay,view:process.env.FORMWARD_LOADING_VIEW??'records',pendingAtReady:[...pendingRequests.values()],max,loadingFrames:loading.length,actualFrames:actual.length,frames};reports.push(report);await writeFile(folder+'/'+prefix+'-frames.json',JSON.stringify(report));if(max.delta>1)failures.push({prefix,max});if(reports.length%10===0)console.log(JSON.stringify({engine,cases:reports.length,failures:failures.length}));
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),prefix+'横向溢出');
-  }catch(error){const failure={prefix,error:String(error),stack:error.stack,frames:await page.evaluate(()=>window.__loadingFrames)};failures.push({prefix,error:String(error)});await writeFile(folder+'/'+prefix+'-failure.json',JSON.stringify(failure));await shot(page,prefix+'-failure');}
+  }catch(error){const failure={prefix,error:String(error),stack:error.stack,pending:[...pendingRequests.values()],frames:await page.evaluate(()=>window.__loadingFrames)};failures.push({prefix,error:String(error)});await writeFile(folder+'/'+prefix+'-failure.json',JSON.stringify(failure));await shot(page,prefix+'-failure');}
   finally{await context.close();}
  }
  if(process.env.FORMWARD_LOADING_DIAGNOSE!=='1'&&process.env.FORMWARD_LOADING_PART!=='matrix'){

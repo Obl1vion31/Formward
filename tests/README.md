@@ -432,3 +432,5 @@ production build后执行pnpm test:mobile-interface-browser，使用PGlite虚构
 双端图表与消耗表单专项：在chat-pilot的本机隔离预览与回复回放上运行tests/chart-refinement.browser.mjs，FORMWARD_CHAT_BROWSER_CONFIG指向该虚构fixture，PLAYWRIGHT_MODULE指定本机Playwright，CHAT_BROWSER分别为chromium／webkit。检查首次400/600ms绘制、三卡连续300ms双向交接、7D最大640与30D/90D铺满且320px同高、身体点7px稳定、同宽补充选项与自由填写、消耗双数值草稿。验收报告保留失败与实际帧；真机触摸／系统键盘单独记结果，不以引擎模拟代替。仅登录一次并复用本人隔离会话，避免反复登录触发真实限流；不改变密码或认证门槛。
 
 真机验收与模型回放分开：本轮用户已用原iPhone Safari确认补充选择、自由填写、静息／活动双输入、清空与触摸无残留外框正常。键盘、视口、面板定位没有改动，不将本轮结果宣称为新键盘策略通过。
+
+加载矩阵以实际业务外壳可见及字体就绪作为完成条件，逐帧检查文字、颜色、日期和1px锚点；不等待所有预取及后台请求进入networkidle。报告保存就绪时仍在途的路径、方法与预取标记，不含查询参数；失败保留同类诊断。后台网络安静不代表内容就绪，真实业务内容就绪也不要求全站预取结束。
