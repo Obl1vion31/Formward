@@ -1,5 +1,17 @@
 # 完善任务验收
 
+## 按钮旁计算浮层（2026-11-17）
+
+正式站[formward.top](https://formward.top)运行`dual-entry-f57d42f5-energy-popover-20261117`，源码`f57d42f500b5e36a4c3a57016951cd34d015b10f`，BUILD_ID `Z72N7ahJht1FqdejSrjNr`；北京时间2026-11-17 01:31:30切换。功能已合入推送main，后续验证与文档提交不改变运行源码。
+
+lint、typecheck、807项单元／集成及production build通过。最终兼容运行包通过Chromium／WebKit各23项消耗流程、90张截图，另各10组浮层边界和20张截图，覆盖双主题、320×560／390×667／1440×900、两端200%文字、两类浮层主表单锚点不动、公式选择、应用后焦点、Escape／外点与补填返回。五主页面正常及900ms慢读80场景、两种偏好的消耗入口另12场景通过，加载锚点最大偏差0 CSS px；浮层开关及换方法符合≤1 CSS px要求。Chrome实页已点开预览，实际图保存在私有目录。
+
+本轮不执行数据库迁移，schema0041、41项账本保持。原生备份与加密异机回读、服务账号下新旧应用就绪通过；切换前后60张表原字段、凭据摘要与配置保持。51项旧Server Action与绑定密钥保留，补留988项旧静态文件。正式域名、原IP与两个国际入口一致；国际网关保持原READY部署与别名，HTTP1.15.1、MCP2.0.2／18项及匿名拒绝保持。
+
+本聊天私有证据与脚本统一归档在原入口`.codex/energy-clarity-20261116`；最终浮层图与JSON在Windows私有`C:/Users/14878/.codex/private/formward-energy-popover-20261117`及本聊天visualizations目录。原失败保留：覆盖型浮层需先退出再操作背后的控件；边界fixture只登录一次复用会话，不绕过认证限流。WebKit在前台等待页面流与预加载后再离开，全部错误断言保留。
+
+未实测真机系统软键盘、系统文字设置、屏幕阅读器及物理帧率，不把Chromium／WebKit模拟记作真机通过。未调用收费模型，未写正式健康测试数据，正常设备同步保持。
+
 ## 消耗同级输入与静息公式比较（2026-11-16）
 
 正式站[formward.top](https://formward.top)运行`dual-entry-fe2b7749-energy-clarity-20261116`，源码`fe2b77497b1d1fef1ba2bb14c2cf3f95134d9037`，BUILD_ID `MS3DKmppwRcuw_Tf8nAA1`；北京时间2026-11-17 00:17:58切换。功能已合入推送main，后续验证与文档提交不改变运行源码。
