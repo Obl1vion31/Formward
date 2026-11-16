@@ -1,6 +1,9 @@
 # 当前实现与验证
 
-正式站[formward.top](https://formward.top)运行`dual-entry-9db8d3ee-chart-assistant-refinement-20261116-r2`，源码`9db8d3ee0735ce4a822ed53f726544aaea7db274`，BUILD_ID `PoSxbj-3snqBIhTAqE1db`；北京时间2026-11-16 16:43:58切换。功能和验收已合入推送main，后续文档提交不改变运行源码。
+正式站[formward.top](https://formward.top)运行`dual-entry-46287cbc-energy-form-reference-20261116`，源码`46287cbc573bb6fda73090b0242716bde9f479bd`，BUILD_ID `D6zWak3qcevwgJa3b-Quk`；北京时间2026-11-16 18:03:04切换。功能和验收已合入推送main，后续文档提交不改变运行源码。
+
+
+消耗录入按认可参考落实日期、静息／活动、步数及运动操作的同排关系；主数值24px、来源／备注／时区按需展开。原消耗录入视觉通过结论撤回，现以390×845同字号、同填充值并排图验收。最终运行包Chromium／WebKit各14组及手机200%文字检查通过；lint、typecheck、789项测试与production build通过。本轮不改API／prompt、键盘或面板定位，未另记为新真机键盘验收。三入口版本及Chrome只读录入核对通过，48项Server Action、原绑定密钥、旧静态资源和10张健康表／凭据／配置摘要保持。兼容前版9db8d3ee与本版运行包均保留。私有证据位于energy-form-reference-20261116，不进入public。
 
 ## 当前界面
 
