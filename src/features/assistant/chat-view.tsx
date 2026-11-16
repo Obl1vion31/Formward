@@ -2,7 +2,7 @@
 import { ChatPreviewCard, ChatPreviewCards } from "./chat-preview-card";
 import { FollowupForm } from "./followup-form";
 import {ChatText} from "./chat-text";
-import {chatDisplayText,chatRecordReferences} from "./chat-presentation";
+import {withoutRepeatedFollowup,chatDisplayText,chatRecordReferences} from "./chat-presentation";
 /* eslint-disable @next/next/no-img-element -- 会话原图须按账号鉴权，不能进入公开图片优化缓存。 */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useId, type ReactNode } from "react";
 import { LoadingLink } from "../../components/loading-link";
@@ -89,7 +89,7 @@ export function AssistantChatView({ sidebar, navigate,tab }: { sidebar: ReactNod
           {!!message.steps.length && <details className={styles.progress}><summary><span className={message.state === "working" ? styles.spinner : ""}>{message.state !== "working" && <Glyph name={message.steps.some(step => step.state === "error") ? "close" : "check"}/> }</span>{message.steps.some(step => step.state === "running") ? "正在" + message.steps.find(step => step.state === "running")!.title : message.steps.some(step => step.state === "error") ? "部分步骤未完成" : "已完成" + message.steps.length + "个步骤"}<Glyph name="chevron"/></summary><ol>{message.steps.map(step => <li key={step.id}><strong>{step.title}{step.state === "error" ? " · 未成功" : ""}</strong><p>{step.state === "running" ? "正在处理…" : step.summary}</p>{step.note&&<p>{step.note}</p>}</li>)}</ol></details>}
           {message.state === "working" && !message.steps.length && !message.text && <p className={styles.working} role="status"><span className={styles.spinner}/>正在整理回答…</p>}
           {!!message.imageIds.length && <div className={styles.images}>{message.imageIds.map(id => <a key={id} href={"/api/meal-images/" + id} target="_blank" rel="noreferrer"><img src={"/api/meal-images/" + id} alt="本条消息的私有照片"/></a>)}</div>}
-          {message.text && (message.role==="user"?<div className={styles.text}><p>{message.text}</p></div>:<ChatText value={chatDisplayText(message,chat.data?.capabilities?.inlinePreviews===true)} navigate={navigate}/>)}
+          {message.text && (message.role==="user"?<div className={styles.text}><p>{message.text}</p></div>:<ChatText value={withoutRepeatedFollowup(chatDisplayText(message,chat.data?.capabilities?.inlinePreviews===true),message.state==="complete"&&message.question?.id===chat.data?.followup?.messageId?chat.data?.followup:null)} navigate={navigate}/>)}
           {chat.data?.capabilities?.inlinePreviews===true&&message.role==="assistant"&&message.state!=="working"&&<ChatPreviewCards ids={[...new Set(message.references.filter(ref=>ref.kind==="preview"&&ref.operationId).map(ref=>ref.operationId!))]} navigate={navigate}/>}
           {message.state === "complete" && !!chatRecordReferences(message.references,chat.data?.capabilities?.inlinePreviews===true,message.steps).length && <div className={styles.references}>{chatRecordReferences(message.references,chat.data?.capabilities?.inlinePreviews===true,message.steps).map(ref => <LoadingLink prefetch={false} beforeNavigate={navigate} key={ref.href} href={ref.href}>{ref.title}<span aria-hidden="true">↗</span></LoadingLink>)}</div>}
           {message.role==="assistant"&&message.state==="complete"&&chat.data?.followup&&message.question?.id===chat.data.followup.messageId&&<FollowupForm key={chat.data.followup.messageId} task={chat.data.followup} busy={chat.busy||!chat.enabled} submit={value=>chat.send("send",undefined,value)} cancel={()=>void chat.control("clear_followup")}/>}

@@ -19,7 +19,7 @@ import { loadAiAccessOverview } from "../auth/ai-access-overview";
 const client = new PGlite(), testDb = drizzle(client,{schema}), db = testDb as unknown as Database, ownerId = randomUUID(), outsider = randomUUID(), secondOwner = randomUUID();
 const previousEnv = new Map<string,string|undefined>();
 before(async () => {
-  for (const [key,value] of Object.entries({FORMWARD_CHAT_ENABLED:"1",FORMWARD_CHAT_PILOT_USER_ID:ownerId,QWEN_API_KEY:"fictional-qwen",MIMO_API_KEY:"fictional-mimo",GLM_API_KEY:"fictional-glm",BETTER_AUTH_URL:"http://localhost:3000"})) { previousEnv.set(key,process.env[key]);process.env[key]=value; }
+  for (const [key,value] of Object.entries({FORMWARD_CHAT_ENABLED:"1",FORMWARD_CHAT_GLM_DISABLED:"0",FORMWARD_CHAT_PILOT_USER_ID:ownerId,QWEN_API_KEY:"fictional-qwen",MIMO_API_KEY:"fictional-mimo",GLM_API_KEY:"fictional-glm",BETTER_AUTH_URL:"http://localhost:3000"})) { previousEnv.set(key,process.env[key]);process.env[key]=value; }
   await migrate(testDb,{migrationsFolder:"drizzle"});
   await db.insert(schema.user).values([{id:ownerId,name:"试用账号",email:"chat-owner@example.test",role:"owner"},{id:outsider,name:"普通账号",email:"chat-other@example.test",role:"user"},{id:secondOwner,name:"非指定管理账号",email:"chat-other-owner@example.test",role:"owner"}]);
 });
@@ -28,6 +28,21 @@ async function fresh() { await controlChat(db,ownerId,{action:"new"}); return cu
 async function begin(text="查一下身体记录",provider:ChatSend["provider"]="qwen") { const current=await currentConversation(db,ownerId);const input:ChatSend={action:"send",requestId:randomUUID(),conversationId:current.id,provider,text,timezone:"Asia/Shanghai"};return {input,...await startChatRun(db,ownerId,input)}; }
 async function stop(row:StoredRun){await controlChat(db,ownerId,{action:"stop",runId:row.id});}
 function completion(text:string,calls?:unknown[]){ calls=calls?.map((raw:unknown)=>{const item=raw as {function?:{name:string;arguments:string}};if(item.function?.name==="preview_meals"){const args=JSON.parse(item.function.arguments);if(!args.meals){const {operationId,...meal}=args;item.function.arguments=JSON.stringify({operationId,meals:[meal]});}}return item;});return new Response("data: "+JSON.stringify({choices:[{delta:{content:text,...(calls?{tool_calls:calls}:{})},finish_reason:calls?"tool_calls":"stop"}]})+"\n\ndata: "+JSON.stringify({choices:[],usage:{prompt_tokens:100,completion_tokens:40,prompt_tokens_details:{cached_tokens:20}}})+"\n\ndata: [DONE]\n\n",{headers:{"Content-Type":"text/event-stream"}});}
+test("智谱停用阻止发送、选择及重新授权，旧偏好回千问且历史和计费不丢失",async()=>{
+ await fresh();const old=await begin("历史回答","glm");
+ const usage=await reserveChatUsage(db,ownerId,old.row,.01);await settleChatUsage(db,ownerId,usage,{prompt_tokens:100,completion_tokens:100});await stop(old.row);
+ await db.update(schema.assistantConversation).set({provider:"glm"}).where(eq(schema.assistantConversation.id,old.row.conversationId));
+ const spent=(await chatUsage(db,ownerId)).spent;
+ process.env.FORMWARD_CHAT_GLM_DISABLED="1";
+ try{
+  const snapshot=await chatSnapshot(db,ownerId);assert.equal(snapshot.provider,"qwen");assert.deepEqual(snapshot.catalog.map(model=>model.id),["qwen","mimo"]);
+  assert.ok(snapshot.messages.some(message=>message.provider==="glm"));assert.equal(snapshot.usage.spent,spent);
+  await assert.rejects(()=>controlChat(db,ownerId,{action:"select_model",provider:"glm"}),/不可用/);
+  await assert.rejects(()=>controlChat(db,ownerId,{action:"enable",provider:"glm"}),/停用/);
+  await assert.rejects(()=>begin("伪造调用","glm"),/不可用/);
+  await fresh();assert.equal((await currentConversation(db,ownerId)).provider,"qwen");
+ }finally{process.env.FORMWARD_CHAT_GLM_DISABLED="0";await db.delete(schema.assistantUsageRequest).where(eq(schema.assistantUsageRequest.id,usage));}
+});
 test("聊天资格与本人历史读取分离；普通及其他owner不能发起调用",async()=>{
   assert.throws(()=>assertChatAllowed({id:ownerId,role:"user"}));assert.throws(()=>assertChatAllowed({id:secondOwner,role:"owner"}));
   assert.equal((await chatSnapshot(db,outsider)).entitlement?.chat,false);assert.equal((await chatSnapshot(db,secondOwner)).entitlement?.chat,false);
@@ -213,4 +228,14 @@ test("跨模型继续携带原回答正文，保留旧尝试且不再添加用�
   const original=(await chatSnapshot(db,ownerId)).messages.at(-1)!;assert.equal(original.state,"truncated",original.error??"应保留原截断状态");const input:ChatSend={...first.input,action:"continue",messageId:original.id,provider:"mimo",requestId:randomUUID()},next=await startChatRun(db,ownerId,input);
   await executeChatRun(db,next.row,input,new Request("http://localhost:3000/api/assistant-chat"),()=>{},new AbortController().signal,{skipSessionCheck:true,fetcher:async(_url,options)=>{assert.ok(String(options?.body).includes("已经生成：第一段。"));return completion("第二段。");}});
   const messages=(await chatSnapshot(db,ownerId)).messages;assert.equal(messages.filter(row=>row.role==="user").length,1);assert.equal(messages[1].text,"第一段。");assert.equal(messages[1].provider,"qwen");assert.equal(messages[2].text,"第二段。");assert.equal(messages[2].provider,"mimo");
+});
+
+test("已建立智谱任务在停用后也不再调用上游，不产生新费用",async()=>{
+ await fresh();const old=await begin("查询最近实测","glm"),before=(await chatUsage(db,ownerId)).spent;let calls=0;
+ process.env.FORMWARD_CHAT_GLM_DISABLED="1";
+ try{
+  await executeChatRun(db,old.row,old.input,new Request("http://localhost/api/assistant-chat"),()=>{},new AbortController().signal,{skipSessionCheck:true,fetcher:async()=>{calls++;return completion("不应调用");}});
+  assert.equal(calls,0);assert.equal((await chatUsage(db,ownerId)).spent,before);
+  const message=(await chatSnapshot(db,ownerId)).messages.at(-1)!;assert.equal(message.state,"error");assert.match(message.error!,/停用|不可用/);
+ }finally{process.env.FORMWARD_CHAT_GLM_DISABLED="0";await stop(old.row);}
 });

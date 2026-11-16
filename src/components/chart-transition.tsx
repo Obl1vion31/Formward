@@ -21,6 +21,8 @@ const visible = (element: SVGSVGElement) => {
 const inViewport = (rect:ChartRect) => rect.top+rect.height>64&&rect.top<innerHeight-(matchMedia("(max-width:700px),(hover:none) and (pointer:coarse)").matches?88:0)&&rect.left+rect.width>0&&rect.left<innerWidth;
 
 export function ChartTransitionProvider({ children }: { children: React.ReactNode }) {
+  const chartEntries=useRef(new Set<string>());
+  const claimChartEntry=useCallback((key:string)=>{const seen=chartEntries.current.has(key);chartEntries.current.add(key);return !seen;},[]);
   const router=useRouter(),pathname=usePathname(),[pending,startTransition]=useTransition();
   const [flight,setFlight]=useState<ChartFlight|null>(null),[returningToOverview,setReturningToOverview]=useState(false);
   const returnCancelled=useRef(false),returnReady=useRef(true);
@@ -58,36 +60,26 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
       if(current.arrived&&current.ready)finish(current);
       return;
     }
-    if(current.direction==='forward'){
-      if(skeleton)return;
-      // 新页只在真实目标图框内交接，不在等待期间把源缩略图留在读数卡上。
-      current.destination=dest;current.ready=true;current.landing=true;
-      Object.assign(node.style,{left:dest.left+'px',top:dest.top+'px',width:dest.width+'px',height:dest.height+'px'});
-      node.querySelectorAll<SVGSVGElement>('svg').forEach(svg=>{svg.style.width='100%';svg.style.height='100%';});
-      motion.current.reveal(id,element);
-      node.setAttribute('data-motion-starts','1');
-      current.animation=node.animate([{opacity:.45,transform:'scale(.985)'},{opacity:1,transform:'none'}],{duration:200,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});
-      void current.animation.finished.then(()=>{if(motion.current.active?.id===id)finish(current);}).catch(()=>{});
-      return;
-    }
-    const scale=dest.width/current.rect.width;
-    if(Math.abs(dest.height/current.rect.height-scale)>.035){clear();return;}
+    const scale=dest.width/current.rect.width,scaleY=dest.height/current.rect.height;
     current.destination=dest;current.landing=true;current.ready=!skeleton;
     motion.current.reveal(id,element);
     // 来源图已在上一页面显示；目标落位后立即启动，不再等待一次额外的绘制帧。
     if(motion.current.active?.id!==id||!node.isConnected)return;
     node.setAttribute('data-motion-starts','1');
     if(current.model.kind==="morning-weight"){
-      const count=current.model.points.length,forward=false;
+      const count=current.model.points.length,forward=current.direction==='forward';
       const from=node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="source"]'),to=node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="destination"]');
       node.style.setProperty('--flight-stroke',((forward?detailStroke(count):1.25)/scale)+'px');
-      node.style.setProperty('--flight-radius',(forward?detailRadius(count)/(dest.width/240):3.6)+'px');
+      to?.querySelectorAll<SVGEllipseElement>('[data-glyph-point]').forEach(point=>{
+        point.setAttribute('rx',String(forward?detailRadius()/(dest.width/240):3.6));
+        point.setAttribute('ry',String(forward?detailRadius()/(dest.height/120):3.6));
+      });
       const options={duration:300,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards' as const};
       // 两张静态同坐标图层一起缩放并交接笔触；不再逐帧重画每条线和圆点。
       current.decorations=from&&to?[from.animate([{opacity:1},{opacity:0}],options),to.animate([{opacity:0},{opacity:1}],options)]:[];
     }
 
-    current.animation=node.animate([{transform:'translate(0px,0px) scale(1)'},{transform:`translate(${dest.left-current.rect.left}px,${dest.top-current.rect.top}px) scale(${scale})`}],{duration:300,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});
+    current.animation=node.animate([{transform:'translate(0px,0px) scale(1)'},{transform:`translate(${dest.left-current.rect.left}px,${dest.top-current.rect.top}px) scale(${scale},${scaleY})`}],{duration:300,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});
     void current.animation.finished.then(()=>{
       if(motion.current.active?.id!==id)return;
       current.arrived=true;current.landing=false;
@@ -213,7 +205,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     };
     document.addEventListener('click',leave);return()=>document.removeEventListener('click',leave);
   },[returningToOverview,cancelOverviewReturn]);
-  const value=useMemo(()=>({navigate,register,restore,back,invalidate,recallOverview,rememberOverview,returningToOverview,overviewReady,cancelOverviewReturn,preview:flight?.model??(returningToOverview?returnPreview:null)}),[navigate,register,restore,back,invalidate,recallOverview,rememberOverview,returningToOverview,overviewReady,cancelOverviewReturn,returnPreview,flight?.model]);
-  const actions=useMemo(()=>({register,invalidate,recallOverview,rememberOverview}),[register,invalidate,recallOverview,rememberOverview]);
+  const value=useMemo(()=>({claimChartEntry,navigate,register,restore,back,invalidate,recallOverview,rememberOverview,returningToOverview,overviewReady,cancelOverviewReturn,preview:flight?.model??(returningToOverview?returnPreview:null)}),[claimChartEntry,navigate,register,restore,back,invalidate,recallOverview,rememberOverview,returningToOverview,overviewReady,cancelOverviewReturn,returnPreview,flight?.model]);
+  const actions=useMemo(()=>({claimChartEntry,register,invalidate,recallOverview,rememberOverview}),[claimChartEntry,register,invalidate,recallOverview,rememberOverview]);
   return <ChartTransitionActionsContext value={actions}><ChartTransitionContext value={value}>{children}{flight&&createPortal(<div key={flight.id} className="chart-flight-layer"><div ref={node=>{if(node&&motion.current.active?.id===flight.id)motion.current.active.node=node;}} className="chart-flight" data-chart-flight={flight.id} data-chart-direction={flight.direction} aria-hidden="true" style={{left:flight.rect.left,top:flight.rect.top,width:flight.rect.width,height:flight.rect.height,visibility:'hidden'}}>{flight.model.kind==="morning-weight"?<><TrendGlyph flightLayer="source" model={flight.model} detail={flight.direction==="back"} width={flight.rect.width} height={flight.rect.height}/><TrendGlyph flightLayer="destination" model={flight.model} detail={flight.direction==="back"} width={flight.rect.width} height={flight.rect.height}/></>:<TrendGlyph model={flight.model} detail={flight.direction==="back"} width={flight.rect.width} height={flight.rect.height}/>}</div></div>,document.body)}</ChartTransitionContext></ChartTransitionActionsContext>;
 }

@@ -21,7 +21,7 @@
 - [小助手本地原型验收](../prototypes/assistant-chat/qa.md)：内嵌聊天与提醒的虚构交互、浏览器证据和未测边界，与正式发布验收分开维护。
 - [visual-research.md](visual-research.md)：总览的视觉调研、官方依据及双层关联参考图；趋势与单日读数联动、配色和缺测处理原则。
 - `architecture.md`：轻量 Next.js 模块化单体边界。
-- `ai-api.md`：全部21项AI工具、共用中文字段解释、MCP／豆包／HTTP传递、授权与网页确认，以及正式说明导出和本地评测边界。
+- `ai-api.md`：全部18项AI工具、共用中文字段解释、MCP／豆包／HTTP传递、授权与网页确认，以及正式说明导出和本地评测边界。
 - `auth-setup.md`：上海主库与本机隔离数据库配置、migration、内部账号创建、登录顺序与验证。
 - [服务器与数据库查看](server-operations.md)：腾讯云 CPU／网络监控、PostgreSQL 表结构、只读查询与服务位置。
 - [公网 IP 测试环境](ip-preview.md)：服务器隔离测试库、HTTPS、服务与备份。
@@ -43,5 +43,5 @@
 
 - [AI工具调用规则](ai-tool-contracts.md)：GPT与豆包的任务选择、份量口径、局部修改、查询分页、重试与人工确认。
 
-- [站内助手](assistant-chat.md)：指定owner的三模型、模型选择、真实工具、每日用量与关闭回退。
+- [站内助手](assistant-chat.md)：按账号权益开放的千问／小米双模型、模型选择、真实工具、每日用量与关闭回退。
 - [聊天验收](assistant-chat-verification.md)：实际浏览器与接口检查、证据和未测项。

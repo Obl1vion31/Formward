@@ -30,6 +30,11 @@ if(process.env.FORMWARD_CHAT_NATIVE==="1"){
 const pg=native?undefined:new PGlite(),db=native?.db??drizzle(pg!,{schema});if(native)await migrateNative(native.db,{migrationsFolder:"drizzle"});else await migrate(drizzle(pg!,{schema}),{migrationsFolder:"drizzle"});
 const fixture=await seedAssistantFixture(db,localMeasurementDate(new Date(),"Asia/Shanghai"));
 await db.update(schema.user).set({role:"owner"}).where(eq(schema.user.id,fixture.userId));
+if(process.env.FORMWARD_CHAT_REFINEMENT_SEED==="1"){
+ await db.insert(schema.measurementSource).values({userId:fixture.userId,label:"虚构测试体重秤"}).onConflictDoNothing();
+ await db.update(schema.measurement).set({deviceLabel:"虚构测试体重秤"}).where(eq(schema.measurement.userId,fixture.userId));
+}
+
 const imageId=randomUUID(),imageBytes=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6nE0AAAAASUVORK5CYII=","base64");
 await db.insert(schema.mealImage).values({id:imageId,userId:fixture.userId,pathname:"meal-formal-v2/"+fixture.userId+"/fixture.png",fileName:"虚构照片.png",mimeType:"image/png",byteSize:imageBytes.length,sha256:createHash("sha256").update(imageBytes).digest("hex"),source:"manual",createdBy:fixture.userId,storageProvider:"cos",storageLocation:"chat-fixture-123@ap-shanghai"});
 const socket=pg?new PGLiteSocketServer({db:pg,host:"127.0.0.1",port:0,maxConnections:10}):undefined;await socket?.start();const probe=createServer();probe.listen(process.env.FORMWARD_CHAT_PREVIEW_PORT?Number(process.env.FORMWARD_CHAT_PREVIEW_PORT):realCosPath?3300:0,"127.0.0.1");await once(probe,"listening");const port=(probe.address()as{port:number}).port;await new Promise<void>(resolve=>probe.close(()=>resolve()));

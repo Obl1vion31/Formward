@@ -10,7 +10,7 @@ import { lockActiveAccount, requireActiveAccount } from "../auth/account-securit
 import { requireActiveAiToken } from "../auth/ai-tokens";
 import { accountEntitlements } from "../auth/entitlements";
 import { prepareRecognition, recognitionUsage, reserveRecognition, refundUnfinishedRecognition } from "./recognition-quota";
-import { assertChatAllowed, chatProviders, providerConfigured, providerId, type ChatRates } from "./chat-config";
+import { assertChatAllowed, chatProviders, providerAvailable, currentProvider, providerConfigured, providerId, type ChatRates } from "./chat-config";
 import { budgetDate, chatProviderIds, nextBudgetReset, usagePercent, type ChatMessage, type ChatProvider, type ChatSnapshot, type ChatUsage } from "./chat-model";
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export type StoredRun = typeof run.$inferSelect;
@@ -121,9 +121,9 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
   const [active] = await db.select({ id: run.id }).from(run).where(and(eq(run.userId,userId),taskId?eq(run.conversationId,current.id):undefined,eq(run.state,"running")));
   const grantPurpose = taskId && !entitlement.chat ? "meal_entry" : "chat";
   const grants = await db.select({ provider: connection.provider, enabled: connection.enabled, expiresAt: aiToken.expiresAt, revokedAt: aiToken.revokedAt }).from(connection).innerJoin(aiToken, and(eq(aiToken.id, connection.tokenId), eq(aiToken.userId, userId))).where(and(eq(connection.userId, userId),eq(connection.purpose, grantPurpose))).orderBy(desc(connection.createdAt));
-  return { capabilities:chatCapabilities(),entitlement,conversationId: current.id, provider: providerId(current.provider), followup: current.followup, messages: rows.map(row => publicChatMessage(row,recent,runs.find(item=>item.assistantMessageId===row.id||item.userMessageId===row.id)?.id,runs.find(item=>item.assistantMessageId===row.id||item.userMessageId===row.id)?.requestId,runs.find(item=>item.assistantMessageId===row.id)?.userMessageId)),
+  return { capabilities:chatCapabilities(),entitlement,conversationId: current.id, provider: currentProvider(providerId(current.provider)), followup: current.followup, messages: rows.map(row => publicChatMessage(row,recent,runs.find(item=>item.assistantMessageId===row.id||item.userMessageId===row.id)?.id,runs.find(item=>item.assistantMessageId===row.id||item.userMessageId===row.id)?.requestId,runs.find(item=>item.assistantMessageId===row.id)?.userMessageId)),
     hasMore: older.length > 5, before: rows[0]?.seq ?? null, activeRunId: active?.id ?? null,
-    catalog: chatProviderIds.map(id => { const grant = grants.find(row => row.provider === id), configured = providerConfigured(id), valid = !grant || grant.enabled && !grant.revokedAt && grant.expiresAt.getTime() > Date.now();
+    catalog: chatProviderIds.filter(providerAvailable).map(id => { const grant = grants.find(row => row.provider === id), configured = providerConfigured(id), valid = !grant || grant.enabled && !grant.revokedAt && grant.expiresAt.getTime() > Date.now();
       return { id, label: chatProviders[id].label, model: chatProviders[id].model, configured, enabled: !!valid, reason: !configured ? "暂未配置或已停用" : !valid ? "授权已撤销或过期" : null, expiresAt: grant?.expiresAt.toISOString() ?? null }; }), usage: await chatUsage(db, userId) };
 }
 export function publicChatMessage(row: StoredMessage, context: StoredMessage[] = [], runId?: string, requestId?:string, questionId?:string): ChatMessage {
@@ -198,11 +198,13 @@ export async function controlChat(db: Database, userId: string, input: { action:
     if (input.action === "new") {
       if (input.mealTaskId) throw new ApiError(400, "invalid_action", "饮食识别使用当前餐次任务。");
       await tx.update(conversation).set({ active: false }).where(and(eq(conversation.userId, userId), eq(conversation.purpose,"chat"), eq(conversation.active, true)));
-      await tx.insert(conversation).values({ id: randomUUID(), userId, provider: current.provider });
+      await tx.insert(conversation).values({ id: randomUUID(), userId, provider: currentProvider(providerId(current.provider)) });
     }
     if (input.action === "revoke" || input.action === "enable") {
       const grantPurpose = purpose === "meal_entry" && !accountEntitlements(owner).chat ? "meal_entry" : "chat";
-      const provider = providerId(input.provider), [grant] = await tx.select().from(connection).where(and(eq(connection.userId, userId), eq(connection.provider, provider),eq(connection.purpose,grantPurpose))).orderBy(desc(connection.createdAt)).limit(1);
+      const provider = providerId(input.provider);
+      if(input.action === "enable" && !providerAvailable(provider)) throw new ApiError(503,"model_unavailable","该模型已停用，请选择千问或小米 MiMo。");
+      const [grant] = await tx.select().from(connection).where(and(eq(connection.userId, userId), eq(connection.provider, provider),eq(connection.purpose,grantPurpose))).orderBy(desc(connection.createdAt)).limit(1);
       const name = chatProviders[provider].label + (grantPurpose === "meal_entry" ? " · 站内饮食识图" : " · 站内助手"), prefix = grantPurpose === "meal_entry" ? "fw_internal_meal" : "fw_internal";
       if (!grant && input.action === "enable") {
         const tokenId = randomUUID();

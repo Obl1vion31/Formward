@@ -1,3 +1,5 @@
+import {followupQuestions} from "./followup";
+import type {Followup} from "./chat-model";
 import type {ChatMessage,ChatReference} from "./chat-model";
 
 const reviewHosts=new Set(["formward.top","www.formward.top","global.formward.top","formward-ten.vercel.app","43.142.148.58","localhost","127.0.0.1","formward.invalid"]);
@@ -43,4 +45,12 @@ export function chatRecordReferences(references:ChatReference[],inline:boolean,s
  const covered=new Set(steps.flatMap(step=>pages[step.name]?["/dashboard/"+pages[step.name]]:[]));
  const seen=new Set<string>();
  return references.filter(ref=>{if(seen.has(ref.href)||inline&&reviewLink(ref.href)||previews&&(ref.kind==="preview"||covered.has(ref.href.split("?")[0])))return false;seen.add(ref.href);return true;});
+}
+
+/** 结构化问题在表单legend出现一次；不重写消息存档和引用。 */
+export function withoutRepeatedFollowup(text:string,followup:Followup|null|undefined){
+ if(!followup)return text;
+ const normalize=(value:string)=>value.trim().replace(/[？?。！!：:]+$/,"");
+ const questions=new Set(followupQuestions(followup).map(question=>normalize(question.prompt)));
+ return text.split("\n").filter(line=>!questions.has(normalize(line))).join("\n").trim();
 }

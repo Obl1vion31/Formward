@@ -30,9 +30,9 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
   const { points, segments, pairs } = measurementTrend(records, metric, showEvening, choices);
   const scale = normalScale(points.map(row => Number(row[metric])));
   const {width:viewportWidth,height:viewportHeight,left,fontSize}=useChartViewport(viewport,scale.ticks.map(value=>value.toFixed(1)),48);
-  useChartMotion(viewport, viewportWidth ? `${metric}:${showEvening}:${interval.start}:${interval.end}:${JSON.stringify(choices)}:${records.map(record => `${record.id}:${record.updatedAt}`).join("|")}` : "pending");
+  useChartMotion(viewport, viewportWidth ? `${metric}:${showEvening}:${interval.start}:${interval.end}:${JSON.stringify(choices)}:${records.map(record => `${record.id}:${record.updatedAt}`).join("|")}` : "pending",`${metric}:${showEvening}:${interval.start}:${interval.end}`);
   const width=viewportWidth||280,leftEdge=left,right=16,top=14,plotWidth=width-leftEdge-right;
-  const plotHeight=compact?Math.max(48,(viewportHeight||top+(width-48-right)/2+32)-top-32):(mobile?180:252)-top-32,height=compact?viewportHeight||top+(width-48-right)/2+32:top+plotHeight+32,plotBottom=top+plotHeight;
+  const height=viewportHeight||(mobile?top+(width-48-right)/2+32:320),plotHeight=Math.max(48,height-top-32),plotBottom=top+plotHeight;
   const x=(date:string)=>left+(span?(5+(calendarOrdinal(date)-calendarOrdinal(interval.start))/span*230)/240:.5)*plotWidth;
   const y=(value:string|null)=>top+(5+scale.position(Number(value))*110)/120*plotHeight;
   const canShare=metric==="weightKg"&&!showEvening;
@@ -57,7 +57,7 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
 
 
   return <>
-    <div className={styles.plotViewport+(linked?" linked-trend-plot":compact?" detail-trend-plot":"")} ref={viewport} data-chart-arrival data-body-plot data-adaptive={linked||span<31?"true":mobile===null?"auto":String(mobile)} data-linked-plot={linked||undefined}>
+    <div className={styles.plotViewport+(linked?" linked-trend-plot":compact?" detail-trend-plot":"")} ref={viewport} data-chart-density={span<7?"short":"full"} data-chart-arrival data-body-plot data-adaptive={linked||span<31?"true":mobile===null?"auto":String(mobile)} data-linked-plot={linked||undefined}>
       <svg {...drag} className={styles.plot} style={{touchAction:"pan-y", height:compact?"auto":undefined, maxHeight:"none", visibility: viewportWidth > 0 ? undefined : "hidden"}} width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={`${metricName(metric)}趋势，数值越高位置越高`}>
         <title>{`${metricName(metric)}趋势`}</title>
         {scale.ticks.filter((_,i)=>i%Math.max(1,Math.ceil(Math.max(24,fontSize*1.6)*(scale.ticks.length-1)/plotHeight))===0).map((value) => <g key={value}><line x1={left} x2={width-right} y1={y(String(value))} y2={y(String(value))} className={styles.grid} /><text x={left-8} y={y(String(value)) + 4} textAnchor="end" className={styles.axis}>{value.toFixed(1)}</text></g>)}
@@ -84,7 +84,7 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
             <title>{`${row.timePrecision==="second"?row.sourceLocalTime:"无准确时间"} · ${label}`}</title>
             <defs><clipPath id={clipId}><rect x={clipLeft} y={clipTop} width={clipRight - clipLeft} height={clipBottom - clipTop} /></clipPath></defs>
             <circle cx={x(row.recordDate)} cy={ownY} r="14" className={styles.hitTarget} clipPath={`url(#${clipId})`} />
-            {row.period==='evening'&&<circle cx={x(row.recordDate)} cy={y(row[metric])} r={span<7?4:3.2} className={styles.nightPoint} />}
+            {row.period==='evening'&&<circle cx={x(row.recordDate)} cy={y(row[metric])} r={3.5} className={styles.nightPoint} />}
           </g>;
         })}
         {!points.length && <text x={width / 2} y="118" textAnchor="middle" className={styles.emptyChart}>{`此区间暂无${showEvening ? "" : "空腹"}${metricName(metric)}记录`}</text>}

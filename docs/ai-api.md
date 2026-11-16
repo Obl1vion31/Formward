@@ -2,7 +2,7 @@
 
 ## AI结果的字段解释
 
-MCP 2.0.1公开18项工具；OpenAPI 1.15.1的HTTP路径和旧调用继续可用。成功结果包含fieldDefinitions。它是字段路径到中文解释的字典：*表示一层数组或对象成员，**表示任意深度；不是可提交的业务参数。只返回当前接口与本种结果实际存在的字段说明，错误和未授权结果保持原结构。
+MCP 2.0.2公开18项工具；OpenAPI 1.15.1的HTTP路径和旧调用继续可用。成功结果包含fieldDefinitions。它是字段路径到中文解释的字典：*表示一层数组或对象成员，**表示任意深度；不是可提交的业务参数。只返回当前接口与本种结果实际存在的字段说明，错误和未授权结果保持原结构。
 
 解释分别保存在measurements、meals、activities、training及records目录的ai-field-definitions.json中。MCP工具说明、HTTP协议、返回数据和离线评测引用同一份来源；common guidance只约束如何据数据回答，不替代具体字段定义。
 
@@ -36,7 +36,7 @@ MCP 2.0.1公开18项工具；OpenAPI 1.15.1的HTTP路径和旧调用继续可用
 
 ## GPT 与豆包的工具契约
 
-MCP 2.0.1公开18项工具，原生MCP、豆包和站内助手共享正式定义。新增餐次preview_meals、已保存餐次修改preview_meal_changes、食材维护preview_foods各有职责；身体preview_measurements、消耗preview_energy、训练preview_training保留各业务规则。组合preview_record_bundle至少两类功能动作，get_preview统一查状态，update_preview只修改原待审草稿及补照片。完整参数和边界见[AI工具调用规则](ai-tool-contracts.md)。
+MCP 2.0.2公开18项工具，原生MCP、豆包和站内助手共享正式定义。新增餐次preview_meals、已保存餐次修改preview_meal_changes、食材维护preview_foods各有职责；身体preview_measurements、消耗preview_energy、训练preview_training保留各业务规则。组合preview_record_bundle至少两类功能动作，get_preview统一查状态，update_preview只修改原待审草稿及补照片。完整参数和边界见[AI工具调用规则](ai-tool-contracts.md)。
 
 ## 网页与AI服务地址
 

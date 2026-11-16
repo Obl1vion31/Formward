@@ -7,6 +7,7 @@ export type ChartTarget = { kind: TrendKind; element: SVGSVGElement; model: Metr
 export type ChartOrigin = { kind: TrendKind; destination: string; scroll: number; rail: number; rangeKey: string; modelKey:string; paired:boolean; rect: ChartRect; viewport: { width: number; height: number } };
 export type OverviewViewState={mode:string|null;custom:{from:string;to:string}};
 export type ChartTransitionState = {
+  claimChartEntry: (key:string)=>boolean;
   preview: MetricTrendModel | null;
   returningToOverview:boolean;
   overviewReady:()=>void;
@@ -19,9 +20,9 @@ export type ChartTransitionState = {
   recallOverview: () => OverviewViewState | null;
   rememberOverview: (state:OverviewViewState) => void;
 };
-export const ChartTransitionContext = createContext<ChartTransitionState>({ preview:null, returningToOverview:false, overviewReady:()=>{}, cancelOverviewReturn:()=>{}, navigate: async()=>{}, register:()=>()=>{}, restore:()=>{}, back:()=>{}, invalidate:()=>{},recallOverview:()=>null,rememberOverview:()=>{} });
+export const ChartTransitionContext = createContext<ChartTransitionState>({ claimChartEntry:()=>true, preview:null, returningToOverview:false, overviewReady:()=>{}, cancelOverviewReturn:()=>{}, navigate: async()=>{}, register:()=>()=>{}, restore:()=>{}, back:()=>{}, invalidate:()=>{},recallOverview:()=>null,rememberOverview:()=>{} });
 export const useChartTransition = () => useContext(ChartTransitionContext);
 
 /** 图形注册与业务失效不订阅飞行状态，避免动画挂载重绘整张业务图。 */
-export const ChartTransitionActionsContext=createContext<Pick<ChartTransitionState,"register"|"invalidate"|"recallOverview"|"rememberOverview">>({register:()=>()=>{},invalidate:()=>{},recallOverview:()=>null,rememberOverview:()=>{}});
+export const ChartTransitionActionsContext=createContext<Pick<ChartTransitionState,"register"|"invalidate"|"recallOverview"|"rememberOverview"|"claimChartEntry">>({claimChartEntry:()=>true,register:()=>()=>{},invalidate:()=>{},recallOverview:()=>null,rememberOverview:()=>{}});
 export const useChartTransitionActions=()=>useContext(ChartTransitionActionsContext);

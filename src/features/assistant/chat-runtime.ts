@@ -1,4 +1,4 @@
-import { chatCapabilities } from "./chat-config";
+import { chatCapabilities, providerConfigured } from "./chat-config";
 import { createMealTaskPreview } from "./meal-task";
 import { followupQuestionsSchema } from "./followup";
 import { confirmedSourceArguments, sourceFollowupQuestions } from "./source-followup";
@@ -67,6 +67,7 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
   const readPreviews=new Set<string>(),writtenPreviews=new Set<string>();
   let processNotes:string[]=[];
   async function guard(force = false) {
+    if (!providerConfigured(provider)) throw new ApiError(503,"model_unavailable","此模型已停用或暂不可用，请手动选择其他模型。已有内容保留。");
     if (controller.signal.aborted) throw new ApiError(409, "stopped", "生成已停止。");
     if (!force && Date.now() - lastCheck < 2000) return;
     if (!dependencies.skipSessionCheck) { const current = await currentSessionIdentity(request.headers); if (current.user.id !== userId) throw new ApiError(401, "invalid_session", "登录已失效，请重新登录。"); }
@@ -84,6 +85,7 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
     if (row) emit({ type: "message", message: publicChatMessage(row, rows, activeRun.id,activeRun.requestId,activeRun.userMessageId) }); lastSave = Date.now();
   }
   try {
+    await guard(true);
     rows = await db.select().from(assistantMessage).where(and(eq(assistantMessage.userId, userId), eq(assistantMessage.conversationId, activeRun.conversationId))).orderBy(desc(assistantMessage.seq)).limit(50);
     const [question] = await db.select().from(assistantMessage).where(and(eq(assistantMessage.id,activeRun.userMessageId),eq(assistantMessage.userId,userId),eq(assistantMessage.conversationId,activeRun.conversationId)));
     const initialAnswer = rows.find(row => row.id === activeRun.assistantMessageId);

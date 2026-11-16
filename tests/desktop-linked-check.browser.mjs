@@ -66,7 +66,8 @@ function assertMotion(frames,direction){
  const ids=[...new Set(visible.map(frame=>frame.id))];assert.equal(ids.length,1,direction+" 每方向只能一个图层");
  assert.ok(visible.length>=2,direction+" 须有真实中间帧");
  const widths=visible.map(frame=>frame.width);assert.ok(Math.max(...widths)-Math.min(...widths)>4,direction+" 须实际移动／缩放");
- for(const frame of visible)assert.ok(Math.abs(frame.width/frame.height-2)<.02,"数据平面保持2:1");
+ for(const frame of visible)assert.ok(frame.width>0&&frame.height>0,"数据平面在连续交接中保持可见");
+ const moving=visible.filter(frame=>frame.animation&&Number(frame.animation.time)>0&&Number(frame.animation.time)<300);assert.ok(moving.length>=2,"300ms连续动画有多个实际中间帧");
 }
 async function picture(page,folder,name){
  const path=join(folder,name+".png");await page.screenshot({path,fullPage:false});return path;
@@ -143,7 +144,7 @@ export async function checkDesktopLinked({browser,baseURL,baselineURL,slowURL,fi
    assert.equal(await page.locator("[data-linked-plot]").count(),1);
    assert.equal(await page.locator("[data-chart-selection]").first().getAttribute("data-selected-date"),query.get("date"));
    const plane=await page.locator("[data-linked-plot] [data-trend-ready]").evaluate(node=>{const matrix=node.getScreenCTM(),a=new DOMPoint(0,0).matrixTransform(matrix),b=new DOMPoint(240,120).matrixTransform(matrix);return {left:a.x,top:a.y,width:b.x-a.x,height:b.y-a.y};});
-   assert.ok(plane.width<=641&&Math.abs(plane.width/plane.height-2)<.02);
+   assert.ok(plane.width<=641);assert.equal(Math.round((await graph.boundingBox()).height),320,"桌面关联图框含轴320px");
    const entryFrames=await flightRecord(page);const flow={kind,href,plane,sourceScroll,entryFrames};report.flows.push(flow);assertMotion(entryFrames,"forward");
    for(const frame of entryFrames)if(frame.target?.plane){
     const target=frame.target.plane;
@@ -394,7 +395,7 @@ async function checkEmptyAccount({page,context,baseURL,fixture,report,artifacts}
  await page.goto(baseURL+"/dashboard");await settled(page);
  assert.equal(await page.locator("[data-metric-card]").count(),3);
  const readings=await page.locator("[data-metric-card] strong").allTextContents();assert.ok(readings.every(text=>/^—\s*(kcal|kg)$/.test(text.trim())));
- assert.equal(await page.locator("[data-metric-card] [data-trend-glyph] :is(rect,line,circle)").count(),0,"空账号不出现前一账号图形");
+ assert.equal(await page.locator("[data-metric-card] [data-trend-glyph] :is(rect,line,circle,ellipse)").count(),0,"空账号不出现前一账号图形");
  assert.equal(await page.getByRole("button",{name:"30D",exact:true}).getAttribute("aria-pressed"),"true");
  assert.equal(await page.getByLabel("显示体重估计",{exact:true}).count(),0);
  report.boundaries.push({case:"empty-account-and-reset",readings});report.screens.push(await picture(page,artifacts,"empty-account"));

@@ -17,7 +17,7 @@ const macros: Metric[] = ["proteinG", "carbsG", "fatG"];
 type NutritionChartProps={dates:string[];groups:ReturnType<typeof dailyTotals>;selection:ReturnType<typeof useChartDateSelection>;mode:MacroMode;linked?:boolean;compact?:boolean};
 export function NutritionChart(props:NutritionChartProps) {
   const mobile=useMobileMode(),adaptive=props.linked||props.compact?"true":mobile===null?"auto":String(mobile);
-  return <div className={styles.nutritionFrame} data-adaptive={adaptive}>
+  return <div className={styles.nutritionFrame} data-adaptive={adaptive} data-chart-density={props.dates.length<=7?"short":"full"}>
    {mobile||props.linked||props.compact?<MobileNutritionPlot {...props}/>:<DesktopNutritionChart {...props}/>}
   </div>;
 }
@@ -28,34 +28,35 @@ function DesktopNutritionChart({ dates, groups, selection, mode }: NutritionChar
   const statusByDate = new Map(groups.map(group => [group.date, group.day.status]));
   const inspected=selection.selected,unit="kcal";
   const scale=chartScale(dates.map(date=>byDate.get(date)?.values.caloriesKcal));
-  const {width:containerWidth,left}=useChartViewport(viewport,scale.ticks,54);
-  useChartMotion(viewport, containerWidth ? `${dates[0]}:${dates.at(-1)}:${mode}:${groups.map(group => `${group.date}:${JSON.stringify(group.totals)}`).join("|")}` : "pending");
+  const {width:containerWidth,left,height:measuredHeight}=useChartViewport(viewport,scale.ticks,54);
+  useChartMotion(viewport, containerWidth ? `${dates[0]}:${dates.at(-1)}:${mode}:${groups.map(group => `${group.date}:${JSON.stringify(group.totals)}`).join("|")}` : "pending",dates[0]+":"+dates.at(-1)+":"+mode);
   const width = containerWidth || 280, right = 10, slot = (width - left - right) / dates.length;
-  const max = scale.max, y = (value: number) => 154 - value / max * 120;
+  const chartHeight=measuredHeight||320,bottom=chartHeight-32,top=20;
+  const max = scale.max, y = (value: number) => bottom - value / max * (bottom-top);
   const drag=useChartDrag(dates,width,left,right,selection.choose);
   const allDates = dates.length <= 7, selectedX = left + (dates.indexOf(inspected) + .5) * slot;
   const stride = Math.max(1, Math.ceil((dates.length - 1) / (width < 440 ? 3 : 6)));
   return <>
     <div className={styles.barViewport} ref={viewport} >
-      <svg {...drag} className={styles.chart} style={{ touchAction:"pan-y", visibility: containerWidth ? undefined : "hidden" }} viewBox={`0 0 ${width} 194`} role="group" aria-label={`热量柱状图，单位${unit}`}>
+      <svg {...drag} className={styles.chart} style={{ touchAction:"pan-y", visibility: containerWidth ? undefined : "hidden" }} viewBox={`0 0 ${width} ${chartHeight}`} role="group" aria-label={`热量柱状图，单位${unit}`}>
         <defs><pattern id={patternId} width="5" height="5" patternUnits="userSpaceOnUse"><path d="M-1 1L1 -1M0 5L5 0M4 6L6 4" stroke="var(--warm-white)" strokeOpacity=".3" strokeWidth="1" /></pattern></defs>
         {scale.ticks.map(tick => <g key={tick}><line className={styles.grid} x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} /><text className={styles.axis} data-calorie-tick={tick} x={left - 8} y={y(tick) + 4} textAnchor="end">{tick}</text></g>)}
-        <ChartSelectionColumn x={selectedX} date={inspected} column={{left:selectedX-slot/2,right:selectedX+slot/2}} plot={{left,right:width-right,top:25,bottom:154}} resetKey={`${width}:${dates.join("|")}`} direct={selection.direct} baselineTick/>
+        <ChartSelectionColumn x={selectedX} date={inspected} column={{left:selectedX-slot/2,right:selectedX+slot/2}} plot={{left,right:width-right,top,bottom}} resetKey={`${width}:${dates.join("|")}`} direct={selection.direct} baselineTick/>
         {dates.map((date, index) => {
           const daily = byDate.get(date), x = left + index * slot, barWidth = Math.min(30, slot * .68), energy = daily?.values.caloriesKcal;
           const incompleteDay = !!daily && statusByDate.get(date) !== "complete";
           const label = `${date} · ${daily ? ["caloriesKcal" as const, ...macros].map(metric => `${metricLabels[metric]} ${formatNutrition(daily.values[metric], metric)} ${metric === "caloriesKcal" ? "kcal" : "g"}${daily.incomplete[metric] ? "（已知合计，不完整）" : ""}`).join(" · ") : "未记录"}${incompleteDay ? statusByDate.get(date) === "incomplete" ? " · 当天未记全" : " · 全天待确认" : ""}`;
           const valueLabel = formatNutrition(energy ?? null, "caloriesKcal");
           return <g key={date} role="button" tabIndex={date === inspected ? 0 : -1} data-bar-date={date} data-selected={date === inspected} aria-pressed={date===inspected} data-day-status={statusByDate.get(date)} aria-label={label} data-chart-date={date} onMouseMove={()=>selection.preview(date)} onFocus={event=>selection.focus(event,date)} onClick={()=>selection.activate(date)} onKeyDown={event=>selection.keyDown(event,date)}>
-            <title>{label}</title><rect className={styles.barHit} x={x} y="25" width={slot} height="134" />
+            <title>{label}</title><rect className={styles.barHit} x={x} y={top} width={slot} height={bottom-top+4} />
             {energy!=null&&(()=>{
               const segments=macroDistribution(daily, mode);let below=0;
-              if(!segments)return Number(energy)>0?<rect data-chart-bar data-chart-zero="154" data-metric="caloriesKcal" data-incomplete="true" x={x+(slot-barWidth)/2} y={y(Number(energy))} width={barWidth} height={y(0)-y(Number(energy))} fill={calorieColor} className={styles.bar}/>:null;
-              return segments.map(segment=>{const start=below;below+=segment.calories;const height=y(start)-y(below);return <g key={segment.metric}><rect data-chart-bar data-chart-zero="154" data-metric={segment.metric} data-energy-ratio={mode==="energy"?segment.ratio:undefined} data-macro-ratio={segment.ratio} data-macro-mode={mode} data-incomplete={Boolean(daily?.incomplete.caloriesKcal)} x={x+(slot-barWidth)/2} y={y(below)} width={barWidth} height={height} fill={macroColors[segment.metric]} className={styles.bar}/>{barWidth>=11&&height>=14&&<text className={styles.stackLetter} x={x+slot/2} y={y(below)+height/2+3.5} textAnchor="middle" fill={segment.metric==="proteinG"?"var(--on-data-dark)":"var(--on-data-light)"}>{segment.metric==="proteinG"?"P":segment.metric==="carbsG"?"C":"F"}</text>}</g>});
+              if(!segments)return Number(energy)>0?<rect data-chart-bar data-chart-zero={bottom} data-metric="caloriesKcal" data-incomplete="true" x={x+(slot-barWidth)/2} y={y(Number(energy))} width={barWidth} height={y(0)-y(Number(energy))} fill={calorieColor} className={styles.bar}/>:null;
+              return segments.map(segment=>{const start=below;below+=segment.calories;const height=y(start)-y(below);return <g key={segment.metric}><rect data-chart-bar data-chart-zero={bottom} data-metric={segment.metric} data-energy-ratio={mode==="energy"?segment.ratio:undefined} data-macro-ratio={segment.ratio} data-macro-mode={mode} data-incomplete={Boolean(daily?.incomplete.caloriesKcal)} x={x+(slot-barWidth)/2} y={y(below)} width={barWidth} height={height} fill={macroColors[segment.metric]} className={styles.bar}/>{barWidth>=11&&height>=14&&<text className={styles.stackLetter} x={x+slot/2} y={y(below)+height/2+3.5} textAnchor="middle" fill={segment.metric==="proteinG"?"var(--on-data-dark)":"var(--on-data-light)"}>{segment.metric==="proteinG"?"P":segment.metric==="carbsG"?"C":"F"}</text>}</g>});
             })()}
             {incompleteDay && energy != null && Number(energy) > 0 && <rect data-day-incomplete="true" x={x + (slot - barWidth) / 2} y={y(Number(energy))} width={barWidth} height={y(0) - y(Number(energy))} fill={`url(#${patternId})`} className={styles.bar} />}
             {allDates && energy != null && slot >= valueLabel.length * 6.5 + 6 && <text className={styles.barValue} x={x + slot / 2} y={y(Number(energy)) - 7} textAnchor="middle">{valueLabel}{daily?.incomplete.caloriesKcal ? "*" : ""}</text>}
-            {(index % stride === 0 && dates.length - 1 - index >= stride / 2 || index === dates.length - 1) && <text className={styles.axis} data-date-tick x={x + slot / 2} y="185" textAnchor={index === 0 ? "start" : index === dates.length - 1 ? "end" : "middle"}>{allDates && slot < 46 ? date.slice(8) : shortRecordDate(date)}</text>}
+            {(index % stride === 0 && dates.length - 1 - index >= stride / 2 || index === dates.length - 1) && <text className={styles.axis} data-date-tick x={x + slot / 2} y={bottom+25} textAnchor={index === 0 ? "start" : index === dates.length - 1 ? "end" : "middle"}>{allDates && slot < 46 ? date.slice(8) : shortRecordDate(date)}</text>}
           </g>;
         })}
       </svg>

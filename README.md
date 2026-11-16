@@ -14,7 +14,7 @@ AI接入采用ChatGPT／豆包紧凑行，权限默认收起、各连接独立�
 
 GPT、豆包及本地评测共用记餐规则：先明确本次实际食量，再默认估算热量及三项宏量。仅有食物名称时先追问，不猜标准份量或先建预览；已报数量不强求克重。明确不估仍可保留未知，不自动重估历史。规则及边界见[AI工具调用](docs/ai-tool-contracts.md)。
 
-GPT与豆包共享MCP 2.0.1的18项工具：新增餐次、正式餐次修改、食材维护各有明确入口；四种状态查询统一get_preview，原待审修改和补照片统一update_preview。创建共用任务防重，旧工具名停用；旧确认链接和HTTP业务能力保留。完整规则见[AI工具调用](docs/ai-tool-contracts.md)。
+GPT与豆包共享MCP 2.0.2的18项工具：新增餐次、正式餐次修改、食材维护各有明确入口；四种状态查询统一get_preview，原待审修改和补照片统一update_preview。创建共用任务防重，旧工具名停用；旧确认链接和HTTP业务能力保留。完整规则见[AI工具调用](docs/ai-tool-contracts.md)。
 
 公开[隐私政策](https://formward-ten.vercel.app/privacy.html)和[服务条款](https://formward-ten.vercel.app/terms.html)已发布，生效日期2026年11月10日；个人运营者、填写资料及发布范围见[豆包资料与公开协议](docs/doubao-onboarding.md)。
 

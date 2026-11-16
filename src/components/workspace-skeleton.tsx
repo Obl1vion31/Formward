@@ -15,6 +15,7 @@ import {WorkspaceSourceContext} from './workspace-frame-state';
 import {EnergySourceStatusSkeleton} from '@/features/data-sources/energy-status';
 import {OverviewLegend,NutritionLegend,EnergyLegend} from './chart-legend';
 import {MetricCardRailSkeleton} from './metric-card-rail';
+import {TrendGlyph} from './trend-glyph';
 import {linkedTrend} from './metric-trend-model';
 import {linkedDate} from '@/features/measurements/calendar';
 import {OverviewReadings} from '@/features/dashboard/overview-trend';
@@ -28,7 +29,7 @@ export function WorkspaceSkeleton({kind,returnShell=false}:{kind:'overview'|'nut
  const sourcePilot=useContext(WorkspaceSourceContext);
  const {preview,returningToOverview,recallOverview}=useChartTransition(),ref=useRef<HTMLDivElement>(null),router=useRouter(),[slow,setSlow]=useState(false),params=useSearchParams(),mobile=useMobileMode();
  const model=preview&&((kind==='nutrition'&&preview.kind==='intake')||(kind==='body'&&preview.kind==='morning-weight')||(kind==='energy'&&preview.kind==='energy'))?preview:null;
- const linked=!!linkedTrend(Object.fromEntries(params)),shared=kind!=="overview",adaptive=mobile||shared;
+ const linkedRange=linkedTrend(Object.fromEntries(params)),linked=!!linkedRange,shared=kind!=="overview",adaptive=mobile||shared;
  const tickLabels=kind==='body'?(model?.ticks??[0,99]).map(value=>value.toFixed(1)):model?.ticks??[0,1000];
  const {width:measured,left,height:measuredHeight}=useChartViewport(ref,tickLabels,kind==='body'?48:50),width=measured||280,right=kind==='body'?16:10,top=kind==='body'?14:20,plotWidth=width-left-right;
  const waiting=!returnShell||returningToOverview,[lastWaiting,setLastWaiting]=useState(waiting);
@@ -37,7 +38,7 @@ export function WorkspaceSkeleton({kind,returnShell=false}:{kind:'overview'|'nut
  const body=kind==='body',title={overview:'总览',nutrition:'饮食',energy:'消耗',body:'身体'}[kind];
  const labels=kind==='nutrition'?['热量','蛋白质','碳水','脂肪']:body?['晨间体重','较前一日','7日平均体重']:['总消耗','静息','活动'];
  const range=params.get('view')==='trend'?'custom':mobile?'7':'30',date=kind==='overview'?'':linkedDate(params.get('date'))??'';
- const svgHeight=(kind==='energy'||kind==='body')&&measuredHeight>0?measuredHeight:kind==='nutrition'?(adaptive?top+(width-50-right)/2+32:194):kind==='energy'?(adaptive?top+plotWidth/2+32:width<650?198:254):shared?top+(width-(kind==='body'?48:50)-right)/2+32:mobile?180:252;
+ const svgHeight=measuredHeight>0?measuredHeight:kind==='nutrition'?(adaptive?top+(width-50-right)/2+32:194):kind==='energy'?(adaptive?top+plotWidth/2+32:width<650?198:254):shared?top+(width-(kind==='body'?48:50)-right)/2+32:mobile?180:252;
  const content=<div className={returnShell&&!returningToOverview?"workspace-return-prepared":"workspace-skeleton"} aria-busy={returnShell&&!returningToOverview?undefined:true} aria-label={title+'数据加载中'}>
  {kind==='overview'?<OverviewSkeleton date={date} rangeMode={recallOverview()?.mode??undefined}/>:<RecordWorkspace title={title}>
  <div data-record-trend>
@@ -47,10 +48,10 @@ export function WorkspaceSkeleton({kind,returnShell=false}:{kind:'overview'|'nut
   options={kind==='nutrition'?<InlineChartControls><div role="group" aria-label="营养占比口径"><button type="button" disabled aria-pressed>克数占比</button><button type="button" disabled aria-pressed={false}>能量占比</button></div></InlineChartControls>:body?<PendingEvening/>:undefined}
   legend={kind==='nutrition'?<NutritionLegend/>:body?<><span><i style={{background:'var(--data-weight)',borderRadius:'50%'}}/>晨间空腹</span>{params.get('view')!=='trend'&&<span><i style={{background:'var(--data-deficit)',borderRadius:'50%'}}/>晚间</span>}</>:<EnergyLegend/>}
   graphic={kind==="energy"?<EnergyComposition resting={null} active={null} loading/>:kind==="nutrition"?<NutritionComposition totals={null} loading/>:undefined}>
- <SkeletonPlotFrame kind={kind} frameRef={ref} shared={shared} linked={linked} adaptive={mobile===null&&!shared?'auto':adaptive} axisLeft={"max("+(kind==="body"?48:50)+"px, calc("+Math.max(...tickLabels.map(value=>String(value).length))+"ch + 12px))"}>
+ <SkeletonPlotFrame kind={kind} frameRef={ref} shared={shared} linked={linked} adaptive={mobile===null&&!shared?'auto':adaptive} short={model?model.points.length<=7:linkedRange?(Date.parse(linkedRange.to)-Date.parse(linkedRange.from))/86400000<7:range==="7"} axisLeft={"max("+(kind==="body"?48:50)+"px, calc("+Math.max(...tickLabels.map(value=>String(value).length))+"ch + 12px))"}>
   <svg preserveAspectRatio="none" viewBox={'0 0 '+width+' '+svgHeight} aria-hidden="true"><g data-chart-placeholder stroke="var(--line-soft)">{[0,.33,.66,1].map(part=><line key={part} x1={left} x2={width-right} y1={top+(svgHeight-top-32)*part} y2={top+(svgHeight-top-32)*part}/>)}</g>
 
-  </svg>{<div className="chart-local-wait"><ModuleSkeleton shape="chart" label="正在加载趋势…"/></div>}
+  {model&&<TrendGlyph detail target={measured>0} skeleton model={model} x={left} y={top} width={plotWidth} height={svgHeight-top-32}/>}</svg>{<div className="chart-local-wait"><ModuleSkeleton shape="chart" label="正在加载趋势…"/></div>}
  </SkeletonPlotFrame>{body&&<output className={measurementStyles.plotHint} aria-hidden="true"> </output>}
  </RecordTrendPanel></div>
  <DailyRecords loading kind={body?"body":undefined} actions={kind==='nutrition'?<button type="button" disabled>食材库</button>:undefined}/>
@@ -66,9 +67,9 @@ function OverviewSkeleton({date,rangeMode}:{date:string;rangeMode?:string}){retu
  <div className={overview.mobileTrend+' mobile-only'}><div className={overview.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" disabled>查看记录 →</button></div><ChartRanges value={rangeMode??"7"} change={()=>{}} loading/><div className={overview.mobileSelected}>{date?<time dateTime={date}>{displayRecordDate(date)}</time>:<span>—</span>}<span>—</span></div><div className={overview.mobileLegend}><OverviewLegend compact/></div><div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle} data-compact="true"><ModuleSkeleton shape="chart" label="正在加载趋势…"/></div></div>
  <div className="desktop-only"><RecordTrendPanel date={date} view={()=>{}} loading metrics={['摄入','消耗','收支','晨重','次晨','次晨变化'].map((label,index)=>({label,value:'',unit:index<3?'kcal':'kg',inlineUnit:index>=3}))} title="热量收支" unit="kcal" supplementary={<div className="skeleton-week"><OverviewReadings mobile={false} variants={[]}/></div>} range={<ChartRanges value={rangeMode??"30"} change={()=>{}} loading/>}  legend={<OverviewLegend/>}><div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle} data-compact="false"><ModuleSkeleton shape="chart" label="正在加载趋势…"/></div></RecordTrendPanel></div>
  </RecordWorkspace>;}
-function SkeletonPlotFrame({children,kind,frameRef,shared,linked,adaptive,axisLeft}:{children:React.ReactNode;kind:string;frameRef:React.RefObject<HTMLDivElement|null>;shared:boolean;linked:boolean;adaptive:boolean|'auto';axisLeft:string}){
- if(kind==='energy')return <EnergyPlotFrame frameRef={frameRef} adaptive={adaptive} className={linked?'linked-trend-plot':'detail-trend-plot'}>{children}</EnergyPlotFrame>;
- return <div ref={frameRef} className={'skeleton-plot'+(linked?' linked-trend-plot':' detail-trend-plot')} style={shared?{"--skeleton-axis-left":axisLeft} as React.CSSProperties:undefined} data-chart-arrival data-plot-kind={kind} data-shared-plot={shared?'true':undefined}>{children}</div>;
+function SkeletonPlotFrame({children,kind,frameRef,shared,linked,adaptive,axisLeft,short}:{children:React.ReactNode;kind:string;frameRef:React.RefObject<HTMLDivElement|null>;shared:boolean;linked:boolean;adaptive:boolean|'auto';axisLeft:string;short:boolean}){
+ if(kind==='energy')return <EnergyPlotFrame frameRef={frameRef} compact={short} adaptive={adaptive} className={linked?'linked-trend-plot':'detail-trend-plot'}>{children}</EnergyPlotFrame>;
+ return <div ref={frameRef} data-chart-density={short?"short":"full"} className={'skeleton-plot'+(linked?' linked-trend-plot':' detail-trend-plot')} style={shared?{"--skeleton-axis-left":axisLeft} as React.CSSProperties:undefined} data-chart-arrival data-plot-kind={kind} data-shared-plot={shared?'true':undefined}>{children}</div>;
 }
 
 function PendingEvening(){const input=useRef<HTMLInputElement>(null);useLayoutEffect(()=>{if(input.current)input.current.indeterminate=true;},[]);return <label className={bodyStyles.toggle}><span>晚间</span><input ref={input} aria-label="晚间数据，正在读取" aria-checked="mixed" type="checkbox" disabled readOnly/></label>;}

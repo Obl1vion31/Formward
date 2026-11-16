@@ -1,6 +1,6 @@
 import {markRecognitionUsed} from "./recognition-quota";
 import {accountEntitlements} from "../auth/entitlements";
-import { chatCapabilities } from "./chat-config";
+import { chatCapabilities, currentProvider, providerId } from "./chat-config";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -53,7 +53,7 @@ export async function createMealTask(db:Database,userId:string,draftKey:string,d
    if(old.context.draft.id!==draft.id)throw new ApiError(409,"task_changed","本餐任务不匹配，请重新打开。");
    const [next]=await tx.update(assistantConversation).set({followup:null,context:{...old.context,draft,signature:digestChat(draft),imageIds:[],appliedSignature:undefined},updatedAt:new Date()}).where(eq(assistantConversation.id,old.id)).returning();return next.id;
   }
-  const [created]=await tx.insert(assistantConversation).values({id:randomUUID(),userId,purpose:"meal_entry",active:false,provider:previous?.provider??"qwen",context:{draftKey,draft,originalDraft:structuredClone(draft),signature:digestChat(draft),imageIds:[]}}).returning();return created.id;
+  const [created]=await tx.insert(assistantConversation).values({id:randomUUID(),userId,purpose:"meal_entry",active:false,provider:currentProvider(providerId(previous?.provider??"qwen")),context:{draftKey,draft,originalDraft:structuredClone(draft),signature:digestChat(draft),imageIds:[]}}).returning();return created.id;
  });
 }
 export async function mealTaskSnapshot(db:Database,userId:string,id:string){

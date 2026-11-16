@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
-import {chatDisplayText,chatRecordReferences} from "./chat-presentation";
+import {withoutRepeatedFollowup,chatDisplayText,chatRecordReferences} from "./chat-presentation";
 const references=[{title:"查看提交",href:"/dashboard/ai/operations/example",kind:"preview" as const,operationId:"example"}];
 test("站内确认指示归卡片，事实、真实引用和用户原文保留",()=>{
  const text="晚餐685千卡。\n\n请打开链接登录确认后才会正式保存（21:12前有效）：\n\nhttps://formward.top/dashboard/ai/operations/example\n\n参考：[食物资料](https://example.org/food)";
@@ -51,4 +51,10 @@ test("缺编号的旧审核引用不再跳页，真实查询和外部引用保�
  const old={title:"查看提交",href:"https://formward.top/dashboard/ai/operations/old-d",kind:"preview" as const};
  const query={title:"查看身体记录",href:"/dashboard/measurements",kind:"record" as const};
  assert.deepEqual(chatRecordReferences([old,query],true),[query]);assert.deepEqual(chatRecordReferences([old,query],false),[old,query]);
+});
+
+test('结构化补充只去掉完全相同的问题行，保留体重、来源和解释',()=>{
+ const task={messageId:'00000000-0000-4000-8000-000000000001',subject:'来源',question:'这次用什么测量？',questions:[{id:'source',prompt:'这次用什么测量？',allowText:true}]};
+ assert.equal(withoutRepeatedFollowup('体重67kg已保留。\n这次用什么测量？',task),'体重67kg已保留。');
+ assert.equal(withoutRepeatedFollowup('来源OKOK，体重67kg。',task),'来源OKOK，体重67kg。');
 });

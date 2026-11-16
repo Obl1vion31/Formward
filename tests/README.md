@@ -428,3 +428,7 @@ production build后执行pnpm test:mobile-interface-browser，使用PGlite虚构
 加载验收可用FORMWARD_LOADING_PART=matrix／flows分开运行，FORMWARD_LOADING_SIZES传JSON视口，FORMWARD_LOADING_DELAY设查询延迟（0为正常）。逐帧核对五页固定文字、日期／操作槽及真实图表框，锚点容差1CSS px；未知行数自然增长，不用假记录或大留白固定。FORMWARD_LOADING_VIEW=trend检查来源日期、区间与返回。首次、同条件缓存、不同日期、失败重试、设备来源和录入接管分别保存过程。
 
 餐次文字放大需按实际输入字号测量可见数值与控件内容宽度；正常125.00及200%普通／长数量都应完整显示，必要时整字段退列。数字输入按明确标签定位，不能假定为textbox；只检查页面无横向溢出不足以判定数值可读。
+
+双端图表与消耗表单专项：在chat-pilot的本机隔离预览与回复回放上运行tests/chart-refinement.browser.mjs，FORMWARD_CHAT_BROWSER_CONFIG指向该虚构fixture，PLAYWRIGHT_MODULE指定本机Playwright，CHAT_BROWSER分别为chromium／webkit。检查首次400/600ms绘制、三卡连续300ms双向交接、7D最大640与30D/90D铺满且320px同高、身体点7px稳定、同宽补充选项与自由填写、消耗双数值草稿。验收报告保留失败与实际帧；真机触摸／系统键盘单独记结果，不以引擎模拟代替。仅登录一次并复用本人隔离会话，避免反复登录触发真实限流；不改变密码或认证门槛。
+
+真机验收与模型回放分开：本轮用户已用原iPhone Safari确认补充选择、自由填写、静息／活动双输入、清空与触摸无残留外框正常。键盘、视口、面板定位没有改动，不将本轮结果宣称为新键盘策略通过。

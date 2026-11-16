@@ -34,7 +34,7 @@ const make = (operationId=randomUUID()) => ({ operationId, meals:[meal] });
 async function image(userId:string) { const id=randomUUID();await db.insert(schema.mealImage).values({id,userId,pathname:"isolated/"+id,sha256:id,mimeType:"image/png",byteSize:32,fileName:"虚构.png",source:"ai",createdBy:userId});return id; }
 
 test("正式目录恰为18项、退役工具不注册、两种按需会话同源",async()=>{
-  const {contract}=await aiContractSnapshot();assert.equal(contract.tools.length,18);assert.equal(contract.serverInfo.version,"2.0.1");
+  const {contract}=await aiContractSnapshot();assert.equal(contract.tools.length,18);assert.equal(contract.serverInfo.version,"2.0.2");
   const names=contract.tools.map((tool:{name:string})=>tool.name);
   for(const old of ["submit_record_operation","submit_meal_operation","submit_measurement_operation","submit_training_operation","get_record_operation","get_meal_operation","get_measurement_operation","get_training_operation","preview_meal","append_pending_images"])assert.equal(names.includes(old),false);
   const a=await owner(),bridge=chatToolBridge(db,a.identity,new Request("http://localhost/api/mcp"));
@@ -137,4 +137,27 @@ test("库改量字段错误经真实MCP及HTTP出口保留全部位置，失败�
  const args={id:original.id,revision:original.revision,operationId:randomUUID(),changes:[{key:original.rows[0].key,kind:"save_meal",updateFoods:[{index:0,name:"改名",unit:"g",quantity:"200",quantityEffect:"keep_total",caloriesKcal:"0"}]}]};
  const bridge=chatToolBridge(db,actor.identity,new Request("http://localhost/api/mcp"));try{const reply=await bridge.rpc("tools/call",{name:"update_preview",arguments:args});assert.ok(reply.isError);assert.equal(reply.structuredContent.error.code,"invalid_input");assert.equal(reply.structuredContent.error.details.fields.length,4);}finally{await bridge.close();}
  const response=await aiApiResponse(new Request("http://localhost/api/v1/record-operations",{method:"POST",headers:{Authorization:"Bearer "+actor.token.rawToken}}),db,true,identity=>updateAiPreview(db,identity,args));assert.equal(response.status,400);const body=await response.json();assert.equal(body.error.details.fields.length,4);assert.ok(body.error.details.fields.every((field:{path:string})=>field.path.startsWith("updateFoods.0.")));assert.equal((await getAiPreview(db,actor.identity,original.id)).revision,original.revision);
+});
+
+test("营养反推回放：三种唯一缺项写结构化字段，0、未知、标签原文与局部修改保持",async()=>{
+ const a=await owner();
+ const cases=[
+  {label:"反推蛋白质",caloriesKcal:"600",proteinG:"30",carbsG:"75",fatG:"20",basis:"总能量600千卡，碳水75g、脂肪20g；按4P+4C+9F反推蛋白质30g（估算）。"},
+  {label:"反推碳水",caloriesKcal:"600",proteinG:"30",carbsG:"75",fatG:"20",basis:"总能量600千卡，蛋白质30g、脂肪20g；按4P+4C+9F反推碳水75g（估算）。"},
+  {label:"反推脂肪",caloriesKcal:"600",proteinG:"30",carbsG:"75",fatG:"20",basis:"总能量600千卡，蛋白质30g、碳水75g；按4P+4C+9F反推脂肪20g（估算）。"},
+  {label:"明确零",caloriesKcal:"480",proteinG:"30",carbsG:"0",fatG:"40",basis:"用户给定碳水0，保留已知值。"},
+  {label:"信息不足",caloriesKcal:"600",proteinG:null,carbsG:null,fatG:null,basis:"仅有总能量，缺少组成依据；用户要求不估算。"},
+  {label:"特殊供能",caloriesKcal:"200",proteinG:"10",carbsG:"10",fatG:"1",basis:"用户标签含糖醇及纤维，原值保留，不按4/4/9强行配平。"},
+ ];
+ for(const [index,row] of cases.entries()){
+  const {label,...food}=row;
+  const preview=await createAiPreview(db,a.identity,"preview_meals",{operationId:randomUUID(),meals:[{date:"2024-08-01",mealType:label,foods:[{...Object.fromEntries(Object.entries(food).filter(([,value])=>value!==null)),name:"隔离营养样本",unit:"份",quantity:"1",sourceKind:index===5?"label":"estimated"}]}]});
+  const projected=preview.rows[0].meal!.meal!;
+  for(const key of ["caloriesKcal","proteinG","carbsG","fatG"] as const)assert.equal(projected.totals.values[key]===null?null:Number(projected.totals.values[key]),food[key]===null?null:Number(food[key]));
+  assert.equal(projected.items[0].basis,food.basis);
+  const changed=await updateAiPreview(db,a.identity,{operationId:randomUUID(),id:preview.id,revision:preview.revision,changes:[{key:preview.rows[0].key,kind:"save_meal",notes:"仅改备注"}]});
+  assert.deepEqual(changed.rows[0].meal!.meal!.items,projected.items);
+ }
+ await assert.rejects(()=>createAiPreview(db,a.identity,"preview_meals",{operationId:randomUUID(),meals:[{...meal,foods:[{...milk,carbsG:"-1"}]}]}));
+ assert.equal((await readMealSnapshot(db,a.userId)).meals.length,0,"仅创建隔离预览，不写正式健康记录");
 });

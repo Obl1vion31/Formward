@@ -25,7 +25,13 @@ export function providerEndpoint(id: ChatProvider) {
   endpoint.pathname = endpoint.pathname.replace(/\/$/, "") + "/chat/completions";
   return endpoint.href;
 }
+export function providerAvailable(id: ChatProvider) {
+  // 智谱仅保留历史标识；既有单模型开关可显式回退，正常部署保持停用。
+  return id !== "glm" || process.env.FORMWARD_CHAT_GLM_DISABLED === "0";
+}
+export function currentProvider(id: ChatProvider): ChatProvider { return providerAvailable(id) ? id : "qwen"; }
 export function providerConfigured(id: ChatProvider) {
+  if (!providerAvailable(id)) return false;
   if (process.env["FORMWARD_CHAT_" + id.toUpperCase() + "_DISABLED"] === "1") return false;
   try { providerEndpoint(id); return !!process.env[chatProviders[id].key]?.trim(); } catch { return false; }
 }

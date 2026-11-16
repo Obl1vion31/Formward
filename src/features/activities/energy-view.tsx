@@ -53,7 +53,7 @@ export function EnergySources({ day }: { day: EnergyDay }) {
 }
 function dayEditInput(date:string,days:EnergyPresentation["snapshot"]["days"]):EnergyAction {
  const current=days.find(day=>day.date===date&&!day.deletedAt);
- return { kind: "save_energy_day", date, ...(current ? { id: current.id, version: current.version, steps:current.steps??null, entryMode: current.entryMode ?? undefined, activityMode: current.activityMode ?? undefined, restingSourceSystem: current.adoption?current.restingSourceSystem??null:current.restingSourceSystem ?? current.sourceSystem, activeSourceSystem: current.adoption?current.activeSourceSystem??null:current.activeSourceSystem ?? current.sourceSystem, restingEstimated: current.restingEstimated ?? false, restingKcal: current.restingKcal, activeKcal: current.activeKcal, activeEstimated: current.activeEstimated ?? false, notes: current.notes ?? null, totalKcal: current.totalKcal, timezone: current.timezone, sourceSystem: current.sourceSystem, sourceRecordId: current.sourceRecordId, sourceOccurredAt: current.sourceOccurredAt } : { entryMode: "components", activityMode: "activities", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }) };
+ return { kind: "save_energy_day", date, ...(current ? { id: current.id, version: current.version, steps:current.steps??null, entryMode: current.entryMode ?? undefined, activityMode: current.activityMode ?? undefined, restingSourceSystem: current.adoption?current.restingSourceSystem??null:current.restingSourceSystem ?? current.sourceSystem, activeSourceSystem: current.adoption?current.activeSourceSystem??null:current.activeSourceSystem ?? current.sourceSystem, restingEstimated: current.restingEstimated ?? false, restingKcal: current.restingKcal, activeKcal: current.activeKcal, activeEstimated: current.activeEstimated ?? false, notes: current.notes ?? null, totalKcal: current.totalKcal, timezone: current.timezone, sourceSystem: current.sourceSystem, sourceRecordId: current.sourceRecordId, sourceOccurredAt: current.sourceOccurredAt } : { entryMode: "components", activityMode: "total", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }) };
 }
 
 export function EnergyView({ presentation, sourceStatus=null, save, removeSource, initialDate = null, initialEntry=false,initialTrend=null,initialIntent='view' }: { presentation: EnergyPresentation; sourceStatus?:ConnectionView|null; save: SaveEnergy; removeSource: (label: string) => Promise<SourceRemovalResult>; initialDate?: string | null;initialEntry?:boolean;initialTrend?:TrendRoute|null;initialIntent?:RecordIntent }) {
@@ -175,7 +175,7 @@ function EnergyPlot({ days, selected, selection }: { days: EnergyDay[]; selected
   const container = useRef<HTMLDivElement>(null);
   const scale = chartScale(days.flatMap(day => [day.restingKcal == null && day.activeKcal == null ? null : Number(day.restingKcal ?? 0) + Number(day.activeKcal ?? 0), day.totalKcal]));
   const {width,left,height}=useChartViewport(container,scale.ticks,56);
-  useChartMotion(container, width ? days.map(day => `${day.date}:${day.restingKcal}:${day.activeKcal}:${day.totalKcal}`).join("|") : "pending");
+  useChartMotion(container, width ? days.map(day => `${day.date}:${day.restingKcal}:${day.activeKcal}:${day.totalKcal}`).join("|") : "pending",days[0]?.date+":"+days.at(-1)?.date);
   const stride = Math.max(1, Math.ceil((days.length - 1) / (width < 440 ? 3 : 6)));
 
   const w = width || 280, right = 12, slot = (w - left - right) / days.length, maximum = scale.max;

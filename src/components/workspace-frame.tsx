@@ -13,6 +13,14 @@ import styles from './workspace-frame.module.css';
 import {useChartTransition} from './chart-transition-state';
 import {WorkspaceSourceContext,WorkspaceTodayContext} from './workspace-frame-state';
 export function WorkspaceFrame({children,today,sourcePilot=false}:{children:ReactNode;today:string;sourcePilot?:boolean}){
+ // 输入方式只影响控件焦点提示，不参与键盘、视口或面板几何定位。
+ useEffect(()=>{
+  const root=document.documentElement;
+  const pointer=()=>{root.dataset.inputMethod="pointer";};
+  const keyboard=(event:KeyboardEvent)=>{if(["Tab","ArrowDown","ArrowUp","ArrowLeft","ArrowRight","Escape"].includes(event.key)||["Enter"," "].includes(event.key)&&event.target instanceof Element&&!event.target.closest("input,textarea,[contenteditable=true]"))root.dataset.inputMethod="keyboard";};
+  document.addEventListener("pointerdown",pointer,true);document.addEventListener("keydown",keyboard,true);
+  return()=>{document.removeEventListener("pointerdown",pointer,true);document.removeEventListener("keydown",keyboard,true);delete root.dataset.inputMethod;};
+ },[]);
  const actualPath=usePathname(),{returningToOverview}=useChartTransition(),path=returningToOverview?'/dashboard':actualPath,params=useSearchParams(),search=params.toString(),localToday=useLocalToday(today),[settings,setSettings]=useState(false);
  const content=useRef<HTMLDivElement>(null),motion=useRef<ReturnType<typeof createWorkspaceMotion>|null>(null),previous=useRef({path,search});
  useLayoutEffect(()=>{

@@ -27,8 +27,8 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
  initial:EnergyAction;pending?:boolean;onRetry?:()=>void;management?:ReactNode;stepsEnabled?:boolean;activities?:ActivityRecord[];dayRecords?:EnergyDayRecord[];activityPreview?:ActivityRecord;sources:string[];removeSource:(label:string)=>Promise<SourceRemovalResult>;busy:boolean;error:string;save:(action:EnergyAction)=>void;saveBatch?:(actions:EnergyAction[])=>void;submitLabel?:string;addActivity?:boolean;
 }){
  const numberAcknowledgements=useRef(new Set<string>()),submitting=useRef(false);
- const methodMenu=useRef<HTMLDetailsElement>(null),switchingAggregate=useRef(false),aggregateWasCleared=useRef(false),aggregateId=useId();
- const [clearedAggregate,setClearedAggregate]=useState(false),[confirmingAggregate,setConfirmingAggregate]=useState(false);
+ const methodMenu=useRef<HTMLDetailsElement>(null),switchingAggregate=useRef(false),aggregateId=useId();
+ const [confirmingAggregate,setConfirmingAggregate]=useState(false);
  useEffect(()=>{
   const dismiss=(event:PointerEvent)=>{if(methodMenu.current&&!methodMenu.current.contains(event.target as Node))methodMenu.current.open=false;};
   document.addEventListener("pointerdown",dismiss);
@@ -81,16 +81,14 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
  const autoActive=accumulation?.activeKcal??null;
  const unresolvedCount=daily?unresolved.length:singleRequires&&!selectedRelation?1:0;
  const total=unresolvedCount?null:projected?energyDays({days:[projected],activities:projectedItems,profiles:[]},[],[projected.date])[0].totalKcal:null;
- const signature=energyDraftSignature(single?{...draft,inclusion:selectedRelation}:draft,items),[firstSignature]=useState(signature);useDraftGuard(signature!==firstSignature||clearedAggregate,busy);
+ const signature=energyDraftSignature(single?{...draft,inclusion:selectedRelation}:draft,items),[firstSignature]=useState(signature);useDraftGuard(signature!==firstSignature,busy);
  const set=(key:string,value:unknown)=>setDraft(current=>({...current,[key]:value,...(key==="restingKcal"?{restingEstimated:false}:key==="activeKcal"?{activeEstimated:false}:{}),...(key.endsWith("SourceSystem")||key==="sourceSystem"?{sourceRecordId:null}:{})}));
  function aggregate(value:string){
   if(!daily||switchingAggregate.current)return;
-  aggregateWasCleared.current=value===""&&modes.activityMode==="total";
-  setClearedAggregate(aggregateWasCleared.current);
-  // 清空只是当前输入，不先清掉手填草稿或让每日总数跳到累计结果。
-  if(value==="")return;
-  if(modes.activityMode!=="total"||draft.activeKcal!==value)setAggregateEpoch(epoch=>epoch+1);
-  setDraft(current=>({...current,activeKcal:value,activityMode:"total",activeEstimated:false}));
+  const next=value||null;
+  if(modes.activityMode!=="total"||draft.activeKcal!==next)setAggregateEpoch(epoch=>epoch+1);
+  // 清空保持未知；只有明确选择高级入口才改为运动累计。
+  setDraft(current=>({...current,activeKcal:next,activityMode:"total",activeEstimated:false}));
  }
  async function requestActivityAccumulation(){
   if(!daily||!projected||!accumulation||modes.activityMode!=="total"||switchingAggregate.current)return;
@@ -105,26 +103,25 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
     setAdjusting(new Set());
    }
   }finally{
-   aggregateWasCleared.current=false;setClearedAggregate(false);setAggregateEditing(false);
+   setAggregateEditing(false);
    switchingAggregate.current=false;setConfirmingAggregate(false);
   }
  }
  function restoreManualAggregate(){
   if(!daily||switchingAggregate.current)return;
   if(methodMenu.current)methodMenu.current.open=false;
-  aggregateWasCleared.current=false;setClearedAggregate(false);setAggregateEditing(false);
+  setAggregateEditing(false);
   setDraft(current=>({...current,activityMode:"total"}));setAggregateEpoch(epoch=>epoch+1);
  }
  function aggregateFinished(){
-  if(aggregateWasCleared.current){void requestActivityAccumulation();return;}
   setAggregateEditing(false);if(unresolved[0])setExpanded(values=>new Set([...values,unresolved[0].key]));
  }
  function choose(item:ActivityDraft,value:Choice){setItems(rows=>rows.map(row=>row.key===item.key?{...row,inclusion:value,choiceSignature:relationKey(row)}:row));setAdjusting(keys=>new Set([...keys].filter(key=>key!==item.key)));}
  function relationButtons(value:Choice|null,onChoose:(choice:Choice)=>void,label:string){return <div className={styles.inclusion} role="group" aria-label={label}><span>这项运动是否已包含在当天{modes.entryMode==="total"?"总消耗":"活动合计"} {energyValue(modes.entryMode==="total"?projected?.totalKcal:projected?.activeKcal)} 千卡中？</span><div>{([["included","已包含"],["additional","额外增加"]] as const).map(([choice,text])=><button key={choice} type="button" aria-pressed={value===choice} onClick={()=>onChoose(choice)}>{text}</button>)}</div></div>;}
  const source=(key:"sourceSystem"|"restingSourceSystem"|"activeSourceSystem",label:string)=><SourceInput label={label} value={energySourceLabel(key in draft?(draft as Record<string,unknown>)[key] as string??"":key!=="sourceSystem"&&"sourceSystem" in draft?draft.sourceSystem??"":"")} sources={sources} removeSource={removeSource} disabled={busy} maxLength={200} onChange={value=>set(key,value||null)}/>;
- const field=(key:"restingKcal"|"totalKcal",label:string)=><label data-record-guide-fields>{label}<DecimalInput precision={0} min={0} max={1000000} aria-label={label} placeholder="未知可留空" value={key in draft?(draft as Record<string,unknown>)[key] as string:null} onFocus={()=>key==="totalKcal"&&setAggregateEditing(true)} onBlur={aggregateFinished} onValue={value=>{if(key==="totalKcal")setAggregateEpoch(epoch=>epoch+1);set(key,value||null);}}/></label>;
+ const field=(key:"restingKcal"|"totalKcal",label:string)=><label data-record-guide-fields><span>{label.replace(" 千卡","")} <span className={styles.unit}>千卡</span></span><DecimalInput precision={0} min={0} max={1000000} aria-label={label} placeholder="未知可留空" value={key in draft?(draft as Record<string,unknown>)[key] as string:null} onFocus={()=>key==="totalKcal"&&setAggregateEditing(true)} onBlur={aggregateFinished} onValue={value=>{if(key==="totalKcal")setAggregateEpoch(epoch=>epoch+1);set(key,value||null);}}/></label>;
  async function submit(){
-  if(submitting.current||busy||switchingAggregate.current||entryIssue)return;if(aggregateWasCleared.current){void requestActivityAccumulation();return;}submitting.current=true;
+  if(submitting.current||busy||switchingAggregate.current||entryIssue)return;submitting.current=true;
   try{
    if(single){
     if(singleRequires&&!selectedRelation)return;
@@ -155,11 +152,16 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
  return <form ref={form} data-entry-form={pending?"energy-pending":"energy"} className={styles.form+" "+styles.energyEntry} aria-busy={busy||pending&&!error} onSubmit={event=>{event.preventDefault();void submit();}}>
 
   <fieldset disabled={busy||pending||retired||confirmingAggregate}>
-   {(daily||single)&&<div className={styles.entryDate}><label>日期<DateField aria-label="日期" required value={draft.date} onChange={event=>set("date",event.target.value)}/></label>{targetDate&&<RecordDateContext statusOnly date={targetDate} openedOn={openedOn}/>}</div>}
+   {(daily||single)&&<div className={styles.entryDate}><label>日期<DateField aria-label="日期" required value={draft.date} onChange={event=>set("date",event.target.value)}/></label>{daily&&<button type="button" className={styles.totalModeLink} aria-pressed={modes.entryMode==="total"} onClick={()=>{if(switchingAggregate.current)return;set("entryMode",modes.entryMode==="total"?"components":"total");setAggregateEpoch(epoch=>epoch+1);}}>{modes.entryMode==="total"?"分开填写":"只有总数？"}</button>}{targetDate&&<RecordDateContext statusOnly date={targetDate} openedOn={openedOn}/>}</div>}
    {retired?<p role="alert">日常默认值和静息公式资料已停用，请取消这一项。</p>:daily||single?<>
    <section className={styles.entrySection}>{!daily&&<h3>{modes.entryMode==="total"?"总消耗":"静息与活动"}</h3>}
-    {daily?<><div className={styles.modeSwitch} role="group" aria-label="消耗录入方式">{([["components","分开记录"],["total","只记总数"]] as const).map(([mode,text])=><button type="button" key={mode} aria-pressed={pending?undefined:modes.entryMode===mode} onClick={()=>{if(switchingAggregate.current)return;set("entryMode",mode);setAggregateEpoch(epoch=>epoch+1);}}>{text}</button>)}</div>{day?.totalKcal!=null&&modes.entryMode==="components"&&day.entryMode==="total"&&<p className={styles.modeHint}>原记录仅有总数 {energyValue(day.totalKcal)} 千卡；请填写静息与活动，不自动拆分。切回“只记总数”可恢复该模式草稿。</p>}
-     {modes.entryMode==="components"?<><div className={styles.fields}>{field("restingKcal","静息 千卡")}{source("restingSourceSystem","静息来源")}</div><div className={styles.aggregateBlock}><div className={styles.fields+" "+styles.aggregateFields} data-mode={modes.activityMode}><div className={styles.aggregateNumber}><div className={styles.aggregateHeading}><label htmlFor={aggregateId}>活动合计 <span>千卡</span></label><details ref={methodMenu} className={styles.aggregateMenu} onToggle={event=>{if(switchingAggregate.current)event.currentTarget.open=false;}} onKeyDown={event=>{if(event.key==="Escape"&&event.currentTarget.open){event.preventDefault();event.stopPropagation();event.currentTarget.open=false;event.currentTarget.querySelector("summary")?.focus();}}}><summary aria-label="填写方式" onClick={event=>{if(switchingAggregate.current)event.preventDefault();}}>{modes.activityMode==="total"?"手填":"累计"}<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg></summary><div>{modes.activityMode==="total"?<button type="button" onClick={()=>void requestActivityAccumulation()}>改用运动累计</button>:<button type="button" onClick={restoreManualAggregate}>改为手填活动合计</button>}</div></details></div><DecimalInput id={aggregateId} precision={0} aria-label="活动合计 · 千卡" min={0} max={1000000} data-calorie-origin={modes.activityMode==="activities"?"automatic":"manual"} value={pending?"":modes.activityMode==="activities"?autoActive:draft.activeKcal} placeholder="未知可留空" onFocus={()=>setAggregateEditing(true)} onBlur={aggregateFinished} onValue={aggregate}/></div>{modes.activityMode==="total"&&<div className={styles.aggregateSource}>{source("activeSourceSystem","活动来源")}</div>}</div>{modes.activityMode==="activities"&&<p className={styles.aggregateHint}>{accumulation?.activities.length?"由"+accumulation.activities.length+"项运动相加":"暂无运动明细"}</p>}</div></>:<div className={styles.fields}>{field("totalKcal","全天总消耗 千卡")}{source("sourceSystem","总消耗来源")}</div>}
+    {daily?<>
+     {day?.totalKcal!=null&&modes.entryMode==="components"&&day.entryMode==="total"&&<p className={styles.modeHint}>原记录仅有总数 {energyValue(day.totalKcal)} 千卡；不自动拆分，切回总数可恢复草稿。</p>}
+     <div className={styles.primaryReadings}>
+      {modes.entryMode==="components"?<>{field("restingKcal","静息 千卡")}<label htmlFor={aggregateId}><span>活动 <span className={styles.unit}>千卡</span></span><DecimalInput id={aggregateId} precision={0} aria-label="活动合计 · 千卡" min={0} max={1000000} data-calorie-origin={modes.activityMode==="activities"?"automatic":"manual"} value={pending?"":modes.activityMode==="activities"?autoActive:draft.activeKcal} placeholder="未知可留空" onFocus={()=>setAggregateEditing(true)} onBlur={aggregateFinished} onValue={aggregate}/></label></>:field("totalKcal","全天总消耗 千卡")}
+     </div>
+     <details className={styles.energyDetails}><summary>来源与备注</summary><div className={styles.fields}>{modes.entryMode==="components"?<>{source("restingSourceSystem","静息来源")}{source("activeSourceSystem","活动来源")}</>:source("sourceSystem","总消耗来源")}</div><label className={styles.notesField}>备注<textarea aria-label="消耗备注" maxLength={2000} rows={2} value={draft.notes??""} onChange={event=>set("notes",event.target.value||null)}/></label>{modes.entryMode==="components"&&<details ref={methodMenu} className={styles.energyDetails}><summary>活动填写方式 · {modes.activityMode==="total"?"手填":"运动累计"}</summary><div className={styles.advancedMethod}>{modes.activityMode==="total"?<button type="button" onClick={()=>void requestActivityAccumulation()}>改用运动累计</button>:<button type="button" onClick={restoreManualAggregate}>改为手填活动合计</button>}{modes.activityMode==="activities"&&<p className={styles.aggregateHint}>{accumulation?.activities.length?"由"+accumulation.activities.length+"项运动相加":"暂无运动明细"}</p>}</div></details>}</details>
+
     </>:<div className={styles.contextReadings}><div><span>静息 千卡</span><strong>{energyValue(day?.restingKcal)}</strong></div><div><span>{modes.entryMode==="total"?"录入总数":"活动合计"} · 千卡</span><strong>{energyValue(modes.entryMode==="total"?day?.totalKcal:modes.activityMode==="total"?day?.activeKcal:autoActive)}</strong></div></div>}
    </section>
    {daily&&stepsEnabled&&<section className={styles.entrySection}><label>当天步数<input aria-label="当天步数" type="number" min={0} max={10000000} step={1} inputMode="numeric" value={draft.steps??""} onChange={event=>set("steps",event.target.value===""?null:Number(event.target.value))}/></label>{day?.adoption?.mode==="source"&&<p className={styles.hint}>修改消耗、步数或运动后，这一天会转为手动保护。</p>}</section>}
@@ -181,7 +183,7 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
      {singleRequires&&relationButtons(selectedRelation,value=>setSingleChoice({signature:relationKey(draft),value}),"活动包含关系")}
     </>}
    </section>
-   <details className={styles.entrySection}><summary>备注与时区</summary><div className={styles.timeFields}><label>时区<input aria-label="时区" maxLength={100} value={draft.timezone??""} onChange={event=>set("timezone",event.target.value)}/></label>{daily&&<label className={styles.notesField}>备注<input aria-label="备注" maxLength={2000} value={draft.notes??""} onChange={event=>set("notes",event.target.value||null)}/></label>}</div></details>
+   <details className={styles.entrySection}><summary>时区</summary><div className={styles.timeFields}><label>时区<input aria-label="时区" maxLength={100} value={draft.timezone??""} onChange={event=>set("timezone",event.target.value)}/></label></div></details>
    </>:draft.kind==="restore_activity"?<><h3>恢复 {originalActivity?.name??"运动"}</h3><p>请返回对应日期核对当前记录。</p></>:null}
 
    {submitLabel!=="保存"&&<p className={styles.hint}>应用修改后返回确认页面，确认保存后才正式记录。</p>}

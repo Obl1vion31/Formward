@@ -1,6 +1,6 @@
 import compact from './ai-prompt-rules.json' with { type: 'json' };
 
-export const AI_PROMPT_REVISION='2026-11-15-preserve-verbatim-v1';
+export const AI_PROMPT_REVISION='2026-11-16-energy-macro-completion-v1';
 
 /** @typedef {{variant?: 'original'|'compact', directory: string, instructions: string, now: string, localTime: string, timezone: string, contextNote?: string, channelInstructions?: string}} PromptOptions */
 /** 站内与隔离评测共用，长版保留正式MCP完整工作说明，精简版按需读取工具细则。 @param {PromptOptions} options */

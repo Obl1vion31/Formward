@@ -1,32 +1,30 @@
 "use client";
-import { useEffect, useRef, type RefObject } from "react";
+import {useLayoutEffect,useRef,type RefObject} from "react";
+import {useChartTransitionActions} from "./chart-transition-state";
 
-/** 只动画数据图形；坐标、读数与可点击区域保持最终位置。 */
-export function useChartMotion(container: RefObject<HTMLElement | null>, changeKey: string) {
-  const entered = useRef(false);
-  useEffect(() => {
-    const node = container.current;
-    if (!node || changeKey === "pending") return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let animations: Animation[] = [], frame = 0;
-    const cancel = () => { cancelAnimationFrame(frame); animations.forEach(animation => animation.cancel()); animations = []; };
-    const run = () => {
-      if (reduced.matches || typeof Element.prototype.animate !== "function") return;
-      if(!entered.current){entered.current=true;return;}
-      const duration = 160;
-      frame = requestAnimationFrame(() => {
-        for (const element of node.querySelectorAll<SVGElement>("[data-chart-bar]")) {
-          const origin = element.getAttribute("data-chart-zero") ?? "0";
-          const frames = [{ transform: "scaleY(0)", transformOrigin: `0px ${origin}px` }, { transform: "scaleY(1)", transformOrigin: `0px ${origin}px` }];
-          animations.push(element.animate(frames, { duration, easing: "cubic-bezier(.22,1,.36,1)" }));
-        }
-        for (const element of node.querySelectorAll<SVGElement>("[data-chart-line]")) animations.push(element.animate([{ opacity: 0, clipPath: "inset(0 100% 0 0)" }, { opacity: 1, clipPath: "inset(0 0 0 0)" }], { duration, easing: "ease-out" }));
-      });
-    };
-    const observer = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) { observer.disconnect(); run(); } }, { threshold: .05 });
-    observer.observe(node);
-    const motionChanged = () => { if (reduced.matches) cancel(); };
-    reduced.addEventListener("change", motionChanged);
-    return () => { observer.disconnect(); reduced.removeEventListener("change", motionChanged); cancel(); };
-  }, [container, changeKey]);
+/** 真实数据首次到达或主动换区间时绘制；坐标、读数和命中区始终在最终位置。 */
+export function useChartMotion(container:RefObject<HTMLElement|null>,changeKey:string,viewKey=changeKey){
+ const entered=useRef<string|null>(null),{claimChartEntry}=useChartTransitionActions();
+ useLayoutEffect(()=>{
+  const node=container.current;if(!node||changeKey==="pending")return;
+  const key=location.pathname+":"+viewKey,first=entered.current===null,changed=entered.current!==key;
+  if(!changed)return;
+  entered.current=key;
+  const fresh=claimChartEntry(key),reduced=matchMedia("(prefers-reduced-motion: reduce)");
+  if(reduced.matches||typeof Element.prototype.animate!=="function"||first&&!fresh||document.documentElement.hasAttribute("data-chart-travel"))return;
+  const animations:Animation[]=[];
+  const lineGroups=node.querySelectorAll<SVGElement>('[data-trend-glyph="morning-weight"]');
+  for(const glyph of lineGroups)animations.push(glyph.animate([{clipPath:"inset(-8px 100% -8px -8px)"},{clipPath:"inset(-8px -8px -8px -8px)"}],{duration:600,easing:"cubic-bezier(.2,.65,.3,1)"}));
+  for(const element of node.querySelectorAll<SVGElement>("[data-chart-line]")){
+   if(element.closest('[data-trend-glyph="morning-weight"]'))continue;
+   const length=element instanceof SVGGeometryElement?element.getTotalLength():0;
+   if(length)animations.push(element.animate([{strokeDasharray:String(length),strokeDashoffset:length},{strokeDasharray:String(length),strokeDashoffset:0}],{duration:600,easing:"ease-out"}));
+  }
+  for(const bar of node.querySelectorAll<SVGElement>("[data-chart-bar]")){
+   bar.style.transformBox="view-box";bar.style.transformOrigin="0px "+(bar.getAttribute("data-chart-zero")??"0")+"px";
+   animations.push(bar.animate([{transform:"scaleY(0)"},{transform:"scaleY(1)"}],{duration:400,easing:"cubic-bezier(.2,.65,.3,1)"}));
+  }
+  const cancel=()=>animations.forEach(animation=>animation.cancel());
+  reduced.addEventListener("change",cancel);return()=>{cancel();reduced.removeEventListener("change",cancel);};
+ },[container,changeKey,viewKey,claimChartEntry]);
 }
