@@ -120,7 +120,14 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
   setAggregateEpoch(epoch=>epoch+1);
  }
  function enterQuick(){if(!daily||quick)return;componentDraft.current=structuredClone(draft);setMethodTouched(true);estimate({kind:"daily",method:formula});setAggregateEpoch(epoch=>epoch+1);}
- function leaveQuick(){if(!daily||!quick)return;setMethodTouched(true);const previous=componentDraft.current;if(previous&&previous.calculation?.kind!=="daily")setDraft(previous);else {estimate({kind:"resting",method:formula});setDraft(current=>({...current,activityMode:"activities",activeKcal:null}));}setAggregateEpoch(epoch=>epoch+1);}
+ function leaveQuick(){
+  if(!daily||!quick)return;setMethodTouched(true);const previous=componentDraft.current;
+  if(previous&&previous.calculation?.kind!=="daily"){
+   setDraft(current=>current.kind!=="save_energy_day"?current:{...previous,id:current.id,version:current.version,date:current.date,notes:current.notes,steps:current.steps,timezone:current.timezone,sourceSystem:current.sourceSystem,sourceRecordId:current.sourceRecordId,sourceOccurredAt:current.sourceOccurredAt});
+   if(previous.date!==targetDate&&previous.restingInputMethod==="estimate")estimate({kind:"resting",method:previous.calculation?.method??day?.calculationSnapshot?.requestedMethod??formula});
+  }else {estimate({kind:"resting",method:formula});setDraft(current=>({...current,activityMode:"activities",activeKcal:null}));}
+  setAggregateEpoch(epoch=>epoch+1);
+ }
  const [items,setItems]=useState<ActivityDraft[]>(()=>[...activities.filter(row=>!row.deletedAt&&initial.kind==="save_energy_day"&&row.date===initial.date).map(itemDraft),...(addActivity&&initial.kind==="save_energy_day"?[{key:"new-activity",kind:"save_activity" as const,date:initial.date,name:"",calorieMode:"total" as const,completed:true,timezone:initial.timezone}]:[])]);
  const form=useRef<HTMLFormElement>(null);
  useLayoutEffect(()=>{const node=form.current,footer=node?.querySelector<HTMLElement>('[data-entry-footer]'),dialog=node?.closest('dialog');if(!footer||!dialog)return;const update=()=>dialog.style.setProperty('--entry-footer-height',footer.getBoundingClientRect().height+'px');update();const observer=new ResizeObserver(update);observer.observe(footer);return()=>{observer.disconnect();dialog.style.removeProperty('--entry-footer-height');};},[]);
