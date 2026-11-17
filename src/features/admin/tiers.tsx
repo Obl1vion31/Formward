@@ -13,7 +13,7 @@ export function TierManager({tiers,onDirty,onVerificationRequired,refresh}:{tier
     {notice&&<p role="status">{notice}</p>}
     <div className={styles.tierList}><div className={styles.tierListHead}><span>档位</span><span>默认额度与功能</span><span>用户</span><span/></div>{tiers.map(p=><div className={styles.tierRow} key={p.id} data-active={p.active}><div><strong>{p.name}</strong><small>{p.systemOnly?"管理员专用":p.isDefault?"新用户默认":p.active?"已启用":"已停用"}</small></div><p>{tierAllowance(p)}</p><div className={styles.tierUsers}>{p.users}人<small>{p.overrides?`${p.overrides}人有个人覆盖`:"均继承默认"}</small></div><button className={styles.secondary} aria-label={`编辑${p.name}`} disabled={editing!==null} onClick={()=>{setEditing(p.id);setNotice("");}}>编辑</button></div>)}</div>
     {editing!==null&&<TierEditor key={editing} plan={tiers.find(p=>p.id===editing)} tiers={tiers} onDirty={onDirty} onVerificationRequired={onVerificationRequired} refresh={refresh} close={()=>{setEditing(null);onDirty(false);}} complete={message=>{setEditing(null);onDirty(false);setNotice(message);}}/>}
-    
+
   </section>;
 }
 function TierEditor({plan,tiers,onDirty,onVerificationRequired,refresh,close,complete}:{plan?:Tier;tiers:Tier[];onDirty:(dirty:boolean)=>void;onVerificationRequired:()=>void;refresh:()=>Promise<void>;close:()=>void;complete:(message:string)=>void}) {
