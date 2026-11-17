@@ -24,12 +24,14 @@ const inViewport = (rect:ChartRect) => rect.top+rect.height>64&&rect.top<innerHe
 export function ChartTransitionProvider({ children }: { children: React.ReactNode }) {
   const router=useRouter(),pathname=usePathname(),search=useSearchParams().toString(),[pending,startTransition]=useTransition();
   const [flight,setFlight]=useState<ChartFlight|null>(null),[returningToOverview,setReturningToOverview]=useState(false);
+  const [forwardChartMoving,setForwardChartMoving]=useState(false);
   const returnCancelled=useRef(false),returnReady=useRef(true);
   const [returnPreview,setReturnPreview]=useState<MetricTrendModel|null>(null),[previewReadings,setPreviewReadings]=useState<ChartReadingsSnapshot|null>(null),[forwardPreview,setForwardPreview]=useState<MetricTrendModel|null>(null),[forwardDestination,setForwardDestination]=useState<string|null>(null);
   const origin=useRef<ChartOrigin|null>(null);
   const motion=useRef(createChartFlights((next,reason)=>{
     if(next)document.documentElement.setAttribute('data-chart-travel','active');
     else document.documentElement.removeAttribute('data-chart-travel');
+    if(!next||next.direction==='back')setForwardChartMoving(false);
     if(next?.direction==='back'||!next&&reason!=='timeout'){setPreviewReadings(null);setForwardPreview(null);setForwardDestination(null);}setFlight(next);
   }));
   const claimChartEntry=useCallback((key:string,container?:HTMLElement|null)=>motion.current.claimEntry(key,container),[]);
@@ -93,6 +95,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     void current.animation.finished.then(()=>{
       if(motion.current.active?.id!==id)return;
       current.arrived=true;current.landing=false;
+      if(current.direction==='forward')setForwardChartMoving(false);
       if(current.ready)finish(current);
     }).catch(()=>{});
     });
@@ -135,7 +138,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     motion.current.returning=false;lastTarget.current=null;
     router.prefetch('/dashboard');
     const animated=!reduced()&&visible(source)&&typeof Element.prototype.animate==='function'&&model.points.some(point=>point.value!==null||point.segments?.length);
-    flushSync(()=>{window.scrollTo({top:0,behavior:'instant'});setForwardDestination(href);if(animated){const next=motion.current.start(model,rect,'forward');setPreviewReadings(forwardedChartReadings(origin.current,next));setForwardPreview(model);}});
+    flushSync(()=>{window.scrollTo({top:0,behavior:'instant'});setForwardDestination(href);if(animated){const next=motion.current.start(model,rect,'forward');setForwardChartMoving(true);setPreviewReadings(forwardedChartReadings(origin.current,next));setForwardPreview(model);}});
     startTransition(()=>router.push(href));
   },[router,motion]);
   const restore=useCallback((rail:HTMLElement)=>{
@@ -224,7 +227,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     };
     document.addEventListener('click',leave);return()=>document.removeEventListener('click',leave);
   },[returningToOverview,cancelOverviewReturn]);
-  const value=useMemo(()=>({claimChartEntry,navigate,register,restore,back,invalidate,recallOverview,rememberOverview,returningToOverview,overviewReady,cancelOverviewReturn,forwardDestination,previewReadings,preview:flight?.model??forwardPreview??(returningToOverview?returnPreview:null)}),[claimChartEntry,navigate,register,restore,back,invalidate,recallOverview,rememberOverview,returningToOverview,overviewReady,cancelOverviewReturn,returnPreview,previewReadings,forwardPreview,forwardDestination,flight]);
+  const value=useMemo(()=>({claimChartEntry,navigate,register,restore,back,invalidate,recallOverview,rememberOverview,returningToOverview,overviewReady,cancelOverviewReturn,forwardDestination,forwardChartMoving,previewReadings,preview:flight?.model??forwardPreview??(returningToOverview?returnPreview:null)}),[claimChartEntry,navigate,register,restore,back,invalidate,recallOverview,rememberOverview,returningToOverview,overviewReady,cancelOverviewReturn,returnPreview,previewReadings,forwardPreview,forwardDestination,forwardChartMoving,flight]);
   const actions=useMemo(()=>({claimChartEntry,register,invalidate,recallOverview,rememberOverview}),[claimChartEntry,register,invalidate,recallOverview,rememberOverview]);
   return <ChartTransitionActionsContext value={actions}><ChartTransitionContext value={value}>{children}{flight&&createPortal(<div key={flight.id} className="chart-flight-layer"><div ref={node=>{if(node&&motion.current.active?.id===flight.id)motion.current.active.node=node;}} className="chart-flight" data-chart-flight={flight.id} data-chart-direction={flight.direction} aria-hidden="true" style={{left:flight.rect.left,top:flight.rect.top,width:flight.rect.width,height:flight.rect.height,visibility:'hidden'}}>{flight.model.kind==="morning-weight"?<><TrendGlyph flightLayer="source" model={flight.model} detail={flight.direction==="back"} width={flight.rect.width} height={flight.rect.height}/><TrendGlyph flightLayer="destination" model={flight.model} detail={flight.direction==="back"} width={flight.rect.width} height={flight.rect.height}/></>:<TrendGlyph model={flight.model} detail={flight.direction==="back"} width={flight.rect.width} height={flight.rect.height}/>}</div></div>,document.body)}</ChartTransitionContext></ChartTransitionActionsContext>;
 }
