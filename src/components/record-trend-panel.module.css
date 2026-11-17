@@ -98,6 +98,7 @@
 
 
 .metrics[data-loading] .metric[data-pending] strong{color:var(--muted)}
+.pendingNumber{display:inline-block;position:relative;min-width:3ch}.pendingNumber>:global(.module-skeleton){position:absolute;inset:0;height:1lh}
 
 /* 手机摘要使用与骨架相同的语义结构；不等待设备或字体测量后改卡片排列。 */
 .mobileReading{display:none}

@@ -25,7 +25,7 @@ async function create(width,height,theme='light'){
   window.chartFrames=[];window.chartMark=null;window.chartStarts=[];window.chartObservedStarts=[];
   // MutationObserver在整次React提交后才派发，不能把派发延迟当作动画起步。直接记录真实WAAPI调用，另保留观察时间。
   const animate=Element.prototype.animate;
-  Element.prototype.animate=function(...args){const animation=animate.apply(this,args);if(window.chartMark!==null&&this.matches('[data-chart-flight][data-chart-direction="back"]'))window.chartStarts.push({id:this.dataset.chartFlight,t:performance.now()-window.chartMark,range:document.querySelector('.workspace-skeleton [aria-label="日期视角"] button[aria-pressed=true]')?.textContent});return animation;};
+  Element.prototype.animate=function(...args){const animation=animate.apply(this,args);if(window.chartMark!==null&&this.matches('[data-chart-flight][data-chart-direction="back"]'))window.chartStarts.push({id:this.dataset.chartFlight,t:performance.now()-window.chartMark,range:[...document.querySelectorAll('[aria-label="日期视角"] button[aria-pressed=true]')].find(node=>node.getClientRects().length&&getComputedStyle(node).visibility==='visible'&&!node.closest('[data-return-covered],[inert]'))?.textContent});return animation;};
   document.addEventListener('click',event=>{const card=event.target.closest?.('a[data-metric-card]');if(card)window.chartOrigin={rail:card.closest('[data-metric-rail]').scrollLeft,scroll:scrollY,kind:card.dataset.metricCard};const link=event.target.closest?.('a[href="/dashboard"]');if(link&&location.pathname!=='/dashboard'){window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];window.chartObservedStarts=[];}},true);
   new MutationObserver(()=>{
    if(window.chartMark===null)return;

@@ -57,7 +57,8 @@ async function chatTab(page,width){
 }
 try{
  const sizes=process.env.FORMWARD_UI_WIDTHS?process.env.FORMWARD_UI_WIDTHS.split(',').map(Number):[390,1440];
- for(const width of sizes){
+ for(const [profileIndex,width] of sizes.entries()){
+  if(profileIndex&&process.env.FORMWARD_UI_SKIP_CHAT!=='1')await new Promise(resolve=>setTimeout(resolve,61000));
   const height=Number(process.env.FORMWARD_UI_HEIGHT??(width<701?844:1000)),theme=process.env.FORMWARD_UI_THEME??'dark',textScale=Number(process.env.FORMWARD_UI_TEXT_SCALE??1),motion=process.env.FORMWARD_UI_REDUCED==='1'?'reduce':'no-preference',profile=width+'x'+height+'-'+theme+(textScale!==1?'-text'+textScale:'')+(motion==='reduce'?'-reduced':'');
   const context=await browser.newContext({viewport:{width,height},storageState,hasTouch:width<701,isMobile:width<701,locale:'zh-CN',timezoneId:'Asia/Shanghai',reducedMotion:motion,recordVideo:{dir:folder,size:{width,height}}});
   if(textScale!==1)await context.addInitScript(scale=>{const apply=()=>document.documentElement.style.fontSize=(scale*100)+'%';if(document.documentElement)apply();else new MutationObserver((_,observer)=>{if(document.documentElement){apply();observer.disconnect();}}).observe(document,{childList:true});},textScale);

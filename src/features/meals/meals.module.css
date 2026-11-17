@@ -512,6 +512,7 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
 
 /* 食材库默认先展示结果；手机同一44px方式入口可展开搜索与分类。 */
 .entryMethods .libraryChoice{position:relative}
+.mealForm .formColumns>label{margin-bottom:0}
 .pickerToolsGlyph{display:none;vertical-align:middle;margin-left:4px;color:var(--gold)}
 .libraryChoice[data-filtered] .pickerToolsGlyph{fill:var(--surface-hover);stroke-width:2px}
 @media(max-width:700px),(hover:none) and (pointer:coarse){

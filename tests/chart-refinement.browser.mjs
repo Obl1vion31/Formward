@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
+import {authenticateFixture} from './fixture-auth.mjs';
 
 // 仅连接chat-pilot的虚构账号与回放模型；不接受公网目标或真实健康数据。
 const fixture=JSON.parse(await readFile(process.env.FORMWARD_CHAT_BROWSER_CONFIG,'utf8'));
@@ -14,8 +15,8 @@ const browser=await({chromium,webkit}[engine]).launch({headless:true});
 const errors=[],checks=[],frames=[],screens=[];
 let signedState,failure=null;
 async function context(size,motion='no-preference'){
- const ctx=await browser.newContext({viewport:{width:size[0],height:size[1]},hasTouch:size[0]<1000,locale:'zh-CN',timezoneId:'Asia/Shanghai',reducedMotion:motion,storageState:signedState});
- if(!signedState){const response=await ctx.request.post(base+'/api/auth/sign-in/email',{headers:{Origin:base},data:fixture.account});assert.equal(response.status(),200);signedState=await ctx.storageState();}
+ const ctx=await browser.newContext({viewport:{width:size[0],height:size[1]},hasTouch:size[0]<1000,locale:'zh-CN',timezoneId:'Asia/Shanghai',reducedMotion:motion,storageState:signedState,recordVideo:{dir:folder,size:{width:size[0],height:size[1]}}});
+ if(!signedState){await authenticateFixture(ctx.request,fixture,process.env.FORMWARD_CHAT_BROWSER_CONFIG);signedState=await ctx.storageState();}
  const page=await ctx.newPage();page.on('pageerror',error=>errors.push(error.message));
  await page.addInitScript(({account})=>{
   localStorage.setItem('formward-assistant-seen-v1','true');
@@ -55,14 +56,14 @@ try{
  console.log('starting roundtrips');
  const {ctx,page}=await context([1440,900]);
  for(const kind of ['intake','morning-weight','energy']){
-  await page.goto(base+'/dashboard');await page.locator('[data-metric-card="'+kind+'"] [data-trend-glyph]').waitFor();
-  await recordFlight(page);await page.locator('[data-metric-card="'+kind+'"]').click();await ready(page);await flights(page,'forward');
-  await recordFlight(page);await page.goBack();await page.locator('[data-metric-card="'+kind+'"] [data-trend-glyph]').waitFor();await flights(page,'back');checks.push({case:'roundtrip',kind});
+  await page.goto(base+'/dashboard');await page.locator('[data-metric-card="'+kind+'"]:visible [data-trend-glyph]').waitFor();
+  await recordFlight(page);await page.locator('[data-metric-card="'+kind+'"]:visible').click();await ready(page);await flights(page,'forward');
+  await recordFlight(page);await page.goBack();await page.locator('[data-metric-card="'+kind+'"]:visible [data-trend-glyph]').waitFor();await flights(page,'back');checks.push({case:'roundtrip',kind});
  }
  await ctx.close();
  // 实际录入与补充路径，双主题/尺寸/200%/触摸与键盘焦点。
  console.log('starting forms and followup');
- for(const theme of ['light','dark'])for(const size of [[320,560],[390,667],[430,844],[844,390],[1100,800],[1440,900]]){
+ if(process.env.FORMWARD_REFINEMENT_CHARTS_ONLY!=='1')for(const theme of ['light','dark'])for(const size of [[320,560],[390,667],[430,844],[844,390],[1100,800],[1440,900]]){
   const {ctx,page}=await context(size,'reduce');await page.goto(base+'/dashboard/energy?date=2026-01-02'+'&entry=1');
   const form=page.locator('form[data-entry-form="energy"]:visible');await form.waitFor();
   const skip=page.getByText('跳过引导',{exact:true});if(await skip.isVisible())await skip.click();
