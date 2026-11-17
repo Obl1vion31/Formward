@@ -14,13 +14,15 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
  const mobile=useMobileMode();
  const metricRef=useRef<HTMLDivElement>(null),[columnLimit,setColumnLimit]=useState(metrics.length);
  const readingKey=metrics.map(metric=>metric.value+metric.unit).join("|"),variantKey=JSON.stringify(metricVariants);
+ const metricLayoutKey=JSON.stringify(metrics.map(metric=>[metric.inlineUnit,metric.unit]));
  const labelKey=JSON.stringify(metrics.map((metric,index)=>[metric.label,...labelVariants.map(row=>row[index]).filter(Boolean)]));
  const noteKey=JSON.stringify(metrics.map((metric,index)=>[metric.note,...noteVariants.map(row=>row[index])].filter(Boolean)));
  const widthCache=useRef<{key:string;widths:number[]}>({key:"",widths:[]});
  useLayoutEffect(()=>{
   const group=metricRef.current;if(!group)return;
   const measure=()=>{
-   if(!group.clientWidth)return;
+   const groupWidth=group.clientWidth;
+   if(!groupWidth)return;
    const gap=parseFloat(getComputedStyle(group).columnGap)||0,nodes=[...group.querySelectorAll<HTMLElement>("[data-metric-number]")];
    const typography=nodes.map(node=>{const number=node.querySelector("span")!,unit=node.querySelector("small"),style=getComputedStyle(number);return {font:style.font||style.fontWeight+" "+style.fontSize+" "+style.fontFamily,unit:unit?unit.getBoundingClientRect().width+(parseFloat(getComputedStyle(unit).marginLeft)||0):0};});
    const labelNodes=[...group.querySelectorAll<HTMLElement>("[data-metric-label]")],noteNodes=[...group.querySelectorAll<HTMLElement>("[data-metric-note]")];
@@ -41,19 +43,22 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
    }
    const values=nodes.map((node,index)=>Math.max(node.scrollWidth,widthCache.current.widths[index]??0));
    const desktopCards=mobile===false&&presentation!==undefined;
-   let count=metrics.length===6&&(mobile||group.clientWidth<860)?3:metrics.length;
+   let count=metrics.length===6&&(mobile||groupWidth<860)?3:metrics.length;
    while(count>1){
-    const available=group.clientWidth-gap*(count-1),weights=count===4?[1.5,1,1,1]:count===3&&desktopCards&&(presentation==='energy'||presentation==='body')?[1.5,1,1]:Array(count).fill(1),total=weights.reduce((a,b)=>a+b,0);
+    const available=groupWidth-gap*(count-1),weights=count===4?[1.5,1,1,1]:count===3&&desktopCards&&(presentation==='energy'||presentation==='body')?[1.5,1,1]:Array(count).fill(1),total=weights.reduce((a,b)=>a+b,0);
     if(values.every((width,index)=>width+(desktopCards?36+(index===0?(presentation==='energy'?136:108):0):0)<=available*weights[index%count]/total+1))break;
     count=count===6?3:count>2?2:1;
    }
-   if(presentation){group.dataset.heroStack=String(values[0]+160>(group.firstElementChild?.clientWidth??group.clientWidth));const relevant=values.slice(1);const cols=presentation==='nutrition'?3:2;group.dataset.richStack=String(relevant.some(width=>width+24>(group.clientWidth-gap*(cols-1))/cols));}
+   if(presentation){const heroStack=String(values[0]+160>(group.firstElementChild?.clientWidth??groupWidth)),relevant=values.slice(1),cols=presentation==='nutrition'?3:2,richStack=String(relevant.some(width=>width+24>(groupWidth-gap*(cols-1))/cols));if(group.dataset.heroStack!==heroStack)group.dataset.heroStack=heroStack;if(group.dataset.richStack!==richStack)group.dataset.richStack=richStack;}
    setColumnLimit(current=>current===count?current:count);
   };
   const observer=new ResizeObserver(measure);observer.observe(group);
   measure();
   return()=>{observer.disconnect();};
- },[readingKey,variantKey,labelKey,noteKey,metrics.length,mobile,metrics,presentation]);
+ // metrics的对象身份随外壳状态改变；相同内容不重建观察器或同步测量整页。
+ // 所有影响测量的字段分别包含在这些内容键中，窗口/字体尺寸仍由观察器接管。
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[readingKey,variantKey,labelKey,noteKey,metricLayoutKey,metrics.length,mobile,presentation]);
  const columns=Math.min(columnLimit,metrics.length);
  const statusVariants=[...new Set([...flagVariants,flags].filter((value):value is string=>Boolean(value)))];
  return <div className={styles.panel} data-panel-presentation={presentation} data-record-trend data-status-in-date={statusInDate||undefined}>
