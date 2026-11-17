@@ -457,3 +457,5 @@ energy-estimation.browser.mts创建独立数据库、虚构资料及实测并启
 `src/features/admin/security.integration.test.ts`仅接受显式FORMWARD_TEST_DATABASE_URL，固定回环`formward_security_test`虚构库；未提供时该原生并发专项跳过，不能据此声称并发通过。完整安全验收使用PostgreSQL18，运行`FORMWARD_TEST_DATABASE_URL=postgresql://formward_qa@127.0.0.1:55444/formward_security_test pnpm test`，本轮830项全部通过且无跳过。覆盖并发全站预占、当天已有费用、未知后结算、个人覆盖／恢复默认、Free权限隔离、暂停不重放、版本冲突、幂等、共享账号计数、4并发／200MiB上传、过期待登记容量及100个有效根预览。
 
 MFA专项使用真实Better Auth插件验证绑定、错误动态码、恢复码一次使用、重绑及撤销；OAuth继续执行PKCE、刷新、跨账号、JWKS及新旧协议回归。`check-security-baseline.test.mjs`检查安全运行包、旧结构、缺失动作清单和旧依赖；实际systemd服务与恢复包另在正式服务身份下验证。管理响应还检查精度、跨午夜、用户停用、未知Token和健康正文不泄露。浏览器、正常／慢加载、首帧与真实主题结果见设计验收，真机状态分开记录。
+
+`meal-inline.browser.mjs`读取本机隔离chat-pilot配置，验证手填与食材库持续同页、搜索保留、多项营养独立展开、原值保留及拍照返回；覆盖桌面、手机与320px网页200%，保存原始PNG和WebM，不调用模型或保存健康记录。

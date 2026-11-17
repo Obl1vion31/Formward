@@ -50,6 +50,7 @@ export async function checkLoadingFlows({config,folder,createContext,control,sho
    checks.push(prefix+' 三类次级入口延迟反馈与就绪清理');
    await localEvidence('interruption-and-draft');
    if(theme==='dark'&&mobile){
+    transport='fail';await page.goto(config.baseURL+'/dashboard/account');await page.getByRole('alert').filter({hasText:'安全状态读取失败，请重试。'}).waitFor();await shot(page,prefix+'-security-read-failed');transport='normal';await page.getByRole('button',{name:'重新读取安全状态',exact:true}).click();await page.getByRole('button',{name:'重新读取安全状态',exact:true}).waitFor({state:'hidden'});await page.getByText('正在读取安全状态…',{exact:true}).waitFor({state:'hidden'});checks.push('安全状态真实传输失败后就近重试，离页拒绝被处理');
     await control(0);await page.goto(config.baseURL+'/dashboard/training');await page.waitForLoadState('networkidle');
     const nav=path=>page.locator('a[href="'+path+'"]:visible').first();
     await nav('/dashboard/meals').click();await page.waitForURL(config.baseURL+'/dashboard/meals');await page.waitForLoadState('networkidle');

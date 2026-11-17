@@ -454,7 +454,7 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
 }
 
 .entrySummary,.collapseFood{display:none}.addFoodGroup{position:relative;margin-top:12px}.mealForm .addFood{display:flex;align-items:center;justify-content:center;gap:6px;border:0;box-shadow:none}.addFood svg{flex:none}.addFoodMenu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:8px 0}.addFoodMenu button{min-height:44px;padding:8px;border:1px solid var(--control-border);border-radius:8px;background:var(--surface);color:var(--warm-white);font:inherit;font-size:.875rem;cursor:pointer}
-@container meal-fields (max-width:835.98px){
+@container meal-fields (min-width:0px){
  .mealForm .entryTable[data-item-focus]{display:block;width:100%;min-width:0}.mealForm .entryTable[data-item-focus] colgroup,.mealForm .entryTable[data-item-focus] thead{display:none}.mealForm .entryTable[data-item-focus] tbody{display:grid;gap:8px}
  .mealForm .entryTable[data-item-focus] tr{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px 8px;align-items:start;margin:0;padding:12px 0;border-bottom:1px solid var(--rule)}
  .mealForm .entryTable[data-item-focus] td{display:block;min-width:0;padding:0;border:0;text-align:left;grid-column:span 3}
@@ -466,8 +466,8 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
  form.mealForm .entryTable[data-item-focus] td :is(input,select):not([type=checkbox]):not([type=radio]):not([type=file]){min-height:44px;padding:8px 6px;font-size:1rem;line-height:1.5;text-align:left}
  form.mealForm .entryTable[data-item-focus] td select:not([type=checkbox]):not([type=radio]):not([type=file]){padding-right:22px;background-position:right 6px center}.mealForm .entryTable[data-item-focus] .entryName strong{border:1px solid var(--control-border);border-radius:6px;padding:8px;min-height:44px;box-sizing:border-box}
  .mealForm .entryTable[data-item-focus] .entryActions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px;align-items:center}.mealForm .entryTable[data-item-focus] .entryActions::before,.mealForm .entryTable[data-item-focus] .entrySummary::before{display:none}
- .mealForm .entryTable[data-item-focus] .collapseFood{display:inline-flex;min-height:44px;align-items:center;font-size:.875rem}.mealForm .entryTable[data-item-focus] tr[data-expanded=true]>.entrySummary{display:none}
- .mealForm .entryTable[data-item-focus] tr[data-expanded=false]>td:not(.entrySummary){display:none}.mealForm .entryTable[data-item-focus] tr[data-expanded=false]>.entrySummary{display:block;grid-column:1/-1}
+ .mealForm .entryTable[data-item-focus] .collapseFood{display:inline-flex;min-height:44px;align-items:center;font-size:.875rem}
+
  .entrySummary button{width:100%;display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}.entrySummary button>span:first-child{flex:1;min-width:0;overflow-wrap:anywhere}.entrySummary button>span:nth-child(2){font-size:.875rem;color:var(--muted);overflow-wrap:anywhere}.entrySummary svg{flex:none}
  .addFoodMenu{grid-template-columns:minmax(0,1fr)}
 }
@@ -478,10 +478,6 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
 .entryMethods>button[aria-pressed=true]{box-shadow:none}.entryMethods>button>span{display:inline-block;position:relative}.entryMethods>button[aria-pressed=true]>span::after{content:"";position:absolute;height:2px;bottom:-5px;left:0;right:0;background:var(--gold)}
 @media(max-width:700px),(hover:none) and (pointer:coarse){.mealForm .entryTable[data-item-focus] tbody>tr:first-child{padding-top:0}.mealForm .entryTable[data-item-focus] tbody>tr:last-child{padding-bottom:0;border-bottom:0}}
 
-@keyframes mealModeReveal{from{opacity:.45;transform:translateY(3px)}to{opacity:1;transform:none}}
-
-.mealColumns[data-step=entry]>.mealEntry,.mealColumns[data-step=picker]>.foodPicker{animation:mealModeReveal 160ms ease-out both}
-@media(prefers-reduced-motion:reduce){.mealColumns[data-step=entry]>.mealEntry,.mealColumns[data-step=picker]>.foodPicker{animation:none}}
 
 @media(max-width:700px),(hover:none) and (pointer:coarse){.desktopOnlyLegend{display:none}}
 
@@ -530,3 +526,18 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
 
 @container(max-width:700px){.foodTable .mobileUnit{display:none}}
 @container(max-width:16rem){.foodTable tr:not(.foodExpanded){grid-template-columns:repeat(2,minmax(0,1fr))}.foodTable .rowName{grid-column:1;grid-row:1}.foodTable .foodInlineActions{grid-column:2;grid-row:1}.foodTable .rowMacro,.foodTable .rowEnergy{grid-row:auto}.foodTable .foodDetailsToggle{grid-row:5}}
+
+
+/* 手填和库选是同一餐的连续编辑；展开只改变本区高度，不切走已填内容。 */
+.mealModes .entryMethods{gap:8px;justify-content:flex-end}.entryMethods>strong{margin-right:auto;font-size:1rem;line-height:1.5;font-weight:500}.entryMethods>button{display:inline-flex;align-items:center;gap:4px;flex:none;padding-inline:8px;font-size:.875rem}.entryMethods>button[aria-expanded=true]{color:var(--gold)}
+.pickerFold,.inlineReveal{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows 180ms cubic-bezier(.2,.8,.2,1),opacity 160ms ease-out,margin-bottom 180ms cubic-bezier(.2,.8,.2,1)}
+.pickerFold[data-open],.inlineReveal[data-open]{grid-template-rows:1fr;opacity:1}.pickerFold[data-open]{margin-bottom:16px}.revealBody{min-height:0;overflow:hidden}.pickerFold .pickerSearch input:focus-visible{outline-offset:-2px}
+.mealForm[data-picker=side] .pickerFold{grid-template-rows:1fr;opacity:1;margin:0;align-self:start}.mealForm[data-picker=side] .libraryChoice{display:none}.mealForm[data-picker=tabs] .pickerResults{max-height:min(40dvh,18rem)}
+.mealForm .entryTable[data-item-focus] .entryActions{grid-column:1/-1;grid-row:2;justify-self:stretch;width:100%;display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;white-space:normal;margin:0}
+.mealForm .entryTable[data-item-focus] .entryActions .nutritionToggle{margin-right:auto;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0;border:0;background:none;color:var(--muted);font-size:.875rem;line-height:1.5}
+.nutritionToggle small{font-size:.8125rem;white-space:nowrap}.nutritionToggle svg{flex:none}
+.mealForm .entryTable[data-item-focus] .entryNutrition{grid-column:1/-1;padding:0;border:0}.mealForm .entryTable[data-item-focus] .entryNutrition::before{display:none}
+.entryNutrients{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.entryNutrients[data-columns="2"]{grid-template-columns:repeat(2,minmax(0,1fr))}.entryNutrients[data-columns="1"]{grid-template-columns:minmax(0,1fr)}
+.mealForm .entryNutrients label{display:grid;gap:8px;margin:0;min-width:0;font-size:.875rem;line-height:1.5;color:var(--muted)}.entryFieldLabel{white-space:nowrap}.entryNutrients input,.entryNutrients .calculated{width:100%;min-width:0;text-align:left!important}.mealForm .entryNutrients .calculated{padding:8px 6px;font-size:1rem;line-height:1.5}
+@container meal-editor (min-width:960px){.mealForm[data-picker=auto] .pickerFold{grid-template-rows:1fr;opacity:1;margin:0;align-self:start}.mealForm[data-picker=auto] .libraryChoice{display:none}}
+@media(prefers-reduced-motion:reduce){.pickerFold,.inlineReveal{transition:none}}
