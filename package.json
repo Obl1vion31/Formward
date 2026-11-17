@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --import ./scripts/test-env.mjs --import tsx --test --test-concurrency=2 src/app/*.test.mjs src/features/auth/*.test.ts src/features/admin/*.test.ts src/features/measurements/*.test.ts src/features/meals/*.test.ts src/features/dashboard/*.test.ts src/features/records/*.test.ts src/features/activities/*.test.ts src/features/exports/*.test.ts src/features/onboarding/*.test.ts src/features/assistant/*.test.ts src/features/garmin/*.test.ts src/features/data-sources/*.test.ts src/features/training/*.test.ts src/features/doubao/*.test.ts scripts/self-hosting/start-standalone.test.mjs",
+    "test": "node --import ./scripts/test-env.mjs --import tsx --test --test-concurrency=2 src/app/*.test.mjs src/features/auth/*.test.ts src/features/admin/*.test.ts src/features/measurements/*.test.ts src/features/meals/*.test.ts src/features/dashboard/*.test.ts src/features/records/*.test.ts src/features/activities/*.test.ts src/features/exports/*.test.ts src/features/onboarding/*.test.ts src/features/assistant/*.test.ts src/features/garmin/*.test.ts src/features/data-sources/*.test.ts src/features/training/*.test.ts src/features/doubao/*.test.ts scripts/self-hosting/start-standalone.test.mjs scripts/self-hosting/check-security-baseline.test.mjs",
     "garmin:preview": "node --import tsx scripts/preview-garmin.mts",
     "db:local": "pglite-server --db=./data/postgres/storage --host=127.0.0.1 --port=5432 --max-connections=10",
     "db:generate": "drizzle-kit generate",

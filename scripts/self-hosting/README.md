@@ -127,3 +127,5 @@ Next与eslint-config-next固定16.4.5，Better Auth系列固定1.7.25。新运�
 先将formward-security-limits.conf安装到/etc/nginx/conf.d/formward-security-limits.conf（http上下文），再安装引用zones的域名／回源server配置并nginx -t。应用原子配额按账号共享，Nginx按可信来源限流429，附Retry-After。不要只复制引用zones的server片段。
 
 build.mjs与build-regional-release.mts从本次server-reference-manifest生成.next/security-actions.json。兼容打包可以保留旧静态资源和绑定密钥，但不得改写该新门禁清单或让旧执行代码覆盖新动作。缺失门禁清单时生产环境拒绝Server Actions；过期页面返回app_updated及刷新提示。国际网关更新也必须实际回源验证MFA页面保持同源、CSP和OAuth／JWKS，不能只核对部署Ready。
+
+正式应用和worker的ExecStartPre执行check-security-baseline.mjs，检查指定依赖最低版本、统一认证版本、0044以上结构、新Server Action清单和MFA页面。历史运行包不满足时拒绝启动；恢复包必须保留安全门禁，不能用切旧指针绕过。该脚本按独立运维文件安装，应用源码与运维版本分别留档。check-security-baseline.test.mjs验证正常、旧结构、缺清单及旧依赖。
