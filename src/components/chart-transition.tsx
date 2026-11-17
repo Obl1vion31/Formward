@@ -65,7 +65,8 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     const scale=dest.width/current.rect.width,scaleY=dest.height/current.rect.height;
     current.destination=dest;current.landing=true;current.ready=!skeleton;
     motion.current.reveal(id,element);
-    // 来源图已在上一页面显示；目标落位后立即启动，不再等待一次额外的绘制帧。
+    // 先提交来源与目标几何，再与实际绘制帧对齐计时；WebKit不能在首帧前消耗转场时长。
+    requestAnimationFrame(()=>{
     if(motion.current.active?.id!==id||!node.isConnected)return;
     node.setAttribute('data-motion-starts','1');
     if(current.model.kind==="morning-weight"){
@@ -87,6 +88,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
       current.arrived=true;current.landing=false;
       if(current.ready)finish(current);
     }).catch(()=>{});
+    });
   },[motion,clear,finish]);
   const land=useCallback((next:ChartTarget,id:number)=>{
     const current=motion.current.active,saved=origin.current;
