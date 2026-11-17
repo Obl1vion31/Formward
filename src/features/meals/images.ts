@@ -60,11 +60,12 @@ export async function importMealImages(db: Database, identity: AiIdentity, input
         await db.transaction(async tx=>{await lockOwner(tx,userId);await requireActiveAiToken(tx,identity,true,"meals");await reserveImageQuota(tx as never,userId,leaseId!,20971520);});
         const bytes = await (dependencies.download ?? downloadMealImage)(file.download_url, undefined, signal);
         stage = "validation"; imageMime(bytes); stage = "storage";
-        images.push({ ...await (dependencies.save ?? saveMealImage)(db, userId, bytes, { fileName: file.file_name ?? "照片", source: "ai", sourceFileId: file.file_id, actorId, identity, signal, region: parsedInput.processingRegion, leaseId }), index });
-        await releaseImageQuota(db,userId,leaseId);
+        const saved=await (dependencies.save ?? saveMealImage)(db, userId, bytes, { fileName: file.file_name ?? "照片", source: "ai", sourceFileId: file.file_id, actorId, identity, signal, region: parsedInput.processingRegion, leaseId });
+        images.push({ ...saved, index });
+        await releaseImageQuota(db,userId,leaseId,saved.repeated===true);
         imageDiagnostic("registration", "saved", { requestId, index, bytes: bytes.length, elapsedMs: Date.now() - started });
       } catch (error) {
-        if(leaseId)await releaseImageQuota(db,userId,leaseId);
+        if(leaseId)await releaseImageQuota(db,userId,leaseId,stage!=="storage");
         if (error instanceof ApiError && [401, 403].includes(error.status)) throw error;
         const failure = error instanceof ApiError ? error : new ApiError(503, "image_unavailable", "照片传输未完成，请重试。");
         failures.push({ index, code: failure.code, message: failure.message + (parsedInput.processingRegion !== "global" && regionConfig().enabled ? " 可询问用户是否改用国际区处理本张照片，保留已有文字和成功附件。" : ""), stage, retryable: failure.status >= 500, requestId });

@@ -54,15 +54,17 @@ export async function reserveImageQuota(db: Database, userId: string, id: string
   await db.update(imageQuotaLease).set({ state: "released" }).where(and(eq(imageQuotaLease.userId, userId), eq(imageQuotaLease.state, "reserved"), lt(imageQuotaLease.expiresAt, now)));
   const [active] = await db.select({ count: sql<number>`count(*)::int` }).from(imageQuotaLease).where(and(eq(imageQuotaLease.userId, userId),sql`${imageQuotaLease.id}<>${id}`, eq(imageQuotaLease.state, "reserved"), gt(imageQuotaLease.expiresAt, now)));
   if (active.count >= 4) throw new ApiError(429, "image_concurrency", "同时最多处理4张照片，请等待当前上传完成。", { retryAfter: 10 });
-  const [usage] = await db.select({ bytes: sql<string>`coalesce(sum(${imageQuotaLease.bytes}),0)::text` }).from(imageQuotaLease).where(and(eq(imageQuotaLease.userId, userId), eq(imageQuotaLease.date, date), sql`${imageQuotaLease.state} IN ('reserved','complete')`));
+  // 已签发凭据可能已经上传；过期只释放并发槽，未确认容量继续计入当天，不能靠不登记绕过日限额。
+  const [usage] = await db.select({ bytes: sql<string>`coalesce(sum(${imageQuotaLease.bytes}),0)::text` }).from(imageQuotaLease).where(and(eq(imageQuotaLease.userId, userId), eq(imageQuotaLease.date, date)));
   const [legacy] = await db.select({ bytes: sql<string>`coalesce(sum(${mealImage.byteSize}),0)::text` }).from(mealImage).where(and(eq(mealImage.userId, userId), sql`(${mealImage.createdAt} AT TIME ZONE 'Asia/Shanghai')::date = ${date}::date`, sql`NOT EXISTS (SELECT 1 FROM image_quota_leases q WHERE q.id = ${mealImage.id})`));
-  if (Number(usage.bytes) + Number(legacy.bytes) + bytes > 200 * 1024 * 1024) throw new ApiError(429, "image_daily_quota", "今日新增照片已达到200 MiB上限，文字仍可保存。");
+  if (Number(usage.bytes) + Number(legacy.bytes) + bytes > 200 * 1024 * 1024) throw new ApiError(429, "image_daily_quota", "今日新增照片和未确认上传已占满200 MiB额度，明日重置；文字仍可保存。");
   await db.insert(imageQuotaLease).values({ id, userId, date, bytes, expiresAt: new Date(now.getTime() + 960000) }).onConflictDoUpdate({ target: imageQuotaLease.id, set: { date, bytes, state: "reserved", expiresAt: new Date(now.getTime() + 960000) } });
 }
 export async function completeImageQuota(db: Database, userId: string, id: string, bytes: number) {
   await db.update(imageQuotaLease).set({ state: "complete", bytes }).where(and(eq(imageQuotaLease.id, id), eq(imageQuotaLease.userId, userId)));
 }
-export async function releaseImageQuota(db: Database, userId: string, id: string) {
+export async function releaseImageQuota(db: Database, userId: string, id: string, provenNoUpload=false) {
+  if(provenNoUpload){await db.delete(imageQuotaLease).where(and(eq(imageQuotaLease.id,id),eq(imageQuotaLease.userId,userId),eq(imageQuotaLease.state,"reserved")));return;}
   await db.update(imageQuotaLease).set({ state: "released" }).where(and(eq(imageQuotaLease.id,id),eq(imageQuotaLease.userId,userId),eq(imageQuotaLease.state,"reserved")));
 }
 export async function maintainSecurity(db: Database) {

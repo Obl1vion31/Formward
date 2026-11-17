@@ -14,5 +14,5 @@ export default async function UserAdminPage({params,searchParams}:{params:Promis
   const filter:AdminFilter={userId:id,from:query.from,to:query.to,provider:query.provider as AdminFilter["provider"],purpose:query.purpose as AdminFilter["purpose"],page:1};
   let initial=null;try{initial=await loadAdminConsole(getDatabase(),proof,filter);}catch(error){if(error instanceof ApiError&&error.code==="not_found")notFound();if(!(error instanceof ApiError&&error.code==="verification_required"))throw error;}
   const returnTo=query.returnTo?.startsWith("/admin?")&&!query.returnTo.includes("\\")?query.returnTo:undefined;
-  return <ConfirmationProvider><AdminConsole email={actor.email} initial={initial} initialFilter={filter} fixedUserId={id} returnTo={returnTo}/></ConfirmationProvider>;
+  return <ConfirmationProvider><AdminConsole key={"user:"+id+":"+JSON.stringify(filter)} email={actor.email} initial={initial} initialFilter={filter} fixedUserId={id} returnTo={returnTo}/></ConfirmationProvider>;
 }

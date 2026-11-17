@@ -21,5 +21,5 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   try { data = await loadAdminConsole(getDatabase(), proof,filter); }
   catch (error) { if(error instanceof ApiError&&["invalid_filter","not_found"].includes(error.code))redirect("/admin?tab=overview");if (!(error instanceof ApiError && error.code === "verification_required")) throw error; }
   const tab = ["overview","users","invitations","security"].includes(query.tab??"") ? query.tab as "overview"|"users"|"invitations"|"security" : "overview";
-  return <ConfirmationProvider><AdminConsole email={user.email} initial={data} initialFilter={filter} initialTab={tab}/></ConfirmationProvider>;
+  return <ConfirmationProvider><AdminConsole key={"admin:"+JSON.stringify(filter)} email={user.email} initial={data} initialFilter={filter} initialTab={tab}/></ConfirmationProvider>;
 }
