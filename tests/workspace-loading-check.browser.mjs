@@ -8,13 +8,13 @@ assert.equal(new URL(config.baseURL).hostname,'127.0.0.1');
 const engines=await import(process.env.PLAYWRIGHT_MODULE??'/home/obl1vion/.local/formward-tools/node_modules/playwright/index.mjs');
 const engine=process.env.FORMWARD_LOADING_ENGINE??'chromium',browser=await engines[engine].launch({headless:true});
 const folder=resolve(process.env.FORMWARD_LOADING_ARTIFACTS??'.codex/workspace-loading',engine);await mkdir(folder,{recursive:true});
-const reports=[],failures=[],errors=[],screenshots=[];
+const reports=[],failures=[],errors=[],screenshots=[],recordings=[];
 const routes=[['','overview'],['meals','nutrition'],['training','training'],['energy','energy'],['measurements','body']].filter(([,kind])=>!process.env.FORMWARD_LOADING_KINDS||process.env.FORMWARD_LOADING_KINDS.split(',').includes(kind));
 async function control(delayMs){const response=await fetch(config.delayControlURL,{method:'POST',body:JSON.stringify({delayMs})});assert.equal(response.status,200);}
 const login=await browser.newContext();assert.equal((await login.request.post(config.baseURL+'/api/auth/sign-in/email',{headers:{Origin:config.baseURL},data:{email:config.email,password:config.password}})).status(),200);const storageState=await login.storageState();await login.close();
 const sizes=process.env.FORMWARD_LOADING_SIZES?JSON.parse(process.env.FORMWARD_LOADING_SIZES):process.env.FORMWARD_LOADING_DIAGNOSE==='1'?[[390,640],[1440,900]]:[[320,560],[390,560],[390,640],[430,780],[640,390],[1100,800],[1440,900],[1920,1080]];
 async function shot(page,name,fullPage=false){const path=folder+'/'+name+'.png';await page.screenshot({path,fullPage});screenshots.push(path);}
-async function createContext(size,theme='dark',motion='reduce',recording=false){
+async function createContext(size,theme='dark',motion=process.env.FORMWARD_LOADING_MOTION??'reduce',recording=process.env.FORMWARD_LOADING_RECORD==='1'){
  const context=await browser.newContext({viewport:{width:size[0],height:size[1]},hasTouch:size[0]<1000,storageState,locale:'zh-CN',timezoneId:'Asia/Shanghai',reducedMotion:motion,recordVideo:recording?{dir:folder+'/videos',size:{width:size[0],height:size[1]}}:undefined});
  await context.addInitScript(({theme,guideKeys})=>{
   if(location.protocol!=='http:'&&location.protocol!=='https:')return;
@@ -69,13 +69,13 @@ try{
    const report={theme,size,route:route||'overview',delay,view:process.env.FORMWARD_LOADING_VIEW??'records',pendingAtReady:[...pendingRequests.values()],max,loadingFrames:loading.length,actualFrames:actual.length,frames};reports.push(report);await writeFile(folder+'/'+prefix+'-frames.json',JSON.stringify(report));if(max.delta>1)failures.push({prefix,max});if(reports.length%10===0)console.log(JSON.stringify({engine,cases:reports.length,failures:failures.length}));
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),prefix+'横向溢出');
   }catch(error){const failure={prefix,error:String(error),stack:error.stack,pending:[...pendingRequests.values()],frames:await page.evaluate(()=>window.__loadingFrames)};failures.push({prefix,error:String(error)});await writeFile(folder+'/'+prefix+'-failure.json',JSON.stringify(failure));await shot(page,prefix+'-failure');}
-  finally{await context.close();}
+  finally{const video=page.video();await context.close();if(video)recordings.push({prefix,video:await video.path(),data:'真实浏览器原始连续录制；隔离数据库；未调用模型',nativeIPhone:false});}
  }
  if(process.env.FORMWARD_LOADING_DIAGNOSE!=='1'&&process.env.FORMWARD_LOADING_PART!=='matrix'){
   await writeFile(folder+'/matrix-report.json',JSON.stringify({passed:failures.length===0&&errors.length===0,engine,reports:reports.map(report=>({...report,frames:undefined})),failures,errors,screenshots},null,2));
   const {checkLoadingFlows}=await import('./workspace-loading-flows.browser.mjs');await checkLoadingFlows({browser,config,folder,createContext,control,shot});
  }
- await writeFile(folder+'/report.json',JSON.stringify({passed:failures.length===0&&errors.length===0,engine,reports:reports.map(report=>({...report,frames:undefined})),failures,errors,screenshots},null,2));
+ await writeFile(folder+'/report.json',JSON.stringify({passed:failures.length===0&&errors.length===0,engine,reports:reports.map(report=>({...report,frames:undefined})),failures,errors,screenshots,recordings},null,2));
  console.log(JSON.stringify({engine,cases:reports.length,failures,errors}));
  if(process.env.FORMWARD_LOADING_DIAGNOSE!=='1'){assert.deepEqual(failures,[]);assert.deepEqual(errors,[]);}
 }finally{await control(0);await browser.close();}

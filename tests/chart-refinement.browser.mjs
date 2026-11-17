@@ -17,7 +17,7 @@ let signedState,failure=null;
 async function context(size,motion='no-preference'){
  const ctx=await browser.newContext({viewport:{width:size[0],height:size[1]},hasTouch:size[0]<1000,locale:'zh-CN',timezoneId:'Asia/Shanghai',reducedMotion:motion,storageState:signedState,recordVideo:{dir:folder,size:{width:size[0],height:size[1]}}});
  if(!signedState){await authenticateFixture(ctx.request,fixture,process.env.FORMWARD_CHAT_BROWSER_CONFIG);signedState=await ctx.storageState();}
- const page=await ctx.newPage();page.on('pageerror',error=>errors.push(error.message));
+ const page=await ctx.newPage();await page.bringToFront();page.on('pageerror',error=>errors.push(error.message));
  await page.addInitScript(({account})=>{
   localStorage.setItem('formward-assistant-seen-v1','true');
   for(const kind of ['meals','body','energy','training'])localStorage.setItem('formward:record-guide:v1:'+encodeURIComponent(account)+':'+kind,'seen');
