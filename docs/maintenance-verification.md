@@ -1,5 +1,19 @@
 # 完善任务验收
 
+## 消耗空白退出保护（2026-11-17）
+
+正式站[formward.top](https://formward.top)运行`dual-entry-4ffdf7b4-energy-draft-guard-20261117`，源码`4ffdf7b4192546818423ba2bd83b1c36f7bdfda4`，BUILD_ID `aM-7nKoLc2DqUlm6Jbfr-`；北京时间2026-11-17 14:37:20切换。功能已合入推送main，后续验证与文档提交不改变运行源码。
+
+新建消耗只浏览静息估算、切换公式或记录方式，可以直接退出；自动读取的静息结果及计算依据不计为手填草稿。手填热量（包括0）、步数、来源、备注、运动和明确选择的全天活动档位继续保护；切到其他方式后可恢复的实际输入也受保护，删回空白后解除。已有记录的清空、公式变更与原始精度仍完整比较。
+
+lint、typecheck、821项单元／集成及production build通过。最终兼容包在虚构账号、隔离原生PostgreSQL下，通过Chromium／WebKit各40项退出流程检查：深浅主题、390／1440宽度，包含自动预览、方式／公式切换、600ms迟到读取、活动100与0、备注、已选档位、隐藏草稿及清空恢复。五主页面两主题、两尺寸、两引擎的正常／900ms慢加载共80例通过，固定锚点最大偏差0 CSS px。实际图片核对保留原布局与触控外观，未新增界面控件。正式浏览器在空白日期只切换方式后直接关闭，未出现放弃确认；四公网入口版本一致，HTTP1.15.1、MCP2.0.2／18项、resource及匿名401保持。未写正式健康测试数据，未调用收费模型。
+
+本轮不迁移，schema0042／42项账本保持；切换前原生备份与加密异机回读通过，新旧运行包以实际服务身份通过readiness。60张表原列／值、凭据及配置保持，应用与原独立聊天worker均active、重启计数0。51项Server Action、绑定密钥及998项旧静态资源保留；网关无需重新发布。后台聊天与图片绑定修复继续有效。
+
+完整兼容运行包75,130,206字节，SHA256 `f1de84a7dfd7b390b2ed083b57cb7afd7644f78ce4cd67633ae5ed479ed1d918`，永久归档在原入口`.codex/backups/regional-releases/energy-draft-guard-20261117`。即时回退为`chat-reliability-20261117`（a82db923）；保留0042与既有聊天、费用和健康数据，只切兼容应用并重启worker，不还原旧库。
+
+本轮私有证据在原入口`.codex/energy-draft-guard-20261117`，虚构截图另存Windows私有`C:/Users/14878/.codex/private/formward-energy-draft-guard-20261117`。真实iPhone、系统键盘、系统字号和屏幕阅读器未实测；浏览器模拟不记作真机通过。
+
 ## 后台任务与图片绑定（2026-11-17）
 
 正式站[formward.top](https://formward.top)运行`dual-entry-a82db923-chat-reliability-20261117`，源码`a82db923833a863e16d382f33e9e51f834678709`，BUILD_ID `pbK1ryDsyEmyrjxDdv4R6`；北京时间2026-11-17 02:46:27切换。功能已推送main，后续文档提交不改变运行源码。
