@@ -21,3 +21,6 @@
 @media(max-width:360px){.tierIntro{flex-wrap:wrap}.tierIntro button{width:100%}.dayHeading{flex-wrap:wrap}.dayRow{grid-template-columns:1fr}.dayRow>div:first-child{grid-column:auto}.dayRow>div:nth-child(3)::before{margin-top:6px}}
 
 .chart svg:focus{outline:0}.chart svg:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4px}
+.shell select{height:calc(1.5em + 20px);line-height:1.5}
+.filters label:has(select[aria-label="模型"]){min-width:min(100%,200px);flex:1 1 200px}
+@media(max-width:600px){.filters label:has(select[aria-label="模型"]){flex-basis:100%;max-width:none}.ledger small{display:block;white-space:nowrap}}
