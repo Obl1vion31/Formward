@@ -2,7 +2,7 @@
 
 当前双入口主库、原授权保持与验收边界见[双入口部署](../../docs/mainland-deployment.md)。历史私有预览脚本继续只允许 formward_preview，不可直接用于正式主库。
 
-chat-worker.ts及formward-chat-worker.service提供站内聊天／本餐识图的独立执行进程。区域运行包附带chat-worker.mjs与服务模板；先完成0042迁移，再同时启用应用和worker。worker与主应用使用相同环境文件和应用身份，无公开监听端口；读取队列、保存进度并处理停止，网页断线不影响任务。回退时先停worker，只切应用，不回滚数据库。普通本地pnpm build同时构建.next/chat-worker.mjs，使用pnpm worker:chat单独启动，开发环境不得接真实模型和健康库。
+chat-worker.ts及formward-chat-worker.service提供站内聊天／本餐识图的独立执行进程。区域运行包附带chat-worker.mjs与服务模板；先完成0043／0044迁移，再同时启用应用和worker。worker与主应用使用相同环境文件和应用身份，无公开监听端口；读取队列、保存进度并处理停止，网页断线不影响任务。恢复时先停worker，只切保留MFA、预算与动作门禁的兼容安全包，不回滚数据库。普通本地pnpm build同时构建.next/chat-worker.mjs，使用pnpm worker:chat单独启动，开发环境不得接真实模型和健康库。
 
 
 本目录提供Ubuntu 24.04 amd64的独立预览脚本、同源发布构建与正式主库维护工具。应用采用独立非登录用户和systemd，数据库为PostgreSQL18。preview脚本固定回环私有环境；当前正式应用回环3200、数据库回环5432，公网入口由Nginx443代理。正式状态、证书、备份及未测范围见双入口部署与验收文档，不把预览脚本直接用于正式主库。
@@ -84,7 +84,7 @@ sudo journalctl -u formward-backup-preview.service -n 20 --no-pager
 
 当前网关固定iad1：香港回源公开版本接口实测TCP超时，iad1的TCP、TLS及HTTP200通过。国际产物的项目与函数配置均写iad1，发布命令仍须显式传`--regions iad1`，并核对部署API、两个别名和实际回源；仅本地配置或Ready状态不足。业务网关代码、JWT、issuer和resource不因区域改变。
 
-- build-regional-release.mts 通过 pnpm release:regional 唯一发布标识执行；兼容已有表单时传入先前构建的 NEXT_SERVER_ACTIONS_ENCRYPTION_KEY 和 FORMWARD_BUILD_SOURCE_PATH，并核对原 action 标识全部保留。稳定源码路径只接受同仓库已登记 worktree 的私有发布目录下尚不存在的 source-* 子目录，不覆盖已有目录；国际包包含网关、海外图片处理与公开静态 CDN 文件，不包含数据库驱动、schema或COS SDK。源码归档单独保留用于追溯，不作为部署公开文件。
+- build-regional-release.mts 通过 pnpm release:regional 唯一发布标识执行；兼容已有表单时传入先前构建的 NEXT_SERVER_ACTIONS_ENCRYPTION_KEY 和 FORMWARD_BUILD_SOURCE_PATH，并从新构建生成受保护动作清单；旧动作提示刷新，不合并旧执行代码。稳定源码路径只接受同仓库已登记 worktree 的私有发布目录下尚不存在的 source-* 子目录，不覆盖已有目录；国际包包含网关、海外图片处理与公开静态 CDN 文件，不包含数据库驱动、schema或COS SDK。源码归档单独保留用于追溯，不作为部署公开文件。
 - activate-preview.sh 需先将 check-release.mjs 安装到 /usr/local/lib/formward，并在 root 专有的 preview.env 配置独立 FORMWARD_READINESS_SECRET。上一代不兼容时失败后停服，不回退到会错误读取COS的版本。当前与上一代自有哈希资源共存，缺失资源仍为404。
 - regional.env.example 给出两节点分工。国际实例禁止配置数据库连接和 Better Auth secret；两区独立 Cookie，共用上海业务校验。
 - nginx-regional.conf 仅监听回环8443，明确TLS1.2／1.3并拒绝未知SNI／Host；备案前不替换公网监听。
@@ -129,3 +129,5 @@ Next与eslint-config-next固定16.4.5，Better Auth系列固定1.7.25。新运�
 build.mjs与build-regional-release.mts从本次server-reference-manifest生成.next/security-actions.json。兼容打包可以保留旧静态资源和绑定密钥，但不得改写该新门禁清单或让旧执行代码覆盖新动作。缺失门禁清单时生产环境拒绝Server Actions；过期页面返回app_updated及刷新提示。国际网关更新也必须实际回源验证MFA页面保持同源、CSP和OAuth／JWKS，不能只核对部署Ready。
 
 正式应用和worker的ExecStartPre执行check-security-baseline.mjs，检查指定依赖最低版本、统一认证版本、0044以上结构、新Server Action清单和MFA页面。历史运行包不满足时拒绝启动；恢复包必须保留安全门禁，不能用切旧指针绕过。该脚本按独立运维文件安装，应用源码与运维版本分别留档。check-security-baseline.test.mjs验证正常、旧结构、缺清单及旧依赖。
+
+正式Nginx如自行设置Referrer-Policy，应先隐藏上游同名头再统一输出no-referrer，避免国际网关将重复值拼接。正式迁移以原formward_primary_migrator执行，应用只保留DML；Unix连接用PGHOST／PGUSER及连接启动参数options指定role，不能把?host当作postgres.js的socket地址。最新完整归档与恢复验证见部署和双入口验收。
