@@ -17,6 +17,7 @@ const version=await (await fetch(config.baseURL+'/api/app-version')).json();
 const auth=await browser.newContext();
 await authenticateFixture(auth.request,config,process.env.FORMWARD_CHAT_BROWSER_CONFIG);
 const storageState=await auth.storageState();await auth.close();
+async function go(page,url){await page.waitForLoadState("networkidle");await page.goto(url);}
 async function settle(page){await page.waitForFunction(()=>!document.querySelector('.workspace-skeleton,[data-chart-flight]'));await page.waitForTimeout(650);}
 async function screenshot(page,profile,name,items){
  if(!name.includes('loading'))await page.waitForFunction(()=>!document.getAnimations().some(animation=>animation.playState==='running'&&animation.effect?.getTiming().iterations!==Infinity));
@@ -66,7 +67,7 @@ try{
    const page=await context.newPage(),steps=[];page.on('pageerror',error=>errors.push({profile,url:page.url(),step:steps.at(-1)?.label,error:error.message,stack:error.stack}));
   const mark=label=>steps.push({label,at:new Date().toISOString()});
   try{
-   mark('总览首次进入');await page.goto(config.baseURL+'/dashboard');await settle(page);await screenshot(page,profile,'overview',['D08','X06']);
+   mark('总览首次进入');await go(page,config.baseURL+'/dashboard');await settle(page);await screenshot(page,profile,'overview',['D08','X06']);
    for(const kind of ['intake','morning-weight','energy']){
     mark('总览进入'+kind);await page.locator('[data-metric-card="'+kind+'"]').click();await settle(page);
     if(!baseline)assert.equal(await page.locator('[data-record-slot="records"]>[data-record-date]').count(),1,'默认只显示今天');
@@ -133,7 +134,7 @@ try{
     const pause=page.getByRole('button',{name:'暂停',exact:true});if(await pause.count()){await pause.click();await page.getByRole('button',{name:'继续计时',exact:true}).waitFor();await screenshot(page,profile,'training-paused',['X14']);}
     await page.getByRole('button',{name:'保存并收起训练',exact:true}).click();await page.locator('[data-training-editor]').waitFor({state:'hidden'});
     for(const [path,name,items] of [['/dashboard/export','export',['E06','E07','E08','X26']],['/dashboard/sources','sources',['X23','P05']],['/dashboard/ai','ai-access',['E02','E03','E05','X18']],['/dashboard/profile','profile',['X20']],['/dashboard/account','account',['X20']],['/dashboard/tutorial','tutorial',['X24']],['/admin','admin',['X21']]]){
-     await page.goto(config.baseURL+path);await page.waitForLoadState('networkidle');await screenshot(page,profile,name,items);
+     await go(page,config.baseURL+path);await page.waitForLoadState('networkidle');await screenshot(page,profile,name,items);
      if(path==='/dashboard/ai'){
       await page.getByRole('button',{name:'AI 提交记录',exact:true}).click();
       await page.locator('[data-ai-submissions] li').first().waitFor();
