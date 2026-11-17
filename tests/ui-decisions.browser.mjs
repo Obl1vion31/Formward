@@ -21,7 +21,7 @@ async function settle(page){await page.waitForFunction(()=>!document.querySelect
 async function screenshot(page,profile,name,items){
  if(!name.includes('loading'))await page.waitForFunction(()=>!document.getAnimations().some(animation=>animation.playState==='running'&&animation.effect?.getTiming().iterations!==Infinity));
  const path=join(folder,profile+'-'+name+'.png');await page.screenshot({path});
- const layout=await page.evaluate(()=>[...document.querySelectorAll('dialog[open]')].map(dialog=>[dialog,...dialog.querySelectorAll('form,fieldset,footer,[data-meal-editor]')].map(node=>{const rect=node.getBoundingClientRect(),css=getComputedStyle(node);return {tag:node.tagName,label:node.getAttribute('aria-label'),className:node.className,x:rect.x,y:rect.y,width:rect.width,height:rect.height,scrollHeight:node.scrollHeight,clientHeight:node.clientHeight,scrollTop:node.scrollTop,position:css.position,display:css.display,overflowY:css.overflowY,flex:css.flex,minHeight:css.minHeight,bottom:css.bottom};})));
+ const layout=await page.evaluate(()=>[...document.querySelectorAll('dialog[open]')].map(dialog=>[dialog,...dialog.querySelectorAll('form,fieldset,footer,[data-meal-editor],[class*=composerArea],[aria-label="给小助手发消息"]')].map(node=>{const rect=node.getBoundingClientRect(),css=getComputedStyle(node);return {tag:node.tagName,label:node.getAttribute('aria-label'),className:node.className,x:rect.x,y:rect.y,width:rect.width,height:rect.height,scrollHeight:node.scrollHeight,clientHeight:node.clientHeight,scrollTop:node.scrollTop,position:css.position,display:css.display,overflowY:css.overflowY,flex:css.flex,minHeight:css.minHeight,bottom:css.bottom};})));
  shots.push({name,items,path,profile,engine,baseline,url:page.url(),capturedAt:new Date().toISOString(),data:'隔离虚构账号／真实业务组件／模型回复回放',version,browserVersion:browser.version(),layout});
 }
 async function openChat(page){
@@ -63,7 +63,7 @@ try{
   const context=await browser.newContext({viewport:{width,height},storageState,hasTouch:width<701,isMobile:width<701,locale:'zh-CN',timezoneId:'Asia/Shanghai',reducedMotion:motion,recordVideo:{dir:folder,size:{width,height}}});
   if(textScale!==1)await context.addInitScript(scale=>{const apply=()=>document.documentElement.style.fontSize=(scale*100)+'%';if(document.documentElement)apply();else new MutationObserver((_,observer)=>{if(document.documentElement){apply();observer.disconnect();}}).observe(document,{childList:true});},textScale);
   await context.addInitScript(({theme,userId})=>{localStorage.setItem('formward-theme',theme);for(const kind of ['meals','body','energy','training'])localStorage.setItem('formward:record-guide:v1:'+encodeURIComponent(userId)+':'+kind,'seen');},{theme,userId:config.userId});
-  const page=await context.newPage(),steps=[];page.on('pageerror',error=>errors.push({profile,error:error.message}));
+   const page=await context.newPage(),steps=[];page.on('pageerror',error=>errors.push({profile,url:page.url(),step:steps.at(-1)?.label,error:error.message,stack:error.stack}));
   const mark=label=>steps.push({label,at:new Date().toISOString()});
   try{
    mark('总览首次进入');await page.goto(config.baseURL+'/dashboard');await settle(page);await screenshot(page,profile,'overview',['D08','X06']);

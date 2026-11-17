@@ -3,7 +3,7 @@
 
 @media(max-width:700px),(hover:none) and (pointer:coarse){.heading[data-body]{display:none}}
 .content{min-width:0;position:relative}
-.content>[data-route-content][data-return-covered]{position:absolute;inset:0 0 auto;visibility:hidden;pointer-events:none}
+.content>[data-route-content][data-return-covered]{display:none}
 .content>[data-route-content][data-forward-covered]{position:absolute;inset:0 0 auto;opacity:0;pointer-events:none}
 .content>[data-route-content][data-forward-covered][data-forward-moving]{display:none}
 .content[data-workspace-moving]{will-change:transform,opacity}
