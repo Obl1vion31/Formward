@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
+import {LoadingLink as Link} from "@/components/loading-link";
+import {useDraftGuard,pageRefreshApproved} from "@/components/draft-guard";
 import Image from "next/image";
 import QRCode from "qrcode";
 import { loadSecurityAction, verifySecurityAction } from "@/app/account/security/actions";
@@ -18,7 +19,8 @@ export function MfaPanel({ challenge = false, returnTo, embedded = false }: { ch
   const [totp, setTotp] = useState(""), [qr, setQr] = useState(""), [codes, setCodes] = useState<string[]>([]), [saved, setSaved] = useState(false), [binding, setBinding] = useState(false);
   const [pending, setPending] = useState(challenge), [loading, setLoading] = useState(!challenge);
   const [changing,setChanging]=useState(false);
-  useEffect(()=>{if(!binding&&(!codes.length||saved))return;const warn=(e:BeforeUnloadEvent)=>{e.preventDefault();e.returnValue="";};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn);},[binding,codes.length,saved]);
+  useDraftGuard(!!password||!!code||binding||codes.length>0&&!saved,busy);
+  useEffect(()=>{if(!binding&&(!codes.length||saved))return;const warn=(e:BeforeUnloadEvent)=>{if(!pageRefreshApproved()){e.preventDefault();e.returnValue="";}};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn);},[binding,codes.length,saved]);
   async function reload() { const result = await loadSecurityAction(); if (result.ok) setData(result.data); else setError(result.error); setLoading(false); return result; }
   useEffect(() => { if (!challenge) { let live = true; void loadSecurityAction().then(r => { if (live) { if (r.ok) setData(r.data); else setError(r.error); setLoading(false); } }); return () => { live = false; }; } }, [challenge]);
   useEffect(() => { let live = true; if (totp) void QRCode.toDataURL(totp, { width: 224, margin: 2 }).then(value => { if (live) setQr(value); }).catch(() => { if (live) setError("二维码未能显示，可复制手动密钥绑定。"); }); return () => { live = false; }; }, [totp]);
