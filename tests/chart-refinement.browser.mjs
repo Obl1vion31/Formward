@@ -10,6 +10,7 @@ assert.ok(['localhost','127.0.0.1'].includes(new URL(base).hostname),'只接受�
 assert.ok(fixture.isolatedFixture,'需要隔离数据库标识');
 const {chromium,webkit}=await import(process.env.PLAYWRIGHT_MODULE);
 const engine=process.env.CHAT_BROWSER??'chromium',folder=resolve(process.env.FORMWARD_CHAT_ARTIFACTS);
+const version=await(await fetch(base+'/api/app-version')).json();
 await mkdir(folder,{recursive:true});
 const browser=await({chromium,webkit}[engine]).launch({headless:true});
 const errors=[],checks=[],frames=[],screens=[];
@@ -18,6 +19,7 @@ async function context(size,motion='no-preference'){
  const ctx=await browser.newContext({viewport:{width:size[0],height:size[1]},hasTouch:size[0]<1000,locale:'zh-CN',timezoneId:'Asia/Shanghai',reducedMotion:motion,storageState:signedState,recordVideo:{dir:folder,size:{width:size[0],height:size[1]}}});
  if(!signedState){await authenticateFixture(ctx.request,fixture,process.env.FORMWARD_CHAT_BROWSER_CONFIG);signedState=await ctx.storageState();}
  const page=await ctx.newPage();await page.bringToFront();page.on('pageerror',error=>errors.push(error.message));
+ if(Number(process.env.FORMWARD_REFINEMENT_DELAY)>0)await page.route('**/*',async route=>{const url=new URL(route.request().url());if(url.searchParams.has('_rsc')&&/^\/dashboard\/(meals|measurements|energy)$/.test(url.pathname))await new Promise(resolve=>setTimeout(resolve,Number(process.env.FORMWARD_REFINEMENT_DELAY)));await route.continue();});
  await page.addInitScript(({account})=>{
   localStorage.setItem('formward-assistant-seen-v1','true');
   for(const kind of ['meals','body','energy','training'])localStorage.setItem('formward:record-guide:v1:'+encodeURIComponent(account)+':'+kind,'seen');
@@ -93,4 +95,4 @@ try{
  assert.deepEqual(errors,[]);
 
  console.log(JSON.stringify({engine,checks:checks.length,screens:screens.length,errors}));
-}catch(error){failure=String(error);throw error;}finally{await writeFile(join(folder,engine+'-report.json'),JSON.stringify({passed:!failure,failure,engine,checks,frames,screens,errors,nativeIPhone:false,paidModelCalls:0},null,2));await browser.close();}
+}catch(error){failure=String(error);throw error;}finally{await writeFile(join(folder,engine+'-report.json'),JSON.stringify({passed:!failure,failure,engine,version,checks,frames,screens,errors,nativeIPhone:false,paidModelCalls:0},null,2));for(const context of browser.contexts())await context.close();await browser.close();}

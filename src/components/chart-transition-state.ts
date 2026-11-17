@@ -33,6 +33,7 @@ export type ChartTransitionState = {
   claimChartEntry: (key:string,container?:HTMLElement|null)=>boolean;
   preview: MetricTrendModel | null;
   previewReadings: ChartReadingsSnapshot | null;
+  forwardDestination:string|null;
   returningToOverview:boolean;
   overviewReady:()=>void;
   cancelOverviewReturn:(href:string)=>void;
@@ -44,7 +45,7 @@ export type ChartTransitionState = {
   recallOverview: () => OverviewViewState | null;
   rememberOverview: (state:OverviewViewState) => void;
 };
-export const ChartTransitionContext = createContext<ChartTransitionState>({ claimChartEntry:()=>true, preview:null, previewReadings:null, returningToOverview:false, overviewReady:()=>{}, cancelOverviewReturn:()=>{}, navigate: async()=>{}, register:()=>()=>{}, restore:()=>{}, back:()=>{}, invalidate:()=>{},recallOverview:()=>null,rememberOverview:()=>{} });
+export const ChartTransitionContext = createContext<ChartTransitionState>({ claimChartEntry:()=>true, preview:null, previewReadings:null, forwardDestination:null, returningToOverview:false, overviewReady:()=>{}, cancelOverviewReturn:()=>{}, navigate: async()=>{}, register:()=>()=>{}, restore:()=>{}, back:()=>{}, invalidate:()=>{},recallOverview:()=>null,rememberOverview:()=>{} });
 export const useChartTransition = () => useContext(ChartTransitionContext);
 
 /** 图形注册与业务失效不订阅飞行状态，避免动画挂载重绘整张业务图。 */

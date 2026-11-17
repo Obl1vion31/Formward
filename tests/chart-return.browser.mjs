@@ -6,6 +6,7 @@ import {authenticateFixture} from './fixture-auth.mjs';
 const config=JSON.parse(await readFile(process.env.FORMWARD_LOADING_CONFIG,'utf8'));
 assert.equal(config.isolatedFixture,true);
 assert.equal(new URL(config.baseURL).hostname,'127.0.0.1');
+const version=await(await fetch(config.baseURL+'/api/app-version')).json();
 const engines=await import(process.env.PLAYWRIGHT_MODULE??'/home/obl1vion/.local/formward-tools/node_modules/playwright/index.mjs');
 const engine=process.env.FORMWARD_CHART_ENGINE??'chromium',browser=await engines[engine].launch({headless:process.env.FORMWARD_CHART_HEADED!=='1',...(process.env.FORMWARD_CHART_EXECUTABLE_PATH?{executablePath:process.env.FORMWARD_CHART_EXECUTABLE_PATH}:{})});
 const out=resolve(process.env.FORMWARD_CHART_ARTIFACTS??'.codex/chart-return',engine);
@@ -126,7 +127,7 @@ try{
   }finally{await delay(0);await context.close();}
  }
  assert.deepEqual(errors,[]);
- await writeFile(out+'/report.json',JSON.stringify({results,body,errors},null,2));
+ await writeFile(out+'/report.json',JSON.stringify({passed:true,version,results,body,errors},null,2));
  console.log(JSON.stringify({passed:true,returns:results.length,body:body.length,maxWarmStart:Math.max(...results.filter(r=>r.paired&&!/slow|reverse|browser/.test(r.label)).map(r=>r.firstMotion))}));
 }catch(error){await writeFile(out+'/failure.json',JSON.stringify({error:String(error),results,body,errors},null,2));throw error;}
 finally{await delay(0);await browser.close();}

@@ -27,9 +27,9 @@ import {relationshipFrameStyle} from "@/features/dashboard/relationship-frame";
 import {formatRecordNumber} from "./number-format";
 import {formatNutrition,macroComposition} from "@/features/meals/model";
 import overview from '@/features/dashboard/overview.module.css';
-export function WorkspaceSkeleton({kind,returnShell=false}:{kind:'overview'|'nutrition'|'energy'|'body';returnShell?:boolean}){
+export function WorkspaceSkeleton({kind,returnShell=false,destination}:{kind:'overview'|'nutrition'|'energy'|'body';returnShell?:boolean;destination?:string}){
  const sourcePilot=useContext(WorkspaceSourceContext);
- const {preview,previewReadings,returningToOverview,recallOverview}=useChartTransition(),ref=useRef<HTMLDivElement>(null),router=useRouter(),[slow,setSlow]=useState(false),params=useSearchParams(),mobile=useMobileMode();
+ const {preview,previewReadings,returningToOverview,recallOverview}=useChartTransition(),ref=useRef<HTMLDivElement>(null),router=useRouter(),[slow,setSlow]=useState(false),routeParams=useSearchParams(),mobile=useMobileMode(),params=destination?new URL(destination,'https://formward.invalid').searchParams:routeParams;
  const model=preview&&((kind==='nutrition'&&preview.kind==='intake')||(kind==='body'&&preview.kind==='morning-weight')||(kind==='energy'&&preview.kind==='energy'))?preview:null;
  const linkedRange=linkedTrend(Object.fromEntries(params)),linked=!!linkedRange,shared=kind!=="overview",adaptive=mobile||shared;
  const tickLabels=kind==='body'?(model?.ticks??[0,99]).map(value=>value.toFixed(1)):model?.ticks??[0,1000];
@@ -75,6 +75,7 @@ export function WorkspaceSkeleton({kind,returnShell=false}:{kind:'overview'|'nut
  </div>;
  // 返回意图先于URL提交，明确读取总览自己的真实快照，不借用仍在地址栏中的详情条件。
  // 未开始返回的预备外壳保持静态，不能提前挂载缓存视图并消费其焦点／转场目标。
+ if(destination)return content;
  return kind==='overview'&&(returnShell||returningToOverview)
   ?returningToOverview?<WorkspacePending path="/dashboard" query="">{content}</WorkspacePending>:content
   :<WorkspacePending>{content}</WorkspacePending>;
