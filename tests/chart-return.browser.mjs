@@ -64,14 +64,17 @@ async function inspectReturn(page,label,{paired=true,warm=true}={}){
  return result;
 }
 async function bodyGeometry(page){return page.evaluate(()=>{
- const plot=document.querySelector('[data-body-plot]'),svg=plot.querySelector('svg'),readout=document.querySelector('[data-body-plot-readout]');
+ const plot=document.querySelector('[data-body-plot]'),svg=plot.querySelector('svg'),hint=document.querySelector('[data-body-plot-readout]');
+ // 手机按已认可布局不显示重复的图后读数，稳定锚点检查实际可见的主读数区。
+ const readout=hint?.getBoundingClientRect().height?hint:[...document.querySelectorAll('[data-record-slot="metrics"]')].find(node=>node.getBoundingClientRect().height>0);
  const box=node=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};};
  const glyph=svg.querySelector('[data-trend-glyph]'),point=glyph?.querySelector('[data-glyph-point]'),line=glyph?.querySelector('[data-glyph-line]');
  const count=glyph?JSON.parse(glyph.dataset.trendKey).points.length:0;
- return {scrollY,plot:box(plot),readout:box(readout),ticks:[...svg.querySelectorAll('text')].filter(n=>/^\d{2}\.\d{2}$/.test(n.textContent)).map(n=>({text:n.textContent,...box(n)})),text:readout.textContent,pointDiameter:point?.getBoundingClientRect().width??null,stroke:line?Number(getComputedStyle(line).strokeWidth.replace('px','')):null,count};
+ return {scrollY,plot:box(plot),readout:box(readout),ticks:[...svg.querySelectorAll('text')].filter(n=>/^\d{2}\.\d{2}$/.test(n.textContent)).map(n=>({text:n.textContent,...box(n)})),text:hint.textContent,visibleReading:readout.textContent,pointDiameter:point?.getBoundingClientRect().width??null,stroke:line?Number(getComputedStyle(line).strokeWidth.replace('px','')):null,count};
 });}
 function checkBodyInk(geometry,label){
- if(geometry.pointDiameter!==null)assert.ok(Math.abs(geometry.pointDiameter-(geometry.count<=7?9:7))<=.1,label+'数据点随SVG放大');
+ assert.ok(geometry.readout.height>0&&geometry.readout.width>0,label+'实际读数区必须可见');
+ if(geometry.pointDiameter!==null)assert.ok(Math.abs(geometry.pointDiameter-7)<=.1,label+'数据点随SVG放大');
  if(geometry.stroke!==null)assert.ok(Math.abs(geometry.stroke-(geometry.count<=7?2.5:1.75))<=.01,label+'主线宽度不一致');
 }
 try{

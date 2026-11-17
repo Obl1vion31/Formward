@@ -130,6 +130,12 @@ try{
     await page.getByRole('button',{name:'保存并收起训练',exact:true}).click();await page.locator('[data-training-editor]').waitFor({state:'hidden'});
     for(const [path,name,items] of [['/dashboard/export','export',['E06','E07','E08','X26']],['/dashboard/sources','sources',['X23','P05']],['/dashboard/ai','ai-access',['E02','E03','E05','X18']],['/dashboard/profile','profile',['X20']],['/dashboard/account','account',['X20']],['/dashboard/tutorial','tutorial',['X24']],['/admin','admin',['X21']]]){
      await page.goto(config.baseURL+path);await page.waitForLoadState('networkidle');await screenshot(page,profile,name,items);
+     if(path==='/dashboard/ai'){
+      await page.getByRole('button',{name:'AI 提交记录',exact:true}).click();
+      await page.locator('[data-ai-submissions] li').first().waitFor();
+      if(!baseline&&process.env.FORMWARD_UI_SKIP_CHAT!=='1')assert.match(await page.locator('[data-ai-submissions]').innerText(),/隔离力量计划/);
+      await screenshot(page,profile,'ai-submissions',['E04','E05','X18']);
+     }
     }
    }
    mark('完成');

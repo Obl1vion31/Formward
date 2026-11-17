@@ -80,9 +80,10 @@ export async function loadAiAccessOverview(db: Database, userId: string, existin
       }
       return [{body:"身体",meals:"饮食",foods:"食材库",energy:"消耗",training:"训练"}[category(action)]];
     });
-    const description=details.length?details.join("；"):displayKind(row.types.join("、")||"记录")+"·"+(row.status==="pending"?row.pendingCount:row.count)+"项";
+    const distinctDetails=[...new Set(details)];
+    const description=distinctDetails.length?distinctDetails.join("；"):displayKind(row.types.join("、")||"记录")+"·"+(row.status==="pending"?row.pendingCount:row.count)+"项";
     const ended=row.status==="pending"&&!row.pendingCount;
-    return { id: row.id, source: source(grants), summary: displayKind(row.summary)+(details.length?" · "+details.join("；"):""), compactSummary: `${date ? date + " " : ""}${ended?"没有待保存内容":description}`, status: row.expired ? "expired" : ended?"completed":row.status, createdAt: row.createdAt, expiresAt: row.expiresAt, confirmationPath: row.confirmationPath };
+    return { id: row.id, source: source(grants), summary: displayKind(row.summary)+(distinctDetails.length?" · "+distinctDetails.join("；"):""), compactSummary: `${date ? date + " " : ""}${ended?"没有待保存内容":description}`, status: row.expired ? "expired" : ended?"completed":row.status, createdAt: row.createdAt, expiresAt: row.expiresAt, confirmationPath: row.confirmationPath };
   });
   submissions.push(...bodies.map(row => ({ id: row.id, source: source([bodyGrants.find(item => item.id === row.id)]), summary: `${row.preview.date} · 身体记录 · ${row.counts.total} 条${row.counts.saved && row.status !== "confirmed" ? ` · 已保存 ${row.counts.saved} 条` : ""}`, compactSummary: `${row.preview.date.slice(5)} 身体·${row.counts.total}条${row.counts.saved && row.status !== "confirmed" ? `·已存${row.counts.saved}条` : ""}`, status: row.status, createdAt: row.createdAt, expiresAt: row.expiresAt, confirmationPath: row.confirmationPath })));
   submissions.push(...meals.map(row => {
