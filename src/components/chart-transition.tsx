@@ -167,7 +167,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     const graph=rail.querySelector<SVGSVGElement>(`[data-metric-card="${saved.kind}"] [data-trend-glyph]`);
     if(current.destination&&current.hidden===graph)return;
     if(graph&&visible(graph)&&graph.dataset.trendRange===saved.rangeKey&&graph.dataset.trendKey===saved.modelKey&&current?.direction==='back'&&motion.current.active?.id===current.id)landAt(rectOf(graph),graph,false,current.id);
-    else{clear();rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`)?.focus({preventScroll:true});if(returnReady.current)origin.current=null;motion.current.returning=false;lastTarget.current=null;}
+    else{clear();focusReturnCard(rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`));if(returnReady.current)origin.current=null;motion.current.returning=false;lastTarget.current=null;}
   },[motion,landAt,clear,returningToOverview,focusReturnCard]);
   const prepareBack=useCallback((fromHistory=false)=>{
     const saved=origin.current;if(!saved||motion.current.returning)return;
