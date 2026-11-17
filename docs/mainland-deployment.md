@@ -9,7 +9,7 @@
 
 ## 当前正式服务
 
-正式站[formward.top](https://formward.top)运行`dual-entry-d90023df-security-admin-release-20261117`，源码`d90023dfda9433116d13d5e15d80a3376a552ddf`，BUILD_ID `1CdkLPkDiQdenML7PtNbh`；北京时间2026-11-17 20:15:28切换。功能已合入推送main，后续运维及文档提交不改变应用运行源码。
+正式站[formward.top](https://formward.top)运行`dual-entry-18c1c81a-security-admin-layout-20261117`，源码`18c1c81a32a03b513fd0a82041b494451cdd817d`，BUILD_ID `x-ATMDthYuYHL16ATtuKx`；北京时间2026-11-17 20:47:47切换。功能已合入推送main，后续运维及文档提交不改变应用运行源码。
 
 管理员通过`/admin`查看最近30天费用、任务／模型请求／Token、用户与模型／用途筛选、有效记录和登记图片数量；用户详情可按天查看、暂停／恢复站内AI、调整个人金额／识图额度或恢复档位默认。费用沿用原模型账本，已结算、预占与未知分别显示，后台不返回健康数值、餐食、照片或聊天正文。本轮没有收款、充值或支付账本。
 
@@ -19,11 +19,13 @@ lint、typecheck、830项单元／集成和干净production build通过，包含
 
 0043／0044已由原migrator升级正式库42→44、60→66张表。切换前停写备份`formward-primary-20261117T121515612760Z.dump.json`完成原生校验和加密异机完整回读；此前异机归档已在隔离库完整恢复、重复迁移及实际角色权限演练。迁移与私有就绪检查期间，60张既有表的原列／值、凭据与运行配置保持；新应用和独立安全恢复包均以实际服务身份通过readiness，网页与worker正常运行。
 
-55项当前受保护Server Action与原绑定密钥保留，51项旧动作返回409及刷新提示，不再合并旧执行代码；补留1104项旧静态文件。两个systemd服务安装ExecStartPre安全基线，旧的不含MFA／预算／动作门禁的运行包拒绝启动。仅切保留新安全门禁的兼容恢复包，不回退数据库、费用、授权或健康记录。
+本次文字放大修正没有数据库迁移；停写备份`formward-primary-20261117T124734473707Z.dump.json`完成原生校验与加密异机回读，66张表原列／值及配置保持。桌面筛选框随字号自然换行。两个引擎另通过320×560、390×560／640、430×780、844×390触屏横屏，以及390／1440两端200%文字，共28组双主题检查；日期和选项完整可读、触控不小于44px。
 
-海外网关已更新为`dpl_CgwJFnf4xJjpqVced4Lj74CJ48sC`，区域iad1；仅切换global.formward.top与formward-ten.vercel.app，原第三别名保持。正式域名、IP和两个海外入口实际版本一致；MFA保持当前来源、随机nonce CSP、HSTS与防嵌入均通过。HTTP1.15.1、MCP2.0.2／18项、原resource与公开JWKS保持，匿名HTTP／MCP拒绝401。未写正式健康测试数据，未调用收费模型。
+55项当前受保护Server Action与原绑定密钥保留，过期动作返回409及刷新提示，不再合并旧执行代码；补留1160项旧静态文件。两个systemd服务安装ExecStartPre安全基线，旧的不含MFA／预算／动作门禁的运行包拒绝启动。仅切保留新安全门禁的兼容恢复包，不回退数据库、费用、授权或健康记录。
 
-完整兼容运行包75,930,649字节，SHA256 `d9b78306cc6bd53f38f4d3eb9fe3d857a95c69a03462296a5f2429582d116642`，服务器与本机归档逐字节一致，永久保存在原入口`.codex/backups/regional-releases/security-admin-release-20261117`。安全恢复目录为`security-admin-release-20261117-recovery`，是独立物理副本并通过同一服务身份就绪；旧0042包仅保留审计，不作为可启动回退。
+海外网关已更新为`dpl_CgwJFnf4xJjpqVced4Lj74CJ48sC`，区域iad1；仅切换global.formward.top与formward-ten.vercel.app，原第三别名保持。界面布局修正沿用该含同源MFA处理的网关，新资源实际回源通过；恢复网关时也必须保留/account/security同源规则。正式域名、IP和两个海外入口实际版本一致；MFA保持当前来源、随机nonce CSP、HSTS与防嵌入均通过。HTTP1.15.1、MCP2.0.2／18项、原resource与公开JWKS保持，匿名HTTP／MCP拒绝401。未写正式健康测试数据，未调用收费模型。
+
+完整兼容运行包76,119,833字节，SHA256 `3358f943d14031719666dc5433c3e34126ca31354d96405468685f5829a347d7`，服务器与本机归档逐字节一致，永久保存在原入口`.codex/backups/regional-releases/security-admin-layout-20261117`。安全恢复使用上一已验证版本`security-admin-release-20261117`（d90023df），保留相同MFA、预算及动作门禁，已以实际服务身份通过当前schema就绪。旧0042包仅保留审计，不作为可启动回退。
 
 本轮私有脚本、日志、参考图和虚构截图保存在原入口`.codex/security-admin-20261117`；Windows可读副本在`C:/Users/14878/.codex/private/formward-security-admin-20261117`。未实测真实iPhone／Android、系统软键盘、系统字号、屏幕阅读器及长期负载；WebKit与网页文字放大不冒充真机通过。
 
@@ -56,7 +58,7 @@ lint、typecheck、830项单元／集成和干净production build通过，包含
 
 - BETTER_AUTH_URL、OAuth issuer、MCP resource、JWKS、原Better Auth secret、账号accessVersion、会话、刷新令牌和授权保持。原GPT连接已在线get_profile验证，无需重连。
 - 各入口的host-only Secure Cookie继续隔离。网页跳转不转交Cookie、Authorization或请求正文；国服使用本人在国服的会话，首次进入可正常登录。
-- 切换前已打开页面的RSC读取、预取及POST保存继续原路径；不跨域重放写入。保留绑定参数加密密钥与旧静态资源；51项旧Server Action返回409刷新提示，55项新动作执行当前权限检查。当前与安全恢复包均在正式服务身份下通过就绪。
+- 切换前已打开页面的RSC读取、预取及POST保存继续原路径；不跨域重放写入。保留绑定参数加密密钥与旧静态资源；过期Server Action返回409刷新提示，55项当前动作执行权限检查。当前与安全恢复包均在正式服务身份下通过就绪。
 - Next proxy保留原始URL及RSC头，服务证明绑定完整路径与全部查询。不能为修复框架归一化而忽略业务查询或放宽签名。
 - Garmin原连接编号、密文、AES-GCM主密钥、来源事实及人工保护保持；上海只读网络检查验证换取令牌、每日和活动接口成功。
 - 海外网关不包含数据库驱动、数据库凭据或认证签名密钥。上海重新检查Cookie／Bearer、账号和权限。公网IP同一HTTPS入口区分国服直达与已签名回源，伪造身份头不能提升来源。
