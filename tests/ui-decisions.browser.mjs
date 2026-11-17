@@ -102,6 +102,8 @@ try{
    }
    await newChat(page);mark('饮食确认卡');await message(page,'100克，创建预览');await screenshot(page,profile,'confirmation-meal',['A05','B01','B03','X17']);
    const review=page.locator('[data-chat-preview]').first();
+   const more=review.locator('summary').filter({hasText:'更多信息'}).first();
+   if(await more.count()){await more.click();await screenshot(page,profile,'confirmation-meal-more',['B02','B03','X17','T07']);await more.click();}
    if(await page.getByRole('button',{name:/^(确认保存|保存确认)$/}).count()){
     mark('隔离数据确认保存');await page.getByRole('button',{name:/^(确认保存|保存确认)$/}).click();await page.getByText('已保存',{exact:true}).first().waitFor();await screenshot(page,profile,'confirmation-saved',['A06','B04','B05','B06']);
    }
@@ -123,6 +125,7 @@ try{
    await page.getByRole('button',{name:'自己填写',exact:true}).first().click();assert.equal(await page.getByLabel('食物名称 1',{exact:true}).inputValue(),'原手填草稿');
    await page.getByRole('button',{name:'关闭编辑',exact:true}).click();await page.getByRole('button',{name:'放弃修改',exact:true}).click();
    await navigate(page,'身体');await screenshot(page,profile,'body-today',['D04','D09','X11']);await page.locator('[data-history-toggle]').click();await screenshot(page,profile,'body-history',['X11','T11']);
+   await navigate(page,'消耗');await screenshot(page,profile,'energy-today',['D06','X12']);await page.locator('[data-history-toggle]').click();await screenshot(page,profile,'energy-history',['X12','T11']);
    if(process.env.FORMWARD_UI_EXTENDED==='1'){
     await navigate(page,'训练');await screenshot(page,profile,'training-calendar',['E01','P05']);
     const start=page.getByRole('button',{name:/^(按计划训练|继续训练|开始训练)$/}).first();await start.click();await page.locator('[data-training-editor]').waitFor();await screenshot(page,profile,'training-editor',['X13','X14']);

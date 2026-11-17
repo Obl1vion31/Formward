@@ -80,6 +80,9 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
       });
     }
     await prepareChartFlightBitmap(node,dest);
+    // WebKit首次提交canvas纹理也可能占用一次绘制；先让真实帧落屏，再开始300ms计时。
+    // 路由及数据请求已在进行，这里只等待图形合成，不阻塞导航。
+    await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
     if(motion.current.active?.id!==id||!node.isConnected)return;
     if(current.model.kind==='morning-weight'){
       const from=node.querySelector<HTMLElement>('[data-flight-bitmap][data-chart-glyph-layer="source"]')??node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="source"]'),to=node.querySelector<HTMLElement>('[data-flight-bitmap][data-chart-glyph-layer="destination"]')??node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="destination"]');
