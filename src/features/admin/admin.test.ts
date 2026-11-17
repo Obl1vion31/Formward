@@ -6,7 +6,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import * as schema from "../../db/schema";
 import type { Database } from "../../db/client";
-import { loadAdminConsole } from "./queries";
+import { loadAdminConsole,loadAdminDay } from "./queries";
 import { changeUserAiPolicy } from "./policy";
 import { normalizeAdminFilter, adminMoney } from "./model";
 import { securityDay } from "../auth/security-usage";
@@ -55,6 +55,11 @@ test("北京时间跨午夜、精确小额、失败未知、多轮请求与停�
   assert.equal(all.totals.spent,"0.00000003");assert.equal(all.tasks.count,1);assert.equal(all.totals.requests,4);assert.equal(all.totals.input,"18");assert.equal(all.totals.cached,"5");assert.equal(all.totals.output,"5");assert.equal(all.totals.unknownUsage,2);assert.equal(all.users[0].banned,true);assert.equal(all.records.find(r=>r.kind==="餐次")?.added,1);
   assert.equal(Number(all.totals.reserved),.01);assert.equal(Number(all.totals.uncertain),.01);assert.equal(adminMoney(all.totals.spent),"小于0.0001");assert.ok(!JSON.stringify(all).includes("虚构聊天正文"));assert.ok(!JSON.stringify(all).includes("虚构餐食正文"));
   const filtered=await loadAdminConsole(db,proof,{from:"2024-01-01",to:"2024-01-02",provider:"mimo"});assert.equal(filtered.totals.requests,0);assert.equal(filtered.tasks.count,0);
+  const extraRun=randomUUID();await db.insert(schema.assistantRun).values({id:extraRun,userId:person,conversationId,userMessageId:question,assistantMessageId:answer,provider:"qwen",model:"fictional-other",requestId:randomUUID(),requestDigest:"fixture",state:"complete"});
+  await db.insert(schema.assistantUsageRequest).values({id:randomUUID(),userId:person,runId:extraRun,provider:"qwen",date:"2024-01-02",state:"settled",costCny:".125",reservedCny:".2",usage:{prompt_tokens:50,completion_tokens:10},rates:{input:1,cachedInput:0,output:1}});
+  const modelDay=await loadAdminDay(db,proof,{from:"2024-01-02",to:"2024-01-02",userId:person},{dimension:"models",page:1});assert.equal(modelDay.count,2);assert.equal(modelDay.total.spent,"0.12500002");assert.equal(modelDay.rows.find(r=>r.label==="fictional")?.unknownUsage,2);
+  const exactModel=await loadAdminConsole(db,proof,{from:"2024-01-02",to:"2024-01-02",model:"fictional-other",provider:"qwen"});assert.equal(exactModel.totals.spent,"0.12500000");assert.equal(exactModel.totals.requests,1);assert.equal(exactModel.tasks.count,1);assert.equal(exactModel.highlights.models.length,1);assert.equal(exactModel.highlights.models[0].label,"fictional-other");
+  const userDay=await loadAdminDay(db,proof,{from:"2024-01-02",to:"2024-01-02",model:"fictional-other"},{dimension:"users",page:1});assert.equal(userDay.rows[0].key,person);assert.equal(userDay.total.spent,exactModel.totals.spent);assert.equal(userDay.rows[0].spent,exactModel.highlights.models[0].spent);
   await db.update(schema.session).set({adminVerifiedAt:new Date(Date.now()-300001)}).where(eq(schema.session.id,sid));await assert.rejects(loadAdminConsole(db,proof),/再次输入密码/);
  }finally{await pg.close();}
 });

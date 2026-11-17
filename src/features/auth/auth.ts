@@ -18,8 +18,10 @@ import { regionConfig } from "./regions";
 import { oauthMetadataFetch } from "./oauth-network";
 import { ApiError } from "./ai-identity";
 import { recordSecurityEvent } from "./security-usage";
+import { withMembership } from "./membership-policy";
 
 type SecurityContext = MfaContextState;
+const authDatabases = new WeakMap<object, Database>();
 const blockedAccountPaths = ["/token", "/change-password", "/set-password", "/request-password-reset", "/reset-password", "/change-email", "/delete-user", "/delete-user/callback", "/send-verification-email", "/verify-email", "/update-user", "/verify-password", "/revoke-session", "/revoke-sessions", "/revoke-other-sessions", "/update-session", "/link-social", "/unlink-account"];
 
 export function createAuth(db: Database, config: { secret: string; baseURL: string; rateLimit?: boolean }) {
@@ -38,14 +40,14 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
     roles: { user: userAc, owner: defaultAc.newRole({ user: ["list", "get", "ban"], session: ["list", "revoke"] }) },
     bannedUserMessage: "账号已停用，请联系邀请人。" });
   const disabledPaths = [...blockedAccountPaths, ...Object.values(adminPlugin.endpoints).map(endpoint => endpoint.path)];
-  return betterAuth({
+  const instance = betterAuth({
     appName: "Formward",
     secret: config.secret,
     baseURL: config.baseURL,
     trustedOrigins,
     database: drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
     emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: MIN_PASSWORD_LENGTH, maxPasswordLength: MAX_PASSWORD_LENGTH },
-    user: { additionalFields: { aiPaused: { type: "boolean", defaultValue: false, input: false }, aiDailyBudgetCents: { type: "number", required: false, input: false }, aiDailyRecognitionLimit: { type: "number", required: false, input: false }, membershipTier: { type: ["free", "beta", "plus", "pro"], defaultValue: "free", input: false }, entitlementVersion: { type: "number", defaultValue: 0, input: false }, accessVersion: { type: "number", defaultValue: 0, input: false }, lastLoginAt: { type: "date", required: false, input: false } } },
+    user: { additionalFields: { membershipTierId: { type: "string", required: false, input: false }, aiPaused: { type: "boolean", defaultValue: false, input: false }, aiDailyBudgetCents: { type: "number", required: false, input: false }, aiDailyRecognitionLimit: { type: "number", required: false, input: false }, membershipTier: { type: ["free", "beta", "plus", "pro"], defaultValue: "free", input: false }, entitlementVersion: { type: "number", defaultValue: 0, input: false }, accessVersion: { type: "number", defaultValue: 0, input: false }, lastLoginAt: { type: "date", required: false, input: false } } },
     session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24, cookieCache: { enabled: false }, additionalFields: {
       accessVersion: { type: "number", defaultValue: 0, input: false }, adminVerifiedAt: { type: "date", required: false, input: false, returned: false },
       mfaVerifiedAt: { type: "date", required: false, input: false, returned: false }, securityVerifiedAt: { type: "date", required: false, input: false, returned: false }, mfaRecoveryRequired: { type: "boolean", defaultValue: false, input: false, returned: false },
@@ -152,6 +154,7 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
       formwardMfaPlugin(db),
     ],
   });
+  authDatabases.set(instance,db); return instance;
 }
 
 type Auth = ReturnType<typeof createAuth>;
@@ -170,5 +173,9 @@ export function getAuth() {
 // 身份只来自经过验证的 cookie，不接受客户端传来的 user_id。
 export async function currentUser(headers: Headers, auth = getAuth()) {
   const result = await auth.api.getSession({ headers });
-  return result?.user ?? null;
+  if(!result?.user)return null;
+  const db=authDatabases.get(auth)??getDatabase();
+  const [current]=await db.select().from(schema.user).where(eq(schema.user.id,result.user.id));
+  if(!current||current.banned)return null;
+  return withMembership(db,{...result.user,...current});
 }

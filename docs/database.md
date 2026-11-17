@@ -21,7 +21,7 @@ assistant_connections按chat／meal_entry用途关联独立可撤销授权；ass
 0026_dark_tana_nile为activities增加calorie_mode、resting_kcal、active_kcal，均可空，旧记录不回填。TypeScript对应calorieMode、exerciseRestingKcal、exerciseActiveKcal，避免与日记录混淆。原calories_kcal保存运动总数；分项模式总数由两项已知时形成，计入值由纯运动产生，未知保持空。账号、来源、版本和审计沿用。当前60张业务表另加Drizzle账本。身体旧实测通过既有deleted_at归档；单指标删除保留另一指标及审计。
 
 
-本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 60 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。0027 只扩展账号管理，不修改健康表、旧密码或授权值。
+本文描述已纳入 migration 的当前物理结构。业务语义见 [数据模型原则](data-model.md)，认证配置见 [接入指南](auth-setup.md)。不包含真实健康数值、账号或连接凭据。当前 schema 有 67 张业务／认证／限流表；`measurements` 为 30 列，`measurement_sources` 为 6 列。0027 只扩展账号管理，不修改健康表、旧密码或授权值。
 
 `0007_strong_omega_sentinel.sql` 将测量与日期表统一为 `record_date`，测量表移除重复 `local_date`。实际发生日期从 `source_local_time` 读取；迁移在删除旧列前锁定并验证两者一致，异常则整批停止。凌晨分组、已有指纹、原始输入、旧审计和冻结报告保持。旧私有请求只在读取入口兼容 `analysisDate`；新模型统一使用 `recordDate`，冲突拒绝，旧补全请求指纹仍可识别。
 
@@ -829,3 +829,9 @@ assistant_reminder_dismissals保存账号级昨日饮食提醒的忽略状态。
 | image_quota_leases | id、user_id、date、bytes、state、expires_at、created_at | reserved／complete／released，1–20MiB，账号日期索引；4并发、每天200MiB |
 
 后台费用仅聚合assistant_usage_requests中的numeric值，预占／未知与已结算分开；NULL用量保持未知。策略修改在账号锁内核对owner、5分钟验证、版本和幂等编号，账号审计保存原因及前后值。只汇总健康表的有效行数、创建时间和登记图片字节，不读取健康内容。详见[安全与全站管理](security-admin.md)。
+
+## 后台会员档位
+
+0045_managed_membership新增membership_tiers，保存稳定text编号、名称、启用状态、管理员专用／新用户默认标记、可空每日金额分（0–1000）与识图次数（0–100）、聊天／识图开关、乐观版本、归档及创建／更新时间。未归档名称按lower唯一；有效默认档位唯一且必须启用、非管理员专用。开放聊天必须配置每日金额。NULL表示该档位不单独限制该项，0表示禁用额度；用户层NULL仍表示继承。删除在应用中归档并转移成员，保留配置与审计。
+
+users新增可空membership_tier_id外键及索引，迁移按旧membership_tier逐行回填。旧列与约束保持，仅供旧数据兼容，不再作为站内模型额度权威。账号创建和邀请激活显式写当前默认编号；指定试用owner读取管理员专用策略，不通过档位授予角色。组配置、默认分配与成员转移共用事务级咨询锁；模型入场在账号锁内读取最新策略，额度继续取原assistant_usage_requests，不重复建费用账本。当前共67张业务／认证表。

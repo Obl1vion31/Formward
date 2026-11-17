@@ -5,6 +5,7 @@ import { hashPassword } from "better-auth/crypto";
 import { eq } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { account, user } from "../../db/schema";
+import { defaultMembershipId } from "./membership-policy";
 
 // 仅供本地管理员脚本使用；没有公开注册 HTTP 入口。重复执行不重置已有密码。
 export async function provisionAccount(db: Database, input: { email: string; password: string; name?: string }) {
@@ -14,7 +15,8 @@ export async function provisionAccount(db: Database, input: { email: string; pas
   const password = await hashPassword(input.password);
   return db.transaction(async (tx) => {
     const id = randomUUID();
-    const [created] = await tx.insert(user).values({ id, email, name: input.name?.trim() || email.split("@")[0] }).onConflictDoNothing({ target: user.email }).returning();
+    const membershipTierId=await defaultMembershipId(tx);
+    const [created] = await tx.insert(user).values({ id, email, membershipTierId, name: input.name?.trim() || email.split("@")[0] }).onConflictDoNothing({ target: user.email }).returning();
     if (!created) {
       const [existing] = await tx.select({ id: user.id }).from(user).where(eq(user.email, email));
       return { id: existing.id, created: false };

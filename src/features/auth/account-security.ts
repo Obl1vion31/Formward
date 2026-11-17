@@ -5,6 +5,7 @@ import { consumeSecurityRate } from "./security-usage";
 import type { Database } from "../../db/client";
 import { accountLink, aiToken, oauthAccessToken, oauthConnection, oauthConsent, oauthRefreshToken, session, user, dataConnection } from "../../db/schema";
 import { ApiError } from "./ai-identity";
+import { withMembership } from "./membership-policy";
 
 export type SecurityTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export type SessionProof = { userId: string; sessionId: string; accessVersion: number };
@@ -18,7 +19,7 @@ export const hashAccountToken = (value: string) => createHash("sha256").update(v
 export async function requireActiveAccount(db: Pick<Database, "select">, userId: string) {
   const [row] = await db.select().from(user).where(eq(user.id, userId));
   if (!row || row.banned) throw new ApiError(401, "invalid_token", "账号访问已失效，请重新登录或联系邀请人。");
-  return row;
+  return withMembership(db,row);
 }
 
 export async function requireSessionProof(db: Pick<Database, "select">, proof: SessionProof, admin = false, options: { allowMfaSetup?: boolean } = {}) {
@@ -50,7 +51,7 @@ export async function lockActiveAccount(tx: SecurityTransaction, userId: string)
     if (proof.userId !== userId) throw new ApiError(403, "forbidden", "不能操作其他账号。");
     await requireSessionProof(tx, proof);
   }
-  return row;
+  return withMembership(tx,row);
 }
 
 // 摘要化限流键，不把邮箱、令牌和来源地址写进 key。计数由数据库原子维护，多实例共享。
