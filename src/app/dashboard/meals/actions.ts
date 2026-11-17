@@ -7,8 +7,8 @@ import { getDatabase } from "@/db/client";
 import { safeAiError } from "@/features/measurements/ai-api";
 import { submitMealOperation, decideMealOperation, reviseMealOperation, readMealSnapshot, getMealOperation } from "@/features/meals/records";
 import type { MealInput, MealAction } from "@/features/meals/model";
-async function perform<T>(work: (userId: string) => Promise<T>) {
-  try { return await withCurrentSession(await headers(), async user => { const data = await work(user.id); revalidatePath("/dashboard/meals"); revalidatePath("/dashboard/meals/review/[id]", "page"); revalidatePath("/dashboard/ai"); revalidatePath("/dashboard"); return { ok: true as const, data }; }); }
+async function perform<T>(work: (userId: string) => Promise<T>,mode:"read"|"write"="write") {
+  try { return await withCurrentSession(await headers(), async user => { const data = await work(user.id); revalidatePath("/dashboard/meals"); revalidatePath("/dashboard/meals/review/[id]", "page"); revalidatePath("/dashboard/ai"); revalidatePath("/dashboard"); return { ok: true as const, data }; },mode); }
   catch(error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }
 export async function saveMealAction(input: MealInput, allowMissingImages = false) { return perform(async userId => {
@@ -21,7 +21,7 @@ export async function decideMealAction(id: string, revision: number, decision: "
 export async function loadMealReviewAction(id: string) { return perform(async userId => {
   const { displayMealOperation } = await import("@/features/meals/records");
   return displayMealOperation(await getMealOperation(getDatabase(),userId,id));
-}); }
+},"read"); }
 export async function refreshMealAction(id: string, revision: number) { return perform(userId=>reviseMealOperation(getDatabase(),userId,id,revision)); }
 export async function editMealPreviewAction(id: string, revision: number, index: number, action: MealAction) { return perform(async userId=>{
   const db=getDatabase(), current=await getMealOperation(db,userId,id), actions=[...current.draft.actions];

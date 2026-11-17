@@ -24,9 +24,14 @@ export const user = pgTable("users", {
   banExpires: timestamp("ban_expires", { withTimezone: true }),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   accessVersion: integer("access_version").notNull().default(0),
+  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
+  aiPaused: boolean("ai_paused").notNull().default(false),
+  aiDailyBudgetCents: integer("ai_daily_budget_cents"),
+  aiDailyRecognitionLimit: integer("ai_daily_recognition_limit"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-}, table => [check("users_membership_valid", sql`${table.membershipTier} IN ('free','beta','plus','pro') AND ${table.entitlementVersion} >= 0`)]);
+}, table => [check("users_membership_valid", sql`${table.membershipTier} IN ('free','beta','plus','pro') AND ${table.entitlementVersion} >= 0`),
+  check("users_ai_policy_valid", sql`(${table.aiDailyBudgetCents} IS NULL OR ${table.aiDailyBudgetCents} BETWEEN 0 AND 1000) AND (${table.aiDailyRecognitionLimit} IS NULL OR ${table.aiDailyRecognitionLimit} BETWEEN 0 AND 100)`)]);
 
 export const session = pgTable("sessions", {
   id: text("id").primaryKey(),
@@ -38,6 +43,9 @@ export const session = pgTable("sessions", {
   impersonatedBy: text("impersonated_by"),
   accessVersion: integer("access_version").notNull().default(0),
   adminVerifiedAt: timestamp("admin_verified_at", { withTimezone: true }),
+  mfaVerifiedAt: timestamp("mfa_verified_at", { withTimezone: true }),
+  securityVerifiedAt: timestamp("security_verified_at", { withTimezone: true }),
+  mfaRecoveryRequired: boolean("mfa_recovery_required").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [index("sessions_user_id_idx").on(table.userId)]);
@@ -99,6 +107,7 @@ export const accountEvent = pgTable("account_events", {
   action: text("action").notNull(),
   outcome: text("outcome").notNull().default("success"),
   reason: text("reason"),
+  details: jsonb("details").$type<Record<string, unknown> | null>(),
   requestId: text("request_id").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => [uniqueIndex("account_events_request_idx").on(t.requestId), index("account_events_created_idx").on(t.createdAt)]);
@@ -226,6 +235,7 @@ export const aiToken = pgTable("ai_tokens", {
   tokenHash: text("token_hash").notNull().unique(),
   prefix: text("prefix").notNull(),
   permission: text("permission", { enum: ["read", "write"] }).notNull(),
+  domains: jsonb("domains").$type<("measurements" | "meals" | "energy" | "training")[] | null>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
@@ -657,7 +667,7 @@ export const assistantRecognition = pgTable("assistant_recognitions", {
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), conversationId: text("conversation_id").notNull(),
   inputDigest: text("input_digest").notNull(), date: date("date").notNull(), state: text("state").$type<"prepared" | "reserved" | "used" | "refunded">().notNull().default("prepared"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-}, t => [foreignKey({ columns: [t.userId, t.conversationId], foreignColumns: [assistantConversation.userId, assistantConversation.id] }), uniqueIndex("assistant_recognitions_owner_id_idx").on(t.userId, t.id), index("assistant_recognitions_day_idx").on(t.userId, t.date), check("assistant_recognitions_state_valid", sql`${t.state} IN ('prepared','reserved','used','refunded')`)]);
+}, t => [foreignKey({ columns: [t.userId, t.conversationId], foreignColumns: [assistantConversation.userId, assistantConversation.id] }), uniqueIndex("assistant_recognitions_owner_id_idx").on(t.userId, t.id), index("assistant_recognitions_day_idx").on(t.userId, t.date),index("assistant_recognitions_global_day_idx").on(t.date,t.state), check("assistant_recognitions_state_valid", sql`${t.state} IN ('prepared','reserved','used','refunded')`)]);
 export const assistantRun = pgTable("assistant_runs", {
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), conversationId: text("conversation_id").notNull(),
   userMessageId: text("user_message_id").notNull(), assistantMessageId: text("assistant_message_id").notNull(),
@@ -674,4 +684,34 @@ export const assistantUsageRequest = pgTable("assistant_usage_requests", {
   state: text("state").notNull().default("reserved"), reservedCny: numeric("reserved_cny", { precision: 18, scale: 8 }).notNull(), costCny: numeric("cost_cny", { precision: 18, scale: 8 }),
   usage: jsonb("usage").$type<Record<string, unknown> | null>(), rates: jsonb("rates").$type<import("../features/assistant/chat-config").ChatRates>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, t => [foreignKey({ columns: [t.userId, t.runId], foreignColumns: [assistantRun.userId, assistantRun.id] }), index("assistant_usage_day_idx").on(t.userId, t.date), check("assistant_usage_valid", sql.raw("reserved_cny >= 0 AND (cost_cny IS NULL OR cost_cny >= 0) AND state IN ('reserved','settled','unknown') AND provider IN ('qwen','mimo','glm')"))]);
+}, t => [foreignKey({ columns: [t.userId, t.runId], foreignColumns: [assistantRun.userId, assistantRun.id] }), index("assistant_usage_day_idx").on(t.userId, t.date), index("assistant_usage_global_day_idx").on(t.date,t.userId,t.provider), check("assistant_usage_valid", sql.raw("reserved_cny >= 0 AND (cost_cny IS NULL OR cost_cny >= 0) AND state IN ('reserved','settled','unknown') AND provider IN ('qwen','mimo','glm')"))]);
+
+// MFA 由 Better Auth 官方插件验证；秘密与恢复码均加密保存，不返回通用账号查询。
+export const twoFactor = pgTable("two_factors", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }).unique(),
+  secret: text("secret").notNull(), backupCodes: text("backup_codes").notNull(), verified: boolean("verified").notNull().default(false),
+  failedVerificationCount: integer("failed_verification_count").notNull().default(0), lockedUntil: timestamp("locked_until", { withTimezone: true }),
+});
+export const mfaLoginChallenge = pgTable("mfa_login_challenges", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  accessVersion: integer("access_version").notNull(), expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, t => [index("mfa_challenges_expiry_idx").on(t.expiresAt)]);
+
+// 每日行仅用作全站费用预占互斥锁，费用事实仍仅来自 assistant_usage_requests。
+export const aiBudgetDay = pgTable("ai_budget_days", { date: date("date").primaryKey() });
+export const apiDailyUsage = pgTable("api_daily_usage", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), date: date("date").notNull(),
+  channel: text("channel").$type<"http" | "mcp" | "doubao">().notNull(), operation: text("operation").notNull(),
+  requests: integer("requests").notNull().default(0), failures: integer("failures").notNull().default(0),
+}, t => [uniqueIndex("api_usage_day_idx").on(t.userId, t.date, t.channel, t.operation),index("api_usage_global_day_idx").on(t.date,t.channel), check("api_usage_valid", sql`${t.requests} >= 0 AND ${t.failures} BETWEEN 0 AND ${t.requests} AND ${t.channel} IN ('http','mcp','doubao')`)]);
+export const securityEvent = pgTable("security_events", {
+  id: text("id").primaryKey(), userId: text("user_id").references(() => user.id),
+  category: text("category").notNull(), sourceHash: text("source_hash"), requestId: text("request_id"),
+  details: jsonb("details").$type<Record<string, string | number | boolean | null>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [index("security_events_created_idx").on(t.createdAt), index("security_events_user_idx").on(t.userId, t.createdAt)]);
+export const imageQuotaLease = pgTable("image_quota_leases", {
+  id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id), date: date("date").notNull(),
+  bytes: integer("bytes").notNull(), state: text("state").$type<"reserved" | "complete" | "released">().notNull().default("reserved"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [index("image_quota_owner_day_idx").on(t.userId, t.date), check("image_quota_valid", sql`${t.bytes} BETWEEN 1 AND 20971520 AND ${t.state} IN ('reserved','complete','released')`)]);

@@ -1,3 +1,4 @@
+import { assertPendingCapacity } from "../records/pending-limit";
 import {numberChangeMessages} from "../../components/number-change";
 import {adoptedMeasurements} from "./days";
 import { latestMeasurement } from "./days";
@@ -133,6 +134,7 @@ export async function submitAiMeasurementOperation(db: Database, identity: AiIde
     const candidate = input.kind === "save_day" && !Object.hasOwn(raw as object, "timezone") ? { ...input, timezone: defaultTimezone } : input;
     const preview = items ? combinedPreview(input.kind, items) : await previewOperation(tx, identity.userId, candidate as SingleInput, current.records);
     preview.defaultTimezone = defaultTimezone;
+    await assertPendingCapacity(tx as unknown as Database,identity.userId);
     const [row] = await tx.insert(measurementOperation).values({ id: randomUUID(), userId: identity.userId, tokenId: identity.tokenId ?? null, oauthConnectionId: identity.oauthConnectionId ?? null, operationId: input.operationId, requestDigest, snapshotDigest: current.digest, payload: input, preview, ...(items ? { status: reviewStatus(items) } : {}), expiresAt: new Date(Date.now() + 15 * 60000) }).returning();
     return { ...operationDisplay(row), repeated: false };
   });

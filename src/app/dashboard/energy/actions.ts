@@ -2,7 +2,7 @@
 import {checkWebEnergy} from "@/features/records/web-entry-server";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { withCurrentSession } from "@/features/auth/server";
+import { withCurrentSession,withReadSession } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { submitEnergyOperation, decideEnergyOperation, readEnergySnapshot } from "@/features/activities/records";
 import type { EnergyInput } from "@/features/activities/model";
@@ -19,15 +19,15 @@ import {measurementDisplay} from "@/features/measurements/editing";
 import {listMeasurementSources} from "@/features/measurements/sources";
 import {calendarOrdinal} from "@/features/measurements/calendar";
 export async function loadEnergyCalculationAction(date:string) {
- try { return await withCurrentSession(await headers(), async user=>({ok:true as const,data:await loadCalculationContext(getDatabase(),user.id,date)})); }
+ try { return await withReadSession(await headers(), async user=>({ok:true as const,data:await loadCalculationContext(getDatabase(),user.id,date)})); }
  catch(error) { return {ok:false as const,error:safeAiError(error).error.message}; }
 }
 export async function loadEnergySupplementAction(date:string) {
- try { calendarOrdinal(date);return await withCurrentSession(await headers(),async user=>{const db=getDatabase();return {ok:true as const,data:{records:(await listMeasurements(db,user.id,[date])).map(measurementDisplay),sources:await listMeasurementSources(db,user.id)}};}); }
+ try { calendarOrdinal(date);return await withReadSession(await headers(),async user=>{const db=getDatabase();return {ok:true as const,data:{records:(await listMeasurements(db,user.id,[date])).map(measurementDisplay),sources:await listMeasurementSources(db,user.id)}};}); }
  catch(error){return {ok:false as const,error:safeAiError(error).error.message};}
 }
 export async function loadEnergyStateAction(){
- try{return await withCurrentSession(await headers(),async user=>{const db=getDatabase(),snapshot=await readEnergySnapshot(db,user.id),today=localMeasurementDate(new Date(),systemMeasurementTimezone());return {ok:true as const,data:energyPresentation(snapshot,[],today,await listEnergySources(db,user.id),user.id)};});}
+ try{return await withReadSession(await headers(),async user=>{const db=getDatabase(),snapshot=await readEnergySnapshot(db,user.id),today=localMeasurementDate(new Date(),systemMeasurementTimezone());return {ok:true as const,data:energyPresentation(snapshot,[],today,await listEnergySources(db,user.id),user.id)};});}
  catch(error){return {ok:false as const,error:safeAiError(error).error.message};}
 }
 export async function saveEnergyAction(input: EnergyInput) {

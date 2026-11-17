@@ -3,7 +3,7 @@ import { betterAuth } from "better-auth/minimal";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { getDatabase, type Database } from "../../db/client";
 import * as schema from "../../db/schema";
-import { admin, jwt } from "better-auth/plugins";
+import { admin, jwt, twoFactor } from "better-auth/plugins";
 import { defaultAc, userAc } from "better-auth/plugins/admin/access";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { and, eq } from "drizzle-orm";
@@ -12,12 +12,14 @@ import { cimd } from "@better-auth/cimd";
 import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { getOAuthProviderState } from "@better-auth/oauth-provider";
 import { OAUTH_SCOPES, oauthAccessClaims, oauthConnectionReference } from "./oauth-connections";
-import { limitAccountAttempt, requireSessionProof } from "./account-security";
+import { limitAccountAttempt, requireSessionProof, requireRecentSecurity } from "./account-security";
+import { formwardMfaPlugin, prepareMfaVerification, type MfaContextState } from "./mfa-hooks";
 import { regionConfig } from "./regions";
 import { oauthMetadataFetch } from "./oauth-network";
+import { ApiError } from "./ai-identity";
+import { recordSecurityEvent } from "./security-usage";
 
-type LoginSnapshot = { id: string; accessVersion: number };
-type SecurityContext = { formwardLogin?: LoginSnapshot };
+type SecurityContext = MfaContextState;
 const blockedAccountPaths = ["/token", "/change-password", "/set-password", "/request-password-reset", "/reset-password", "/change-email", "/delete-user", "/delete-user/callback", "/send-verification-email", "/verify-email", "/update-user", "/verify-password", "/revoke-session", "/revoke-sessions", "/revoke-other-sessions", "/update-session", "/link-social", "/unlink-account"];
 
 export function createAuth(db: Database, config: { secret: string; baseURL: string; rateLimit?: boolean }) {
@@ -43,9 +45,10 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
     trustedOrigins,
     database: drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
     emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: MIN_PASSWORD_LENGTH, maxPasswordLength: MAX_PASSWORD_LENGTH },
-    user: { additionalFields: { membershipTier: { type: ["free", "beta", "plus", "pro"], defaultValue: "free", input: false }, entitlementVersion: { type: "number", defaultValue: 0, input: false }, accessVersion: { type: "number", defaultValue: 0, input: false }, lastLoginAt: { type: "date", required: false, input: false } } },
+    user: { additionalFields: { aiPaused: { type: "boolean", defaultValue: false, input: false }, aiDailyBudgetCents: { type: "number", required: false, input: false }, aiDailyRecognitionLimit: { type: "number", required: false, input: false }, membershipTier: { type: ["free", "beta", "plus", "pro"], defaultValue: "free", input: false }, entitlementVersion: { type: "number", defaultValue: 0, input: false }, accessVersion: { type: "number", defaultValue: 0, input: false }, lastLoginAt: { type: "date", required: false, input: false } } },
     session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24, cookieCache: { enabled: false }, additionalFields: {
       accessVersion: { type: "number", defaultValue: 0, input: false }, adminVerifiedAt: { type: "date", required: false, input: false, returned: false },
+      mfaVerifiedAt: { type: "date", required: false, input: false, returned: false }, securityVerifiedAt: { type: "date", required: false, input: false, returned: false }, mfaRecoveryRequired: { type: "boolean", defaultValue: false, input: false, returned: false },
     } },
     rateLimit: {
       enabled: config.rateLimit ?? true,
@@ -58,29 +61,40 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
     disabledPaths,
     hooks: {
       before: createAuthMiddleware(async ctx => {
+        const origin = ctx.headers?.get("origin");
+        if (origin && !trustedOrigins.includes(origin)) throw new APIError("FORBIDDEN", { message: "请求来源无效。" });
+        await prepareMfaVerification(db, ctx);
         // disabledPaths 仅保护 HTTP；这里同时拦截服务端 auth.api 的旁路。
         if (disabledPaths.includes(ctx.path)) throw new APIError("NOT_FOUND", { message: "此入口未开放。" });
         if (ctx.path === "/sign-in/email") {
           const email = typeof ctx.body?.email === "string" ? ctx.body.email.trim().toLowerCase() : "";
           if (config.rateLimit !== false) {
-            try { await limitAccountAttempt(db, "signin-account", email); }
-            catch { throw new APIError("TOO_MANY_REQUESTS", { message: "尝试次数较多，请一分钟后重试。" }); }
+            try { await limitAccountAttempt(db, "signin-account", email); await limitAccountAttempt(db, "signin-source", ctx.headers?.get("x-forwarded-for") ?? "unknown"); }
+            catch (error) { throw new APIError("TOO_MANY_REQUESTS", { message: "尝试次数较多，请一分钟后重试。" }, { "Retry-After": String(error instanceof ApiError ? error.details?.retryAfter ?? 60 : 60) }); }
           }
           const [owner] = await db.select({ id: schema.user.id, accessVersion: schema.user.accessVersion }).from(schema.user).where(eq(schema.user.email, email));
           (ctx.context as typeof ctx.context & SecurityContext).formwardLogin = owner;
         } else if (ctx.path !== "/get-session" && ctx.path !== "/sign-out" && ctx.headers?.get("cookie")) {
           const identity = await getSessionFromCtx(ctx);
           if (identity) {
-            try { await requireSessionProof(db, { userId: identity.user.id, sessionId: identity.session.id, accessVersion: Number((identity.session as { accessVersion?: number }).accessVersion ?? 0) }); }
-            catch { throw new APIError("UNAUTHORIZED", { message: "登录已失效，请重新登录。" }); }
+            try {
+              const proof = { userId: identity.user.id, sessionId: identity.session.id, accessVersion: Number((identity.session as { accessVersion?: number }).accessVersion ?? 0) };
+              await requireSessionProof(db, proof, false, { allowMfaSetup: ctx.path.startsWith("/two-factor/") });
+              if (ctx.path === "/oauth2/consent" && ctx.body?.accept === true) await requireRecentSecurity(db, proof);
+            }
+            catch (error) { if(error instanceof ApiError && error.status===403) throw new APIError("FORBIDDEN",{code:error.code,message:error.message}); throw new APIError("UNAUTHORIZED", { message: "登录已失效，请重新登录。" }); }
           }
         }
       }),
       after: createAuthMiddleware(async ctx => {
+        if(ctx.path==="/sign-in/email" && !ctx.context.newSession && !(ctx.context.returned as {twoFactorRedirect?:boolean}|null)?.twoFactorRedirect) {
+          const snapshot=(ctx.context as typeof ctx.context & SecurityContext).formwardLogin;
+          await recordSecurityEvent(db,"authentication_failed",snapshot?.id,{},ctx.headers?.get("x-forwarded-for")??"unknown");
+        }
         if (ctx.path === "/get-session") {
           const identity = ctx.context.returned as { user?: { id: string }; session?: { id: string; accessVersion?: number } } | null;
           if (identity?.user && identity.session) {
-            try { await requireSessionProof(db, { userId: identity.user.id, sessionId: identity.session.id, accessVersion: identity.session.accessVersion ?? 0 }); }
+            try { await requireSessionProof(db, { userId: identity.user.id, sessionId: identity.session.id, accessVersion: identity.session.accessVersion ?? 0 }, false, { allowMfaSetup: true }); }
             catch { return ctx.json(null); }
           }
         }
@@ -96,7 +110,8 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
     databaseHooks: { session: { create: { before: async (data, ctx) => {
       const snapshot = (ctx?.context as (SecurityContext | undefined))?.formwardLogin;
       if (!snapshot || snapshot.id !== data.userId) throw new APIError("UNAUTHORIZED", { message: "请通过密码登录。" });
-      return { data: { ...data, accessVersion: snapshot.accessVersion, adminVerifiedAt: null } };
+      const state = ctx?.context as SecurityContext;
+      return { data: { ...data, accessVersion: snapshot.accessVersion, adminVerifiedAt: null, mfaVerifiedAt: state.formwardMfaVerified ? new Date() : null, securityVerifiedAt: state.formwardMfaVerified || ctx?.path === "/sign-in/email" ? new Date() : null, mfaRecoveryRequired: !!state.formwardRecovery } };
     } } } },
     plugins: [
       adminPlugin,
@@ -133,6 +148,8 @@ export function createAuth(db: Database, config: { secret: string; baseURL: stri
         } } }],
       }),
       cimd({ fetchClientMetadataResource: regionConfig().enabled ? oauthMetadataFetch : fetchClientMetadataResource, metadataProfile: "mcp-2026-07-28" }),
+      twoFactor({ issuer: "Formward", twoFactorCookieMaxAge: 300, backupCodeOptions: { storeBackupCodes: "encrypted" }, schema: { twoFactor: { modelName: "twoFactor" } } }),
+      formwardMfaPlugin(db),
     ],
   });
 }

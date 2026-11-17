@@ -169,7 +169,7 @@ test("不同认证实例共享登录限流，重建实例不重置，过期后�
   assert.ok(row);
   assert.equal(row.count, 5);
   await db.update(schema.rateLimit).set({ lastRequest: Date.now() - 61_000 }).where(eq(schema.rateLimit.id, row.id));
-  await db.update(schema.rateLimit).set({ lastRequest: Date.now() - 61_000 }).where(eq(schema.rateLimit.key, `account:signin-account:${(await import("./account-security")).hashAccountToken(credentials.email)}`));
+  await db.update(schema.rateLimit).set({ lastRequest: Date.now() - 61_000 });
   assert.equal((await attempt(instances[1])).status, 401);
 });
 

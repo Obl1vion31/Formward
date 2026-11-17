@@ -16,6 +16,7 @@ import { oauthConnection, user } from "../../db/schema";
 import type { createAuth } from "../auth/auth";
 import { processingRegion,regionConfig } from "../auth/regions";
 import { siteOrigin } from "../auth/site-url";
+import { businessRequest } from "../auth/security-usage";
 import { ApiError, type AiIdentity } from "../auth/ai-identity";
 import { CONNECTION_CLAIM, READ_SCOPE, WRITE_SCOPE, MEALS_READ_SCOPE, MEALS_WRITE_SCOPE, ENERGY_READ_SCOPE, ENERGY_WRITE_SCOPE, TRAINING_READ_SCOPE, TRAINING_WRITE_SCOPE, requireOauthConnection } from "../auth/oauth-connections";
 import { imageImportSchema, importMealImages } from "../meals/images";
@@ -57,7 +58,9 @@ export function createFormwardMcp(db: Database, identity: AiIdentity, grantedSco
   async function execute(tool: AiToolName, scopes: string[], work: () => Promise<Record<string, unknown>>) {
     try {
       if (scopes.some(scope => !grantedScopes.includes(scope))) throw new ApiError(403, "insufficient_scope", "当前账号连接缺少权限，请重新授权。");
-      const data = withAiFieldDefinitions(tool, await work());
+      const internal = new URL(request.url).pathname.startsWith("/api/assistant-");
+      const channel = new URL(request.url).pathname.includes("doubao") ? "doubao" : "mcp";
+      const data = withAiFieldDefinitions(tool, await (internal ? work() : businessRequest(db,{userId:identity.userId,tokenId:identity.tokenId,channel,operation:tool,write:scopes.some(scope=>scope.endsWith(":write"))},work)));
       return { content: [{ type: "text" as const, text: JSON.stringify(data) }], structuredContent: data, ...(data.status === "failed" ? { isError: true } : {}) };
     } catch (error) {
       const failure = safeAiError(error);

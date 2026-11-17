@@ -2,8 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { regionConfig } from "./features/auth/regions";
 import { verifyService } from "./features/auth/regional-transport";
 import { singleWebRedirect } from "./features/auth/web-entry";
+import { pageSecurity } from "./features/auth/http-security";
+import { acceptsCurrentAction } from "./features/auth/action-policy";
 
 export function proxy(request: NextRequest) {
+  if (!acceptsCurrentAction(request)) return new NextResponse("网站安全功能已更新，请保留输入并刷新页面后重试。", { status: 409, headers: { "Content-Type":"text/plain", "Cache-Control": "no-store", "X-Formward-Refresh-Required": "1" } });
+  const isPage = !request.nextUrl.pathname.startsWith("/api/") && !request.nextUrl.pathname.startsWith("/_next/") && !/\.[a-z0-9]{1,6}$/i.test(request.nextUrl.pathname);
+  const incoming = new Headers(request.headers);
+  incoming.delete("x-nonce"); incoming.delete("content-security-policy");
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64"), policy = pageSecurity(nonce);
+  if (isPage) { incoming.set("x-nonce", nonce); incoming.set("Content-Security-Policy", policy); }
+  const response = regionalProxy(new NextRequest(request, { headers: incoming }));
+  response.headers.set("X-Content-Type-Options", "nosniff"); response.headers.set("X-Frame-Options", "DENY"); response.headers.set("Referrer-Policy", "no-referrer");
+  response.headers.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
+  if (request.nextUrl.protocol === "https:" || request.headers.get("x-forwarded-proto") === "https") response.headers.set("Strict-Transport-Security", "max-age=31536000");
+  if (isPage) response.headers.set(process.env.FORMWARD_CSP_REPORT_ONLY === "1" ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy", policy);
+  return response;
+}
+
+function regionalProxy(request: NextRequest) {
   const config = regionConfig();
   const headers = new Headers(request.headers);
   for (const name of [...headers.keys()]) if (/^x-formward-/i.test(name)) headers.delete(name);

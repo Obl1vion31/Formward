@@ -1,4 +1,5 @@
 "use client";
+import { MfaPanel } from "./mfa-panel";
 import {useDraftGuard} from "@/components/draft-guard";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, PASSWORD_LENGTH_LABEL } from "./password-policy";
 import { useState, type FormEvent } from "react";
@@ -49,5 +50,6 @@ export function AccountPanel({ initial,embedded=false }: { initial: PersonalAcco
     <div><section className={styles.section}><h2>登录设备</h2><div className={styles.deviceList}>{data.devices.map(device => <article className={styles.device} key={device.id}><div><strong>{deviceName(device.userAgent)}</strong>{device.id === data.currentSessionId && <span className={styles.badge}>当前设备</span>}<small>登录于 {accountDate(device.createdAt)}</small></div><button type="button" disabled={task.busy} onClick={() => void revokeDevice(device.id)}>退出</button></article>)}</div></section>
     </div><section className={styles.section}><h2>修改密码</h2><form onSubmit={changePassword}><label className={styles.field}>当前密码<input name="currentPassword" type="password" value={oldPassword} onChange={event => setOldPassword(event.target.value)} required maxLength={128} autoComplete="current-password" disabled={task.busy} /></label><label className={styles.field}>新密码<input name="newPassword" type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} required minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_LENGTH} autoComplete="new-password" disabled={task.busy} /></label><label className={styles.field}>确认新密码<input name="confirmPassword" type="password" value={confirmation} onChange={event => setConfirmation(event.target.value)} required minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_LENGTH} autoComplete="new-password" disabled={task.busy} /></label><p className={styles.muted}>{PASSWORD_LENGTH_LABEL}，可以粘贴密码管理器生成的密码。</p><button type="submit" className={styles.primary} disabled={task.busy}>修改密码</button></form></section></div>
     <section className={`${styles.section} ${styles.accessSection}`}><div><h2>撤销全部访问</h2><p className={styles.muted}>退出全部设备、断开 AI 授权并暂停设备同步。记录保留，之后可重新登录。</p></div><form onSubmit={revokeAll}><label className={styles.field}>再次输入当前密码<input type="password" name="accessPassword" value={accessPassword} onChange={event => setAccessPassword(event.target.value)} required maxLength={128} autoComplete="current-password" disabled={task.busy} /></label><button type="submit" className={styles.danger} disabled={task.busy}>撤销全部访问</button></form></section>
+    <MfaPanel embedded />
   </div>;
 }

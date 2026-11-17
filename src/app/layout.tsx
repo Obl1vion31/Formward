@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 // 在根布局引入一次，全站即可使用 globals.css 中的类名和颜色变量。
 import "./globals.css";
 import {appearanceBootstrap} from "@/components/appearance-state";
@@ -14,12 +15,13 @@ export const metadata: Metadata = {
 
 // children 是 Next.js 放入的当前页面；根布局提供共有的 html / body 外壳。
 // Readonly 和 React.ReactNode 都是类型说明，不会生成浏览器里的 HTML 标签。
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="zh-CN" data-theme="dark" suppressHydrationWarning>
-      <head><script dangerouslySetInnerHTML={{__html:appearanceBootstrap}}/></head>
+      <head><script nonce={nonce} dangerouslySetInnerHTML={{__html:appearanceBootstrap}}/></head>
       <body><PageLoadingProvider><AppInformationProvider><AppUpdates/>{children}</AppInformationProvider></PageLoadingProvider></body>
     </html>
   );

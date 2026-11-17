@@ -1,3 +1,4 @@
+import { assertPendingCapacity } from "../records/pending-limit";
 import {protectManualEnergyDays,energyFactsChanged} from "../data-sources/manual-protection";
 import {numberChangeMessages} from "../../components/number-change";
 import { retiredEnergyAction } from "./model";
@@ -221,6 +222,7 @@ export async function submitEnergyOperation(db: Database, actor: EnergyActor, ra
     const moveIssue=options.emptyDateMoveTarget?energyDateMoveIssue(input.actions,state):null;
     if(moveIssue)throw new ApiError(409,"date_move_conflict",moveIssue);
     const contexts=await calculationContexts(tx,actor.userId,input.actions);
+    if(actor.origin==="ai")await assertPendingCapacity(tx as unknown as Database,actor.userId);
     const [row] = await tx.insert(energyOperation).values({ id: randomUUID(), userId: actor.userId, operationId: input.operationId, origin: actor.origin, tokenId: actor.identity?.tokenId, oauthConnectionId: actor.identity?.oauthConnectionId, requestDigest: digest(input), snapshotDigest: snapshotDigest(state), payload: input, draft: input, preview: planEnergyActions(input.actions, state,[],contexts), expiresAt: actor.origin === "ai" ? new Date(Date.now() + 15 * 60000) : null }).returning();
     return { ...displayEnergyOperation(row), repeated: false };
   });

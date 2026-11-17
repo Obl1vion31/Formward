@@ -7,11 +7,12 @@ import { requireActiveAiToken } from "../auth/ai-tokens";
 import { ApiError, type AiIdentity } from "../auth/ai-identity";
 import { activeImageStorage, imageStorage } from "./image-storage";
 import { regionConfig } from "../auth/regions";
+import { reserveImageQuota, completeImageQuota, releaseImageQuota, consumeSecurityRate } from "../auth/security-usage";
 
 import { imageMime, imageDiagnostic, downloadMealImage, validateImageDownloadUrl, cleanImageName, imageImportSchema, type ImageResult, type ImageStage } from "./image-bytes";
 export { MAX_IMAGE_BYTES, IMAGE_TYPES, openAiFileSchema, imageImportSchema, imageMime, imageDiagnostic, downloadMealImage, validateImageDownloadUrl, cleanImageName, readImageBytes, type ImageResult } from "./image-bytes";
 // 可替换存储和清理函数，以便使用隔离数据库测试。
-export async function saveMealImage(db: Database, userId: string, bytes: Uint8Array, metadata: { fileName: string; source: "manual" | "ai"; sourceFileId?: string; actorId: string; identity?: AiIdentity; signal?: AbortSignal; region?: "cn"|"global" }, store?: (pathname:string,content:Uint8Array,mime:string)=>Promise<void>, _remove?: (pathname:string)=>Promise<unknown>): Promise<ImageResult> {
+export async function saveMealImage(db: Database, userId: string, bytes: Uint8Array, metadata: { fileName: string; source: "manual" | "ai"; sourceFileId?: string; actorId: string; identity?: AiIdentity; signal?: AbortSignal; region?: "cn"|"global"; leaseId?: string }, store?: (pathname:string,content:Uint8Array,mime:string)=>Promise<void>, _remove?: (pathname:string)=>Promise<unknown>): Promise<ImageResult> {
   void _remove;
   const mimeType=imageMime(bytes),sha256=createHash("sha256").update(bytes).digest("hex");
   const storage=store?null:activeImageStorage(metadata.region??(process.env.FORMWARD_IMAGE_REGION==="cn"?"cn":"global"));
@@ -24,10 +25,12 @@ export async function saveMealImage(db: Database, userId: string, bytes: Uint8Ar
     }
     const [prior]=await tx.select().from(mealImage).where(and(eq(mealImage.userId,userId),eq(mealImage.sha256,sha256)));
     if(prior)return {id:prior.id,mimeType:prior.mimeType,fileName:prior.fileName,repeated:true,storageProvider:prior.storageProvider};
-    const id=randomUUID(),pathname="meal-formal-v2/"+userId+"/"+id,fileName=cleanImageName(metadata.fileName);
+    const id=metadata.leaseId??randomUUID(),pathname="meal-formal-v2/"+userId+"/"+id,fileName=cleanImageName(metadata.fileName);
+    await reserveImageQuota(tx as never,userId,id,bytes.length);
     try{await (store??storage!.write)(pathname,bytes,mimeType);}catch{throw new ApiError(503,"image_unavailable","私有照片保存暂时失败，请重试。");}
     // 不确定的 COMMIT 失败不能即时删除正式文件；延期核对数据库后才清理孤立对象。
     await tx.insert(mealImage).values({id,userId,pathname,sha256,mimeType,byteSize:bytes.length,fileName,source:metadata.source,sourceFileId:metadata.sourceFileId??null,createdBy:metadata.actorId,storageProvider:storage?.ref.storageProvider??"blob",storageLocation:storage?.ref.storageLocation??"legacy"});
+    await completeImageQuota(tx as never,userId,id,bytes.length);
     return {id,mimeType,fileName,repeated:false,storageProvider:storage?.ref.storageProvider??"blob"};
   }); } catch(error) { if(error instanceof ApiError) throw error; throw new ApiError(503,"image_unavailable","照片登记未完成，请重试。"); }
 }
@@ -35,6 +38,7 @@ export async function importMealImages(db: Database, identity: AiIdentity, input
   const requestId = randomUUID(), parsed = imageImportSchema.safeParse(input);
   if (!parsed.success) { imageDiagnostic("file_input", "invalid_input", { requestId }); throw new ApiError(400, "invalid_input", "请传入1–8张 ChatGPT 原图文件引用，包含 download_url 和 file_id。"); }
   await db.transaction(tx => requireActiveAiToken(tx, identity, true, "meals"));
+  await consumeSecurityRate(db,"image-import",identity.userId,20);
   const userId = identity.userId, actorId = identity.tokenId ?? identity.oauthConnectionId!;
   const images: (ImageResult & { index: number })[] = [], failures: { index: number; code: string; message: string; stage: ImageStage; retryable: boolean; requestId: string }[] = [];
   const parsedInput = parsed.data;
@@ -42,7 +46,7 @@ export async function importMealImages(db: Database, identity: AiIdentity, input
   // 两张并行下载，写入由账号锁串行保护；尚未开始的文件可单独重试。
   async function worker() {
     while (cursor < files.length) {
-      const index = cursor++, file = files[index], started = Date.now(); let stage: ImageStage = "download";
+      const index = cursor++, file = files[index], started = Date.now(); let stage: ImageStage = "download"; let leaseId: string | undefined;
       try {
         if (signal.aborted) throw new ApiError(504, "image_timeout", "本批上传超时，请只重试未成功的照片。");
         imageDiagnostic("file_input", "received", { requestId, index });
@@ -52,11 +56,15 @@ export async function importMealImages(db: Database, identity: AiIdentity, input
           images.push({ ...await importGlobalImage(db, identity, file), index });
           continue;
         }
+        leaseId = randomUUID();
+        await db.transaction(async tx=>{await lockOwner(tx,userId);await requireActiveAiToken(tx,identity,true,"meals");await reserveImageQuota(tx as never,userId,leaseId!,20971520);});
         const bytes = await (dependencies.download ?? downloadMealImage)(file.download_url, undefined, signal);
         stage = "validation"; imageMime(bytes); stage = "storage";
-        images.push({ ...await (dependencies.save ?? saveMealImage)(db, userId, bytes, { fileName: file.file_name ?? "照片", source: "ai", sourceFileId: file.file_id, actorId, identity, signal, region: parsedInput.processingRegion }), index });
+        images.push({ ...await (dependencies.save ?? saveMealImage)(db, userId, bytes, { fileName: file.file_name ?? "照片", source: "ai", sourceFileId: file.file_id, actorId, identity, signal, region: parsedInput.processingRegion, leaseId }), index });
+        await releaseImageQuota(db,userId,leaseId);
         imageDiagnostic("registration", "saved", { requestId, index, bytes: bytes.length, elapsedMs: Date.now() - started });
       } catch (error) {
+        if(leaseId)await releaseImageQuota(db,userId,leaseId);
         if (error instanceof ApiError && [401, 403].includes(error.status)) throw error;
         const failure = error instanceof ApiError ? error : new ApiError(503, "image_unavailable", "照片传输未完成，请重试。");
         failures.push({ index, code: failure.code, message: failure.message + (parsedInput.processingRegion !== "global" && regionConfig().enabled ? " 可询问用户是否改用国际区处理本张照片，保留已有文字和成功附件。" : ""), stage, retryable: failure.status >= 500, requestId });

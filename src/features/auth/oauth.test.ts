@@ -309,8 +309,8 @@ test("撤销后未兑换的授权码失效，同一客户端重新授权产生�
     const consent = await json("oauth2/consent", { accept: true, oauth_query: reauthorize.query }, connected.cookie);
     const code = new URL((await consent.json()).url).searchParams.get("code")!;
     const invalidVerifier = await token({ grant_type: "authorization_code", client_id: connected.clientId, code, code_verifier: randomBytes(32).toString("base64url"), redirect_uri: callback, resource: `${baseURL}/api/mcp` });
-    assert.equal(invalidVerifier.status, 401);
-    assert.equal((await invalidVerifier.json()).error, "invalid_request");
+    assert.equal(invalidVerifier.status, 400);
+    assert.equal((await invalidVerifier.json()).error, "invalid_grant");
     const freshRequest = await authorize(connected.clientId, connected.cookie), freshCode = new URL(freshRequest.redirectUrl, baseURL).searchParams.get("code")!;
     const fresh = await token({ grant_type: "authorization_code", client_id: connected.clientId, code: freshCode, code_verifier: freshRequest.verifier, redirect_uri: callback, resource: `${baseURL}/api/mcp` });
     assert.equal(fresh.status, 200);

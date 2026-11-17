@@ -16,6 +16,8 @@ import { boundedQueryPage } from "../records/ai-query";
 import { addCalendarDays } from "./calendar";
 import { z } from "zod";
 import { invalidAiSchema } from "../records/ai-errors";
+import { businessRequest } from "../auth/security-usage";
+import { requireActiveAiToken } from "../auth/ai-tokens";
 
 export function aiRequestTimezone(request: Request, configuredTimezone = process.env.FORMWARD_TIMEZONE) {
   const timezone = request.headers.get("x-formward-timezone") ?? systemMeasurementTimezone(new Date(), configuredTimezone);
@@ -34,11 +36,14 @@ export async function aiApiResponse(request: Request, db: Database, write: boole
   const responseHeaders = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
   try {
     const identity = await authenticateAi(db, request.headers.get("authorization"), write);
-    const data = await work(identity), tool = aiToolForHttp(request);
+    const path = new URL(request.url).pathname;
+    const domain = /measurement/.test(path) ? "measurements" : /meal|food|image/.test(path) ? "meals" : /energy/.test(path) ? "energy" : null;
+    if (domain) await db.transaction(tx => requireActiveAiToken(tx,identity,write,domain));
+    const data = await businessRequest(db,{userId:identity.userId,tokenId:identity.tokenId,channel:"http",operation:path.replace(/\/[a-f0-9-]{36}$/i,"/:id"),write},()=>work(identity)), tool = aiToolForHttp(request);
     return Response.json(tool && data !== null && typeof data === "object" && !Array.isArray(data) ? withAiFieldDefinitions(tool, data as Record<string, unknown>) : data, { headers: responseHeaders });
   } catch (error) {
     const failure = safeAiError(error);
-    return Response.json({ error: failure.error }, { status: failure.status, headers: { ...responseHeaders, ...(failure.status === 401 ? { "WWW-Authenticate": "Bearer" } : {}) } });
+    return Response.json({ error: failure.error }, { status: failure.status, headers: { ...responseHeaders, ...(failure.status === 429 ? {"Retry-After":String(failure.error.details?.retryAfter??60)}:{}), ...(failure.status === 401 ? { "WWW-Authenticate": "Bearer" } : {}) } });
   }
 }
 export function aiConfirmationUrl(request: Request, path: string) {

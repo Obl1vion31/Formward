@@ -1,3 +1,4 @@
+import { assertPendingCapacity } from "../records/pending-limit";
 import {currentMealPreview, duplicateMealNotice, mealContentKey} from "./model";
 import { mealTypeLabel } from "./model";
 import { aiActionAllowed, requireAiUpserts } from "../auth/ai-write-policy";
@@ -220,6 +221,7 @@ export async function submitMealOperation(db: Database, actor: MealActor, raw: u
     validateFoodDescriptions(input);
     const state = await readMealSnapshot(tx, actor.userId), preview = planner(input, state, actor.origin, actor.origin==="manual" ? await manualHistory(tx,actor.userId,input) : undefined);
     await validatePreviewImages(tx,actor.userId,preview);
+    if(actor.origin==="ai")await assertPendingCapacity(tx as unknown as Database,actor.userId);
     const [row] = await tx.insert(mealOperation).values({ id: randomUUID(), userId: actor.userId, operationId: input.operationId, origin: actor.origin, tokenId: actor.identity?.tokenId ?? null, oauthConnectionId: actor.identity?.oauthConnectionId ?? null, importId: actor.importId ?? null, requestDigest: hash, snapshotDigest: stateDigest(state), payload: input, draft: input, preview, expiresAt: actor.origin === "ai" ? new Date(Date.now() + 15 * 60000) : null }).returning();
     return { ...displayMealOperation(row), repeated: false };
   });

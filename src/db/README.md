@@ -1,5 +1,8 @@
 # Database
 
+当前schema0044，66张应用／认证表。0043增加two_factors、mfa_login_challenges、ai_budget_days、api_daily_usage、security_events、image_quota_leases，以及用户AI策略、会话MFA证明、Token领域和管理审计明细；0044补充日期索引。旧健康列和值不回填，模型成本仍唯一来自assistant_usage_requests。MFA秘密与恢复码加密，管理查询只做元数据聚合，安全事件保留30天。
+
+
 0042_assistant_background_jobs仅为assistant_runs增加execution_input、claimed_at、worker_id和request_diagnostics。旧行执行参数为空，后台不猜测或自动重放；原有state及健康表不变。新任务参数由服务端绑定，领取用事务和SKIP LOCKED防重复。迁移后可以停止worker并回退旧应用，不逆向删除聊天或费用记录。
 
 

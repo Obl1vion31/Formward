@@ -15,7 +15,7 @@
 - `site-url.ts`：公网链接采用 BETTER_AUTH_URL 的 HTTPS 根地址，忽略代理内部地址和请求 Host；本机兼容 localhost、127.0.0.1 与 IPv6。`site-url.test.ts` 覆盖审核链接、OpenAPI、错误配置和云服务默认时区。
 - `server.ts`：Next.js 的 server-only 入口，避免认证配置被客户端导入；currentPageUser 使用 React cache 在同次 Server Component 请求中复用身份查询，不跨请求缓存。页面和 Server Actions 继续分别验证身份。
 - `client.ts`：浏览器登录与退出请求、超时与中文错误提示；不保存密码或令牌。
-- `password-policy.ts`：浏览器表单、认证配置、邀请激活、密码重设、本人改密和维护脚本共用6–128字符限制及提示；不修改已有密码。
+- `password-policy.ts`：浏览器表单、认证配置、邀请激活、密码重设、本人改密和维护脚本共用15–128字符限制及提示；不修改已有密码。
 - `provision.ts`：维护脚本创建普通账号，规范化邮箱并在事务中写用户和 credential，密码保存 scrypt 哈希；重复请求不创建重复账号或重置密码。
 - `auth.test.ts`：独立内存 PostgreSQL 的正常、无效、重复、跨账号、撤销、过期、来源检查和限流验证。
 
@@ -29,7 +29,7 @@
 
 身份来自已验证的会话 cookie，不能采用客户端提交的 user_id。AI Token 独立 Bearer 鉴权、只保存不可逆摘要，映射到同一 user_id。内部账号通过 `pnpm account:create` 创建；数据库和配置说明见 [接入指南](../../../docs/auth-setup.md)。
 
-`ai-tokens.ts` 提供30天read／write令牌创建、列表、撤销和即时鉴权，原文只创建时返回。`ai-access.tsx`只保留一个页面标题，以ChatGPT、豆包两条紧凑行展示状态、权限入口及详情；当前AI名称18px、操作14px，触控44px。`ai-access-panel.tsx`在电脑提供就近浮层，在手机复用底部面板；权限默认收起，多连接逐个列出，不合并或自动扩权。历史与撤销留在管理内容，豆包注明内测白名单，失效时提供重新接入。手动令牌及其他MCP／HTTP位于高级接入；创建后聚焦一次性原文，关闭高级区后清除。AI提交记录默认收起，按真实来源和审核状态筛选，电脑五列单行、手机业务日期短摘要；首帧固定标题、两条AI位置及操作槽，未知状态局部等待。字号、密度和验收以设计规范D14为准。
+`ai-tokens.ts` 提供默认只读、7天、可选1／7／30天和业务范围的手动令牌创建、列表、撤销和即时鉴权，原文只创建时返回。`ai-access.tsx`只保留一个页面标题，以ChatGPT、豆包两条紧凑行展示状态、权限入口及详情；当前AI名称18px、操作14px，触控44px。`ai-access-panel.tsx`在电脑提供就近浮层，在手机复用底部面板；权限默认收起，多连接逐个列出，不合并或自动扩权。历史与撤销留在管理内容，豆包注明内测白名单，失效时提供重新接入。手动令牌及其他MCP／HTTP位于高级接入；创建后聚焦一次性原文，关闭高级区后清除。AI提交记录默认收起，按真实来源和审核状态筛选，电脑五列单行、手机业务日期短摘要；首帧固定标题、两条AI位置及操作槽，未知状态局部等待。字号、密度和验收以设计规范D14为准。
 
 `ai-access-model.ts` 定义本页视图及状态、时间显示，`ai-access-overview.ts` 按账号批量读取连接、令牌和提交来源。连接按当前同意与原scope的交集显示，停用、过期、撤销和缺少同意均不可用。原业务子操作和训练授权决定发起来源；缺失、冲突或其他账号凭据显示来源未知，不猜测AI名称。初始化保留在饮食页；AI提交跨类型按时间排序，默认收起，展开后可按来源和审核状态筛选，预览采用真实期限。连接先显示，历史与令牌异步接管且保留已展开内容；按账号重建状态，不跨账号缓存。`ai-access.module.css`只作用于设置页，不改变审核页。
 
@@ -73,3 +73,5 @@ ApiError可携带安全的字段路径、修正要求和原预览定位信息。
 users.membership_tier（Free／内测／Plus，Pro仅预留）独立于owner／user。entitlement_version用于改档并发检查；Better Auth仅返回字段、禁止普通资料写入，cookieCache关闭，下一次会话读取得到最新值。管理员沿用近期验密、目标版本、请求幂等和account_events审计；不修改access_version或撤销登录。assistant feature在每次模型请求按最新权益决定聊天、识图次数或金额预算，设备接入不按会员收费。
 
 AI提交历史按账号仅在内存保留展开、筛选和滚动位置；查看后返回恢复对应链接焦点，使用preventScroll避免焦点再次推移页面。跨账号不复用该状态。
+
+MFA由mfa-hooks.ts与Better Auth官方插件共同验证，服务端会话区分首次绑定、动态码验证与恢复后重绑。account-security.ts统一实时会话／访问版本及5分钟敏感验证。security-usage.ts提供原子限流、上传预占、业务渠道计数和30天安全事件维护；action-policy.ts阻止旧Server Action执行旁路，http-security.ts维护nonce CSP。完整边界见[安全与全站管理](../../../docs/security-admin.md)。

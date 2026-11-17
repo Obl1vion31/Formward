@@ -118,3 +118,12 @@ primary-sync.py读取本机正式配置调用定时同步入口，不输出上�
 ## 原图备用上传期限
 
 `start-standalone.mjs`加载原standalone/server.js并复用同一个Next请求处理器，不另建业务应用。正式systemd使用`formward-primary-upload.conf`覆盖启动命令，先将启动器安装到`/usr/local/libexec/formward-start-standalone.mjs`；普通请求仍走回环3200和原Node请求期限，只有精确`/api/meal-images/upload`的GET／POST走回环3201，Node请求期限660秒。预览对应3000／3001。Nginx仅此路径配置660秒，其他代理和模型期限保持120秒。监听器绑定127.0.0.1，其他路径404、方法405；认证、同源、票据和20MiB校验仍在原feature。发布包显式复制启动器，不依赖Next追踪自定义入口。回退旧网页时可继续由此启动器加载旧server.js；不得移除现有新schema或聊天数据。
+
+
+## 安全发布门禁
+
+Next与eslint-config-next固定16.4.5，Better Auth系列固定1.7.25。新运行包需要0043／0044及相同版本worker；旧的不含MFA／预算门禁的运行包不能用作安全回退。先备份、异机回读、隔离恢复并演练增量迁移，切换时停止主应用与worker，保留旧表列值和费用，不回滚数据库。
+
+先将formward-security-limits.conf安装到/etc/nginx/conf.d/formward-security-limits.conf（http上下文），再安装引用zones的域名／回源server配置并nginx -t。应用原子配额按账号共享，Nginx按可信来源限流429，附Retry-After。不要只复制引用zones的server片段。
+
+build.mjs与build-regional-release.mts从本次server-reference-manifest生成.next/security-actions.json。兼容打包可以保留旧静态资源和绑定密钥，但不得改写该新门禁清单或让旧执行代码覆盖新动作。缺失门禁清单时生产环境拒绝Server Actions；过期页面返回app_updated及刷新提示。国际网关更新也必须实际回源验证MFA页面保持同源、CSP和OAuth／JWKS，不能只核对部署Ready。

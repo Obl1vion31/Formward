@@ -1,4 +1,4 @@
-import { withCurrentSession } from "@/features/auth/server";
+import { withCurrentSession,withWriteSession } from "@/features/auth/server";
 import { isAccountRequestOrigin } from "@/features/auth/site-url";
 import { getDatabase } from "@/db/client";
 import { z } from "zod";
@@ -23,7 +23,7 @@ export async function GET(request:Request){
 }
 export async function POST(request:Request){
  if(!isAccountRequestOrigin(request.headers))return Response.json({error:"请求来源无效。"},{status:403,headers});
- try{return await withCurrentSession(request.headers,async owner=>{
+ try{return await withWriteSession(request.headers,async owner=>{
   assertChatAllowed(owner,"meal_entry");const parsed=mealTaskInputSchema.safeParse(await readChatJson(request,200000));
   if(!parsed.success)return Response.json({error:"饮食任务格式无效，请核对填写内容。"},{status:400,headers});
   const input=parsed.data,db=getDatabase();

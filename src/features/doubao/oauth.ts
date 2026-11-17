@@ -41,7 +41,8 @@ export async function startDoubaoLogin(db: Database, auth: Auth, config: DoubaoC
     await tx.insert(oauthClient).values({
       id: randomUUID(), clientId, name: "豆包 · Formward", disabled: false, skipConsent: false,
       scopes: doubaoScopes, redirectUris: [doubaoCallback(config)], tokenEndpointAuthMethod: "none",
-      applicationType: "web", grantTypes: ["authorization_code", "refresh_token"], responseTypes: ["code"],
+      // 开发回环按原生客户端校验；正式HTTPS继续使用web客户端。
+      applicationType: new URL(config.origin).protocol==="http:"&&["localhost","127.0.0.1","[::1]"].includes(new URL(config.origin).hostname)?"native":"web", grantTypes: ["authorization_code", "refresh_token"], responseTypes: ["code"],
       requirePKCE: true, createdAt: now, updatedAt: now,
       metadata: { provider: "doubao", appId: config.appId, openIdDigest: digest },
     }).onConflictDoNothing({ target: oauthClient.clientId });

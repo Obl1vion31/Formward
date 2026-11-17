@@ -295,6 +295,20 @@
       "when": 1794852040452,
       "tag": "0042_assistant_background_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1794904587490,
+      "tag": "0043_security_admin",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1794908866765,
+      "tag": "0044_admin_indexes",
+      "breakpoints": true
     }
   ]
 }

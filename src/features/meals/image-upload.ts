@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { reserveImageQuota, completeImageQuota, consumeSecurityRate } from "../auth/security-usage";
 import { and, eq } from "drizzle-orm";
 import { type HandleUploadPresignedBody } from "@vercel/blob/client";
 import type { Database } from "../../db/client";
@@ -26,6 +27,7 @@ export async function assertImageTicket(db: Database, ticket: ImageTicket) {
 export async function prepareImageUpload(db: Database, userId: string, input: unknown, secret?: string, region: "cn" | "global" = process.env.FORMWARD_IMAGE_REGION === "cn" ? "cn" : "global", identity?: AiIdentity, download?: { url: string; fileId: string }) {
   const parsed = imageFileSchema.safeParse(input);
   if (!parsed.success) throw new ApiError(400, "image_file", "请选择最大20 MiB的 JPEG、PNG 或 WebP 原图。");
+  await consumeSecurityRate(db,"image-prepare",userId,20);
   return db.transaction(async tx => {
     const owner = await lockActiveAccount(tx, userId), proof = webSessionContext.getStore();
     if (identity) await requireActiveAiToken(tx, identity, true, "meals");
@@ -35,6 +37,7 @@ export async function prepareImageUpload(db: Database, userId: string, input: un
       proof: identity ? { kind: "ai", accessVersion: owner.accessVersion, ...(identity.tokenId ? { tokenId: identity.tokenId } : { oauthConnectionId: identity.oauthConnectionId }) } : proof ? { kind: "session", sessionId: proof.sessionId, accessVersion: owner.accessVersion } : { kind: "maintenance", accessVersion: owner.accessVersion },
       ...(download ? { downloadUrl: download.url, sourceFileId: download.fileId } : {}) };
     if (payload.proof.kind === "maintenance" && process.env.NODE_ENV === "production") throw new ApiError(401, "invalid_session", "请重新登录。");
+    await reserveImageQuota(tx as never,userId,id,download ? 20971520 : parsed.data.size);
     return { ticket: signImageTicket(payload, secret), pathname: payload.pathname, provider: payload.provider };
   });
 }
@@ -66,6 +69,8 @@ export async function registerImageReceipt(db: Database, ticket: ImageTicket, re
   if (!ticket.downloadUrl && (receipt.sha256 !== ticket.sha256 || receipt.size !== ticket.size || receipt.mimeType !== ticket.mimeType)) throw new ApiError(400, "image_mismatch", "照片信息不一致。");
   return db.transaction(async tx => {
     await assertImageTicket(tx as never, ticket);
+    await reserveImageQuota(tx as never,ticket.userId,ticket.id,ticket.downloadUrl ? 20971520 : ticket.size);
+    await completeImageQuota(tx as never,ticket.userId,ticket.id,receipt.size);
     const [prior] = await tx.select().from(mealImage).where(and(eq(mealImage.userId, ticket.userId), eq(mealImage.sha256, receipt.sha256)));
     if (prior) return { id: prior.id, mimeType: prior.mimeType, fileName: prior.fileName, repeated: true, storageProvider: prior.storageProvider };
     await tx.insert(mealImage).values({ id: ticket.id, userId: ticket.userId, pathname: receipt.pathname, storageProvider: ticket.provider, storageLocation: ticket.location, sha256: receipt.sha256, mimeType: receipt.mimeType, byteSize: receipt.size, fileName: ticket.fileName, source: ticket.proof.kind === "ai" ? "ai" : "manual", sourceFileId: ticket.sourceFileId, createdBy: ticket.proof.kind === "ai" ? (ticketIdentity(ticket)!.tokenId ?? ticketIdentity(ticket)!.oauthConnectionId!) : ticket.userId });

@@ -11,6 +11,15 @@ export async function GET(request:Request){
  if(!process.env.FORMWARD_EXPECTED_DATABASE||database[0]?.name!==process.env.FORMWARD_EXPECTED_DATABASE||!process.env.FORMWARD_ENVIRONMENT)throw new Error("部署环境不匹配。");
  await getDatabase().execute(sql`select storage_provider,storage_location from meal_images limit 0`);
  await getDatabase().execute(sql`select access_version,banned from users limit 0`);
+ await getDatabase().execute(sql`select two_factor_enabled,ai_paused,ai_daily_budget_cents,ai_daily_recognition_limit from users limit 0`);
+ await getDatabase().execute(sql`select mfa_verified_at,security_verified_at,mfa_recovery_required from sessions limit 0`);
+ await getDatabase().execute(sql`select secret,backup_codes,verified from two_factors limit 0`);
+ await getDatabase().execute(sql`select date from ai_budget_days limit 0`);
+ await getDatabase().execute(sql`select date,requests,failures from api_daily_usage limit 0`);
+ await getDatabase().execute(sql`select id,category,created_at from security_events limit 0`);
+ await getDatabase().execute(sql`select user_id,date,bytes,state from image_quota_leases limit 0`);
+ const actions:unknown=JSON.parse(await readFile(join(process.cwd(),".next/security-actions.json"),"utf8"));
+ if(!Array.isArray(actions)||!actions.length||actions.some(id=>typeof id!=="string"))throw new Error("安全执行清单缺失。");
  await getDatabase().execute(sql`select sex_for_calculation from personal_profiles limit 0`);
  await getDatabase().execute(sql`select energy_resting_method,energy_formula from account_preferences limit 0`);
  await getDatabase().execute(sql`select resting_input_method,calculation_snapshot from energy_days limit 0`);

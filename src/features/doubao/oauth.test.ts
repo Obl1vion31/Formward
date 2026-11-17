@@ -47,7 +47,7 @@ const server = createServer(async (req, res) => {
     response.headers.forEach((value, key) => { if (key !== "set-cookie") res.setHeader(key, value); });
     if (response.headers.getSetCookie().length) res.setHeader("set-cookie", response.headers.getSetCookie());
     res.end(Buffer.from(await response.arrayBuffer()));
-  } catch (error) { res.statusCode = error instanceof ApiError ? error.status : 500; res.end("fixture request failed"); }
+  } catch (error) { res.statusCode = error instanceof ApiError ? error.status : 500; res.end(error instanceof ApiError?error.code+": "+error.message:"fixture request failed"); }
 });
 
 before(async () => {
@@ -119,7 +119,7 @@ async function grant(credentials = first, externalId = openId, accept = true) {
   const start = await startDoubaoLogin(db, auth, config, "fictional-host-code", platformFetch(externalId));
   const logged = await signIn(credentials);
   const response = await fetch(start.authorizationUrl, { headers: { cookie: logged.cookie, accept: "text/html" }, redirect: "manual" });
-  assert.ok([200, 302].includes(response.status), `authorize returned ${response.status}`);
+  assert.ok([200, 302].includes(response.status), `authorize returned ${response.status}: ${response.ok||response.status===302?"":await response.clone().text()}`);
   const location = response.headers.get("location") ?? (await response.json()).url;
   assert.match(location, /\/doubao\/consent\?/);
   const query = new URL(location).search.slice(1);
