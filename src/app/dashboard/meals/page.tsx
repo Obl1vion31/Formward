@@ -1,4 +1,5 @@
 import {WorkspaceSnapshot} from "@/features/dashboard/workspace-cache";
+import {ChartArrivalContent} from "@/components/chart-preparation";
 import {workspaceQuery} from "@/features/dashboard/workspace-cache-state";
 import { requireCompletedOnboarding } from "@/features/onboarding/server";
 import { linkedDate } from "@/features/measurements/calendar";
@@ -18,5 +19,5 @@ export default async function MealsPage({searchParams}:{searchParams:Promise<{da
 async function Content({cacheQuery,user,date,entry,trend,intent}:{cacheQuery:string;user:NonNullable<Awaited<ReturnType<typeof currentPageUser>>>;date:string|null;entry:boolean;trend:TrendRoute|null;intent:RecordIntent}) {
   const db=getDatabase(), snapshot=await readMealSnapshot(db,user.id), operations=await listMealOperations(db,user.id);
   const today=localMeasurementDate(new Date(),systemMeasurementTimezone(new Date(),process.env.FORMWARD_TIMEZONE));
-  return <WorkspaceSnapshot path="/dashboard/meals" query={cacheQuery}><MealsView key={`${date}:${intent}:${trend?.from}:${trend?.to}`} initialIntent={intent} initialDate={date??(entry?today:null)} initialEntry={entry} initialTrend={trend} snapshot={snapshot} today={today} operations={operations} save={saveMealAction} saveDay={saveMealDayAction} purge={permanentlyDeleteAction}/></WorkspaceSnapshot>;
+  return <ChartArrivalContent><WorkspaceSnapshot path="/dashboard/meals" query={cacheQuery}><MealsView key={`${date}:${intent}:${trend?.from}:${trend?.to}`} initialIntent={intent} initialDate={date??(entry?today:null)} initialEntry={entry} initialTrend={trend} snapshot={snapshot} today={today} operations={operations} save={saveMealAction} saveDay={saveMealDayAction} purge={permanentlyDeleteAction}/></WorkspaceSnapshot></ChartArrivalContent>;
 }
