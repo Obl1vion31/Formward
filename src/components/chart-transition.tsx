@@ -25,7 +25,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   const router=useRouter(),pathname=usePathname(),search=useSearchParams().toString(),[pending,startTransition]=useTransition();
   const [flight,setFlight]=useState<ChartFlight|null>(null),[returningToOverview,setReturningToOverview]=useState(false);
   const [forwardChartMoving,setForwardChartMoving]=useState(false);
-  const returnCancelled=useRef(false),returnReady=useRef(true),returnFromHistory=useRef(false);
+  const returnCancelled=useRef(false),returnReady=useRef(true),returnFromHistory=useRef(false),returnFocusUntouched=useRef(true),focusFrame=useRef(0);
   const [returnPreview,setReturnPreview]=useState<MetricTrendModel|null>(null),[previewReadings,setPreviewReadings]=useState<ChartReadingsSnapshot|null>(null),[forwardPreview,setForwardPreview]=useState<MetricTrendModel|null>(null),[forwardDestination,setForwardDestination]=useState<string|null>(null);
   const origin=useRef<ChartOrigin|null>(null);
   const motion=useRef(createChartFlights((next,reason)=>{
@@ -38,6 +38,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   const focusAfterLoad=useRef<{kind:string;rail:number;scroll:number}|null>(null),target=useRef<ChartTarget|null>(null),route=useRef(pathname);
   // 持久认证布局按账号重建；这里只保留显示选项与本次转场快照，不维护跨页面健康查询缓存。
   const overview=useRef<OverviewViewState|null>(null),navigation=useRef(0),requested=useRef<string|null>(null);
+  const focusReturnCard=useCallback((card:HTMLElement|null)=>{if(!card||!returnFocusUntouched.current)return;const intent=navigation.current;card.focus({preventScroll:true});cancelAnimationFrame(focusFrame.current);focusFrame.current=requestAnimationFrame(()=>{focusFrame.current=0;if(intent===navigation.current&&returnFocusUntouched.current&&card.isConnected&&location.pathname==='/dashboard')card.focus({preventScroll:true});});},[]);
   const recallOverview=useCallback(()=>overview.current,[]);
   const rememberOverview=useCallback((state:OverviewViewState)=>{overview.current=state;},[]);
   const lastTarget=useRef<{model:MetricTrendModel;rect:ChartRect;path:string}|null>(null);
@@ -51,10 +52,10 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
       const saved=origin.current;
       if(saved)focusAfterLoad.current={kind:current.model.kind,rail:saved.rail,scroll:saved.scroll};
       const card=[...document.querySelectorAll<HTMLElement>(`a[data-metric-card="${current.model.kind}"]`)].find(node=>node.getClientRects().length>0&&!node.closest('[data-return-covered],[inert]'));
-      card?.focus({preventScroll:true});
+      focusReturnCard(card??null);
       if(returnReady.current)origin.current=null;motion.current.returning=false;lastTarget.current=null;
     }
-  },[motion]);
+  },[motion,focusReturnCard]);
   const landAt=useCallback((dest:ChartRect,element:SVGSVGElement|null,skeleton:boolean,id:number)=>{
     const current=motion.current.active,node=current?.node;
     if(!current||current.id!==id||!node||!dest.width||!dest.height)return;
@@ -149,14 +150,14 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   },[router,motion]);
   const restore=useCallback((rail:HTMLElement)=>{
     if(!rail.isConnected||rail.closest('[data-return-covered]')||!rail.clientWidth)return;
-    if(focusAfterLoad.current&&!rail.hasAttribute("data-metric-rail-skeleton")&&!rail.closest('[data-workspace-cached]')){const pending=focusAfterLoad.current;rail.scrollLeft=pending.rail;if(scrollY!==pending.scroll)window.scrollTo({top:pending.scroll,behavior:'instant'});const card=rail.querySelector<HTMLElement>(`a[data-metric-card="${pending.kind}"]`);if(document.activeElement===document.body||document.activeElement?.closest('a[href="/dashboard"]'))card?.focus({preventScroll:true});focusAfterLoad.current=null;}
+    if(focusAfterLoad.current&&!rail.hasAttribute("data-metric-rail-skeleton")&&!rail.closest('[data-workspace-cached]')){const pending=focusAfterLoad.current;rail.scrollLeft=pending.rail;if(scrollY!==pending.scroll)window.scrollTo({top:pending.scroll,behavior:'instant'});focusReturnCard(rail.querySelector<HTMLElement>(`a[data-metric-card="${pending.kind}"]`));focusAfterLoad.current=null;}
     const saved=origin.current;if(!saved)return;
     if(rail.scrollLeft!==saved.rail)rail.scrollLeft=saved.rail;
     if((motion.current.returning||!returnReady.current)&&scrollY!==saved.scroll)window.scrollTo({top:saved.scroll,behavior:'instant'});
     // 无配对动画也要等真实总览显示后恢复位置，再释放来源；隐藏路由和临时外壳不能提前消费它。
     if(!returningToOverview&&returnReady.current&&!motion.current.active&&!rail.hasAttribute('data-metric-rail-skeleton')&&location.pathname==='/dashboard'){
       if(rail.closest('[data-workspace-cached]'))focusAfterLoad.current={kind:saved.kind,rail:saved.rail,scroll:saved.scroll};
-      if(document.activeElement===document.body||document.activeElement?.closest('a[href="/dashboard"]'))rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`)?.focus({preventScroll:true});
+      focusReturnCard(rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`));
       origin.current=null;
     }
     if(!motion.current.returning)return;
@@ -167,10 +168,10 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(current.destination&&current.hidden===graph)return;
     if(graph&&visible(graph)&&graph.dataset.trendRange===saved.rangeKey&&graph.dataset.trendKey===saved.modelKey&&current?.direction==='back'&&motion.current.active?.id===current.id)landAt(rectOf(graph),graph,false,current.id);
     else{clear();rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`)?.focus({preventScroll:true});if(returnReady.current)origin.current=null;motion.current.returning=false;lastTarget.current=null;}
-  },[motion,landAt,clear,returningToOverview]);
+  },[motion,landAt,clear,returningToOverview,focusReturnCard]);
   const prepareBack=useCallback((fromHistory=false)=>{
     const saved=origin.current;if(!saved||motion.current.returning)return;
-    setReturningToOverview(true);returnCancelled.current=false;returnReady.current=false;returnFromHistory.current=fromHistory;
+    setReturningToOverview(true);returnCancelled.current=false;returnReady.current=false;returnFromHistory.current=fromHistory;returnFocusUntouched.current=true;
     const current=motion.current.active,dest=target.current,cached=lastTarget.current;
     let source:{model:MetricTrendModel;rect:ChartRect}|null=null;
     if(saved.paired&&!reduced()&&saved.viewport.width===innerWidth&&saved.viewport.height===innerHeight){
@@ -187,7 +188,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(draftIsBusy()||!await confirmDraftDiscard()||navigation.current!==intent)return;
     // 点击确认后先提交持久返回外壳及图形目标，再启动可等待服务器的路由更新。
     flushSync(()=>{
-      setReturningToOverview(true);returnCancelled.current=false;returnReady.current=false;
+      setReturningToOverview(true);returnCancelled.current=false;returnReady.current=false;returnFocusUntouched.current=true;
       if(origin.current&&!motion.current.returning)prepareBack();
     });
     startTransition(()=>router.push('/dashboard',{scroll:false}));
@@ -205,6 +206,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     window.addEventListener('formward-record-saved',cancel);window.addEventListener('formward-record-context-stale',cancel);window.addEventListener('popstate',pop,true);window.addEventListener('resize',cancel);
     return()=>{window.removeEventListener('formward-record-saved',cancel);window.removeEventListener('formward-record-context-stale',cancel);window.removeEventListener('popstate',pop,true);window.removeEventListener('resize',cancel);};
   },[prepareBack,clear,motion,overviewReady]);
+  useEffect(()=>{const moved=(event:Event)=>{if(event.isTrusted&&(motion.current.returning||!returnReady.current||focusAfterLoad.current||focusFrame.current)){returnFocusUntouched.current=false;focusAfterLoad.current=null;cancelAnimationFrame(focusFrame.current);focusFrame.current=0;}};document.addEventListener('pointerdown',moved,true);document.addEventListener('keydown',moved,true);return()=>{document.removeEventListener('pointerdown',moved,true);document.removeEventListener('keydown',moved,true);cancelAnimationFrame(focusFrame.current);};},[]);
   useEffect(()=>{const query=matchMedia('(prefers-reduced-motion: reduce)');const changed=()=>{if(query.matches)clear();};query.addEventListener('change',changed);return()=>query.removeEventListener('change',changed);},[clear]);
   useLayoutEffect(()=>{
     const changed=route.current!==pathname;route.current=pathname;if(changed){requested.current=null;if(pathname!=='/dashboard'&&returnCancelled.current)overviewReady();}

@@ -60,7 +60,7 @@ async function inspectReturn(page,label,{paired=true,warm=true}={}){
  if(paired){assert.ok(first,label+'缺少回程运动');assert.ok(starts[0],label+'缺少运动启动');if(warm)assert.ok(starts[0].t<=100,label+'起步超过100ms: '+starts[0].t);}
  for(const frame of back)if(!frame.visible&&frame.path!=='/dashboard')assert.equal(frame.sourceVisible,true,label+'等待时原图消失');
  assert.equal(await page.locator('[data-chart-flight],[data-chart-travelling]').count(),0);
- const position=await page.evaluate(()=>({expected:window.chartOrigin,rail:document.querySelector('[data-metric-rail]').scrollLeft,scroll:scrollY,focus:document.activeElement?.closest('[data-metric-card]')?.dataset.metricCard}));
+  const position=await page.evaluate(()=>({expected:window.chartOrigin,rail:document.querySelector('[data-metric-rail]').scrollLeft,scroll:scrollY,focus:document.activeElement?.closest('[data-metric-card]')?.dataset.metricCard,active:document.activeElement?{tag:document.activeElement.tagName,role:document.activeElement.getAttribute('role'),label:document.activeElement.getAttribute('aria-label'),cached:!!document.activeElement.closest('[data-workspace-cached]')}:null}));
  result.position=position;if(position.expected){assert.ok(Math.abs(position.rail-position.expected.rail)<=1,label+'卡片带未恢复');assert.ok(Math.abs(position.scroll-position.expected.scroll)<=1,label+'页面滚动未恢复');assert.equal(position.focus,position.expected.kind,label+'焦点回到原卡片');}
  return result;
 }
