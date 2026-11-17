@@ -206,7 +206,10 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
  const dayPreview=projected?energyDays({days:[projected],activities:projectedItems,profiles:[]},[],[projected.date])[0]:null;
  const total=unresolvedCount?null:dayPreview?.totalKcal??null;
  const signature=energyDraftSignature(single?{...draft,inclusion:selectedRelation}:draft,items),[firstSignature]=useState(signature);
- const hiddenMethodDirty=Object.entries({...methodDrafts,...manualDrafts}).some(([method,value])=>method!==recordMode&&method!=="device"&&[value.restingKcal,value.activeKcal,value.totalKcal].some(value=>value!=null&&value!=="")&&energyDraftSignature(value,items)!==firstSignature);
+ // 来源、备注等共用字段恢复时取当前输入；只比较仍可恢复的非当前方式草稿。
+ const cachedManualFormat=recordMode==="manual"?manualFormat:methodDrafts.manual?.entryMode??"components";
+ const hiddenDrafts=[...Object.entries(methodDrafts).filter(([method])=>method!==recordMode&&method!=="device").map(([,value])=>value),...Object.entries(manualDrafts).filter(([format])=>format!==cachedManualFormat).map(([,value])=>value)];
+ const hiddenMethodDirty=daily&&hiddenDrafts.some(value=>energyDraftSignature({...value,date:draft.date,notes:draft.notes,steps:draft.steps,timezone:draft.timezone},items)!==firstSignature);
  useDraftGuard(signature!==firstSignature||hiddenMethodDirty,busy);
  const set=(key:string,value:unknown)=>{setDraft(current=>({...current,[key]:value,...(key==="date"&&current.kind==="save_energy_day"&&restingMethod==="estimate"?{calculation:{kind:quick?"daily":"resting",method:formula},restingKcal:null,totalKcal:null,entryMode:quick?"total":"components"}:{}),...(key==="restingKcal"?{restingEstimated:false}:key==="activeKcal"?{activeEstimated:false}:{}),...(key.endsWith("SourceSystem")||key==="sourceSystem"?{sourceRecordId:null}:{})}));if(key==="date"){setPreviewSnapshot(null);setContextError("");}};
  function aggregate(value:string){
