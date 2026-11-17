@@ -1,3 +1,4 @@
+import { assertPendingCapacity, previewBatch } from "./pending-limit";
 import { assertBodyEstimateRemoved, containsRetiredBodyEstimate } from "../measurements/retirement";
 import { isTraining } from '../training/ai-model';
 import { planTrainingItems } from '../training/ai-plans';
@@ -232,7 +233,7 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
     if (food.quantity != null && !food.unit?.trim()) throw new ApiError(400, "invalid_input", "items." + index + ".items." + foodIndex + ".unit：食量已有数值，但缺少实际单位；补单位后重试，不新建预览。", { fields: [{ path: `items.${index}.items.${foodIndex}.unit`, message: "请填写用户实际提供的单位；不能猜单位。" }], nextAction: "correct_arguments_or_ask_user" });
   }
   if (input.previewId) return correctPendingRecord(db, identity, input);
-  return db.transaction(async tx => {
+  return previewBatch.run(identity.userId, () => db.transaction(async tx => {
     await lockOwner(tx, identity.userId); const connection = tx as unknown as Database;
     if (input.items.some(item => item.kind === "save_record")) await requireActiveAiToken(tx, identity, true);
     if (input.items.some(item => item.kind !== "save_record" && !isEnergy(item) && !isTraining(item))) await requireActiveAiToken(tx, identity, true, "meals");
@@ -255,6 +256,7 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
       if (prior.requestDigest !== (options.requestDigest ?? digest(input))) throw new ApiError(409, "request_conflict", "同一operationId不能替换原请求；请读取并修正原草稿，不要另建批次。", { previewId: prior.id, revision: prior.revision, tool: "update_preview", nextAction: "correct_existing_preview_with_previewId_and_revision" });
       return { ...await view(connection, prior), repeated: true };
     }
+    await assertPendingCapacity(connection,identity.userId,true);
     const id = randomUUID(), items = normalize(input), bodies = items.filter(item => isBody(item.action));
     for (const item of trainingItems(items)) { item.trainingGrant = { ...(identity.tokenId ? { tokenId: identity.tokenId } : {}), ...(identity.oauthConnectionId ? { oauthConnectionId: identity.oauthConnectionId } : {}) }; item.trainingExpiresAt = new Date(Date.now() + 86400000).toISOString(); }
     const body = bodies.length ? await submitAiMeasurementOperation(connection, identity, { kind: "batch", operationId: `records-${id}`, items: bodies.map(item => item.action) }, input.timezone ?? timezone) : null;
@@ -265,7 +267,7 @@ export async function submitRecordOperation(db: Database, identity: AiIdentity, 
     const meal = mealItems(items).length ? await submitMealOperation(connection, { userId: identity.userId, origin: "ai", identity }, mealInput(`records-${id}`, items), recordMealPlanner(items, id)) : null;
     const [row] = await tx.insert(recordOperation).values({ id, userId: identity.userId, operationId: input.operationId, requestDigest: options.requestDigest ?? digest(input), payload: input, draft: items, measurementOperationId: body?.id, mealOperationId: meal?.id, measurementRevision: body?.revision, mealRevision: meal?.revision, energyOperationId: energy?.id, energyRevision: energy?.revision, status: !meal && !energy && body && !body.counts.pending ? "completed" : "pending" }).returning();
     return { ...await view(connection, row), repeated: false };
-  });
+  }));
 }
 
 /** AI只能修改原授权的待审项目。原payload和原请求摘要始终不变。 */

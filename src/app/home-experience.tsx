@@ -361,6 +361,7 @@ export default function HomeExperience() {
       changePhase("LOGIN_READY");
       return;
     }
+    if (result.redirectUrl) { window.location.assign(result.redirectUrl); return; }
     if (imageErrorRef.current) {
       changePhase("FINAL");
       startNavigation(() => router.replace(loginDestination(new URLSearchParams(window.location.search).get("next"))));

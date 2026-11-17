@@ -1,5 +1,5 @@
 import {relayImageUpload,recordImageUploadDiagnostic} from "@/features/meals/image-upload-relay";
-import { withCurrentSession } from "@/features/auth/server";
+import { withCurrentSession,withWriteSession } from "@/features/auth/server";
 import { isAccountRequestOrigin } from "@/features/auth/site-url";
 import { getDatabase } from "@/db/client";
 import { saveMealImage } from "@/features/meals/images";
@@ -8,6 +8,8 @@ import { safeAiError } from "@/features/measurements/ai-api";
 import type { HandleUploadPresignedBody } from "@vercel/blob/client";
 import { processingRegion } from "@/features/auth/regions";
 import { imageUploadRoutes } from "@/features/meals/image-routes";
+import { boundedSecurityJson } from "@/features/auth/http-security";
+import { ApiError } from "@/features/auth/ai-identity";
 export const maxDuration = 600;
 export async function GET(request: Request) {
   try { return await withCurrentSession(request.headers, async () => Response.json(imageUploadRoutes(processingRegion(request.headers)), { headers: { "Cache-Control": "private, no-store" } })); }
@@ -16,7 +18,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   if (!isAccountRequestOrigin(request.headers)) return Response.json({ error: "上传来源无效。" }, { status: 403 });
   try {
-    return await withCurrentSession(request.headers, async user => {
+    return await withWriteSession(request.headers, async user => {
     let result;
     if(request.headers.get("content-type")==="application/octet-stream") {
       if(processingRegion(request.headers)!=="cn")return Response.json({error:"当前入口请改用国际通道上传原图。"},{status:409});
@@ -29,7 +31,8 @@ export async function POST(request: Request) {
       result = await saveMealImage(getDatabase(), user.id, new Uint8Array(await file.arrayBuffer()), { fileName: file.name, source: "manual", actorId: user.id });
     } else {
       if (Number(request.headers.get("content-length")) > 8192) return Response.json({ error: "上传请求过大。" }, { status: 413 });
-      const body = await request.json();
+      const body = await boundedSecurityJson(request) as Record<string, unknown>;
+      if(!body||typeof body!=="object"||Array.isArray(body))throw new ApiError(400,"invalid_input","上传请求无效。");
       if(body.step==="diagnostic"){recordImageUploadDiagnostic(body.diagnostic);return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});}
       if (body.step === "prepare") {
         if (body.region !== undefined && body.region !== "cn" && body.region !== "global") return Response.json({ error: "上传通道无效。" }, { status: 400 });
@@ -37,9 +40,9 @@ export async function POST(request: Request) {
       }
       else if(body.step==="sign_direct"&&typeof body.ticket==="string"&&body.ticket.length<=4096)result=await signDirectImageUpload(getDatabase(),user.id,body.ticket);
       else if (body.step === "complete" && typeof body.ticket === "string" && body.ticket.length <= 4096) result = await completeImageUpload(getDatabase(), user.id, body.ticket);
-      else result = await signImageUpload(request, body as HandleUploadPresignedBody, user.id);
+      else result = await signImageUpload(request, body as unknown as HandleUploadPresignedBody, user.id);
     }
     return Response.json(result, { headers: { "Cache-Control": "no-store" } });
     });
-  } catch (error) { const safe = safeAiError(error); return Response.json({ error: safe.error.message, code: safe.error.code }, { status: safe.status, headers: { "Cache-Control": "no-store" } }); }
+  } catch (error) { const safe = safeAiError(error); return Response.json({ error: safe.error.message, code: safe.error.code }, { status: safe.status, headers: { "Cache-Control": "no-store",...(safe.status===429?{"Retry-After":String(error instanceof ApiError?error.details?.retryAfter??60:60)}:{}) } }); }
 }

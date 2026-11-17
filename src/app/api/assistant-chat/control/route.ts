@@ -6,7 +6,7 @@ import { removeMeasurementSource } from "@/features/measurements/sources";
 import { removeEnergySource } from "@/features/activities/sources";
 import {readChatJson} from "@/features/assistant/chat-request";
 import { z } from "zod";
-import { withCurrentSession } from "@/features/auth/server";
+import { withWriteSession } from "@/features/auth/server";
 import { isAccountRequestOrigin } from "@/features/auth/site-url";
 import { getDatabase } from "@/db/client";
 import { safeAiError } from "@/features/measurements/ai-api";
@@ -19,7 +19,7 @@ const schema=z.union([controlSchema,z.object({action:z.literal("review_preview")
 const headers = { "Cache-Control": "private, no-store" };
 export async function POST(request: Request) {
   if (!isAccountRequestOrigin(request.headers)) return Response.json({ error: "请求来源无效。" }, { status: 403, headers });
-  try { return await withCurrentSession(request.headers, async owner => {
+  try { return await withWriteSession(request.headers, async owner => {
     if (Number(request.headers.get("content-length")) > 200000) return Response.json({ error: "请求过大。" }, { status: 413, headers });
     const parsed = schema.safeParse(await readChatJson(request,200000));
     if (!parsed.success) return Response.json({ error: "操作格式无效。" }, { status: 400, headers });

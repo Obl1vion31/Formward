@@ -282,7 +282,7 @@ test("令牌只存摘要，列表不泄漏原文；无效、过期、撤销、�
   assert.notEqual(stored.tokenHash, first.token.rawToken); assert.equal(stored.tokenHash.length, 64);
   assert.ok(!JSON.stringify(await listAiTokens(db, first.userId)).includes(first.token.rawToken));
   assert.ok(!Object.hasOwn((await listAiTokens(db, first.userId))[0], "tokenHash"));
-  assert.ok(stored.lastUsedAt); assert.equal(Math.round((stored.expiresAt.getTime() - stored.createdAt.getTime()) / 86400000), 30);
+  assert.ok(stored.lastUsedAt); assert.equal(Math.round((stored.expiresAt.getTime() - stored.createdAt.getTime()) / 86400000), 7);
   for (const value of [null, first.token.rawToken, "Bearer invalid", `Bearer fw_ai_${"a".repeat(43)}`]) await rejects(authenticateAi(db, value), "invalid_token");
   await rejects(submitAiMeasurementOperation(db, read.identity, input()), "read_only");
   await rejects(revokeAiToken(db, second.userId, first.token.token.id), "not_found");

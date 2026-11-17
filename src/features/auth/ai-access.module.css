@@ -99,6 +99,10 @@
 .tokenForm { margin:0!important; gap:12px 20px!important; }
 .settings .tokenForm label { font-size:14px; }
 .settings .tokenForm input,.settings .tokenForm select,.settings :global(.ai-secret) input { font-size:16px; }
+.settings .tokenDomains { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,9em),1fr)); gap:0 20px; width:100%; min-width:0; margin:0; padding:0; border:0; }
+.settings .tokenDomains legend { padding:0; margin-bottom:4px; }
+.settings .tokenForm .tokenDomains label { display:flex; align-items:center; gap:10px; min-height:44px; font-size:16px; cursor:pointer; }
+.settings .tokenForm .tokenDomains input[type="checkbox"] { appearance:auto; flex:0 0 18px; width:18px; height:18px; min-height:18px; margin:0; padding:0; accent-color:var(--gold); }
 .settings .tokens { margin:0; }
 .settings .tokens li { align-items:flex-start; flex-wrap:wrap; }
 .historyOther { padding-top:16px; }

@@ -8,6 +8,8 @@ export function singleWebRedirect(request: Request): Response | null {
   const config = regionConfig();
   if (!config.enabled || !config.singleWeb || !["GET", "HEAD"].includes(request.method)) return null;
   const source = new URL(request.url);
+  // MFA挑战必须留在持有挑战Cookie的认证来源，不能转去另一个域名。
+  if (source.pathname === "/account/security") return null;
   if (source.origin === config.cn || ![config.canonical, config.global, config.selector, config.legacyCn].includes(source.origin)) return null;
   if (request.headers.get("rsc") === "1" || request.headers.get("next-router-prefetch") === "1") return null;
   if (source.pathname === "/dashboard/export/file") return null;

@@ -138,7 +138,7 @@ last_request 有索引，支持认证存储清理过期计数。限流表不关�
 | prefix | text | 列表显示前缀，不用于鉴权 |
 | permission | text | read／write，数据库 check；write 包含查询与提交预览 |
 | created_at | timestamptz | 创建时间 |
-| expires_at | timestamptz | 30 天到期 |
+| expires_at | timestamptz | 新手动令牌默认7天，可选1／7／30天；既有令牌不变 |
 | last_used_at | timestamptz nullable | 最近有效使用时间 |
 | revoked_at | timestamptz nullable | 撤销时间，鉴权即时检查 |
 
@@ -813,3 +813,19 @@ assistant_reminder_dismissals保存账号级昨日饮食提醒的忽略状态。
 | assistant_usage_requests | id、user_id、run_id、provider、date、state、reserved_cny、cost_cny、usage JSON、rates JSON、created_at | 账号＋运行复合外键；金额numeric(18,8)、非负，未知cost_cny为空；状态reserved／settled／unknown；账号＋date索引 |
 
 引用及附件在feature校验属于本人当前会话或本人私有meal_images；JSON不提供跨账号引用通道。可读历史仅当前最近50条，数据库旧历史不自动删除。工具结果保存幂等依据及真实预览入口，原始私有推理不保存。usage为供应商原始用量；明确HTTP拒绝时保存requestRejected及httpStatus作为结算依据，不伪造token用量。账本按请求开始时北京时间日期归属，不因跨日返回、换模型或新会话清空。
+
+
+## 全站安全与管理结构
+
+0043为兼容增量迁移：users增加two_factor_enabled、ai_paused、可空ai_daily_budget_cents（0–1000）和ai_daily_recognition_limit（0–100）；NULL继承、0禁用，版本沿用entitlement_version。sessions增加mfa_verified_at、security_verified_at和mfa_recovery_required；account_events增加details JSONB；ai_tokens增加可空domains，旧NULL不自动扩权。0044新增业务调用、识图和费用全站日期索引，当前66张业务／认证表。
+
+| 表 | 字段与关系 | 约束及维护 |
+|---|---|---|
+| two_factors | id、user_id、secret、backup_codes、verified、failed_verification_count、locked_until | user_id唯一外键；秘密及恢复码加密，普通账号查询不返回 |
+| mfa_login_challenges | id、user_id、access_version、expires_at | 绑定登录挑战和访问版本；5分钟失效，过期清理 |
+| ai_budget_days | date | 北京时间日期主键，只作原子预占互斥锁，没有重复费用事实 |
+| api_daily_usage | id、user_id、date、channel、operation、requests、failures | 账号／日／渠道／操作唯一；仅HTTP、MCP、豆包业务调用，失败不大于请求 |
+| security_events | id、user_id可空、category、source_hash、request_id、details、created_at | 时间与账号索引；脱敏标量元数据，无凭据或正文，保留30天 |
+| image_quota_leases | id、user_id、date、bytes、state、expires_at、created_at | reserved／complete／released，1–20MiB，账号日期索引；4并发、每天200MiB |
+
+后台费用仅聚合assistant_usage_requests中的numeric值，预占／未知与已结算分开；NULL用量保持未知。策略修改在账号锁内核对owner、5分钟验证、版本和幂等编号，账号审计保存原因及前后值。只汇总健康表的有效行数、创建时间和登记图片字节，不读取健康内容。详见[安全与全站管理](security-admin.md)。

@@ -13,6 +13,9 @@ export async function signIn(email: string, password: string, signal: AbortSigna
     });
     if (response.ok) {
       const result = await response.json();
+      const returnTo = oauthQuery ? "/oauth/login?" + oauthQuery : new URLSearchParams(window.location.search).get("next") || "/dashboard";
+      if (result.twoFactorRedirect === true) return { success: true, redirectUrl: "/account/security?challenge=1&returnTo=" + encodeURIComponent(returnTo) };
+      if (result.user?.role === "owner" && !result.user?.twoFactorEnabled) return { success: true, redirectUrl: "/account/security?returnTo=" + encodeURIComponent(returnTo) };
       return { success: true, ...(result.redirect === true && typeof result.url === "string" ? { redirectUrl: result.url } : {}) };
     }
     if (response.status === 403) {

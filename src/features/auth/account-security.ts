@@ -1,14 +1,16 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { consumeSecurityRate } from "./security-usage";
 import type { Database } from "../../db/client";
-import { accountLink, aiToken, oauthAccessToken, oauthConnection, oauthConsent, oauthRefreshToken, rateLimit, session, user, dataConnection } from "../../db/schema";
+import { accountLink, aiToken, oauthAccessToken, oauthConnection, oauthConsent, oauthRefreshToken, session, user, dataConnection } from "../../db/schema";
 import { ApiError } from "./ai-identity";
 
 export type SecurityTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export type SessionProof = { userId: string; sessionId: string; accessVersion: number };
 export const webSessionContext = new AsyncLocalStorage<SessionProof>();
-export const ADMIN_VERIFICATION_MS = 10 * 60_000;
+export const ADMIN_VERIFICATION_MS = 5 * 60_000;
+export const ownerMfaRequired = () => process.env.NODE_ENV !== "test" || process.env.FORMWARD_TEST_OWNER_MFA === "1";
 export const hashAccountToken = (value: string) => createHash("sha256").update(value).digest("hex");
 
 export async function requireActiveAccount(db: Pick<Database, "select">, userId: string) {
@@ -17,13 +19,24 @@ export async function requireActiveAccount(db: Pick<Database, "select">, userId:
   return row;
 }
 
-export async function requireSessionProof(db: Pick<Database, "select">, proof: SessionProof, admin = false) {
+export async function requireSessionProof(db: Pick<Database, "select">, proof: SessionProof, admin = false, options: { allowMfaSetup?: boolean } = {}) {
   const owner = await requireActiveAccount(db, proof.userId);
   const [row] = await db.select().from(session).where(and(eq(session.id, proof.sessionId), eq(session.userId, proof.userId), gt(session.expiresAt, new Date())));
   if (!row || row.accessVersion !== owner.accessVersion || proof.accessVersion !== owner.accessVersion) throw new ApiError(401, "invalid_session", "登录已失效，请重新登录。");
+  if (!options.allowMfaSetup) {
+    if (owner.role === "owner" && ownerMfaRequired() && !owner.twoFactorEnabled) throw new ApiError(403, "mfa_setup_required", "请先为管理员账号绑定验证器。");
+    if (owner.twoFactorEnabled && !row.mfaVerifiedAt) throw new ApiError(403, "mfa_required", "请完成动态码验证后继续。");
+    if (row.mfaRecoveryRequired) throw new ApiError(403, "mfa_rebind_required", "已使用恢复码，请重新绑定验证器。");
+  }
   if (admin && owner.role !== "owner") throw new ApiError(403, "forbidden", "此账号没有管理权限。");
   if (admin && (!row.adminVerifiedAt || row.adminVerifiedAt.getTime() > Date.now() || Date.now() - row.adminVerifiedAt.getTime() >= ADMIN_VERIFICATION_MS)) throw new ApiError(403, "verification_required", "请再次输入密码以继续管理。");
   return { user: owner, session: row };
+}
+
+export async function requireRecentSecurity(db: Pick<Database, "select">, proof: SessionProof) {
+  const identity = await requireSessionProof(db, proof), time = identity.session.securityVerifiedAt;
+  if (!time || time.getTime() > Date.now() || Date.now() - time.getTime() >= ADMIN_VERIFICATION_MS) throw new ApiError(403, "verification_required", "请再次验证身份后继续。当前输入保留。");
+  return identity;
 }
 
 /** 所有网页写入在既有账号行锁内再次验证本次请求的会话，避免撤销后的在途请求继续保存。 */
@@ -40,15 +53,7 @@ export async function lockActiveAccount(tx: SecurityTransaction, userId: string)
 
 // 摘要化限流键，不把邮箱、令牌和来源地址写进 key。计数由数据库原子维护，多实例共享。
 export async function limitAccountAttempt(db: Database, category: string, subject: string) {
-  const key = `account:${category}:${hashAccountToken(subject)}`, now = Date.now();
-  const [row] = await db.insert(rateLimit).values({ id: randomUUID(), key, count: 1, lastRequest: now }).onConflictDoUpdate({
-    target: rateLimit.key,
-    set: {
-      count: sql`CASE WHEN ${rateLimit.lastRequest} <= ${now - 60_000} THEN 1 ELSE LEAST(${rateLimit.count} + 1, 6) END`,
-      lastRequest: sql`CASE WHEN ${rateLimit.lastRequest} <= ${now - 60_000} THEN ${now} ELSE ${rateLimit.lastRequest} END`,
-    },
-  }).returning();
-  if (row.count > 5) throw new ApiError(429, "rate_limited", "尝试次数较多，请一分钟后重试。");
+  await consumeSecurityRate(db, `account-${category}`, subject, 5);
 }
 
 /** 调用方先锁 users 行；版本使延迟签发的旧会话也无法通过验证。审计由调用方同事务写入。 */

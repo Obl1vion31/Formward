@@ -22,6 +22,10 @@ export function OAuthForm({ kind, query, email, doubao }: { kind: "login" | "con
       }
       const response = await fetch(`/api/auth/oauth2/${kind === "consent" ? "consent" : "continue"}`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ oauth_query: query, ...(kind === "consent" ? { accept } : { selected: true }) }), signal: AbortSignal.timeout(15000) });
       const result = await response.json();
+      if(response.status===403&&["verification_required","mfa_required","mfa_setup_required","mfa_rebind_required"].includes(result.code)){
+        const returnTo=(doubao?"/doubao/":"/oauth/")+(kind==="consent"?"consent":"login")+"?"+query;
+        window.location.assign(new URL("/account/security?returnTo="+encodeURIComponent(returnTo),window.location.origin).href);return;
+      }
       if (!response.ok || !result.url) throw new Error("授权请求已失效，请返回 AI 客户端重新连接。");
       window.location.assign(destination(result.url));
     } catch (failure) {

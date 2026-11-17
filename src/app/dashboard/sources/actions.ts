@@ -1,7 +1,7 @@
 "use server";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { withCurrentSession } from "@/features/auth/server";
+import { withCurrentSession,withReadSession } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { safeAiError } from "@/features/measurements/ai-api";
 import { bindPersonalSource, configureConnection, configurePolicy } from "@/features/data-sources/mutations";
@@ -21,7 +21,7 @@ async function change(work: (userId: string) => Promise<void | { changes?: Sourc
   } catch (error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }
 export async function loadSourcesAction() {
-  try { return await withCurrentSession(await headers(), async user => ({ ok: true as const, data: await loadSourceSettings(getDatabase(), user.id) })); }
+  try { return await withReadSession(await headers(), async user => ({ ok: true as const, data: await loadSourceSettings(getDatabase(), user.id) })); }
   catch (error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }
 export async function bindPersonalSourceAction(input: unknown) { return change(async id => { await bindPersonalSource(getDatabase(), id, input); return {settingsSaved:true,sync:await synchronizeSource(getDatabase(),id,{manual:true,activate:true})}; }); }

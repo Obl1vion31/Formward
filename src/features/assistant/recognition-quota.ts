@@ -11,7 +11,8 @@ type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export async function recognitionUsage(db: Pick<Database, "select">, userId: string, now = new Date()) {
   const date = budgetDate(now);
   const [row] = await db.select({ used: count() }).from(assistantRecognition).where(and(eq(assistantRecognition.userId, userId), eq(assistantRecognition.date, date), inArray(assistantRecognition.state, ["reserved", "used"])));
-  return { used: row.used, limit: 4, remaining: Math.max(0, 4 - row.used), resetAt: nextBudgetReset(date) };
+  const limit = accountEntitlements(await requireActiveAccount(db, userId)).dailyRecognitionLimit;
+  return { used: row.used, limit, remaining: limit === null ? null : Math.max(0, limit - row.used), resetAt: nextBudgetReset(date) };
 }
 /** 已持有账号锁；创建任务不扣次数，首次真实模型请求才预占。 */
 export async function prepareRecognition(tx: Tx, task: typeof assistantConversation.$inferSelect, inputDigest: string, followup: boolean) {
@@ -31,11 +32,13 @@ export async function reserveRecognition(tx: Tx, run: typeof assistantRun.$infer
   const [job] = await tx.select().from(assistantRecognition).where(and(eq(assistantRecognition.id, run.recognitionId), eq(assistantRecognition.userId, run.userId), eq(assistantRecognition.conversationId, run.conversationId)));
   if (!job) throw new ApiError(404, "recognition_missing", "识别任务不存在或不属于当前账号。");
   const entitlement = accountEntitlements(await requireActiveAccount(tx, run.userId));
+  if(entitlement.dailyRecognitionLimit===0)throw new ApiError(429,"daily_recognition_limit","站内识图额度已停用，已有照片和文字保留，仍可手动填写。");
   if (entitlement.tier === "free") {
     const [requests] = await tx.select({ total: count() }).from(assistantUsageRequest).innerJoin(assistantRun, and(eq(assistantRun.id, assistantUsageRequest.runId), eq(assistantRun.userId, run.userId))).where(eq(assistantRun.recognitionId, job.id));
     if (requests.total >= 8) throw new ApiError(429, "recognition_steps", "本次识别已达到处理步骤上限，已有结果保留，请手动核对填写。");
-    if (["prepared", "refunded"].includes(job.state) && (await recognitionUsage(tx, run.userId)).remaining < 1) throw new ApiError(429, "daily_recognition_limit", "今日4次识图额度已用完，可以继续手动填写，明日北京时间零点重置。");
   }
+  const quota = await recognitionUsage(tx, run.userId);
+  if (["prepared", "refunded"].includes(job.state) && quota.remaining !== null && quota.remaining < 1) throw new ApiError(429, "daily_recognition_limit", `今日${quota.limit}次识图额度已用完，可以继续手动填写，明日北京时间零点重置。`);
   if (["prepared", "refunded"].includes(job.state)) await tx.update(assistantRecognition).set({ state: "reserved", date: budgetDate(), updatedAt: new Date() }).where(eq(assistantRecognition.id, job.id));
 }
 export async function markRecognitionUsed(db: Database, userId: string, runId: string) {

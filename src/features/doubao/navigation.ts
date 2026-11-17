@@ -6,6 +6,14 @@ export function doubaoNavigation(target: string, origin: string, canonical: stri
   if (![new URL(canonical).origin, origin].includes(url.origin)) throw new ApiError(400, "invalid_redirect", "授权返回地址无效。");
   const page = url.pathname === "/oauth/login" ? "/doubao/login" : url.pathname === "/oauth/consent" ? "/doubao/consent" : null;
   if (page) return origin + page + url.search;
+  if(url.pathname==="/account/security"){
+    const returnTo=new URL(url.searchParams.get("returnTo")??"/doubao/login",canonical);
+    if(![new URL(canonical).origin,origin].includes(returnTo.origin))throw new ApiError(400,"invalid_redirect","授权返回地址无效。");
+    const returnPage=returnTo.pathname==="/oauth/login"?"/doubao/login":returnTo.pathname==="/oauth/consent"?"/doubao/consent":returnTo.pathname==="/doubao/login"?"/doubao/login":null;
+    if(!returnPage)throw new ApiError(400,"invalid_redirect","授权返回地址无效。");
+    url.searchParams.set("returnTo",returnPage+returnTo.search);
+    return origin+url.pathname+url.search;
+  }
   if (url.origin === origin && url.pathname === "/doubao/callback") return url.href;
   throw new ApiError(400, "invalid_redirect", "授权返回地址无效。");
 }

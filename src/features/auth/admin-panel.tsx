@@ -12,10 +12,11 @@ type UserRow = Extract<AdminData["rows"][number], { banned: boolean }>;
 const actionNames: Record<string, string> = { membership_changed: "设置账号档位", admin_unlock: "验证管理身份", invite_created: "生成邀请", invite_revoked: "撤销邀请", invite_claimed: "账号激活", reset_created: "生成重设链接", reset_password: "生成重设链接", password_reset: "重设密码", password_changed: "修改密码", suspend: "停用账号", restore: "恢复账号", revoke_access: "撤销全部访问", session_revoked: "退出登录设备", owner_initialized: "初始化管理权限", owner_recovered: "本地恢复密码" };
 const tabs = [["accounts", "账号"], ["invitations", "邀请"], ["events", "操作记录"]] as const;
 
-export function AdminPanel({ email, initial }: { email: string; initial: AdminData | null }) {
+export function AdminPanel({ email, initial, embedded = false, initialTab = "accounts", initialSearch = "" }: { email: string; initial: AdminData | null; embedded?: boolean; initialTab?: AdminFilter["tab"]; initialSearch?: string }) {
+  const [code, setCode] = useState("");
   const [data, setData] = useState(initial), [locked, setLocked] = useState(!initial), [password, setPassword] = useState("");
-  const [filter, setFilter] = useState<AdminFilter>({ tab: "accounts", search: "", status: "all", page: 1 });
-  const [search, setSearch] = useState(""), [inviteEmail, setInviteEmail] = useState(""), [notice, setNotice] = useState("");
+  const [filter, setFilter] = useState<AdminFilter>({ tab: initialTab, search: initialSearch, status: "all", page: 1 });
+  const [search, setSearch] = useState(initialSearch), [inviteEmail, setInviteEmail] = useState(""), [notice, setNotice] = useState("");
   const [target, setTarget] = useState<UserRow | null>(null), [reason, setReason] = useState(""), [tier, setTier] = useState<MembershipTier>("free");
   const [secret, setSecret] = useState<{ url: string; expiresAt: string } | null>(null), task = useAccountTask();
   const [now, setNow] = useState(0);
@@ -38,7 +39,7 @@ export function AdminPanel({ email, initial }: { email: string; initial: AdminDa
   async function unlock(event: FormEvent) {
     event.preventDefault();
     const result = await task.run("正在验证管理身份…", async () => {
-      const unlocked = await unlockAdminAction(password);
+      const unlocked = await unlockAdminAction(password, code);
       if (!unlocked.ok) return unlocked;
       setPassword("");
       return reload(filter);
@@ -88,11 +89,11 @@ export function AdminPanel({ email, initial }: { email: string; initial: AdminDa
       return changed;
     }); failed(result);
   }
-  return <AccountFrame title="用户管理" intro="邀请用户、管理访问，所有操作留有记录。">
-    <div className={styles.accountIdentity}><span>{email}</span><span className={styles.badge}>管理者</span></div>
+  return <AdminContainer embedded={embedded}>
+    {!embedded && <div className={styles.accountIdentity}><span>{email}</span><span className={styles.badge}>管理者</span></div>}
     <AccountFeedback error={task.error} message={notice} />
-    {locked ? <section className={styles.unlock} aria-label="管理身份验证"><span className={styles.sectionNumber}>01 / 身份验证</span><h2>输入密码以继续管理</h2><p className={styles.muted}>验证仅对当前设备有效，10 分钟后需要再次确认。</p><form onSubmit={unlock}><label className={styles.field}>当前密码<input name="adminPassword" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" required maxLength={128} disabled={task.busy} /></label><button type="submit" className={styles.primary} disabled={task.busy}>{task.busy ? "正在验证…" : "验证并进入"}</button></form></section> : <>
-      <nav className={styles.tabs} aria-label="用户管理栏目">{tabs.map(([tab, label]) => <button type="button" key={tab} aria-current={filter.tab === tab ? "page" : undefined} disabled={task.busy} onClick={() => void load({ ...filter, tab, page: 1 })}>{label}</button>)}</nav>
+    {locked ? <section className={styles.unlock} aria-label="管理身份验证"><h2>输入密码以继续管理</h2><p className={styles.muted}>验证仅对当前设备有效，5 分钟后需要再次确认。</p><form onSubmit={unlock}><label className={styles.field}>当前密码<input name="adminPassword" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" required maxLength={128} disabled={task.busy} /></label><label className={styles.field}>动态码<input value={code} onChange={event => setCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" maxLength={6} disabled={task.busy}/></label><button type="submit" className={styles.primary} disabled={task.busy}>{task.busy ? "正在验证…" : "验证并进入"}</button></form></section> : <>
+      {!embedded && <nav className={styles.tabs} aria-label="用户管理栏目">{tabs.map(([tab, label]) => <button type="button" key={tab} aria-current={filter.tab === tab ? "page" : undefined} disabled={task.busy} onClick={() => void load({ ...filter, tab, page: 1 })}>{label}</button>)}</nav>}
       {filter.tab === "invitations" && <form className={styles.inviteForm} onSubmit={event => void invite(event)}><label className={styles.field}>邀请账号<input type="email" name="inviteEmail" value={inviteEmail} onChange={event => setInviteEmail(event.target.value)} placeholder="对方的登录邮箱" required maxLength={254} autoComplete="off" disabled={task.busy} /></label><button type="submit" className={styles.primary} disabled={task.busy}>生成邀请链接</button><p className={styles.muted}>链接有效 72 小时，由你手动交给本人。对方自行设置密码。</p></form>}
       <form className={styles.filters} onSubmit={event => { event.preventDefault(); void load({ ...filter, search, page: 1 }); }}><label className={styles.field}><span className={styles.srOnly}>搜索登录邮箱</span><input name="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="搜索登录邮箱" maxLength={254} disabled={task.busy} /></label>{filter.tab === "accounts" && <label className={styles.field}><span className={styles.srOnly}>账号状态</span><select value={filter.status} onChange={event => void load({ ...filter, search, status: event.target.value as AdminFilter["status"], page: 1 })} disabled={task.busy}><option value="all">全部状态</option><option value="active">正常</option><option value="banned">停用</option></select></label>}<button type="submit" disabled={task.busy}>搜索</button></form>
       <div className={styles.listHeading}><span>{tabs.find(([tab]) => tab === filter.tab)?.[1]}</span><small>共 {data?.total ?? 0} 条</small></div>
@@ -108,5 +109,7 @@ export function AdminPanel({ email, initial }: { email: string; initial: AdminDa
     </>}
     {!locked && target && <Inspector title="管理账号" busy={task.busy} close={() => { if (!task.busy) setTarget(null); }} className={styles.dialog} header={<div className={styles.dialogHeader}><h2>管理账号</h2><InspectorCloseButton label="关闭账号管理" disabled={task.busy}/></div>}><p className={styles.targetEmail}>{target.email}</p><AccountFeedback error={task.error} /><form className={styles.tierForm} onSubmit={event=>{event.preventDefault();void saveTier();}}><h3>账号档位</h3><label className={styles.field}>可用功能<select aria-label="账号档位" value={tier} onChange={event=>setTier(event.target.value as MembershipTier)} disabled={task.busy}><option value="free">Free · 每日4次饮食识图</option><option value="beta">内测版 · 每日1元AI额度</option><option value="plus">Plus · 每日2元AI额度</option><option value="pro" disabled>Pro · 暂未开放</option></select></label><p className={styles.muted}>保存后下次请求生效，页面至多一分钟自动同步，无需重启或重新登录。</p><button type="submit" className={styles.primary} disabled={task.busy||tier===target.membershipTier}>保存档位</button></form>{target.banned ? <><p className={styles.muted}>停用原因：{target.banReason}</p><button type="button" className={styles.primary} disabled={task.busy} onClick={() => void operate("restore")}>恢复账号</button></> : <><div className={styles.operation}><h3>帮助找回密码</h3><p className={styles.muted}>核实本人后生成 15 分钟有效的重设链接。</p><button type="button" disabled={task.busy} onClick={() => void operate("reset_password")}>生成密码重设链接</button></div><div className={styles.operation}><h3>撤销访问</h3><p className={styles.muted}>退出全部设备，并断开全部 AI 授权。</p><button type="button" disabled={task.busy} onClick={() => void operate("revoke_access")}>撤销全部访问</button></div><form className={styles.operation} onSubmit={event => { event.preventDefault(); void operate("suspend"); }}><h3>停用账号</h3><label className={styles.field}>停用原因<textarea name="reason" value={reason} onChange={event => setReason(event.target.value)} rows={3} maxLength={500} required disabled={task.busy} /></label><button type="submit" className={styles.danger} disabled={task.busy}>停用账号</button></form></>}</Inspector>}
     {!locked && secret && <SecretAccountLink {...secret} close={() => setSecret(null)} />}
-  </AccountFrame>;
+  </AdminContainer>;
 }
+
+function AdminContainer({ embedded, children }: { embedded: boolean; children: React.ReactNode }) { return embedded ? <div>{children}</div> : <AccountFrame title="用户管理" intro="邀请用户、管理访问，所有操作留有记录。">{children}</AccountFrame>; }

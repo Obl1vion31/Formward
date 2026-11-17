@@ -8,6 +8,8 @@
 
 ## 内容
 
+- [安全与全站管理](security-admin.md)：管理员MFA、费用及调用统计、用户AI策略、共享预算、资源配额与安全发布边界。
+
 - [豆包接入与公开协议](doubao-onboarding.md)：域名与白名单、测试版手机入口、独立授权与MCP、已公开协议、发布验证及待测边界。
 - [maintenance-verification.md](maintenance-verification.md)：实际网页视觉检查、发布与数据核对证据。
 - `status.md`：当前实现、验证结果、关键代码位置和待完成工作，供后续协作快速恢复上下文。

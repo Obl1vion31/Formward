@@ -2,7 +2,7 @@ import { loadAssistantPreview } from "@/features/assistant/chat-preview";
 import { followupSubmissionSchema } from "@/features/assistant/followup";
 import {readChatJson} from "@/features/assistant/chat-request";
 import { z } from "zod";
-import { withCurrentSession } from "@/features/auth/server";
+import { withCurrentSession,withWriteSession } from "@/features/auth/server";
 import { isAccountRequestOrigin } from "@/features/auth/site-url";
 import { safeAiError } from "@/features/measurements/ai-api";
 import { getDatabase } from "@/db/client";
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
   if (!isAccountRequestOrigin(request.headers)) return Response.json({ error: "请求来源无效。" }, { status: 403, headers });
-  try { return await withCurrentSession(request.headers, async owner => {
+  try { return await withWriteSession(request.headers, async owner => {
     assertChatAllowed(owner);
     if (Number(request.headers.get("content-length")) > 80000) return Response.json({ error: "消息过长。" }, { status: 413, headers });
     const parsed = inputSchema.safeParse(await readChatJson(request,80000));

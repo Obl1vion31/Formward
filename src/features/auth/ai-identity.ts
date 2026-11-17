@@ -5,6 +5,7 @@ export class ApiError extends Error {
     previewId?: string;
     revision?: number;
     tool?: string;
+    retryAfter?: number;
   }) { super(message); }
 }
 

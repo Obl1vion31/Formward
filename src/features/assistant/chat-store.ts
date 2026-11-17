@@ -1,11 +1,12 @@
 import { chatAttachmentBinding } from "./chat-attachments";
+import { globalBudget, lockGlobalBudget, budgetAlert } from "./global-budget";
 import { chatCapabilities } from "./chat-config";
 import { or, isNull, isNotNull } from "drizzle-orm";
 import { followupText, resolveSupplement, mergeSupplements, type FollowupSubmission } from "./followup";
 import { createHash, randomUUID } from "node:crypto";
 import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import type { Database } from "../../db/client";
-import { assistantConnection as connection, assistantConversation as conversation, assistantMessage as message, assistantRun as run, assistantUsageRequest as usageRequest, aiToken, mealImage, user } from "../../db/schema";
+import { assistantConnection as connection, assistantConversation as conversation, assistantMessage as message, assistantRun as run, assistantUsageRequest as usageRequest, aiToken, mealImage, user, securityEvent } from "../../db/schema";
 import { ApiError } from "../auth/ai-identity";
 import { lockActiveAccount, requireActiveAccount } from "../auth/account-security";
 import { requireActiveAiToken } from "../auth/ai-tokens";
@@ -35,12 +36,12 @@ export async function chatUsage(db: Pick<Database, "select">, userId: string, no
   const date = budgetDate(now);
   const entitlement = accountEntitlements(await requireActiveAccount(db, userId)), limit = entitlement.dailyBudgetCny;
   const totals = await db.select({ provider: usageRequest.provider, state: usageRequest.state,
-    cost: sql<string>`coalesce(sum(${usageRequest.costCny}),0)::text`, reserved: sql<string>`coalesce(sum(${usageRequest.reservedCny}),0)::text`,
+    cost: sql<string>`coalesce(sum(${usageRequest.costCny}),0)::text`, reserved: sql<string>`coalesce(sum(${usageRequest.reservedCny}),0)::text`, missing:sql<string>`coalesce(sum(CASE WHEN ${usageRequest.costCny} IS NULL THEN ${usageRequest.reservedCny} ELSE 0 END),0)::text`,
   }).from(usageRequest).where(and(eq(usageRequest.userId, userId), eq(usageRequest.date, date))).groupBy(usageRequest.provider, usageRequest.state);
   const providers = chatProviderIds.map(id => ({ id, spent: 0, reserved: 0, uncertain: 0 }));
   for (const row of totals) {
     const item = providers.find(p => p.id === row.provider)!;
-    if (row.state === "settled") item.spent += Number(row.cost); else if (row.state === "unknown") item.uncertain += Number(row.reserved); else item.reserved += Number(row.reserved);
+    if (row.state === "settled") {item.spent += Number(row.cost);item.uncertain+=Number(row.missing);} else if (row.state === "unknown") item.uncertain += Number(row.reserved); else item.reserved += Number(row.reserved);
   }
   const spent = providers.reduce((sum, p) => sum + p.spent, 0), reserved = providers.reduce((sum, p) => sum + p.reserved, 0), uncertain = providers.reduce((sum, p) => sum + p.uncertain, 0);
   return { date, limit, spent, reserved, uncertain, available: Math.max(0, limit - spent - reserved - uncertain), percent: limit ? usagePercent(spent, limit) : "0%", resetAt: nextBudgetReset(date), providers, ...(entitlement.tier === "free" ? { recognition: await recognitionUsage(db, userId, now) } : {}) };
@@ -61,17 +62,27 @@ export function reserveCost(body: unknown, rates: ChatRates) {
   return estimatedChatInput(body) * rates.input / 1e6 + 8208 * rates.output / 1e6;
 }
 export async function settleChatUsage(db: Database, userId: string, id: string, raw: Record<string, unknown> | null, rejectedStatus?: number) {
+  const [snapshot]=await db.select({date:usageRequest.date}).from(usageRequest).where(and(eq(usageRequest.id,id),eq(usageRequest.userId,userId)));
+  if(!snapshot)return;
   await db.transaction(async tx => {
+    await lockGlobalBudget(tx,snapshot.date);
     await tx.select({ id: user.id }).from(user).where(eq(user.id, userId)).for("update");
     const [row] = await tx.select().from(usageRequest).where(and(eq(usageRequest.id, id), eq(usageRequest.userId, userId)));
-    if (!row || row.state !== "reserved") return;
+    if (!row || row.state === "settled") return;
     const rejected = rejectedStatus !== undefined && [400,401,402,403,404,413,422,429].includes(rejectedStatus);
     const cost = rejected ? 0 : normalizedUsage(raw, row.rates);
+    if(row.state==="unknown"&&cost===null)return;
     await tx.update(usageRequest).set({ state: cost === null ? "unknown" : "settled", costCny: cost === null ? null : cost.toFixed(8), usage: rejected ? { requestRejected: true, httpStatus: rejectedStatus } : raw }).where(eq(usageRequest.id, id));
+    if(cost!==null&&cost>Number(row.reservedCny))await tx.insert(securityEvent).values({id:`reservation-overflow:${id}`,category:"reservation_overflow",userId,details:{date:row.date}}).onConflictDoNothing();
   });
+  const global=await globalBudget(db,snapshot.date);
+  if(global.available<=0)await budgetAlert(db,snapshot.date,100);else if(global.available<=2)await budgetAlert(db,snapshot.date,80);
 }
 export async function reserveChatUsage(db: Database, ownerId: string, activeRun: StoredRun, amount: number) {
-  return db.transaction(async tx => {
+  if (!Number.isFinite(amount) || amount <= 0) throw new ApiError(503, "budget_configuration", "模型费用配置无效，暂未发起请求。");
+  const reservation = await db.transaction(async tx => {
+    const day = budgetDate();
+    await lockGlobalBudget(tx, day);
     const [task] = await tx.select({ purpose: conversation.purpose }).from(conversation).where(and(eq(conversation.id, activeRun.conversationId), eq(conversation.userId, ownerId)));
     if (!task) throw new ApiError(404, "not_found", "当前任务不可用。");
     const owner = await lockChatAccount(tx, ownerId, task.purpose === "meal_entry" ? "meal_entry" : "chat");
@@ -79,11 +90,16 @@ export async function reserveChatUsage(db: Database, ownerId: string, activeRun:
     if (!live) throw new ApiError(409, "stopped", "生成已停止。");
     if (task.purpose === "meal_entry") await reserveRecognition(tx, activeRun);
     const budget = await chatUsage(tx, ownerId);
-    if (accountEntitlements(owner).tier !== "free" && budget.available + 1e-9 < amount) throw new ApiError(429, "daily_budget", "今日可用额度不足以开始这次请求。待结算用量也会暂占额度；提醒和手工记录仍可使用。");
+    if (accountEntitlements(owner).amountLimited && budget.available + 1e-9 < amount) throw new ApiError(429, "daily_budget", "今日可用额度不足以开始这次请求。待结算用量也会暂占额度；提醒和手工记录仍可使用。");
+    const global = await globalBudget(tx, day);
+    if (global.available + 1e-9 < amount) throw new ApiError(429, "global_daily_budget", "今日全站模型额度暂不可用，已有结果保留，仍可手动记录。");
     const id = randomUUID();
     await tx.insert(usageRequest).values({ id, userId: ownerId, runId: activeRun.id, provider: activeRun.provider, date: budget.date, reservedCny: amount.toFixed(8), rates: chatProviders[providerId(activeRun.provider)].rates });
-    return id;
-  });
+    return { id, day, remaining: global.available - amount };
+  }).catch(async error => { if (error instanceof ApiError && error.code === "global_daily_budget") {const day=budgetDate(),budget=await globalBudget(db,day);if(budget.available<=0)await budgetAlert(db,day,100);else await db.insert(securityEvent).values({id:`budget-blocked:${day}`,category:"global_budget_blocked",details:{date:day}}).onConflictDoNothing();} throw error; });
+  if (reservation.remaining <= 2) await budgetAlert(db, reservation.day, 80);
+  if (reservation.remaining <= 0) await budgetAlert(db,reservation.day,100);
+  return reservation.id;
 }
 export async function chatIdentity(db: Database, ownerId: string, provider: ChatProvider, create = false, purpose: "chat" | "meal_entry" = "chat") {
   return db.transaction(async tx => {

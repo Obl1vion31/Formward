@@ -8,7 +8,7 @@ import type { Database } from "../../db/client";
 import { account, accountEvent, accountLink, session, user } from "../../db/schema";
 import { ApiError } from "./ai-identity";
 import { membershipTiers, type MembershipTier } from "./entitlements";
-import { ADMIN_VERIFICATION_MS, hashAccountToken, limitAccountAttempt, requireActiveAccount, requireSessionProof, revokeAccountAccess, type SecurityTransaction, type SessionProof } from "./account-security";
+import { ADMIN_VERIFICATION_MS, hashAccountToken, limitAccountAttempt, requireActiveAccount, requireSessionProof, requireRecentSecurity, revokeAccountAccess, type SecurityTransaction, type SessionProof } from "./account-security";
 
 export type AdminFilter = { tab?: "accounts" | "invitations" | "events"; search?: string; status?: "all" | "active" | "banned"; page?: number };
 export type AccountCommand = "suspend" | "restore" | "revoke_access" | "reset_password";
@@ -68,6 +68,7 @@ export async function unlockAccountAdmin(db: Database, proof: SessionProof, pass
   await limitAccountAttempt(db, "unlock-source", source);
   if (typeof password !== "string" || password.length > 128) throw invalid("密码不正确，请重试。");
   const identity = await requireSessionProof(db, proof);
+  if (identity.user.twoFactorEnabled) await requireRecentSecurity(db, proof);
   if (identity.user.role !== "owner") throw new ApiError(403, "forbidden", "此账号没有管理权限。");
   const [credential] = await db.select().from(account).where(and(eq(account.userId, proof.userId), eq(account.providerId, "credential")));
   if (!credential?.password || !await verifyPassword({ password, hash: credential.password })) throw invalid("密码不正确，请重试。");
@@ -240,13 +241,15 @@ export async function changePersonalPassword(db: Database, proof: SessionProof, 
   validateNewPassword(newPassword);
   await limitAccountAttempt(db, "password-account", proof.userId);
   await limitAccountAttempt(db, "password-source", source);
-  await requireSessionProof(db, proof);
+  const verified = await requireSessionProof(db, proof);
+  if(verified.user.twoFactorEnabled) await requireRecentSecurity(db,proof);
   const [credential] = await db.select().from(account).where(and(eq(account.userId, proof.userId), eq(account.providerId, "credential")));
   if (typeof oldPassword !== "string" || oldPassword.length > 128 || !credential?.password || !await verifyPassword({ hash: credential.password, password: oldPassword })) throw invalid("当前密码不正确。");
   const password = await hashPassword(newPassword);
   await db.transaction(async tx => {
     await lockUser(tx, proof.userId);
     const current = await requireSessionProof(tx, proof);
+    if(current.user.twoFactorEnabled) await requireRecentSecurity(tx,proof);
     const [latest] = await tx.select().from(account).where(eq(account.id, credential.id));
     if (latest?.password !== credential.password) throw invalid("账号密码已变化，请重新登录。");
     await tx.update(account).set({ password, updatedAt: new Date() }).where(eq(account.id, credential.id));

@@ -24,7 +24,7 @@ export type ChatMessage = {
 export type ChatUsage = {
   date: string; limit: number; spent: number; reserved: number; uncertain: number; available: number;
   percent: string; resetAt: string; providers: { id: ChatProvider; spent: number; reserved: number; uncertain: number }[];
-  recognition?: { used: number; limit: number; remaining: number; resetAt: string };
+  recognition?: { used: number; limit: number | null; remaining: number | null; resetAt: string };
 };
 export type ChatCatalogItem = { id: ChatProvider; label: string; model: string; configured: boolean; enabled: boolean; reason: string | null; expiresAt: string | null };
 export type ChatSnapshot = {
