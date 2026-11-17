@@ -28,12 +28,10 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   const returnCancelled=useRef(false),returnReady=useRef(true),returnFromHistory=useRef(false);
   const [returnPreview,setReturnPreview]=useState<MetricTrendModel|null>(null),[previewReadings,setPreviewReadings]=useState<ChartReadingsSnapshot|null>(null),[forwardPreview,setForwardPreview]=useState<MetricTrendModel|null>(null),[forwardDestination,setForwardDestination]=useState<string|null>(null);
   const origin=useRef<ChartOrigin|null>(null);
-  const motion=useRef<ReturnType<typeof createChartFlights>>(createChartFlights((next,reason)=>{
+  const motion=useRef(createChartFlights((next,reason)=>{
     if(next)document.documentElement.setAttribute('data-chart-travel','active');
     else document.documentElement.removeAttribute('data-chart-travel');
     if(!next||next.direction==='back')setForwardChartMoving(false);
-    // 实际总览已读取时，返回图形完成或取消后再交出稳定外壳。
-    if(!next&&motion.current.returning&&returnReady.current){setReturnPreview(null);setReturningToOverview(false);}
     if(next?.direction==='back'||!next&&reason!=='timeout'){setPreviewReadings(null);setForwardPreview(null);setForwardDestination(null);}setFlight(next);
   }));
   const claimChartEntry=useCallback((key:string,container?:HTMLElement|null)=>motion.current.claimEntry(key,container),[]);
@@ -44,6 +42,8 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   const rememberOverview=useCallback((state:OverviewViewState)=>{overview.current=state;},[]);
   const lastTarget=useRef<{model:MetricTrendModel;rect:ChartRect;path:string}|null>(null);
   const overviewReady=useCallback(()=>{returnReady.current=true;if(motion.current.active?.direction==='back')return;setReturnPreview(null);setReturningToOverview(false);},[]);
+  // 数据读取与图形回程独立完成；两者均完成后才交出稳定的缓存外壳。
+  useLayoutEffect(()=>{if(returningToOverview&&!flight&&returnReady.current)overviewReady();},[flight,returningToOverview,overviewReady]);
   const clear=useCallback(()=>{setForwardDestination(null);motion.current.clear();},[motion]);
   const finish=useCallback((current:ChartFlight)=>{
     if(!motion.current.complete(current.id))return;
