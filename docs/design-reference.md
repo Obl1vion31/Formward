@@ -474,20 +474,26 @@ Garmin 等外部接入的核对报告沿用暖雾主题，直接呈现日期范�
 
 ## 管理后台与安全界面验收（2026-11-17）
 
-管理员动态码按用户要求暂时关闭，服务器`FORMWARD_OWNER_MFA_REQUIRED=0`；未完成绑定的管理员用原账号密码继续。普通用户已启用的动态码仍生效，管理读取与修改继续要求owner、有效会话和5分钟内再次验密。苹果“密码”报`Invalid code`的根因尚未确定，恢复MFA前需完成真实设备验证。 当前生产构建的36项实际页面检查全部通过，密码表单在双引擎、双主题及320／390／430／844／1440宽度无溢出，输入至少16px，提交至少44px。截图为qa/chromium-password-320-dark.png、qa/webkit-password-390-light.png、qa/webkit-security.png，原始结果在`.codex/mfa-apple-20261117/qa/result.json`。沿用既定构图，条件隐藏动态码，未重新探索风格或生成新参考。
+正式站[formward.top](https://formward.top)运行`dual-entry-c41dc457-admin-brand-verified-20261117`，源码`c41dc457c29cccca09581764da1fa1b76fd83c8b`，BUILD_ID `EP_0c-8tbDyJernZr9s3e`；北京时间2026-11-17 23:33:23切换。功能已合入推送main，后续运维及文档提交不改变应用运行源码。
 
-正式站[formward.top](https://formward.top)运行`dual-entry-997b8ac6-admin-password-20261117`，源码`997b8ac69e7d7c4eaff8455f272ef5022d4ac5db`，BUILD_ID `vjG6nEwfYP1DBss9CZzOW`；北京时间2026-11-17 22:36:14切换。功能已合入推送main，后续运维及文档提交不改变应用运行源码。
+后台共用主站theme.css、系统字体、BrandLogo和外观切换；“管理与测试”中的入口称“管理后台”。用户详情顶部直接选择Free（每天4次识图、聊天关闭）、内测版（每天1元）或Plus（每天2元），个人AI限制默认收起。切档保留个人覆盖并提示，继承值来自服务端真实默认，不用0冒充没有上限；管理验证到期保留档位选择和个人草稿。
 
-实施前采用双端ImageGen参考，沿用石墨、暖白、暖金及既有控件；原图与提示在私有证据reference.png／reference-prompt.md。采用Mobile Design、Impeccable与既定Unslop a6f121e，不改变全站风格。Impeccable检测仅提示页签的金色下划线，实际为无圆角方形页签，人工复核保留；原作者及CC BY 4.0声明保持。
+沿用已认可主站方向，采用Mobile Design、Impeccable及D7中的既定Unslop署名和许可。此次修正既有主题与布局，未重新探索风格；原双端ImageGen参考仍保存在安全后台基线证据。
 
-本次文字放大修正没有数据库迁移；停写备份`formward-primary-20261117T124734473707Z.dump.json`完成原生校验与加密异机回读，66张表原列／值及配置保持。桌面筛选框随字号自然换行。两个引擎另通过320×560、390×560／640、430×780、844×390触屏横屏，以及390／1440两端200%文字，共28组双主题检查；日期和选项完整可读、触控不小于44px。
+lint、typecheck、831项单元／集成与生产构建通过。最终同一发布包通过Chromium／WebKit的42项页面与保存操作、28组矮屏／横屏／200%网页文字、32组正常与900ms慢读取逐帧检查；总览固定槽位最大偏差1 CSS px，用户详情最大0.015625px。普通用户拒绝访问，档位、个人覆盖、恢复默认、验证到期与返回筛选均实测；正常输入至少16px、触控至少44px。
 
-适用D3／D4／D5／D6／D7／D10／D11／D12／D14。Chromium与WebKit覆盖320×700、390×844、430×932、1100×850、1440×1000，双主题、长邮箱、正常／禁用／错误／到期、真实额度保存和列表返回；200%网页文字在390与1440宽度无裁切或横向溢出。输入至少16px，主要操作与复选框整行至少44px，复选框视觉18px，未知费用和未知Token不补零。完整记录、成本、数量、隐私提示与底部操作逐项查看；原五主页面、账号和AI接入另有回归图。
+加载与真实内容共用AdminHeader、会员表单槽和账号操作槽，状态占位采用真实行高。长邮箱自然换行单独验收，不把未知长内容增长算作固定槽位通过。正常／禁用／保存／错误／验证到期、Free／内测／Plus与个人覆盖、恢复默认及返回已覆盖。首帧必须文字、语义色和操作槽可见，逐帧样本从first-contentful-paint开始，未绘制样本另存。
 
-当前临时密码模式通过lint、typecheck、831项单元／集成、生产构建与Chromium／WebKit共36项实际页面检查，覆盖双主题、320／390／430手机、横屏与1440桌面，错误密码、仅密码解锁、到期保留输入、额度保存、筛选返回、普通用户404及安全页继续入口。仅增加服务器MFA开关，不改账号密码、会话、健康记录或账本；无数据库迁移。切换停写备份`formward-primary-20261117T143601446240Z.dump.json`已完成原生校验与加密异机回读，66张表保持；应用与独立恢复包均以服务身份通过readiness。此前完整安全后台基线通过830项单元／集成和干净production build，包含独立原生PostgreSQL的并发预算、个人策略、限流与图片额度，以及真实Better Auth TOTP／恢复码和OAuth／JWKS回归。最终运行包通过Chromium／WebKit的40项页面操作、12组令牌控件外观、验证到期保留输入／真实保存、200%网页文字及5次列表返回专项。双引擎、390／1440、深浅主题、正常／900ms慢读取的16组逐帧加载通过，固定槽位最大偏差1 CSS px；检查真实主题和首个内容绘制后的全部加载帧。五主页面、账号、安全、AI接入、邀请及安全记录均有实际页面证据。
+最终图：qa-final/chromium-overview-1440-light.png、qa-final/webkit-user-light.png、qa-final/webkit-user-advanced.png、qa-final/short-webkit-390-640-2-light.png。用户详情首次发现的操作槽与状态占位差异及复测前样本保留在同一证据目录，不冒充最终通过。
 
-首帧固定文字和操作槽实际可见；从首次内容绘制开始检查全部加载帧，预绘制DOM样本另记不混作可见帧。采样同时断言真实深浅主题。加载期间日期、模型、用途和所选用户保留；未知用户名称显示“所选用户”，不闪成全部用户。费用／未知占用、记录类型、图片容量及操作槽均预留真实尺寸，无整页隐藏。先前错误的主题初始化、过早读取加载控件以及原复选框放大截图保留于私有失败诊断，修正后全矩阵重新通过。
+当前schema0044、44项迁移、66张表，本轮没有数据库迁移。停写备份`formward-primary-20261117T153310844524Z.dump.json`完成原生校验和加密异机完整回读；停写核对窗口66张表原列／值保持，配置、认证密钥、账号档位、健康记录和费用账本不因发布改写。新应用及兼容回退均以实际服务身份通过readiness，网页与worker正常。
 
-最终图：qa/overview-1440-light.png、qa/user-mobile-dark.png、qa/token-chromium-390-light-viewport.png、qa/loading-chromium-1440-light-0.png、qa/loading-webkit-390-dark-900.png；QA JSON及逐帧原始样本在同目录。参考稿与实际网页分开，正式匿名MFA页面另有公网截图。
+55项受保护Server Actions与原绑定密钥保持兼容，旧的未加固动作仍返回409和刷新提示；仅补留1254项旧静态资源，不保留旧执行代码旁路。网页与worker保留ExecStartPre安全基线，旧0042包不能启动。
 
-临时密码模式的私有脚本、日志与虚构截图保存在原入口`.codex/mfa-apple-20261117`，Windows截图副本在`C:/Users/14878/.codex/private/formward-admin-password-20261117`；原完整安全后台参考与证据仍在`.codex/security-admin-20261117`。未实测真实iPhone／Android、系统软键盘、系统字号、屏幕阅读器及长期负载；WebKit与网页文字放大不冒充真机通过。
+海外网关沿用`dpl_CgwJFnf4xJjpqVced4Lj74CJ48sC`、iad1及原别名范围。正式域名、IP与两个海外入口的实际版本一致；8组公网浏览器检查、新静态资源回源、同源安全页面、nonce CSP、HSTS与防嵌入通过。HTTP1.15.1、MCP2.0.2／18项、resource与公开JWKS保持，匿名HTTP／MCP拒绝401。正式健康测试写入和收费模型调用均为0。
+
+完整兼容运行包76,446,483字节，SHA256 `6ff11f6f8f225fdfcdc0ac6bb2f35b1611499908c35d8e821bec97251fc39c33`，服务器与本机归档逐字节一致，永久保存在原入口`.codex/backups/regional-releases/admin-brand-verified-20261117`。兼容回退为`admin-password-20261117`（997b8ac6），支持当前临时密码模式与schema0044；不回退数据、费用和凭据。
+
+主题与档位的脚本、日志及虚构截图保存在原入口`.codex/admin-brand-20261117`，Windows截图副本在`C:/Users/14878/.codex/private/formward-admin-brand-20261117`；临时密码模式证据在`.codex/mfa-apple-20261117`，原完整安全后台基线在`.codex/security-admin-20261117`。未实测真实iPhone／Android、系统软键盘、系统字号、屏幕阅读器及长期负载，模拟WebKit和网页文字放大不冒充真机。
+
+管理员动态码按用户要求暂时关闭，原苹果验证器Invalid code根因未确定。已启用MFA的普通用户仍验证动态码；真实设备绑定须以后单独验收。
