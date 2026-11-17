@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { AdminHeader } from "./header";
-import { TierLoading } from "./tiers";
 import { MembershipPlaceholder } from "./membership-form";
 import styles from "./console.module.css";
 import {normalizeAdminFilter} from "./model";
@@ -35,3 +34,5 @@ export function AdminLoading({path="/admin"}:{path?:string}){
     {(tab==="security"||tab==="invitations")&&<p role="status" className={styles.caption}>正在读取…</p>}
   </div></div>;
 }
+
+function TierLoading(){return <section data-tier-manager><div className={styles.tierIntro}><p className={styles.caption}>档位决定默认AI额度与权限。修改会统一影响对应用户，个人覆盖继续保留；全站每天仍共用¥10。</p><button disabled>新增档位</button></div><div className={styles.tierList}><div className={styles.tierListHead}><span>档位</span><span>默认额度与功能</span><span>用户</span><span/></div><p className={styles.empty} role="status">正在读取档位…</p></div></section>;}
