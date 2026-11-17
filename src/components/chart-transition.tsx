@@ -68,10 +68,6 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     const scale=dest.width/current.rect.width,scaleY=dest.height/current.rect.height;
     current.destination=dest;current.landing=true;current.ready=!skeleton;
     motion.current.reveal(id,element);
-    // 先提交来源与目标几何，再与实际绘制帧对齐计时；WebKit不能在首帧前消耗转场时长。
-    requestAnimationFrame(async()=>{
-    if(motion.current.active?.id!==id||!node.isConnected)return;
-    node.setAttribute('data-motion-starts','1');
     if(current.model.kind==="morning-weight"){
       const count=current.model.points.length,forward=current.direction==='forward';
       const to=node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="destination"]');
@@ -81,11 +77,9 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
         point.setAttribute('ry',String(forward?detailRadius()/(dest.height/120):3.6));
       });
     }
-    await prepareChartFlightBitmap(node,dest);
-    // WebKit首次提交canvas纹理也可能占用一次绘制；先让真实帧落屏，再开始300ms计时。
-    // 路由及数据请求已在进行，这里只等待图形合成，不阻塞导航。
-    await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+    const begin=()=>{
     if(motion.current.active?.id!==id||!node.isConnected)return;
+    node.setAttribute('data-motion-starts','1');
     if(current.model.kind==='morning-weight'){
       const from=node.querySelector<HTMLElement>('[data-flight-bitmap][data-chart-glyph-layer="source"]')??node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="source"]'),to=node.querySelector<HTMLElement>('[data-flight-bitmap][data-chart-glyph-layer="destination"]')??node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="destination"]');
       const options={duration:300,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards' as const};
@@ -98,6 +92,15 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
       if(current.direction==='forward')setForwardChartMoving(false);
       if(current.ready)finish(current);
     }).catch(()=>{});
+    };
+    // 返回沿用已发布的同步SVG收束；放大所需的纹理准备不能延迟原本可立即开始的回程。
+    if(current.direction==='back'){begin();return;}
+    // 前进放大先提交实际位图，再以可绘制帧开始计时；路由及数据读取不等待它。
+    requestAnimationFrame(async()=>{
+      if(motion.current.active?.id!==id||!node.isConnected)return;
+      await prepareChartFlightBitmap(node,dest);
+      await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+      begin();
     });
   },[motion,clear,finish]);
   const land=useCallback((next:ChartTarget,id:number)=>{
