@@ -51,11 +51,13 @@ async function queryAdminSnapshot(db: Database, proof: SessionProof, input: Admi
   const currentCosts = await adminRows<{ userId: string; used: string }>(db, sql`SELECT user_id AS "userId",coalesce(sum(CASE WHEN state='settled' AND cost_cny IS NOT NULL THEN cost_cny ELSE reserved_cny END),0)::text AS used FROM assistant_usage_requests WHERE date=${today}::date GROUP BY user_id`);
   const summaryRecords = [...new Set(records.map(row => row.kind))].map(kind => ({ kind, total: records.filter(r => r.kind === kind).reduce((n,r) => n + r.total,0), added: records.filter(r => r.kind === kind).reduce((n,r) => n + r.added,0), bytes: records.filter(r => r.kind === kind).reduce((n,r) => n + BigInt(r.bytes),BigInt(0)).toString() }));
   let users = people.filter(person => (!filter.userId || person.id === filter.userId) && (!filter.search || `${person.email} ${person.name}`.toLowerCase().includes(filter.search.toLowerCase()))).map(person => {
-    const entitlement = accountEntitlements(person), cost = userCosts.find(row => row.userId === person.id) ?? emptyCost();
+    const entitlement = accountEntitlements(person), defaults = accountEntitlements({...person, aiDailyBudgetCents:null, aiDailyRecognitionLimit:null}), cost = userCosts.find(row => row.userId === person.id) ?? emptyCost();
     const personalRecords = records.filter(row => row.userId === person.id);
     return { ...person, createdAt: person.createdAt.toISOString(), lastLoginAt: person.lastLoginAt?.toISOString() ?? null,
       cost, records: personalRecords, recordCount: personalRecords.filter(row => !["食材","训练计划","训练模板","已登记图片"].includes(row.kind)).reduce((sum,row) => sum + row.total,0),
-      dailyBudget: entitlement.amountLimited ? entitlement.dailyBudgetCny : null, dailyRecognitionLimit: entitlement.dailyRecognitionLimit, todayUsed: currentCosts.find(row => row.userId === person.id)?.used ?? "0" };
+      dailyBudget: entitlement.amountLimited ? entitlement.dailyBudgetCny : null, dailyRecognitionLimit: entitlement.dailyRecognitionLimit,
+      defaultDailyBudget: defaults.amountLimited ? defaults.dailyBudgetCny : null, defaultDailyRecognitionLimit: defaults.dailyRecognitionLimit,
+      todayUsed: currentCosts.find(row => row.userId === person.id)?.used ?? "0" };
   });
   users = users.sort((a,b) => (filter.sort === "email" ? a.email.localeCompare(b.email) : filter.sort === "records" ? b.recordCount - a.recordCount : filter.sort === "requests" ? b.cost.requests - a.cost.requests : Number(b.cost.spent) - Number(a.cost.spent)) || a.id.localeCompare(b.id));
   const count = users.length; users = users.slice((filter.page-1)*50,filter.page*50);

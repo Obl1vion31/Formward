@@ -23,6 +23,8 @@ test("管理员统计只输出元数据，精确费用、策略幂等与普通�
     const proof={userId:id,sessionId:sid,accessVersion:0};
     const value=await loadAdminConsole(db,proof,{from:today,to:today});
     assert.equal(value.users.length,2);assert.equal(value.totals.spent,"0");assert.equal(value.global.limit,10);
+    const initialUser=value.users.find(person=>person.id===other)!;
+    assert.equal(initialUser.defaultDailyBudget,null);assert.equal(initialUser.defaultDailyRecognitionLimit,4);
     assert.ok(!JSON.stringify(value).includes("backupCodes"));assert.ok(!JSON.stringify(value).includes("weightKg"));
     await assert.rejects(loadAdminConsole(db,{...proof,userId:other}),/登录已失效/);
     const input={userId:other,paused:true,dailyBudgetCents:50,dailyRecognitionLimit:2,version:0,requestId:randomUUID(),reason:"虚构配额验收"};
@@ -30,6 +32,7 @@ test("管理员统计只输出元数据，精确费用、策略幂等与普通�
     await assert.rejects(changeUserAiPolicy(db,proof,{...input,requestId:randomUUID()}),/权益已变化/);
     const updated=await loadAdminConsole(db,proof,{from:today,to:today,userId:other});
     assert.equal(updated.users[0].aiPaused,true);assert.equal(updated.users[0].dailyBudget,.5);assert.equal(updated.users[0].dailyRecognitionLimit,2);
+    assert.equal(updated.users[0].defaultDailyBudget,null);assert.equal(updated.users[0].defaultDailyRecognitionLimit,4);
     assert.equal(adminMoney("0.00000001"),"小于0.0001");assert.throws(()=>normalizeAdminFilter({from:"2026-02-31",to:today}));
   }finally{await pg.close();}
 });
