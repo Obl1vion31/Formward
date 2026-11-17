@@ -25,7 +25,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   const router=useRouter(),pathname=usePathname(),search=useSearchParams().toString(),[pending,startTransition]=useTransition();
   const [flight,setFlight]=useState<ChartFlight|null>(null),[returningToOverview,setReturningToOverview]=useState(false);
   const [forwardChartMoving,setForwardChartMoving]=useState(false);
-  const returnCancelled=useRef(false),returnReady=useRef(true);
+  const returnCancelled=useRef(false),returnReady=useRef(true),returnFromHistory=useRef(false);
   const [returnPreview,setReturnPreview]=useState<MetricTrendModel|null>(null),[previewReadings,setPreviewReadings]=useState<ChartReadingsSnapshot|null>(null),[forwardPreview,setForwardPreview]=useState<MetricTrendModel|null>(null),[forwardDestination,setForwardDestination]=useState<string|null>(null);
   const origin=useRef<ChartOrigin|null>(null);
   const motion=useRef(createChartFlights((next,reason)=>{
@@ -94,8 +94,9 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     }).catch(()=>{});
     };
     // 返回沿用已发布的同步SVG收束；放大所需的纹理准备不能延迟原本可立即开始的回程。
-    if(current.direction==='back'){begin();return;}
-    // 前进放大先提交实际位图，再以可绘制帧开始计时；路由及数据读取不等待它。
+    if(current.direction==='back'&&!returnFromHistory.current){begin();return;}
+    // 历史返回可能与路由恢复在同一次popstate提交中；和前进放大一样，等实际图层可绘制再计时。
+    // 页面读取与导航照常执行，稳定的来源图形在准备期间保持可见。
     requestAnimationFrame(async()=>{
       if(motion.current.active?.id!==id||!node.isConnected)return;
       await prepareChartFlightBitmap(node,dest);
@@ -165,9 +166,9 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(graph&&visible(graph)&&graph.dataset.trendRange===saved.rangeKey&&graph.dataset.trendKey===saved.modelKey&&current?.direction==='back'&&motion.current.active?.id===current.id)landAt(rectOf(graph),graph,false,current.id);
     else{clear();rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`)?.focus({preventScroll:true});if(returnReady.current)origin.current=null;motion.current.returning=false;lastTarget.current=null;}
   },[motion,landAt,clear,returningToOverview]);
-  const prepareBack=useCallback(()=>{
+  const prepareBack=useCallback((fromHistory=false)=>{
     const saved=origin.current;if(!saved||motion.current.returning)return;
-    setReturningToOverview(true);returnCancelled.current=false;returnReady.current=false;
+    setReturningToOverview(true);returnCancelled.current=false;returnReady.current=false;returnFromHistory.current=fromHistory;
     const current=motion.current.active,dest=target.current,cached=lastTarget.current;
     let source:{model:MetricTrendModel;rect:ChartRect}|null=null;
     if(saved.paired&&!reduced()&&saved.viewport.width===innerWidth&&saved.viewport.height===innerHeight){
@@ -197,7 +198,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(current.direction==='back'){const rail=document.querySelector<HTMLElement>('[data-metric-rail]');if(rail)restore(rail);}
   },[flight?.id,returningToOverview,motion,land,landAt,restore]);
   useEffect(()=>{
-    const pop=()=>{if(location.pathname==='/dashboard'&&origin.current&&route.current!=='/dashboard')prepareBack();else if(location.pathname!=='/dashboard'){returnCancelled.current=true;motion.current.returning=false;origin.current=null;overviewReady();clear();}};
+    const pop=()=>{if(location.pathname==='/dashboard'&&origin.current&&route.current!=='/dashboard')prepareBack(true);else if(location.pathname!=='/dashboard'){returnCancelled.current=true;motion.current.returning=false;origin.current=null;overviewReady();clear();}};
     const cancel=()=>{if(origin.current)origin.current.paired=false;clear();lastTarget.current=null;};
     window.addEventListener('formward-record-saved',cancel);window.addEventListener('formward-record-context-stale',cancel);window.addEventListener('popstate',pop,true);window.addEventListener('resize',cancel);
     return()=>{window.removeEventListener('formward-record-saved',cancel);window.removeEventListener('formward-record-context-stale',cancel);window.removeEventListener('popstate',pop,true);window.removeEventListener('resize',cancel);};
@@ -207,7 +208,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     const changed=route.current!==pathname;route.current=pathname;if(changed){requested.current=null;if(pathname!=='/dashboard'&&returnCancelled.current)overviewReady();}
     if(changed&&origin.current&&pathname!=='/dashboard'&&pathname!==origin.current.destination){origin.current=null;lastTarget.current=null;motion.current.returning=false;clear();}
     if(origin.current&&pathname===origin.current.destination&&!chartDestinationMatches(origin.current,pathname+(search?'?'+search:''))){origin.current.paired=false;lastTarget.current=null;clear();}
-    if(changed&&pathname==='/dashboard'&&origin.current&&!motion.current.returning&&!returningToOverview)prepareBack();
+    if(changed&&pathname==='/dashboard'&&origin.current&&!motion.current.returning&&!returningToOverview)prepareBack(true);
     if(pathname==='/dashboard'&&motion.current.returning){const rail=document.querySelector<HTMLElement>('[data-metric-rail]');if(rail)restore(rail);}
     const current=motion.current.active;
     if(changed&&current?.direction==='forward'&&pathname!==origin.current?.destination)clear();

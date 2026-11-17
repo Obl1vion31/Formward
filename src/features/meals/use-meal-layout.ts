@@ -22,7 +22,7 @@ export function useMealLayout(sheet:RefObject<HTMLDivElement|null>,cells:string[
     return {width:textWidth(value,fieldStyle),space:padding+8};
    }));
    const widths=minimum.map((base,index)=>Math.max(base,...rows.map(row=>textWidth(row[index]??"")+(index===0?54:30)),...liveRows.map(row=>{const field=row[index];return field?field.width+Math.max(index===0?54:30,field.space):0;})));
-   const total=220+120+widths.reduce((a,b)=>a+b,0),picker=form.clientWidth>=total+264?"side":"tabs";
+   const total=220+120+widths.reduce((a,b)=>a+b,0);
    const sheetStyle=getComputedStyle(node),available=node.clientWidth-parseFloat(sheetStyle.paddingLeft)-parseFloat(sheetStyle.paddingRight);
    const labelStyle=getComputedStyle(table.querySelector("td[data-nutrient]")??table,"::before");
    const nutrientLabelWidth=Math.max(...["热量 千卡","蛋白质 g","碳水 g","脂肪 g"].map(label=>textWidth(label,labelStyle)));
@@ -32,7 +32,7 @@ export function useMealLayout(sheet:RefObject<HTMLDivElement|null>,cells:string[
    const nameInput=table.querySelector<HTMLInputElement>('td[data-entry-cell] input[placeholder="食物名称"]'),nameStyle=nameInput?getComputedStyle(nameInput):style;
    const nameMinimum=textWidth("食物名称",nameStyle)+(nameInput?parseFloat(nameStyle.paddingLeft)+parseFloat(nameStyle.paddingRight)+2:14);
    const identityWidth=Math.max(...identityWidths),nameSpace=(available-88)*5/12+32;
-   const next={nutrientColumns,picker,mode:available>=total?"table":"cards",stack:nameMinimum>nameSpace||identityWidths[0]>(available-24)/4||identityWidths[1]>(available-16)/3,identityColumns:identityWidth>(available-8)/2?1:2,widths};
+   const next={nutrientColumns,picker:form.clientWidth>=960?"side":"tabs",mode:available>=total?"table":"cards",stack:nameMinimum>nameSpace||identityWidths[0]>(available-24)/4||identityWidths[1]>(available-16)/3,identityColumns:identityWidth>(available-8)/2?1:2,widths};
    setLayout(previous=>JSON.stringify(previous)===JSON.stringify(next)?previous:next);
   }
   const queue=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(measure);},events=["input","change","focusin","focusout"] as const;events.forEach(event=>form.addEventListener(event,queue));
