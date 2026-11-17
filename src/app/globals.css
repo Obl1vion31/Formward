@@ -964,7 +964,7 @@ form[data-entry-form] button:not([type=submit]) {min-height:44px}
  .workspace-shell .dashboard-page{padding:0 16px calc(100px + env(safe-area-inset-bottom));min-height:calc(100svh - 64px)}
  }
 
-.chart-flight{position:fixed;z-index:35;pointer-events:none;transform-origin:0 0;will-change:transform}
+.chart-flight{position:absolute;z-index:35;pointer-events:none;transform-origin:0 0;will-change:transform;backface-visibility:hidden;transform:translateZ(0);margin-top:-64px}
 .chart-flight>[data-chart-glyph-layer]{position:absolute;inset:0;will-change:opacity}
 .chart-flight>[data-chart-glyph-layer=destination]{opacity:0}
 .chart-flight [data-chart-glyph-layer=destination] [data-glyph-line]{stroke-width:var(--flight-stroke)}
@@ -1022,8 +1022,8 @@ form[data-entry-form] button:not([type=submit]) {min-height:44px}
 
 .skeleton-rail.mobile-only{display:none}@media(max-width:700px),(hover:none) and (pointer:coarse){.skeleton-rail.mobile-only{display:flex}}
 
-.chart-flight-layer{position:fixed;inset:0;z-index:19;pointer-events:none;isolation:isolate;clip-path:inset(64px 0 0)}.chart-flight-layer .chart-flight{z-index:1}.skeleton-chart-geometry{fill:var(--skeleton-fill);animation:skeleton-chart-pulse 1.6s ease-in-out infinite}@keyframes skeleton-chart-pulse{50%{opacity:.45}}.body-spark{width:100%;height:100%}
-@media(max-width:700px),(hover:none) and (pointer:coarse){.chart-flight-layer{clip-path:inset(64px 0 max(88px,calc(env(safe-area-inset-bottom) + 76px)))}.workspace-shell:has([data-workspace-frame=body]) .mobile-page-name{visibility:visible}}
+.chart-flight-layer{position:fixed;inset:64px 0 0;z-index:19;pointer-events:none;overflow:hidden}.chart-flight-layer .chart-flight{z-index:1}.skeleton-chart-geometry{fill:var(--skeleton-fill);animation:skeleton-chart-pulse 1.6s ease-in-out infinite}@keyframes skeleton-chart-pulse{50%{opacity:.45}}.body-spark{width:100%;height:100%}
+@media(max-width:700px),(hover:none) and (pointer:coarse){.chart-flight-layer{bottom:max(88px,calc(env(safe-area-inset-bottom) + 76px))}.workspace-shell:has([data-workspace-frame=body]) .mobile-page-name{visibility:visible}}
 @media(prefers-reduced-motion:reduce){.skeleton-chart-geometry{animation:none}}
 
 /* 消耗骨架和真实 SVG 共用首帧尺寸；不依赖临时 280px 图形比例。 */
@@ -1038,7 +1038,7 @@ form[data-entry-form] button:not([type=submit]) {min-height:44px}
 dialog[data-surface-phase=closing]::backdrop{background-color:transparent}
 @media(max-width:700px),(hover:none) and (pointer:coarse){
  .dashboard-page{padding-bottom:calc(var(--workspace-dock-inset,88px) + 24px)}
- .chart-flight-layer{clip-path:inset(64px 0 var(--workspace-dock-inset,88px))}
+ .chart-flight-layer{bottom:var(--workspace-dock-inset,88px)}
 }
 
 dialog::backdrop{transition:background-color 210ms cubic-bezier(.2,.8,.2,1)}

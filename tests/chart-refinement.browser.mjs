@@ -23,10 +23,10 @@ async function context(size,motion='no-preference'){
  await page.addInitScript(({account})=>{
   localStorage.setItem('formward-assistant-seen-v1','true');
   for(const kind of ['meals','body','energy','training'])localStorage.setItem('formward:record-guide:v1:'+encodeURIComponent(account)+':'+kind,'seen');
-  window.__drawFrames=[];
+  window.__drawFrames=[];window.__observeDrawFrames=true;
   window.__flightEvents=[];const originalAnimate=Element.prototype.animate;
   Element.prototype.animate=function(...args){const animation=originalAnimate.apply(this,args);if(this.matches('[data-chart-flight]')){const id=this.dataset.chartFlight,started=performance.now();window.__flightEvents.push({event:'start',id,t:started,duration:animation.effect?.getTiming().duration});for(const event of ['finish','cancel'])animation.addEventListener(event,()=>window.__flightEvents.push({event,id,t:performance.now(),elapsed:performance.now()-started,currentTime:animation.currentTime}));}return animation;};
-  const sample=()=>{for(const node of document.querySelectorAll('[data-record-slot="plot"] [data-chart-bar],[data-record-slot="plot"] [data-trend-glyph="morning-weight"],[data-record-slot="plot"] [data-chart-line]'))for(const animation of node.getAnimations()){
+  const sample=()=>{if(!window.__observeDrawFrames)return;for(const node of document.querySelectorAll('[data-record-slot="plot"] [data-chart-bar],[data-record-slot="plot"] [data-trend-glyph="morning-weight"],[data-record-slot="plot"] [data-chart-line]'))for(const animation of node.getAnimations()){
    const timing=animation.effect?.getTiming();if(timing&&[400,600].includes(timing.duration)&&window.__drawFrames.length<200)window.__drawFrames.push({duration:timing.duration,time:animation.currentTime,kind:node.dataset.chartBar!==undefined?'bar':'line'});
   }requestAnimationFrame(sample);};requestAnimationFrame(sample);
  },{account:fixture.userId});
@@ -61,6 +61,8 @@ try{
  const {ctx,page}=await context([1440,900]);
  for(const kind of ['intake','morning-weight','energy']){
   await page.goto(base+'/dashboard');await page.locator('[data-metric-card="'+kind+'"]:visible [data-trend-glyph]').waitFor();
+  // 首次绘制与共享转场分别采样；逐SVG读取getAnimations会在WebKit强制重算样式，污染转场帧率。
+  await page.evaluate(()=>{window.__observeDrawFrames=false;});
   await recordFlight(page);await page.locator('[data-metric-card="'+kind+'"]:visible').click();await ready(page);await flights(page,'forward');
   await recordFlight(page);await page.goBack();await page.locator('[data-metric-card="'+kind+'"]:visible [data-trend-glyph]').waitFor();await flights(page,'back');checks.push({case:'roundtrip',kind});
  }
