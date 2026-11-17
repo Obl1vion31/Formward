@@ -7,6 +7,7 @@ import { ChartTransitionContext, ChartTransitionActionsContext, matchingChartRea
 import { createChartFlights, chartModelMatches, chartRectMatches, type ChartFlight, type ChartRect } from './chart-flight';
 import { trendKey,trendRangeKey, type MetricTrendModel } from "./metric-trend-model";
 import { TrendGlyph, detailStroke, detailRadius } from "./trend-glyph";
+import {prepareChartFlightBitmap} from './chart-flight-bitmap';
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const rectOf = (element: SVGSVGElement): ChartRect => {
@@ -66,22 +67,25 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     current.destination=dest;current.landing=true;current.ready=!skeleton;
     motion.current.reveal(id,element);
     // 先提交来源与目标几何，再与实际绘制帧对齐计时；WebKit不能在首帧前消耗转场时长。
-    requestAnimationFrame(()=>{
+    requestAnimationFrame(async()=>{
     if(motion.current.active?.id!==id||!node.isConnected)return;
     node.setAttribute('data-motion-starts','1');
     if(current.model.kind==="morning-weight"){
       const count=current.model.points.length,forward=current.direction==='forward';
-      const from=node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="source"]'),to=node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="destination"]');
+      const to=node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="destination"]');
       node.style.setProperty('--flight-stroke',((forward?detailStroke(count):1.25)/scale)+'px');
       to?.querySelectorAll<SVGEllipseElement>('[data-glyph-point]').forEach(point=>{
         point.setAttribute('rx',String(forward?detailRadius()/(dest.width/240):3.6));
         point.setAttribute('ry',String(forward?detailRadius()/(dest.height/120):3.6));
       });
+    }
+    await prepareChartFlightBitmap(node,dest);
+    if(motion.current.active?.id!==id||!node.isConnected)return;
+    if(current.model.kind==='morning-weight'){
+      const from=node.querySelector<HTMLElement>('[data-flight-bitmap][data-chart-glyph-layer="source"]')??node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="source"]'),to=node.querySelector<HTMLElement>('[data-flight-bitmap][data-chart-glyph-layer="destination"]')??node.querySelector<SVGSVGElement>('[data-chart-glyph-layer="destination"]');
       const options={duration:300,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards' as const};
-      // 两张静态同坐标图层一起缩放并交接笔触；不再逐帧重画每条线和圆点。
       current.decorations=from&&to?[from.animate([{opacity:1},{opacity:0}],options),to.animate([{opacity:0},{opacity:1}],options)]:[];
     }
-
     current.animation=node.animate([{transform:'translate(0px,0px) scale(1)'},{transform:`translate(${dest.left-current.rect.left}px,${dest.top-current.rect.top}px) scale(${scale},${scaleY})`}],{duration:300,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});
     void current.animation.finished.then(()=>{
       if(motion.current.active?.id!==id)return;
