@@ -5,3 +5,4 @@
 
 .readCount{display:inline-block;min-width:3ch;font-variant-numeric:tabular-nums}.readCount.placeholder{width:3ch;height:.8em;vertical-align:-.05em}
 .budgetNotice[data-state=available],.budgetNotice[data-state=pending]{color:var(--admin-muted)}
+.filters label{min-width:min(100%,10em)}

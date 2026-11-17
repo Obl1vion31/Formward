@@ -450,3 +450,10 @@ production build后执行pnpm test:mobile-interface-browser，使用PGlite虚构
 energy-estimation.browser.mts创建独立数据库、虚构资料及实测并启动production build；FORMWARD_POSTGRES_BIN指向本机原生PostgreSQL的bin时，创建仅监听127.0.0.1的临时集群并在结束后关闭清理；未指定时沿用PGlite。原生集群可避免WebKit并发服务端读取遇到PGliteSocket单会话协议冲突。FORMWARD_ESTIMATE_ENGINE选择chromium／webkit，FORMWARD_ESTIMATE_ARTIFACTS指定私有证据。FORMWARD_ESTIMATE_PREVIEW=1可持续运行供真实浏览器核对，FORMWARD_ESTIMATE_PORT指定本轮独占端口，FORMWARD_ESTIMATE_RELEASE可指向本轮私有standalone运行包，以相同虚构数据库验收实际发布产物。覆盖双主题五尺寸、公式说明、默认估算、活动路径互斥、手填活动搭配系统静息、两类计算浮层开关前后锚点不动、Escape与外点退出、补填后恢复公式选择、0与未知、缺资料仅存活动、慢读中改期及切换、返回草稿、失败重试、保存快照、主动重算、选填性别与补填；不使用正式资料或收费模型。
 
 `FORMWARD_ESTIMATE_POPOVER_EDGES=1`在同一虚构消耗fixture中运行energy-popover.driver.mjs，覆盖两主题、320×560／390×667／1440×900及两端200%文字。核对两类计算浮层在视口内、开关及换公式不推动主表单、应用后焦点回按钮，并复用一次测试登录，不绕过登录限流。
+
+
+## 管理与安全原子配额
+
+`src/features/admin/security.integration.test.ts`仅接受显式FORMWARD_TEST_DATABASE_URL，固定回环`formward_security_test`虚构库；未提供时该原生并发专项跳过，不能据此声称并发通过。完整安全验收使用PostgreSQL18，运行`FORMWARD_TEST_DATABASE_URL=postgresql://formward_qa@127.0.0.1:55444/formward_security_test pnpm test`，本轮830项全部通过且无跳过。覆盖并发全站预占、当天已有费用、未知后结算、个人覆盖／恢复默认、Free权限隔离、暂停不重放、版本冲突、幂等、共享账号计数、4并发／200MiB上传、过期待登记容量及100个有效根预览。
+
+MFA专项使用真实Better Auth插件验证绑定、错误动态码、恢复码一次使用、重绑及撤销；OAuth继续执行PKCE、刷新、跨账号、JWKS及新旧协议回归。`check-security-baseline.test.mjs`检查安全运行包、旧结构、缺失动作清单和旧依赖；实际systemd服务与恢复包另在正式服务身份下验证。管理响应还检查精度、跨午夜、用户停用、未知Token和健康正文不泄露。浏览器、正常／慢加载、首帧与真实主题结果见设计验收，真机状态分开记录。
