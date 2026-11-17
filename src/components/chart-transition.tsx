@@ -89,6 +89,16 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
       current.decorations=from&&to?[from.animate([{opacity:1},{opacity:0}],options),to.animate([{opacity:0},{opacity:1}],options)]:[];
     }
     current.animation=node.animate([{transform:'translate(0px,0px) scale(1)'},{transform:`translate(${dest.left-current.rect.left}px,${dest.top-current.rect.top}px) scale(${scale},${scaleY})`}],{duration:300,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});
+    if(current.direction==='forward'){
+      // 先让动画本身的起点完成合成，再开始计时。仅提前绘制静态SVG／canvas
+      // 不能保证浏览器已准备动画图层，冷导航时会把300ms消耗在首帧栅格化中。
+      const animation=current.animation,animations=[animation,...current.decorations??[]];
+      for(const item of animations){item.pause();item.currentTime=0;}
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        if(motion.current.active?.id!==id||current.animation!==animation||!node.isConnected)return;
+        animations.forEach(item=>item.play());
+      }));
+    }
     void current.animation.finished.then(()=>{
       if(motion.current.active?.id!==id)return;
       current.arrived=true;current.landing=false;
