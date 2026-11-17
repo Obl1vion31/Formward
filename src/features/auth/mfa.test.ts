@@ -9,6 +9,7 @@ import { createAuth } from "./auth";
 import { provisionAccount } from "./provision";
 import { initializeAccountOwner } from "./account-management";
 import { requireSessionProof } from "./account-security";
+import { unlockAccountAdmin } from "./account-management";
 import * as schema from "../../db/schema";
 
 function totp(secret: string) {
@@ -59,4 +60,32 @@ test("MFA绑定、错码、登录挑战、恢复码及撤销边界使用真实�
     await db.update(schema.user).set({ accessVersion: 1 }).where(eq(schema.user.id, owner.id));
     assert.equal((await request("two-factor/verify-totp", { code: totp(secret) })).status, 401);
   } finally { await pg.close(); if (previous === undefined) delete process.env.FORMWARD_TEST_OWNER_MFA; else process.env.FORMWARD_TEST_OWNER_MFA = previous; }
+});
+
+test("管理员临时密码模式仍校验密码、角色、会话与五分钟期限，普通用户MFA不受影响", async () => {
+  const previousFlag=process.env.FORMWARD_OWNER_MFA_REQUIRED, previousForce=process.env.FORMWARD_TEST_OWNER_MFA;
+  process.env.FORMWARD_TEST_OWNER_MFA="1";delete process.env.FORMWARD_OWNER_MFA_REQUIRED;
+  const pg=new PGlite(),db=drizzle(pg,{schema}),password="fictional-owner-password-only";
+  try{
+    await migrate(db,{migrationsFolder:"drizzle"});
+    const owner=await provisionAccount(db,{email:"owner-pause@example.test",password});await initializeAccountOwner(db,owner.id);
+    const auth=createAuth(db,{secret:"fictional-owner-pause-secret-at-least-32",baseURL:"http://localhost:3100",rateLimit:false});
+    const login=await auth.handler(new Request("http://localhost:3100/api/auth/sign-in/email",{method:"POST",headers:{Origin:"http://localhost:3100","Content-Type":"application/json"},body:JSON.stringify({email:"owner-pause@example.test",password})}));assert.equal(login.status,200);
+    const cookies=login.headers.getSetCookie().map(value=>value.split(";")[0]).join("; ");
+    const current=await(await auth.handler(new Request("http://localhost:3100/api/auth/get-session",{headers:{Cookie:cookies}}))).json();
+    const proof={userId:owner.id,sessionId:current.session.id,accessVersion:0};
+    await assert.rejects(requireSessionProof(db,proof),/绑定验证器/);
+    process.env.FORMWARD_OWNER_MFA_REQUIRED="0";
+    await requireSessionProof(db,proof);
+    await assert.rejects(requireSessionProof(db,proof,true),/再次输入密码/);
+    await assert.rejects(unlockAccountAdmin(db,proof,"wrong-password","fictional-pause"),/密码不正确/);
+    await unlockAccountAdmin(db,proof,password,"fictional-pause");await requireSessionProof(db,proof,true);
+    const blocked=await auth.handler(new Request("http://localhost:3100/api/auth/two-factor/enable",{method:"POST",headers:{Origin:"http://localhost:3100","Content-Type":"application/json",Cookie:cookies},body:JSON.stringify({password})}));assert.equal(blocked.status,403);
+    await db.update(schema.session).set({adminVerifiedAt:new Date(Date.now()-300001)}).where(eq(schema.session.id,proof.sessionId));await assert.rejects(requireSessionProof(db,proof,true),/再次输入密码/);
+    const ordinary=await provisionAccount(db,{email:"ordinary-pause@example.test",password});
+    await db.update(schema.user).set({role:"user"}).where(eq(schema.user.id,owner.id));await assert.rejects(requireSessionProof(db,proof,true),/没有管理权限/);
+    await db.update(schema.user).set({twoFactorEnabled:true}).where(eq(schema.user.id,owner.id));await assert.rejects(requireSessionProof(db,proof),/动态码验证/);
+    await assert.rejects(requireSessionProof(db,{...proof,userId:ordinary.id}),/登录已失效/);
+    await db.update(schema.user).set({banned:true}).where(eq(schema.user.id,owner.id));await assert.rejects(requireSessionProof(db,proof),/账号访问已失效/);
+  }finally{await pg.close();if(previousFlag===undefined)delete process.env.FORMWARD_OWNER_MFA_REQUIRED;else process.env.FORMWARD_OWNER_MFA_REQUIRED=previousFlag;if(previousForce===undefined)delete process.env.FORMWARD_TEST_OWNER_MFA;else process.env.FORMWARD_TEST_OWNER_MFA=previousForce;}
 });

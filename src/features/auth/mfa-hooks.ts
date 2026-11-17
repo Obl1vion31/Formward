@@ -3,7 +3,7 @@ import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/a
 import { and, eq } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { mfaLoginChallenge, session, twoFactor as factorTable, user } from "../../db/schema";
-import { limitAccountAttempt, ownerMfaRequired, requireRecentSecurity, requireSessionProof } from "./account-security";
+import { limitAccountAttempt, ownerMfaRequired, ownerMfaPaused, requireRecentSecurity, requireSessionProof } from "./account-security";
 import { recordSecurityEvent } from "./security-usage";
 import { ApiError } from "./ai-identity";
 
@@ -20,6 +20,7 @@ export async function prepareMfaVerification(db: Database, ctx: Context) {
   if (identity) {
     const proof = { userId: identity.user.id, sessionId: identity.session.id, accessVersion: Number(identity.session.accessVersion ?? 0) };
     const current = await requireSessionProof(db, proof, false, { allowMfaSetup: true });
+    if (current.user.role === "owner" && ownerMfaPaused() && ["/two-factor/enable", "/two-factor/verify-totp", "/two-factor/generate-backup-codes"].includes(ctx.path)) throw new APIError("FORBIDDEN", { message: "管理员动态码已暂时关闭，请刷新页面后使用账号密码继续。" });
     if (ctx.path === "/two-factor/disable" && current.user.role === "owner" && ownerMfaRequired()) throw new APIError("FORBIDDEN", { message: "管理员必须保留双重验证；更换设备请重新绑定。" });
     if (["/two-factor/disable", "/two-factor/generate-backup-codes"].includes(ctx.path) || ctx.path === "/two-factor/enable" && current.user.twoFactorEnabled && !current.session.mfaRecoveryRequired) await requireRecentSecurity(db, proof);
     if (ctx.path === "/two-factor/verify-backup-code") throw new APIError("BAD_REQUEST", { message: "恢复码仅用于登录恢复，请退出后使用恢复码登录。" });
