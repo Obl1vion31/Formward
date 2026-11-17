@@ -4,7 +4,7 @@ import {AdminNavigation} from "./navigation-view";
 import {adminLocation,adminQuery,personHref,safeAdminReturn} from "./navigation";
 import {PersonHeading,PersonSummary} from "./person-summary";
 import {MembershipPlaceholder} from "./membership-form";
-import {AdminListPlaceholder} from "../auth/admin-placeholder";
+import {AdminListPlaceholder,AccountOperationsPlaceholder} from "../auth/admin-placeholder";
 import styles from "./console.module.css";
 import {normalizeAdminFilter,type AdminFilter} from "./model";
 import {securityDay} from "../auth/security-time";
@@ -23,7 +23,7 @@ export function AdminLoading({path="/admin"}:{path?:string}){
   <AdminNavigation tab={detail?"users":tab}/>
   {detail&&<Link prefetch={false} className={styles.back} href={userView==="summary"?back:personHref(id,"summary",back,filter)}>{userView!=="summary"?"← 返回用户概况":/[?&]tab=(usage|overview)(?:&|$)/.test(back)?"← 返回用量分析":"← 返回用户列表"}</Link>}
   <div className={styles.heading}><h1>{title}</h1><button disabled className={styles.secondary}>刷新数据</button></div>
-  {detail?<><PersonHeading person={null}/>{userView==="summary"?<PersonSummary person={null} id={id} filter={filter} returnTo={back}/>:userView==="account"?<><MembershipPlaceholder/><section className={styles.accountOperations}><h2>账号访问</h2><p className={styles.caption} role="status">正在读取账号状态…</p></section></>:<PolicyLoading/>}</>:<>
+  {detail?<><PersonHeading person={null}/>{userView==="summary"?<PersonSummary person={null} id={id} filter={filter} returnTo={back}/>:userView==="account"?<><MembershipPlaceholder/><section className={styles.accountOperations}><h2>账号访问</h2><AccountOperationsPlaceholder/></section></>:<PolicyLoading/>}</>:<>
    {tab==="users"&&<><nav className={styles.subNavigation} aria-label="用户管理分类"><Link prefetch={false} href="/admin?tab=users" aria-current={section==="accounts"?"page":undefined}>账号</Link><Link prefetch={false} href="/admin?tab=users&section=invitations" aria-current={section==="invitations"?"page":undefined}>邀请</Link></nav><div className={styles.legacy}><AdminListPlaceholder tab={section} search={query.get("search")??""} status={status} page={page}/></div></>}
    {tab==="rules"&&<><h2>会员档位</h2><TierLoading/></>}
    {tab==="security"&&<><section className={styles.section}><h2>近期安全事件</h2><p className={styles.caption} role="status">正在读取安全事件…</p><p className={styles.caption}>运行安全事件保留30天；账号和业务审计按原规则保留。</p></section><h2>账号操作记录</h2><div className={styles.legacy}><AdminListPlaceholder tab="events" search={query.get("search")??""} page={page}/></div></>}

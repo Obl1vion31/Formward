@@ -9,3 +9,5 @@ export function AdminListPlaceholder({tab="accounts",search="",status="all",page
   <div className={styles.pagination}><button disabled>上一页</button><span>第 {page} 页</span><button disabled>下一页</button></div>
  </div>;
 }
+
+export function AccountOperationsPlaceholder(){return <div aria-busy="true"><div className={styles.operation}><h3>帮助找回密码</h3><p className={styles.muted}>核实本人后生成 15 分钟有效的重设链接。</p><button disabled>生成密码重设链接</button></div><div className={styles.operation}><h3>撤销访问</h3><p className={styles.muted}>退出全部设备，并断开全部 AI 授权。</p><button disabled>撤销全部访问</button></div><form className={styles.operation}><h3>停用账号</h3><label className={styles.field}>停用原因<textarea aria-label="停用原因" rows={3} disabled/></label><button className={styles.danger} disabled>停用账号</button></form></div>;}
