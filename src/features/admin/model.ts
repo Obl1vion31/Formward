@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ApiError } from "../auth/ai-identity";
 import { securityDay } from "../auth/security-time";
 
-export const adminFilterSchema = z.object({ from: z.string().optional(), to: z.string().optional(), userId: z.string().min(1).max(128).optional(), provider: z.enum(["qwen", "mimo", "glm"]).optional(), purpose: z.enum(["chat", "meal_entry"]).optional(), search: z.string().max(100).optional(), sort: z.enum(["cost", "requests", "records", "email"]).default("cost"), page: z.number().int().min(1).max(200).default(1) }).strict();
+export const adminFilterSchema = z.object({ from: z.string().optional(), to: z.string().optional(), userId: z.string().min(1).max(128).optional(), provider: z.enum(["qwen", "mimo", "glm"]).optional(), model:z.string().min(1).max(256).optional(), purpose: z.enum(["chat", "meal_entry"]).optional(), search: z.string().max(100).optional(), sort: z.enum(["cost", "requests", "records", "email"]).default("cost"), page: z.number().int().min(1).max(200).default(1) }).strict();
 export type AdminFilter = z.input<typeof adminFilterSchema>;
 export function normalizeAdminFilter(input: AdminFilter, now = new Date()) {
   const parsed = adminFilterSchema.safeParse(input);

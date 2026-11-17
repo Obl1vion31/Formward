@@ -69,7 +69,7 @@ export async function prepareMealTaskRun(db:Database,userId:string,input:Extract
  if(!input.followup&&!input.imageIds.length&&!input.text.trim())throw new ApiError(400,"empty_message","请添加照片或填写食物说明。");
  await ownedImages(db,userId,input.imageIds);
  const imageIds=input.imageIds.length?input.imageIds:task.context.imageIds;
- if(accountEntitlements(await requireChatAccount(db,userId,"meal_entry")).tier==="free"&&!imageIds.length)throw new ApiError(403,"photo_required","Free仅开放本餐照片识别，请先添加照片；文字记录可以手动填写。");
+ if(!accountEntitlements(await requireChatAccount(db,userId,"meal_entry")).chat&&!imageIds.length)throw new ApiError(403,"photo_required","当前档位仅开放本餐照片识别，请先添加照片；文字记录可以手动填写。");
  const originalImages=task.context.draft.imageIds??[],addedImages=imageIds.filter(id=>!originalImages.includes(id));
  if(Math.max(task.context.draft.expectedImageCount??0,originalImages.length)+addedImages.length>8)throw new ApiError(400,"too_many_images","本餐原有及新增照片合计最多8张，请返回填写调整后再识别。");
  const context={...task.context,imageIds};

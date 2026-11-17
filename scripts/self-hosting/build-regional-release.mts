@@ -29,6 +29,7 @@ try{
  if(buildResult.status!==0)throw new Error("Next构建失败，查看私有日志。");
  const actionManifest=JSON.parse(await readFile(join(source,".next/server/server-reference-manifest.json"),"utf8"));
  await writeFile(join(source,".next/standalone/.next/security-actions.json"),JSON.stringify([...new Set([...Object.keys(actionManifest.node??{}),...Object.keys(actionManifest.edge??{})])]));
+ await writeFile(join(source,".next/standalone/.next/managed-membership.json"),JSON.stringify({version:1}));
  const standalone=join(target,"standalone");await mkdir(standalone);
  for(const name of ["server.js","package.json","node_modules",".next"])await cp(join(source,".next/standalone",name),join(standalone,name),{recursive:true,verbatimSymlinks:true});
  await cp(join(source,".next/static"),join(standalone,".next/static"),{recursive:true,verbatimSymlinks:true});await cp(join(source,"public"),join(standalone,"public"),{recursive:true,verbatimSymlinks:true});

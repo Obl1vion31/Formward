@@ -7,7 +7,8 @@ import { alias } from "drizzle-orm/pg-core";
 import type { Database } from "../../db/client";
 import { account, accountEvent, accountLink, session, user } from "../../db/schema";
 import { ApiError } from "./ai-identity";
-import { membershipTiers, type MembershipTier } from "./entitlements";
+import { accountMembershipId, defaultMembershipId } from "./membership-policy";
+import { changeMembershipAssignment, membershipSnapshot } from "../admin/memberships";
 import { ADMIN_VERIFICATION_MS, hashAccountToken, limitAccountAttempt, requireActiveAccount, requireSessionProof, requireRecentSecurity, revokeAccountAccess, type SecurityTransaction, type SessionProof } from "./account-security";
 
 export type AdminFilter = { tab?: "accounts" | "invitations" | "events"; search?: string; status?: "all" | "active" | "banned"; page?: number };
@@ -93,14 +94,18 @@ export async function loadAccountAdmin(db: Database, proof: SessionProof, input:
     if (tab === "accounts") {
       const where = and(search ? ilike(user.email, pattern) : undefined, input.status === "banned" ? eq(user.banned, true) : input.status === "active" ? eq(user.banned, false) : undefined);
       const [{ total }] = await tx.select({ total: count() }).from(user).where(where);
-      const rows = await tx.select({ id: user.id, email: user.email, role: user.role, membershipTier: user.membershipTier, entitlementVersion: user.entitlementVersion, banned: user.banned, banReason: user.banReason, createdAt: user.createdAt, lastLoginAt: user.lastLoginAt }).from(user).where(where).orderBy(desc(user.createdAt), user.id).limit(50).offset(offset);
-      return { tab, total, page, rows, verifiedUntil: new Date(current.session.adminVerifiedAt!.getTime() + ADMIN_VERIFICATION_MS).toISOString() };
+      const rows = await tx.select({ id: user.id, email: user.email, role: user.role, membershipTier: user.membershipTier, membershipTierId:user.membershipTierId, entitlementVersion: user.entitlementVersion, banned: user.banned, banReason: user.banReason, createdAt: user.createdAt, lastLoginAt: user.lastLoginAt }).from(user).where(where).orderBy(desc(user.createdAt), user.id).limit(50).offset(offset);
+      const tiers=await membershipSnapshot(tx);
+      const namedRows=rows.map(row=>({...row,membershipName:tiers.find(t=>t.id===accountMembershipId(row))?.name??"已删除档位"}));
+      return { tab, total, page, rows:namedRows, verifiedUntil: new Date(current.session.adminVerifiedAt!.getTime() + ADMIN_VERIFICATION_MS).toISOString() };
     }
     if (tab === "invitations") {
       const where = and(eq(accountLink.purpose, "invite"), search ? ilike(accountLink.email, pattern) : undefined);
       const [{ total }] = await tx.select({ total: count() }).from(accountLink).where(where);
       const rows = await tx.select({ id: accountLink.id, email: accountLink.email, createdAt: accountLink.createdAt, expiresAt: accountLink.expiresAt, consumedAt: accountLink.consumedAt, revokedAt: accountLink.revokedAt }).from(accountLink).where(where).orderBy(desc(accountLink.createdAt), accountLink.id).limit(50).offset(offset);
-      return { tab, total, page, rows, verifiedUntil: new Date(current.session.adminVerifiedAt!.getTime() + ADMIN_VERIFICATION_MS).toISOString() };
+      const tiers=await membershipSnapshot(tx);
+      const namedRows=rows.map(row=>({...row,membershipName:tiers.find(t=>t.id===accountMembershipId(row))?.name??"已删除档位"}));
+      return { tab, total, page, rows:namedRows, verifiedUntil: new Date(current.session.adminVerifiedAt!.getTime() + ADMIN_VERIFICATION_MS).toISOString() };
     }
     const actor = alias(user, "event_actor"), where = search ? ilike(accountEvent.email, pattern) : undefined;
     const [{ total }] = await tx.select({ total: count() }).from(accountEvent).where(where);
@@ -110,22 +115,8 @@ export async function loadAccountAdmin(db: Database, proof: SessionProof, input:
 }
 export type AdminData = Awaited<ReturnType<typeof loadAccountAdmin>>;
 
-export async function changeAccountTier(db: Database, proof: SessionProof, targetId: string, tier: MembershipTier, expectedVersion: number, requestId: string) {
-  if (!membershipTiers.includes(tier) || tier === "pro" || !Number.isSafeInteger(expectedVersion) || expectedVersion < 0) throw invalid("请选择Free、内测版或Plus，Pro暂未开放。");
-  return adminWork(db, proof, async tx => {
-    const target = await lockUser(tx, targetId);
-    if (target.role !== "user" || targetId === proof.userId) throw new ApiError(403, "forbidden", "指定管理员的试用额度保持不变，此入口只设置普通账号档位。");
-    const reason = JSON.stringify({ tier, expectedVersion });
-    const previous = await repeatedEvent(tx, proof, requestId, "membership_changed", target.email);
-    if (previous) {
-      if (previous.reason !== reason) throw invalid("此请求标识已用于不同的档位设置。");
-      return { tier: target.membershipTier, version: target.entitlementVersion, repeated: true };
-    }
-    if (target.entitlementVersion !== expectedVersion) throw new ApiError(409, "version_conflict", "账号档位已更新，请读取最新设置后再保存。");
-    if (target.membershipTier !== tier) await tx.update(user).set({ membershipTier: tier, entitlementVersion: expectedVersion + 1, updatedAt: new Date() }).where(eq(user.id, target.id));
-    await event(tx, { actorId: proof.userId, userId: target.id, email: target.email, action: "membership_changed", reason, requestId: `${proof.userId}:${requestId}` });
-    return { tier, version: target.entitlementVersion + (target.membershipTier === tier ? 0 : 1), repeated: false };
-  });
+export async function changeAccountTier(db: Database, proof: SessionProof, targetId: string, tier: string, expectedVersion: number, requestId: string) {
+  return changeMembershipAssignment(db,proof,{userId:targetId,tierId:tier,version:expectedVersion,requestId});
 }
 
 async function issueLink(tx: SecurityTransaction, proof: SessionProof, purpose: "invite" | "reset_password", email: string, userId: string | null, requestId: string) {
@@ -204,7 +195,8 @@ export async function claimAccountLink(db: Database, raw: string, password: stri
   validateNewPassword(password);
   const first = await usableLink(db, raw), passwordHash = await hashPassword(password);
   return db.transaction(async tx => {
-    // 与后台生成／撤销使用相同锁顺序：签发者 → 目标账号 → 链接。
+    const invitationTierId=first.purpose==="invite"?await defaultMembershipId(tx):null;
+    // 先档位配置，再签发者、目标账号与链接。
     const issuer = await lockUser(tx, first.createdBy);
     if (issuer.banned || issuer.role !== "owner") throw invalid("链接已失效，请联系邀请人。");
     if (first.userId) await lockUser(tx, first.userId);
@@ -214,7 +206,7 @@ export async function claimAccountLink(db: Database, raw: string, password: stri
     if (link.purpose === "invite") {
       if ((await tx.select({ id: user.id }).from(user).where(eq(user.email, link.email))).length) throw invalid("此账号已存在，邀请不能覆盖已有账号。");
       userId = randomUUID();
-      await tx.insert(user).values({ id: userId, email: link.email, name: link.email.split("@")[0], role: "user", emailVerified: false });
+      await tx.insert(user).values({ id: userId, membershipTierId:invitationTierId, email: link.email, name: link.email.split("@")[0], role: "user", emailVerified: false });
       await initializePersonalProfile(tx, userId);
       await tx.insert(account).values({ id: randomUUID(), userId, accountId: userId, providerId: "credential", password: passwordHash });
     } else {

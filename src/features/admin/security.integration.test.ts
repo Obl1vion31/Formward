@@ -12,6 +12,8 @@ import { assertPendingCapacity } from "../records/pending-limit";
 import { loadAdminConsole } from "./queries";
 import { changeUserAiPolicy } from "./policy";
 import { accountEntitlements } from "../auth/entitlements";
+import { saveMembership } from "./memberships";
+import { requireActiveAccount } from "../auth/account-security";
 
 async function task(db:Database,userId:string,provider="qwen",purpose="chat"){
   const conversationId=randomUUID(),question=randomUUID(),answer=randomUUID();
@@ -80,4 +82,20 @@ test("原生PostgreSQL：并发全站预算、个人额度、暂停、精确统�
     await assert.rejects(assertPendingCapacity(db,c,true),/100个/);
     console.info("原生PostgreSQL并发验收通过：预算、晚到用量、策略冲突、无重放、上传4／200MiB、写入30、预览100。");
   }finally{process.env.FORMWARD_CHAT_ENABLED=previousChat;await connection.close();}
+});
+
+test("原生PostgreSQL：并发档位保存只能成功一次，后续模型预占读取数据库新额度",{skip:!process.env.FORMWARD_TEST_DATABASE_URL},async()=>{
+ const url=new URL(process.env.FORMWARD_TEST_DATABASE_URL!);assert.ok(["127.0.0.1","localhost"].includes(url.hostname)&&url.pathname==="/formward_security_test");
+ const connection=createDatabase(url.href),db=connection.db,owner=randomUUID(),id=randomUUID(),sid=randomUUID();
+ const chat=process.env.FORMWARD_CHAT_ENABLED,managed=process.env.FORMWARD_MANAGED_MEMBERSHIP_REQUIRED;process.env.FORMWARD_CHAT_ENABLED="1";process.env.FORMWARD_MANAGED_MEMBERSHIP_REQUIRED="1";
+ try{
+  await migrate(db,{migrationsFolder:"drizzle"});await db.execute(sql`TRUNCATE users CASCADE`);
+  await db.insert(s.user).values([{id:owner,email:"concurrent-tier-owner@example.test",name:"虚构管理员",role:"owner"},{id,email:"concurrent-tier-user@example.test",name:"虚构用户",membershipTierId:"beta"}]);
+  await db.insert(s.session).values({id:sid,userId:owner,token:randomUUID(),expiresAt:new Date(Date.now()+600000),adminVerifiedAt:new Date()});
+  const [plan]=await db.select().from(s.membershipPlan).where(eq(s.membershipPlan.id,"beta"));
+  const proof={userId:owner,sessionId:sid,accessVersion:0},input={id:"beta",name:"并发内测",active:true,isDefault:false,dailyBudgetCents:20,dailyRecognitionLimit:3,chatEnabled:true,mealRecognitionEnabled:true,version:plan.version,requestId:randomUUID()};
+  const results=await Promise.allSettled([saveMembership(db,proof,input),saveMembership(db,proof,{...input,dailyBudgetCents:30,requestId:randomUUID()})]);assert.equal(results.filter(r=>r.status==="fulfilled").length,1);
+  const effective=accountEntitlements(await requireActiveAccount(db,id));assert.ok([.2,.3].includes(effective.dailyBudgetCny));assert.equal(effective.version,1);assert.equal(effective.dailyRecognitionLimit,3);
+  const run=await task(db,id);await assert.rejects(reserveChatUsage(db,id,run,.31),/今日可用额度不足/);const reservation=await reserveChatUsage(db,id,run,effective.dailyBudgetCny);await assert.rejects(reserveChatUsage(db,id,run,.01),/今日可用额度不足/);await settleChatUsage(db,id,reservation,null);assert.equal(Number((await globalBudget(db)).uncertain),effective.dailyBudgetCny);
+ }finally{if(chat===undefined)delete process.env.FORMWARD_CHAT_ENABLED;else process.env.FORMWARD_CHAT_ENABLED=chat;if(managed===undefined)delete process.env.FORMWARD_MANAGED_MEMBERSHIP_REQUIRED;else process.env.FORMWARD_MANAGED_MEMBERSHIP_REQUIRED=managed;await connection.close();}
 });

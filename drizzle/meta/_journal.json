@@ -309,6 +309,13 @@
       "when": 1794908866765,
       "tag": "0044_admin_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1794931839786,
+      "tag": "0045_managed_membership",
+      "breakpoints": true
     }
   ]
 }

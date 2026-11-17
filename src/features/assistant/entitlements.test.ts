@@ -55,13 +55,13 @@ test("档位与管理角色独立，指定管理员2元、内测1元、Plus2元�
 test("管理员改档验证会话、目标、版本及幂等，不撤销登录或改角色", async () => {
   const id = await person(), admin = await proof(ownerId), requestId = randomUUID(), ownProof = await proof(id);
   await assert.rejects(() => changeAccountTier(db, ownProof, id, "plus", 0, randomUUID()), /管理权限/);
-  await assert.rejects(() => changeAccountTier(db, admin, id, "pro", 0, randomUUID()), /Pro暂未开放/);
+  await assert.rejects(() => changeAccountTier(db, admin, id, "pro", 0, randomUUID()), /已启用的普通会员档位/);
   const changed = await changeAccountTier(db, admin, id, "beta", 0, requestId); assert.equal(changed.version, 1);
   assert.equal((await changeAccountTier(db, admin, id, "beta", 0, requestId)).repeated, true);
-  await assert.rejects(() => changeAccountTier(db, admin, id, "plus", 0, requestId), /不同的档位/);
+  await assert.rejects(() => changeAccountTier(db, admin, id, "plus", 0, requestId), /同一请求编号/);
   await assert.rejects(() => changeAccountTier(db, admin, id, "plus", 0, randomUUID()), /已更新/);
   const [account] = await db.select().from(schema.user).where(eq(schema.user.id, id));
-  assert.equal(account.role, "user"); assert.equal(account.accessVersion, 0); assert.equal(account.membershipTier, "beta");
+  assert.equal(account.role, "user"); assert.equal(account.accessVersion, 0); assert.equal(account.membershipTierId, "beta");
   const unverified = await proof(ownerId, false);
   await assert.rejects(() => changeAccountTier(db, unverified, id, "plus", 1, randomUUID()), /再次输入密码/);
 });

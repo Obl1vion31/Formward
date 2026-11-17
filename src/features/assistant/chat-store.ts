@@ -44,7 +44,7 @@ export async function chatUsage(db: Pick<Database, "select">, userId: string, no
     if (row.state === "settled") {item.spent += Number(row.cost);item.uncertain+=Number(row.missing);} else if (row.state === "unknown") item.uncertain += Number(row.reserved); else item.reserved += Number(row.reserved);
   }
   const spent = providers.reduce((sum, p) => sum + p.spent, 0), reserved = providers.reduce((sum, p) => sum + p.reserved, 0), uncertain = providers.reduce((sum, p) => sum + p.uncertain, 0);
-  return { date, limit, spent, reserved, uncertain, available: Math.max(0, limit - spent - reserved - uncertain), percent: limit ? usagePercent(spent, limit) : "0%", resetAt: nextBudgetReset(date), providers, ...(entitlement.tier === "free" ? { recognition: await recognitionUsage(db, userId, now) } : {}) };
+  return { date, limit, spent, reserved, uncertain, available: Math.max(0, limit - spent - reserved - uncertain), percent: limit ? usagePercent(spent, limit) : "0%", resetAt: nextBudgetReset(date), providers, ...(!entitlement.chat ? { recognition: await recognitionUsage(db, userId, now) } : {}) };
 }
 export function normalizedUsage(raw: Record<string, unknown> | null, rates: ChatRates) {
   if (!raw || !Number.isSafeInteger(raw.prompt_tokens) || !Number.isSafeInteger(raw.completion_tokens) || Number(raw.prompt_tokens) < 0 || Number(raw.completion_tokens) < 0) return null;

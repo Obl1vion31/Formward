@@ -11,6 +11,7 @@ try{
  const packages=["better-auth","@better-auth/core","@better-auth/cimd","@better-auth/drizzle-adapter","@better-auth/mcp","@better-auth/oauth-provider"];
  if(!atLeast(pkg.dependencies?.next,[16,4,5])||packages.some(name=>!atLeast(pkg.dependencies?.[name],[1,7,25]))||new Set(packages.map(name=>pkg.dependencies[name])).size!==1)throw Error("dependency_baseline");
  if(!/^\d{4}_/.test(manifest.schema)||Number(manifest.schema.slice(0,4))<44||!Array.isArray(actions)||!actions.length||actions.some(id=>typeof id!=="string"||!/^[a-f0-9]{40,64}$/i.test(id)))throw Error("security_baseline");
+ if(process.env.FORMWARD_MANAGED_MEMBERSHIP_REQUIRED==="1"){const policy=JSON.parse(await readFile(join(root,".next/managed-membership.json"),"utf8"));if(Number(manifest.schema.slice(0,4))<45||policy.version!==1)throw Error("membership_baseline");}
  if(!(await stat(join(root,".next/server/app/account/security/page.js"))).isFile())throw Error("mfa_page_missing");
  if(root.startsWith("/srv/formward-primary/releases/")&&(await stat(root)).uid!==0)throw Error("untrusted_release_owner");
 }catch{

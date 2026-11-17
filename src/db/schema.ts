@@ -9,6 +9,18 @@ export const rateLimit = pgTable("rate_limits", {
   lastRequest: bigint("last_request", { mode: "number" }).notNull(),
 }, table => [index("rate_limits_last_request_idx").on(table.lastRequest)]);
 
+// 可配置会员档位只管理站内AI，不授予管理员角色或外部OAuth权限。
+export const membershipPlan = pgTable("membership_tiers", {
+  id: text("id").primaryKey(), name: text("name").notNull(),
+  active: boolean("active").notNull().default(true), systemOnly: boolean("system_only").notNull().default(false), isDefault: boolean("is_default").notNull().default(false),
+  dailyBudgetCents: integer("daily_budget_cents"), dailyRecognitionLimit: integer("daily_recognition_limit"),
+  chatEnabled: boolean("chat_enabled").notNull().default(false), mealRecognitionEnabled: boolean("meal_recognition_enabled").notNull().default(true),
+  version: integer("version").notNull().default(0), archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, table => [check("membership_tiers_policy_valid", sql`length(trim(${table.name})) BETWEEN 1 AND 40 AND ${table.version} >= 0 AND (${table.dailyBudgetCents} IS NULL OR ${table.dailyBudgetCents} BETWEEN 0 AND 1000) AND (${table.dailyRecognitionLimit} IS NULL OR ${table.dailyRecognitionLimit} BETWEEN 0 AND 100) AND (NOT ${table.chatEnabled} OR ${table.dailyBudgetCents} IS NOT NULL) AND (NOT ${table.isDefault} OR (${table.active} AND NOT ${table.systemOnly} AND ${table.archivedAt} IS NULL))`),
+  uniqueIndex("membership_tiers_name_idx").on(sql`lower(${table.name})`).where(sql`${table.archivedAt} IS NULL`),
+  uniqueIndex("membership_tiers_default_idx").on(table.isDefault).where(sql`${table.isDefault}`)]);
+
 // 属性遵循 Better Auth 的命名，SQL 字段统一使用 snake_case。
 export const user = pgTable("users", {
   id: text("id").primaryKey(),
@@ -18,6 +30,7 @@ export const user = pgTable("users", {
   image: text("image"),
   role: text("role").notNull().default("user"),
   membershipTier: text("membership_tier").$type<"free" | "beta" | "plus" | "pro">().notNull().default("free"),
+  membershipTierId: text("membership_tier_id").references(() => membershipPlan.id, { onDelete: "restrict" }),
   entitlementVersion: integer("entitlement_version").notNull().default(0),
   banned: boolean("banned").notNull().default(false),
   banReason: text("ban_reason"),
@@ -30,7 +43,7 @@ export const user = pgTable("users", {
   aiDailyRecognitionLimit: integer("ai_daily_recognition_limit"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-}, table => [check("users_membership_valid", sql`${table.membershipTier} IN ('free','beta','plus','pro') AND ${table.entitlementVersion} >= 0`),
+}, table => [index("users_membership_tier_idx").on(table.membershipTierId),check("users_membership_valid", sql`${table.membershipTier} IN ('free','beta','plus','pro') AND ${table.entitlementVersion} >= 0`),
   check("users_ai_policy_valid", sql`(${table.aiDailyBudgetCents} IS NULL OR ${table.aiDailyBudgetCents} BETWEEN 0 AND 1000) AND (${table.aiDailyRecognitionLimit} IS NULL OR ${table.aiDailyRecognitionLimit} BETWEEN 0 AND 100)`)]);
 
 export const session = pgTable("sessions", {

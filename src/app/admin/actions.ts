@@ -3,12 +3,12 @@ import { headers } from "next/headers";
 import { getDatabase } from "@/db/client";
 import { accountRequestSource, withCurrentSession } from "@/features/auth/server";
 import { accountFailure, createAccountInvitation, loadAccountAdmin, manageAccount, changeAccountTier, recordAdminRejection, revokeAccountInvitation, unlockAccountAdmin, type AccountCommand, type AdminFilter } from "@/features/auth/account-management";
-import type { MembershipTier } from "@/features/auth/entitlements";
 import { siteOrigin, isAccountRequestOrigin } from "@/features/auth/site-url";
 import { ApiError } from "@/features/auth/ai-identity";
-import { loadAdminConsole } from "@/features/admin/queries";
+import { loadAdminConsole, loadAdminDay } from "@/features/admin/queries";
 import type { AdminFilter as ConsoleFilter } from "@/features/admin/model";
 import { changeUserAiPolicy, type AiPolicyInput } from "@/features/admin/policy";
+import { saveMembership, archiveMembership, type MembershipInput, type MembershipArchiveInput } from "@/features/admin/memberships";
 import { verifySecurityAction } from "@/app/account/security/actions";
 
 async function perform<T>(work: (proof: import("@/features/auth/account-security").SessionProof, requestHeaders: Headers) => Promise<T>, audit?: { action: string; userId?: string; email?: string },mode:"read"|"write"="write") {
@@ -32,9 +32,12 @@ export async function unlockAdminAction(password: string, code?: string) {
   return perform((proof, requestHeaders) => unlockAccountAdmin(getDatabase(), proof, password, accountRequestSource(requestHeaders)));
 }
 export async function loadAdminConsoleAction(filter: ConsoleFilter) { return perform(proof => loadAdminConsole(getDatabase(), proof, filter),undefined,"read"); }
+export async function loadAdminDayAction(filter:ConsoleFilter,options:{dimension:"users"|"models";page:number}) { return perform(proof=>loadAdminDay(getDatabase(),proof,filter,options),undefined,"read"); }
 export async function changeUserAiPolicyAction(input: AiPolicyInput) { return perform(proof => changeUserAiPolicy(getDatabase(), proof, input)); }
+export async function saveMembershipAction(input: MembershipInput) { return perform(proof => saveMembership(getDatabase(), proof, input)); }
+export async function archiveMembershipAction(input: MembershipArchiveInput) { return perform(proof => archiveMembership(getDatabase(), proof, input)); }
 export async function loadAdminAction(filter: AdminFilter) { return perform(proof => loadAccountAdmin(getDatabase(), proof, filter),undefined,"read"); }
 export async function inviteAccountAction(email: string, requestId: string) { return perform(async proof => linkResult(await createAccountInvitation(getDatabase(), proof, email, requestId)), { action: "invite_created", email }); }
 export async function revokeInvitationAction(id: string, requestId: string) { return perform(async proof => { await revokeAccountInvitation(getDatabase(), proof, id, requestId); return null; }); }
 export async function manageAccountAction(id: string, command: AccountCommand, reason: string, requestId: string) { return perform(async proof => linkResult(await manageAccount(getDatabase(), proof, id, command, reason, requestId)), { action: ["suspend", "restore", "revoke_access", "reset_password"].includes(command) ? command : "invalid_operation", userId: id }); }
-export async function changeAccountTierAction(id: string, tier: MembershipTier, version: number, requestId: string) { return perform(proof => changeAccountTier(getDatabase(), proof, id, tier, version, requestId), { action: "membership_changed", userId: id }); }
+export async function changeAccountTierAction(id: string, tier: string, version: number, requestId: string) { return perform(proof => changeAccountTier(getDatabase(), proof, id, tier, version, requestId), { action: "membership_changed", userId: id }); }

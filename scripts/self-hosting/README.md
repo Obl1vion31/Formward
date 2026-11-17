@@ -2,7 +2,7 @@
 
 当前双入口主库、原授权保持与验收边界见[双入口部署](../../docs/mainland-deployment.md)。历史私有预览脚本继续只允许 formward_preview，不可直接用于正式主库。
 
-chat-worker.ts及formward-chat-worker.service提供站内聊天／本餐识图的独立执行进程。区域运行包附带chat-worker.mjs与服务模板；先完成0043／0044迁移，再同时启用应用和worker。worker与主应用使用相同环境文件和应用身份，无公开监听端口；读取队列、保存进度并处理停止，网页断线不影响任务。恢复时先停worker，只切保留MFA、预算与动作门禁的兼容安全包，不回滚数据库。普通本地pnpm build同时构建.next/chat-worker.mjs，使用pnpm worker:chat单独启动，开发环境不得接真实模型和健康库。
+chat-worker.ts及formward-chat-worker.service提供站内聊天／本餐识图的独立执行进程。区域运行包附带chat-worker.mjs与服务模板；先完成0043／0044／0045迁移，再同时启用应用和worker。worker与主应用使用相同环境文件和应用身份，无公开监听端口；读取队列、保存进度并处理停止，网页断线不影响任务。恢复时先停worker，只切保留MFA、预算与动作门禁的兼容安全包，不回滚数据库。普通本地pnpm build同时构建.next/chat-worker.mjs，使用pnpm worker:chat单独启动，开发环境不得接真实模型和健康库。
 
 
 本目录提供Ubuntu 24.04 amd64的独立预览脚本、同源发布构建与正式主库维护工具。应用采用独立非登录用户和systemd，数据库为PostgreSQL18。preview脚本固定回环私有环境；当前正式应用回环3200、数据库回环5432，公网入口由Nginx443代理。正式状态、证书、备份及未测范围见双入口部署与验收文档，不把预览脚本直接用于正式主库。
@@ -131,3 +131,5 @@ build.mjs与build-regional-release.mts从本次server-reference-manifest生成.n
 正式应用和worker的ExecStartPre执行check-security-baseline.mjs，检查指定依赖最低版本、统一认证版本、0044以上结构、新Server Action清单和MFA页面。历史运行包不满足时拒绝启动；恢复包必须保留安全门禁，不能用切旧指针绕过。该脚本按独立运维文件安装，应用源码与运维版本分别留档。check-security-baseline.test.mjs验证正常、旧结构、缺清单及旧依赖。
 
 正式Nginx如自行设置Referrer-Policy，应先隐藏上游同名头再统一输出no-referrer，避免国际网关将重复值拼接。正式迁移以原formward_primary_migrator执行，应用只保留DML；Unix连接用PGHOST／PGUSER及连接启动参数options指定role，不能把?host当作postgres.js的socket地址。最新完整归档与恢复验证见部署和双入口验收。
+
+正式启用后台档位时，应用与worker共用FORMWARD_MANAGED_MEMBERSHIP_REQUIRED=1。build-regional-release.mts生成.next/managed-membership.json版本1标记；check-security-baseline.mjs在该模式要求schema至少0045并检查标记。准备独立的新策略兼容恢复包，先备份并恢复演练，再迁移、授权新增表及同步切换；禁止回退到固定额度实现或回滚数据库。

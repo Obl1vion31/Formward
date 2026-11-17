@@ -33,7 +33,7 @@ export async function reserveRecognition(tx: Tx, run: typeof assistantRun.$infer
   if (!job) throw new ApiError(404, "recognition_missing", "识别任务不存在或不属于当前账号。");
   const entitlement = accountEntitlements(await requireActiveAccount(tx, run.userId));
   if(entitlement.dailyRecognitionLimit===0)throw new ApiError(429,"daily_recognition_limit","站内识图额度已停用，已有照片和文字保留，仍可手动填写。");
-  if (entitlement.tier === "free") {
+  if (!entitlement.chat) {
     const [requests] = await tx.select({ total: count() }).from(assistantUsageRequest).innerJoin(assistantRun, and(eq(assistantRun.id, assistantUsageRequest.runId), eq(assistantRun.userId, run.userId))).where(eq(assistantRun.recognitionId, job.id));
     if (requests.total >= 8) throw new ApiError(429, "recognition_steps", "本次识别已达到处理步骤上限，已有结果保留，请手动核对填写。");
   }

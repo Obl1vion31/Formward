@@ -1,20 +1,23 @@
 import { ApiError } from "./ai-identity";
+import type { MembershipPolicy } from "./membership-policy";
 
 export const membershipTiers = ["free", "beta", "plus", "pro"] as const;
 export type MembershipTier = typeof membershipTiers[number];
 export const membershipLabels = { free: "Free", beta: "内测版", plus: "Plus", pro: "Pro（暂未开放）", admin: "管理员" } as const;
-type Account = { id: string; role?: string | null; banned?: boolean | null; membershipTier?: MembershipTier | null; entitlementVersion?: number; aiPaused?: boolean; aiDailyBudgetCents?: number | null; aiDailyRecognitionLimit?: number | null };
+type Account = { id: string; role?: string | null; banned?: boolean | null; membershipTier?: MembershipTier | null; membershipTierId?: string | null; membershipPolicy?: MembershipPolicy; entitlementVersion?: number; aiPaused?: boolean; aiDailyBudgetCents?: number | null; aiDailyRecognitionLimit?: number | null };
 export function accountEntitlements(account: Account) {
   const administrator = !!process.env.FORMWARD_CHAT_PILOT_USER_ID && account.id === process.env.FORMWARD_CHAT_PILOT_USER_ID && account.role === "owner";
-  const tier = administrator ? "admin" : account.membershipTier ?? "free";
-  const enabled = process.env.FORMWARD_CHAT_ENABLED === "1" && !account.banned && !account.aiPaused;
-  const chat = enabled && ["admin", "beta", "plus"].includes(tier);
-  const mealRecognition = enabled && tier !== "pro" && process.env.FORMWARD_MEAL_AI_ENABLED !== "0";
-  const defaultBudget = tier === "beta" ? 1 : tier === "admin" || tier === "plus" ? 2 : 0;
-  return { tier, label: membershipLabels[tier], version: account.entitlementVersion ?? 0, chat, mealRecognition,
+  if (!account.membershipPolicy && process.env.FORMWARD_MANAGED_MEMBERSHIP_REQUIRED === "1") throw new ApiError(503,"membership_configuration","会员配置尚未就绪，请稍后重试。");
+  const legacy = administrator ? "admin" : account.membershipTier ?? "free", policy=account.membershipPolicy;
+  const tier = policy?.id ?? legacy, active=policy?policy.active&&!policy.archivedAt:true;
+  const enabled = process.env.FORMWARD_CHAT_ENABLED === "1" && !account.banned && !account.aiPaused && active;
+  const chat = enabled && (policy?policy.chatEnabled:["admin", "beta", "plus"].includes(tier));
+  const mealRecognition = enabled && (policy?policy.mealRecognitionEnabled:tier !== "pro") && process.env.FORMWARD_MEAL_AI_ENABLED !== "0";
+  const defaultBudget = policy?(policy.dailyBudgetCents??0)/100:legacy === "beta" ? 1 : legacy === "admin" || legacy === "plus" ? 2 : 0;
+  return { tier, label: policy?.name??membershipLabels[legacy], version: account.entitlementVersion ?? 0, chat, mealRecognition,
     dailyBudgetCny: account.aiDailyBudgetCents == null ? defaultBudget : account.aiDailyBudgetCents / 100,
-    amountLimited: tier !== "free" || account.aiDailyBudgetCents != null,
-    dailyRecognitionLimit: account.aiDailyRecognitionLimit ?? (tier === "free" ? 4 : null), paused: !!account.aiPaused, devices: true as const };
+    amountLimited: (policy?policy.dailyBudgetCents!==null:legacy !== "free") || account.aiDailyBudgetCents != null,
+    dailyRecognitionLimit: account.aiDailyRecognitionLimit ?? (policy?policy.dailyRecognitionLimit:legacy === "free" ? 4 : null), paused: !!account.aiPaused||!active, devices: true as const };
 }
 export type AccountEntitlements = ReturnType<typeof accountEntitlements>;
 export function assertAssistantEntitlement(account: Account, purpose: "chat" | "meal_entry" = "chat") {
