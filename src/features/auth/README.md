@@ -25,7 +25,7 @@
 
 `account-security.ts` 集中检查停用状态、会话版本、五分钟近期验证、共享限流和全部访问撤销。`request-identity.ts` 将已验证的本次会话绑定到服务端异步上下文；现有网页写入在账号行锁内复核，防止撤销后的在途请求继续保存。AI／OAuth 的令牌与连接保留永久撤销状态，恢复不复活旧授权。登录按账号和来源分别限流；新会话不继承管理解锁。
 
-`admin-panel.tsx`、`account-panel.tsx`、`claim-panel.tsx` 与 `account-ui.tsx` 提供管理、本人设置、公开链接和共享交互。`account.module.css` 沿用石墨／暖金与紧凑手机布局。入口在 `/admin`、`/dashboard/account`、`/account/claim`；feature 不承载 Next.js Server Actions。
+`admin-panel.tsx`支持独立账号列表和指定账号的管理操作，嵌入后台时由父级统一处理再次验证并保留输入；`admin-placeholder.tsx`保留已知列表与邀请控件槽位。`account-panel.tsx`、`claim-panel.tsx` 与 `account-ui.tsx` 提供管理、本人设置、公开链接和共享交互。`account.module.css` 沿用石墨／暖金与紧凑手机布局。入口在 `/admin`、`/dashboard/account`、`/account/claim`；feature 不承载 Next.js Server Actions。
 
 身份来自已验证的会话 cookie，不能采用客户端提交的 user_id。AI Token 独立 Bearer 鉴权、只保存不可逆摘要，映射到同一 user_id。内部账号通过 `pnpm account:create` 创建；数据库和配置说明见 [接入指南](../../../docs/auth-setup.md)。
 
