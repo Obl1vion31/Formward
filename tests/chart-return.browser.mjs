@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
+import {authenticateFixture} from './fixture-auth.mjs';
 
 const config=JSON.parse(await readFile(process.env.FORMWARD_LOADING_CONFIG,'utf8'));
 assert.equal(config.isolatedFixture,true);
@@ -11,7 +12,7 @@ const out=resolve(process.env.FORMWARD_CHART_ARTIFACTS??'.codex/chart-return',en
 await mkdir(out,{recursive:true});
 const results=[],body=[],errors=[];
 const auth=await browser.newContext();
-assert.equal((await auth.request.post(config.baseURL+'/api/auth/sign-in/email',{headers:{Origin:config.baseURL},data:{email:config.email,password:config.password}})).status(),200);
+await authenticateFixture(auth.request,config,process.env.FORMWARD_LOADING_CONFIG);
 const storageState=await auth.storageState();await auth.close();
 const delay=async delayMs=>assert.equal((await fetch(config.delayControlURL,{method:'POST',body:JSON.stringify({delayMs})})).status,200);
 async function settled(page){await page.waitForFunction(()=>!document.querySelector('.workspace-skeleton,[data-chart-flight]'));await page.waitForTimeout(550);}

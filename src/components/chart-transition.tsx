@@ -32,7 +32,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(next?.direction==='back'||!next&&reason!=='timeout'){setPreviewReadings(null);setForwardPreview(null);}setFlight(next);
   }));
   const claimChartEntry=useCallback((key:string,container?:HTMLElement|null)=>motion.current.claimEntry(key,container),[]);
-  const focusAfterLoad=useRef<string|null>(null),target=useRef<ChartTarget|null>(null),route=useRef(pathname);
+  const focusAfterLoad=useRef<{kind:string;rail:number;scroll:number}|null>(null),target=useRef<ChartTarget|null>(null),route=useRef(pathname);
   // 持久认证布局按账号重建；这里只保留显示选项与本次转场快照，不维护跨页面健康查询缓存。
   const overview=useRef<OverviewViewState|null>(null),navigation=useRef(0),requested=useRef<string|null>(null);
   const recallOverview=useCallback(()=>overview.current,[]);
@@ -43,7 +43,8 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   const finish=useCallback((current:ChartFlight)=>{
     if(!motion.current.complete(current.id))return;
     if(current.direction==='back'){
-      focusAfterLoad.current=current.model.kind;
+      const saved=origin.current;
+      if(saved)focusAfterLoad.current={kind:current.model.kind,rail:saved.rail,scroll:saved.scroll};
       const card=[...document.querySelectorAll<HTMLElement>(`a[data-metric-card="${current.model.kind}"]`)].find(node=>node.getClientRects().length>0&&!node.closest('[data-return-covered],[inert]'));
       card?.focus({preventScroll:true});
       if(returnReady.current)origin.current=null;motion.current.returning=false;lastTarget.current=null;
@@ -128,13 +129,13 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   },[router,motion]);
   const restore=useCallback((rail:HTMLElement)=>{
     if(!rail.isConnected||rail.closest('[data-return-covered]')||!rail.clientWidth)return;
-    if(focusAfterLoad.current&&!rail.hasAttribute("data-metric-rail-skeleton")&&!rail.closest('[data-workspace-cached]')){const card=rail.querySelector<HTMLElement>(`a[data-metric-card="${focusAfterLoad.current}"]`);if(document.activeElement===document.body||document.activeElement?.closest('a[href="/dashboard"]'))card?.focus({preventScroll:true});focusAfterLoad.current=null;}
+    if(focusAfterLoad.current&&!rail.hasAttribute("data-metric-rail-skeleton")&&!rail.closest('[data-workspace-cached]')){const pending=focusAfterLoad.current;rail.scrollLeft=pending.rail;if(scrollY!==pending.scroll)window.scrollTo({top:pending.scroll,behavior:'instant'});const card=rail.querySelector<HTMLElement>(`a[data-metric-card="${pending.kind}"]`);if(document.activeElement===document.body||document.activeElement?.closest('a[href="/dashboard"]'))card?.focus({preventScroll:true});focusAfterLoad.current=null;}
     const saved=origin.current;if(!saved)return;
     if(rail.scrollLeft!==saved.rail)rail.scrollLeft=saved.rail;
     if((motion.current.returning||!returnReady.current)&&scrollY!==saved.scroll)window.scrollTo({top:saved.scroll,behavior:'instant'});
     // 无配对动画也要等真实总览显示后恢复位置，再释放来源；隐藏路由和临时外壳不能提前消费它。
     if(!returningToOverview&&returnReady.current&&!motion.current.active&&!rail.hasAttribute('data-metric-rail-skeleton')&&location.pathname==='/dashboard'){
-      if(rail.closest('[data-workspace-cached]'))focusAfterLoad.current=saved.kind;
+      if(rail.closest('[data-workspace-cached]'))focusAfterLoad.current={kind:saved.kind,rail:saved.rail,scroll:saved.scroll};
       if(document.activeElement===document.body||document.activeElement?.closest('a[href="/dashboard"]'))rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`)?.focus({preventScroll:true});
       origin.current=null;
     }

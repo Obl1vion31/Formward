@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
+import {authenticateFixture} from './fixture-auth.mjs';
 
 const config=JSON.parse(await readFile(process.env.FORMWARD_CHAT_BROWSER_CONFIG,'utf8'));
 assert.ok(['native-postgres','pglite'].includes(config.isolatedFixture));
@@ -14,7 +15,7 @@ await mkdir(folder,{recursive:true});
 const shots=[],flows=[],errors=[];
 const version=await (await fetch(config.baseURL+'/api/app-version')).json();
 const auth=await browser.newContext();
-assert.equal((await auth.request.post(config.baseURL+'/api/auth/sign-in/email',{headers:{Origin:config.baseURL},data:config.account})).status(),200);
+await authenticateFixture(auth.request,config,process.env.FORMWARD_CHAT_BROWSER_CONFIG);
 const storageState=await auth.storageState();await auth.close();
 async function settle(page){await page.waitForFunction(()=>!document.querySelector('.workspace-skeleton,[data-chart-flight]'));await page.waitForTimeout(650);}
 async function screenshot(page,profile,name,items){
@@ -40,7 +41,8 @@ async function newChat(page){
  await page.getByRole('button',{name:'新对话',exact:true}).click();
  const confirm=page.getByRole('button',{name:'开始新对话',exact:true});
  const choice=await Promise.race([response.then(()=>'done'),confirm.waitFor().then(()=>'confirm').catch(()=>'absent')]);
- if(choice==='confirm')await confirm.click();assert.equal((await response).status(),200);
+ if(choice==='confirm')await confirm.click();const result=await response;
+ if(result.status()===429){await page.waitForTimeout(61000);return newChat(page);}assert.equal(result.status(),200);
  await page.getByText('今天想聊点什么？',{exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('[aria-label="新对话"]')?.disabled);
 }
 async function closeChat(page){await page.getByRole('button',{name:'收起小助手',exact:true}).click();await page.locator('[data-assistant-trigger]:visible').waitFor();}
@@ -56,8 +58,9 @@ async function chatTab(page,width){
 try{
  const sizes=process.env.FORMWARD_UI_WIDTHS?process.env.FORMWARD_UI_WIDTHS.split(',').map(Number):[390,1440];
  for(const width of sizes){
-  const height=width<701?844:1000,theme=process.env.FORMWARD_UI_THEME??'dark',profile=width+'x'+height+'-'+theme;
-  const context=await browser.newContext({viewport:{width,height},storageState,hasTouch:width<701,isMobile:width<701,locale:'zh-CN',timezoneId:'Asia/Shanghai',recordVideo:{dir:folder,size:{width,height}}});
+  const height=Number(process.env.FORMWARD_UI_HEIGHT??(width<701?844:1000)),theme=process.env.FORMWARD_UI_THEME??'dark',textScale=Number(process.env.FORMWARD_UI_TEXT_SCALE??1),motion=process.env.FORMWARD_UI_REDUCED==='1'?'reduce':'no-preference',profile=width+'x'+height+'-'+theme+(textScale!==1?'-text'+textScale:'')+(motion==='reduce'?'-reduced':'');
+  const context=await browser.newContext({viewport:{width,height},storageState,hasTouch:width<701,isMobile:width<701,locale:'zh-CN',timezoneId:'Asia/Shanghai',reducedMotion:motion,recordVideo:{dir:folder,size:{width,height}}});
+  if(textScale!==1)await context.addInitScript(scale=>{const apply=()=>document.documentElement.style.fontSize=(scale*100)+'%';if(document.documentElement)apply();else new MutationObserver((_,observer)=>{if(document.documentElement){apply();observer.disconnect();}}).observe(document,{childList:true});},textScale);
   await context.addInitScript(({theme,userId})=>{localStorage.setItem('formward-theme',theme);for(const kind of ['meals','body','energy','training'])localStorage.setItem('formward:record-guide:v1:'+encodeURIComponent(userId)+':'+kind,'seen');},{theme,userId:config.userId});
   const page=await context.newPage(),steps=[];page.on('pageerror',error=>errors.push({profile,error:error.message}));
   const mark=label=>steps.push({label,at:new Date().toISOString()});
