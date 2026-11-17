@@ -1,5 +1,6 @@
 "use server";
 import { headers } from "next/headers";
+import {revalidatePath} from "next/cache";
 import { getDatabase } from "@/db/client";
 import { accountRequestSource, withCurrentSession } from "@/features/auth/server";
 import { accountFailure, createAccountInvitation, loadAccountAdmin, manageAccount, changeAccountTier, recordAdminRejection, revokeAccountInvitation, unlockAccountAdmin, type AccountCommand, type AdminFilter } from "@/features/auth/account-management";
@@ -29,7 +30,9 @@ async function linkResult(result: { rawToken: string | null; expiresAt: string; 
 export async function unlockAdminAction(password: string, code?: string) {
   const verified = await verifySecurityAction(password, code);
   if (!verified.ok) return { ok: false as const, code: "verification_required", error: verified.error };
-  return perform((proof, requestHeaders) => unlockAccountAdmin(getDatabase(), proof, password, accountRequestSource(requestHeaders)));
+  const result=await perform((proof, requestHeaders) => unlockAccountAdmin(getDatabase(), proof, password, accountRequestSource(requestHeaders)));
+  if(result.ok)revalidatePath("/admin","layout");
+  return result;
 }
 export async function loadAdminConsoleAction(filter: ConsoleFilter) { return perform(proof => loadAdminConsole(getDatabase(), proof, filter),undefined,"read"); }
 export async function loadAdminDayAction(filter:ConsoleFilter,options:{dimension:"users"|"models";page:number}) { return perform(proof=>loadAdminDay(getDatabase(),proof,filter,options),undefined,"read"); }
