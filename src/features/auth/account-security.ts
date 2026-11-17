@@ -10,7 +10,9 @@ export type SecurityTransaction = Parameters<Parameters<Database["transaction"]>
 export type SessionProof = { userId: string; sessionId: string; accessVersion: number };
 export const webSessionContext = new AsyncLocalStorage<SessionProof>();
 export const ADMIN_VERIFICATION_MS = 5 * 60_000;
-export const ownerMfaRequired = () => process.env.NODE_ENV !== "test" || process.env.FORMWARD_TEST_OWNER_MFA === "1";
+/** 仅服务器运维配置可临时暂停管理员动态码；默认仍强制。 */
+export const ownerMfaPaused = () => process.env.FORMWARD_OWNER_MFA_REQUIRED === "0";
+export const ownerMfaRequired = () => !ownerMfaPaused() && (process.env.NODE_ENV !== "test" || process.env.FORMWARD_TEST_OWNER_MFA === "1");
 export const hashAccountToken = (value: string) => createHash("sha256").update(value).digest("hex");
 
 export async function requireActiveAccount(db: Pick<Database, "select">, userId: string) {

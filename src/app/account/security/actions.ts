@@ -6,7 +6,7 @@ import { getDatabase } from "@/db/client";
 import { account, session } from "@/db/schema";
 import { currentSessionIdentity, accountRequestSource } from "@/features/auth/request-identity";
 import { getAuth } from "@/features/auth/auth";
-import { requireSessionProof, limitAccountAttempt, ownerMfaRequired } from "@/features/auth/account-security";
+import { requireSessionProof, limitAccountAttempt, ownerMfaRequired, ownerMfaPaused } from "@/features/auth/account-security";
 import { isAccountRequestOrigin } from "@/features/auth/site-url";
 import { ApiError } from "@/features/auth/ai-identity";
 import { safeAiError } from "@/features/measurements/ai-api";
@@ -15,7 +15,7 @@ export async function loadSecurityAction() {
   try {
     const { proof } = await currentSessionIdentity(await headers(), { allowMfaSetup: true });
     const value = await requireSessionProof(getDatabase(), proof, false, { allowMfaSetup: true });
-    return { ok: true as const, data: { email: value.user.email, enabled: value.user.twoFactorEnabled, required: value.user.role === "owner" && ownerMfaRequired(), recovery: value.session.mfaRecoveryRequired, verifiedAt: value.session.securityVerifiedAt?.toISOString() ?? null } };
+    return { ok: true as const, data: { email: value.user.email, enabled: value.user.twoFactorEnabled, required: value.user.role === "owner" && ownerMfaRequired(), enrollmentPaused: value.user.role === "owner" && ownerMfaPaused(), recovery: value.session.mfaRecoveryRequired, verifiedAt: value.session.securityVerifiedAt?.toISOString() ?? null } };
   } catch (error) { return { ok: false as const, error: safeAiError(error).error.message }; }
 }
 export async function verifySecurityAction(password: string, code?: string) {
