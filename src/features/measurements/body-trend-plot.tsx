@@ -1,4 +1,5 @@
 "use client";
+import {ChartPreparation} from "@/components/chart-preparation";
 import {useId,useRef,useState} from "react";
 import {useChartViewport} from "@/components/use-chart-viewport";
 import {useChartMotion} from "@/components/use-chart-motion";
@@ -58,6 +59,7 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
 
   return <>
     <div className={styles.plotViewport+(linked?" linked-trend-plot":compact?" detail-trend-plot":"")} ref={viewport} data-chart-density={span<7?"short":"full"} data-chart-arrival data-body-plot data-adaptive={linked||span<31?"true":mobile===null?"auto":String(mobile)} data-linked-plot={linked||undefined}>
+      <ChartPreparation active={!viewportWidth}/>
       <svg {...drag} className={styles.plot} style={{touchAction:"pan-y", height:compact?"auto":undefined, maxHeight:"none", visibility: viewportWidth > 0 ? undefined : "hidden"}} width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={`${metricName(metric)}趋势，数值越高位置越高`}>
         <title>{`${metricName(metric)}趋势`}</title>
         {scale.ticks.filter((_,i)=>i%Math.max(1,Math.ceil(Math.max(24,fontSize*1.6)*(scale.ticks.length-1)/plotHeight))===0).map((value) => <g key={value}><line x1={left} x2={width-right} y1={y(String(value))} y2={y(String(value))} className={styles.grid} /><text x={left-8} y={y(String(value)) + 4} textAnchor="end" className={styles.axis}>{value.toFixed(1)}</text></g>)}

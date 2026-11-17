@@ -1,6 +1,6 @@
 "use client";
 import {choosePhotoRoute,type PhotoRegion,type PhotoRoute} from "../meals/photo-route";
-import { followupText, type FollowupSubmission } from "./followup";
+import { followupText,resolveSupplement,type FollowupSubmission } from "./followup";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { AccountEntitlements } from "../auth/entitlements";
 import type { ChatEvent, ChatMessage, ChatProvider, ChatSnapshot } from "./chat-model";
@@ -122,14 +122,14 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   async function send(action: "send" | "retry" | "continue" = "send", messageId?: string,followup?:FollowupSubmission) {
     const snapshot = current.current;
     if (!snapshot || request.current || mutating.current || photoState.current.some(photo=>photo.phase!=="ready"||!photo.id) || snapshot.activeRunId || !canChat || action === "send" && !followup && !draft.trim() && !photos.length) return;
-    let optimisticText=draft;
-    try{if(followup)optimisticText=followupText(snapshot.followup,followup);}catch(failure){setError(failure instanceof Error?failure.message:"补充任务已变化。");return;}
+    let optimisticText=draft,answeredQuestions:ChatMessage["answeredQuestions"];
+    try{if(followup){optimisticText=followupText(snapshot.followup,followup);answeredQuestions=resolveSupplement(snapshot.followup,followup).answers.map(({prompt,value,skipped})=>({prompt,value,skipped}));}}catch(failure){setError(failure instanceof Error?failure.message:"补充任务已变化。");return;}
     const controller = new AbortController(); request.current = controller; setRunning(true); setError("");
     const signature=JSON.stringify({action,provider:snapshot.provider,draft:followup?"":draft,photos:followup?[]:photos.map(p=>p.id),quote:followup?null:quote?.id,messageId,followup});
     if(pendingRequest.current?.signature!==signature)pendingRequest.current={signature,id:crypto.randomUUID(),...(action==="send"&&!followup?{sent:{draft,photoKeys:photos.map(p=>p.key),quoteId:quote?.id}}:{})};
     const requestId=pendingRequest.current.id;
     scroll.current.stick=true;setNewRequests(previous=>new Set([...previous,requestId].slice(-50)));
-    if(action==="send")setOptimistic({id:"local-"+requestId,requestId,seq:(messages.at(-1)?.seq??0)+1,role:"user",text:optimisticText,provider:null,state:"working",createdAt:new Date().toISOString(),replyTo:null,imageIds:followup?[]:photos.flatMap(photo=>photo.id?[photo.id]:[]),steps:[],references:[],error:null});
+    if(action==="send")setOptimistic({id:"local-"+requestId,requestId,seq:(messages.at(-1)?.seq??0)+1,role:"user",text:optimisticText,answeredQuestions,provider:null,state:"working",createdAt:new Date().toISOString(),replyTo:null,imageIds:followup?[]:photos.flatMap(photo=>photo.id?[photo.id]:[]),steps:[],references:[],error:null});
     const sentDraft = draft, sentPhotoKeys = new Set(photos.map(photo => photo.key)), sentQuoteId = quote?.id;
     try {
       const response = await fetch("/api/assistant-chat", { method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal, body: JSON.stringify({ action, requestId, provider: snapshot.provider, conversationId: snapshot.conversationId, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, ...(action === "send" ? { text:followup?"":draft,imageIds:followup?[]:[...new Set(photos.flatMap(photo=>photo.id?[photo.id]:[]))],...(followup?{followup}:quote?{replyToId:quote.id}:{}) } : { messageId }) }) });

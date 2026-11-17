@@ -29,6 +29,10 @@ if(process.env.FORMWARD_CHAT_NATIVE==="1"){
 }
 const pg=native?undefined:new PGlite(),db=native?.db??drizzle(pg!,{schema});if(native)await migrateNative(native.db,{migrationsFolder:"drizzle"});else await migrate(drizzle(pg!,{schema}),{migrationsFolder:"drizzle"});
 const fixture=await seedAssistantFixture(db,localMeasurementDate(new Date(),"Asia/Shanghai"));
+if(process.env.FORMWARD_UI_DECISIONS_FIXTURE==="1"){
+ const {seedUiDecisionsFixture}=await import("./ui-decisions-fixture");
+ try{await seedUiDecisionsFixture(db as unknown as import("../src/db/client").Database,fixture.userId,fixture.today);}catch(error){await pg?.close();await native?.close();stopNative?.();throw error;}
+}
 await db.update(schema.user).set({role:"owner"}).where(eq(schema.user.id,fixture.userId));
 if(process.env.FORMWARD_CHAT_REFINEMENT_SEED==="1"){
  await db.insert(schema.measurementSource).values({userId:fixture.userId,label:"虚构测试体重秤"}).onConflictDoNothing();

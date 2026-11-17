@@ -40,6 +40,8 @@ test("统一、混合、纯训练和旧提交从原授权追溯来源，按时�
   assert.equal(get(fixture.mixed.id).source.compactLabel, "豆包");
   assert.match(get(fixture.mixed.id).compactSummary!, /^11-02 晚间测量 70.2kg；午餐 虚构午餐；消耗$/);
   assert.equal(get(fixture.training.id).source.key, "chatgpt");
+  assert.equal(get(fixture.training.id).compactSummary, "虚构训练模板");
+  assert.match(get(fixture.training.id).summary, /虚构训练模板/);
   assert.ok(Date.parse(get(fixture.training.id).expiresAt!) - Date.parse(get(fixture.training.id).createdAt) > 23 * 3600000);
   assert.equal(get(fixture.saved.id).status, "confirmed");
   assert.equal(get(fixture.legacy.id).source.label, "豆包 · Formward", "撤销后仍保留发起来源");

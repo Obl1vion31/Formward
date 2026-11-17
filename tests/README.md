@@ -1,5 +1,9 @@
 # Tests
 
+## 当前界面决定的实际页面证据
+
+`FORMWARD_UI_DECISIONS_FIXTURE=1` 为 chat-pilot 的隔离账号补充两项食材与训练安排；只通过正式业务函数建立虚构记录，不进入生产运行包。`逐题补充验收` 使用模型回复回放提出三题，覆盖自由填写、前后浏览、多选、跳过与统一提交，不调用收费模型。实际截图和浏览器原始视频必须注明源码版本、视口、主题、引擎与隔离数据；不以生成图、HTML原型或拼帧回放代替。真实iPhone Safari证据单独登记。
+
 `FORMWARD_ESTIMATE_DRAFT_GUARD=1 node --import tsx tests/energy-estimation.browser.mts`使用同一虚构资料和隔离数据库，检查自动静息、记录方式／公式切换、慢读取、活动100与0、备注、活动档位和隐藏方式草稿的退出行为；删除输入恢复空白后应直接退出。`FORMWARD_ESTIMATE_ENGINE`分别运行Chromium／WebKit，双主题覆盖390与1440宽度；`FORMWARD_ESTIMATE_RELEASE`可核对兼容发布产物。语义比较在records/form-draft.test.ts覆盖已有记录、来源、步数、未知与0及原精度。
 
 ## 更多信息与完整人物首页

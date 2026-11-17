@@ -10,8 +10,8 @@ export function useChartMotion(container:RefObject<HTMLElement|null>,changeKey:s
   const key=location.pathname+":"+viewKey,first=entered.current===null,changed=entered.current!==key;
   if(!changed)return;
   entered.current=key;
-  const fresh=claimChartEntry(key),reduced=matchMedia("(prefers-reduced-motion: reduce)");
-  if(reduced.matches||typeof Element.prototype.animate!=="function"||first&&!fresh||document.documentElement.hasAttribute("data-chart-travel"))return;
+  const fresh=claimChartEntry(key,node),reduced=matchMedia("(prefers-reduced-motion: reduce)");
+  if(reduced.matches||typeof Element.prototype.animate!=="function"||first&&!fresh)return;
   const animations:Animation[]=[];
   const lineGroups=node.querySelectorAll<SVGElement>('[data-trend-glyph="morning-weight"]');
   for(const glyph of lineGroups)animations.push(glyph.animate([{clipPath:"inset(-8px 100% -8px -8px)"},{clipPath:"inset(-8px -8px -8px -8px)"}],{duration:600,easing:"cubic-bezier(.2,.65,.3,1)"}));

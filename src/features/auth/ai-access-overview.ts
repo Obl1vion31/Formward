@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import type { Database } from "../../db/client";
-import { assistantConnection, energyOperation, mealOperation, measurementOperation, recordOperation } from "../../db/schema";
+import { assistantConnection, energyOperation, mealOperation, measurementOperation, recordOperation, trainingTemplate } from "../../db/schema";
 import { mealTypeLabel } from "../meals/model";
 import { chatProviders, providerId } from "../assistant/chat-config";
 import { listAiMeasurementOperations } from "../measurements/ai-operations";
@@ -38,6 +38,8 @@ export async function loadAiAccessOverview(db: Database, userId: string, existin
   const mealGrants = mealIds.length ? await db.select({ id: mealOperation.id, tokenId: mealOperation.tokenId, oauthConnectionId: mealOperation.oauthConnectionId }).from(mealOperation).where(and(eq(mealOperation.userId, userId), inArray(mealOperation.id, mealIds))) : [];
   const energyGrants = energyIds.length ? await db.select({ id: energyOperation.id, tokenId: energyOperation.tokenId, oauthConnectionId: energyOperation.oauthConnectionId }).from(energyOperation).where(and(eq(energyOperation.userId, userId), inArray(energyOperation.id, energyIds))) : [];
   const parents = unified.length ? await db.select({ id: recordOperation.id, draft: recordOperation.draft }).from(recordOperation).where(and(eq(recordOperation.userId, userId), inArray(recordOperation.id, unified.map(row => row.id)))) : [];
+  const templateIds = [...new Set(parents.flatMap(row => row.draft.flatMap(item => item.action.kind === "schedule_training" && item.action.templateId ? [item.action.templateId] : [])))];
+  const templates = templateIds.length ? await db.select({ id: trainingTemplate.id, content: trainingTemplate.content }).from(trainingTemplate).where(and(eq(trainingTemplate.userId, userId), inArray(trainingTemplate.id, templateIds))) : [];
 
   function source(grants: (Grant | undefined)[]): AiSubmissionSource {
     if (!grants.length || grants.some(grant => !grant || Boolean(grant.tokenId) === Boolean(grant.oauthConnectionId))) return unknownSource;
@@ -66,7 +68,18 @@ export async function loadAiAccessOverview(db: Database, userId: string, existin
     ];
     const dates = row.dates.map(date => date.slice(5)), date = dates.length > 1 ? `${dates[0]}—${dates.at(-1)}` : dates[0];
     const selected=parent?.draft.filter(item=>row.status==="confirmed"?item.persisted:row.status==="pending"?!item.excluded&&!item.persisted:true)??[];
-    const details=selected.flatMap(item=>{const action=item.action;return action.kind==="save_meal"?[mealTypeLabel(action.mealType)+" "+action.items.map(food=>food.name).filter(Boolean).join("、")]:action.kind==="save_record"?[(action.period==="evening"?"晚间测量":"晨间测量")+(action.weightKg?" "+Number(action.weightKg)+"kg":"")]:[{body:"身体",meals:"饮食",foods:"食材库",energy:"消耗",training:"训练"}[category(action)]];});
+    const details=selected.flatMap(item=>{
+      const action=item.action;
+      if(action.kind==="save_meal")return [mealTypeLabel(action.mealType)+" "+action.items.map(food=>food.name).filter(Boolean).join("、")];
+      if(action.kind==="save_record")return [(action.period==="evening"?"晚间测量":"晨间测量")+(action.weightKg?" "+Number(action.weightKg)+"kg":"")];
+      if(action.kind==="save_training_template")return [action.template.name];
+      if(action.kind==="schedule_training"){
+        const saved=item.trainingSaved?.after,reference=parent?.draft.find(candidate=>candidate.key===action.templateRef)?.action;
+        const name=saved?("content" in saved?saved.content.name:saved.name):reference?.kind==="save_training_template"?reference.template.name:templates.find(template=>template.id===action.templateId)?.content.name;
+        return [name??"训练排期"];
+      }
+      return [{body:"身体",meals:"饮食",foods:"食材库",energy:"消耗",training:"训练"}[category(action)]];
+    });
     const description=details.length?details.join("；"):displayKind(row.types.join("、")||"记录")+"·"+(row.status==="pending"?row.pendingCount:row.count)+"项";
     const ended=row.status==="pending"&&!row.pendingCount;
     return { id: row.id, source: source(grants), summary: displayKind(row.summary)+(details.length?" · "+details.join("；"):""), compactSummary: `${date ? date + " " : ""}${ended?"没有待保存内容":description}`, status: row.expired ? "expired" : ended?"completed":row.status, createdAt: row.createdAt, expiresAt: row.expiresAt, confirmationPath: row.confirmationPath };

@@ -97,7 +97,7 @@
 .metrics[data-presentation=energy] .metric:not(:first-child) .metricNote:empty{display:none}
 
 
-.metrics[data-loading] .metric strong{color:var(--muted)}
+.metrics[data-loading] .metric[data-pending] strong{color:var(--muted)}
 
 /* 手机摘要使用与骨架相同的语义结构；不等待设备或字体测量后改卡片排列。 */
 .mobileReading{display:none}

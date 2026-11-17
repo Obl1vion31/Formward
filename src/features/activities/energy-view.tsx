@@ -1,4 +1,5 @@
 "use client";
+import {ChartPreparation} from "@/components/chart-preparation";
 import {EnergyLegend} from '@/components/chart-legend';
 import {EnergySourceStatus} from "../data-sources/energy-status";
 import type {ConnectionView} from "../data-sources/model";
@@ -12,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { usePageLoading } from "@/components/page-loading-state";
 import { useLocalToday } from "@/components/use-local-today";
 import { useInitialMobileMode } from "@/components/use-mobile-mode";
-import { preferredRecordedDate, rangeContaining, recentRecordDates, pendingRecordDates } from "@/components/record-dates";
+import { preferredRecordedDate, rangeContaining, recentRecordDates } from "@/components/record-dates";
 import {useChartDrag} from "@/components/use-chart-drag";
 import { ChartSelectionColumn } from "@/components/chart-selection-marker";
 import { useChartMotion } from "@/components/use-chart-motion";
@@ -135,7 +136,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
   }
   async function removeRecord(action:EnergyAction,label:string){if(await confirmAction({title:"删除这条消耗记录？",message:"永久删除"+label+"？此操作无法恢复，其他记录保留。",confirmLabel:"确认删除",danger:true}))execute(action);}
   const summary=(date:string)=>{const day=byDate.get(date);return day?<>{energyValue(day.totalKcal)} 千卡 · 静息 {energyValue(day.restingKcal)} · 活动 {energyValue(day.activeKcal)}</>:"尚无记录";};
-  const recentDates=pendingRecordDates(today,date=>byDate.get(date)?.totalKcal==null);
+  const recentDates=[today];
   const renderDay=(date:string)=>{const day=byDate.get(date);return <DailyRecordRow key={date} date={date} today={today} value={summary(date)}><button data-record-action="edit" disabled={busy} onClick={()=>editDay(date)}>{day?.record||day?.activities.length?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>setViewing(date)}>查看</button></DailyRecordRow>;};
   const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <div className={styles.dayDetails} data-energy-day-detail><div className={styles.summary}>{([[day.cumulative?"今日已消耗":"总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>千卡</small></strong></div>)}</div><EnergySources day={day}/>{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=>{
  const reading=activitySummary(activity,day.record);
@@ -193,7 +194,7 @@ function EnergyPlot({ days, selected, selection }: { days: EnergyDay[]; selected
   const bottom = height ? height - 34 : w < 650 ? 164 : 220;
   const y = (value: number) => bottom - value / maximum * (bottom - 30), barWidth = Math.min(30, slot * .65), x = (index: number) => left + (index + .5) * slot;
   const selectedIndex=days.findIndex(day=>day.date===selected),selectedX=selectedIndex<0?null:x(selectedIndex);
-  return <EnergyPlotFrame frameRef={container}><svg {...drag} viewBox={`0 0 ${w} ${bottom + 34}`} style={{ touchAction:"pan-y", visibility: width ? undefined : "hidden" }} role="group" aria-label="每日消耗柱状图">
+  return <EnergyPlotFrame frameRef={container}><ChartPreparation active={!width}/><svg {...drag} viewBox={`0 0 ${w} ${bottom + 34}`} style={{ touchAction:"pan-y", visibility: width ? undefined : "hidden" }} role="group" aria-label="每日消耗柱状图">
     {scale.ticks.map(tick => <g key={tick}><line x1={left} x2={w - right} y1={y(tick)} y2={y(tick)} className={styles.grid} /><text x={left - 7} y={y(tick) + 4} textAnchor="end" className={styles.axis}>{tick}</text></g>)}
     <ChartSelectionColumn x={selectedX} date={selected} column={selectedX===null?null:{left:selectedX-slot/2,right:selectedX+slot/2}} plot={{left,right:w-right,top:22,bottom}} resetKey={`${w}:${days.map(d=>d.date).join("|")}`} direct={selection.direct} baselineTick/>
     {days.map((day, index) => { const resting = Number(day.restingKcal ?? 0), active = Number(day.activeKcal ?? 0), onlyTotal = day.restingKcal === null && day.activeKcal === null && day.totalKcal !== null; return <g key={day.date} role="button" tabIndex={day.date === selected ? 0 : -1} data-energy-date={day.date} data-selected={day.date===selected} aria-pressed={day.date===selected} aria-label={`${day.date} · 总消耗 ${day.totalKcal ?? "未填写"} 千卡`} data-chart-date={day.date} onMouseMove={()=>selection.preview(day.date)} onFocus={event=>selection.focus(event,day.date)} onClick={()=>selection.activate(day.date)} onKeyDown={event=>selection.keyDown(event,day.date)}>

@@ -21,6 +21,13 @@ globalThis.fetch=async function(input,init){
    if(!body.tools.some(tool=>tool.function.name==='preview_meals'))return call('load_tools',{names:['preview_meals']});
    return call('preview_meals',{meals:[{date:'today',mealType:'午餐',foods:[{name:'AI 识别食物',quantity:'1',unit:'份',caloriesKcal:'290',proteinG:'20',carbsG:'30',fatG:'10',amountDecision:'provided',sourceKind:'estimated',basis:'隔离回放的示例结果，非真实识别'}]}]});
   }
+  if(text.includes('逐题补充验收')){
+   return call('request_followup',{subject:'隔离多题补充',question:'请补充以下信息',questions:[
+    {id:'source',prompt:'这次测量使用什么设备？',options:[{id:'scale',label:'测试体重秤'},{id:'app',label:'测试健康应用'}],allowText:true,optional:true},
+    {id:'time',prompt:'什么时候测量的？',options:[{id:'morning',label:'晨间'},{id:'evening',label:'晚间'}],allowText:false},
+    {id:'conditions',prompt:'有哪些需要保留的说明？',options:[{id:'before',label:'早餐前'},{id:'exercise',label:'运动后'}],multiple:true,allowText:true,optional:true}
+   ]});
+  }
   if(text.includes('来源卡片验收')||text.includes('测量来源')){
    const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
    if(!text.includes('OKOK')&&!text.includes('okok'))return call('request_followup',{subject:'当前体重',question:'这次测量使用的设备或应用？',questions:[{id:'source',prompt:'测量来源',binding:{kind:'measurement_source',date,period:'daytime'},allowText:true,optional:true}]});

@@ -136,7 +136,8 @@ export function publicChatMessage(row: StoredMessage, context: StoredMessage[] =
   const quote = context.find(item => item.id === row.replyToId);
   const question=row.role==="assistant"?(questionId?context.find(item=>item.id===questionId):[...context].filter(item=>item.role==="user"&&item.seq<row.seq).sort((a,b)=>b.seq-a.seq)[0]):null;
   return { id: row.id, seq: row.seq, role: row.role as "user" | "assistant", text: row.text, provider: row.provider ? providerId(row.provider) : null, state: row.state, createdAt: row.createdAt.toISOString(),
-    replyTo: row.replyToId ? { id: row.replyToId, text: quote?.text.slice(0, 280) || "原消息已超出当前历史范围" } : null, imageIds: row.imageIds, steps: row.steps, references: row.references, error: row.error, ...(runId ? { runId } : {}),...(requestId?{requestId}:{}),...(question?{question:{id:question.id,text:question.text}}:{}) };
+    replyTo: row.replyToId ? { id: row.replyToId, text: quote?.text.slice(0, 280) || "原消息已超出当前历史范围" } : null, imageIds: row.imageIds, steps: row.steps, references: row.references, error: row.error, ...(runId ? { runId } : {}),...(requestId?{requestId}:{}),...(question?{question:{id:question.id,text:question.text}}:{}),
+    ...(row.role==="user"&&row.supplementalAnswer?.answers.length?{answeredQuestions:row.supplementalAnswer.answers.map(({prompt,value,skipped})=>({prompt,value,skipped}))}:{}) };
 }
 export async function startChatRun(db: Database, userId: string, input: ChatSend) {
   await requireChatAccount(db, userId, input.mealTask ? "meal_entry" : "chat"); await reapChatRuns(db, userId);

@@ -11,4 +11,4 @@
 
 .keyFields{display:grid;grid-template-columns:clamp(96px,22%,160px) minmax(0,1fr);gap:12px;align-items:start}.field select{color-scheme:inherit}
 
-@media(max-width:700px){.heading{position:absolute;right:0;top:0;margin:0}.panel{position:relative}.heading a{position:relative;font-size:.875rem}.connection:first-of-type .sectionHeading{padding-right:88px}}
+@media(max-width:700px){.heading{position:static;margin:0 0 8px}.heading a{font-size:.875rem}.sectionHeading{flex-wrap:wrap}.sectionHeading h2{font-size:1rem;flex:1 1 auto}.connection{padding:16px}}

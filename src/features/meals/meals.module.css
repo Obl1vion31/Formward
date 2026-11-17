@@ -435,7 +435,7 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
 .duplicateNotice a { display:inline-flex; align-items:center; min-height:44px; color:var(--warm-white); text-underline-offset:3px; }
 
 .entryHeading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px;min-width:0}.entryHeading .entryTitle{margin:0;font-size:1rem;line-height:1.5;font-weight:500}.mealForm .entryPaths{display:flex;flex:0 1 auto;width:auto;min-width:0;max-width:100%;align-items:center;gap:6px;flex-wrap:wrap;margin:0;padding:0}.mealForm .entryPaths button{flex:none;width:auto;max-width:100%;white-space:normal;min-height:44px;padding:6px 8px;font-family:inherit;font-size:.875rem;line-height:1.5}
-.mealExtra{margin-top:12px;border-top:1px solid var(--line-soft)}.mealExtra>summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font-size:.875rem;color:var(--muted)}.mealExtra>label{display:grid;gap:8px;margin-block:8px 16px}.mealExtra textarea{width:100%}
+.mealExtra{margin-top:12px;border:0}.mealExtra>summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;font-size:.875rem;color:var(--muted);list-style:none}.mealExtra>summary::-webkit-details-marker{display:none}.mealExtra>summary::after{content:"";width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);margin-left:auto;margin-right:4px}.mealExtra[open]>summary::after{transform:rotate(225deg)}.mealExtra>label{display:grid;gap:8px;margin-block:8px 16px}.mealExtra textarea{width:100%}
 @media(max-width:700px),(hover:none) and (pointer:coarse){
  .mealForm>fieldset{gap:12px}.mealForm .mealColumns{margin-top:0}.entryHeading{gap:4px 8px}.entryHeading .entryTitle small{margin-left:4px}
  .stickyMealTotal{gap:8px;padding-top:8px;padding-bottom:max(8px,env(safe-area-inset-bottom));margin-top:auto}.headerNutrition{gap:2px 8px}.headerNutrition strong{font-size:1.375rem;line-height:1.4}.headerNutrition>span{font-size:.8125rem}.headerMacros{display:flex;flex-wrap:wrap;gap:0 8px}.entryIssue{font-size:.8125rem;margin-top:4px}.mealForm .save{font-size:.875rem;line-height:1.5;padding:8px 12px;white-space:normal}
@@ -453,13 +453,13 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
  .nutritionFrame[data-adaptive=auto]::before{content:"";display:block;width:calc(100% - 60px);margin-left:50px;aspect-ratio:2/1}
 }
 
-.entrySummary,.collapseFood{display:none}.addFoodGroup{position:relative}.addFoodMenu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:8px 0}.addFoodMenu button{min-height:44px;padding:8px;border:1px solid var(--control-border);border-radius:8px;background:var(--surface);color:var(--warm-white);font:inherit;font-size:.875rem;cursor:pointer}
+.entrySummary,.collapseFood{display:none}.addFoodGroup{position:relative;margin-top:12px}.mealForm .addFood{display:flex;align-items:center;justify-content:center;gap:6px;border:0;box-shadow:none}.addFood svg{flex:none}.addFoodMenu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:8px 0}.addFoodMenu button{min-height:44px;padding:8px;border:1px solid var(--control-border);border-radius:8px;background:var(--surface);color:var(--warm-white);font:inherit;font-size:.875rem;cursor:pointer}
 @media(max-width:700px),(hover:none) and (pointer:coarse){
  .mealForm .entryTable[data-item-focus]{display:block;width:100%;min-width:0}.mealForm .entryTable[data-item-focus] colgroup,.mealForm .entryTable[data-item-focus] thead{display:none}.mealForm .entryTable[data-item-focus] tbody{display:grid;gap:8px}
  .mealForm .entryTable[data-item-focus] tr{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px 8px;align-items:start;margin:0;padding:12px 0;border-bottom:1px solid var(--rule)}
  .mealForm .entryTable[data-item-focus] td{display:block;min-width:0;padding:0;border:0;text-align:left;grid-column:span 3}
  .mealForm .entryTable[data-item-focus] td::before{display:block;content:attr(data-label);margin:0 0 8px;font-size:.875rem;line-height:1.5;color:var(--muted);white-space:nowrap}
- .mealForm .entryTable[data-item-focus] .entryName{grid-column:span 5}.mealForm .entryTable[data-item-focus] .entryUnit{grid-column:span 3}.mealForm .entryTable[data-item-focus] .entryQuantity{grid-column:span 4}
+ .mealForm .entryTable[data-item-focus] .entryName{grid-column:span 6}.mealForm .entryTable[data-item-focus] .entryUnit{grid-column:span 3}.mealForm .entryTable[data-item-focus] .entryQuantity{grid-column:span 3}
  .mealForm .entryTable[data-item-focus] td[data-nutrient]{grid-column:span 3}.mealForm .entryTable[data-item-focus][data-nutrient-columns="2"] td[data-nutrient]{grid-column:span 6}.mealForm .entryTable[data-item-focus][data-nutrient-columns="1"] td[data-nutrient]{grid-column:1/-1}
  .mealForm .entryTable[data-item-focus][data-stack-fields=true] .entryName{grid-column:1/-1}.mealForm .entryTable[data-item-focus][data-stack-fields=true] .entryUnit,.mealForm .entryTable[data-item-focus][data-stack-fields=true] .entryQuantity{grid-column:span 6}
  .mealForm .entryTable[data-item-focus][data-stack-fields=true][data-identity-columns="1"] .entryUnit,.mealForm .entryTable[data-item-focus][data-stack-fields=true][data-identity-columns="1"] .entryQuantity{grid-column:1/-1}
@@ -485,7 +485,22 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
 
 @media(max-width:700px),(hover:none) and (pointer:coarse){.desktopOnlyLegend{display:none}}
 
-.mealModes{min-width:0;display:flex;flex-direction:column;flex:1;container:meal-editor/inline-size}.mealModes [hidden]{display:none!important}.mealModes[data-photo-active]>.mealForm{flex:none!important}.photoMode{flex:1;min-width:0}.mealSheet{border:0;padding:0}.form label{font-size:.875rem;line-height:1.5}.formColumns{gap:16px}.mealForm .categoryTabs{margin:8px 0}.foodPicker>label{margin:0}.mealForm[data-picker=tabs] .pickerResults{max-height:none}.mealForm .pickerResults small{white-space:normal;overflow:visible}.mealModes[data-photo-active] .stickyMealTotal{display:none}.mealModes .form fieldset{margin:0}.mealModes .entryMethods{margin-bottom:16px}
+.mealModes{min-width:0;display:flex;flex-direction:column;flex:1;container:meal-editor/inline-size}.mealModes [hidden]{display:none!important}.mealModes[data-photo-active]>.mealForm{flex:none!important}.photoMode{flex:1;min-width:0}.mealSheet{border:0;padding:0}.form label{font-size:.875rem;line-height:1.5}.formColumns{gap:16px}.mealForm .categoryTabs{margin:8px 0}.foodPicker>label{margin:0}.mealForm[data-picker=tabs] .pickerResults{max-height:none}.mealForm .pickerResults small{white-space:normal;overflow:visible}.mealModes[data-photo-active] .stickyMealTotal{display:none}.mealModes .form fieldset{margin:0}.mealModes .entryMethods{margin-bottom:16px;border-bottom:0}
+
+.foodTable .foodDetailsToggle{display:inline-flex;align-items:center;gap:4px}.foodExpanded>td{white-space:normal;text-align:left}.foodInformation{min-width:0;font-size:.875rem;line-height:1.6;overflow-wrap:anywhere}.foodInformation p{margin:0 0 8px;color:var(--muted)}.foodInformation a{color:var(--gold)}.foodTable .foodExpanded .foodInformation{padding:0 0 12px}.foodTable .foodExpanded:hover{background:none}
+.pickerFood{padding:12px 0 8px;border-bottom:1px solid var(--line-soft);min-width:0}.pickerFoodHeading{display:flex;align-items:center;justify-content:space-between;gap:12px}.pickerFoodHeading strong{min-width:0;font-size:1rem;overflow-wrap:anywhere}.pickerFoodHeading button{flex:none;min-height:44px;min-width:44px;padding:8px;color:var(--gold);font-size:.875rem}.pickerFood>p{font-size:.8125rem;line-height:1.5;color:var(--muted);margin:2px 0 0}.pickerNutrients{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 4px}.pickerNutrients dt{font-size:.75rem;line-height:1.5;color:var(--muted);white-space:nowrap}.pickerNutrients dd{margin:4px 0 0;font-size:1rem;line-height:1.5;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}.pickerFoodDetails>summary{display:flex;align-items:center;gap:4px;min-height:44px;font-size:.875rem;color:var(--muted);list-style:none;cursor:pointer}.pickerFoodDetails>summary::-webkit-details-marker{display:none}.pickerFoodDetails[open]>summary svg{transform:rotate(180deg)}
+@container(max-width:700px){
+ .foodTable tr{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:8px;padding:12px 0}
+ .foodTable .rowName{grid-column:1/4;grid-row:1;font-size:1rem}.foodTable .rowName>span{display:block;white-space:normal;overflow:visible;font-size:.8125rem;margin:0}
+ .foodTable .rowAmount{grid-column:1/-1;grid-row:2;font-size:.8125rem}.foodTable .rowMacro,.foodTable .rowEnergy{grid-row:3;grid-column:auto;text-align:left!important;align-self:start;font-size:1rem!important}
+ .foodTable .rowEnergy::before{display:block;content:attr(data-label);font-size:.75rem;color:var(--muted);margin-bottom:2px;font-weight:400}.foodTable .rowMacro::before{font-size:.75rem}.foodTable .mobileUnit{font-size:.75rem}
+ .foodTable .rowActions,.foodTable .rowActions>.actions{display:contents}.foodTable .foodInlineActions{grid-column:4;grid-row:1;justify-self:end;align-self:start}.foodTable .foodInlineActions button{padding-inline:8px}
+ .foodTable .foodDetailsToggle{grid-column:1/-1;grid-row:4;justify-self:start;padding-inline:0;border:0;background:none;color:var(--muted)}
+ .foodTable tr.foodExpanded{display:block;padding:0;border:0}.foodTable .foodExpanded>td{padding:0}.foodTable .foodExpanded .foodInformation{padding:0 0 16px}
+}
+.pickerResults{container:picker-results/inline-size}
+@container picker-results (max-width:16rem){.pickerNutrients{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container picker-results (max-width:9rem){.pickerNutrients{grid-template-columns:minmax(0,1fr)}}
 
 
 
@@ -529,3 +544,6 @@ form.mealForm .entryTable td select:not([type=checkbox]):not([type=radio]):not([
  .entryTable[data-layout=auto] .entryUnit::before,.entryTable[data-layout=auto] .entryQuantity::before,.entryTable[data-layout=auto] td[data-nutrient]::before{display:block;content:attr(data-label);font-size:.875rem;line-height:1.5;color:var(--muted);text-align:left;margin-bottom:8px;white-space:nowrap}
  .entryTable[data-layout=auto] td[data-nutrient] input:not([type=checkbox]):not([type=file]),.entryTable[data-layout=auto] td[data-nutrient] .calculated{padding:10px 6px}
 }
+
+@container(max-width:700px){.foodTable .mobileUnit{display:none}}
+@container(max-width:16rem){.foodTable tr:not(.foodExpanded){grid-template-columns:repeat(2,minmax(0,1fr))}.foodTable .rowName{grid-column:1;grid-row:1}.foodTable .foodInlineActions{grid-column:2;grid-row:1}.foodTable .rowMacro,.foodTable .rowEnergy{grid-row:auto}.foodTable .foodDetailsToggle{grid-row:5}}

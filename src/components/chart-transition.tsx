@@ -1,10 +1,10 @@
 "use client";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal,flushSync } from "react-dom";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { confirmDraftDiscard, draftIsBusy } from "./draft-guard";
-import { ChartTransitionContext, ChartTransitionActionsContext, type ChartOrigin, type ChartTarget, type OverviewViewState } from "./chart-transition-state";
-import { createChartFlights, type ChartFlight, type ChartRect } from './chart-flight';
+import { ChartTransitionContext, ChartTransitionActionsContext, matchingChartReadings, forwardedChartReadings, chartDestinationSearch, chartDestinationMatches, type ChartReadingsSnapshot, type ChartOrigin, type ChartTarget, type OverviewViewState } from "./chart-transition-state";
+import { createChartFlights, chartModelMatches, chartRectMatches, type ChartFlight, type ChartRect } from './chart-flight';
 import { trendKey,trendRangeKey, type MetricTrendModel } from "./metric-trend-model";
 import { TrendGlyph, detailStroke, detailRadius } from "./trend-glyph";
 
@@ -21,18 +21,18 @@ const visible = (element: SVGSVGElement) => {
 const inViewport = (rect:ChartRect) => rect.top+rect.height>64&&rect.top<innerHeight-(matchMedia("(max-width:700px),(hover:none) and (pointer:coarse)").matches?88:0)&&rect.left+rect.width>0&&rect.left<innerWidth;
 
 export function ChartTransitionProvider({ children }: { children: React.ReactNode }) {
-  const chartEntries=useRef(new Set<string>());
-  const claimChartEntry=useCallback((key:string)=>{const seen=chartEntries.current.has(key);chartEntries.current.add(key);return !seen;},[]);
-  const router=useRouter(),pathname=usePathname(),[pending,startTransition]=useTransition();
+  const router=useRouter(),pathname=usePathname(),search=useSearchParams().toString(),[pending,startTransition]=useTransition();
   const [flight,setFlight]=useState<ChartFlight|null>(null),[returningToOverview,setReturningToOverview]=useState(false);
   const returnCancelled=useRef(false),returnReady=useRef(true);
-  const [returnPreview,setReturnPreview]=useState<MetricTrendModel|null>(null);
-  const motion=useRef(createChartFlights(next=>{
+  const [returnPreview,setReturnPreview]=useState<MetricTrendModel|null>(null),[previewReadings,setPreviewReadings]=useState<ChartReadingsSnapshot|null>(null),[forwardPreview,setForwardPreview]=useState<MetricTrendModel|null>(null);
+  const origin=useRef<ChartOrigin|null>(null);
+  const motion=useRef(createChartFlights((next,reason)=>{
     if(next)document.documentElement.setAttribute('data-chart-travel','active');
     else document.documentElement.removeAttribute('data-chart-travel');
-    setFlight(next);
+    if(next?.direction==='back'||!next&&reason!=='timeout'){setPreviewReadings(null);setForwardPreview(null);}setFlight(next);
   }));
-  const focusAfterLoad=useRef<string|null>(null),origin=useRef<ChartOrigin|null>(null),target=useRef<ChartTarget|null>(null),route=useRef(pathname);
+  const claimChartEntry=useCallback((key:string,container?:HTMLElement|null)=>motion.current.claimEntry(key,container),[]);
+  const focusAfterLoad=useRef<string|null>(null),target=useRef<ChartTarget|null>(null),route=useRef(pathname);
   // 持久认证布局按账号重建；这里只保留显示选项与本次转场快照，不维护跨页面健康查询缓存。
   const overview=useRef<OverviewViewState|null>(null),navigation=useRef(0),requested=useRef<string|null>(null);
   const recallOverview=useCallback(()=>overview.current,[]);
@@ -41,10 +41,11 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   const overviewReady=useCallback(()=>{returnReady.current=true;setReturnPreview(null);setReturningToOverview(false);},[]);
   const clear=useCallback(()=>{motion.current.clear();},[motion]);
   const finish=useCallback((current:ChartFlight)=>{
-    if(!motion.current.clear(current.id))return;
+    if(!motion.current.complete(current.id))return;
     if(current.direction==='back'){
-      const card=document.querySelector<HTMLElement>(`a[data-metric-card="${current.model.kind}"]`);
-      if(card)card.focus({preventScroll:true});else focusAfterLoad.current=current.model.kind;
+      focusAfterLoad.current=current.model.kind;
+      const card=[...document.querySelectorAll<HTMLElement>(`a[data-metric-card="${current.model.kind}"]`)].find(node=>node.getClientRects().length>0&&!node.closest('[data-return-covered],[inert]'));
+      card?.focus({preventScroll:true});
       if(returnReady.current)origin.current=null;motion.current.returning=false;lastTarget.current=null;
     }
   },[motion]);
@@ -54,7 +55,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(reduced()||typeof node.animate!=='function'){clear();return;}
     if(current.destination){
       const d=current.destination;
-      if(Math.max(Math.abs(d.left-dest.left),Math.abs(d.top-dest.top),Math.abs(d.width-dest.width),Math.abs(d.height-dest.height))>1){clear();return;}
+      if(!chartRectMatches(d,dest)){clear();return;}
       motion.current.reveal(id,element);
       if(!skeleton)current.ready=true;
       if(current.arrived&&current.ready)finish(current);
@@ -89,7 +90,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   const land=useCallback((next:ChartTarget,id:number)=>{
     const current=motion.current.active,saved=origin.current;
     if(!current||current.id!==id||!saved||location.pathname!==saved.destination)return;
-    if(!saved.paired||trendRangeKey(next.model)!==saved.rangeKey||trendKey(next.model)!==saved.modelKey){saved.paired=false;clear();return;}
+    if(!saved.paired||!chartDestinationMatches(saved,location.href)||!chartModelMatches(saved,next.model)){saved.paired=false;clear();return;}
     if(!visible(next.element))return;
     landAt(rectOf(next.element),next.element,!!next.skeleton,id);
   },[motion,landAt,clear]);
@@ -97,10 +98,12 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     // 设备接管时隐藏分支不能抢走可见图形的转场所有权。
     if(!visible(next.element))return ()=>{};
     target.current=next;
-    if(origin.current&&location.pathname===origin.current.destination&&trendKey(next.model)!==origin.current.modelKey)origin.current.paired=false;
+    const saved=origin.current;
+    if(saved&&location.pathname===saved.destination&&(!chartDestinationMatches(saved,location.href)||!chartModelMatches(saved,next.model))){saved.paired=false;clear();}
     if(!next.skeleton&&visible(next.element))lastTarget.current={model:next.model,rect:rectOf(next.element),path:location.pathname};
     const current=motion.current.active;
     if(current?.direction==='forward')land(next,current.id);
+    else if(motion.current.handoff&&saved?.paired&&chartDestinationMatches(saved,location.href))motion.current.acceptHandoff(motion.current.handoff.id,{model:next.model,element:next.element,rect:rectOf(next.element),skeleton:next.skeleton});
     return()=>{
       // 旧骨架的清理不能撤销已经注册的新图形。
       if(target.current!==next)return;
@@ -108,27 +111,30 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
       else lastTarget.current=null;
       target.current=null;
     };
-  },[motion,land]);
-  const navigate=useCallback(async(href:string,model:MetricTrendModel,source:SVGSVGElement,rail:HTMLElement|null)=>{
+  },[motion,land,clear]);
+  const navigate=useCallback(async(href:string,model:MetricTrendModel,source:SVGSVGElement,rail:HTMLElement|null,readings?:ChartReadingsSnapshot)=>{
     if(requested.current===href&&motion.current.active?.direction==="forward")return;
     const intent=++navigation.current;
     if(draftIsBusy()||!await confirmDraftDiscard()||navigation.current!==intent||!source.isConnected)return;
-    requested.current=href;setReturningToOverview(false);returnCancelled.current=false;setReturnPreview(null);
-    const rect=rectOf(source);
-    origin.current={kind:model.kind,destination:new URL(href,location.origin).pathname,scroll:scrollY,rail:rail?.scrollLeft??0,rangeKey:trendRangeKey(model),modelKey:trendKey(model),paired:true,rect,viewport:{width:innerWidth,height:innerHeight}};
+    motion.current.clear();
+    focusAfterLoad.current=null;
+    requested.current=href;setReturningToOverview(false);returnCancelled.current=false;setReturnPreview(null);setPreviewReadings(null);setForwardPreview(null);
+    const rect=rectOf(source),destination=new URL(href,location.origin);
+    origin.current={destinationSearch:chartDestinationSearch(destination.search),readings:matchingChartReadings(readings,model.kind,href),kind:model.kind,destination:destination.pathname,scroll:scrollY,rail:rail?.scrollLeft??0,rangeKey:trendRangeKey(model),modelKey:trendKey(model),paired:true,rect,viewport:{width:innerWidth,height:innerHeight}};
     motion.current.returning=false;lastTarget.current=null;
     router.prefetch('/dashboard');
-    if(!reduced()&&visible(source)&&typeof Element.prototype.animate==='function'&&model.points.some(point=>point.value!==null||point.segments?.length))motion.current.start(model,rect,'forward');
+    if(!reduced()&&visible(source)&&typeof Element.prototype.animate==='function'&&model.points.some(point=>point.value!==null||point.segments?.length)){const next=motion.current.start(model,rect,'forward');setPreviewReadings(forwardedChartReadings(origin.current,next));setForwardPreview(model);}
     startTransition(()=>router.push(href));
   },[router,motion]);
   const restore=useCallback((rail:HTMLElement)=>{
     if(!rail.isConnected||rail.closest('[data-return-covered]')||!rail.clientWidth)return;
-    if(focusAfterLoad.current&&!rail.hasAttribute("data-metric-rail-skeleton")){const card=rail.querySelector<HTMLElement>(`a[data-metric-card="${focusAfterLoad.current}"]`);if(document.activeElement===document.body||document.activeElement?.closest('a[href="/dashboard"]'))card?.focus({preventScroll:true});focusAfterLoad.current=null;}
+    if(focusAfterLoad.current&&!rail.hasAttribute("data-metric-rail-skeleton")&&!rail.closest('[data-workspace-cached]')){const card=rail.querySelector<HTMLElement>(`a[data-metric-card="${focusAfterLoad.current}"]`);if(document.activeElement===document.body||document.activeElement?.closest('a[href="/dashboard"]'))card?.focus({preventScroll:true});focusAfterLoad.current=null;}
     const saved=origin.current;if(!saved)return;
     if(rail.scrollLeft!==saved.rail)rail.scrollLeft=saved.rail;
     if((motion.current.returning||!returnReady.current)&&scrollY!==saved.scroll)window.scrollTo({top:saved.scroll,behavior:'instant'});
     // 无配对动画也要等真实总览显示后恢复位置，再释放来源；隐藏路由和临时外壳不能提前消费它。
     if(!returningToOverview&&returnReady.current&&!motion.current.active&&!rail.hasAttribute('data-metric-rail-skeleton')&&location.pathname==='/dashboard'){
+      if(rail.closest('[data-workspace-cached]'))focusAfterLoad.current=saved.kind;
       if(document.activeElement===document.body||document.activeElement?.closest('a[href="/dashboard"]'))rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`)?.focus({preventScroll:true});
       origin.current=null;
     }
@@ -182,12 +188,13 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   useLayoutEffect(()=>{
     const changed=route.current!==pathname;route.current=pathname;if(changed){requested.current=null;if(pathname!=='/dashboard'&&returnCancelled.current)overviewReady();}
     if(changed&&origin.current&&pathname!=='/dashboard'&&pathname!==origin.current.destination){origin.current=null;lastTarget.current=null;motion.current.returning=false;clear();}
+    if(origin.current&&pathname===origin.current.destination&&!chartDestinationMatches(origin.current,pathname+(search?'?'+search:''))){origin.current.paired=false;lastTarget.current=null;clear();}
     if(changed&&pathname==='/dashboard'&&origin.current&&!motion.current.returning&&!returningToOverview)prepareBack();
     if(pathname==='/dashboard'&&motion.current.returning){const rail=document.querySelector<HTMLElement>('[data-metric-rail]');if(rail)restore(rail);}
     const current=motion.current.active;
     if(changed&&current?.direction==='forward'&&pathname!==origin.current?.destination)clear();
     if(current?.direction==='forward'&&!current.landing&&target.current)land(target.current,current.id);
-  },[pathname,pending,motion,clear,land,restore,prepareBack,overviewReady,returningToOverview]);
+  },[pathname,search,pending,motion,clear,land,restore,prepareBack,overviewReady,returningToOverview]);
   useEffect(()=>()=>{motion.current.clear();},[motion]);
   const invalidate=useCallback(()=>{if(origin.current)origin.current.paired=false;clear();lastTarget.current=null;},[clear]);
   const cancelOverviewReturn=useCallback((href:string)=>{
@@ -205,7 +212,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     };
     document.addEventListener('click',leave);return()=>document.removeEventListener('click',leave);
   },[returningToOverview,cancelOverviewReturn]);
-  const value=useMemo(()=>({claimChartEntry,navigate,register,restore,back,invalidate,recallOverview,rememberOverview,returningToOverview,overviewReady,cancelOverviewReturn,preview:flight?.model??(returningToOverview?returnPreview:null)}),[claimChartEntry,navigate,register,restore,back,invalidate,recallOverview,rememberOverview,returningToOverview,overviewReady,cancelOverviewReturn,returnPreview,flight?.model]);
+  const value=useMemo(()=>({claimChartEntry,navigate,register,restore,back,invalidate,recallOverview,rememberOverview,returningToOverview,overviewReady,cancelOverviewReturn,previewReadings,preview:flight?.model??forwardPreview??(returningToOverview?returnPreview:null)}),[claimChartEntry,navigate,register,restore,back,invalidate,recallOverview,rememberOverview,returningToOverview,overviewReady,cancelOverviewReturn,returnPreview,previewReadings,forwardPreview,flight]);
   const actions=useMemo(()=>({claimChartEntry,register,invalidate,recallOverview,rememberOverview}),[claimChartEntry,register,invalidate,recallOverview,rememberOverview]);
   return <ChartTransitionActionsContext value={actions}><ChartTransitionContext value={value}>{children}{flight&&createPortal(<div key={flight.id} className="chart-flight-layer"><div ref={node=>{if(node&&motion.current.active?.id===flight.id)motion.current.active.node=node;}} className="chart-flight" data-chart-flight={flight.id} data-chart-direction={flight.direction} aria-hidden="true" style={{left:flight.rect.left,top:flight.rect.top,width:flight.rect.width,height:flight.rect.height,visibility:'hidden'}}>{flight.model.kind==="morning-weight"?<><TrendGlyph flightLayer="source" model={flight.model} detail={flight.direction==="back"} width={flight.rect.width} height={flight.rect.height}/><TrendGlyph flightLayer="destination" model={flight.model} detail={flight.direction==="back"} width={flight.rect.width} height={flight.rect.height}/></>:<TrendGlyph model={flight.model} detail={flight.direction==="back"} width={flight.rect.width} height={flight.rect.height}/>}</div></div>,document.body)}</ChartTransitionContext></ChartTransitionActionsContext>;
 }

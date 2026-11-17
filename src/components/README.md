@@ -49,7 +49,7 @@ workspace-motion.ts只管理四模块普通导航的正文轻横移与淡变，�
 
 `use-backdrop-dismiss.ts` 为饮食与身体 Inspector 共用遮罩手势判断。只有主指针按下、抬起均在真实遮罩且移动不超过 6px 才关闭；从内容拖出或拖选文字不关闭。关闭按钮、Escape、忙碌保护、焦点恢复和滚动锁由各弹窗继续管理。
 
-`use-chart-motion.ts`供总览、身体、摄入及消耗SVG共用。首次进入视口450ms，数据变化200ms，仅对带标记的数据图形使用原生动画；悬停不重放，卸载／减少动态效果时取消。数字、坐标、命中区域和页面布局保持最终状态。
+`use-chart-motion.ts`供总览、身体、摄入及消耗SVG共用。折线首次600ms、柱图首次400ms，共享交接成功后不重复生长；主动换区间仍有绘制动效，仅对带标记的数据图形使用原生动画；悬停不重放，卸载／减少动态效果时取消。数字、坐标、命中区域和页面布局保持最终状态。
 
 use-chart-drag供四页共用横拖选择与纵向滚动判断；手指按下不立即选日，确认横拖或完成点击后才选中，拖动后抑制额外合成点击。
 
@@ -61,7 +61,7 @@ use-chart-drag供四页共用横拖选择与纵向滚动判断；手指按下不
 
 use-chart-date-selection.ts统一四页的鼠标临时预览、自定义期间暂停、完整面板离开恢复，以及键盘和触屏选择；鼠标点击后保持日期并忽略后续悬停，Escape／换区间解除；未点击的悬停离开后恢复默认，同日同输入方式去重，仅维护界面状态。chart-ranges.tsx复用区间按钮，日期输入保留在各模块的自定义表单。
 
- daily-records.tsx与record-ui.module.css统一日期行、查看入口及次要状态位置；record-history.tsx提供页面内日期查找与每批50行加载；daily-records.tsx在最近行下方提供展开／收起历史。单日查看或编辑才开Inspector，关闭保留列表加载状态及页面位置。主列表由record-dates.ts推导今天及前6天待处理日期，不计算健康数值。
+ daily-records.tsx与record-ui.module.css统一日期行、查看入口及次要状态位置；record-history.tsx提供页面内日期查找与每批50行加载；daily-records.tsx在最近行下方提供展开／收起历史。单日查看或编辑才开Inspector，关闭保留列表加载状态及页面位置。主列表只显示今天，图表选日不改变列表；其他日期由RecordHistory在原位展开，每批50日，不计算健康数值。
 
  inspector.tsx与同名CSS统一侧栏、滚动锁、焦点、Escape／遮罩、输入保护和减少动态效果。身体页传入专用标题和内容，保留候选与晨晚流程；饮食旧EditorDialog导出仅为兼容现有调用，不再自建弹窗。
 
@@ -82,7 +82,7 @@ RecordTrendPanel的metricVariants传入当前区间已算好的各日读数字�
 
 总览通过RecordTrendPanel的可选statusInDate将短提示放入既有日期行，其他页面默认行为保持。SelectedDateHeading的可选status只提供同排内容，不扩展业务计算。
 
-chart-selection-marker.tsx及同名CSS集中管理ChartSelectionColumn底纹／辅助线／柱图短标记、ChartSelectionPoint空心高亮圈。永久SVG图层100ms（cubic-bezier(.2,0,0,1)）短过渡，中断时取消旧动画并续接当前视觉位置；列层位于数据之前、裁在绘图区，底纹与线使用同一变换。触屏、首次定位、区间／尺寸更换和减少动态效果直接就位，首次450ms／数据更新200ms动画仍由use-chart-motion独立负责；use-chart-date-selection.ts区分鼠标临时预览、点击保持、键盘焦点内选择与触屏持久选择。完整趋势面板负责离开及焦点边界，查看入口先捕获目标日期。
+chart-selection-marker.tsx及同名CSS集中管理ChartSelectionColumn底纹／辅助线／柱图短标记、ChartSelectionPoint空心高亮圈。永久SVG图层100ms（cubic-bezier(.2,0,0,1)）短过渡，中断时取消旧动画并续接当前视觉位置；列层位于数据之前、裁在绘图区，底纹与线使用同一变换。触屏、首次定位、区间／尺寸更换和减少动态效果直接就位，折线首次600ms／柱图首次400ms及主动区间切换动画仍由use-chart-motion独立负责；use-chart-date-selection.ts区分鼠标临时预览、点击保持、键盘焦点内选择与触屏持久选择。完整趋势面板负责离开及焦点边界，查看入口先捕获目标日期。
 
 
 record-detail-actions.tsx在已展开的餐次／运动中统一编辑及更多删除；删除保留业务原有确认，Escape先关闭更多并返回焦点，外部点击或焦点离开关闭菜单。Disclosure继续只在展开后挂载完整内容。
@@ -124,3 +124,5 @@ DateField的可选displayLabel只改变可见日期说明，原生value、校验
 录入底部操作的布局链覆盖手机与桌面，以及EntrySurface的portal挂载层；主要操作不因读取状态或权限接管变换槽位。MealEditor首帧通过命名容器确定布局，测量后处理实际长文字；未知识图权限保留禁用入口，避免两项／三项切换。
 
 桌面图框统一320px（文字放大可增高）；7D最大640px居中，30D／90D铺满。骨架目标用本次来源快照承接连续300ms双向转场，首次真实图线600ms／柱形400ms，缓存及静默更新不重播。图表首次绘制仅对数据图形生效，坐标、读数与命中区稳定。
+
+图形等待外壳已有本次真实来源模型时撤掉灰色占位；已知读数从同账号、同日期及目标范围的来源快照承接，其他值继续等待。chart-preparation仅在真实图形尚待测量时显示透明的局部准备文字。ModuleSkeleton由首帧输出，CSS在200ms后呈现，慢脚本不再推迟占位；不绘制假图。返回焦点跨缓存和真实页面交接保留，不能只聚焦即将被卸载的缓存节点。

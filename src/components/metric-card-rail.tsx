@@ -2,14 +2,14 @@
 import {ModuleSkeleton} from "./module-skeleton";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { LoadingLink } from "./loading-link";
-import { useChartTransition } from "./chart-transition-state";
+import { useChartTransition, type ChartReadingsSnapshot } from "./chart-transition-state";
 import { TrendGlyph } from "./trend-glyph";
 import { useMobileMode } from "./use-mobile-mode";
 import type { MetricTrendModel } from "./metric-trend-model";
 import {shortRecordDate,recordDateRange} from "./record-dates";
 import styles from "./metric-card-rail.module.css";
 
-export type MetricCard = { title: string; value: string; unit: string; date: string; fact?: string; href: string; trend: MetricTrendModel };
+export type MetricCard = { title: string; value: string; unit: string; date: string; fact?: string; href: string; trend: MetricTrendModel; readings?:ChartReadingsSnapshot };
 export function MetricCardRail({ cards, preview, accountId }: { accountId?:string; cards: MetricCard[]; preview?: (card:MetricCard)=>void }) {
   const rail=useRef<HTMLDivElement>(null), transition=useChartTransition(), mobile=useMobileMode(),restore=transition.restore;
   const pointer=useRef<{x:number;y:number;left:number;moved:boolean}|null>(null), suppressed=useRef(false);
@@ -26,7 +26,7 @@ export function MetricCardRail({ cards, preview, accountId }: { accountId?:strin
       const element=rail.current?.querySelector<SVGSVGElement>(`[data-metric-card="${card.trend.kind}"] [data-trend-glyph]`);
       if(preview){event.preventDefault();preview(card);return;}
       if(!element)return;
-      event.preventDefault();void transition.navigate(card.href,card.trend,element,rail.current);
+      event.preventDefault();void transition.navigate(card.href,card.trend,element,rail.current,card.readings);
     }}>
       <span className={styles.title}>{card.title}</span><svg className={styles.arrow} width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" strokeWidth="1.3" fill="none" aria-hidden="true"><path d="M4 12 12 4M5 4h7v7"/></svg>
       <strong>{card.value}<small>{card.unit==="kcal"?"千卡":card.unit}</small></strong>

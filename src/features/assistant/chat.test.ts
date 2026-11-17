@@ -113,6 +113,19 @@ test("明确补充状态由控制工具生成，不需要第二个核验模型",
   await executeChatRun(db,job.row,job.input,new Request("http://localhost:3000/api/assistant-chat"),()=>{},new AbortController().signal,{skipSessionCheck:true,fetcher:async()=>{calls++;return completion("",[{index:0,id:"followup",function:{name:"request_followup",arguments:JSON.stringify({subject:"今天午餐实际食量",question:"鸡胸肉实际吃了多少？米饭150克已保留。"})}}]);}});
   assert.equal(calls,1);assert.match((await chatSnapshot(db,ownerId)).followup!.question,/150克/);assert.equal((await chatSnapshot(db,ownerId)).messages.at(-1)!.text,"鸡胸肉实际吃了多少？米饭150克已保留。");
 });
+test("完成的补充摘要来自本人的已校验答案，重试不新增消息且不写健康记录",async()=>{
+ const subjectId=randomUUID();await db.insert(schema.user).values({id:subjectId,name:"虚构补充账号",email:subjectId+"@example.test",role:"user",membershipTier:"plus"});
+ const conversation=await currentConversation(db,subjectId),firstInput:ChatSend={action:"send",requestId:randomUUID(),conversationId:conversation.id,provider:"qwen",text:"补充界面验收",timezone:"Asia/Shanghai"},job={input:firstInput,...await startChatRun(db,subjectId,firstInput)};
+ await executeChatRun(db,job.row,job.input,new Request("http://localhost:3000/api/assistant-chat"),()=>{},new AbortController().signal,{skipSessionCheck:true,fetcher:async()=>completion("",[{index:0,id:"question",function:{name:"request_followup",arguments:JSON.stringify({subject:"本次测量",question:"请补充测量信息",questions:[{id:"source",prompt:"测量来源",allowText:true},{id:"note",prompt:"其他说明",allowText:true,optional:true}]})}}])});
+ const current=await chatSnapshot(db,subjectId),input:ChatSend={action:"send",requestId:randomUUID(),conversationId:current.conversationId,provider:"qwen",timezone:"Asia/Shanghai",followup:{messageId:current.followup!.messageId,answers:[{questionId:"source",text:"OKOK"},{questionId:"note",skipped:true}]}};
+ const next=await startChatRun(db,subjectId,input),duplicate=await startChatRun(db,subjectId,input),snapshot=await chatSnapshot(db,subjectId);
+ assert.equal(duplicate.started,false);assert.equal(duplicate.row.id,next.row.id);
+ const answer=snapshot.messages.filter(message=>message.role==="user"&&message.requestId===input.requestId);assert.equal(answer.length,1);
+ assert.deepEqual(answer[0].answeredQuestions,[{prompt:"测量来源",value:"OKOK",skipped:false},{prompt:"其他说明",value:null,skipped:true}]);
+ assert.equal((await chatSnapshot(db,outsider)).messages.some(message=>message.id===answer[0].id),false);
+ assert.equal((await db.select().from(schema.measurement).where(eq(schema.measurement.userId,subjectId))).length,0);
+ await controlChat(db,subjectId,{action:"stop",runId:next.row.id});
+});
 test("真实预览不保存事实，来源依原授权追溯，续期不改旧来源",async()=>{
   await fresh();const job=await begin("米饭150克，生成午餐预览");let round=0;
   await executeChatRun(db,job.row,job.input,new Request("http://localhost:3000/api/assistant-chat"),()=>{},new AbortController().signal,{skipSessionCheck:true,fetcher:async()=>{round++;return round===1?completion("",[{index:0,id:"load",function:{name:"load_tools",arguments:JSON.stringify({names:["preview_meals"]})}}]):round===2?completion("",[{index:0,id:"meal",function:{name:"preview_meals",arguments:JSON.stringify({operationId:"test-preview-operation",date:"today",mealType:"午餐",timezone:"Asia/Shanghai",foods:[{name:"米饭",quantity:"150",unit:"g",caloriesKcal:"195",proteinG:"3.9",carbsG:"43",fatG:"0.5",sourceKind:"estimated",basis:"虚构验收估算"}]})}}]):completion("已生成预览，请在网页确认保存。");}});

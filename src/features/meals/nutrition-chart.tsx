@@ -1,4 +1,5 @@
 "use client";
+import {ChartPreparation} from "@/components/chart-preparation";
 import { useId, useRef } from "react";
 import { dailyTotals, macroColors, macroDistribution, formatNutrition, metricLabels, type Metric, type MacroMode } from "./model";
 import {useChartDrag} from "@/components/use-chart-drag";
@@ -37,7 +38,7 @@ function DesktopNutritionChart({ dates, groups, selection, mode }: NutritionChar
   const allDates = dates.length <= 7, selectedX = left + (dates.indexOf(inspected) + .5) * slot;
   const stride = Math.max(1, Math.ceil((dates.length - 1) / (width < 440 ? 3 : 6)));
   return <>
-    <div className={styles.barViewport} ref={viewport} >
+    <div className={styles.barViewport} ref={viewport} ><ChartPreparation active={!containerWidth}/>
       <svg {...drag} className={styles.chart} style={{ touchAction:"pan-y", visibility: containerWidth ? undefined : "hidden" }} viewBox={`0 0 ${width} ${chartHeight}`} role="group" aria-label={`热量柱状图，单位${unit}`}>
         <defs><pattern id={patternId} width="5" height="5" patternUnits="userSpaceOnUse"><path d="M-1 1L1 -1M0 5L5 0M4 6L6 4" stroke="var(--warm-white)" strokeOpacity=".3" strokeWidth="1" /></pattern></defs>
         {scale.ticks.map(tick => <g key={tick}><line className={styles.grid} x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} /><text className={styles.axis} data-calorie-tick={tick} x={left - 8} y={y(tick) + 4} textAnchor="end">{tick}</text></g>)}

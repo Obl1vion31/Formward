@@ -1,4 +1,5 @@
 "use client";
+import {ChartPreparation} from "@/components/chart-preparation";
 import {useChartMotion} from "@/components/use-chart-motion";
 import { useRef } from 'react';
 import { metricTrendModel } from '@/components/metric-trend-model';
@@ -19,6 +20,7 @@ export function MobileEnergyPlot({days,selected,selection,linked=false,compact=f
   const dates=days.map(day=>day.date),slot=plotWidth/days.length,x=(i:number)=>left+(i+.5)*slot,y=(value:number)=>bottom-value/model.max*plotHeight;
   const drag=useChartDrag(dates,width,left,right,selection.choose),index=dates.indexOf(selected),stride=Math.max(1,Math.ceil((days.length-1)/3));
   return <EnergyPlotFrame frameRef={viewport} compact={days.length<=7} adaptive className={linked ? "linked-trend-plot" : compact ? "detail-trend-plot" : ""}>
+    <ChartPreparation active={!measured}/>
     <svg {...drag} style={{touchAction:'pan-y',visibility:measured?undefined:'hidden'}} viewBox={`0 0 ${width} ${bottom+32}`} role="group" aria-label="每日消耗柱状图">
       {model.ticks.filter((_,i)=>i%Math.max(1,Math.ceil(24*(model.ticks.length-1)/plotHeight))===0).map(tick=><g key={tick}><line x1={left} x2={width-right} y1={y(tick)} y2={y(tick)} className={styles.grid}/><text x={left-8} y={y(tick)+4} textAnchor="end" className={styles.axis}>{tick}</text></g>)}
       <ChartSelectionColumn x={index<0?null:x(index)} date={selected} column={index<0?null:{left:x(index)-slot/2,right:x(index)+slot/2}} plot={{left,right:width-right,top,bottom}} resetKey={`${width}:${dates.join('|')}`} direct={selection.direct} baselineTick/>

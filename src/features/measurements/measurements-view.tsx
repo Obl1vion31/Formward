@@ -13,7 +13,7 @@ import { Inspector,InspectorCloseButton } from "@/components/inspector";
 
 import { useContext, useEffect, useRef, useState } from "react";
 import {WorkspaceTodayContext} from "@/components/workspace-frame-state";
-import { buildMeasurementDays, recentMeasurementDays } from "./days";
+import { buildMeasurementDays } from "./days";
 import { addCalendarDays, measurementCalendarPage, measurementCalendarRange } from "./calendar";
 import type {AccountPreferences} from "@/features/auth/preferences";
 import {useBodyPreferences} from "./preferences-control";
@@ -21,7 +21,7 @@ import {BodyFatContext,useBodyMetrics} from "./visibility";
 import { measurementSummaryAt,preferredMorningDate } from "./summary";
 import { calendarOrdinal, measurementRange, normalScale, type MeasurementInterval, type MeasurementMetric, type MeasurementRange } from "./trend";
 import styles from "./measurements-view.module.css";
-import { localMeasurementDate, measurementDayAction, measurementNeedsEntry, type EntryResult, type MeasurementActions, type MeasurementDateDisplay, type MeasurementDisplay } from "./entry-state";
+import { localMeasurementDate, measurementDayAction, type EntryResult, type MeasurementActions, type MeasurementDateDisplay, type MeasurementDisplay } from "./entry-state";
 import { MeasurementEntry, MeasurementEntryHeader } from "./measurement-entry";
 import { timezoneLabel } from "./timezone";
 import { useInitialMobileMode } from "@/components/use-mobile-mode";
@@ -85,8 +85,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const range = measurementRange(latestDate, mode, mode === "custom" ? customRange : { start: earliestDate, end: latestDate });
   const displayedRecords = records.filter((row) => row.recordKind !== "estimated");
   const visibleRecords = displayedRecords.filter((row) => row.recordDate >= range.start && row.recordDate <= range.end);
-  const recentInterval = { start: catalog.start, end: today || catalog.end };
-  const recent = recentMeasurementDays(displayedRecords, recentInterval, choices, 7).filter(day => day.date === today || (!dates.some(row => row.date === day.date && row.reminderSkipped) && measurementNeedsEntry(records, day.date, choices,metrics)));
+  const recent = today?buildMeasurementDays(displayedRecords.filter(row=>row.recordDate===today),choices,"weightKg",[today]):[];
   const chartDates=measurementCalendarPage(range,calendarOrdinal(range.end)-calendarOrdinal(range.start)+1).reverse();
   const fallbackDate=chartDates.includes(today)?today:preferredMorningDate(visibleRecords,activeMetric,today||range.end,choices);
   const selection=useChartDateSelection(chartDates,initialDate??today??fallbackDate,initialDate&&chartDates.includes(initialDate)?initialDate:fallbackDate,calendarOpen,`${showEvening}:${JSON.stringify(choices)}`),activeDate=selection.selected;

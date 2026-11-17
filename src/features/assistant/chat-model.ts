@@ -19,6 +19,7 @@ export type ChatMessage = {
   id: string; seq: number; role: "user" | "assistant"; text: string; provider: ChatProvider | null;
   state: string; createdAt: string; replyTo: { id: string; text: string } | null; imageIds: string[];
   steps: ChatStep[]; references: ChatReference[]; error: string | null; runId?: string; requestId?: string; question?: { id:string; text:string };
+  answeredQuestions?: { prompt:string; value:string|null; skipped:boolean }[];
 };
 export type ChatUsage = {
   date: string; limit: number; spent: number; reserved: number; uncertain: number; available: number;

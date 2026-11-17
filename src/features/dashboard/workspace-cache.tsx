@@ -18,8 +18,8 @@ export function WorkspaceSnapshot({path,query="",children}:{path:string;query?:s
  useLayoutEffect(()=>{remember?.(key,children);},[remember,key,children]);
  return children;
 }
-export function WorkspacePending({children,failed=false}:{children:ReactNode;failed?:boolean}) {
+export function WorkspacePending({children,failed=false,path:targetPath,query:targetQuery}:{children:ReactNode;failed?:boolean;path?:string;query?:string}) {
  const cache=useContext(WorkspaceCacheContext),path=usePathname(),query=useSearchParams().toString();
- const content=cache?.read(workspaceCacheKey(path,query));
+ const content=cache?.read(workspaceCacheKey(targetPath??path,targetQuery??query));
  return content?<WorkspaceRefreshingContext value><div className="workspace-refresh" aria-busy={!failed} data-workspace-cached>{failed&&children}<fieldset disabled className="workspace-retained">{content}</fieldset></div></WorkspaceRefreshingContext>:children;
 }
