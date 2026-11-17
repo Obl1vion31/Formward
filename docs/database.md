@@ -817,7 +817,7 @@ assistant_reminder_dismissals保存账号级昨日饮食提醒的忽略状态。
 
 ## 全站安全与管理结构
 
-0043为兼容增量迁移：users增加two_factor_enabled、ai_paused、可空ai_daily_budget_cents（0–1000）和ai_daily_recognition_limit（0–100）；NULL继承、0禁用，版本沿用entitlement_version。sessions增加mfa_verified_at、security_verified_at和mfa_recovery_required；account_events增加details JSONB；ai_tokens增加可空domains，旧NULL不自动扩权。0044新增业务调用、识图和费用全站日期索引，当前66张业务／认证表。
+0043为兼容增量迁移：users增加two_factor_enabled、ai_paused、可空ai_daily_budget_cents（0–1000）和ai_daily_recognition_limit（0–100）；NULL继承、0禁用，版本沿用entitlement_version。sessions增加mfa_verified_at、security_verified_at和mfa_recovery_required；account_events增加details JSONB；ai_tokens增加可空domains，旧NULL不自动扩权。0044新增业务调用、识图和费用全站日期索引，0044阶段为66张业务／认证表。
 
 | 表 | 字段与关系 | 约束及维护 |
 |---|---|---|
