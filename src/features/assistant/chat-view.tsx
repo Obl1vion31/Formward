@@ -50,6 +50,8 @@ export function AssistantChatView({ sidebar, navigate,tab }: { sidebar: ReactNod
       // Safari的空textarea不会把换行占位文字计入scrollHeight；用同样字体与宽度的值测量。
       const probe=node.cloneNode(false) as HTMLTextAreaElement;probe.removeAttribute("id");probe.removeAttribute("aria-label");probe.removeAttribute("name");probe.setAttribute("aria-hidden","true");probe.inert=true;probe.tabIndex=-1;probe.value=node.value||node.placeholder;
       Object.assign(probe.style,{position:"absolute",left:"0",top:"0",width:width+"px",height:"0",minHeight:"0",maxHeight:"none",visibility:"hidden",pointerEvents:"none",overflow:"hidden"});node.parentElement?.appendChild(probe);const wanted=probe.scrollHeight+parseFloat(css.borderTopWidth)+parseFloat(css.borderBottomWidth);probe.remove();node.style.height=Math.min(Math.max(144,parseFloat(css.fontSize)*4.8),wanted)+"px";
+      // 高度封顶后只滚动输入框内部，保持末尾输入可见，不改变面板或页面位置。
+      if(document.activeElement===node&&node.value&&node.selectionStart===node.value.length&&node.selectionEnd===node.value.length)node.scrollTop=node.scrollHeight;
     };
     const schedule=()=>{if(!active)return;cancelAnimationFrame(frame);frame=requestAnimationFrame(measure);};measure();const observer=new ResizeObserver(schedule);observer.observe(node);void document.fonts.ready.then(()=>{last="";schedule();});
     return()=>{active=false;observer.disconnect();cancelAnimationFrame(frame);};
