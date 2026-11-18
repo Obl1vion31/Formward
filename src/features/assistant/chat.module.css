@@ -1,6 +1,6 @@
 .workspace{display:grid;grid-template-columns:200px minmax(0,1fr);min-height:0;flex:1;font-size:1rem;line-height:1.5}
 .workspace button{font-family:inherit;color:inherit;min-height:44px;min-width:44px;border:0;background:none;cursor:pointer;font-size:.875rem;line-height:1.5;border-radius:6px}
-.workspace button:disabled{opacity:.48;cursor:default}.workspace button:hover:not(:disabled){background:var(--surface-hover)}
+.workspace button:disabled{opacity:.48;cursor:default}.workspace :where(button:hover:not(:disabled)){background:var(--surface-hover)}
 .workspace :focus-visible{outline:2px solid var(--gold);outline-offset:-2px}.workspace ::selection{background:color-mix(in srgb,var(--gold) 28%,transparent)}
 .sidebar{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--line-soft);background:var(--surface)}
 .conversation{min-width:0;min-height:0;position:relative;display:flex;flex-direction:column;background:var(--surface)}

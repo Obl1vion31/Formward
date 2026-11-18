@@ -14,7 +14,7 @@ daily-reminders.ts仅构造最小记录目录，复用采用中的身体实测�
 
 `model.ts`负责业务聚合、盈余与严格相邻日配对；`presentation.ts`在服务端生成实际记录日期清单、真实记录与摘要。`overview-trend.tsx`负责区间、单日计算式与详情，`relationship-plot.tsx`绘制同一SVG中的双层图，`chart-geometry.ts`仅提供折线刻度、交点、分区、缺测段和淡出几何；不在客户端重算健康规则。样式在`overview.module.css`。kg与能量折线均使用本目录局部刻度，其他页面柱图仍从零开始。
 
-网页保存和AI确认刷新总览，身份校验留在app。`model.test.ts`验证业务，`chart-geometry.test.ts`验证交点和缺测边界；浏览器入口为tests/energy.browser.mts，覆盖四种宽度、拖动、键盘、触屏、详情及减少动态效果。复用use-chart-motion.ts：首次加载直接呈现，主动区间变更保留短反馈，读数、坐标和命中区域不动，选日不重播。
+网页保存和AI确认刷新总览，身份校验留在app。`model.test.ts`验证业务，`chart-geometry.test.ts`验证交点和缺测边界；浏览器入口为tests/energy.browser.mts，覆盖四种宽度、拖动、键盘、触屏、详情及减少动态效果。复用use-chart-motion.ts：首次真实数据到达时折线约600ms从左向右展开、柱形约400ms从底部生长，主动区间变更保留短反馈；共享转场、缓存返回、静默更新和选日不重播，读数、坐标和命中区域不动。减少动态效果直接呈现。
 
 界面修改及验收必读[设计文档](../../../docs/design-reference.md)。总览直接在图上选日，无独立日期导航；桌面点击保持日期，鼠标移动／离开不取消；未点击的悬停离开完整面板恢复默认日，Escape或换区间解除选择；移动到查看入口不丢日期。自定义范围应用后收起。手机图组常规276px／矮视口236px，减少刻度密度而不缩放文字或改变数据范围。首屏几何与截图检查见tests/overview-first-screen.browser.mjs。
 
