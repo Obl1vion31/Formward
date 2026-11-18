@@ -8,7 +8,7 @@ import * as schema from "../../db/schema";
 import { assistantContext, assistantTimezone, assistantAvailable } from "./model";
 import { assistantAlreadyShown, assistantAutoEnabled, markAssistantShown, assistantAutoKey } from "./preferences";
 import type { ReminderCatalog } from "../dashboard/daily-reminders";
-import { dismissAssistantMealReminder, readAssistantContext } from "./server";
+import { dismissAssistantMealReminder, readAssistantContext, reviewSummary } from "./server";
 import { readMealSnapshot, submitMealOperation, decideMealOperation } from "../meals/records";
 import { readEnergySnapshot, submitEnergyOperation, decideEnergyOperation } from "../activities/records";
 
@@ -129,4 +129,9 @@ test("AI统一批次仅提醒一次，取消、过期、撤销和其他账号不
  const [rootRow]=await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.id,review.id));
  await db.update(schema.mealOperation).set({expiresAt:new Date("2024-08-01T00:00:00Z")}).where(eq(schema.mealOperation.id,rootRow.mealOperationId!));
  assert.equal((await readAssistantContext(db,owner,"Asia/Shanghai",now)).pending.some(row=>row.category==="ai"),false);
+});
+
+test("待确认摘要保留身体单项和未知语义，不以0冒充未知",()=>{
+ const fat=reviewSummary([{kind:"save_record",date:"2026-11-18",period:"daytime",bodyFatPercent:"16.5"}]);assert.match(fat.value,/16.5/);assert.ok(!fat.value.includes("体重未知"));
+ const empty=reviewSummary([{kind:"save_record",date:"2026-11-18",period:"daytime"}]);assert.ok(!empty.value.includes("0"));
 });
