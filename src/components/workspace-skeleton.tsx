@@ -29,7 +29,7 @@ import {formatNutrition,macroComposition} from "@/features/meals/model";
 import overview from '@/features/dashboard/overview.module.css';
 export function WorkspaceSkeleton({kind,returnShell=false,destination}:{kind:'overview'|'nutrition'|'energy'|'body';returnShell?:boolean;destination?:string}){
  const sourcePilot=useContext(WorkspaceSourceContext);
- const {preview,previewReadings,returningToOverview,recallOverview}=useChartTransition(),ref=useRef<HTMLDivElement>(null),router=useRouter(),[slow,setSlow]=useState(false),routeParams=useSearchParams(),mobile=useMobileMode(),params=destination?new URL(destination,'https://formward.invalid').searchParams:routeParams;
+ const {preview,previewReadings,returningToOverview,forwardChartMoving,recallOverview}=useChartTransition(),ref=useRef<HTMLDivElement>(null),router=useRouter(),[slow,setSlow]=useState(false),routeParams=useSearchParams(),mobile=useMobileMode(),params=destination?new URL(destination,'https://formward.invalid').searchParams:routeParams;
  const model=preview&&((kind==='nutrition'&&preview.kind==='intake')||(kind==='body'&&preview.kind==='morning-weight')||(kind==='energy'&&preview.kind==='energy'))?preview:null;
  const linkedRange=linkedTrend(Object.fromEntries(params)),linked=!!linkedRange,shared=kind!=="overview",adaptive=mobile||shared;
  const tickLabels=kind==='body'?(model?.ticks??[0,99]).map(value=>value.toFixed(1)):model?.ticks??[0,1000];
@@ -74,10 +74,11 @@ export function WorkspaceSkeleton({kind,returnShell=false,destination}:{kind:'ov
  {slow&&<div className="skeleton-retry" role="status">读取时间较长。<button onClick={()=>kind==='overview'&&returningToOverview?router.push('/dashboard',{scroll:false}):router.refresh()}>重试</button><button onClick={()=>router.push('/dashboard')}>返回总览</button></div>}
  </div>;
  // 返回意图先于URL提交，明确读取总览自己的真实快照，不借用仍在地址栏中的详情条件。
- // 未开始返回的预备外壳保持静态，不能提前挂载缓存视图并消费其焦点／转场目标。
+ // 前进完成后预备隐藏的本人缓存，避免点击返回时才构建整页；hidden/inert及零尺寸
+ // 校验阻止隐藏内容注册图形或消费焦点，刷新上下文阻止它冒充真实读取完成。
  if(destination)return content;
  return kind==='overview'&&(returnShell||returningToOverview)
-  ?returningToOverview?<WorkspacePending path="/dashboard" query="">{content}</WorkspacePending>:content
+  ?returningToOverview||!forwardChartMoving?<WorkspacePending path="/dashboard" query="">{content}</WorkspacePending>:content
   :<WorkspacePending>{content}</WorkspacePending>;
 }
 function OverviewSkeleton({date,rangeMode}:{date:string;rangeMode?:string}){return <RecordWorkspace title="总览" className={overview.workspace}>
