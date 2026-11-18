@@ -9,8 +9,9 @@ export async function currentSessionIdentity(headers: Headers, options: { allowM
   const identity = await getAuth().api.getSession({ headers });
   if (!identity) throw new ApiError(401, "invalid_session", "登录已失效，请重新登录。");
   const proof: SessionProof = { userId: identity.user.id, sessionId: identity.session.id, accessVersion: identity.session.accessVersion };
-  await requireSessionProof(getDatabase(), proof, false, options);
-  return { user: identity.user, proof };
+  const verified = await requireSessionProof(getDatabase(), proof, false, options);
+  // 业务回调使用刚复核的账号与数据库会员规则，不丢回认证组件的原始用户快照。
+  return { user: { ...identity.user, ...verified.user }, proof };
 }
 
 export async function withCurrentSession<T>(headers: Headers, work: (user: Awaited<ReturnType<typeof currentSessionIdentity>>["user"], proof: SessionProof) => Promise<T>, mode?:"read"|"write") {

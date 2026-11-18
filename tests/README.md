@@ -415,6 +415,8 @@ AI接入设置浏览器验收直接断言唯一页面标题、28／24／18／16�
 
 ## 三模型站内聊天
 
+会员会话专项可用`FORMWARD_MEMBERSHIP_SMOKE=1 FORMWARD_CHAT_NATIVE=1 pnpm test:chat-browser`运行，`FORMWARD_TEST_RELEASE`指定本工作区候选standalone。它明确启用数据库会员模式，通过真实登录、HTTP入口、worker及测试供应商回放检查owner／内测账号的聊天与照片识别、Free权限和个人暂停，并核对五类正式健康表不增加。不使用正式账号或调用收费模型。
+
 production build后运行pnpm test:chat-browser，CHAT_BROWSER=webkit切换引擎，CHAT_EXTENDED=1执行照片、补充、原审核往返、余额与网络错误、跨模型重试、停止刷新、撤销取消／失败、共享超额、触屏慢加载和50条分页专项。FORMWARD_TEST_RELEASE可指定本工作区.codex/regional-releases/<版本>/standalone，直接运行候选包并核对五表readiness；FORMWARD_CHAT_ARTIFACTS指定私有截图／录像／逐帧JSON，PLAYWRIGHT_BROWSERS_PATH指定现有浏览器缓存。
 
 chat-pilot.browser.mts自行创建隔离PGlite及虚构owner／普通用户，并以正式postgres.js驱动运行真实Next production。启用区域代理及单一国服网页校验，本地受控入口由代理重建来源头，预览链接经过与正式站相同的来源检查。chat-model-fixture.mjs仅通过测试子进程的node --import替换三家模型和虚构私有图片存储；正式应用不引用该文件，没有运行时模拟开关或测试Key。实际MCP、schema、权限、预览和网页审核均执行，验收不确认虚构健康记录，不读取正式.env或调用收费模型。浏览器模拟不等同真机和系统软键盘。
