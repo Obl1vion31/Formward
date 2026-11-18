@@ -38,7 +38,7 @@ export function DashboardHeader({ email, owner = false, sourcePilot = false }: {
     return () => { observer.disconnect(); window.removeEventListener("resize", measure); document.documentElement.style.removeProperty("--workspace-dock-inset"); };
   }, [mobile]);
   const badge = count > 0 ? <small className={styles.badge} aria-hidden="true">{count > 9 ? "9+" : count}</small> : null;
-  const assistantButton = <button type="button" data-assistant-trigger className={styles.assistantTrigger} aria-label={"打开小助手" + (count ? `，${count}项待查看` : "")} aria-haspopup="dialog" aria-expanded={assistantOpen} onClick={() => void openAssistant()}><AssistantIcon/><span>小助手</span>{badge}</button>;
+  const assistantButton = <button type="button" data-assistant-trigger className={styles.assistantTrigger} aria-label={"打开小助手" + (count ? `，${count}项待查看` : "")} aria-haspopup={mobile ? undefined : "dialog"} aria-expanded={mobile ? undefined : assistantOpen} onClick={() => void openAssistant()}><AssistantIcon/><span>小助手</span>{badge}</button>;
   useLayoutEffect(()=>{const previous=previousGroup.current;previousGroup.current=group;if(previous!==group)document.querySelector<HTMLElement>(group==="root"?'[data-menu-group="'+previous+'"]':"[data-menu-back]")?.focus({preventScroll:true});},[group]);
   const changeGroup=(next:Group)=>setGroup(next);
   const backGroup = <button type="button" data-menu-back data-menu-stay-open className={styles.menuBack} onClick={() => changeGroup("root")}><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m10 3-5 5 5 5"/></svg>{group === "external" ? "外部接入" : group === "account" ? "账号管理" : "管理与测试"}</button>;

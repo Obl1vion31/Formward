@@ -1,11 +1,12 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { draftIsBusy, draftIsDirty } from "@/components/draft-guard";
 import { confirmationIsOpen } from "@/components/confirmation-state";
 import { dismissAssistantReminderAction } from "@/app/dashboard/assistant-actions";
 import { localMeasurementDate } from "../measurements/entry-state";
-import { assistantAvailable, type AssistantContext } from "./model";
+import { assistantAvailable, assistantPath, type AssistantContext } from "./model";
+import { MOBILE_MEDIA } from "@/components/use-mobile-mode";
 import { AssistantStateContext } from "./context";
 import { assistantAlreadyShown, markAssistantShown } from "./preferences";
 import { AssistantSurface } from "./surface";
@@ -19,8 +20,11 @@ function occupied() { return document.hidden || document.documentElement.dataset
 type SurfaceController = { dismiss: () => Promise<boolean>; reopen: () => void };
 
 export function AssistantProvider({ accountId, children, chatEnabled = false, initialEntitlement }: { accountId: string; children: ReactNode; chatEnabled?: boolean; initialEntitlement?:AccountEntitlements }) {
-  const pathname = usePathname(), available = assistantAvailable(pathname);
+  const pathname = usePathname(), router = useRouter(), available = assistantAvailable(pathname), pageOpen = pathname === assistantPath;
   const [open, setOpen] = useState(false), [data, setData] = useState<AssistantContext | null>(null), [error, setError] = useState(""), [loading, setLoading] = useState(false), [toast, setToast] = useState(false), [paused, setPaused] = useState(false), [clock, setClock] = useState(0), [local, setLocal] = useState<{date:string;timezone:string}|null>(null);
+  const [source, setSource] = useState<{ path: string; query: string; x: number; y: number } | null>(null);
+  const [openingPage, startPage] = useTransition();
+  const previousPath = useRef(pathname);
   const dataRef = useRef<AssistantContext | null>(null), request = useRef<AbortController | null>(null), revision = useRef(0), lastRead = useRef(0), activeRoute = useRef(pathname), generation = useRef(0), phase = useRef<"open" | "closing" | "closed">("closed"), surface = useRef<SurfaceController | null>(null), ignored = useRef(new Set<string>()), latestRefresh = useRef<(force?:boolean)=>Promise<void>>(async()=>undefined);
   useEffect(()=>{activeRoute.current=pathname;},[pathname]);
   const apply = useCallback((next: AssistantContext) => {
@@ -28,7 +32,7 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
     dataRef.current = value; setData(value);
   }, []);
   const refresh = useCallback(async (force = false) => {
-    if (!assistantAvailable(activeRoute.current) || document.hidden || request.current || (!force && Date.now() - lastRead.current < 5000)) return;
+    if ((!assistantAvailable(activeRoute.current) && activeRoute.current !== assistantPath) || document.hidden || request.current || (!force && Date.now() - lastRead.current < 5000)) return;
     const controller = new AbortController(), ticket = ++generation.current, stamp = revision.current, time = deviceTime();
     request.current = controller; lastRead.current = Date.now(); setLoading(true);
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -56,12 +60,18 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
     if (surface.current) { if (await surface.current.dismiss()) finishHide(); }
     else finishHide();
   }, [finishHide]);
-  const show = useCallback(() => {
-    if (!assistantAvailable(activeRoute.current) || occupied()) return;
-    phase.current = "open"; setToast(false); setPaused(false); markAssistantShown(preferenceStore(), accountId, deviceTime().date);
+  const show = useCallback((view?: "tasks") => {
+    if (!assistantAvailable(activeRoute.current) || occupied() || openingPage) return;
+    setToast(false); setPaused(false); markAssistantShown(preferenceStore(), accountId, deviceTime().date);
+    if (matchMedia(MOBILE_MEDIA).matches) {
+      setSource({ path: window.location.pathname, query: window.location.search, x: window.scrollX, y: window.scrollY });
+      startPage(() => router.push(assistantPath + (view === "tasks" ? "?view=tasks" : ""), { scroll: false }));
+      return;
+    }
+    phase.current = "open";
     if (open) surface.current?.reopen(); else setOpen(true);
     void refresh(true);
-  }, [accountId, open, refresh]);
+  }, [accountId, open, openingPage, refresh, router]);
   const toggle = useCallback(() => { if (phase.current === "open") void hide(); else show(); }, [hide, show]);
   const controllerReady = useCallback((next: SurfaceController | null) => { surface.current = next; }, []);
   const dismissItem = useCallback(async (id: string) => {
@@ -81,7 +91,18 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
     window.addEventListener("formward-assistant-updated", changed); window.addEventListener("formward-record-saved", changed); window.addEventListener("formward-record-context-stale", changed); window.addEventListener("focus", visible); window.addEventListener("storage", storage); document.addEventListener("visibilitychange", visible);
     return () => { cancelAnimationFrame(initialFrame);clearInterval(timer); window.removeEventListener("formward-assistant-updated", changed); window.removeEventListener("formward-record-saved", changed); window.removeEventListener("formward-record-context-stale", changed); window.removeEventListener("focus", visible); window.removeEventListener("storage", storage); document.removeEventListener("visibilitychange", visible); };
   }, [accountId, refresh]);
-  useEffect(() => { const frame=requestAnimationFrame(()=>{if (phase.current !== "closed") void hide(); if (available) void refresh();});return()=>cancelAnimationFrame(frame); }, [pathname, available, hide, refresh]);
+  useEffect(() => { const frame=requestAnimationFrame(()=>{if (phase.current !== "closed") void hide(); if (available || pageOpen) void refresh();});return()=>cancelAnimationFrame(frame); }, [pathname, available, pageOpen, hide, refresh]);
+  useLayoutEffect(() => {
+    const from = previousPath.current;
+    previousPath.current = pathname;
+    if (from !== assistantPath || !source || pathname !== source.path || window.location.search !== source.query) return;
+    const frame = requestAnimationFrame(() => {
+      window.scrollTo(source.x, source.y);
+      const trigger = Array.from(document.querySelectorAll<HTMLElement>("[data-assistant-trigger]")).find(node => node.getClientRects().length);
+      trigger?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pathname, source]);
   const pending = useMemo(() => {
     if (!data || !local || data.localDate !== local.date || data.timezone !== local.timezone) return [];
     return data.pending.filter(item => !item.expiresAt || Date.parse(item.expiresAt) > clock);
@@ -99,11 +120,12 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
   }, [available, open, error, pending, accountId]);
   useEffect(() => { if (!toast || paused) return; const timer = setTimeout(() => setToast(false), 5000); return () => clearTimeout(timer); }, [toast, paused]);
   useEffect(() => () => { generation.current++; request.current?.abort(); }, []);
-  const value = useMemo(() => ({ open: open && available, count: pending.length, show, toggle, hide }), [open, available, pending.length, show, toggle, hide]);
-  return <AssistantChatProvider accountId={accountId} enabled={chatEnabled} initialEntitlement={initialEntitlement} open={open && available}><AssistantStateContext.Provider value={value}>{children}
+  const tasks = useMemo(() => ({ data: data ? { ...data, pending } : null, error, loading, retry: () => { void refresh(true); }, dismissItem }), [data, pending, error, loading, refresh, dismissItem]);
+  const value = useMemo(() => ({ open: open && available, count: pending.length, toggle, hide, source: pageOpen ? source : null, tasks }), [open, available, pending.length, toggle, hide, pageOpen, source, tasks]);
+  return <AssistantChatProvider accountId={accountId} enabled={chatEnabled} initialEntitlement={initialEntitlement} open={pageOpen || (open && available)}><AssistantStateContext.Provider value={value}>{children}
     {toast && available && !open && pending.length > 0 && <aside className={styles.toast} role="status" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false); }}>
-      <span>{pending.length === 1 ? pending[0].title : `有 ${pending.length} 项待查看`}</span><button type="button" onClick={show}>查看</button><button type="button" aria-label="关闭提醒" onClick={() => setToast(false)}>×</button>
+      <span>{pending.length === 1 ? pending[0].title : `有 ${pending.length} 项待查看`}</span><button type="button" onClick={() => show("tasks")}>查看</button><button type="button" aria-label="关闭提醒" onClick={() => setToast(false)}>×</button>
     </aside>}
-    {open && available && <AssistantSurface chatEnabled={!!initialEntitlement||chatEnabled} data={data ? { ...data, pending } : null} error={error} loading={loading} close={finishHide} requestClose={hide} retry={() => void refresh(true)} dismissItem={dismissItem} controllerReady={controllerReady}/>}
+    {open && available && <AssistantSurface {...tasks} close={finishHide} requestClose={hide} controllerReady={controllerReady}/>}
   </AssistantStateContext.Provider></AssistantChatProvider>;
 }

@@ -1,6 +1,6 @@
 "use client";
 import {linkedDate} from "@/features/measurements/calendar";
-import {useSearchParams,usePathname,useRouter} from 'next/navigation';
+import {useRouter} from 'next/navigation';
 import {useCallback,useContext,useEffect,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from 'react';
 import {Inspector} from './inspector';
 import {EntrySurfaceContext,type EntryMetadata,type EntryGuards} from './entry-surface-state';
@@ -13,8 +13,8 @@ import {EnergyEditor} from "@/features/activities/energy-editor";
 import {WorkspaceSourceContext} from "./workspace-frame-state";
 import {useChartTransitionActions} from './chart-transition-state';
 import {useRepeatedRecordTask} from './record-intent-client';
-export function EntrySurface({children}:{children:ReactNode}){
- const path=usePathname(),query=useSearchParams(),router=useRouter(),entry=query.get('entry'),routeKey=path+'?'+query.toString();
+export function EntrySurface({children,path,query}:{children:ReactNode;path:string;query:URLSearchParams}){
+ const router=useRouter(),entry=query.get('entry'),routeKey=path+'?'+query.toString();
  const requested=query.getAll('entry').length===1&&query.getAll('date').length<=1&&(!query.has('date')||linkedDate(query.get('date'))!==null)&&(path==='/dashboard/measurements'?(entry==='daytime'||entry==='evening'):['/dashboard/meals','/dashboard/energy'].includes(path)&&entry==='1'),[closed,setClosed]=useState('');
  const [intent,setIntent]=useState({url:routeKey,requested,id:0});
  useRepeatedRecordTask(path,task=>{if(task.intent!=='create')return false;setIntent(current=>({...current,id:current.id+1}));});

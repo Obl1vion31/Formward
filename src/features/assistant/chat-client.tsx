@@ -30,7 +30,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   const deferredRead=useRef(false);
   const request = useRef<AbortController | null>(null), reading = useRef(false), current = useRef<ChatSnapshot | null>(null), generation = useRef(0), alive = useRef(true);
   const scroll = useRef({ top: 0, stick: true });
-  const savedDrafts=useRef(new Map<string,{draft:string;quote:ChatMessage|null;photos:DraftPhoto[];scroll:{top:number;stick:boolean}}>());
+  const savedDrafts=useRef(new Map<string,{draft:string;quote:ChatMessage|null;photos:DraftPhoto[];scroll:{top:number;stick:boolean}; older:ChatMessage[]}>());
   const pendingRequest=useRef<{signature:string;id:string;sent?:{draft:string;photoKeys:string[];quoteId?:string}}|null>(null);
   const [optimistic,setOptimistic]=useState<ChatMessage|null>(null);
   const [newRequests,setNewRequests]=useState<ReadonlySet<string>>(new Set());
@@ -72,7 +72,8 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
       }pendingRequest.current=null;
     }
     current.current = snapshot; setData(snapshot);
-    setMessages(previous => { const merged = new Map((changed ? [] : previous).map(row => [row.id, row])); for (const row of snapshot.messages) merged.set(row.id, row); return [...merged.values()].sort((a,b) => a.seq - b.seq).slice(-50); });
+    const restoredMessages = changed ? savedDrafts.current.get(snapshot.conversationId)?.older ?? [] : null;
+    setMessages(previous => { const merged = new Map((restoredMessages ?? previous).map(row => [row.id, row])); for (const row of snapshot.messages) merged.set(row.id, row); return [...merged.values()].sort((a,b) => a.seq - b.seq).slice(-50); });
   }, [updateAccess]);
   const read = useCallback(async function readChat(before?: number):Promise<void> {
     if (reading.current){if(!before)deferredRead.current=true;return;}
@@ -117,7 +118,10 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
       setError(""); const response = await fetch("/api/assistant-chat/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...(conversationId?{conversationId}:{}), ...(provider ? { provider } : {}), ...(action === "stop" ? { runId: current.current?.activeRunId } : {}) }) });
       const payload = await response.json(); if (!response.ok) throw Error(payload.error ?? "操作未完成。");
       if (action === "new" || action === "select_conversation") {
-        if(current.current)savedDrafts.current.set(current.current.conversationId,{draft,quote,photos:[...photoState.current],scroll:{...scroll.current}});
+        if (current.current) savedDrafts.current.set(current.current.conversationId, {
+          draft, quote, photos: [...photoState.current], scroll: { ...scroll.current },
+          older: scroll.current.stick ? [] : messages,
+        });
         const restored=savedDrafts.current.get(payload.conversationId);
         setDraft(restored?.draft??"");setQuote(restored?.quote??null);photoState.current=restored?.photos??[];setPhotos(photoState.current);scroll.current=restored?.scroll??{top:0,stick:true};
         pendingRequest.current=null;setOptimistic(null);generation.current++;

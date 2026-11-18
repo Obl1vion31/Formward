@@ -22,7 +22,10 @@ export default async function RootLayout({
   return (
     <html lang="zh-CN" data-theme="dark" suppressHydrationWarning>
       <head><script nonce={nonce} dangerouslySetInnerHTML={{__html:appearanceBootstrap}}/></head>
-      <body><PageLoadingProvider><AppInformationProvider><AppUpdates/>{children}</AppInformationProvider></PageLoadingProvider></body>
+      <body>
+        {process.env.FORMWARD_ENVIRONMENT === "local-assistant-review" && <span className="local-review-label">本机隔离验收 · 虚构数据</span>}
+        <PageLoadingProvider><AppInformationProvider><AppUpdates/>{children}</AppInformationProvider></PageLoadingProvider>
+      </body>
     </html>
   );
 }

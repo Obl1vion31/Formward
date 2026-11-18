@@ -1,21 +1,20 @@
 "use client";
-import { ChatPreviewCard, ChatPreviewCards } from "./chat-preview-card";
+import { ChatPreviewCard } from "./chat-preview-card";
 import { FollowupForm } from "./followup-form";
-import {ChatText} from "./chat-text";
-import {withoutRepeatedFollowup,chatDisplayText,chatRecordReferences} from "./chat-presentation";
+import { ChatMessageBody } from "./chat-message";
+import { Glyph } from "./chat-icon";
+import {chatDisplayText} from "./chat-presentation";
 /* eslint-disable @next/next/no-img-element -- 会话原图须按账号鉴权，不能进入公开图片优化缓存。 */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useId, type ReactNode } from "react";
 import { LoadingLink } from "../../components/loading-link";
 import { useAssistantChat, useOptionalAssistantChat } from "./chat-client";
 import type { ChatMessage } from "./chat-model";
 import styles from "./chat.module.css";
-type Glyph = "chevron" | "photo" | "send" | "stop" | "plus" | "close" | "more" | "check" | "quote" | "down";
-function Glyph({ name }: { name: Glyph }) { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{name === "chevron" ? <path d="m8 10 4 4 4-4"/> : name === "down" ? <path d="M12 4v16m-7-7 7 7 7-7"/> : name === "send" ? <path d="M12 20V4m-7 7 7-7 7 7"/> : name === "stop" ? <rect x="6" y="6" width="12" height="12" rx="2"/> : name === "plus" ? <path d="M12 5v14M5 12h14"/> : name === "close" ? <path d="m6 6 12 12M18 6 6 18"/> : name === "more" ? <><circle cx="5" cy="12" r=".8"/><circle cx="12" cy="12" r=".8"/><circle cx="19" cy="12" r=".8"/></> : name === "check" ? <path d="m5 12 4 4 10-10"/> : name === "quote" ? <path d="M10 8H4v7h5v-4H4m16-3h-6v7h5v-4h-5"/> : <><rect x="3" y="5" width="18" height="15" rx="3"/><circle cx="8" cy="10" r="1"/><path d="m4 17 5-4 4 3 4-5 4 6"/></>}</svg>; }
 function ArrivingMessage({message,eligible,className,children}:{message:ChatMessage;eligible:boolean;className:string;children:ReactNode}){
   const ref=useRef<HTMLElement>(null),{claimArrival}=useAssistantChat();
   const key=message.requestId?message.role+":"+message.requestId:null;
   useLayoutEffect(()=>{const node=ref.current;if(!node||!eligible||!key||!claimArrival(key)||matchMedia("(prefers-reduced-motion:reduce)").matches)return;node.dataset.newMessage="true";},[key,eligible,claimArrival]);
-  return <article ref={ref} tabIndex={-1} data-chat-message={message.id} className={className}>{children}</article>;
+  return <article ref={ref} tabIndex={-1} data-chat-message={message.id} data-role={message.role} className={className}>{children}</article>;
 }
 export function ChatHeaderActions({onNew}:{onNew?:()=>void}) {
   const chat = useAssistantChat();
@@ -26,23 +25,26 @@ export function ChatNavigation({tab,onTab,pendingCount}:{tab:ChatTab;onTab:(valu
   const chat=useOptionalAssistantChat(),locked=!!chat?.entitlement&&!chat.entitlement.chat;
   return <div className={styles.navigation}><div className={styles.navTabs} role="tablist" aria-label="小助手内容"><button type="button" role="tab" aria-selected={tab === "chat"} onClick={() => onTab("chat")}><span className={styles.tabLabel}>聊天</span>{locked&&<small className={styles.tierBadge}>未开放</small>}</button><button type="button" role="tab" aria-selected={tab === "tasks"} onClick={() => onTab("tasks")}><span className={styles.tabLabel}>待办</span>{pendingCount > 0 && <span className={styles.tabBadge}>{pendingCount}</span>}</button></div><select className={styles.navSelect} aria-label="切换聊天与待办" value={tab} onChange={event=>onTab(event.target.value as ChatTab)}><option value="chat">聊天{locked?" · Plus":""}</option><option value="tasks">待办{pendingCount>0?" · "+pendingCount:""}</option></select></div>;
 }
-export function AssistantChatView({ sidebar, navigate,tab }: { sidebar: ReactNode; navigate: () => Promise<boolean>; pendingCount: number;tab:ChatTab;onTab:(value:ChatTab)=>void }) {
+export function AssistantChatView({ sidebar, navigate, tab, page = false, onPreviewBack }: { sidebar: ReactNode; navigate: () => Promise<boolean>; tab: ChatTab; page?: boolean; onPreviewBack?: () => void }) {
   const [pinnedPreview,setPinnedPreview]=useState<string|null>(null), previewBack=useRef<HTMLButtonElement>(null), previewTrigger=useRef<HTMLElement|null>(null);
-  const closePreview=()=>{setPinnedPreview(null);requestAnimationFrame(()=>{const target=previewTrigger.current; if(target?.isConnected)target.focus({preventScroll:true});else feed.current?.focus({preventScroll:true});});};
+  const closePreview=()=>{setPinnedPreview(null);onPreviewBack?.();requestAnimationFrame(()=>{const target=previewTrigger.current; if(target?.isConnected)target.focus({preventScroll:true});else feed.current?.focus({preventScroll:true});});};
   useLayoutEffect(()=>{if(pinnedPreview)previewBack.current?.focus({preventScroll:true});},[pinnedPreview]);
   useEffect(()=>{const show=(event:Event)=>{const id=(event as CustomEvent<{id:string}>).detail?.id;if(id){previewTrigger.current=document.activeElement instanceof HTMLElement?document.activeElement:null;setPinnedPreview(id);}};window.addEventListener("formward-assistant-preview",show);return()=>window.removeEventListener("formward-assistant-preview",show);},[]);
   const chat = useAssistantChat(), [panel,setPanel] = useState<"models"|"connections"|null>(null), [notice,setNotice] = useState(""), [latest,setLatest] = useState(() => !chat.scrollState().stick);
   const feedContent=useRef<HTMLDivElement>(null),manualScrollUntil=useRef(0);
-  const feed = useRef<HTMLDivElement>(null), input = useRef<HTMLTextAreaElement>(null), photoInput = useRef<HTMLInputElement>(null), modelButton = useRef<HTMLButtonElement>(null), usageButton = useRef<HTMLButtonElement>(null), modelMenu = useRef<HTMLDivElement>(null), panelTitle = useRef<HTMLHeadingElement>(null), moreAnchor = useRef<{ height:number;top:number }|null>(null), restored = useRef(false);
+  const feed = useRef<HTMLDivElement>(null), input = useRef<HTMLTextAreaElement>(null), photoInput = useRef<HTMLInputElement>(null), modelButton = useRef<HTMLButtonElement>(null), usageButton = useRef<HTMLButtonElement>(null), modelMenu = useRef<HTMLDivElement>(null), panelTitle = useRef<HTMLHeadingElement>(null), moreAnchor = useRef<{ height:number;top:number }|null>(null), restored = useRef<string | null>(null);
   const { scrollState, recordScroll } = chat;
   const composer = useRef<HTMLDivElement>(null), usagePopup=useRef<HTMLDivElement>(null),usageId=useId();
   useLayoutEffect(()=>{const node=composer.current;if(!node)return;const measure=()=>node.parentElement?.style.setProperty("--chat-composer-height",node.getBoundingClientRect().height+"px");measure();const observer=new ResizeObserver(measure);observer.observe(node);return()=>observer.disconnect();},[]);
   const selected = chat.data?.catalog.find(model => model.id === chat.data?.provider), blocked = !chat.enabled || !chat.data || chat.managing || !selected?.configured || !selected.enabled || chat.data.usage.available <= 0;
   useLayoutEffect(() => { const node = feed.current; if (!node || tab !== "chat") return;
+    const conversationId = chat.data?.conversationId;
+    if (!conversationId) return;
+    if (restored.current !== conversationId) moreAnchor.current = null;
     if (moreAnchor.current) { node.scrollTop = moreAnchor.current.top + node.scrollHeight - moreAnchor.current.height; moreAnchor.current = null; }
-    else if (scrollState().stick) node.scrollTop = node.scrollHeight; else if (!restored.current) node.scrollTop = scrollState().top;
-    restored.current = true; recordScroll(node.scrollTop,scrollState().stick);
-  }, [chat.messages, tab, scrollState, recordScroll]);
+    else if (scrollState().stick) node.scrollTop = node.scrollHeight; else if (restored.current !== conversationId) node.scrollTop = scrollState().top;
+    restored.current = conversationId; recordScroll(node.scrollTop,scrollState().stick);
+  }, [chat.data?.conversationId, chat.messages, tab, scrollState, recordScroll]);
   useLayoutEffect(() => { const node = feed.current; if (!node) return; const observer = new ResizeObserver(() => { if (scrollState().stick && !moreAnchor.current) node.scrollTop = node.scrollHeight; setLatest(node.scrollHeight-node.scrollTop-node.clientHeight>80); }); observer.observe(feedContent.current??node); observer.observe(node); return () => observer.disconnect(); }, [scrollState]);
   useLayoutEffect(() => {
     const node=input.current;if(!node)return;let frame=0,active=true,last="";
@@ -75,8 +77,7 @@ export function AssistantChatView({ sidebar, navigate,tab }: { sidebar: ReactNod
   function jump(id: string) { const node = feed.current?.querySelector<HTMLElement>('[data-chat-message="' + id + '"]'); if (node) { recordScroll(scrollState().top,false); node.scrollIntoView({ block:"center",behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth" }); node.focus({ preventScroll:true }); } else setNotice("原消息已超出当前显示范围，可以补充日期和对象后继续。"); }
   function cite(message: ChatMessage) { chat.setQuote(message); input.current?.focus({preventScroll:true}); }
   function submit() { recordScroll(scrollState().top,true); void chat.send(); }
-  const labels: Record<string,string> = { qwen:"千问",mimo:"小米 MiMo",glm:"智谱" };
-  return <div className={styles.workspace} data-tab={tab} onKeyDown={event => { if(event.key==="Escape"&&pinnedPreview){event.preventDefault();event.stopPropagation();closePreview();return;} if(event.key === "Escape" && usagePopup.current?.matches(":popover-open")){event.preventDefault();event.stopPropagation();usagePopup.current.hidePopover();usageButton.current?.focus({preventScroll:true});return;} if (event.key === "Escape" && panel) { event.preventDefault(); event.stopPropagation(); closePanel(); } }}>
+  return <div className={styles.workspace} data-tab={tab} data-page={page||undefined} onKeyDown={event => { if(event.key==="Escape"&&pinnedPreview){event.preventDefault();event.stopPropagation();closePreview();return;} if(event.key === "Escape" && usagePopup.current?.matches(":popover-open")){event.preventDefault();event.stopPropagation();usagePopup.current.hidePopover();usageButton.current?.focus({preventScroll:true});return;} if (event.key === "Escape" && panel) { event.preventDefault(); event.stopPropagation(); closePanel(); } }}>
     <aside className={styles.sidebar} aria-label="待办与快捷记录">{sidebar}</aside>
     <section className={styles.conversation} aria-label="AI聊天">
       <div ref={feed} tabIndex={-1} inert={panel === "connections"||!!pinnedPreview} className={styles.feed} role="log" aria-label="聊天消息" aria-live="off" onWheel={()=>{manualScrollUntil.current=performance.now()+800;}} onTouchMove={()=>{manualScrollUntil.current=performance.now()+800;}} onPointerDown={event=>{if(event.clientX>=event.currentTarget.getBoundingClientRect().right-20)manualScrollUntil.current=performance.now()+10000;}} onKeyDownCapture={event=>{if(["ArrowUp","ArrowDown","PageUp","PageDown","Home","End"," "].includes(event.key))manualScrollUntil.current=performance.now()+800;}} onClickCapture={event=>{if((event.target as Element).closest("summary")){recordScroll(event.currentTarget.scrollTop,false);manualScrollUntil.current=performance.now()+800;}}} onScroll={event => { const node = event.currentTarget,near=node.scrollHeight-node.scrollTop-node.clientHeight<=80,stick=near||(performance.now()>manualScrollUntil.current&&scrollState().stick);recordScroll(node.scrollTop,stick);setLatest(!near); }}>
@@ -86,22 +87,16 @@ export function AssistantChatView({ sidebar, navigate,tab }: { sidebar: ReactNod
         {!chat.data&&chat.enabled&&<p className={styles.historyLoading} role="status">加载中…</p>}
         {chat.data&&!chat.messages.length && <div className={styles.welcome}><h3>今天想聊点什么？</h3><p>可以拍照记饮食、记录体重，或查询你的记录。</p></div>}
         {chat.messages.map(message => <ArrivingMessage key={message.role==="user"&&message.requestId?"user-"+message.requestId:message.id} message={message} eligible={!!message.requestId&&chat.newRequests.has(message.requestId)} className={styles.message + " " + (message.role === "user" ? styles.user : styles.assistant)}>
-          <div className={styles.meta}><span>{message.role === "user" ? "你" : labels[message.provider ?? ""] ?? "小助手"}</span><time dateTime={message.createdAt}>{new Intl.DateTimeFormat("zh-CN",{ hour:"2-digit",minute:"2-digit" }).format(new Date(message.createdAt))}</time></div>
-          {message.replyTo && <button type="button" className={styles.messageQuote} onClick={() => jump(message.replyTo!.id)}><Glyph name="quote"/><span>{message.replyTo.text}</span></button>}
-          {!!message.steps.length && <details className={styles.progress}><summary><span className={message.state === "working" ? styles.spinner : ""}>{message.state !== "working" && <Glyph name={message.steps.some(step => step.state === "error") ? "close" : "check"}/> }</span>{message.steps.some(step => step.state === "running") ? "正在" + message.steps.find(step => step.state === "running")!.title : message.steps.some(step => step.state === "error") ? "部分步骤未完成" : "已完成" + message.steps.length + "个步骤"}<Glyph name="chevron"/></summary><ol>{message.steps.map(step => <li key={step.id}><strong>{step.title}{step.state === "error" ? " · 未成功" : ""}</strong><p>{step.state === "running" ? "正在处理…" : step.summary}</p>{step.note&&<p>{step.note}</p>}</li>)}</ol></details>}
-          {message.state === "working" && !message.steps.length && !message.text && <p className={styles.working} role="status"><span className={styles.spinner}/>正在整理回答…</p>}
-          {!!message.imageIds.length && <div className={styles.images}>{message.imageIds.map(id => <a key={id} href={"/api/meal-images/" + id} target="_blank" rel="noreferrer"><img src={"/api/meal-images/" + id} alt="本条消息的私有照片"/></a>)}</div>}
-          {message.text && (message.role==="user"?<div className={styles.text}>{message.answeredQuestions?.length?<details className={styles.answeredQuestions}><summary>已询问{message.answeredQuestions.length}个问题</summary><dl>{message.answeredQuestions.map((answer,index)=><div key={index}><dt>{answer.prompt}</dt><dd>{answer.skipped?"本次未填写":answer.value}</dd></div>)}</dl></details>:<p>{message.text}</p>}</div>:<ChatText value={withoutRepeatedFollowup(chatDisplayText(message,chat.data?.capabilities?.inlinePreviews===true),message.state==="complete"&&message.question?.id===chat.data?.followup?.messageId?chat.data?.followup:null)} navigate={navigate}/>)}
-          {chat.data?.capabilities?.inlinePreviews===true&&message.role==="assistant"&&message.state!=="working"&&<ChatPreviewCards ids={[...new Set(message.references.filter(ref=>ref.kind==="preview"&&ref.operationId).map(ref=>ref.operationId!))]} navigate={navigate}/>}
-          {message.state === "complete" && !!chatRecordReferences(message.references,chat.data?.capabilities?.inlinePreviews===true,message.steps).length && <div className={styles.references}>{chatRecordReferences(message.references,chat.data?.capabilities?.inlinePreviews===true,message.steps).map(ref => <LoadingLink prefetch={false} beforeNavigate={navigate} key={ref.href} href={ref.href}>{ref.title}<span aria-hidden="true">↗</span></LoadingLink>)}</div>}
+          <ChatMessageBody message={message} inlinePreviews={chat.data?.capabilities?.inlinePreviews===true} navigate={navigate} jump={jump}
+            followup={message.state==="complete"&&message.question?.id===chat.data?.followup?.messageId?chat.data?.followup:null}>
           {message.role==="assistant"&&message.state==="complete"&&chat.data?.followup&&message.question?.id===chat.data.followup.messageId&&<FollowupForm key={chat.data.followup.messageId} task={chat.data.followup} busy={chat.busy||!chat.enabled} submit={value=>chat.send("send",undefined,value)} cancel={()=>void chat.control("clear_followup")}/>}
-          {message.error && <p className={styles.failure} role="alert">{message.error}</p>}
+          </ChatMessageBody>
           {message.role === "assistant" && message.state !== "working" && <div className={styles.actions}>{chat.enabled&&message.state === "complete" && <button onClick={() => cite(message)}><Glyph name="quote"/>引用回复</button>}{message.role === "assistant" && message.text && <button onClick={() => void navigator.clipboard.writeText(message.text).then(() => setNotice("已复制回答"),() => setNotice("复制失败，可以选择文字手动复制。"))}>复制</button>}{message.role === "assistant" && ["stopped","truncated","error"].includes(message.state) && <button disabled={chat.busy || blocked} onClick={() => void chat.send(message.state === "error" ? "retry" : "continue",message.id)}>{message.state === "error" ? "重试这条消息" : "继续回答"}</button>}</div>}
         </ArrivingMessage>)}
         </div>
       </div>
 
-      {pinnedPreview&&<section className={styles.pinnedPreview} aria-label="待确认提交"><header><span>待确认提交</span><button type="button" ref={previewBack} onClick={closePreview}>返回聊天</button></header><ChatPreviewCard id={pinnedPreview} navigate={navigate}/></section>}
+      {pinnedPreview&&<section className={styles.pinnedPreview} aria-label="待确认提交"><header><span>待确认提交</span><button type="button" ref={previewBack} onClick={closePreview}>{page?"返回待办":"返回聊天"}</button></header><ChatPreviewCard id={pinnedPreview} navigate={navigate}/></section>}
       <div ref={composer} className={styles.composerArea} inert={panel === "connections"||!!pinnedPreview}>
         {notice && <p className={styles.notice} role="status">{notice}</p>}
         {chat.error && <div className={styles.failure} role="alert">{chat.error}<button onClick={() => void chat.refresh()} disabled={chat.loading}>重新读取</button></div>}

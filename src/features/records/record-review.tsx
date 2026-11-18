@@ -37,7 +37,7 @@ function BodyContent({ row }: { row: RecordRow }) {
   const visible = fields.filter(([key]) => editing ? value(key, before?.[key]) !== value(key, after?.[key]) : after?.[key] != null);
   return <>{preview?.warnings?.length?preview.warnings.map(text=><p role="status" key={text}>{text}</p>):<NumberNotice before={before} after={after}/>}<dl className={styles.bodyValues}>{visible.map(([key, label, unit]) => <div key={key}><dt>{label}</dt><dd>{editing && before?.[key] != null && <><del>{value(key, before?.[key])}{before?.[key] != null ? unit : ""}</del><span aria-label="修改为"> → </span></>}<strong>{value(key, after?.[key])}{after?.[key] != null ? unit : ""}</strong></dd></div>)}</dl></>;
 }
-function InlineRecordContent({ row,settled=false }: { row: RecordRow;settled?:boolean }) {
+function InlineRecordContent({ row, settled = false, compact = false }: { row: RecordRow; settled?: boolean; compact?: boolean }) {
   if (isBody(row.action)) {
     const after = row.body?.preview.rows[0]?.after, before = row.body?.preview.rows[0]?.before;
     const weight = after?.weightKg, fat = after?.bodyFatPercent, primary = weight != null ? weight : fat, unit = weight != null ? "kg" : "%";
@@ -65,7 +65,7 @@ function InlineRecordContent({ row,settled=false }: { row: RecordRow;settled?:bo
   const nutrients = "items" in record ? record.totals.values : record.nutrition;
   return <><div className={styles.inlineMealReading}><div><div className={styles.inlineReading}><span>{"items" in record ? "本餐热量" : `每 ${record.baseQuantity}${record.unit}`}</span><strong>{formatNutrition(nutrients.caloriesKcal, "caloriesKcal")}<small>千卡</small></strong></div>
     <p className={styles.inlineMacros}>{(["proteinG", "carbsG", "fatG"] as const).map(key => <span key={key}>{metricLabels[key]} {formatNutrition(nutrients[key], key)}{nutrients[key] != null ? " g" : ""}</span>)}</p>
-</div>{"items" in record&&!settled&&<NutritionComposition totals={record.totals} compact/>}</div>
+</div>{"items" in record&&!settled&&!compact&&<NutritionComposition totals={record.totals} compact/>}</div>
     {"items" in record&&!settled&&<ul className={styles.inlineFoods}>{record.items.map((item,index)=><li key={item.id??index}><span>{item.name}</span><span>{item.quantity==null?"份量未知":Number(item.quantity)+(item.unit??"")}</span><span>{formatNutrition(item.nutrition.caloriesKcal,"caloriesKcal")} 千卡</span></li>)}</ul>}</>;
 }
 function RecordContent({ record,showItems=true }: { record?: FoodView | MealView;showItems?:boolean }) {
@@ -96,6 +96,31 @@ function title(row: RecordRow) {
   if (action.kind === "save_meal") return `${action.date} · ${mealTypeLabel(action.mealType)}`;
   return row.meal?.food?.name ?? (action.kind === "save_food" ? action.name : row.meal?.meal ? `${row.meal.meal.date} · ${mealTypeLabel(row.meal.meal.mealType)}` : "记录");
 }
+
+export function RecordReviewSummary({ operation, beforeNavigate }: {
+  operation: RecordReviewView;
+  beforeNavigate?: () => Promise<boolean>;
+}) {
+  const [now] = useState(Date.now);
+  const expired = operation.status === "expired" || operation.status === "pending" && !!operation.expiresAt && Date.parse(operation.expiresAt) <= now;
+  const rows = operation.rows.filter(row => row.persisted || !row.excluded && row.body?.status !== "skipped");
+  const status = expired ? "已过期" : operation.status === "confirmed" ? "已保存" : operation.status === "completed" ? "无需保存"
+    : operation.status === "canceled" || operation.status === "cancelled" ? "已取消" : operation.status === "pending" ? "待确认" : "查看状态";
+  return <section className={styles.readOnlyReview} aria-label="历史记录摘要">
+    {rows.map(row => <article key={row.key} className={styles.inlineRow}>
+      <header className={styles.inlineHeading}>
+        <h4>{title(row)}</h4>
+        <span>{row.persisted ? "已保存" : status}</span>
+      </header>
+      <InlineRecordContent row={row} compact/>
+    </article>)}
+    {rows.length === 0 && <p>{status}</p>}
+    <LoadingLink className={styles.readOnlyReviewLink} href={operation.confirmationPath} beforeNavigate={beforeNavigate}>
+      查看审核 <span aria-hidden="true">›</span>
+    </LoadingLink>
+  </section>;
+}
+
 export function RecordReview({ operation: initial, review, load, sources: initialSources, removeSource, energySources: initialEnergySources, removeEnergySource,embedded=false,beforeNavigate }: { beforeNavigate?:()=>Promise<boolean>;embedded?:boolean; operation: RecordReviewView; review: (action: RecordReviewAction) => ReviewResult; load: () => ReviewResult; sources: string[]; removeSource: (label: string) => Promise<SourceRemovalResult>; energySources: string[]; removeEnergySource: (label: string) => Promise<SourceRemovalResult> }) {
   const scope=useId(),rowId=(key:string)=>scope+"-record-"+key;
   const [local, setLocal] = useState<RecordReviewView | null>(null), [editing, setEditing] = useState<string | null>(null), [error, setError] = useState(""), [savedNow, setSavedNow] = useState(false), [stayOnReceipt, setStayOnReceipt] = useState(embedded);

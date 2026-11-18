@@ -5,6 +5,7 @@ import type { ReminderCatalog } from "../dashboard/daily-reminders";
 export type AssistantAction = { label: string; href: string; previewId?:string };
 export type AssistantItem = { id: string; category: "meals" | "energy" | "body" | "ai" | "training"; date: string; title: string; detail: string; action: AssistantAction; dismissible?: boolean; expiresAt?: string; review?: {source:string; title:string; value:string; detail:string} };
 export type AssistantContext = { generatedAt: string; localDate: string; timezone: string; pending: AssistantItem[]; suggestions: AssistantItem[] };
+export const assistantPath = "/dashboard/assistant";
 export const assistantRoutes = ["/dashboard", "/dashboard/meals", "/dashboard/training", "/dashboard/energy", "/dashboard/measurements", "/dashboard/ai", "/dashboard/export", "/dashboard/sources"];
 export const assistantAvailable = (pathname: string) => assistantRoutes.includes(pathname);
 export function assistantTimezone(value: string | null): string {

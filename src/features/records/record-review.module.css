@@ -144,3 +144,20 @@
 .inlineMealReading{display:flex;align-items:center;justify-content:space-between;gap:12px}.inlineMealReading>div{min-width:0}.inlineMealReading>figure{flex:none;margin:0}
 
 .inlineResult{min-height:0;align-items:stretch}
+
+.readOnlyReview .inlineRow { padding-bottom: 8px; }
+.readOnlyReview .inlineHeading h4 { margin: 0; font-size: .9375rem; }
+.readOnlyReview .inlineReading { flex-direction: row; flex-wrap: wrap; align-items: baseline; margin-top: 6px; gap: 4px 8px; }
+.readOnlyReview .inlineReading strong { font-size: 1.125rem; }
+.readOnlyReview .inlineFoods { margin-top: 4px; }
+.readOnlyReviewLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--gold);
+  font-size: .875rem;
+  text-decoration: none;
+}
+.readOnlyReviewLink:hover { text-decoration: underline; text-underline-offset: .2em; }

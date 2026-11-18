@@ -1,5 +1,24 @@
 "use client";
 import { createContext, useContext } from "react";
-export type AssistantState = { open: boolean; count: number; show: () => void; toggle: () => void; hide: () => Promise<void> };
-export const AssistantStateContext = createContext<AssistantState>({ open: false, count: 0, show() {}, toggle() {}, async hide() {}, });
+import type { AssistantContext } from "./model";
+
+export type AssistantTasksState = {
+  data: AssistantContext | null;
+  error: string;
+  loading: boolean;
+  retry: () => void;
+  dismissItem: (id: string) => Promise<string>;
+};
+type AssistantSource = { path: string; query: string };
+type AssistantState = {
+  open: boolean;
+  count: number;
+  toggle: () => void;
+  hide: () => Promise<void>;
+  source: AssistantSource | null;
+  tasks: AssistantTasksState | null;
+};
+export const AssistantStateContext = createContext<AssistantState>({
+  open: false, count: 0, toggle() {}, async hide() {}, source: null, tasks: null,
+});
 export const useAssistant = () => useContext(AssistantStateContext);
