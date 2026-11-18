@@ -1,8 +1,10 @@
 # 站内聊天验收
 
-## 当前正式验收
+正式站 [formward.top](https://formward.top) 已发布 `dual-entry-ad2741d8-assistant-motion-release-20261119`。网页、同版本 worker、公网入口与回退见[当前正式版本](deployment.md#当前正式版本)。
 
-正式站[formward.top](https://formward.top)运行 `dual-entry-e5bebf6b-assistant-mobile-r2-20261118`，源码 `e5bebf6b1933fed5e749fb23203a0b1ecb81a12e`，BUILD_ID `1LfmkvgNsktrrv6wcGYmv`。北京时间 2026-11-18 22:11:46 切换。
+## 手机助手独立页与身体弹框验收
+
+上一轮验收版本为 `dual-entry-e5bebf6b-assistant-mobile-r2-20261118`，源码 `e5bebf6b1933fed5e749fb23203a0b1ecb81a12e`，BUILD_ID `1LfmkvgNsktrrv6wcGYmv`。北京时间 2026-11-18 22:11:46 切换。
 
 ### 历史对话回看
 
@@ -20,7 +22,7 @@ Chromium 与 WebKit 各通过 18 项实际操作。生产构建、lint、干净�
 
 同一构建的 68 张原图与 6 段连续录屏均保存在本机。图册逐张标出步骤、视口、浏览器、主题和结果。上一版身体录入实图及已使用的 ImageGen 参考单列。脚本和报告在 `.codex/assistant-mobile-release-20261118/`。 [本机图册](http://127.0.0.1:41925/) · [隔离测试版](http://127.0.0.1:41923/) · [公网验收及回退](deployment.md#当前正式版本)
 
-## 本机候选即时打开与转场
+## 手机小助手即时打开与转场
 
 本机候选 `assistant-motion-local-fa6df18`，源码 `fa6df180043373dc9b0021210eee433b16d8499c`，BUILD_ID `Fey6mJAHJPTm69KYBWTDu`。旧版对照使用已发布应用源码 `e5bebf6b`。两者均在同一机器用 Next.js 生产构建，网页和聊天 worker 使用原生 PostgreSQL 的隔离数据库与虚构回放。
 
