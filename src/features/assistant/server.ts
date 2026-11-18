@@ -1,4 +1,5 @@
 import { submissionSourceResolver } from "../auth/ai-access-overview";
+import type {EnergyPreview} from "../activities/model";
 import { type RecordAction } from "../records/model";
 import { type PreviewRow, mealTypeLabel } from "../meals/model";
 import {chatAllowed,chatCapabilities} from "./chat-config";
@@ -21,11 +22,16 @@ import { lockOwner } from "../auth/owner-lock";
 import { ApiError } from "../auth/ai-identity";
 import { assistantContext, assistantTimezone, type AssistantItem } from "./model";
 
-function reviewSummary(actions:RecordAction[],rows:PreviewRow[]=[]){
+export function reviewSummary(actions:RecordAction[],rows:PreviewRow[]=[],energyRows:EnergyPreview[]=[]){
   const meal=rows.find(row=>!row.excluded&&row.meal)?.meal;
   if(meal){const n=meal.totals.values,show=(v:string|null)=>v===null?"—":String(Number(v));return {title:mealTypeLabel(meal.mealType)+(actions.length>1?"等 "+actions.length+" 项":""),value:(meal.totals.incomplete.caloriesKcal?"已知 ":"")+show(n.caloriesKcal)+" 千卡",detail:`蛋白质 ${show(n.proteinG)}g · 碳水 ${show(n.carbsG)}g · 脂肪 ${show(n.fatG)}g`};}
   const body=actions.find(a=>a.kind==="save_record");
-  if(body?.kind==="save_record")return {title:body.period==="evening"?"晚间测量":"晨间测量",value:body.weightKg==null?"体重未知":Number(body.weightKg).toFixed(2)+" kg",detail:body.deviceLabel?"来源 "+body.deviceLabel:""};
+  if(body?.kind==="save_record")return {title:body.period==="evening"?"晚间测量":"晨间测量",value:body.weightKg!=null?Number(body.weightKg).toFixed(2)+" kg":body.bodyFatPercent!=null?Number(body.bodyFatPercent)+"% 体脂":"测量数值未知",detail:body.deviceLabel?"来源 "+body.deviceLabel:""};
+  const energy=energyRows.find(row=>!row.excluded&&!row.error&&row.day)?.day;
+  if(energy)return {title:"每日消耗",value:energy.totalKcal===null?"总消耗未知":Number(energy.totalKcal)+" 千卡",detail:`静息 ${energy.restingKcal===null?"—":Number(energy.restingKcal)} 千卡 · 活动 ${energy.activeKcal===null?"—":Number(energy.activeKcal)} 千卡`};
+  const template=actions.find(action=>action.kind==="save_training_template");
+  if(template?.kind==="save_training_template")return {title:"训练计划",value:template.template.name,detail:actions.length>1?actions.length+" 项待核对":"待核对"};
+  if(actions.some(action=>action.kind==="schedule_training"))return {title:"训练排期",value:actions.length+" 项待核对",detail:""};
   return {title:actions.length>1?"组合提交":"待确认提交",value:actions.length+" 项待核对",detail:""};
 }
 
@@ -46,7 +52,7 @@ async function pendingReviews(db: Database, userId: string, today: string, now: 
   const origin=(grants:Parameters<typeof source>[0])=>{const value=source(grants);return value.kind==="embedded"?"站内助手 · "+(value.compactLabel??value.label):value.compactLabel??value.label;};
   if (summaries.length) {
     const roots = await db.select({
-      id: recordOperation.id, draft: recordOperation.draft, mealPreview:mealOperation.preview,
+      id: recordOperation.id, draft: recordOperation.draft, mealPreview:mealOperation.preview, energyPreview:energyOperation.preview,
       bodyId: recordOperation.measurementOperationId, bodyToken: measurementOperation.tokenId, bodyConnection: measurementOperation.oauthConnectionId,
       mealId: recordOperation.mealOperationId, mealToken: mealOperation.tokenId, mealConnection: mealOperation.oauthConnectionId,
       energyId: recordOperation.energyOperationId, energyToken: energyOperation.tokenId, energyConnection: energyOperation.oauthConnectionId,
@@ -67,7 +73,7 @@ async function pendingReviews(db: Database, userId: string, today: string, now: 
         allowed &&= await authorized(item.trainingGrant?.tokenId, item.trainingGrant?.oauthConnectionId, "training");
       }
       if (!allowed) continue;
-      result.push({ id: "ai:" + summary.id, category: "ai", date: summary.dates[0] ?? today, title: "AI 提交待你确认", detail: summary.summary, review:{...reviewSummary(root.draft.filter(item=>!item.excluded&&!item.persisted).map(item=>item.action),root.mealPreview??[]),source:origin([...(root.bodyId?[{tokenId:root.bodyToken,oauthConnectionId:root.bodyConnection}]:[]),...(root.mealId?[{tokenId:root.mealToken,oauthConnectionId:root.mealConnection}]:[]),...(root.energyId?[{tokenId:root.energyToken,oauthConnectionId:root.energyConnection}]:[]),...root.draft.filter(item=>item.trainingGrant).map(item=>item.trainingGrant)])}, action: { label: "查看并确认", href: summary.confirmationPath }, ...(summary.expiresAt ? { expiresAt: summary.expiresAt } : {}) });
+      result.push({ id: "ai:" + summary.id, category: "ai", date: summary.dates[0] ?? today, title: "AI 提交待你确认", detail: summary.summary, review:{...reviewSummary(root.draft.filter(item=>!item.excluded&&!item.persisted).map(item=>item.action),root.mealPreview??[],root.energyPreview??[]),source:origin([...(root.bodyId?[{tokenId:root.bodyToken,oauthConnectionId:root.bodyConnection}]:[]),...(root.mealId?[{tokenId:root.mealToken,oauthConnectionId:root.mealConnection}]:[]),...(root.energyId?[{tokenId:root.energyToken,oauthConnectionId:root.energyConnection}]:[]),...root.draft.filter(item=>item.trainingGrant).map(item=>item.trainingGrant)])}, action: { label: "查看并确认", href: summary.confirmationPath }, ...(summary.expiresAt ? { expiresAt: summary.expiresAt } : {}) });
     }
   }
   // 旧独立审核入口仍可使用；已归入统一批次的子操作不重复计数。
