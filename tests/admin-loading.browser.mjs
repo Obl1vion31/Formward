@@ -14,6 +14,8 @@ const engine = process.env.ADMIN_BROWSER ?? "chromium";
 const width = Number(process.env.ADMIN_WIDTH ?? 390);
 const output = join(process.env.ADMIN_ARTIFACTS ?? ".codex/admin-loading/after", engine, String(width));
 await mkdir(output, { recursive: true });
+// WebKit 的字体就绪会等整份流式文档完成，慢读取帧需要先截图。
+process.env.PW_TEST_SCREENSHOT_NO_FONTS_READY = "1";
 const playwright = await import(process.env.PLAYWRIGHT_MODULE ?? "/home/obl1vion/.local/formward-tools/node_modules/playwright/index.mjs");
 const browser = await playwright[engine].launch();
 const db = postgres(database.href, { max: 3 });
@@ -45,13 +47,15 @@ try {
     ...options, colorScheme: width < 700 ? "dark" : "light",
     recordVideo: { dir: output }
   });
+  await context.addInitScript(theme => localStorage.setItem("formward-theme", theme), width < 700 ? "dark" : "light");
+  const page = await context.newPage();
   try {
     await login(context, email);
-    const page = await context.newPage();
+    page.setDefaultTimeout(12000);
     page.on("pageerror", error => errors.push(error.message));
     const nav = page.getByRole("navigation", { name: "管理后台栏目" });
     const heading = page.locator("[data-admin-heading]");
-    const hint = heading.locator("[data-reading-status][data-visible=true], [data-admin-cold-reading]:visible");
+    const hint = heading.locator("[data-reading-status][data-visible=true] [role=status], [data-admin-cold-reading]:visible");
     const usage = page.locator("[data-usage-panel]");
     const readyUsage = usage.getByText("最近读取：", { exact: false });
     const url = path => new URL(path, baseURL).href;
@@ -69,7 +73,7 @@ try {
       }
     };
 
-    await page.goto(url("/admin"));
+    await page.goto(url("/admin"), { waitUntil: "networkidle" });
     await page.getByLabel("当前密码").fill(password);
     await page.getByRole("button", { name: "验证并进入" }).click();
     const user = page.getByRole("link", { name: "查看用户", exact: true }).first();
@@ -81,7 +85,7 @@ try {
     const headingBefore = await geometry(heading);
     await whileReadIsPaused("assistant_usage_requests", async () => {
       await nav.getByRole("link", { name: "用量分析", exact: true }).click();
-      await hint.getByRole("status").filter({ hasText: "正在读取…" }).waitFor();
+      await hint.filter({ hasText: "正在读取…" }).waitFor();
       assert.equal(await page.locator("[data-admin-initial-loading]").count(), 0);
       assert.equal(await user.isVisible(), true);
       await stable(headingBefore, heading);
@@ -138,7 +142,7 @@ try {
 
     await whileReadIsPaused("assistant_usage_requests", async () => {
       await page.goto(url("/admin?tab=usage"), { waitUntil: "commit" });
-      await hint.getByRole("status").filter({ hasText: "正在读取…" }).waitFor();
+      await hint.filter({ hasText: "正在读取…" }).waitFor();
       assert.equal(await page.locator("[data-admin-initial-loading]").count(), 1);
       assert.equal(await usage.getByLabel("开始日期").count(), 1);
       await shot("direct-wait");
@@ -149,7 +153,7 @@ try {
     const chartBefore = await geometry(chart);
     await whileReadIsPaused("assistant_usage_requests", async () => {
       await heading.getByRole("button", { name: "刷新数据", exact: true }).click();
-      await hint.getByRole("status").filter({ hasText: "正在读取…" }).waitFor();
+      await hint.filter({ hasText: "正在读取…" }).waitFor();
       await stable(chartBefore, chart);
     });
     await hint.waitFor({ state: "hidden" });
@@ -166,6 +170,10 @@ try {
     const report = { passed: true, version: version.version, engine, viewport, checks };
     await writeFile(join(output, "report.json"), JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report));
+  } catch (error) {
+    await page.screenshot({ path: join(output, "failure.png") }).catch(() => {});
+    console.error(JSON.stringify({ url: page.url(), alerts: await page.getByRole("alert").allTextContents(), errors }));
+    throw error;
   } finally {
     await context.close();
   }
