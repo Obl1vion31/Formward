@@ -63,9 +63,11 @@ export function AdminHeading({ title, loading = false, refreshing = false, onRef
   const busy = loading || refreshing || navigating;
   return <div className={styles.heading} data-admin-heading>
     <h1>{title}</h1>
-    <div className={styles.headingAction}>
+    <div className={styles.headingAction} data-initial={loading||undefined}>
       {(onRefresh || loading) && <button className={styles.secondary} disabled={busy} onClick={onRefresh}>刷新数据</button>}
-      <LocalLoading active={busy} />
+      {loading
+        ? <span className={styles.coldReading} data-admin-cold-reading role="status">正在读取…</span>
+        : <LocalLoading active={busy} />}
     </div>
   </div>;
 }

@@ -51,7 +51,7 @@ try {
     page.on("pageerror", error => errors.push(error.message));
     const nav = page.getByRole("navigation", { name: "管理后台栏目" });
     const heading = page.locator("[data-admin-heading]");
-    const hint = heading.locator("[data-reading-status][data-visible=true]");
+    const hint = heading.locator("[data-reading-status][data-visible=true], [data-admin-cold-reading]:visible");
     const usage = page.locator("[data-usage-panel]");
     const readyUsage = usage.getByText("最近读取：", { exact: false });
     const url = path => new URL(path, baseURL).href;
@@ -110,11 +110,12 @@ try {
     await user.waitFor();
     const search = page.getByRole("textbox", { name: "搜索登录邮箱" });
     await search.fill("person-02@example.test");
-    const searchBefore = await geometry(search);
+    const searchBefore = await geometry(search), rowBefore = await geometry(user);
     await whileReadIsPaused("users", async () => {
       await page.getByRole("button", { name: "搜索", exact: true }).click();
       await page.getByRole("status").filter({ hasText: "正在读取账号…" }).waitFor();
       await stable(searchBefore, search);
+      await stable(rowBefore, user);
       await shot("search-wait");
     });
     await page.waitForURL(u => u.searchParams.get("search") === "person-02@example.test");

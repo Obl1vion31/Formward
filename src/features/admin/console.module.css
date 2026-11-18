@@ -35,3 +35,9 @@
 @media(max-width:600px){.headingAction>button{font-size:13px;padding-inline:12px}}
 
 .dayReadout{min-block-size:1.65em}
+
+/* 直接访问时，后台外壳可以在页面脚本加载前先显示。 */
+.coldReading{grid-area:1/1;visibility:hidden;color:var(--muted);font-size:13px;white-space:nowrap;pointer-events:none;animation:admin-show-reading 1ms step-end 350ms forwards}
+.headingAction[data-initial]>button{animation:admin-hide-refresh 1ms step-end 350ms forwards}
+@keyframes admin-show-reading{to{visibility:visible}}
+@keyframes admin-hide-refresh{to{visibility:hidden}}

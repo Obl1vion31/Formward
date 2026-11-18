@@ -40,5 +40,5 @@
 
 .listReading{display:grid;justify-items:end;align-items:center}
 .listReading>span{grid-area:1/1}
-.listReading>[data-reading-status]{min-height:0}
+.listReading>[data-reading-status]{min-height:0;font:inherit}
 .listReading:has([data-reading-status][data-visible=true])>span:first-child{visibility:hidden}
