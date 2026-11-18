@@ -1,5 +1,16 @@
 # 完善任务验收
 
+## 界面统一验收与发布（2026-11-18）
+
+当前应用`dual-entry-20083302-ui-visual-finish-20261118`，源码20083302，BUILD_ID `PD6Pywy0w8kxocR5sz5FK`，北京时间15:55:04发布。原62项与27项扩展按最终意见逐项归位；已修改、认可保留、其他任务合流、撤回推断及未重测范围分别记录，不计为89项新设计。当前有效结果见[视觉验收](../design-qa.md)。
+
+853项单元／集成、另跑2项原生并发、lint、typecheck及生产构建通过。两引擎各60组慢加载锚点最大偏差0px，各29项恢复／草稿／导航／隔离检查保持健康事实；首次绘制、图形双向交接及6尺寸身体稳定图有真实录像。两引擎各85张主要页、64张次级页，另采正常字号输入、选材、补充、确认及异常状态。主按钮hover底色覆盖由视觉检查发现并修复，正常及失败可重试的主操作对比最低6.17:1。200%文字按用户最新要求退出本轮及后续门槛，未实施的大字改动已取消。
+
+四公网入口、8组匿名双引擎页面、静态新资源字节、nonce CSP、HSTS、防嵌入、JWKS、匿名401及旧Action409通过。发布窗口67张表原列／值和配置保持，原生备份与加密异机回读通过，兼容回退membership-context-20261118保留。MCP2.0.2／18项、HTTP1.15.1与共用prompt保持；站内answeredQuestions仅为原补充数据的展示扩展。本轮收费模型调用、正式健康测试写入及迁移均为0。
+
+原始PNG／WebM、失败候选、字节摘要和报告归档在原入口`.codex/ui-decisions-20261117`；完整兼容包归`.codex/backups/regional-releases/ui-visual-finish-20261118`，77,419,236字节，SHA256 `92f274f2d27132c5c90cf5de936910fbccf1afc8cc9b4d30a2a894f4c4b35af8`。Windows私有展示见`C:/Users/14878/.codex/private/formward-design-review-20261117/implementation/index.html`。原机此前已反馈键盘与相册／拍照正常；最终包没有实体iPhone原始录像，第三方原生宿主完整授权、真实跨境慢网与模型准确率未在本轮重测，不用浏览器回放冒充。
+
+
 ## 后台分类与安全界面（2026-11-18）
 
 正式站[formward.top](https://formward.top)运行`dual-entry-4e640f17-admin-structure-ready2-20261118`，源码`4e640f1750f79612d79ce141724d4ba07806f5df`，BUILD_ID `zvUJixoGkqUOZ_voZA1YY`；北京时间2026-11-18 03:12:39切换。功能已合入推送main，后续运维及文档提交不改变应用运行源码。
