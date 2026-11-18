@@ -1,6 +1,7 @@
 import {workspacePages} from "./workspace-pages";
 
 export type WorkspaceLocation={path:string;search:string};
+export const workspaceMotionTiming = { duration: 200, easing: "cubic-bezier(.22,1,.36,1)" };
 /** 普通模块导航才移动正文；图形交接、录入与日期详情保留自己的容器。 */
 export function workspaceMotionDirection(from:WorkspaceLocation,to:WorkspaceLocation,chartActive=false){
  const previous=workspacePages.findIndex(([href])=>href===from.path),next=workspacePages.findIndex(([href])=>href===to.path);
@@ -20,7 +21,7 @@ export function createWorkspaceMotion(){
   if(!direction||reduced||typeof node.animate!=="function")return;
   const id=++sequence;
   node.setAttribute("data-workspace-moving",String(id));
-  const animation=node.animate([from,{transform:"translateX(0px)",opacity:1}],{duration:200,easing:"cubic-bezier(.22,1,.36,1)",fill:"both"});
+  const animation=node.animate([from,{transform:"translateX(0px)",opacity:1}],{...workspaceMotionTiming,fill:"both"});
   active={id,node,animation};
   const finish=()=>{if(active?.id!==id)return;stop();};
   void animation.finished.then(finish,finish);

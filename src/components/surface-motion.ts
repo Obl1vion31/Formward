@@ -1,19 +1,30 @@
-export type SurfaceMode='sheet'|'drawer'|'anchored'|'center';
+import { workspaceMotionTiming } from "./workspace-motion";
+
+export type SurfaceMode='sheet'|'drawer'|'anchored'|'center'|'workspace-page';
 type Pose={transform:string;clipPath:string;opacity:string};
 const origins=new WeakMap<HTMLElement,{x:number;y:number}>(),animations=new WeakMap<HTMLElement,Animation>();
+
+export function stopSurfaceMotion(node: HTMLElement) {
+ const active=animations.get(node);
+ animations.delete(node);
+ active?.cancel();
+}
 
 /** 容器明确选择方向；按钮位置只属于本次锚定面板，不传给后续详情。 */
 export async function animateSurface(node:HTMLElement,direction:'open'|'close',source?:Element|null,mode:SurfaceMode='anchored',duration?:number):Promise<boolean>{
  const prior=animations.get(node),style=getComputedStyle(node);
  const current:Pose|undefined=prior||direction==='close'?{transform:style.transform,clipPath:style.clipPath,opacity:style.opacity}:undefined;
  if(current)Object.assign(node.style,current);
- prior?.cancel();node.style.animation='none';node.dataset.surfaceMode=mode;node.dataset.surfacePhase=direction==='open'?'opening':'closing';
- // 测量无变换的静止几何，快速反向时不把当前位移重复算入退出距离。
- const savedTransform=node.style.transform;node.style.transform='none';const resting=node.getBoundingClientRect();node.style.transform=savedTransform;
+ stopSurfaceMotion(node);node.style.animation='none';node.dataset.surfaceMode=mode;node.dataset.surfacePhase=direction==='open'?'opening':'closing';
  const full:Pose={transform:'translate(0px,0px)',clipPath:'none',opacity:'1'};
  let folded:Pose;
- if(mode==='sheet')folded={transform:`translateY(${Math.max(resting.height,(globalThis.innerHeight||resting.bottom)-resting.top)+24}px)`,clipPath:'none',opacity:'1'};
- else if(mode==='drawer')folded={transform:`translateX(${Math.max(resting.width,(globalThis.innerWidth||resting.right)-resting.left)+24}px)`,clipPath:'none',opacity:'1'};
+ if(mode==='workspace-page')folded={transform:'translateX(16px)',clipPath:'none',opacity:direction==='open'?'.65':'0'};
+ else if(mode==='sheet'||mode==='drawer'){
+  // 测量无变换的静止几何，快速反向时不把当前位移重复算入退出距离。
+  const savedTransform=node.style.transform;node.style.transform='none';const resting=node.getBoundingClientRect();node.style.transform=savedTransform;
+  folded=mode==='sheet'?{transform:`translateY(${Math.max(resting.height,(globalThis.innerHeight||resting.bottom)-resting.top)+24}px)`,clipPath:'none',opacity:'1'}
+   :{transform:`translateX(${Math.max(resting.width,(globalThis.innerWidth||resting.right)-resting.left)+24}px)`,clipPath:'none',opacity:'1'};
+ }
  else if(mode==='center')folded={transform:'scale(.97)',clipPath:'none',opacity:'0'};
  else{
   const rect=node.getBoundingClientRect();
@@ -24,7 +35,8 @@ export async function animateSurface(node:HTMLElement,direction:'open'|'close',s
  }
  const end=direction==='open'?full:folded;
  if(matchMedia('(prefers-reduced-motion: reduce)').matches||typeof node.animate!=='function'){Object.assign(node.style,end);node.dataset.surfacePhase=direction==='open'?'open':'closed';return true;}
- const animation=node.animate([current??(direction==='open'?folded:full),end],{duration:duration??(direction==='open'?300:210),easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});animations.set(node,animation);
+ const timing=mode==='workspace-page'?workspaceMotionTiming:{duration:direction==='open'?300:210,easing:'cubic-bezier(.2,.8,.2,1)'};
+ const animation=node.animate([current??(direction==='open'?folded:full),end],{duration:duration??timing.duration,easing:timing.easing,fill:'forwards'});animations.set(node,animation);
  try{await animation.finished;}catch{return false;}
  if(animations.get(node)!==animation)return false;
  // 先提交末态再撤销动画；退出容器在卸载前始终留在屏幕外。

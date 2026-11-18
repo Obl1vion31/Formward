@@ -52,7 +52,10 @@
   z-index: 45;
   overflow: hidden;
 }
-:global(.workspace-shell):has(> .assistantPage) > :not(.assistantPage) { visibility: hidden; }
+.workspaceContent { display: contents; }
+.workspaceContent[data-assistant-covered] > * { visibility: hidden; }
+.assistantPage[hidden] { display: none; }
+.assistantPage[data-assistant-phase="closing"] { pointer-events: none; }
 .pageHeading {
   flex: none;
   display: grid;

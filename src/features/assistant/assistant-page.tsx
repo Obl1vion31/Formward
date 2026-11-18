@@ -1,13 +1,15 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { lockPageScroll } from "@/components/scroll-lock";
+import { animateSurface, stopSurfaceMotion } from "@/components/surface-motion";
 import { useAssistant } from "./context";
 import { useAssistantChat } from "./chat-client";
 import { AssistantChatView, ChatHeaderActions, ChatNavigation, type ChatTab } from "./chat-view";
 import { ChatHistory } from "./chat-history";
 import { AssistantTasks } from "./assistant-tasks";
+import type { AssistantPageState } from "./page-navigation";
 import { HistoryIcon } from "./surface";
 import styles from "./surface.module.css";
 
@@ -18,75 +20,107 @@ function setHistoryView(value: string | null, steps: number, replace = false) {
   const url = new URL(window.location.href);
   if (value) url.searchParams.set("history", value);
   else url.searchParams.delete("history");
-  window.history[replace ? "replaceState" : "pushState"]({ formwardAssistantHistory: steps }, "", url);
+  window.history[replace ? "replaceState" : "pushState"]({
+    formwardAssistantEntry: window.history.state?.formwardAssistantEntry,
+    formwardAssistantHistory: steps,
+  }, "", url);
 }
 
-export function AssistantPage({ fromWorkspace = false }: { fromWorkspace?: boolean }) {
+export function AssistantWorkspace({ children }: { children: ReactNode }) {
+  const { page } = useAssistant();
+  return <div className="workspace-shell">
+    <div className={styles.workspaceContent} data-assistant-covered={!!page && !page.motion || undefined}
+      inert={!!page && page.motion?.direction !== "close"}>{children}</div>
+    <AssistantPage page={page}/>
+  </div>;
+}
+
+function AssistantPage({ page }: { page: AssistantPageState | null }) {
   const router = useRouter();
-  const params = useSearchParams();
-  const { source, tasks, count } = useAssistant();
+  const entryId = page?.entryId ?? null, motion = page?.motion;
+  const params = new URLSearchParams(page?.query);
+  const { backFromPage, completePageMotion, tasks, count } = useAssistant();
   const chat = useAssistantChat();
-  const [selected, setSelected] = useState<ChatTab | null>(null);
-  const tab = selected ?? (params.get("view") === "tasks" || !chat.enabled ? "tasks" : "chat");
+  const [selection, setSelection] = useState<{ entryId: string | null; tab: ChatTab } | null>(null);
+  const selectTab = (tab: ChatTab) => setSelection({ entryId, tab });
+  const tab = selection?.entryId === entryId ? selection.tab : (params.get("view") === "tasks" || !chat.enabled ? "tasks" : "chat");
   const history = params.get("history");
   const conversation = history && validConversation.test(history) ? history : null;
+  const closing = motion?.direction === "close";
+  const shown = !!page;
+  const interactive = shown && !closing;
+  const container = useRef<HTMLElement>(null);
   const historyButton = useRef<HTMLButtonElement>(null);
   const pageTitle = useRef<HTMLHeadingElement>(null);
   const leftHistory = useRef(false);
 
+  useLayoutEffect(() => { if (interactive) return lockPageScroll(); }, [interactive]);
   useLayoutEffect(() => {
-    const unlock = lockPageScroll();
-    pageTitle.current?.focus({ preventScroll: true });
-    return unlock;
+    if (!interactive) return;
+    const frame = requestAnimationFrame(() => pageTitle.current?.focus({ preventScroll: true }));
+    return () => cancelAnimationFrame(frame);
+  }, [entryId, interactive]);
+  useLayoutEffect(() => {
+    const node = container.current;
+    return () => { if (node) stopSurfaceMotion(node); };
   }, []);
   useLayoutEffect(() => {
-    if (!history && leftHistory.current) historyButton.current?.focus({ preventScroll: true });
+    const node = container.current;
+    if (!node) return;
+    const clearPose = () => {
+      node.style.removeProperty("transform");
+      node.style.removeProperty("clip-path");
+      node.style.removeProperty("opacity");
+    };
+    if (!shown) { stopSurfaceMotion(node); clearPose(); return; }
+    if (!motion) return;
+    void animateSurface(node, motion.direction, null, "workspace-page").then(completed => {
+      if (!completed) return;
+      if (motion.direction === "open") clearPose();
+      completePageMotion(motion);
+    });
+  }, [shown, motion, completePageMotion]);
+  useLayoutEffect(() => {
+    if (!closing && !history && leftHistory.current) historyButton.current?.focus({ preventScroll: true });
     leftHistory.current = !!history;
-  }, [history]);
+  }, [history, closing]);
   useEffect(() => {
-    const openReview = () => setSelected("chat");
+    if (!interactive) return;
+    const openReview = () => setSelection({ entryId, tab: "chat" });
     window.addEventListener("formward-assistant-preview", openReview);
     return () => window.removeEventListener("formward-assistant-preview", openReview);
-  }, []);
+  }, [entryId, interactive]);
 
-  function backToWorkspace() {
-    if (fromWorkspace && source) router.back();
-    else router.replace("/dashboard");
-  }
   function backInHistory() {
     if (window.history.state?.formwardAssistantHistory) router.back();
     else setHistoryView(conversation ? "list" : null, 0, true);
   }
   function continueChat() {
-    setSelected("chat");
+    selectTab("chat");
     const steps = window.history.state?.formwardAssistantHistory;
     if (steps === 1 || steps === 2) window.history.go(-steps);
     else setHistoryView(null, 0, true);
   }
 
-  return <main className={styles.assistantPage} data-assistant-page>
+  return <main ref={container} className={styles.assistantPage} data-assistant-page={shown || undefined} hidden={!shown}
+    inert={!interactive} aria-hidden={!interactive || undefined} data-assistant-phase={closing ? "closing" : motion ? "opening" : "open"}>
     <div className={styles.pageHeading} inert={!!history}>
       <header>
-        <button className={styles.pageIcon} type="button" aria-label="返回工作区" onClick={backToWorkspace}>
+        <button className={styles.pageIcon} type="button" aria-label="返回工作区" onClick={backFromPage}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
         </button>
         <h1 ref={pageTitle} tabIndex={-1}>小助手</h1>
         <div className={styles.pageActions}>
           <button ref={historyButton} type="button" className={styles.pageIcon} aria-label="历史会话" onClick={() => setHistoryView("list", 1)}><HistoryIcon/></button>
-          <ChatHeaderActions onNew={() => setSelected("chat")}/>
+          <ChatHeaderActions onNew={() => selectTab("chat")}/>
         </div>
       </header>
-      <ChatNavigation tab={tab} onTab={setSelected} pendingCount={count}/>
+      <ChatNavigation tab={tab} onTab={selectTab} pendingCount={count}/>
     </div>
-    <div className={styles.mainContent} inert={!!history}>
-      <AssistantChatView
-        sidebar={tasks && <AssistantTasks {...tasks} mobile inlineReview={chat.enabled} navigate={allowNavigation}/>}
-        navigate={allowNavigation}
-        tab={tab}
-        page
-        onPreviewBack={() => setSelected("tasks")}
-      />
-    </div>
+    {page && <AssistantPageBody defer={!!page.source} historyOpen={!!history}>
+      <AssistantChatView sidebar={tasks && <AssistantTasks {...tasks} mobile inlineReview={chat.enabled} navigate={allowNavigation}/>}
+        navigate={allowNavigation} tab={tab} page onPreviewBack={() => selectTab("tasks")}/>
+    </AssistantPageBody>}
     {history && <ChatHistory
       page
       conversationId={conversation}
@@ -96,4 +130,16 @@ export function AssistantPage({ fromWorkspace = false }: { fromWorkspace?: boole
       navigate={allowNavigation}
     />}
   </main>;
+}
+
+function AssistantPageBody({ defer, historyOpen, children }: { defer: boolean; historyOpen: boolean; children: ReactNode }) {
+  const [ready, setReady] = useState(!defer);
+  useEffect(() => {
+    if (ready) return;
+    // 给常驻标题、标签和返回键一次独立绘制，再挂载聊天正文。
+    let second = 0;
+    const first = requestAnimationFrame(() => { second = requestAnimationFrame(() => setReady(true)); });
+    return () => { cancelAnimationFrame(first); cancelAnimationFrame(second); };
+  }, [ready]);
+  return <div className={styles.mainContent} inert={historyOpen}>{ready && children}</div>;
 }

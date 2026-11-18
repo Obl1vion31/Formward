@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useContext } from "react";
 import type { AssistantContext } from "./model";
+import type { AssistantPageMotion, AssistantPageState } from "./page-navigation";
 
 export type AssistantTasksState = {
   data: AssistantContext | null;
@@ -16,9 +17,12 @@ type AssistantState = {
   toggle: () => void;
   hide: () => Promise<void>;
   source: AssistantSource | null;
+  page: AssistantPageState | null;
+  backFromPage: () => void;
+  completePageMotion: (motion: AssistantPageMotion) => void;
   tasks: AssistantTasksState | null;
 };
 export const AssistantStateContext = createContext<AssistantState>({
-  open: false, count: 0, toggle() {}, async hide() {}, source: null, tasks: null,
+  open: false, count: 0, toggle() {}, async hide() {}, source: null, page: null, backFromPage() {}, completePageMotion() {}, tasks: null,
 });
 export const useAssistant = () => useContext(AssistantStateContext);
