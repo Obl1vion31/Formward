@@ -60,7 +60,7 @@ async function inspectReturn(page,label,{paired=true,warm=true}={}){
  if(paired){assert.ok(first,label+'缺少回程运动');assert.ok(starts[0],label+'缺少运动启动');if(warm)assert.ok(starts[0].t<=100,label+'起步超过100ms: '+starts[0].t);}
  for(const frame of back)if(!frame.visible&&frame.path!=='/dashboard')assert.equal(frame.sourceVisible,true,label+'等待时原图消失');
  assert.equal(await page.locator('[data-chart-flight],[data-chart-travelling]').count(),0);
-  const position=await page.evaluate(()=>({expected:window.chartOrigin,rail:document.querySelector('[data-metric-rail]').scrollLeft,scroll:scrollY,focus:document.activeElement?.closest('[data-metric-card]')?.dataset.metricCard,active:document.activeElement?{tag:document.activeElement.tagName,role:document.activeElement.getAttribute('role'),label:document.activeElement.getAttribute('aria-label'),cached:!!document.activeElement.closest('[data-workspace-cached]')}:null}));
+  const position=await page.evaluate(()=>({expected:window.chartOrigin,rail:[...document.querySelectorAll('[data-metric-rail]')].find(node=>node.getClientRects().length>0&&!node.closest('[inert]')).scrollLeft,scroll:scrollY,focus:document.activeElement?.closest('[data-metric-card]')?.dataset.metricCard,active:document.activeElement?{tag:document.activeElement.tagName,role:document.activeElement.getAttribute('role'),label:document.activeElement.getAttribute('aria-label'),cached:!!document.activeElement.closest('[data-workspace-cached]')}:null}));
  result.position=position;if(position.expected){assert.ok(Math.abs(position.rail-position.expected.rail)<=1,label+'卡片带未恢复');assert.ok(Math.abs(position.scroll-position.expected.scroll)<=1,label+'页面滚动未恢复');assert.equal(position.focus,position.expected.kind,label+'焦点回到原卡片');}
  return result;
 }
@@ -86,12 +86,12 @@ try{
    await page.goto(config.baseURL+'/dashboard');await settled(page);
    const loops=process.env.FORMWARD_CHART_BODY_ONLY==='1'||process.env.FORMWARD_CHART_POSITION_ONLY==='1'?0:process.env.FORMWARD_CHART_QUICK==='1'?2:width===390||width===1440?20:3;
    for(const kind of ['intake','morning-weight','energy'])for(let i=0;i<loops;i++){
-    await page.locator(`[data-metric-card="${kind}"]`).click();await settled(page);
+    await page.locator(`[data-metric-card="${kind}"]:visible`).click();await settled(page);
     await overview(page).click();await inspectReturn(page,`${width}-${kind}-${i+1}`);
     if(i===0||i===loops-1)await page.screenshot({path:out+`/${width}-${kind}-return-${i+1}.png`});
    }
-   await page.getByRole('button',{name:'90D',exact:true}).click();await page.locator('[data-metric-card="intake"]').click();await settled(page);await overview(page).click();const remembered=await inspectReturn(page,`${width}-overview-range`);assert.equal(remembered.startedRange,'90D','返回首帧保留已应用区间');assert.equal(await page.getByRole('button',{name:'90D',exact:true}).getAttribute('aria-pressed'),'true');await page.getByRole('button',{name:width<700?'7D':'30D',exact:true}).click();
-   await page.locator('[data-metric-card="morning-weight"]').click();await settled(page);
+   await page.getByRole('button',{name:'90D',exact:true}).click();await page.locator('[data-metric-card="intake"]:visible').click();await settled(page);await overview(page).click();const remembered=await inspectReturn(page,`${width}-overview-range`);assert.equal(remembered.startedRange,'90D','返回首帧保留已应用区间');assert.equal(await page.getByRole('button',{name:'90D',exact:true}).getAttribute('aria-pressed'),'true');await page.getByRole('button',{name:width<700?'7D':'30D',exact:true}).click();
+   await page.locator('[data-metric-card="morning-weight"]:visible').click();await settled(page);
    for(const range of ['custom','7D','30D']){
     if(range!=='custom')await page.getByRole('button',{name:range,exact:true}).click();
     const evening=page.getByRole('checkbox',{name:'晚间数据'});await evening.uncheck();await page.waitForTimeout(200);
@@ -113,14 +113,14 @@ try{
    }
    if(process.env.FORMWARD_CHART_BODY_ONLY==='1'){console.log(JSON.stringify({width,body:body.length}));continue;}
    await overview(page).click();await inspectReturn(page,`${width}-changed-indicator`,{paired:false});
-   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('[data-metric-card="energy"]').click();await settled(page);
+   await page.emulateMedia({reducedMotion:'reduce'});await page.locator('[data-metric-card="energy"]:visible').click();await settled(page);
    await overview(page).click();await inspectReturn(page,`${width}-reduced`,{paired:false});await page.emulateMedia({reducedMotion:'no-preference'});
-   await page.locator('[data-metric-card="intake"]').click();await settled(page);
+   await page.locator('[data-metric-card="intake"]:visible').click();await settled(page);
    await delay(650);await overview(page).click();await inspectReturn(page,`${width}-slow`,{warm:false});await delay(0);
-   await page.locator('[data-metric-card="energy"]').click();await page.waitForTimeout(40);await overview(page).click();await inspectReturn(page,`${width}-quick-reverse`,{warm:false});
-   await page.locator('[data-metric-card="morning-weight"]').click();await settled(page);
+   await page.locator('[data-metric-card="energy"]:visible').click();await page.waitForTimeout(40);await overview(page).click();await inspectReturn(page,`${width}-quick-reverse`,{warm:false});
+   await page.locator('[data-metric-card="morning-weight"]:visible').click();await settled(page);
    await page.evaluate(()=>{window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];});await page.goBack();await inspectReturn(page,`${width}-browser-back`,{warm:false});
-   await page.locator('[data-metric-card="intake"]').click();await settled(page);await delay(650);await overview(page).click();
+   await page.locator('[data-metric-card="intake"]:visible').click();await settled(page);await delay(650);await overview(page).click();
    await page.getByRole('navigation',{name:'主导航',exact:true}).getByRole('link',{name:'身体',exact:true}).click();await page.waitForURL(url=>url.pathname==='/dashboard/measurements');await settled(page);
    assert.equal(await page.locator('[data-workspace-frame=body]').count(),1);assert.equal(await page.locator('[data-chart-flight],[data-return-covered]').count(),0);await delay(0);
    console.log(JSON.stringify({width,returns:results.length,body:body.length}));
