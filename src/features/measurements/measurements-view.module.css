@@ -142,6 +142,21 @@
 @keyframes inspector-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
 @keyframes inspector-shade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes inspector-shade-out { from { opacity: 1; } to { opacity: 0; } }
+
+@media (max-width: 700px), (hover: none) and (pointer: coarse) {
+  .drawer::backdrop,
+  .drawer[data-surface-phase="closing"]::backdrop {
+    background: #0007;
+    transition: none;
+  }
+  .drawer[data-motion]::backdrop { animation: none; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .drawer[data-surface-phase="opening"]::backdrop { animation: inspector-shade-in 300ms cubic-bezier(.2, .8, .2, 1) both; }
+    .drawer[data-surface-phase="closing"]::backdrop { animation: inspector-shade-out 210ms cubic-bezier(.2, .8, .2, 1) both; }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .drawer[data-motion], .drawer[data-motion]::backdrop { animation: none; }
 }
