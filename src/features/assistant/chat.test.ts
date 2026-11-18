@@ -261,6 +261,7 @@ test("历史会话按账号和用途隔离、同时间游标无遗漏；继续�
  const hidden=randomUUID();await db.insert(schema.assistantConversation).values([{id:hidden,userId:ownerId,purpose:"meal_entry",active:false},{id:randomUUID(),userId:outsider,active:false}]);
  const first=await listChatConversations(db,ownerId);assert.equal(first.items.length,20);assert.ok(first.next);const second=await listChatConversations(db,ownerId,first.next!);
  const listed=[...first.items,...second.items];let cursor=second.next;while(cursor){const page=await listChatConversations(db,ownerId,cursor);listed.push(...page.items);cursor=page.next;}assert.equal(new Set(listed.map(item=>item.id)).size,listed.length);for(const id of ids)assert.ok(listed.some(row=>row.id===id));assert.ok(!listed.some(row=>row.id===hidden));
+ assert.equal(listed.find(row=>row.id===ids[0])?.title,"历史问题0");
  const old=await chatSnapshot(db,ownerId,undefined,undefined,ids[0]);assert.equal(old.messages[0].text,"历史问题0");assert.equal((await currentConversation(db,ownerId)).id,base.id);
  await assert.rejects(()=>chatSnapshot(db,outsider,undefined,undefined,ids[0]),/不存在|不属于/);
  await assert.rejects(()=>controlChat(db,ownerId,{action:"select_conversation",conversationId:hidden}),/不存在|不属于/);

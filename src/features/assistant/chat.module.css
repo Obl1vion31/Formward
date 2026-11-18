@@ -84,3 +84,5 @@
 @media(max-width:700px),(hover:none) and (pointer:coarse){.navigation .navTabs{display:flex}.navigation .navSelect{display:none}.navigation .navTabs button{flex:1;padding:6px 3px;min-width:0;font-size:16px;border-radius:22px}.navigation .navTabs button[aria-selected=true]{background:var(--warm-white);color:var(--surface)}.navTabs button[aria-selected=true] .tabLabel::after{content:none}.tabBadge{display:none}.navigation{width:100%}}
 
 .navigation .navTabs{display:flex!important}.navigation .navSelect{display:none!important}.navTabs button[aria-selected=true] .tabLabel::after{display:none}.navigation .navTabs button{min-width:0;flex:1;padding:6px 4px;border-radius:22px;min-height:40px;color:var(--muted)}.navigation .navTabs button[aria-selected=true]{background:var(--warm-white);color:var(--surface)}.tabBadge{display:none}
+
+.navigation .navTabs{padding:0}.navigation .navTabs button{min-height:44px}

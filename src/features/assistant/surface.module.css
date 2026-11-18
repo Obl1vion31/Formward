@@ -72,3 +72,5 @@
 .historyMessages img{display:block;max-width:180px;max-height:200px;width:auto;height:auto;border-radius:12px;margin-top:8px}.history footer p{font-size:13px;color:var(--muted)}
 
 .surface[data-chat=true] .heading{height:64px;box-sizing:border-box}.historyMessages img{display:block;max-width:220px;max-height:220px;width:auto;height:auto;border-radius:12px;margin:8px 0}.historyMessages article[data-role=user] img{margin-left:auto}
+
+.mainContent>*{width:100%;min-width:0}.surface .reviewEntry{display:block;width:100%;min-height:44px;padding:0;border:0;background:none;color:var(--warm-white);text-align:left;text-decoration:none;font:inherit;border-radius:6px}.reviewEntry:hover{background:var(--surface-hover)}.historySize{display:none}@media(max-width:700px),(hover:none) and (pointer:coarse){.historySize{display:inline-block}.history>header>div{display:flex;gap:8px}.surface[data-chat=true] .grabHandle{pointer-events:none}}
