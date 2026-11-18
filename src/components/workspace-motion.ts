@@ -18,10 +18,32 @@ export function animateWorkspaceScene(previous:HTMLElement,body:HTMLElement,dire
   {transform:`translateX(${8*sign}px)`},
   {transform:"translateX(0)"}
  ],{duration:200,easing:"cubic-bezier(.32,0,.25,1)",fill:"both"});
- void exit.finished.catch(()=>{});
- const revealTimer=window.setTimeout(reveal,48);
- void enter.finished.then(finish,()=>{});
- return ()=>{window.clearTimeout(revealTimer);exit.cancel();enter.cancel();};
+ // 等到真正可绘制的帧再计时，避免准备目标布局时消耗整段离场动画。
+ for (const animation of [exit,enter]) {
+  animation.pause();
+  animation.currentTime=0;
+  void animation.finished.catch(()=>{});
+ }
+ let previousFrame:number|undefined,elapsed=0,revealed=false;
+ let frame=0;
+ function step(now:number){
+  if(previousFrame!==undefined)elapsed=Math.min(200,elapsed+Math.min(50,now-previousFrame));
+  previousFrame=now;
+  exit.currentTime=elapsed;
+  enter.currentTime=elapsed;
+  if(!revealed&&elapsed>=48){revealed=true;reveal();}
+  if(elapsed<200)frame=requestAnimationFrame(step);
+  else finish();
+ }
+ const visibilityChanged=()=>{if(document.hidden)finish();};
+ document.addEventListener("visibilitychange",visibilityChanged);
+ frame=requestAnimationFrame(step);
+ return ()=>{
+  document.removeEventListener("visibilitychange",visibilityChanged);
+  cancelAnimationFrame(frame);
+  exit.cancel();
+  enter.cancel();
+ };
 }
 /** 普通模块导航才移动正文；图形交接、录入与日期详情保留自己的容器。 */
 export function workspaceMotionDirection(from:WorkspaceLocation,to:WorkspaceLocation,chartActive=false){

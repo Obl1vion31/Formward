@@ -21,7 +21,7 @@ function host(){
  const attributes=new Map(),animations=[];
  return {attributes,animations,setAttribute:(key,value)=>attributes.set(key,value),removeAttribute:key=>attributes.delete(key),animate:(frames,options)=>{
   let resolve,reject;const finished=new Promise((yes,no)=>{resolve=yes;reject=no;});
-  const animation={frames,options,finished,playState:'running',cancel(){this.playState='idle';reject(new Error('cancelled'));},finish(){this.playState='finished';resolve();}};
+  const animation={frames,options,finished,currentTime:null,playState:'running',pause(){this.playState='paused';},cancel(){this.playState='idle';reject(new Error('cancelled'));},finish(){this.playState='finished';resolve();}};
   animations.push(animation);return animation;
  }};
 }
@@ -43,11 +43,16 @@ test('减少动态效果、退出和不支持动画时保持内容可见并清�
  motion.play(node,0);assert.equal(node.animations.length,1);
 });
 
-test("来回正文在同一个200毫秒时间轴内交接，中断取消对应两层", async t=>{
- t.mock.timers.enable({apis:["setTimeout"]});
- const window=globalThis.window;
- globalThis.window={setTimeout,clearTimeout};
- t.after(()=>{if(window)globalThis.window=window;else delete globalThis.window;});
+test("正文按同一帧推进，掉帧保留交接过程，取消清理两层", async t=>{
+ const names=["requestAnimationFrame","cancelAnimationFrame","document"];
+ const original=Object.fromEntries(names.map(name=>[name,globalThis[name]]));
+ t.after(()=>{for(const name of names){if(original[name]===undefined)delete globalThis[name];else globalThis[name]=original[name];}});
+ const queue=new Map(),listeners=new Set();
+ let next=0;
+ globalThis.requestAnimationFrame=callback=>{queue.set(++next,callback);return next;};
+ globalThis.cancelAnimationFrame=id=>queue.delete(id);
+ globalThis.document={hidden:false,addEventListener:(_,callback)=>listeners.add(callback),removeEventListener:(_,callback)=>listeners.delete(callback)};
+ function frame(at){const callbacks=[...queue.values()];queue.clear();callbacks.forEach(callback=>callback(at));}
  for(const direction of ["forward","back"]){
   const source=host(),destination=host(),events=[];
   const stop=animateWorkspaceScene(source,destination,direction,()=>events.push("reveal"),()=>events.push("finish"));
@@ -57,12 +62,25 @@ test("来回正文在同一个200毫秒时间轴内交接，中断取消对应�
   assert.ok(enter.frames.every(frame=>frame.opacity===undefined));
   assert.equal(exit.frames.at(-1).transform,direction==="forward"?"translateX(-6px)":"translateX(6px)");
   assert.equal(enter.frames[0].transform,direction==="forward"?"translateX(8px)":"translateX(-8px)");
+  frame(100);
+  assert.equal(enter.currentTime,0);
   if(direction==="forward"){
-   t.mock.timers.tick(50);
-   enter.finish();await Promise.resolve();assert.deepEqual(events,["reveal","finish"]);
+   frame(350);
+   assert.equal(enter.currentTime,50);
+   assert.equal(exit.currentTime,50);
+   assert.deepEqual(events,["reveal"]);
+   for(const now of [400,450,500])frame(now);
+   assert.equal(enter.currentTime,200);
+   assert.deepEqual(events,["reveal","finish"]);
   }else{
-   stop();t.mock.timers.tick(200);await Promise.resolve();
-   assert.deepEqual(events,[]);assert.equal(exit.playState,"idle");assert.equal(enter.playState,"idle");
+   stop();frame(200);
+   assert.deepEqual(events,[]);
   }
+  stop();
+  await Promise.resolve();
+  assert.equal(queue.size,0);
+  assert.equal(listeners.size,0);
+  assert.equal(exit.playState,"idle");
+  assert.equal(enter.playState,"idle");
  }
 });
