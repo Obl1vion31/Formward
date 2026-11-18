@@ -107,7 +107,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   useEffect(() => { if (!draft.trim() && !photos.length) return; const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; }; window.addEventListener("beforeunload", protect); return () => window.removeEventListener("beforeunload", protect); }, [draft, photos]);
   async function control(action: Parameters<ChatClient["control"]>[0], provider?: ChatProvider, conversationId?:string) {
     if ((!canChat&&action!=="stop") || mutating.current) return false;
-    if(action==="select_conversation"&&(running||uploading))return false;
+    if((action==="select_conversation"||action==="new")&&(running||uploading))return false;
     if (action === "new" && (draft.trim() || photos.length || messages.some(row => row.references.some(ref => ref.kind === "preview")))) {
       if (!await confirmAction({ title: "开始新对话？", message: "当前输入将清空，已有提交仍可在AI提交记录中查看和确认。", confirmLabel: "开始新对话", cancelLabel: "继续当前对话" })) return false;
     }

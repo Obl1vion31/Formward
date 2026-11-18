@@ -19,7 +19,7 @@ function ArrivingMessage({message,eligible,className,children}:{message:ChatMess
 }
 export function ChatHeaderActions({onNew}:{onNew?:()=>void}) {
   const chat = useAssistantChat();
-  return <button type="button" className={styles.icon} title="新对话" aria-label="新对话" disabled={!chat.enabled || chat.busy || chat.managing || !chat.data} onClick={() => void chat.control("new").then(ok=>{if(ok)onNew?.();})}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m14 5 5 5M4 20l4-1L20 7a2.1 2.1 0 0 0-3-3L5 16z"/></svg></button>;
+  return <button type="button" className={styles.icon} title="新对话" aria-label="新对话" disabled={!chat.enabled || chat.busy || chat.managing || !!chat.uploading || !chat.data} onClick={() => void chat.control("new").then(ok=>{if(ok)onNew?.();})}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m14 5 5 5M4 20l4-1L20 7a2.1 2.1 0 0 0-3-3L5 16z"/></svg></button>;
 }
 export type ChatTab = "chat" | "tasks";
 export function ChatNavigation({tab,onTab,pendingCount}:{tab:ChatTab;onTab:(value:ChatTab)=>void;pendingCount:number}) {
