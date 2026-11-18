@@ -129,3 +129,21 @@
 
 /* 主热量与其他营养读数共用备注高度，换数据时数字基线不动。 */
 .metrics[data-presentation=nutrition] .metric:first-child .metricNote{min-height:18px}
+
+@media (max-width: 700px), (hover: none) and (pointer: coarse) {
+  .mobileBody .mobileHero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 2px 14px;
+    padding-right: 0;
+  }
+  .mobileBody .mobileAction { position: static; justify-self: end; margin: -4px -4px -10px 0; }
+  .mobileBody .mobilePrimary { grid-column: 1; margin-top: 0; }
+  .mobileBody .mobileSpark { position: static; align-self: end; justify-self: end; grid-area: 2 / 2; }
+  .mobileBody .mobileStats { margin-top: 9px; gap: 4px 14px; }
+}
+@media (min-width: 701px) and (hover: hover) {
+  .metrics[data-presentation=body][data-record-columns="3"] { column-gap: 14px; }
+  .metrics[data-presentation=body] .metric:first-child { padding-inline-start: 20px; }
+}

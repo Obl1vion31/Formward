@@ -34,7 +34,22 @@ function InspectorSurface({title,titleParts,backAction,stableScroll=false,close,
  const drag={
   onPointerDown(event:ReactPointerEvent<HTMLDivElement>){if(!matchMedia("(max-width:700px), (hover:none) and (pointer:coarse)").matches||event.button!==0||closing||blocked||(event.target as Element).closest("button,select,input,textarea,a,summary"))return;const node=ref.current,start=node?new DOMMatrixReadOnly(getComputedStyle(node).transform).m42:0;gesture.current={y:event.clientY,delta:0,start};event.currentTarget.setPointerCapture(event.pointerId);node?.getAnimations().forEach(animation=>animation.cancel());if(node)node.style.transform=`translateY(${start}px)`;},
   onPointerMove(event:ReactPointerEvent<HTMLDivElement>){const g=gesture.current;if(!g)return;g.delta=event.clientY-g.y;if(ref.current)ref.current.style.transform=`translateY(${g.start+(g.delta<0?-Math.sqrt(-g.delta)*2:g.delta)}px)`;},
-  onPointerUp(event:ReactPointerEvent<HTMLDivElement>){const g=gesture.current;gesture.current=null;if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);if(!g)return;if(Math.abs(g.delta)>7)suppressHandle.current=performance.now()+350;if(g.delta<-35)setExpanded(true);else if(g.delta>65){if(expanded&&!fitContent)setExpanded(false);else{void requestClose();return;}}const node=ref.current;if(node){const from=node.style.transform;node.style.transform="";if(!matchMedia("(prefers-reduced-motion:reduce)").matches)node.animate([{transform:from},{transform:"translateY(0)"}],{duration:220,easing:"cubic-bezier(.2,.8,.2,1)"});}},
+  onPointerUp(event:ReactPointerEvent<HTMLDivElement>){const g=gesture.current;gesture.current=null;if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);if(!g)return;if(Math.abs(g.delta)>7)suppressHandle.current=performance.now()+350;const node=ref.current;
+   const release=()=>{
+    if(!node)return;
+    const from=node.style.transform;node.style.transform="";
+    if(!matchMedia("(prefers-reduced-motion:reduce)").matches)node.animate([{transform:from},{transform:"translateY(0)"}],{duration:220,easing:"cubic-bezier(.2,.8,.2,1)"});
+   };
+   if(g.delta<-35&&!fitContent)setExpanded(true);
+   if(g.delta>65){
+    if(expanded&&!fitContent)setExpanded(false);
+    else{
+     if([...drafts.current.values()].some(state=>state.dirty)||before.current)release();
+     void requestClose().finally(()=>{if(node?.open&&node.style.transform)node.style.transform="";});
+     return;
+    }
+   }
+   release();},
   onPointerCancel(){gesture.current=null;if(ref.current)ref.current.style.transform="";}
  };
  const backdrop=useBackdropDismiss(()=>{void requestClose();});

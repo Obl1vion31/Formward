@@ -25,7 +25,7 @@ export function MobileNutritionPlot({dates,groups,mode,selection,linked=false,co
     <svg {...drag} className={styles.chart} style={{height:"auto",maxHeight:"none",touchAction:"pan-y",visibility:measured?undefined:"hidden"}} viewBox={`0 0 ${width} ${height}`} role="group" aria-label="每日摄入，kcal；P、C、F 组成">
       <TrendAxes kind="intake" dates={dates} model={model} width={width} left={left} right={right} top={top} bottom={bottom} fontSize={fontSize} axisClass={styles.axis} gridClass={styles.grid}/>
       <ChartSelectionColumn x={x(selected)} date={selection.selected} column={{left:x(selected)-slot/2,right:x(selected)+slot/2}} plot={{left,right:width-right,top,bottom}} resetKey={`${width}:${dates.join("|")}`} direct={selection.direct} baselineTick/>
-      <TrendGlyph target={measured>0} model={model} x={left} y={top} width={plotWidth} height={plotHeight}/>
+      <TrendGlyph rangeMotion target={measured>0} model={model} x={left} y={top} width={plotWidth} height={plotHeight}/>
       {dates.map((date,index)=>{const group=byDate.get(date), value=group?.totals.values.caloriesKcal;return <g key={date} role="button" data-bar-date={date} data-chart-date={date} aria-pressed={selection.selected===date} tabIndex={selection.selected===date?0:-1} aria-label={`${date}，摄入 ${formatNutrition(value??null,"caloriesKcal")} kcal${group&&group.day.status!=="complete"?"，当天"+(group.day.status==="incomplete"?"未记全":"待确认"):""}`} onMouseMove={()=>selection.preview(date)} onFocus={event=>selection.focus(event,date)} onClick={()=>selection.activate(date)} onKeyDown={event=>selection.keyDown(event,date)}>
         <rect className={styles.barHit} x={left+index*slot} y={top} width={slot} height={plotHeight+4}/>
       </g>;})}

@@ -6,9 +6,9 @@ test("首次引导只适用真实录入模块，完成标记按账号和模块�
  assert.equal(guideKindForPath("/dashboard"),null);
  assert.equal(guideKindForPath("/dashboard/profile"),null);
  assert.equal(guideKindForPath("/dashboard/meals"),"meals");
- assert.equal(guideKindForPath("/dashboard/measurements"),"body");
+ assert.equal(guideKindForPath("/dashboard/measurements"),null);
  assert.notEqual(recordGuideKey("account-a","meals"),recordGuideKey("account-b","meals"));
- assert.notEqual(recordGuideKey("account-a","meals"),recordGuideKey("account-a","body"));
+ assert.notEqual(recordGuideKey("account-a","meals"),recordGuideKey("account-a","training"));
 });
 test("提示避开目标，适应窄屏、键盘缩小的视口和放大文字",()=>{
  for(const viewport of [{left:0,top:0,width:320,height:560},{left:0,top:180,width:390,height:260},{left:0,top:0,width:1440,height:900}]){

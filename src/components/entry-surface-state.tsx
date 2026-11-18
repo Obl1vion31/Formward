@@ -10,7 +10,7 @@ export function RouteEntryContent(props:InspectorProps){
  const host=useContext(EntrySurfaceContext),latest=useRef(props),{register}=host;
  useLayoutEffect(()=>{latest.current=props;},[props]);
  const close=useCallback(()=>latest.current.close(),[]);
- useLayoutEffect(()=>register({title:props.title,titleParts:props.titleParts,stableScroll:props.stableScroll,wide:props.wide,busy:props.busy,compact:props.compact,className:props.className,close,closeLabel:props.closeLabel,onCloseReady:props.onCloseReady,onSavedCloseReady:props.onSavedCloseReady,customHeader:!!props.header}),[register,close,props.title,props.titleParts,props.stableScroll,props.wide,props.busy,props.compact,props.className,props.closeLabel,props.onCloseReady,props.onSavedCloseReady,props.header]);
+ useLayoutEffect(()=>register({title:props.title,titleParts:props.titleParts,stableScroll:props.stableScroll,wide:props.wide,busy:props.busy,compact:props.compact,fitContent:props.fitContent,className:props.className,close,closeLabel:props.closeLabel,onCloseReady:props.onCloseReady,onSavedCloseReady:props.onSavedCloseReady,customHeader:!!props.header}),[register,close,props.title,props.titleParts,props.stableScroll,props.wide,props.busy,props.compact,props.fitContent,props.className,props.closeLabel,props.onCloseReady,props.onSavedCloseReady,props.header]);
  const protect=(content:ReactNode)=>host.guards?<InspectorBusyContext value={host.guards.busy}><DraftGuardContext value={host.guards.register}><DraftCloseContext value={host.guards.close}>{content}</DraftCloseContext></DraftGuardContext></InspectorBusyContext>:content;
  return <>{host.slot&&createPortal(protect(props.children),host.slot)}{host.headerSlot&&props.header&&createPortal(protect(props.header),host.headerSlot)}</>;
 }

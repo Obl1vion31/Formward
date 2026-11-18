@@ -47,7 +47,9 @@ export function AssistantTasks({ data, error, loading, retry, dismissItem, mobil
     {error&&<div role="alert">{error}<button type="button" onClick={retry}>重新读取</button></div>}
     {!data&&loading&&<div className={styles.muted}><LocalLoading label="正在读取事项…"/></div>}
     <TaskGroup kind="supplements" title="按需补记" description="查看需要补记的记录" count={data?supplements.length+" 项":"…"} open={supplementsOpen} onToggle={()=>setSupplementsOpen(value=>!value)}>{supplements.length?items(supplements):data&&<p className={styles.muted}>暂无需要补记的事项</p>}</TaskGroup>
-    <TaskGroup kind="reviews" title="AI 确认" description="核对待保存的提交" count={data?reviews.length+" 项":"…"} open={reviewOpen??hasReviews} onToggle={()=>setReviewOpen(!(reviewOpen??hasReviews))}>{reviews.length?items(reviews):data&&<p className={styles.muted}>暂无待确认提交</p>}</TaskGroup>
+    <TaskGroup kind="reviews" title="AI 确认" description={data&&!hasReviews?"暂无待确认提交":"核对待保存的提交"}
+      count={data?reviews.length+" 项":"…"} open={hasReviews&&(reviewOpen??true)}
+      onToggle={hasReviews?()=>setReviewOpen(value=>!(value??true)):undefined}>{hasReviews&&items(reviews)}</TaskGroup>
     <TaskGroup kind="tools" title="常用功能" description="使用说明、AI 接入等" count={assistantTools.length+2+" 个功能"} open={tools} onToggle={()=>{setTools(value=>!value);setGuides(false);}}>
       <nav id="assistant-tools" className={styles.toolsList} aria-label="常用功能">{guides?<><button type="button" onClick={()=>setGuides(false)}>返回常用功能</button>{(Object.keys(recordGuides) as RecordGuideKind[]).map(kind=><button type="button" key={kind} onClick={async()=>{if(await navigate())await replay(kind);}}>重播{recordGuides[kind].label}录入引导</button>)}</>:<>{training.length>0&&items(training)}<LoadingLink href={"/dashboard/training?date="+today} beforeNavigate={navigate}>训练计划</LoadingLink>{assistantTools.map(action=><LoadingLink key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}</LoadingLink>)}<button type="button" onClick={()=>setGuides(true)}>重播操作引导</button></>}</nav>
     </TaskGroup>

@@ -138,8 +138,8 @@
   text-align: left;
   color: var(--warm-white);
   font: inherit;
-  cursor: pointer;
 }
+.content .taskGroup > button.groupToggle { cursor: pointer; }
 .groupIcon { width: 20px; height: 20px; flex: none; color: var(--gold); }
 .groupCopy { flex: 1; min-width: 0; display: grid; gap: 3px; }
 .groupCopy strong { font-size: 1rem; line-height: 1.35; font-weight: 600; }
