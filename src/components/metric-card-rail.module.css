@@ -21,8 +21,8 @@
  .card{flex:none;width:calc(100% - 24px);scroll-snap-align:start}
 }
 
-.glyph>:global(.module-skeleton){min-height:0}
 
 .numberLoading{display:inline-block;position:relative;min-width:4ch}
 .numberMeasure{visibility:hidden}
-.numberLoading>:global(.module-skeleton){position:absolute;inset:3px 0;width:100%;height:auto;min-height:0}
+
+.readingStatus{position:absolute;inset-inline-start:0;top:50%;transform:translateY(-50%);display:flex}

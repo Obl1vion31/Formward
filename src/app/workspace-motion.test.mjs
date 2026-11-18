@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {createWorkspaceMotion,workspaceMotionDirection} from '../components/workspace-motion.ts';
+import {animateWorkspaceScene,createWorkspaceMotion,workspaceMotionDirection} from '../components/workspace-motion.ts';
 const route=(path,search='')=>({path,search});
 const overview=route('/dashboard'),meals=route('/dashboard/meals'),energy=route('/dashboard/energy'),body=route('/dashboard/measurements');
 
@@ -41,4 +41,28 @@ test('减少动态效果、退出和不支持动画时保持内容可见并清�
  motion.play(node,-1,{reduced:true});assert.equal(node.animations.length,1);
  motion.play({...node,animate:undefined},1);assert.equal(node.attributes.size,0);
  motion.play(node,0);assert.equal(node.animations.length,1);
+});
+
+test("来回正文在同一个200毫秒时间轴内交接，中断取消对应两层", async t=>{
+ t.mock.timers.enable({apis:["setTimeout"]});
+ const window=globalThis.window;
+ globalThis.window={setTimeout,clearTimeout};
+ t.after(()=>{if(window)globalThis.window=window;else delete globalThis.window;});
+ for(const direction of ["forward","back"]){
+  const source=host(),destination=host(),events=[];
+  const stop=animateWorkspaceScene(source,destination,direction,()=>events.push("reveal"),()=>events.push("finish"));
+  const [exit]=source.animations,[enter]=destination.animations;
+  assert.equal(enter.options.duration,200);
+  assert.ok(exit.options.duration<enter.options.duration);
+  assert.ok(enter.frames.every(frame=>frame.opacity===undefined));
+  assert.equal(exit.frames.at(-1).transform,direction==="forward"?"translateX(-6px)":"translateX(6px)");
+  assert.equal(enter.frames[0].transform,direction==="forward"?"translateX(8px)":"translateX(-8px)");
+  if(direction==="forward"){
+   t.mock.timers.tick(50);
+   enter.finish();await Promise.resolve();assert.deepEqual(events,["reveal","finish"]);
+  }else{
+   stop();t.mock.timers.tick(200);await Promise.resolve();
+   assert.deepEqual(events,[]);assert.equal(exit.playState,"idle");assert.equal(enter.playState,"idle");
+  }
+ }
 });

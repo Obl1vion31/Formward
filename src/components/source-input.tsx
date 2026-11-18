@@ -1,7 +1,8 @@
 "use client";
 
+import {LocalLoading} from "@/components/local-loading";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
-import { usePageLoading } from "@/components/page-loading-state";
+
 import styles from "./source-input.module.css";
 
 export type SourceRemovalResult = { ok: true; sources: string[] } | { ok: false; error: string };
@@ -15,7 +16,7 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
   const [open, setOpen] = useState(false), [active, setActive] = useState(-1), [column, setColumn] = useState(0);
   const [query, setQuery] = useState("");
   const [error, setError] = useState(""), [busy, startTransition] = useTransition();
-  usePageLoading({ active: busy, label: "正在移除来源建议…" });
+
   useEffect(() => {
     if (!open) return;
     const closeOutside = (event: Event) => {
@@ -45,7 +46,7 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
       finally { removing.current = false; }
     });
   }
-  return <div ref={root} className={styles.sourceInput} onBlur={event => {
+  return <div ref={root} aria-busy={busy||undefined} className={styles.sourceInput} onBlur={event => {
     // 手机收起键盘／点历史时可能没有 relatedTarget，不能在点击前隐藏候选。
     if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) closeHistory();
   }} onKeyDown={event => {
@@ -81,6 +82,6 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
       </div>)}
       {!options.length && <div role="row"><div role="gridcell" className={styles.sourceEmpty}>{sources.length ? "没有匹配的来源。" : "暂无历史来源。"}</div></div>}
     </div>
-    {error && <p role="alert" className={styles.error}>{error}</p>}
+    {busy&&<LocalLoading label="正在移除来源建议…"/>}{error && <p role="alert" className={styles.error}>{error}</p>}
   </div>;
 }

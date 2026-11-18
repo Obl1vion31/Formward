@@ -1,4 +1,5 @@
 "use client";
+import {TrendAxes} from "@/components/trend-axes";
 import {ChartPreparation} from "@/components/chart-preparation";
 import {useId,useRef,useState} from "react";
 import {useChartViewport} from "@/components/use-chart-viewport";
@@ -7,11 +8,11 @@ import {useChartDrag} from "@/components/use-chart-drag";
 import type {useChartDateSelection} from "@/components/use-chart-date-selection";
 import {ChartSelectionColumn,ChartSelectionPoint} from "@/components/chart-selection-marker";
 import {formatRecordNumber} from "@/components/number-format";
-import {displayRecordDate,shortRecordDate} from "@/components/record-dates";
+import {displayRecordDate} from "@/components/record-dates";
 import {TrendGlyph} from "@/components/trend-glyph";
 import {metricTrendModel} from "@/components/metric-trend-model";
 import {useMobileMode} from "@/components/use-mobile-mode";
-import {addCalendarDays,calendarOrdinal,measurementDateTicks,measurementTrend,normalScale,type MeasurementInterval,type MeasurementMetric} from "./trend";
+import {addCalendarDays,calendarOrdinal,measurementTrend,normalScale,type MeasurementInterval,type MeasurementMetric} from "./trend";
 import type {MeasurementDisplay} from "./entry-state";
 import styles from "./measurements-view.module.css";
 const unitFor=(metric:MeasurementMetric)=>metric==="weightKg"?"kg":"%";
@@ -45,7 +46,6 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
     right: index < pointDays.length - 1 ? (x(date) + x(pointDays[index + 1])) / 2 : width,
   }]));
   const pointByPeriod = new Map(points.map(row => [`${row.recordDate}:${row.period}`, row]));
-  const ticks = measurementDateTicks(interval, Math.max(2,Math.min(4,Math.floor(plotWidth/(fontSize*3+16)))));
   const unit = unitFor(metric);
   const pointLabel = (row: MeasurementDisplay) => `${displayRecordDate(row.recordDate)} · ${row.period === "daytime" ? "晨间" : "晚间"} · ${formatRecordNumber(row[metric])} ${unit}`;
   const hintedRecord = points.find((row) => row.id === hintRecordId && row.recordDate===selectedDate && selection.active) ?? points.find(row => row.recordDate === selectedDate && row.period === (selectedPeriod ?? "daytime")) ?? points.find(row => row.recordDate === selectedDate);
@@ -62,8 +62,7 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
       <ChartPreparation active={!viewportWidth}/>
       <svg {...drag} className={styles.plot} style={{touchAction:"pan-y", height:compact?"auto":undefined, maxHeight:"none", visibility: viewportWidth > 0 ? undefined : "hidden"}} width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={`${metricName(metric)}趋势，数值越高位置越高`}>
         <title>{`${metricName(metric)}趋势`}</title>
-        {scale.ticks.filter((_,i)=>i%Math.max(1,Math.ceil(Math.max(24,fontSize*1.6)*(scale.ticks.length-1)/plotHeight))===0).map((value) => <g key={value}><line x1={left} x2={width-right} y1={y(String(value))} y2={y(String(value))} className={styles.grid} /><text x={left-8} y={y(String(value)) + 4} textAnchor="end" className={styles.axis}>{value.toFixed(1)}</text></g>)}
-        {ticks.map((date) => <text key={date} x={x(date)} y={height-10} textAnchor={date===interval.start?"start":date===interval.end?"end":"middle"} className={styles.axis}>{shortRecordDate(date)}</text>)}
+        <TrendAxes kind="morning-weight" dates={dates} model={model} width={width} left={left} right={right} top={top} bottom={plotBottom} fontSize={fontSize} axisClass={styles.axis} gridClass={styles.grid}/>
         <ChartSelectionColumn x={selectedX} date={selectedDate} column={selectedColumn} plot={{left,right:width-right,top,bottom:plotBottom}} resetKey={markerKey} direct={selection.direct}/>
         {(["daytime","evening"] as const).map(period=>{const point=points.find(row=>row.recordDate===selectedDate&&row.period===period);return <ChartSelectionPoint key={period} x={point?x(point.recordDate):null} y={point?y(point[metric]):0} resetKey={markerKey} direct={selection.direct} color={period==="daytime"?"var(--data-weight)":"var(--body-blue)"}/>;})}
         {pairs.map((day) => <line data-pair={day.date} key={day.date} x1={x(day.date)} x2={x(day.date)} y1={y(day.daytimeRecord![metric])} y2={y(day.eveningRecord![metric])} className={styles.pairLine} />)}

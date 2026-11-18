@@ -23,14 +23,14 @@ export function DashboardHeader({ email, owner = false, sourcePilot = false }: {
   const openInformation = useAppInformation();
   const actualPath = usePathname(), mobile = useMobileMode(), [settings, setSettings] = useState<false | "profile" | "account" | "sources">(false), [group, setGroup] = useState<Group>("root");
   const { open: assistantOpen, toggle: toggleAssistant, hide: hideAssistant, count } = useAssistant(), chart = useChartTransition();
-  const pathname=chart.returningToOverview?"/dashboard":actualPath;
+  const pathname=chart.displayPath??actualPath;
   const previousGroup = useRef<Group>("root"), menuClose = useRef<() => Promise<void>>(() => Promise.resolve()), dock = useRef<HTMLDivElement>(null), [pendingAccount, setPendingAccount] = useState<string | null>(null);
   const pendingChanges = useMemo(() => Object.fromEntries(["sources", "profile", "account"].map(kind => [kind, (pending: boolean) => setPendingAccount(current => pending ? kind : current === kind ? null : current)])), []);
   const page = pages.find(([path]) => path === pathname), visualReview = pathname === "/dashboard/visual-review", review = pathname.includes("/operations/") || pathname.includes("/review/"), hasTools = !review && assistantAvailablePage(pathname);
   const openSettings = async (kind: "profile" | "account" | "sources") => { await menuClose.current(); document.querySelector<HTMLElement>('.dashboard-header summary[aria-label="账号菜单"]')?.focus({ preventScroll: true }); setSettings(kind); };
   const openMoreInformation = async () => { await menuClose.current(); document.querySelector<HTMLElement>('.dashboard-header summary[aria-label="账号菜单"]')?.focus({preventScroll: true}); openInformation(); };
   const openAssistant = async () => { await menuClose.current(); toggleAssistant(); };
-  const overview = (event: { preventDefault(): void }) => { if (actualPath !== "/dashboard"||chart.returningToOverview) { event.preventDefault(); void chart.back(); } };
+  const overview = (event: { preventDefault(): void }) => { if (actualPath !== "/dashboard"||chart.returningToOverview||!!chart.forwardDestination) { event.preventDefault(); void chart.back(); } };
   useLayoutEffect(() => {
     const node = dock.current; if (!node || !mobile) return;
     const measure = () => { document.documentElement.style.setProperty("--workspace-dock-inset", Math.ceil(innerHeight - node.getBoundingClientRect().top + 8) + "px"); };

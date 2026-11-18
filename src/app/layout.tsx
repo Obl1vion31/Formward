@@ -5,7 +5,6 @@ import "./globals.css";
 import {appearanceBootstrap} from "@/components/appearance-state";
 import {AppInformationProvider} from "@/components/app-information";
 import {AppUpdates} from "@/components/app-updates";
-import { PageLoadingProvider } from "@/components/page-loading";
 
 // 浏览器标签标题及页面描述；不是首页人物旁显示的正文。
 export const metadata: Metadata = {
@@ -24,7 +23,8 @@ export default async function RootLayout({
       <head><script nonce={nonce} dangerouslySetInnerHTML={{__html:appearanceBootstrap}}/></head>
       <body>
         {process.env.FORMWARD_ENVIRONMENT === "local-assistant-review" && <span className="local-review-label">本机隔离验收 · 虚构数据</span>}
-        <PageLoadingProvider><AppInformationProvider><AppUpdates/>{children}</AppInformationProvider></PageLoadingProvider>
+        {process.env.FORMWARD_LOCAL_PREVIEW === "1" && <div className="local-preview-label">隔离测试 · 虚构数据</div>}
+        <AppInformationProvider><AppUpdates/>{children}</AppInformationProvider>
       </body>
     </html>
   );

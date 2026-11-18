@@ -1,4 +1,5 @@
 "use client";
+import {LocalLoading} from "@/components/local-loading";
 import { useEffect, useState } from "react";
 import { LoadingLink } from "../../components/loading-link";
 import { RecordReview, RecordReviewSummary } from "../records/record-review";
@@ -33,7 +34,7 @@ export function ChatPreviewCard({id,navigate,initialData,initialError,readOnly=f
       ? <RecordReviewSummary operation={currentData.operation} beforeNavigate={navigate}/>
       : <RecordReview embedded beforeNavigate={navigate} operation={currentData.operation} review={review} load={()=>load()} sources={currentData.sources} energySources={currentData.energySources} removeSource={label=>remove("body",label)} removeEnergySource={label=>remove("energy",label)}/>
     : error ? <div role="alert">{error}<button type="button" onClick={()=>setAttempt(value=>value+1)}>重新读取</button><LoadingLink href={"/dashboard/ai/operations/"+id} beforeNavigate={navigate}>打开原审核页面</LoadingLink></div>
-    : <p role="status">正在读取记录摘要…</p>}</div>;
+    : <LocalLoading label="正在读取记录摘要…"/>}</div>;
 }
 
 /** 旧回答可能同时引用读取过的原提交及本次修改；并行读取后统一消除同对象的重复回执。 */
@@ -45,7 +46,7 @@ export function ChatPreviewCards({ids,navigate,readOnly=false}:{ids:string[];nav
   },[key]);
   if(!key)return null;
   if(!key.includes(","))return <ChatPreviewCard id={key} navigate={navigate} readOnly={readOnly}/>;
-  if(entries?.key!==key)return <div className={styles.previewCard} role="status">加载中…</div>;
+  if(entries?.key!==key)return <div className={styles.previewCard}><LocalLoading/></div>;
   const hidden=redundantSavedPreviews([...entries.data.values()].map(row=>row.operation));
   return <>{key.split(",").filter(id=>!hidden.has(id)).map(id=><ChatPreviewCard key={id} id={id} navigate={navigate} readOnly={readOnly} initialData={entries.data.get(id)} initialError={entries.errors.get(id)}/>)}</>;
 }

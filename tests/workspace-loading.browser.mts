@@ -72,7 +72,7 @@ const configPath = folder + "/config-"+process.pid+".json"; await writeFile(conf
 const release=process.env.FORMWARD_LOADING_RELEASE?resolve(process.env.FORMWARD_LOADING_RELEASE):null;
 if(release)assert.ok(release.startsWith(resolve('.codex/regional-releases')+'/')&&release.endsWith('/standalone'),'仅允许本仓库私有发布产物');
 const child = spawn(process.execPath, release?[join(release,'server.js')]:["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)], {
-  env: { PATH: process.env.PATH, LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH, FONTCONFIG_FILE:process.env.FONTCONFIG_FILE, NODE_ENV: "production", PORT:String(port), HOSTNAME:'127.0.0.1', NEXT_TELEMETRY_DISABLED: "1", FORMWARD_DATA_SOURCE_USER_ID: fixture.userId, DATABASE_URL: databaseUrl, BETTER_AUTH_URL: baseURL, BETTER_AUTH_SECRET: "fictional-training-secret-longer-than-32-characters", FORMWARD_TIMEZONE: "Asia/Shanghai" }, stdio: ["ignore", "pipe", "pipe"],
+  env: { PATH: process.env.PATH, LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH, FONTCONFIG_FILE:process.env.FONTCONFIG_FILE, NODE_ENV: "production", PORT:String(port), HOSTNAME:'127.0.0.1', NEXT_TELEMETRY_DISABLED: "1", FORMWARD_DATA_SOURCE_USER_ID: fixture.userId, DATABASE_URL: databaseUrl, BETTER_AUTH_URL: baseURL, BETTER_AUTH_SECRET: "fictional-training-secret-longer-than-32-characters", FORMWARD_TIMEZONE: "Asia/Shanghai", FORMWARD_LOCAL_PREVIEW:process.env.FORMWARD_LOCAL_PREVIEW }, stdio: ["ignore", "pipe", "pipe"],
 });
 let log = ""; child.stdout.on("data", chunk => { log += chunk; }); child.stderr.on("data", chunk => { log += chunk; });
 try {

@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { draftIsBusy, draftIsDirty } from "@/components/draft-guard";
 import { confirmationIsOpen } from "@/components/confirmation-state";
 import { dismissAssistantReminderAction } from "@/app/dashboard/assistant-actions";
@@ -91,6 +91,7 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
     return () => { cancelAnimationFrame(initialFrame);clearInterval(timer); window.removeEventListener("formward-assistant-updated", changed); window.removeEventListener("formward-record-saved", changed); window.removeEventListener("formward-record-context-stale", changed); window.removeEventListener("focus", visible); window.removeEventListener("storage", storage); document.removeEventListener("visibilitychange", visible); };
   }, [accountId, refresh]);
   useEffect(() => { const frame=requestAnimationFrame(()=>{if (phase.current !== "closed") void hide(); if (available || pageOpen) void refresh();});return()=>cancelAnimationFrame(frame); }, [pathname, available, pageOpen, hide, refresh]);
+  const linkedTrend=useSearchParams().get("view")==="trend";
   const pending = useMemo(() => {
     if (!data || !local || data.localDate !== local.date || data.timezone !== local.timezone) return [];
     return data.pending.filter(item => !item.expiresAt || Date.parse(item.expiresAt) > clock);
@@ -102,16 +103,16 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
     return () => clearTimeout(timer);
   }, [pending]);
   useEffect(() => {
-    if (!available || open || error || !pending.length || assistantAlreadyShown(preferenceStore(), accountId, deviceTime().date)) return;
+    if (!available || linkedTrend || open || error || !pending.length || assistantAlreadyShown(preferenceStore(), accountId, deviceTime().date)) return;
     const timer = setTimeout(() => { if (!occupied()) { markAssistantShown(preferenceStore(), accountId, deviceTime().date); setPaused(false); setToast(true); } }, 400);
     return () => clearTimeout(timer);
-  }, [available, open, error, pending, accountId]);
+  }, [available, linkedTrend, open, error, pending, accountId]);
   useEffect(() => { if (!toast || paused) return; const timer = setTimeout(() => setToast(false), 5000); return () => clearTimeout(timer); }, [toast, paused]);
   useEffect(() => () => { generation.current++; request.current?.abort(); }, []);
   const tasks = useMemo(() => ({ data: data ? { ...data, pending } : null, error, loading, retry: () => { void refresh(true); }, dismissItem }), [data, pending, error, loading, refresh, dismissItem]);
   const value = useMemo(() => ({ open: open && available, count: pending.length, toggle, hide, source: page?.source ?? null, page, backFromPage, completePageMotion, tasks }), [open, available, pending.length, toggle, hide, page, backFromPage, completePageMotion, tasks]);
   return <AssistantChatProvider accountId={accountId} enabled={chatEnabled} initialEntitlement={initialEntitlement} open={pageOpen || (open && available)}><AssistantStateContext.Provider value={value}>{children}
-    {toast && available && !open && pending.length > 0 && <aside className={styles.toast} role="status" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false); }}>
+    {toast && !linkedTrend && available && !open && pending.length > 0 && <aside className={styles.toast} role="status" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false); }}>
       <span>{pending.length === 1 ? pending[0].title : `有 ${pending.length} 项待查看`}</span><button type="button" onClick={() => show("tasks")}>查看</button><button type="button" aria-label="关闭提醒" onClick={() => setToast(false)}>×</button>
     </aside>}
     {open && available && <AssistantSurface {...tasks} close={finishHide} requestClose={hide} controllerReady={controllerReady}/>}

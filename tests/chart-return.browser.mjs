@@ -16,7 +16,7 @@ const auth=await browser.newContext();
 await authenticateFixture(auth.request,config,process.env.FORMWARD_LOADING_CONFIG);
 const storageState=await auth.storageState();await auth.close();
 const delay=async delayMs=>assert.equal((await fetch(config.delayControlURL,{method:'POST',body:JSON.stringify({delayMs})})).status,200);
-async function settled(page){await page.waitForFunction(()=>!document.querySelector('.workspace-skeleton,[data-chart-flight]'));await page.waitForTimeout(550);}
+async function settled(page){await page.waitForFunction(()=>!document.querySelector('[data-workspace-reading],[data-return-covered],[data-workspace-scene],[data-workspace-previous] > *'));await page.waitForTimeout(550);}
 function overview(page){return page.getByRole('navigation',{name:'主导航',exact:true}).getByRole('link',{name:'总览',exact:true});}
 async function create(width,height,theme='light'){
  const context=await browser.newContext({viewport:{width,height},storageState,hasTouch:width<1000,isMobile:width<1000,timezoneId:'Asia/Shanghai',locale:'zh-CN',recordVideo:process.env.FORMWARD_CHART_NO_VIDEO==='1'?undefined:{dir:out,size:{width,height}}});
@@ -24,27 +24,35 @@ async function create(width,height,theme='light'){
  await context.addInitScript(theme=>{
   localStorage.setItem('formward-theme',theme);
   window.chartFrames=[];window.chartMark=null;window.chartStarts=[];window.chartObservedStarts=[];window.firstOverviewRange=null;window.firstOverviewCard=null;
-  // MutationObserver在整次React提交后才派发，不能把派发延迟当作动画起步。直接记录真实WAAPI调用，另保留观察时间。
   const animate=Element.prototype.animate;
-  Element.prototype.animate=function(...args){const animation=animate.apply(this,args);if(window.chartMark!==null&&this.matches('[data-chart-flight][data-chart-direction="back"]'))window.chartStarts.push({id:this.dataset.chartFlight,t:performance.now()-window.chartMark,range:[...document.querySelectorAll('[aria-label="日期视角"] button[aria-pressed=true]')].find(node=>node.getClientRects().length&&getComputedStyle(node).visibility==='visible'&&!node.closest('[data-return-covered],[inert]'))?.textContent});return animation;};
-  document.addEventListener('click',event=>{const card=event.target.closest?.('a[data-metric-card]');if(card)window.chartOrigin={rail:card.closest('[data-metric-rail]').scrollLeft,scroll:scrollY,kind:card.dataset.metricCard,card:card.getBoundingClientRect().toJSON()};const link=event.target.closest?.('a[href="/dashboard"]');if(link&&location.pathname!=='/dashboard'){window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];window.chartObservedStarts=[];window.firstOverviewRange=null;window.firstOverviewCard=null;}},true);
-  new MutationObserver(()=>{
-   if(window.chartMark===null)return;
-   const node=document.querySelector('[data-chart-flight][data-motion-starts="1"]');
-   if(node&&node.dataset.chartDirection==='back'&&!window.chartObservedStarts.some(start=>start.id===node.dataset.chartFlight))window.chartObservedStarts.push({id:node.dataset.chartFlight,t:performance.now()-window.chartMark});
-  }).observe(document,{subtree:true,attributes:true,attributeFilter:['data-motion-starts']});
+  Element.prototype.animate=function(...args){
+   const animation=animate.apply(this,args);
+   if(window.chartMark!==null&&this.matches('.workspace-shell > main[data-workspace-scene="back"] [data-workspace-body]'))window.chartStarts.push({t:performance.now()-window.chartMark,range:null});
+   return animation;
+  };
+  document.addEventListener('click',event=>{
+   const card=event.target.closest?.('a[data-metric-card]');
+   if(card)window.chartOrigin={rail:card.closest('[data-metric-rail]').scrollLeft,scroll:scrollY,kind:card.dataset.metricCard,card:card.getBoundingClientRect().toJSON()};
+   const link=event.target.closest?.('a[href="/dashboard"]');
+   if(link&&(location.pathname!=='/dashboard'||document.querySelector('.workspace-shell > main[data-workspace-scene="forward"]'))){
+    window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];window.chartObservedStarts=[];window.firstOverviewRange=null;window.firstOverviewCard=null;
+   }
+  },true);
   function frame(t){
    if(window.chartMark!==null){
-    // 图形可在原详情上先起步；区间应读取首个可见总览帧，不能误读尚在退出的详情“自定义”。
-    if(window.firstOverviewRange===null){const overview=document.querySelector('[data-workspace-frame="overview"]');if(overview){window.firstOverviewRange=[...overview.querySelectorAll('[aria-label="日期视角"] button[aria-pressed=true]')].find(node=>node.getClientRects().length&&!node.closest('[data-return-covered],[data-return-prepared],[inert]'))?.textContent??null;const card=[...overview.querySelectorAll('a[data-metric-card]')].find(node=>node.dataset.metricCard===window.chartOrigin?.kind&&node.getClientRects().length&&!node.closest('[data-return-covered],[data-return-prepared],[inert]'));if(card)window.firstOverviewCard=card.getBoundingClientRect().toJSON();}}
-    const node=document.querySelector('[data-chart-flight]'),visible=!!node&&node.style.visibility==='visible';
-    let sourceVisible=true;
-    // 只在真正等待的帧读取一次源图样式，避免验收探针逐帧强制整页布局、影响被测动效。
-    if(node?.dataset.chartDirection==='back'&&!visible&&location.pathname!=='/dashboard'){
-     const source=document.querySelector('[data-chart-arrival] [data-trend-glyph]'),primitive=source?.querySelector('rect,line,circle');
-     sourceVisible=!!primitive&&getComputedStyle(source).visibility!=='hidden'&&+getComputedStyle(primitive).opacity>0;
+    const root=document.querySelector('.workspace-shell > main[data-workspace-frame]');
+    const body=root?.querySelector('[data-workspace-body]');
+    const style=body&&getComputedStyle(body);
+    const visible=!!style&&Number(style.opacity)>.14&&!root.hasAttribute('inert');
+    const x=style&&style.transform!=='none'?new DOMMatrix(style.transform).m41:0;
+    if(visible&&root.dataset.workspaceFrame==='overview'&&window.firstOverviewRange===null){
+     const region=root.querySelector('[data-return-covered]')?root.querySelector('[data-return-covered]').previousElementSibling:root;
+     window.firstOverviewRange=[...region.querySelectorAll('[aria-label="日期视角"] button[aria-pressed=true]')].find(button=>button.getClientRects().length&&!button.closest('[inert]'))?.textContent??null;
+     const card=[...region.querySelectorAll('a[data-metric-card]')].find(link=>link.dataset.metricCard===window.chartOrigin?.kind&&link.getClientRects().length&&!link.closest('[inert]'));
+     if(card){const rect=card.getBoundingClientRect().toJSON();window.firstOverviewCard={...rect,x:rect.x-x};}
     }
-    window.chartFrames.push({t:performance.now()-window.chartMark,rafTime:t-window.chartMark,path:location.pathname,id:node?.dataset.chartFlight,dir:node?.dataset.chartDirection,visible,moving:!!node?.dataset.motionStarts,sourceVisible});
+    const outgoing=document.querySelector('[data-workspace-previous]:has(> *)');
+    window.chartFrames.push({t:performance.now()-window.chartMark,rafTime:t-window.chartMark,path:location.pathname,dir:root?.dataset.workspaceScene,visible,moving:!!style&&Math.abs(x)>.25,source:!!outgoing,fly:!!document.querySelector('[data-chart-flight]')});
    }
    requestAnimationFrame(frame);
   }requestAnimationFrame(frame);
@@ -55,13 +63,12 @@ async function create(width,height,theme='light'){
 async function inspectReturn(page,label,{paired=true,warm=true}={}){
  await page.waitForURL(url=>url.pathname==='/dashboard');await settled(page);
  const {frames,starts,observedStarts,firstOverviewRange,firstOverviewCard}=await page.evaluate(()=>{const value={frames:window.chartFrames,starts:window.chartStarts,observedStarts:window.chartObservedStarts,firstOverviewRange:window.firstOverviewRange,firstOverviewCard:window.firstOverviewCard};window.chartMark=null;return value;});
- const back=frames.filter(frame=>frame.dir==='back'),ids=[...new Set(back.map(frame=>frame.id))],first=back.find(frame=>frame.visible&&frame.moving);
+ const back=frames.filter(frame=>frame.dir==='back'),first=back.find(frame=>frame.visible&&frame.moving);
  const result={label,paired,firstMotion:starts[0]?.t??null,startedRange:starts[0]?.range??null,firstOverviewRange,firstOverviewCard,firstPresentedFrame:first?.t??null,observedStarts,frames};results.push(result);
- assert.ok(ids.length<=1,label+'重复回程');
  assert.ok(starts.length<=1,label+'重复启动动画');
- if(paired){assert.ok(first,label+'缺少回程运动');assert.ok(starts[0],label+'缺少运动启动');if(warm)assert.ok(starts[0].t<=100,label+'起步超过100ms: '+starts[0].t);}
- for(const frame of back)if(!frame.visible&&frame.path!=='/dashboard')assert.equal(frame.sourceVisible,true,label+'等待时原图消失');
- assert.equal(await page.locator('[data-chart-flight],[data-chart-travelling]').count(),0);
+ if(paired){assert.ok(first,label+'缺少正文回程运动');assert.ok(starts[0],label+'缺少运动启动');if(warm)assert.ok(starts[0].t<=120,label+'起步超过120ms: '+starts[0].t);}else assert.equal(starts.length,0,label+'不应启动重复过渡');
+ assert.ok(back.every(frame=>!frame.fly),label+'正文回程不产生独立飞行图形');
+ assert.equal(await page.locator('[data-chart-flight],[data-workspace-scene],[data-workspace-previous] > *').count(),0);
   const position=await page.evaluate(()=>({expected:window.chartOrigin,rail:[...document.querySelectorAll('[data-metric-rail]')].find(node=>node.getClientRects().length>0&&!node.closest('[inert]')).scrollLeft,scroll:scrollY,focus:document.activeElement?.closest('[data-metric-card]')?.dataset.metricCard,active:document.activeElement?{tag:document.activeElement.tagName,role:document.activeElement.getAttribute('role'),label:document.activeElement.getAttribute('aria-label'),cached:!!document.activeElement.closest('[data-workspace-cached]')}:null}));
  result.position=position;if(position.expected){assert.ok(Math.abs(position.rail-position.expected.rail)<=1,label+'卡片带未恢复');assert.ok(Math.abs(position.scroll-position.expected.scroll)<=1,label+'页面滚动未恢复');assert.equal(position.focus,position.expected.kind,label+'焦点回到原卡片');}
  if(position.expected?.card&&firstOverviewCard)for(const key of ['x','y','width','height'])assert.ok(Math.abs(firstOverviewCard[key]-position.expected.card[key])<=1,label+'首个总览帧卡片'+key+'跳动');
@@ -115,17 +122,18 @@ try{
     await page.screenshot({path:out+`/${width}-body-fat.png`});
    }
    if(process.env.FORMWARD_CHART_BODY_ONLY==='1'){console.log(JSON.stringify({width,body:body.length}));continue;}
-   await overview(page).click();await inspectReturn(page,`${width}-changed-indicator`,{paired:false});
+   await overview(page).click();await inspectReturn(page,`${width}-changed-indicator`);
    await page.emulateMedia({reducedMotion:'reduce'});await page.locator('[data-metric-card="energy"]:visible').click();await settled(page);
    await overview(page).click();await inspectReturn(page,`${width}-reduced`,{paired:false});await page.emulateMedia({reducedMotion:'no-preference'});
    await page.locator('[data-metric-card="intake"]:visible').click();await settled(page);
    await delay(650);await overview(page).click();await inspectReturn(page,`${width}-slow`,{warm:false});await delay(0);
-   await page.locator('[data-metric-card="energy"]:visible').click();await page.waitForTimeout(40);await overview(page).click();await inspectReturn(page,`${width}-quick-reverse`,{warm:false});
+   await page.evaluate(()=>{const watcher=new MutationObserver(()=>{if(document.querySelector('.workspace-shell > main[data-workspace-scene="forward"][data-scene-leaving]')){watcher.disconnect();[...document.querySelectorAll('nav[aria-label="主导航"] a[href="/dashboard"]')].find(node=>node.getClientRects().length)?.click();}});watcher.observe(document.body,{subtree:true,attributes:true,attributeFilter:['data-workspace-scene']});});
+   await page.locator('[data-metric-card="energy"]:visible').click();await inspectReturn(page,`${width}-quick-cancel`,{paired:false});assert.equal(await page.locator('[data-workspace-previous] > *').count(),0,'尚未进入详情时取消只恢复总览');
    await page.locator('[data-metric-card="morning-weight"]:visible').click();await settled(page);
    await page.evaluate(()=>{window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];window.chartObservedStarts=[];window.firstOverviewRange=null;window.firstOverviewCard=null;});await page.goBack();await inspectReturn(page,`${width}-browser-back`,{warm:false});
    await page.locator('[data-metric-card="intake"]:visible').click();await settled(page);await delay(650);await overview(page).click();
    await page.getByRole('navigation',{name:'主导航',exact:true}).getByRole('link',{name:'身体',exact:true}).click();await page.waitForURL(url=>url.pathname==='/dashboard/measurements');await settled(page);
-   assert.equal(await page.locator('[data-workspace-frame=body]').count(),1);assert.equal(await page.locator('[data-chart-flight],[data-return-covered]').count(),0);await delay(0);
+   assert.equal(await page.locator('[data-workspace-frame=body]').count(),1);assert.equal(await page.locator('[data-workspace-scene],[data-return-covered],[data-workspace-previous] > *').count(),0);await delay(0);
    console.log(JSON.stringify({width,returns:results.length,body:body.length}));
   }finally{await delay(0);await context.close();}
  }

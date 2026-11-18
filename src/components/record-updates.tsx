@@ -2,7 +2,6 @@
 import {confirmAction,confirmationIsOpen} from "./confirmation-state";
 import {useEffect,useRef,useState,useTransition} from "react";
 import {useRouter} from "next/navigation";
-import {usePageLoading} from "./page-loading-state";
 import styles from "./inspector.module.css";
 import {Inspector} from "./inspector";
 import {draftIsBusy,draftIsDirty,visibleRecordSummary} from "./draft-guard";
@@ -11,7 +10,7 @@ import {changedRecords,type RecordStamp} from "@/features/records/change-state";
 export function RecordUpdates(){
  const [confirmOpen,setConfirmOpen]=useState(false);
  useEffect(()=>{const changed=()=>setConfirmOpen(confirmationIsOpen());window.addEventListener("formward-confirmation-change",changed);return()=>window.removeEventListener("formward-confirmation-change",changed);},[]);
- const [pending,startTransition]=useTransition();usePageLoading({active:pending,label:"正在读取最新记录…"});
+ const [,startTransition]=useTransition();
  const router=useRouter(),baseline=useRef<RecordStamp[]|null>(null),inflight=useRef(false),generation=useRef(0),[changes,setChanges]=useState<ReturnType<typeof changedRecords>>([]),[details,setDetails]=useState(false),[detailError,setDetailError]=useState("");
  useEffect(()=>{let active=true;
   async function check(){if(document.hidden||inflight.current||draftIsBusy())return;inflight.current=true;const epoch=generation.current;

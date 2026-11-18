@@ -10,7 +10,7 @@ import {energyVersions,verifyRecordVersions,acknowledgeRecordChanges,RecordVersi
 import {energySaveExpectations,applyEnergyVersions,energyDateMoveIssue,EnergySaveError} from "./energy-save-state";
 import { useContext, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { usePageLoading } from "@/components/page-loading-state";
+
 import { useLocalToday } from "@/components/use-local-today";
 import { useInitialMobileMode } from "@/components/use-mobile-mode";
 import { preferredRecordedDate, rangeContaining, recentRecordDates } from "@/components/record-dates";
@@ -95,7 +95,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
   const selection=useChartDateSelection(dates,initialDate??today,initialDate&&dates.includes(initialDate)?initialDate:dates.includes(today)?today:preferredRecordedDate(chartDays,today,day=>day.totalKcal!==null,day=>!!day.record||day.activities.length>0),customOpen),inspected=selection.selected,chosen=chartDays.find(day=>day.date===inspected);
   useEffect(()=>{const latest=()=>{setEditing(null);setViewing(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
   const historyDates=[...new Set([...recentRecordDates(today),...state.days.filter(d=>!d.deletedAt).map(d=>d.date),...state.activities.filter(a=>!a.deletedAt).map(a=>a.date)])].sort().reverse();
-  usePageLoading({ active: busy, label: "正在保存消耗记录…" });
+
   function edit(action: EnergyAction) { setViewing(null); setAddActivity(false); setError(""); setNotice(""); setEditing(action); }
   function editDay(date: string, add = false) {
     edit(dayEditInput(date,state.days));

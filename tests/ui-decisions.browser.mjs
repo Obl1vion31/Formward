@@ -18,7 +18,7 @@ const auth=await browser.newContext();
 await authenticateFixture(auth.request,config,process.env.FORMWARD_CHAT_BROWSER_CONFIG);
 const storageState=await auth.storageState();await auth.close();
 async function go(page,url){await page.waitForLoadState("networkidle");await page.goto(url);}
-async function settle(page){await page.waitForFunction(()=>!document.querySelector('.workspace-skeleton,[data-chart-flight]'));await page.waitForTimeout(650);}
+async function settle(page){await page.waitForFunction(()=>!document.querySelector('[data-workspace-reading],[data-chart-flight]'));await page.waitForTimeout(650);}
 async function screenshot(page,profile,name,items){
  if(!name.includes('loading'))await page.waitForFunction(()=>!document.getAnimations().some(animation=>animation.playState==='running'&&animation.effect?.getTiming().iterations!==Infinity));
  const path=join(folder,profile+'-'+name+'.png');await page.screenshot({path});

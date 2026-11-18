@@ -1,4 +1,5 @@
 "use client";
+import {LocalLoading} from "@/components/local-loading";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "./tutorial.css";
@@ -45,7 +46,7 @@ export function TutorialView({startText="返回总览",backText,onStart,onBack,b
   return <div className="onboarding-tutorial">
     <div ref={ref}/>
     {!loaded&&<section className="tutorial-fallback"><h1>使用说明</h1>
-      <p role={error?"alert":"status"}>{error?"视频入口暂时未能加载，可以看文字说明或重试。":"正在准备视频，也可以先看文字说明。"}</p>
+      {error?<p role="alert">视频入口暂时未能加载，可以看文字说明或重试。</p>:<LocalLoading label="正在准备视频…"/>}
       <details open={error||undefined}><summary>文字版</summary><ol>
         <li>饮食：找到日期，点“录入”或“添加一餐”；选择食材库或自己填写，本次营养未知留空。一天记完后确认“已记全”。</li>
         <li>身体：先选晨间或晚间，晨间必须空腹；体重、体脂只填知道的部分，点击“保存录入”。缺测保持空白，只记录实测值。</li>

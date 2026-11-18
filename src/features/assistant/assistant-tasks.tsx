@@ -1,4 +1,5 @@
 "use client";
+import { LocalLoading } from "@/components/local-loading";
 
 import { useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
@@ -44,7 +45,7 @@ export function AssistantTasks({ data, error, loading, retry, dismissItem, mobil
   }}>
     <section className={styles.quick} aria-label="快捷记录"><div>{assistantQuickActions(today).map(action=><LoadingLink prefetch={false} key={action.label} href={action.href} beforeNavigate={navigate}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>{mobile?action.label.replace(/^手动/,""):action.label}</span></LoadingLink>)}</div></section>
     {error&&<div role="alert">{error}<button type="button" onClick={retry}>重新读取</button></div>}
-    {!data&&loading&&<p className={styles.muted} role="status">正在读取事项…</p>}
+    {!data&&loading&&<div className={styles.muted}><LocalLoading label="正在读取事项…"/></div>}
     <TaskGroup kind="supplements" title="按需补记" description="查看需要补记的记录" count={data?supplements.length+" 项":"…"} open={supplementsOpen} onToggle={()=>setSupplementsOpen(value=>!value)}>{supplements.length?items(supplements):data&&<p className={styles.muted}>暂无需要补记的事项</p>}</TaskGroup>
     <TaskGroup kind="reviews" title="AI 确认" description="核对待保存的提交" count={data?reviews.length+" 项":"…"} open={reviewOpen??hasReviews} onToggle={()=>setReviewOpen(!(reviewOpen??hasReviews))}>{reviews.length?items(reviews):data&&<p className={styles.muted}>暂无待确认提交</p>}</TaskGroup>
     <TaskGroup kind="tools" title="常用功能" description="使用说明、AI 接入等" count={assistantTools.length+2+" 个功能"} open={tools} onToggle={()=>{setTools(value=>!value);setGuides(false);}}>

@@ -1,5 +1,5 @@
 "use client";
-import {ModuleSkeleton} from "./module-skeleton";
+import type {ReactNode} from "react";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { LoadingLink } from "./loading-link";
 import { useChartTransition, type ChartReadingsSnapshot } from "./chart-transition-state";
@@ -38,15 +38,15 @@ export function MetricCardRail({ cards, preview, accountId }: { accountId?:strin
   </div>;
 }
 
-export function MetricCardRailSkeleton() {
+export function MetricCardRailPending({readingStatus}:{readingStatus?:ReactNode}) {
   const rail=useRef<HTMLDivElement>(null),{preview,restore}=useChartTransition();
   useLayoutEffect(()=>{if(rail.current)restore(rail.current);},[restore,preview?.kind]);
-  return <div ref={rail} className={styles.rail} data-metric-rail data-metric-rail-skeleton aria-busy="true" aria-label="正在读取最近状态">
-    {([["intake","最近摄入"],["morning-weight","最近晨重"],["energy","最近消耗"]] as const).map(([kind,title])=><div className={styles.card} key={kind} data-metric-card={kind}>
+  return <div ref={rail} className={styles.rail} data-metric-rail data-metric-rail-pending aria-busy="true" aria-label="正在读取最近状态">
+    {([["intake","最近摄入"],["morning-weight","最近晨重"],["energy","最近消耗"]] as const).map(([kind,title],index)=><div className={styles.card} key={kind} data-metric-card={kind}>
       <span className={styles.title}>{title}</span><span className={styles.arrow}/>
-      <strong><span className={styles.numberLoading}><span className={styles.numberMeasure} aria-hidden="true">—</span><ModuleSkeleton shape="number"/></span><small>{kind==="morning-weight"?"kg":"千卡"}</small></strong>
-      <div className={styles.glyph}>{preview?.kind===kind?<TrendGlyph model={preview}/>:<ModuleSkeleton shape="chart" label="正在读取趋势…"/>}</div>
-      <p><span>—</span></p><span className={styles.range}>—</span>
+      <strong><span className={styles.numberLoading}><span className={styles.numberMeasure} aria-hidden="true">—</span>{index===0&&readingStatus&&<span className={styles.readingStatus}>{readingStatus}</span>}</span><small className={styles.numberMeasure} aria-hidden="true">{kind==="morning-weight"?"kg":"千卡"}</small></strong>
+      <div className={styles.glyph}>{preview?.kind===kind?<TrendGlyph model={preview}/>:null}</div>
+      <p className={styles.numberMeasure} aria-hidden="true">—</p><span className={styles.range+" "+styles.numberMeasure} aria-hidden="true">—</span>
     </div>)}
   </div>;
 }

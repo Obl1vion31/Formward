@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { uploadPrivateMealPhoto } from "./photo-upload";
-import { usePageLoading } from "@/components/page-loading-state";
+
 import styles from "./meals.module.css";
 
 export function ImageGallery({ ids = [] }: { ids?: string[] }) {
@@ -16,7 +16,7 @@ export function PhotoFields({ ids, change, busy, onBusy, onError, expectedCount 
   const [retryAvailable,setRetryAvailable]=useState(false);
   const [notice,setNotice]=useState("");
   const [error, setError] = useState(""), [uploading, setUploading] = useState(false), [progress, setProgress] = useState("");
-  usePageLoading({ active: uploading, label: progress || "正在保存原图…" });
+
   async function upload(files: File[]) {
     if (!files.length || guard.current) return;
     if(ids.length+files.length>8){

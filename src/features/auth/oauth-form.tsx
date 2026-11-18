@@ -1,13 +1,13 @@
 "use client";
 import { useRef, useState, type FormEvent } from "react";
-import { usePageLoading } from "@/components/page-loading-state";
+
 import { signIn } from "./client";
 import { doubaoNavigation } from "../doubao/navigation";
 
 export function OAuthForm({ kind, query, email, doubao }: { kind: "login" | "consent"; query: string; email?: string; doubao?: { origin: string; canonical: string } }) {
   const [working, setWorking] = useState(false), [error, setError] = useState("");
   const lock = useRef(false);
-  usePageLoading({ active: working && !doubao, label: kind === "login" ? "正在登录并继续授权…" : "正在处理账号授权…" });
+
   const destination = (url: string) => doubao ? doubaoNavigation(url, doubao.origin, doubao.canonical) : url;
   async function perform(accept: boolean, event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();

@@ -1,2 +1,2 @@
-import {WorkspaceSkeleton} from '@/components/workspace-skeleton';
-export default function Loading(){return <WorkspaceSkeleton kind="energy"/>;}
+import {WorkspaceLoading} from '@/components/workspace-loading';
+export default function Loading(){return <WorkspaceLoading kind="energy"/>;}

@@ -1,5 +1,4 @@
 "use client";
-import {ModuleSkeleton} from "./module-skeleton";
 import {useEffect,useLayoutEffect,useRef,useState,type ReactNode,type ComponentPropsWithoutRef,type CSSProperties} from "react";
 import {useMobileMode} from "./use-mobile-mode";
 import {SelectedDateHeading} from "./daily-records";
@@ -8,8 +7,8 @@ export type RecordMetric={pending?:boolean;id?:string;label:string;value:string;
 export function RecordWorkspace({title,headingId,className="",children,...props}:ComponentPropsWithoutRef<"section">&{title:string;headingId?:string}){
  return <section {...props} className={styles.workspace+" "+className} data-record-workspace><header className={styles.pageHeading}><h1 id={headingId}>{title}</h1></header>{children}</section>;
 }
-export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,options,legend,children,readoutLabel="选中日读数",metricVariants=[],labelVariants=[],noteVariants=[],flags,flagVariants=[],statistics,supplementary,statusInDate=false,presentation,mobileMetrics,graphic,loading=false,chartSummary}:{
- mobileMetrics?:RecordMetric[];chartSummary?:ReactNode;presentation?:"nutrition"|"energy"|"body";graphic?:ReactNode;loading?:boolean;range:ReactNode;custom?:ReactNode;date:string;view:()=>void;metrics:RecordMetric[];title:string;unit?:string;options?:ReactNode;legend:ReactNode;children:ReactNode;readoutLabel?:string;metricVariants?:string[][];labelVariants?:string[][];noteVariants?:string[][];flags?:string;flagVariants?:string[];statistics?:ReactNode;supplementary?:ReactNode;statusInDate?:boolean;
+export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,options,legend,children,readoutLabel="选中日读数",metricVariants=[],labelVariants=[],noteVariants=[],flags,flagVariants=[],statistics,supplementary,statusInDate=false,presentation,mobileMetrics,graphic,loading=false,chartSummary,readingStatus}:{
+ readingStatus?:ReactNode;mobileMetrics?:RecordMetric[];chartSummary?:ReactNode;presentation?:"nutrition"|"energy"|"body";graphic?:ReactNode;loading?:boolean;range:ReactNode;custom?:ReactNode;date:string;view:()=>void;metrics:RecordMetric[];title:string;unit?:string;options?:ReactNode;legend:ReactNode;children:ReactNode;readoutLabel?:string;metricVariants?:string[][];labelVariants?:string[][];noteVariants?:string[][];flags?:string;flagVariants?:string[];statistics?:ReactNode;supplementary?:ReactNode;statusInDate?:boolean;
 }){
  const mobile=useMobileMode();
  const metricRef=useRef<HTMLDivElement>(null),[columnLimit,setColumnLimit]=useState(metrics.length);
@@ -72,12 +71,12 @@ export function RecordTrendPanel({range,custom,date,view,metrics,title,unit,opti
     {metric.select&&<button type="button" className={styles.metricSelect} aria-label={"查看"+metric.label+"趋势"} aria-pressed={metric.selected} onClick={metric.select}/>}
     {metric.action&&<div className={styles.metricAction}>{metric.action}</div>}
     <div className={styles.metricLabel} data-metric-label>{labels.map(label=><span key={label} className={styles.metricMeasure} aria-hidden="true">{label}{!metric.inlineUnit&&<small> · {metric.unit==="kcal"?"千卡":metric.unit}</small>}</span>)}<span>{metric.label}{!metric.inlineUnit&&<small> · {metric.unit==="kcal"?"千卡":metric.unit}</small>}</span></div>
-    <strong aria-hidden={pending||undefined} data-metric-number className={metric.tone?styles[metric.tone]:undefined}>{pending?<span className={styles.pendingNumber}><span className={styles.metricMeasure}>—</span><ModuleSkeleton shape="number" label="正在读取读数…"/></span>:<span>{metric.value}</span>}{metric.inlineUnit&&<small>{metric.unit==="kcal"?"千卡":metric.unit}</small>}</strong>
+    <strong data-metric-number className={metric.tone?styles[metric.tone]:undefined}>{pending?<PendingNumber status={index===0?readingStatus:undefined}/>:<span>{metric.value}</span>}{metric.inlineUnit&&<small className={pending?styles.metricMeasure:undefined} aria-hidden={pending||undefined}>{metric.unit==="kcal"?"千卡":metric.unit}</small>}</strong>
     <div className={styles.metricNote} data-metric-note data-reserve-note={metric.reserveNote||undefined}>{notes.map(note=><em key={note} className={styles.metricMeasure} aria-hidden="true">{note}</em>)}{metric.note?<em>{metric.note}</em>:metric.reserveNote?<em className={styles.metricMeasure} aria-hidden="true">{"\u00a0"}</em>:null}</div>
     {(metric.graphic||index===0&&graphic)&&<div className={styles.metricGraphic}>{metric.graphic??graphic}</div>}
    </div>;
   })}</div>
-  {presentation&&<MobileRecordReadings metrics={mobileMetrics??metrics} presentation={presentation} graphic={graphic} loading={loading} date={date} label={readoutLabel}/>}
+  {presentation&&<MobileRecordReadings metrics={mobileMetrics??metrics} presentation={presentation} graphic={graphic} loading={loading} date={date} label={readoutLabel} readingStatus={readingStatus}/>}
   {statistics}</div>
   {supplementary}
   {!statusInDate&&statusVariants.length>0&&<div className={styles.flags} data-record-slot="status">{statusVariants.map(value=><span key={value} aria-hidden="true" className={styles.flagMeasure}>{value}</span>)}<span role="status">{flags??""}</span></div>}
@@ -101,9 +100,9 @@ export function CustomRecordRange({label,value,change,apply,cancel}:{label:strin
  return <form className={styles.custom} data-chart-controls aria-label="自定义日期范围" onSubmit={event=>{event.preventDefault();if(okay)apply();}} onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();event.stopPropagation();cancel();}}}><label>开始<input autoFocus type="date" required aria-label={label+"开始日期"} value={value.from} onChange={event=>change({...value,from:event.target.value})}/></label><label>结束<input type="date" required aria-label={label+"结束日期"} value={value.to} onChange={event=>change({...value,to:event.target.value})}/></label><div><button disabled={!okay} type="submit">应用</button><button type="button" onClick={cancel}>取消</button></div>{!okay&&<p role="status">请选择有效日期范围，最长10年。</p>}</form>;
 }
 
-function MobileRecordReadings({metrics,presentation,graphic,loading,date,label}:{metrics:RecordMetric[];presentation:"nutrition"|"body"|"energy";graphic?:ReactNode;loading:boolean;date:string;label:string}){
+function MobileRecordReadings({metrics,presentation,graphic,loading,date,label,readingStatus}:{readingStatus?:ReactNode;metrics:RecordMetric[];presentation:"nutrition"|"body"|"energy";graphic?:ReactNode;loading:boolean;date:string;label:string}){
  const first=metrics[0];if(!first)return null;
- const number=(metric:RecordMetric,primary=false)=>{const pending=metric.pending??loading;return <strong className={(primary?styles.mobilePrimary:styles.mobileStatValue)+" "+(metric.tone?styles[metric.tone]:"")} data-metric-number><span className={pending?styles.mobileNumberLoading:undefined}>{pending?<><span className={styles.mobileNumberMeasure} aria-hidden="true">—</span><ModuleSkeleton shape="number" label="读数加载中"/></>:metric.value}</span><small>{metric.unit==="kcal"?"千卡":metric.unit}</small></strong>;};
+ const number=(metric:RecordMetric,primary=false)=>{const pending=metric.pending??loading;return <strong className={(primary?styles.mobilePrimary:styles.mobileStatValue)+" "+(metric.tone?styles[metric.tone]:"")} data-metric-number><span>{pending?<PendingNumber status={primary?readingStatus:undefined}/>:metric.value}</span><small className={pending?styles.metricMeasure:undefined} aria-hidden={pending||undefined}>{metric.unit==="kcal"?"千卡":metric.unit}</small></strong>;};
  const caption=<span className={styles.mobileCaption}>{presentation==="nutrition"?"当天摄入":first.label}</span>;
  const mark=first.graphic??graphic;
  if(presentation==="nutrition")return <details className={styles.mobileReading+" "+styles.mobileNutrition} data-record-slot="metrics" data-presentation={presentation} data-selected-date={date} aria-label={label} aria-busy={loading||undefined}><summary><div>{caption}{number(first,true)}</div><span className={styles.nutritionControl}>{mark}<span>营养详情</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></span></summary><dl className={styles.mobileNutrients}>{metrics.slice(1).map(metric=><div key={metric.label}><dt>{metric.label}</dt><dd>{number(metric)}{!(metric.pending??loading)&&metric.note&&<small>{metric.note}</small>}</dd></div>)}</dl></details>;
@@ -111,4 +110,8 @@ function MobileRecordReadings({metrics,presentation,graphic,loading,date,label}:
    <div className={styles.mobileHero}>{caption}{first.action&&<div className={styles.mobileAction}>{first.action}</div>}{number(first,true)}{presentation==="body"&&mark&&<div className={styles.mobileSpark}>{mark}</div>}</div>
    {presentation==="energy"?graphic:<div className={styles.mobileStats}>{metrics.slice(1).map(metric=><div key={metric.id??metric.label}><span>{metric.label.replace("7日平均体重","7日均")}</span>{number(metric)}</div>)}</div>}
  </div>;
+}
+
+function PendingNumber({status}:{status?:ReactNode}){
+  return <span className={styles.pendingNumber}><span className={styles.metricMeasure} aria-hidden="true">—</span>{status&&<span className={styles.readingStatus}>{status}</span>}</span>;
 }

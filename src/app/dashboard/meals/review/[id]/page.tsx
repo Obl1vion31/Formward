@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { LocalLoading } from "@/components/local-loading";
 import { notFound } from "next/navigation";
 import { requirePageUser } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
@@ -15,6 +17,10 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
   const user = await requirePageUser();
   const db = getDatabase(), id = (await params).id;
   const operation = await loadRecordReview(db, user.id, id, "meal").catch(error => { if (error instanceof ApiError && error.status === 404) notFound(); throw error; });
+  return <main className="dashboard-page"><Suspense fallback={<section className="account-reading-page"><h1>确认记录</h1><LocalLoading/></section>}>{reviewContent(operation)}</Suspense></main>;
+
+  async function reviewContent(operation: NonNullable<Awaited<ReturnType<typeof loadRecordReview>>>){
   const sources = await listMeasurementSources(db, user.id);
-  return <main className="dashboard-page"><RecordReview operation={operation} review={reviewRecordAction.bind(null, id, "meal")} load={loadRecordReviewAction.bind(null, id, "meal")} sources={sources} removeSource={removeSourceAction} energySources={await listEnergySources(getDatabase(), user.id)} removeEnergySource={removeEnergySourceAction} /></main>;
+  return <RecordReview operation={operation} review={reviewRecordAction.bind(null, id, "meal")} load={loadRecordReviewAction.bind(null, id, "meal")} sources={sources} removeSource={removeSourceAction} energySources={await listEnergySources(getDatabase(), user.id)} removeEnergySource={removeEnergySourceAction} />;
+  }
 }

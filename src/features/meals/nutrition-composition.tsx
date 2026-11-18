@@ -7,7 +7,7 @@ const percent=(value:number)=>new Intl.NumberFormat("zh-CN",{maximumFractionDigi
 export function NutritionComposition({totals,compact=false,loading=false}:{totals:Totals|null|undefined;compact?:boolean;loading?:boolean}){
  const {kind,segments}=macroComposition(totals);
  const description=kind==="known"?segments.map(s=>metricLabels[s.metric]+percent(s.ratio)).join("、"):kind==="zero"?"三项均为0，暂无供能占比":"营养未齐，暂不计算占比";
- return <figure className={styles.composition} data-nutrition-composition={kind} data-compact={compact||undefined}>
+ return <figure className={styles.composition} data-nutrition-composition={kind} data-compose-waiting={loading||undefined} data-compact={compact||undefined}>
   <svg viewBox="0 0 100 100" role="img" aria-label={loading?"营养构成加载中":"蛋白质、碳水、脂肪供能比例："+description}>
    <circle cx="50" cy="50" r="38" fill="none" stroke="var(--line-strong)" strokeWidth="12"/>
    {segments.map((segment,index)=>{const start=segments.slice(0,index).reduce((sum,s)=>sum+s.ratio*100,0);return <circle key={segment.metric} data-macro-share={segment.metric} data-ratio={segment.ratio} cx="50" cy="50" r="38" pathLength="100" fill="none" stroke={macroColors[segment.metric]} strokeWidth="12" strokeDasharray={`${segment.ratio*100} ${100-segment.ratio*100}`} strokeDashoffset={-start} transform="rotate(-90 50 50)"/>;})}

@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- 原图只经过本人私有图片入口。 */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { confirmAction } from "../../components/confirmation-state";
+import { LocalLoading } from "../../components/local-loading";
 import type { MealDraft } from "../meals/model";
 import type { RecordReviewView } from "../records/model";
 import type { ChatEvent, ChatProvider, ChatSnapshot } from "./chat-model";
@@ -91,10 +92,10 @@ export function MealPhotoEntry({initial,draftKey,resumeTaskId,onRestore,onApply,
   {answer?.steps.length? <details className={styles.steps}><summary>{busy?"正在处理本餐":"处理过程"}</summary>{answer.steps.map(step=><p key={step.id}>{step.title} · {step.state==="running"?"处理中":step.state==="error"?"未完成":"已完成"}{step.summary?"："+step.summary:""}</p>)}</details>:busy&&<p role="status">正在识别食物…</p>}
   {answer?.text&&<p className={styles.answer}>{answer.text}</p>}
   {data?.followup&&<FollowupForm key={data.followup.messageId} task={data.followup} busy={busy} submit={run} cancel={()=>void back()}/>}
-  {error&&<div role="alert">{error}{data?.operation&&<a href={data.operation.confirmationPath} target="_blank" rel="noreferrer">打开原审核页面</a>}{!data&&<button type="button" onClick={()=>setAttempt(value=>value+1)}>重新读取</button>}</div>}
+  {error&&<div role="alert">{error}{data?.operation&&<a href={data.operation.confirmationPath} target="_blank" rel="noreferrer">打开原审核页面</a>}{!data&&<button type="button" onClick={()=>{setError("");setAttempt(value=>value+1);}}>重新读取</button>}</div>}
   {data&&data.catalog.find(model=>model.id===provider)?.enabled===false&&<p className={styles.modelStatus}>此模型的授权已停用或到期。<button type="button" disabled={busy} onClick={()=>void enableModel()}>重新授权</button></p>}
   <footer ref={footer}><select aria-label="识别模型" value={provider} disabled={!data||busy||!!data.operation} onChange={event=>setProvider(event.target.value as ChatProvider)}>{(data?.catalog??[{id:"qwen",label:"千问",configured:false,enabled:false},{id:"mimo",label:"小米 MiMo",configured:false,enabled:false},{id:"glm",label:"智谱",configured:false,enabled:false}]).map(model=><option key={model.id} value={model.id} disabled={!model.configured}>{model.label}</option>)}</select>
-   <div className={styles.usage}><button type="button" onClick={()=>setReset(value=>!value)} title={data?"北京时间 "+new Date(data.usage.resetAt).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai"})+" 重置":"正在读取用量"}>{data?.usage.recognition?`识图 ${data.usage.recognition.used}/${data.usage.recognition.limit}`:data?.usage.percent??"…"}</button>{reset&&data&&<small role="status">北京时间 {new Date(data.usage.resetAt).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai"})} 重置</small>}</div>
+   <div className={styles.usage}>{data?<button type="button" onClick={()=>setReset(value=>!value)} title={"北京时间 "+new Date(data.usage.resetAt).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai"})+" 重置"}>{data.usage.recognition?`识图 ${data.usage.recognition.used}/${data.usage.recognition.limit}`:data.usage.percent}</button>:<LocalLoading active={!error}/>}{reset&&data&&<small role="status">北京时间 {new Date(data.usage.resetAt).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai"})} 重置</small>}</div>
    {busy?<button type="button" onClick={()=>void stop()}>停止识别</button>:<button type="button" className={styles.primary} disabled={!data||!data.catalog.find(model=>model.id===provider)?.configured||!data.catalog.find(model=>model.id===provider)?.enabled||!!data.operation&&data.operation.status!=="pending"||photos.busy||photos.photos.some(p=>p.phase!=="ready")||!text.trim()&&!photos.photos.length||(data.usage.recognition?data.usage.recognition.remaining !== null && data.usage.recognition.remaining<=0:data.usage.available<=0)} onClick={()=>void run()}>识别食物</button>}
   </footer>
  </section>;

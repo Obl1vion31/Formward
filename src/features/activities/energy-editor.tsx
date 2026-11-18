@@ -1,4 +1,5 @@
 "use client";
+import {LocalLoading} from "@/components/local-loading";
 import {energyDraftSignature,exerciseHasInput} from "./energy-editor-state";
 import {energyWebIssue,sameEnergyAmounts,adoptedEnergyAction} from "../records/web-entry";
 import {useEffect,useLayoutEffect,useContext,useId,useRef,useState,type ReactNode} from "react";
@@ -336,7 +337,7 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
    {submitLabel!=="保存"&&<p className={styles.hint}>应用修改后返回确认页面，确认保存后才正式记录。</p>}
   </fieldset>
   {management}
-  <div className={styles.stickyTotal} data-entry-footer><div role="group" aria-label="当天总消耗"><span>{daily?quick?"全天估算":"合计":"当天总消耗"}</span><strong>{energyValue(total)} <small>千卡</small></strong>{!pending&&entryIssue&&<small role="status">{entryIssue}</small>}{!pending&&!entryIssue&&(unresolvedCount>0||total==null)&&<small>{unresolvedCount?unresolvedCount+"项运动待核对":missing+"，可保存已有部分"}</small>}{error&&<p role="alert" className={styles.error}>{error}</p>}</div><button data-record-guide-save data-entry-primary-action className={styles.headerSave} type={onRetry?"button":"submit"} onClick={onRetry} aria-label={targetDate?`${onRetry?"重新读取":submitLabel} ${targetDate} 消耗记录`:onRetry?"重新读取":submitLabel} disabled={onRetry?false:blocked}>{onRetry?"重新读取":saveLabel}</button></div>
+  <div className={styles.stickyTotal} data-entry-footer><div role="group" aria-label="当天总消耗"><span>{daily?quick?"全天估算":"合计":"当天总消耗"}</span>{pending?(!error&&<LocalLoading/>):<strong>{energyValue(total)} <small>千卡</small></strong>}{!pending&&entryIssue&&<small role="status">{entryIssue}</small>}{!pending&&!entryIssue&&(unresolvedCount>0||total==null)&&<small>{unresolvedCount?unresolvedCount+"项运动待核对":missing+"，可保存已有部分"}</small>}{error&&<p role="alert" className={styles.error}>{error}</p>}</div><button data-record-guide-save data-entry-primary-action className={styles.headerSave} type={onRetry?"button":"submit"} onClick={onRetry} aria-label={targetDate?`${onRetry?"重新读取":submitLabel} ${targetDate} 消耗记录`:onRetry?"重新读取":submitLabel} disabled={onRetry?false:blocked}>{onRetry?"重新读取":saveLabel}</button></div>
  </form>{supplement&&targetDate&&<EnergySupplement kind={supplement} date={targetDate} today={today} close={()=>{setSupplement(null);setContextEpoch(epoch=>epoch+1);if(resumeEstimator){setResumeEstimator(false);setContextLoading(true);setEstimatorOpen(true);}}}/>}</>;
 }
 type ExerciseInput={calorieMode?:"total"|"components";completed?:boolean;caloriesKcal?:string|null;exerciseRestingKcal?:string|null;exerciseActiveKcal?:string|null};

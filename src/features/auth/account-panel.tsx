@@ -1,4 +1,5 @@
 "use client";
+import {LocalLoading} from "@/components/local-loading";
 import { MfaPanel } from "./mfa-panel";
 import {useDraftGuard} from "@/components/draft-guard";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, PASSWORD_LENGTH_LABEL } from "./password-policy";
@@ -45,7 +46,7 @@ export function AccountPanel({ initial,embedded=false }: { initial: PersonalAcco
     if (result?.ok) { setAccessPassword(""); signedOut(); }
   }
   return <div className={styles.settings}><div className={styles.heading}>{!embedded&&<h1>账号设置</h1>}<p className={styles.targetEmail}>{data.email}</p><p className={styles.muted}>{data.emailVerified ? "邮箱已验证" : "邮箱未验证"} · 当前作为登录标识使用</p></div>
-    <AccountFeedback error={task.error} />
+    {task.busy&&<LocalLoading label={task.label}/>}<AccountFeedback error={task.error} />
     <div className={styles.settingsGrid}>
     <div><section className={styles.section}><h2>登录设备</h2><div className={styles.deviceList}>{data.devices.map(device => <article className={styles.device} key={device.id}><div><strong>{deviceName(device.userAgent)}</strong>{device.id === data.currentSessionId && <span className={styles.badge}>当前设备</span>}<small>登录于 {accountDate(device.createdAt)}</small></div><button type="button" disabled={task.busy} onClick={() => void revokeDevice(device.id)}>退出</button></article>)}</div></section>
     </div><section className={styles.section}><h2>修改密码</h2><form onSubmit={changePassword}><label className={styles.field}>当前密码<input name="currentPassword" type="password" value={oldPassword} onChange={event => setOldPassword(event.target.value)} required maxLength={128} autoComplete="current-password" disabled={task.busy} /></label><label className={styles.field}>新密码<input name="newPassword" type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} required minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_LENGTH} autoComplete="new-password" disabled={task.busy} /></label><label className={styles.field}>确认新密码<input name="confirmPassword" type="password" value={confirmation} onChange={event => setConfirmation(event.target.value)} required minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_LENGTH} autoComplete="new-password" disabled={task.busy} /></label><p className={styles.muted}>{PASSWORD_LENGTH_LABEL}，可以粘贴密码管理器生成的密码。</p><button type="submit" className={styles.primary} disabled={task.busy}>修改密码</button></form></section></div>

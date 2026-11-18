@@ -1,4 +1,5 @@
 "use client";
+import {LocalLoading} from "@/components/local-loading";
 import {InspectorCloseButton} from "@/components/inspector";
 import {displayRecordDate} from "@/components/record-dates";
 import type {Ref} from "react";
@@ -13,7 +14,7 @@ import {confirmNumbers} from "@/components/number-change";
 import {measurementVersions,verifyRecordVersions,acknowledgeRecordChanges} from "@/components/record-change-client";
 import { useRef, useState, useTransition } from "react";
 import {useDraftGuard} from "@/components/draft-guard";
-import { usePageLoading } from "@/components/page-loading-state";
+
 import { entryMetrics, localMeasurementDate, measurementEntryState, type EntryPeriod, type EntryResult, type MeasurementActions, type MeasurementDisplay } from "./entry-state";
 import type { PeriodEdit, SaveMeasurementDayInput } from "./editing";
 import type { MeasurementMetric } from "./trend";
@@ -54,7 +55,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
   const [busyLabel, setBusyLabel] = useState("正在保存记录…");
   const busy = working || transitionPending;
   const lock = useRef(false);
-  usePageLoading({ active: busy, label: busyLabel });
+
   const numberAcknowledgements=useRef(new Set<string>());
   const request = useRef({ signature: "", id: "" });
   const groups = measurementEntryState(records, date, choices).map(group => ({ ...group, blocked: group.period === "daytime" && !!group.observed && group.observed.fasting !== true }));
@@ -158,6 +159,6 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       </fieldset>)}
     </div>
     {future&&<p role="alert" className={styles.entryError}>不能录入未来日期的身体记录。</p>}
-    <div className={styles.entryFooter}><div>{(error||readError)&&<p role="alert" className={styles.entryError}>{error||readError}</p>}{message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-record-guide-save data-entry-primary-action type={onRetry?"button":"submit"} onClick={onRetry} className={styles.saveEntry} disabled={onRetry?false:busy||pending||!dirty||future}>{onRetry?"重新读取":busy?busyLabel:"保存录入"}</button></div>
+    <div className={styles.entryFooter}><div>{(error||readError)&&<p role="alert" className={styles.entryError}>{error||readError}</p>}{pending&&!readError?<LocalLoading/>:message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-record-guide-save data-entry-primary-action type={onRetry?"button":"submit"} onClick={onRetry} className={styles.saveEntry} disabled={onRetry?false:busy||pending||!dirty||future}>{onRetry?"重新读取":busy?busyLabel:"保存录入"}</button></div>
   </form>;
 }

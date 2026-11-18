@@ -8,8 +8,9 @@ const out=resolve(process.env.FORMWARD_CHART_ARTIFACTS??'.codex/chart-return-edg
 const checks=[];
 async function control(path,data){const r=await fetch(config.fixtureControlURL+path,{method:data?'POST':'GET',body:data?JSON.stringify(data):undefined});assert.equal(r.status,200);return r.json();}
 const context=await browser.newContext({viewport:{width:390,height:780},isMobile:true,hasTouch:true,timezoneId:'Asia/Shanghai',locale:'zh-CN',recordVideo:{dir:out,size:{width:390,height:780}}});
+await context.addInitScript(userId=>localStorage.setItem('formward:record-guide:v1:'+encodeURIComponent(userId)+':meals','seen'),config.userId);
 const page=await context.newPage();
-async function settled(){await page.waitForFunction(()=>!document.querySelector('.workspace-skeleton,[data-chart-flight]'));await page.waitForTimeout(550);}
+async function settled(){await page.waitForFunction(()=>!document.querySelector('[data-workspace-reading],[data-return-covered],[data-workspace-scene],[data-workspace-previous] > *'));await page.waitForTimeout(550);}
 const back=()=>page.getByRole('navigation',{name:'主导航',exact:true}).getByRole('link',{name:'总览',exact:true});
 try{
  assert.equal((await context.request.post(config.baseURL+'/api/auth/sign-in/email',{headers:{Origin:config.baseURL},data:{email:config.email,password:config.password}})).status(),200);
@@ -17,15 +18,16 @@ try{
  await page.goto(config.baseURL+'/dashboard');await settled();
  await page.locator('[data-metric-card="intake"]').click();await settled();
  await back().dblclick({delay:10});await page.waitForURL(url=>url.pathname==='/dashboard');await settled();
- assert.equal(await page.locator('[data-chart-flight],[data-chart-travelling]').count(),0);checks.push('连续返回无残层');
+ assert.equal(await page.locator('[data-chart-flight],[data-chart-travelling],[data-workspace-previous] > *').count(),0);checks.push('连续返回无残层');
  await page.locator('[data-metric-card="intake"]').click();await settled();
  await control('/meals-failure',{broken:true});await back().click();
  await page.getByRole('button',{name:'重新读取',exact:true}).waitFor();await page.waitForTimeout(550);
- assert.equal(await page.locator('[data-chart-flight],[data-chart-travelling]').count(),0);checks.push('读取失败立即清理转场');
+ assert.equal(await page.locator('[data-chart-flight],[data-chart-travelling],[data-workspace-previous] > *').count(),0);checks.push('读取失败立即清理转场');
  await page.screenshot({path:out+'/failure-clean.png'});
  await control('/meals-failure',{broken:false});await page.getByRole('button',{name:'重新读取',exact:true}).click();await settled();
  await page.locator('[data-metric-card="intake"]').waitFor();checks.push('真实失败恢复');
  await page.goto(config.baseURL+'/dashboard/meals?date='+config.today+'&entry=1');await settled();
+ await page.locator('summary').filter({hasText:'备注与照片'}).click();
  const notes=page.getByLabel('餐次备注',{exact:true});await notes.fill('虚构返回草稿保护');
  const close=()=>page.locator('dialog[open]').getByRole('button',{name:/^关闭/}).first();
  await close().click();await page.getByRole('button',{name:'继续编辑',exact:true}).click();

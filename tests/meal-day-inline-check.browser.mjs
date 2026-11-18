@@ -37,7 +37,7 @@ function trackPageErrors(page){
 }
 
 async function settled(page){
- await page.waitForFunction(()=>document.querySelector("[data-record-date]")&&!document.querySelector(".workspace-skeleton"));
+ await page.waitForFunction(()=>document.querySelector("[data-record-date]")&&!document.querySelector("[data-workspace-reading]"));
  await page.evaluate(()=>document.fonts.ready);
  await page.waitForFunction(()=>!document.querySelector('[role="checkbox"][aria-busy="true"]'));
  await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));

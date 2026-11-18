@@ -3,6 +3,7 @@ import { createContext, useContext } from "react";
 import type { MetricTrendModel, TrendKind } from "./metric-trend-model";
 import {chartModelMatches,type ChartFlight,type ChartRect} from './chart-flight';
 import type { Totals } from '@/features/meals/model';
+import type { WorkspaceScene } from './workspace-motion';
 
 export type ChartTarget = { kind: TrendKind; element: SVGSVGElement; model: MetricTrendModel; skeleton?: boolean };
 /** 仅本账号这次来源卡片的事实快照；与图形几何分开，不从 segments 还原营养。 */
@@ -34,7 +35,11 @@ export type ChartTransitionState = {
   preview: MetricTrendModel | null;
   previewReadings: ChartReadingsSnapshot | null;
   forwardDestination:string|null;
-  forwardChartMoving:boolean;
+  scene: WorkspaceScene | null;
+  sceneLeaving: boolean;
+  displayPath: string | null;
+  revealScene: (id: number) => void;
+  finishScene: (id: number) => void;
   returningToOverview:boolean;
   overviewReady:()=>void;
   cancelOverviewReturn:(href:string)=>void;
@@ -46,7 +51,7 @@ export type ChartTransitionState = {
   recallOverview: () => OverviewViewState | null;
   rememberOverview: (state:OverviewViewState) => void;
 };
-export const ChartTransitionContext = createContext<ChartTransitionState>({ claimChartEntry:()=>true, preview:null, previewReadings:null, forwardDestination:null, forwardChartMoving:false, returningToOverview:false, overviewReady:()=>{}, cancelOverviewReturn:()=>{}, navigate: async()=>{}, register:()=>()=>{}, restore:()=>{}, back:()=>{}, invalidate:()=>{},recallOverview:()=>null,rememberOverview:()=>{} });
+export const ChartTransitionContext = createContext<ChartTransitionState>({ claimChartEntry:()=>true, preview:null, previewReadings:null, forwardDestination:null, scene:null, sceneLeaving:false, displayPath:null, revealScene:()=>{}, finishScene:()=>{}, returningToOverview:false, overviewReady:()=>{}, cancelOverviewReturn:()=>{}, navigate: async()=>{}, register:()=>()=>{}, restore:()=>{}, back:()=>{}, invalidate:()=>{},recallOverview:()=>null,rememberOverview:()=>{} });
 export const useChartTransition = () => useContext(ChartTransitionContext);
 
 /** 图形注册与业务失效不订阅飞行状态，避免动画挂载重绘整张业务图。 */

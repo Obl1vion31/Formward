@@ -8,7 +8,7 @@ import {DecimalInput} from "@/components/decimal-input";
 import {mealVersions,verifyRecordVersions,acknowledgeRecordChanges} from "@/components/record-change-client";
 import { useEffect, useRef, useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
-import { usePageLoading } from "@/components/page-loading-state";
+
 import { useInitialMobileMode } from "@/components/use-mobile-mode";
 import { macroComposition,dailyTotals, suggestedMealType, mealOperationStatus, emptyNutrition, formatNutrition, metricLabels, metrics, type FoodDraft, type MealAction,  type MealInput, type MacroMode, type MealOperationView, type MealSnapshot, type MealView, type Metric,  type Result } from "./model";
 import { recentRecordDates, rangeContaining } from "@/components/record-dates";
@@ -56,11 +56,11 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   const [foodCategory,setFoodCategory]=useState("all");
   const [macroMode,setMacroMode]=useState<MacroMode>("grams");
   const [error,setError]=useState(""),[notice,setNotice]=useState(""),[busy,setBusy]=useState(false);
-  const [daySavingDate,setDaySavingDate]=useState<string|null>(null),[dayErrors,setDayErrors]=useState<Record<string,string>>({});
+  const [dayErrors,setDayErrors]=useState<Record<string,string>>({});
   const [dayChartFallback,setDayChartFallback]=useState<{from:string;to:string;date:string}|null>(null);
   const savedClose=useRef<()=>Promise<void>>(()=>Promise.resolve());
   const busyRef=useRef(false),request=useRef<{data:string;id:string}|null>(null);
-  usePageLoading({active:busy&&daySavingDate===null,label:"正在保存饮食记录…"});
+
   useEffect(()=>{const latest=()=>{setEditing(null);setHistoryOpen(false);setDayErrors({});setDayChartFallback(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
   const groups=dailyTotals(state.meals), preferred=initialDate??today,end=groups[0]?.date>today?groups[0].date:today;
   const first=groups.at(-1)?.date??today,from=range==="all"?first:range==="custom"?customFrom:dateAt(dateNumber(end)-Number(range)+1),to=range==="custom"?customTo:end;
@@ -95,7 +95,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   }
   async function performDay(input: MealDayInput) {
     if (!saveDay || busyRef.current) return false;
-    busyRef.current = true; setBusy(true); setDaySavingDate(input.date);
+    busyRef.current = true; setBusy(true);
     setDayChartFallback({from,to,date:chart.selected});
     setDayErrors(current=>({...current,[input.date]:""}));
     try {
@@ -103,7 +103,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
       if (!result.ok) { setDayErrors(current=>({...current,[input.date]:result.error})); return false; }
       acknowledgeRecordChanges(["mealDay:"+input.date],mealVersions(result.data.snapshot));setLocal(result.data.snapshot);return true;
     } catch { setDayErrors(current=>({...current,[input.date]:"状态未保存，请再次点击重试。"})); return false; }
-    finally { busyRef.current = false; setBusy(false); setDaySavingDate(null); }
+    finally { busyRef.current = false; setBusy(false); }
   }
   function addMeal(date:string){setError("");setEditing({kind:"save_meal",date,mealType:suggestedMealType(new Date().getHours()),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,items:[]});}
   useRepeatedRecordTask('/dashboard/meals',task=>{

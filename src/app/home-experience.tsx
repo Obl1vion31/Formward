@@ -2,6 +2,7 @@
 
 // 首页交互总控：React 管阶段，rAF 管连续数值，CSS 管画面样式。
 // 从 JSX 的 .home-stage 结构开始读，再沿 requestDirection → renderProgress 理解转身。
+import {LocalLoading} from "@/components/local-loading";
 import { useCallback, useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "@/features/auth/client";
@@ -16,7 +17,7 @@ import { createProgressTimeline, FINAL_DURATION_MS, turnFrameWeights, loginRevea
 import { createTurnVideo } from "./turn-video";
 import { LoginOverlay } from "./login-overlay";
 import { useDirectionTrigger } from "./use-direction-trigger";
-import { usePageLoading } from "@/components/page-loading-state";
+
 import { useMobileMode } from "@/components/use-mobile-mode";
 import {useHomeClearance} from "./use-home-clearance";
 import fallbackStyles from "./home-login-fallback.module.css";
@@ -65,8 +66,8 @@ export default function HomeExperience() {
   const [navigating, startNavigation] = useTransition();
   useHomeClearance(stageRef, mobileMode, phase);
   // 装饰素材使用下方局部状态，保留首帧品牌、备案链接和独立导航。
-  usePageLoading({ active: phase === "AUTHENTICATING", label: "正在验证登录…" });
-  usePageLoading({ active: navigating, label: "正在加载身体记录…" });
+
+
 
   const updateMotion = useCallback((settleMs = 100) => {
     // 先检查设备、素材就绪和系统偏好，再按阶段选择 1、0.5 或 0 倍幅度。
@@ -411,7 +412,7 @@ export default function HomeExperience() {
           <div className="scroll-hint" aria-hidden="true"><span className="scroll-hint-track"><span className="scroll-hint-wheel" /></span><span>SCROLL TO ENTER</span></div>
           {mobileMode && imagesReady && phase === "INTRO" && <p className="tap-hint">轻触屏幕进入登录</p>}
           {/* 加载提示独立于 SCROLL；role=status 让辅助技术知道加载 / 失败结果。 */}
-          {!imagesReady && <div className="image-status" role="status">正在加载</div>}
+          {(!imagesReady||navigating) && <div className="image-status"><LocalLoading label={navigating?"正在打开工作区…":"正在加载封面…"}/></div>}
           {imageError && <div className={fallbackStyles.introduction}><h1>登录 Formward</h1><p role="status">封面暂时无法显示，你仍可正常登录。</p></div>}
           <button className="keyboard-entry" type="button" onClick={revealLogin} inert={phase !== "INTRO"} aria-hidden={phase !== "INTRO"}>进入登录</button>
         </div>

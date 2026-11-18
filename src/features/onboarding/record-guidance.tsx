@@ -1,7 +1,7 @@
 "use client";
 import {createContext,useCallback,useContext,useEffect,useRef,useState,type ReactNode} from "react";
 import {createPortal} from "react-dom";
-import {usePathname,useRouter} from "next/navigation";
+import {usePathname,useRouter,useSearchParams} from "next/navigation";
 import {confirmDraftDiscard} from "@/components/draft-guard";
 import {guideKindForPath,guidePlacement,recordGuideKey,recordGuides,type RecordGuideKind} from "./record-guidance-model";
 import styles from "./record-guidance.module.css";
@@ -14,6 +14,7 @@ const first=(selector:string,root:ParentNode=document)=>[...root.querySelectorAl
 
 export function RecordGuidanceProvider({accountId,children}:{accountId:string;children:ReactNode}){
  const path=usePathname(),router=useRouter(),[tour,setTour]=useState<Tour|null>(null),sequence=useRef(0),seen=useRef(new Set<string>()),currentPath=useRef(path);
+ const linkedTrend=useSearchParams().get("view")==="trend";
  const queued=useRef<RecordGuideKind|null>(null);
  useEffect(()=>{currentPath.current=path;},[path]);
  const remember=useCallback((kind:RecordGuideKind)=>{const key=recordGuideKey(accountId,kind);seen.current.add(key);try{localStorage.setItem(key,"seen");}catch{/* 禁用存储时，本次登录仍只提示一次。 */}},[accountId]);
@@ -23,11 +24,11 @@ export function RecordGuidanceProvider({accountId,children}:{accountId:string;ch
   // 等真实 DOM 就绪后读取本设备标记；导航取消时清理未执行的帧。
   const frame=requestAnimationFrame(()=>{
    const kind=guideKindForPath(path),replay=queued.current===kind&&kind!==null;queued.current=null;
-   if(!kind){setTour(null);return;}
+   if(!kind||linkedTrend&&!replay){setTour(null);return;}
    const key=recordGuideKey(accountId,kind);let done=seen.current.has(key);try{done ||=localStorage.getItem(key)==="seen";}catch{}
    setTour(!done||replay?{kind,step:0,id:++sequence.current}:null);
   });return()=>cancelAnimationFrame(frame);
- },[accountId,path]);
+ },[accountId,path,linkedTrend]);
  const replay=useCallback(async(kind:RecordGuideKind)=>{
   if(!await confirmDraftDiscard())return;
   queued.current=kind;

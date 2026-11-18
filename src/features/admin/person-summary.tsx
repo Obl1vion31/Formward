@@ -4,7 +4,7 @@ import type {AdminConsoleData} from "./queries";
 import type {AdminFilter} from "./model";
 import styles from "./console.module.css";
 type Person=AdminConsoleData["users"][number];
-function Placeholder(){return <span className={styles.placeholder} aria-label="正在读取"/>;}
+function Placeholder(){return <span className={styles.placeholder} aria-hidden="true"/>;}
 function date(value:string|null){return value?new Date(value).toLocaleDateString("zh-CN",{timeZone:"Asia/Shanghai"}):"无";}
 export function PersonHeading({person}:{person:Person|null}){return <div className={styles.personHeading}><h2>{person?person.email:<Placeholder/>}</h2><span>{person?`${person.membershipName} · ${person.banned?"账号停用":person.aiPaused||!person.membershipActive?"站内AI暂停":"正常"}`:<Placeholder/>}</span></div>;}
 export function PersonSummary({person,id,filter,returnTo}:{person:Person|null;id:string;filter:AdminFilter;returnTo:string}){

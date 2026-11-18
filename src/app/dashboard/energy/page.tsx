@@ -1,5 +1,4 @@
 import {WorkspaceSnapshot} from "@/features/dashboard/workspace-cache";
-import {ChartArrivalContent} from "@/components/chart-preparation";
 import {workspaceQuery} from "@/features/dashboard/workspace-cache-state";
 import { requireCompletedOnboarding } from "@/features/onboarding/server";
 import { redirect } from "next/navigation";
@@ -26,5 +25,5 @@ async function Content({cacheQuery, user, date, entry,trend,intent }: {cacheQuer
   const db = getDatabase(), snapshot = await readEnergySnapshot(db, user.id);
   const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
   const sourceStatus=await loadEnergyConnection(db,user.id);
-  return <ChartArrivalContent><WorkspaceSnapshot path="/dashboard/energy" query={cacheQuery}><EnergyView sourceStatus={sourceStatus} key={`${date}:${intent}:${trend?.from}:${trend?.to}`} initialIntent={intent} presentation={energyPresentation(snapshot, [], today, await listEnergySources(db, user.id),user.id)} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date??(entry?today:null)} initialEntry={entry} initialTrend={trend} /></WorkspaceSnapshot></ChartArrivalContent>;
+  return <WorkspaceSnapshot path="/dashboard/energy" query={cacheQuery}><EnergyView sourceStatus={sourceStatus} key={`${date}:${intent}:${trend?.from}:${trend?.to}`} initialIntent={intent} presentation={energyPresentation(snapshot, [], today, await listEnergySources(db, user.id),user.id)} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date??(entry?today:null)} initialEntry={entry} initialTrend={trend} /></WorkspaceSnapshot>;
 }

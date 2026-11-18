@@ -24,8 +24,6 @@ async function context(size,motion='no-preference'){
   localStorage.setItem('formward-assistant-seen-v1','true');
   for(const kind of ['meals','body','energy','training'])localStorage.setItem('formward:record-guide:v1:'+encodeURIComponent(account)+':'+kind,'seen');
   window.__drawFrames=[];window.__observeDrawFrames=true;
-  window.__flightEvents=[];const originalAnimate=Element.prototype.animate;
-  Element.prototype.animate=function(...args){const animation=originalAnimate.apply(this,args);if(this.matches('[data-chart-flight]')){const id=this.dataset.chartFlight,started=performance.now();window.__flightEvents.push({event:'start',id,t:started,duration:animation.effect?.getTiming().duration});for(const event of ['finish','cancel'])animation.addEventListener(event,()=>window.__flightEvents.push({event,id,t:performance.now(),elapsed:performance.now()-started,currentTime:animation.currentTime}));}return animation;};
   const sample=()=>{if(!window.__observeDrawFrames)return;for(const node of document.querySelectorAll('[data-record-slot="plot"] [data-chart-bar],[data-record-slot="plot"] [data-trend-glyph="morning-weight"],[data-record-slot="plot"] [data-chart-line]'))for(const animation of node.getAnimations()){
    const timing=animation.effect?.getTiming();if(timing&&[400,600].includes(timing.duration)&&window.__drawFrames.length<200)window.__drawFrames.push({duration:timing.duration,time:animation.currentTime,kind:node.dataset.chartBar!==undefined?'bar':'line'});
   }requestAnimationFrame(sample);};requestAnimationFrame(sample);
@@ -33,10 +31,34 @@ async function context(size,motion='no-preference'){
  return {ctx,page};
 }
 async function skipGuide(page){const skip=page.getByRole('button',{name:'跳过引导',exact:true});if(await skip.isVisible())await skip.click();}
-async function ready(page){const selector='[data-route-content]:not([data-return-covered]):not([data-forward-covered]) [data-record-slot="plot"] svg[role="group"]';await page.locator(selector+':visible').first().waitFor();await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].some(plot=>plot.getClientRects().length&&getComputedStyle(plot).visibility==='visible'&&!plot.closest('.workspace-skeleton,[inert]')),selector);await page.evaluate(()=>document.fonts.ready);await skipGuide(page);}
+async function ready(page){const selector='[data-route-content]:not([data-return-covered]):not([data-forward-covered]) [data-record-slot="plot"] svg[role="group"]';await page.locator(selector+':visible').first().waitFor();await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].some(plot=>plot.getClientRects().length&&getComputedStyle(plot).visibility==='visible'&&!plot.closest('[data-workspace-reading],[inert]')),selector);await page.evaluate(()=>document.fonts.ready);await skipGuide(page);}
 async function shot(page,name){const file=join(folder,engine+'-'+name+'.png');await page.screenshot({path:file});screens.push(file);}
-async function recordFlight(page){await page.evaluate(()=>{window.__flightFrames=[];const take=()=>{const n=document.querySelector('[data-chart-flight]');if(n){const r=n.getBoundingClientRect(),a=n.getAnimations()[0];window.__flightFrames.push({id:n.dataset.chartFlight,direction:n.dataset.chartDirection,visible:getComputedStyle(n).visibility,x:r.x,y:r.y,width:r.width,height:r.height,time:a?.currentTime,duration:a?.effect?.getTiming().duration,bitmap:n.querySelectorAll('[data-flight-bitmap]').length});}window.__flightRAF=requestAnimationFrame(take);};take();});}
-async function flights(page,direction){await page.waitForFunction(()=>!document.querySelector('[data-chart-flight]'),null,{timeout:10000});const {list,events}=await page.evaluate(()=>{cancelAnimationFrame(window.__flightRAF);return {list:window.__flightFrames,events:window.__flightEvents};});frames.push({direction,list,events});const visible=list.filter(x=>x.visible==='visible'&&x.direction===direction);assert.equal(new Set(visible.map(x=>x.id)).size,1,direction+'单图层');assert.ok(visible.filter(x=>x.time>0&&x.time<300).length>=2,direction+'真实300ms中间帧');assert.ok(Math.max(...visible.map(x=>x.width))-Math.min(...visible.map(x=>x.width))>4,direction+'实际连续缩放');}
+async function recordScene(page){
+ await page.evaluate(()=>{
+  window.__sceneFrames=[];
+  const take=()=>{
+   const main=document.querySelector('.workspace-shell > main[data-workspace-scene]');
+   const body=main?.querySelector('[data-workspace-body]'),old=document.querySelector('[data-workspace-previous]:has(> *)');
+   if(body&&old){
+    const oldState=getComputedStyle(old),nextState=getComputedStyle(body);
+    const x=pose=>pose.transform==='none'?0:new DOMMatrix(pose.transform).m41;
+    window.__sceneFrames.push({direction:main.dataset.workspaceScene,oldX:x(oldState),x:x(nextState),oldOpacity:Number(oldState.opacity),opacity:Number(nextState.opacity),plot:!!body.querySelector('[data-record-slot="plot"] svg text'),flight:!!document.querySelector('[data-chart-flight]')});
+   }
+   window.__sceneRAF=requestAnimationFrame(take);
+  };
+  take();
+ });
+}
+async function scenes(page,direction){
+ await page.waitForFunction(()=>!document.querySelector('[data-workspace-scene],[data-workspace-previous] > *'));
+ const samples=await page.evaluate(()=>{cancelAnimationFrame(window.__sceneRAF);return window.__sceneFrames;});
+ frames.push({direction,samples});
+ const sign=direction==='forward'?1:-1;
+ const active=samples.filter(row=>row.direction===direction);
+ assert.ok(active.some(row=>row.oldOpacity>.08&&row.oldX*sign<-.45),direction+' 原正文离场');
+ assert.ok(active.some(row=>row.opacity>.08&&row.x*sign>.4),direction+' 目标正文入场');
+ assert.ok(active.every(row=>!row.flight&&!(row.oldOpacity>.42&&row.opacity>.42)),direction+' 无漂浮图形和两套清晰正文');
+}
 try{
  console.log('starting cold charts');
  // 冷启动真实数据初次绘制，而不是只验证切换区间。
@@ -56,15 +78,15 @@ try{
   }
   await ctx.close();
  }
- // 三卡首次点击、前进与返回都用来源几何交接。
+ // 三卡首次点击的去回程均使用一次正文过渡。
  console.log('starting roundtrips');
  const {ctx,page}=await context([1440,900]);
  for(const kind of ['intake','morning-weight','energy']){
   await page.goto(base+'/dashboard');await page.locator('[data-metric-card="'+kind+'"]:visible [data-trend-glyph]').waitFor();
   // 首次绘制与共享转场分别采样；逐SVG读取getAnimations会在WebKit强制重算样式，污染转场帧率。
   await page.evaluate(()=>{window.__observeDrawFrames=false;});
-  await recordFlight(page);await page.locator('[data-metric-card="'+kind+'"]:visible').click();await ready(page);await flights(page,'forward');
-  await recordFlight(page);await page.goBack();await page.locator('[data-metric-card="'+kind+'"]:visible [data-trend-glyph]').waitFor();await flights(page,'back');checks.push({case:'roundtrip',kind});
+  await recordScene(page);await page.locator('[data-metric-card="'+kind+'"]:visible').click();await ready(page);await scenes(page,'forward');
+  await recordScene(page);await page.goBack();await page.locator('[data-metric-card="'+kind+'"]:visible [data-trend-glyph]').waitFor();await scenes(page,'back');checks.push({case:'roundtrip',kind});
  }
  await ctx.close();
  // 实际录入与补充路径，双主题/尺寸/200%/触摸与键盘焦点。

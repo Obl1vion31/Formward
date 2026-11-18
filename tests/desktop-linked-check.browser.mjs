@@ -36,7 +36,7 @@ async function quiet(page){
  }
 }
 const settled=async page=>{
- await page.waitForFunction(()=>!document.querySelector(".workspace-skeleton,[data-chart-flight]"));
+ await page.waitForFunction(()=>!document.querySelector("[data-workspace-reading],[data-workspace-scene],[data-workspace-previous] > *"));
  await page.evaluate(()=>document.fonts.ready);
  await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));
  await quiet(page);
@@ -49,10 +49,18 @@ async function visiblePlot(page){
 }
 async function installRecorder(page){
  await page.evaluate(()=>{
-  const frames=[],start=performance.now();let frame;
+  const frames=[];let frame;
   const take=()=>{
-   const node=document.querySelector("[data-chart-flight]");
-   if(node){const box=node.getBoundingClientRect(),animation=node.getAnimations()[0],target=document.querySelector("[data-trend-ready]"),targetBox=target?.getBoundingClientRect(),matrix=target?.getScreenCTM(),a=matrix?new DOMPoint(0,0).matrixTransform(matrix):null,b=matrix?new DOMPoint(240,120).matrixTransform(matrix):null,kind=node.querySelector("[data-trend-glyph]")?.dataset.trendGlyph,source=kind?document.querySelector('[data-metric-card="'+kind+'"] [data-trend-glyph]'):null,sourceBox=source?.getBoundingClientRect();frames.push({time:performance.now()-start,scroll:scrollY,source:sourceBox?{x:sourceBox.x,y:sourceBox.y,width:sourceBox.width,height:sourceBox.height}:null,id:node.dataset.chartFlight,direction:node.dataset.chartDirection,starts:node.dataset.motionStarts??null,visible:getComputedStyle(node).visibility,left:box.left,top:box.top,width:box.width,height:box.height,animation:animation?{state:animation.playState,time:animation.currentTime}:null,target:targetBox?{x:targetBox.x,y:targetBox.y,width:targetBox.width,height:targetBox.height,skeleton:!!target.closest(".workspace-skeleton"),plane:a&&b?{x:a.x,y:a.y,width:b.x-a.x,height:b.y-a.y}:null,slots:Array.from(document.querySelectorAll("[data-record-slot]")).map(n=>({slot:n.dataset.recordSlot,y:n.getBoundingClientRect().y,height:n.getBoundingClientRect().height}))}:null});}
+   const main=document.querySelector(".workspace-shell > main[data-workspace-scene]"),body=main?.querySelector("[data-workspace-body]"),old=document.querySelector("[data-workspace-previous]:has(> *)");
+   if(body&&old){
+    const read=node=>{const css=getComputedStyle(node);return {opacity:Number(css.opacity),x:css.transform==="none"?0:new DOMMatrix(css.transform).m41};};
+    const pose=read(body),previous=read(old),sign=main.dataset.workspaceScene==="forward"?1:-1;
+    const target=body.querySelector("[data-trend-ready]"),matrix=target?.getScreenCTM(),a=matrix?new DOMPoint(0,0).matrixTransform(matrix):null,b=matrix?new DOMPoint(240,120).matrixTransform(matrix):null;
+    const detailReady=!!body.querySelector("[data-record-slot=plot] svg text")&&!!body.querySelector("[data-record-slot=plot] [data-trend-glyph]");
+    frames.push({direction:main.dataset.workspaceScene,visible:pose.opacity>.14?"visible":"hidden",x:pose.x,oldX:previous.x,oldOpacity:previous.opacity,
+     enterOpacity:pose.opacity,sourceMoved:previous.opacity>.08&&previous.x*sign<-.5,destinationMoved:pose.opacity>.08&&pose.x*sign>.4,
+     detailReady,sharedOverlay:!!document.querySelector("[data-chart-flight]"),target:a&&b?{plane:{x:a.x-pose.x,y:a.y,width:b.x-a.x,height:b.y-a.y}}:null});
+   }
    frame=requestAnimationFrame(take);
   };
   take();window.__desktopFlightRecord={frames,stop:()=>cancelAnimationFrame(frame)};
@@ -62,12 +70,11 @@ async function flightRecord(page){
  return page.evaluate(()=>{const record=window.__desktopFlightRecord;record.stop();return record.frames;});
 }
 function assertMotion(frames,direction){
- const visible=frames.filter(frame=>frame.direction===direction&&frame.visible==="visible");
- const ids=[...new Set(visible.map(frame=>frame.id))];assert.equal(ids.length,1,direction+" 每方向只能一个图层");
- assert.ok(visible.length>=2,direction+" 须有真实中间帧");
- const widths=visible.map(frame=>frame.width);assert.ok(Math.max(...widths)-Math.min(...widths)>4,direction+" 须实际移动／缩放");
- for(const frame of visible)assert.ok(frame.width>0&&frame.height>0,"数据平面在连续交接中保持可见");
- const moving=visible.filter(frame=>frame.animation&&Number(frame.animation.time)>0&&Number(frame.animation.time)<300);assert.ok(moving.length>=2,"300ms连续动画有多个实际中间帧");
+ const sequence=frames.filter(frame=>frame.direction===direction);
+ assert.ok(sequence.some(frame=>frame.sourceMoved),direction+" 原正文先开始离场");
+ assert.ok(sequence.some(frame=>frame.destinationMoved),direction+" 目标正文短距离进入");
+ assert.ok(sequence.every(frame=>!frame.sharedOverlay&&!(frame.oldOpacity>.42&&frame.enterOpacity>.42)),direction+" 保持单一阅读层次");
+ if(direction==="forward")assert.equal(sequence.find(frame=>frame.visible==="visible")?.detailReady,true,"图形与坐标轴整组出现");
 }
 async function picture(page,folder,name){
  const path=join(folder,name+".png");await page.screenshot({path,fullPage:false});return path;
@@ -188,7 +195,7 @@ export async function checkDesktopLinked({browser,baseURL,baselineURL,slowURL,fi
   assert.equal(await page.locator("[data-linked-plot]").count(),0);await visiblePlot(page);
   await installRecorder(page);await page.getByRole("navigation",{name:"主导航",exact:true}).getByRole("link",{name:"总览",exact:true}).click();await settled(page);
   const changedFrames=await flightRecord(page);
-  assert.equal(changedFrames.filter(f=>f.direction==="back"&&f.visible==="visible").length,0);
+  assertMotion(changedFrames,"back");
   report.boundaries.push({case:"range-change",frames:changedFrames});
   // 减少动态效果仍保留导航、日期和返回。
   await page.emulateMedia({reducedMotion:"reduce"});await page.goto(baseURL+"/dashboard");await settled(page);
@@ -215,10 +222,10 @@ export async function checkDesktopLinked({browser,baseURL,baselineURL,slowURL,fi
   for(const kind of kinds){
    await page.goto(baseURL+"/dashboard");await settled(page);await installRecorder(page);
    await page.locator('[data-metric-card="'+kind+'"]').click();
-   await page.waitForFunction(()=>document.querySelector('[data-chart-flight][data-motion-starts="1"]'));
+   await page.waitForFunction(()=>document.querySelector('.workspace-shell > main[data-workspace-scene="forward"]'));
    await page.getByRole("navigation",{name:"主导航",exact:true}).getByRole("link",{name:"总览",exact:true}).click();await page.waitForURL(baseURL+"/dashboard");await settled(page);
    const frames=await flightRecord(page);
-   for(const direction of ["forward","back"])assert.ok(new Set(frames.filter(f=>f.direction===direction&&f.visible==="visible").map(f=>f.id)).size<=1);
+   assert.ok(frames.every(frame=>!frame.sharedOverlay));
    assert.equal(await page.locator("[data-chart-travelling]").count(),0);report.boundaries.push({case:"quick-return",kind,frames});
   }
   await checkSelectionStability({page,baseURL,fixture,report,artifacts});

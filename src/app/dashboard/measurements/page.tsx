@@ -1,5 +1,4 @@
 import {WorkspaceSnapshot} from "@/features/dashboard/workspace-cache";
-import {ChartArrivalContent} from "@/components/chart-preparation";
 import {workspaceQuery} from "@/features/dashboard/workspace-cache-state";
 import { requireCompletedOnboarding } from "@/features/onboarding/server";
 import {headers} from "next/headers";
@@ -37,9 +36,9 @@ async function DashboardContent({cacheQuery, user, date, period, trend,intent }:
   const {proof}=await currentSessionIdentity(await headers()),preferences=await loadAccountPreferences(db,proof);
 
   return (
-    <ChartArrivalContent><WorkspaceSnapshot path="/dashboard/measurements" query={cacheQuery}>
+    <WorkspaceSnapshot path="/dashboard/measurements" query={cacheQuery}>
 
       <MeasurementsView key={`${date}:${intent}:${period}:${trend?.from}:${trend?.to}`} initialIntent={intent} preferences={preferences} initialDate={date??(period?localMeasurementDate(new Date(),systemMeasurementTimezone(new Date(),process.env.FORMWARD_TIMEZONE)):null)} initialPeriod={period} initialTrend={trend} records={records.map(measurementDisplay)} dates={dates} sources={sources} accountCreatedAt={user.createdAt.toISOString()} actions={{ deleteCell:deleteCellAction, save: saveDayAction, removeSource: removeSourceAction }} />
-    </WorkspaceSnapshot></ChartArrivalContent>
+    </WorkspaceSnapshot>
   );
 }

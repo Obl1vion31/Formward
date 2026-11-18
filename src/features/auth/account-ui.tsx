@@ -2,14 +2,14 @@
 import { useRef, useState, type ReactNode } from "react";
 import { LoadingLink } from "@/components/loading-link";
 import { Inspector,InspectorCloseButton } from "@/components/inspector";
-import { usePageLoading } from "@/components/page-loading-state";
+
 import type { AccountResult } from "./account-management";
 import styles from "./account.module.css";
 import { BrandLogo } from "@/components/brand-logo";
 
 export function useAccountTask() {
   const lock = useRef(false), [busy, setBusy] = useState(false), [label, setLabel] = useState(""), [error, setError] = useState("");
-  usePageLoading({ active: busy, label });
+
   async function run<T>(message: string, work: () => Promise<AccountResult<T>>) {
     if (lock.current) return null;
     lock.current = true; setBusy(true); setLabel(message); setError("");
@@ -22,7 +22,7 @@ export function useAccountTask() {
       return null;
     } finally { lock.current = false; setBusy(false); }
   }
-  return { busy, error, setError, run };
+  return { busy, label, error, setError, run };
 }
 
 export function AccountFrame({ title, intro, children }: { title: string; intro: string; children: ReactNode }) {

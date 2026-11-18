@@ -1,5 +1,5 @@
 "use client";
-import {ModuleSkeleton} from "@/components/module-skeleton";
+import {LocalLoading} from "@/components/local-loading";
 import {useChartViewport} from "@/components/use-chart-viewport";
 import {useChartDrag} from "@/components/use-chart-drag";
 import {signedRecordNumber} from "@/components/number-format";
@@ -47,7 +47,7 @@ export function RelationshipPlot({days,selected,selection,compactMode}:{days:Ove
   const ready=!!width&&(compactMode!==undefined||mobile!==null)&&(!compact||shortViewport!==null);
   return <div ref={container} role="group" aria-label="摄入、消耗、盈余与次晨体重变化" className={styles.relationship} style={relationshipFrameStyle} data-compact={compactMode??mobile??undefined}>
 
-    <div className={styles.plot} aria-busy={!ready}>{!ready&&<div className="chart-local-wait"><ModuleSkeleton shape="chart" label="正在加载趋势…"/></div>}<svg viewBox={`0 0 ${w} ${height}`} style={{ visibility: ready ? undefined : "hidden" }} role="group" aria-label="双层日期关联图" aria-describedby={`${id}-help`}
+    <div className={styles.plot} aria-busy={!ready}>{!ready&&<div className="chart-preparation"><LocalLoading/></div>}<svg viewBox={`0 0 ${w} ${height}`} style={{ visibility: ready ? undefined : "hidden" }} role="group" aria-label="双层日期关联图" aria-describedby={`${id}-help`}
       {...drag} onPointerMove={event=>{drag.onPointerMove(event);if(event.pointerType==="mouse")pick(event.currentTarget,event.clientX);}} onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();event.stopPropagation();selection.release();}}}>
       <desc id={`${id}-help`}>上下两图使用同一日期。点击、左右方向键及Enter选择日期，查看记录按钮打开详情。摄入用圆点，消耗用方点，空心摄入点表示当天未记全或尚未确认全天。热量填色只用于已确认完整日，体重变化对应当日到次日晨间。</desc>
       <ChartSelectionColumn x={x(selectedIndex)} date={selected} column={{left:x(selectedIndex)-slot/2,right:x(selectedIndex)+slot/2}} plot={{left,right:w-right,top,bottom:weightBottom}} resetKey={`${w}:${height}:${days.map(d=>d.date).join("|")}`} direct={selection.direct}/>

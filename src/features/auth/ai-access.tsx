@@ -22,13 +22,13 @@ type Props = {
 const viewState=new Map<string,{source:string;status:string;open:boolean;scroll:number;focusHref?:string}>();
 const providers = [["chatgpt", "ChatGPT"], ["doubao", "豆包"]] as const;
 export function AiAccessReading() {
-  return <section className={`ai-page ${styles.settings}`} aria-labelledby="ai-title" data-ai-access><PageHeading />
-    <div className={styles.providers}>{providers.map(([provider, name]) => <div className={styles.provider} key={provider}><div className={styles.providerLine} data-ai-anchor={provider}><div className={styles.identity}><h2 className={styles.aiName}>{name}</h2><span className={styles.connectionState}><LocalLoading label="正在读取连接…" iconOnly /></span>{provider === "doubao" && <span className={styles.beta}>内测</span>}</div><button className={styles.textAction + " " + styles.permissionAction} disabled>权限</button><div className={styles.providerActions}><button className={styles.textAction} disabled>详情</button></div></div></div>)}</div>
+  return <section className={`ai-page ${styles.settings}`} aria-labelledby="ai-title" data-ai-access><PageHeading reading/>
+    <div className={styles.providers}>{providers.map(([provider, name]) => <div className={styles.provider} key={provider}><div className={styles.providerLine} data-ai-anchor={provider}><div className={styles.identity}><h2 className={styles.aiName}>{name}</h2><span className={styles.connectionState}></span>{provider === "doubao" && <span className={styles.beta}>内测</span>}</div><button className={styles.textAction + " " + styles.permissionAction} disabled>权限</button><div className={styles.providerActions}><button className={styles.textAction} disabled>详情</button></div></div></div>)}</div>
     <section className={styles.submissionSection}><div className={styles.sectionBar} data-ai-anchor="submissions"><h2 className={styles.sectionTitle}><button className={styles.sectionToggle} disabled><Chevron />AI 提交记录</button></h2></div></section>
     <details className={styles.disclosure}><summary data-ai-anchor="advanced"><h2 className={styles.sectionTitle}>高级接入 <span className={styles.secondary}>手动令牌与 HTTP</span></h2></summary></details>
   </section>;
 }
-function PageHeading() { return <header className={styles.pageHeading} data-ai-anchor="heading"><h1 id="ai-title" className={styles.pageTitle}>AI 接入</h1><p>外部 AI 可查询、提交预览，保存由你确认。站内模型在小助手中切换。</p></header>; }
+function PageHeading({reading=false}:{reading?:boolean}) { return <header className={styles.pageHeading} data-ai-anchor="heading"><h1 id="ai-title" className={styles.pageTitle}>AI 接入</h1><p>外部 AI 可查询、提交预览，保存由你确认。站内模型在小助手中切换。</p>{reading&&<LocalLoading label="正在读取连接…"/>}</header>; }
 function Chevron() { return <svg className={styles.chevron} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>; }
 function closeDetails(event: KeyboardEvent<HTMLDetailsElement>) {
   if (event.key !== "Escape" || event.defaultPrevented || (event.target as Element).matches("select") || (event.target as Element).closest("details") !== event.currentTarget) return;

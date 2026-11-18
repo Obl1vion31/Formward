@@ -1,4 +1,5 @@
 "use client";
+import {LocalLoading} from "@/components/local-loading";
 import { useEffect, useState, type FormEvent } from "react";
 import {LoadingLink as Link} from "@/components/loading-link";
 import {useDraftGuard,pageRefreshApproved} from "@/components/draft-guard";
@@ -47,7 +48,7 @@ export function MfaPanel({ challenge = false, returnTo, embedded = false }: { ch
     <h1>{pending ? "验证身份" : "双重验证"}</h1>
     <p className={styles.muted}>{pending ? "输入验证器当前的6位动态码，完成这次登录。" : data?.email || "管理验证器和恢复方式。"}</p>
     {error && <p className={styles.error} role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-    {loading && <p role="status">正在读取安全状态…</p>}{readFailed&&!loading&&<button type="button" disabled={busy} onClick={()=>void perform(async()=>{await reload();})}>重新读取安全状态</button>}
+    <LocalLoading active={loading} label="正在读取安全状态…"/>{readFailed&&!loading&&<button type="button" disabled={busy} onClick={()=>void perform(async()=>{await reload();})}>重新读取安全状态</button>}
     {pending ? <form onSubmit={verifyLogin}><label>{recovery ? "一次性恢复码" : "动态码"}<input value={code} onChange={e => setCode(e.target.value)} autoComplete="one-time-code" inputMode={recovery ? "text" : "numeric"} maxLength={recovery ? 64 : 6} required disabled={busy} /></label><button disabled={busy || !code.trim()}>{busy ? "正在验证…" : "验证并继续"}</button><button className={styles.secondary} type="button" onClick={() => { setRecovery(!recovery); setCode(""); }} disabled={busy}>{recovery ? "使用验证器" : "无法使用验证器？使用恢复码"}</button></form>
       : data && <>
         {!binding && <p className={styles.status}>{data.enrollmentPaused ? "管理员动态码已暂时关闭，可使用账号密码继续。敏感操作仍需再次验证密码。" : data.recovery ? "请重新绑定验证器后继续。" : data.enabled ? "已启用验证器动态码" : data.required ? "管理员账号需要先绑定验证器。" : "可为账号增加验证器动态码保护。"}</p>}

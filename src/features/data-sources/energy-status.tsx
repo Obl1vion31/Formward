@@ -7,10 +7,9 @@ import { acknowledgeRecordChanges } from "@/components/record-change-client";
 import { synchronizeSourceAction } from "@/app/dashboard/sources/actions";
 import type { ConnectionView } from "./model";
 import styles from "./sources.module.css";
-import {LocalLoading} from "@/components/local-loading";
 import {WorkspaceRefreshingContext} from "@/features/dashboard/workspace-cache-context";
 
-export function EnergySourceStatusSkeleton(){return <div className={styles.syncBar} data-energy-source-status><LocalLoading label="正在读取同步状态…"/><LoadingLink href="/dashboard/sources">设备与数据来源 <span aria-hidden="true">→</span></LoadingLink></div>;}
+export function EnergySourceStatusSkeleton(){return <div className={styles.syncBar} data-energy-source-status><span>设备与数据来源</span><LoadingLink href="/dashboard/sources">设备与数据来源 <span aria-hidden="true">→</span></LoadingLink></div>;}
 
 export function EnergySourceStatus({ initial, steps, protectedDay }: { initial: ConnectionView | null; steps: number | null; protectedDay: boolean }) {
   const refreshing=useContext(WorkspaceRefreshingContext);

@@ -9,7 +9,7 @@ export type ChartHandoffTarget = {element:SVGSVGElement;model:MetricTrendModel;r
 export type ChartFlight = {
   id: number; model: MetricTrendModel; rect: ChartRect; direction: 'forward' | 'back';
   node?: HTMLElement; destination?: ChartRect; landing?: boolean; arrived?: boolean; ready?: boolean;
-  animation?: Animation; decorations?:Animation[]; hidden?: SVGSVGElement; deadline?: ReturnType<typeof setTimeout>;
+  animation?: Animation; decorations?:Animation[]; source?: SVGSVGElement; hidden?: SVGSVGElement; deadline?: ReturnType<typeof setTimeout>;
   entryKeys?: Set<string>;
 };
 type ChartFlights = {
@@ -68,7 +68,10 @@ export function createChartFlights(publish: (flight: ChartFlight | null,reason?:
       const current=owner.active;
       if(!current||current.id!==id||!current.node)return false;
       // 等待时原图仍可见；同一帧先显示浮层，再交出目标，不能有双双隐藏的空档。
-      if(current.node.style.visibility!=='visible')current.node.style.visibility='visible';
+      if(current.node.style.visibility!=='visible'){
+        current.source?.setAttribute('data-chart-travelling','true');
+        current.node.style.visibility='visible';
+      }
       if(current.hidden!==target){
         current.hidden?.removeAttribute('data-chart-travelling');
         current.hidden=target??undefined;

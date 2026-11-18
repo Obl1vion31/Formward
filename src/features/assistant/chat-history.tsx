@@ -1,4 +1,5 @@
 "use client";
+import { LocalLoading } from "@/components/local-loading";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAssistantChat } from "./chat-client";
@@ -170,7 +171,7 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
     {row && <p className={styles.historyTitle}>{row.title}<time dateTime={row.updatedAt}>{shortDate.format(new Date(row.updatedAt))}</time></p>}
     <div className={styles.historyScroll} ref={scroller}>
       {!conversationId ? <>
-        {!list && !failure && <p className={styles.historyFeedback} role="status">正在读取会话…</p>}
+        {!list && !failure && <div className={styles.historyFeedback}><LocalLoading label="正在读取会话…"/></div>}
         {list && (list.items.length
           ? <ul className={styles.historyList}>{list.items.map(item => <li key={item.id}><button type="button" data-history-id={item.id} onClick={() => inspect(item.id)}>
             <strong>{item.title}</strong><span>{shortDate.format(new Date(item.updatedAt))}{item.active ? " · 当前对话" : ""}</span>
@@ -181,7 +182,7 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
       </> : <div className={styles.historyTranscript} data-paginated={view && (view.hasMore || view.messages.length > 5) || undefined}>
         {view?.hasMore && view.before != null && !failure && <button type="button" className={styles.historyMore} disabled={!!busy} onClick={() => void readHistory({ kind: "detail", id: conversationId, before: view.before! })}>{busy ? "正在读取…" : "查看更早消息"}</button>}
         {errorNote}
-        {!view && !failure && <p className={styles.historyFeedback} role="status">正在读取对话…</p>}
+        {!view && !failure && <div className={styles.historyFeedback}><LocalLoading label="正在读取对话…"/></div>}
         {view && !view.messages.length && <p className={styles.historyFeedback}>这段对话还没有消息。</p>}
         {notice && <p className={styles.historyFeedback} role="status">{notice}</p>}
         <div className={styles.historyMessages}>

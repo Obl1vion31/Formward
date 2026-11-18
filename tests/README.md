@@ -18,7 +18,7 @@
 
 `pnpm test:assistant-recording-browser`使用chat-pilot的独立PGlite（`FORMWARD_CHAT_NATIVE=1`改用临时原生PostgreSQL，`FORMWARD_POSTGRES_BIN`指定本机二进制）、虚构账号、正式Next构建和模型回复回放。`CHAT_BROWSER=chromium|webkit`分别验收；`FORMWARD_CHAT_ARTIFACTS`指定Git忽略的私有目录。覆盖320／390／430同排字段、逐项切换、三种添加入口、双主题／矮屏／横屏／桌面／200%文字，照片、结构化补充、回填不保存及最终一次人工保存，桌面单聊天与手机头部；手机记录同排、三组字体／字号／字重／颜色相等，照片说明的可视区域缩高及平移、焦点与原文保留。模拟键盘明确区分真实iPhone。所有数据库写入只属于隔离库；不把fixture导入正式应用，也不使用真实API Key。
 
-`pnpm test:loading-browser`保存五类页面的正常／慢读与逐帧锚点，并核对饮食、身体、消耗在设备区间接管后仍采用今天或显式来源日期；`FORMWARD_LOADING_PART=matrix|flows`可分别运行布局矩阵和缓存／失败／草稿流程；无内容骨架与真实图形尺寸应一致，已有内容不出现更新提示。`FORMWARD_ENTRY_LOADING=1`覆盖三个录入面板实际客户端导航的等待与接管；`FORMWARD_ENTRY_ENERGY_METHOD=manual`可核对手动消耗偏好首帧；`FORMWARD_CHART_RETURN=1`运行图表往返。chart-return及edge脚本也可通过`FORMWARD_LOADING_PREVIEW=1`的同一独立服务检查三图往返。实际截图、过程与失败记录保存在.codex，不能把WebKit模拟记作物理iPhone的相册、相机或键盘通过。
+`pnpm test:loading-browser`保存五类页面的正常／慢读与逐帧锚点，并核对饮食、身体、消耗在设备区间接管后仍采用今天或显式来源日期；`FORMWARD_LOADING_PART=matrix|flows`可分别运行布局矩阵和缓存／失败／草稿流程；等待图框与真实图形尺寸应一致，已有同条件内容静默读取，等待中的独立区域至多一处提示。`FORMWARD_ENTRY_LOADING=1`覆盖三个录入面板实际客户端导航的等待与接管；`FORMWARD_ENTRY_ENERGY_METHOD=manual`可核对手动消耗偏好首帧；`FORMWARD_CHART_RETURN=1`运行图表往返。chart-return及edge脚本也可通过`FORMWARD_LOADING_PREVIEW=1`的同一独立服务检查三图往返。实际截图、过程与失败记录保存在.codex，不能把WebKit模拟记作物理iPhone的相册、相机或键盘通过。
 
 record-guidance.browser.mjs复用workspace-loading的隔离原生PostgreSQL fixture及config，通过GUIDANCE_BROWSER选择Chromium／WebKit，GUIDANCE_ARTIFACTS指定私有截图与录像目录。核查四类真实入口→填写→保存说明、跳过／重播／只提示一次、不可用存储、账号隔离、失败留稿及健康事实不变；生日直接选年、闰日失效、部分草稿和新账号真实保存。覆盖窄屏、横屏、桌面、深浅主题和减少动态效果，不使用正式数据。
 
@@ -54,7 +54,7 @@ production build后运行pnpm test:assistant-browser与pnpm test:desktop-linked-
 
 production build后运行pnpm test:loading-browser。workspace-loading.browser.mts自行创建本机隔离PGlite、虚构饮食／测量／消耗及训练账号，不读取环境文件或接受外部数据库。FORMWARD_LOADING_ENGINE=webkit切换引擎，PLAYWRIGHT_BROWSERS_PATH指定本机浏览器缓存，FORMWARD_LOADING_ARTIFACTS指定私有证据位置。
 
-workspace-loading-check.browser.mjs逐页检查总览、饮食、训练、消耗、身体的固定标题、查看／历史入口、图例及颜色；必须先存在且可见，再比较前后固定槽位≤1px。两主题覆盖320／390／430、矮屏、横屏及1100／1440／1920；保留首帧、完整采样及接管后至少500ms，真实列表行数变化单独记录。资料及安全面板检查200ms局部反馈、失败、关闭和迟到响应，页面导航保留草稿及焦点保护。减少动态效果不冒充完整动效验收。
+workspace-loading-check.browser.mjs逐页检查总览、饮食、训练、消耗、身体的固定标题、查看／历史入口、图例及颜色；必须先存在且可见，再比较前后固定槽位≤1px。两主题覆盖320／390／430、矮屏、横屏及1100／1440／1920；保留首帧、完整采样及接管后至少500ms，真实列表行数变化单独记录。资料及安全面板检查350ms局部反馈、失败、关闭和迟到响应，页面导航保留草稿及焦点保护。减少动态效果不冒充完整动效验收。
 
 FORMWARD_LOADING_PREVIEW=1保留本机虚构预览供人工核看，SIGTERM／SIGINT会关闭本人测试应用和数据库。FORMWARD_LOADING_DIAGNOSE=1只用于小范围定位并保留失败报告，不能作为最终通过证据；实际浏览器／真机未测项仍单独注明。
 
@@ -70,7 +70,7 @@ FORMWARD_DESKTOP_BROWSER 选择 chromium／webkit，FORMWARD_DESKTOP_ARTIFACTS �
 
 production build 后运行 pnpm test:desktop-linked-browser。入口默认建立本机隔离 PGlite，或使用显式指定的全新回环 PostgreSQL 测试库；执行现有 migration 并创建虚构账号，不读取环境文件或接受生产数据库。FORMWARD_DESKTOP_BROWSER=webkit 切换引擎，FORMWARD_DESKTOP_ARTIFACTS 指定私有证据目录；Chromium保留实际页面录屏，两引擎均记录真实帧和布局。
 
-desktop-linked-check.browser.mjs检查首页三卡前置／自适应排列、三类七日链接、2:1真实目标及骨架、单次双向移动、浏览器前进后退、原滚动／焦点／区间／估计选项恢复、新标签、快速反向、慢网中断及迟到响应。骨架和目标使用相同轴字体、长刻度及数据平面，位置尺寸逐项相差不超过1px。复查手机／电脑反复切换的图表测量、鼠标／键盘估计读数≤1px稳定性、模拟触屏上下文选日、横屏与文字放大。Inspector覆盖普通／自定义标题、设置、身体／消耗／餐次编辑，实际验证失败留稿、继续编辑、放弃与成功保存后营养原值保持；另验真实记全、消耗改期取消／确认后的编号与事实，以及助手先收起再进入正确日期的编辑。
+desktop-linked-check.browser.mjs检查首页三卡前置／自适应排列、三类七日链接、2:1真实目标及等待图区、单次双向移动、浏览器前进后退、原滚动／焦点／区间／估计选项恢复、新标签、快速反向、慢网中断及迟到响应。等待图区和目标使用相同轴字体、长刻度及数据平面，位置尺寸逐项相差不超过1px。 逐帧核对两页正文先后出现、导航选中态在交界更新、图形与坐标轴一起进入详情。复查手机／电脑反复切换的图表测量、鼠标／键盘估计读数≤1px稳定性、模拟触屏上下文选日、横屏与文字放大。Inspector覆盖普通／自定义标题、设置、身体／消耗／餐次编辑，实际验证失败留稿、继续编辑、放弃与成功保存后营养原值保持；另验真实记全、消耗改期取消／确认后的编号与事实，以及助手先收起再进入正确日期的编辑。
 
 FORMWARD_DESKTOP_PREVIEW=1 启动持久虚构预览，默认4240、慢响应4241；FORMWARD_DESKTOP_PORT可改端口。可用FORMWARD_DESKTOP_BASELINE_ROOT指定由固定提交导出的独立已构建副本，预览使用4242，并以同一虚构数据库生成前后截图；不得依赖其他活跃任务会重新构建的.next。private preview.json保存本机进程和演示连接，不能复制到public或提交Git。真实iPhone、系统键盘与系统级文字放大不由这些模拟检查代替。
 
@@ -206,7 +206,7 @@ FORMWARD_MEASUREMENTS_DEV=1 PLAYWRIGHT_MODULE=/tmp/formward-browser-check/node_m
 
 ## 维护约定
 
-`page-loading.browser.mjs` 随身体浏览器入口使用独立账号运行，拦截并延迟实际 Server Action、页面和认证请求，覆盖 200ms 延迟、重复提交、保存／估算／审核／令牌／登录／导航、失败保留输入、编辑弹窗上方的原生模态层、共享滚动锁、320px 和减少动态效果。慢请求通过真实网络失败验证输入保留与模态层恢复；来源留空本身允许保存。快速失败检查不会闪现遮罩。`FORMWARD_LOADING_ONLY=1` 只运行 HTTP 与加载验收；开发模式继续使用临时源码和独立端口，不占用 3000，生产模式在构建后运行。截图可用 FORMWARD_MEASUREMENTS_ARTIFACTS 指定私有临时目录。
+`page-loading.browser.mjs` 随身体浏览器入口在虚构账号下运行。延迟并中断实际保存请求，验证录入按钮原位反馈、只保留录入窗口、失败保留输入，覆盖1440px与390px。FORMWARD_LOADING_ONLY=1只运行HTTP与加载验收。
 
 开发验收先编译所需入口，并在多页面草稿检查前重新建立当前编译版本的连接。Next.js 16.3.7 的开发 WebSocket 在重新同步时若编译 hash 不同会主动整页重载，不能把冷编译触发的重载当作业务状态更新。生产验收不预热或重新载入审核页，完整验证从站内 Link 进入、修改与保存的流程。
 
@@ -439,7 +439,7 @@ production build后执行pnpm test:mobile-interface-browser，使用PGlite虚构
 
 餐次文字放大需按实际输入字号测量可见数值与控件内容宽度；正常125.00及200%普通／长数量都应完整显示，必要时整字段退列。数字输入按明确标签定位，不能假定为textbox；只检查页面无横向溢出不足以判定数值可读。
 
-双端图表与消耗表单专项：在chat-pilot的本机隔离预览与回复回放上运行tests/chart-refinement.browser.mjs，FORMWARD_CHAT_BROWSER_CONFIG指向该虚构fixture，PLAYWRIGHT_MODULE指定本机Playwright，CHAT_BROWSER分别为chromium／webkit。检查首次400/600ms绘制、三卡连续300ms双向交接、7D最大640与30D/90D铺满且320px同高、身体点7px稳定、同宽补充选项与自由填写、消耗双数值草稿。验收报告保留失败与实际帧；真机触摸／系统键盘单独记结果，不以引擎模拟代替。仅登录一次并复用本人隔离会话，避免反复登录触发真实限流；不改变密码或认证门槛。
+双端图表与消耗表单专项：在chat-pilot的本机隔离预览与回复回放上运行tests/chart-refinement.browser.mjs，FORMWARD_CHAT_BROWSER_CONFIG指向该虚构fixture，PLAYWRIGHT_MODULE指定本机Playwright，CHAT_BROWSER分别为chromium／webkit。检查普通入口首次绘制、三卡约200ms双向正文过渡、7D最大640与30D/90D铺满且320px同高、身体点7px稳定、同宽补充选项与自由填写、消耗双数值草稿。验收报告保留失败与实际帧；真机触摸／系统键盘单独记结果，不以引擎模拟代替。仅登录一次并复用本人隔离会话，避免反复登录触发真实限流；不改变密码或认证门槛。
 
 真机验收与模型回放分开：本轮用户已用原iPhone Safari确认补充选择、自由填写、静息／活动双输入、清空与触摸无残留外框正常。键盘、视口、面板定位没有改动，不将本轮结果宣称为新键盘策略通过。
 

@@ -2,6 +2,27 @@ import {workspacePages} from "./workspace-pages";
 
 export type WorkspaceLocation={path:string;search:string};
 export const workspaceMotionTiming = { duration: 200, easing: "cubic-bezier(.22,1,.36,1)" };
+export type WorkspaceScene={id:number;direction:"forward"|"back";sourcePath:string};
+
+/** 目标先完整绘制在旧正文下方，旧画面淡出时自然露出目标。 */
+export function animateWorkspaceScene(previous:HTMLElement,body:HTMLElement,direction:WorkspaceScene["direction"],reveal:()=>void,finish:()=>void){
+ const sign=direction==="forward"?1:-1;
+ const exit=previous.animate([
+  {transform:"translateX(0)",opacity:1},
+  {transform:`translateX(${-2*sign}px)`,opacity:1,offset:.23},
+  {transform:`translateX(${-3*sign}px)`,opacity:.76,offset:.4},
+  {transform:`translateX(${-4.5*sign}px)`,opacity:.48,offset:.56},
+  {transform:`translateX(${-6*sign}px)`,opacity:0}
+ ],{duration:120,fill:"both"});
+ const enter=body.animate([
+  {transform:`translateX(${8*sign}px)`},
+  {transform:"translateX(0)"}
+ ],{duration:200,easing:"cubic-bezier(.32,0,.25,1)",fill:"both"});
+ void exit.finished.catch(()=>{});
+ const revealTimer=window.setTimeout(reveal,48);
+ void enter.finished.then(finish,()=>{});
+ return ()=>{window.clearTimeout(revealTimer);exit.cancel();enter.cancel();};
+}
 /** 普通模块导航才移动正文；图形交接、录入与日期详情保留自己的容器。 */
 export function workspaceMotionDirection(from:WorkspaceLocation,to:WorkspaceLocation,chartActive=false){
  const previous=workspacePages.findIndex(([href])=>href===from.path),next=workspacePages.findIndex(([href])=>href===to.path);
