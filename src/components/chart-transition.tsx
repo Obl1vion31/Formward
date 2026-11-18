@@ -181,6 +181,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   },[motion,landAt,clear,returningToOverview,focusReturnCard]);
   const prepareBack=useCallback((fromHistory=false,deferShell=false)=>{
     const saved=origin.current;if(!saved||motion.current.returning)return;
+    focusAfterLoad.current={kind:saved.kind,rail:saved.rail,scroll:saved.scroll};
     if(!deferShell)setReturningToOverview(true);returnCancelled.current=false;returnReady.current=false;returnFromHistory.current=fromHistory;returnFocusUntouched.current=true;
     const current=motion.current.active,dest=target.current,cached=lastTarget.current;
     let source:{model:MetricTrendModel;rect:ChartRect}|null=null;
@@ -232,7 +233,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   useEffect(()=>{const query=matchMedia('(prefers-reduced-motion: reduce)');const changed=()=>{if(query.matches)clear();};query.addEventListener('change',changed);return()=>query.removeEventListener('change',changed);},[clear]);
   useLayoutEffect(()=>{
     const changed=route.current!==pathname;route.current=pathname;if(changed){requested.current=null;if(pathname!=='/dashboard'&&returnCancelled.current)overviewReady();}
-    if(changed&&origin.current&&pathname!=='/dashboard'&&pathname!==origin.current.destination){origin.current=null;lastTarget.current=null;motion.current.returning=false;clear();}
+    if(changed&&origin.current&&pathname!=='/dashboard'&&pathname!==origin.current.destination){origin.current=null;focusAfterLoad.current=null;lastTarget.current=null;motion.current.returning=false;clear();}
     if(origin.current&&pathname===origin.current.destination&&!chartDestinationMatches(origin.current,pathname+(search?'?'+search:''))){origin.current.paired=false;lastTarget.current=null;clear();}
     if(changed&&pathname==='/dashboard'&&origin.current&&!motion.current.returning&&!returningToOverview)prepareBack(true);
     if(pathname==='/dashboard'&&motion.current.returning){const rail=document.querySelector<HTMLElement>('[data-metric-rail]');if(rail)restore(rail);}
@@ -244,7 +245,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   const invalidate=useCallback(()=>{if(origin.current)origin.current.paired=false;clear();lastTarget.current=null;},[clear]);
   const cancelOverviewReturn=useCallback((href:string)=>{
     if(!returningToOverview&&!motion.current.returning)return;
-    if(!returnCancelled.current){returnCancelled.current=true;setReturnPreview(null);navigation.current++;motion.current.returning=false;origin.current=null;lastTarget.current=null;clear();}
+    if(!returnCancelled.current){returnCancelled.current=true;setReturnPreview(null);navigation.current++;motion.current.returning=false;origin.current=null;focusAfterLoad.current=null;lastTarget.current=null;clear();}
     if(new URL(href,location.origin).pathname===pathname)overviewReady();
   },[returningToOverview,pathname,motion,clear,overviewReady]);
   useEffect(()=>{

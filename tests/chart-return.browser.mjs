@@ -23,11 +23,11 @@ async function create(width,height,theme='light'){
  await context.addInitScript(userId=>{for(const kind of ['meals','body','energy','training'])localStorage.setItem('formward:record-guide:v1:'+encodeURIComponent(userId)+':'+kind,'seen');},config.userId);
  await context.addInitScript(theme=>{
   localStorage.setItem('formward-theme',theme);
-  window.chartFrames=[];window.chartMark=null;window.chartStarts=[];window.chartObservedStarts=[];
+  window.chartFrames=[];window.chartMark=null;window.chartStarts=[];window.chartObservedStarts=[];window.firstOverviewRange=null;window.firstOverviewCard=null;
   // MutationObserver在整次React提交后才派发，不能把派发延迟当作动画起步。直接记录真实WAAPI调用，另保留观察时间。
   const animate=Element.prototype.animate;
   Element.prototype.animate=function(...args){const animation=animate.apply(this,args);if(window.chartMark!==null&&this.matches('[data-chart-flight][data-chart-direction="back"]'))window.chartStarts.push({id:this.dataset.chartFlight,t:performance.now()-window.chartMark,range:[...document.querySelectorAll('[aria-label="日期视角"] button[aria-pressed=true]')].find(node=>node.getClientRects().length&&getComputedStyle(node).visibility==='visible'&&!node.closest('[data-return-covered],[inert]'))?.textContent});return animation;};
-  document.addEventListener('click',event=>{const card=event.target.closest?.('a[data-metric-card]');if(card)window.chartOrigin={rail:card.closest('[data-metric-rail]').scrollLeft,scroll:scrollY,kind:card.dataset.metricCard};const link=event.target.closest?.('a[href="/dashboard"]');if(link&&location.pathname!=='/dashboard'){window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];window.chartObservedStarts=[];}},true);
+  document.addEventListener('click',event=>{const card=event.target.closest?.('a[data-metric-card]');if(card)window.chartOrigin={rail:card.closest('[data-metric-rail]').scrollLeft,scroll:scrollY,kind:card.dataset.metricCard,card:card.getBoundingClientRect().toJSON()};const link=event.target.closest?.('a[href="/dashboard"]');if(link&&location.pathname!=='/dashboard'){window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];window.chartObservedStarts=[];window.firstOverviewRange=null;window.firstOverviewCard=null;}},true);
   new MutationObserver(()=>{
    if(window.chartMark===null)return;
    const node=document.querySelector('[data-chart-flight][data-motion-starts="1"]');
@@ -35,6 +35,8 @@ async function create(width,height,theme='light'){
   }).observe(document,{subtree:true,attributes:true,attributeFilter:['data-motion-starts']});
   function frame(t){
    if(window.chartMark!==null){
+    // 图形可在原详情上先起步；区间应读取首个可见总览帧，不能误读尚在退出的详情“自定义”。
+    if(window.firstOverviewRange===null){const overview=document.querySelector('[data-workspace-frame="overview"]');if(overview){window.firstOverviewRange=[...overview.querySelectorAll('[aria-label="日期视角"] button[aria-pressed=true]')].find(node=>node.getClientRects().length&&!node.closest('[data-return-covered],[data-return-prepared],[inert]'))?.textContent??null;const card=[...overview.querySelectorAll('a[data-metric-card]')].find(node=>node.dataset.metricCard===window.chartOrigin?.kind&&node.getClientRects().length&&!node.closest('[data-return-covered],[data-return-prepared],[inert]'));if(card)window.firstOverviewCard=card.getBoundingClientRect().toJSON();}}
     const node=document.querySelector('[data-chart-flight]'),visible=!!node&&node.style.visibility==='visible';
     let sourceVisible=true;
     // 只在真正等待的帧读取一次源图样式，避免验收探针逐帧强制整页布局、影响被测动效。
@@ -52,9 +54,9 @@ async function create(width,height,theme='light'){
 }
 async function inspectReturn(page,label,{paired=true,warm=true}={}){
  await page.waitForURL(url=>url.pathname==='/dashboard');await settled(page);
- const {frames,starts,observedStarts}=await page.evaluate(()=>{const value={frames:window.chartFrames,starts:window.chartStarts,observedStarts:window.chartObservedStarts};window.chartMark=null;return value;});
+ const {frames,starts,observedStarts,firstOverviewRange,firstOverviewCard}=await page.evaluate(()=>{const value={frames:window.chartFrames,starts:window.chartStarts,observedStarts:window.chartObservedStarts,firstOverviewRange:window.firstOverviewRange,firstOverviewCard:window.firstOverviewCard};window.chartMark=null;return value;});
  const back=frames.filter(frame=>frame.dir==='back'),ids=[...new Set(back.map(frame=>frame.id))],first=back.find(frame=>frame.visible&&frame.moving);
- const result={label,paired,firstMotion:starts[0]?.t??null,startedRange:starts[0]?.range??null,firstPresentedFrame:first?.t??null,observedStarts,frames};results.push(result);
+ const result={label,paired,firstMotion:starts[0]?.t??null,startedRange:starts[0]?.range??null,firstOverviewRange,firstOverviewCard,firstPresentedFrame:first?.t??null,observedStarts,frames};results.push(result);
  assert.ok(ids.length<=1,label+'重复回程');
  assert.ok(starts.length<=1,label+'重复启动动画');
  if(paired){assert.ok(first,label+'缺少回程运动');assert.ok(starts[0],label+'缺少运动启动');if(warm)assert.ok(starts[0].t<=100,label+'起步超过100ms: '+starts[0].t);}
@@ -62,6 +64,7 @@ async function inspectReturn(page,label,{paired=true,warm=true}={}){
  assert.equal(await page.locator('[data-chart-flight],[data-chart-travelling]').count(),0);
   const position=await page.evaluate(()=>({expected:window.chartOrigin,rail:[...document.querySelectorAll('[data-metric-rail]')].find(node=>node.getClientRects().length>0&&!node.closest('[inert]')).scrollLeft,scroll:scrollY,focus:document.activeElement?.closest('[data-metric-card]')?.dataset.metricCard,active:document.activeElement?{tag:document.activeElement.tagName,role:document.activeElement.getAttribute('role'),label:document.activeElement.getAttribute('aria-label'),cached:!!document.activeElement.closest('[data-workspace-cached]')}:null}));
  result.position=position;if(position.expected){assert.ok(Math.abs(position.rail-position.expected.rail)<=1,label+'卡片带未恢复');assert.ok(Math.abs(position.scroll-position.expected.scroll)<=1,label+'页面滚动未恢复');assert.equal(position.focus,position.expected.kind,label+'焦点回到原卡片');}
+ if(position.expected?.card&&firstOverviewCard)for(const key of ['x','y','width','height'])assert.ok(Math.abs(firstOverviewCard[key]-position.expected.card[key])<=1,label+'首个总览帧卡片'+key+'跳动');
  return result;
 }
 async function bodyGeometry(page){return page.evaluate(()=>{
@@ -90,7 +93,7 @@ try{
     await overview(page).click();await inspectReturn(page,`${width}-${kind}-${i+1}`);
     if(i===0||i===loops-1)await page.screenshot({path:out+`/${width}-${kind}-return-${i+1}.png`});
    }
-   await page.getByRole('button',{name:'90D',exact:true}).click();await page.locator('[data-metric-card="intake"]:visible').click();await settled(page);await overview(page).click();const remembered=await inspectReturn(page,`${width}-overview-range`);assert.equal(remembered.startedRange,'90D','返回首帧保留已应用区间');assert.equal(await page.getByRole('button',{name:'90D',exact:true}).getAttribute('aria-pressed'),'true');await page.getByRole('button',{name:width<700?'7D':'30D',exact:true}).click();
+   await page.getByRole('button',{name:'90D',exact:true}).click();await page.locator('[data-metric-card="intake"]:visible').click();await settled(page);await overview(page).click();const remembered=await inspectReturn(page,`${width}-overview-range`);assert.equal(remembered.firstOverviewRange,'90D','首个可见总览帧保留已应用区间');assert.equal(await page.getByRole('button',{name:'90D',exact:true}).getAttribute('aria-pressed'),'true');await page.getByRole('button',{name:width<700?'7D':'30D',exact:true}).click();
    await page.locator('[data-metric-card="morning-weight"]:visible').click();await settled(page);
    for(const range of ['custom','7D','30D']){
     if(range!=='custom')await page.getByRole('button',{name:range,exact:true}).click();
@@ -119,7 +122,7 @@ try{
    await delay(650);await overview(page).click();await inspectReturn(page,`${width}-slow`,{warm:false});await delay(0);
    await page.locator('[data-metric-card="energy"]:visible').click();await page.waitForTimeout(40);await overview(page).click();await inspectReturn(page,`${width}-quick-reverse`,{warm:false});
    await page.locator('[data-metric-card="morning-weight"]:visible').click();await settled(page);
-   await page.evaluate(()=>{window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];});await page.goBack();await inspectReturn(page,`${width}-browser-back`,{warm:false});
+   await page.evaluate(()=>{window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];window.chartObservedStarts=[];window.firstOverviewRange=null;window.firstOverviewCard=null;});await page.goBack();await inspectReturn(page,`${width}-browser-back`,{warm:false});
    await page.locator('[data-metric-card="intake"]:visible').click();await settled(page);await delay(650);await overview(page).click();
    await page.getByRole('navigation',{name:'主导航',exact:true}).getByRole('link',{name:'身体',exact:true}).click();await page.waitForURL(url=>url.pathname==='/dashboard/measurements');await settled(page);
    assert.equal(await page.locator('[data-workspace-frame=body]').count(),1);assert.equal(await page.locator('[data-chart-flight],[data-return-covered]').count(),0);await delay(0);
