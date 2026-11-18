@@ -1,6 +1,7 @@
 "use client";
 import {RecordWorkspace} from "@/components/record-trend-panel";
-import {useCallback,useLayoutEffect} from 'react';
+import {useCallback,useContext,useLayoutEffect} from 'react';
+import {WorkspaceRefreshingContext} from './workspace-cache-context';
 import {useChartTransition} from '@/components/chart-transition-state';
 import {useRouter,usePathname} from 'next/navigation';
 import { useLocalToday } from "@/components/use-local-today";
@@ -11,8 +12,9 @@ import type { OverviewPresentation } from "./presentation";
 import styles from "./overview.module.css";
 export function OverviewView({ presentation,accountId }: { accountId?:string; presentation: OverviewPresentation }) {
   const { today } = presentation;
+  const refreshing=useContext(WorkspaceRefreshingContext);
   const path=usePathname(),{returningToOverview,overviewReady}=useChartTransition();
-  useLayoutEffect(()=>{if(returningToOverview&&path==='/dashboard')overviewReady?.();},[returningToOverview,overviewReady,path]);
+  useLayoutEffect(()=>{if(returningToOverview&&path==='/dashboard'&&!refreshing)overviewReady?.();},[returningToOverview,overviewReady,path,refreshing]);
   const router=useRouter(),refreshAtMidnight=useCallback(()=>router.refresh(),[router]);
   const localToday = useLocalToday(today,refreshAtMidnight);
   return <RecordWorkspace title="总览" className={styles.workspace}>
