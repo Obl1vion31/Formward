@@ -80,6 +80,7 @@ try{
    if(!baseline){const actions=page.locator('[data-assistant-surface] [aria-label="快捷记录"] a');assert.equal(await actions.count(),3);assert.equal(await actions.first().locator('svg').count(),1);}
    await chatTab(page,width);mark('发送真实消息气泡');await message(page,'排版验收');await screenshot(page,profile,'chat-markdown',['A01','A02','A03']);
    assert.equal(await page.getByRole('region',{name:'回答中的表格'}).count(),1);assert.ok(await page.locator('[data-chat-message] ul li').count()>0);
+   if(!baseline){const markers=await page.locator('[data-chat-message] ul li').evaluateAll(nodes=>nodes.map(node=>({type:getComputedStyle(node).listStyleType,display:getComputedStyle(node).display})));assert.ok(markers.every(marker=>marker.type==='disc'&&marker.display==='list-item'),'回答列表必须显示实际项目符号，不能只验证li节点存在');}
    await newChat(page);mark('多题补充');await message(page,'逐题补充验收');
    const form=page.getByRole('form',{name:'补充隔离多题补充'});await form.waitFor();
    await screenshot(page,profile,'followup-first',['A09','X16']);
