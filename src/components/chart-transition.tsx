@@ -179,9 +179,9 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     if(graph&&visible(graph)&&graph.dataset.trendRange===saved.rangeKey&&graph.dataset.trendKey===saved.modelKey&&current?.direction==='back'&&motion.current.active?.id===current.id)landAt(rectOf(graph),graph,false,current.id);
     else{clear();focusReturnCard(rail.querySelector<HTMLElement>(`[data-metric-card="${saved.kind}"]`));if(returnReady.current)origin.current=null;motion.current.returning=false;lastTarget.current=null;}
   },[motion,landAt,clear,returningToOverview,focusReturnCard]);
-  const prepareBack=useCallback((fromHistory=false)=>{
+  const prepareBack=useCallback((fromHistory=false,deferShell=false)=>{
     const saved=origin.current;if(!saved||motion.current.returning)return;
-    setReturningToOverview(true);returnCancelled.current=false;returnReady.current=false;returnFromHistory.current=fromHistory;returnFocusUntouched.current=true;
+    if(!deferShell)setReturningToOverview(true);returnCancelled.current=false;returnReady.current=false;returnFromHistory.current=fromHistory;returnFocusUntouched.current=true;
     const current=motion.current.active,dest=target.current,cached=lastTarget.current;
     let source:{model:MetricTrendModel;rect:ChartRect}|null=null;
     if(saved.paired&&!reduced()&&saved.viewport.width===innerWidth&&saved.viewport.height===innerHeight){
@@ -193,16 +193,28 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     motion.current.beginReturn(source);
   },[motion]);
   const back=useCallback(async()=>{
-    if(returningToOverview&&!returnCancelled.current)return;
+    if((returningToOverview||motion.current.returning)&&!returnCancelled.current)return;
     const intent=++navigation.current;
     if(draftIsBusy()||!await confirmDraftDiscard()||navigation.current!==intent)return;
-    // 点击确认后先提交持久返回外壳及图形目标，再启动可等待服务器的路由更新。
+    // 先在仍稳定的详情布局上提交小图层，用离开总览时实测的原位置起步。
+    // 返回外壳的完整布局随后交接，不能把全页样式重算放在动画起步之前。
+    const saved=origin.current,source=target.current;
     flushSync(()=>{
-      setReturningToOverview(true);returnCancelled.current=false;returnReady.current=false;returnFocusUntouched.current=true;
-      if(origin.current&&!motion.current.returning)prepareBack();
+      returnCancelled.current=false;returnReady.current=false;returnFocusUntouched.current=true;
+      if(saved&&!motion.current.returning)prepareBack(false,true);
     });
-    startTransition(()=>router.push('/dashboard',{scroll:false}));
-  },[router,motion,prepareBack,returningToOverview]);
+    const current=motion.current.active;
+    const commit=()=>{
+      if(navigation.current!==intent||returnCancelled.current||saved&&origin.current!==saved)return;
+      flushSync(()=>setReturningToOverview(true));
+      startTransition(()=>router.push('/dashboard',{scroll:false}));
+    };
+    if(saved&&current?.direction==='back'&&current.node){
+      // 暂未确认落点；可见卡片恢复后仍由restore核对模型与真实几何，错配即释放。
+      landAt(saved.rect,source?.element??null,true,current.id);
+      requestAnimationFrame(()=>requestAnimationFrame(commit));
+    }else commit();
+  },[router,motion,prepareBack,returningToOverview,landAt]);
   // 进入时接入实际目标；返回由恢复后的卡片或骨架目标接管。
   useLayoutEffect(()=>{
     const current=motion.current.active;
@@ -231,7 +243,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
   useEffect(()=>()=>{motion.current.clear();},[motion]);
   const invalidate=useCallback(()=>{if(origin.current)origin.current.paired=false;clear();lastTarget.current=null;},[clear]);
   const cancelOverviewReturn=useCallback((href:string)=>{
-    if(!returningToOverview)return;
+    if(!returningToOverview&&!motion.current.returning)return;
     if(!returnCancelled.current){returnCancelled.current=true;setReturnPreview(null);navigation.current++;motion.current.returning=false;origin.current=null;lastTarget.current=null;clear();}
     if(new URL(href,location.origin).pathname===pathname)overviewReady();
   },[returningToOverview,pathname,motion,clear,overviewReady]);
