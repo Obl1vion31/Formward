@@ -2,15 +2,15 @@
 
 ## 当前正式版本
 
-正式站[formward.top](https://formward.top)运行 `dual-entry-ad2741d8-assistant-motion-release-20261119`，源码 `ad2741d83c8bdd0d3ea016b1492a17567ede842c`，BUILD_ID `8IsRUhpQ-Fd6Gv9g5-lAw`。北京时间 2026-11-19 00:45:31 切换，已合入并推送 main。
+正式站[formward.top](https://formward.top)运行 `dual-entry-f306867a-loading-stability-r3-20261119`，源码 `f306867a5f7d9bcba321da953a067af563ff3779`，BUILD_ID `2j4zOcBKkwcO0oBQbPVRI`。北京时间 2026-11-19 02:00:08 切换，已合入并推送 main。
 
-手机小助手从底栏即时打开，独立读取聊天与待办。开合采用 200 毫秒轻移淡变，返回恢复日期、筛选、滚动和焦点。读取失败停止等待提示，可原位重试。双浏览器验收、旧版对照与未测范围见[站内聊天验收](assistant-chat-verification.md)。
+总览三张状态卡与关联趋势之间使用约 200 毫秒的正文过渡。图形和坐标轴在同一绘图区出现。数据仍在读取 350 毫秒后才在所属区域显示提示，返回保留滚动和原卡片焦点。手机助手退出时等路由与历史同步后交还原工作区。实际浏览器结果和录屏见[视觉验收](../design-qa.md)。
 
-上海网页和同版本聊天 worker 均正常运行。现行 schema `0045_managed_membership`、45 项迁移和 67 张业务／认证表一致，正式配置及表单绑定密钥保持。停写备份 `formward-primary-20261118T164527541603Z.dump.json` 完成原生检查和加密异机完整回读。兼容包保留 1767 项旧静态资源，继续支持已打开页面；过期的受保护动作提示保留输入并刷新。
+上海网页和同版本聊天 worker 均正常运行。现行 schema `0045_managed_membership`、45 项迁移和 67 张业务／认证表核对一致，正式配置及表单绑定密钥保持。停写备份 `formward-primary-20261118T180004621134Z.dump.json` 完成原生检查和加密异机完整回读。兼容包保留 1835 项旧静态资源。过期的受保护动作提示保留输入并刷新。
 
-正式域名、www、两个海外入口和兼容 IP 的版本一致。核对了助手直达的登录返回地址、新旧静态资源、原 HTTP 与 MCP 路径和匿名拒绝。海外网关沿用现行部署。
+正式域名、www、两个海外入口和兼容 IP 的版本一致。公网已核对登录深链、新旧静态资源、HTTP 与 MCP 契约和匿名拒绝。海外网关沿用现行部署。
 
-本机永久归档位于 `.codex/backups/regional-releases/assistant-motion-release-20261119`。兼容运行包 78,368,232 字节，本机与服务器 SHA256 均为 `11f124e120bc69da86a5ca2e14a62b97115fdc221fa8f91b62cad1d5ec2e2a1a`。回退为 `assistant-mobile-r2-20261118`，只切换网页与聊天 worker，保留当前数据库及用户数据。
+本机永久归档位于 `.codex/backups/regional-releases/loading-stability-r3-20261119`。兼容运行包 78,694,487 字节，本机与服务器 SHA256 均为 `1f16dea80e8886057a121db82d568414f9c52347309606080870d736b49f4e40`。应用与聊天 worker 的兼容回退版本为 `assistant-motion-release-20261119`。
 
 ## 迁移与发布
 

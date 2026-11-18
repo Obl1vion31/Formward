@@ -14,7 +14,7 @@ metric-card-rail.tsx在手机提供横滑及拖后点击抑制，电脑提供自
 
 chart-transition.tsx管理三类趋势入口的真实目标地址、已知读数和返回意图。WorkspaceFrame用同一条约200ms的时间轴协调前后正文，workspace-motion.ts集中管理位移、透明度和取消。只在当前转场保留短暂的旧正文画面，退出后释放。顶栏和导航随可见页面更新。
 
-Inspector在手机提供底部面板：只读stableScroll详情默认半屏，录入默认近全屏，把手可拖动及点击切换。所有关闭路径仍经过同一个草稿/忙碌保护；正文自行滚动，桌面侧栏和compact确认框保持各自用途。工作区的PageLoadingProvider显示非模态任务反馈，登录等工作区外流程继续使用原反馈；AssistantProvider显式识别工作区pending。
+Inspector在手机提供底部面板：只读stableScroll详情默认半屏，录入默认近全屏，把手可拖动及点击切换。所有关闭路径仍经过同一个草稿/忙碌保护；正文自行滚动，桌面侧栏和compact确认框保持各自用途。工作区的读取反馈由 WorkspaceLoading 和 LocalLoading 在实际内容区域呈现。登录和独立动作在对应表单内显示反馈。
 
 appearance-state区分用户选择system/light/dark与实际data-theme，早期初始化保留本机既有偏好；AppearanceSync在持久框架内保持系统监听，设置面板关闭后仍响应。AppearanceToggle在顶栏直接切换，FollowSystemAppearance提供账号菜单单个系统外观开关；首次使用与演练使用OnboardingAppearance，复用日／月切换、圆形揭示和轻量外观菜单的跟随系统选项。GlassMenu默认账号菜单，可为复用入口指定可访问名称。appearance-motion使用原生View Transition揭示真实主题，快速反向取消旧层及旧回调，失败／减少动态效果立即交接，不复制表单或重挂载页面。
 
