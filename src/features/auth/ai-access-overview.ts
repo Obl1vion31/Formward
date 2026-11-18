@@ -25,9 +25,7 @@ export async function loadAiAccessConnections(db: Database, userId: string): Pro
 }
 export async function loadAiAccessOverview(db: Database, userId: string, existingConnections?: AiAccessConnection[]): Promise<AiAccessOverview> {
   // PGlite socket 与正式 PostgreSQL 共用此入口，顺序读取避免抢占同一连接。
-  const connections = existingConnections ?? await loadAiAccessConnections(db, userId);
-  const tokens = await listAiTokens(db, userId);
-  const embedded = await db.select({ tokenId: assistantConnection.tokenId, provider: assistantConnection.provider }).from(assistantConnection).where(eq(assistantConnection.userId, userId));
+  const {connections,source,tokens,embedded} = await submissionSourceResolver(db,userId,existingConnections);
   const unified = await listRecordOperations(db, userId);
   const bodies = (await listAiMeasurementOperations(db, userId)).filter(row => !unified.some(parent => parent.measurementOperationId === row.id));
   const meals = (await listMealOperations(db, userId)).filter(row => row.origin === "ai" && !unified.some(parent => parent.mealOperationId === row.id));
@@ -41,21 +39,6 @@ export async function loadAiAccessOverview(db: Database, userId: string, existin
   const templateIds = [...new Set(parents.flatMap(row => row.draft.flatMap(item => item.action.kind === "schedule_training" && item.action.templateId ? [item.action.templateId] : [])))];
   const templates = templateIds.length ? await db.select({ id: trainingTemplate.id, content: trainingTemplate.content }).from(trainingTemplate).where(and(eq(trainingTemplate.userId, userId), inArray(trainingTemplate.id, templateIds))) : [];
 
-  function source(grants: (Grant | undefined)[]): AiSubmissionSource {
-    if (!grants.length || grants.some(grant => !grant || Boolean(grant.tokenId) === Boolean(grant.oauthConnectionId))) return unknownSource;
-    const keys = [...new Set(grants.map(grant => grant!.oauthConnectionId ? "oauth:" + grant!.oauthConnectionId : "token:" + grant!.tokenId))];
-    if (keys.length !== 1) return unknownSource;
-    const grant = grants[0]!;
-    if (grant.oauthConnectionId) {
-      const connection = connections.find(row => row.id === grant.oauthConnectionId);
-      if (!connection) return unknownSource;
-      return { key: connection.provider === "other" ? "oauth:" + connection.id : connection.provider, label: connection.name || "MCP 客户端", compactLabel: connection.provider === "doubao" ? "豆包" : connection.name || "MCP 客户端", kind: "oauth" };
-    }
-    const internal = embedded.find(row => row.tokenId === grant.tokenId);
-    if (internal) { const label = chatProviders[providerId(internal.provider)].label; return { key: "embedded:" + internal.provider, label: label + " · 站内助手", compactLabel: label, kind: "embedded" }; }
-    const token = tokens.find(row => row.id === grant.tokenId);
-    return token ? { key: "token:" + token.id, label: "手动接入 · " + token.name, kind: "token" } : unknownSource;
-  }
 
   const displayKind=(value:string)=>value.replaceAll("摄入","饮食");
   const submissions: AiSubmission[] = unified.map(row => {
@@ -94,4 +77,28 @@ export async function loadAiAccessOverview(db: Database, userId: string, existin
   }));
   submissions.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || a.id.localeCompare(b.id));
   return { tokens: tokens.filter(token => !embedded.some(row => row.tokenId === token.id)), submissions, connections };
+}
+
+/** 本人提交的真实授权来源；页面与助手共用，不依据聊天文本猜来源。 */
+export async function submissionSourceResolver(db:Database,userId:string,existingConnections?:AiAccessConnection[]){
+  const connections = existingConnections ?? await loadAiAccessConnections(db, userId);
+  const tokens = await listAiTokens(db, userId);
+  const embedded = await db.select({ tokenId: assistantConnection.tokenId, provider: assistantConnection.provider }).from(assistantConnection).where(eq(assistantConnection.userId, userId));
+  function source(grants: (Grant | undefined)[]): AiSubmissionSource {
+    if (!grants.length || grants.some(grant => !grant || Boolean(grant.tokenId) === Boolean(grant.oauthConnectionId))) return unknownSource;
+    const keys = [...new Set(grants.map(grant => grant!.oauthConnectionId ? "oauth:" + grant!.oauthConnectionId : "token:" + grant!.tokenId))];
+    if (keys.length !== 1) return unknownSource;
+    const grant = grants[0]!;
+    if (grant.oauthConnectionId) {
+      const connection = connections.find(row => row.id === grant.oauthConnectionId);
+      if (!connection) return unknownSource;
+      return { key: connection.provider === "other" ? "oauth:" + connection.id : connection.provider, label: connection.name || "MCP 客户端", compactLabel: connection.provider === "doubao" ? "豆包" : connection.name || "MCP 客户端", kind: "oauth" };
+    }
+    const internal = embedded.find(row => row.tokenId === grant.tokenId);
+    if (internal) { const label = chatProviders[providerId(internal.provider)].label; return { key: "embedded:" + internal.provider, label: label + " · 站内助手", compactLabel: label, kind: "embedded" }; }
+    const token = tokens.find(row => row.id === grant.tokenId);
+    return token ? { key: "token:" + token.id, label: "手动接入 · " + token.name, kind: "token" } : unknownSource;
+  }
+
+  return {connections,source,tokens,embedded};
 }

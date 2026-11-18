@@ -11,7 +11,7 @@ import type { Database } from "../../db/client";
 import { createDatabase } from "../../db/client";
 import { assertChatAllowed, chatProviders } from "./chat-config";
 import { budgetDate, usagePercent } from "./chat-model";
-import { chatIdentity, chatSnapshot, chatUsage, controlChat, currentConversation, normalizedUsage, reserveChatUsage, settleChatUsage, startChatRun, type ChatSend, type StoredRun } from "./chat-store";
+import { listChatConversations, chatIdentity, chatSnapshot, chatUsage, controlChat, currentConversation, normalizedUsage, reserveChatUsage, settleChatUsage, startChatRun, type ChatSend, type StoredRun } from "./chat-store";
 import { executeChatRun } from "./chat-runtime";
 import { modelBody, providerFailure, streamModel } from "./chat-provider";
 import { chatToolBridge } from "./chat-tools";
@@ -251,4 +251,19 @@ test("已建立智谱任务在停用后也不再调用上游，不产生新费�
   assert.equal(calls,0);assert.equal((await chatUsage(db,ownerId)).spent,before);
   const message=(await chatSnapshot(db,ownerId)).messages.at(-1)!;assert.equal(message.state,"error");assert.match(message.error!,/停用|不可用/);
  }finally{process.env.FORMWARD_CHAT_GLM_DISABLED="0";await stop(old.row);}
+});
+
+test("历史会话按账号和用途隔离、同时间游标无遗漏；继续对话不改变旧消息或费用",async()=>{
+ await fresh();const base=await currentConversation(db,ownerId),when=new Date("2025-01-01T00:00:00Z");
+ const ids=Array.from({length:23},()=>randomUUID()).sort().reverse();
+ await db.insert(schema.assistantConversation).values(ids.map(id=>({id,userId:ownerId,active:false,updatedAt:when,sequence:1})));
+ await db.insert(schema.assistantMessage).values(ids.map((id,index)=>({id:randomUUID(),userId:ownerId,conversationId:id,seq:1,role:"user",text:"历史问题"+index})));
+ const hidden=randomUUID();await db.insert(schema.assistantConversation).values([{id:hidden,userId:ownerId,purpose:"meal_entry",active:false},{id:randomUUID(),userId:outsider,active:false}]);
+ const first=await listChatConversations(db,ownerId);assert.equal(first.items.length,20);assert.ok(first.next);const second=await listChatConversations(db,ownerId,first.next!);
+ const listed=[...first.items,...second.items];let cursor=second.next;while(cursor){const page=await listChatConversations(db,ownerId,cursor);listed.push(...page.items);cursor=page.next;}assert.equal(new Set(listed.map(item=>item.id)).size,listed.length);for(const id of ids)assert.ok(listed.some(row=>row.id===id));assert.ok(!listed.some(row=>row.id===hidden));
+ const old=await chatSnapshot(db,ownerId,undefined,undefined,ids[0]);assert.equal(old.messages[0].text,"历史问题0");assert.equal((await currentConversation(db,ownerId)).id,base.id);
+ await assert.rejects(()=>chatSnapshot(db,outsider,undefined,undefined,ids[0]),/不存在|不属于/);
+ await assert.rejects(()=>controlChat(db,ownerId,{action:"select_conversation",conversationId:hidden}),/不存在|不属于/);
+ const usage=(await chatUsage(db,ownerId)).spent;await controlChat(db,ownerId,{action:"select_conversation",conversationId:ids[0]});await controlChat(db,ownerId,{action:"select_conversation",conversationId:ids[0]});assert.equal((await currentConversation(db,ownerId)).id,ids[0]);assert.equal((await chatUsage(db,ownerId)).spent,usage);
+ const task=await begin("生成中的历史测试");await assert.rejects(()=>controlChat(db,ownerId,{action:"select_conversation",conversationId:base.id}),/停止当前回答/);assert.ok((await chatSnapshot(db,ownerId,undefined,undefined,base.id)).conversationId===base.id);await stop(task.row);
 });

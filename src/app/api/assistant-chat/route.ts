@@ -9,7 +9,7 @@ import { getDatabase } from "@/db/client";
 import { assertChatAllowed } from "@/features/assistant/chat-config";
 import { chatProviderIds } from "@/features/assistant/chat-model";
 import { assistantTimezone } from "@/features/assistant/model";
-import { chatSnapshot, startChatRun } from "@/features/assistant/chat-store";
+import { listChatConversations, chatSnapshot, startChatRun } from "@/features/assistant/chat-store";
 import { chatRunStream } from "@/features/assistant/chat-stream";
 export const runtime = "nodejs";
 export const maxDuration = 600;
@@ -19,9 +19,17 @@ export async function GET(request: Request) {
   try { return await withCurrentSession(request.headers, async owner => {
     const previewId=new URL(request.url).searchParams.get("previewId");
     if(previewId){if(!z.string().uuid().safeParse(previewId).success)return Response.json({error:"提交编号无效。"},{status:400,headers});return Response.json(await loadAssistantPreview(getDatabase(),owner.id,previewId),{headers});}
+    const params=new URL(request.url).searchParams;
+    if(params.get("view")==="history"){
+      const cursor=params.get("cursor");let before: {at:string;id:string}|undefined;
+      if(cursor){try{before=z.object({at:z.string().datetime(),id:z.string().uuid()}).strict().parse(JSON.parse(cursor));}catch{return Response.json({error:"历史游标无效。"},{status:400,headers});}}
+      return Response.json(await listChatConversations(getDatabase(),owner.id,before),{headers});
+    }
+    const conversationId=params.get("conversationId")??undefined;
+    if(conversationId&&!z.string().uuid().safeParse(conversationId).success)return Response.json({error:"对话编号无效。"},{status:400,headers});
     const value = new URL(request.url).searchParams.get("before");
     if (value !== null && (!/^\d{1,10}$/.test(value) || Number(value) < 1)) return Response.json({ error: "历史游标无效。" }, { status: 400, headers });
-    return Response.json(await chatSnapshot(getDatabase(), owner.id, value === null ? undefined : Number(value)), { headers });
+    return Response.json(await chatSnapshot(getDatabase(), owner.id, value === null ? undefined : Number(value),undefined,conversationId), { headers });
   }); } catch (error) { const failure = safeAiError(error); return Response.json({ error: failure.error.message, code: failure.error.code }, { status: failure.status, headers }); }
 }
 export async function POST(request: Request) {

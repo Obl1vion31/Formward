@@ -13,7 +13,7 @@ type ChatClient = {
   quote: ChatMessage | null; setQuote: (value: ChatMessage | null) => void; photos: DraftPhoto[]; removePhoto: (key: string) => void; retryPhoto:(key:string,transport?:"direct"|"relay",region?:PhotoRegion)=>Promise<void>;
   error: string; loading: boolean; delayed: boolean; busy: boolean; managing: boolean; uploading: string; refresh: () => Promise<void>; more: () => Promise<void>;
   send: (action?: "send" | "retry" | "continue", messageId?: string,followup?:FollowupSubmission) => Promise<void>;
-  control: (action: "select_model" | "new" | "stop" | "enable" | "revoke" | "clear_followup", provider?: ChatProvider) => Promise<boolean>;
+  control: (action: "select_model" | "new" | "stop" | "enable" | "revoke" | "clear_followup" | "select_conversation", provider?: ChatProvider, conversationId?:string) => Promise<boolean>;
   addPhotos: (files: File[]) => Promise<void>;
 };
 const Context = createContext<ChatClient | null>(null);
@@ -30,6 +30,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   const deferredRead=useRef(false);
   const request = useRef<AbortController | null>(null), reading = useRef(false), current = useRef<ChatSnapshot | null>(null), generation = useRef(0), alive = useRef(true);
   const scroll = useRef({ top: 0, stick: true });
+  const savedDrafts=useRef(new Map<string,{draft:string;quote:ChatMessage|null;photos:DraftPhoto[];scroll:{top:number;stick:boolean}}>());
   const pendingRequest=useRef<{signature:string;id:string;sent?:{draft:string;photoKeys:string[];quoteId?:string}}|null>(null);
   const [optimistic,setOptimistic]=useState<ChatMessage|null>(null);
   const [newRequests,setNewRequests]=useState<ReadonlySet<string>>(new Set());
@@ -40,7 +41,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   const uploading=photos.find(photo=>!["ready","error"].includes(photo.phase))?.label??"";
   function updatePhotos(update:(current:DraftPhoto[])=>DraftPhoto[]){const next=update(photoState.current);photoState.current=next;setPhotos(next);}
   function removePhoto(key:string){photoRequests.current.get(key)?.abort();const photo=photoState.current.find(item=>item.key===key);if(photo?.preview)URL.revokeObjectURL(photo.preview);updatePhotos(current=>current.filter(item=>item.key!==key));}
-  function clearPhotos(){photoEpoch.current++;photoQueue.current=[];for(const controller of photoRequests.current.values())controller.abort();for(const photo of photoState.current)if(photo.preview)URL.revokeObjectURL(photo.preview);photoState.current=[];setPhotos([]);}
+
   async function processPhotos(jobs:{key:string;transport:"direct"|"relay";region?:PhotoRegion}[]){
     photoQueue.current.push(...jobs);if(photoWorking.current)return;photoWorking.current=true;
     const epoch=photoEpoch.current;
@@ -57,7 +58,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   }
   async function retryPhoto(key:string,transport:"direct"|"relay"="direct",region?:PhotoRegion){const photo=photoState.current.find(item=>item.key===key);if(!photo||photo.phase!=="error")return;updatePhotos(current=>current.map(item=>item.key===key?{...item,phase:"queued",percent:0,label:"等待上传",error:undefined,canRelay:false}:item));await processPhotos([{key,transport,region}]);}
 
-  const releasePhotoResources=useCallback(()=>{photoEpoch.current++;photoQueue.current=[];for(const controller of photoRequests.current.values())controller.abort();for(const photo of photoState.current)if(photo.preview)URL.revokeObjectURL(photo.preview);},[]);
+  const releasePhotoResources=useCallback(()=>{photoEpoch.current++;photoQueue.current=[];for(const controller of photoRequests.current.values())controller.abort();for(const photo of [...photoState.current,...[...savedDrafts.current.values()].flatMap(value=>value.photos)])if(photo.preview)URL.revokeObjectURL(photo.preview);},[]);
   const scrollState = useCallback(() => ({ ...scroll.current }), []);
   const recordScroll = useCallback((top:number,stick:boolean) => { scroll.current = { top,stick }; }, []);
   const apply = useCallback((snapshot: ChatSnapshot) => {
@@ -104,17 +105,23 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   useEffect(() => { if (!loading) return; const timer = setTimeout(() => setDelayed(true), 200); return () => clearTimeout(timer); }, [loading]);
   useEffect(() => { if (!loading && delayed) { const frame = requestAnimationFrame(() => setDelayed(false)); return () => cancelAnimationFrame(frame); } }, [loading, delayed]);
   useEffect(() => { if (!draft.trim() && !photos.length) return; const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; }; window.addEventListener("beforeunload", protect); return () => window.removeEventListener("beforeunload", protect); }, [draft, photos]);
-  async function control(action: Parameters<ChatClient["control"]>[0], provider?: ChatProvider) {
+  async function control(action: Parameters<ChatClient["control"]>[0], provider?: ChatProvider, conversationId?:string) {
     if ((!canChat&&action!=="stop") || mutating.current) return false;
+    if(action==="select_conversation"&&(running||uploading))return false;
     if (action === "new" && (draft.trim() || photos.length || messages.some(row => row.references.some(ref => ref.kind === "preview")))) {
       if (!await confirmAction({ title: "开始新对话？", message: "当前输入将清空，已有提交仍可在AI提交记录中查看和确认。", confirmLabel: "开始新对话", cancelLabel: "继续当前对话" })) return false;
     }
     if (action === "revoke" && !await confirmAction({ title: "撤销站内授权？", message: "此模型将停止访问，原待确认提交也不能继续保存。", confirmLabel: "撤销授权", danger: true })) return false;
     mutating.current = true; setManaging(true); generation.current++;
     try {
-      setError(""); const response = await fetch("/api/assistant-chat/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...(provider ? { provider } : {}), ...(action === "stop" ? { runId: current.current?.activeRunId } : {}) }) });
+      setError(""); const response = await fetch("/api/assistant-chat/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...(conversationId?{conversationId}:{}), ...(provider ? { provider } : {}), ...(action === "stop" ? { runId: current.current?.activeRunId } : {}) }) });
       const payload = await response.json(); if (!response.ok) throw Error(payload.error ?? "操作未完成。");
-      if (action === "new") { setDraft(""); clearPhotos(); setQuote(null); generation.current++; scroll.current = { top: 0, stick: true }; }
+      if (action === "new" || action === "select_conversation") {
+        if(current.current)savedDrafts.current.set(current.current.conversationId,{draft,quote,photos:[...photoState.current],scroll:{...scroll.current}});
+        const restored=savedDrafts.current.get(payload.conversationId);
+        setDraft(restored?.draft??"");setQuote(restored?.quote??null);photoState.current=restored?.photos??[];setPhotos(photoState.current);scroll.current=restored?.scroll??{top:0,stick:true};
+        pendingRequest.current=null;setOptimistic(null);generation.current++;
+      }
       apply(payload); return true;
     } catch (failure) { if (alive.current) setError(failure instanceof Error ? failure.message : "操作未完成，请重试。"); return false; }
     finally { mutating.current = false; if (alive.current) setManaging(false); }

@@ -32,6 +32,13 @@ export async function currentConversation(db: Database, userId: string, readOnly
     return created;
   });
 }
+export async function listChatConversations(db:Database,userId:string,before?:{at:string;id:string}){
+  await requireActiveAccount(db,userId);
+  const rows=await db.select({id:conversation.id,updatedAt:conversation.updatedAt,active:conversation.active,sequence:conversation.sequence,firstText:sql<string|null>`(select m.text from assistant_messages m where m.user_id=${userId} and m.conversation_id=${conversation.id} and m.role='user' order by m.seq limit 1)`}).from(conversation).where(and(eq(conversation.userId,userId),eq(conversation.purpose,"chat"),before?or(lt(conversation.updatedAt,new Date(before.at)),and(eq(conversation.updatedAt,new Date(before.at)),lt(conversation.id,before.id))):undefined)).orderBy(desc(conversation.updatedAt),desc(conversation.id)).limit(21);
+  const items=rows.slice(0,20).map(row=>({id:row.id,title:row.firstText?.trim().slice(0,40)||(row.sequence?"图片对话":"新对话"),updatedAt:row.updatedAt.toISOString(),active:row.active}));
+  const last=rows[19];return {items,next:rows.length>20?{at:last.updatedAt.toISOString(),id:last.id}:null};
+}
+
 export async function chatUsage(db: Pick<Database, "select">, userId: string, now = new Date()): Promise<ChatUsage> {
   const date = budgetDate(now);
   const entitlement = accountEntitlements(await requireActiveAccount(db, userId)), limit = entitlement.dailyBudgetCny;
@@ -133,9 +140,9 @@ export async function reapChatRuns(db: Database, userId: string) {
     }
   });
 }
-export async function chatSnapshot(db: Database, userId: string, before?: number,taskId?:string): Promise<ChatSnapshot> {
+export async function chatSnapshot(db: Database, userId: string, before?: number,taskId?:string,conversationId?:string): Promise<ChatSnapshot> {
   const owner = await requireActiveAccount(db, userId), entitlement = accountEntitlements(owner); await reapChatRuns(db, userId);
-  const current = taskId?(await db.select().from(conversation).where(and(eq(conversation.id,taskId),eq(conversation.userId,userId),eq(conversation.purpose,"meal_entry"))))[0]:await currentConversation(db,userId,true);
+  const current = taskId?(await db.select().from(conversation).where(and(eq(conversation.id,taskId),eq(conversation.userId,userId),eq(conversation.purpose,"meal_entry"))))[0]:conversationId?(await db.select().from(conversation).where(and(eq(conversation.id,conversationId),eq(conversation.userId,userId),eq(conversation.purpose,"chat"))))[0]:await currentConversation(db,userId,true);
   if(!current)throw new ApiError(404,"not_found","此任务不存在或不属于当前账号。");
   const recent = await db.select().from(message).where(and(eq(message.userId, userId), eq(message.conversationId, current.id))).orderBy(desc(message.seq)).limit(50);
   const older = before === undefined ? recent : recent.filter(row => row.seq < before), rows = older.slice(0, 5).reverse();
@@ -201,7 +208,7 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
     return { row: created, started: true };
   });
 }
-export async function controlChat(db: Database, userId: string, input: { action: "select_model" | "new" | "stop" | "enable" | "revoke" | "clear_followup"; provider?: ChatProvider; runId?: string; mealTaskId?: string }) {
+export async function controlChat(db: Database, userId: string, input: { action: "select_model" | "new" | "stop" | "enable" | "revoke" | "clear_followup" | "select_conversation"; conversationId?:string; provider?: ChatProvider; runId?: string; mealTaskId?: string }) {
   const purpose = input.mealTaskId ? "meal_entry" : "chat";
   if (input.action === "stop") await requireActiveAccount(db, userId); else await requireChatAccount(db, userId, purpose);
   if (!input.mealTaskId) await currentConversation(db, userId, input.action === "stop");
@@ -220,6 +227,11 @@ export async function controlChat(db: Database, userId: string, input: { action:
       await tx.update(run).set({state:"stopped"}).where(eq(run.id,busy.id));
       await tx.update(message).set({state:"stopped"}).where(and(eq(message.id,busy.assistantMessageId),eq(message.userId,userId)));stoppedRunId=busy.id;
     } else if (busy) throw new ApiError(409, "chat_busy", "请先停止当前回答，再进行此操作。");
+    if(input.action==="select_conversation"){
+      const [target]=await tx.select().from(conversation).where(and(eq(conversation.id,input.conversationId??""),eq(conversation.userId,userId),eq(conversation.purpose,"chat")));
+      if(!target)throw new ApiError(404,"not_found","此对话不存在或不属于当前账号。");
+      if(target.id!==current.id){await tx.update(conversation).set({active:false}).where(and(eq(conversation.userId,userId),eq(conversation.active,true)));await tx.update(conversation).set({active:true}).where(eq(conversation.id,target.id));}
+    }
     if (input.action === "select_model") { const provider = providerId(input.provider); if (!providerConfigured(provider)) throw new ApiError(503, "model_unavailable", "该模型暂不可用。"); await tx.update(conversation).set({ provider }).where(eq(conversation.id, current.id)); }
     if (input.action === "clear_followup") await tx.update(conversation).set({ followup: null }).where(eq(conversation.id, current.id));
     if (input.action === "new") {

@@ -45,3 +45,30 @@
 .disclosure[open]>summary .groupChevron,.groupToggle[aria-expanded=true] .groupChevron{transform:rotate(180deg)}
 @media(max-width:700px),(hover:none) and (pointer:coarse){.surface[data-mobile=true] .quick>div{grid-template-columns:repeat(3,minmax(0,1fr))}.surface[data-mobile=true] .quick a{min-width:0;padding-inline:4px;font-size:.875rem;text-align:center}}
 @media(prefers-reduced-motion:reduce){.groupChevron{transition:none}}
+
+/* 已选定稿：分组为一个完整的展开容器，列表不套第二层卡片。 */
+.mainContent{display:flex;flex:1;min-height:0;overflow:hidden}.mainContent>.content{flex:1}
+.taskGroup{border:1px solid var(--line-soft);border-radius:12px;margin:0 0 8px;overflow:hidden;background:var(--surface-raised)}
+.surface .taskGroup>.groupToggle{display:flex;align-items:center;width:100%;min-height:64px;padding:10px 12px;gap:10px;background:none;border:0;text-align:left;color:var(--warm-white);font:inherit;cursor:pointer}
+.groupIcon{width:20px;height:20px;flex:none;color:var(--gold)}.groupCopy{flex:1;min-width:0;display:grid;gap:3px}.groupCopy strong{font-size:16px;line-height:1.35;font-weight:600}.groupCopy small{font-size:13px;line-height:1.4;color:var(--muted)}
+.taskGroup .count{font-size:13px;white-space:nowrap;flex:none;color:var(--muted)}.taskGroup .groupChevron{width:16px;height:16px;flex:none;margin:0;transition:transform 180ms ease-out}.taskGroup[data-open=true] .groupChevron{transform:rotate(180deg)}
+.groupReveal{display:grid;grid-template-rows:0fr;visibility:hidden;transition:grid-template-rows 180ms ease-out,visibility 180ms}.groupReveal[data-open=true]{grid-template-rows:1fr;visibility:visible}.groupReveal>div{min-height:0;overflow:hidden}.groupBody{padding:0 12px 8px}
+.groupBody .items li{padding:10px 0}.groupBody .items li:first-child{border-top:1px solid var(--line-soft)}.groupBody .itemActions{gap:8px}.groupBody .itemActions a,.groupBody .itemActions button{font-size:13px;min-height:44px}
+.reviewMeta{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px!important;font-size:12px;color:var(--muted)}.reviewMeta>span{padding:2px 6px;border-radius:6px;background:var(--surface-hover);color:var(--gold);font-size:12px}.reviewMeta time{font-size:12px!important}.surface .items .reviewValue{display:block;font-size:20px;font-weight:600;line-height:1.4;margin-top:4px}.surface .items .reviewValue+p{margin:2px 0;font-size:13px}
+.grabHandle{display:none!important}.historyTrigger{margin-left:auto}.mainContent[ inert ]{pointer-events:none}
+.history{position:absolute;inset:64px 0 0;z-index:4;overflow:auto;overscroll-behavior:contain;background:var(--surface);padding:12px 20px 20px}.history>header{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px}.history h3{font-size:18px;font-weight:600;margin:0}.history button{min-height:44px;font-size:14px;background:none;border:0;color:inherit;cursor:pointer}.history>ul{list-style:none;padding:0;margin:12px 0}.history li{border-top:1px solid var(--line-soft)}.history li button{display:grid;gap:4px;width:100%;text-align:left;padding:12px 0}.history li strong{font-size:16px;font-weight:500;overflow-wrap:anywhere}.history li span,.historyMessages small{font-size:13px;color:var(--muted)}.historyMessages article{padding:12px 0;border-bottom:1px solid var(--line-soft)}.historyMessages article[data-role=user]{padding-left:20%;}.historyMessages p{font-size:16px}.history footer{position:sticky;bottom:-20px;background:var(--surface);padding:12px 0}.history footer>button{padding:0 16px;background:var(--action-fill);color:var(--action-ink);border-radius:10px}.history button:disabled{opacity:.5;cursor:default}
+@media(min-width:701px) and (hover:hover) and (pointer:fine){.mainContent>div{width:100%}.surface[data-chat=true] .content{padding:12px}.mainContent [aria-label="待办与快捷记录"]{width:240px}.taskGroup>.groupToggle{gap:6px!important;padding-inline:10px!important}.groupCopy small{font-size:12px}}
+@media(max-width:700px),(hover:none) and (pointer:coarse){
+.surface[data-chat=true] .heading{display:grid;grid-template-columns:88px minmax(0,1fr) 88px;column-gap:4px;box-sizing:border-box;height:64px;min-height:64px;padding:10px 12px;flex-wrap:nowrap}
+.surface[data-chat=true] .heading>.brand{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.surface[data-chat=true] .heading>.historyTrigger{grid-column:1;grid-row:1;margin:0;justify-self:start;color:var(--warm-white)}
+.surface[data-chat=true] .heading>.mobileNavigation{grid-column:2;grid-row:1;width:100%;max-width:170px;justify-self:center;display:block;min-width:0}
+.surface[data-chat=true] .heading>.headingActions{grid-column:3;grid-row:1;display:flex;gap:0;width:88px}
+.heading svg{color:inherit}.surface[data-chat=true] .grabHandle{display:grid!important;position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:48px;min-width:48px;height:14px;min-height:14px;border-radius:0;background:none;z-index:2}.grabHandle>span{width:28px;height:3px;background:var(--muted);border-radius:3px;opacity:.5}
+.surface[data-chat=true] .content{padding:12px 16px 20px}.quick{padding:0 0 16px}.quick a{gap:4px}.history{padding:12px 16px 20px}
+}
+@media(prefers-reduced-motion:reduce){.groupReveal,.taskGroup .groupChevron{transition:none}}
+
+.historyMessages img{display:block;max-width:180px;max-height:200px;width:auto;height:auto;border-radius:12px;margin-top:8px}.history footer p{font-size:13px;color:var(--muted)}
+
+.surface[data-chat=true] .heading{height:64px;box-sizing:border-box}.historyMessages img{display:block;max-width:220px;max-height:220px;width:auto;height:auto;border-radius:12px;margin:8px 0}.historyMessages article[data-role=user] img{margin-left:auto}

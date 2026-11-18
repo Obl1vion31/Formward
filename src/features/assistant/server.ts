@@ -1,3 +1,6 @@
+import { submissionSourceResolver } from "../auth/ai-access-overview";
+import { type RecordAction } from "../records/model";
+import { type PreviewRow, mealTypeLabel } from "../meals/model";
 import {chatAllowed,chatCapabilities} from "./chat-config";
 import { assistantConversation,assistantMessage } from "../../db/schema";
 import { and, desc, eq, gt, inArray, notExists } from "drizzle-orm";
@@ -18,6 +21,14 @@ import { lockOwner } from "../auth/owner-lock";
 import { ApiError } from "../auth/ai-identity";
 import { assistantContext, assistantTimezone, type AssistantItem } from "./model";
 
+function reviewSummary(actions:RecordAction[],rows:PreviewRow[]=[]){
+  const meal=rows.find(row=>!row.excluded&&row.meal)?.meal;
+  if(meal){const n=meal.totals.values,show=(v:string|null)=>v===null?"—":String(Number(v));return {title:mealTypeLabel(meal.mealType)+(actions.length>1?"等 "+actions.length+" 项":""),value:(meal.totals.incomplete.caloriesKcal?"已知 ":"")+show(n.caloriesKcal)+" 千卡",detail:`蛋白质 ${show(n.proteinG)}g · 碳水 ${show(n.carbsG)}g · 脂肪 ${show(n.fatG)}g`};}
+  const body=actions.find(a=>a.kind==="save_record");
+  if(body?.kind==="save_record")return {title:body.period==="evening"?"晚间测量":"晨间测量",value:body.weightKg==null?"体重未知":Number(body.weightKg).toFixed(2)+" kg",detail:body.deviceLabel?"来源 "+body.deviceLabel:""};
+  return {title:actions.length>1?"组合提交":"待确认提交",value:actions.length+" 项待核对",detail:""};
+}
+
 async function pendingReviews(db: Database, userId: string, today: string, now: Date): Promise<AssistantItem[]> {
   const result: AssistantItem[] = [], checked = new Map<string, boolean>();
   async function authorized(tokenId: string | null | undefined, oauthConnectionId: string | null | undefined, domain: "measurements" | "meals" | "energy" | "training") {
@@ -31,9 +42,11 @@ async function pendingReviews(db: Database, userId: string, today: string, now: 
     } catch { checked.set(key, false); return false; }
   }
   const summaries = await listRecordOperations(db, userId, true);
+  const {source}=await submissionSourceResolver(db,userId);
+  const origin=(grants:Parameters<typeof source>[0])=>{const value=source(grants);return value.kind==="embedded"?"站内助手 · "+(value.compactLabel??value.label):value.compactLabel??value.label;};
   if (summaries.length) {
     const roots = await db.select({
-      id: recordOperation.id, draft: recordOperation.draft,
+      id: recordOperation.id, draft: recordOperation.draft, mealPreview:mealOperation.preview,
       bodyId: recordOperation.measurementOperationId, bodyToken: measurementOperation.tokenId, bodyConnection: measurementOperation.oauthConnectionId,
       mealId: recordOperation.mealOperationId, mealToken: mealOperation.tokenId, mealConnection: mealOperation.oauthConnectionId,
       energyId: recordOperation.energyOperationId, energyToken: energyOperation.tokenId, energyConnection: energyOperation.oauthConnectionId,
@@ -54,7 +67,7 @@ async function pendingReviews(db: Database, userId: string, today: string, now: 
         allowed &&= await authorized(item.trainingGrant?.tokenId, item.trainingGrant?.oauthConnectionId, "training");
       }
       if (!allowed) continue;
-      result.push({ id: "ai:" + summary.id, category: "ai", date: summary.dates[0] ?? today, title: "AI 提交待你确认", detail: summary.summary, action: { label: "查看并确认", href: summary.confirmationPath }, ...(summary.expiresAt ? { expiresAt: summary.expiresAt } : {}) });
+      result.push({ id: "ai:" + summary.id, category: "ai", date: summary.dates[0] ?? today, title: "AI 提交待你确认", detail: summary.summary, review:{...reviewSummary(root.draft.filter(item=>!item.excluded&&!item.persisted).map(item=>item.action),root.mealPreview??[]),source:origin([...(root.bodyId?[{tokenId:root.bodyToken,oauthConnectionId:root.bodyConnection}]:[]),...(root.mealId?[{tokenId:root.mealToken,oauthConnectionId:root.mealConnection}]:[]),...(root.energyId?[{tokenId:root.energyToken,oauthConnectionId:root.energyConnection}]:[]),...root.draft.filter(item=>item.trainingGrant).map(item=>item.trainingGrant)])}, action: { label: "查看并确认", href: summary.confirmationPath }, ...(summary.expiresAt ? { expiresAt: summary.expiresAt } : {}) });
     }
   }
   // 旧独立审核入口仍可使用；已归入统一批次的子操作不重复计数。
@@ -65,7 +78,7 @@ async function pendingReviews(db: Database, userId: string, today: string, now: 
   for (const row of bodies) {
     if (containsRetiredBodyEstimate(row.payload) || !await authorized(row.tokenId, row.oauthConnectionId, "measurements")) continue;
     const view = operationDisplay(row); if (!view.counts.pending) continue;
-    result.push({ id: "ai:body:" + row.id, category: "ai", date: view.preview.date, title: "AI 身体记录待确认", detail: `${view.counts.pending} 项尚未保存`, action: { label: "查看并确认", href: view.confirmationPath }, expiresAt: row.expiresAt.toISOString() });
+    result.push({ id: "ai:body:" + row.id, category: "ai", date: view.preview.date, title: "AI 身体记录待确认", detail: `${view.counts.pending} 项尚未保存`, review:{source:origin([row]),...reviewSummary(view.items.filter(item=>item.status==="pending").map(item=>item.input))}, action: { label: "查看并确认", href: view.confirmationPath }, expiresAt: row.expiresAt.toISOString() });
   }
   const meals = await db.select().from(mealOperation).where(and(
     eq(mealOperation.userId, userId), eq(mealOperation.origin, "ai"), eq(mealOperation.status, "pending"), gt(mealOperation.expiresAt, now),
@@ -74,7 +87,7 @@ async function pendingReviews(db: Database, userId: string, today: string, now: 
   for (const row of meals) {
     if (!await authorized(row.tokenId, row.oauthConnectionId, "meals")) continue;
     const date = row.draft.actions.flatMap(action => "date" in action ? action.date : []).find(Boolean) ?? today;
-    result.push({ id: "ai:meal:" + row.id, category: "ai", date, title: "AI 饮食记录待确认", detail: "核对本次提交后再保存", action: { label: "查看并确认", href: "/dashboard/meals/review/" + row.id }, ...(row.expiresAt ? { expiresAt: row.expiresAt.toISOString() } : {}) });
+    result.push({ id: "ai:meal:" + row.id, category: "ai", date, title: "AI 饮食记录待确认", detail: "核对本次提交后再保存", review:{source:origin([row]),...reviewSummary([],row.preview)}, action: { label: "查看并确认", href: "/dashboard/meals/review/" + row.id }, ...(row.expiresAt ? { expiresAt: row.expiresAt.toISOString() } : {}) });
   }
   return result;
 }
