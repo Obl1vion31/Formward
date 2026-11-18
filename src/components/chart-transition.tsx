@@ -3,6 +3,7 @@
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition} from "react";
 import {flushSync} from "react-dom";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
+import {useAssistant} from "@/features/assistant/context";
 import {confirmDraftDiscard, draftIsBusy} from "./draft-guard";
 import {
   ChartTransitionActionsContext, ChartTransitionContext, chartDestinationMatches, chartDestinationSearch,
@@ -49,7 +50,10 @@ function holdWorkspace(page: HTMLElement | null) {
 }
 
 export function ChartTransitionProvider({children}: {children: React.ReactNode}) {
-  const router = useRouter(), pathname = usePathname(), search = useSearchParams().toString();
+  const router = useRouter(), browserPath = usePathname(), browserSearch = useSearchParams().toString();
+  const {source: assistantSource} = useAssistant();
+  const pathname = assistantSource?.path ?? browserPath;
+  const search = assistantSource?.query.slice(1) ?? browserSearch;
   const [, startTransition] = useTransition();
   const [forward, setForward] = useState<ForwardView | null>(null);
   const [scene, setScene] = useState<WorkspaceScene | null>(null);
@@ -225,7 +229,7 @@ export function ChartTransitionProvider({children}: {children: React.ReactNode})
       origin.current = null;
       focusAfterLoad.current = null;
     }
-  }, [pathname, search, acceptTarget, beginReturn, setReturn, showForward, stopScene]);
+  }, [pathname, search, browserPath, acceptTarget, beginReturn, setReturn, showForward, stopScene]);
 
   useEffect(() => {
     const pop = () => {
