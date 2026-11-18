@@ -1,6 +1,6 @@
 "use client";
 import {useState,type Dispatch,type SetStateAction} from "react";
-import {LoadingLink as Link} from "@/components/loading-link";
+import {AdminLink as Link} from "./navigation-view";
 import {CostChart} from "./cost-chart";
 import {adminQuery,personHref} from "./navigation";
 import type {AdminConsoleData} from "./queries";
@@ -23,7 +23,7 @@ export function UsagePanel({data,draft,setDraft,busy,load,onVerificationRequired
           <dl className={styles.ledger}><div><dt>期间已结算模型成本</dt><dd>{adminCurrency(data.totals.spent)}</dd></div><div><dt>预占费用</dt><dd>{adminCurrency(data.totals.reserved)}</dd></div><div><dt>未知费用占用</dt><dd>{adminCurrency(data.totals.uncertain)}</dd></div><div><dt>今日全站剩余／上限</dt><dd>{adminCurrency(data.global.available)} <small>／¥10</small></dd></div></dl>
           <p className={styles.budgetNotice} data-state={data.global.available>2?"available":"warning"} role="status" title="全站每天10元，手动记录继续可用。">全站预算：{data.global.available<=0?"已熔断":data.global.available<=2?"接近上限":"正常"}</p>
           <div className={styles.chartHeading}><div role="group" aria-label="趋势指标">{([['cost','每日成本'],['requests','模型请求'],['tokens','输出Token']]as const).map(([key,label])=><button key={key} className={metric===key?styles.chosen:styles.textButton} aria-pressed={metric===key} onClick={()=>setMetric(key)}>{label}</button>)}</div><small>悬停查看 · 点击展开当日明细</small></div>
-          <CostChart key={JSON.stringify([data.filter.from,data.filter.to,data.filter.userId,data.filter.provider,data.filter.model,data.filter.purpose,data.generatedAt])} data={data} metric={metric} onVerificationRequired={onVerificationRequired}/>
+          <CostChart key={JSON.stringify([data.filter.from,data.filter.to,data.filter.userId,data.filter.provider,data.filter.model,data.filter.purpose])} data={data} metric={metric} onVerificationRequired={onVerificationRequired}/>
           {!data.coverageStart?<p className={styles.caption}>尚无可验证的模型费用账本。</p>:data.filter.from<data.coverageStart&&<p className={styles.caption}>{data.coverageStart}以前未覆盖模型账本，图中留空。</p>}
           <dl className={styles.metrics}><div><dt>AI任务</dt><dd>{number(data.tasks.count)}</dd></div><div><dt>模型请求（含失败／中断）</dt><dd>{number(data.totals.requests)}</dd></div><div><dt>输入Token</dt><dd>{number(data.totals.input)}</dd></div><div><dt>其中缓存命中</dt><dd>{number(data.totals.cached)}</dd></div><div><dt>输出Token</dt><dd>{number(data.totals.output)}</dd></div><div><dt>使用AI的用户</dt><dd>{number(data.tasks.users)}</dd></div></dl>
           <p className={styles.caption}>缺少完整用量的模型请求：<span className={styles.readCount}>{data.totals.unknownUsage}</span>次；Token仅展示已知部分，未知不补零。</p>

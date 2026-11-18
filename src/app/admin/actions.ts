@@ -5,7 +5,7 @@ import { accountRequestSource, withCurrentSession } from "@/features/auth/server
 import { accountFailure, createAccountInvitation, loadAccountAdmin, manageAccount, changeAccountTier, recordAdminRejection, revokeAccountInvitation, unlockAccountAdmin, type AccountCommand, type AdminFilter } from "@/features/auth/account-management";
 import { siteOrigin, isAccountRequestOrigin } from "@/features/auth/site-url";
 import { ApiError } from "@/features/auth/ai-identity";
-import { loadAdminConsole, loadAdminDay } from "@/features/admin/queries";
+import { loadAdminConsole, loadAdminDay, loadAdminSection } from "@/features/admin/queries";
 import type { AdminFilter as ConsoleFilter } from "@/features/admin/model";
 import { changeUserAiPolicy, type AiPolicyInput } from "@/features/admin/policy";
 import { saveMembership, archiveMembership, type MembershipInput, type MembershipArchiveInput } from "@/features/admin/memberships";
@@ -32,6 +32,7 @@ export async function unlockAdminAction(password: string, code?: string) {
   return perform((proof, requestHeaders) => unlockAccountAdmin(getDatabase(), proof, password, accountRequestSource(requestHeaders)));
 }
 export async function loadAdminConsoleAction(filter: ConsoleFilter) { return perform(proof => loadAdminConsole(getDatabase(), proof, filter),undefined,"read"); }
+export async function loadAdminSectionAction(section:"rules"|"security") { return perform(proof => loadAdminSection(getDatabase(), proof, section),undefined,"read"); }
 export async function loadAdminDayAction(filter:ConsoleFilter,options:{dimension:"users"|"models";page:number}) { return perform(proof=>loadAdminDay(getDatabase(),proof,filter,options),undefined,"read"); }
 export async function changeUserAiPolicyAction(input: AiPolicyInput) { return perform(proof => changeUserAiPolicy(getDatabase(), proof, input)); }
 export async function saveMembershipAction(input: MembershipInput) { return perform(proof => saveMembership(getDatabase(), proof, input)); }

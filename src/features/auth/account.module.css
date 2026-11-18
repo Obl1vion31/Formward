@@ -37,3 +37,8 @@
 @media(max-width:700px) { .settingsGrid>section { order:2; }.settingsGrid>div { order:1; } }
 
 .tierForm{display:grid;gap:12px;margin:16px 0 24px}.tierForm h3{margin:0;font-size:1rem;font-weight:500;line-height:1.5}.tierForm p{margin:0;font-size:.8125rem;line-height:1.5}.tierForm>button{justify-self:end;min-height:44px;font-size:.875rem}
+
+.listReading{display:grid;justify-items:end;align-items:center}
+.listReading>span{grid-area:1/1}
+.listReading>[data-reading-status]{min-height:0}
+.listReading:has([data-reading-status][data-visible=true])>span:first-child{visibility:hidden}

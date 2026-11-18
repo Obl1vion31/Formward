@@ -27,3 +27,11 @@
 @media(max-width:700px){.adminNavigation{gap:0;align-items:stretch;flex-direction:column}.adminNavigation .tabs{gap:26px;min-height:58px}.securityNavigation{align-self:flex-end;min-height:44px;font-size:12px}.profileFacts{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 18px}.profileFacts dd{font-size:16px}.profileDestinations{margin-top:16px}.profileDestinations>a{min-height:88px}.usageContext{gap:8px 22px}.usageContext>div{flex-basis:100%}.usageContext strong{font-size:16px}.usageContext>a{min-height:44px}.accountOperations{margin-top:26px}.adminNavigation .loadingTab{min-height:58px}}
 .filters label:has(select[aria-label="模型"]){min-width:min(100%,200px);max-width:min(100%,20em);flex:1 1 200px}
 @media(max-width:600px){.filters label:has(select[aria-label="模型"]){flex-basis:100%;max-width:none}.ledger small{display:block;white-space:nowrap}}
+
+.headingAction{display:grid;justify-items:end;align-items:center}
+.headingAction>button,.headingAction>[data-reading-status]{grid-area:1/1}
+.headingAction>[data-reading-status]{pointer-events:none;font-size:13px}
+.headingAction:has([data-reading-status][data-visible=true])>button{visibility:hidden}
+@media(max-width:600px){.headingAction>button{font-size:13px;padding-inline:12px}}
+
+.dayReadout{min-block-size:1.65em}

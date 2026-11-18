@@ -1,4 +1,4 @@
-import { eq, sql, type SQL } from "drizzle-orm";
+import { eq, inArray, sql, type SQL } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { securityEvent, user, membershipPlan } from "../../db/schema";
 import { requireSessionProof, ADMIN_VERIFICATION_MS, type SessionProof } from "../auth/account-security";
@@ -65,6 +65,12 @@ const facts = sql`SELECT user_id,id,created_at,'餐次'::text AS kind,0::bigint 
   UNION ALL SELECT user_id,id,created_at,'训练计划',0 FROM training_plans
   UNION ALL SELECT user_id,id,created_at,'训练模板',0 FROM training_templates
   UNION ALL SELECT user_id,id,created_at,'已登记图片',byte_size FROM meal_images`;
+async function readAdminSecurity(db: Database) {
+  const failures=await adminRows<{userId:string|null;count:number}>(db,sql`SELECT user_id AS "userId",count(*)::int AS count FROM security_events WHERE category IN ('authentication_failed','verification_failed') AND created_at>now()-interval '10 minutes' GROUP BY user_id,source_hash HAVING count(*)>=3 ORDER BY count(*) DESC LIMIT 20`);
+  const events = await db.select({ id: securityEvent.id, category: securityEvent.category, userId: securityEvent.userId, details: securityEvent.details, createdAt: securityEvent.createdAt }).from(securityEvent).orderBy(sql`${securityEvent.createdAt} DESC`).limit(50);
+  return { failures, events: events.map(event => ({ ...event, createdAt: event.createdAt.toISOString() })) };
+}
+
 async function queryAdminSnapshot(db: Database, proof: SessionProof, input: AdminFilter = {}) {
   const verified = await requireSessionProof(db, proof, true), filter = normalizeAdminFilter(input), today = securityDay();
   if (filter.userId && !(await db.select({ id: user.id }).from(user).where(eq(user.id, filter.userId))).length) throw new ApiError(404, "not_found", "用户不存在。");
@@ -104,13 +110,12 @@ async function queryAdminSnapshot(db: Database, proof: SessionProof, input: Admi
   const breakdown=await adminRows<CostMetrics&{provider:string;model:string;purpose:string;state:string}>(db,sql`SELECT a.provider,r.model,c.purpose,a.state,${costSql()} ${joins} WHERE ${where} GROUP BY a.provider,r.model,c.purpose,a.state ORDER BY a.provider,r.model,c.purpose,a.state`);
   const modelOptions=await adminRows<{provider:string;model:string}>(db,sql`SELECT DISTINCT a.provider,r.model ${joins} WHERE a.date BETWEEN ${filter.from}::date AND ${filter.to}::date ${filter.userId?sql`AND a.user_id=${filter.userId}`:sql``} ORDER BY a.provider,r.model LIMIT 200`);
   const highlights=await dailyHighlights(db,filter);
-  const failures=await adminRows<{userId:string|null;count:number}>(db,sql`SELECT user_id AS "userId",count(*)::int AS count FROM security_events WHERE category IN ('authentication_failed','verification_failed') AND created_at>now()-interval '10 minutes' GROUP BY user_id,source_hash HAVING count(*)>=3 ORDER BY count(*) DESC LIMIT 20`);
-  const events = await db.select({ id: securityEvent.id, category: securityEvent.category, userId: securityEvent.userId, details: securityEvent.details, createdAt: securityEvent.createdAt }).from(securityEvent).orderBy(sql`${securityEvent.createdAt} DESC`).limit(50);
+  const {failures,events}=await readAdminSecurity(db);
   // 查询结束再次检查撤销与管理验证，迟到响应不能返回已锁定的管理数据。
   await requireSessionProof(db, proof, true);
   return { filter, verifiedUntil: new Date(verified.session.adminVerifiedAt!.getTime()+ADMIN_VERIFICATION_MS).toISOString(), totals: totals ?? emptyCost(), days, users, memberships, modelOptions, highlights, userCount: count,
     userOptions: people.map(person => ({ id: person.id, email: person.email })), records: summaryRecords, tasks, recognition, api: filter.provider || filter.model || filter.purpose ? null : api, global: await globalBudget(db), coverageStart: coverage.from,
-    apiChannels:filter.provider||filter.model||filter.purpose?null:apiChannels,breakdown,failures,events: events.map(event => ({ ...event, createdAt: event.createdAt.toISOString() })), generatedAt: new Date().toISOString() };
+    apiChannels:filter.provider||filter.model||filter.purpose?null:apiChannels,breakdown,failures,events, generatedAt: new Date().toISOString() };
 }
 export async function loadAdminConsole(db:Database,proof:SessionProof,input:AdminFilter={}):Promise<Awaited<ReturnType<typeof queryAdminSnapshot>>>{
   await requireSessionProof(db,proof,true);
@@ -119,3 +124,24 @@ export async function loadAdminConsole(db:Database,proof:SessionProof,input:Admi
   await requireSessionProof(db,proof,true);return result as Awaited<ReturnType<typeof queryAdminSnapshot>>;
 }
 export type AdminConsoleData = Awaited<ReturnType<typeof loadAdminConsole>>;
+
+type SectionSnapshot = {verifiedUntil:string} & (
+  { memberships: Awaited<ReturnType<typeof membershipSnapshot>> } |
+  (Awaited<ReturnType<typeof readAdminSecurity>> & { userOptions: {id:string;email:string}[] })
+);
+export async function loadAdminSection(db:Database,proof:SessionProof,section:"rules"|"security"):Promise<SectionSnapshot>{
+  if(section!=="rules"&&section!=="security")throw new ApiError(400,"invalid_filter","管理栏目无效。");
+  await requireSessionProof(db,proof,true);
+  const result=await db.transaction(async tx=>{
+    const connection=tx as unknown as Database;
+    const {session}=await requireSessionProof(connection,proof,true);
+    const verifiedUntil=new Date(session.adminVerifiedAt!.getTime()+ADMIN_VERIFICATION_MS).toISOString();
+    if(section==="rules")return {verifiedUntil,memberships:await membershipSnapshot(connection)};
+    const {events,failures}=await readAdminSecurity(connection);
+    const ids=[...new Set(events.flatMap(event=>event.userId?[event.userId]:[]))];
+    const userOptions=ids.length?await connection.select({id:user.id,email:user.email}).from(user).where(inArray(user.id,ids)):[];
+    return {verifiedUntil,events,failures,userOptions};
+  },{isolationLevel:"repeatable read",accessMode:"read only"});
+  await requireSessionProof(db,proof,true);
+  return result;
+}

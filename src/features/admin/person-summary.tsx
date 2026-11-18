@@ -1,4 +1,4 @@
-import {LoadingLink as Link} from "@/components/loading-link";
+import {AdminLink as Link} from "./navigation-view";
 import {adminQuery,personHref} from "./navigation";
 import type {AdminConsoleData} from "./queries";
 import type {AdminFilter} from "./model";

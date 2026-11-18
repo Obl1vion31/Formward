@@ -1,7 +1,5 @@
-import {LocalLoading} from "@/components/local-loading";
 import Link from "next/link";
-import {AdminHeader} from "./header";
-import {AdminNavigation} from "./navigation-view";
+import {AdminHeading} from "./navigation-view";
 import {adminLocation,adminQuery,personHref,safeAdminReturn} from "./navigation";
 import {PersonHeading,PersonSummary} from "./person-summary";
 import {MembershipPlaceholder} from "./membership-form";
@@ -20,10 +18,9 @@ export function AdminLoading({path="/admin"}:{path?:string}){
  const filter:AdminFilter={from:dates?.from,to:dates?.to,provider:provider as AdminFilter["provider"],model:query.get("model")??undefined,purpose:purpose as AdminFilter["purpose"]};
  const rangeLabel=({"1":"今天","7":"近7天","30":"近30天","90":"近90天"}as Record<string,string>)[range]??"自定义";
  const status=query.get("status")==="active"?"active":query.get("status")==="banned"?"banned":"all",page=Math.max(1,Math.min(100000,Math.floor(Number(query.get("page"))||1)));
- return <div className={styles.shell} aria-busy="true"><AdminHeader/><div className={styles.body}>
-  <AdminNavigation tab={detail?"users":tab}/>
+ return <div data-admin-initial-loading>
   {detail&&<Link prefetch={false} className={styles.back} href={userView==="summary"?back:personHref(id,"summary",back,filter)}>{userView!=="summary"?"← 返回用户概况":/[?&]tab=(usage|overview)(?:&|$)/.test(back)?"← 返回用量分析":"← 返回用户列表"}</Link>}
-  <div className={styles.heading}><h1>{title}</h1><LocalLoading/><button disabled className={styles.secondary}>刷新数据</button></div>
+  <AdminHeading title={title} loading/>
   {detail?<><PersonHeading person={null}/>{userView==="summary"?<PersonSummary person={null} id={id} filter={filter} returnTo={back}/>:userView==="account"?<><MembershipPlaceholder/><section className={styles.accountOperations}><h2>账号访问</h2><AccountOperationsPlaceholder/></section></>:<PolicyLoading/>}</>:<>
    {tab==="users"&&<><nav className={styles.subNavigation} aria-label="用户管理分类"><Link prefetch={false} href="/admin?tab=users" aria-current={section==="accounts"?"page":undefined}>账号</Link><Link prefetch={false} href="/admin?tab=users&section=invitations" aria-current={section==="invitations"?"page":undefined}>邀请</Link></nav><div className={styles.legacy}><AdminListPlaceholder tab={section} search={query.get("search")??""} status={status} page={page}/></div></>}
    {tab==="rules"&&<><h2>会员档位</h2><TierLoading/></>}
@@ -41,7 +38,7 @@ export function AdminLoading({path="/admin"}:{path?:string}){
 <details className={styles.section}><summary>模型、用途与状态拆分</summary></details><details className={styles.section}><summary>每日明细</summary></details>
    </section>}
   </>}
- </div></div>;
+ </div>;
 }
 function PolicyLoading(){return <section className={styles.section} aria-label="个人 AI 限制设置"><p className={styles.caption}>今日已占用 <span className={styles.placeholder}/>；个人日金额上限<span className={styles.placeholder}/>，仍受全站每日¥10限制。</p><form className={styles.policy}><label className={styles.check}><input type="checkbox" disabled/>暂停站内AI</label><p className={styles.caption}>手动记录继续可用；不撤销外部OAuth连接。</p><div className={styles.policyColumns}><div><label className={styles.check}><input type="checkbox" disabled/>金额继承档位默认</label><label>个人每日金额上限（元）<input type="number" disabled/></label></div><div><label className={styles.check}><input type="checkbox" disabled/>识图次数继承默认</label><label>每日识图次数<input type="number" disabled/></label></div></div><p className={styles.caption}>明确设置0会停用相应额度，提高额度不会新增会员权限。</p><label>调整原因<textarea aria-label="调整原因" rows={2} disabled/></label><div className={styles.formActions}><button disabled className={styles.secondary}>恢复档位额度</button><button disabled className={styles.secondary}>取消修改</button><button disabled>保存额度</button></div></form></section>;}
 function TierLoading(){return <section data-tier-manager><div className={styles.tierIntro}><p className={styles.caption}>档位决定默认AI额度与权限。修改会统一影响对应用户，个人覆盖继续保留；全站每天仍共用¥10。</p><button disabled>新增档位</button></div><div className={styles.tierList}><div className={styles.tierListHead}><span>档位</span><span>默认额度与功能</span><span>用户</span><span/></div></div></section>;}
