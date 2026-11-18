@@ -22,6 +22,7 @@ export function useAssistantPageNavigation() {
   const [page, setPage] = useState<AssistantPageState | null>(() => pathname === assistantPath
     ? { entryId: null, query, source: null, motion: null }
     : null);
+  const [closedMotion, setClosedMotion] = useState<AssistantPageMotion | null>(null);
   const visible = useRef(page);
   const origins = useRef(new Map<string, WorkspaceOrigin>());
   const restoredFocus = useRef(0);
@@ -46,9 +47,7 @@ export function useAssistantPageNavigation() {
   const sync = useCallback(() => {
     const current = visible.current;
     if (location.pathname !== assistantPath) {
-      const pending = backPending.current;
       backPending.current = null;
-      if (!current && atSource(pending)) restoreSource(pending);
       if (!current) return;
       if (!atSource(current.source)) show(null);
       else if (current.motion?.direction !== "close") show({ ...current, motion: { direction: "close" } });
@@ -65,7 +64,7 @@ export function useAssistantPageNavigation() {
     } else {
       show({ entryId, query: nextQuery, source, motion: source ? { direction: "open" } : null });
     }
-  }, [restoreSource, show]);
+  }, [show]);
 
   useLayoutEffect(sync, [pathname, query, sync]);
   useEffect(() => {
@@ -113,9 +112,17 @@ export function useAssistantPageNavigation() {
       show({ ...current, motion: null });
       return;
     }
+    setClosedMotion(motion);
+  }, [show]);
+
+  useLayoutEffect(() => {
+    const source = page?.source ?? null;
+    // 退出动效可能先结束。浏览器和 Next 路由都回到来源后，才交还已挂载的工作区。
+    if (!closedMotion || page?.motion !== closedMotion || !atSource(source) ||
+        pathname !== source.path || query !== new URLSearchParams(source.query).toString()) return;
     show(null);
-    if (current.source && !backPending.current) restoreSource(current.source);
-  }, [restoreSource, show]);
+    restoreSource(source);
+  }, [closedMotion, page, pathname, query, restoreSource, show]);
 
   return { page, open, back, complete };
 }

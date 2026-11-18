@@ -51,7 +51,7 @@ async function installRecorder(page){
  await page.evaluate(()=>{
   const frames=[];let frame;
   const take=()=>{
-   const main=document.querySelector(".workspace-shell > main[data-workspace-scene]"),body=main?.querySelector("[data-workspace-body]"),old=document.querySelector("[data-workspace-previous]:has(> *)");
+   const main=document.querySelector(".workspace-shell main:not([data-workspace-previous] *)[data-workspace-scene]"),body=main?.querySelector("[data-workspace-body]"),old=document.querySelector("[data-workspace-previous]:has(> *)");
    if(body&&old){
     const read=node=>{const css=getComputedStyle(node);return {opacity:Number(css.opacity),x:css.transform==="none"?0:new DOMMatrix(css.transform).m41};};
     const pose=read(body),previous=read(old),sign=main.dataset.workspaceScene==="forward"?1:-1;
@@ -222,7 +222,7 @@ export async function checkDesktopLinked({browser,baseURL,baselineURL,slowURL,fi
   for(const kind of kinds){
    await page.goto(baseURL+"/dashboard");await settled(page);await installRecorder(page);
    await page.locator('[data-metric-card="'+kind+'"]').click();
-   await page.waitForFunction(()=>document.querySelector('.workspace-shell > main[data-workspace-scene="forward"]'));
+   await page.waitForFunction(()=>document.querySelector('.workspace-shell main:not([data-workspace-previous] *)[data-workspace-scene="forward"]'));
    await page.getByRole("navigation",{name:"主导航",exact:true}).getByRole("link",{name:"总览",exact:true}).click();await page.waitForURL(baseURL+"/dashboard");await settled(page);
    const frames=await flightRecord(page);
    assert.ok(frames.every(frame=>!frame.sharedOverlay));

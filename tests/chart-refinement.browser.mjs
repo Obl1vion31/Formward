@@ -37,7 +37,7 @@ async function recordScene(page){
  await page.evaluate(()=>{
   window.__sceneFrames=[];
   const take=()=>{
-   const main=document.querySelector('.workspace-shell > main[data-workspace-scene]');
+   const main=document.querySelector('.workspace-shell main:not([data-workspace-previous] *)[data-workspace-scene]');
    const body=main?.querySelector('[data-workspace-body]'),old=document.querySelector('[data-workspace-previous]:has(> *)');
    if(body&&old){
     const oldState=getComputedStyle(old),nextState=getComputedStyle(body);

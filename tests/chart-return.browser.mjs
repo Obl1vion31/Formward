@@ -27,20 +27,20 @@ async function create(width,height,theme='light'){
   const animate=Element.prototype.animate;
   Element.prototype.animate=function(...args){
    const animation=animate.apply(this,args);
-   if(window.chartMark!==null&&this.matches('.workspace-shell > main[data-workspace-scene="back"] [data-workspace-body]'))window.chartStarts.push({t:performance.now()-window.chartMark,range:null});
+   if(window.chartMark!==null&&this.matches('.workspace-shell main:not([data-workspace-previous] *)[data-workspace-scene="back"] [data-workspace-body]'))window.chartStarts.push({t:performance.now()-window.chartMark,range:null});
    return animation;
   };
   document.addEventListener('click',event=>{
    const card=event.target.closest?.('a[data-metric-card]');
    if(card)window.chartOrigin={rail:card.closest('[data-metric-rail]').scrollLeft,scroll:scrollY,kind:card.dataset.metricCard,card:card.getBoundingClientRect().toJSON()};
    const link=event.target.closest?.('a[href="/dashboard"]');
-   if(link&&(location.pathname!=='/dashboard'||document.querySelector('.workspace-shell > main[data-workspace-scene="forward"]'))){
+   if(link&&(location.pathname!=='/dashboard'||document.querySelector('.workspace-shell main:not([data-workspace-previous] *)[data-workspace-scene="forward"]'))){
     window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];window.chartObservedStarts=[];window.firstOverviewRange=null;window.firstOverviewCard=null;
    }
   },true);
   function frame(t){
    if(window.chartMark!==null){
-    const root=document.querySelector('.workspace-shell > main[data-workspace-frame]');
+    const root=document.querySelector('.workspace-shell main:not([data-workspace-previous] *)[data-workspace-frame]');
     const body=root?.querySelector('[data-workspace-body]');
     const style=body&&getComputedStyle(body);
     const visible=!!style&&Number(style.opacity)>.14&&!root.hasAttribute('inert');
@@ -127,13 +127,39 @@ try{
    await overview(page).click();await inspectReturn(page,`${width}-reduced`,{paired:false});await page.emulateMedia({reducedMotion:'no-preference'});
    await page.locator('[data-metric-card="intake"]:visible').click();await settled(page);
    await delay(650);await overview(page).click();await inspectReturn(page,`${width}-slow`,{warm:false});await delay(0);
-   await page.evaluate(()=>{const watcher=new MutationObserver(()=>{if(document.querySelector('.workspace-shell > main[data-workspace-scene="forward"][data-scene-leaving]')){watcher.disconnect();[...document.querySelectorAll('nav[aria-label="主导航"] a[href="/dashboard"]')].find(node=>node.getClientRects().length)?.click();}});watcher.observe(document.body,{subtree:true,attributes:true,attributeFilter:['data-workspace-scene']});});
+   await page.evaluate(()=>{const watcher=new MutationObserver(()=>{if(document.querySelector('.workspace-shell main:not([data-workspace-previous] *)[data-workspace-scene="forward"][data-scene-leaving]')){watcher.disconnect();[...document.querySelectorAll('nav[aria-label="主导航"] a[href="/dashboard"]')].find(node=>node.getClientRects().length)?.click();}});watcher.observe(document.body,{subtree:true,attributes:true,attributeFilter:['data-workspace-scene']});});
    await page.locator('[data-metric-card="energy"]:visible').click();await inspectReturn(page,`${width}-quick-cancel`,{paired:false});assert.equal(await page.locator('[data-workspace-previous] > *').count(),0,'尚未进入详情时取消只恢复总览');
    await page.locator('[data-metric-card="morning-weight"]:visible').click();await settled(page);
    await page.evaluate(()=>{window.chartMark=performance.now();window.chartFrames=[];window.chartStarts=[];window.chartObservedStarts=[];window.firstOverviewRange=null;window.firstOverviewCard=null;});await page.goBack();await inspectReturn(page,`${width}-browser-back`,{warm:false});
    await page.locator('[data-metric-card="intake"]:visible').click();await settled(page);await delay(650);await overview(page).click();
    await page.getByRole('navigation',{name:'主导航',exact:true}).getByRole('link',{name:'身体',exact:true}).click();await page.waitForURL(url=>url.pathname==='/dashboard/measurements');await settled(page);
    assert.equal(await page.locator('[data-workspace-frame=body]').count(),1);assert.equal(await page.locator('[data-workspace-scene],[data-return-covered],[data-workspace-previous] > *').count(),0);await delay(0);
+   if(width<700){
+    await overview(page).click();await settled(page);
+    await page.emulateMedia({reducedMotion:'reduce'});await page.locator('[data-metric-card="intake"]:visible').click();await settled(page);
+    const chartUrl=page.url(), scroll=await page.evaluate(()=>{
+     window.chartWorkspaceBeforeAssistant=document.querySelector('main[data-workspace-frame="nutrition"]');
+     window.scrollTo(0,Math.min(80,document.documentElement.scrollHeight-innerHeight));
+     return scrollY;
+    });
+    await page.locator('[data-assistant-trigger]:visible').click();
+    await page.waitForURL(url=>url.pathname==='/dashboard/assistant');
+    await page.evaluate(()=>{
+     const back=window.history.back;
+     window.history.back=function(){
+      window.history.back=back;
+      setTimeout(()=>back.call(window.history),300);
+     };
+    });
+    await page.getByRole('button',{name:'返回工作区',exact:true}).click();
+    await page.waitForURL(chartUrl);
+    await page.waitForFunction(top=>!document.querySelector('[data-assistant-page]')&&
+      document.activeElement?.hasAttribute('data-assistant-trigger')&&
+      document.querySelector('main[data-workspace-frame="nutrition"]')===window.chartWorkspaceBeforeAssistant&&
+      Math.abs(scrollY-top)<=1,scroll);
+    await overview(page).click();
+    await inspectReturn(page,`${width}-assistant-reduced`,{paired:false});
+   }
    console.log(JSON.stringify({width,returns:results.length,body:body.length}));
   }finally{await delay(0);await context.close();}
  }
