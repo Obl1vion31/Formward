@@ -84,7 +84,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
         <div ref={feedContent} className={styles.feedContent} data-empty={!chat.messages.length||undefined}>
         {chat.data?.hasMore && chat.messages.length < 50 && <button className={styles.loadMore} disabled={chat.loading} onClick={() => { if (feed.current) moreAnchor.current = { top:feed.current.scrollTop,height:feed.current.scrollHeight }; void chat.more(); }}>{chat.loading ? "正在读取…" : "查看更早消息"}</button>}
         {chat.messages.length >= 50 && <p className={styles.historyHint}>当前显示最近50条消息</p>}
-        {!chat.data&&chat.enabled&&<p className={styles.historyLoading} role="status">加载中…</p>}
+        {!chat.data&&chat.enabled&&!chat.error&&<p className={styles.historyLoading} role="status">加载中…</p>}
         {chat.data&&!chat.messages.length && <div className={styles.welcome}><h3>今天想聊点什么？</h3><p>可以拍照记饮食、记录体重，或查询你的记录。</p></div>}
         {chat.messages.map(message => <ArrivingMessage key={message.role==="user"&&message.requestId?"user-"+message.requestId:message.id} message={message} eligible={!!message.requestId&&chat.newRequests.has(message.requestId)} className={styles.message + " " + (message.role === "user" ? styles.user : styles.assistant)}>
           <ChatMessageBody message={message} inlinePreviews={chat.data?.capabilities?.inlinePreviews===true} navigate={navigate} jump={jump}
