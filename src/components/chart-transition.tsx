@@ -16,7 +16,7 @@ const rectOf = (element: SVGSVGElement): ChartRect => {
   const {left,top,width,height}=element.getBoundingClientRect();return{left,top,width,height};
 };
 const visible = (element: SVGSVGElement) => {
-  if(!element.isConnected||element.closest('[data-return-covered]')||!element.getClientRects().length)return false;
+  if(!element.isConnected||element.closest('[data-return-covered],[data-return-prepared]')||!element.getClientRects().length)return false;
   const rect=rectOf(element);return rect.width>0&&rect.height>0;
 };
 const inViewport = (rect:ChartRect) => rect.top+rect.height>64&&rect.top<innerHeight-(matchMedia("(max-width:700px),(hover:none) and (pointer:coarse)").matches?88:0)&&rect.left+rect.width>0&&rect.left<innerWidth;
@@ -159,7 +159,7 @@ export function ChartTransitionProvider({ children }: { children: React.ReactNod
     startTransition(()=>router.push(href));
   },[router,motion]);
   const restore=useCallback((rail:HTMLElement)=>{
-    if(!rail.isConnected||rail.closest('[data-return-covered]')||!rail.clientWidth)return;
+    if(!rail.isConnected||rail.closest('[data-return-covered],[data-return-prepared]')||!rail.clientWidth)return;
     if(focusAfterLoad.current&&!rail.hasAttribute("data-metric-rail-skeleton")&&!rail.closest('[data-workspace-cached]')){const pending=focusAfterLoad.current;rail.scrollLeft=pending.rail;if(scrollY!==pending.scroll)window.scrollTo({top:pending.scroll,behavior:'instant'});focusReturnCard(rail.querySelector<HTMLElement>(`a[data-metric-card="${pending.kind}"]`));focusAfterLoad.current=null;}
     const saved=origin.current;if(!saved)return;
     if(rail.scrollLeft!==saved.rail)rail.scrollLeft=saved.rail;

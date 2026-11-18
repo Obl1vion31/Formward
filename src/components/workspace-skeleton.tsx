@@ -74,8 +74,8 @@ export function WorkspaceSkeleton({kind,returnShell=false,destination}:{kind:'ov
  {slow&&<div className="skeleton-retry" role="status">读取时间较长。<button onClick={()=>kind==='overview'&&returningToOverview?router.push('/dashboard',{scroll:false}):router.refresh()}>重试</button><button onClick={()=>router.push('/dashboard')}>返回总览</button></div>}
  </div>;
  // 返回意图先于URL提交，明确读取总览自己的真实快照，不借用仍在地址栏中的详情条件。
- // 前进完成后预备隐藏的本人缓存，避免点击返回时才构建整页；hidden/inert及零尺寸
- // 校验阻止隐藏内容注册图形或消费焦点，刷新上下文阻止它冒充真实读取完成。
+ // 前进完成后预备隐藏的本人缓存，避免点击返回时才构建整页。专属预备标记
+ // 阻止注册图形、消费焦点与提示；刷新上下文阻止它冒充真实读取完成。
  if(destination)return content;
  return kind==='overview'&&(returnShell||returningToOverview)
   ?returningToOverview||!forwardChartMoving?<WorkspacePending path="/dashboard" query="">{content}</WorkspacePending>:content
