@@ -120,8 +120,12 @@ export function useAssistantPageNavigation() {
     // 退出动效可能先结束。浏览器和 Next 路由都回到来源后，才交还已挂载的工作区。
     if (!closedMotion || page?.motion !== closedMotion || !atSource(source) ||
         pathname !== source.path || query !== new URLSearchParams(source.query).toString()) return;
-    show(null);
-    restoreSource(source);
+    const frame = requestAnimationFrame(() => {
+      if (visible.current?.motion !== closedMotion || !atSource(source)) return;
+      show(null);
+      restoreSource(source);
+    });
+    return () => cancelAnimationFrame(frame);
   }, [closedMotion, page, pathname, query, restoreSource, show]);
 
   return { page, open, back, complete };
