@@ -25,7 +25,7 @@ export async function GET(request:Request){
  await getDatabase().execute(sql`select resting_input_method,calculation_snapshot from energy_days limit 0`);
  if(process.env.FORMWARD_CHAT_ENABLED==="1"){
   await getDatabase().execute(sql`select token_id,provider from assistant_connections limit 0`);
-  await getDatabase().execute(sql`select provider,followup,purpose,context from assistant_conversations limit 0`);
+  await getDatabase().execute(sql`select provider,followup,purpose,context,removed_at from assistant_conversations limit 0`);
   await getDatabase().execute(sql`select image_ids,"references" from assistant_messages limit 0`);
   await getDatabase().execute(sql`select request_id,token_id,tool_results,execution_input,claimed_at,worker_id,request_diagnostics from assistant_runs limit 0`);
   await getDatabase().execute(sql`select date,reserved_cny,cost_cny,usage,rates from assistant_usage_requests limit 0`);
