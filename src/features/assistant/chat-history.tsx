@@ -36,7 +36,8 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
   const [rowAction, setRowAction] = useState<{ id: string; action: HistoryRowAction } | null>(null);
   const [removing, setRemoving] = useState(false);
   const request = useRef<AbortController | null>(null);
-  const scroller = useOrderedArrival<HTMLDivElement>(conversationId ? 2 : 1, { from: 0 });
+  const scroller = useRef<HTMLDivElement>(null);
+  const scene = useOrderedArrival<HTMLDivElement>(conversationId ? 2 : 1, { from: 0 });
   const title = useRef<HTMLHeadingElement>(null);
   const listLoaded = useRef(false);
   const returnTo = useRef<{ id: string; top: number } | null>(null);
@@ -209,37 +210,39 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
       {!page && <button type="button" onClick={back}>{conversationId ? "返回列表" : "返回"}</button>}
     </header>
     {row && <p className={styles.historyTitle}>{row.title}<time dateTime={row.updatedAt}>{shortDate.format(new Date(row.updatedAt))}</time></p>}
-    <div className={styles.historyScroll} data-history-scroll data-detail={!!conversationId || undefined} ref={scroller}
-      onScroll={() => { if (rowAction) setRowAction(null); }}>
-      {!conversationId ? <>
-        {!list && !failure && <div className={styles.historyFeedback}><LocalLoading label="正在读取会话…"/></div>}
-        {list && (list.items.length
-          ? <ul className={styles.historyList}>{list.items.map(item => <ChatHistoryRow
-              key={item.id} id={item.id} title={item.title}
-              stamp={shortDate.format(new Date(item.updatedAt)) + (item.active ? " · 当前对话" : "")}
-              action={rowAction?.id === item.id ? rowAction.action : undefined}
-              busy={removing || chat.managing} onInspect={() => inspect(item.id)} onRemove={() => void remove(item.id)}
-              onAction={action => setRowAction(action ? { id: item.id, action } : null)}/>)}</ul>
-          : <p className={styles.historyFeedback}>暂无历史会话</p>)}
-        {errorNote}
-        {notice && <p className={styles.historyFeedback} role="status">{notice}</p>}
-        {chat.error && <p className={styles.historyFeedback} role="alert">{chat.error}</p>}
-        {list?.next && !failure && <button type="button" className={styles.historyMore} disabled={!!busy} onClick={() => void readHistory({ kind: "list", cursor: list.next! })}>{busy ? "正在读取…" : "加载更早会话"}</button>}
-      </> : <div className={styles.historyTranscript} data-paginated={view && (view.hasMore || view.messages.length > 5) || undefined}>
-        {view?.hasMore && view.before != null && !failure && <button type="button" className={styles.historyMore} disabled={!!busy} onClick={() => void readHistory({ kind: "detail", id: conversationId, before: view.before! })}>{busy ? "正在读取…" : "查看更早消息"}</button>}
-        {errorNote}
-        {!view && !failure && <div className={styles.historyFeedback}><LocalLoading label="正在读取对话…"/></div>}
-        {view && !view.messages.length && <p className={styles.historyFeedback}>这段对话还没有消息。</p>}
-        {notice && <p className={styles.historyFeedback} role="status">{notice}</p>}
-        <div className={styles.historyMessages}>
-          {view && transcript.visible.map(message => <article key={message.id} data-chat-message={message.id} data-role={message.role} tabIndex={-1}
-            className={chatStyles.message + " " + (message.role === "user" ? chatStyles.user : chatStyles.assistant)
-              + (transcript.continuations.has(message.id) ? " " + chatStyles.continuation : "")}>
-            <ChatMessageBody message={message} inlinePreviews={view.capabilities?.inlinePreviews === true} historical jump={jump} navigate={navigate} answers={transcript.answers.get(message.id)}
-              continuation={transcript.continuations.has(message.id)}/>
-          </article>)}
-        </div>
-      </div>}
+    <div ref={scene} className={styles.historyBody} data-history-body>
+      <div className={styles.historyScroll} data-detail={!!conversationId || undefined} ref={scroller}
+        onScroll={() => { if (rowAction) setRowAction(null); }}>
+        {!conversationId ? <>
+          {!list && !failure && <div className={styles.historyFeedback}><LocalLoading label="正在读取会话…"/></div>}
+          {list && (list.items.length
+            ? <ul className={styles.historyList}>{list.items.map(item => <ChatHistoryRow
+                key={item.id} id={item.id} title={item.title}
+                stamp={shortDate.format(new Date(item.updatedAt)) + (item.active ? " · 当前对话" : "")}
+                action={rowAction?.id === item.id ? rowAction.action : undefined}
+                busy={removing || chat.managing} onInspect={() => inspect(item.id)} onRemove={() => void remove(item.id)}
+                onAction={action => setRowAction(action ? { id: item.id, action } : null)}/>)}</ul>
+            : <p className={styles.historyFeedback}>暂无历史会话</p>)}
+          {errorNote}
+          {notice && <p className={styles.historyFeedback} role="status">{notice}</p>}
+          {chat.error && <p className={styles.historyFeedback} role="alert">{chat.error}</p>}
+          {list?.next && !failure && <button type="button" className={styles.historyMore} disabled={!!busy} onClick={() => void readHistory({ kind: "list", cursor: list.next! })}>{busy ? "正在读取…" : "加载更早会话"}</button>}
+        </> : <div className={styles.historyTranscript} data-paginated={view && (view.hasMore || view.messages.length > 5) || undefined}>
+          {view?.hasMore && view.before != null && !failure && <button type="button" className={styles.historyMore} disabled={!!busy} onClick={() => void readHistory({ kind: "detail", id: conversationId, before: view.before! })}>{busy ? "正在读取…" : "查看更早消息"}</button>}
+          {errorNote}
+          {!view && !failure && <div className={styles.historyFeedback}><LocalLoading label="正在读取对话…"/></div>}
+          {view && !view.messages.length && <p className={styles.historyFeedback}>这段对话还没有消息。</p>}
+          {notice && <p className={styles.historyFeedback} role="status">{notice}</p>}
+          <div className={styles.historyMessages}>
+            {view && transcript.visible.map(message => <article key={message.id} data-chat-message={message.id} data-role={message.role} tabIndex={-1}
+              className={chatStyles.message + " " + (message.role === "user" ? chatStyles.user : chatStyles.assistant)
+                + (transcript.continuations.has(message.id) ? " " + chatStyles.continuation : "")}>
+              <ChatMessageBody message={message} inlinePreviews={view.capabilities?.inlinePreviews === true} historical jump={jump} navigate={navigate} answers={transcript.answers.get(message.id)}
+                continuation={transcript.continuations.has(message.id)}/>
+            </article>)}
+          </div>
+        </div>}
+      </div>
     </div>
     {view && <footer className={styles.historyFooter}>
       {chat.busy && <p>当前回答生成中，完成后可继续这段对话。</p>}

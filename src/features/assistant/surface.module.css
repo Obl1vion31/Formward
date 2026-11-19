@@ -206,6 +206,7 @@
 .history[data-page=true] .historyHeading { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; min-height: 52px; }
 .historyTitle { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; width: min(100%, 630px); margin: 0 auto; padding: 4px 0 12px; font-size: .875rem; color: var(--muted); overflow-wrap: anywhere; }
 .historyTitle time { flex: none; }
+.historyBody { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .historyScroll {
   flex: 1;
   min-height: 0;

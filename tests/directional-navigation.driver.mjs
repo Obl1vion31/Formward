@@ -60,7 +60,7 @@ export async function runDirectionalNavigation(db) {
       Element.prototype.animate = function (...args) {
         const animation = native.apply(this,args);
         const role = this.getAttribute("data-photo-frame") || this.getAttribute("aria-label") ||
-          (this.hasAttribute("data-history-scroll") ? "历史会话" :
+          (this.hasAttribute("data-history-body") ? "历史会话" :
             this.hasAttribute("data-admin-content") ? "管理后台正文" : this.nodeName.toLowerCase());
         if (this.hasAttribute("data-workspace-moving") || this.hasAttribute("data-photo-frame")) record(role,animation,this);
         return animation;
@@ -181,12 +181,33 @@ export async function runDirectionalNavigation(db) {
       await settle();
       async function flip(index, direction, turn) {
         const before=await mark();
+        await photoStage.evaluate(node=>{
+          const frames=[];
+          window.photoFrames=frames;
+          window.photoFramesComplete=false;
+          const until=performance.now()+550;
+          const sample=now=>{
+            const photo=node.querySelectorAll('img[data-ready="true"]');
+            const alpha=[...photo].reduce((total,image)=>{
+              const visible=image.complete&&image.naturalWidth>0&&getComputedStyle(image).visibility==="visible";
+              return visible ? 1-(1-total)*(1-Number(getComputedStyle(image).opacity)) : total;
+            },0);
+            const {x,y,width,height}=node.getBoundingClientRect();
+            frames.push({alpha,box:[x,y,width,height]});
+            if(now<until||frames.length<8) requestAnimationFrame(sample);
+            else window.photoFramesComplete=true;
+          };
+          requestAnimationFrame(sample);
+        });
         await turn();
         await original(index).waitFor();
         await saw(before,"current",direction,0);
         await saw(before,"previous",0,-direction);
-        await settle();
-        assert.deepEqual(await photoStage.boundingBox(),stage);
+        await page.waitForFunction(()=>window.photoFramesComplete);
+        const frames=await page.evaluate(()=>window.photoFrames);
+        assert.ok(frames.every(frame=>frame.alpha>.7),"翻页持续显示解码好的原图");
+        assert.ok(frames.every(frame=>frame.box.every((value,i)=>Math.abs(value-[stage.x,stage.y,stage.width,stage.height][i])<1)));
+        result.photoFrames=(result.photoFrames??0)+frames.length;
       }
       if(mobile) {
         await flip(2,1,()=>activate(button("下一张")));
@@ -228,24 +249,26 @@ export async function runDirectionalNavigation(db) {
 
       await button("半碗").click();
       before=await mark();
-      await activate(button("下一题"));
+      await button("下一题").click();
       await page.getByText("鸡肉吃了多少？",{exact:true}).waitFor();
       await saw(before,"fieldset",1,0);
       await settle();
       before=await mark();
-      await activate(page.getByRole("button",{name:/上一题/}));
+      await page.getByRole("button",{name:/上一题/}).click();
       await page.getByText("鸡油饭吃了多少？",{exact:true}).waitFor();
       await saw(before,"fieldset",-1,0);
       assert.equal(await button("半碗").getAttribute("aria-pressed"),"true");
 
-      await activate(button("历史会话"));
+      await button("历史会话").click();
+      await page.getByRole("heading",{name:"历史会话",exact:true}).waitFor();
+      if(mobile) await input.waitFor({state:"hidden"});
       before=await mark();
-      await activate(page.getByRole("button",{name:new RegExp(title)}).first());
+      await page.getByRole("button",{name:new RegExp(title)}).first().click();
       await page.getByRole("heading",{name:"历史对话",exact:true}).waitFor();
       await saw(before,"历史会话",1,0);
       await settle();
       before=await mark();
-      await activate(button("返回列表"));
+      await button("返回列表").click();
       await page.getByRole("heading",{name:"历史会话",exact:true}).waitFor();
       await saw(before,"历史会话",-1,0);
       await settle();
@@ -257,11 +280,11 @@ export async function runDirectionalNavigation(db) {
       await saw(before,"div",1,0);
       await settle();
       before=await mark();
-      await activate(button("下个月"));
+      await button("下个月").click();
       await saw(before,"训练月历",1,0);
       await settle();
       before=await mark();
-      await activate(button("上个月"));
+      await button("上个月").click();
       await saw(before,"训练月历",-1,0);
       await settle();
       before=await mark();

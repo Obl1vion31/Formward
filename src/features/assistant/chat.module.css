@@ -336,6 +336,10 @@
  transform: none;
  transition-delay: 0s;
 }
+[inert] .workspace[data-page=true] :is(.sidebar,.conversation) {
+ visibility: hidden;
+ transition: none;
+}
 @media (prefers-reduced-motion: reduce) {
  .workspace[data-page=true] :is(.sidebar,.conversation) { transition: none; }
 }
