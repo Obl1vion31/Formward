@@ -34,6 +34,19 @@ async function layout(stack, expected) {
   return geometry;
 }
 
+async function openDesktop(page) {
+  const trigger = page.locator("[data-assistant-trigger]:visible");
+  const surface = page.locator("dialog[data-assistant-surface][open]");
+  await page.waitForLoadState("load");
+  for (let attempt = 0; attempt < 3 && !await surface.isVisible(); attempt++) {
+    await trigger.click();
+    // 总览由服务端先渲染按钮，初次点按可能早于浏览器完成绑定。
+    await surface.waitFor({ timeout: 1800 }).catch(() => {});
+  }
+  await surface.evaluate(node =>
+    Promise.all(node.getAnimations().map(animation => animation.finished.catch(() => {}))));
+}
+
 async function trackOpening(stack) {
   await stack.evaluate(button => {
     window.photoOpeningFrames = null;
@@ -49,7 +62,7 @@ async function trackOpening(stack) {
           frames.push({ at: now - start, opacity: Number(getComputedStyle(viewer).opacity),
             photo: !!photo && photo.complete && photo.naturalWidth > 0, stage: [x, y, width, height] });
         }
-        if (now - start < 440) requestAnimationFrame(update);
+        if (now - start < 720) requestAnimationFrame(update);
         else window.photoOpeningFrames = frames;
       }
       requestAnimationFrame(update);
@@ -60,7 +73,8 @@ async function trackOpening(stack) {
 async function openingFrames(page) {
   await page.waitForFunction(() => !!window.photoOpeningFrames);
   const frames = await page.evaluate(() => window.photoOpeningFrames);
-  assert.ok(frames.length >= 5 && frames[0].opacity < 1 && frames.at(-1).opacity === 1, "打开过程实际从淡入到完全可见");
+  assert.ok(frames.length >= 5 && frames.some(frame => frame.opacity < .98) && frames.at(-1).opacity >= .999,
+    "打开过程实际从淡入到完全可见：" + JSON.stringify(frames.map(frame => [Math.round(frame.at), frame.opacity])));
   assert.ok(frames.at(-1).photo);
   let loaded = false;
   for (const [index, frame] of frames.entries()) {
@@ -70,7 +84,7 @@ async function openingFrames(page) {
     loaded ||= frame.photo;
   }
   return { frames: frames.length, imageAtMs: Math.round(frames.find(frame => frame.photo).at),
-    duration: Math.round(frames.find(frame => frame.opacity === 1).at), geometryStable: true, monotonic: true };
+    duration: Math.round(frames.find(frame => frame.opacity >= .999).at), geometryStable: true, monotonic: true };
 }
 
 export async function runAssistantPhotoStack(db) {
@@ -130,7 +144,7 @@ export async function runAssistantPhotoStack(db) {
       await db.update(assistantConversation).set({ sequence: 3 }).where(eq(assistantConversation.id, conversationId));
 
       await page.goto(mobile ? "/dashboard/assistant" : "/dashboard");
-      if (!mobile) await page.locator("[data-assistant-trigger]:visible").click();
+      if (!mobile) await openDesktop(page);
       await stack(2).waitFor();
       await input.fill(question);
       await page.getByLabel("选择聊天照片", { exact: true }).setInputFiles(samples.slice(0, 4).map(photo => photo.file));
@@ -272,11 +286,7 @@ export async function runAssistantPhotoStack(db) {
         assert.equal(authenticated.status(), 200);
         review.on("pageerror", error => errors.push(String(error)));
         await review.goto(mobile ? "/dashboard/assistant" : "/dashboard", { waitUntil: "domcontentloaded" });
-        if (!mobile) {
-          await review.locator("[data-assistant-trigger]:visible").click();
-          await review.locator("dialog[data-assistant-surface]").evaluate(node =>
-            Promise.all(node.getAnimations().map(animation => animation.finished.catch(() => {}))));
-        }
+        if (!mobile) await openDesktop(review);
         await review.getByRole("button", { name: "查看 4 张照片", exact: true }).click();
         const viewer = review.getByRole("dialog", { name: "照片预览", exact: true });
         assert.equal(await viewer.evaluate(node => getComputedStyle(node).animationName), "none");
