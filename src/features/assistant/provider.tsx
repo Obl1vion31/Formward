@@ -22,7 +22,7 @@ type SurfaceController = { dismiss: () => Promise<boolean>; reopen: () => void }
 
 export function AssistantProvider({ accountId, children, chatEnabled = false, initialEntitlement }: { accountId: string; children: ReactNode; chatEnabled?: boolean; initialEntitlement?:AccountEntitlements }) {
   const pathname = usePathname(), available = assistantAvailable(pathname);
-  const { page, dockReturning, open: openPage, back: backFromPage, complete: completePageMotion } = useAssistantPageNavigation();
+  const { page, open: openPage, back: backFromPage, complete: completePageMotion } = useAssistantPageNavigation();
   const pageOpen = !!page && page.motion?.direction !== "close";
   const [open, setOpen] = useState(false), [data, setData] = useState<AssistantContext | null>(null), [error, setError] = useState(""), [loading, setLoading] = useState(false), [toast, setToast] = useState(false), [paused, setPaused] = useState(false), [clock, setClock] = useState(0), [local, setLocal] = useState<{date:string;timezone:string}|null>(null);
   const dataRef = useRef<AssistantContext | null>(null), request = useRef<AbortController | null>(null), revision = useRef(0), lastRead = useRef(0), activeRoute = useRef(pathname), generation = useRef(0), phase = useRef<"open" | "closing" | "closed">("closed"), surface = useRef<SurfaceController | null>(null), ignored = useRef(new Set<string>()), latestRefresh = useRef<(force?:boolean)=>Promise<void>>(async()=>undefined);
@@ -110,7 +110,7 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
   useEffect(() => { if (!toast || paused) return; const timer = setTimeout(() => setToast(false), 5000); return () => clearTimeout(timer); }, [toast, paused]);
   useEffect(() => () => { generation.current++; request.current?.abort(); }, []);
   const tasks = useMemo(() => ({ data: data ? { ...data, pending } : null, error, loading, retry: () => { void refresh(true); }, dismissItem }), [data, pending, error, loading, refresh, dismissItem]);
-  const value = useMemo(() => ({ open: open && available, count: pending.length, toggle, hide, source: page?.source ?? null, page, dockReturning, backFromPage, completePageMotion, tasks }), [open, available, pending.length, toggle, hide, page, dockReturning, backFromPage, completePageMotion, tasks]);
+  const value = useMemo(() => ({ open: open && available, count: pending.length, toggle, hide, source: page?.source ?? null, page, backFromPage, completePageMotion, tasks }), [open, available, pending.length, toggle, hide, page, backFromPage, completePageMotion, tasks]);
   return <AssistantChatProvider accountId={accountId} enabled={chatEnabled} initialEntitlement={initialEntitlement} open={pageOpen || (open && available)}><AssistantStateContext.Provider value={value}>{children}
     {toast && !linkedTrend && available && !open && pending.length > 0 && <aside className={styles.toast} role="status" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false); }}>
       <span>{pending.length === 1 ? pending[0].title : `有 ${pending.length} 项待查看`}</span><button type="button" onClick={() => show("tasks")}>查看</button><button type="button" aria-label="关闭提醒" onClick={() => setToast(false)}>×</button>

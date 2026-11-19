@@ -18,12 +18,11 @@ type AssistantState = {
   hide: () => Promise<void>;
   source: AssistantSource | null;
   page: AssistantPageState | null;
-  dockReturning: boolean;
   backFromPage: () => void;
   completePageMotion: (motion: AssistantPageMotion) => void;
   tasks: AssistantTasksState | null;
 };
 export const AssistantStateContext = createContext<AssistantState>({
-  open: false, count: 0, toggle() {}, async hide() {}, source: null, page: null, dockReturning: false, backFromPage() {}, completePageMotion() {}, tasks: null,
+  open: false, count: 0, toggle() {}, async hide() {}, source: null, page: null, backFromPage() {}, completePageMotion() {}, tasks: null,
 });
 export const useAssistant = () => useContext(AssistantStateContext);

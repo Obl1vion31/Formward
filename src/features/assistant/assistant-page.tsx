@@ -28,10 +28,9 @@ function setHistoryView(value: string | null, steps: number, replace = false) {
 }
 
 export function AssistantWorkspace({ children }: { children: ReactNode }) {
-  const { page, dockReturning } = useAssistant();
+  const { page } = useAssistant();
   return <div className="workspace-shell">
     <div className={styles.workspaceContent} data-assistant-covered={!!page && !page.motion || undefined}
-      data-assistant-dock-returning={dockReturning || undefined}
       inert={!!page && page.motion?.direction !== "close"}>{children}</div>
     <AssistantPage page={page}/>
   </div>;
@@ -66,7 +65,6 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
     let layoutWidth = document.documentElement.clientWidth;
     function layout() {
       const height = viewport?.height ?? innerHeight;
-      const top = Math.max(0, viewport?.offsetTop ?? 0);
       const focused = document.activeElement;
       const editing = focused instanceof HTMLElement && shell!.contains(focused) &&
         (focused.matches("textarea,input:not([type=file])") || focused.isContentEditable);
@@ -78,8 +76,14 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
       if ((!editing && !keyboard) || height > restingHeight) restingHeight = height;
       // 恢复到正常视口后再加回安全区，失焦本身不代表键盘已收起。
       keyboard = (editing || keyboard) && restingHeight - height >= (keyboard ? 8 : 72);
-      shell!.style.setProperty("--assistant-page-height", height + "px");
-      shell!.style.setProperty("--assistant-page-top", top + "px");
+      // 普通浏览由 CSS 的动态视口贴边，像素定位只用于软键盘占用可见区时。
+      if (keyboard) {
+        shell!.style.setProperty("--assistant-page-height", height + "px");
+        shell!.style.setProperty("--assistant-page-top", Math.max(0, viewport?.offsetTop ?? 0) + "px");
+      } else {
+        shell!.style.removeProperty("--assistant-page-height");
+        shell!.style.removeProperty("--assistant-page-top");
+      }
       shell!.toggleAttribute("data-assistant-keyboard", keyboard);
     }
     function schedule() {
