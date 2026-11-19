@@ -2,15 +2,15 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-ba0228e7-assistant-mobile-20261119`，源码 `ba0228e79650a98e87a0847f291b643c183ca616`，BUILD_ID `g5yR7PceFCN5n1z6mVGha`。北京时间 2026-11-19 19:50:05 切换并核对。 [正式版本](https://formward.top/api/app-version)
+正式站运行 `dual-entry-e0e733db-overview-linked-range-20261119`，源码 `e0e733db4beb192e99322002f27ae44c39103c28`，BUILD_ID `tcA3Pv5LZKCSSTT_ToK59`。北京时间 2026-11-19 21:27:35 切换。 [正式版本](https://formward.top/api/app-version)
 
-手机助手的顶栏和输入栏固定，聊天区可单独滚动。触点柔光跟手，发送图标为圆形，回复操作显示「引用回复」「复制」。历史条目左滑从右侧露出红色「删除」。超限在原回答处反馈，有待处理的照片才在原消息下选择批次。 [小助手实际验收](assistant-chat-verification.md)
+总览净收支与次晨变化沿同一日期排列，各用自己的零线。等宽选中带贯穿两图，7D、30D、90D按共同日期连续换档。电脑和手机模拟在Chromium与WebKit完成视图、选日和转场验收。 [总览实际验收](../design-qa.md#已发布验收--总览双图选日与区间转场)
 
-上海网页与同版聊天 worker 均在运行。schema `0046_assistant_conversation_removal`、46 项迁移、67 张旧表原列与行摘要核对通过。切换前停写备份 `formward-primary-20261119T114958720255Z.dump.json` 完成原生校验及加密异地回读。0046 仅新增历史会话的可空移出时间，隔离恢复及两次重复执行核对通过。
+上海网页与同版聊天worker均在运行。复核了schema `0046_assistant_conversation_removal`、46项迁移和切换前后67张表的行摘要。停写备份 `formward-primary-20261119T132731845850Z.dump.json` 完成原生校验与加密异地回读。
 
-四个公网域名及兼容 IP 返回同一版本。小助手深链的登录返回、新版和旧静态资源、匿名权限、OAuth 和 MCP 发现均通过。保留 56 项正式 Server Action 编号、绑定密钥和 2020 项旧静态资源。海外网关 Ready 并实际回源新版。
+四个公网域名及兼容IP返回同一版本，兼容IP打开网页会转至正式域名。深链登录返回、新旧静态资源、匿名权限和MCP发现均通过。保留56项正式Server Action编号、绑定密钥和2030项旧静态资源。海外网关实际回源新版。
 
-本机永久归档位于 `.codex/backups/regional-releases/assistant-mobile-20261119`，运行包大小 82,221,898 字节，SHA256 `e82900f015a6a0e315061ea050bca77c9a92635b5a7c6c41a0d1d97b2798b3ac`。兼容回退应用与 worker 为 `assistant-mobile-recovery-20261119`。回退包已在同结构隔离库验证，历史移出状态随数据库保留。
+本机永久归档位于 `.codex/backups/regional-releases/overview-linked-range-20261119`，运行包大小82,356,761字节，SHA256 `a3ff29f9e1bd4814b3c602e55e51334451c63f9437b0aa92a13a8cab88923376`。 `assistant-mobile-20261119` 提供兼容0046的上版网页和worker回退包。
 
 ## 迁移与发布
 

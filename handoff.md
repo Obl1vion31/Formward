@@ -1,6 +1,6 @@
 # Formward 项目交接
 
-正式站[formward.top](https://formward.top)运行`dual-entry-20083302-ui-visual-finish-20261118`，源码`20083302fb6bec01481c7d199666d9d98b38f6db`，BUILD_ID `PD6Pywy0w8kxocR5sz5FK`；北京时间2026-11-18 15:55:04切换。功能已合入推送main，后续文档提交不改变应用运行源码。
+正式站运行 `dual-entry-e0e733db-overview-linked-range-20261119`，源码 `e0e733db4beb192e99322002f27ae44c39103c28`，BUILD_ID `tcA3Pv5LZKCSSTT_ToK59`。北京时间2026-11-19 21:27:35切换，总览双图的选日和连续区间转场已发布。 [部署与公网核对](docs/deployment.md)
 
 ## 当前能力
 
