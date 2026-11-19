@@ -5,6 +5,7 @@ export type ChatExecutionInput = {
   attachmentSourceId: string; attachmentImageIds: string[]; photoBatchOf?: string;
   contextQuote?: true;
   photoBatch?: ChatPhotoObservation[];
+  resume?: { sourceRunId: string; taskMessageId: string };
 };
 export type ChatRequestDiagnostic = {
   state:"prepared"|"request_started"|"response_received"|"completed"; requestSha256:string;
@@ -12,6 +13,7 @@ export type ChatRequestDiagnostic = {
   images: {id:string;sha256:string;byteSize:number;mimeType:string}[]; textSha256:string;
   providerRequestId?:string; returnedModel?:string; maxPhotos?: number; detailLimit?: number;
   phase?: "photos" | "answer";
+  inputEstimate?: number;
 };
 export const chatProviderIds = ["qwen", "mimo", "glm"] as const;
 export type ChatProvider = typeof chatProviderIds[number];
@@ -22,9 +24,27 @@ export type ChatAnswer = { prompt:string; label?:string; value:string|null; skip
 export type ChatRunTiming = { runId: string; messageId: string; startedAt: string | null; observedAt: string };
 export const chatContextLimitNotice = "这次要处理的内容太多，回复已中断。";
 export type ChatContextQuote = { id: string; text: string | null };
-export type ChatControlAction = "select_model" | "new" | "stop" | "enable" | "revoke" | "clear_followup" | "select_conversation" | "clear_context_quote";
+export type ChatControlAction = "select_model" | "new" | "stop" | "enable" | "revoke" | "clear_followup" | "select_conversation" | "clear_context_quote" | "resume_in_new_conversation";
 export const CHAT_PHOTO_LIMIT = 8;
 export const CHAT_PHOTOS_PER_BATCH = 2;
+export const CHAT_INPUT_LIMIT = 500000;
+export const CHAT_MEAL_INPUT_LIMIT = 200000;
+export const CHAT_IMAGE_INPUT_COST = 65536;
+export const CHAT_PHOTO_NOTE_LIMIT = 1200;
+const CHAT_TOOL_GROWTH_RESERVE = 100000 - CHAT_IMAGE_INPUT_COST;
+
+/** 预估同一条发送中各阶段的峰值。包含拟保留的前文及工具增长余量。 */
+export function nextChatInputEstimate(base: number, draft: string, photoCount: number) {
+  const text = new TextEncoder().encode(JSON.stringify(draft)).byteLength;
+  if (photoCount <= CHAT_PHOTOS_PER_BATCH) {
+    return base + text + Math.max(1, photoCount) * CHAT_IMAGE_INPUT_COST + CHAT_TOOL_GROWTH_RESERVE;
+  }
+  // 原图分批独立发送。最终工具轮使用有长度上界的文字观察。
+  const photoNotes = photoCount * CHAT_PHOTO_NOTE_LIMIT * 4;
+  const readingPeak = CHAT_PHOTOS_PER_BATCH * CHAT_IMAGE_INPUT_COST + photoNotes + 8000;
+  const answerPeak = base + photoNotes + CHAT_TOOL_GROWTH_RESERVE;
+  return text + Math.max(readingPeak, answerPeak);
+}
 export type ChatPhotoLimit = { imageIds: string[]; maxPhotos: number };
 export type ChatPhotoObservation = { imageId: string; notes: string };
 export type ChatPhotoProgress = { read: number; total: number; phase: "reading" | "combining" };
@@ -43,6 +63,7 @@ export type ChatMessage = {
   photoLimit?: ChatPhotoLimit;
   photoProgress?: ChatPhotoProgress;
   contextLimited?: boolean;
+  resumingTask?: boolean;
   detailLimit?: number;
 };
 export type ChatUsage = {
@@ -58,6 +79,7 @@ export type ChatSnapshot = {
   conversationId: string; provider: ChatProvider; followup: Followup | null; messages: ChatMessage[];
   photoUpdates?: ChatMessage[];
   pendingContextQuote?: ChatContextQuote;
+  contextBaseEstimate?: number;
   hasMore: boolean; before: number | null; activeRunId: string | null; runTiming?: ChatRunTiming | null; catalog: ChatCatalogItem[]; usage: ChatUsage;
 };
 export type ChatEvent =

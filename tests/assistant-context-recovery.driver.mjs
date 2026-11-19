@@ -6,8 +6,8 @@ import { eq } from "drizzle-orm";
 import { assistantConversation, assistantMessage, assistantRun, assistantUsageRequest, meal, rateLimit } from "../src/db/schema.ts";
 import { readMealSnapshot } from "../src/features/meals/records.ts";
 
-const warning = "这次要处理的内容太多，回复已中断。";
-const replyWithQuote = "新会话继续回答";
+const recovery = "[data-chat-context-recovery]";
+const resumeInNew = "新会话继续回答";
 
 export async function runAssistantContextRecovery(db) {
   const fixture = JSON.parse(await readFile(process.env.FORMWARD_CHAT_BROWSER_CONFIG,"utf8"));
@@ -96,9 +96,9 @@ export async function runAssistantContextRecovery(db) {
       await input.waitFor();
     }
     async function geometry(){
-      const error = page.getByText(warning,{exact:true}).last();
+      const error = page.locator(recovery).last();
       await error.scrollIntoViewIfNeeded();
-      const buttons=[button("新建对话").last(),button(replyWithQuote).last()];
+      const buttons=[button("新建对话").last(),button(resumeInNew).last()];
       for(const target of buttons){
         const area=await target.boundingBox();
         assert.ok(area && area.height>=44 && area.x>=0 && area.x+area.width<=page.viewportSize().width+1);
@@ -134,7 +134,7 @@ export async function runAssistantContextRecovery(db) {
     const original=(await chat()).conversationId, previousMeals=await existingMeals();
     const text=mobile?"上下文验收晚餐 · 两张照片":"上下文验收晚餐 · 保留正文";
     await send(text,2);
-    const error=page.getByText(warning,{exact:true});
+    const error=page.locator(recovery);
     await error.waitFor();
     const failing=(await finished()).messages.at(-1);
     assert.equal(failing.state,"error");
@@ -181,67 +181,149 @@ export async function runAssistantContextRecovery(db) {
     await showSource(text);
     assert.equal((await chat()).conversationId,original);
     assert.equal(await input.inputValue(),"留在旧对话的草稿");
-    await input.fill("");
-    await button(replyWithQuote).click();
-    await page.getByText("引用上一问",{exact:true}).waitFor();
-    const created=(await chat()).conversationId;
+    let dropped = false;
+    await page.route("**/api/assistant-chat/control",async route=>{
+      if (!dropped && route.request().postDataJSON().action==="resume_in_new_conversation") {
+        const response = await route.fetch();
+        assert.equal(response.status(),200);
+        dropped = true;
+        await route.abort("failed");
+      } else await route.continue();
+    });
+    await button(resumeInNew).click();
+    await page.getByText("正在继续回答",{exact:true}).waitFor();
+    const started=await chat(), created=started.conversationId;
     assert.notEqual(created,original);
-    assert.equal((await chat()).messages.length,0);
-    assert.equal((await chat()).pendingContextQuote.id,failing.id);
-    assert.match((await chat()).pendingContextQuote.text,/本轮已有记录保存/);
+    assert.equal(started.messages[0].text,text);
+    assert.equal(started.messages[0].imageIds.length,2);
+    assert.equal(started.pendingContextQuote,undefined);
     assert.equal(await input.inputValue(),"");
-    assert.equal(await ledgerCount(),usage);
-    assert.equal((await existingMeals()).size,previousMeals.size+1);
-    await shot("quote","新会话保留上一问引用，输入栏等待用户发送");
-
+    assert.ok(started.activeRunId);
+    assert.ok(dropped);
+    await shot("resuming","只点击一次，响应丢失后接回同一个新会话，直接续答");
     await flow.open();
-    await page.getByText("引用上一问",{exact:true}).waitFor();
-    assert.equal((await chat()).conversationId,created);
-    if(mobile){
+    await page.getByText("已接着说明。沿用原来已保存的晚餐。",{exact:true}).waitFor();
+    const completed=await finished();
+    assert.equal(completed.conversationId,created);
+    assert.equal(completed.messages.filter(row=>row.role==="user").length,1);
+    assert.equal(completed.messages.at(-1).runId,started.activeRunId);
+    assert.deepEqual(completed.messages.at(-1).references,failing.references);
+    await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
+    assert.equal(await ledgerCount(),usage+1);
+    assert.equal((await existingMeals()).size,previousMeals.size+1);
+    await shot("continued","刷新后显示原问题与原图，补充说明和已保存卡都可看");
+    await showSource(text);
+    assert.equal((await chat()).conversationId,original);
+    assert.equal((await existingMeals()).size,previousMeals.size+1);
+    check("一键直接续答，响应丢失与刷新均只接回一个任务，原卡与原餐没有重复");
+  }
+
+  async function afterQuery(flow,mobile) {
+    const {page,button,chat,control,send,finished,shot,check} = flow;
+    const attempt = async id => (await db.select().from(assistantRun).where(eq(assistantRun.id,id)))[0];
+    const previousMeals=await existingMeals();
+    const normal = mobile ? "两图查库回放，请核对今天饮食并整理晚餐。" : "两图超限续读回放，请核对今天饮食并整理晚餐。";
+    await send(normal,2);
+    await page.getByText("已核对饮食记录和两张图，晚餐已整理。请确认。",{exact:true}).waitFor();
+    const answer=(await finished()).messages.at(-1), row=await attempt(answer.runId);
+    assert.equal(answer.state,"complete");
+    assert.equal(row.toolResults.filter(item=>item.name==="query_meals").length,1);
+    assert.ok(row.toolResults.find(item=>item.name==="query_meals").result.days[0].meals.length);
+    if (mobile) assert.deepEqual(row.requestDiagnostics.map(item=>item.images.length),[2,2,2,2]);
+    else {
+      assert.deepEqual(row.requestDiagnostics.map(item=>item.images.length),[2,2,2,0,0]);
+      assert.deepEqual(row.executionInput.photoBatch.map(photo=>photo.imageId),row.executionInput.attachmentImageIds);
+    }
+    await shot("two-preview","两图查完饮食得到一张待确认预览");
+    await button("保存确认").click();
+    await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
+    assert.equal((await existingMeals()).size,previousMeals.size+1);
+    await shot("two-saved","查库和识图得到的晚餐只保存一次");
+    check("两图查库完成；模型请求收到去重后的完整餐次，数据库保留原工具结果");
+    if (mobile) return;
+
+    await control({action:"new"});
+    await flow.open();
+    await send("上下文未生成预览，请核对今天的饮食记录和两张图。",2);
+    await page.locator(recovery).waitFor();
+    const origin=await chat(), interrupted=origin.messages.at(-1);
+    assert.equal(interrupted.references.filter(ref=>ref.kind==="preview").length,0);
+    const originRun=await attempt(interrupted.runId);
+    assert.ok(originRun.requestDiagnostics.at(-1).inputEstimate>500000);
+    assert.equal(originRun.requestDiagnostics.at(-1).state,"prepared");
+    await shot("before-preview-interrupted","查库成功但仍未生成预览的中断现场");
+    await button(resumeInNew).click();
+    await page.getByText("已核对饮食记录和两张图，晚餐已整理。请确认。",{exact:true}).waitFor();
+    const newSnapshot=await finished(), continuation=await attempt(newSnapshot.messages.at(-1).runId);
+    assert.notEqual(origin.conversationId,newSnapshot.conversationId);
+    assert.deepEqual(newSnapshot.messages[0].imageIds,origin.messages[0].imageIds);
+    assert.equal(continuation.requestDiagnostics.some(item=>item.images.length>0),false);
+    assert.equal(continuation.toolResults.filter(item=>item.name==="query_meals").length,1);
+    assert.equal(newSnapshot.messages.at(-1).references.filter(ref=>ref.kind==="preview").length,1);
+    assert.equal((await existingMeals()).size,previousMeals.size+1);
+    await shot("resumed-preview","已有照片观察和查询被复用，一键续答生成一张待确认卡");
+    check("本地超限后原位自动降载，过重任务一键新会话复用读图和查询，只生成一张预览");
+  }
+
+  async function contextWarning(flow,mobile) {
+    const {page,input,button,chat,control,send,finished,shot,check,showSource} = flow;
+    const id = (await chat()).conversationId;
+    const history = Array.from({length:20},(_,index)=>({id:randomUUID(),userId,conversationId:id,seq:index+1,
+      role:index%2?"assistant":"user",text:index%2?"虚构的可重复前文。"+"示".repeat(12800):"容量预警验收问答 "+(index+1)}));
+    await db.insert(assistantMessage).values(history.slice(0,18));
+    await db.update(assistantConversation).set({sequence:18}).where(eq(assistantConversation.id,id));
+    await flow.open();
+    const warning=page.locator("[data-chat-context-warning]");
+    assert.equal(await warning.count(),0);
+    assert.ok((await chat()).contextBaseEstimate<400000);
+    await page.getByLabel("选择聊天照片",{exact:true}).setInputFiles(samples.slice(0,2).map(row=>row.file));
+    await warning.waitFor();
+    await button("移除照片 2").click();
+    await warning.waitFor({state:"hidden"});
+    await button("移除照片 1").click();
+    check("选择两图触发预测预警，移除附件后按实际请求重算");
+
+    await db.insert(assistantMessage).values(history.slice(18));
+    await db.update(assistantConversation).set({sequence:20}).where(eq(assistantConversation.id,id));
+    await flow.open();
+    await warning.waitFor();
+    assert.ok((await chat()).contextBaseEstimate>=400000);
+    const sizes=mobile?[320,390,430]:[1100,1440];
+    const height=mobile?844:900;
+    for (const theme of ["light","dark"]) for (const width of sizes) {
+      await page.setViewportSize({width,height});
+      await page.evaluate(value=>{localStorage.setItem("formward-theme",value);document.documentElement.dataset.theme=value;},theme);
+      const control=await warning.getByRole("button",{name:"新建对话"}).boundingBox();
+      assert.ok(control && control.height>=44 && control.x+control.width<=width);
+      assert.equal(await input.evaluate(node=>getComputedStyle(node).fontSize),"16px");
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+      await shot("warning-"+theme+"-"+width,"输入框上方原位提示，新建按钮和发送区均可达");
+    }
+    await page.setViewportSize({width:mobile?390:1440,height});
+    await page.evaluate(()=>{document.documentElement.dataset.theme="light";});
+    if (mobile) {
       await input.focus();
-      await page.evaluate(()=>window.setFixtureKeyboardHeight(500));
-      await page.waitForFunction(()=>document.querySelector('[aria-label="给小助手发消息"]').getBoundingClientRect().bottom<=502);
-      const cancel=await button("取消引用").boundingBox();
-      assert.ok(cancel && cancel.y>=0 && cancel.y+cancel.height<=502);
-      await shot("keyboard","模拟键盘期间引用和输入框仍在可见区域");
+      await page.evaluate(()=>window.setFixtureKeyboardHeight(430));
+      await page.waitForFunction(()=>document.querySelector('[aria-label="给小助手发消息"]').getBoundingClientRect().bottom<=432);
+      await shot("warning-keyboard","模拟软键盘时输入、发送和预警同在可视区");
       await input.blur();
       await page.evaluate(()=>window.setFixtureKeyboardHeight(null));
     }
-    await send("上下文验收接着问");
-    await page.getByText("沿用上一问的文字和已保存记录。",{exact:true}).waitFor();
-    assert.equal((await finished()).pendingContextQuote,undefined);
-    assert.equal(await page.getByText("引用上一问",{exact:true}).count(),0);
-    await shot("continued","手动发送后，模型沿用一条文字引用回答");
-    check("空白与引用新建均通过，切换零模型请求，旧草稿回原对话可取回，刷新后仍有引用");
-
-    await showSource(text);
-    await button(replyWithQuote).click();
-    await button("取消引用").click();
-    await page.getByText("引用上一问",{exact:true}).waitFor({state:"hidden"});
-    await flow.open();
-    assert.equal((await chat()).pendingContextQuote,undefined);
-    await send("上下文验收只看现在");
-    await page.getByText("本次只核对两点。第一，份量已确认。第二，晚餐已归到今天。",{exact:true}).waitFor();
-    assert.equal((await finished()).messages[0].replyTo,null);
-    await shot("cancelled","移除引用后可发普通文字，刷新也不找回已取消的引用");
-    check("取消引用后可正常发送，记录数保持");
-    assert.equal((await existingMeals()).size,previousMeals.size+1);
-    if(!mobile){
-      await showSource(text);
-      await button(replyWithQuote).click();
-      await page.getByText("引用上一问",{exact:true}).waitFor();
-      await flow.control({action:"remove_conversation",conversationId:original});
-      await flow.open();
-      await page.getByText("原消息已不可用，请移除引用后发送。",{exact:true}).waitFor();
-      await input.fill("来源已移出时这条草稿仍保留");
-      assert.ok(await button("发送消息").isDisabled());
-      await shot("removed-source","引用来源移出后显示取消入口，当前草稿仍保留");
-      await button("取消引用").click();
-      await page.getByText("引用上一问",{exact:true}).waitFor({state:"hidden"});
-      assert.equal(await input.inputValue(),"来源已移出时这条草稿仍保留");
-      assert.equal((await existingMeals()).size,previousMeals.size+1);
-      check("引用来源移出后需取消引用，草稿和已保存晚餐仍可用");
-    }
+    await send("预警后继续发送");
+    await page.getByText("你好，我在。想先看哪一项记录？",{exact:true}).waitFor();
+    assert.equal((await finished()).conversationId,id);
+    await warning.waitFor();
+    await input.fill("放在这个对话的草稿");
+    await warning.getByRole("button",{name:"新建对话"}).click();
+    await button("开始新对话").click();
+    await page.getByRole("heading",{name:"今天想聊点什么？"}).waitFor();
+    await warning.waitFor({state:"hidden"});
+    await shot("warning-new","从预警新建的空白对话没有预警");
+    await showSource("容量预警验收问答");
+    assert.equal(await input.inputValue(),"放在这个对话的草稿");
+    await warning.waitFor();
+    check("接近上限可继续发送或新建，返回原会话恢复草稿与预警");
+    await control({action:"new"});
   }
 
   async function automaticPhotos(flow,mobile) {
@@ -429,6 +511,14 @@ export async function runAssistantContextRecovery(db) {
   }
 
   try{
+    if(process.env.FORMWARD_CONTEXT_CASE==="capacity"){
+      for(const mobile of [true,false]) {
+        const surface=mobile?"mobile":"desktop";
+        await journey(surface+"-query",mobile,flow=>afterQuery(flow,mobile));
+        await journey(surface+"-warning",mobile,flow=>contextWarning(flow,mobile));
+      }
+      return;
+    }
     if(process.env.FORMWARD_CONTEXT_CASE!=="photos" && process.env.FORMWARD_CONTEXT_SCREEN!=="desktop")await journey("mobile",true,async flow=>{
       await savedThenInterrupted(flow,true);
       const {page,chat,control,shot,check,open,send,finished}=flow;

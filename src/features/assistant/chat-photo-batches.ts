@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ApiError } from "../auth/ai-identity";
-import { CHAT_PHOTO_LIMIT, CHAT_PHOTOS_PER_BATCH, type ChatPhotoObservation } from "./chat-model";
+import { CHAT_PHOTO_LIMIT, CHAT_PHOTOS_PER_BATCH, CHAT_PHOTO_NOTE_LIMIT, type ChatPhotoObservation } from "./chat-model";
 
 export function estimatedPhotoContent(text: string, ids: readonly string[]) {
   return ids.length ? [
@@ -37,7 +37,7 @@ export function readPhotoObservations(value: string, ids: string[], first: numbe
     ids.some((_, index) => !byNumber.has(first + index + 1))) {
     throw new ApiError(502, "photo_read_incomplete", "这批照片的读取没有完成。已经读取的照片仍保留。");
   }
-  return ids.map((imageId, index) => ({imageId, notes: byNumber.get(first + index + 1)!.slice(0,1200)}));
+  return ids.map((imageId, index) => ({imageId, notes: byNumber.get(first + index + 1)!.slice(0,CHAT_PHOTO_NOTE_LIMIT)}));
 }
 
 export function photoSummaryPrompt(photos: ChatPhotoObservation[]) {

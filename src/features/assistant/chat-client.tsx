@@ -55,7 +55,7 @@ type ChatClient = {
   retryOutgoing: (id:string) => Promise<boolean>;
   restoreOutgoing: (id:string) => Promise<void>;
   releaseSentPreview: (id:string,imageId:string) => void;
-  control: (action: ChatControlAction | "remove_conversation", provider?: ChatProvider, conversationId?: string, contextQuoteId?: string) => Promise<boolean>;
+  control: (action: ChatControlAction | "remove_conversation", provider?: ChatProvider, conversationId?: string, sourceMessageId?: string) => Promise<boolean>;
   addPhotos: (files: File[]) => Promise<void>;
 };
 const Context = createContext<ChatClient | null>(null);
@@ -73,6 +73,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   const request = useRef<AbortController | null>(null), reading = useRef(false), current = useRef<ChatSnapshot | null>(null), generation = useRef(0), alive = useRef(true);
   const scroll = useRef({ top: 0, stick: true });
   const savedDrafts=useRef(new Map<string,{draft:string;quote:ChatMessage|null;photos:DraftPhoto[];scroll:{top:number;stick:boolean}; older:ChatMessage[]}>());
+  const pendingResumeSource = useRef<string | null>(null);
   const pendingRequest = useRef<{signature:string;id:string}|null>(null);
   const cursors = useRef(new Map<string,{runId:string|undefined;length:number}>());
   const [outgoing,setOutgoing] = useState<ReadonlyMap<string,OutgoingMessage>>(() => new Map());
@@ -113,11 +114,26 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   const releasePhotoResources=useCallback(()=>{photoEpoch.current++;photoQueue.current=[];for(const controller of photoRequests.current.values())controller.abort();for(const photo of [...photoState.current,...[...savedDrafts.current.values()].flatMap(value=>value.photos),...[...outbox.current.values()].flatMap(value=>value.photos)])if(photo.preview)URL.revokeObjectURL(photo.preview);},[]);
   const scrollState = useCallback(() => ({ ...scroll.current }), []);
   const recordScroll = useCallback((top:number,stick:boolean) => { scroll.current = { top,stick }; }, []);
+  const restoreConversationDraft = useCallback((id:string) => {
+    const restored = savedDrafts.current.get(id);
+    setDraft(restored?.draft ?? "");
+    setQuote(restored?.quote ?? null);
+    photoState.current = restored?.photos ?? [];
+    setPhotos(photoState.current);
+    scroll.current = restored?.scroll ?? {top:0,stick:true};
+    pendingRequest.current = null;
+  },[]);
   const apply = useCallback((snapshot: ChatSnapshot) => {
     if (!alive.current) return;
     if(snapshot.entitlement&&!updateAccess(snapshot.entitlement)){deferredRead.current=true;return;}
     const changed = current.current?.conversationId !== snapshot.conversationId;
-    if (changed) cursors.current.clear();
+    if (changed) {
+      cursors.current.clear();
+      if (pendingResumeSource.current && pendingResumeSource.current === current.current?.conversationId) {
+        pendingResumeSource.current = null;
+        restoreConversationDraft(snapshot.conversationId);
+      }
+    }
     for (const message of [...(snapshot.photoUpdates ?? []), ...snapshot.messages]) {
       if (message.role === "assistant") cursors.current.set(message.id,{runId:message.runId,length:message.text.length});
       if (message.role !== "user" || !message.requestId) continue;
@@ -133,7 +149,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
       for (const row of snapshot.messages) merged.set(row.id, row);
       return [...merged.values()].sort((a,b) => a.seq - b.seq).slice(-50);
     });
-  }, [updateAccess,updateOutgoing]);
+  }, [updateAccess,updateOutgoing,restoreConversationDraft]);
   const applyEvent = useCallback((event:ChatEvent) => {
     if (!alive.current) return false;
     if (event.type === "snapshot") apply(event.snapshot);
@@ -236,9 +252,11 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   useEffect(() => { if (!loading && delayed) { const frame = requestAnimationFrame(() => setDelayed(false)); return () => cancelAnimationFrame(frame); } }, [loading, delayed]);
   const unsent = [...outgoing.values()].some(item=>item.phase==="error");
   useEffect(() => { if (!draft.trim() && !photos.length && !unsent) return; const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; }; window.addEventListener("beforeunload", protect); return () => window.removeEventListener("beforeunload", protect); }, [draft, photos, unsent]);
-  async function control(action: Parameters<ChatClient["control"]>[0], provider?: ChatProvider, conversationId?: string, contextQuoteId?: string) {
+  async function control(action: Parameters<ChatClient["control"]>[0], provider?: ChatProvider, conversationId?: string, sourceMessageId?: string) {
     if ((!canChat && action !== "stop" && action !== "remove_conversation") || mutating.current) return false;
-    if((action==="select_conversation"||action==="new")&&(running||uploading))return false;
+    const resume = action === "resume_in_new_conversation";
+    const switching = resume || action === "new" || action === "select_conversation";
+    if (switching && (running || uploading)) return false;
     if (action === "remove_conversation" && [...outbox.current.values()].some(item =>
       item.body.conversationId === conversationId && item.phase !== "accepted"
     )) {
@@ -250,22 +268,33 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     }
     if (action === "revoke" && !await confirmAction({ title: "撤销站内授权？", message: "此模型将停止访问，原待确认提交也不能继续保存。", confirmLabel: "撤销授权", danger: true })) return false;
     if (mutating.current) return false;
+    if (switching && current.current) savedDrafts.current.set(current.current.conversationId, {
+      draft, quote, photos: [...photoState.current], scroll: { ...scroll.current },
+      older: scroll.current.stick ? [] : messages,
+    });
+    if (resume) pendingResumeSource.current = current.current?.conversationId ?? null;
     mutating.current = true; setManaging(true); generation.current++;
     try {
-      setError(""); const response = await fetch("/api/assistant-chat/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...(conversationId?{conversationId}:{}), ...(contextQuoteId ? {contextQuoteId} : {}), ...(provider ? { provider } : {}), ...(action === "stop" ? { runId: current.current?.activeRunId } : {}) }) });
+      setError("");
+      const requestControl = () => fetch("/api/assistant-chat/control", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action, ...(conversationId ? {conversationId} : {}), ...(sourceMessageId ? {sourceMessageId} : {}),
+          ...(provider ? {provider} : {}), ...(action === "stop" ? {runId:current.current?.activeRunId} : {})}),
+      });
+      const response = await requestControl().catch(error => {
+        if (resume && navigator.onLine) return requestControl();
+        throw error;
+      });
       const payload = await response.json();
       if (!response.ok) {
-        if (payload.code === "conversation_changed" || payload.code === "quote_unavailable") await read();
+        if (resume) pendingResumeSource.current = null;
+        if (payload.code === "conversation_changed" || payload.code === "quote_unavailable") deferredRead.current = true;
         throw Error(payload.error ?? "操作未完成。");
       }
-      if (action === "new" || action === "select_conversation") {
-        if (current.current) savedDrafts.current.set(current.current.conversationId, {
-          draft, quote, photos: [...photoState.current], scroll: { ...scroll.current },
-          older: scroll.current.stick ? [] : messages,
-        });
-        const restored=savedDrafts.current.get(payload.conversationId);
-        setDraft(restored?.draft??"");setQuote(restored?.quote??null);photoState.current=restored?.photos??[];setPhotos(photoState.current);scroll.current=restored?.scroll??{top:0,stick:true};
-        pendingRequest.current=null;generation.current++;
+      if (switching && !resume) {
+        pendingResumeSource.current = null;
+        restoreConversationDraft(payload.conversationId);
+        generation.current++;
       }
       if (action === "remove_conversation" && current.current?.conversationId !== payload.conversationId) {
         setQuote(null);
@@ -274,7 +303,13 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
       }
       apply(payload); return true;
     } catch (failure) { if (alive.current) setError(failure instanceof Error ? failure.message : "操作未完成，请重试。"); return false; }
-    finally { mutating.current = false; if (alive.current) setManaging(false); }
+    finally {
+      mutating.current = false;
+      if (alive.current) {
+        setManaging(false);
+        if (deferredRead.current) { deferredRead.current = false; void read(); }
+      }
+    }
   }
   function releaseSentPreview(id:string,imageId:string) {
     const item = outbox.current.get(id);

@@ -11,7 +11,7 @@ import {chatDisplayText,chatTranscript} from "./chat-presentation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useId, type ReactNode } from "react";
 import { LoadingLink } from "../../components/loading-link";
 import { useAssistantChat, useOptionalAssistantChat, type ArrivalViewport } from "./chat-client";
-import { CHAT_PHOTOS_PER_BATCH, chatContextLimitNotice, type ChatMessage, type ChatPhotoLimit } from "./chat-model";
+import { CHAT_INPUT_LIMIT, CHAT_PHOTOS_PER_BATCH, chatContextLimitNotice, nextChatInputEstimate, type ChatMessage, type ChatPhotoLimit } from "./chat-model";
 import styles from "./chat.module.css";
 function ArrivingMessage({message,eligible,viewport,className,children}: {
   message:ChatMessage; eligible:boolean; viewport?:ArrivalViewport; className:string; children:ReactNode;
@@ -89,6 +89,10 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
   const draftMeasurement = useRef<{ field: HTMLTextAreaElement; value: string; scrollEnd: number } | null>(null);
   const transcript = chatTranscript(chat.messages);
   const task = chat.data?.followup, pendingQuote = chat.data?.pendingContextQuote;
+  const baseEstimate = chat.data?.contextBaseEstimate;
+  const draftForEstimate = chat.draft + (chat.quote ? (chat.quote.question?.text ?? "") + chat.quote.text : "");
+  const nearContextLimit = chat.enabled && !chat.busy && baseEstimate !== undefined &&
+    nextChatInputEstimate(baseEstimate,draftForEstimate,chat.photos.length) >= CHAT_INPUT_LIMIT;
   const taskAnchor = task && task.assistantMessageId && transcript.anchors.has(task.assistantMessageId)
     ? task.assistantMessageId : task ? transcript.visible.findLast(row=>row.role==="assistant"&&row.state==="complete"&&row.question?.id===task.messageId)?.id : undefined;
   const composer = useRef<HTMLDivElement>(null), modelMenuId = useId();
@@ -227,13 +231,14 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
                   <p role="alert">{local.error}</p><button type="button" onClick={()=>void chat.retryOutgoing(requestId)}>重试发送</button>
                   <button type="button" onClick={()=>void chat.restoreOutgoing(requestId)}>恢复草稿</button>
                 </div> : undefined}
-              contextActions={contextInterrupted ? <div className={styles.contextRecovery}>
-                <p role="alert">{chatContextLimitNotice}</p>
+              contextActions={contextInterrupted ? <div className={styles.contextRecovery} data-chat-context-recovery>
+                <p role="alert">{message.references.some(ref=>ref.kind==="preview")
+                  ? "补充说明未完成。已有记录状态见上方卡片。" : chatContextLimitNotice}</p>
                 <div>
                   <button type="button" disabled={!chat.enabled || chat.busy || chat.managing || !!chat.uploading || !chat.data}
                     onClick={() => void chat.control("new", undefined, chat.data?.conversationId)}>新建对话</button>
                   <button type="button" disabled={!chat.enabled || chat.busy || chat.managing || !!chat.uploading || !chat.data}
-                    onClick={() => void chat.control("new", undefined, chat.data?.conversationId, message.id)}>新会话继续回答</button>
+                    onClick={() => void chat.control("resume_in_new_conversation", undefined, chat.data?.conversationId, message.id)}>新会话继续回答</button>
                 </div>
               </div> : undefined}
               photoActions={message.photoLimit ? <PhotoBatchPicker limit={message.photoLimit} disabled={chat.busy||blocked}
@@ -266,6 +271,13 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
           </div>}
           {chat.quote && !pendingQuote && <div className={styles.quote}><button onClick={() => jump(chat.quote!.id)}><span>引用{chat.quote.role === "user" ? "你的消息" : "回答"}</span><span>{chat.quote.question?chat.quote.question.text+" · ":""}{chatDisplayText(chat.quote,chat.data?.capabilities?.inlinePreviews===true).slice(0,240)}</span></button><button className={styles.icon} aria-label="取消引用" onClick={() => chat.setQuote(null)}><Glyph name="close"/></button></div>}
           {page && chat.enabled && chat.photos.length > 0 && <div className={styles.composerMedia}><DraftPhotos/></div>}
+          {nearContextLimit && <div className={styles.contextWarning} data-chat-context-warning>
+            <p role="status">这段对话接近处理上限</p>
+            <button type="button" disabled={chat.managing || !!chat.uploading}
+              onClick={()=>void chat.control("new",undefined,chat.data?.conversationId)}>
+              <Glyph name="plus"/>新建对话
+            </button>
+          </div>}
         </div>
         {chat.enabled?<div className={styles.composer}>
           {!page && <DraftPhotos/>}

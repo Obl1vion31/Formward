@@ -1,12 +1,12 @@
 import { chatCapabilities, providerConfigured } from "./chat-config";
 import { createMealTaskPreview } from "./meal-task";
 import { applyUnansweredMealFields, followupQuestions, followupQuestionsSchema, sameFollowupField } from "./followup";
-import { answerStart, fitChatContext, publicReply } from "./chat-context";
+import { answerStart, chatHistoryLinks, chatHistoryTurns, chatToolInput, estimatedChatInput, fitChatContext, publicReply } from "./chat-context";
 import { confirmedSourceArguments, sourceFollowupQuestions } from "./source-followup";
 import { markRecognitionUsed, refundUnfinishedRecognition } from "./recognition-quota";
 import { buildAiSystemPrompt } from "../records/ai-prompt.mjs";
 import { createHash, randomUUID } from "node:crypto";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, or } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { assistantConversation, assistantMessage, assistantRun, recordOperation, type AssistantToolResult } from "../../db/schema";
 import { currentSessionIdentity } from "../auth/request-identity";
@@ -14,10 +14,10 @@ import { ApiError } from "../auth/ai-identity";
 import { requireActiveAiToken } from "../auth/ai-tokens";
 import { chatAttachmentBinding,chatImageContent } from "./chat-attachments";
 import { chatProviders, providerId } from "./chat-config";
-import { CHAT_INPUT_LIMIT, chatIdentity, chatSnapshot, chatUsage, digestChat, estimatedChatInput, publicChatMessage, requireChatAccount, reserveChatUsage, resolveContextQuote, reserveCost, settleChatUsage, type ChatSend, type StoredMessage, type StoredRun } from "./chat-store";
+import { chatIdentity, chatSnapshot, chatUsage, digestChat, publicChatMessage, requireChatAccount, reserveChatUsage, resolveContextQuote, reserveCost, settleChatUsage, type ChatSend, type StoredMessage, type StoredRun } from "./chat-store";
 import { chatToolBridge, chatToolCatalog } from "./chat-tools";
 import { modelBody, ProviderRejected, streamModel, type ProtocolMessage } from "./chat-provider";
-import { CHAT_PHOTOS_PER_BATCH, chatContextLimitNotice, chatPhotoProgress, type ChatEvent, type ChatReference, type ChatStep, type ChatRequestDiagnostic } from "./chat-model";
+import { CHAT_INPUT_LIMIT, CHAT_MEAL_INPUT_LIMIT, CHAT_PHOTOS_PER_BATCH, chatContextLimitNotice, chatPhotoProgress, type ChatEvent, type ChatReference, type ChatStep, type ChatRequestDiagnostic } from "./chat-model";
 import { estimatedPhotoContent, mergedMealPhotoArgs, photoReadingPrompt, photoSummaryPrompt, readPhotoObservations } from "./chat-photo-batches";
 const controllers = new Map<string, AbortController>();
 export function abortChatRun(id: string) { controllers.get(id)?.abort(); }
@@ -58,6 +58,7 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
   let bridge: ReturnType<typeof chatToolBridge> | undefined, lastSave = 0, lastCheck = 0, runIdentity: Awaited<ReturnType<typeof chatIdentity>> | null = null;
   let results: AssistantToolResult[] = [];
   let execution = activeRun.executionInput;
+  const inputLimit = input.mealTask ? CHAT_MEAL_INPUT_LIMIT : CHAT_INPUT_LIMIT;
   const readPreviews=new Set<string>(),writtenPreviews=new Set<string>();
 
   async function guard(force = false) {
@@ -95,35 +96,45 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
       if (!original) throw new ApiError(409,"message_unavailable","原回答已不可用，请重新读取当前对话。");
       continuationText = original.text;
     }
-    const prior = await db.select().from(assistantRun).where(and(eq(assistantRun.userId, userId), eq(assistantRun.userMessageId, activeRun.userMessageId))).orderBy(desc(assistantRun.createdAt)).limit(12);
-    const checkedGrants = new Map<string,boolean>();
+    const resume = execution?.resume;
+    const taskMessageId = resume?.taskMessageId ?? question.id;
+    const prior = await db.select().from(assistantRun).where(and(eq(assistantRun.userId, userId), or(
+      eq(assistantRun.userMessageId, question.id),
+      resume ? eq(assistantRun.userMessageId, taskMessageId) : undefined,
+      resume ? eq(assistantRun.id, resume.sourceRunId) : undefined,
+    ))).orderBy(desc(assistantRun.createdAt)).limit(12);
+    const checkedGrants = new Map<string,boolean>(), seen = new Set<string>();
     for (const previous of prior.filter(row => row.id !== activeRun.id)) for (const receipt of previous.toolResults) {
-      const tokenId = receipt.tokenId ?? previous.tokenId; if (!tokenId) continue;
+      const tokenId = receipt.tokenId ?? previous.tokenId;
+      const key = receipt.name + ":" + receipt.fingerprint;
+      if (!tokenId || resume && (receipt.result.error || seen.has(key))) continue;
       if (!checkedGrants.has(tokenId)) {
         try { await db.transaction(async tx => requireActiveAiToken(tx,{userId,tokenId,permission:"write"},false,input.mealTask?"meals":"measurements")); checkedGrants.set(tokenId,true); }
         catch { checkedGrants.set(tokenId,false); }
       }
-      if (checkedGrants.get(tokenId)) results.push({...receipt,tokenId});
+      if (checkedGrants.get(tokenId)) {
+        results.push({...receipt,tokenId});
+        seen.add(key);
+      }
     }
+    const referencedPreviews = resume ? references.flatMap(ref => ref.kind === "preview" && ref.operationId ? [ref.operationId] : []) : [];
+    const resumedPreviews = referencedPreviews.length ? await db.select({
+      id:recordOperation.id,status:recordOperation.status,revision:recordOperation.revision,
+    }).from(recordOperation).where(and(eq(recordOperation.userId,userId),inArray(recordOperation.id,referencedPreviews))) : [];
     const identity = await chatIdentity(db, userId, provider, true, input.mealTask?"meal_entry":"chat");
     runIdentity = identity;
-    await db.update(assistantRun).set({ tokenId: identity.tokenId }).where(eq(assistantRun.id, activeRun.id));
-    await guard(true); bridge = chatToolBridge(db, identity, request); const catalog = await chatToolCatalog(bridge, (name,args) => "fwchat-" + digestChat({ userId, tokenId:identity.tokenId, messageId: question.id, ...(name.startsWith("preview_") ? {purpose:"create-preview"} : {name,fingerprint:digestChat({name,args})}) }).slice(0,48),input.mealTask?["preview_meals","get_preview","search_foods"]:undefined);
+    await db.update(assistantRun).set({ tokenId: identity.tokenId, ...(resume ? {toolResults:results} : {}) }).where(eq(assistantRun.id, activeRun.id));
+    await guard(true); bridge = chatToolBridge(db, identity, request); const catalog = await chatToolCatalog(bridge, (name,args) => "fwchat-" + digestChat({ userId, tokenId:identity.tokenId, messageId: taskMessageId, ...(name.startsWith("preview_") ? {purpose:"create-preview"} : {name,fingerprint:digestChat({name,args})}) }).slice(0,48),input.mealTask?["preview_meals","get_preview","search_foods"]:undefined);
     for (const receipt of results) catalog.remember(receipt.name,receipt.args,receipt.result);
     const [current] = await db.select().from(assistantConversation).where(and(eq(assistantConversation.id, activeRun.conversationId), eq(assistantConversation.userId, userId)));
-    const turns: StoredMessage[][] = [];
-    for (const row of [...rows].reverse().filter(row => row.seq < question.seq && row.state !== "working")) {
-      if (row.role === "user") turns.push([row]);
-      else if (turns.length && (row.text || row.references.length)) turns.at(-1)!.push(row);
-    }
     const previewIds = [...new Set(rows.filter(row=>row.seq<question.seq).flatMap(row=>row.references
       .flatMap(ref=>ref.kind==="preview"&&ref.operationId?[ref.operationId]:[])))].slice(0,8);
     const pending = previewIds.length ? await db.select({id:recordOperation.id,revision:recordOperation.revision})
       .from(recordOperation).where(and(eq(recordOperation.userId,userId),eq(recordOperation.status,"pending"),
         inArray(recordOperation.id,previewIds))) : [];
     const historyRows = new Map<ProtocolMessage,StoredMessage>();
-    let history: ProtocolMessage[][] = turns.filter(turn => turn.length > 1 && turn[0].id !== question.supplementalAnswer?.taskMessageId)
-      .slice(-10).map(turn => turn.map(row => {
+    let history: ProtocolMessage[][] = chatHistoryTurns(rows.filter(row => row.seq < question.seq),
+      question.supplementalAnswer?.taskMessageId).map(turn => turn.map(row => {
         const message = {role:row.role,content:row.text};
         historyRows.set(message,row);
         return message;
@@ -131,7 +142,8 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
     const supplement = question.supplementalAnswer;
     const [root] = supplement && supplement.taskMessageId !== question.id
       ? await db.select({id:assistantMessage.id,text:assistantMessage.text}).from(assistantMessage).where(and(
-          eq(assistantMessage.id,supplement.taskMessageId),eq(assistantMessage.userId,userId),eq(assistantMessage.conversationId,activeRun.conversationId)))
+          eq(assistantMessage.id,supplement.taskMessageId),eq(assistantMessage.userId,userId),eq(assistantMessage.role,"user"),
+          resume ? undefined : eq(assistantMessage.conversationId,activeRun.conversationId)))
       : [];
     const priorBatch = activeRun.executionInput?.photoBatchOf ? prior.find(run => run.state === "complete" &&
       run.executionInput?.photoBatchOf === activeRun.executionInput?.photoBatchOf && run.id !== activeRun.id) : undefined;
@@ -143,14 +155,15 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
     if (activeRun.executionInput?.contextQuote && !recoveryQuote?.text) {
       throw new ApiError(404, "quote_unavailable", "原消息已不可用，请在下一条补充要接的话题。");
     }
-    const quoted = !recoveryQuote && question.replyToId ? rows.find(row => row.id === question.replyToId) : null;
+    const quoted = !resume && !recoveryQuote && question.replyToId ? rows.find(row => row.id === question.replyToId) : null;
     let quotedQuestion:StoredMessage|undefined;
     if(quoted?.role==="assistant"){
       const [sourceRun]=await db.select({userMessageId:assistantRun.userMessageId}).from(assistantRun).where(and(eq(assistantRun.userId,userId),eq(assistantRun.conversationId,activeRun.conversationId),eq(assistantRun.assistantMessageId,quoted.id))).limit(1);
       if(sourceRun)[quotedQuestion]=await db.select().from(assistantMessage).where(and(eq(assistantMessage.userId,userId),eq(assistantMessage.conversationId,activeRun.conversationId),eq(assistantMessage.id,sourceRun.userMessageId),eq(assistantMessage.role,"user")));
     }
-    const localTime = new Intl.DateTimeFormat("zh-CN", {timeZone:input.timezone,dateStyle:"full",timeStyle:"long"}).format(new Date());
-    const prompt = buildAiSystemPrompt({ variant:chatProviders[provider].promptVariant, directory:catalog.directory, instructions:catalog.instructions, now:new Date().toISOString(), localTime, timezone:input.timezone,
+    const taskTime = resume ? question.createdAt : new Date();
+    const localTime = new Intl.DateTimeFormat("zh-CN", {timeZone:input.timezone,dateStyle:"full",timeStyle:"long"}).format(taskTime);
+    const prompt = buildAiSystemPrompt({ variant:chatProviders[provider].promptVariant, directory:catalog.directory, instructions:catalog.instructions, now:taskTime.toISOString(), localTime, timezone:input.timezone,
       channelInstructions:(input.mealTask?"本轮为饮食页内的独立拍照任务，仅处理本餐新添加的食物。preview_meals只放本次新增食物，已有草稿由服务器保留和合并，不要重复生成；日期和餐次由应用绑定。需要用户补充时用request_followup的questions提供快捷选项及自由填写，optional只用于可选信息，不替用户选择食量或来源。生成预览后结束等待人工核对，不能声称已保存。\n":"")+"本轮为站内已鉴权对话，请求编号由服务器管理，无需生成。需要用户补充时使用request_followup声明具体问题和任务，再自然说明等待补充。询问测量来源时提供questions并设置binding={kind:measurement_source,date:本条当地日期,period:daytime或evening}，服务器提供历史候选，用户可自由填写或明确留空。历史候选不是白名单，不要求用户给出完整型号；已回答的合法设备／应用名称直接保留，不补造全称、不重复追问。引用仅提供上下文，不代表授权修改；新问题不相关时按新问题处理。新问题用稳定fieldKey识别具体事实：meal.date、meal.type、food.amount:食物原名，其他用同一事实的一致键。已跳过或明确不知道的字段留空并用已有信息继续，不换一种问法追问。整组跳过时本任务结束追问。不要展示原始思考、Key、工具加载实现或私有传输协议。" })
       + (recoveryQuote?.text ? "\n从旧对话带过来的这一条（引用数据，仅用于理解当前问题；已保存的记录保持原样，当前用户消息明确要求时才提交变更）："
         + JSON.stringify(recoveryQuote.text) : "")
@@ -166,20 +179,18 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
     const systemBase = prompt+"\n"+transport+"\n"+presentation+facts+batch+
       (root ? "\n同一任务的原始用户请求（数据）："+JSON.stringify(root.text) : "")+
       (pending.length ? "\n本对话最近的待确认预览。仅在和当前任务一致时按编号查询最新版本："+JSON.stringify(pending) : "");
-    const navigation = (kept: ProtocolMessage[][]) => {
-      const links = kept.flat().flatMap(message => {
-        const row = historyRows.get(message);
-        return row && (row.imageIds.length || row.references.length) ? [{messageId:row.id,imageIds:row.imageIds,references:row.references}] : [];
-      });
-      return links.length ? "\n历史定位（仅供工具定位）："+JSON.stringify(links) : "";
-    };
-    let imageCount = binding.attachmentImageIds.length;
+    const navigation = (kept: ProtocolMessage[][]) =>
+      chatHistoryLinks(kept.flat().flatMap(item => historyRows.get(item) ?? []));
+    let imageCount = resumedPreviews.length ? 0 : binding.attachmentImageIds.length;
     let system = systemBase + "\n本轮以实际所附照片为准；历史描述不等于已验证事实。看不清时说明具体缺口，不忽略用户已提供的食物与食量。";
-    const messages: ProtocolMessage[] = [{role:"user", content:estimatedPhotoContent(question.text,binding.attachmentImageIds)}];
+    const messages: ProtocolMessage[] = [{role:"user", content:estimatedPhotoContent(question.text,imageCount ? binding.attachmentImageIds : [])}];
+    if (resumedPreviews.length) messages.push({role:"system",content:
+      "本任务已有以下预览及当前状态。只继续解释已有结果，沿用原审核卡，不创建或修改任何记录，也不重新识图。"+
+      JSON.stringify(resumedPreviews)});
     if (continuing && continuationText.trim()) messages.push({role:"system",content:"接续上次未完成的回答，只输出后续内容，避免重复。已经生成："+continuationText});
     const comparableResults = priorBatch ? results.filter(row => !row.result.error && typeof row.result.confirmationUrl === "string") : results;
     if (comparableResults.length) messages.push({role:"system",content:"本任务已有工具结果和预览，先核对并复用，不重复创建预览："+
-      JSON.stringify(comparableResults.map(row=>({name:row.name,args:row.args,result:row.result})))});
+      JSON.stringify(comparableResults.map(row=>({name:row.name,args:row.args,result:chatToolInput(row.name,row.result)})))});
     await db.update(assistantConversation).set({followup:null}).where(and(eq(assistantConversation.id,activeRun.conversationId),eq(assistantConversation.userId,userId)));
 
     const requestDiagnostics = [...activeRun.requestDiagnostics];
@@ -187,7 +198,7 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
     const diagnosticFor = (body: ReturnType<typeof modelBody>, images:ChatRequestDiagnostic["images"] = []): ChatRequestDiagnostic => ({
       state:"prepared", requestSha256:createHash("sha256").update(JSON.stringify(body)).digest("hex"),
       round:requestDiagnostics.length+1, provider, model:body.model, messageId:question.id,
-      attachmentSourceId:binding.attachmentSourceId, images, textSha256:createHash("sha256").update(question.text).digest("hex"),
+      attachmentSourceId:binding.attachmentSourceId, images, inputEstimate:estimatedChatInput(body), textSha256:createHash("sha256").update(question.text).digest("hex"),
     });
     const saveDiagnostic = async () => { await db.update(assistantRun).set({requestDiagnostics}).where(ownRun); };
     async function callModel(body: ReturnType<typeof modelBody>, diagnostic: ChatRequestDiagnostic, onText: (delta: string) => Promise<void> = async () => {}) {
@@ -238,11 +249,11 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
         const makeBody = (content: unknown) => modelBody(provider,[
           {role:"system",content:photoReadingPrompt(first,ids.length,photos)}, {role:"user",content},
         ],[]);
-        if (ids.length > 1 && estimatedChatInput(makeBody(estimatedPhotoContent(question.text,ids))) > CHAT_INPUT_LIMIT) {
+        if (ids.length > 1 && estimatedChatInput(makeBody(estimatedPhotoContent(question.text,ids))) > inputLimit) {
           maxSize = 1;
           ids = ids.slice(0,1);
         }
-        if (estimatedChatInput(makeBody(estimatedPhotoContent(question.text,ids))) > CHAT_INPUT_LIMIT)
+        if (estimatedChatInput(makeBody(estimatedPhotoContent(question.text,ids))) > inputLimit)
           throw new ApiError(409,"context_limit",chatContextLimitNotice);
         const batchContent = await chatImageContent(db,userId,question.text,{attachmentSourceId:binding.attachmentSourceId,attachmentImageIds:ids},dependencies.imageLoader);
         const body = makeBody(batchContent.content);
@@ -269,20 +280,20 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
       system = systemBase + "\n" + photoSummaryPrompt(photos);
     }
 
-    if (execution?.photoBatch) await readBatches();
+    if ((execution?.photoBatch || resume) && imageCount) await readBatches();
     let endState = "truncated";
     for (let round = 0; round < 8; round++) {
       await guard(true);
       const build = (items: ProtocolMessage[]) => modelBody(provider,items,catalog.tools());
-      let context = fitChatContext(build,history,messages,system,navigation,imageCount);
-      if (!context.fits && round === 0 && canSplit()) {
-        await readBatches(context.maxPhotos === 1 ? 1 : CHAT_PHOTOS_PER_BATCH);
-        context = fitChatContext(build,history,messages,system,navigation,imageCount);
+      let context = fitChatContext(build,history,messages,system,navigation,imageCount,inputLimit);
+      if (!context.fits && canSplit()) {
+        await readBatches();
+        context = fitChatContext(build,history,messages,system,navigation,imageCount,inputLimit);
       }
       if (context.fits && imageCount && !prepared) {
         prepared = await chatImageContent(db,userId,question.text,binding,dependencies.imageLoader);
         messages[0] = {role:"user",content:prepared.content};
-        context = fitChatContext(build,context.history,messages,system,navigation,imageCount);
+        context = fitChatContext(build,context.history,messages,system,navigation,imageCount,inputLimit);
       }
       const {body} = context;
       history = context.history;
@@ -304,9 +315,8 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
           if (fragment && beforeText+fragment !== text) { text = beforeText+fragment; await guard(); await save(); }
         });
       } catch (error) {
-        if (error instanceof ProviderRejected && error.code === "context_limit" && round === 0 && canSplit()) {
+        if (error instanceof ProviderRejected && error.code === "context_limit" && round < 7 && canSplit()) {
           await readBatches(1);
-          round--;
           continue;
         }
         throw error;
@@ -324,7 +334,9 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
         try { args = JSON.parse(call.function.arguments); if (!args || Array.isArray(args) || typeof args !== "object") throw Error(); } catch { messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ error: "invalid_arguments", message: "参数必须是完整JSON对象。" }) }); continue; }
         const name = call.function.name; let result: Record<string, unknown>;
         if (name === "load_tools") result = catalog.load(args);
-        else if (name === "request_followup") {
+        else if (name === "request_followup" && resumedPreviews.length) {
+          result = {error:"preview_exists",message:"已有原预览及核对状态，请继续说明已有结果。"};
+        } else if (name === "request_followup") {
           const questions=args.questions===undefined?null:followupQuestionsSchema.safeParse(args.questions);
           if (questions&&!questions.success || typeof args.question !== "string" || !args.question.trim() || args.question.length > 600 || typeof args.subject !== "string" || !args.subject.trim() || args.subject.length > 80) result = { error: "invalid_followup", message: "请提供具体问题和任务名称。" };
           else {
@@ -357,7 +369,8 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
           if (name === "preview_meals" && execution?.photoBatch) args = mergedMealPhotoArgs(args,binding.attachmentImageIds);
           const normalized = { ...args }; delete normalized.operationId;
           const fingerprint = digestChat({ name, args: normalized });
-          const cached = write ? results.find(row => row.name === name && row.fingerprint === fingerprint && !row.result.error) : undefined;
+          const cached = write || resume || execution?.photoBatch
+            ? results.find(row => row.name === name && row.fingerprint === fingerprint && !row.result.error) : undefined;
           const step: ChatStep = { id: randomUUID(), name, title: definition.title ?? name, state: "running" }; steps = [...steps, step]; await save(true);
           const previousPreview = input.action !== "send" && write ? results.find(row => !row.result.error && typeof row.result.confirmationUrl === "string") : null;
           let sourceArgs: Record<string, unknown>;
@@ -369,7 +382,8 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
             messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) }); await save(true); continue;
           }
           const prepared = catalog.prepare(name,sourceArgs);
-          if (cached) result = cached.result;
+          if (write && resumedPreviews.length) result = {error:"preview_exists",message:"沿用原预览及当前状态，无需创建或修改。",previews:resumedPreviews};
+          else if (cached) result = cached.result;
           else if (previousPreview) result = { ...previousPreview.result, message:"本问题已有待确认预览，请沿用该预览，不重复提交。" };
           else if (prepared.result) result = prepared.result;
           else {
@@ -392,7 +406,7 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
             if(ref&&!(ref.kind==="preview"&&name==="get_preview"&&writtenPreviews.size)&&!references.some(existing=>existing.href===ref.href))references=[...references,ref];
           }
         }
-        messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) }); await save(true);
+        messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(chatToolInput(name,result)) }); await save(true);
         if (name === "request_followup" && !result.error) { endState = "complete"; finished = true; break; }
       }
       if (finished) break;

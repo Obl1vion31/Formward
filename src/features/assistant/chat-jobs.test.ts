@@ -230,14 +230,14 @@ test("原会话错误引用只授权本账号，首次发送接续一条引用�
 test("历史省略和工具明细精简分开计量，原始查询结果保留",()=>{
   const build=(messages:ProtocolMessage[])=>({messages});
   const current:ProtocolMessage[]=[{role:"user",content:"请列出每日明细。"}];
-  const older:ProtocolMessage[][]=[[{role:"user",content:"最早记录"+"早".repeat(67000)}]];
+  const older:ProtocolMessage[][]=[[{role:"user",content:"最早记录"+"早".repeat(167000)}]];
   const normal=fitChatContext(build,older,current,"",()=>"",0);
   assert.equal(normal.fits,true);
   assert.equal(normal.history.length,0);
   assert.equal(normal.detailLimit,undefined);
   const records=Array.from({length:16},(_,n)=>({date:"日 "+(n+1),notes:"示".repeat(870)}));
   const tool:ProtocolMessage={role:"tool",tool_call_id:"fixture",content:JSON.stringify({records,total:16})};
-  const partial=fitChatContext(build,[],[...current,tool],"x".repeat(168000),()=>"",0);
+  const partial=fitChatContext(build,[],[...current,tool],"x".repeat(468000),()=>"",0);
   assert.equal(partial.fits,true);
   assert.equal(partial.detailLimit,8);
   const result=JSON.parse(String(partial.body.messages.at(-1)?.content));

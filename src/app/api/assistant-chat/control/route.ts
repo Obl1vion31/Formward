@@ -12,10 +12,11 @@ import { getDatabase } from "@/db/client";
 import { safeAiError } from "@/features/measurements/ai-api";
 import { assertChatAllowed } from "@/features/assistant/chat-config";
 import { chatProviderIds } from "@/features/assistant/chat-model";
-import { chatSnapshot, controlChat, removeChatConversation } from "@/features/assistant/chat-store";
+import { chatSnapshot, controlChat, removeChatConversation, resumeChatInNewConversation } from "@/features/assistant/chat-store";
 import { abortChatRun } from "@/features/assistant/chat-runtime";
 const controlSchema = z.object({ action: z.enum(["select_model", "new", "stop", "enable", "revoke", "clear_followup", "select_conversation", "clear_context_quote"]), conversationId:z.string().uuid().optional(), contextQuoteId:z.string().uuid().optional(), provider: z.enum(chatProviderIds).optional(), runId: z.string().uuid().optional() }).strict().refine(value => (!value.contextQuoteId || value.action === "new" && !!value.conversationId) && (value.action !== "clear_context_quote" || !!value.conversationId));
-const schema=z.union([controlSchema,z.object({action:z.literal("remove_conversation"),conversationId:z.string().uuid()}).strict(),z.object({action:z.literal("review_preview"),previewId:z.string().uuid(),review:recordReviewActionSchema}).strict(),z.object({action:z.literal("remove_preview_source"),previewId:z.string().uuid(),domain:z.enum(["body","energy"]),label:z.string().trim().min(1).max(200)}).strict()]);
+const resumeSchema = z.object({action:z.literal("resume_in_new_conversation"),conversationId:z.string().uuid(),sourceMessageId:z.string().uuid()}).strict();
+const schema=z.union([controlSchema,resumeSchema,z.object({action:z.literal("remove_conversation"),conversationId:z.string().uuid()}).strict(),z.object({action:z.literal("review_preview"),previewId:z.string().uuid(),review:recordReviewActionSchema}).strict(),z.object({action:z.literal("remove_preview_source"),previewId:z.string().uuid(),domain:z.enum(["body","energy"]),label:z.string().trim().min(1).max(200)}).strict()]);
 const headers = { "Cache-Control": "private, no-store" };
 export async function POST(request: Request) {
   if (!isAccountRequestOrigin(request.headers)) return Response.json({ error: "请求来源无效。" }, { status: 403, headers });
@@ -32,6 +33,10 @@ export async function POST(request: Request) {
     if (input.action === "remove_conversation") {
       await removeChatConversation(db, owner.id, input.conversationId);
       return Response.json(await chatSnapshot(db, owner.id), { headers });
+    }
+    if (input.action === "resume_in_new_conversation") {
+      const target = await resumeChatInNewConversation(db,owner.id,input.conversationId,input.sourceMessageId);
+      return Response.json(await chatSnapshot(db,owner.id,undefined,undefined,target),{headers});
     }
     if(input.action!=="stop")assertChatAllowed(owner);
     const stoppedRunId = await controlChat(db, owner.id, input);

@@ -1,3 +1,4 @@
+import { chatContextBaseEstimate, estimatedChatInput } from "./chat-context";
 import { chatAttachmentBinding } from "./chat-attachments";
 import { globalBudget, lockGlobalBudget, budgetAlert } from "./global-budget";
 import { chatCapabilities } from "./chat-config";
@@ -59,14 +60,6 @@ export function normalizedUsage(raw: Record<string, unknown> | null, rates: Chat
   const cached = details?.cached_tokens ?? raw.prompt_cache_hit_tokens;
   const hit = Number.isSafeInteger(cached) && Number(cached) >= 0 && Number(cached) <= Number(raw.prompt_tokens) ? Number(cached) : 0;
   return ((Number(raw.prompt_tokens) - hit) * rates.input + hit * rates.cachedInput + Number(raw.completion_tokens) * rates.output) / 1e6;
-}
-export const CHAT_INPUT_LIMIT = 200000;
-export const CHAT_IMAGE_INPUT_COST = 65536;
-
-export function estimatedChatInput(body: unknown) {
-  let images = 0;
-  const text = JSON.stringify(body, (key, value) => { if (key === "url" && typeof value === "string" && value.startsWith("data:image/")) { images++; return "[image]"; } return value; });
-  return Buffer.byteLength(text) + 4096 + images * CHAT_IMAGE_INPUT_COST;
 }
 export function reserveCost(body: unknown, rates: ChatRates) {
   return estimatedChatInput(body) * rates.input / 1e6 + 8208 * rates.output / 1e6;
@@ -269,6 +262,7 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
     if (row.role === "assistant") {
       const progress = chatPhotoProgress(rowRun?.executionInput);
       if (progress) value.photoProgress = progress;
+      if (rowRun?.executionInput?.resume) value.resumingTask = true;
     }
     const detailLimit = rowRun?.requestDiagnostics.find(item => item.state === "completed" && item.detailLimit)?.detailLimit;
     if (row.role === "assistant" && row.state === "complete" && detailLimit) value.detailLimit = detailLimit;
@@ -294,7 +288,9 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
       !!attempt.executionInput?.photoBatch && attempt.executionInput.action !== "send");
   }).map(present);
   return { capabilities:chatCapabilities(),entitlement,conversationId: current.id, provider: currentProvider(providerId(current.provider)),
-    followup: current.followup, messages: rows.map(present), ...(quoteId ? { pendingContextQuote: contextQuotes.get(quoteId) } : {}), ...(photoUpdates.length ? { photoUpdates } : {}),
+    followup: current.followup, messages: rows.map(present),
+    ...(!taskId && before === undefined ? {contextBaseEstimate:chatContextBaseEstimate(recent,
+      [current.followup, quoteId && contextQuotes.get(quoteId)?.text])} : {}), ...(quoteId ? { pendingContextQuote: contextQuotes.get(quoteId) } : {}), ...(photoUpdates.length ? { photoUpdates } : {}),
     hasMore: older.length > 5, before: rows[0]?.seq ?? null, activeRunId: active?.id ?? null,
     runTiming: active?.conversationId === current.id ? chatRunTiming(active) : null,
     catalog: chatProviderIds.filter(providerAvailable).map(id => { const grant = grants.find(row => row.provider === id), configured = providerConfigured(id), valid = !grant || grant.enabled && !grant.revokedAt && grant.expiresAt.getTime() > Date.now();
@@ -337,7 +333,7 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
     const pendingQuoteId = pendingContextQuoteId(current.context);
     let useContextQuote = false;
     let seq = current.sequence, question: StoredMessage, answer: StoredMessage;
-    let retainedAttachments: Pick<NonNullable<StoredRun["executionInput"]>,"attachmentSourceId"|"attachmentImageIds"|"photoBatchOf"|"photoBatch"> | undefined;
+    let retainedAttachments: Pick<NonNullable<StoredRun["executionInput"]>,"attachmentSourceId"|"attachmentImageIds"|"photoBatchOf"|"photoBatch"|"resume"> | undefined;
     if (input.imageSubset && (input.action !== "retry" || input.mealTask)) throw new ApiError(400,"invalid_image_subset","请从需要分批的原消息选择照片。");
     if (input.action === "send") {
       if (!input.followup && !input.text?.trim() && !input.imageIds?.length) throw new ApiError(400, "empty_message", "请输入内容或选择照片。");
@@ -376,8 +372,8 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
       if (!question) throw new ApiError(404,"not_found","原始问题已不可用。");
       useContextQuote = previous?.executionInput?.contextQuote === true;
       if (previous?.executionInput) {
-        const {attachmentSourceId,attachmentImageIds,photoBatchOf,photoBatch} = previous.executionInput;
-        retainedAttachments = {attachmentSourceId,attachmentImageIds,photoBatchOf,photoBatch};
+        const {attachmentSourceId,attachmentImageIds,photoBatchOf,photoBatch,resume} = previous.executionInput;
+        retainedAttachments = {attachmentSourceId,attachmentImageIds,photoBatchOf,photoBatch,resume};
       }
       if (input.imageSubset) {
         const limit = previous && runPhotoLimit(previous);
@@ -411,6 +407,71 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
     return { row: created, started: true };
   });
 }
+/** 切换会话与入队同事务。请求编号由原失败运行派生，断线重试继续使用同一运行。 */
+export async function resumeChatInNewConversation(db: Database, userId: string, sourceConversationId: string, sourceMessageId: string) {
+  await reapChatRuns(db, userId);
+  return db.transaction(async tx => {
+    await lockChatAccount(tx, userId);
+    const [origin] = await tx.select().from(conversation).where(and(eq(conversation.id, sourceConversationId),
+      eq(conversation.userId, userId), eq(conversation.purpose, "chat"), isNull(conversation.removedAt)));
+    if (!origin) throw new ApiError(404, "not_found", "原对话已不可用。");
+    const [answer] = await tx.select().from(message).where(and(eq(message.id, sourceMessageId),
+      eq(message.userId, userId), eq(message.conversationId, origin.id), eq(message.role, "assistant")));
+    if (!answer || !isContextLimited(answer)) throw new ApiError(409, "retry_unavailable", "这条回复已无法在新对话续答。");
+    const [source] = await tx.select().from(run).where(and(eq(run.assistantMessageId, answer.id),
+      eq(run.userId, userId), eq(run.conversationId, origin.id))).orderBy(desc(run.createdAt)).limit(1);
+    if (!source || source.state !== "error" || runPhotoLimit(source))
+      throw new ApiError(409, "retry_unavailable", "这条回复已无法在新对话续答。");
+
+    const requestId = "resume-" + source.id;
+    const [existing] = await tx.select().from(run).where(and(eq(run.userId, userId), eq(run.requestId, requestId)));
+    const [busy] = await tx.select({id:run.id}).from(run).where(and(eq(run.userId, userId), eq(run.state,"running")));
+    const deactivate = () => tx.update(conversation).set({active:false}).where(and(eq(conversation.userId,userId),
+      eq(conversation.purpose,"chat"),eq(conversation.active,true)));
+    if (existing) {
+      const [target] = await tx.select().from(conversation).where(and(eq(conversation.id, existing.conversationId),
+        eq(conversation.userId,userId),eq(conversation.purpose,"chat"),isNull(conversation.removedAt)));
+      if (!target) throw new ApiError(404, "not_found", "续答对话已移出历史。");
+      if (!target.active) {
+        if (busy) throw new ApiError(409, "chat_busy", "已有回答正在生成，请等待或先停止。");
+        await deactivate();
+        await tx.update(conversation).set({active:true}).where(and(eq(conversation.id,target.id),eq(conversation.userId,userId)));
+      }
+      return target.id;
+    }
+    if (!origin.active) throw new ApiError(409, "conversation_changed", "当前会话已变化，请重新读取。");
+    if (busy) throw new ApiError(409, "chat_busy", "已有回答正在生成，请等待或先停止。");
+    const recent = await tx.select({id:run.id}).from(run).where(and(eq(run.userId,userId),
+      gt(run.createdAt,new Date(Date.now()-60000)))).limit(20);
+    if (recent.length >= 20) throw new ApiError(429, "chat_rate_limit", "发送得有些频繁，请一分钟后重试。");
+
+    const provider = currentProvider(providerId(source.provider));
+    if (!providerConfigured(provider)) throw new ApiError(503, "model_unavailable", "原模型暂不可用。");
+    const [question] = await tx.select().from(message).where(and(eq(message.id, source.userMessageId),
+      eq(message.userId,userId),eq(message.conversationId,origin.id),eq(message.role,"user")));
+    if (!question) throw new ApiError(404, "not_found", "原问题已不可用。");
+    const binding = source.executionInput ?? await chatAttachmentBinding(tx as unknown as Database,userId,question,question.supplementalAnswer?.taskMessageId);
+    const targetId = randomUUID(), questionId = randomUUID(), answerId = randomUUID();
+    await deactivate();
+    await tx.insert(conversation).values({id:targetId,userId,provider,sequence:2});
+    await tx.insert(message).values([
+      {id:questionId,userId,conversationId:targetId,seq:1,role:"user",text:question.text,imageIds:binding.attachmentImageIds,
+        createdAt:question.createdAt,supplementalAnswer:question.supplementalAnswer},
+      {id:answerId,userId,conversationId:targetId,seq:2,role:"assistant",state:"working",provider,
+        text:answer.text,steps:answer.steps,references:answer.references},
+    ]);
+    const executionInput = {
+      action:"continue" as const,requestId,provider,conversationId:targetId,timezone:source.executionInput?.timezone ?? "Asia/Shanghai",
+      attachmentSourceId:binding.attachmentSourceId,attachmentImageIds:binding.attachmentImageIds,
+      photoBatch:source.executionInput?.photoBatch,
+      resume:{sourceRunId:source.id,taskMessageId:source.executionInput?.resume?.taskMessageId ?? source.userMessageId},
+    };
+    await tx.insert(run).values({id:randomUUID(),userId,conversationId:targetId,userMessageId:questionId,
+      assistantMessageId:answerId,requestId,requestDigest:digestChat(executionInput),provider,model:chatProviders[provider].model,executionInput});
+    return targetId;
+  });
+}
+
 export async function removeChatConversation(db: Database, userId: string, id: string) {
   await db.transaction(async tx => {
     await lockActiveAccount(tx, userId);

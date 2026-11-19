@@ -3,9 +3,9 @@ import {readFile} from 'node:fs/promises';
 const fixture=JSON.parse(await readFile(process.env.FORMWARD_CHAT_BROWSER_FIXTURE,'utf8'));
 const images = new Map(await Promise.all((fixture.samples??[]).map(async sample=>[sample.pathname,await readFile(sample.file)])));
 const original=globalThis.fetch,allowed=new Set(['maas.qianwenaiapi.com','api.xiaomimimo.com','open.bigmodel.cn']);
-function result(content,calls,slow=false){
+function result(content,calls,slow=false,reasoning=""){
  const usage={prompt_tokens:180,completion_tokens:60,prompt_tokens_details:{cached_tokens:40}};
- if(calls)return new Response('data: '+JSON.stringify({choices:[{delta:{...(content?{content}:{}),tool_calls:calls},finish_reason:'tool_calls'}]})+'\n\ndata: '+JSON.stringify({choices:[],usage})+'\n\ndata: [DONE]\n\n',{headers:{'content-type':'text/event-stream'}});
+ if(calls)return new Response('data: '+JSON.stringify({choices:[{delta:{...(content?{content}:{}),...(reasoning?{reasoning_content:reasoning}:{}),tool_calls:calls},finish_reason:'tool_calls'}]})+'\n\ndata: '+JSON.stringify({choices:[],usage})+'\n\ndata: [DONE]\n\n',{headers:{'content-type':'text/event-stream'}});
  let cancelled=false;return new Response(new ReadableStream({cancel(){cancelled=true;},async start(controller){for(let i=0;i<content.length;i+=slow?4:24){if(cancelled)return;controller.enqueue(new TextEncoder().encode('data: '+JSON.stringify({choices:[{delta:{content:content.slice(i,i+(slow?4:24))},finish_reason:null}]})+'\n\n'));if(slow)await new Promise(resolve=>setTimeout(resolve,100));}if(cancelled)return;controller.enqueue(new TextEncoder().encode('data: '+JSON.stringify({choices:[{delta:{},finish_reason:'stop'}]})+'\n\ndata: '+JSON.stringify({choices:[],usage})+'\n\ndata: [DONE]\n\n'));controller.close();}}),{headers:{'content-type':'text/event-stream'}});
 }
 const readFailures=new Set(), mergeFailures=new Set();
@@ -34,6 +34,39 @@ globalThis.fetch=async function(input,init){
    return result(JSON.stringify({photos:numbers.map(number=>({number,notes:number%4===1||number%4===2
      ?"同一份烤鸡和鸡油饭的不同角度，用户给定了份量。"
      :"包装标签提供单位及每份营养，和前两张用于同一餐。"}))}));
+ }
+ if (body.messages.some(message=>String(message.content).includes("本任务已有以下预览及当前状态")) && text.includes("上下文验收晚餐")) {
+   if (Array.isArray(lastUser?.content)) return new Response("expected summary of existing preview",{status:400});
+   await new Promise(resolve=>setTimeout(resolve,1800));
+   return result(body.messages.some(message=>String(message.content).includes('"status":"confirmed"'))
+     ? "〔正文〕已接着说明。沿用原来已保存的晚餐。"
+     : "〔正文〕已接着说明。沿用原来的待确认晚餐。",null,true);
+ }
+ if (text.includes("两图查库回放") || text.includes("两图超限续读回放") || text.includes("上下文未生成预览")) {
+   const last=body.messages.at(-1);
+   if (system.includes("本条完整用户要求中各张照片的已提取证据") && text.includes("上下文未生成预览")
+       && body.messages.some(message=>String(message.content).includes("本任务已有工具结果和预览"))) {
+     await new Promise(resolve=>setTimeout(resolve,900));
+   }
+   if (last.role==="tool"&&/confirmationUrl/.test(String(last.content)))
+     return result("〔正文〕已核对饮食记录和两张图，晚餐已整理。请确认。",null,true);
+   if (!body.tools?.some(tool=>tool.function.name==="query_meals"))
+     return call("load_tools",{names:["query_meals","preview_meals"]});
+   const outcomes=body.messages.filter(message=> message.role==="tool" && /"statistics"/.test(String(message.content)));
+   if (!outcomes.length) {
+     const args={from:fixture.today,to:fixture.today,timezone:"Asia/Shanghai",view:"details"};
+     if (body.messages.some(message=>String(message.content).includes("本任务已有工具结果和预览"))) return call("query_meals",args);
+     const size=text.includes("上下文未生成预览")?505000:text.includes("两图超限续读回放")?370000:0;
+     const calls=[{index:0,id:"test-query",type:"function",function:{name:"query_meals",arguments:JSON.stringify(args)}}];
+     return result("",calls,false,"x".repeat(size));
+   }
+   const details=JSON.parse(outcomes.at(-1).content);
+   if (!details.days.length || !details.meals.length || details.days.some(day=>day.meals))
+     return new Response("expected complete meals with compact day totals",{status:400});
+   const ids=(system.match(/附件ID：([^。]+)/)?.[1]??"").split("、").filter(id=>/^[a-f0-9-]{36}$/i.test(id));
+   return call("preview_meals",{meals:[{date:fixture.today,mealType:"晚餐",imageIds:ids,expectedImageCount:2,foods:[
+     {name:"查库验收烤鸡",quantity:"150",unit:"g",caloriesKcal:"240",proteinG:"35",carbsG:"4",fatG:"9",sourceKind:"estimated",basis:"虚构辨识"},
+   ]}]});
  }
  if (system.includes("本条完整用户要求中各张照片的已提取证据")) {
    if(Array.isArray(lastUser?.content)) return new Response("expected text-only photo evidence",{status:400});
@@ -68,9 +101,9 @@ globalThis.fetch=async function(input,init){
    const args={meals:[{date:"today",mealType:"晚餐",timezone:"Asia/Shanghai",imageIds:ids,expectedImageCount:ids.length,
     foods:[{name:"验收烤鸡",quantity:"150",unit:"g",caloriesKcal:"240",proteinG:"35",carbsG:"4",fatG:"9",sourceKind:"estimated",basis:"虚构样例"},
            {name:"验收燕麦饮",quantity:"200",unit:"ml",caloriesKcal:"100",proteinG:"2",carbsG:"17",fatG:"3",sourceKind:"estimated",basis:"虚构样例"}]}]};
-   // 模拟工具轮积累的请求体，保留合法JSON和真实预览，下一轮由应用自己的上限判断中断。
-   const calls=[{index:0,id:"context-preview",type:"function",function:{name:"preview_meals",arguments:JSON.stringify(args)+" ".repeat(56500)}}];
-   return result(text.includes("保留正文")?"〔正文〕我已经核对了烤鸡的份量。":"",calls);
+   // 预览执行成功之后，用超长模型轨迹触发本地发送前检查。
+   const calls=[{index:0,id:"context-preview",type:"function",function:{name:"preview_meals",arguments:JSON.stringify(args)}}];
+   return result(text.includes("保留正文")?"〔正文〕我已经核对了烤鸡的份量。":"",calls,false,"x".repeat(505000));
  }
  if (text === "上下文验收接着问") {
    const system=String(body.messages[0]?.content);
@@ -82,6 +115,7 @@ globalThis.fetch=async function(input,init){
    if(JSON.stringify(body.messages).includes("最早一轮验收标记"))return new Response("expected oldest history to be omitted",{status:400});
    return result("〔正文〕本次只核对两点。第一，份量已确认。第二，晚餐已归到今天。");
  }
+ if(text==="预警后继续发送")return result("〔正文〕你好，我在。想先看哪一项记录？");
  if (text === "两张照片已读验收。" || text.startsWith("两张照片是同一份午餐的不同角度。")) {
    const images = Array.isArray(lastUser?.content) ? lastUser.content.filter(part=>part.type==="image_url") : [];
    if (images.length !== 2) return new Response("expected two isolated photos",{status:400});
