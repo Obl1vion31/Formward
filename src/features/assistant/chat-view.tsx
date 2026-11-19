@@ -11,7 +11,7 @@ import {chatDisplayText,chatTranscript} from "./chat-presentation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useId, type ReactNode } from "react";
 import { LoadingLink } from "../../components/loading-link";
 import { useAssistantChat, useOptionalAssistantChat, type ArrivalViewport } from "./chat-client";
-import type { ChatMessage, ChatPhotoLimit } from "./chat-model";
+import { chatContextLimitNotice, type ChatMessage, type ChatPhotoLimit } from "./chat-model";
 import styles from "./chat.module.css";
 function ArrivingMessage({message,eligible,viewport,className,children}: {
   message:ChatMessage; eligible:boolean; viewport?:ArrivalViewport; className:string; children:ReactNode;
@@ -81,7 +81,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
   const { scrollState, recordScroll } = chat;
   const openHeight = useRef(0);
   const transcript = chatTranscript(chat.messages);
-  const task = chat.data?.followup;
+  const task = chat.data?.followup, pendingQuote = chat.data?.pendingContextQuote;
   const taskAnchor = task && task.assistantMessageId && transcript.anchors.has(task.assistantMessageId)
     ? task.assistantMessageId : task ? transcript.visible.findLast(row=>row.role==="assistant"&&row.state==="complete"&&row.question?.id===task.messageId)?.id : undefined;
   const composer = useRef<HTMLDivElement>(null), modelMenuId = useId();
@@ -128,7 +128,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
     }
   }
   function submit() {
-    if (blocked || chat.busy || chat.photos.some(photo=>photo.phase!=="ready"||!photo.id) || !chat.draft.trim()&&!chat.photos.length) return;
+    if (blocked || pendingQuote?.text === null || chat.busy || chat.photos.some(photo=>photo.phase!=="ready"||!photo.id) || !chat.draft.trim()&&!chat.photos.length) return;
     const visual = window.visualViewport;
     const mobile = page || matchMedia("(max-width:700px), (hover:none) and (pointer:coarse)").matches;
     const editing = document.activeElement === input.current;
@@ -153,9 +153,10 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
           const timing = chat.data?.runTiming?.messageId===message.id ? chat.data.runTiming : undefined;
           const continuation = transcript.continuations.has(message.id);
           const canCite = chat.enabled && message.state === "complete";
+          const contextInterrupted = message.state === "error" && message.contextLimited && !message.photoLimit;
           const canRetry = !message.photoLimit && !message.contextLimited && ["stopped","truncated","error"].includes(message.state);
           const canContinue = message.state !== "error" && !!message.text.trim();
-          const actions = message.role === "assistant" && message.state !== "working" && (canCite || message.text || canRetry)
+          const actions = !contextInterrupted && message.role === "assistant" && message.state !== "working" && (canCite || message.text || canRetry)
             ? <div className={styles.actions}>
                 {canCite && <button type="button" className={styles.messageAction} aria-label="引用回复" title="引用回复" onClick={() => cite(message)}>
                   <Glyph name="quote"/><span>引用回复</span>
@@ -179,6 +180,15 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
                   <p role="alert">{local.error}</p><button type="button" onClick={()=>void chat.retryOutgoing(requestId)}>重试发送</button>
                   <button type="button" onClick={()=>void chat.restoreOutgoing(requestId)}>恢复草稿</button>
                 </div> : undefined}
+              contextActions={contextInterrupted ? <div className={styles.contextRecovery}>
+                <p role="alert">{chatContextLimitNotice}</p>
+                <div>
+                  <button type="button" disabled={!chat.enabled || chat.busy || chat.managing || !!chat.uploading || !chat.data}
+                    onClick={() => void chat.control("new", undefined, chat.data?.conversationId)}>新建对话</button>
+                  <button type="button" disabled={!chat.enabled || chat.busy || chat.managing || !!chat.uploading || !chat.data}
+                    onClick={() => void chat.control("new", undefined, chat.data?.conversationId, message.id)}>新建会话继续回答</button>
+                </div>
+              </div> : undefined}
               photoActions={message.photoLimit ? <PhotoBatchPicker limit={message.photoLimit} disabled={chat.busy||blocked}
                 submit={imageSubset=>chat.send("retry",message.id,undefined,{imageSubset})}/> : undefined}>
               {followup && <FollowupForm key={followup.messageId} task={followup} busy={chat.busy||blocked}
@@ -193,7 +203,14 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
       <div ref={composer} className={styles.composerArea} inert={panel === "connections"||!!pinnedPreview}>
         {notice && <p className={styles.notice} role="status">{notice}</p>}
         {chat.error && <div className={styles.failure} role="alert">{chat.error}<button onClick={() => void chat.refresh()} disabled={chat.loading}>重新读取</button></div>}
-        {chat.quote && <div className={styles.quote}><button onClick={() => jump(chat.quote!.id)}><span>引用{chat.quote.role === "user" ? "你的消息" : "回答"}</span><span>{chat.quote.question?chat.quote.question.text+" · ":""}{chatDisplayText(chat.quote,chat.data?.capabilities?.inlinePreviews===true).slice(0,240)}</span></button><button className={styles.icon} aria-label="取消引用" onClick={() => chat.setQuote(null)}><Glyph name="close"/></button></div>}
+        {pendingQuote && !chat.busy && <div className={styles.quote}>
+          <div className={styles.contextQuoteSummary}>
+            <span>引用上一问</span><span>{pendingQuote.text ?? "原消息已不可用，请移除引用后发送。"}</span>
+          </div>
+          <button type="button" className={styles.icon} aria-label="取消引用" disabled={chat.managing}
+            onClick={() => void chat.control("clear_context_quote", undefined, chat.data?.conversationId)}><Glyph name="close"/></button>
+        </div>}
+        {chat.quote && !pendingQuote && <div className={styles.quote}><button onClick={() => jump(chat.quote!.id)}><span>引用{chat.quote.role === "user" ? "你的消息" : "回答"}</span><span>{chat.quote.question?chat.quote.question.text+" · ":""}{chatDisplayText(chat.quote,chat.data?.capabilities?.inlinePreviews===true).slice(0,240)}</span></button><button className={styles.icon} aria-label="取消引用" onClick={() => chat.setQuote(null)}><Glyph name="close"/></button></div>}
         {chat.enabled?<div className={styles.composer}>
           <DraftPhotos/>
           <div className={styles.composerRow} {...composerPress}>
@@ -224,7 +241,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
             {chat.busy
               ? <button type="button" className={styles.send} aria-label="停止生成" onClick={() => void chat.control("stop")}><Glyph name="stop"/></button>
               : <button type="button" className={styles.send} aria-label="发送消息"
-                  disabled={blocked || chat.photos.some(photo => photo.phase !== "ready" || !photo.id) || !chat.draft.trim() && !chat.photos.length}
+                  disabled={blocked || pendingQuote?.text === null || chat.photos.some(photo => photo.phase !== "ready" || !photo.id) || !chat.draft.trim() && !chat.photos.length}
                   onPointerDown={event => {
                     if ((page || event.pointerType === "touch") && document.activeElement === input.current) event.preventDefault();
                   }} onClick={submit}><Glyph name="send"/></button>}

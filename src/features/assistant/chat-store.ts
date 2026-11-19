@@ -6,14 +6,14 @@ import { followupText, resolveSupplement, mergeSupplements, type FollowupSubmiss
 import { createHash, randomUUID } from "node:crypto";
 import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import type { Database } from "../../db/client";
-import { assistantConnection as connection, assistantConversation as conversation, assistantMessage as message, assistantRun as run, assistantUsageRequest as usageRequest, aiToken, mealImage, user, securityEvent } from "../../db/schema";
+import { assistantConnection as connection, assistantConversation as conversation, assistantMessage as message, assistantRun as run, assistantUsageRequest as usageRequest, aiToken, mealImage, recordOperation, user, securityEvent } from "../../db/schema";
 import { ApiError } from "../auth/ai-identity";
 import { lockActiveAccount, requireActiveAccount } from "../auth/account-security";
 import { requireActiveAiToken } from "../auth/ai-tokens";
 import { accountEntitlements } from "../auth/entitlements";
 import { prepareRecognition, recognitionUsage, reserveRecognition, refundUnfinishedRecognition } from "./recognition-quota";
 import { assertChatAllowed, chatProviders, providerAvailable, currentProvider, providerConfigured, providerId, type ChatRates } from "./chat-config";
-import { budgetDate, chatProviderIds, nextBudgetReset, usagePercent, type ChatMessage, type ChatPhotoLimit, type ChatProvider, type ChatRunTiming, type ChatSnapshot, type ChatUsage } from "./chat-model";
+import { budgetDate, chatContextLimitNotice, chatProviderIds, isMealTaskContext, nextBudgetReset, pendingContextQuoteId, usagePercent, type ChatContextQuote, type ChatControlAction, type ChatMessage, type ChatPhotoLimit, type ChatProvider, type ChatRunTiming, type ChatSnapshot, type ChatUsage } from "./chat-model";
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export type StoredRun = typeof run.$inferSelect;
 export type StoredMessage = typeof message.$inferSelect;
@@ -154,6 +154,46 @@ function runPhotoLimit(row: Pick<StoredRun,"executionInput"|"requestDiagnostics"
   if (maxPhotos && imageIds?.length && !sentImages) return {imageIds, maxPhotos};
 }
 
+function isContextLimited(row: Pick<StoredMessage, "state" | "error">) {
+  return row.state === "error" && !!row.error &&
+    (row.error === chatContextLimitNotice || /^(本次请求的上下文已满|本次上下文或照片较多|本轮内容超出可处理范围|本轮照片超出可处理范围)/.test(row.error));
+}
+
+export async function resolveContextQuote(db: Pick<Database, "select">, userId: string, id: string, sourceConversationId?: string): Promise<ChatContextQuote | null> {
+  const [source] = await db.select({ reply: message, attempt: run }).from(message)
+    .innerJoin(conversation, and(eq(conversation.id, message.conversationId), eq(conversation.userId, userId)))
+    .leftJoin(run, and(eq(run.assistantMessageId, message.id), eq(run.userId, userId), eq(run.conversationId, conversation.id)))
+    .where(and(eq(message.id, id), eq(message.userId, userId), eq(message.role, "assistant"),
+      eq(conversation.purpose, "chat"), isNull(conversation.removedAt),
+      sourceConversationId ? eq(conversation.id, sourceConversationId) : undefined))
+    .orderBy(desc(run.createdAt)).limit(1);
+  if (!source || !isContextLimited(source.reply) || source.attempt && runPhotoLimit(source.attempt)) return null;
+
+  const [question] = await db.select({ text: message.text, imageIds: message.imageIds }).from(message)
+    .where(and(eq(message.userId, userId), eq(message.conversationId, source.reply.conversationId), eq(message.role, "user"),
+      source.attempt ? eq(message.id, source.attempt.userMessageId) : lt(message.seq, source.reply.seq)))
+    .orderBy(desc(message.seq)).limit(1);
+  if (!question) return null;
+
+  const summary = (text: string) => {
+    const characters = Array.from(text.trim());
+    return characters.length > 800 ? characters.slice(0, 799).join("") + "…" : text.trim();
+  };
+  const parts = [summary(question.text) || (question.imageIds.length ? "原问题包含照片。" : "原问题没有文字。")];
+  const reply = summary(source.reply.text);
+  if (reply) parts.push("已有回复：" + reply);
+  const operations = [...new Set(source.reply.references.flatMap(reference =>
+    reference.kind === "preview" && reference.operationId ? [reference.operationId] : [],
+  ))].slice(0, 8);
+  if (operations.length) {
+    const statuses = await db.select({ status: recordOperation.status }).from(recordOperation)
+      .where(and(eq(recordOperation.userId, userId), inArray(recordOperation.id, operations)));
+    if (statuses.some(row => row.status === "confirmed")) parts.push("本轮已有记录保存。");
+    if (statuses.some(row => row.status === "pending")) parts.push("本轮有记录待确认。");
+  }
+  return { id, text: parts.join("\n") };
+}
+
 type BatchRun = Pick<StoredRun,"userMessageId"|"executionInput"|"state">;
 
 function unusedBatchPhotos(original: Pick<StoredRun,"userMessageId"|"assistantMessageId"|"executionInput">, limit: ChatPhotoLimit, batches: BatchRun[]) {
@@ -192,9 +232,23 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
     .from(run).where(and(eq(run.userId,userId),taskId?eq(run.conversationId,current.id):undefined,eq(run.state,"running")));
   const grantPurpose = taskId && !entitlement.chat ? "meal_entry" : "chat";
   const grants = await db.select({ provider: connection.provider, enabled: connection.enabled, expiresAt: aiToken.expiresAt, revokedAt: aiToken.revokedAt }).from(connection).innerJoin(aiToken, and(eq(aiToken.id, connection.tokenId), eq(aiToken.userId, userId))).where(and(eq(connection.userId, userId),eq(connection.purpose, grantPurpose))).orderBy(desc(connection.createdAt));
+  const quoteId = !taskId ? pendingContextQuoteId(current.context) : undefined;
+  const contextQuotes = new Map<string, ChatContextQuote>();
+  const quotedIds = new Set(quoteId ? [quoteId] : []);
+  for (const row of rows) {
+    if (row.role === "user" && row.replyToId &&
+      runs.some(item => item.userMessageId === row.id && item.executionInput?.contextQuote)) quotedIds.add(row.replyToId);
+  }
+  await Promise.all([...quotedIds].map(async id => {
+    contextQuotes.set(id, await resolveContextQuote(db, userId, id) ?? { id, text: null });
+  }));
   function present(row: StoredMessage): ChatMessage {
     const rowRun = row.role === "user" ? runs.findLast(item => item.userMessageId === row.id) : runs.find(item => item.assistantMessageId === row.id);
     const value = publicChatMessage(row,recent,rowRun?.id,rowRun?.requestId,rowRun?.userMessageId);
+    const quote = row.replyToId && contextQuotes.get(row.replyToId);
+    if (quote) value.replyTo = { id: quote.id, text: quote.text ?? "原消息已不可用。", contextQuote: true };
+    const detailLimit = rowRun?.requestDiagnostics.find(item => item.state === "completed" && item.detailLimit)?.detailLimit;
+    if (row.role === "assistant" && row.state === "complete" && detailLimit) value.detailLimit = detailLimit;
     const limit = row.role === "assistant" && row.state === "error" && rowRun ? runPhotoLimit(rowRun) : undefined;
     if (limit && rowRun) {
       const imageIds = unusedBatchPhotos(rowRun,limit,runs);
@@ -205,7 +259,7 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
         delete value.contextLimited;
       }
     } else if (value.contextLimited) {
-      value.error = "本次请求的上下文已满。已有内容保留，可以缩小问题或查询范围后在原对话继续。";
+      value.error = chatContextLimitNotice;
     }
     return value;
   }
@@ -213,7 +267,7 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
   const photoUpdates = recent.filter(row => row.state === "error" && !rows.includes(row) &&
     runs.find(item => item.assistantMessageId === row.id)?.requestDiagnostics.at(-1)?.maxPhotos).map(present);
   return { capabilities:chatCapabilities(),entitlement,conversationId: current.id, provider: currentProvider(providerId(current.provider)),
-    followup: current.followup, messages: rows.map(present), ...(photoUpdates.length ? { photoUpdates } : {}),
+    followup: current.followup, messages: rows.map(present), ...(quoteId ? { pendingContextQuote: contextQuotes.get(quoteId) } : {}), ...(photoUpdates.length ? { photoUpdates } : {}),
     hasMore: older.length > 5, before: rows[0]?.seq ?? null, activeRunId: active?.id ?? null,
     runTiming: active?.conversationId === current.id ? chatRunTiming(active) : null,
     catalog: chatProviderIds.filter(providerAvailable).map(id => { const grant = grants.find(row => row.provider === id), configured = providerConfigured(id), valid = !grant || grant.enabled && !grant.revokedAt && grant.expiresAt.getTime() > Date.now();
@@ -224,8 +278,7 @@ export function publicChatMessage(row: StoredMessage, context: StoredMessage[] =
   const question=row.role==="assistant"?(questionId?context.find(item=>item.id===questionId):[...context].filter(item=>item.role==="user"&&item.seq<row.seq).sort((a,b)=>b.seq-a.seq)[0]):null;
   return { id: row.id, seq: row.seq, role: row.role as "user" | "assistant", text: row.text, provider: row.provider ? providerId(row.provider) : null, state: row.state, createdAt: row.createdAt.toISOString(),
     replyTo: row.replyToId ? { id: row.replyToId, text: quote?.text.slice(0, 280) || "原消息已超出当前历史范围" } : null, imageIds: row.imageIds, steps: row.steps, references: row.references, error: row.error, ...(runId ? { runId } : {}),...(requestId?{requestId}:{}),...(question?{question:{id:question.id,text:question.text}}:{}),
-    ...(row.state === "error" && row.error && /^(本次请求的上下文已满|本次上下文或照片较多|本轮内容超出可处理范围|本轮照片超出可处理范围)/.test(row.error)
-      ? { contextLimited: true } : {}),
+    ...(isContextLimited(row) ? { contextLimited: true } : {}),
     ...(row.role==="user"&&row.supplementalAnswer?.answers.length?{
       answeredQuestions:row.supplementalAnswer.answers.map(({prompt,value,skipped,outcome,fieldKey})=>({
         prompt,value,skipped,...(outcome?{outcome}:{}),...(fieldKey?.startsWith("food.amount:")?{label:fieldKey.slice(12)}:{}),
@@ -252,14 +305,20 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
     const recentRequests = await tx.select({ id: run.id }).from(run).where(and(eq(run.userId, userId), gt(run.createdAt, new Date(Date.now() - 60000)))).limit(20);
     if (recentRequests.length >= 20) throw new ApiError(429, "chat_rate_limit", "发送得有些频繁，请一分钟后重试。当前输入保留。");
     const [current] = await tx.select().from(conversation).where(and(eq(conversation.id,input.conversationId),eq(conversation.userId,userId),eq(conversation.purpose,input.mealTask?"meal_entry":"chat"),eq(conversation.active,!input.mealTask)));
-    if (!current || current.context?.cancelled) throw new ApiError(404, "not_found", "当前会话已变化，请重新读取。");
+    if (!current || (isMealTaskContext(current.context) && current.context.cancelled)) throw new ApiError(404, "not_found", "当前会话已变化，请重新读取。");
     if (!providerConfigured(input.provider)) throw new ApiError(503, "model_unavailable", "此模型暂不可用，请选择其他模型。");
+    const pendingQuoteId = pendingContextQuoteId(current.context);
+    let useContextQuote = false;
     let seq = current.sequence, question: StoredMessage, answer: StoredMessage;
     let retainedAttachments: Pick<NonNullable<StoredRun["executionInput"]>,"attachmentSourceId"|"attachmentImageIds"|"photoBatchOf"> | undefined;
     if (input.imageSubset && (input.action !== "retry" || input.mealTask)) throw new ApiError(400,"invalid_image_subset","请从需要分批的原消息选择照片。");
     if (input.action === "send") {
       if (!input.followup && !input.text?.trim() && !input.imageIds?.length) throw new ApiError(400, "empty_message", "请输入内容或选择照片。");
-      if (input.replyToId) {
+      if (input.replyToId && input.replyToId === pendingQuoteId && !input.mealTask && current.sequence === 0) {
+        const reference = await resolveContextQuote(tx, userId, input.replyToId);
+        if (!reference) throw new ApiError(404, "quote_unavailable", "原消息已不可用，请移除引用后发送。");
+        useContextQuote = true;
+      } else if (input.replyToId) {
         const allowed = await tx.select({ id: message.id,role:message.role,state:message.state }).from(message).where(and(eq(message.userId, userId), eq(message.conversationId, current.id))).orderBy(desc(message.seq)).limit(50);
         if (!allowed.some(row => row.id === input.replyToId&&row.role==="assistant"&&row.state==="complete")) throw new ApiError(404, "quote_unavailable", "引用消息不在当前可用历史中，请取消引用或补充说明。");
       }
@@ -288,6 +347,7 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
       const [previous] = await tx.select().from(run).where(and(eq(run.userId, userId), eq(run.assistantMessageId, original.id))).orderBy(desc(run.createdAt)).limit(1);
       [question] = await tx.select().from(message).where(and(eq(message.userId,userId),eq(message.conversationId,current.id),eq(message.id,previous?.userMessageId??"")));
       if (!question) throw new ApiError(404,"not_found","原始问题已不可用。");
+      useContextQuote = previous?.executionInput?.contextQuote === true;
       if (previous?.executionInput) {
         const {attachmentSourceId,attachmentImageIds,photoBatchOf} = previous.executionInput;
         retainedAttachments = {attachmentSourceId,attachmentImageIds,...(photoBatchOf?{photoBatchOf}:{})};
@@ -310,10 +370,10 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
       if (input.action === "continue" && original.provider === input.provider) [answer] = await tx.update(message).set({ state: "working", error: null }).where(eq(message.id, original.id)).returning();
       else [answer] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "assistant", state: "working", provider: input.provider }).returning();
     }
-    await tx.update(conversation).set({ sequence: seq, provider: input.provider, updatedAt: new Date() }).where(eq(conversation.id, current.id));
+    await tx.update(conversation).set({ sequence: seq, provider: input.provider, updatedAt: new Date(), ...(pendingQuoteId && input.action === "send" ? { context: null } : {}) }).where(eq(conversation.id, current.id));
     const recognitionId = input.mealTask ? await prepareRecognition(tx, current, digestChat({ text: input.text ?? "", images: input.imageIds ?? [] }), !!input.followup) : null;
     const [created] = await tx.insert(run).values({ id: randomUUID(), userId, conversationId: current.id, userMessageId: question.id, assistantMessageId: answer.id, requestId: input.requestId, requestDigest, provider: input.provider, model: chatProviders[input.provider].model, recognitionId,
-      executionInput: {action:input.action,requestId:input.requestId,provider:input.provider,conversationId:input.conversationId,timezone:input.timezone,...(input.messageId?{messageId:input.messageId}:{}),...(input.mealTask?{mealTask:true}:{}),...(retainedAttachments??await chatAttachmentBinding(tx as unknown as Database,userId,question,input.followup?current.followup?.messageId:undefined))}
+      executionInput: {action:input.action,requestId:input.requestId,provider:input.provider,conversationId:input.conversationId,timezone:input.timezone,...(input.messageId?{messageId:input.messageId}:{}),...(input.mealTask?{mealTask:true}:{}),...(useContextQuote ? { contextQuote: true as const } : {}),...(retainedAttachments??await chatAttachmentBinding(tx as unknown as Database,userId,question,input.followup?current.followup?.messageId:undefined))}
     }).returning();
     return { row: created, started: true };
   });
@@ -338,7 +398,7 @@ export async function removeChatConversation(db: Database, userId: string, id: s
   });
 }
 
-export async function controlChat(db: Database, userId: string, input: { action: "select_model" | "new" | "stop" | "enable" | "revoke" | "clear_followup" | "select_conversation"; conversationId?:string; provider?: ChatProvider; runId?: string; mealTaskId?: string }) {
+export async function controlChat(db: Database, userId: string, input: { action: ChatControlAction; conversationId?: string; provider?: ChatProvider; runId?: string; mealTaskId?: string; contextQuoteId?: string }) {
   const purpose = input.mealTaskId ? "meal_entry" : "chat";
   if (input.action === "stop") await requireActiveAccount(db, userId); else await requireChatAccount(db, userId, purpose);
   if (!input.mealTaskId) await currentConversation(db, userId, input.action === "stop");
@@ -364,10 +424,21 @@ export async function controlChat(db: Database, userId: string, input: { action:
     }
     if (input.action === "select_model") { const provider = providerId(input.provider); if (!providerConfigured(provider)) throw new ApiError(503, "model_unavailable", "该模型暂不可用。"); await tx.update(conversation).set({ provider }).where(eq(conversation.id, current.id)); }
     if (input.action === "clear_followup") await tx.update(conversation).set({ followup: null }).where(eq(conversation.id, current.id));
-    if (input.action === "new") {
+    if (input.action === "new" || input.action === "clear_context_quote") {
       if (input.mealTaskId) throw new ApiError(400, "invalid_action", "饮食识别使用当前餐次任务。");
-      await tx.update(conversation).set({ active: false }).where(and(eq(conversation.userId, userId), eq(conversation.purpose,"chat"), eq(conversation.active, true)));
-      await tx.insert(conversation).values({ id: randomUUID(), userId, provider: currentProvider(providerId(current.provider)) });
+      if (input.conversationId && input.conversationId !== current.id) throw new ApiError(409, "conversation_changed", "当前会话已变化，请重新读取。");
+      if (input.action === "clear_context_quote") {
+        if (pendingContextQuoteId(current.context)) await tx.update(conversation).set({ context: null }).where(eq(conversation.id, current.id));
+      } else {
+        if (input.contextQuoteId && !await resolveContextQuote(tx, userId, input.contextQuoteId, current.id)) {
+          throw new ApiError(404, "quote_unavailable", "原消息已不可用。");
+        }
+        await tx.update(conversation).set({ active: false }).where(eq(conversation.id, current.id));
+        await tx.insert(conversation).values({
+          id: randomUUID(), userId, provider: currentProvider(providerId(current.provider)),
+          context: input.contextQuoteId ? { contextQuoteId: input.contextQuoteId } : null,
+        });
+      }
     }
     if (input.action === "revoke" || input.action === "enable") {
       const grantPurpose = purpose === "meal_entry" && !accountEntitlements(owner).chat ? "meal_entry" : "chat";

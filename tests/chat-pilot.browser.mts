@@ -90,7 +90,10 @@ try{
  let ready=false;for(let attempt=0;attempt<100;attempt++){assert.equal(child.exitCode,null);try{const probeResponse=await fetch(`http://127.0.0.1:${port}`,{redirect:"manual"});if(probeResponse.ok||process.env.FORMWARD_CHAT_PREVIEW==="1"&&probeResponse.status>=300&&probeResponse.status<500){ready=true;break;}}catch{}await new Promise(resolve=>setTimeout(resolve,250));}assert.ok(ready,"隔离正式构建应可启动");
  if(release){const response=await fetch(baseURL+"/api/internal/readiness",{headers:{Authorization:"Bearer fictional-readiness-secret-for-isolated-chat-build"}});assert.equal(response.status,200);assert.equal((await response.json()).schema,JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")).entries.at(-1).tag);}
  process.env.FORMWARD_CHAT_BROWSER_CONFIG=config;process.env.FORMWARD_CHAT_ARTIFACTS=artifacts;
- if (process.env.FORMWARD_CHAT_EXPERIENCE === "1") {
+ if (process.env.FORMWARD_CHAT_CONTEXT_RECOVERY === "1") {
+   const {runAssistantContextRecovery} = await import("./assistant-context-recovery.driver.mjs");
+   await runAssistantContextRecovery(db);
+ } else if (process.env.FORMWARD_CHAT_EXPERIENCE === "1") {
    const {runAssistantExperienceBrowser} = await import("./assistant-experience.driver.mjs");
    await runAssistantExperienceBrowser(db);
  } else if(process.env.FORMWARD_MEMBERSHIP_SMOKE==="1"){const {runMembershipContextSmoke}=await import("./membership-context.driver.mjs");await runMembershipContextSmoke(db);}else if(process.env.FORMWARD_CHAT_RELIABILITY==="1"){const {runChatBackgroundBrowser}=await import("./chat-background.driver.mjs");await runChatBackgroundBrowser(db);}else if(process.env.FORMWARD_ASSISTANT_RECORDING==="1"){const {runAssistantRecordingBrowser}=await import("./assistant-recording.driver.mjs");await runAssistantRecordingBrowser(db);}else if(realCosPath&&process.env.FORMWARD_CHAT_PREVIEW!=="1"){const {checkRealPhotoClient}=await import("./real-photo-client.browser.mjs");await checkRealPhotoClient(db);}else if(process.env.FORMWARD_CHAT_PREVIEW==="1"){console.log(JSON.stringify({baseURL,configPath:config,fictional:true}));await new Promise<void>(done=>{process.once("SIGTERM",done);process.once("SIGINT",done);});}else{const {runChatBrowser}=await import("./chat-pilot.driver.mjs");await runChatBrowser(db);}

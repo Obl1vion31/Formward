@@ -5,7 +5,7 @@ const images = new Map(await Promise.all((fixture.samples??[]).map(async sample=
 const original=globalThis.fetch,allowed=new Set(['maas.qianwenaiapi.com','api.xiaomimimo.com','open.bigmodel.cn']);
 function result(content,calls,slow=false){
  const usage={prompt_tokens:180,completion_tokens:60,prompt_tokens_details:{cached_tokens:40}};
- if(calls)return new Response('data: '+JSON.stringify({choices:[{delta:{tool_calls:calls},finish_reason:'tool_calls'}]})+'\n\ndata: '+JSON.stringify({choices:[],usage})+'\n\ndata: [DONE]\n\n',{headers:{'content-type':'text/event-stream'}});
+ if(calls)return new Response('data: '+JSON.stringify({choices:[{delta:{...(content?{content}:{}),tool_calls:calls},finish_reason:'tool_calls'}]})+'\n\ndata: '+JSON.stringify({choices:[],usage})+'\n\ndata: [DONE]\n\n',{headers:{'content-type':'text/event-stream'}});
  let cancelled=false;return new Response(new ReadableStream({cancel(){cancelled=true;},async start(controller){for(let i=0;i<content.length;i+=slow?4:24){if(cancelled)return;controller.enqueue(new TextEncoder().encode('data: '+JSON.stringify({choices:[{delta:{content:content.slice(i,i+(slow?4:24))},finish_reason:null}]})+'\n\n'));if(slow)await new Promise(resolve=>setTimeout(resolve,100));}if(cancelled)return;controller.enqueue(new TextEncoder().encode('data: '+JSON.stringify({choices:[{delta:{},finish_reason:'stop'}]})+'\n\ndata: '+JSON.stringify({choices:[],usage})+'\n\ndata: [DONE]\n\n'));controller.close();}}),{headers:{'content-type':'text/event-stream'}});
 }
 function call(name,args,suffix=''){return result('',[{index:0,id:'call-'+name+suffix,type:'function',function:{name,arguments:JSON.stringify(args)}}]);}
@@ -17,6 +17,28 @@ globalThis.fetch=async function(input,init){
  }
  if(!allowed.has(url.hostname))return original(input,init);
  const body=JSON.parse(typeof init?.body==='string'?init.body:await input.clone().text()),lastUser=[...body.messages].reverse().find(message=>message.role==='user'),text=typeof lastUser?.content==='string'?lastUser.content:lastUser?.content?.find(part=>part.type==='text')?.text??'';
+ if (text.includes("上下文验收晚餐")) {
+   if(!body.tools.some(tool=>tool.function.name==="preview_meals"))return call("load_tools",{names:["preview_meals"]});
+   if(body.messages.some(message=>message.tool_calls?.some(entry=>entry.function.name==="preview_meals")))return result("〔正文〕隔离回放本应在下一轮前达到上下文上限。");
+   const ids=(String(body.messages[0].content).match(/附件ID：([^。]+)/)?.[1]??"").split("、").filter(id=>/^[a-f0-9-]{36}$/i.test(id));
+   if(ids.length!==2)return new Response("expected exactly two isolated attachment IDs",{status:400});
+   const args={meals:[{date:"today",mealType:"晚餐",timezone:"Asia/Shanghai",imageIds:ids,expectedImageCount:ids.length,
+    foods:[{name:"验收烤鸡",quantity:"150",unit:"g",caloriesKcal:"240",proteinG:"35",carbsG:"4",fatG:"9",sourceKind:"estimated",basis:"虚构样例"},
+           {name:"验收燕麦饮",quantity:"200",unit:"ml",caloriesKcal:"100",proteinG:"2",carbsG:"17",fatG:"3",sourceKind:"estimated",basis:"虚构样例"}]}]};
+   // 模拟工具轮积累的请求体，保留合法JSON和真实预览，下一轮由应用自己的上限判断中断。
+   const calls=[{index:0,id:"context-preview",type:"function",function:{name:"preview_meals",arguments:JSON.stringify(args)+" ".repeat(56500)}}];
+   return result(text.includes("保留正文")?"〔正文〕我已经核对了烤鸡的份量。":"",calls);
+ }
+ if (text === "上下文验收接着问") {
+   const system=String(body.messages[0]?.content);
+   if(!system.includes("上下文验收晚餐")||!system.includes("本轮已有记录保存")||Array.isArray(lastUser?.content))
+    return new Response("expected a bounded text quote with saved status",{status:400});
+   return result("〔正文〕沿用上一问的文字和已保存记录。");
+ }
+ if (text === "上下文验收只看现在") {
+   if(JSON.stringify(body.messages).includes("最早一轮验收标记"))return new Response("expected oldest history to be omitted",{status:400});
+   return result("〔正文〕本次只核对两点。第一，份量已确认。第二，晚餐已归到今天。");
+ }
  if (text === "两张照片已读验收。") {
    const images = Array.isArray(lastUser?.content) ? lastUser.content.filter(part=>part.type==="image_url") : [];
    if (images.length !== 2) return new Response("expected two isolated photos",{status:400});

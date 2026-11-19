@@ -5,6 +5,9 @@ import {PGlite} from "@electric-sql/pglite";
 import {drizzle} from "drizzle-orm/pglite";
 import {migrate} from "drizzle-orm/pglite/migrator";
 import {eq} from "drizzle-orm";
+import {chatContextLimitNotice} from "./chat-model";
+import {fitChatContext} from "./chat-context";
+import type {ProtocolMessage} from "./chat-provider";
 import * as schema from "../../db/schema";
 import type {Database} from "../../db/client";
 import {chatAttachmentBinding,chatImageContent} from "./chat-attachments";
@@ -134,7 +137,7 @@ test("已交给模型的照片遇到后续上下文满载，不再次列为待�
   assert.equal(answer.contextLimited,true);
   assert.equal(answer.photoLimit,undefined);
   assert.equal(answer.text,"两张图的部分结果。");
-  assert.match(answer.error!,/上下文已满/);
+  assert.equal(answer.error,chatContextLimitNotice);
 });
 
 test("本人移出历史后不再可打开、重新激活或重复发送，原文与用量保留",async()=>{
@@ -156,4 +159,87 @@ test("本人移出历史后不再可打开、重新激活或重复发送，原�
   assert.ok(stored.some(message=>message.text==="后台结果已保存"));
   const usage=await db.select().from(schema.assistantUsageRequest).where(eq(schema.assistantUsageRequest.runId,job.row.id));
   assert.equal(usage[0].state,"settled");
+});
+
+test("原会话错误引用只授权本账号，首次发送接续一条引用且原图保持在原会话",async()=>{
+  await db.update(schema.assistantRun).set({createdAt:new Date(Date.now()-120_000)}).where(eq(schema.assistantRun.userId,userId));
+  const photo=await image();
+  const job=await begin({text:"原问题：请核对晚餐详细记录。",imageIds:[photo.id]});
+  const sourceId=job.row.assistantMessageId, origin=job.row.conversationId;
+  await db.update(schema.assistantRun).set({state:"error"}).where(eq(schema.assistantRun.id,job.row.id));
+  await db.update(schema.assistantMessage).set({state:"error",text:"已核对的部分。",error:"本次请求的上下文已满。"}).where(eq(schema.assistantMessage.id,sourceId));
+  const emptyBefore=(await db.select().from(schema.assistantUsageRequest)).length;
+  const [newResult, repeated] = await Promise.allSettled([
+    controlChat(db,userId,{action:"new",conversationId:origin,contextQuoteId:sourceId}),
+    controlChat(db,userId,{action:"new",conversationId:origin,contextQuoteId:sourceId}),
+  ]);
+  assert.equal([newResult,repeated].filter(result=>result.status==="fulfilled").length,1);
+  assert.equal([newResult,repeated].filter(result=>result.status==="rejected").length,1);
+  const snapshot=await chatSnapshot(db,userId),target=snapshot.conversationId;
+  assert.notEqual(target,origin);
+  assert.equal(snapshot.messages.length,0);
+  assert.equal(snapshot.pendingContextQuote?.id,sourceId);
+  assert.match(snapshot.pendingContextQuote!.text!,/原问题：请核对晚餐详细记录。/);
+  assert.match(snapshot.pendingContextQuote!.text!,/已核对的部分。/);
+  assert.deepEqual((await chatSnapshot(db,userId)).pendingContextQuote,snapshot.pendingContextQuote);
+  assert.equal((await db.select().from(schema.assistantUsageRequest)).length,emptyBefore);
+
+  const sent=await startChatRun(db,userId,{...job.input,conversationId:target,requestId:randomUUID(),imageIds:[],text:"只回答新版续问。",replyToId:sourceId});
+  assert.equal(sent.row.executionInput?.contextQuote,true);
+  assert.deepEqual(sent.row.executionInput?.attachmentImageIds,[]);
+  assert.equal((await chatSnapshot(db,userId)).pendingContextQuote,undefined);
+  const claimed=await claimChatJob(db,"worker-context-quote");
+  await executeChatJob(db,claimed!,new AbortController().signal,{fetcher:async (_url,init)=>{
+    const body=JSON.parse(String(init?.body));
+    const prompt=body.messages[0].content;
+    assert.match(prompt,/原问题：请核对晚餐详细记录。/);
+    assert.match(prompt,/已核对的部分。/);
+    assert.ok(!JSON.stringify(body).includes(photo.id));
+    assert.equal(body.messages.filter((item:ProtocolMessage)=>item.role==="user").length,1);
+    return completion("〔正文〕这次只答新问题。");
+  }});
+  const after=await chatSnapshot(db,userId);
+  assert.equal(after.messages.at(-1)?.text,"这次只答新问题。");
+  assert.equal(after.messages[0].replyTo?.contextQuote,true);
+  assert.deepEqual((await chatSnapshot(db,userId,undefined,undefined,origin)).messages[0].imageIds,[photo.id]);
+
+  await db.update(schema.user).set({membershipTier:"plus"}).where(eq(schema.user.id,other));
+  try{
+    const otherChat=await currentConversation(db,other);
+    await assert.rejects(()=>controlChat(db,other,{action:"new",conversationId:otherChat.id,contextQuoteId:sourceId}),/原消息已不可用/);
+    await assert.rejects(()=>startChatRun(db,other,{...job.input,conversationId:otherChat.id,requestId:randomUUID(),imageIds:[],replyToId:sourceId}),/引用消息不在/);
+  }finally{await db.update(schema.user).set({membershipTier:"free"}).where(eq(schema.user.id,other));}
+
+  await controlChat(db,userId,{action:"select_conversation",conversationId:origin});
+  await controlChat(db,userId,{action:"new",conversationId:origin,contextQuoteId:sourceId});
+  const next=(await currentConversation(db,userId)).id;
+  await removeChatConversation(db,userId,origin);
+  assert.deepEqual((await chatSnapshot(db,userId)).pendingContextQuote,{id:sourceId,text:null});
+  await assert.rejects(()=>startChatRun(db,userId,{...job.input,conversationId:next,requestId:randomUUID(),imageIds:[],replyToId:sourceId}),/原消息已不可用/);
+  await controlChat(db,userId,{action:"clear_context_quote",conversationId:next});
+  assert.equal((await chatSnapshot(db,userId)).pendingContextQuote,undefined);
+  const plain=await startChatRun(db,userId,{...job.input,conversationId:next,requestId:randomUUID(),imageIds:[],text:"普通发送。"});
+  assert.equal(plain.row.executionInput?.contextQuote,undefined);
+  await controlChat(db,userId,{action:"stop",runId:plain.row.id});
+});
+
+test("历史省略和工具明细精简分开计量，原始查询结果保留",()=>{
+  const build=(messages:ProtocolMessage[])=>({messages});
+  const current:ProtocolMessage[]=[{role:"user",content:"请列出每日明细。"}];
+  const older:ProtocolMessage[][]=[[{role:"user",content:"最早记录"+"早".repeat(67000)}]];
+  const normal=fitChatContext(build,older,current,"",()=>"",0);
+  assert.equal(normal.fits,true);
+  assert.equal(normal.history.length,0);
+  assert.equal(normal.detailLimit,undefined);
+  const records=Array.from({length:16},(_,n)=>({date:"日 "+(n+1),notes:"示".repeat(870)}));
+  const tool:ProtocolMessage={role:"tool",tool_call_id:"fixture",content:JSON.stringify({records,total:16})};
+  const partial=fitChatContext(build,[],[...current,tool],"x".repeat(168000),()=>"",0);
+  assert.equal(partial.fits,true);
+  assert.equal(partial.detailLimit,8);
+  const result=JSON.parse(String(partial.body.messages.at(-1)?.content));
+  assert.equal(result.records.length,8);
+  assert.equal(result.total,16);
+  assert.equal(result.omittedFromContext.records,8);
+  assert.match(result.contextNote,/实际日期或明细范围/);
+  assert.equal(JSON.parse(String(tool.content)).records.length,16);
 });

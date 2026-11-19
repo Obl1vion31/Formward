@@ -84,7 +84,7 @@ function ChatPhoto({id,local,confirmed,onHandoff}: {
 }
 
 export function ChatMessageBody({message,inlinePreviews,historical=false,followup,jump,navigate,children,timing,answers,
-  previews,onPhotoHandoff,sendStatus,photoActions,continuation=false,actions}: {
+  previews,onPhotoHandoff,sendStatus,photoActions,contextActions,continuation=false,actions}: {
   message:ChatMessage;
   inlinePreviews:boolean;
   historical?:boolean;
@@ -98,6 +98,7 @@ export function ChatMessageBody({message,inlinePreviews,historical=false,followu
   onPhotoHandoff?:(id:string)=>void;
   sendStatus?:ReactNode;
   photoActions?:ReactNode;
+  contextActions?:ReactNode;
   continuation?:boolean;
   actions?:ReactNode;
 }) {
@@ -114,9 +115,11 @@ export function ChatMessageBody({message,inlinePreviews,historical=false,followu
       <span>{user?"你":message.provider?roles[message.provider]:"小助手"}</span>
       {time}
     </div>}
-    {message.replyTo && <button type="button" className={styles.messageQuote} onClick={()=>jump(message.replyTo!.id)}>
-      <Glyph name="quote"/><span>{message.replyTo.text}</span>
-    </button>}
+    {message.replyTo && (message.replyTo.contextQuote
+      ? <div className={styles.messageQuote}><Glyph name="quote"/><span>{message.replyTo.text}</span></div>
+      : <button type="button" className={styles.messageQuote} onClick={()=>jump(message.replyTo!.id)}>
+        <Glyph name="quote"/><span>{message.replyTo.text}</span>
+      </button>)}
     {!user && <ToolProgress message={message} timing={timing} time={continuation ? time : undefined}/>}
     {message.imageIds.length>0 && <div className={styles.images}>{message.imageIds.map(id=><ChatPhoto key={id} id={id}
       local={previews?.photos.find(photo=>photo.id===id)?.preview}
@@ -128,7 +131,8 @@ export function ChatMessageBody({message,inlinePreviews,historical=false,followu
     {answers?.length ? <AnswerSummary answers={answers} inline/> : null}
     {children}
     {ids.length>0 && <ChatPreviewCards ids={ids} navigate={navigate} readOnly={historical}/>}
-    {photoActions ?? (message.error && <p className={styles.failure} role={historical?undefined:"alert"}>{message.error}</p>)}
+    {message.detailLimit && <p className={styles.detailCoverage}>本次查询中，较长的明细列表只核对了前 {message.detailLimit} 项。</p>}
+    {photoActions ?? contextActions ?? (message.error && <p className={styles.failure} role={historical?undefined:"alert"}>{message.error}</p>)}
     {(references.length > 0 || actions) && <footer className={styles.messageFooter} data-has-references={references.length > 0 || undefined}>
       {references.length > 0 && <div className={styles.references}>{references.map(reference =>
         <LoadingLink key={reference.href} href={reference.href} prefetch={false} beforeNavigate={navigate}>

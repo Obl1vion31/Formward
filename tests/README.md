@@ -469,3 +469,5 @@ MFA专项使用真实Better Auth插件验证绑定、错误动态码、恢复码
 
 
 小助手交互候选由 `test:chat-browser` 的 `FORMWARD_CHAT_EXPERIENCE=1` 运行。使用 `FORMWARD_CHAT_FIXTURE_PHOTO` 提供本机虚构 PNG，`FORMWARD_LOCAL_PREVIEW=1` 保持隔离标识。驱动覆盖完整发图、计时、流式正文、跳过、刷新恢复和同会话多图分批，并保存整屏 PNG、原始 WebM 与步骤时间。`FORMWARD_EXPERIENCE_CASE=composer` 单独运行两端输入、触摸、菜单和额度验收。接近用完与耗尽用隔离 PostgreSQL 账本，跨日使用浏览器时钟与隔离回放。原生库和浏览器路径使用现有隔离参数。浏览器模拟键盘与真机证据分别记录。
+
+小助手上下文中断验收使用 `FORMWARD_CHAT_CONTEXT_RECOVERY=1` 运行 `tests/chat-pilot.browser.mts`。指定 `FORMWARD_TEST_RELEASE`、`FORMWARD_CHAT_NATIVE=1` 与虚构样例照片后，可用 `CHAT_BROWSER=chromium` 或 `webkit` 复现保存、中断、引用、换会话、历史精简及选图边界。报告和实录写入 `FORMWARD_CHAT_ARTIFACTS`。

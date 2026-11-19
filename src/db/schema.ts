@@ -661,7 +661,7 @@ export const assistantConnection = pgTable("assistant_connections", {
 export const assistantConversation = pgTable("assistant_conversations", {
   purpose:text("purpose").notNull().default("chat"),
   removedAt: timestamp("removed_at", { withTimezone: true }),
-  context:jsonb("context").$type<import("../features/assistant/chat-model").MealTaskContext|null>(),
+  context:jsonb("context").$type<import("../features/assistant/chat-model").ChatStoredContext|null>(),
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),
   provider: text("provider").notNull().default("qwen"), active: boolean("active").notNull().default(true), sequence: integer("sequence").notNull().default(0),
   followup: jsonb("followup").$type<import("../features/assistant/chat-model").Followup | null>(),

@@ -1,3 +1,4 @@
+import { isMealTaskContext, type MealTaskContext } from "./chat-model";
 import { submissionSourceResolver } from "../auth/ai-access-overview";
 import type {EnergyPreview} from "../activities/model";
 import { type RecordAction } from "../records/model";
@@ -125,7 +126,7 @@ export async function readAssistantContext(db: Database, user: { id: string; cre
   const chatPreviews=new Set(answers.flatMap(answer=>answer.references.flatMap(ref=>ref.kind==="preview"&&ref.operationId?[ref.operationId]:[])));
   for(const item of reviews){
     const id=item.action.href.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0];if(!id)continue;
-    const task=tasks.find(task=>task.context?.previewId===id&&!task.context.cancelled);
+    const task=tasks.find((task):task is typeof task & {context:MealTaskContext}=>isMealTaskContext(task.context)&&task.context.previewId===id&&!task.context.cancelled);
     if(task?.context&&chatAllowed(user)&&chatCapabilities().mealEntry)item.action={label:"核对并保存",href:"/dashboard/meals?entry=1&date="+encodeURIComponent(task.context.draft.date)+"&aiTask="+task.id};
     else if(chatPreviews.has(id)&&chatAllowed(user)&&chatCapabilities().inlinePreviews)item.action={...item.action,previewId:id};
   }

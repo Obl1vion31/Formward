@@ -398,3 +398,49 @@
 .batchPhotos input { position: absolute; inset-inline-end: 5px; inset-block-end: 5px; inline-size: 18px; block-size: 18px; accent-color: var(--action-fill); }
 .batch button { margin-top: 8px; padding: 6px 12px; background: var(--action-fill); color: var(--action-ink); }
 @media (prefers-reduced-motion: reduce) { .message[data-new-message=true] { animation: none; } }
+
+.contextRecovery {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.contextRecovery p, .detailCoverage {
+  font-size: .875rem;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0;
+}
+.detailCoverage { margin-top: 10px; }
+.contextRecovery > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.contextRecovery button {
+  border: 1px solid var(--control-border);
+  border-radius: 9px;
+  padding: 8px 14px;
+  max-width: 100%;
+}
+.contextRecovery button:first-child {
+  border-color: transparent;
+  color: var(--surface);
+  background: color-mix(in srgb, var(--warm-white) 75%, var(--surface));
+}
+.contextRecovery button:first-child:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--warm-white) 83%, var(--surface));
+}
+.contextQuoteSummary {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  padding-block: 4px;
+  font-size: .8125rem;
+  color: var(--muted);
+}
+.contextQuoteSummary span:last-child {
+  color: var(--warm-white);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}

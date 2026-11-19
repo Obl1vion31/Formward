@@ -3,7 +3,7 @@ import {choosePhotoRoute,type PhotoRegion,type PhotoRoute} from "../meals/photo-
 import { resolveSupplement,type FollowupSubmission } from "./followup";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { AccountEntitlements } from "../auth/entitlements";
-import type { ChatEvent, ChatMessage, ChatProvider, ChatSnapshot } from "./chat-model";
+import type { ChatControlAction, ChatEvent, ChatMessage, ChatProvider, ChatSnapshot } from "./chat-model";
 import {uploadPrivateMealPhoto,stagePrivateMealPhoto,PhotoTransferError,type PhotoUploadPhase} from "../meals/photo-upload";
 import { confirmAction } from "../../components/confirmation-state";
 export type DraftPhoto={key:string;id?:string;name:string;file:File;preview?:string;phase:PhotoUploadPhase|"queued"|"error";percent:number;label:string;error?:string;canRelay?:boolean;region?:PhotoRegion;route?:Promise<PhotoRoute>};
@@ -55,7 +55,7 @@ type ChatClient = {
   retryOutgoing: (id:string) => Promise<boolean>;
   restoreOutgoing: (id:string) => Promise<void>;
   releaseSentPreview: (id:string,imageId:string) => void;
-  control: (action: "select_model" | "new" | "stop" | "enable" | "revoke" | "clear_followup" | "select_conversation" | "remove_conversation", provider?: ChatProvider, conversationId?:string) => Promise<boolean>;
+  control: (action: ChatControlAction | "remove_conversation", provider?: ChatProvider, conversationId?: string, contextQuoteId?: string) => Promise<boolean>;
   addPhotos: (files: File[]) => Promise<void>;
 };
 const Context = createContext<ChatClient | null>(null);
@@ -236,7 +236,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   useEffect(() => { if (!loading && delayed) { const frame = requestAnimationFrame(() => setDelayed(false)); return () => cancelAnimationFrame(frame); } }, [loading, delayed]);
   const unsent = [...outgoing.values()].some(item=>item.phase==="error");
   useEffect(() => { if (!draft.trim() && !photos.length && !unsent) return; const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; }; window.addEventListener("beforeunload", protect); return () => window.removeEventListener("beforeunload", protect); }, [draft, photos, unsent]);
-  async function control(action: Parameters<ChatClient["control"]>[0], provider?: ChatProvider, conversationId?:string) {
+  async function control(action: Parameters<ChatClient["control"]>[0], provider?: ChatProvider, conversationId?: string, contextQuoteId?: string) {
     if ((!canChat && action !== "stop" && action !== "remove_conversation") || mutating.current) return false;
     if((action==="select_conversation"||action==="new")&&(running||uploading))return false;
     if (action === "remove_conversation" && [...outbox.current.values()].some(item =>
@@ -245,14 +245,19 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
       setError("这段对话有未发出的消息。请先处理该消息再删除。");
       return false;
     }
-    if (action === "new" && (draft.trim() || photos.length || messages.some(row => row.references.some(ref => ref.kind === "preview")))) {
-      if (!await confirmAction({ title: "开始新对话？", message: "当前输入将清空，已有提交仍可在AI提交记录中查看和确认。", confirmLabel: "开始新对话", cancelLabel: "继续当前对话" })) return false;
+    if (action === "new" && (draft.trim() || quote || photos.length || !conversationId && messages.some(row => row.references.some(ref => ref.kind === "preview")))) {
+      if (!await confirmAction({ title: "开始新对话？", message: "当前草稿会留在原对话，已有提交仍可查看和确认。", confirmLabel: "开始新对话", cancelLabel: "继续当前对话" })) return false;
     }
     if (action === "revoke" && !await confirmAction({ title: "撤销站内授权？", message: "此模型将停止访问，原待确认提交也不能继续保存。", confirmLabel: "撤销授权", danger: true })) return false;
+    if (mutating.current) return false;
     mutating.current = true; setManaging(true); generation.current++;
     try {
-      setError(""); const response = await fetch("/api/assistant-chat/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...(conversationId?{conversationId}:{}), ...(provider ? { provider } : {}), ...(action === "stop" ? { runId: current.current?.activeRunId } : {}) }) });
-      const payload = await response.json(); if (!response.ok) throw Error(payload.error ?? "操作未完成。");
+      setError(""); const response = await fetch("/api/assistant-chat/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...(conversationId?{conversationId}:{}), ...(contextQuoteId ? {contextQuoteId} : {}), ...(provider ? { provider } : {}), ...(action === "stop" ? { runId: current.current?.activeRunId } : {}) }) });
+      const payload = await response.json();
+      if (!response.ok) {
+        if (payload.code === "conversation_changed" || payload.code === "quote_unavailable") await read();
+        throw Error(payload.error ?? "操作未完成。");
+      }
       if (action === "new" || action === "select_conversation") {
         if (current.current) savedDrafts.current.set(current.current.conversationId, {
           draft, quote, photos: [...photoState.current], scroll: { ...scroll.current },
@@ -328,6 +333,10 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     const snapshot = current.current;
     if (!snapshot || request.current || mutating.current || snapshot.activeRunId || !canChat) return false;
     const ordinary = action === "send" && !followup;
+    const contextQuote = ordinary ? snapshot.pendingContextQuote : undefined;
+    if (contextQuote?.text === null) return false;
+    const reply = contextQuote?.text ? { id: contextQuote.id, text: contextQuote.text, contextQuote: true as const }
+      : quote ? { id: quote.id, text: quote.text } : null;
     const captured = ordinary ? [...photoState.current] : [];
     if (ordinary && ((!draft.trim() && !captured.length) || captured.some(photo=>photo.phase!=="ready"||!photo.id))) return false;
     try { if (followup) resolveSupplement(snapshot.followup,followup); }
@@ -335,7 +344,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
 
     const payload = {
       action,provider:snapshot.provider,conversationId:snapshot.conversationId,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,
-      ...(ordinary?{text:draft,imageIds:[...new Set(captured.map(photo=>photo.id!))],...(quote?{replyToId:quote.id}:{})}:
+      ...(ordinary?{text:draft,imageIds:[...new Set(captured.map(photo=>photo.id!))],...(reply ? {replyToId:reply.id} : {})}:
         followup?{followup}:{messageId,...(options?.imageSubset?{imageSubset:options.imageSubset}:{})}),
     };
     const signature = JSON.stringify(payload);
@@ -347,7 +356,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     const local:OutgoingMessage = {
       body,photos:captured,quote,viewport:options?.viewport,phase:"sending",
       message:{id:"local-"+body.requestId,requestId:body.requestId,seq:(messages.at(-1)?.seq??0)+1,role:"user",text:draft,
-        provider:null,state:"complete",createdAt:new Date().toISOString(),replyTo:quote?{id:quote.id,text:quote.text}:null,
+        provider:null,state:"complete",createdAt:new Date().toISOString(),replyTo:reply,
         imageIds:body.imageIds??[],steps:[],references:[],error:null},
     };
     setDraft("");

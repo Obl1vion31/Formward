@@ -17,7 +17,7 @@ import { withAiFieldDefinitions } from "../records/ai-field-definitions";
 import { recordAiResponse } from "../records/ai-response";
 import { reviewWebRecord } from "../records/web-review";
 import { chatSnapshot, digestChat, requireChatAccount, startChatRun, controlChat, type ChatSend } from "./chat-store";
-import { chatProviderIds, type ChatProvider, type MealTaskContext } from "./chat-model";
+import { chatProviderIds, isMealTaskContext, type ChatProvider, type MealTaskContext } from "./chat-model";
 import { followupSubmissionSchema } from "./followup";
 
 export const mealTaskDraftSchema=mealDraftSchema.extend({items:z.array(itemSchema).max(50)});
@@ -31,7 +31,7 @@ export const mealTaskInputSchema=z.discriminatedUnion("action",[
 export async function getMealTask(db:Database,userId:string,id:string){
  await requireChatAccount(db,userId,"meal_entry");if(!chatCapabilities().mealEntry)throw new ApiError(403,"meal_ai_disabled","饮食 AI 录入暂未开放，已有提交可在原审核页面查看。");
  const [task]=await db.select().from(assistantConversation).where(and(eq(assistantConversation.id,id),eq(assistantConversation.userId,userId),eq(assistantConversation.purpose,"meal_entry")));
- if(!task?.context)throw new ApiError(404,"task_unavailable","此饮食任务不存在或不属于当前账号。");
+ if(!task || !isMealTaskContext(task.context))throw new ApiError(404,"task_unavailable","此饮食任务不存在或不属于当前账号。");
  return task as typeof task&{context:MealTaskContext};
 }
 async function ownedImages(db:Database,userId:string,ids:string[]){
@@ -47,7 +47,7 @@ export async function createMealTask(db:Database,userId:string,draftKey:string,d
  return db.transaction(async tx=>{
   await lockOwner(tx,userId);
   const [old]=await tx.select().from(assistantConversation).where(and(eq(assistantConversation.userId,userId),eq(assistantConversation.purpose,"meal_entry"),sql`${assistantConversation.context}->>'draftKey'=${draftKey}`)).orderBy(desc(assistantConversation.createdAt)).limit(1);
-  if(old?.context&&!old.context.cancelled){
+  if(old && isMealTaskContext(old.context) && !old.context.cancelled){
    const [busy]=await tx.select({id:assistantRun.id}).from(assistantRun).where(and(eq(assistantRun.conversationId,old.id),eq(assistantRun.state,"running")));
    if(busy)throw new ApiError(409,"chat_busy","本餐正在识别，请先完成或停止。");
    if(old.context.draft.id!==draft.id)throw new ApiError(409,"task_changed","本餐任务不匹配，请重新打开。");
@@ -94,7 +94,7 @@ async function createMealTaskPreviewLocked(db:Database,identity:AiIdentity,taskI
   operation=await extendAiRecordPreview(db,identity,current.id,undefined,current.revision,[{key:row.key,...action}],[],parsed.operationId,digestChat({taskId,action}));
  }else operation=await submitRecordOperation(db,identity,{operationId:parsed.operationId,items:[{key:"meal",...action}]},context.draft.timezone??undefined);
  const [latest]=await db.select().from(assistantConversation).where(eq(assistantConversation.id,task.id));
- if(latest.context?.cancelled)throw new ApiError(409,"task_closed","本次识别已取消，未保存正式记录。");
+ if(isMealTaskContext(latest.context) && latest.context.cancelled)throw new ApiError(409,"task_closed","本次识别已取消，未保存正式记录。");
  await db.update(assistantConversation).set({context:{...latest.context!,previewId:operation.id,previewProvider:provider??task.provider as ChatProvider}}).where(and(eq(assistantConversation.id,task.id),eq(assistantConversation.userId,identity.userId)));
  return withAiFieldDefinitions("preview_meals",recordAiResponse(operation));
 }

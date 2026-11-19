@@ -14,7 +14,7 @@ import { assertChatAllowed } from "@/features/assistant/chat-config";
 import { chatProviderIds } from "@/features/assistant/chat-model";
 import { chatSnapshot, controlChat, removeChatConversation } from "@/features/assistant/chat-store";
 import { abortChatRun } from "@/features/assistant/chat-runtime";
-const controlSchema = z.object({ action: z.enum(["select_model", "new", "stop", "enable", "revoke", "clear_followup", "select_conversation"]), conversationId:z.string().uuid().optional(), provider: z.enum(chatProviderIds).optional(), runId: z.string().uuid().optional() }).strict();
+const controlSchema = z.object({ action: z.enum(["select_model", "new", "stop", "enable", "revoke", "clear_followup", "select_conversation", "clear_context_quote"]), conversationId:z.string().uuid().optional(), contextQuoteId:z.string().uuid().optional(), provider: z.enum(chatProviderIds).optional(), runId: z.string().uuid().optional() }).strict().refine(value => (!value.contextQuoteId || value.action === "new" && !!value.conversationId) && (value.action !== "clear_context_quote" || !!value.conversationId));
 const schema=z.union([controlSchema,z.object({action:z.literal("remove_conversation"),conversationId:z.string().uuid()}).strict(),z.object({action:z.literal("review_preview"),previewId:z.string().uuid(),review:recordReviewActionSchema}).strict(),z.object({action:z.literal("remove_preview_source"),previewId:z.string().uuid(),domain:z.enum(["body","energy"]),label:z.string().trim().min(1).max(200)}).strict()]);
 const headers = { "Cache-Control": "private, no-store" };
 export async function POST(request: Request) {

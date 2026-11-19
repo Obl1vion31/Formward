@@ -5,3 +5,5 @@
 select_conversation通过conversationId激活本人chat会话，复用账号锁及生成中拒绝，跨账号与饮食任务拒绝；旧消息、授权和费用不修改。
 
 remove_conversation 使用同源人工会话及账号锁，按编号将本人聊天移出历史。生成中的目标先停止，重复移出按已有结果处理。当前目标移出后建新会话，原消息、已保存与待核对记录和用量保留。阅读、激活、运行订阅和旧请求重试按移除状态拒绝。
+
+上下文中断后的 new 可传当前 conversationId 和本人中断回复的 contextQuoteId，账号锁内核对来源后创建会话。新会话的首条发送复用 replyToId 校验；clear_context_quote 带当前 conversationId 清除待发送引用。创建和清除只改变聊天会话。

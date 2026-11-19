@@ -1,6 +1,7 @@
 import { CHAT_IMAGE_INPUT_COST, CHAT_INPUT_LIMIT, estimatedChatInput } from "./chat-store";
 import type { ProtocolMessage } from "./chat-provider";
 
+const detailLimit = 8;
 const toolLists = new Set(["days","foods","plans","sessions","records","items","activities","candidates"]);
 
 function compactToolMessage(message: ProtocolMessage): ProtocolMessage {
@@ -9,13 +10,13 @@ function compactToolMessage(message: ProtocolMessage): ProtocolMessage {
   const omitted: Record<string,number> = {};
   const compact = {...result};
   for (const [key, value] of Object.entries(result)) {
-    if (!toolLists.has(key) || !Array.isArray(value) || value.length <= 8) continue;
-    omitted[key] = value.length - 8;
-    compact[key] = value.slice(0,8);
+    if (!toolLists.has(key) || !Array.isArray(value) || value.length <= detailLimit) continue;
+    omitted[key] = value.length - detailLimit;
+    compact[key] = value.slice(0,detailLimit);
   }
   if (!Object.keys(omitted).length) return message;
   return {...message,content:JSON.stringify({...compact, omittedFromContext:omitted,
-    contextNote:"仅带工具结果的部分项目，不能将未提供的数据当作空或计算完整合计。必要时缩小查询范围。"})};
+    contextNote:"只带了部分查询列表的前8项，请在回答中说明你核对到的实际日期或明细范围。只用原查询提供的全量汇总，不能用样本推算完整合计。"})};
 }
 
 /** 缩减只在模型请求内生效，按整轮移除可选历史并保留当前消息、确认事实和实际工具存档。 */
@@ -36,7 +37,7 @@ export function fitChatContext<T>(build: (messages: ProtocolMessage[]) => T, his
   }
   const estimate = estimatedChatInput(body);
   const textEstimate = estimate - imageCount * CHAT_IMAGE_INPUT_COST;
-  return {body, fits:estimate <= CHAT_INPUT_LIMIT, maxPhotos:Math.max(0,Math.floor((CHAT_INPUT_LIMIT-textEstimate)/CHAT_IMAGE_INPUT_COST)), history:optional};
+  return {body, fits:estimate <= CHAT_INPUT_LIMIT, detailLimit: work.some((message,index)=>message!==current[index]) ? detailLimit : undefined, maxPhotos:Math.max(0,Math.floor((CHAT_INPUT_LIMIT-textEstimate)/CHAT_IMAGE_INPUT_COST)), history:optional};
 }
 
 export const answerStart = "〔正文〕";
