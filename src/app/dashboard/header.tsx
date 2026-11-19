@@ -27,16 +27,21 @@ export function DashboardHeader({ email, owner = false, sourcePilot = false }: {
   const previousGroup = useRef<Group>("root"), menuClose = useRef<() => Promise<void>>(() => Promise.resolve()), dock = useRef<HTMLDivElement>(null), [pendingAccount, setPendingAccount] = useState<string | null>(null);
   const pendingChanges = useMemo(() => Object.fromEntries(["sources", "profile", "account"].map(kind => [kind, (pending: boolean) => setPendingAccount(current => pending ? kind : current === kind ? null : current)])), []);
   const page = pages.find(([path]) => path === pathname), visualReview = pathname === "/dashboard/visual-review", review = pathname.includes("/operations/") || pathname.includes("/review/"), hasTools = !review && assistantAvailablePage(pathname);
+  const showDock = !review && !visualReview;
   const openSettings = async (kind: "profile" | "account" | "sources") => { await menuClose.current(); document.querySelector<HTMLElement>('.dashboard-header summary[aria-label="账号菜单"]')?.focus({ preventScroll: true }); setSettings(kind); };
   const openMoreInformation = async () => { await menuClose.current(); document.querySelector<HTMLElement>('.dashboard-header summary[aria-label="账号菜单"]')?.focus({preventScroll: true}); openInformation(); };
   const openAssistant = async () => { await menuClose.current(); toggleAssistant(); };
   const overview = (event: { preventDefault(): void }) => { if (actualPath !== "/dashboard"||chart.returningToOverview||!!chart.forwardDestination) { event.preventDefault(); void chart.back(); } };
   useLayoutEffect(() => {
-    const node = dock.current; if (!node || !mobile) return;
-    const measure = () => { document.documentElement.style.setProperty("--workspace-dock-inset", Math.ceil(innerHeight - node.getBoundingClientRect().top + 8) + "px"); };
-    const observer = new ResizeObserver(measure); observer.observe(node); measure(); window.addEventListener("resize", measure);
-    return () => { observer.disconnect(); window.removeEventListener("resize", measure); document.documentElement.style.removeProperty("--workspace-dock-inset"); };
-  }, [mobile]);
+    const node = dock.current;
+    if (!node || !mobile || !showDock) return;
+    const root = document.documentElement;
+    const measure = () => root.style.setProperty("--workspace-dock-height", Math.ceil(node.getBoundingClientRect().height) + "px");
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    measure();
+    return () => { observer.disconnect(); root.style.removeProperty("--workspace-dock-height"); };
+  }, [mobile, showDock]);
   const badge = count > 0 ? <small className={styles.badge} aria-hidden="true">{count > 9 ? "9+" : count}</small> : null;
   const assistantButton = <button type="button" data-assistant-trigger className={styles.assistantTrigger} aria-label={"打开小助手" + (count ? `，${count}项待查看` : "")} aria-haspopup={mobile ? undefined : "dialog"} aria-expanded={mobile ? undefined : assistantOpen} onClick={() => void openAssistant()}><AssistantIcon/><span>小助手</span>{badge}</button>;
   useLayoutEffect(()=>{const previous=previousGroup.current;previousGroup.current=group;if(previous!==group)document.querySelector<HTMLElement>(group==="root"?'[data-menu-group="'+previous+'"]':"[data-menu-back]")?.focus({preventScroll:true});},[group]);
@@ -56,7 +61,7 @@ export function DashboardHeader({ email, owner = false, sourcePilot = false }: {
         </GlassMenu>
       </div>
     </header>
-    {!review && !visualReview && <>
+    {showDock && <>
       <nav className={"desktop-record-nav " + styles.desktopNav} aria-label="主导航"><span className={styles.desktopLens} aria-hidden="true" style={{ transform: "translateY(" + Math.max(0, pages.findIndex(([href]) => href === pathname)) * 74 + "px)" }}/>{pages.map(([href, label], index) => <LoadingLink key={href} href={href} onNavigate={href === "/dashboard" ? overview : ()=>chart.cancelOverviewReturn?.(href)} aria-current={pathname === href ? "page" : undefined}><NavigationIcon index={index}/><span>{label}</span></LoadingLink>)}</nav>
       <div ref={dock} className={styles.mobileDock} data-workspace-dock><MobileNavigation pathname={pathname}/>{hasTools && assistantButton}</div>
     </>}

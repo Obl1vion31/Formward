@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { workspaceMotionTiming } from "@/components/workspace-motion";
 import { assistantPath } from "./model";
 
 type WorkspaceOrigin = { path: string; query: string; x: number; y: number };
@@ -23,25 +24,63 @@ export function useAssistantPageNavigation() {
     ? { entryId: null, query, source: null, motion: null }
     : null);
   const [closedMotion, setClosedMotion] = useState<AssistantPageMotion | null>(null);
+  const [restoringDock, setRestoringDock] = useState(false);
   const visible = useRef(page);
   const origins = useRef(new Map<string, WorkspaceOrigin>());
-  const restoredFocus = useRef(0);
+  const returnFrame = useRef(0);
   const backPending = useRef<WorkspaceOrigin | null>(null);
 
   const show = useCallback((next: AssistantPageState | null) => {
+    if (next) {
+      cancelAnimationFrame(returnFrame.current);
+      setRestoringDock(false);
+    }
     visible.current = next;
     setPage(next);
   }, []);
 
   const restoreSource = useCallback((source: WorkspaceOrigin) => {
-    cancelAnimationFrame(restoredFocus.current);
-    restoredFocus.current = requestAnimationFrame(() => {
-      if (visible.current || !atSource(source)) return;
-      scrollTo(source.x, source.y);
-      const trigger = document.querySelector<HTMLElement>("[data-workspace-dock] [data-assistant-trigger]");
-      trigger?.focus({ preventScroll: true });
+    cancelAnimationFrame(returnFrame.current);
+    setRestoringDock(true);
+    show(null);
+
+    const stillReturning = () => !visible.current && atSource(source);
+    let previous: { dockBottom: number; viewportBottom: number } | undefined;
+    const deadline = performance.now() + workspaceMotionTiming.duration;
+    function revealDock(now: number) {
+      if (!stillReturning()) {
+        setRestoringDock(false);
+        return;
+      }
+      const dock = document.querySelector<HTMLElement>("[data-workspace-dock]");
+      const viewport = window.visualViewport;
+      const dockBottom = dock?.getBoundingClientRect().bottom ?? 0;
+      const viewportBottom = viewport ? viewport.offsetTop + viewport.height : innerHeight;
+      const settled = previous && Math.abs(previous.dockBottom - dockBottom) <= 1 &&
+        Math.abs(previous.viewportBottom - viewportBottom) <= 1;
+      if (dock && !settled && now < deadline) {
+        previous = { dockBottom, viewportBottom };
+        returnFrame.current = requestAnimationFrame(revealDock);
+        return;
+      }
+      setRestoringDock(false);
+      returnFrame.current = requestAnimationFrame(() => {
+        if (stillReturning()) dock?.querySelector<HTMLElement>("[data-assistant-trigger]")?.focus({ preventScroll: true });
+      });
+    }
+
+    // 卸载助手时滚动锁先恢复来源位置，首帧只补齐路由恢复期间出现的偏差。
+    returnFrame.current = requestAnimationFrame(now => {
+      if (stillReturning()) {
+        const scroller = document.scrollingElement ?? document.documentElement;
+        const left = Math.min(source.x, Math.max(0, scroller.scrollWidth - scroller.clientWidth));
+        const top = Math.min(source.y, Math.max(0, scroller.scrollHeight - scroller.clientHeight));
+        if (Math.abs(scrollX - left) > 1 || Math.abs(scrollY - top) > 1)
+          scrollTo({ left, top, behavior: "instant" });
+      }
+      revealDock(now);
     });
-  }, []);
+  }, [show]);
 
   // popstate is immediate. Next's pathname/query also cover normal Link and router calls.
   const sync = useCallback(() => {
@@ -71,7 +110,7 @@ export function useAssistantPageNavigation() {
     window.addEventListener("popstate", sync);
     return () => {
       window.removeEventListener("popstate", sync);
-      cancelAnimationFrame(restoredFocus.current);
+      cancelAnimationFrame(returnFrame.current);
     };
   }, [sync]);
 
@@ -101,10 +140,6 @@ export function useAssistantPageNavigation() {
     window.history.back();
   }, [router, show]);
 
-  useLayoutEffect(() => {
-    if (page?.motion?.direction === "close" && page.source) scrollTo(page.source.x, page.source.y);
-  }, [page]);
-
   const complete = useCallback((motion: AssistantPageMotion) => {
     const current = visible.current;
     if (!current || current.motion !== motion) return;
@@ -122,11 +157,10 @@ export function useAssistantPageNavigation() {
         pathname !== source.path || query !== new URLSearchParams(source.query).toString()) return;
     const frame = requestAnimationFrame(() => {
       if (visible.current?.motion !== closedMotion || !atSource(source)) return;
-      show(null);
       restoreSource(source);
     });
     return () => cancelAnimationFrame(frame);
-  }, [closedMotion, page, pathname, query, restoreSource, show]);
+  }, [closedMotion, page, pathname, query, restoreSource]);
 
-  return { page, open, back, complete };
+  return { page, open, back, complete, dockReturning: restoringDock || page?.motion?.direction === "close" };
 }

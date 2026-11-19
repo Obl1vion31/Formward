@@ -54,7 +54,8 @@
   overscroll-behavior: none;
 }
 .workspaceContent { display: contents; }
-.workspaceContent[data-assistant-covered] > * { visibility: hidden; }
+.workspaceContent[data-assistant-covered] > *,
+.workspaceContent[data-assistant-dock-returning] > :global([data-workspace-dock]) { visibility: hidden; }
 .assistantPage[hidden] { display: none; }
 .assistantPage[data-assistant-phase="closing"] { pointer-events: none; }
 .pageHeading {

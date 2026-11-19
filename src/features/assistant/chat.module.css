@@ -352,7 +352,7 @@
   container: assistant-conversation / size;
 }
 .workspace[data-page=true] .composerArea {
-  --composer-bottom-inset: max(6px, env(safe-area-inset-bottom));
+  --composer-bottom-inset: env(safe-area-inset-bottom, 0px);
   display: flex;
   flex-direction: column;
   overflow: clip;

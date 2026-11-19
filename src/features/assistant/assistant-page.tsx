@@ -28,9 +28,10 @@ function setHistoryView(value: string | null, steps: number, replace = false) {
 }
 
 export function AssistantWorkspace({ children }: { children: ReactNode }) {
-  const { page } = useAssistant();
+  const { page, dockReturning } = useAssistant();
   return <div className="workspace-shell">
     <div className={styles.workspaceContent} data-assistant-covered={!!page && !page.motion || undefined}
+      data-assistant-dock-returning={dockReturning || undefined}
       inert={!!page && page.motion?.direction !== "close"}>{children}</div>
     <AssistantPage page={page}/>
   </div>;
