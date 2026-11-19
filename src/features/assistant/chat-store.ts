@@ -219,18 +219,36 @@ export async function activeChatSubscription(db: Database, userId: string, id: s
 
 export async function chatSnapshot(db: Database, userId: string, before?: number,taskId?:string,conversationId?:string): Promise<ChatSnapshot> {
   const owner = await requireActiveAccount(db, userId), entitlement = accountEntitlements(owner); await reapChatRuns(db, userId);
-  const current = taskId?(await db.select().from(conversation).where(and(eq(conversation.id,taskId),eq(conversation.userId,userId),eq(conversation.purpose,"meal_entry"))))[0]:conversationId?(await db.select().from(conversation).where(and(eq(conversation.id,conversationId),eq(conversation.userId,userId),eq(conversation.purpose,"chat"),isNull(conversation.removedAt))))[0]:await currentConversation(db,userId,true);
-  if(!current)throw new ApiError(404,"not_found","此任务不存在或不属于当前账号。");
-  const recent = await db.select().from(message).where(and(eq(message.userId, userId), eq(message.conversationId, current.id))).orderBy(desc(message.seq)).limit(50);
+  const requestedId = taskId ?? conversationId;
+  // 回复与运行会一起结束。让刷新看到同一刻的状态，包括读取照片的检查点。
+  const readState = () => db.transaction(async tx => {
+    const [current] = await tx.select().from(conversation).where(and(
+      eq(conversation.userId,userId), eq(conversation.purpose,taskId ? "meal_entry" : "chat"),
+      taskId ? undefined : isNull(conversation.removedAt),
+      requestedId ? eq(conversation.id,requestedId) : eq(conversation.active,true),
+    ));
+    if (!current) return null;
+    const recent = await tx.select().from(message).where(and(eq(message.userId,userId),eq(message.conversationId,current.id)))
+      .orderBy(desc(message.seq)).limit(50);
+    const messageIds = recent.map(row => row.id);
+    const runs = messageIds.length ? await tx.select({
+      id:run.id,userMessageId:run.userMessageId,assistantMessageId:run.assistantMessageId,requestId:run.requestId,
+      state:run.state,executionInput:run.executionInput,requestDiagnostics:run.requestDiagnostics,
+    }).from(run).where(and(eq(run.userId,userId),eq(run.conversationId,current.id),
+      or(inArray(run.assistantMessageId,messageIds),inArray(run.userMessageId,messageIds)))).orderBy(desc(run.createdAt)) : [];
+    const [active] = await tx.select({id:run.id,assistantMessageId:run.assistantMessageId,conversationId:run.conversationId,claimedAt:run.claimedAt})
+      .from(run).where(and(eq(run.userId,userId),taskId ? eq(run.conversationId,current.id) : undefined,eq(run.state,"running")));
+    return {current,recent,runs,active};
+  }, {isolationLevel:"repeatable read",accessMode:"read only"});
+
+  let state = await readState();
+  if (!state && !requestedId) {
+    await currentConversation(db,userId,true);
+    state = await readState();
+  }
+  if (!state) throw new ApiError(404,"not_found","此任务不存在或不属于当前账号。");
+  const {current,recent,runs,active} = state;
   const older = before === undefined ? recent : recent.filter(row => row.seq < before), rows = older.slice(0, 5).reverse();
-  const messageIds = recent.map(row => row.id);
-  const runs = messageIds.length ? await db.select({
-    id:run.id,userMessageId:run.userMessageId,assistantMessageId:run.assistantMessageId,requestId:run.requestId,
-    state:run.state,executionInput:run.executionInput,requestDiagnostics:run.requestDiagnostics,
-  }).from(run).where(and(eq(run.userId,userId),eq(run.conversationId,current.id),
-    or(inArray(run.assistantMessageId,messageIds),inArray(run.userMessageId,messageIds)))).orderBy(desc(run.createdAt)) : [];
-  const [active] = await db.select({id:run.id,assistantMessageId:run.assistantMessageId,conversationId:run.conversationId,claimedAt:run.claimedAt})
-    .from(run).where(and(eq(run.userId,userId),taskId?eq(run.conversationId,current.id):undefined,eq(run.state,"running")));
   const grantPurpose = taskId && !entitlement.chat ? "meal_entry" : "chat";
   const grants = await db.select({ provider: connection.provider, enabled: connection.enabled, expiresAt: aiToken.expiresAt, revokedAt: aiToken.revokedAt }).from(connection).innerJoin(aiToken, and(eq(aiToken.id, connection.tokenId), eq(aiToken.userId, userId))).where(and(eq(connection.userId, userId),eq(connection.purpose, grantPurpose))).orderBy(desc(connection.createdAt));
   const quoteId = !taskId ? pendingContextQuoteId(current.context) : undefined;
