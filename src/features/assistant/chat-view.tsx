@@ -93,6 +93,8 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
   const composer = useRef<HTMLDivElement>(null), modelMenuId = useId();
   const composerPress = useComposerPress();
   const modelMenuOpen = panel === "models" && tab === "chat" && chat.enabled && !pinnedPreview;
+  const quotaNotice = chat.enabled && chat.data && chat.data.usage.available <= 0
+    ? <p className={styles.notice}>今日可用额度不足；待结算用量也会暂占额度，提醒和手工记录仍可使用。</p> : null;
   useLayoutEffect(()=>{const node=composer.current;if(!node)return;const measure=()=>node.parentElement?.style.setProperty("--chat-composer-height",node.getBoundingClientRect().height+"px");measure();const observer=new ResizeObserver(measure);observer.observe(node);return()=>observer.disconnect();},[]);
   const selected = chat.data?.catalog.find(model => model.id === chat.data?.provider), blocked = !chat.enabled || !chat.data || chat.managing || !selected?.configured || !selected.enabled || chat.data.usage.available <= 0;
   useLayoutEffect(() => { const node = feed.current; if (!node || tab !== "chat") return;
@@ -215,18 +217,22 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
 
       {pinnedPreview&&<section className={styles.pinnedPreview} aria-label="待确认提交"><header><span>待确认提交</span><button type="button" ref={previewBack} onClick={closePreview}>{page?"返回待办":"返回聊天"}</button></header><ChatPreviewCard id={pinnedPreview} navigate={navigate}/></section>}
       <div ref={composer} className={styles.composerArea} inert={panel === "connections"||!!pinnedPreview}>
-        {notice && <p className={styles.notice} role="status">{notice}</p>}
-        {chat.error && <div className={styles.failure} role="alert">{chat.error}<button onClick={() => void chat.refresh()} disabled={chat.loading}>重新读取</button></div>}
-        {pendingQuote && !chat.busy && <div className={styles.quote}>
-          <div className={styles.contextQuoteSummary}>
-            <span>引用上一问</span><span>{pendingQuote.text ?? "原消息已不可用，请移除引用后发送。"}</span>
-          </div>
-          <button type="button" className={styles.icon} aria-label="取消引用" disabled={chat.managing}
-            onClick={() => void chat.control("clear_context_quote", undefined, chat.data?.conversationId)}><Glyph name="close"/></button>
-        </div>}
-        {chat.quote && !pendingQuote && <div className={styles.quote}><button onClick={() => jump(chat.quote!.id)}><span>引用{chat.quote.role === "user" ? "你的消息" : "回答"}</span><span>{chat.quote.question?chat.quote.question.text+" · ":""}{chatDisplayText(chat.quote,chat.data?.capabilities?.inlinePreviews===true).slice(0,240)}</span></button><button className={styles.icon} aria-label="取消引用" onClick={() => chat.setQuote(null)}><Glyph name="close"/></button></div>}
+        <div className={styles.composerExtras}>
+          {notice && <p className={styles.notice} role="status">{notice}</p>}
+          {chat.error && <div className={styles.failure} role="alert">{chat.error}<button onClick={() => void chat.refresh()} disabled={chat.loading}>重新读取</button></div>}
+          {page && quotaNotice}
+          {pendingQuote && !chat.busy && <div className={styles.quote}>
+            <div className={styles.contextQuoteSummary}>
+              <span>引用上一问</span><span>{pendingQuote.text ?? "原消息已不可用，请移除引用后发送。"}</span>
+            </div>
+            <button type="button" className={styles.icon} aria-label="取消引用" disabled={chat.managing}
+              onClick={() => void chat.control("clear_context_quote", undefined, chat.data?.conversationId)}><Glyph name="close"/></button>
+          </div>}
+          {chat.quote && !pendingQuote && <div className={styles.quote}><button onClick={() => jump(chat.quote!.id)}><span>引用{chat.quote.role === "user" ? "你的消息" : "回答"}</span><span>{chat.quote.question?chat.quote.question.text+" · ":""}{chatDisplayText(chat.quote,chat.data?.capabilities?.inlinePreviews===true).slice(0,240)}</span></button><button className={styles.icon} aria-label="取消引用" onClick={() => chat.setQuote(null)}><Glyph name="close"/></button></div>}
+          {page && chat.enabled && chat.photos.length > 0 && <div className={styles.composerMedia}><DraftPhotos/></div>}
+        </div>
         {chat.enabled?<div className={styles.composer}>
-          <DraftPhotos/>
+          {!page && <DraftPhotos/>}
           <div className={styles.composerRow} {...composerPress}>
             <div className={styles.pressTrack} aria-hidden="true"><div><span/></div></div>
             <input className={styles.fileInput} ref={photoInput} type="file" multiple accept="image/jpeg,image/png,image/webp"
@@ -262,7 +268,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
           </div>
         </div>:<div className={styles.chatLocked}><strong>{"当前档位未开放聊天"}</strong><p>{chat.entitlement?.mealRecognition?"你仍可拍照录入饮食，或手动记录。":"已有消息和输入保留，可继续手动记录。"}</p>{chat.entitlement?.mealRecognition&&<LoadingLink href="/dashboard/meals" beforeNavigate={navigate}>去饮食页拍照录入</LoadingLink>}</div>}
 
-        {chat.enabled&&chat.data && chat.data.usage.available <= 0 && <p className={styles.notice}>今日可用额度不足；待结算用量也会暂占额度，提醒和手工记录仍可使用。</p>}
+        {!page && quotaNotice}
       </div>
       {latest&&<button type="button" className={styles.latest} aria-label="回到最新消息" title="回到最新消息" inert={panel === "connections"||!!pinnedPreview} onClick={()=>{const node=feed.current;if(!node)return;manualScrollUntil.current=0;recordScroll(node.scrollHeight,true);node.scrollTo({top:node.scrollHeight,behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth"});node.focus({preventScroll:true});}}><Glyph name="down"/></button>}
       {modelMenuOpen && <ChatModelMenu id={modelMenuId} anchor={modelButton} selected={selected?.id}

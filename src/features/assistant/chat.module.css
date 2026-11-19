@@ -30,7 +30,12 @@
 .references{display:flex;gap:4px 14px;flex-wrap:wrap;margin-top:12px}.references a{display:inline-flex;gap:6px;align-items:center;min-height:44px;padding:4px 0;color:var(--gold);font-size:.875rem;text-decoration:none;overflow-wrap:anywhere}.references a:hover{text-decoration:underline;text-underline-offset:4px}
 .messageQuote{display:flex;align-items:center;gap:8px;padding:8px 12px;width:100%;text-align:left;background:var(--surface-hover)!important;color:var(--muted)!important;font-size:.8125rem!important;margin-bottom:10px}.messageQuote svg{width:16px;height:16px;flex-shrink:0}.messageQuote span{overflow-wrap:anywhere}
 .images{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.images a{display:block;max-width:100%}.images img{display:block;width:180px;max-width:100%;height:140px;object-fit:contain;background:var(--surface-hover);border-radius:12px}
-.composerArea{position:relative;z-index:1;background:var(--surface);padding:4px 20px 12px;flex:none;max-height:min(70%,calc(100% - 52px));overflow:auto;scrollbar-width:thin;scrollbar-color:var(--control-border) transparent}.composer{border:1px solid var(--control-border);border-radius:16px;background:var(--surface-raised);overflow:hidden}.composer:focus-within{border-color:color-mix(in srgb,var(--control-border) 72%,var(--gold))}
+.composerArea{position:relative;z-index:1;background:var(--surface);padding:4px 20px 12px;flex:none;max-height:min(70%,calc(100% - 52px));overflow:auto;scrollbar-width:thin;scrollbar-color:var(--control-border) transparent}
+.composerArea:has(.composer:focus-within, .composerMedia:focus-within) {
+  --composer-border-color: color-mix(in srgb, var(--control-border) 72%, var(--gold));
+}
+.composerExtras { display: flow-root; }
+.composer { border: 1px solid var(--composer-border-color, var(--control-border)); border-radius: 16px; background: var(--surface-raised); overflow: hidden; }
 .composerRow {
   --press-tint: color-mix(in srgb, var(--action-fill) 19%, transparent);
   position: relative;
@@ -188,8 +193,8 @@
 .quote{display:flex;gap:8px;align-items:center;background:var(--surface-hover);padding:4px 8px;margin-bottom:8px;border-radius:10px}.quote>button:first-child{min-width:0;flex:1;display:grid;gap:2px;text-align:left;padding:4px 0;font-size:.8125rem;color:var(--muted)}.quote>button>span:last-child{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;color:var(--warm-white)}
 
 .attachments{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:10px 10px 0}
-.photoAttachment{position:relative;width:4.5rem;height:4.5rem;flex:none;border-radius:10px;background:#171715}
-.photoAttachment>img,.photoPlaceholder{display:block;width:4.5rem;height:4.5rem;object-fit:cover;border-radius:10px}
+.photoAttachment{position:relative;width:var(--draft-photo-size,4.5rem);height:var(--draft-photo-size,4.5rem);flex:none;border-radius:10px;background:#171715}
+.photoAttachment>img,.photoPlaceholder{display:block;width:100%;height:100%;object-fit:cover;border-radius:10px}
 .photoPlaceholder{display:grid;place-items:center;color:#fff}
 .photoOverlay{position:absolute;inset:0;display:grid;place-items:center;background:#000b;color:#fff;border-radius:10px;font-size:.75rem}
 .photoOverlay>[role=progressbar]{position:relative;width:2.75rem;height:2.75rem;display:grid;place-items:center}
@@ -343,15 +348,41 @@
 @media (prefers-reduced-motion: reduce) {
  .workspace[data-page=true] :is(.sidebar,.conversation) { transition: none; }
 }
-.workspace[data-page=true] .composerArea {
-  overflow: clip;
-  max-height: none;
-  padding-block: 2px max(6px, env(safe-area-inset-bottom));
+.workspace[data-page=true] .conversation {
+  container: assistant-conversation / size;
 }
-:global([data-assistant-keyboard]) .workspace[data-page=true] .composerArea { padding-bottom: 4px; }
+.workspace[data-page=true] .composerArea {
+  --composer-bottom-inset: max(6px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  overflow: clip;
+  max-height: calc(100% - 20px);
+  padding-block: 2px var(--composer-bottom-inset);
+}
+:global([data-assistant-keyboard]) .workspace[data-page=true] .composerArea { --composer-bottom-inset: 4px; }
+.workspace[data-page=true] .composerExtras {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.workspace[data-page=true] .composer { flex: none; }
+.composerMedia {
+  border: 1px solid var(--composer-border-color, var(--control-border));
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  background: var(--surface-raised);
+  overflow: clip;
+}
+.composerArea:has(.composerMedia) > .composer {
+  border-top: 0;
+  border-radius: 0 0 16px 16px;
+}
 .workspace[data-page=true] .composerRow { padding: 2px; touch-action: pinch-zoom; }
 .workspace[data-page=true] .composerRow textarea {
-  max-height: clamp(44px, calc(var(--assistant-page-height, 100dvh) / 3), 144px);
+  /* 预留消息区的 20px 内边距和输入栏上下共 8px 的边框、间距。 */
+  max-height: clamp(44px, min(calc(var(--assistant-page-height, 100dvh) / 3),
+    calc(100cqh - 28px - var(--composer-bottom-inset) - var(--composer-extras-reserve, 0px))), 144px);
 }
 .workspace[data-page=true] .composerRow textarea[data-draft-overflow] { touch-action: pan-y pinch-zoom; }
 .workspace[data-page=true] .workspaceTabs { flex: none; }
@@ -379,6 +410,21 @@
   overscroll-behavior: contain;
 }
 .workspace[data-page=true] .attachments > * { flex: none; }
+@container assistant-conversation (max-height: 240px) {
+  .workspace[data-page=true] .composerExtras:not(:empty) + .composer { --composer-extras-reserve: 56px; }
+  .workspace[data-page=true] .composerExtras:has(.quote):has(.composerMedia) + .composer { --composer-extras-reserve: 104px; }
+  .workspace[data-page=true] .attachments { --draft-photo-size: 48px; padding: 6px 6px 0; gap: 6px; }
+  .workspace[data-page=true] .removePhoto { inset: 0 0 auto auto; justify-items: end; align-items: start; }
+  .workspace[data-page=true] .quote { padding-block: 0; margin-bottom: 4px; }
+  .workspace[data-page=true] .quote > button:first-child,
+  .workspace[data-page=true] .contextQuoteSummary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .workspace[data-page=true] .quote span:first-child { flex: none; }
+  .workspace[data-page=true] .quote span:last-child { -webkit-line-clamp: 1; }
+}
 
 .message { position: relative; }
 .message[data-new-message=true] { animation: message-arrive 180ms cubic-bezier(.2,.8,.2,1) both; }

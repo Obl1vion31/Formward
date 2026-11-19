@@ -82,7 +82,7 @@ globalThis.fetch=async function(input,init){
    if(JSON.stringify(body.messages).includes("最早一轮验收标记"))return new Response("expected oldest history to be omitted",{status:400});
    return result("〔正文〕本次只核对两点。第一，份量已确认。第二，晚餐已归到今天。");
  }
- if (text === "两张照片已读验收。") {
+ if (text === "两张照片已读验收。" || text.startsWith("两张照片是同一份午餐的不同角度。")) {
    const images = Array.isArray(lastUser?.content) ? lastUser.content.filter(part=>part.type==="image_url") : [];
    if (images.length !== 2) return new Response("expected two isolated photos",{status:400});
    return result("〔正文〕两张照片都已读取。");

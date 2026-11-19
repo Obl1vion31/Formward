@@ -92,13 +92,17 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
     node.showPopover();
     const viewport = window.visualViewport;
     const composer = button.closest<HTMLElement>("." + styles.composer);
+    const area = button.closest<HTMLElement>("." + styles.composerArea);
+    let frame = 0;
     const place = () => {
       const box = button.getBoundingClientRect();
       const top = (viewport?.offsetTop ?? 0) + 8;
       const left = (viewport?.offsetLeft ?? 0) + 12;
       const right = left + (viewport?.width ?? innerWidth) - 24;
       const bottom = top + (viewport?.height ?? innerHeight) - 16;
-      const composerTop = composer?.getBoundingClientRect().top ?? box.top;
+      const media = area?.querySelector<HTMLElement>("." + styles.composerMedia);
+      const composerTop = Math.max(top, area?.getBoundingClientRect().top ?? top,
+        (media ?? composer)?.getBoundingClientRect().top ?? box.top);
       const anchorTop = composerTop - top >= 184 ? composerTop : box.top;
       const above = anchorTop - top - 8;
       const below = bottom - box.bottom - 8;
@@ -112,19 +116,25 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
     observer.observe(node);
     observer.observe(button);
     if (composer) observer.observe(composer);
+    if (area) observer.observe(area);
     place();
     const focus = node.querySelector<HTMLElement>('[aria-checked="true"]:not(:disabled)')
       ?? node.querySelector<HTMLElement>("button:not(:disabled)") ?? node;
     focus.focus({ preventScroll: true });
-    window.addEventListener("resize", place);
-    viewport?.addEventListener("resize", place);
-    viewport?.addEventListener("scroll", place);
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(place);
+    };
+    window.addEventListener("resize", schedule);
+    viewport?.addEventListener("resize", schedule);
+    viewport?.addEventListener("scroll", schedule);
     return () => {
+      cancelAnimationFrame(frame);
       observer.disconnect();
       if (node.matches(":popover-open")) node.hidePopover();
-      window.removeEventListener("resize", place);
-      viewport?.removeEventListener("resize", place);
-      viewport?.removeEventListener("scroll", place);
+      window.removeEventListener("resize", schedule);
+      viewport?.removeEventListener("resize", schedule);
+      viewport?.removeEventListener("scroll", schedule);
     };
   }, [anchor]);
 

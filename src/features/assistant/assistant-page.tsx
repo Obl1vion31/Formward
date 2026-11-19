@@ -60,42 +60,53 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
     if (!shown || !shell) return;
     const unlock = lockPageScroll("fixed");
     const viewport = window.visualViewport;
-    let frame = 0, followBrowserUntil = 0;
+    let frame = 0, dragUntil = 0, keyboard = false;
+    let restingHeight = viewport?.height ?? innerHeight;
+    let layoutWidth = document.documentElement.clientWidth;
     function layout() {
-      const height = viewport?.height ?? window.innerHeight;
+      const height = viewport?.height ?? innerHeight;
       const top = Math.max(0, viewport?.offsetTop ?? 0);
       const focused = document.activeElement;
       const editing = focused instanceof HTMLElement && shell!.contains(focused) &&
         (focused.matches("textarea,input:not([type=file])") || focused.isContentEditable);
+      const width = document.documentElement.clientWidth;
+      if (width !== layoutWidth) {
+        layoutWidth = width;
+        restingHeight = Math.max(document.documentElement.clientHeight, innerHeight);
+      }
+      if ((!editing && !keyboard) || height > restingHeight) restingHeight = height;
+      // 恢复到正常视口后再加回安全区，失焦本身不代表键盘已收起。
+      keyboard = (editing || keyboard) && restingHeight - height >= (keyboard ? 8 : 72);
       shell!.style.setProperty("--assistant-page-height", height + "px");
       shell!.style.setProperty("--assistant-page-top", top + "px");
-      shell!.toggleAttribute("data-assistant-keyboard", editing && Math.max(document.documentElement.clientHeight, innerHeight) - height >= 72);
+      shell!.toggleAttribute("data-assistant-keyboard", keyboard);
     }
     function schedule() {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(layout);
     }
-    function resizeOrFocus() {
-      followBrowserUntil = performance.now() + 450;
-      schedule();
+    function drag(event: TouchEvent) {
+      if (event.touches.length === 1) dragUntil = performance.now() + 180;
     }
     function pan() {
-      // Safari can pan while opening the keyboard. A later drag should move only the feed.
-      if (performance.now() < followBrowserUntil) schedule();
+      // 跟随键盘迟到的平移，输入框和消息内拖动产生的短暂平移交给浏览器恢复。
+      if (performance.now() >= dragUntil) schedule();
     }
     layout();
-    window.addEventListener("resize", resizeOrFocus);
-    viewport?.addEventListener("resize", resizeOrFocus);
+    window.addEventListener("resize", schedule);
+    viewport?.addEventListener("resize", schedule);
     viewport?.addEventListener("scroll", pan);
-    shell.addEventListener("focusin", resizeOrFocus);
-    shell.addEventListener("focusout", resizeOrFocus);
+    shell.addEventListener("touchmove", drag, { passive: true });
+    shell.addEventListener("focusin", schedule);
+    shell.addEventListener("focusout", schedule);
     return () => {
       cancelAnimationFrame(frame);
-      window.removeEventListener("resize", resizeOrFocus);
-      viewport?.removeEventListener("resize", resizeOrFocus);
+      window.removeEventListener("resize", schedule);
+      viewport?.removeEventListener("resize", schedule);
       viewport?.removeEventListener("scroll", pan);
-      shell.removeEventListener("focusin", resizeOrFocus);
-      shell.removeEventListener("focusout", resizeOrFocus);
+      shell.removeEventListener("touchmove", drag);
+      shell.removeEventListener("focusin", schedule);
+      shell.removeEventListener("focusout", schedule);
       shell.style.removeProperty("--assistant-page-height");
       shell.style.removeProperty("--assistant-page-top");
       shell.removeAttribute("data-assistant-keyboard");

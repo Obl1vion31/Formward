@@ -22,11 +22,11 @@ export async function runAssistantExperienceBrowser(db) {
     assert.ok(response.ok);
   };
 
-  async function journey(name, size, mobile, run) {
+  async function journey(name, size, mobile, run, theme = "light") {
     const context = await browser.newContext({viewport:size,hasTouch:mobile,isMobile:mobile,deviceScaleFactor:1,
       reducedMotion:"no-preference",recordVideo:{dir,size}});
-    await context.addInitScript(() => {
-      localStorage.setItem("formward-theme","light");
+    await context.addInitScript(value => {
+      localStorage.setItem("formward-theme",value);
       const native = window.visualViewport, proxy = new EventTarget();
       let state = null;
       for (const name of ["height","width","offsetTop","offsetLeft","pageTop","pageLeft","scale"])
@@ -34,12 +34,12 @@ export async function runAssistantExperienceBrowser(db) {
       Object.defineProperty(window,"visualViewport",{configurable:true,value:proxy});
       for (const type of ["resize","scroll"]) native?.addEventListener(type,()=>proxy.dispatchEvent(new Event(type)));
       window.fixtureViewport = (value,eventType="resize") => {state=value;proxy.dispatchEvent(new Event(eventType));};
-    });
+    },theme);
     await context.route(/^https:\/\/(?:[a-z0-9-]+\.cos\.ap-shanghai\.myqcloud\.com|vercel\.com)\//,
       route=>route.fulfill({status:200,body:""}));
     const page = await context.newPage(), video = page.video(), start = performance.now();
     page.setDefaultTimeout(65000);
-    const record = {name,engine,viewport:size,simulatedKeyboard:mobile,screenshots:[],checks:[],errors:[]};
+    const record = {name,engine,browserVersion:browser.version(),theme,viewport:size,simulatedKeyboard:mobile,screenshots:[],checks:[],errors:[]};
     results.push(record);
     let expectedInterruption = false;
     page.on("pageerror",error=>{
@@ -52,10 +52,10 @@ export async function runAssistantExperienceBrowser(db) {
     const send = () => page.getByRole("button",{name:sendLabel,exact:true});
     const status = () => page.locator("article[data-role=assistant] time[datetime^=PT]").last();
     const message = text => page.locator("article[data-role=user]").filter({hasText:text}).last();
-    async function shot(label, description) {
+    async function shot(label, description, clip) {
       const file = engine+"-"+name+"-"+String(record.screenshots.length+1).padStart(2,"0")+"-"+label+".png";
-      await page.screenshot({path:join(dir,file)});
-      record.screenshots.push({file,description,atSeconds:Math.round((performance.now()-start)/100)/10});
+      await page.screenshot({path:join(dir,file),clip});
+      record.screenshots.push({file,description,clip,atSeconds:Math.round((performance.now()-start)/100)/10});
       console.log(engine,name,label);
     }
     async function mark(label) {record.checks.push(label);console.log(engine,name,"PASS",label);}
@@ -265,6 +265,9 @@ export async function runAssistantExperienceBrowser(db) {
     async function closeMenu() {
       await page.keyboard.press("Escape");
       await menu.waitFor({state:"hidden"});
+      await page.waitForFunction(() => document.activeElement?.matches(
+        'button[aria-haspopup="dialog"][aria-expanded="false"]:is([aria-label="千问"],[aria-label="小米 MiMo"])',
+      ));
     }
     const widths = mobile ? [[320,560],[390,844],[430,860]] : [[1100,780],[1440,900]];
     for (const theme of ["light","dark"]) {
@@ -615,8 +618,12 @@ export async function runAssistantExperienceBrowser(db) {
       const before=await geometry(), box=await input().boundingBox();
       await drag(Math.round(box.x+45),Math.round(box.y+box.height/2),0,60);
       await drag(Math.round(box.x+45),Math.round(box.y+box.height/2),0,-62);
-      // A pure visual-viewport pan after the keyboard settles must not reposition the shell.
-      await page.evaluate(()=>window.fixtureViewport({height:470,width:390,offsetTop:46,scale:1},"scroll"));
+      await page.evaluate(() => {
+        const drag = new Event("touchmove", { bubbles: true });
+        Object.defineProperty(drag, "touches", { value: [{}] });
+        document.querySelector('textarea[aria-label="给小助手发消息"]').dispatchEvent(drag);
+        window.fixtureViewport({height:470,width:390,offsetTop:46,scale:1},"scroll");
+      });
       await page.waitForTimeout(150);
       const after=await geometry();
       for (const key of Object.keys(before)) assert.ok(Math.abs(before[key]-after[key])<=1,JSON.stringify({before,after}));
@@ -691,9 +698,142 @@ export async function runAssistantExperienceBrowser(db) {
     await mark("历史返回不发送模型请求，删除有确认、保留原文并拒绝旧链接");
   }
 
+  async function keyboardFlow({page,context,input,send,message,shot,mark,open,fixtureFiles}, baseline) {
+    const width = 393, chatUrl = base + "/api/assistant-chat";
+    const {conversationId} = await context.request.get(chatUrl).then(response => response.json());
+    await db.insert(assistantMessage).values([
+      {id:randomUUID(), userId:fixture.userId, conversationId, seq:1, role:"user", text:"看看虚构的午餐记录。"},
+      {id:randomUUID(), userId:fixture.userId, conversationId, seq:2, role:"assistant", provider:"qwen",
+        text:"这条虚构的午餐记录有米饭、烤鸡肉和西兰花。照片和文字将在同一条消息里对照。"},
+    ]);
+    await db.update(assistantConversation).set({sequence:2}).where(eq(assistantConversation.id,conversationId));
+    const draft = [
+      "两张照片是同一份午餐的不同角度。",
+      "第一张是米饭、烤鸡肉和西兰花，米饭大概剩了三分之一。",
+      "另一张是侧面，用来核对盘子里的份量。",
+      "鸡肉按可食部分算，调味料的份量还需要确认。",
+      "这是一段虚构的长草稿，用来验证输入时能同时保留两张照片。",
+    ].join("\n");
+    const viewport = (height, offsetTop = 0, type = "resize") => page.evaluate(
+      ({height, width, offsetTop, type}) => window.fixtureViewport(height === null ? null : {height, width, offsetTop, scale:1}, type),
+      {height, width, offsetTop, type});
+    const geometry = () => page.locator("[data-assistant-page]").evaluate(shell => {
+      const field = shell.querySelector("textarea");
+      const sendButton = shell.querySelector('button[aria-label="发送消息"]');
+      const box = sendButton.getBoundingClientRect(), outer = shell.getBoundingClientRect();
+      const visual = window.visualViewport;
+      const bottom = visual.offsetTop + visual.height;
+      const row = field.getBoundingClientRect();
+      return {
+        top: outer.top, bottom: outer.bottom, fieldTop: row.top, fieldBottom: row.bottom,
+        fieldHeight: row.height, overflow: field.scrollHeight > field.clientHeight,
+        sendHeight: box.height, sendBottom: box.bottom, gap: bottom - box.bottom,
+        hit: sendButton.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)),
+        keyboard: shell.hasAttribute("data-assistant-keyboard"),
+      };
+    });
+    const withinViewport = async (height, offsetTop = 0) => {
+      await page.waitForFunction(({height, offsetTop}) => {
+        const box = document.querySelector("[data-assistant-page]").getBoundingClientRect();
+        return Math.abs(box.top - offsetTop) <= 1 && Math.abs(box.bottom - (height + offsetTop)) <= 1;
+      }, {height, offsetTop});
+      const view = await geometry();
+      assert.ok(view.fieldHeight >= 44 && view.fieldTop >= offsetTop && view.fieldBottom <= height + offsetTop, JSON.stringify(view));
+      assert.ok(view.sendHeight >= 44 && view.hit && view.gap >= 4 && view.gap <= 8, JSON.stringify(view));
+      return view;
+    };
+    await open();
+    await fixtureFiles(2);
+    await input().fill(draft);
+    await shot("draft","键盘收起时，两张照片和多行草稿");
+    await input().focus();
+    await input().evaluate(node => node.setSelectionRange(node.value.length,node.value.length));
+    await viewport(235);
+    await page.locator("[data-assistant-keyboard]").waitFor();
+    await page.waitForFunction(() => {
+      const field = document.querySelector("[data-assistant-page] textarea");
+      return field.scrollTop + field.clientHeight >= field.scrollHeight - 1;
+    });
+    const before = await geometry();
+    await shot("235","393 × 235 CSS px 网页可见区，两张照片和多行草稿", {x:0,y:0,width,height:235});
+    if (baseline) {
+      assert.ok(before.gap < 0, "旧版发送区应在模拟的可见边缘被裁切：" + JSON.stringify(before));
+      await mark("旧版两张照片加长草稿的裁切：" + JSON.stringify(before));
+      return;
+    }
+    assert.ok((await withinViewport(235)).overflow);
+    await page.waitForTimeout(550);
+    await viewport(235, 12, "scroll");
+    await withinViewport(235, 12);
+    await viewport(235);
+    await withinViewport(235);
+    await mark("两张图和长草稿同时保留，迟到的平移后发送键仍完整可点：" + JSON.stringify(await geometry()));
+
+    await input().blur();
+    assert.ok((await withinViewport(235)).keyboard);
+    await viewport(null);
+    await page.locator("[data-assistant-keyboard]").waitFor({state:"detached"});
+    assert.equal(await input().inputValue(),draft);
+    await page.getByRole("button",{name:"引用回复",exact:true}).tap();
+    await viewport(235);
+    await withinViewport(235);
+    await page.getByRole("button",{name:"取消引用"}).waitFor();
+    await shot("quote","矮屏下两张照片和一行引用仍在固定的输入行上方", {x:0,y:0,width,height:235});
+
+    await page.getByRole("button",{name:"千问",exact:true}).tap();
+    const menu = page.getByRole("dialog",{name:"模型与用量",exact:true});
+    await menu.waitFor();
+    await viewport(200);
+    const menuFits = async () => {
+      const rect = await menu.boundingBox();
+      return !!rect && rect.y >= 8 && rect.y + rect.height <= 193;
+    };
+    for (let tries = 0; tries < 12 && !(await menuFits()); tries++) await page.waitForTimeout(50);
+    assert.ok(await menuFits());
+    await shot("models","更矮的可见区仍能打开模型菜单", {x:0,y:0,width,height:200});
+    await page.keyboard.press("Escape");
+    await menu.waitFor({state:"detached"});
+
+    await input().focus();
+    await input().evaluate(node => node.setSelectionRange(node.value.length,node.value.length));
+    await page.keyboard.insertText("\n重新打开键盘后继续输入。");
+    await viewport(180);
+    await withinViewport(180);
+    const photo = page.getByRole("button",{name:"移除照片 2",exact:true});
+    await photo.scrollIntoViewIfNeeded();
+    assert.ok(await photo.evaluate(node => {
+      const box = node.getBoundingClientRect();
+      return node.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+    }));
+    await withinViewport(180);
+    await mark("矮至 180px 时可滚到附件操作，模型菜单在 200px 可见区内");
+    await input().blur();
+    await viewport(null);
+    await page.locator("[data-assistant-keyboard]").waitFor({state:"detached"});
+    const updated = draft + "\n重新打开键盘后继续输入。";
+    assert.equal(await input().inputValue(),updated);
+    assert.equal(await page.getByRole("button",{name:/^移除照片/}).count(),2);
+    await page.getByRole("button",{name:"取消引用"}).waitFor();
+    await shot("restored","收键盘后，草稿、照片和引用仍在");
+    await input().focus();
+    await viewport(235);
+    await withinViewport(235);
+    await send().tap();
+    await viewport(null);
+    await page.getByText("两张照片都已读取。",{exact:true}).waitFor();
+    assert.equal(await message("重新打开键盘后继续输入。").count(),1);
+    const sent = message("重新打开键盘后继续输入。").locator("img");
+    assert.equal(await sent.count(),2);
+    await shot("sent","点一次发送，文字和两张照片进入同一条消息");
+    await mark("键盘开合保留图文、引用和输入位置，点按一次发送");
+  }
+
   try {
     if (!samples?.length) throw Error("需要提供隔离海南鸡饭样例");
     const scope = process.env.FORMWARD_EXPERIENCE_CASE;
+    if (scope === "keyboard" || scope === "keyboard-before") {
+      await journey(scope,{width:393,height:852},true,flow=>keyboardFlow(flow,scope==="keyboard-before"),"dark");
+    }
     if (scope==="composer" || scope==="composer-mobile") {
       await journey("composer-mobile",{width:390,height:844},true,flow=>composerFlow(flow,true));
     }
