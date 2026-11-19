@@ -67,8 +67,8 @@ export async function runAssistantPhotoStack(db) {
       await page.screenshot({ path: join(directory, file) });
       shots.push(file);
     }
-    async function viewPhoto(number, id) {
-      const photo = dialog.getByRole("img", { name: "第 " + number + " 张照片", exact: true });
+    async function viewPhoto(number, id, viewer = dialog) {
+      const photo = viewer.getByRole("img", { name: "第 " + number + " 张照片", exact: true });
       await photo.waitFor({ state: "visible" });
       const url = new URL(await photo.getAttribute("src"), baseURL);
       assert.equal(url.pathname, "/api/meal-images/" + id);
@@ -92,10 +92,12 @@ export async function runAssistantPhotoStack(db) {
 
       await page.goto(mobile ? "/dashboard/assistant" : "/dashboard");
       if (!mobile) await page.locator("[data-assistant-trigger]:visible").click();
+      await stack(2).waitFor();
       await input.fill(question);
       await page.getByLabel("选择聊天照片", { exact: true }).setInputFiles(samples.slice(0, 4).map(photo => photo.file));
       await page.getByText("已选 4 张，发送后分批读取", { exact: true }).waitFor();
       await shot("01-selected");
+      assert.equal(await input.inputValue(), question);
       const accepted = page.waitForResponse(response =>
         response.request().method() === "POST" && new URL(response.url()).pathname === "/api/assistant-chat");
       await button("发送消息").click();
@@ -105,7 +107,9 @@ export async function runAssistantPhotoStack(db) {
       await four.evaluate(node => Promise.all(node.getAnimations({ subtree: true }).filter(a => a.effect?.getTiming().iterations !== Infinity).map(a => a.finished.catch(() => {}))));
       assert.ok((await accepted).ok());
       const sent = await chat();
-      const ids = sent.messages.find(message => message.text === question).imageIds;
+      const sentMessage = sent.messages.find(message => message.text === question);
+      assert.ok(sentMessage, "服务端已回读到带完整文字的消息");
+      const ids = sentMessage.imageIds;
       assert.equal(ids.length, 4);
       assert.ok(await four.locator("[data-photo-layer]").evaluateAll(nodes =>
         nodes.every(node => [...node.querySelectorAll("img")].some(image => image.complete && image.naturalWidth > 0))),
@@ -114,12 +118,15 @@ export async function runAssistantPhotoStack(db) {
       measurements.push({ theme: "light", width: viewport.width, ...await layout(four, 4) });
       assert.equal(await four.evaluate(node => node.nextElementSibling?.textContent.trim()), question);
       await shot("02-four-layers");
+      // 原速录像在关键操作留出阅读时间，功能断言仍等待真实状态。
+      await page.waitForTimeout(800);
       checks.push("实际发送后前景图完整，四层对角露出，照片在所属文字上方");
 
       await four.click();
       await viewPhoto(1, ids[0]);
       assert.ok(await button("上一张").isDisabled());
       await shot("03-open");
+      await page.waitForTimeout(750);
       if (mobile) {
         const stage = dialog.locator("[class*='photoStage']");
         if (engine === "chromium") {
@@ -140,12 +147,15 @@ export async function runAssistantPhotoStack(db) {
         });
       } else await page.keyboard.press("ArrowRight");
       await viewPhoto(2, ids[1]);
+      await page.waitForTimeout(650);
       await button("下一张").click();
       await viewPhoto(3, ids[2]);
+      await page.waitForTimeout(650);
       await button("下一张").click();
       await viewPhoto(4, ids[3]);
       assert.ok(await button("下一张").isDisabled());
       await shot("04-last-original");
+      await page.waitForTimeout(750);
       // 助手完成生成可能自然增高正文，记录此时背景的滚动位置。
       const scrollWithPreview = await feed.evaluate(node => node.scrollTop);
       if (mobile) await button("关闭照片预览").click();
@@ -155,6 +165,7 @@ export async function runAssistantPhotoStack(db) {
       assert.ok(Math.abs(await feed.evaluate(node => node.scrollTop) - scrollWithPreview) <= 1,
         "关闭只回原消息，滚动位置保持");
       await shot("05-return");
+      await page.waitForTimeout(650);
       checks.push("预览按真实发送顺序查看四张，手机滑动、桌面方向键和 Esc 都能返回原消息");
 
       await button("保存确认").waitFor();
@@ -200,19 +211,37 @@ export async function runAssistantPhotoStack(db) {
       assert.equal(await one.getAttribute("href"), "/api/meal-images/" + samples[0].id);
       checks.push("双主题各宽度核对 2、4、8 个实际露角，纯照片消息和原有单张入口可用");
 
-      await historyFour.scrollIntoViewIfNeeded();
-      await historyFour.click();
-      await viewPhoto(1, ids[0]);
-      const path = "**/api/meal-images/" + ids[1];
-      const failRead = route => route.fulfill({ status: 503, body: "" });
-      await context.route(path, failRead);
-      await button("下一张").click();
-      await dialog.getByText("这张照片读取失败。", { exact: true }).waitFor();
-      await context.unroute(path, failRead);
-      await button("重新读取").click();
-      await viewPhoto(2, ids[1]);
-      await button("关闭照片预览").click();
-      await dialog.waitFor({ state: "hidden" });
+      // 在空白浏览器会话预设故障，避免已浏览的原图被 WebKit 从内存直接复用。
+      await db.delete(rateLimit);
+      const reading = await browser.newContext({ baseURL, viewport, hasTouch: mobile, isMobile: mobile });
+      try {
+        const path = url => url.pathname === "/api/meal-images/" + ids[1] && !url.search;
+        let rejectedReads = 0;
+        const failRead = route => {
+          rejectedReads++;
+          return route.fulfill({ status: 503, body: "" });
+        };
+        await reading.route(path, failRead);
+        const authenticated = await reading.request.post("/api/auth/sign-in/email", { headers: { Origin: baseURL }, data: account });
+        assert.equal(authenticated.status(), 200);
+        const review = await reading.newPage();
+        review.on("pageerror", error => errors.push(String(error)));
+        await review.goto(mobile ? "/dashboard/assistant" : "/dashboard");
+        if (!mobile) await review.locator("[data-assistant-trigger]:visible").click();
+        await review.getByRole("button", { name: "查看 4 张照片", exact: true }).click();
+        const viewer = review.getByRole("dialog", { name: "照片预览", exact: true });
+        await viewPhoto(1, ids[0], viewer);
+        await viewer.getByRole("button", { name: "下一张", exact: true }).click();
+        await viewer.getByText("这张照片读取失败。", { exact: true }).waitFor();
+        assert.ok(rejectedReads > 0);
+        await reading.unroute(path, failRead);
+        await viewer.getByRole("button", { name: "重新读取", exact: true }).click();
+        await viewPhoto(2, ids[1], viewer);
+        await viewer.getByRole("button", { name: "关闭照片预览", exact: true }).click();
+        await viewer.waitFor({ state: "hidden" });
+      } finally {
+        await reading.close();
+      }
       checks.push("图片读取失败可就地恢复同一张，预览仍能关闭");
       assert.deepEqual(errors, []);
       result.passed = true;
