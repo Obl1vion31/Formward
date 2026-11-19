@@ -53,6 +53,7 @@
 .grid { stroke:color-mix(in srgb,var(--warm-white) 9.0%,transparent); stroke-width:.7; }
 .zeroLine { stroke:color-mix(in srgb,var(--warm-white) 23.0%,transparent); stroke-width:1; }
 .axis { fill:var(--muted); font:12px ui-monospace,monospace; }
+.axis[data-centered-tick] { paint-order:stroke; stroke:var(--graphite); stroke-width:4px; stroke-linejoin:round; }
 .plotTitle { fill:var(--warm-white); font:13px sans-serif; }
 .emptyPlot { fill:var(--muted); font:12px sans-serif; paint-order:stroke; stroke:var(--surface); stroke-width:5px; }
 .plotHit { fill:transparent; cursor:pointer; }
@@ -201,7 +202,34 @@
 .overviewToolbar button:disabled { cursor:default; }
 .overviewLegend { display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; color:var(--muted); font-size:12px; }
 .overviewLegend span { display:flex; gap:5px; align-items:center; }
+.statisticsButton { display:none; }
 @media(max-width:700px),(hover:none) and (pointer:coarse) {
+  .overviewRanges { display:flex; justify-content:space-between; align-items:center; gap:4px; }
+  .overviewRanges .overviewRangeButtons.overviewRangeButtons { gap:0; flex-wrap:nowrap; }
+  .overviewRanges .overviewRangeButtons.overviewRangeButtons button { padding-inline:2px; }
+  .statisticsButton {
+    display:inline-flex; flex:none; align-items:center; justify-content:center; gap:3px;
+    min-inline-size:44px; min-block-size:44px; padding:0 3px; border:0;
+    background:transparent; color:var(--muted); font:inherit; font-size:13px; cursor:pointer;
+  }
+  .statisticsButton[aria-expanded=true] { color:var(--warm-white); }
+  .statisticsButton[aria-expanded=true] svg { transform:rotate(180deg); }
+  .statisticsPanel:not(:popover-open) { display:none; }
+  .statisticsPanel:popover-open {
+    position:fixed; inset:auto; box-sizing:border-box; margin:0; padding:4px 12px;
+    width:var(--statistics-width); max-height:var(--statistics-max-height);
+    left:var(--statistics-left); top:var(--statistics-top); bottom:var(--statistics-bottom);
+    overflow:auto; overscroll-behavior:contain; border:1px solid var(--line-soft);
+    border-radius:12px; background:var(--surface-raised); color:var(--warm-white);
+    box-shadow:0 8px 24px rgb(0 0 0 / .13);
+  }
+  .statisticsPanel .overviewComparison { margin:0; }
+  .statisticsPanel .comparisonRow {
+    grid-template-columns:minmax(68px,.8fr) minmax(0,1fr) minmax(0,1.05fr);
+    column-gap:6px;
+  }
+  .statisticsPanel .comparisonAmount { white-space:nowrap; }
+  .statisticsBasis { margin:0; padding:7px 0 4px; border-top:1px solid var(--line-soft); color:var(--muted); font-size:12px; }
   .comparisonPeriod,.comparisonInfo { display:grid; justify-items:start; gap:1px; font-size:13px; line-height:1.25; }
   .comparisonDates { font-size:11px; }
   .comparisonValue { font-size:12px; }

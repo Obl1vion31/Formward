@@ -73,7 +73,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const customControls = customOpen && <CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={applyCustomRange} cancel={()=>setCustomOpen(false)}/>;
   const motionRevision = mobile === null ? undefined : rangeRevision;
   const detailSuspended = customOpen || !!dialogDay;
-  const plotOptions = { motionRevision, nestedChange, bindRangePlot: mobile === null ? undefined : bindPlot, finishRange, showDateGuides: range === "30" };
+  const plotOptions = { motionRevision, nestedChange, bindRangePlot: mobile === null ? undefined : bindPlot, finishRange, guideRange: range };
   function viewSelectedDay() {
     finishRange();
     selection.pin(selected);
@@ -82,7 +82,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
 
 
   return <section aria-label="热量与晨重趋势" data-chart-selection={selection.regionId} data-selected-date={selected} data-selection-origin={selection.origin} {...selection.regionProps}>
-    <OverviewTrendLayout date={selected} day={day} range={range} changeRange={changeRange} view={viewSelectedDay} custom={customControls}
+    <OverviewTrendLayout date={selected} day={day} range={range} mobile={mobile} changeRange={changeRange} view={viewSelectedDay} custom={customControls}
       mobileRange={mobile === null && mode === null ? rangeContaining(preferred, today, "7") : undefined}>
       {dates.length ? <RelationshipPlot days={days} selected={selected} selection={selection} compactMode={mobile ?? undefined} {...plotOptions} suspended={detailSuspended}/>
         : <p className={styles.caption}>请选择有效日期范围，最长10年。</p>}

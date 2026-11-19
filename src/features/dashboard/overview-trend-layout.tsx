@@ -1,4 +1,4 @@
-import { useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ChartRanges } from "@/components/chart-ranges";
 import { OverviewLegend } from "@/components/chart-legend";
 import { signedRecordNumber } from "@/components/number-format";
@@ -8,26 +8,80 @@ import { morningChangeReading, shortDate } from "./day-readings";
 import type { OverviewDay, OverviewWeek } from "./model";
 import styles from "./overview.module.css";
 
-export function OverviewTrendLayout({ date, day, range, mobileRange, changeRange, view, custom, children }: {
+function positionStatistics(button: HTMLButtonElement, panel: HTMLDivElement) {
+  const edge = 12;
+  const gap = 6;
+  const viewportWidth = document.documentElement.clientWidth;
+  const viewportHeight = window.innerHeight;
+  const width = Math.min(340, viewportWidth - 2 * edge);
+  const anchor = button.getBoundingClientRect();
+  const above = Math.max(0, anchor.top - gap - edge);
+  const below = Math.max(0, viewportHeight - anchor.bottom - gap - edge);
+  const opensAbove = below < 140 && above > below;
+  panel.style.setProperty("--statistics-width", width + "px");
+  panel.style.setProperty("--statistics-left", Math.max(edge, Math.min(anchor.right - width, viewportWidth - edge - width)) + "px");
+  panel.style.setProperty("--statistics-top", opensAbove ? "auto" : anchor.bottom + gap + "px");
+  panel.style.setProperty("--statistics-bottom", opensAbove ? viewportHeight - anchor.top + gap + "px" : "auto");
+  panel.style.setProperty("--statistics-max-height", (opensAbove ? above : below) + "px");
+}
+
+export function OverviewTrendLayout({ date, day, range, mobileRange, mobile, changeRange, view, custom, children }: {
   date: string;
   day?: OverviewDay;
   range: string;
   mobileRange?: string;
+  mobile?: boolean | null;
   changeRange: (range: string) => void;
   view?: () => void;
   custom?: ReactNode;
   children: ReactNode;
 }) {
   const pending = !view;
+  const statisticsId = useId();
+  const statisticsButton = useRef<HTMLButtonElement>(null);
+  const statisticsPanel = useRef<HTMLDivElement>(null);
+  const [statisticsOpen, setStatisticsOpen] = useState(false);
+  useEffect(() => {
+    const button = statisticsButton.current;
+    const panel = statisticsPanel.current;
+    if (!mobile || !statisticsOpen || !button || !panel) return;
+    const reposition = () => {
+      const anchor = button.getBoundingClientRect();
+      if (anchor.bottom <= 0 || anchor.top >= window.innerHeight) {
+        if (panel.matches(":popover-open")) panel.hidePopover();
+        return;
+      }
+      positionStatistics(button, panel);
+    };
+    window.addEventListener("resize", reposition);
+    document.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      document.removeEventListener("scroll", reposition, true);
+    };
+  }, [mobile, statisticsOpen]);
+  const coverage = day?.week?.coveredDays;
   return <>
-    <div data-overview-range>
+    <div className={styles.overviewRanges} data-overview-range>
       {mobileRange && mobileRange !== range ? <>
-        <div className="mobile-only"><ChartRanges value={mobileRange} change={changeRange} loading={pending}/></div>
+        <div className="mobile-only"><ChartRanges className={styles.overviewRangeButtons} value={mobileRange} change={changeRange} loading={pending}/></div>
         <div className="desktop-only"><ChartRanges value={range} change={changeRange} loading={pending}/></div>
-      </> : <ChartRanges value={range} change={changeRange} loading={pending}/>}
+      </> : <ChartRanges className={styles.overviewRangeButtons} value={range} change={changeRange} loading={pending}/>}
+      <button type="button" ref={statisticsButton} className={styles.statisticsButton} data-overview-statistics-trigger disabled={pending || !mobile}
+        popoverTarget={statisticsId} aria-controls={statisticsId} aria-expanded={!!mobile && statisticsOpen}
+        onClick={event => { if (statisticsPanel.current) positionStatistics(event.currentTarget, statisticsPanel.current); }}>
+        统计
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="m2.5 4.5 3.5 3.5 3.5-3.5" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
     </div>
     {custom}
-    <OverviewComparison date={date} day={day} pending={pending}/>
+    <div id={statisticsId} ref={statisticsPanel} className={styles.statisticsPanel} data-overview-statistics
+      popover={mobile ? "auto" : undefined} onToggle={event => setStatisticsOpen(event.newState === "open")}>
+      <OverviewComparison date={date} day={day} pending={pending} mobile={!!mobile}/>
+      {mobile && coverage !== undefined && coverage < 7 && <p className={styles.statisticsBasis}>已计 {coverage}/7 天</p>}
+    </div>
     <div className={styles.overviewToolbar} data-overview-toolbar>
       <div className={styles.overviewLegend} data-overview-legend><OverviewLegend/><span>千卡</span></div>
       <button type="button" disabled={pending || !date} onClick={view}>查看记录 →</button>
@@ -36,7 +90,7 @@ export function OverviewTrendLayout({ date, day, range, mobileRange, changeRange
   </>;
 }
 
-function OverviewComparison({ date, day, pending }: { date: string; day?: OverviewDay; pending: boolean }) {
+function OverviewComparison({ date, day, pending, mobile }: { date: string; day?: OverviewDay; pending: boolean; mobile: boolean }) {
   const week = day?.week;
   const from = week?.from ?? (date ? addCalendarDays(date, -6) : "");
   const missing = week?.missingMorningDates ?? [];
@@ -55,7 +109,7 @@ function OverviewComparison({ date, day, pending }: { date: string; day?: Overvi
       </div>
     </div>
     <div className={styles.comparisonRow} data-overview-week>
-      {week ? <WeekCoverage week={week}>{weekDates}</WeekCoverage>
+      {week && !mobile ? <WeekCoverage week={week}>{weekDates}</WeekCoverage>
         : <div className={styles.comparisonPeriod}><span>近 7 天</span>{weekDates}</div>}
       <div data-overview-week-energy><ComparisonBalance balance={week?.energyBalance ?? null} pending={pending}/></div>
       <div data-overview-week-weight>
@@ -115,6 +169,6 @@ function ComparisonBalance({ balance, pending }: { balance: number | null; pendi
 function ComparisonWeight({ label, value, status, pending }: { label: string; value: number | null; status: string; pending: boolean }) {
   return <div className={styles.comparisonValue}>
     {label} {pending ? <span>—</span> : value === null || value === 0 ? <span>{value === 0 ? "无变化" : status}</span>
-      : <><b>{signedRecordNumber(value)}</b> <small>kg</small></>}
+      : <span className={styles.comparisonAmount}><b>{signedRecordNumber(value)}</b> <small>kg</small></span>}
   </div>;
 }

@@ -6,7 +6,7 @@ import { useChartViewport } from "@/components/use-chart-viewport";
 import { useChartDrag } from "@/components/use-chart-drag";
 import { useMobileMode } from "@/components/use-mobile-mode";
 import { ChartSelectionColumn } from "@/components/chart-selection-marker";
-import { chartScale } from "@/components/chart-scale";
+import { chartScale, type ChartScale } from "@/components/chart-scale";
 import type { useChartDateSelection } from "@/components/use-chart-date-selection";
 import { useChartMotion } from "@/components/use-chart-motion";
 import { dayReadoutLeft, morningChangeScale, spacedTicks } from "./chart-geometry";
@@ -22,9 +22,9 @@ type ReadoutChoice = { scope: string; mode: ReadoutMode };
 const balanceColors = { surplus: "var(--data-surplus)", deficit: "var(--data-deficit)", even: "var(--muted)" };
 const weightColor = "var(--data-weight)";
 const axisGap = 11;
-const weightTick = (tick: number) => tick === 0 ? "0" : (tick > 0 ? "+" : "−") + Math.abs(tick) + " kg";
+const weightTick = (tick: number, withUnit = true) => tick === 0 ? "0" : (tick > 0 ? "+" : "−") + Math.abs(tick) + (withUnit ? " kg" : "");
 
-export function RelationshipPlot({ days, selected, selection, compactMode, motionRevision, nestedChange = false, bindRangePlot, finishRange, showDateGuides = false, suspended = false }: {
+export function RelationshipPlot({ days, selected, selection, compactMode, motionRevision, nestedChange = false, bindRangePlot, finishRange, guideRange, suspended = false }: {
   days: OverviewDay[];
   selected: string;
   selection: ReturnType<typeof useChartDateSelection>;
@@ -33,7 +33,7 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
   nestedChange?: boolean;
   bindRangePlot?: (node: HTMLDivElement | null) => void;
   finishRange?: () => void;
-  showDateGuides?: boolean;
+  guideRange?: string;
   suspended?: boolean;
 }) {
   const container = useRef<HTMLDivElement>(null);
@@ -59,10 +59,10 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
   const hasWeight = days.some(day => day.weightChangeKg !== null);
   const balanceScale = chartScale(days.map(day => day.energyBalance));
   const weightScale = morningChangeScale(days.map(day => day.weightChangeKg));
-  const { width, left: measuredLeft } = useChartViewport(container, [...balanceScale.ticks, ...weightScale.ticks.map(weightTick)], 49);
-  const left = measuredLeft + axisGap - 8;
+  const { width, left: measuredLeft } = useChartViewport(container, [...balanceScale.ticks, ...weightScale.ticks.map(tick => weightTick(tick))], 49);
   const w = width || 280;
   const compact = compactMode ?? mobile ?? w < 650;
+  const left = compact ? 13 : measuredLeft + axisGap - 8;
   const right = w - 13;
   const { top, energyBottom, weightTop, weightBottom, height } = relationshipFrame(compact, !!shortViewport);
   const balanceY = (n: number) => energyBottom - (n - balanceScale.min) / (balanceScale.max - balanceScale.min) * (energyBottom - top);
@@ -78,6 +78,8 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
   const stride = w < 440 ? Math.max(1, Math.ceil(lastIndex / 3)) : guideStride;
   const isDateTick = (index: number, step: number) =>
     index === lastIndex || (index % step === 0 && lastIndex - index >= step / 2);
+  const longRangeGuides = guideRange === "90" ? new Set([0, 1, 2, 3, 4].map(part => Math.round(lastIndex * part / 4))) : null;
+  const showsGuide = (index: number) => guideRange === "7" || (guideRange === "30" && isDateTick(index, guideStride)) || longRangeGuides?.has(index);
   const scope = [days[0]?.date, days.at(-1)?.date, days.length, motionRevision].join(":");
   const mode = !suspended && readout?.scope === scope ? readout.mode : null;
   const ready = !!width && (compactMode !== undefined || mobile !== null) && (!compact || shortViewport !== null);
@@ -128,6 +130,27 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
   const barWidth = Math.min(compact ? 6.4 : 17, slot * .65);
   const weightRadius = Math.min(compact ? 2.2 : 2.8, slot * .42);
 
+  function axisMarks(axis: "balance" | "weight", scale: ChartScale, position: (value: number) => number, height: number) {
+    const energy = axis === "balance";
+    const ticks = compact ? [...new Set([scale.min, 0, scale.max])] : spacedTicks(scale, height, energy ? 48 : 18);
+    return ticks.map(tick => {
+      const y = position(tick);
+      const zero = tick === 0;
+      const centered = compact && !zero;
+      const label = energy ? (centered && tick < 0 ? "−" + Math.abs(tick) : String(tick))
+        : weightTick(tick, !compact);
+      return <g key={tick} data-axis-tick={tick}>
+        <line data-range-mark={axis + "-axis:" + tick} x1={left} x2={right} y1={y} y2={y}
+          data-balance-zero={energy && zero ? "" : undefined} data-overview-zero={!energy && zero ? "" : undefined}
+          className={zero ? styles.zeroLine : styles.grid} />
+        <text data-range-mark={axis + "-tick:" + tick} data-centered-tick={centered ? "" : undefined}
+          x={centered ? w / 2 : left - (compact ? 5 : axisGap)}
+          y={centered ? y + (tick === scale.min ? 13 : -4) : y + 4}
+          textAnchor={centered ? "middle" : "end"} className={styles.axis}>{label}</text>
+      </g>;
+    });
+  }
+
   function balanceMark(day: OverviewDay, index: number, balance: number) {
     const end = balanceY(balance);
     const kind = balance === 0 ? "even" : balance < 0 ? "deficit" : "surplus";
@@ -167,9 +190,9 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
           show("hover");
         }}>
         <desc id={id + "-help"}>上下两图使用同一日期。净收支以零线为基准，无法计算的日期留空。点按、悬停或使用方向键查看单日读数，点击可锁定日期。查看记录按钮打开当日记录。次晨变化使用相邻两次实测晨重。</desc>
-        {showDateGuides && <g aria-hidden="true" pointerEvents="none" className={styles.grid}>
+        {(guideRange === "7" || guideRange === "30" || guideRange === "90") && <g aria-hidden="true" pointerEvents="none" className={styles.grid}>
           {days.map((day, index) => {
-            if (!isDateTick(index, guideStride)) return null;
+            if (!showsGuide(index)) return null;
             const center = x(index);
             return <g key={day.date} data-overview-guide-date={day.date}>
               <line data-range-mark={"date-guide:energy:" + day.date} x1={center} x2={center} y1={top} y2={energyBottom} />
@@ -180,11 +203,7 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
         <ChartSelectionColumn x={x(selectedIndex)} date={selected} column={{ left: x(selectedIndex) - slot / 2, right: x(selectedIndex) + slot / 2 }}
           plot={{ left, right, top, bottom: weightBottom }} resetKey={[w, height, scope].join(":")} direct={selection.direct} rangeMotion />
         <g data-overview-panel="energy">
-          {spacedTicks(balanceScale, energyBottom - top).map(tick => <g key={tick} data-axis-tick={tick}>
-            <line data-range-mark={"balance-axis:" + tick} x1={left} x2={right} y1={balanceY(tick)} y2={balanceY(tick)}
-              data-balance-zero={tick === 0 ? "" : undefined} className={tick === 0 ? styles.zeroLine : styles.grid} />
-            <text data-range-mark={"balance-tick:" + tick} x={left - axisGap} y={balanceY(tick) + 4} textAnchor="end" className={styles.axis}>{tick}</text>
-          </g>)}
+          {axisMarks("balance", balanceScale, balanceY, energyBottom - top)}
           <g className={styles.plotData}>
             {days.map((day, index) => day.energyBalance === 0 ? balanceMark(day, index, 0) : null)}
           </g>
@@ -194,11 +213,8 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
           {!hasEnergy && <text x={(left + right) / 2} y={(top + energyBottom) / 2} textAnchor="middle" className={styles.emptyPlot}>此区间暂无热量记录</text>}
         </g>
         <g data-overview-panel="weight">
-          {spacedTicks(weightScale, weightBottom - weightTop, 18).map(tick => <g key={tick} data-axis-tick={tick}>
-            <line data-range-mark={"weight-axis:" + tick} data-overview-zero={tick === 0 ? "" : undefined} x1={left} x2={right} y1={weightY(tick)} y2={weightY(tick)}
-              className={tick === 0 ? styles.zeroLine : styles.grid} />
-            <text data-range-mark={"weight-tick:" + tick} x={left - axisGap} y={weightY(tick) + 4} textAnchor="end" className={styles.axis}>{weightTick(tick)}</text>
-          </g>)}
+          {axisMarks("weight", weightScale, weightY, weightBottom - weightTop)}
+          {compact && <text data-range-mark="weight-unit" x={right} y={weightTop - 4} textAnchor="end" className={styles.axis}>kg</text>}
           <g className={styles.plotData}>
             {days.map((day, index) => day.weightChangeKg === 0
               ? weightPoint(day, index, 0) : null)}
