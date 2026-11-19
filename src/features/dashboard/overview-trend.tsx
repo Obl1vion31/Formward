@@ -78,7 +78,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const customControls = customOpen && <CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={applyCustomRange} cancel={()=>setCustomOpen(false)}/>;
   const motionRevision = mobile === null ? undefined : rangeRevision;
   const detailSuspended = customOpen || !!dialogDay;
-  const rangeMotion = { motionRevision, nestedChange, bindRangePlot: mobile === null ? undefined : bindPlot, finishRange };
+  const plotOptions = { motionRevision, nestedChange, bindRangePlot: mobile === null ? undefined : bindPlot, finishRange, showDateGuides: range === "30" };
   function viewSelectedDay() {
     finishRange();
     selection.pin(selected);
@@ -94,7 +94,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       <div className={styles.mobileSelected} aria-live="polite"><time>{selected}</time><strong><BalanceReading balance={day?.energyBalance ?? null}/></strong></div>
       <div className={styles.mobileLegend}><OverviewLegend/></div>
       {dates.length ? <>
-        <RelationshipPlot days={days} selected={selected} selection={selection} compactMode {...rangeMotion} suspended={detailSuspended}/>
+        <RelationshipPlot days={days} selected={selected} selection={selection} compactMode {...plotOptions} suspended={detailSuspended}/>
         <OverviewReadings day={day} mobile/>
       </> : <p className={styles.caption}>请选择有效日期范围，最长10年。</p>}
     </div>}{mobile!==true&&<div className="desktop-only"><RecordTrendPanel
@@ -109,7 +109,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       flags={overviewFlags(day)} flagVariants={days.map(overviewFlags)}
       title="热量收支" unit="kcal"
       legend={<OverviewLegend/>}
-    >{dates.length?<RelationshipPlot days={days} selected={selected} selection={selection} compactMode={false} {...rangeMotion} suspended={detailSuspended}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel></div>}
+    >{dates.length?<RelationshipPlot days={days} selected={selected} selection={selection} compactMode={false} {...plotOptions} suspended={detailSuspended}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel></div>}
     {mobile!==true&&<div className="desktop-only"><RangeCoverage key={from+to} days={days} today={today} from={from} to={to}/></div>}
     {dialogDay&&<EditorDialog title={dialogDay.date+" · 当日记录"} titleParts={[dialogDay.date,"当日记录"]} stableScroll close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}
   </section>;

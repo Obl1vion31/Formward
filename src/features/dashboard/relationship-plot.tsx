@@ -25,7 +25,7 @@ const weightColor = "var(--data-weight)";
 const axisGap = 11;
 const weightTick = (tick: number) => tick > 0 ? "+" + tick : String(tick);
 
-export function RelationshipPlot({ days, selected, selection, compactMode, motionRevision, nestedChange = false, bindRangePlot, finishRange, suspended = false }: {
+export function RelationshipPlot({ days, selected, selection, compactMode, motionRevision, nestedChange = false, bindRangePlot, finishRange, showDateGuides = false, suspended = false }: {
   days: OverviewDay[];
   selected: string;
   selection: ReturnType<typeof useChartDateSelection>;
@@ -34,6 +34,7 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
   nestedChange?: boolean;
   bindRangePlot?: (node: HTMLDivElement | null) => void;
   finishRange?: () => void;
+  showDateGuides?: boolean;
   suspended?: boolean;
 }) {
   const container = useRef<HTMLDivElement>(null);
@@ -78,7 +79,11 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
   const x = (index: number) => left + (index + .5) * slot;
   const selectedIndex = Math.max(0, days.findIndex(day => day.date === selected));
   const entry = entries[selectedIndex];
-  const stride = Math.max(1, Math.ceil((days.length - 1) / (w < 440 ? 3 : 6)));
+  const lastIndex = days.length - 1;
+  const guideStride = Math.max(1, Math.ceil(lastIndex / 6));
+  const stride = w < 440 ? Math.max(1, Math.ceil(lastIndex / 3)) : guideStride;
+  const isDateTick = (index: number, step: number) =>
+    index === lastIndex || (index % step === 0 && lastIndex - index >= step / 2);
   const scope = [days[0]?.date, days.at(-1)?.date, days.length, motionRevision].join(":");
   const mode = !suspended && readout?.scope === scope ? readout.mode : null;
   const ready = !!width && (compactMode !== undefined || mobile !== null) && (!compact || shortViewport !== null);
@@ -170,6 +175,16 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
           show("hover");
         }}>
         <desc id={id + "-help"}>上下两图使用同一日期。净收支以零线为基准，灰横表示有记录但未计收支。点按、悬停或使用方向键查看单日读数，点击可锁定日期。查看记录按钮打开当日记录。次晨变化使用相邻两次实测晨重。</desc>
+        {showDateGuides && <g aria-hidden="true" pointerEvents="none" className={styles.grid}>
+          {days.map((day, index) => {
+            if (!isDateTick(index, guideStride)) return null;
+            const center = x(index);
+            return <g key={day.date} data-overview-guide-date={day.date}>
+              <line data-range-mark={"date-guide:energy:" + day.date} x1={center} x2={center} y1={top} y2={balanceBottom} />
+              <line data-range-mark={"date-guide:weight:" + day.date} x1={center} x2={center} y1={weightTop} y2={weightBottom} />
+            </g>;
+          })}
+        </g>}
         <ChartSelectionColumn x={x(selectedIndex)} date={selected} column={{ left: x(selectedIndex) - slot / 2, right: x(selectedIndex) + slot / 2 }}
           plot={{ left, right, top, bottom: weightBottom }} resetKey={[w, height, scope].join(":")} direct={selection.direct} rangeMotion />
         <g data-overview-panel="energy">
@@ -248,9 +263,8 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
           </g>;
         })}
         {days.map((day, index) => {
-          const last = index === days.length - 1;
-          if (!last && (index % stride !== 0 || days.length - 1 - index < stride / 2)) return null;
-          return <text key={day.date} x={x(index)} y={height - 5} textAnchor={days.length === 1 ? "middle" : index === 0 ? "start" : last ? "end" : "middle"}
+          if (!isDateTick(index, stride)) return null;
+          return <text key={day.date} x={x(index)} y={height - 5} textAnchor={days.length === 1 ? "middle" : index === 0 ? "start" : index === lastIndex ? "end" : "middle"}
             data-overview-date-label="" data-range-mark={"date-tick:" + day.date} className={styles.axis}
             aria-hidden="true" onClick={() => activate(day.date)}>
             {w < 440 && days.length <= 7 ? day.date.slice(8) : days.length > 366 ? day.date.slice(2, 7).replace("-", ".") : shortDate(day.date)}
