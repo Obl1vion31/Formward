@@ -15,6 +15,7 @@
   box-sizing: border-box;
 }
 html {
+  --workspace-safe-bottom: env(safe-area-inset-bottom, 0px);
   background: var(--graphite);
 }
 html:has(.dashboard-page) { scrollbar-gutter: stable; }
@@ -953,7 +954,7 @@ form[data-entry-form] button:not([type=submit]) {min-height:44px}
 dialog[data-surface-phase=closing]::backdrop{background-color:transparent}
 @media(max-width:700px),(hover:none) and (pointer:coarse){
  :root{
-  --workspace-dock-gap:max(12px,env(safe-area-inset-bottom,0px),var(--workspace-dock-origin-gap,0px));
+  --workspace-dock-gap:calc(12px + var(--workspace-safe-bottom));
   --workspace-dock-inset:calc(var(--workspace-dock-height,64px) + var(--workspace-dock-gap) + 8px);
  }
  .dashboard-page{padding-bottom:calc(var(--workspace-dock-inset) + 24px)}

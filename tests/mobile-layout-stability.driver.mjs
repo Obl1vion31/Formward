@@ -93,24 +93,42 @@ export async function runMobileLayoutStability(db) {
         native.addEventListener("resize", () => mock.dispatchEvent(new Event("resize")));
         native.addEventListener("scroll", () => mock.dispatchEvent(new Event("scroll")));
 
+        const animate = Element.prototype.animate;
+        Element.prototype.animate = function (...args) {
+          const animation = animate.apply(this, args);
+          if (window.holdAssistantEntry && this.matches("[data-assistant-page-content]") &&
+              this.closest("[data-assistant-phase]")?.dataset.assistantPhase === "opening") {
+            animation.pause();
+            animation.currentTime = 0;
+            window.assistantEntry = animation;
+          }
+          return animation;
+        };
+
         window.mobileLayout = () => {
           const box = node => {
             if (!node) return null;
             const bounds = node.getBoundingClientRect(), css = getComputedStyle(node);
-            return { top: bounds.top, bottom: bounds.bottom, height: bounds.height,
+            return { top: bounds.top, bottom: bounds.bottom, height: bounds.height, left: bounds.left,
               visible: css.visibility === "visible" && bounds.height > 0, opacity: Number(css.opacity),
               padding: [parseFloat(css.paddingTop), parseFloat(css.paddingBottom)] };
           };
           const shell = document.querySelector("[data-assistant-page]");
           const dock = document.querySelector("[data-workspace-dock]");
+          const frame = document.querySelector("[data-workspace-viewport]");
           const card = [...document.querySelectorAll("[data-chat-preview]")].find(node => box(node)?.visible);
           const reading = card?.querySelector("[data-local-loading]");
           return {
             time: performance.now(), visibleBottom: mock.height + mock.offsetTop, layoutHeight: innerHeight, scroll: scrollY,
             rootBackground: getComputedStyle(document.documentElement).backgroundColor,
-            shellBackground: shell ? getComputedStyle(shell).backgroundColor : null,
+            frameBackground: frame ? getComputedStyle(frame).backgroundColor : null,
+            viewport: box(frame), content: box(shell?.querySelector("[data-assistant-page-content]")),
+            inset: dock ? parseFloat(getComputedStyle(dock).bottom) : null,
             workspaceVisible: !!box(document.querySelector("[data-workspace-frame]"))?.visible,
-            locked: document.body.style.position === "fixed", phase: shell?.getAttribute("data-assistant-phase"),
+            locked: document.body.style.position === "fixed" || document.body.style.overflow === "hidden",
+            phase: shell?.getAttribute("data-assistant-phase"),
+            mountedDock: dock === window.originalWorkspaceDock,
+            assistantEntryVisible: !!box(dock?.querySelector("[data-assistant-trigger]"))?.visible,
             selected: dock?.querySelector("[aria-current=page]")?.textContent,
             dock: box(dock), shell: box(shell), composer: box(shell?.querySelector("[class*=composerRow]")?.parentElement),
             send: box(shell?.querySelector('[aria-label="发送消息"]')),
@@ -150,10 +168,9 @@ export async function runMobileLayoutStability(db) {
         if (cdp) {
           await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets: { bottom, bottomMax: bottom ? 34 : 0 } });
         } else {
-          // WebKit 没有环境变量模拟接口，保留生产样式的最小值与进入前留位。
+          // 浏览器协议无法设置 WebKit 的 env()，仅替换浏览器提供的安全区值。
           await page.locator("html").evaluate((node, bottom) => node.style.setProperty(
-            "--workspace-dock-gap",
-            "max(12px, " + bottom + "px, var(--workspace-dock-origin-gap, 0px))",
+            "--workspace-safe-bottom", bottom + "px",
           ), bottom);
         }
       }
@@ -174,6 +191,7 @@ export async function runMobileLayoutStability(db) {
 
       async function openChat() {
         if (mobile) {
+          await dock.evaluate(node => { window.originalWorkspaceDock = node; });
           await trigger.click();
           await page.waitForURL("**" + assistantPath);
           await page.waitForFunction(() => window.mobileLayout().phase === "open");
@@ -188,7 +206,7 @@ export async function runMobileLayoutStability(db) {
         await text.waitFor();
       }
 
-      async function returnTo(path, original, action, expectedGap) {
+      async function returnTo(path, original, action, { gap = original.inset, resized = false } = {}) {
         await track();
         await action();
         await page.waitForURL(baseURL + path);
@@ -202,21 +220,22 @@ export async function runMobileLayoutStability(db) {
         assert.ok(steps.length >= 3, "覆盖底栏露出及随后稳定帧");
         assert.equal(steps[0], timeline.find(frame => frame.workspaceVisible), "来源正文和底栏同一帧露出");
         assert.equal(steps[0].phase, "closing", "底栏在助手退场开始时即可见");
-        assert.equal(final.locked, false, "返回完成后释放滚动锁");
+        assert.ok(timeline.every(frame => !frame.locked), "进出交接未锁定整个文档");
         for (const frame of steps) {
-          near(frame.dock.top, final.dock.top, "已露出的底栏顶部");
-          near(frame.dock.bottom, final.dock.bottom, "已露出的底栏底部");
+          assert.ok(frame.mountedDock && frame.assistantEntryVisible, "首帧使用来源页的同一个完整底栏");
+          assert.equal(frame.selected, original.selected, "底栏选中态从首帧匹配来源");
+          near(frame.dock.bottom, frame.viewport.bottom - frame.inset, "底栏每帧与同一框架的底边对齐");
+          if (!resized) near(frame.dock.top, final.dock.top, "可见时没有额外垂直跳动");
         }
-        near(final.dock.top, original.dock.top, "来源页面的底栏顶部");
+        if (!resized) near(final.dock.top, original.dock.top, "来源页面的底栏顶部");
         near(final.scroll, original.scroll, "来源页面滚动位置");
-        if (expectedGap !== undefined) {
-          near(final.visibleBottom - final.dock.bottom, expectedGap, "返回时沿用进入前的安全留位");
-          const padding = await page.locator("main.dashboard-page:visible").first().evaluate(node => parseFloat(getComputedStyle(node).paddingBottom));
-          near(padding, final.dock.height + expectedGap + 32, "正文留位和底栏共用安全区");
-        }
-        report.samples.push({ name, kind: "return", path, firstVisible: steps[0], final, visibleFrames: steps.length,
+        near(final.viewport.bottom - final.dock.bottom, gap, "使用当前安全区");
+        const padding = await page.locator("main.dashboard-page:visible").first().evaluate(node => parseFloat(getComputedStyle(node).paddingBottom));
+        near(padding, final.dock.height + gap + 32, "正文留位和底栏共用安全区");
+        const stableFrames = steps.filter(frame => frame.viewport.bottom === final.viewport.bottom && frame.inset === final.inset);
+        report.samples.push({ name, kind: "return", path, resized, firstVisible: steps[0], final, visibleFrames: steps.length,
           closingFrames: steps.filter(frame => frame.phase === "closing").length,
-          dockTopDrift: Math.max(...steps.map(frame => Math.abs(frame.dock.top - final.dock.top))) });
+          dockTopDrift: Math.max(...stableFrames.map(frame => Math.abs(frame.dock.top - final.dock.top))) });
       }
 
       try {
@@ -248,6 +267,18 @@ export async function runMobileLayoutStability(db) {
         report.checks.push(name + " 慢读固定间距，卡片读取后真实展开");
 
         if (mobile) {
+          const arrivals = captured.filter(frame => frame.phase === "opening");
+          assert.ok(arrivals.length > 0, "采样覆盖开场动效，不能只测稳定画面");
+          for (const frame of arrivals) {
+            assert.equal(frame.frameBackground, frame.rootBackground, "首个绘制帧的画布和视口底色一致");
+            assert.equal(frame.frameBackground, reading.frameBackground, "背景颜色贯穿整个入场");
+            assert.equal(frame.viewport.opacity, 1);
+            near(frame.viewport.bottom, frame.layoutHeight, "视口从首帧覆盖到屏幕底边");
+            near(frame.shell.left, 0, "背景外的助手布局不参与横移");
+            assert.equal(frame.locked, false);
+            near(frame.scroll, home.scroll, "入场不改来源页滚动");
+          }
+          report.samples.push({ name, kind: "opening", frameCount: arrivals.length, first: arrivals[0], last: arrivals.at(-1) });
           const normal = await measure();
           near(normal.shell.bottom, normal.visibleBottom, "聊天底色铺到视口边缘");
           near(normal.composer.bottom, normal.visibleBottom, "无安全区时输入框贴底");
@@ -257,7 +288,7 @@ export async function runMobileLayoutStability(db) {
           near(shortViewport.layoutHeight - shortViewport.visibleBottom, 6, "复现视觉视口短报");
           near(shortViewport.shell.bottom, shortViewport.layoutHeight, "无键盘时聊天底色仍盖住布局视口");
           near(shortViewport.composer.bottom, shortViewport.layoutHeight, "无键盘时输入区仍贴住布局视口");
-          assert.equal(shortViewport.rootBackground, shortViewport.shellBackground, "网页底色与助手一致");
+          assert.equal(shortViewport.rootBackground, shortViewport.frameBackground, "网页底色与助手一致");
           report.samples.push({ name, kind: "bottom-edge", before: normal, shortViewport });
           await shot("edge");
           await page.evaluate(() => window.setTestViewport(null));
@@ -281,8 +312,17 @@ export async function runMobileLayoutStability(db) {
           await viewer.getByRole("img", { name: "第 2 张照片", exact: true }).waitFor();
           await viewer.getByRole("button", { name: "关闭照片预览", exact: true }).click();
           await viewer.waitFor({ state: "hidden" });
-          await returnTo("/dashboard", home, () => back.click());
-          report.checks.push("视口短报6px时小助手底边贴合，键盘、待办草稿、原图和滚动返回");
+          await returnTo("/dashboard", home, async () => {
+            await page.evaluate(() => window.setTestViewport({ height: innerHeight - 6, offsetTop: 0 }));
+            await back.click();
+            await page.waitForFunction(() => window.mobileLayout().phase === "closing");
+            const transient = await measure();
+            near(transient.layoutHeight - transient.visibleBottom, 6, "退出过程仍短报视觉视口");
+            near(transient.dock.top, home.dock.top, "视觉视口短报时底栏已在来源位置");
+            await page.evaluate(() => window.setTestViewport(null));
+          });
+          await shot("returned");
+          report.checks.push("入场直到稳定底色一致，视口短报不移动底栏，键盘、待办草稿、原图和滚动返回");
 
           await setSafeArea(34);
           const safeOrigin = await measure();
@@ -292,22 +332,18 @@ export async function runMobileLayoutStability(db) {
           response = "fast";
           await card.getByRole("button", { name: "重新读取", exact: true }).click();
           await card.getByText(foodName, { exact: true }).waitFor();
-          if (cdp) {
-            const safe = await measure();
-            near(safe.visibleBottom - safe.composer.bottom, 34, "输入框留出实际安全区");
-          }
+          const safe = await measure();
+          near(safe.visibleBottom - safe.composer.bottom, 34, "输入框留出实际安全区");
           await returnTo("/dashboard", safeOrigin, async () => {
             await back.click();
+            await page.waitForFunction(() => window.mobileLayout().phase === "closing");
+            await page.setViewportSize({ ...viewport, height: viewport.height - 6 });
             await setSafeArea(30);
-          }, 34);
-          await shot("returned");
-          await page.setViewportSize({ ...viewport, width: 430 });
-          await page.waitForFunction(() => !document.documentElement.style.getPropertyValue("--workspace-dock-origin-gap"));
-          const resized = await measure();
-          near(resized.visibleBottom - resized.dock.bottom, 30, "屏幕宽度变化后重新采用当前安全区");
+          }, { gap: 42, resized: true });
           await setSafeArea(0);
           await page.setViewportSize(viewport);
-          report.checks.push("失败原位重试，安全区34→30px时底栏和正文留位稳定，宽度变化重新计算");
+          near((await measure()).inset, 12, "清除安全区后没有残留历史间距");
+          report.checks.push("失败原位重试，真实视口调整与安全区变化同步参考框架，无回程后二次定位");
           for (const [path, label] of key) {
             await page.goto(path, { waitUntil: "networkidle" });
             const before = await measure();
@@ -327,6 +363,39 @@ export async function runMobileLayoutStability(db) {
             assert.equal((await measure()).selected, label);
           }
           report.checks.push("五个主页面软导航返回，浏览器前后及快速重开");
+
+          for (const theme of ["dark", "light"]) {
+            await page.evaluate(theme => {
+              document.documentElement.dataset.theme = theme;
+              window.holdAssistantEntry = true;
+            }, theme);
+            await trigger.click();
+            await page.waitForFunction(() => window.assistantEntry?.playState === "paused");
+            const first = await measure();
+            near(first.content.left, 16, "首帧仍从右侧进入");
+            near(first.content.opacity, 0.65, "首帧只渐变前景");
+            await page.evaluate(() => document.querySelector("[data-assistant-page]").style
+              .setProperty("--assistant-keyboard-height", innerHeight - 6 + "px"));
+            const shortened = await measure();
+            near(shortened.shell.bottom, first.layoutHeight - 6, "重放旧症状的几何缺口");
+            near(shortened.viewport.bottom, first.layoutHeight, "固定底色覆盖前景下方的 6px");
+            assert.equal(shortened.frameBackground, shortened.rootBackground);
+            await shot(theme + "-first-frame");
+            await page.evaluate(() => {
+              document.querySelector("[data-assistant-page]").style.removeProperty("--assistant-keyboard-height");
+              window.holdAssistantEntry = false;
+              window.assistantEntry.play();
+              window.assistantEntry = null;
+            });
+            await page.waitForFunction(() => window.mobileLayout().phase === "open");
+            const open = await measure();
+            assert.equal(open.frameBackground, first.frameBackground);
+            await shot(theme + "-settled");
+            report.samples.push({ name, kind: "first-frame-pixels", theme, first, shortened, open });
+            await back.click();
+            await shell.waitFor({ state: "hidden" });
+          }
+          report.checks.push("两主题取入场第一帧和稳定画面，并复现前景底部短 6px");
 
           await openChat();
           await page.getByRole("button", { name: "历史会话", exact: true }).click();

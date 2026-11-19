@@ -480,6 +480,6 @@ MFA专项使用真实Better Auth插件验证绑定、错误动态码、恢复码
 
 设置 FORMWARD_DIRECTIONAL_NAVIGATION=1 运行 tests/chat-pilot.browser.mts。用虚构照片、当前及历史对话、训练日历和后台栏目核对双向偏移、主题、草稿及减弱动态，保存实页原速录像。
 
-设置 FORMWARD_MOBILE_LAYOUT_STABILITY=1 运行 tests/chat-pilot.browser.mts。核对无键盘时视觉视口短报 6px、输入区贴底、底栏随来源正文同帧返回、动态安全区和正文留位。摘要提示覆盖空白槽、慢读、快读和失败重试，保存整屏截图、原速录屏以及逐帧尺寸。
+设置 FORMWARD_MOBILE_LAYOUT_STABILITY=1 运行 tests/chat-pilot.browser.mts。验收入场首帧底色与短 6px 的前景边缘、无键盘时视觉视口短报与恢复、同一个底栏随来源正文同帧返回，以及实际视口和安全区变化时底栏与正文留位共享锚点。摘要提示覆盖空白槽、慢读、快读和失败重试，保存整屏截图、原速录屏以及逐帧尺寸。
 
 方案A的少量真实千问验收使用同一隔离入口，设置 `FORMWARD_CONTEXT_CASE=live`、`FORMWARD_CHAT_CONTEXT_RECOVERY=1`、`FORMWARD_LOCAL_PREVIEW=1` 和只读的0600测试凭据文件 `FORMWARD_CHAT_LIVE_KEY_FILE`。真实请求只在隔离 worker 内串行发出，独立账本持久预留未结算费用，总额上限¥1，未知费用阻止后续请求。常规页面回放全部使用模拟供应商。报告与凭据均保存在私有路径。

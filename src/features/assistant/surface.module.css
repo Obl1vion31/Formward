@@ -39,25 +39,37 @@
 .mainContent { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 .mainContent > * { width: 100%; min-width: 0; }
 .mainContent[inert] { visibility: hidden; }
-.assistantPage {
+.workspaceContent, .workspaceDock { display: contents; }
+.workspaceContent[data-assistant-covered] > *, .workspaceViewport[data-assistant-covered] .workspaceDock { visibility: hidden; }
+
+.workspaceViewport {
   position: fixed;
-  inset: var(--assistant-page-top, 0px) 0 auto;
-  height: var(--assistant-page-height, 100dvh);
-  box-sizing: border-box;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
-  display: flex;
-  flex-direction: column;
-  background: var(--surface);
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+.workspaceViewport[data-assistant-present] { z-index: 45; }
+/* 进场从首帧覆盖浏览器画布，横移和淡变发生在前景。 */
+.workspaceViewport[data-assistant-covered],
+:global(html):has(.workspaceViewport[data-assistant-covered]) { background-color: var(--surface); }
+.assistantPage {
+  position: absolute;
+  inset: var(--assistant-keyboard-top, 0px) 0 auto;
+  height: var(--assistant-keyboard-height, 100%);
   color: var(--warm-white);
-  z-index: 45;
   overflow: hidden;
   overscroll-behavior: none;
+  pointer-events: auto;
 }
-.workspaceContent { display: contents; }
-.workspaceContent[data-assistant-covered] > * { visibility: hidden; }
-:global(html):has(.assistantPage[data-assistant-page][data-assistant-phase="open"]) { background-color: var(--surface); }
 .assistantPage[hidden] { display: none; }
 .assistantPage[data-assistant-phase="closing"] { pointer-events: none; }
+.assistantPageContent {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+}
 .pageHeading {
   flex: none;
   width: min(100%, 800px);
@@ -104,7 +116,7 @@
 .pageHeading h1:focus, .historyHeading :is(h1,h3):focus { outline: none; }
 
 .content { overflow: auto; overscroll-behavior: contain; padding: 12px; min-height: 0; background: var(--surface); scrollbar-color: var(--control-border) transparent; }
-.assistantPage .content { padding: 12px 16px max(20px, env(safe-area-inset-bottom)); }
+.assistantPage .content { padding: 12px 16px max(20px, var(--workspace-safe-bottom)); }
 .quick { padding: 8px 0 16px; }
 .quick > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .quick a { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 11px; border: 1px solid var(--control-border); border-radius: 12px; color: var(--warm-white); font-size: .875rem; text-decoration: none; }
@@ -324,7 +336,7 @@
 }
 .historyFooter p { font-size: .8125rem; color: var(--muted); margin: 0 0 6px; }
 .history .historyFooter button { padding: 0 16px; background: var(--action-fill); color: var(--action-ink); border-radius: 10px; }
-.history[data-page=true] .historyFooter { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+.history[data-page=true] .historyFooter { padding-bottom: max(10px, var(--workspace-safe-bottom)); }
 .history[data-page=true] .historyFooter button { display: block; width: 100%; }
 
 .toast { position: fixed; right: 24px; bottom: 88px; z-index: 25; display: flex; align-items: center; gap: 12px; max-width: min(430px, calc(100vw - 32px)); box-sizing: border-box; padding: 8px 12px 8px 16px; border-radius: 16px; background: var(--nav-solid); color: var(--warm-white); box-shadow: 0 6px 24px var(--nav-shadow); font-size: .875rem; }

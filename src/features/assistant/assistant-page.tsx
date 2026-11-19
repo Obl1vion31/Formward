@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useOrderedArrival } from "@/components/use-ordered-arrival";
-import { lockPageScroll } from "@/components/scroll-lock";
 import { animateSurface, stopSurfaceMotion } from "@/components/surface-motion";
 import { useAssistant } from "./context";
 import { useAssistantChat } from "./chat-client";
@@ -27,12 +26,16 @@ function setHistoryView(value: string | null, steps: number, replace = false) {
   }, "", url);
 }
 
-export function AssistantWorkspace({ children }: { children: ReactNode }) {
+export function AssistantWorkspace({ children, dock }: { children: ReactNode; dock: ReactNode }) {
   const { page } = useAssistant();
+  const covered = !!page && page.motion?.direction !== "close";
   return <div className="workspace-shell">
-    <div className={styles.workspaceContent} data-assistant-covered={!!page && !page.motion || undefined}
-      inert={!!page && page.motion?.direction !== "close"}>{children}</div>
-    <AssistantPage page={page}/>
+    <div className={styles.workspaceContent} data-assistant-covered={covered || undefined} inert={covered}>{children}</div>
+    <div className={styles.workspaceViewport} data-workspace-viewport data-assistant-present={!!page || undefined}
+      data-assistant-covered={covered || undefined}>
+      <div className={styles.workspaceDock} inert={covered}>{dock}</div>
+      <AssistantPage page={page}/>
+    </div>
   </div>;
 }
 
@@ -51,6 +54,7 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
   const shown = !!page;
   const interactive = shown && !closing;
   const container = useRef<HTMLElement>(null);
+  const content = useRef<HTMLDivElement>(null);
   const historyButton = useRef<HTMLButtonElement>(null);
   const pageTitle = useRef<HTMLHeadingElement>(null);
   const leftHistory = useRef(false);
@@ -58,7 +62,6 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
   useLayoutEffect(() => {
     const shell = container.current;
     if (!shown || !shell) return;
-    const unlock = lockPageScroll("fixed");
     const viewport = window.visualViewport;
     let frame = 0, dragUntil = 0, keyboard = false;
     let restingHeight = viewport?.height ?? innerHeight;
@@ -76,13 +79,13 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
       if ((!editing && !keyboard) || height > restingHeight) restingHeight = height;
       // 恢复到正常视口后再加回安全区，失焦本身不代表键盘已收起。
       keyboard = (editing || keyboard) && restingHeight - height >= (keyboard ? 8 : 72);
-      // 普通浏览由 CSS 的动态视口贴边，像素定位只用于软键盘占用可见区时。
+      // 只有软键盘改变助手的可交互区域，常驻视口与底栏使用自身的布局。
       if (keyboard) {
-        shell!.style.setProperty("--assistant-page-height", height + "px");
-        shell!.style.setProperty("--assistant-page-top", Math.max(0, viewport?.offsetTop ?? 0) + "px");
+        shell!.style.setProperty("--assistant-keyboard-height", height + "px");
+        shell!.style.setProperty("--assistant-keyboard-top", Math.max(0, viewport?.offsetTop ?? 0) + "px");
       } else {
-        shell!.style.removeProperty("--assistant-page-height");
-        shell!.style.removeProperty("--assistant-page-top");
+        shell!.style.removeProperty("--assistant-keyboard-height");
+        shell!.style.removeProperty("--assistant-keyboard-top");
       }
       shell!.toggleAttribute("data-assistant-keyboard", keyboard);
     }
@@ -112,10 +115,9 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
       shell.removeEventListener("touchmove", drag);
       shell.removeEventListener("focusin", schedule);
       shell.removeEventListener("focusout", schedule);
-      shell.style.removeProperty("--assistant-page-height");
-      shell.style.removeProperty("--assistant-page-top");
+      shell.style.removeProperty("--assistant-keyboard-height");
+      shell.style.removeProperty("--assistant-keyboard-top");
       shell.removeAttribute("data-assistant-keyboard");
-      unlock();
     };
   }, [shown]);
   useLayoutEffect(() => {
@@ -124,11 +126,11 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
     return () => cancelAnimationFrame(frame);
   }, [entryId, interactive]);
   useLayoutEffect(() => {
-    const node = container.current;
+    const node = content.current;
     return () => { if (node) stopSurfaceMotion(node); };
   }, []);
   useLayoutEffect(() => {
-    const node = container.current;
+    const node = content.current;
     if (!node) return;
     const clearPose = () => {
       node.style.removeProperty("transform");
@@ -167,31 +169,33 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
 
   return <main ref={container} className={styles.assistantPage} data-assistant-page={shown || undefined} hidden={!shown}
     inert={!interactive} aria-hidden={!interactive || undefined} data-assistant-phase={closing ? "closing" : motion ? "opening" : "open"}>
-    <div className={styles.pageHeading} inert={!!history}>
-      <header>
-        <button className={styles.pageIcon} type="button" aria-label="返回工作区" onClick={backFromPage}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
-        </button>
-        <h1 ref={pageTitle} className="sr-only" tabIndex={-1}>小助手</h1>
-        <ChatNavigation tab={tab} onTab={selectTab} pendingCount={count}/>
-        <div className={styles.pageActions}>
-          <button ref={historyButton} type="button" className={styles.pageIcon} aria-label="历史会话" onClick={() => setHistoryView("list", 1)}><HistoryIcon/></button>
-          <ChatHeaderActions onNew={() => selectTab("chat")}/>
-        </div>
-      </header>
+    <div ref={content} className={styles.assistantPageContent} data-assistant-page-content>
+      <div className={styles.pageHeading} inert={!!history}>
+        <header>
+          <button className={styles.pageIcon} type="button" aria-label="返回工作区" onClick={backFromPage}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+          </button>
+          <h1 ref={pageTitle} className="sr-only" tabIndex={-1}>小助手</h1>
+          <ChatNavigation tab={tab} onTab={selectTab} pendingCount={count}/>
+          <div className={styles.pageActions}>
+            <button ref={historyButton} type="button" className={styles.pageIcon} aria-label="历史会话" onClick={() => setHistoryView("list", 1)}><HistoryIcon/></button>
+            <ChatHeaderActions onNew={() => selectTab("chat")}/>
+          </div>
+        </header>
+      </div>
+      {page && <AssistantPageBody defer={!!page.source} historyOpen={!!history}>
+        <AssistantChatView sidebar={tasks && <AssistantTasks {...tasks} mobile inlineReview={chat.enabled} navigate={allowNavigation}/>}
+          navigate={allowNavigation} tab={tab} page onPreviewBack={() => selectTab("tasks")}/>
+      </AssistantPageBody>}
+      {history && <ChatHistory
+        page
+        conversationId={conversation}
+        onInspect={id => setHistoryView(id, Number(window.history.state?.formwardAssistantHistory === 1) + 1)}
+        back={backInHistory}
+        onContinue={continueChat}
+        navigate={allowNavigation}
+      />}
     </div>
-    {page && <AssistantPageBody defer={!!page.source} historyOpen={!!history}>
-      <AssistantChatView sidebar={tasks && <AssistantTasks {...tasks} mobile inlineReview={chat.enabled} navigate={allowNavigation}/>}
-        navigate={allowNavigation} tab={tab} page onPreviewBack={() => selectTab("tasks")}/>
-    </AssistantPageBody>}
-    {history && <ChatHistory
-      page
-      conversationId={conversation}
-      onInspect={id => setHistoryView(id, Number(window.history.state?.formwardAssistantHistory === 1) + 1)}
-      back={backInHistory}
-      onContinue={continueChat}
-      navigate={allowNavigation}
-    />}
   </main>;
 }
 

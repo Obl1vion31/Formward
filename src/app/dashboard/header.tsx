@@ -21,29 +21,16 @@ import styles from "./header.module.css";
 type Group = "root" | "external" | "account" | "admin";
 export function DashboardHeader({ email, owner = false, sourcePilot = false }: { email: string; owner?: boolean; sourcePilot?: boolean }) {
   const openInformation = useAppInformation();
-  const actualPath = usePathname(), mobile = useMobileMode(), [settings, setSettings] = useState<false | "profile" | "account" | "sources">(false), [group, setGroup] = useState<Group>("root");
-  const { open: assistantOpen, toggle: toggleAssistant, hide: hideAssistant, count } = useAssistant(), chart = useChartTransition();
-  const pathname=chart.displayPath??actualPath;
-  const previousGroup = useRef<Group>("root"), menuClose = useRef<() => Promise<void>>(() => Promise.resolve()), dock = useRef<HTMLDivElement>(null), [pendingAccount, setPendingAccount] = useState<string | null>(null);
+  const actualPath = usePathname(), [settings, setSettings] = useState<false | "profile" | "account" | "sources">(false), [group, setGroup] = useState<Group>("root");
+  const { hide: hideAssistant, source } = useAssistant(), chart = useChartTransition();
+  const pathname = chart.displayPath ?? source?.path ?? actualPath;
+  const previousGroup = useRef<Group>("root"), menuClose = useRef<() => Promise<void>>(() => Promise.resolve()), [pendingAccount, setPendingAccount] = useState<string | null>(null);
   const pendingChanges = useMemo(() => Object.fromEntries(["sources", "profile", "account"].map(kind => [kind, (pending: boolean) => setPendingAccount(current => pending ? kind : current === kind ? null : current)])), []);
-  const page = pages.find(([path]) => path === pathname), visualReview = pathname === "/dashboard/visual-review", review = pathname.includes("/operations/") || pathname.includes("/review/"), hasTools = !review && assistantAvailablePage(pathname);
+  const page = pages.find(([path]) => path === pathname), visualReview = pathname === "/dashboard/visual-review", review = reviewPath(pathname), hasTools = !review && assistantAvailablePage(pathname);
   const showDock = !review && !visualReview;
   const openSettings = async (kind: "profile" | "account" | "sources") => { await menuClose.current(); document.querySelector<HTMLElement>('.dashboard-header summary[aria-label="账号菜单"]')?.focus({ preventScroll: true }); setSettings(kind); };
   const openMoreInformation = async () => { await menuClose.current(); document.querySelector<HTMLElement>('.dashboard-header summary[aria-label="账号菜单"]')?.focus({preventScroll: true}); openInformation(); };
-  const openAssistant = async () => { await menuClose.current(); toggleAssistant(); };
   const overview = (event: { preventDefault(): void }) => { if (actualPath !== "/dashboard"||chart.returningToOverview||!!chart.forwardDestination) { event.preventDefault(); void chart.back(); } };
-  useLayoutEffect(() => {
-    const node = dock.current;
-    if (!node || !mobile || !showDock) return;
-    const root = document.documentElement;
-    const measure = () => root.style.setProperty("--workspace-dock-height", Math.ceil(node.getBoundingClientRect().height) + "px");
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    measure();
-    return () => { observer.disconnect(); root.style.removeProperty("--workspace-dock-height"); };
-  }, [mobile, showDock]);
-  const badge = count > 0 ? <small className={styles.badge} aria-hidden="true">{count > 9 ? "9+" : count}</small> : null;
-  const assistantButton = <button type="button" data-assistant-trigger className={styles.assistantTrigger} aria-label={"打开小助手" + (count ? `，${count}项待查看` : "")} aria-haspopup={mobile ? undefined : "dialog"} aria-expanded={mobile ? undefined : assistantOpen} onClick={() => void openAssistant()}><AssistantIcon/><span>小助手</span>{badge}</button>;
   useLayoutEffect(()=>{const previous=previousGroup.current;previousGroup.current=group;if(previous!==group)document.querySelector<HTMLElement>(group==="root"?'[data-menu-group="'+previous+'"]':"[data-menu-back]")?.focus({preventScroll:true});},[group]);
   const changeGroup=(next:Group)=>setGroup(next);
   const backGroup = <button type="button" data-menu-back data-menu-stay-open className={styles.menuBack} onClick={() => changeGroup("root")}><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m10 3-5 5 5 5"/></svg>{group === "external" ? "外部接入" : group === "account" ? "账号管理" : "管理与测试"}</button>;
@@ -61,12 +48,53 @@ export function DashboardHeader({ email, owner = false, sourcePilot = false }: {
         </GlassMenu>
       </div>
     </header>
-    {showDock && <>
+    {showDock &&
       <nav className={"desktop-record-nav " + styles.desktopNav} aria-label="主导航"><span className={styles.desktopLens} aria-hidden="true" style={{ transform: "translateY(" + Math.max(0, pages.findIndex(([href]) => href === pathname)) * 74 + "px)" }}/>{pages.map(([href, label], index) => <LoadingLink key={href} href={href} onNavigate={href === "/dashboard" ? overview : ()=>chart.cancelOverviewReturn?.(href)} aria-current={pathname === href ? "page" : undefined}><NavigationIcon index={index}/><span>{label}</span></LoadingLink>)}</nav>
-      <div ref={dock} className={styles.mobileDock} data-workspace-dock><MobileNavigation pathname={pathname}/>{hasTools && assistantButton}</div>
-    </>}
-    {hasTools && <div className={styles.desktopAssistant}>{assistantButton}</div>}
+    }
+    {hasTools && <div className={styles.desktopAssistant}><AssistantButton beforeOpen={() => menuClose.current()}/></div>}
     {settings && <Inspector title={settings === "sources" ? "设备与数据来源" : settings === "profile" ? "个人资料" : "账号与安全"} close={() => setSettings(false)}>{settings === "sources" ? <DataSourcesPanel available={sourcePilot}/> : <AccountSurface key={settings} kind={settings}/>}</Inspector>}
   </>;
 }
+export function DashboardDock() {
+  const actualPath = usePathname();
+  const { displayPath } = useChartTransition();
+  const { source } = useAssistant();
+  const pathname = displayPath ?? source?.path ?? actualPath;
+  const mobile = useMobileMode();
+  const dock = useRef<HTMLDivElement>(null);
+  const showDock = !reviewPath(pathname) && pathname !== "/dashboard/visual-review";
+
+  useLayoutEffect(() => {
+    const node = dock.current;
+    if (!node || !mobile) return;
+    const root = document.documentElement;
+    const measure = () => root.style.setProperty("--workspace-dock-height", Math.ceil(node.getBoundingClientRect().height) + "px");
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    measure();
+    return () => { observer.disconnect(); root.style.removeProperty("--workspace-dock-height"); };
+  }, [mobile, showDock]);
+
+  return showDock && <div ref={dock} className={styles.mobileDock} data-workspace-dock>
+    <MobileNavigation pathname={pathname}/>
+    {assistantAvailablePage(pathname) && <AssistantButton mobile/>}
+  </div>;
+}
+
+function AssistantButton({ mobile = false, beforeOpen }: { mobile?: boolean; beforeOpen?: () => Promise<void> }) {
+  const { open, count, toggle } = useAssistant();
+  async function activate() {
+    if (mobile) window.dispatchEvent(new Event("formward-close-account-menu"));
+    else await beforeOpen?.();
+    toggle();
+  }
+  return <button type="button" data-assistant-trigger className={styles.assistantTrigger}
+    aria-label={"打开小助手" + (count ? "，" + count + "项待查看" : "")} aria-haspopup={mobile ? undefined : "dialog"}
+    aria-expanded={mobile ? undefined : open} onClick={() => void activate()}>
+    <AssistantIcon/><span>小助手</span>
+    {count > 0 && <small className={styles.badge} aria-hidden="true">{count > 9 ? "9+" : count}</small>}
+  </button>;
+}
+
+function reviewPath(path: string) { return path.includes("/operations/") || path.includes("/review/"); }
 function assistantAvailablePage(path: string) { return pages.some(([href]) => href === path) || ["/dashboard/ai", "/dashboard/export", "/dashboard/sources"].includes(path); }

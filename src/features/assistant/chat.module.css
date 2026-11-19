@@ -341,10 +341,6 @@
  transform: none;
  transition-delay: 0s;
 }
-[inert] .workspace[data-page=true] :is(.sidebar,.conversation) {
- visibility: hidden;
- transition: none;
-}
 @media (prefers-reduced-motion: reduce) {
  .workspace[data-page=true] :is(.sidebar,.conversation) { transition: none; }
 }
@@ -352,7 +348,7 @@
   container: assistant-conversation / size;
 }
 .workspace[data-page=true] .composerArea {
-  --composer-bottom-inset: env(safe-area-inset-bottom, 0px);
+  --composer-bottom-inset: var(--workspace-safe-bottom);
   display: flex;
   flex-direction: column;
   overflow: clip;
@@ -382,7 +378,7 @@
 .workspace[data-page=true] .composerRow textarea {
   overflow-y: auto;
   /* 预留消息区的 20px 内边距和输入栏上下共 8px 的边框、间距。 */
-  max-height: clamp(44px, min(calc(var(--assistant-page-height, 100dvh) / 3),
+  max-height: clamp(44px, min(calc(var(--assistant-keyboard-height, 100dvh) / 3),
     calc(100cqh - 28px - var(--composer-bottom-inset) - var(--composer-extras-reserve, 0px))), 144px);
 }
 .workspace[data-page=true] .workspaceTabs { flex: none; }

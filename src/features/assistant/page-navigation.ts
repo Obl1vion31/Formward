@@ -4,8 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { assistantPath } from "./model";
 
-const dockGapProperty = "--workspace-dock-origin-gap";
-type WorkspaceOrigin = { path: string; query: string; x: number; y: number };
+type WorkspaceOrigin = { path: string; query: string };
 export type AssistantPageMotion = { direction: "open" | "close" };
 export type AssistantPageState = {
   entryId: string | null;
@@ -26,30 +25,12 @@ export function useAssistantPageNavigation() {
   const [closedMotion, setClosedMotion] = useState<AssistantPageMotion | null>(null);
   const visible = useRef(page);
   const origins = useRef(new Map<string, WorkspaceOrigin>());
-  const returnFrame = useRef(0);
   const backPending = useRef<WorkspaceOrigin | null>(null);
 
   const show = useCallback((next: AssistantPageState | null) => {
-    if (next) cancelAnimationFrame(returnFrame.current);
     visible.current = next;
     setPage(next);
   }, []);
-
-  const restoreSource = useCallback((source: WorkspaceOrigin) => {
-    cancelAnimationFrame(returnFrame.current);
-    show(null);
-
-    // 卸载助手时滚动锁先恢复来源位置，首帧只补齐路由恢复期间出现的偏差。
-    returnFrame.current = requestAnimationFrame(() => {
-      if (visible.current || !atSource(source)) return;
-      const scroller = document.scrollingElement ?? document.documentElement;
-      const left = Math.min(source.x, Math.max(0, scroller.scrollWidth - scroller.clientWidth));
-      const top = Math.min(source.y, Math.max(0, scroller.scrollHeight - scroller.clientHeight));
-      if (Math.abs(scrollX - left) > 1 || Math.abs(scrollY - top) > 1)
-        scrollTo({ left, top, behavior: "instant" });
-      document.querySelector<HTMLElement>("[data-workspace-dock] [data-assistant-trigger]")?.focus({ preventScroll: true });
-    });
-  }, [show]);
 
   // popstate is immediate. Next's pathname/query also cover normal Link and router calls.
   const sync = useCallback(() => {
@@ -76,26 +57,13 @@ export function useAssistantPageNavigation() {
 
   useLayoutEffect(sync, [pathname, query, sync]);
   useEffect(() => {
-    const root = document.documentElement;
-    let width = root.clientWidth;
-    const resize = () => {
-      if (width === root.clientWidth) return;
-      width = root.clientWidth;
-      root.style.removeProperty(dockGapProperty);
-    };
     window.addEventListener("popstate", sync);
-    window.addEventListener("resize", resize);
-    return () => {
-      window.removeEventListener("popstate", sync);
-      window.removeEventListener("resize", resize);
-      root.style.removeProperty(dockGapProperty);
-      cancelAnimationFrame(returnFrame.current);
-    };
+    return () => window.removeEventListener("popstate", sync);
   }, [sync]);
 
   const open = useCallback((view?: "tasks") => {
     if (location.pathname === assistantPath) return;
-    const source = { path: location.pathname, query: location.search, x: scrollX, y: scrollY };
+    const source = { path: location.pathname, query: location.search };
     const entryId = crypto.randomUUID();
     const query = view === "tasks" ? "view=tasks" : "";
     const url = assistantPath + (query ? "?" + query : "");
@@ -104,12 +72,6 @@ export function useAssistantPageNavigation() {
     } catch {
       router.push(url, { scroll: false });
       return;
-    }
-    // 底栏和来源页一同露出，设备宽度相同时保留进入前的安全留位。
-    const dock = document.querySelector<HTMLElement>("[data-workspace-dock]");
-    if (dock) {
-      const gap = parseFloat(getComputedStyle(dock).bottom);
-      if (Number.isFinite(gap)) document.documentElement.style.setProperty(dockGapProperty, gap + "px");
     }
     origins.current.set(entryId, source);
     show({ entryId, query, source, motion: { direction: "open" } });
@@ -137,15 +99,12 @@ export function useAssistantPageNavigation() {
 
   useLayoutEffect(() => {
     const source = page?.source ?? null;
-    // 退出动效可能先结束。浏览器和 Next 路由都回到来源后，才交还已挂载的工作区。
-    if (!closedMotion || page?.motion !== closedMotion || !atSource(source) ||
+    // 来源始终留在文档原位，交接只需结束内容动画并归还焦点。
+    if (!closedMotion || visible.current?.motion !== closedMotion || !atSource(source) ||
         pathname !== source.path || query !== new URLSearchParams(source.query).toString()) return;
-    const frame = requestAnimationFrame(() => {
-      if (visible.current?.motion !== closedMotion || !atSource(source)) return;
-      restoreSource(source);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [closedMotion, page, pathname, query, restoreSource]);
+    show(null);
+    document.querySelector<HTMLElement>("[data-workspace-dock] [data-assistant-trigger]")?.focus({ preventScroll: true });
+  }, [closedMotion, page, pathname, query, show]);
 
   return { page, open, back, complete };
 }
