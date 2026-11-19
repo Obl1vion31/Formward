@@ -2,15 +2,15 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-fe7de9a4-assistant-photo-stack-viewer-20261120`，源码 `fe7de9a492bbf732e8b504a0ee7bc56c2dd284e2`，BUILD_ID `zm7savRJn2Dx-XjTHJ0pR`。北京时间 2026-11-20 01:07:41 切换。 [正式版本](https://formward.top/api/app-version)
+正式站运行 `dual-entry-4762b14a-assistant-directional-r3-20261120`，源码 `4762b14a9c903baba4cce2309487f156f3425d9c`，BUILD_ID `13N3t3hlWdMh-Nj6TMOmQ`。北京时间 2026-11-20 01:53:05 切换。 [正式版本](https://formward.top/api/app-version)
 
-小助手的已发照片组逐张从左下向右上叠放，首图完整取景，后面每张露出一角。点整叠可按原顺序翻看原图，关闭回到那条消息。预览使用固定阅读框和约160毫秒淡入，慢读时留住前一张。当前聊天与历史共用展示。 [浏览器验收](assistant-chat-verification.md#已发照片叠放与原图预览--正式包验收)
+左右切换随照片、标签、历史、题目和月份的实际先后顺序。管理后台按栏目顺序和用户详情的实际来源前进、返回。手机待办选中状态同时使用配对的主题背景与文字色。 [浏览器验收](assistant-chat-verification.md#左右切换与手机待办对比度)
 
-上海网页和聊天 worker 运行同一源码。沿用 schema `0046_assistant_conversation_removal` 与 46 项迁移，停写前后 67 张表的行摘要一致。备份 `formward-primary-20261119T170737542014Z.dump.json` 完成原生校验和加密异地回读。
+上海网页和聊天 worker 运行同一源码。沿用 schema `0046_assistant_conversation_removal` 与 46 项迁移，停写前后 67 张表的行摘要一致。备份 `formward-primary-20261119T175301057038Z.dump.json` 完成原生校验和加密异地回读。
 
-四个公网域名及兼容 IP 返回同一版本。复查了兼容 IP 跳转、登录返回、匿名权限、MCP 发现与新旧界面资源。保留 56 项正式 Server Action 编号、绑定密钥和 2069 项旧静态资源。海外网关现有部署回源新版。
+四个公网域名及兼容 IP 返回同一版本。复查了兼容 IP 跳转、登录返回、匿名权限、MCP 发现与新旧界面资源。保留 56 项正式 Server Action 编号与绑定密钥，兼容 2081 项旧静态资源。海外网关现有部署回源新版。
 
-本机永久归档位于 `.codex/backups/regional-releases/assistant-photo-stack-viewer-20261120`，运行包大小 83,005,816 字节，SHA256 `59c4748ccee3aa4a093b671ec93fa5aa3128d6218e319513bad73efac4ac43f3`。 `overview-inline-comparison-20261120` 提供兼容 0046 的上版网页和 worker 回退包。
+本机运行包归档在 `.codex/backups/regional-releases/assistant-directional-r3-20261120`，大小 83,236,989 字节，SHA256 `65a890c9dd43ad303914ab45c821adba08ed9a2bf19240703c9fbbb62cffa9f2`。版本 `assistant-photo-stack-viewer-20261120` 提供兼容 0046 的网页和 worker 回退包。
 
 ## 迁移与发布
 

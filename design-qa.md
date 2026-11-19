@@ -1,5 +1,13 @@
 # 当前视觉验收
 
+## 已发布验收 · 左右切换与手机待办对比度
+
+正式构建 `dual-entry-4762b14a-assistant-directional-r3-20261120`。对照发布前后的 WebKit 触屏截图，待办选中背景恢复暖白，标签深色字清楚。双主题核对了触碰后停留的悬停色。历史页正文横移期间有独立不透明底色，进退保持标题和返回操作在预期位置。
+
+两个引擎实录了手机及电脑进退。照片的 305 个采样帧中，已解码原图连续可见，阅读框各边偏差小于 1 CSS px。聊天草稿、已选补充答案和照片查看的焦点回归通过。实体 iPhone 未测。 [验收截图与录屏](http://127.0.0.1:41986/directional/) · [逐项验收](docs/assistant-chat-verification.md#左右切换与手机待办对比度)
+
+final result: passed
+
 ## 已发布验收 · 小助手照片逐张叠放
 
 正式构建 `dual-entry-fe7de9a4-assistant-photo-stack-viewer-20261120`。采用真实双端截图及四层 ImageGen 局部选稿。选稿、提示词和双端原图位于本机 `C:/Users/14878/.codex/visualizations/2026/11/18/01a1ee47-88d6-75e2-9f0d-e9eb32dc9229/formward-chat-photo-layouts`。选稿是局部放大示意，实页截图为 CSS 像素等比原图。比较区按相同浅色主题和图文已发送状态归一化，取手机 390×844 与桌面 1440×900 的局部。 [参考与实图对照](http://127.0.0.1:41986/photo-stack/#comparison)
