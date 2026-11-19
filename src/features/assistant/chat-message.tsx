@@ -28,10 +28,10 @@ function Elapsed({timing}: {timing:ChatRunTiming & {startedAt:string}}) {
   return <span className={styles.elapsed} aria-live="off">已用 <time dateTime={`PT${seconds}S`}>{digits}</time></span>;
 }
 
-function ToolProgress({message,timing}: {message:ChatMessage;timing?:ChatRunTiming|null}) {
+function ToolProgress({message,timing,time}: {message:ChatMessage;timing?:ChatRunTiming|null;time?:ReactNode}) {
   const working = message.state === "working";
   const displayed = message.steps.filter(step=>step.name!=="request_followup");
-  if (!working && !displayed.length) return null;
+  if (!working && !displayed.length) return time ? <div className={styles.meta}>{time}</div> : null;
   const running = displayed.findLast(step=>step.state==="running");
   const failed = displayed.some(step=>step.state==="error");
   const title = working
@@ -43,7 +43,7 @@ function ToolProgress({message,timing}: {message:ChatMessage;timing?:ChatRunTimi
   for (const step of displayed) groups.set(step.name,[...(groups.get(step.name)??[]),step]);
   const label = <><span className={working?styles.spinner:styles.progressIcon} aria-hidden="true">
     {!working && <Glyph name={failed?"close":"check"}/>}
-  </span><span role={working?"status":undefined}>{title}</span>{timer}</>;
+  </span><span role={working?"status":undefined}>{title}</span>{timer}{time}</>;
   if (!groups.size) return <div className={styles.working}>{label}</div>;
   return <details className={styles.progress}>
     <summary>{label}<Glyph name="chevron"/></summary>
@@ -84,7 +84,7 @@ function ChatPhoto({id,local,confirmed,onHandoff}: {
 }
 
 export function ChatMessageBody({message,inlinePreviews,historical=false,followup,jump,navigate,children,timing,answers,
-  previews,onPhotoHandoff,sendStatus,photoActions}: {
+  previews,onPhotoHandoff,sendStatus,photoActions,continuation=false,actions}: {
   message:ChatMessage;
   inlinePreviews:boolean;
   historical?:boolean;
@@ -98,6 +98,8 @@ export function ChatMessageBody({message,inlinePreviews,historical=false,followu
   onPhotoHandoff?:(id:string)=>void;
   sendStatus?:ReactNode;
   photoActions?:ReactNode;
+  continuation?:boolean;
+  actions?:ReactNode;
 }) {
   const user = message.role === "user";
   const ids = inlinePreviews && !user && message.state !== "working"
@@ -106,15 +108,16 @@ export function ChatMessageBody({message,inlinePreviews,historical=false,followu
   const shownText = chatDisplayText(message,historical?ids.length>0:inlinePreviews);
   const answer = withoutRepeatedFollowup(shownText,followup);
   const references = message.state==="complete" ? chatRecordReferences(message.references,historical?ids.length>0:inlinePreviews,message.steps) : [];
+  const time = <time className={styles.messageTime} dateTime={message.createdAt}>{clock.format(new Date(message.createdAt))}</time>;
   return <>
-    <div className={styles.meta}>
+    {!continuation && <div className={styles.meta}>
       <span>{user?"你":message.provider?roles[message.provider]:"小助手"}</span>
-      <time dateTime={message.createdAt}>{clock.format(new Date(message.createdAt))}</time>
-    </div>
+      {time}
+    </div>}
     {message.replyTo && <button type="button" className={styles.messageQuote} onClick={()=>jump(message.replyTo!.id)}>
       <Glyph name="quote"/><span>{message.replyTo.text}</span>
     </button>}
-    {!user && <ToolProgress message={message} timing={timing}/>}
+    {!user && <ToolProgress message={message} timing={timing} time={continuation ? time : undefined}/>}
     {message.imageIds.length>0 && <div className={styles.images}>{message.imageIds.map(id=><ChatPhoto key={id} id={id}
       local={previews?.photos.find(photo=>photo.id===id)?.preview}
       confirmed={!previews || previews.phase==="accepted"} onHandoff={()=>onPhotoHandoff?.(id)}/>)}</div>}
@@ -125,9 +128,13 @@ export function ChatMessageBody({message,inlinePreviews,historical=false,followu
     {answers?.length ? <AnswerSummary answers={answers} inline/> : null}
     {children}
     {ids.length>0 && <ChatPreviewCards ids={ids} navigate={navigate} readOnly={historical}/>}
-    {references.length>0 && <div className={styles.references}>{references.map(reference=>
-      <LoadingLink key={reference.href} href={reference.href} prefetch={false} beforeNavigate={navigate}>{reference.title}<span aria-hidden="true">↗</span></LoadingLink>
-    )}</div>}
     {photoActions ?? (message.error && <p className={styles.failure} role={historical?undefined:"alert"}>{message.error}</p>)}
+    {(references.length > 0 || actions) && <footer className={styles.messageFooter} data-has-references={references.length > 0 || undefined}>
+      {references.length > 0 && <div className={styles.references}>{references.map(reference =>
+        <LoadingLink key={reference.href} href={reference.href} prefetch={false} beforeNavigate={navigate}>
+          {reference.title}<span aria-hidden="true">↗</span>
+        </LoadingLink>)}</div>}
+      {actions}
+    </footer>}
   </>;
 }

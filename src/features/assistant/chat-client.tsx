@@ -44,6 +44,7 @@ async function consumeChatEvents(response:Response, handle:(event:ChatEvent)=>bo
   }
 }
 type ChatClient = {
+  accountId: string;
   scrollState: () => { top: number; stick: boolean }; recordScroll: (top: number, stick: boolean) => void;
   enabled: boolean; entitlement?: AccountEntitlements; data: ChatSnapshot | null; messages: ChatMessage[]; newRequests:ReadonlySet<string>; claimArrival:(key:string)=>boolean; draft: string; setDraft: (value: string) => void;
   quote: ChatMessage | null; setQuote: (value: ChatMessage | null) => void; photos: DraftPhoto[]; removePhoto: (key: string) => void; retryPhoto:(key:string,transport?:"direct"|"relay",region?:PhotoRegion)=>Promise<void>;
@@ -369,7 +370,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   const stored = new Set(messages.flatMap(row => row.requestId ? [row.requestId] : []));
   const localMessages = [...outgoing.values()].filter(item=>item.body.conversationId===data?.conversationId && !stored.has(item.body.requestId))
     .map(item=>item.message);
-  return <Context.Provider value={{scrollState,recordScroll,enabled:canChat,entitlement:access,data,
+  return <Context.Provider value={{accountId,scrollState,recordScroll,enabled:canChat,entitlement:access,data,
     messages:localMessages.length?[...messages,...localMessages].sort((a,b)=>a.seq-b.seq || a.createdAt.localeCompare(b.createdAt)):messages,newRequests,claimArrival,draft,setDraft,quote,setQuote,
     photos,removePhoto,retryPhoto,error,loading,delayed,busy:running||!!data?.activeRunId,managing,uploading,
     refresh,more:async()=>{if(messages[0])await read(messages[0].seq);},send,control,addPhotos,

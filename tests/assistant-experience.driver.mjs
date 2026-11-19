@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import {readFile,writeFile} from "node:fs/promises";
 import {join} from "node:path";
-import {rateLimit} from "../src/db/schema.ts";
+import {randomUUID} from "node:crypto";
+import {eq} from "drizzle-orm";
+import {assistantUsageRequest,rateLimit} from "../src/db/schema.ts";
 
 const sendLabel = "发送消息";
 const inputLabel = "给小助手发消息";
@@ -208,6 +210,22 @@ export async function runAssistantExperienceBrowser(db) {
     assert.match(await summary.innerText(),/白切鸡[\s\S]*不知道/);
     assert.equal(await page.locator("article[data-role=user]").filter({hasText:"已补充"}).count(),0);
     await shot("expanded","展开核对每题内容，未提供字段有明确状态");
+    const preceding = summary.locator("xpath=ancestor::article");
+    assert.equal(await preceding.getByText("千问",{exact:true}).count(),1);
+    assert.equal(await result.getByText("千问",{exact:true}).count(),0);
+    assert.equal(await result.locator('time:not([datetime^="PT"])').count(),1);
+    const records = preceding.getByRole("link",{name:/查看饮食记录/});
+    const quote = preceding.getByRole("button",{name:"引用回复",exact:true});
+    const copy = preceding.getByRole("button",{name:"复制",exact:true});
+    if (mobile) {
+      for (const button of [quote,copy]) {
+        assert.equal(await button.locator("span").isVisible(),false);
+        const box = await button.boundingBox();
+        assert.ok(box.width >= 44 && box.height >= 44);
+        assert.ok(Math.abs(box.y - (await records.boundingBox()).y) <= 1,"记录链接和操作同行");
+      }
+    }
+    await shot("handoff","同任务的原提问、补充摘要、记录入口和后续时间在原处连读");
     const preview = page.locator("[data-chat-preview]").last();
     await preview.scrollIntoViewIfNeeded();
     await shot("preview","实际生成隔离待保存预览");
@@ -216,8 +234,252 @@ export async function runAssistantExperienceBrowser(db) {
     await progress.locator("summary").click();
     assert.match(await progress.innerText(),/查找食材库 · 2 次/);
     await shot("progress","真实查库结果归到同一过程组");
-    await mark("发送前本地照片可见、上图下字、同一气泡确认、计时宽度稳定、手填与逐题回退、未知去重、摘要和实际预览");
+    const copyText = await preceding.getByText("鸡油饭和白切鸡各吃了多少？",{exact:true}).innerText();
+    await copy.click();
+    await page.getByText("已复制回答",{exact:true}).waitFor();
+    await quote.click();
+    await page.getByRole("button",{name:"取消引用",exact:true}).waitFor();
+    assert.match(await page.getByRole("button",{name:/引用回答/}).last().innerText(),new RegExp(copyText.replaceAll("？","[？?]")));
+    await page.getByRole("button",{name:"取消引用",exact:true}).click();
+    await mark("发送前本地照片可见、上图下字、计时宽度稳定、同一任务连读、引用复制和实际预览");
     await page.waitForTimeout(500);
+  }
+
+  async function composerFlow({page,context,input,send,status,open,shot,mark}, mobile) {
+    await open();
+    const plus = page.getByRole("button",{name:"添加照片",exact:true});
+    const model = () => page.getByRole("button",{name:/^(千问|小米 MiMo)$/});
+    const menu = page.getByRole("dialog",{name:"模型与用量"});
+    const remaining = menu.locator("[data-chat-remaining]");
+    const row = input().locator("..");
+    const requestBalance = async () => {
+      const response = await context.request.get(base+"/api/account/entitlements");
+      assert.equal(response.status(),200);
+      return (await response.json()).usage;
+    };
+    async function openMenu() {
+      await model().click();
+      await menu.waitFor();
+      await menu.evaluate(node => Promise.all(node.getAnimations().map(animation => animation.finished.catch(() => {}))));
+    }
+    async function closeMenu() {
+      await page.keyboard.press("Escape");
+      await menu.waitFor({state:"hidden"});
+    }
+    const widths = mobile ? [[320,560],[390,844],[430,860]] : [[1100,780],[1440,900]];
+    for (const theme of ["light","dark"]) {
+      for (const [width,height] of widths) {
+        await page.setViewportSize({width,height});
+        await page.evaluate(value => { document.documentElement.dataset.theme=value; },theme);
+        const boxes = await Promise.all([plus,input(),model(),send()].map(control => control.boundingBox()));
+        for (const [index,box] of boxes.entries()) {
+          assert.ok(box && box.height >= 44);
+          if (index !== 1) assert.ok(box.width >= 44);
+          assert.ok(Math.abs(box.y + box.height - (boxes[0].y + boxes[0].height))<=1);
+          if (index) assert.ok(box.x >= boxes[index-1].x+boxes[index-1].width);
+        }
+        assert.equal(await input().evaluate(node=>getComputedStyle(node).fontSize),"16px");
+        assert.equal(await remaining.count(),0);
+        await openMenu();
+        await remaining.waitFor();
+        const box = await menu.boundingBox(), anchor = await model().boundingBox();
+        assert.ok(box.x >= 8 && box.x+box.width <= width-8 && box.y >= 4 && box.y+box.height <= anchor.y-3);
+        await shot(theme+"-"+width,"实际 "+width+"px "+(theme==="light"?"浅色":"深色")+"输入栏与上方额度菜单");
+        await closeMenu();
+      }
+    }
+    await mark("各尺寸单行、16px输入、44px按钮和弹层向上展开");
+
+    await page.setViewportSize(mobile?{width:390,height:844}:{width:1440,height:900});
+    await page.evaluate(()=>{ document.documentElement.dataset.theme="light"; });
+    if (mobile) {
+      const cdp = engine==="chromium" ? await context.newCDPSession(page) : undefined;
+      let lastPoint, pointerId = 40;
+      async function touch(type, x, y) {
+        if (cdp) {
+          await cdp.send("Input.dispatchTouchEvent",{
+            type, touchPoints:type==="touchEnd" || type==="touchCancel" ? [] : [{x,y,id:0}],
+          });
+        } else {
+          if (type==="touchStart") {
+            pointerId++;
+            lastPoint=await page.evaluateHandle(({x,y})=>document.elementFromPoint(x,y),{x,y});
+          }
+          const event = {pointerType:"touch",pointerId,isPrimary:true,bubbles:true,clientX:x,clientY:y,
+            buttons:type==="touchEnd"||type==="touchCancel"?0:1};
+          await lastPoint.evaluate((node,{name,event})=>node.dispatchEvent(new PointerEvent(name,event)),{
+            name:{touchStart:"pointerdown",touchMove:"pointermove",touchEnd:"pointerup",touchCancel:"pointercancel"}[type],event,
+          });
+          if (type==="touchEnd" || type==="touchCancel") await lastPoint.dispose();
+        }
+      }
+      const box = await row.boundingBox(), x=Math.round(box.x+box.width/2), y=Math.round(box.y+box.height/2);
+      const shift = () => row.evaluate(node=>parseFloat(node.style.getPropertyValue("--press-shift")));
+      const origin = () => row.evaluate(node=>parseFloat(node.style.getPropertyValue("--press-x")));
+      await touch("touchStart",x,y);
+      await page.waitForTimeout(170);
+      assert.equal(await row.getAttribute("data-pressing"),"true");
+      assert.ok(Math.abs(await origin() - box.width/2)<=1);
+      await shot("center","手指按在中间，横向柔光向两侧铺开");
+      await touch("touchMove",x+38,y);
+      await page.waitForTimeout(80);
+      assert.equal(await shift(),12);
+      await shot("right","手指向右移动38px，高光只偏移12px");
+      await touch("touchMove",x-38,y);
+      await page.waitForTimeout(80);
+      assert.equal(await shift(),-12);
+      await shot("left","手指向左移动，高光跟随，表单边界保持");
+      assert.deepEqual(await row.boundingBox(),box);
+      await touch("touchEnd",x-38,y);
+      await page.waitForTimeout(200);
+      assert.equal(await row.getAttribute("data-pressing"),null);
+      await touch("touchStart",x-42,y);
+      await page.waitForTimeout(170);
+      assert.ok(Math.abs(await origin() - box.width/2 + 42)<=1);
+      await shot("offset","偏左按下，高光从实际触点周围展开");
+      await touch("touchMove",x-42,y-16);
+      await page.waitForTimeout(100);
+      assert.equal(await row.getAttribute("data-pressing"),null);
+      await touch("touchCancel",x-42,y-16);
+      await page.emulateMedia({reducedMotion:"reduce"});
+      await touch("touchStart",x,y);
+      assert.equal(await row.evaluate(node=>{
+        const light = node.querySelector('[aria-hidden="true"] div span');
+        return getComputedStyle(light).transitionDuration;
+      }),"0s");
+      await shot("reduced","减少动态效果时只显示静态按压色");
+      await touch("touchEnd",x,y);
+      await page.emulateMedia({reducedMotion:"no-preference"});
+      await input().focus();
+      await input().fill("可以选中文本并继续编辑");
+      await input().evaluate(node=>node.setSelectionRange(2,6));
+      assert.equal(await input().evaluate(node=>node.value.substring(node.selectionStart,node.selectionEnd)),"选中文本");
+      await page.evaluate(()=>window.fixtureViewport({height:350,offsetTop:0}));
+      await openMenu();
+      assert.ok((await menu.boundingBox()).y+(await menu.boundingBox()).height<=350);
+      await shot("keyboard-menu","模拟键盘缩小可视区后，模型菜单留在可视区");
+      await closeMenu();
+      await page.evaluate(()=>window.fixtureViewport(null));
+      await mark("触点、左右跟手、竖向取消、减少动态效果、输入选区和模拟键盘");
+    }
+
+    const draft = "这顿海南鸡饭帮我记一下，晚餐。";
+    await input().fill(draft.repeat(5));
+    assert.ok((await input().boundingBox()).height>44,"长文字在同一输入框增高");
+    await input().fill(draft);
+    const choose = page.waitForEvent("filechooser");
+    if (mobile) await plus.tap(); else await plus.click();
+    const picker = await choose;
+    await picker.setFiles(samples.slice(0,2).map(sample=>sample.file));
+    await page.getByRole("button",{name:"移除照片 2",exact:true}).waitFor();
+    await page.waitForFunction(()=>!document.querySelector('button[aria-label="发送消息"]').disabled);
+    const thumbnail = page.getByAltText("照片 1",{exact:true});
+    assert.ok((await thumbnail.boundingBox()).y+(await thumbnail.boundingBox()).height<=(await row.boundingBox()).y+1);
+    await page.getByRole("button",{name:"移除照片 2",exact:true}).click();
+    assert.equal(await page.getByAltText("照片 2",{exact:true}).count(),0);
+    await openMenu();
+    assert.ok(await remaining.isVisible());
+    const photoMenu = await menu.boundingBox(), photoBox = await thumbnail.boundingBox();
+    assert.ok(photoMenu.y + photoMenu.height + 2 <= photoBox.y, "有照片时菜单不遮挡缩略图");
+    await shot("photo-menu","实际选图并逐张移除后，缩略图在输入栏左上方");
+    await menu.getByRole("menuitemradio",{name:/小米 MiMo/}).click();
+    await page.getByRole("button",{name:"小米 MiMo",exact:true}).waitFor();
+    assert.equal(await input().inputValue(),draft);
+    assert.ok(await thumbnail.isVisible());
+    await openMenu();
+    await menu.getByRole("menuitemradio",{name:/千问/}).click();
+    await page.getByRole("button",{name:"千问",exact:true}).waitFor();
+    await page.getByRole("button",{name:"移除照片 1",exact:true}).click();
+
+    let fail = true;
+    await context.route(base+"/api/account/entitlements",route => fail
+      ? route.fulfill({status:503,json:{error:"隔离验收模拟读取失败"}}) : route.continue());
+    await openMenu();
+    await menu.getByText("额度更新失败",{exact:true}).waitFor();
+    await shot("refresh-failed","额度刷新失败时菜单内保留已知余额，可在原位置重试");
+    fail = false;
+    await menu.getByRole("button",{name:"重试",exact:true}).click();
+    await remaining.waitFor();
+    await menu.getByText(/北京时间 00:00 重置/).waitFor();
+    await closeMenu();
+    await context.unroute(base+"/api/account/entitlements");
+
+    await input().fill("慢速测试 · 查看共享余额");
+    await send().click();
+    await status().waitFor();
+    let active;
+    for (let attempt = 0; attempt < 24; attempt++) {
+      const response = await context.request.get(base+"/api/assistant-chat");
+      active = await response.json();
+      if (active.activeRunId && active.usage.reserved > 0) break;
+      await page.waitForTimeout(75);
+    }
+    assert.ok(active.activeRunId);
+    assert.ok(active.usage.reserved>0,"运行任务已在隔离账本预占");
+    const activeBalance = await requestBalance();
+    await openMenu();
+    await menu.getByText("今日剩余 "+activeBalance.remainingPercent,{exact:true}).waitFor();
+    for (const option of await menu.getByRole("menuitemradio").all()) assert.ok(await option.isDisabled());
+    await shot("running-balance","生成时可读取实际扣除预占后的余额，模型切换暂缓");
+    await closeMenu();
+    const stop = page.getByRole("button",{name:"停止生成",exact:true});
+    if (await stop.isVisible()) await stop.click();
+    await stop.waitFor({state:"hidden"});
+    await openMenu();
+    assert.equal(await menu.getByRole("menuitemradio",{name:/小米 MiMo/}).isDisabled(),false);
+    await closeMenu();
+    await mark("实际选图和逐张移除、换模型保留草稿、失败重试、生成中看余额及停止后切换");
+
+    if (!mobile) return;
+    const settled = await (await context.request.get(base+"/api/assistant-chat")).json();
+    const ledgerId = randomUUID();
+    try {
+      await db.insert(assistantUsageRequest).values({
+        id:ledgerId,userId:fixture.userId,runId:active.activeRunId,provider:"mimo",date:settled.usage.date,
+        state:"settled",reservedCny:"0",costCny:(settled.usage.available-.005).toFixed(8),
+        usage:{prompt_tokens:0,completion_tokens:0},rates:{input:1,cachedInput:.02,output:2},
+      });
+      assert.equal((await requestBalance()).remainingPercent,"<1%");
+      await openMenu();
+      await menu.getByText("今日剩余 <1%",{exact:true}).waitFor();
+      await shot("nearly-empty","隔离账本真实余额低于1%");
+      await closeMenu();
+      await db.update(assistantUsageRequest).set({costCny:settled.usage.limit.toString()}).where(eq(assistantUsageRequest.id,ledgerId));
+      await page.evaluate(()=>window.dispatchEvent(new Event("focus")));
+      await page.getByText(/今日可用额度不足/).waitFor();
+      await input().fill("额度不足时保留文字");
+      assert.ok(await send().isDisabled());
+      await openMenu();
+      await menu.getByText("今日剩余 0%",{exact:true}).waitFor();
+      await shot("no-balance","隔离账本耗尽，剩余0%且草稿可继续编辑");
+      await closeMenu();
+      const midnight = Date.parse(settled.usage.resetAt);
+      await page.clock.setFixedTime(new Date(midnight-2200));
+      let nextDay = false;
+      await context.route(base+"/api/account/entitlements",async route=>{
+        if (!nextDay) return route.continue();
+        const response = await route.fetch();
+        const payload = await response.json();
+        await new Promise(resolve=>setTimeout(resolve,850));
+        payload.usage.remainingPercent="100%";
+        payload.usage.resetAt=new Date(midnight+86400000).toISOString();
+        await route.fulfill({response,json:payload});
+      });
+      await openMenu();
+      await menu.getByText("今日剩余 0%",{exact:true}).waitFor();
+      nextDay=true;
+      await page.clock.setFixedTime(new Date(midnight+1));
+      await menu.getByText("正在读取额度…",{exact:true}).waitFor();
+      assert.equal(await remaining.count(),0);
+      await shot("midnight-reading","为跨日回放切换浏览器时钟，旧日0%已失效，读取只出现在菜单里");
+      await menu.getByText("今日剩余 100%",{exact:true}).waitFor();
+      await shot("midnight-ready","跨日回放返回新额度，菜单原位更新");
+      await closeMenu();
+      await context.unroute(base+"/api/account/entitlements");
+    } finally {
+      await db.delete(assistantUsageRequest).where(eq(assistantUsageRequest.id,ledgerId));
+    }
+    await mark("真实账本验证接近用完及耗尽，模拟跨日验证旧日值过期和重置");
   }
 
   async function exceptional(flow) {
@@ -293,6 +555,13 @@ export async function runAssistantExperienceBrowser(db) {
   try {
     if (!samples?.length) throw Error("需要提供隔离海南鸡饭样例");
     const scope = process.env.FORMWARD_EXPERIENCE_CASE;
+    if (scope==="composer" || scope==="composer-mobile") {
+      await journey("composer-mobile",{width:390,height:844},true,flow=>composerFlow(flow,true));
+    }
+    if (scope==="composer" || scope==="composer-desktop") {
+      if (results.length) await db.delete(rateLimit);
+      await journey("composer-desktop",{width:1440,height:900},false,flow=>composerFlow(flow,false));
+    }
     if (!scope || scope==="mobile") await journey("mobile",{width:390,height:844},true,flow=>mainFlow(flow,true));
     if (!scope || scope==="desktop") await journey("desktop",{width:1440,height:900},false,flow=>mainFlow(flow,false));
     await delay(0);

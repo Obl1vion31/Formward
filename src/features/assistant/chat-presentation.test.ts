@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
-import {withoutRepeatedFollowup,chatDisplayText,chatRecordReferences} from "./chat-presentation";
+import {withoutRepeatedFollowup,chatDisplayText,chatRecordReferences,chatTranscript} from "./chat-presentation";
+import type { ChatMessage } from "./chat-model";
 const references=[{title:"查看提交",href:"/dashboard/ai/operations/example",kind:"preview" as const,operationId:"example"}];
 test("站内确认指示归卡片，事实、真实引用和用户原文保留",()=>{
  const text="晚餐685千卡。\n\n请打开链接登录确认后才会正式保存（21:12前有效）：\n\nhttps://formward.top/dashboard/ai/operations/example\n\n参考：[食物资料](https://example.org/food)";
@@ -57,4 +58,29 @@ test('结构化补充只去掉完全相同的问题行，保留体重、来源�
  const task={messageId:'00000000-0000-4000-8000-000000000001',subject:'来源',question:'这次用什么测量？',questions:[{id:'source',prompt:'这次用什么测量？',allowText:true}]};
  assert.equal(withoutRepeatedFollowup('体重67kg已保留。\n这次用什么测量？',task),'体重67kg已保留。');
  assert.equal(withoutRepeatedFollowup('来源OKOK，体重67kg。',task),'来源OKOK，体重67kg。');
+});
+
+test("只有相邻、同模型且有原始补充关联的回答收起重复来源", () => {
+  const row = (id: string, fields: Partial<ChatMessage> = {}): ChatMessage => ({
+    id, seq: 1, role: "assistant", provider: "qwen", state: "complete", text: id,
+    createdAt: "2026-11-19T03:47:00.000Z", replyTo: null, imageIds: [], steps: [], references: [], error: null, ...fields,
+  });
+  const original = row("prompt");
+  const supplement = row("supplement", {
+    role: "user", provider: null, followupSourceId: original.id,
+    answeredQuestions: [{ prompt: "吃了几份？", value: "半份", skipped: false }],
+  });
+  const answer = row("answer", { runId: "run", question: { id: supplement.id, text: "半份" } });
+  const legacy = { ...answer, id: "legacy", runId: undefined };
+  const otherModel = { ...answer, id: "other-model", provider: "mimo" } as const;
+  const newRequest = row("新问题", { role: "user", provider: null });
+
+  const joined = chatTranscript([original, supplement, answer]);
+  assert.deepEqual(joined.visible.map(message => message.id), [original.id, answer.id]);
+  assert.deepEqual([...joined.continuations], [answer.id]);
+  assert.equal(joined.answers.get(original.id)?.[0]?.value, "半份");
+  assert.equal(chatTranscript([supplement, answer]).visible.length, 2, "未加载较早消息时保留补充原文");
+  for (const messages of [
+    [original, supplement, legacy], [original, supplement, otherModel], [original, supplement, newRequest, answer],
+  ]) assert.equal(chatTranscript(messages).continuations.size, 0);
 });

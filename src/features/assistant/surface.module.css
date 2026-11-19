@@ -166,6 +166,8 @@
 .reviewEntry:hover { background: var(--surface-hover); }
 .reviewEntry p > span { display: inline-block; white-space: nowrap; }
 .reviewEntry p > span:not(:last-child)::after { content: " · "; white-space: pre; }
+.surface .reviewEntry p[data-meal-nutrition] { display: flex; flex-wrap: wrap; gap: 2px 6px; }
+.surface .reviewEntry p[data-meal-nutrition] > span::after { content: none; }
 .toolsList { display: grid; padding-bottom: 8px; }
 .toolsList > a, .toolsList > button { display: flex; align-items: center; min-height: 44px; padding: 4px 0; border: 0; background: none; color: inherit; font: inherit; font-size: .875rem; text-align: left; text-decoration: none; cursor: pointer; }
 .toolsList > a:hover, .toolsList > button:hover { color: var(--gold); }

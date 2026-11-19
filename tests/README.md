@@ -468,4 +468,4 @@ MFA专项使用真实Better Auth插件验证绑定、错误动态码、恢复码
 `meal-inline.browser.mjs`读取本机隔离chat-pilot配置，验证手填与食材库持续同页、搜索保留、多项营养独立展开、原值保留及拍照返回；覆盖桌面、手机与320px网页200%，保存原始PNG和WebM，不调用模型或保存健康记录。
 
 
-小助手交互候选由 `test:chat-browser` 的 `FORMWARD_CHAT_EXPERIENCE=1` 运行。使用 `FORMWARD_CHAT_FIXTURE_PHOTO` 提供本机虚构 PNG，`FORMWARD_LOCAL_PREVIEW=1` 保持隔离标识。驱动覆盖完整发图、计时、流式正文、跳过、刷新恢复和同会话多图分批，并保存整屏 PNG、原始 WebM 与步骤时间。原生库和浏览器路径使用现有隔离参数；浏览器模拟键盘与真机证据分别记录。
+小助手交互候选由 `test:chat-browser` 的 `FORMWARD_CHAT_EXPERIENCE=1` 运行。使用 `FORMWARD_CHAT_FIXTURE_PHOTO` 提供本机虚构 PNG，`FORMWARD_LOCAL_PREVIEW=1` 保持隔离标识。驱动覆盖完整发图、计时、流式正文、跳过、刷新恢复和同会话多图分批，并保存整屏 PNG、原始 WebM 与步骤时间。`FORMWARD_EXPERIENCE_CASE=composer` 单独运行两端输入、触摸、菜单和额度验收。接近用完与耗尽用隔离 PostgreSQL 账本，跨日使用浏览器时钟与隔离回放。原生库和浏览器路径使用现有隔离参数。浏览器模拟键盘与真机证据分别记录。

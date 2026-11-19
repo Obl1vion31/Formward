@@ -58,13 +58,28 @@ export function withoutRepeatedFollowup(text:string,followup:Followup|null|undef
 export function chatTranscript(messages: readonly ChatMessage[]) {
   const anchors = new Set(messages.filter(message=>message.role==="assistant").map(message=>message.id));
   const answers = new Map<string,NonNullable<ChatMessage["answeredQuestions"]>>();
+  const supplements = new Map<string,string>();
   const visible = messages.filter(message => {
     const id = message.followupSourceId;
-    if (id && message.answeredQuestions?.length && anchors.has(id)) {
+    if (message.role === "user" && id && message.answeredQuestions?.length && anchors.has(id)) {
       answers.set(id,message.answeredQuestions);
+      supplements.set(message.id,id);
       return false;
     }
     return !message.steps.some(step=>step.foldedInto && anchors.has(step.foldedInto));
   });
-  return {visible,answers,anchors};
+  const continuations = new Set<string>();
+  let previousSource: string | undefined;
+  visible.forEach((message,index) => {
+    // 有运行记录时，提问才由原始用户消息编号确定。
+    const source = message.role === "assistant" && message.runId && message.question
+      ? supplements.get(message.question.id) : undefined;
+    const previous = visible[index-1];
+    if (source && message.provider && previous?.role === "assistant"
+        && previous.provider === message.provider && (source === previous.id || source === previousSource)) {
+      continuations.add(message.id);
+    }
+    previousSource = source;
+  });
+  return {visible,answers,anchors,continuations};
 }

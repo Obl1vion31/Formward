@@ -189,8 +189,10 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
         {notice && <p className={styles.historyFeedback} role="status">{notice}</p>}
         <div className={styles.historyMessages}>
           {view && transcript.visible.map(message => <article key={message.id} data-chat-message={message.id} data-role={message.role} tabIndex={-1}
-            className={chatStyles.message + " " + (message.role === "user" ? chatStyles.user : chatStyles.assistant)}>
-            <ChatMessageBody message={message} inlinePreviews={view.capabilities?.inlinePreviews === true} historical jump={jump} navigate={navigate} answers={transcript.answers.get(message.id)}/>
+            className={chatStyles.message + " " + (message.role === "user" ? chatStyles.user : chatStyles.assistant)
+              + (transcript.continuations.has(message.id) ? " " + chatStyles.continuation : "")}>
+            <ChatMessageBody message={message} inlinePreviews={view.capabilities?.inlinePreviews === true} historical jump={jump} navigate={navigate} answers={transcript.answers.get(message.id)}
+              continuation={transcript.continuations.has(message.id)}/>
           </article>)}
         </div>
       </div>}

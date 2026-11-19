@@ -31,6 +31,7 @@ export type ChatUsage = {
   percent: string; resetAt: string; providers: { id: ChatProvider; spent: number; reserved: number; uncertain: number }[];
   recognition?: { used: number; limit: number | null; remaining: number | null; resetAt: string };
 };
+export type ChatBalance = { remainingPercent: string; resetAt: string };
 export type ChatCatalogItem = { id: ChatProvider; label: string; model: string; configured: boolean; enabled: boolean; reason: string | null; expiresAt: string | null };
 export type ChatSnapshot = {
   capabilities?:{inlinePreviews:boolean;mealEntry:boolean};
@@ -50,6 +51,9 @@ export function usagePercent(spent: number, limit: number) {
   if (spent <= 0) return "0%";
   const value = Math.floor(spent / limit * 100 + 1e-8);
   return value < 1 ? "<1%" : value + "%";
+}
+export function chatBalance({ available, limit, resetAt }: Pick<ChatUsage,"available"|"limit"|"resetAt">): ChatBalance {
+  return { remainingPercent: limit > 0 ? usagePercent(Math.min(available,limit),limit) : "0%", resetAt };
 }
 export function budgetDate(now = new Date()) { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(now); }
 export function nextBudgetReset(date: string) { return new Date(Date.parse(date + "T00:00:00+08:00") + 86400000).toISOString(); }
