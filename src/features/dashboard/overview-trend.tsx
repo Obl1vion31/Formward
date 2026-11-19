@@ -44,7 +44,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const byDate = new Map(available.map(day => [day.date, day]));
   const earliest = available.map(day => day.date).filter(date => date <= today).sort()[0] ?? today;
   const from = range === "all" ? earliest : range === "custom" ? custom.from : addCalendarDays(today, 1 - Number(range)), to = range === "custom" ? custom.to : today;
-  const { bindPlot, prepare: prepareRange, finish: finishRange } = useNestedChartRange({ mode: range, from, to });
+  const { bindPlot, prepare: prepareRange, finish: finishRange } = useNestedChartRange({ mode: range, from, to, growNewValues: true });
   let dates: string[] = [];
   try { const length = calendarOrdinal(to) - calendarOrdinal(from) + 1; if (length > 0 && length <= 3661) dates = Array.from({ length }, (_, index) => addCalendarDays(from, index)); } catch {}
   const days = dates.map(date => byDate.get(date) ?? blankDay(date));
