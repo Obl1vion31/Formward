@@ -4,6 +4,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { assistantConversation, assistantMessage, assistantRun, assistantUsageRequest, meal, rateLimit } from "../src/db/schema.ts";
+import { chatContextBaseEstimate } from "../src/features/assistant/chat-context.ts";
+import { CHAT_INPUT_LIMIT, nextChatInputEstimate } from "../src/features/assistant/chat-model.ts";
 import { readMealSnapshot } from "../src/features/meals/records.ts";
 
 const recovery = "[data-chat-context-recovery]";
@@ -37,10 +39,10 @@ export async function runAssistantContextRecovery(db) {
     page.setDefaultTimeout(40000);
     const record = {name,engine,viewport,shots:[],checks:[],errors:[]};
     report.push(record);
-    let disconnecting = false;
+    let readInterruption = "";
     page.on("pageerror",error=>{
-      if (disconnecting && engine==="webkit" && /\/api\/assistant-(?:chat|context).*due to access control checks\.$/.test(error.message)) {
-        (record.browserNotices??=[]).push("主动断网时 WebKit 取消了正在进行的助手读取。");
+      if (readInterruption && engine==="webkit" && /\/api\/assistant-(?:chat|context)(?:\?.*)? due to access control checks\.$/.test(error.message)) {
+        (record.browserNotices??=[]).push(readInterruption+"时 WebKit 取消了正在进行的助手读取。");
       } else record.errors.push(String(error));
     });
     const input = page.getByRole("textbox",{name:"给小助手发消息",exact:true});
@@ -69,14 +71,18 @@ export async function runAssistantContextRecovery(db) {
         .some(el=>el.getClientRects().length&&!el.disabled));
     }
     async function reconnect(ready){
-      disconnecting = true;
+      readInterruption = "主动断网";
       try {
         await context.setOffline(true);
         await page.waitForTimeout(420);
         await context.setOffline(false);
         await open();
         await ready.waitFor();
-      } finally { disconnecting = false; }
+      } finally { readInterruption = ""; }
+    }
+    async function reloadWhileWorking(){
+      readInterruption = "主动刷新";
+      try { await open(); } finally { readInterruption = ""; }
     }
     async function send(text,files=0){
       await input.fill(text);
@@ -88,9 +94,10 @@ export async function runAssistantContextRecovery(db) {
       await button("停止生成").waitFor({state:"hidden"});
       return chat();
     }
-    async function showSource(title){
+    async function showSource(title,id){
       await button("历史会话").click();
-      const entry = page.getByRole("button",{name:new RegExp(title)}).filter({visible:true}).first();
+      const entry = id ? page.locator('[data-history-id="'+id+'"]:visible')
+        : page.getByRole("button",{name:new RegExp(title)}).filter({visible:true}).first();
       await entry.click();
       await button("回到这段对话").click();
       await input.waitFor();
@@ -113,7 +120,7 @@ export async function runAssistantContextRecovery(db) {
       assert.equal(login.status(),200);
       await control({action:"new"});
       await open();
-      await run({page,input,button,chat,control,shot,check,open,send,finished,showSource,geometry,context,reconnect});
+      await run({page,input,button,chat,control,shot,check,open,send,finished,showSource,geometry,context,reconnect,reloadWhileWorking});
       assert.deepEqual(record.errors,[]);
     } catch(error) {
       record.failure=String(error);
@@ -155,19 +162,22 @@ export async function runAssistantContextRecovery(db) {
     }
     await page.setViewportSize({width:mobile?390:1440,height:mobile?844:900});
     await page.evaluate(()=>{localStorage.setItem("formward-theme","light");document.documentElement.dataset.theme="light";});
-    await button("保存确认").click();
-    await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
-    await shot("saved", "两张原图的晚餐已保存，回复仍显示中断");
-    assert.equal(await error.count(),1);
-    assert.equal((await existingMeals()).size,previousMeals.size+1);
-    const dinner=(await meals()).find(row=>!previousMeals.has(row.id));
-    assert.ok(dinner && dinner.mealType==="晚餐");
-    assert.equal(dinner.items.length,2);
-    assert.equal(dinner.imageIds.length,2);
-    const foods=dinner.items.map(row=>String(row.name));
-    assert.deepEqual(foods,["验收烤鸡","验收燕麦饮"]);
-    assert.deepEqual(dinner.items.map(row=>Number(row.quantity)),[150,200]);
-    check("实际保存仅新增一次，有两项食物及两张照片，回复中断状态独立保留");
+    async function verifySaved() {
+      await button("保存确认").click();
+      await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
+      await shot("saved","两张原图的晚餐只保存一次");
+      assert.equal((await existingMeals()).size,previousMeals.size+1);
+      const dinner=(await meals()).find(row=>!previousMeals.has(row.id));
+      assert.ok(dinner && dinner.mealType==="晚餐");
+      assert.deepEqual(dinner.items.map(row=>String(row.name)),["验收烤鸡","验收燕麦饮"]);
+      assert.deepEqual(dinner.items.map(row=>Number(row.quantity)),[150,200]);
+      assert.equal(dinner.imageIds.length,2);
+    }
+    if (mobile) {
+      await verifySaved();
+      assert.equal(await error.count(),1);
+      check("实际保存仅新增一次，有两项食物及两张照片，回复中断状态独立保留");
+    }
 
     const usage=await ledgerCount();
     await input.fill("留在旧对话的草稿");
@@ -178,7 +188,7 @@ export async function runAssistantContextRecovery(db) {
     assert.notEqual((await chat()).conversationId,original);
     assert.equal((await chat()).pendingContextQuote,undefined);
     await shot("blank","打开空白对话，用户可以另起话题");
-    await showSource(text);
+    await showSource(text,original);
     assert.equal((await chat()).conversationId,original);
     assert.equal(await input.inputValue(),"留在旧对话的草稿");
     if (!mobile) {
@@ -205,18 +215,23 @@ export async function runAssistantContextRecovery(db) {
     assert.ok(started.activeRunId);
     assert.ok(dropped);
     await shot("resuming","只点击一次，响应丢失后接回同一个新会话，直接续答");
-    if (mobile) await flow.open();
-    await page.getByText("已接着说明。沿用原来已保存的晚餐。",{exact:true}).waitFor();
+    if (mobile) await flow.reloadWhileWorking();
+    const resumedText=mobile?"已接着说明。沿用原来已保存的晚餐。":"已接着说明。沿用原来的待确认晚餐。";
+    await page.getByText(resumedText).waitFor();
     const completed=await finished();
     assert.equal(completed.conversationId,created);
     assert.equal(completed.messages.filter(row=>row.role==="user").length,1);
     assert.equal(completed.messages.at(-1).runId,started.activeRunId);
     assert.deepEqual(completed.messages.at(-1).references,failing.references);
-    await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
+    await shot("continued",mobile?"刷新后补充说明和原已保存卡均可查":"补充说明沿用原待确认卡");
+    if (mobile) await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
+    else {
+      assert.equal((await existingMeals()).size,previousMeals.size);
+      await verifySaved();
+    }
     assert.equal(await ledgerCount(),usage+1);
     assert.equal((await existingMeals()).size,previousMeals.size+1);
-    await shot("continued","刷新后显示原问题与原图，补充说明和已保存卡都可看");
-    await showSource(text);
+    await showSource(text,original);
     assert.equal((await chat()).conversationId,original);
     if (!mobile) {
       assert.equal(await input.inputValue(),"留在旧对话的草稿");
@@ -274,10 +289,10 @@ export async function runAssistantContextRecovery(db) {
   }
 
   async function contextWarning(flow,mobile) {
-    const {page,input,button,chat,control,send,finished,shot,check,showSource} = flow;
+    const {page,input,button,chat,send,finished,shot,check,showSource} = flow;
     const id = (await chat()).conversationId;
     const history = Array.from({length:20},(_,index)=>({id:randomUUID(),userId,conversationId:id,seq:index+1,
-      role:index%2?"assistant":"user",text:index%2?"虚构的可重复前文。"+"示".repeat(index===19?20000:12800)+"以上为隔离验收用的示例记录。":"容量预警验收问答 "+(index+1)}));
+      role:index%2?"assistant":"user",text:index%2?"已核对当天饮食记录。\n\n- 午餐有白切鸡、鸡油饭及黄瓜。\n- 晚餐尚有未补记内容。\n\n<!-- "+"虚".repeat(index===19?20000:12800)+" -->":"容量预警验收问答 "+(index+1)}));
     await db.insert(assistantMessage).values(history.slice(0,18));
     await db.update(assistantConversation).set({sequence:18}).where(eq(assistantConversation.id,id));
     await flow.open();
@@ -331,7 +346,6 @@ export async function runAssistantContextRecovery(db) {
     assert.equal(await input.inputValue(),"放在这个对话的草稿");
     await warning.waitFor();
     check("接近上限可继续发送或新建，返回原会话恢复草稿与预警");
-    await control({action:"new"});
   }
 
   async function automaticPhotos(flow,mobile) {
@@ -518,12 +532,31 @@ export async function runAssistantContextRecovery(db) {
     }
   }
 
+  async function seedResumeDemo() {
+    const conversationId=randomUUID(),questionId=randomUUID(),answerId=randomUUID(),requestId=randomUUID();
+    const ids=samples.slice(0,2).map(item=>item.id);
+    await db.insert(assistantConversation).values({id:conversationId,userId,provider:"qwen",active:false,sequence:2});
+    await db.insert(assistantMessage).values([
+      {id:questionId,userId,conversationId,seq:1,role:"user",imageIds:ids,
+        text:"两图查库回放 · 一键续答演示。两张照片是同一顿晚餐，请核对今天记录并整理预览。"},
+      {id:answerId,userId,conversationId,seq:2,role:"assistant",provider:"qwen",state:"error",
+        error:"这次要处理的内容太多，回复已中断。"},
+    ]);
+    await db.insert(assistantRun).values({id:randomUUID(),userId,conversationId,userMessageId:questionId,assistantMessageId:answerId,
+      requestId,requestDigest:"isolated-preview",provider:"qwen",model:"qwen3.8-flash",state:"error",
+      executionInput:{action:"send",requestId,provider:"qwen",conversationId,timezone:"Asia/Shanghai",
+        attachmentSourceId:questionId,attachmentImageIds:ids,photoBatch:ids.map(imageId=>({
+          imageId,notes:"照片对应同一餐，验收样例给定烤鸡150克。"}))}});
+  }
+
   async function liveQwen(flow) {
     const {page,button,chat,control,open,send,shot,check}=flow;
-    const cases=[];
+    const cases=[],realTurns=[];
+    let growth=null;
     const budget=()=>readFile(join(directory,"qwen-budget.json"),"utf8").then(JSON.parse);
     const canSpend=entry=>!entry.stopped && !entry.inFlight && entry.settledCny+entry.maximumCny<=entry.limitCny;
     const reportPath=join(directory,"qwen-journeys.json");
+    const saveReport=async()=>writeFile(reportPath,JSON.stringify({cases,growth,budget:await budget()},null,2));
     const twoPrompt="请查 "+fixture.observed+" 当天已保存的饮食记录并简述，然后把 "+fixture.today+" 的这顿晚餐作为一餐新增预览。两图是一餐的照片，请关联两张原图。实际吃了白切鸡熟肉150克、鸡油饭130克、黄瓜50克，油和调味可以合理估算。备注写“隔离两图样例”。我明确要另记这顿晚餐，请生成待确认卡。";
     const fourPrompt="请把 "+fixture.today+" 的这顿午餐整理成一份新增餐次预览。四张图属于同一餐，后两张一起辅助识别，只记录一餐并关联四张原图。实际吃了白切鸡熟肉120克、鸡油饭100克、黄瓜40克，别重复计算。备注写“隔离四图样例”，请生成待确认卡。";
     const resumePrompt="请把 "+fixture.today+" 的这顿晚餐作为一餐新增预览。实际吃了白切鸡熟肉110克、鸡油饭105克、黄瓜35克，可估算其他营养，关联两张原图，生成一份待确认餐次。";
@@ -546,7 +579,7 @@ export async function runAssistantContextRecovery(db) {
         entry.rounds=row.requestDiagnostics.map(item=>{
           const bill=item.state==="prepared"?undefined:feeByRound[chargedRound++];
           return {state:item.state,images:item.images.length,phase:item.phase??"direct",estimate:item.inputEstimate,
-            input:bill?.usage?.prompt_tokens,output:bill?.usage?.completion_tokens,cached:bill?.usage?.prompt_tokens_details?.cached_tokens,
+            input:bill?.usage?.prompt_tokens,output:bill?.usage?.completion_tokens,cached:bill?.usage?.prompt_tokens_details?.cached_tokens??bill?.usage?.prompt_cache_hit_tokens??0,
             costCny:bill?.costCny===null?null:Number(bill?.costCny??0)};
         });
         entry.peak=Math.max(0,...entry.rounds.map(item=>item.estimate??0));
@@ -556,14 +589,16 @@ export async function runAssistantContextRecovery(db) {
         if(checkQuery)assert.ok(answer.steps.some(step=>step.name==="query_meals"&&step.state==="complete"),"真实餐次查询成功");
         assert.equal(answer.references.filter(ref=>ref.kind==="preview").length,1,"仅一张待确认卡");
         assert.equal((await existingMeals()).size,existing.size,"等待确认期间没有写入正式餐次");
-        await button("保存确认").last().waitFor();
+        const currentCard=page.locator('[data-chat-message="'+answer.id+'"]');
+        await currentCard.getByRole("button",{name:"保存确认",exact:true}).waitFor();
         await shot(name+"-preview",count+" 张图的真实千问待确认结果");
-        await button("保存确认").last().click();
-        await page.getByRole("heading",{name:"已保存",exact:true}).last().waitFor();
+        await currentCard.getByRole("button",{name:"保存确认",exact:true}).click();
+        await currentCard.getByRole("heading",{name:"已保存",exact:true}).waitFor();
         const saved=(await meals()).filter(row=>!existing.has(row.id));
         assert.equal(saved.length,1);
         assert.equal(saved[0].imageIds.length,count);
         entry.passed=true;
+        realTurns.push(snapshot.messages.slice(-2));
         check(name+" 生成一张待确认卡，正式保存一餐并关联 "+count+" 张原图");
         await shot(name+"-saved",count+" 张图实际保存结果");
         return row;
@@ -571,13 +606,24 @@ export async function runAssistantContextRecovery(db) {
         entry.failure=String(error);
         await shot(name+"-unmet","真实模型未达到该组验收条件");
       } finally {
-        await writeFile(reportPath,JSON.stringify({cases,budget:await budget()},null,2));
+        await saveReport();
       }
     }
     const first=await run("qwen-two",2,twoPrompt,()=>send(twoPrompt,2),undefined,true);
     if (!canSpend(await budget())) return;
     const second=await run("qwen-four",4,fourPrompt,()=>send(fourPrompt,4),first?.id);
-    if (!first || !second || !canSpend(await budget())) return;
+    if (!first || !second) return;
+    const newest=[];
+    const estimates=Array.from({length:30},(_,index)=>{
+      const turn=realTurns[index%2].map(row=>({...row,id:randomUUID()}));
+      newest.unshift(...turn.reverse());
+      const base=chatContextBaseEstimate(newest.slice(0,50),[]);
+      return {completed:index+1,base,two:nextChatInputEstimate(base,twoPrompt,2),four:nextChatInputEstimate(base,fourPrompt,4)};
+    });
+    growth={method:"repeat-measured-transcripts",maxTurns:30,
+      firstWarning:estimates.find(row=>Math.max(row.two,row.four)>=CHAT_INPUT_LIMIT)?.completed??null,estimates};
+    await saveReport();
+    if (!canSpend(await budget())) return;
 
     await control({action:"new"});
     const {conversationId}=await chat(), questionId=randomUUID(), answerId=randomUUID(), requestId=randomUUID();
@@ -612,6 +658,7 @@ export async function runAssistantContextRecovery(db) {
         await journey(surface+"-query",mobile,flow=>afterQuery(flow,mobile));
         await journey(surface+"-warning",mobile,flow=>contextWarning(flow,mobile));
       }
+      if (process.env.FORMWARD_CHAT_PREVIEW==="1") await seedResumeDemo();
       return;
     }
     if(process.env.FORMWARD_CONTEXT_CASE!=="photos" && process.env.FORMWARD_CONTEXT_SCREEN!=="desktop")await journey("mobile",true,async flow=>{

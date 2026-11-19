@@ -26,7 +26,8 @@ export function chatDisplayText(message:Pick<ChatMessage,"role"|"text"|"referenc
     const direct=/^确认前.*待(?:审|确认)|^这条修改还是待确认草稿|^(?:目前|现在|当前|这条|本次)(?:还|尚|仍)?(?:没有|未|没)(?:正式)?(?:保存|写入)(?:[，,。；;]|$)/.test(plain);
     const prefix=/^(?:(?:好的|补一句|注)[，,:：]\s*)?(?:请|目前|现在|当前|这条|这轮|这批|这份|刚才|我|你那边|下面|确认链接|审核链接|预览链接|过期)/.test(plain);
     const intent=/(?:确认|审核|预览|草稿).*(?:链接|入口|保存|有效|过期|状态|正式写入|待确认)|(?:链接|网页登录|登录后).*(?:确认|保存)|过期.*(?:重新|没关系)|卡片.*链接/.test(plain);
-    if(!businessFacts(plain)&&(direct||prefix&&intent)){reviewRemoved=true;return "";}
+    const previewStatus = hasPreview && /^(?:这只是待确认预览|预览(?:目前|当前|现在)?(?:仍|还)?是待确认状态)/.test(plain);
+    if(!businessFacts(plain)&&(direct||prefix&&intent||previewStatus)){reviewRemoved=true;return "";}
     // 去掉旧回复围绕同一事实的“重新给链接”包装，保留括号内原始业务内容。
     const wrapped=sentence.match(/^(?:好的[，,]\s*)?我(?:这就)?按同样内容[（(]([\s\S]+)[）)]重新生成一条带确认链接的预览[，,]\s*稍等[。]?$/);
     let result=wrapped?wrapped[1]+"。":sentence;

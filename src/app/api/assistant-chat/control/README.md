@@ -6,4 +6,4 @@ select_conversation通过conversationId激活本人chat会话，复用账号锁�
 
 remove_conversation 使用同源人工会话及账号锁，按编号将本人聊天移出历史。生成中的目标先停止，重复移出按已有结果处理。当前目标移出后建新会话，原消息、已保存与待核对记录和用量保留。阅读、激活、运行订阅和旧请求重试按移除状态拒绝。
 
-上下文中断后的 new 可传当前 conversationId 和本人中断回复的 contextQuoteId，账号锁内核对来源后创建会话。新会话的首条发送复用 replyToId 校验；clear_context_quote 带当前 conversationId 清除待发送引用。创建和清除只改变聊天会话。
+上下文中断后的 resume_in_new_conversation 接收原 conversationId 与 sourceMessageId。服务器核对本人原消息和失败任务，在一次事务内创建新活动会话并排队。重复点击和响应丢失后的重试使用原运行派生的请求标识。照片、有效回执、原日期和已保存／待确认状态由服务器恢复。旧客户端可继续通过 new 与 contextQuoteId 处理待发送引用，clear_context_quote 清除旧引用。

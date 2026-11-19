@@ -474,10 +474,12 @@ MFA专项使用真实Better Auth插件验证绑定、错误动态码、恢复码
 
 `FORMWARD_EXPERIENCE_CASE=draft-scroll` 用两张虚构照片和 20 行草稿，在 Chromium 用触摸滑动，在 WebKit 窄视口用原生滚轮。检验框内往返首尾、修改前文、模拟键盘高度变化后保持阅读位置、继续在末尾输入和一次发送。同时量顶栏、发送键、消息区和外层页面是否随手势移动。
 
-小助手上下文中断验收使用 `FORMWARD_CHAT_CONTEXT_RECOVERY=1` 运行 `tests/chat-pilot.browser.mts`。指定 `FORMWARD_TEST_RELEASE`、`FORMWARD_CHAT_NATIVE=1` 与虚构样例照片后，可用 `CHAT_BROWSER=chromium` 或 `webkit` 复现保存、中断、引用、换会话、历史精简与多图自动读取。另用 `FORMWARD_CONTEXT_CASE=photos` 或 `overflow` 可单独跑其中一类。可选的 `FORMWARD_CHAT_FIXTURE_LABEL` 提供虚构标签 PNG。以真实任务诊断和数据库核对完整提示、分批顺序、续读定位与保存前后的实际记录。报告和实录写入 `FORMWARD_CHAT_ARTIFACTS`。
+小助手上下文中断验收使用 `FORMWARD_CHAT_CONTEXT_RECOVERY=1` 运行 `tests/chat-pilot.browser.mts`。指定 `FORMWARD_TEST_RELEASE`、`FORMWARD_CHAT_NATIVE=1` 与虚构样例照片后，可用 `CHAT_BROWSER=chromium` 或 `webkit` 复现已保存后中断、一键新会话续答、历史精简与多图自动读取。另用 `FORMWARD_CONTEXT_CASE=photos` 或 `overflow` 可单独跑其中一类，capacity 覆盖查库后超限恢复与预警。可选的 `FORMWARD_CHAT_FIXTURE_LABEL` 提供虚构标签 PNG。以真实任务诊断和数据库核对完整提示、分批顺序、续读定位与保存前后的实际记录。报告和实录写入 `FORMWARD_CHAT_ARTIFACTS`。
 
 小助手照片叠放使用 FORMWARD_ASSISTANT_PHOTO_STACK=1 运行 tests/chat-pilot.browser.mts，沿用隔离运行包、虚构照片与模型回放。检查两张、四张、八张、纯照片消息、当前与历史、图片翻页与失败恢复。报告、整屏截图和原速录屏写入 FORMWARD_CHAT_ARTIFACTS。
 
 设置 FORMWARD_DIRECTIONAL_NAVIGATION=1 运行 tests/chat-pilot.browser.mts。用虚构照片、当前及历史对话、训练日历和后台栏目核对双向偏移、主题、草稿及减弱动态，保存实页原速录像。
 
 设置 FORMWARD_MOBILE_LAYOUT_STABILITY=1 运行 tests/chat-pilot.browser.mts。核对助手底部安全区、首帧返回位置及摘要提示的空白槽、慢读、快读和失败重试，保存整屏截图与实录。
+
+方案A的少量真实千问验收使用同一隔离入口，设置 `FORMWARD_CONTEXT_CASE=live`、`FORMWARD_CHAT_CONTEXT_RECOVERY=1`、`FORMWARD_LOCAL_PREVIEW=1` 和只读的0600测试凭据文件 `FORMWARD_CHAT_LIVE_KEY_FILE`。真实请求只在隔离 worker 内串行发出，独立账本持久预留未结算费用，总额上限¥1，未知费用阻止后续请求。常规页面回放全部使用模拟供应商。报告与凭据均保存在私有路径。

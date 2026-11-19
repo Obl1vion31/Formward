@@ -114,6 +114,11 @@ try{
  } else if (process.env.FORMWARD_CHAT_CONTEXT_RECOVERY === "1") {
    const {runAssistantContextRecovery} = await import("./assistant-context-recovery.driver.mjs");
    await runAssistantContextRecovery(db);
+   if (process.env.FORMWARD_CHAT_PREVIEW==="1") {
+     assert.ok(!liveKeyFile,"本机可操作预览使用模型回放");
+     console.log(JSON.stringify({baseURL,configPath:config,fictional:true}));
+     await new Promise<void>(done=>{process.once("SIGTERM",done);process.once("SIGINT",done);});
+   }
  } else if (process.env.FORMWARD_CHAT_EXPERIENCE === "1") {
    const {runAssistantExperienceBrowser} = await import("./assistant-experience.driver.mjs");
    await runAssistantExperienceBrowser(db);

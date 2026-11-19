@@ -21,6 +21,15 @@ test("独立查询入口和真实外部引用不被其他业务的确认卡吞�
 });
 
 
+test("已有站内卡时隐藏真实千问重复提示的待确认状态，保留营养事实",()=>{
+ const text="白切鸡熟肉90g，总计312千卡。\n\n这只是**待确认预览，尚未正式保存**。\n- 预览目前仍是**待确认**状态，请你打开下面的链接在网页登录后确认，确认后才会正式保存：";
+ const message={role:"assistant" as const,references,text};
+ const displayed=chatDisplayText(message,true);
+ assert.match(displayed,/白切鸡熟肉90g，总计312千卡/);
+ assert.doesNotMatch(displayed,/待确认|网页登录/);
+ assert.equal(chatDisplayText({...message,references:[]},true),text);
+});
+
 test("旧消息无需当前预览编号也退出审核URL、登录与旧期限",()=>{
  const text="点心50千卡，来源：包装标签。\n\n确认链接（请在网页登录后确认才会正式保存，约 **04:24** 前有效）：\nhttps://formward.top/dashboard/ai/operations/old-uuid\n\n目前还是**待确认**状态，没正式写入，需要你点进去确认。\n\n过期了也没关系，跟我说一声我重新提一条。";
  const result=chatDisplayText({role:"assistant",text,references:[]},true);
