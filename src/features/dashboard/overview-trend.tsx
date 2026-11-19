@@ -1,6 +1,6 @@
 "use client";
 import {RecordTrendPanel,CustomRecordRange,type RecordMetric} from "@/components/record-trend-panel";
-import {formatRecordNumber,formatIntegerNumber,signedRecordNumber,signedIntegerNumber} from "@/components/number-format";
+import {formatRecordNumber,signedRecordNumber,signedIntegerNumber} from "@/components/number-format";
 import {DayNutritionSummary} from "../meals/nutrition-composition";
 import {RangeCoverage} from "./range-coverage-view";
 import { ChartRanges } from "@/components/chart-ranges";
@@ -10,6 +10,7 @@ import {useLayoutEffect,useState} from "react";
 import {useChartTransitionActions} from "@/components/chart-transition-state";
 import { LoadingLink } from "@/components/loading-link";
 import { RelationshipPlot } from "./relationship-plot";
+import { BalanceReading } from "./day-readout";
 import { addCalendarDays, calendarOrdinal } from "../measurements/calendar";
 import { useMobileMode } from "@/components/use-mobile-mode";
 import type { OverviewPresentation } from "./presentation";
@@ -65,22 +66,28 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   }
   const customControls = customOpen && <CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={applyCustomRange} cancel={()=>setCustomOpen(false)}/>;
   const motionRevision = mobile === null ? undefined : rangeRevision;
+  const detailSuspended = customOpen || !!dialogDay;
+  function viewSelectedDay() {
+    selection.pin(selected);
+    setOpened(selected);
+  }
+
 
   return <section aria-label="热量与晨重趋势" data-chart-selection={selection.regionId} data-selected-date={selected} data-selection-origin={selection.origin} {...selection.regionProps}>
     {mobile!==false&&<div className={styles.mobileTrend+" mobile-only"}>
-      <div className={styles.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" onClick={()=>{const target=selected;setOpened(target);selection.releasePreview();}}>查看记录 →</button></div>
+      <div className={styles.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" onClick={viewSelectedDay}>查看记录 →</button></div>
       <ChartRanges value={mobile===null?(mode??rangeContaining(preferred,today,"7")):range} change={changeRange}/>
       {customControls}
-      <div className={styles.mobileSelected} aria-live="polite"><time>{selected}</time><strong>{day?.energyBalance==null?"收支未知":day.energyBalance<0?"缺口 "+formatIntegerNumber(Math.abs(day.energyBalance)):"盈余 "+formatIntegerNumber(day.energyBalance)}<small>千卡</small></strong></div>
-      <div className={styles.mobileLegend}><OverviewLegend compact/></div>
+      <div className={styles.mobileSelected} aria-live="polite"><time>{selected}</time><strong><BalanceReading balance={day?.energyBalance ?? null}/></strong></div>
+      <div className={styles.mobileLegend}><OverviewLegend/></div>
       {dates.length ? <>
-        <RelationshipPlot days={days} selected={selected} selection={selection} compactMode motionRevision={motionRevision}/>
+        <RelationshipPlot days={days} selected={selected} selection={selection} compactMode motionRevision={motionRevision} suspended={detailSuspended}/>
         <OverviewReadings day={day} mobile/>
       </> : <p className={styles.caption}>请选择有效日期范围，最长10年。</p>}
     </div>}{mobile!==true&&<div className="desktop-only"><RecordTrendPanel
       range={<ChartRanges value={range} change={changeRange}/>}
       custom={customControls}
-      date={selected} view={()=>{const target=selected;setOpened(target);selection.releasePreview();}}
+      date={selected} view={viewSelectedDay}
       readoutLabel="日期对照"
       metricVariants={days.map(day=>[formatNutrition(day.nutrition?.values.caloriesKcal??null,"caloriesKcal"),energyValue(day.energy.totalKcal),signedIntegerNumber(day.energyBalance),formatRecordNumber(day.morning?.weightKg??null),formatRecordNumber(day.nextMorning?.weightKg??null),signed(day.weightChangeKg)])}
       metrics={overviewMetrics(day??blankDay(selected),false)}
@@ -89,7 +96,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       flags={overviewFlags(day)} flagVariants={days.map(overviewFlags)}
       title="热量收支" unit="kcal"
       legend={<OverviewLegend/>}
-    >{dates.length?<RelationshipPlot days={days} selected={selected} selection={selection} compactMode={false} motionRevision={motionRevision}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel></div>}
+    >{dates.length?<RelationshipPlot days={days} selected={selected} selection={selection} compactMode={false} motionRevision={motionRevision} suspended={detailSuspended}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel></div>}
     {mobile!==true&&<div className="desktop-only"><RangeCoverage key={from+to} days={days} today={today} from={from} to={to}/></div>}
     {dialogDay&&<EditorDialog title={dialogDay.date+" · 当日记录"} titleParts={[dialogDay.date,"当日记录"]} stableScroll close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}
   </section>;
@@ -99,7 +106,7 @@ function overviewMetrics(day:OverviewDay,mobile:boolean):RecordMetric[]{
  return [
   {id:"intake",label:"摄入",value:formatNutrition(day.nutrition?.values.caloriesKcal??null,"caloriesKcal"),unit:"kcal",tone:"blue"},
   {id:"energy",label:"消耗",value:energyValue(day.energy.totalKcal),unit:"kcal",tone:"red"},
-  {id:"balance",label:day.energyBalance==null?"收支":day.energyBalance<0?"缺口":"盈余",value:signedIntegerNumber(day.energyBalance),unit:"kcal",tone:day.energyBalance!=null&&day.energyBalance<0?"blue":"gold"},
+  {id:"balance",label:day.energyBalance==null?"收支":day.energyBalance===0?"持平":day.energyBalance<0?"缺口":"盈余",value:signedIntegerNumber(day.energyBalance),unit:"kcal",tone:day.energyBalance!=null&&day.energyBalance<0?"blue":"gold"},
   ...(!mobile?[
    {id:"morning",label:"晨重 "+day.date.slice(5).replace("-","."),value:formatRecordNumber(day.morning?.weightKg??null),unit:"kg",inlineUnit:true},
    {id:"next",label:"次晨 "+day.nextDate.slice(5).replace("-","."),value:formatRecordNumber(day.nextMorning?.weightKg??null),unit:"kg",inlineUnit:true},

@@ -41,6 +41,7 @@ export function useChartDateSelection(dates: string[], initial: string, fallback
   const releasePreview=()=>update({type:"release-preview"});
   const select=(date:string,origin:Origin)=>update({type:"select",date,origin});
   const choose=(date:string)=>select(date,"touch");
+  const pin=(date:string)=>select(date,"click");
   const activate=(date:string)=>select(date,input.current==="mouse"||retainExplicitDate&&input.current==="keyboard"?"click":input.current);
   const preview=(date:string)=>{if(!previewPaused)update({type:"preview",date});};
   const focus=(event:FocusEvent<SVGGElement>,date:string)=>{if(input.current==="keyboard"&&event.currentTarget.matches(":focus-visible"))select(date,"keyboard");};
@@ -59,5 +60,5 @@ export function useChartDateSelection(dates: string[], initial: string, fallback
     onPointerLeave:(event:PointerEvent<HTMLElement>)=>{if(event.pointerType==="mouse")leave();},
     onBlurCapture:(event:FocusEvent<HTMLElement>)=>{if(!event.currentTarget.contains(event.relatedTarget as Node|null))setChoice(current=>current?.origin==="keyboard"?null:current);}
   };
-  return {regionId,selected,active:!!active,locked:active?.origin==="click",origin:active?.origin??"default",direct:active?.origin==="touch",choose,activate,preview,focus,release,releasePreview,leave,keyDown,regionProps};
+  return {regionId,selected,active:!!active,locked:active?.origin==="click",origin:active?.origin??"default",direct:active?.origin==="touch",choose,pin,activate,preview,focus,release,releasePreview,leave,keyDown,regionProps};
 }

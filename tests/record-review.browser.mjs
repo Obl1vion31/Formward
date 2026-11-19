@@ -84,13 +84,17 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
     await page.setViewportSize({ width, height: 844 });
     for (const days of [7, 30, 90]) {
       await page.getByRole("button", { name: `${days}D`, exact: true }).click();
-      const chart = page.getByRole("group", { name: "摄入、消耗、盈余与次晨体重变化", exact: true });
-      const values = await chart.evaluate((group, date) => {
-        const day = group.querySelector(`[data-overview-date="${date}"]`);
-        const n = key => Number(day.querySelector(`[data-series="${key}"]`).getAttribute("data-overview-value"));
-        return { intake: n("intake"), expenditure: n("expenditure"), balance: Number(day.getAttribute("data-balance")) };
-      }, date);
-      assert.equal(values.expenditure,2800); assert.equal(values.balance,values.intake-2800);
+      const chart = page.getByRole("group", { name: "热量收支与次晨体重变化", exact: true });
+      const day = chart.locator('[data-overview-date="'+date+'"]');
+      const balance = await day.getAttribute("data-balance");
+      assert.notEqual(balance, null);
+      assert.equal(await day.locator('[data-series="balance"]').getAttribute("data-overview-value"), balance);
+      await day.focus(); await page.keyboard.press("Enter");
+      const readout = chart.locator('[data-overview-day-readout="'+date+'"]');
+      await readout.waitFor();
+      const [intake, expended] = (await readout.locator("dd strong").allTextContents()).map(Number);
+      assert.equal(expended, 2800);
+      assert.equal(intake, Math.round(Number(balance) + expended));
       assert.equal(await chart.locator("[data-overview-panel]").count(), 2);
 
     }

@@ -1,11 +1,9 @@
 /** 固定语义图例由加载态和真实页面共用，不依赖健康数据。 */
-export function OverviewLegend({ compact = false }: { compact?: boolean }) {
+export function OverviewLegend() {
   return <>
-    <span><i style={{ background: 'var(--data-blue)' }} />摄入</span>
-    <span><i style={{ background: 'var(--data-red)' }} />消耗</span>
-    <span><i style={{ background: 'var(--data-surplus)' }} />盈余</span>
-    <span><i style={{ background: 'var(--data-deficit)' }} />缺口</span>
-    {!compact && <span><i style={{ background: 'transparent', border: '1px solid var(--data-blue)', borderRadius: '50%', width: 7, height: 7 }} />空心点：未记全／待确认</span>}
+    <span><i aria-hidden="true" style={{ background: 'var(--data-deficit)', width: 5, height: 9, borderRadius: 1 }} />缺口</span>
+    <span><i aria-hidden="true" style={{ background: 'var(--data-surplus)', width: 5, height: 9, borderRadius: 1 }} />盈余</span>
+    <span><i aria-hidden="true" style={{ background: 'var(--muted)', width: 8, height: 2, borderRadius: 1 }} />有记录，未计收支</span>
   </>;
 }
 

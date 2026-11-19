@@ -1,3 +1,4 @@
+import { morningChangeReading } from "./day-readings";
 import { overviewPresentation } from "./presentation";
 import { preferredRecordedDate } from "../../components/record-dates";
 import { chartScale } from "../../components/chart-scale";
@@ -81,6 +82,15 @@ test("缺日不跨越配对，晚间不混入，未来晨重不提前展示", ()
   assert.equal(overviewDays([], rows, ["2024-03-01"])[0].weightChangeKg, null);
   assert.equal(overviewDays([], [observed("2024-03-01"), observed("2024-03-02")], ["2024-03-01"], emptyEnergy(), "2024-03-01")[0].weightChangeKg, null);
 });
+test("单日明细区分缺哪天、两天没有实测、实测相同和待核对", () => {
+  const day = overviewDays([], [observed("2024-03-01")], ["2024-03-01"])[0];
+  assert.equal(morningChangeReading(day), "缺 03.02 晨重");
+  assert.equal(morningChangeReading({ ...day, morning: null }), "无晨重记录");
+  assert.equal(morningChangeReading({ ...day, morning: null, nextMorning: observed("2024-03-02") }), "缺 03.01 晨重");
+  assert.equal(morningChangeReading({ ...day, nextMorning: observed("2024-03-02"), weightChangeKg: 0 }), "无变化");
+  assert.equal(morningChangeReading({ ...day, nextMorning: observed("2024-03-02"), ambiguous: true }), "晨重待核对");
+});
+
 test("摄入减最终消耗得到带符号盈余，未知与实际零不同", () => {
   const energy: EnergySnapshot = { ...emptyEnergy(), days: [expenditure("2024-03-01", "500"), expenditure("2024-03-02", "600"), expenditure("2024-03-03", "0")] };
   const days = overviewDays([meal("2024-03-01", "600"), meal("2024-03-02", "400"), meal("2024-03-03", "0")], [], ["2024-03-01", "2024-03-02", "2024-03-03", "2024-03-04"], energy);

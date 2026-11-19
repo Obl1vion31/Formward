@@ -52,15 +52,15 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
     await page.waitForFunction(date => document.querySelector(`[aria-label="${date} 饮食是否记完"] button[aria-pressed="true"]`)?.textContent === "已记完", date);
   }
   await page.goto(`${baseURL}/dashboard`);
-  const chart = page.getByRole("group", { name: "摄入、消耗、盈余与次晨体重变化", exact: true }); await chart.waitFor();
+  const chart = page.getByRole("group", { name: "热量收支与次晨体重变化", exact: true }); await chart.waitFor();
   await page.getByRole("button", { name: "全部", exact: true }).click();
   const positive = chart.locator(`[data-overview-date="${old}"]`), negative = chart.locator(`[data-overview-date="${next}"]`);
   assert.equal(await chart.locator("[data-overview-panel]").count(), 2);
   assert.equal(await positive.getAttribute("data-balance"), "200"); assert.equal(await negative.getAttribute("data-balance"), "-1000");
   assert.equal(await positive.locator('[data-series="weight-change"]').getAttribute("data-overview-value"), "-0.25");
   assert.equal(await negative.locator('[data-series="weight-change"]').count(), 0);
-  assert.equal(await chart.locator('[data-energy-band="surplus"]').first().getAttribute("fill"), "#D8B38A");
-  assert.equal(await chart.locator('[data-energy-band="deficit"]').first().getAttribute("fill"), "#92B2C2");
+  assert.equal(await positive.locator('[data-balance-kind="surplus"]').getAttribute("fill"), "var(--data-surplus)");
+  assert.equal(await negative.locator('[data-balance-kind="deficit"]').getAttribute("fill"), "var(--data-deficit)");
   await positive.click(); assert.equal(await dialog().count(), 0);
   await positive.focus();await page.keyboard.press("Escape"); await page.keyboard.press("ArrowRight"); assert.equal(await negative.evaluate(node => node === document.activeElement), true); await page.keyboard.press("Enter"); assert.equal(await dialog().count(), 0); await page.getByRole("button", { name: "查看记录 →", exact: true }).click(); await dialog().locator("strong").filter({hasText:/^2,800/}).waitFor(); await page.keyboard.press("Escape");
   // 连续虚构资料包含正负交叉、单项缺测与连续缺日，用于真实页面的视觉验收。

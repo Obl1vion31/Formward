@@ -260,3 +260,55 @@
 @media(max-width:700px),(hover:none) and (pointer:coarse){.relationship:not([data-compact=false]){min-height:0;height:var(--relationship-compact-height,276px)}.relationship>.plot,.relationship>.plot svg{height:100%}}
 @media(max-height:600px){.relationship[data-compact=true]{height:var(--relationship-short-height,236px)}}
 @media(max-height:600px) and (max-width:700px),(max-height:600px) and (hover:none) and (pointer:coarse){.relationship:not([data-compact=false]){height:var(--relationship-short-height,236px)}}
+
+.balanceCoverage { fill:color-mix(in srgb,var(--warm-white) 4%,transparent); }
+.coverageMark { stroke:var(--muted); stroke-width:1.8; stroke-linecap:round; opacity:.66; }
+:global([data-overview-date][data-selected="true"]) .coverageMark { stroke-width:2.2; opacity:1; }
+.relationship .plotHit { -webkit-tap-highlight-color:transparent; }
+.mobileSelected strong b { font-weight:650; }
+.mobileSelected strong small { color:var(--muted); font-size:12px; font-weight:400; }
+
+.dayReadoutCard {
+  position:absolute;
+  z-index:2;
+  box-sizing:border-box;
+  padding:10px 12px 9px;
+  border:1px solid var(--line-soft);
+  border-radius:12px;
+  background:var(--surface);
+  color:var(--warm-white);
+  box-shadow:0 4px 12px rgb(46 38 33 / .08),0 1px 2px rgb(46 38 33 / .06);
+  font-variant-numeric:tabular-nums;
+  line-height:1.25;
+}
+.dayReadoutCard header { display:flex; align-items:baseline; gap:10px; font-size:13px; min-height:18px; }
+.dayReadoutCard time { font-weight:600; }
+.dayReadoutCard header b { font-size:15px; font-weight:670; }
+.dayReadoutCard small { color:var(--muted); font-size:12px; font-weight:400; white-space:nowrap; }
+.dayDetailEnergy { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; margin:8px 0 6px; }
+.dayDetailEnergy dt { font-size:12px; font-weight:550; line-height:15px; }
+.dayDetailEnergy dd { min-height:23px; margin:0; }
+.dayDetailEnergy strong { font-size:18px; font-weight:650; line-height:23px; overflow-wrap:anywhere; }
+.dayDetailIntake { color:var(--data-blue); }
+.dayDetailExpenditure { color:var(--data-red); }
+.dayDetailMissing { color:var(--muted); font-size:14px; font-weight:500; }
+.dayDetailWeight {
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+  gap:2px 9px;
+  margin:0;
+  padding-top:6px;
+  border-top:1px solid var(--line-soft);
+  color:var(--muted);
+  font-size:12px;
+  line-height:16px;
+}
+.dayDetailWeight b { color:var(--warm-white); font-weight:550; }
+.relationship[data-compact="true"] .dayReadoutCard { padding:9px 11px 8px; pointer-events:none; }
+:global(:root[data-theme="dark"]) .dayReadoutCard { box-shadow:0 5px 16px rgb(0 0 0 / .34),0 1px 2px rgb(0 0 0 / .23); }
+@media(max-height:600px) {
+  .relationship[data-compact="true"] .dayReadoutCard { padding-block:7px; }
+  .relationship[data-compact="true"] .dayDetailEnergy { margin-block:5px 4px; }
+  .relationship[data-compact="true"] .dayDetailWeight { padding-top:4px; }
+}

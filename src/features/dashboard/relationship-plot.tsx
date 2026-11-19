@@ -1,106 +1,227 @@
 "use client";
-import {LocalLoading} from "@/components/local-loading";
-import {useChartViewport} from "@/components/use-chart-viewport";
-import {useChartDrag} from "@/components/use-chart-drag";
-import {signedRecordNumber} from "@/components/number-format";
-import { useEffect, useId, useRef, useState } from "react";
 
+import { useEffect, useId, useRef, useState } from "react";
+import { LocalLoading } from "@/components/local-loading";
+import { useChartViewport } from "@/components/use-chart-viewport";
+import { useChartDrag } from "@/components/use-chart-drag";
 import { useMobileMode } from "@/components/use-mobile-mode";
-import { ChartSelectionColumn, ChartSelectionPoint } from "@/components/chart-selection-marker";
-import type {useChartDateSelection} from "@/components/use-chart-date-selection";
+import { ChartSelectionColumn } from "@/components/chart-selection-marker";
+import { signedRecordNumber } from "@/components/number-format";
+import { chartScale } from "@/components/chart-scale";
+import type { useChartDateSelection } from "@/components/use-chart-date-selection";
 import { useChartMotion } from "@/components/use-chart-motion";
-import { energyBands, energyLineScale, fadeEdgeFraction, linePath } from "./chart-geometry";
+import { dayReadoutLeft, morningChangeScale, spacedTicks } from "./chart-geometry";
+import { DayReadout } from "./day-readout";
+import { balanceLabel, hasEnergyRecord, shortDate } from "./day-readings";
 import type { OverviewDay } from "./model";
 import styles from "./overview.module.css";
-import {relationshipFrame,relationshipFrameStyle} from "./relationship-frame";
+import { relationshipFrame, relationshipFrameStyle } from "./relationship-frame";
 
-const palette = { intake: "var(--data-blue)", expenditure: "var(--data-red)", surplus: "var(--data-surplus)", deficit: "var(--data-deficit)", weight: "var(--data-weight)" };
-export function RelationshipPlot({days, selected, selection, compactMode, motionRevision}: {
+type ReadoutMode = "hover" | "focus" | "pinned";
+type ReadoutChoice = { scope: string; mode: ReadoutMode };
+
+const balanceColors = { surplus: "var(--data-surplus)", deficit: "var(--data-deficit)", even: "var(--muted)" };
+const weightColor = "var(--data-weight)";
+const weightTick = (tick: number) => tick > 0 ? "+" + tick : String(tick);
+
+export function RelationshipPlot({ days, selected, selection, compactMode, motionRevision, suspended = false }: {
   days: OverviewDay[];
   selected: string;
   selection: ReturnType<typeof useChartDateSelection>;
   compactMode?: boolean;
   motionRevision?: number;
+  suspended?: boolean;
 }) {
-  const container = useRef<HTMLDivElement>(null), id = useId().replaceAll(":", "");
-  const mobile = useMobileMode(), [shortViewport, setShortViewport] = useState<boolean|null>(null);
+  const container = useRef<HTMLDivElement>(null);
+  const plot = useRef<HTMLDivElement>(null);
+  const id = useId().replaceAll(":", "");
+  const mobile = useMobileMode();
+  const [shortViewport, setShortViewport] = useState<boolean | null>(null);
+  const [readout, setReadout] = useState<ReadoutChoice | null>(null);
   useEffect(() => {
     const query = window.matchMedia("(max-height: 600px)");
     const update = () => setShortViewport(query.matches);
-    update(); query.addEventListener("change", update);
+    update();
+    query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, []);
-  const energyScale = energyLineScale(days.flatMap(day => [day.nutrition?.values.caloriesKcal, day.energy.totalKcal])), weightScale = energyLineScale(days.map(day => day.weightChangeKg), "kg");
-  const {width,left}=useChartViewport(container,[...energyScale.ticks,...weightScale.ticks.map(tick=>(tick>0?"+":"")+tick)],49);
-  const w=width||280,compact=compactMode??mobile??w<650,right=13;
-  const {top,energyBottom,weightTop,weightBottom,height}=relationshipFrame(compact,!!shortViewport);
-  // 只减少标签密度，保持全区间的数据范围与零线。
-  const spacedTicks = (ticks: number[], step: number, plotHeight: number) => {
-    const stride = Math.max(1, Math.ceil(24 * (ticks.length - 1) / plotHeight));
-    return ticks.filter(tick => Math.abs(tick / (step * stride) - Math.round(tick / (step * stride))) < 1e-8);
-  };
-  const energyTicks = spacedTicks(energyScale.ticks, energyScale.step, energyBottom - top), weightTicks = spacedTicks(weightScale.ticks, weightScale.step, weightBottom - weightTop);
-  const energyY = (n: number) => energyBottom - (n - energyScale.min) / (energyScale.max - energyScale.min) * (energyBottom - top);
-  const weightY = (n: number) => weightBottom - (n - weightScale.min) / (weightScale.max - weightScale.min) * (weightBottom - weightTop);
-  const slot = (w - left - right) / days.length, x = (index: number) => left + (index + .5) * slot;
-  const intake = days.map((day, i) => day.nutrition?.values.caloriesKcal != null ? { x: x(i), y: energyY(Number(day.nutrition.values.caloriesKcal)) } : null);
-  const expenditure = days.map((day, i) => day.energy.totalKcal != null ? { x: x(i), y: energyY(Number(day.energy.totalKcal)) } : null);
-  const paired = days.map((day, i) => intake[i] && expenditure[i] && day.energyBalance !== null ? { intake: intake[i]!, expenditure: expenditure[i]!, balance: day.energyBalance } : null);
-  const selectedIndex = Math.max(0, days.findIndex(day => day.date === selected)), stride = Math.max(1, Math.ceil((days.length - 1) / (w < 440 ? 3 : 6)));
-  const drag=useChartDrag(days.map(day=>day.date),w,left,right,selection.choose);
-  const pick = (svg: SVGSVGElement, clientX: number, action=selection.preview) => { const bounds = svg.getBoundingClientRect(); action(days[Math.max(0, Math.min(days.length - 1, Math.floor(((clientX - bounds.left) * w / bounds.width - left) / slot)))].date); };
-  const ready=!!width&&(compactMode!==undefined||mobile!==null)&&(!compact||shortViewport!==null);
-  const hasEnergy = intake.some(Boolean) || expenditure.some(Boolean);
+
+  const entries = days.map(day => ({ day, recorded: hasEnergyRecord(day) }));
+  const hasEnergy = entries.some(({ recorded }) => recorded);
+  const hasPartialEnergy = entries.some(({ day, recorded }) => recorded && day.energyBalance === null);
   const hasWeight = days.some(day => day.weightChangeKg !== null);
+  const balanceScale = chartScale(days.map(day => day.energyBalance));
+  const weightScale = morningChangeScale(days.map(day => day.weightChangeKg));
+  const { width, left } = useChartViewport(container, [...balanceScale.ticks, ...weightScale.ticks.map(weightTick), "未计"], 49);
+  const w = width || 280;
+  const compact = compactMode ?? mobile ?? w < 650;
+  const right = w - 13;
+  const { top, energyBottom, weightTop, weightBottom, height } = relationshipFrame(compact, !!shortViewport);
+  const coverageTop = energyBottom - (compact ? 9 : 17);
+  const coverageHeight = compact ? 15 : 17;
+  const coverageY = coverageTop + coverageHeight / 2;
+  const balanceBottom = hasPartialEnergy ? coverageTop - (compact ? 9 : 12) : energyBottom;
+  const balanceY = (n: number) => balanceBottom - (n - balanceScale.min) / (balanceScale.max - balanceScale.min) * (balanceBottom - top);
+  const weightY = (n: number) => weightBottom - (n - weightScale.min) / (weightScale.max - weightScale.min) * (weightBottom - weightTop);
+  const balanceZero = balanceY(0);
+  const weightZero = weightY(0);
+  const slot = (right - left) / days.length;
+  const x = (index: number) => left + (index + .5) * slot;
+  const selectedIndex = Math.max(0, days.findIndex(day => day.date === selected));
+  const entry = entries[selectedIndex];
+  const stride = Math.max(1, Math.ceil((days.length - 1) / (w < 440 ? 3 : 6)));
+  const scope = [days[0]?.date, days.at(-1)?.date, days.length, motionRevision].join(":");
+  const mode = !suspended && readout?.scope === scope ? readout.mode : null;
+  const ready = !!width && (compactMode !== undefined || mobile !== null) && (!compact || shortViewport !== null);
+  const hasReadout = entry.recorded || entry.day.morning !== null || entry.day.nextMorning !== null || entry.day.ambiguous;
+  const showReadout = ready && hasReadout && mode !== null && (mode !== "hover" || selection.origin === "pointer");
+  const show = (mode: ReadoutMode) => setReadout(current => current?.scope === scope && current.mode === mode ? current : { scope, mode });
+
+  useEffect(() => {
+    if (!showReadout) return;
+    const outside = (event: Event) => {
+      if (event.target instanceof Node && !plot.current?.contains(event.target)) setReadout(null);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setReadout(null);
+    };
+    document.addEventListener("pointerdown", outside, true);
+    document.addEventListener("focusin", outside, true);
+    document.addEventListener("keydown", escape, true);
+    return () => {
+      document.removeEventListener("pointerdown", outside, true);
+      document.removeEventListener("focusin", outside, true);
+      document.removeEventListener("keydown", escape, true);
+    };
+  }, [showReadout]);
+
+  const drag = useChartDrag(days.map(day => day.date), w, left, w - right, date => {
+    setReadout(null);
+    selection.choose(date);
+  });
+  function activate(date: string) {
+    if (showReadout && mode === "pinned" && selected === date) {
+      setReadout(null);
+      return;
+    }
+    selection.activate(date);
+    show("pinned");
+  }
+
   const revealId = motionRevision === undefined ? undefined : id + "-reveal";
-  const revealInk = revealId ? {"data-chart-reveal-ink": true, clipPath: "url(#" + revealId + ")"} : undefined;
-  useChartMotion(container,
-    ready && revealId && (hasEnergy || hasWeight) ? `${w}:${height}` : "pending",
-    "overview-relationship:" + motionRevision,
-    motionRevision ? 220 : 600,
-  );
-  return <div ref={container} role="group" aria-label="摄入、消耗、盈余与次晨体重变化" className={styles.relationship} style={relationshipFrameStyle} data-compact={compactMode??mobile??undefined}>
+  const revealInk = revealId ? { "data-chart-reveal-ink": true, clipPath: "url(#" + revealId + ")" } : undefined;
+  useChartMotion(container, ready && revealId && (hasEnergy || hasWeight) ? w + ":" + height : "pending",
+    "overview-relationship:" + motionRevision, motionRevision ? 220 : 600);
+  const tipId = id + "-day";
+  const tipWidth = Math.min(compact ? 212 : 226, w - 16);
+  const tipBottom = hasPartialEnergy ? coverageTop : energyBottom;
 
-    <div className={styles.plot} aria-busy={!ready}>{!ready&&<div className="chart-preparation"><LocalLoading/></div>}<svg viewBox={`0 0 ${w} ${height}`} style={{ visibility: ready ? undefined : "hidden" }} role="group" aria-label="双层日期关联图" aria-describedby={`${id}-help`}
-      {...drag} onPointerMove={event=>{drag.onPointerMove(event);if(event.pointerType==="mouse")pick(event.currentTarget,event.clientX);}} onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();event.stopPropagation();selection.release();}}}>
-      {revealId && <defs><clipPath id={revealId}><rect data-chart-reveal x="0" y="0" width={w} height={height}/></clipPath></defs>}
-      <desc id={`${id}-help`}>上下两图使用同一日期。点击、左右方向键及Enter选择日期，查看记录按钮打开详情。摄入用圆点，消耗用方点，空心摄入点表示当天未记全或尚未确认全天。热量填色只用于已确认完整日，体重变化对应当日到次日晨间。</desc>
-      <ChartSelectionColumn x={x(selectedIndex)} date={selected} column={{left:x(selectedIndex)-slot/2,right:x(selectedIndex)+slot/2}} plot={{left,right:w-right,top,bottom:weightBottom}} resetKey={`${w}:${height}:${days.map(d=>d.date).join("|")}`} direct={selection.direct}/>
-      <g data-overview-panel="energy">
-        {energyTicks.map(tick => <g key={tick} data-axis-tick={tick}><line x1={left} x2={w - right} y1={energyY(tick)} y2={energyY(tick)} className={styles.grid} /><text x={left - 8} y={energyY(tick) + 4} textAnchor="end" className={styles.axis}>{tick}</text></g>)}
-        <g {...revealInk} className={styles.plotData}>
-          {paired.slice(0, -1).map((a, i) => {
-            const bands = energyBands(a, paired[i + 1]); if (!bands.length) return null;
-            const fadeStart = i > 0 && !paired[i - 1], fadeEnd = i + 2 < paired.length && !paired[i + 2], edge = fadeEdgeFraction(slot), mask = `${id}-gap-${i}`;
-            return <g key={i}>{(fadeStart || fadeEnd) && <defs><linearGradient id={`${mask}-gradient`} gradientUnits="userSpaceOnUse" x1={x(i)} x2={x(i + 1)}><stop offset="0" stopColor="white" stopOpacity={fadeStart ? 0 : 1} /><stop offset={edge} stopColor="white" /><stop offset={1 - edge} stopColor="white" /><stop offset="1" stopColor="white" stopOpacity={fadeEnd ? 0 : 1} /></linearGradient><mask id={mask} maskUnits="userSpaceOnUse" x={x(i) - 1} y={top - 1} width={slot + 2} height={energyBottom - top + 2} style={{ maskType: "alpha" }}><rect x={x(i) - 1} y={top - 1} width={slot + 2} height={energyBottom - top + 2} fill={`url(#${mask}-gradient)`} /></mask></defs>}
-              <g mask={fadeStart || fadeEnd ? `url(#${mask})` : undefined}>{bands.map((band, n) => <polygon key={n} data-energy-band={band.positive ? "surplus" : "deficit"} points={band.points.map(p => `${p.x},${p.y}`).join(" ")} fill={band.positive ? palette.surplus : palette.deficit} fillOpacity=".28" />)}</g>
-            </g>;
-          })}
-          <path data-energy-line="intake" d={linePath(intake)} fill="none" stroke={palette.intake} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          <path data-energy-line="expenditure" d={linePath(expenditure)} fill="none" stroke={palette.expenditure} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  return <div ref={container} role="group" aria-label="热量收支与次晨体重变化" className={styles.relationship}
+    style={relationshipFrameStyle} data-compact={compactMode ?? mobile ?? undefined}>
+    <div ref={plot} className={styles.plot} aria-busy={!ready}
+      onPointerLeave={event => { if (event.pointerType === "mouse" && mode === "hover") setReadout(null); }}
+      onBlur={event => { if (mode === "focus" && !event.currentTarget.contains(event.relatedTarget)) setReadout(null); }}>
+      {!ready && <div className="chart-preparation"><LocalLoading /></div>}
+      <svg viewBox={["0", "0", w, height].join(" ")} style={{ visibility: ready ? undefined : "hidden" }}
+        role="group" aria-label="双层日期关联图" aria-describedby={id + "-help"} {...drag}
+        onPointerMove={event => {
+          drag.onPointerMove(event);
+          if (event.pointerType !== "mouse" || suspended || mode === "pinned") return;
+          const bounds = event.currentTarget.getBoundingClientRect();
+          const localX = (event.clientX - bounds.left) * w / bounds.width;
+          const localY = (event.clientY - bounds.top) * height / bounds.height;
+          if (localY < top || localY > weightBottom || localX < left || localX > right) return;
+          const date = days[Math.min(days.length - 1, Math.floor((localX - left) / slot))].date;
+          if (selection.locked) {
+            if (date === selected) return;
+            selection.release();
+          }
+          selection.preview(date);
+          show("hover");
+        }}>
+        {revealId && <defs><clipPath id={revealId}><rect data-chart-reveal x="0" y="0" width={w} height={height} /></clipPath></defs>}
+        <desc id={id + "-help"}>上下两图使用同一日期。净收支以零线为基准，灰横表示有记录但未计收支。点按、悬停或使用方向键查看单日读数，点击可锁定日期。查看记录按钮打开当日记录。次晨变化使用相邻两次实测晨重。</desc>
+        <ChartSelectionColumn x={x(selectedIndex)} date={selected} column={{ left: x(selectedIndex) - slot / 2, right: x(selectedIndex) + slot / 2 }}
+          plot={{ left, right, top, bottom: weightBottom }} resetKey={[w, height, scope].join(":")} direct={selection.direct} />
+        <g data-overview-panel="energy">
+          {spacedTicks(balanceScale.ticks, balanceScale.step, balanceBottom - top).map(tick => <g key={tick} data-axis-tick={tick}>
+            <line x1={left} x2={right} y1={balanceY(tick)} y2={balanceY(tick)}
+              data-balance-zero={tick === 0 ? "" : undefined} className={tick === 0 ? styles.zeroLine : styles.grid} />
+            <text x={left - 8} y={balanceY(tick) + 4} textAnchor="end" className={styles.axis}>{tick}</text>
+          </g>)}
+          {hasPartialEnergy && <g data-overview-coverage>
+            <rect x={left} y={coverageTop} width={right - left} height={coverageHeight} rx="2" className={styles.balanceCoverage} />
+            <text x={left - 8} y={coverageY + 4} textAnchor="end" className={styles.axis}>未计</text>
+          </g>}
+          {!hasEnergy && <text x={(left + right) / 2} y={(top + balanceBottom) / 2} textAnchor="middle" className={styles.emptyPlot}>此区间暂无热量记录</text>}
         </g>
-        {!hasEnergy && <text x={(left + w - right) / 2} y={(top + energyBottom) / 2} textAnchor="middle" className={styles.emptyPlot}>此区间暂无热量记录</text>}
-      </g>
-      <g data-overview-panel="weight">
-        {!compact && <line x1="0" x2={w} y1={energyBottom + 16} y2={energyBottom + 16} className={styles.grid} />}
-        <text data-weight-readout x={w - right} y={weightTop - 10} textAnchor="end" className={styles.axis}>{compact?days[selectedIndex]?.nextDate.slice(5).replace("-",".")+" ":""}次晨变化：{(days[selectedIndex]?.ambiguous ? "待选择" : days[selectedIndex]?.weightChangeKg == null ? "未配对 · kg" : signedRecordNumber(days[selectedIndex].weightChangeKg) + " kg")}</text>
-        {weightTicks.map(tick => <g key={tick} data-axis-tick={tick}><line data-overview-zero={tick === 0 ? "" : undefined} x1={left} x2={w - right} y1={weightY(tick)} y2={weightY(tick)} className={tick === 0 ? styles.zeroLine : styles.grid} /><text x={left - 8} y={weightY(tick) + 4} textAnchor="end" className={styles.axis}>{tick > 0 ? "+" : ""}{tick}</text></g>)}
-        <g {...revealInk} className={styles.plotData}>{days.map((day, i) => i > 0 && day.weightChangeKg !== null && days[i - 1].weightChangeKg !== null && <line key={day.date} x1={x(i - 1)} x2={x(i)} y1={weightY(days[i - 1].weightChangeKg!)} y2={weightY(day.weightChangeKg)} stroke={palette.weight} strokeWidth="1.6" strokeLinecap="round" />)}</g>
-        {!hasWeight && <text x={(left + w - right) / 2} y={weightTop + 24} textAnchor="middle" className={styles.emptyPlot}>暂无相邻两日晨重</text>}
-      </g>
-      <g {...revealInk}>{[{point:intake[selectedIndex],color:palette.intake},{point:expenditure[selectedIndex],color:palette.expenditure},{point:days[selectedIndex]?.weightChangeKg!=null?{x:x(selectedIndex),y:weightY(days[selectedIndex].weightChangeKg!)}:null,color:palette.weight}].map(({point,color},i)=><ChartSelectionPoint key={i} x={point?.x??null} y={point?.y??0} resetKey={`${w}:${height}:${energyScale.min}:${energyScale.max}:${weightScale.min}:${weightScale.max}:${days.map(d=>d.date).join("|")}`} direct={selection.direct} color={color}/>)}</g>
-      {days.map((day, i) => <g key={day.date} style={{ outline: "none" }} role="button" tabIndex={day.date === selected ? 0 : -1} data-overview-date={day.date} data-selected={day.date===selected} aria-pressed={day.date===selected} data-balance={day.energyBalance ?? undefined} data-meal-day-status={day.mealDayStatus} aria-label={`${day.date} · 摄入 ${day.nutrition?.values.caloriesKcal ?? "未记录"} 千卡${day.nutrition && day.mealDayStatus !== "complete" ? day.mealDayStatus === "incomplete" ? "，当天未记全" : "，全天待确认" : ""} · 消耗 ${day.energy.totalKcal ?? "未记录"} 千卡 · 盈余 ${day.energyBalance ?? "未知"} 千卡 · 次晨变化 ${day.weightChangeKg ?? "未知"} kg`} data-chart-date={day.date} onFocus={event=>selection.focus(event,day.date)} onClick={()=>selection.activate(day.date)} onKeyDown={event=>selection.keyDown(event,day.date)}>
-        <rect x={left + i * slot} y={top} width={slot} height={weightBottom - top} className={styles.plotHit} />
-        <g {...revealInk} className={styles.plotData}>{[intake[i], expenditure[i]].map((point, n) => {
-          if (!point) return null;
-          const radius = days.length > 90 ? 1.4 : ![intake, expenditure][n][i - 1] || ![intake, expenditure][n][i + 1] ? 2.5 : 1.8;
-          return n ? <rect key={n} data-series="expenditure" data-overview-value={day.energy.totalKcal ?? undefined} x={point.x - radius} y={point.y - radius} width={radius * 2} height={radius * 2} fill={palette.expenditure} /> : <circle key={n} data-series="intake" data-overview-value={day.nutrition?.values.caloriesKcal} cx={point.x} cy={point.y} r={radius} stroke={palette.intake} strokeWidth="1.2" fill={day.mealDayStatus !== "complete" ? "var(--surface)" : palette.intake} />;
+        <g data-overview-panel="weight">
+          {!compact && <line x1="0" x2={w} y1={energyBottom + 16} y2={energyBottom + 16} className={styles.grid} />}
+          <text data-weight-readout x={right} y={weightTop - 10} textAnchor="end" className={styles.axis}>
+            {compact ? shortDate(entry.day.nextDate) + " " : ""}次晨变化：{entry.day.ambiguous ? "待核对" : entry.day.weightChangeKg === null ? "未配对" : signedRecordNumber(entry.day.weightChangeKg) + " kg"}
+          </text>
+          {spacedTicks(weightScale.ticks, weightScale.step, weightBottom - weightTop).map(tick => <g key={tick} data-axis-tick={tick}>
+            <line data-overview-zero={tick === 0 ? "" : undefined} x1={left} x2={right} y1={weightY(tick)} y2={weightY(tick)}
+              className={tick === 0 ? styles.zeroLine : styles.grid} />
+            <text x={left - 8} y={weightY(tick) + 4} textAnchor="end" className={styles.axis}>{weightTick(tick)}</text>
+          </g>)}
+          {!hasWeight && <text x={(left + right) / 2} y={weightTop + 24} textAnchor="middle" className={styles.emptyPlot}>暂无相邻两日晨重</text>}
+        </g>
+        {entries.map(({ day, recorded }, index) => {
+          const balance = day.energyBalance;
+          const weight = day.weightChangeKg;
+          const active = day.date === selected;
+          const center = x(index);
+          const barWidth = Math.min(compact ? 6.4 : 17, slot * .65);
+          const coverageWidth = Math.min(compact ? 4 : 6, barWidth);
+          const barEnd = balance === null ? null : balanceY(balance);
+          const kind = balance === 0 ? "even" : balance !== null && balance < 0 ? "deficit" : "surplus";
+          return <g key={day.date} role="button" tabIndex={active ? 0 : -1} data-overview-date={day.date} data-selected={active} aria-pressed={active}
+            data-balance={balance ?? undefined} data-meal-day-status={day.mealDayStatus} data-chart-date={day.date}
+            aria-label={day.date + " · " + balanceLabel(balance) + (balance ? " " + Math.abs(balance) + " 千卡" : "")}
+            aria-describedby={active && showReadout ? tipId : undefined}
+            onFocus={event => {
+              selection.focus(event, day.date);
+              if (event.currentTarget.matches(":focus-visible") && mode !== "pinned") show("focus");
+            }}
+            onClick={() => activate(day.date)}
+            onKeyDown={event => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                activate(day.date);
+              } else {
+                if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) show("focus");
+                selection.keyDown(event, day.date);
+              }
+            }}>
+            <rect x={left + index * slot} y={top} width={slot} height={weightBottom - top} className={styles.plotHit} />
+            <g {...revealInk} className={styles.plotData}>
+              {barEnd !== null ? <rect data-series="balance" data-balance-kind={kind} data-overview-value={balance ?? undefined}
+                x={center - barWidth / 2} y={balance === 0 ? balanceZero - .85 : Math.min(balanceZero, barEnd)}
+                width={barWidth} height={balance === 0 ? 1.7 : Math.abs(barEnd - balanceZero)}
+                rx={Math.min(.7, barWidth / 2)} fill={balanceColors[kind]} />
+                : recorded && <line data-balance-coverage="" x1={center - coverageWidth / 2} x2={center + coverageWidth / 2}
+                  y1={coverageY} y2={coverageY} className={styles.coverageMark} />}
+              {weight !== null && <>
+                <line x1={center} x2={center} y1={weightZero} y2={weightY(weight)} stroke={weightColor} strokeWidth="1.1" strokeOpacity=".58" />
+                <circle data-series="weight-change" data-overview-value={weight} cx={center} cy={weightY(weight)}
+                  r={Math.min(compact ? 2.2 : 2.8, slot * .42)} fill={weightColor} />
+              </>}
+            </g>
+            {((index % stride === 0 && days.length - 1 - index >= stride / 2) || index === days.length - 1)
+              && <text x={center} y={height - 5} textAnchor={days.length === 1 ? "middle" : index === 0 ? "start" : index === days.length - 1 ? "end" : "middle"}
+                data-overview-date-label="" className={styles.axis}>{w < 440 && days.length <= 7 ? day.date.slice(8) : days.length > 366 ? day.date.slice(2, 7).replace("-", ".") : shortDate(day.date)}</text>}
+          </g>;
         })}
-          {day.weightChangeKg !== null && <circle data-series="weight-change" data-overview-value={day.weightChangeKg} cx={x(i)} cy={weightY(day.weightChangeKg)} r={days.length > 90 ? 1.4 : 2.5} stroke={palette.weight} strokeWidth="1.2" fill={palette.weight} />}
-        </g>
-        {(i % stride === 0 && days.length - 1 - i >= stride / 2 || i === days.length - 1) && <text x={x(i)} y={height - 5} textAnchor={days.length === 1 ? "middle" : i === 0 ? "start" : i === days.length - 1 ? "end" : "middle"} data-overview-date-label="" className={styles.axis}>{w < 440 && days.length <= 7 ? day.date.slice(8) : days.length > 366 ? day.date.slice(2, 7).replace("-", ".") : day.date.slice(5).replace("-", ".")}</text>}
-      </g>)}
-    </svg></div>
-
+      </svg>
+      {showReadout && <DayReadout day={entry.day} id={tipId} style={{
+        width: tipWidth,
+        left: dayReadoutLeft(x(selectedIndex), w, tipWidth, compact),
+        bottom: height - tipBottom + (compact ? 6 : 10),
+      }} />}
+    </div>
   </div>;
 }

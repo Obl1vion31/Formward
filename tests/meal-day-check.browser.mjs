@@ -12,8 +12,15 @@ export async function checkMealDayCompletion({baseURL,context,page,token,today})
  assert.equal((await read()).day.status,"unconfirmed");
  await page.getByRole("button",{name:"7D",exact:true}).click();
  const graphDay=()=>page.locator('[data-overview-date="'+date+'"]');
+ const checkPartialIntake=async()=>{
+  assert.equal(await graphDay().locator("[data-balance-coverage]").count(),1);
+  await graphDay().focus();await page.keyboard.press("Enter");
+  const readout=page.locator('[data-overview-day-readout="'+date+'"]');await readout.waitFor();
+  assert.match((await readout.innerText()).replace(/\s+/g," "),/收支未计算 已记摄入 800 千卡/);
+ };
+
  assert.equal(await graphDay().getAttribute("data-balance"),null);
- assert.equal(Number(await graphDay().locator('[data-series="intake"]').getAttribute("data-overview-value")),800);
+ await checkPartialIntake();
  const mark=async(status)=>{
   await page.goto(baseURL+"/dashboard/meals?date="+date);const row=page.locator("dialog[open]");
   await row.getByRole("checkbox",{name:date+" 已记全",exact:true}).click();
@@ -22,7 +29,7 @@ export async function checkMealDayCompletion({baseURL,context,page,token,today})
  };
  await mark("complete");await page.goto(baseURL+"/dashboard");await page.getByRole("button",{name:"7D",exact:true}).click();assert.equal(await graphDay().getAttribute("data-balance"),"-1600");
  await mark("incomplete");await page.goto(baseURL+"/dashboard");await page.getByRole("button",{name:"7D",exact:true}).click();assert.equal(await graphDay().getAttribute("data-balance"),null);
- assert.equal(Number(await graphDay().locator('[data-series="intake"]').getAttribute("data-overview-value")),800);
+ await checkPartialIntake();
  await page.goto(baseURL+"/dashboard/meals");await page.getByRole("button",{name:"7D",exact:true}).click();
  const bar=page.locator('[data-bar-date="'+date+'"]');assert.equal(await bar.getAttribute("data-day-status"),"incomplete");assert.equal(await bar.locator('[data-day-incomplete="true"]').count(),1);
  await save(await post([meal("day-second","300")]));

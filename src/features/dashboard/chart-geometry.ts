@@ -1,48 +1,45 @@
 import type { ChartScale } from "@/components/chart-scale";
 
-/** 折线范围独立于主刻度；半步边界减少凑整造成的无效留白。 */
-export function energyLineScale(values: (number | string | null | undefined)[], unit: "kcal" | "kg" = "kcal"): ChartScale {
-  const numbers = values.filter(value => value != null).map(Number).filter(Number.isFinite);
-  if (!numbers.length) return unit === "kg" ? { min: -.5, max: .5, step: .5, ticks: [-.5, 0, .5] } : { min: 0, max: 1000, step: 500, ticks: [0, 500, 1000] };
-  const low = Math.min(...numbers), high = Math.max(...numbers), padding = Math.max(unit === "kg" ? .1 : 100, (high - low) * .05);
-  const bottom = unit === "kg" ? Math.min(0, low - padding) : Math.max(0, low - padding), top = unit === "kg" ? Math.max(0, high + padding) : high + padding;
-  const span = top - bottom, power = 10 ** Math.floor(Math.log10(span / 5)), minimum = unit === "kg" ? .1 : 1;
-  const choices = [...new Set([1, 2, 2.5, 5, 10, 20, 25, 50, 100].map(n => Math.max(minimum, n * power)))];
+/** 次晨变化保留零线和实测范围，半步边界减少凑整带来的空白。 */
+export function morningChangeScale(values: (number | null)[]): ChartScale {
+  const numbers = values.filter((value): value is number => value !== null && Number.isFinite(value));
+  if (!numbers.length) return { min: -.5, max: .5, step: .5, ticks: [-.5, 0, .5] };
+  const low = Math.min(...numbers);
+  const high = Math.max(...numbers);
+  const padding = Math.max(.1, (high - low) * .05);
+  const bottom = Math.min(0, low - padding);
+  const top = Math.max(0, high + padding);
+  const span = top - bottom;
+  const power = 10 ** Math.floor(Math.log10(span / 5));
+  const choices = [...new Set([1, 2, 2.5, 5, 10, 20, 25, 50, 100].map(n => Math.max(.1, n * power)))];
   const round = (n: number) => Number(n.toPrecision(12));
   for (const step of choices) {
-    const half = step / 2, min = round(Math.floor(bottom / half) * half), max = round(Math.ceil(top / half) * half);
-    const first = Math.ceil((min - step * 1e-10) / step) * step, count = Math.floor((max - first + step * 1e-10) / step) + 1;
-    if (count < 3 || count > 6) continue;
-    return { min, max, step: round(step), ticks: Array.from({ length: count }, (_, i) => round(first + i * step)) };
+    const half = step / 2;
+    const min = round(Math.floor(bottom / half) * half);
+    const max = round(Math.ceil(top / half) * half);
+    const first = Math.ceil((min - step * 1e-10) / step) * step;
+    const count = Math.floor((max - first + step * 1e-10) / step) + 1;
+    if (count >= 3 && count <= 6) {
+      return { min, max, step: round(step), ticks: Array.from({ length: count }, (_, i) => round(first + i * step)) };
+    }
   }
   return { min: bottom, max: top, step: span, ticks: [bottom, top] };
 }
 
-export type Point = { x: number; y: number };
-export type EnergyPoint = { intake: Point; expenditure: Point; balance: number };
-export type Band = { points: Point[]; positive: boolean };
-/** 只在相邻两个日期都有完整收支时填色，在真实交点处分成两个区域。 */
-export function energyBands(a: EnergyPoint | null, b: EnergyPoint | null): Band[] {
-  if (!a || !b || a.balance === 0 && b.balance === 0) return [];
-  if (a.balance * b.balance < 0) {
-    const t = a.balance / (a.balance - b.balance);
-    const cross = { x: a.intake.x + (b.intake.x - a.intake.x) * t, y: a.intake.y + (b.intake.y - a.intake.y) * t };
-    return [{ points: [a.intake, cross, a.expenditure], positive: a.balance > 0 }, { points: [cross, b.intake, b.expenditure], positive: b.balance > 0 }];
-  }
-  return [{ points: [a.intake, b.intake, b.expenditure, a.expenditure], positive: (a.balance || b.balance) > 0 }];
+/** 刻度减量只影响标签密度，零线始终可见。 */
+export function spacedTicks(ticks: number[], step: number, height: number) {
+  const stride = Math.max(1, Math.ceil(24 * (ticks.length - 1) / height));
+  return ticks.filter(tick => Math.abs(tick / (step * stride) - Math.round(tick / (step * stride))) < 1e-8);
 }
 
-export function linePath(points: (Point | null)[]) {
-  return points.map((point, index) => point ? `${index && points[index - 1] ? "L" : "M"}${point.x},${point.y}` : "").join(" ");
-}
-/** 淡出仅占相邻有效日期之间的一小段，绝不延伸到缺测日期。 */
-export function fadeEdgeFraction(segmentWidth: number) { return Math.min(.25, 8 / Math.max(1, segmentWidth)); }
-export function missingRuns(present: boolean[]) {
-  const runs: { start: number; end: number }[] = [];
-  present.forEach((value, index) => {
-    if (value) return;
-    if (index && !present[index - 1]) runs[runs.length - 1].end = index;
-    else runs.push({ start: index, end: index });
-  });
-  return runs;
+export function dayReadoutLeft(x: number, width: number, cardWidth: number, compact: boolean) {
+  const inset = 8;
+  const gap = compact ? 12 : 15;
+  const limit = width - cardWidth - inset;
+  const before = x - gap - cardWidth;
+  const after = x + gap;
+  if (!compact && after <= limit) return after;
+  if (before >= inset) return before;
+  if (after <= limit) return after;
+  return x < width / 2 ? limit : inset;
 }
