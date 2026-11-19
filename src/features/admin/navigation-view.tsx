@@ -6,7 +6,7 @@ import { LoadingLink } from "@/components/loading-link";
 import { useOrderedArrival } from "@/components/use-ordered-arrival";
 import { LocalLoading } from "@/components/local-loading";
 import { AdminHeader } from "./header";
-import { adminLocation, adminSections, type AdminTab } from "./navigation";
+import { adminLocation, adminSections, safeAdminReturn, type AdminTab } from "./navigation";
 import styles from "./console.module.css";
 
 const TrackNavigation = createContext<((id: string, active: boolean) => void) | null>(null);
@@ -23,9 +23,17 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const params = useSearchParams();
   const detail = pathname.startsWith("/admin/users/");
-  const tab = detail ? "users" : adminLocation({ tab: params.get("tab") ?? undefined }).tab;
-  const section = tab === "security" ? adminSections.length : adminSections.findIndex(([key]) => key === tab);
-  const content = useOrderedArrival<HTMLDivElement>(section * 2 + Number(detail), { distance: 12 });
+  const location = adminLocation({
+    tab: params.get("tab") ?? undefined,
+    section: params.get("section") ?? undefined,
+    view: params.get("view") ?? undefined,
+  });
+  const back = detail ? safeAdminReturn(params.get("returnTo")) : undefined;
+  const parent = new URLSearchParams(back?.slice("/admin?".length));
+  const parentTab = detail ? adminLocation({ tab: parent.get("tab") ?? undefined }).tab : location.tab;
+  const section = parentTab === "security" ? adminSections.length : adminSections.findIndex(([key]) => key === parentTab);
+  const depth = detail ? (location.userView === "summary" ? 2 : 3) : Number(location.section === "invitations");
+  const content = useOrderedArrival<HTMLDivElement>(section * 4 + depth, { distance: 12 });
   const [pending, setPending] = useState<string | null>(null);
   const track = useCallback((id: string, active: boolean) => {
     setPending(current => active ? id : current === id ? null : current);
@@ -34,7 +42,7 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
     <div className={styles.shell} data-admin-workspace>
       <AdminHeader />
       <main className={styles.body}>
-        <AdminNavigation tab={tab}/>
+        <AdminNavigation tab={detail ? "users" : location.tab}/>
         <div ref={content} data-admin-content>{children}</div>
       </main>
     </div>

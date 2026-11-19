@@ -4,6 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { assistantConversation, assistantMessage, rateLimit } from "../src/db/schema.ts";
+import { recordGuideKey } from "../src/features/onboarding/record-guidance-model.ts";
 
 const title = "四张照片和方向验收";
 const draft = "来回切换后留住这条待发文字";
@@ -27,30 +28,49 @@ export async function runDirectionalNavigation(db) {
     results.push(result);
     page.setDefaultTimeout(16000);
     page.on("pageerror", error => result.errors.push(String(error)));
-    await context.addInitScript(() => {
+    await context.addInitScript(guideKey => {
       localStorage.setItem("formward-theme", "dark");
+      localStorage.setItem(guideKey, "seen");
       window.directionProof = [];
-      const shift = value => new DOMMatrix(value === "none" || !value ? undefined : value).m41;
-      function record(target, source) {
+      window.photoInput = [];
+      for (const type of ["pointerdown", "pointerup", "pointercancel", "click"]) {
+        document.addEventListener(type, event => {
+          const dialog = event.target.closest?.('dialog[aria-label="照片预览"]');
+          if (dialog) window.photoInput.push({ type, target:event.target.closest("button")?.ariaLabel ?? event.target.nodeName,
+            point:[event.clientX,event.clientY] });
+        }, true);
+      }
+      const shift = (value,node) => {
+        if (!value || value === "none") return 0;
+        const probe = document.createElement("div");
+        Object.assign(probe.style,{position:"absolute",visibility:"hidden",pointerEvents:"none",
+          width:node.getBoundingClientRect().width+"px",height:0,transform:value});
+        document.body.append(probe);
+        const transform = getComputedStyle(probe).transform;
+        probe.remove();
+        return transform==="none" ? 0 : new DOMMatrix(transform).m41;
+      };
+      function record(target, source, node) {
         const frames = source?.effect?.getKeyframes();
         if (!frames?.length) return;
-        const object = { target, from: shift(frames[0].transform), to: shift(frames.at(-1).transform) };
+        const object = { target, from: shift(frames[0].transform,node), to: shift(frames.at(-1).transform,node) };
         window.directionProof.push(object);
       }
       const native = Element.prototype.animate;
       Element.prototype.animate = function (...args) {
         const animation = native.apply(this,args);
         const role = this.getAttribute("data-photo-frame") || this.getAttribute("aria-label") ||
-          this.nodeName.toLowerCase();
-        if (this.hasAttribute("data-workspace-moving") || this.hasAttribute("data-photo-frame")) record(role,animation);
+          (this.hasAttribute("data-history-scroll") ? "历史会话" :
+            this.hasAttribute("data-admin-content") ? "管理后台正文" : this.nodeName.toLowerCase());
+        if (this.hasAttribute("data-workspace-moving") || this.hasAttribute("data-photo-frame")) record(role,animation,this);
         return animation;
       };
       document.addEventListener("transitionrun", event => {
         const node = event.target;
         if (!(node instanceof HTMLElement) || event.propertyName !== "transform" || node.parentElement?.dataset.page !== "true") return;
-        record(node.getAttribute("aria-label"),node.getAnimations().find(clip => clip.transitionProperty === "transform"));
+        record(node.getAttribute("aria-label"),node.getAnimations().find(clip => clip.transitionProperty === "transform"),node);
       });
-    });
+    }, recordGuideKey(userId,"training"));
     const button = label => page.getByRole("button",{name:label,exact:true}).filter({visible:true});
     const tab = label => page.getByRole("tab",{name:label,exact:true});
     const input = page.getByRole("textbox",{name:"给小助手发消息",exact:true});
@@ -60,10 +80,15 @@ export async function runDirectionalNavigation(db) {
       (expectFrom === 0 ? Math.abs(from) <= 1 : from * expectFrom > 1) &&
       (expectTo === 0 ? Math.abs(to) <= 1 : to * expectTo > 1);
     async function saw(since,target,from,to) {
-      await page.waitForFunction(({since,target,from,to})=>window.directionProof.slice(since).some(item=>
-        item.target===target &&
-        (from===0 ? Math.abs(item.from)<=1 : item.from*from>1) &&
-        (to===0 ? Math.abs(item.to)<=1 : item.to*to>1)),{since,target,from,to});
+      try {
+        await page.waitForFunction(({since,target,from,to})=>window.directionProof.slice(since).some(item=>
+          item.target===target &&
+          (from===0 ? Math.abs(item.from)<=1 : item.from*from>1) &&
+          (to===0 ? Math.abs(item.to)<=1 : item.to*to>1)),{since,target,from,to},{timeout:7500});
+      } catch (error) {
+        const observed=await page.evaluate(since=>window.directionProof.slice(since),since);
+        throw Error("没有观察到 "+target+" "+from+"→"+to+"。记录："+JSON.stringify(observed),{cause:error});
+      }
       const observed=await page.evaluate(since=>window.directionProof.slice(since),since);
       assert.ok(observed.some(item=>item.target===target&&signs(item.from,item.to,from,to)));
       result.checks.push({target,from,to});
@@ -103,8 +128,12 @@ export async function runDirectionalNavigation(db) {
 
       await page.goto(mobile?"/dashboard/assistant":"/dashboard");
       if(!mobile){
-        await page.locator("[data-assistant-trigger]:visible").click();
-        await page.locator("dialog[data-assistant-surface][open]").waitFor();
+        const drawer=page.locator("dialog[data-assistant-surface][open]");
+        for(let attempt=0;attempt<3&&!await drawer.isVisible();attempt++){
+          await page.locator("[data-assistant-trigger]:visible").click();
+          await drawer.waitFor({timeout:1500}).catch(()=>{});
+        }
+        await drawer.evaluate(node=>Promise.all(node.getAnimations().map(animation=>animation.finished.catch(()=>{}))));
       }
       await page.getByText(title,{exact:true}).waitFor();
       const stack=button("查看 4 张照片");
@@ -150,43 +179,49 @@ export async function runDirectionalNavigation(db) {
       const photoStage=viewer.locator("[class*='photoStage']");
       const stage=await photoStage.boundingBox();
       await settle();
-      let before=await mark();
+      async function flip(index, direction, turn) {
+        const before=await mark();
+        await turn();
+        await original(index).waitFor();
+        await saw(before,"current",direction,0);
+        await saw(before,"previous",0,-direction);
+        await settle();
+        assert.deepEqual(await photoStage.boundingBox(),stage);
+      }
       if(mobile) {
-        const sendSwipe=async () => {
-          if(engine==="chromium"){
-            const cdp=await context.newCDPSession(page);
-            const x=Math.round(stage.x+stage.width*.8),y=Math.round(stage.y+stage.height*.5);
-            await cdp.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x,y}]});
-            for(const dx of [22,50,90,140]) await cdp.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{x:x-dx,y}]});
+        await flip(2,1,()=>activate(button("下一张")));
+        await flip(1,-1,()=>activate(button("上一张")));
+        const cdp=engine==="chromium" ? await context.newCDPSession(page) : null;
+        const swipe=async direction => {
+          if(cdp){
+            const x=Math.round(stage.x+stage.width*(direction>0?.8:.2)),y=Math.round(stage.y+stage.height*.5);
+            const point=dx=>({x:x-direction*dx,y,id:1});
+            await cdp.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[point(0)]});
+            for(const dx of [22,50,90,140]) await cdp.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[point(dx)]});
             await cdp.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
-            await cdp.detach();
-          } else await photoStage.evaluate(node=>{
+          } else await photoStage.evaluate((node,direction)=>{
             const rect=node.getBoundingClientRect(),event={bubbles:true,pointerId:1,isPrimary:true,pointerType:"touch",clientY:rect.top+60};
-            node.dispatchEvent(new PointerEvent("pointerdown",{...event,clientX:rect.left+220}));
-            node.dispatchEvent(new PointerEvent("pointerup",{...event,clientX:rect.left+80}));
-          });
+            const start=rect.left+rect.width*(direction>0?.8:.2);
+            node.dispatchEvent(new PointerEvent("pointerdown",{...event,clientX:start}));
+            node.dispatchEvent(new PointerEvent("pointerup",{...event,clientX:start-direction*140}));
+          },direction);
         };
-        await sendSwipe();
-      } else await page.keyboard.press("ArrowRight");
-      await original(2).waitFor();
-      await saw(before,"current",1,0);
-      await saw(before,"previous",0,-1);
-      await settle();
-      assert.deepEqual(await photoStage.boundingBox(),stage);
-      await shot("photo-next");
-      before=await mark();
-      if(mobile) await activate(button("上一张"));
-      else await page.keyboard.press("ArrowLeft");
-      await original(1).waitFor();
-      await saw(before,"current",-1,0);
-      await saw(before,"previous",0,1);
-      await settle();
+        await flip(2,1,()=>swipe(1));
+        await shot("photo-next");
+        await flip(1,-1,()=>swipe(-1));
+        await cdp?.detach();
+      } else {
+        await flip(2,1,()=>page.keyboard.press("ArrowRight"));
+        await shot("photo-next");
+        await flip(1,-1,()=>page.keyboard.press("ArrowLeft"));
+      }
+      let before;
       await page.emulateMedia({reducedMotion:"reduce"});
       before=await mark();
-      await activate(button("下一张"));
+      await button("下一张").click();
       await original(2).waitFor();
       assert.equal(await mark(),before);
-      await activate(button("关闭照片预览"));
+      await button("关闭照片预览").click();
       await viewer.waitFor({state:"hidden"});
       assert.ok(await stack.evaluate(node=>document.activeElement===node));
       await page.emulateMedia({reducedMotion:"no-preference"});
@@ -244,18 +279,51 @@ export async function runDirectionalNavigation(db) {
         before=await mark();
         await nav.getByRole("link",{name:"用量分析",exact:true}).click();
         await page.getByRole("heading",{name:"用量分析",exact:true}).waitFor();
-        await saw(before,"div",1,0);
+        await saw(before,"管理后台正文",1,0);
         await settle();
+        await page.getByRole("combobox",{name:"用户",exact:true}).selectOption(userId);
+        await page.getByText("所选用户",{exact:true}).waitFor();
+        const adminSteps = [
+          ["用户概况","用户概况",1],
+          [/^账号设置/,"账号设置",1],
+          [/返回用户概况/,"用户概况",-1],
+          [/返回用量分析/,"用量分析",-1],
+        ];
+        for (const [link,heading,direction] of adminSteps) {
+          before=await mark();
+          await page.getByRole("link",{name:link}).click();
+          await page.getByRole("heading",{name:heading,exact:true}).waitFor();
+          await saw(before,"管理后台正文",direction,0);
+          await settle();
+        }
         before=await mark();
         await nav.getByRole("link",{name:"用户管理",exact:true}).click();
         await page.getByRole("heading",{name:"用户管理",exact:true}).waitFor();
-        await saw(before,"div",-1,0);
+        await saw(before,"管理后台正文",-1,0);
+        await settle();
+        const sections=page.getByRole("navigation",{name:"用户管理分类",exact:true});
+        before=await mark();
+        await sections.getByRole("link",{name:"邀请",exact:true}).click();
+        await page.getByLabel("邀请账号").waitFor();
+        await saw(before,"管理后台正文",1,0);
+        await settle();
+        before=await mark();
+        await sections.getByRole("link",{name:"账号",exact:true}).click();
+        await page.getByLabel("账号状态").waitFor();
+        await saw(before,"管理后台正文",-1,0);
         await settle();
       }
       assert.deepEqual(result.errors,[]);
       result.passed=true;
     } catch(error) {
       result.failure=String(error);
+      result.diagnostics=await page.evaluate(() => {
+        const dialog=document.querySelector('dialog[aria-label="照片预览"]');
+        return { photoInput:window.photoInput, shown:dialog?.open ? dialog.querySelector("header")?.textContent : null,
+          photos:[...dialog?.querySelectorAll("img") ?? []].map(node=>({
+            alt:node.alt,frame:node.dataset.photoFrame,ready:node.dataset.ready,width:node.naturalWidth,
+          })) };
+      }).catch(()=>null);
       await shot("failure").catch(()=>{});
       throw error;
     } finally {

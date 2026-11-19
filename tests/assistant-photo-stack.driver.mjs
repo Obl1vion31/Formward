@@ -230,7 +230,10 @@ export async function runAssistantPhotoStack(db) {
       const runsBeforeReading = (await db.select({ id: assistantRun.id }).from(assistantRun).where(eq(assistantRun.userId, userId))).length;
       await button("历史会话").click();
       await page.getByRole("button", { name: /验收单张照片/ }).filter({ visible: true }).first().click();
-      const historyFour = stack(4);
+      const historyFour = page.locator("[data-history-scroll]").getByRole("button", { name: "查看 4 张照片", exact: true });
+      await historyFour.evaluate(node => Promise.all(
+        node.closest("[data-history-scroll]").getAnimations().map(animation => animation.finished.catch(() => {})),
+      ));
       await historyFour.scrollIntoViewIfNeeded();
       await layout(historyFour, 4);
       await historyFour.click();

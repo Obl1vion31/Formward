@@ -36,12 +36,11 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
   const [rowAction, setRowAction] = useState<{ id: string; action: HistoryRowAction } | null>(null);
   const [removing, setRemoving] = useState(false);
   const request = useRef<AbortController | null>(null);
-  const scroller = useRef<HTMLDivElement>(null);
+  const scroller = useOrderedArrival<HTMLDivElement>(conversationId ? 2 : 1, { from: 0 });
   const title = useRef<HTMLHeadingElement>(null);
   const listLoaded = useRef(false);
   const returnTo = useRef<{ id: string; top: number } | null>(null);
   const anchor = useRef<{ id: string; offset: number } | null>(null);
-  const scene = useOrderedArrival<HTMLElement>(conversationId ? 2 : 1, { from: 0 });
   const view = snapshot?.conversationId === conversationId ? snapshot : null;
   const row = list?.items.find(item => item.id === conversationId);
   const matches = (read: Read) => conversationId ? read.kind === "detail" && read.id === conversationId : read.kind === "list";
@@ -191,7 +190,7 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
   </div>;
 
   const transcript = chatTranscript(view?.messages??[]);
-  return <section ref={scene} className={styles.history} data-page={page || undefined} aria-label="历史会话"
+  return <section className={styles.history} data-page={page || undefined} aria-label="历史会话"
     onPointerDownCapture={event => {
       if (rowAction && (event.target as Element).closest("[data-history-row]")?.getAttribute("data-history-row") !== rowAction.id)
         setRowAction(null);
@@ -210,7 +209,7 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
       {!page && <button type="button" onClick={back}>{conversationId ? "返回列表" : "返回"}</button>}
     </header>
     {row && <p className={styles.historyTitle}>{row.title}<time dateTime={row.updatedAt}>{shortDate.format(new Date(row.updatedAt))}</time></p>}
-    <div className={styles.historyScroll} data-detail={!!conversationId || undefined} ref={scroller}
+    <div className={styles.historyScroll} data-history-scroll data-detail={!!conversationId || undefined} ref={scroller}
       onScroll={() => { if (rowAction) setRowAction(null); }}>
       {!conversationId ? <>
         {!list && !failure && <div className={styles.historyFeedback}><LocalLoading label="正在读取会话…"/></div>}
