@@ -885,7 +885,7 @@ form[data-entry-form] button:not([type=submit]) {min-height:44px}
 @media(max-width:700px),(hover:none) and (pointer:coarse){
  :root{--data-weight:#d8bc8c}
  :root[data-theme="light"]{--graphite:#f3f0e9;--surface:#fffdf8;--surface-raised:#fffefb;--warm-white:#24231f;--muted:#6b665e;--gold:#795b2c;--data-weight:#795b2c}
- .workspace-shell .dashboard-page{padding:0 16px calc(100px + env(safe-area-inset-bottom));min-height:calc(100svh - 64px)}
+ .workspace-shell .dashboard-page{padding:0 16px calc(var(--workspace-dock-inset) + 24px);min-height:calc(100svh - 64px)}
  }
 
 .chart-flight{position:absolute;z-index:35;pointer-events:none;transform-origin:0 0;will-change:transform;backface-visibility:hidden;transform:translateZ(0);margin-top:-64px}
