@@ -376,15 +376,16 @@ export async function runMobileLayoutStability(db) {
             const first = await measure();
             near(first.content.left, 16, "首帧仍从右侧进入");
             near(first.content.opacity, 0.65, "首帧只渐变前景");
-            await page.evaluate(() => document.querySelector("[data-assistant-page]").style
-              .setProperty("--assistant-keyboard-height", innerHeight - 6 + "px"));
+            // 定格真实入场姿态，再独立模拟前景高度短报，拍摄期间保持同一几何条件。
+            await page.evaluate(() => { document.querySelector("[data-assistant-page]").style.height = "calc(100% - 6px)"; });
             const shortened = await measure();
             near(shortened.shell.bottom, first.layoutHeight - 6, "重放旧症状的几何缺口");
             near(shortened.viewport.bottom, first.layoutHeight, "固定底色覆盖前景下方的 6px");
             assert.equal(shortened.frameBackground, shortened.rootBackground);
             await shot(theme + "-first-frame");
+            near((await measure()).shell.bottom, shortened.shell.bottom, "截图时前景短报条件保持");
             await page.evaluate(() => {
-              document.querySelector("[data-assistant-page]").style.removeProperty("--assistant-keyboard-height");
+              document.querySelector("[data-assistant-page]").style.removeProperty("height");
               window.holdAssistantEntry = false;
               window.assistantEntry.play();
               window.assistantEntry = null;
