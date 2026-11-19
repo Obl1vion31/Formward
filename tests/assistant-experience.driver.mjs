@@ -3,7 +3,7 @@ import {readFile,writeFile} from "node:fs/promises";
 import {join} from "node:path";
 import {randomUUID} from "node:crypto";
 import {eq} from "drizzle-orm";
-import {assistantUsageRequest,rateLimit} from "../src/db/schema.ts";
+import {assistantConversation,assistantMessage,assistantUsageRequest,rateLimit} from "../src/db/schema.ts";
 
 const sendLabel = "发送消息";
 const inputLabel = "给小助手发消息";
@@ -33,7 +33,7 @@ export async function runAssistantExperienceBrowser(db) {
         Object.defineProperty(proxy,name,{get:()=>state?.[name]??native?.[name]??0});
       Object.defineProperty(window,"visualViewport",{configurable:true,value:proxy});
       for (const type of ["resize","scroll"]) native?.addEventListener(type,()=>proxy.dispatchEvent(new Event(type)));
-      window.fixtureViewport = value => {state=value;proxy.dispatchEvent(new Event("resize"));proxy.dispatchEvent(new Event("scroll"));};
+      window.fixtureViewport = (value,eventType="resize") => {state=value;proxy.dispatchEvent(new Event(eventType));};
     });
     await context.route(/^https:\/\/(?:[a-z0-9-]+\.cos\.ap-shanghai\.myqcloud\.com|vercel\.com)\//,
       route=>route.fulfill({status:200,body:""}));
@@ -314,7 +314,6 @@ export async function runAssistantExperienceBrowser(db) {
         }
       }
       const box = await row.boundingBox(), x=Math.round(box.x+box.width/2), y=Math.round(box.y+box.height/2);
-      const shift = () => row.evaluate(node=>parseFloat(node.style.getPropertyValue("--press-shift")));
       const origin = () => row.evaluate(node=>parseFloat(node.style.getPropertyValue("--press-x")));
       await touch("touchStart",x,y);
       await page.waitForTimeout(170);
@@ -323,11 +322,11 @@ export async function runAssistantExperienceBrowser(db) {
       await shot("center","手指按在中间，横向柔光向两侧铺开");
       await touch("touchMove",x+38,y);
       await page.waitForTimeout(80);
-      assert.equal(await shift(),12);
-      await shot("right","手指向右移动38px，高光只偏移12px");
+      assert.ok(Math.abs(await origin() - box.width/2 - 38)<=1);
+      await shot("right","手指向右移动38px，柔光随触点移动");
       await touch("touchMove",x-38,y);
       await page.waitForTimeout(80);
-      assert.equal(await shift(),-12);
+      assert.ok(Math.abs(await origin() - box.width/2 + 38)<=1);
       await shot("left","手指向左移动，高光跟随，表单边界保持");
       assert.deepEqual(await row.boundingBox(),box);
       await touch("touchEnd",x-38,y);
@@ -365,6 +364,8 @@ export async function runAssistantExperienceBrowser(db) {
 
     const draft = "这顿海南鸡饭帮我记一下，晚餐。";
     await input().fill(draft.repeat(5));
+    await page.waitForFunction(label => document.querySelector('textarea[aria-label="'+label+'"]')
+      ?.getBoundingClientRect().height > 44,inputLabel,{timeout:5000});
     assert.ok((await input().boundingBox()).height>44,"长文字在同一输入框增高");
     await input().fill(draft);
     const choose = page.waitForEvent("filechooser");
@@ -404,8 +405,13 @@ export async function runAssistantExperienceBrowser(db) {
     await closeMenu();
     await context.unroute(base+"/api/account/entitlements");
 
+    await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "千问");
+    await input().focus();
     await input().fill("慢速测试 · 查看共享余额");
+    await page.waitForFunction(label => document.querySelector('textarea[aria-label="'+label+'"]')
+      ?.value === "慢速测试 · 查看共享余额",inputLabel,{timeout:5000});
     await send().click();
+    await page.getByText("慢速测试 · 查看共享余额",{exact:true}).waitFor();
     await status().waitFor();
     let active;
     for (let attempt = 0; attempt < 24; attempt++) {
@@ -518,10 +524,21 @@ export async function runAssistantExperienceBrowser(db) {
     assert.equal(await message("慢速测试 · 恢复原消息").count(),1);
     await mark("发送失败恢复图文，重试及刷新保留原任务，消息只出现一次");
 
+    await input().fill("两张照片已读验收。");
+    await fixtureFiles(2);
+    await send().click();
+    await page.getByText("两张照片都已读取。",{exact:true}).waitFor();
+    await page.getByRole("button",{name:"停止生成",exact:true}).waitFor({state:"hidden"});
+    assert.equal(await page.getByRole("group",{name:/张照片未处理/}).count(),0);
+    assert.equal(await page.getByRole("button",{name:"继续回答",exact:true}).count(),0);
+    await shot("two-photos-complete","两张照片的回答已完成，末尾没有分批或继续回答");
+    await mark("两张照片正常完成后不出现后续操作");
+    await db.delete(rateLimit);
+
     await input().fill("分批验收，帮我读这四张照片。");
     await fixtureFiles(4);
     await send().click();
-    const picker = page.getByRole("group",{name:"这条消息的照片可以分批处理"});
+    const picker = page.getByRole("group",{name:/还有 [1-4] 张照片未处理/});
     await picker.waitFor();
     assert.match(await picker.innerText(),/还有 4 张可选/);
     await shot("over-limit","原消息内选择照片分批继续");
@@ -532,7 +549,7 @@ export async function runAssistantExperienceBrowser(db) {
       await picker.getByRole("button",{name:"处理所选照片",exact:true}).click();
       if (count>1) await picker.getByText(new RegExp("还有 "+(count-1)+" 张可选")).waitFor();
     }
-    await page.getByText("这条消息的照片已经分批处理。",{exact:true}).waitFor();
+    await picker.waitFor({state:"hidden"});
     const final = await context.request.get(base+"/api/assistant-chat").then(response=>response.json());
     assert.equal(final.conversationId,firstBefore.conversationId);
     assert.equal(await message("分批验收，帮我读这四张照片。").count(),1);
@@ -552,6 +569,134 @@ export async function runAssistantExperienceBrowser(db) {
     await page.waitForTimeout(850);
   }
 
+  async function repairFlow({page,context,input,open,shot,mark}, mobile) {
+    const chatUrl = base + "/api/assistant-chat";
+    const current = await (await context.request.get(chatUrl)).json();
+    const titles = Array.from({length:16},(_,index)=>"历史验收记录 " + (index + 1));
+    const histories = titles.map((title,index)=>({
+      id:randomUUID(), userId:fixture.userId, active:false, sequence:1,
+      updatedAt:new Date(Date.now() - index * 10000 - 2000), title,
+    }));
+    await db.insert(assistantConversation).values(histories.map(({id,userId,active,sequence,updatedAt})=>({id,userId,active,sequence,updatedAt})));
+    await db.insert(assistantMessage).values(histories.map(row=>({
+      id:randomUUID(), userId:fixture.userId, conversationId:row.id, seq:1, role:"user", text:row.title,
+    })));
+    await db.insert(assistantMessage).values([
+      {id:randomUUID(),userId:fixture.userId,conversationId:current.conversationId,seq:1,role:"user",text:"查看虚构记录。"},
+      {id:randomUUID(),userId:fixture.userId,conversationId:current.conversationId,seq:2,role:"assistant",provider:"qwen",
+        text:Array.from({length:26},(_,index)=>"第 "+(index+1)+" 条虚构记录。聊天消息可以滚动阅读，顶部和编辑栏各在原处。").join("\n\n")},
+    ]);
+    await db.update(assistantConversation).set({sequence:2}).where(eq(assistantConversation.id,current.conversationId));
+    await open();
+    await page.getByText(/第 26 条虚构记录/).waitFor();
+    const cdp = mobile && engine==="chromium" ? await context.newCDPSession(page) : undefined;
+    async function drag(x,y,dx,dy) {
+      if (cdp) {
+        await cdp.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x,y,id:0}]});
+        for (const part of [.25,.5,.75,1]) await cdp.send("Input.dispatchTouchEvent",{
+          type:"touchMove",touchPoints:[{x:x+dx*part,y:y+dy*part,id:0}],
+        });
+        await cdp.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
+      } else {
+        await page.evaluate(({x,y,dx,dy})=>{
+          const hit=document.elementFromPoint(x,y);
+          for(const [name,part] of [["pointerdown",0],["pointermove",.5],["pointermove",1],["pointerup",1]]) {
+            hit.dispatchEvent(new PointerEvent(name,{bubbles:true,isPrimary:true,pointerId:71,pointerType:"touch",
+              clientX:x+dx*part,clientY:y+dy*part,buttons:name==="pointerup"?0:1}));
+          }
+        },{x,y,dx,dy});
+      }
+      await page.waitForTimeout(175);
+    }
+    if (mobile) {
+      await input().focus();
+      await page.evaluate(()=>window.fixtureViewport({height:470,width:390,offsetTop:0,scale:1}));
+      await page.locator("[data-assistant-keyboard]").waitFor();
+      await page.waitForTimeout(500);
+      const geometry = () => page.locator("[data-assistant-page]").evaluate(node=>{
+        const top = node.querySelector("header").getBoundingClientRect();
+        const area = node.querySelector("textarea").getBoundingClientRect();
+        return {heading:top.top,composer:area.bottom,scroll:window.scrollY};
+      });
+      const before=await geometry(), box=await input().boundingBox();
+      await drag(Math.round(box.x+45),Math.round(box.y+box.height/2),0,60);
+      await drag(Math.round(box.x+45),Math.round(box.y+box.height/2),0,-62);
+      // A pure visual-viewport pan after the keyboard settles must not reposition the shell.
+      await page.evaluate(()=>window.fixtureViewport({height:470,width:390,offsetTop:46,scale:1},"scroll"));
+      await page.waitForTimeout(150);
+      const after=await geometry();
+      for (const key of Object.keys(before)) assert.ok(Math.abs(before[key]-after[key])<=1,JSON.stringify({before,after}));
+      const feed=page.getByRole("log",{name:"聊天消息"});
+      const previousTop=await feed.evaluate(node=>node.scrollTop);
+      await feed.evaluate(node=>{node.scrollTop=0;});
+      assert.ok(previousTop>0);
+      assert.equal(await feed.evaluate(node=>node.scrollTop),0);
+      assert.deepEqual(await geometry(),after);
+      const appearance=await page.getByRole("button",{name:sendLabel,exact:true}).evaluate(node=>({
+        width:node.getBoundingClientRect().width,height:node.getBoundingClientRect().height,
+        ring:getComputedStyle(node,"::before").borderRadius,
+      }));
+      assert.deepEqual(appearance,{width:44,height:44,ring:"50%"});
+      await shot("keyboard-fixed","缩小可视区后上下拖输入栏，只有消息区可滚动");
+      await mark("视口缩高和纵拖时顶栏及输入框稳定，发送为圆形并保留44px触控");
+      await input().blur();
+      await page.evaluate(()=>window.fixtureViewport(null));
+    }
+    const citation=page.getByRole("button",{name:"引用回复",exact:true}).locator("span");
+    const copy=page.getByRole("button",{name:"复制",exact:true}).locator("span");
+    await citation.waitFor();
+    await copy.waitFor();
+    if (mobile) assert.equal(await citation.evaluate(node=>getComputedStyle(node).fontSize),"13px");
+    await page.getByRole("button",{name:"历史会话",exact:true}).click();
+    const history=page.getByRole("region",{name:"历史会话"});
+    const target=history.locator('[data-history-row="' + histories[0].id + '"]');
+    await target.waitFor();
+    await shot("history-list","历史会话行共用边界和内缩分隔线");
+    let modelSends=0;
+    page.on("request",request=>{if(request.url()===chatUrl && request.method()==="POST") modelSends++;});
+    await history.getByRole("button",{name:new RegExp(titles[1])}).filter({has:page.locator("strong")}).first().click();
+    await history.getByRole("button",{name:"回到这段对话",exact:true}).click();
+    await input().waitFor();
+    assert.equal((await (await context.request.get(chatUrl)).json()).conversationId,histories[1].id);
+    assert.equal(modelSends,0);
+    await page.getByRole("button",{name:"历史会话",exact:true}).click();
+    await target.waitFor();
+    if (mobile) {
+      const row=await target.locator("[data-history-id]").boundingBox();
+      const x = Math.round(row.x+row.width*.62), y = Math.round(row.y+row.height/2);
+      await drag(x,y,60,0);
+      assert.equal(await target.getAttribute("data-action"),null);
+      await drag(x,y,-95,0);
+      assert.equal(await target.getAttribute("data-action"),"swipe");
+      const surface = await target.boundingBox();
+      const rail = await target.getByRole("button",{name:"删除",exact:true}).boundingBox();
+      assert.ok(Math.abs(rail.x+rail.width - (surface.x+surface.width)) <= 1,"删除在会话行右边");
+      await shot("history-swipe","左滑从右侧露出本条红色删除，其他行保持原位");
+    } else {
+      await target.getByRole("button",{name:/更多操作/}).press("Enter");
+      assert.equal(await target.getAttribute("data-action"),"menu");
+      await shot("history-menu","桌面使用键盘打开同一条会话的删除菜单");
+    }
+    await target.getByRole("button",{name:"删除",exact:true}).click();
+    const confirm=page.getByRole("dialog",{name:"删除这段对话？"});
+    await confirm.getByRole("button",{name:"取消",exact:true}).click();
+    await target.waitFor();
+    await target.getByRole("button",{name:"删除",exact:true}).click();
+    await shot("history-confirm","明确确认删除，已保存和待核对记录仍可使用");
+    await confirm.getByRole("button",{name:"删除",exact:true}).click();
+    await target.waitFor({state:"hidden"});
+    const old=await context.request.get(chatUrl+"?conversationId="+histories[0].id);
+    assert.equal(old.status(),404);
+    const [removed]=await db.select().from(assistantConversation).where(eq(assistantConversation.id,histories[0].id));
+    assert.ok(removed.removedAt);
+    const rows=await db.select().from(assistantMessage).where(eq(assistantMessage.conversationId,histories[0].id));
+    assert.equal(rows[0].text,titles[0]);
+    await shot("history-removed","已确认移出历史，原文在隔离库保留");
+    await page.evaluate(()=>{ document.documentElement.dataset.theme="dark"; });
+    await shot("history-dark","深色历史列表的分隔与行操作");
+    await mark("历史返回不发送模型请求，删除有确认、保留原文并拒绝旧链接");
+  }
+
   try {
     if (!samples?.length) throw Error("需要提供隔离海南鸡饭样例");
     const scope = process.env.FORMWARD_EXPERIENCE_CASE;
@@ -561,6 +706,11 @@ export async function runAssistantExperienceBrowser(db) {
     if (scope==="composer" || scope==="composer-desktop") {
       if (results.length) await db.delete(rateLimit);
       await journey("composer-desktop",{width:1440,height:900},false,flow=>composerFlow(flow,false));
+    }
+    if (scope==="repair") {
+      await journey("repair-mobile",{width:390,height:844},true,flow=>repairFlow(flow,true));
+      await db.delete(rateLimit);
+      await journey("repair-desktop",{width:1440,height:900},false,flow=>repairFlow(flow,false));
     }
     if (!scope || scope==="mobile") await journey("mobile",{width:390,height:844},true,flow=>mainFlow(flow,true));
     if (!scope || scope==="desktop") await journey("desktop",{width:1440,height:900},false,flow=>mainFlow(flow,false));

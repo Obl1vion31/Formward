@@ -660,6 +660,7 @@ export const assistantConnection = pgTable("assistant_connections", {
 }, t => [uniqueIndex("assistant_connections_owner_provider_idx").on(t.userId, t.provider, t.purpose).where(sql`${t.enabled}=true`), uniqueIndex("assistant_connections_token_idx").on(t.tokenId), check("assistant_connections_provider_valid", sql.raw("provider IN ('qwen','mimo','glm') AND purpose IN ('chat','meal_entry')"))]);
 export const assistantConversation = pgTable("assistant_conversations", {
   purpose:text("purpose").notNull().default("chat"),
+  removedAt: timestamp("removed_at", { withTimezone: true }),
   context:jsonb("context").$type<import("../features/assistant/chat-model").MealTaskContext|null>(),
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),
   provider: text("provider").notNull().default("qwen"), active: boolean("active").notNull().default(true), sequence: integer("sequence").notNull().default(0),

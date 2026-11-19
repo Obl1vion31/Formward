@@ -55,7 +55,7 @@ type ChatClient = {
   retryOutgoing: (id:string) => Promise<boolean>;
   restoreOutgoing: (id:string) => Promise<void>;
   releaseSentPreview: (id:string,imageId:string) => void;
-  control: (action: "select_model" | "new" | "stop" | "enable" | "revoke" | "clear_followup" | "select_conversation", provider?: ChatProvider, conversationId?:string) => Promise<boolean>;
+  control: (action: "select_model" | "new" | "stop" | "enable" | "revoke" | "clear_followup" | "select_conversation" | "remove_conversation", provider?: ChatProvider, conversationId?:string) => Promise<boolean>;
   addPhotos: (files: File[]) => Promise<void>;
 };
 const Context = createContext<ChatClient | null>(null);
@@ -127,7 +127,12 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     }
     current.current = snapshot; setData(snapshot);
     const restoredMessages = changed ? savedDrafts.current.get(snapshot.conversationId)?.older ?? [] : null;
-    setMessages(previous => { const merged = new Map((restoredMessages ?? previous).map(row => [row.id, row])); for (const row of snapshot.messages) merged.set(row.id, row); return [...merged.values()].sort((a,b) => a.seq - b.seq).slice(-50); });
+    setMessages(previous => {
+      const merged = new Map((restoredMessages ?? previous).map(row => [row.id, row]));
+      for (const row of snapshot.photoUpdates ?? []) if (merged.has(row.id)) merged.set(row.id, row);
+      for (const row of snapshot.messages) merged.set(row.id, row);
+      return [...merged.values()].sort((a,b) => a.seq - b.seq).slice(-50);
+    });
   }, [updateAccess,updateOutgoing]);
   const applyEvent = useCallback((event:ChatEvent) => {
     if (!alive.current) return false;
@@ -175,9 +180,16 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     return()=>{controller.abort();clearInterval(timer);window.removeEventListener("focus",foreground);document.removeEventListener("visibilitychange",foreground);};
   },[accountId,updateAccess,read]);
   useEffect(() => {
-    const update = () => { const viewport = window.visualViewport; document.documentElement.style.setProperty("--assistant-viewport-height",(viewport?.height ?? innerHeight) + "px"); document.documentElement.style.setProperty("--assistant-viewport-top",(viewport?.offsetTop ?? 0) + "px"); };
-    update(); window.addEventListener("resize",update); window.visualViewport?.addEventListener("resize",update); window.visualViewport?.addEventListener("scroll",update);
-    return () => { window.removeEventListener("resize",update); window.visualViewport?.removeEventListener("resize",update); window.visualViewport?.removeEventListener("scroll",update); };
+    const update = () => document.documentElement.style.setProperty(
+      "--assistant-viewport-height", (window.visualViewport?.height ?? innerHeight) + "px",
+    );
+    update();
+    window.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("resize", update);
+    };
   }, [enabled]);
   useEffect(() => { alive.current = true; const epoch = generation.current; return () => { alive.current = false; generation.current = epoch + 1; request.current?.abort(); subscription.current?.abort(); releasePhotoResources(); }; }, [accountId,releasePhotoResources]);
   useEffect(() => { if (!open) return; const frame = requestAnimationFrame(() => void read()); const focus = () => { if(document.hidden || request.current)return;void read(); }; window.addEventListener("focus", focus); window.addEventListener("pageshow",focus); window.addEventListener("online",focus); document.addEventListener("visibilitychange", focus); window.addEventListener("formward-record-saved", focus); return () => { cancelAnimationFrame(frame); window.removeEventListener("focus", focus); window.removeEventListener("pageshow",focus); window.removeEventListener("online",focus); document.removeEventListener("visibilitychange", focus); window.removeEventListener("formward-record-saved", focus); }; }, [enabled, open, read]);
@@ -225,8 +237,14 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   const unsent = [...outgoing.values()].some(item=>item.phase==="error");
   useEffect(() => { if (!draft.trim() && !photos.length && !unsent) return; const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; }; window.addEventListener("beforeunload", protect); return () => window.removeEventListener("beforeunload", protect); }, [draft, photos, unsent]);
   async function control(action: Parameters<ChatClient["control"]>[0], provider?: ChatProvider, conversationId?:string) {
-    if ((!canChat&&action!=="stop") || mutating.current) return false;
+    if ((!canChat && action !== "stop" && action !== "remove_conversation") || mutating.current) return false;
     if((action==="select_conversation"||action==="new")&&(running||uploading))return false;
+    if (action === "remove_conversation" && [...outbox.current.values()].some(item =>
+      item.body.conversationId === conversationId && item.phase !== "accepted"
+    )) {
+      setError("这段对话有未发出的消息。请先处理该消息再删除。");
+      return false;
+    }
     if (action === "new" && (draft.trim() || photos.length || messages.some(row => row.references.some(ref => ref.kind === "preview")))) {
       if (!await confirmAction({ title: "开始新对话？", message: "当前输入将清空，已有提交仍可在AI提交记录中查看和确认。", confirmLabel: "开始新对话", cancelLabel: "继续当前对话" })) return false;
     }
@@ -243,6 +261,11 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
         const restored=savedDrafts.current.get(payload.conversationId);
         setDraft(restored?.draft??"");setQuote(restored?.quote??null);photoState.current=restored?.photos??[];setPhotos(photoState.current);scroll.current=restored?.scroll??{top:0,stick:true};
         pendingRequest.current=null;generation.current++;
+      }
+      if (action === "remove_conversation" && current.current?.conversationId !== payload.conversationId) {
+        setQuote(null);
+        scroll.current = { top: 0, stick: true };
+        pendingRequest.current = null;
       }
       apply(payload); return true;
     } catch (failure) { if (alive.current) setError(failure instanceof Error ? failure.message : "操作未完成，请重试。"); return false; }

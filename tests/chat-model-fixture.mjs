@@ -17,6 +17,11 @@ globalThis.fetch=async function(input,init){
  }
  if(!allowed.has(url.hostname))return original(input,init);
  const body=JSON.parse(typeof init?.body==='string'?init.body:await input.clone().text()),lastUser=[...body.messages].reverse().find(message=>message.role==='user'),text=typeof lastUser?.content==='string'?lastUser.content:lastUser?.content?.find(part=>part.type==='text')?.text??'';
+ if (text === "两张照片已读验收。") {
+   const images = Array.isArray(lastUser?.content) ? lastUser.content.filter(part=>part.type==="image_url") : [];
+   if (images.length !== 2) return new Response("expected two isolated photos",{status:400});
+   return result("〔正文〕两张照片都已读取。");
+ }
  if(String(body.messages[0]?.content).includes('饮食页内的独立拍照任务')){
    const last=body.messages.at(-1);
    if(last.role==='tool'&&/confirmationUrl|confirmationPath/.test(String(last.content)))return result('已整理本餐新增食物，请在当前餐次中核对后保存。');

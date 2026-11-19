@@ -1,11 +1,12 @@
 import { useRef, type PointerEvent } from "react";
 
 export function useComposerPress() {
-  const press = useRef<{ id: number; x: number; y: number; shift: number } | null>(null);
+  const press = useRef<{ id: number; x: number; y: number } | null>(null);
 
   function release(row: HTMLDivElement) {
     press.current = null;
     delete row.dataset.pressing;
+    delete row.dataset.pressMoving;
   }
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -15,26 +16,26 @@ export function useComposerPress() {
       return;
     }
     if (event.pointerType === "mouse" || (event.target as Element).closest("button,input")) return;
-    const x = event.clientX - row.getBoundingClientRect().left;
-    press.current = { id: event.pointerId, x: event.clientX, y: event.clientY, shift: 0 };
-    row.style.setProperty("--press-x", x + "px");
-    row.style.setProperty("--press-shift", "0px");
+    const box = row.getBoundingClientRect();
+    press.current = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    row.style.setProperty("--press-x", event.clientX - box.left + "px");
+    row.style.setProperty("--press-y", event.clientY - box.top + "px");
     row.dataset.pressing = "true";
   }
 
   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
     const active = press.current;
     if (!active || event.pointerId !== active.id) return;
-    const dx = event.clientX - active.x, dy = Math.abs(event.clientY - active.y);
-    if (dy > 10 && dy > Math.abs(dx)) {
-      release(event.currentTarget);
+    const dx = Math.abs(event.clientX - active.x), dy = Math.abs(event.clientY - active.y);
+    const row = event.currentTarget;
+    if (dy > 10 && dy > dx) {
+      release(row);
       return;
     }
-    const shift = Math.round(Math.min(12, Math.max(-12, dx * 0.35)));
-    if (shift !== active.shift) {
-      active.shift = shift;
-      event.currentTarget.style.setProperty("--press-shift", shift + "px");
-    }
+    const box = row.getBoundingClientRect();
+    const x = Math.max(0, Math.min(box.width, event.clientX - box.left));
+    row.dataset.pressMoving = "true";
+    row.style.setProperty("--press-x", x + "px");
   }
 
   function endPress(event: PointerEvent<HTMLDivElement>) {

@@ -10,7 +10,7 @@ import type {Database} from "../../db/client";
 import {chatAttachmentBinding,chatImageContent} from "./chat-attachments";
 import {claimChatJob,executeChatJob} from "./chat-jobs";
 import {chatRunStream} from "./chat-stream";
-import {startChatRun,currentConversation,chatSnapshot,controlChat,reapChatRuns,reserveChatUsage,type ChatSend} from "./chat-store";
+import {startChatRun,currentConversation,chatSnapshot,controlChat,listChatConversations,removeChatConversation,reapChatRuns,reserveChatUsage,type ChatSend} from "./chat-store";
 const pg=new PGlite(),testDb=drizzle(pg,{schema}),db=testDb as unknown as Database,userId=randomUUID(),other=randomUUID();
 const prior=new Map<string,string|undefined>();
 before(async()=>{for(const[k,v]of Object.entries({FORMWARD_CHAT_ENABLED:"1",FORMWARD_CHAT_PILOT_USER_ID:userId,QWEN_API_KEY:"fictional-key",MIMO_API_KEY:"fictional-key",BETTER_AUTH_URL:"http://localhost:3000"})){prior.set(k,process.env[k]);process.env[k]=v;}await migrate(testDb,{migrationsFolder:"drizzle"});await db.insert(schema.user).values([{id:userId,name:"后台隔离账号",email:userId+"@example.test",role:"owner",membershipTier:"plus"},{id:other,name:"其他隔离账号",email:other+"@example.test"}]);});
@@ -77,7 +77,7 @@ test("区域部署的后台来源由服务器配置，不依赖浏览器Cookie�
 });
 
 test("多图超出预算时只允许从同一消息的原附件里继续分批", async () => {
-  const images = await Promise.all(Array.from({length:4},()=>image()));
+  const images = await Promise.all(Array.from({length:6},()=>image()));
   const job = await begin({imageIds:images.map(item=>item.id)});
   const claimed = await claimChatJob(db,"worker-photo-limit");
   let calls = 0;
@@ -94,5 +94,66 @@ test("多图超出预算时只允许从同一消息的原附件里继续分批",
   assert.equal(next.row.userMessageId,job.row.userMessageId);
   assert.deepEqual(next.row.executionInput?.attachmentImageIds,[images[0].id]);
   assert.equal(next.row.executionInput?.photoBatchOf,failed.id);
-  await controlChat(db,userId,{action:"stop",runId:next.row.id});
+  for (let index = 0; index < images.length; index++) {
+    const selected = index === 0 ? next : await startChatRun(db,userId,{
+      ...retry,requestId:randomUUID(),imageSubset:[images[index].id],
+    });
+    await db.update(schema.assistantRun).set({state:"complete"}).where(eq(schema.assistantRun.id,selected.row.id));
+    await db.update(schema.assistantMessage).set({state:"complete",text:"完成这张照片。"})
+      .where(eq(schema.assistantMessage.id,selected.row.assistantMessageId));
+    const snapshot = await chatSnapshot(db,userId);
+    const original = [...snapshot.messages,...snapshot.photoUpdates??[]].find(message=>message.id===failed.id);
+    assert.deepEqual(original?.photoLimit?.imageIds ?? [],images.slice(index+1).map(item=>item.id));
+    if (index===images.length-1) {
+      assert.equal(original?.state,"complete");
+      assert.equal(original?.error,null);
+      assert.ok(snapshot.messages.every(message=>!message.error && !message.photoLimit));
+    }
+  }
+  await assert.rejects(()=>startChatRun(db,userId,{
+    ...retry,requestId:randomUUID(),imageSubset:[images[0].id],
+  }),/照片已变化/);
+});
+
+test("已交给模型的照片遇到后续上下文满载，不再次列为待处理",async()=>{
+  const photos=await Promise.all([image(),image()]);
+  const job=await begin({imageIds:photos.map(photo=>photo.id)});
+  const diagnostic = {
+    provider:job.row.provider as "qwen",model:job.row.model,
+    messageId:job.row.userMessageId,attachmentSourceId:job.row.userMessageId,
+    requestSha256:"a".repeat(64),textSha256:"b".repeat(64),
+    images:photos.map(photo=>({id:photo.id,byteSize:photo.bytes.length,mimeType:"image/png",sha256:"c".repeat(64)})),
+  };
+  await db.update(schema.assistantRun).set({state:"error",requestDiagnostics:[
+    {...diagnostic,round:1,state:"completed"},{...diagnostic,round:2,state:"prepared",maxPhotos:1},
+  ]}).where(eq(schema.assistantRun.id,job.row.id));
+  await db.update(schema.assistantMessage).set({
+    state:"error",text:"两张图的部分结果。",error:"本轮照片超出可处理范围。可分批继续，其余照片仍保留。",
+  }).where(eq(schema.assistantMessage.id,job.row.assistantMessageId));
+  const answer=(await chatSnapshot(db,userId)).messages.at(-1)!;
+  assert.equal(answer.contextLimited,true);
+  assert.equal(answer.photoLimit,undefined);
+  assert.equal(answer.text,"两张图的部分结果。");
+  assert.match(answer.error!,/上下文已满/);
+});
+
+test("本人移出历史后不再可打开、重新激活或重复发送，原文与用量保留",async()=>{
+  const job=await begin();
+  const id=job.row.conversationId;
+  await assert.rejects(()=>removeChatConversation(db,other,id),/找不到/);
+  await assert.rejects(()=>removeChatConversation(db,userId,id),/正在生成/);
+  const claimed=await claimChatJob(db,"worker-remove");
+  await executeChatJob(db,claimed!,new AbortController().signal,{fetcher:async()=>completion()});
+  await removeChatConversation(db,userId,id);
+  await removeChatConversation(db,userId,id);
+  assert.ok((await listChatConversations(db,userId)).items.every(item=>item.id!==id));
+  assert.notEqual((await currentConversation(db,userId)).id,id);
+  await assert.rejects(()=>chatSnapshot(db,userId,undefined,undefined,id),/不属于/);
+  await assert.rejects(()=>controlChat(db,userId,{action:"select_conversation",conversationId:id}),/不存在/);
+  await assert.rejects(()=>startChatRun(db,userId,job.input),/移出历史/);
+  const stored=await db.select().from(schema.assistantMessage).where(eq(schema.assistantMessage.conversationId,id));
+  assert.equal(stored.length,2);
+  assert.ok(stored.some(message=>message.text==="后台结果已保存"));
+  const usage=await db.select().from(schema.assistantUsageRequest).where(eq(schema.assistantUsageRequest.runId,job.row.id));
+  assert.equal(usage[0].state,"settled");
 });

@@ -45,9 +45,9 @@ function PhotoBatchPicker({limit,disabled,submit}: {
 }) {
   const [selected,setSelected] = useState<string[]>([]);
   const checked = selected.filter(id=>limit.imageIds.includes(id));
-  if (!limit.imageIds.length) return <p className={styles.batchStatus}>这条消息的照片已经分批处理。</p>;
+  if (!limit.imageIds.length) return null;
   return <fieldset className={styles.batch} disabled={disabled}>
-    <legend>这条消息的照片可以分批处理</legend>
+    <legend>还有 {limit.imageIds.length} 张照片未处理</legend>
     <p>每批最多 {limit.maxPhotos} 张。还有 {limit.imageIds.length} 张可选。</p>
     <div className={styles.batchPhotos}>{limit.imageIds.map((id,index)=>{
       const chosen = checked.includes(id);
@@ -100,10 +100,11 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
   useLayoutEffect(() => { const node = feed.current; if (!node) return; const observer = new ResizeObserver(() => { if (scrollState().stick && !moreAnchor.current) node.scrollTop = node.scrollHeight; setLatest(node.scrollHeight-node.scrollTop-node.clientHeight>80); }); observer.observe(feedContent.current??node); observer.observe(node); return () => observer.disconnect(); }, [scrollState]);
   useLayoutEffect(() => {
     const node=input.current;if(!node)return;let frame=0,active=true,last="";
-    const measure=()=>{if(!active||!node.isConnected)return;const css=getComputedStyle(node),width=node.getBoundingClientRect().width,key=[node.value,node.placeholder,width,css.font,css.lineHeight,css.padding,css.borderWidth,css.minHeight].join("|");if(key===last||width<=0)return;last=key;
+    const measure=()=>{if(!active||!node.isConnected)return;const css=getComputedStyle(node),width=node.getBoundingClientRect().width,key=[node.value,node.placeholder,width,css.font,css.lineHeight,css.padding,css.borderWidth,css.minHeight,css.maxHeight].join("|");if(key===last||width<=0)return;last=key;
       // Safari的空textarea不会把换行占位文字计入scrollHeight；用同样字体与宽度的值测量。
       const probe=node.cloneNode(false) as HTMLTextAreaElement;probe.removeAttribute("id");probe.removeAttribute("aria-label");probe.removeAttribute("name");probe.setAttribute("aria-hidden","true");probe.inert=true;probe.tabIndex=-1;probe.value=node.value||node.placeholder;
       Object.assign(probe.style,{position:"absolute",left:"0",top:"0",width:width+"px",height:"0",minHeight:"0",maxHeight:"none",visibility:"hidden",pointerEvents:"none",overflow:"hidden"});node.parentElement?.appendChild(probe);const wanted=probe.scrollHeight+parseFloat(css.borderTopWidth)+parseFloat(css.borderBottomWidth);probe.remove();node.style.height=Math.min(Math.max(144,parseFloat(css.fontSize)*4.8),wanted)+"px";
+      node.toggleAttribute("data-draft-overflow", node.scrollHeight > node.clientHeight + 1);
       // 高度封顶后只滚动输入框内部，保持末尾输入可见，不改变面板或页面位置。
       if(document.activeElement===node&&node.value&&node.selectionStart===node.value.length&&node.selectionEnd===node.value.length)node.scrollTop=node.scrollHeight;
     };
@@ -152,7 +153,8 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
           const timing = chat.data?.runTiming?.messageId===message.id ? chat.data.runTiming : undefined;
           const continuation = transcript.continuations.has(message.id);
           const canCite = chat.enabled && message.state === "complete";
-          const canRetry = !message.photoLimit && ["stopped","truncated","error"].includes(message.state);
+          const canRetry = !message.photoLimit && !message.contextLimited && ["stopped","truncated","error"].includes(message.state);
+          const canContinue = message.state !== "error" && !!message.text.trim();
           const actions = message.role === "assistant" && message.state !== "working" && (canCite || message.text || canRetry)
             ? <div className={styles.actions}>
                 {canCite && <button type="button" className={styles.messageAction} aria-label="引用回复" title="引用回复" onClick={() => cite(message)}>
@@ -161,8 +163,8 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
                 {message.text && <button type="button" className={styles.messageAction} aria-label="复制" title="复制" onClick={() => void copy(message)}>
                   <Glyph name="copy"/><span>复制</span>
                 </button>}
-                {canRetry && <button type="button" disabled={chat.busy || blocked} onClick={() => void chat.send(message.state === "error" ? "retry" : "continue",message.id)}>
-                  {message.state === "error" ? "重试这条消息" : "继续回答"}
+                {canRetry && <button type="button" disabled={chat.busy || blocked} onClick={() => void chat.send(canContinue ? "continue" : "retry",message.id)}>
+                  {canContinue ? "继续回答" : "重试这条消息"}
                 </button>}
               </div> : undefined;
           return <ArrivingMessage key={message.role==="user"&&requestId?"user-"+requestId:message.id}

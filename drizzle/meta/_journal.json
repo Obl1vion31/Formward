@@ -316,6 +316,13 @@
       "when": 1794931839786,
       "tag": "0045_managed_membership",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1795084323559,
+      "tag": "0046_assistant_conversation_removal",
+      "breakpoints": true
     }
   ]
 }

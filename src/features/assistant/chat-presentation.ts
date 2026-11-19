@@ -60,6 +60,8 @@ export function chatTranscript(messages: readonly ChatMessage[]) {
   const answers = new Map<string,NonNullable<ChatMessage["answeredQuestions"]>>();
   const supplements = new Map<string,string>();
   const visible = messages.filter(message => {
+    if (message.role === "assistant" && message.state === "complete" &&
+        !message.text && !message.references.length && !message.steps.length) return false;
     const id = message.followupSourceId;
     if (message.role === "user" && id && message.answeredQuestions?.length && anchors.has(id)) {
       answers.set(id,message.answeredQuestions);

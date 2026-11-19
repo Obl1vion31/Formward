@@ -34,7 +34,7 @@ export async function currentConversation(db: Database, userId: string, readOnly
 }
 export async function listChatConversations(db:Database,userId:string,before?:{at:string;id:string}){
   await requireActiveAccount(db,userId);
-  const rows=await db.select({id:conversation.id,updatedAt:conversation.updatedAt,active:conversation.active,sequence:conversation.sequence,firstText:sql<string|null>`(select m.text from assistant_messages m where m.user_id=${userId} and m.conversation_id=${sql.raw('assistant_conversations.id')} and m.role='user' order by m.seq limit 1)`}).from(conversation).where(and(eq(conversation.userId,userId),eq(conversation.purpose,"chat"),before?or(lt(conversation.updatedAt,new Date(before.at)),and(eq(conversation.updatedAt,new Date(before.at)),lt(conversation.id,before.id))):undefined)).orderBy(desc(conversation.updatedAt),desc(conversation.id)).limit(21);
+  const rows=await db.select({id:conversation.id,updatedAt:conversation.updatedAt,active:conversation.active,sequence:conversation.sequence,firstText:sql<string|null>`(select m.text from assistant_messages m where m.user_id=${userId} and m.conversation_id=${sql.raw('assistant_conversations.id')} and m.role='user' order by m.seq limit 1)`}).from(conversation).where(and(eq(conversation.userId,userId),eq(conversation.purpose,"chat"),isNull(conversation.removedAt),before?or(lt(conversation.updatedAt,new Date(before.at)),and(eq(conversation.updatedAt,new Date(before.at)),lt(conversation.id,before.id))):undefined)).orderBy(desc(conversation.updatedAt),desc(conversation.id)).limit(21);
   const items=rows.slice(0,20).map(row=>({id:row.id,title:row.firstText?.trim().slice(0,40)||(row.sequence?"图片对话":"新对话"),updatedAt:row.updatedAt.toISOString(),active:row.active}));
   const last=rows[19];return {items,next:rows.length>20?{at:last.updatedAt.toISOString(),id:last.id}:null};
 }
@@ -148,14 +148,22 @@ export function chatRunTiming(row: Pick<StoredRun,"id"|"assistantMessageId"|"cla
 }
 
 function runPhotoLimit(row: Pick<StoredRun,"executionInput"|"requestDiagnostics">): ChatPhotoLimit | undefined {
-  const maxPhotos = row.requestDiagnostics.findLast(item => item.maxPhotos !== undefined)?.maxPhotos;
+  const maxPhotos = row.requestDiagnostics.at(-1)?.maxPhotos;
   const imageIds = row.executionInput?.attachmentImageIds;
-  if (maxPhotos && imageIds?.length) return {imageIds, maxPhotos};
+  const sentImages = row.requestDiagnostics.some(item => item.state === "completed" && item.images.length > 0);
+  if (maxPhotos && imageIds?.length && !sentImages) return {imageIds, maxPhotos};
 }
 
-function unusedBatchPhotos(messageId: string, limit: ChatPhotoLimit, batches: Pick<StoredRun,"executionInput"|"state">[]) {
-  const used = new Set(batches.flatMap(batch =>
-    batch.state === "complete" && batch.executionInput?.photoBatchOf === messageId ? batch.executionInput.attachmentImageIds : []));
+type BatchRun = Pick<StoredRun,"userMessageId"|"executionInput"|"state">;
+
+function unusedBatchPhotos(original: Pick<StoredRun,"userMessageId"|"assistantMessageId"|"executionInput">, limit: ChatPhotoLimit, batches: BatchRun[]) {
+  const sourceId = original.executionInput?.attachmentSourceId;
+  const used = new Set(batches.flatMap(batch => {
+    const attachments = batch.executionInput;
+    const sameQuestion = batch.userMessageId === original.userMessageId || attachments?.photoBatchOf === original.assistantMessageId;
+    return batch.state === "complete" && sameQuestion && attachments?.attachmentSourceId === sourceId
+      ? attachments?.attachmentImageIds ?? [] : [];
+  }));
   return limit.imageIds.filter(id => !used.has(id));
 }
 
@@ -170,7 +178,7 @@ export async function activeChatSubscription(db: Database, userId: string, id: s
 
 export async function chatSnapshot(db: Database, userId: string, before?: number,taskId?:string,conversationId?:string): Promise<ChatSnapshot> {
   const owner = await requireActiveAccount(db, userId), entitlement = accountEntitlements(owner); await reapChatRuns(db, userId);
-  const current = taskId?(await db.select().from(conversation).where(and(eq(conversation.id,taskId),eq(conversation.userId,userId),eq(conversation.purpose,"meal_entry"))))[0]:conversationId?(await db.select().from(conversation).where(and(eq(conversation.id,conversationId),eq(conversation.userId,userId),eq(conversation.purpose,"chat"))))[0]:await currentConversation(db,userId,true);
+  const current = taskId?(await db.select().from(conversation).where(and(eq(conversation.id,taskId),eq(conversation.userId,userId),eq(conversation.purpose,"meal_entry"))))[0]:conversationId?(await db.select().from(conversation).where(and(eq(conversation.id,conversationId),eq(conversation.userId,userId),eq(conversation.purpose,"chat"),isNull(conversation.removedAt))))[0]:await currentConversation(db,userId,true);
   if(!current)throw new ApiError(404,"not_found","此任务不存在或不属于当前账号。");
   const recent = await db.select().from(message).where(and(eq(message.userId, userId), eq(message.conversationId, current.id))).orderBy(desc(message.seq)).limit(50);
   const older = before === undefined ? recent : recent.filter(row => row.seq < before), rows = older.slice(0, 5).reverse();
@@ -184,13 +192,28 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
     .from(run).where(and(eq(run.userId,userId),taskId?eq(run.conversationId,current.id):undefined,eq(run.state,"running")));
   const grantPurpose = taskId && !entitlement.chat ? "meal_entry" : "chat";
   const grants = await db.select({ provider: connection.provider, enabled: connection.enabled, expiresAt: aiToken.expiresAt, revokedAt: aiToken.revokedAt }).from(connection).innerJoin(aiToken, and(eq(aiToken.id, connection.tokenId), eq(aiToken.userId, userId))).where(and(eq(connection.userId, userId),eq(connection.purpose, grantPurpose))).orderBy(desc(connection.createdAt));
-  return { capabilities:chatCapabilities(),entitlement,conversationId: current.id, provider: currentProvider(providerId(current.provider)), followup: current.followup, messages: rows.map(row => {
-      const rowRun = row.role === "user" ? runs.findLast(item => item.userMessageId === row.id) : runs.find(item => item.assistantMessageId === row.id);
-      const value = publicChatMessage(row,recent,rowRun?.id,rowRun?.requestId,rowRun?.userMessageId);
-      const limit = row.role === "assistant" && row.state === "error" && rowRun ? runPhotoLimit(rowRun) : undefined;
-      if (limit) value.photoLimit = {...limit,imageIds:unusedBatchPhotos(row.id,limit,runs)};
-      return value;
-    }),
+  function present(row: StoredMessage): ChatMessage {
+    const rowRun = row.role === "user" ? runs.findLast(item => item.userMessageId === row.id) : runs.find(item => item.assistantMessageId === row.id);
+    const value = publicChatMessage(row,recent,rowRun?.id,rowRun?.requestId,rowRun?.userMessageId);
+    const limit = row.role === "assistant" && row.state === "error" && rowRun ? runPhotoLimit(rowRun) : undefined;
+    if (limit && rowRun) {
+      const imageIds = unusedBatchPhotos(rowRun,limit,runs);
+      if (imageIds.length) value.photoLimit = {...limit,imageIds};
+      else {
+        value.state = "complete";
+        value.error = null;
+        delete value.contextLimited;
+      }
+    } else if (value.contextLimited) {
+      value.error = "本次请求的上下文已满。已有内容保留，可以缩小问题或查询范围后在原对话继续。";
+    }
+    return value;
+  }
+  // 批次生成的回答可能已经把原失败行推到上一页，仍需刷新客户端已加载的分批状态。
+  const photoUpdates = recent.filter(row => row.state === "error" && !rows.includes(row) &&
+    runs.find(item => item.assistantMessageId === row.id)?.requestDiagnostics.at(-1)?.maxPhotos).map(present);
+  return { capabilities:chatCapabilities(),entitlement,conversationId: current.id, provider: currentProvider(providerId(current.provider)),
+    followup: current.followup, messages: rows.map(present), ...(photoUpdates.length ? { photoUpdates } : {}),
     hasMore: older.length > 5, before: rows[0]?.seq ?? null, activeRunId: active?.id ?? null,
     runTiming: active?.conversationId === current.id ? chatRunTiming(active) : null,
     catalog: chatProviderIds.filter(providerAvailable).map(id => { const grant = grants.find(row => row.provider === id), configured = providerConfigured(id), valid = !grant || grant.enabled && !grant.revokedAt && grant.expiresAt.getTime() > Date.now();
@@ -201,6 +224,8 @@ export function publicChatMessage(row: StoredMessage, context: StoredMessage[] =
   const question=row.role==="assistant"?(questionId?context.find(item=>item.id===questionId):[...context].filter(item=>item.role==="user"&&item.seq<row.seq).sort((a,b)=>b.seq-a.seq)[0]):null;
   return { id: row.id, seq: row.seq, role: row.role as "user" | "assistant", text: row.text, provider: row.provider ? providerId(row.provider) : null, state: row.state, createdAt: row.createdAt.toISOString(),
     replyTo: row.replyToId ? { id: row.replyToId, text: quote?.text.slice(0, 280) || "原消息已超出当前历史范围" } : null, imageIds: row.imageIds, steps: row.steps, references: row.references, error: row.error, ...(runId ? { runId } : {}),...(requestId?{requestId}:{}),...(question?{question:{id:question.id,text:question.text}}:{}),
+    ...(row.state === "error" && row.error && /^(本次请求的上下文已满|本次上下文或照片较多|本轮内容超出可处理范围|本轮照片超出可处理范围)/.test(row.error)
+      ? { contextLimited: true } : {}),
     ...(row.role==="user"&&row.supplementalAnswer?.answers.length?{
       answeredQuestions:row.supplementalAnswer.answers.map(({prompt,value,skipped,outcome,fieldKey})=>({
         prompt,value,skipped,...(outcome?{outcome}:{}),...(fieldKey?.startsWith("food.amount:")?{label:fieldKey.slice(12)}:{}),
@@ -214,7 +239,14 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
     await lockChatAccount(tx, userId, input.mealTask ? "meal_entry" : "chat");
     const requestDigest = digestChat(input);
     const [duplicate] = await tx.select().from(run).where(and(eq(run.userId, userId), eq(run.requestId, input.requestId)));
-    if (duplicate) { if (duplicate.requestDigest !== requestDigest) throw new ApiError(409, "request_conflict", "同一请求编号不能用于不同内容。"); return { row: duplicate, started: false }; }
+    if (duplicate) {
+      const [original] = await tx.select({ id: conversation.id }).from(conversation).where(and(
+        eq(conversation.id, duplicate.conversationId), eq(conversation.userId, userId), isNull(conversation.removedAt),
+      ));
+      if (!original) throw new ApiError(404, "not_found", "此对话已移出历史。");
+      if (duplicate.requestDigest !== requestDigest) throw new ApiError(409, "request_conflict", "同一请求编号不能用于不同内容。");
+      return { row: duplicate, started: false };
+    }
     const [active] = await tx.select({ id: run.id }).from(run).where(and(eq(run.userId, userId), eq(run.state, "running")));
     if (active) throw new ApiError(409, "chat_busy", "已有回答正在生成，请等待或先停止。");
     const recentRequests = await tx.select({ id: run.id }).from(run).where(and(eq(run.userId, userId), gt(run.createdAt, new Date(Date.now() - 60000)))).limit(20);
@@ -262,12 +294,13 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
       }
       if (input.imageSubset) {
         const limit = previous && runPhotoLimit(previous);
-        if (!limit || !retainedAttachments || !input.imageSubset.length || input.imageSubset.length > limit.maxPhotos ||
+        if (!previous || !limit || !retainedAttachments || !input.imageSubset.length || input.imageSubset.length > limit.maxPhotos ||
             new Set(input.imageSubset).size !== input.imageSubset.length)
           throw new ApiError(400,"invalid_image_subset","请选择本条消息允许数量内的照片。");
-        const batches = await tx.select({state:run.state,executionInput:run.executionInput}).from(run)
-          .where(and(eq(run.userId,userId),eq(run.conversationId,current.id),eq(run.userMessageId,question.id)));
-        const available = unusedBatchPhotos(original.id,limit,batches);
+        const batches = await tx.select({state:run.state,userMessageId:run.userMessageId,executionInput:run.executionInput}).from(run)
+          .where(and(eq(run.userId,userId),eq(run.conversationId,current.id),eq(run.state,"complete"),
+            or(eq(run.userMessageId,question.id),sql`${run.executionInput}->>'photoBatchOf' = ${original.id}`)));
+        const available = unusedBatchPhotos(previous,limit,batches);
         if (input.imageSubset.some(id => !available.includes(id))) throw new ApiError(409,"image_subset_changed","可处理的照片已变化，请重新读取。");
         if (current.followup) throw new ApiError(409,"followup_pending","请先完成当前补充，再处理下一批照片。");
         retainedAttachments = {attachmentSourceId:retainedAttachments.attachmentSourceId,attachmentImageIds:input.imageSubset,photoBatchOf:original.id};
@@ -285,6 +318,26 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
     return { row: created, started: true };
   });
 }
+export async function removeChatConversation(db: Database, userId: string, id: string) {
+  await db.transaction(async tx => {
+    await lockActiveAccount(tx, userId);
+    const owned = and(eq(conversation.id, id), eq(conversation.userId, userId), eq(conversation.purpose, "chat"));
+    const [target] = await tx.select().from(conversation).where(owned);
+    if (!target) throw new ApiError(404, "not_found", "找不到这段对话。");
+    if (target.removedAt) return;
+
+    const [busy] = await tx.select({ id: run.id }).from(run).where(and(
+      eq(run.userId, userId), eq(run.conversationId, id), eq(run.state, "running"),
+    ));
+    if (busy) throw new ApiError(409, "chat_busy", "这段对话正在生成，请先停止回答。");
+
+    await tx.update(conversation).set({ active: false, removedAt: new Date() }).where(owned);
+    if (target.active) {
+      await tx.insert(conversation).values({ id: randomUUID(), userId, provider: currentProvider(providerId(target.provider)) });
+    }
+  });
+}
+
 export async function controlChat(db: Database, userId: string, input: { action: "select_model" | "new" | "stop" | "enable" | "revoke" | "clear_followup" | "select_conversation"; conversationId?:string; provider?: ChatProvider; runId?: string; mealTaskId?: string }) {
   const purpose = input.mealTaskId ? "meal_entry" : "chat";
   if (input.action === "stop") await requireActiveAccount(db, userId); else await requireChatAccount(db, userId, purpose);
@@ -305,7 +358,7 @@ export async function controlChat(db: Database, userId: string, input: { action:
       await tx.update(message).set({state:"stopped"}).where(and(eq(message.id,busy.assistantMessageId),eq(message.userId,userId)));stoppedRunId=busy.id;
     } else if (busy) throw new ApiError(409, "chat_busy", "请先停止当前回答，再进行此操作。");
     if(input.action==="select_conversation"){
-      const [target]=await tx.select().from(conversation).where(and(eq(conversation.id,input.conversationId??""),eq(conversation.userId,userId),eq(conversation.purpose,"chat")));
+      const [target]=await tx.select().from(conversation).where(and(eq(conversation.id,input.conversationId??""),eq(conversation.userId,userId),eq(conversation.purpose,"chat"),isNull(conversation.removedAt)));
       if(!target)throw new ApiError(404,"not_found","此对话不存在或不属于当前账号。");
       if(target.id!==current.id){await tx.update(conversation).set({active:false}).where(and(eq(conversation.userId,userId),eq(conversation.active,true)));await tx.update(conversation).set({active:true}).where(eq(conversation.id,target.id));}
     }

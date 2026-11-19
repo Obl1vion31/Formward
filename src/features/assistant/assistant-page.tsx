@@ -54,7 +54,53 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
   const pageTitle = useRef<HTMLHeadingElement>(null);
   const leftHistory = useRef(false);
 
-  useLayoutEffect(() => { if (interactive) return lockPageScroll(); }, [interactive]);
+  useLayoutEffect(() => {
+    const shell = container.current;
+    if (!shown || !shell) return;
+    const unlock = lockPageScroll("fixed");
+    const viewport = window.visualViewport;
+    let frame = 0, followBrowserUntil = 0;
+    function layout() {
+      const height = viewport?.height ?? window.innerHeight;
+      const top = Math.max(0, viewport?.offsetTop ?? 0);
+      const focused = document.activeElement;
+      const editing = focused instanceof HTMLElement && shell!.contains(focused) &&
+        (focused.matches("textarea,input:not([type=file])") || focused.isContentEditable);
+      shell!.style.setProperty("--assistant-page-height", height + "px");
+      shell!.style.setProperty("--assistant-page-top", top + "px");
+      shell!.toggleAttribute("data-assistant-keyboard", editing && Math.max(document.documentElement.clientHeight, innerHeight) - height >= 72);
+    }
+    function schedule() {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(layout);
+    }
+    function resizeOrFocus() {
+      followBrowserUntil = performance.now() + 450;
+      schedule();
+    }
+    function pan() {
+      // Safari can pan while opening the keyboard. A later drag should move only the feed.
+      if (performance.now() < followBrowserUntil) schedule();
+    }
+    layout();
+    window.addEventListener("resize", resizeOrFocus);
+    viewport?.addEventListener("resize", resizeOrFocus);
+    viewport?.addEventListener("scroll", pan);
+    shell.addEventListener("focusin", resizeOrFocus);
+    shell.addEventListener("focusout", resizeOrFocus);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", resizeOrFocus);
+      viewport?.removeEventListener("resize", resizeOrFocus);
+      viewport?.removeEventListener("scroll", pan);
+      shell.removeEventListener("focusin", resizeOrFocus);
+      shell.removeEventListener("focusout", resizeOrFocus);
+      shell.style.removeProperty("--assistant-page-height");
+      shell.style.removeProperty("--assistant-page-top");
+      shell.removeAttribute("data-assistant-keyboard");
+      unlock();
+    };
+  }, [shown]);
   useLayoutEffect(() => {
     if (!interactive) return;
     const frame = requestAnimationFrame(() => pageTitle.current?.focus({ preventScroll: true }));

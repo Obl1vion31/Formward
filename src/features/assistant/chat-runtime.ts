@@ -186,13 +186,13 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
       const {body} = context;
       history = context.history;
       if(body.model!==activeRun.model)throw new ApiError(409,"model_configuration_changed","此任务的模型配置已变化，未自动换模型。请核对已有结果后手动重试。");
-      const maxPhotos = !context.fits && context.maxPhotos > 0 && context.maxPhotos < imageCount ? context.maxPhotos : undefined;
+      const maxPhotos = round === 0 && !context.fits && context.maxPhotos > 0 && context.maxPhotos < imageCount ? context.maxPhotos : undefined;
       const diagnostic:ChatRequestDiagnostic={state:"prepared",requestSha256:createHash("sha256").update(JSON.stringify(body)).digest("hex"),round:round+1,provider,model:body.model,messageId:question.id,attachmentSourceId:binding.attachmentSourceId,images:prepared?.images??[],textSha256:createHash("sha256").update(question.text).digest("hex"),...(maxPhotos ? {maxPhotos} : {})};
       requestDiagnostics.push(diagnostic);
       await db.update(assistantRun).set({requestDiagnostics}).where(and(eq(assistantRun.id,activeRun.id),eq(assistantRun.userId,userId)));
       if (!context.fits) throw new ApiError(409,"context_limit",maxPhotos
         ? input.mealTask ? "本轮照片超出可处理范围，请在本餐选择较少照片继续。" : "本轮照片超出可处理范围。可分批继续，其余照片仍保留。"
-        : "本轮内容超出可处理范围，可以缩小问题或查询范围后继续当前对话。");
+        : "本次请求的上下文已满。已有内容保留，可以缩小问题或查询范围后在原对话继续。");
       const reservation = await reserveChatUsage(db, userId, activeRun, reserveCost(body, chatProviders[provider].rates));
       emit({ type: "usage", usage: await chatUsage(db, userId) }); let usage: Record<string, unknown> | null = null, rejectedStatus: number | undefined;
       const beforeText = text;

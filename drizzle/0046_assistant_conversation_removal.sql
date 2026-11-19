@@ -1,0 +1,1 @@
+ALTER TABLE "assistant_conversations" ADD COLUMN "removed_at" timestamp with time zone;

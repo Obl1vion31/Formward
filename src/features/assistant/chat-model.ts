@@ -25,6 +25,7 @@ export type ChatMessage = {
   answeredQuestions?: ChatAnswer[];
   followupSourceId?: string;
   photoLimit?: ChatPhotoLimit;
+  contextLimited?: boolean;
 };
 export type ChatUsage = {
   date: string; limit: number; spent: number; reserved: number; uncertain: number; available: number;
@@ -37,6 +38,7 @@ export type ChatSnapshot = {
   capabilities?:{inlinePreviews:boolean;mealEntry:boolean};
   entitlement?: import("../auth/entitlements").AccountEntitlements;
   conversationId: string; provider: ChatProvider; followup: Followup | null; messages: ChatMessage[];
+  photoUpdates?: ChatMessage[];
   hasMore: boolean; before: number | null; activeRunId: string | null; runTiming?: ChatRunTiming | null; catalog: ChatCatalogItem[]; usage: ChatUsage;
 };
 export type ChatEvent =

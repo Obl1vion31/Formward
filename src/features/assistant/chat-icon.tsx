@@ -5,6 +5,7 @@ const glyphs = {
   stop: <rect x="6" y="6" width="12" height="12" rx="2"/>,
   plus: <path d="M12 5v14M5 12h14"/>,
   close: <path d="m6 6 12 12M18 6 6 18"/>,
+  trash: <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/>,
   more: <><circle cx="5" cy="12" r=".8"/><circle cx="12" cy="12" r=".8"/><circle cx="19" cy="12" r=".8"/></>,
   check: <path d="m5 12 4 4 10-10"/>,
   quote: <path d="M10 8H4v7h5v-4H4m16-3h-6v7h5v-4h-5"/>,

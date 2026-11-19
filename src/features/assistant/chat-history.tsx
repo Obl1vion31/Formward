@@ -1,5 +1,7 @@
 "use client";
 import { LocalLoading } from "@/components/local-loading";
+import { confirmAction } from "@/components/confirmation-state";
+import { ChatHistoryRow, type HistoryRowAction } from "./chat-history-row";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAssistantChat } from "./chat-client";
@@ -30,6 +32,8 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
   const [error, setError] = useState<Failure | null>(null);
   const [notice, setNotice] = useState("");
   const [selecting, setSelecting] = useState(false);
+  const [rowAction, setRowAction] = useState<{ id: string; action: HistoryRowAction } | null>(null);
+  const [removing, setRemoving] = useState(false);
   const request = useRef<AbortController | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const title = useRef<HTMLHeadingElement>(null);
@@ -128,6 +132,7 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
   }, [snapshot]);
 
   function inspect(id: string) {
+    setRowAction(null);
     returnTo.current = { id, top: scroller.current?.scrollTop ?? 0 };
     onInspect(id);
   }
@@ -140,6 +145,34 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
     source.scrollIntoView({ block: "nearest" });
     source.focus({ preventScroll: true });
   }
+  async function remove(id: string) {
+    if (removing) return;
+    const accepted = await confirmAction({
+      title: "删除这段对话？",
+      message: "这段对话将移出历史。已保存的记录和待核对条目仍可使用。",
+      confirmLabel: "删除",
+      danger: true,
+    });
+    if (!accepted) return;
+    setNotice("");
+    setRemoving(true);
+    try {
+      if (!await chat.control("remove_conversation", undefined, id)) return;
+      const items = list?.items ?? [];
+      const index = items.findIndex(item => item.id === id);
+      const next = items[index + 1] ?? items[index - 1];
+      setList(value => value && ({ ...value, items: value.items.filter(item => item.id !== id) }));
+      setRowAction(null);
+      setNotice("已移出历史");
+      requestAnimationFrame(() => {
+        const target = next && scroller.current?.querySelector<HTMLElement>('[data-history-id="' + CSS.escape(next.id) + '"]');
+        (target || title.current)?.focus({ preventScroll: true });
+      });
+    } finally {
+      setRemoving(false);
+    }
+  }
+
   async function resume() {
     if (!view || selecting) return;
     setSelecting(true);
@@ -156,7 +189,11 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
   </div>;
 
   const transcript = chatTranscript(view?.messages??[]);
-  return <section className={styles.history} data-page={page || undefined} aria-label="历史会话" onKeyDown={event => {
+  return <section className={styles.history} data-page={page || undefined} aria-label="历史会话"
+    onPointerDownCapture={event => {
+      if (rowAction && (event.target as Element).closest("[data-history-row]")?.getAttribute("data-history-row") !== rowAction.id)
+        setRowAction(null);
+    }} onKeyDown={event => {
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
@@ -171,15 +208,21 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
       {!page && <button type="button" onClick={back}>{conversationId ? "返回列表" : "返回"}</button>}
     </header>
     {row && <p className={styles.historyTitle}>{row.title}<time dateTime={row.updatedAt}>{shortDate.format(new Date(row.updatedAt))}</time></p>}
-    <div className={styles.historyScroll} ref={scroller}>
+    <div className={styles.historyScroll} data-detail={!!conversationId || undefined} ref={scroller}
+      onScroll={() => { if (rowAction) setRowAction(null); }}>
       {!conversationId ? <>
         {!list && !failure && <div className={styles.historyFeedback}><LocalLoading label="正在读取会话…"/></div>}
         {list && (list.items.length
-          ? <ul className={styles.historyList}>{list.items.map(item => <li key={item.id}><button type="button" data-history-id={item.id} onClick={() => inspect(item.id)}>
-            <strong>{item.title}</strong><span>{shortDate.format(new Date(item.updatedAt))}{item.active ? " · 当前对话" : ""}</span>
-          </button></li>)}</ul>
+          ? <ul className={styles.historyList}>{list.items.map(item => <ChatHistoryRow
+              key={item.id} id={item.id} title={item.title}
+              stamp={shortDate.format(new Date(item.updatedAt)) + (item.active ? " · 当前对话" : "")}
+              action={rowAction?.id === item.id ? rowAction.action : undefined}
+              busy={removing || chat.managing} onInspect={() => inspect(item.id)} onRemove={() => void remove(item.id)}
+              onAction={action => setRowAction(action ? { id: item.id, action } : null)}/>)}</ul>
           : <p className={styles.historyFeedback}>暂无历史会话</p>)}
         {errorNote}
+        {notice && <p className={styles.historyFeedback} role="status">{notice}</p>}
+        {chat.error && <p className={styles.historyFeedback} role="alert">{chat.error}</p>}
         {list?.next && !failure && <button type="button" className={styles.historyMore} disabled={!!busy} onClick={() => void readHistory({ kind: "list", cursor: list.next! })}>{busy ? "正在读取…" : "加载更早会话"}</button>}
       </> : <div className={styles.historyTranscript} data-paginated={view && (view.hasMore || view.messages.length > 5) || undefined}>
         {view?.hasMore && view.before != null && !failure && <button type="button" className={styles.historyMore} disabled={!!busy} onClick={() => void readHistory({ kind: "detail", id: conversationId, before: view.before! })}>{busy ? "正在读取…" : "查看更早消息"}</button>}
@@ -202,7 +245,7 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
       {chat.uploading && <p>照片上传中，就绪后可切换。</p>}
       {!chat.enabled && <p>当前档位支持查看历史，继续对话需要聊天权限。</p>}
       {chat.error && <p role="alert">{chat.error}</p>}
-      <button type="button" disabled={!chat.enabled || chat.busy || chat.managing || !!chat.uploading || selecting} onClick={() => void resume()}>{selecting ? "正在切换…" : "继续此对话"}</button>
+      <button type="button" disabled={!chat.enabled || chat.busy || chat.managing || !!chat.uploading || selecting} onClick={() => void resume()}>{selecting ? "正在返回…" : "回到这段对话"}</button>
     </footer>}
   </section>;
 }
