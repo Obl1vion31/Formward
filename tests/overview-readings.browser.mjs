@@ -45,17 +45,22 @@ try{
  const go=async path=>{await page.goto(base+path);await ready();};
  const shot=async name=>{await page.waitForTimeout(80);const path=resolve(art,name+".png");await page.screenshot({path});screenshots.push(path);};
  const choose=async date=>{await page.locator('[data-overview-date="'+date+'"]').evaluate(el=>el.focus({preventScroll:true}));await page.waitForTimeout(60);assert.equal(await page.locator('[data-chart-selection]').getAttribute("data-selected-date"),date);};
- const geometry=()=>page.locator('[data-record-trend]').evaluate(root=>{const slots=["date","metrics","range","title","plot"];return slots.map(slot=>Math.round(root.querySelector('[data-record-slot="'+slot+'"]').getBoundingClientRect().top*10)/10);});
+ const geometry=()=>page.locator('section[aria-label="热量与晨重趋势"]').evaluate(root=>["range","comparison","toolbar","plot"].map(slot=>root.querySelector("[data-overview-"+slot+"]").getBoundingClientRect().top+scrollY));
+
  for(const [w,h]of[[320,560],[390,720],[430,780],[390,560],[844,390],[1100,900],[1440,900],[1920,1080]]){
   await page.setViewportSize({width:w,height:h});
   for(const theme of["dark","light"]){
-   await go("/dashboard");await page.evaluate(value=>{localStorage.setItem("formward-theme",value);document.documentElement.dataset.theme=value;window.dispatchEvent(new Event("formward-theme-change"));},theme);await choose(yesterday);const mobile=w<=700;
-   assert.equal(await page.locator('[data-record-slot="metrics"]>div').count(),mobile?3:6);assert.equal(await page.locator('[data-overview-week] button').count(),0,"No nested weekly disclosures");assert.equal(await page.locator('[data-record-slot="status"]').count(),0,"No standalone hidden status space");
-   if(mobile){assert.equal(await page.locator('[data-overview-secondary]>div').count(),3);const ys=await page.locator('[data-overview-secondary]>div').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().top));assert.ok(Math.max(...ys)-Math.min(...ys)<=1,"secondary metrics share one row");assert.match(await page.locator('[data-overview-next] p').innerText(),/→/);}
-   else if(w>=1100){const ys=await page.locator('[data-record-slot="metrics"]>div').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().top));assert.ok(Math.max(...ys)-Math.min(...ys)<=1,"desktop six unchanged");assert.ok(await page.locator('[class*=weekBasis]').isVisible(),"desktop basis directly visible");}
+   await go("/dashboard");await page.evaluate(value=>{localStorage.setItem("formward-theme",value);document.documentElement.dataset.theme=value;window.dispatchEvent(new Event("formward-theme-change"));},theme);await choose(yesterday);
+   assert.equal(await page.locator("[data-overview-comparison] > div").count(),2);
+   assert.equal(await page.locator("[data-overview-week-basis]:visible").count(),0);
+   for(const metric of ["energy","weight"]){
+    const day=await page.locator("[data-overview-day-"+metric+"]").boundingBox();
+    const week=await page.locator("[data-overview-week-"+metric+"]").boundingBox();
+    assert.ok(Math.abs(day.x-week.x)<=1,"当日和近7天同列对齐");
+   }
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,"no page overflow");
    const initial=await geometry();await shot(theme+"-overview-"+w+"x"+h);
-   for(const offset of[-2,-4,-6]){await choose(addCalendarDays(today,offset));const next=await geometry();assert.ok(next.every((n,i)=>Math.abs(n-initial[i])<=1),"selection geometry stable "+JSON.stringify({w,theme,initial,next}));if(offset===-2)assert.match(await page.locator('[data-record-slot="date"]').innerText(),/饮食/);if(offset===-4)assert.match(await page.locator('[data-metric-number]').nth(2).innerText(),/^0/);}
+   for(const offset of[-2,-4,-6]){await choose(addCalendarDays(today,offset));const next=await geometry();assert.ok(next.every((n,i)=>Math.abs(n-initial[i])<=1),"selection geometry stable "+JSON.stringify({w,theme,initial,next}));if(offset===-2)assert.match(await page.locator("[data-overview-day-energy]").innerText(),/未计算/);if(offset===-4)assert.match(await page.locator("[data-overview-day-energy]").innerText(),/持平/);}
    if(w===390){await shot(theme+"-missing-morning-390");await choose(addCalendarDays(today,-2));await shot(theme+"-pending-meal-390");}
    checks.push(theme+"-overview-"+w+"x"+h);
   }
@@ -66,7 +71,7 @@ try{
  const stress=await submitMealOperation(db,{userId:owner.id,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_meal",id:oldMeal.id,version:oldMeal.version,date:stressDate,mealType:"午餐",items:[{kind:"food",name:"长数字压力样本（虚构）",quantity:"1",unit:"份",nutritionBasis:"consumed_total",sourceKind:"reference",nutrition:{caloriesKcal:"99999",proteinG:"120",carbsG:"260",fatG:"70"}}]}]});await decideMealOperation(db,owner.id,stress.id,stress.revision,"confirm");
  const stressDay=(await readMealSnapshot(db,owner.id)).meals.find(m=>m.id===oldMeal.id).day;await setMealDayStatus(db,owner.id,{operationId:randomUUID(),date:stressDate,status:"complete",version:stressDay.version,contentDigest:stressDay.contentDigest});
  await page.setViewportSize({width:320,height:560});await go("/dashboard");await page.getByRole("button",{name:"30D",exact:true}).click();await choose(yesterday);const longGeometry=await geometry();await choose(addCalendarDays(today,-17));assert.deepEqual(await geometry(),longGeometry,"long secondary readouts reserve width for the whole interval");assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);await shot("long-readings-320");checks.push("long-interval-readings-stable");
- const touch=await browser.newContext({viewport:{width:844,height:390},isMobile:true,hasTouch:true,locale:"zh-CN",timezoneId:"Asia/Shanghai",reducedMotion:"reduce"});await touch.addCookies(await context.cookies());const tp=await touch.newPage();tp.on("pageerror",e=>errors.push(e.message));await tp.goto(base+"/dashboard");await tp.waitForLoadState("networkidle");assert.equal(await tp.locator('[data-overview-secondary]>div').count(),3);await tp.screenshot({path:resolve(art,"touch-landscape.png")});await touch.close();checks.push("real-coarse-pointer-landscape");
+ const touch=await browser.newContext({viewport:{width:844,height:390},isMobile:true,hasTouch:true,locale:"zh-CN",timezoneId:"Asia/Shanghai",reducedMotion:"reduce"});await touch.addCookies(await context.cookies());const tp=await touch.newPage();tp.on("pageerror",e=>errors.push(e.message));await tp.goto(base+"/dashboard");await tp.waitForLoadState("networkidle");assert.equal(await tp.locator("[data-overview-comparison] > div").count(),2);await tp.screenshot({path:resolve(art,"touch-landscape.png")});await touch.close();checks.push("real-coarse-pointer-landscape");
  await go("/dashboard");await page.getByRole("button",{name:"自定义",exact:true}).click();await page.getByLabel("总览开始日期").fill(addCalendarDays(today,-6));await page.getByLabel("总览结束日期").fill(yesterday);await page.getByRole("button",{name:"应用",exact:true}).click();await choose(yesterday);checks.push("custom-range-and-keyboard");
  const plain=await page.locator('[data-overview-week]').innerText();assert.equal(await page.getByLabel("显示体重估计",{exact:true}).count(),0);assert.equal(await page.locator('[data-overview-week]').innerText(),plain);checks.push("no-body-estimation-control");
  assert.deepEqual(errors,[]);assert.deepEqual(networkErrors,[]);

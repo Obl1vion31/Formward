@@ -27,15 +27,15 @@ export function morningChangeScale(values: (number | null)[]): ChartScale {
 }
 
 /** 零线固定。刻度按实际像素间距取舍，短图仍留可读的参照值。 */
-export function spacedTicks(scale: ChartScale, height: number) {
+export function spacedTicks(scale: ChartScale, height: number, minimumGap = 48) {
   const span = scale.max - scale.min;
-  const spacing = Math.min(48, height / 2);
+  const spacing = Math.min(minimumGap, height / 2);
   const stride = Math.max(1, Math.ceil(spacing / (scale.step * height / span) - 1e-8));
   const step = scale.step * stride;
   const visible = scale.ticks.filter(tick => tick !== 0 && Math.abs(tick / step - Math.round(tick / step)) < 1e-8);
   if (!visible.length) {
     const farthest = scale.ticks.reduce((end, tick) => Math.abs(tick) > Math.abs(end) ? tick : end, 0);
-    if (farthest !== 0 && Math.abs(farthest) * height / span >= Math.min(24, spacing)) visible.push(farthest);
+    if (farthest !== 0 && Math.abs(farthest) * height / span >= Math.min(minimumGap / 2, spacing)) visible.push(farthest);
   }
   return [0, ...visible].sort((a, b) => a - b);
 }

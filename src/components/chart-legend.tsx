@@ -3,7 +3,6 @@ export function OverviewLegend() {
   return <>
     <span><i aria-hidden="true" style={{ background: 'var(--data-deficit)', width: 5, height: 9, borderRadius: 1 }} />缺口</span>
     <span><i aria-hidden="true" style={{ background: 'var(--data-surplus)', width: 5, height: 9, borderRadius: 1 }} />盈余</span>
-    <span><i aria-hidden="true" style={{ background: 'var(--muted)', width: 8, height: 2, borderRadius: 1 }} />有记录，未计收支</span>
   </>;
 }
 

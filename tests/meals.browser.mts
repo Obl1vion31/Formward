@@ -115,7 +115,7 @@ try {
       await plots.first().locator(`[data-overview-date="${dateAt(-1)}"]`).focus();
       const positions=await page.locator('[data-crosshair-date]').evaluateAll((nodes:Element[])=>nodes.map(node=>node.getAttribute('x1')));
       assert.equal(new Set(positions).size,1);assert.equal(await page.getByLabel('日期对照',{exact:true}).getAttribute('data-selected-date'),dateAt(-1));
-      const readout=await page.getByLabel('日期对照',{exact:true}).innerText();assert.ok(['摄入','消耗'].every(label=>readout.includes(label)));assert.match(readout,/热量|待补齐|收支平衡|全天待确认|当天未记全/);
+      const readout=await page.getByLabel('日期对照',{exact:true}).innerText();assert.ok(['当日','近 7 天'].every(label=>readout.includes(label)));assert.match(readout,/缺口|盈余|收支持平|收支未计算/);
       assert.ok(await plots.first().locator("svg").evaluateAll((nodes:SVGSVGElement[])=>nodes.every(node=>Math.abs(node.getBoundingClientRect().width-Number(node.getAttribute("viewBox")!.split(" ")[2]))<1)));
     }
     await page.screenshot({path:`/tmp/formward-overview-visual/overview-${width}.png`,fullPage:true});

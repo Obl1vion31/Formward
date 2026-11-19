@@ -3,7 +3,6 @@ import {LocalLoading} from "./local-loading";
 import {ChartSelectionColumn} from "./chart-selection-marker";
 import {TrendAxes} from "./trend-axes";
 import {addCalendarDays,linkedDate} from "@/features/measurements/calendar";
-import {displayRecordDate} from "./record-dates";
 import bodyStyles from "@/features/measurements/measurements-view.module.css";
 import {useContext,useLayoutEffect,useRef,useState} from 'react';
 import {useSearchParams,useRouter} from 'next/navigation';
@@ -16,11 +15,11 @@ import {WorkspacePending} from "@/features/dashboard/workspace-cache";
 import {DailyRecords} from './daily-records';
 import {WorkspaceSourceContext} from './workspace-frame-state';
 import {EnergySourceStatusSkeleton} from '@/features/data-sources/energy-status';
-import {OverviewLegend,NutritionLegend,EnergyLegend} from './chart-legend';
+import {NutritionLegend,EnergyLegend} from './chart-legend';
 import {MetricCardRailPending} from './metric-card-rail';
 import {TrendGlyph} from './trend-glyph';
 import {linkedTrend} from './metric-trend-model';
-import {OverviewReadings} from '@/features/dashboard/overview-trend';
+import {OverviewTrendLayout} from '@/features/dashboard/overview-trend-layout';
 import measurementStyles from '@/features/measurements/measurements-view.module.css';
 import {NutritionComposition} from "@/features/meals/nutrition-composition";
 import {EnergyComposition} from '@/features/activities/energy-composition';
@@ -94,8 +93,9 @@ export function WorkspaceLoading({kind,returnShell=false,destination}:{kind:'ove
 }
 function OverviewLoading({date,rangeMode,readingStatus}:{date:string;rangeMode?:string;readingStatus?:React.ReactNode}){return <RecordWorkspace title="总览" className={overview.workspace}>
  <MetricCardRailPending readingStatus={readingStatus}/>
- <div className={overview.mobileTrend+' mobile-only'}><div className={overview.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" disabled>查看记录 →</button></div><ChartRanges value={rangeMode??"7"} change={()=>{}} loading/><div className={overview.mobileSelected}>{date?<time dateTime={date}>{displayRecordDate(date)}</time>:<span>—</span>}<span>—</span></div><div className={overview.mobileLegend}><OverviewLegend/></div><div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle} data-compact="true"></div></div>
- <div className="desktop-only"><RecordTrendPanel date={date} view={()=>{}} loading metrics={['摄入','消耗','收支','晨重','次晨','次晨变化'].map((label,index)=>({label,value:'',unit:index<3?'kcal':'kg',inlineUnit:index>=3}))} title="热量收支" unit="kcal" supplementary={<OverviewReadings mobile={false} pending/>} range={<ChartRanges value={rangeMode??"30"} change={()=>{}} loading/>}  legend={<OverviewLegend/>}><div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle} data-compact="false"></div></RecordTrendPanel></div>
+ <OverviewTrendLayout date={date} range={rangeMode??"30"} mobileRange={rangeMode??"7"} changeRange={()=>{}}>
+  <div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle}/>
+ </OverviewTrendLayout>
  </RecordWorkspace>;}
 function PendingPlotFrame({children,kind,frameRef,shared,linked,adaptive,axisLeft,short}:{children:React.ReactNode;kind:string;frameRef:React.RefObject<HTMLDivElement|null>;shared:boolean;linked:boolean;adaptive:boolean|'auto';axisLeft:string;short:boolean}){
  if(kind==='energy')return <EnergyPlotFrame frameRef={frameRef} compact={short} adaptive={adaptive} className={linked?'linked-trend-plot':'detail-trend-plot'}>{children}</EnergyPlotFrame>;
