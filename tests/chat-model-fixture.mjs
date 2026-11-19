@@ -2,6 +2,9 @@
 import {readFile} from 'node:fs/promises';
 const fixture=JSON.parse(await readFile(process.env.FORMWARD_CHAT_BROWSER_FIXTURE,'utf8'));
 const images = new Map(await Promise.all((fixture.samples??[]).map(async sample=>[sample.pathname,await readFile(sample.file)])));
+const live = process.env.FORMWARD_CHAT_LIVE_KEY_FILE
+  ? await (await import("./assistant-context-qwen.mjs")).budgetedQwen(fixture,globalThis.fetch)
+  : null;
 const original=globalThis.fetch,allowed=new Set(['maas.qianwenaiapi.com','api.xiaomimimo.com','open.bigmodel.cn']);
 function result(content,calls,slow=false,reasoning=""){
  const usage={prompt_tokens:180,completion_tokens:60,prompt_tokens_details:{cached_tokens:40}};
@@ -17,6 +20,7 @@ globalThis.fetch=async function(input,init){
   return new Response(bytes,{headers:{'content-type':'image/png'}});
  }
  if(!allowed.has(url.hostname))return original(input,init);
+ if (live) return live(url,init);
  const body=JSON.parse(typeof init?.body==='string'?init.body:await input.clone().text()),lastUser=[...body.messages].reverse().find(message=>message.role==='user'),text=typeof lastUser?.content==='string'?lastUser.content:lastUser?.content?.find(part=>part.type==='text')?.text??'';
  const system=String(body.messages[0]?.content);
  if (system.startsWith("本轮只读取这批照片")) {

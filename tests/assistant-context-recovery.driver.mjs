@@ -181,6 +181,10 @@ export async function runAssistantContextRecovery(db) {
     await showSource(text);
     assert.equal((await chat()).conversationId,original);
     assert.equal(await input.inputValue(),"留在旧对话的草稿");
+    if (!mobile) {
+      await page.getByLabel("选择聊天照片",{exact:true}).setInputFiles(samples[2].file);
+      await page.waitForFunction(()=>document.querySelector('[data-photo-phase="ready"]'));
+    }
     let dropped = false;
     await page.route("**/api/assistant-chat/control",async route=>{
       if (!dropped && route.request().postDataJSON().action==="resume_in_new_conversation") {
@@ -201,7 +205,7 @@ export async function runAssistantContextRecovery(db) {
     assert.ok(started.activeRunId);
     assert.ok(dropped);
     await shot("resuming","只点击一次，响应丢失后接回同一个新会话，直接续答");
-    await flow.open();
+    if (mobile) await flow.open();
     await page.getByText("已接着说明。沿用原来已保存的晚餐。",{exact:true}).waitFor();
     const completed=await finished();
     assert.equal(completed.conversationId,created);
@@ -214,6 +218,10 @@ export async function runAssistantContextRecovery(db) {
     await shot("continued","刷新后显示原问题与原图，补充说明和已保存卡都可看");
     await showSource(text);
     assert.equal((await chat()).conversationId,original);
+    if (!mobile) {
+      assert.equal(await input.inputValue(),"留在旧对话的草稿");
+      await button("移除照片 1").waitFor();
+    }
     assert.equal((await existingMeals()).size,previousMeals.size+1);
     check("一键直接续答，响应丢失与刷新均只接回一个任务，原卡与原餐没有重复");
   }
@@ -269,7 +277,7 @@ export async function runAssistantContextRecovery(db) {
     const {page,input,button,chat,control,send,finished,shot,check,showSource} = flow;
     const id = (await chat()).conversationId;
     const history = Array.from({length:20},(_,index)=>({id:randomUUID(),userId,conversationId:id,seq:index+1,
-      role:index%2?"assistant":"user",text:index%2?"虚构的可重复前文。"+"示".repeat(12800):"容量预警验收问答 "+(index+1)}));
+      role:index%2?"assistant":"user",text:index%2?"虚构的可重复前文。"+"示".repeat(index===19?20000:12800)+"以上为隔离验收用的示例记录。":"容量预警验收问答 "+(index+1)}));
     await db.insert(assistantMessage).values(history.slice(0,18));
     await db.update(assistantConversation).set({sequence:18}).where(eq(assistantConversation.id,id));
     await flow.open();
@@ -510,7 +518,94 @@ export async function runAssistantContextRecovery(db) {
     }
   }
 
+  async function liveQwen(flow) {
+    const {page,button,chat,control,open,send,shot,check}=flow;
+    const cases=[];
+    const budget=()=>readFile(join(directory,"qwen-budget.json"),"utf8").then(JSON.parse);
+    const canSpend=entry=>!entry.stopped && !entry.inFlight && entry.settledCny+entry.maximumCny<=entry.limitCny;
+    const reportPath=join(directory,"qwen-journeys.json");
+    const twoPrompt="请查 "+fixture.observed+" 当天已保存的饮食记录并简述，然后把 "+fixture.today+" 的这顿晚餐作为一餐新增预览。两图是一餐的照片，请关联两张原图。实际吃了白切鸡熟肉150克、鸡油饭130克、黄瓜50克，油和调味可以合理估算。备注写“隔离两图样例”。我明确要另记这顿晚餐，请生成待确认卡。";
+    const fourPrompt="请把 "+fixture.today+" 的这顿午餐整理成一份新增餐次预览。四张图属于同一餐，后两张一起辅助识别，只记录一餐并关联四张原图。实际吃了白切鸡熟肉120克、鸡油饭100克、黄瓜40克，别重复计算。备注写“隔离四图样例”，请生成待确认卡。";
+    const resumePrompt="请把 "+fixture.today+" 的这顿晚餐作为一餐新增预览。实际吃了白切鸡熟肉110克、鸡油饭105克、黄瓜35克，可估算其他营养，关联两张原图，生成一份待确认餐次。";
+    async function run(name,count,text,action,previousRun,checkQuery=false){
+      const entry={name,images:count,passed:false};
+      cases.push(entry);
+      const existing=await existingMeals();
+      try{
+        await action();
+        await page.getByText(text,{exact:true}).waitFor();
+        await button("停止生成").waitFor({state:"hidden",timeout:240000});
+        const snapshot=await chat(), answer=snapshot.messages.at(-1);
+        assert.ok(answer && answer.role==="assistant" && answer.runId!==previousRun);
+        const [row]=await db.select().from(assistantRun).where(eq(assistantRun.id,answer.runId));
+        const usage=await db.select().from(assistantUsageRequest).where(eq(assistantUsageRequest.runId,row.id));
+        const feeByRound=usage.sort((left,right)=>left.createdAt-right.createdAt);
+        entry.conversationId=snapshot.conversationId;
+        entry.state=answer.state;
+        let chargedRound=0;
+        entry.rounds=row.requestDiagnostics.map(item=>{
+          const bill=item.state==="prepared"?undefined:feeByRound[chargedRound++];
+          return {state:item.state,images:item.images.length,phase:item.phase??"direct",estimate:item.inputEstimate,
+            input:bill?.usage?.prompt_tokens,output:bill?.usage?.completion_tokens,cached:bill?.usage?.prompt_tokens_details?.cached_tokens,
+            costCny:bill?.costCny===null?null:Number(bill?.costCny??0)};
+        });
+        entry.peak=Math.max(0,...entry.rounds.map(item=>item.estimate??0));
+        entry.costCny=entry.rounds.reduce((sum,item)=>sum+(item.costCny??0),0);
+        entry.steps=answer.steps.map(({name,state})=>({name,state}));
+        assert.equal(answer.state,"complete",answer.error??"未正常完成");
+        if(checkQuery)assert.ok(answer.steps.some(step=>step.name==="query_meals"&&step.state==="complete"),"真实餐次查询成功");
+        assert.equal(answer.references.filter(ref=>ref.kind==="preview").length,1,"仅一张待确认卡");
+        assert.equal((await existingMeals()).size,existing.size,"等待确认期间没有写入正式餐次");
+        await button("保存确认").last().waitFor();
+        await shot(name+"-preview",count+" 张图的真实千问待确认结果");
+        await button("保存确认").last().click();
+        await page.getByRole("heading",{name:"已保存",exact:true}).last().waitFor();
+        const saved=(await meals()).filter(row=>!existing.has(row.id));
+        assert.equal(saved.length,1);
+        assert.equal(saved[0].imageIds.length,count);
+        entry.passed=true;
+        check(name+" 生成一张待确认卡，正式保存一餐并关联 "+count+" 张原图");
+        await shot(name+"-saved",count+" 张图实际保存结果");
+        return row;
+      } catch(error){
+        entry.failure=String(error);
+        await shot(name+"-unmet","真实模型未达到该组验收条件");
+      } finally {
+        await writeFile(reportPath,JSON.stringify({cases,budget:await budget()},null,2));
+      }
+    }
+    const first=await run("qwen-two",2,twoPrompt,()=>send(twoPrompt,2),undefined,true);
+    if (!canSpend(await budget())) return;
+    const second=await run("qwen-four",4,fourPrompt,()=>send(fourPrompt,4),first?.id);
+    if (!first || !second || !canSpend(await budget())) return;
+
+    await control({action:"new"});
+    const {conversationId}=await chat(), questionId=randomUUID(), answerId=randomUUID(), requestId=randomUUID();
+    const selected=samples.slice(0,2).map(item=>item.id);
+    await db.insert(assistantMessage).values([
+      {id:questionId,userId,conversationId,seq:1,role:"user",text:resumePrompt,imageIds:selected},
+      {id:answerId,userId,conversationId,seq:2,role:"assistant",provider:"qwen",state:"error",
+        error:"这次要处理的内容太多，回复已中断。"},
+    ]);
+    await db.update(assistantConversation).set({sequence:2}).where(eq(assistantConversation.id,conversationId));
+    const sourceId=randomUUID();
+    await db.insert(assistantRun).values({
+      id:sourceId,userId,conversationId,userMessageId:questionId,assistantMessageId:answerId,requestId,requestDigest:"isolated-replay",
+      provider:"qwen",model:"qwen3.8-flash",state:"error",
+      executionInput:{action:"send",requestId,provider:"qwen",conversationId,timezone:"Asia/Shanghai",attachmentSourceId:questionId,
+        attachmentImageIds:selected,photoBatch:selected.map((imageId,index)=>({imageId,
+          notes:second.executionInput?.photoBatch?.[index]?.notes??"同一餐的图片，观察到白切鸡、米饭及黄瓜。"}))},
+    });
+    await open();
+    await run("qwen-resume",2,resumePrompt,()=>button(resumeInNew).click(),sourceId);
+  }
+
   try{
+    if(process.env.FORMWARD_CONTEXT_CASE==="live"){
+      assert.ok(process.env.FORMWARD_CHAT_LIVE_KEY_FILE,"真实模型脚本必须启用独立预算限制");
+      await journey("qwen",false,liveQwen);
+      return;
+    }
     if(process.env.FORMWARD_CONTEXT_CASE==="capacity"){
       for(const mobile of [true,false]) {
         const surface=mobile?"mobile":"desktop";

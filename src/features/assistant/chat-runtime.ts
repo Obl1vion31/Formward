@@ -366,7 +366,8 @@ export async function executeChatRun(db: Database, activeRun: StoredRun, input: 
         } else if (!catalog.loaded(name)) result = catalog.missing(name);
         else {
           const definition = catalog.definitions.find(t => t.name === name)!, write = !definition.annotations?.readOnlyHint;
-          if (name === "preview_meals" && execution?.photoBatch) args = mergedMealPhotoArgs(args,binding.attachmentImageIds);
+          if (name === "preview_meals" && !input.mealTask && binding.attachmentImageIds.length)
+            args = mergedMealPhotoArgs(args,binding.attachmentImageIds);
           const normalized = { ...args }; delete normalized.operationId;
           const fingerprint = digestChat({ name, args: normalized });
           const cached = write || resume || execution?.photoBatch

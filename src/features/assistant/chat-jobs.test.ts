@@ -13,7 +13,7 @@ import type {Database} from "../../db/client";
 import {chatAttachmentBinding,chatImageContent} from "./chat-attachments";
 import {claimChatJob,executeChatJob} from "./chat-jobs";
 import {chatRunStream} from "./chat-stream";
-import {startChatRun,currentConversation,chatSnapshot,controlChat,listChatConversations,removeChatConversation,reapChatRuns,reserveChatUsage,type ChatSend} from "./chat-store";
+import {startChatRun,currentConversation,chatSnapshot,controlChat,listChatConversations,removeChatConversation,reapChatRuns,reserveChatUsage,resumeChatInNewConversation,type ChatSend} from "./chat-store";
 const pg=new PGlite(),testDb=drizzle(pg,{schema}),db=testDb as unknown as Database,userId=randomUUID(),other=randomUUID();
 const prior=new Map<string,string|undefined>();
 before(async()=>{for(const[k,v]of Object.entries({FORMWARD_CHAT_ENABLED:"1",FORMWARD_CHAT_PILOT_USER_ID:userId,QWEN_API_KEY:"fictional-key",MIMO_API_KEY:"fictional-key",BETTER_AUTH_URL:"http://localhost:3000"})){prior.set(k,process.env[k]);process.env[k]=v;}await migrate(testDb,{migrationsFolder:"drizzle"});await db.insert(schema.user).values([{id:userId,name:"后台隔离账号",email:userId+"@example.test",role:"owner",membershipTier:"plus"},{id:other,name:"其他隔离账号",email:other+"@example.test"}]);});
@@ -225,6 +225,47 @@ test("原会话错误引用只授权本账号，首次发送接续一条引用�
   const plain=await startChatRun(db,userId,{...job.input,conversationId:next,requestId:randomUUID(),imageIds:[],text:"普通发送。"});
   assert.equal(plain.row.executionInput?.contextQuote,undefined);
   await controlChat(db,userId,{action:"stop",runId:plain.row.id});
+});
+
+test("新对话一键续答事务防重，并保留原问题、原时区和已读附件",async()=>{
+  await db.update(schema.assistantRun).set({createdAt:new Date(Date.now()-120_000)}).where(eq(schema.assistantRun.userId,userId));
+  const photo=await image(), originalTime=new Date("2026-11-19T15:56:00.000Z");
+  const job=await begin({text:"昨天的晚餐，按这张照片继续核对。",imageIds:[photo.id]});
+  const {id,conversationId,assistantMessageId,userMessageId}=job.row;
+  await db.update(schema.assistantMessage).set({createdAt:originalTime}).where(eq(schema.assistantMessage.id,userMessageId));
+  await db.update(schema.assistantMessage).set({state:"error",error:chatContextLimitNotice}).where(eq(schema.assistantMessage.id,assistantMessageId));
+  const execution=job.row.executionInput!;
+  await db.update(schema.assistantRun).set({state:"error",executionInput:{...execution,photoBatch:[{imageId:photo.id,notes:"已核对菜品。"}]}})
+    .where(eq(schema.assistantRun.id,id));
+  await db.update(schema.user).set({membershipTier:"plus"}).where(eq(schema.user.id,other));
+  try {
+    await assert.rejects(()=>resumeChatInNewConversation(db,other,conversationId,assistantMessageId),/原对话已不可用/);
+  } finally {
+    await db.update(schema.user).set({membershipTier:"free"}).where(eq(schema.user.id,other));
+  }
+  const results=await Promise.all([1,2].map(()=>resumeChatInNewConversation(db,userId,conversationId,assistantMessageId)));
+  assert.equal(results[0],results[1]);
+  assert.notEqual(results[0],conversationId);
+  const started=await chatSnapshot(db,userId);
+  assert.equal(started.conversationId,results[0]);
+  assert.equal(started.messages[0].text,job.input.text);
+  assert.equal(started.messages[0].createdAt,originalTime.toISOString());
+  assert.deepEqual(started.messages[0].imageIds,[photo.id]);
+  assert.equal(started.pendingContextQuote,undefined);
+  assert.equal(started.messages[1].resumingTask,true);
+  const claimed=await claimChatJob(db,"context-resume");
+  assert.equal(claimed?.id,started.activeRunId);
+  await executeChatJob(db,claimed!,new AbortController().signal,{
+    imageLoader:async()=>assert.fail("已经处理的照片应复用"),
+    fetcher:async(_url,init)=>{
+      const body=String(init?.body);
+      assert.match(body,/2026-11-19T15:56:00.000Z/);
+      assert.match(body,/已核对菜品/);
+      assert.doesNotMatch(body,/data:image/);
+      return completion("已在新会话继续。");
+    },
+  });
+  assert.equal((await chatSnapshot(db,userId)).messages.at(-1)?.text,"已在新会话继续。");
 });
 
 test("历史省略和工具明细精简分开计量，原始查询结果保留",()=>{
