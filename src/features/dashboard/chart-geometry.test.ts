@@ -8,9 +8,12 @@ test("净收支柱从零起算并覆盖盈余与缺口，未知不改变数轴",
     const scale = chartScale([...values, null]);
     assert.ok(scale.min < scale.max && scale.ticks.includes(0));
     assert.ok(values.every(value => value >= scale.min && value <= scale.max));
-    assert.ok(spacedTicks(scale.ticks, scale.step, 86).includes(0));
+    assert.ok(spacedTicks(scale, 86).includes(0));
   }
-  assert.equal(chartScale([-156, -322, -1561]).max, 0);
+  const deficits = chartScale([-156, -322, -1561]);
+  assert.equal(deficits.max, 0);
+  assert.deepEqual(spacedTicks(deficits, 114), [-2000, -1000, 0]);
+  assert.deepEqual(spacedTicks(deficits, 191), [-2000, -1000, 0]);
   assert.equal(chartScale([1600, 2400]).min, 0);
 });
 
@@ -19,6 +22,10 @@ test("次晨实测独立保留零线与正负变化", () => {
     const scale = morningChangeScale([...values, null]);
     assert.ok(scale.min < scale.max && scale.ticks.includes(0));
     assert.ok(values.every(value => value >= scale.min && value <= scale.max));
+    const ticks = spacedTicks(scale, 56);
+    const span = scale.max - scale.min;
+    assert.ok(ticks.includes(0));
+    assert.ok(ticks.every((tick, i) => i === 0 || (tick - ticks[i - 1]) * 56 / span >= 24 - 1e-8));
   }
 });
 

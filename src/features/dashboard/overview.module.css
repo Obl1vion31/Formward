@@ -263,7 +263,7 @@
 
 .balanceCoverage { fill:color-mix(in srgb,var(--warm-white) 4%,transparent); }
 .coverageMark { stroke:var(--muted); stroke-width:1.8; stroke-linecap:round; opacity:.66; }
-:global([data-overview-date][data-selected="true"]) .coverageMark { stroke-width:2.2; opacity:1; }
+.coverageMark[data-selected="true"] { stroke-width:2.2; opacity:1; }
 .relationship .plotHit { -webkit-tap-highlight-color:transparent; }
 .mobileSelected strong b { font-weight:650; }
 .mobileSelected strong small { color:var(--muted); font-size:12px; font-weight:400; }

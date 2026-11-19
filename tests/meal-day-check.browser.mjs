@@ -13,7 +13,7 @@ export async function checkMealDayCompletion({baseURL,context,page,token,today})
  await page.getByRole("button",{name:"7D",exact:true}).click();
  const graphDay=()=>page.locator('[data-overview-date="'+date+'"]');
  const checkPartialIntake=async()=>{
-  assert.equal(await graphDay().locator("[data-balance-coverage]").count(),1);
+  assert.equal(await page.locator('[data-plot-date="'+date+'"][data-balance-coverage]').count(),1);
   await graphDay().focus();await page.keyboard.press("Enter");
   const readout=page.locator('[data-overview-day-readout="'+date+'"]');await readout.waitFor();
   assert.match((await readout.innerText()).replace(/\s+/g," "),/收支未计算 已记摄入 800 千卡/);

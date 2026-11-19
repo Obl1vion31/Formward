@@ -57,10 +57,10 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
   const positive = chart.locator(`[data-overview-date="${old}"]`), negative = chart.locator(`[data-overview-date="${next}"]`);
   assert.equal(await chart.locator("[data-overview-panel]").count(), 2);
   assert.equal(await positive.getAttribute("data-balance"), "200"); assert.equal(await negative.getAttribute("data-balance"), "-1000");
-  assert.equal(await positive.locator('[data-series="weight-change"]').getAttribute("data-overview-value"), "-0.25");
-  assert.equal(await negative.locator('[data-series="weight-change"]').count(), 0);
-  assert.equal(await positive.locator('[data-balance-kind="surplus"]').getAttribute("fill"), "var(--data-surplus)");
-  assert.equal(await negative.locator('[data-balance-kind="deficit"]').getAttribute("fill"), "var(--data-deficit)");
+  assert.equal(await chart.locator(`[data-plot-date="${old}"][data-series="weight-change"]`).getAttribute("data-overview-value"), "-0.25");
+  assert.equal(await chart.locator(`[data-plot-date="${next}"][data-series="weight-change"]`).count(), 0);
+  assert.equal(await chart.locator(`[data-plot-date="${old}"][data-balance-kind="surplus"]`).getAttribute("fill"), "var(--data-surplus)");
+  assert.equal(await chart.locator(`[data-plot-date="${next}"][data-balance-kind="deficit"]`).getAttribute("fill"), "var(--data-deficit)");
   await positive.click(); assert.equal(await dialog().count(), 0);
   await positive.focus();await page.keyboard.press("Escape"); await page.keyboard.press("ArrowRight"); assert.equal(await negative.evaluate(node => node === document.activeElement), true); await page.keyboard.press("Enter"); assert.equal(await dialog().count(), 0); await page.getByRole("button", { name: "查看记录 →", exact: true }).click(); await dialog().locator("strong").filter({hasText:/^2,800/}).waitFor(); await page.keyboard.press("Escape");
   // 连续虚构资料包含正负交叉、单项缺测与连续缺日，用于真实页面的视觉验收。
@@ -97,7 +97,7 @@ export async function checkEnergy({ baseURL, context, page, token, today }) {
     await chart.locator(`[data-overview-date="${previous(today, -4)}"]`).focus();
     assert.equal(await chart.locator("svg").evaluate(node => node.getBoundingClientRect().top + scrollY), topBefore);
     await chart.locator(`[data-overview-date="${previous(today, -3)}"]`).focus();
-    const centers = await chart.locator(`[data-overview-date="${previous(today, -3)}"] [data-series]`).evaluateAll(nodes => nodes.map(n => n.hasAttribute("cx") ? Number(n.getAttribute("cx")) : Number(n.getAttribute("x")) + Number(n.getAttribute("width")) / 2)); assert.equal(new Set(centers).size, 1);
+    const centers = await chart.locator(`[data-plot-date="${previous(today, -3)}"][data-series]`).evaluateAll(nodes => nodes.map(n => n.hasAttribute("cx") ? Number(n.getAttribute("cx")) : Number(n.getAttribute("x")) + Number(n.getAttribute("width")) / 2)); assert.equal(new Set(centers).size, 1);
     await page.screenshot({ path: `/tmp/formward-energy-visual/overview-${width}.png`, fullPage: true });
     await (width < 700 ? page.getByRole("navigation", { name: "主导航", exact: true }).getByRole("link", { name: "消耗", exact: true }) : page.getByRole("link", { name: "消耗记录", exact: true }).first()).click(); await summary.waitFor(); await page.getByRole("group", { name: "每日消耗柱状图", exact: true }).scrollIntoViewIfNeeded(); await page.waitForTimeout(550); assert.equal(await summary.locator("strong").evaluateAll(nodes => nodes.every(node => node.getBoundingClientRect().right <= node.parentElement.getBoundingClientRect().right + 1)), true); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); await page.screenshot({ path: `/tmp/formward-energy-visual/energy-${width}.png`, fullPage: true }); await page.getByRole("link", { name: "Formward 主页", exact: true }).click(); await chart.waitFor(); }
   for (const range of ["30D", "90D", "全部", "自定义"]) {

@@ -37,8 +37,6 @@ function holdWorkspace(page: HTMLElement | null) {
     snapshotBody.style.opacity = pose.opacity;
   }
   snapshot.querySelector("[data-return-prepared]")?.remove();
-  // 离场副本剥离局部标识，完整绘制总览曲线，避免留下失效的裁剪引用。
-  snapshot.querySelectorAll("[data-chart-reveal-ink]").forEach(node => node.removeAttribute("clip-path"));
   snapshot.querySelectorAll("[id]").forEach(node => node.removeAttribute("id"));
   Object.assign(snapshot.style, {
     position: "absolute", boxSizing: "border-box", top: rect.top + "px", left: rect.left + "px",

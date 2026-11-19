@@ -22,6 +22,7 @@ type ReadoutChoice = { scope: string; mode: ReadoutMode };
 
 const balanceColors = { surplus: "var(--data-surplus)", deficit: "var(--data-deficit)", even: "var(--muted)" };
 const weightColor = "var(--data-weight)";
+const axisGap = 11;
 const weightTick = (tick: number) => tick > 0 ? "+" + tick : String(tick);
 
 export function RelationshipPlot({ days, selected, selection, compactMode, motionRevision, suspended = false }: {
@@ -52,7 +53,8 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
   const hasWeight = days.some(day => day.weightChangeKg !== null);
   const balanceScale = chartScale(days.map(day => day.energyBalance));
   const weightScale = morningChangeScale(days.map(day => day.weightChangeKg));
-  const { width, left } = useChartViewport(container, [...balanceScale.ticks, ...weightScale.ticks.map(weightTick), "未计"], 49);
+  const { width, left: measuredLeft } = useChartViewport(container, [...balanceScale.ticks, ...weightScale.ticks.map(weightTick), "未计"], 49);
+  const left = measuredLeft + axisGap - 8;
   const w = width || 280;
   const compact = compactMode ?? mobile ?? w < 650;
   const right = w - 13;
@@ -111,13 +113,30 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
     show("pinned");
   }
 
-  const revealId = motionRevision === undefined ? undefined : id + "-reveal";
-  const revealInk = revealId ? { "data-chart-reveal-ink": true, clipPath: "url(#" + revealId + ")" } : undefined;
-  useChartMotion(container, ready && revealId && (hasEnergy || hasWeight) ? w + ":" + height : "pending",
+  const canGrow = motionRevision !== undefined;
+  useChartMotion(container, ready && canGrow && (hasEnergy || hasWeight) ? w + ":" + height : "pending",
     "overview-relationship:" + motionRevision, motionRevision ? 220 : 600);
   const tipId = id + "-day";
   const tipWidth = Math.min(compact ? 212 : 226, w - 16);
   const tipBottom = hasPartialEnergy ? coverageTop : energyBottom;
+
+  const barWidth = Math.min(compact ? 6.4 : 17, slot * .65);
+  const coverageWidth = Math.min(compact ? 4 : 6, barWidth);
+  const weightRadius = Math.min(compact ? 2.2 : 2.8, slot * .42);
+
+  function balanceMark(day: OverviewDay, index: number, balance: number) {
+    const end = balanceY(balance);
+    const kind = balance === 0 ? "even" : balance < 0 ? "deficit" : "surplus";
+    return <rect key={day.date} data-plot-date={day.date} data-series="balance" data-balance-kind={kind} data-overview-value={balance}
+      x={x(index) - barWidth / 2} y={balance === 0 ? balanceZero - .85 : Math.min(balanceZero, end)}
+      width={barWidth} height={balance === 0 ? 1.7 : Math.abs(end - balanceZero)}
+      rx={Math.min(.7, barWidth / 2)} fill={balanceColors[kind]} />;
+  }
+
+  function weightPoint(day: OverviewDay, index: number, weight: number) {
+    return <circle key={day.date} data-plot-date={day.date} data-series="weight-change" data-overview-value={weight}
+      cx={x(index)} cy={weightY(weight)} r={weightRadius} fill={weightColor} />;
+  }
 
   return <div ref={container} role="group" aria-label="热量收支与次晨体重变化" className={styles.relationship}
     style={relationshipFrameStyle} data-compact={compactMode ?? mobile ?? undefined}>
@@ -142,20 +161,32 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
           selection.preview(date);
           show("hover");
         }}>
-        {revealId && <defs><clipPath id={revealId}><rect data-chart-reveal x="0" y="0" width={w} height={height} /></clipPath></defs>}
         <desc id={id + "-help"}>上下两图使用同一日期。净收支以零线为基准，灰横表示有记录但未计收支。点按、悬停或使用方向键查看单日读数，点击可锁定日期。查看记录按钮打开当日记录。次晨变化使用相邻两次实测晨重。</desc>
         <ChartSelectionColumn x={x(selectedIndex)} date={selected} column={{ left: x(selectedIndex) - slot / 2, right: x(selectedIndex) + slot / 2 }}
           plot={{ left, right, top, bottom: weightBottom }} resetKey={[w, height, scope].join(":")} direct={selection.direct} />
         <g data-overview-panel="energy">
-          {spacedTicks(balanceScale.ticks, balanceScale.step, balanceBottom - top).map(tick => <g key={tick} data-axis-tick={tick}>
+          {spacedTicks(balanceScale, balanceBottom - top).map(tick => <g key={tick} data-axis-tick={tick}>
             <line x1={left} x2={right} y1={balanceY(tick)} y2={balanceY(tick)}
               data-balance-zero={tick === 0 ? "" : undefined} className={tick === 0 ? styles.zeroLine : styles.grid} />
-            <text x={left - 8} y={balanceY(tick) + 4} textAnchor="end" className={styles.axis}>{tick}</text>
+            <text x={left - axisGap} y={balanceY(tick) + 4} textAnchor="end" className={styles.axis}>{tick}</text>
           </g>)}
           {hasPartialEnergy && <g data-overview-coverage>
             <rect x={left} y={coverageTop} width={right - left} height={coverageHeight} rx="2" className={styles.balanceCoverage} />
-            <text x={left - 8} y={coverageY + 4} textAnchor="end" className={styles.axis}>未计</text>
+            <text x={left - axisGap} y={coverageY + 4} textAnchor="end" className={styles.axis}>未计</text>
           </g>}
+          <g className={styles.plotData}>
+            {entries.map(({ day, recorded }, index) => {
+              if (day.energyBalance === 0) return balanceMark(day, index, 0);
+              if (!recorded || day.energyBalance !== null) return null;
+              const center = x(index);
+              return <line key={day.date} data-plot-date={day.date} data-balance-coverage="" data-selected={day.date === selected}
+                x1={center - coverageWidth / 2} x2={center + coverageWidth / 2}
+                y1={coverageY} y2={coverageY} className={styles.coverageMark} />;
+            })}
+          </g>
+          <g data-chart-grow-from={canGrow && entries.some(({ day }) => day.energyBalance) ? balanceZero : undefined} className={styles.plotData}>
+            {entries.map(({ day }, index) => day.energyBalance ? balanceMark(day, index, day.energyBalance) : null)}
+          </g>
           {!hasEnergy && <text x={(left + right) / 2} y={(top + balanceBottom) / 2} textAnchor="middle" className={styles.emptyPlot}>此区间暂无热量记录</text>}
         </g>
         <g data-overview-panel="weight">
@@ -163,22 +194,32 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
           <text data-weight-readout x={right} y={weightTop - 10} textAnchor="end" className={styles.axis}>
             {compact ? shortDate(entry.day.nextDate) + " " : ""}次晨变化：{entry.day.ambiguous ? "待核对" : entry.day.weightChangeKg === null ? "未配对" : signedRecordNumber(entry.day.weightChangeKg) + " kg"}
           </text>
-          {spacedTicks(weightScale.ticks, weightScale.step, weightBottom - weightTop).map(tick => <g key={tick} data-axis-tick={tick}>
+          {spacedTicks(weightScale, weightBottom - weightTop).map(tick => <g key={tick} data-axis-tick={tick}>
             <line data-overview-zero={tick === 0 ? "" : undefined} x1={left} x2={right} y1={weightY(tick)} y2={weightY(tick)}
               className={tick === 0 ? styles.zeroLine : styles.grid} />
-            <text x={left - 8} y={weightY(tick) + 4} textAnchor="end" className={styles.axis}>{weightTick(tick)}</text>
+            <text x={left - axisGap} y={weightY(tick) + 4} textAnchor="end" className={styles.axis}>{weightTick(tick)}</text>
           </g>)}
+          <g className={styles.plotData}>
+            {days.map((day, index) => day.weightChangeKg === 0
+              ? weightPoint(day, index, 0) : null)}
+          </g>
+          <g data-chart-grow-from={canGrow && days.some(day => day.weightChangeKg) ? weightZero : undefined} className={styles.plotData}>
+            {days.map((day, index) => {
+              const weight = day.weightChangeKg;
+              if (!weight) return null;
+              const center = x(index);
+              return <g key={day.date}>
+                <line x1={center} x2={center} y1={weightZero} y2={weightY(weight)} stroke={weightColor} strokeWidth="1.1" strokeOpacity=".58" />
+                {weightPoint(day, index, weight)}
+              </g>;
+            })}
+          </g>
           {!hasWeight && <text x={(left + right) / 2} y={weightTop + 24} textAnchor="middle" className={styles.emptyPlot}>暂无相邻两日晨重</text>}
         </g>
-        {entries.map(({ day, recorded }, index) => {
+        {days.map((day, index) => {
           const balance = day.energyBalance;
-          const weight = day.weightChangeKg;
           const active = day.date === selected;
           const center = x(index);
-          const barWidth = Math.min(compact ? 6.4 : 17, slot * .65);
-          const coverageWidth = Math.min(compact ? 4 : 6, barWidth);
-          const barEnd = balance === null ? null : balanceY(balance);
-          const kind = balance === 0 ? "even" : balance !== null && balance < 0 ? "deficit" : "surplus";
           return <g key={day.date} role="button" tabIndex={active ? 0 : -1} data-overview-date={day.date} data-selected={active} aria-pressed={active}
             data-balance={balance ?? undefined} data-meal-day-status={day.mealDayStatus} data-chart-date={day.date}
             aria-label={day.date + " · " + balanceLabel(balance) + (balance ? " " + Math.abs(balance) + " 千卡" : "")}
@@ -198,19 +239,6 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
               }
             }}>
             <rect x={left + index * slot} y={top} width={slot} height={weightBottom - top} className={styles.plotHit} />
-            <g {...revealInk} className={styles.plotData}>
-              {barEnd !== null ? <rect data-series="balance" data-balance-kind={kind} data-overview-value={balance ?? undefined}
-                x={center - barWidth / 2} y={balance === 0 ? balanceZero - .85 : Math.min(balanceZero, barEnd)}
-                width={barWidth} height={balance === 0 ? 1.7 : Math.abs(barEnd - balanceZero)}
-                rx={Math.min(.7, barWidth / 2)} fill={balanceColors[kind]} />
-                : recorded && <line data-balance-coverage="" x1={center - coverageWidth / 2} x2={center + coverageWidth / 2}
-                  y1={coverageY} y2={coverageY} className={styles.coverageMark} />}
-              {weight !== null && <>
-                <line x1={center} x2={center} y1={weightZero} y2={weightY(weight)} stroke={weightColor} strokeWidth="1.1" strokeOpacity=".58" />
-                <circle data-series="weight-change" data-overview-value={weight} cx={center} cy={weightY(weight)}
-                  r={Math.min(compact ? 2.2 : 2.8, slot * .42)} fill={weightColor} />
-              </>}
-            </g>
             {((index % stride === 0 && days.length - 1 - index >= stride / 2) || index === days.length - 1)
               && <text x={center} y={height - 5} textAnchor={days.length === 1 ? "middle" : index === 0 ? "start" : index === days.length - 1 ? "end" : "middle"}
                 data-overview-date-label="" className={styles.axis}>{w < 440 && days.length <= 7 ? day.date.slice(8) : days.length > 366 ? day.date.slice(2, 7).replace("-", ".") : shortDate(day.date)}</text>}

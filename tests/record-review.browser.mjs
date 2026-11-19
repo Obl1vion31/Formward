@@ -88,7 +88,7 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
       const day = chart.locator('[data-overview-date="'+date+'"]');
       const balance = await day.getAttribute("data-balance");
       assert.notEqual(balance, null);
-      assert.equal(await day.locator('[data-series="balance"]').getAttribute("data-overview-value"), balance);
+      assert.equal(await chart.locator('[data-plot-date="'+date+'"][data-series="balance"]').getAttribute("data-overview-value"), balance);
       await day.focus(); await page.keyboard.press("Enter");
       const readout = chart.locator('[data-overview-day-readout="'+date+'"]');
       await readout.waitFor();
