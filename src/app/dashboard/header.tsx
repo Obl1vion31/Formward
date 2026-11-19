@@ -21,7 +21,7 @@ import styles from "./header.module.css";
 type Group = "root" | "external" | "account" | "admin";
 export function DashboardHeader({ email, owner = false, sourcePilot = false }: { email: string; owner?: boolean; sourcePilot?: boolean }) {
   const openInformation = useAppInformation();
-  const actualPath = usePathname(), [settings, setSettings] = useState<false | "profile" | "account" | "sources">(false), [group, setGroup] = useState<Group>("root");
+  const actualPath = usePathname(), mobile = useMobileMode(), [settings, setSettings] = useState<false | "profile" | "account" | "sources">(false), [group, setGroup] = useState<Group>("root");
   const { hide: hideAssistant, source } = useAssistant(), chart = useChartTransition();
   const pathname = chart.displayPath ?? source?.path ?? actualPath;
   const previousGroup = useRef<Group>("root"), menuClose = useRef<() => Promise<void>>(() => Promise.resolve()), [pendingAccount, setPendingAccount] = useState<string | null>(null);
