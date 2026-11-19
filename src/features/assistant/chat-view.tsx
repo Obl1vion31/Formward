@@ -86,6 +86,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
   const feed = useRef<HTMLDivElement>(null), input = useRef<HTMLTextAreaElement>(null), photoInput = useRef<HTMLInputElement>(null), modelButton = useRef<HTMLButtonElement>(null), panelTitle = useRef<HTMLHeadingElement>(null), moreAnchor = useRef<{ height:number;top:number }|null>(null), restored = useRef<string | null>(null);
   const { scrollState, recordScroll } = chat;
   const openHeight = useRef(0);
+  const draftMeasurement = useRef<{ field: HTMLTextAreaElement; value: string; scrollEnd: number } | null>(null);
   const transcript = chatTranscript(chat.messages);
   const task = chat.data?.followup, pendingQuote = chat.data?.pendingContextQuote;
   const taskAnchor = task && task.assistantMessageId && transcript.anchors.has(task.assistantMessageId)
@@ -107,14 +108,44 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
   }, [chat.data?.conversationId, chat.messages, tab, scrollState, recordScroll]);
   useLayoutEffect(() => { const node = feed.current; if (!node) return; const observer = new ResizeObserver(() => { if (scrollState().stick && !moreAnchor.current) node.scrollTop = node.scrollHeight; setLatest(node.scrollHeight-node.scrollTop-node.clientHeight>80); }); observer.observe(feedContent.current??node); observer.observe(node); return () => observer.disconnect(); }, [scrollState]);
   useLayoutEffect(() => {
-    const node=input.current;if(!node)return;let frame=0,active=true,last="";
-    const measure=()=>{if(!active||!node.isConnected)return;const css=getComputedStyle(node),width=node.getBoundingClientRect().width,key=[node.value,node.placeholder,width,css.font,css.lineHeight,css.padding,css.borderWidth,css.minHeight,css.maxHeight].join("|");if(key===last||width<=0)return;last=key;
-      // Safari的空textarea不会把换行占位文字计入scrollHeight；用同样字体与宽度的值测量。
-      const probe=node.cloneNode(false) as HTMLTextAreaElement;probe.removeAttribute("id");probe.removeAttribute("aria-label");probe.removeAttribute("name");probe.setAttribute("aria-hidden","true");probe.inert=true;probe.tabIndex=-1;probe.value=node.value||node.placeholder;
-      Object.assign(probe.style,{position:"absolute",left:"0",top:"0",width:width+"px",height:"0",minHeight:"0",maxHeight:"none",visibility:"hidden",pointerEvents:"none",overflow:"hidden"});node.parentElement?.appendChild(probe);const wanted=probe.scrollHeight+parseFloat(css.borderTopWidth)+parseFloat(css.borderBottomWidth);probe.remove();node.style.height=Math.min(Math.max(144,parseFloat(css.fontSize)*4.8),wanted)+"px";
-      node.toggleAttribute("data-draft-overflow", node.scrollHeight > node.clientHeight + 1);
-      // 高度封顶后只滚动输入框内部，保持末尾输入可见，不改变面板或页面位置。
-      if(document.activeElement===node&&node.value&&node.selectionStart===node.value.length&&node.selectionEnd===node.value.length)node.scrollTop=node.scrollHeight;
+    const node = input.current;
+    if (!node) return;
+    let frame = 0, active = true, last = "";
+    const measure = () => {
+      if (!active || !node.isConnected) return;
+      const css = getComputedStyle(node), width = node.getBoundingClientRect().width, value = node.value;
+      const key = [value, node.placeholder, width, css.font, css.lineHeight, css.padding, css.borderWidth, css.minHeight, css.maxHeight].join("|");
+      if (key === last || width <= 0) return;
+      last = key;
+
+      const scrollTop = node.scrollTop;
+      const previous = draftMeasurement.current?.field === node ? draftMeasurement.current : null;
+      const valueChanged = previous?.value !== value;
+      const caretAtEnd = document.activeElement === node && node.selectionStart === value.length && node.selectionEnd === value.length;
+      const followEnd = caretAtEnd && (valueChanged || (previous !== null && scrollTop >= previous.scrollEnd - 1));
+
+      // Safari 的空输入框不计换行占位文字，用同字体和宽度测量。
+      const probe = node.cloneNode(false) as HTMLTextAreaElement;
+      for (const attribute of ["id", "aria-label", "name"]) probe.removeAttribute(attribute);
+      probe.setAttribute("aria-hidden", "true");
+      probe.inert = true;
+      probe.tabIndex = -1;
+      probe.value = value || node.placeholder;
+      Object.assign(probe.style, {
+        position: "absolute", left: "0", top: "0", width: width + "px", height: "0", minHeight: "0",
+        maxHeight: "none", visibility: "hidden", pointerEvents: "none", overflow: "hidden",
+      });
+      node.parentElement?.appendChild(probe);
+      const wanted = probe.scrollHeight + parseFloat(css.borderTopWidth) + parseFloat(css.borderBottomWidth);
+      probe.remove();
+      const height = Math.min(Math.max(144, parseFloat(css.fontSize) * 4.8), wanted) + "px";
+      if (node.style.height !== height) node.style.height = height;
+
+      const scrollEnd = Math.max(0, node.scrollHeight - node.clientHeight);
+      draftMeasurement.current = { field: node, value, scrollEnd };
+      // 光标可能还在末尾。单纯重测时，以用户实际浏览的位置为准。
+      const nextScrollTop = followEnd ? scrollEnd : valueChanged ? node.scrollTop : Math.min(scrollTop, scrollEnd);
+      if (Math.abs(node.scrollTop - nextScrollTop) > 1) node.scrollTop = nextScrollTop;
     };
     const schedule=()=>{if(!active)return;cancelAnimationFrame(frame);frame=requestAnimationFrame(measure);};measure();const observer=new ResizeObserver(schedule);observer.observe(node);void document.fonts.ready.then(()=>{last="";schedule();});
     return()=>{active=false;observer.disconnect();cancelAnimationFrame(frame);};

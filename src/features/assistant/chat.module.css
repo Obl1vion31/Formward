@@ -378,13 +378,13 @@
   border-top: 0;
   border-radius: 0 0 16px 16px;
 }
-.workspace[data-page=true] .composerRow { padding: 2px; touch-action: pinch-zoom; }
+.workspace[data-page=true] .composerRow { padding: 2px; }
 .workspace[data-page=true] .composerRow textarea {
+  overflow-y: auto;
   /* 预留消息区的 20px 内边距和输入栏上下共 8px 的边框、间距。 */
   max-height: clamp(44px, min(calc(var(--assistant-page-height, 100dvh) / 3),
     calc(100cqh - 28px - var(--composer-bottom-inset) - var(--composer-extras-reserve, 0px))), 144px);
 }
-.workspace[data-page=true] .composerRow textarea[data-draft-overflow] { touch-action: pan-y pinch-zoom; }
 .workspace[data-page=true] .workspaceTabs { flex: none; }
 .workspace[data-page=true] .send,
 .workspace[data-page=true] .send:hover:not(:disabled) {
