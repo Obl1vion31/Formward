@@ -2,15 +2,15 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-4762b14a-assistant-directional-r3-20261120`，源码 `4762b14a9c903baba4cce2309487f156f3425d9c`，BUILD_ID `13N3t3hlWdMh-Nj6TMOmQ`。北京时间 2026-11-20 01:53:05 切换。 [正式版本](https://formward.top/api/app-version)
+正式站运行 `dual-entry-83dd97b4-assistant-keyboard-live-r2-20261120`，源码 `83dd97b47be48165ef08cf33d66fb9cec0c87039`，BUILD_ID `_lBeU9wNa0cwh_XWf3Kg0`。北京时间 2026-11-20 02:04:55 切换。 [正式版本](https://formward.top/api/app-version)
 
-左右切换随照片、标签、历史、题目和月份的实际先后顺序。管理后台按栏目顺序和用户详情的实际来源前进、返回。手机待办选中状态同时使用配对的主题背景与文字色。 [浏览器验收](assistant-chat-verification.md#左右切换与手机待办对比度)
+手机小助手按可见区高度安排输入框和附件，矮屏优先保证完整发送区域。关闭模型菜单时，已回到编辑区的焦点继续留在输入框。Chromium 与 WebKit 在同一正式构建上复查了图文发送、照片预览、历史和待办切换。iPhone 自带键盘待用户实测。 [浏览器验收](assistant-chat-verification.md#手机软键盘遮挡--正式包验收)
 
-上海网页和聊天 worker 运行同一源码。沿用 schema `0046_assistant_conversation_removal` 与 46 项迁移，停写前后 67 张表的行摘要一致。备份 `formward-primary-20261119T175301057038Z.dump.json` 完成原生校验和加密异地回读。
+上海网页和聊天 worker 运行同一源码。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。停写前后 67 张表的行摘要一致。备份 `formward-primary-20261119T180451902590Z.dump.json` 完成原生校验和加密异地回读。
 
-四个公网域名及兼容 IP 返回同一版本。复查了兼容 IP 跳转、登录返回、匿名权限、MCP 发现与新旧界面资源。保留 56 项正式 Server Action 编号与绑定密钥，兼容 2081 项旧静态资源。海外网关现有部署回源新版。
+四个公网域名及兼容 IP 返回同一版本。复查了兼容 IP 跳转、登录返回、匿名权限、MCP 发现与新旧界面资源。保留 56 项正式 Server Action 编号与绑定密钥，兼容 2088 项旧静态资源。海外网关现有部署回源新版。
 
-本机运行包归档在 `.codex/backups/regional-releases/assistant-directional-r3-20261120`，大小 83,236,989 字节，SHA256 `65a890c9dd43ad303914ab45c821adba08ed9a2bf19240703c9fbbb62cffa9f2`。版本 `assistant-photo-stack-viewer-20261120` 提供兼容 0046 的网页和 worker 回退包。
+本机运行包归档在 `.codex/backups/regional-releases/assistant-keyboard-live-r2-20261120`，大小 83,402,927 字节，SHA256 `adc7222b9d04a50b9a97185fec3acfad62e86213e0c0903bdbb82d222c509309`。版本 `assistant-directional-r3-20261120` 提供兼容 0046 的网页和 worker 回退包。
 
 ## 迁移与发布
 

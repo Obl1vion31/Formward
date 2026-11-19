@@ -1,6 +1,6 @@
 # 站内聊天验收
 
-正式站运行 `dual-entry-4762b14a-assistant-directional-r3-20261120`。公网网页、资源与同版聊天 worker 已核对。 [正式站](https://formward.top/dashboard/assistant) · [发布与兼容回退](deployment.md#当前正式版本)
+正式站运行 `dual-entry-83dd97b4-assistant-keyboard-live-r2-20261120`。公网网页、资源与同版聊天 worker 已核对。 [正式站](https://formward.top/dashboard/assistant) · [发布与兼容回退](deployment.md#当前正式版本)
 
 ## 左右切换与手机待办对比度
 
@@ -18,7 +18,7 @@ Chromium 与 WebKit 使用同一正式运行包、隔离 PostgreSQL 和虚构账
 
 Lint、类型检查、生产构建和 867 项测试通过，包括原生 PostgreSQL 检查。48 张整屏截图和 4 段原速录屏来自发布包隔离验收。实体 iPhone、实际模型和真实存储实传本轮待验。 [本机录屏、截图和局部示意对照](http://127.0.0.1:41986/photo-stack/)
 
-## 手机软键盘遮挡 · 本机候选
+## 手机软键盘遮挡 · 正式包验收
 
 本机生产构建 `local-keyboard-fit-20261120`，BUILD_ID `eRydUZ9rYeOZq-XOBiTOd`。隔离原生 PostgreSQL、虚构照片及模型回放。Chromium 159 和 WebKit 27.2 从手机底栏进入。用同一份图文验证 393 × 852 手机视口缩到 235px 时的可见区，旧版发送触控区被裁切约 6.3 CSS px。新版完整保留 44px 触控高度，触控区底边距网页可见边缘 7 CSS px。
 
@@ -26,7 +26,9 @@ Lint、类型检查、生产构建和 867 项测试通过，包括原生 Postgre
 
 WebKit 桌面首次复测遇到 Escape 后焦点恢复与自动输入的时序冲突。测试等焦点回到模型按钮后再输入，独立复跑通过。
 
-本机原图与录屏位于 `.codex/assistant-keyboard-fit/`，Windows 图册为 `C:/Users/14878/.codex/visualizations/2026/11/18/01a1ee4f-83a7-74a1-b58d-000090938d80/formward-assistant-keyboard/index.html`。lint、类型检查、生产构建与 867 项单元及集成测试通过，含另用专用隔离库运行的 2 项原生 PostgreSQL 检查。iPhone 真机系统键盘及系统区域的黑色空白待实测。本轮候选待实际页面验收。
+发布前合入照片预览和手机标签转场的正式主线。WebKit 发现关闭模型菜单后立即回到输入框时，等待恢复的模型按钮焦点会覆盖新的输入焦点。最终包按当前焦点决定是否恢复，双引擎重走带图长文、引用、键盘开合与一次发送。双端复验照片、待办和历史的切换，均通过。
+
+最终包 lint、类型检查和生产构建通过。单元与集成全量首轮 864 项通过、2 项条件跳过，1 项 OAuth 测试的隔离授权请求返回 403。该文件独立复跑 18 项全通过。本机初版 867 项检查通过，包括专用原生 PostgreSQL 上另跑的两项。正式包截图、录屏与验证记录归档在 `.codex/backups/regional-releases/assistant-keyboard-live-r2-20261120/`。本机前后对照图册在 `C:/Users/14878/.codex/visualizations/2026/11/18/01a1ee4f-83a7-74a1-b58d-000090938d80/formward-assistant-keyboard/index.html`。iPhone 自带键盘与键盘上方黑色空白待用户真机实测。
 
 ## 多图读取、续读与上下文中断 · 正式包验收
 
