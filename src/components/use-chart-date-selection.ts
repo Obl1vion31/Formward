@@ -16,11 +16,17 @@ export function updateChartDateChoice(current:Choice|null,action:SelectionAction
   return active?.date===action.date&&active.origin===origin?active:{date:action.date,origin,range};
 }
 /** 日期选择属于整个趋势面板；点击／触屏保持，键盘选择随焦点，悬停离开才恢复默认。 */
-export function useChartDateSelection(dates: string[], initial: string, fallback = initial, previewPaused = false, contextKey = "") {
+export function useChartDateSelection(dates: string[], initial: string, fallback = initial, previewPaused = false, contextKey = "", retainExplicitDate = false) {
   const regionId=useId(), range=dates.join("|")+":"+contextKey;
   const [choice,setChoice]=useState<Choice|null>(()=>initial!==fallback?({date:initial,origin:"initial",range}):null);
-  const [previousRange,setPreviousRange]=useState(range);
-  if(previousRange!==range){setPreviousRange(range);if(choice)setChoice(null);}
+  const [previous,setPrevious]=useState({range,contextKey});
+  if(previous.range!==range){
+    setPrevious({range,contextKey});
+    if(choice) {
+      const retain=retainExplicitDate&&previous.contextKey===contextKey&&choice.origin!=="pointer"&&dates.includes(choice.date);
+      setChoice(retain?{...choice,range}:null);
+    }
+  }
   const input=useRef<"mouse"|"touch"|"keyboard">("keyboard");
   useEffect(()=>{
     const keyboard=()=>{input.current="keyboard";};
@@ -35,13 +41,13 @@ export function useChartDateSelection(dates: string[], initial: string, fallback
   const releasePreview=()=>update({type:"release-preview"});
   const select=(date:string,origin:Origin)=>update({type:"select",date,origin});
   const choose=(date:string)=>select(date,"touch");
-  const activate=(date:string)=>select(date,input.current==="mouse"?"click":input.current);
+  const activate=(date:string)=>select(date,input.current==="mouse"||retainExplicitDate&&input.current==="keyboard"?"click":input.current);
   const preview=(date:string)=>{if(!previewPaused)update({type:"preview",date});};
   const focus=(event:FocusEvent<SVGGElement>,date:string)=>{if(input.current==="keyboard"&&event.currentTarget.matches(":focus-visible"))select(date,"keyboard");};
   const leave=()=>{if(!previewPaused)update({type:"leave"});};
   const keyDown=(event:KeyboardEvent<SVGGElement>,date:string)=>{
     input.current="keyboard";
-    if(event.key==="Enter"||event.key===" "){event.preventDefault();select(date,"keyboard");return;}
+    if(event.key==="Enter"||event.key===" "){event.preventDefault();select(date,retainExplicitDate?"click":"keyboard");return;}
     if(event.key==="Escape"){event.preventDefault();release();return;}
     const nodes=[...(event.currentTarget.ownerSVGElement?.querySelectorAll<SVGGElement>("[data-chart-date]")??[])];
     const index=nodes.indexOf(event.currentTarget),next=event.key==="ArrowLeft"?index-1:event.key==="ArrowRight"?index+1:event.key==="Home"?0:event.key==="End"?nodes.length-1:null;

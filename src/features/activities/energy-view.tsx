@@ -19,6 +19,7 @@ import { ChartSelectionColumn } from "@/components/chart-selection-marker";
 import { useChartMotion } from "@/components/use-chart-motion";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
+import { useNestedChartRange } from "@/components/use-nested-chart-range";
 import { DailyRecords,DailyRecordRow } from "@/components/daily-records";
 import { RecordHistory } from "@/components/record-history";
 import type { SourceRemovalResult } from "@/components/source-input";
@@ -92,7 +93,8 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
   const dates = useMemo(() => { try { const length = calendarOrdinal(to) - calendarOrdinal(from) + 1; return length > 0 && length <= 3661 ? Array.from({ length }, (_, index) => addCalendarDays(from, index)) : []; } catch { return []; } }, [from, to]);
   const chartDays = dates.map(date => byDate.get(date) ?? blankEnergyDay(date));
   const linkedPlot=!!initialTrend&&from===initialTrend.from&&to===initialTrend.to;
-  const selection=useChartDateSelection(dates,initialDate??today,initialDate&&dates.includes(initialDate)?initialDate:dates.includes(today)?today:preferredRecordedDate(chartDays,today,day=>day.totalKcal!==null,day=>!!day.record||day.activities.length>0),customOpen),inspected=selection.selected,chosen=chartDays.find(day=>day.date===inspected);
+  const selection=useChartDateSelection(dates,initialDate??today,initialDate&&dates.includes(initialDate)?initialDate:dates.includes(today)?today:preferredRecordedDate(chartDays,today,day=>day.totalKcal!==null,day=>!!day.record||day.activities.length>0),customOpen,"",true),inspected=selection.selected,chosen=chartDays.find(day=>day.date===inspected);
+  const {bindPlot, prepare: prepareRange}=useNestedChartRange({mode:range,from,to});
   useEffect(()=>{const latest=()=>{setEditing(null);setViewing(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
   const historyDates=[...new Set([...recentRecordDates(today),...state.days.filter(d=>!d.deletedAt).map(d=>d.date),...state.activities.filter(a=>!a.deletedAt).map(a=>a.date)])].sort().reverse();
 
@@ -157,7 +159,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
     {error && !editing && <p className={styles.error} role="alert">{error}</p>}{notice && <p className={styles.notice} role="status">{notice}</p>}
     <section data-record-trend aria-label="消耗历史趋势" data-chart-selection={selection.regionId} data-selected-date={selection.selected} data-selection-origin={selection.origin} {...selection.regionProps}>
       <RecordTrendPanel presentation="energy" graphic={<EnergyComposition resting={chosen?.record?.adoption?.mode==="source"&&chosen.record.adoption.metadata?.compositionKnown===false?null:chosen?.restingKcal} active={chosen?.activeKcal}/>}
-       range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>}
+       range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{prepareRange(key);setMode(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="消耗" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
        date={inspected} view={()=>{const target=inspected;setViewing(target);selection.releasePreview();}} readoutLabel="选中日消耗"
        metrics={[
@@ -168,7 +170,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
        metricVariants={chartDays.map(day=>[energyValue(day.totalKcal),energyValue(day.restingKcal),energyValue(day.activeKcal)])}
        title="每日消耗" unit="千卡"
        legend={<EnergyLegend/>}
-      >{dates.length?mobile||linkedPlot||dates.length<=31?<MobileEnergyPlot days={chartDays} selected={inspected} selection={selection} compact={dates.length<=31} linked={linkedPlot}/>:<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
+      >{dates.length?<div data-nested-chart ref={bindPlot}>{mobile||linkedPlot||dates.length<=31?<MobileEnergyPlot days={chartDays} selected={inspected} selection={selection} compact={dates.length<=31} linked={linkedPlot}/>:<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>}</div>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     </section>
     <DailyRecords history={<RecordHistory today={today} dates={historyDates.filter(date=>!recentDates.includes(date))} renderRow={renderDay} view={setViewing}/>}>{recentDates.map(renderDay)}</DailyRecords>
     {data.sourcePilot&&<EnergySourceStatus initial={sourceStatus} steps={(!initialTrend&&mobile?recordDay:chosen)?.steps??null} protectedDay={(!initialTrend&&mobile?recordDay:chosen)?.record?.adoption?.mode==="manual"}/>}
@@ -199,10 +201,11 @@ function EnergyPlot({ days, selected, selection }: { days: EnergyDay[]; selected
     <ChartSelectionColumn x={selectedX} date={selected} column={selectedX===null?null:{left:selectedX-slot/2,right:selectedX+slot/2}} plot={{left,right:w-right,top:22,bottom}} resetKey={`${w}:${days.map(d=>d.date).join("|")}`} direct={selection.direct} baselineTick/>
     {days.map((day, index) => { const resting = Number(day.restingKcal ?? 0), active = Number(day.activeKcal ?? 0), onlyTotal = day.restingKcal === null && day.activeKcal === null && day.totalKcal !== null; return <g key={day.date} role="button" tabIndex={day.date === selected ? 0 : -1} data-energy-date={day.date} data-selected={day.date===selected} aria-pressed={day.date===selected} aria-label={`${day.date} · 总消耗 ${day.totalKcal ?? "未填写"} 千卡`} data-chart-date={day.date} onMouseMove={()=>selection.preview(day.date)} onFocus={event=>selection.focus(event,day.date)} onClick={()=>selection.activate(day.date)} onKeyDown={event=>selection.keyDown(event,day.date)}>
       <rect className={styles.hit} x={left + index * slot} y="22" width={slot} height={bottom - 18} />
-      {day.restingKcal !== null && <rect data-chart-bar data-chart-zero={bottom} data-energy-series="resting" data-value={day.restingKcal} x={x(index) - barWidth / 2} y={y(resting)} width={barWidth} height={y(0) - y(resting)} fill="var(--data-protein)" opacity={day.restingBasis ? .55 : .9} className={styles.mark} />}
-      {day.activeKcal !== null && <rect data-chart-bar data-chart-zero={bottom} data-energy-series="active" data-value={day.activeKcal} x={x(index) - barWidth / 2} y={y(resting + active)} width={barWidth} height={y(resting) - y(resting + active)} fill="var(--data-red)" className={styles.mark} />}
-      {onlyTotal && <rect data-chart-bar data-chart-zero={bottom} data-energy-series="total-only" data-value={day.totalKcal!} x={x(index) - barWidth / 2} y={y(Number(day.totalKcal))} width={barWidth} height={y(0) - y(Number(day.totalKcal))} fill="var(--data-neutral)" className={styles.mark} />}
-      {day.totalSource === "override" && day.record?.adoption?.mode!=="source" && <line data-energy-total={day.totalKcal!} x1={x(index) - barWidth / 2 - 2} x2={x(index) + barWidth / 2 + 2} y1={y(Number(day.totalKcal))} y2={y(Number(day.totalKcal))} stroke="var(--gold)" strokeWidth="2" className={styles.mark} />}
+      {day.restingKcal !== null && <rect data-chart-bar data-range-mark={`bar:${day.date}:resting`} data-chart-zero={bottom} data-energy-series="resting" data-value={day.restingKcal} x={x(index) - barWidth / 2} y={y(resting)} width={barWidth} height={y(0) - y(resting)} fill="var(--data-protein)" opacity={day.restingBasis ? .55 : .9} className={styles.mark} />}
+      {day.activeKcal !== null && <rect data-chart-bar data-range-mark={`bar:${day.date}:active`} data-chart-zero={bottom} data-energy-series="active" data-value={day.activeKcal} x={x(index) - barWidth / 2} y={y(resting + active)} width={barWidth} height={y(resting) - y(resting + active)} fill="var(--data-red)" className={styles.mark} />}
+      {onlyTotal && <rect data-chart-bar data-range-mark={`bar:${day.date}:total-only`} data-chart-zero={bottom} data-energy-series="total-only" data-value={day.totalKcal!} x={x(index) - barWidth / 2} y={y(Number(day.totalKcal))} width={barWidth} height={y(0) - y(Number(day.totalKcal))} fill="var(--data-neutral)" className={styles.mark} />}
+      {day.totalKcal!=null && Number(day.totalKcal)===0 && <line data-range-mark={"zero:"+day.date} x1={x(index)-4} x2={x(index)+4} y1={bottom} y2={bottom} stroke={day.restingKcal!=null?"var(--data-protein)":day.activeKcal!=null?"var(--data-red)":"var(--data-neutral)"} strokeWidth="2"/>}
+      {day.totalSource === "override" && day.record?.adoption?.mode!=="source" && <line data-range-mark={"total:"+day.date} data-energy-total={day.totalKcal!} x1={x(index) - barWidth / 2 - 2} x2={x(index) + barWidth / 2 + 2} y1={y(Number(day.totalKcal))} y2={y(Number(day.totalKcal))} stroke="var(--gold)" strokeWidth="2" className={styles.mark} />}
       {(index % stride === 0 && days.length - 1 - index >= stride / 2 || index === days.length - 1) && <text x={x(index)} y={bottom + 25} textAnchor={days.length === 1 ? "middle" : index === 0 ? "start" : index === days.length - 1 ? "end" : "middle"} className={styles.axis}>{days.length <= 7 && slot < 46 ? day.date.slice(8) : shortRecordDate(day.date)}</text>}
     </g>; })}
   </svg></EnergyPlotFrame>;

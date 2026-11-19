@@ -16,6 +16,7 @@ import { DailyRecords,DailyRecordRow } from "@/components/daily-records";
 import { RecordHistory } from "@/components/record-history";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
+import { useNestedChartRange } from "@/components/use-nested-chart-range";
 import {RecordDetailActions} from "@/components/record-detail-actions";
 import { useLocalToday } from "@/components/use-local-today";
 import { FoodTable } from "./presets";
@@ -67,7 +68,8 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   const validRange=/^\d{4}-\d{2}-\d{2}$/.test(from)&&/^\d{4}-\d{2}-\d{2}$/.test(to)&&dateNumber(from)<=dateNumber(to)&&dateNumber(to)-dateNumber(from)<=3660;
   const dates=validRange?Array.from({length:dateNumber(to)-dateNumber(from)+1},(_,i)=>dateAt(dateNumber(from)+i)):[];
   const defaultChartDate=dates.includes(today)?today:dates.findLast(date=>groups.some(g=>g.date===date&&g.day.status==="complete"&&g.totals.values.caloriesKcal!==null))??dates.findLast(date=>groups.some(g=>g.date===date))??today;
-  const chart=useChartDateSelection(dates,preferred,dayChartFallback?.from===from&&dayChartFallback.to===to?dayChartFallback.date:initialDate&&dates.includes(initialDate)?initialDate:defaultChartDate,customOpen),summaryDate=chart.selected,chosen=groups.find(g=>g.date===summaryDate);
+  const chart=useChartDateSelection(dates,preferred,dayChartFallback?.from===from&&dayChartFallback.to===to?dayChartFallback.date:initialDate&&dates.includes(initialDate)?initialDate:defaultChartDate,customOpen,"",true),summaryDate=chart.selected,chosen=groups.find(g=>g.date===summaryDate);
+  const {bindPlot, prepare: prepareRange}=useNestedChartRange({mode:range,from,to,series:macroMode});
   function viewDay(date:string){setDayIntent('view');setSelectedDate(date);setHistoryOpen(true);}
   function editDay(date:string){setDayIntent('edit');setSelectedDate(date);setHistoryOpen(true);setError('');}
   const dailySummary=(date:string)=>{const group=groups.find(g=>g.date===date);return group?<>{group.meals.length} 餐 · {formatNutrition(group.totals.values.caloriesKcal,"caloriesKcal")} 千卡{group.totals.incomplete.caloriesKcal?" · 部分":""}</>:"尚无记录";};
@@ -125,7 +127,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
 
       <div data-record-trend data-chart-selection={chart.regionId} data-selected-date={chart.selected} data-selection-origin={chart.origin} {...chart.regionProps}>
       <RecordTrendPanel presentation="nutrition" graphic={<NutritionComposition totals={chosen?.totals}/>}
-       range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft({from:customFrom||from,to:customTo});setCustomOpen(true);}else{setRange(key);setCustomOpen(false);}}}/>}
+       range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft({from:customFrom||from,to:customTo});setCustomOpen(true);}else{prepareRange(key);setRange(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="饮食" value={customDraft} change={setCustomDraft} apply={()=>{setCustomFrom(customDraft.from);setCustomTo(customDraft.to);setRange("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
        date={summaryDate} view={()=>{const target=summaryDate;viewDay(target);chart.releasePreview();}} readoutLabel="选中日营养"
        metrics={metrics.map(metric=>({label:metricLabels[metric],value:formatNutrition(chosen?.totals.values[metric]??null,metric),unit:unitFor(metric),inlineUnit:metric!=="caloriesKcal",tone:metric==="caloriesKcal"?"blue":undefined,note:chosen?.totals.incomplete[metric]?"已知部分":metric!=="caloriesKcal"&&macroComposition(chosen?.totals).kind==="known"?((macroComposition(chosen?.totals).segments.find(s=>s.metric===metric)?.ratio??0)*100).toFixed(1)+'%':undefined,reserveNote:metric!=="caloriesKcal"||groups.some(group=>group.date>=from&&group.date<=to&&group.totals.incomplete[metric])}))}
@@ -133,7 +135,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
        title="每日摄入" unit="千卡"
        options={<InlineChartControls><div role="group" aria-label="营养占比口径">{([["grams","克数占比"],["energy","能量占比"]] as const).map(([value,label])=><button type="button" key={value} aria-pressed={macroMode===value} onClick={()=>setMacroMode(value)}>{label}</button>)}</div></InlineChartControls>}
        legend={<><NutritionLegend/>{groups.some(group=>group.day.status!=="complete")&&<span className={styles.desktopOnlyLegend}>未记全／待确认</span>}</>}
-      >{validRange?<NutritionChart dates={dates} groups={groups} mode={macroMode} selection={chart} compact={dates.length<=31} linked={!!initialTrend&&from===initialTrend.from&&to===initialTrend.to}/>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}</RecordTrendPanel>
+      >{validRange?<div data-nested-chart ref={bindPlot}><NutritionChart dates={dates} groups={groups} mode={macroMode} selection={chart} compact={dates.length<=31} linked={!!initialTrend&&from===initialTrend.from&&to===initialTrend.to}/></div>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}</RecordTrendPanel>
       </div>
       {error&&!editing&&<p role="alert" className={styles.error}>{error}</p>}{notice&&<p role="status" className={styles.hint}>{notice}</p>}
       <DailyRecords actions={<button type="button" onClick={()=>setTab("foods")}>食材库</button>} history={<RecordHistory today={today} dates={[...new Set([...recentRecordDates(today),...groups.map(g=>g.date)])].filter(date=>!recentDates.includes(date)).sort().reverse()} renderRow={renderDay} view={viewDay}/>}>{recentDates.map(renderDay)}</DailyRecords>

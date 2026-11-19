@@ -13,4 +13,17 @@ export function DailyRecords({children,history,actions,loading=false,kind,readin
   <div id={id} hidden={!expanded} data-record-history>{opened&&history}</div>
  </section>;
 }
-export function DailyRecordRow({date,today,value,status,children}:{date:string;today:string;value:ReactNode;status?:ReactNode;children:ReactNode}){return <article className={styles.row} data-record-date={date}><div className={styles.date}><div className={styles.dateHeading}><time dateTime={date}>{recordDateLabel(date,today)}</time>{status&&<div className={styles.status}>{status}</div>}</div><div className={styles.value}>{value}</div></div><div className={styles.actions} data-record-actions>{children}</div></article>;}
+export function DailyRecordRow({date,today,value,status,children,layout,disclosure,details}:{
+ date:string;today:string;value:ReactNode;status?:ReactNode;children:ReactNode;
+ layout?:"body";disclosure?:ReactNode;details?:ReactNode;
+}){
+ return <article className={styles.row} data-record-date={date} data-row-layout={layout}>
+  <div className={styles.date}>
+   <div className={styles.dateHeading}><time dateTime={date}>{recordDateLabel(date,today)}</time>{status&&<div className={styles.status}>{status}</div>}</div>
+   <div className={styles.value}>{value}</div>
+  </div>
+  <div className={styles.actions} data-record-actions>{children}</div>
+  {disclosure&&<div className={styles.rowDisclosure}>{disclosure}</div>}
+  {details}
+ </article>;
+}

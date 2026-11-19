@@ -51,7 +51,7 @@ try{
  const before=await digest();
  for(const [size,theme]of [[[390,640],'light'],[[1440,900],'dark']]){
   const c=await context(size,theme),p=activePage=await c.newPage();
-  for(const kind of ['meals','energy','body','training']){
+  for(const kind of ['meals','energy','training']){
    await p.goto(config.baseURL+recordGuides[kind].path);await guide(p).waitFor();assert.equal(await guideStep(p),'1');
    await shot(p,size[0]+'-'+theme+'-'+kind+'-1');await checkGeometry(p);
    if(kind==='training'){
@@ -59,22 +59,11 @@ try{
     await openReplay(p,kind);
    }
    await fields(p,kind);await shot(p,size[0]+'-'+theme+'-'+kind+'-2');await checkGeometry(p);
-   if(kind==='body'&&size[0]===390){
-    await p.evaluate(()=>document.documentElement.setAttribute('data-chart-travel','return'));await p.waitForTimeout(100);assert.equal(await guide(p).count(),0,'图形交接优先于操作引导');await p.evaluate(()=>document.documentElement.removeAttribute('data-chart-travel'));await guide(p).waitFor();
-    const handle=p.getByRole('button',{name:/可拖动面板$/});await handle.click();await p.waitForTimeout(500);await checkGeometry(p);
-    const aligned=await p.evaluate(()=>{const f=[...document.querySelectorAll('[data-entry-form="body"] [data-record-guide-fields]')].find(n=>n.getClientRects().length),s=document.querySelector('[data-record-guidance] [aria-hidden="true"]').getBoundingClientRect(),r=f.getBoundingClientRect();return Math.abs(s.x-(r.x-5))<=1&&Math.abs(s.y-(r.y-5))<=1;});assert.equal(aligned,true,'面板切换停靠档位后高光跟随');
-    await handle.click();await p.waitForTimeout(450);
-   }
    await guide(p).getByRole('button',{name:'下一步',exact:true}).click();await p.waitForFunction(()=>document.querySelector('[data-record-guidance][data-ready=true][data-step="3"]'));
    await shot(p,size[0]+'-'+theme+'-'+kind+'-3');await checkGeometry(p);
    const form=p.locator(`[data-entry-form="${recordGuides[kind].form}"]`);
-   if(kind!=='body'){await guide(p).getByRole('button',{name:'完成引导',exact:true}).click();assert.equal(await guide(p).count(),0);assert.equal(await form.count(),1,'完成教程保留真实表单');}
-   if(kind==='body'){
-    const input=form.getByLabel('晨间体重',{exact:true}),original=await input.inputValue();await input.fill('70.15');
-    await p.route('**/dashboard/measurements**',route=>route.request().method()==='POST'?route.abort('failed'):route.continue());
-    await form.locator('[data-record-guide-save]').click();await form.getByRole('alert').waitFor();assert.equal(await guide(p).count(),0,'实际提交后引导退出，错误和草稿优先');assert.equal(await input.inputValue(),'70.15');
-    await p.unroute('**/dashboard/measurements**');await input.fill(original);
-   }
+   await guide(p).getByRole('button',{name:'完成引导',exact:true}).click();
+   assert.equal(await guide(p).count(),0);assert.equal(await form.count(),1,'完成教程保留真实表单');
    await p.keyboard.press('Escape');await form.waitFor({state:'hidden'});await p.waitForTimeout(550);
    await p.reload();await p.waitForLoadState('networkidle');await p.waitForTimeout(200);assert.equal(await guide(p).count(),0,'本账号本设备不重复自动提示');
    reports.push({kind,size,theme,flow:'entry-fields-save',noAutomaticSubmission:true});
@@ -83,16 +72,21 @@ try{
   assert.equal(await guide(p).count(),0);await c.close();
  }
  assert.deepEqual(await digest(),before,'教程操作、跳过、重播和失败不改健康记录');
- // 窄屏、横屏、短屏、大文字和减少动态效果：高光和提示保持在视口内。
+ // 身体页已采用自明的录入与管理入口，首次进入没有录入高光。
+ const bodyContext=await context([390,780],'light','reduce'),bodyPage=await bodyContext.newPage();
+ await bodyPage.goto(config.baseURL+'/dashboard/measurements',{waitUntil:'networkidle'});
+ assert.equal(await bodyPage.locator('[data-record-guidance]').count(),0);
+ await bodyContext.close();
+ // 窄屏、横屏、短屏、文字和减少动态效果：核对仍有引导的录入。
  for(const size of [[320,560],[390,560],[430,780],[640,390],[1100,800],[1920,1080]])for(const theme of ['light','dark']){
-  const c=await context(size,theme,'reduce'),p=activePage=await c.newPage();await p.goto(config.baseURL+'/dashboard/measurements');await guide(p).waitFor();
-  await fields(p,'body');await shot(p,size.join('x')+'-'+theme+'-body');const geometry=await checkGeometry(p);
+  const c=await context(size,theme,'reduce'),p=activePage=await c.newPage();await p.goto(config.baseURL+'/dashboard/energy');await guide(p).waitFor();
+  await fields(p,'energy');await shot(p,size.join('x')+'-'+theme+'-energy');const geometry=await checkGeometry(p);
   if(size[0]===320&&theme==='light'){
-   await enlargeText(p);const large=await checkGeometry(p);assert.ok(large.tip.bottom<=large.spot.y||large.tip.y>=large.spot.y+large.spot.height,'有空间时大字提示不覆盖填写目标');await shot(p,'320-body-large-text');
+   await enlargeText(p);const large=await checkGeometry(p);assert.ok(large.tip.bottom<=large.spot.y||large.tip.y>=large.spot.y+large.spot.height,'有空间时大字提示不覆盖填写目标');await shot(p,'320-energy-large-text');
   }
   await guide(p).getByRole('button',{name:'下一步',exact:true}).click();await guide(p).waitFor();await p.waitForTimeout(150);await checkGeometry(p);
-  await p.keyboard.press('Escape');assert.equal(await guide(p).count(),0);assert.equal(await p.locator('[data-entry-form="body"]').count(),1,'Escape先收起教程，保留编辑器');
-  await p.keyboard.press('Escape');await p.locator('[data-entry-form="body"]').waitFor({state:'hidden'});
+  await p.keyboard.press('Escape');assert.equal(await guide(p).count(),0);assert.equal(await p.locator('[data-entry-form="energy"]').count(),1,'Escape先收起教程，保留编辑器');
+  await p.keyboard.press('Escape');await p.locator('[data-entry-form="energy"]').waitFor({state:'hidden'});
   await p.goto(config.baseURL+'/dashboard/profile');await p.getByRole('button',{name:'修改资料',exact:true}).click();
   await p.getByLabel('出生年份',{exact:true}).selectOption('1984');await p.getByLabel('出生月份',{exact:true}).selectOption('02');await p.getByLabel('出生日期中的日',{exact:true}).selectOption('29');
   await p.getByLabel('出生年份',{exact:true}).selectOption('1985');assert.equal(await p.getByLabel('出生日期中的日',{exact:true}).inputValue(),'','非闰年不保留2月29日');

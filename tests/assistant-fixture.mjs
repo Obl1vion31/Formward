@@ -10,12 +10,12 @@ import { dailyTotals } from "../src/features/meals/model.ts";
 import { setMealDayStatus } from "../src/features/meals/day-status.ts";
 
 /** 仅由隔离浏览器环境调用，所有账号、数值和测量均为虚构。 */
-export async function seedAssistantFixture(db, today) {
+export async function seedAssistantFixture(db, today, {stressOffset = -37} = {}) {
   const account = { email: "assistant@example.test", password: "formward-assistant-demo" };
   const owner = await provisionAccount(db, { ...account, name: "虚构助手演示" });
   await db.delete(schema.personalProfile).where(eq(schema.personalProfile.userId, owner.id));
   await db.update(schema.user).set({ createdAt: new Date(addCalendarDays(today, -40) + "T00:00:00Z") }).where(eq(schema.user.id, owner.id));
-  await seedDetailHierarchy(db, owner.id, today, { stressOffset: -37 });
+  await seedDetailHierarchy(db, owner.id, today, { stressOffset });
   for (const day of dailyTotals((await readMealSnapshot(db, owner.id)).meals).filter(day => day.date < addCalendarDays(today, -1))) await setMealDayStatus(db, owner.id, { operationId: randomUUID(), date: day.date, status: "complete", version: day.day.version, contentDigest: day.day.contentDigest });
   const actor = { userId: owner.id, actorId: owner.id };
   const rows = Array.from({ length: 21 }, (_, i) => i + 1).filter(offset => ![2, 4, 6, 9, 11, 14, 16].includes(offset)).flatMap((offset, index) => {

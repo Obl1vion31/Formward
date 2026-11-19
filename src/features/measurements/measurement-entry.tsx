@@ -12,10 +12,10 @@ import {formatRecordNumber} from "@/components/number-format";
 
 import {confirmNumbers} from "@/components/number-change";
 import {measurementVersions,verifyRecordVersions,acknowledgeRecordChanges} from "@/components/record-change-client";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import {useDraftGuard} from "@/components/draft-guard";
 
-import { entryMetrics, localMeasurementDate, measurementEntryState, type EntryPeriod, type EntryResult, type MeasurementActions, type MeasurementDisplay } from "./entry-state";
+import { entryMetrics, entryPeriods, localMeasurementDate, measurementEntryState, type EntryPeriod, type EntryResult, type MeasurementActions, type MeasurementDisplay } from "./entry-state";
 import type { PeriodEdit, SaveMeasurementDayInput } from "./editing";
 import type { MeasurementMetric } from "./trend";
 import { systemMeasurementTimezone, timezoneLabel, timezoneOptions } from "./timezone";
@@ -34,7 +34,10 @@ function makeDraft(records: MeasurementDisplay[], date: string, choices: Record<
 }
 
 export function MeasurementEntryHeader({date,editing=false,headingRef}:{date:string;editing?:boolean;headingRef?:Ref<HTMLHeadingElement>}){
- return <header className={styles.drawerHeader} data-editing><div><h2 ref={headingRef} tabIndex={-1} id="measurement-drawer-title">{editing?"编辑身体记录":"身体录入"}<time className={styles.entryHeadingDate} dateTime={date}>{displayRecordDate(date)}</time></h2></div><InspectorCloseButton label="关闭记录详情"/></header>;
+ return <header className={styles.drawerHeader+" "+styles.entryHeading} data-editing>
+  <h2 ref={headingRef} tabIndex={-1}>{editing?"编辑身体记录":"身体录入"}<time className={styles.entryHeadingDate} dateTime={date}>{displayRecordDate(date)}</time></h2>
+  <InspectorCloseButton label="关闭记录详情"/>
+ </header>;
 }
 
 export function MeasurementEntry({ date, timezone, records, sources, choices, actions, pending=false,onRetry,readError="", editing = false, initialPeriod = "daytime", onUpdated, onChoose }: {
@@ -42,7 +45,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
   pending?:boolean;onRetry?:()=>void;readError?:string; editing?: boolean; initialPeriod?:EntryPeriod; onUpdated: (result: Extract<EntryResult, { ok: true }>) => void;
   onChoose: (date: string, period: EntryPeriod, id: string) => void;
 }) {
-  const visibleMetrics=useBodyMetrics();
+  const visibleMetrics=useBodyMetrics(), draftNoteId=useId();
   const [baseRecords, setBaseRecords] = useState(records);
   const [lastRecords, setLastRecords] = useState(records);
   const [defaultTimezone, setDefaultTimezone] = useState(systemMeasurementTimezone);
@@ -54,7 +57,26 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
   const [transitionPending, startTransition] = useTransition();
   const [busyLabel, setBusyLabel] = useState("正在保存记录…");
   const busy = working || transitionPending;
-  const lock = useRef(false);
+  const lock = useRef(false), checking = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null), rippleRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const sheet = formRef.current?.closest("dialog"), viewport = window.visualViewport;
+    if (!sheet || !viewport) return;
+    const place = () => {
+      if (viewport.scale !== 1) return;
+      sheet.style.setProperty("--body-entry-height", viewport.height + "px");
+      sheet.style.setProperty("--body-entry-bottom", Math.max(0, innerHeight - viewport.height - viewport.offsetTop) + "px");
+    };
+    place();
+    viewport.addEventListener("resize", place);
+    viewport.addEventListener("scroll", place);
+    return () => {
+      viewport.removeEventListener("resize", place);
+      viewport.removeEventListener("scroll", place);
+      sheet.style.removeProperty("--body-entry-height");
+      sheet.style.removeProperty("--body-entry-bottom");
+    };
+  }, []);
 
   const numberAcknowledgements=useRef(new Set<string>());
   const request = useRef({ signature: "", id: "" });
@@ -84,10 +106,19 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
     if (request.current.signature !== signature) request.current = { signature, id: crypto.randomUUID() };
     return request.current.id;
   }
-  function run(label: string, work: () => Promise<EntryResult>, ownKeys:string[]=[],resetPeriods:EntryPeriod[]=[],target="") {
+  function run(label: string, work: () => Promise<EntryResult>, ownKeys:string[]=[],resetPeriods:EntryPeriod[]=[],target="", saving=false) {
     if (lock.current || busy) return;
     lock.current = true;
     setWorking(true); setBusyLabel(label); setError("");setErrorTarget(target); setMessage("");
+    if (saving && rippleRef.current && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const ripple = rippleRef.current;
+      ripple.getAnimations().forEach(animation => animation.cancel());
+      ripple.animate([
+        {opacity: .86, transform: "scale(.03,.65)"},
+        {opacity: .7, transform: "scale(.72,1)", offset: .56},
+        {opacity: 0, transform: "scale(1.25,1.2)"},
+      ], {duration: 200, easing: "cubic-bezier(.16,.68,.36,1)"});
+    }
     startTransition(async () => {
       try {
         const result = await work();
@@ -101,6 +132,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
   }
   async function save(event: React.FormEvent) {
     event.preventDefault();
+    if (!dirty || future || lock.current || checking.current || busy) return;
     const periods: SaveMeasurementDayInput["periods"] = {};
     for (const group of groups) {
       if (group.pending || group.blocked) continue;
@@ -118,13 +150,18 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       else change.timezone = draft[group.period].timezone || null;
       periods[group.period] = change;
     }
-    if(!await confirmNumbers(groups.flatMap(group=>entryMetrics.map(metric=>({label:periodName(group.period)+metricName(metric),unit:metric==="weightKg"?"kg":"%",value:draft[group.period][metric],previous:baseline[group.period][metric]||records.filter(row=>row.period===group.period&&row.recordDate<=date&&row[metric]!=null).sort((a,b)=>b.recordDate.localeCompare(a.recordDate))[0]?.[metric]}))),numberAcknowledgements.current))return;
+    checking.current = true;
+    try {
+      if(!await confirmNumbers(groups.flatMap(group=>entryMetrics.map(metric=>({label:periodName(group.period)+metricName(metric),unit:metric==="weightKg"?"kg":"%",value:draft[group.period][metric],previous:baseline[group.period][metric]||records.filter(row=>row.period===group.period&&row.recordDate<=date&&row[metric]!=null).sort((a,b)=>b.recordDate.localeCompare(a.recordDate))[0]?.[metric]}))),numberAcknowledgements.current))return;
+    } finally {
+      checking.current = false;
+    }
     const payload = { date, timezone, periods };
     run("正在保存记录…", async () => {
       const expected=Object.keys(periods).map(period=>{const row=measurementEntryState(baseRecords,date).find(group=>group.period===period)?.observed;return {key:`measurement:${date}:${period}:observed`,version:row?row.id+":"+row.updatedAt:null,summary:row?`体重 ${row.weightKg??"—"} kg · 体脂 ${row.bodyFatPercent??"—"}%`:undefined};});
       const latest=await verifyRecordVersions(expected);for(const period of Object.keys(periods) as EntryPeriod[]){const row=latest.get(`measurement:${date}:${period}:observed`);if(row){periods[period]!.recordId=row.id;periods[period]!.version=row.version.slice(row.id.length+1);}}
       const result=await actions.save({...payload,operationId:operationId(["save",payload])});if(result.ok)acknowledgeRecordChanges(expected.map(row=>row.key),measurementVersions(result.records));return result;
-    },[],Object.keys(periods) as EntryPeriod[]);
+    },[],Object.keys(periods) as EntryPeriod[],"",true);
   }
   async function removeSource(label:string){
     const result=await actions.removeSource(label);
@@ -134,14 +171,28 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
     }
     return result;
   }
-  return <form data-editing={editing} data-entry-form="body" data-selected-period={selected} className={styles.entryForm} aria-label="当天身体录入" onSubmit={event=>{if(pending)event.preventDefault();else void save(event);}} aria-busy={busy||pending&&!readError}>
+  return <form ref={formRef} data-editing={editing} data-entry-form="body" data-selected-period={selected} className={styles.entryForm} aria-label="当天身体录入" onSubmit={event=>{if(pending)event.preventDefault();else void save(event);}} aria-busy={busy||pending&&!readError}>
 
-    <div className={styles.entryPeriodBar}><div role="group" aria-label="选择录入时段">{(["daytime","evening"] as const).map(period=><button type="button" key={period} aria-label={period==="daytime"?"晨间（空腹）":periodName(period)} aria-pressed={selected===period} disabled={pending} onClick={()=>setSelected(period)}>{periodName(period)}{period==="daytime"&&"（空腹）"}{periodDirty(period)&&<span aria-label="有未保存修改"> ·</span>}</button>)}</div><button type="button" aria-expanded={advanced.has(selected)} disabled={pending} onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(selected))next.delete(selected);else next.add(selected);return next;})}>更多设置</button></div>
+    <div className={styles.entryPeriodBar}>
+      <div className={styles.entrySegments} role="group" aria-label="选择录入时段">{entryPeriods.map(period => {
+        const group = groups.find(item => item.period === period)!;
+        const unsaved = periodDirty(period);
+        const note = group.pending ? "待选择" : group.blocked ? "待确认" : period === "daytime" ? "空腹" : "";
+        const label = periodName(period)+(note ? "（"+note+"）" : "");
+        return <button type="button" key={period} aria-label={label} aria-describedby={unsaved ? draftNoteId+"-"+period : undefined}
+          aria-pressed={selected===period} disabled={pending} onClick={()=>setSelected(period)}>
+          <span>{periodName(period)}</span>{note && <small>{note}</small>}
+          {unsaved && <><i className={styles.entryDraftDot} aria-hidden="true"/><span className="sr-only" id={draftNoteId+"-"+period}>有未保存修改</span></>}
+        </button>;
+      })}</div>
+      <button type="button" className={styles.entrySettings} aria-expanded={advanced.has(selected)} disabled={pending}
+        onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(selected))next.delete(selected);else next.add(selected);return next;})}>更多设置</button>
+    </div>
     <div className={styles.entryGroups}>
       {groups.map(group=><fieldset key={group.period} data-period={group.period} data-selected={selected===group.period} disabled={busy||pending||group.blocked}>
         <legend><span>{periodName(group.period)} · {group.blocked?"空腹条件未确认":group.period==="daytime"?"空腹":"非空腹"}</span><button type="button" aria-expanded={advanced.has(group.period)} onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(group.period))next.delete(group.period);else next.add(group.period);return next;})}>更多设置</button></legend>
         {group.pending?<label>选择已有实测<select aria-label={"录入"+periodName(group.period)+"候选记录"} value="" onChange={event=>onChoose(date,group.period,event.target.value)}><option value="">选择已有记录</option>{group.candidates.map(row=><option value={row.id} key={row.id}>{row.sourceLocalTime}</option>)}</select></label>:<>
-          <div data-record-guide-fields className={styles.bodyMetricFields}>{visibleMetrics.map(metric=>{
+          <div className={styles.bodyMetricFields}>{visibleMetrics.map(metric=>{
             const cell=group.fields[metric],label=periodName(group.period)+metricName(metric),key=group.period+":"+metric,editable=!group.blocked&&!future;
             return <div className={styles.entryCell} key={metric} data-entry-cell={key} data-kind={cell.kind}>
               <label htmlFor={"entry-"+group.period+"-"+metric}>{metricName(metric)}<small>{metric==="weightKg"?"kg":"%"}</small></label>
@@ -159,6 +210,9 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       </fieldset>)}
     </div>
     {future&&<p role="alert" className={styles.entryError}>不能录入未来日期的身体记录。</p>}
-    <div className={styles.entryFooter}><div>{(error||readError)&&<p role="alert" className={styles.entryError}>{error||readError}</p>}{pending&&!readError?<LocalLoading/>:message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-record-guide-save data-entry-primary-action type={onRetry?"button":"submit"} onClick={onRetry} className={styles.saveEntry} disabled={onRetry?false:busy||pending||!dirty||future}>{onRetry?"重新读取":busy?busyLabel:"保存录入"}</button></div>
+    <div className={styles.entryFooter}><div>{(error||readError)&&<p role="alert" className={styles.entryError}>{error||readError}</p>}{pending&&!readError?<LocalLoading/>:message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-entry-primary-action data-saving={busy && busyLabel === "正在保存记录…" || undefined} type={onRetry?"button":"submit"} onClick={onRetry} className={styles.saveEntry} disabled={onRetry?false:busy||pending||!dirty||future}>
+      <span className={styles.saveRipple} ref={rippleRef} aria-hidden="true"/>
+      <span>{onRetry?"重新读取":busy?busyLabel:"保存录入"}</span>
+    </button></div>
   </form>;
 }

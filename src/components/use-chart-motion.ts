@@ -11,7 +11,7 @@ export function useChartMotion(container:RefObject<HTMLElement|null>,changeKey:s
   if(!changed)return;
   entered.current=key;
   const fresh=claimChartEntry(key,node),reduced=matchMedia("(prefers-reduced-motion: reduce)");
-  if(reduced.matches||typeof Element.prototype.animate!=="function"||first&&(!fresh||node.closest('[data-shared-route]')))return;
+  if(node.closest("[data-chart-range-motion]")||reduced.matches||typeof Element.prototype.animate!=="function"||first&&(!fresh||node.closest('[data-shared-route]')))return;
   const animations:Animation[]=[];
   const lineGroups=node.querySelectorAll<SVGElement>('[data-trend-glyph="morning-weight"]');
   for(const glyph of lineGroups)animations.push(glyph.animate([{clipPath:"inset(-8px 100% -8px -8px)"},{clipPath:"inset(-8px -8px -8px -8px)"}],{duration:600,easing:"cubic-bezier(.2,.65,.3,1)"}));

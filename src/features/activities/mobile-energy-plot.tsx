@@ -25,7 +25,7 @@ export function MobileEnergyPlot({days,selected,selection,linked=false,compact=f
     <svg {...drag} style={{touchAction:'pan-y',visibility:measured?undefined:'hidden'}} viewBox={`0 0 ${width} ${bottom+32}`} role="group" aria-label="每日消耗柱状图">
       <TrendAxes kind="energy" dates={dates} model={model} width={width} left={left} right={right} top={top} bottom={bottom} fontSize={fontSize} axisClass={styles.axis} gridClass={styles.grid}/>
       <ChartSelectionColumn x={index<0?null:x(index)} date={selected} column={index<0?null:{left:x(index)-slot/2,right:x(index)+slot/2}} plot={{left,right:width-right,top,bottom}} resetKey={`${width}:${dates.join('|')}`} direct={selection.direct} baselineTick/>
-      <TrendGlyph target={measured>0} model={model} x={left} y={top} width={plotWidth} height={plotHeight}/>
+      <TrendGlyph rangeMotion target={measured>0} model={model} x={left} y={top} width={plotWidth} height={plotHeight}/>
       {days.map((day,i)=><g key={day.date} role="button" tabIndex={selected===day.date?0:-1} data-chart-date={day.date} data-energy-date={day.date} data-selected={selected===day.date} aria-pressed={selected===day.date} aria-label={`${day.date} · 总消耗 ${day.totalKcal??'未填写'} 千卡`} onMouseMove={()=>selection.preview(day.date)} onFocus={event=>selection.focus(event,day.date)} onClick={()=>selection.activate(day.date)} onKeyDown={event=>selection.keyDown(event,day.date)}>
         <rect className={styles.hit} x={left+i*slot} y={top} width={slot} height={plotHeight+4}/>
       </g>)}
