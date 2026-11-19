@@ -2,15 +2,15 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-895051b6-assistant-experience-release-20261119`，源码 `895051b66be8af32b8748139a9bdb4b63da30626`，BUILD_ID `6na387W1msvvJURShaH7I`。北京时间 2026-11-19 17:57:11 切换并核对 [正式版本](https://formward.top/api/app-version)。
+正式站运行 `dual-entry-7fa694b2-overview-zero-motion-20261119`，源码 `7fa694b246b01ed21e4cbb0c444d647da6ea3859`，BUILD_ID `Pia0hRTr9fVY7fPyQaYT9`。北京时间 2026-11-19 18:32:52 切换并核对 [正式版本](https://formward.top/api/app-version)。
 
-小助手上线单行输入、跟手柔光、模型余额、图文发送、逐题补充和实际计时。手机与电脑调整欢迎语和正文密度，桌面 AI 确认展开后常见营养值可同行阅读。上线包通过 Chromium 和 WebKit 核对，见 [小助手验收](assistant-chat-verification.md)。
+总览提供净收支柱、次晨变化细杆和精简的单日明细。两图同时从各自的零线伸出，减少纵轴刻度并增大文字与绘图区的距离。手机点按、电脑悬停或锁定都能查看日期、摄入、消耗和次晨记录。Chromium 和 WebKit 使用同一发布包核对，见 [视觉验收](../design-qa.md)。
 
-上海网页与同版聊天 worker 运行正常。schema 保持 `0045_managed_membership`。45 项迁移和 67 张表核对通过，停写备份 `formward-primary-20261119T095707073483Z.dump.json` 完成原生校验和加密异地回读。
+上海网页与同版聊天 worker 均在运行。schema `0045_managed_membership`，45 项迁移、67 张表及正式配置核对通过。停写备份 `formward-primary-20261119T103247992638Z.dump.json` 完成原生校验和加密异地回读。
 
-四个公网域名与兼容 IP 均返回本版。核对了小助手的登录返回路径、新旧静态资源、56 个 Server Action 编号和绑定密钥。海外网关 Ready，匿名访问和 HTTP／MCP 契约通过。
+四个公网域名及兼容 IP 返回同一版本。总览入口、小助手深链的登录返回、新版样式和动效脚本、旧资源与匿名权限通过检查。56 项正式 Server Action 编号与绑定密钥兼容，海外网关实测可回源新版。
 
-本机永久归档位于 `.codex/backups/regional-releases/assistant-experience-release-20261119`。兼容包保留 2000 项旧静态资源，81,857,801 字节，本机与服务器 SHA256 均为 `0e178749a156809eb2a6be7a6c619838ffccd5e7f5084a9a5d7b3bb7c933feb6`。兼容回退包为 `body-desktop-spacing-20261119` 的网页和聊天 worker。
+本机永久归档位于 `.codex/backups/regional-releases/overview-zero-motion-20261119`。兼容包包含 2011 项旧静态资源，82,019,392 字节，本机和服务器 SHA256 均为 `1fb6ca5e32ea473e2b8f8357d380b22bfbbfacd4dcca67a61f5801f72256bbb1`。兼容回退应用与 worker 为 `assistant-experience-release-20261119`。
 
 ## 迁移与发布
 
