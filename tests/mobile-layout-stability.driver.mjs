@@ -273,6 +273,8 @@ export async function runMobileLayoutStability(db) {
             assert.equal(frame.frameBackground, frame.rootBackground, "首个绘制帧的画布和视口底色一致");
             assert.equal(frame.frameBackground, reading.frameBackground, "背景颜色贯穿整个入场");
             assert.equal(frame.viewport.opacity, 1);
+            assert.ok(frame.composer?.visible, "标题和编辑区首帧一起显示");
+            near(frame.composer.bottom, frame.viewport.bottom, "首帧输入区贴底");
             near(frame.viewport.bottom, frame.layoutHeight, "视口从首帧覆盖到屏幕底边");
             near(frame.shell.left, 0, "背景外的助手布局不参与横移");
             assert.equal(frame.locked, false);

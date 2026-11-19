@@ -183,7 +183,7 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
           </div>
         </header>
       </div>
-      {page && <AssistantPageBody defer={!!page.source} historyOpen={!!history}>
+      {page && <AssistantPageBody historyOpen={!!history}>
         <AssistantChatView sidebar={tasks && <AssistantTasks {...tasks} mobile inlineReview={chat.enabled} navigate={allowNavigation}/>}
           navigate={allowNavigation} tab={tab} page onPreviewBack={() => selectTab("tasks")}/>
       </AssistantPageBody>}
@@ -199,15 +199,7 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
   </main>;
 }
 
-function AssistantPageBody({ defer, historyOpen, children }: { defer: boolean; historyOpen: boolean; children: ReactNode }) {
-  const [ready, setReady] = useState(!defer);
-  useEffect(() => {
-    if (ready) return;
-    // 给常驻标题、标签和返回键一次独立绘制，再挂载聊天正文。
-    let second = 0;
-    const first = requestAnimationFrame(() => { second = requestAnimationFrame(() => setReady(true)); });
-    return () => { cancelAnimationFrame(first); cancelAnimationFrame(second); };
-  }, [ready]);
+function AssistantPageBody({ historyOpen, children }: { historyOpen: boolean; children: ReactNode }) {
   const scene = useOrderedArrival<HTMLDivElement>(historyOpen ? 1 : 0, { enabled: !historyOpen });
-  return <div ref={scene} className={styles.mainContent} inert={historyOpen}>{ready && children}</div>;
+  return <div ref={scene} className={styles.mainContent} inert={historyOpen}>{children}</div>;
 }
