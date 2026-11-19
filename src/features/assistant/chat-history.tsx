@@ -4,6 +4,7 @@ import { LocalLoading } from "@/components/local-loading";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAssistantChat } from "./chat-client";
 import { ChatMessageBody } from "./chat-message";
+import { chatTranscript } from "./chat-presentation";
 import type { ChatSnapshot } from "./chat-model";
 import styles from "./surface.module.css";
 import chatStyles from "./chat.module.css";
@@ -154,6 +155,7 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
     <p>{failure.message}</p><button type="button" onClick={() => void readHistory(failure.request)}>重试</button>
   </div>;
 
+  const transcript = chatTranscript(view?.messages??[]);
   return <section className={styles.history} data-page={page || undefined} aria-label="历史会话" onKeyDown={event => {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -186,9 +188,9 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
         {view && !view.messages.length && <p className={styles.historyFeedback}>这段对话还没有消息。</p>}
         {notice && <p className={styles.historyFeedback} role="status">{notice}</p>}
         <div className={styles.historyMessages}>
-          {view?.messages.map(message => <article key={message.id} data-chat-message={message.id} data-role={message.role} tabIndex={-1}
+          {view && transcript.visible.map(message => <article key={message.id} data-chat-message={message.id} data-role={message.role} tabIndex={-1}
             className={chatStyles.message + " " + (message.role === "user" ? chatStyles.user : chatStyles.assistant)}>
-            <ChatMessageBody message={message} inlinePreviews={view.capabilities?.inlinePreviews === true} historical jump={jump} navigate={navigate}/>
+            <ChatMessageBody message={message} inlinePreviews={view.capabilities?.inlinePreviews === true} historical jump={jump} navigate={navigate} answers={transcript.answers.get(message.id)}/>
           </article>)}
         </div>
       </div>}

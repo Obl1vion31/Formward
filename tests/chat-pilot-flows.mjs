@@ -19,7 +19,7 @@ export async function chatRecoveryFlows({db,page,context,browser,base,fixture,en
  for(const label of ['千问','小米 MiMo','智谱']){
   const selected=await state();if(selected.catalog.find(model=>model.id===selected.provider)?.label!==label)await select(label);
   await page.getByLabel('选择聊天照片',{exact:true}).setInputFiles({name:'虚构餐照.png',mimeType:'image/png',buffer:Buffer.from(fixture.imageBytes,'base64')});await page.getByRole('button',{name:'移除照片 1',exact:true}).waitFor();await shot(page,'photo-draft-'+label);
-  await send(page,'这张照片是今天午餐，米饭150克和鸡胸肉');await page.getByText('补充：今天午餐实际食量',{exact:true}).waitFor();await shot(page,'photo-followup-'+label);await send(page,'鸡胸肉100克');const current=await state();const answer=current.messages.at(-1);assert.equal(answer.state,'complete');assert.ok(answer.references.some(ref=>ref.kind==='preview'));assert.equal(current.followup,null);await shot(page,'photo-'+current.provider);
+  await send(page,'这张照片是今天午餐，米饭150克和鸡胸肉');await page.getByRole('form',{name:'补充今天午餐实际食量',exact:true}).waitFor();await shot(page,'photo-followup-'+label);await send(page,'鸡胸肉100克');const current=await state();const answer=current.messages.at(-1);assert.equal(answer.state,'complete');assert.ok(answer.references.some(ref=>ref.kind==='preview'));assert.equal(current.followup,null);await shot(page,'photo-'+current.provider);
  }
  checks.push('三模型照片、显式补充与真实预览；引用保留和原审核往返（未确认）');
  // 明确平台余额错误不产生费用；换模型重试仍只有一个用户问题。

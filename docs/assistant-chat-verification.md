@@ -2,6 +2,16 @@
 
 正式站 [formward.top](https://formward.top) 已发布 `dual-entry-ad2741d8-assistant-motion-release-20261119`。网页、同版本 worker、公网入口与回退见[当前正式版本](deployment.md#当前正式版本)。
 
+## 单行头部、图文发送与补充 · 本机验收
+
+候选为 `assistant-experience-local-20261119-r3`。本机独立工作区运行真实 Next.js 网页、独立 worker 和回环 PostgreSQL。验收使用虚构海南鸡饭照片、虚构账号与可复现的模型分片回放。隔离入口在 `http://127.0.0.1:41968/`，页面始终标记「隔离测试 · 虚构数据」。本轮交付止于本机验收。
+
+Chromium 与 WebKit 各走完整手机图文、电脑图文及恢复流程。检查点包括发送接口慢于点击时本地缩略图与文字立即显示、上图下字、确认沿用同一节点、模拟键盘收起后的缩放、计时跳秒宽度差≤1 CSS px、真实分片提前出现在正文、食材查询同类归组、手填与返回、未知值不再弹出同一题、全跳、同一对话选择分批及最后一次人工确认入口。320×560 深色窄屏核对问答卡无横向溢出。独立可操作入口再次登录、选择原样例、完成补充和回看历史，原处摘要展开仍能核对未知与图文；新对话已留空供复测。
+
+69 张整屏原图和 6 段原速录屏在本机 `C:/Users/14878/.codex/private/formward-assistant-chat-qa-20261119/index.html`。图册含两浏览器、逐步时间、A 稿和具体操作入口。源码工作区下 `.codex/assistant-experience` 保存原始 WebM、通过与失败记录、ImageGen 选稿、原图和提示词。先审读整屏再判定流程结果。
+
+饮食页内共用补充卡另外在 WebKit 走完选择、回填、保留手填和一次人工保存。lint、独立类型检查、production build、858 项单元及集成测试和 2 项独立原生 PostgreSQL 测试通过。手机录屏为浏览器模拟软键盘视口，原生 iPhone Safari 键盘待验。模型结果采用隔离回放。
+
 ## 手机助手独立页与身体弹框验收
 
 上一轮验收版本为 `dual-entry-e5bebf6b-assistant-mobile-r2-20261118`，源码 `e5bebf6b1933fed5e749fb23203a0b1ecb81a12e`，BUILD_ID `1LfmkvgNsktrrv6wcGYmv`。北京时间 2026-11-18 22:11:46 切换。

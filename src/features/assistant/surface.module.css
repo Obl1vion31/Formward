@@ -58,32 +58,29 @@
 .assistantPage[data-assistant-phase="closing"] { pointer-events: none; }
 .pageHeading {
   flex: none;
-  display: grid;
-  justify-items: center;
-  gap: 5px;
   width: min(100%, 800px);
   margin-inline: auto;
   box-sizing: border-box;
-  padding: 0 12px 8px;
+  padding-inline: 8px;
   border-bottom: 1px solid var(--line-soft);
 }
 .pageHeading[inert] { visibility: hidden; }
 .pageHeading > header {
-  width: 100%;
+  position: relative;
   display: grid;
   grid-template-columns: 88px minmax(0, 1fr) 88px;
   align-items: center;
-  min-height: 52px;
+  min-height: 55px;
 }
 .pageHeading > header > button { justify-self: start; }
-.pageHeading h1, .historyHeading h1 {
+.pageHeading > header > div:not(.pageActions) { width: min(100%, 170px); justify-self: center; }
+.historyHeading h1 {
   font-size: 1.125rem;
   font-weight: 600;
   line-height: 1.4;
   text-align: center;
   margin: 0;
 }
-.pageHeading > div { width: 170px; }
 .pageActions { display: flex; justify-content: end; }
 .pageIcon, .heading button, .pageActions button {
   display: inline-grid;

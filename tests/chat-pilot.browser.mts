@@ -7,6 +7,7 @@ import {createHash,randomUUID} from "node:crypto";
 import {mkdir,mkdtemp,writeFile,readFile,stat,appendFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {parseEnv} from "node:util";
+import {crc32} from "node:zlib";
 import {join,resolve} from "node:path";
 import {PGlite} from "@electric-sql/pglite";
 import {PGLiteSocketServer} from "@electric-sql/pglite-socket";
@@ -42,13 +43,40 @@ if(process.env.FORMWARD_CHAT_REFINEMENT_SEED==="1"){
 
 const imageId=randomUUID(),imageBytes=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6nE0AAAAASUVORK5CYII=","base64");
 await db.insert(schema.mealImage).values({id:imageId,userId:fixture.userId,pathname:"meal-formal-v2/"+fixture.userId+"/fixture.png",fileName:"虚构照片.png",mimeType:"image/png",byteSize:imageBytes.length,sha256:createHash("sha256").update(imageBytes).digest("hex"),source:"manual",createdBy:fixture.userId,storageProvider:"cos",storageLocation:"chat-fixture-123@ap-shanghai"});
+const experiencePhoto = process.env.FORMWARD_CHAT_FIXTURE_PHOTO;
+const samples: {id:string;pathname:string;file:string;index:number}[] = [];
+if (experiencePhoto) {
+  assert.ok(!realCosPath,"隔离样例只能使用虚构照片通道");
+  const original = await readFile(experiencePhoto);
+  const sampleFolder = resolve(process.env.FORMWARD_CHAT_ARTIFACTS??".codex/assistant-experience");
+  await mkdir(sampleFolder,{recursive:true});
+  // 同一张虚构图添加独立PNG备注，给分批验收提供四个可区分的附件。
+  for (let index=1;index<=4;index++) {
+    const tag = Buffer.from("Fixture\0Batch "+index);
+    const chunk = Buffer.alloc(tag.length+12);
+    chunk.writeUInt32BE(tag.length);
+    chunk.write("tEXt",4);
+    tag.copy(chunk,8);
+    chunk.writeUInt32BE(crc32(chunk.subarray(4,-4)),chunk.length-4);
+    assert.equal(original.subarray(-8,-4).toString(),"IEND");
+    const bytes = index===1 ? original : Buffer.concat([original.subarray(0,-12),chunk,original.subarray(-12)]);
+    const id = randomUUID(), pathname = "meal-formal-v2/"+fixture.userId+"/"+id;
+    const file = join(sampleFolder,"海南鸡饭-"+index+".png");
+    await writeFile(file,bytes,{mode:0o600});
+    await db.insert(schema.mealImage).values({id,userId:fixture.userId,pathname,fileName:"海南鸡饭-"+index+".png",mimeType:"image/png",
+      byteSize:bytes.length,sha256:createHash("sha256").update(bytes).digest("hex"),source:"manual",createdBy:fixture.userId,
+      storageProvider:"cos",storageLocation:"chat-fixture-123@ap-shanghai"});
+    samples.push({id,pathname,file,index});
+  }
+}
 const socket=pg?new PGLiteSocketServer({db:pg,host:"127.0.0.1",port:0,maxConnections:10}):undefined;await socket?.start();const probe=createServer();probe.listen(process.env.FORMWARD_CHAT_PREVIEW_PORT?Number(process.env.FORMWARD_CHAT_PREVIEW_PORT):realCosPath?3300:0,"127.0.0.1");await once(probe,"listening");const port=(probe.address()as{port:number}).port;await new Promise<void>(resolve=>probe.close(()=>resolve()));
 const previewMarker=process.env.FORMWARD_LOCAL_PREVIEW==="1";
-const delay=previewMarker?await delayedTrainingDatabase(native?new URL(nativeUrl).host:socket!.getServerConn(),/\b(training_sessions|training_templates|training_plans|meal_items|energy_days|activities|measurements|account_preferences|oauth_connections|ai_tokens|model_usage_events|account_security_events|source_connections|assistant_chat_messages)\b/i):undefined;
+const delayTables=experiencePhoto?/\bfrom\s+"foods"(?=\s|$)/i:/\b(training_sessions|training_templates|training_plans|meal_items|energy_days|activities|measurements|account_preferences|oauth_connections|ai_tokens|model_usage_events|account_security_events|source_connections|assistant_chat_messages)\b/i;
+const delay=previewMarker?await delayedTrainingDatabase(native?new URL(nativeUrl).host:socket!.getServerConn(),delayTables):undefined;
 const databaseUrl=delay?new URL(nativeUrl||`postgresql://postgres:postgres@${socket!.getServerConn()}/postgres?max=1`):null;
 if(databaseUrl)databaseUrl.host=delay!.connection;
 const baseURL=process.env.FORMWARD_CHAT_PREVIEW_ORIGIN??`http://127.0.0.1:${port}`,folder=await mkdtemp(join(tmpdir(),"formward-chat-pilot-")),config=join(folder,"fixture.json"),artifacts=resolve(process.env.FORMWARD_CHAT_ARTIFACTS??".codex/assistant-chat-pilot/visual");
-await mkdir(artifacts,{recursive:true});await writeFile(config,JSON.stringify({...fixture,baseURL,imageId,imageBytes:imageBytes.toString("base64"),delayControlURL:delay?.controlURL,isolatedFixture:native?"native-postgres":"pglite"}),{mode:0o600});
+await mkdir(artifacts,{recursive:true});await writeFile(config,JSON.stringify({...fixture,baseURL,samples,imageId,imageBytes:imageBytes.toString("base64"),delayControlURL:delay?.controlURL,isolatedFixture:native?"native-postgres":"pglite"}),{mode:0o600});
 if(process.env.FORMWARD_CHAT_PREVIEW_CONFIG)await writeFile(process.env.FORMWARD_CHAT_PREVIEW_CONFIG,await readFile(config),{mode:0o600});
 const release=process.env.FORMWARD_TEST_RELEASE?resolve(process.env.FORMWARD_TEST_RELEASE):null;
 if(release)assert.ok(release.startsWith(resolve(".codex/regional-releases")+"/")&&release.endsWith("/standalone"),"仅验收本工作区私有候选包");
@@ -62,6 +90,9 @@ try{
  let ready=false;for(let attempt=0;attempt<100;attempt++){assert.equal(child.exitCode,null);try{const probeResponse=await fetch(`http://127.0.0.1:${port}`,{redirect:"manual"});if(probeResponse.ok||process.env.FORMWARD_CHAT_PREVIEW==="1"&&probeResponse.status>=300&&probeResponse.status<500){ready=true;break;}}catch{}await new Promise(resolve=>setTimeout(resolve,250));}assert.ok(ready,"隔离正式构建应可启动");
  if(release){const response=await fetch(baseURL+"/api/internal/readiness",{headers:{Authorization:"Bearer fictional-readiness-secret-for-isolated-chat-build"}});assert.equal(response.status,200);assert.equal((await response.json()).schema,JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")).entries.at(-1).tag);}
  process.env.FORMWARD_CHAT_BROWSER_CONFIG=config;process.env.FORMWARD_CHAT_ARTIFACTS=artifacts;
- if(process.env.FORMWARD_MEMBERSHIP_SMOKE==="1"){const {runMembershipContextSmoke}=await import("./membership-context.driver.mjs");await runMembershipContextSmoke(db);}else if(process.env.FORMWARD_CHAT_RELIABILITY==="1"){const {runChatBackgroundBrowser}=await import("./chat-background.driver.mjs");await runChatBackgroundBrowser(db);}else if(process.env.FORMWARD_ASSISTANT_RECORDING==="1"){const {runAssistantRecordingBrowser}=await import("./assistant-recording.driver.mjs");await runAssistantRecordingBrowser(db);}else if(realCosPath&&process.env.FORMWARD_CHAT_PREVIEW!=="1"){const {checkRealPhotoClient}=await import("./real-photo-client.browser.mjs");await checkRealPhotoClient(db);}else if(process.env.FORMWARD_CHAT_PREVIEW==="1"){console.log(JSON.stringify({baseURL,configPath:config,fictional:true}));await new Promise<void>(done=>{process.once("SIGTERM",done);process.once("SIGINT",done);});}else{const {runChatBrowser}=await import("./chat-pilot.driver.mjs");await runChatBrowser(db);}
+ if (process.env.FORMWARD_CHAT_EXPERIENCE === "1") {
+   const {runAssistantExperienceBrowser} = await import("./assistant-experience.driver.mjs");
+   await runAssistantExperienceBrowser(db);
+ } else if(process.env.FORMWARD_MEMBERSHIP_SMOKE==="1"){const {runMembershipContextSmoke}=await import("./membership-context.driver.mjs");await runMembershipContextSmoke(db);}else if(process.env.FORMWARD_CHAT_RELIABILITY==="1"){const {runChatBackgroundBrowser}=await import("./chat-background.driver.mjs");await runChatBackgroundBrowser(db);}else if(process.env.FORMWARD_ASSISTANT_RECORDING==="1"){const {runAssistantRecordingBrowser}=await import("./assistant-recording.driver.mjs");await runAssistantRecordingBrowser(db);}else if(realCosPath&&process.env.FORMWARD_CHAT_PREVIEW!=="1"){const {checkRealPhotoClient}=await import("./real-photo-client.browser.mjs");await checkRealPhotoClient(db);}else if(process.env.FORMWARD_CHAT_PREVIEW==="1"){console.log(JSON.stringify({baseURL,configPath:config,fictional:true}));await new Promise<void>(done=>{process.once("SIGTERM",done);process.once("SIGINT",done);});}else{const {runChatBrowser}=await import("./chat-pilot.driver.mjs");await runChatBrowser(db);}
 }catch(error){await writeFile(join(artifacts,"server-failure.log"),log);throw error;}
 finally{if(worker.exitCode===null){worker.kill("SIGTERM");await once(worker,"exit");}await logWrite;if(child.exitCode===null){child.kill("SIGTERM");await once(child,"exit");}if(process.env.FORMWARD_CHAT_PREVIEW_IMAGE_MANIFEST){const rows=await db.select({id:schema.mealImage.id,userId:schema.mealImage.userId,pathname:schema.mealImage.pathname,storageProvider:schema.mealImage.storageProvider,storageLocation:schema.mealImage.storageLocation}).from(schema.mealImage).where(eq(schema.mealImage.userId,fixture.userId));await writeFile(process.env.FORMWARD_CHAT_PREVIEW_IMAGE_MANIFEST,JSON.stringify(rows.filter(row=>row.id!==imageId)),{mode:0o600});}await delay?.close();await socket?.stop();await new Promise(resolve=>setImmediate(resolve));await pg?.close();await native?.close();stopNative?.();}

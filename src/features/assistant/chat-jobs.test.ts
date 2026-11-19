@@ -75,3 +75,24 @@ test("区域部署的后台来源由服务器配置，不依赖浏览器Cookie�
  await begin();const job=await claimChatJob(db,"regional-worker");const keys=["FORMWARD_REGIONAL","FORMWARD_CN_ORIGIN"],saved=keys.map(key=>process.env[key]);process.env.FORMWARD_REGIONAL="1";process.env.FORMWARD_CN_ORIGIN="https://cn.formward.top";let calls=0;
  try{await executeChatJob(db,job!,new AbortController().signal,{fetcher:async()=>{calls++;return completion();}});assert.equal(calls,1);assert.equal((await chatSnapshot(db,userId)).messages.at(-1)!.state,"complete");}finally{keys.forEach((key,index)=>{if(saved[index]===undefined)delete process.env[key];else process.env[key]=saved[index];});}
 });
+
+test("多图超出预算时只允许从同一消息的原附件里继续分批", async () => {
+  const images = await Promise.all(Array.from({length:4},()=>image()));
+  const job = await begin({imageIds:images.map(item=>item.id)});
+  const claimed = await claimChatJob(db,"worker-photo-limit");
+  let calls = 0;
+  await executeChatJob(db,claimed!,new AbortController().signal,{fetcher:async()=>{calls++;return completion();}});
+  assert.equal(calls,0);
+  const current = await chatSnapshot(db,userId);
+  const failed = current.messages.at(-1)!;
+  assert.deepEqual(failed.photoLimit?.imageIds,images.map(item=>item.id));
+  assert.ok(failed.photoLimit!.maxPhotos < images.length);
+  const retry:ChatSend={action:"retry",requestId:randomUUID(),provider:"qwen",conversationId:current.conversationId,
+    timezone:"Asia/Shanghai",messageId:failed.id,imageSubset:[randomUUID()]};
+  await assert.rejects(()=>startChatRun(db,userId,retry),/照片已变化/);
+  const next = await startChatRun(db,userId,{...retry,imageSubset:[images[0].id]});
+  assert.equal(next.row.userMessageId,job.row.userMessageId);
+  assert.deepEqual(next.row.executionInput?.attachmentImageIds,[images[0].id]);
+  assert.equal(next.row.executionInput?.photoBatchOf,failed.id);
+  await controlChat(db,userId,{action:"stop",runId:next.row.id});
+});

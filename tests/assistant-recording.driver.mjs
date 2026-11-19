@@ -29,7 +29,7 @@ export async function runAssistantRecordingBrowser(db){
  async function geometry(name){const value=await page.evaluate(()=>{const dialog=document.querySelector('dialog[open]'),form=dialog?.querySelector('form[data-entry-form]'),row=form?.querySelector('tr[data-expanded=true]'),cells=row?[...row.querySelectorAll('td[data-entry-cell]')].map(cell=>{const field=cell.querySelector('input,select,textarea,strong'),box=field?.getBoundingClientRect();return {label:cell.dataset.label,x:box?.x,y:box?.y,width:box?.width,height:box?.height,font:field?getComputedStyle(field).fontSize:null};}):[];return {layout:row?{columns:row.closest('table').dataset.nutrientColumns,stack:row.closest('table').dataset.stackFields,labelFont:getComputedStyle(row.querySelector('td[data-nutrient]'),'::before').font}:null,viewport:{width:innerWidth,height:innerHeight},dialog:dialog?{x:dialog.getBoundingClientRect().x,y:dialog.getBoundingClientRect().y,width:dialog.getBoundingClientRect().width,height:dialog.getBoundingClientRect().height}:null,cells,overflow:document.documentElement.scrollWidth>innerWidth};});measurements.push({name,...value});assert.equal(value.overflow,false,name+' 页面无横向溢出');return value;}
  try{
   await login();
-  if(process.env.FORMWARD_RECORDING_FOCUS!=="photo"){
+  if(!["photo","meal-followup"].includes(process.env.FORMWARD_RECORDING_FOCUS)){
   for(const width of [320,390,430]){
    await page.setViewportSize({width,height:width===320?560:844});await entry('meals');await page.getByRole('group',{name:'录入方式',exact:true}).waitFor();for(const name of ['自己填写','从食材库添加','AI 拍照录入'])assert.equal(await page.getByRole('button',{name,exact:true}).isVisible(),true);assert.equal(await page.getByRole('button',{name:'收起本项',exact:true}).count(),0);await shot('meal-empty-'+width);await foodRow('界面验收食物');
    const layout=await geometry('meal-'+width),top=layout.cells.slice(0,3).map(c=>c.y),nutrition=layout.cells.slice(3).map(c=>c.y);
@@ -62,8 +62,14 @@ export async function runAssistantRecordingBrowser(db){
   }
   await page.setViewportSize({width:390,height:844});checks.push('照片说明独立可视区：三种宽度、键盘缩高及80px平移，焦点／原文保留且输入完整可见；仅模拟，不代替iPhone');
   await page.getByRole('textbox',{name:'补充说明',exact:true}).fill('食物份量待补充');await page.getByRole('button',{name:'识别食物',exact:true}).click();await page.getByRole('button',{name:'1份',exact:true}).waitFor();await shot('ai-meal-followup');await page.getByRole('button',{name:'1份',exact:true}).click();await shot('ai-meal-option-selected');assert.equal((await db.select().from(schema.meal).where(eq(schema.meal.userId,fixture.userId))).length,before);
-  await page.getByRole('button',{name:'提交补充',exact:true}).click();await page.getByRole('textbox',{name:'食物名称 2',exact:true}).waitFor({timeout:30000});assert.equal(await page.getByRole('textbox',{name:'食物名称 2',exact:true}).inputValue(),'AI 识别食物');assert.equal((await db.select().from(schema.meal).where(eq(schema.meal.userId,fixture.userId))).length,before);await shot('ai-meal-adopted-draft');
+  await page.getByRole('button',{name:'继续',exact:true}).click();await page.getByRole('textbox',{name:'食物名称 2',exact:true}).waitFor({timeout:30000});assert.equal(await page.getByRole('textbox',{name:'食物名称 2',exact:true}).inputValue(),'AI 识别食物');assert.equal((await db.select().from(schema.meal).where(eq(schema.meal.userId,fixture.userId))).length,before);await shot('ai-meal-adopted-draft');
   await page.getByRole('button',{name:new RegExp('^保存餐次')}).click();await page.locator('form[data-entry-form=meal]').waitFor({state:'hidden'});assert.equal((await db.select().from(schema.meal).where(eq(schema.meal.userId,fixture.userId))).length,before+1);checks.push('饮食页内追问选项统一提交，保留手填及AI结果，回填不保存，最终一次人工保存');
+  if (process.env.FORMWARD_RECORDING_FOCUS==="meal-followup") {
+   assert.deepEqual(errors,[]);
+   await writeFile(join(dir,engine+"-meal-followup-report.json"),JSON.stringify({engine,shots,measurements,checks,errors},null,2));
+   console.log(JSON.stringify({engine,shots:shots.length,checks,errors}));
+   return;
+  }
   await navigate(base+'/dashboard');await page.locator('[data-assistant-trigger]:visible').click();await page.getByRole('dialog',{name:'小助手',exact:true}).waitFor();
   async function preview(text){await page.getByRole('textbox',{name:'给小助手发消息',exact:true}).fill(text);await page.getByRole('button',{name:'发送消息',exact:true}).click();const card=page.locator('[data-chat-preview]').last();await card.getByRole('button',{name:'保存确认',exact:true}).waitFor();return card;}
   const savedBefore=(await db.select().from(schema.meal).where(eq(schema.meal.userId,fixture.userId))).length;

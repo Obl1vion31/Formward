@@ -109,13 +109,13 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
         <button className={styles.pageIcon} type="button" aria-label="返回工作区" onClick={backFromPage}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
         </button>
-        <h1 ref={pageTitle} tabIndex={-1}>小助手</h1>
+        <h1 ref={pageTitle} className="sr-only" tabIndex={-1}>小助手</h1>
+        <ChatNavigation tab={tab} onTab={selectTab} pendingCount={count}/>
         <div className={styles.pageActions}>
           <button ref={historyButton} type="button" className={styles.pageIcon} aria-label="历史会话" onClick={() => setHistoryView("list", 1)}><HistoryIcon/></button>
           <ChatHeaderActions onNew={() => selectTab("chat")}/>
         </div>
       </header>
-      <ChatNavigation tab={tab} onTab={selectTab} pendingCount={count}/>
     </div>
     {page && <AssistantPageBody defer={!!page.source} historyOpen={!!history}>
       <AssistantChatView sidebar={tasks && <AssistantTasks {...tasks} mobile inlineReview={chat.enabled} navigate={allowNavigation}/>}

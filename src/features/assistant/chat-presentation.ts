@@ -51,6 +51,20 @@ export function chatRecordReferences(references:ChatReference[],inline:boolean,s
 export function withoutRepeatedFollowup(text:string,followup:Followup|null|undefined){
  if(!followup)return text;
  const normalize=(value:string)=>value.trim().replace(/[？?。！!：:]+$/,"");
- const questions=new Set(followupQuestions(followup).map(question=>normalize(question.prompt)));
+ const questions=new Set([normalize(followup.question),...followupQuestions(followup).map(question=>normalize(question.prompt))]);
  return text.split("\n").filter(line=>!questions.has(normalize(line))).join("\n").trim();
+}
+
+export function chatTranscript(messages: readonly ChatMessage[]) {
+  const anchors = new Set(messages.filter(message=>message.role==="assistant").map(message=>message.id));
+  const answers = new Map<string,NonNullable<ChatMessage["answeredQuestions"]>>();
+  const visible = messages.filter(message => {
+    const id = message.followupSourceId;
+    if (id && message.answeredQuestions?.length && anchors.has(id)) {
+      answers.set(id,message.answeredQuestions);
+      return false;
+    }
+    return !message.steps.some(step=>step.foldedInto && anchors.has(step.foldedInto));
+  });
+  return {visible,answers,anchors};
 }

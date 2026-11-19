@@ -215,12 +215,14 @@ test("已有的其他账号消息、图片和运行不能被指定管理员借�
   await assert.rejects(()=>startChatRun(db,ownerId,{...input,replyToId:messageId}),/引用消息/);await assert.rejects(()=>startChatRun(db,ownerId,{...input,imageIds:[imageId]}),/照片不存在/);await assert.rejects(()=>startChatRun(db,ownerId,{...input,conversationId}),/会话已变化/);
   assert.equal((await chatSnapshot(db,ownerId)).messages.length,0);
 });
-test("模型回合上限和过长上下文明确停止，不隐式重试或丢失原消息",async()=>{
+test("模型回合保持上限，过长历史按问答轮缩减并保留原消息",async()=>{
   await fresh();const job=await begin("有限回合");let calls=0;
   await executeChatRun(db,job.row,job.input,new Request("http://localhost:3000/api/assistant-chat"),()=>{},new AbortController().signal,{skipSessionCheck:true,fetcher:async()=>{calls++;return completion("",[{index:0,id:"load-"+calls,function:{name:"load_tools",arguments:'{"names":["query_measurements"]}'}}]);}});
   assert.equal(calls,8);assert.equal((await chatSnapshot(db,ownerId)).messages.at(-1)!.state,"truncated");
   const current=await fresh();await db.insert(schema.assistantMessage).values([{id:randomUUID(),userId:ownerId,conversationId:current.id,seq:1,role:"user",text:"虚构长内容".repeat(18000)},{id:randomUUID(),userId:ownerId,conversationId:current.id,seq:2,role:"assistant",provider:"qwen",text:"虚构长答复".repeat(18000)}]);await db.update(schema.assistantConversation).set({sequence:2}).where(eq(schema.assistantConversation.id,current.id));
-  const long=await begin("继续查询");calls=0;await executeChatRun(db,long.row,long.input,new Request("http://localhost:3000/api/assistant-chat"),()=>{},new AbortController().signal,{skipSessionCheck:true,fetcher:async()=>{calls++;return completion("不应发出");}});const snapshot=await chatSnapshot(db,ownerId);assert.equal(calls,0);assert.match(snapshot.messages.at(-1)!.error!,/上下文或照片/);assert.equal(snapshot.messages[0].text.length,90000);
+  const long=await begin("继续查询");calls=0;await executeChatRun(db,long.row,long.input,new Request("http://localhost:3000/api/assistant-chat"),()=>{},new AbortController().signal,{skipSessionCheck:true,fetcher:async(_url,options)=>{calls++;const body=String(options?.body);assert.ok(body.includes("继续查询"));assert.ok(!body.includes("虚构长内容"));return completion("可以继续当前对话");}});
+  const snapshot=await chatSnapshot(db,ownerId);assert.equal(calls,1);assert.equal(snapshot.conversationId,current.id);
+  assert.equal(snapshot.messages.at(-1)!.text,"可以继续当前对话");assert.equal(snapshot.messages[0].text.length,90000);
 });
 test("跨模型继承的回执保留原授权，撤销后不借新授权复活旧预览",async()=>{
   await db.update(schema.assistantRun).set({createdAt:new Date(Date.now()-61000)}).where(eq(schema.assistantRun.userId,ownerId));

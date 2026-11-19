@@ -466,3 +466,6 @@ energy-estimation.browser.mts创建独立数据库、虚构资料及实测并启
 MFA专项使用真实Better Auth插件验证绑定、错误动态码、恢复码一次使用、重绑及撤销；OAuth继续执行PKCE、刷新、跨账号、JWKS及新旧协议回归。`check-security-baseline.test.mjs`检查安全运行包、旧结构、缺失动作清单和旧依赖；实际systemd服务与恢复包另在正式服务身份下验证。管理响应还检查精度、跨午夜、用户停用、未知Token和健康正文不泄露。浏览器、正常／慢加载、首帧与真实主题结果见设计验收，真机状态分开记录。
 
 `meal-inline.browser.mjs`读取本机隔离chat-pilot配置，验证手填与食材库持续同页、搜索保留、多项营养独立展开、原值保留及拍照返回；覆盖桌面、手机与320px网页200%，保存原始PNG和WebM，不调用模型或保存健康记录。
+
+
+小助手交互候选由 `test:chat-browser` 的 `FORMWARD_CHAT_EXPERIENCE=1` 运行。使用 `FORMWARD_CHAT_FIXTURE_PHOTO` 提供本机虚构 PNG，`FORMWARD_LOCAL_PREVIEW=1` 保持隔离标识。驱动覆盖完整发图、计时、流式正文、跳过、刷新恢复和同会话多图分批，并保存整屏 PNG、原始 WebM 与步骤时间。原生库和浏览器路径使用现有隔离参数；浏览器模拟键盘与真机证据分别记录。

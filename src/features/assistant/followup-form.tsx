@@ -1,30 +1,115 @@
 "use client";
-import {useRef,useState} from "react";
-import type {Followup} from "./chat-model";
-import {followupQuestions, followupText, type FollowupSubmission} from "./followup";
+import { useRef, useState } from "react";
+import type { Followup } from "./chat-model";
+import { followupQuestions, resolveSupplement, type FollowupSubmission } from "./followup";
 import styles from "./chat.module.css";
 
-export function FollowupForm({task,busy,submit,cancel}:{task:Followup;busy:boolean;submit:(value:FollowupSubmission)=>Promise<void>;cancel:()=>void}){
- const [answers,setAnswers]=useState<FollowupSubmission["answers"]>([]),[error,setError]=useState("");
- const [writing,setWriting]=useState<string[]>([]),[textDrafts,setTextDrafts]=useState<Record<string,string>>({});
- const [index,setIndex]=useState(0),questionHeading=useRef<HTMLLegendElement>(null);
- const questions=followupQuestions(task),q=questions[index],answer=answers.find(a=>a.questionId===q.id);
- const free=!answer?.skipped&&(writing.includes(q.id)||!q.options?.length&&q.allowText!==false);
- function showQuestion(next:number){setIndex(next);setError("");requestAnimationFrame(()=>questionHeading.current?.focus({preventScroll:true}));}
- function change(id:string,patch:Partial<FollowupSubmission["answers"][number]>){setError("");setAnswers(rows=>{const current=rows.find(row=>row.questionId===id),next={questionId:id,...current,...patch};return [...rows.filter(row=>row.questionId!==id),next];});}
- const check=(selected:boolean)=><span className={styles.followupCheck} aria-hidden="true">{selected&&<svg width="16" height="16" viewBox="0 0 20 20"><path d="m4 10 4 4 8-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}</span>;
- return <form className={styles.followup} aria-label={"补充"+task.subject} onSubmit={async event=>{event.preventDefault();
-  const missing=questions.findIndex(question=>{const value=answers.find(a=>a.questionId===question.id);return !value||!value.skipped&&!value.optionIds?.length&&!value.text?.trim();});
-  if(missing>=0){setIndex(missing);setError("请回答这一题"+(questions[missing].optional?"，或选择暂不填写。":"后再提交。"));requestAnimationFrame(()=>questionHeading.current?.focus({preventScroll:true}));return;}
-  const value={messageId:task.messageId,answers};try{followupText(task,value);}catch(failure){setError(failure instanceof Error?failure.message:"请完成补充。");return;}await submit(value);}}>
-  <fieldset disabled={busy}>
-   {questions.length>1&&<div className={styles.followupNavigation}><button type="button" aria-label="上一题" disabled={index===0} onClick={()=>showQuestion(index-1)}>‹</button><span aria-live="polite">{index+1} / {questions.length}</span><button type="button" aria-label="下一题" disabled={index===questions.length-1} onClick={()=>showQuestion(index+1)}>›</button></div>}
-   <fieldset><legend ref={questionHeading} tabIndex={-1}>{q.prompt}{q.optional&&<small>（选填）</small>}</legend>
-   <div className={styles.followupOptions}>{q.options?.map(option=>{const selected=answer?.optionIds?.includes(option.id)??false;return <button key={option.id} type="button" aria-pressed={selected} onClick={()=>{const values=answer?.optionIds??[];if(!q.multiple)setWriting(ids=>ids.filter(id=>id!==q.id));change(q.id,{skipped:false,text:q.multiple?answer?.text:"",optionIds:q.multiple?selected?values.filter(id=>id!==option.id):[...values,option.id]:selected?[]:[option.id]});}}><span>{option.label}</span>{check(selected)}</button>;})}
-   {q.allowText!==false&&(!!q.options?.length||answer?.skipped||writing.includes(q.id))&&<button type="button" aria-pressed={free} onClick={()=>{setWriting(ids=>ids.includes(q.id)?ids:[...ids,q.id]);change(q.id,{skipped:false,text:textDrafts[q.id]??"",optionIds:q.multiple?answer?.optionIds:[]});}}><span>自己填写</span>{check(free)}</button>}
-   {free&&<input aria-label={q.prompt+" · 自由填写"} maxLength={q.binding?300:2000} placeholder={q.binding?"填写设备或应用名称":"填写你的回答"} value={textDrafts[q.id]??answer?.text??""} onChange={event=>{const text=event.target.value;setTextDrafts(rows=>({...rows,[q.id]:text}));change(q.id,{text,skipped:false,optionIds:q.multiple?answer?.optionIds:[]});}}/>}
-   </div>{answer?.skipped&&<p className={styles.followupSkipped}>本题暂不填写，可重新选择。</p>}</fieldset>
-   {error&&<p role="alert">{error}</p>}<div className={styles.followupActions}><button type="button" onClick={cancel}>换个话题</button><div>{q.optional&&<button type="button" disabled={answer?.skipped} onClick={()=>{setWriting(ids=>ids.filter(id=>id!==q.id));change(q.id,{skipped:true,text:"",optionIds:[]});}}>{q.binding?"本次不填写来源":"暂不填写"}</button>}<button type="submit">{busy?"正在提交…":"提交补充"}</button></div></div>
-  </fieldset>
- </form>;
+type Answer = FollowupSubmission["answers"][number];
+const hasAnswer = (answer?: Answer) => !!(answer?.outcome || answer?.optionIds?.length || answer?.text?.trim());
+
+export function FollowupForm({task,busy,submit}: {
+  task: Followup; busy: boolean; submit: (value: FollowupSubmission) => Promise<void | boolean>;
+}) {
+  const [answers, setAnswers] = useState<Record<string, Answer>>({});
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [index, setIndex] = useState(0);
+  const [failure, setFailure] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const sending = useRef(false), heading = useRef<HTMLLegendElement>(null);
+  const questions = followupQuestions(task), question = questions[index];
+  const answer = answers[question.id], last = index === questions.length - 1;
+
+  function showQuestion(next: number) {
+    setIndex(next);
+    setFailure("");
+    requestAnimationFrame(() => heading.current?.focus({preventScroll:true}));
+  }
+  function choose(patch: Omit<Answer,"questionId">) {
+    setFailure("");
+    setAnswers(previous => ({...previous,[question.id]:{questionId:question.id,...patch}}));
+  }
+  async function advance(outcome?: "skipped", all = false) {
+    if (busy || sending.current) return;
+    const next = outcome ? {...answers,[question.id]:{questionId:question.id,outcome}} : answers;
+    if (!all && !hasAnswer(next[question.id])) return;
+    if (!all && !last) {
+      setAnswers(next);
+      showQuestion(index + 1);
+      return;
+    }
+    const complete = questions.map(item =>
+      hasAnswer(next[item.id]) ? next[item.id] : {questionId:item.id,outcome:"skipped" as const});
+    const value: FollowupSubmission = {messageId:task.messageId,answers:complete,...(all?{stopFollowups:true}:{})};
+    try {
+      resolveSupplement(task, value);
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : "请核对补充内容。");
+      return;
+    }
+    setAnswers(Object.fromEntries(complete.map(item => [item.questionId,item])));
+    sending.current = true;
+    setSubmitting(true);
+    setFailure("");
+    try {
+      if (await submit(value) === false) setFailure("补充未提交。已填写的内容仍保留，可以重试。");
+    } catch {
+      setFailure("补充未提交。已填写的内容仍保留，可以重试。");
+    } finally {
+      sending.current = false;
+      setSubmitting(false);
+    }
+  }
+
+  const manual = !answer?.outcome && (question.multiple || !answer?.optionIds?.length);
+  const options = question.options ?? [];
+  const twoColumns = options.length > 1 && options.every(option => [...option.label].length <= 10);
+  const canSkipAll = !last && questions.slice(index).filter(item => !hasAnswer(answers[item.id])).length +
+    (hasAnswer(answer) ? 1 : 0) > 1;
+  return <form className={styles.followup} aria-label={"补充"+task.subject}
+    onSubmit={event => {event.preventDefault(); void advance();}}>
+    <fieldset disabled={busy || submitting}>
+      <div className={styles.followupNavigation}>
+        {index ? <button type="button" onClick={() => showQuestion(index - 1)}>‹ 上一题</button> : <span>补充信息</span>}
+        {questions.length > 1 && <span>{index + 1} / {questions.length}</span>}
+      </div>
+      <fieldset>
+        <legend ref={heading} tabIndex={-1}>{question.prompt}</legend>
+        {options.length > 0 && <div className={styles.followupOptions} data-paired={twoColumns || undefined}>
+          {options.map(option => {
+            const selected = answer?.optionIds?.includes(option.id) ?? false;
+            return <button key={option.id} type="button" aria-pressed={selected} onClick={() => {
+              const values = answer?.optionIds ?? [];
+              choose({optionIds:question.multiple
+                ? selected ? values.filter(id => id !== option.id) : [...values,option.id]
+                : [option.id], ...(question.multiple ? {text:answer?.text} : {})});
+            }}><span className={styles.followupCheck} aria-hidden="true"/><span>{option.label}</span></button>;
+          })}
+        </div>}
+        {question.allowText !== false && <input aria-label={question.prompt+" · 手动填写"}
+          maxLength={question.binding ? 300 : 2000}
+          placeholder={question.binding ? "其他设备或应用名称" : options.length ? "其他，请填写…" : "填写你的回答"}
+          value={manual ? drafts[question.id] ?? answer?.text ?? "" : ""}
+          onChange={event => {
+            const text = event.target.value;
+            setDrafts(previous => ({...previous,[question.id]:text}));
+            choose({text,...(question.multiple ? {optionIds:answer?.optionIds} : {})});
+          }}/>}
+        <div className={styles.followupChoices}>
+          <button type="button" aria-pressed={answer?.outcome === "unknown"} onClick={() => choose({outcome:"unknown"})}>
+            <span className={styles.followupCheck} aria-hidden="true"/>不知道
+          </button>
+          <button type="button" onClick={() => void advance("skipped")}>跳过本题 <span aria-hidden="true">›</span></button>
+        </div>
+        {answer?.outcome === "skipped" && <p className={styles.followupSkipped}>本题已跳过</p>}
+      </fieldset>
+      {failure && <p role="alert">{failure}</p>}
+      <div className={styles.followupActions}>
+        {canSkipAll && <button type="button" onClick={() => void advance(undefined,true)}>跳过全部</button>}
+        <button type="submit" disabled={!hasAnswer(answer)}>
+          {submitting ? "正在提交…" : last ? "继续" : "下一题"}
+          {!submitting && <span aria-hidden="true"> →</span>}
+        </button>
+      </div>
+    </fieldset>
+  </form>;
 }

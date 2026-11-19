@@ -4,18 +4,60 @@ import { ChatPreviewCard } from "./chat-preview-card";
 import { FollowupForm } from "./followup-form";
 import { ChatMessageBody } from "./chat-message";
 import { Glyph } from "./chat-icon";
-import {chatDisplayText} from "./chat-presentation";
+import {chatDisplayText,chatTranscript} from "./chat-presentation";
 /* eslint-disable @next/next/no-img-element -- 会话原图须按账号鉴权，不能进入公开图片优化缓存。 */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useId, type ReactNode } from "react";
 import { LoadingLink } from "../../components/loading-link";
-import { useAssistantChat, useOptionalAssistantChat } from "./chat-client";
-import type { ChatMessage } from "./chat-model";
+import { useAssistantChat, useOptionalAssistantChat, type ArrivalViewport } from "./chat-client";
+import type { ChatMessage, ChatPhotoLimit } from "./chat-model";
 import styles from "./chat.module.css";
-function ArrivingMessage({message,eligible,className,children}:{message:ChatMessage;eligible:boolean;className:string;children:ReactNode}){
-  const ref=useRef<HTMLElement>(null),{claimArrival}=useAssistantChat();
-  const key=message.requestId?message.role+":"+message.requestId:null;
-  useLayoutEffect(()=>{const node=ref.current;if(!node||!eligible||!key||!claimArrival(key)||matchMedia("(prefers-reduced-motion:reduce)").matches)return;node.dataset.newMessage="true";},[key,eligible,claimArrival]);
+function ArrivingMessage({message,eligible,viewport,className,children}: {
+  message:ChatMessage; eligible:boolean; viewport?:ArrivalViewport; className:string; children:ReactNode;
+}) {
+  const ref = useRef<HTMLElement>(null), {claimArrival} = useAssistantChat();
+  const viewportAtSend = useRef(viewport);
+  const key = message.requestId ? message.role+":"+message.requestId : null;
+  useLayoutEffect(() => {
+    const node = ref.current, starting = viewportAtSend.current, visual = window.visualViewport;
+    if (!node || !eligible || !key || !claimArrival(key) || matchMedia("(prefers-reduced-motion:reduce)").matches) return;
+    if (!starting || !visual) { node.dataset.newMessage="true"; return; }
+    const deadline = performance.now()+600;
+    let frame = 0, width = visual.width, height = visual.height, top = visual.offsetTop, stable = 0;
+    const observe = () => {
+      if (performance.now() >= deadline) return;
+      const recovered = visual.height-starting.height > 44;
+      const still = Math.abs(visual.height-height)<=1 && Math.abs(visual.offsetTop-top)<=1 && Math.abs(visual.width-width)<=1;
+      stable = recovered && still ? stable+1 : 0;
+      height = visual.height; top = visual.offsetTop; width = visual.width;
+      if (stable >= 2) node.dataset.newMessage="true";
+      else frame = requestAnimationFrame(observe);
+    };
+    frame = requestAnimationFrame(observe);
+    return () => cancelAnimationFrame(frame);
+  },[eligible,key,claimArrival]);
   return <article ref={ref} tabIndex={-1} data-chat-message={message.id} data-role={message.role} className={className}>{children}</article>;
+}
+
+function PhotoBatchPicker({limit,disabled,submit}: {
+  limit:ChatPhotoLimit; disabled:boolean; submit:(selected:string[])=>Promise<boolean>;
+}) {
+  const [selected,setSelected] = useState<string[]>([]);
+  const checked = selected.filter(id=>limit.imageIds.includes(id));
+  if (!limit.imageIds.length) return <p className={styles.batchStatus}>这条消息的照片已经分批处理。</p>;
+  return <fieldset className={styles.batch} disabled={disabled}>
+    <legend>这条消息的照片可以分批处理</legend>
+    <p>每批最多 {limit.maxPhotos} 张。还有 {limit.imageIds.length} 张可选。</p>
+    <div className={styles.batchPhotos}>{limit.imageIds.map((id,index)=>{
+      const chosen = checked.includes(id);
+      return <label key={id}>
+        <img src={"/api/meal-images/"+id} alt=""/>
+        <input type="checkbox" checked={chosen} aria-label={"选择照片 "+(index+1)}
+          disabled={!chosen && checked.length>=limit.maxPhotos}
+          onChange={event=>setSelected(event.target.checked?[...checked,id]:checked.filter(value=>value!==id))}/>
+      </label>;
+    })}</div>
+    <button type="button" disabled={!checked.length} onClick={()=>void submit(checked).then(ok=>{if(ok)setSelected([]);})}>处理所选照片</button>
+  </fieldset>;
 }
 export function ChatHeaderActions({onNew}:{onNew?:()=>void}) {
   const chat = useAssistantChat();
@@ -35,6 +77,11 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
   const feedContent=useRef<HTMLDivElement>(null),manualScrollUntil=useRef(0);
   const feed = useRef<HTMLDivElement>(null), input = useRef<HTMLTextAreaElement>(null), photoInput = useRef<HTMLInputElement>(null), modelButton = useRef<HTMLButtonElement>(null), usageButton = useRef<HTMLButtonElement>(null), modelMenu = useRef<HTMLDivElement>(null), panelTitle = useRef<HTMLHeadingElement>(null), moreAnchor = useRef<{ height:number;top:number }|null>(null), restored = useRef<string | null>(null);
   const { scrollState, recordScroll } = chat;
+  const openHeight = useRef(0);
+  const transcript = chatTranscript(chat.messages);
+  const task = chat.data?.followup;
+  const taskAnchor = task && task.assistantMessageId && transcript.anchors.has(task.assistantMessageId)
+    ? task.assistantMessageId : task ? transcript.visible.findLast(row=>row.role==="assistant"&&row.state==="complete"&&row.question?.id===task.messageId)?.id : undefined;
   const composer = useRef<HTMLDivElement>(null), usagePopup=useRef<HTMLDivElement>(null),usageId=useId();
   useLayoutEffect(()=>{const node=composer.current;if(!node)return;const measure=()=>node.parentElement?.style.setProperty("--chat-composer-height",node.getBoundingClientRect().height+"px");measure();const observer=new ResizeObserver(measure);observer.observe(node);return()=>observer.disconnect();},[]);
   const selected = chat.data?.catalog.find(model => model.id === chat.data?.provider), blocked = !chat.enabled || !chat.data || chat.managing || !selected?.configured || !selected.enabled || chat.data.usage.available <= 0;
@@ -77,7 +124,17 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
   const resetText=chat.data?"重置时间："+new Intl.DateTimeFormat("zh-CN",{timeZone:"Asia/Shanghai",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(chat.data.usage.resetAt))+"（北京时间）":"正在读取用量…";
   function jump(id: string) { const node = feed.current?.querySelector<HTMLElement>('[data-chat-message="' + id + '"]'); if (node) { recordScroll(scrollState().top,false); node.scrollIntoView({ block:"center",behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth" }); node.focus({ preventScroll:true }); } else setNotice("原消息已超出当前显示范围，可以补充日期和对象后继续。"); }
   function cite(message: ChatMessage) { chat.setQuote(message); input.current?.focus({preventScroll:true}); }
-  function submit() { recordScroll(scrollState().top,true); void chat.send(); }
+  function submit() {
+    if (blocked || chat.busy || chat.photos.some(photo=>photo.phase!=="ready"||!photo.id) || !chat.draft.trim()&&!chat.photos.length) return;
+    const visual = window.visualViewport;
+    const mobile = page || matchMedia("(max-width:700px), (hover:none) and (pointer:coarse)").matches;
+    const editing = document.activeElement === input.current;
+    const viewport = mobile && editing && visual && Math.max(innerHeight,openHeight.current)-visual.height>54
+      ? {height:visual.height,offsetTop:visual.offsetTop} : undefined;
+    if (mobile && editing) input.current?.blur();
+    recordScroll(scrollState().top,true);
+    void chat.send("send",undefined,undefined,{viewport});
+  }
   return <div className={styles.workspace} data-tab={tab} data-page={page||undefined} onKeyDown={event => { if(event.key==="Escape"&&pinnedPreview){event.preventDefault();event.stopPropagation();closePreview();return;} if(event.key === "Escape" && usagePopup.current?.matches(":popover-open")){event.preventDefault();event.stopPropagation();usagePopup.current.hidePopover();usageButton.current?.focus({preventScroll:true});return;} if (event.key === "Escape" && panel) { event.preventDefault(); event.stopPropagation(); closePanel(); } }}>
     <aside className={styles.sidebar} aria-label="待办与快捷记录">{sidebar}</aside>
     <section className={styles.conversation} aria-label="AI聊天">
@@ -87,13 +144,37 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
         {chat.messages.length >= 50 && <p className={styles.historyHint}>当前显示最近50条消息</p>}
         {!chat.data&&chat.enabled&&!chat.error&&<div className={styles.historyLoading}><LocalLoading/></div>}
         {chat.data&&!chat.messages.length && <div className={styles.welcome}><h3>今天想聊点什么？</h3><p>可以拍照记饮食、记录体重，或查询你的记录。</p></div>}
-        {chat.messages.map(message => <ArrivingMessage key={message.role==="user"&&message.requestId?"user-"+message.requestId:message.id} message={message} eligible={!!message.requestId&&chat.newRequests.has(message.requestId)} className={styles.message + " " + (message.role === "user" ? styles.user : styles.assistant)}>
-          <ChatMessageBody message={message} inlinePreviews={chat.data?.capabilities?.inlinePreviews===true} navigate={navigate} jump={jump}
-            followup={message.state==="complete"&&message.question?.id===chat.data?.followup?.messageId?chat.data?.followup:null}>
-          {message.role==="assistant"&&message.state==="complete"&&chat.data?.followup&&message.question?.id===chat.data.followup.messageId&&<FollowupForm key={chat.data.followup.messageId} task={chat.data.followup} busy={chat.busy||!chat.enabled} submit={value=>chat.send("send",undefined,value)} cancel={()=>void chat.control("clear_followup")}/>}
-          </ChatMessageBody>
-          {message.role === "assistant" && message.state !== "working" && <div className={styles.actions}>{chat.enabled&&message.state === "complete" && <button onClick={() => cite(message)}><Glyph name="quote"/>引用回复</button>}{message.role === "assistant" && message.text && <button onClick={() => void navigator.clipboard.writeText(message.text).then(() => setNotice("已复制回答"),() => setNotice("复制失败，可以选择文字手动复制。"))}>复制</button>}{message.role === "assistant" && ["stopped","truncated","error"].includes(message.state) && <button disabled={chat.busy || blocked} onClick={() => void chat.send(message.state === "error" ? "retry" : "continue",message.id)}>{message.state === "error" ? "重试这条消息" : "继续回答"}</button>}</div>}
-        </ArrivingMessage>)}
+        {transcript.visible.map(message => {
+          const requestId = message.requestId, local = requestId ? chat.outgoing.get(requestId) : undefined;
+          const followup = message.id===taskAnchor && message.state==="complete" ? task : null;
+          const timing = chat.data?.runTiming?.messageId===message.id ? chat.data.runTiming : undefined;
+          return <ArrivingMessage key={message.role==="user"&&requestId?"user-"+requestId:message.id}
+            message={message} eligible={message.role==="user"&&!!requestId&&chat.newRequests.has(requestId)} viewport={local?.viewport}
+            className={styles.message+" "+(message.role==="user"?styles.user:styles.assistant)}>
+            <ChatMessageBody message={message} inlinePreviews={chat.data?.capabilities?.inlinePreviews===true} navigate={navigate} jump={jump}
+              followup={followup} timing={timing} answers={transcript.answers.get(message.id)} previews={local}
+              onPhotoHandoff={id=>{if(requestId) chat.releaseSentPreview(requestId,id);}}
+              sendStatus={local?.phase==="sending" ? <p className={styles.sendPending} role="status">发送中</p> :
+                local?.phase==="error" && requestId ? <div className={styles.sendError}>
+                  <p role="alert">{local.error}</p><button type="button" onClick={()=>void chat.retryOutgoing(requestId)}>重试发送</button>
+                  <button type="button" onClick={()=>void chat.restoreOutgoing(requestId)}>恢复草稿</button>
+                </div> : undefined}
+              photoActions={message.photoLimit ? <PhotoBatchPicker limit={message.photoLimit} disabled={chat.busy||blocked}
+                submit={imageSubset=>chat.send("retry",message.id,undefined,{imageSubset})}/> : undefined}>
+              {followup && <FollowupForm key={followup.messageId} task={followup} busy={chat.busy||blocked}
+                submit={value=>chat.send("send",undefined,value)}/>}
+            </ChatMessageBody>
+            {message.role==="assistant" && message.state!=="working" && <div className={styles.actions}>
+              {chat.enabled&&message.state==="complete" && <button onClick={()=>cite(message)}><Glyph name="quote"/>引用回复</button>}
+              {message.text && <button onClick={()=>void navigator.clipboard.writeText(message.text)
+                .then(()=>setNotice("已复制回答"),()=>setNotice("复制失败，可以选择文字手动复制。"))}>复制</button>}
+              {!message.photoLimit && ["stopped","truncated","error"].includes(message.state) &&
+                <button disabled={chat.busy||blocked} onClick={()=>void chat.send(message.state==="error"?"retry":"continue",message.id)}>
+                  {message.state==="error"?"重试这条消息":"继续回答"}
+                </button>}
+            </div>}
+          </ArrivingMessage>;
+        })}
         </div>
       </div>
 
@@ -104,11 +185,15 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
         {chat.quote && <div className={styles.quote}><button onClick={() => jump(chat.quote!.id)}><span>引用{chat.quote.role === "user" ? "你的消息" : "回答"}</span><span>{chat.quote.question?chat.quote.question.text+" · ":""}{chatDisplayText(chat.quote,chat.data?.capabilities?.inlinePreviews===true).slice(0,240)}</span></button><button className={styles.icon} aria-label="取消引用" onClick={() => chat.setQuote(null)}><Glyph name="close"/></button></div>}
         {chat.enabled?<div className={styles.composer}>
           <DraftPhotos/>
-          <textarea ref={input} rows={1} aria-label="给小助手发消息" value={chat.draft} placeholder="想聊点什么，或记录些什么？" onChange={event => chat.setDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && matchMedia("(min-width:701px) and (hover:hover) and (pointer:fine)").matches) { event.preventDefault(); submit(); } }}/>
+          <textarea ref={input} rows={1} aria-label="给小助手发消息" value={chat.draft} onFocus={()=>{
+            openHeight.current = Math.max(innerHeight,window.visualViewport?.height??0);
+          }} placeholder="想聊点什么，或记录些什么？" onChange={event => chat.setDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && matchMedia("(min-width:701px) and (hover:hover) and (pointer:fine)").matches) { event.preventDefault(); submit(); } }}/>
           <div className={styles.composerTools}><div><input className={styles.fileInput} ref={photoInput} type="file" multiple accept="image/jpeg,image/png,image/webp" aria-label="选择聊天照片" onChange={event => { const input = event.currentTarget, files = Array.from(input.files ?? []); if (files.length) void chat.addPhotos(files).finally(() => { input.value = ""; }); }}/><button type="button" className={styles.icon} aria-label="添加照片" disabled={!!chat.uploading || !chat.data} onClick={() => photoInput.current?.click()}><Glyph name="photo"/></button>
             <div className={styles.modelControl}><button ref={modelButton} className={styles.modelButton} aria-haspopup="menu" aria-expanded={panel === "models"} disabled={!chat.data || chat.busy || chat.managing} onClick={() => setPanel(panel === "models" ? null : "models")}>{selected?.label ?? "选择模型"}<Glyph name="chevron"/></button>
             {panel === "models" && <div ref={modelMenu} popover="manual" role="menu" aria-label="选择模型" className={styles.modelMenu} onKeyDown={event => { if (["ArrowDown","ArrowUp","Home","End"].includes(event.key)) { event.preventDefault(); const nodes = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")], index = nodes.indexOf(document.activeElement as HTMLButtonElement); nodes[event.key === "Home" ? 0 : event.key === "End" ? nodes.length - 1 : (index + (event.key === "ArrowDown" ? 1 : -1) + nodes.length) % nodes.length]?.focus(); } }}>{chat.data?.catalog.map(model => <button type="button" role="menuitemradio" aria-checked={model.id === selected?.id} key={model.id} disabled={!model.configured || !model.enabled || chat.managing} onClick={() => void chat.control("select_model",model.id).then(ok => { if (ok) closePanel(); })}><span><strong>{model.label}</strong><small>{model.model}</small>{model.reason && <small>{model.reason}</small>}</span>{model.id === selected?.id && <Glyph name="check"/>}</button>)}<button type="button" onClick={() => setPanel("connections")}>连接详情<Glyph name="more"/></button></div>}</div>
-          </div><div className={styles.composerActions}><button ref={usageButton} type="button" className={styles.usage} aria-label={chat.data?"今日已用"+chat.data.usage.percent:"今日用量，正在读取"} aria-describedby={usageId} disabled={!chat.data} title={resetText} onClick={toggleUsage}>{chat.data?chat.data.usage.percent:"…"}</button>{chat.busy ? <button className={styles.send} aria-label="停止生成" onClick={() => void chat.control("stop")}><Glyph name="stop"/></button> : <button className={styles.send} aria-label="发送消息" disabled={blocked || chat.photos.some(photo=>photo.phase!=="ready"||!photo.id) || !chat.draft.trim() && !chat.photos.length} onClick={submit}><Glyph name="send"/></button>}</div></div>
+          </div><div className={styles.composerActions}><button ref={usageButton} type="button" className={styles.usage} aria-label={chat.data?"今日已用"+chat.data.usage.percent:"今日用量，正在读取"} aria-describedby={usageId} disabled={!chat.data} title={resetText} onClick={toggleUsage}>{chat.data?chat.data.usage.percent:"…"}</button>{chat.busy ? <button className={styles.send} aria-label="停止生成" onClick={() => void chat.control("stop")}><Glyph name="stop"/></button> : <button className={styles.send} aria-label="发送消息" disabled={blocked || chat.photos.some(photo=>photo.phase!=="ready"||!photo.id) || !chat.draft.trim() && !chat.photos.length} onPointerDown={event=>{
+            if ((page || event.pointerType==="touch") && document.activeElement===input.current) event.preventDefault();
+          }} onClick={submit}><Glyph name="send"/></button>}</div></div>
         </div>:<div className={styles.chatLocked}><strong>{"当前档位未开放聊天"}</strong><p>{chat.entitlement?.mealRecognition?"你仍可拍照录入饮食，或手动记录。":"已有消息和输入保留，可继续手动记录。"}</p>{chat.entitlement?.mealRecognition&&<LoadingLink href="/dashboard/meals" beforeNavigate={navigate}>去饮食页拍照录入</LoadingLink>}</div>}
 
         {chat.enabled&&chat.data && chat.data.usage.available <= 0 && <p className={styles.notice}>今日可用额度不足；待结算用量也会暂占额度，提醒和手工记录仍可使用。</p>}

@@ -9,17 +9,25 @@ import { getDatabase } from "@/db/client";
 import { assertChatAllowed } from "@/features/assistant/chat-config";
 import { chatProviderIds } from "@/features/assistant/chat-model";
 import { assistantTimezone } from "@/features/assistant/model";
-import { listChatConversations, chatSnapshot, startChatRun } from "@/features/assistant/chat-store";
+import { activeChatSubscription, listChatConversations, chatSnapshot, startChatRun } from "@/features/assistant/chat-store";
 import { chatRunStream } from "@/features/assistant/chat-stream";
 export const runtime = "nodejs";
 export const maxDuration = 600;
 const headers = { "Cache-Control": "private, no-store" };
-const inputSchema = z.object({ action: z.enum(["send", "retry", "continue"]), requestId: z.string().uuid(), provider: z.enum(chatProviderIds), conversationId: z.string().uuid(), text: z.string().max(16000).optional(), replyToId: z.string().uuid().optional(), imageIds: z.array(z.string().uuid()).max(8).refine(ids => new Set(ids).size === ids.length).optional(), messageId: z.string().uuid().optional(), timezone: z.string().max(100), followup:followupSubmissionSchema.optional() }).strict();
+const inputSchema = z.object({ action: z.enum(["send", "retry", "continue"]), requestId: z.string().uuid(), provider: z.enum(chatProviderIds), conversationId: z.string().uuid(), text: z.string().max(16000).optional(), replyToId: z.string().uuid().optional(), imageIds: z.array(z.string().uuid()).max(8).refine(ids => new Set(ids).size === ids.length).optional(), imageSubset: z.array(z.string().uuid()).min(1).max(8).optional(), messageId: z.string().uuid().optional(), timezone: z.string().max(100), followup:followupSubmissionSchema.optional() }).strict();
 export async function GET(request: Request) {
   try { return await withCurrentSession(request.headers, async owner => {
     const previewId=new URL(request.url).searchParams.get("previewId");
     if(previewId){if(!z.string().uuid().safeParse(previewId).success)return Response.json({error:"提交编号无效。"},{status:400,headers});return Response.json(await loadAssistantPreview(getDatabase(),owner.id,previewId),{headers});}
     const params=new URL(request.url).searchParams;
+    if (params.has("runId")) {
+      const runId = z.string().uuid().safeParse(params.get("runId"));
+      if (!runId.success) return Response.json({error:"回复编号无效。"},{status:400,headers});
+      const db = getDatabase(), row = await activeChatSubscription(db,owner.id,runId.data);
+      return new Response(chatRunStream(db,owner.id,{conversationId:row.conversationId},request,{row}),{
+        headers:{...headers,"Content-Type":"text/event-stream; charset=utf-8","X-Accel-Buffering":"no"},
+      });
+    }
     if(params.get("view")==="history"){
       const cursor=params.get("cursor");let before: {at:string;id:string}|undefined;
       if(cursor){try{before=z.object({at:z.string().datetime(),id:z.string().uuid()}).strict().parse(JSON.parse(cursor));}catch{return Response.json({error:"历史游标无效。"},{status:400,headers});}}
