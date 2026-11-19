@@ -73,12 +73,9 @@ try{
    for(const[name,path]of paths){
     await go(p,path);await p.evaluate(()=>scrollTo(0,0));
     if(name==="overview"){
-     assert.equal(await p.locator('[data-record-slot="metrics"]>div').count(),w<=700?3:6);
-     if(w>=1100){
-      const ys=await p.locator('[data-record-slot="metrics"]>div>span:first-child').evaluateAll(ns=>ns.map(n=>n.getBoundingClientRect().y));assert.ok(Math.max(...ys)-Math.min(...ys)<2,"six desktop metrics in one row");const baselines=await p.locator('[data-metric-number]>span').evaluateAll(ns=>ns.map(n=>{const marker=document.createElement("i");Object.assign(marker.style,{display:"inline-block",width:"0",height:"0",padding:"0",margin:"0",verticalAlign:"baseline"});n.append(marker);const y=marker.getBoundingClientRect().y;marker.remove();return y;}));assert.ok(Math.max(...baselines)-Math.min(...baselines)<=2,"six numbers share a baseline: "+JSON.stringify(baselines));
-      assert.ok((await p.locator("[data-overview-week]").boundingBox()).height<=58,"weekly summary compact");
-      const week=await p.locator("[data-overview-week] strong").allTextContents();assert.equal(Number(week[0].replace(/[^0-9.-]/g,"")),expectedWeek);
-     }
+     assert.equal(await p.locator("[data-overview-comparison] > div").count(),2);
+     assert.ok((await p.locator("[data-overview-week]").boundingBox()).height<=48,"weekly row compact");
+     assert.equal(Number(await p.locator("[data-overview-week-energy] b").innerText()),Math.abs(expectedWeek));
     }else{
      const recent=p.getByRole("region",{name:"最近记录",exact:true});const buttons=recent.locator('[data-record-date="'+today+'"] [data-record-actions] button');
      const first=buttons.first();await first.waitFor();if(w>=1100){const offset=await first.evaluate(n=>{const row=n.closest("[data-record-date]");return n.getBoundingClientRect().y-row.getBoundingClientRect().y-parseFloat(getComputedStyle(row).paddingTop);});assert.ok(Math.abs(offset)<=2,"record controls align to row top");}signatures[name]=await first.evaluate(n=>{const s=getComputedStyle(n);if(matchMedia("(prefers-reduced-motion:reduce)").matches&&s.transitionDuration!=="0s")throw Error("record controls must respect reduced motion");return[s.fontFamily,s.fontSize,s.lineHeight,s.color,s.borderTopWidth,s.borderTopColor,s.borderRadius,s.padding,s.minHeight].join("|")});
@@ -100,7 +97,12 @@ try{
  }
  assert.equal(hoverStyles.meals,hoverStyles.energy);assert.equal(hoverStyles.energy,hoverStyles.body);checks.push("shared-record-controls-normal-hover-focus-and-history");
  await p.setViewportSize({width:390,height:720});await go(p,"/dashboard");
- const toggle=p.locator("[data-overview-week]>button");assert.equal(await toggle.getAttribute("aria-expanded"),"false");await toggle.click();await shot(p,"phone-week-expanded");await toggle.click();checks.push("mobile-week-collapsed-and-expanded");
+ const info=p.getByRole("button",{name:"近 7 天收支计算依据"});
+ const note=p.locator("[data-overview-week-basis]");
+ assert.equal(await note.isVisible(),false);
+ await info.press("Enter");await note.waitFor();await shot(p,"phone-week-basis");
+ await p.keyboard.press("Escape");await note.waitFor({state:"hidden"});checks.push("mobile-week-basis");
+
  for(const[w,h]of[[1440,900],[390,720],[320,560]]){
   await p.setViewportSize({width:w,height:h});
   for(const mode of["dark","light"]){
