@@ -2,15 +2,15 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-9e4bf912-overview-30d-guides-20261119`，源码 `9e4bf9124f43a65b3c6c3a1b04abe4a7128dec97`，BUILD_ID `562jW9Gy0iHB6uChfXRZw`。北京时间2026-11-19 22:08:25切换。 [正式版本](https://formward.top/api/app-version)
+正式站运行 `dual-entry-9c608ff9-assistant-photo-batches-resume-20261119`，源码 `9c608ff9d2e1d5ea1ae0bb1b8d995d70f3fa4d6e`，BUILD_ID `6sBRk5Q9XmDe5n9HUHbBW`。北京时间 2026-11-19 23:56:19 切换。 [正式版本](https://formward.top/api/app-version)
 
-总览30D新增七条按日期对齐的淡竖线。扩大区间时共同日期先靠右补位，较早日期的净收支柱和次晨细杆随后从各自零线同步伸展。电脑和手机模拟在Chromium与WebKit完成图形和逐帧验收。 [总览实际验收](../design-qa.md#已发布验收--总览30d参考线与补入动效)
+小助手同一条消息最多八张图，按完整说明自动分批读取。读完统一回答，同一餐人工确认后保存一次。图片失败可原地续读，上下文中断提供「新建对话」和「新会话继续回答」。 [浏览器验收](assistant-chat-verification.md#多图读取续读与上下文中断--正式包验收)
 
-上海网页与同版聊天worker均在运行。复核了schema `0046_assistant_conversation_removal`、46项迁移和切换前后67张表的行摘要。停写备份 `formward-primary-20261119T140821987231Z.dump.json` 完成原生校验与加密异地回读。
+上海网页与聊天 worker 运行同一源码。本轮沿用 schema `0046_assistant_conversation_removal` 和 46 项迁移，停写切换前后 67 张表的行摘要一致。备份 `formward-primary-20261119T155614996554Z.dump.json` 完成原生校验与加密异地回读。
 
-四个公网域名及兼容IP返回同一版本，兼容IP打开网页会转至正式域名。深链登录返回、新旧静态资源、匿名权限和MCP发现均通过。保留56项正式Server Action编号、绑定密钥和2040项旧静态资源。海外网关实际回源新版。
+四个公网域名及兼容 IP 返回同一版本，兼容 IP 的网页入口跳转正式域名。验证了深链登录返回、匿名权限、MCP 发现、新资源摘要与旧静态资源。保留 56 项正式 Server Action 编号和绑定密钥及 2047 项旧静态资源。海外网关实际回源新版。
 
-本机永久归档位于 `.codex/backups/regional-releases/overview-30d-guides-20261119`，运行包大小82,471,987字节，SHA256 `ee44083e6a6380c725d2d28326dd19260338019708ead37d14cd491d0586691a`。 `overview-linked-range-20261119` 提供兼容0046的上版网页和worker回退包。
+本机永久归档位于 `.codex/backups/regional-releases/assistant-photo-batches-resume-20261119`，运行包大小 82,653,548 字节，SHA256 `a38f9cabd14983747b41dfcc297fcf05611e44ff42ee73ee1187ee163cd269b9`。 `overview-30d-guides-20261119` 提供兼容 0046 的上版网页和 worker 回退包。
 
 ## 迁移与发布
 
