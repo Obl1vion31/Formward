@@ -2,12 +2,14 @@
 import {useLayoutEffect,useRef,type RefObject} from "react";
 import {useChartTransitionActions} from "./chart-transition-state";
 
+export const chartZeroGrowthEasing = "cubic-bezier(.2,.65,.3,1)";
+
 function growChartFromZero(node: HTMLElement, duration: number, reduced: MediaQueryList) {
  const animations = [...node.querySelectorAll<SVGGElement>("[data-chart-grow-from]")].map(layer => {
   layer.style.transformBox = "view-box";
   layer.style.transformOrigin = "0px " + layer.dataset.chartGrowFrom + "px";
   return layer.animate([{transform:"scaleY(0)"}, {transform:"scaleY(1)"}], {
-   duration, easing:"cubic-bezier(.2,.65,.3,1)"
+   duration, easing:chartZeroGrowthEasing
   });
  });
  const [clock] = animations;

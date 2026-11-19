@@ -25,14 +25,15 @@ export function ChartSelectionMarker({x,y=0,resetKey,direct=false,children}:Mark
 
 type PlotBounds={left:number;right:number;top:number;bottom:number};
 /** 背景和辅助线共用同一变换；图表将本层放在真实数据之前。 */
-export function ChartSelectionColumn({x,date,column,plot,resetKey,direct=false,baselineTick=false}:Omit<MarkerProps,"y"|"children">&{date:string|null;column:{left:number;right:number}|null;plot:PlotBounds;baselineTick?:boolean}){
+export function ChartSelectionColumn({x,date,column,plot,resetKey,direct=false,baselineTick=false,rangeMotion=false}:Omit<MarkerProps,"y"|"children">&{date:string|null;column:{left:number;right:number}|null;plot:PlotBounds;baselineTick?:boolean;rangeMotion?:boolean}){
  const id=useId().replaceAll(":",""),left=Math.max(plot.left,column?.left??plot.left),right=Math.min(plot.right,column?.right??plot.right);
+ const rangeKey=rangeMotion&&date?"selection:"+date:undefined;
  return <>
   <defs><clipPath id={id}><rect x={plot.left} y={plot.top} width={Math.max(0,plot.right-plot.left)} height={Math.max(0,plot.bottom-plot.top)+(baselineTick?12:0)}/></clipPath></defs>
   <g className={styles.column} data-chart-selection-column data-selected-date={date??undefined} clipPath={`url(#${id})`} aria-hidden="true">
    <ChartSelectionMarker x={x} resetKey={resetKey} direct={direct}>
-    <rect data-chart-selection-band x={left-(x??0)} y={plot.top} width={Math.max(0,right-left)} height={Math.max(0,plot.bottom-plot.top)} className={styles.band}/>
-    <line data-chart-selection-line data-crosshair-date={date??undefined} x1="0" x2="0" y1={plot.top} y2={plot.bottom} className={styles.line}/>
+    <rect data-chart-selection-band data-range-mark={rangeKey&&rangeKey+":band"} x={left-(x??0)} y={plot.top} width={Math.max(0,right-left)} height={Math.max(0,plot.bottom-plot.top)} className={styles.band}/>
+    <line data-chart-selection-line data-range-mark={rangeKey&&rangeKey+":guide"} data-crosshair-date={date??undefined} x1="0" x2="0" y1={plot.top} y2={plot.bottom} className={styles.line}/>
     {baselineTick&&<path data-chart-selection-tick d={`M 0 ${plot.bottom+4} v 6`} className={styles.tick}/>}
    </ChartSelectionMarker>
   </g>

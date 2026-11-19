@@ -13,6 +13,7 @@ import { RelationshipPlot } from "./relationship-plot";
 import { BalanceReading } from "./day-readout";
 import { addCalendarDays, calendarOrdinal } from "../measurements/calendar";
 import { useMobileMode } from "@/components/use-mobile-mode";
+import { isNestedChartPreset, useNestedChartRange } from "@/components/use-nested-chart-range";
 import type { OverviewPresentation } from "./presentation";
 import type { MeasurementDisplay } from "../measurements/entry-state";
 import { formatNutrition } from "../meals/model";
@@ -37,11 +38,13 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   useLayoutEffect(()=>{rememberOverview({mode,custom});},[mode,custom,rememberOverview]);
   const [customOpen, setCustomOpen] = useState(false), [customDraft, setCustomDraft] = useState(custom);
   const [rangeRevision, setRangeRevision] = useState(0);
+  const [nestedChange, setNestedChange] = useState(false);
   const range = mode ?? rangeContaining(preferred, today, mobile ? "7" : "30");
   const available = data.days;
   const byDate = new Map(available.map(day => [day.date, day]));
   const earliest = available.map(day => day.date).filter(date => date <= today).sort()[0] ?? today;
   const from = range === "all" ? earliest : range === "custom" ? custom.from : addCalendarDays(today, 1 - Number(range)), to = range === "custom" ? custom.to : today;
+  const { bindPlot, prepare: prepareRange, finish: finishRange } = useNestedChartRange({ mode: range, from, to, growNewValues: true });
   let dates: string[] = [];
   try { const length = calendarOrdinal(to) - calendarOrdinal(from) + 1; if (length > 0 && length <= 3661) dates = Array.from({ length }, (_, index) => addCalendarDays(from, index)); } catch {}
   const days = dates.map(date => byDate.get(date) ?? blankDay(date));
@@ -50,16 +53,24 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   function changeRange(key: string) {
     selection.leave();
     if (key === "custom") {
+      finishRange();
       setCustomDraft(custom);
       setCustomOpen(true);
       return;
     }
-    if (key !== range) setRangeRevision(revision => revision + 1);
+    if (key !== range) {
+      prepareRange(key);
+      setNestedChange(isNestedChartPreset(range) && isNestedChartPreset(key));
+      setRangeRevision(revision => revision + 1);
+    }
     setMode(key);
     setCustomOpen(false);
   }
   function applyCustomRange() {
-    if (customDraft.from !== from || customDraft.to !== to) setRangeRevision(revision => revision + 1);
+    if (customDraft.from !== from || customDraft.to !== to) {
+      setNestedChange(false);
+      setRangeRevision(revision => revision + 1);
+    }
     setCustom(customDraft);
     setMode("custom");
     setCustomOpen(false);
@@ -67,7 +78,9 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const customControls = customOpen && <CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={applyCustomRange} cancel={()=>setCustomOpen(false)}/>;
   const motionRevision = mobile === null ? undefined : rangeRevision;
   const detailSuspended = customOpen || !!dialogDay;
+  const plotOptions = { motionRevision, nestedChange, bindRangePlot: mobile === null ? undefined : bindPlot, finishRange, showDateGuides: range === "30" };
   function viewSelectedDay() {
+    finishRange();
     selection.pin(selected);
     setOpened(selected);
   }
@@ -81,7 +94,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       <div className={styles.mobileSelected} aria-live="polite"><time>{selected}</time><strong><BalanceReading balance={day?.energyBalance ?? null}/></strong></div>
       <div className={styles.mobileLegend}><OverviewLegend/></div>
       {dates.length ? <>
-        <RelationshipPlot days={days} selected={selected} selection={selection} compactMode motionRevision={motionRevision} suspended={detailSuspended}/>
+        <RelationshipPlot days={days} selected={selected} selection={selection} compactMode {...plotOptions} suspended={detailSuspended}/>
         <OverviewReadings day={day} mobile/>
       </> : <p className={styles.caption}>请选择有效日期范围，最长10年。</p>}
     </div>}{mobile!==true&&<div className="desktop-only"><RecordTrendPanel
@@ -96,7 +109,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       flags={overviewFlags(day)} flagVariants={days.map(overviewFlags)}
       title="热量收支" unit="kcal"
       legend={<OverviewLegend/>}
-    >{dates.length?<RelationshipPlot days={days} selected={selected} selection={selection} compactMode={false} motionRevision={motionRevision} suspended={detailSuspended}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel></div>}
+    >{dates.length?<RelationshipPlot days={days} selected={selected} selection={selection} compactMode={false} {...plotOptions} suspended={detailSuspended}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel></div>}
     {mobile!==true&&<div className="desktop-only"><RangeCoverage key={from+to} days={days} today={today} from={from} to={to}/></div>}
     {dialogDay&&<EditorDialog title={dialogDay.date+" · 当日记录"} titleParts={[dialogDay.date,"当日记录"]} stableScroll close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}
   </section>;
