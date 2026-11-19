@@ -189,7 +189,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
                   <button type="button" disabled={!chat.enabled || chat.busy || chat.managing || !!chat.uploading || !chat.data}
                     onClick={() => void chat.control("new", undefined, chat.data?.conversationId)}>新建对话</button>
                   <button type="button" disabled={!chat.enabled || chat.busy || chat.managing || !!chat.uploading || !chat.data}
-                    onClick={() => void chat.control("new", undefined, chat.data?.conversationId, message.id)}>新建会话继续回答</button>
+                    onClick={() => void chat.control("new", undefined, chat.data?.conversationId, message.id)}>新会话继续回答</button>
                 </div>
               </div> : undefined}
               photoActions={message.photoLimit ? <PhotoBatchPicker limit={message.photoLimit} disabled={chat.busy||blocked}

@@ -7,7 +7,7 @@ import { assistantConversation, assistantMessage, assistantRun, assistantUsageRe
 import { readMealSnapshot } from "../src/features/meals/records.ts";
 
 const warning = "这次要处理的内容太多，回复已中断。";
-const replyWithQuote = "新建会话继续回答";
+const replyWithQuote = "新会话继续回答";
 
 export async function runAssistantContextRecovery(db) {
   const fixture = JSON.parse(await readFile(process.env.FORMWARD_CHAT_BROWSER_CONFIG,"utf8"));
