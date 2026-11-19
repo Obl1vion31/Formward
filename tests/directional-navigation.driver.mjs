@@ -293,10 +293,11 @@ export async function runDirectionalNavigation(db) {
       await saw(before,"div",-1,0);
 
       if(!mobile) {
-        await page.goto("/admin");
+        await page.goto("/admin",{waitUntil:"networkidle"});
         const verify=page.getByLabel("当前密码");
         await verify.fill(account.password);
         await button("验证并进入").click();
+        await page.getByRole("link",{name:"查看用户",exact:true}).first().waitFor();
         const nav=page.getByRole("navigation",{name:"管理后台栏目",exact:true});
         await nav.waitFor();
         before=await mark();
