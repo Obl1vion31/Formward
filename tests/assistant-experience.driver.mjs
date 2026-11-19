@@ -22,8 +22,8 @@ export async function runAssistantExperienceBrowser(db) {
     assert.ok(response.ok);
   };
 
-  async function journey(name, size, mobile, run, theme = "light") {
-    const context = await browser.newContext({viewport:size,hasTouch:mobile,isMobile:mobile,deviceScaleFactor:1,
+  async function journey(name, size, mobile, run, theme = "light", wheel = false) {
+    const context = await browser.newContext({viewport:size,hasTouch:mobile,isMobile:mobile&&!wheel,deviceScaleFactor:1,
       reducedMotion:"no-preference",recordVideo:{dir,size}});
     await context.addInitScript(value => {
       localStorage.setItem("formward-theme",value);
@@ -39,7 +39,7 @@ export async function runAssistantExperienceBrowser(db) {
       route=>route.fulfill({status:200,body:""}));
     const page = await context.newPage(), video = page.video(), start = performance.now();
     page.setDefaultTimeout(65000);
-    const record = {name,engine,browserVersion:browser.version(),theme,viewport:size,simulatedKeyboard:mobile,screenshots:[],checks:[],errors:[]};
+    const record = {name,engine,browserVersion:browser.version(),theme,viewport:size,simulatedKeyboard:mobile,wheel,screenshots:[],checks:[],errors:[]};
     results.push(record);
     let expectedInterruption = false;
     page.on("pageerror",error=>{
@@ -698,7 +698,7 @@ export async function runAssistantExperienceBrowser(db) {
     await mark("历史返回不发送模型请求，删除有确认、保留原文并拒绝旧链接");
   }
 
-  async function keyboardFlow({page,context,input,send,message,shot,mark,open,fixtureFiles}, baseline) {
+  async function keyboardFlow({page,context,input,send,message,shot,mark,open,fixtureFiles}, baseline, scrollDraft = false) {
     const width = 393, chatUrl = base + "/api/assistant-chat";
     const {conversationId} = await context.request.get(chatUrl).then(response => response.json());
     await db.insert(assistantMessage).values([
@@ -707,13 +707,17 @@ export async function runAssistantExperienceBrowser(db) {
         text:"这条虚构的午餐记录有米饭、烤鸡肉和西兰花。照片和文字将在同一条消息里对照。"},
     ]);
     await db.update(assistantConversation).set({sequence:2}).where(eq(assistantConversation.id,conversationId));
-    const draft = [
+    const draftLines = [
       "两张照片是同一份午餐的不同角度。",
       "第一张是米饭、烤鸡肉和西兰花，米饭大概剩了三分之一。",
       "另一张是侧面，用来核对盘子里的份量。",
       "鸡肉按可食部分算，调味料的份量还需要确认。",
       "这是一段虚构的长草稿，用来验证输入时能同时保留两张照片。",
-    ].join("\n");
+    ];
+    if (scrollDraft) {
+      draftLines.splice(1, 0, ...Array.from({length:15}, (_, index) => `第 ${index + 2} 行虚构记录，待核对。`));
+    }
+    let draft = draftLines.join("\n");
     const viewport = (height, offsetTop = 0, type = "resize") => page.evaluate(
       ({height, width, offsetTop, type}) => window.fixtureViewport(height === null ? null : {height, width, offsetTop, scale:1}, type),
       {height, width, offsetTop, type});
@@ -742,6 +746,89 @@ export async function runAssistantExperienceBrowser(db) {
       assert.ok(view.sendHeight >= 44 && view.hit && view.gap >= 4 && view.gap <= 8, JSON.stringify(view));
       return view;
     };
+    async function checkDraftScroll() {
+      const field = input();
+      const cdp = engine === "chromium" ? await context.newCDPSession(page) : null;
+      const position = () => field.evaluate(node => {
+        const shell = node.closest("[data-assistant-page]");
+        return {
+          top:node.scrollTop, end:node.scrollHeight-node.clientHeight,
+          heading:shell.querySelector("header").getBoundingClientRect().top,
+          send:shell.querySelector('button[aria-label="发送消息"]').getBoundingClientRect().bottom,
+          feed:shell.querySelector('[role="log"]').scrollTop, document:scrollY,
+        };
+      });
+      async function gesture(towardStart) {
+        const box = await field.boundingBox();
+        const x = Math.round(box.x + box.width / 2);
+        if (!cdp) {
+          await page.mouse.move(x, box.y + box.height / 2);
+          await page.mouse.wheel(0, towardStart ? -110 : 110);
+        } else {
+          const y = Math.round(towardStart ? box.y + 8 : box.y + box.height - 8);
+          const distance = (towardStart ? 1 : -1) * Math.min(60, Math.floor(box.height - 16));
+          await cdp.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x,y,id:0}]});
+          for (let step = 1; step <= 6; step++) {
+            await cdp.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{x,y:y+Math.round(distance*step/6),id:0}]});
+            await page.waitForTimeout(18);
+          }
+          await cdp.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
+        }
+        await page.waitForTimeout(125);
+      }
+      const fixed = (before, after) => {
+        for (const key of ["heading", "send", "feed", "document"]) {
+          assert.ok(Math.abs(before[key]-after[key]) <= 1, JSON.stringify({key,before,after}));
+        }
+      };
+      const bottom = await position();
+      assert.ok(bottom.end > 350 && bottom.end-bottom.top <= 1, JSON.stringify(bottom));
+      await gesture(true);
+      await page.waitForTimeout(250);
+      const reading = await position();
+      assert.ok(reading.top <= bottom.top-15, JSON.stringify({bottom,reading}));
+      fixed(bottom, reading);
+      await viewport(210);
+      await withinViewport(210);
+      await page.waitForTimeout(120);
+      const resized = await position();
+      assert.ok(resized.end > reading.end && Math.abs(resized.top-reading.top) <= 1, JSON.stringify({reading,resized}));
+      await shot("reading-resize","改变模拟键盘高度后保留长草稿的阅读位置",{x:0,y:0,width,height:210});
+      await viewport(235);
+      await withinViewport(235);
+      await page.waitForTimeout(100);
+
+      const stable = await position();
+      for (let step = 0; step < 24 && (await position()).top > 1; step++) await gesture(true);
+      await gesture(true);
+      const start = await position();
+      assert.ok(start.top <= 1, JSON.stringify(start));
+      fixed(stable, start);
+      await shot("draft-start","原生滚动查看两图草稿的开头，发送键仍可点",{x:0,y:0,width,height:235});
+
+      const original = "第 2 行虚构记录，待核对。";
+      const offset = draft.indexOf(original);
+      assert.ok(offset >= 0);
+      await field.evaluate((node, range) => node.setSelectionRange(...range), [offset, offset + original.length]);
+      const edited = "第 2 行虚构记录，已核对。";
+      await page.keyboard.insertText(edited);
+      draft = draft.replace(original, edited);
+      assert.equal(await field.inputValue(), draft);
+      const afterEdit = await position();
+      assert.ok(afterEdit.top < afterEdit.end / 2, JSON.stringify(afterEdit));
+
+      for (let step = 0; step < 24; step++) {
+        const current = await position();
+        if (current.end-current.top <= 1) break;
+        await gesture(false);
+      }
+      await gesture(false);
+      const end = await position();
+      assert.ok(end.end-end.top <= 1, JSON.stringify(end));
+      fixed(afterEdit, end);
+      await shot("draft-end","修改前文后滑回末尾，两张照片和输入仍在",{x:0,y:0,width,height:235});
+      await mark(`20 行草稿通过${cdp ? "原生触摸" : "窄屏原生滚轮"}往返首尾、编辑前文和视口变化，外层位置稳定`);
+    }
     await open();
     await fixtureFiles(2);
     await input().fill(draft);
@@ -768,6 +855,7 @@ export async function runAssistantExperienceBrowser(db) {
     await viewport(235);
     await withinViewport(235);
     await mark("两张图和长草稿同时保留，迟到的平移后发送键仍完整可点：" + JSON.stringify(await geometry()));
+    if (scrollDraft) await checkDraftScroll();
 
     await input().blur();
     assert.ok((await withinViewport(235)).keyboard);
@@ -799,6 +887,12 @@ export async function runAssistantExperienceBrowser(db) {
     await page.keyboard.insertText("\n重新打开键盘后继续输入。");
     await viewport(180);
     await withinViewport(180);
+    if (scrollDraft) {
+      await page.waitForFunction(() => {
+        const field = document.querySelector("[data-assistant-page] textarea");
+        return field.scrollTop + field.clientHeight >= field.scrollHeight - 1;
+      });
+    }
     const photo = page.getByRole("button",{name:"移除照片 2",exact:true});
     await photo.scrollIntoViewIfNeeded();
     assert.ok(await photo.evaluate(node => {
@@ -831,8 +925,9 @@ export async function runAssistantExperienceBrowser(db) {
   try {
     if (!samples?.length) throw Error("需要提供隔离海南鸡饭样例");
     const scope = process.env.FORMWARD_EXPERIENCE_CASE;
-    if (scope === "keyboard" || scope === "keyboard-before") {
-      await journey(scope,{width:393,height:852},true,flow=>keyboardFlow(flow,scope==="keyboard-before"),"dark");
+    if (scope === "keyboard" || scope === "keyboard-before" || scope === "draft-scroll") {
+      const scrollDraft = scope === "draft-scroll";
+      await journey(scope,{width:393,height:852},true,flow=>keyboardFlow(flow,scope==="keyboard-before",scrollDraft),"dark",scrollDraft && engine==="webkit");
     }
     if (scope==="composer" || scope==="composer-mobile") {
       await journey("composer-mobile",{width:390,height:844},true,flow=>composerFlow(flow,true));

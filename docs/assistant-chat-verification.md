@@ -1,6 +1,14 @@
 # 站内聊天验收
 
-正式站运行 `dual-entry-83dd97b4-assistant-keyboard-live-r2-20261120`。公网网页、资源与同版聊天 worker 已核对。 [正式站](https://formward.top/dashboard/assistant) · [发布与兼容回退](deployment.md#当前正式版本)
+正式站运行 `dual-entry-f4ca16bd-assistant-draft-scroll-20261120`。公网网页、资源与同版聊天 worker 已核对。 [正式站](https://formward.top/dashboard/assistant) · [发布与兼容回退](deployment.md#当前正式版本)
+
+## 长草稿滚动 · 正式包验收
+
+用两张虚构照片和 20 行中文草稿在 393 × 852 视口操作。旧版在键盘可见高度从 235px 缩到 210px 后，输入框从读到的 779px 跳到末尾 836px。新版两引擎均保持阅读位置，实测偏差≤1 CSS px。
+
+Chromium 使用浏览器触摸事件往返首尾，WebKit 在相同窄视口使用原生滚轮，并用手机模拟另验键盘开合。两引擎均通过修改前文、在末尾续写、带图和引用一次发送。键盘高度稳定时，消息区、顶栏、发送键与外层页面位置偏差≤1 CSS px。Chromium 另通过手机与桌面输入栏回归。
+
+lint、类型检查、865 项单元及集成测试和生产构建通过，2 项原生 PostgreSQL 条件测试跳过。iPhone 真机滚动待测。正式包的原图、录屏及公网检查保存在 `.codex/backups/regional-releases/assistant-draft-scroll-20261120/`。
 
 ## 左右切换与手机待办对比度
 
