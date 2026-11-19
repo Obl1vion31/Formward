@@ -24,7 +24,16 @@ import { assistantContext, assistantTimezone, type AssistantItem } from "./model
 
 export function reviewSummary(actions:RecordAction[],rows:PreviewRow[]=[],energyRows:EnergyPreview[]=[]){
   const meal=rows.find(row=>!row.excluded&&row.meal)?.meal;
-  if(meal){const n=meal.totals.values,show=(v:string|null)=>v===null?"—":String(Number(v));return {title:mealTypeLabel(meal.mealType)+(actions.length>1?"等 "+actions.length+" 项":""),value:(meal.totals.incomplete.caloriesKcal?"已知 ":"")+show(n.caloriesKcal)+" 千卡",detail:`蛋白质 ${show(n.proteinG)}g · 碳水 ${show(n.carbsG)}g · 脂肪 ${show(n.fatG)}g`};}
+  if (meal) {
+    const nutrients = meal.totals.values;
+    const show = (value: string | null) => value === null ? "—" : String(Number(value));
+    return {
+      kind: "meal" as const,
+      title: mealTypeLabel(meal.mealType) + (actions.length > 1 ? "等 " + actions.length + " 项" : ""),
+      value: (meal.totals.incomplete.caloriesKcal ? "已知 " : "") + show(nutrients.caloriesKcal) + " 千卡",
+      detail: `蛋白质 ${show(nutrients.proteinG)}g · 碳水 ${show(nutrients.carbsG)}g · 脂肪 ${show(nutrients.fatG)}g`,
+    };
+  }
   const body=actions.find(a=>a.kind==="save_record");
   if(body?.kind==="save_record")return {title:body.period==="evening"?"晚间测量":"晨间测量",value:body.weightKg!=null?Number(body.weightKg).toFixed(2)+" kg":body.bodyFatPercent!=null?Number(body.bodyFatPercent)+"% 体脂":"测量数值未知",detail:body.deviceLabel?"来源 "+body.deviceLabel:""};
   const energy=energyRows.find(row=>!row.excluded&&!row.error&&row.day)?.day;

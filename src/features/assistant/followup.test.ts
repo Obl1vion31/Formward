@@ -21,3 +21,27 @@ test("只有可选问题可跳过，多题统一提交不能漏题或夹带其�
  assert.match(answer,/食量：1份/);assert.match(answer,/其他说明：暂不填写/);
  assert.equal(followupQuestionsSchema.safeParse([{id:"x",prompt:"一"},{id:"x",prompt:"二"}]).success,false);
 });
+
+test("明确未知按具体字段去重，跳过全部保留已有回答，旧格式仍适用", async () => {
+  const {resolveSupplement,sameFollowupField,applyUnansweredMealFields} = await import("./followup");
+  const task:Followup = {messageId:randomUUID(),assistantMessageId:randomUUID(),subject:"晚餐",question:"核对实际份量",questions:[
+    {id:"rice",prompt:"鸡油饭实际多少？",fieldKey:"food.amount:鸡油饭",allowText:true},
+    {id:"chicken",prompt:"白切鸡吃了多少？",fieldKey:"food.amount:白切鸡",allowText:true},
+  ]};
+  const answers = resolveSupplement(task,{messageId:task.messageId,stopFollowups:true,answers:[
+    {questionId:"rice",text:"半碗"},{questionId:"chicken",text:"我记不清了。"},
+  ]});
+  assert.equal(answers.stopFollowups,true);
+  assert.equal(answers.sourceAssistantMessageId,task.assistantMessageId);
+  assert.equal(answers.answers[0].value,"半碗");
+  assert.equal(answers.answers[1].outcome,"unknown");
+  assert.equal(answers.answers[1].value,null);
+  assert.ok(sameFollowupField(answers.answers[1],{id:"another",prompt:"还记得几块吗？",fieldKey:"food.amount:白切鸡"}));
+  assert.deepEqual(applyUnansweredMealFields("preview_meals",{meals:[{foods:[
+    {name:"鸡油饭",quantity:"0.5",unit:"碗"},{name:"白切鸡",quantity:"1",unit:"份",caloriesKcal:"148"},
+  ]}]},answers),{meals:[{foods:[{name:"鸡油饭",quantity:"0.5",unit:"碗"},
+    {name:"白切鸡",amountDecision:"unknown_accepted",sourceKind:"unknown"}]}]});
+  assert.throws(()=>resolveSupplement(task,{messageId:task.messageId,answers:[
+    {questionId:"rice",outcome:"skipped"},{questionId:"chicken",outcome:"unknown",text:"四块"},
+  ]}));
+});

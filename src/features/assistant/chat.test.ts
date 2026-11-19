@@ -10,7 +10,8 @@ import * as schema from "../../db/schema";
 import type { Database } from "../../db/client";
 import { createDatabase } from "../../db/client";
 import { assertChatAllowed, chatProviders } from "./chat-config";
-import { budgetDate, usagePercent } from "./chat-model";
+import { budgetDate, chatBalance, usagePercent } from "./chat-model";
+import { loadAssistantEntitlements } from "./account-access";
 import { listChatConversations, chatIdentity, chatSnapshot, chatUsage, controlChat, currentConversation, normalizedUsage, reserveChatUsage, settleChatUsage, startChatRun, type ChatSend, type StoredRun } from "./chat-store";
 import { executeChatRun } from "./chat-runtime";
 import { modelBody, providerFailure, streamModel } from "./chat-provider";
@@ -83,14 +84,23 @@ test("每模型授权独立，撤销不可自动复活，续期保留旧授权�
 test("跨模型共享预算，预占防超额，结算只计一次；未知费用继续占用",async()=>{
   await fresh();const job=await begin();const one=await reserveChatUsage(db,ownerId,job.row,.9),two=await reserveChatUsage(db,ownerId,job.row,.9);
   await assert.rejects(()=>reserveChatUsage(db,ownerId,job.row,.3),/额度不足/);
+  const reserved = await loadAssistantEntitlements(db,ownerId);
+  assert.equal(reserved.accountId,ownerId);
+  assert.equal(reserved.usage.remainingPercent,"10%");
+  assert.equal(reserved.usage.percent,"0%");
   await settleChatUsage(db,ownerId,one,{prompt_tokens:1000000,completion_tokens:0});await settleChatUsage(db,ownerId,one,{prompt_tokens:1,completion_tokens:1});await settleChatUsage(db,ownerId,two,null);
-  const usage=await chatUsage(db,ownerId);assert.equal(usage.spent,.8);assert.equal(usage.uncertain,.9);assert.ok(usage.available<.301);assert.equal(usage.percent,"40%");
+  const usage=await chatUsage(db,ownerId);assert.equal(usage.spent,.8);assert.equal(usage.uncertain,.9);assert.ok(usage.available<.301);assert.equal(usage.percent,"40%");assert.equal(chatBalance(usage).remainingPercent,"15%");
   await stop(job.row);await db.delete(schema.assistantUsageRequest).where(eq(schema.assistantUsageRequest.userId,ownerId));
 });
 test("百分比、缓存与思考计费、跨北京时间零点归属",()=>{
   assert.equal(usagePercent(0,2),"0%");assert.equal(usagePercent(.001,2),"<1%");assert.equal(usagePercent(1.9999,2),"99%");assert.equal(usagePercent(2.1,2),"105%");
   assert.equal(normalizedUsage({prompt_tokens:1000,completion_tokens:100,prompt_tokens_details:{cached_tokens:500},completion_tokens_details:{reasoning_tokens:80}},chatProviders.qwen.rates),.00072);
   assert.equal(normalizedUsage({prompt_tokens:-1,completion_tokens:20},chatProviders.qwen.rates),null);
+  const resetAt = "2026-11-13T16:00:00.000Z";
+  assert.deepEqual(chatBalance({limit:2,available:2,resetAt}), {remainingPercent:"100%",resetAt});
+  assert.equal(chatBalance({limit:2,available:.001,resetAt}).remainingPercent,"<1%");
+  assert.equal(chatBalance({limit:2,available:0,resetAt}).remainingPercent,"0%");
+  assert.equal(chatBalance({limit:0,available:0,resetAt}).remainingPercent,"0%");
   assert.equal(budgetDate(new Date("2026-11-12T15:59:59Z")),"2026-11-12");assert.equal(budgetDate(new Date("2026-11-12T16:00:00Z")),"2026-11-13");
 });
 test("流式分片组装工具参数，usage独立尾包，私有思考不作为正文",async()=>{
@@ -215,12 +225,14 @@ test("已有的其他账号消息、图片和运行不能被指定管理员借�
   await assert.rejects(()=>startChatRun(db,ownerId,{...input,replyToId:messageId}),/引用消息/);await assert.rejects(()=>startChatRun(db,ownerId,{...input,imageIds:[imageId]}),/照片不存在/);await assert.rejects(()=>startChatRun(db,ownerId,{...input,conversationId}),/会话已变化/);
   assert.equal((await chatSnapshot(db,ownerId)).messages.length,0);
 });
-test("模型回合上限和过长上下文明确停止，不隐式重试或丢失原消息",async()=>{
+test("模型回合保持上限，过长历史按问答轮缩减并保留原消息",async()=>{
   await fresh();const job=await begin("有限回合");let calls=0;
   await executeChatRun(db,job.row,job.input,new Request("http://localhost:3000/api/assistant-chat"),()=>{},new AbortController().signal,{skipSessionCheck:true,fetcher:async()=>{calls++;return completion("",[{index:0,id:"load-"+calls,function:{name:"load_tools",arguments:'{"names":["query_measurements"]}'}}]);}});
   assert.equal(calls,8);assert.equal((await chatSnapshot(db,ownerId)).messages.at(-1)!.state,"truncated");
   const current=await fresh();await db.insert(schema.assistantMessage).values([{id:randomUUID(),userId:ownerId,conversationId:current.id,seq:1,role:"user",text:"虚构长内容".repeat(18000)},{id:randomUUID(),userId:ownerId,conversationId:current.id,seq:2,role:"assistant",provider:"qwen",text:"虚构长答复".repeat(18000)}]);await db.update(schema.assistantConversation).set({sequence:2}).where(eq(schema.assistantConversation.id,current.id));
-  const long=await begin("继续查询");calls=0;await executeChatRun(db,long.row,long.input,new Request("http://localhost:3000/api/assistant-chat"),()=>{},new AbortController().signal,{skipSessionCheck:true,fetcher:async()=>{calls++;return completion("不应发出");}});const snapshot=await chatSnapshot(db,ownerId);assert.equal(calls,0);assert.match(snapshot.messages.at(-1)!.error!,/上下文或照片/);assert.equal(snapshot.messages[0].text.length,90000);
+  const long=await begin("继续查询");calls=0;await executeChatRun(db,long.row,long.input,new Request("http://localhost:3000/api/assistant-chat"),()=>{},new AbortController().signal,{skipSessionCheck:true,fetcher:async(_url,options)=>{calls++;const body=String(options?.body);assert.ok(body.includes("继续查询"));assert.ok(!body.includes("虚构长内容"));return completion("可以继续当前对话");}});
+  const snapshot=await chatSnapshot(db,ownerId);assert.equal(calls,1);assert.equal(snapshot.conversationId,current.id);
+  assert.equal(snapshot.messages.at(-1)!.text,"可以继续当前对话");assert.equal(snapshot.messages[0].text.length,90000);
 });
 test("跨模型继承的回执保留原授权，撤销后不借新授权复活旧预览",async()=>{
   await db.update(schema.assistantRun).set({createdAt:new Date(Date.now()-61000)}).where(eq(schema.assistantRun.userId,ownerId));
