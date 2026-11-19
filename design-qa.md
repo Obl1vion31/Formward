@@ -1,5 +1,11 @@
 # 当前视觉验收
 
+## 已发布验收 · 总览统计、日期线与居中刻度
+
+同一运行包 `dual-entry-59e5fc73-overview-chart-layout-20261120` 在隔离 PostgreSQL 上使用虚构数据。Chromium 与 WebKit 各30项通过。手机320、390、430 CSS px 及触屏横屏检查统计默认收起、展开与退出、选日更新、长数值和双图居中。统计打开前后图区位置一致，常用按钮保留44px触控。两端核对7D／30D／90D日期线及上下对齐、快速切换、零值和缺测，走完查看记录与关闭返回。
+
+实际截图和报告保存于本机 `formward-overview-chart-release` 图册，正式包和样本报告位于 `.codex/backups/regional-releases/overview-chart-layout-20261120`。lint、类型检查、33项相关单元与集成检查及生产构建通过。实体 iPhone 未测。 [公网版本与检查](docs/deployment.md#当前正式版本)
+
 ## 已发布验收 · 手机助手进出与常驻视口
 
 正式运行包 `dual-entry-1b0cdd1e-assistant-viewport-shell-r3-20261120` 在 Chromium 与 WebKit 用虚构数据操作。入场首帧标题与输入区齐全。刻意缩短前景 6px 后，深浅主题的截图边缘仍连续。14 次返回均在首帧显示来源底栏，固定位置最大偏差 0 CSS px，实际视口变化按同一底边接管。复验原滚动与焦点、触屏输入、长草稿、待办和账号菜单。实体 iPhone 未测。 [整屏截图与原速录屏](http://127.0.0.1:41986/assistant-viewport/) · [逐项验收](docs/assistant-chat-verification.md#手机助手进出与常驻视口)
