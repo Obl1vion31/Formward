@@ -473,3 +473,5 @@ MFA专项使用真实Better Auth插件验证绑定、错误动态码、恢复码
 小助手上下文中断验收使用 `FORMWARD_CHAT_CONTEXT_RECOVERY=1` 运行 `tests/chat-pilot.browser.mts`。指定 `FORMWARD_TEST_RELEASE`、`FORMWARD_CHAT_NATIVE=1` 与虚构样例照片后，可用 `CHAT_BROWSER=chromium` 或 `webkit` 复现保存、中断、引用、换会话、历史精简与多图自动读取。另用 `FORMWARD_CONTEXT_CASE=photos` 或 `overflow` 可单独跑其中一类。可选的 `FORMWARD_CHAT_FIXTURE_LABEL` 提供虚构标签 PNG。以真实任务诊断和数据库核对完整提示、分批顺序、续读定位与保存前后的实际记录。报告和实录写入 `FORMWARD_CHAT_ARTIFACTS`。
 
 小助手照片叠放使用 FORMWARD_ASSISTANT_PHOTO_STACK=1 运行 tests/chat-pilot.browser.mts，沿用隔离运行包、虚构照片与模型回放。检查两张、四张、八张、纯照片消息、当前与历史、图片翻页与失败恢复。报告、整屏截图和原速录屏写入 FORMWARD_CHAT_ARTIFACTS。
+
+设置 FORMWARD_DIRECTIONAL_NAVIGATION=1 运行 tests/chat-pilot.browser.mts。用虚构照片、当前及历史对话、训练日历和后台栏目核对双向偏移、主题、草稿及减弱动态，保存实页原速录像。

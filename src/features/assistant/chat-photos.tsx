@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element -- 会话原图在请求时校验账号归属。 */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type RefObject } from "react";
 import { lockPageScroll } from "@/components/scroll-lock";
+import { createWorkspaceExchange, orderedDirection } from "@/components/workspace-motion";
 import { Glyph } from "./chat-icon";
 import styles from "./chat.module.css";
 
@@ -36,10 +37,11 @@ function MessagePhoto({ photo, confirmed, decorative, onHandoff }: {
 
 type PhotoSlide = { key: string; source: string; index: number };
 
-function PreviewImage({ slide, requested, visible, onRead }: {
+function PreviewImage({ slide, requested, visible, frame, onRead }: {
   slide: PhotoSlide;
   requested: boolean;
   visible: boolean;
+  frame: "current" | "previous" | "reading";
   onRead: (slide: PhotoSlide, loaded: boolean) => void;
 }) {
   const image = useRef<HTMLImageElement>(null);
@@ -55,7 +57,7 @@ function PreviewImage({ slide, requested, visible, onRead }: {
     return () => { reading = false; };
   }, [requested, slide, onRead]);
   return <img ref={image} src={slide.source} alt={"第 " + (slide.index + 1) + " 张照片"}
-    data-ready={visible} draggable={false}/>;
+    data-ready={visible} data-photo-frame={frame} aria-hidden={frame !== "current" || undefined} draggable={false}/>;
 }
 
 function PhotoViewer({ photos, confirmed, trigger, close }: {
@@ -65,9 +67,13 @@ function PhotoViewer({ photos, confirmed, trigger, close }: {
   close: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const exchange = useMemo(() => createWorkspaceExchange(), []);
   const swipe = useRef<{ id: number; x: number; y: number } | null>(null);
   const [selection, setSelection] = useState({ index: 0, attempt: 0 });
-  const [shown, setShown] = useState<PhotoSlide | null>(null);
+  const [display, setDisplay] = useState<{ shown: PhotoSlide | null; previous: PhotoSlide | null }>({
+    shown: null, previous: null,
+  });
   const [notice, setNotice] = useState<{ key: string; error: boolean } | null>(null);
   const { index, attempt } = selection;
   const photo = photos[index];
@@ -75,12 +81,18 @@ function PhotoViewer({ photos, confirmed, trigger, close }: {
   const source = attempt && base.startsWith("/") ? base + "?retry=" + attempt : base;
   const selected = useMemo(() => ({ source, index, key: index + ":" + attempt + ":" + source }), [source, index, attempt]);
   const currentNotice = notice?.key === selected.key ? notice : null;
+  const { shown, previous } = display;
   const ready = shown?.key === selected.key;
   const failed = currentNotice?.error === true;
   const countIndex = failed ? index : shown?.index ?? index;
-  const slides = shown && !ready ? [shown, selected] : [selected];
+  const slides = [selected];
+  if (shown && !ready) slides.unshift(shown);
+  if (previous && previous.key !== selected.key) slides.unshift(previous);
   const onRead = useCallback((slide: PhotoSlide, loaded: boolean) => {
-    if (loaded) setShown(slide);
+    if (loaded) setDisplay(value => ({
+      shown: slide,
+      previous: value.shown?.index !== slide.index ? value.shown : null,
+    }));
     else setNotice({ key: slide.key, error: true });
   }, []);
   useEffect(() => {
@@ -89,6 +101,19 @@ function PhotoViewer({ photos, confirmed, trigger, close }: {
       ? value : { key: selected.key, error: false }), 350);
     return () => window.clearTimeout(timer);
   }, [ready, failed, selected.key]);
+  useLayoutEffect(() => {
+    if (!shown || !previous) {
+      exchange.stop();
+      return;
+    }
+    const incoming = stage.current?.querySelector<HTMLElement>('[data-photo-frame="current"]');
+    const outgoing = stage.current?.querySelector<HTMLElement>('[data-photo-frame="previous"]');
+    if (!incoming || !outgoing) return;
+    exchange.play(incoming, outgoing, orderedDirection(previous.index, shown.index), () => {
+      setDisplay(value => value.shown === shown && value.previous === previous ? { ...value, previous: null } : value);
+    });
+  }, [shown, previous, exchange]);
+  useLayoutEffect(() => exchange.stop, [exchange]);
   useLayoutEffect(() => {
     const node = dialog.current;
     if (!node) return;
@@ -142,14 +167,17 @@ function PhotoViewer({ photos, confirmed, trigger, close }: {
       </span>
       <button className={styles.icon} type="button" aria-label="关闭照片预览" onClick={close}><Glyph name="close"/></button>
     </header>
-    <div className={styles.photoStage} onPointerDown={event => {
+    <div ref={stage} className={styles.photoStage} onPointerDown={event => {
       if (event.isPrimary && event.pointerType === "touch") {
         swipe.current = { id: event.pointerId, x: event.clientX, y: event.clientY };
       }
     }} onPointerUp={finishSwipe} onPointerCancel={() => { swipe.current = null; }}>
-      {slides.map(slide => <PreviewImage key={slide.key} slide={slide}
-        requested={!ready && slide.key === selected.key}
-        visible={!failed && slide.key === shown?.key} onRead={onRead}/>)}
+      {slides.map(slide => {
+        const frame = slide.key === shown?.key ? "current" : slide.key === previous?.key ? "previous" : "reading";
+        return <PreviewImage key={slide.key} slide={slide} frame={frame}
+          requested={!ready && !failed && slide.key === selected.key}
+          visible={!failed && frame !== "reading"} onRead={onRead}/>;
+      })}
       {!ready && currentNotice && (failed ? <div className={styles.photoReadError}>
         <p role="status">这张照片读取失败。</p>
         <button type="button" onClick={() => {

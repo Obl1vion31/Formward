@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import { useOrderedArrival } from "@/components/use-ordered-arrival";
 import type { Followup } from "./chat-model";
 import { followupQuestions, resolveSupplement, type FollowupSubmission } from "./followup";
 import styles from "./chat.module.css";
@@ -13,6 +14,7 @@ export function FollowupForm({task,busy,submit}: {
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [index, setIndex] = useState(0);
+  const questionScene = useOrderedArrival<HTMLFieldSetElement>(index, { distance: 12 });
   const [failure, setFailure] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const sending = useRef(false), heading = useRef<HTMLLegendElement>(null);
@@ -72,7 +74,7 @@ export function FollowupForm({task,busy,submit}: {
         {index ? <button type="button" onClick={() => showQuestion(index - 1)}>‹ 上一题</button> : <span>补充信息</span>}
         {questions.length > 1 && <span>{index + 1} / {questions.length}</span>}
       </div>
-      <fieldset>
+      <fieldset ref={questionScene}>
         <legend ref={heading} tabIndex={-1}>{question.prompt}</legend>
         {options.length > 0 && <div className={styles.followupOptions} data-paired={twoColumns || undefined}>
           {options.map(option => {

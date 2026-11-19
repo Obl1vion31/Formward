@@ -212,9 +212,40 @@
 @media(max-height:500px){.feed{padding-block:8px}}
 @media(prefers-reduced-motion:reduce){.spinner{animation:none;border-color:var(--gold)}.workspace *{scroll-behavior:auto!important;animation:none!important}}
 
-.navigation{min-width:0}.navTabs{display:flex;align-items:center;gap:4px}.navigation .navTabs button{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:44px;min-width:44px;width:auto;padding:6px;border:0;background:none;color:var(--muted);font-family:inherit;font-size:1rem;font-weight:500;line-height:1.5;cursor:pointer}.navigation .navTabs button[aria-selected=true]{color:var(--warm-white)}.tabLabel{position:relative;color:inherit}.navTabs button[aria-selected=true] .tabLabel::after{content:"";position:absolute;bottom:-5px;left:0;right:0;height:2px;background:var(--gold)}.tabBadge{font-size:.8125rem;color:var(--gold)}.navigation .navSelect{display:none;min-height:44px;max-width:100%;width:auto;min-width:5.125rem;padding:6px;border:1px solid var(--control-border);border-radius:8px;color:var(--warm-white);background:var(--surface);font-family:inherit;font-size:1rem;line-height:1.5;color-scheme:var(--color-scheme)}.navigation :focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.navigation { min-width: 0; }
+.navTabs {
+ display: flex;
+ align-items: center;
+ border-radius: 24px;
+ background: var(--surface-hover);
+}
+.navTabs button {
+ display: inline-flex;
+ flex: 1;
+ align-items: center;
+ justify-content: center;
+ gap: 4px;
+ min-width: 0;
+ min-height: 44px;
+ padding: 6px 4px;
+ border: 0;
+ border-radius: 22px;
+ background: none;
+ color: var(--muted);
+ font-family: inherit;
+ font-size: 1rem;
+ font-weight: 500;
+ line-height: 1.25;
+ cursor: pointer;
+}
+.navTabs button[aria-selected=true] {
+ background: var(--warm-white);
+ color: var(--surface);
+}
+.navTabs button[aria-selected=true] .tierBadge { color: inherit; }
+.navTabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.tabBadge, .navSelect { display: none; }
 
-@media(max-width:359px){.navigation .navTabs{display:none}.navigation .navSelect{display:block}}
 
 .message[data-new-message=true]{transform-origin:bottom right;animation:message-arrive 200ms cubic-bezier(.2,.8,.2,1) both}@keyframes message-arrive{from{opacity:0;transform:translate(6px,8px) scale(.96)}to{opacity:1;transform:translate(0,0) scale(1)}}@media(prefers-reduced-motion:reduce){.message[data-new-message=true]{animation:none}}
 
@@ -277,34 +308,37 @@
 @media(max-width:700px),(hover:none) and (pointer:coarse){.tableFrame[data-wide] .tableHint{display:block}.composerArea{padding-bottom:max(8px,env(safe-area-inset-bottom))}}
 .text ul{list-style-type:disc}.text ol{list-style-type:decimal}.text li::marker{color:var(--muted)}.text li:has(>input[type=checkbox]){list-style-type:none}
 
-/* C版手机导航只改变选中态，不参与头部空间重排。 */
-.navigation .navTabs{padding:2px;gap:0;border-radius:24px;background:var(--surface-hover)}
-.navigation .navTabs button{flex:1;min-width:52px;padding:6px 10px;border-radius:22px;line-height:1.25}
-.navigation .navTabs button[aria-selected=true]{background:var(--warm-white);color:var(--surface)}
-.navTabs button[aria-selected=true] .tabLabel::after{content:none}.navigation .navSelect{display:none!important}.navigation .navTabs{display:flex!important}
-.navigation .tabBadge{display:none}
 .user .images{justify-content:flex-end;margin:0 0 8px}.images a{display:block;width:max-content;max-width:min(240px,100%)}
 .images img{width:auto;height:auto;max-width:min(240px,100%);max-height:260px;object-fit:contain;background:transparent;border-radius:12px}
 .user .images img{margin-left:auto}
 
-@media(max-width:700px),(hover:none) and (pointer:coarse){.navigation .navTabs{display:flex}.navigation .navSelect{display:none}.navigation .navTabs button{flex:1;padding:6px 3px;min-width:0;font-size:16px;border-radius:22px}.navigation .navTabs button[aria-selected=true]{background:var(--warm-white);color:var(--surface)}.navTabs button[aria-selected=true] .tabLabel::after{content:none}.tabBadge{display:none}.navigation{width:100%}}
-
-.navigation .navTabs{display:flex!important}.navigation .navSelect{display:none!important}.navTabs button[aria-selected=true] .tabLabel::after{display:none}.navigation .navTabs button{min-width:0;flex:1;padding:6px 4px;border-radius:22px;min-height:40px;color:var(--muted)}.navigation .navTabs button[aria-selected=true]{background:var(--warm-white);color:var(--surface)}.tabBadge{display:none}
-
-.navigation .navTabs{padding:0}.navigation .navTabs button{min-height:44px}
-
 .workspace[data-page=true] {
-  display: flex;
-  flex-direction: column;
-  width: min(100%, 800px);
-  margin-inline: auto;
+ display: grid;
+ grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+ position: relative;
+ width: min(100%, 800px);
+ margin-inline: auto;
+ overflow: clip;
+ background: var(--surface);
 }
-.workspace[data-page=true] .sidebar {
-  display: none;
-  flex: 1;
-  border: 0;
+.workspace[data-page=true] :is(.sidebar,.conversation) {
+ display: flex;
+ grid-area: 1 / 1;
+ min-height: 0;
+ visibility: hidden;
+ transition: transform 200ms cubic-bezier(.22,1,.36,1), visibility 0s linear 200ms;
 }
-.workspace[data-page=true] .conversation { flex: 1; }
+.workspace[data-page=true] .sidebar { border: 0; transform: translateX(100%); }
+.workspace[data-page=true] .conversation { transform: translateX(-100%); }
+.workspace[data-page=true][data-tab=chat] .conversation,
+.workspace[data-page=true][data-tab=tasks] .sidebar {
+ visibility: visible;
+ transform: none;
+ transition-delay: 0s;
+}
+@media (prefers-reduced-motion: reduce) {
+ .workspace[data-page=true] :is(.sidebar,.conversation) { transition: none; }
+}
 .workspace[data-page=true] .composerArea {
   overflow: clip;
   max-height: none;
@@ -341,8 +375,6 @@
   overscroll-behavior: contain;
 }
 .workspace[data-page=true] .attachments > * { flex: none; }
-.workspace[data-page=true][data-tab=tasks] .sidebar { display: flex; }
-.workspace[data-page=true][data-tab=tasks] .conversation { display: none; }
 
 .message { position: relative; }
 .message[data-new-message=true] { animation: message-arrive 180ms cubic-bezier(.2,.8,.2,1) both; }
@@ -450,9 +482,12 @@
 }
 .photoStage img { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; object-fit: contain; visibility: hidden; }
 .photoStage img[data-ready=true] { visibility: visible; }
+.photoStage img[data-photo-frame=previous] { z-index: 1; }
+.photoStage img[data-photo-frame=current] { z-index: 2; }
 .photoStage p { margin: 0; color: var(--muted); font-size: .875rem; }
 .photoReadNotice {
   position: absolute;
+  z-index: 3;
   inset-block-end: 8px;
   padding: 5px 10px;
   border-radius: 999px;

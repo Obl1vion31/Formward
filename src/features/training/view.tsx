@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useOrderedArrival } from "@/components/use-ordered-arrival";
 import { Inspector } from "@/components/inspector";
 import { useDraftGuard } from "@/components/draft-guard";
 import { confirmAction } from "@/components/confirmation-state";
@@ -57,6 +58,7 @@ export function TrainingView({ initial, today: initialToday, initialDate=null, s
     if (await execute({ kind: "unschedule", operationId: crypto.randomUUID(), id: p.id, version: p.version })) { await panelClose.current(); setNotice("已取消安排。"); }
   }
   const [year, monthNumber] = month.split("-").map(Number), count = new Date(year, monthNumber, 0).getDate(), offset = (new Date(year, monthNumber - 1, 1).getDay() + 6) % 7;
+  const calendarScene = useOrderedArrival<HTMLDivElement>(year * 12 + monthNumber, { distance: 12 });
   const monthCompleted = completed.filter(s => s.date.startsWith(month));
   function moveMonth(delta: number) { const d = new Date(Date.UTC(year, monthNumber - 1 + delta, 1)); if (d.getUTCFullYear() < 2000 || d.getUTCFullYear() > 2100) return; const next = d.toISOString().slice(0, 7); setMonth(next); setSelected(next + "-01"); }
   async function deleteCompleted(done: TrainingSession) {
@@ -92,7 +94,7 @@ export function TrainingView({ initial, today: initialToday, initialDate=null, s
     </TrainingTemplates>
     <section aria-labelledby="training-calendar-title" className={styles.calendarSection}><div className={styles.sectionHeading}><h2 id="training-calendar-title">训练日历</h2><TrainingMonthControls month={month} previous={() => moveMonth(-1)} next={() => moveMonth(1)} /></div>
     <div className={styles.weekdays} aria-hidden="true">{['一', '二', '三', '四', '五', '六', '日'].map(d => <span key={d}>{d}</span>)}</div>
-    <div className={styles.calendar} aria-label="训练月历">{Array.from({ length: offset }, (_, i) => <span key={'blank' + i} />)}{Array.from({ length: count }, (_, i) => {
+    <div ref={calendarScene} className={styles.calendar} aria-label="训练月历">{Array.from({ length: offset }, (_, i) => <span key={'blank' + i} />)}{Array.from({ length: count }, (_, i) => {
       const date = month + '-' + String(i + 1).padStart(2, '0'), done = completed.filter(s => s.date === date), plans = snapshot.plans.filter(p => p.date === date && p.status === 'planned'), seconds = done.reduce((n, s) => n + s.elapsedSeconds, 0);
       return <button key={date} data-training-date={date} className={styles.day + ' ' + (done.length ? seconds < 2700 ? styles.heat1 : seconds < 3600 ? styles.heat2 : styles.heat3 : plans.length ? styles.planned : '')} aria-pressed={selected === date} aria-label={trainingDateLabel(date) + (done.length ? '，' + done.length + '次完成，' + minutes(seconds) : '') + (plans.length ? '，' + plans.length + '次计划' : '')} onClick={() => setSelected(date)}><span className={date === today ? styles.todayNumber : ''}>{i + 1}</span>{(done.length > 0 || plans.length > 0) && <i className={done.length ? styles.doneDot : styles.planDot} />}</button>;
     })}{Array.from({ length: calendarCellCount - offset - count }, (_, i) => <span key={'after' + i} aria-hidden="true" />)}</div>

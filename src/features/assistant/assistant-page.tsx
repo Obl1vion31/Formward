@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useOrderedArrival } from "@/components/use-ordered-arrival";
 import { lockPageScroll } from "@/components/scroll-lock";
 import { animateSurface, stopSurfaceMotion } from "@/components/surface-motion";
 import { useAssistant } from "./context";
@@ -187,5 +188,6 @@ function AssistantPageBody({ defer, historyOpen, children }: { defer: boolean; h
     const first = requestAnimationFrame(() => { second = requestAnimationFrame(() => setReady(true)); });
     return () => { cancelAnimationFrame(first); cancelAnimationFrame(second); };
   }, [ready]);
-  return <div className={styles.mainContent} inert={historyOpen}>{ready && children}</div>;
+  const scene = useOrderedArrival<HTMLDivElement>(historyOpen ? 1 : 0, { enabled: !historyOpen });
+  return <div ref={scene} className={styles.mainContent} inert={historyOpen}>{ready && children}</div>;
 }

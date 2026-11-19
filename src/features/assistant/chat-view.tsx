@@ -68,7 +68,13 @@ export function ChatHeaderActions({onNew}:{onNew?:()=>void}) {
 export type ChatTab = "chat" | "tasks";
 export function ChatNavigation({tab,onTab,pendingCount}:{tab:ChatTab;onTab:(value:ChatTab)=>void;pendingCount:number}) {
   const chat=useOptionalAssistantChat(),locked=!!chat?.entitlement&&!chat.entitlement.chat;
-  return <div className={styles.navigation}><div className={styles.navTabs} role="tablist" aria-label="小助手内容"><button type="button" role="tab" aria-selected={tab === "chat"} onClick={() => onTab("chat")}><span className={styles.tabLabel}>聊天</span>{locked&&<small className={styles.tierBadge}>未开放</small>}</button><button type="button" role="tab" aria-selected={tab === "tasks"} onClick={() => onTab("tasks")}><span className={styles.tabLabel}>待办</span>{pendingCount > 0 && <span className={styles.tabBadge}>{pendingCount}</span>}</button></div><select className={styles.navSelect} aria-label="切换聊天与待办" value={tab} onChange={event=>onTab(event.target.value as ChatTab)}><option value="chat">聊天{locked?" · Plus":""}</option><option value="tasks">待办{pendingCount>0?" · "+pendingCount:""}</option></select></div>;
+  return <div className={styles.navigation}><div className={styles.navTabs} role="tablist" aria-label="小助手内容" onKeyDown={event => {
+    const next = event.key === "ArrowLeft" ? "chat" : event.key === "ArrowRight" ? "tasks" : null;
+    if (!next) return;
+    event.preventDefault();
+    event.currentTarget.querySelector<HTMLElement>(next === "chat" ? "button:first-child" : "button:last-child")?.focus();
+    onTab(next);
+  }}><button type="button" role="tab" aria-selected={tab === "chat"} onClick={() => onTab("chat")}><span className={styles.tabLabel}>聊天</span>{locked&&<small className={styles.tierBadge}>未开放</small>}</button><button type="button" role="tab" aria-selected={tab === "tasks"} onClick={() => onTab("tasks")}><span className={styles.tabLabel}>待办</span>{pendingCount > 0 && <span className={styles.tabBadge}>{pendingCount}</span>}</button></div><select className={styles.navSelect} aria-label="切换聊天与待办" value={tab} onChange={event=>onTab(event.target.value as ChatTab)}><option value="chat">聊天{locked?" · Plus":""}</option><option value="tasks">待办{pendingCount>0?" · "+pendingCount:""}</option></select></div>;
 }
 export function AssistantChatView({ sidebar, navigate, tab, page = false, onPreviewBack }: { sidebar: ReactNode; navigate: () => Promise<boolean>; tab: ChatTab; page?: boolean; onPreviewBack?: () => void }) {
   const [pinnedPreview,setPinnedPreview]=useState<string|null>(null), previewBack=useRef<HTMLButtonElement>(null), previewTrigger=useRef<HTMLElement|null>(null);
@@ -139,8 +145,8 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
     void chat.send("send",undefined,undefined,{viewport});
   }
   return <div className={styles.workspace} data-tab={tab} data-page={page||undefined} onKeyDown={event => { if(event.key==="Escape"&&pinnedPreview){event.preventDefault();event.stopPropagation();closePreview();return;} if (event.key === "Escape" && panel) { event.preventDefault(); event.stopPropagation(); closePanel(); } }}>
-    <aside className={styles.sidebar} aria-label="待办与快捷记录">{sidebar}</aside>
-    <section className={styles.conversation} aria-label="AI聊天">
+    <aside className={styles.sidebar} aria-label="待办与快捷记录" inert={page && tab !== "tasks"}>{sidebar}</aside>
+    <section className={styles.conversation} aria-label="AI聊天" inert={page && tab !== "chat"}>
       <div ref={feed} tabIndex={-1} inert={panel === "connections"||!!pinnedPreview} className={styles.feed} role="log" aria-label="聊天消息" aria-live="off" onWheel={()=>{manualScrollUntil.current=performance.now()+800;}} onTouchMove={()=>{manualScrollUntil.current=performance.now()+800;}} onPointerDown={event=>{if(event.clientX>=event.currentTarget.getBoundingClientRect().right-20)manualScrollUntil.current=performance.now()+10000;}} onKeyDownCapture={event=>{if(["ArrowUp","ArrowDown","PageUp","PageDown","Home","End"," "].includes(event.key))manualScrollUntil.current=performance.now()+800;}} onClickCapture={event=>{if((event.target as Element).closest("summary")){recordScroll(event.currentTarget.scrollTop,false);manualScrollUntil.current=performance.now()+800;}}} onScroll={event => { const node = event.currentTarget,near=node.scrollHeight-node.scrollTop-node.clientHeight<=80,stick=near||(performance.now()>manualScrollUntil.current&&scrollState().stick);recordScroll(node.scrollTop,stick);setLatest(!near); }}>
         <div ref={feedContent} className={styles.feedContent} data-empty={!chat.messages.length||undefined}>
         {chat.data?.hasMore && chat.messages.length < 50 && <button className={styles.loadMore} disabled={chat.loading} onClick={() => { if (feed.current) moreAnchor.current = { top:feed.current.scrollTop,height:feed.current.scrollHeight }; void chat.more(); }}>{chat.loading ? "正在读取…" : "查看更早消息"}</button>}

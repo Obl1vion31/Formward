@@ -5,6 +5,7 @@ import { ChatHistoryRow, type HistoryRowAction } from "./chat-history-row";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAssistantChat } from "./chat-client";
+import { useOrderedArrival } from "@/components/use-ordered-arrival";
 import { ChatMessageBody } from "./chat-message";
 import { chatTranscript } from "./chat-presentation";
 import type { ChatSnapshot } from "./chat-model";
@@ -40,6 +41,7 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
   const listLoaded = useRef(false);
   const returnTo = useRef<{ id: string; top: number } | null>(null);
   const anchor = useRef<{ id: string; offset: number } | null>(null);
+  const scene = useOrderedArrival<HTMLElement>(conversationId ? 2 : 1, { from: 0 });
   const view = snapshot?.conversationId === conversationId ? snapshot : null;
   const row = list?.items.find(item => item.id === conversationId);
   const matches = (read: Read) => conversationId ? read.kind === "detail" && read.id === conversationId : read.kind === "list";
@@ -189,7 +191,7 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
   </div>;
 
   const transcript = chatTranscript(view?.messages??[]);
-  return <section className={styles.history} data-page={page || undefined} aria-label="历史会话"
+  return <section ref={scene} className={styles.history} data-page={page || undefined} aria-label="历史会话"
     onPointerDownCapture={event => {
       if (rowAction && (event.target as Element).closest("[data-history-row]")?.getAttribute("data-history-row") !== rowAction.id)
         setRowAction(null);

@@ -3,6 +3,10 @@ import {workspacePages} from "./workspace-pages";
 export type WorkspaceLocation={path:string;search:string};
 export const workspaceMotionTiming = { duration: 200, easing: "cubic-bezier(.22,1,.36,1)" };
 export type WorkspaceScene={id:number;direction:"forward"|"back";sourcePath:string};
+export type OrderedDirection = -1 | 0 | 1;
+export function orderedDirection(from: number, to: number): OrderedDirection {
+ return to === from ? 0 : to > from ? 1 : -1;
+}
 
 /** 目标先完整绘制在旧正文下方，旧画面淡出时自然露出目标。 */
 export function animateWorkspaceScene(previous:HTMLElement,body:HTMLElement,direction:WorkspaceScene["direction"],reveal:()=>void,finish:()=>void){
@@ -50,7 +54,7 @@ export function workspaceMotionDirection(from:WorkspaceLocation,to:WorkspaceLoca
  const previous=workspacePages.findIndex(([href])=>href===from.path),next=workspacePages.findIndex(([href])=>href===to.path);
  const query=new URLSearchParams(to.search),oldQuery=new URLSearchParams(from.search);
  if(chartActive||previous<0||next<0||previous===next||query.has("entry")||query.has("date")||query.has("intent")||query.get("view")==="trend"||next===0&&oldQuery.get("view")==="trend")return 0;
- return next>previous?1:-1;
+ return orderedDirection(previous,next);
 }
 
 /** 持久正文节点仅拥有一个动画；过期的完成／取消回调不能影响新导航。 */
@@ -70,4 +74,42 @@ export function createWorkspaceMotion(){
   void animation.finished.then(finish,finish);
  }
  return {play,stop};
+}
+
+/** 两个已绘制的同级画面共用方向，反转时从当前姿态继续。 */
+export function createWorkspaceExchange() {
+ let active: { sequence: number; poses: Map<HTMLElement, Animation> } | null = null;
+ let sequence = 0;
+ function stop() {
+  const previous = active;
+  active = null;
+  previous?.poses.forEach(animation => animation.cancel());
+ }
+ function play(enter: HTMLElement, exit: HTMLElement, direction: OrderedDirection, finish: () => void) {
+  const pose = (node: HTMLElement, fallback: Keyframe): Keyframe => {
+   if (!active?.poses.has(node)) return fallback;
+   const {transform, opacity} = getComputedStyle(node);
+   return {transform, opacity};
+  };
+  const shift = (distance: number) => "translateX(" + direction * distance + "px)";
+  const entered = {transform:"translateX(0px)", opacity:1};
+  const toward = pose(enter, {transform:shift(22), opacity:.55});
+  const away = pose(exit, entered);
+  stop();
+  if (!direction || matchMedia("(prefers-reduced-motion: reduce)").matches || !enter.animate || !exit.animate) {
+   finish();
+   return;
+  }
+  const id = ++sequence;
+  const timing: KeyframeAnimationOptions = {...workspaceMotionTiming, fill:"both"};
+  const incoming = enter.animate([toward, entered], timing);
+  const outgoing = exit.animate([away, {transform:shift(-22), opacity:0}], timing);
+  active = {sequence:id, poses:new Map([[enter,incoming],[exit,outgoing]])};
+  void Promise.all([incoming.finished,outgoing.finished]).then(() => {
+   if (active?.sequence !== id) return;
+   // 反转前仍可接续末帧，调用方卸载上一帧后再清除已完成动画。
+   finish();
+  }, () => {});
+ }
+ return {play, stop};
 }

@@ -49,3 +49,5 @@
 
 @media(max-width:700px),(hover:none) and (pointer:coarse){.weekdays{margin-top:8px;margin-bottom:6px}.calendarFooter{margin:8px 0}.today{gap:12px}.sectionHeading{margin-bottom:4px}}
 @media(max-width:700px),(hover:none) and (pointer:coarse){.sheet .sheetHead{position:static;flex:1;min-width:0;padding:0;background:transparent}.sheet .sheetBody{padding:12px 16px calc(24px + env(safe-area-inset-bottom))}}
+
+.calendarSection:has(.calendar[data-workspace-moving]) { overflow-x: clip; }

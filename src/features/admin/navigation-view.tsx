@@ -3,9 +3,10 @@
 import { createContext, useCallback, useContext, useId, useState, type ComponentProps, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { LoadingLink } from "@/components/loading-link";
+import { useOrderedArrival } from "@/components/use-ordered-arrival";
 import { LocalLoading } from "@/components/local-loading";
 import { AdminHeader } from "./header";
-import { adminLocation, adminSections } from "./navigation";
+import { adminLocation, adminSections, type AdminTab } from "./navigation";
 import styles from "./console.module.css";
 
 const TrackNavigation = createContext<((id: string, active: boolean) => void) | null>(null);
@@ -19,6 +20,12 @@ export function AdminLink(props: ComponentProps<typeof LoadingLink>) {
 }
 
 export function AdminWorkspace({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const detail = pathname.startsWith("/admin/users/");
+  const tab = detail ? "users" : adminLocation({ tab: params.get("tab") ?? undefined }).tab;
+  const section = tab === "security" ? adminSections.length : adminSections.findIndex(([key]) => key === tab);
+  const content = useOrderedArrival<HTMLDivElement>(section * 2 + Number(detail), { distance: 12 });
   const [pending, setPending] = useState<string | null>(null);
   const track = useCallback((id: string, active: boolean) => {
     setPending(current => active ? id : current === id ? null : current);
@@ -27,18 +34,14 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
     <div className={styles.shell} data-admin-workspace>
       <AdminHeader />
       <main className={styles.body}>
-        <AdminNavigation />
-        {children}
+        <AdminNavigation tab={tab}/>
+        <div ref={content} data-admin-content>{children}</div>
       </main>
     </div>
   </NavigationPending></TrackNavigation>;
 }
 
-function AdminNavigation() {
-  const pathname = usePathname();
-  const params = useSearchParams();
-  const tab = pathname.startsWith("/admin/users/") ? "users" : adminLocation({ tab: params.get("tab") ?? undefined }).tab;
-
+function AdminNavigation({tab}: {tab: AdminTab}) {
   return <div className={styles.adminNavigation}>
     <nav className={styles.tabs} aria-label="管理后台栏目">
       {adminSections.map(([key, label]) =>

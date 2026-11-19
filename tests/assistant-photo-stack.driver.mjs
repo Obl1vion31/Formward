@@ -123,6 +123,8 @@ export async function runAssistantPhotoStack(db) {
     async function viewPhoto(number, id, viewer = dialog) {
       const photo = viewer.getByRole("img", { name: "第 " + number + " 张照片", exact: true });
       await photo.waitFor({ state: "visible" });
+      await photo.evaluate(node =>
+        Promise.all(node.getAnimations().map(animation => animation.finished.catch(() => {}))));
       const url = new URL(await photo.getAttribute("src"), baseURL);
       assert.equal(url.pathname, "/api/meal-images/" + id);
       assert.equal(await photo.evaluate(node => getComputedStyle(node).objectFit), "contain");

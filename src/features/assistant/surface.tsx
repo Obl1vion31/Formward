@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useOrderedArrival } from "@/components/use-ordered-arrival";
 import { animateSurface } from "@/components/surface-motion";
 import { confirmationIsOpen } from "@/components/confirmation-state";
 import { AssistantIcon } from "./icon";
@@ -25,6 +26,7 @@ export function AssistantSurface({ close, requestClose, controllerReady, ...task
   const chat = useAssistantChat();
   const [history, setHistory] = useState(false);
   const [conversation, setConversation] = useState<string | null>(null);
+  const mainScene = useOrderedArrival<HTMLDivElement>(history ? 1 : 0, { enabled: !history });
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const historyButton = useRef<HTMLButtonElement>(null);
@@ -100,7 +102,7 @@ export function AssistantSurface({ close, requestClose, controllerReady, ...task
         <button ref={closeButton} type="button" aria-label="收起小助手" onClick={() => void requestClose()}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
       </div>
     </header>
-    <div className={styles.mainContent} inert={history}>
+    <div ref={mainScene} className={styles.mainContent} inert={history}>
       <AssistantChatView sidebar={<AssistantTasks {...tasks} mobile={false} inlineReview={chat.enabled} navigate={navigate}/>} navigate={navigate} tab="chat"/>
     </div>
     {history && <ChatHistory conversationId={conversation} onInspect={setConversation} back={backInHistory} onContinue={hideHistory} navigate={navigate}/>}
