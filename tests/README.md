@@ -477,3 +477,5 @@ MFA专项使用真实Better Auth插件验证绑定、错误动态码、恢复码
 小助手照片叠放使用 FORMWARD_ASSISTANT_PHOTO_STACK=1 运行 tests/chat-pilot.browser.mts，沿用隔离运行包、虚构照片与模型回放。检查两张、四张、八张、纯照片消息、当前与历史、图片翻页与失败恢复。报告、整屏截图和原速录屏写入 FORMWARD_CHAT_ARTIFACTS。
 
 设置 FORMWARD_DIRECTIONAL_NAVIGATION=1 运行 tests/chat-pilot.browser.mts。用虚构照片、当前及历史对话、训练日历和后台栏目核对双向偏移、主题、草稿及减弱动态，保存实页原速录像。
+
+设置 FORMWARD_MOBILE_LAYOUT_STABILITY=1 运行 tests/chat-pilot.browser.mts。核对助手底部安全区、首帧返回位置及摘要提示的空白槽、慢读、快读和失败重试，保存整屏截图与实录。

@@ -93,7 +93,10 @@ try{
  let ready=false;for(let attempt=0;attempt<100;attempt++){assert.equal(child.exitCode,null);try{const probeResponse=await fetch(`http://127.0.0.1:${port}`,{redirect:"manual"});if(probeResponse.ok||process.env.FORMWARD_CHAT_PREVIEW==="1"&&probeResponse.status>=300&&probeResponse.status<500){ready=true;break;}}catch{}await new Promise(resolve=>setTimeout(resolve,250));}assert.ok(ready,"隔离正式构建应可启动");
  if(release){const response=await fetch(baseURL+"/api/internal/readiness",{headers:{Authorization:"Bearer fictional-readiness-secret-for-isolated-chat-build"}});assert.equal(response.status,200);assert.equal((await response.json()).schema,JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")).entries.at(-1).tag);}
  process.env.FORMWARD_CHAT_BROWSER_CONFIG=config;process.env.FORMWARD_CHAT_ARTIFACTS=artifacts;
- if (process.env.FORMWARD_DIRECTIONAL_NAVIGATION === "1") {
+ if (process.env.FORMWARD_MOBILE_LAYOUT_STABILITY === "1") {
+   const {runMobileLayoutStability} = await import("./mobile-layout-stability.driver.mjs");
+   await runMobileLayoutStability(db);
+ } else if (process.env.FORMWARD_DIRECTIONAL_NAVIGATION === "1") {
    const {runDirectionalNavigation} = await import("./directional-navigation.driver.mjs");
    await runDirectionalNavigation(db);
  } else if (process.env.FORMWARD_ASSISTANT_PHOTO_STACK === "1") {
