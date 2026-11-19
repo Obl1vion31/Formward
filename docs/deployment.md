@@ -2,15 +2,15 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-6a011d3e-assistant-surface-return-20261120`，源码 `6a011d3ea3c2b58f4306b2f0861cd5a19040a018`，BUILD_ID `C_lAGTvBTyEqkob9mj5hT`。北京时间 2026-11-20 03:10:39 切换。 [正式版本](https://formward.top/api/app-version)
+正式站运行 `dual-entry-1b0cdd1e-assistant-viewport-shell-r3-20261120`，源码 `1b0cdd1e99a637f9b6664704488a33d751654184`，BUILD_ID `kTorqmbgyvsJpEB-U0oDf`。北京时间 2026-11-20 04:03:42 切换。 [正式版本](https://formward.top/api/app-version)
 
-手机助手在普通浏览时用 CSS 动态视口贴底，网页底色与聊天区域一致。返回总览等来源页时，已挂载的底栏随正文同帧显示。 [浏览器验收](assistant-chat-verification.md#手机助手底边与即时返回)
+手机底栏与小助手共用常驻视口。助手从入场首帧覆盖完整底色，只对前景做横移动效。退出时来源和底栏直接交接，保留原文档滚动位置。 [浏览器验收](assistant-chat-verification.md#手机助手进出与常驻视口)
 
-上海网页和聊天 worker 使用同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。切换期间 67 张表的行摘要一致。备份 `formward-primary-20261119T191035274123Z.dump.json` 完成原生校验和加密异地回读。
+上海网页和聊天 worker 使用同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。切换期间 67 张表的行摘要一致。备份 `formward-primary-20261119T200338318864Z.dump.json` 完成原生校验和加密异地回读。
 
-四个公网域名和兼容 IP 已核对版本、登录返回、匿名权限、MCP 发现与界面资源。保留 56 项正式 Server Action 编号及绑定密钥，兼容 2117 项旧静态资源。海外网关继续回源正式站。
+四个公网域名和兼容 IP 已核对版本、登录返回、匿名权限、MCP 发现与界面资源。保留 56 项正式 Server Action 编号及绑定密钥，兼容 2125 项旧静态资源。海外网关继续回源正式站。
 
-本机运行包归档在 `.codex/backups/regional-releases/assistant-surface-return-20261120`，大小 83,992,740 字节，SHA256 `9298bfef07ad2d328af9c86674ffe9e2caaa2ccebdb573bd6bb940f45e6d4159`。版本 `assistant-context-capacity-r2-20261120` 提供兼容 0046 的网页和 worker 回退包。
+本机运行包归档在 `.codex/backups/regional-releases/assistant-viewport-shell-r3-20261120`，大小 84,155,069 字节，SHA256 `8c2d83d3bb198e8af5cd41fa00516b7ec9a7f6fa2677815210aa3cbd0401b238`。版本 `assistant-surface-return-20261120` 提供兼容 0046 的网页和 worker 回退包。
 
 ## 迁移与发布
 

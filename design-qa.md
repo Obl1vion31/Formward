@@ -1,5 +1,11 @@
 # 当前视觉验收
 
+## 已发布验收 · 手机助手进出与常驻视口
+
+正式运行包 `dual-entry-1b0cdd1e-assistant-viewport-shell-r3-20261120` 在 Chromium 与 WebKit 用虚构数据操作。入场首帧标题与输入区齐全。刻意缩短前景 6px 后，深浅主题的截图边缘仍连续。14 次返回均在首帧显示来源底栏，固定位置最大偏差 0 CSS px，实际视口变化按同一底边接管。复验原滚动与焦点、触屏输入、长草稿、待办和账号菜单。实体 iPhone 未测。 [整屏截图与原速录屏](http://127.0.0.1:41986/assistant-viewport/) · [逐项验收](docs/assistant-chat-verification.md#手机助手进出与常驻视口)
+
+final result: passed
+
 ## 已发布验收 · 手机助手底边与即时返回
 
 实际运行包 `dual-entry-6a011d3e-assistant-surface-return-20261120` 使用隔离虚构数据。两个引擎都复现旧版 6px 露底，新版面板与输入区贴到布局视口底边。14 次返回均从正文露出的同一帧显示底栏，599 个可见帧实测无位置跳动。复验页面更宽时安全区重新计算，以及长草稿、待办切换、照片预览和输入区读写。实体 iPhone 与系统键盘未测。 [整屏截图与原速录屏](http://127.0.0.1:41986/assistant-return/) · [逐项验收](docs/assistant-chat-verification.md#手机助手底边与即时返回)
