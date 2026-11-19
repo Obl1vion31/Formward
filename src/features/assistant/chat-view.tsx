@@ -122,8 +122,13 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
   useEffect(() => { if (panel && panel !== "models") panelTitle.current?.focus({ preventScroll:true }); }, [panel]);
   const dismissModels = useCallback(() => setPanel(null), []);
   const closePanel = useCallback(() => {
+    const previousFocus = document.activeElement;
     dismissModels();
-    requestAnimationFrame(() => modelButton.current?.focus({ preventScroll: true }));
+    requestAnimationFrame(() => {
+      if (document.activeElement === previousFocus || document.activeElement === document.body) {
+        modelButton.current?.focus({ preventScroll: true });
+      }
+    });
   }, [dismissModels]);
   function jump(id: string) { const node = feed.current?.querySelector<HTMLElement>('[data-chat-message="' + id + '"]'); if (node) { recordScroll(scrollState().top,false); node.scrollIntoView({ block:"center",behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth" }); node.focus({ preventScroll:true }); } else setNotice("原消息已超出当前显示范围，可以补充日期和对象后继续。"); }
   function cite(message: ChatMessage) { chat.setQuote(message); input.current?.focus({preventScroll:true}); }
