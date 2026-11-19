@@ -318,6 +318,73 @@ export async function runMobileLayoutStability(db) {
             report.checks.push(name + " " + width + "px " + theme + " 最终状态");
           }
         }
+        if (mobile) {
+          await page.setViewportSize(viewport);
+          const pendingTasks = Promise.withResolvers();
+          const contextRoute = url => url.pathname === "/api/assistant-context";
+          await context.route(contextRoute, async route => {
+            await pendingTasks.promise;
+            await route.continue();
+          });
+          try {
+            await page.goto(assistantPath + "?view=tasks", { waitUntil: "load" });
+            const heading = shell.locator('[data-assistant-group="supplements"]');
+            await heading.waitFor();
+            const before = await heading.boundingBox();
+            await heading.getByText("正在读取事项…", { exact: true }).waitFor();
+            const waiting = await heading.boundingBox();
+            near(waiting.y, before.y, "待办提示出现时标题位置");
+            near(waiting.height, before.height, "待办提示出现时标题行高度");
+            pendingTasks.resolve();
+            await heading.getByText("查看需要补记的记录", { exact: true }).waitFor();
+            near((await heading.boundingBox()).y, before.y, "待办数据就绪后的分组位置");
+            report.checks.push("待办冷读在说明行呈现，快捷记录与分组位置稳定");
+          } finally {
+            pendingTasks.resolve();
+            await context.unroute(contextRoute);
+          }
+
+          await page.goto("/dashboard/ai/operations/" + operation.id, { waitUntil: "networkidle" });
+          await page.getByText(foodName, { exact: true }).waitFor();
+          report.checks.push("从原审核入口读取实际记录");
+
+          await page.goto("/dashboard", { waitUntil: "networkidle" });
+          let accountGate;
+          await context.route(url => url.pathname.startsWith("/dashboard"), async route => {
+            if (accountGate && route.request().method() === "POST" && route.request().headers()["next-action"]) {
+              await accountGate.promise;
+            }
+            await route.continue();
+          });
+          for (const [name, group, ready] of [
+            ["个人资料", "账号管理", () => page.getByRole("button", { name: "修改资料", exact: true }).waitFor()],
+            ["账号与安全", "账号管理", () => page.locator('dialog[open] input[name="currentPassword"]').waitFor()],
+            ["设备与数据来源", "外部接入", () => page.getByText("尚未连接", { exact: true }).waitFor()],
+          ]) {
+            accountGate = Promise.withResolvers();
+            try {
+              await page.locator('summary[aria-label="账号菜单"]').click();
+              await page.getByRole("button", { name: group, exact: true }).click();
+              await page.getByRole("button", { name, exact: true }).click();
+              const panel = page.getByRole("dialog", { name, exact: true });
+              const slot = panel.locator("[data-local-loading]").first();
+              await slot.waitFor();
+              const height = () => slot.evaluate(node => node.parentElement.getBoundingClientRect().height);
+              const initial = await height();
+              await panel.locator("[data-local-loading][data-visible]").waitFor();
+              near(await height(), initial, name + " 的读取提示留位");
+              assert.equal(await panel.locator("[data-local-loading][data-visible]").count(), 1);
+              accountGate.resolve();
+              await ready();
+              await panel.getByRole("button", { name: /^关闭/ }).first().click();
+              await panel.waitFor({ state: "hidden" });
+              report.checks.push(name + " 读取及关闭");
+            } finally {
+              accountGate.resolve();
+              accountGate = undefined;
+            }
+          }
+        }
         assert.deepEqual(errors, []);
       } catch (error) {
         report.failure = String(error);
