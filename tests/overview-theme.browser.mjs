@@ -85,9 +85,23 @@ try{
   checks.push("four-pages-both-themes-"+w+"x"+h);
  }
  await p.setViewportSize({width:390,height:720});await go(p,"/dashboard");
- assert.equal(await p.locator("[data-overview-week] button").count(),0);
- assert.equal(await p.locator("[data-overview-secondary]>div").count(),3);
- await shot(p,"phone-two-row-readings");checks.push("phone-week-and-next-morning-directly-visible");
+ const phoneWeek=p.locator('[data-overview-week="mobile"]');
+ const phoneSummary=phoneWeek.locator("summary");
+ const phoneEvidence=phoneWeek.locator("[data-overview-week-basis]");
+ await phoneSummary.scrollIntoViewIfNeeded();
+ assert.match(await phoneSummary.innerText(),/近7天[\s\S]*5\/7天/);
+ assert.equal(await phoneEvidence.isVisible(),false);
+ const chartBottom=await p.getByRole("group",{name:"双层日期关联图",exact:true}).evaluate(node=>node.getBoundingClientRect().bottom+scrollY);
+ const weekTop=await phoneWeek.evaluate(node=>node.getBoundingClientRect().top+scrollY);
+ assert.ok(weekTop>=chartBottom&&weekTop-chartBottom<=16,"手机七天摘要紧接共用日期轴");
+ await phoneSummary.press("Enter");
+ await phoneEvidence.waitFor();
+ assert.match(await phoneEvidence.innerText(),/收支已计5\/7天/);
+ assert.match(await phoneEvidence.innerText(),/晨重 .* → /);
+ await shot(p,"phone-week-basis-open");
+ await phoneSummary.press("Enter");
+ await phoneEvidence.waitFor({state:"hidden"});
+ await shot(p,"phone-two-row-readings");checks.push("phone-week-two-rows-with-inline-basis");
  await p.setViewportSize({width:1440,height:900});await theme(p,"light");await go(p,"/dashboard/energy");
  await p.locator('[data-record-date="'+today+'"]').getByRole("button",{name:"录入",exact:true}).click();
  const dialog=p.getByRole("dialog",{name:"每日消耗",exact:true});await dialog.waitFor();await shot(p,"light-energy-editor-top");await dialog.getByLabel("静息 · kcal",{exact:true}).fill("1950");await dialog.getByLabel("活动合计 · kcal",{exact:true}).fill("215");

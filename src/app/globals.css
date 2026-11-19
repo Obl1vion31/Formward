@@ -934,7 +934,6 @@ form[data-entry-form] button:not([type=submit]) {min-height:44px}
 @media(prefers-reduced-motion:reduce){.body-settings input::after{transition:none}}
 .pending-entry-fields{display:grid;gap:18px;padding-top:0}.pending-entry-fields time{color:var(--muted);font-size:13px}.pending-entry-fields p{font-size:13px;color:var(--muted)}
 
-.pending-week>section{visibility:hidden}
 .pending-plot{position:relative}.pending-plot[data-shared-plot]{height:auto;min-height:0;padding:20px 0 32px}.pending-plot[data-shared-plot]::before{content:"";display:block;aspect-ratio:2;margin:0 10px 0 50px}.pending-plot[data-shared-plot] svg{position:absolute;inset:0;width:100%;height:100%}.pending-plot[data-plot-kind=body][data-shared-plot]{padding-top:14px}.pending-plot[data-plot-kind=body][data-shared-plot]::before{margin-right:16px;margin-left:48px}
 
 

@@ -2,16 +2,58 @@
 import {useLayoutEffect,useRef,type RefObject} from "react";
 import {useChartTransitionActions} from "./chart-transition-state";
 
+function revealChart(node: HTMLElement, clip: SVGRectElement, duration: number, reduced: MediaQueryList) {
+ const animation = clip.animate([{width:"0px"}, {width:clip.width.baseVal.value+"px"}], {
+  duration, easing:"cubic-bezier(.2,.65,.3,1)"
+ });
+ let observer: IntersectionObserver | undefined;
+ let finished = false;
+ const finish = () => {
+  if (finished) return;
+  finished = true;
+  observer?.disconnect();
+  animation.removeEventListener("finish", finish);
+  animation.cancel();
+  node.removeEventListener("pointerdown", finish);
+  node.removeEventListener("focusin", finish);
+  node.removeEventListener("keydown", finish);
+  reduced.removeEventListener("change", finish);
+ };
+ const bounds = node.getBoundingClientRect();
+ if (typeof IntersectionObserver === "function" && (bounds.bottom <= 0 || bounds.top >= innerHeight)) {
+  animation.pause();
+  animation.currentTime = 0;
+  observer = new IntersectionObserver(entries => {
+   if (finished || !entries.some(entry => entry.isIntersecting)) return;
+   observer?.disconnect();
+   animation.play();
+  });
+  observer.observe(node);
+ }
+ animation.addEventListener("finish", finish, {once:true});
+ node.addEventListener("pointerdown", finish);
+ node.addEventListener("focusin", finish);
+ node.addEventListener("keydown", finish);
+ reduced.addEventListener("change", finish);
+ return finish;
+}
+
 /** 真实数据首次到达或主动换区间时绘制；坐标、读数和命中区始终在最终位置。 */
-export function useChartMotion(container:RefObject<HTMLElement|null>,changeKey:string,viewKey=changeKey){
+export function useChartMotion(container:RefObject<HTMLElement|null>,changeKey:string,viewKey=changeKey,revealDuration?:number){
  const entered=useRef<string|null>(null),{claimChartEntry}=useChartTransitionActions();
  useLayoutEffect(()=>{
   const node=container.current;if(!node||changeKey==="pending")return;
+  if(revealDuration!==undefined&&(!node.closest("[data-route-content]")||node.closest("[data-return-covered],[data-workspace-cached]")))return;
   const key=location.pathname+":"+viewKey,first=entered.current===null,changed=entered.current!==key;
   if(!changed)return;
   entered.current=key;
   const fresh=claimChartEntry(key,node),reduced=matchMedia("(prefers-reduced-motion: reduce)");
   if(node.closest("[data-chart-range-motion]")||reduced.matches||typeof Element.prototype.animate!=="function"||first&&(!fresh||node.closest('[data-shared-route]')))return;
+  if(revealDuration!==undefined){
+   const clip=node.querySelector<SVGRectElement>("[data-chart-reveal]");
+   if(clip)return revealChart(node,clip,revealDuration,reduced);
+   return;
+  }
   const animations:Animation[]=[];
   const lineGroups=node.querySelectorAll<SVGElement>('[data-trend-glyph="morning-weight"]');
   for(const glyph of lineGroups)animations.push(glyph.animate([{clipPath:"inset(-8px 100% -8px -8px)"},{clipPath:"inset(-8px -8px -8px -8px)"}],{duration:600,easing:"cubic-bezier(.2,.65,.3,1)"}));
@@ -26,5 +68,5 @@ export function useChartMotion(container:RefObject<HTMLElement|null>,changeKey:s
   }
   const cancel=()=>animations.forEach(animation=>animation.cancel());
   reduced.addEventListener("change",cancel);return()=>{cancel();reduced.removeEventListener("change",cancel);};
- },[container,changeKey,viewKey,claimChartEntry]);
+ },[container,changeKey,viewKey,claimChartEntry,revealDuration]);
 }

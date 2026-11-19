@@ -132,33 +132,111 @@
 
 }
 
-/* 七天结果独立为紧凑条，不与单日读数争抢空间。 */
-.weekReadings{margin:4px 0 8px;border-top:1px solid var(--line-soft);font-variant-numeric:tabular-nums}
-.weekContent{display:flex;align-items:center;gap:12px 24px;min-height:52px;flex-wrap:wrap}
-.weekContent header{color:var(--muted);font-size:12px;line-height:20px;white-space:nowrap}
-.weekContent time{margin-left:8px}
-.weekNumbers{display:flex;align-items:center;gap:24px}
-.weekNumbers>div{display:flex;align-items:baseline;gap:10px;min-width:0}
-.weekNumbers span{font-size:13px;color:var(--muted)}
-.weekNumbers strong{display:inline-flex;align-items:baseline;gap:5px;font-size:20px;line-height:1.3;font-weight:500;white-space:nowrap}
-.weekNumbers small{font-size:12px;color:var(--muted);margin:0}
-.weekNumbers .weekDeficit{color:var(--data-blue)}.weekNumbers .weekSurplus{color:var(--data-surplus)}
-.weekCoverage{margin-left:auto;color:var(--muted);font-size:12px;white-space:nowrap}
-.weekBasis{margin:0;font-size:12px;line-height:1.6;color:var(--muted)}
-.secondaryReadings{display:flex;flex-wrap:wrap;align-items:start;gap:8px 10px;border-bottom:1px solid var(--line-soft);padding:6px 0 12px;font-variant-numeric:tabular-nums}
-.secondaryReadings>div{flex:1 1 calc((100% - 20px)/3);min-width:min-content}
-.secondaryReadings>div>span{display:block;color:var(--muted);font-size:12px;line-height:20px;white-space:nowrap}
-.secondaryReadings strong{display:block;white-space:nowrap;font:400 23px/32px Arial,sans-serif;color:var(--warm-white)}
-.secondaryReadings strong small{font:400 11px/1.2 Arial,sans-serif;color:var(--muted);margin-left:3px}
-.secondaryReadings p{margin:2px 0 0;color:var(--muted);font-size:11px;line-height:17px}
-.secondaryReadings p>span{white-space:nowrap}.secondaryReadings em{font:inherit;margin-left:4px}
-.secondaryReadings .weekDeficit{color:var(--data-blue)}.secondaryReadings .weekSurplus{color:var(--data-surplus)}
-@media(max-width:1000px){.weekBasis{flex-basis:100%}}
+.weekReadings,
+.mobileWeek {
+  border-top: 1px solid var(--line-soft);
+  font-variant-numeric: tabular-nums;
+}
 
+.weekReadings { margin-top: 4px; }
+.weekReadings[data-pending] { visibility: hidden; }
+.weekReadings + [data-record-slot=range] { margin-top: 5px; }
+.weekContent {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 24px;
+  padding-block: 8px;
+}
+.weekContent header { color: var(--muted); font-size: 12px; line-height: 20px; white-space: nowrap; }
+.weekContent time { margin-left: 8px; }
+.weekNumbers { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 24px; }
+.weekNumbers > div { display: flex; align-items: baseline; gap: 10px; }
+.weekNumbers span { font-size: 13px; color: var(--muted); }
+.weekNumbers strong,
+.mobileWeekNumbers strong {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.weekNumbers strong { font-size: 20px; line-height: 1.3; }
+.weekNumbers small,
+.mobileWeekNumbers small { font-size: 12px; color: var(--muted); }
+.weekDeficit { color: var(--data-blue); }
+.weekSurplus { color: var(--data-surplus); }
+.weekCoverage { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.weekBasis { margin: 0; min-width: 0; font-size: 12px; line-height: 1.6; color: var(--muted); }
 
+.mobileWeek { margin-top: 10px; color: var(--muted); font-size: .8125rem; }
+.mobileWeekSummary {
+  box-sizing: border-box;
+  display: grid;
+  gap: 4px;
+  min-height: 44px;
+  padding-block: 9px 4px;
+  line-height: 20px;
+  cursor: pointer;
+  list-style: none;
+}
+.mobileWeekSummary::-webkit-details-marker { display: none; }
+.mobileWeekSummary:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+.mobileWeekHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--warm-white);
+}
+.mobileWeekHeading time { margin-left: 6px; color: var(--muted); }
+.mobileWeekToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.mobileWeek[open] .mobileWeekToggle svg { transform: rotate(180deg); }
 
+.mobileWeekNumbers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 9px;
+}
+.mobileWeekNumbers > span {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 4px;
+  min-width: 0;
+}
+.mobileWeekNumbers > span + span::before { content: "·"; margin-right: 4px; }
+.mobileWeekNumbers strong {
+  gap: 3px;
+  font-size: 1.0625rem;
+  line-height: 1.35;
+}
+.mobileWeekNumbers strong:not(.weekDeficit, .weekSurplus) { color: var(--warm-white); }
+.mobileWeekCoverage { white-space: nowrap; font-size: .75rem; }
+.mobileWeekBasis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 16px;
+  padding: 6px 0 8px;
+  border-top: 1px solid var(--line-soft);
+  font-size: .75rem;
+  line-height: 1.55;
+}
 
-.stableText{display:inline-grid;min-width:0;vertical-align:baseline}.stableText>span{grid-area:1/1}.stableText>.stableMeasure{visibility:hidden;pointer-events:none;user-select:none}.secondaryReadings>div>.stableText{display:grid}.secondaryReadings p .stableText{display:grid}
+.stableText { display: inline-grid; min-width: 0; vertical-align: baseline; }
+.stableText > span { grid-area: 1 / 1; }
+.stableText > .stableMeasure { visibility: hidden; pointer-events: none; user-select: none; }
+
 .rangeCoverage{margin:20px 0 8px;padding:12px 0;border-top:1px solid var(--line-soft);font-variant-numeric:tabular-nums}.rangeCoverage>div{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 20px}.rangeCoverage>div>span{font-size:12px;color:var(--muted)}.rangeCoverage p{margin:0;font-size:13px;line-height:1.6}.rangeCoverage summary{display:inline-flex;align-items:center;min-height:44px;list-style:none;font-size:13px;color:var(--gold);cursor:pointer}.rangeCoverage summary::-webkit-details-marker{display:none}.rangeCoverage summary::after{content:"";width:6px;height:6px;border-right:1px solid currentColor;border-bottom:1px solid currentColor;transform:rotate(45deg);margin-left:12px}.rangeCoverage details[open]>summary::after{transform:rotate(225deg)}.rangeCoverage .coverageHint{font-size:12px;color:var(--muted);margin-bottom:8px}.rangeCoverage ul{list-style:none;padding:0;margin:0}.rangeCoverage li{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 20px;padding:8px 0;border-top:1px solid var(--line-soft)}.rangeCoverage time{font-size:13px}.rangeCoverage li>div{display:flex;flex-wrap:wrap;gap:0 20px}.rangeCoverage a,.rangeCoverage button{display:inline-flex;align-items:center;min-height:44px;color:var(--gold);font:inherit;font-size:13px;text-decoration:none;background:none;border:0;padding:0;cursor:pointer}.rangeCoverage :focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 
 .detailNutrition .mealDayStatus{display:block;min-height:0;margin-bottom:8px;font-size:13px}.detailNutrition{padding-bottom:0;border-bottom:0}
@@ -169,11 +247,10 @@
 @media(max-width:700px),(hover:none) and (pointer:coarse){
  .mobileHome{display:block;padding:8px 0 4px}.mobileIntro{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 18px}.mobileIntro h2{font-size:30px;font-weight:600;letter-spacing:-.03em;margin:0}.mobileIntro time{color:var(--muted);font-size:13px}
  .quickRecord{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}.quickRecord a{display:flex;flex:1 1 auto;align-items:center;justify-content:center;gap:5px;min-height:48px;padding:10px 4px;border-radius:17px;background:var(--card-surface);box-shadow:inset 0 1px 0 var(--card-rim);text-decoration:none;color:var(--warm-white);font-size:14px;font-weight:500;white-space:nowrap;transition:background 150ms}.quickRecord a:active{background:var(--surface-hover)}.quickRecord svg{flex:none}
- .mobileTrend{padding-top:4px}.mobileTrend .relationship{margin-top:8px}.mobileTrend .plotNotes{font-size:12px}.mobileTrend .weekReadings{padding-bottom:8px}.mobileTrend .weekNumbers{gap:12px;flex-wrap:wrap}
+ .mobileTrend{padding-top:4px}.mobileTrend .relationship{margin-top:8px}.mobileTrend .plotNotes{font-size:12px}
  .relationship .axis{font-size:12px}
 }
 
-@media(min-width:701px) and (hover:hover){.weekReadings{box-sizing:border-box;min-height:72px}}
 
 .relationship{min-height:0;height:var(--relationship-full-height,448px)}
 .relationship>.plot{position:relative;height:100%}.relationship>.plot svg{height:100%}

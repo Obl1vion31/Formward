@@ -6,7 +6,7 @@ import {RangeCoverage} from "./range-coverage-view";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
 import { preferredRecordedDate, rangeContaining } from "@/components/record-dates";
-import { useEffect,useLayoutEffect,useRef,useState } from "react";
+import {useLayoutEffect,useState} from "react";
 import {useChartTransitionActions} from "@/components/chart-transition-state";
 import { LoadingLink } from "@/components/loading-link";
 import { RelationshipPlot } from "./relationship-plot";
@@ -35,6 +35,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const [mode, setMode] = useState<string | null>(restored?.mode??null), [custom, setCustom] = useState(restored?.custom??{ from: addCalendarDays(today, -29), to: today }), [opened, setOpened] = useState<string | null>(null);
   useLayoutEffect(()=>{rememberOverview({mode,custom});},[mode,custom,rememberOverview]);
   const [customOpen, setCustomOpen] = useState(false), [customDraft, setCustomDraft] = useState(custom);
+  const [rangeRevision, setRangeRevision] = useState(0);
   const range = mode ?? rangeContaining(preferred, today, mobile ? "7" : "30");
   const available = data.days;
   const byDate = new Map(available.map(day => [day.date, day]));
@@ -45,17 +46,40 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const days = dates.map(date => byDate.get(date) ?? blankDay(date));
   const fallback = preferredRecordedDate(days, today, day => day.energyBalance !== null, day => data.recordDates.includes(day.date));
   const selection=useChartDateSelection(dates,preferred,fallback,customOpen),selected=selection.selected,day=days.find(day=>day.date===selected),dialogDay=opened?byDate.get(opened)??blankDay(opened):null;
+  function changeRange(key: string) {
+    selection.leave();
+    if (key === "custom") {
+      setCustomDraft(custom);
+      setCustomOpen(true);
+      return;
+    }
+    if (key !== range) setRangeRevision(revision => revision + 1);
+    setMode(key);
+    setCustomOpen(false);
+  }
+  function applyCustomRange() {
+    if (customDraft.from !== from || customDraft.to !== to) setRangeRevision(revision => revision + 1);
+    setCustom(customDraft);
+    setMode("custom");
+    setCustomOpen(false);
+  }
+  const customControls = customOpen && <CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={applyCustomRange} cancel={()=>setCustomOpen(false)}/>;
+  const motionRevision = mobile === null ? undefined : rangeRevision;
+
   return <section aria-label="热量与晨重趋势" data-chart-selection={selection.regionId} data-selected-date={selected} data-selection-origin={selection.origin} {...selection.regionProps}>
     {mobile!==false&&<div className={styles.mobileTrend+" mobile-only"}>
       <div className={styles.mobileTrendHeading}><h2>能量与次晨变化</h2><button type="button" onClick={()=>{const target=selected;setOpened(target);selection.releasePreview();}}>查看记录 →</button></div>
-      <ChartRanges value={mobile===null?(mode??rangeContaining(preferred,today,"7")):range} change={key=>{selection.leave();if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>
-      {customOpen&&<CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
+      <ChartRanges value={mobile===null?(mode??rangeContaining(preferred,today,"7")):range} change={changeRange}/>
+      {customControls}
       <div className={styles.mobileSelected} aria-live="polite"><time>{selected}</time><strong>{day?.energyBalance==null?"收支未知":day.energyBalance<0?"缺口 "+formatIntegerNumber(Math.abs(day.energyBalance)):"盈余 "+formatIntegerNumber(day.energyBalance)}<small>千卡</small></strong></div>
       <div className={styles.mobileLegend}><OverviewLegend compact/></div>
-      {dates.length?<RelationshipPlot days={days} selected={selected} selection={selection} compactMode/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}
+      {dates.length ? <>
+        <RelationshipPlot days={days} selected={selected} selection={selection} compactMode motionRevision={motionRevision}/>
+        <OverviewReadings day={day} mobile/>
+      </> : <p className={styles.caption}>请选择有效日期范围，最长10年。</p>}
     </div>}{mobile!==true&&<div className="desktop-only"><RecordTrendPanel
-      range={<ChartRanges value={range} change={key=>{selection.leave();if(key==="custom"){setCustomDraft(custom);setCustomOpen(true);}else{setMode(key);setCustomOpen(false);}}}/>}
-      custom={customOpen&&<CustomRecordRange label="总览" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
+      range={<ChartRanges value={range} change={changeRange}/>}
+      custom={customControls}
       date={selected} view={()=>{const target=selected;setOpened(target);selection.releasePreview();}}
       readoutLabel="日期对照"
       metricVariants={days.map(day=>[formatNutrition(day.nutrition?.values.caloriesKcal??null,"caloriesKcal"),energyValue(day.energy.totalKcal),signedIntegerNumber(day.energyBalance),formatRecordNumber(day.morning?.weightKg??null),formatRecordNumber(day.nextMorning?.weightKg??null),signed(day.weightChangeKg)])}
@@ -65,7 +89,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
       flags={overviewFlags(day)} flagVariants={days.map(overviewFlags)}
       title="热量收支" unit="kcal"
       legend={<OverviewLegend/>}
-    >{dates.length?<RelationshipPlot days={days} selected={selected} selection={selection} compactMode={false}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel></div>}
+    >{dates.length?<RelationshipPlot days={days} selected={selected} selection={selection} compactMode={false} motionRevision={motionRevision}/>:<p className={styles.caption}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel></div>}
     {mobile!==true&&<div className="desktop-only"><RangeCoverage key={from+to} days={days} today={today} from={from} to={to}/></div>}
     {dialogDay&&<EditorDialog title={dialogDay.date+" · 当日记录"} titleParts={[dialogDay.date,"当日记录"]} stableScroll close={()=>setOpened(null)} busy={false}><OverviewDayDetails day={dialogDay}/></EditorDialog>}
   </section>;
@@ -86,9 +110,13 @@ function overviewMetrics(day:OverviewDay,mobile:boolean):RecordMetric[]{
 function StableReadingText({value,variants}:{value:string;variants:string[]}){
  return <span className={styles.stableText}>{[...new Set(variants.filter(Boolean))].map(text=><span className={styles.stableMeasure} aria-hidden="true" key={text}>{text}</span>)}<span>{value}</span></span>;
 }
-const morningPair=(day?:OverviewDay)=>day?.morning?.weightKg!=null&&day.nextMorning?.weightKg!=null?formatRecordNumber(day.morning.weightKg)+" → "+formatRecordNumber(day.nextMorning.weightKg):!day?.morning?"缺当天晨重":!day.nextMorning?"缺次晨重":"未配对";
-const coverageNote=(day?:OverviewDay)=>(day?.week?.coveredDays??0)<7?"已计"+(day?.week?.coveredDays??0)+"/7天":"";
-const weekBasis=(day?:OverviewDay)=>day?.week?(day.week.missingMorningDates.length?"缺"+day.week.missingMorningDates.map(date=>date.slice(5).replace("-",".")).join("、")+"晨重":"晨重 "+day.week.from.slice(5).replace("-",".")+" "+formatRecordNumber(day.week.startWeightKg)+" → "+day.week.nextDate.slice(5).replace("-",".")+" "+formatRecordNumber(day.week.endWeightKg)+" kg"):"暂无记录";
+const weekBasis = (day?: OverviewDay) => {
+  const week = day?.week;
+  if (!week) return "暂无记录";
+  if (week.missingMorningDates.length) return "缺" + week.missingMorningDates.map(shortWeekDate).join("、") + "晨重";
+  return "晨重 " + shortWeekDate(week.from) + " " + formatRecordNumber(week.startWeightKg) + " → " + shortWeekDate(week.nextDate) + " " + formatRecordNumber(week.endWeightKg) + " kg";
+};
+const shortWeekDate = (date?: string) => date?.slice(5).replace("-", ".") ?? "—";
 
 function OverviewDayDetails({day}:{day:OverviewDay}){
  return <div className={styles.dayDetails}>
@@ -102,41 +130,55 @@ function OverviewDayDetails({day}:{day:OverviewDay}){
  </div>;
 }
 
-/** 服务端已算好当天配对和七天统计，这里只排版与格式化。 */
-export function OverviewReadings({day,mobile,variants}:{day?:OverviewDay;mobile:boolean;variants:OverviewDay[]}){
- const group=useRef<HTMLElement>(null),[widths,setWidths]=useState<number[]>([]);
- const readings=JSON.stringify(variants.map(row=>[signed(row.weightChangeKg),formatIntegerNumber(row.week?.energyBalance==null?null:Math.abs(row.week.energyBalance)),signed(row.week?.weightChangeKg??null)]));
- useEffect(()=>{
-  const node=group.current;if(!mobile||!node)return;
-  const measure=()=>{
-   const canvas=document.createElement("canvas").getContext("2d");if(!canvas)return;
-   const rows=JSON.parse(readings) as string[][];
-   const measured=Array.from(node.querySelectorAll<HTMLElement>("strong")).map((value,i)=>{
-    const unit=value.querySelector("small")!,style=getComputedStyle(value);canvas.font=style.font||style.fontWeight+" "+style.fontSize+" "+style.fontFamily;
-    return Math.ceil(Math.max(0,...rows.map(row=>canvas.measureText(row[i]).width))+unit.getBoundingClientRect().width+(parseFloat(getComputedStyle(unit).marginLeft)||0));
-   });
-   setWidths(previous=>previous.join()===measured.join()?previous:measured);
-  };
-  const observer=new ResizeObserver(measure);observer.observe(node);measure();return()=>observer.disconnect();
- },[mobile,readings]);
- const week=day?.week;
- const short=(date?:string)=>date?.slice(5).replace("-",".")??"—";
- const weekLabel=week?.energyBalance==null||week.energyBalance===0?"收支":week.energyBalance<0?"缺口":"盈余";
+/** 两端共用已计算的七天统计，依据只呈现实际覆盖与测量。 */
+export function OverviewReadings({day, mobile, variants = [], pending = false}: {
+  day?: OverviewDay; mobile: boolean; variants?: OverviewDay[]; pending?: boolean;
+}) {
+  const week = day?.week;
+  const energy = week?.energyBalance ?? null;
+  const weight = week?.weightChangeKg ?? null;
+  const covered = week?.coveredDays;
+  const coverage = covered === undefined ? null : covered + "/7天";
+  const energyLabel = energy === null || energy === 0 ? "收支" : energy < 0 ? "缺口" : "盈余";
+  const energyTone = energy === null || energy === 0 ? undefined : energy < 0 ? styles.weekDeficit : styles.weekSurplus;
+  const from = week?.from ?? (day && addCalendarDays(day.date, -6));
+  const period = <time>{shortWeekDate(from)}—{shortWeekDate(week?.through ?? day?.date)}</time>;
 
- if(mobile)return <section ref={group} className={styles.secondaryReadings} aria-label="次晨与七天统计" data-overview-secondary data-overview-week>
-  <div data-overview-next style={{minWidth:widths[0]||undefined}}><StableReadingText value={"次晨变化"} variants={variants.map(()=>"次晨变化")}/><strong>{signed(day?.weightChangeKg??null)}<small>kg</small></strong><p><StableReadingText value={morningPair(day)} variants={variants.map(morningPair)}/></p></div>
-  <div data-overview-week-energy style={{minWidth:widths[1]||undefined}}><span>近7天{weekLabel}</span><strong className={week?.energyBalance!=null&&week.energyBalance<0?styles.weekDeficit:styles.weekSurplus}>{formatIntegerNumber(week?.energyBalance==null?null:Math.abs(week.energyBalance))}<small>千卡</small></strong>{variants.some(row=>coverageNote(row))&&<p><StableReadingText value={coverageNote(day)} variants={variants.map(coverageNote)}/></p>}</div>
-  <div data-overview-week-weight style={{minWidth:widths[2]||undefined}}><span>近7天体重变化</span><strong>{signed(week?.weightChangeKg??null)}<small>kg</small></strong></div>
- </section>;
- return <section className={styles.weekReadings} aria-label="选中日七天统计" data-overview-week>
-   <div className={styles.weekContent}>
-    <header><span>近7天 <time>{short(week?.from)}—{short(week?.through)}</time></span></header>
-    <div className={styles.weekNumbers}>
-     <div data-overview-week-energy><span>{week?.energyBalance==null?"热量收支":week.energyBalance<0?"热量缺口":"热量盈余"}</span><strong className={week?.energyBalance!=null&&week.energyBalance<0?styles.weekDeficit:styles.weekSurplus}>{signedIntegerNumber(week?.energyBalance??null)}<small>千卡</small></strong></div>
-     <div data-overview-week-weight><StableReadingText value={"体重变化"} variants={variants.map(()=>"体重变化")}/><strong>{signed(week?.weightChangeKg??null)}<small>kg</small></strong></div>
+  if (mobile) return <details className={styles.mobileWeek} aria-label="选中日七天统计" data-overview-week="mobile">
+    <summary className={styles.mobileWeekSummary}>
+      <span className={styles.mobileWeekHeading}>
+        <span>近7天 {period}</span>
+        <span className={styles.mobileWeekToggle}>依据 <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.2"/>
+        </svg></span>
+      </span>
+      <span className={styles.mobileWeekNumbers}>
+        <span data-overview-week-energy>
+          <span>{energyLabel}</span>
+          <strong className={energyTone}>{signedIntegerNumber(energy)}{energy !== null && <small>千卡</small>}</strong>
+          {energy !== null && covered !== 7 && coverage && <span className={styles.mobileWeekCoverage}>（{coverage}）</span>}
+        </span>
+        <span data-overview-week-weight>
+          <span>体重变化</span>
+          <strong>{signed(weight)}{weight !== null && <small>kg</small>}</strong>
+        </span>
+      </span>
+    </summary>
+    <div className={styles.mobileWeekBasis} data-overview-week-basis>
+      {coverage && <span>收支已计{coverage}</span>}
+      <span>{weekBasis(day)}</span>
     </div>
-    <span className={styles.weekCoverage}>已计{week?.coveredDays??0}/7天</span>
-    <p className={styles.weekBasis}><StableReadingText value={weekBasis(day)} variants={variants.map(weekBasis)}/></p>
-   </div>
+  </details>;
+
+  return <section className={styles.weekReadings} aria-label="选中日七天统计" aria-hidden={pending || undefined} data-pending={pending || undefined} data-overview-week={pending ? undefined : "desktop"}>
+    <div className={styles.weekContent}>
+      <header>近7天 {period}</header>
+      <div className={styles.weekNumbers}>
+        <div data-overview-week-energy><span>热量{energyLabel}</span><strong className={energyTone}>{signedIntegerNumber(energy)}<small>千卡</small></strong></div>
+        <div data-overview-week-weight><span>体重变化</span><strong>{signed(weight)}<small>kg</small></strong></div>
+      </div>
+      <span className={styles.weekCoverage}>{coverage ? "已计" + coverage : "—"}</span>
+      <p className={styles.weekBasis}><StableReadingText value={weekBasis(day)} variants={variants.map(weekBasis)}/></p>
+    </div>
   </section>;
 }
