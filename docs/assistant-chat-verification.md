@@ -1,6 +1,10 @@
 # 站内聊天验收
 
-正式站 [formward.top](https://formward.top) 已发布 `dual-entry-ad2741d8-assistant-motion-release-20261119`。网页、同版本 worker、公网入口与回退见[当前正式版本](deployment.md#当前正式版本)。
+正式站 [formward.top](https://formward.top) 运行 `dual-entry-895051b6-assistant-experience-release-20261119`。网页、同版本 worker、公网入口与回退见[当前正式版本](deployment.md#当前正式版本)。
+
+发布前通过 lint、类型检查、生产构建和 861 项自动检查。两项原生 PostgreSQL 并发用例在独立虚构库复跑通过。Chromium 和 WebKit 复查手机选图、单行输入、跟手反馈、模型菜单和生成中查看额度。两引擎使用部署原包及虚构账号复查欢迎语、历史和当前正文、桌面营养摘要、进入审核并返回。整屏截图、录屏和日志留在本机发布归档。
+
+换版后公网与同版 worker 通过核对。实体 iPhone 的长按、触感和系统键盘，以及供应商实际图片回复由手机使用继续观察。隔离浏览器使用模拟供应商与虚构资料。
 
 ## 单行欢迎、正文与桌面待办 · 本机验收
 
