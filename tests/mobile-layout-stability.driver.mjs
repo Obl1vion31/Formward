@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { assistantConversation, assistantMessage } from "../src/db/schema.ts";
 import { authenticateAi, createAiToken } from "../src/features/auth/ai-tokens.ts";
-import { previewMeal } from "../src/features/meals/ai-preview.ts";
+import { mealPreviewOperation } from "../src/features/meals/ai-preview.ts";
+import { submitRecordOperation } from "../src/features/records/operations.ts";
 import { recordGuideKey } from "../src/features/onboarding/record-guidance-model.ts";
 import { workspacePages } from "../src/components/workspace-pages.ts";
 
@@ -25,18 +26,22 @@ export async function runMobileLayoutStability(db) {
   const engine = process.env.CHAT_BROWSER ?? "chromium";
   const output = process.env.FORMWARD_CHAT_ARTIFACTS;
   const playwright = await import(process.env.PLAYWRIGHT_MODULE);
-  const browser = await playwright[engine].launch();
   const report = { engine, checks: [], samples: [], screenshots: [], passed: false };
   const token = await createAiToken(db, userId, "虚构间距验收", "write");
   const identity = await authenticateAi(db, "Bearer " + token.rawToken);
-  const operation = await previewMeal(db, identity, {
+  const meal = mealPreviewOperation({
     operationId: randomUUID(), date: today, timezone: "Asia/Shanghai", mealType: "晚餐",
     foods: [{ name: foodName, quantity: "150", unit: "克", caloriesKcal: "240",
-      proteinG: "25", carbG: "0", fatG: "9", sourceKind: "estimated", basis: "虚构份量与营养。" }],
+      proteinG: "25", carbsG: "0", fatG: "9", sourceKind: "estimated", basis: "虚构份量与营养。" }],
+  });
+  const operation = await submitRecordOperation(db, identity, {
+    operationId: meal.operationId,
+    items: [{ ...meal.actions[0], key: "meal" }],
   });
   const origin = { Origin: baseURL };
   const key = workspacePages.map(([path, label]) => [path, label]);
   const guideKeys = ["meals", "energy", "training"].map(kind => recordGuideKey(userId, kind));
+  const browser = await playwright[engine].launch();
 
   async function login(context) {
     const response = await context.request.post("/api/auth/sign-in/email", { headers: origin, data: account });
@@ -175,13 +180,15 @@ export async function runMobileLayoutStability(db) {
         await shell.waitFor({ state: "hidden" });
         await trigger.waitFor();
         await page.waitForFunction(() => document.activeElement?.matches("[data-workspace-dock] [data-assistant-trigger]"));
+        await page.waitForTimeout(350);
         const final = await measure();
         const steps = (await frames()).filter(frame => frame.dock?.visible);
-        assert.ok(steps.length > 0);
+        assert.ok(steps.length >= 3, "覆盖底栏露出及随后稳定帧");
         for (const frame of steps) {
           assert.equal(frame.locked, false, "底栏首次可见时来源滚动锁已释放");
           assert.equal(frame.phase, undefined);
-          near(frame.dock.bottom, final.dock.bottom, "已露出的底栏位置");
+          near(frame.dock.top, final.dock.top, "已露出的底栏顶部");
+          near(frame.dock.bottom, final.dock.bottom, "已露出的底栏底部");
         }
         if (expectedGap === undefined) {
           near(final.dock.top, original.dock.top, "静态视口的底栏顶部");
