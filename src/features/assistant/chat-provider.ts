@@ -1,7 +1,7 @@
 import { getDefaultAutoSelectFamilyAttemptTimeout, setDefaultAutoSelectFamilyAttemptTimeout } from "node:net";
 import { ApiError } from "../auth/ai-identity";
 import { chatProviders, providerEndpoint } from "./chat-config";
-import type { ChatProvider } from "./chat-model";
+import { chatContextLimitNotice, type ChatProvider } from "./chat-model";
 export type ProtocolMessage = { role: string; content: unknown; tool_calls?: ToolCall[]; tool_call_id?: string; reasoning_content?: string };
 export type ToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
 export type ModelTool = { type: "function"; function: { name: string; description: string; parameters: Record<string, unknown> } };
@@ -10,7 +10,7 @@ export class ProviderRejected extends ApiError {
 }
 export function modelBody(provider: ChatProvider, messages: ProtocolMessage[], tools: ModelTool[]) {
   const config = chatProviders[provider];
-  return { ...config.params, model: config.model, messages, tools, tool_choice: "auto", stream: true, stream_options: { include_usage: true }, ...(provider === "glm" ? { tool_stream: true } : {}), [config.outputField]: 8192 };
+  return { ...config.params, model: config.model, messages, ...(tools.length ? {tools, tool_choice: "auto"} : {}), stream: true, stream_options: { include_usage: true }, ...(provider === "glm" ? { tool_stream: true } : {}), [config.outputField]: 8192 };
 }
 export function providerFailure(status: number, raw: unknown): ApiError {
   const body = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
@@ -20,6 +20,9 @@ export function providerFailure(status: number, raw: unknown): ApiError {
   if (/insufficient[_ -]?quota/i.test(hint)) return new ApiError(503,"provider_quota","这个模型的平台额度暂不可用。当前内容已保留，可以手动选择其他模型；站内每日用量可在下方查看。");
   if (status === 429 || /rate[_ -]?limit|too many requests|请求过于频繁/i.test(hint)) return new ApiError(429, "provider_rate_limit", "这个模型暂时限流，请稍后重试，或手动切换其他模型。");
   if (status === 401 || status === 403) return new ApiError(503, "provider_credentials", "这个模型的连接凭据暂不可用，可以先选择其他模型。");
+  if (/context_length_exceeded|context_window_exceeded|input_length_exceeded|maximum context length|context window.{0,30}(?:exceed|too (?:long|large))|输入(?:内容|长度|令牌数).{0,16}(?:超过.{0,12}上限|超出.{0,12}限制)/i.test(hint)) {
+    return new ApiError(409, "context_limit", chatContextLimitNotice);
+  }
   return new ApiError(503, "provider_unavailable", "模型服务暂时未能完成回复。内容已保留，可以重试或手动切换模型。");
 }
 export async function* ssePayloads(stream: ReadableStream<Uint8Array>) {

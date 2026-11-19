@@ -13,7 +13,7 @@ import { requireActiveAiToken } from "../auth/ai-tokens";
 import { accountEntitlements } from "../auth/entitlements";
 import { prepareRecognition, recognitionUsage, reserveRecognition, refundUnfinishedRecognition } from "./recognition-quota";
 import { assertChatAllowed, chatProviders, providerAvailable, currentProvider, providerConfigured, providerId, type ChatRates } from "./chat-config";
-import { budgetDate, chatContextLimitNotice, chatProviderIds, isMealTaskContext, nextBudgetReset, pendingContextQuoteId, usagePercent, type ChatContextQuote, type ChatControlAction, type ChatMessage, type ChatPhotoLimit, type ChatProvider, type ChatRunTiming, type ChatSnapshot, type ChatUsage } from "./chat-model";
+import { budgetDate, CHAT_PHOTOS_PER_BATCH, chatContextLimitNotice, chatPhotoProgress, chatProviderIds, isMealTaskContext, nextBudgetReset, pendingContextQuoteId, usagePercent, type ChatContextQuote, type ChatControlAction, type ChatMessage, type ChatPhotoLimit, type ChatProvider, type ChatRunTiming, type ChatSnapshot, type ChatUsage } from "./chat-model";
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export type StoredRun = typeof run.$inferSelect;
 export type StoredMessage = typeof message.$inferSelect;
@@ -148,6 +148,7 @@ export function chatRunTiming(row: Pick<StoredRun,"id"|"assistantMessageId"|"cla
 }
 
 function runPhotoLimit(row: Pick<StoredRun,"executionInput"|"requestDiagnostics">): ChatPhotoLimit | undefined {
+  if (row.executionInput?.photoBatch) return;
   const maxPhotos = row.requestDiagnostics.at(-1)?.maxPhotos;
   const imageIds = row.executionInput?.attachmentImageIds;
   const sentImages = row.requestDiagnostics.some(item => item.state === "completed" && item.images.length > 0);
@@ -247,6 +248,10 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
     const value = publicChatMessage(row,recent,rowRun?.id,rowRun?.requestId,rowRun?.userMessageId);
     const quote = row.replyToId && contextQuotes.get(row.replyToId);
     if (quote) value.replyTo = { id: quote.id, text: quote.text ?? "原消息已不可用。", contextQuote: true };
+    if (row.role === "assistant") {
+      const progress = chatPhotoProgress(rowRun?.executionInput);
+      if (progress) value.photoProgress = progress;
+    }
     const detailLimit = rowRun?.requestDiagnostics.find(item => item.state === "completed" && item.detailLimit)?.detailLimit;
     if (row.role === "assistant" && row.state === "complete" && detailLimit) value.detailLimit = detailLimit;
     const limit = row.role === "assistant" && row.state === "error" && rowRun ? runPhotoLimit(rowRun) : undefined;
@@ -263,9 +268,13 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
     }
     return value;
   }
-  // 批次生成的回答可能已经把原失败行推到上一页，仍需刷新客户端已加载的分批状态。
-  const photoUpdates = recent.filter(row => row.state === "error" && !rows.includes(row) &&
-    runs.find(item => item.assistantMessageId === row.id)?.requestDiagnostics.at(-1)?.maxPhotos).map(present);
+  // 重试较早的消息时，也刷新客户端已加载的原回复。
+  const photoUpdates = recent.filter(row => {
+    if (row.role !== "assistant" || rows.includes(row)) return false;
+    const attempt = runs.find(item => item.assistantMessageId === row.id);
+    return !!attempt && (row.state === "error" && !!runPhotoLimit(attempt) ||
+      !!attempt.executionInput?.photoBatch && attempt.executionInput.action !== "send");
+  }).map(present);
   return { capabilities:chatCapabilities(),entitlement,conversationId: current.id, provider: currentProvider(providerId(current.provider)),
     followup: current.followup, messages: rows.map(present), ...(quoteId ? { pendingContextQuote: contextQuotes.get(quoteId) } : {}), ...(photoUpdates.length ? { photoUpdates } : {}),
     hasMore: older.length > 5, before: rows[0]?.seq ?? null, activeRunId: active?.id ?? null,
@@ -310,7 +319,7 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
     const pendingQuoteId = pendingContextQuoteId(current.context);
     let useContextQuote = false;
     let seq = current.sequence, question: StoredMessage, answer: StoredMessage;
-    let retainedAttachments: Pick<NonNullable<StoredRun["executionInput"]>,"attachmentSourceId"|"attachmentImageIds"|"photoBatchOf"> | undefined;
+    let retainedAttachments: Pick<NonNullable<StoredRun["executionInput"]>,"attachmentSourceId"|"attachmentImageIds"|"photoBatchOf"|"photoBatch"> | undefined;
     if (input.imageSubset && (input.action !== "retry" || input.mealTask)) throw new ApiError(400,"invalid_image_subset","请从需要分批的原消息选择照片。");
     if (input.action === "send") {
       if (!input.followup && !input.text?.trim() && !input.imageIds?.length) throw new ApiError(400, "empty_message", "请输入内容或选择照片。");
@@ -335,8 +344,8 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
         if (previous && !resolved.sourceAssistantMessageId) resolved.sourceAssistantMessageId = previous.assistantMessageId;
         supplementalAnswer = mergeSupplements(predecessor?.answer,resolved);
         if (!ids.length && previous?.input) {
-          const {attachmentSourceId,attachmentImageIds,photoBatchOf} = previous.input;
-          retainedAttachments = {attachmentSourceId,attachmentImageIds,...(photoBatchOf?{photoBatchOf}:{})};
+          const {attachmentSourceId,attachmentImageIds,photoBatchOf,photoBatch} = previous.input;
+          retainedAttachments = {attachmentSourceId,attachmentImageIds,photoBatchOf,photoBatch};
         }
       }
       [question] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "user", text: input.followup ? followupText(current.followup,input.followup) : input.text?.trim() ?? "", supplementalAnswer, replyToId: input.replyToId, imageIds: ids }).returning();
@@ -349,8 +358,8 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
       if (!question) throw new ApiError(404,"not_found","原始问题已不可用。");
       useContextQuote = previous?.executionInput?.contextQuote === true;
       if (previous?.executionInput) {
-        const {attachmentSourceId,attachmentImageIds,photoBatchOf} = previous.executionInput;
-        retainedAttachments = {attachmentSourceId,attachmentImageIds,...(photoBatchOf?{photoBatchOf}:{})};
+        const {attachmentSourceId,attachmentImageIds,photoBatchOf,photoBatch} = previous.executionInput;
+        retainedAttachments = {attachmentSourceId,attachmentImageIds,photoBatchOf,photoBatch};
       }
       if (input.imageSubset) {
         const limit = previous && runPhotoLimit(previous);
@@ -367,13 +376,19 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
       } else if (!input.mealTask && previous && runPhotoLimit(previous)) {
         throw new ApiError(400,"image_subset_required","请从本条消息选择要继续处理的照片。");
       }
-      if (input.action === "continue" && original.provider === input.provider) [answer] = await tx.update(message).set({ state: "working", error: null }).where(eq(message.id, original.id)).returning();
-      else [answer] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "assistant", state: "working", provider: input.provider }).returning();
+      if (retainedAttachments?.photoBatch || input.action === "continue" && original.provider === input.provider) {
+        [answer] = await tx.update(message).set({ state: "working", error: null, provider: input.provider })
+          .where(and(eq(message.id, original.id), eq(message.userId, userId))).returning();
+      } else [answer] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "assistant", state: "working", provider: input.provider }).returning();
     }
     await tx.update(conversation).set({ sequence: seq, provider: input.provider, updatedAt: new Date(), ...(pendingQuoteId && input.action === "send" ? { context: null } : {}) }).where(eq(conversation.id, current.id));
     const recognitionId = input.mealTask ? await prepareRecognition(tx, current, digestChat({ text: input.text ?? "", images: input.imageIds ?? [] }), !!input.followup) : null;
+    const attachments = retainedAttachments ?? await chatAttachmentBinding(tx as unknown as Database, userId, question,
+      input.followup ? current.followup?.messageId : undefined);
+    const photoBatch = !input.mealTask && !retainedAttachments?.photoBatchOf && attachments.attachmentImageIds.length > CHAT_PHOTOS_PER_BATCH
+      ? retainedAttachments?.photoBatch ?? [] : retainedAttachments?.photoBatch;
     const [created] = await tx.insert(run).values({ id: randomUUID(), userId, conversationId: current.id, userMessageId: question.id, assistantMessageId: answer.id, requestId: input.requestId, requestDigest, provider: input.provider, model: chatProviders[input.provider].model, recognitionId,
-      executionInput: {action:input.action,requestId:input.requestId,provider:input.provider,conversationId:input.conversationId,timezone:input.timezone,...(input.messageId?{messageId:input.messageId}:{}),...(input.mealTask?{mealTask:true}:{}),...(useContextQuote ? { contextQuote: true as const } : {}),...(retainedAttachments??await chatAttachmentBinding(tx as unknown as Database,userId,question,input.followup?current.followup?.messageId:undefined))}
+      executionInput: {action:input.action,requestId:input.requestId,provider:input.provider,conversationId:input.conversationId,timezone:input.timezone,...(input.messageId?{messageId:input.messageId}:{}),...(input.mealTask?{mealTask:true}:{}),...(useContextQuote ? { contextQuote: true as const } : {}),...attachments,...(photoBatch ? {photoBatch} : {})}
     }).returning();
     return { row: created, started: true };
   });

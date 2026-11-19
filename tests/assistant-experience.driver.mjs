@@ -537,24 +537,18 @@ export async function runAssistantExperienceBrowser(db) {
 
     await input().fill("分批验收，帮我读这四张照片。");
     await fixtureFiles(4);
+    await page.getByText("已选 4 张，发送后分批读取",{exact:true}).waitFor();
     await send().click();
-    const picker = page.getByRole("group",{name:/还有 [1-4] 张照片未处理/});
-    await picker.waitFor();
-    assert.match(await picker.innerText(),/还有 4 张可选/);
-    await shot("over-limit","原消息内选择照片分批继续");
-    await page.waitForTimeout(600);
+    await page.getByRole("status").filter({hasText:"已读取 2 / 4 张"}).waitFor();
+    await shot("photo-batches","四张照片在原消息下按实际结果推进");
     const firstBefore = await context.request.get(base+"/api/assistant-chat").then(response=>response.json());
-    for (let count=4;count>0;count--) {
-      await picker.getByRole("checkbox").first().check();
-      await picker.getByRole("button",{name:"处理所选照片",exact:true}).click();
-      if (count>1) await picker.getByText(new RegExp("还有 "+(count-1)+" 张可选")).waitFor();
-    }
-    await picker.waitFor({state:"hidden"});
+    await page.getByText("已一起核对 4 张照片。重复角度的食物只计算一次。",{exact:true}).waitFor();
+    await page.getByRole("button",{name:"停止生成",exact:true}).waitFor({state:"hidden"});
     const final = await context.request.get(base+"/api/assistant-chat").then(response=>response.json());
     assert.equal(final.conversationId,firstBefore.conversationId);
     assert.equal(await message("分批验收，帮我读这四张照片。").count(),1);
-    await shot("batches-complete","已在同一对话逐批处理，原始照片消息保留");
-    await mark("四张照片分批在原对话处理，原始图文未重复发送");
+    await shot("batches-complete","同一条消息自动读取并汇总，照片原位保留");
+    await mark("四张照片一条消息自动分批，原始图文未重复发送");
 
     await input().fill(firstPrompt);
     await send().click();

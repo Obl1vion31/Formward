@@ -3,7 +3,7 @@ import {choosePhotoRoute,type PhotoRegion,type PhotoRoute} from "../meals/photo-
 import { resolveSupplement,type FollowupSubmission } from "./followup";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { AccountEntitlements } from "../auth/entitlements";
-import type { ChatControlAction, ChatEvent, ChatMessage, ChatProvider, ChatSnapshot } from "./chat-model";
+import { CHAT_PHOTO_LIMIT, type ChatControlAction, type ChatEvent, type ChatMessage, type ChatProvider, type ChatSnapshot } from "./chat-model";
 import {uploadPrivateMealPhoto,stagePrivateMealPhoto,PhotoTransferError,type PhotoUploadPhase} from "../meals/photo-upload";
 import { confirmAction } from "../../components/confirmation-state";
 export type DraftPhoto={key:string;id?:string;name:string;file:File;preview?:string;phase:PhotoUploadPhase|"queued"|"error";percent:number;label:string;error?:string;canRelay?:boolean;region?:PhotoRegion;route?:Promise<PhotoRoute>};
@@ -118,7 +118,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     if(snapshot.entitlement&&!updateAccess(snapshot.entitlement)){deferredRead.current=true;return;}
     const changed = current.current?.conversationId !== snapshot.conversationId;
     if (changed) cursors.current.clear();
-    for (const message of snapshot.messages) {
+    for (const message of [...(snapshot.photoUpdates ?? []), ...snapshot.messages]) {
       if (message.role === "assistant") cursors.current.set(message.id,{runId:message.runId,length:message.text.length});
       if (message.role !== "user" || !message.requestId) continue;
       const id = message.requestId;
@@ -155,7 +155,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
         cursor.length += event.text.length;
         setMessages(previous=>previous.map(row=>row.id===event.messageId?{...row,text:row.text+event.text}:row));
       } else {
-        setMessages(previous=>previous.map(row=>row.id===event.messageId?{...row,steps:event.steps,references:event.references}:row));
+        setMessages(previous=>previous.map(row=>row.id===event.messageId?{...row,steps:event.steps,references:event.references,photoProgress:event.photoProgress}:row));
       }
     }
     return true;
@@ -385,7 +385,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     updateOutgoing(id,() => undefined);
   }
   async function addPhotos(files:File[]){
-    if(photoState.current.length+files.length>8){setError("每条消息最多8张照片。");return;}
+    if(photoState.current.length+files.length>CHAT_PHOTO_LIMIT){setError(`每条消息最多${CHAT_PHOTO_LIMIT}张照片。`);return;}
     setError("");const route=choosePhotoRoute();void route.catch(()=>{});const incoming=files.map(file=>({key:crypto.randomUUID(),file,route,name:file.name,phase:"queued" as const,percent:0,label:"等待上传"}));
     updatePhotos(current=>[...current,...incoming]);
     const epoch=photoEpoch.current;

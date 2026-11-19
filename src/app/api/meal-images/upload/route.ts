@@ -1,5 +1,5 @@
 import {relayImageUpload,recordImageUploadDiagnostic} from "@/features/meals/image-upload-relay";
-import { withCurrentSession,withWriteSession } from "@/features/auth/server";
+import { withCurrentSession,withReadSession,withWriteSession } from "@/features/auth/server";
 import { isAccountRequestOrigin } from "@/features/auth/site-url";
 import { getDatabase } from "@/db/client";
 import { saveMealImage } from "@/features/meals/images";
@@ -18,22 +18,32 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   if (!isAccountRequestOrigin(request.headers)) return Response.json({ error: "上传来源无效。" }, { status: 403 });
   try {
+    const contentType = request.headers.get("content-type");
+    const relay = contentType === "application/octet-stream";
+    const multipart = contentType?.includes("multipart/form-data");
+    let body: Record<string, unknown> = {};
+    if (!relay && !multipart) {
+      if (Number(request.headers.get("content-length")) > 8192) return Response.json({ error: "上传请求过大。" }, { status: 413 });
+      const value = await boundedSecurityJson(request);
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw new ApiError(400,"invalid_input","上传请求无效。");
+      body = value as Record<string, unknown>;
+      if (body.step === "diagnostic") return await withReadSession(request.headers, async () => {
+        recordImageUploadDiagnostic(body.diagnostic);
+        return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});
+      });
+    }
     return await withWriteSession(request.headers, async user => {
     let result;
-    if(request.headers.get("content-type")==="application/octet-stream") {
+    if (relay) {
       if(processingRegion(request.headers)!=="cn")return Response.json({error:"当前入口请改用国际通道上传原图。"},{status:409});
       result=await relayImageUpload(getDatabase(),user.id,request);
-    } else if (request.headers.get("content-type")?.includes("multipart/form-data")) {
+    } else if (multipart) {
       // 兼容旧客户端；新网页20 MiB原图通过预签名直传，不经过函数请求体。
       if (Number(request.headers.get("content-length")) > 4 * 1024 * 1024 + 65536) return Response.json({ error: "旧上传入口最大4 MiB，请刷新页面使用大图上传。" }, { status: 413 });
       const file = (await request.formData()).get("file");
       if (!(file instanceof File) || file.size > 4 * 1024 * 1024) return Response.json({ error: "请刷新页面使用新版照片上传。" }, { status: 400 });
       result = await saveMealImage(getDatabase(), user.id, new Uint8Array(await file.arrayBuffer()), { fileName: file.name, source: "manual", actorId: user.id });
     } else {
-      if (Number(request.headers.get("content-length")) > 8192) return Response.json({ error: "上传请求过大。" }, { status: 413 });
-      const body = await boundedSecurityJson(request) as Record<string, unknown>;
-      if(!body||typeof body!=="object"||Array.isArray(body))throw new ApiError(400,"invalid_input","上传请求无效。");
-      if(body.step==="diagnostic"){recordImageUploadDiagnostic(body.diagnostic);return new Response(null,{status:204,headers:{"Cache-Control":"no-store"}});}
       if (body.step === "prepare") {
         if (body.region !== undefined && body.region !== "cn" && body.region !== "global") return Response.json({ error: "上传通道无效。" }, { status: 400 });
         result = {...await prepareImageUpload(getDatabase(), user.id, body.file, undefined, body.region ?? processingRegion(request.headers)),relayAvailable:processingRegion(request.headers)==="cn"};

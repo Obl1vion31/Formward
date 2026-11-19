@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
@@ -34,9 +34,15 @@ export async function runAssistantContextRecovery(db) {
       window.setFixtureKeyboardHeight = value=>{keyboardHeight=value;proxy.dispatchEvent(new Event("resize"));};
     });
     const page = await context.newPage(), video = page.video(), began = performance.now();
+    page.setDefaultTimeout(40000);
     const record = {name,engine,viewport,shots:[],checks:[],errors:[]};
     report.push(record);
-    page.on("pageerror",error=>record.errors.push(String(error)));
+    let disconnecting = false;
+    page.on("pageerror",error=>{
+      if (disconnecting && engine==="webkit" && /\/api\/assistant-(?:chat|context).*due to access control checks\.$/.test(error.message)) {
+        (record.browserNotices??=[]).push("主动断网时 WebKit 取消了正在进行的助手读取。");
+      } else record.errors.push(String(error));
+    });
     const input = page.getByRole("textbox",{name:"给小助手发消息",exact:true});
     const button = name => page.getByRole("button",{name,exact:true}).filter({visible:true});
     const chat = () => context.request.get("/api/assistant-chat").then(response=>response.json());
@@ -53,8 +59,24 @@ export async function runAssistantContextRecovery(db) {
     const check = description => {record.checks.push(description);console.log(engine,name,"PASS",description);};
     async function open() {
       await page.goto(mobile?"/dashboard/assistant":"/dashboard");
-      if(!mobile) await page.locator("[data-assistant-trigger]:visible").click();
+      if(!mobile) {
+        await page.locator("[data-assistant-trigger]:visible").click();
+        await page.locator("dialog[data-assistant-surface]").evaluate(node =>
+          Promise.all(node.getAnimations().map(animation=>animation.finished.catch(()=>{}))));
+      }
       await input.waitFor();
+      await page.waitForFunction(()=>[...document.querySelectorAll('button[aria-label="添加照片"]')]
+        .some(el=>el.getClientRects().length&&!el.disabled));
+    }
+    async function reconnect(ready){
+      disconnecting = true;
+      try {
+        await context.setOffline(true);
+        await page.waitForTimeout(420);
+        await context.setOffline(false);
+        await open();
+        await ready.waitFor();
+      } finally { disconnecting = false; }
     }
     async function send(text,files=0){
       await input.fill(text);
@@ -91,7 +113,7 @@ export async function runAssistantContextRecovery(db) {
       assert.equal(login.status(),200);
       await control({action:"new"});
       await open();
-      await run({page,input,button,chat,control,shot,check,open,send,finished,showSource,geometry,context});
+      await run({page,input,button,chat,control,shot,check,open,send,finished,showSource,geometry,context,reconnect});
       assert.deepEqual(record.errors,[]);
     } catch(error) {
       record.failure=String(error);
@@ -222,10 +244,194 @@ export async function runAssistantContextRecovery(db) {
     }
   }
 
+  async function automaticPhotos(flow,mobile) {
+    const {page,reconnect,input,button,chat,control,open,send,finished,shot,check} = flow;
+    const defaults=mobile?{width:390,height:844}:{width:1440,height:900};
+    const fileInput=page.getByLabel("选择聊天照片",{exact:true});
+    const hint = count=>page.getByText(`已选 ${count} 张，发送后分批读取`,{exact:true});
+    const progress = label=>page.getByRole("status").filter({hasText:label});
+    const waitSend = () => page.waitForFunction(()=>[...document.querySelectorAll('button[aria-label="发送消息"]')]
+      .some(el=>el.getClientRects().length&&!el.disabled),null,{timeout:40000});
+    const verifyNoOverflow = async locator => {
+      const box=await locator.boundingBox();
+      assert.ok(box && box.x>=0 && box.x+box.width<=page.viewportSize().width+1);
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+    };
+    const setView = async (width,theme) => {
+      await page.setViewportSize({...defaults,width});
+      await page.evaluate(value=>{localStorage.setItem("formward-theme",value);document.documentElement.dataset.theme=value;},theme);
+    };
+    async function matrix(locator,label,description){
+      for(const theme of ["light","dark"]) for(const width of mobile?[320,390,430]:[1100,1440]){
+        await setView(width,theme);
+        await locator.scrollIntoViewIfNeeded();
+        await verifyNoOverflow(locator);
+        await shot(label+"-"+theme+"-"+width,description);
+      }
+      await setView(defaults.width,"light");
+    }
+    const consentCalls=[];
+    page.on("request",request=>{
+      if(request.method()==="POST" && new URL(request.url()).pathname==="/api/assistant-chat"){
+        const value=request.postDataJSON();consentCalls.push(value.action);
+      }
+    });
+    const attempt = async id => (await db.select().from(assistantRun).where(eq(assistantRun.id,id)))[0];
+    const photosIn = (row) => row.requestDiagnostics.filter(item=>item.phase==="photos").map(item=>item.images.map(image=>image.id));
+
+    if(mobile){
+      await send("两张照片已读验收。",2);
+      await page.getByText("两张照片都已读取。",{exact:true}).waitFor();
+      const two=await finished(), row=await attempt(two.messages.at(-1).runId);
+      assert.equal(row.requestDiagnostics[0].images.length,2);
+      assert.equal(two.messages.at(-1).photoProgress,undefined);
+      await shot("two-photos","两张直接在一轮读取并回答");
+      check("两张原图按原流程完成，无分批提示");
+      await db.delete(rateLimit);
+      await control({action:"new"});await open();
+    }
+
+    const text="四张都是同一顿晚餐。前两张是餐盘，后两张是标签。请合起来记一餐，重复食物只算一次。";
+    const beforeMeals=await existingMeals();
+    await input.fill(text);
+    await fileInput.setInputFiles(samples.slice(0,4).map(row=>row.file));
+    await waitSend();
+    assert.equal(await hint(4).count(),1);
+    await shot("four-selected","四张在输入栏内，提示发送后自动分批");
+    await matrix(hint(4),"selected","选图提示在双主题和不同宽度保持完整");
+    if(mobile){
+      await input.focus();
+      await page.evaluate(()=>window.setFixtureKeyboardHeight(500));
+      await page.waitForFunction(()=>document.querySelector('[aria-label="给小助手发消息"]').getBoundingClientRect().bottom<=502);
+      const fixed = () => page.evaluate(()=>{
+        const root=document.querySelector("[data-assistant-page]");
+        const editor=root.querySelector('textarea[aria-label="给小助手发消息"]');
+        return [root.querySelector("header").getBoundingClientRect().y,editor.getBoundingClientRect().bottom,scrollY];
+      });
+      const anchors=await fixed();
+      await page.getByRole("log",{name:"聊天消息"}).evaluate(node=>{node.scrollTop+=80;});
+      assert.ok((await fixed()).every((value,index)=>Math.abs(value-anchors[index])<=1));
+      const sendBounds=await button("发送消息").boundingBox();
+      assert.ok(sendBounds && sendBounds.height>=44 && sendBounds.y+sendBounds.height<=502);
+      await shot("four-keyboard","模拟键盘升起，提示及四张图、发送键仍可见");
+    }
+    const countBefore=consentCalls.length;
+    await button("发送消息").evaluate(node=>{node.click();node.click();});
+    if(mobile)await page.evaluate(()=>window.setFixtureKeyboardHeight(null));
+    await progress("已读取 2 / 4 张").waitFor();
+    await shot("four-reading","同一条消息读完第一批，计时随运行显示");
+    const active=await chat();
+    assert.equal(consentCalls.length,countBefore+1);
+    assert.equal(active.messages.length,2);
+    assert.deepEqual(active.messages.at(-1).photoProgress,{read:2,total:4,phase:"reading"});
+    assert.equal(active.messages.at(-1).references.length,0);
+    await progress("正在合并结果").waitFor();
+    await shot("four-combining","四张全部读完，进入统一汇总");
+    await button("保存确认").waitFor();
+    const result = await finished(), answer=result.messages.at(-1), sent=result.messages[0];
+    const ledger=await attempt(answer.runId);
+    assert.equal(answer.state,"complete");
+    assert.equal(sent.text,text);
+    assert.equal(sent.imageIds.length,4);
+    assert.equal(answer.references.filter(ref=>ref.kind==="preview").length,1);
+    assert.deepEqual(photosIn(ledger),[sent.imageIds.slice(0,2),sent.imageIds.slice(2)]);
+    assert.ok(ledger.requestDiagnostics.every(item=>item.textSha256===createHash("sha256").update(text).digest("hex")));
+    assert.ok(ledger.requestDiagnostics.filter(item=>item.phase==="answer").every(item=>item.images.length===0));
+    assert.equal(ledger.toolResults.filter(item=>item.name==="preview_meals"&&!item.result.error).length,1);
+    assert.equal((await existingMeals()).size,beforeMeals.size);
+    await shot("four-preview","一次统一回答和一张待确认卡，尚未写入正式记录");
+    await button("保存确认").evaluate(node=>{node.click();node.click();});
+    await page.getByRole("heading",{name:"已保存",exact:true}).waitFor();
+    const saved = (await meals()).filter(row=>!beforeMeals.has(row.id));
+    assert.equal(saved.length,1);
+    assert.equal(saved[0].mealType,"晚餐");
+    assert.deepEqual(saved[0].items.map(item=>item.name),["验收烤鸡","验收鸡油饭"]);
+    assert.deepEqual(saved[0].items.map(item=>Number(item.quantity)),[150,130]);
+    assert.deepEqual([...saved[0].imageIds].sort(),[...sent.imageIds].sort());
+    await shot("four-saved","人工确认后只保存一餐，四张原图均关联");
+    check("四张一次发送。两批原文一致且顺序正确，文本合并后才创建一卡，确认只写入一餐和四张原图");
+
+    await db.delete(rateLimit);
+    await control({action:"new"});await open();
+    await send("分批验收 · 第二批失败 · 晚餐烤鸡和鸡油饭合起来记一餐。",4);
+    await progress("已读取 2 / 4 张").waitFor();
+    const interruptedRun=(await chat()).activeRunId;
+    assert.ok(interruptedRun);
+    const resume=button("继续读取剩余 2 张");
+    await reconnect(resume);
+    const stopped=(await finished()).messages.at(-1);
+    assert.equal(stopped.state,"error");
+    assert.equal(stopped.runId,interruptedRun);
+    assert.equal(stopped.photoLimit,undefined);
+    assert.equal(stopped.contextLimited,undefined);
+    assert.equal(stopped.references.length,0);
+    assert.equal((await existingMeals()).size,beforeMeals.size+1);
+    await open();await resume.waitFor();
+    assert.equal((await chat()).messages.at(-1).photoProgress.read,2);
+    const bounds=await resume.boundingBox();
+    assert.ok(bounds && bounds.height>=43.9 && bounds.width>=43.9, JSON.stringify(bounds));
+    assert.equal(await resume.evaluate(node=>getComputedStyle(node).minHeight),"44px");
+    await matrix(resume,"failure","刷新后真实失败状态及唯一续读行动");
+    const previousCalls=consentCalls.length;
+    await resume.evaluate(node=>{node.click();node.click();});
+    await progress("正在合并结果").waitFor();
+    await shot("resume-combining","重连后仅读取剩余照片，回到同一条回复");
+    await button("保存确认").waitFor();
+    const recovered = await finished(), retried = recovered.messages.at(-1);
+    assert.equal(consentCalls.length,previousCalls+1);
+    assert.equal(retried.id,stopped.id);
+    assert.equal(recovered.messages.length,2);
+    assert.deepEqual(photosIn(await attempt(retried.runId)),[recovered.messages[0].imageIds.slice(2)]);
+    assert.equal(retried.references.filter(ref=>ref.kind==="preview").length,1);
+    await shot("resume-preview","失败续读后在原回复下得到一张待确认卡");
+    check("断网和刷新恢复原任务。失败后只读图3和4，连点续读只发一次，保持同一条回复");
+
+    if(mobile){
+      await db.delete(rateLimit);
+      await control({action:"new"});await open();
+      await send("分批验收 · 汇总失败 · 请只核对四张照片",4);
+      const merge=button("重试汇总");
+      await merge.waitFor();
+      const broken=(await finished()).messages.at(-1);
+      assert.deepEqual(broken.photoProgress,{read:4,total:4,phase:"combining"});
+      await shot("merge-failure","全部照片已读取，汇总失败后允许重试汇总");
+      await merge.click();
+      await page.getByText("已一起核对 4 张照片。重复角度的食物只计算一次。",{exact:true}).waitFor();
+      const merged=(await finished()).messages.at(-1);
+      assert.equal(merged.id,broken.id);
+      assert.deepEqual(photosIn(await attempt(merged.runId)),[]);
+      await shot("merge-retried","汇总重试在原回复内完成，没有重读照片");
+
+      await db.delete(rateLimit);
+      await control({action:"new"});await open();
+      const extra=await readFile(samples[0].file);
+      let uploads=0;
+      page.on("request",request=>{if(request.method()==="POST"&&request.url().includes("/api/meal-images/"))uploads++;});
+      await fileInput.setInputFiles(Array.from({length:10},(_,i)=>({name:"样例-"+i+".png",mimeType:"image/png",buffer:extra})));
+      await page.getByRole("alert").filter({hasText:"每条消息最多8张照片。"}).waitFor();
+      assert.equal(uploads,0);
+      await shot("ten-photos","超过8张在选图阶段明确提示，未发上传请求");
+      await input.fill("请只核对八张照片，重复角度只算一次。");
+      await fileInput.setInputFiles(samples.slice(0,8).map(row=>row.file));
+      await hint(8).waitFor();
+      await waitSend();
+      await shot("eight-selected","可选满八张，手机缩略图可横向浏览");
+      await button("发送消息").click();
+      await page.getByText("已一起核对 8 张照片。重复角度的食物只计算一次。",{exact:true}).waitFor();
+      const eight = await finished();
+      assert.equal(eight.messages.length,2);
+      const ids=eight.messages[0].imageIds;
+      assert.equal(ids.length,8);
+      assert.deepEqual(photosIn(await attempt(eight.messages.at(-1).runId)),[0,2,4,6].map(index=>ids.slice(index,index+2)));
+      await shot("eight-complete","八张依序分四批完成，仅输出一条答复");
+      check("八张四批、十张上传前校验及只重试汇总均通过");
+    }
+  }
+
   try{
-    if(process.env.FORMWARD_CONTEXT_SCREEN!=="desktop")await journey("mobile",true,async flow=>{
+    if(process.env.FORMWARD_CONTEXT_CASE!=="photos" && process.env.FORMWARD_CONTEXT_SCREEN!=="desktop")await journey("mobile",true,async flow=>{
       await savedThenInterrupted(flow,true);
-      const {page,input,button,chat,control,shot,check,open,send,finished}=flow;
+      const {page,chat,control,shot,check,open,send,finished}=flow;
       await control({action:"new"});
       const historical=(await chat()).conversationId;
       const history=Array.from({length:12},(_,n)=>({id:randomUUID(),userId,conversationId:historical,seq:n+1,
@@ -258,37 +464,13 @@ export async function runAssistantContextRecovery(db) {
       await shot("partial-query","服务端回放部分明细，用户能看到结果只覆盖前8项");
       check("部分明细保留范围说明");
 
-      await db.delete(rateLimit);
-      await control({action:"new"}); await open();
-      await send("两张照片已读验收。",2);
-      await page.getByText("两张照片都已读取。",{exact:true}).waitFor();
-      await finished();
-      assert.equal(await button(replyWithQuote).count(),0);
-      assert.equal(await page.getByRole("group",{name:/照片未处理/}).count(),0);
-      await shot("two-photos","两张照片处理完成，正常结束");
-
-      await send("分批验收 · 四张",4);
-      const batch=page.getByRole("group",{name:/还有 4 张照片未处理/});
-      await batch.waitFor();
-      assert.equal(await button(replyWithQuote).count(),0);
-      await shot("four-photos","四张照片在原消息下进入分批");
-      await batch.getByRole("checkbox").first().check();
-      await button("处理所选照片").click();
-      await page.getByText("还有 3 张照片未处理",{exact:true}).waitFor();
-      await finished();
-      await shot("photo-batched","处理后剩余候选减少，原消息继续可见");
-
-      const photos=await readFile(samples[0].file);
-      let uploads=0;
-      page.on("request",request=>{if(request.method()==="POST"&&request.url().includes("/api/meal-images/upload"))uploads++;});
-      await page.getByLabel("选择聊天照片",{exact:true}).setInputFiles(Array.from({length:10},(_,i)=>({name:"fixture-"+i+".png",mimeType:"image/png",buffer:photos})));
-      await page.getByRole("alert").filter({hasText:"每条消息最多8张照片。"}).waitFor();
-      assert.equal(uploads,0);
-      assert.equal(await input.inputValue(),"");
-      await shot("ten-photos","选十张在上传之前提示每条最多八张");
-      check("两图完成、四图分批、十图选图上限分别复测");
     });
-    if(process.env.FORMWARD_CONTEXT_SCREEN!=="mobile")await journey("desktop",false,flow=>savedThenInterrupted(flow,false));
+    if(process.env.FORMWARD_CONTEXT_CASE!=="photos" && process.env.FORMWARD_CONTEXT_SCREEN!=="mobile")
+      await journey("desktop",false,flow=>savedThenInterrupted(flow,false));
+    if(process.env.FORMWARD_CONTEXT_CASE!=="overflow" && process.env.FORMWARD_CONTEXT_SCREEN!=="desktop")
+      await journey("mobile-batches",true,flow=>automaticPhotos(flow,true));
+    if(process.env.FORMWARD_CONTEXT_CASE!=="overflow" && process.env.FORMWARD_CONTEXT_SCREEN!=="mobile")
+      await journey("desktop-batches",false,flow=>automaticPhotos(flow,false));
   }finally{await browser.close();}
 }
 

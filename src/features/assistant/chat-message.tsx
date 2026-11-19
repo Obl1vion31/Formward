@@ -34,9 +34,12 @@ function ToolProgress({message,timing,time}: {message:ChatMessage;timing?:ChatRu
   if (!working && !displayed.length) return time ? <div className={styles.meta}>{time}</div> : null;
   const running = displayed.findLast(step=>step.state==="running");
   const failed = displayed.some(step=>step.state==="error");
+  const photos = message.photoProgress;
+  const photoTitle = photos?.phase === "combining" ? "正在合并结果" :
+    photos ? photos.read ? `已读取 ${photos.read} / ${photos.total} 张` : "正在读取照片" : null;
   const title = working
     ? running ? running.name === "search_foods" ? "正在查找食材库" : "正在"+running.title
-      : timing && !timing.startedAt ? "等待开始" : "正在整理回答"
+      : timing && !timing.startedAt ? "等待开始" : photoTitle ?? "正在整理回答"
     : failed ? "查看过程 · 有步骤未完成" : "查看过程";
   const timer = working && timing?.startedAt ? <Elapsed key={timing.runId} timing={{...timing,startedAt:timing.startedAt}}/> : null;
   const groups = new Map<string,ChatStep[]>();

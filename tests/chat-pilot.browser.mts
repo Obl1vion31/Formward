@@ -48,18 +48,21 @@ const samples: {id:string;pathname:string;file:string;index:number}[] = [];
 if (experiencePhoto) {
   assert.ok(!realCosPath,"隔离样例只能使用虚构照片通道");
   const original = await readFile(experiencePhoto);
+  const label = process.env.FORMWARD_CHAT_FIXTURE_LABEL ? await readFile(process.env.FORMWARD_CHAT_FIXTURE_LABEL) : original;
+  const sampleCount = process.env.FORMWARD_CHAT_CONTEXT_RECOVERY === "1" || process.env.FORMWARD_CHAT_FIXTURE_LABEL ? 8 : 4;
   const sampleFolder = resolve(process.env.FORMWARD_CHAT_ARTIFACTS??".codex/assistant-experience");
   await mkdir(sampleFolder,{recursive:true});
-  // 同一张虚构图添加独立PNG备注，给分批验收提供四个可区分的附件。
-  for (let index=1;index<=4;index++) {
+  // 虚构样例用独立PNG备注区分顺序及附件身份。
+  for (let index=1;index<=sampleCount;index++) {
+    const sampleImage = index % 4 >= 3 || index % 4 === 0 ? label : original;
     const tag = Buffer.from("Fixture\0Batch "+index);
     const chunk = Buffer.alloc(tag.length+12);
     chunk.writeUInt32BE(tag.length);
     chunk.write("tEXt",4);
     tag.copy(chunk,8);
     chunk.writeUInt32BE(crc32(chunk.subarray(4,-4)),chunk.length-4);
-    assert.equal(original.subarray(-8,-4).toString(),"IEND");
-    const bytes = index===1 ? original : Buffer.concat([original.subarray(0,-12),chunk,original.subarray(-12)]);
+    assert.equal(sampleImage.subarray(-8,-4).toString(),"IEND");
+    const bytes = index===1 ? sampleImage : Buffer.concat([sampleImage.subarray(0,-12),chunk,sampleImage.subarray(-12)]);
     const id = randomUUID(), pathname = "meal-formal-v2/"+fixture.userId+"/"+id;
     const file = join(sampleFolder,"海南鸡饭-"+index+".png");
     await writeFile(file,bytes,{mode:0o600});

@@ -4,12 +4,14 @@ export type ChatExecutionInput = {
   timezone: string; messageId?: string; mealTask?: boolean;
   attachmentSourceId: string; attachmentImageIds: string[]; photoBatchOf?: string;
   contextQuote?: true;
+  photoBatch?: ChatPhotoObservation[];
 };
 export type ChatRequestDiagnostic = {
   state:"prepared"|"request_started"|"response_received"|"completed"; requestSha256:string;
   round: number; provider: ChatProvider; model: string; messageId: string; attachmentSourceId: string;
   images: {id:string;sha256:string;byteSize:number;mimeType:string}[]; textSha256:string;
   providerRequestId?:string; returnedModel?:string; maxPhotos?: number; detailLimit?: number;
+  phase?: "photos" | "answer";
 };
 export const chatProviderIds = ["qwen", "mimo", "glm"] as const;
 export type ChatProvider = typeof chatProviderIds[number];
@@ -21,7 +23,17 @@ export type ChatRunTiming = { runId: string; messageId: string; startedAt: strin
 export const chatContextLimitNotice = "这次要处理的内容太多，回复已中断。";
 export type ChatContextQuote = { id: string; text: string | null };
 export type ChatControlAction = "select_model" | "new" | "stop" | "enable" | "revoke" | "clear_followup" | "select_conversation" | "clear_context_quote";
+export const CHAT_PHOTO_LIMIT = 8;
+export const CHAT_PHOTOS_PER_BATCH = 2;
 export type ChatPhotoLimit = { imageIds: string[]; maxPhotos: number };
+export type ChatPhotoObservation = { imageId: string; notes: string };
+export type ChatPhotoProgress = { read: number; total: number; phase: "reading" | "combining" };
+
+export function chatPhotoProgress(input?: Pick<ChatExecutionInput,"attachmentImageIds" | "photoBatch"> | null): ChatPhotoProgress | undefined {
+  if (!input?.photoBatch) return;
+  const read = input.photoBatch.length, total = input.attachmentImageIds.length;
+  return { read, total, phase: read < total ? "reading" : "combining" };
+}
 export type ChatMessage = {
   id: string; seq: number; role: "user" | "assistant"; text: string; provider: ChatProvider | null;
   state: string; createdAt: string; replyTo: { id: string; text: string; contextQuote?: true } | null; imageIds: string[];
@@ -29,6 +41,7 @@ export type ChatMessage = {
   answeredQuestions?: ChatAnswer[];
   followupSourceId?: string;
   photoLimit?: ChatPhotoLimit;
+  photoProgress?: ChatPhotoProgress;
   contextLimited?: boolean;
   detailLimit?: number;
 };
@@ -53,7 +66,7 @@ export type ChatEvent =
   | { type: "usage"; usage: ChatUsage }
   | { type: "timing"; timing: ChatRunTiming }
   | { type: "text_delta"; runId: string; messageId: string; offset: number; text: string }
-  | { type: "progress"; runId: string; messageId: string; steps: ChatStep[]; references: ChatReference[] }
+  | { type: "progress"; runId: string; messageId: string; steps: ChatStep[]; references: ChatReference[]; photoProgress?: ChatPhotoProgress }
   | { type: "done" };
 export function usagePercent(spent: number, limit: number) {
   if (spent <= 0) return "0%";

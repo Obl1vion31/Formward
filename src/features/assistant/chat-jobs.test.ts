@@ -79,13 +79,17 @@ test("区域部署的后台来源由服务器配置，不依赖浏览器Cookie�
  try{await executeChatJob(db,job!,new AbortController().signal,{fetcher:async()=>{calls++;return completion();}});assert.equal(calls,1);assert.equal((await chatSnapshot(db,userId)).messages.at(-1)!.state,"complete");}finally{keys.forEach((key,index)=>{if(saved[index]===undefined)delete process.env[key];else process.env[key]=saved[index];});}
 });
 
-test("多图超出预算时只允许从同一消息的原附件里继续分批", async () => {
+test("历史手动分批消息仍只允许选择原附件的未处理部分", async () => {
   const images = await Promise.all(Array.from({length:6},()=>image()));
   const job = await begin({imageIds:images.map(item=>item.id)});
-  const claimed = await claimChatJob(db,"worker-photo-limit");
-  let calls = 0;
-  await executeChatJob(db,claimed!,new AbortController().signal,{fetcher:async()=>{calls++;return completion();}});
-  assert.equal(calls,0);
+  const {photoBatch: _newState, ...legacy} = job.row.executionInput!;
+  assert.deepEqual(_newState,[]);
+  await db.update(schema.assistantRun).set({state:"error",executionInput:legacy,requestDiagnostics:[{
+    state:"prepared",requestSha256:"legacy",round:1,provider:"qwen",model:job.row.model,
+    messageId:job.row.userMessageId,attachmentSourceId:job.row.userMessageId,images:[],textSha256:"legacy",maxPhotos:2,
+  }]}).where(eq(schema.assistantRun.id,job.row.id));
+  await db.update(schema.assistantMessage).set({state:"error",error:"本轮照片超出可处理范围。可分批继续，其余照片仍保留。"})
+    .where(eq(schema.assistantMessage.id,job.row.assistantMessageId));
   const current = await chatSnapshot(db,userId);
   const failed = current.messages.at(-1)!;
   assert.deepEqual(failed.photoLimit?.imageIds,images.map(item=>item.id));
@@ -242,4 +246,115 @@ test("历史省略和工具明细精简分开计量，原始查询结果保留",
   assert.equal(result.omittedFromContext.records,8);
   assert.match(result.contextNote,/实际日期或明细范围/);
   assert.equal(JSON.parse(String(tool.content)).records.length,16);
+});
+
+test("四图自动分批，第二批失败后从检查点续跑并复用原回复", async () => {
+  const images = await Promise.all(Array.from({length:4},()=>image()));
+  const ids = images.map(item=>item.id);
+  const text = "前两张和后两张请合起来核对，两个角度的食物只算一次。";
+  const job = await begin({text,imageIds:ids});
+  const read = async () => (await chatSnapshot(db,userId)).messages.at(-1)!;
+  assert.deepEqual((await read()).photoProgress,{read:0,total:4,phase:"reading"});
+  const imageLoader: Parameters<typeof chatImageContent>[4] = async (_db,owner,id) => {
+    assert.equal(owner,userId);
+    const bytes = images.find(image=>image.id===id)!.bytes;
+    return {stream:new ReadableStream({start(c){c.enqueue(bytes);c.close();}}),mimeType:"image/png"};
+  };
+  const requested: number[][] = [];
+  function verifyPhotos(init:RequestInit|undefined,expected:number[]) {
+    const body = JSON.parse(String(init?.body));
+    assert.equal(body.tools,undefined);
+    const content = body.messages.at(-1).content;
+    assert.equal(content[0].text,text);
+    const indexes=content.slice(1).map((part:{image_url:{url:string}})=>images.findIndex(item=>
+      item.bytes.equals(Buffer.from(part.image_url.url.split(",").at(-1)!,"base64")))+1);
+    assert.deepEqual(indexes,expected);
+    requested.push(indexes);
+    return body.messages[0].content as string;
+  }
+  let calls = 0;
+  await executeChatJob(db,(await claimChatJob(db,"automatic-start"))!,new AbortController().signal,{imageLoader,fetcher:async(_url,init)=>{
+    if (++calls === 1) {
+      verifyPhotos(init,[1,2]);
+      return completion(JSON.stringify({photos:[{number:1,notes:"照片一的烤鸡"},{number:2,notes:"照片二的标签"}]}));
+    }
+    assert.match(verifyPhotos(init,[3,4]),/照片一的烤鸡/);
+    assert.deepEqual((await read()).photoProgress,{read:2,total:4,phase:"reading"});
+    return new Response("temporary provider failure",{status:503});
+  }});
+  const failed = await read();
+  assert.equal(failed.state,"error");
+  assert.equal(failed.photoLimit,undefined);
+  assert.equal(failed.contextLimited,undefined);
+  assert.deepEqual(failed.photoProgress,{read:2,total:4,phase:"reading"});
+  assert.equal((await chatSnapshot(db,userId)).messages.length,2);
+  assert.ok(!JSON.stringify(failed).includes("照片一的烤鸡"));
+
+  const input:ChatSend={action:"continue",requestId:randomUUID(),provider:"qwen",conversationId:job.input.conversationId,
+    timezone:"Asia/Shanghai",messageId:failed.id};
+  const resumed=await startChatRun(db,userId,input);
+  assert.equal(resumed.row.assistantMessageId,failed.id);
+  assert.equal(resumed.row.userMessageId,job.row.userMessageId);
+  assert.deepEqual(resumed.row.executionInput?.photoBatch?.map(photo=>photo.imageId),ids.slice(0,2));
+  assert.equal((await startChatRun(db,userId,input)).started,false);
+  await assert.rejects(()=>startChatRun(db,userId,{...input,requestId:randomUUID()}),/已有回答/);
+  await executeChatJob(db,(await claimChatJob(db,"automatic-resume"))!,new AbortController().signal,{imageLoader,fetcher:async(_url,init)=>{
+    if (++calls === 3) {
+      verifyPhotos(init,[3,4]);
+      return completion(JSON.stringify({photos:[{number:3,notes:"照片三的份量"},{number:4,notes:"同一份烤鸡"}]}));
+    }
+    const body=JSON.parse(String(init?.body));
+    assert.equal(body.messages.at(-1).content,text);
+    assert.equal(body.tools.length>0,true);
+    assert.doesNotMatch(JSON.stringify(body),/data:image/);
+    for (const id of ids) assert.ok(body.messages[0].content.includes(id));
+    assert.match(body.messages[0].content,/同一份烤鸡/);
+    assert.deepEqual((await read()).photoProgress,{read:4,total:4,phase:"combining"});
+    return completion("〔正文〕四张照片已一起核对，烤鸡只计算一次。");
+  }});
+  assert.deepEqual(requested,[[1,2],[3,4],[3,4]]);
+  const complete = await read();
+  assert.equal(complete.state,"complete");
+  assert.equal(complete.id,failed.id);
+  assert.match(complete.text,/四张照片已一起核对/);
+  assert.equal((await chatSnapshot(db,userId)).messages.length,2);
+  const [attempt]=await db.select().from(schema.assistantRun).where(eq(schema.assistantRun.id,resumed.row.id));
+  assert.deepEqual(attempt.requestDiagnostics.map(item=>[item.phase,item.images.map(image=>image.id)]),[["photos",ids.slice(2)],["answer",[]]]);
+  assert.deepEqual(attempt.executionInput?.photoBatch?.map(photo=>photo.imageId),ids);
+});
+
+test("模型明确拒绝两图输入后按单张读取，汇总重试不再读取照片", async () => {
+  const photos = await Promise.all([image(),image()]), ids = photos.map(photo=>photo.id);
+  const job = await begin({imageIds:ids});
+  let requests = 0;
+  const imageLoader: Parameters<typeof chatImageContent>[4] = async (_db,_owner,id) => {
+    const bytes = photos.find(photo=>photo.id===id)!.bytes;
+    return {stream:new ReadableStream({start(c){c.enqueue(bytes);c.close();}}),mimeType:"image/png"};
+  };
+  await executeChatJob(db,(await claimChatJob(db,"auto-single"))!,new AbortController().signal,{imageLoader,fetcher:async(_url,init)=>{
+    requests++;
+    const body = JSON.parse(String(init?.body)), content = body.messages.at(-1).content;
+    if (requests === 1) {
+      assert.equal(content.length,3);
+      return Response.json({error:{code:"context_length_exceeded",message:"maximum context length"}},{status:400});
+    }
+    if (requests <= 3) {
+      assert.equal(content.length,2);
+      return completion(JSON.stringify({photos:[{number:requests-1,notes:"测试照片证据"}]}));
+    }
+    assert.equal(typeof content,"string");
+    return new Response("fixture merge unavailable",{status:503});
+  }});
+  const failed = (await chatSnapshot(db,userId)).messages.at(-1)!;
+  assert.equal(failed.state,"error");
+  assert.equal(failed.contextLimited,undefined);
+  assert.deepEqual(failed.photoProgress,{read:2,total:2,phase:"combining"});
+  const [released] = await db.select().from(schema.assistantUsageRequest).where(eq(schema.assistantUsageRequest.runId,job.row.id)).orderBy(schema.assistantUsageRequest.createdAt);
+  assert.equal(released.state,"settled");
+  assert.equal(Number(released.costCny),0);
+  await startChatRun(db,userId,{action:"continue",provider:"qwen",requestId:randomUUID(),conversationId:job.input.conversationId,messageId:failed.id,timezone:"Asia/Shanghai"});
+  await executeChatJob(db,(await claimChatJob(db,"auto-merge-retry"))!,new AbortController().signal,{imageLoader:async()=>assert.fail("已完成的图片不能重读"),
+    fetcher:async(_url,init)=>{requests++;assert.doesNotMatch(String(init?.body),/data:image/);return completion("汇总完成");}});
+  assert.equal(requests,5);
+  assert.equal((await chatSnapshot(db,userId)).messages.at(-1)?.text,"汇总完成");
 });

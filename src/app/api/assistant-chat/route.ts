@@ -7,14 +7,14 @@ import { isAccountRequestOrigin } from "@/features/auth/site-url";
 import { safeAiError } from "@/features/measurements/ai-api";
 import { getDatabase } from "@/db/client";
 import { assertChatAllowed } from "@/features/assistant/chat-config";
-import { chatProviderIds } from "@/features/assistant/chat-model";
+import { CHAT_PHOTO_LIMIT, chatProviderIds } from "@/features/assistant/chat-model";
 import { assistantTimezone } from "@/features/assistant/model";
 import { activeChatSubscription, listChatConversations, chatSnapshot, startChatRun } from "@/features/assistant/chat-store";
 import { chatRunStream } from "@/features/assistant/chat-stream";
 export const runtime = "nodejs";
 export const maxDuration = 600;
 const headers = { "Cache-Control": "private, no-store" };
-const inputSchema = z.object({ action: z.enum(["send", "retry", "continue"]), requestId: z.string().uuid(), provider: z.enum(chatProviderIds), conversationId: z.string().uuid(), text: z.string().max(16000).optional(), replyToId: z.string().uuid().optional(), imageIds: z.array(z.string().uuid()).max(8).refine(ids => new Set(ids).size === ids.length).optional(), imageSubset: z.array(z.string().uuid()).min(1).max(8).optional(), messageId: z.string().uuid().optional(), timezone: z.string().max(100), followup:followupSubmissionSchema.optional() }).strict();
+const inputSchema = z.object({ action: z.enum(["send", "retry", "continue"]), requestId: z.string().uuid(), provider: z.enum(chatProviderIds), conversationId: z.string().uuid(), text: z.string().max(16000).optional(), replyToId: z.string().uuid().optional(), imageIds: z.array(z.string().uuid()).max(CHAT_PHOTO_LIMIT).refine(ids => new Set(ids).size === ids.length).optional(), imageSubset: z.array(z.string().uuid()).min(1).max(8).optional(), messageId: z.string().uuid().optional(), timezone: z.string().max(100), followup:followupSubmissionSchema.optional() }).strict();
 export async function GET(request: Request) {
   try { return await withCurrentSession(request.headers, async owner => {
     const previewId=new URL(request.url).searchParams.get("previewId");

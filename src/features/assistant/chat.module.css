@@ -397,6 +397,29 @@
 .batchPhotos img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
 .batchPhotos input { position: absolute; inset-inline-end: 5px; inset-block-end: 5px; inline-size: 18px; block-size: 18px; accent-color: var(--action-fill); }
 .batch button { margin-top: 8px; padding: 6px 12px; background: var(--action-fill); color: var(--action-ink); }
+.photoBatchHint {
+  margin: 6px 10px 0;
+  font-size: .8125rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.photoResume {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  margin-block: 4px 0;
+}
+.photoResume p {
+  margin: 0;
+  font-size: .875rem;
+  color: var(--muted);
+}
+.photoResume button {
+  border: 1px solid var(--gold);
+  border-radius: 9px;
+  padding: 8px 12px;
+  max-width: 100%;
+}
 @media (prefers-reduced-motion: reduce) { .message[data-new-message=true] { animation: none; } }
 
 .contextRecovery {

@@ -2,7 +2,7 @@ import {and,eq} from "drizzle-orm";
 import type {Database} from "../../db/client";
 import {currentSessionIdentity} from "../auth/request-identity";
 import {assistantMessage,assistantRun} from "../../db/schema";
-import type {ChatEvent,ChatMessage} from "./chat-model";
+import {chatPhotoProgress,type ChatEvent,type ChatMessage} from "./chat-model";
 import {chatRunTiming,chatSnapshot,requireChatAccount,type ChatSend,type StoredRun} from "./chat-store";
 
 export function chatRunStream(
@@ -30,7 +30,7 @@ export function chatRunStream(
     request.signal.addEventListener("abort",finish,{once:true});
     if (request.signal.aborted) { finish(); return; }
 
-    let last: Pick<ChatMessage,"text"|"steps"|"references"> | undefined;
+    let last: Pick<ChatMessage,"text"|"steps"|"references"|"photoProgress"> | undefined;
     let startedAt: string | null | undefined, lastAuth = 0, initial = true;
     const snapshot = () => chatSnapshot(db,userId,undefined,
       input.mealTask ? input.conversationId : undefined,input.mealTask ? undefined : input.conversationId);
@@ -45,14 +45,14 @@ export function chatRunStream(
         if (initial || !incremental) {
           const data = await snapshot();
           emit({type:"snapshot",snapshot:data});
-          last = data.messages.find(message => message.id === started.row.assistantMessageId);
+          last = [...data.messages, ...(data.photoUpdates ?? [])].find(message => message.id === started.row.assistantMessageId);
           startedAt = data.runTiming?.runId === started.row.id ? data.runTiming.startedAt : undefined;
           initial = false;
           if (data.activeRunId !== started.row.id) { emit({type:"done"}); finish(); return; }
         } else {
           const [row] = await db.select({
             id:assistantRun.id,claimedAt:assistantRun.claimedAt,assistantMessageId:assistantRun.assistantMessageId,state:assistantRun.state,
-            text:assistantMessage.text,steps:assistantMessage.steps,references:assistantMessage.references,
+            text:assistantMessage.text,steps:assistantMessage.steps,references:assistantMessage.references,executionInput:assistantRun.executionInput,
           }).from(assistantRun).innerJoin(assistantMessage,and(eq(assistantMessage.id,assistantRun.assistantMessageId),
             eq(assistantMessage.userId,userId),eq(assistantMessage.conversationId,input.conversationId)))
             .where(and(eq(assistantRun.id,started.row.id),eq(assistantRun.userId,userId),eq(assistantRun.conversationId,input.conversationId)));
@@ -64,15 +64,16 @@ export function chatRunStream(
           }
           const claimedAt = row.claimedAt?.toISOString() ?? null;
           if (claimedAt !== startedAt) { startedAt = claimedAt; emit({type:"timing",timing:chatRunTiming(row)}); }
+          const photoProgress = chatPhotoProgress(row.executionInput);
           if (!last || !row.text.startsWith(last.text)) {
             emit({type:"snapshot",snapshot:await snapshot()});
           } else {
             const key = {runId:row.id,messageId:row.assistantMessageId};
             if (row.text !== last.text) emit({type:"text_delta",...key,offset:last.text.length,text:row.text.slice(last.text.length)});
-            if (JSON.stringify([last.steps,last.references]) !== JSON.stringify([row.steps,row.references]))
-              emit({type:"progress",...key,steps:row.steps,references:row.references});
+            if (JSON.stringify([last.steps,last.references,last.photoProgress]) !== JSON.stringify([row.steps,row.references,photoProgress]))
+              emit({type:"progress",...key,steps:row.steps,references:row.references,photoProgress});
           }
-          last = row;
+          last = {...row,photoProgress};
         }
         if (!closed) timer = setTimeout(() => void poll(),incremental ? 160 : 800);
       } catch {

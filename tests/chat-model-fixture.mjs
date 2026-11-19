@@ -8,6 +8,7 @@ function result(content,calls,slow=false){
  if(calls)return new Response('data: '+JSON.stringify({choices:[{delta:{...(content?{content}:{}),tool_calls:calls},finish_reason:'tool_calls'}]})+'\n\ndata: '+JSON.stringify({choices:[],usage})+'\n\ndata: [DONE]\n\n',{headers:{'content-type':'text/event-stream'}});
  let cancelled=false;return new Response(new ReadableStream({cancel(){cancelled=true;},async start(controller){for(let i=0;i<content.length;i+=slow?4:24){if(cancelled)return;controller.enqueue(new TextEncoder().encode('data: '+JSON.stringify({choices:[{delta:{content:content.slice(i,i+(slow?4:24))},finish_reason:null}]})+'\n\n'));if(slow)await new Promise(resolve=>setTimeout(resolve,100));}if(cancelled)return;controller.enqueue(new TextEncoder().encode('data: '+JSON.stringify({choices:[{delta:{},finish_reason:'stop'}]})+'\n\ndata: '+JSON.stringify({choices:[],usage})+'\n\ndata: [DONE]\n\n'));controller.close();}}),{headers:{'content-type':'text/event-stream'}});
 }
+const readFailures=new Set(), mergeFailures=new Set();
 function call(name,args,suffix=''){return result('',[{index:0,id:'call-'+name+suffix,type:'function',function:{name,arguments:JSON.stringify(args)}}]);}
 globalThis.fetch=async function(input,init){
  const url=new URL(typeof input==='string'||input instanceof URL?String(input):input.url);
@@ -17,6 +18,48 @@ globalThis.fetch=async function(input,init){
  }
  if(!allowed.has(url.hostname))return original(input,init);
  const body=JSON.parse(typeof init?.body==='string'?init.body:await input.clone().text()),lastUser=[...body.messages].reverse().find(message=>message.role==='user'),text=typeof lastUser?.content==='string'?lastUser.content:lastUser?.content?.find(part=>part.type==='text')?.text??'';
+ const system=String(body.messages[0]?.content);
+ if (system.startsWith("本轮只读取这批照片")) {
+   const numbers=(system.match(/当前图片的编号是 ([0-9、]+)/)?.[1]??"").split("、").map(Number);
+   const visuals=Array.isArray(lastUser?.content) ? lastUser.content.filter(part=>part.type==="image_url") : [];
+   if(body.tools?.length||!numbers[0]||visuals.length!==numbers.length||numbers.length>2) return new Response("invalid fictional photo batch",{status:400});
+   const failKey=text+"|"+visuals[0].image_url.url.slice(-160);
+   if(text.includes("第二批失败")&&numbers[0]===3&&!readFailures.delete(failKey)){
+     await new Promise(resolve=>setTimeout(resolve,3900));
+     readFailures.add(failKey);
+     return new Response("isolated second-batch failure",{status:503});
+   }
+   await new Promise(resolve=>setTimeout(resolve,numbers[0]===1?1450:2150));
+   if(init?.signal?.aborted) throw init.signal.reason;
+   return result(JSON.stringify({photos:numbers.map(number=>({number,notes:number%4===1||number%4===2
+     ?"同一份烤鸡和鸡油饭的不同角度，用户给定了份量。"
+     :"包装标签提供单位及每份营养，和前两张用于同一餐。"}))}));
+ }
+ if (system.includes("本条完整用户要求中各张照片的已提取证据")) {
+   if(Array.isArray(lastUser?.content)) return new Response("expected text-only photo evidence",{status:400});
+   const source=system.split("本条完整用户要求中各张照片的已提取证据").at(-1);
+   const count=(source.match(/"number":\d+[,}]/g)??[]).length;
+   if(text.includes("汇总失败")&&!mergeFailures.delete(text)){
+     mergeFailures.add(text);
+     await new Promise(resolve=>setTimeout(resolve,1100));
+     return new Response("isolated merge failure",{status:503});
+   }
+   if(text.includes("只核对")||!/(记一餐|记录|晚餐)/.test(text))
+     return result(`〔正文〕已一起核对 ${count} 张照片。重复角度的食物只计算一次。`);
+   const tools=body.tools??[];
+   const last=body.messages.at(-1);
+   if(last.role==="tool"&&/confirmationUrl|confirmationPath/.test(String(last.content)))
+     return result(`〔正文〕已一起核对 ${count} 张照片，烤鸡与鸡油饭只记一次。请核对晚餐并确认保存。`,null,true);
+   if(!tools.some(tool=>tool.function.name==="preview_meals")) {
+     await new Promise(resolve=>setTimeout(resolve,1000));
+     return call("load_tools",{names:["preview_meals"]});
+   }
+   // 刻意省略imageIds，核对真实服务把同餐的原图全部关联。
+   return call("preview_meals",{meals:[{date:"today",mealType:"晚餐",timezone:"Asia/Shanghai",foods:[
+     {name:"验收烤鸡",quantity:"150",unit:"g",caloriesKcal:"240",proteinG:"35",carbsG:"4",fatG:"9",sourceKind:"estimated",basis:"虚构验收"},
+     {name:"验收鸡油饭",quantity:"130",unit:"g",caloriesKcal:"280",proteinG:"5",carbsG:"41",fatG:"10",sourceKind:"estimated",basis:"虚构验收"},
+   ]}]});
+ }
  if (text.includes("上下文验收晚餐")) {
    if(!body.tools.some(tool=>tool.function.name==="preview_meals"))return call("load_tools",{names:["preview_meals"]});
    if(body.messages.some(message=>message.tool_calls?.some(entry=>entry.function.name==="preview_meals")))return result("〔正文〕隔离回放本应在下一轮前达到上下文上限。");
