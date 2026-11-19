@@ -111,6 +111,8 @@ Chromium 与 WebKit 各 18 项实际操作，68 张最终原图和 6 段原始�
 
 Chromium 和 WebKit 实测 390×845 手机模拟与 1728×984 电脑，另核对320像素窄屏。覆盖鼠标悬停、手机点按、键盘打开与关闭依据、图表选日、7D／30D／90D和查看记录往返。手验手机、电脑局部与全屏截图。证据位于 `C:/Users/14878/.codex/visualizations/2026/11/18/01a1ee4f-83a7-74a1-b58d-000090938d80/formward-overview-inline-accepted-preview`，ImageGen 初稿随底图及提示词归档。
 
-lint、类型检查、单元及集成测试（861通过、2跳过）和生产构建通过。iPhone 真机未测。本机分支待实际页面验收。
+lint、类型检查、单元及集成测试（861通过、2跳过）和生产构建通过。iPhone 真机未测。用户已验收。
 
 Chromium 在390×845及1728×984的浅色和深色条件下另通过900ms延迟加载检查，各固定槽位交接偏差不超过1 CSS像素。
+
+正式构建 `dual-entry-8ed4b2d9-overview-inline-comparison-20261120` 于北京时间 2026-11-20 00:24:33 发布。最终运行包的 Chromium、WebKit 手机和电脑四种组合复核通过。867 项单元与集成测试全部通过，其中两项在独立原生 PostgreSQL 中运行。上海网页与聊天 worker 源码一致，四个公网域名和兼容 IP 版本及登录返回已核对。

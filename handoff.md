@@ -1,6 +1,6 @@
 # Formward 项目交接
 
-正式站运行 `dual-entry-9e4bf912-overview-30d-guides-20261119`，源码 `9e4bf9124f43a65b3c6c3a1b04abe4a7128dec97`，BUILD_ID `562jW9Gy0iHB6uChfXRZw`。北京时间2026-11-19 22:08:25切换，总览30D辅助线与扩大区间的零线伸展已发布。 [部署与公网核对](docs/deployment.md)
+正式站运行 `dual-entry-8ed4b2d9-overview-inline-comparison-20261120`，源码 `8ed4b2d9f4dcd06a6f7adc19487cb5f7cc337c0d`，BUILD_ID `siCtt5JeEhPY3LyXriPrS`。北京时间 2026-11-20 00:24:33 切换。 总览当日与近7天的双行读数已发布。 [部署与公网核对](docs/deployment.md)
 
 ## 当前能力
 
