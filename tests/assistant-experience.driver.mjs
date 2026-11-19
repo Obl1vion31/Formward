@@ -123,7 +123,7 @@ export async function runAssistantExperienceBrowser(db) {
     await shot("composing",mobile?"照片和文字已就绪，模拟键盘占用视口":"照片和文字已就绪");
     await page.waitForTimeout(400);
 
-    await delay(1200);
+    await delay(1900);
     let first = true;
     await context.route(base+"/api/assistant-chat",async route => {
       if (route.request().method()==="POST" && first) {
@@ -292,11 +292,9 @@ export async function runAssistantExperienceBrowser(db) {
 
   try {
     if (!samples?.length) throw Error("需要提供隔离海南鸡饭样例");
-    if (process.env.FORMWARD_EXPERIENCE_CASE !== "exceptions") {
-      await journey("mobile",{width:390,height:844},true,flow=>mainFlow(flow,true));
-      if (process.env.FORMWARD_EXPERIENCE_CASE !== "mobile")
-        await journey("desktop",{width:1440,height:900},false,flow=>mainFlow(flow,false));
-    }
+    const scope = process.env.FORMWARD_EXPERIENCE_CASE;
+    if (!scope || scope==="mobile") await journey("mobile",{width:390,height:844},true,flow=>mainFlow(flow,true));
+    if (!scope || scope==="desktop") await journey("desktop",{width:1440,height:900},false,flow=>mainFlow(flow,false));
     await delay(0);
     if (!process.env.FORMWARD_EXPERIENCE_CASE || process.env.FORMWARD_EXPERIENCE_CASE === "exceptions") {
       // 三条录像复用的仅是本地虚构库。上一条录像的诊断请求不占下一条的分钟配额。
