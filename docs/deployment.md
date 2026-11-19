@@ -2,21 +2,21 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-7fa694b2-overview-zero-motion-20261119`，源码 `7fa694b246b01ed21e4cbb0c444d647da6ea3859`，BUILD_ID `Pia0hRTr9fVY7fPyQaYT9`。北京时间 2026-11-19 18:32:52 切换并核对 [正式版本](https://formward.top/api/app-version)。
+正式站运行 `dual-entry-ba0228e7-assistant-mobile-20261119`，源码 `ba0228e79650a98e87a0847f291b643c183ca616`，BUILD_ID `g5yR7PceFCN5n1z6mVGha`。北京时间 2026-11-19 19:50:05 切换并核对。 [正式版本](https://formward.top/api/app-version)
 
-总览提供净收支柱、次晨变化细杆和精简的单日明细。两图同时从各自的零线伸出，减少纵轴刻度并增大文字与绘图区的距离。手机点按、电脑悬停或锁定都能查看日期、摄入、消耗和次晨记录。Chromium 和 WebKit 使用同一发布包核对，见 [视觉验收](../design-qa.md)。
+手机助手的顶栏和输入栏固定，聊天区可单独滚动。触点柔光跟手，发送图标为圆形，回复操作显示「引用回复」「复制」。历史条目左滑从右侧露出红色「删除」。超限在原回答处反馈，有待处理的照片才在原消息下选择批次。 [小助手实际验收](assistant-chat-verification.md)
 
-上海网页与同版聊天 worker 均在运行。schema `0045_managed_membership`，45 项迁移、67 张表及正式配置核对通过。停写备份 `formward-primary-20261119T103247992638Z.dump.json` 完成原生校验和加密异地回读。
+上海网页与同版聊天 worker 均在运行。schema `0046_assistant_conversation_removal`、46 项迁移、67 张旧表原列与行摘要核对通过。切换前停写备份 `formward-primary-20261119T114958720255Z.dump.json` 完成原生校验及加密异地回读。0046 仅新增历史会话的可空移出时间，隔离恢复及两次重复执行核对通过。
 
-四个公网域名及兼容 IP 返回同一版本。总览入口、小助手深链的登录返回、新版样式和动效脚本、旧资源与匿名权限通过检查。56 项正式 Server Action 编号与绑定密钥兼容，海外网关实测可回源新版。
+四个公网域名及兼容 IP 返回同一版本。小助手深链的登录返回、新版和旧静态资源、匿名权限、OAuth 和 MCP 发现均通过。保留 56 项正式 Server Action 编号、绑定密钥和 2020 项旧静态资源。海外网关 Ready 并实际回源新版。
 
-本机永久归档位于 `.codex/backups/regional-releases/overview-zero-motion-20261119`。兼容包包含 2011 项旧静态资源，82,019,392 字节，本机和服务器 SHA256 均为 `1fb6ca5e32ea473e2b8f8357d380b22bfbbfacd4dcca67a61f5801f72256bbb1`。兼容回退应用与 worker 为 `assistant-experience-release-20261119`。
+本机永久归档位于 `.codex/backups/regional-releases/assistant-mobile-20261119`，运行包大小 82,221,898 字节，SHA256 `e82900f015a6a0e315061ea050bca77c9a92635b5a7c6c41a0d1d97b2798b3ac`。兼容回退应用与 worker 为 `assistant-mobile-recovery-20261119`。回退包已在同结构隔离库验证，历史移出状态随数据库保留。
 
 ## 迁移与发布
 
 先核对最新main、实际公网和其他未提交任务。运行lint、typecheck、真实测试文件清单、production build及受影响浏览器全过程；不能以最终截图、DOM存在或误展开4个文件代替。隔离PostgreSQL和虚构账号不连接正式库，不自动调用收费模型。
 
-结构仅由版本化Drizzle migration演进，已发布迁移不修改；新迁移先备份、加密异机回读、隔离恢复排演和旧值／重复检查。构建不自动迁移。当前schema0045、45项账本；增量迁移不重写健康事实和费用。应用与chat-worker同时启用安全门禁，恢复先停worker，只切兼容0045及数据库档位的安全包。
+结构仅由版本化Drizzle migration演进，已发布迁移不修改；新迁移先备份、加密异机回读、隔离恢复排演和旧值／重复检查。构建不自动迁移。当前 schema0046 和 46 项迁移账本。0046 新增可空的会话移出时间，已保存事实和费用逐表核对。恢复时先停 worker，再切支持 schema0046、历史移出和数据库档位的兼容应用与 worker。
 
 先保存本机永久运行包并验摘要，保留原绑定密钥及旧静态资源，当前Server Action使用新门禁，旧动作提示刷新，验收后，先以服务账号核对新目录可进入、文件可读取，并在私有端口启动正式配置完成readiness；顶级目录权限不得因私有umask变为0700。通过后才原子切应用指针；核对readiness、源码／schema／数据库及正式版本、健康和凭据摘要。失败只回切兼容应用，不恢复旧库或删数据。Vercel专用网关沿用下方归档工具与明确别名范围；Git推送不自动发布，不用根Next产物当网关，不以项目级promote接管其他别名。无网关改动时核对既有READY绑定和实际回源即可。
 
