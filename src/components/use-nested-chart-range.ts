@@ -9,6 +9,7 @@ const attributes = {
   line: ["x1", "y1", "x2", "y2"],
   ellipse: ["cx", "cy", "rx", "ry"],
   rect: ["x", "y", "width", "height", "rx", "ry"],
+  text: ["x", "y"],
 };
 type Shape = keyof typeof attributes;
 type Mark = {element: SVGElement; shape: Shape; position: number[]; opacity: number};
@@ -23,6 +24,8 @@ type Motion = {
   stop: () => void;
 };
 
+export const isNestedChartPreset = (mode: string) => presets.has(mode.replace(/d$/, ""));
+
 function measureMarks(root: HTMLElement): Marks {
   const bounds = root.getBoundingClientRect();
   const marks: Marks = new Map();
@@ -36,11 +39,14 @@ function measureMarks(root: HTMLElement): Marks {
     const w = (name: string) => read(name) * matrix.a;
     const h = (name: string) => read(name) * matrix.d;
     const tagIsDot = tag === "ellipse" || tag === "circle";
-    const shape = tagIsDot ? "ellipse" : tag === "rect" ? "rect" : "line";
-    const position = tagIsDot
-      ? [x("cx"), y("cy"), w(tag === "circle" ? "r" : "rx"), h(tag === "circle" ? "r" : "ry")]
-      : tag === "rect" ? [x("x"), y("y"), w("width"), h("height"), w("rx"), h(element.hasAttribute("ry") ? "ry" : "rx")]
-      : [x("x1"), y("y1"), x("x2"), y("y2")];
+    const shape = tagIsDot ? "ellipse" : tag === "rect" || tag === "text" ? tag : "line";
+    let position: number[];
+    switch (shape) {
+      case "ellipse": position = [x("cx"), y("cy"), w(tag === "circle" ? "r" : "rx"), h(tag === "circle" ? "r" : "ry")]; break;
+      case "rect": position = [x("x"), y("y"), w("width"), h("height"), w("rx"), h(element.hasAttribute("ry") ? "ry" : "rx")]; break;
+      case "text": position = [x("x"), y("y")]; break;
+      case "line": position = [x("x1"), y("y1"), x("x2"), y("y2")]; break;
+    }
     const copy = document.createElementNS(svgNS, shape);
     copy.dataset.rangeCopy = key;
     copy.style.fill = style.fill;
@@ -51,6 +57,13 @@ function measureMarks(root: HTMLElement): Marks {
     const strokeScale = style.vectorEffect === "non-scaling-stroke" ? 1 : Math.min(matrix.a, matrix.d);
     copy.style.strokeWidth = (parseFloat(style.strokeWidth) * strokeScale) + "px";
     copy.style.strokeDasharray = element.getAttribute("stroke-dasharray") ?? style.strokeDasharray;
+    if (shape === "text") {
+      copy.textContent = element.textContent;
+      copy.style.textAnchor = style.textAnchor;
+      copy.style.fontFamily = style.fontFamily;
+      copy.style.fontWeight = style.fontWeight;
+      copy.style.fontSize = parseFloat(style.fontSize) * matrix.d + "px";
+    }
     marks.set(key, {element: copy, shape, position, opacity: Number(style.opacity)});
   }
   return marks;
@@ -76,11 +89,15 @@ function drawBetween(before: Mark | undefined, after: Mark | undefined, progress
   };
 }
 
-/** 先排布共同日期，再显现较早日期。坐标轴、焦点及命中区始终来自正式图。 */
+/** 先排布共同日期，再显现较早日期。过渡图层只绘制，焦点及命中区来自正式图。 */
 export function useNestedChartRange({mode, from, to, series}: Range) {
   const plot = useRef<HTMLDivElement | null>(null);
-  const bindPlot = useCallback((node: HTMLDivElement | null) => { plot.current = node; }, []);
   const running = useRef<Motion | null>(null);
+  const finish = useCallback(() => running.current?.stop(), []);
+  const bindPlot = useCallback((node: HTMLDivElement | null) => {
+    if (plot.current !== node) finish();
+    plot.current = node;
+  }, [finish]);
   const previous = useRef<Range>({mode, from, to, series});
 
   function prepare(next: string) {
@@ -88,7 +105,7 @@ export function useNestedChartRange({mode, from, to, series}: Range) {
     const root = plot.current;
     if (!root) return;
     const reduce = matchMedia("(prefers-reduced-motion: reduce)");
-    const eligible = presets.has(mode.replace(/d$/, "")) && presets.has(next.replace(/d$/, "")) && !reduce.matches;
+    const eligible = isNestedChartPreset(mode) && isNestedChartPreset(next) && !reduce.matches;
     const current = eligible ? running.current?.current ?? measureMarks(root) : null;
     running.current?.stop();
     if (!current?.size) return;
@@ -170,5 +187,5 @@ export function useNestedChartRange({mode, from, to, series}: Range) {
   }, [mode, from, to, series]);
 
   useLayoutEffect(() => () => running.current?.stop(), []);
-  return {bindPlot, prepare};
+  return {bindPlot, prepare, finish};
 }

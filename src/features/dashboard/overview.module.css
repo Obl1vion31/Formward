@@ -252,19 +252,22 @@
 }
 
 
-.relationship{min-height:0;height:var(--relationship-full-height,448px)}
+.relationship{min-height:0;height:var(--relationship-full-height,418px)}
 .relationship>.plot{position:relative;height:100%}.relationship>.plot svg{height:100%}
-.relationship[data-compact=true]{min-height:0;height:var(--relationship-compact-height,276px)}
+.relationship[data-compact=true]{min-height:0;height:var(--relationship-compact-height,268px)}
 .relationship[data-compact=true]>.plot{height:100%}.relationship[data-compact=true]>.plot svg{height:100%}
 .waitingPlot{display:grid;place-items:center}
-@media(max-width:700px),(hover:none) and (pointer:coarse){.relationship:not([data-compact=false]){min-height:0;height:var(--relationship-compact-height,276px)}.relationship>.plot,.relationship>.plot svg{height:100%}}
-@media(max-height:600px){.relationship[data-compact=true]{height:var(--relationship-short-height,236px)}}
-@media(max-height:600px) and (max-width:700px),(max-height:600px) and (hover:none) and (pointer:coarse){.relationship:not([data-compact=false]){height:var(--relationship-short-height,236px)}}
+@media(max-width:700px),(hover:none) and (pointer:coarse){.relationship:not([data-compact=false]){min-height:0;height:var(--relationship-compact-height,268px)}.relationship>.plot,.relationship>.plot svg{height:100%}}
+@media(max-height:600px){.relationship[data-compact=true]{height:var(--relationship-short-height,228px)}}
+@media(max-height:600px) and (max-width:700px),(max-height:600px) and (hover:none) and (pointer:coarse){.relationship:not([data-compact=false]){height:var(--relationship-short-height,228px)}}
 
 .balanceCoverage { fill:color-mix(in srgb,var(--warm-white) 4%,transparent); }
 .coverageMark { stroke:var(--muted); stroke-width:1.8; stroke-linecap:round; opacity:.66; }
 .coverageMark[data-selected="true"] { stroke-width:2.2; opacity:1; }
 .relationship .plotHit { -webkit-tap-highlight-color:transparent; }
+.relationship .plot [data-overview-date]:focus { outline:none; }
+.relationship .plot [data-overview-date]:focus-visible .plotHit { stroke:none; }
+.relationship [data-overview-date-label] { cursor:pointer; }
 .mobileSelected strong b { font-weight:650; }
 .mobileSelected strong small { color:var(--muted); font-size:12px; font-weight:400; }
 
