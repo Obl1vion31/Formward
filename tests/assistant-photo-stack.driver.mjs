@@ -34,6 +34,45 @@ async function layout(stack, expected) {
   return geometry;
 }
 
+async function trackOpening(stack) {
+  await stack.evaluate(button => {
+    window.photoOpeningFrames = null;
+    button.addEventListener("click", () => {
+      const frames = [];
+      const start = performance.now();
+      function update(now) {
+        const viewer = document.querySelector('dialog[aria-label="照片预览"]');
+        const stage = viewer?.querySelector('[class*="photoStage"]');
+        const photo = stage?.querySelector('img[data-ready="true"]');
+        if (viewer?.open && stage) {
+          const { x, y, width, height } = stage.getBoundingClientRect();
+          frames.push({ at: now - start, opacity: Number(getComputedStyle(viewer).opacity),
+            photo: !!photo && photo.complete && photo.naturalWidth > 0, stage: [x, y, width, height] });
+        }
+        if (now - start < 440) requestAnimationFrame(update);
+        else window.photoOpeningFrames = frames;
+      }
+      requestAnimationFrame(update);
+    }, { once: true });
+  });
+}
+
+async function openingFrames(page) {
+  await page.waitForFunction(() => !!window.photoOpeningFrames);
+  const frames = await page.evaluate(() => window.photoOpeningFrames);
+  assert.ok(frames.length >= 5 && frames[0].opacity < 1 && frames.at(-1).opacity === 1, "打开过程实际从淡入到完全可见");
+  assert.ok(frames.at(-1).photo);
+  let loaded = false;
+  for (const [index, frame] of frames.entries()) {
+    assert.ok(!index || frame.opacity + .03 >= frames[index - 1].opacity, "打开过程中透明度连续单向增加");
+    assert.ok(frame.stage.every((n, j) => Math.abs(n - frames[0].stage[j]) <= 1), "预览框从第一帧定位，图片读取不挪位");
+    assert.ok(!loaded || frame.photo, "原图出现后连续显示");
+    loaded ||= frame.photo;
+  }
+  return { frames: frames.length, imageAtMs: Math.round(frames.find(frame => frame.photo).at),
+    duration: Math.round(frames.find(frame => frame.opacity === 1).at), geometryStable: true, monotonic: true };
+}
+
 export async function runAssistantPhotoStack(db) {
   const fixture = JSON.parse(await readFile(process.env.FORMWARD_CHAT_BROWSER_CONFIG, "utf8"));
   const { baseURL, userId, account, samples } = fixture;
@@ -122,8 +161,11 @@ export async function runAssistantPhotoStack(db) {
       await page.waitForTimeout(800);
       checks.push("实际发送后前景图完整，四层对角露出，照片在所属文字上方");
 
+      await trackOpening(four);
       await four.click();
       await viewPhoto(1, ids[0]);
+      result.opening = await openingFrames(page);
+      checks.push("点开时预览框位置稳定，160 毫秒淡入连续，首图出现后持续可见");
       assert.ok(await button("上一张").isDisabled());
       await shot("03-open");
       await page.waitForTimeout(750);
@@ -211,38 +253,58 @@ export async function runAssistantPhotoStack(db) {
       assert.equal(await one.getAttribute("href"), "/api/meal-images/" + samples[0].id);
       checks.push("双主题各宽度核对 2、4、8 个实际露角，纯照片消息和原有单张入口可用");
 
-      // 在空白浏览器会话预设故障，避免已浏览的原图被 WebKit 从内存直接复用。
+      // 空白浏览器会话预设慢读与故障，避免复用同一页面已经读取的原图。
       await db.delete(rateLimit);
-      const reading = await browser.newContext({ baseURL, viewport, hasTouch: mobile, isMobile: mobile });
+      const reading = await browser.newContext({ baseURL, viewport, hasTouch: mobile, isMobile: mobile, reducedMotion: "reduce" });
+      let releaseRead;
+      const slowRead = new Promise(resolve => { releaseRead = resolve; });
+      const review = await reading.newPage();
       try {
         const path = url => url.pathname === "/api/meal-images/" + ids[1] && !url.search;
         let rejectedReads = 0;
-        const failRead = route => {
+        const failRead = async route => {
           rejectedReads++;
-          return route.fulfill({ status: 503, body: "" });
+          await slowRead;
+          await route.fulfill({ status: 503, body: "" });
         };
         await reading.route(path, failRead);
         const authenticated = await reading.request.post("/api/auth/sign-in/email", { headers: { Origin: baseURL }, data: account });
         assert.equal(authenticated.status(), 200);
-        const review = await reading.newPage();
         review.on("pageerror", error => errors.push(String(error)));
-        await review.goto(mobile ? "/dashboard/assistant" : "/dashboard");
-        if (!mobile) await review.locator("[data-assistant-trigger]:visible").click();
+        await review.goto(mobile ? "/dashboard/assistant" : "/dashboard", { waitUntil: "domcontentloaded" });
+        if (!mobile) {
+          await review.locator("[data-assistant-trigger]:visible").click();
+          await review.locator("dialog[data-assistant-surface]").evaluate(node =>
+            Promise.all(node.getAnimations().map(animation => animation.finished.catch(() => {}))));
+        }
         await review.getByRole("button", { name: "查看 4 张照片", exact: true }).click();
         const viewer = review.getByRole("dialog", { name: "照片预览", exact: true });
+        assert.equal(await viewer.evaluate(node => getComputedStyle(node).animationName), "none");
         await viewPhoto(1, ids[0], viewer);
+        const previous = await viewer.getByRole("img", { name: "第 1 张照片", exact: true }).boundingBox();
         await viewer.getByRole("button", { name: "下一张", exact: true }).click();
+        await viewer.getByText("正在读取照片…", { exact: true }).waitFor();
+        await viewPhoto(1, ids[0], viewer);
+        assert.deepEqual(await viewer.getByRole("img", { name: "第 1 张照片", exact: true }).boundingBox(), previous);
+        await review.screenshot({ path: join(directory, engine + "-" + surface + "-slow-read.png") });
+        shots.push(engine + "-" + surface + "-slow-read.png");
+        releaseRead();
         await viewer.getByText("这张照片读取失败。", { exact: true }).waitFor();
         assert.ok(rejectedReads > 0);
         await reading.unroute(path, failRead);
         await viewer.getByRole("button", { name: "重新读取", exact: true }).click();
         await viewPhoto(2, ids[1], viewer);
+        assert.deepEqual(await viewer.getByRole("img", { name: "第 2 张照片", exact: true }).boundingBox(), previous);
         await viewer.getByRole("button", { name: "关闭照片预览", exact: true }).click();
         await viewer.waitFor({ state: "hidden" });
+      } catch (error) {
+        await review.screenshot({ path: join(directory, engine + "-" + surface + "-read-failure.png") }).catch(() => {});
+        throw error;
       } finally {
+        releaseRead();
         await reading.close();
       }
-      checks.push("图片读取失败可就地恢复同一张，预览仍能关闭");
+      checks.push("减少动态效果直接显示，慢读时保留上一张，原图失败可在相同位置重试");
       assert.deepEqual(errors, []);
       result.passed = true;
     } catch (error) {
