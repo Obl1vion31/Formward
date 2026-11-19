@@ -48,6 +48,15 @@ form.historyDate label{display:grid;gap:6px;font-size:13px}form.historyDate .his
   align-items: center;
   padding-block: 6px;
 }
+@media (min-width: 701px) and (hover: hover) {
+  .records .row[data-row-layout=body] {
+    grid-template-columns:
+      minmax(0, clamp(7.25rem, 26%, 20rem))
+      minmax(0, clamp(9rem, 29%, 22rem))
+      minmax(0, 1fr) auto;
+  }
+}
+
 .row[data-row-layout=body] .date { display: contents; }
 .row[data-row-layout=body] .dateHeading { grid-area: 1 / 1 / 2 / 4; min-height: 44px; }
 .records .row[data-row-layout=body] .actions { grid-area: 1 / 4; justify-self: end; align-self: center; margin: 0; }
