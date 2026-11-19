@@ -348,7 +348,106 @@
 .message[data-new-message=true] { animation: message-arrive 180ms cubic-bezier(.2,.8,.2,1) both; }
 @keyframes message-arrive { from { transform: scale(.96); } to { transform: scale(1); } }
 .images a { position: relative; }
-.images .photoHandoff { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+.images .photoHandoff, .photoLayer .photoHandoff { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+
+.workspace .photoStack, .photoStack {
+  --photo-step: 12px;
+  --photo-width: 144px;
+  --photo-height: 96px;
+  --photo-offset: calc((var(--photo-count) - 1) * var(--photo-step));
+  display: block;
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  inline-size: min(100%, calc(var(--photo-width) + var(--photo-offset)));
+  block-size: calc(var(--photo-height) + var(--photo-offset));
+  margin: 0 0 8px auto;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--warm-white);
+  cursor: pointer;
+}
+.photoStack:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.photoLayer {
+  --layer-offset: calc(var(--photo-index) * var(--photo-step));
+  position: absolute;
+  z-index: calc(var(--photo-count) - var(--photo-index));
+  inset-inline-start: var(--layer-offset);
+  inset-block-end: var(--layer-offset);
+  inline-size: calc(100% - var(--photo-offset));
+  block-size: var(--photo-height);
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface-hover);
+}
+.photoLayer img { display: block; inline-size: 100%; block-size: 100%; object-fit: cover; }
+.photoLayer:first-child img { object-fit: contain; }
+.photoStackCount {
+  position: absolute;
+  z-index: calc(var(--photo-count) + 1);
+  inset-inline-end: 6px;
+  inset-block-end: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--warm-white);
+  font-size: .8125rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.photoStackCount svg { width: 14px; height: 14px; transform: rotate(-90deg); }
+
+.photoViewer {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  inline-size: min(calc(100% - 24px), 720px);
+  block-size: min(calc(100dvh - 24px), 680px);
+  max-inline-size: none;
+  max-block-size: none;
+  margin: auto;
+  padding: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  color: var(--warm-white);
+  background: var(--surface);
+  overflow: hidden;
+}
+.photoViewer[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 4px; }
+.photoViewer::backdrop { background: rgb(0 0 0 / 48%); }
+.photoViewerHeader { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; }
+.photoViewerHeader span { grid-column: 2; text-align: center; color: var(--muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
+.photoViewer button:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.photoViewer button:hover:not(:disabled) { background: var(--surface-hover); }
+.photoViewer button:disabled { opacity: .48; cursor: default; }
+.photoStage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--surface-hover);
+  touch-action: pan-y pinch-zoom;
+}
+.photoStage img { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; object-fit: contain; visibility: hidden; }
+.photoStage img[data-ready=true] { visibility: visible; }
+.photoStage p { margin: 0; color: var(--muted); font-size: .875rem; }
+.photoReadError { display: grid; justify-items: center; gap: 4px; }
+.photoReadError button { min-height: 44px; padding: 0 12px; border: 0; border-radius: 8px; color: var(--gold); background: none; cursor: pointer; }
+.photoViewerControls { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.photoViewerControls button:first-child svg { transform: rotate(90deg); }
+.photoViewerControls button:last-child svg { transform: rotate(-90deg); }
+
 .sendPending { position: absolute; inset-inline-end: 0; inset-block-start: 100%; margin: 1px 0 0; color: var(--muted); font-size: .75rem; }
 .sendError { text-align: end; color: var(--error); }
 .sendError p { margin: 4px 0 0; font-size: .875rem; }

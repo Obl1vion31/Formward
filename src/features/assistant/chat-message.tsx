@@ -1,10 +1,10 @@
 "use client";
 
-/* eslint-disable @next/next/no-img-element -- 会话原图在请求时校验账号归属。 */
 import { useEffect, useState, type ReactNode } from "react";
 import { LoadingLink } from "@/components/loading-link";
 import { ChatPreviewCards } from "./chat-preview-card";
 import { ChatText } from "./chat-text";
+import { ChatPhotos, type ChatPhotoPreviews } from "./chat-photos";
 import { chatDisplayText, chatRecordReferences, withoutRepeatedFollowup } from "./chat-presentation";
 import { Glyph } from "./chat-icon";
 import type { ChatAnswer, ChatMessage, ChatRunTiming, ChatStep, Followup } from "./chat-model";
@@ -12,7 +12,6 @@ import styles from "./chat.module.css";
 
 const roles = { qwen: "千问", mimo: "小米 MiMo", glm: "智谱" };
 const clock = new Intl.DateTimeFormat("zh-CN", {hour:"2-digit",minute:"2-digit",hourCycle:"h23"});
-const photoUrl = (id:string) => "/api/meal-images/"+id;
 
 function Elapsed({timing}: {timing:ChatRunTiming & {startedAt:string}}) {
   const {observedAt,startedAt} = timing;
@@ -71,21 +70,6 @@ function AnswerSummary({answers,inline}: {answers:ChatAnswer[];inline?:boolean})
   </details>;
 }
 
-function ChatPhoto({id,local,confirmed,onHandoff}: {
-  id:string;local?:string;confirmed:boolean;onHandoff?:()=>void;
-}) {
-  const remote = photoUrl(id);
-  return <a href={confirmed ? remote : local ?? remote} target="_blank" rel="noreferrer">
-    {local && <img key="preview" src={local} alt="本条消息的私有照片"/>}
-    {(!local || confirmed) && <img key="remote" src={remote} alt={local?"":"本条消息的私有照片"}
-      className={local?styles.photoHandoff:undefined} onLoad={event=>{
-        if (!local) return;
-        const image = event.currentTarget;
-        void image.decode().then(()=>{if(image.isConnected)onHandoff?.();}).catch(()=>{});
-      }}/>}
-  </a>;
-}
-
 export function ChatMessageBody({message,inlinePreviews,historical=false,followup,jump,navigate,children,timing,answers,
   previews,onPhotoHandoff,sendStatus,photoActions,contextActions,continuation=false,actions}: {
   message:ChatMessage;
@@ -97,7 +81,7 @@ export function ChatMessageBody({message,inlinePreviews,historical=false,followu
   children?:ReactNode;
   timing?:ChatRunTiming|null;
   answers?:ChatAnswer[];
-  previews?:{phase:"sending"|"accepted"|"error";photos:{id?:string;preview?:string}[]};
+  previews?:ChatPhotoPreviews;
   onPhotoHandoff?:(id:string)=>void;
   sendStatus?:ReactNode;
   photoActions?:ReactNode;
@@ -124,9 +108,7 @@ export function ChatMessageBody({message,inlinePreviews,historical=false,followu
         <Glyph name="quote"/><span>{message.replyTo.text}</span>
       </button>)}
     {!user && <ToolProgress message={message} timing={timing} time={continuation ? time : undefined}/>}
-    {message.imageIds.length>0 && <div className={styles.images}>{message.imageIds.map(id=><ChatPhoto key={id} id={id}
-      local={previews?.photos.find(photo=>photo.id===id)?.preview}
-      confirmed={!previews || previews.phase==="accepted"} onHandoff={()=>onPhotoHandoff?.(id)}/>)}</div>}
+    {message.imageIds.length > 0 && <ChatPhotos ids={message.imageIds} previews={previews} onHandoff={onPhotoHandoff}/>}
     {user ? (message.text || !!message.answeredQuestions?.length) && <div className={styles.text}>
       {message.answeredQuestions?.length ? <AnswerSummary answers={message.answeredQuestions}/> : <p>{message.text}</p>}
     </div> : answer && <ChatText value={answer} navigate={navigate}/>}
