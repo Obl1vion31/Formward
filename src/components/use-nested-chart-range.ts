@@ -1,7 +1,7 @@
 "use client";
 
 import {useCallback, useLayoutEffect, useRef} from "react";
-import {chartZeroGrowthEasing} from "./use-chart-motion";
+import {chartLineEasing, chartPointPhase, chartZeroGrowthEasing} from "./use-chart-motion";
 
 const svgNS = "http://www.w3.org/2000/svg";
 const duration = 300;
@@ -14,10 +14,10 @@ const attributes = {
   text: ["x", "y"],
 };
 type Shape = keyof typeof attributes;
-type Mark = {element: SVGElement; shape: Shape; position: number[]; opacity: number; zero?: number};
+type Mark = {element: SVGElement; shape: Shape; position: number[]; opacity: number; zero?: number; entry?: "point" | "line"};
 type Marks = Map<string, Mark>;
 type Range = {mode: string; from: string; to: string; series?: string};
-type Progress = {expands: boolean; move: number; reveal: number; grow?: number};
+type Progress = {expands: boolean; move: number; reveal: number; grow: number; point: number; line: number};
 type Motion = {
   target: string;
   frame: number;
@@ -29,7 +29,7 @@ type Motion = {
 
 export const isNestedChartPreset = (mode: string) => presets.has(mode.replace(/d$/, ""));
 
-function measureMarks(root: HTMLElement, growNewValues: boolean): Marks {
+function measureMarks(root: HTMLElement): Marks {
   const bounds = root.getBoundingClientRect();
   const marks: Marks = new Map();
   for (const element of root.querySelectorAll<SVGGraphicsElement>("[data-range-mark]")) {
@@ -67,9 +67,25 @@ function measureMarks(root: HTMLElement, growNewValues: boolean): Marks {
       copy.style.fontWeight = style.fontWeight;
       copy.style.fontSize = parseFloat(style.fontSize) * matrix.d + "px";
     }
-    const origin = growNewValues ? element.closest<SVGGElement>("[data-chart-grow-from]")?.dataset.chartGrowFrom : undefined;
+    const origin = element.closest<SVGElement>("[data-chart-grow-from]")?.dataset.chartGrowFrom
+      ?? element.closest<SVGElement>("[data-chart-bar]")?.dataset.chartZero;
     const zero = origin === undefined ? undefined : Number(origin) * matrix.d + matrix.f - bounds.top;
-    marks.set(key, {element: copy, shape, position, opacity: Number(style.opacity), zero});
+    const entry = element.hasAttribute("data-chart-point") ? "point"
+      : element.hasAttribute("data-chart-line") ? "line" : undefined;
+    let opacity = Number(style.opacity);
+    // 首次绘制中换档时，保留已经描出的长度。目标图的静态线没有描边动画。
+    if (entry === "line" && style.strokeDasharray !== "none") {
+      const length = parseFloat(style.strokeDasharray);
+      const offset = parseFloat(style.strokeDashoffset);
+      if (length > 0 && offset > 0) {
+        const drawn = clampProgress(1 - offset / length);
+        position[2] = position[0] + (position[2] - position[0]) * drawn;
+        position[3] = position[1] + (position[3] - position[1]) * drawn;
+        if (!drawn) opacity = 0;
+        copy.style.strokeDasharray = "none";
+      }
+    }
+    marks.set(key, {element: copy, shape, position, opacity, zero, entry});
   }
   return marks;
 }
@@ -91,9 +107,15 @@ function growMark(mark: Mark, zero: number, progress: number): Mark {
   return {...mark, position, opacity: progress > 0 ? mark.opacity : 0};
 }
 
-function drawBetween(before: Mark | undefined, after: Mark | undefined, {expands, move, reveal, grow}: Progress) {
+function drawBetween(before: Mark | undefined, after: Mark | undefined, {expands, move, reveal, grow, point, line}: Progress) {
   if (!before && after) {
-    if (grow !== undefined && after.zero !== undefined && after.shape !== "text") return growMark(after, after.zero, grow);
+    if (expands && after.zero !== undefined && after.shape !== "text") return growMark(after, after.zero, grow);
+    if (expands && after.entry === "point") return {...after, opacity: after.opacity * point};
+    if (expands && after.entry === "line") {
+      const [x1, y1, x2, y2] = after.position;
+      return {...after, position: [x1, y1, x1 + (x2 - x1) * line, y1 + (y2 - y1) * line],
+        opacity: line > 0 ? after.opacity : 0};
+    }
     return {...after, opacity: after.opacity * (expands ? reveal : move)};
   }
   if (before && !after) return {...before, opacity: before.opacity * (1 - (expands ? move : reveal))};
@@ -106,7 +128,7 @@ function drawBetween(before: Mark | undefined, after: Mark | undefined, {expands
 }
 
 /** 先排布共同日期，再显现较早日期。过渡图层只绘制，焦点及命中区来自正式图。 */
-export function useNestedChartRange({mode, from, to, series, growNewValues = false}: Range & {growNewValues?: boolean}) {
+export function useNestedChartRange({mode, from, to, series}: Range) {
   const plot = useRef<HTMLDivElement | null>(null);
   const running = useRef<Motion | null>(null);
   const finish = useCallback(() => running.current?.stop(), []);
@@ -122,8 +144,8 @@ export function useNestedChartRange({mode, from, to, series, growNewValues = fal
     if (!root) return;
     const reduce = matchMedia("(prefers-reduced-motion: reduce)");
     const eligible = isNestedChartPreset(mode) && isNestedChartPreset(next) && !reduce.matches;
-    const snapshot = eligible ? running.current?.current ?? measureMarks(root, growNewValues) : null;
-    const current = growNewValues && snapshot ? new Map([...snapshot].filter(([, mark]) => mark.opacity > 0)) : snapshot;
+    const snapshot = eligible ? running.current?.current ?? measureMarks(root) : null;
+    const current = snapshot && new Map([...snapshot].filter(([, mark]) => mark.opacity > 0));
     running.current?.stop();
     if (!current?.size) return;
 
@@ -169,19 +191,22 @@ export function useNestedChartRange({mode, from, to, series, growNewValues = fal
         motion.frame = requestAnimationFrame(start);
         return;
       }
-      const target = measureMarks(root, growNewValues);
-      if (![...target.keys()].some(key => source.has(key))) {
-        motion.stop();
-        return;
-      }
+      const target = measureMarks(root);
       const keys = [...new Set([...source.keys(), ...target.keys()])];
-      const grow = expands && growNewValues && typeof Animation === "function" && typeof KeyframeEffect === "function"
-        && [...target].some(([key, mark]) => !source.has(key) && mark.zero !== undefined);
-      // 用与首次入场相同的 Web Animations 缓动，采样结果同时用于绘制和中断时续接。
-      const growthTiming = grow ? new Animation(new KeyframeEffect(null, [], {
-        duration: 1, easing: chartZeroGrowthEasing, fill: "both",
-      })) : null;
-      const total = grow ? duration * .6 + addedValuesDuration : duration;
+      const entering = [...target].filter(([key]) => !source.has(key)).map(([, mark]) => mark);
+      const hasGrowth = expands && entering.some(mark => mark.zero !== undefined);
+      const hasPoints = expands && entering.some(mark => mark.entry !== undefined);
+      // 入场和换档使用相同的缓动。量出当前帧几何，供下一次换档接续。
+      const timing = (easing: string) => typeof Animation === "function" && typeof KeyframeEffect === "function"
+        ? new Animation(new KeyframeEffect(null, [], {duration: 1, easing, fill: "both"})) : null;
+      const growthTiming = hasGrowth || hasPoints ? timing(chartZeroGrowthEasing) : null;
+      const lineTiming = hasPoints ? timing(chartLineEasing) : null;
+      const sample = (clock: Animation | null, progress: number) => {
+        if (!clock) return ease(progress);
+        clock.currentTime = clampProgress(progress);
+        return clock.effect?.getComputedTiming().progress ?? ease(progress);
+      };
+      const total = hasGrowth || hasPoints ? duration * .6 + addedValuesDuration : duration;
       const revealStart = duration * .6 / total;
       motion.layer.replaceChildren(...keys.map(key => (target.get(key) ?? source.get(key))!.element));
       const startAt = performance.now();
@@ -193,16 +218,17 @@ export function useNestedChartRange({mode, from, to, series, growNewValues = fal
           return;
         }
         const revealProgress = expands ? (progress - revealStart) / (1 - revealStart) : progress / .36;
-        if (growthTiming) growthTiming.currentTime = clampProgress(revealProgress);
-        const timing: Progress = {
+        const progressByMark: Progress = {
           expands,
           move: ease(expands ? progress / revealStart : (progress - .36) / .64),
           reveal: ease(revealProgress),
-          grow: growthTiming?.effect?.getComputedTiming().progress ?? undefined,
+          grow: sample(growthTiming, revealProgress),
+          point: sample(growthTiming, revealProgress / chartPointPhase),
+          line: sample(lineTiming, (revealProgress - chartPointPhase) / (1 - chartPointPhase)),
         };
         const marks: Marks = new Map();
         for (const key of keys) {
-          const mark = drawBetween(source.get(key), target.get(key), timing);
+          const mark = drawBetween(source.get(key), target.get(key), progressByMark);
           if (mark) {
             marks.set(key, mark);
             paint(mark);
@@ -217,7 +243,7 @@ export function useNestedChartRange({mode, from, to, series, growNewValues = fal
       frame(startAt);
     };
     motion.frame = requestAnimationFrame(start);
-  }, [mode, from, to, series, growNewValues]);
+  }, [mode, from, to, series]);
 
   useLayoutEffect(() => () => running.current?.stop(), []);
   return {bindPlot, prepare, finish};

@@ -16,6 +16,7 @@ import {submitMealOperation,decideMealOperation,readMealSnapshot} from "../src/f
 import {setMealDayStatus} from "../src/features/meals/day-status.ts";
 import {saveMeasurementDay} from "../src/features/measurements/editing.ts";
 import {addCalendarDays} from "../src/features/measurements/calendar.ts";
+import {checkChartRangeMotion} from "./chart-range-motion-check.browser.mjs";
 const databaseUrl=process.env.FORMWARD_BROWSER_DATABASE_URL;
 assert.ok(databaseUrl,"Supply a fresh isolated local PostgreSQL database; .env.local is never loaded");
 const parsed=new URL(databaseUrl);assert.ok(["127.0.0.1","localhost"].includes(parsed.hostname)&&/^\/formward_browser_/.test(parsed.pathname),"Only a temporary local test database is allowed");
@@ -27,14 +28,15 @@ try{
  const account={email:"overview-reference@example.test",password:"fictional-overview-local-only"},owner=await provisionAccount(db,{...account,name:"虚构验收"});
  await db.delete(schema.personalProfile).where(eq(schema.personalProfile.userId,owner.id));
  const today=new Date(Date.now()+8*3600000).toISOString().slice(0,10),yesterday=addCalendarDays(today,-1);
- for(let i=-20;i<=0;i++){
+ const recentOffsets = Array.from({length:21}, (_,i)=>i-20);
+ for(const i of [-56,-55,-54,-52,...recentOffsets]){
   const date=addCalendarDays(today,i);
   if(i!==-5)await saveMeasurementDay(db,{userId:owner.id,actorId:owner.id},{operationId:randomUUID(),date,timezone:"Asia/Shanghai",periods:{daytime:{weightKg:(70.2+i*.03+Math.sin(i)*.15).toFixed(2),bodyFatPercent:"18.20",fasting:true,deviceLabel:"虚构体重秤"}}});
   if(i===0)continue;
   const energy=await submitEnergyOperation(db,{userId:owner.id,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_energy_day",date,entryMode:"components",activityMode:"total",restingKcal:"1950",activeKcal:i===-4?"0":String(Math.round(300+Math.cos(i)*250))}]});await decideEnergyOperation(db,owner.id,energy.id,energy.revision,"confirm");
   if(i===-5||i===-9)continue;
   const op=await submitMealOperation(db,{userId:owner.id,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_meal",date,mealType:"午餐",items:[{kind:"food",name:"鸡肉饭（虚构）",quantity:"1",unit:"份",nutritionBasis:"consumed_total",sourceKind:"reference",nutrition:{caloriesKcal:i===-4?"1950":String(Math.round(2300+Math.sin(i)*400)),proteinG:"120",carbsG:"260",fatG:i===-2?null:"70"}}]}]});await decideMealOperation(db,owner.id,op.id,op.revision,"confirm");
-  if(i!==-2){const snapshot=await readMealSnapshot(db,owner.id),day=snapshot.meals.find(m=>m.date===date).day;await setMealDayStatus(db,owner.id,{operationId:randomUUID(),date,status:"complete",version:day.version,contentDigest:day.contentDigest});}
+  if(i!==-2&&i!==-55){const snapshot=await readMealSnapshot(db,owner.id),day=snapshot.meals.find(m=>m.date===date).day;await setMealDayStatus(db,owner.id,{operationId:randomUUID(),date,status:"complete",version:day.version,contentDigest:day.contentDigest});}
  }
  const net=createServer();net.listen(0,"127.0.0.1");await once(net,"listening");const port=net.address().port;await new Promise(r=>net.close(r));const base="http://127.0.0.1:"+port;
  const runtime=process.env.FORMWARD_OVERVIEW_RUNTIME;
@@ -125,14 +127,23 @@ try{
     const right=Number(svg.querySelector("[data-balance-zero]").getAttribute("x2"));
     const width=svg.viewBox.baseVal.width;
     const dateGuides=[...svg.querySelectorAll("[data-overview-guide-date]")].map(day=>[...day.querySelectorAll("line")].map(line=>Number(line.getAttribute("x1"))));
-    const labels=[...svg.querySelectorAll("[data-centered-tick]")];
+    const references=[...svg.querySelectorAll("[data-reference-tick]")];
     const axisLabels=[...svg.querySelectorAll("[data-axis-tick] text")];
     const plotDates=[...svg.querySelectorAll("[data-overview-date]")].map(day=>day.getAttribute("data-overview-date"));
     const guideDates=[...svg.querySelectorAll("[data-overview-guide-date]")].map(day=>day.getAttribute("data-overview-guide-date"));
+    const gap=Number(svg.querySelector('[data-overview-guide-date] [data-range-mark^="date-guide:weight"]').getAttribute("y1"))
+      - Number(svg.querySelector('[data-overview-guide-date] [data-range-mark^="date-guide:energy"]').getAttribute("y2"));
     return {days:plotDates.length,guideIndices:guideDates.map(date=>plotDates.indexOf(date)),aligned:dateGuides.every(xs=>xs.length===2&&xs[0]===xs[1]),
-     centered:left===width-right&&labels.length>0&&labels.every(label=>Number(label.getAttribute("x"))===width/2),
+     symmetric:left===width-right,
      labelsFit:axisLabels.every(label=>{const box=label.getBBox();return box.x>=-.5&&box.y>=-.5&&box.x+box.width<=width+.5;}),
-     weightUnit:svg.querySelectorAll('[data-range-mark="weight-unit"]').length,
+     references:references.map(text=>{
+       const tick=Number(text.parentElement.getAttribute("data-axis-tick"));
+       const panel=text.closest("[data-overview-panel]");
+       const y=Number(text.parentElement.querySelector("line").getAttribute("y1"));
+       return {panel:panel.dataset.overviewPanel,tick,y,aligned:Number(text.getAttribute("y"))===y-4,text:text.textContent};
+     }),
+     labelCount:axisLabels.length,gap,
+     bars:[...svg.querySelectorAll('[data-series="balance"]')].map(bar=>Number(bar.getAttribute("width"))),
      zeroCount:svg.querySelectorAll("[data-balance-zero],[data-overview-zero]").length};
    });
    assert.equal(result.days,days);
@@ -143,8 +154,16 @@ try{
    assert.equal(result.zeroCount,2);
    if(mode==="30D")assert.deepEqual(result.guideIndices,[0,5,10,15,20,25,29]);
    if(mode==="90D")assert.deepEqual(result.guideIndices,[0,22,45,67,89]);
-   assert.equal(result.centered,mobile);
-   assert.equal(result.weightUnit,mobile?1:0);
+   assert.equal(result.references.length,mobile?2:0);
+   assert.equal(result.gap,mobile?24:26);
+   if(mobile){
+    assert.ok(result.symmetric);
+    assert.equal(result.labelCount,4);
+    assert.ok(result.references.every(reference=>reference.tick!==0&&reference.aligned));
+    assert.match(result.references.find(reference=>reference.panel==="weight").text,/ kg$/);
+    if(mode==="7D")assert.ok(result.bars.length>0&&result.bars.every(width=>Math.abs(width-14)<.01));
+    else assert.ok(result.bars.every(width=>width<=6.4));
+   }
    await graph.scrollIntoViewIfNeeded();
    await shot((mobile?"phone":"desktop")+"-"+mode);
    checks.push((mobile?"mobile":"desktop")+"-axes-and-guides-"+mode);
@@ -170,6 +189,7 @@ try{
  checks.push("rapid-range-motion");
  await page.setViewportSize({width:390,height:720});await go("/dashboard");await choose(yesterday);await page.getByRole("button",{name:"查看记录 →",exact:true}).click();await page.getByRole("dialog").waitFor();assert.match(await page.getByRole("dialog").innerText(),/晨间体重/);await page.keyboard.press("Escape");checks.push("day-details-kept");
  for(const path of["/dashboard/meals","/dashboard/energy","/dashboard/measurements"]){await go(path);assert.equal(await page.locator('[data-record-slot="date"] [role="status"]').count(),0);await shot("unchanged-"+path.split("/").at(-1)+"-390");}checks.push("other-pages-status-placement-kept");
+ await checkChartRangeMotion({browser,base,today,art,context,checks,errors,account:owner.id});
  const stressDate=addCalendarDays(today,-17),oldMeal=(await readMealSnapshot(db,owner.id)).meals.find(m=>m.date===stressDate);
  const stress=await submitMealOperation(db,{userId:owner.id,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_meal",id:oldMeal.id,version:oldMeal.version,date:stressDate,mealType:"午餐",items:[{kind:"food",name:"长数字压力样本（虚构）",quantity:"1",unit:"份",nutritionBasis:"consumed_total",sourceKind:"reference",nutrition:{caloriesKcal:"99999",proteinG:"120",carbsG:"260",fatG:"70"}}]}]});await decideMealOperation(db,owner.id,stress.id,stress.revision,"confirm");
  const stressDay=(await readMealSnapshot(db,owner.id)).meals.find(m=>m.id===oldMeal.id).day;await setMealDayStatus(db,owner.id,{operationId:randomUUID(),date:stressDate,status:"complete",version:stressDay.version,contentDigest:stressDay.contentDigest});

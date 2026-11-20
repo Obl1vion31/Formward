@@ -53,7 +53,8 @@
 .grid { stroke:color-mix(in srgb,var(--warm-white) 9.0%,transparent); stroke-width:.7; }
 .zeroLine { stroke:color-mix(in srgb,var(--warm-white) 23.0%,transparent); stroke-width:1; }
 .axis { fill:var(--muted); font:12px ui-monospace,monospace; }
-.axis[data-centered-tick] { paint-order:stroke; stroke:var(--graphite); stroke-width:4px; stroke-linejoin:round; }
+.referenceLine { stroke:color-mix(in srgb,var(--warm-white) 14%,transparent); stroke-width:.7; }
+.axis[data-reference-tick] { paint-order:stroke; stroke:var(--graphite); stroke-width:3px; stroke-linejoin:round; }
 .plotTitle { fill:var(--warm-white); font:13px sans-serif; }
 .emptyPlot { fill:var(--muted); font:12px sans-serif; paint-order:stroke; stroke:var(--surface); stroke-width:5px; }
 .plotHit { fill:transparent; cursor:pointer; }

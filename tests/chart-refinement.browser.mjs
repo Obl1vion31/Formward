@@ -25,7 +25,7 @@ async function context(size,motion='no-preference'){
   for(const kind of ['meals','body','energy','training'])localStorage.setItem('formward:record-guide:v1:'+encodeURIComponent(account)+':'+kind,'seen');
   window.__drawFrames=[];window.__observeDrawFrames=true;
   const sample=()=>{if(!window.__observeDrawFrames)return;for(const node of document.querySelectorAll('[data-record-slot="plot"] [data-chart-bar],[data-record-slot="plot"] [data-trend-glyph="morning-weight"],[data-record-slot="plot"] [data-chart-line]'))for(const animation of node.getAnimations()){
-   const timing=animation.effect?.getTiming();if(timing&&[400,600].includes(timing.duration)&&window.__drawFrames.length<200)window.__drawFrames.push({duration:timing.duration,time:animation.currentTime,kind:node.dataset.chartBar!==undefined?'bar':'line'});
+   const timing=animation.effect?.getComputedTiming();if(timing&&[400,600].includes(timing.endTime)&&window.__drawFrames.length<200)window.__drawFrames.push({duration:timing.endTime,time:animation.currentTime,kind:node.dataset.chartBar!==undefined?'bar':'line'});
   }requestAnimationFrame(sample);};requestAnimationFrame(sample);
  },{account:fixture.userId});
  return {ctx,page};
