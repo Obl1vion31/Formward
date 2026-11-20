@@ -4,7 +4,7 @@ import {animateSurface} from '../components/surface-motion.ts';
 
 async function fixture(run,{reduced=false}={}){
  const previous=['matchMedia','getComputedStyle'].map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]);
- const node={style:{transform:'none',clipPath:'none',opacity:'1'},dataset:{},getBoundingClientRect:()=>({left:12,top:72,right:372,bottom:472,width:360,height:400})};
+ const node={style:{transform:'none',clipPath:'none',opacity:'1',setProperty(key,value){this[key]=value;}},dataset:{},getBoundingClientRect:()=>({left:12,top:72,right:372,bottom:472,width:360,height:400})};
  const calls=[];
  node.animate=(frames)=>{let resolve,reject,settled=false;const call={frames,finished:new Promise((yes,no)=>{resolve=yes;reject=no;}),finish(){settled=true;resolve();},cancel(){call.poseAtCancel={...node.style};if(!settled){settled=true;reject(new Error('interrupted'));}}};calls.push(call);return call;};
  Object.defineProperty(globalThis,'matchMedia',{configurable:true,value:()=>({matches:reduced})});
@@ -16,10 +16,12 @@ test('底部详情忽略右上按钮坐标，只纵向展开',()=>fixture(async(
  const task=animateSurface(node,'open',{getBoundingClientRect:()=>({left:300,top:8,width:44,height:44})},'sheet');
  assert.equal(calls[0].frames[0].transform,'translateY(424px)');
  assert.equal(calls[0].frames[0].clipPath,'none');
+ assert.equal(node.style['--surface-motion-duration'],'300ms');
  calls[0].finish();assert.equal(await task,true);assert.equal(node.dataset.surfaceMode,'sheet');
 }));
 test('关闭先保持屏幕外末态，再撤销动画，不闪回原位',()=>fixture(async(node,calls)=>{
- const task=animateSurface(node,'close',null,'sheet');calls[0].finish();
+ const task=animateSurface(node,'close',null,'sheet',160);
+ assert.equal(node.style['--surface-motion-duration'],'160ms');calls[0].finish();
  assert.equal(await task,true);
  assert.equal(calls[0].poseAtCancel.transform,'translateY(424px)');
  assert.equal(node.style.transform,'translateY(424px)');assert.equal(node.dataset.surfacePhase,'closed');
