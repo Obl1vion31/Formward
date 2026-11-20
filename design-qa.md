@@ -1,10 +1,8 @@
 # 当前视觉验收
 
-## 已发布验收 · iPhone 键盘下的小助手输入区
+## 真机失败并已回切 · iPhone 键盘下的小助手输入区
 
-Chromium 和 WebKit 在同一个正式运行包 `dual-entry-d629d3bc-assistant-composer-safari-20261120` 上验证长草稿靠底起手、首尾反向、可视区平移、照片与文字共用柔光。可见高度为 180 CSS px 时，引用和照片可在同一处滚动露出完整的照片移除按钮，44 CSS px 输入和发送按钮仍可用。647 个手势帧的最大偏差为 0 CSS px。
-
-生产构建、lint、类型检查及 849 项单元和集成测试通过。正式包的截图、录屏与逐帧 JSON 归入私有发布证据。实体 iPhone Safari 系统键盘待实机验证。 [逐项验收](docs/assistant-chat-verification.md#iphone-键盘下的草稿边缘和照片柔光) · [部署结果](docs/deployment.md#当前正式版本)
+实体 iPhone 打开系统中文键盘后，助手内容被整体推到键盘后方。Chromium 和 WebKit 回放虽然通过，但使用人工偏移校正了测量值，未验证真机实际绘制位置。2026-11-20 19:00:51 已回切网页及聊天 worker，并复核公网四个域名。 [问题与验收](docs/assistant-chat-verification.md#手机键盘视口回归与回切) · [部署结果](docs/deployment.md#当前正式版本)
 
 ## 已发布验收 · 小助手菜单、滑动与底部导航
 
