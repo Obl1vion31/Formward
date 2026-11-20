@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "个人饮食、身体、能量与训练记录"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "个人饮食、身体、能量与训练记录"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "Formward"
+    }
+  ]
+}

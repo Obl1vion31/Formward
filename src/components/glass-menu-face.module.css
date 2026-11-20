@@ -16,6 +16,4 @@
 @media (prefers-reduced-transparency: reduce) {
   .face[data-glass-face] { background: var(--nav-solid); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
-:global([data-glass-phase="closing"]) > :global([data-glass-content]) { pointer-events: none; }
-:global([data-glass-phase="closed"]) > .face,
-:global([data-glass-phase="closed"]) > :global([data-glass-content]) { visibility: hidden; }
+:global([data-glass-phase="closed"]) > .face { visibility: hidden; }

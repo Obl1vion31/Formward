@@ -27,10 +27,10 @@ function Elapsed({timing}: {timing:ChatRunTiming & {startedAt:string}}) {
   return <span className={styles.elapsed} aria-live="off">已用 <time dateTime={`PT${seconds}S`}>{digits}</time></span>;
 }
 
-function ToolProgress({message,timing,time}: {message:ChatMessage;timing?:ChatRunTiming|null;time?:ReactNode}) {
+function ToolProgress({message,timing}: {message:ChatMessage;timing?:ChatRunTiming|null}) {
   const working = message.state === "working";
   const displayed = message.steps.filter(step=>step.name!=="request_followup");
-  if (!working && !displayed.length) return time ? <div className={styles.meta}>{time}</div> : null;
+  if (!working && !displayed.length) return null;
   const running = displayed.findLast(step=>step.state==="running");
   const failed = displayed.some(step=>step.state==="error");
   const photos = message.photoProgress;
@@ -47,7 +47,7 @@ function ToolProgress({message,timing,time}: {message:ChatMessage;timing?:ChatRu
   for (const step of displayed) groups.set(step.name,[...(groups.get(step.name)??[]),step]);
   const label = <><span className={working?styles.spinner:styles.progressIcon} aria-hidden="true">
     {!working && <Glyph name={failed?"close":"check"}/>}
-  </span><span role={working?"status":undefined}>{title}</span>{timer}{time}</>;
+  </span><span role={working?"status":undefined}>{title}</span>{timer}</>;
   if (!groups.size) return <div className={styles.working}>{label}</div>;
   return <details className={styles.progress}>
     <summary>{label}<Glyph name="chevron"/></summary>
@@ -100,8 +100,8 @@ export function ChatMessageBody({message,inlinePreviews,historical=false,followu
   const references = message.state==="complete" ? chatRecordReferences(message.references,historical?ids.length>0:inlinePreviews,message.steps) : [];
   const time = <time className={styles.messageTime} dateTime={message.createdAt}>{clock.format(new Date(message.createdAt))}</time>;
   return <>
-    {!continuation && <div className={styles.meta}>
-      <span>{user?"你":message.provider?roles[message.provider]:"小助手"}</span>
+    {(!continuation || !user) && <div className={styles.meta}>
+      <span>{user?"你":<>{message.provider?roles[message.provider]:"小助手"} · AI生成</>}</span>
       {time}
     </div>}
     {message.replyTo && (message.replyTo.contextQuote
@@ -109,7 +109,7 @@ export function ChatMessageBody({message,inlinePreviews,historical=false,followu
       : <button type="button" className={styles.messageQuote} onClick={()=>jump(message.replyTo!.id)}>
         <Glyph name="quote"/><span>{message.replyTo.text}</span>
       </button>)}
-    {!user && <ToolProgress message={message} timing={timing} time={continuation ? time : undefined}/>}
+    {!user && <ToolProgress message={message} timing={timing}/>}
     {message.imageIds.length > 0 && <ChatPhotos ids={message.imageIds} previews={previews} onHandoff={onPhotoHandoff}/>}
     {user ? (message.text || !!message.answeredQuestions?.length) && <div className={styles.text}>
       {message.answeredQuestions?.length ? <AnswerSummary answers={message.answeredQuestions}/> : <p>{message.text}</p>}

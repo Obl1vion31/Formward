@@ -1,5 +1,15 @@
 # 当前视觉验收
 
+## 鸿蒙首发候选与 AI 标识
+
+2026-11-21：延续已发布网页和母版品牌，ImageGen只参考联网前隐私／网络失败原生状态及AI来源行。原始输入、参考和来源在 `.codex/harmonyos-first-release`。网页按390×660与1440×900、实际浅深主题核对；原生按约366×809逻辑区域适配安全区，未宣称与390×844参考达到1px量测一致。 [原生开始页](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/native-start-light.png>) · [最终原生助手](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/native-ai-final.png>) · [最终桌面助手](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/web-ai-desktop-final.jpg>) · [最终手机网页](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/web-ai-mobile-final.jpg>)
+
+独立视觉复核结论为 `ship`，无必须修正项。6张必需实际截图与2张局部参考有效；品牌、层级、暖纸色／深橄榄黑、金色操作和系统中文字体延续既定方向。短屏长卡片自然滚动，原生较高视口显示完整确认操作。结论仅覆盖UI候选，未独立重放交互，不代表发布签名、备案、真机或商店审核通过。
+
+模拟器实际完成隐私选择和协议、登录、总览、餐次新增／保存／编辑、未知营养保留、键盘返回及草稿确认、AI补充与人工确认、后台恢复、系统文件选择上传、保存器取消与重试保存、断网与重连。每条AI回答及续答显示模型、AI生成和时间，复制保留标识；预览不等于保存。浅深主题的账号／模型菜单保持与触发点连续，未扩展其他页面布局。
+
+验收为独立包名、临时PostgreSQL和虚构账号，持续标识隔离。导出取回核验8个工作表，恢复后运行数无重复；模型与存储回放不计真实识别或COS验证。Release未签名构建通过。图库实际选择、相机拍摄、兼容真机及最终签名包安装仍未测。网页lint、typecheck、production build、8项原生策略／下载测试及848项单元集成通过，2项原有跳过；初轮授权用例一次间歇失败与后续通过日志均保留。 [完整状态](docs/harmonyos-release.md)
+
 
 ## 已发布验收 · 手机页面中线与聊天胶囊
 

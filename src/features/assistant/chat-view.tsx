@@ -234,7 +234,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
   function cite(message: ChatMessage) { chat.setQuote(message); input.current?.focus({preventScroll:true}); }
   async function copy(message: ChatMessage) {
     try {
-      await navigator.clipboard.writeText(message.text);
+      await navigator.clipboard.writeText("AI生成 · Formward\n\n" + message.text);
       setNotice("已复制回答");
     } catch {
       setNotice("复制失败，可以选择文字手动复制。");
@@ -252,6 +252,15 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
     void chat.send("send",undefined,undefined,{viewport});
   }
   const sendClass = styles.send + (page ? " " + glass.mobileButton + " " + glass.mobilePrimary : "");
+  useEffect(() => {
+    const dismiss = (event: Event) => {
+      if (event.defaultPrevented) return;
+      if (pinnedPreview) { event.preventDefault(); closePreview(); }
+      else if (panel) { event.preventDefault(); closePanel(); }
+    };
+    window.addEventListener("formward-native-dismiss", dismiss);
+    return () => window.removeEventListener("formward-native-dismiss", dismiss);
+  });
   return <div className={styles.workspace} data-tab={tab} data-page={page||undefined} onKeyDown={event => { if(event.key==="Escape"&&pinnedPreview){event.preventDefault();event.stopPropagation();closePreview();return;} if (event.key === "Escape" && panel) { event.preventDefault(); event.stopPropagation(); closePanel(); } }}>
     <aside className={styles.sidebar} aria-label="待办与快捷记录" inert={page && tab !== "tasks"}>{sidebar}</aside>
     <section className={styles.conversation} aria-label="AI聊天" inert={page && tab !== "chat"}>

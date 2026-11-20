@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "./theme.css";
 
+[data-glass-phase="closing"] > [data-glass-content] { pointer-events: none; }
+[data-glass-phase="closed"] > [data-glass-content] { visibility: hidden; }
+
 /* 阅读顺序：颜色 → 页面 / Logo → 封面背景 → 人物三层 → 表单 → SCROLL → 响应式。
    DOM 与这些类名的对应关系见 home-experience.tsx；参数索引见 docs/code-study.md。 */
 /* 全局色板；概念词使用暖灰白，微标签使用哑金，轨道收为极淡棕金。 */

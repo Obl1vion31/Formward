@@ -1,0 +1,15 @@
+.hvigor/
+.idea/
+oh_modules/
+local.properties
+build/
+entry/build/
+*.p12
+*.p7b
+*.cer
+*.csr
+*.hap
+*.app
+*.log
+agconnect-services.json
+build-profile.local.json5

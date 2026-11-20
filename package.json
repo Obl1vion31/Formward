@@ -45,7 +45,8 @@
     "test:mobile-interface-browser": "FORMWARD_MOBILE_INTERFACE=1 node --import tsx tests/chat-pilot.browser.mts",
     "test:assistant-recording-browser": "FORMWARD_ASSISTANT_RECORDING=1 node --import tsx tests/chat-pilot.browser.mts",
     "test:app-information": "node --import tsx tests/app-information.browser.mjs",
-    "worker:chat": "node .next/chat-worker.mjs"
+    "worker:chat": "node .next/chat-worker.mjs",
+    "test:harmonyos": "node --test scripts/harmonyos/host-policy.test.mjs scripts/harmonyos/export-downloads.test.mjs"
   },
   "dependencies": {
     "@better-auth/cimd": "1.7.25",

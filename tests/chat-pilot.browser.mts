@@ -106,13 +106,16 @@ if(release)assert.ok(release.startsWith(resolve(".codex/regional-releases")+"/")
 const serverArgs=release?[join(release,"server.js")]:["node_modules/next/dist/bin/next","start","--hostname","127.0.0.1","--port",String(port)];
 const childEnv:NodeJS.ProcessEnv={PATH:process.env.PATH,LD_LIBRARY_PATH:process.env.LD_LIBRARY_PATH,FONTCONFIG_FILE:process.env.FONTCONFIG_FILE,PORT:String(port),HOSTNAME:"127.0.0.1",FORMWARD_READINESS_SECRET:"fictional-readiness-secret-for-isolated-chat-build",FORMWARD_EXPECTED_DATABASE:"postgres",FORMWARD_ENVIRONMENT:"isolated-chat-browser",NODE_ENV:"production",NEXT_TELEMETRY_DISABLED:"1",DATABASE_URL:databaseUrl?.toString()||nativeUrl||`postgresql://postgres:postgres@${socket!.getServerConn()}/postgres?max=1`,BETTER_AUTH_URL:baseURL,BETTER_AUTH_SECRET:"fictional-chat-browser-secret-at-least-32-characters",FORMWARD_REGIONAL:"1",FORMWARD_SINGLE_WEB:"1",FORMWARD_CN_ORIGIN:baseURL,FORMWARD_DATA_SOURCE_USER_ID:fixture.userId,FORMWARD_CHAT_ENABLED:"1",FORMWARD_CHAT_PILOT_USER_ID:fixture.userId,FORMWARD_CHAT_BROWSER_FIXTURE:config,QWEN_API_KEY:"fictional-key",QWEN_BASE_URL:"https://maas.qianwenaiapi.com/compatible-mode/v1",MIMO_API_KEY:"fictional-key",GLM_API_KEY:"fictional-key",FORMWARD_COS_BUCKET:"chat-fixture-123",FORMWARD_COS_REGION:"ap-shanghai",FORMWARD_COS_SECRET_ID:"fictional",FORMWARD_COS_SECRET_KEY:"fictional",FORMWARD_IMAGE_REGION:"cn",FORMWARD_TIMEZONE:"Asia/Shanghai",FORMWARD_LOCAL_PREVIEW:previewMarker?"1":undefined,FORMWARD_OWNER_MFA_REQUIRED:previewMarker?"0":undefined,...realCosEnv,FORMWARD_TEST_REAL_COS:realCosPath?"1":undefined};
 if(process.env.FORMWARD_MEMBERSHIP_SMOKE==="1")Object.assign(childEnv,{FORMWARD_MANAGED_MEMBERSHIP_REQUIRED:"1",FORMWARD_OWNER_MFA_REQUIRED:"0"});
-const child=spawn(process.execPath,["--import",resolve("tests/chat-model-fixture.mjs"),...serverArgs],{cwd:release??process.cwd(),env:childEnv,stdio:["ignore","pipe","pipe"]});
+const harmonyPreview=process.env.FORMWARD_HARMONY_PREVIEW==="1";
+if(harmonyPreview){assert.ok(previewMarker&&process.env.FORMWARD_CHAT_PREVIEW==="1"&&!realCosPath&&!process.env.FORMWARD_CHAT_LIVE_KEY_FILE);childEnv.FORMWARD_HARMONY_PREVIEW="1";}
+const modelFixture=resolve(harmonyPreview?"tests/harmonyos-model-fixture.mjs":"tests/chat-model-fixture.mjs");
+const child=spawn(process.execPath,["--import",modelFixture,...serverArgs],{cwd:release??process.cwd(),env:childEnv,stdio:["ignore","pipe","pipe"]});
 const liveKeyFile = process.env.FORMWARD_CHAT_LIVE_KEY_FILE;
 if (liveKeyFile) {
   assert.ok(process.env.FORMWARD_CHAT_CONTEXT_RECOVERY==="1" && process.env.FORMWARD_CONTEXT_CASE==="live" && previewMarker && !realCosPath,
     "真实千问仅用于带隔离标识的上下文验收");
 }
-const worker=spawn(process.execPath,["--import",resolve("tests/chat-model-fixture.mjs"),release?join(release,"chat-worker.mjs"):resolve(".next/chat-worker.mjs")],{
+const worker=spawn(process.execPath,["--import",modelFixture,release?join(release,"chat-worker.mjs"):resolve(".next/chat-worker.mjs")],{
   cwd:release??process.cwd(),env:{...childEnv,...(liveKeyFile?{
     FORMWARD_CHAT_LIVE_KEY_FILE:resolve(liveKeyFile),FORMWARD_CHAT_LIVE_LEDGER:join(artifacts,"qwen-budget.json"),
   }:{})},stdio:["ignore","pipe","pipe"],

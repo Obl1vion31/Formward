@@ -20,7 +20,9 @@ GPT、豆包及本地评测共用记餐规则：先明确本次实际食量，�
 
 GPT与豆包共享MCP 2.0.2的18项工具：新增餐次、正式餐次修改、食材维护各有明确入口；四种状态查询统一get_preview，原待审修改和补照片统一update_preview。创建共用任务防重，旧工具名停用；旧确认链接和HTTP业务能力保留。完整规则见[AI工具调用](docs/ai-tool-contracts.md)。
 
-公开[隐私政策](https://formward-ten.vercel.app/privacy.html)和[服务条款](https://formward-ten.vercel.app/terms.html)已发布，生效日期2026年11月10日；个人运营者、填写资料及发布范围见[豆包资料与公开协议](docs/doubao-onboarding.md)。
+公开[隐私政策](https://formward.top/privacy.html)和[服务条款](https://formward.top/terms.html)使用自有域名。鸿蒙首发候选补充手机选择器、缓存和站内 AI 的实际处理说明；当前部署状态见[部署](docs/deployment.md)，运营者与平台资料见[豆包资料与公开协议](docs/doubao-onboarding.md)。
+
+鸿蒙手机应用采用 ArkUI 与 ArkWeb 混合方式，源码在 `apps/harmonyos`，版本 1.0.0、包名 `top.formward.app`。沿用现有账号和上海数据库，华为运动健康留待后续版本。启动、隐私选择、系统返回、选文件和导出保存已有模拟器实测；尚未完成发布签名、APP 备案、兼容真机验证或商店提交。准确结果与后续步骤见[鸿蒙首发](docs/harmonyos-release.md)。
 
 饮食和食材采用本次实际输入，不按历史倍数追加确认。餐次可记录明确0或全部未知营养，未知保持null；空餐、空名称、非法日期／数量／单位仍阻止保存。同日同餐次的严格重复只显示一次“本日已有相同内容的餐次”与查看入口，不要求勾选或再次确认，不自动合并删除。请求幂等、账号归属、版本冲突、草稿保护及AI最终人工确认继续有效。消耗、运动及身体原有数值提醒保持。
 
@@ -111,6 +113,7 @@ src/app/          Next.js 页面、Server Actions 和 HTTP API
 src/features/     按用户功能组织的业务代码
 src/db/           数据库连接与 Drizzle schema
 src/components/   多个页面共用的界面组件
+apps/harmonyos/   鸿蒙客户端源码，不含签名和构建产物
 drizzle/          版本化数据库 migration
 public/           可公开访问的静态资源
 data/             本地私有导入和导出数据
