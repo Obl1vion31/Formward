@@ -370,7 +370,7 @@ export async function runMealInline(db) {
       const page = await context.newPage();
       page.setDefaultTimeout(14000);
       page.on("pageerror", error => pageErrors.push({ name, message: error.message }));
-      await page.addInitScript(({ userId, theme }) => {
+      await page.addInitScript(({ theme }) => {
         localStorage.setItem("formward-theme", theme);
       }, { theme });
       const form = page.locator('form[data-entry-form="meal"]');

@@ -9,6 +9,7 @@ export async function GET(request:Request){
  try{const manifest=JSON.parse(await readFile(join(process.cwd(),"release-manifest.json"),"utf8"));
  const database=await getDatabase().execute<{name:string}>(sql`select current_database() as name`);
  if(!process.env.FORMWARD_EXPECTED_DATABASE||database[0]?.name!==process.env.FORMWARD_EXPECTED_DATABASE||!process.env.FORMWARD_ENVIRONMENT)throw new Error("部署环境不匹配。");
+ await getDatabase().execute(sql`select food_group from foods limit 0`);
  await getDatabase().execute(sql`select storage_provider,storage_location from meal_images limit 0`);
  await getDatabase().execute(sql`select access_version,banned from users limit 0`);
  await getDatabase().execute(sql`select two_factor_enabled,ai_paused,ai_daily_budget_cents,ai_daily_recognition_limit from users limit 0`);
