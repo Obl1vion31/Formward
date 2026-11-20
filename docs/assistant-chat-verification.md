@@ -2,7 +2,7 @@
 
 正式站版本与兼容回退见[部署记录](deployment.md#当前正式版本)。 [正式站](https://formward.top/dashboard/assistant)
 
-## iPhone 键盘下的草稿、边缘和照片柔光 · 本地验收
+## iPhone 键盘下的草稿、边缘和照片柔光
 
 候选 `local-assistant-composer-safari-r3-20261120`，BUILD_ID `KGjGYmcMydKn253nTIEkL`。实体 iPhone Safari 的系统键盘及原生连续手势待验。本机页面使用虚构照片、长对话和独立 PostgreSQL。
 
@@ -12,6 +12,8 @@
 - 复验接近上下文上限后继续发送、新建对话与历史草稿返回。历史切换测试现在等待实际切换响应与历史面板关闭，再读取恢复的草稿。旧正式包使用先前的读取顺序也曾过早读到空框。
 
 生产构建、lint、类型检查、Impeccable 检查及 849 项单元与集成测试通过。本次实页截图、原速录屏、旧包复现和帧数据在私有 `.codex/assistant-composer-safari-20261120/`。
+
+正式运行包 `dual-entry-d629d3bc-assistant-composer-safari-20261120` 用 Chromium 与 WebKit 复验长草稿、照片触控和键盘可见范围。可视区原点依次为 120、290、0 CSS px，发送键距可见底边均为 7 CSS px。647 个手势帧中顶栏、发送键、聊天列表与文档滚动的最大偏差为 0 CSS px。38 次模型菜单间距为 8 CSS px。正式包验收共保留 102 张截图和 8 段录屏。网页、worker 与公网入口已核对。此次按用户发布指令上线，iPhone Safari 系统键盘与真机连续手势待验证。
 
 ## 小助手菜单、滑动与底部导航
 

@@ -2,15 +2,15 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-b11ef297-assistant-viewport-boundaries-20261120`，源码 `b11ef29717904582f01249d9a974734f0b311778`，BUILD_ID `xjiGCw4Sf_o8_dCP8p-Qp`。北京时间 2026-11-20 18:08:55 切换。 [正式版本](https://formward.top/api/app-version)
+正式站运行 `dual-entry-d629d3bc-assistant-composer-safari-20261120`，源码 `d629d3bc07bc7aa98066507f9954b19efec2b3ab`，BUILD_ID `LCD-A0pDHFw9kqNH-NoJl`。北京时间 2026-11-20 18:54:18 切换。 [正式版本](https://formward.top/api/app-version)
 
-小助手的模型菜单从当前按钮上方 8 CSS px 展开。手机输入区按起手位置处理手势，助手进出使用固定视口。Chromium 与 WebKit 复验同一正式运行包，iPhone Safari 的系统键盘待实机确认。 [视觉验收](../design-qa.md)
+小助手按实际可视区定位手机输入区，长草稿在文字框内滚动，照片和文字共用柔光。Chromium 与 WebKit 复验同一正式运行包。按用户本次指令发布，实体 iPhone Safari 系统键盘待实机验证。 [视觉验收](../design-qa.md)
 
-上海网页与聊天 worker 运行同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。切换前备份 `formward-primary-20261120T100851184898Z.dump.json` 通过 PostgreSQL 原生校验和加密异地回读。切换前后 67 张表摘要与运行配置一致。
+上海网页与聊天 worker 运行同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。切换前备份 `formward-primary-20261120T105414507748Z.dump.json` 通过 PostgreSQL 原生校验和加密异地回读。切换前后 67 张表摘要与运行配置一致。
 
-四个公网域名和兼容 IP 返回同一版本。核对小助手原登录返回路径、新旧静态资源的内容摘要、匿名权限与海外 MCP 发现。保留 56 项 Server Action 编号和绑定密钥，兼容 2222 项旧静态资源。Vercel 的 iad1 网关沿用既有部署，两别名和回源已核对。
+四个公网域名和兼容 IP 返回同一版本。核对小助手原登录返回路径、新旧静态资源内容摘要、匿名权限与海外 MCP 发现。保留 56 项 Server Action 编号和绑定密钥，兼容 2230 项旧静态资源。Vercel 的 iad1 网关沿用既有部署，两别名和回源已核对。
 
-兼容运行包归档到 `.codex/backups/regional-releases/assistant-viewport-boundaries-20261120`，大小 85,435,865 字节，SHA-256 `b7fc5ffb21533982faeb8a22ca8576a91d312a685de6eff8400061920a2533b1`。兼容回退为 `remove-record-guidance-20261120`。
+兼容运行包归档到 `.codex/backups/regional-releases/assistant-composer-safari-20261120`，大小 85,598,489 字节，SHA-256 `178c70332e58a0636f663cc59f6b4de3b6dad2029778787e078cfcf7bc0f4b4a`。兼容回退为 `assistant-viewport-boundaries-20261120`。
 
 ## 迁移与发布
 
