@@ -40,6 +40,16 @@ export function spacedTicks(scale: ChartScale, height: number, minimumGap = 48) 
   return [0, ...visible].sort((a, b) => a - b);
 }
 
+/** 紧凑图只标一个与零线分开的整档，绘图上下限仍用于保留留白。 */
+export function compactReferenceTick(scale: ChartScale, height: number) {
+  const span = scale.max - scale.min;
+  const extent = scale.max >= -scale.min ? scale.max : scale.min;
+  const ideal = extent * 2 / 3;
+  const eligible = scale.ticks.filter(tick => tick !== 0 && Math.abs(tick) * height / span >= 18);
+  return eligible.reduce<number | null>((best, tick) =>
+    best === null || Math.abs(tick - ideal) < Math.abs(best - ideal) ? tick : best, null);
+}
+
 export function dayReadoutLeft(x: number, width: number, cardWidth: number, compact: boolean) {
   const inset = 8;
   const gap = compact ? 12 : 15;

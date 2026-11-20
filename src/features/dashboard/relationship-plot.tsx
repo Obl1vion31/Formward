@@ -9,7 +9,7 @@ import { ChartSelectionColumn } from "@/components/chart-selection-marker";
 import { chartScale, type ChartScale } from "@/components/chart-scale";
 import type { useChartDateSelection } from "@/components/use-chart-date-selection";
 import { useChartMotion } from "@/components/use-chart-motion";
-import { dayReadoutLeft, morningChangeScale, spacedTicks } from "./chart-geometry";
+import { compactReferenceTick, dayReadoutLeft, morningChangeScale, spacedTicks } from "./chart-geometry";
 import { DayReadout } from "./day-readout";
 import { balanceLabel, hasEnergyRecord, shortDate } from "./day-readings";
 import type { OverviewDay } from "./model";
@@ -127,26 +127,45 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
   const tipId = id + "-day";
   const tipWidth = Math.min(compact ? 212 : 226, w - 16);
 
-  const barWidth = Math.min(compact ? 6.4 : 17, slot * .65);
+  const barWidth = Math.min(compact ? (guideRange === "7" ? 14 : 6.4) : 17, slot * .65);
   const weightRadius = Math.min(compact ? 2.2 : 2.8, slot * .42);
 
   function axisMarks(axis: "balance" | "weight", scale: ChartScale, position: (value: number) => number, height: number) {
     const energy = axis === "balance";
-    const ticks = compact ? [...new Set([scale.min, 0, scale.max])] : spacedTicks(scale, height, energy ? 48 : 18);
+    const reference = compact ? compactReferenceTick(scale, height) : null;
+    const ticks = compact ? [...new Set([scale.min, 0, scale.max, ...(reference === null ? [] : [reference])])]
+      : spacedTicks(scale, height, energy ? 48 : 18);
     return ticks.map(tick => {
       const y = position(tick);
       const zero = tick === 0;
-      const centered = compact && !zero;
-      const label = energy ? (centered && tick < 0 ? "−" + Math.abs(tick) : String(tick))
-        : weightTick(tick, !compact);
+      const isReference = compact && tick === reference;
+      const label = energy ? (compact && tick < 0 ? "−" + Math.abs(tick) : String(tick)) : weightTick(tick);
+      let labelX = left + 6;
+      if (isReference) {
+        const width = label.length * 7.3;
+        const clearance = (energy ? barWidth / 2 : weightRadius) + 3;
+        const baseline = position(0);
+        for (const [index, day] of days.entries()) {
+          const value = energy ? day.energyBalance : day.weightChangeKg;
+          if (value == null) continue;
+          const end = position(value);
+          const center = x(index);
+          if (Math.min(end, baseline) < y - 2 && Math.max(end, baseline) > y - 16
+              && labelX < center + clearance && labelX + width > center - clearance) {
+            labelX = center + clearance;
+          }
+        }
+        if (labelX + width > right) labelX = left + 6;
+      }
       return <g key={tick} data-axis-tick={tick}>
         <line data-range-mark={axis + "-axis:" + tick} x1={left} x2={right} y1={y} y2={y}
           data-balance-zero={energy && zero ? "" : undefined} data-overview-zero={!energy && zero ? "" : undefined}
-          className={zero ? styles.zeroLine : styles.grid} />
-        <text data-range-mark={axis + "-tick:" + tick} data-centered-tick={centered ? "" : undefined}
-          x={centered ? w / 2 : left - (compact ? 5 : axisGap)}
-          y={centered ? y + (tick === scale.min ? 13 : -4) : y + 4}
-          textAnchor={centered ? "middle" : "end"} className={styles.axis}>{label}</text>
+          className={zero ? styles.zeroLine : isReference ? styles.referenceLine : styles.grid} />
+        {(!compact || zero || isReference) && <text data-range-mark={axis + "-tick:" + tick}
+          data-reference-tick={isReference ? "" : undefined}
+          x={isReference ? labelX : left - (compact ? 5 : axisGap)}
+          y={isReference ? y - 4 : y + 4}
+          textAnchor={isReference ? "start" : "end"} className={styles.axis}>{label}</text>}
       </g>;
     });
   }
@@ -214,7 +233,6 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
         </g>
         <g data-overview-panel="weight">
           {axisMarks("weight", weightScale, weightY, weightBottom - weightTop)}
-          {compact && <text data-range-mark="weight-unit" x={right} y={weightTop - 4} textAnchor="end" className={styles.axis}>kg</text>}
           <g className={styles.plotData}>
             {days.map((day, index) => day.weightChangeKg === 0
               ? weightPoint(day, index, 0) : null)}

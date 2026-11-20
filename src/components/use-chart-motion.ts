@@ -3,6 +3,11 @@ import {useLayoutEffect,useRef,type RefObject} from "react";
 import {useChartTransitionActions} from "./chart-transition-state";
 
 export const chartZeroGrowthEasing = "cubic-bezier(.2,.65,.3,1)";
+export const chartPointPhase = .3;
+export const chartLineEasing = "ease-out";
+
+const bodyDrawDuration = 600;
+const pointDuration = bodyDrawDuration * chartPointPhase;
 
 function growChartFromZero(node: HTMLElement, duration: number, reduced: MediaQueryList) {
  const animations = [...node.querySelectorAll<SVGGElement>("[data-chart-grow-from]")].map(layer => {
@@ -58,15 +63,25 @@ export function useChartMotion(container:RefObject<HTMLElement|null>,changeKey:s
   if(!changed)return;
   entered.current=key;
   const fresh=claimChartEntry(key,node),reduced=matchMedia("(prefers-reduced-motion: reduce)");
-  if(node.closest("[data-chart-range-motion]")||reduced.matches||typeof Element.prototype.animate!=="function"||first&&(!fresh||node.closest('[data-shared-route]')))return;
+  if(node.closest("[data-chart-range-motion]")||reduced.matches||typeof Element.prototype.animate!=="function"||first&&(!fresh||node.closest('[data-linked-plot]')))return;
   if(growthDuration!==undefined)return growChartFromZero(node,growthDuration,reduced);
   const animations:Animation[]=[];
-  const lineGroups=node.querySelectorAll<SVGElement>('[data-trend-glyph="morning-weight"]');
-  for(const glyph of lineGroups)animations.push(glyph.animate([{clipPath:"inset(-8px 100% -8px -8px)"},{clipPath:"inset(-8px -8px -8px -8px)"}],{duration:600,easing:"cubic-bezier(.2,.65,.3,1)"}));
-  for(const element of node.querySelectorAll<SVGElement>("[data-chart-line]")){
-   if(element.closest('[data-trend-glyph="morning-weight"]'))continue;
-   const length=element instanceof SVGGeometryElement?element.getTotalLength():0;
-   if(length)animations.push(element.animate([{strokeDasharray:String(length),strokeDashoffset:length},{strokeDasharray:String(length),strokeDashoffset:0}],{duration:600,easing:"ease-out"}));
+  for (const point of node.querySelectorAll<SVGElement>("[data-chart-point]")) {
+   animations.push(point.animate([{opacity:0}, {opacity:1}], {
+    duration:pointDuration, easing:chartZeroGrowthEasing, fill:"backwards",
+   }));
+  }
+  for (const line of node.querySelectorAll<SVGLineElement>("[data-chart-line]")) {
+   const matrix = line.getScreenCTM();
+   const length = getComputedStyle(line).vectorEffect === "non-scaling-stroke" && matrix
+    ? Math.hypot((line.x2.baseVal.value - line.x1.baseVal.value) * matrix.a, (line.y2.baseVal.value - line.y1.baseVal.value) * matrix.d)
+    : line.getTotalLength();
+   if (!length) continue;
+   const dash = length + " " + length;
+   animations.push(line.animate([
+    {strokeDasharray:dash, strokeDashoffset:length, visibility:"hidden"},
+    {strokeDasharray:dash, strokeDashoffset:0, visibility:"visible"},
+   ], {delay:pointDuration, duration:bodyDrawDuration - pointDuration, easing:chartLineEasing, fill:"backwards"}));
   }
   for(const bar of node.querySelectorAll<SVGElement>("[data-chart-bar]")){
    bar.style.transformBox="view-box";bar.style.transformOrigin="0px "+(bar.getAttribute("data-chart-zero")??"0")+"px";
