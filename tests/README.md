@@ -472,11 +472,11 @@ MFA专项使用真实Better Auth插件验证绑定、错误动态码、恢复码
 `meal-inline.browser.mjs`读取本机隔离chat-pilot配置，验证手填与食材库持续同页、搜索保留、多项营养独立展开、原值保留及拍照返回；覆盖桌面、手机与320px网页200%，保存原始PNG和WebM，不调用模型或保存健康记录。
 
 
-小助手交互候选由 `test:chat-browser` 的 `FORMWARD_CHAT_EXPERIENCE=1` 运行。使用 `FORMWARD_CHAT_FIXTURE_PHOTO` 提供本机虚构 PNG，`FORMWARD_LOCAL_PREVIEW=1` 保持隔离标识。驱动覆盖完整发图、计时、流式正文、跳过、刷新恢复和同会话多图分批，并保存整屏 PNG、原始 WebM 与步骤时间。`FORMWARD_EXPERIENCE_CASE=composer` 单独运行两端输入、触摸、菜单和额度验收。接近用完与耗尽用隔离 PostgreSQL 账本，跨日使用浏览器时钟与隔离回放。原生库和浏览器路径使用现有隔离参数。浏览器模拟键盘与真机证据分别记录。
+小助手交互候选由 `test:chat-browser` 的 `FORMWARD_CHAT_EXPERIENCE=1` 运行。使用 `FORMWARD_CHAT_FIXTURE_PHOTO` 提供本机虚构 PNG，`FORMWARD_LOCAL_PREVIEW=1` 保持隔离标识。驱动覆盖完整发图、计时、流式正文、跳过、刷新恢复和同会话多图分批，并保存整屏 PNG、原始 WebM 与步骤时间。`FORMWARD_EXPERIENCE_CASE=composer` 单独运行双端输入、触摸、菜单和额度验收。选图就绪后分别按住文字和缩略图，核对同一个柔光层的覆盖范围、触点及实际截图。接近用完与耗尽用隔离 PostgreSQL 账本，跨日使用浏览器时钟与隔离回放。原生库和浏览器路径使用现有隔离参数。浏览器模拟键盘与真机证据分别记录。
 
 `FORMWARD_EXPERIENCE_CASE=keyboard` 验证 393 × 852 手机视口内两图长稿的开合、迟到平移、引用、模型菜单和一次发送。模拟可见高度为 235、200 和 180 CSS px，保存可见区域原图及整屏录屏。`keyboard-before` 用同一数据在基线构建复现裁切。
 
-`FORMWARD_EXPERIENCE_CASE=draft-scroll` 用两张虚构照片和 20 行草稿，在 Chromium 用触摸滑动，在 WebKit 窄视口用原生滚轮。检验框内往返首尾、修改前文、模拟键盘高度变化后保持阅读位置、继续在末尾输入和一次发送。逐帧量顶栏、发送键、消息区和外层页面。回放底部留白、键盘边界长按、文字先横后竖、到首尾继续拖和同高度视口偏移，逐帧保存顶栏、发送、消息与文档位置。`FORMWARD_EXPERIENCE_CASE=composer-scroll` 覆盖短历史、可滚过 1000px 的长历史、照片横滑与附件纵滑。消息区起滑仍可翻历史。WebKit 持续触点用脚本回放，原生滚动由窄窗滚轮核对。
+`FORMWARD_EXPERIENCE_CASE=draft-scroll` 用两张虚构照片和 20 行草稿，在 Chromium 用触摸滑动，在 WebKit 窄视口用原生滚轮。检验框内往返首尾、修改前文、模拟键盘变高后保持阅读位置，以及继续输入和一次发送。回放在文字框底边内约 1px 起手、先横后竖、到末尾后不抬手直接反向。逐帧保存顶栏、发送、消息与文档位置，另以可视区相对坐标核对键盘事件顺序、同高度的大幅偏移和松手后的迟到平移。`FORMWARD_EXPERIENCE_CASE=composer-scroll` 覆盖短历史、可滚过 1000px 的长历史、照片横滑与附件纵滑。消息区起滑仍可翻历史。WebKit 持续触点用脚本回放，原生滚动由窄窗滚轮核对。
 
 小助手上下文中断验收使用 `FORMWARD_CHAT_CONTEXT_RECOVERY=1` 运行 `tests/chat-pilot.browser.mts`。指定 `FORMWARD_TEST_RELEASE`、`FORMWARD_CHAT_NATIVE=1` 与虚构样例照片后，可用 `CHAT_BROWSER=chromium` 或 `webkit` 复现已保存后中断、一键新会话续答、历史精简与多图自动读取。另用 `FORMWARD_CONTEXT_CASE=photos` 或 `overflow` 可单独跑其中一类，capacity 覆盖查库后超限恢复与预警。可选的 `FORMWARD_CHAT_FIXTURE_LABEL` 提供虚构标签 PNG。以真实任务诊断和数据库核对完整提示、分批顺序、续读定位与保存前后的实际记录。报告和实录写入 `FORMWARD_CHAT_ARTIFACTS`。
 

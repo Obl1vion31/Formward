@@ -269,6 +269,8 @@ export async function runAssistantExperienceBrowser(db) {
     const menu = page.getByRole("dialog",{name:"模型与用量"});
     const remaining = menu.locator("[data-chat-remaining]");
     const row = input().locator("..");
+    const frame = page.locator("[data-chat-composer-frame]:visible");
+    const glow = frame.locator("[data-chat-composer-glow]");
     const requestBalance = async () => {
       const response = await context.request.get(base+"/api/account/entitlements");
       assert.equal(response.status(),200);
@@ -311,32 +313,32 @@ export async function runAssistantExperienceBrowser(db) {
 
     await page.setViewportSize(mobile?{width:390,height:844}:{width:1440,height:900});
     await page.evaluate(()=>{ document.documentElement.dataset.theme="light"; });
-    if (mobile) {
-      const cdp = engine==="chromium" ? await context.newCDPSession(page) : undefined;
-      let lastPoint, pointerId = 40;
-      async function touch(type, x, y) {
-        if (cdp) {
-          await cdp.send("Input.dispatchTouchEvent",{
-            type, touchPoints:type==="touchEnd" || type==="touchCancel" ? [] : [{x,y,id:0}],
-          });
-        } else {
-          if (type==="touchStart") {
-            pointerId++;
-            lastPoint=await page.evaluateHandle(({x,y})=>document.elementFromPoint(x,y),{x,y});
-          }
-          const event = {pointerType:"touch",pointerId,isPrimary:true,bubbles:true,clientX:x,clientY:y,
-            buttons:type==="touchEnd"||type==="touchCancel"?0:1};
-          await lastPoint.evaluate((node,{name,event})=>node.dispatchEvent(new PointerEvent(name,event)),{
-            name:{touchStart:"pointerdown",touchMove:"pointermove",touchEnd:"pointerup",touchCancel:"pointercancel"}[type],event,
-          });
-          if (type==="touchEnd" || type==="touchCancel") await lastPoint.dispose();
+    const cdp = mobile && engine==="chromium" ? await context.newCDPSession(page) : undefined;
+    let lastPoint, pointerId = 40;
+    async function touch(type, x, y) {
+      if (cdp) {
+        await cdp.send("Input.dispatchTouchEvent",{
+          type, touchPoints:type==="touchEnd" || type==="touchCancel" ? [] : [{x,y,id:0}],
+        });
+      } else {
+        if (type==="touchStart") {
+          pointerId++;
+          lastPoint=await page.evaluateHandle(({x,y})=>document.elementFromPoint(x,y),{x,y});
         }
+        const event = {pointerType:"touch",pointerId,isPrimary:true,bubbles:true,clientX:x,clientY:y,
+          buttons:type==="touchEnd"||type==="touchCancel"?0:1};
+        await lastPoint.evaluate((node,{name,event})=>node.dispatchEvent(new PointerEvent(name,event)),{
+          name:{touchStart:"pointerdown",touchMove:"pointermove",touchEnd:"pointerup",touchCancel:"pointercancel"}[type],event,
+        });
+        if (type==="touchEnd" || type==="touchCancel") await lastPoint.dispose();
       }
-      const box = await row.boundingBox(), x=Math.round(box.x+box.width/2), y=Math.round(box.y+box.height/2);
-      const origin = () => row.evaluate(node=>parseFloat(node.style.getPropertyValue("--press-x")));
+    }
+    if (mobile) {
+      const box = await frame.boundingBox(), x=Math.round(box.x+box.width/2), y=Math.round(box.y+box.height/2);
+      const origin = () => frame.evaluate(node=>parseFloat(node.style.getPropertyValue("--press-x")));
       await touch("touchStart",x,y);
       await page.waitForTimeout(170);
-      assert.equal(await row.getAttribute("data-pressing"),"true");
+      assert.equal(await frame.getAttribute("data-pressing"),"true");
       assert.ok(Math.abs(await origin() - box.width/2)<=1);
       await shot("center","手指按在中间，横向柔光向两侧铺开");
       await touch("touchMove",x+38,y);
@@ -347,22 +349,22 @@ export async function runAssistantExperienceBrowser(db) {
       await page.waitForTimeout(80);
       assert.ok(Math.abs(await origin() - box.width/2 + 38)<=1);
       await shot("left","手指向左移动，高光跟随，表单边界保持");
-      assert.deepEqual(await row.boundingBox(),box);
+      assert.deepEqual(await frame.boundingBox(),box);
       await touch("touchEnd",x-38,y);
       await page.waitForTimeout(200);
-      assert.equal(await row.getAttribute("data-pressing"),null);
+      assert.equal(await frame.getAttribute("data-pressing"),null);
       await touch("touchStart",x-42,y);
       await page.waitForTimeout(170);
       assert.ok(Math.abs(await origin() - box.width/2 + 42)<=1);
       await shot("offset","偏左按下，高光从实际触点周围展开");
       await touch("touchMove",x-42,y-16);
       await page.waitForTimeout(100);
-      assert.equal(await row.getAttribute("data-pressing"),null);
+      assert.equal(await frame.getAttribute("data-pressing"),null);
       await touch("touchCancel",x-42,y-16);
       await page.emulateMedia({reducedMotion:"reduce"});
       await touch("touchStart",x,y);
-      assert.equal(await row.evaluate(node=>{
-        const light = node.querySelector('[aria-hidden="true"] div span');
+      assert.equal(await glow.evaluate(node=>{
+        const light = node.querySelector("span");
         return getComputedStyle(light).transitionDuration;
       }),"0s");
       await shot("reduced","减少动态效果时只显示静态按压色");
@@ -401,6 +403,38 @@ export async function runAssistantExperienceBrowser(db) {
     assert.ok((await thumbnail.boundingBox()).y+(await thumbnail.boundingBox()).height<=(await row.boundingBox()).y+1);
     await page.getByRole("button",{name:"移除照片 2",exact:true}).click();
     assert.equal(await page.getByAltText("照片 2",{exact:true}).count(),0);
+    const rail = frame.locator("[data-chat-composer-photos]");
+    const photoBox = await rail.boundingBox(), fieldBox = await input().boundingBox(), glowBox = await glow.boundingBox();
+    assert.ok(photoBox && fieldBox && glowBox, "上传后的照片和文字都在共享触控框内");
+    assert.ok(glowBox.y <= photoBox.y + 1 && glowBox.y + glowBox.height >= fieldBox.y + fieldBox.height - 1,
+      JSON.stringify({ photoBox, fieldBox, glowBox }));
+    if (mobile) {
+      const image = await thumbnail.boundingBox();
+      for (const [part, x, y] of [
+        ["文字", Math.round(fieldBox.x + fieldBox.width / 2), Math.round(fieldBox.y + fieldBox.height / 2)],
+        ["照片", Math.round(image.x + 8), Math.round(image.y + image.height - 12)],
+      ]) {
+        await touch("touchStart", x, y);
+        await page.waitForTimeout(185);
+        assert.equal(await frame.getAttribute("data-pressing"), "true", part);
+        const press = await glow.evaluate(light => {
+          const parent = light.closest("[data-chat-composer-frame]");
+          const bounds = parent.getBoundingClientRect();
+          const tint = light.querySelector("span"), litBox = tint.getBoundingClientRect();
+          return { x: bounds.x + parseFloat(parent.style.getPropertyValue("--press-x")),
+            y: bounds.y + parseFloat(parent.style.getPropertyValue("--press-y")), opacity: Number(getComputedStyle(tint).opacity),
+            litTop: litBox.top, litBottom: litBox.bottom, pointerEvents: getComputedStyle(light).pointerEvents };
+        });
+        assert.ok(Math.abs(press.x - x) <= 1 && Math.abs(press.y - y) <= 1 && press.opacity > 0, JSON.stringify({ part, press }));
+        assert.ok(press.litTop <= photoBox.y + photoBox.height / 2 &&
+          press.litBottom >= fieldBox.y + fieldBox.height / 2, JSON.stringify({ part, press }));
+        assert.equal(press.pointerEvents, "none", "柔光不遮挡照片、输入或按钮的命中");
+        await shot(part === "文字" ? "photo-glow-text" : "photo-glow-rail", "上传后按" + part + "时同一柔光层覆盖照片和文字");
+        await touch("touchEnd", x, y);
+        assert.equal(await frame.getAttribute("data-pressing"), null);
+      }
+    }
+    await mark("上传照片后，照片与文字共享完整输入框和柔光边界");
     await openMenu();
     assert.ok(await remaining.isVisible());
     await checkModelAnchor(model(), menu, record, "短稿与照片");
@@ -633,18 +667,17 @@ export async function runAssistantExperienceBrowser(db) {
       const geometry = () => page.locator("[data-assistant-page]").evaluate(node=>{
         const top = node.querySelector("header").getBoundingClientRect();
         const area = node.querySelector("textarea").getBoundingClientRect();
-        return {heading:top.top,composer:area.bottom,scroll:window.scrollY};
+        const offset = window.visualViewport.offsetTop;
+        return {heading:top.top-offset,composer:area.bottom-offset,scroll:window.scrollY};
       });
       const before=await geometry(), box=await input().boundingBox();
       await drag(Math.round(box.x+45),Math.round(box.y+box.height/2),0,60);
       await drag(Math.round(box.x+45),Math.round(box.y+box.height/2),0,-62);
-      await page.evaluate(() => {
-        const drag = new Event("touchmove", { bubbles: true });
-        Object.defineProperty(drag, "touches", { value: [{}] });
-        document.querySelector('textarea[aria-label="给小助手发消息"]').dispatchEvent(drag);
-        window.fixtureViewport({height:470,width:390,offsetTop:46,scale:1},"scroll");
-      });
-      await page.waitForTimeout(150);
+      await page.evaluate(() => window.fixtureViewport({height:470,width:390,offsetTop:46,scale:1},"scroll"));
+      await page.waitForFunction(() => {
+        const content = document.querySelector("[data-assistant-page-content]").getBoundingClientRect();
+        return Math.abs(content.top - window.visualViewport.offsetTop) <= 1;
+      }, null, {timeout:3500});
       const after=await geometry();
       for (const key of Object.keys(before)) assert.ok(Math.abs(before[key]-after[key])<=1,JSON.stringify({before,after}));
       const feed=page.getByRole("log",{name:"聊天消息"});
@@ -763,23 +796,28 @@ export async function runAssistantExperienceBrowser(db) {
       const content = shell.querySelector("[data-assistant-page-content]").getBoundingClientRect();
       const row = field.getBoundingClientRect();
       return {
-        top: outer.top, bottom: outer.bottom, contentBottom: content.bottom, fieldTop: row.top, fieldBottom: row.bottom,
+        top: outer.top, bottom: outer.bottom, contentTop: content.top, contentBottom: content.bottom,
+        visualTop: visual.offsetTop, visualBottom: visual.offsetTop + visual.height, fieldTop: row.top, fieldBottom: row.bottom,
         fieldHeight: row.height, overflow: field.scrollHeight > field.clientHeight,
+        fieldHitAtLowerEdge: field.contains(document.elementFromPoint(row.x + row.width / 2, row.bottom - 1.5)),
         sendHeight: box.height, sendBottom: box.bottom, gap: content.bottom - box.bottom,
         visualGap: visual.offsetTop + visual.height - box.bottom,
         hit: sendButton.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)),
         keyboard: shell.hasAttribute("data-assistant-keyboard"),
       };
     });
-    const withinViewport = async (expectedBottom) => {
-      await page.waitForFunction(bottom => {
+    const withinViewport = async (expectedBottom, expectedTop = 0) => {
+      await page.waitForFunction(({top, bottom}) => {
         const shell = document.querySelector("[data-assistant-page]").getBoundingClientRect();
         const content = document.querySelector("[data-assistant-page-content]").getBoundingClientRect();
-        return Math.abs(shell.top) <= 1 && Math.abs(shell.bottom - innerHeight) <= 1 && Math.abs(content.bottom - bottom) <= 1;
-      }, expectedBottom);
+        return Math.abs(shell.top) <= 1 && Math.abs(shell.bottom - innerHeight) <= 1 &&
+          Math.abs(content.bottom - bottom) <= 1 && Math.abs(content.top - top) <= 1;
+      }, { top: expectedTop, bottom: expectedBottom }, { timeout: 3500 });
       const view = await geometry();
-      assert.ok(view.fieldHeight >= 44 && view.fieldTop >= 0 && view.fieldBottom <= expectedBottom + 1, JSON.stringify(view));
-      assert.ok(view.sendHeight >= 44 && view.hit && view.gap >= 4 && view.gap <= 8, JSON.stringify(view));
+      assert.ok(view.fieldHeight >= 44 && view.fieldTop >= view.visualTop - 1 &&
+        view.fieldBottom <= view.visualBottom + 1 && view.fieldHitAtLowerEdge, JSON.stringify(view));
+      assert.ok(view.sendHeight >= 44 && view.hit && view.gap >= 4 && view.gap <= 8 &&
+        view.visualGap >= 4 && view.visualGap <= 8, JSON.stringify(view));
       return view;
     };
     async function checkDraftScroll() {
@@ -787,10 +825,11 @@ export async function runAssistantExperienceBrowser(db) {
       const cdp = engine === "chromium" ? await context.newCDPSession(page) : null;
       const position = () => field.evaluate(node => {
         const shell = node.closest("[data-assistant-page]");
+        const visibleTop = window.visualViewport.offsetTop;
         return {
           top:node.scrollTop, end:node.scrollHeight-node.clientHeight,
-          heading:shell.querySelector("header").getBoundingClientRect().top,
-          send:shell.querySelector('button[aria-label="发送消息"]').getBoundingClientRect().bottom,
+          heading:shell.querySelector("header").getBoundingClientRect().top - visibleTop,
+          send:shell.querySelector('button[aria-label="发送消息"]').getBoundingClientRect().bottom - visibleTop,
           feed:shell.querySelector('[role="log"]').scrollTop, document:scrollY,
         };
       });
@@ -821,16 +860,17 @@ export async function runAssistantExperienceBrowser(db) {
           assert.ok(Math.abs(before[key]-after[key]) <= 1, JSON.stringify({key,before,after}));
         }
       };
-      async function testBoundaryPan(target, towardStart, scenario, { turn = false, gap = false } = {}) {
+      async function testBoundaryPan(target, towardStart, scenario, { turn = false, gap = false, edge = false } = {}) {
         const before = await position();
-        const hit = await target.evaluate((node, { gap, towardStart }) => {
+        const hit = await target.evaluate((node, { edge, gap, towardStart }) => {
           const box = node.getBoundingClientRect();
           const x = Math.round(box.x + box.width / 2);
           // 软键盘遮蔽区的第一像素和边上真实留白都应命中自己的容器。
-          const y = Math.round(gap ? box.top + 1 : towardStart ? box.top + 8 : box.bottom - 8);
+          const y = gap ? Math.round(box.top + 1) : edge ? Math.floor(box.bottom - 1) :
+            Math.round(towardStart ? box.top + 8 : box.bottom - 8);
           const target = document.elementFromPoint(x, y);
           return { x, y, inside: node.contains(target), touchAction: getComputedStyle(node).touchAction };
-        }, { gap, towardStart });
+        }, { edge, gap, towardStart });
         assert.ok(hit.inside, JSON.stringify({ scenario, hit }));
         if (gap) assert.equal(hit.touchAction, "none");
         await field.evaluate(node => {
@@ -839,8 +879,9 @@ export async function runAssistantExperienceBrowser(db) {
           const frames = [];
           let frame;
           function capture() {
-            frames.push({ time: performance.now(), heading: heading.getBoundingClientRect().top, send: send.getBoundingClientRect().bottom,
-              feed: feed.scrollTop, document: scrollY });
+            const visibleTop = window.visualViewport.offsetTop;
+            frames.push({ time: performance.now(), heading: heading.getBoundingClientRect().top - visibleTop,
+              send: send.getBoundingClientRect().bottom - visibleTop, feed: feed.scrollTop, document: scrollY });
             frame = requestAnimationFrame(capture);
           }
           capture();
@@ -873,10 +914,6 @@ export async function runAssistantExperienceBrowser(db) {
             }, { hit, moves });
           }
           await page.waitForTimeout(230);
-          await viewport(235, 17, "scroll");
-          await page.waitForTimeout(125);
-          await viewport(235, 18, "resize");
-          await page.waitForTimeout(125);
         } finally {
           frames = await page.evaluate(() => window.stopComposerBoundaryCapture());
           (record.gestureFrames ??= []).push({ scenario, hit, native: cdp ? "touch" : "wheel", before, cancelled, frames });
@@ -884,10 +921,41 @@ export async function runAssistantExperienceBrowser(db) {
         assert.ok(frames.length >= 5);
         for (const frame of frames) fixed(before, frame);
         if (!gap) assert.equal(cancelled.at(-1), true, scenario);
+        // Safari 的可视区域可能在松手后才报告平移。用屏幕坐标量变化，文档和消息列表仍应原地。
+        await viewport(235, 17, "scroll");
+        await withinViewport(252, 17);
+        fixed(before, await position());
+        await viewport(235, 18, "resize");
+        await withinViewport(253, 18);
+        fixed(before, await position());
         await viewport(235);
+        await withinViewport(235);
       }
       const bottom = await position();
       assert.ok(bottom.end > 350 && bottom.end-bottom.top <= 1, JSON.stringify(bottom));
+      const reversal = await field.evaluate(node => {
+        const rect = node.getBoundingClientRect(), x = Math.round(rect.x + rect.width / 2), y = Math.floor(rect.bottom - 1);
+        const hit = node.contains(document.elementFromPoint(x, y));
+        function dispatch(type, touches) {
+          const event = new Event(type, { bubbles: true, cancelable: type === "touchmove" });
+          Object.defineProperty(event, "touches", { value: touches });
+          node.dispatchEvent(event);
+          return event.defaultPrevented;
+        }
+        dispatch("touchstart", [{ clientX: x, clientY: y }]);
+        const moves = [[2, 0], [2, -35], [2, -62], [2, -8], [2, -82]].map(([dx, dy]) => ({
+          blocked: dispatch("touchmove", [{ clientX: x + dx, clientY: y + dy }]), top: node.scrollTop,
+        }));
+        dispatch("touchend", []);
+        return { hit, moves };
+      });
+      assert.ok(reversal.hit && Math.abs(reversal.moves[0].top - bottom.top) <= 1, JSON.stringify(reversal));
+      assert.ok(reversal.moves.slice(1).every(move => move.blocked), JSON.stringify(reversal));
+      assert.ok(Math.abs(reversal.moves[2].top - bottom.end) <= 1 && reversal.moves[3].top <= bottom.end - 30 &&
+        Math.abs(reversal.moves[4].top - bottom.end) <= 1, JSON.stringify(reversal));
+      fixed(bottom, await position());
+      record.lowerEdgeReversal = reversal;
+      await mark("文字框内沿离底部 1px 起手，抵达末尾后原指反向可继续滚动");
       await gesture(true);
       await page.waitForTimeout(250);
       const reading = await position();
@@ -909,7 +977,7 @@ export async function runAssistantExperienceBrowser(db) {
       const start = await position();
       assert.ok(start.top <= 1, JSON.stringify(start));
       fixed(stable, start);
-      await shot("draft-start","原生滚动查看两图草稿的开头，发送键仍可点",{x:0,y:0,width,height:235});
+      await shot("draft-start","滑到两图草稿的开头，发送键仍可点",{x:0,y:0,width,height:235});
       await testBoundaryPan(field, true, "文字滚到开头仍继续拖");
 
       const original = "第 2 行虚构记录，待核对。";
@@ -934,7 +1002,7 @@ export async function runAssistantExperienceBrowser(db) {
       fixed(afterEdit, end);
       await shot("draft-end","修改前文后滑回末尾，两张照片和输入仍在",{x:0,y:0,width,height:235});
       await testBoundaryPan(field, false, "文字滚到末尾仍继续拖");
-      await testBoundaryPan(field, false, "文字末尾先横后竖", { turn: true });
+      await testBoundaryPan(field, false, "文字末尾下边缘先横后竖", { turn: true, edge: true });
       await testBoundaryPan(page.locator("[data-chat-composer-bottom-gap]"), false, "输入框下方 4px 留白长按后拖", { turn: true, gap: true });
       await testBoundaryPan(page.locator("[data-assistant-keyboard-gap]"), true, "键盘边界第一像素长按后拖", { turn: true, gap: true });
       if (longHistory) {
@@ -996,13 +1064,13 @@ export async function runAssistantExperienceBrowser(db) {
         await mark("模拟键盘下，照片横滑、超高附件纵滑都留在输入区");
       }
       await viewport(215, 5);
-      await withinViewport(220);
+      await withinViewport(220, 5);
       await viewport(235);
       await withinViewport(235);
       await shot("boundary","长文字和照片边界拖动后，列表和发送栏仍在原位", {x:0,y:0,width,height:235});
       await mark((longHistory ? "长" : "短") + "历史中，底部留白长按、先横后竖、滚至边界及迟到平移逐帧偏差≤1px" +
         (longHistory ? "，消息区起滑仍可翻历史" : ""));
-      await mark(`20 行草稿通过${cdp ? "原生触摸" : "窄屏原生滚轮"}往返首尾、编辑前文和视口变化，外层位置稳定`);
+      await mark(`20 行草稿通过${cdp ? "浏览器触控事件" : "窄屏原生滚轮"}往返首尾、编辑前文和视口变化，外层位置稳定`);
     }
     const source = scrollDraft ? await page.evaluate(() => {
       window.scrollTo(0, Math.min(168, document.scrollingElement.scrollHeight - innerHeight));
@@ -1010,12 +1078,37 @@ export async function runAssistantExperienceBrowser(db) {
     }) : 0;
     await open();
     await fixtureFiles(2);
-    await input().fill(draft);
+    const editor = input();
+    await editor.fill(draft);
+    await editor.blur();
     await shot("draft","键盘收起时，两张照片和多行草稿");
-    await input().focus();
-    await input().evaluate(node => node.setSelectionRange(node.value.length,node.value.length));
-    await viewport(235);
-    await page.locator("[data-assistant-keyboard]").waitFor();
+    const editBox = await editor.boundingBox();
+    await editor.tap({ position: { x: editBox.width / 2, y: editBox.height - 2 } });
+    assert.ok(await editor.evaluate(node => document.activeElement === node));
+    await editor.evaluate(node => node.setSelectionRange(node.value.length,node.value.length));
+    if (!baseline) {
+      await viewport(802, 40, "scroll");
+      await page.waitForFunction(() => {
+        const shell = document.querySelector("[data-assistant-page]");
+        const content = shell.querySelector("[data-assistant-page-content]").getBoundingClientRect();
+        return !shell.hasAttribute("data-assistant-keyboard") && Math.abs(content.top - 40) <= 1 &&
+          Math.abs(content.bottom - 842) <= 1;
+      }, null, { timeout: 3500 });
+    }
+    await viewport(235, baseline ? 0 : 120, baseline ? "resize" : "scroll");
+    await page.locator("[data-assistant-keyboard]").waitFor({ timeout: 3500 });
+    if (!baseline) {
+      const appeared = await withinViewport(355, 120);
+      // 保持同一个键盘高度，模拟 Safari 在 resize 之后才报告新的可视区域原点。
+      await viewport(235, 290, "resize");
+      const late = await withinViewport(525, 290);
+      await viewport(235, 0, "scroll");
+      const settled = await withinViewport(235);
+      const screenGap = [appeared, late, settled].map(sample => sample.visualGap);
+      assert.ok(Math.max(...screenGap) - Math.min(...screenGap) <= 1, JSON.stringify({ appeared, late, settled }));
+      record.keyboardViewport = { appeared, late, settled };
+      await mark("点入长草稿后，先到的 scroll 和迟到的大幅平移均保住输入框和发送键的可见位置");
+    }
     await page.waitForFunction(() => {
       const field = document.querySelector("[data-assistant-page] textarea");
       return field.scrollTop + field.clientHeight >= field.scrollHeight - 1;
@@ -1030,9 +1123,9 @@ export async function runAssistantExperienceBrowser(db) {
     assert.ok((await withinViewport(235)).overflow);
     await page.waitForTimeout(550);
     await viewport(235, 12, "scroll");
-    await withinViewport(235);
+    await withinViewport(247, 12);
     await viewport(235, 12, "resize");
-    await withinViewport(235);
+    await withinViewport(247, 12);
     await viewport(235);
     await withinViewport(235);
     await mark("两张图和长草稿同时保留，迟到的平移后发送键仍完整可点：" + JSON.stringify(await geometry()));
@@ -1080,16 +1173,32 @@ export async function runAssistantExperienceBrowser(db) {
       });
     }
     const photo = page.getByRole("button",{name:"移除照片 2",exact:true});
-    await photo.scrollIntoViewIfNeeded();
-    assert.ok(await photo.evaluate(node => {
-      const box = node.getBoundingClientRect();
-      return node.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
-    }));
+    const removal = await photo.evaluate(node => {
+      const media = node.closest("[data-chat-composer-extras]");
+      const glyph = node.querySelector("svg");
+      const clip = media.getBoundingClientRect();
+      const control = node.getBoundingClientRect();
+      // 只滚附件所在的区域，让整个按键进入裁剪边界，再点实际绘制的删除图标。
+      media.scrollTop += (control.top + control.bottom) / 2 - (clip.top + clip.bottom) / 2;
+      const button = node.getBoundingClientRect(), icon = glyph.getBoundingClientRect();
+      const x = Math.round((icon.left + icon.right) / 2), y = Math.round((icon.top + icon.bottom) / 2);
+      return { x, y, owned: node.contains(document.elementFromPoint(x, y)), clip: clip.toJSON(), button: button.toJSON(),
+        scrollTop: media.scrollTop };
+    });
+    assert.ok(removal.owned && removal.button.height >= 44 && removal.clip.top <= removal.button.top + 1 &&
+      removal.button.bottom <= removal.clip.bottom + 1, JSON.stringify(removal));
+    record.photoActionAt180 = removal;
     await withinViewport(180);
-    await mark("矮至 180px 时可滚到附件操作，模型菜单在 200px 可见区内");
+    await page.touchscreen.tap(removal.x, removal.y);
+    await photo.waitFor({state:"detached"});
+    await withinViewport(180);
+    await mark("可见区矮至 180px 时，只滚照片槽后仍可点按移除，模型菜单在 200px 可见区内");
     await input().blur();
     await viewport(null);
     await page.locator("[data-assistant-keyboard]").waitFor({state:"detached"});
+    await page.locator('input[aria-label="选择聊天照片"]').last().setInputFiles(samples[1].file);
+    await photo.waitFor();
+    await page.waitForFunction(() => !document.querySelector('button[aria-label="发送消息"]').disabled);
     const updated = draft + "\n重新打开键盘后继续输入。";
     assert.equal(await input().inputValue(),updated);
     assert.equal(await page.getByRole("button",{name:/^移除照片/}).count(),2);
