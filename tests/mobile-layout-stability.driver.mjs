@@ -74,7 +74,7 @@ export async function runMobileLayoutStability(db) {
 
     async function runSurface(mobile) {
       const name = mobile ? "mobile" : "desktop";
-      const viewport = mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 };
+      const viewport = mobile ? { width: 390, height: 660 } : { width: 1440, height: 900 };
       const context = await browser.newContext({
         baseURL, viewport, hasTouch: mobile, isMobile: mobile, storageState: state,
         recordVideo: { dir: output, size: viewport },
@@ -118,8 +118,11 @@ export async function runMobileLayoutStability(db) {
           const frame = document.querySelector("[data-workspace-viewport]");
           const card = [...document.querySelectorAll("[data-chat-preview]")].find(node => box(node)?.visible);
           const reading = card?.querySelector("[data-local-loading]");
+          const fixedPage = document.body.style.position === "fixed";
+          // 固定模式通过 body 偏移保持可见的来源位置，文档自身的 scrollY 会归零。
+          const sourceScroll = fixedPage ? -parseFloat(document.body.style.top) : scrollY;
           return {
-            time: performance.now(), visibleBottom: mock.height + mock.offsetTop, layoutHeight: innerHeight, scroll: scrollY,
+            time: performance.now(), visibleBottom: mock.height + mock.offsetTop, layoutHeight: innerHeight, scroll: sourceScroll,
             rootBackground: getComputedStyle(document.documentElement).backgroundColor,
             frameBackground: frame ? getComputedStyle(frame).backgroundColor : null,
             viewport: box(frame), content: box(shell?.querySelector("[data-assistant-page-content]")),
@@ -220,7 +223,7 @@ export async function runMobileLayoutStability(db) {
         assert.ok(steps.length >= 3, "覆盖底栏露出及随后稳定帧");
         assert.equal(steps[0], timeline.find(frame => frame.workspaceVisible), "来源正文和底栏同一帧露出");
         assert.equal(steps[0].phase, "closing", "底栏在助手退场开始时即可见");
-        assert.ok(timeline.every(frame => !frame.locked), "进出交接未锁定整个文档");
+        assert.ok(timeline.every(frame => frame.locked === Boolean(frame.phase)), "滚动锁随助手退场释放");
         for (const frame of steps) {
           assert.ok(frame.mountedDock && frame.assistantEntryVisible, "首帧使用来源页的同一个完整底栏");
           assert.equal(frame.selected, original.selected, "底栏选中态从首帧匹配来源");
@@ -240,7 +243,7 @@ export async function runMobileLayoutStability(db) {
 
       try {
         await page.goto("/dashboard", { waitUntil: "networkidle" });
-        if (mobile) await page.evaluate(() => scrollTo(0, 18));
+        if (mobile) await page.evaluate(() => scrollTo({ top: 18, behavior: "instant" }));
         const home = await measure();
         if (mobile) assert.ok(home.scroll > 0);
 
@@ -277,7 +280,7 @@ export async function runMobileLayoutStability(db) {
             near(frame.composer.bottom, frame.viewport.bottom, "首帧输入区贴底");
             near(frame.viewport.bottom, frame.layoutHeight, "视口从首帧覆盖到屏幕底边");
             near(frame.shell.left, 0, "背景外的助手布局不参与横移");
-            assert.equal(frame.locked, false);
+            assert.equal(frame.locked, true);
             near(frame.scroll, home.scroll, "入场不改来源页滚动");
           }
           report.samples.push({ name, kind: "opening", frameCount: arrivals.length, first: arrivals[0], last: arrivals.at(-1) });
