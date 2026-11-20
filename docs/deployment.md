@@ -2,15 +2,15 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-21d45f3a-assistant-input-scroll-r2-20261120`，源码 `21d45f3ade1adcf888f9d9c27dc21ae10036070b`，BUILD_ID `s9rZ-MX9IUcd1qIfZffTy`。北京时间 2026-11-20 17:11:09 切换。 [正式版本](https://formward.top/api/app-version)
+正式站运行 `dual-entry-0e25644b-remove-record-guidance-20261120`，源码 `0e25644bf67bc732b104cfd0e9bc5f25c0649022`，BUILD_ID `K9dEwRut5m4Jv8XCaWS0p`。北京时间 2026-11-20 17:27:19 切换。 [正式版本](https://formward.top/api/app-version)
 
-手机小助手从照片行或长草稿起滑时，滚动留在输入区。拖到边界和松手后，聊天列表仍停在原位。真实键盘开合仍更新可见区域。Chromium 和 WebKit 已在正式包回放，iPhone 系统键盘待用户真机验收。 [站内聊天验收](assistant-chat-verification.md#手机输入区独立滚动)
+饮食、消耗和训练的自动高光与分步操作引导已移除，小助手常用功能去掉重播入口。双端浏览器验收记录见[视觉验收](../design-qa.md)。
 
-上海网页和聊天 worker 使用同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。备份 `formward-primary-20261120T091105825552Z.dump.json` 已通过 PostgreSQL 原生校验及加密异地回读。停写切换前后 67 张表摘要与运行配置一致。
+上海网页与聊天 worker 运行同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。切换前备份 `formward-primary-20261120T092715506094Z.dump.json` 通过 PostgreSQL 原生校验和加密异地回读。切换前后 67 张表摘要与运行配置一致。
 
-四个公网域名和兼容 IP 返回同一版本。已核对小助手入口的登录返回、新版滚动脚本、匿名权限和海外 MCP 发现。保留 56 项 Server Action 编号和绑定密钥，兼容 2202 项旧静态资源。
+四个公网域名和兼容 IP 返回同一版本。核对饮食的登录返回、常用功能脚本、图表等待样式、匿名权限和海外 MCP 发现。保留 56 项 Server Action 编号和绑定密钥，兼容 2213 项旧静态资源。
 
-兼容运行包归档在 `.codex/backups/regional-releases/assistant-input-scroll-r2-20261120`，大小 85,031,658 字节，SHA-256 `57656adf3cae3113a6549855d2e08bc1f7fcabff82c5bae36ad0cdff42767d9a`。兼容回退版本为 `mobile-chart-loading-20261120`。
+兼容运行包归档到 `.codex/backups/regional-releases/remove-record-guidance-20261120`，大小 85,226,053 字节，SHA-256 `c19714c0f64f91cc4b344aac0bccc54b7bda0e4de0d0f108aff064281eb4fc06`。兼容回退为 `assistant-input-scroll-r2-20261120`。
 
 ## 迁移与发布
 
