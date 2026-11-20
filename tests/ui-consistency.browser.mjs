@@ -96,8 +96,8 @@ try{
   await go(p,path);const recent=p.getByRole("region",{name:"最近记录",exact:true});
   const b=recent.locator('[data-record-actions] button').first();await b.hover();await p.waitForTimeout(190);hoverStyles[name]=await b.evaluate(n=>{const s=getComputedStyle(n);return[s.color,s.backgroundColor,s.borderTopColor,s.fontSize].join("|")});await shot(p,name+"-recent-hover");
   await b.focus();await p.keyboard.press("Tab");await shot(p,name+"-recent-focus");
-  await recent.getByRole("button",{name:"查看全部 ↓",exact:true}).click();await shot(p,name+"-history-open",true);
-  assert.equal(await recent.locator("[data-record-history]").isVisible(),true);await recent.getByRole("button",{name:"收起历史 ↑",exact:true}).click();assert.equal(await recent.locator("[data-record-history]").isVisible(),false);
+  await recent.getByRole("button",{name:"查看全部",exact:true}).click();await shot(p,name+"-history-open",true);
+  assert.equal(await recent.locator("[data-record-history]").isVisible(),true);await recent.getByRole("button",{name:"收起历史",exact:true}).click();assert.equal(await recent.locator("[data-record-history]").isVisible(),false);
  }
  assert.equal(hoverStyles.meals,hoverStyles.energy);assert.equal(hoverStyles.energy,hoverStyles.body);checks.push("shared-record-controls-normal-hover-focus-and-history");
  await p.setViewportSize({width:390,height:720});await go(p,"/dashboard");

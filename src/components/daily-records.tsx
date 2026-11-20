@@ -9,7 +9,23 @@ export function SelectedDateHeading({date,view,status,pending=false}:{date:strin
 export function DailyRecords({children,history,actions,loading=false,kind,readingStatus}:{children?:ReactNode;history?:ReactNode;actions?:ReactNode;loading?:boolean;readingStatus?:ReactNode;kind?:"body"}){
  const id=useId(),[expanded,setExpanded]=useState(false),[opened,setOpened]=useState(false);
  return <section className={styles.records} aria-label="最近记录" data-record-slot="records" data-loading={loading||undefined} data-record-kind={kind}><div className={styles.heading}><h2>最近记录</h2>{actions}</div>{loading?<div>{readingStatus}</div>:children}
-  <button type="button" disabled={loading} className={styles.historyToggle} data-history-toggle aria-expanded={expanded} aria-controls={id} onClick={()=>{setOpened(true);setExpanded(value=>!value);}}>{expanded?"收起历史 ↑":"查看全部 ↓"}</button>
+  <button
+   type="button"
+   disabled={loading}
+   className={styles.historyAction}
+   data-history-toggle
+   aria-expanded={expanded}
+   aria-controls={id}
+   onClick={() => {
+    setOpened(true);
+    setExpanded(value => !value);
+   }}
+  >
+   <span className={styles.actionFace}>
+    {expanded ? "收起历史" : "查看全部"}
+    <span className={styles.historyArrow} aria-hidden="true">{expanded ? "↑" : "↓"}</span>
+   </span>
+  </button>
   <div id={id} hidden={!expanded} data-record-history>{opened&&history}</div>
  </section>;
 }

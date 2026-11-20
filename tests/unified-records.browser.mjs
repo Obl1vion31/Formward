@@ -8,16 +8,217 @@ import {dailyTotals} from "../src/features/meals/model.ts";
 import {setMealDayStatus} from "../src/features/meals/day-status.ts";
 import {addCalendarDays} from "../src/features/measurements/calendar.ts";
 import {checkOverviewFirstScreen} from "./overview-first-screen.browser.mjs";
+async function recordActionGeometry(button) {
+  return button.evaluate(node => {
+    const face = node.firstElementChild;
+    const outer = node.getBoundingClientRect();
+    const inner = face.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    return {
+      width: outer.width, height: outer.height,
+      faceWidth: inner.width, faceHeight: inner.height,
+      insetX: inner.left - outer.left, insetY: inner.top - outer.top,
+      background: style.backgroundColor,
+      fill: getComputedStyle(face).backgroundColor,
+      tapHighlight: style.webkitTapHighlightColor,
+      active: node.matches(":active"),
+    };
+  });
+}
+
+function assertSameActionGeometry(before, after) {
+  for (const key of ["width", "height", "faceWidth", "faceHeight", "insetX", "insetY"]) {
+    assert.ok(Math.abs(before[key] - after[key]) <= 1, key + ": " + before[key] + " → " + after[key]);
+  }
+  assert.equal(after.background, "rgba(0, 0, 0, 0)");
+}
+
+async function checkRecordHistoryControls({ baseURL, page, today, engine, artifacts }) {
+  const lookupDate = addCalendarDays(today, -12);
+  const tomorrow = addCalendarDays(today, 1);
+  const report = [];
+  const storageState = await page.context().storageState();
+  const cases = [
+    { width: 320, height: 640, mobile: true, theme: "light" },
+    { width: 390, height: 780, mobile: true, theme: "light" },
+    { width: 430, height: 780, mobile: true, theme: "dark" },
+    { width: 1440, height: 900, mobile: false, theme: "light" },
+    { width: 1440, height: 900, mobile: false, theme: "dark" },
+  ];
+
+  for (const { width, height, mobile, theme } of cases) {
+    const context = await page.context().browser().newContext({
+      storageState, locale: "zh-CN", timezoneId: "Asia/Shanghai",
+      viewport: { width, height }, hasTouch: mobile, isMobile: mobile,
+    });
+    await context.addInitScript(value => localStorage.setItem("formward-theme", value), theme);
+    const screen = await context.newPage();
+    const activate = locator => mobile ? locator.tap() : locator.click();
+    const errors = [];
+    screen.on("pageerror", error => errors.push(error.message));
+    screen.setDefaultTimeout(15000);
+    try {
+      for (const path of ["measurements", "meals", "energy"]) {
+        await screen.goto(baseURL + "/dashboard/" + path);
+        const records = screen.getByRole("region", { name: "最近记录", exact: true });
+        const history = records.locator("[data-record-history]");
+        await records.locator('[data-record-date="' + today + '"]').waitFor();
+        const toggle = records.getByRole("button", { name: "查看全部", exact: true });
+        const collapse = records.getByRole("button", { name: "收起历史", exact: true });
+        await toggle.scrollIntoViewIfNeeded();
+        const folded = await recordActionGeometry(toggle);
+        assert.ok(folded.width >= 44 && folded.height >= 44);
+        assert.equal(folded.faceHeight, 32);
+        if (width === 390) {
+          await toggle.evaluate(node => node.scrollIntoView({ block: "center" }));
+          await screen.screenshot({ path: artifacts + "/" + engine + "-" + path + "-folded.png" });
+        }
+        await activate(toggle);
+        assert.equal(await collapse.getAttribute("aria-expanded"), "true");
+        assertSameActionGeometry(folded, await recordActionGeometry(collapse));
+        assert.equal(await history.locator("[data-record-date]").count(), 50);
+
+        const input = history.getByLabel("查看日期", { exact: true });
+        const submit = history.getByRole("button", { name: "查看", exact: true }).first();
+        if (!mobile) {
+          await collapse.focus();
+          await screen.keyboard.press("Tab");
+          assert.equal(await input.evaluate(node => node === document.activeElement), true);
+          await input.blur();
+        }
+        await input.evaluate(node => window.scrollBy(0, node.getBoundingClientRect().top - Math.min(280, innerHeight / 2)));
+        assert.equal(await history.getByText("选择日期", { exact: true }).isVisible(), true);
+        assert.equal(await submit.isDisabled(), true);
+        assert.equal(await input.getAttribute("type"), "date");
+        assert.equal(await input.getAttribute("max"), today);
+        const inputBox = await input.boundingBox();
+        const submitBox = await submit.boundingBox();
+        assert.ok(inputBox.height >= 44 && submitBox.height >= 44);
+        assert.equal(await input.evaluate(node => getComputedStyle(node).fontSize), "16px");
+        assert.ok(Math.abs(inputBox.y - submitBox.y) <= 1 && inputBox.x + inputBox.width < submitBox.x);
+        assert.equal(await screen.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+        const emptySubmit = await recordActionGeometry(submit);
+        const screenshot = engine + "-" + path + "-" + width + "-" + theme;
+        await screen.screenshot({ path: artifacts + "/" + screenshot + "-empty.png" });
+
+        await input.fill(tomorrow);
+        assert.equal(await submit.isDisabled(), true);
+        await input.fill(lookupDate);
+        assert.equal(await submit.isEnabled(), true);
+        assertSameActionGeometry(emptySubmit, await recordActionGeometry(submit));
+        await input.blur();
+        assert.equal(await history.getByText(lookupDate.replaceAll("-", "."), { exact: true }).first().isVisible(), true);
+        await screen.screenshot({ path: artifacts + "/" + screenshot + "-selected.png" });
+        const scroll = await screen.evaluate(() => scrollY);
+        await activate(submit);
+        const panel = screen.locator("dialog[open]");
+        await panel.locator('[data-record-intent="view"]').waitFor();
+        const title = await panel.getAttribute("aria-labelledby");
+        const titleText = title ? await panel.locator('[id="' + title + '"]').innerText() : await panel.getAttribute("aria-label");
+        assert.ok(titleText?.replaceAll(".", "-").includes(lookupDate), path + ": " + titleText);
+        await activate(panel.getByRole("button", { name: /^关闭/ }).first());
+        await panel.waitFor({ state: "hidden" });
+        assert.equal(await input.inputValue(), lookupDate);
+        assert.ok(Math.abs((await screen.evaluate(() => scrollY)) - scroll) <= 1);
+        await activate(history.getByRole("button", { name: "加载更早日期", exact: true }));
+        const total = await history.locator("[data-record-date]").evaluateAll(rows => rows.map(row => row.dataset.recordDate));
+        assert.ok(total.length > 50);
+        assert.equal(new Set(total).size, total.length);
+        assert.deepEqual(total, [...total].sort().reverse());
+        await activate(collapse);
+        assert.equal(await history.isVisible(), false);
+        await activate(toggle);
+        assert.equal(await input.inputValue(), lookupDate);
+        assert.equal(await history.locator("[data-record-date]").count(), total.length);
+
+        const actions = [];
+        if (path === "measurements") {
+          for (const [label, date, intent] of [["编辑", today, "edit"], ["补录", lookupDate, "create"]]) {
+            const action = records.getByRole("button", { name: label + " " + date, exact: true });
+            await action.evaluate(node => node.scrollIntoView({ block: "center" }));
+            if (!mobile) await screen.mouse.move(1, 1);
+            const trigger = await action.elementHandle();
+            const before = await recordActionGeometry(trigger);
+            assert.ok(before.height >= 44 && before.width >= 44);
+            assert.equal(before.faceHeight, 32);
+            assert.equal(before.background, "rgba(0, 0, 0, 0)");
+            assert.equal(before.tapHighlight, "rgba(0, 0, 0, 0)");
+            let pressed;
+            if (mobile) {
+              // Tap the extra touch area above the visible face.
+              if (width === 390) await screen.screenshot({ path: artifacts + "/" + screenshot + "-" + intent + "-before.png" });
+              await action.tap({ position: { x: before.width / 2, y: 2 } });
+            } else {
+              const box = await action.boundingBox();
+              await screen.mouse.move(box.x + box.width / 2, box.y + 2);
+              const hovered = await recordActionGeometry(action);
+              assertSameActionGeometry(before, hovered);
+              assert.notEqual(hovered.fill, before.fill);
+              await screen.mouse.down();
+              pressed = await recordActionGeometry(action);
+              assert.equal(pressed.active, true);
+              assert.notEqual(pressed.fill, hovered.fill);
+              assertSameActionGeometry(before, pressed);
+              await screen.mouse.up();
+            }
+            await panel.locator('[data-record-intent="' + intent + '"]').waitFor();
+            const open = await recordActionGeometry(trigger);
+            assertSameActionGeometry(before, open);
+            if (width === 390) {
+              await panel.and(screen.locator('[data-surface-phase="open"]')).waitFor();
+              await screen.screenshot({ path: artifacts + "/" + screenshot + "-" + intent + ".png" });
+            }
+            let saved;
+            if (width === 1440 && theme === "dark") {
+              saved = intent === "edit" ? "70.14" : "70.12";
+              await panel.getByLabel("晨间体重", { exact: true }).fill(saved);
+              await activate(panel.getByRole("button", { name: intent === "edit" ? "保存修改" : "保存录入", exact: true }));
+              await panel.getByRole("status").filter({ hasText: /已保存/ }).waitFor();
+            }
+            if (await panel.isVisible()) {
+              await activate(panel.getByRole("button", { name: /^关闭/ }).first());
+              await panel.waitFor({ state: "hidden" });
+            }
+            if (saved) {
+              const reading = records.locator('[data-record-date="' + date + '"] [data-reading-period="daytime"] strong');
+              assert.equal((await reading.innerText()).trim().split(/\s+/)[0], saved);
+            }
+            await trigger.dispose();
+            const returned = await recordActionGeometry(saved ? records.getByRole("button", { name: "编辑 " + date, exact: true }) : action);
+            assertSameActionGeometry(before, returned);
+            actions.push({ label, before, pressed, open, returned, saved });
+          }
+        }
+        report.push({ path, width, height, mobile, theme, folded, inputBox, submitBox, date: lookupDate, rows: total.length, actions });
+      }
+      assert.deepEqual(errors, []);
+    } catch (error) {
+      await screen.screenshot({ path: artifacts + "/" + engine + "-history-controls-failure.png" });
+      const feedback = await screen.locator('dialog[open] :is([role="alert"], [role="status"])').allTextContents();
+      console.error("历史页面验收位置", screen.url(), width, theme, feedback, errors);
+      throw error;
+    } finally {
+      await context.close();
+    }
+  }
+  await writeFile(artifacts + "/" + engine + "-history-controls.json", JSON.stringify(report, null, 2));
+  return report;
+}
+
 export async function checkUnifiedRecords({baseURL,page,db,userId,today,engine="chromium",artifacts=process.env.FORMWARD_UNIFIED_ARTIFACTS??".codex/inline-history-visual"}){
  await mkdir(artifacts,{recursive:true});const errors=[];page.on("pageerror",e=>errors.push(e.message));page.setDefaultTimeout(20000);
- const detailDate=addCalendarDays(today,-1),detailOp=await submitEnergyOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_activity",date:detailDate,name:"虚构未完成活动",caloriesKcal:"300",completed:false,inclusion:"included"}]});assert.ok(detailOp.canConfirm);await decideEnergyOperation(db,userId,detailOp.id,detailOp.revision,"confirm");
- await page.goto(baseURL+"/dashboard/energy?date="+detailDate);await page.getByRole("button",{name:"查看记录 →",exact:true}).click();const detailPanel=page.locator("dialog[open]");await detailPanel.getByText("虚构未完成活动",{exact:true}).waitFor();assert.match(await detailPanel.innerText(),/未完成/);assert.match((await detailPanel.innerText()).replaceAll(",",""),/2600/);await detailPanel.getByRole("button",{name:"关闭编辑",exact:true}).click();await detailPanel.waitFor({state:"hidden"});
- if(process.env.FORMWARD_ENERGY_DETAILS_ONLY==="1"){assert.deepEqual(errors,[]);await writeFile(artifacts+"/"+engine+"-energy-details.json",JSON.stringify({passed:true,unfinishedVisible:true,totalUnchanged:2600,clientErrors:errors},null,2));return [];}
+ const historyControlsOnly=process.env.FORMWARD_HISTORY_CONTROLS_ONLY==="1";
+ if(!historyControlsOnly){
+  const detailDate=addCalendarDays(today,-1),detailOp=await submitEnergyOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_activity",date:detailDate,name:"虚构未完成活动",caloriesKcal:"300",completed:false,inclusion:"included"}]});assert.ok(detailOp.canConfirm);await decideEnergyOperation(db,userId,detailOp.id,detailOp.revision,"confirm");
+  await page.goto(baseURL+"/dashboard/energy?date="+detailDate);await page.getByRole("button",{name:"查看记录 →",exact:true}).click();const detailPanel=page.locator("dialog[open]");await detailPanel.getByText("虚构未完成活动",{exact:true}).waitFor();assert.match(await detailPanel.innerText(),/未完成/);assert.match((await detailPanel.innerText()).replaceAll(",",""),/2600/);await detailPanel.getByRole("button",{name:"关闭编辑",exact:true}).click();await detailPanel.waitFor({state:"hidden"});
+  if(process.env.FORMWARD_ENERGY_DETAILS_ONLY==="1"){assert.deepEqual(errors,[]);await writeFile(artifacts+"/"+engine+"-energy-details.json",JSON.stringify({passed:true,unfinishedVisible:true,totalUnchanged:2600,clientErrors:errors},null,2));return [];}
+ }
  await saveMeasurementDay(db,{userId,actorId:userId},{operationId:randomUUID(),date:addCalendarDays(today,-65),timezone:"Asia/Shanghai",periods:{daytime:{weightKg:"72",bodyFatPercent:"20",fasting:true,deviceLabel:"虚构历史秤"}}});
  const older=await submitEnergyOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions:Array.from({length:53},(_,i)=>({kind:"save_energy_day",date:addCalendarDays(today,-i-13),totalKcal:"2500"}))});assert.ok(older.canConfirm);await decideEnergyOperation(db,userId,older.id,older.revision,"confirm");
  const actions=[];const amounts=[2950,1940,2770,2050,0,2335,4280,1200,3650,2180,2600,2400];
  for(let i=1;i<=65;i++){if(i===5||i===8)continue;actions.push({kind:"save_meal",date:addCalendarDays(today,-i),mealType:"lunch",items:[{kind:"food",name:"虚构午餐与很长的配菜名称",quantity:"1",unit:"份",nutrition:{caloriesKcal:String(amounts[i-1]??2200),proteinG:"40",carbsG:"80",fatG:"25"},sourceKind:"estimated"}]});}
  const op=await submitMealOperation(db,{userId,origin:"manual"},{operationId:randomUUID(),actions});assert.ok(op.canConfirm);await decideMealOperation(db,userId,op.id,op.revision,"confirm");
+ if(historyControlsOnly)return checkRecordHistoryControls({baseURL,page,today,engine,artifacts});
  for(const g of dailyTotals((await readMealSnapshot(db,userId)).meals)){if(g.date===addCalendarDays(today,-1))continue;await setMealDayStatus(db,userId,{operationId:randomUUID(),date:g.date,version:g.day.version,contentDigest:g.day.contentDigest,status:"complete"});}
  const cases=[],failures=[];
  for(const [width,height] of [[320,560],[390,560],[390,640],[430,780],[844,390],[1100,900],[1440,900]]){

@@ -289,6 +289,8 @@ OAuth测试覆盖部分授权到完整读写的一次网页同意、只读查询
 
 FORMWARD_UNIFIED_UI_ONLY=1 pnpm test:energy-browser使用PGlite和虚构账号验收四页共用交互、当天／前6天待处理列表、单按钮记全、Inspector与各手机首屏；FORMWARD_OVERVIEW_BROWSER=webkit切换WebKit。截图和几何报告位于.codex/unified-ui-visual/，实际视口包含34px模拟安全区。浏览器模块和依赖可从本机私有工具目录通过既有环境变量指定，不加入产品依赖。
 
+用 `FORMWARD_HISTORY_CONTROLS_ONLY=1 pnpm test:energy-browser` 验收身体、饮食、消耗的历史入口、原生日期字段、查看后返回和每批 50 日加载。键盘可达日期字段，模拟触屏从身体按钮的透明区域打开录入，鼠标实测悬停、按下与回到列表时的按钮边界。截图与几何报告写入 `FORMWARD_UNIFIED_ARTIFACTS`，可选 Chromium 或 WebKit。
+
 ## 页面内历史与记全控件验收
 
 当前身体、饮食、消耗的共用列表回归使用FORMWARD_UNIFIED_UI_ONLY=1运行tests/energy.browser.mts，配合FORMWARD_OVERVIEW_BROWSER=webkit分别验收两引擎。FORMWARD_UNIFIED_ARTIFACTS指定私有截图目录。独立虚构数据含65日历史、空日及未完成活动；检查页面展开不打开dialog、每批50日、重复日期排除、查看和编辑才开Inspector、关闭恢复窗口滚动／焦点、折叠后保留批次。鼠标实际点击首中末日检查默认白框，键盘继续显示绘图区焦点；“已记全”文字在失败／勾选／取消时保持，勾选后变淡。旧完整历史抽屉步骤由此共用回归替代。

@@ -1,25 +1,137 @@
-.selected{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;color:var(--muted);font-size:13px}.selected button,.heading button,.actions button{min-height:44px;background:none;border:0;color:var(--gold);font:inherit;cursor:pointer;padding:8px 4px}.heading{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px}.heading h2{font-size:16px;font-weight:500;margin:0}.row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px 24px;padding:12px 0;min-height:72px;border-bottom:1px solid color-mix(in srgb,var(--warm-white) 10.98%,transparent);font-size:14px}.date time{display:block;font-size:13px}.value{color:var(--muted);font-size:13px;margin-top:5px}.actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}.status{display:flex;align-items:center}.row button:focus-visible,.selected button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}.historyToggle.historyToggle{display:block;min-height:44px;margin:8px 0;padding:8px 4px;background:none;border:0;color:var(--gold);font:inherit;font-size:13px;cursor:pointer}.historyToggle:focus-visible{outline:2px solid var(--gold);outline-offset:3px}.historyDate{display:flex;gap:12px;align-items:center;margin:10px 0 16px}.historyDate input{color-scheme:dark;min-height:44px;color:var(--warm-white);background:var(--surface-raised);border:1px solid color-mix(in srgb,var(--gold) 40.0%,transparent);padding:8px}.empty{color:var(--muted);font-size:13px}@media(max-width:600px){.row{grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 0}.status{grid-column:2;grid-row:1}.actions{grid-column:1/-1;justify-content:flex-end;gap:14px}.value{line-height:1.7}.selected{font-size:12px}.heading{margin-top:14px}}
+.selected{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;color:var(--muted);font-size:13px}.selected button,.heading button,.actions button{min-height:44px;background:none;border:0;color:var(--gold);font:inherit;cursor:pointer;padding:8px 4px}.heading{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px}.heading h2{font-size:16px;font-weight:500;margin:0}.row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px 24px;padding:12px 0;min-height:72px;border-bottom:1px solid color-mix(in srgb,var(--warm-white) 10.98%,transparent);font-size:14px}.date time{display:block;font-size:13px}.value{color:var(--muted);font-size:13px;margin-top:5px}.actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}.status{display:flex;align-items:center}.row button:focus-visible,.selected button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}.empty{color:var(--muted);font-size:13px}@media(max-width:600px){.row{grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 0}.status{grid-column:2;grid-row:1}.actions{grid-column:1/-1;justify-content:flex-end;gap:14px}.value{line-height:1.7}.selected{font-size:12px}.heading{margin-top:14px}}
 
-/* 公共列表与历史按钮不受业务页面的按钮重置影响。 */
+/* 公共列表按钮不受业务页面的按钮重置影响。 */
 .records{font-family:"Avenir Next","Segoe UI","PingFang SC",sans-serif;color:var(--warm-white)}
 .records .row{line-height:20px}.records .actions{align-self:start;gap:12px}.records .actions>div{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.records .actions button,.records .heading button,.records .historyToggle,.secondary.secondary{appearance:none;box-sizing:border-box;min-height:44px;min-width:44px;padding:10px 14px;border:1px solid var(--control-border);border-radius:6px;background:transparent;color:var(--warm-white);font-family:inherit;font-size:14px;font-weight:400;line-height:20px;cursor:pointer;white-space:nowrap;transition:background .16s,color .16s,border-color .16s}
-.records .actions button:hover,.records .heading button:hover,.records .historyToggle:hover,.secondary.secondary:hover{border-color:var(--gold);color:var(--gold);background:var(--surface-hover)}
+.records .actions button:where(:not(.compactEditAction)),.records .heading button,.secondary.secondary{appearance:none;box-sizing:border-box;min-height:44px;min-width:44px;padding:10px 14px;border:1px solid var(--control-border);border-radius:6px;background:transparent;color:var(--warm-white);font-family:inherit;font-size:14px;font-weight:400;line-height:20px;cursor:pointer;white-space:nowrap;transition:background .16s,color .16s,border-color .16s}
+.records .actions button:where(:not(.compactEditAction)):hover,.records .heading button:hover,.secondary.secondary:hover{border-color:var(--gold);color:var(--gold);background:var(--surface-hover)}
 .records button:focus-visible,.secondary.secondary:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 .records button:disabled,.secondary.secondary:disabled{cursor:not-allowed;opacity:.5;background:transparent;color:var(--muted);border-color:var(--control-border)}
-.records .historyToggle{margin:8px 0}
-.historyDate input{border-color:var(--control-border);border-radius:6px;color-scheme:var(--color-scheme);font-size:16px}
-@media(prefers-reduced-motion:reduce){.records .actions button,.records .heading button,.records .historyToggle,.secondary.secondary{transition:none}}
+@media(prefers-reduced-motion:reduce){.records .actions button:where(:not(.compactEditAction)),.records .heading button,.secondary.secondary{transition:none}}
 
 .selectedInfo{display:flex;align-items:center;gap:8px;min-width:0}.selectedInfo time{white-space:nowrap}
 
-form.historyDate{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;margin:12px 0 18px}
-form.historyDate label{display:grid;gap:6px;font-size:13px}form.historyDate .historyToggle{margin:0;min-width:66px}form.historyDate input{min-height:44px;font-size:16px;border:1px solid var(--control-border);border-radius:6px;background:var(--surface-raised);color-scheme:var(--color-scheme);padding:8px 10px}
+/* 记录操作保留 44px 触控区，状态底色绘制在文字那一层。 */
+.records button:is(.historyAction, .compactEditAction) {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.records button:is(.historyAction, .compactEditAction):active { filter: none; }
+.records .historyAction:disabled { opacity: 1; cursor: default; }
+.actionFace {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 8px;
+  background: var(--surface-hover);
+  color: var(--warm-white);
+}
+@media (hover: hover) {
+  .records :is(.historyAction, .compactEditAction):enabled:hover > .actionFace {
+    background: color-mix(in srgb, var(--surface-hover) 94%, var(--warm-white));
+  }
+}
+.records :is(.historyAction, .compactEditAction):enabled:active > .actionFace {
+  background: color-mix(in srgb, var(--surface-hover) 88%, var(--warm-white));
+}
+.historyAction:disabled > .actionFace { opacity: .55; }
+.historyArrow { inline-size: 1em; text-align: center; }
+button.historyAction[data-history-toggle] { margin-block: 4px; }
+
+.historyDate {
+  display: grid;
+  grid-template-columns: minmax(0, 10.5rem) max-content;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 4px 0 14px;
+}
+.historyDate label {
+  grid-column: 1 / -1;
+  font-size: 13px;
+}
+.historyDate .actionFace { min-height: 36px; min-width: 56px; }
+.dateField {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+}
+.dateField::before {
+  content: "";
+  position: absolute;
+  inset: 4px 0;
+  z-index: -1;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  pointer-events: none;
+}
+form.historyDate input[type="date"] {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 38px 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--warm-white);
+  color-scheme: var(--color-scheme);
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+}
+.historyDate input::-webkit-date-and-time-value { text-align: left; }
+.historyDate input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 38px;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.dateDisplay,
+.dateIcon {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  pointer-events: none;
+}
+.dateDisplay {
+  inset-inline-start: 10px;
+  color: var(--warm-white);
+  font-size: 16px;
+}
+.dateDisplay[data-placeholder],
+.dateIcon { color: var(--muted); }
+.dateIcon { inset-inline-end: 12px; }
+form.historyDate .dateField:not(:focus-within) input[type="date"] { color: transparent; }
+.dateField:not(:focus-within) input::-webkit-datetime-edit { opacity: 0; }
+.dateField:focus-within > .dateDisplay { visibility: hidden; }
 
 .selected.selected button{box-sizing:border-box;min-height:44px;padding:8px 4px;border:0;background:none;color:var(--warm-white);font:inherit;font-size:14px;cursor:pointer}.selected.selected button:hover{color:var(--gold)}.selected.selected button:disabled{opacity:1;color:var(--muted);cursor:default}
 
-.records .actions button[data-record-action=edit],.editAction.editAction{appearance:none;box-sizing:border-box;min-height:44px;min-width:44px;padding:10px 14px;border:1px solid var(--control-border);border-radius:6px;background:var(--surface-hover);color:var(--warm-white);font:inherit;font-size:14px;line-height:20px;cursor:pointer;white-space:nowrap}
-.records .actions button[data-record-action=edit]:hover,.editAction.editAction:hover{background:var(--surface-raised);border-color:var(--gold);color:var(--warm-white)}
+.records .actions button:where(:not(.compactEditAction))[data-record-action=edit],.editAction.editAction{appearance:none;box-sizing:border-box;min-height:44px;min-width:44px;padding:10px 14px;border:1px solid var(--control-border);border-radius:6px;background:var(--surface-hover);color:var(--warm-white);font:inherit;font-size:14px;line-height:20px;cursor:pointer;white-space:nowrap}
+.records .actions button:where(:not(.compactEditAction))[data-record-action=edit]:hover,.editAction.editAction:hover{background:var(--surface-raised);border-color:var(--gold);color:var(--warm-white)}
 .editAction.editAction:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 .editAction.editAction:disabled{opacity:.5;cursor:not-allowed}
 .loadingRow{box-sizing:border-box;min-height:97px;display:flex;flex-direction:column;justify-content:center;gap:12px;border-bottom:1px solid var(--line-soft)}
@@ -36,7 +148,7 @@ form.historyDate label{display:grid;gap:6px;font-size:13px}form.historyDate .his
  .records .date{flex:1 1 9rem;max-width:100%;min-width:0}.records .dateHeading{min-height:44px;gap:0 8px}.records .date time{font-size:.8125rem;line-height:20px}
  .records .value{margin-top:0;min-height:1.25rem;font-size:.875rem;line-height:1.25rem}
  .records .actions{flex:0 1 auto;align-self:center;gap:6px;flex-wrap:nowrap;margin-left:auto}
- .records .actions button{padding:8px 10px;line-height:20px;font-size:.875rem}
+ .records .actions button:where(:not(.compactEditAction)){padding:8px 10px;line-height:20px;font-size:.875rem}
  .records[data-record-kind=body] .value{min-height:2.5rem}
  .records .heading{margin-top:12px}
 }
@@ -51,7 +163,6 @@ form.historyDate label{display:grid;gap:6px;font-size:13px}form.historyDate .his
 .row[data-row-layout=body] .date { display: contents; }
 .row[data-row-layout=body] .dateHeading { grid-area: 1 / 1 / 2 / 4; min-height: 44px; }
 .records .row[data-row-layout=body] .actions { grid-area: 1 / 4; justify-self: end; align-self: center; margin: 0; }
-.records .row[data-row-layout=body] .actions button { padding: 8px 12px; }
 .records .row[data-row-layout=body] .value {
   grid-area: 2 / 1 / 3 / -1;
   display: grid;

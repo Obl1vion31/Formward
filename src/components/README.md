@@ -80,7 +80,7 @@ appearance-state.ts保存本设备主题的读取、早期初始化和跨窗口�
 
 app-updates.tsx仅检查构建版本，与record-updates.tsx的健康记录变化分开。可见时90秒、恢复前台检查；不缓存的版本接口不带身份或旧部署标记。草稿确认复用confirmation及draft-guard；approvePageRefresh只允许用户明确批准的这次刷新跳过重复离开弹窗，不存健康草稿。
 
-DailyRecords／DailyRecordRow及RecordHistory提供三页最近记录的统一标题、44px描边操作和历史展开，业务页面不得再用“所有按钮”高优先级样式覆盖。RecordTrendPanel支持六项读数按6／3／2退让、数值基线对齐；电脑图表标题、单位与图例同排，手机图例另行。控件边界使用主题control-border，深浅两套均须核对对比。
+DailyRecords、DailyRecordRow 和 RecordHistory 提供三页最近记录与历史展开。历史按钮与身体行内操作共用 32px 浅底和透明的 44px 触控区。日期查找使用系统日期控件，未选日期时显示提示并禁用查看。业务页面不得用全局按钮规则覆盖这些控件。RecordTrendPanel支持六项读数按6／3／2退让、数值基线对齐；电脑图表标题、单位与图例同排，手机图例另行。控件边界使用主题control-border，深浅两套均须核对对比。
 
 RecordTrendPanel的metricVariants传入当前区间已算好的各日读数字符串，按数字实际字体缓存最长宽度；测量订阅由实际内容键决定，不随外壳状态或数组身份重建。单次先读取尺寸再更新布局属性，相同属性不重复写入。MetricCardRail同样批量读取各卡宽度后才更新换行状态，避免逐卡读写强制整页重排。列数不随鼠标选日反复变化，换区间或窗口再测量。不生成或修改健康读数。
 
