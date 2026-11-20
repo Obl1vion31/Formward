@@ -2,15 +2,15 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-59e5fc73-overview-chart-layout-20261120`，源码 `59e5fc736af8915698550a12dfd187b713a70547`，BUILD_ID `LSgxfTyLwXVz1yylhZNkO`。北京时间 2026-11-20 04:15:15 切换。 [正式版本](https://formward.top/api/app-version)
+正式站运行 `dual-entry-56848612-chart-motion-phone-axis-r2-20261120`，源码 `568486123712c5287fdef2357cfe0572c84219a0`，BUILD_ID `EemDxO_RUik9nU19BMMZc`。北京时间 2026-11-20 14:24:43 切换。 [正式版本](https://formward.top/api/app-version)
 
-手机总览区间右侧的「统计」默认收起，打开后对照选中日与近7天。上下两图的非零边界刻度居中，单位单列。7D、30D、90D 日期线分别为7、7、5条。Chromium 和 WebKit 在正式同版本运行包各通过30项浏览器检查。 [浏览器验收](../design-qa.md#已发布验收--总览统计日期线与居中刻度)
+手机总览7D柱宽14px，双图间距24px，各图保留零点和按真实高度绘制的整档参照。摄入和消耗扩大区间时新增柱从零线伸出，晨重新增日期先显实测点再描线。Chromium、WebKit 各36项通过。 [浏览器验收](../design-qa.md#已发布验收--趋势图入场与手机总览)
 
-上海网页和聊天 worker 使用同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含46项迁移。切换期间67张表的行摘要一致。备份 `formward-primary-20261119T201511769549Z.dump.json` 完成原生校验和加密异地回读。
+上海网页和聊天 worker 使用同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含46项迁移。停写切换期间67张表的行摘要一致。备份 `formward-primary-20261120T062439264296Z.dump.json` 完成原生校验和加密异地回读。
 
-四个公网域名和兼容 IP 已核对版本、登录返回、匿名权限、MCP 发现与界面资源。保留 56 项正式 Server Action 编号及绑定密钥，兼容 2132 项旧静态资源。海外网关继续回源正式站。
+四个公网域名和兼容 IP 已核对版本、登录返回、匿名权限、MCP 发现与界面资源。保留 56 项正式 Server Action 编号及绑定密钥，兼容 2156 项旧静态资源。海外网关继续回源正式站。
 
-本机运行包归档在 `.codex/backups/regional-releases/overview-chart-layout-20261120`，大小 84,211,894 字节，SHA256 `474398c0f62317f69e14219a40ad653e9ed50cd50e70390971f0f19934b61a46`。版本 `assistant-viewport-shell-r3-20261120` 提供兼容 0046 的网页和 worker 回退包。
+本机运行包归档在 `.codex/backups/regional-releases/chart-motion-phone-axis-r2-20261120`，大小 84,423,087 字节，SHA256 `c50144b9724071e1d15a43e884d3db5302ea3603bad560046a3d45c006fcef26`。`maintenance-release-20261120` 提供兼容网页和 worker 回退。
 
 ## 迁移与发布
 
