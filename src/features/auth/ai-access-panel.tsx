@@ -34,18 +34,17 @@ function AnchoredPanel({ title, anchor, close, children }: { title: string; anch
     }
     position(); node.focus({ preventScroll: true });
     const observer = new ResizeObserver(position); observer.observe(node);
-    function outside(event: PointerEvent) {
+    function dismissOutside(event: Event) {
       const target = event.target;
       if (target instanceof Node && !node.contains(target) && !anchor.contains(target) && !(target instanceof Element && target.closest("dialog[open]"))) dismiss();
     }
-    function focus(event: FocusEvent) {
-      const target = event.target;
-      if (target instanceof Node && !node.contains(target) && !anchor.contains(target) && !(target instanceof Element && target.closest("dialog[open]"))) dismiss();
-    }
-    document.addEventListener("pointerdown", outside); document.addEventListener("focusin", focus);
+    document.addEventListener("pointerdown", dismissOutside);
+    document.addEventListener("focusin", dismissOutside);
     window.addEventListener("resize", position); window.addEventListener("scroll", position, true);
     return () => {
-      observer.disconnect(); document.removeEventListener("pointerdown", outside); document.removeEventListener("focusin", focus);
+      observer.disconnect();
+      document.removeEventListener("pointerdown", dismissOutside);
+      document.removeEventListener("focusin", dismissOutside);
       window.removeEventListener("resize", position); window.removeEventListener("scroll", position, true);
       node.getAnimations().forEach(animation => animation.cancel()); closing.current = false;
       if (anchor.isConnected && (!document.activeElement || node.contains(document.activeElement) || document.activeElement === document.body)) anchor.focus({ preventScroll: true });
