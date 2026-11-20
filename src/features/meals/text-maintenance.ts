@@ -48,8 +48,8 @@ export async function previewMealTextCorrection(db: Database, userId: string, ra
   return {digest:prepared.digest,foodId:prepared.entry.id,items:prepared.changes.map(item=>item.id),preparation:prepared.request.preparation,basis:prepared.request.basis,notes:prepared.request.notes,foodChanged:prepared.foodChanged};
 }
 export function foodAction(record: FoodView): MealAction {
-  const {id,version,category,name,brand,preparation,baseQuantity,unit,nutrition,sourceKind,basis,evidenceUrl,imageIds}=record;
-  return {kind:"save_food",id,version,category,name,brand,preparation,baseQuantity,unit,nutrition,sourceKind,basis,evidenceUrl,imageIds};
+  const {id,version,category,foodGroup,name,brand,preparation,baseQuantity,unit,nutrition,sourceKind,basis,evidenceUrl,imageIds}=record;
+  return {kind:"save_food",id,version,category,foodGroup,name,brand,preparation,baseQuantity,unit,nutrition,sourceKind,basis,evidenceUrl,imageIds};
 }
 export function mealAction(record: MealView): MealAction {
   const {id,version,date,mealType,timezone,occurredAt,notes,imageIds}=record;

@@ -855,9 +855,12 @@ input:focus-visible {
 
 /* 录入共用控件：组件功能决定外观，业务页不得退回透明文字输入。 */
 form[data-entry-form] :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea):where(:not([data-input-appearance=soft-line])) {
-  min-width:0;max-width:100%;min-height:max(44px,calc(1.375em + 22px));border:1px solid var(--control-border);border-radius:6px;
-  background:var(--surface-raised);color:var(--warm-white);font-size:1rem;line-height:1.375;
-  padding:10px 12px;color-scheme:var(--color-scheme);
+  min-width:0;max-width:100%;min-height:max(44px,calc(1.375em + 22px));
+  border:var(--entry-field-border,1px solid var(--control-border));
+  border-radius:var(--entry-field-radius,6px);
+  background:var(--entry-field-background,var(--surface-raised));
+  color:var(--warm-white);font-size:1rem;line-height:1.375;
+  padding:var(--entry-field-padding,10px 12px);color-scheme:var(--color-scheme);
 }
 form[data-entry-form] :is(input,select,textarea):hover:not(:disabled):not([readonly]) {border-color:var(--gold)}
 form[data-entry-form] :is(input,select,textarea,button):focus-visible {outline:2px solid var(--gold);outline-offset:2px}
@@ -1021,6 +1024,23 @@ dialog::backdrop{transition:background-color 210ms cubic-bezier(.2,.8,.2,1)}
 [data-compose-waiting] svg,[data-compose-waiting] .energy-share-track{visibility:hidden}
 
 .local-preview-label{position:fixed;top:1px;left:50%;transform:translateX(-50%);z-index:1200;pointer-events:none;padding:0 5px;border-radius:3px;background:var(--surface-raised);color:var(--gold);font:500 10px/14px system-ui,sans-serif;white-space:nowrap}
+@media (min-width: 701px) and (pointer: fine) {
+  html:has(.local-preview-label) dialog[open]:has([data-meal-editor])::before {
+    content: "隔离测试 · 虚构数据";
+    position: fixed;
+    top: 1px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    pointer-events: none;
+    padding: 0 5px;
+    border-radius: 3px;
+    background: var(--surface-raised);
+    color: var(--gold);
+    font: 500 10px/14px system-ui,sans-serif;
+    white-space: nowrap;
+  }
+}
 
 [data-nested-chart] { position: relative; }
 [data-chart-range-motion] [data-range-mark],

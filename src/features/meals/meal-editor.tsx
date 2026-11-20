@@ -4,24 +4,50 @@ import { MealPhotoEntry, type AppliedMeal } from "../assistant/meal-photo-entry"
 import { useOptionalAssistantChat } from "../assistant/chat-client";
 import {LocalLoading} from "@/components/local-loading";
 import {mealWebIssue} from "../records/web-entry";
-import {DecimalInput} from "@/components/decimal-input";
 import { useDraftGuard } from "@/components/draft-guard";
-import { mealContentKey, mealTypeLabel } from "./model";
+import { createWorkspaceExchange } from "@/components/workspace-motion";
 import { MealDuplicateNotice } from "./meal-duplicate-notice";
-import { useId, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { decimal, defaultFoodQuantity, emptyNutrition, formatNutrition, metricLabels, metrics, scaled, nutritionFor, sumNutrition, type FoodView, type ItemDraft, type ItemView, type MealView,type MealDraft } from "./model";
-import {FoodPickerCard} from "./presets";
-import {editorDecimal,editorItem,freeEditorItem,mealEditorInput,mealDraftSignature,emptyEditorItem,updateEditorNutrition,type EditorItem,type EditorMeal} from "./meal-editor-state";
+import { useId, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  decimal, defaultFoodQuantity, emptyNutrition, foodGroupLabels, mealContentKey, mealTypeLabel,
+  metricLabels, metrics, nutritionFor, sumNutrition, type FoodView, type ItemDraft, type ItemView,
+  type MealDraft, type MealSnapshot, type MealView,
+} from "./model";
+import { FoodPickerCard } from "./presets";
+import { editorItem, freeEditorItem, mealEditorInput, mealDraftSignature, emptyEditorItem, type EditorItem, type EditorMeal } from "./meal-editor-state";
+import { MealEntryReadings, nutrientUnit } from "./meal-entry-readings";
+import { MealEntryRow } from "./meal-entry-row";
 import { PhotoFields } from "./photos";
-import {MealItemDetails} from "./meal-item-details";
-import {useMealLayout} from "./use-meal-layout";
-import styles from "./meals.module.css";
-const dragType="application/x-formward-food";
-function Cell({value,label,placeholder="—",numeric=false,integer=false,precision=2,required=false,description,change}:{value:string;label:string;placeholder?:string;numeric?:boolean;integer?:boolean;precision?:1|2;blank?:boolean;required?:boolean;description?:string;change:(value:string)=>void}) {
- const common={"aria-label":label,"aria-describedby":description,placeholder,required,onKeyDown:(event:React.KeyboardEvent<HTMLInputElement>)=>{if(event.key==="Enter"){event.preventDefault();event.currentTarget.blur();}}};
- return numeric?<DecimalInput precision={integer?0:precision} {...common} min={0} max={1000000} value={value} onValue={change}/>:<input {...common} value={value} maxLength={200} onChange={event=>change(event.target.value)}/>;
-}
-export function MealEditor({ initial, foods, historicalFoods=[], historicalItems=[], foodRefs={}, recentMeals=[], submitLabel="保存餐次", error, busy, save, pending=false,onRetry,allowAi=true,onAiSaved }: { allowAi?:boolean;onAiSaved?:(snapshot:import("./model").MealSnapshot)=>void;pending?:boolean;onRetry?:()=>void;initial:MealDraft;foods:FoodView[];historicalFoods?:FoodView[];historicalItems?:ItemView[];foodRefs?:Record<string,FoodView>;recentMeals?:MealView[];submitLabel?:string;error:string;busy:boolean;save:(input:MealDraft,allowMissingImages?:boolean)=>Promise<void> }) {
+import common from "./meals.module.css";
+import styles from "./meal-editor.module.css";
+import motion from "./meal-editor-motion.module.css";
+
+const dragType = "application/x-formward-food";
+const categories = ["all", "meat", "vegetable", "staple", "other", "meal"] as const;
+type Category = (typeof categories)[number];
+const categoryLabels = { all: "全部", meal: "整餐", ...foodGroupLabels };
+
+type Props = {
+  initial: MealDraft;
+  foods: FoodView[];
+  historicalFoods?: FoodView[];
+  historicalItems?: ItemView[];
+  foodRefs?: Record<string, FoodView>;
+  recentMeals?: MealView[];
+  submitLabel?: string;
+  error: string;
+  busy: boolean;
+  save: (input: MealDraft, allowMissingImages?: boolean) => Promise<void>;
+  pending?: boolean;
+  onRetry?: () => void;
+  allowAi?: boolean;
+  onAiSaved?: (snapshot: MealSnapshot) => void;
+};
+
+export function MealEditor({
+  initial, foods, historicalFoods = [], historicalItems = [], foodRefs = {}, recentMeals = [],
+  submitLabel = "保存餐次", error, busy, save, pending = false, onRetry, allowAi = true, onAiSaved,
+}: Props) {
  const [aiOpen,setAiOpen]=useState(false),[aiWorking,setAiWorking]=useState(false),[aiSaving,setAiSaving]=useState(false),[aiError,setAiError]=useState("");
  const [aiBinding,setAiBinding]=useState<{taskId:string;revision:number}|null>(null),[resumeTaskId,setResumeTaskId]=useState<string|undefined>();
  const [aiDraftKey,setAiDraftKey]=useState<string|null>(null);
@@ -32,18 +58,55 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
  const totalsBar=useRef<HTMLElement>(null),aiTrigger=useRef<HTMLButtonElement>(null);
  useLayoutEffect(()=>{const node=totalsBar.current,dialog=node?.closest('dialog');if(!node||!dialog)return;const measure=()=>dialog.style.setProperty("--entry-footer-height",node.getBoundingClientRect().height+"px");measure();const observer=new ResizeObserver(measure);observer.observe(node);return()=>{observer.disconnect();dialog.style.removeProperty("--entry-footer-height");};},[aiOpen]);
  const submitting=useRef(false),[invalid,setInvalid]=useState(false);
- const search=useRef<HTMLInputElement>(null),pickerToolsTrigger=useRef<HTMLButtonElement>(null);
+ const search = useRef<HTMLInputElement>(null);
+ const libraryTrigger = useRef<HTMLButtonElement>(null);
+ const panelTitle = useRef<HTMLHeadingElement>(null);
+ const rows = useRef<HTMLUListElement>(null);
+ const root = useRef<HTMLDivElement>(null);
+ const priorScroll = useRef(0);
+ const mealPane = useRef<HTMLDivElement>(null);
+ const libraryPane = useRef<HTMLElement>(null);
+ const exchange = useMemo(() => createWorkspaceExchange(), []);
  const [libraryOpen,setLibraryOpen]=useState(false);
+ const [paneChange,setPaneChange]=useState<{ direction: "forward" | "back"; scroll: number; animate: boolean } | null>(null);
+ useLayoutEffect(() => {
+   if (!paneChange) {
+     exchange.stop();
+     return;
+   }
+
+   const enteringLibrary = paneChange.direction === "forward";
+   const scroller = root.current?.closest("dialog");
+   if (scroller) scroller.scrollTop = enteringLibrary ? 0 : priorScroll.current;
+   const enter = enteringLibrary ? libraryPane.current : mealPane.current;
+   const exit = enteringLibrary ? mealPane.current : libraryPane.current;
+   const finish = () => setPaneChange(current => current === paneChange ? null : current);
+
+   if (paneChange.animate && enter && exit) {
+     exit.style.setProperty("--meal-pane-exit-offset", ((scroller?.scrollTop ?? 0) - paneChange.scroll) + "px");
+     exchange.play(enter, exit, enteringLibrary ? 1 : -1, finish);
+   } else {
+     finish();
+   }
+
+   const focus = enteringLibrary ? panelTitle.current : libraryTrigger.current;
+   focus?.focus({ preventScroll: true });
+ }, [paneChange, exchange]);
+ useLayoutEffect(() => () => exchange.stop(), [exchange]);
  const [draft,setDraft]=useState<EditorMeal>(()=>({...structuredClone(initial),mealType:mealTypeLabel(initial.mealType),items:[...initial.items.map((item,index)=>{
   const saved=item.originalItemId?historicalItems.find(previous=>previous.id===item.originalItemId):historicalItems[index];
   return editorItem(item,index,saved?.nutrition,!!(item.foodId||item.foodRef||item.foodDraft||saved?.foodSnapshot));
  }),freeEditorItem(initial.items.length)]}));
- const [freeKey,setFreeKey]=useState<number|null>(initial.items.length?null:0);
- const [openedKeys,setOpenedKeys]=useState<number[]>([0]);
- const openItem=(key:number)=>setOpenedKeys(keys=>keys.includes(key)?keys:[...keys,key]);
- const [query,setQuery]=useState(""),[category,setCategory]=useState("all"),[replacing,setReplacing]=useState<number|null>(null),[dragging,setDragging]=useState(false);
- const bubbleId=useId(),nutritionHint=bubbleId+"-nutrition";
- const [uploading,setUploading]=useState(false),[photoError,setPhotoError]=useState(""),table=useRef<HTMLDivElement>(null);
+ const [freeKey, setFreeKey] = useState<number | null>(null);
+ const [collapsed, setCollapsed] = useState<number[]>([]);
+ const [query, setQuery] = useState("");
+ const [category, setCategory] = useState<Category>("all");
+ const [selected, setSelected] = useState<string[]>([]);
+ const [replacing, setReplacing] = useState<number | null>(null);
+ const [dragging, setDragging] = useState(false);
+ const bubbleId = useId(), nutritionHint = bubbleId + "-nutrition";
+ const [uploading, setUploading] = useState(false);
+ const [photoError, setPhotoError] = useState("");
  const draftSignature = mealDraftSignature(draft);
  const [initialSignature] = useState(draftSignature);
   const liveDraft=useRef(draft);useLayoutEffect(()=>{liveDraft.current=draft;},[draft]);
@@ -60,26 +123,86 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
  if(items.at(-1)?.name.trim())items.push(freeEditorItem(Math.max(...items.map(item=>item.editor.key))+1));
  return {...previous,items};
  });}
- function choose(food:FoodView){
- if(busy||uploading||draft.items.filter(item=>item.name.trim()).length>=50&&replacing===null)return;
- const packaged=!!(food.servingQuantity&&food.servingUnit),quantity=packaged?"1":defaultFoodQuantity(food.unit),next:ItemDraft={kind:"food",name:food.name,foodId:food.id,foodVersion:food.version,quantity,amountDecision:quantity?"provided":undefined,unit:packaged?food.servingUnit:food.unit,sourceKind:food.sourceKind};
- setDraft(previous=>({...previous,items:replacing===null?[...previous.items.slice(0,-1),editorItem(next,Math.max(...previous.items.map(item=>item.editor.key))+1,undefined,true),previous.items.at(-1)!]:previous.items.map((item,n)=>n===replacing?editorItem(next,item.editor.key,undefined,true):item)}));
- openItem(replacing===null?Math.max(...draft.items.map(item=>item.editor.key))+1:draft.items[replacing].editor.key);setReplacing(null);setFreeKey(null);
+ function editorIsWide() {
+   return matchMedia("(min-width:701px) and (pointer:fine)").matches
+     && (root.current?.clientWidth ?? 0) >= 960;
  }
- const results=foods.filter(food=>!food.deletedAt&&(category==="all"||(food.category??"ingredient")===category)&&`${food.name} ${food.brand??""} ${food.preparation??""}`.toLowerCase().includes(query.trim().toLowerCase()));
+
+ function showLibrary(replace: number | null = null) {
+   setReplacing(replace);
+   setSelected([]);
+   if (editorIsWide()) {
+     search.current?.focus({ preventScroll: true });
+     return;
+   }
+   const scroll = root.current?.closest("dialog")?.scrollTop ?? 0;
+   priorScroll.current = scroll;
+   setLibraryOpen(true);
+   setPaneChange({ direction: "forward", scroll, animate: !matchMedia("(prefers-reduced-motion: reduce)").matches });
+ }
+
+ function returnToMeal() {
+   setLibraryOpen(false);
+   setSelected([]);
+   setReplacing(null);
+   if (editorIsWide()) return;
+   const scroll = root.current?.closest("dialog")?.scrollTop ?? 0;
+   setPaneChange({ direction: "back", scroll, animate: !matchMedia("(prefers-reduced-motion: reduce)").matches });
+ }
+
+ function addFoods(chosen: FoodView[]) {
+   if (!chosen.length || busy || uploading) return;
+   setDraft(previous => {
+     const remaining = 50 - previous.items.filter(item => !emptyEditorItem(item)).length;
+     let key = Math.max(...previous.items.map(item => item.editor.key)) + 1;
+     const makeRow = (food: FoodView, rowKey: number) => {
+       const packaged = !!(food.servingQuantity && food.servingUnit);
+       const quantity = packaged ? "1" : defaultFoodQuantity(food.unit);
+       return editorItem({
+         kind: "food", name: food.name, foodId: food.id, foodVersion: food.version, quantity,
+         amountDecision: quantity ? "provided" : undefined, unit: packaged ? food.servingUnit : food.unit,
+         sourceKind: food.sourceKind,
+       }, rowKey, undefined, true);
+     };
+     return {
+       ...previous,
+       items: replacing === null
+         ? [...previous.items.slice(0, -1), ...chosen.slice(0, Math.max(0, remaining)).map(food => makeRow(food, key++)), previous.items.at(-1)!]
+         : previous.items.map((item, index) => index === replacing ? makeRow(chosen[0], item.editor.key) : item),
+     };
+   });
+   if (libraryOpen) returnToMeal();
+   else setReplacing(null);
+ }
+
+ function changeSelection(food: FoodView) {
+   setSelected(previous => {
+     if (previous.includes(food.id)) return previous.filter(id => id !== food.id);
+     if (replacing !== null) return [food.id];
+     return previous.length + entered.length < 50 ? [...previous, food.id] : previous;
+   });
+ }
+
+ const availableFoods = foods.filter(food => !food.deletedAt);
+ const results = availableFoods.filter(food => {
+   const group = food.category === "meal" ? "meal" : food.foodGroup ?? "other";
+   const text = [food.name, food.brand, food.preparation].filter(Boolean).join(" ").toLowerCase();
+   return (category === "all" || group === category) && text.includes(query.trim().toLowerCase());
+ });
  const entered=draft.items.filter(item=>!emptyEditorItem(item)),totals=sumNutrition(entered.map(values));
  const input=mealEditorInput(draft);
  const entryIssue=entered.some(item=>!item.name.trim())?"请填写食物名称。":entered.find(item=>item.editor.calorieIssue)?.editor.calorieIssue??mealWebIssue(input,totals.values),blocked=pending||busy||uploading||aiSaving||invalid||!!entryIssue;
  const contentKey=mealContentKey({...input,items:input.items.map((item,index)=>({...item,name:itemFood(entered[index])?.name??item.name,nutrition:values(entered[index])}))});
  const duplicate=!entryIssue&&recentMeals.some(meal=>!meal.deletedAt&&meal.id!==draft.id&&mealContentKey(meal)===contentKey);
- const extra=useRef<HTMLDetailsElement>(null);
- const layout=useMealLayout(table,draft.items.map(item=>[item.unit??"",item.quantity??"",...metrics.map(metric=>{const value=values(item)[metric];return itemFood(item)?formatNutrition(value,metric):value??"";})]),!aiOpen);
+ const attachments = useRef<HTMLDetailsElement>(null);
 
- function openFree(){
-  openItem(draft.items.at(-1)!.editor.key);setReplacing(null);setFreeKey(draft.items.at(-1)!.editor.key);
-  requestAnimationFrame(()=>table.current?.querySelector<HTMLInputElement>('[data-blank-row="true"] input')?.focus());
+ function openManual() {
+   if (entered.length >= 50) return;
+   const key = draft.items.at(-1)!.editor.key;
+   setCollapsed(current => current.filter(value => value !== key));
+   setFreeKey(key);
+   requestAnimationFrame(() => rows.current?.querySelector<HTMLInputElement>('[data-blank-row] input')?.focus());
  }
- function openPicker(){setAiOpen(false);setLibraryOpen(value=>!value);if(matchMedia("(min-width:701px) and (hover:hover)").matches)requestAnimationFrame(()=>search.current?.focus({preventScroll:true}));}
 
  function restoredDraft(value:MealDraft){
    const next={...structuredClone(value),items:[...value.items.map((item,index)=>editorItem(item,index,historicalItems.find(old=>old.id===item.originalItemId)?.nutrition,!!(item.foodId||item.foodRef||item.foodDraft))),freeEditorItem(value.items.length)]};
@@ -88,48 +211,225 @@ export function MealEditor({ initial, foods, historicalFoods=[], historicalItems
  function openAi(){if(!allowAi||!canMealAi||!onAiSaved)return;aiOpeningSignature.current=mealDraftSignature(liveDraft.current);if(!aiDraftKey)setAiDraftKey(crypto.randomUUID());setResumeTaskId(undefined);setAiError("");setAiOpen(true);}
  function applyAi(value:AppliedMeal){
    if(mealDraftSignature(liveDraft.current)!==aiOpeningSignature.current){setAiError("原草稿已变化，识别结果已保留，请重新核对后再添加。");return;}
-   restoredDraft(value.draft);setAiBinding({taskId:value.taskId,revision:value.operation.revision});openItem(Math.min(draft.items.filter(item=>!emptyEditorItem(item)).length,value.draft.items.length-1));setFreeKey(null);setAiOpen(false);setAiWorking(false);
+   restoredDraft(value.draft);setAiBinding({taskId:value.taskId,revision:value.operation.revision});setCollapsed([]);setFreeKey(null);setAiOpen(false);setAiWorking(false);
  }
  useLayoutEffect(()=>{const id=new URL(location.href).searchParams.get("aiTask");if(id&&!resumed.current&&allowAi&&canMealAi&&onAiSaved){resumed.current=true;const frame=requestAnimationFrame(()=>{aiOpeningSignature.current=mealDraftSignature(liveDraft.current);setResumeTaskId(id);setAiOpen(true);});return()=>cancelAnimationFrame(frame);}},[allowAi,canMealAi,onAiSaved]);
 
- return <div className={styles.mealModes} data-meal-editor data-photo-active={aiOpen||undefined}><form data-entry-form={pending?"meal-pending":"meal"} className={`${styles.form} ${styles.mealForm}`} data-picker={layout.picker} aria-busy={busy||pending&&!error} onChange={event=>setInvalid(Boolean(event.currentTarget.querySelector(":invalid")))} onSubmit={async event=>{event.preventDefault();if(blocked||submitting.current)return;submitting.current=true;try{setAiError("");if(aiBinding){setAiSaving(true);const response=await fetch("/api/assistant-meal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"save",taskId:aiBinding.taskId,revision:aiBinding.revision,draft:mealEditorInput(draft)})});const result=await response.json();if(!response.ok)throw Error(result.error??"保存未完成，当前草稿仍保留。");window.dispatchEvent(new Event("formward-assistant-updated"));onAiSaved?.(result.snapshot);}else await save(mealEditorInput(draft),true);}catch(failure){setAiError(failure instanceof Error?failure.message:"保存未完成，请重试。");}finally{submitting.current=false;setAiSaving(false);}}}>
- <fieldset disabled={busy||uploading||pending||aiSaving||aiWorking}>
- <div className={styles.formColumns}><label>日期<DateField aria-label="日期" required value={draft.date} onChange={event=>setDraft({...draft,date:event.target.value,occurredAt:null})}/></label><label>餐次<input aria-label="餐次" required maxLength={50} list="meal-types" value={draft.mealType} onChange={event=>setDraft({...draft,mealType:event.target.value})}/><datalist id="meal-types">{["早餐","午餐","晚餐","加餐","夜宵"].map(name=><option key={name}>{name}</option>)}</datalist></label></div>
- {duplicate&&<MealDuplicateNotice date={draft.date}/>}
- <div className={styles.entryMethods} role="group" aria-label="添加食物方式"><strong>{aiOpen?"照片识别":"本餐食物"}</strong><button ref={pickerToolsTrigger} className={styles.libraryChoice} type="button" aria-label="从食材库添加" aria-expanded={libraryOpen} aria-controls={bubbleId+"-picker"} onClick={openPicker}><span>食材库</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d={libraryOpen?"m4 10 4-4 4 4":"m4 6 4 4 4-4"}/></svg></button>{allowAi&&<button ref={aiTrigger} type="button" data-meal-ai-entry aria-label={aiOpen?"返回本餐":"AI 拍照录入"} disabled={pending||!canMealAi||!onAiSaved} title={pending?"正在读取识图权限":!canMealAi?(chat?.entitlement||chat?.data?"当前暂不可用":"正在读取识图权限"):undefined} onClick={()=>aiOpen?setAiOpen(false):openAi()}><span>{aiOpen?"返回本餐":"拍照录入"}</span></button>}</div>
- <div hidden={aiOpen} className={styles.mealColumns}>
- <div className={styles.pickerFold} id={bubbleId+"-picker"} data-open={libraryOpen||layout.picker==="side"||undefined}><div className={styles.revealBody} aria-hidden={layout.picker==="tabs"&&!libraryOpen} inert={layout.picker==="tabs"&&!libraryOpen}><section className={styles.foodPicker} aria-label="选择食材库"><div className={styles.pickerTools} data-expanded="true"><label className={styles.pickerSearch}><span>搜索食材</span><input aria-label="搜索食材" ref={search} type="search" placeholder="名称、品牌或规格" value={query} onChange={event=>setQuery(event.target.value)}/></label>
- <div className={styles.categoryTabs}>{[["all","全部"],["meal","整餐"],["ingredient","食材"]].map(([key,label])=><button type="button" key={key} aria-pressed={category===key} onClick={()=>setCategory(key)}>{label}</button>)}</div></div>
- {replacing!==null&&<p className={styles.hint}>选择后替换当前食材。<button type="button" onClick={()=>{setReplacing(null);}}>取消更换</button></p>}
- <div className={styles.pickerResults}>{!pending&&results.map(food=><FoodPickerCard key={food.id} food={food} choose={()=>choose(food)} onDragStart={event=>{event.dataTransfer.setData(dragType,JSON.stringify({id:food.id,version:food.version}));event.dataTransfer.effectAllowed="copy";}}/>)}{!pending&&!results.length&&<p className={styles.hint}>没有匹配的食材，可以自由填写本次摄入。</p>}</div></section></div></div>
- <section className={styles.mealEntry} aria-label="本餐录入">
- <div ref={table} className={styles.mealSheet} data-dragging={dragging} onDragOver={event=>{if(event.dataTransfer.types.includes(dragType)){event.preventDefault();event.dataTransfer.dropEffect="copy";setDragging(true);}}} onDragLeave={event=>{if(!event.currentTarget.contains(event.relatedTarget as Node))setDragging(false);}} onDrop={event=>{event.preventDefault();setDragging(false);try{const payload=JSON.parse(event.dataTransfer.getData(dragType)),food=foods.find(food=>food.id===payload.id&&food.version===payload.version&&!food.deletedAt);if(food)choose(food);}catch{}}}>
- <table data-item-focus className={styles.entryTable} data-layout="cards" data-stack-fields={layout.stack} data-identity-columns={layout.identityColumns} data-nutrient-columns={layout.nutrientColumns} aria-label="本餐食物表"><tbody>
- {draft.items.map((item,index)=>{
- const food=itemFood(item),nutrition=values(item),blank=index===draft.items.length-1&&emptyEditorItem(item),raw=item.nutrition??emptyNutrition(),popup=bubbleId+"-"+item.editor.key;
- if(blank&&freeKey!==item.editor.key)return null;
- const expanded=openedKeys.includes(item.editor.key);
- return <tr key={item.editor.key} data-expanded={expanded} data-blank-row={blank} data-nutrition-basis={food?"food_library":"consumed_total"}>
+ const visibleRows = draft.items.map((item, index) => ({ item, index }))
+   .filter(({ item }) => !emptyEditorItem(item) || item.editor.key === freeKey);
+ const canPick = entered.length < 50 || replacing !== null;
 
-  <td data-entry-cell data-label="食物名称" className={styles.entryName}>{food?<strong>{food.name}</strong>:<Cell label={blank?"自由填写食物名称":"食物名称 "+(index+1)} value={item.name} placeholder="食物名称" change={name=>setItem(index,{...item,name})}/>}{!emptyEditorItem(item)&&!item.name.trim()&&<small className={styles.error} role="status">请填写食物名称</small>}</td>
- <td data-entry-cell className={styles.entryUnit} data-label="单位">{food?food.servingQuantity&&food.servingUnit?<select aria-label={"单位 "+(index+1)} value={item.unit??food.unit} onChange={event=>{
-  const unit=event.target.value,q=item.quantity?unit===food.unit?scaled(item.quantity,food.servingQuantity!,"1"):scaled(item.quantity,"1",food.servingQuantity!):null;
-  setItem(index,{...item,unit,quantity:q?editorDecimal(q):null});
- }}><option value={food.servingUnit}>{food.servingUnit}</option><option value={food.unit}>{food.unit}</option></select> :<input aria-label={"单位 "+(index+1)} value={food.unit} readOnly/>:<input aria-label={"单位 "+(index+1)} list="meal-portion-units" maxLength={30} placeholder="单位" value={item.unit??""} onChange={event=>setItem(index,{...item,unit:event.target.value||null})}/>}
- </td><td data-entry-cell className={styles.entryQuantity} data-label="数量"><Cell label={"数量 "+(index+1)} description={!food?nutritionHint:undefined} value={item.quantity??""} numeric placeholder="数量" change={quantity=>setItem(index,{...item,quantity:quantity||null,amountDecision:quantity?"provided":undefined})}/></td>
+ async function submit(event: FormEvent<HTMLFormElement>) {
+   event.preventDefault();
+   if (blocked || submitting.current) return;
+   submitting.current = true;
+   try {
+     setAiError("");
+     if (!aiBinding) {
+       await save(mealEditorInput(draft), true);
+       return;
+     }
+     setAiSaving(true);
+     const response = await fetch("/api/assistant-meal", {
+       method: "POST", headers: { "Content-Type": "application/json" },
+       body: JSON.stringify({ action: "save", taskId: aiBinding.taskId, revision: aiBinding.revision, draft: mealEditorInput(draft) }),
+     });
+     const result = await response.json();
+     if (!response.ok) throw Error(result.error ?? "保存未完成，当前草稿仍保留。");
+     window.dispatchEvent(new Event("formward-assistant-updated"));
+     onAiSaved?.(result.snapshot);
+   } catch (failure) {
+     setAiError(failure instanceof Error ? failure.message : "保存未完成，请重试。");
+   } finally {
+     submitting.current = false;
+     setAiSaving(false);
+   }
+ }
 
- <td className={styles.entryActions} colSpan={8}><button className={styles.nutritionToggle} type="button" aria-expanded={expanded} aria-controls={popup+"-nutrition"} aria-label={(expanded?"收起":"展开")+"营养 "+(index+1)} onClick={()=>setOpenedKeys(keys=>keys.includes(item.editor.key)?keys.filter(key=>key!==item.editor.key):[...keys,item.editor.key])}><span>营养</span>{!expanded&&nutrition.caloriesKcal!==null&&<small>{formatNutrition(nutrition.caloriesKcal,"caloriesKcal")} 千卡</small>}<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d={expanded?"m4 10 4-4 4 4":"m4 6 4 4 4-4"}/></svg></button>{!blank&&<><MealItemDetails id={popup} name={item.name||"食物"}><h3>{item.name} · 营养依据</h3>{food?<><p>{food.servingQuantity&&food.servingUnit?"1"+food.servingUnit+" = "+Number(food.servingQuantity)+food.unit:"每 "+Number(food.baseQuantity)+food.unit}</p><p>{food.basis??"食材库已保存的营养规格"}</p><button type="button" onClick={event=>{event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover();setReplacing(index);setLibraryOpen(true);}}>更换食材</button>{!item.quantity&&<label className={styles.checkbox}><input type="checkbox" checked={item.amountDecision==="unknown_accepted"} onChange={event=>setItem(index,{...item,amountDecision:event.target.checked?"unknown_accepted":undefined})}/>保留未知数量</label>}</>:<><label>营养依据<select aria-label={"营养依据 "+(index+1)} value={["label","composition_table"].includes(item.sourceKind)?"reference":item.sourceKind} onChange={event=>setItem(index,{...item,sourceKind:event.target.value as ItemDraft["sourceKind"]})}><option value="reference">标签／成分表</option><option value="estimated">直接预估</option>{item.sourceKind==="unknown"&&<option value="unknown">未知（原记录）</option>}</select></label></>}
- </MealItemDetails><button type="button" aria-label={"移除 "+(item.name||"食物")} onClick={()=>{setDraft(previous=>({...previous,items:previous.items.filter((_,n)=>n!==index)}));setReplacing(null);}}>×</button></>}</td>
+ return <div className={styles.editor} ref={root} data-meal-editor data-photo-active={aiOpen || undefined}>
+   <form className={common.form + " " + styles.mealForm} hidden={aiOpen}
+     data-entry-form={pending ? "meal-pending" : "meal"} data-library-open={libraryOpen || undefined}
+     aria-busy={busy || pending && !error} onSubmit={submit}
+     onKeyDown={event => {
+       if (event.key !== "Escape" || !libraryOpen || editorIsWide()) return;
+       event.preventDefault();
+       event.stopPropagation();
+       returnToMeal();
+     }}
+     onChange={event => setInvalid(Boolean(event.currentTarget.querySelector(":invalid")))}>
+     <fieldset disabled={busy || uploading || pending || aiSaving || aiWorking}>
+       <div className={styles.columns + " " + motion.stage} data-meal-pane-transition={paneChange?.animate ? paneChange.direction : undefined}>
+       <div ref={mealPane} className={motion.mealPane} data-meal-pane="meal" inert={paneChange?.animate && libraryOpen}>
+       <div className={styles.mealContext}>
+         <div className={styles.dateFields}>
+           <label>日期
+             <span className={styles.compactField}><DateField aria-label="日期" required value={draft.date}
+               onChange={event => setDraft({ ...draft, date: event.target.value, occurredAt: null })}/></span>
+           </label>
+           <label>餐次
+             <span className={styles.compactField}><input aria-label="餐次" required maxLength={50} list="meal-types" value={draft.mealType}
+               onChange={event => setDraft({ ...draft, mealType: event.target.value })}/></span>
+           </label>
+           <datalist id="meal-types">{["早餐", "午餐", "晚餐", "加餐", "夜宵"].map(name => <option key={name}>{name}</option>)}</datalist>
+         </div>
+         {duplicate && <MealDuplicateNotice date={draft.date}/>}
+       </div>
 
- <td className={styles.entryNutrition} colSpan={8}><div id={popup+"-nutrition"} className={styles.inlineReveal} data-open={expanded||undefined} aria-hidden={!expanded} inert={!expanded}><div className={styles.revealBody}><div className={styles.entryNutrients} data-columns={layout.nutrientColumns}>{metrics.map(metric=><label data-entry-cell data-nutrient={metric} key={metric} data-label={metric==="caloriesKcal"?"热量 千卡":metricLabels[metric]+" g"}><span className={styles.entryFieldLabel}>{metric==="caloriesKcal"?"热量 千卡":metricLabels[metric]+" g"}</span>{food?<span className={styles.calculated}>{formatNutrition(nutrition[metric],metric)}</span>:<Cell label={"本次"+metricLabels[metric]+" "+(index+1)} description={nutritionHint} numeric precision={1} integer={metric==="caloriesKcal"} value={raw[metric]??""} change={value=>setItem(index,updateEditorNutrition(item,metric,value))}/>}</label>)}</div></div></div></td>
- </tr>;
- })}</tbody></table><datalist id="meal-portion-units">{["g","mL","份","个","只","碗","杯","包","勺"].map(unit=><option key={unit} value={unit}/>)}</datalist></div><div className={styles.addFoodGroup}><button className={styles.addFood} type="button" onClick={openFree}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>添加食物</span></button></div><p id={nutritionHint} className="sr-only">填写本次总营养；三项填全后按4／4／9计算热量，也可手填。食材库按份量换算。</p>
-        <details hidden={aiOpen} ref={extra} className={styles.mealExtra}><summary>备注与照片{draft.notes?" · 有备注":""}{draft.imageIds?.length?" · "+draft.imageIds.length+"张照片":""}{uploading?" · 正在上传…":""}</summary><label>餐次备注<textarea aria-label="餐次备注" rows={3} maxLength={12000} value={draft.notes??""} placeholder="补充食物、份量或做法" onChange={event=>setDraft({...draft,notes:event.target.value||null})}/></label>
-        <PhotoFields expectedCount={draft.expectedImageCount} onExpected={expectedImageCount=>setDraft(previous=>({...previous,expectedImageCount}))} ids={draft.imageIds??[]} change={imageIds=>setDraft(previous=>({...previous,imageIds}))} busy={busy} onBusy={setUploading} onError={message=>{setPhotoError(message);if(message&&extra.current)extra.current.open=true;}}/></details>
-        {(error.includes("相同")||draft.allowDuplicate)&&<label className={styles.checkbox}><input type="checkbox" checked={Boolean(draft.allowDuplicate)} onChange={event=>setDraft({...draft,allowDuplicate:event.target.checked})}/>这是另一次进食，仍然新增</label>}
-        {(draft.expectedImageCount??0)>(draft.imageIds?.length??0)&&<p className={styles.hint}>照片未齐，可直接保存文字，之后补传。</p>}
-        {photoError&&<p className={styles.hint}>{photoError} 可先保存文字。</p>}
-      </section>
-    </div>
-  </fieldset> <footer hidden={aiOpen} ref={totalsBar} className={styles.stickyMealTotal} aria-label="本餐合计与保存"><div>{entered.length>0?<div className={styles.headerNutrition} aria-label="本餐合计"><strong>{formatNutrition(totals.values.caloriesKcal,"caloriesKcal")}<small>千卡</small></strong><span className={styles.headerMacros}>{totals.incomplete.caloriesKcal&&totals.values.caloriesKcal!==null&&<span>已知部分</span>}{metrics.filter(metric=>metric!=="caloriesKcal").map(metric=><span key={metric}>{metricLabels[metric]} {formatNutrition(totals.values[metric],metric)}{"\u00a0g"}</span>)}</span></div>:pending&&!error?<LocalLoading/>:<span className={styles.hint} role={pending?"alert":undefined}>{pending?error:"尚未添加食物"}</span>}{!pending&&entryIssue&&entered.length>0&&<p className={styles.entryIssue} role="status">{entryIssue}</p>}{!pending&&(error||aiError)&&<p className={styles.error} role="alert">{error||aiError}</p>}</div><button data-entry-primary-action aria-label={(onRetry?"重新读取":submitLabel)+" · "+draft.date} disabled={onRetry?false:blocked} className={styles.save} type={onRetry?"button":"submit"} onClick={onRetry}>{onRetry?"重新读取":busy||aiSaving?"正在处理…":submitLabel}</button></footer></form>{(aiDraftKey||resumeTaskId)&&<div hidden={!aiOpen} className={styles.photoMode}><MealPhotoEntry sharedHeader visible={aiOpen} initial={mealEditorInput(draft)} draftKey={aiDraftKey??"00000000-0000-4000-8000-000000000000"} resumeTaskId={resumeTaskId} onRestore={restoredDraft} onApply={applyAi} onBack={()=>{setAiOpen(false);setAiWorking(false);requestAnimationFrame(()=>aiTrigger.current?.focus({preventScroll:true}));}} onBusy={setAiWorking}/></div>}</div>;
+         <section className={styles.entry} aria-labelledby={bubbleId + "-foods"} data-dragging={dragging || undefined}
+           onDragOver={event => {
+             if (!event.dataTransfer.types.includes(dragType)) return;
+             event.preventDefault();
+             event.dataTransfer.dropEffect = "copy";
+             setDragging(true);
+           }}
+           onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }}
+           onDrop={event => {
+             if (!event.dataTransfer.types.includes(dragType)) return;
+             event.preventDefault();
+             setDragging(false);
+             try {
+               const value = JSON.parse(event.dataTransfer.getData(dragType));
+               const match = availableFoods.find(food => food.id === value.id && food.version === value.version);
+               if (match) addFoods([match]);
+             } catch { /* Only the library's drag format is accepted. */ }
+           }}>
+           <div className={styles.foodHeading}>
+             <h2 id={bubbleId + "-foods"}>本餐食物</h2>
+             <button ref={libraryTrigger} type="button" className={styles.libraryLink} aria-label="从食材库添加"
+               aria-controls={bubbleId + "-picker"} aria-expanded={libraryOpen} disabled={!canPick} onClick={() => showLibrary()}>
+               食材库 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
+             </button>
+           </div>
+           <div className={styles.methods} role="group" aria-label="记录方式">
+             <button type="button" onClick={openManual} disabled={entered.length >= 50}>
+               <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>手动填写</span>
+             </button>
+             {allowAi && <button ref={aiTrigger} type="button" data-meal-ai-entry aria-label="AI 拍照录入"
+               disabled={pending || !canMealAi || !onAiSaved}
+               title={pending || !chat?.entitlement && !chat?.data ? "正在读取识图权限" : !canMealAi ? "当前暂不可用" : undefined}
+               onClick={openAi}>
+               <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M3 7h4l2-3h6l2 3h4v13H3z"/><circle cx="12" cy="13" r="3.25"/></svg>拍照录入</span>
+             </button>}
+           </div>
+
+           {visibleRows.length > 0 && <div className={styles.foodRows}>
+             <div className={styles.rowHeadings} aria-hidden="true">
+               <span>食物名称</span><span>数量</span><span>单位</span>
+               {metrics.map(metric => <span key={metric}>{metricLabels[metric]} <small>{nutrientUnit(metric)}</small></span>)}
+             </div>
+             <ul className={styles.rowList} ref={rows} aria-label="本餐已添加食物">
+               {visibleRows.map(({ item, index }) => <MealEntryRow key={item.editor.key} item={item} index={index}
+                 blank={emptyEditorItem(item)} food={itemFood(item)} nutrition={values(item)} nutritionHint={nutritionHint}
+                 nutritionOpen={!collapsed.includes(item.editor.key)} update={next => setItem(index, next)}
+                 toggleNutrition={() => setCollapsed(previous => previous.includes(item.editor.key)
+                   ? previous.filter(key => key !== item.editor.key) : [...previous, item.editor.key])}
+                 replace={() => showLibrary(index)} remove={() => {
+                   if (!emptyEditorItem(item)) setDraft(previous => {
+                     const items = previous.items.filter((_, itemIndex) => itemIndex !== index);
+                     if (index === previous.items.length - 1) items.push(freeEditorItem(item.editor.key));
+                     return { ...previous, items };
+                   });
+                   if (freeKey === item.editor.key) setFreeKey(null);
+                 }}/>)}
+             </ul>
+           </div>}
+           <datalist id="meal-portion-units">{["g", "mL", "份", "个", "只", "碗", "杯", "包", "勺"].map(unit => <option key={unit} value={unit}/>)}</datalist>
+           <p id={nutritionHint} className="sr-only">填写本次总营养，三项填全后按4／4／9计算热量，也可手填。食材库按份量换算。</p>
+
+           <div className={styles.extras}>
+             <details>
+               <summary><span>备注 <small>选填</small></span>{draft.notes && <span className={styles.notePreview}>{draft.notes}</span>}</summary>
+               <textarea aria-label="餐次备注" rows={2} maxLength={12000} value={draft.notes ?? ""}
+                 placeholder="补充食物、份量或做法"
+                 onChange={event => setDraft({ ...draft, notes: event.target.value || null })}/>
+             </details>
+             <details ref={attachments}>
+               <summary><span>附照片 <small>{draft.imageIds?.length ? draft.imageIds.length + " 张" : "选填"}</small></span></summary>
+               <PhotoFields expectedCount={draft.expectedImageCount}
+                 onExpected={expectedImageCount => setDraft(previous => ({ ...previous, expectedImageCount }))}
+                 ids={draft.imageIds ?? []} change={imageIds => setDraft(previous => ({ ...previous, imageIds }))}
+                 busy={busy} onBusy={setUploading} onError={message => {
+                   setPhotoError(message);
+                   if (message && attachments.current) attachments.current.open = true;
+                 }}/>
+             </details>
+           </div>
+           {(error.includes("相同") || draft.allowDuplicate) && <label className={common.checkbox}>
+             <input type="checkbox" checked={Boolean(draft.allowDuplicate)}
+               onChange={event => setDraft({ ...draft, allowDuplicate: event.target.checked })}/>这是另一次进食，仍然新增
+           </label>}
+           {(draft.expectedImageCount ?? 0) > (draft.imageIds?.length ?? 0) && <p className={common.hint}>照片未齐，可直接保存文字，之后补传。</p>}
+           {photoError && <p className={common.hint}>{photoError} 可先保存文字。</p>}
+         </section>
+       </div>
+         <section ref={libraryPane} className={styles.library} data-meal-pane="library" inert={paneChange?.animate && !libraryOpen}
+           id={bubbleId + "-picker"} aria-label="选择食材库">
+           <div className={styles.libraryTitle}>
+             <button type="button" className={styles.libraryBack} aria-label="返回本餐" onClick={returnToMeal}>
+               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg>
+             </button>
+             <h2 ref={panelTitle} tabIndex={-1}>食材库</h2>
+           </div>
+           <label className={styles.librarySearch + " " + styles.compactField}><span className="sr-only">搜索食材</span>
+             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="m12 12 4 4"/></svg>
+             <input aria-label="搜索食材" ref={search} type="search" placeholder="搜索名称、品牌或规格" value={query}
+               onChange={event => setQuery(event.target.value)}/>
+           </label>
+           {replacing !== null && <div className={styles.replacing} role="status">
+             选择食材以替换当前项<button type="button" onClick={returnToMeal}>取消更换</button>
+           </div>}
+           <div className={styles.libraryBody}>
+             <div className={styles.categories} role="group" aria-label="食材分类">
+               {categories.map(key => <button type="button" key={key} aria-pressed={category === key}
+                 onClick={() => setCategory(key)}>{categoryLabels[key]}</button>)}
+             </div>
+             <div className={styles.results} data-meal-library-results>
+               {!pending && results.map(food => <FoodPickerCard key={food.id} food={food}
+                 chosen={selected.includes(food.id)} choose={() => addFoods([food])} toggle={() => changeSelection(food)}
+                 replacing={replacing !== null} disabled={!canPick || libraryOpen && selected.length + entered.length >= 50 && !selected.includes(food.id)}
+                 onDragStart={event => {
+                   event.dataTransfer.setData(dragType, JSON.stringify({ id: food.id, version: food.version }));
+                   event.dataTransfer.effectAllowed = "copy";
+                 }}/>)}
+               {!pending && !results.length && <p className={common.hint}>{query.trim() ? "没有匹配的食材" : "这个分类还没有食材"}</p>}
+             </div>
+           </div>
+         </section>
+
+       </div>
+     </fieldset>
+
+     <footer ref={totalsBar} className={styles.footer} data-meal-footer>
+       <div className={styles.saveRow}>
+         {entered.length > 0 ? <div className={styles.totals} aria-label="本餐合计">
+           <div className={styles.totalLabel}>本餐合计{metrics.some(metric => totals.incomplete[metric] && totals.values[metric] !== null) && <small>已知部分</small>}</div>
+           <MealEntryReadings nutrition={totals.values}/>
+         </div> : pending && !error ? <LocalLoading/> : <span className={common.hint} role={pending ? "alert" : undefined}>{pending ? error : "尚未添加食物"}</span>}
+         <button className={styles.saveButton} type={onRetry ? "button" : "submit"}
+           data-entry-primary-action aria-label={(onRetry ? "重新读取" : submitLabel) + " · " + draft.date}
+           disabled={!onRetry && blocked} onClick={onRetry}>
+           {onRetry ? "重新读取" : busy || aiSaving ? "正在处理…" : submitLabel}
+         </button>
+         {!pending && entered.length > 0 && entryIssue && <p className={styles.entryIssue} role="status">{entryIssue}</p>}
+         {!pending && (error || aiError) && <p className={common.error + " " + styles.entryIssue} role="alert">{error || aiError}</p>}
+       </div>
+       <div className={styles.libraryFooter}>
+         <span aria-live="polite">{selected.length > 0 ? "已选 " + selected.length + " 项" : "选择要加入的食材"}</span>
+         <button type="button" className={styles.saveButton} disabled={!selected.length || busy} onClick={() => {
+           const byId = new Map(availableFoods.map(food => [food.id, food]));
+           addFoods(selected.flatMap(id => byId.get(id) ?? []));
+         }}>加入本餐</button>
+       </div>
+     </footer>
+   </form>
+   {(aiDraftKey || resumeTaskId) && <div hidden={!aiOpen} className={styles.photoMode}>
+     <MealPhotoEntry sharedHeader visible={aiOpen} initial={mealEditorInput(draft)}
+       draftKey={aiDraftKey ?? "00000000-0000-4000-8000-000000000000"} resumeTaskId={resumeTaskId}
+       onRestore={restoredDraft} onApply={applyAi} onBack={() => {
+         setAiOpen(false);
+         setAiWorking(false);
+         requestAnimationFrame(() => aiTrigger.current?.focus({ preventScroll: true }));
+       }} onBusy={setAiWorking}/>
+   </div>}
+ </div>;
 }

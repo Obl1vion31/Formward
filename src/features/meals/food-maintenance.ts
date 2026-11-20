@@ -21,7 +21,7 @@ async function prepare(db:Pick<Database,"select">,userId:string,raw:unknown){
   const unit=change.unit??current.unit,clearPackage=unit!==current.unit&&change.servingQuantity===undefined&&change.servingUnit===undefined;
   const updated=foodDraftSchema.parse({...draft,...change,...(clearPackage?{servingQuantity:null,servingUnit:null}:{}),baseQuantity:change.baseQuantity??current.baseQuantity,unit});
   if(!!updated.servingQuantity!==!!updated.servingUnit || updated.servingUnit&&updated.servingUnit.trim().toLowerCase()===updated.unit.trim().toLowerCase())throw new ApiError(400,"invalid_input","包装规格须成对填写，并与基准单位区分。");
-  return {...updated,id:current.id,version:current.version+1,deletedAt:null} as FoodView;
+  return {...updated,foodGroup:updated.category==="meal"?null:updated.foodGroup??null,id:current.id,version:current.version+1,deletedAt:null} as FoodView;
  });
  const identities=[...before.foods.filter(entry=>!ids.has(entry.id)),...afterFoods].map(entry=>foodIdentity(entry));
  if(new Set(identities).size!==identities.length)throw new ApiError(409,"duplicate_food","更新规格与已有食材冲突。");
@@ -40,7 +40,7 @@ export async function applyFoodMaintenance(db:Database,userId:string,raw:unknown
   if(previous){if(previous.requestDigest!==requestDigest||previous.status!=="confirmed")throw new ApiError(409,"operation_conflict","操作标识已被其他请求使用。");return {id:previous.id,repeated:true};}
   const plan=await prepare(tx,userId,request);if(plan.digest!==expectedDigest)throw new ApiError(409,"version_conflict","预览已改变，请重新核对。");
   const now=new Date(),changedMeals:MealView[]=[];
-  for(const updated of plan.afterFoods)await tx.update(food).set({category:updated.category??"ingredient",name:updated.name,preparation:updated.preparation,basis:updated.basis,baseQuantity:updated.baseQuantity,unit:updated.unit,servingQuantity:updated.servingQuantity??null,servingUnit:updated.servingUnit??null,identityKey:foodIdentity(updated),version:updated.version,updatedAt:now}).where(and(eq(food.userId,userId),eq(food.id,updated.id)));
+  for(const updated of plan.afterFoods)await tx.update(food).set({category:updated.category??"ingredient",foodGroup:updated.foodGroup,name:updated.name,preparation:updated.preparation,basis:updated.basis,baseQuantity:updated.baseQuantity,unit:updated.unit,servingQuantity:updated.servingQuantity??null,servingUnit:updated.servingUnit??null,identityKey:foodIdentity(updated),version:updated.version,updatedAt:now}).where(and(eq(food.userId,userId),eq(food.id,updated.id)));
   for(const before of plan.affected){
    let changed=false;
    const items=before.items.map(item=>{

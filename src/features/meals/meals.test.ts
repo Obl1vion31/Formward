@@ -38,6 +38,21 @@ test("食材说明保留分项分析，个人餐次与泛化提醒在预览前�
   assert.equal((await readMealSnapshot(db,userId)).meals[0].notes,"用户今天吃了半份");
 });
 
+test("食材分组可读写，旧调用省略分组时保留，归入整餐时清除", async () => {
+  const userId = await owner();
+  await save(userId, [{ kind: "save_food", ...product({ foodGroup: "meat" }) }]);
+  const [first] = await searchFoods(db, userId);
+  assert.equal(first.foodGroup, "meat");
+  assert.deepEqual(await searchFoods(db, await owner()), []);
+  await save(userId, [{ kind: "save_food", ...product({ id: first.id, version: first.version }) }]);
+  const [updated] = (await readMealSnapshot(db, userId)).foods;
+  assert.equal(updated.foodGroup, "meat");
+  await save(userId, [{ kind: "save_food", ...product({ id: updated.id, version: updated.version, category: "meal" }) }]);
+  const [mealFood] = await searchFoods(db, userId);
+  assert.equal(mealFood.category, "meal");
+  assert.equal(mealFood.foodGroup, null);
+});
+
 test("食材查询在实时结果附当前说明规则，基础来源无泛化提醒", async () => {
   const userId=await owner();await save(userId,[{kind:"save_food",...product()}]);
   const result=await queryFoods(db,userId);assert.equal(result.foodLibraryRules,foodLibraryRules);assert.equal(result.foods.length,1);assert.equal(result.presets.length,0);

@@ -1,9 +1,12 @@
 "use client";
 import recordUI from "@/components/record-ui.module.css";
-import {Fragment,useId,useRef,useState,type DragEventHandler,type ReactNode} from "react";
+import {Fragment,useId,useState,type DragEventHandler,type ReactNode} from "react";
 import { foodSpecification, formatNutrition, sourceLabels, type FoodDraft, type FoodView, type Metric } from "./model";
 import { ImageGallery } from "./photos";
 import styles from "./meals.module.css";
+import picker from "./meal-editor.module.css";
+import { MealItemDetails } from "./meal-item-details";
+import { editorUnit, MealEntryReadings, MealInfoIcon } from "./meal-entry-readings";
 const columns: Metric[] = ["proteinG", "carbsG", "fatG", "caloriesKcal"];
 export function FoodTable<T extends FoodDraft&{id?:string}>({ foods, actions }: { foods: T[]; actions: (food: T) => ReactNode }) {
   const [expanded,setExpanded]=useState<string|number|null>(null),prefix=useId();
@@ -18,7 +21,40 @@ export function FoodDetails({ food,compact=false }: { food: FoodDraft;compact?:b
 
 function DetailsChevron({open=false}:{open?:boolean}){return <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style={{transform:open?"rotate(180deg)":undefined}}><path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>;}
 
-export function FoodPickerCard({food,choose,onDragStart}:{food:FoodView;choose:()=>void;onDragStart:DragEventHandler<HTMLDivElement>}){
- const [expanded,setExpanded]=useState(false),id=useId(),information=useRef<HTMLButtonElement>(null);
- return <div className={styles.pickerFood} draggable onDragStart={onDragStart} onKeyDown={event=>{if(event.key==="Escape"&&!event.defaultPrevented&&expanded){event.preventDefault();event.stopPropagation();setExpanded(false);information.current?.focus({preventScroll:true});}}}><div className={styles.pickerFoodHeading}><div className={styles.pickerFoodSummary}><strong>{food.name}</strong><p><span>{formatNutrition(food.nutrition.caloriesKcal,"caloriesKcal")} 千卡</span><span>每 {Number(food.baseQuantity)}{food.unit}</span></p></div><div className={styles.pickerFoodActions}><button ref={information} type="button" aria-label={food.name+"详情"} aria-expanded={expanded} aria-controls={id} onClick={()=>setExpanded(!expanded)}><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="10" cy="10" r="7.25"/><path d="M10 9v5m0-8v1"/></svg></button><button type="button" aria-label={"添加 "+food.name} onClick={choose}><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M10 3v14M3 10h14"/></svg></button></div></div><div className={styles.inlineReveal} data-open={expanded||undefined} aria-hidden={!expanded} inert={!expanded}><div className={styles.revealBody}><div className={styles.pickerFoodDetails} id={id}>{(food.brand||food.preparation)&&<p className={styles.pickerSpecification}>{[food.brand,foodSpecification(food.preparation)].filter(Boolean).join(" · ")}</p>}<dl className={styles.pickerNutrients} aria-label={food.name+"的宏量营养"}>{(["proteinG","carbsG","fatG"] as const).map(metric=><div key={metric}><dt>{{proteinG:"蛋白质 g",carbsG:"碳水 g",fatG:"脂肪 g"}[metric]}</dt><dd>{formatNutrition(food.nutrition[metric],metric)}</dd></div>)}</dl></div></div></div></div>;
+export function FoodPickerCard({
+  food, chosen, choose, toggle, replacing, disabled, onDragStart,
+}: {
+  food: FoodView;
+  chosen: boolean;
+  choose: () => void;
+  toggle: () => void;
+  replacing: boolean;
+  disabled: boolean;
+  onDragStart: DragEventHandler<HTMLDivElement>;
+}) {
+  const id = useId();
+  const base = "每 " + Number(food.baseQuantity) + " " + editorUnit(food.unit);
+  const calories = food.nutrition.caloriesKcal;
+  const selectionLabel = (replacing ? "替换为 " : "选择 ") + food.name;
+
+  return <div className={picker.pickerRow} data-picked={chosen || undefined} draggable={!disabled} onDragStart={onDragStart}>
+    <label className={picker.pickerChoice}>
+      <input className={picker.pickerCheck} type="checkbox" disabled={disabled}
+        checked={chosen} aria-label={selectionLabel} onChange={replacing ? choose : toggle} />
+      <span className={picker.pickerSummary}>
+        <strong>{food.name}</strong>
+        <small>{calories === null ? "热量未知" : formatNutrition(calories, "caloriesKcal") + " 千卡"}<span> · {base}</span></small>
+      </span>
+    </label>
+    <MealItemDetails id={id} label={food.name + "规格与营养"} trigger={<MealInfoIcon/>} className={picker.iconButton}>
+      <h3>{food.name}</h3>
+      <p>{base}</p>
+      {(food.brand || food.preparation) && <p>{[food.brand, foodSpecification(food.preparation)].filter(Boolean).join(" · ")}</p>}
+      <MealEntryReadings nutrition={food.nutrition}/>
+    </MealItemDetails>
+    <button type="button" className={picker.pickerAdd} disabled={disabled}
+      aria-label={(replacing ? "替换为 " : "添加 ") + food.name} onClick={choose}>
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M10 3v14M3 10h14"/></svg>
+    </button>
+  </div>;
 }

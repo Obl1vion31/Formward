@@ -17,9 +17,15 @@ const evidenceNote = z.object({ source: z.enum(["user", "label", "food_library",
 export const reviewExplanationSchema = z.object({ identity: evidenceNote.optional(), amount: evidenceNote.optional(), cooking: evidenceNote.optional(), nutrition: evidenceNote.optional() }).strict();
 export type ReviewExplanation = z.infer<typeof reviewExplanationSchema>;
 export const photoReviewSchema = z.object({ dateConfirmed: z.boolean(), mealTypeConfirmed: z.boolean(), identityConfirmed: z.boolean(), amountConfirmed: z.boolean(), cookingConfirmed: z.boolean(), questions: z.array(text(500).min(1)).max(20).default([]) }).strict().meta({deprecated:true,description:"旧照片核对格式，仅留档兼容；不要求逐项勾选，不阻止文字保存。"});
+export const foodGroups = ["meat", "vegetable", "staple", "other"] as const;
+export type FoodGroup = typeof foodGroups[number];
+export const foodGroupLabels: Record<FoodGroup, string> = {
+  meat: "肉类", vegetable: "蔬菜", staple: "主食", other: "其他",
+};
+
 export const foodDraftSchema = z.object({
   id: z.string().uuid().optional(), version: z.number().int().positive().optional(),
-  category: z.enum(["meal", "ingredient"]).optional(),
+  category: z.enum(["meal", "ingredient"]).optional(), foodGroup: z.enum(foodGroups).nullable().optional(),
   name: text(200).min(1), brand: text(200).nullable().optional(), preparation: text(200).nullable().optional(),
   servingQuantity:decimal.refine(v=>Number(v)>0).nullable().optional(), servingUnit:text(30).min(1).nullable().optional(),
   baseQuantity: decimal.refine(v => Number(v) > 0, "基准数量须大于0"), unit: text(30).min(1),

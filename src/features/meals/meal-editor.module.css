@@ -1,0 +1,540 @@
+.editor {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  color: var(--warm-white);
+  container: meal-editor / inline-size;
+}
+
+:global(dialog):has(.editor) {
+  width: min(1280px, 100%);
+  --meal-field-fill: color-mix(in srgb, var(--gold) 6%, var(--surface-raised));
+  --meal-field-edge: color-mix(in srgb, var(--control-border) 68%, var(--surface));
+}
+.editor [hidden] { display: none !important; }
+.mealForm { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.mealForm > fieldset { flex: none; }
+
+/* The input owns the whole 44px row. Its background occupies the smaller area drawn here. */
+.compactField {
+  --entry-field-border: 0;
+  --entry-field-background: transparent;
+  --entry-field-padding: 8px 6px;
+  --meal-field-face-height: 32px;
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+.compactField::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  inset-inline: 0;
+  inset-block-start: calc((44px - var(--meal-field-face-height)) / 2);
+  block-size: var(--meal-field-face-height);
+  border-radius: 6px;
+  background: var(--meal-field-fill);
+  box-shadow: inset 0 0 0 1px var(--meal-field-edge);
+}
+.compactField > :is(input, select, [data-date-field]) {
+  position: relative;
+  min-height: 44px;
+}
+.compactField [data-date-field] {
+  background: transparent;
+  border: 0;
+}
+.compactField [data-date-field] > span { min-height: 44px; }
+.compactField:focus-within::before { box-shadow: inset 0 0 0 1px var(--gold); }
+.compactField:has(:focus-visible)::before {
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+.mealForm .compactField :is(input, select, [data-date-field]):is(:focus-visible, :focus-within) { outline: 0; }
+.compactField:has(> :disabled)::before,
+.compactField:has([data-date-field] input:disabled)::before { opacity: .5; }
+.compactField:has(> input[aria-invalid="true"])::before { box-shadow: inset 0 0 0 1px var(--data-red); }
+
+.mealForm {
+  --entry-field-radius: 8px;
+  --entry-field-padding: 9px 10px;
+  --meal-context-control-size: 40px;
+  --meal-context-columns: repeat(2, minmax(0, 1fr));
+  --meal-context-gap: 10px;
+}
+
+.mealForm :is(input, select, textarea, button, summary):focus-visible,
+.detailLayer :is(a, input, select, button):focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.mealForm button, .detailLayer button {
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.mealForm button:disabled { opacity: .48; cursor: default; }
+.mealForm textarea { resize: vertical; }
+.mealContext { margin-bottom: 10px; }
+.dateFields { display: grid; grid-template-columns: var(--meal-context-columns); gap: var(--meal-context-gap); }
+.mealForm .dateFields > label { margin: 0; gap: 3px; font-size: .8125rem; }
+.dateFields .compactField { --entry-field-padding: 8px 10px; --meal-field-face-height: var(--meal-context-control-size); }
+
+.columns { min-width: 0; }
+.entry, .library { min-width: 0; }
+.entry[data-dragging] { outline: 2px solid var(--gold); outline-offset: 6px; border-radius: 8px; }
+.foodHeading, .libraryTitle { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.foodHeading h2, .libraryTitle h2 { margin: 0; font-size: 1rem; font-weight: 600; line-height: 1.4; }
+.mealForm .libraryLink { display: inline-flex; align-items: center; gap: 4px; padding: 0 0 0 8px; color: var(--gold); font-size: .875rem; }
+.methods { display: flex; gap: var(--meal-context-gap); margin: 0 0 12px; }
+.mealForm .methods button { display: grid; align-items: center; min-width: 0; padding: 0; font-size: .875rem; }
+.methods button > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: var(--meal-context-control-size);
+  padding: 0 14px;
+  border-radius: 6px;
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--meal-field-edge);
+  white-space: nowrap;
+}
+.methods button:hover:not(:disabled) > span { box-shadow: inset 0 0 0 1px var(--gold); }
+.methods svg, .libraryLink svg { flex: none; color: var(--gold); }
+
+.library { display: none; }
+.mealForm[data-library-open] .library { display: block; }
+.mealForm[data-library-open] :is(.entry, .mealContext, .saveRow) { display: none; }
+.libraryTitle { justify-content: flex-start; margin-bottom: 8px; }
+.libraryTitle h2:focus { outline: none; }
+.mealForm .libraryBack { display: grid; place-items: center; width: 44px; padding: 0; margin-left: -8px; color: var(--gold); }
+.mealForm .librarySearch { position: relative; margin: 0 0 14px; --entry-field-padding: 9px 10px 9px 34px; --meal-field-face-height: 34px; }
+.librarySearch svg { position: absolute; top: 14px; left: 11px; z-index: 1; color: var(--muted); pointer-events: none; }
+.libraryBody { display: grid; grid-template-columns: 62px minmax(0, 1fr); align-items: start; gap: 10px; }
+.categories {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  border-right: 1px solid var(--line-soft);
+}
+.mealForm .categories button {
+  position: relative;
+  padding: 5px 6px;
+  color: var(--muted);
+  font-size: .875rem;
+  white-space: nowrap;
+}
+.mealForm .categories button[aria-pressed="true"] {
+  color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 9%, var(--surface));
+  font-weight: 600;
+}
+.mealForm .categories button[aria-pressed="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 8px auto 8px 0;
+  width: 2px;
+  background: currentColor;
+  border-radius: 2px;
+}
+.replacing { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: .8125rem; margin-bottom: 8px; }
+.mealForm .replacing button { color: var(--gold); }
+.results { min-width: 0; }
+.results > p { margin: 12px 0; }
+.pickerRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+  min-height: 58px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.pickerRow[data-picked] { background: color-mix(in srgb, var(--gold) 6%, var(--surface)); border-radius: 5px; }
+.mealForm .pickerChoice { position: relative; display: flex; align-items: center; gap: 7px; min-height: 52px; margin: 0; padding: 5px 0 5px 3px; cursor: pointer; }
+.mealForm .pickerCheck { width: 17px; height: 17px; margin: 0; flex: none; accent-color: var(--gold); }
+.pickerSummary { min-width: 0; display: grid; gap: 2px; }
+.pickerSummary strong, .rowName strong, .menuName { color: var(--warm-white); font-size: .9375rem; line-height: 1.35; font-weight: 550; overflow-wrap: anywhere; }
+.pickerSummary small { color: var(--muted); font-size: .75rem; line-height: 1.35; }
+.pickerSummary small > span { white-space: nowrap; }
+.mealForm .pickerAdd { display: none; width: 44px; padding: 0; color: var(--gold); }
+
+.foodRows { min-width: 0; container: meal-rows / inline-size; }
+.rowList { list-style: none; padding: 0; margin: 0; }
+.rowHeadings { display: none; }
+.entryRow {
+  display: grid;
+  --amount-column: 62px;
+  --unit-column: 46px;
+  --nutrition-column: 66px;
+  grid-template-columns: minmax(0, 1fr) var(--amount-column) var(--unit-column) var(--nutrition-column) 44px;
+  align-items: center;
+  column-gap: 7px;
+  min-width: 0;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-variant-numeric: tabular-nums;
+}
+.entryRow:first-child { border-top: 1px solid var(--line-soft); }
+.rowName, .quantity, .unit, .nutrientCell { min-width: 0; }
+.rowName { grid-area: 1 / 1; }
+.quantity {
+  grid-area: 1 / 2;
+  inline-size: min(100%, 62px);
+  --entry-field-padding: 8px 4px 8px 6px;
+}
+.unit {
+  grid-area: 1 / 3;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+.unit > span { padding-inline: 6px; color: var(--muted); overflow-wrap: anywhere; }
+.unit.compactField { display: block; --entry-field-padding: 0 6px; }
+.unit.compactField > :is(input, select) {
+  display: block;
+  width: 100%;
+  block-size: 44px;
+  line-height: 1.3;
+}
+.unit.compactField select { --entry-field-padding: 0 16px 0 6px; appearance: none; }
+.unitArrow {
+  position: absolute;
+  inset-inline-end: 5px;
+  inset-block-start: 18px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.unit input::-webkit-calendar-picker-indicator { display: none; }
+.entryRow, .readings { text-align: start; }
+.entryRow .compactField > :is(input, select) { text-align: start; }
+.entryRow input[type="number"] { appearance: textfield; }
+.entryRow input::-webkit-inner-spin-button { appearance: none; margin: 0; }
+.mobileInfo { grid-area: 1 / 4; }
+.mealForm .nutritionButton {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-width: 44px;
+  padding: 0;
+  border-radius: 5px;
+  color: var(--gold);
+  font-size: .8125rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+.nutritionButton > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  inline-size: 100%;
+  box-sizing: border-box;
+  min-height: 32px;
+  padding: 0 5px;
+  box-shadow: inset 0 0 0 1px var(--meal-field-edge);
+  border-radius: 6px;
+}
+.nutritionButton:is(:hover, [aria-expanded="true"]) > span {
+  background: color-mix(in srgb, var(--gold) 8%, transparent);
+}
+.nutritionButton[aria-expanded="true"] svg { transform: rotate(180deg); }
+.mealForm .removeButton {
+  grid-area: 1 / 5;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  padding: 0;
+  border-radius: 5px;
+  color: var(--muted);
+}
+.mealForm .removeButton:is(:hover, :focus-visible) { color: var(--danger); }
+.mealForm .rowMenu {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  border-radius: 6px;
+  color: var(--muted);
+}
+.mealForm .rowMenu:is(:hover, [aria-expanded="true"]) {
+  color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 6%, transparent);
+}
+.rowMenu svg { flex: none; }
+.menuName, .sourceLabel { display: none; }
+
+.iconButton, .mealForm .pickerAdd {
+  place-items: center;
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  border-radius: 50%;
+}
+.mealForm .iconButton { display: inline-grid; color: var(--muted); }
+.mealForm .iconButton:is(:hover, [aria-expanded="true"]) { color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+
+.rowNutrients {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: none;
+  min-width: 0;
+  gap: 8px 10px;
+}
+.nutrientLabel small { color: var(--muted); font-size: .75rem; font-weight: 400; margin-inline-start: 3px; }
+.mealForm .nutrientCell label { gap: 0; margin: 0; font-size: .8125rem; }
+.nutrientLabel { color: var(--muted); font-size: .8125rem; line-height: 1.3; }
+.nutrientValue { white-space: nowrap; color: var(--warm-white); font-size: .9375rem; font-weight: 550; font-variant-numeric: tabular-nums; }
+.nutrientValue small { color: var(--muted); font-size: .75rem; font-weight: 400; }
+.fieldIssue { display: block; margin-top: 3px; font-size: .75rem; color: var(--danger); }
+
+.readings {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 6px;
+  row-gap: 8px;
+  margin: 0;
+}
+.readings > div { flex: 1 0 calc((100% - 18px) / 4); min-width: max-content; }
+.readings dt { margin: 0 0 2px; color: var(--muted); font-size: .75rem; line-height: 1.4; }
+.readings dd { margin: 0; line-height: 1.4; }
+
+.detailLayer:popover-open {
+  position: fixed;
+  inset: auto;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--control-border);
+  border-radius: 9px;
+  background: var(--surface-raised);
+  color: var(--warm-white);
+  box-shadow: 0 6px 24px color-mix(in srgb, #18130c 19%, transparent);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.detailLayer:popover-open:not([data-positioned]) { visibility: hidden; }
+.detailLayer[data-meal-details="attached"][data-positioned] { animation: showFacts 150ms ease-out; }
+@keyframes showFacts { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .detailLayer[data-meal-details="attached"][data-positioned] { animation: none; } }
+.detailLayer h3 { margin: 0 0 4px; font-size: .9375rem; font-weight: 550; }
+.detailLayer p { margin: 0 0 4px; color: var(--muted); font-size: .8125rem; line-height: 1.45; overflow-wrap: anywhere; }
+.detailLayer .unknownAmount { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.unknownAmount input { width: 18px; height: 18px; accent-color: var(--gold); }
+.sourceActions { display: flex; align-items: center; gap: 12px; }
+.detailLayer .sourceActions :is(button, a) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  color: var(--gold);
+  font-size: .8125rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--control-border);
+}
+.detailLayer[data-meal-details="choices"] { padding: 4px; }
+.sourceChoices { display: grid; }
+.detailLayer .sourceChoices button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 9px;
+  border-radius: 5px;
+  font-size: .875rem;
+  text-align: start;
+}
+.detailLayer .sourceChoices button[aria-pressed="true"] { color: var(--gold); }
+.detailLayer .sourceChoices button:is(:hover, :focus-visible) { background: var(--surface-hover); }
+.detailLayer .sourceChoices button:focus-visible { outline-offset: -2px; }
+.sourceChoices svg { flex: none; }
+
+.extras { margin: 9px 0 16px; min-width: 0; }
+.extras details { border-bottom: 1px solid var(--line-soft); }
+.extras summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  color: var(--muted);
+  font-size: .875rem;
+  list-style: none;
+  cursor: pointer;
+}
+.extras summary::-webkit-details-marker { display: none; }
+.extras summary > span:first-child { flex: none; }
+.extras summary small { font-size: .75rem; margin-left: 3px; }
+.extras summary::after { content: "+"; margin-inline-start: auto; width: 22px; text-align: center; font-size: 1.1rem; line-height: 1; color: var(--gold); }
+.extras details[open] summary::after { content: "−"; }
+.extras textarea { display: block; margin-bottom: 9px; }
+.notePreview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; }
+.extras details[open] .notePreview { display: none; }
+
+.footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  margin-top: auto;
+  padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line-soft);
+  background: var(--surface);
+}
+.saveRow { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 8px; }
+.totals { min-width: 0; }
+.totalLabel { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; font-size: .8125rem; font-weight: 600; }
+.totalLabel small { color: var(--muted); font-weight: 400; font-size: .75rem; }
+.mealForm .saveButton {
+  padding: 7px 16px;
+  border-radius: 8px;
+  background: var(--action-fill);
+  color: var(--action-ink);
+  white-space: nowrap;
+  font-size: .875rem;
+  font-weight: 600;
+}
+.mealForm .saveButton:disabled { opacity: 1; color: var(--muted); background: var(--graphite); }
+.entryIssue { grid-column: 1 / -1; margin: 0; font-size: .8125rem; }
+.saveRow > [role="status"] { font-size: .8125rem; }
+.libraryFooter { display: none; }
+.mealForm[data-library-open] .libraryFooter { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--muted); font-size: .8125rem; }
+.photoMode { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.photoMode > [data-meal-photo-entry] { display: flex; flex: 1; flex-direction: column; }
+.photoMode > [data-meal-photo-entry] > footer { margin-top: auto; }
+
+@media (max-width: 700px), (pointer: coarse), (pointer: none) {
+  .methods { display: grid; grid-template-columns: var(--meal-context-columns); }
+  .footer { box-shadow: 0 -5px 0 var(--surface); }
+  .entryRow { padding-block: 1px; }
+  .unit.compactField > input { --entry-field-padding: 0 0 0 6px; }
+  .unit.compactField select[data-wide-unit] { --entry-field-padding: 0 1px 0 6px; }
+  .unit select[data-wide-unit] + .unitArrow { display: none; }
+
+  .entryRow[data-nutrition-basis="food_library"] .rowName { display: none; }
+  .entryRow[data-nutrition-basis="food_library"] .rowMenu {
+    grid-area: 1 / 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 3px;
+    text-align: start;
+  }
+  .entryRow[data-nutrition-basis="food_library"] .rowMenu svg { width: 14px; height: 14px; }
+  .entryRow[data-nutrition-basis="food_library"] .menuName { display: block; }
+
+  .entryRow[data-nutrition-basis="consumed_total"] .rowMenu {
+    grid-area: 2 / 1 / 3 / -1;
+    align-self: end;
+    justify-self: end;
+    margin-inline-end: 6px;
+    margin-block-end: 2px;
+    z-index: 1;
+    font-size: .75rem;
+  }
+  .entryRow[data-nutrition-basis="consumed_total"] .rowMenu svg { display: none; }
+  .rowMenu .sourceLabel { display: block; text-decoration: underline; text-underline-offset: 3px; }
+  .entryRow[data-nutrition-collapsed] .rowMenu:not(:has(.menuName)) { display: none; }
+  .entryRow[data-nutrition-basis="consumed_total"]:not([data-nutrition-collapsed]) .rowNutrients {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    margin-block-start: 2px;
+    padding: 4px 6px 2px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--meal-field-fill) 45%, var(--surface));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--meal-field-edge) 58%, transparent);
+  }
+  .entryRow[data-nutrition-basis="consumed_total"]:has(.rowMenu) .rowNutrients { padding-inline-end: 54px; }
+  .rowNutrients .nutrientLabel { font-size: .75rem; white-space: nowrap; }
+  .rowNutrients .nutrientLabel small { margin-inline-start: 1px; font-size: .6875rem; }
+  .mealForm .nutrientCell label { gap: 3px; }
+  .nutrientCell .compactField { inline-size: 100%; }
+}
+
+@media (max-width: 350px) {
+  .libraryBody { grid-template-columns: 54px minmax(0, 1fr); gap: 6px; }
+}
+@container meal-rows (max-width: 312px) {
+  .entryRow {
+    --amount-column: 54px;
+    --unit-column: 44px;
+    --nutrition-column: 52px;
+    column-gap: 2px;
+  }
+  .entryRow .quantity { --entry-field-padding: 8px 0 8px 6px; }
+  .entryRow[data-nutrition-basis="food_library"] .rowMenu { gap: 2px; }
+  .entryRow[data-nutrition-basis="food_library"] .menuName { font-size: .875rem; }
+  .entryRow[data-nutrition-basis="food_library"] .rowMenu svg { width: 10px; height: 10px; }
+  .nutritionButton > span { gap: 2px; padding: 0 3px; }
+}
+
+@media (min-width: 701px) and (pointer: fine) {
+  .dateFields { max-width: 350px; }
+  .mealForm .extras textarea {
+    --entry-field-border: 0;
+    --entry-field-background: var(--meal-field-fill);
+    box-shadow: inset 0 0 0 1px var(--meal-field-edge);
+  }
+
+  .footer { padding-block: 12px; }
+  .saveRow { grid-template-columns: minmax(0, 1fr) auto; gap: 7px 20px; }
+  .totals .readings { max-width: 445px; }
+  .mobileInfo { display: none; }
+  .entryRow { grid-template-columns: minmax(0, 1fr) minmax(76px, 94px) minmax(76px, 94px) 44px 44px; gap: 8px; }
+  .entryRow .rowMenu { grid-area: 1 / 4; }
+  .rowNutrients {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px 10px;
+    padding: 0 0 4px;
+  }
+  .nutrientCell > .nutrientLabel { display: block; margin-bottom: 2px; }
+  .entryRow .nutrientCell > .nutrientValue { display: inline-block; padding-inline-start: 6px; }
+  .nutrientCell .compactField {
+    inline-size: min(100%, 64px);
+  }
+
+  @container meal-editor (min-width: 960px) {
+    .columns { display: grid; grid-template-columns: minmax(0, 34fr) minmax(0, 66fr); gap: 24px; }
+    .library { display: block; align-self: start; padding-right: 18px; border-right: 1px solid var(--line-soft); }
+    .mealForm .libraryBack, .mealForm .libraryLink, .mealForm[data-library-open] .libraryFooter { display: none; }
+    .mealForm[data-library-open] :is(.entry, .mealContext) { display: block; }
+    .mealForm[data-library-open] .saveRow { display: grid; }
+    .libraryBody { display: block; }
+    .categories { flex-direction: row; flex-wrap: wrap; gap: 0 6px; border-right: 0; border-bottom: 1px solid var(--line-soft); }
+    .mealForm .categories button[aria-pressed="true"] { background: transparent; }
+    .mealForm .categories button[aria-pressed="true"]::before { inset: auto 6px 0; width: auto; height: 2px; }
+    .results { max-height: max(280px, calc(100dvh - 350px)); overflow-y: auto; scrollbar-gutter: stable; }
+    .pickerRow { grid-template-columns: minmax(0, 1fr) 44px 44px; }
+    .mealForm .pickerChoice { cursor: inherit; }
+    .mealForm .pickerCheck { display: none; }
+    .mealForm .pickerAdd { display: grid; }
+  }
+
+  @container meal-rows (min-width: 630px) {
+    .rowHeadings, .entryRow {
+      display: grid;
+      grid-template-columns: minmax(108px, 2fr) 72px 70px repeat(4, minmax(56px, 1fr)) 44px 44px;
+      gap: 8px;
+    }
+    .rowHeadings { min-height: 29px; align-items: center; color: var(--muted); font-size: .75rem; }
+    .rowHeadings > span { padding-left: 6px; white-space: nowrap; }
+    .rowHeadings small { font-size: .6875rem; }
+    .entryRow .rowName strong { padding-left: 6px; }
+    .entryRow .rowMenu { grid-area: 1 / 8; }
+    .entryRow .removeButton { grid-area: 1 / 9; }
+    .entryRow .rowNutrients { display: contents; }
+    .entryRow .nutrientCell .nutrientLabel { display: none; }
+  }
+}

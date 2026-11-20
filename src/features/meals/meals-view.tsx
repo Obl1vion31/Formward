@@ -32,6 +32,7 @@ import {useRepeatedRecordTask} from '@/components/record-intent-client';
 import { Inspector as EditorDialog } from "@/components/inspector";
 import { NutritionFields, SourceFields } from "./nutrition-fields";
 import { MealEditor } from "./meal-editor";
+import { foodGroups, foodGroupLabels, type FoodGroup } from "./model";
 export { MealEditor } from "./meal-editor";
 import { useOperationClock } from "./use-operation-clock";
 import styles from "./meals.module.css";
@@ -159,13 +160,14 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
 }
 export { Inspector as EditorDialog } from "@/components/inspector";
 export function FoodEditor({ initial, submitLabel = "保存食材", error, busy, save }: { initial: FoodDraft; submitLabel?: string; error: string; busy: boolean; save: (f: FoodDraft, allowMissingImages?: boolean) => Promise<void> }) {
-  const [draft, setDraft] = useState<FoodDraft>(() => { const {id,version,category,name,brand,preparation,baseQuantity,unit,servingQuantity,servingUnit,nutrition,sourceKind,basis,evidenceUrl,imageIds,expectedImageCount}=initial;return structuredClone({id,version,category,name,brand,preparation,baseQuantity,unit,servingQuantity,servingUnit,nutrition,sourceKind,basis,evidenceUrl,imageIds,expectedImageCount}); });
+  const [draft, setDraft] = useState<FoodDraft>(() => { const {id,version,category,foodGroup,name,brand,preparation,baseQuantity,unit,servingQuantity,servingUnit,nutrition,sourceKind,basis,evidenceUrl,imageIds,expectedImageCount}=initial;return structuredClone({id,version,category,foodGroup,name,brand,preparation,baseQuantity,unit,servingQuantity,servingUnit,nutrition,sourceKind,basis,evidenceUrl,imageIds,expectedImageCount}); });
   const [uploading,setUploading]=useState(false),[photoError,setPhotoError]=useState("");
   const signature=(value:FoodDraft)=>JSON.stringify({...value,name:value.name.trim(),baseQuantity:numericDraftValue(value.baseQuantity),nutrition:Object.fromEntries(Object.entries(value.nutrition).map(([k,v])=>[k,numericDraftValue(v)]))});
   const [initialSignature] = useState(() => signature(draft));
   useDraftGuard(signature(draft) !== initialSignature, uploading);
   return <form data-entry-form="food" className={styles.form} aria-busy={busy} onSubmit={e => { e.preventDefault(); void save(draft,true); }}><fieldset disabled={busy||uploading}>
     <label>分类<select aria-label="食材分类" value={draft.category??"ingredient"} onChange={e=>setDraft({...draft,category:e.target.value as "meal"|"ingredient"})}><option value="ingredient">食材</option><option value="meal">整餐</option></select></label>
+    {draft.category !== "meal" && <label>食材分组<select aria-label="食材分组" value={draft.foodGroup ?? ""} onChange={event => setDraft(current => ({ ...current, foodGroup: (event.target.value || null) as FoodGroup | null }))}><option value="">未分类</option>{foodGroups.map(group => <option key={group} value={group}>{foodGroupLabels[group]}</option>)}</select></label>}
     <label>食材／产品名称<input required maxLength={200} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} /></label><div className={styles.formColumns}><label><span className={styles.fieldCaption}>品牌<small>选填</small></span><input aria-label="品牌（可选）" value={draft.brand ?? ""} onChange={e => setDraft({ ...draft, brand: e.target.value || null })} /></label><label><span className={styles.fieldCaption}>规格／做法<small>选填</small></span><input aria-label="规格／做法（可选）" placeholder="口味、净重、生／熟…" value={draft.preparation ?? ""} onChange={e => setDraft({ ...draft, preparation: e.target.value || null })} /></label></div>
     <div className={styles.formColumns}><label>营养对应数量<DecimalInput min={0.01} max={1000000} required value={draft.baseQuantity} onValue={value=>setDraft({...draft,baseQuantity:value})}/></label><label>单位<input required maxLength={30} placeholder="包／只／份／g／ml" value={draft.unit} onChange={e => setDraft({ ...draft, unit: e.target.value })} /></label></div>
     <p className={styles.foodBasis}>{draft.baseQuantity&&draft.unit?<span>每{Number(draft.baseQuantity)}{draft.unit}营养</span>:<span>填写每份营养</span>}{draft.servingQuantity&&draft.servingUnit&&<span>1{draft.servingUnit}＝{Number(draft.servingQuantity)}{draft.unit}</span>}</p><NutritionFields value={draft.nutrition} change={nutrition => setDraft({ ...draft, nutrition })} /><SourceFields value={draft} change={fields => setDraft({ ...draft, ...fields })} detailed={submitLabel==="应用修改"} />

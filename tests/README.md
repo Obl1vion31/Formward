@@ -487,3 +487,7 @@ MFA专项使用真实Better Auth插件验证绑定、错误动态码、恢复码
 设置 FORMWARD_MOBILE_LAYOUT_STABILITY=1 运行 tests/chat-pilot.browser.mts。验收入场首帧底色与短 6px 的前景边缘、无键盘时视觉视口短报与恢复、同一个底栏随来源正文同帧返回，以及实际视口和安全区变化时底栏与正文留位共享锚点。从已滚动的总览分别用助手返回、浏览器返回并快速重开。逐帧核对实际文档滚动、body 定位、助手顶栏及底栏。摘要提示覆盖空白槽、慢读、快读和失败重试。保留整屏截图、原速录屏和尺寸。
 
 方案A的少量真实千问验收使用同一隔离入口，设置 `FORMWARD_CONTEXT_CASE=live`、`FORMWARD_CHAT_CONTEXT_RECOVERY=1`、`FORMWARD_LOCAL_PREVIEW=1` 和只读的0600测试凭据文件 `FORMWARD_CHAT_LIVE_KEY_FILE`。真实请求只在隔离 worker 内串行发出，独立账本持久预留未结算费用，总额上限¥1，未知费用阻止后续请求。常规页面回放全部使用模拟供应商。报告与凭据均保存在私有路径。
+
+本餐录入视觉验收使用本地虚构账号。完成生产构建后设置 FORMWARD_MEAL_ENTRY_REVIEW=1、FORMWARD_MEAL_INLINE=1、FORMWARD_LOCAL_PREVIEW=1，运行 pnpm test:chat-browser。用 PLAYWRIGHT_MODULE 指定 Playwright，FORMWARD_UI_ENGINE 选择 chromium 或 webkit，FORMWARD_MEAL_INLINE_ARTIFACTS 指定私有截图目录。配置 FORMWARD_CHAT_FIXTURE_PHOTO 时使用预登记的虚构照片，并核对识别回填前后的正式餐次与照片关联。
+
+meal-inline 验收覆盖手机跨分类勾选、回到草稿、行下只读营养、手填默认展开、单位完整、桌面分栏、备注以及拍照返回。用 DOM 几何核对数值与单位单行、展开不撑开后续行、同位置保留保存操作。通过浏览器完成保存后逐项核对测试库；视觉要求见设计文档 D3／D4。

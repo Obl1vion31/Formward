@@ -1,0 +1,29 @@
+.stage { position: relative; }
+
+.stage[data-meal-pane-transition] { overflow-x: clip; }
+.stage[data-meal-pane-transition] > [inert] {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: var(--meal-pane-exit-offset, 0px);
+  display: block;
+  pointer-events: none;
+}
+.stage[data-meal-pane-transition] > .mealPane[inert] > * { display: block; }
+
+@media (min-width: 701px) and (pointer: fine) {
+  @container meal-editor (min-width: 960px) {
+    .stage.stage { row-gap: 0; }
+    .stage > .mealPane,
+    .stage[data-meal-pane-transition] > .mealPane[inert] { display: contents; }
+    .mealPane > :first-child { grid-area: 1 / 1 / 2 / -1; }
+    .mealPane > :last-child { grid-area: 2 / 2; }
+    .stage > [data-meal-pane="library"] { grid-area: 2 / 1; }
+    .stage[data-meal-pane-transition] { overflow-x: visible; }
+    .stage[data-meal-pane-transition] > [inert] {
+      position: static;
+      transform: none !important;
+      opacity: 1 !important;
+      pointer-events: auto;
+    }
+  }
+}

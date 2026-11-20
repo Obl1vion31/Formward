@@ -35,7 +35,27 @@ if(process.env.FORMWARD_UI_DECISIONS_FIXTURE==="1"){
  const {seedUiDecisionsFixture}=await import("./ui-decisions-fixture");
  try{await seedUiDecisionsFixture(db as unknown as import("../src/db/client").Database,fixture.userId,fixture.today);}catch(error){await pg?.close();await native?.close();stopNative?.();throw error;}
 }
-await db.update(schema.user).set({role:"owner"}).where(eq(schema.user.id,fixture.userId));
+if (process.env.FORMWARD_MEAL_ENTRY_REVIEW === "1") {
+  const { submitMealOperation, decideMealOperation } = await import("../src/features/meals/records");
+  const actions = [
+    { name: "原味鸡胸肉", category: "ingredient", foodGroup: "meat", unit: "g", caloriesKcal: "165", proteinG: "31", carbsG: "0", fatG: "3.6" },
+    { name: "清蒸西兰花", category: "ingredient", foodGroup: "vegetable", unit: "g", caloriesKcal: "34", proteinG: "2.8", carbsG: "6.6", fatG: "0.4" },
+    { name: "糙米饭", category: "ingredient", foodGroup: "staple", unit: "g", caloriesKcal: "112", proteinG: "2.6", carbsG: "23", fatG: "0.9" },
+    { name: "低脂酸奶", category: "ingredient", foodGroup: "other", unit: "g", caloriesKcal: "73", proteinG: "4.5", carbsG: "11", fatG: "0.8" },
+    { name: "鸡肉蔬菜便当", category: "meal", foodGroup: null, unit: "份", caloriesKcal: "430", proteinG: "32", carbsG: "48", fatG: "13" },
+  ].map(({ name, category, foodGroup, unit, ...nutrition }) => ({
+    kind: "save_food", name, category, foodGroup, unit, nutrition, baseQuantity: unit === "份" ? "1" : "100",
+    sourceKind: "estimated", basis: "仅用于本地界面验收的虚构数据。",
+  }));
+  const database = db as unknown as import("../src/db/client").Database;
+  const operation = await submitMealOperation(database, { userId: fixture.userId, origin: "manual" }, {
+    operationId: randomUUID(), actions,
+  });
+  await decideMealOperation(database, fixture.userId, operation.id, operation.revision, "confirm");
+}
+if (!(process.env.FORMWARD_MEAL_ENTRY_REVIEW === "1" && process.env.FORMWARD_CHAT_PREVIEW === "1")) {
+  await db.update(schema.user).set({role:"owner"}).where(eq(schema.user.id,fixture.userId));
+}
 if(process.env.FORMWARD_CHAT_REFINEMENT_SEED==="1"){
  await db.insert(schema.measurementSource).values({userId:fixture.userId,label:"虚构测试体重秤"}).onConflictDoNothing();
  await db.update(schema.measurement).set({deviceLabel:"虚构测试体重秤"}).where(eq(schema.measurement.userId,fixture.userId));
@@ -102,7 +122,10 @@ try{
  let ready=false;for(let attempt=0;attempt<100;attempt++){assert.equal(child.exitCode,null);try{const probeResponse=await fetch(`http://127.0.0.1:${port}`,{redirect:"manual"});if(probeResponse.ok||process.env.FORMWARD_CHAT_PREVIEW==="1"&&probeResponse.status>=300&&probeResponse.status<500){ready=true;break;}}catch{}await new Promise(resolve=>setTimeout(resolve,250));}assert.ok(ready,"隔离正式构建应可启动");
  if(release){const response=await fetch(baseURL+"/api/internal/readiness",{headers:{Authorization:"Bearer fictional-readiness-secret-for-isolated-chat-build"}});assert.equal(response.status,200);assert.equal((await response.json()).schema,JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")).entries.at(-1).tag);}
  process.env.FORMWARD_CHAT_BROWSER_CONFIG=config;process.env.FORMWARD_CHAT_ARTIFACTS=artifacts;
- if (process.env.FORMWARD_MOBILE_LAYOUT_STABILITY === "1") {
+ if (process.env.FORMWARD_MEAL_INLINE === "1") {
+   const {runMealInline} = await import("./meal-inline.browser.mjs");
+   await runMealInline(db);
+ } else if (process.env.FORMWARD_MOBILE_LAYOUT_STABILITY === "1") {
    const {runMobileLayoutStability} = await import("./mobile-layout-stability.driver.mjs");
    await runMobileLayoutStability(db);
  } else if (process.env.FORMWARD_DIRECTIONAL_NAVIGATION === "1") {

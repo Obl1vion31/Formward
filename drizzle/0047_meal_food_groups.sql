@@ -1,0 +1,2 @@
+ALTER TABLE "foods" ADD COLUMN "food_group" text;--> statement-breakpoint
+ALTER TABLE "foods" ADD CONSTRAINT "foods_group_valid" CHECK ("foods"."food_group" IS NULL OR ("foods"."category" = 'ingredient' AND "foods"."food_group" IN ('meat','vegetable','staple','other')));
