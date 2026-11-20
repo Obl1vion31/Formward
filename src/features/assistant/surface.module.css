@@ -36,7 +36,7 @@
   .surface { height: calc(var(--assistant-viewport-height, 100dvh) - 32px); bottom: 16px; }
 }
 
-.mainContent { display: flex; flex: 1; min-height: 0; overflow: clip; }
+.mainContent { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 .mainContent > * { width: 100%; min-width: 0; }
 .mainContent[inert] { visibility: hidden; }
 .workspaceContent, .workspaceDock { display: contents; }
@@ -57,7 +57,8 @@
   position: absolute;
   inset: 0;
   color: var(--warm-white);
-  overflow-x: clip;
+  overflow: hidden;
+  overscroll-behavior: none;
   pointer-events: auto;
 }
 .assistantPage[hidden] { display: none; }

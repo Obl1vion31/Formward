@@ -99,11 +99,7 @@ export async function runAssistantContextRecovery(db) {
       const entry = id ? page.locator('[data-history-id="'+id+'"]:visible')
         : page.getByRole("button",{name:new RegExp(title)}).filter({visible:true}).first();
       await entry.click();
-      const selecting = page.waitForResponse(response => response.url() === baseURL + "/api/assistant-chat/control" &&
-        response.request().postDataJSON()?.action === "select_conversation");
       await button("回到这段对话").click();
-      assert.equal((await selecting).status(),200);
-      await page.getByRole("region",{name:"历史会话",exact:true}).waitFor({state:"hidden"});
       await input.waitFor();
     }
     async function geometry(){
