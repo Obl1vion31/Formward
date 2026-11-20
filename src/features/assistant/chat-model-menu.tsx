@@ -92,10 +92,11 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
     node.showPopover();
     const viewport = window.visualViewport;
     const area = button.closest<HTMLElement>("." + styles.composerArea);
+    const content = button.closest<HTMLElement>("[data-assistant-page-content]");
     let frame = 0;
     const place = () => {
       const box = button.getBoundingClientRect();
-      const top = (viewport?.offsetTop ?? 0) + 8;
+      const top = (content?.getBoundingClientRect().top ?? viewport?.offsetTop ?? 0) + 8;
       const left = (viewport?.offsetLeft ?? 0) + 12;
       const right = left + (viewport?.width ?? innerWidth) - 24;
       const width = Math.min(256, right - left);
@@ -117,6 +118,7 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
       frame = requestAnimationFrame(place);
     };
     window.addEventListener("resize", schedule);
+    if (content) window.addEventListener("scroll", schedule);
     viewport?.addEventListener("resize", schedule);
     viewport?.addEventListener("scroll", schedule);
     return () => {
@@ -124,6 +126,7 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
       observer.disconnect();
       if (node.matches(":popover-open")) node.hidePopover();
       window.removeEventListener("resize", schedule);
+      if (content) window.removeEventListener("scroll", schedule);
       viewport?.removeEventListener("resize", schedule);
       viewport?.removeEventListener("scroll", schedule);
     };

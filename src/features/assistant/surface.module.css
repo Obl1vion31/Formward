@@ -36,7 +36,7 @@
   .surface { height: calc(var(--assistant-viewport-height, 100dvh) - 32px); bottom: 16px; }
 }
 
-.mainContent { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+.mainContent { display: flex; flex: 1; min-height: 0; overflow: clip; }
 .mainContent > * { width: 100%; min-width: 0; }
 .mainContent[inert] { visibility: hidden; }
 .workspaceContent, .workspaceDock { display: contents; }
@@ -57,19 +57,19 @@
   position: absolute;
   inset: 0;
   color: var(--warm-white);
-  overflow: hidden;
-  overscroll-behavior: none;
+  overflow-x: clip;
   pointer-events: auto;
 }
 .assistantPage[hidden] { display: none; }
 .assistantPage[data-assistant-phase="closing"] { pointer-events: none; }
 .keyboardGap {
   position: absolute;
-  inset: var(--assistant-content-height, 100%) 0 0;
+  inset: calc(var(--assistant-content-top, 0px) + var(--assistant-content-height, 100%)) 0 0;
   touch-action: none;
 }
 .assistantPageContent {
   position: relative;
+  top: var(--assistant-content-top, 0px);
   height: var(--assistant-content-height, 100%);
   display: flex;
   flex-direction: column;

@@ -67,54 +67,61 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
     let frame = 0, keyboard = false;
     let restingHeight = viewport?.height ?? innerHeight;
     let layoutWidth = document.documentElement.clientWidth;
-    let appliedHeight = restingHeight;
 
-    function layout() {
-      if (!shell) return;
+    const resetKeyboardHeight = () => {
+      shell.style.removeProperty("--assistant-content-top");
+      shell.style.removeProperty("--assistant-content-height");
+      shell.style.removeProperty("--assistant-keyboard-height");
+    };
+
+    const layout = () => {
+      frame = 0;
       const height = viewport?.height ?? innerHeight;
       const focused = document.activeElement;
       const editing = focused instanceof HTMLElement && shell.contains(focused) &&
         (focused.matches("textarea,input:not([type=file])") || focused.isContentEditable);
       const width = document.documentElement.clientWidth;
-      const widthChanged = width !== layoutWidth;
-      if (widthChanged) {
+      if (width !== layoutWidth) {
         layoutWidth = width;
         restingHeight = Math.max(document.documentElement.clientHeight, innerHeight);
       }
       if ((!editing && !keyboard) || height > restingHeight) restingHeight = height;
-      // 失焦时键盘可能仍在收起。尺寸回到正常范围后才恢复完整的内容区。
       const hasKeyboard = (editing || keyboard) && restingHeight - height >= (keyboard ? 8 : 72);
-      if (hasKeyboard && (!keyboard || widthChanged || Math.abs(height - appliedHeight) > 1)) {
-        const bottom = height + Math.max(0, viewport?.offsetTop ?? 0) - shell.getBoundingClientRect().top;
-        shell.style.setProperty("--assistant-content-height", Math.min(shell.clientHeight, bottom) + "px");
-        shell.style.setProperty("--assistant-keyboard-height", height + "px");
-        appliedHeight = height;
-      } else if (!hasKeyboard && keyboard) {
-        shell.style.removeProperty("--assistant-content-height");
-        shell.style.removeProperty("--assistant-keyboard-height");
+      if (hasKeyboard) {
+        const shellHeight = shell.clientHeight;
+        const visibleHeight = Math.min(height, shellHeight);
+        // iPhone Safari 聚焦后可能把整个外壳移出屏幕上缘。只补偿测到的外壳位移。
+        const clippedTop = Math.min(Math.max(0, -shell.getBoundingClientRect().top), shellHeight - visibleHeight);
+        shell.style.setProperty("--assistant-content-top", clippedTop + "px");
+        shell.style.setProperty("--assistant-content-height", visibleHeight + "px");
+        shell.style.setProperty("--assistant-keyboard-height", visibleHeight + "px");
+      } else if (keyboard) {
+        resetKeyboardHeight();
       }
-      shell.toggleAttribute("data-assistant-keyboard", hasKeyboard);
       keyboard = hasKeyboard;
-    }
+      shell.toggleAttribute("data-assistant-keyboard", keyboard);
+    };
 
     function schedule() {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(layout);
+      if (!frame) frame = requestAnimationFrame(layout);
     }
-    // 同高度的可视区平移不改变工作区或助手的布局。
     layout();
+    // 键盘缩高后 Safari 还能继续平移外壳，平移本身不会改变视口高度。
     window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule);
     viewport?.addEventListener("resize", schedule);
+    viewport?.addEventListener("scroll", schedule);
     shell.addEventListener("focusin", schedule);
     shell.addEventListener("focusout", schedule);
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule);
       viewport?.removeEventListener("resize", schedule);
+      viewport?.removeEventListener("scroll", schedule);
       shell.removeEventListener("focusin", schedule);
       shell.removeEventListener("focusout", schedule);
-      shell.style.removeProperty("--assistant-content-height");
-      shell.style.removeProperty("--assistant-keyboard-height");
+      resetKeyboardHeight();
       shell.removeAttribute("data-assistant-keyboard");
       unlockPage();
     };
