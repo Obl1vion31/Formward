@@ -2,15 +2,15 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-6d5c2469-workspace-stability-r2-20261120`，源码 `6d5c24691659cfabb01fc836a27718376cc930c1`，BUILD_ID `14Xt9hTYshdP8TRBcmw1E`。北京时间 2026-11-20 16:27:46 切换。 [正式版本](https://formward.top/api/app-version)
+正式站运行 `dual-entry-d8a12dfe-mobile-chart-loading-20261120`，源码 `d8a12dfe53d7fc90dd795a36da7bbe5d1c2ab52b`，BUILD_ID `yfb46NHJGHWD43nFpcf0e`。北京时间 2026-11-20 17:02:23 切换。 [正式版本](https://formward.top/api/app-version)
 
-工作区正文在短暂交接空档显示目标页等待外壳。手机身体录入的均匀遮罩和桌面身体抽屉的渐变随各自面板连续退场。双端浏览器从实际入口完成验证，过程与证据见[视觉验收记录](../design-qa.md)。
+手机从底栏进入饮食、消耗和身体，数据未就绪时在原绘图区显示三条细线，350ms 后开始扫光。真实图形沿用原入场动作。双浏览器的实页、截图和逐帧结果见[视觉验收记录](../design-qa.md)。
 
-上海网页与聊天 worker 运行同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。切换前停写备份 `formward-primary-20261120T082742216630Z.dump.json` 通过 PostgreSQL 原生校验和加密异地完整回读。切换前后 67 张表的摘要与部署配置一致。
+上海网页与聊天 worker 运行同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。切换前停写备份 `formward-primary-20261120T090217183890Z.dump.json` 通过 PostgreSQL 原生校验和加密异地完整回读。切换前后 67 张表的摘要与运行配置一致。
 
-四个公网域名和兼容 IP 通过版本核对。四域上的身体录入入口保留登录返回目标，正式 CSS 和工作区脚本的摘要、匿名权限及海外 MCP 发现核对通过。保留 56 个正式 Server Action 编号及绑定密钥，兼容 2177 项上一版静态资源。
+四个公网域名和兼容 IP 通过版本核对。四域的饮食入口保留登录返回目标，图表等待 CSS、加载脚本、匿名权限和海外 MCP 发现核对通过。保留 56 个正式 Server Action 编号及绑定密钥，兼容 2195 项上一版静态资源。
 
-已验收的兼容运行包归档到 `.codex/backups/regional-releases/workspace-stability-r2-20261120`，大小 84,688,417 字节，SHA-256 `2c4300492ba8d1adae2add83e876ad8640b40cec26c043332d772d6ce9c523b5`，与上海待切换的包逐字节一致。兼容回退为 `maintenance-access-r2-20261120`。
+已验收的兼容运行包归档到 `.codex/backups/regional-releases/mobile-chart-loading-20261120`，大小 84,894,571 字节，SHA-256 `5ccc9002245a55d52f7d045031ba1e614e346ff6caa42c56974accff78e64d0b`，与上海切换的包逐字节一致。兼容回退为 `workspace-stability-r2-20261120`。
 
 ## 迁移与发布
 
