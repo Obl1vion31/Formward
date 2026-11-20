@@ -2,9 +2,9 @@
 
 正式站版本与兼容回退见[部署记录](deployment.md#当前正式版本)。 [正式站](https://formward.top/dashboard/assistant)
 
-## 小助手菜单、滑动与底部导航 · 本地验收
+## 小助手菜单、滑动与底部导航
 
-候选 `local-assistant-viewport-boundaries-20261120`，BUILD_ID `6zfh-1dxtVwwszIYQDimB`。iPhone Safari 系统键盘和连续手势待真机验收，公网发布待此项通过。隔离页使用原生 PostgreSQL、虚构数据和模型回放。
+候选 `local-assistant-viewport-boundaries-20261120`，BUILD_ID `6zfh-1dxtVwwszIYQDimB`。隔离页使用原生 PostgreSQL、虚构数据和模型回放。
 
 | 项目 | 本机结果 |
 | --- | --- |
@@ -13,6 +13,8 @@
 | 手机进出与导航 | 14 次返回共采集 435 个底栏可见帧。系统视口稳定时，底栏纵向最大偏差 0 CSS px。已滚动的总览用助手按钮和浏览器返回均保留阅读位置，快速重开保持顶部位置，body 的位置样式未改变。实际缩窗和安全区变化随同一固定框架更新。 |
 
 Lint、类型检查、Impeccable 检查和生产构建通过。849 项单元与集成测试全通过，含独立原生 PostgreSQL 并发检查。三组核心场景的 118 张截图、12 段原速录屏及逐帧记录保存在私有 `.codex/assistant-viewport-boundaries-20261120/`。LAN 测试页已从电脑确认登录、长历史、选两张样图与菜单定位。附加的双引擎回归等待历史会话切换响应和目标消息显示，再核对历史返回、确认移出和旧链接失效，均通过。
+
+正式运行包 `dual-entry-b11ef297-assistant-viewport-boundaries-20261120` 使用上一正式包同一编译模式并保留现行表单动作编号。Chromium 与 WebKit 对正式包再量 38 次菜单，间距均为 8 CSS px。键盘手势 1,072 帧的最大偏差为 0 CSS px。14 次导航返回共采集 457 个底栏可见帧，最大偏差为 0 CSS px。正式包的 118 张截图、12 段录屏和逐帧数据与归档摘要一同保留。 首次并行验收中 WebKit 未采足回程帧，单独复测通过并保留首轮记录。网页、worker 与公网入口已核对。此次按用户发布指令上线，iPhone Safari 的系统键盘与原生连续手势待真机确认。
 
 ## 手机输入区独立滚动
 

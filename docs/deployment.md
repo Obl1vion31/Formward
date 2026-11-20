@@ -2,15 +2,15 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-0e25644b-remove-record-guidance-20261120`，源码 `0e25644bf67bc732b104cfd0e9bc5f25c0649022`，BUILD_ID `K9dEwRut5m4Jv8XCaWS0p`。北京时间 2026-11-20 17:27:19 切换。 [正式版本](https://formward.top/api/app-version)
+正式站运行 `dual-entry-b11ef297-assistant-viewport-boundaries-20261120`，源码 `b11ef29717904582f01249d9a974734f0b311778`，BUILD_ID `xjiGCw4Sf_o8_dCP8p-Qp`。北京时间 2026-11-20 18:08:55 切换。 [正式版本](https://formward.top/api/app-version)
 
-饮食、消耗和训练的自动高光与分步操作引导已移除，小助手常用功能去掉重播入口。双端浏览器验收记录见[视觉验收](../design-qa.md)。
+小助手的模型菜单从当前按钮上方 8 CSS px 展开。手机输入区按起手位置处理手势，助手进出使用固定视口。Chromium 与 WebKit 复验同一正式运行包，iPhone Safari 的系统键盘待实机确认。 [视觉验收](../design-qa.md)
 
-上海网页与聊天 worker 运行同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。切换前备份 `formward-primary-20261120T092715506094Z.dump.json` 通过 PostgreSQL 原生校验和加密异地回读。切换前后 67 张表摘要与运行配置一致。
+上海网页与聊天 worker 运行同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。切换前备份 `formward-primary-20261120T100851184898Z.dump.json` 通过 PostgreSQL 原生校验和加密异地回读。切换前后 67 张表摘要与运行配置一致。
 
-四个公网域名和兼容 IP 返回同一版本。核对饮食的登录返回、常用功能脚本、图表等待样式、匿名权限和海外 MCP 发现。保留 56 项 Server Action 编号和绑定密钥，兼容 2213 项旧静态资源。
+四个公网域名和兼容 IP 返回同一版本。核对小助手原登录返回路径、新旧静态资源的内容摘要、匿名权限与海外 MCP 发现。保留 56 项 Server Action 编号和绑定密钥，兼容 2222 项旧静态资源。Vercel 的 iad1 网关沿用既有部署，两别名和回源已核对。
 
-兼容运行包归档到 `.codex/backups/regional-releases/remove-record-guidance-20261120`，大小 85,226,053 字节，SHA-256 `c19714c0f64f91cc4b344aac0bccc54b7bda0e4de0d0f108aff064281eb4fc06`。兼容回退为 `assistant-input-scroll-r2-20261120`。
+兼容运行包归档到 `.codex/backups/regional-releases/assistant-viewport-boundaries-20261120`，大小 85,435,865 字节，SHA-256 `b7fc5ffb21533982faeb8a22ca8576a91d312a685de6eff8400061920a2533b1`。兼容回退为 `remove-record-guidance-20261120`。
 
 ## 迁移与发布
 
