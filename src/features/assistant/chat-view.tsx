@@ -313,8 +313,9 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
               ? <button type="button" className={styles.send} aria-label="停止生成" onClick={() => void chat.control("stop")}><Glyph name="stop"/></button>
               : <button type="button" className={styles.send} aria-label="发送消息"
                   disabled={blocked || pendingQuote?.text === null || chat.photos.some(photo => photo.phase !== "ready" || !photo.id) || !chat.draft.trim() && !chat.photos.length}
-                  onPointerDown={event => {
-                    if ((page || event.pointerType === "touch") && document.activeElement === input.current) event.preventDefault();
+                  onMouseDown={event => {
+                    // 保持焦点到点击触发。取消触摸的 pointerdown 会让 WebKit 不发出 click。
+                    if (page && document.activeElement === input.current) event.preventDefault();
                   }} onClick={submit}><Glyph name="send"/></button>}
           </div>
         </div>:<div className={styles.chatLocked}><strong>{"当前档位未开放聊天"}</strong><p>{chat.entitlement?.mealRecognition?"你仍可拍照录入饮食，或手动记录。":"已有消息和输入保留，可继续手动记录。"}</p>{chat.entitlement?.mealRecognition&&<LoadingLink href="/dashboard/meals" beforeNavigate={navigate}>去饮食页拍照录入</LoadingLink>}</div>}
