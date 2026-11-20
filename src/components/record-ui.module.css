@@ -40,16 +40,16 @@
   min-height: 32px;
   padding: 0 11px;
   border-radius: 8px;
-  background: var(--surface-hover);
+  background-color: var(--surface-hover);
   color: var(--warm-white);
 }
 @media (hover: hover) {
   .records :is(.historyAction, .compactEditAction):enabled:hover > .actionFace {
-    background: color-mix(in srgb, var(--surface-hover) 94%, var(--warm-white));
+    background-color: color-mix(in srgb, var(--surface-hover) 94%, var(--warm-white));
   }
 }
 .records :is(.historyAction, .compactEditAction):enabled:active > .actionFace {
-  background: color-mix(in srgb, var(--surface-hover) 88%, var(--warm-white));
+  background-color: color-mix(in srgb, var(--surface-hover) 88%, var(--warm-white));
 }
 .historyAction:disabled > .actionFace { opacity: .55; }
 .historyArrow { inline-size: 1em; text-align: center; }

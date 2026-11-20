@@ -166,7 +166,7 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
           <ChatNavigation tab={tab} onTab={selectTab} pendingCount={count}/>
           <div className={styles.pageActions}>
             <button ref={historyButton} type="button" className={styles.pageIcon + " " + glass.mobileButton} aria-label="历史会话" onClick={() => setHistoryView("list", 1)}><HistoryIcon/></button>
-            <ChatHeaderActions onNew={() => selectTab("chat")}/>
+            <ChatHeaderActions mobileGlass onNew={() => selectTab("chat")}/>
           </div>
         </header>
       </div>

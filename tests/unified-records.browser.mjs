@@ -20,6 +20,7 @@ async function recordActionGeometry(button) {
       insetX: inner.left - outer.left, insetY: inner.top - outer.top,
       background: style.backgroundColor,
       fill: getComputedStyle(face).backgroundColor,
+      faceOverlay: getComputedStyle(face, "::after").content,
       tapHighlight: style.webkitTapHighlightColor,
       active: node.matches(":active"),
     };
@@ -31,6 +32,7 @@ function assertSameActionGeometry(before, after) {
     assert.ok(Math.abs(before[key] - after[key]) <= 1, key + ": " + before[key] + " → " + after[key]);
   }
   assert.equal(after.background, "rgba(0, 0, 0, 0)");
+  assert.equal(after.faceOverlay, "none", "记录操作的底色和高光应由可见面绘制");
 }
 
 async function checkRecordHistoryControls({ baseURL, page, today, engine, artifacts }) {
