@@ -12,16 +12,37 @@ import { trackPopoverPosition } from "@/components/anchored-popover";
 import { confirmAction } from "@/components/confirmation-state";
 import { LocalLoading } from "@/components/local-loading";
 import { calculateEnergy, activityLevels, formulaLabel, type CalculationContext, type CalculationMethod, type CalculationSnapshot, type RestingMethod } from "./calculation-model";
+import glass from "@/components/glass-controls.module.css";
+import { useSlidingSelection } from "@/components/sliding-selection";
 import styles from "./energy.module.css";
 import {CalculationPopover} from "./calculation-popover";
 import {energyValue} from "./model";
 
-export function RestingMethodControl({value,change}:{value:RestingMethod;change:(value:RestingMethod)=>void}) {
- return <div className={styles.recordMethod}><span>记录方式</span><div className={styles.recordMethodButtons} role="group" aria-label="记录方式">{([["estimate","帮我估算"],["manual","手动输入"],["device","从设备同步"]] as const).map(([method,label])=><button key={method} type="button" aria-pressed={value===method} onClick={()=>change(method)}>{label}</button>)}</div></div>;
+const restingMethods = [["estimate", "帮我估算"], ["manual", "手动输入"], ["device", "从设备同步"]] as const;
+const activityMethods = [[true, "活动估算"], [false, "运动明细"]] as const;
+
+export function RestingMethodControl({ value, change }: { value: RestingMethod; change: (value: RestingMethod) => void }) {
+  const slide = useSlidingSelection(restingMethods.findIndex(([method]) => method === value), index => change(restingMethods[index][0]));
+  return <div className={styles.recordMethod}><span>记录方式</span>
+    <div {...slide} className={styles.recordMethodButtons + " " + glass.track} role="group" aria-label="记录方式">
+      <span className={glass.selection} data-capsule-indicator aria-hidden="true"/>
+      {restingMethods.map(([method, label], index) =>
+        <button key={method} type="button" data-capsule-choice={index} aria-pressed={value === method} onClick={() => change(method)}>{label}</button>
+      )}
+    </div>
+  </div>;
 }
-export function ActivityMethodControl({quick,change}:{quick:boolean;change:(quick:boolean)=>void}) {
- return <div className={styles.activityMethod} role="group" aria-label="活动记录方式"><button type="button" aria-pressed={quick} onClick={()=>change(true)}>活动估算</button><button type="button" aria-pressed={!quick} onClick={()=>change(false)}>运动明细</button></div>;
+
+export function ActivityMethodControl({ quick, change }: { quick: boolean; change: (value: boolean) => void }) {
+  const slide = useSlidingSelection(quick ? 0 : 1, index => change(activityMethods[index][0]));
+  return <div {...slide} className={styles.activityMethod + " " + glass.track} role="group" aria-label="活动记录方式">
+    <span className={glass.selection} data-capsule-indicator aria-hidden="true"/>
+    {activityMethods.map(([value, label], index) =>
+      <button key={label} type="button" data-capsule-choice={index} aria-pressed={value === quick} onClick={() => change(value)}>{label}</button>
+    )}
+  </div>;
 }
+
 export function RestingEstimate({value,change,snapshot,recalculate,loading,message,missing,supplement,label="静息消耗",disabled=false}:{value:CalculationMethod;change:(value:CalculationMethod)=>void;snapshot:CalculationSnapshot|null;recalculate:()=>void;loading:boolean;message:string;missing:readonly string[];supplement:(kind:"profile"|"body")=>void;label?:string;disabled?:boolean}) {
  const [settings,setSettings]=useState(false),settingsId=useId();
  const controls=<div className={styles.calculationControls}><label className={styles.formulaLabel} htmlFor={settingsId+"-formula"}>静息计算公式</label><div className={styles.formulaRow}><label><span className="sr-only">静息计算公式</span><select id={settingsId+"-formula"} aria-label="静息计算公式" value={value} onChange={event=>change(event.target.value as CalculationMethod)}><option value="auto">自动选择</option><option value="cunningham">体脂公式</option><option value="mifflin-st-jeor">常规公式</option></select></label><button type="button" className={styles.recalculate} disabled={loading} onClick={recalculate}><span className={styles.calculationLoading}><LocalLoading active={loading} iconOnly label="正在读取计算依据…"/></span>重新计算</button></div></div>;

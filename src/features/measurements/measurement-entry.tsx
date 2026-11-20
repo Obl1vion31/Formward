@@ -19,6 +19,8 @@ import { entryMetrics, entryPeriods, localMeasurementDate, measurementEntryState
 import type { PeriodEdit, SaveMeasurementDayInput } from "./editing";
 import type { MeasurementMetric } from "./trend";
 import { systemMeasurementTimezone, timezoneLabel, timezoneOptions } from "./timezone";
+import glass from "@/components/glass-controls.module.css";
+import { useSlidingSelection } from "@/components/sliding-selection";
 import styles from "./measurements-view.module.css";
 
 import { SourceInput } from "@/components/source-input";
@@ -157,16 +159,19 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
     }
     return result;
   }
+  const periodSlide = useSlidingSelection(entryPeriods.indexOf(selected), index => setSelected(entryPeriods[index]));
   return <form data-editing={editing} data-entry-form="body" data-selected-period={selected} className={styles.entryForm} aria-label="当天身体录入" onSubmit={event=>{if(pending)event.preventDefault();else void save(event);}} aria-busy={busy||pending&&!readError}>
 
     <div className={styles.entryPeriodBar}>
-      <div className={styles.entrySegments} role="group" aria-label="选择录入时段">{entryPeriods.map(period => {
+      <div {...periodSlide} className={styles.entrySegments + " " + glass.track} role="group" aria-label="选择录入时段">
+        <span className={glass.selection} data-capsule-indicator aria-hidden="true"/>
+        {entryPeriods.map((period, index) => {
         const group = groups.find(item => item.period === period)!;
         const unsaved = periodDirty(period);
         const note = group.pending ? "待选择" : group.blocked ? "待确认" : period === "daytime" ? "空腹" : "";
         const label = periodName(period)+(note ? "（"+note+"）" : "");
         return <button type="button" key={period} aria-label={label} aria-describedby={unsaved ? draftNoteId+"-"+period : undefined}
-          aria-pressed={selected===period} disabled={pending} onClick={()=>setSelected(period)}>
+          data-capsule-choice={index} aria-pressed={selected===period} disabled={pending} onClick={()=>setSelected(period)}>
           <span>{periodName(period)}</span>{note && <small>{note}</small>}
           {unsaved && <><i className={styles.entryDraftDot} aria-hidden="true"/><span className="sr-only" id={draftNoteId+"-"+period}>有未保存修改</span></>}
         </button>;

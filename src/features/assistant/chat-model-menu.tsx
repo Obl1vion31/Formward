@@ -5,6 +5,8 @@ import { useAssistantChat } from "./chat-client";
 import { Glyph } from "./chat-icon";
 import { chatBalance, type ChatBalance, type ChatProvider } from "./chat-model";
 import styles from "./chat.module.css";
+import glass from "@/components/glass-controls.module.css";
+import { animateSurface, stopSurfaceMotion } from "@/components/surface-motion";
 
 type BalanceRead = { key: string; balance?: ChatBalance; error?: "session" | "network" };
 const resetClock = new Intl.DateTimeFormat("zh-CN", {
@@ -119,6 +121,7 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
       node.style.setProperty("--model-anchor", anchorTop + "px");
       if (node.matches(":popover-open")) return;
       node.showPopover();
+      if (page) void animateSurface(node, "open", button, "glass-menu", 220);
       const focus = node.querySelector<HTMLElement>('[aria-checked="true"]:not(:disabled)')
         ?? node.querySelector<HTMLElement>("button:not(:disabled)") ?? node;
       focus.focus({ preventScroll: true });
@@ -142,6 +145,7 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
+      stopSurfaceMotion(node);
       if (node.matches(":popover-open")) node.hidePopover();
       window.removeEventListener("resize", schedule);
       window.removeEventListener("scroll", schedule, true);
@@ -160,7 +164,7 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
   }, [anchor, dismiss]);
 
   return <div id={id} ref={menu} popover="manual" role="dialog" aria-label="模型与用量"
-    tabIndex={-1} className={styles.modelMenu} onKeyDown={event => {
+    tabIndex={-1} className={styles.modelMenu + " " + glass.mobileMenu} onKeyDown={event => {
       if (!["ArrowDown","ArrowUp","Home","End"].includes(event.key)) return;
       const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")];
       if (!buttons.length) return;

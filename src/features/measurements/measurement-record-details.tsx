@@ -1,5 +1,6 @@
 import {DailyRecordRow} from "@/components/daily-records";
 import recordStyles from "@/components/record-ui.module.css";
+import glass from "@/components/glass-controls.module.css";
 import {formatRecordNumber} from "@/components/number-format";
 import {displayRecordDate} from "@/components/record-dates";
 import {useEffect, useId, useLayoutEffect, useRef, useState, type PointerEvent} from "react";
@@ -142,6 +143,6 @@ export function BodyRecordRow({date, today, records, morning, evening, showFat, 
         if (info?.matches(":popover-open")) info.hidePopover();
         event.currentTarget.focus({preventScroll: true});
         onEntry(action === "编辑", !morning && evening ? "evening" : "daytime");
-      }}><span className={recordStyles.actionFace}>{action}</span></button>
+      }}><span className={recordStyles.actionFace + " " + glass.mobileFace}>{action}</span></button>
   </DailyRecordRow>;
 }

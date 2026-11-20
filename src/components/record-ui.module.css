@@ -53,20 +53,22 @@
 }
 .historyAction:disabled > .actionFace { opacity: .55; }
 .historyArrow { inline-size: 1em; text-align: center; }
-button.historyAction[data-history-toggle] { margin-block: 4px; }
-
 .historyDate {
   display: grid;
-  grid-template-columns: minmax(0, 10.5rem) max-content;
+  grid-template-columns: max-content;
   align-items: center;
-  gap: 4px 8px;
-  margin: 4px 0 14px;
+  justify-content: start;
+  gap: 6px;
+  margin: 4px 0;
 }
-.historyDate label {
-  grid-column: 1 / -1;
-  font-size: 13px;
+.historyDate[data-history-expanded] {
+  grid-template-columns: max-content minmax(0, 10.5rem) max-content;
 }
-.historyDate .actionFace { min-height: 36px; min-width: 56px; }
+.historyDate button[type=submit] > .actionFace { min-height: 36px; min-width: 48px; }
+@media (max-width: 360px) {
+  .historyDate [data-history-toggle] > .actionFace { gap: 4px; padding-inline: 8px; }
+  .historyDate .historyArrow { inline-size: 12px; }
+}
 .dateField {
   position: relative;
   isolation: isolate;
@@ -89,7 +91,7 @@ form.historyDate input[type="date"] {
   min-width: 0;
   min-height: 44px;
   margin: 0;
-  padding: 0 38px 0 10px;
+  padding: 0 29px 0 8px;
   border: 0;
   background: transparent;
   color: var(--warm-white);
@@ -102,7 +104,7 @@ form.historyDate input[type="date"] {
 .historyDate input::-webkit-calendar-picker-indicator {
   position: absolute;
   inset: 0 0 0 auto;
-  width: 38px;
+  width: 28px;
   height: auto;
   margin: 0;
   padding: 0;
@@ -117,13 +119,13 @@ form.historyDate input[type="date"] {
   pointer-events: none;
 }
 .dateDisplay {
-  inset-inline-start: 10px;
+  inset-inline-start: 8px;
   color: var(--warm-white);
   font-size: 16px;
 }
 .dateDisplay[data-placeholder],
 .dateIcon { color: var(--muted); }
-.dateIcon { inset-inline-end: 12px; }
+.dateIcon { inset-inline-end: 8px; }
 form.historyDate .dateField:not(:focus-within) input[type="date"] { color: transparent; }
 .dateField:not(:focus-within) input::-webkit-datetime-edit { opacity: 0; }
 .dateField:focus-within > .dateDisplay { visibility: hidden; }

@@ -14,6 +14,7 @@ import { AssistantTasks } from "./assistant-tasks";
 import type { AssistantPageState } from "./page-navigation";
 import { HistoryIcon } from "./surface";
 import styles from "./surface.module.css";
+import glass from "@/components/glass-controls.module.css";
 
 const allowNavigation = async () => true;
 const validConversation = /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i;
@@ -164,7 +165,7 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
           <h1 ref={pageTitle} className="sr-only" tabIndex={-1}>小助手</h1>
           <ChatNavigation tab={tab} onTab={selectTab} pendingCount={count}/>
           <div className={styles.pageActions}>
-            <button ref={historyButton} type="button" className={styles.pageIcon} aria-label="历史会话" onClick={() => setHistoryView("list", 1)}><HistoryIcon/></button>
+            <button ref={historyButton} type="button" className={styles.pageIcon + " " + glass.mobileButton} aria-label="历史会话" onClick={() => setHistoryView("list", 1)}><HistoryIcon/></button>
             <ChatHeaderActions onNew={() => selectTab("chat")}/>
           </div>
         </header>

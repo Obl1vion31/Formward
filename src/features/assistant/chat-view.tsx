@@ -12,6 +12,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, useId, type 
 import { LoadingLink } from "../../components/loading-link";
 import { useAssistantChat, useOptionalAssistantChat, type ArrivalViewport } from "./chat-client";
 import { CHAT_INPUT_LIMIT, CHAT_PHOTOS_PER_BATCH, chatContextLimitNotice, nextChatInputEstimate, type ChatMessage, type ChatPhotoLimit } from "./chat-model";
+import glass from "@/components/glass-controls.module.css";
+import { useSlidingSelection } from "@/components/sliding-selection";
 import styles from "./chat.module.css";
 function ArrivingMessage({message,eligible,viewport,className,children}: {
   message:ChatMessage; eligible:boolean; viewport?:ArrivalViewport; className:string; children:ReactNode;
@@ -63,19 +65,39 @@ function PhotoBatchPicker({limit,disabled,submit}: {
 }
 export function ChatHeaderActions({onNew}:{onNew?:()=>void}) {
   const chat = useAssistantChat();
-  return <button type="button" className={styles.icon} title="新对话" aria-label="新对话" disabled={!chat.enabled || chat.busy || chat.managing || !!chat.uploading || !chat.data} onClick={() => void chat.control("new").then(ok=>{if(ok)onNew?.();})}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m14 5 5 5M4 20l4-1L20 7a2.1 2.1 0 0 0-3-3L5 16z"/></svg></button>;
+  return <button type="button" className={styles.icon + " " + glass.mobileButton} title="新对话" aria-label="新对话" disabled={!chat.enabled || chat.busy || chat.managing || !!chat.uploading || !chat.data} onClick={() => void chat.control("new").then(ok=>{if(ok)onNew?.();})}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m14 5 5 5M4 20l4-1L20 7a2.1 2.1 0 0 0-3-3L5 16z"/></svg></button>;
 }
 export type ChatTab = "chat" | "tasks";
+const chatTabs: readonly ChatTab[] = ["chat", "tasks"];
+
 export function ChatNavigation({tab,onTab,pendingCount}:{tab:ChatTab;onTab:(value:ChatTab)=>void;pendingCount:number}) {
-  const chat=useOptionalAssistantChat(),locked=!!chat?.entitlement&&!chat.entitlement.chat;
-  return <div className={styles.navigation}><div className={styles.navTabs} role="tablist" aria-label="小助手内容" onKeyDown={event => {
-    const next = event.key === "ArrowLeft" ? "chat" : event.key === "ArrowRight" ? "tasks" : null;
-    if (!next) return;
-    event.preventDefault();
-    event.currentTarget.querySelector<HTMLElement>(next === "chat" ? "button:first-child" : "button:last-child")?.focus();
-    onTab(next);
-  }}><button type="button" role="tab" aria-selected={tab === "chat"} onClick={() => onTab("chat")}><span className={styles.tabLabel}>聊天</span>{locked&&<small className={styles.tierBadge}>未开放</small>}</button><button type="button" role="tab" aria-selected={tab === "tasks"} onClick={() => onTab("tasks")}><span className={styles.tabLabel}>待办</span>{pendingCount > 0 && <span className={styles.tabBadge}>{pendingCount}</span>}</button></div><select className={styles.navSelect} aria-label="切换聊天与待办" value={tab} onChange={event=>onTab(event.target.value as ChatTab)}><option value="chat">聊天{locked?" · Plus":""}</option><option value="tasks">待办{pendingCount>0?" · "+pendingCount:""}</option></select></div>;
+  const chat = useOptionalAssistantChat();
+  const locked = Boolean(chat?.entitlement && !chat.entitlement.chat);
+  const slide = useSlidingSelection(chatTabs.indexOf(tab), index => onTab(chatTabs[index]));
+  return <div className={styles.navigation}>
+    <div {...slide} className={styles.navTabs + " " + glass.track} role="tablist" aria-label="小助手内容"
+      onKeyDown={event => {
+        const index = event.key === "ArrowLeft" ? 0 : event.key === "ArrowRight" ? 1 : -1;
+        if (index < 0) return;
+        event.preventDefault();
+        event.currentTarget.querySelector<HTMLElement>(`[data-capsule-choice="${index}"]`)?.focus();
+        onTab(chatTabs[index]);
+      }}>
+      <span className={glass.selection} data-capsule-indicator aria-hidden="true"/>
+      <button type="button" role="tab" data-capsule-choice={0} aria-selected={tab === "chat"} onClick={() => onTab("chat")}>
+        <span className={styles.tabLabel}>聊天</span>{locked && <small className={styles.tierBadge}>未开放</small>}
+      </button>
+      <button type="button" role="tab" data-capsule-choice={1} aria-selected={tab === "tasks"} onClick={() => onTab("tasks")}>
+        <span className={styles.tabLabel}>待办</span>{pendingCount > 0 && <span className={styles.tabBadge}>{pendingCount}</span>}
+      </button>
+    </div>
+    <select className={styles.navSelect} aria-label="切换聊天与待办" value={tab} onChange={event => onTab(event.target.value as ChatTab)}>
+      <option value="chat">聊天{locked ? " · Plus" : ""}</option>
+      <option value="tasks">待办{pendingCount > 0 ? " · " + pendingCount : ""}</option>
+    </select>
+  </div>;
 }
+
 export function AssistantChatView({ sidebar, navigate, tab, page = false, onPreviewBack }: { sidebar: ReactNode; navigate: () => Promise<boolean>; tab: ChatTab; page?: boolean; onPreviewBack?: () => void }) {
   const [pinnedPreview,setPinnedPreview]=useState<string|null>(null), previewBack=useRef<HTMLButtonElement>(null), previewTrigger=useRef<HTMLElement|null>(null);
   const closePreview=()=>{setPinnedPreview(null);onPreviewBack?.();requestAnimationFrame(()=>{const target=previewTrigger.current; if(target?.isConnected)target.focus({preventScroll:true});else feed.current?.focus({preventScroll:true});});};
@@ -291,7 +313,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
                 const picker = event.currentTarget, files = Array.from(picker.files ?? []);
                 if (files.length) void chat.addPhotos(files).finally(() => { picker.value = ""; });
               }}/>
-            <button type="button" className={styles.icon} aria-label="添加照片"
+            <button type="button" className={styles.icon + " " + glass.mobileButton} aria-label="添加照片"
               disabled={!!chat.uploading || !chat.data} onClick={() => photoInput.current?.click()}><Glyph name="plus"/></button>
             <textarea ref={input} rows={1} aria-label="给小助手发消息" value={chat.draft}
               placeholder="想聊点什么？" onChange={event => chat.setDraft(event.target.value)}
@@ -303,15 +325,15 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
                   submit();
                 }
               }}/>
-            <button type="button" ref={modelButton} className={styles.modelButton}
+            <button type="button" ref={modelButton} className={styles.modelButton + " " + glass.mobileButton}
               aria-label={selected?.label ?? "选择模型"} aria-haspopup="dialog" aria-expanded={modelMenuOpen}
               aria-controls={modelMenuOpen ? modelMenuId : undefined}
               onClick={() => setPanel(modelMenuOpen ? null : "models")}>
               <span>{selected?.id === "mimo" ? "MiMo" : selected?.label ?? "模型"}</span><Glyph name="chevron"/>
             </button>
             {chat.busy
-              ? <button type="button" className={styles.send} aria-label="停止生成" onClick={() => void chat.control("stop")}><Glyph name="stop"/></button>
-              : <button type="button" className={styles.send} aria-label="发送消息"
+              ? <button type="button" className={styles.send + " " + glass.mobileButton + " " + glass.mobilePrimary} aria-label="停止生成" onClick={() => void chat.control("stop")}><Glyph name="stop"/></button>
+              : <button type="button" className={styles.send + " " + glass.mobileButton + " " + glass.mobilePrimary} aria-label="发送消息"
                   disabled={blocked || pendingQuote?.text === null || chat.photos.some(photo => photo.phase !== "ready" || !photo.id) || !chat.draft.trim() && !chat.photos.length}
                   onMouseDown={event => {
                     // 保持焦点到点击触发。取消触摸的 pointerdown 会让 WebKit 不发出 click。

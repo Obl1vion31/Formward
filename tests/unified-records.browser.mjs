@@ -78,8 +78,9 @@ async function checkRecordHistoryControls({ baseURL, page, today, engine, artifa
         assertSameActionGeometry(folded, await recordActionGeometry(collapse));
         assert.equal(await history.locator("[data-record-date]").count(), 50);
 
-        const input = history.getByLabel("查看日期", { exact: true });
-        const submit = history.getByRole("button", { name: "查看", exact: true }).first();
+        const input = records.getByLabel("查看日期", { exact: true });
+        const toolbar = input.locator("xpath=ancestor::form");
+        const submit = records.getByRole("button", { name: "查询", exact: true });
         if (!mobile) {
           await collapse.focus();
           await screen.keyboard.press("Tab");
@@ -87,7 +88,7 @@ async function checkRecordHistoryControls({ baseURL, page, today, engine, artifa
           await input.blur();
         }
         await input.evaluate(node => window.scrollBy(0, node.getBoundingClientRect().top - Math.min(280, innerHeight / 2)));
-        assert.equal(await history.getByText("选择日期", { exact: true }).isVisible(), true);
+        assert.equal(await toolbar.getByText("选择日期", { exact: true }).isVisible(), true);
         assert.equal(await submit.isDisabled(), true);
         assert.equal(await input.getAttribute("type"), "date");
         assert.equal(await input.getAttribute("max"), today);
@@ -95,7 +96,11 @@ async function checkRecordHistoryControls({ baseURL, page, today, engine, artifa
         const submitBox = await submit.boundingBox();
         assert.ok(inputBox.height >= 44 && submitBox.height >= 44);
         assert.equal(await input.evaluate(node => getComputedStyle(node).fontSize), "16px");
+        const collapseBox = await collapse.boundingBox();
+        assert.ok(collapseBox.height >= 44 && Math.abs(collapseBox.y - inputBox.y) <= 1);
+        assert.ok(collapseBox.x + collapseBox.width < inputBox.x);
         assert.ok(Math.abs(inputBox.y - submitBox.y) <= 1 && inputBox.x + inputBox.width < submitBox.x);
+        assert.equal(await records.getByText("查看日期", { exact: true }).count(), 0);
         assert.equal(await screen.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
         const emptySubmit = await recordActionGeometry(submit);
         const screenshot = engine + "-" + path + "-" + width + "-" + theme;
@@ -107,7 +112,7 @@ async function checkRecordHistoryControls({ baseURL, page, today, engine, artifa
         assert.equal(await submit.isEnabled(), true);
         assertSameActionGeometry(emptySubmit, await recordActionGeometry(submit));
         await input.blur();
-        assert.equal(await history.getByText(lookupDate.replaceAll("-", "."), { exact: true }).first().isVisible(), true);
+        assert.equal(await toolbar.getByText(lookupDate.replaceAll("-", "."), { exact: true }).first().isVisible(), true);
         await screen.screenshot({ path: artifacts + "/" + screenshot + "-selected.png" });
         const scroll = await screen.evaluate(() => scrollY);
         await activate(submit);

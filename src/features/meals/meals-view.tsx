@@ -2,6 +2,7 @@
 import {NutritionLegend} from '@/components/chart-legend';
 import {numericDraftValue} from "@/components/form-draft";
 import recordUI from "@/components/record-ui.module.css";
+import glass from "@/components/glass-controls.module.css";
 import {RecordWorkspace,RecordTrendPanel,InlineChartControls,CustomRecordRange} from "@/components/record-trend-panel";
 import {confirmAction} from "@/components/confirmation-state";
 import {DecimalInput} from "@/components/decimal-input";
@@ -13,7 +14,6 @@ import { useInitialMobileMode } from "@/components/use-mobile-mode";
 import { macroComposition,dailyTotals, suggestedMealType, mealOperationStatus, emptyNutrition, formatNutrition, metricLabels, metrics, type FoodDraft, type MealAction,  type MealInput, type MacroMode, type MealOperationView, type MealSnapshot, type MealView, type Metric,  type Result } from "./model";
 import { recentRecordDates, rangeContaining } from "@/components/record-dates";
 import { DailyRecords,DailyRecordRow } from "@/components/daily-records";
-import { RecordHistory } from "@/components/record-history";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
 import { useNestedChartRange } from "@/components/use-nested-chart-range";
@@ -76,7 +76,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   const dailySummary=(date:string)=>{const group=groups.find(g=>g.date===date);return group?<>{group.meals.length} 餐 · {formatNutrition(group.totals.values.caloriesKcal,"caloriesKcal")} 千卡{group.totals.incomplete.caloriesKcal?" · 部分":""}</>:"尚无记录";};
   // 今日记录与图表选日互不替换；历史在原位展开，保留阅读位置。
   const recentDates=[today];
-  const renderDay=(date:string)=>{const group=groups.find(g=>g.date===date);return <DailyRecordRow key={date} date={date} today={today} value={dailySummary(date)} status={group?(saveDay?<MealDayControl day={group.day} busy={busy} error={dayErrors[date]} save={performDay}/>:<MealDayStatus day={group.day}/>):null}><button data-record-action="edit" onClick={()=>group?editDay(date):addMeal(date)}>{group?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>viewDay(date)}>查看</button></DailyRecordRow>;};
+  const renderDay=(date:string)=>{const group=groups.find(g=>g.date===date);return <DailyRecordRow key={date} date={date} today={today} value={dailySummary(date)} status={group?(saveDay?<MealDayControl day={group.day} busy={busy} error={dayErrors[date]} save={performDay}/>:<MealDayStatus day={group.day}/>):null}><button data-record-action="edit" className={glass.mobileButton} onClick={()=>group?editDay(date):addMeal(date)}>{group?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>viewDay(date)}>查看</button></DailyRecordRow>;};
   const dayDetails=(date:string)=>{
     const group=groups.find(g=>g.date===date), editable=dayIntent==='edit';
     return <>
@@ -139,7 +139,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
       >{validRange?<div data-nested-chart ref={bindPlot}><NutritionChart dates={dates} groups={groups} mode={macroMode} selection={chart} compact={dates.length<=31} linked={!!initialTrend&&from===initialTrend.from&&to===initialTrend.to}/></div>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}</RecordTrendPanel>
       </div>
       {error&&!editing&&<p role="alert" className={styles.error}>{error}</p>}{notice&&<p role="status" className={styles.hint}>{notice}</p>}
-      <DailyRecords actions={<button type="button" onClick={()=>setTab("foods")}>食材库</button>} history={<RecordHistory today={today} dates={[...new Set([...recentRecordDates(today),...groups.map(g=>g.date)])].filter(date=>!recentDates.includes(date)).sort().reverse()} renderRow={renderDay} view={viewDay}/>}>{recentDates.map(renderDay)}</DailyRecords>
+      <DailyRecords actions={<button type="button" onClick={()=>setTab("foods")}>食材库</button>} history={{today,dates:[...new Set([...recentRecordDates(today),...groups.map(g=>g.date)])].filter(date=>!recentDates.includes(date)).sort().reverse(),renderRow:renderDay,view:viewDay}}>{recentDates.map(renderDay)}</DailyRecords>
       {operations.filter(op=>mealOperationStatus(op,now)==="pending"&&op.origin!=="manual").map(op=><LoadingLink key={op.id} className={styles.reviewLink} href={op.confirmationPath}>AI 饮食预览 · {op.rows.length} 项待确认 <span>查看 →</span></LoadingLink>)}
     </>:<>
       <div className={styles.libraryNavigation}><button type="button" className={recordUI.secondary} onClick={()=>setTab("meals")}>← 饮食记录</button><h2>食材库</h2></div>

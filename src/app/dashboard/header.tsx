@@ -18,6 +18,7 @@ import { useChartTransition } from "@/components/chart-transition-state";
 import {useAppInformation} from "@/components/app-information";
 import { LocalLoading } from "@/components/local-loading";
 import styles from "./header.module.css";
+import glass from "@/components/glass-controls.module.css";
 type Group = "root" | "external" | "account" | "admin";
 export function DashboardHeader({ email, owner = false, sourcePilot = false }: { email: string; owner?: boolean; sourcePilot?: boolean }) {
   const openInformation = useAppInformation();
@@ -39,7 +40,7 @@ export function DashboardHeader({ email, owner = false, sourcePilot = false }: {
       <LoadingLink className="dashboard-logo" href="/dashboard" onNavigate={overview} aria-label="Formward 主页"><BrandLogo compactOnMobile/></LoadingLink>
       <span className={"mobile-page-name" + (pathname === "/dashboard/ai" ? " " + styles.aiTitle : "")} role={page || pathname === "/dashboard/ai" ? "heading" : undefined} aria-level={page || pathname === "/dashboard/ai" ? 1 : undefined}>{review ? "确认记录" : visualReview ? "视觉验收" : page?.[1] ?? (pathname.includes("/account") ? "账号与安全" : pathname.includes("/profile") ? "个人资料" : pathname.includes("/tutorial") ? "使用说明" : pathname.includes("/export") ? "导出 Excel" : pathname.includes("/sources") ? "设备与数据来源" : "AI 接入")}</span>
       <div className={styles.actions}><AppearanceToggle/>
-        <GlassMenu onEscape={()=>{if(group!=="root"){changeGroup("root");return true;}return false;}} onCloseReady={close => { menuClose.current = close; }} onOpen={async () => { setGroup("root"); await hideAssistant(); }} icon={<><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9" r="3"/><path d="M5.5 18c1-5 12-5 13 0"/></svg><LocalLoading active={!!pendingAccount} iconOnly label="正在打开账号页面…"/></>}>
+        <GlassMenu mobileGlass onEscape={()=>{if(group!=="root"){changeGroup("root");return true;}return false;}} onCloseReady={close => { menuClose.current = close; }} onOpen={async () => { setGroup("root"); await hideAssistant(); }} icon={<><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="9" r="3"/><path d="M5.5 18c1-5 12-5 13 0"/></svg><LocalLoading active={!!pendingAccount} iconOnly label="正在打开账号页面…"/></>}>
           {group === "root" ? <><span className={styles.menuEmail}>{email}</span><FollowSystemAppearance/>{([["external", "外部接入"], ["account", "账号管理"], ...(owner ? [["admin", "管理与测试"]] : [])] as [Group, string][]).map(([key, label]) => <button key={key} type="button" data-menu-stay-open data-menu-group={key} onClick={() => changeGroup(key)}>{label}<span aria-hidden="true">›</span></button>)}<button type="button" aria-haspopup="dialog" onClick={() => void openMoreInformation()}>更多信息</button></> : <>{backGroup}
             {group === "external" && <>{mobile ? <button type="button" onClick={() => void openSettings("sources")}>设备与数据来源</button> : <LoadingLink beforeNavigate={() => menuClose.current()} onPendingChange={pendingChanges.sources} href="/dashboard/sources">设备与数据来源</LoadingLink>}<LoadingLink beforeNavigate={() => menuClose.current()} href="/dashboard/ai">AI 接入</LoadingLink></>}
             {group === "account" && <>{mobile ? <><button type="button" onClick={() => void openSettings("profile")}>个人资料</button><button type="button" onClick={() => void openSettings("account")}>账号与安全</button></> : <><LoadingLink beforeNavigate={() => menuClose.current()} onPendingChange={pendingChanges.profile} href="/dashboard/profile">个人资料</LoadingLink><LoadingLink beforeNavigate={() => menuClose.current()} onPendingChange={pendingChanges.account} href="/dashboard/account">账号与安全</LoadingLink></>}<LogoutButton/></>}
@@ -49,7 +50,7 @@ export function DashboardHeader({ email, owner = false, sourcePilot = false }: {
       </div>
     </header>
     {showDock &&
-      <nav className={"desktop-record-nav " + styles.desktopNav} aria-label="主导航"><span className={styles.desktopLens} aria-hidden="true" style={{ transform: "translateY(" + Math.max(0, pages.findIndex(([href]) => href === pathname)) * 74 + "px)" }}/>{pages.map(([href, label], index) => <LoadingLink key={href} href={href} onNavigate={href === "/dashboard" ? overview : ()=>chart.cancelOverviewReturn?.(href)} aria-current={pathname === href ? "page" : undefined}><NavigationIcon index={index}/><span>{label}</span></LoadingLink>)}</nav>
+      <nav className={"desktop-record-nav " + styles.desktopNav} aria-label="主导航"><span className={styles.desktopLens + " " + glass.navSelection} aria-hidden="true" style={{ transform: "translateY(" + Math.max(0, pages.findIndex(([href]) => href === pathname)) * 74 + "px)" }}/>{pages.map(([href, label], index) => <LoadingLink key={href} href={href} onNavigate={href === "/dashboard" ? overview : ()=>chart.cancelOverviewReturn?.(href)} aria-current={pathname === href ? "page" : undefined}><NavigationIcon index={index}/><span>{label}</span></LoadingLink>)}</nav>
     }
     {hasTools && <div className={styles.desktopAssistant}><AssistantButton beforeOpen={() => menuClose.current()}/></div>}
     {settings && <Inspector title={settings === "sources" ? "设备与数据来源" : settings === "profile" ? "个人资料" : "账号与安全"} close={() => setSettings(false)}>{settings === "sources" ? <DataSourcesPanel available={sourcePilot}/> : <AccountSurface key={settings} kind={settings}/>}</Inspector>}
@@ -88,7 +89,7 @@ function AssistantButton({ mobile = false, beforeOpen }: { mobile?: boolean; bef
     else await beforeOpen?.();
     toggle();
   }
-  return <button type="button" data-assistant-trigger className={styles.assistantTrigger}
+  return <button type="button" data-assistant-trigger className={styles.assistantTrigger + (mobile ? " " + glass.mobileButton + " " + glass.mobileLaunch : "")}
     aria-label={"打开小助手" + (count ? "，" + count + "项待查看" : "")} aria-haspopup={mobile ? undefined : "dialog"}
     aria-expanded={mobile ? undefined : open} onClick={() => void activate()}>
     <AssistantIcon/><span>小助手</span>

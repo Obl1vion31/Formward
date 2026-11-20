@@ -80,7 +80,7 @@ appearance-state.ts保存本设备主题的读取、早期初始化和跨窗口�
 
 app-updates.tsx仅检查构建版本，与record-updates.tsx的健康记录变化分开。可见时90秒、恢复前台检查；不缓存的版本接口不带身份或旧部署标记。草稿确认复用confirmation及draft-guard；approvePageRefresh只允许用户明确批准的这次刷新跳过重复离开弹窗，不存健康草稿。
 
-DailyRecords、DailyRecordRow 和 RecordHistory 提供三页最近记录与历史展开。历史按钮与身体行内操作共用 32px 浅底和透明的 44px 触控区。日期查找使用系统日期控件，未选日期时显示提示并禁用查看。业务页面不得用全局按钮规则覆盖这些控件。RecordTrendPanel支持六项读数按6／3／2退让、数值基线对齐；电脑图表标题、单位与图例同排，手机图例另行。控件边界使用主题control-border，深浅两套均须核对对比。
+DailyRecords、DailyRecordRow 和 RecordHistory 提供三页最近记录与历史展开。历史按钮与身体行内操作共用 32px 浅底和透明的 44px 触控区。展开后收起操作、系统日期控件与查询同排。未选日期时查询禁用，收起保留选中日期与已加载批次。业务页面不得用全局按钮规则覆盖这些控件。RecordTrendPanel支持六项读数按6／3／2退让、数值基线对齐；电脑图表标题、单位与图例同排，手机图例另行。控件边界使用主题control-border，深浅两套均须核对对比。
 
 RecordTrendPanel的metricVariants传入当前区间已算好的各日读数字符串，按数字实际字体缓存最长宽度；测量订阅由实际内容键决定，不随外壳状态或数组身份重建。单次先读取尺寸再更新布局属性，相同属性不重复写入。MetricCardRail同样批量读取各卡宽度后才更新换行状态，避免逐卡读写强制整页重排。列数不随鼠标选日反复变化，换区间或窗口再测量。不生成或修改健康读数。
 
@@ -88,6 +88,8 @@ RecordTrendPanel的metricVariants传入当前区间已算好的各日读数字�
 
 chart-selection-marker.tsx及同名CSS集中管理ChartSelectionColumn底纹／辅助线／柱图短标记、ChartSelectionPoint空心高亮圈。永久SVG图层100ms（cubic-bezier(.2,0,0,1)）短过渡，中断时取消旧动画并续接当前视觉位置；列层位于数据之前、裁在绘图区，底纹与线使用同一变换。触屏、首次定位、区间／尺寸更换和减少动态效果直接就位，折线首次600ms／柱图首次400ms及主动区间切换动画仍由use-chart-motion独立负责；use-chart-date-selection.ts区分鼠标临时预览、点击保持、键盘焦点内选择与触屏持久选择。完整趋势面板负责离开及焦点边界，查看入口先捕获目标日期。
 
+
+本地轻玻璃候选中，sliding-selection.ts 测量触屏胶囊当前尺寸，处理拖动、取消和吸附。路由、表单与选中语义由调用方提交。glass-controls.module.css 共用按钮内层材质与胶囊底片。账号和模型菜单从各自触发按钮连续展开。桌面主导航沿用固定槽位，用纵向底片指示当前页。候选状态和真机待测项见 [当前视觉验收](../../design-qa.md)。
 
 record-detail-actions.tsx在已展开的餐次／运动中统一编辑及更多删除；删除保留业务原有确认，Escape先关闭更多并返回焦点，外部点击或焦点离开关闭菜单。Disclosure继续只在展开后挂载完整内容。
 

@@ -303,3 +303,22 @@ form.energyEntry[data-entry-form=energy] .manualReading>input[type=number]{font-
 .calculationPopover .estimatorChoice:first-child{padding-top:0}
 .calculationPopover .estimatorChoice:first-child .estimatorChoiceHeading{min-height:44px;align-items:center;padding-right:44px}
 .calculationPopover .estimatorChoice:first-child>input{margin-top:13px}
+
+@media (max-width: 700px), (hover: none) and (pointer: coarse) {
+  .energyEntry .modeSwitch, .energyEntry .recordMethodButtons, .energyEntry .activityMethod {
+    --capsule-selection-inset: 3px;
+    --capsule-side-inset: 2px;
+    border-color: transparent;
+    border-radius: 999px;
+    background: transparent;
+    flex-wrap: nowrap;
+    overflow: visible;
+  }
+  .energyEntry .activityMethod { gap: 0; }
+  .energyEntry .activityMethod button { border-color: transparent; }
+  .energyEntry :is(.modeSwitch,.recordMethodButtons,.activityMethod)[data-capsule-ready] button[aria-pressed=true] {
+    color: var(--warm-white);
+    background: transparent;
+    border-color: transparent;
+  }
+}

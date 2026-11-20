@@ -550,7 +550,7 @@
     gap: 2px;
     padding: 2px;
     border-radius: 8px;
-    background: var(--surface-hover);
+    background: transparent;
   }
   .entrySegments button {
     display: inline-flex;
@@ -581,13 +581,14 @@
     border-radius: 999px;
     background: transparent;
   }
-  .drawer[data-fit-content] .entrySegments::before {
-    position: absolute;
-    inset: 7px 0;
-    z-index: -1;
-    border-radius: inherit;
-    background: var(--surface-hover);
-    content: "";
+  .drawer[data-fit-content] .entrySegments {
+    --capsule-track-inset: 7px 0;
+    --capsule-selection-inset: 9px;
+    --capsule-side-inset: 2px;
+  }
+  .entrySegments[data-capsule-ready] button[aria-pressed=true] {
+    background: transparent;
+    border-color: transparent;
   }
   .drawer[data-fit-content] .entrySegments button {
     position: relative;
@@ -601,7 +602,7 @@
     background: transparent;
     color: var(--body-ink);
   }
-  .drawer[data-fit-content] .entrySegments button[aria-pressed=true]::before {
+  .drawer[data-fit-content] .entrySegments:not([data-capsule-ready]) button[aria-pressed=true]::before {
     position: absolute;
     inset: 9px 2px;
     z-index: -1;

@@ -95,7 +95,7 @@
   inset: auto;
   left: var(--model-left, 12px);
   top: var(--model-anchor, 8px);
-  transform: translateY(-100%);
+  translate: 0 -100%;
   width: 256px;
   max-width: calc(100vw - 24px);
   margin: 0;
@@ -200,6 +200,8 @@
  background: var(--warm-white);
  color: var(--surface);
 }
+.navTabs[data-capsule-ready] { background: transparent; }
+.navTabs[data-capsule-ready] button[aria-selected=true] { background: transparent; color: var(--warm-white); }
 .navTabs button[aria-selected=true] .tierBadge { color: inherit; }
 .navTabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 .tabBadge, .navSelect { display: none; }

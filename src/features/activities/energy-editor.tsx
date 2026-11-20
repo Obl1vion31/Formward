@@ -21,6 +21,8 @@ import {RestingMethodControl,RestingEstimate,RestingEstimator,CalculationDetails
 import {CalculationPopover} from "./calculation-popover";
 import {EnergyPreferencesContext} from "./energy-preferences";
 import type {EnergyPresentation} from "./presentation";
+import glass from "@/components/glass-controls.module.css";
+import { useSlidingSelection } from "@/components/sliding-selection";
 import styles from "./energy.module.css";
 type Choice="included"|"additional";
 type ActivityAction=Extract<EnergyAction,{kind:"save_activity"}>;
@@ -341,8 +343,16 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
  </form>{supplement&&targetDate&&<EnergySupplement kind={supplement} date={targetDate} today={today} close={()=>{setSupplement(null);setContextEpoch(epoch=>epoch+1);if(resumeEstimator){setResumeEstimator(false);setContextLoading(true);setEstimatorOpen(true);}}}/>}</>;
 }
 type ExerciseInput={calorieMode?:"total"|"components";completed?:boolean;caloriesKcal?:string|null;exerciseRestingKcal?:string|null;exerciseActiveKcal?:string|null};
+const exerciseCalorieModes = [["total", "只记总数"], ["components", "分开填写"]] as const;
+
 function ExerciseFields({value,change,suffix="",day,relation,pending}:{value:ExerciseInput;change:(next:ExerciseInput)=>void;suffix?:string;day?:EnergyDayRecord|null;relation?:Choice|null;pending?:boolean}){
  const mode=value.calorieMode??"total",readings=activitySummary(value,day,{relation,pending});
+ const slide = useSlidingSelection(mode === "total" ? 0 : 1, index => change({ calorieMode: exerciseCalorieModes[index][0] }));
  const input=(key:"caloriesKcal"|"exerciseActiveKcal"|"exerciseRestingKcal",label:string)=><label>{label}<DecimalInput precision={0} aria-label={label+suffix} min={0} max={1000000} placeholder="未知" value={value[key]} onValue={next=>change({[key]:next||null})}/></label>;
- return <section className={styles.exerciseFields} data-mode={mode}><div className={styles.modeSwitch} role="group" aria-label={"运动热量填写方式"+suffix}>{([["total","只记总数"],["components","分开填写"]] as const).map(([key,label])=><button type="button" key={key} aria-pressed={mode===key} onClick={()=>change({calorieMode:key})}>{label}</button>)}</div><div className={styles.fields}>{mode==="total"?input("caloriesKcal","本次运动总消耗 · 千卡"):<>{input("exerciseActiveKcal","纯运动消耗 · 千卡")}{input("exerciseRestingKcal","运动期间静息 千卡")}</>}</div><p className={styles.exerciseReading}>本次共 {energyValue(readings.totalKcal)} 千卡{readings.breakdown&&<span>{readings.breakdown}</span>}</p>{!pending&&<p className={styles.inclusionStatus} data-exercise-effect>{readings.effect}</p>}</section>;
+ return <section className={styles.exerciseFields} data-mode={mode}><div {...slide} className={styles.modeSwitch + " " + glass.track} role="group" aria-label={"运动热量填写方式"+suffix}>
+   <span className={glass.selection} data-capsule-indicator aria-hidden="true"/>
+   {exerciseCalorieModes.map(([key, label], index) =>
+     <button type="button" key={key} data-capsule-choice={index} aria-pressed={mode === key} onClick={() => change({calorieMode:key})}>{label}</button>
+   )}
+ </div><div className={styles.fields}>{mode==="total"?input("caloriesKcal","本次运动总消耗 · 千卡"):<>{input("exerciseActiveKcal","纯运动消耗 · 千卡")}{input("exerciseRestingKcal","运动期间静息 千卡")}</>}</div><p className={styles.exerciseReading}>本次共 {energyValue(readings.totalKcal)} 千卡{readings.breakdown&&<span>{readings.breakdown}</span>}</p>{!pending&&<p className={styles.inclusionStatus} data-exercise-effect>{readings.effect}</p>}</section>;
 }

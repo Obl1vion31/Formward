@@ -1,0 +1,104 @@
+.navSelection {
+  background: color-mix(in srgb, var(--action-fill) 31%, var(--nav-solid));
+  box-shadow: inset 0 1px 0 var(--nav-rim);
+}
+
+@media (max-width: 700px), (hover: none) and (pointer: coarse) {
+  .track {
+    position: relative;
+    isolation: isolate;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .track::before {
+    content: "";
+    position: absolute;
+    inset: var(--capsule-track-inset, 0);
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--capsule-track-fill, var(--surface-hover));
+    box-shadow: inset 0 1px 0 var(--nav-rim);
+    pointer-events: none;
+    transition: transform 180ms cubic-bezier(.2,.8,.2,1);
+  }
+  .track[data-capsule-pressed]::before { transform: scale(1.03, 1.06); }
+  .track > [data-capsule-choice] { position: relative; z-index: 1; }
+  .track > [data-capsule-choice]:active { filter: none; }
+
+  .selection {
+    display: none;
+    position: absolute;
+    inset: var(--capsule-selection-inset, 3px) auto var(--capsule-selection-inset, 3px) 0;
+    width: 0;
+    border-radius: var(--capsule-selection-radius, 999px);
+    pointer-events: none;
+    z-index: 0;
+    background: var(--capsule-selection-fill, color-mix(in srgb, var(--action-fill) 26%, var(--surface)));
+  }
+  .track[data-capsule-ready] > .selection { display: block; }
+  .selection::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 1px 0 var(--nav-rim);
+    background: linear-gradient(125deg, var(--nav-rim), transparent 50%);
+    opacity: .55;
+    transition: opacity 150ms;
+  }
+  .track[data-capsule-pressed] .selection::after { opacity: 1; }
+
+  .mobileButton.mobileButton {
+    position: relative;
+    isolation: isolate;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobileButton.mobileButton::after,
+  .mobileFace.mobileFace::after {
+    content: "";
+    position: absolute;
+    inset: var(--glass-button-inset, 4px);
+    z-index: -1;
+    border-radius: var(--glass-button-radius, 999px);
+    pointer-events: none;
+    background:
+      linear-gradient(140deg, color-mix(in srgb, var(--nav-rim) 64%, transparent), transparent 60%),
+      var(--glass-button-fill, color-mix(in srgb, var(--surface) 60%, var(--surface-hover)));
+    box-shadow: inset 0 1px 0 var(--nav-rim);
+    transition: background-color 130ms, box-shadow 130ms;
+  }
+  .mobileButton.mobileButton:active { filter: none; }
+  .mobileButton.mobileButton:active:not(:disabled)::after,
+  .mobileButton[aria-expanded=true]::after,
+  button:active:not(:disabled) > .mobileFace::after {
+    background-color: color-mix(in srgb, var(--gold) 15%, var(--surface-hover));
+    box-shadow: inset 0 1px 0 var(--nav-rim), inset 0 0 0 1px color-mix(in srgb, var(--gold) 25%, transparent);
+  }
+  .mobileButton:disabled::after { opacity: .58; }
+  .mobileFace.mobileFace { position: relative; isolation: isolate; }
+  .mobileFace.mobileFace::after {
+    --glass-button-inset: 0px;
+    --glass-button-radius: inherit;
+    --glass-button-fill: transparent;
+  }
+  .mobileLaunch { --glass-button-inset: 2px; --glass-button-fill: var(--nav-glass); }
+  .mobilePrimary { --glass-button-inset: 4px; --glass-button-fill: transparent; }
+  .mobilePrimary.mobilePrimary:active:not(:disabled)::after {
+    background-color: color-mix(in srgb, var(--action-fill) 90%, var(--gold));
+  }
+  .mobileMenu.mobileMenu:popover-open { animation: none; }
+  .mobileMenu.mobileMenu {
+    box-shadow: inset 0 1px 0 var(--nav-rim), 0 10px 28px var(--nav-shadow);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .track.track::before, .selection.selection::after,
+  .mobileButton.mobileButton::after, .mobileFace.mobileFace::after { transition: none; }
+  .track.track[data-capsule-pressed]::before { transform: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .mobileButton.mobileButton::after { --glass-button-fill: var(--surface-hover); }
+  .mobilePrimary.mobilePrimary::after { --glass-button-fill: transparent; }
+}
