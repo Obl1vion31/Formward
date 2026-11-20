@@ -1,6 +1,6 @@
 # Components
 
-等待外壳与真实内容共用布局。chart-legend.tsx、trend-axes.tsx和daily-records.tsx复用实际图例、关联趋势刻度与记录操作槽。workspace-loading.tsx保留首帧已知信息；未知数值与列表按真实读取就绪，训练月历先显示实际日期。相同条件的真实快照交给workspace-cache静默更新。
+等待外壳与真实内容共用布局。手机饮食、消耗和身体共用PlotLoadingGuides，静态参考线与350ms后开始的扫光只显示于等待绘图区。真实图首帧移除占位并进入现有绘制动效。chart-legend.tsx、trend-axes.tsx和daily-records.tsx复用实际图例、关联趋势刻度与记录操作槽。workspace-loading.tsx保留首帧已知信息；未知数值与列表按真实读取就绪，训练月历先显示实际日期。相同条件的真实快照交给workspace-cache静默更新。
 
 local-loading.tsx在一次读取超过350ms后显示一处局部提示，位置由所属页面或面板确定。关联详情从正文露出开始计时，已有读数时提示留在仍待返回的明细区。LoadingLink跟踪实际导航，账号菜单关闭后的提示留在账号按钮。登录和提交使用所属控件的操作反馈。
 

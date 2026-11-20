@@ -1,5 +1,6 @@
 "use client";
 import {LocalLoading} from "./local-loading";
+import {PlotLoadingGuides} from "./chart-preparation";
 import {ChartSelectionColumn} from "./chart-selection-marker";
 import {TrendAxes} from "./trend-axes";
 import {addCalendarDays,linkedDate} from "@/features/measurements/calendar";
@@ -72,6 +73,7 @@ export function WorkspaceLoading({kind,returnShell=false,destination}:{kind:'ove
   legend={kind==='nutrition'?<NutritionLegend/>:body?<><span><i style={{background:'var(--data-weight)',borderRadius:'50%'}}/>晨间空腹</span>{params.get('view')!=='trend'&&<span><i style={{background:'var(--data-deficit)',borderRadius:'50%'}}/>晚间</span>}</>:<EnergyLegend/>}
   graphic={kind==="energy"?<EnergyComposition resting={readings?.kind==="energy"?readings.restingKcal:null} active={readings?.kind==="energy"?readings.activeKcal:null} loading={readings?.kind!=="energy"||readings.restingKcal==null||readings.activeKcal==null}/>:kind==="nutrition"?<NutritionComposition totals={readings?.kind==="intake"?readings.totals:null} loading={readings?.kind!=="intake"||macroComposition(readings.totals).kind==="unknown"}/>:undefined}>
  <PendingPlotFrame kind={kind} frameRef={ref} shared={shared} linked={linked} adaptive={mobile===null&&!shared?'auto':adaptive} short={model?model.points.length<=7:linkedRange?(Date.parse(linkedRange.to)-Date.parse(linkedRange.from))/86400000<7:range==="7"} axisLeft={"max("+(kind==="body"?48:50)+"px, calc("+Math.max(...tickLabels.map(value=>String(value).length))+"ch + 12px))"}>
+  {waiting&&!entryOpen&&!linked&&!model&&<PlotLoadingGuides top={top} right={right} bottom={32} left={left}/>}
   <svg preserveAspectRatio="none" viewBox={'0 0 '+width+' '+svgHeight} aria-hidden="true">
    {dates.length>0&&<TrendAxes kind={plotKind} dates={dates} model={model} width={width} left={left} right={right} top={top} bottom={svgHeight-32} fontSize={fontSize} axisClass="pending-axis" gridClass="pending-grid"/>}
    {model&&!body&&selectedX!==null&&<ChartSelectionColumn x={selectedX} date={date} column={{left:selectedX-dayWidth/2,right:selectedX+dayWidth/2}} plot={{left,right:width-right,top,bottom:svgHeight-32}} resetKey={date} direct baselineTick/>}

@@ -1,8 +1,24 @@
 "use client";
 
-import {LocalLoading} from "./local-loading";
+import type {CSSProperties} from "react";
+import {LocalLoading, READING_DELAY_MS} from "./local-loading";
+import styles from "./chart-preparation.module.css";
 
-/** After a server read, chart dimensions are measured without covering the final plot. */
-export function ChartPreparation({active}:{active:boolean}){
-  return active ? <div className="chart-preparation"><LocalLoading/></div> : null;
+type PlotInsets = {top: number; right: number; bottom: number; left: number};
+
+export function PlotLoadingGuides({top, right, bottom, left}: PlotInsets) {
+  const style = {
+    inset: `${top}px ${right}px ${bottom}px ${left}px`,
+    "--plot-wait-delay": READING_DELAY_MS + "ms",
+  } as CSSProperties;
+  return <div className={styles.guides} style={style} aria-hidden="true" data-chart-loading-guides=""/>;
+}
+
+/** 正式数据到达后，尺寸测量期间仍在同一图框内等待。 */
+export function ChartPreparation({active, guideInsets}: {active: boolean; guideInsets?: PlotInsets}) {
+  if (!active) return null;
+  return <>
+    {guideInsets && <PlotLoadingGuides {...guideInsets}/>}
+    <div className="chart-preparation"><LocalLoading/></div>
+  </>;
 }
