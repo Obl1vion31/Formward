@@ -64,63 +64,57 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
     if (!shown || !shell) return;
     const unlockPage = lockPageScroll();
     const viewport = window.visualViewport;
-    let frame = 0, keyboard = false, anchored = false;
+    let frame = 0, keyboard = false;
     let restingHeight = viewport?.height ?? innerHeight;
     let layoutWidth = document.documentElement.clientWidth;
+    let appliedHeight = restingHeight;
 
-    const resetAnchor = () => {
-      shell.style.removeProperty("--assistant-content-top");
-      shell.style.removeProperty("--assistant-content-height");
-      shell.style.removeProperty("--assistant-keyboard-height");
-    };
-
-    const layout = () => {
-      frame = 0;
+    function layout() {
+      if (!shell) return;
       const height = viewport?.height ?? innerHeight;
-      const offset = viewport?.offsetTop ?? 0;
       const focused = document.activeElement;
       const editing = focused instanceof HTMLElement && shell.contains(focused) &&
         (focused.matches("textarea,input:not([type=file])") || focused.isContentEditable);
       const width = document.documentElement.clientWidth;
-      if (width !== layoutWidth) {
+      const widthChanged = width !== layoutWidth;
+      if (widthChanged) {
         layoutWidth = width;
         restingHeight = Math.max(document.documentElement.clientHeight, innerHeight);
       }
       if ((!editing && !keyboard) || height > restingHeight) restingHeight = height;
-      keyboard = (editing || keyboard) && restingHeight - height >= (keyboard ? 8 : 72);
-      // Safari 可能先平移可视区，再报告键盘缩高。两条边都从当前可视区换算到助手外壳坐标。
-      const followViewport = keyboard || (editing && Math.abs(offset) > 1);
-      if (followViewport) {
-        shell.style.setProperty("--assistant-content-top", (offset - shell.getBoundingClientRect().top) + "px");
-        shell.style.setProperty("--assistant-content-height", height + "px");
-        if (keyboard) shell.style.setProperty("--assistant-keyboard-height", height + "px");
-        else shell.style.removeProperty("--assistant-keyboard-height");
-      } else if (anchored) {
-        resetAnchor();
+      // 失焦时键盘可能仍在收起。尺寸回到正常范围后才恢复完整的内容区。
+      const hasKeyboard = (editing || keyboard) && restingHeight - height >= (keyboard ? 8 : 72);
+      if (hasKeyboard && (!keyboard || widthChanged || Math.abs(height - appliedHeight) > 1)) {
+        const bottom = height + Math.max(0, viewport?.offsetTop ?? 0) - shell.getBoundingClientRect().top;
+        shell.style.setProperty("--assistant-content-height", Math.min(shell.clientHeight, bottom) + "px");
+        shell.style.setProperty("--assistant-keyboard-height", height + "px");
+        appliedHeight = height;
+      } else if (!hasKeyboard && keyboard) {
+        shell.style.removeProperty("--assistant-content-height");
+        shell.style.removeProperty("--assistant-keyboard-height");
       }
-      anchored = followViewport;
-      shell.toggleAttribute("data-assistant-keyboard", keyboard);
-    };
+      shell.toggleAttribute("data-assistant-keyboard", hasKeyboard);
+      keyboard = hasKeyboard;
+    }
 
     function schedule() {
-      if (!frame) frame = requestAnimationFrame(layout);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(layout);
     }
+    // 同高度的可视区平移不改变工作区或助手的布局。
     layout();
     window.addEventListener("resize", schedule);
-    window.addEventListener("scroll", schedule);
     viewport?.addEventListener("resize", schedule);
-    viewport?.addEventListener("scroll", schedule);
     shell.addEventListener("focusin", schedule);
     shell.addEventListener("focusout", schedule);
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", schedule);
-      window.removeEventListener("scroll", schedule);
       viewport?.removeEventListener("resize", schedule);
-      viewport?.removeEventListener("scroll", schedule);
       shell.removeEventListener("focusin", schedule);
       shell.removeEventListener("focusout", schedule);
-      resetAnchor();
+      shell.style.removeProperty("--assistant-content-height");
+      shell.style.removeProperty("--assistant-keyboard-height");
       shell.removeAttribute("data-assistant-keyboard");
       unlockPage();
     };

@@ -3,12 +3,6 @@ import { useEffect, type RefObject } from "react";
 type ScrollGesture = {
   x: number;
   y: number;
-  draft: {
-    field: HTMLTextAreaElement;
-    selectionStart: number;
-    selectionEnd: number;
-    dragging: boolean;
-  } | null;
   vertical: HTMLElement | null;
   photos: HTMLElement | null;
 };
@@ -23,16 +17,9 @@ export function useComposerScrollBoundary(ref: RefObject<HTMLDivElement | null>,
       gesture = null;
       if (event.touches.length !== 1 || !(event.target instanceof Element)) return;
       const { clientX: x, clientY: y } = event.touches[0];
-      const field = event.target.closest("textarea");
       gesture = {
         x, y,
-        draft: field ? {
-          field,
-          selectionStart: field.selectionStart,
-          selectionEnd: field.selectionEnd,
-          dragging: false,
-        } : null,
-        vertical: event.target.closest<HTMLElement>("[data-chat-composer-extras], [data-chat-composer-notices]"),
+        vertical: event.target.closest<HTMLElement>("textarea, [data-chat-composer-extras]"),
         photos: event.target.closest<HTMLElement>("[data-chat-composer-photos]"),
       };
     }
@@ -41,28 +28,11 @@ export function useComposerScrollBoundary(ref: RefObject<HTMLDivElement | null>,
       if (!gesture || event.touches.length !== 1) return;
       const { clientX, clientY } = event.touches[0];
       const dx = gesture.x - clientX, dy = gesture.y - clientY;
-      const draft = gesture.draft;
-      if (draft) {
-        const { field } = draft;
-        if (!draft.dragging) {
-          const selecting = field.selectionStart !== field.selectionEnd &&
-            (field.selectionStart !== draft.selectionStart || field.selectionEnd !== draft.selectionEnd);
-          if (selecting || Math.abs(dy) < 4) return;
-          draft.dragging = true;
-        }
-        gesture.y = clientY;
-        if (event.cancelable) event.preventDefault();
-        // 起手和反向拖动都只更新编辑框。到边界后也不把本次手势交给页面。
-        const end = Math.max(0, field.scrollHeight - field.clientHeight);
-        field.scrollTop = Math.max(0, Math.min(end, field.scrollTop + dy));
-        return;
-      }
-
       gesture.x = clientX;
       gesture.y = clientY;
       if (!event.cancelable || (!dx && !dy)) return;
 
-      // 附件横移及补充内容纵移保持浏览器滚动，起手区域的滚动到边界即止。
+      // 起手区域保持不变，后续手势换方向时重新检查该区域在当前方向的滚动空间。
       const horizontal = gesture.photos && Math.abs(dx) > Math.abs(dy);
       const scroller = horizontal ? gesture.photos : gesture.vertical;
       const delta = horizontal ? dx : dy;
