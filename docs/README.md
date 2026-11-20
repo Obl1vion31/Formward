@@ -19,6 +19,7 @@
 - [mobile-interaction-research.md](mobile-interaction-research.md)：认可的手机基准、现有业务迁移对照、实施状态与案例依据。
 - `interface.md`：本地实施页面及保留业务的内容、布局与交互。
 - `frame-calibration.md`：首页静态人物测量、离线拟合方式，以及视频首尾与静态端点的校准。
+- [实现盘点与清理验收](maintenance-audit.md)记录入口覆盖、遗留实现的调用证据和分批验收。
 - [design-reference.md](design-reference.md)：手机与桌面设计、首屏信息层级和每次界面验收必用的统一标准；保留产品设计参考。
 - [小助手本地原型验收](../prototypes/assistant-chat/qa.md)：内嵌聊天与提醒的虚构交互、浏览器证据和未测边界，与正式发布验收分开维护。
 - [visual-research.md](visual-research.md)：总览的视觉调研、官方依据及双层关联参考图；趋势与单日读数联动、配色和缺测处理原则。

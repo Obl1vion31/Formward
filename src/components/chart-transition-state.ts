@@ -1,7 +1,6 @@
 "use client";
 import { createContext, useContext } from "react";
 import type { MetricTrendModel, TrendKind } from "./metric-trend-model";
-import {chartModelMatches,type ChartFlight,type ChartRect} from './chart-flight';
 import type { Totals } from '@/features/meals/model';
 import type { WorkspaceScene } from './workspace-motion';
 
@@ -19,15 +18,10 @@ export function matchingChartReadings(snapshot:ChartReadingsSnapshot|undefined,k
   const target=new URL(href,"https://formward.invalid");
   return target.pathname===readingPaths[kind]&&target.searchParams.get("date")===snapshot.date?structuredClone(snapshot):null;
 }
-export type ChartOrigin = { destinationSearch?:string; readings?:ChartReadingsSnapshot|null; kind: TrendKind; destination: string; scroll: number; rail: number; rangeKey: string; modelKey:string; paired:boolean; rect: ChartRect; viewport: { width: number; height: number } };
 export function chartDestinationSearch(search:string){const params=new URLSearchParams(search);params.sort();return params.toString();}
-export function chartDestinationMatches(origin:Pick<ChartOrigin,"destination"|"destinationSearch">,href:string){
+export function chartDestinationMatches(origin:{destination:string; destinationSearch?:string},href:string){
   const url=new URL(href,"https://formward.invalid");
   return origin.destination===url.pathname&&(origin.destinationSearch===undefined||origin.destinationSearch===chartDestinationSearch(url.search));
-}
-/** 取消、回程或不配对后，不把上一来源的事实带入新等待外壳。 */
-export function forwardedChartReadings(origin:ChartOrigin|null,flight:Pick<ChartFlight,"direction"|"model">|null):ChartReadingsSnapshot|null{
-  return origin?.paired&&flight?.direction==="forward"&&origin.readings?.kind===flight.model.kind&&chartModelMatches(origin,flight.model)?origin.readings:null;
 }
 export type OverviewViewState={mode:string|null;custom:{from:string;to:string}};
 export type ChartTransitionState = {
