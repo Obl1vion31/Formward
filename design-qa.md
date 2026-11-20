@@ -1,5 +1,11 @@
 # 当前视觉验收
 
+## 已发布待真机核对 · 小助手键盘外壳位移
+
+正式包 `dual-entry-1f9920c8-assistant-keyboard-native-pan-20261120` 在 Chromium、WebKit 各完成 12 次真实布局位移回放。外壳上移 338 CSS px 且可见高度 357 CSS px 时，旧包发送键底边在 12，新包顶栏回到 0、发送键底边在 350，输入区和发送可实际点按。另测只报告偏移时画面不动、收起键盘后草稿和两张图片保留。移动后模型菜单高 225 CSS px，与按钮相距 8 CSS px，可正常点按。
+
+同一正式包在 Chromium 复验 320／390／430 CSS px 手机和深浅主题。按住照片或文字时输入区不再出现柔光。选图、移除、切换模型及保留草稿通过。生产构建、相关 lint 及 31 项测试通过。25 张整屏截图、3 段录屏及几何数据在私有发布目录。新包尚未用实体 iPhone 系统键盘验证。 [逐项验收](docs/assistant-chat-verification.md#手机键盘外壳位移修正) · [部署结果](docs/deployment.md#当前正式版本)
+
 ## 真机失败并已回切 · 小助手输入与键盘
 
 候选 `dual-entry-b6a7307b-assistant-keyboard-viewport-20261120` 在实体 iPhone 连续六次打开系统键盘后，输入框被裁到屏幕顶边。2026-11-20 19:54:19 已回切到「记录一餐」版本并复核公网。 [验收说明](docs/assistant-chat-verification.md#手机键盘调整与输入区) · [部署结果](docs/deployment.md#当前正式版本)
