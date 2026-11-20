@@ -81,8 +81,6 @@ async function chartReady(page) {
   await page.waitForFunction(()=>[...document.querySelectorAll(
     "[data-route-content] [data-record-slot=plot] svg[role=group]")].some(svg=>
       !svg.closest("[data-forward-covered],[data-return-covered],[inert]")&&getComputedStyle(svg).visibility==="visible"));
-  const guide = page.getByRole("button",{name:"跳过引导",exact:true});
-  if(await guide.isVisible())await guide.click();
 }
 
 export async function checkChartRangeMotion({browser,base,today,art,context,checks,errors}) {

@@ -29,8 +29,7 @@ async function context(size,motion='no-preference'){
  });
  return {ctx,page};
 }
-async function skipGuide(page){const skip=page.getByRole('button',{name:'跳过引导',exact:true});if(await skip.isVisible())await skip.click();}
-async function ready(page){const selector='[data-route-content]:not([data-return-covered]):not([data-forward-covered]) [data-record-slot="plot"] svg[role="group"]';await page.locator(selector+':visible').first().waitFor();await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].some(plot=>plot.getClientRects().length&&getComputedStyle(plot).visibility==='visible'&&!plot.closest('[data-workspace-reading],[inert]')),selector);await page.evaluate(()=>document.fonts.ready);await skipGuide(page);}
+async function ready(page){const selector='[data-route-content]:not([data-return-covered]):not([data-forward-covered]) [data-record-slot="plot"] svg[role="group"]';await page.locator(selector+':visible').first().waitFor();await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].some(plot=>plot.getClientRects().length&&getComputedStyle(plot).visibility==='visible'&&!plot.closest('[data-workspace-reading],[inert]')),selector);await page.evaluate(()=>document.fonts.ready);}
 async function shot(page,name){const file=join(folder,engine+'-'+name+'.png');await page.screenshot({path:file});screens.push(file);}
 async function recordScene(page){
  await page.evaluate(()=>{
@@ -93,7 +92,6 @@ try{
  if(process.env.FORMWARD_REFINEMENT_CHARTS_ONLY!=='1')for(const theme of ['light','dark'])for(const size of [[320,560],[390,667],[430,844],[844,390],[1100,800],[1440,900]]){
   const {ctx,page}=await context(size,'reduce');await page.goto(base+'/dashboard/energy?date=2026-01-02'+'&entry=1');
   const form=page.locator('form[data-entry-form="energy"]:visible');await form.waitFor();
-  const skip=page.getByText('跳过引导',{exact:true});if(await skip.isVisible())await skip.click();
   await page.evaluate(value=>document.documentElement.dataset.theme=value,theme);
   // DecimalInput uses textbox in browsers; aria-label is the contract.
   const r=form.getByLabel('静息 千卡',{exact:true}),a=form.getByLabel('活动合计 · 千卡',{exact:true});
