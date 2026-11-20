@@ -2,6 +2,16 @@
 
 ## 当前正式版本
 
+桌面图表等待运行 `dual-entry-9d4292c6-desktop-chart-loading-r5-20261120`，源码 `9d4292c63adba59ce83e0835d00795a443fadcdf`，BUILD_ID `ZLyNV1ZBsKmY_ALIVci6a`。北京时间 2026-11-20 21:51:02 切换。 [正式消耗页](https://formward.top/dashboard/energy) · [正式版本](https://formward.top/api/app-version)
+
+在手机输入修复的正式源码上叠加图表改动。桌面总览、饮食、消耗和身体等待时沿用手机的细线骨架。正式兼容包在 Chromium、WebKit 的桌面和手机视口完成 154 项实页检查。图框四边最大偏差 1.00 CSS px。 [视觉验收](../design-qa.md)
+
+上海网页和聊天 worker 同版，数据库沿用 `0047_meal_food_groups` 和 47 项迁移。切换前后 67 张表及运行配置摘要一致。停写备份 `formward-primary-20261120T135058456815Z.dump.json` 通过 PostgreSQL 原生校验和加密异地回读。已核对 4 个公网域名及兼容 IP、跳转、登录返回、16 项静态资源核对与匿名权限。
+
+保留 56 项现行 Server Action 编号和原绑定密钥，兼容 2290 项既有静态资源。正式兼容包 SHA-256 `814f5e465cdc477da1b65384638efd9e31ad9c91566aa3d3bcac4c3ed3112a96`，大小 86,493,950 字节，归档于 `.codex/backups/regional-releases/desktop-chart-loading-r5-20261120`。兼容回退为 `mobile-input-r3-20261120`。
+
+## 手机输入修复发布记录
+
 手机输入修复运行 `dual-entry-10f74b9b-mobile-input-r3-20261120`，源码 `10f74b9b3540293263723db958462f53c78d4701`，BUILD_ID `yF0mm2nQp9IRym6Nf7Rrk`。北京时间 2026-11-20 21:23:51 切换。 [正式版本](https://formward.top/api/app-version) · [验收图册](<C:/Users/14878/.codex/visualizations/2026/11/18/01a1ee4f-83a7-74a1-b58d-000090938d80/formward-mobile-input-viewport/index.html>)
 
 手机身体录入的标题固定，来源建议留在输入控件旁，保存按钮在键盘开合两种状态分别留出 12／16 CSS px。消耗、饮食、训练、审核、资料和设备录入按实际可用区域显示焦点。小助手在 WebKit 键盘开启时可直接点按发送。两引擎验证实际发送、草稿和图片保留，iPhone 真机未测。
