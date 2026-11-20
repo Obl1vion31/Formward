@@ -2,7 +2,19 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-b11ef297-assistant-viewport-boundaries-20261120`，源码 `b11ef29717904582f01249d9a974734f0b311778`，BUILD_ID `xjiGCw4Sf_o8_dCP8p-Qp`。北京时间 2026-11-20 19:00:51 回切。 [正式版本](https://formward.top/api/app-version)
+测量页运行 `dual-entry-ed2050bc-measurement-record-row-r2-20261120`，源码 `ed2050bcef4c6bc65252265c39430f594b08666f`，BUILD_ID `dvQ5q44_ulEyGqU80z18o`。北京时间 2026-11-20 19:18:53 切换。 [正式测量页](https://formward.top/dashboard/measurements) · [正式版本](https://formward.top/api/app-version)
+
+电脑最近和历史记录每日期一行，鼠标悬停 ⓘ 显示来源小浮层。手机使用两行记录和点按来源。测量录入及编辑使用细底线。两引擎从同一兼容运行包复验编辑、保存、返回和浮层，正式站登录态复核当天及历史五行和 308 CSS px 浮层。 [视觉验收](../design-qa.md)
+
+上海网页和聊天 worker 同版。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。停写备份 `formward-primary-20261120T111849446303Z.dump.json` 通过原生校验及加密异地回读。67 张表和运行配置摘要前后相同。
+
+四个公网域名及兼容 IP 版本一致，测量页登录返回、新旧静态资源和匿名权限核对通过。保留 56 项 Server Action 和绑定密钥，携带 2235 项旧静态资源。
+
+运行包归档在 `.codex/backups/regional-releases/measurement-record-row-r2-20261120`，大小 85,586,656 字节。SHA-256 `f0bdfe83de024b542ffbda12ddaa4849abd63bc7aad91ace321902c42b56d601`。兼容回退为 `assistant-viewport-boundaries-20261120`。正式构建基于已回切并验过的版本，测量提交已合入 main。
+
+## 兼容基线及小助手回切记录
+
+本次发布采用兼容基线 `dual-entry-b11ef297-assistant-viewport-boundaries-20261120`，源码 `b11ef29717904582f01249d9a974734f0b311778`，BUILD_ID `xjiGCw4Sf_o8_dCP8p-Qp`。北京时间 2026-11-20 19:00:51 回切。 [正式版本](https://formward.top/api/app-version)
 
 18:54:18 发布的 `dual-entry-d629d3bc-assistant-composer-safari-20261120` 在实体 iPhone 键盘打开后把助手内容推到键盘后方。已回切网页和聊天 worker，生产 schema 保持 `0046_assistant_conversation_removal`。原运行包、上线及回切记录保存在私有发布归档。 [问题与验收](assistant-chat-verification.md#手机键盘视口回归与回切)
 
