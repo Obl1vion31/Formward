@@ -2,6 +2,16 @@
 
 ## 当前正式版本
 
+手机轻玻璃、滑动胶囊与一行历史查询运行在 `dual-entry-5baaaf21-mobile-glass-controls-20261120`，源码 `5baaaf2169b7db32607badfeb12c79a310fc2d3c`，BUILD_ID `2w4Lgp0sTASOhHWGIEo_-`。北京时间 2026-11-20 23:57:19 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+
+手机独立按钮共用单一可见面，主导航、聊天／待办、晨晚与消耗分段支持跟手与吸附。身体、饮食和消耗的历史日期查询同排。电脑左栏使用纵向选中底片。正式兼容包完成两引擎八个手机／桌面场景、60 次按压和三页原生日期字段查询。已测按钮与胶囊外框最大偏差 0 CSS px。实体 iPhone Safari 待用户在线验收。 [视觉验收](../design-qa.md) · [跨端控件规则](design-reference.md#跨端控件材质与反馈)
+
+上海网页与聊天 worker 运行同版。数据库维持 `0047_meal_food_groups`、47 项迁移及 67 张表，切换前后配置和表摘要一致。停写备份 `formward-primary-20261120T155715709288Z.dump.json` 完成 PostgreSQL 原生校验与加密异地回读。四个公网域名和兼容 IP 版本一致，另核对登录返回、权限、20 项静态资源及海外网关回源。
+
+保留 56 项表单操作编号、原绑定密钥和 2308 项既有静态资源。正式包 SHA-256 `184e0cbaa4bbb1f02adc13c630290270acf7519cda47d976f025087a7097bc02`，大小 86,822,262 字节，归档在 `.codex/backups/regional-releases/mobile-glass-controls-20261120`。兼容回退为 `desktop-chart-loading-r5-20261120`。
+
+## 桌面图表等待发布记录
+
 桌面图表等待运行 `dual-entry-9d4292c6-desktop-chart-loading-r5-20261120`，源码 `9d4292c63adba59ce83e0835d00795a443fadcdf`，BUILD_ID `ZLyNV1ZBsKmY_ALIVci6a`。北京时间 2026-11-20 21:51:02 切换。 [正式消耗页](https://formward.top/dashboard/energy) · [正式版本](https://formward.top/api/app-version)
 
 在手机输入修复的正式源码上叠加图表改动。桌面总览、饮食、消耗和身体等待时沿用手机的细线骨架。正式兼容包在 Chromium、WebKit 的桌面和手机视口完成 154 项实页检查。图框四边最大偏差 1.00 CSS px。 [视觉验收](../design-qa.md)
