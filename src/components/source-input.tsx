@@ -9,9 +9,9 @@ import styles from "./source-input.module.css";
 export type SourceRemovalResult = { ok: true; sources: string[] } | { ok: false; error: string };
 
 /** 两列 grid 支持选择与移除；方向键导航时焦点留在来源输入框。 */
-export function SourceInput({ label, value, sources, onChange, removeSource, disabled = false, maxLength = 300, hint, compactLabel }: {
+export function SourceInput({ label, value, sources, onChange, removeSource, disabled = false, maxLength = 300, compactLabel }: {
   label: string; value: string; sources: string[]; onChange: (value: string) => void;
-  removeSource: (label: string) => Promise<SourceRemovalResult>; disabled?: boolean; maxLength?: number; hint?:string; compactLabel?:string;
+  removeSource: (label: string) => Promise<SourceRemovalResult>; disabled?: boolean; maxLength?: number; compactLabel?:string;
 }) {
   const id = useId(), root = useRef<HTMLDivElement>(null), input = useRef<HTMLInputElement>(null), removing = useRef(false);
   const menu = useRef<HTMLDivElement>(null);
@@ -67,7 +67,7 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
     });
   }
   const field = <input ref={input} id={id} data-input-appearance={compactLabel ? "soft-line" : undefined} role="combobox" aria-label={label} autoComplete="off" maxLength={maxLength} placeholder="输入或选择来源" value={value} disabled={disabled || busy}
-      aria-describedby={compactLabel && hint ? id+"-hint" : undefined} aria-autocomplete="list" aria-haspopup="grid" aria-expanded={visible} aria-controls={`${id}-options`} aria-activedescendant={open && active >= 0 && active < options.length ? `${id}-cell-${active}-${column}` : undefined}
+      aria-autocomplete="list" aria-haspopup="grid" aria-expanded={visible} aria-controls={`${id}-options`} aria-activedescendant={open && active >= 0 && active < options.length ? `${id}-cell-${active}-${column}` : undefined}
       onFocus={showHistory} onClick={showHistory}
       onChange={event => { onChange(event.target.value); setQuery(event.target.value); setOpen(true); setActive(-1); setColumn(0); setError(""); }}
       onKeyDown={event => {
@@ -94,13 +94,12 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
       requestAnimationFrame(() => { if (!node.contains(document.activeElement)) closeHistory(); });
     }
   }}>
-    <label htmlFor={id}>{compactLabel || label}{!compactLabel && hint && <small>{hint}</small>}</label>
+    <label htmlFor={id}>{compactLabel || label}</label>
     {compactLabel ? <div className={styles.compactField}>
       {field}
       <span className={styles.compactValue} data-empty={!value} aria-hidden="true">{value || "输入或选择来源"}</span>
       <svg className={styles.compactChevron} width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
     </div> : field}
-    {compactLabel && hint && <small className={styles.compactHint} id={id+"-hint"}>{hint}</small>}
     <div id={`${id}-options`} ref={menu} popover={compactLabel ? "manual" : undefined} className={styles.sourceOptions} role="grid" aria-label={`${label}历史建议`} hidden={!visible}>
       {options.map((source, index) => <div role="row" key={source}>
         <div id={`${id}-cell-${index}-0`} role="gridcell" aria-selected={index === active && column === 0} className={styles.sourceOption}><button className={styles.sourcePick} type="button" tabIndex={-1} disabled={disabled || busy} onPointerDown={event => { if (event.pointerType === "mouse") event.preventDefault(); }} onClick={event => choose(source, event.detail > 0)}>{source}</button></div>

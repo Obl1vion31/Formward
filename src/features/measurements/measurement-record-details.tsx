@@ -3,6 +3,7 @@ import {formatRecordNumber} from "@/components/number-format";
 import {displayRecordDate} from "@/components/record-dates";
 import {useEffect, useId, useLayoutEffect, useRef, useState, type PointerEvent} from "react";
 import {trackPopoverPosition} from "@/components/anchored-popover";
+import {MOBILE_MEDIA} from "@/components/use-mobile-mode";
 import {measurementDayAction, type EntryPeriod, type MeasurementDisplay} from "./entry-state";
 import {gmtOffsetLabel, timezoneLabel} from "./timezone";
 import styles from "./measurements-view.module.css";
@@ -62,9 +63,16 @@ function MeasurementInfo({id, date, morning, evening, showFat}: {
   useEffect(() => () => window.clearTimeout(closeTimer.current), []);
 
   useLayoutEffect(() => {
-    if (open && trigger.current && panel.current) {
-      return trackPopoverPosition(panel.current, trigger.current, {width: 308, align: "end"});
-    }
+    if (!open || !trigger.current || !panel.current) return;
+    const mobile = window.matchMedia(MOBILE_MEDIA), popover = panel.current;
+    if (mobile.matches) { popover.hidePopover(); return; }
+    const closeOnMobile = () => { if (mobile.matches) popover.hidePopover(); };
+    mobile.addEventListener("change", closeOnMobile);
+    const stop = trackPopoverPosition(popover, trigger.current, {width: 308, align: "end"});
+    return () => {
+      mobile.removeEventListener("change", closeOnMobile);
+      stop();
+    };
   }, [open]);
 
   function openOnHover(event: PointerEvent<HTMLButtonElement>) {

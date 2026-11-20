@@ -269,21 +269,29 @@
   --measurement-input-line: var(--control-border);
 }
 .entryFields {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 6px 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 6px 12px;
+}
+.entryFields[data-paired=true] {
+  grid-template-columns: minmax(0, 1fr);
 }
 .bodyMetricFields {
-  flex: 0 0 7rem;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
 }
 .entryFields[data-paired=true] .bodyMetricFields {
-  flex-basis: 100%;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.entryCell {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 0 6px;
+  min-width: 0;
 }
 .entryCell > label {
   display: block;
@@ -291,18 +299,20 @@
   font-size: .875rem;
   line-height: 20px;
 }
+.entryCell > .entryError { grid-column: 1 / -1; }
 .entryInputRow {
   display: flex;
   align-items: center;
   min-width: 0;
-  gap: 6px;
+  gap: 5px;
   border: 0;
 }
 .entryInputRow > small { flex: none; }
 .entryNumber {
   position: relative;
   isolation: isolate;
-  flex: 0 1 5.5rem;
+  flex: 0 1 4.5rem;
+  inline-size: 4.5rem;
   min-inline-size: 0;
 }
 .entryNumber::before {
@@ -322,7 +332,7 @@
   display: block;
   width: 100%;
   height: 44px;
-  padding: 0 10px;
+  padding: 0 8px;
   border: 0;
   border-radius: 7px;
   background: transparent;
@@ -332,13 +342,7 @@
   color-scheme: var(--color-scheme);
   outline: none;
 }
-.entrySource {
-  flex: 1 1 auto;
-  inline-size: max-content;
-  max-inline-size: 100%;
-  min-inline-size: 0;
-}
-.entryFields[data-paired=true] .entrySource { flex-basis: 100%; }
+.entryFields[data-paired=true] .entryRecorded { flex: 0 1 auto; }
 .entryTimezone{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;margin-top:14px;font-size:0.8125rem}.entryTimezone button{grid-column:2;background:none;border:0;color:var(--gold)}
 @media(max-width:700px),(hover:none) and (pointer:coarse){
  .entryGroups{grid-template-columns:minmax(0,1fr);padding-top:12px}.entryGroups>[data-selected=false]{display:none}.entryGroups legend{display:none}
@@ -361,6 +365,23 @@
 .entryFooter p{font-size:0.8125rem;margin:0;line-height:20px}
 .entryFooter .saveEntry{margin:0;white-space:nowrap}
 @media(max-width:700px),(hover:none) and (pointer:coarse){.entryGroups{padding-top:12px}}
+
+.drawer[data-fit-content] .entryGroups {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.drawer[data-fit-content] .entryGroups legend {
+  color: var(--body-ink);
+  font-weight: 600;
+}
+.drawer[data-fit-content] .entryGroups legend button {
+  padding-inline: 4px;
+  font-weight: 400;
+}
+.drawer[data-fit-content] .entryGroups > fieldset + fieldset > legend {
+  padding-top: 4px;
+  border-top: 1px solid var(--body-rule);
+}
 
 @media(min-width:701px) and (hover:hover){.plotHint{display:block}}
 
@@ -453,6 +474,10 @@
 }
 .infoPopover > section:has([data-fact-period=evening]) h3 { color: var(--data-deficit); }
 .infoPopover .measurementFacts dd { color: var(--body-ink); }
+@media (max-width:700px), (hover:none) and (pointer:coarse) {
+  .workspace [data-row-layout=body] [data-record-actions] > button.recordInfoButton,
+  .infoPopover { display: none; }
+}
 .measurementFacts {
   display: grid;
   align-content: start;
@@ -514,6 +539,10 @@
     bottom: var(--body-entry-bottom, 0px);
     max-height: calc(var(--body-entry-height, 100dvh) - 24px);
   }
+  .drawer[data-fit-content] > :first-child {
+    min-height: 52px;
+    padding-block: 4px;
+  }
   .drawer[data-fit-content] > :first-child > span[aria-hidden=true] { display: none; }
   .drawer[data-fit-content] [data-entry-surface-slot],
   .drawer[data-fit-content] [data-entry-surface-slot] > :global(.pending-entry-fields) {
@@ -559,6 +588,72 @@
   .entryDraftDot { width: 4px; height: 4px; border-radius: 50%; background: var(--gold); }
   .entryPeriodBar .entrySettings { padding: 0 4px; font-size: .8125rem; }
   .entryPeriodBar .entrySettings[aria-expanded=true] { color: var(--body-gold); }
-  .drawer[data-fit-content] .drawerContent { min-height: 0; padding: 4px 18px 8px; scroll-padding-bottom: 64px; }
-  .drawer[data-fit-content] .entryFooter { padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  .drawer[data-fit-content] .entrySegments {
+    position: relative;
+    isolation: isolate;
+    gap: 0;
+    padding: 0;
+    border-radius: 999px;
+    background: transparent;
+  }
+  .drawer[data-fit-content] .entrySegments::before {
+    position: absolute;
+    inset: 7px 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--surface-hover);
+    content: "";
+  }
+  .drawer[data-fit-content] .entrySegments button {
+    position: relative;
+    isolation: isolate;
+    padding-inline: 8px;
+    border: 0;
+    border-radius: inherit;
+    font-size: .8125rem;
+  }
+  .drawer[data-fit-content] .entrySegments button[aria-pressed=true] {
+    background: transparent;
+    color: var(--body-ink);
+  }
+  .drawer[data-fit-content] .entrySegments button[aria-pressed=true]::before {
+    position: absolute;
+    inset: 9px 2px;
+    z-index: -1;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--action-fill) 38%, var(--surface));
+    content: "";
+  }
+  .drawer[data-fit-content] .entryDraftDot {
+    position: absolute;
+    inset-block-start: 10px;
+    inset-inline-end: 7px;
+  }
+  .drawer[data-fit-content] .entryGroups { padding-top: 4px; }
+  .drawer[data-fit-content] .drawerContent {
+    min-height: 0;
+    padding: 0 18px;
+    scroll-padding-bottom: 64px;
+  }
+  .drawer[data-fit-content] .entryFooter {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    margin-top: 6px;
+    padding-block: 0 max(10px, env(safe-area-inset-bottom));
+  }
+  .drawer[data-fit-content] .entryFooter > div { margin-inline: 0; }
+  .drawer[data-fit-content] .entryFooter .saveEntry { inline-size: 100%; }
+  .drawer[data-fit-content] .entryFooter > div:has(> [data-local-loading]) {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 1;
+    display: grid;
+    min-block-size: 44px;
+    place-items: center;
+    pointer-events: none;
+  }
+  .drawer[data-fit-content] .entryFooter:has([data-local-loading][data-visible]) .saveEntry > span:last-child {
+    opacity: 0;
+  }
 }
