@@ -1,6 +1,12 @@
 # 站内聊天验收
 
-正式站运行 `dual-entry-1b0cdd1e-assistant-viewport-shell-r3-20261120`。公网网页、资源与同版聊天 worker 已核对。 [正式站](https://formward.top/dashboard/assistant) · [发布与兼容回退](deployment.md#当前正式版本)
+正式站运行 `dual-entry-21d45f3a-assistant-input-scroll-r2-20261120`。公网网页、资源与同版聊天 worker 已核对。 [正式站](https://formward.top/dashboard/assistant) · [发布与兼容回退](deployment.md#当前正式版本)
+
+## 手机输入区独立滚动
+
+旧版在两图长草稿到边界并松手后，接到同高度的迟到视口偏移会让顶栏和发送栏移动 17 CSS px。同一正式候选在 Chromium 的连续触屏和 WebKit 的窄窗原生滚轮下复验。两引擎都另用触点事件回放迟到偏移。短、长历史的照片和长稿边界全过程中，顶栏、发送区、消息位置和文档滚动的变化≤1 CSS px。从消息本身起滑可翻历史，20 行文字可在输入内部回看首尾、修改前文并继续输入。
+
+正式包另通过图文和引用保留、发送、桌面选图与模型菜单，以及有滚动位置的工作区进出。Lint、类型检查和生产构建通过。851 项单元与集成检查首跑通过 850 项，一项原生 PostgreSQL 写入配额在并发下间歇失败，独立库复跑该文件 2 项通过。截图、原速录屏、报告和兼容包已归档至 `.codex/backups/regional-releases/assistant-input-scroll-r2-20261120`。iPhone 系统中文键盘和原生手势由用户在公网验收。
 
 ## 手机助手进出与常驻视口
 

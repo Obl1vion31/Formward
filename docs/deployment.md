@@ -2,15 +2,15 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-d8a12dfe-mobile-chart-loading-20261120`，源码 `d8a12dfe53d7fc90dd795a36da7bbe5d1c2ab52b`，BUILD_ID `yfb46NHJGHWD43nFpcf0e`。北京时间 2026-11-20 17:02:23 切换。 [正式版本](https://formward.top/api/app-version)
+正式站运行 `dual-entry-21d45f3a-assistant-input-scroll-r2-20261120`，源码 `21d45f3ade1adcf888f9d9c27dc21ae10036070b`，BUILD_ID `s9rZ-MX9IUcd1qIfZffTy`。北京时间 2026-11-20 17:11:09 切换。 [正式版本](https://formward.top/api/app-version)
 
-手机从底栏进入饮食、消耗和身体，数据未就绪时在原绘图区显示三条细线，350ms 后开始扫光。真实图形沿用原入场动作。双浏览器的实页、截图和逐帧结果见[视觉验收记录](../design-qa.md)。
+手机小助手从照片行或长草稿起滑时，滚动留在输入区。拖到边界和松手后，聊天列表仍停在原位。真实键盘开合仍更新可见区域。Chromium 和 WebKit 已在正式包回放，iPhone 系统键盘待用户真机验收。 [站内聊天验收](assistant-chat-verification.md#手机输入区独立滚动)
 
-上海网页与聊天 worker 运行同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。切换前停写备份 `formward-primary-20261120T090217183890Z.dump.json` 通过 PostgreSQL 原生校验和加密异地完整回读。切换前后 67 张表的摘要与运行配置一致。
+上海网页和聊天 worker 使用同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。备份 `formward-primary-20261120T091105825552Z.dump.json` 已通过 PostgreSQL 原生校验及加密异地回读。停写切换前后 67 张表摘要与运行配置一致。
 
-四个公网域名和兼容 IP 通过版本核对。四域的饮食入口保留登录返回目标，图表等待 CSS、加载脚本、匿名权限和海外 MCP 发现核对通过。保留 56 个正式 Server Action 编号及绑定密钥，兼容 2195 项上一版静态资源。
+四个公网域名和兼容 IP 返回同一版本。已核对小助手入口的登录返回、新版滚动脚本、匿名权限和海外 MCP 发现。保留 56 项 Server Action 编号和绑定密钥，兼容 2202 项旧静态资源。
 
-已验收的兼容运行包归档到 `.codex/backups/regional-releases/mobile-chart-loading-20261120`，大小 84,894,571 字节，SHA-256 `5ccc9002245a55d52f7d045031ba1e614e346ff6caa42c56974accff78e64d0b`，与上海切换的包逐字节一致。兼容回退为 `workspace-stability-r2-20261120`。
+兼容运行包归档在 `.codex/backups/regional-releases/assistant-input-scroll-r2-20261120`，大小 85,031,658 字节，SHA-256 `57656adf3cae3113a6549855d2e08bc1f7fcabff82c5bae36ad0cdff42767d9a`。兼容回退版本为 `mobile-chart-loading-20261120`。
 
 ## 迁移与发布
 
