@@ -1,5 +1,5 @@
 "use client";
-import type { ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { RecordHistory, type RecordHistoryData } from "./record-history";
 import {displayRecordDate,recordDateLabel} from "./record-dates";
 import styles from "./record-ui.module.css";
@@ -12,6 +12,16 @@ export function DailyRecords({children,history,actions,loading=false,kind,readin
   <RecordHistory data={history} loading={loading}/>
  </section>;
 }
+type RecordRowActionProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className" | "type"> & {
+  intent: "edit" | "view";
+};
+
+export function RecordRowAction({ intent, children, ...props }: RecordRowActionProps) {
+  return <button {...props} type="button" className={styles.rowAction} data-record-action={intent}>
+    {intent === "edit" ? <span className={styles.actionFace}>{children}</span> : children}
+  </button>;
+}
+
 export function DailyRecordRow({date,today,value,status,children,layout}:{
  date:string;today:string;value:ReactNode;status?:ReactNode;children:ReactNode;
  layout?:"body";

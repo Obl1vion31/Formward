@@ -1,6 +1,6 @@
 import { workspaceMotionTiming } from "./workspace-motion";
 
-export type SurfaceMode='sheet'|'drawer'|'anchored'|'glass-menu'|'center'|'workspace-page';
+export type SurfaceMode='sheet'|'drawer'|'anchored'|'center'|'workspace-page';
 type Pose={transform:string;clipPath:string;opacity:string};
 const origins=new WeakMap<HTMLElement,{x:number;y:number}>(),animations=new WeakMap<HTMLElement,Animation>();
 
@@ -31,21 +31,6 @@ export async function animateSurface(node:HTMLElement,direction:'open'|'close',s
   folded=mode==='sheet'?{transform:`translateY(${Math.max(resting.height,(globalThis.innerHeight||resting.bottom)-resting.top)+24}px)`,clipPath:'none',opacity:'1'}
    :{transform:`translateX(${Math.max(resting.width,(globalThis.innerWidth||resting.right)-resting.left)+24}px)`,clipPath:'none',opacity:'1'};
  }
- else if(mode==='glass-menu'){
-  const rect=node.getBoundingClientRect(), button=source?.getBoundingClientRect();
-  const width=Math.min(rect.width,button?.width??44),height=Math.min(rect.height,button?.height??44);
-  const center=button?button.left+button.width/2:rect.right-width/2;
-  const left=Math.max(0,Math.min(rect.width-width,center-rect.left-width/2));
-  const fromAbove=!button||button.top<rect.top;
-  const top=fromAbove?0:rect.height-height;
-  full.clipPath=`inset(0px round ${style.borderTopLeftRadius})`;
-  folded={
-   transform:`translateY(${fromAbove?-8:8}px)`,
-   clipPath:`inset(${top}px ${rect.width-left-width}px ${rect.height-top-height}px ${left}px round 999px)`,
-   opacity:'.75',
-  };
-  if(current?.clipPath==='none')current.clipPath=full.clipPath;
- }
  else if(mode==='center')folded={transform:'scale(.97)',clipPath:'none',opacity:'0'};
  else{
   const rect=node.getBoundingClientRect();
@@ -55,11 +40,10 @@ export async function animateSurface(node:HTMLElement,direction:'open'|'close',s
   folded={transform:`translateY(${origin.y<rect.top+rect.height/2?-10:10}px) scale(.94)`,clipPath:'none',opacity:'0'};
  }
  const end=direction==='open'?full:folded;
- const resting=direction==='open'&&mode==='glass-menu'?{...end,clipPath:'none'}:end;
- if(matchMedia('(prefers-reduced-motion: reduce)').matches||typeof node.animate!=='function'){Object.assign(node.style,resting);node.dataset.surfacePhase=direction==='open'?'open':'closed';return true;}
+ if(matchMedia('(prefers-reduced-motion: reduce)').matches||typeof node.animate!=='function'){Object.assign(node.style,end);node.dataset.surfacePhase=direction==='open'?'open':'closed';return true;}
  const animation=node.animate([current??(direction==='open'?folded:full),end],{duration:durationMs,easing:timing.easing,fill:'forwards'});animations.set(node,animation);
  try{await animation.finished;}catch{return false;}
  if(animations.get(node)!==animation)return false;
  // 先提交末态再撤销动画；退出容器在卸载前始终留在屏幕外。
- Object.assign(node.style,resting);animation.cancel();animations.delete(node);node.dataset.surfacePhase=direction==='open'?'open':'closed';return true;
+ Object.assign(node.style,end);animation.cancel();animations.delete(node);node.dataset.surfacePhase=direction==='open'?'open':'closed';return true;
 }

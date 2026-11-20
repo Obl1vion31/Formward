@@ -1,5 +1,7 @@
 .workspace, .drawer { --ink: var(--warm-white); --blue: var(--data-deficit); --rule: color-mix(in srgb,var(--warm-white) 12.0%,transparent); color: var(--ink); font-size: 14px; font-variant-numeric: tabular-nums; }
 .workspace { max-width: 1120px; margin: auto; padding: 20px 0 40px; }
+/* 饮食与食材库切换由 MealsView 还原阅读位置，避免浏览器二次补偿。 */
+.workspace[data-active-tab] { overflow-anchor: none; }
 .workspace button, .drawer button { appearance: none; background: none; border: 0; color: var(--muted); font: inherit; min-height: 44px; cursor: pointer; padding: 6px 8px; }
 .workspace button:hover, .drawer button:hover { color: var(--ink); }
 .workspace button:disabled, .drawer button:disabled { opacity: .45; cursor: default; }

@@ -1,6 +1,4 @@
-import {DailyRecordRow} from "@/components/daily-records";
-import recordStyles from "@/components/record-ui.module.css";
-import glass from "@/components/glass-controls.module.css";
+import { DailyRecordRow, RecordRowAction } from "@/components/daily-records";
 import {formatRecordNumber} from "@/components/number-format";
 import {displayRecordDate} from "@/components/record-dates";
 import {useEffect, useId, useLayoutEffect, useRef, useState, type PointerEvent} from "react";
@@ -137,12 +135,12 @@ export function BodyRecordRow({date, today, records, morning, evening, showFat, 
     <MeasurementReading row={evening} period="evening" showFat={showFat}/>
   </>}>
     {(morning || evening) && <MeasurementInfo id={infoId} date={date} morning={morning} evening={evening} showFat={showFat}/>}
-    <button type="button" className={recordStyles.compactEditAction} data-record-action="edit" aria-label={action + " " + date}
+    <RecordRowAction intent="edit" aria-label={action + " " + date}
       onClick={event => {
         const info = document.getElementById(infoId);
         if (info?.matches(":popover-open")) info.hidePopover();
         event.currentTarget.focus({preventScroll: true});
         onEntry(action === "编辑", !morning && evening ? "evening" : "daytime");
-      }}><span className={recordStyles.actionFace + " " + glass.mobileFace}>{action}</span></button>
+      }}>{action}</RecordRowAction>
   </DailyRecordRow>;
 }

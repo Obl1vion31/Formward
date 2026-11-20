@@ -4,6 +4,7 @@ import { ChatPreviewCard } from "./chat-preview-card";
 import { FollowupForm } from "./followup-form";
 import { ChatMessageBody } from "./chat-message";
 import { ChatModelMenu } from "./chat-model-menu";
+import { animateGlassMenuFace } from "@/components/glass-menu-face";
 import { useComposerScrollBoundary } from "./chat-composer-scroll";
 import { Glyph } from "./chat-icon";
 import {chatDisplayText,chatTranscript} from "./chat-presentation";
@@ -198,16 +199,37 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
     return()=>{active=false;observer.disconnect();cancelAnimationFrame(frame);};
   }, [chat.draft]);
   useEffect(() => { if (panel && panel !== "models") panelTitle.current?.focus({ preventScroll:true }); }, [panel]);
+  const modelMenu = useRef<HTMLDivElement>(null);
+  const registerModelMenu = useCallback((node: HTMLDivElement | null) => { modelMenu.current = node; }, []);
   const dismissModels = useCallback(() => setPanel(null), []);
+  const closeModelFace = useCallback((done: () => void) => {
+    const menu = modelMenu.current;
+    const anchor = modelButton.current;
+    if (!menu || !anchor || !menu.matches(":popover-open")) {
+      done();
+    } else if (menu.dataset.glassPhase !== "closing") {
+      void animateGlassMenuFace(menu, anchor, "close").then(finished => { if (finished) done(); });
+    }
+  }, []);
+  const dismissModelFace = useCallback(() => closeModelFace(dismissModels), [closeModelFace, dismissModels]);
   const closePanel = useCallback(() => {
     const previousFocus = document.activeElement;
-    dismissModels();
-    requestAnimationFrame(() => {
-      if (document.activeElement === previousFocus || document.activeElement === document.body) {
-        modelButton.current?.focus({ preventScroll: true });
-      }
+    closeModelFace(() => {
+      dismissModels();
+      requestAnimationFrame(() => {
+        if (document.activeElement === previousFocus || document.activeElement === document.body) {
+          modelButton.current?.focus({ preventScroll: true });
+        }
+      });
     });
-  }, [dismissModels]);
+  }, [closeModelFace, dismissModels]);
+  function toggleModelMenu() {
+    const menu = modelMenu.current;
+    const anchor = modelButton.current;
+    if (!modelMenuOpen) setPanel("models");
+    else if (menu?.dataset.glassPhase === "closing" && anchor) void animateGlassMenuFace(menu, anchor, "open");
+    else dismissModelFace();
+  }
   function jump(id: string) { const node = feed.current?.querySelector<HTMLElement>('[data-chat-message="' + id + '"]'); if (node) { recordScroll(scrollState().top,false); node.scrollIntoView({ block:"center",behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth" }); node.focus({ preventScroll:true }); } else setNotice("原消息已超出当前显示范围，可以补充日期和对象后继续。"); }
   function cite(message: ChatMessage) { chat.setQuote(message); input.current?.focus({preventScroll:true}); }
   async function copy(message: ChatMessage) {
@@ -229,8 +251,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
     recordScroll(scrollState().top,true);
     void chat.send("send",undefined,undefined,{viewport});
   }
-  const composerButtonGlass = page ? " " + glass.mobileButton : "";
-  const sendClass = styles.send + composerButtonGlass + (page ? " " + glass.mobilePrimary : "");
+  const sendClass = styles.send + (page ? " " + glass.mobileButton + " " + glass.mobilePrimary : "");
   return <div className={styles.workspace} data-tab={tab} data-page={page||undefined} onKeyDown={event => { if(event.key==="Escape"&&pinnedPreview){event.preventDefault();event.stopPropagation();closePreview();return;} if (event.key === "Escape" && panel) { event.preventDefault(); event.stopPropagation(); closePanel(); } }}>
     <aside className={styles.sidebar} aria-label="待办与快捷记录" inert={page && tab !== "tasks"}>{sidebar}</aside>
     <section className={styles.conversation} aria-label="AI聊天" inert={page && tab !== "chat"}>
@@ -315,7 +336,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
                 const picker = event.currentTarget, files = Array.from(picker.files ?? []);
                 if (files.length) void chat.addPhotos(files).finally(() => { picker.value = ""; });
               }}/>
-            <button type="button" className={styles.icon + composerButtonGlass} aria-label="添加照片"
+            <button type="button" className={styles.icon} data-composer-plain aria-label="添加照片"
               disabled={!!chat.uploading || !chat.data} onClick={() => photoInput.current?.click()}><Glyph name="plus"/></button>
             <textarea ref={input} rows={1} aria-label="给小助手发消息" value={chat.draft}
               placeholder="想聊点什么？" onChange={event => chat.setDraft(event.target.value)}
@@ -327,10 +348,10 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
                   submit();
                 }
               }}/>
-            <button type="button" ref={modelButton} className={styles.modelButton + composerButtonGlass}
+            <button type="button" ref={modelButton} className={styles.modelButton} data-composer-plain
               aria-label={selected?.label ?? "选择模型"} aria-haspopup="dialog" aria-expanded={modelMenuOpen}
               aria-controls={modelMenuOpen ? modelMenuId : undefined}
-              onClick={() => setPanel(modelMenuOpen ? null : "models")}>
+              onClick={toggleModelMenu}>
               <span>{selected?.id === "mimo" ? "MiMo" : selected?.label ?? "模型"}</span><Glyph name="chevron"/>
             </button>
             {chat.busy
@@ -347,8 +368,8 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
         {page ? <div className={styles.composerBottomGap} data-chat-composer-bottom-gap aria-hidden="true"/> : quotaNotice}
       </div>
       {latest&&<button type="button" className={styles.latest} aria-label="回到最新消息" title="回到最新消息" inert={panel === "connections"||!!pinnedPreview} onClick={()=>{const node=feed.current;if(!node)return;manualScrollUntil.current=0;recordScroll(node.scrollHeight,true);node.scrollTo({top:node.scrollHeight,behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth"});node.focus({preventScroll:true});}}><Glyph name="down"/></button>}
-      {modelMenuOpen && <ChatModelMenu id={modelMenuId} anchor={modelButton} selected={selected?.id}
-        dismiss={dismissModels} close={closePanel} connect={() => setPanel("connections")}/>}
+      {modelMenuOpen && <ChatModelMenu id={modelMenuId} anchor={modelButton} registerMenu={registerModelMenu} selected={selected?.id}
+        dismiss={dismissModels} outside={dismissModelFace} close={closePanel} connect={() => closeModelFace(() => setPanel("connections"))}/>}
       {panel === "connections" && <section className={styles.detail} aria-label="站内连接详情"><header><h3 ref={panelTitle} tabIndex={-1}>站内连接</h3><button type="button" className={styles.icon} aria-label="关闭明细" onClick={closePanel}><Glyph name="close"/></button></header>{chat.error&&<p className={styles.failure} role="alert">{chat.error}</p>}{chat.data?.catalog.map(model => <div className={styles.connection} key={model.id}><div><strong>{model.label}</strong><span>{model.model}</span></div><p>{model.reason ?? (model.expiresAt ? "已启用 · " + new Intl.DateTimeFormat("zh-CN",{dateStyle:"medium"}).format(new Date(model.expiresAt)) + "到期" : "首次发送时启用站内授权")}</p><button disabled={chat.busy || chat.managing || !model.configured} onClick={() => void chat.control(model.enabled && model.expiresAt ? "revoke" : "enable",model.id)}>{model.enabled && model.expiresAt ? "撤销授权" : "启用授权"}</button></div>)}<p>四类记录的查询与提交预览；正式保存继续由你确认。</p></section>}
     </section>
   </div>;

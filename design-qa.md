@@ -1,5 +1,16 @@
 # 当前视觉验收
 
+## 本地待审 · 食材库挂签与小助手开合
+
+对照正式兼容包与本机生产构建，使用同一套虚构数据。ImageGen 仅参考侧边挂签、记录按钮、菜单浅边及输入工具。实际页面、数据与录屏见 [本机视觉图册](<C:/Users/14878/.codex/visualizations/2026/11/19/01a1f4b2-02ea-7501-a32e-c5986dd04a8a/edge-controls-review/index.html>)。
+
+- 饮食页手机右侧使用贴边挂签，实测可见宽 30px，命中区 44×72 CSS px。桌面入口在左侧主导航下方。食材库回到原滚动位置与历史查询。打开编辑面板、账号菜单或小助手时暂隐挂签。编辑器内选材仍走原入口。
+- 饮食、消耗与身体的录入、补录、编辑共用 32px 单层底色和至少 44px 命中区。查看以文字呈现。Chromium 与 WebKit 共通过 30 个页面与视口组合、100 次实际按压及打开／返回检查。尺寸与底面内距变化均为 0 CSS px。
+- 账号和模型菜单以同一可见轮廓开合。Chromium 受控背景测到局部像素位移，WebKit 使用更高遮蔽的同轮廓玻璃。加号和模型文字平时无底圈，模型菜单保持在按钮上方 8 CSS px。附件与草稿、模拟可视区都经过复验。
+- 浅深主题涵盖 320／390 CSS px 手机模拟与 1100／1440 CSS px 电脑。带滚动条的 320px 视口紧凑显示营养摘要和图例，保留未记全／待确认说明。Chromium 与 WebKit 各复验三种宽度和两种主题，饮食已知位置在慢读前后最大偏差 0 CSS px。桌面 WebKit 的模型菜单核对了起止尺寸与定位，连续帧采样不足。实体 iPhone Safari 的系统日期、键盘和触摸未测。 [真实操作录屏](<C:/Users/14878/.codex/visualizations/2026/11/19/01a1f4b2-02ea-7501-a32e-c5986dd04a8a/edge-controls-review/实页开合与操作.mp4>) · [尺寸与流程记录](<C:/Users/14878/.codex/visualizations/2026/11/19/01a1f4b2-02ea-7501-a32e-c5986dd04a8a/edge-controls-review/测量与测试.json>)
+
+Lint、类型检查、本机 Turbopack 生产构建通过。全量测试 848 项通过，2 项按配置跳过。旧版综合界面脚本的总览卡片断言在现网版回放与候选均未通过，饮食、消耗、身体和小助手均有独立实页验收。
+
 ## 已发布验收 · 手机轻玻璃与历史查询
 
 以正式兼容包 `dual-entry-9d4292c6-desktop-chart-loading-r5-20261120` 为对照，正式兼容包 `dual-entry-5baaaf21-mobile-glass-controls-20261120` 使用同一份虚构数据。局部 ImageGen 参考依据实际页面截图制作，选用按钮边缘、按压反馈及菜单展开方向。保留输入原图、生成参考和提示词。 [实际截图对照图册](<C:/Users/14878/.codex/visualizations/2026/11/19/01a1f4b2-02ea-7501-a32e-c5986dd04a8a/mobile-glass-controls/index.html>) · [材质与层级参考](https://developer.apple.com/videos/play/wwdc2025/219/)

@@ -91,6 +91,13 @@
 .fileInput { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
 .workspace .modelButton { display: flex; align-items: center; justify-content: center; gap: 3px; min-width: 64px; padding: 0 5px; color: var(--muted); }
 .modelButton svg { width: 14px; height: 14px; flex: none; }
+.workspace [data-composer-plain] {
+  --assistant-button-hover-fill: transparent;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.workspace [data-composer-plain]:where(:hover, :active, [aria-expanded=true]):not(:disabled) { color: var(--warm-white); }
+.workspace [data-composer-plain]:focus-visible { outline: 2px solid var(--gold); outline-offset: -3px; }
 .modelMenu {
   position: fixed;
   inset: auto;
@@ -100,15 +107,21 @@
   width: 256px;
   max-width: calc(100vw - 24px);
   margin: 0;
-  padding: 6px 10px;
-  border: 1px solid var(--line-strong);
+  padding: 0;
+  border: 0;
   border-radius: 14px;
-  background: var(--surface-raised);
-  box-shadow: 0 6px 20px var(--nav-shadow);
+  background: transparent;
   color: var(--warm-white);
+  overflow: visible;
+  font-family: inherit;
+}
+.modelMenuContent {
+  position: relative;
+  max-height: inherit;
   overflow: auto;
   overscroll-behavior: contain;
-  font-family: inherit;
+  padding: 6px 10px;
+  border-radius: inherit;
 }
 .modelMenu button {
   display: flex;
@@ -163,8 +176,6 @@
  .latest.latest{position:absolute;left:50%;bottom:calc(var(--chat-composer-height,112px) + 8px);z-index:2;display:grid;place-items:center;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;transform:translateX(-50%);color:var(--warm-white);isolation:isolate;border-radius:50%;background:transparent}.latest::before{content:"";position:absolute;inset:4px;z-index:-1;border:1px solid var(--control-border);border-radius:50%;background:var(--surface-raised);box-shadow:0 3px 12px var(--nav-shadow)}.latest svg{width:18px;height:18px}.latest:hover::before{border-color:var(--gold)}.latest:focus-visible{outline:2px solid var(--gold);outline-offset:0}.feed:focus{outline:none}
 .detail{position:absolute;inset:0;z-index:3;overflow:auto;background:var(--surface);padding:16px 24px 24px;scrollbar-width:thin}.detail>header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}.detail h3{font-size:1rem;font-weight:500;line-height:1.5;margin:0}.detail h3:focus{outline:none}.detail p{font-size:.875rem;line-height:1.7;color:var(--muted);overflow-wrap:anywhere;margin:12px 0}.detail .usageTotal{font-size:1.125rem;color:var(--warm-white);margin-bottom:24px}.usageTotal span{display:block;font-size:.875rem;color:var(--muted);margin-top:4px}.detail dl{display:grid;gap:12px;font-size:.875rem;margin:0 0 24px}.detail dl>div{display:flex;justify-content:space-between;align-items:baseline;gap:16px}.detail dt{color:var(--muted)}.detail dd{margin:0;font-variant-numeric:tabular-nums}.connection{padding:16px 0;border-bottom:1px solid var(--line-soft)}.connection>div{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.connection strong{font-size:1rem;font-weight:500}.connection span{font-size:.8125rem;color:var(--muted)}.connection p{font-size:.8125rem;margin:6px 0}.connection button{font-size:.875rem;padding:8px 0;color:var(--gold)}
 .detail{animation:reveal 160ms ease-out both}
-.modelMenu:popover-open { animation: model-menu-arrive 150ms ease-out both; }
-@keyframes model-menu-arrive { from { opacity: .65; } to { opacity: 1; } }
 @keyframes reveal{from{opacity:.4;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:700px),(hover:none) and (pointer:coarse){.workspace{display:flex;flex-direction:column}.workspaceTabs{display:none}.sidebar{display:none;border:0;flex:1}.conversation{flex:1}.workspace[data-tab=tasks] .sidebar{display:flex}.workspace[data-tab=tasks] .conversation{display:none}.feed{padding:12px 16px 8px}.composerArea{padding:4px 12px max(8px,env(safe-area-inset-bottom))}.message{margin-bottom:20px}.user{margin-left:8%}.welcome{padding-top:16px}.detail{padding:12px 20px 24px}.latest::before{border-color:var(--control-border);box-shadow:0 4px 14px var(--nav-shadow)}}

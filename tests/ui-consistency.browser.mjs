@@ -45,7 +45,7 @@ for(let i=-35;i<=0;i++){
 const expectedWeek=expectedBalances.reduce((sum,n)=>sum+n,0);
 const socket=new PGLiteSocketServer({db:pg,host:"127.0.0.1",port:0,maxConnections:10});await socket.start();
 const net=createServer();net.listen(0,"127.0.0.1");await once(net,"listening");const port=net.address().port;await new Promise(r=>net.close(r));
-const base="http://127.0.0.1:"+port,child=spawn(process.execPath,["node_modules/next/dist/bin/next","start","--hostname","127.0.0.1","--port",String(port)],{env:{PATH:process.env.PATH,LD_LIBRARY_PATH:process.env.LD_LIBRARY_PATH,FONTCONFIG_FILE:process.env.FONTCONFIG_FILE,NODE_ENV:"production",NEXT_TELEMETRY_DISABLED:"1",DATABASE_URL:"postgresql://postgres:postgres@"+socket.getServerConn()+"/postgres?max=1",BETTER_AUTH_URL:base,BETTER_AUTH_SECRET:"fictional-visual-browser-secret-more-than-thirty-two",FORMWARD_TIMEZONE:"Asia/Shanghai"},stdio:["ignore","pipe","pipe"]});
+const base="http://127.0.0.1:"+port,child=spawn(process.execPath,["node_modules/next/dist/bin/next","start","--hostname","127.0.0.1","--port",String(port)],{env:{PATH:process.env.PATH,LD_LIBRARY_PATH:process.env.LD_LIBRARY_PATH,FONTCONFIG_FILE:process.env.FONTCONFIG_FILE,NODE_ENV:"production",NEXT_TELEMETRY_DISABLED:"1",DATABASE_URL:"postgresql://postgres:postgres@"+socket.getServerConn()+"/postgres?max=1",BETTER_AUTH_URL:base,BETTER_AUTH_SECRET:"fictional-visual-browser-secret-more-than-thirty-two",FORMWARD_TIMEZONE:"Asia/Shanghai",FORMWARD_LOCAL_PREVIEW:"1"},stdio:["ignore","pipe","pipe"]});
 let log="",browser,failure=null;const checks=[],shots=[],errors=[],networkErrors=[];
 child.stdout.on("data",b=>{log+=b});child.stderr.on("data",b=>{log+=b});
 const {chromium,webkit}=await import(process.env.PLAYWRIGHT_MODULE||"/home/obl1vion/.local/formward-tools/node_modules/playwright/index.mjs");
@@ -111,9 +111,45 @@ try{
   await p.setViewportSize({width:w,height:h});
   for(const mode of["dark","light"]){
    await theme(p,mode);await go(p,"/dashboard/meals");
-   const recent=p.getByRole("region",{name:"最近记录",exact:true});assert.equal(await recent.getByRole("button",{name:"食材库",exact:true}).count(),1);
+   const recent=p.getByRole("region",{name:"最近记录",exact:true});
+   const library=p.getByRole("button",{name:"食材库",exact:true});
+   await p.locator("[data-meal-library-entry=ready]").waitFor();
+   assert.equal(await library.getAttribute("data-meal-library-entry"),"ready");
+   assert.equal(await recent.getByRole("button",{name:"食材库",exact:true}).count(),0);
+   const entryBefore=await library.boundingBox();
+   if (w<=700) {
+    const geometry=await library.evaluate(button=>{
+     const hit=button.getBoundingClientRect(),face=button.firstElementChild.getBoundingClientRect();
+     const chart=document.querySelector("[data-record-trend]").getBoundingClientRect();
+     const list=document.querySelector('[aria-label="最近记录"]').getBoundingClientRect();
+     return {hit:hit.width,face:face.width,edge:document.documentElement.clientWidth-face.right,
+      gap:hit.left-Math.max(chart.right,list.right)};
+    });
+    assert.ok(geometry.hit>=44&&geometry.face===30&&Math.abs(geometry.edge)<=1&&geometry.gap>=-1,JSON.stringify(geometry));
+   } else {
+    const rail=await p.locator(".desktop-record-nav").boundingBox();
+    assert.ok(entryBefore.y>=rail.y+rail.height&&entryBefore.x>=rail.x&&entryBefore.x+entryBefore.width<=rail.x+rail.width);
+   }
+   await recent.getByRole("button",{name:"查看全部",exact:true}).click();
+   await p.evaluate(()=>scrollTo({top:Math.min(560,document.documentElement.scrollHeight-innerHeight),behavior:"instant"}));
+   const scrollBefore=await p.evaluate(()=>scrollY);
+   assert.ok(scrollBefore>0);
+   const entryAfter=await library.boundingBox();
+   assert.ok(Math.abs(entryBefore.y-entryAfter.y)<=1);
+   await library.click();
+   const back=p.getByRole("button",{name:"← 饮食记录",exact:true});
+   await back.waitFor();
+   assert.equal(await library.count(),0);
+   assert.equal(await back.evaluate(node=>document.activeElement===node),true);
+   await p.getByRole("textbox",{name:"搜索食材"}).fill("虚构筛选");
+   await shot(p,mode+"-food-library-"+w);
+   await back.click();
+   await p.waitForFunction(expected=>Math.abs(scrollY-expected)<=1,scrollBefore);
+   assert.equal(await library.evaluate(node=>document.activeElement===node),true);
+   assert.equal(await recent.locator("[data-record-history]").isVisible(),true);
+   await recent.getByRole("button",{name:"收起历史",exact:true}).click();
    await recent.locator('[data-record-date="'+today+'"] [data-record-actions] button').first().click();
-   const dialog=p.getByRole("dialog",{name:"记录一餐",exact:true});await dialog.waitFor();
+   const dialog=p.getByRole("dialog",{name:"记录一餐",exact:true});await dialog.waitFor();assert.equal(await library.count(),0);
    const save=dialog.getByRole("button",{name:/^保存餐次/});assert.equal(await save.isDisabled(),true);
    await shot(p,mode+"-meal-empty-"+w);
    await dialog.getByLabel("自由填写食物名称",{exact:true}).fill("虚构热量测试食物");

@@ -69,8 +69,7 @@
     background-color: var(--glass-button-color);
     pointer-events: none;
   }
-  .mobileButton.mobileButton::after,
-  .mobileFace.mobileFace {
+  .mobileButton.mobileButton::after {
     background-image: linear-gradient(140deg, color-mix(in srgb, var(--nav-rim) 64%, transparent), transparent 60%);
     box-shadow: inset 0 1px 0 var(--nav-rim);
     transition: background-color 130ms;
@@ -80,6 +79,7 @@
     --glass-button-color: var(--glass-button-pressed-fill, color-mix(in srgb, var(--gold) 15%, var(--surface-hover)));
     filter: none;
   }
+  .mobileButton[data-glass-handoff]::after { visibility: hidden; }
   .mobileButton:disabled:not(.mobilePrimary)::after { opacity: .58; }
   .mobileLaunch { --glass-button-inset: 2px; --glass-button-fill: var(--nav-glass); }
   .mobileLaunch.mobileLaunch::after {
@@ -92,14 +92,10 @@
     --glass-button-pressed-fill: color-mix(in srgb, var(--action-fill) 90%, var(--gold));
   }
   .mobilePrimary:disabled { --glass-button-fill: var(--surface-hover); }
-  .mobileMenu.mobileMenu:popover-open { animation: none; }
-  .mobileMenu.mobileMenu {
-    box-shadow: inset 0 1px 0 var(--nav-rim), 0 10px 28px var(--nav-shadow);
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   .track.track::before, .selection.selection::after,
-  .mobileButton.mobileButton::after, .mobileFace.mobileFace { transition: none; }
+  .mobileButton.mobileButton::after { transition: none; }
   .track.track[data-capsule-pressed]::before { transform: none; }
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {

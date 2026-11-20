@@ -3,16 +3,16 @@
 /* 公共列表按钮不受业务页面的按钮重置影响。 */
 .records{font-family:"Avenir Next","Segoe UI","PingFang SC",sans-serif;color:var(--warm-white)}
 .records .row{line-height:20px}.records .actions{align-self:start;gap:12px}.records .actions>div{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.records .actions button:where(:not(.compactEditAction)),.records .heading button,.secondary.secondary{appearance:none;box-sizing:border-box;min-height:44px;min-width:44px;padding:10px 14px;border:1px solid var(--control-border);border-radius:6px;background:transparent;color:var(--warm-white);font-family:inherit;font-size:14px;font-weight:400;line-height:20px;cursor:pointer;white-space:nowrap;transition:background .16s,color .16s,border-color .16s}
-.records .actions button:where(:not(.compactEditAction)):hover,.records .heading button:hover,.secondary.secondary:hover{border-color:var(--gold);color:var(--gold);background:var(--surface-hover)}
+.records .actions button:where(:not(.rowAction)),.records .heading button,.secondary.secondary{appearance:none;box-sizing:border-box;min-height:44px;min-width:44px;padding:10px 14px;border:1px solid var(--control-border);border-radius:6px;background:transparent;color:var(--warm-white);font-family:inherit;font-size:14px;font-weight:400;line-height:20px;cursor:pointer;white-space:nowrap;transition:background .16s,color .16s,border-color .16s}
+.records .actions button:where(:not(.rowAction)):hover,.records .heading button:hover,.secondary.secondary:hover{border-color:var(--gold);color:var(--gold);background:var(--surface-hover)}
 .records button:focus-visible,.secondary.secondary:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 .records button:disabled,.secondary.secondary:disabled{cursor:not-allowed;opacity:.5;background:transparent;color:var(--muted);border-color:var(--control-border)}
-@media(prefers-reduced-motion:reduce){.records .actions button:where(:not(.compactEditAction)),.records .heading button,.secondary.secondary{transition:none}}
+@media(prefers-reduced-motion:reduce){.records .actions button:where(:not(.rowAction)),.records .heading button,.secondary.secondary{transition:none}}
 
 .selectedInfo{display:flex;align-items:center;gap:8px;min-width:0}.selectedInfo time{white-space:nowrap}
 
 /* 记录操作保留 44px 触控区，状态底色绘制在文字那一层。 */
-.records button:is(.historyAction, .compactEditAction) {
+.records button:is(.historyAction, .rowAction) {
   appearance: none;
   display: inline-flex;
   align-items: center;
@@ -30,7 +30,15 @@
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.records button:is(.historyAction, .compactEditAction):active { filter: none; }
+.records button:is(.historyAction, .rowAction):active { filter: none; }
+.records button.rowAction[data-record-action="view"] {
+  padding-inline: 8px;
+  color: var(--muted);
+}
+@media (hover: hover) {
+  .records button.rowAction[data-record-action="view"]:enabled:hover { color: var(--warm-white); }
+}
+.records button.rowAction[data-record-action="view"]:enabled:active { color: var(--warm-white); }
 .records .historyAction:disabled { opacity: 1; cursor: default; }
 .actionFace {
   display: inline-flex;
@@ -44,11 +52,11 @@
   color: var(--warm-white);
 }
 @media (hover: hover) {
-  .records :is(.historyAction, .compactEditAction):enabled:hover > .actionFace {
+  .records :is(.historyAction, .rowAction):enabled:hover > .actionFace {
     background-color: color-mix(in srgb, var(--surface-hover) 94%, var(--warm-white));
   }
 }
-.records :is(.historyAction, .compactEditAction):enabled:active > .actionFace {
+.records :is(.historyAction, .rowAction):enabled:active > .actionFace {
   background-color: color-mix(in srgb, var(--surface-hover) 88%, var(--warm-white));
 }
 .historyAction:disabled > .actionFace { opacity: .55; }
@@ -132,8 +140,8 @@ form.historyDate .dateField:not(:focus-within) input[type="date"] { color: trans
 
 .selected.selected button{box-sizing:border-box;min-height:44px;padding:8px 4px;border:0;background:none;color:var(--warm-white);font:inherit;font-size:14px;cursor:pointer}.selected.selected button:hover{color:var(--gold)}.selected.selected button:disabled{opacity:1;color:var(--muted);cursor:default}
 
-.records .actions button:where(:not(.compactEditAction))[data-record-action=edit],.editAction.editAction{appearance:none;box-sizing:border-box;min-height:44px;min-width:44px;padding:10px 14px;border:1px solid var(--control-border);border-radius:6px;background:var(--surface-hover);color:var(--warm-white);font:inherit;font-size:14px;line-height:20px;cursor:pointer;white-space:nowrap}
-.records .actions button:where(:not(.compactEditAction))[data-record-action=edit]:hover,.editAction.editAction:hover{background:var(--surface-raised);border-color:var(--gold);color:var(--warm-white)}
+.editAction.editAction{appearance:none;box-sizing:border-box;min-height:44px;min-width:44px;padding:10px 14px;border:1px solid var(--control-border);border-radius:6px;background:var(--surface-hover);color:var(--warm-white);font:inherit;font-size:14px;line-height:20px;cursor:pointer;white-space:nowrap}
+.editAction.editAction:hover{background:var(--surface-raised);border-color:var(--gold);color:var(--warm-white)}
 .editAction.editAction:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 .editAction.editAction:disabled{opacity:.5;cursor:not-allowed}
 .loadingRow{box-sizing:border-box;min-height:97px;display:flex;flex-direction:column;justify-content:center;gap:12px;border-bottom:1px solid var(--line-soft)}
@@ -150,7 +158,7 @@ form.historyDate .dateField:not(:focus-within) input[type="date"] { color: trans
  .records .date{flex:1 1 9rem;max-width:100%;min-width:0}.records .dateHeading{min-height:44px;gap:0 8px}.records .date time{font-size:.8125rem;line-height:20px}
  .records .value{margin-top:0;min-height:1.25rem;font-size:.875rem;line-height:1.25rem}
  .records .actions{flex:0 1 auto;align-self:center;gap:6px;flex-wrap:nowrap;margin-left:auto}
- .records .actions button:where(:not(.compactEditAction)){padding:8px 10px;line-height:20px;font-size:.875rem}
+ .records .actions button:where(:not(.rowAction)){padding:8px 10px;line-height:20px;font-size:.875rem}
  .records[data-record-kind=body] .value{min-height:2.5rem}
  .records .heading{margin-top:12px}
 }

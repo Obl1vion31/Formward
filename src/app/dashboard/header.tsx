@@ -17,6 +17,7 @@ import { useMobileMode } from "@/components/use-mobile-mode";
 import { useChartTransition } from "@/components/chart-transition-state";
 import {useAppInformation} from "@/components/app-information";
 import { LocalLoading } from "@/components/local-loading";
+import { FoodLibraryEntryHost } from "@/features/meals/food-library-entry";
 import styles from "./header.module.css";
 import glass from "@/components/glass-controls.module.css";
 type Group = "root" | "external" | "account" | "admin";
@@ -49,9 +50,10 @@ export function DashboardHeader({ email, owner = false, sourcePilot = false }: {
         </GlassMenu>
       </div>
     </header>
-    {showDock &&
+    {showDock && <div className={styles.desktopRail}>
       <nav className={"desktop-record-nav " + styles.desktopNav} aria-label="主导航"><span className={styles.desktopLens + " " + glass.navSelection} aria-hidden="true" style={{ transform: "translateY(" + Math.max(0, pages.findIndex(([href]) => href === pathname)) * 74 + "px)" }}/>{pages.map(([href, label], index) => <LoadingLink key={href} href={href} onNavigate={href === "/dashboard" ? overview : ()=>chart.cancelOverviewReturn?.(href)} aria-current={pathname === href ? "page" : undefined}><NavigationIcon index={index}/><span>{label}</span></LoadingLink>)}</nav>
-    }
+      <FoodLibraryEntryHost visible={pathname === "/dashboard/meals"}/>
+    </div>}
     {hasTools && <div className={styles.desktopAssistant}><AssistantButton beforeOpen={() => menuClose.current()}/></div>}
     {settings && <Inspector title={settings === "sources" ? "设备与数据来源" : settings === "profile" ? "个人资料" : "账号与安全"} close={() => setSettings(false)}>{settings === "sources" ? <DataSourcesPanel available={sourcePilot}/> : <AccountSurface key={settings} kind={settings}/>}</Inspector>}
   </>;

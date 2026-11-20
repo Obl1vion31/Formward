@@ -23,6 +23,7 @@ import {linkedTrend} from './metric-trend-model';
 import {OverviewPlotLoadingGuides,OverviewTrendLayout} from '@/features/dashboard/overview-trend-layout';
 import measurementStyles from '@/features/measurements/measurements-view.module.css';
 import {NutritionComposition} from "@/features/meals/nutrition-composition";
+import foodLibraryEntry from "@/features/meals/food-library-entry.module.css";
 import {EnergyComposition} from '@/features/activities/energy-composition';
 import {EnergyPlotFrame} from '@/features/activities/energy-plot-frame';
 import {relationshipFrameStyle} from "@/features/dashboard/relationship-frame";
@@ -64,7 +65,7 @@ export function WorkspaceLoading({kind,returnShell=false,destination}:{kind:'ove
  const dayWidth=dates.length?plotWidth/dates.length:0;
  const selectedX=selectedIndex<0?null:left+(selectedIndex+.5)*dayWidth;
  const content=<div data-workspace-reading={!returnShell||returningToOverview||undefined} aria-busy={waiting||undefined} aria-label={title}>
- {kind==='overview'?<OverviewLoading date={date} rangeMode={recallOverview()?.mode??undefined} readingStatus={readingStatus} showPlotGuides={waiting&&!entryOpen}/>:<RecordWorkspace title={title}>
+ {kind==='overview'?<OverviewLoading date={date} rangeMode={recallOverview()?.mode??undefined} readingStatus={readingStatus} showPlotGuides={waiting&&!entryOpen}/>:<RecordWorkspace title={title} className={kind==="nutrition"?foodLibraryEntry.recordsWithEntry:undefined}>
  <div data-record-trend>
  <RecordTrendPanel chartSummary={body?<span aria-hidden="true"> </span>:undefined} date={date} view={()=>{}} presentation={kind} loading
   metrics={metrics} mobileMetrics={mobileMetrics} readingStatus={primaryStatus}
@@ -81,7 +82,7 @@ export function WorkspaceLoading({kind,returnShell=false,destination}:{kind:'ove
   </svg>
  </PendingPlotFrame>{body&&<output className={measurementStyles.plotHint} aria-hidden="true"> </output>}
  </RecordTrendPanel></div>
- <DailyRecords loading readingStatus={detailStatus} kind={body?"body":undefined} actions={kind==='nutrition'?<button type="button" disabled>食材库</button>:undefined}/>
+ <DailyRecords loading readingStatus={detailStatus} kind={body?"body":undefined}/>
  {kind==='energy'&&sourcePilot&&<EnergySourceStatusSkeleton/>}
  </RecordWorkspace>}
  </div>;

@@ -2,24 +2,25 @@
 import {NutritionLegend} from '@/components/chart-legend';
 import {numericDraftValue} from "@/components/form-draft";
 import recordUI from "@/components/record-ui.module.css";
-import glass from "@/components/glass-controls.module.css";
 import {RecordWorkspace,RecordTrendPanel,InlineChartControls,CustomRecordRange} from "@/components/record-trend-panel";
 import {confirmAction} from "@/components/confirmation-state";
 import {DecimalInput} from "@/components/decimal-input";
 import {mealVersions,verifyRecordVersions,acknowledgeRecordChanges} from "@/components/record-change-client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
 
 import { useInitialMobileMode } from "@/components/use-mobile-mode";
 import { macroComposition,dailyTotals, suggestedMealType, mealOperationStatus, emptyNutrition, formatNutrition, metricLabels, metrics, type FoodDraft, type MealAction,  type MealInput, type MacroMode, type MealOperationView, type MealSnapshot, type MealView, type Metric,  type Result } from "./model";
 import { recentRecordDates, rangeContaining } from "@/components/record-dates";
-import { DailyRecords,DailyRecordRow } from "@/components/daily-records";
+import { DailyRecords, DailyRecordRow, RecordRowAction } from "@/components/daily-records";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
 import { useNestedChartRange } from "@/components/use-nested-chart-range";
 import {RecordDetailActions} from "@/components/record-detail-actions";
 import { useLocalToday } from "@/components/use-local-today";
 import { FoodTable } from "./presets";
+import { FoodLibraryEntry } from "./food-library-entry";
+import foodLibraryEntry from "./food-library-entry.module.css";
 import { PhotoFields } from "./photos";
 import { SavedMealList } from "./saved-meal-list";
 import { MealDayControl, MealDayStatus } from "./meal-day-control";
@@ -48,6 +49,24 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   const [local,setLocal]=useState<MealSnapshot|null>(null),[base,setBase]=useState(snapshot);
   if(snapshot!==base){setBase(snapshot);setLocal(null);}
   const state=local??snapshot,mobile=useInitialMobileMode(),[tab,setTab]=useState<"meals"|"foods">("meals");
+  const libraryEntry = useRef<HTMLButtonElement>(null);
+  const libraryBack = useRef<HTMLButtonElement>(null);
+  const recordsScroll = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (recordsScroll.current === null) return;
+    if (tab === "foods") {
+      window.scrollTo({ top: 0, behavior: "instant" });
+      libraryBack.current?.focus({ preventScroll: true });
+    } else {
+      window.scrollTo({ top: recordsScroll.current, behavior: "instant" });
+      recordsScroll.current = null;
+      libraryEntry.current?.focus({ preventScroll: true });
+    }
+  }, [tab]);
+  function openFoodLibrary() {
+    recordsScroll.current = window.scrollY;
+    setTab("foods");
+  }
   useDraftGuard(false,false,mealVersions(state));
   const [selectedDate,setSelectedDate]=useState(initialDate??today),[historyOpen,setHistoryOpen]=useState(Boolean(initialDate)&&!initialEntry&&!initialTrend),[rangeChoice,setRange]=useState<string|null>(initialTrend?"custom":null);
   const [dayIntent,setDayIntent]=useState<RecordIntent>(initialIntent==='edit'?'edit':'view');
@@ -76,7 +95,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   const dailySummary=(date:string)=>{const group=groups.find(g=>g.date===date);return group?<>{group.meals.length} 餐 · {formatNutrition(group.totals.values.caloriesKcal,"caloriesKcal")} 千卡{group.totals.incomplete.caloriesKcal?" · 部分":""}</>:"尚无记录";};
   // 今日记录与图表选日互不替换；历史在原位展开，保留阅读位置。
   const recentDates=[today];
-  const renderDay=(date:string)=>{const group=groups.find(g=>g.date===date);return <DailyRecordRow key={date} date={date} today={today} value={dailySummary(date)} status={group?(saveDay?<MealDayControl day={group.day} busy={busy} error={dayErrors[date]} save={performDay}/>:<MealDayStatus day={group.day}/>):null}><button data-record-action="edit" className={glass.mobileButton} onClick={()=>group?editDay(date):addMeal(date)}>{group?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>viewDay(date)}>查看</button></DailyRecordRow>;};
+  const renderDay=(date:string)=>{const group=groups.find(g=>g.date===date);return <DailyRecordRow key={date} date={date} today={today} value={dailySummary(date)} status={group?(saveDay?<MealDayControl day={group.day} busy={busy} error={dayErrors[date]} save={performDay}/>:<MealDayStatus day={group.day}/>):null}><RecordRowAction intent="edit" onClick={()=>group?editDay(date):addMeal(date)}>{group?"编辑":date<today?"补录":"录入"}</RecordRowAction><RecordRowAction intent="view" onClick={()=>viewDay(date)}>查看</RecordRowAction></DailyRecordRow>;};
   const dayDetails=(date:string)=>{
     const group=groups.find(g=>g.date===date), editable=dayIntent==='edit';
     return <>
@@ -123,8 +142,9 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
     try{const result=await purge({...target,operationId:request.current.id});if(!result.ok){setError(result.error);return false;}acknowledgeRecordChanges([target.recordType+":"+target.id,...(target.recordType==="meal"?["mealDay:"+state.meals.find(m=>m.id===target.id)?.date]:[])], [...mealVersions(result.data.snapshot),...(target.recordType==="meal"?[{key:"mealDay:"+state.meals.find(m=>m.id===target.id)?.date,version:String((state.meals.find(m=>m.id===target.id)?.day?.version??0)+1)}]:[])]);setLocal(result.data.snapshot);setNotice(result.data.message);request.current=null;return true;}catch{setError("删除未完成，请重试。");return false;}finally{busyRef.current=false;setBusy(false);}
   }
   const visibleFoods=state.foods.filter(f=>!f.deletedAt&&(foodCategory==="all"||(f.category??"ingredient")===foodCategory)&&`${f.name} ${f.brand??""} ${f.preparation??""}`.toLowerCase().includes(foodQuery.toLowerCase()));
-  return <RecordWorkspace title={tab==="foods"?"食材库":"饮食"} className={styles.workspace} data-active-tab={tab} data-shared-route={initialTrend?true:undefined}>
-    {tab==="meals"?<>
+  return <RecordWorkspace title={tab==="foods"?"食材库":"饮食"} className={tab==="meals"?styles.workspace+" "+foodLibraryEntry.recordsWithEntry:styles.workspace} data-active-tab={tab} data-shared-route={initialTrend?true:undefined}>
+    <FoodLibraryEntry hidden={tab==="foods"} buttonRef={libraryEntry} onOpen={openFoodLibrary}/>
+    <div hidden={tab==="foods"}>
 
       <div data-record-trend data-chart-selection={chart.regionId} data-selected-date={chart.selected} data-selection-origin={chart.origin} {...chart.regionProps}>
       <RecordTrendPanel presentation="nutrition" graphic={<NutritionComposition totals={chosen?.totals}/>}
@@ -139,10 +159,11 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
       >{validRange?<div data-nested-chart ref={bindPlot}><NutritionChart dates={dates} groups={groups} mode={macroMode} selection={chart} compact={dates.length<=31} linked={!!initialTrend&&from===initialTrend.from&&to===initialTrend.to}/></div>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}</RecordTrendPanel>
       </div>
       {error&&!editing&&<p role="alert" className={styles.error}>{error}</p>}{notice&&<p role="status" className={styles.hint}>{notice}</p>}
-      <DailyRecords actions={<button type="button" onClick={()=>setTab("foods")}>食材库</button>} history={{today,dates:[...new Set([...recentRecordDates(today),...groups.map(g=>g.date)])].filter(date=>!recentDates.includes(date)).sort().reverse(),renderRow:renderDay,view:viewDay}}>{recentDates.map(renderDay)}</DailyRecords>
+      <DailyRecords history={{today,dates:[...new Set([...recentRecordDates(today),...groups.map(g=>g.date)])].filter(date=>!recentDates.includes(date)).sort().reverse(),renderRow:renderDay,view:viewDay}}>{recentDates.map(renderDay)}</DailyRecords>
       {operations.filter(op=>mealOperationStatus(op,now)==="pending"&&op.origin!=="manual").map(op=><LoadingLink key={op.id} className={styles.reviewLink} href={op.confirmationPath}>AI 饮食预览 · {op.rows.length} 项待确认 <span>查看 →</span></LoadingLink>)}
-    </>:<>
-      <div className={styles.libraryNavigation}><button type="button" className={recordUI.secondary} onClick={()=>setTab("meals")}>← 饮食记录</button><h2>食材库</h2></div>
+    </div>
+    {tab==="foods"&&<>
+      <div className={styles.libraryNavigation}><button ref={libraryBack} type="button" className={recordUI.secondary} onClick={()=>setTab("meals")}>← 饮食记录</button><h2>食材库</h2></div>
       <div className={styles.categoryTabs}>{[["all","全部"],["meal","整餐"],["ingredient","食材"]].map(([key,label])=><button key={key} aria-pressed={foodCategory===key} onClick={()=>setFoodCategory(key)}>{label}</button>)}</div><div className={styles.toolbar}><input aria-label="搜索食材" placeholder="搜索名称、品牌或做法" value={foodQuery} onChange={e=>setFoodQuery(e.target.value)}/><button className={styles.primary} onClick={()=>{setError("");setEditing({kind:"save_food",name:"",brand:null,preparation:null,baseQuantity:"1",unit:"份",nutrition:emptyNutrition(),sourceKind:"reference"});}}>添加食材 ＋</button></div>
       {visibleFoods.length ? <FoodTable foods={visibleFoods} actions={f=><button className={recordUI.editAction} data-record-action="edit" onClick={()=>{setError("");setEditing({kind:"save_food",...f});}}>编辑</button>}/> : <p className={styles.hint}>还没有匹配的条目，可以添加食材或整餐。</p>}
     </>}

@@ -5,8 +5,7 @@ import { useAssistantChat } from "./chat-client";
 import { Glyph } from "./chat-icon";
 import { chatBalance, type ChatBalance, type ChatProvider } from "./chat-model";
 import styles from "./chat.module.css";
-import glass from "@/components/glass-controls.module.css";
-import { animateSurface, stopSurfaceMotion } from "@/components/surface-motion";
+import { animateGlassMenuFace, GlassMenuFace, stopGlassMenuFace } from "@/components/glass-menu-face";
 
 type BalanceRead = { key: string; balance?: ChatBalance; error?: "session" | "network" };
 const resetClock = new Intl.DateTimeFormat("zh-CN", {
@@ -83,12 +82,17 @@ function ModelBalance() {
   </div>;
 }
 
-export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }: {
-  anchor: RefObject<HTMLButtonElement | null>; selected?: ChatProvider; id: string;
-  dismiss: () => void; close: () => void; connect: () => void;
+export function ChatModelMenu({ anchor, registerMenu, selected, dismiss, outside, close, connect, id }: {
+  anchor: RefObject<HTMLButtonElement | null>; registerMenu: (node: HTMLDivElement | null) => void; selected?: ChatProvider; id: string;
+  dismiss: () => void; outside: () => void; close: () => void; connect: () => void;
 }) {
   const { data, busy, managing, control } = useAssistantChat();
   const menu = useRef<HTMLDivElement>(null);
+  const scroll = useRef<HTMLDivElement>(null);
+  const attachMenu = useCallback((node: HTMLDivElement | null) => {
+    menu.current = node;
+    registerMenu(node);
+  }, [registerMenu]);
   useLayoutEffect(() => {
     const node = menu.current, button = anchor.current;
     if (!node || !button) return;
@@ -121,7 +125,7 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
       node.style.setProperty("--model-anchor", anchorTop + "px");
       if (node.matches(":popover-open")) return;
       node.showPopover();
-      if (page) void animateSurface(node, "open", button, "glass-menu", 220);
+      void animateGlassMenuFace(node, button, "open");
       const focus = node.querySelector<HTMLElement>('[aria-checked="true"]:not(:disabled)')
         ?? node.querySelector<HTMLElement>("button:not(:disabled)") ?? node;
       focus.focus({ preventScroll: true });
@@ -145,7 +149,7 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
-      stopSurfaceMotion(node);
+      stopGlassMenuFace(node, button);
       if (node.matches(":popover-open")) node.hidePopover();
       window.removeEventListener("resize", schedule);
       window.removeEventListener("scroll", schedule, true);
@@ -155,16 +159,16 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
   }, [anchor, dismiss]);
 
   useEffect(() => {
-    const outside = (event: PointerEvent) => {
+    const pointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
-      if (!menu.current?.contains(target) && !anchor.current?.contains(target)) dismiss();
+      if (!menu.current?.contains(target) && !anchor.current?.contains(target)) outside();
     };
-    document.addEventListener("pointerdown", outside);
-    return () => document.removeEventListener("pointerdown", outside);
-  }, [anchor, dismiss]);
+    document.addEventListener("pointerdown", pointerDown);
+    return () => document.removeEventListener("pointerdown", pointerDown);
+  }, [anchor, outside]);
 
-  return <div id={id} ref={menu} popover="manual" role="dialog" aria-label="模型与用量"
-    tabIndex={-1} className={styles.modelMenu + " " + glass.mobileMenu} onKeyDown={event => {
+  return <div id={id} ref={attachMenu} popover="manual" role="dialog" aria-label="模型与用量"
+    data-glass-morph tabIndex={-1} className={styles.modelMenu} onKeyDown={event => {
       if (!["ArrowDown","ArrowUp","Home","End"].includes(event.key)) return;
       const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")];
       if (!buttons.length) return;
@@ -176,13 +180,17 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
       const button = buttons[next];
       if (!button) return;
       button.focus({ preventScroll: true });
-      const bounds = event.currentTarget.getBoundingClientRect();
+      const scroller = scroll.current;
+      if (!scroller) return;
+      const bounds = scroller.getBoundingClientRect();
       const item = button.getBoundingClientRect();
       const offset = item.top < bounds.top ? item.top - bounds.top : Math.max(0, item.bottom - bounds.bottom);
-      event.currentTarget.scrollTop += offset;
+      scroller.scrollTop += offset;
     }}>
-    <ModelBalance/>
-    <div role="menu" aria-label="选择模型">
+    <GlassMenuFace/>
+    <div data-glass-content ref={scroll} className={styles.modelMenuContent}>
+      <ModelBalance/>
+      <div role="menu" aria-label="选择模型">
       {data?.catalog.map(model => <button key={model.id} type="button" role="menuitemradio" aria-checked={model.id === selected}
         disabled={busy || managing || !model.configured || !model.enabled}
         onClick={() => void control("select_model", model.id).then(ok => { if (ok && menu.current?.isConnected) close(); })}>
@@ -191,6 +199,7 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
       </button>)}
     </div>
     {busy && <small className={styles.modelBusy}>生成结束后可切换模型</small>}
-    <button type="button" className={styles.modelConnection} onClick={connect}>连接详情<Glyph name="more"/></button>
+      <button type="button" className={styles.modelConnection} onClick={connect}>连接详情<Glyph name="more"/></button>
+    </div>
   </div>;
 }

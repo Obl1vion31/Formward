@@ -12,15 +12,18 @@ async function recordActionGeometry(button) {
   return button.evaluate(node => {
     const face = node.firstElementChild;
     const outer = node.getBoundingClientRect();
-    const inner = face.getBoundingClientRect();
+    const inner = face?.getBoundingClientRect() ?? outer;
     const style = getComputedStyle(node);
+    const faceStyle = face ? getComputedStyle(face) : null;
     return {
       width: outer.width, height: outer.height,
       faceWidth: inner.width, faceHeight: inner.height,
       insetX: inner.left - outer.left, insetY: inner.top - outer.top,
       background: style.backgroundColor,
-      fill: getComputedStyle(face).backgroundColor,
-      faceOverlay: getComputedStyle(face, "::after").content,
+      border: style.borderTopWidth,
+      outerOverlay: getComputedStyle(node, "::after").content,
+      fill: faceStyle?.backgroundColor ?? null,
+      faceOverlay: face ? getComputedStyle(face, "::after").content : "none",
       tapHighlight: style.webkitTapHighlightColor,
       active: node.matches(":active"),
     };
@@ -32,7 +35,9 @@ function assertSameActionGeometry(before, after) {
     assert.ok(Math.abs(before[key] - after[key]) <= 1, key + ": " + before[key] + " → " + after[key]);
   }
   assert.equal(after.background, "rgba(0, 0, 0, 0)");
-  assert.equal(after.faceOverlay, "none", "记录操作的底色和高光应由可见面绘制");
+  assert.equal(after.border, "0px");
+  assert.equal(after.outerOverlay, "none");
+  assert.equal(after.faceOverlay, "none", "记录操作的底色应由可见面绘制");
 }
 
 async function checkRecordHistoryControls({ baseURL, page, today, engine, artifacts }) {
@@ -139,62 +144,81 @@ async function checkRecordHistoryControls({ baseURL, page, today, engine, artifa
         assert.equal(await history.locator("[data-record-date]").count(), total.length);
 
         const actions = [];
-        if (path === "measurements") {
-          for (const [label, date, intent] of [["编辑", today, "edit"], ["补录", lookupDate, "create"]]) {
-            const action = records.getByRole("button", { name: label + " " + date, exact: true });
-            await action.evaluate(node => node.scrollIntoView({ block: "center" }));
-            if (!mobile) await screen.mouse.move(1, 1);
-            const trigger = await action.elementHandle();
-            const before = await recordActionGeometry(trigger);
-            assert.ok(before.height >= 44 && before.width >= 44);
-            assert.equal(before.faceHeight, 32);
-            assert.equal(before.background, "rgba(0, 0, 0, 0)");
-            assert.equal(before.tapHighlight, "rgba(0, 0, 0, 0)");
-            let pressed;
-            if (mobile) {
-              // Tap the extra touch area above the visible face.
-              if (width === 390) await screen.screenshot({ path: artifacts + "/" + screenshot + "-" + intent + "-before.png" });
-              await action.tap({ position: { x: before.width / 2, y: 2 } });
-            } else {
-              const box = await action.boundingBox();
-              await screen.mouse.move(box.x + box.width / 2, box.y + 2);
-              const hovered = await recordActionGeometry(action);
-              assertSameActionGeometry(before, hovered);
-              assert.notEqual(hovered.fill, before.fill);
-              await screen.mouse.down();
-              pressed = await recordActionGeometry(action);
-              assert.equal(pressed.active, true);
-              assert.notEqual(pressed.fill, hovered.fill);
-              assertSameActionGeometry(before, pressed);
-              await screen.mouse.up();
-            }
-            await panel.locator('[data-record-intent="' + intent + '"]').waitFor();
-            const open = await recordActionGeometry(trigger);
-            assertSameActionGeometry(before, open);
-            if (width === 390) {
-              await panel.and(screen.locator('[data-surface-phase="open"]')).waitFor();
-              await screen.screenshot({ path: artifacts + "/" + screenshot + "-" + intent + ".png" });
-            }
-            let saved;
-            if (width === 1440 && theme === "dark") {
-              saved = intent === "edit" ? "70.14" : "70.12";
-              await panel.getByLabel("晨间体重", { exact: true }).fill(saved);
-              await activate(panel.getByRole("button", { name: intent === "edit" ? "保存修改" : "保存录入", exact: true }));
-              await panel.getByRole("status").filter({ hasText: /已保存/ }).waitFor();
-            }
-            if (await panel.isVisible()) {
-              await activate(panel.getByRole("button", { name: /^关闭/ }).first());
-              await panel.waitFor({ state: "hidden" });
-            }
-            if (saved) {
-              const reading = records.locator('[data-record-date="' + date + '"] [data-reading-period="daytime"] strong');
-              assert.equal((await reading.innerText()).trim().split(/\s+/)[0], saved);
-            }
-            await trigger.dispose();
-            const returned = await recordActionGeometry(saved ? records.getByRole("button", { name: "编辑 " + date, exact: true }) : action);
-            assertSameActionGeometry(before, returned);
-            actions.push({ label, before, pressed, open, returned, saved });
+        const writeCases = path === "measurements" ?
+          [["编辑", today, "edit"], ["补录", lookupDate, "create"]] :
+          [["录入", today, "create"], ["编辑", addCalendarDays(today, -1), "edit"],
+            ["补录", addCalendarDays(today, -5), "create"]];
+        for (const [label, date, intent] of writeCases) {
+          const row = records.locator('[data-record-date="' + date + '"]');
+          const action = row.getByRole("button", { name: path === "measurements" ? label + " " + date : label, exact: true });
+          await action.evaluate(node => node.scrollIntoView({ block: "center" }));
+          if (!mobile) await screen.mouse.move(1, 1);
+          const trigger = await action.elementHandle();
+          const before = await recordActionGeometry(trigger);
+          assert.ok(before.height >= 44 && before.width >= 44);
+          assert.equal(before.faceHeight, 32);
+          assertSameActionGeometry(before, before);
+          assert.notEqual(before.fill, "rgba(0, 0, 0, 0)");
+          assert.equal(before.tapHighlight, "rgba(0, 0, 0, 0)");
+          let pressed;
+          if (mobile) {
+            // Tap the extra touch area above the visible face.
+            if (width === 390) await screen.screenshot({ path: artifacts + "/" + screenshot + "-" + date + "-" + intent + "-before.png" });
+            await action.tap({ position: { x: before.width / 2, y: 2 } });
+          } else {
+            const box = await action.boundingBox();
+            await screen.mouse.move(box.x + box.width / 2, box.y + 2);
+            const hovered = await recordActionGeometry(action);
+            assertSameActionGeometry(before, hovered);
+            assert.notEqual(hovered.fill, before.fill);
+            await screen.mouse.down();
+            pressed = await recordActionGeometry(action);
+            assert.equal(pressed.active, true);
+            assert.notEqual(pressed.fill, hovered.fill);
+            assertSameActionGeometry(before, pressed);
+            await screen.mouse.up();
           }
+          await panel.locator('[data-record-intent="' + intent + '"]').waitFor();
+          const open = await recordActionGeometry(trigger);
+          assertSameActionGeometry(before, open);
+          if (width === 390) {
+            await panel.and(screen.locator('[data-surface-phase="open"]')).waitFor();
+            await screen.screenshot({ path: artifacts + "/" + screenshot + "-" + date + "-" + intent + ".png" });
+          }
+          let saved;
+          if (path === "measurements" && width === 1440 && theme === "dark") {
+            saved = intent === "edit" ? "70.14" : "70.12";
+            await panel.getByLabel("晨间体重", { exact: true }).fill(saved);
+            await activate(panel.getByRole("button", { name: intent === "edit" ? "保存修改" : "保存录入", exact: true }));
+            await panel.getByRole("status").filter({ hasText: /已保存/ }).waitFor();
+          }
+          if (await panel.isVisible()) {
+            await activate(panel.getByRole("button", { name: /^关闭/ }).first());
+            await panel.waitFor({ state: "hidden" });
+          }
+          if (saved) {
+            const reading = records.locator('[data-record-date="' + date + '"] [data-reading-period="daytime"] strong');
+            assert.equal((await reading.innerText()).trim().split(/\s+/)[0], saved);
+          }
+          await trigger.dispose();
+          const returned = await recordActionGeometry(saved ? records.getByRole("button", { name: "编辑 " + date, exact: true }) : action);
+          assertSameActionGeometry(before, returned);
+          actions.push({ label, date, before, pressed, open, returned, saved });
+        }
+        if (path !== "measurements") {
+          const view = records.locator('[data-record-date="' + today + '"]').getByRole("button", { name: "查看", exact: true });
+          await view.scrollIntoViewIfNeeded();
+          const before = await recordActionGeometry(view);
+          assert.ok(before.width >= 44 && before.height >= 44);
+          assert.equal(before.fill, null);
+          assertSameActionGeometry(before, before);
+          await activate(view);
+          await panel.locator('[data-record-intent="view"]').waitFor();
+          await activate(panel.getByRole("button", { name: /^关闭/ }).first());
+          await panel.waitFor({ state: "hidden" });
+          const returned = await recordActionGeometry(view);
+          assertSameActionGeometry(before, returned);
+          actions.push({ label: "查看", date: today, before, returned });
         }
         report.push({ path, width, height, mobile, theme, folded, inputBox, submitBox, date: lookupDate, rows: total.length, actions });
       }

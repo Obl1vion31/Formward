@@ -20,7 +20,7 @@ import { useChartMotion } from "@/components/use-chart-motion";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
 import { useNestedChartRange } from "@/components/use-nested-chart-range";
-import { DailyRecords,DailyRecordRow } from "@/components/daily-records";
+import { DailyRecords, DailyRecordRow, RecordRowAction } from "@/components/daily-records";
 import type { SourceRemovalResult } from "@/components/source-input";
 import { EditorDialog } from "../meals/meals-view";
 import { addCalendarDays, calendarOrdinal } from "../measurements/calendar";
@@ -37,7 +37,6 @@ import { EnergyEditor } from "./energy-editor";
 import { energyRecordingMethod, blankEnergyDay, energySourceLabel, energyValue, type EnergyAction, type EnergyDay, type EnergyInput } from "./model";
 import {shortRecordDate} from "@/components/record-dates";
 import styles from "./energy.module.css";
-import glass from "@/components/glass-controls.module.css";
 import {EnergyComposition} from "./energy-composition";
 import {loadEnergyStateAction} from "@/app/dashboard/energy/actions";
 import type {TrendRoute} from '@/components/metric-trend-model';
@@ -139,7 +138,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
   async function removeRecord(action:EnergyAction,label:string){if(await confirmAction({title:"删除这条消耗记录？",message:"永久删除"+label+"？此操作无法恢复，其他记录保留。",confirmLabel:"确认删除",danger:true}))execute(action);}
   const summary=(date:string)=>{const day=byDate.get(date);return day?<>{energyValue(day.totalKcal)} 千卡 · 静息 {energyValue(day.restingKcal)} · 活动 {energyValue(day.activeKcal)}</>:"尚无记录";};
   const recentDates=[today];
-  const renderDay=(date:string)=>{const day=byDate.get(date);return <DailyRecordRow key={date} date={date} today={today} value={summary(date)}><button data-record-action="edit" className={glass.mobileButton} disabled={busy} onClick={()=>editDay(date)}>{day?.record||day?.activities.length?"编辑":date<today?"补录":"录入"}</button><button onClick={()=>setViewing(date)}>查看</button></DailyRecordRow>;};
+  const renderDay=(date:string)=>{const day=byDate.get(date);return <DailyRecordRow key={date} date={date} today={today} value={summary(date)}><RecordRowAction intent="edit" disabled={busy} onClick={()=>editDay(date)}>{day?.record||day?.activities.length?"编辑":date<today?"补录":"录入"}</RecordRowAction><RecordRowAction intent="view" onClick={()=>setViewing(date)}>查看</RecordRowAction></DailyRecordRow>;};
   const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <div className={styles.dayDetails} data-energy-day-detail><div className={styles.summary}>{([[day.cumulative?"今日已消耗":"总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>千卡</small></strong></div>)}</div><EnergySources day={day}/>{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=>{
  const reading=activitySummary(activity,day.record);
  return <Disclosure key={activity.id} className={styles.activityDetail} summary={<div className={styles.activityOverview} data-exercise-summary>
