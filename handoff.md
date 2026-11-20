@@ -1,6 +1,6 @@
 # Formward 项目交接
 
-正式站运行 `dual-entry-491149a0-edge-controls-20261121`，源码 `491149a0abf12b34fcceb1f4b6776a172ee37164`，BUILD_ID `1LmdZmCrX-vOu6t_F1-Mw`。北京时间 2026-11-21 01:39:40 切换。手机食材库采用右侧挂签，电脑入口在左导航下方。打开食材库再返回保留饮食历史状态。饮食、消耗与身体的记录使用统一单层操作，账号及模型菜单沿触发点开合，输入栏的加号和模型选择平时只显示图标或文字。 [部署与公网核对](docs/deployment.md#当前正式版本) · [跨端控件规则](docs/design-reference.md#跨端控件材质与反馈)
+正式站运行 `dual-entry-53c6ee57-mobile-workspace-centering-20261121`，源码 `53c6ee574047ee1864f9ca289753497e834b2fde`，BUILD_ID `u0oKTX33lJPR99OhNCNuz`。北京时间 2026-11-21 02:40:59 切换。手机工作区同中线，饮食食材库按 348 CSS px 可用宽度适配，聊天／待办选中底片四边各留 3 CSS px。 [部署与公网核对](docs/deployment.md#当前正式版本) · [视觉验收](design-qa.md)
 
 ## 当前能力
 

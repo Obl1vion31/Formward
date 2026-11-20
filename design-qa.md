@@ -1,7 +1,7 @@
 # 当前视觉验收
 
 
-## 本地实页验收 · 手机页面中线与聊天胶囊
+## 已发布验收 · 手机页面中线与聊天胶囊
 
 以正式兼容包 `dual-entry-491149a0-edge-controls-20261121` 为改前对照，使用同一组隔离虚构数据。局部 ImageGen 参考覆盖胶囊留白与窄屏日期行，保留输入原图和提示词。 [本机前后对照与实页录屏](<C:/Users/14878/.codex/visualizations/2026/11/19/01a1f4b2-02ea-7501-a32e-c5986dd04a8a/mobile-workspace-centering/index.html>) · [尺寸与流程记录](<C:/Users/14878/.codex/visualizations/2026/11/19/01a1f4b2-02ea-7501-a32e-c5986dd04a8a/mobile-workspace-centering/量测与流程.json>)
 
@@ -11,6 +11,8 @@
 - 实体 iPhone Safari 的系统手势、软键盘和原生日期选择面板未测。
 
 Lint、类型检查及生产构建通过。全量单元及集成测试通过 848 项，按既有配置跳过 2 项。
+
+正式兼容包 `dual-entry-53c6ee57-mobile-workspace-centering-20261121` 再通过两引擎的 320／390／500／1440 CSS px 共 40 个页面组合，包括食材库返回、胶囊和编辑弹窗。网页、worker 和公网版本核对通过。 [部署记录](docs/deployment.md#当前正式版本)
 
 ## 已发布验收 · 食材库挂签与小助手开合
 

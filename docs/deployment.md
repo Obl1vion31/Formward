@@ -2,6 +2,16 @@
 
 ## 当前正式版本
 
+手机工作区与聊天胶囊运行在 `dual-entry-53c6ee57-mobile-workspace-centering-20261121`，源码 `53c6ee574047ee1864f9ca289753497e834b2fde`，BUILD_ID `u0oKTX33lJPR99OhNCNuz`。北京时间 2026-11-21 02:40:59 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+
+手机顶栏、正文和底栏共用屏幕中线。食材库在可用宽度 348 CSS px 起继续右挂，较窄时与日期、查看记录同排。聊天／待办选中底片四边各留 3 CSS px。Chromium 和 WebKit 完成本地 60 个页面与视口组合、24 个慢加载场景及正式兼容包 40 个页面组合。实体 iPhone Safari 单列待测。 [视觉验收](../design-qa.md) · [设计规范](design-reference.md#跨端控件材质与反馈)
+
+上海网页和聊天 worker 运行同版。数据库维持 `0047_meal_food_groups`、47 项迁移及 67 张表。切换前后配置和表摘要一致，停写备份完成 PostgreSQL 原生校验和加密异地回读。四个公网域名及兼容 IP 返回同版，登录返回、匿名权限和原海外网关回源通过。核对 20 项公网静态资源。
+
+保留 56 项 Server Action 编号和原绑定密钥，携带 2341 项旧静态资源。正式包 SHA-256 `6c7b0521912e391e96b766ae6d690746ba886e0dfd34146445b1db86b63189c6`，大小 87,359,714 字节。本机归档为 `.codex/backups/regional-releases/mobile-workspace-centering-20261121`，兼容回退为 `edge-controls-20261121`。
+
+## 食材库挂签与小助手开合发布记录
+
 食材库挂签、记录操作与小助手菜单运行在 `dual-entry-491149a0-edge-controls-20261121`，源码 `491149a0abf12b34fcceb1f4b6776a172ee37164`，BUILD_ID `1LmdZmCrX-vOu6t_F1-Mw`。北京时间 2026-11-21 01:39:40 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
 
 手机食材库采用右侧挂签，电脑入口在左导航下方。打开食材库再返回保留饮食历史状态。饮食、消耗与身体的记录使用统一单层操作，账号及模型菜单沿触发点开合，输入栏的加号和模型选择平时只显示图标或文字。 正式兼容包完成 Chromium 与 WebKit 的 5 组手机／桌面实际页面核对。桌面 WebKit 的模型菜单核对了起止位置，连续帧采样不足。实体 iPhone Safari 待真机确认。 [视觉验收](../design-qa.md) · [跨端控件规则](design-reference.md#跨端控件材质与反馈)
