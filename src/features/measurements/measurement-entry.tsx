@@ -25,6 +25,7 @@ import { SourceInput } from "@/components/source-input";
 
 type Draft = Record<EntryPeriod, { weightKg: string; bodyFatPercent: string; deviceLabel: string; timezone: string }>;
 const periodName = (period: EntryPeriod) => period === "daytime" ? "晨间" : "晚间";
+const savingLabel = "保存中…";
 const metricName = (metric: MeasurementMetric) => metric === "weightKg" ? "体重" : "体脂率";
 function makeDraft(records: MeasurementDisplay[], date: string, choices: Record<string, string>, defaultTimezone: string): Draft {
   return Object.fromEntries(measurementEntryState(records, date, choices).map(group => [group.period, {
@@ -55,7 +56,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
   const [touchedSources,setTouchedSources]=useState(new Set<EntryPeriod>());
   const [working, setWorking] = useState(false), [message, setMessage] = useState(""), [error, setError] = useState("");
   const [transitionPending, startTransition] = useTransition();
-  const [busyLabel, setBusyLabel] = useState("正在保存记录…");
+  const [busyLabel, setBusyLabel] = useState(savingLabel);
   const busy = working || transitionPending;
   const lock = useRef(false), checking = useRef(false);
   const formRef = useRef<HTMLFormElement>(null), rippleRef = useRef<HTMLSpanElement>(null);
@@ -124,9 +125,13 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
         const result = await work();
         if (!result.ok) { setError(result.error); return; }
         const timezone = systemMeasurementTimezone();
-        acknowledgeRecordChanges(ownKeys,measurementVersions(result.records));onUpdated(result); setDefaultTimezone(timezone); setBaseRecords(result.records);if(resetPeriods.length){const fresh=makeDraft(result.records,date,choices,timezone);setDraft(previous=>({...previous,...Object.fromEntries(resetPeriods.map(period=>[period,fresh[period]]))}));setTouchedSources(previous=>new Set([...previous].filter(period=>!resetPeriods.includes(period))));} setMessage(target?"":result.message);
+        acknowledgeRecordChanges(ownKeys,measurementVersions(result.records));onUpdated(result); setDefaultTimezone(timezone); setBaseRecords(result.records);if(resetPeriods.length){const fresh=makeDraft(result.records,date,choices,timezone);setDraft(previous=>({...previous,...Object.fromEntries(resetPeriods.map(period=>[period,fresh[period]]))}));setTouchedSources(previous=>new Set([...previous].filter(period=>!resetPeriods.includes(period))));} setMessage(target ? "" : saving && editing ? "已保存修改。" : result.message);
         request.current = { signature: "", id: "" };
-      } catch (e) { setError(e instanceof Error?e.message:"网络连接未完成，请重试。已输入的数值仍保留。"); }
+      } catch (error) {
+        setError(error instanceof Error && !(error instanceof TypeError)
+          ? error.message
+          : "连接未完成，请重试。已输入的内容仍保留。");
+      }
       finally { lock.current = false; setWorking(false); }
     });
   }
@@ -157,7 +162,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       checking.current = false;
     }
     const payload = { date, timezone, periods };
-    run("正在保存记录…", async () => {
+    run(savingLabel, async () => {
       const expected=Object.keys(periods).map(period=>{const row=measurementEntryState(baseRecords,date).find(group=>group.period===period)?.observed;return {key:`measurement:${date}:${period}:observed`,version:row?row.id+":"+row.updatedAt:null,summary:row?`体重 ${row.weightKg??"—"} kg · 体脂 ${row.bodyFatPercent??"—"}%`:undefined};});
       const latest=await verifyRecordVersions(expected);for(const period of Object.keys(periods) as EntryPeriod[]){const row=latest.get(`measurement:${date}:${period}:observed`);if(row){periods[period]!.recordId=row.id;periods[period]!.version=row.version.slice(row.id.length+1);}}
       const result=await actions.save({...payload,operationId:operationId(["save",payload])});if(result.ok)acknowledgeRecordChanges(expected.map(row=>row.key),measurementVersions(result.records));return result;
@@ -192,27 +197,29 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       {groups.map(group=><fieldset key={group.period} data-period={group.period} data-selected={selected===group.period} disabled={busy||pending||group.blocked}>
         <legend><span>{periodName(group.period)} · {group.blocked?"空腹条件未确认":group.period==="daytime"?"空腹":"非空腹"}</span><button type="button" aria-expanded={advanced.has(group.period)} onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(group.period))next.delete(group.period);else next.add(group.period);return next;})}>更多设置</button></legend>
         {group.pending?<label>选择已有实测<select aria-label={"录入"+periodName(group.period)+"候选记录"} value="" onChange={event=>onChoose(date,group.period,event.target.value)}><option value="">选择已有记录</option>{group.candidates.map(row=><option value={row.id} key={row.id}>{row.sourceLocalTime}</option>)}</select></label>:<>
-          <div className={styles.bodyMetricFields}>{visibleMetrics.map(metric=>{
-            const cell=group.fields[metric],label=periodName(group.period)+metricName(metric),key=group.period+":"+metric,editable=!group.blocked&&!future;
-            return <div className={styles.entryCell} key={metric} data-entry-cell={key} data-kind={cell.kind}>
-              <label htmlFor={"entry-"+group.period+"-"+metric}>{metricName(metric)}<small>{metric==="weightKg"?"kg":"%"}</small></label>
-              <div className={styles.entryInputRow}>
-                {editable?<DecimalInput id={"entry-"+group.period+"-"+metric} aria-label={label} min={0} placeholder="实测值" value={draft[group.period][metric]} onValue={value=>setField(group.period,metric,value)}/>:<span className={styles.entryRecorded}>{formatRecordNumber(cell.value)}</span>}
-
-              </div>
-              {error&&errorTarget===key&&<small className={styles.entryError} role="status">{error}</small>}
-            </div>;
-          })}</div>
-          <div className={styles.entrySource}><SourceInput hint={!group.observed&&automatic[group.period]&&draft[group.period].deviceLabel===automatic[group.period]&&!touchedSources.has(group.period)?"已沿用常用来源":undefined} label={periodName(group.period)+"数据来源"} value={draft[group.period].deviceLabel} sources={sources} onChange={value=>setField(group.period,"deviceLabel",value)} removeSource={removeSource} disabled={busy||pending||group.blocked}/></div>
+          <div className={styles.entryFields} data-paired={visibleMetrics.length > 1}>
+            <div className={styles.bodyMetricFields}>{visibleMetrics.map(metric=>{
+              const cell=group.fields[metric],label=periodName(group.period)+metricName(metric),key=group.period+":"+metric,editable=!group.blocked&&!future;
+              return <div className={styles.entryCell} key={metric} data-entry-cell={key} data-kind={cell.kind}>
+                <label htmlFor={"entry-"+group.period+"-"+metric}>{metricName(metric)}</label>
+                <div className={styles.entryInputRow}>
+                  {editable?<span className={styles.entryNumber}><DecimalInput data-input-appearance="soft-line" id={"entry-"+group.period+"-"+metric} aria-label={label} min={0} placeholder="实测值" value={draft[group.period][metric]} onValue={value=>setField(group.period,metric,value)}/></span>:<span className={styles.entryRecorded}>{formatRecordNumber(cell.value)}</span>}
+                  <small>{metric==="weightKg"?"kg":"%"}</small>
+                </div>
+                {error&&errorTarget===key&&<small className={styles.entryError} role="status">{error}</small>}
+              </div>;
+            })}</div>
+            <div className={styles.entrySource}><SourceInput compactLabel="来源" hint={!group.observed&&automatic[group.period]&&draft[group.period].deviceLabel===automatic[group.period]&&!touchedSources.has(group.period)?"已沿用常用来源":undefined} label={periodName(group.period)+"数据来源"} value={draft[group.period].deviceLabel} sources={sources} onChange={value=>setField(group.period,"deviceLabel",value)} removeSource={removeSource} disabled={busy||pending||group.blocked}/></div>
+          </div>
           {advanced.has(group.period)&&<div className={styles.entryTimezone}><div className={styles.entryDeleteActions}>{visibleMetrics.map(metric=>actions.deleteCell&&group.observed?.[metric]!=null&&<button type="button" key={metric} className={styles.deleteCell} disabled={busy||hasDraft} aria-label={"删除"+(periodName(group.period)+metricName(metric))} onClick={async()=>{const original=group.observed!;if(await confirmAction({title:"删除"+(periodName(group.period)+metricName(metric))+"？",danger:true,confirmLabel:"删除"+metricName(metric),message:"删除 "+date+" "+(periodName(group.period)+metricName(metric))+" "+formatRecordNumber(original[metric])+"？其他指标保留。"}))run("正在删除这一项…",()=>actions.deleteCell!({recordId:original.id,version:original.updatedAt,metric,operationId:operationId(["delete",original.id,original.updatedAt,metric])}),["measurement:"+date+":"+group.period+":observed"],[group.period]);}}>删除{periodName(group.period)}{metricName(metric)}</button>)}</div><label htmlFor={"entry-"+group.period+"-timezone"}>时区</label><select id={"entry-"+group.period+"-timezone"} aria-label={periodName(group.period)+"时区"} value={draft[group.period].timezone} onChange={event=>setField(group.period,"timezone",event.target.value)}><option value="">未指定</option>{draft[group.period].timezone&&!timezoneOptions.some(option=>option.value===draft[group.period].timezone)&&<option value={draft[group.period].timezone}>{timezoneLabel(draft[group.period].timezone,date,group.observed?.utcOffsetMinutes)}（保留原时区）</option>}{timezoneOptions.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select><button type="button" onClick={()=>setField(group.period,"timezone",systemMeasurementTimezone())}>采用系统时区</button></div>}
           {group.blocked&&<p className={styles.entryCondition}>原记录的空腹条件未确认，保留只读。</p>}
         </>}
       </fieldset>)}
     </div>
     {future&&<p role="alert" className={styles.entryError}>不能录入未来日期的身体记录。</p>}
-    <div className={styles.entryFooter}><div>{(error||readError)&&<p role="alert" className={styles.entryError}>{error||readError}</p>}{pending&&!readError?<LocalLoading/>:message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-entry-primary-action data-saving={busy && busyLabel === "正在保存记录…" || undefined} type={onRetry?"button":"submit"} onClick={onRetry} className={styles.saveEntry} disabled={onRetry?false:busy||pending||!dirty||future}>
+    <div className={styles.entryFooter}><div>{(error||readError)&&<p role="alert" className={styles.entryError}>{error||readError}</p>}{pending&&!readError?<LocalLoading/>:message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-entry-primary-action data-saving={busy && busyLabel === savingLabel || undefined} type={onRetry?"button":"submit"} onClick={onRetry} className={styles.saveEntry} disabled={onRetry?false:busy||pending||!dirty||future}>
       <span className={styles.saveRipple} ref={rippleRef} aria-hidden="true"/>
-      <span>{onRetry?"重新读取":busy?busyLabel:"保存录入"}</span>
+      <span>{onRetry?"重新读取":busy?busyLabel:editing?"保存修改":"保存录入"}</span>
     </button></div>
   </form>;
 }

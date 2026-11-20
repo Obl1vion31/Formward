@@ -854,7 +854,7 @@ input:focus-visible {
 .login-recovery:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 
 /* 录入共用控件：组件功能决定外观，业务页不得退回透明文字输入。 */
-form[data-entry-form] :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea) {
+form[data-entry-form] :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea):where(:not([data-input-appearance=soft-line])) {
   min-width:0;max-width:100%;min-height:max(44px,calc(1.375em + 22px));border:1px solid var(--control-border);border-radius:6px;
   background:var(--surface-raised);color:var(--warm-white);font-size:1rem;line-height:1.375;
   padding:10px 12px;color-scheme:var(--color-scheme);

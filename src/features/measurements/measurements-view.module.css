@@ -263,13 +263,85 @@
 .entryPeriodBar{display:none}.entryGroups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;padding-top:18px}
 .entryGroups>fieldset{min-width:0;margin:0;padding:0;border:0}.entryGroups legend{display:flex;width:100%;align-items:center;justify-content:space-between;font-size:0.875rem;padding:0;margin:0 0 4px}
 .entryGroups legend button{background:transparent;border:0;color:var(--gold);font-size:0.875rem;padding:6px 10px;cursor:pointer}
-.bodyMetricFields{container-type:inline-size;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9em),1fr));gap:12px}.entryCell>label{display:flex;align-items:baseline;gap:6px;font-size:0.875rem;margin-bottom:4px}.entryCell>label small,.entryCell>label>span{font-size:0.75rem;font-weight:400;white-space:nowrap}
-.entryInputRow{display:flex;align-items:center;gap:4px;border-bottom:0}.entryInputRow input{width:100%;flex:1}
-.entrySource{position:relative;margin-top:12px}.entrySource>div{margin-top:0}.sourceDefault{position:absolute;right:0;top:0;color:var(--muted);font-size:0.75rem}
+/* Keep the visible field shorter than its 44px input target. */
+.entryForm {
+  --measurement-input-fill: color-mix(in srgb, var(--warm-white) 8%, var(--surface));
+  --measurement-input-line: var(--control-border);
+}
+.entryFields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 6px 14px;
+}
+.bodyMetricFields {
+  flex: 0 0 7rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+.entryFields[data-paired=true] .bodyMetricFields {
+  flex-basis: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.entryCell > label {
+  display: block;
+  margin: 0;
+  font-size: .875rem;
+  line-height: 20px;
+}
+.entryInputRow {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+  border: 0;
+}
+.entryInputRow > small { flex: none; }
+.entryNumber {
+  position: relative;
+  isolation: isolate;
+  flex: 0 1 5.5rem;
+  min-inline-size: 0;
+}
+.entryNumber::before {
+  position: absolute;
+  inset: 4px 0;
+  z-index: -1;
+  content: "";
+  border-radius: 7px;
+  border-bottom: 1px solid var(--measurement-input-line);
+  background: var(--measurement-input-fill);
+}
+.entryNumber:focus-within::before {
+  border-color: var(--gold);
+  box-shadow: inset 0 -1px var(--gold);
+}
+.entryForm .entryNumber input[type=number] {
+  display: block;
+  width: 100%;
+  height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: normal;
+  color-scheme: var(--color-scheme);
+  outline: none;
+}
+.entrySource {
+  flex: 1 1 auto;
+  inline-size: max-content;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+}
+.entryFields[data-paired=true] .entrySource { flex-basis: 100%; }
 .entryTimezone{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;margin-top:14px;font-size:0.8125rem}.entryTimezone button{grid-column:2;background:none;border:0;color:var(--gold)}
 @media(max-width:700px),(hover:none) and (pointer:coarse){
  .entryGroups{grid-template-columns:minmax(0,1fr);padding-top:12px}.entryGroups>[data-selected=false]{display:none}.entryGroups legend{display:none}
- .bodyMetricFields{gap:10px}.entrySource{margin-top:12px}
 }
 
 .entryPeriodBar button{white-space:nowrap}
@@ -278,12 +350,7 @@
 .entryForm input[type=number]::-webkit-inner-spin-button,.entryForm input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 
 .drawerHeader[data-editing=true]{min-height:68px;padding-block:12px}
-@container(max-width:300px){.entryCell[data-estimated-wide=true]{grid-column:1/-1}}
 
-/* Independent comparison: time selection owns the accent; hints stay with their field. */
-.entrySource.entrySource label{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 8px;margin-bottom:8px}
-.entrySource.entrySource label small{font-size:0.75rem;line-height:20px;font-weight:400}
-.entryInputRow input{font-variant-numeric:tabular-nums}
 @media(prefers-reduced-motion:reduce){.entryPeriodBar button{transition:none}}
 
 .drawerHeader[data-editing=true] h2{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px}
@@ -334,27 +401,58 @@
 }
 .periodReading strong { font-size: 1.1875rem; font-weight: 500; white-space: nowrap; }
 .periodReading small { color: var(--body-muted); font-size: .75rem; font-weight: 400; }
-.workspace .detailsToggle {
+/* The row actions share the date line. Only the text action carries a visible fill. */
+.workspace [data-row-layout=body] [data-record-actions] > button:is(.recordInfoButton, .recordEditAction) {
+  display: inline-grid;
+  place-items: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.workspace [data-row-layout=body] [data-record-actions] > .recordInfoButton {
+  color: var(--body-muted);
+}
+.workspace [data-row-layout=body] [data-record-actions] > .recordInfoButton:is(:hover, [aria-expanded=true]) {
+  color: var(--body-gold);
+}
+.recordEditAction > span {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  padding: 4px 0 4px 6px;
-  min-width: 44px;
-  color: var(--body-gold);
-  font-size: .8125rem;
+  min-height: 32px;
+  padding: 4px 11px;
+  border-radius: 8px;
+  background: var(--surface-hover);
 }
-.detailsToggle svg { flex: none; transition: transform 160ms ease-out; }
-.detailsToggle[aria-expanded=true] svg { transform: rotate(180deg); }
-.rowDetails:not([hidden]) {
-  display: grid;
-  grid-template-columns: subgrid;
-  grid-column: 1 / -1;
-  padding: 10px 0 8px;
-  margin-top: 2px;
+.recordEditAction:hover > span { background: var(--surface-raised); }
+.infoPopover {
+  position: fixed;
+  inset: -999px auto auto 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--body-rule);
+  border-radius: 12px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--surface-raised);
+  color: var(--body-ink);
+  box-shadow: 0 8px 20px #0002;
+}
+.infoPopover > section + section {
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--body-rule);
 }
-.rowDetails > [data-fact-period=evening] { grid-column: 2; }
+.infoPopover h3 {
+  margin: 0 0 6px;
+  font-size: .875rem;
+  font-weight: 600;
+  color: var(--data-weight);
+}
+.infoPopover > section:has([data-fact-period=evening]) h3 { color: var(--data-deficit); }
+.infoPopover .measurementFacts dd { color: var(--body-ink); }
 .measurementFacts {
   display: grid;
   align-content: start;
@@ -373,14 +471,25 @@
 .dayOverview .periodReading { margin-bottom: 8px; }
 .dayOverview .periodReading strong { font-size: 1.5rem; }
 .dayOverview [data-active-period] .periodReading > span:first-child { color: var(--body-ink); font-weight: 600; }
-@media (prefers-reduced-motion: reduce) { .detailsToggle svg { transition: none; } }
 
 .entryHeading h2 { flex: 1; }
-.entryFooter .saveEntry {
+.entryForm[data-entry-form=body] .saveEntry {
+  --entry-save-fill: var(--warm-white);
+  --entry-save-ink: var(--surface);
   position: relative;
-  overflow: hidden;
   isolation: isolate;
-  min-inline-size: 8.125rem;
+  overflow: hidden;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--entry-save-fill);
+  color: var(--entry-save-ink);
+  font-size: 1rem;
+  font-weight: 600;
+}
+:global(html[data-theme=dark]) .entryForm[data-entry-form=body] .saveEntry {
+  --entry-save-fill: color-mix(in srgb, var(--warm-white) 55%, var(--gold));
 }
 .saveEntry span:last-child { position: relative; }
 .saveRipple {
@@ -388,13 +497,15 @@
   inset: -12% -4%;
   pointer-events: none;
   opacity: 0;
-  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--graphite) 32%, #4b2b12), transparent 70%);
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--entry-save-ink) 34%, transparent), transparent 70%);
 }
-.entryForm .entryFooter .saveEntry:active:not(:disabled),
-.entryForm .entryFooter .saveEntry[data-saving=true] {
-  background: color-mix(in srgb, var(--gold) 93%, #2d1708);
-  border-color: var(--gold);
-  color: var(--graphite);
+.entryForm[data-entry-form=body] .saveEntry:disabled:not([data-saving]) {
+  background: var(--surface-hover);
+  color: var(--muted);
+}
+.entryForm[data-entry-form=body] .saveEntry:is(:active:not(:disabled), [data-saving]) {
+  background: color-mix(in srgb, var(--entry-save-fill) 94%, var(--entry-save-ink));
+  color: var(--entry-save-ink);
   opacity: 1;
 }
 
