@@ -2,6 +2,16 @@
 
 ## 当前正式版本
 
+手机输入修复运行 `dual-entry-10f74b9b-mobile-input-r3-20261120`，源码 `10f74b9b3540293263723db958462f53c78d4701`，BUILD_ID `yF0mm2nQp9IRym6Nf7Rrk`。北京时间 2026-11-20 21:23:51 切换。 [正式版本](https://formward.top/api/app-version) · [验收图册](<C:/Users/14878/.codex/visualizations/2026/11/18/01a1ee4f-83a7-74a1-b58d-000090938d80/formward-mobile-input-viewport/index.html>)
+
+手机身体录入的标题固定，来源建议留在输入控件旁，保存按钮在键盘开合两种状态分别留出 12／16 CSS px。消耗、饮食、训练、审核、资料和设备录入按实际可用区域显示焦点。小助手在 WebKit 键盘开启时可直接点按发送。两引擎验证实际发送、草稿和图片保留，iPhone 真机未测。
+
+上海网页与聊天 worker 同版。沿用数据库结构 `0047_meal_food_groups` 和 47 项迁移。正式切换期间 67 张表及运行配置摘要一致，备份 `formward-primary-20261120T132346818461Z.dump.json` 通过 PostgreSQL 原生校验及异地回读。四个公网域名及兼容 IP 已核对版本、跳转、登录返回、静态资源和匿名保护。海外网关的 API 1.15.1 及 MCP 发现通过核对。
+
+保留 56 项现行 Server Action 编号、原绑定密钥及 2277 项既有静态资源。兼容包 SHA-256 `d96f9a538e210f884ae35bb13a456bfef6f1f6bbf63eae30ea669b90bb1f4c88`，86,343,202 字节，归档在 `.codex/backups/regional-releases/mobile-input-r3-20261120`。兼容回退版本为 `measurement-mobile-save-20261120`。
+
+## 手机测量录入发布记录
+
 测量页运行 `dual-entry-9538d161-measurement-mobile-save-20261120`，源码 `9538d161f866b7f24edcedb8fefdc37376f2ee90`，BUILD_ID `t7EL1S0Z_cYnN77roDCkS`。北京时间 2026-11-20 20:36:00 切换。 [正式测量页](https://formward.top/dashboard/measurements) · [正式版本](https://formward.top/api/app-version)
 
 手机晨晚胶囊按文字收窄，保存占满整行，与体重及来源对齐。电脑录入的晨间、晚间各占通栏，记录来源在图标旁悬停显示。同一正式兼容包在 Chromium 和 WebKit 各通过 6 组实页验收，覆盖切换、草稿、保存失败、重试落库和返回。 [正式运行包的隔离实页截图](<C:/Users/14878/.codex/visualizations/2026/11/18/01a1ee4f-83a7-74a1-b58d-000090938d80/formward-measurement-mobile-save-release/index.html>)
