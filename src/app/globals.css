@@ -888,6 +888,7 @@ form[data-entry-form] button:not([type=submit]) {min-height:44px}
 @media(max-width:700px),(hover:none) and (pointer:coarse){
  :root{--data-weight:#d8bc8c}
  :root[data-theme="light"]{--graphite:#f3f0e9;--surface:#fffdf8;--surface-raised:#fffefb;--warm-white:#24231f;--muted:#6b665e;--gold:#795b2c;--data-weight:#795b2c}
+ html:has(.workspace-shell){scrollbar-gutter:stable both-edges;container:dashboard-workspace / inline-size}
  .workspace-shell .dashboard-page{padding-inline:16px}
  }
 

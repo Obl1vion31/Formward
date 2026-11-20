@@ -113,16 +113,22 @@ try{
    await theme(p,mode);await go(p,"/dashboard/meals");
    const recent=p.getByRole("region",{name:"最近记录",exact:true});
    const library=p.getByRole("button",{name:"食材库",exact:true});
-   await p.locator("[data-meal-library-entry=ready]").waitFor();
+   await library.waitFor();
    assert.equal(await library.getAttribute("data-meal-library-entry"),"ready");
    assert.equal(await recent.getByRole("button",{name:"食材库",exact:true}).count(),0);
    const entryBefore=await library.boundingBox();
-   if (w<=700) {
+   const inline=w<=700&&await p.evaluate(()=>document.body.getBoundingClientRect().width<348);
+   assert.equal(await library.getAttribute("data-meal-library-placement"),inline?"date":"edge");
+   if (inline) {
+    const slot=p.locator('[data-record-slot="date"]').filter({has:library});
+    const view=await slot.getByRole("button",{name:"查看记录 →",exact:true}).boundingBox();
+    assert.ok(entryBefore.width>=44&&entryBefore.height>=44&&Math.abs(entryBefore.y-view.y)<=1);
+   } else if (w<=700) {
     const geometry=await library.evaluate(button=>{
      const hit=button.getBoundingClientRect(),face=button.firstElementChild.getBoundingClientRect();
      const chart=document.querySelector("[data-record-trend]").getBoundingClientRect();
      const list=document.querySelector('[aria-label="最近记录"]').getBoundingClientRect();
-     return {hit:hit.width,face:face.width,edge:document.documentElement.clientWidth-face.right,
+     return {hit:hit.width,face:face.width,edge:document.body.getBoundingClientRect().right-face.right,
       gap:hit.left-Math.max(chart.right,list.right)};
     });
     assert.ok(geometry.hit>=44&&geometry.face===30&&Math.abs(geometry.edge)<=1&&geometry.gap>=-1,JSON.stringify(geometry));
@@ -131,11 +137,11 @@ try{
     assert.ok(entryBefore.y>=rail.y+rail.height&&entryBefore.x>=rail.x&&entryBefore.x+entryBefore.width<=rail.x+rail.width);
    }
    await recent.getByRole("button",{name:"查看全部",exact:true}).click();
-   await p.evaluate(()=>scrollTo({top:Math.min(560,document.documentElement.scrollHeight-innerHeight),behavior:"instant"}));
+   await p.evaluate(inline=>scrollTo({top:inline?40:Math.min(560,document.documentElement.scrollHeight-innerHeight),behavior:"instant"}),inline);
    const scrollBefore=await p.evaluate(()=>scrollY);
    assert.ok(scrollBefore>0);
    const entryAfter=await library.boundingBox();
-   assert.ok(Math.abs(entryBefore.y-entryAfter.y)<=1);
+   assert.ok(Math.abs(entryBefore.y-entryAfter.y-(inline?scrollBefore:0))<=1);
    await library.click();
    const back=p.getByRole("button",{name:"← 饮食记录",exact:true});
    await back.waitFor();

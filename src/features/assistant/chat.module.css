@@ -212,8 +212,22 @@
  background: var(--warm-white);
  color: var(--surface);
 }
-.navTabs[data-capsule-ready] { background: transparent; }
-.navTabs[data-capsule-ready] button[aria-selected=true] { background: transparent; color: var(--warm-white); }
+@media (max-width: 700px), (hover: none) and (pointer: coarse) {
+  .navTabs {
+    --capsule-selection-inset: 3px;
+    --capsule-side-inset: var(--capsule-selection-inset);
+    background: transparent;
+  }
+  .navTabs button[aria-selected=true] { background: transparent; color: var(--warm-white); }
+  .navTabs:not([data-capsule-ready]) > [data-capsule-indicator] {
+    display: block;
+    left: var(--capsule-side-inset);
+    width: calc(50% - 2 * var(--capsule-side-inset));
+  }
+  .navTabs:not([data-capsule-ready]):has(> [data-capsule-choice="1"][aria-selected=true]) > [data-capsule-indicator] {
+    left: calc(50% + var(--capsule-side-inset));
+  }
+}
 .navTabs button[aria-selected=true] .tierBadge { color: inherit; }
 .navTabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 .tabBadge, .navSelect { display: none; }

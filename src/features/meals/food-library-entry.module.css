@@ -10,7 +10,7 @@
   display: none;
 }
 
-:global(html:has(dialog[open], [data-assistant-present], .glass-menu[open])) .slot {
+:global(html:has(dialog[open], [data-assistant-present], .glass-menu[open])) :is(.slot, .inlineButton) {
   visibility: hidden;
 }
 
@@ -74,22 +74,31 @@
   .arrow { display: none; }
 
   .recordsWithEntry.recordsWithEntry.recordsWithEntry {
-    padding-inline-end: calc(28px + env(safe-area-inset-right, 0px));
+    padding-inline: calc(28px + max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px)));
     container: diet-records / inline-size;
   }
 }
 
-@container diet-records (max-width: 260px) {
-  .recordsWithEntry [data-record-slot="legend"] {
-    column-gap: 6px;
+/* Date and edge share the same control; the root query sees width after native gutters. */
+.inlineButton.inlineButton { display: none; }
+
+@container dashboard-workspace (width < 348px) {
+  .slot { display: none; }
+
+  .inlineButton.inlineButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    height: 44px;
   }
 
+  .recordsWithEntry.recordsWithEntry.recordsWithEntry { padding-inline: 0; }
+}
+
+@container diet-records (width < 300px) {
   .recordsWithEntry [data-panel-presentation="nutrition"] details[data-record-slot="metrics"] summary {
     gap: 6px;
-  }
-
-  .recordsWithEntry [data-panel-presentation="nutrition"] details[data-record-slot="metrics"] summary > div > strong {
-    font-size: 1.5rem;
   }
 
   .recordsWithEntry [data-panel-presentation="nutrition"] details[data-record-slot="metrics"] summary > span {
@@ -99,5 +108,15 @@
   .recordsWithEntry [data-panel-presentation="nutrition"] details[data-record-slot="metrics"] summary figure svg {
     width: 28px;
     height: 28px;
+  }
+}
+
+@container diet-records (width < 280px) {
+  .recordsWithEntry [data-record-slot="legend"] {
+    column-gap: 6px;
+  }
+
+  .recordsWithEntry [data-panel-presentation="nutrition"] details[data-record-slot="metrics"] summary > div > strong {
+    font-size: 1.5rem;
   }
 }

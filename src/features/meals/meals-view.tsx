@@ -19,7 +19,7 @@ import { useNestedChartRange } from "@/components/use-nested-chart-range";
 import {RecordDetailActions} from "@/components/record-detail-actions";
 import { useLocalToday } from "@/components/use-local-today";
 import { FoodTable } from "./presets";
-import { FoodLibraryEntry } from "./food-library-entry";
+import { FoodLibraryDateEntry, FoodLibraryEntry } from "./food-library-entry";
 import foodLibraryEntry from "./food-library-entry.module.css";
 import { PhotoFields } from "./photos";
 import { SavedMealList } from "./saved-meal-list";
@@ -50,6 +50,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   if(snapshot!==base){setBase(snapshot);setLocal(null);}
   const state=local??snapshot,mobile=useInitialMobileMode(),[tab,setTab]=useState<"meals"|"foods">("meals");
   const libraryEntry = useRef<HTMLButtonElement>(null);
+  const dateLibraryEntry = useRef<HTMLButtonElement>(null);
   const libraryBack = useRef<HTMLButtonElement>(null);
   const recordsScroll = useRef<number | null>(null);
   useLayoutEffect(() => {
@@ -60,7 +61,8 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
     } else {
       window.scrollTo({ top: recordsScroll.current, behavior: "instant" });
       recordsScroll.current = null;
-      libraryEntry.current?.focus({ preventScroll: true });
+      const entry = [libraryEntry.current, dateLibraryEntry.current].find(button => button?.getClientRects().length);
+      entry?.focus({ preventScroll: true });
     }
   }, [tab]);
   function openFoodLibrary() {
@@ -150,7 +152,8 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
       <RecordTrendPanel presentation="nutrition" graphic={<NutritionComposition totals={chosen?.totals}/>}
        range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft({from:customFrom||from,to:customTo});setCustomOpen(true);}else{prepareRange(key);setRange(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="饮食" value={customDraft} change={setCustomDraft} apply={()=>{setCustomFrom(customDraft.from);setCustomTo(customDraft.to);setRange("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
-       date={summaryDate} view={()=>{const target=summaryDate;viewDay(target);chart.releasePreview();}} readoutLabel="选中日营养"
+       date={summaryDate} dateActions={<FoodLibraryDateEntry buttonRef={dateLibraryEntry} onOpen={openFoodLibrary}/>}
+       view={()=>{const target=summaryDate;viewDay(target);chart.releasePreview();}} readoutLabel="选中日营养"
        metrics={metrics.map(metric=>({label:metricLabels[metric],value:formatNutrition(chosen?.totals.values[metric]??null,metric),unit:unitFor(metric),inlineUnit:metric!=="caloriesKcal",tone:metric==="caloriesKcal"?"blue":undefined,note:chosen?.totals.incomplete[metric]?"已知部分":metric!=="caloriesKcal"&&macroComposition(chosen?.totals).kind==="known"?((macroComposition(chosen?.totals).segments.find(s=>s.metric===metric)?.ratio??0)*100).toFixed(1)+'%':undefined,reserveNote:metric!=="caloriesKcal"||groups.some(group=>group.date>=from&&group.date<=to&&group.totals.incomplete[metric])}))}
        metricVariants={groups.filter(group=>group.date>=from&&group.date<=to).map(group=>metrics.map(metric=>formatNutrition(group.totals.values[metric],metric)))}
        title="每日摄入" unit="千卡"

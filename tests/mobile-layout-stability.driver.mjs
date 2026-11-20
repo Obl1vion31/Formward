@@ -317,7 +317,25 @@ export async function runMobileLayoutStability(db) {
           await page.waitForFunction(() => !document.querySelector("[data-assistant-page]")?.hasAttribute("data-assistant-keyboard"));
           await page.getByRole("tab", { name: "待办", exact: true }).click();
           await page.getByRole("region", { name: "快捷记录", exact: true }).waitFor();
+          const tabs = page.getByRole("tablist", { name: "小助手内容" });
+          async function checkTabInsets() {
+            await page.waitForFunction(() => {
+              const track = document.querySelector('[role="tablist"][aria-label="小助手内容"]');
+              const tab = track?.querySelector('[aria-selected="true"]')?.getBoundingClientRect();
+              const plate = track?.querySelector('[data-capsule-indicator]')?.getBoundingClientRect();
+              return tab && plate && tab.left + 2 <= plate.left && plate.right <= tab.right - 2;
+            });
+            const gaps = await tabs.evaluate(track => {
+              const box = track.getBoundingClientRect();
+              const tab = track.querySelector('[aria-selected="true"]').getBoundingClientRect();
+              const plate = track.querySelector('[data-capsule-indicator]').getBoundingClientRect();
+              return [plate.left - tab.left, plate.top - box.top, tab.right - plate.right, box.bottom - plate.bottom];
+            });
+            gaps.forEach(gap => near(gap, 3, "小助手选中底片四边等距"));
+          }
+          await checkTabInsets();
           await page.getByRole("tab", { name: "聊天", exact: true }).click();
+          await checkTabInsets();
           assert.equal(await text.inputValue(), draft);
           await page.getByRole("button", { name: "查看 4 张照片", exact: true }).click();
           const viewer = page.getByRole("dialog", { name: "照片预览", exact: true });

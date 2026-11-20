@@ -16,23 +16,33 @@ export function FoodLibraryEntryProvider({ children }: { children: ReactNode }) 
   return <EntrySlotContext value={slot}>{children}</EntrySlotContext>;
 }
 
-function EntryButton({ onOpen, hidden, buttonRef }: {
+function EntryButton({ onOpen, hidden, buttonRef, inline = false }: {
   onOpen?: () => void;
   hidden?: boolean;
   buttonRef?: Ref<HTMLButtonElement>;
+  inline?: boolean;
 }) {
   return <button
     type="button"
     ref={buttonRef}
-    className={styles.button}
+    className={inline ? styles.button + " " + styles.inlineButton : styles.button}
     aria-label="食材库"
     data-meal-library-entry={onOpen ? "ready" : "pending"}
+    data-meal-library-placement={inline ? "date" : "edge"}
     disabled={!onOpen}
     hidden={hidden}
     onClick={onOpen}
   >
-    <span className={styles.face} aria-hidden="true"><span>食</span><span>材</span><span>库</span><span className={styles.arrow}>›</span></span>
+    {inline ? "食材库" : <span className={styles.face} aria-hidden="true"><span>食</span><span>材</span><span>库</span><span className={styles.arrow}>›</span></span>}
   </button>;
+}
+
+export function FoodLibraryDateEntry({ onOpen, buttonRef }: {
+  onOpen?: () => void;
+  buttonRef?: Ref<HTMLButtonElement>;
+}) {
+  const refreshing = useContext(WorkspaceRefreshingContext);
+  return <EntryButton inline buttonRef={buttonRef} onOpen={refreshing ? undefined : onOpen}/>;
 }
 
 export function FoodLibraryEntryHost({ visible }: { visible: boolean }) {

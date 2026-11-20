@@ -23,6 +23,7 @@ import {linkedTrend} from './metric-trend-model';
 import {OverviewPlotLoadingGuides,OverviewTrendLayout} from '@/features/dashboard/overview-trend-layout';
 import measurementStyles from '@/features/measurements/measurements-view.module.css';
 import {NutritionComposition} from "@/features/meals/nutrition-composition";
+import {FoodLibraryDateEntry} from "@/features/meals/food-library-entry";
 import foodLibraryEntry from "@/features/meals/food-library-entry.module.css";
 import {EnergyComposition} from '@/features/activities/energy-composition';
 import {EnergyPlotFrame} from '@/features/activities/energy-plot-frame';
@@ -67,7 +68,7 @@ export function WorkspaceLoading({kind,returnShell=false,destination}:{kind:'ove
  const content=<div data-workspace-reading={!returnShell||returningToOverview||undefined} aria-busy={waiting||undefined} aria-label={title}>
  {kind==='overview'?<OverviewLoading date={date} rangeMode={recallOverview()?.mode??undefined} readingStatus={readingStatus} showPlotGuides={waiting&&!entryOpen}/>:<RecordWorkspace title={title} className={kind==="nutrition"?foodLibraryEntry.recordsWithEntry:undefined}>
  <div data-record-trend>
- <RecordTrendPanel chartSummary={body?<span aria-hidden="true"> </span>:undefined} date={date} view={()=>{}} presentation={kind} loading
+ <RecordTrendPanel chartSummary={body?<span aria-hidden="true"> </span>:undefined} date={date} view={()=>{}} dateActions={kind==="nutrition"?<FoodLibraryDateEntry/>:undefined} presentation={kind} loading
   metrics={metrics} mobileMetrics={mobileMetrics} readingStatus={primaryStatus}
   title={kind==='nutrition'?'每日摄入':body?'体重 · kg':'每日消耗'} unit={body?undefined:'千卡'} range={<ChartRanges value={range} change={()=>{}} loading/>}
   options={kind==='nutrition'?<InlineChartControls><div role="group" aria-label="营养占比口径"><button type="button" disabled aria-pressed>克数占比</button><button type="button" disabled aria-pressed={false}>能量占比</button></div></InlineChartControls>:body?<PendingEvening linked={linked}/>:undefined}
