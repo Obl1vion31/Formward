@@ -25,7 +25,7 @@ async function createContext(size,theme='dark',motion=process.env.FORMWARD_LOADI
   const visible=node=>node&&node.getBoundingClientRect().width>0&&node.getBoundingClientRect().height>0&&getComputedStyle(node).visibility!=='hidden'&&getComputedStyle(node).display!=='none';
   const first=(selector,root=document)=>[...root.querySelectorAll(selector)].find(visible);
   const sample=()=>{
-   const content=first('[data-workspace-content]'),frame=document.querySelector('[data-workspace-frame]');
+   const frame=document.querySelector('[data-workspace-frame]'),content=frame?.querySelector('[data-workspace-content]');
    if(content&&frame){
     const kind=frame.dataset.workspaceFrame,root=first('[data-workspace-reading],[data-training-loading],[data-record-workspace],[data-training-view]',content);
     if(root){
@@ -39,6 +39,8 @@ async function createContext(size,theme='dark',motion=process.env.FORMWARD_LOADI
      const actionButtons=[...root.querySelectorAll('[class*="todayActions"] button')].map(node=>({label:node.textContent.trim(),width:node.getBoundingClientRect().width,disabled:node.disabled}));
      const buttons=[...root.querySelectorAll('button')].filter(visible).map(node=>({label:node.textContent.trim(),disabled:node.disabled}));
      if(window.__loadingFrames.length<6000)window.__loadingFrames.push({time:performance.now(),kind,recordMode,phase:skeleton?'loading':'actual',originY:origin.y,viewportHeight:innerHeight,scrollY,anchors,missing,statics,colors,actionButtons,buttons,pageTitle:!!first('h1,[role="heading"][aria-level="1"]'),recordRows:root.querySelectorAll('[data-record-date]').length});
+    }else if(window.__loadingFrames.length>0&&window.__loadingFrames.length<6000&&!first('[role=alert]',content)){
+     window.__loadingFrames.push({time:performance.now(),kind,phase:'empty'});
     }
    }requestAnimationFrame(sample);
   };requestAnimationFrame(sample);
@@ -60,6 +62,7 @@ try{
    const frames=await page.evaluate(()=>window.__loadingFrames),loading=frames.filter(f=>f.phase==='loading'),actual=frames.filter(f=>f.phase==='actual');if(delay>0)assert.ok(loading.length>=2);assert.ok(actual.length>=2);
    // 在实际加载帧核对，避免截图命令完成时内容已就绪而误查卸载的骨架。
    for(const frame of loading){for(const label of required)assert.ok(frame.statics.some(value=>value.includes(label)),prefix+'加载帧缺少或隐藏固定文字 '+label);assert.ok(frame.pageTitle,prefix+'加载帧固定页名不可见');if(kind!=='overview'){const label=kind==='training'?'开始训练':'查看记录';const button=frame.buttons.find(item=>item.label.includes(label));assert.ok(button,prefix+'加载帧缺少操作 '+label);assert.equal(button.disabled,true);}}
+   assert.ok(frames.every(frame=>frame.phase!=='empty'),prefix+'等待与实页交接出现空帧');
    const baseline=loading.at(-1)??actual[0],deltas=[];
    for(const f of frames){assert.deepEqual(f.missing,[],prefix+'缺少固定槽位');for(const[key,r]of Object.entries(baseline.anchors)){const a=f.anchors[key];assert.ok(a,prefix+'丢失槽位 '+key);if(r.y+baseline.originY>=baseline.viewportHeight||r.y+r.height+baseline.originY<=0)continue;for(const prop of ['x','y','width','height'])deltas.push({key,prop,delta:Math.abs(a[prop]-r[prop])});}}
    const max=deltas.reduce((a,b)=>a.delta>b.delta?a:b,{delta:0});

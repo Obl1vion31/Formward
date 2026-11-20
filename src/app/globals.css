@@ -941,7 +941,7 @@ form[data-entry-form] button:not([type=submit]) {min-height:44px}
 
 /* 数据平面按区间密度排版，与是否有共享转场来源独立。 */
 .detail-trend-plot{width:100%;max-width:640px;margin-inline:auto}
-dialog[data-surface-phase=closing]::backdrop{background-color:transparent}
+dialog[data-surface-phase=closing]:not([data-inspector])::backdrop{background-color:transparent}
 @media(max-width:700px),(hover:none) and (pointer:coarse){
  :root{
   --workspace-dock-gap:calc(12px + var(--workspace-safe-bottom));

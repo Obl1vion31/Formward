@@ -82,6 +82,7 @@ try {
   process.env.FORMWARD_LOADING_CONFIG = configPath;
   if(process.env.FORMWARD_ENTRY_LOADING==="1"){const {checkEntryLoading}=await import("./entry-loading.driver.mjs");await checkEntryLoading();}
   else if(process.env.FORMWARD_CHART_RETURN==="1")await import("./chart-return.browser.mjs");
+  else if(process.env.FORMWARD_LOADING_PART==="handoff")await import("./workspace-handoff.browser.mjs");
   else if (process.env.FORMWARD_LOADING_PREVIEW !== "1") await import("./workspace-loading-check.browser.mjs");
   else { console.log(JSON.stringify({ baseURL, email: fixture.email, password: fixture.password, configPath, fictional: true })); await new Promise<void>(done => {process.once("SIGTERM",done);process.once("SIGINT",done);}); }
 } catch (error) { await writeFile(folder + "/server-failure.log", log); throw error; }

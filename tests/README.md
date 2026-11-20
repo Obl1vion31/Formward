@@ -61,6 +61,8 @@ production build后运行pnpm test:loading-browser。workspace-loading.browser.m
 
 workspace-loading-check.browser.mjs逐页检查总览、饮食、训练、消耗、身体的固定标题、查看／历史入口、图例及颜色；必须先存在且可见，再比较前后固定槽位≤1px。两主题覆盖320／390／430、矮屏、横屏及1100／1440／1920；保留首帧、完整采样及接管后至少500ms，真实列表行数变化单独记录。资料及安全面板检查350ms局部反馈、失败、关闭和迟到响应，页面导航保留草稿及焦点保护。减少动态效果不冒充完整动效验收。
 
+设置 `FORMWARD_LOADING_PART=handoff` 复测主导航正常进入及暂时缺少可见正文的提交。测试复用生产构建、真实路由和虚构账号，并逐帧比对同页等待外壳与实页的图框位置。同时验证手机身体录入、桌面身体编辑的开合、草稿保护和减少动态效果，检查面板离屏至卸载这段时间的遮罩透明度。Chromium 和 WebKit 分别运行，截图、逐帧数据和录屏保存在私有验收目录。
+
 FORMWARD_LOADING_PREVIEW=1保留本机虚构预览供人工核看，SIGTERM／SIGINT会关闭本人测试应用和数据库。FORMWARD_LOADING_DIAGNOSE=1只用于小范围定位并保留失败报告，不能作为最终通过证据；实际浏览器／真机未测项仍单独注明。
 
 ## 饮食列表直接记全

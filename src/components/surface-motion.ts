@@ -15,7 +15,13 @@ export async function animateSurface(node:HTMLElement,direction:'open'|'close',s
  const prior=animations.get(node),style=getComputedStyle(node);
  const current:Pose|undefined=prior||direction==='close'?{transform:style.transform,clipPath:style.clipPath,opacity:style.opacity}:undefined;
  if(current)Object.assign(node.style,current);
- stopSurfaceMotion(node);node.style.animation='none';node.dataset.surfaceMode=mode;node.dataset.surfacePhase=direction==='open'?'opening':'closing';
+ const timing=mode==='workspace-page'?workspaceMotionTiming:{duration:direction==='open'?300:210,easing:'cubic-bezier(.2,.8,.2,1)'};
+ const durationMs=duration??timing.duration;
+ stopSurfaceMotion(node);
+ node.style.animation='none';
+ node.style.setProperty('--surface-motion-duration',durationMs+'ms');
+ node.dataset.surfaceMode=mode;
+ node.dataset.surfacePhase=direction==='open'?'opening':'closing';
  const full:Pose={transform:'translate(0px,0px)',clipPath:'none',opacity:'1'};
  let folded:Pose;
  if(mode==='workspace-page')folded={transform:'translateX(16px)',clipPath:'none',opacity:direction==='open'?'.65':'0'};
@@ -35,8 +41,7 @@ export async function animateSurface(node:HTMLElement,direction:'open'|'close',s
  }
  const end=direction==='open'?full:folded;
  if(matchMedia('(prefers-reduced-motion: reduce)').matches||typeof node.animate!=='function'){Object.assign(node.style,end);node.dataset.surfacePhase=direction==='open'?'open':'closed';return true;}
- const timing=mode==='workspace-page'?workspaceMotionTiming:{duration:direction==='open'?300:210,easing:'cubic-bezier(.2,.8,.2,1)'};
- const animation=node.animate([current??(direction==='open'?folded:full),end],{duration:duration??timing.duration,easing:timing.easing,fill:'forwards'});animations.set(node,animation);
+ const animation=node.animate([current??(direction==='open'?folded:full),end],{duration:durationMs,easing:timing.easing,fill:'forwards'});animations.set(node,animation);
  try{await animation.finished;}catch{return false;}
  if(animations.get(node)!==animation)return false;
  // 先提交末态再撤销动画；退出容器在卸载前始终留在屏幕外。
