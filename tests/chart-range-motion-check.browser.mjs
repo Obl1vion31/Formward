@@ -146,6 +146,7 @@ export async function checkChartRangeMotion({browser,base,today,art,context,chec
         const parts = isBody?weight(-56,-55):dateKeys(-55);
         if(kind==="intake")parts.push((phone?"partial:":"partial-pattern:")+at(-55));
         const from30 = await expand(page,"90D",parts);
+        evidence.push({device,kind,from7,from30});
         if(isBody) {
           assertPointThenLine(from7,device+" 晨重 7D→30D");
           assertPointThenLine(from30,device+" 晨重 30D→90D");
@@ -154,7 +155,6 @@ export async function checkChartRangeMotion({browser,base,today,art,context,chec
           assertBarGrowth(from7,device+" "+kind+" 7D→30D");
           assertBarGrowth(from30,device+" "+kind+" 30D→90D");
         }
-        evidence.push({device,kind,from7,from30});
         await page.screenshot({path:resolve(art,device+"-"+kind+"-90D.png")});
 
         await observeRange(page,parts);
