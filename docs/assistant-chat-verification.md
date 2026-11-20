@@ -2,6 +2,12 @@
 
 正式站版本与兼容回退见[部署记录](deployment.md#当前正式版本)。 [正式站](https://formward.top/dashboard/assistant)
 
+## 手机键盘外壳位移修正
+
+`dual-entry-1f9920c8-assistant-keyboard-native-pan-20261120` 于北京时间 20:24:40 上线。修正依据为先前 iPhone 的可见高度 695→357 CSS px 与外壳上移 338 CSS px 记录。程序从实际外壳边界恢复顶栏与输入位置，输入区底边随可见高度，模型菜单按助手同一画面边界算可用空间。
+
+正式包在 Chromium 和 WebKit 各复验 12 轮。每轮让外壳在浏览器内实际移动，读取标题、输入和发送的布局和点击命中。外壳上移后，发送键到底边保留 7 CSS px，模型菜单与模型按钮保留 8 CSS px。收起键盘后两张照片与草稿保持。输入区柔光移除，保存按钮沿用既有逻辑。用户要求发布后直接测试，本轮新包的实体 iPhone 系统键盘仍待验证。 [公网小助手](https://formward.top/dashboard/assistant)
+
 ## 手机键盘调整与输入区
 
 `dual-entry-b6a7307b-assistant-keyboard-viewport-20261120` 于北京时间 19:48:34 发布，实体 iPhone 打开系统键盘后仍复现输入框裁切。19:54:19 网页和聊天 worker 已回切到 `dual-entry-c990c6fb-meal-entry-public-20261120`。该候选调整了输入和附件滚动，移除了输入区按压柔光。这些调整随候选一并撤回。
