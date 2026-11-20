@@ -16,6 +16,8 @@ chart-transition.tsx管理三类趋势入口的真实目标地址、已知读数
 
 Inspector在手机提供底部面板：只读stableScroll详情默认半屏，录入默认近全屏，把手可拖动及点击切换。所有关闭路径仍经过同一个草稿/忙碌保护；正文自行滚动，桌面侧栏和compact确认框保持各自用途。工作区的读取反馈由 WorkspaceLoading 和 LocalLoading 在实际内容区域呈现。登录和独立动作在对应表单内显示反馈。
 
+手机录入面板与助手通过 input-viewport.ts 读取系统键盘后的可视视口和焦点。Inspector 按实际可用高度布置面板，输入被标题或保存区遮住时只滚动面板正文。按内容增高的短面板关闭标题拖动。来源与其他锚定浮层使用 anchored-popover.ts 计算触发控件、可视视口及所在面板的交集，空间不足时让选项在浮层内滚动。
+
 appearance-state区分用户选择system/light/dark与实际data-theme，早期初始化保留本机既有偏好；AppearanceSync在持久框架内保持系统监听，设置面板关闭后仍响应。AppearanceToggle在顶栏直接切换，FollowSystemAppearance提供账号菜单单个系统外观开关；首次使用与演练使用OnboardingAppearance，复用日／月切换、圆形揭示和轻量外观菜单的跟随系统选项。GlassMenu默认账号菜单，可为复用入口指定可访问名称。appearance-motion使用原生View Transition揭示真实主题，快速反向取消旧层及旧回调，失败／减少动态效果立即交接，不复制表单或重挂载页面。
 
 form-draft.ts比较有效数字文本而不舍入，draft-guard.ts集中“继续编辑／放弃修改”。LoadingLink保留Next原有链接能力，站内导航先处理真实草稿；Inspector、内部返回和退出登录遵从相同判定。record-history.tsx使用显式日期查看表单，Enter与同日重复查看可用。主表单以data-entry-form标记使用globals.css公共边框、16px输入、44px操作和逐态样式；带单位的个人资料沿用一个外框。

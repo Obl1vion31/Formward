@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { followPopoverAnchor, readPopoverBounds } from "@/components/anchored-popover";
 import styles from "./meal-editor.module.css";
 
 type Props = {
@@ -25,28 +26,31 @@ export function MealItemDetails({ id, label, trigger, children, variant = "menu"
     if (!open || !button.current || !bubble.current || !host) return;
     const anchor = button.current, popup = bubble.current, dialog = host;
     const row = variant === "attached" ? anchor.closest<HTMLElement>("[data-meal-row]") : null;
-    const viewport = window.visualViewport;
-    let frame = 0, dismissFrame = 0, revealed = false;
+    let dismissFrame = 0, revealed = false;
 
-    function place() {
+    function deferUnavailable() {
+      popup.style.visibility = "hidden";
+      if (dismissFrame) return;
+      dismissFrame = requestAnimationFrame(() => {
+        place(true);
+        dismissFrame = 0;
+      });
+    }
+
+    function place(retry = false) {
       if (!popup.matches(":popover-open")) return;
-      const bounds = dialog.getBoundingClientRect(), triggerBox = anchor.getBoundingClientRect();
+      const { left, right, top, bottom: surfaceBottom } = readPopoverBounds(dialog, 8, true);
+      const triggerBox = anchor.getBoundingClientRect();
       const rowBox = row?.getBoundingClientRect() ?? triggerBox;
-      const left = Math.max(bounds.left, viewport?.offsetLeft ?? 0) + 8;
-      const right = Math.min(bounds.right, (viewport?.offsetLeft ?? 0) + (viewport?.width ?? innerWidth)) - 8;
-      const headerOffset = parseFloat(getComputedStyle(dialog).getPropertyValue("--inspector-sticky-offset")) || 0;
-      const top = Math.max(bounds.top + 8, (viewport?.offsetTop ?? 0) + 8, bounds.top + headerOffset);
       const footer = dialog.querySelector<HTMLElement>("[data-meal-footer]")?.getBoundingClientRect();
-      let bottom = Math.min(bounds.bottom, (viewport?.offsetTop ?? 0) + (viewport?.height ?? innerHeight)) - 8;
-      if ((row || variant === "choices") && footer && footer.height > 0 && footer.top > top) bottom = Math.min(bottom, footer.top - 6);
-      if (triggerBox.bottom <= top || triggerBox.top >= bottom || triggerBox.width === 0 || right <= left) {
-        // A container switch can move the trigger in the same frame as a resize.
-        cancelAnimationFrame(dismissFrame);
-        dismissFrame = requestAnimationFrame(() => {
-          const current = anchor.getBoundingClientRect();
-          if (!current.width || current.bottom <= top || current.top >= bottom) popup.hidePopover();
-          else place();
-        });
+      const bottom = (row || variant === "choices") && footer && footer.height > 0 && footer.top > top
+        ? Math.min(surfaceBottom, footer.top - 6)
+        : surfaceBottom;
+      if (!triggerBox.width || triggerBox.bottom <= top || triggerBox.top >= bottom ||
+        triggerBox.left >= right || triggerBox.right <= left || right <= left) {
+        // Scroll and viewport changes can arrive a frame apart while Safari resizes.
+        if (retry) popup.hidePopover();
+        else deferUnavailable();
         return;
       }
 
@@ -54,10 +58,9 @@ export function MealItemDetails({ id, label, trigger, children, variant = "menu"
       const detailWidth = variant === "choices" ? 172 : 312;
       const width = Math.min(row ? rowBox.width : detailWidth, right - left);
       popup.style.width = width + "px";
-      popup.style.maxHeight = "none";
-      const height = popup.getBoundingClientRect().height;
+      const height = Math.min(360, popup.scrollHeight + popup.offsetHeight - popup.clientHeight);
       const below = bottom - rowBox.bottom - gap;
-      const above = triggerBox.top - top - gap;
+      const above = rowBox.top - top - gap;
 
       if (row && !revealed && below < height) {
         revealed = true;
@@ -65,26 +68,27 @@ export function MealItemDetails({ id, label, trigger, children, variant = "menu"
         const position = dialog.scrollTop;
         dialog.scrollBy({ top: needed, behavior: "instant" });
         if (dialog.scrollTop !== position) {
-          place();
+          place(retry);
           return;
         }
       }
       revealed = true;
-      const down = !!row || below >= height || below >= above;
-      const maxHeight = Math.max(0, Math.min(360, down ? below : above));
-      if (maxHeight < 24) {
-        popup.hidePopover();
+      const minHeight = variant === "choices" ? 54 : 44;
+      const down = below >= minHeight && (below >= height || !!row || below >= above);
+      const maxHeight = Math.min(360, down ? below : above);
+      if (maxHeight < minHeight) {
+        if (retry) popup.hidePopover();
+        else deferUnavailable();
         return;
       }
-      popup.style.left = Math.max(left, Math.min(row ? rowBox.left : triggerBox.right - width, right - width)) + "px";
-      popup.style.top = (down ? rowBox.bottom + gap : triggerBox.top - gap - Math.min(height, maxHeight)) + "px";
-      popup.style.maxHeight = maxHeight + "px";
-      popup.dataset.positioned = "true";
-    }
 
-    function schedule() {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(place);
+      cancelAnimationFrame(dismissFrame);
+      dismissFrame = 0;
+      popup.style.left = Math.max(left, Math.min(row ? rowBox.left : triggerBox.right - width, right - width)) + "px";
+      popup.style.top = (down ? rowBox.bottom + gap : rowBox.top - gap - Math.min(height, maxHeight)) + "px";
+      popup.style.maxHeight = maxHeight + "px";
+      popup.style.removeProperty("visibility");
+      popup.dataset.positioned = "true";
     }
 
     function outside(event: PointerEvent) {
@@ -100,30 +104,19 @@ export function MealItemDetails({ id, label, trigger, children, variant = "menu"
       anchor.focus({ preventScroll: true });
     }
 
-    place();
+    const stopPositioning = followPopoverAnchor(popup, anchor, dialog, place);
     if (variant === "choices" && popup.dataset.positioned) {
       const selected = popup.querySelector<HTMLButtonElement>('[aria-pressed="true"]');
       (selected ?? popup.querySelector<HTMLButtonElement>("button"))?.focus({ preventScroll: true });
     }
     document.addEventListener("pointerdown", outside, true);
     document.addEventListener("keydown", escape, true);
-    document.addEventListener("scroll", schedule, true);
-    window.addEventListener("resize", schedule);
-    viewport?.addEventListener("resize", schedule);
-    viewport?.addEventListener("scroll", schedule);
-    const observer = new ResizeObserver(schedule);
-    observer.observe(dialog);
-    observer.observe(popup);
     return () => {
-      cancelAnimationFrame(frame);
+      stopPositioning();
       cancelAnimationFrame(dismissFrame);
-      observer.disconnect();
       document.removeEventListener("pointerdown", outside, true);
       document.removeEventListener("keydown", escape, true);
-      document.removeEventListener("scroll", schedule, true);
-      window.removeEventListener("resize", schedule);
-      viewport?.removeEventListener("resize", schedule);
-      viewport?.removeEventListener("scroll", schedule);
+      popup.style.removeProperty("visibility");
       delete popup.dataset.positioned;
     };
   }, [open, host, variant]);

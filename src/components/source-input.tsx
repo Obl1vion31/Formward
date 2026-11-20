@@ -3,6 +3,7 @@
 import {LocalLoading} from "@/components/local-loading";
 import { useEffect, useId, useLayoutEffect, useRef, useState, useTransition } from "react";
 import {trackPopoverPosition} from "./anchored-popover";
+import {useMobileMode} from "./use-mobile-mode";
 
 import styles from "./source-input.module.css";
 
@@ -34,20 +35,30 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
       window.removeEventListener("blur", closeWindow);
     };
   }, [open]);
+  const mobile = useMobileMode() === true;
+  const lifted = !!compactLabel || mobile;
   const options = sources.filter(source => source.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   const visible = open && options.length > 0;
   useLayoutEffect(() => {
-    if (!compactLabel || !input.current || !menu.current) return;
-    const panel = menu.current;
+    if (!lifted || !input.current || !menu.current) return;
+    const panel = menu.current, field = input.current;
     if (!visible) {
       if (panel.matches(":popover-open")) panel.hidePopover();
       return;
     }
     if (!panel.matches(":popover-open")) panel.showPopover();
-    return trackPopoverPosition(panel, input.current, {
-      width: Math.max(260, input.current.getBoundingClientRect().width), maxHeight: 176, preferAbove: true,
+    return trackPopoverPosition(panel, field, {
+      width: () => compactLabel ? Math.max(260, field.getBoundingClientRect().width) : field.getBoundingClientRect().width,
+      owner: mobile ? field.closest("dialog") ?? undefined : undefined,
+      avoidHeading: mobile,
+      margin: mobile ? 6 : 12,
+      align: mobile ? "end" : "start",
+      minHeight: 46,
+      maxHeight: 176,
+      preferAbove: !!compactLabel,
+      onUnavailable: () => { setOpen(false); setActive(-1); },
     });
-  }, [compactLabel, visible, options.length]);
+  }, [compactLabel, lifted, mobile, visible, options.length]);
   function showHistory() { setQuery(""); setOpen(true); setActive(-1); setColumn(0); }
   function closeHistory() { setOpen(false); setActive(-1); }
   function choose(source: string, pointerSelection = false) {
@@ -77,7 +88,14 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
           if (options.length) {
             const next = event.key === "ArrowDown" ? (active + 1) % options.length : active <= 0 ? options.length - 1 : active - 1;
             setActive(next);
-            requestAnimationFrame(() => document.getElementById(`${id}-cell-${next}-0`)?.scrollIntoView({ block: "nearest" }));
+            requestAnimationFrame(() => {
+              const panel = menu.current;
+              const cell = document.getElementById(`${id}-cell-${next}-0`);
+              if (!panel || !cell) return;
+              const list = panel.getBoundingClientRect(), option = cell.getBoundingClientRect();
+              if (option.top < list.top) panel.scrollTop += option.top - list.top;
+              else if (option.bottom > list.bottom) panel.scrollTop += option.bottom - list.bottom;
+            });
           }
         }
         if (open && active >= 0 && (event.key === "ArrowLeft" || event.key === "ArrowRight")) { event.preventDefault(); setColumn(event.key === "ArrowRight" ? 1 : 0); }
@@ -100,7 +118,7 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
       <span className={styles.compactValue} data-empty={!value} aria-hidden="true">{value || "输入或选择来源"}</span>
       <svg className={styles.compactChevron} width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
     </div> : field}
-    <div id={`${id}-options`} ref={menu} popover={compactLabel ? "manual" : undefined} className={styles.sourceOptions} role="grid" aria-label={`${label}历史建议`} hidden={!visible}>
+    <div id={`${id}-options`} ref={menu} popover={lifted ? "manual" : undefined} className={styles.sourceOptions} role="grid" aria-label={`${label}历史建议`} hidden={!visible}>
       {options.map((source, index) => <div role="row" key={source}>
         <div id={`${id}-cell-${index}-0`} role="gridcell" aria-selected={index === active && column === 0} className={styles.sourceOption}><button className={styles.sourcePick} type="button" tabIndex={-1} disabled={disabled || busy} onPointerDown={event => { if (event.pointerType === "mouse") event.preventDefault(); }} onClick={event => choose(source, event.detail > 0)}>{source}</button></div>
         <div id={`${id}-cell-${index}-1`} role="gridcell" aria-selected={index === active && column === 1}><button type="button" aria-label={`移除来源建议 ${source}`} title="移除来源建议" disabled={disabled || busy} onPointerDown={event => { if (event.pointerType === "mouse") event.preventDefault(); }} onClick={() => remove(source)}>×</button></div>

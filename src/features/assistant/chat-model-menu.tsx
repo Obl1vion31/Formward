@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { readVisibleViewport } from "@/components/input-viewport";
 import { useDelayedReading } from "@/components/local-loading";
 import { useAssistantChat } from "./chat-client";
 import { Glyph } from "./chat-icon";
@@ -89,36 +90,53 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
   useLayoutEffect(() => {
     const node = menu.current, button = anchor.current;
     if (!node || !button) return;
-    node.showPopover();
     const viewport = window.visualViewport;
     const area = button.closest<HTMLElement>("." + styles.composerArea);
-    const content = button.closest<HTMLElement>("[data-assistant-page-content]");
+    const page = button.closest<HTMLElement>("[data-assistant-page-content]");
+    const owner = page ?? button.closest<HTMLElement>("[data-assistant-surface]");
     let frame = 0;
     const place = () => {
       const box = button.getBoundingClientRect();
-      const top = (content?.getBoundingClientRect().top ?? viewport?.offsetTop ?? 0) + 8;
-      const left = (viewport?.offsetLeft ?? 0) + 12;
-      const right = left + (viewport?.width ?? innerWidth) - 24;
-      const width = Math.min(256, right - left);
+      const visible = readVisibleViewport();
+      const bounds = owner?.getBoundingClientRect();
+      const left = Math.max(visible.left, bounds?.left ?? visible.left);
+      const right = Math.min(visible.right, bounds?.right ?? visible.right);
+      // 手机助手已按外壳实际位移修正内容区的位置。
+      const top = page && bounds ? bounds.top : Math.max(visible.top, bounds?.top ?? visible.top);
+      const bottom = Math.min(bounds?.bottom ?? visible.bottom, page ? top + visible.height : visible.bottom);
+      const width = Math.min(256, right - left - 24);
       const anchorTop = box.top - 8;
+      const maxHeight = anchorTop - top - 8;
+      // 给一个完整的触控行和菜单内边距留空间。
+      if (width < 44 || maxHeight < 58 || box.right <= left || box.left >= right || box.bottom <= top || box.top >= bottom) {
+        if (node.matches(":popover-open")) node.hidePopover();
+        frame = requestAnimationFrame(dismiss);
+        return;
+      }
       node.style.width = width + "px";
-      node.style.maxHeight = Math.max(0, anchorTop - top) + "px";
-      node.style.setProperty("--model-left", Math.max(left, Math.min(box.right - width, right - width)) + "px");
+      node.style.maxHeight = maxHeight + "px";
+      node.style.setProperty("--model-left", Math.max(left + 12, Math.min(box.right - width, right - 12 - width)) + "px");
       node.style.setProperty("--model-anchor", anchorTop + "px");
+      if (node.matches(":popover-open")) return;
+      node.showPopover();
+      const focus = node.querySelector<HTMLElement>('[aria-checked="true"]:not(:disabled)')
+        ?? node.querySelector<HTMLElement>("button:not(:disabled)") ?? node;
+      focus.focus({ preventScroll: true });
     };
-    const observer = new ResizeObserver(place);
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        place();
+      });
+    };
+    const observer = new ResizeObserver(schedule);
     observer.observe(button);
     if (area) observer.observe(area);
+    if (owner) observer.observe(owner);
     place();
-    const focus = node.querySelector<HTMLElement>('[aria-checked="true"]:not(:disabled)')
-      ?? node.querySelector<HTMLElement>("button:not(:disabled)") ?? node;
-    focus.focus({ preventScroll: true });
-    const schedule = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(place);
-    };
     window.addEventListener("resize", schedule);
-    if (content) window.addEventListener("scroll", schedule);
+    window.addEventListener("scroll", schedule, true);
     viewport?.addEventListener("resize", schedule);
     viewport?.addEventListener("scroll", schedule);
     return () => {
@@ -126,11 +144,11 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
       observer.disconnect();
       if (node.matches(":popover-open")) node.hidePopover();
       window.removeEventListener("resize", schedule);
-      if (content) window.removeEventListener("scroll", schedule);
+      window.removeEventListener("scroll", schedule, true);
       viewport?.removeEventListener("resize", schedule);
       viewport?.removeEventListener("scroll", schedule);
     };
-  }, [anchor]);
+  }, [anchor, dismiss]);
 
   useEffect(() => {
     const outside = (event: PointerEvent) => {
@@ -151,7 +169,13 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
       const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1
         : index < 0 ? (event.key === "ArrowDown" ? 0 : buttons.length - 1)
           : (index + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length;
-      buttons[next]?.focus();
+      const button = buttons[next];
+      if (!button) return;
+      button.focus({ preventScroll: true });
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const item = button.getBoundingClientRect();
+      const offset = item.top < bounds.top ? item.top - bounds.top : Math.max(0, item.bottom - bounds.bottom);
+      event.currentTarget.scrollTop += offset;
     }}>
     <ModelBalance/>
     <div role="menu" aria-label="选择模型">

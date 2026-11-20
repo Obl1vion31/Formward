@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { observeInputViewport, revealFocusedInput } from "@/components/input-viewport";
 import { lockPageScroll } from "@/components/scroll-lock";
 import { useOrderedArrival } from "@/components/use-ordered-arrival";
 import { animateSurface, stopSurfaceMotion } from "@/components/surface-motion";
@@ -63,10 +64,7 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
     const shell = container.current;
     if (!shown || !shell) return;
     const unlockPage = lockPageScroll();
-    const viewport = window.visualViewport;
-    let frame = 0, keyboard = false;
-    let restingHeight = viewport?.height ?? innerHeight;
-    let layoutWidth = document.documentElement.clientWidth;
+    let lastReveal: { field: HTMLElement; top: number; height: number } | null = null;
 
     const resetKeyboardHeight = () => {
       shell.style.removeProperty("--assistant-content-top");
@@ -74,53 +72,35 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
       shell.style.removeProperty("--assistant-keyboard-height");
     };
 
-    const layout = () => {
-      frame = 0;
-      const height = viewport?.height ?? innerHeight;
-      const focused = document.activeElement;
-      const editing = focused instanceof HTMLElement && shell.contains(focused) &&
-        (focused.matches("textarea,input:not([type=file])") || focused.isContentEditable);
-      const width = document.documentElement.clientWidth;
-      if (width !== layoutWidth) {
-        layoutWidth = width;
-        restingHeight = Math.max(document.documentElement.clientHeight, innerHeight);
-      }
-      if ((!editing && !keyboard) || height > restingHeight) restingHeight = height;
-      const hasKeyboard = (editing || keyboard) && restingHeight - height >= (keyboard ? 8 : 72);
-      if (hasKeyboard) {
-        const shellHeight = shell.clientHeight;
-        const visibleHeight = Math.min(height, shellHeight);
-        // iPhone Safari 聚焦后可能把整个外壳移出屏幕上缘。只补偿测到的外壳位移。
-        const clippedTop = Math.min(Math.max(0, -shell.getBoundingClientRect().top), shellHeight - visibleHeight);
-        shell.style.setProperty("--assistant-content-top", clippedTop + "px");
-        shell.style.setProperty("--assistant-content-height", visibleHeight + "px");
-        shell.style.setProperty("--assistant-keyboard-height", visibleHeight + "px");
-      } else if (keyboard) {
-        resetKeyboardHeight();
-      }
-      keyboard = hasKeyboard;
+    const unobserve = observeInputViewport(shell, ({ height, keyboard, field }) => {
       shell.toggleAttribute("data-assistant-keyboard", keyboard);
-    };
+      if (!keyboard) {
+        lastReveal = null;
+        resetKeyboardHeight();
+        return;
+      }
 
-    function schedule() {
-      if (!frame) frame = requestAnimationFrame(layout);
-    }
-    layout();
-    // 键盘缩高后 Safari 还能继续平移外壳，平移本身不会改变视口高度。
-    window.addEventListener("resize", schedule);
-    window.addEventListener("scroll", schedule);
-    viewport?.addEventListener("resize", schedule);
-    viewport?.addEventListener("scroll", schedule);
-    shell.addEventListener("focusin", schedule);
-    shell.addEventListener("focusout", schedule);
+      const shellHeight = shell.clientHeight;
+      const visibleHeight = Math.min(height, shellHeight);
+      // Safari 可能已经平移外壳。按外壳实际位置补偿，避免重复加上视口偏移。
+      const clippedTop = Math.min(Math.max(0, -shell.getBoundingClientRect().top), shellHeight - visibleHeight);
+      shell.style.setProperty("--assistant-content-top", clippedTop + "px");
+      shell.style.setProperty("--assistant-content-height", visibleHeight + "px");
+      shell.style.setProperty("--assistant-keyboard-height", visibleHeight + "px");
+
+      // 聊天输入栏自行保持光标和草稿；只有消息内的输入需要滚入可见区。
+      const feed = field?.closest<HTMLElement>('[role="log"]');
+      if (!field || !feed || !shell.contains(feed)) {
+        lastReveal = null;
+        return;
+      }
+      if (lastReveal?.field === field && lastReveal.top === clippedTop && lastReveal.height === visibleHeight) return;
+      lastReveal = { field, top: clippedTop, height: visibleHeight };
+      const bounds = feed.getBoundingClientRect();
+      revealFocusedInput(field, shell, bounds.top + 8, bounds.bottom - 8);
+    });
     return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("resize", schedule);
-      window.removeEventListener("scroll", schedule);
-      viewport?.removeEventListener("resize", schedule);
-      viewport?.removeEventListener("scroll", schedule);
-      shell.removeEventListener("focusin", schedule);
-      shell.removeEventListener("focusout", schedule);
+      unobserve();
       resetKeyboardHeight();
       shell.removeAttribute("data-assistant-keyboard");
       unlockPage();

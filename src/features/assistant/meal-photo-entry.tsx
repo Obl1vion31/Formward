@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- 原图只经过本人私有图片入口。 */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { confirmAction } from "../../components/confirmation-state";
 import { LocalLoading } from "../../components/local-loading";
 import type { MealDraft } from "../meals/model";
@@ -19,36 +19,6 @@ export function MealPhotoEntry({initial,draftKey,resumeTaskId,onRestore,onApply,
  const acceptSnapshot=useCallback((snapshot:Snapshot)=>setData(prior=>prior?.entitlement&&snapshot.entitlement&&prior.entitlement.version>snapshot.entitlement.version?prior:snapshot),[]);
  const restoredApplication=useRef<string|null>(null);
  const photos=usePhotoDraft(),album=useRef<HTMLInputElement>(null),request=useRef<AbortController|null>(null),active=useRef(true),identity=useRef<{signature:string;id:string}|null>(null);
- const footer=useRef<HTMLElement>(null);
- useLayoutEffect(()=>{
-  if(!visible)return;
-  const node=footer.current,dialog=node?.closest("dialog"),entry=node?.parentElement;if(!node||!dialog||!entry)return;
-  const viewport=window.visualViewport;let frame=0,settleTimer:ReturnType<typeof setTimeout>|undefined;
-  const update=()=>{
-   frame=0;
-   const height=viewport?.height??innerHeight,top=viewport?.offsetTop??0,layoutHeight=Math.max(document.documentElement.clientHeight,innerHeight);
-   const keyboard=height<layoutHeight-100;
-   dialog.style.setProperty("--entry-visible-height",height+"px");
-   dialog.style.setProperty("--entry-hidden-bottom",Math.max(0,layoutHeight-height-top)+"px");
-   dialog.style.setProperty("--entry-footer-height",node.getBoundingClientRect().height+"px");
-   dialog.toggleAttribute("data-photo-keyboard",keyboard);
-   dialog.toggleAttribute("data-photo-short-viewport",height<260);
-   const field=document.activeElement;
-   if(!(field instanceof HTMLElement)||!entry.contains(field)||node.contains(field)||!field.matches("textarea,input:not([type=file]),select"))return;
-   const heading=dialog.firstElementChild,stickyHeading=heading&&getComputedStyle(heading).position==="sticky",stickyFooter=getComputedStyle(node).position==="sticky";
-   const safeTop=Math.max(top+12,stickyHeading?heading.getBoundingClientRect().bottom+12:top+12);
-   const safeBottom=Math.min(top+height-12,stickyFooter?node.getBoundingClientRect().top-12:top+height-12);
-   const box=field.getBoundingClientRect();if(safeBottom<=safeTop)return;
-   const delta=box.height>safeBottom-safeTop?box.top-safeTop:box.bottom>safeBottom?box.bottom-safeBottom:box.top<safeTop?box.top-safeTop:0;
-   if(Math.abs(delta)>1)dialog.scrollTop+=delta;
-  };
-  const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(update);};
-  // Safari在键盘动画与自动平移之后还会再改变visualViewport；焦点不跳转，只调整当前面板滚动。
-  const focus=()=>{schedule();clearTimeout(settleTimer);settleTimer=setTimeout(schedule,350);};
-  update();const observer=new ResizeObserver(schedule);observer.observe(node);
-  entry.addEventListener("focusin",focus);window.addEventListener("resize",schedule);viewport?.addEventListener("resize",schedule);viewport?.addEventListener("scroll",schedule);
-  return()=>{observer.disconnect();cancelAnimationFrame(frame);clearTimeout(settleTimer);entry.removeEventListener("focusin",focus);window.removeEventListener("resize",schedule);viewport?.removeEventListener("resize",schedule);viewport?.removeEventListener("scroll",schedule);for(const name of ["--entry-visible-height","--entry-hidden-bottom","--entry-footer-height"])dialog.style.removeProperty(name);dialog.removeAttribute("data-photo-keyboard");dialog.removeAttribute("data-photo-short-viewport");};
- },[visible]);
  const initialized=useRef({initial,draftKey,resumeTaskId,onRestore,onApply});
  useEffect(()=>{active.current=true;const controller=new AbortController(),value=initialized.current;
   void(async()=>{try{const response=value.resumeTaskId?await fetch("/api/assistant-meal?taskId="+encodeURIComponent(value.resumeTaskId),{cache:"no-store",signal:controller.signal}):await post({action:"create",draftKey:value.draftKey,draft:value.initial},controller.signal);const snapshot=await response.json();if(!response.ok)throw Error(snapshot.error??"任务读取失败。");if(!active.current)return;acceptSnapshot(snapshot);setProvider(snapshot.provider);if(value.resumeTaskId&&snapshot.operation&&snapshot.operation.status!=="pending"){setError(snapshot.operation.status==="confirmed"?"本餐已保存，请返回饮食页查看。":snapshot.operation.status==="expired"?"本餐预览已过期，原草稿仍保留；可在原审核页重新核对。":"本次识别已结束，请返回填写。");return;}if(value.resumeTaskId)value.onRestore(snapshot.draft);
@@ -97,7 +67,7 @@ export function MealPhotoEntry({initial,draftKey,resumeTaskId,onRestore,onApply,
   {data?.followup&&<FollowupForm key={data.followup.messageId} task={data.followup} busy={busy} submit={run}/>}
   {error&&<div role="alert">{error}{data?.operation&&<a href={data.operation.confirmationPath} target="_blank" rel="noreferrer">打开原审核页面</a>}{!data&&<button type="button" onClick={()=>{setError("");setAttempt(value=>value+1);}}>重新读取</button>}</div>}
   {data&&data.catalog.find(model=>model.id===provider)?.enabled===false&&<p className={styles.modelStatus}>此模型的授权已停用或到期。<button type="button" disabled={busy} onClick={()=>void enableModel()}>重新授权</button></p>}
-  <footer ref={footer}><select aria-label="识别模型" value={provider} disabled={!data||busy||!!data.operation} onChange={event=>setProvider(event.target.value as ChatProvider)}>{(data?.catalog??[{id:"qwen",label:"千问",configured:false,enabled:false},{id:"mimo",label:"小米 MiMo",configured:false,enabled:false},{id:"glm",label:"智谱",configured:false,enabled:false}]).map(model=><option key={model.id} value={model.id} disabled={!model.configured}>{model.label}</option>)}</select>
+  <footer><select aria-label="识别模型" value={provider} disabled={!data||busy||!!data.operation} onChange={event=>setProvider(event.target.value as ChatProvider)}>{(data?.catalog??[{id:"qwen",label:"千问",configured:false,enabled:false},{id:"mimo",label:"小米 MiMo",configured:false,enabled:false},{id:"glm",label:"智谱",configured:false,enabled:false}]).map(model=><option key={model.id} value={model.id} disabled={!model.configured}>{model.label}</option>)}</select>
    <div className={styles.usage}>{data?<button type="button" onClick={()=>setReset(value=>!value)} title={"北京时间 "+new Date(data.usage.resetAt).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai"})+" 重置"}>{data.usage.recognition?`识图 ${data.usage.recognition.used}/${data.usage.recognition.limit}`:data.usage.percent}</button>:<LocalLoading active={!error}/>}{reset&&data&&<small role="status">北京时间 {new Date(data.usage.resetAt).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai"})} 重置</small>}</div>
    {busy?<button type="button" onClick={()=>void stop()}>停止识别</button>:<button type="button" className={styles.primary} disabled={!data||!data.catalog.find(model=>model.id===provider)?.configured||!data.catalog.find(model=>model.id===provider)?.enabled||!!data.operation&&data.operation.status!=="pending"||photos.busy||photos.photos.some(p=>p.phase!=="ready")||!text.trim()&&!photos.photos.length||(data.usage.recognition?data.usage.recognition.remaining !== null && data.usage.recognition.remaining<=0:data.usage.available<=0)} onClick={()=>void run()}>识别食物</button>}
   </footer>

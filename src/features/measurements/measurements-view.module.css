@@ -535,15 +535,10 @@
 }
 
 @media (max-width: 700px), (hover: none) and (pointer: coarse) {
-  .drawer.drawer[data-fit-content] {
-    bottom: var(--body-entry-bottom, 0px);
-    max-height: calc(var(--body-entry-height, 100dvh) - 24px);
-  }
   .drawer[data-fit-content] > :first-child {
     min-height: 52px;
     padding-block: 4px;
   }
-  .drawer[data-fit-content] > :first-child > span[aria-hidden=true] { display: none; }
   .drawer[data-fit-content] [data-entry-surface-slot],
   .drawer[data-fit-content] [data-entry-surface-slot] > :global(.pending-entry-fields) {
     display: flex;
@@ -640,8 +635,9 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 4px;
     margin-top: 6px;
-    padding-block: 0 max(10px, env(safe-area-inset-bottom));
+    padding-block: 0 max(16px, env(safe-area-inset-bottom));
   }
+  .drawer[data-fit-content][data-input-keyboard] .entryFooter { padding-block-end: 12px; }
   .drawer[data-fit-content] .entryFooter > div { margin-inline: 0; }
   .drawer[data-fit-content] .entryFooter .saveEntry { inline-size: 100%; }
   .drawer[data-fit-content] .entryFooter > div:has(> [data-local-loading]) {

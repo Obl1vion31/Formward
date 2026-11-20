@@ -12,7 +12,7 @@ import {formatRecordNumber} from "@/components/number-format";
 
 import {confirmNumbers} from "@/components/number-change";
 import {measurementVersions,verifyRecordVersions,acknowledgeRecordChanges} from "@/components/record-change-client";
-import { useEffect, useId, useRef, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import {useDraftGuard} from "@/components/draft-guard";
 
 import { entryMetrics, entryPeriods, localMeasurementDate, measurementEntryState, type EntryPeriod, type EntryResult, type MeasurementActions, type MeasurementDisplay } from "./entry-state";
@@ -59,26 +59,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
   const [busyLabel, setBusyLabel] = useState(savingLabel);
   const busy = working || transitionPending;
   const lock = useRef(false), checking = useRef(false);
-  const formRef = useRef<HTMLFormElement>(null), rippleRef = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    const sheet = formRef.current?.closest("dialog"), viewport = window.visualViewport;
-    if (!sheet || !viewport) return;
-    const place = () => {
-      if (viewport.scale !== 1) return;
-      sheet.style.setProperty("--body-entry-height", viewport.height + "px");
-      sheet.style.setProperty("--body-entry-bottom", Math.max(0, innerHeight - viewport.height - viewport.offsetTop) + "px");
-    };
-    place();
-    viewport.addEventListener("resize", place);
-    viewport.addEventListener("scroll", place);
-    return () => {
-      viewport.removeEventListener("resize", place);
-      viewport.removeEventListener("scroll", place);
-      sheet.style.removeProperty("--body-entry-height");
-      sheet.style.removeProperty("--body-entry-bottom");
-    };
-  }, []);
-
+  const rippleRef = useRef<HTMLSpanElement>(null);
   const numberAcknowledgements=useRef(new Set<string>());
   const request = useRef({ signature: "", id: "" });
   const groups = measurementEntryState(records, date, choices).map(group => ({ ...group, blocked: group.period === "daytime" && !!group.observed && group.observed.fasting !== true }));
@@ -176,7 +157,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
     }
     return result;
   }
-  return <form ref={formRef} data-editing={editing} data-entry-form="body" data-selected-period={selected} className={styles.entryForm} aria-label="当天身体录入" onSubmit={event=>{if(pending)event.preventDefault();else void save(event);}} aria-busy={busy||pending&&!readError}>
+  return <form data-editing={editing} data-entry-form="body" data-selected-period={selected} className={styles.entryForm} aria-label="当天身体录入" onSubmit={event=>{if(pending)event.preventDefault();else void save(event);}} aria-busy={busy||pending&&!readError}>
 
     <div className={styles.entryPeriodBar}>
       <div className={styles.entrySegments} role="group" aria-label="选择录入时段">{entryPeriods.map(period => {
@@ -217,7 +198,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       </fieldset>)}
     </div>
     {future&&<p role="alert" className={styles.entryError}>不能录入未来日期的身体记录。</p>}
-    <div className={styles.entryFooter}><div>{(error||readError)&&<p role="alert" className={styles.entryError}>{error||readError}</p>}{pending&&!readError?<LocalLoading/>:message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-entry-primary-action data-saving={busy && busyLabel === savingLabel || undefined} type={onRetry?"button":"submit"} onClick={onRetry} className={styles.saveEntry} disabled={onRetry?false:busy||pending||!dirty||future}>
+    <div className={styles.entryFooter} data-entry-footer><div>{(error||readError)&&<p role="alert" className={styles.entryError}>{error||readError}</p>}{pending&&!readError?<LocalLoading/>:message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-entry-primary-action data-saving={busy && busyLabel === savingLabel || undefined} type={onRetry?"button":"submit"} onClick={onRetry} className={styles.saveEntry} disabled={onRetry?false:busy||pending||!dirty||future}>
       <span className={styles.saveRipple} ref={rippleRef} aria-hidden="true"/>
       <span>{onRetry?"重新读取":busy?busyLabel:editing?"保存修改":"保存录入"}</span>
     </button></div>
