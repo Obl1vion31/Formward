@@ -49,8 +49,45 @@ const port = (probe.address() as { port: number }).port; await new Promise<void>
 const secondaryTables=process.env.FORMWARD_LOADING_PART==="flows"?/\b(training_sessions|training_templates|training_plans|energy_days|activities|meal_items|measurements|sessions|oauth_connections|ai_tokens)\b/i:undefined;
 const delayed = await delayedTrainingDatabase(nativeUpstream||socket!.getServerConn(),secondaryTables);
 let broken=false;
+let heldPlotRead: {end:()=>void; completed:Promise<unknown>} | undefined;
+const plotTables = {
+  overview: ["meals", "energy_days", "measurements"],
+  nutrition: ["meals"],
+  energy: ["energy_days"],
+  body: ["measurements"],
+} as const;
 const fixtureControl=createHttpServer(async(request,response)=>{
  try{
+  if(request.method==='POST'&&request.url==='/plot-hold'){
+   assert.ok(native && !heldPlotRead, "An isolated native PostgreSQL fixture is required");
+   const chunks:Buffer[]=[];
+   for await(const chunk of request)chunks.push(Buffer.from(chunk));
+   const {kinds}=JSON.parse(Buffer.concat(chunks).toString());
+   assert.ok(Array.isArray(kinds)&&kinds.length>0&&kinds.every(kind=>Object.hasOwn(plotTables,kind)));
+   const tables=[...new Set((kinds as Array<keyof typeof plotTables>).flatMap(kind=>plotTables[kind]))].sort();
+   const release=Promise.withResolvers<void>();
+   const ready=Promise.withResolvers<void>();
+   const timeout=setTimeout(release.resolve,12000);
+   timeout.unref();
+   const completed=native.db.transaction(async tx=>{
+    await tx.execute(sql.raw("LOCK TABLE "+tables.map(table=>"public."+table).join(", ")+" IN ACCESS EXCLUSIVE MODE"));
+    ready.resolve();
+    await release.promise;
+   }).finally(()=>clearTimeout(timeout));
+   heldPlotRead={end:release.resolve,completed};
+   void completed.catch(ready.reject);
+   await ready.promise;
+   response.writeHead(200).end();
+   return;
+  }
+  if(request.method==='POST'&&request.url==='/plot-release'){
+   const held=heldPlotRead;
+   heldPlotRead=undefined;
+   held?.end();
+   await held?.completed;
+   response.writeHead(200).end();
+   return;
+  }
   if(request.method==='POST'&&request.url==='/meals-failure'){
    const chunks:Buffer[]=[];for await(const chunk of request)chunks.push(Buffer.from(chunk));const input=JSON.parse(Buffer.concat(chunks).toString());assert.equal(typeof input.broken,'boolean');
    if(input.broken!==broken){await db.execute(input.broken?sql`alter table meal_items rename to loading_fixture_meal_items`:sql`alter table loading_fixture_meal_items rename to meal_items`);broken=input.broken;}
@@ -68,7 +105,7 @@ const fixtureControlURL='http://127.0.0.1:'+(fixtureControl.address() as {port:n
 const baseURL = "http://127.0.0.1:" + port, databaseUrl = native?"postgresql://postgres:fictional-loading-postgres@"+delayed.connection+"/formward_browser_loading?max=6":"postgresql://postgres:postgres@" + delayed.connection + "/postgres?max=1";
 const folder = process.env.FORMWARD_LOADING_ARTIFACTS ?? ".codex/workspace-loading";
 await mkdir(folder, { recursive: true });
-const configPath = folder + "/config-"+process.pid+".json"; await writeFile(configPath, JSON.stringify({ ...fixture, baseURL, databaseUrl, delayControlURL: delayed.controlURL, fixtureControlURL,pid: process.pid, isolatedFixture: true }), { mode: 0o600 });
+const configPath = folder + "/config-"+process.pid+".json"; await writeFile(configPath, JSON.stringify({ ...fixture, baseURL, databaseUrl, delayControlURL: delayed.controlURL, fixtureControlURL,pid: process.pid, isolatedFixture: true, nativePlotHold: !!native }), { mode: 0o600 });
 const release=process.env.FORMWARD_LOADING_RELEASE?resolve(process.env.FORMWARD_LOADING_RELEASE):null;
 if(release)assert.ok(release.startsWith(resolve('.codex/regional-releases')+'/')&&release.endsWith('/standalone'),'仅允许本仓库私有发布产物');
 const child = spawn(process.execPath, release?[join(release,'server.js')]:["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)], {
@@ -87,4 +124,4 @@ try {
   else if (process.env.FORMWARD_LOADING_PREVIEW !== "1") await import("./workspace-loading-check.browser.mjs");
   else { console.log(JSON.stringify({ baseURL, email: fixture.email, password: fixture.password, configPath, fictional: true })); await new Promise<void>(done => {process.once("SIGTERM",done);process.once("SIGINT",done);}); }
 } catch (error) { await writeFile(folder + "/server-failure.log", log); throw error; }
-finally { if (child.exitCode === null) { child.kill("SIGTERM"); await once(child, "exit"); } await new Promise<void>(done=>fixtureControl.close(()=>done()));await delayed.close(); await socket?.stop(); await new Promise(resolve => setImmediate(resolve)); await pg?.close();await native?.close();await cluster?.stop(); }
+finally { heldPlotRead?.end(); if (child.exitCode === null) { child.kill("SIGTERM"); await once(child, "exit"); } await new Promise<void>(done=>fixtureControl.close(()=>done()));await delayed.close(); await socket?.stop(); await new Promise(resolve => setImmediate(resolve)); await pg?.close();await native?.close();await cluster?.stop(); }

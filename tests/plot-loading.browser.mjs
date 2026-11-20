@@ -68,6 +68,9 @@ function installProbe({theme}) {
       const guide = visibleGuides[0];
       const guides = !!guide;
       const sheen = guides ? getComputedStyle(guide, "::after") : null;
+      const sweep = guide?.getAnimations({subtree: true}).find(animation =>
+        animation.effect?.getTiming().delay === 350 && animation.effect.getTiming().duration === 1600);
+      const sweepTime = typeof sweep?.currentTime === "number" ? sweep.currentTime : null;
       const wait = guide?.getBoundingClientRect();
       const now = performance.now();
       const svg = [...(plot?.querySelectorAll("svg") ?? [])].find(visible);
@@ -78,7 +81,7 @@ function installProbe({theme}) {
         plot: bounds ? [bounds.x - horizontal(getComputedStyle(content)), bounds.y + scrollY, bounds.width, bounds.height] : null,
         guides, guideCount: visibleGuides.length, real, age: guide && mounted.has(guide) ? now - mounted.get(guide) : null,
         swept: !!sheen && sheen.content !== "none" && horizontal(sheen) > -.65 * wait.width + .75,
-        delay: sheen?.animationDelay ?? null,
+        delay: sheen?.animationDelay ?? null, sweepTime,
         masked: guides && (getComputedStyle(guide).maskImage.match(/linear-gradient/g)?.length ?? 0),
       });
     }
@@ -88,7 +91,9 @@ function installProbe({theme}) {
 }
 
 const navigation = (page, label) => page.getByRole("navigation", {name: "主导航", exact: true}).getByRole("link", {name: label, exact: true});
-const open = (page, label) => mobile ? navigation(page, label).tap() : navigation(page, label).click();
+const open = (page, label) => mobile
+  ? navigation(page, label).tap({noWaitAfter: true})
+  : navigation(page, label).click({noWaitAfter: true});
 const guides = (page, kind) => page.locator('main[data-workspace-frame="' + kind + '"] [data-chart-loading-guides]:visible');
 const plot = page => page.locator("[data-route-content] :is([data-record-slot=plot],[data-overview-plot]):visible");
 const loaded = page => page.locator("[data-route-content] [data-record-workspace]:not([data-workspace-reading] [data-record-workspace]):visible");
@@ -97,11 +102,44 @@ async function ready(page, route) {
   await loaded(page).waitFor();
   await plot(page).locator("svg text:visible").first().waitFor();
 }
+async function readDocument(page, routePath) {
+  const url = config.baseURL + routePath;
+  try {
+    await page.goto(url, {waitUntil: "domcontentloaded"});
+  } catch (error) {
+    // A background check from the previous case can finish as WebKit starts
+    // the test's hard navigation. The next case needs a fresh document.
+    if (!error.message.includes("interrupted by another navigation")) throw error;
+    await page.goto(url, {waitUntil: "domcontentloaded"});
+  }
+}
 async function home(page) {
   await setDelay(0);
-  await page.goto(config.baseURL + "/dashboard");
-  await page.locator("[data-route-content] [data-metric-rail]:visible").waitFor();
+  await readDocument(page, overview.path);
+  await ready(page, overview);
 }
+// Hold the real query against the fictional database even if the driver
+// reuses a prepared statement. The test releases it after taking the waiting frame.
+async function withSlowRead(destinations, action) {
+  const control = async (name, body) => assert.equal((await fetch(config.fixtureControlURL + "/" + name, {
+    method: "POST", body: JSON.stringify(body),
+  })).status, 200);
+  if (config.nativePlotHold) await control("plot-hold", {kinds: destinations.map(route => route.kind)});
+  else await setDelay(900);
+  let waiting = true;
+  const release = async () => {
+    if (!waiting) return;
+    if (config.nativePlotHold) await control("plot-release", {});
+    else await setDelay(0);
+    waiting = false;
+  };
+  try {
+    await action(release);
+  } finally {
+    await release();
+  }
+}
+
 async function capture(page, label, action) {
   await page.evaluate(() => { window.plotProbe = {active: true, frames: [], motions: []}; });
   try {
@@ -143,7 +181,8 @@ function verify(data, route, mode) {
       assert.ok(waiting.some(frame => frame.swept), data.label + " 慢读可见扫光");
     }
     assert.ok(waiting.every(frame => frame.delay === "0.35s")
-      && waiting.filter(frame => frame.swept).every(frame => frame.age === null || frame.age >= 325),
+      && waiting.filter(frame => frame.swept).every(frame => frame.sweepTime === null
+        ? frame.age === null || frame.age >= 325 : frame.sweepTime >= 349),
       data.label + " 扫光延迟 350ms");
     if (route.kind !== "overview") assert.ok(draw.length > 0);
     if (route.kind === "body") {
@@ -194,14 +233,14 @@ try {
         stats.push(verify(cached, route, "cached"));
 
         await home(page);
-        await setDelay(900);
-        const slow = await capture(page, theme + "-" + route.kind + "-slow", async () => {
+        const slow = await capture(page, theme + "-" + route.kind + "-slow", () => withSlowRead([route], async release => {
           await open(page, route.name);
           await guides(page, route.kind).waitFor();
           await page.waitForTimeout(640);
           await page.screenshot({path: join(folder, route.kind + "-waiting.png")});
+          await release();
           await ready(page, route);
-        });
+        }));
         stats.push(verify(slow, route, "slow"));
         await page.screenshot({path: join(folder, route.kind + "-ready.png")});
         if (!mobile && route.kind !== "body") {
@@ -215,14 +254,14 @@ try {
       }
 
       await home(page);
-      await setDelay(900);
-      const rapid = await capture(page, theme + "-rapid", async () => {
+      const rapid = await capture(page, theme + "-rapid", () => withSlowRead(routes, async release => {
         for (const route of routes) {
           await open(page, route.name);
           await guides(page, route.kind).waitFor();
         }
+        await release();
         await ready(page, routes[2]);
-      });
+      }));
       const finalFrames = rapid.frames.filter(frame => frame.kind === "body");
       assert.ok(finalFrames.length > 2 && finalFrames.at(-1).real && finalFrames.every(frame => frame.guides !== frame.real));
       assert.ok(rapid.motions.filter(motion => motion.type !== "page").every(motion => motion.kind === "body"), "只有最后一次切页绘制实图");
@@ -230,17 +269,17 @@ try {
 
       if (!mobile) {
         await setDelay(0);
-        await page.goto(config.baseURL + "/dashboard/training");
+        await readDocument(page, "/dashboard/training");
         await page.locator("main[data-workspace-frame=training] [data-route-content]:visible").waitFor();
-        await setDelay(1100);
-        const overviewRead = await capture(page, theme + "-overview-slow", async () => {
+        const overviewRead = await capture(page, theme + "-overview-slow", () => withSlowRead([overview], async release => {
           await open(page, overview.name);
           await guides(page, overview.kind).first().waitFor();
           assert.equal(await guides(page, overview.kind).count(), 2);
           await page.waitForTimeout(640);
           await page.screenshot({path: join(folder, "overview-waiting.png")});
+          await release();
           await ready(page, overview);
-        });
+        }));
         stats.push(verify(overviewRead, overview, "slow"));
         await page.screenshot({path: join(folder, "overview-ready.png")});
       }
@@ -248,28 +287,30 @@ try {
       if (theme === "dark") {
         await page.emulateMedia({reducedMotion: "reduce"});
         await home(page);
-        await setDelay(900);
-        const reduced = await capture(page, "dark-reduced", async () => {
+        const reduced = await capture(page, "dark-reduced", () => withSlowRead([routes[2]], async release => {
           await open(page, routes[2].name);
           await guides(page, routes[2].kind).waitFor();
           await page.waitForTimeout(530);
+          await release();
           await ready(page, routes[2]);
-        });
+        }));
         stats.push(verify(reduced, routes[2], "reduced"));
         await page.emulateMedia({reducedMotion: "no-preference"});
         if (!mobile) {
           await home(page);
-          await setDelay(900);
           const setBroken = async broken => assert.equal((await fetch(config.fixtureControlURL + "/meals-failure", {
             method: "POST", body: JSON.stringify({broken}),
           })).status, 200);
           await setBroken(true);
           try {
-            await open(page, routes[0].name);
-            await guides(page, routes[0].kind).waitFor();
-            await page.getByRole("alert").getByText("暂时无法读取页面，已保存的记录保持。请重试。", {exact: true}).waitFor();
-            assert.equal(await guides(page, routes[0].kind).count(), 0);
-            await page.screenshot({path: join(folder, "nutrition-failure.png")});
+            await withSlowRead([routes[0]], async release => {
+              await open(page, routes[0].name);
+              await guides(page, routes[0].kind).waitFor();
+              await release();
+              await page.getByRole("alert").getByText("暂时无法读取页面，已保存的记录保持。请重试。", {exact: true}).waitFor();
+              assert.equal(await guides(page, routes[0].kind).count(), 0);
+              await page.screenshot({path: join(folder, "nutrition-failure.png")});
+            });
           } finally {
             await setBroken(false);
           }
