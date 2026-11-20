@@ -2,6 +2,12 @@
 
 正式站版本与兼容回退见[部署记录](deployment.md#当前正式版本)。 [正式站](https://formward.top/dashboard/assistant)
 
+## 手机键盘调整与输入区
+
+`dual-entry-b6a7307b-assistant-keyboard-viewport-20261120` 在 19:48:34 根据用户要求切到公网供直接测试。顶栏依固定外壳定位，用户输入和附件独立滚动，键盘事件仅更新可用高度。文字、照片和输入区控件的按压柔光已移除，保存按钮保持既有确认和操作样式。
+
+正式运行包的 Chromium 测试覆盖键盘模拟开合、触点边界、长稿首尾、两图、菜单和发送。同一助手源码的桌面 Chromium 与 WebKit 各补了 12 次实际点击和窗口改变。两种浏览器的结果留在私有档案。19:27 的故障截图来自使用回切助手代码的公网。随后核对同版隔离记录，十一轮有三轮失去输入区。与新公网构建相同的小助手布局在实体 iPhone 隔离记录中连续六轮复现。键盘出现后，可视高度从 695 降为 357 CSS px，助手外壳实测顶边为 −338 CSS px，发送底边仅剩约 12 CSS px 可见。定位记录保存在本机私有档案，含焦点、真实视口及应用边界，不含草稿内容。 [正式站](https://formward.top/dashboard/assistant)
+
 ## 手机键盘视口回归与回切
 
 2026-11-20 18:54:18 切换的 `dual-entry-d629d3bc-assistant-composer-safari-20261120`，在 iPhone 系统中文键盘打开后页面只剩「聊天／待办」顶栏的一角可见。19:00:51 公网已回切到 `dual-entry-b11ef297-assistant-viewport-boundaries-20261120`。网页和聊天 worker 同步切回，生产 schema 保持不变。

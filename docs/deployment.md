@@ -2,6 +2,16 @@
 
 ## 当前正式版本
 
+正式站运行 `dual-entry-b6a7307b-assistant-keyboard-viewport-20261120`，源码 `b6a7307bd98f36950b1482af71999ccf11ce501d`，BUILD_ID `fZ2mKnjkAkdSHtaXOAaPt`。北京时间 2026-11-20 19:48:34 切换。 [公网小助手](https://formward.top/dashboard/assistant) · [正式版本](https://formward.top/api/app-version)
+
+小助手键盘开合按可用高度调整内容区域。长稿和附件各自滚动，输入区的按压柔光移除，保存按钮沿用原实现。正式构建的 Chromium 实页检查覆盖短长历史、输入边缘、选图、模型和发送。用户要求先发布到公网直接测试。发布后取得相同布局代码的 iPhone 隔离记录，连续六次仍复现输入框被裁到屏幕顶边，键盘问题仍待修正。 [视觉验收](../design-qa.md)
+
+上海网页和聊天 worker 同版。停写备份 `formward-primary-20261120T114830353472Z.dump.json` 通过 PostgreSQL 原生校验及加密异地回读。生产 schema `0047_meal_food_groups` 和 47 项迁移保持，切换前后 67 张表摘要及运行配置一致。保留 56 项 Server Action 编号和绑定密钥，追加 2254 项兼容静态资源。
+
+运行包归档在 `.codex/backups/regional-releases/assistant-keyboard-viewport-20261120`，大小 85,966,910 字节，SHA-256 `8786386902f6d89494f5202a646cf4e2780efe1e1dcab43bceff4caa930e19ec`。兼容回退为 `meal-entry-public-20261120`。
+
+## 记录一餐发布记录
+
 「记录一餐」运行 `dual-entry-c990c6fb-meal-entry-public-20261120`，源码 `c990c6fb740071b41ca7dbafd74b5495a3e1c4f9`，BUILD_ID `uomWTu1xO4bag_4Wc-3Hk`。北京时间 2026-11-20 19:42:55 上线。 [记录一餐](https://formward.top/dashboard/meals?entry=1) · [正式版本](https://formward.top/api/app-version)
 
 同一正式运行包在 Chromium 和 WebKit 各通过 11 组实页验收。手机检查窄屏单位、四项营养和依据同行、食材库选取与返回。桌面检查数量、单位及四项营养同列，双端均走完整保存。 [视觉验收](../design-qa.md)
