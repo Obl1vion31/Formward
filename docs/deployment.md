@@ -2,15 +2,15 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-8d3aafa4-maintenance-access-r2-20261120`，源码 `8d3aafa4c9a343720ffff4af2ede85cb4d298b8f`，BUILD_ID `jNp2qefathtUKFf8TOUSR`。北京时间 2026-11-20 14:30:53 切换。 [正式版本](https://formward.top/api/app-version)
+正式站运行 `dual-entry-6d5c2469-workspace-stability-r2-20261120`，源码 `6d5c24691659cfabb01fc836a27718376cc930c1`，BUILD_ID `14Xt9hTYshdP8TRBcmw1E`。北京时间 2026-11-20 16:27:46 切换。 [正式版本](https://formward.top/api/app-version)
 
-清理后的工作区使用一套手机底部留位。关联趋势使用当前正文的双向转场。AI 接入桌面面板的外部指针和焦点事件共用关闭判断。三个批次及对照结果见[实现盘点与清理验收](maintenance-audit.md)。
+工作区正文在短暂交接空档显示目标页等待外壳。手机身体录入的均匀遮罩和桌面身体抽屉的渐变随各自面板连续退场。双端浏览器从实际入口完成验证，过程与证据见[视觉验收记录](../design-qa.md)。
 
-上海网页和聊天 worker 使用同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含46项迁移。三次切换前后67张表的摘要和部署配置一致。最后一次备份 `formward-primary-20261120T063049161978Z.dump.json` 通过原生校验和加密异地回读。
+上海网页与聊天 worker 运行同一构建。生产 schema 为 `0046_assistant_conversation_removal`，含 46 项迁移。切换前停写备份 `formward-primary-20261120T082742216630Z.dump.json` 通过 PostgreSQL 原生校验和加密异地完整回读。切换前后 67 张表的摘要与部署配置一致。
 
-四个公网域名和兼容 IP 已核对版本、登录返回、匿名权限、MCP 发现与界面资源。保留 56 项正式 Server Action 编号及绑定密钥，兼容 2161 项旧静态资源。海外网关继续回源正式站。
+四个公网域名和兼容 IP 通过版本核对。四域上的身体录入入口保留登录返回目标，正式 CSS 和工作区脚本的摘要、匿名权限及海外 MCP 发现核对通过。保留 56 个正式 Server Action 编号及绑定密钥，兼容 2177 项上一版静态资源。
 
-本机运行包归档在 `.codex/backups/regional-releases/maintenance-access-r2-20261120`，大小 84,453,918 字节，SHA256 `c6dcbdcf9c78fc35387cc7ea4ad1c23534d543915011ff48686ec6ec648addf0`。版本 `chart-motion-phone-axis-r2-20261120` 是本次兼容回退。正式切换及回退由[共用发布脚本](../scripts/self-hosting/README.md)执行。
+已验收的兼容运行包归档到 `.codex/backups/regional-releases/workspace-stability-r2-20261120`，大小 84,688,417 字节，SHA-256 `2c4300492ba8d1adae2add83e876ad8640b40cec26c043332d772d6ce9c523b5`，与上海待切换的包逐字节一致。兼容回退为 `maintenance-access-r2-20261120`。
 
 ## 迁移与发布
 
