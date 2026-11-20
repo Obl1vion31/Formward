@@ -359,7 +359,7 @@
 .workspace[data-page=true] .composerExtras {
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: none;
   scrollbar-width: none;
 }
 .workspace[data-page=true] .composer { flex: none; }
@@ -377,6 +377,7 @@
 .workspace[data-page=true] .composerRow { padding: 2px; }
 .workspace[data-page=true] .composerRow textarea {
   overflow-y: auto;
+  overscroll-behavior-y: none;
   /* 预留消息区的 20px 内边距和输入栏上下共 8px 的边框、间距。 */
   max-height: clamp(44px, min(calc(var(--assistant-keyboard-height, 100dvh) / 3),
     calc(100cqh - 28px - var(--composer-bottom-inset) - var(--composer-extras-reserve, 0px))), 144px);
@@ -403,7 +404,7 @@
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: thin;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
 }
 .workspace[data-page=true] .attachments > * { flex: none; }
 @container assistant-conversation (max-height: 240px) {

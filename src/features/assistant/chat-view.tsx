@@ -5,6 +5,7 @@ import { FollowupForm } from "./followup-form";
 import { ChatMessageBody } from "./chat-message";
 import { ChatModelMenu } from "./chat-model-menu";
 import { useComposerPress } from "./chat-composer-press";
+import { useComposerScrollBoundary } from "./chat-composer-scroll";
 import { Glyph } from "./chat-icon";
 import {chatDisplayText,chatTranscript} from "./chat-presentation";
 /* eslint-disable @next/next/no-img-element -- 会话原图须按账号鉴权，不能进入公开图片优化缓存。 */
@@ -76,7 +77,7 @@ export function ChatNavigation({tab,onTab,pendingCount}:{tab:ChatTab;onTab:(valu
     onTab(next);
   }}><button type="button" role="tab" aria-selected={tab === "chat"} onClick={() => onTab("chat")}><span className={styles.tabLabel}>聊天</span>{locked&&<small className={styles.tierBadge}>未开放</small>}</button><button type="button" role="tab" aria-selected={tab === "tasks"} onClick={() => onTab("tasks")}><span className={styles.tabLabel}>待办</span>{pendingCount > 0 && <span className={styles.tabBadge}>{pendingCount}</span>}</button></div><select className={styles.navSelect} aria-label="切换聊天与待办" value={tab} onChange={event=>onTab(event.target.value as ChatTab)}><option value="chat">聊天{locked?" · Plus":""}</option><option value="tasks">待办{pendingCount>0?" · "+pendingCount:""}</option></select></div>;
 }
-export function AssistantChatView({ sidebar, navigate, tab, page = false, onPreviewBack }: { sidebar: ReactNode; navigate: () => Promise<boolean>; tab: ChatTab; page?: boolean; onPreviewBack?: () => void }) {
+export function AssistantChatView({ sidebar, navigate, tab, page = false, onComposerDrag, onPreviewBack }: { sidebar: ReactNode; navigate: () => Promise<boolean>; tab: ChatTab; page?: boolean; onComposerDrag?: () => void; onPreviewBack?: () => void }) {
   const [pinnedPreview,setPinnedPreview]=useState<string|null>(null), previewBack=useRef<HTMLButtonElement>(null), previewTrigger=useRef<HTMLElement|null>(null);
   const closePreview=()=>{setPinnedPreview(null);onPreviewBack?.();requestAnimationFrame(()=>{const target=previewTrigger.current; if(target?.isConnected)target.focus({preventScroll:true});else feed.current?.focus({preventScroll:true});});};
   useLayoutEffect(()=>{if(pinnedPreview)previewBack.current?.focus({preventScroll:true});},[pinnedPreview]);
@@ -97,6 +98,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
     ? task.assistantMessageId : task ? transcript.visible.findLast(row=>row.role==="assistant"&&row.state==="complete"&&row.question?.id===task.messageId)?.id : undefined;
   const composer = useRef<HTMLDivElement>(null), modelMenuId = useId();
   const composerPress = useComposerPress();
+  useComposerScrollBoundary(composer, onComposerDrag);
   const modelMenuOpen = panel === "models" && tab === "chat" && chat.enabled && !pinnedPreview;
   const quotaNotice = chat.enabled && chat.data && chat.data.usage.available <= 0
     ? <p className={styles.notice}>今日可用额度不足；待结算用量也会暂占额度，提醒和手工记录仍可使用。</p> : null;
@@ -258,7 +260,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
 
       {pinnedPreview&&<section className={styles.pinnedPreview} aria-label="待确认提交"><header><span>待确认提交</span><button type="button" ref={previewBack} onClick={closePreview}>{page?"返回待办":"返回聊天"}</button></header><ChatPreviewCard id={pinnedPreview} navigate={navigate}/></section>}
       <div ref={composer} className={styles.composerArea} inert={panel === "connections"||!!pinnedPreview}>
-        <div className={styles.composerExtras}>
+        <div className={styles.composerExtras} data-chat-composer-extras>
           {notice && <p className={styles.notice} role="status">{notice}</p>}
           {chat.error && <div className={styles.failure} role="alert">{chat.error}<button onClick={() => void chat.refresh()} disabled={chat.loading}>重新读取</button></div>}
           {page && quotaNotice}

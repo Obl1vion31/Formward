@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { lockPageScroll } from "@/components/scroll-lock";
 import { useOrderedArrival } from "@/components/use-ordered-arrival";
 import { animateSurface, stopSurfaceMotion } from "@/components/surface-motion";
 import { useAssistant } from "./context";
@@ -58,20 +59,29 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
   const historyButton = useRef<HTMLButtonElement>(null);
   const pageTitle = useRef<HTMLHeadingElement>(null);
   const leftHistory = useRef(false);
+  const composerPanBlocked = useRef(false);
+  const blockComposerPan = useCallback(() => { composerPanBlocked.current = true; }, []);
 
   useLayoutEffect(() => {
     const shell = container.current;
     if (!shown || !shell) return;
+    const unlockPage = lockPageScroll("fixed");
     const viewport = window.visualViewport;
-    let frame = 0, dragUntil = 0, keyboard = false;
+    let frame = 0, dragUntil = 0, keyboard = false, keyboardTop = 0;
     let restingHeight = viewport?.height ?? innerHeight;
-    let layoutWidth = document.documentElement.clientWidth;
+    let layoutWidth = document.documentElement.clientWidth, layoutHeight = restingHeight;
+    composerPanBlocked.current = false;
+    const isEditor = (element: EventTarget | null) => element instanceof HTMLElement &&
+      (element.matches("textarea,input:not([type=file])") || element.isContentEditable);
     function layout() {
       const height = viewport?.height ?? innerHeight;
       const focused = document.activeElement;
-      const editing = focused instanceof HTMLElement && shell!.contains(focused) &&
-        (focused.matches("textarea,input:not([type=file])") || focused.isContentEditable);
+      const editing = isEditor(focused) && shell!.contains(focused);
       const width = document.documentElement.clientWidth;
+      if (Math.abs(height - layoutHeight) > 1 || width !== layoutWidth) {
+        layoutHeight = height;
+        composerPanBlocked.current = false;
+      }
       if (width !== layoutWidth) {
         layoutWidth = width;
         restingHeight = Math.max(document.documentElement.clientHeight, innerHeight);
@@ -81,9 +91,11 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
       keyboard = (editing || keyboard) && restingHeight - height >= (keyboard ? 8 : 72);
       // 只有软键盘改变助手的可交互区域，常驻视口与底栏使用自身的布局。
       if (keyboard) {
+        if (!composerPanBlocked.current) keyboardTop = Math.max(0, viewport?.offsetTop ?? 0);
         shell!.style.setProperty("--assistant-keyboard-height", height + "px");
-        shell!.style.setProperty("--assistant-keyboard-top", Math.max(0, viewport?.offsetTop ?? 0) + "px");
+        shell!.style.setProperty("--assistant-keyboard-top", keyboardTop + "px");
       } else {
+        keyboardTop = 0;
         shell!.style.removeProperty("--assistant-keyboard-height");
         shell!.style.removeProperty("--assistant-keyboard-top");
       }
@@ -97,15 +109,19 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
       if (event.touches.length === 1) dragUntil = performance.now() + 180;
     }
     function pan() {
-      // 跟随键盘迟到的平移，输入框和消息内拖动产生的短暂平移交给浏览器恢复。
-      if (performance.now() >= dragUntil) schedule();
+      // 输入区的纵向手势结束后，系统仍可能报告惯性偏移。直到输入焦点或视口尺寸改变，再接收新的偏移。
+      if (!composerPanBlocked.current && performance.now() >= dragUntil) schedule();
+    }
+    function focusEditor(event: FocusEvent) {
+      if (isEditor(event.target)) composerPanBlocked.current = false;
+      schedule();
     }
     layout();
     window.addEventListener("resize", schedule);
     viewport?.addEventListener("resize", schedule);
     viewport?.addEventListener("scroll", pan);
     shell.addEventListener("touchmove", drag, { passive: true });
-    shell.addEventListener("focusin", schedule);
+    shell.addEventListener("focusin", focusEditor);
     shell.addEventListener("focusout", schedule);
     return () => {
       cancelAnimationFrame(frame);
@@ -113,11 +129,12 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
       viewport?.removeEventListener("resize", schedule);
       viewport?.removeEventListener("scroll", pan);
       shell.removeEventListener("touchmove", drag);
-      shell.removeEventListener("focusin", schedule);
+      shell.removeEventListener("focusin", focusEditor);
       shell.removeEventListener("focusout", schedule);
       shell.style.removeProperty("--assistant-keyboard-height");
       shell.style.removeProperty("--assistant-keyboard-top");
       shell.removeAttribute("data-assistant-keyboard");
+      unlockPage();
     };
   }, [shown]);
   useLayoutEffect(() => {
@@ -185,7 +202,7 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
       </div>
       {page && <AssistantPageBody historyOpen={!!history}>
         <AssistantChatView sidebar={tasks && <AssistantTasks {...tasks} mobile inlineReview={chat.enabled} navigate={allowNavigation}/>}
-          navigate={allowNavigation} tab={tab} page onPreviewBack={() => selectTab("tasks")}/>
+          navigate={allowNavigation} tab={tab} page onComposerDrag={blockComposerPan} onPreviewBack={() => selectTab("tasks")}/>
       </AssistantPageBody>}
       {history && <ChatHistory
         page

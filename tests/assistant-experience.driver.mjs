@@ -698,13 +698,18 @@ export async function runAssistantExperienceBrowser(db) {
     await mark("历史返回不发送模型请求，删除有确认、保留原文并拒绝旧链接");
   }
 
-  async function keyboardFlow({page,context,input,send,message,shot,mark,open,fixtureFiles}, baseline, scrollDraft = false) {
+  async function keyboardFlow({page,context,input,send,message,shot,mark,open,fixtureFiles}, baseline, draftScroll = null) {
     const width = 393, chatUrl = base + "/api/assistant-chat";
+    const scrollDraft = draftScroll !== null, longHistory = draftScroll === "long";
+    const historyText = "这条虚构的午餐记录有米饭、烤鸡肉和西兰花。照片和文字将在同一条消息里对照。";
+    const longReply = Array.from({length: 20}, (_, index) =>
+      "第 " + (index + 1) + " 段历史记录。这里是与当前草稿无关的虚构对话，用于确认长聊天列表有足够的距离上下滚动。",
+    ).join("\n\n");
     const {conversationId} = await context.request.get(chatUrl).then(response => response.json());
     await db.insert(assistantMessage).values([
       {id:randomUUID(), userId:fixture.userId, conversationId, seq:1, role:"user", text:"看看虚构的午餐记录。"},
       {id:randomUUID(), userId:fixture.userId, conversationId, seq:2, role:"assistant", provider:"qwen",
-        text:"这条虚构的午餐记录有米饭、烤鸡肉和西兰花。照片和文字将在同一条消息里对照。"},
+        text: longHistory ? longReply : historyText},
     ]);
     await db.update(assistantConversation).set({sequence:2}).where(eq(assistantConversation.id,conversationId));
     const draftLines = [
@@ -758,8 +763,8 @@ export async function runAssistantExperienceBrowser(db) {
           feed:shell.querySelector('[role="log"]').scrollTop, document:scrollY,
         };
       });
-      async function gesture(towardStart) {
-        const box = await field.boundingBox();
+      async function gesture(towardStart, target = field) {
+        const box = await target.boundingBox();
         const x = Math.round(box.x + box.width / 2);
         if (!cdp) {
           await page.mouse.move(x, box.y + box.height / 2);
@@ -781,6 +786,50 @@ export async function runAssistantExperienceBrowser(db) {
           assert.ok(Math.abs(before[key]-after[key]) <= 1, JSON.stringify({key,before,after}));
         }
       };
+      async function testBoundaryPan(target, towardStart) {
+        const before = await position();
+        await field.evaluate(node => {
+          const shell = node.closest("[data-assistant-page]"), heading = shell.querySelector("header");
+          const send = shell.querySelector('button[aria-label="发送消息"]'), feed = shell.querySelector('[role="log"]');
+          const frames = [];
+          let frame;
+          function capture() {
+            frames.push({heading: heading.getBoundingClientRect().top, send: send.getBoundingClientRect().bottom,
+              feed: feed.scrollTop, document: scrollY});
+            frame = requestAnimationFrame(capture);
+          }
+          capture();
+          window.stopComposerBoundaryCapture = () => { cancelAnimationFrame(frame); return frames; };
+        });
+        let cancelled;
+        try {
+          await gesture(towardStart, target);
+          // WebKit 用原生滚轮核对滚动。两引擎另回放触点边界和系统迟到的视口事件。
+          cancelled = await target.evaluate((node, direction) => {
+            const {x, y} = node.getBoundingClientRect();
+            const start = {clientX: x + 8, clientY: y + 22};
+            function touch(type, touches) {
+              const event = new Event(type, {bubbles: true, cancelable: type === "touchmove"});
+              Object.defineProperty(event, "touches", {value: touches});
+              node.dispatchEvent(event);
+              return event.defaultPrevented;
+            }
+            touch("touchstart", [start]);
+            const blocked = touch("touchmove", [{...start, clientY: start.clientY + 20*direction}]);
+            touch("touchend", []);
+            return blocked;
+          }, towardStart ? 1 : -1);
+          await page.waitForTimeout(230);
+          await viewport(235, 17, "scroll");
+          await page.waitForTimeout(250);
+        } finally {
+          const frames = await page.evaluate(() => window.stopComposerBoundaryCapture());
+          assert.ok(frames.length >= 5);
+          for (const frame of frames) fixed(before, frame);
+        }
+        assert.equal(cancelled, true);
+        await viewport(235, 0, "scroll");
+      }
       const bottom = await position();
       assert.ok(bottom.end > 350 && bottom.end-bottom.top <= 1, JSON.stringify(bottom));
       await gesture(true);
@@ -827,8 +876,34 @@ export async function runAssistantExperienceBrowser(db) {
       assert.ok(end.end-end.top <= 1, JSON.stringify(end));
       fixed(afterEdit, end);
       await shot("draft-end","修改前文后滑回末尾，两张照片和输入仍在",{x:0,y:0,width,height:235});
+      await testBoundaryPan(field, false);
+      if (longHistory) {
+        const feed = page.getByRole("log", {name:"聊天消息", exact:true});
+        await viewport(300);
+        await withinViewport(300);
+        const before = await position();
+        assert.ok(before.feed > 1000, JSON.stringify(before));
+        await gesture(true, feed);
+        const after = await position();
+        assert.ok(after.feed < before.feed - 10, JSON.stringify({before, after}));
+        await viewport(235);
+        await withinViewport(235);
+      }
+      const photo = page.locator('[aria-label="聊天照片"]').getByAltText("照片 1", {exact:true});
+      await testBoundaryPan(photo, true);
+      await viewport(215, 5);
+      await withinViewport(215, 5);
+      await viewport(235);
+      await withinViewport(235);
+      await shot("boundary","长文字和照片边界拖动后，列表和发送栏仍在原位", {x:0,y:0,width,height:235});
+      await mark((longHistory ? "长" : "短") + "历史中，照片行与长稿到边界后拖动、松手迟到平移逐帧≤1px" +
+        (longHistory ? "，消息区起滑仍可翻历史" : ""));
       await mark(`20 行草稿通过${cdp ? "原生触摸" : "窄屏原生滚轮"}往返首尾、编辑前文和视口变化，外层位置稳定`);
     }
+    const source = scrollDraft ? await page.evaluate(() => {
+      window.scrollTo(0, Math.min(168, document.scrollingElement.scrollHeight - innerHeight));
+      return window.scrollY;
+    }) : 0;
     await open();
     await fixtureFiles(2);
     await input().fill(draft);
@@ -920,14 +995,27 @@ export async function runAssistantExperienceBrowser(db) {
     assert.equal(await sent.count(),2);
     await shot("sent","点一次发送，文字和两张照片进入同一条消息");
     await mark("键盘开合保留图文、引用和输入位置，点按一次发送");
+    if (scrollDraft) {
+      assert.equal(await page.evaluate(() => document.body.style.position), "fixed");
+      await page.getByRole("button", {name:"返回工作区", exact:true}).tap();
+      await page.waitForFunction(() => !document.querySelector("[data-assistant-page]"));
+      await page.waitForFunction(target => Math.abs(window.scrollY - target) <= 1, source);
+      assert.equal(await page.evaluate(() => document.body.style.position), "");
+      await mark("离开助手释放外层滚动锁，工作区回到原阅读位置");
+    }
   }
 
   try {
     if (!samples?.length) throw Error("需要提供隔离海南鸡饭样例");
     const scope = process.env.FORMWARD_EXPERIENCE_CASE;
     if (scope === "keyboard" || scope === "keyboard-before" || scope === "draft-scroll") {
-      const scrollDraft = scope === "draft-scroll";
-      await journey(scope,{width:393,height:852},true,flow=>keyboardFlow(flow,scope==="keyboard-before",scrollDraft),"dark",scrollDraft && engine==="webkit");
+      const draftScroll = scope === "draft-scroll" ? "short" : null;
+      await journey(scope,{width:393,height:852},true,flow=>keyboardFlow(flow,scope==="keyboard-before",draftScroll),"dark",!!draftScroll && engine==="webkit");
+    }
+    if (scope === "composer-scroll") {
+      await journey("composer-scroll-short",{width:393,height:852},true,flow=>keyboardFlow(flow,false,"short"),"dark",engine==="webkit");
+      await db.delete(rateLimit);
+      await journey("composer-scroll-long",{width:393,height:852},true,flow=>keyboardFlow(flow,false,"long"),"light",engine==="webkit");
     }
     if (scope==="composer" || scope==="composer-mobile") {
       await journey("composer-mobile",{width:390,height:844},true,flow=>composerFlow(flow,true));
