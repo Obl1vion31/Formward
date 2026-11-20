@@ -10,7 +10,7 @@ export async function checkEnergyDraftGuard({baseURL,today,accounts,artifacts}){
  try{for(const theme of ["dark","light"])for(const width of [390,1440]){
   const context=await browser.newContext({storageState,viewport:{width,height:900},locale:"zh-CN",timezoneId:"Asia/Shanghai",reducedMotion:"reduce"}),page=await context.newPage(),checks=[];
   page.on("pageerror",error=>errors.push(error.message));
-  await context.addInitScript(({id,theme})=>{localStorage.setItem("formward-theme",theme);localStorage.setItem("formward:record-guide:v1:"+encodeURIComponent(id)+":energy","seen");},{id:accounts[0].id,theme});
+  await context.addInitScript((theme)=>{localStorage.setItem("formward-theme",theme);},theme);
   const form=page.locator('[data-entry-form=energy]'),confirmation=page.getByRole("dialog",{name:"放弃尚未保存的输入？",exact:true});
   async function settle(){await page.waitForLoadState("networkidle");await page.waitForTimeout(750);await page.waitForLoadState("networkidle");}
   async function open(slow=false){

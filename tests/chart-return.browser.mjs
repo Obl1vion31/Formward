@@ -20,7 +20,6 @@ async function settled(page){await page.waitForFunction(()=>!document.querySelec
 function overview(page){return page.getByRole('navigation',{name:'主导航',exact:true}).getByRole('link',{name:'总览',exact:true});}
 async function create(width,height,theme='light'){
  const context=await browser.newContext({viewport:{width,height},storageState,hasTouch:width<1000,isMobile:width<1000,timezoneId:'Asia/Shanghai',locale:'zh-CN',recordVideo:process.env.FORMWARD_CHART_NO_VIDEO==='1'?undefined:{dir:out,size:{width,height}}});
- await context.addInitScript(userId=>{for(const kind of ['meals','body','energy','training'])localStorage.setItem('formward:record-guide:v1:'+encodeURIComponent(userId)+':'+kind,'seen');},config.userId);
  await context.addInitScript(theme=>{
   localStorage.setItem('formward-theme',theme);
   window.chartFrames=[];window.chartMark=null;window.chartStarts=[];window.chartObservedStarts=[];window.firstOverviewRange=null;window.firstOverviewCard=null;

@@ -4,7 +4,6 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { assistantConversation, assistantMessage, rateLimit } from "../src/db/schema.ts";
-import { recordGuideKey } from "../src/features/onboarding/record-guidance-model.ts";
 
 const title = "四张照片和方向验收";
 const draft = "来回切换后留住这条待发文字";
@@ -28,9 +27,8 @@ export async function runDirectionalNavigation(db) {
     results.push(result);
     page.setDefaultTimeout(16000);
     page.on("pageerror", error => result.errors.push(String(error)));
-    await context.addInitScript(guideKey => {
+    await context.addInitScript(() => {
       localStorage.setItem("formward-theme", "dark");
-      localStorage.setItem(guideKey, "seen");
       window.directionProof = [];
       window.photoInput = [];
       for (const type of ["pointerdown", "pointerup", "pointercancel", "click"]) {
@@ -70,7 +68,7 @@ export async function runDirectionalNavigation(db) {
         if (!(node instanceof HTMLElement) || event.propertyName !== "transform" || node.parentElement?.dataset.page !== "true") return;
         record(node.getAttribute("aria-label"),node.getAnimations().find(clip => clip.transitionProperty === "transform"),node);
       });
-    }, recordGuideKey(userId,"training"));
+    });
     const button = label => page.getByRole("button",{name:label,exact:true}).filter({visible:true});
     const tab = label => page.getByRole("tab",{name:label,exact:true});
     const input = page.getByRole("textbox",{name:"给小助手发消息",exact:true});

@@ -3,8 +3,6 @@ import { useDelayedReading } from "@/components/local-loading";
 
 import { useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
-import { useRecordGuidance } from "../onboarding/record-guidance";
-import { recordGuides, type RecordGuideKind } from "../onboarding/record-guidance-model";
 import { localMeasurementDate } from "../measurements/entry-state";
 import type { AssistantTasksState } from "./context";
 import { assistantQuickActions, assistantTools, type AssistantItem } from "./model";
@@ -19,11 +17,9 @@ export function AssistantTasks({ data, error, loading, retry, dismissItem, mobil
   const [supplementsOpen, setSupplementsOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState<boolean>();
   const [tools, setTools] = useState(false);
-  const [guides, setGuides] = useState(false);
   const [busy, setBusy] = useState("");
   const [failure, setFailure] = useState("");
   const reading = useDelayedReading(!data && loading && !error);
-  const { replay } = useRecordGuidance();
   const hasReviews = !!data?.pending.some(item => item.category === "ai");
   const today = data?.localDate ?? localMeasurementDate(new Date());
   const summary=(item:AssistantItem)=>item.review?<><div className={styles.reviewMeta}><span>{item.review.source}</span><time dateTime={item.date}>{item.date.replaceAll("-", ".")} · {item.review.title}</time></div><strong className={styles.reviewValue}>{item.review.value}</strong>{item.review.detail&&<p data-meal-nutrition={item.review.kind === "meal" || undefined}>
@@ -40,11 +36,8 @@ export function AssistantTasks({ data, error, loading, retry, dismissItem, mobil
     if (event.key !== "Escape" || !tools) return;
     event.preventDefault();
     event.stopPropagation();
-    if (guides) setGuides(false);
-    else {
-      setTools(false);
-      event.currentTarget.querySelector<HTMLButtonElement>('[data-assistant-group="tools"]')?.focus();
-    }
+    setTools(false);
+    event.currentTarget.querySelector<HTMLButtonElement>('[data-assistant-group="tools"]')?.focus();
   }}>
     <section className={styles.quick} aria-label="快捷记录"><div>{assistantQuickActions(today).map(action=><LoadingLink prefetch={false} key={action.label} href={action.href} beforeNavigate={navigate}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>{mobile?action.label.replace(/^手动/,""):action.label}</span></LoadingLink>)}</div></section>
     {error&&<div role="alert">{error}<button type="button" onClick={retry}>重新读取</button></div>}
@@ -53,8 +46,12 @@ export function AssistantTasks({ data, error, loading, retry, dismissItem, mobil
     <TaskGroup kind="reviews" title="AI 确认" description={data&&!hasReviews?"暂无待确认提交":"核对待保存的提交"}
       count={data?reviews.length+" 项":"…"} open={hasReviews&&(reviewOpen??true)}
       onToggle={hasReviews?()=>setReviewOpen(value=>!(value??true)):undefined}>{hasReviews&&items(reviews)}</TaskGroup>
-    <TaskGroup kind="tools" title="常用功能" description="使用说明、AI 接入等" count={assistantTools.length+2+" 个功能"} open={tools} onToggle={()=>{setTools(value=>!value);setGuides(false);}}>
-      <nav id="assistant-tools" className={styles.toolsList} aria-label="常用功能">{guides?<><button type="button" onClick={()=>setGuides(false)}>返回常用功能</button>{(Object.keys(recordGuides) as RecordGuideKind[]).map(kind=><button type="button" key={kind} onClick={async()=>{if(await navigate())await replay(kind);}}>重播{recordGuides[kind].label}录入引导</button>)}</>:<>{training.length>0&&items(training)}<LoadingLink href={"/dashboard/training?date="+today} beforeNavigate={navigate}>训练计划</LoadingLink>{assistantTools.map(action=><LoadingLink key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}</LoadingLink>)}<button type="button" onClick={()=>setGuides(true)}>重播操作引导</button></>}</nav>
+    <TaskGroup kind="tools" title="常用功能" description="使用说明、AI 接入等" count={assistantTools.length + 1 + " 个功能"} open={tools} onToggle={() => setTools(value => !value)}>
+      <nav className={styles.toolsList} aria-label="常用功能">
+        {training.length > 0 && items(training)}
+        <LoadingLink href={"/dashboard/training?date=" + today} beforeNavigate={navigate}>训练计划</LoadingLink>
+        {assistantTools.map(action => <LoadingLink key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}</LoadingLink>)}
+      </nav>
     </TaskGroup>
     {failure&&<p role="alert">{failure}</p>}
   </div>;

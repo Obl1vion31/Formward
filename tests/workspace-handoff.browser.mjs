@@ -19,11 +19,8 @@ async function setDelay(delayMs) {
   assert.equal(response.status, 200);
 }
 
-function installProbe({theme, user}) {
+function installProbe({theme}) {
   localStorage.setItem("formward-theme", theme);
-  for (const kind of ["meals", "body", "energy", "training"]) {
-    localStorage.setItem("formward:record-guide:v1:" + encodeURIComponent(user) + ":" + kind, "seen");
-  }
   window.handoffProbe = {frames: [], enabled: false};
   const visible = node => {
     if (!node) return false;
@@ -135,7 +132,7 @@ try {
     });
     const errors = [];
     try {
-      await context.addInitScript(installProbe, {theme: phone ? "light" : "dark", user: config.userId});
+      await context.addInitScript(installProbe, {theme: phone ? "light" : "dark"});
       const page = await context.newPage();
       page.on("pageerror", error => errors.push(error.message));
       const press = locator => phone ? locator.tap() : locator.click();

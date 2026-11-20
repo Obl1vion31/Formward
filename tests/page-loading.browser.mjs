@@ -11,14 +11,12 @@ export async function checkPageLoadingBrowser({baseURL,account,date}){
   const signIn=await browser.newContext();
   const login=await signIn.request.post(baseURL+"/api/auth/sign-in/email",{headers:{Origin:baseURL},data:account});
   assert.equal(login.status(),200);
-  const userId=(await login.json()).user.id;
   const storageState=await signIn.storageState();
   await signIn.close();
 
   try{
     for(const viewport of [{width:1440,height:900},{width:390,height:780}]){
       const context=await browser.newContext({storageState,viewport,timezoneId:"Asia/Shanghai",reducedMotion:"reduce"});
-      await context.addInitScript(key=>localStorage.setItem(key,"seen"),"formward:record-guide:v1:"+encodeURIComponent(userId)+":body");
       const page=await context.newPage();
       let intercepted;
       try{

@@ -7,7 +7,7 @@ export async function checkEnergyPopoverEdges({baseURL,today,accounts,artifacts}
  try{for(const theme of ["dark","light"])for(const [width,height,large]of [[320,560,false],[390,667,false],[1440,900,false],[390,844,true],[1440,900,true]]){
   const context=await browser.newContext({storageState,viewport:{width,height},locale:"zh-CN",timezoneId:"Asia/Shanghai",reducedMotion:"reduce"}),page=await context.newPage();await page.bringToFront();page.on("pageerror",error=>errors.push(error.message));
   try{
-   await context.addInitScript(({id,theme})=>{localStorage.setItem("formward-theme",theme);localStorage.setItem("formward:record-guide:v1:"+encodeURIComponent(id)+":energy","seen");},{id:accounts[0].id,theme});
+   await context.addInitScript((theme)=>{localStorage.setItem("formward-theme",theme);},theme);
    const response=await page.goto(baseURL+"/dashboard/energy?entry=1&date="+today);await response.finished();await page.waitForLoadState("networkidle");if(large)await page.addStyleTag({content:"html{font-size:200%!important} body{font-size:2rem!important} input,select,button{font-size:max(1em,16px)!important}"});
    const boxes=async selectors=>Promise.all(selectors.map(selector=>page.locator(selector).boundingBox()));
    const check=(before,after)=>{for(let i=0;i<before.length;i++)for(const key of ["x","y","width","height"])assert.ok(Math.abs(before[i][key]-after[i][key])<=1,"浮层不推动"+key);};

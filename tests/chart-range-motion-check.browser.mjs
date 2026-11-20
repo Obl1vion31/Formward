@@ -85,7 +85,7 @@ async function chartReady(page) {
   if(await guide.isVisible())await guide.click();
 }
 
-export async function checkChartRangeMotion({browser,base,today,art,context,checks,errors,account}) {
+export async function checkChartRangeMotion({browser,base,today,art,context,checks,errors}) {
   const login = await context.storageState();
   const at = i => addCalendarDays(today,i);
   const bar = (date,metric) => "bar:"+date+":"+metric;
@@ -98,9 +98,8 @@ export async function checkChartRangeMotion({browser,base,today,art,context,chec
       timezoneId:"Asia/Shanghai",storageState:login,recordVideo:{dir:art,size:viewport}});
     const page=await chartContext.newPage();
     page.on("pageerror",error=>errors.push(error.message));
-    await page.addInitScript(account=>{
+    await page.addInitScript(()=>{
       localStorage.setItem("formward-theme","dark");
-      for(const kind of ["meals","body","energy"])localStorage.setItem("formward:record-guide:v1:"+encodeURIComponent(account)+":"+kind,"seen");
       if(!/^\/dashboard\/(meals|measurements)$/.test(location.pathname))return;
       window.__initialChartFrames=[];
       const sample=()=>{
@@ -117,7 +116,7 @@ export async function checkChartRangeMotion({browser,base,today,art,context,chec
         if(window.__initialChartFrames.length<120)requestAnimationFrame(sample);
       };
       sample();
-    },account);
+    });
     const coldFrames = async route=>{
       await page.goto(base+"/dashboard/"+route);
       await chartReady(page);

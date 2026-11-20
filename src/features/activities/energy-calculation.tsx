@@ -16,7 +16,7 @@ import {CalculationPopover} from "./calculation-popover";
 import {energyValue} from "./model";
 
 export function RestingMethodControl({value,change}:{value:RestingMethod;change:(value:RestingMethod)=>void}) {
- return <div className={styles.recordMethod} data-record-guide-fields><span>记录方式</span><div className={styles.recordMethodButtons} role="group" aria-label="记录方式">{([["estimate","帮我估算"],["manual","手动输入"],["device","从设备同步"]] as const).map(([method,label])=><button key={method} type="button" aria-pressed={value===method} onClick={()=>change(method)}>{label}</button>)}</div></div>;
+ return <div className={styles.recordMethod}><span>记录方式</span><div className={styles.recordMethodButtons} role="group" aria-label="记录方式">{([["estimate","帮我估算"],["manual","手动输入"],["device","从设备同步"]] as const).map(([method,label])=><button key={method} type="button" aria-pressed={value===method} onClick={()=>change(method)}>{label}</button>)}</div></div>;
 }
 export function ActivityMethodControl({quick,change}:{quick:boolean;change:(quick:boolean)=>void}) {
  return <div className={styles.activityMethod} role="group" aria-label="活动记录方式"><button type="button" aria-pressed={quick} onClick={()=>change(true)}>活动估算</button><button type="button" aria-pressed={!quick} onClick={()=>change(false)}>运动明细</button></div>;

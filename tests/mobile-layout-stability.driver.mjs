@@ -7,7 +7,6 @@ import { assistantConversation, assistantMessage } from "../src/db/schema.ts";
 import { authenticateAi, createAiToken } from "../src/features/auth/ai-tokens.ts";
 import { mealPreviewOperation } from "../src/features/meals/ai-preview.ts";
 import { submitRecordOperation } from "../src/features/records/operations.ts";
-import { recordGuideKey } from "../src/features/onboarding/record-guidance-model.ts";
 import { workspacePages } from "../src/components/workspace-pages.ts";
 
 const requestLabel = "帮我核对这份晚餐和照片。";
@@ -40,7 +39,6 @@ export async function runMobileLayoutStability(db) {
   });
   const origin = { Origin: baseURL };
   const key = workspacePages.map(([path, label]) => [path, label]);
-  const guideKeys = ["meals", "energy", "training"].map(kind => recordGuideKey(userId, kind));
   const browser = await playwright[engine].launch();
 
   async function login(context) {
@@ -79,9 +77,8 @@ export async function runMobileLayoutStability(db) {
         baseURL, viewport, hasTouch: mobile, isMobile: mobile, storageState: state,
         recordVideo: { dir: output, size: viewport },
       });
-      await context.addInitScript(({ guideKeys }) => {
+      await context.addInitScript(() => {
         localStorage.setItem("formward-theme", "dark");
-        for (const key of guideKeys) localStorage.setItem(key, "seen");
         const native = window.visualViewport;
         const mock = new EventTarget();
         let simulated = null;
@@ -149,7 +146,7 @@ export async function runMobileLayoutStability(db) {
           };
           requestAnimationFrame(sample);
         };
-      }, { guideKeys });
+      });
       const page = await context.newPage(), video = page.video();
       page.setDefaultTimeout(12000);
       const errors = [];

@@ -8,7 +8,6 @@ const out=resolve(process.env.FORMWARD_CHART_ARTIFACTS??'.codex/chart-return-edg
 const checks=[];
 async function control(path,data){const r=await fetch(config.fixtureControlURL+path,{method:data?'POST':'GET',body:data?JSON.stringify(data):undefined});assert.equal(r.status,200);return r.json();}
 const context=await browser.newContext({viewport:{width:390,height:780},isMobile:true,hasTouch:true,timezoneId:'Asia/Shanghai',locale:'zh-CN',recordVideo:{dir:out,size:{width:390,height:780}}});
-await context.addInitScript(userId=>localStorage.setItem('formward:record-guide:v1:'+encodeURIComponent(userId)+':meals','seen'),config.userId);
 const page=await context.newPage();
 async function settled(){await page.waitForFunction(()=>!document.querySelector('[data-workspace-reading],[data-return-covered],[data-workspace-scene],[data-workspace-previous] > *'));await page.waitForTimeout(550);}
 const back=()=>page.getByRole('navigation',{name:'主导航',exact:true}).getByRole('link',{name:'总览',exact:true});

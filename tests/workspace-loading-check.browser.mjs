@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
-import {recordGuideKey,recordGuides} from '../src/features/onboarding/record-guidance-model.ts';
 const config=JSON.parse(await readFile(process.env.FORMWARD_LOADING_CONFIG,'utf8'));
 assert.equal(config.isolatedFixture,true,'加载验收只接受本机虚构数据库');
 assert.equal(new URL(config.baseURL).hostname,'127.0.0.1');
@@ -17,10 +16,9 @@ const sizes=process.env.FORMWARD_LOADING_SIZES?JSON.parse(process.env.FORMWARD_L
 async function shot(page,name,fullPage=false){const path=folder+'/'+name+'.png';await page.screenshot({path,fullPage});screenshots.push(path);}
 async function createContext(size,theme='dark',motion=process.env.FORMWARD_LOADING_MOTION??'reduce',recording=process.env.FORMWARD_LOADING_RECORD==='1'){
  const context=await browser.newContext({viewport:{width:size[0],height:size[1]},hasTouch:size[0]<1000,storageState,locale:'zh-CN',timezoneId:'Asia/Shanghai',reducedMotion:motion,recordVideo:recording?{dir:folder+'/videos',size:{width:size[0],height:size[1]}}:undefined});
- await context.addInitScript(({theme,guideKeys})=>{
+ await context.addInitScript(({theme})=>{
   if(location.protocol!=='http:'&&location.protocol!=='https:')return;
   localStorage.setItem('formward-assistant-seen-v1','true');localStorage.setItem('formward-theme',theme);
-  for(const key of guideKeys)localStorage.setItem(key,'seen');
   window.__loadingFrames=[];
   const visible=node=>node&&node.getBoundingClientRect().width>0&&node.getBoundingClientRect().height>0&&getComputedStyle(node).visibility!=='hidden'&&getComputedStyle(node).display!=='none';
   const first=(selector,root=document)=>[...root.querySelectorAll(selector)].find(visible);
@@ -44,7 +42,7 @@ async function createContext(size,theme='dark',motion=process.env.FORMWARD_LOADI
     }
    }requestAnimationFrame(sample);
   };requestAnimationFrame(sample);
- },{theme,guideKeys:Object.keys(recordGuides).map(kind=>recordGuideKey(config.userId,kind))});
+ },{theme});
  if(!recording)context.on('page',page=>page.on('pageerror',error=>errors.push(error.message)));
  return context;
 }

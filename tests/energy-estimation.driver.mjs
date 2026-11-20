@@ -11,7 +11,7 @@ export async function checkEnergyEstimation({baseURL,today,birth,accounts,db,art
  const near=(a,b,label)=>assert.ok(Math.abs(a-b)<=1,label+" "+a+" / "+b);
  async function context(account=accounts[0],width=390,height=844,theme="dark"){
   const ctx=await browser.newContext({viewport:{width,height},locale:"zh-CN",timezoneId:"Asia/Shanghai",reducedMotion:"reduce",storageState:sessions.get(account.id)});
-  await ctx.addInitScript(({id,theme})=>{localStorage.setItem("formward-theme",theme);for(const kind of ["energy","body","meals","training"])localStorage.setItem(`formward:record-guide:v1:${encodeURIComponent(id)}:${kind}`,"seen");},{id:account.id,theme});
+  await ctx.addInitScript((theme)=>{localStorage.setItem("formward-theme",theme);},theme);
   if(!sessions.has(account.id)){const response=await ctx.request.post(baseURL+"/api/auth/sign-in/email",{headers:{Origin:baseURL},data:{email:account.email,password:account.password}});assert.equal(response.status(),200,await response.text());sessions.set(account.id,await ctx.storageState());}return ctx;
  }
  async function settle(p){await p.waitForLoadState("networkidle");await p.waitForTimeout(750);await p.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));await p.waitForLoadState("networkidle");}

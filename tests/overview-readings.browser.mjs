@@ -189,7 +189,7 @@ try{
  checks.push("rapid-range-motion");
  await page.setViewportSize({width:390,height:720});await go("/dashboard");await choose(yesterday);await page.getByRole("button",{name:"查看记录 →",exact:true}).click();await page.getByRole("dialog").waitFor();assert.match(await page.getByRole("dialog").innerText(),/晨间体重/);await page.keyboard.press("Escape");checks.push("day-details-kept");
  for(const path of["/dashboard/meals","/dashboard/energy","/dashboard/measurements"]){await go(path);assert.equal(await page.locator('[data-record-slot="date"] [role="status"]').count(),0);await shot("unchanged-"+path.split("/").at(-1)+"-390");}checks.push("other-pages-status-placement-kept");
- await checkChartRangeMotion({browser,base,today,art,context,checks,errors,account:owner.id});
+ await checkChartRangeMotion({browser,base,today,art,context,checks,errors});
  const stressDate=addCalendarDays(today,-17),oldMeal=(await readMealSnapshot(db,owner.id)).meals.find(m=>m.date===stressDate);
  const stress=await submitMealOperation(db,{userId:owner.id,origin:"manual"},{operationId:randomUUID(),actions:[{kind:"save_meal",id:oldMeal.id,version:oldMeal.version,date:stressDate,mealType:"午餐",items:[{kind:"food",name:"长数字压力样本（虚构）",quantity:"1",unit:"份",nutritionBasis:"consumed_total",sourceKind:"reference",nutrition:{caloriesKcal:"99999",proteinG:"120",carbsG:"260",fatG:"70"}}]}]});await decideMealOperation(db,owner.id,stress.id,stress.revision,"confirm");
  const stressDay=(await readMealSnapshot(db,owner.id)).meals.find(m=>m.id===oldMeal.id).day;await setMealDayStatus(db,owner.id,{operationId:randomUUID(),date:stressDate,status:"complete",version:stressDay.version,contentDigest:stressDay.contentDigest});

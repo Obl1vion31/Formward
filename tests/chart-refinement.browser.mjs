@@ -20,14 +20,13 @@ async function context(size,motion='no-preference'){
  if(!signedState){await authenticateFixture(ctx.request,fixture,process.env.FORMWARD_CHAT_BROWSER_CONFIG);signedState=await ctx.storageState();}
  const page=await ctx.newPage();await page.bringToFront();page.on('pageerror',error=>errors.push(error.message));
  if(Number(process.env.FORMWARD_REFINEMENT_DELAY)>0)await page.route('**/*',async route=>{const url=new URL(route.request().url());if(url.searchParams.has('_rsc')&&/^\/dashboard\/(meals|measurements|energy)$/.test(url.pathname))await new Promise(resolve=>setTimeout(resolve,Number(process.env.FORMWARD_REFINEMENT_DELAY)));await route.continue();});
- await page.addInitScript(({account})=>{
+ await page.addInitScript(()=>{
   localStorage.setItem('formward-assistant-seen-v1','true');
-  for(const kind of ['meals','body','energy','training'])localStorage.setItem('formward:record-guide:v1:'+encodeURIComponent(account)+':'+kind,'seen');
   window.__drawFrames=[];window.__observeDrawFrames=true;
   const sample=()=>{if(!window.__observeDrawFrames)return;for(const node of document.querySelectorAll('[data-record-slot="plot"] [data-chart-bar],[data-record-slot="plot"] [data-trend-glyph="morning-weight"],[data-record-slot="plot"] [data-chart-line]'))for(const animation of node.getAnimations()){
    const timing=animation.effect?.getComputedTiming();if(timing&&[400,600].includes(timing.endTime)&&window.__drawFrames.length<200)window.__drawFrames.push({duration:timing.endTime,time:animation.currentTime,kind:node.dataset.chartBar!==undefined?'bar':'line'});
   }requestAnimationFrame(sample);};requestAnimationFrame(sample);
- },{account:fixture.userId});
+ });
  return {ctx,page};
 }
 async function skipGuide(page){const skip=page.getByRole('button',{name:'跳过引导',exact:true});if(await skip.isVisible())await skip.click();}

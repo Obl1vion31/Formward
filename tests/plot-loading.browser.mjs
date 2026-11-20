@@ -22,11 +22,8 @@ async function setDelay(delayMs) {
   assert.equal((await fetch(config.delayControlURL, {method: "POST", body: JSON.stringify({delayMs})})).status, 200);
 }
 
-function installProbe({theme, user}) {
+function installProbe({theme}) {
   localStorage.setItem("formward-theme", theme);
-  for (const kind of ["meals", "body", "energy", "training"]) {
-    localStorage.setItem("formward:record-guide:v1:" + encodeURIComponent(user) + ":" + kind, "seen");
-  }
   window.plotProbe = {active: false, frames: [], motions: []};
   const selector = "[data-chart-loading-guides]";
   const mounted = new WeakMap();
@@ -166,7 +163,7 @@ try {
     const context = await browser.newContext({viewport, isMobile: true, hasTouch: true, reducedMotion: "no-preference",
       locale: "zh-CN", timezoneId: "Asia/Shanghai", storageState, recordVideo: {dir: folder, size: viewport}});
     try {
-      await context.addInitScript(installProbe, {theme, user: config.userId});
+      await context.addInitScript(installProbe, {theme});
       const page = await context.newPage();
       page.setDefaultTimeout(15000);
       for (const route of routes) {
