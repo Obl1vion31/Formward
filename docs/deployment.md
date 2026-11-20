@@ -2,7 +2,17 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-1f9920c8-assistant-keyboard-native-pan-20261120`，源码 `1f9920c88a9283a58b71f103e5703c3674a1938d`，BUILD_ID `57YqeoofnHoR_qgJolQL0`。北京时间 2026-11-20 20:24:40 切换。 [公网小助手](https://formward.top/dashboard/assistant) · [正式版本](https://formward.top/api/app-version)
+测量页运行 `dual-entry-9538d161-measurement-mobile-save-20261120`，源码 `9538d161f866b7f24edcedb8fefdc37376f2ee90`，BUILD_ID `t7EL1S0Z_cYnN77roDCkS`。北京时间 2026-11-20 20:36:00 切换。 [正式测量页](https://formward.top/dashboard/measurements) · [正式版本](https://formward.top/api/app-version)
+
+手机晨晚胶囊按文字收窄，保存占满整行，与体重及来源对齐。电脑录入的晨间、晚间各占通栏，记录来源在图标旁悬停显示。同一正式兼容包在 Chromium 和 WebKit 各通过 6 组实页验收，覆盖切换、草稿、保存失败、重试落库和返回。 [正式运行包的隔离实页截图](<C:/Users/14878/.codex/visualizations/2026/11/18/01a1ee4f-83a7-74a1-b58d-000090938d80/formward-measurement-mobile-save-release/index.html>)
+
+上海网页与聊天 worker 同版。结构沿用 `0047_meal_food_groups` 和 47 项迁移，切换期间 67 张表与运行配置摘要一致。备份 `formward-primary-20261120T123556641683Z.dump.json` 通过 PostgreSQL 原生校验及加密异地回读。四个域名和兼容 IP 版本一致，核对了 HTTPS 跳转、原登录返回、新旧静态资源与匿名访问保护。原海外网关通过协议 1.15.1 和 MCP 发现核对。
+
+保留 56 项现行 Server Action 编号、原绑定密钥及 2263 项既有静态资源。兼容包 `db42f4cfeaaa8eba67182bd9a9e3399d902739364efd05a99c0e4f68a98b772c`，86,055,427 字节，归档在 `.codex/backups/regional-releases/measurement-mobile-save-20261120`。兼容回退为 `assistant-keyboard-native-pan-20261120`。
+
+## 小助手键盘外壳位移发布记录
+
+上一正式版本为 `dual-entry-1f9920c8-assistant-keyboard-native-pan-20261120`，源码 `1f9920c88a9283a58b71f103e5703c3674a1938d`，BUILD_ID `57YqeoofnHoR_qgJolQL0`。北京时间 2026-11-20 20:24:40 切换。 [公网小助手](https://formward.top/dashboard/assistant) · [正式版本](https://formward.top/api/app-version)
 
 小助手根据可见区域收缩聊天空间。键盘出现后若外壳实际移出屏幕顶边，按测得的外壳边界补偿。输入区柔光已移除，确认保存按钮沿用原实现。正式包在 Chromium 与 WebKit 各通过 12 轮外壳 −338 CSS px 位移及恢复，按用户要求上线供 iPhone 系统键盘直接测试。 [视觉验收](../design-qa.md)
 
