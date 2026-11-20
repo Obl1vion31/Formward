@@ -1,7 +1,7 @@
 import {DailyRecordRow} from "@/components/daily-records";
 import {formatRecordNumber} from "@/components/number-format";
 import {displayRecordDate} from "@/components/record-dates";
-import {useId, useLayoutEffect, useRef, useState} from "react";
+import {useEffect, useId, useLayoutEffect, useRef, useState, type PointerEvent} from "react";
 import {trackPopoverPosition} from "@/components/anchored-popover";
 import {measurementDayAction, type EntryPeriod, type MeasurementDisplay} from "./entry-state";
 import {gmtOffsetLabel, timezoneLabel} from "./timezone";
@@ -56,6 +56,10 @@ function MeasurementInfo({id, date, morning, evening, showFat}: {
 }) {
   const trigger = useRef<HTMLButtonElement>(null), panel = useRef<HTMLElement>(null);
   const [open, setOpen] = useState(false);
+  const openedByHover = useRef(false);
+  const closeTimer = useRef<number | undefined>(undefined);
+
+  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
 
   useLayoutEffect(() => {
     if (open && trigger.current && panel.current) {
@@ -63,9 +67,28 @@ function MeasurementInfo({id, date, morning, evening, showFat}: {
     }
   }, [open]);
 
+  function openOnHover(event: PointerEvent<HTMLButtonElement>) {
+    if (event.pointerType !== "mouse") return;
+    window.clearTimeout(closeTimer.current);
+    const popover = panel.current;
+    if (!popover || popover.matches(":popover-open")) return;
+    openedByHover.current = true;
+    popover.showPopover();
+  }
+
+  function closeAfterHover(event: PointerEvent<HTMLElement>) {
+    if (event.pointerType !== "mouse" || !openedByHover.current) return;
+    window.clearTimeout(closeTimer.current);
+    // Allow the pointer to cross the gap between the icon and the popover.
+    closeTimer.current = window.setTimeout(() => {
+      if (openedByHover.current) panel.current?.hidePopover();
+    }, 160);
+  }
+
   return <>
     <button ref={trigger} type="button" className={styles.recordInfoButton}
       aria-label={"测量来源 " + date} aria-expanded={open} aria-controls={id} popoverTarget={id}
+      onPointerEnter={openOnHover} onPointerLeave={closeAfterHover}
       onClick={event => event.currentTarget.focus({preventScroll: true})}>
       <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
         <circle cx="8" cy="8" r="6.25"/><path d="M8 7.1v4.15M8 4.7v.9"/>
@@ -73,7 +96,18 @@ function MeasurementInfo({id, date, morning, evening, showFat}: {
     </button>
     <section id={id} ref={panel} role="group" aria-label={displayRecordDate(date) + "测量来源"}
       popover="auto" className={styles.infoPopover} data-body-row-details
-      onToggle={event => setOpen(event.currentTarget.matches(":popover-open"))}>
+      onPointerEnter={event => {
+        if (event.pointerType === "mouse") window.clearTimeout(closeTimer.current);
+      }}
+      onPointerLeave={closeAfterHover}
+      onToggle={event => {
+        const visible = event.currentTarget.matches(":popover-open");
+        if (!visible) {
+          openedByHover.current = false;
+          window.clearTimeout(closeTimer.current);
+        }
+        setOpen(visible);
+      }}>
       {morning && <section><h3>{morning.fasting ? "晨间" : "白天"}</h3><MeasurementFacts row={morning} showFat={showFat} labeled/></section>}
       {evening && <section><h3>晚间</h3><MeasurementFacts row={evening} showFat={showFat} labeled/></section>}
     </section>

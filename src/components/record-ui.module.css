@@ -48,15 +48,6 @@ form.historyDate label{display:grid;gap:6px;font-size:13px}form.historyDate .his
   align-items: center;
   padding-block: 6px;
 }
-@media (min-width: 701px) and (hover: hover) {
-  .records .row[data-row-layout=body] {
-    grid-template-columns:
-      minmax(0, clamp(7.25rem, 26%, 20rem))
-      minmax(0, clamp(9rem, 29%, 22rem))
-      minmax(0, 1fr) auto;
-  }
-}
-
 .row[data-row-layout=body] .date { display: contents; }
 .row[data-row-layout=body] .dateHeading { grid-area: 1 / 1 / 2 / 4; min-height: 44px; }
 .records .row[data-row-layout=body] .actions { grid-area: 1 / 4; justify-self: end; align-self: center; margin: 0; }
@@ -68,6 +59,22 @@ form.historyDate label{display:grid;gap:6px;font-size:13px}form.historyDate .his
   align-items: center;
   margin: 0;
   min-height: 34px;
+}
+
+@media (min-width: 701px) and (hover: hover) {
+  .records[data-record-kind=body] { container-type: inline-size; }
+
+  @container (min-width: 36rem) {
+    .records .row[data-row-layout=body] {
+      grid-template-columns: minmax(8.5rem, 26%) minmax(8rem, 27%) minmax(8rem, 1fr) auto;
+    }
+
+    .row[data-row-layout=body] .dateHeading { grid-area: 1 / 1 / 2 / 2; }
+    .records .row[data-row-layout=body] .value {
+      grid-area: 1 / 2 / 2 / 4;
+      min-height: 44px;
+    }
+  }
 }
 
 @media (max-width: 360px) {
