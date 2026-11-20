@@ -2,6 +2,18 @@
 
 ## 当前正式版本
 
+「记录一餐」运行 `dual-entry-c990c6fb-meal-entry-public-20261120`，源码 `c990c6fb740071b41ca7dbafd74b5495a3e1c4f9`，BUILD_ID `uomWTu1xO4bag_4Wc-3Hk`。北京时间 2026-11-20 19:42:55 上线。 [记录一餐](https://formward.top/dashboard/meals?entry=1) · [正式版本](https://formward.top/api/app-version)
+
+同一正式运行包在 Chromium 和 WebKit 各通过 11 组实页验收。手机检查窄屏单位、四项营养和依据同行、食材库选取与返回。桌面检查数量、单位及四项营养同列，双端均走完整保存。 [视觉验收](../design-qa.md)
+
+上海网页与聊天 worker 同版。生产 schema 为 `0047_meal_food_groups`，含 47 项迁移。停写备份 `formward-primary-20261120T114247606603Z.dump.json` 已通过原生校验和加密异地回读。迁移只新增可空食材分类与约束，核对 67 张既有表的原字段及值。上一正式版 `measurement-record-row-r2-20261120` 已在新结构通过私有就绪检查。
+
+已核对四个公网域名、兼容 IP、HTTPS 跳转、登录返回、新旧资源、匿名访问权限和海外发现接口。Vercel 网关两别名仍指向既有 iad1 部署。保留 56 项 Server Action 编号及绑定密钥，携带 2245 项旧静态资源。
+
+兼容运行包归档在 `.codex/backups/regional-releases/meal-entry-public-20261120`，大小 85,757,690 字节，SHA-256 `a8289d576830ffd4fdbff194253dcc1f359a57610eb739c2c364c6561b6963ad`。正式构建沿用测量页发布和此前已回切的小助手输入行为，餐次源码已合入 main。
+
+## 测量页单行发布记录
+
 测量页运行 `dual-entry-ed2050bc-measurement-record-row-r2-20261120`，源码 `ed2050bcef4c6bc65252265c39430f594b08666f`，BUILD_ID `dvQ5q44_ulEyGqU80z18o`。北京时间 2026-11-20 19:18:53 切换。 [正式测量页](https://formward.top/dashboard/measurements) · [正式版本](https://formward.top/api/app-version)
 
 电脑最近和历史记录每日期一行，鼠标悬停 ⓘ 显示来源小浮层。手机使用两行记录和点按来源。测量录入及编辑使用细底线。两引擎从同一兼容运行包复验编辑、保存、返回和浮层，正式站登录态复核当天及历史五行和 308 CSS px 浮层。 [视觉验收](../design-qa.md)
@@ -14,7 +26,7 @@
 
 ## 兼容基线及小助手回切记录
 
-本次发布采用兼容基线 `dual-entry-b11ef297-assistant-viewport-boundaries-20261120`，源码 `b11ef29717904582f01249d9a974734f0b311778`，BUILD_ID `xjiGCw4Sf_o8_dCP8p-Qp`。北京时间 2026-11-20 19:00:51 回切。 [正式版本](https://formward.top/api/app-version)
+测量页发布采用的兼容基线为 `dual-entry-b11ef297-assistant-viewport-boundaries-20261120`，源码 `b11ef29717904582f01249d9a974734f0b311778`，BUILD_ID `xjiGCw4Sf_o8_dCP8p-Qp`。北京时间 2026-11-20 19:00:51 回切。 [正式版本](https://formward.top/api/app-version)
 
 18:54:18 发布的 `dual-entry-d629d3bc-assistant-composer-safari-20261120` 在实体 iPhone 键盘打开后把助手内容推到键盘后方。已回切网页和聊天 worker，生产 schema 保持 `0046_assistant_conversation_removal`。原运行包、上线及回切记录保存在私有发布归档。 [问题与验收](assistant-chat-verification.md#手机键盘视口回归与回切)
 
@@ -30,7 +42,7 @@
 
 先核对最新main、实际公网和其他未提交任务。运行lint、typecheck、真实测试文件清单、production build及受影响浏览器全过程；不能以最终截图、DOM存在或误展开4个文件代替。隔离PostgreSQL和虚构账号不连接正式库，不自动调用收费模型。
 
-结构仅由版本化Drizzle migration演进，已发布迁移不修改；新迁移先备份、加密异机回读、隔离恢复排演和旧值／重复检查。构建不自动迁移。当前 schema0046 和 46 项迁移账本。0046 新增可空的会话移出时间，已保存事实和费用逐表核对。恢复时先停 worker，再切支持 schema0046、历史移出和数据库档位的兼容应用与 worker。
+结构仅由版本化Drizzle migration演进，已发布迁移不修改；新迁移先备份、加密异机回读、隔离恢复排演和旧值／重复检查。构建不自动迁移。当前 schema0047 和 47 项迁移账本。0047 只加可空的食材分组字段和约束，旧行保留原值。恢复时先停 worker，再切已经在当前正式结构下通过就绪检查的兼容应用和 worker。
 
 先保存本机永久运行包并验摘要，保留原绑定密钥及旧静态资源，当前Server Action使用新门禁，旧动作提示刷新，验收后，先以服务账号核对新目录可进入、文件可读取，并在私有端口启动正式配置完成readiness；顶级目录权限不得因私有umask变为0700。通过后才原子切应用指针；核对readiness、源码／schema／数据库及正式版本、健康和凭据摘要。失败只回切兼容应用，不恢复旧库或删数据。Vercel专用网关沿用下方归档工具与明确别名范围；Git推送不自动发布，不用根Next产物当网关，不以项目级promote接管其他别名。无网关改动时核对既有READY绑定和实际回源即可。
 
