@@ -1,6 +1,6 @@
 # Formward 项目交接
 
-正式站运行 `dual-entry-8ed4b2d9-overview-inline-comparison-20261120`，源码 `8ed4b2d9f4dcd06a6f7adc19487cb5f7cc337c0d`，BUILD_ID `siCtt5JeEhPY3LyXriPrS`。北京时间 2026-11-20 00:24:33 切换。 总览当日与近7天的双行读数已发布。 [部署与公网核对](docs/deployment.md)
+正式站运行 `dual-entry-491149a0-edge-controls-20261121`，源码 `491149a0abf12b34fcceb1f4b6776a172ee37164`，BUILD_ID `1LmdZmCrX-vOu6t_F1-Mw`。北京时间 2026-11-21 01:39:40 切换。手机食材库采用右侧挂签，电脑入口在左导航下方。打开食材库再返回保留饮食历史状态。饮食、消耗与身体的记录使用统一单层操作，账号及模型菜单沿触发点开合，输入栏的加号和模型选择平时只显示图标或文字。 [部署与公网核对](docs/deployment.md#当前正式版本) · [跨端控件规则](docs/design-reference.md#跨端控件材质与反馈)
 
 ## 当前能力
 
@@ -26,7 +26,7 @@
 
 MCP2.0.2／18项、HTTP1.15.1；现有preview_energy及组合预览增加可选计算请求，共用网页服务器函数。AI计算额外要求measurements:read，普通返回只给脱敏计算摘要；确认流程、幂等、归属和版本保护保持。查询、总览和Excel说明估算来源。
 
-## 验收与发布
+## 既有能力的验收与发布
 
 lint、typecheck、production build通过；855项单元／集成中853项通过、2项条件跳过，后两项在独立原生PostgreSQL中另跑通过。最终包两引擎各85张主要页面、64张次级页面，逐题、选材、多项展开、确认与异常状态均由真实组件采集；另有正常字号6尺寸输入／测量／照片说明、6尺寸身体图及主按钮hover专项。并非所有保留功能都计作新改动。
 

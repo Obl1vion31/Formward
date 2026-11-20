@@ -2,6 +2,16 @@
 
 ## 当前正式版本
 
+食材库挂签、记录操作与小助手菜单运行在 `dual-entry-491149a0-edge-controls-20261121`，源码 `491149a0abf12b34fcceb1f4b6776a172ee37164`，BUILD_ID `1LmdZmCrX-vOu6t_F1-Mw`。北京时间 2026-11-21 01:39:40 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+
+手机食材库采用右侧挂签，电脑入口在左导航下方。打开食材库再返回保留饮食历史状态。饮食、消耗与身体的记录使用统一单层操作，账号及模型菜单沿触发点开合，输入栏的加号和模型选择平时只显示图标或文字。 正式兼容包完成 Chromium 与 WebKit 的 5 组手机／桌面实际页面核对。桌面 WebKit 的模型菜单核对了起止位置，连续帧采样不足。实体 iPhone Safari 待真机确认。 [视觉验收](../design-qa.md) · [跨端控件规则](design-reference.md#跨端控件材质与反馈)
+
+上海网页和聊天 worker 运行同版。数据库维持 `0047_meal_food_groups`、47 项迁移及 67 张表。切换前后配置与表摘要一致。停写备份 `formward-primary-20261120T173936736747Z.dump.json` 完成 PostgreSQL 原生校验和加密异地回读。四个公网域名和兼容 IP 版本一致，核对登录返回、匿名权限、20 项静态资源及原海外网关回源。
+
+保留 56 项表单操作编号和原绑定密钥，并携带 2329 项旧静态资源。正式兼容包 SHA-256 `ce62357e4719a82c1f425fb2fa0a9fbc27bf3a8d3407e7844258df24f18ab1b0`，大小 87,175,395 字节。归档于 `.codex/backups/regional-releases/edge-controls-20261121`，兼容回退为 `mobile-glass-controls-20261120`。
+
+## 手机轻玻璃与历史查询发布记录
+
 手机轻玻璃、滑动胶囊与一行历史查询运行在 `dual-entry-5baaaf21-mobile-glass-controls-20261120`，源码 `5baaaf2169b7db32607badfeb12c79a310fc2d3c`，BUILD_ID `2w4Lgp0sTASOhHWGIEo_-`。北京时间 2026-11-20 23:57:19 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
 
 手机独立按钮共用单一可见面，主导航、聊天／待办、晨晚与消耗分段支持跟手与吸附。身体、饮食和消耗的历史日期查询同排。电脑左栏使用纵向选中底片。正式兼容包完成两引擎八个手机／桌面场景、60 次按压和三页原生日期字段查询。已测按钮与胶囊外框最大偏差 0 CSS px。实体 iPhone Safari 待用户在线验收。 [视觉验收](../design-qa.md) · [跨端控件规则](design-reference.md#跨端控件材质与反馈)
