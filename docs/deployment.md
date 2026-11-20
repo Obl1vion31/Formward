@@ -2,17 +2,7 @@
 
 ## 当前正式版本
 
-正式站运行 `dual-entry-b6a7307b-assistant-keyboard-viewport-20261120`，源码 `b6a7307bd98f36950b1482af71999ccf11ce501d`，BUILD_ID `fZ2mKnjkAkdSHtaXOAaPt`。北京时间 2026-11-20 19:48:34 切换。 [公网小助手](https://formward.top/dashboard/assistant) · [正式版本](https://formward.top/api/app-version)
-
-小助手键盘开合按可用高度调整内容区域。长稿和附件各自滚动，输入区的按压柔光移除，保存按钮沿用原实现。正式构建的 Chromium 实页检查覆盖短长历史、输入边缘、选图、模型和发送。用户要求先发布到公网直接测试。发布后取得相同布局代码的 iPhone 隔离记录，连续六次仍复现输入框被裁到屏幕顶边，键盘问题仍待修正。 [视觉验收](../design-qa.md)
-
-上海网页和聊天 worker 同版。停写备份 `formward-primary-20261120T114830353472Z.dump.json` 通过 PostgreSQL 原生校验及加密异地回读。生产 schema `0047_meal_food_groups` 和 47 项迁移保持，切换前后 67 张表摘要及运行配置一致。保留 56 项 Server Action 编号和绑定密钥，追加 2254 项兼容静态资源。
-
-运行包归档在 `.codex/backups/regional-releases/assistant-keyboard-viewport-20261120`，大小 85,966,910 字节，SHA-256 `8786386902f6d89494f5202a646cf4e2780efe1e1dcab43bceff4caa930e19ec`。兼容回退为 `meal-entry-public-20261120`。
-
-## 记录一餐发布记录
-
-「记录一餐」运行 `dual-entry-c990c6fb-meal-entry-public-20261120`，源码 `c990c6fb740071b41ca7dbafd74b5495a3e1c4f9`，BUILD_ID `uomWTu1xO4bag_4Wc-3Hk`。北京时间 2026-11-20 19:42:55 上线。 [记录一餐](https://formward.top/dashboard/meals?entry=1) · [正式版本](https://formward.top/api/app-version)
+正式站运行 `dual-entry-c990c6fb-meal-entry-public-20261120`，源码 `c990c6fb740071b41ca7dbafd74b5495a3e1c4f9`，BUILD_ID `uomWTu1xO4bag_4Wc-3Hk`。北京时间 2026-11-20 19:42:55 首次上线，19:54:19 由小助手键盘候选回切至此。回切后网页与聊天 worker 均运行该包，四个公网域名和兼容 IP 返回同一版本。生产继续使用原数据库及 `0047_meal_food_groups`，迁移账本仍为 47 项，保留「记录一餐」及已保存数据。 [记录一餐](https://formward.top/dashboard/meals?entry=1) · [正式版本](https://formward.top/api/app-version)
 
 同一正式运行包在 Chromium 和 WebKit 各通过 11 组实页验收。手机检查窄屏单位、四项营养和依据同行、食材库选取与返回。桌面检查数量、单位及四项营养同列，双端均走完整保存。 [视觉验收](../design-qa.md)
 
@@ -21,6 +11,14 @@
 已核对四个公网域名、兼容 IP、HTTPS 跳转、登录返回、新旧资源、匿名访问权限和海外发现接口。Vercel 网关两别名仍指向既有 iad1 部署。保留 56 项 Server Action 编号及绑定密钥，携带 2245 项旧静态资源。
 
 兼容运行包归档在 `.codex/backups/regional-releases/meal-entry-public-20261120`，大小 85,757,690 字节，SHA-256 `a8289d576830ffd4fdbff194253dcc1f359a57610eb739c2c364c6561b6963ad`。正式构建沿用测量页发布和此前已回切的小助手输入行为，餐次源码已合入 main。
+
+## 小助手键盘候选已撤回
+
+`dual-entry-b6a7307b-assistant-keyboard-viewport-20261120` 于北京时间 19:48:34 切换。其布局在实体 iPhone 的隔离验收中连续六次复现打开系统键盘后输入框被裁切的问题。19:54:19 已回切正式网页及聊天 worker。 [实机验收](assistant-chat-verification.md#手机键盘调整与输入区)
+
+该次切换使用的停写备份 `formward-primary-20261120T114830353472Z.dump.json` 已通过 PostgreSQL 原生校验及加密异地回读。原切换前后 67 张表摘要及运行配置一致。候选保留 56 项 Server Action 编号和绑定密钥，追加 2254 项兼容静态资源。
+
+撤回包和回退证据归档在 `.codex/backups/regional-releases/assistant-keyboard-viewport-20261120`。运行包大小 85,966,910 字节，SHA-256 `8786386902f6d89494f5202a646cf4e2780efe1e1dcab43bceff4caa930e19ec`。
 
 ## 测量页单行发布记录
 
