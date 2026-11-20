@@ -56,7 +56,7 @@ function installProbe({theme, user}) {
   requestAnimationFrame(frame);
   new MutationObserver(records => {
     if (records.some(record => record.target instanceof HTMLDialogElement)) sample("dialog");
-  }).observe(document.documentElement, {subtree: true, attributes: true, attributeFilter: ["data-surface-phase"]});
+  }).observe(document, {subtree: true, attributes: true, attributeFilter: ["data-surface-phase"]});
 }
 
 async function record(page, label, action, validate) {
