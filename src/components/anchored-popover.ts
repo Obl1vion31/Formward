@@ -1,4 +1,4 @@
-import {readVisibleViewport} from "./input-viewport";
+import {INPUT_VIEWPORT_APPLIED, readVisibleViewport} from "./input-viewport";
 
 type Position = {
   width: number | (() => number);
@@ -33,17 +33,20 @@ export function readPopoverBounds(owner: HTMLElement | undefined, margin: number
 export function followPopoverAnchor(panel: HTMLElement, trigger: HTMLElement, owner: HTMLElement | undefined, place: () => void) {
   let frame = 0;
   const viewport = window.visualViewport;
+  const measure = () => {
+    cancelAnimationFrame(frame);
+    frame = 0;
+    place();
+  };
   const schedule = () => {
-    if (frame) return;
-    frame = requestAnimationFrame(() => {
-      frame = 0;
-      place();
-    });
+    if (!frame) frame = requestAnimationFrame(measure);
   };
   const observer = new ResizeObserver(schedule);
   observer.observe(panel);
   observer.observe(trigger);
   if (owner) observer.observe(owner);
+  // A fixed sheet can move with the keyboard without changing size.
+  owner?.addEventListener(INPUT_VIEWPORT_APPLIED, measure);
   window.addEventListener("resize", schedule);
   window.addEventListener("scroll", schedule, true);
   viewport?.addEventListener("resize", schedule);
@@ -52,6 +55,7 @@ export function followPopoverAnchor(panel: HTMLElement, trigger: HTMLElement, ow
   return () => {
     cancelAnimationFrame(frame);
     observer.disconnect();
+    owner?.removeEventListener(INPUT_VIEWPORT_APPLIED, measure);
     window.removeEventListener("resize", schedule);
     window.removeEventListener("scroll", schedule, true);
     viewport?.removeEventListener("resize", schedule);

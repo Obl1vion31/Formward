@@ -1,4 +1,7 @@
+import {useLayoutEffect, useRef} from "react";
 import {MOBILE_MEDIA} from "./use-mobile-mode";
+
+export const INPUT_VIEWPORT_APPLIED = "formward:input-viewport-applied";
 
 export type VisibleViewport = {
   left: number; top: number; right: number; bottom: number;
@@ -44,6 +47,7 @@ export function observeInputViewport(owner: HTMLElement, apply: (state: InputVie
     keyboard = mobile.matches && visible.scale === 1 && (!!field || keyboard)
       && restingHeight - visible.height >= (keyboard ? 8 : 72);
     apply({...visible, field, keyboard});
+    owner.dispatchEvent(new Event(INPUT_VIEWPORT_APPLIED));
   }
 
   function schedule() { if (!frame) frame = requestAnimationFrame(update); }
@@ -84,4 +88,33 @@ export function revealFocusedInput(field: HTMLElement, owner: HTMLElement, top: 
     }
     if (scroller === owner) break;
   }
+}
+
+/** Normal pages can scroll the document when a shorter viewport hides the field. */
+export function useDocumentInputViewport<T extends HTMLElement>(enabled = true) {
+  const ref = useRef<T>(null);
+  useLayoutEffect(() => {
+    const owner = ref.current;
+    if (!enabled || !owner) return;
+    let last: {field: HTMLElement; height: number; top: number} | undefined;
+    function reset() {
+      last = undefined;
+      owner?.style.removeProperty("--document-input-space");
+    }
+    const stop = observeInputViewport(owner, ({field, keyboard, top, bottom, height}) => {
+      if (!keyboard) {
+        reset();
+        return;
+      }
+      if (!field || field.closest("dialog")) return;
+      if (last?.field === field && last.height === height && last.top === top) return;
+      last = {field, height, top};
+      owner.style.setProperty("--document-input-space", Math.max(0, document.documentElement.clientHeight - height) + "px");
+      const box = field.getBoundingClientRect();
+      const delta = box.top < top + 12 ? box.top - top - 12 : Math.max(0, box.bottom - bottom + 12);
+      if (Math.abs(delta) > 1) window.scrollBy({top: delta, behavior: "instant"});
+    });
+    return () => { stop(); reset(); };
+  }, [enabled]);
+  return ref;
 }

@@ -990,6 +990,7 @@ dialog::backdrop{transition:background-color 210ms cubic-bezier(.2,.8,.2,1)}
 }
 .login-form input {height:auto;min-height:44px;font-size:1rem;line-height:1.5}
 .login-form label {font-size:.75rem}
+[data-document-input-viewport]::after {content:"";display:block;height:var(--document-input-space,0px)}
 .login-form button {font-size:.9375rem}
 .login-error {font-size:.75rem}
 .login-recovery {font-size:.6875rem}

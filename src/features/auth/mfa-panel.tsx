@@ -1,4 +1,5 @@
 "use client";
+import {useDocumentInputViewport} from "@/components/input-viewport";
 import {LocalLoading} from "@/components/local-loading";
 import { useEffect, useState, type FormEvent } from "react";
 import {LoadingLink as Link} from "@/components/loading-link";
@@ -14,6 +15,7 @@ function safeReturn(value?: string) {
   return url.origin === "https://fixed.test" && ["/dashboard", "/admin", "/onboarding", "/oauth/login", "/oauth/consent", "/doubao/"].some(path => url.pathname === path || url.pathname.startsWith(path.endsWith("/") ? path : path + "/")) ? url.pathname + url.search : "/dashboard";
 }
 export function MfaPanel({ challenge = false, returnTo, embedded = false }: { challenge?: boolean; returnTo?: string; embedded?: boolean }) {
+  const viewportOwner = useDocumentInputViewport<HTMLElement>(!embedded);
   const [data, setData] = useState<Extract<Awaited<ReturnType<typeof loadSecurityAction>>, { ok: true }>["data"] | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [password, setPassword] = useState(""), [code, setCode] = useState(""), [recovery, setRecovery] = useState(false);
@@ -43,7 +45,7 @@ export function MfaPanel({ challenge = false, returnTo, embedded = false }: { ch
   async function confirm(e: FormEvent) { e.preventDefault(); await perform(async () => {
     await authCall("verify-totp", { code, trustDevice: false }); setCode(""); setTotp(""); setQr(""); setBinding(false); setChanging(false); await reload(); setNotice("双重验证已启用，其他网页会话已退出。请妥善保存恢复码。");
   }); }
-  return <section className={`${styles.panel} ${embedded ? styles.embedded : ""}`} aria-busy={busy || loading}>
+  return <section ref={viewportOwner} data-document-input-viewport={!embedded || undefined} className={`${styles.panel} ${embedded ? styles.embedded : ""}`} aria-busy={busy || loading}>
     {!embedded && <Link className={styles.brand} href="/">formward<span>.</span></Link>}
     <h1>{pending ? "验证身份" : "双重验证"}</h1>
     <p className={styles.muted}>{pending ? "输入验证器当前的6位动态码，完成这次登录。" : data?.email || "管理验证器和恢复方式。"}</p>

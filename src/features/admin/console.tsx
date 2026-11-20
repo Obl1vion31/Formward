@@ -1,5 +1,6 @@
 "use client";
 import {useCallback,useEffect,useRef,useState,type FormEvent} from "react";
+import {useDocumentInputViewport} from "@/components/input-viewport";
 import {useDraftGuard} from "@/components/draft-guard";
 import {loadAdminConsoleAction,loadAdminSectionAction,unlockAdminAction,loadAdminAction} from "@/app/admin/actions";
 import {AdminHeading,AdminLink as Link} from "./navigation-view";
@@ -22,6 +23,7 @@ function isOverview(snapshot:AdminRead):snapshot is AdminConsoleData{return "fil
 const scrollPositions=new Map<string,number>();
 function Moment({value}:{value:string|null}){return <>{value?new Date(value).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai",hour12:false}):"无"}</>;}
 export function AdminConsole({email,initial,initialAccounts=null,initialFilter={},initialTab="users",fixedUserId,userView="summary",returnTo,accountSection="accounts",accountStatus="all",accountPage=1,accountSearch="",totpRequired=true}:{email:string;initial:AdminRead|null;initialAccounts?:AdminData|null;initialFilter?:AdminFilter;initialTab?:AdminTab;fixedUserId?:string;userView?:UserView;returnTo?:string;accountSection?:AccountSection;accountStatus?:AccountFilter["status"];accountPage?:number;accountSearch?:string;totpRequired?:boolean}){
+ const viewportOwner=useDocumentInputViewport<HTMLDivElement>();
  const tab=fixedUserId?"users":initialTab;
  const [data,setData]=useState(initial),[draft,setDraft]=useState<AdminFilter>(initial&&isOverview(initial)?initial.filter:initialFilter),[busy,setBusy]=useState(false),[locked,setLocked]=useState(!initial),[error,setError]=useState(""),[password,setPassword]=useState(""),[code,setCode]=useState("");
  const [policyDirty,setPolicyDirty]=useState(false),[tierDirty,setTierDirty]=useState(false);useDraftGuard(policyDirty||tierDirty,busy);
@@ -62,7 +64,7 @@ export function AdminConsole({email,initial,initialAccounts=null,initialFilter={
  const selected=fixedUserId?snapshot?.users.find(person=>person.id===fixedUserId):undefined,back=returnTo??"/admin?tab=users";
  const title=fixedUserId?({summary:"用户概况",account:"账号设置",policy:"个人额度"}[userView]):({users:"用户管理",usage:"用量分析",rules:"规则设置",security:"安全与操作记录"}[tab]);
  const backHref=fixedUserId&&userView!=="summary"?personHref(fixedUserId,"summary",back,draft):back;
- return <div data-admin-content>
+ return <div ref={viewportOwner} data-admin-content data-document-input-viewport>
   {fixedUserId&&<Link prefetch={false} className={styles.back} href={backHref}>{userView!=="summary"?"← 返回用户概况":/[?&]tab=(usage|overview)(?:&|$)/.test(back)?"← 返回用量分析":"← 返回用户列表"}</Link>}
   <AdminHeading title={title} refreshing={!locked&&busy} onRefresh={locked?undefined:()=>void load(draft)}/>
   {error&&<p className={styles.error} role="alert">{error}</p>}
