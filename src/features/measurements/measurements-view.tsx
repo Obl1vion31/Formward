@@ -12,7 +12,7 @@ import { DailyRecords } from "@/components/daily-records";
 import { RecordHistory } from "@/components/record-history";
 import { Inspector,InspectorCloseButton } from "@/components/inspector";
 
-import { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import {WorkspaceTodayContext} from "@/components/workspace-frame-state";
 import { buildMeasurementDays } from "./days";
 import { addCalendarDays, measurementCalendarPage, measurementCalendarRange } from "./calendar";
@@ -81,16 +81,6 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const [drawer, setDrawer] = useState<DrawerView | null>(initialDate&&!initialTrend ? initialPeriod||initialIntent==='edit'?{kind:"entry",date:initialDate,period:initialPeriod??undefined,editing:initialIntent==='edit'}:{kind:"day",date:initialDate} : null);
   const transition=useChartTransitionActions(),[selectedMetric,setSelectedMetric]=useState<MeasurementMetric>('weightKg');
   const preference=useBodyPreferences(preferences,!!drawer),activeMetric:MeasurementMetric=preference.showBodyFat?selectedMetric:'weightKg';
-  const [expandedDate, setExpandedDate] = useState<string | null>(null);
-  const detailAnchor = useRef<{trigger: HTMLButtonElement; top: number} | null>(null);
-  useLayoutEffect(() => {
-    const anchor = detailAnchor.current;
-    detailAnchor.current = null;
-    if (anchor?.trigger.isConnected) {
-      const shift = anchor.trigger.getBoundingClientRect().top - anchor.top;
-      if (Math.abs(shift) > 1) window.scrollBy(0, shift);
-    }
-  }, [expandedDate]);
   function updated(result: Extract<EntryResult, { ok: true }>) { setSourceResult(null); setActionResult({ ...result, base: serverRecords }); }
 
   useEffect(()=>{const latest=()=>{setDrawer(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
@@ -135,11 +125,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
     const day = daysByDate.get(date);
     return <BodyRecordRow key={date} date={date} today={today} records={day?.records ?? []}
       morning={day?.daytimeRecord ?? null} evening={day?.eveningRecord ?? null}
-      showFat={preference.showBodyFat} open={expandedDate === date}
-      onToggle={trigger => {
-        detailAnchor.current = {trigger, top: trigger.getBoundingClientRect().top};
-        setExpandedDate(previous => previous === date ? null : date);
-      }}
+      showFat={preference.showBodyFat}
       onEntry={(editing, period) => setDrawer({kind: "entry", date, editing, period})}/>;
   }
 
