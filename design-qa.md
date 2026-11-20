@@ -10,6 +10,10 @@
 
 验收为独立包名、临时PostgreSQL和虚构账号，持续标识隔离。导出取回核验8个工作表，恢复后运行数无重复；模型与存储回放不计真实识别或COS验证。Release未签名构建通过。图库实际选择、相机拍摄、兼容真机及最终签名包安装仍未测。网页lint、typecheck、production build、8项原生策略／下载测试及848项单元集成通过，2项原有跳过；初轮授权用例一次间歇失败与后续通过日志均保留。 [完整状态](docs/harmonyos-release.md)
 
+正式兼容运行包 `dual-entry-cffcbe0c-harmonyos-host-r2-20261121` 在临时PostgreSQL复验登录、AI标识、复制、人工保存和刷新恢复；数据库确认1次运行、1条保存，未知分项保持NULL。上线后未签名Release HAP在模拟器连接正式域名，使用独立普通审核账号完成登录、查看样例、关闭后重开直接回总览。该账号只含明确标记的虚构资料与3条演示记录，默认Free，完整聊天需管理员配置普通档位。 [实际原生总览](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/native-release-overview.png>) · [准确运行包保存结果](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/exact-runtime-saved.jpg>) · [已保存的上架草稿](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/appgallery-draft-ai.jpg>)
+
+网页已正式发布，华为应用仍为“准备提交”；未签名、未备案、未测真机及商店高清截图缺项继续保留，不以视觉复核或模拟器成功替代这些步骤。
+
 
 ## 已发布验收 · 手机页面中线与聊天胶囊
 

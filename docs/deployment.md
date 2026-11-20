@@ -2,6 +2,20 @@
 
 ## 当前正式版本
 
+鸿蒙网页交接与AI标识运行在 `dual-entry-cffcbe0c-harmonyos-host-r2-20261121`，源码 `cffcbe0c72ab020b2227861323c42e82f854fa92`，BUILD_ID `55gphIhGmyVooS-Z5pKld`。北京时间2026-11-21 05:59:18切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+
+网页补齐原生主题／返回状态交接、登录成功后的输入保护交接，以及每条AI回答、续答和复制内容的显式标识。普通浏览器不启用原生桥，既有账号、GPT／OAuth／MCP、Garmin及数据库结构保持。鸿蒙未签名Release候选已构建并实测，应用商店仍未提交或上架，状态见[鸿蒙首发](harmonyos-release.md)。
+
+同一正式兼容包在隔离PostgreSQL验证登录、AI预览、人工确认、复制标识及刷新恢复，确认恰有1次运行与1条消耗写入。正式网页和worker已同版；五个公网入口、28项新旧资源、登录返回、CSP／HSTS及匿名权限通过。海外网关沿用原READY部署、iad1和两个别名，HTTP1.15.1与MCP发现保持。
+
+结构仍为`0047_meal_food_groups`、47项迁移。停写切换前后67张表及运行配置摘要一致，备份`formward-primary-20261120T215914810748Z.dump.json`完成原生校验和加密异地回读。之后仅为独立普通审核账号添加虚构资料及3条演示记录，无管理员角色或设备连接；运营者记录和连接未用于验收。
+
+保留56项Server Action及原绑定密钥，追加2350项兼容静态资源。首份Webpack候选未通过旧动作编号检查，未暂存或上线；正式候选沿用现网Turbopack构建方式。正式运行包与本机归档逐字节一致，87,515,062字节，SHA-256 `8698387966b0b9cc406140887d3ee489d52d36b0cdf06b5d87cf7b3e207f3c59`，位于`.codex/backups/regional-releases/harmonyos-host-r2-20261121`。兼容回退为`mobile-workspace-centering-20261121`，不回滚数据库。
+
+暂存时发现服务器空间不足，清理的是已发布且本机完整归档核验过的历史builder副本，正式运行目录、回退目录、备份、证书与配置保留。当次清理后核对余量4.2 GiB。
+
+## 手机工作区与聊天胶囊发布记录
+
 手机工作区与聊天胶囊运行在 `dual-entry-53c6ee57-mobile-workspace-centering-20261121`，源码 `53c6ee574047ee1864f9ca289753497e834b2fde`，BUILD_ID `u0oKTX33lJPR99OhNCNuz`。北京时间 2026-11-21 02:40:59 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
 
 手机顶栏、正文和底栏共用屏幕中线。食材库在可用宽度 348 CSS px 起继续右挂，较窄时与日期、查看记录同排。聊天／待办选中底片四边各留 3 CSS px。Chromium 和 WebKit 完成本地 60 个页面与视口组合、24 个慢加载场景及正式兼容包 40 个页面组合。实体 iPhone Safari 单列待测。 [视觉验收](../design-qa.md) · [设计规范](design-reference.md#跨端控件材质与反馈)
