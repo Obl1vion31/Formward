@@ -11,6 +11,9 @@ chat-worker.ts及formward-chat-worker.service提供站内聊天／本餐识图�
 
 - bootstrap.sh：显式使用 --apply 后安装必要软件、建立专用目录与数据库角色、配置本机代理及定时备份。初次运行拒绝接管既有应用、PostgreSQL 集群或 Nginx；重复运行只更新带本项目管理标记的配置。
 - package-release.sh／build-regional-release.mts：仅从干净提交的源码归档重新构建，同时生成上海 standalone 与国际 Build Output 网关，输出在被忽略的 .codex/regional-releases。产物绑定源码、锁文件、migration、BUILD_ID及协议摘要，不复用工作区旧 .next，不复制环境文件；相同发布标识拒绝覆盖。
+- primary-release.py 复用上海正式的预检、候选运行包校验归档、激活、进程核对与兼容回退。每步输入同一个发布标识。preflight 还核对现站完整提交、schema、表数及迁移数。stage 读取构建目录与 build-input.json，保留已有静态资源和 Server Action 兼容。activate 仅接受源码和运行包摘要匹配的验收证明。verify 比较网页与 worker 实际工作目录，rollback 用同次预检的兼容包恢复。正式停写、生成任务保护、原生备份及加密异地回读继续由该链路检查。
+- python3 -m unittest discover -s scripts/self-hosting -p test_primary_release.py 使用临时目录演练正式步骤，覆盖归档、安全校验、启动或备份失败及恢复链接。
+
 - activate-preview.sh：核对归档 SHA-256，安全解包到新的版本目录，原子更新 current 并重启；核对实际版本、构建及数据库readiness；失败时只回退到理解同一schema和协议的版本。首次发布失败时停止服务，不留下错误的 current。
 - formward-preview.service：用 formward 用户运行 current/server.js，普通请求监听127.0.0.1:3000，私有上传监听3001；异常退出后重启，读取 root 专有的 /etc/formward/preview.env。
 - nginx-preview.conf：仅监听 127.0.0.1:8080；将请求转给应用，并覆盖代理来源头。外部仅通过 SSH 转发本机 3300 访问。
