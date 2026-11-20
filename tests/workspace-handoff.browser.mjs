@@ -168,7 +168,7 @@ try {
         } else {
           await page.goto(config.baseURL + "/dashboard/measurements");
           const records = page.getByRole("region", {name: "最近记录", exact: true});
-          await press(records.getByRole("button", {name: "编辑", exact: true}).first());
+          await press(records.getByRole("button", {name: "编辑 " + config.today, exact: true}));
         }
         await bodyForm(page).waitFor();
         await page.locator(".pending-entry-fields").waitFor({state: "detached"});
