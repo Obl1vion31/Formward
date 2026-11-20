@@ -20,7 +20,7 @@ import {NutritionLegend,EnergyLegend} from './chart-legend';
 import {MetricCardRailPending} from './metric-card-rail';
 import {TrendGlyph} from './trend-glyph';
 import {linkedTrend} from './metric-trend-model';
-import {OverviewTrendLayout} from '@/features/dashboard/overview-trend-layout';
+import {OverviewPlotLoadingGuides,OverviewTrendLayout} from '@/features/dashboard/overview-trend-layout';
 import measurementStyles from '@/features/measurements/measurements-view.module.css';
 import {NutritionComposition} from "@/features/meals/nutrition-composition";
 import {EnergyComposition} from '@/features/activities/energy-composition';
@@ -64,7 +64,7 @@ export function WorkspaceLoading({kind,returnShell=false,destination}:{kind:'ove
  const dayWidth=dates.length?plotWidth/dates.length:0;
  const selectedX=selectedIndex<0?null:left+(selectedIndex+.5)*dayWidth;
  const content=<div data-workspace-reading={!returnShell||returningToOverview||undefined} aria-busy={waiting||undefined} aria-label={title}>
- {kind==='overview'?<OverviewLoading date={date} rangeMode={recallOverview()?.mode??undefined} readingStatus={readingStatus}/>:<RecordWorkspace title={title}>
+ {kind==='overview'?<OverviewLoading date={date} rangeMode={recallOverview()?.mode??undefined} readingStatus={readingStatus} showPlotGuides={waiting&&!entryOpen}/>:<RecordWorkspace title={title}>
  <div data-record-trend>
  <RecordTrendPanel chartSummary={body?<span aria-hidden="true"> </span>:undefined} date={date} view={()=>{}} presentation={kind} loading
   metrics={metrics} mobileMetrics={mobileMetrics} readingStatus={primaryStatus}
@@ -73,7 +73,7 @@ export function WorkspaceLoading({kind,returnShell=false,destination}:{kind:'ove
   legend={kind==='nutrition'?<NutritionLegend/>:body?<><span><i style={{background:'var(--data-weight)',borderRadius:'50%'}}/>晨间空腹</span>{params.get('view')!=='trend'&&<span><i style={{background:'var(--data-deficit)',borderRadius:'50%'}}/>晚间</span>}</>:<EnergyLegend/>}
   graphic={kind==="energy"?<EnergyComposition resting={readings?.kind==="energy"?readings.restingKcal:null} active={readings?.kind==="energy"?readings.activeKcal:null} loading={readings?.kind!=="energy"||readings.restingKcal==null||readings.activeKcal==null}/>:kind==="nutrition"?<NutritionComposition totals={readings?.kind==="intake"?readings.totals:null} loading={readings?.kind!=="intake"||macroComposition(readings.totals).kind==="unknown"}/>:undefined}>
  <PendingPlotFrame kind={kind} frameRef={ref} shared={shared} linked={linked} adaptive={mobile===null&&!shared?'auto':adaptive} short={model?model.points.length<=7:linkedRange?(Date.parse(linkedRange.to)-Date.parse(linkedRange.from))/86400000<7:range==="7"} axisLeft={"max("+(kind==="body"?48:50)+"px, calc("+Math.max(...tickLabels.map(value=>String(value).length))+"ch + 12px))"}>
-  {waiting&&!entryOpen&&!linked&&!model&&<PlotLoadingGuides top={top} right={right} bottom={32} left={left}/>}
+  {waiting&&!entryOpen&&!model&&<PlotLoadingGuides top={top} right={right} bottom={32} left={left} desktopOnly={linked}/>}
   <svg preserveAspectRatio="none" viewBox={'0 0 '+width+' '+svgHeight} aria-hidden="true">
    {dates.length>0&&<TrendAxes kind={plotKind} dates={dates} model={model} width={width} left={left} right={right} top={top} bottom={svgHeight-32} fontSize={fontSize} axisClass="pending-axis" gridClass="pending-grid"/>}
    {model&&!body&&selectedX!==null&&<ChartSelectionColumn x={selectedX} date={date} column={{left:selectedX-dayWidth/2,right:selectedX+dayWidth/2}} plot={{left,right:width-right,top,bottom:svgHeight-32}} resetKey={date} direct baselineTick/>}
@@ -93,10 +93,12 @@ export function WorkspaceLoading({kind,returnShell=false,destination}:{kind:'ove
   ?returningToOverview||!sceneLeaving?<WorkspacePending path="/dashboard" query="">{content}</WorkspacePending>:content
   :<WorkspacePending>{content}</WorkspacePending>;
 }
-function OverviewLoading({date,rangeMode,readingStatus}:{date:string;rangeMode?:string;readingStatus?:React.ReactNode}){return <RecordWorkspace title="总览" className={overview.workspace}>
+function OverviewLoading({date,rangeMode,readingStatus,showPlotGuides}:{date:string;rangeMode?:string;readingStatus?:React.ReactNode;showPlotGuides:boolean}){return <RecordWorkspace title="总览" className={overview.workspace}>
  <MetricCardRailPending readingStatus={readingStatus}/>
  <OverviewTrendLayout date={date} range={rangeMode??"30"} mobileRange={rangeMode??"7"} changeRange={()=>{}}>
-  <div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle}/>
+  <div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle}>
+   {showPlotGuides&&<OverviewPlotLoadingGuides/>}
+  </div>
  </OverviewTrendLayout>
  </RecordWorkspace>;}
 function PendingPlotFrame({children,kind,frameRef,shared,linked,adaptive,axisLeft,short}:{children:React.ReactNode;kind:string;frameRef:React.RefObject<HTMLDivElement|null>;shared:boolean;linked:boolean;adaptive:boolean|'auto';axisLeft:string;short:boolean}){

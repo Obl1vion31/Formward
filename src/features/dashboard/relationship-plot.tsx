@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { LocalLoading } from "@/components/local-loading";
+import { ChartPreparation } from "@/components/chart-preparation";
 import { useChartViewport } from "@/components/use-chart-viewport";
 import { useChartDrag } from "@/components/use-chart-drag";
 import { useMobileMode } from "@/components/use-mobile-mode";
@@ -15,6 +15,7 @@ import { balanceLabel, hasEnergyRecord, shortDate } from "./day-readings";
 import type { OverviewDay } from "./model";
 import styles from "./overview.module.css";
 import { relationshipFrame, relationshipFrameStyle } from "./relationship-frame";
+import { OverviewPlotLoadingGuides } from "./overview-trend-layout";
 
 type ReadoutMode = "hover" | "focus" | "pinned";
 type ReadoutChoice = { scope: string; mode: ReadoutMode };
@@ -62,7 +63,8 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
   const { width, left: measuredLeft } = useChartViewport(container, [...balanceScale.ticks, ...weightScale.ticks.map(tick => weightTick(tick))], 49);
   const w = width || 280;
   const compact = compactMode ?? mobile ?? w < 650;
-  const left = compact ? 13 : measuredLeft + axisGap - 8;
+  const desktopLeft = measuredLeft + axisGap - 8;
+  const left = compact ? 13 : desktopLeft;
   const right = w - 13;
   const { top, energyBottom, weightTop, weightBottom, height } = relationshipFrame(compact, !!shortViewport);
   const balanceY = (n: number) => energyBottom - (n - balanceScale.min) / (balanceScale.max - balanceScale.min) * (energyBottom - top);
@@ -190,7 +192,8 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
     <div ref={plot} className={styles.plot} aria-busy={!ready}
       onPointerLeave={event => { if (event.pointerType === "mouse" && mode === "hover") setReadout(null); }}
       onBlur={event => { if (mode === "focus" && !event.currentTarget.contains(event.relatedTarget)) setReadout(null); }}>
-      {!ready && <div className="chart-preparation"><LocalLoading /></div>}
+      {!ready && <OverviewPlotLoadingGuides left={desktopLeft}/>}
+      <ChartPreparation active={!ready}/>
       <svg viewBox={["0", "0", w, height].join(" ")} style={{ visibility: ready ? undefined : "hidden" }}
         role="group" aria-label="双层日期关联图" aria-describedby={id + "-help"} {...drag}
         onPointerMove={event => {

@@ -1,29 +1,22 @@
 .guides {
-  display: none;
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--skeleton-fill);
+  mask:
+    linear-gradient(#000, #000) top / 100% 1px no-repeat,
+    linear-gradient(#000, #000) center / 100% 1px no-repeat,
+    linear-gradient(#000, #000) bottom / 100% 1px no-repeat;
 }
 
-@media (max-width: 700px), (hover: none) and (pointer: coarse) {
-  .guides {
-    display: block;
-    position: absolute;
-    overflow: hidden;
-    pointer-events: none;
-    background: var(--skeleton-fill);
-    mask:
-      linear-gradient(#000, #000) top / 100% 1px no-repeat,
-      linear-gradient(#000, #000) center / 100% 1px no-repeat,
-      linear-gradient(#000, #000) bottom / 100% 1px no-repeat;
-  }
-
-  .guides::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg, transparent 38%, var(--skeleton-sheen) 50%, transparent 62%);
-    opacity: .7;
-    transform: translateX(-65%);
-    animation: sweep 1.6s var(--plot-wait-delay) linear infinite;
-  }
+.guides::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 38%, var(--skeleton-sheen) 50%, transparent 62%);
+  opacity: .7;
+  transform: translateX(-65%);
+  animation: sweep 1.6s var(--plot-wait-delay) linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

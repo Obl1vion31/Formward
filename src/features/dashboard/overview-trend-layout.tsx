@@ -1,12 +1,22 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ChartRanges } from "@/components/chart-ranges";
+import { PlotLoadingGuides } from "@/components/chart-preparation";
 import { OverviewLegend } from "@/components/chart-legend";
 import { signedRecordNumber } from "@/components/number-format";
 import { addCalendarDays } from "../measurements/calendar";
 import { BalanceReading } from "./day-readout";
 import { morningChangeReading, shortDate } from "./day-readings";
 import type { OverviewDay, OverviewWeek } from "./model";
+import { relationshipFrame } from "./relationship-frame";
 import styles from "./overview.module.css";
+
+export function OverviewPlotLoadingGuides({ left = 52 }: { left?: number }) {
+  const { top, energyBottom, weightTop, weightBottom, height } = relationshipFrame(false);
+  return <>
+    <PlotLoadingGuides desktopOnly top={top} bottom={height - energyBottom} left={left} right={13}/>
+    <PlotLoadingGuides desktopOnly top={weightTop} bottom={height - weightBottom} left={left} right={13}/>
+  </>;
+}
 
 function positionStatistics(button: HTMLButtonElement, panel: HTMLDivElement) {
   const edge = 12;

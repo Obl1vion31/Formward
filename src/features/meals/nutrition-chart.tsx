@@ -32,13 +32,15 @@ function DesktopNutritionChart({ dates, groups, selection, mode }: NutritionChar
   const {width:containerWidth,left,height:measuredHeight}=useChartViewport(viewport,scale.ticks,54);
   useChartMotion(viewport, containerWidth ? `${dates[0]}:${dates.at(-1)}:${mode}:${groups.map(group => `${group.date}:${JSON.stringify(group.totals)}`).join("|")}` : "pending",dates[0]+":"+dates.at(-1)+":"+mode);
   const width = containerWidth || 280, right = 10, slot = (width - left - right) / dates.length;
-  const chartHeight=measuredHeight||320,bottom=chartHeight-32,top=20;
+  const bottomInset = 32;
+  const chartHeight = measuredHeight || 320, bottom = chartHeight - bottomInset, top = 20;
   const max = scale.max, y = (value: number) => bottom - value / max * (bottom-top);
   const drag=useChartDrag(dates,width,left,right,selection.choose);
   const allDates = dates.length <= 7, selectedX = left + (dates.indexOf(inspected) + .5) * slot;
   const stride = Math.max(1, Math.ceil((dates.length - 1) / (width < 440 ? 3 : 6)));
   return <>
-    <div className={styles.barViewport} ref={viewport} ><ChartPreparation active={!containerWidth}/>
+    <div className={styles.barViewport} ref={viewport}>
+      <ChartPreparation active={!containerWidth} guideInsets={{ top, right, bottom: bottomInset, left }}/>
       <svg {...drag} className={styles.chart} style={{ touchAction:"pan-y", visibility: containerWidth ? undefined : "hidden" }} viewBox={`0 0 ${width} ${chartHeight}`} role="group" aria-label={`热量柱状图，单位${unit}`}>
         <defs><pattern id={patternId} width="5" height="5" patternUnits="userSpaceOnUse"><path d="M-1 1L1 -1M0 5L5 0M4 6L6 4" stroke="var(--warm-white)" strokeOpacity=".3" strokeWidth="1" /></pattern></defs>
         {scale.ticks.map(tick => <g key={tick}><line className={styles.grid} x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} /><text className={styles.axis} data-calorie-tick={tick} x={left - 8} y={y(tick) + 4} textAnchor="end">{tick}</text></g>)}
