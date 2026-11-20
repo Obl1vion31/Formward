@@ -77,7 +77,7 @@ export function ChatNavigation({tab,onTab,pendingCount}:{tab:ChatTab;onTab:(valu
     onTab(next);
   }}><button type="button" role="tab" aria-selected={tab === "chat"} onClick={() => onTab("chat")}><span className={styles.tabLabel}>聊天</span>{locked&&<small className={styles.tierBadge}>未开放</small>}</button><button type="button" role="tab" aria-selected={tab === "tasks"} onClick={() => onTab("tasks")}><span className={styles.tabLabel}>待办</span>{pendingCount > 0 && <span className={styles.tabBadge}>{pendingCount}</span>}</button></div><select className={styles.navSelect} aria-label="切换聊天与待办" value={tab} onChange={event=>onTab(event.target.value as ChatTab)}><option value="chat">聊天{locked?" · Plus":""}</option><option value="tasks">待办{pendingCount>0?" · "+pendingCount:""}</option></select></div>;
 }
-export function AssistantChatView({ sidebar, navigate, tab, page = false, onComposerDrag, onPreviewBack }: { sidebar: ReactNode; navigate: () => Promise<boolean>; tab: ChatTab; page?: boolean; onComposerDrag?: () => void; onPreviewBack?: () => void }) {
+export function AssistantChatView({ sidebar, navigate, tab, page = false, onPreviewBack }: { sidebar: ReactNode; navigate: () => Promise<boolean>; tab: ChatTab; page?: boolean; onPreviewBack?: () => void }) {
   const [pinnedPreview,setPinnedPreview]=useState<string|null>(null), previewBack=useRef<HTMLButtonElement>(null), previewTrigger=useRef<HTMLElement|null>(null);
   const closePreview=()=>{setPinnedPreview(null);onPreviewBack?.();requestAnimationFrame(()=>{const target=previewTrigger.current; if(target?.isConnected)target.focus({preventScroll:true});else feed.current?.focus({preventScroll:true});});};
   useLayoutEffect(()=>{if(pinnedPreview)previewBack.current?.focus({preventScroll:true});},[pinnedPreview]);
@@ -98,7 +98,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onComp
     ? task.assistantMessageId : task ? transcript.visible.findLast(row=>row.role==="assistant"&&row.state==="complete"&&row.question?.id===task.messageId)?.id : undefined;
   const composer = useRef<HTMLDivElement>(null), modelMenuId = useId();
   const composerPress = useComposerPress();
-  useComposerScrollBoundary(composer, onComposerDrag);
+  useComposerScrollBoundary(composer, page);
   const modelMenuOpen = panel === "models" && tab === "chat" && chat.enabled && !pinnedPreview;
   const quotaNotice = chat.enabled && chat.data && chat.data.usage.available <= 0
     ? <p className={styles.notice}>今日可用额度不足；待结算用量也会暂占额度，提醒和手工记录仍可使用。</p> : null;
@@ -318,7 +318,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onComp
           </div>
         </div>:<div className={styles.chatLocked}><strong>{"当前档位未开放聊天"}</strong><p>{chat.entitlement?.mealRecognition?"你仍可拍照录入饮食，或手动记录。":"已有消息和输入保留，可继续手动记录。"}</p>{chat.entitlement?.mealRecognition&&<LoadingLink href="/dashboard/meals" beforeNavigate={navigate}>去饮食页拍照录入</LoadingLink>}</div>}
 
-        {!page && quotaNotice}
+        {page ? <div className={styles.composerBottomGap} data-chat-composer-bottom-gap aria-hidden="true"/> : quotaNotice}
       </div>
       {latest&&<button type="button" className={styles.latest} aria-label="回到最新消息" title="回到最新消息" inert={panel === "connections"||!!pinnedPreview} onClick={()=>{const node=feed.current;if(!node)return;manualScrollUntil.current=0;recordScroll(node.scrollHeight,true);node.scrollTo({top:node.scrollHeight,behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth"});node.focus({preventScroll:true});}}><Glyph name="down"/></button>}
       {modelMenuOpen && <ChatModelMenu id={modelMenuId} anchor={modelButton} selected={selected?.id}
@@ -331,7 +331,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onComp
 function DraftPhotos(){
  const chat=useAssistantChat();
  if(!chat.photos.length)return null;
- return <><div className={styles.attachments} aria-label="聊天照片">{chat.photos.map((photo,index)=><div key={photo.key} className={styles.photoAttachment} data-photo-phase={photo.phase}>
+ return <><div className={styles.attachments} data-chat-composer-photos aria-label="聊天照片">{chat.photos.map((photo,index)=><div key={photo.key} className={styles.photoAttachment} data-photo-phase={photo.phase}>
   {photo.preview||photo.id?<img src={photo.preview??"/api/meal-images/"+photo.id} alt={"照片 "+(index+1)}/>:<span className={styles.photoPlaceholder}><Glyph name="photo"/></span>}
   {photo.phase!=="ready"&&<div className={styles.photoOverlay}>{photo.phase==="error"?<span>上传失败</span>:<div role="progressbar" aria-label={"照片 "+(index+1)+" "+photo.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={photo.percent}><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16"/><circle cx="20" cy="20" r="16" pathLength="100" strokeDasharray="100" strokeDashoffset={100-photo.percent}/></svg><span>{photo.phase==="complete"||photo.percent===100?"核对中":["queued","read","prepare","sign"].includes(photo.phase)?"0%":photo.percent+"%"}</span></div>}</div>}
   <button type="button" className={styles.removePhoto} aria-label={"移除照片 "+(index+1)} onClick={()=>chat.removePhoto(photo.key)}><Glyph name="close"/></button>

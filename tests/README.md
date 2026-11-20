@@ -476,7 +476,7 @@ MFA专项使用真实Better Auth插件验证绑定、错误动态码、恢复码
 
 `FORMWARD_EXPERIENCE_CASE=keyboard` 验证 393 × 852 手机视口内两图长稿的开合、迟到平移、引用、模型菜单和一次发送。模拟可见高度为 235、200 和 180 CSS px，保存可见区域原图及整屏录屏。`keyboard-before` 用同一数据在基线构建复现裁切。
 
-`FORMWARD_EXPERIENCE_CASE=draft-scroll` 用两张虚构照片和 20 行草稿，在 Chromium 用触摸滑动，在 WebKit 窄视口用原生滚轮。检验框内往返首尾、修改前文、模拟键盘高度变化后保持阅读位置、继续在末尾输入和一次发送。逐帧量顶栏、发送键、消息区和外层页面。额外从相片行起滑，在长稿和相片的边界回放触点及松手后的同高度视口偏移，并检查退回工作区的原阅读位置。`FORMWARD_EXPERIENCE_CASE=composer-scroll` 同时覆盖短历史和可滚过 1000px 的长历史，并验证从消息列表起滑仍可翻阅。WebKit 的持续触点用脚本回放，滚动由窄窗原生滚轮核对。
+`FORMWARD_EXPERIENCE_CASE=draft-scroll` 用两张虚构照片和 20 行草稿，在 Chromium 用触摸滑动，在 WebKit 窄视口用原生滚轮。检验框内往返首尾、修改前文、模拟键盘高度变化后保持阅读位置、继续在末尾输入和一次发送。逐帧量顶栏、发送键、消息区和外层页面。回放底部留白、键盘边界长按、文字先横后竖、到首尾继续拖和同高度视口偏移，逐帧保存顶栏、发送、消息与文档位置。`FORMWARD_EXPERIENCE_CASE=composer-scroll` 覆盖短历史、可滚过 1000px 的长历史、照片横滑与附件纵滑。消息区起滑仍可翻历史。WebKit 持续触点用脚本回放，原生滚动由窄窗滚轮核对。
 
 小助手上下文中断验收使用 `FORMWARD_CHAT_CONTEXT_RECOVERY=1` 运行 `tests/chat-pilot.browser.mts`。指定 `FORMWARD_TEST_RELEASE`、`FORMWARD_CHAT_NATIVE=1` 与虚构样例照片后，可用 `CHAT_BROWSER=chromium` 或 `webkit` 复现已保存后中断、一键新会话续答、历史精简与多图自动读取。另用 `FORMWARD_CONTEXT_CASE=photos` 或 `overflow` 可单独跑其中一类，capacity 覆盖查库后超限恢复与预警。可选的 `FORMWARD_CHAT_FIXTURE_LABEL` 提供虚构标签 PNG。以真实任务诊断和数据库核对完整提示、分批顺序、续读定位与保存前后的实际记录。报告和实录写入 `FORMWARD_CHAT_ARTIFACTS`。
 
@@ -484,6 +484,6 @@ MFA专项使用真实Better Auth插件验证绑定、错误动态码、恢复码
 
 设置 FORMWARD_DIRECTIONAL_NAVIGATION=1 运行 tests/chat-pilot.browser.mts。用虚构照片、当前及历史对话、训练日历和后台栏目核对双向偏移、主题、草稿及减弱动态，保存实页原速录像。
 
-设置 FORMWARD_MOBILE_LAYOUT_STABILITY=1 运行 tests/chat-pilot.browser.mts。验收入场首帧底色与短 6px 的前景边缘、无键盘时视觉视口短报与恢复、同一个底栏随来源正文同帧返回，以及实际视口和安全区变化时底栏与正文留位共享锚点。摘要提示覆盖空白槽、慢读、快读和失败重试，保存整屏截图、原速录屏以及逐帧尺寸。
+设置 FORMWARD_MOBILE_LAYOUT_STABILITY=1 运行 tests/chat-pilot.browser.mts。验收入场首帧底色与短 6px 的前景边缘、无键盘时视觉视口短报与恢复、同一个底栏随来源正文同帧返回，以及实际视口和安全区变化时底栏与正文留位共享锚点。从已滚动的总览分别用助手返回、浏览器返回并快速重开。逐帧核对实际文档滚动、body 定位、助手顶栏及底栏。摘要提示覆盖空白槽、慢读、快读和失败重试。保留整屏截图、原速录屏和尺寸。
 
 方案A的少量真实千问验收使用同一隔离入口，设置 `FORMWARD_CONTEXT_CASE=live`、`FORMWARD_CHAT_CONTEXT_RECOVERY=1`、`FORMWARD_LOCAL_PREVIEW=1` 和只读的0600测试凭据文件 `FORMWARD_CHAT_LIVE_KEY_FILE`。真实请求只在隔离 worker 内串行发出，独立账本持久预留未结算费用，总额上限¥1，未知费用阻止后续请求。常规页面回放全部使用模拟供应商。报告与凭据均保存在私有路径。

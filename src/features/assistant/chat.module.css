@@ -142,7 +142,8 @@
   position: fixed;
   inset: auto;
   left: var(--model-left, 12px);
-  top: var(--model-top, 8px);
+  top: var(--model-anchor, 8px);
+  transform: translateY(-100%);
   width: 256px;
   max-width: calc(100vw - 24px);
   margin: 0;
@@ -210,7 +211,7 @@
 .detail{position:absolute;inset:0;z-index:3;overflow:auto;background:var(--surface);padding:16px 24px 24px;scrollbar-width:thin}.detail>header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}.detail h3{font-size:1rem;font-weight:500;line-height:1.5;margin:0}.detail h3:focus{outline:none}.detail p{font-size:.875rem;line-height:1.7;color:var(--muted);overflow-wrap:anywhere;margin:12px 0}.detail .usageTotal{font-size:1.125rem;color:var(--warm-white);margin-bottom:24px}.usageTotal span{display:block;font-size:.875rem;color:var(--muted);margin-top:4px}.detail dl{display:grid;gap:12px;font-size:.875rem;margin:0 0 24px}.detail dl>div{display:flex;justify-content:space-between;align-items:baseline;gap:16px}.detail dt{color:var(--muted)}.detail dd{margin:0;font-variant-numeric:tabular-nums}.connection{padding:16px 0;border-bottom:1px solid var(--line-soft)}.connection>div{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.connection strong{font-size:1rem;font-weight:500}.connection span{font-size:.8125rem;color:var(--muted)}.connection p{font-size:.8125rem;margin:6px 0}.connection button{font-size:.875rem;padding:8px 0;color:var(--gold)}
 .detail{animation:reveal 160ms ease-out both}
 .modelMenu:popover-open { animation: model-menu-arrive 150ms ease-out both; }
-@keyframes model-menu-arrive { from { transform: translateY(3px); } to { transform: translateY(0); } }
+@keyframes model-menu-arrive { from { opacity: .65; } to { opacity: 1; } }
 @keyframes reveal{from{opacity:.4;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:700px),(hover:none) and (pointer:coarse){.workspace{display:flex;flex-direction:column}.workspaceTabs{display:none}.sidebar{display:none;border:0;flex:1}.conversation{flex:1}.workspace[data-tab=tasks] .sidebar{display:flex}.workspace[data-tab=tasks] .conversation{display:none}.feed{padding:12px 16px 8px}.composerArea{padding:4px 12px max(8px,env(safe-area-inset-bottom))}.message{margin-bottom:20px}.user{margin-left:8%}.welcome{padding-top:16px}.detail{padding:12px 20px 24px}.latest::before{border-color:var(--control-border);box-shadow:0 4px 14px var(--nav-shadow)}}
@@ -353,8 +354,9 @@
   flex-direction: column;
   overflow: clip;
   max-height: calc(100% - 20px);
-  padding-block: 2px var(--composer-bottom-inset);
+  padding-block: 2px 0;
 }
+.composerBottomGap { flex: 0 0 var(--composer-bottom-inset); touch-action: none; }
 :global([data-assistant-keyboard]) .workspace[data-page=true] .composerArea { --composer-bottom-inset: 4px; }
 .workspace[data-page=true] .composerExtras {
   min-height: 0;

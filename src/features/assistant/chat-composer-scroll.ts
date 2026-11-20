@@ -3,46 +3,47 @@ import { useEffect, type RefObject } from "react";
 type ScrollGesture = {
   x: number;
   y: number;
-  lastY: number;
-  axis: "horizontal" | "vertical" | null;
-  scroller: HTMLElement | null;
+  vertical: HTMLElement | null;
+  photos: HTMLElement | null;
 };
 
-export function useComposerScrollBoundary(ref: RefObject<HTMLDivElement | null>, onVerticalDrag?: () => void) {
+export function useComposerScrollBoundary(ref: RefObject<HTMLDivElement | null>, enabled: boolean) {
   useEffect(() => {
     const composer = ref.current;
-    if (!composer || !onVerticalDrag) return;
+    if (!composer || !enabled) return;
 
     let gesture: ScrollGesture | null = null;
     function start(event: TouchEvent) {
       gesture = null;
       if (event.touches.length !== 1 || !(event.target instanceof Element)) return;
       const { clientX: x, clientY: y } = event.touches[0];
-      const scroller = event.target.closest<HTMLElement>("textarea, [data-chat-composer-extras]");
-      gesture = { x, y, lastY: y, axis: null, scroller };
+      gesture = {
+        x, y,
+        vertical: event.target.closest<HTMLElement>("textarea, [data-chat-composer-extras]"),
+        photos: event.target.closest<HTMLElement>("[data-chat-composer-photos]"),
+      };
     }
 
     function move(event: TouchEvent) {
       if (!gesture || event.touches.length !== 1) return;
       const { clientX, clientY } = event.touches[0];
-      if (!gesture.axis) {
-        const x = Math.abs(clientX - gesture.x), y = Math.abs(clientY - gesture.y);
-        if (Math.max(x, y) < 8) return;
-        gesture.axis = y > x ? "vertical" : "horizontal";
+      const dx = gesture.x - clientX, dy = gesture.y - clientY;
+      gesture.x = clientX;
+      gesture.y = clientY;
+      if (!event.cancelable || (!dx && !dy)) return;
+
+      // 起手区域保持不变，后续手势换方向时重新检查该区域在当前方向的滚动空间。
+      const horizontal = gesture.photos && Math.abs(dx) > Math.abs(dy);
+      const scroller = horizontal ? gesture.photos : gesture.vertical;
+      const delta = horizontal ? dx : dy;
+      if (scroller && delta) {
+        const position = horizontal ? scroller.scrollLeft : scroller.scrollTop;
+        const maximum = horizontal
+          ? scroller.scrollWidth - scroller.clientWidth
+          : scroller.scrollHeight - scroller.clientHeight;
+        if (delta < 0 ? position > 1 : maximum - position > 1) return;
       }
-      if (gesture.axis !== "vertical") return;
-
-      onVerticalDrag?.();
-      const delta = gesture.lastY - clientY;
-      gesture.lastY = clientY;
-      if (!event.cancelable || !delta) return;
-
-      // 让浏览器在起手处原生滚动。该区域已到边界时，才取消继续拖动的默认行为。
-      const node = gesture.scroller;
-      const canScroll = node && (delta < 0
-        ? node.scrollTop > 1
-        : node.scrollHeight - node.clientHeight - node.scrollTop > 1);
-      if (!canScroll) event.preventDefault();
+      event.preventDefault();
     }
 
     function finish() { gesture = null; }
@@ -57,5 +58,5 @@ export function useComposerScrollBoundary(ref: RefObject<HTMLDivElement | null>,
       composer.removeEventListener("touchend", finish);
       composer.removeEventListener("touchcancel", finish);
     };
-  }, [ref, onVerticalDrag]);
+  }, [ref, enabled]);
 }

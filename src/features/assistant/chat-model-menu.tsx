@@ -91,7 +91,6 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
     if (!node || !button) return;
     node.showPopover();
     const viewport = window.visualViewport;
-    const composer = button.closest<HTMLElement>("." + styles.composer);
     const area = button.closest<HTMLElement>("." + styles.composerArea);
     let frame = 0;
     const place = () => {
@@ -99,23 +98,15 @@ export function ChatModelMenu({ anchor, selected, dismiss, close, connect, id }:
       const top = (viewport?.offsetTop ?? 0) + 8;
       const left = (viewport?.offsetLeft ?? 0) + 12;
       const right = left + (viewport?.width ?? innerWidth) - 24;
-      const bottom = top + (viewport?.height ?? innerHeight) - 16;
-      const media = area?.querySelector<HTMLElement>("." + styles.composerMedia);
-      const composerTop = Math.max(top, area?.getBoundingClientRect().top ?? top,
-        (media ?? composer)?.getBoundingClientRect().top ?? box.top);
-      const anchorTop = composerTop - top >= 184 ? composerTop : box.top;
-      const above = anchorTop - top - 8;
-      const below = bottom - box.bottom - 8;
-      const openUp = above >= 180 || above >= below;
-      node.style.width = Math.min(256, right - left) + "px";
-      node.style.maxHeight = Math.max(0, openUp ? above : below) + "px";
-      node.style.setProperty("--model-left", Math.max(left, Math.min(box.right - node.offsetWidth, right - node.offsetWidth)) + "px");
-      node.style.setProperty("--model-top", (openUp ? anchorTop - node.offsetHeight - 8 : box.bottom + 8) + "px");
+      const width = Math.min(256, right - left);
+      const anchorTop = box.top - 8;
+      node.style.width = width + "px";
+      node.style.maxHeight = Math.max(0, anchorTop - top) + "px";
+      node.style.setProperty("--model-left", Math.max(left, Math.min(box.right - width, right - width)) + "px");
+      node.style.setProperty("--model-anchor", anchorTop + "px");
     };
     const observer = new ResizeObserver(place);
-    observer.observe(node);
     observer.observe(button);
-    if (composer) observer.observe(composer);
     if (area) observer.observe(area);
     place();
     const focus = node.querySelector<HTMLElement>('[aria-checked="true"]:not(:disabled)')

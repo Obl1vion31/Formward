@@ -38,7 +38,7 @@ local-loading.tsx提供读取等待的共用反馈。已知内容和操作槽立
 
 `loading-link.tsx`包装Next.js Link并保留草稿保护、预取、新标签和下载语义。普通导航不登记全局等待；直接录入不预取，保存与真实任务继续使用原反馈。
 
-`scroll-lock.ts` 为 Inspector、确认层、图片预览和手机助手共用滚动锁。首次锁定保存 html／body 原 overflow 和 body paddingRight，按 body 实际释放的宽度补偿。手机助手另用固定模式保存工作区滚动位置。最后一个持有者退出时恢复原样式与阅读位置。
+`scroll-lock.ts` 为 Inspector、确认层、图片预览和手机助手共用滚动锁。首次锁定保存 html／body 原 overflow 和 body paddingRight，按 body 实际释放的宽度补偿。锁定期间保持工作区原滚动位置。最后一个持有者退出时恢复原 overflow 和 paddingRight。
 
 维护时只接入真实异步状态，操作内容和错误处理留在对应 feature。颜色与减少动态效果规则在 app/globals.css，浏览器验收在 tests/page-loading.browser.mjs。
 

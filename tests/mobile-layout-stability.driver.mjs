@@ -115,22 +115,21 @@ export async function runMobileLayoutStability(db) {
           const frame = document.querySelector("[data-workspace-viewport]");
           const card = [...document.querySelectorAll("[data-chat-preview]")].find(node => box(node)?.visible);
           const reading = card?.querySelector("[data-local-loading]");
-          const fixedPage = document.body.style.position === "fixed";
-          // 固定模式通过 body 偏移保持可见的来源位置，文档自身的 scrollY 会归零。
-          const sourceScroll = fixedPage ? -parseFloat(document.body.style.top) : scrollY;
           return {
-            time: performance.now(), visibleBottom: mock.height + mock.offsetTop, layoutHeight: innerHeight, scroll: sourceScroll,
+            time: performance.now(), visibleBottom: mock.height + mock.offsetTop, layoutHeight: innerHeight, scroll: scrollY,
+            bodyPosition: document.body.style.position, bodyTop: document.body.style.top,
             rootBackground: getComputedStyle(document.documentElement).backgroundColor,
             frameBackground: frame ? getComputedStyle(frame).backgroundColor : null,
             viewport: box(frame), content: box(shell?.querySelector("[data-assistant-page-content]")),
             inset: dock ? parseFloat(getComputedStyle(dock).bottom) : null,
             workspaceVisible: !!box(document.querySelector("[data-workspace-frame]"))?.visible,
-            locked: document.body.style.position === "fixed" || document.body.style.overflow === "hidden",
+            locked: document.body.style.overflow === "hidden",
             phase: shell?.getAttribute("data-assistant-phase"),
             mountedDock: dock === window.originalWorkspaceDock,
             assistantEntryVisible: !!box(dock?.querySelector("[data-assistant-trigger]"))?.visible,
             selected: dock?.querySelector("[aria-current=page]")?.textContent,
-            dock: box(dock), shell: box(shell), composer: box(shell?.querySelector("[class*=composerRow]")?.parentElement),
+            dock: box(dock), shell: box(shell), heading: box(shell?.querySelector("header")),
+            composer: box(shell?.querySelector("[class*=composerRow]")?.parentElement),
             send: box(shell?.querySelector('[aria-label="发送消息"]')),
             card: box(card), reading: box(reading),
             readingCount: card?.querySelectorAll("[data-reading-status]").length ?? 0,
@@ -221,6 +220,12 @@ export async function runMobileLayoutStability(db) {
         assert.equal(steps[0], timeline.find(frame => frame.workspaceVisible), "来源正文和底栏同一帧露出");
         assert.equal(steps[0].phase, "closing", "底栏在助手退场开始时即可见");
         assert.ok(timeline.every(frame => frame.locked === Boolean(frame.phase)), "滚动锁随助手退场释放");
+        for (const frame of timeline) {
+          assert.equal(frame.bodyPosition, original.bodyPosition, "不改变 body 的定位");
+          assert.equal(frame.bodyTop, original.bodyTop, "不改变 body 的纵向偏移");
+          if (!resized) near(frame.scroll, original.scroll, "退场每帧保留来源页滚动");
+          if (frame.shell) near(frame.shell.top, frame.viewport.top, "退场的助手外壳贴同一视口顶部");
+        }
         for (const frame of steps) {
           assert.ok(frame.mountedDock && frame.assistantEntryVisible, "首帧使用来源页的同一个完整底栏");
           assert.equal(frame.selected, original.selected, "底栏选中态从首帧匹配来源");
@@ -235,7 +240,7 @@ export async function runMobileLayoutStability(db) {
         const stableFrames = steps.filter(frame => frame.viewport.bottom === final.viewport.bottom && frame.inset === final.inset);
         report.samples.push({ name, kind: "return", path, resized, firstVisible: steps[0], final, visibleFrames: steps.length,
           closingFrames: steps.filter(frame => frame.phase === "closing").length,
-          dockTopDrift: Math.max(...stableFrames.map(frame => Math.abs(frame.dock.top - final.dock.top))) });
+          dockTopDrift: Math.max(...stableFrames.map(frame => Math.abs(frame.dock.top - final.dock.top))), frames: timeline });
       }
 
       try {
@@ -277,10 +282,14 @@ export async function runMobileLayoutStability(db) {
             near(frame.composer.bottom, frame.viewport.bottom, "首帧输入区贴底");
             near(frame.viewport.bottom, frame.layoutHeight, "视口从首帧覆盖到屏幕底边");
             near(frame.shell.left, 0, "背景外的助手布局不参与横移");
+            near(frame.shell.top, frame.viewport.top, "入场开始起外壳始终贴同一视口顶部");
+            near(frame.heading.top, reading.heading.top, "助手顶栏没有纵向入场位移");
+            assert.equal(frame.bodyPosition, home.bodyPosition);
+            assert.equal(frame.bodyTop, home.bodyTop);
             assert.equal(frame.locked, true);
             near(frame.scroll, home.scroll, "入场不改来源页滚动");
           }
-          report.samples.push({ name, kind: "opening", frameCount: arrivals.length, first: arrivals[0], last: arrivals.at(-1) });
+          report.samples.push({ name, kind: "opening", frameCount: arrivals.length, first: arrivals[0], last: arrivals.at(-1), frames: arrivals });
           const normal = await measure();
           near(normal.shell.bottom, normal.visibleBottom, "聊天底色铺到视口边缘");
           near(normal.composer.bottom, normal.visibleBottom, "无安全区时输入框贴底");
@@ -300,7 +309,10 @@ export async function runMobileLayoutStability(db) {
           const keyboard = await measure();
           assert.ok(keyboard.send.height >= 44);
           assert.ok(keyboard.send.bottom <= keyboard.visibleBottom);
-          near(keyboard.shell.bottom, keyboard.visibleBottom, "键盘打开时页面贴住可见区");
+          near(keyboard.shell.top, normal.shell.top, "键盘打开时助手外壳顶部保持");
+          near(keyboard.shell.bottom, normal.shell.bottom, "键盘打开时助手背景仍盖住布局视口");
+          near(keyboard.heading.top, normal.heading.top, "键盘打开时顶栏保持");
+          near(keyboard.content.bottom, keyboard.visibleBottom, "键盘打开时收缩内容区底边");
           await page.evaluate(() => { document.activeElement?.blur(); window.setTestViewport(null); });
           await page.waitForFunction(() => !document.querySelector("[data-assistant-page]")?.hasAttribute("data-assistant-keyboard"));
           await page.getByRole("tab", { name: "待办", exact: true }).click();
@@ -348,7 +360,9 @@ export async function runMobileLayoutStability(db) {
           report.checks.push("失败原位重试，真实视口调整与安全区变化同步参考框架，无回程后二次定位");
           for (const [path, label] of key) {
             await page.goto(path, { waitUntil: "networkidle" });
+            if (label === "总览") await page.evaluate(() => scrollTo({ top: 18, behavior: "instant" }));
             const before = await measure();
+            if (label === "总览") assert.ok(before.scroll > 0, "浏览器返回在已滚动的总览上验证");
             await track();
             await openChat();
             await card.getByText(foodName, { exact: true }).waitFor();
@@ -359,7 +373,16 @@ export async function runMobileLayoutStability(db) {
               await page.evaluate(() => history.forward());
               await page.waitForURL("**" + assistantPath);
               await page.waitForFunction(() => window.mobileLayout().phase === "open");
-              assert.equal((await measure()).dock.visible, false);
+              await page.waitForTimeout(120);
+              const reopened = await measure(), rapidFrames = await frames();
+              assert.equal(reopened.dock.visible, false);
+              assert.ok(rapidFrames.some(frame => frame.phase === "closing"));
+              for (const frame of rapidFrames) {
+                if (frame.shell) near(frame.shell.top, reopened.shell.top, "快速返回再重开时助手顶部稳定");
+                if (frame.dock.visible) near(frame.dock.top, before.dock.top, "快速返回再重开时底栏稳定");
+                near(frame.scroll, before.scroll, "快速返回再重开时保留总览滚动");
+              }
+              report.samples.push({ name, kind: "rapid-reopen", frames: rapidFrames });
             }
             await returnTo(path, before, () => page.evaluate(() => history.back()));
             assert.equal((await measure()).selected, label);

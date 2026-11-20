@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { lockPageScroll } from "@/components/scroll-lock";
 import { useOrderedArrival } from "@/components/use-ordered-arrival";
 import { animateSurface, stopSurfaceMotion } from "@/components/surface-motion";
@@ -59,80 +59,62 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
   const historyButton = useRef<HTMLButtonElement>(null);
   const pageTitle = useRef<HTMLHeadingElement>(null);
   const leftHistory = useRef(false);
-  const composerPanBlocked = useRef(false);
-  const blockComposerPan = useCallback(() => { composerPanBlocked.current = true; }, []);
-
   useLayoutEffect(() => {
     const shell = container.current;
     if (!shown || !shell) return;
-    const unlockPage = lockPageScroll("fixed");
+    const unlockPage = lockPageScroll();
     const viewport = window.visualViewport;
-    let frame = 0, dragUntil = 0, keyboard = false, keyboardTop = 0;
+    let frame = 0, keyboard = false;
     let restingHeight = viewport?.height ?? innerHeight;
-    let layoutWidth = document.documentElement.clientWidth, layoutHeight = restingHeight;
-    composerPanBlocked.current = false;
-    const isEditor = (element: EventTarget | null) => element instanceof HTMLElement &&
-      (element.matches("textarea,input:not([type=file])") || element.isContentEditable);
+    let layoutWidth = document.documentElement.clientWidth;
+    let appliedHeight = restingHeight;
+
     function layout() {
+      if (!shell) return;
       const height = viewport?.height ?? innerHeight;
       const focused = document.activeElement;
-      const editing = isEditor(focused) && shell!.contains(focused);
+      const editing = focused instanceof HTMLElement && shell.contains(focused) &&
+        (focused.matches("textarea,input:not([type=file])") || focused.isContentEditable);
       const width = document.documentElement.clientWidth;
-      if (Math.abs(height - layoutHeight) > 1 || width !== layoutWidth) {
-        layoutHeight = height;
-        composerPanBlocked.current = false;
-      }
-      if (width !== layoutWidth) {
+      const widthChanged = width !== layoutWidth;
+      if (widthChanged) {
         layoutWidth = width;
         restingHeight = Math.max(document.documentElement.clientHeight, innerHeight);
       }
       if ((!editing && !keyboard) || height > restingHeight) restingHeight = height;
-      // 恢复到正常视口后再加回安全区，失焦本身不代表键盘已收起。
-      keyboard = (editing || keyboard) && restingHeight - height >= (keyboard ? 8 : 72);
-      // 只有软键盘改变助手的可交互区域，常驻视口与底栏使用自身的布局。
-      if (keyboard) {
-        if (!composerPanBlocked.current) keyboardTop = Math.max(0, viewport?.offsetTop ?? 0);
-        shell!.style.setProperty("--assistant-keyboard-height", height + "px");
-        shell!.style.setProperty("--assistant-keyboard-top", keyboardTop + "px");
-      } else {
-        keyboardTop = 0;
-        shell!.style.removeProperty("--assistant-keyboard-height");
-        shell!.style.removeProperty("--assistant-keyboard-top");
+      // 失焦时键盘可能仍在收起。尺寸回到正常范围后才恢复完整的内容区。
+      const hasKeyboard = (editing || keyboard) && restingHeight - height >= (keyboard ? 8 : 72);
+      if (hasKeyboard && (!keyboard || widthChanged || Math.abs(height - appliedHeight) > 1)) {
+        const bottom = height + Math.max(0, viewport?.offsetTop ?? 0) - shell.getBoundingClientRect().top;
+        shell.style.setProperty("--assistant-content-height", Math.min(shell.clientHeight, bottom) + "px");
+        shell.style.setProperty("--assistant-keyboard-height", height + "px");
+        appliedHeight = height;
+      } else if (!hasKeyboard && keyboard) {
+        shell.style.removeProperty("--assistant-content-height");
+        shell.style.removeProperty("--assistant-keyboard-height");
       }
-      shell!.toggleAttribute("data-assistant-keyboard", keyboard);
+      shell.toggleAttribute("data-assistant-keyboard", hasKeyboard);
+      keyboard = hasKeyboard;
     }
+
     function schedule() {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(layout);
     }
-    function drag(event: TouchEvent) {
-      if (event.touches.length === 1) dragUntil = performance.now() + 180;
-    }
-    function pan() {
-      // 输入区的纵向手势结束后，系统仍可能报告惯性偏移。直到输入焦点或视口尺寸改变，再接收新的偏移。
-      if (!composerPanBlocked.current && performance.now() >= dragUntil) schedule();
-    }
-    function focusEditor(event: FocusEvent) {
-      if (isEditor(event.target)) composerPanBlocked.current = false;
-      schedule();
-    }
+    // 同高度的可视区平移不改变工作区或助手的布局。
     layout();
     window.addEventListener("resize", schedule);
     viewport?.addEventListener("resize", schedule);
-    viewport?.addEventListener("scroll", pan);
-    shell.addEventListener("touchmove", drag, { passive: true });
-    shell.addEventListener("focusin", focusEditor);
+    shell.addEventListener("focusin", schedule);
     shell.addEventListener("focusout", schedule);
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", schedule);
       viewport?.removeEventListener("resize", schedule);
-      viewport?.removeEventListener("scroll", pan);
-      shell.removeEventListener("touchmove", drag);
-      shell.removeEventListener("focusin", focusEditor);
+      shell.removeEventListener("focusin", schedule);
       shell.removeEventListener("focusout", schedule);
+      shell.style.removeProperty("--assistant-content-height");
       shell.style.removeProperty("--assistant-keyboard-height");
-      shell.style.removeProperty("--assistant-keyboard-top");
       shell.removeAttribute("data-assistant-keyboard");
       unlockPage();
     };
@@ -202,7 +184,7 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
       </div>
       {page && <AssistantPageBody historyOpen={!!history}>
         <AssistantChatView sidebar={tasks && <AssistantTasks {...tasks} mobile inlineReview={chat.enabled} navigate={allowNavigation}/>}
-          navigate={allowNavigation} tab={tab} page onComposerDrag={blockComposerPan} onPreviewBack={() => selectTab("tasks")}/>
+          navigate={allowNavigation} tab={tab} page onPreviewBack={() => selectTab("tasks")}/>
       </AssistantPageBody>}
       {history && <ChatHistory
         page
@@ -213,6 +195,7 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
         navigate={allowNavigation}
       />}
     </div>
+    <div className={styles.keyboardGap} data-assistant-keyboard-gap aria-hidden="true"/>
   </main>;
 }
 
