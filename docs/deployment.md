@@ -2,17 +2,17 @@
 
 ## 当前正式版本
 
-鸿蒙网页交接与AI标识运行在 `dual-entry-cffcbe0c-harmonyos-host-r2-20261121`，源码 `cffcbe0c72ab020b2227861323c42e82f854fa92`，BUILD_ID `55gphIhGmyVooS-Z5pKld`。北京时间2026-11-21 05:59:18切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+AI导出标识及隐私补充运行在 `dual-entry-1539dcfe-harmonyos-materials-20261121`，源码 `1539dcfead45c2fdb76b51d8b53cb7a40b018e13`，BUILD_ID `1mTUZF4l-oBPlokz3AkMK`。北京时间2026-11-21 18:03:41切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
 
-网页补齐原生主题／返回状态交接、登录成功后的输入保护交接，以及每条AI回答、续答和复制内容的显式标识。普通浏览器不启用原生桥，既有账号、GPT／OAuth／MCP、Garmin及数据库结构保持。鸿蒙候选已有未签名包模拟器实测，云端发布签名包已上传并通过17项包校验；最终签名包安装与真机仍待测，应用商店未提交或上架，状态见[鸿蒙首发](harmonyos-release.md)。
+含已确认AI来源的Excel工作表增加可见提示，并写入OOXML自定义属性中的七字段AIGC标识；保留原数值，人工估算与设备实测不误标。隐私正文补充助手历史和用量保存、千问及小米的实际数据处理、AI导出来源说明；原生预置HTML同步。没有数据库迁移或账号权限变更。鸿蒙构建2、商店5张截图和自检补充PDF已保存草稿，正式上架与真机状态见[鸿蒙首发](harmonyos-release.md)。
 
-同一正式兼容包在隔离PostgreSQL验证登录、AI预览、人工确认、复制标识及刷新恢复，确认恰有1次运行与1条消耗写入。正式网页和worker已同版；五个公网入口、28项新旧资源、登录返回、CSP／HSTS及匿名权限通过。海外网关沿用原READY部署、iad1和两个别名，HTTP1.15.1与MCP发现保持。
+lint、typecheck、production build与全量测试通过：852项中850通过、2项原有跳过、0失败。导出9项测试和从服务器取回的同一正式兼容包经隔离PostgreSQL实际HTTP下载验证AI来源、八表回读、可见提示、唯一七字段元数据、跨账号和禁止缓存；未产生正式记录写入。隐私页完成桌面及手机正常字号实际页面核对。网页与worker已同版；formward.top、www、global及原Vercel入口均返回新版，公网隐私200、匿名导出401。
 
-结构仍为`0047_meal_food_groups`、47项迁移。停写切换前后67张表及运行配置摘要一致，备份`formward-primary-20261120T215914810748Z.dump.json`完成原生校验和加密异地回读。之后仅为独立普通审核账号添加虚构资料及3条演示记录，无管理员角色或设备连接；运营者记录和连接未用于验收。
+结构仍为`0047_meal_food_groups`、47项迁移。停写切换前后67张表及运行配置摘要一致，备份`formward-primary-20261121T100336967470Z.dump.json`完成原生校验和加密异地回读。普通审核账号沿用独立虚构资料和3条演示记录；本轮没有更改正式账号、角色或设备连接。海外网关沿用既有iad1部署及两个别名，不重新配置认证或回源。
 
-保留56项Server Action及原绑定密钥，追加2350项兼容静态资源。首份Webpack候选未通过旧动作编号检查，未暂存或上线；正式候选沿用现网Turbopack构建方式。正式运行包与本机归档逐字节一致，87,515,062字节，SHA-256 `8698387966b0b9cc406140887d3ee489d52d36b0cdf06b5d87cf7b3e207f3c59`，位于`.codex/backups/regional-releases/harmonyos-host-r2-20261121`。兼容回退为`mobile-workspace-centering-20261121`，不回滚数据库。
+保留56项Server Action及原绑定密钥，追加2354项兼容静态资源，使用与现网一致的Turbopack构建。传输目录逐文件索引一致，暂存后从服务器取回准确兼容归档并核验SHA。运行包为87,528,511字节，SHA-256 `a555a0ec5c5b4eabcf970a895d26c8ad1e1c23e15bafd49d6c15d7cc78e50e59`，源码、运行包及验收在`.codex/backups/regional-releases/harmonyos-materials-20261121`。兼容回退为`harmonyos-host-r2-20261121`，不回滚数据库。
 
-暂存时发现服务器空间不足，清理的是已发布且本机完整归档核验过的历史builder副本，正式运行目录、回退目录、备份、证书与配置保留。当次清理后核对余量4.2 GiB。
+本次只更新既有业务应用和worker，不发布新的境外网关、不调整数据库、证书、备份或访问控制。商店草稿保存、云端签名和本地自检均不等于应用已提交审核或已上架。
 
 ## 手机工作区与聊天胶囊发布记录
 

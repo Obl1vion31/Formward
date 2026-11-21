@@ -1,5 +1,15 @@
 # 当前视觉验收
 
+## 已发布验收 · AI导出标识与隐私披露
+
+本轮沿用既有手机、电脑和原生布局，仅增加导出文件的AI来源提示及隐私正文。网页运行包为`dual-entry-1539dcfe-harmonyos-materials-20261121`；Excel中的人工估算、设备实测、未知和零保持原有含义。隔离账号经实际HTTP下载的八表文件完成回读、首列标记、唯一OOXML属性、账号隔离与禁止缓存验证。电子表格技能回读原文件并渲染食材库及说明页，AI文字完整可读；两页自检PDF逐页检查通过，不将生成参考作为实际证据。
+
+隐私页按正常字号检查桌面和393×852目标手机视口；手机实际viewport为394 CSS px、文档宽378 CSS px，无横向溢出。助手历史、千问及小米的提供方、目的和链接均可读；网页与原生预置HTML正文一致，仅原生首页链接使用绝对地址。商店标签逐场景复核并保存，包含Garmin平均心率；第三方运维与境外传输按实际路由申报。 [手机服务商说明](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/privacy-mobile-providers.jpg>) · [桌面隐私说明](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/privacy-desktop-review.jpg>)
+
+1080×1920本地模拟器用独立普通审核账号实际走访总览、饮食、餐次、消耗、身体，五张原生高清原图已经上传并保存草稿；样例明确为虚构，没有使用运营者数据。构建2提取HAP安装后保留会话、显示总览；外层APP云签名不等于内部HAP的独立发布签名，不计完整分发包或真机验证通过。 [五图已保存](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/store-screenshots-saved.jpg>) · [构建2草稿](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/build2-draft-saved.jpg>)
+
+lint、typecheck、生产构建及850项测试通过，2项原有跳过；没有扩大到200%文字验收。gcmark未注册、没有平台检测报告，兼容真机、相机和最终商店安装仍未测，APP备案及正式资质／签署未完成；应用尚未提交审核或上架。
+
 ## 鸿蒙首发候选与 AI 标识
 
 2026-11-21：延续已发布网页和母版品牌，ImageGen只参考联网前隐私／网络失败原生状态及AI来源行。原始输入、参考和来源在 `.codex/harmonyos-first-release`。网页按390×660与1440×900、实际浅深主题核对；原生按约366×809逻辑区域适配安全区，未宣称与390×844参考达到1px量测一致。 [原生开始页](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/native-start-light.png>) · [最终原生助手](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/native-ai-final.png>) · [最终桌面助手](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/web-ai-desktop-final.jpg>) · [最终手机网页](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/web-ai-mobile-final.jpg>)
@@ -10,9 +20,9 @@
 
 验收为独立包名、临时PostgreSQL和虚构账号，持续标识隔离。导出取回核验8个工作表，恢复后运行数无重复；模型与存储回放不计真实识别或COS验证。Release未签名构建通过。图库实际选择、相机拍摄、兼容真机及最终签名包安装仍未测。网页lint、typecheck、production build、8项原生策略／下载测试及848项单元集成通过，2项原有跳过；初轮授权用例一次间歇失败与后续通过日志均保留。 [完整状态](docs/harmonyos-release.md)
 
-正式兼容运行包 `dual-entry-cffcbe0c-harmonyos-host-r2-20261121` 在临时PostgreSQL复验登录、AI标识、复制、人工保存和刷新恢复；数据库确认1次运行、1条保存，未知分项保持NULL。上线后未签名Release HAP在模拟器连接正式域名，使用独立普通审核账号完成登录、查看样例、关闭后重开直接回总览。该账号只含明确标记的虚构资料与3条演示记录，默认Free，完整聊天需管理员配置普通档位。 [实际原生总览](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/native-release-overview.png>) · [准确运行包保存结果](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/exact-runtime-saved.jpg>) · [已保存的上架草稿](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/appgallery-draft-ai.jpg>)
+原生交接候选运行包 `dual-entry-cffcbe0c-harmonyos-host-r2-20261121` 在临时PostgreSQL复验登录、AI标识、复制、人工保存和刷新恢复；数据库确认1次运行、1条保存，未知分项保持NULL。上线后未签名Release HAP在模拟器连接正式域名，使用独立普通审核账号完成登录、查看样例、关闭后重开直接回总览。该账号只含明确标记的虚构资料与3条演示记录，已保存beta权益；真实模型往返仍待完整业务实测。 [实际原生总览](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/native-release-overview.png>) · [准确运行包保存结果](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/exact-runtime-saved.jpg>) · [已保存的上架草稿](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/appgallery-draft-ai.jpg>)
 
-网页已正式发布；华为1.0.0候选已完成云签名、17项包合法性检查并关联保存到上架草稿，官方SDK验签及备案公钥／指纹比对通过。状态仍为“准备提交”；APP备案、签名包安装、真机及商店高清截图缺项继续保留，不以视觉复核或模拟器成功替代。平台上架自检已于2026-11-21 12:02:19通过6台设备、81个自动用例；未配置登录账号，完整业务人工实测边界保持。报告的设备类型覆盖提示仍保留。APP备案已由本人提交，腾讯云审核中，尚未批准。云调试无可用时长，未购买付费服务。 [自检结果](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/appgallery-self-check-report.jpg>) · [签名包列表](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/appgallery-signed-package.jpg>) · [签名版本草稿](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/appgallery-signed-draft.jpg>) · [包检测报告](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/appgallery-legality-report.jpg>)
+网页已正式发布；当前构建2和商店材料状态见上方本轮验收与[鸿蒙首发](docs/harmonyos-release.md)。构建1的独立UI复核、17项包检查与2026-11-21 12:02:19通过的6台设备、81个自动用例作为对应构建证据保留；未配置登录账号，不能计作完整业务人工实测，设备类型覆盖提示保持。 [构建1自检结果](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/appgallery-self-check-report.jpg>) · [构建1签名包列表](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/appgallery-signed-package.jpg>)
 
 
 ## 已发布验收 · 手机页面中线与聊天胶囊
