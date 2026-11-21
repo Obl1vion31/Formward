@@ -1,5 +1,11 @@
 # 当前视觉验收
 
+## 鸿蒙构建2云真机启动验收 · 完整业务待完成
+
+2026-11-21：使用与上架草稿SHA-256一致的构建2原始云签名APP，在华为云调试OSTA O1 Pro（HarmonyOS 7.0.0.111／API26／1320×2232）和Mate 80 Pro Max 风驰（HarmonyOS 6.1.0.135／API24／1320×2848）完成安装及启动，均进入正式域名登录页。正常字号下，首次说明、隐私入口和主要按钮可读、可操作；前一台实际打开本地隐私页，返回后选择暂不使用、确认退出，重开后仍要求隐私选择。未调整产品布局或生成新的界面参考，不将云端画面缩放当作CSS尺寸或1px量测。
+
+两台首次输入均弹出小艺输入法新协议，未代为接受，当前等待本人处理或当次明确授权。未向真机输入审核密码，登录后的记录、真实模型往返、图库／相机、导出保存和后台恢复均未记为通过。使用优惠时长，未购买套餐或开通按量付费；自动自检仍显示检测中，与人工验收分开记录。 [真机本地隐私页](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-privacy.jpg>) · [API24真机当前协议步骤](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-input-method-api24.jpg>) · [逐项结果](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-result.json>)
+
 ## 已发布验收 · AI导出标识与隐私披露
 
 本轮沿用既有手机、电脑和原生布局，仅增加导出文件的AI来源提示及隐私正文。网页运行包为`dual-entry-1539dcfe-harmonyos-materials-20261121`；Excel中的人工估算、设备实测、未知和零保持原有含义。隔离账号经实际HTTP下载的八表文件完成回读、首列标记、唯一OOXML属性、账号隔离与禁止缓存验证。电子表格技能回读原文件并渲染食材库及说明页，AI文字完整可读；两页自检PDF逐页检查通过，不将生成参考作为实际证据。
@@ -8,7 +14,7 @@
 
 1080×1920本地模拟器用独立普通审核账号实际走访总览、饮食、餐次、消耗、身体，五张原生高清原图已经上传并保存草稿；样例明确为虚构，没有使用运营者数据。构建2提取HAP安装后保留会话、显示总览；外层APP云签名不等于内部HAP的独立发布签名，不计完整分发包或真机验证通过。 [五图已保存](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/store-screenshots-saved.jpg>) · [构建2草稿](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/build2-draft-saved.jpg>)
 
-lint、typecheck、生产构建及850项测试通过，2项原有跳过；没有扩大到200%文字验收。gcmark未注册、没有平台检测报告，兼容真机、相机和最终商店安装仍未测，APP备案及正式资质／签署未完成；应用尚未提交审核或上架。
+lint、typecheck、生产构建及850项测试通过，2项原有跳过；没有扩大到200%文字验收。gcmark未注册、没有平台检测报告，兼容真机完整业务、相机和最终商店安装仍未测，APP备案及正式资质／签署未完成；应用尚未提交审核或上架。
 
 ## 鸿蒙首发候选与 AI 标识
 
@@ -18,7 +24,7 @@ lint、typecheck、生产构建及850项测试通过，2项原有跳过；没有
 
 模拟器实际完成隐私选择和协议、登录、总览、餐次新增／保存／编辑、未知营养保留、键盘返回及草稿确认、AI补充与人工确认、后台恢复、系统文件选择上传、保存器取消与重试保存、断网与重连。每条AI回答及续答显示模型、AI生成和时间，复制保留标识；预览不等于保存。浅深主题的账号／模型菜单保持与触发点连续，未扩展其他页面布局。
 
-验收为独立包名、临时PostgreSQL和虚构账号，持续标识隔离。导出取回核验8个工作表，恢复后运行数无重复；模型与存储回放不计真实识别或COS验证。Release未签名构建通过。图库实际选择、相机拍摄、兼容真机及最终签名包安装仍未测。网页lint、typecheck、production build、8项原生策略／下载测试及848项单元集成通过，2项原有跳过；初轮授权用例一次间歇失败与后续通过日志均保留。 [完整状态](docs/harmonyos-release.md)
+验收为独立包名、临时PostgreSQL和虚构账号，持续标识隔离。导出取回核验8个工作表，恢复后运行数无重复；模型与存储回放不计真实识别或COS验证。Release未签名构建通过。图库实际选择、相机拍摄及最终包兼容真机完整业务仍未测；当前构建2的云真机安装与启动见上方记录。网页lint、typecheck、production build、8项原生策略／下载测试及848项单元集成通过，2项原有跳过；初轮授权用例一次间歇失败与后续通过日志均保留。 [完整状态](docs/harmonyos-release.md)
 
 原生交接候选运行包 `dual-entry-cffcbe0c-harmonyos-host-r2-20261121` 在临时PostgreSQL复验登录、AI标识、复制、人工保存和刷新恢复；数据库确认1次运行、1条保存，未知分项保持NULL。上线后未签名Release HAP在模拟器连接正式域名，使用独立普通审核账号完成登录、查看样例、关闭后重开直接回总览。该账号只含明确标记的虚构资料与3条演示记录，已保存beta权益；真实模型往返仍待完整业务实测。 [实际原生总览](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/native-release-overview.png>) · [准确运行包保存结果](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/exact-runtime-saved.jpg>) · [已保存的上架草稿](<C:/Users/14878/.codex/visualizations/2026/11/21/formward-harmonyos-first-release/appgallery-draft-ai.jpg>)
 
