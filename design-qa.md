@@ -6,15 +6,15 @@
 
 临时PostgreSQL与虚构账号持续显示隔离标记。电脑助手输入后打开真实Windows文件选择器，取消后面板与文字保留，没有多余放弃确认；390×844手机餐次识图的说明同样保留。聊天与餐次分别选不同的私有虚构PNG，国际通道按fixture预期拒绝，人工选择国内并改用备用上传后成功登记；餐次原图链接已转为受认证API、识别按钮可用，说明原文保持。两入口连续操作通过，未再过早触发4张并发限制。没有新增产品页面、默认样例或真实健康记录。 [电脑取消](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/picker-cancel-desktop-final.jpg>) · [手机取消](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/picker-cancel-mobile-final.jpg>) · [餐次原图就绪](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/picker-meal-upload-final.jpg>)
 
-存储及模型为回放，不能计作真实COS、真实识别或修复后的云真机通过。856项测试通过、2项原有跳过，lint、typecheck和生产构建通过；858项中包含14项原图上传专项，覆盖票据复用、通道分离、核对失败、服务端拒绝与到期。公网四入口版本一致，隐私与条款与main一致，匿名导出401并禁止缓存。原生构建2保持原始签名APP，完整真机业务和商店安装仍待完成。 [部署与准确归档](docs/deployment.md#当前正式版本)
+上述隔离环境的存储及模型为回放，不以其本身证明真实COS、真实识别或云真机；后文单列实际云真机结果。856项测试通过、2项原有跳过，lint、typecheck和生产构建通过；858项中包含14项原图上传专项，覆盖票据复用、通道分离、核对失败、服务端拒绝与到期。公网四入口版本一致，隐私与条款与main一致，匿名导出401并禁止缓存。原生构建2保持原始签名APP，完整真机业务和商店安装仍待完成。 [部署与准确归档](docs/deployment.md#当前正式版本)
 
-## 鸿蒙构建2云真机业务验收 · 照片与相机未通过
+## 鸿蒙构建2云真机业务验收与云端限制
 
 2026-11-21：使用与上架草稿SHA-256一致的构建2原始云签名APP，在华为云调试OSTA O1 Pro（HarmonyOS 7.0.0.111／API26／1320×2232）和Mate 80 Pro Max 风驰（HarmonyOS 6.1.0.135／API24／1320×2848）完成安装及启动，均进入正式域名登录页。正常字号下，首次说明、隐私入口和主要按钮可读、可操作；前一台实际打开本地隐私页，返回后选择暂不使用、确认退出，重开后仍要求隐私选择。未调整产品布局或生成新的界面参考，不将云端画面缩放当作CSS尺寸或1px量测。
 
-本人授权处理输入法后，API24真机完成普通审核账号登录、虚构晨重保存、系统返回、未保存测量后台恢复、Excel系统保存及千问真实文字回答和AI标识。图库可选私有虚构PNG并返回网页，上传分别遇到国际503和国内原图核对400；取消图库误弹草稿放弃确认，继续编辑保留输入。系统相机打开后按快门回到桌面，重入保留会话，照片回传未通过；未据此推断应用崩溃或云设备不支持。AI确认保存、重新登录及最终商店安装仍待完成。没有新增产品界面；虚构营养标签仅为私有选图测试资料，不是默认内容或真实饮食记录。
+API24真机已完成普通审核账号登录、虚构测量保存、系统返回、测量草稿后台恢复、Excel保存及真实千问回答和AI标识。网页源码`d7c401eb`对应的后续实测完成系统上传来源取消、图库取消、真实照片上传、AI预览确认保存及在消耗页读回虚构123千卡，生成期间主页／最近任务恢复到同一请求。相机入口和系统跳转已验证；日志保留选择器状态报错，本人确认云端隐私保护提示并要求结束重复相机复测，不据此认定应用崩溃或变更原生流程。拍摄图片字节未取得，独立退出后重登及商店安装仍未复验。两轮设备已释放，最后免费余额332分钟，付费未开启。没有新增产品界面；虚构营养标签仍仅是私有选图资料。
 
-两台设备均已释放；本次Mate使用36分36秒后剩余优惠时长289分钟，未购买套餐或开通按量付费。临时审核密码明文和内存已清除，远程剪贴板改为普通测试文字。自动自检上次读取仍为检测中，与人工验收分开记录。 [真机登录](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-login-api24.png>) · [千问真实回答](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-chat-api24.png>) · [系统保存](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-export-api24.png>) · [上传未通过](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-photo-cn-result-api24.png>) · [逐项结果](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-result.json>)
+各轮云设备均已释放；后续两个API24免费会话分别到达40分钟上限和主动结束于28分35秒，最后剩余优惠时长332分钟，未购买套餐或开通按量付费。临时凭据明文和内存已清除，远程剪贴板已替换为无凭据内容。构建2自动自检本轮实时核对仍为检测中，合法性已达标，草稿仍未提交；不使用构建1的报告代替本轮结果。 [真机照片上传](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-retest-photo-upload-passed-api24.jpg>) · [AI确认保存](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-retest-ai-saved-api24.jpg>) · [保存后读回](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-retest-ai-record-readback-api24.jpg>)
 
 ## 已发布验收 · AI导出标识与隐私披露
 
