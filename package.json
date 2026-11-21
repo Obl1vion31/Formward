@@ -60,6 +60,7 @@
     "cos-nodejs-sdk-v5": "2.15.4",
     "drizzle-orm": "^0.45.3",
     "exceljs": "^4.4.0",
+    "jszip": "3.10.2",
     "next": "16.4.5",
     "postgres": "^3.4.9",
     "qrcode": "1.5.4",

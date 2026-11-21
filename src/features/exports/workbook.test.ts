@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { randomUUID } from "node:crypto";
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import * as schema from "../../db/schema";
 import { buildAccountWorkbook, exportRange, readAccountExport, type ExportData } from "./workbook";
 import { emptyNutrition, sumNutrition, type MealView } from "../meals/model";
+import { submitMealOperation, decideMealOperation } from "../meals/records";
+import { createAiToken, authenticateAi } from "../auth/ai-tokens";
 import type { MeasurementDisplay } from "../measurements/entry-state";
 import type { EnergyDayRecord } from "../activities/model";
 const date = "2024-08-01", next = "2024-08-02", malicious = "=HYPERLINK(\"https://example.invalid\",\"虚构名称\")";
@@ -23,6 +26,44 @@ const context = { today: next, timezone: "Asia/Shanghai", exportedAt: new Date("
 function data(): ExportData { return { meals: { meals: [meal(date, "complete"), meal(next, "incomplete"), meal("2024-07-31", "complete", { deletedAt: "2024-08-01" })], foods: [{ id: randomUUID(), version: 1, deletedAt: null, name: malicious, baseQuantity: "100", unit: "g", nutrition, sourceKind: "estimated" }] }, measurements: [weight(date, "70.00"), weight(next, "70.50", true)], energy: { days: [energy(date), energy(next, { entryMode: "total", totalKcal: "2800", restingKcal: "1111", activeKcal: "999" })], activities: [{ id: randomUUID(), date, version: 1, deletedAt: null, name: malicious, caloriesKcal: null, durationMinutes: "0", completed: false, ...source }], profiles: [{ id: randomUUID(), effectiveFrom: "2024-01-01", heightCm: "175", birthDate: "1994-01-01", sex: "male", version: 1, deletedAt: null }] } }; }
 async function read(bytes: Uint8Array) { const book = new ExcelJS.Workbook(); await book.xlsx.load(bytes.buffer as ArrayBuffer); return book; }
 function value(book: ExcelJS.Workbook, sheet: string, row: number, header: string) { const page = book.getWorksheet(sheet)!; const columns = page.getRow(1).values as string[]; const column = columns.indexOf(header); assert.ok(column > 0, header); return page.getCell(row, column).value; }
+
+test("混合导出保留原值，AI历史来源和复用食材带显式标识及唯一OOXML元数据", async () => {
+  const sample = data(), manual = sample.meals.meals[0], aiMeal = sample.meals.meals[1];
+  sample.aiRecords = { meals: [aiMeal.id], foods: [sample.meals.foods[0].id], measurements: [], energy: [sample.energy.days[0].id] };
+  manual.items[0].foodId = sample.meals.foods[0].id;
+  const bytes = await buildAccountWorkbook(sample, { from: null, to: null }, context), book = await read(bytes);
+  for (const name of ["每日汇总", "餐次", "食物明细", "每日消耗", "食材库"]) assert.equal(book.getWorksheet(name)!.getCell("A1").value, "AI辅助标识");
+  assert.match(String(value(book, "餐次", 2, "AI辅助标识")), /AI生成/);
+  assert.match(String(value(book, "餐次", 3, "AI辅助标识")), /AI生成/);
+  assert.equal(value(book, "餐次", 2, "热量 · kcal"), 1250.25);
+  assert.equal(value(book, "每日消耗", 2, "活动 · kcal"), 0);
+  assert.equal(value(book, "身体记录", 2, "体脂率 · %"), null);
+  assert.equal(book.getWorksheet("身体记录")!.getCell("A1").value, "记录日期");
+  const zip = await JSZip.loadAsync(bytes, { checkCRC32: true });
+  const xml = await zip.file("docProps/custom.xml")!.async("string");
+  assert.equal((xml.match(/name="AIGC"/g) ?? []).length, 1);
+  const metadata = JSON.parse(xml.match(/<vt:lpwstr>(.*?)<\/vt:lpwstr>/)![1].replaceAll("&quot;", '"'));
+  assert.deepEqual(Object.keys(metadata), ["Label", "ContentProducer", "ProduceID", "ReservedCode1", "ContentPropagator", "PropagateID", "ReservedCode2"]);
+  assert.equal(metadata.Label, "1"); assert.equal(metadata.ContentProducer, "Formward"); assert.equal(metadata.ContentPropagator, "Formward");
+  assert.match(metadata.ProduceID, /^formward-export-[a-f0-9-]{36}$/); assert.equal(metadata.PropagateID, metadata.ProduceID);
+  assert.doesNotMatch(xml, new RegExp([manual.id, aiMeal.id, "password", "token", "userId"].join("|")));
+  assert.match(await zip.file("[Content_Types].xml")!.async("string"), /PartName="\/docProps\/custom.xml"/);
+  assert.match(await zip.file("_rels/.rels")!.async("string"), /relationships\/custom-properties/);
+  const second = await JSZip.loadAsync(await buildAccountWorkbook(sample, { from: null, to: null }, context));
+  assert.notEqual(await second.file("docProps/custom.xml")!.async("string"), xml, "每次导出使用独立制作编号，不放入账号标识");
+});
+
+test("人工估算和设备实测不误标AI，区间外及已删除AI记录不污染本次文件", async () => {
+  const sample = data();
+  sample.meals.meals[1].source = "ai";
+  sample.meals.meals[2].source = "ai";
+  sample.aiRecords = { meals: [sample.meals.meals[1].id], foods: [], measurements: [], energy: [sample.energy.days[1].id] };
+  const bytes = await buildAccountWorkbook(sample, { from: date, to: date }, context), book = await read(bytes);
+  assert.equal((await JSZip.loadAsync(bytes)).file("docProps/custom.xml"), null);
+  for (const page of book.worksheets) assert.notEqual(page.getCell("A1").value, "AI辅助标识");
+  assert.equal(value(book, "食物明细", 2, "营养依据类型"), "预估");
+  assert.equal(value(book, "每日消耗", 2, "最终消耗 · kcal"), 2000);
+});
 
 test("导出范围只接受合法单次起止日期，拒绝客户端账号与无效区间", () => {
   assert.deepEqual(exportRange(new URLSearchParams()), { from: null, to: null });
@@ -94,6 +135,20 @@ test("账号导出读取拒绝未登录且隔离他人健康数据和凭据表",
     assert.equal(value(book, "餐次", 2, "热量 · kcal"), 0);
     assert.equal(value(book, "每日消耗", 2, "最终消耗 · kcal"), 0);
     assert.equal(book.getWorksheet("身体记录")!.rowCount, 1, "空模块保留表头，不伪造记录");
+    assert.deepEqual(snapshot.aiRecords, { meals: [], foods: [], measurements: [], energy: [] });
+    const saveAIFood = async (userId: string, name: string) => {
+      const access = await createAiToken(db, userId, "虚构AI来源", "write"), identity = await authenticateAi(db, "Bearer " + access.rawToken);
+      const op = await submitMealOperation(db, { userId, origin: "ai", identity }, { operationId: randomUUID(), actions: [{ kind: "save_food", name, baseQuantity: "1", unit: "份", nutrition: emptyNutrition(), sourceKind: "estimated", basis: "虚构AI来源验收" }] });
+      await decideMealOperation(db, userId, op.id, op.revision, "confirm");
+    };
+    await saveAIFood(owners[1], "他人的AI食材");
+    assert.deepEqual((await readAccountExport(db, owners[0])).aiRecords?.foods, [], "其他账号的AI审计不影响本账号标识");
+    await saveAIFood(owners[0], "自己的AI食材");
+    const labeled = await readAccountExport(db, owners[0]), ownFood = labeled.meals.foods.find(row => row.name === "自己的AI食材")!;
+    assert.deepEqual(labeled.aiRecords?.foods, [ownFood.id], "只有已确认的本账号食材保留AI来源");
+    const edit = await submitMealOperation(db, { userId: owners[0], origin: "manual" }, { operationId: randomUUID(), actions: [{ kind: "save_food", id: ownFood.id, version: ownFood.version, name: "自己的AI食材已核对", baseQuantity: "1", unit: "份", nutrition: emptyNutrition(), sourceKind: "estimated", basis: "人工核对虚构记录" }] });
+    await decideMealOperation(db, owners[0], edit.id, edit.revision, "confirm");
+    assert.deepEqual((await readAccountExport(db, owners[0])).aiRecords?.foods, [ownFood.id], "人工修订不清除已有AI来源");
   } finally { await pg.close(); }
 });
 
