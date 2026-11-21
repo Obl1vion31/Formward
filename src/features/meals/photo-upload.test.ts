@@ -166,3 +166,71 @@ test("声明为图片的非图片内容在上传前拒绝，原图格式校验�
   assert.equal(requests,0);
  }finally{globalThis.fetch=original;}
 });
+
+test("同一原图由直传改为人工备用时复用凭据，不再次占用上传名额",async()=>{
+ const original=globalThis.fetch,file=new File([png],"retry.png",{type:"image/png"});let prepares=0,completes=0;
+ try{
+  globalThis.fetch=async(url,init)=>{
+   if(url==="https://fictional.test/upload")throw new TypeError("network");
+   if((init?.headers as Record<string,string>)?.["x-image-upload-ticket"]){assert.equal((init!.headers as Record<string,string>)["x-image-upload-ticket"],"same-owned-ticket");assert.deepEqual(Buffer.from(await(init!.body as Blob).arrayBuffer()),png);return Response.json({uploaded:true});}
+   const body=JSON.parse(String(init?.body));
+   if(body.step==="prepare"){prepares++;return Response.json({provider:"cos",ticket:"same-owned-ticket",pathname:"owned"});}
+   if(body.step==="complete"){completes++;return Response.json({id:"one-image"});}
+   return Response.json({url:"https://fictional.test/upload",fields:{}});
+  };
+  await assert.rejects(uploadPrivateMealPhoto(file,()=>{},{region:"cn"}),/连接未完成/);
+  assert.equal((await uploadPrivateMealPhoto(file,()=>{},{region:"cn",transport:"relay"})).id,"one-image");
+  assert.equal(prepares,1);assert.equal(completes,1);
+ }finally{globalThis.fetch=original;}
+});
+
+test("切换通道分别签发凭据，原通道重试和核对响应失败沿用原票据",async()=>{
+ const original=globalThis.fetch,file=new File([png],"regions.png",{type:"image/png"});const prepared:string[]=[],used:string[]=[];let failComplete=true;
+ try{
+  globalThis.fetch=async(url,init)=>{
+   if(url==="https://fictional.test/upload")throw new TypeError("network");
+   const relay=(init?.headers as Record<string,string>)?.["x-image-upload-ticket"];
+   if(relay){used.push(relay);return Response.json({uploaded:true});}
+   const body=JSON.parse(String(init?.body));
+   if(body.step==="prepare"){prepared.push(body.region);return Response.json({provider:body.region==="cn"?"cos":"blob",ticket:body.region+"-owned",pathname:"owned"});}
+   if(body.step==="sign_direct")return Response.json({error:"国际入口尚未配置。"},{status:400});
+   if(body.step==="complete"){if(failComplete){failComplete=false;return Response.json({error:"暂未确认"},{status:503});}return Response.json({id:"same-image"});}
+   return Response.json({url:"https://fictional.test/upload",fields:{}});
+  };
+  await assert.rejects(uploadPrivateMealPhoto(file,()=>{},{region:"global"}),/尚未配置/);
+  await assert.rejects(uploadPrivateMealPhoto(file,()=>{},{region:"cn"}),/连接未完成/);
+  await assert.rejects(uploadPrivateMealPhoto(file,()=>{},{region:"cn",transport:"relay"}),/暂未确认/);
+  assert.equal((await uploadPrivateMealPhoto(file,()=>{},{region:"cn",transport:"relay"})).id,"same-image");
+  assert.deepEqual(prepared,["global","cn"]);assert.deepEqual(used,["cn-owned","cn-owned"]);
+ }finally{globalThis.fetch=original;}
+});
+
+test("服务端拒绝会话或过期票据后重新申请，成功后也不沿用旧票据",async()=>{
+ const original=globalThis.fetch;
+ try{for(const status of [401,403,409]){
+  const file=new File([png],"session.png",{type:"image/png"});let prepares=0,signs=0,uploaded=false;
+  globalThis.fetch=async(url,init)=>{
+   if(url==="https://fictional.test/upload"){if(!uploaded){uploaded=true;throw new TypeError("network");}return new Response(null,{status:204});}
+   const body=JSON.parse(String(init?.body));
+   if(body.step==="prepare"){prepares++;return Response.json({provider:"cos",ticket:"ticket-"+prepares,pathname:"owned"});}
+   if(body.step==="complete")return Response.json({id:"owned-image"});
+   signs++;if(signs===2)return Response.json({error:"授权已失效"},{status});
+   assert.equal(body.payload.clientPayload,signs===1?"ticket-1":"ticket-"+prepares);
+   return Response.json({url:"https://fictional.test/upload",fields:{}});
+  };
+  await assert.rejects(uploadPrivateMealPhoto(file,()=>{},{region:"cn"}),/连接未完成/);
+  await assert.rejects(uploadPrivateMealPhoto(file,()=>{},{region:"cn"}),/授权已失效/);
+  assert.equal((await uploadPrivateMealPhoto(file,()=>{},{region:"cn"})).id,"owned-image");assert.equal(prepares,2);
+  assert.equal((await uploadPrivateMealPhoto(file,()=>{},{region:"cn"})).id,"owned-image");assert.equal(prepares,3);
+ }}finally{globalThis.fetch=original;}
+});
+
+test("重试缓存到期重新申请，不能无限复用旧上传票据",async()=>{
+ const original=globalThis.fetch,realNow=Date.now,file=new File([png],"expired.png",{type:"image/png"});let prepares=0;
+ try{
+  globalThis.fetch=async(url,init)=>{if(url==="https://fictional.test/upload")throw new TypeError("network");const body=JSON.parse(String(init?.body));if(body.step==="prepare"){prepares++;return Response.json({provider:"cos",ticket:"owned-"+prepares,pathname:"owned"});}return Response.json({url:"https://fictional.test/upload",fields:{}});};
+  await assert.rejects(uploadPrivateMealPhoto(file,()=>{},{region:"cn"}),/连接未完成/);
+  Date.now=()=>realNow()+600001;
+  await assert.rejects(uploadPrivateMealPhoto(file,()=>{},{region:"cn"}),/连接未完成/);assert.equal(prepares,2);
+ }finally{Date.now=realNow;globalThis.fetch=original;}
+});

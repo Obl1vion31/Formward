@@ -7,6 +7,8 @@ export type PhotoUploadPhase="read"|"route"|"prepare"|"sign"|"upload"|"relay"|"c
 export type PhotoUploadProgress={phase:PhotoUploadPhase;label:string;loaded:number;total:number;percent:number;region?:PhotoRegion};
 export type PhotoUploadOptions={signal?:AbortSignal;region?:PhotoRegion;route?:Promise<PhotoRoute>;transport?:"direct"|"relay";onProgress?:(state:PhotoUploadProgress)=>void;onPreview?:(body:Blob)=>void};
 const snapshots=new WeakMap<File,Promise<{body:Blob;sha256:string}>>();
+const preparations=new WeakMap<File,Map<PhotoRegion,{value:Awaited<ReturnType<typeof request>>;expiresAt:number}>>();
+class PhotoRequestError extends Error{constructor(message:string,readonly status:number){super(message);}}
 function scope(signal:AbortSignal|undefined,ms:number){
  const controller=new AbortController(),abort=()=>controller.abort(signal?.reason),timer=setTimeout(()=>controller.abort(new DOMException("timeout","TimeoutError")),ms);
  if(signal?.aborted)abort();else signal?.addEventListener("abort",abort,{once:true});
@@ -17,7 +19,7 @@ async function request(body:unknown,phase:string,signal?:AbortSignal,timeoutMs=3
  try{
   const response=await fetch("/api/meal-images/upload",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:timeout.signal});
   const result=await response.json().catch(()=>({error:"照片服务响应异常，请重试。"}));
-  if(!response.ok)throw new Error((result.error??"照片上传失败，请重试。")+"（"+phase+"，HTTP "+response.status+"）");
+  if(!response.ok)throw new PhotoRequestError((result.error??"照片上传失败，请重试。")+"（"+phase+"，HTTP "+response.status+"）",response.status);
   return result;
  }catch(error){if(signal?.aborted)throw new PhotoTransferError("照片上传已取消，尚未发送到聊天。","abort");if(timeout.signal.aborted)throw new Error(phase+"连接未完成或超时，请重试。");if(error instanceof TypeError)throw new Error(phase+"连接未完成，请重试。");throw error;}
  finally{timeout.close();}
@@ -66,7 +68,10 @@ export async function uploadPrivateMealPhoto(file:File,progress:(label:string)=>
   report("route","正在选择上传通道…");
   region=(await abortable(options.region?Promise.resolve({region:options.region}):options.route??choosePhotoRoute(),options.signal)).region;
   report("prepare","正在申请上传凭据…");diagnostic(traceId,phase,started);
-  const prepared=await request({step:"prepare",region,file:{fileName:file.name,size:snapshot.body.size,mimeType:snapshot.body.type,sha256:snapshot.sha256}},"申请上传凭据",options.signal);
+  const cached=preparations.get(file)?.get(region);
+  const prepared=cached&&cached.expiresAt>Date.now()?cached.value:await request({step:"prepare",region,file:{fileName:file.name,size:snapshot.body.size,mimeType:snapshot.body.type,sha256:snapshot.sha256}},"申请上传凭据",options.signal);
+  // 服务端凭据15分钟有效；同一原图和通道的人工重试在10分钟内复用，避免重复占用并发名额。
+  if(prepared.ticket&&prepared!==cached?.value){const entries=preparations.get(file)??new Map();entries.set(region,{value:prepared,expiresAt:Date.now()+600000});preparations.set(file,entries);}
   relayAvailable=prepared.provider==="cos"&&prepared.relayAvailable!==false;
   let image=prepared.image;check();
   if(!image){
@@ -95,9 +100,10 @@ export async function uploadPrivateMealPhoto(file:File,progress:(label:string)=>
    image=await request({step:"complete",ticket:prepared.ticket},"核对原图",options.signal,90000);
   }
   if(!image||typeof image.id!=="string"||!image.id)throw new Error("照片登记结果不完整，请重试，当前草稿已保留。");
-  check();report("ready","照片已就绪",100);diagnostic(traceId,phase,started,{loaded,total,region});snapshots.delete(file);
+  check();report("ready","照片已就绪",100);diagnostic(traceId,phase,started,{loaded,total,region});snapshots.delete(file);preparations.delete(file);
   return {id:String(image.id),notice:prepared.notice as string|undefined};
  }catch(error){
+  if(error instanceof PhotoRequestError&&[401,403,409].includes(error.status))preparations.delete(file);
   if(error instanceof PhotoTransferError&&!relayAvailable)error=new PhotoTransferError(error.message,error.kind,error.status,error.requestId,false);
   diagnostic(traceId,"error",started,{loaded,total,region,errorKind:error instanceof PhotoTransferError?error.kind:phase==="read"?"read":"other",...(error instanceof PhotoTransferError?{status:error.status,...(error.requestId?{requestId:error.requestId}:{})}:{})});
   throw error;
