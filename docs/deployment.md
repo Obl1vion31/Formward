@@ -4,7 +4,7 @@
 
 鸿蒙网页交接与AI标识运行在 `dual-entry-cffcbe0c-harmonyos-host-r2-20261121`，源码 `cffcbe0c72ab020b2227861323c42e82f854fa92`，BUILD_ID `55gphIhGmyVooS-Z5pKld`。北京时间2026-11-21 05:59:18切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
 
-网页补齐原生主题／返回状态交接、登录成功后的输入保护交接，以及每条AI回答、续答和复制内容的显式标识。普通浏览器不启用原生桥，既有账号、GPT／OAuth／MCP、Garmin及数据库结构保持。鸿蒙未签名Release候选已构建并实测，应用商店仍未提交或上架，状态见[鸿蒙首发](harmonyos-release.md)。
+网页补齐原生主题／返回状态交接、登录成功后的输入保护交接，以及每条AI回答、续答和复制内容的显式标识。普通浏览器不启用原生桥，既有账号、GPT／OAuth／MCP、Garmin及数据库结构保持。鸿蒙候选已有未签名包模拟器实测，云端发布签名包已上传并通过17项包校验；最终签名包安装与真机仍待测，应用商店未提交或上架，状态见[鸿蒙首发](harmonyos-release.md)。
 
 同一正式兼容包在隔离PostgreSQL验证登录、AI预览、人工确认、复制标识及刷新恢复，确认恰有1次运行与1条消耗写入。正式网页和worker已同版；五个公网入口、28项新旧资源、登录返回、CSP／HSTS及匿名权限通过。海外网关沿用原READY部署、iad1和两个别名，HTTP1.15.1与MCP发现保持。
 
