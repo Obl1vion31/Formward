@@ -1,5 +1,13 @@
 # 当前视觉验收
 
+## 已发布验收 · 选图取消与原图重试
+
+网页与worker运行`dual-entry-d7c401eb-harmony-cloud-fixes-r3-20261121`。本轮保持原布局，修正文件选择cancel冒泡、原始MIME识别、人工切换通道后的重试及同一照片重复预占票据。已验证新旧运行包启动门禁和56项动作兼容，服务器归档与本机规范重建包的字节数及SHA完全相同，验收从该准确归档解包运行。
+
+临时PostgreSQL与虚构账号持续显示隔离标记。电脑助手输入后打开真实Windows文件选择器，取消后面板与文字保留，没有多余放弃确认；390×844手机餐次识图的说明同样保留。聊天与餐次分别选不同的私有虚构PNG，国际通道按fixture预期拒绝，人工选择国内并改用备用上传后成功登记；餐次原图链接已转为受认证API、识别按钮可用，说明原文保持。两入口连续操作通过，未再过早触发4张并发限制。没有新增产品页面、默认样例或真实健康记录。 [电脑取消](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/picker-cancel-desktop-final.jpg>) · [手机取消](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/picker-cancel-mobile-final.jpg>) · [餐次原图就绪](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/picker-meal-upload-final.jpg>)
+
+存储及模型为回放，不能计作真实COS、真实识别或修复后的云真机通过。856项测试通过、2项原有跳过，lint、typecheck和生产构建通过；858项中包含14项原图上传专项，覆盖票据复用、通道分离、核对失败、服务端拒绝与到期。公网四入口版本一致，隐私与条款与main一致，匿名导出401并禁止缓存。原生构建2保持原始签名APP，完整真机业务和商店安装仍待完成。 [部署与准确归档](docs/deployment.md#当前正式版本)
+
 ## 鸿蒙构建2云真机业务验收 · 照片与相机未通过
 
 2026-11-21：使用与上架草稿SHA-256一致的构建2原始云签名APP，在华为云调试OSTA O1 Pro（HarmonyOS 7.0.0.111／API26／1320×2232）和Mate 80 Pro Max 风驰（HarmonyOS 6.1.0.135／API24／1320×2848）完成安装及启动，均进入正式域名登录页。正常字号下，首次说明、隐私入口和主要按钮可读、可操作；前一台实际打开本地隐私页，返回后选择暂不使用、确认退出，重开后仍要求隐私选择。未调整产品布局或生成新的界面参考，不将云端画面缩放当作CSS尺寸或1px量测。
