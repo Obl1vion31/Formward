@@ -90,6 +90,7 @@ export function AssistantSurface({ close, requestClose, controllerReady, ...task
   }
   return <dialog ref={dialog} className={styles.surface} data-chat="true" data-assistant-surface data-mobile="false"
     aria-labelledby="assistant-title" onCancel={event => {
+      if (event.target !== event.currentTarget) return;
       event.preventDefault();
       if (history) backInHistory();
       else void requestClose();

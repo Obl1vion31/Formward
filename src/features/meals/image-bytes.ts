@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ApiError } from "../auth/ai-identity";
+import { imageMimeFromBytes } from "./image-format";
 export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const openAiFileSchema = z.object({ download_url: z.string().url(), file_id: z.string().min(1).max(200), mime_type: z.string().optional(), file_name: z.string().max(255).optional() }).strict();
@@ -13,10 +14,8 @@ export function imageDiagnostic(stage: ImageStage, code: string, details: { requ
 }
 export function imageMime(bytes: Uint8Array) {
   if (!bytes.length || bytes.length > MAX_IMAGE_BYTES) throw new ApiError(413, "image_size", "照片须为非空文件，最大20 MiB。");
-  const b = Buffer.from(bytes);
-  if (b.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return "image/png";
-  if (b[0] === 255 && b[1] === 216 && b[2] === 255) return "image/jpeg";
-  if (b.subarray(0, 4).toString() === "RIFF" && b.subarray(8, 12).toString() === "WEBP") return "image/webp";
+  const mimeType = imageMimeFromBytes(bytes);
+  if (mimeType) return mimeType;
   throw new ApiError(400, "image_type", "支持 JPEG、PNG 和 WebP 原图，不接受其他文件类型。");
 }
 export function validateImageDownloadUrl(value: string) {

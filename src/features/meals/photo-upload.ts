@@ -1,6 +1,7 @@
 "use client";
 import {choosePhotoRoute,type PhotoRegion,type PhotoRoute} from "./photo-route";
 import {PhotoTransferError,transferPhoto} from "./photo-transfer";
+import {imageMimeFromBytes} from "./image-format";
 export {PhotoTransferError} from "./photo-transfer";
 export type PhotoUploadPhase="read"|"route"|"prepare"|"sign"|"upload"|"relay"|"complete"|"ready";
 export type PhotoUploadProgress={phase:PhotoUploadPhase;label:string;loaded:number;total:number;percent:number;region?:PhotoRegion};
@@ -29,9 +30,11 @@ async function snapshotPhoto(file:File){
    try{
     const bytes=await Promise.race([file.arrayBuffer(),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error("读取照片超时，请重新选择已下载到手机的原图。")),30000);})]);
     if(bytes.byteLength!==file.size)throw new Error("照片内容未完整读取，请重新选择原图。");
+    const mimeType=imageMimeFromBytes(new Uint8Array(bytes));
+    if(!mimeType)throw new Error("支持 JPEG、PNG、WebP，请选择对应原图。");
     const hash=await crypto.subtle.digest("SHA-256",bytes);
-    return {body:new Blob([bytes],{type:file.type}),sha256:[...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,"0")).join("")};
-   }catch(error){snapshots.delete(file);if(error instanceof Error&&/^(读取照片超时|照片内容未完整读取)/.test(error.message))throw error;throw new Error("无法读取所选照片，请先将原图下载到手机后重新选择。");}
+    return {body:new Blob([bytes],{type:mimeType}),sha256:[...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,"0")).join("")};
+   }catch(error){snapshots.delete(file);if(error instanceof Error&&/^(读取照片超时|照片内容未完整读取|支持 JPEG)/.test(error.message))throw error;throw new Error("无法读取所选照片，请先将原图下载到手机后重新选择。");}
    finally{clearTimeout(timer);}
   })();
   snapshots.set(file,pending);
@@ -48,7 +51,6 @@ function diagnostic(traceId:string,phase:string,started:number,extra:Record<stri
 }
 function validatePhoto(file:File){
  if(!file.size||file.size>20*1024*1024)throw new Error("照片须为非空文件，最大20 MiB。");
- if(!["image/jpeg","image/png","image/webp"].includes(file.type))throw new Error("支持 JPEG、PNG、WebP，请选择对应原图。");
 }
 /** 选图时即保存原始字节；排队等待网络不再依赖Safari临时文件。 */
 export async function stagePrivateMealPhoto(file:File){validatePhoto(file);return (await snapshotPhoto(file)).body;}
@@ -64,7 +66,7 @@ export async function uploadPrivateMealPhoto(file:File,progress:(label:string)=>
   report("route","正在选择上传通道…");
   region=(await abortable(options.region?Promise.resolve({region:options.region}):options.route??choosePhotoRoute(),options.signal)).region;
   report("prepare","正在申请上传凭据…");diagnostic(traceId,phase,started);
-  const prepared=await request({step:"prepare",region,file:{fileName:file.name,size:file.size,mimeType:file.type,sha256:snapshot.sha256}},"申请上传凭据",options.signal);
+  const prepared=await request({step:"prepare",region,file:{fileName:file.name,size:snapshot.body.size,mimeType:snapshot.body.type,sha256:snapshot.sha256}},"申请上传凭据",options.signal);
   relayAvailable=prepared.provider==="cos"&&prepared.relayAvailable!==false;
   let image=prepared.image;check();
   if(!image){
@@ -87,7 +89,7 @@ export async function uploadPrivateMealPhoto(file:File,progress:(label:string)=>
     const target=new URL(String(signed.url));
     if(signed.provider!=="blob"||signed.method!=="PUT"||target.origin!=="https://vercel.com"||!/^\/api\/blob\/?$/.test(target.pathname)||target.username||target.password||target.hash)throw new Error("国际上传地址无效，请重试。");
     report("upload","正在上传照片…");diagnostic(traceId,phase,started);
-    await transferPhoto({url:target.href,method:"PUT",body:snapshot.body,headers:{"Content-Type":file.type},signal:options.signal,onProgress:(sent,size)=>{loaded=sent;total=size;report("upload",sent>=size?"正在等待存储确认…":"正在上传照片…",Math.min(100,Math.floor(sent/size*100)));}});
+    await transferPhoto({url:target.href,method:"PUT",body:snapshot.body,headers:{"Content-Type":snapshot.body.type},signal:options.signal,onProgress:(sent,size)=>{loaded=sent;total=size;report("upload",sent>=size?"正在等待存储确认…":"正在上传照片…",Math.min(100,Math.floor(sent/size*100)));}});
    }
    check();report("complete","正在核对原图…",100);diagnostic(traceId,phase,started,{loaded,total,region});
    image=await request({step:"complete",ticket:prepared.ticket},"核对原图",options.signal,90000);
