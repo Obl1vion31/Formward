@@ -1,10 +1,12 @@
 # 当前视觉验收
 
-## 鸿蒙构建2云真机启动验收 · 完整业务待完成
+## 鸿蒙构建2云真机业务验收 · 照片与相机未通过
 
 2026-11-21：使用与上架草稿SHA-256一致的构建2原始云签名APP，在华为云调试OSTA O1 Pro（HarmonyOS 7.0.0.111／API26／1320×2232）和Mate 80 Pro Max 风驰（HarmonyOS 6.1.0.135／API24／1320×2848）完成安装及启动，均进入正式域名登录页。正常字号下，首次说明、隐私入口和主要按钮可读、可操作；前一台实际打开本地隐私页，返回后选择暂不使用、确认退出，重开后仍要求隐私选择。未调整产品布局或生成新的界面参考，不将云端画面缩放当作CSS尺寸或1px量测。
 
-两台首次输入均弹出小艺输入法新协议，未代为接受，当前等待本人处理或当次明确授权。未向真机输入审核密码，登录后的记录、真实模型往返、图库／相机、导出保存和后台恢复均未记为通过。使用优惠时长，未购买套餐或开通按量付费；自动自检仍显示检测中，与人工验收分开记录。 [真机本地隐私页](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-privacy.jpg>) · [API24真机当前协议步骤](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-input-method-api24.jpg>) · [逐项结果](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-result.json>)
+本人授权处理输入法后，API24真机完成普通审核账号登录、虚构晨重保存、系统返回、未保存测量后台恢复、Excel系统保存及千问真实文字回答和AI标识。图库可选私有虚构PNG并返回网页，上传分别遇到国际503和国内原图核对400；取消图库误弹草稿放弃确认，继续编辑保留输入。系统相机打开后按快门回到桌面，重入保留会话，照片回传未通过；未据此推断应用崩溃或云设备不支持。AI确认保存、重新登录及最终商店安装仍待完成。没有新增产品界面；虚构营养标签仅为私有选图测试资料，不是默认内容或真实饮食记录。
+
+两台设备均已释放；本次Mate使用36分36秒后剩余优惠时长289分钟，未购买套餐或开通按量付费。临时审核密码明文和内存已清除，远程剪贴板改为普通测试文字。自动自检上次读取仍为检测中，与人工验收分开记录。 [真机登录](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-login-api24.png>) · [千问真实回答](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-chat-api24.png>) · [系统保存](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-export-api24.png>) · [上传未通过](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-photo-cn-result-api24.png>) · [逐项结果](<C:/Users/14878/.codex/private/formward-harmonyos-1.0.0/submission-materials/cloud-smoke-result.json>)
 
 ## 已发布验收 · AI导出标识与隐私披露
 
