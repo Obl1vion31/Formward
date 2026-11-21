@@ -109,7 +109,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
       finally{photoRequests.current.delete(photo.key);}
     }}finally{photoWorking.current=false;if(photoQueue.current.length&&alive.current)void processPhotos([]);}
   }
-  async function retryPhoto(key:string,transport:"direct"|"relay"="direct",region?:PhotoRegion){const photo=photoState.current.find(item=>item.key===key);if(!photo||photo.phase!=="error")return;updatePhotos(current=>current.map(item=>item.key===key?{...item,phase:"queued",percent:0,label:"等待上传",error:undefined,canRelay:false}:item));await processPhotos([{key,transport,region}]);}
+  async function retryPhoto(key:string,transport:"direct"|"relay"="direct",region?:PhotoRegion){const photo=photoState.current.find(item=>item.key===key);if(!photo||photo.phase!=="error")return;updatePhotos(current=>current.map(item=>item.key===key?{...item,phase:"queued",percent:0,label:"等待上传",error:undefined,canRelay:false}:item));await processPhotos([{key,transport,region:region??photo.region}]);}
 
   const releasePhotoResources=useCallback(()=>{photoEpoch.current++;photoQueue.current=[];for(const controller of photoRequests.current.values())controller.abort();for(const photo of [...photoState.current,...[...savedDrafts.current.values()].flatMap(value=>value.photos),...[...outbox.current.values()].flatMap(value=>value.photos)])if(photo.preview)URL.revokeObjectURL(photo.preview);},[]);
   const scrollState = useCallback(() => ({ ...scroll.current }), []);

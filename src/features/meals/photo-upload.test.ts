@@ -150,7 +150,7 @@ test("系统选择器误报或未提供MIME时，两条上传通道沿用原始�
      if(body.step==="complete")return Response.json({id:"fictional-id"});
      return Response.json({url:"https://fictional.test/upload",fields:{}});
     };
-    assert.equal((await uploadPrivateMealPhoto(file,()=>{},{region})).id,"fictional-id");assert.ok(prepared&&uploaded);assert.equal(file.type,reportedType);
+    assert.equal((await uploadPrivateMealPhoto(file,()=>{},{region,route:Promise.resolve({region:region==="cn"?"global":"cn",elapsedMs:0})})).id,"fictional-id");assert.ok(prepared&&uploaded);assert.equal(file.type,reportedType);
    }
   }
  }finally{globalThis.fetch=original;}

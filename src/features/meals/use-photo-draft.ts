@@ -13,7 +13,7 @@ export function usePhotoDraft(){
   const controller=new AbortController();requests.current.set(key,controller);
   const patch=(value:Partial<PhotoDraft>)=>{if(alive.current)change(rows=>rows.map(p=>p.key===key?{...p,...value}:p));};
   patch({phase:"queued",percent:0,label:"等待上传",error:undefined,relay:false});
-  try{const result=await uploadPrivateMealPhoto(photo.file,()=>{},{transport,region,route:photo.route,signal:controller.signal,onProgress:progress=>patch({phase:progress.phase,percent:progress.percent,label:progress.label,region:progress.region}),onPreview:body=>{if(!items.current.find(p=>p.key===key)?.preview&&alive.current&&items.current.some(p=>p.key===key))patch({preview:URL.createObjectURL(body)});}});patch({id:result.id,phase:"ready",percent:100,label:"照片已就绪"});}
+  try{const result=await uploadPrivateMealPhoto(photo.file,()=>{},{transport,region:region??photo.region,route:photo.route,signal:controller.signal,onProgress:progress=>patch({phase:progress.phase,percent:progress.percent,label:progress.label,region:progress.region}),onPreview:body=>{if(!items.current.find(p=>p.key===key)?.preview&&alive.current&&items.current.some(p=>p.key===key))patch({preview:URL.createObjectURL(body)});}});patch({id:result.id,phase:"ready",percent:100,label:"照片已就绪"});}
   catch(failure){patch({phase:"error",label:"上传未完成",error:failure instanceof Error?failure.message:"请重新选择照片。",relay:transport==="direct"&&failure instanceof PhotoTransferError&&failure.allowRelay});}
   finally{requests.current.delete(key);}
  }
