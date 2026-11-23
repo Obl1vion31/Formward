@@ -178,7 +178,15 @@ export async function runChatBackgroundBrowser(db){
  const wait=async(fn)=>{for(let i=0;i<160;i++){const value=await fn();if(value)return value;await new Promise(r=>setTimeout(r,150));}throw Error("后台回归等待超时");};
  const latest=async()=>{const [row]=await db.select().from(schema.assistantRun).where(eq(schema.assistantRun.userId,fixture.userId)).orderBy(desc(schema.assistantRun.createdAt)).limit(1);return row;};
  const shot=async(name)=>{await page.screenshot({path:join(dir,engine+"-"+name+".png"),animations:"disabled"});shots.push(engine+"-"+name+".png");};
- const open=async()=>{if(!await page.getByRole("dialog",{name:"小助手",exact:true}).isVisible())await page.locator("[data-assistant-trigger]:visible").click();await page.getByRole("textbox",{name:"给小助手发消息",exact:true}).waitFor();};
+ const open = async () => {
+   const input = page.getByRole("textbox", {name:"给小助手发消息",exact:true});
+   const trigger = page.locator("[data-assistant-trigger]:visible");
+   if (new URL(page.url()).pathname !== "/dashboard/assistant") {
+     await input.or(trigger).first().waitFor();
+     if (!await input.isVisible()) await trigger.click();
+   }
+   await input.waitFor();
+ };
  async function start(label){const prior=(await latest())?.id;await page.getByRole("textbox",{name:"给小助手发消息",exact:true}).fill("慢速测试 "+label);await page.getByRole("button",{name:"发送消息",exact:true}).click();return wait(async()=>{const row=await latest();if(row?.id!==prior&&row?.state==="error"){const [answer]=await db.select().from(schema.assistantMessage).where(eq(schema.assistantMessage.id,row.assistantMessageId));throw Error("后台任务错误："+answer?.error);}return row?.id!==prior&&row?.requestDiagnostics.some(d=>d.state!=="prepared")?row:null;});}
  async function complete(id){return wait(async()=>{const [row]=await db.select().from(schema.assistantRun).where(eq(schema.assistantRun.id,id));return row?.state==="complete"?row:null;});}
  async function verify(id){const [row]=await db.select().from(schema.assistantRun).where(eq(schema.assistantRun.id,id));assert.equal(row.requestDiagnostics.length,1);const usage=await db.select().from(schema.assistantUsageRequest).where(eq(schema.assistantUsageRequest.runId,id));assert.equal(usage.length,1);return row;}
@@ -195,5 +203,9 @@ export async function runChatBackgroundBrowser(db){
   const dimensions=await page.getByRole("dialog",{name:"小助手",exact:true}).evaluate(el=>({overflow:el.scrollWidth>el.clientWidth+1,inputs:[...el.querySelectorAll("textarea")].map(x=>parseFloat(getComputedStyle(x).fontSize))}));assert.equal(dimensions.overflow,false);assert.ok(dimensions.inputs.every(n=>n>=16));
   await shot("background-final-mobile");await page.setViewportSize({width:1440,height:900});await shot("background-final-desktop");assert.deepEqual(errors,[]);
   const result={passed:true,engine,checks,shots,physicalIPhone:false,paidModelCalls:0,errors,expectedNetworkErrors};await writeFile(join(dir,engine+"-background.json"),JSON.stringify(result,null,2));console.log(JSON.stringify(result));
- }finally{await context.close();await browser.close();}
+ } catch (error) {
+   await shot("background-failure").catch(() => {});
+   console.log("验收页面", new URL(page.url()).pathname, "已通过", JSON.stringify(checks));
+   throw error;
+ } finally { await context.close(); await browser.close(); }
 }
