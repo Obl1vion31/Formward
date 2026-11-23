@@ -2,7 +2,15 @@
 
 ## 当前正式版本
 
-网页与聊天 worker 运行同版 `dual-entry-732cde89-review-recovery-r2-20261123`，源码 `732cde89b42fb245856be0689c9a41e4f107a455`，BUILD_ID `bEJaz_wHU7mzKsvAinbO6`。北京时间 2026-11-23 20:14:02 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+网页与聊天 worker 运行同版 `dual-entry-ed1b5c59-chat-stop-recovery-20261123`，源码 `ed1b5c591ab2be756e0310b802400b9d7538ef68`，BUILD_ID `ZSxvap30StWqzjyRX8NAJ`。北京时间 2026-11-23 22:13:41 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+
+小助手停止指向当前会话和具体运行。接收确认前暂存停止意图，结束快照到达收起停止按钮。「重新读取对话」直接读取本会话，读取失败可重试。正文分片协商使用独立于回源鉴权的请求头，保留静默保活。Chromium 桌面与 WebKit 手机视口从准确包解包验收。 [实际网页验收](../design-qa.md)
+
+数据库仍为 `0047_meal_food_groups`、47项迁移、67张表。停写备份完成原生校验与异地回读，配置摘要保持。四个域名同版，新旧网页资源和接口权限已核对；兼容56项 Server Action 和2374项旧静态资源。准确包 87,938,210 字节，SHA-256 `3f285d98df89342ee0af80a6dbe864f72b1cde60af836cc9ba55bebed6874bf0`。源码、归档和验证保存在 `.codex/backups/regional-releases/chat-stop-recovery-20261123`，兼容回退为 `review-recovery-r2-20261123`。
+
+## 小助手确认与保存恢复发布记录
+
+该次网页与聊天 worker 版本为 `dual-entry-732cde89-review-recovery-r2-20261123`，源码 `732cde89b42fb245856be0689c9a41e4f107a455`，BUILD_ID `bEJaz_wHU7mzKsvAinbO6`。北京时间 2026-11-23 20:14:02 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
 
 小助手与完整确认页已移除「提交信息」折叠项。旧版在原位更新，失联后读回本次保存状态。无关饮食或食材变动继续安全保存，关联变化需更新或查看当前正式餐次。Chromium 桌面和 WebKit 手机视口从准确归档解包运行，858项单元与集成通过，2项原有跳过。 [实际页面验收](../design-qa.md)
 

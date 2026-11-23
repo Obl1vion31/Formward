@@ -1,5 +1,11 @@
 # 当前视觉验收
 
+## 已发布验收 · 小助手停止、重读与正文分片
+
+正式运行包 `dual-entry-ed1b5c59-chat-stop-recovery-20261123` 用隔离账号、临时 PostgreSQL 与模型回放验收。Chromium 1440 CSS px 桌面和 WebKit 390 CSS px 手机视口各通过9组实际操作。接收确认前按停止，确认后仅结束当前这条任务。旧空编号及迟到的旧停止请求保持幂等。正文未完时可见多段实际分片，全文出现后即使快照读取仍延迟，停止键已收起。 [实页截图和结果](<C:/Users/14878/.codex/visualizations/2026/11/19/01a1f4b2-02ea-7501-a32e-c5986dd04a8a/chat-stop-recovery-acceptance/index.html>)
+
+生成中遇到停止响应故障，显式重读发出带当前会话编号的 GET。第一次读取失败后再试，拿回同一任务并保留草稿，之后可真实停止。离线、整页刷新、收起后重开都继续原任务，两端确认未重复产生模型请求。独立回放覆盖 Markdown、工具过程、补充追问及待确认卡。扩展验收中桌面浮窗直接缩到320px的横向溢出在上个正式包同样复现。实体 iPhone 和真实模型本轮未测。lint、类型检查、生产构建及 858 项单元与集成通过，2 项原有跳过。 [部署](docs/deployment.md#当前正式版本)
+
 ## 已发布验收 · 小助手确认和保存恢复
 
 正式运行包 `dual-entry-732cde89-review-recovery-r2-20261123` 经真实网页、隔离账号及临时 PostgreSQL 验收。手机 320×844 WebKit 浅色、桌面 Chromium 1440 CSS px 深色与 ImageGen 局部参考核对相同状态。操作区显示单一主按钮，旧版直接更新，已有输入保留。 [实际截图图册](<C:/Users/14878/.codex/visualizations/2026/11/19/01a1f4b2-02ea-7501-a32e-c5986dd04a8a/review-recovery-acceptance/index.html>)
