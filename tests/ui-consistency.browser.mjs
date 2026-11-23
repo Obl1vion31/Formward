@@ -117,31 +117,45 @@ try{
    assert.equal(await library.getAttribute("data-meal-library-entry"),"ready");
    assert.equal(await recent.getByRole("button",{name:"食材库",exact:true}).count(),0);
    const entryBefore=await library.boundingBox();
-   const inline=w<=700&&await p.evaluate(()=>document.body.getBoundingClientRect().width<348);
-   assert.equal(await library.getAttribute("data-meal-library-placement"),inline?"date":"edge");
-   if (inline) {
-    const slot=p.locator('[data-record-slot="date"]').filter({has:library});
-    const view=await slot.getByRole("button",{name:"查看记录 →",exact:true}).boundingBox();
-    assert.ok(entryBefore.width>=44&&entryBefore.height>=44&&Math.abs(entryBefore.y-view.y)<=1);
-   } else if (w<=700) {
-    const geometry=await library.evaluate(button=>{
-     const hit=button.getBoundingClientRect(),face=button.firstElementChild.getBoundingClientRect();
-     const chart=document.querySelector("[data-record-trend]").getBoundingClientRect();
-     const list=document.querySelector('[aria-label="最近记录"]').getBoundingClientRect();
-     return {hit:hit.width,face:face.width,edge:document.body.getBoundingClientRect().right-face.right,
-      gap:hit.left-Math.max(chart.right,list.right)};
-    });
-    assert.ok(geometry.hit>=44&&geometry.face===30&&Math.abs(geometry.edge)<=1&&geometry.gap>=-1,JSON.stringify(geometry));
-   } else {
-    const rail=await p.locator(".desktop-record-nav").boundingBox();
-    assert.ok(entryBefore.y>=rail.y+rail.height&&entryBefore.x>=rail.x&&entryBefore.x+entryBefore.width<=rail.x+rail.width);
+   const card=p.locator('[data-record-slot="metrics"]');
+   const plot=p.locator('[data-record-slot="plot"]');
+   const detail=card.getByRole("button",{name:"营养详情",exact:true});
+   const geometry=await card.evaluate(node=>{
+    const entry=node.querySelector('[data-meal-library-entry]').getBoundingClientRect();
+    const card=node.getBoundingClientRect();
+    const plot=document.querySelector('[data-record-slot="plot"]').getBoundingClientRect();
+    const records=document.querySelector('[aria-label="最近记录"]').getBoundingClientRect();
+    return {width:entry.width,height:entry.height,right:card.right-entry.right,
+     pageEdges:[plot.left-card.left,plot.right-card.right,records.left-card.left,records.right-card.right]};
+   });
+   assert.ok(geometry.width>=44&&geometry.height>=44&&Math.abs(geometry.right)<=1);
+   assert.ok(geometry.pageEdges.every(delta=>Math.abs(delta)<=1),JSON.stringify(geometry));
+   const chartDate=plot.locator('[data-chart-date="'+yesterday+'"]');
+   await chartDate.press("Enter");
+   assert.equal(await card.getAttribute("data-selected-date"),yesterday);
+   await p.evaluate(()=>scrollTo(0,0));
+   await shot(p,mode+"-nutrition-default-"+w);
+   if(w<=700){
+    assert.equal(await card.locator("dl").isVisible(),false);
+    await detail.click();
+    assert.equal(await detail.getAttribute("aria-expanded"),"true");
+   }
+   const columns=await card.locator("dl>div").evaluateAll(nodes=>nodes.map(node=>{
+    const {x,y,width}=node.getBoundingClientRect();
+    return {x,y,width,value:node.querySelector("strong").textContent.trim()};
+   }));
+   assert.deepEqual(columns.map(col=>col.value),["120g","260g","70g"]);
+   assert.ok(columns.every((col,index)=>Math.abs(col.y-columns[0].y)<=1&&Math.abs(col.width-columns[0].width)<=1&&(index===0||col.x>columns[index-1].x)));
+   if(w<=700){
+    assert.ok(Math.abs((await library.boundingBox()).height-entryBefore.height)<=1);
+    await shot(p,mode+"-nutrition-expanded-"+w);
    }
    await recent.getByRole("button",{name:"查看全部",exact:true}).click();
-   await p.evaluate(inline=>scrollTo({top:inline?40:Math.min(560,document.documentElement.scrollHeight-innerHeight),behavior:"instant"}),inline);
+   await p.evaluate(()=>scrollTo(0,32));
    const scrollBefore=await p.evaluate(()=>scrollY);
    assert.ok(scrollBefore>0);
    const entryAfter=await library.boundingBox();
-   assert.ok(Math.abs(entryBefore.y-entryAfter.y-(inline?scrollBefore:0))<=1);
+   assert.ok(Math.abs(entryBefore.y-entryAfter.y-scrollBefore)<=1);
    await library.click();
    const back=p.getByRole("button",{name:"← 饮食记录",exact:true});
    await back.waitFor();
@@ -152,6 +166,8 @@ try{
    await back.click();
    await p.waitForFunction(expected=>Math.abs(scrollY-expected)<=1,scrollBefore);
    assert.equal(await library.evaluate(node=>document.activeElement===node),true);
+   assert.equal(await card.getAttribute("data-selected-date"),yesterday);
+   if(w<=700)assert.equal(await detail.getAttribute("aria-expanded"),"true");
    assert.equal(await recent.locator("[data-record-history]").isVisible(),true);
    await recent.getByRole("button",{name:"收起历史",exact:true}).click();
    await recent.locator('[data-record-date="'+today+'"] [data-record-actions] button').first().click();

@@ -10,7 +10,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LoadingLink } from "@/components/loading-link";
 
 import { useInitialMobileMode } from "@/components/use-mobile-mode";
-import { macroComposition,dailyTotals, suggestedMealType, mealOperationStatus, emptyNutrition, formatNutrition, metricLabels, metrics, type FoodDraft, type MealAction,  type MealInput, type MacroMode, type MealOperationView, type MealSnapshot, type MealView, type Metric,  type Result } from "./model";
+import { dailyTotals, suggestedMealType, mealOperationStatus, emptyNutrition, formatNutrition, type FoodDraft, type MealAction,  type MealInput, type MacroMode, type MealOperationView, type MealSnapshot, type MealView, type Result } from "./model";
 import { recentRecordDates, rangeContaining } from "@/components/record-dates";
 import { DailyRecords, DailyRecordRow, RecordRowAction } from "@/components/daily-records";
 import { ChartRanges } from "@/components/chart-ranges";
@@ -19,13 +19,12 @@ import { useNestedChartRange } from "@/components/use-nested-chart-range";
 import {RecordDetailActions} from "@/components/record-detail-actions";
 import { useLocalToday } from "@/components/use-local-today";
 import { FoodTable } from "./presets";
-import { FoodLibraryDateEntry, FoodLibraryEntry } from "./food-library-entry";
-import foodLibraryEntry from "./food-library-entry.module.css";
+import { NutritionSummaryCard } from "./nutrition-summary-card";
 import { PhotoFields } from "./photos";
 import { SavedMealList } from "./saved-meal-list";
 import { MealDayControl, MealDayStatus } from "./meal-day-control";
 import type { MealDayInput } from "./model";
-import {DayNutritionSummary,NutritionComposition} from "./nutrition-composition";
+import {DayNutritionSummary} from "./nutrition-composition";
 import { NutritionChart } from "./nutrition-chart";
 import { useDraftGuard, confirmDraftDiscard } from "@/components/draft-guard";
 import type { RecordIntent } from "@/components/record-intent";
@@ -41,7 +40,6 @@ import type { TrendRoute } from "@/components/metric-trend-model";
 
 
 export type SaveMeals = (input: MealInput, allowMissingImages?: boolean) => Promise<Result<{ snapshot: MealSnapshot; message: string }>>;
-const unitFor = (metric: Metric) => metric === "caloriesKcal" ? "kcal" : "g";
 const dateNumber = (d: string) => Date.parse(`${d}T00:00:00Z`) / 86400000;
 const dateAt = (n: number) => new Date(n * 86400000).toISOString().slice(0, 10);
 export function MealsView({ snapshot, today: initialToday, operations, save, saveDay, purge, initialDate = null,initialEntry=false, initialTrend=null,initialIntent='view' }: { snapshot: MealSnapshot; today: string; operations: MealOperationView[]; save: SaveMeals; saveDay?: (input: MealDayInput) => ReturnType<SaveMeals>; purge: (input: import("./recently-deleted").PermanentDeletion) => ReturnType<SaveMeals>; initialDate?: string|null;initialEntry?:boolean;initialTrend?:TrendRoute|null;initialIntent?:RecordIntent }) {
@@ -50,7 +48,6 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
   if(snapshot!==base){setBase(snapshot);setLocal(null);}
   const state=local??snapshot,mobile=useInitialMobileMode(),[tab,setTab]=useState<"meals"|"foods">("meals");
   const libraryEntry = useRef<HTMLButtonElement>(null);
-  const dateLibraryEntry = useRef<HTMLButtonElement>(null);
   const libraryBack = useRef<HTMLButtonElement>(null);
   const recordsScroll = useRef<number | null>(null);
   useLayoutEffect(() => {
@@ -61,8 +58,7 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
     } else {
       window.scrollTo({ top: recordsScroll.current, behavior: "instant" });
       recordsScroll.current = null;
-      const entry = [libraryEntry.current, dateLibraryEntry.current].find(button => button?.getClientRects().length);
-      entry?.focus({ preventScroll: true });
+      libraryEntry.current?.focus({ preventScroll: true });
     }
   }, [tab]);
   function openFoodLibrary() {
@@ -144,18 +140,15 @@ export function MealsView({ snapshot, today: initialToday, operations, save, sav
     try{const result=await purge({...target,operationId:request.current.id});if(!result.ok){setError(result.error);return false;}acknowledgeRecordChanges([target.recordType+":"+target.id,...(target.recordType==="meal"?["mealDay:"+state.meals.find(m=>m.id===target.id)?.date]:[])], [...mealVersions(result.data.snapshot),...(target.recordType==="meal"?[{key:"mealDay:"+state.meals.find(m=>m.id===target.id)?.date,version:String((state.meals.find(m=>m.id===target.id)?.day?.version??0)+1)}]:[])]);setLocal(result.data.snapshot);setNotice(result.data.message);request.current=null;return true;}catch{setError("删除未完成，请重试。");return false;}finally{busyRef.current=false;setBusy(false);}
   }
   const visibleFoods=state.foods.filter(f=>!f.deletedAt&&(foodCategory==="all"||(f.category??"ingredient")===foodCategory)&&`${f.name} ${f.brand??""} ${f.preparation??""}`.toLowerCase().includes(foodQuery.toLowerCase()));
-  return <RecordWorkspace title={tab==="foods"?"食材库":"饮食"} className={tab==="meals"?styles.workspace+" "+foodLibraryEntry.recordsWithEntry:styles.workspace} data-active-tab={tab} data-shared-route={initialTrend?true:undefined}>
-    <FoodLibraryEntry hidden={tab==="foods"} buttonRef={libraryEntry} onOpen={openFoodLibrary}/>
+  return <RecordWorkspace title={tab==="foods"?"食材库":"饮食"} className={styles.workspace} data-active-tab={tab} data-shared-route={initialTrend?true:undefined}>
     <div hidden={tab==="foods"}>
 
       <div data-record-trend data-chart-selection={chart.regionId} data-selected-date={chart.selected} data-selection-origin={chart.origin} {...chart.regionProps}>
-      <RecordTrendPanel presentation="nutrition" graphic={<NutritionComposition totals={chosen?.totals}/>}
+      <RecordTrendPanel presentation="nutrition" readings={<NutritionSummaryCard date={summaryDate} totals={chosen?.totals} openLibrary={openFoodLibrary} libraryRef={libraryEntry}/>}
        range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft({from:customFrom||from,to:customTo});setCustomOpen(true);}else{prepareRange(key);setRange(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="饮食" value={customDraft} change={setCustomDraft} apply={()=>{setCustomFrom(customDraft.from);setCustomTo(customDraft.to);setRange("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
-       date={summaryDate} dateActions={<FoodLibraryDateEntry buttonRef={dateLibraryEntry} onOpen={openFoodLibrary}/>}
-       view={()=>{const target=summaryDate;viewDay(target);chart.releasePreview();}} readoutLabel="选中日营养"
-       metrics={metrics.map(metric=>({label:metricLabels[metric],value:formatNutrition(chosen?.totals.values[metric]??null,metric),unit:unitFor(metric),inlineUnit:metric!=="caloriesKcal",tone:metric==="caloriesKcal"?"blue":undefined,note:chosen?.totals.incomplete[metric]?"已知部分":metric!=="caloriesKcal"&&macroComposition(chosen?.totals).kind==="known"?((macroComposition(chosen?.totals).segments.find(s=>s.metric===metric)?.ratio??0)*100).toFixed(1)+'%':undefined,reserveNote:metric!=="caloriesKcal"||groups.some(group=>group.date>=from&&group.date<=to&&group.totals.incomplete[metric])}))}
-       metricVariants={groups.filter(group=>group.date>=from&&group.date<=to).map(group=>metrics.map(metric=>formatNutrition(group.totals.values[metric],metric)))}
+       date={summaryDate}
+       view={()=>{const target=summaryDate;viewDay(target);chart.releasePreview();}}
        title="每日摄入" unit="千卡"
        options={<InlineChartControls><div role="group" aria-label="营养占比口径">{([["grams","克数占比"],["energy","能量占比"]] as const).map(([value,label])=><button type="button" key={value} aria-pressed={macroMode===value} onClick={()=>setMacroMode(value)}>{label}</button>)}</div></InlineChartControls>}
        legend={<><NutritionLegend/>{groups.some(group=>group.day.status!=="complete")&&<span className={styles.desktopOnlyLegend}>未记全／待确认</span>}</>}

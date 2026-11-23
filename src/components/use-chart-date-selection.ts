@@ -4,14 +4,14 @@ import { useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent
 type Origin = "initial" | "pointer" | "click" | "touch" | "keyboard";
 type Choice = {date:string;origin:Origin;range:string};
 type SelectionAction = {type:"select";date:string;origin:Origin}|{type:"preview";date:string}|{type:"leave"}|{type:"release"}|{type:"release-preview"};
-/** 鼠标点击是明确选择；悬停只预览，不能覆盖已点击的日期。 */
+/** 点击和触屏是明确选择，悬停只做临时预览。 */
 export function updateChartDateChoice(current:Choice|null,action:SelectionAction,dates:readonly string[],range:string):Choice|null {
   const active=current?.range===range&&dates.includes(current.date)?current:null;
   if(action.type==="release")return null;
   if(action.type==="release-preview")return active&&["click","touch"].includes(active.origin)?active:null;
   if(action.type==="leave")return active&&["click","touch","keyboard"].includes(active.origin)?active:null;
   if(!dates.includes(action.date))return active;
-  if(action.type==="preview"&&active?.origin==="click")return active;
+  if(action.type==="preview"&&(active?.origin==="click"||active?.origin==="touch"))return active;
   const origin=action.type==="preview"?"pointer":action.origin;
   return active?.date===action.date&&active.origin===origin?active:{date:action.date,origin,range};
 }

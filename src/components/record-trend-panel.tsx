@@ -7,8 +7,8 @@ export type RecordMetric={pending?:boolean;id?:string;label:string;value:string;
 export function RecordWorkspace({title,headingId,className="",children,...props}:ComponentPropsWithoutRef<"section">&{title:string;headingId?:string}){
  return <section {...props} className={styles.workspace+" "+className} data-record-workspace><header className={styles.pageHeading}><h1 id={headingId}>{title}</h1></header>{children}</section>;
 }
-export function RecordTrendPanel({range,custom,date,view,dateActions,metrics,title,unit,options,legend,children,readoutLabel="选中日读数",metricVariants=[],labelVariants=[],noteVariants=[],flags,flagVariants=[],statistics,supplementary,statusInDate=false,presentation,mobileMetrics,graphic,loading=false,chartSummary,readingStatus}:{
- readingStatus?:ReactNode;mobileMetrics?:RecordMetric[];chartSummary?:ReactNode;presentation?:"nutrition"|"energy"|"body";graphic?:ReactNode;loading?:boolean;range:ReactNode;custom?:ReactNode;date:string;view:()=>void;dateActions?:ReactNode;metrics:RecordMetric[];title:string;unit?:string;options?:ReactNode;legend:ReactNode;children:ReactNode;readoutLabel?:string;metricVariants?:string[][];labelVariants?:string[][];noteVariants?:string[][];flags?:string;flagVariants?:string[];statistics?:ReactNode;supplementary?:ReactNode;statusInDate?:boolean;
+export function RecordTrendPanel({range,custom,date,view,metrics=[],readings,title,unit,options,legend,children,readoutLabel="选中日读数",metricVariants=[],labelVariants=[],noteVariants=[],flags,flagVariants=[],statistics,supplementary,statusInDate=false,presentation,mobileMetrics,graphic,loading=false,chartSummary,readingStatus}:{
+ readingStatus?:ReactNode;mobileMetrics?:RecordMetric[];chartSummary?:ReactNode;presentation?:"nutrition"|"energy"|"body";graphic?:ReactNode;loading?:boolean;range:ReactNode;custom?:ReactNode;date:string;view:()=>void;readings?:ReactNode;metrics?:RecordMetric[];title:string;unit?:string;options?:ReactNode;legend:ReactNode;children:ReactNode;readoutLabel?:string;metricVariants?:string[][];labelVariants?:string[][];noteVariants?:string[][];flags?:string;flagVariants?:string[];statistics?:ReactNode;supplementary?:ReactNode;statusInDate?:boolean;
 }){
  const mobile=useMobileMode();
  const metricRef=useRef<HTMLDivElement>(null),[columnLimit,setColumnLimit]=useState(metrics.length);
@@ -48,7 +48,7 @@ export function RecordTrendPanel({range,custom,date,view,dateActions,metrics,tit
     if(values.every((width,index)=>width+(desktopCards?36+(index===0?(presentation==='energy'?136:108):0):0)<=available*weights[index%count]/total+1))break;
     count=count===6?3:count>2?2:1;
    }
-   if(presentation){const heroStack=String(values[0]+160>(group.firstElementChild?.clientWidth??groupWidth)),relevant=values.slice(1),cols=presentation==='nutrition'?3:2,richStack=String(relevant.some(width=>width+24>(groupWidth-gap*(cols-1))/cols));if(group.dataset.heroStack!==heroStack)group.dataset.heroStack=heroStack;if(group.dataset.richStack!==richStack)group.dataset.richStack=richStack;}
+   if(presentation){const heroStack=String(values[0]+160>(group.firstElementChild?.clientWidth??groupWidth)),relevant=values.slice(1),richStack=String(relevant.some(width=>width+24>(groupWidth-gap)/2));if(group.dataset.heroStack!==heroStack)group.dataset.heroStack=heroStack;if(group.dataset.richStack!==richStack)group.dataset.richStack=richStack;}
    setColumnLimit(current=>current===count?current:count);
   };
   const observer=new ResizeObserver(measure);observer.observe(group);
@@ -61,9 +61,9 @@ export function RecordTrendPanel({range,custom,date,view,dateActions,metrics,tit
  const columns=Math.min(columnLimit,metrics.length);
  const statusVariants=[...new Set([...flagVariants,flags].filter((value):value is string=>Boolean(value)))];
  return <div className={styles.panel} data-panel-presentation={presentation} data-record-trend data-status-in-date={statusInDate||undefined}>
-  <div className={styles.date} data-record-slot="date"><SelectedDateHeading date={date} view={view} pending={loading} actions={dateActions} status={statusInDate?<span className={styles.dateStatus} role="status" title={flags||undefined}>{flags??""}</span>:undefined}/></div>
+  <div className={styles.date} data-record-slot="date"><SelectedDateHeading date={date} view={view} pending={loading} status={statusInDate?<span className={styles.dateStatus} role="status" title={flags||undefined}>{flags??""}</span>:undefined}/></div>
   <div className={statistics?styles.readingArea:undefined}>
-  <div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-presentation={presentation} data-loading={loading||undefined} aria-busy={loading||undefined} data-metric-count={metrics.length} data-record-columns={columns} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":columns===3&&(presentation==='energy'||presentation==='body')?"1.5fr repeat(2,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map((metric,index)=>{
+  {readings??<><div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-presentation={presentation} data-loading={loading||undefined} aria-busy={loading||undefined} data-metric-count={metrics.length} data-record-columns={columns} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":columns===3&&(presentation==='energy'||presentation==='body')?"1.5fr repeat(2,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map((metric,index)=>{
    const labels=[...new Set([metric.label,...labelVariants.map(row=>row[index]).filter(Boolean)])];
    const notes=[...new Set([metric.note,...noteVariants.map(row=>row[index])].filter((value):value is string=>Boolean(value)))];
    const pending=metric.pending??loading;
@@ -76,7 +76,8 @@ export function RecordTrendPanel({range,custom,date,view,dateActions,metrics,tit
     {(metric.graphic||index===0&&graphic)&&<div className={styles.metricGraphic}>{metric.graphic??graphic}</div>}
    </div>;
   })}</div>
-  {presentation&&<MobileRecordReadings metrics={mobileMetrics??metrics} presentation={presentation} graphic={graphic} loading={loading} date={date} label={readoutLabel} readingStatus={readingStatus}/>}
+  {(presentation==="energy"||presentation==="body")&&<MobileRecordReadings metrics={mobileMetrics??metrics} presentation={presentation} graphic={graphic} loading={loading} date={date} label={readoutLabel} readingStatus={readingStatus}/>}
+  </>}
   {statistics}</div>
   {supplementary}
   {!statusInDate&&statusVariants.length>0&&<div className={styles.flags} data-record-slot="status">{statusVariants.map(value=><span key={value} aria-hidden="true" className={styles.flagMeasure}>{value}</span>)}<span role="status">{flags??""}</span></div>}
@@ -100,12 +101,11 @@ export function CustomRecordRange({label,value,change,apply,cancel}:{label:strin
  return <form className={styles.custom} data-chart-controls aria-label="自定义日期范围" onSubmit={event=>{event.preventDefault();if(okay)apply();}} onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();event.stopPropagation();cancel();}}}><label>开始<input autoFocus type="date" required aria-label={label+"开始日期"} value={value.from} onChange={event=>change({...value,from:event.target.value})}/></label><label>结束<input type="date" required aria-label={label+"结束日期"} value={value.to} onChange={event=>change({...value,to:event.target.value})}/></label><div><button disabled={!okay} type="submit">应用</button><button type="button" onClick={cancel}>取消</button></div>{!okay&&<p role="status">请选择有效日期范围，最长10年。</p>}</form>;
 }
 
-function MobileRecordReadings({metrics,presentation,graphic,loading,date,label,readingStatus}:{readingStatus?:ReactNode;metrics:RecordMetric[];presentation:"nutrition"|"body"|"energy";graphic?:ReactNode;loading:boolean;date:string;label:string}){
+function MobileRecordReadings({metrics,presentation,graphic,loading,date,label,readingStatus}:{readingStatus?:ReactNode;metrics:RecordMetric[];presentation:"body"|"energy";graphic?:ReactNode;loading:boolean;date:string;label:string}){
  const first=metrics[0];if(!first)return null;
  const number=(metric:RecordMetric,primary=false)=>{const pending=metric.pending??loading;return <strong className={(primary?styles.mobilePrimary:styles.mobileStatValue)+" "+(metric.tone?styles[metric.tone]:"")} data-metric-number><span>{pending?<PendingNumber status={primary?readingStatus:undefined}/>:metric.value}</span><small className={pending?styles.metricMeasure:undefined} aria-hidden={pending||undefined}>{metric.unit==="kcal"?"千卡":metric.unit}</small></strong>;};
- const caption=<span className={styles.mobileCaption}>{presentation==="nutrition"?"当天摄入":first.label}</span>;
+ const caption=<span className={styles.mobileCaption}>{first.label}</span>;
  const mark=first.graphic??graphic;
- if(presentation==="nutrition")return <details className={styles.mobileReading+" "+styles.mobileNutrition} data-record-slot="metrics" data-presentation={presentation} data-selected-date={date} aria-label={label} aria-busy={loading||undefined}><summary><div>{caption}{number(first,true)}</div><span className={styles.nutritionControl}>{mark}<span>营养详情</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></span></summary><dl className={styles.mobileNutrients}>{metrics.slice(1).map(metric=><div key={metric.label}><dt>{metric.label}</dt><dd>{number(metric)}{!(metric.pending??loading)&&metric.note&&<small>{metric.note}</small>}</dd></div>)}</dl></details>;
  return <div className={styles.mobileReading+" "+(presentation==="body"?styles.mobileBody:styles.mobileEnergy)} data-record-slot="metrics" data-presentation={presentation} data-selected-date={date} role="group" aria-label={label} aria-busy={loading||undefined}>
    <div className={styles.mobileHero}>{caption}{first.action&&<div className={styles.mobileAction}>{first.action}</div>}{number(first,true)}{presentation==="body"&&mark&&<div className={styles.mobileSpark}>{mark}</div>}</div>
    {presentation==="energy"?graphic:<div className={styles.mobileStats}>{metrics.slice(1).map(metric=><div key={metric.id??metric.label}><span>{metric.label.replace("7日平均体重","7日均")}</span>{number(metric)}</div>)}</div>}

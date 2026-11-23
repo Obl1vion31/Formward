@@ -27,6 +27,7 @@ test('Escape和区间／指标变化清除旧点击，不能把锁定带到另�
 test('触屏、键盘可以接管点击选择，同日重复事件不制造新状态',()=>{
  const clicked=apply(null,{type:'select',date:dates[0],origin:'click'});
  const touch=apply(clicked,{type:'select',date:dates[1],origin:'touch'});
+ assert.equal(apply(touch,{type:'preview',date:dates[0]}),touch);
  assert.equal(apply(touch,{type:'leave'}),touch);
  const keyboard=apply(touch,{type:'select',date:dates[2],origin:'keyboard'});
  assert.equal(apply(keyboard,{type:'leave'}),keyboard);
