@@ -197,7 +197,7 @@ test("独立修改子审核后父批次拒绝旧确认，刷新后方可保存",
   const { userId, identity } = await owner(); let operation: RecordReviewView = await submitRecordOperation(db, identity, input([meal]));
   const [row] = await db.select().from(schema.recordOperation).where(eq(schema.recordOperation.id, operation.id));
   await reviseMealOperation(db, userId, row.mealOperationId!, operation.mealOperation!.revision);
-  await reject(reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: operation.revision }), "review_changed");
+  await reject(reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: operation.revision }), "preview_changed");
   operation = await reviewRecordOperation(db, userId, operation.id, { kind: "refresh", revision: operation.revision });
   await reviewRecordOperation(db, userId, operation.id, { kind: "confirm", revision: operation.revision });
 });

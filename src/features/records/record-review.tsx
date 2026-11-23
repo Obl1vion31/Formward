@@ -28,7 +28,7 @@ import { recordReceipt } from "./review-summary";
 import styles from "./record-review.module.css";
 
 export type ReviewResult = Promise<Result<RecordReviewView> & { code?: string; status?: number }>;
-type Recovery = "update" | "read" | null;
+type Recovery = "update" | "read";
 
 function updatedNutrition(before: RecordReviewView, after: RecordReviewView) {
   return after.rows.flatMap(row => {
@@ -140,7 +140,7 @@ export function RecordReview({ operation: initial, review, load, sources: initia
   const [local, setLocal] = useState<RecordReviewView | null>(null), [editing, setEditing] = useState<string | null>(null), [error, setError] = useState(""), [savedNow, setSavedNow] = useState(false), [stayOnReceipt, setStayOnReceipt] = useState(embedded);
   const [sources, setSources] = useState(initialSources), [busy, startTransition] = useTransition();
   const [energySources, setEnergySources] = useState(initialEnergySources);
-  const [recovery, setRecovery] = useState<{ kind: Exclude<Recovery, null>; revision: number } | null>(null);
+  const [recovery, setRecovery] = useState<{ kind: Recovery; revision: number } | null>(null);
   const [updated, setUpdated] = useState<{ revision: number; changes: string[] } | null>(null);
   const [working, setWorking] = useState<"read" | RecordReviewAction["kind"] | null>(null);
   const op = local && (local.id !== initial.id || local.revision >= initial.revision) ? local : initial;
@@ -151,7 +151,7 @@ export function RecordReview({ operation: initial, review, load, sources: initia
   const missing = pending.filter(row => (row.action.kind === "save_meal" || row.action.kind === "save_food") && (row.action.expectedImageCount ?? 0) > (row.meal?.meal?.imageIds?.length ?? row.meal?.food?.imageIds?.length ?? 0));
   const editRow = op.rows.find(row => row.key === editing);
   const changedMeals = op.changedMeals ?? [];
-  const nextStep = recovery?.kind === "read" ? "read" : changedMeals.length ? "current" : recovery?.kind === "update" && op.revision <= recovery.revision || expired || op.needsRefresh ? "update" : "save";
+  const nextStep = recovery?.kind === "read" ? "read" : changedMeals.length ? "current" : (recovery?.kind === "update" && op.revision <= recovery.revision) || expired || op.needsRefresh ? "update" : "save";
 
   const returnTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -200,6 +200,8 @@ export function RecordReview({ operation: initial, review, load, sources: initia
               setRecovery({ kind: "read", revision: op.revision });
               setError("这份内容有新版本。请先重新读取，当前输入已保留。");
             } else await readLatest();
+          } else if (action.kind === "refresh" && (!result.status || result.status >= 500)) {
+            setError("暂时无法更新内容。请稍后重试。");
           } else setError(result.error);
           return;
         }
@@ -299,7 +301,9 @@ export function RecordReview({ operation: initial, review, load, sources: initia
       {error && <p className={styles.error} role="alert">{error}</p>}
       {nextStep === "read" && <button disabled={busy} onClick={() => perform()}>重新读取</button>}
       {nextStep === "update" && <button disabled={busy} onClick={() => perform({ kind: "refresh", revision: op.revision })}>{working === "refresh" ? "正在更新…" : "更新内容"}</button>}
-      {isTraining(editRow.action) ? <TrainingPlanReviewEditor key={editRow.key} row={editRow} busy={busy || nextStep !== "save"} apply={action => perform({ kind: "update", revision: op.revision, key: editRow.key, action })} /> : isEnergy(editRow.action) ? <EnergyEditor dayRecords={op.energySnapshot?.days} activityPreview={editRow.energy?.after&&"name" in editRow.energy.after?editRow.energy.after:undefined} activities={op.energySnapshot?.activities.filter(row=>!row.deletedAt && "date" in editRow.action && row.date===editRow.action.date)??[]} initial={editRow.action} sources={energySources} removeSource={removeEnergy} busy={busy || nextStep !== "save"} error={error||editRow.energy?.error||""} submitLabel="应用修改" save={action => perform({ kind: "update", revision: op.revision, key: editRow.key, action })} /> : isBody(editRow.action) && editRow.body ? <MeasurementReviewEditor item={editRow.body} busy={busy || nextStep !== "save"} sources={sources} removeSource={remove} close={() => setEditing(null)} save={action => perform({ kind: "update", revision: op.revision, key: editRow.key, action })} /> : editRow.action.kind === "save_meal" ? <MealEditor allowAi={false} foodRefs={Object.fromEntries(op.rows.flatMap(row => row.action.kind === "save_food" && row.meal?.food ? [[row.key,row.meal.food]] : []))} initial={editRow.action} historicalItems={editRow.meal?.meal?.items ?? []} historicalFoods={editRow.meal?.meal?.items.flatMap(item => item.foodSnapshot ? [item.foodSnapshot] : []) ?? []} foods={op.foods} submitLabel="应用修改" error={error || editRow.meal?.error || ""} busy={busy || nextStep !== "save"} save={async draft => perform({ kind: "update", revision: op.revision, key: editRow.key, action: { ...draft, kind: "save_meal" } })} /> : editRow.action.kind === "save_food" ? <FoodEditor initial={editRow.action} submitLabel="应用修改" error={error} busy={busy || nextStep !== "save"} save={async draft => perform({ kind: "update", revision: op.revision, key: editRow.key, action: { ...draft, kind: "save_food" } })} /> : null}
+      <fieldset className={styles.editFields} disabled={nextStep !== "save"}>
+      {isTraining(editRow.action) ? <TrainingPlanReviewEditor key={editRow.key} row={editRow} busy={busy} apply={action => perform({ kind: "update", revision: op.revision, key: editRow.key, action })} /> : isEnergy(editRow.action) ? <EnergyEditor dayRecords={op.energySnapshot?.days} activityPreview={editRow.energy?.after&&"name" in editRow.energy.after?editRow.energy.after:undefined} activities={op.energySnapshot?.activities.filter(row=>!row.deletedAt && "date" in editRow.action && row.date===editRow.action.date)??[]} initial={editRow.action} sources={energySources} removeSource={removeEnergy} busy={busy} error={error||editRow.energy?.error||""} submitLabel="应用修改" save={action => perform({ kind: "update", revision: op.revision, key: editRow.key, action })} /> : isBody(editRow.action) && editRow.body ? <MeasurementReviewEditor item={editRow.body} busy={busy} sources={sources} removeSource={remove} close={() => setEditing(null)} save={action => perform({ kind: "update", revision: op.revision, key: editRow.key, action })} /> : editRow.action.kind === "save_meal" ? <MealEditor allowAi={false} foodRefs={Object.fromEntries(op.rows.flatMap(row => row.action.kind === "save_food" && row.meal?.food ? [[row.key,row.meal.food]] : []))} initial={editRow.action} historicalItems={editRow.meal?.meal?.items ?? []} historicalFoods={editRow.meal?.meal?.items.flatMap(item => item.foodSnapshot ? [item.foodSnapshot] : []) ?? []} foods={op.foods} submitLabel="应用修改" error={error || editRow.meal?.error || ""} busy={busy} save={async draft => perform({ kind: "update", revision: op.revision, key: editRow.key, action: { ...draft, kind: "save_meal" } })} /> : editRow.action.kind === "save_food" ? <FoodEditor initial={editRow.action} submitLabel="应用修改" error={error} busy={busy} save={async draft => perform({ kind: "update", revision: op.revision, key: editRow.key, action: { ...draft, kind: "save_food" } })} /> : null}
+      </fieldset>
     </EditorDialog>}
   </section>;
 }

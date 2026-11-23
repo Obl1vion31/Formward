@@ -170,3 +170,4 @@
   .footer .reviewStatus:not(:empty) { flex-basis:100%; }
   .footer .reviewStatus:empty { display:none; }
 }
+.editFields { display:contents; }
