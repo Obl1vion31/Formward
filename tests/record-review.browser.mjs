@@ -60,7 +60,7 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
   await row("meal").getByRole("button", { name: "修改", exact: true }).click(); dialog = page.getByRole("dialog", { name: "修改待保存内容", exact: true });
   await dialog.locator("summary").filter({ hasText: "备注" }).click();
   await dialog.getByLabel("餐次备注", { exact: true }).fill("虚构草稿备注");
-  await dialog.getByRole("button", { name: "应用修改", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
+  await dialog.getByRole("button", { name: /^应用修改/ }).click(); await dialog.waitFor({ state: "hidden" });
   await row("food").getByRole("button", { name: "取消", exact: true }).click(); await page.locator('[data-review-key="food"][data-excluded="true"]').waitFor();
   await row("food").getByRole("button", { name: "恢复本项", exact: true }).click(); await page.locator('[data-review-key="food"][data-excluded="false"]').waitFor();
   await row("food").getByRole("button", { name: "取消", exact: true }).click(); await page.locator('[data-review-key="food"][data-excluded="true"]').waitFor();
