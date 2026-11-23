@@ -2,7 +2,17 @@
 
 ## 当前正式版本
 
-网页与聊天worker运行在 `dual-entry-d7c401eb-harmony-cloud-fixes-r3-20261121`，源码 `d7c401ebd9bf46616e17ff0a70bf29b0f7880e77`，BUILD_ID `JF9gGvY_KRVSLV16P9jo5`。北京时间2026-11-21 23:42:16切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+网页与聊天 worker 运行同版 `dual-entry-732cde89-review-recovery-r2-20261123`，源码 `732cde89b42fb245856be0689c9a41e4f107a455`，BUILD_ID `bEJaz_wHU7mzKsvAinbO6`。北京时间 2026-11-23 20:14:02 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+
+小助手与完整确认页已移除「提交信息」折叠项。旧版在原位更新，失联后读回本次保存状态。无关饮食或食材变动继续安全保存，关联变化需更新或查看当前正式餐次。Chromium 桌面和 WebKit 手机视口从准确归档解包运行，858项单元与集成通过，2项原有跳过。 [实际页面验收](../design-qa.md)
+
+停写备份完成原生校验与异地回读，67张表及配置摘要一致。数据库仍为 `0047_meal_food_groups`，保留47项迁移。四个公网域名返回同版，新旧静态资源及匿名接口权限已检查，沿用既有国际网关。保留56项 Server Action、原绑定密钥及2368项旧静态资源。
+
+准确运行包大小 87,797,371 字节，SHA-256 `79c8f19978425f148924494af197405b112f69a8626c87393150e549a2701d6b`。源码、运行包及验收记录在 `.codex/backups/regional-releases/review-recovery-r2-20261123`。兼容回退为 `harmony-cloud-fixes-r3-20261121`，沿用现有数据库。
+
+## 鸿蒙选图取消与原图恢复发布记录
+
+该次发布版本为 `dual-entry-d7c401eb-harmony-cloud-fixes-r3-20261121`，源码 `d7c401ebd9bf46616e17ff0a70bf29b0f7880e77`，BUILD_ID `JF9gGvY_KRVSLV16P9jo5`。北京时间2026-11-21 23:42:16切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
 
 选图取消只处理文件选择，不再冒泡为关闭助手或录入面板。上传以原始文件头识别MIME、保留原字节及摘要；人工换通道后重试保留所选通道，同一File和通道在10分钟内复用已签发票据，避免重复预占上传名额。成功、会话拒绝和票据冲突会清除缓存，服务端归属、签名有效期及额度校验保持。模型与存储回放只用于隔离验收。
 
