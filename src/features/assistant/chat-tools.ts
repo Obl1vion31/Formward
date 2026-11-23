@@ -41,6 +41,7 @@ export async function chatToolCatalog(bridge: ReturnType<typeof chatToolBridge>,
     load: (input:Record<string,unknown>) => session.load(input),
     missing: (name:string) => session.missing(name),
     prepare: (name:string,args:Record<string,unknown>) => session.prepare(name,args),
+    bindMealCorrection: session.bindMealCorrection,
     remember: (name:string,args:Record<string,unknown>,result:Record<string,unknown>) => session.remember(name,args,result),
   };
 }

@@ -160,13 +160,15 @@ test("只读与撤销阻止AI写入和旧预览确认", async () => {
   const t = await createAiToken(db, userId, "写令牌", "write"), identity = await authenticateAi(db, `Bearer ${t.rawToken}`), op = await submitMealOperation(db, { userId, origin: "ai", identity }, { operationId: randomUUID(), actions: [lunch()] });
   await revokeAiToken(db, userId, t.token.id); await reject(decideMealOperation(db, userId, op.id, op.revision, "confirm"), "invalid_token"); assert.equal((await readMealSnapshot(db, userId)).meals.length, 0);
 });
-test("审核过期与快照变化需刷新，审核版本冲突不覆盖草稿", async () => {
+test("审核过期需更新，其他日期的记录不影响当前已核对的餐次", async () => {
   const userId = await owner(), t = await createAiToken(db, userId, "写令牌", "write"), identity = await authenticateAi(db, `Bearer ${t.rawToken}`);
   let op = await submitMealOperation(db, { userId, origin: "ai", identity }, { operationId: randomUUID(), actions: [lunch()] });
   await db.update(schema.mealOperation).set({ expiresAt: new Date(0) }).where(eq(schema.mealOperation.id, op.id)); await reject(decideMealOperation(db, userId, op.id, op.revision, "confirm"), "expired");
   op = { ...op, ...await reviseMealOperation(db, userId, op.id, op.revision) };
-  await save(userId, [lunch({ date: "2024-08-02" })]); await reject(decideMealOperation(db, userId, op.id, op.revision, "confirm"), "snapshot_changed");
-  op = { ...op, ...await reviseMealOperation(db, userId, op.id, op.revision) }; await reject(reviseMealOperation(db, userId, op.id, op.revision - 1), "version_conflict"); await decideMealOperation(db, userId, op.id, op.revision, "confirm");
+  await save(userId, [lunch({ date: "2024-08-02" })]);
+  await reject(reviseMealOperation(db, userId, op.id, op.revision - 1), "version_conflict");
+  await decideMealOperation(db, userId, op.id, op.revision, "confirm");
+  assert.equal((await readMealSnapshot(db, userId)).meals.length, 2);
 });
 test("食材版本改变保留历史快照，旧餐改备注或分量仍使用原营养基准", async () => {
   const userId = await owner(); await save(userId, [{ kind: "save_food", ...product() }]); const f = (await searchFoods(db, userId))[0];

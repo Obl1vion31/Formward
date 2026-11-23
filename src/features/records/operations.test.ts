@@ -71,6 +71,56 @@ test("同批新食材只入库一次，多餐复用；取消食材仍保留每�
   }
 });
 
+test("两次独立待确认可各自保存，临时食材编号变化不会误报", async () => {
+  const { userId, identity } = await owner();
+  const linked = { ...meal, items: [{ kind: "food", name: food.name, foodRef: food.key, quantity: "50", unit: "g", sourceKind: "estimated" }] };
+  const first = await submitRecordOperation(db, identity, input([food, linked]));
+  const second = await submitRecordOperation(db, identity, input([{ ...meal, date: "2024-08-02" }]));
+  await reviewRecordOperation(db, userId, second.id, { kind: "confirm", revision: second.revision });
+  const saved = await reviewRecordOperation(db, userId, first.id, { kind: "confirm", revision: first.revision });
+  assert.equal(saved.status, "confirmed");
+  assert.equal(saved.id, first.id);
+  const duplicate = await reviewRecordOperation(db, userId, first.id, { kind: "confirm", revision: first.revision });
+  assert.equal(duplicate.revision, saved.revision);
+  const snapshot = await readMealSnapshot(db, userId);
+  assert.equal(snapshot.meals.length, 2);
+  assert.equal(snapshot.foods.length, 1);
+  assert.equal(snapshot.meals.find(item => item.date === meal.date)?.items[0].foodId, snapshot.foods[0].id);
+});
+
+test("引用的食材发生变化须显式更新，已另行编辑的餐次保持原版本保护", async () => {
+  const { userId, identity } = await owner();
+  const initial = await submitRecordOperation(db, identity, input([food]));
+  await reviewRecordOperation(db, userId, initial.id, { kind: "confirm", revision: initial.revision });
+  const savedFood = (await readMealSnapshot(db, userId)).foods[0];
+  const linked = { ...meal, items: [{ kind: "food", name: food.name, foodId: savedFood.id, foodVersion: savedFood.version, quantity: "50", unit: "g", sourceKind: "estimated" }] };
+  const original = await submitRecordOperation(db, identity, input([linked]));
+  const editFood = await submitRecordOperation(db, identity, input([{ ...food, id: savedFood.id, version: savedFood.version, nutrition: { ...nutrition, caloriesKcal: "300" } }]));
+  await reviewRecordOperation(db, userId, editFood.id, { kind: "confirm", revision: editFood.revision });
+  const stale = await loadRecordReview(db, userId, original.id);
+  assert.equal(stale.needsRefresh, true);
+  assert.equal(stale.canConfirm, false);
+  await reject(reviewRecordOperation(db, userId, original.id, { kind: "confirm", revision: original.revision }), "snapshot_changed");
+  const fresh = await reviewRecordOperation(db, userId, original.id, { kind: "refresh", revision: original.revision });
+  assert.equal(fresh.id, original.id);
+  assert.equal(fresh.canConfirm, true);
+  assert.equal(Number(fresh.rows[0].meal?.meal?.totals.values.caloriesKcal), 150);
+  assert.equal((await readMealSnapshot(db, userId)).meals.length, 0);
+  await reject(reviewRecordOperation(db, userId, original.id, { kind: "confirm", revision: original.revision }), "review_changed");
+  await reviewRecordOperation(db, userId, original.id, { kind: "confirm", revision: fresh.revision });
+
+  const savedMeal = (await readMealSnapshot(db, userId)).meals[0];
+  const edit = { ...meal, id: savedMeal.id, version: savedMeal.version };
+  const pending = await submitRecordOperation(db, identity, input([{ ...edit, notes: "原待确认修改" }]));
+  const other = await submitRecordOperation(db, identity, input([{ ...edit, notes: "先保存的修改" }]));
+  await reviewRecordOperation(db, userId, other.id, { kind: "confirm", revision: other.revision });
+  assert.deepEqual((await loadRecordReview(db, userId, pending.id)).changedMeals, [{ key: meal.key, date: meal.date, id: savedMeal.id }]);
+  await reject(reviewRecordOperation(db, userId, pending.id, { kind: "confirm", revision: pending.revision }), "meal_target_changed");
+  const snapshot = await readMealSnapshot(db, userId);
+  assert.equal(snapshot.meals.length, 1);
+  assert.equal(snapshot.meals[0].notes, "先保存的修改");
+});
+
 test("只入库不保存摄入，排除可恢复；内嵌新食材自动展开", async () => {
   const { userId, identity } = await owner(); const { key, kind, ...draft } = food; void key; void kind;
   let operation: RecordReviewView = await submitRecordOperation(db, identity, input([{ ...meal, items: [{ kind: "food", name: food.name, foodDraft: draft, quantity: "50", unit: "g", sourceKind: "estimated" }] }]));

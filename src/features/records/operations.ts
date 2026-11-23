@@ -162,6 +162,12 @@ async function legacy(db: Database, userId: string, id: string, source: Source):
   const payload: RecordInput = { operationId: `legacy-${id}`, items: draft.map(item => ({ key: item.key, ...item.action })) };
   return { id, userId, operationId: payload.operationId, payload, requestDigest: digest(payload), draft, revision: 1, status, createdAt, confirmedAt: null, measurementOperationId: source === "body" ? id : null, mealOperationId: source === "meal" ? id : null, energyOperationId: null, energyRevision: null, measurementRevision: source === "body" ? (await getAiMeasurementOperation(db, userId, id)).revision : null, mealRevision: source === "meal" ? (await getMealOperation(db, userId, id)).revision : null };
 }
+function wasHistoricalFood(entry: import("../meals/model").ItemDraft, prior?: PreviewRow["before"]) {
+  const original = prior && "items" in prior && prior.items.find(candidate => entry.originalItemId
+    ? candidate.id === entry.originalItemId : (candidate.foodId ?? candidate.foodSnapshot?.id) === entry.foodId);
+  return Boolean(original && original.foodSnapshot?.id === entry.foodId && original.foodSnapshot?.version === entry.foodVersion);
+}
+
 async function view(db: Database, row: Stored): Promise<RecordReviewView> {
   assertBodyEstimateRemoved(row.payload); assertBodyEstimateRemoved(row.draft);
   const body = row.measurementOperationId ? await getAiMeasurementOperation(db, row.userId, row.measurementOperationId) : null;
@@ -212,7 +218,26 @@ async function view(db: Database, row: Stored): Promise<RecordReviewView> {
     const questions = isTraining(item.action) ? item.training?.error ? [item.training.error] : !item.training ? ["训练计划需要核对。"] : [] : isBody(item.action) ? item.body?.preview.canConfirm ? [] : item.body?.preview.needsUserInput?.map(issue => issue.message) ?? [item.body?.preview.message ?? "身体记录需要核对。"] : isEnergy(item.action) ? item.energy?.error ? [item.energy.error] : !item.energy ? ["消耗记录需要核对。"] : [] : item.meal?.needsUserInput?.length ? [...item.meal.needsUserInput] : item.meal?.error ? [item.meal.error] : [];
     return questions.length ? [{ key: item.key, questions }] : [];
   });
-  return { id: row.id, revision: row.revision, status: row.status, createdAt: row.createdAt.toISOString(), expiresAt: expirations[0] ?? null, confirmationPath: `/dashboard/ai/operations/${row.id}`, foods: snapshot.foods.filter(food => !food.deletedAt), energySnapshot, mealOperation: meal, energyOperation: energy, rows, needsUserInput, canConfirm: row.status === "pending" && pending.length > 0 && !needsUserInput.length && (!expirations[0] || Date.parse(expirations[0]) > Date.now()), saved: rows.filter(item => item.persisted).length };
+  const changedMeals = row.status === "pending" ? pending.flatMap(item => {
+    const action = item.action;
+    if (action.kind !== "save_meal" || !action.id) return [];
+    const current = snapshot.meals.find(meal => meal.id === action.id && !meal.deletedAt);
+    if (current && current.version === action.version) return [];
+    return [{ key: item.key, date: current?.date ?? action.date, id: current?.id }];
+  }) : [];
+  const changedFoodReference = pending.some(item => {
+    if (item.action.kind !== "save_meal" || item.meal?.error) return false;
+    return item.action.items.some(entry => {
+      if (!entry.foodId || wasHistoricalFood(entry, item.meal?.before)) return false;
+      const food = snapshot.foods.find(food => food.id === entry.foodId);
+      return !food || Boolean(food.deletedAt) || food.version !== entry.foodVersion;
+    });
+  });
+  const needsRefresh = row.status === "pending" && (
+    (body?.revision ?? null) !== row.measurementRevision || (meal?.revision ?? null) !== row.mealRevision ||
+    (energy?.revision ?? null) !== row.energyRevision || pending.some(legacyInclusionDraft) || changedFoodReference
+  );
+  return { ...(changedMeals.length ? { changedMeals } : {}), ...(needsRefresh ? { needsRefresh } : {}), id: row.id, revision: row.revision, status: row.status, createdAt: row.createdAt.toISOString(), expiresAt: expirations[0] ?? null, confirmationPath: `/dashboard/ai/operations/${row.id}`, foods: snapshot.foods.filter(food => !food.deletedAt), energySnapshot, mealOperation: meal, energyOperation: energy, rows, needsUserInput, canConfirm: row.status === "pending" && pending.length > 0 && !changedMeals.length && !needsRefresh && !needsUserInput.length && (!expirations[0] || Date.parse(expirations[0]) > Date.now()), saved: rows.filter(item => item.persisted).length };
 }
 export async function loadRecordReview(db: Database, userId: string, id: string, source?: Source) {
   const row = await find(db, userId, id, source);
@@ -357,9 +382,10 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
     const bodyRevision = row.measurementOperationId ? (await getAiMeasurementOperation(connection, userId, row.measurementOperationId)).revision : null;
     const mealRevision = row.mealOperationId ? (await getMealOperation(connection, userId, row.mealOperationId)).revision : null;
     const energyRevision = row.energyOperationId ? (await getEnergyOperation(connection, userId, row.energyOperationId)).revision : null;
-    if (action.kind !== "refresh" && action.kind !== "cancel" && (bodyRevision !== row.measurementRevision || mealRevision !== row.mealRevision || energyRevision !== row.energyRevision)) throw new ApiError(409, "review_changed", "子审核内容已变化，请刷新预览后重新核对。");
+    if (action.kind !== "refresh" && action.kind !== "cancel" && (bodyRevision !== row.measurementRevision || mealRevision !== row.mealRevision || energyRevision !== row.energyRevision)) throw new ApiError(409, "preview_changed", "当前显示的是旧版。请先更新。");
     if (action.kind === "confirm") {
       const selected = before.rows.filter(item => !item.excluded && !item.persisted && item.body?.status !== "skipped");
+      if (before.changedMeals?.length) throw new ApiError(409, "meal_target_changed", "这餐记录已在别处修改。请查看当前记录。");
       requireAiUpserts(selected.map(item => item.action));
       if (!selected.length) throw new ApiError(400, "no_changes", "没有待保存内容。");
       if (selected.some(item => isTraining(item.action) ? !item.training || item.training.error : isBody(item.action) ? !item.body?.preview.canConfirm : isEnergy(item.action) ? !item.energy || item.energy.error : !item.meal || item.meal.error || item.meal.needsUserInput?.length)) throw new ApiError(400, "review_required", "请修改或取消仍需核对的项目。");
@@ -380,7 +406,7 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
       }
       if (row.mealOperationId) {
         const meal = await getMealOperation(connection, userId, row.mealOperationId);
-        await decideMealOperation(connection, userId, meal.id, meal.revision, selected.some(item => !isBody(item.action) && !isEnergy(item.action) && !isTraining(item.action)) ? "confirm" : "cancel", missingKeys.length > 0);
+        await decideMealOperation(connection, userId, meal.id, meal.revision, selected.some(item => !isBody(item.action) && !isEnergy(item.action) && !isTraining(item.action)) ? "confirm" : "cancel", missingKeys.length > 0, { planner: meal.preview.some(entry => entry.review) ? recordMealPlanner(row.draft, row.id) : prepareMealActions });
       }
       if (row.energyOperationId) {
         const energy = await getEnergyOperation(connection, userId, row.energyOperationId);
@@ -439,6 +465,21 @@ export async function reviewRecordOperation(db: Database, userId: string, id: st
         for (const item of items.filter(item => action.keys.includes(item.key))) {
           if (action.kind === "check") item.checked = true;
           else { item.excluded = action.kind === "exclude"; item.checked = false; }
+        }
+      }
+      if (action.kind === "refresh") {
+        const foods = new Map(before.foods.map(food => [food.id, food]));
+        for (const item of items) {
+          if (item.excluded || item.persisted || item.action.kind !== "save_meal") continue;
+          const prior = before.rows.find(row => row.key === item.key)?.meal?.before;
+          if (before.changedMeals?.some(meal => meal.key === item.key)) continue;
+          item.action = { ...item.action, items: item.action.items.map(entry => {
+            if (!entry.foodId) return entry;
+            // 旧餐项保留当时的快照，只有本次引用的食材重新换算。
+            if (wasHistoricalFood(entry, prior)) return entry;
+            const food = foods.get(entry.foodId);
+            return food ? { ...entry, foodVersion: food.version } : entry;
+          }) };
         }
       }
       if (action.kind === "refresh" && row.measurementOperationId) { const body = await getAiMeasurementOperation(connection, userId, row.measurementOperationId); if (body.counts.pending) await reviewAiMeasurementOperation(connection, userId, body.id, { kind: "refresh", revision: body.revision }); }

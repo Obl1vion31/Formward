@@ -27,7 +27,20 @@ import { category, isBody, isEnergy, isTraining, type RecordRow, type RecordRevi
 import { recordReceipt } from "./review-summary";
 import styles from "./record-review.module.css";
 
-type ReviewResult = Promise<Result<RecordReviewView>>;
+export type ReviewResult = Promise<Result<RecordReviewView> & { code?: string; status?: number }>;
+type Recovery = "update" | "read" | null;
+
+function updatedNutrition(before: RecordReviewView, after: RecordReviewView) {
+  return after.rows.flatMap(row => {
+    const previous = before.rows.find(item => item.key === row.key)?.meal?.meal, current = row.meal?.meal;
+    if (!previous || !current || row.excluded || row.persisted) return [];
+    return metrics.flatMap(metric => {
+      const from = previous.totals.values[metric], to = current.totals.values[metric];
+      const prior = formatNutrition(from, metric), next = formatNutrition(to, metric);
+      return prior !== next ? [`${title(row)} · ${metricLabels[metric]} ${prior} → ${next}${to == null ? "" : metric === "caloriesKcal" ? " 千卡" : " g"}`] : [];
+    });
+  });
+}
 const sections = [["body", "身体状况"], ["meals", "摄入记录"], ["foods", "食材库记录"], ["energy", "消耗与活动"], ["training", "训练模板与排期"]] as const;
 const value = (key: string, entry: unknown) => entry == null ? "未填写" : key === "fasting" ? entry ? "空腹" : "非空腹" : key === "timezone" ? timezoneLabel(String(entry)) : ["weightKg","bodyFatPercent"].includes(key) ? formatRecordNumber(String(entry)) : String(entry);
 function NumberNotice({before,after}:{before?:unknown;after?:unknown}){const prior=(before??{}) as Record<string,unknown>,next=(after??{}) as Record<string,unknown>;const names:Record<string,string>={weightKg:"体重",bodyFatPercent:"体脂",restingKcal:"静息",activeKcal:"活动",totalKcal:"总消耗",caloriesKcal:"热量"};const rows=unusualNumbers(Object.keys(names).map(key=>({label:names[key],unit:key==="weightKg"?"kg":key==="bodyFatPercent"?"%":"kcal",value:next[key] as string,previous:prior[key] as string})));return rows.length?<p role="status">请留意：{rows.map(row=>`${row.label}从 ${formatUnitNumber(row.previous,row.unit)} 变为 ${formatUnitNumber(row.value,row.unit)} ${row.unit}`).join("；")}，保存前请核对。</p>:null;}
@@ -127,14 +140,18 @@ export function RecordReview({ operation: initial, review, load, sources: initia
   const [local, setLocal] = useState<RecordReviewView | null>(null), [editing, setEditing] = useState<string | null>(null), [error, setError] = useState(""), [savedNow, setSavedNow] = useState(false), [stayOnReceipt, setStayOnReceipt] = useState(embedded);
   const [sources, setSources] = useState(initialSources), [busy, startTransition] = useTransition();
   const [energySources, setEnergySources] = useState(initialEnergySources);
+  const [recovery, setRecovery] = useState<{ kind: Exclude<Recovery, null>; revision: number } | null>(null);
+  const [updated, setUpdated] = useState<{ revision: number; changes: string[] } | null>(null);
+  const [working, setWorking] = useState<"read" | RecordReviewAction["kind"] | null>(null);
   const op = local && (local.id !== initial.id || local.revision >= initial.revision) ? local : initial;
   const guard = useRef(false), router = useRouter(), now = useOperationClock();
-  const displayTime = (timestamp: string) => `${new Date(timestamp).toLocaleString("zh-CN", { timeZone: now === undefined ? "UTC" : undefined })}${now === undefined ? " UTC" : ""}`;
   const expired = !!op.expiresAt && now !== undefined && Date.parse(op.expiresAt) <= now, active = op.status === "pending";
   const pending = op.rows.filter(row => !row.excluded && !row.persisted && row.body?.status !== "skipped");
   const issues = pending.filter(row => isTraining(row.action) ? !row.training || row.training.error : isBody(row.action) ? !row.body?.preview.canConfirm : isEnergy(row.action) ? !row.energy || row.energy.error : !row.meal || row.meal.error || row.meal.needsUserInput?.length);
   const missing = pending.filter(row => (row.action.kind === "save_meal" || row.action.kind === "save_food") && (row.action.expectedImageCount ?? 0) > (row.meal?.meal?.imageIds?.length ?? row.meal?.food?.imageIds?.length ?? 0));
   const editRow = op.rows.find(row => row.key === editing);
+  const changedMeals = op.changedMeals ?? [];
+  const nextStep = recovery?.kind === "read" ? "read" : changedMeals.length ? "current" : recovery?.kind === "update" && op.revision <= recovery.revision || expired || op.needsRefresh ? "update" : "save";
 
   const returnTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -143,15 +160,73 @@ export function RecordReview({ operation: initial, review, load, sources: initia
     return () => { if (returnTimer.current) clearTimeout(returnTimer.current); };
   }, [savedNow, stayOnReceipt, router]);
   function stay() { if (returnTimer.current) clearTimeout(returnTimer.current); setStayOnReceipt(true); }
+  function applyResult(result: RecordReviewView) {
+    setLocal(current => current?.id === result.id && current.revision > result.revision ? current : result);
+    setRecovery(null);
+  }
+
+  async function readLatest(uncertainSave = false) {
+    setWorking("read");
+    try {
+      const result = await load();
+      if (result.ok) {
+        applyResult(result.data);
+        if (result.data.status === "pending") {
+          if (uncertainSave) setError("本次尚未保存。核对后可再次确认保存。");
+          else if (editing) setError("已读取最新内容。当前输入已保留，请核对后应用。");
+        }
+        return;
+      }
+    } catch { /* 读取失败时保留当前卡片，允许再次读取。 */ }
+    setRecovery({ kind: "read", revision: op.revision });
+    setError(uncertainSave ? "暂时无法确认是否已保存。请重新读取。" : "暂时读不到最新内容。请重新读取。");
+  }
+
   function perform(action?: RecordReviewAction) {
-    if (guard.current) return; guard.current = true; setError("");
+    if (guard.current || action?.kind === "update" && nextStep !== "save") return;
+    guard.current = true;
+    setError("");
+    setWorking(action?.kind ?? "read");
     startTransition(async () => {
       try {
-        const result = await (action ? review(action) : load());
-        if (result.ok) { setLocal(current => current?.id === result.data.id && current.revision > result.data.revision ? current : result.data); if (action?.kind === "update") { setEditing(null); } if (action?.kind === "confirm" && result.data.status === "confirmed") {const keys=result.data.rows.filter(row=>!row.excluded).flatMap(row=>{if(isBody(row.action))return [`measurement:${row.action.date}:${row.action.period}:${"observed"}`];if(isEnergy(row.action)){const after=row.energy?.after;return after&&"date" in after?["name" in after?"activity:"+after.id:"energyDay:"+after.date]:[];}return row.meal?.meal?["meal:"+row.meal.meal.id,"mealDay:"+row.meal.meal.date]:row.meal?.food?["food:"+row.meal.food.id]:[];});try{acknowledgeRecordChanges(keys,await fetchRecordStamps());}catch{}setSavedNow(true);} }
-        else setError(result.error);
-      } catch { setError("操作未完成，当前输入已保留，请加载最新状态后重试。"); }
-      finally { guard.current = false; }
+        if (!action) { await readLatest(); return; }
+        const result = await review(action);
+        if (!result.ok) {
+          if (action.kind === "confirm" && (!result.status || result.status >= 500)) { await readLatest(true); return; }
+          if (["snapshot_changed", "preview_changed", "expired", "preview_expired"].includes(result.code ?? "")) {
+            setRecovery({ kind: "update", revision: op.revision });
+          } else if (["review_changed", "closed_review", "meal_target_changed"].includes(result.code ?? "")) {
+            if (action.kind === "update") {
+              setRecovery({ kind: "read", revision: op.revision });
+              setError("这份内容有新版本。请先重新读取，当前输入已保留。");
+            } else await readLatest();
+          } else setError(result.error);
+          return;
+        }
+        applyResult(result.data);
+        if (!embedded) window.dispatchEvent(new CustomEvent("formward-assistant-updated", { detail: { previewId: result.data.id } }));
+        if (action.kind === "refresh") setUpdated({ revision: result.data.revision, changes: updatedNutrition(op, result.data) });
+        if (action.kind === "update") setEditing(null);
+        if (action.kind === "confirm" && result.data.status === "confirmed") {
+          const keys = result.data.rows.filter(row => !row.excluded).flatMap(row => {
+            if (isBody(row.action)) return [`measurement:${row.action.date}:${row.action.period}:observed`];
+            if (isEnergy(row.action)) {
+              const after = row.energy?.after;
+              return after && "date" in after ? ["name" in after ? "activity:" + after.id : "energyDay:" + after.date] : [];
+            }
+            return row.meal?.meal ? ["meal:" + row.meal.meal.id, "mealDay:" + row.meal.meal.date] : row.meal?.food ? ["food:" + row.meal.food.id] : [];
+          });
+          void fetchRecordStamps().then(stamps => acknowledgeRecordChanges(keys, stamps)).catch(() => {});
+          setSavedNow(true);
+        }
+      } catch {
+        if (action?.kind === "confirm") await readLatest(true);
+        else if (action?.kind === "refresh") setError("暂时无法更新内容。请稍后重试。");
+        else { setRecovery({ kind: "read", revision: op.revision }); setError("操作结果暂时无法确认。请重新读取。"); }
+      } finally {
+        setWorking(null);
+        guard.current = false;
+      }
     });
   }
   async function remove(label: string) { const result = await removeSource(label); if (result.ok) setSources(result.sources); return result; }
@@ -162,7 +237,6 @@ export function RecordReview({ operation: initial, review, load, sources: initia
     return <section className={styles.inlineResult} data-embedded="true" role="status" aria-label="记录结果"><h3>{label}</h3>{persisted.map(row=>{const record=row.meal?.meal,href=recordReceipt([row])[0]?.href;return <article key={row.key} className={styles.inlineSavedRow}><header className={styles.inlineHeading}><h4>{title(row)}{isBody(row.action)&&row.body?.preview.rows[0]?.after?.fasting===true?" · 空腹":""}</h4></header><InlineRecordContent row={row} settled/>{href&&<div className={styles.inlineReceiptLink}><span>{record?record.items.length+"样食物":""}</span><LoadingLink href={href} beforeNavigate={beforeNavigate}>查看记录 →</LoadingLink></div>}</article>;})}{!persisted.length&&<p className={styles.inlineMeta}>{op.status==="completed"?"没有需要写入的新内容。":"本次未保存新内容，已有记录保持。"}</p>}</section>;
   }
   if(active&&!pending.length)return <section className={styles.emptyReview} aria-label="记录状态"><h3>没有待保存内容</h3>{op.rows.map(row=><div className={styles.emptyReviewRow} key={row.key}><span>{title(row)} · {row.persisted?"已保存":row.excluded?"已取消":"已跳过"}</span>{row.excluded&&!row.persisted&&row.body?.status!=="skipped"&&<button disabled={busy||expired} onClick={()=>command("restore",[row.key])}>恢复本项</button>}</div>)}{error&&<p role="alert">{error}</p>}{!embedded&&<LoadingLink href="/dashboard/ai">返回AI提交记录 →</LoadingLink>}</section>;
-  if(active&&expired)return <section className={embedded?styles.inlineResult:styles.emptyReview} data-embedded={embedded||undefined} aria-label="记录状态"><h3>预览已过期</h3><p className={styles.inlineMeta}>{op.saved>0?"剩余内容未保存，已经保存的记录保持。":"本次尚未保存。"}请让 AI 更新本次提交后再核对。</p>{pending.map(row=><article className={styles.inlineSavedRow} key={row.key}><header className={styles.inlineHeading}><h4>{title(row)}</h4></header><InlineRecordContent row={row} settled/></article>)}<button type="button" disabled={busy} onClick={()=>perform()}>加载最新状态</button>{!embedded&&<LoadingLink href="/dashboard/ai">返回AI提交记录 →</LoadingLink>}</section>;
   if (!active) return <section className={styles.success} data-embedded={embedded||undefined} role="status"><span className={styles.check} aria-hidden="true">{op.status === "confirmed" ? "✓" : "—"}</span><h1>{op.status === "confirmed" ? "已保存" : op.status === "completed" ? "无需保存" : op.saved ? "已取消剩余内容" : "已取消"}</h1>
     {op.saved > 0 && <><p>{op.status === "cancelled" ? "此前已保存" : "已保存"} {op.saved} 项{savedNow && !stayOnReceipt ? " · 2 秒后返回主页" : ""}</p>{op.rows.some(row => row.persisted && category(row.action) === "meals") && <p>饮食有修改的日期，请到饮食页重新确认是否已记全。</p>}<ul className={styles.receipt} aria-label="已保存记录">{recordReceipt(op.rows).map(item => <li key={item.type + item.date}><span>{item.date ? item.date + " · " : ""}{item.type}{item.count}项</span><LoadingLink href={item.href} onClick={stay} beforeNavigate={embedded?beforeNavigate:undefined}>查看记录 →</LoadingLink></li>)}</ul></>}
     {savedNow && !stayOnReceipt && <button className={styles.stay} onClick={stay}>停留查看</button>}{!embedded&&<LoadingLink href="/dashboard">返回主页 →</LoadingLink>}</section>;
@@ -198,12 +272,34 @@ export function RecordReview({ operation: initial, review, load, sources: initia
           </article>;
         })}</section>;
     })}
-    {error && <p role="alert" className={styles.error}>{error}</p>}
-    {!embedded&&<details className={styles.evidence}><summary>审核信息与刷新</summary><p>提交于 <time dateTime={op.createdAt}>{displayTime(op.createdAt)}</time> · 审核版本 {op.revision}</p>{op.expiresAt && <p>有效至 <time dateTime={op.expiresAt}>{displayTime(op.expiresAt)}</time></p>}<div className={styles.actions}><button disabled={busy} onClick={() => perform({ kind: "refresh", revision: op.revision })}>刷新预览</button><button disabled={busy} onClick={() => perform()}>加载最新状态</button></div></details>}
-    <footer className={styles.footer}><div>{busy&&<LocalLoading label="正在处理审核…"/>}{(!embedded||op.rows.length>1)&&<strong>{pending.length ? `${pending.length} 项待保存` : "没有待保存内容"}</strong>}{!embedded&&pending.some(row => isEnergy(row.action)) && <span className={styles.footerScope}>{pendingChangesLabel(op.rows)}</span>}{expired ? <button disabled={busy} onClick={() => perform({ kind: "refresh", revision: op.revision })}>预览已过期 · 刷新</button> : issues.length > 0 ? <button onClick={() => document.getElementById(rowId(issues[0].key))?.scrollIntoView({ behavior: "smooth", block: "center" })}>{issues.length} 项需处理</button> : !embedded&&<small>统一保存当前未取消的内容</small>}</div>{embedded&&op.rows.length===1&&pending[0]&&<button disabled={busy} onClick={()=>{setError("");setEditing(pending[0].key);}}>修改</button>}<button disabled={busy} onClick={()=>perform({kind:"cancel",revision:op.revision})}>取消保存</button><button className={styles.save} disabled={busy || !!editing || expired || !pending.length || !!issues.length} onClick={() => perform({ kind: "confirm", revision: op.revision, allowMissingImageKeys: [] })}>{busy ? "正在处理…" : "保存确认"}</button></footer>
+    <footer className={styles.footer}>
+      <div className={styles.reviewStatus}>
+        {working && <LocalLoading label={working === "refresh" ? "正在更新…" : working === "read" ? "正在重新读取…" : working === "confirm" ? "正在保存…" : "正在处理…"} />}
+        {!working && nextStep === "current" && <p role="status">{changedMeals.every(meal => !meal.id) ? "原餐次已删除，无法保存这次修改。" : "原餐次已在别处修改。请查看当前记录。"}</p>}
+        {!working && nextStep === "update" && <p role="status">当前显示的是旧版。请先更新。</p>}
+        {!working && nextStep === "save" && updated?.revision === op.revision && <>
+          <strong role="status">{issues.length ? "已更新，请处理需要核对的内容" : "已更新，待保存"}</strong>
+          {updated.changes.map(change => <p key={change}>{change}</p>)}
+        </>}
+        {!working && nextStep === "save" && updated?.revision !== op.revision && (!embedded || op.rows.length > 1) && <strong>{pending.length} 项待保存</strong>}
+        {!embedded && nextStep === "save" && pending.some(row => isEnergy(row.action)) && <span className={styles.footerScope}>{pendingChangesLabel(op.rows)}</span>}
+        {nextStep === "save" && issues.length > 0 && <button onClick={() => document.getElementById(rowId(issues[0].key))?.scrollIntoView({ block: "center" })}>{issues.length} 项需处理</button>}
+        {!editing && error && <p role="alert" className={styles.error}>{error}</p>}
+      </div>
+      {embedded && op.rows.length === 1 && pending[0] && <button disabled={busy || nextStep !== "save"} onClick={() => { setError(""); setEditing(pending[0].key); }}>修改</button>}
+      <button disabled={busy || nextStep === "read"} onClick={() => perform({ kind: "cancel", revision: op.revision })}>本次不保存</button>
+      {nextStep === "current" ? changedMeals.map(meal => meal.id && <LoadingLink key={meal.key} className={styles.save} href={`/dashboard/meals?date=${meal.date}`} beforeNavigate={embedded ? beforeNavigate : undefined}>查看当前记录</LoadingLink>) :
+        <button className={styles.save} disabled={busy || !!editing || nextStep === "save" && (!pending.length || !!issues.length)} onClick={() => {
+          if (nextStep === "read") perform();
+          else if (nextStep === "update") perform({ kind: "refresh", revision: op.revision });
+          else perform({ kind: "confirm", revision: op.revision, allowMissingImageKeys: [] });
+        }}>{working === "refresh" ? "正在更新…" : working === "read" ? "正在读取…" : working === "confirm" ? "正在保存…" : nextStep === "update" ? "更新内容" : nextStep === "read" ? "重新读取" : "确认保存"}</button>}
+    </footer>
     {editRow && <EditorDialog wide={editRow.action.kind === "save_meal"} title="修改待保存内容" busy={busy} close={() => { if (!busy) { setEditing(null); setError(""); } }}>
-      {error && <><p className={styles.error} role="alert">{error}</p><button disabled={busy} onClick={() => perform()}>加载最新状态，保留输入</button></>}
-      {isTraining(editRow.action) ? <TrainingPlanReviewEditor key={editRow.key} row={editRow} busy={busy} apply={action => perform({ kind: "update", revision: op.revision, key: editRow.key, action })} /> : isEnergy(editRow.action) ? <EnergyEditor dayRecords={op.energySnapshot?.days} activityPreview={editRow.energy?.after&&"name" in editRow.energy.after?editRow.energy.after:undefined} activities={op.energySnapshot?.activities.filter(row=>!row.deletedAt && "date" in editRow.action && row.date===editRow.action.date)??[]} initial={editRow.action} sources={energySources} removeSource={removeEnergy} busy={busy} error={error||editRow.energy?.error||""} submitLabel="应用修改" save={action => perform({ kind: "update", revision: op.revision, key: editRow.key, action })} /> : isBody(editRow.action) && editRow.body ? <MeasurementReviewEditor item={editRow.body} busy={busy} sources={sources} removeSource={remove} close={() => setEditing(null)} save={action => perform({ kind: "update", revision: op.revision, key: editRow.key, action })} /> : editRow.action.kind === "save_meal" ? <MealEditor allowAi={false} foodRefs={Object.fromEntries(op.rows.flatMap(row => row.action.kind === "save_food" && row.meal?.food ? [[row.key,row.meal.food]] : []))} initial={editRow.action} historicalItems={editRow.meal?.meal?.items ?? []} historicalFoods={editRow.meal?.meal?.items.flatMap(item => item.foodSnapshot ? [item.foodSnapshot] : []) ?? []} foods={op.foods} submitLabel="应用修改" error={error || editRow.meal?.error || ""} busy={busy} save={async draft => perform({ kind: "update", revision: op.revision, key: editRow.key, action: { ...draft, kind: "save_meal" } })} /> : editRow.action.kind === "save_food" ? <FoodEditor initial={editRow.action} submitLabel="应用修改" error={error} busy={busy} save={async draft => perform({ kind: "update", revision: op.revision, key: editRow.key, action: { ...draft, kind: "save_food" } })} /> : null}
+      {error && <p className={styles.error} role="alert">{error}</p>}
+      {nextStep === "read" && <button disabled={busy} onClick={() => perform()}>重新读取</button>}
+      {nextStep === "update" && <button disabled={busy} onClick={() => perform({ kind: "refresh", revision: op.revision })}>{working === "refresh" ? "正在更新…" : "更新内容"}</button>}
+      {isTraining(editRow.action) ? <TrainingPlanReviewEditor key={editRow.key} row={editRow} busy={busy || nextStep !== "save"} apply={action => perform({ kind: "update", revision: op.revision, key: editRow.key, action })} /> : isEnergy(editRow.action) ? <EnergyEditor dayRecords={op.energySnapshot?.days} activityPreview={editRow.energy?.after&&"name" in editRow.energy.after?editRow.energy.after:undefined} activities={op.energySnapshot?.activities.filter(row=>!row.deletedAt && "date" in editRow.action && row.date===editRow.action.date)??[]} initial={editRow.action} sources={energySources} removeSource={removeEnergy} busy={busy || nextStep !== "save"} error={error||editRow.energy?.error||""} submitLabel="应用修改" save={action => perform({ kind: "update", revision: op.revision, key: editRow.key, action })} /> : isBody(editRow.action) && editRow.body ? <MeasurementReviewEditor item={editRow.body} busy={busy || nextStep !== "save"} sources={sources} removeSource={remove} close={() => setEditing(null)} save={action => perform({ kind: "update", revision: op.revision, key: editRow.key, action })} /> : editRow.action.kind === "save_meal" ? <MealEditor allowAi={false} foodRefs={Object.fromEntries(op.rows.flatMap(row => row.action.kind === "save_food" && row.meal?.food ? [[row.key,row.meal.food]] : []))} initial={editRow.action} historicalItems={editRow.meal?.meal?.items ?? []} historicalFoods={editRow.meal?.meal?.items.flatMap(item => item.foodSnapshot ? [item.foodSnapshot] : []) ?? []} foods={op.foods} submitLabel="应用修改" error={error || editRow.meal?.error || ""} busy={busy || nextStep !== "save"} save={async draft => perform({ kind: "update", revision: op.revision, key: editRow.key, action: { ...draft, kind: "save_meal" } })} /> : editRow.action.kind === "save_food" ? <FoodEditor initial={editRow.action} submitLabel="应用修改" error={error} busy={busy || nextStep !== "save"} save={async draft => perform({ kind: "update", revision: op.revision, key: editRow.key, action: { ...draft, kind: "save_food" } })} /> : null}
     </EditorDialog>}
   </section>;
 }

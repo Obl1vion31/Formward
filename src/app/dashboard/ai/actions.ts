@@ -13,10 +13,10 @@ async function perform<T>(work: (userId: string) => Promise<T>,mode:"read"|"writ
   try {
     return await withCurrentSession(await headers(), async user => {
     const data = await work(user.id);
-    revalidatePath("/dashboard/ai", "layout"); revalidatePath("/dashboard"); revalidatePath("/dashboard/energy"); revalidatePath("/dashboard/training"); revalidatePath("/dashboard/measurements");
+    if (mode === "write") { revalidatePath("/dashboard/ai", "layout"); revalidatePath("/dashboard"); revalidatePath("/dashboard/energy"); revalidatePath("/dashboard/training"); revalidatePath("/dashboard/measurements"); }
     return { ok: true as const, data };
     },mode);
-  } catch (error) { return { ok: false as const, error: safeAiError(error).error.message }; }
+  } catch (error) { const failure = safeAiError(error); return { ok: false as const, error: failure.error.message, code: failure.error.code, status: failure.status }; }
 }
 export async function createTokenAction(name: string, permission: "read" | "write", options: import("@/features/auth/ai-tokens").TokenOptions = {days:7,domains:["measurements","meals","energy","training"]}) {
   return perform(userId => createAiToken(getDatabase(), userId, name, permission, options));

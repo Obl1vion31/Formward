@@ -30,7 +30,7 @@ function existingMealIds(name,args) {
 export function createAiToolSession(contract, options = {}) {
   const enabled = new Set(), receipts = new Map(), pendingMeals = [], pendingMealEdits = new Map(); let pendingRecord = null;
   const operationIds = new Map(), requestAliases = new Map();
-  let pendingPreview = null;
+  let pendingPreview = null, mealCorrection = null;
   const managedArgs = (name, args) => {
     const key = previewCreators.has(name) ? 'v2-task-creation' : payloadKey(name, args), content = { ...args }; delete content.operationId;
     if (!operationIds.has(key)) operationIds.set(key, options.operationIdFor?.(name,content) ?? crypto.randomUUID());
@@ -45,6 +45,11 @@ export function createAiToolSession(contract, options = {}) {
   };
   return {
     names: () => [...enabled], load,
+    /** @param {{ id: string; revision: number } | null} target */
+    bindMealCorrection(target) {
+      mealCorrection = target ?? { ambiguous: true };
+      if (target) load({ names: ["get_preview", "update_preview"] });
+    },
     tools: () => [loadTool, ...contract.tools.filter(tool => enabled.has(tool.name)).map(tool => {
       const parameters = structuredClone(tool.inputSchema);
       if (options.managedOperationIds && parameters.properties?.operationId) {
@@ -65,6 +70,12 @@ export function createAiToolSession(contract, options = {}) {
       const normalizationNote = normalized.changed ? '；已将标为unknown_accepted的新自由餐项空食量转为省略字段，没有决定数量' : '';
       const cached = receipts.get(payloadKey(name, args));
       if (cached) return { result: { ...cached, repeated: true }, coordination: '相同请求复用本题已有回执，未再次创建预览' };
+      if (mealCorrection && (previewCreators.has(name) || name === "update_preview" && args.id !== mealCorrection.id)) {
+        const target = mealCorrection.id;
+        return { result: target
+          ? { error: "existing_preview_requires_update", id: target, revision: mealCorrection.revision, executed: false, message: "请用 get_preview 核对这个原草稿，再用 update_preview 修改原项目 key。不要另建一餐。" }
+          : { error: "ambiguous_meal_correction", executed: false, message: "无法确定用户要改哪份待确认餐次。请先问用户，不能猜测、另建或修改其他草稿。" } };
+      }
       if (previewCreators.has(name) && pendingPreview && contract.tools.some(tool=>tool.name==='update_preview')) {
         const wanted=['get_preview','update_preview'].filter(tool=>byName.has(tool)); if(wanted.length) load({names:wanted});
         return {result:{error:'existing_preview_requires_update',id:pendingPreview.id,previewId:pendingPreview.id,revision:pendingPreview.revision,confirmationUrl:pendingPreview.confirmationUrl,executed:false,loadedForNextRound:wanted,nextAction:'read_then_update_original_preview',message:'本任务已有预览。内容正确就沿用原链接；需要修改或确实漏项，用update_preview对原id/revision局部修改或appendItems，不改用其他创建入口另建批次。'},coordination:'已有任务草稿，原创建请求未再次执行'};

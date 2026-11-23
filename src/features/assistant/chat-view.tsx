@@ -126,7 +126,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
   useLayoutEffect(()=>{const node=composer.current;if(!node)return;const measure=()=>node.parentElement?.style.setProperty("--chat-composer-height",node.getBoundingClientRect().height+"px");measure();const observer=new ResizeObserver(measure);observer.observe(node);return()=>observer.disconnect();},[]);
   const composerNotices = <>
     {notice && <p className={styles.notice} role="status">{notice}</p>}
-    {chat.error && <div className={styles.failure} role="alert">{chat.error}<button onClick={() => void chat.refresh()} disabled={chat.loading}>重新读取</button></div>}
+    {chat.error && <div className={styles.failure} role="alert">{chat.error}<button onClick={() => void chat.refresh()} disabled={chat.loading}>重新读取对话</button></div>}
     {page && quotaNotice}
     {pendingQuote && !chat.busy && <div className={styles.quote}>
       <div className={styles.contextQuoteSummary}>

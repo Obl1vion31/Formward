@@ -172,6 +172,24 @@ export function prepareMealActions(input: MealInput, state: MealSnapshot, origin
   });
 }
 const stateDigest = (state: MealSnapshot) => digest([state.foods.map(f => [f.id, f.version, f.deletedAt]).sort(), state.meals.map(m => [m.id, m.version, m.deletedAt]).sort()]);
+/** 只对齐重新规划时生成的临时编号，保留正式记录版本及其余预览数据。 */
+function comparablePreview(rows: PreviewRow[]) {
+  const provisional = new Map<string, string>();
+  rows.forEach((row, index) => {
+    if (!row.action.id && row.food) provisional.set(row.food.id, "draft-food-" + index);
+    if (!row.action.id && row.meal) provisional.set(row.meal.id, "draft-meal-" + index);
+    row.meal?.items.forEach((item, itemIndex) => {
+      if (item.foodDraft && item.foodSnapshot) provisional.set(item.foodSnapshot.id, "draft-item-" + index + "-" + itemIndex);
+    });
+  });
+  function align(value: unknown, key?: string): unknown {
+    if (Array.isArray(value)) return value.map(item => align(item, key));
+    if (typeof value === "string" && (key === "id" || key === "foodId" || key === "duplicateIds")) return provisional.get(value) ?? value;
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, align(entry, key)]));
+    return value;
+  }
+  return currentMealPreview(rows).filter(row => !row.excluded).map(row => align(row));
+}
 export function displayMealOperation(row: typeof mealOperation.$inferSelect): MealOperationView {
   const status = row.status === "pending" && row.expiresAt && row.expiresAt <= new Date() ? "expired" : row.status;
   const preview = row.status === "pending" ? currentMealPreview(row.preview) : row.preview;
@@ -266,7 +284,7 @@ async function writeFood(tx: Transaction, userId: string, f: FoodView) {
   else await tx.insert(food).values({ id: f.id, userId, ...values });
   await writeImageLinks(tx,userId,f,true);
 }
-export async function decideMealOperation(db: Database, userId: string, id: string, revision: number, decision: "confirm" | "cancel", allowMissingImages = false, options:{strictManualVersions?:boolean}={}) {
+export async function decideMealOperation(db: Database, userId: string, id: string, revision: number, decision: "confirm" | "cancel", allowMissingImages = false, options: { strictManualVersions?: boolean; planner?: MealPlanner } = {}) {
   if (!["confirm", "cancel"].includes(decision)) throw new ApiError(400, "invalid_input", "审核操作无效。");
   return db.transaction(async tx => {
     await lockOwner(tx, userId); const op = await getMealOperation(tx, userId, id);
@@ -281,8 +299,15 @@ export async function decideMealOperation(db: Database, userId: string, id: stri
     const before = await readMealSnapshot(tx, userId);
     if(options.strictManualVersions&&op.origin==="manual")for(const action of op.draft.actions){if(action.id&&action.version!=null){const current=(action.kind.endsWith("food")?before.foods:before.meals).find(row=>row.id===action.id&&!row.deletedAt);if(!current||current.version!==action.version)throw new ApiError(409,"version_conflict","记录刚在别处修改，请查看最新内容后再保存，输入已保留。");}}
     if (stateDigest(before) !== op.snapshotDigest) {
-      if (op.origin !== "manual" || !op.draft.actions.every(action=>action.kind==="save_meal" && !!action.id && action.items.every(item=>!item.foodId || before.foods.some(food=>food.id===item.foodId && !food.deletedAt)))) throw new ApiError(409,"snapshot_changed","饮食或食材已改变，请刷新预览后重新核对。");
-      op.preview=prepareMealActions(op.draft,before,"manual",await manualHistory(tx,userId,op.draft));
+      const changed = () => new ApiError(409, "snapshot_changed", "饮食或食材已改变，请更新内容后重新核对。");
+      if (op.origin === "ai") {
+        const replanned = (options.planner ?? prepareMealActions)(op.draft, before, "ai");
+        await validatePreviewImages(tx, userId, replanned);
+        if (digest(comparablePreview(replanned)) !== digest(comparablePreview(op.preview))) throw changed();
+      } else {
+        if (op.origin !== "manual" || !op.draft.actions.every(action=>action.kind==="save_meal" && !!action.id && action.items.every(item=>!item.foodId || before.foods.some(food=>food.id===item.foodId && !food.deletedAt)))) throw changed();
+        op.preview = prepareMealActions(op.draft, before, "manual", await manualHistory(tx, userId, op.draft));
+      }
       op.snapshotDigest=stateDigest(before);
     }
     validateFoodDescriptions(op.draft);

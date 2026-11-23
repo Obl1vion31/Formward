@@ -1,3 +1,4 @@
+import { ApiError } from "../auth/ai-identity";
 import { randomUUID } from "node:crypto";
 import type { Database } from "../../db/client";
 import type { RecordReviewAction } from "./model";
@@ -8,7 +9,7 @@ import { checkWebEnergy, checkWebMeals } from "./web-entry-server";
 export async function reviewWebRecord(db:Database,userId:string,id:string,action:RecordReviewAction,source?:"body"|"meal"){
   if(action.kind==="update"){
     const current=await loadRecordReview(db,userId,id,source),target=current.rows.find(item=>item.key===action.key);
-    if(!target||target.persisted||current.revision!==action.revision)throw new Error("预览已改变，请刷新后修改。");
+    if(!target||target.persisted||current.revision!==action.revision)throw new ApiError(409, "review_changed", "这份内容有新版本。当前输入已保留。");
     if(action.action.kind==="save_meal"){
       const items=current.rows.map(item=>item.key===action.key?{...item,action:action.action}:item);
       await checkWebMeals(db,userId,{operationId:randomUUID(),actions:[action.action]},recordMealPlanner(items,current.id),action.key);

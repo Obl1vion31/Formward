@@ -161,3 +161,12 @@
   text-decoration: none;
 }
 .readOnlyReviewLink:hover { text-decoration: underline; text-underline-offset: .2em; }
+
+.footer .reviewStatus { flex:1 1 12rem; min-width:0; }
+.reviewStatus p { margin:0; line-height:1.5; }
+.footer a.save { display:inline-flex; align-items:center; min-height:44px; text-decoration:none; }
+@media(max-width:700px),(hover:none) and (pointer:coarse) {
+  .footer { flex-wrap:wrap; justify-content:flex-end; }
+  .footer .reviewStatus:not(:empty) { flex-basis:100%; }
+  .footer .reviewStatus:empty { display:none; }
+}

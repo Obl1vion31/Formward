@@ -23,7 +23,7 @@ export type RecordItem = { key: string; action: RecordAction; originalInput: Rec
 export const isBody = (action: RecordAction): action is ReviewInput => action.kind === "save_record";
 export const category = (action: RecordAction) => isBody(action) ? "body" : isTraining(action) ? "training" : isEnergy(action) ? "energy" : action.kind.endsWith("food") ? "foods" : "meals";
 export type RecordRow = RecordItem & { training?: TrainingPreview; body?: ReviewItem; meal?: PreviewRow; energy?: EnergyPreview; duplicateMeals?: MealView[] };
-export type RecordReviewView = { id: string; revision: number; status: string; rows: RecordRow[]; expiresAt: string | null; confirmationPath: string; createdAt: string; foods: FoodView[]; energySnapshot?: EnergySnapshot; mealOperation?: MealOperationView; energyOperation?: EnergyOperationView; saved: number; canConfirm: boolean; needsUserInput: { key: string; questions: string[] }[] };
+export type RecordReviewView = { needsRefresh?: boolean; changedMeals?: { key: string; date: string; id?: string }[]; id: string; revision: number; status: string; rows: RecordRow[]; expiresAt: string | null; confirmationPath: string; createdAt: string; foods: FoodView[]; energySnapshot?: EnergySnapshot; mealOperation?: MealOperationView; energyOperation?: EnergyOperationView; saved: number; canConfirm: boolean; needsUserInput: { key: string; questions: string[] }[] };
 export type RecordReviewAction = { revision: number } & (
   { kind: "check" | "exclude" | "restore"; keys: string[] } | {kind:"energy_inclusion";keys:string[];inclusion:"included"|"additional"} |
   { kind: "update"; key: string; action: RecordAction } |

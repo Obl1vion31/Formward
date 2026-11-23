@@ -47,12 +47,12 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
   await stalePage.waitForLoadState("networkidle");
   await stalePage.screenshot({ path: `${artifacts}/concurrent-draft.png`, fullPage: true });
   await writeFile(`${artifacts}/concurrent-draft.json`, JSON.stringify({ dialogs: await stalePage.getByRole("dialog").allTextContents(), alerts: await stalePage.getByRole("alert").allTextContents() }, null, 2));
-  // 子预览快照与父审核版本都会拒绝旧草稿，保留两种既有冲突反馈。
-  await staleDialog.getByRole("alert").filter({ hasText: /预览已改变，请刷新后修改。|审核已在另一个页面变化/ }).first().waitFor();
+  // 过时编辑先重新读取，已输入内容持续保留。
+  await staleDialog.getByRole("alert").filter({ hasText: /这份内容有新版本/ }).first().waitFor();
   assert.equal((await latestOperation()).revision, changedRevision, "过期草稿不能再次更新审核");
   assert.equal(await staleDialog.getByLabel("测量来源", { exact: true }).inputValue(), "保留的并发草稿");
-  await staleDialog.getByRole("button", { name: "加载最新状态，保留输入", exact: true }).click();
-  await staleDialog.getByRole("button", { name: "加载最新状态，保留输入", exact: true }).waitFor({ state: "hidden" });
+  await staleDialog.getByRole("button", { name: "重新读取", exact: true }).click();
+  await staleDialog.getByRole("button", { name: "重新读取", exact: true }).waitFor({ state: "hidden" });
   assert.equal(await staleDialog.getByLabel("测量来源", { exact: true }).inputValue(), "保留的并发草稿");
   await stalePage.close();
 
