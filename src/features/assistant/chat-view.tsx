@@ -126,7 +126,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
   useLayoutEffect(()=>{const node=composer.current;if(!node)return;const measure=()=>node.parentElement?.style.setProperty("--chat-composer-height",node.getBoundingClientRect().height+"px");measure();const observer=new ResizeObserver(measure);observer.observe(node);return()=>observer.disconnect();},[]);
   const composerNotices = <>
     {notice && <p className={styles.notice} role="status">{notice}</p>}
-    {chat.error && <div className={styles.failure} role="alert">{chat.error}<button onClick={() => void chat.refresh()} disabled={chat.loading}>重新读取对话</button></div>}
+    {chat.error && <div className={styles.failure} role="alert">{chat.error}<button onClick={() => void chat.refresh()} disabled={chat.refreshing}>{chat.refreshing ? "正在重新读取…" : "重新读取对话"}</button></div>}
     {page && quotaNotice}
     {pendingQuote && !chat.busy && <div className={styles.quote}>
       <div className={styles.contextQuoteSummary}>
@@ -363,10 +363,11 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
               onClick={toggleModelMenu}>
               <span>{selected?.id === "mimo" ? "MiMo" : selected?.label ?? "模型"}</span><Glyph name="chevron"/>
             </button>
-            {chat.busy
-              ? <button type="button" className={sendClass} aria-label="停止生成" onClick={() => void chat.control("stop")}><Glyph name="stop"/></button>
+            {chat.canStop
+              ? <button type="button" className={sendClass} aria-label={chat.stopping ? "正在停止生成" : "停止生成"}
+                  disabled={chat.stopping || chat.managing} onClick={chat.stop}><Glyph name="stop"/></button>
               : <button type="button" className={sendClass} aria-label="发送消息"
-                  disabled={blocked || pendingQuote?.text === null || chat.photos.some(photo => photo.phase !== "ready" || !photo.id) || !chat.draft.trim() && !chat.photos.length}
+                  disabled={chat.busy || blocked || pendingQuote?.text === null || chat.photos.some(photo => photo.phase !== "ready" || !photo.id) || !chat.draft.trim() && !chat.photos.length}
                   onMouseDown={event => {
                     // 保持焦点到点击触发。取消触摸的 pointerdown 会让 WebKit 不发出 click。
                     if (page && document.activeElement === input.current) event.preventDefault();

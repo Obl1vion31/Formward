@@ -14,6 +14,7 @@ import { chatRunStream } from "@/features/assistant/chat-stream";
 export const runtime = "nodejs";
 export const maxDuration = 600;
 const headers = { "Cache-Control": "private, no-store" };
+const streamHeaders = { "Cache-Control": "private, no-store, no-transform", "Content-Type": "text/event-stream; charset=utf-8", "X-Accel-Buffering": "no" };
 const inputSchema = z.object({ action: z.enum(["send", "retry", "continue"]), requestId: z.string().uuid(), provider: z.enum(chatProviderIds), conversationId: z.string().uuid(), text: z.string().max(16000).optional(), replyToId: z.string().uuid().optional(), imageIds: z.array(z.string().uuid()).max(CHAT_PHOTO_LIMIT).refine(ids => new Set(ids).size === ids.length).optional(), imageSubset: z.array(z.string().uuid()).min(1).max(8).optional(), messageId: z.string().uuid().optional(), timezone: z.string().max(100), followup:followupSubmissionSchema.optional() }).strict();
 export async function GET(request: Request) {
   try { return await withCurrentSession(request.headers, async owner => {
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
       if (!runId.success) return Response.json({error:"回复编号无效。"},{status:400,headers});
       const db = getDatabase(), row = await activeChatSubscription(db,owner.id,runId.data);
       return new Response(chatRunStream(db,owner.id,{conversationId:row.conversationId},request,{row}),{
-        headers:{...headers,"Content-Type":"text/event-stream; charset=utf-8","X-Accel-Buffering":"no"},
+        headers:streamHeaders,
       });
     }
     if(params.get("view")==="history"){
@@ -48,6 +49,6 @@ export async function POST(request: Request) {
     const parsed = inputSchema.safeParse(await readChatJson(request,80000));
     if (!parsed.success) return Response.json({ error: "消息格式无效，请重新发送。" }, { status: 400, headers });
     const input = { ...parsed.data, timezone: assistantTimezone(parsed.data.timezone) }, db = getDatabase(), started = await startChatRun(db, owner.id, input);
-    return new Response(chatRunStream(db,owner.id,input,request,started),{headers:{...headers,"Content-Type":"text/event-stream; charset=utf-8","X-Accel-Buffering":"no"}});
+    return new Response(chatRunStream(db,owner.id,input,request,started,{acceptedRequestId:started.row.requestId}),{headers:streamHeaders});
   }); } catch (error) { const failure = safeAiError(error); return Response.json({ error: failure.error.message, code: failure.error.code }, { status: failure.status, headers }); }
 }

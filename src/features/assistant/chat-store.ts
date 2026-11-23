@@ -503,7 +503,8 @@ export async function controlChat(db: Database, userId: string, input: { action:
     if (!current) throw new ApiError(409,"conversation_changed","当前会话已变化，请重新读取。");
     const [busy] = await tx.select().from(run).where(and(eq(run.userId, userId), eq(run.state, "running")));
     if (input.action === "stop") {
-      if (!busy || busy.id !== input.runId || input.mealTaskId && busy.conversationId !== current.id) return;
+      if (!busy || busy.id !== input.runId || busy.conversationId !== current.id ||
+          input.conversationId && input.conversationId !== current.id) return;
       await tx.update(run).set({ state: "stopped" }).where(eq(run.id, busy.id));
       await tx.update(message).set({ state: "stopped" }).where(and(eq(message.id, busy.assistantMessageId), eq(message.userId, userId))); stoppedRunId = busy.id; return;
     }

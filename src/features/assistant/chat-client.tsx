@@ -16,7 +16,29 @@ export type OutgoingMessage = {
   message:ChatMessage; body:SendBody; photos:DraftPhoto[]; quote:ChatMessage|null; viewport?:ArrivalViewport;
   phase:"sending"|"accepted"|"error"; error?:string;
 };
-const streamHeaders = {"X-Formward-Chat-Stream":"delta-1"};
+const chatEndpoint = "/api/assistant-chat";
+const streamHeaders = {"Formward-Chat-Stream": "delta-1"};
+
+type Delivery = {
+  controller: AbortController;
+  conversationId: string;
+  requestId: string;
+  runId?: string;
+  terminal?: boolean;
+  stopQueued?: boolean;
+  flushStop: () => void;
+};
+
+function deliveredReply(snapshot: ChatSnapshot | null, delivery: Delivery) {
+  if (snapshot?.conversationId !== delivery.conversationId) return;
+  return [...snapshot.messages, ...(snapshot.photoUpdates ?? [])]
+    .find(row => row.role === "assistant" && row.requestId === delivery.requestId);
+}
+
+function activeConversationRun(snapshot: ChatSnapshot | null) {
+  const timing = snapshot?.runTiming;
+  return timing && timing.runId === snapshot.activeRunId ? timing.runId : undefined;
+}
 
 async function consumeChatEvents(response:Response, handle:(event:ChatEvent)=>boolean) {
   if (!response.body || !response.headers.get("content-type")?.includes("text/event-stream")) return false;
@@ -48,14 +70,16 @@ type ChatClient = {
   scrollState: () => { top: number; stick: boolean }; recordScroll: (top: number, stick: boolean) => void;
   enabled: boolean; entitlement?: AccountEntitlements; data: ChatSnapshot | null; messages: ChatMessage[]; newRequests:ReadonlySet<string>; claimArrival:(key:string)=>boolean; draft: string; setDraft: (value: string) => void;
   quote: ChatMessage | null; setQuote: (value: ChatMessage | null) => void; photos: DraftPhoto[]; removePhoto: (key: string) => void; retryPhoto:(key:string,transport?:"direct"|"relay",region?:PhotoRegion)=>Promise<void>;
-  error: string; loading: boolean; delayed: boolean; busy: boolean; managing: boolean; uploading: string; refresh: () => Promise<void>; more: () => Promise<void>;
+  error: string; loading: boolean; delayed: boolean; busy: boolean; managing: boolean; uploading: string;
+  refreshing: boolean; refresh: () => Promise<void>; more: () => Promise<void>;
+  canStop: boolean; stopping: boolean; stop: () => void;
   send: (action?: "send" | "retry" | "continue", messageId?: string,followup?:FollowupSubmission,
     options?:{imageSubset?:string[];viewport?:ArrivalViewport}) => Promise<boolean>;
   outgoing: ReadonlyMap<string,OutgoingMessage>;
   retryOutgoing: (id:string) => Promise<boolean>;
   restoreOutgoing: (id:string) => Promise<void>;
   releaseSentPreview: (id:string,imageId:string) => void;
-  control: (action: ChatControlAction | "remove_conversation", provider?: ChatProvider, conversationId?: string, sourceMessageId?: string) => Promise<boolean>;
+  control: (action: Exclude<ChatControlAction, "stop"> | "remove_conversation", provider?: ChatProvider, conversationId?: string, sourceMessageId?: string) => Promise<boolean>;
   addPhotos: (files: File[]) => Promise<void>;
 };
 const Context = createContext<ChatClient | null>(null);
@@ -69,8 +93,11 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   const canChat=access?.chat??enabled;
   const [data, setData] = useState<ChatSnapshot | null>(null), [messages, setMessages] = useState<ChatMessage[]>([]), [draft, setDraft] = useState(""), [quote, setQuote] = useState<ChatMessage | null>(null), [photos, setPhotos] = useState<DraftPhoto[]>([]);
   const [error, setError] = useState(""), [loading, setLoading] = useState(false), [delayed, setDelayed] = useState(false), [running, setRunning] = useState(false), [managing, setManaging] = useState(false);
-  const deferredRead=useRef(false);
-  const request = useRef<AbortController | null>(null), reading = useRef(false), current = useRef<ChatSnapshot | null>(null), generation = useRef(0), alive = useRef(true);
+  const [submitting, setSubmitting] = useState(false), [stopping, setStopping] = useState(false), [refreshing, setRefreshing] = useState(false);
+  const deferredRead = useRef(false);
+  const request = useRef<Delivery | null>(null), current = useRef<ChatSnapshot | null>(null), generation = useRef(0), alive = useRef(true);
+  const reading = useRef<{ controller: AbortController; manual: boolean } | null>(null);
+  const snapshots = useRef(0);
   const scroll = useRef({ top: 0, stick: true });
   const savedDrafts=useRef(new Map<string,{draft:string;quote:ChatMessage|null;photos:DraftPhoto[];scroll:{top:number;stick:boolean}; older:ChatMessage[]}>());
   const pendingResumeSource = useRef<string | null>(null);
@@ -126,6 +153,19 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   const apply = useCallback((snapshot: ChatSnapshot) => {
     if (!alive.current) return;
     if(snapshot.entitlement&&!updateAccess(snapshot.entitlement)){deferredRead.current=true;return;}
+    snapshots.current++;
+    const delivery = request.current;
+    if (delivery) {
+      const reply = deliveredReply(snapshot, delivery);
+      if (reply?.runId) {
+        delivery.runId ??= reply.runId;
+        delivery.terminal ||= reply.state !== "working";
+        setSubmitting(false);
+      } else if (delivery.runId && snapshot.conversationId === delivery.conversationId) {
+        if (snapshot.activeRunId === delivery.runId) setSubmitting(false);
+        else if (current.current?.activeRunId === delivery.runId) delivery.terminal = true;
+      }
+    }
     const changed = current.current?.conversationId !== snapshot.conversationId;
     if (changed) {
       cursors.current.clear();
@@ -149,6 +189,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
       for (const row of snapshot.messages) merged.set(row.id, row);
       return [...merged.values()].sort((a,b) => a.seq - b.seq).slice(-50);
     });
+    delivery?.flushStop();
   }, [updateAccess,updateOutgoing,restoreConversationDraft]);
   const applyEvent = useCallback((event:ChatEvent) => {
     if (!alive.current) return false;
@@ -177,18 +218,58 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     return true;
   },[apply]);
   const subscription = useRef<AbortController|null>(null);
-  const read = useCallback(async function readChat(before?: number):Promise<void> {
-    if (reading.current){if(!before)deferredRead.current=true;return;}
-    if(mutating.current || request.current || (subscription.current && !before))return;
-    const ticket = generation.current; reading.current = true; setLoading(true); setError("");
+  const read = useCallback(async function readChat(before?: number, manual = false): Promise<void> {
+    const previous = reading.current;
+    if (previous && (!manual || previous.manual)) {
+      if (!manual && !before && !previous.manual) deferredRead.current = true;
+      return;
+    }
+    if (!manual && (mutating.current || request.current || subscription.current && !before)) return;
+    const controller = new AbortController(), operation = { controller, manual };
+    const ticket = generation.current, seen = snapshots.current;
+    reading.current = operation;
+    setLoading(true);
+    if (manual) {
+      setRefreshing(true);
+      previous?.controller.abort();
+      subscription.current?.abort();
+      subscription.current = null;
+      // 已确认接收后只断开接收回复的连接。发送还未获确认时，让原请求继续。
+      if (request.current?.runId) request.current.controller.abort();
+    } else setError("");
+    const query = new URLSearchParams();
+    if (before) query.set("before", String(before));
+    if (manual && current.current?.conversationId) query.set("conversationId", current.current.conversationId);
+    const isCurrent = () => !controller.signal.aborted && alive.current && ticket === generation.current;
     try {
-      const response = await fetch("/api/assistant-chat" + (before ? "?before=" + before : ""), { cache: "no-store", credentials: "same-origin", signal: AbortSignal.timeout(15000) });
-      const payload = await response.json(); if (!response.ok) throw Error(payload.error ?? "聊天暂时无法读取。");
-      if (ticket === generation.current) apply(payload);
-    } catch (failure) { if (ticket === generation.current && alive.current) setError(failure instanceof Error ? failure.message : "读取未完成，请重试。"); }
-    finally { reading.current = false; if (alive.current) {setLoading(false);if(deferredRead.current){deferredRead.current=false;setTimeout(()=>void readChat(),0);}} }
+      const response = await fetch(chatEndpoint + (query.size ? "?" + query : ""), {
+        cache: "no-store", credentials: "same-origin", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw Error(payload.error ?? "聊天暂时无法读取。");
+      if (isCurrent()) {
+        // 手动读取与仍在确认中的发送重叠时，保留随后到达的原请求快照。
+        if (!manual || seen === snapshots.current) apply(payload);
+        if (manual) setError("");
+      }
+    } catch (failure) {
+      if (isCurrent()) setError(manual ? "暂时读不到对话，已有内容已保留。请重试。" :
+        failure instanceof Error ? failure.message : "读取未完成，请重试。");
+    } finally {
+      if (reading.current === operation) {
+        reading.current = null;
+        if (alive.current) {
+          setLoading(false);
+          if (manual) setRefreshing(false);
+          else if (deferredRead.current) {
+            deferredRead.current = false;
+            setTimeout(() => void readChat(), 0);
+          }
+        }
+      }
+    }
   }, [apply]);
-  const refresh = useCallback(async () => { await read(); }, [read]);
+  const refresh = useCallback(() => read(undefined, true), [read]);
   useEffect(()=>{
     const controller=new AbortController();let currentRequest=false;
     const sync=async()=>{if(document.hidden||currentRequest||controller.signal.aborted)return;currentRequest=true;try{const response=await fetch("/api/account/entitlements",{cache:"no-store",signal:AbortSignal.any([controller.signal,AbortSignal.timeout(10000)])});if(!response.ok)return;const value=await response.json();if(!controller.signal.aborted&&alive.current){const previous=accessRef.current?.version;const accepted=updateAccess(value.entitlement);if(accepted&&previous!==value.entitlement.version)void read();}}catch{/* 已知权限和草稿保持，后续请求仍由服务端复核。 */}finally{currentRequest=false;}};
@@ -207,26 +288,36 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
       window.visualViewport?.removeEventListener("resize", update);
     };
   }, [enabled]);
-  useEffect(() => { alive.current = true; const epoch = generation.current; return () => { alive.current = false; generation.current = epoch + 1; request.current?.abort(); subscription.current?.abort(); releasePhotoResources(); }; }, [accountId,releasePhotoResources]);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      generation.current++;
+      request.current?.controller.abort();
+      reading.current?.controller.abort();
+      subscription.current?.abort();
+      releasePhotoResources();
+    };
+  }, [accountId, releasePhotoResources]);
   useEffect(() => { if (!open) return; const frame = requestAnimationFrame(() => void read()); const focus = () => { if(document.hidden || request.current)return;void read(); }; window.addEventListener("focus", focus); window.addEventListener("pageshow",focus); window.addEventListener("online",focus); document.addEventListener("visibilitychange", focus); window.addEventListener("formward-record-saved", focus); return () => { cancelAnimationFrame(frame); window.removeEventListener("focus", focus); window.removeEventListener("pageshow",focus); window.removeEventListener("online",focus); document.removeEventListener("visibilitychange", focus); window.removeEventListener("formward-record-saved", focus); }; }, [enabled, open, read]);
   const resumeRunId = data?.runTiming?.runId;
   useEffect(() => {
-    if (!open || !resumeRunId || running) return;
+    if (!open || !resumeRunId || running || refreshing) return;
     let closed = false, timer: ReturnType<typeof setTimeout> | undefined;
     const controller = new AbortController();
     async function resume() {
-      if (closed || current.current?.activeRunId !== resumeRunId) return;
+      if (closed || controller.signal.aborted || reading.current?.manual || current.current?.activeRunId !== resumeRunId) return;
       subscription.current = controller;
       let done = false;
       try {
-        const response = await fetch("/api/assistant-chat?runId="+resumeRunId,{
-          cache:"no-store",headers:streamHeaders,signal:controller.signal,
+        const response = await fetch(chatEndpoint + "?runId=" + resumeRunId, {
+          cache: "no-store", headers: streamHeaders, signal: controller.signal,
         });
-        if (response.ok) done = await consumeChatEvents(response,applyEvent);
+        if (response.ok) done = await consumeChatEvents(response, event => !controller.signal.aborted && applyEvent(event));
       } catch { /* 读取原任务，连接失败时保留已经显示的正文。 */ }
       finally {
         if (subscription.current === controller) subscription.current = null;
-        if (!closed && !done) {
+        if (!closed && !done && !controller.signal.aborted) {
           await read();
           timer = setTimeout(() => void resume(),1200);
         }
@@ -239,7 +330,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
       controller.abort();
       if (subscription.current === controller) subscription.current = null;
     };
-  },[open,resumeRunId,running,applyEvent,read]);
+  },[open,resumeRunId,running,refreshing,applyEvent,read]);
   const legacyRun = !data?.runTiming ? data?.activeRunId : null;
   useEffect(() => {
     if (!open || !legacyRun || running) return;
@@ -252,8 +343,9 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   useEffect(() => { if (!loading && delayed) { const frame = requestAnimationFrame(() => setDelayed(false)); return () => cancelAnimationFrame(frame); } }, [loading, delayed]);
   const unsent = [...outgoing.values()].some(item=>item.phase==="error");
   useEffect(() => { if (!draft.trim() && !photos.length && !unsent) return; const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; }; window.addEventListener("beforeunload", protect); return () => window.removeEventListener("beforeunload", protect); }, [draft, photos, unsent]);
-  async function control(action: Parameters<ChatClient["control"]>[0], provider?: ChatProvider, conversationId?: string, sourceMessageId?: string) {
+  async function control(action: ChatControlAction | "remove_conversation", provider?: ChatProvider, conversationId?: string, sourceMessageId?: string, runId?: string) {
     if ((!canChat && action !== "stop" && action !== "remove_conversation") || mutating.current) return false;
+    if (action === "stop" && (!runId || !conversationId)) return false;
     const resume = action === "resume_in_new_conversation";
     const switching = resume || action === "new" || action === "select_conversation";
     if (switching && (running || uploading)) return false;
@@ -274,12 +366,14 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     });
     if (resume) pendingResumeSource.current = current.current?.conversationId ?? null;
     mutating.current = true; setManaging(true); generation.current++;
+    if (action === "stop") setStopping(true);
     try {
       setError("");
       const requestControl = () => fetch("/api/assistant-chat/control", {
         method:"POST", headers:{"Content-Type":"application/json"},
+        signal: action === "stop" ? AbortSignal.timeout(15000) : undefined,
         body:JSON.stringify({action, ...(conversationId ? {conversationId} : {}), ...(sourceMessageId ? {sourceMessageId} : {}),
-          ...(provider ? {provider} : {}), ...(action === "stop" ? {runId:current.current?.activeRunId} : {})}),
+          ...(provider ? {provider} : {}), ...(runId ? {runId} : {})}),
       });
       const response = await requestControl().catch(error => {
         if (resume && navigator.onLine) return requestControl();
@@ -301,16 +395,49 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
         scroll.current = { top: 0, stick: true };
         pendingRequest.current = null;
       }
+      if (action === "stop" && payload.activeRunId !== runId) {
+        const delivery = request.current;
+        if (delivery && delivery.runId === runId) {
+          delivery.terminal = true;
+          setSubmitting(false);
+          delivery.controller.abort();
+        }
+        if (current.current?.activeRunId === runId) {
+          subscription.current?.abort();
+          subscription.current = null;
+        }
+      }
+      generation.current++;
       apply(payload); return true;
-    } catch (failure) { if (alive.current) setError(failure instanceof Error ? failure.message : "操作未完成，请重试。"); return false; }
-    finally {
+    } catch (failure) {
+      if (alive.current) setError(action === "stop" ? "暂时无法确认是否已停止。请重新读取对话。" :
+        failure instanceof Error ? failure.message : "操作未完成，请重试。");
+      return false;
+    } finally {
       mutating.current = false;
       if (alive.current) {
+        if (action === "stop") setStopping(false);
         setManaging(false);
         if (deferredRead.current) { deferredRead.current = false; void read(); }
       }
     }
   }
+  function stop() {
+    if (mutating.current) return;
+    const delivery = request.current;
+    if (delivery) {
+      if (delivery.terminal || delivery.stopQueued) return;
+      if (delivery.runId) void control("stop", undefined, delivery.conversationId, undefined, delivery.runId);
+      else {
+        delivery.stopQueued = true;
+        setStopping(true);
+      }
+      return;
+    }
+    const snapshot = current.current, runId = activeConversationRun(snapshot);
+    if (snapshot && runId) void control("stop", undefined, snapshot.conversationId, undefined, runId);
+  }
+
   function releaseSentPreview(id:string,imageId:string) {
     const item = outbox.current.get(id);
     const photo = item?.photos.find(value=>value.id===imageId);
@@ -326,15 +453,25 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   async function transmit(body:SendBody, local?:OutgoingMessage) {
     if (request.current || mutating.current || !canChat || current.current?.activeRunId) return false;
     const controller = new AbortController();
-    request.current = controller;
+    const delivery: Delivery = { controller, conversationId: body.conversationId, requestId: body.requestId, flushStop };
+    request.current = delivery;
     generation.current++;
     setRunning(true);
+    setSubmitting(true);
+    function flushStop() {
+      if (!delivery.stopQueued || !delivery.runId) return;
+      delivery.stopQueued = false;
+      if (delivery.terminal) setStopping(false);
+      else void control("stop", undefined, delivery.conversationId, undefined, delivery.runId).then(() => {
+        if (alive.current) setStopping(false);
+      });
+    }
     setError("");
     if (local) updateOutgoing(body.requestId,() => ({...local,phase:"sending",error:undefined}));
     let accepted = false, failure = "";
     try {
-      const response = await fetch("/api/assistant-chat",{
-        method:"POST",headers:{"Content-Type":"application/json",...streamHeaders},signal:controller.signal,body:JSON.stringify(body),
+      const response = await fetch(chatEndpoint, {
+        method:"POST",headers:{"Content-Type":"application/json", ...streamHeaders},signal:controller.signal,body:JSON.stringify(body),
       });
       if (!response.ok) {
         const value = await response.json();
@@ -343,13 +480,30 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
       accepted = true;
       if (pendingRequest.current?.id === body.requestId) pendingRequest.current = null;
       if (local) updateOutgoing(body.requestId,value=>value?{...value,phase:"accepted",error:undefined}:undefined);
-      await consumeChatEvents(response,applyEvent);
+      await consumeChatEvents(response, event => {
+        if (controller.signal.aborted || !alive.current) return false;
+        if (event.type === "accepted") {
+          if (event.conversationId !== delivery.conversationId || event.requestId !== delivery.requestId) return false;
+          delivery.runId = event.runId;
+          flushStop();
+          return true;
+        }
+        return applyEvent(event) && !delivery.terminal;
+      });
     } catch (cause) {
       failure = cause instanceof Error && !controller.signal.aborted ? cause.message : "连接暂时中断。";
     } finally {
-      if (request.current === controller) request.current = null;
+      if (request.current === delivery) request.current = null;
       if (alive.current) {
+        setSubmitting(false);
         await read();
+        if (delivery.stopQueued) {
+          const reply = deliveredReply(current.current, delivery);
+          if (reply?.runId && reply.runId === activeConversationRun(current.current)) {
+            delivery.runId = reply.runId;
+            flushStop();
+          } else setStopping(false);
+        }
         const pending = outbox.current.get(body.requestId);
         accepted ||= pending?.phase === "accepted" || current.current?.messages.some(message=>message.requestId===body.requestId)===true;
         if (local && !accepted) updateOutgoing(body.requestId,value=>value?{
@@ -440,7 +594,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   return <Context.Provider value={{accountId,scrollState,recordScroll,enabled:canChat,entitlement:access,data,
     messages:localMessages.length?[...messages,...localMessages].sort((a,b)=>a.seq-b.seq || a.createdAt.localeCompare(b.createdAt)):messages,newRequests,claimArrival,draft,setDraft,quote,setQuote,
     photos,removePhoto,retryPhoto,error,loading,delayed,busy:running||!!data?.activeRunId,managing,uploading,
-    refresh,more:async()=>{if(messages[0])await read(messages[0].seq);},send,control,addPhotos,
+    refreshing,refresh,stopping,stop,canStop:submitting || !!activeConversationRun(data),more:async()=>{if(messages[0])await read(messages[0].seq);},send,control,addPhotos,
     outgoing,retryOutgoing,restoreOutgoing,releaseSentPreview,
   }}>{children}</Context.Provider>;
 }

@@ -7,17 +7,23 @@ import {chatRunTiming,chatSnapshot,requireChatAccount,type ChatSend,type StoredR
 
 export function chatRunStream(
   db:Database,userId:string,input:Pick<ChatSend,"conversationId"|"mealTask">,request:Request,
-  started:{row:Pick<StoredRun,"id"|"assistantMessageId">;started?:boolean},options:{skipSessionCheck?:boolean}={},
+  started:{row:Pick<StoredRun,"id"|"assistantMessageId">;started?:boolean},options:{skipSessionCheck?:boolean; acceptedRequestId?:string}={},
 ) {
-  const incremental = request.headers.get("x-formward-chat-stream") === "delta-1";
+  const negotiated = request.headers.get("formward-chat-stream") === "delta-1";
+  const incremental = negotiated || request.headers.get("x-formward-chat-stream") === "delta-1";
   const encoder = new TextEncoder();
   let closed = false, timer: ReturnType<typeof setTimeout> | undefined;
   let cleanup = () => {};
   return new ReadableStream<Uint8Array>({start(output) {
-    const emit = (event:ChatEvent) => {
+    let lastFrameAt = Date.now();
+    const write = (frame: string) => {
       if (closed) return;
-      try { output.enqueue(encoder.encode("data: "+JSON.stringify(event)+"\n\n")); } catch { cleanup(); }
+      try {
+        output.enqueue(encoder.encode(frame));
+        lastFrameAt = Date.now();
+      } catch { cleanup(); }
     };
+    const emit = (event:ChatEvent) => write("data: "+JSON.stringify(event)+"\n\n");
     const finish = () => {
       cleanup();
       try { output.close(); } catch { /* 客户端可能已取消。 */ }
@@ -29,6 +35,8 @@ export function chatRunStream(
     };
     request.signal.addEventListener("abort",finish,{once:true});
     if (request.signal.aborted) { finish(); return; }
+    if (negotiated && options.acceptedRequestId) emit({type:"accepted",conversationId:input.conversationId,
+      requestId:options.acceptedRequestId,runId:started.row.id});
 
     let last: Pick<ChatMessage,"text"|"steps"|"references"|"photoProgress"> | undefined;
     let startedAt: string | null | undefined, lastAuth = 0, initial = true;
@@ -75,6 +83,7 @@ export function chatRunStream(
           }
           last = {...row,photoProgress};
         }
+        if (Date.now() - lastFrameAt >= 15000) write(": heartbeat\n\n");
         if (!closed) timer = setTimeout(() => void poll(),incremental ? 160 : 800);
       } catch {
         if (!closed) finish();

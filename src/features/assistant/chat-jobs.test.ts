@@ -34,7 +34,18 @@ test("主动停止已领取任务，取消静默模型连接，保留已知任�
  const running=executeChatJob(db,claimed!,new AbortController().signal,{fetcher:async(_url,init)=>{started();return new Promise<Response>((_resolve,reject)=>{init!.signal!.addEventListener("abort",()=>reject(new DOMException("stopped","AbortError")),{once:true});});}});
  await pending;await controlChat(db,userId,{action:"stop",runId:job.row.id});await running;const s=await chatSnapshot(db,userId);assert.equal(s.messages.at(-1)!.state,"stopped");assert.equal(s.activeRunId,null);
 });
-test("停止尚未领取任务不会发出模型请求",async()=>{const job=await begin();await controlChat(db,userId,{action:"stop",runId:job.row.id});assert.equal(await claimChatJob(db,"worker"),null);});
+test("停止尚未领取的指定任务，旧空编号、会话不符和迟到点击保持幂等", async () => {
+  const job = await begin();
+  const { conversationId } = job.input;
+  assert.equal(await controlChat(db, userId, { action: "stop" }), undefined);
+  assert.equal(await controlChat(db, userId, { action: "stop", conversationId: randomUUID(), runId: job.row.id }), undefined);
+  assert.equal(await controlChat(db, userId, { action: "stop", conversationId, runId: randomUUID() }), undefined);
+  assert.equal((await chatSnapshot(db, userId)).activeRunId, job.row.id);
+  assert.equal(await controlChat(db, userId, { action: "stop", conversationId, runId: job.row.id }), job.row.id);
+  assert.equal(await controlChat(db, userId, { action: "stop", conversationId, runId: job.row.id }), undefined);
+  assert.equal((await chatSnapshot(db, userId)).messages.at(-1)?.state, "stopped");
+  assert.equal(await claimChatJob(db, "worker"), null);
+});
 test("排队任务不按浏览器断线回收；异常执行任务不会自动重放或清零未知费用",async()=>{
  const job=await begin();await db.update(schema.assistantRun).set({heartbeatAt:new Date(Date.now()-200000)}).where(eq(schema.assistantRun.id,job.row.id));await reapChatRuns(db,userId);assert.equal((await chatSnapshot(db,userId)).activeRunId,job.row.id);
  const claimed=await claimChatJob(db,"worker-dead");await reserveChatUsage(db,userId,claimed!,0.01);await db.update(schema.assistantRun).set({heartbeatAt:new Date(Date.now()-200000)}).where(eq(schema.assistantRun.id,job.row.id));await reapChatRuns(db,userId);

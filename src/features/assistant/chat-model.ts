@@ -83,6 +83,7 @@ export type ChatSnapshot = {
   hasMore: boolean; before: number | null; activeRunId: string | null; runTiming?: ChatRunTiming | null; catalog: ChatCatalogItem[]; usage: ChatUsage;
 };
 export type ChatEvent =
+  | { type: "accepted"; conversationId: string; requestId: string; runId: string }
   | { type: "snapshot"; snapshot: ChatSnapshot }
   | { type: "message"; message: ChatMessage }
   | { type: "usage"; usage: ChatUsage }
