@@ -111,7 +111,7 @@ async function checkStopRecovery({ page, context, base, latest, start, complete,
  let releaseFinalRead, finalReading = false;
  const finishGate = new Promise(resolve => { releaseFinalRead = resolve; });
  const delayFinalRead = async route => {
-   if (route.request().method() === "GET") { finalReading = true; await finishGate; }
+   if (route.request().method() === "GET" && !finalReading) { finalReading = true; await finishGate; }
    await route.continue();
  };
  const snapshot = url => root(url) && !url.search;
@@ -128,7 +128,10 @@ async function checkStopRecovery({ page, context, base, latest, start, complete,
  assert.equal(await stopButton.count(), 0);
  assert.equal(await manuallyRead.count(), 0);
  await shot("reply-finished-with-delayed-read");
+ const finalResponse = page.waitForResponse(response => snapshot(new URL(response.url())) &&
+   response.request().method() === "GET" && response.ok());
  releaseFinalRead();
+ await finalResponse;
  await page.unroute(snapshot, delayFinalRead);
  checks.push("回复完成后即收起停止按钮，稍晚的快照读取不会送出空编号");
 }
