@@ -2,7 +2,15 @@
 
 ## 当前正式版本
 
-网页与聊天 worker 运行同版 `dual-entry-ed1b5c59-chat-stop-recovery-20261123`，源码 `ed1b5c591ab2be756e0310b802400b9d7538ef68`，BUILD_ID `ZSxvap30StWqzjyRX8NAJ`。北京时间 2026-11-23 22:13:41 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+网页与聊天 worker 运行同版 `dual-entry-707d458e-nutrition-card-food-library-20261124`，源码 `707d458e54935e559df12ec10921b9d957788a5c`，BUILD_ID `YR5kG_MPikHjdkt4VeeyQ`。北京时间 2026-11-24 00:01:22 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+
+饮食页手机和电脑将独立食材库挂签到营养统计卡右缘。手机展开显示全宽三列读数，图表与记录恢复公共工作区宽度。Chromium 与 WebKit 从准确运行包解包验收，覆盖两种主题的手机与桌面操作及慢加载。实体 iPhone 未测。
+
+数据库维持 `0047_meal_food_groups`、47项迁移与67张表，停写备份通过原生校验和异地回读。四个公网域名同版，新旧 CSS 资源一致，兼容 56 项 Server Action 与 2388 项上一版本静态资源。准确包 88,167,266 字节，SHA-256 `c6b51a6dfeb12a5a8196e642c6f21c9ffd1b44134b23df39914b79afd6c53a0b`，归档在 `.codex/backups/regional-releases/nutrition-card-food-library-20261124`。兼容回退为 `chat-stop-recovery-20261123`。
+
+## 小助手停止与重读发布记录
+
+该次网页与聊天 worker 版本为 `dual-entry-ed1b5c59-chat-stop-recovery-20261123`，源码 `ed1b5c591ab2be756e0310b802400b9d7538ef68`，BUILD_ID `ZSxvap30StWqzjyRX8NAJ`。北京时间 2026-11-23 22:13:41 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
 
 小助手停止指向当前会话和具体运行。接收确认前暂存停止意图，结束快照到达收起停止按钮。「重新读取对话」直接读取本会话，读取失败可重试。正文分片协商使用独立于回源鉴权的请求头，保留静默保活。Chromium 桌面与 WebKit 手机视口从准确包解包验收。 [实际网页验收](../design-qa.md)
 
