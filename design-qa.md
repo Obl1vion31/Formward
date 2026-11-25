@@ -459,3 +459,11 @@ final result: passed
 浏览器后退、前进、刷新、从餐次回到原草稿、三类快捷录入的确认离开和实际保存均走完。待办工具和账号设置恢复实际入口。独立确认页保留真实回执，可以查看正式记录并回发起处。说明、截图和原速录像保存在本机可视化目录的 `return-motion-candidate/index.html`。技术检查通过生产构建、类型检查、lint 和 860 项单元及集成测试，其中 2 项在独立 PostgreSQL 测试库运行。
 
 正式包为 `dual-entry-3b854bbd-return-motion-20261125`。解包复验的 SHA-256 与服务器待发布包一致。Chromium 与 WebKit 各通过28组操作，覆盖320、390、430、1440 CSS px 与两种主题。导航、趋势折返和慢读共采样1090帧，固定部件偏差为0 CSS px。实体 iPhone Safari 的系统键盘、侧滑、原生日期选择和触控仍待验证。 [操作录屏](<C:/Users/14878/.codex/visualizations/2026/11/19/01a1f4b2-02ea-7501-a32e-c5986dd04a8a/return-motion-candidate/index.html>) · [上线与兼容回退](docs/deployment.md#当前正式版本)
+
+## 本地待审 · 食材库与录入控件
+
+本地候选 `local-food-controls-review-r2` 从 `56e7b13298e080595d65d8f768441280e6e4b333` 构建。Chromium 与 WebKit 用同一份虚构数据，覆盖320、390、1440 CSS px 和浅深主题，12组前后对照全部通过。390px 食材库长名称首条从226px降到186.5px，详情与营养基准同行。按压时编辑外框透明，可见浅底32px，实际触控44px。体重、体脂率和来源的可见边界36px，输入区44px。 [验收图册](<C:/Users/14878/.codex/visualizations/2026/11/19/01a1f4b2-02ea-7501-a32e-c5986dd04a8a/food-controls-review/index.html>)
+
+四段录屏覆盖两端食材库进入、筛选、详情、编辑保存和刷新后返回，以及身体输入错误与更正保存、饮食保存读回和消耗保存读回。回程保留所选日期、历史查询、44px原滚动和入口焦点。附带16组食材库及记录历史回归操作。图册和四段媒体在两个引擎都打开并定位到播放帧。
+
+生产构建和类型检查通过，lint 0错误并保留一条既有警告。858项常规测试及另外两项隔离 PostgreSQL 测试通过。实体 iPhone Safari 未测。本地候选等视觉确认后进入发布流程。

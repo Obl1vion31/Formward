@@ -184,6 +184,7 @@ export async function runWorkspaceReturns(db) {
           }
           await page.evaluate(() => history.back());
           await waitForFocus(tag);
+          await card.and(page.locator('[data-selected-date="' + observed + '"]')).waitFor();
           near(await page.evaluate(() => scrollY), start, "饮食滚动");
           assert.equal(await page.getByLabel("查看日期", { exact: true }).inputValue(), observed);
           assert.equal(await card.getAttribute("data-selected-date"), observed);
@@ -192,6 +193,7 @@ export async function runWorkspaceReturns(db) {
           await page.reload();
           await page.getByRole("button", { name: "← 饮食", exact: true }).click();
           await waitForFocus(tag);
+          await card.and(page.locator('[data-selected-date="' + observed + '"]')).waitFor();
           near(await page.evaluate(() => scrollY), start, "刷新后按按钮返回饮食");
           assert.equal(await page.getByLabel("查看日期", { exact: true }).inputValue(), observed);
           assert.equal(await card.getAttribute("data-selected-date"), observed);
