@@ -1,5 +1,6 @@
 import { regionConfig } from "./regions";
 import { ApiError } from "./ai-identity";
+import { readBoundedBody } from "./request-body";
 export function pageSecurity(nonce: string, development = process.env.NODE_ENV !== "production") {
   const config = regionConfig(), origins = [...new Set([config.canonical, config.cn, config.global, config.legacyCn].filter((v): v is string => !!v))];
   const bucket = process.env.FORMWARD_COS_BUCKET, region = process.env.FORMWARD_COS_REGION;
@@ -11,8 +12,6 @@ export function pageSecurity(nonce: string, development = process.env.NODE_ENV !
 }
 export async function boundedSecurityJson(request: Request, maximum = 8192): Promise<unknown> {
   if (!request.body) throw new ApiError(400,"invalid_input","缺少请求内容。");
-  const reader = request.body.getReader(), chunks: Uint8Array[] = []; let size = 0;
-  try { for (;;) { const value = await reader.read(); if (value.done) break; size += value.value.byteLength; if (size > maximum) throw new ApiError(413,"request_too_large","请求过大。"); chunks.push(value.value); } }
-  finally { void reader.cancel().catch(() => {}); }
-  try{return JSON.parse(Buffer.concat(chunks).toString("utf8"));}catch{throw new ApiError(400,"invalid_input","请求内容无效。");}
+  const body = await readBoundedBody(request.body, maximum, () => new ApiError(413,"request_too_large","请求过大。"));
+  try{return JSON.parse(body.toString("utf8"));}catch{throw new ApiError(400,"invalid_input","请求内容无效。");}
 }

@@ -57,7 +57,7 @@
     "@modelcontextprotocol/server": "^2",
     "@vercel/blob": "^2.8.1",
     "better-auth": "1.7.25",
-    "cos-nodejs-sdk-v5": "2.15.4",
+    "cos-nodejs-sdk-v5": "3.0.0",
     "drizzle-orm": "^0.45.3",
     "exceljs": "^4.4.0",
     "jszip": "3.10.2",
@@ -68,7 +68,7 @@
     "react-dom": "19.3.0",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
-    "zod": "^4"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
@@ -86,5 +86,12 @@
     "tailwindcss": "4.3.3",
     "tsx": "^4.23.15",
     "typescript": "5.9.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "undici@6.29.0": "6.29.1",
+      "source-map-js@1.2.1": "1.2.4",
+      "zod@>=4 <4.6.6": "4.6.7"
+    }
   }
 }

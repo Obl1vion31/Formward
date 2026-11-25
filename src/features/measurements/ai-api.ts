@@ -18,6 +18,7 @@ import { z } from "zod";
 import { invalidAiSchema } from "../records/ai-errors";
 import { businessRequest } from "../auth/security-usage";
 import { requireActiveAiToken } from "../auth/ai-tokens";
+import { readBoundedBody } from "../auth/request-body";
 
 export function aiRequestTimezone(request: Request, configuredTimezone = process.env.FORMWARD_TIMEZONE) {
   const timezone = request.headers.get("x-formward-timezone") ?? systemMeasurementTimezone(new Date(), configuredTimezone);
@@ -51,17 +52,9 @@ export function aiConfirmationUrl(request: Request, path: string) {
 }
 export async function readAiJson(request: Request) {
   if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) throw new ApiError(415, "invalid_input", "请使用 application/json。");
-  const chunks: Uint8Array[] = [], reader = request.body?.getReader();
-  let bytes = 0;
-  if (!reader) throw new ApiError(400, "invalid_input", "缺少 JSON 请求内容。");
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    bytes += value.byteLength;
-    if (bytes > 65536) { await reader.cancel(); throw new ApiError(413, "invalid_input", "单次操作内容超过 64 KiB。"); }
-    chunks.push(value);
-  }
-  try { return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown; } catch { throw new ApiError(400, "invalid_input", "JSON 格式无效。"); }
+  if (!request.body) throw new ApiError(400, "invalid_input", "缺少 JSON 请求内容。");
+  const body = await readBoundedBody(request.body, 65536, () => new ApiError(413, "invalid_input", "单次操作内容超过 64 KiB。"));
+  try { return JSON.parse(body.toString("utf8")) as unknown; } catch { throw new ApiError(400, "invalid_input", "JSON 格式无效。"); }
 }
 export async function queryAiMeasurements(db: Database, userId: string, params: URLSearchParams, timezone = systemMeasurementTimezone()) {
   validateMeasurementTimezone(timezone);

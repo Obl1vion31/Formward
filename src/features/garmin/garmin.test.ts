@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { capturePersonal, sevenDays, type Capture, type Json } from "./client";
+import { capturePersonal, sevenDays, GarminError, type Capture, type Json } from "./client";
 import { demoCapture, makeReport } from "./model";
 import { renderReport } from "./report";
 import { readPrivateConfig, servePrivateReport, writePrivateReport } from "./private-files";
@@ -11,6 +11,27 @@ import { readPrivateConfig, servePrivateReport, writePrivateReport } from "./pri
 const window = sevenDays(new Date("2026-11-07T00:30:00Z"), "Asia/Shanghai");
 function capture(daily: Json, activities: Json[] = []): Capture { return { mode: "demo", fetchedAt: "2026-11-07T01:00:00Z", window, region: "global", daily: { ok: true, data: daily, rawText: JSON.stringify(daily) }, activityPages: [{ ok: true, data: activities, rawText: JSON.stringify(activities) }], activitiesComplete: true }; }
 const response = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
+
+test("佳明取消响应失败不覆盖认证错误；上游取消不结束也不阻塞超限处理", { timeout: 1000 }, async () => {
+  const rejected = (async () => new Response(new ReadableStream({
+    cancel() { return Promise.reject(new Error("fictional cancellation failure")); },
+  }), { status: 401 })) as typeof fetch;
+  await assert.rejects(capturePersonal({ apiKey: "fictional", region: "global", timeZone: "Asia/Shanghai" }, rejected),
+    (error: unknown) => error instanceof GarminError && error.code === "http_401");
+  let oversized: Response | undefined;
+  const fetcher = (async (_input, init) => {
+    if (init?.method === "POST") return new Response("fictional-token");
+    oversized = new Response(new ReadableStream({
+      start(controller) { controller.enqueue(new Uint8Array(4 * 1024 * 1024 + 1)); },
+      cancel() { return new Promise(() => {}); },
+    }));
+    return oversized;
+  }) as typeof fetch;
+  const result = await capturePersonal({ apiKey: "fictional", region: "global", timeZone: "Asia/Shanghai", activities: false }, fetcher);
+  assert.equal(result.daily.ok, false);
+  if (!result.daily.ok) assert.equal(result.daily.code, "response_size");
+  assert.equal(oversized?.body?.locked, false);
+});
 
 test("七日窗口依据配置时区，含今天，跨月／年不依赖服务器时区", () => {
   assert.equal(sevenDays(new Date("2026-01-01T00:00:00Z"), "America/Los_Angeles").to, "2025-12-31");

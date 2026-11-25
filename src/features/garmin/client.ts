@@ -1,3 +1,5 @@
+import { readBoundedBody } from "../auth/request-body";
+
 /** 仅访问官方 Personal API。这里没有 Formward 数据库或写入功能。 */
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type Region = "global" | "china";
@@ -24,14 +26,13 @@ const tokenPath = "/personalapitoken-service/personal-api/personal-api-key/token
 const maxBytes = 4 * 1024 * 1024;
 
 async function readJson(response: Response, plainText = false): Promise<{ data: Json; rawText: string }> {
-  if (Number(response.headers.get("content-length")) > maxBytes) { await response.body?.cancel(); throw new GarminError("response_size", "响应超过只读核对的大小限制，本次未继续读取。"); }
-  const chunks: Uint8Array[] = []; let size = 0;
-  const reader = response.body?.getReader();
-  if (reader) {
-    try { for (;;) { const chunk = await reader.read(); if (chunk.done) break; size += chunk.value.length; if (size > maxBytes) { await reader.cancel(); throw new GarminError("response_size", "响应超过只读核对的大小限制，本次未继续读取。"); } chunks.push(chunk.value); } }
-    finally { reader.releaseLock(); }
+  const tooLarge = () => new GarminError("response_size", "响应超过只读核对的大小限制，本次未继续读取。");
+  if (Number(response.headers.get("content-length")) > maxBytes) {
+    void response.body?.cancel().catch(() => {});
+    throw tooLarge();
   }
-  const rawText = new TextDecoder().decode(Buffer.concat(chunks));
+  const bytes = response.body ? await readBoundedBody(response.body, maxBytes, tooLarge) : Buffer.alloc(0);
+  const rawText = new TextDecoder().decode(bytes);
   if (plainText) return { data: rawText.trim(), rawText };
   try { return { data: JSON.parse(rawText) as Json, rawText }; }
   catch { throw new GarminError("invalid_json", "佳明返回的内容不是有效 JSON，请稍后重试。"); }
@@ -48,7 +49,7 @@ async function request(fetcher: typeof fetch, url: URL, method: "POST" | "GET", 
   try {
     const timeout = AbortSignal.timeout(20000);
     const response = await fetcher(url, { method, headers: { Authorization: authorization, Accept: method === "POST" ? "*/*" : "application/json" }, redirect: "error", cache: "no-store", signal: signal ? AbortSignal.any([timeout, signal]) : timeout });
-    if (!response.ok) { await response.body?.cancel(); throw httpError(response.status, method === "POST"); }
+    if (!response.ok) { void response.body?.cancel().catch(() => {}); throw httpError(response.status, method === "POST"); }
     return await readJson(response, method === "POST");
   } catch (error) {
     if (error instanceof GarminError) throw error;

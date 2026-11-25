@@ -23,7 +23,7 @@ while IFS= read -r -d '' directory; do
 done < <(
   # -prune 跳过依赖、缓存、数据库生成 storage 和 Drizzle 快照；其他自有目录都需要非空 README。
   find "$project_root" \
-    \( -type d \( -path "$project_root/data/postgres/storage" -o -path "$project_root/drizzle/meta" \) -prune \) -o \
+    \( -type d \( -path "$project_root/data/postgres/storage" -o -path "$project_root/drizzle/meta" -o -path "$project_root/.impeccable" \) -prune \) -o \
     \( -type d \( \
       -name .git -o \
       -name .agents -o \
@@ -36,6 +36,7 @@ done < <(
       -name build -o \
       -name coverage -o \
       -name .cache -o \
+      -name __pycache__ -o \
       -name .next -o \
       -name target \
     \) -prune \) -o \
