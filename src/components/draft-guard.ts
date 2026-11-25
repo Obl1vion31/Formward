@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useLayoutEffect } from "react";
+import { createContext, useContext, useLayoutEffect, useRef } from "react";
 import {confirmAction} from "./confirmation-state";
 
 export type VisibleRecord = {key:string;version:string;summary?:string};
@@ -7,6 +7,18 @@ export type DraftState = { dirty: boolean; busy: boolean; records?:VisibleRecord
 export const InspectorBusyContext=createContext(false);
 export const DraftCloseContext = createContext<(() => void) | null>(null);
 export const DraftGuardContext = createContext<((state: DraftState) => () => void) | null>(null);
+
+export type InspectorStep = { title: string; backTo: string; back: () => void };
+export const InspectorStepContext = createContext<((step: InspectorStep) => () => void) | null>(null);
+
+export function useInspectorStep(step: InspectorStep | null) {
+  const register = useContext(InspectorStepContext);
+  const back = useRef(step?.back);
+  useLayoutEffect(() => { back.current = step?.back; }, [step?.back]);
+  const title = step?.title, backTo = step?.backTo;
+  useLayoutEffect(() => title && backTo ? register?.({ title, backTo, back: () => back.current?.() }) : undefined, [register, title, backTo]);
+  return register !== null;
+}
 
 const currentDrafts=new Map<symbol,DraftState>();
 export const draftIsBusy=()=>[...currentDrafts.values()].some(state=>state.busy);

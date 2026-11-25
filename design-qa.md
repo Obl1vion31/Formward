@@ -511,3 +511,32 @@ Chromium 与 WebKit 的 320、390、430、1100、1440 CSS px 及浅深色共 20 
 - 常规测试 861 项和单独运行的原生 PostgreSQL 2 项通过。食材库与豆包契约 13 项在最终视觉修正后复验通过。生产构建、独立 typecheck 与 lint 通过，保留 `chat-client.tsx` 原有的一条 lint 警告。实体手机与站内助手、ChatGPT、豆包的真实对话由用户后续验收。
 
 `final result: passed`
+
+## 公共食材库第二轮本机验收
+
+本地候选 `local-food-reference-second-review` 在 `codex/food-reference-catalog` 运行，入口为 [饮食](http://127.0.0.1:3813/dashboard/meals)。本轮使用独立 PostgreSQL 和虚构账号，实页持续显示「隔离测试 · 虚构数据」，仅监听本机回环地址。
+
+### 图稿与实页
+
+局部参考使用手机分类、手机餐内选择和电脑个人食材的实页作为输入。原图 `baseline-mobile-categories.png`、`baseline-mobile-picker.png`、`baseline-desktop-private.png`，生成图 `approved-layout.png`，以及 `imagegen-prompt.txt` 保存在任务目录的 `.codex/food-reference-qa-r3/`。以同主题和状态的浏览器截图对照，页面沿用 Formward 的字体、导航、按钮和已有食物简图。
+
+| 实页证据 | 核对内容 |
+| --- | --- |
+| [双端实页总览](.codex/food-reference-qa-r3/review.png) | 手机原位展开、唯一生重、餐内搜索和返回草稿，电脑个人食材 |
+| [手机分类对照](.codex/food-reference-qa-r3/compare-categories.png) | 同页展开肉禽与切换水产等类别，「按分类浏览」字号、行高和标题框保持一致 |
+| [手机选择对照](.codex/food-reference-qa-r3/compare-picker.png) | 单层返回按钮与搜索保留，缩略图和名称垂直居中 |
+| [电脑个人食材对照](.codex/food-reference-qa-r3/compare-desktop.png) | 图片贴近食材名称右侧，营养只显示在表格，展开可查看备注、换算依据和来源 |
+| [320 px 生重实页](.codex/food-reference-qa-r3/chromium-320-02-唯一生重.png) | 「生鸡小腿」仅显示一项，完整展示「去皮去骨」与按可食克数 |
+| [选量](.codex/food-reference-qa-r3/webkit-390-05-选量及详情返回.png) · [保存后来源](.codex/food-reference-qa-r3/webkit-390-07-保存后来源.png) | 按只及实称口径、加入本餐、保存后刷新回看 |
+
+主流程覆盖 Chromium 320×667 浅色、WebKit 390×812 深色和 Chromium 1440×1000 深色。手机列表简图为 32 CSS px，五条鸡腿结果实测触控行高均为 46 CSS px，图片与标题垂直中心的偏差低于 0.01 CSS px。桌面个人食材图为 40 CSS px，手机个人食材图为 32 CSS px，两端均与标题居中。已有图示找不到匹配时沿用通用餐盘简图。
+
+### 功能与回归
+
+- 四类展开、收起和切换均保留在同一页，目录计数为肉禽 6、水产 4、米面主食 5、蛋奶豆 2，共 17 项。搜「鸡腿」显示五个熟食规格。明确搜「生鸡腿」「生鸡小腿」或「生重鸡腿」均返回「生鸡腿肉（去皮去骨）」，按可食克数记录。旧生鸡小腿的已保存餐次及已核对预览仍按原快照读取。
+- 在两种手机宽度和电脑视口走通搜索、选一只带皮烤鸡小腿、加入草稿、保存及刷新读回。参考可食部约 60 g、122 千卡。实称 42 g 时显示约 86 千卡。重新打开可核对参考来源 FNDDS 24142500。
+- 详情返回原结果和焦点，加入、取消及找不到食物时回到原本餐草稿。首次验收发现从「更换食材」退出后，焦点需要重新定位到原行菜单，修正后复验返回、焦点和既有食物保留。七组现有 Chromium 餐内录入回归另行通过，覆盖两种主题、320/390/1440 CSS px 和 320×560 短屏。
+- HTTP 与本地 MCP 验证候选、个人食材字段兼容、公用换算、确认边界与幂等。生产构建和 typecheck 通过。Lint 有一条既有警告，0 错误。完整测试最终 862 通过、2 项按默认配置跳过，另用原生 PostgreSQL 运行这 2 项并通过。首次完整运行遇到一个 OAuth 并发用例的时序失败，单独重跑与最终完整重跑均通过。
+- 实体手机及站内助手、ChatGPT、豆包的真实对话留待验收。对话试用可说「我今天吃了鸡腿」，查看助手是否询问实际分量和做法，再试「按生重记，去皮去骨的鸡小腿肉 100 克」。
+
+`final result: passed`

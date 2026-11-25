@@ -42,8 +42,10 @@ export function FoodTable({ foods, edit }: { foods: FoodView[]; edit: (food: Foo
             <tr data-food-expanded={open || undefined}>
               <th scope="row" className={styles.rowName}>
                 <div className={styles.rowTitle}>
-                  <span className={styles.personalThumb}><FoodArt illustration={personalFoodIllustration(food)}/></span>
-                  <strong>{food.name}</strong>
+                  <div className={styles.foodLabel}>
+                    <strong>{food.name}</strong>
+                    <span className={styles.personalThumb}><FoodArt illustration={personalFoodIllustration(food)}/></span>
+                  </div>
                   <small className={styles.mobileBasis}>（{basis}）</small>
                 </div>
               </th>
@@ -83,15 +85,11 @@ export function FoodTable({ foods, edit }: { foods: FoodView[]; edit: (food: Foo
 }
 
 function FoodDetails({ food }: { food: FoodDraft }) {
-  const { basis, conversion } = foodPortion(food);
+  const { conversion } = foodPortion(food);
   const description = [food.brand, foodSpecification(food.preparation)].filter(Boolean).join(" · ");
   return <section className={styles.foodInformation} aria-label="食材详情">
-    <div className={styles.personalDetail}>
-      <FoodArt illustration={personalFoodIllustration(food)} detail/>
-      <div><h3>{food.name}</h3>{description && <p>{description}</p>}</div>
-    </div>
-    <p>{[basis, conversion, sourceLabels[food.sourceKind]].filter(Boolean).join(" · ")}</p>
-    <MealEntryReadings nutrition={food.nutrition}/>
+    {description && <p>{description}</p>}
+    <p>{[conversion, sourceLabels[food.sourceKind]].filter(Boolean).join(" · ")}</p>
     {food.basis && <p>{food.basis}</p>}
     {food.evidenceUrl && <a href={food.evidenceUrl} target="_blank" rel="noreferrer">查看来源 ↗</a>}
     <ImageGallery ids={food.imageIds}/>

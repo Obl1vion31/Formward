@@ -2,15 +2,15 @@
 import {createContext,useCallback,useContext,useLayoutEffect,useRef,type ReactNode} from 'react';
 import {createPortal} from 'react-dom';
 import type {InspectorProps} from './inspector';
-import {DraftGuardContext,DraftCloseContext,InspectorBusyContext,type DraftState} from './draft-guard';
+import {DraftGuardContext,DraftCloseContext,InspectorBusyContext,InspectorStepContext,type DraftState,type InspectorStep} from './draft-guard';
 export type EntryMetadata=Omit<InspectorProps,'children'|'routeEntry'|'header'> & {customHeader:boolean};
-export type EntryGuards={busy:boolean;register:(state:DraftState)=>()=>void;close:()=>void};
+export type EntryGuards={busy:boolean;register:(state:DraftState)=>()=>void;close:()=>void;step:((step:InspectorStep)=>()=>void)|null};
 export const EntrySurfaceContext=createContext<{active:boolean;slot:HTMLElement|null;headerSlot:HTMLElement|null;guards:EntryGuards|null;register:(meta:EntryMetadata)=>()=>void;reportFailure:(reset:()=>void)=>void}>({active:false,slot:null,headerSlot:null,guards:null,register:()=>()=>{},reportFailure:()=>{}});
 export function RouteEntryContent(props:InspectorProps){
  const host=useContext(EntrySurfaceContext),latest=useRef(props),{register}=host;
  useLayoutEffect(()=>{latest.current=props;},[props]);
  const close=useCallback(()=>latest.current.close(),[]);
  useLayoutEffect(()=>register({title:props.title,titleParts:props.titleParts,stableScroll:props.stableScroll,wide:props.wide,busy:props.busy,compact:props.compact,fitContent:props.fitContent,className:props.className,close,closeLabel:props.closeLabel,onCloseReady:props.onCloseReady,onSavedCloseReady:props.onSavedCloseReady,customHeader:!!props.header}),[register,close,props.title,props.titleParts,props.stableScroll,props.wide,props.busy,props.compact,props.fitContent,props.className,props.closeLabel,props.onCloseReady,props.onSavedCloseReady,props.header]);
- const protect=(content:ReactNode)=>host.guards?<InspectorBusyContext value={host.guards.busy}><DraftGuardContext value={host.guards.register}><DraftCloseContext value={host.guards.close}>{content}</DraftCloseContext></DraftGuardContext></InspectorBusyContext>:content;
+ const protect=(content:ReactNode)=>host.guards?<InspectorBusyContext value={host.guards.busy}><DraftGuardContext value={host.guards.register}><DraftCloseContext value={host.guards.close}><InspectorStepContext value={host.guards.step}>{content}</InspectorStepContext></DraftCloseContext></DraftGuardContext></InspectorBusyContext>:content;
  return <>{host.slot&&createPortal(protect(props.children),host.slot)}{host.headerSlot&&props.header&&createPortal(protect(props.header),host.headerSlot)}</>;
 }

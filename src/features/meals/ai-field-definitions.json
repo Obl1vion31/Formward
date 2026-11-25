@@ -28,7 +28,7 @@
     "foods.*.baseQuantity": "该库项nutrition对应的基准量，单位为该项unit，不是用户实际吃下的量。",
     "foods.*.nutrition": "食材库基准量的营养，不是本次实际摄入；按实际quantity和单位由服务端换算。",
     "foods.*.servingQuantity": "一份可靠包装单位对应的基准数量；缺少规格时不能猜一包重量。",
-    "referenceFoods": "公共参考规格候选。逐条核对部位、生熟、做法与皮骨。",
+    "referenceFoods": "公共参考规格候选。常用鸡腿搜索返回熟食，明确查询生鸡腿才匹配去皮去骨生重规格。逐条核对部位、做法与皮骨。",
     "referenceFoods.*.id": "与同一规格的version一起用于referenceFood引用。",
     "referenceFoods.*.nutrition": "每100 g可食部的营养，由服务器按用户实际食量换算。",
     "referenceFoods.*.portions": "可选参考份量。按只、个、杯传对应portionId，按可食克数不传。",

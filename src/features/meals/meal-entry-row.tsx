@@ -68,10 +68,10 @@ export function MealEntryRow({
     });
   }
 
-  return <li className={styles.entryRow} data-meal-row data-blank-row={blank || undefined}
+  return <li className={styles.entryRow} data-meal-row data-meal-row-key={item.editor.key} data-blank-row={blank || undefined}
     data-nutrition-basis={food ? "food_library" : "consumed_total"} data-nutrition-collapsed={!nutritionOpen || undefined}>
     <div className={food ? styles.rowName : styles.rowName + " " + styles.compactField}>
-      {food ? <strong>{food.name}</strong> : <input value={item.name}
+      {food ? <strong>{food.name}</strong> : <input data-meal-name value={item.name}
         aria-label={blank ? "自由填写食物名称" : "食物名称 " + number} placeholder="食物名称" maxLength={200}
         onKeyDown={finishField} onChange={event => update({ ...item, name: event.target.value })}/>}
       {!blank && !item.name.trim() && <small role="status" className={styles.fieldIssue}>请填写食物名称</small>}

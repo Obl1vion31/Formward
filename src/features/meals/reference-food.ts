@@ -57,6 +57,10 @@ export function referenceNutrition(food: ReferenceFood, quantity: string | null,
   return { edibleGrams, nutrition };
 }
 
+export function referenceFoodName(food: ReferenceFood) {
+  return food.id === "chicken-leg-raw-skinless" ? food.name + "（去皮去骨）" : food.name;
+}
+
 export function referencePortionName(quantity: string | null | undefined, unit: string | null | undefined) {
   if (quantity == null) return "份量未知";
   if (Number(quantity) === 0.5 && /^(只|个|杯)$/.test(unit ?? "")) return "半" + unit;

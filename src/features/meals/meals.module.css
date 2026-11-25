@@ -307,13 +307,15 @@
 .foodTable :is(th, td):last-child { padding-inline-end: 0; }
 .foodTable .amountHeading { width: 16%; }
 .foodTable .actionHeading { width: 128px; }
-.rowTitle strong, .mobileBasis, .rowAmount, .foodTable td[data-food-metric] {
+.mobileBasis, .rowAmount, .foodTable td[data-food-metric] {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.rowTitle strong { display: block; font-size: 15px; font-weight: 500; line-height: 1.6; }
+.foodLabel { display: flex; align-items: center; min-width: 0; gap: 10px; }
+.foodLabel strong { min-width: 0; font-size: 15px; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
+.foodLabel .personalThumb { --food-art-edge: 40px; display: inline-flex; }
 .mobileBasis, .rowMetricLabel, .rowMetricUnit {
   display: none;
   color: var(--muted);
@@ -325,17 +327,15 @@
 .personalDetail { display: flex; align-items: center; min-width: 0; gap: 10px; }
 .personalDetail > div { min-width: 0; }
 @media (max-width: 700px), (pointer: coarse) {
-  .personalThumb { display: inline-flex; }
+  .personalThumb { --food-art-edge: 32px; display: inline-flex; }
 }
 .foodRowActions { display: flex; justify-content: flex-end; gap: 4px; }
 .foodRowActions svg { flex: none; }
 .foodTable [data-food-expanded] > :is(th, td) { border-bottom-color: transparent; }
 .foodTable .foodExpanded > td { text-align: left; padding: 0 0 12px; }
 .foodInformation { min-width: 0; font-size: .875rem; line-height: 1.6; overflow-wrap: anywhere; }
-.foodInformation h3 { margin: 0 0 6px; font-size: 15px; font-weight: 500; }
-.foodInformation p { margin: 0 0 8px; color: var(--muted); }
-.foodInformation dl { margin: 8px 0; }
-.foodInformation dd > span { font-size: inherit; font-weight: 400; }
+.foodInformation p { margin: 0; color: var(--muted); }
+.foodInformation p + p { margin-block-start: 4px; }
 .foodInformation a { color: var(--gold); }
 
 @container (width > 700px) {
@@ -355,7 +355,8 @@
   .foodTable :is(th, td) { display: block; min-width: 0; padding: 0; border: 0; text-align: left; }
   .foodTable .rowName { grid-column: 1 / 5; grid-row: 1; contain: inline-size; }
   .rowTitle { display: flex; align-items: center; column-gap: 5px; }
-  .rowTitle strong { white-space: normal; overflow-wrap: anywhere; }
+  .foodLabel { gap: 5px; }
+  .foodLabel .personalThumb { --food-art-edge: 32px; order: -1; }
   .mobileBasis {
     display: block;
     flex: none;

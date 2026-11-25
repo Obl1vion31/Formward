@@ -1,6 +1,6 @@
 import { ApiError } from "../auth/ai-identity";
 import type { Nutrition } from "./model";
-import type { FoodIllustration, ReferenceCatalogResult, ReferenceFamily, ReferenceFood, ReferenceFoodLink, ReferencePortion, ReferenceSource } from "./reference-food";
+import type { FoodIllustration, ReferenceCatalogResult, ReferenceFamily, ReferenceFood, ReferenceFoodLink, ReferencePortion, ReferenceSnapshot, ReferenceSource } from "./reference-food";
 
 const fnddsUrl = "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/";
 const tfdaUrl = "https://data.gov.tw/dataset/8543";
@@ -34,12 +34,7 @@ const foods: readonly ReferenceFood[] = [
   drumstick("drumstick-grilled-skin", "带皮烤鸡小腿", "烤", "吃皮", "grilled-skin", fndds("24142500", "Chicken drumstick, grilled without sauce, skin eaten"), values("204", "22.7", "0", "11.85"), "60"),
   drumstick("drumstick-fried-coated", "裹粉炸鸡小腿", "炸", "吃皮", "fried-drumstick", fndds("24147300", "Chicken drumstick, fried, coated, skin / coating eaten, from raw"), values("241", "19.08", "5.98", "15.07"), "85"),
   {
-    id: "drumstick-raw-edible", version: 1, family: "chicken-leg", name: "生鸡小腿", aliases: ["鸡腿", "棒棒腿", "drumstick"],
-    state: "raw", method: "生", preparation: "肉鸡小腿 · 去骨可食部 · 来源未注明皮况",
-    illustration: "raw-chicken", source: tfda("I0404302", "棒棒腿(肉雞)"), nutrition: values("159", "16.8", "0.3", "9.7"), portions: [],
-  },
-  {
-    id: "chicken-leg-raw-skinless", version: 1, family: "chicken-leg", name: "生鸡腿肉", aliases: ["鸡腿", "鸡腿肉", "chicken leg meat"],
+    id: "chicken-leg-raw-skinless", version: 1, family: "chicken-leg", name: "生鸡腿肉", aliases: ["鸡腿", "鸡腿肉", "鸡小腿", "棒棒腿", "chicken leg meat"],
     state: "raw", method: "生", skin: "去皮", preparation: "肉鸡腿肉 · 去皮去骨",
     illustration: "raw-chicken", source: tfda("I0404501", "去皮去骨雞腿(肉雞)"), nutrition: values("165", "19.8", "0", "8.9"), portions: [],
   },
@@ -105,6 +100,7 @@ const foods: readonly ReferenceFood[] = [
 ];
 
 const foodsById = new Map(foods.map(food => [food.id, food]));
+const retiredVersions = new Map([["drumstick-raw-edible", 1]]);
 const normalize = (value: string) => value.normalize("NFKC").toLowerCase().replace(/[\s·、，,()]+/g, "");
 const aliases = (food: ReferenceFood) => [food.name, ...food.aliases].map(normalize);
 
@@ -112,19 +108,22 @@ const methods: readonly [string, ReferenceFood["method"]][] = [
   ["裹粉炸|油炸|炸", "炸"], ["水煮|白煮|汆煮|煮", "煮"], ["清蒸|蒸", "蒸"], ["油煎|煎", "煎"], ["炖", "炖"], ["烤", "烤"],
 ];
 
-export function searchReferenceFoods(query = "", family?: ReferenceFamily): ReferenceCatalogResult {
+export function searchReferenceFoods(query = "", family?: ReferenceFamily, mode: "browse" | "search" = query.trim() ? "search" : "browse"): ReferenceCatalogResult {
   if (query.length > 200) throw new ApiError(400, "invalid_input", "搜索文字过长。");
   const q = normalize(query);
   const skin = /去皮|不吃皮|无皮/.test(q) ? "去皮" : /带皮|有皮|吃皮/.test(q) ? "吃皮" : undefined;
-  const state = /^生(?!煎|炒)|生重|生$/.test(q) ? "raw" : /^熟|熟制|熟重|熟$/.test(q) ? "cooked" : undefined;
+  const withoutQualifiers = q.replace(/去皮|不吃皮|无皮|带皮|有皮|吃皮|去骨|无骨/g, "");
+  const state = /^生(?!煎|炒)|生重|生$/.test(withoutQualifiers) ? "raw" : /^熟|熟制|熟重|熟$/.test(withoutQualifiers) ? "cooked" : undefined;
+  const allowRawChicken = state === "raw" || (!q && mode === "browse");
   const selectedMethod = methods.find(([pattern]) => new RegExp(pattern).test(q));
   const method = selectedMethod?.[1];
   const edible = /去骨|无骨/.test(q);
-  const base = q.replace(/去皮|不吃皮|无皮|带皮|有皮|吃皮|去骨|无骨|生重|熟制|熟重|^生(?!煎|炒)|^熟|[生熟]$/g, "");
+  const base = withoutQualifiers.replace(/生重|熟制|熟重|^生(?!煎|炒)|^熟|[生熟]$/g, "");
   const rest = selectedMethod ? base.replace(new RegExp(selectedMethod[0], "g"), "") : base;
   const matches = foods.filter(food => {
     if ((family && food.family !== family) || (skin && food.skin !== skin) || (state && food.state !== state) ||
-      (method && food.method !== method) || (edible && !/去骨/.test(food.preparation))) return false;
+      (method && food.method !== method) || (edible && !/去骨/.test(food.preparation)) ||
+      (food.family === "chicken-leg" && food.state === "raw" && !allowRawChicken)) return false;
     const names = aliases(food);
     return names.some(name => name.includes(q)) || !rest || names.some(name => name.includes(rest));
   });
@@ -135,4 +134,11 @@ export function requireCurrentReferenceFood(link: ReferenceFoodLink) {
   const food = foodsById.get(link.id);
   if (!food || food.version !== link.version) throw new ApiError(409, "version_conflict", "参考食材规格已更新，请重新搜索选择。");
   return food;
+}
+
+export function validatePreparedReferenceFood(link: ReferenceFoodLink, snapshot?: ReferenceSnapshot) {
+  // 已经由服务端核对的旧预览可以按原快照确认。新请求仍须引用可选规格。
+  if (retiredVersions.get(link.id) === link.version && snapshot?.food.id === link.id &&
+    snapshot.food.version === link.version && snapshot.portionId === link.portionId) return;
+  requireCurrentReferenceFood(link);
 }

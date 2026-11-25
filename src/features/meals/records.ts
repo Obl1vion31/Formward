@@ -15,7 +15,7 @@ import { localMeasurementDate } from "../measurements/entry-state";
 import { emptyNutrition, metrics, portionNutrition, nutritionFor, operationSchema, sumNutrition, missingMealImages, type FoodDraft, type FoodView, type ItemDraft, type ItemView, type MealAction, type MealInput, type MealOperationView, type MealSnapshot, type MealView, type Nutrition, type PreviewRow } from "./model";
 import { foodDescriptionIssues } from "./food-description";
 import { readMealDayViews, invalidateMealDays } from "./day-status";
-import { requireCurrentReferenceFood } from "./reference-catalog";
+import { requireCurrentReferenceFood, validatePreparedReferenceFood } from "./reference-catalog";
 import { referenceNutrition, type ReferenceFoodLink } from "./reference-food";
 
 export type MealActor = { userId: string; origin: "manual" | "ai" | "initialization"; identity?: AiIdentity; importId?: string };
@@ -356,9 +356,9 @@ export async function decideMealOperation(db: Database, userId: string, id: stri
     for (const row of active) {
       if (row.action.kind !== "save_meal") continue;
       const original = row.before && "items" in row.before ? row.before.items : [];
-      for (const item of row.action.items) {
+      for (const [index, item] of row.action.items.entries()) {
         if (item.referenceFood && !sameReference(original.find(entry => entry.id === item.originalItemId), item.referenceFood)) {
-          requireCurrentReferenceFood(item.referenceFood);
+          validatePreparedReferenceFood(item.referenceFood, row.meal?.items[index]?.referenceSnapshot);
         }
       }
     }

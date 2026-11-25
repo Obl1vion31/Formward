@@ -467,7 +467,7 @@ export async function runMealInline(db) {
         const replaceBox = await replace.boundingBox();
         assert.ok(replaceBox && replaceBox.width < (await menu.boundingBox()).width * .8, name + " 更换食材使用紧凑按钮");
         await replace.click();
-        await picker.getByRole("button", { name: "取消更换", exact: true }).click();
+        await (mobile ? shell : picker).getByRole("button", { name: mobile ? "返回本餐" : "取消更换", exact: true }).click();
         await removeFood(1, "清蒸西兰花").click();
         assert.equal(await form.locator("[data-meal-row]").count(), 1, name + " 在行内移除库选食物后立即更新本餐");
         assert.ok(await removeFood(0, "原味鸡胸肉").isVisible(), name + " 保留另一项");
@@ -711,7 +711,7 @@ export async function runMealInline(db) {
 
         if (mobile) await showLibrary();
         await picker.getByRole("button", { name: "全部", exact: true }).click();
-        await picker.getByLabel("搜索食材", { exact: true }).fill(packagedName);
+        await picker.getByRole("searchbox", { name: "搜索食材", exact: true }).fill(packagedName);
         if (mobile) {
           await action("checkbox", "选择 " + packagedName).check();
           await form.getByRole("button", { name: "加入本餐", exact: true }).click();
@@ -736,7 +736,7 @@ export async function runMealInline(db) {
           await note.click();
           if (mobile) {
             await showLibrary();
-            await picker.getByLabel("搜索食材", { exact: true }).fill("找不到的测试名称");
+            await picker.getByRole("searchbox", { name: "搜索食材", exact: true }).fill("找不到的测试名称");
             await picker.getByText("没有匹配的食材", { exact: true }).waitFor();
             await page.keyboard.press("Escape");
             await picker.waitFor({ state: "hidden" });

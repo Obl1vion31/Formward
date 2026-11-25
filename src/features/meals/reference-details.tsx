@@ -5,17 +5,17 @@ import { DecimalInput } from "@/components/decimal-input";
 import { FoodArt } from "./food-art";
 import { MealEntryReadings } from "./meal-entry-readings";
 import { decimal, formatNutrition, type ItemDraft } from "./model";
-import { referenceNutrition, type ReferenceFood } from "./reference-food";
+import { referenceFoodName, referenceNutrition, type ReferenceFood } from "./reference-food";
 import styles from "./reference-library.module.css";
 
 function Preparation({ food }: { food: ReferenceFood }) {
   const state = food.state === "cooked" ? "熟食" : food.method === "干" ? "干重" : "生重";
-  return <p>{state} · {food.preparation}</p>;
+  return <p>{state} · {referenceFoodName(food) === food.name ? food.preparation : "按可食部计量"}</p>;
 }
 
 export function ReferenceDetails({ food, back, onAdd, disabled, headingRef, id }: {
   food: ReferenceFood;
-  back: () => void;
+  back?: () => void;
   onAdd?: (item: ItemDraft, food: ReferenceFood) => void;
   disabled?: boolean;
   headingRef: Ref<HTMLHeadingElement>;
@@ -44,11 +44,11 @@ export function ReferenceDetails({ food, back, onAdd, disabled, headingRef, id }
   }
 
   return <section className={styles.detail} id={id} aria-label="参考食材详情">
-    <button type="button" className={styles.back} onClick={back}>← 返回食材列表</button>
+    {back && <button type="button" className={styles.back} onClick={back}>← 返回食材列表</button>}
     <div className={styles.figureHeader}>
       <FoodArt illustration={food.illustration} detail/>
       <div>
-        <h3 tabIndex={-1} ref={headingRef}>{food.name}</h3>
+        <h3 tabIndex={-1} ref={headingRef}>{referenceFoodName(food)}</h3>
         <Preparation food={food}/>
       </div>
     </div>

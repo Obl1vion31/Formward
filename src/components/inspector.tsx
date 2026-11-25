@@ -7,7 +7,7 @@ import {observeInputViewport, revealFocusedInput} from "./input-viewport";
 import {confirmAction} from "./confirmation-state";
 import {lockPageScroll} from "./scroll-lock";
 import {useBackdropDismiss} from "./use-backdrop-dismiss";
-import {pageRefreshApproved,InspectorBusyContext,DraftGuardContext,DraftCloseContext,type DraftState} from "./draft-guard";
+import {pageRefreshApproved,InspectorBusyContext,InspectorStepContext,DraftGuardContext,DraftCloseContext,type DraftState,type InspectorStep} from "./draft-guard";
 import styles from "./inspector.module.css";
 export type InspectorProps={assistant?:boolean;closeLabel?:string;title:string;titleParts?:string[];backAction?:{label:string;run:()=>void};stableScroll?:boolean;close:()=>void;busy?:boolean;beforeClose?:()=>Promise<boolean>;children:ReactNode;wide?:boolean;compact?:boolean;fitContent?:boolean;motionDuration?:number;header?:ReactNode;className?:string;onCloseReady?:(close:()=>void)=>void;onSavedCloseReady?:(close:()=>Promise<void>)=>void;routeEntry?:boolean};
 export function Inspector(props:InspectorProps){const entry=useContext(EntrySurfaceContext);return props.routeEntry&&entry.active?<RouteEntryContent {...props}/>:<InspectorSurface {...props}/>;}
@@ -15,6 +15,11 @@ function InspectorSurface({title,titleParts,backAction,stableScroll=false,close,
  const titleId=useId(),ref=useRef<HTMLDialogElement>(null),headingRef=useRef<HTMLDivElement>(null),drafts=useRef(new Map<symbol,DraftState>()),[closing,setClosing]=useState(false),callback=useRef(close),before=useRef(beforeClose),closePending=useRef(false),[expanded,setExpanded]=useState(!stableScroll),gesture=useRef<{y:number;delta:number;start:number}|null>(null),suppressHandle=useRef(0);
  useLayoutEffect(()=>{callback.current=close;before.current=beforeClose;},[close,beforeClose]);
  const [childBusy,setChildBusy]=useState(false),blocked=busy||childBusy;
+ const [step,setStep]=useState<InspectorStep|null>(null),activeStep=useRef<InspectorStep|null>(null);
+ const registerStep=useCallback((next:InspectorStep)=>{
+  activeStep.current=next;setStep(next);
+  return()=>{if(activeStep.current===next){activeStep.current=null;setStep(null);}};
+ },[]);
  const register=useCallback((state:DraftState)=>{const id=Symbol();drafts.current.set(id,state);setChildBusy([...drafts.current.values()].some(s=>s.busy));return()=>{drafts.current.delete(id);setChildBusy([...drafts.current.values()].some(s=>s.busy));};},[]);
  useLayoutEffect(()=>{
   const node=ref.current!;
@@ -75,6 +80,7 @@ function InspectorSurface({title,titleParts,backAction,stableScroll=false,close,
  useEffect(()=>{const protect=(e:BeforeUnloadEvent)=>{if(!pageRefreshApproved()&&[...drafts.current.values()].some(s=>s.dirty)){e.preventDefault();e.returnValue="";}};window.addEventListener("beforeunload",protect);return()=>window.removeEventListener("beforeunload",protect);},[]);
  const requestClose=useCallback(async(saved=false)=>{
   if(closing||closePending.current||!saved&&(blocked||[...drafts.current.values()].some(s=>s.busy)))return;
+  if(!saved&&activeStep.current){activeStep.current.back();return;}
   closePending.current=true;
   try{
    if(!saved&&[...drafts.current.values()].some(s=>s.dirty)&&!await confirmAction({title:'放弃尚未保存的输入？',message:'关闭会放弃本次尚未提交的修改。',confirmLabel:'放弃修改',cancelLabel:'继续编辑'}))return;
@@ -113,10 +119,10 @@ function InspectorSurface({title,titleParts,backAction,stableScroll=false,close,
  };
  const backdrop=useBackdropDismiss(()=>{void requestClose();});
  return <dialog {...backdrop} ref={ref} className={(className??(styles.drawer+" "+(wide?styles.wide:"")+" "+(compact?styles.compact:"")))+" "+styles.mobileSheet+(stableScroll?" "+styles.stableScroll:"")} data-assistant-surface={assistant||undefined} data-fit-content={fitContent||undefined} data-sheet-expanded={expanded} data-inspector="" data-closing={closing} aria-label={header?title:undefined} aria-labelledby={header?undefined:titleId} onCancel={e=>{if(e.target!==e.currentTarget)return;e.preventDefault();requestClose();}} onKeyDown={e=>{if(e.key==="Escape"){e.stopPropagation();return;}if(e.key!=="Tab")return;const nodes=[...e.currentTarget.querySelectorAll<HTMLElement>("button,input,select,textarea,a[href],summary,[tabindex]")].filter(n=>n.tabIndex>=0&&!n.matches(":disabled")&&n.getClientRects().length>0&&!n.closest("[hidden]")&&[...e.currentTarget.querySelectorAll("details:not([open])")].every(d=>!d.contains(n)||d.querySelector(":scope > summary")===n));const first=nodes[0],last=nodes.at(-1);if(e.shiftKey&&(document.activeElement===first||document.activeElement?.getAttribute("tabindex")==="-1")){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}>
- <InspectorBusyContext value={blocked}><DraftGuardContext.Provider value={register}><DraftCloseContext.Provider value={requestClose}>
- <div ref={headingRef} data-inspector-heading className={styles.surfaceHeading} {...(!fitContent && drag)}>{!fitContent&&<span className={styles.dragIndicator} aria-hidden="true"/>}{!fitContent&&<button type="button" className={styles.sheetHandle} aria-label={expanded?"收起到半屏":"展开详情"} aria-expanded={expanded} disabled={blocked||closing} onClick={()=>{if(performance.now()>suppressHandle.current)setExpanded(value=>!value);}}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d={expanded?"m7 10 5 5 5-5":"m7 14 5-5 5 5"}/></svg></button>}{header??<div className={styles.heading}>{backAction&&<button type="button" aria-label={backAction.label} disabled={blocked} onClick={backAction.run}>←</button>}<h2 id={titleId} className={titleParts?styles.titleParts:undefined}>{titleParts?titleParts.map((part,index)=><span key={index}>{index>0?" · ":""}{part}</span>):title}</h2><button type="button" aria-label={closeLabel} disabled={blocked} onClick={()=>void requestClose()}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>}</div>
+ <InspectorBusyContext value={blocked}><DraftGuardContext.Provider value={register}><DraftCloseContext.Provider value={requestClose}><InspectorStepContext value={registerStep}>
+ <div ref={headingRef} data-inspector-heading data-inspector-step={!!step||undefined} className={styles.surfaceHeading} {...(!fitContent && drag)}>{!fitContent&&<span className={styles.dragIndicator} aria-hidden="true"/>}{!fitContent&&!step&&<button type="button" className={styles.sheetHandle} aria-label={expanded?"收起到半屏":"展开详情"} aria-expanded={expanded} disabled={blocked||closing} onClick={()=>{if(performance.now()>suppressHandle.current)setExpanded(value=>!value);}}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d={expanded?"m7 10 5 5 5-5":"m7 14 5-5 5 5"}/></svg></button>}{header??<div className={styles.heading}>{step?<button type="button" className={styles.stepBack} aria-label={"返回"+step.backTo} disabled={blocked} onClick={step.back}><span aria-hidden="true">←</span>{step.backTo}</button>:backAction&&<button type="button" aria-label={backAction.label} disabled={blocked} onClick={backAction.run}>←</button>}<h2 id={titleId} data-inspector-step-title={!!step||undefined} tabIndex={step?-1:undefined} className={!step&&titleParts?styles.titleParts:undefined}>{step?step.title:titleParts?titleParts.map((part,index)=><span key={index}>{index>0?" · ":""}{part}</span>):title}</h2>{!step&&<button type="button" aria-label={closeLabel} disabled={blocked} onClick={()=>void requestClose()}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>}</div>}</div>
  {header?children:<div className={styles.content+(titleParts?" "+styles.titledContent:"")}>{children}</div>}
- </DraftCloseContext.Provider></DraftGuardContext.Provider></InspectorBusyContext></dialog>;
+ </InspectorStepContext></DraftCloseContext.Provider></DraftGuardContext.Provider></InspectorBusyContext></dialog>;
 
 }
 

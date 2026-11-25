@@ -4,7 +4,7 @@ import {useRouter} from 'next/navigation';
 import {useCallback,useContext,useEffect,useLayoutEffect,useMemo,useRef,useState,type ReactNode} from 'react';
 import {Inspector} from './inspector';
 import {EntrySurfaceContext,type EntryMetadata,type EntryGuards} from './entry-surface-state';
-import {DraftGuardContext,DraftCloseContext,InspectorBusyContext} from './draft-guard';
+import {DraftGuardContext,DraftCloseContext,InspectorBusyContext,InspectorStepContext} from './draft-guard';
 import {MealEditor} from "@/features/meals/meal-editor";
 import {MeasurementEntry,MeasurementEntryHeader} from "@/features/measurements/measurement-entry";
 import {localMeasurementDate} from "@/features/measurements/entry-state";
@@ -38,7 +38,7 @@ export function EntrySurface({children,path,query}:{children:ReactNode;path:stri
   <CaptureGuards change={setGuards}/><div ref={setSlot} data-entry-surface-slot>{!meta&&seen!==key&&<PendingFields key={key} path={path} date={query.get('date')} period={entry==="evening"?"evening":"daytime"} failed={failure?.key===key} retry={()=>{if(failure?.key===key)failure.reset();else router.refresh();setFailure(null);}}/>}</div>
  </Inspector>}</EntrySurfaceContext>;
 }
-function CaptureGuards({change}:{change:(value:EntryGuards|null)=>void}){const register=useContext(DraftGuardContext),close=useContext(DraftCloseContext),busy=useContext(InspectorBusyContext);useLayoutEffect(()=>{if(register&&close)change({register,close,busy});return()=>change(null);},[register,close,busy,change]);return null;}
+function CaptureGuards({change}:{change:(value:EntryGuards|null)=>void}){const register=useContext(DraftGuardContext),close=useContext(DraftCloseContext),busy=useContext(InspectorBusyContext),step=useContext(InspectorStepContext);useLayoutEffect(()=>{if(register&&close)change({register,close,busy,step});return()=>change(null);},[register,close,busy,step,change]);return null;}
 function PendingFields({path,date,period,failed,retry}:{path:string;date:string|null;period:"daytime"|"evening";failed:boolean;retry:()=>void}){
  const sourcePilot=useContext(WorkspaceSourceContext);
  const[slow,setSlow]=useState(false),[attempt,setAttempt]=useState(0);useEffect(()=>{const timer=setTimeout(()=>setSlow(true),8000);return()=>clearTimeout(timer);},[attempt]);

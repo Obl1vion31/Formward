@@ -11,8 +11,8 @@ import { queryFoods } from "./ai-api";
 import { mealPreviewOperation, previewMeal } from "./ai-preview";
 import { emptyNutrition, type ItemDraft, type MealAction } from "./model";
 import { decideMealOperation, prepareMealActions, readMealSnapshot, submitMealOperation } from "./records";
-import { requireCurrentReferenceFood, searchReferenceFoods } from "./reference-catalog";
-import { referenceNutrition, referenceSections } from "./reference-food";
+import { requireCurrentReferenceFood, searchReferenceFoods, validatePreparedReferenceFood } from "./reference-catalog";
+import { referenceFoodName, referenceNutrition, referenceSections } from "./reference-food";
 
 const leg = requireCurrentReferenceFood({ id: "drumstick-stewed-skinless", version: 1 });
 const [medium] = leg.portions;
@@ -24,19 +24,39 @@ function saveMeal(items: ItemDraft[], patch: Partial<Extract<MealAction, { kind:
 
 test("公用目录按部位和形态给出有依据的候选", () => {
   const all = searchReferenceFoods();
-  assert.equal(all.total, 18);
-  assert.equal(new Set(all.referenceFoods.map(food => food.id)).size, 18);
+  assert.equal(all.total, 17);
+  assert.equal(new Set(all.referenceFoods.map(food => food.id)).size, 17);
   const families = referenceSections.flatMap(section => section.families.map(family => family.id));
-  assert.deepEqual(families.map(family => searchReferenceFoods("", family).matches), [7, 4, 2, 3, 2]);
+  assert.deepEqual(families.map(family => searchReferenceFoods("", family).matches), [6, 4, 2, 3, 2]);
   const chicken = searchReferenceFoods("鸡腿").referenceFoods;
-  assert.deepEqual(chicken.map(food => food.source.recordId), ["24143220", "24143210", "24142501", "24142500", "24147300", "I0404302", "I0404501"]);
-  assert.deepEqual(chicken.map(food => food.state), ["cooked", "cooked", "cooked", "cooked", "cooked", "raw", "raw"]);
-  assert.deepEqual(searchReferenceFoods("鸡腿 熟").referenceFoods, chicken.slice(0, 5));
-  assert.deepEqual(searchReferenceFoods("生重鸡腿").referenceFoods, chicken.slice(5));
+  assert.deepEqual(chicken.map(food => food.source.recordId), ["24143220", "24143210", "24142501", "24142500", "24147300"]);
+  assert.ok(chicken.every(food => food.state === "cooked"));
+  assert.deepEqual(searchReferenceFoods("鸡腿 熟").referenceFoods, chicken);
+  const raw = requireCurrentReferenceFood({ id: "chicken-leg-raw-skinless", version: 1 });
+  assert.equal(referenceFoodName(raw), "生鸡腿肉（去皮去骨）");
+  assert.equal(raw.source.recordId, "I0404501");
+  for (const query of ["生鸡腿", "生鸡小腿", "生重鸡腿", "去皮去骨生鸡腿"]) {
+    assert.deepEqual(searchReferenceFoods(query).referenceFoods, [raw]);
+  }
+  assert.equal(searchReferenceFoods("带皮生鸡腿").matches, 0);
+  assert.equal(searchReferenceFoods("带骨生鸡腿").matches, 0);
+  assert.equal(referenceNutrition(raw, "100").nutrition.caloriesKcal, "165.0000");
+  assert.equal(referenceNutrition(chicken[3], "1", chicken[3].portions[0].id).nutrition.caloriesKcal, "122.4000");
+  assert.ok(!searchReferenceFoods("", undefined, "search").referenceFoods.includes(raw));
   assert.deepEqual(searchReferenceFoods("去皮炖鸡腿").referenceFoods, [leg]);
   assert.equal(searchReferenceFoods("香茅焖鸡腿").matches, 0);
   assert.equal(searchReferenceFoods("带骨鸡腿").matches, 0);
   assert.equal(searchReferenceFoods("清蒸罗非鱼").referenceFoods[0].id, "tilapia-steamed");
+});
+
+test("已核对的下架规格按原快照确认，新选材提示重新选择", () => {
+  const retired = { id: "drumstick-raw-edible", version: 1 };
+  const retained = { ...leg, ...retired, name: "生鸡小腿", state: "raw", method: "生", portions: [] } as const;
+  const snapshot = { food: retained, edibleGrams: "100.0000" };
+  assert.throws(() => requireCurrentReferenceFood(retired), /重新搜索选择/);
+  assert.throws(() => validatePreparedReferenceFood(retired), /重新搜索选择/);
+  assert.throws(() => validatePreparedReferenceFood(retired, { ...snapshot, food: leg }), /重新搜索选择/);
+  assert.doesNotThrow(() => validatePreparedReferenceFood(retired, snapshot));
 });
 
 test("计件食量使用原表独立换算，实称直接使用可食克数，未知保留", () => {
@@ -71,6 +91,9 @@ test("网页与 AI 共用份量校验，确认后只保存服务端来源及可�
     assert.equal(typeof own.foodLibraryRules, "string");
     assert.deepEqual(other.foods, []);
     assert.deepEqual(own.referenceFoods, other.referenceFoods);
+    assert.equal(own.referenceFoods.length, 5);
+    assert.ok(own.referenceFoods.every(food => food.state === "cooked"));
+    assert.deepEqual((await queryFoods(db, userId, "生鸡小腿")).referenceFoods.map(food => food.id), ["chicken-leg-raw-skinless"]);
 
     const fromWeb: ItemDraft = { kind: "food", name: leg.name, quantity: "0.5", unit: "只", sourceKind: "composition_table", referenceFood };
     const initial = await readMealSnapshot(db, userId);
@@ -100,11 +123,13 @@ test("网页与 AI 共用份量校验，确认后只保存服务端来源及可�
     });
     assert.equal(crossAccount.canConfirm, false);
 
-    const historical = { ...leg, version: 2, nutrition: { ...leg.nutrition, caloriesKcal: "140" } };
+    const historical = { ...leg, id: "drumstick-raw-edible", version: 1, name: "生鸡小腿", state: "raw", method: "生",
+      portions: [], nutrition: { ...leg.nutrition, caloriesKcal: "159" }, source: { ...leg.source, recordId: "I0404302" } } as const;
     assert.ok(item.id);
-    await db.update(schema.mealItem).set({ referenceSnapshot: { food: historical, portionId: medium.id, edibleGrams: "27.5000" }, caloriesKcal: "38.5000" })
+    await db.update(schema.mealItem).set({ referenceSnapshot: { food: historical, edibleGrams: "100.0000" },
+      quantity: "100", unit: "g", caloriesKcal: "159.0000" })
       .where(eq(schema.mealItem.id, item.id));
-    const staleReference = { ...fromWeb, referenceFood: { ...referenceFood, version: historical.version } };
+    const staleReference = { ...fromWeb, quantity: "100", unit: "g", referenceFood: { id: historical.id, version: historical.version } };
     const updated = await submitMealOperation(db, actor, {
       operationId: randomUUID(),
       actions: [saveMeal([{ ...staleReference, originalItemId: item.id }], { id: saved.id, version: saved.version, notes: "修改历史餐次备注" })],
@@ -112,9 +137,10 @@ test("网页与 AI 共用份量校验，确认后只保存服务端来源及可�
     assert.equal(updated.canConfirm, true);
     await decideMealOperation(db, userId, updated.id, updated.revision, "confirm");
     const [revised] = (await readMealSnapshot(db, userId)).meals;
-    assert.equal(revised.items[0].nutrition.caloriesKcal, "38.5000");
+    assert.equal(revised.items[0].nutrition.caloriesKcal, "159.0000");
+    assert.equal(revised.items[0].referenceSnapshot?.food.source.recordId, "I0404302");
     assert.equal(revised.items[0].referenceSnapshot?.food.version, historical.version);
-    for (const invalid of [staleReference, { ...fromWeb, unit: "碗" }, { ...fromWeb, referenceFood: { ...referenceFood, portionId: "fictional-portion" } }]) {
+    for (const invalid of [staleReference, { ...fromWeb, referenceFood: { ...referenceFood, version: 2 } }, { ...fromWeb, unit: "碗" }, { ...fromWeb, referenceFood: { ...referenceFood, portionId: "fictional-portion" } }]) {
       const [row] = prepareMealActions({ operationId: randomUUID(), actions: [saveMeal([invalid])] }, initial, "manual");
       assert.ok(row.error);
     }

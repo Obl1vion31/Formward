@@ -10,7 +10,7 @@ import { foodLibraryRules } from "./food-description";
 import { boundedQueryPage } from "../records/ai-query";
 import { mealStatistics } from "../records/ai-statistics";
 export async function queryFoods(db: Database, userId: string, query = "") {
-  const { referenceFoods } = searchReferenceFoods(query);
+  const { referenceFoods } = searchReferenceFoods(query, undefined, "search");
   return { foods: await searchFoods(db, userId, query), presets: [] as import("./model").FoodDraft[], referenceFoods, foodLibraryRules };
 }
 export async function queryMeals(db: Database, userId: string, params: URLSearchParams) {
