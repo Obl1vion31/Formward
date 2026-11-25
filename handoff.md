@@ -1,6 +1,6 @@
 # Formward 项目交接
 
-正式站运行 `dual-entry-53c6ee57-mobile-workspace-centering-20261121`，源码 `53c6ee574047ee1864f9ca289753497e834b2fde`，BUILD_ID `u0oKTX33lJPR99OhNCNuz`。北京时间 2026-11-21 02:40:59 切换。手机工作区同中线，饮食食材库按 348 CSS px 可用宽度适配，聊天／待办选中底片四边各留 3 CSS px。 [部署与公网核对](docs/deployment.md#当前正式版本) · [视觉验收](design-qa.md)
+正式站运行 `dual-entry-3b854bbd-return-motion-20261125`，源码 `3b854bbdadfad2d398f8e0d6fe2cdf21cf4e3396`，BUILD_ID `VBmcctCSZYUeB6jXqaeCm`。北京时间 2026-11-25 13:56:27 切换。食材库在营养卡右缘，展开营养时分隔线接齐挂签底边。饮食及餐内选材分别回到原页面或草稿，共用录入和确认回执按来源返回。 [部署与公网核对](docs/deployment.md#当前正式版本) · [视觉验收](design-qa.md)
 
 ## 当前能力
 

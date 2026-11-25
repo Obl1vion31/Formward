@@ -2,6 +2,16 @@
 
 ## 当前正式版本
 
+网页与聊天 worker 运行 `dual-entry-3b854bbd-return-motion-20261125`，源码 `3b854bbdadfad2d398f8e0d6fe2cdf21cf4e3396`，BUILD_ID `VBmcctCSZYUeB6jXqaeCm`。北京时间 2026-11-25 13:56:27 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+
+营养详情展开后，分隔线贯穿整张统计卡并接齐食材库挂签底边。食材库、快捷录入、设置和确认回执按来源返回，恢复相应的日期、滚动、焦点及未提交草稿。Chromium 和 WebKit 从与正式归档摘要一致的运行包各完成28组操作，共采样1090帧，固定部件最大偏差0 CSS px。实体 iPhone Safari 未测。 [实页验收](../design-qa.md)
+
+四个公网域名和兼容 IP 返回同版。登录回程、公开协议、匿名权限及新旧 CSS／JS 已核对，海外网关沿用原 iad1 部署，旧域名的隐私页与原网关归档一致。保留56项 Server Action 的绑定密钥与编号和2416项旧静态资源。
+
+数据库使用 `0047_meal_food_groups`，共47项迁移和67张表。备份 `formward-primary-20261125T055623648963Z.dump.json` 通过原生校验及异地回读。运行包大小88,631,892字节，SHA-256 `688072da7f29b0aef08306ad01d4921489533134c0689c1cd566fe722d89b37d`，归档在 `.codex/backups/regional-releases/return-motion-20261125`。兼容回退为 `nutrition-card-food-library-20261124`。
+
+## 饮食统计卡与食材库发布记录
+
 网页与聊天 worker 运行同版 `dual-entry-707d458e-nutrition-card-food-library-20261124`，源码 `707d458e54935e559df12ec10921b9d957788a5c`，BUILD_ID `YR5kG_MPikHjdkt4VeeyQ`。北京时间 2026-11-24 00:01:22 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
 
 饮食页手机和电脑将独立食材库挂签到营养统计卡右缘。手机展开显示全宽三列读数，图表与记录恢复公共工作区宽度。Chromium 与 WebKit 从准确运行包解包验收，覆盖两种主题的手机与桌面操作及慢加载。实体 iPhone 未测。
