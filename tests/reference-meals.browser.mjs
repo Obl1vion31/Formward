@@ -143,9 +143,16 @@ try {
   await page.goto(base.origin + "/dashboard/meals", { waitUntil: "domcontentloaded" });
   await page.getByText("隔离测试 · 虚构数据", { exact: true }).waitFor();
   await day.waitFor();
+  await page.waitForLoadState("load");
   await pause(1000);
   await click(button(day, "编辑"));
-  await click(button(dialog, "添加一餐"));
+  const addMeal = button(dialog, "添加一餐");
+  // The server-rendered day button can appear before hydration on a cold launch.
+  try { await addMeal.waitFor({ timeout: 2000 }); }
+  catch {
+    if (!(await dialog.isVisible())) await click(button(day, "编辑"));
+  }
+  await click(addMeal);
   await dialog.getByLabel("餐次", { exact: true }).fill(qaName);
   await pause();
 
@@ -320,7 +327,8 @@ try {
   if (!pace) {
     await page.goto(base.origin + "/dashboard/meals?section=foods");
     const library = page.locator('[data-reference-library]:not([data-reference-picker]):visible');
-      await library.getByRole("searchbox", { name: "搜索食材" }).fill(tomato);
+    await library.getByText(/165 个参考规格/).waitFor();
+    await library.getByRole("searchbox", { name: "搜索食材" }).fill(tomato);
     await button(library, tomato + "详情").click();
     const independent = library.getByRole("region", { name: "参考食材详情" });
     await heading(independent, tomato).waitFor();
