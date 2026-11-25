@@ -82,7 +82,7 @@ test("错误密码、不存在账号和无效输入不会创建会话", async ()
 });
 
 test("账号创建支持重复和并发请求，既不重复记录也不重置密码", async () => {
-  const input = { email: "duplicate@example.test", password: "fictional-original-password" };
+  const input = { email: "duplicate@example.test", password: "123456" };
   const results = await Promise.all([provisionAccount(db, input), provisionAccount(db, { ...input, email: " DUPLICATE@EXAMPLE.TEST " })]);
   assert.equal(results.filter((result) => result.created).length, 1);
   assert.equal(results[0].id, results[1].id);
