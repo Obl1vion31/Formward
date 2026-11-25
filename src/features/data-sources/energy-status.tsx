@@ -9,7 +9,7 @@ import type { ConnectionView } from "./model";
 import styles from "./sources.module.css";
 import {WorkspaceRefreshingContext} from "@/features/dashboard/workspace-cache-context";
 
-export function EnergySourceStatusSkeleton(){return <div className={styles.syncBar} data-energy-source-status><span>设备与数据来源</span><LoadingLink href="/dashboard/sources">设备与数据来源 <span aria-hidden="true">→</span></LoadingLink></div>;}
+export function EnergySourceStatusSkeleton(){return <div className={styles.syncBar} data-energy-source-status><span>设备与数据来源</span><LoadingLink returnScope="workspace" href="/dashboard/sources">设备与数据来源 <span aria-hidden="true">→</span></LoadingLink></div>;}
 
 export function EnergySourceStatus({ initial, steps, protectedDay }: { initial: ConnectionView | null; steps: number | null; protectedDay: boolean }) {
   const refreshing=useContext(WorkspaceRefreshingContext);
@@ -37,5 +37,5 @@ export function EnergySourceStatus({ initial, steps, protectedDay }: { initial: 
     return () => { document.removeEventListener("visibilitychange", update); window.removeEventListener("focus", update); };
   }, [connection?.status, initial?.lastAttemptAt, router,refreshing]);
   const state = working ? "正在同步…" : connection?.status === "paused" ? "同步已暂停" : connection?.error ? "同步未完成" : connection?.lastSuccessAt ? "同步 " + new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(connection.lastSuccessAt)) : "连接设备";
-  return <div className={styles.syncBar} data-energy-source-status><span>{[steps===null?null:new Intl.NumberFormat("zh-CN").format(steps)+" 步",protectedDay?"手动保留":null].filter(Boolean).join(" · ")}</span>{pendingRefresh ? <button type="button" onClick={() => { if (!draftIsDirty()) { router.refresh(); setPendingRefresh(false); } }}>查看同步更新</button> : <LoadingLink href="/dashboard/sources">{state} <span aria-hidden="true">→</span></LoadingLink>}</div>;
+  return <div className={styles.syncBar} data-energy-source-status><span>{[steps===null?null:new Intl.NumberFormat("zh-CN").format(steps)+" 步",protectedDay?"手动保留":null].filter(Boolean).join(" · ")}</span>{pendingRefresh ? <button type="button" onClick={() => { if (!draftIsDirty()) { router.refresh(); setPendingRefresh(false); } }}>查看同步更新</button> : <LoadingLink returnScope="workspace" href="/dashboard/sources">{state} <span aria-hidden="true">→</span></LoadingLink>}</div>;
 }

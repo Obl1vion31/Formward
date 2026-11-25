@@ -497,3 +497,6 @@ MFA专项使用真实Better Auth插件验证绑定、错误动态码、恢复码
 本餐录入视觉验收使用本地虚构账号。完成生产构建后设置 FORMWARD_MEAL_ENTRY_REVIEW=1、FORMWARD_MEAL_INLINE=1、FORMWARD_LOCAL_PREVIEW=1，运行 pnpm test:chat-browser。用 PLAYWRIGHT_MODULE 指定 Playwright，FORMWARD_UI_ENGINE 选择 chromium 或 webkit，FORMWARD_MEAL_INLINE_ARTIFACTS 指定私有截图目录。配置 FORMWARD_CHAT_FIXTURE_PHOTO 时使用预登记的虚构照片，并核对识别回填前后的正式餐次与照片关联。
 
 meal-inline 验收覆盖手机跨分类勾选、回到草稿、行下只读营养、手填默认展开、单位完整、桌面分栏、备注以及拍照返回。用 DOM 几何核对数值与单位单行、展开不撑开后续行、同位置保留保存操作。通过浏览器完成保存后逐项核对测试库；视觉要求见设计文档 D3／D4。
+
+
+转场与来源返回的实页回归由 `FORMWARD_WORKSPACE_RETURNS=1` 接入 `chat-pilot.browser.mts` 的隔离构建，配合 `FORMWARD_UI_DECISIONS_FIXTURE=1` 与既有浏览器运行时。每项保存原速录屏和结果，覆盖营养卡接缝、食材库历史、快捷录入草稿与保存、确认回执、待办工具、设置与主导航。实体 iPhone 的系统交互另录。

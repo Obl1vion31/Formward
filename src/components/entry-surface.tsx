@@ -13,6 +13,7 @@ import {EnergyEditor} from "@/features/activities/energy-editor";
 import {WorkspaceSourceContext} from "./workspace-frame-state";
 import {useChartTransitionActions} from './chart-transition-state';
 import {useRepeatedRecordTask} from './record-intent-client';
+import {useWorkspaceReturn} from './workspace-return';
 export function EntrySurface({children,path,query}:{children:ReactNode;path:string;query:URLSearchParams}){
  const router=useRouter(),entry=query.get('entry'),routeKey=path+'?'+query.toString();
  const requested=query.getAll('entry').length===1&&query.getAll('date').length<=1&&(!query.has('date')||linkedDate(query.get('date'))!==null)&&(path==='/dashboard/measurements'?(entry==='daytime'||entry==='evening'):['/dashboard/meals','/dashboard/energy'].includes(path)&&entry==='1'),[closed,setClosed]=useState('');
@@ -23,13 +24,15 @@ export function EntrySurface({children,path,query}:{children:ReactNode;path:stri
  const [binding,setBinding]=useState<{key:string;meta:EntryMetadata}|null>(null),[slot,setSlot]=useState<HTMLElement|null>(null),[headerSlot,setHeaderSlot]=useState<HTMLElement|null>(null),[guards,setGuards]=useState<EntryGuards|null>(null);
  const closeHost=useRef<()=>void>(()=>{}),[seen,setSeen]=useState(''),active=requested&&closed!==key,meta=binding?.key===key?binding.meta:null;
  const {invalidate}=useChartTransitionActions();
+ const {watchEntry,entryClosed}=useWorkspaceReturn()??{};
+ useLayoutEffect(()=>active?watchEntry?.(()=>closeHost.current()):undefined,[active,watchEntry]);
  useLayoutEffect(()=>{if(active)invalidate();},[active,invalidate]);
  const [failure,setFailure]=useState<{key:string;reset:()=>void}|null>(null);
  const reportFailure=useCallback((reset:()=>void)=>setFailure({key,reset}),[key]);
  const register=useCallback((value:EntryMetadata)=>{setSeen(key);setBinding({key,meta:value});return()=>setBinding(current=>current?.key===key&&current.meta===value?null:current);},[key]);
  useEffect(()=>{if(active&&seen===key&&!meta){closeHost.current();}},[active,key,meta,seen]);
  const context=useMemo(()=>({active,slot,headerSlot,guards,register,reportFailure}),[active,slot,headerSlot,guards,register,reportFailure]);
- const done=()=>{setClosed(key);if(meta)meta.close();else if(seen!==key)router.replace(path);};
+ const done=()=>{setClosed(key);meta?.close();if(entryClosed)entryClosed(path);else router.replace(path);};
  const title=path.endsWith('/meals')?'记录一餐':path.endsWith('/energy')?'每日消耗':'身体录入';
  return <EntrySurfaceContext value={context}>{children}{active&&<Inspector title={meta?.title??title} titleParts={meta?.titleParts} wide={meta?.wide??path.endsWith('/meals')} stableScroll={meta?.stableScroll} compact={meta?.compact} fitContent={meta?.fitContent??path.endsWith("/measurements")} className={meta?.className??(path.endsWith("/measurements")?bodyStyles.drawer:undefined)} busy={meta?.busy??false} closeLabel={meta?.closeLabel} close={done} onCloseReady={close=>{closeHost.current=close;meta?.onCloseReady?.(close);}} onSavedCloseReady={close=>meta?.onSavedCloseReady?.(close)} header={meta?.customHeader?<div ref={setHeaderSlot}/>:path.endsWith("/measurements")?<MeasurementEntryHeader date={query.get("date")??localMeasurementDate()}/>:undefined}>
   <CaptureGuards change={setGuards}/><div ref={setSlot} data-entry-surface-slot>{!meta&&seen!==key&&<PendingFields key={key} path={path} date={query.get('date')} period={entry==="evening"?"evening":"daytime"} failed={failure?.key===key} retry={()=>{if(failure?.key===key)failure.reset();else router.refresh();setFailure(null);}}/>}</div>

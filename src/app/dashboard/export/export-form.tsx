@@ -1,10 +1,11 @@
 "use client";
+import { WorkspaceReturnLink } from "@/components/workspace-return";
 import {LocalLoading} from "@/components/local-loading";
 import {useRef,useState} from "react";
 import {DateField} from "@/components/date-field";
 import styles from "./page.module.css";
 export function ExportWorkspace({ready=true}:{ready?:boolean}){
- return <main className="dashboard-page" aria-busy={!ready||undefined}><section className={styles.workspace}><h1>导出 Excel</h1><p>下载自己的饮食、身体与消耗记录，保存为 Excel。</p><ExportForm ready={ready}/><details className={styles.details}><summary>文件包含什么</summary><p>每日汇总、餐次、食物明细、身体记录、每日消耗、活动明细、食材库与公式资料。保留日期、单位与来源，未知留空、0正常保存。</p><p>不包含已删除记录、账号凭据或访问令牌。图片仅保留数量和内部标识，不包含原图；Excel不替代照片或数据库完整备份。</p></details></section></main>;
+ return <main className="dashboard-page" aria-busy={!ready||undefined}><section className={styles.workspace}><WorkspaceReturnLink/><h1>导出 Excel</h1><p>下载自己的饮食、身体与消耗记录，保存为 Excel。</p><ExportForm ready={ready}/><details className={styles.details}><summary>文件包含什么</summary><p>每日汇总、餐次、食物明细、身体记录、每日消耗、活动明细、食材库与公式资料。保留日期、单位与来源，未知留空、0正常保存。</p><p>不包含已删除记录、账号凭据或访问令牌。图片仅保留数量和内部标识，不包含原图；Excel不替代照片或数据库完整备份。</p></details></section></main>;
 }
 export function ExportForm({ready=true}:{ready?:boolean}){
  const [from,setFrom]=useState(""),[to,setTo]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[expired,setExpired]=useState(false);

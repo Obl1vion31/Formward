@@ -15,6 +15,8 @@ import {useChartTransition,chartDestinationSearch} from './chart-transition-stat
 import {WorkspaceSourceContext,WorkspaceTodayContext} from './workspace-frame-state';
 import {useAssistant} from '@/features/assistant/context';
 import {TrainingSkeleton} from '@/features/training/loading';
+import {WorkspaceReturnLink} from "./workspace-return";
+import {isMealLibrary} from '@/features/meals/library-location';
 
 type WorkspaceKind = "overview" | "nutrition" | "training" | "energy" | "body";
 
@@ -100,7 +102,8 @@ export function WorkspaceFrame({children,today,sourcePilot=false}:{children:Reac
  const requested=forward?new URL(forward,'https://formward.invalid'):null;
  const coverOldRoute=!!requested&&(requested.pathname!==actualPath||chartDestinationSearch(requested.search)!==chartDestinationSearch(search));
  return <WorkspaceTodayContext value={localToday}><WorkspaceSourceContext value={sourcePilot}><main className="dashboard-page" data-workspace-frame={kind} data-workspace-scene={scene?.direction} data-scene-leaving={sceneLeaving||undefined} aria-hidden={sceneLeaving||undefined} inert={sceneLeaving||undefined}><EntrySurface path={actualPath} query={params}><div ref={frame} className={styles.frame} data-workspace-body>
-  <header className={styles.heading} data-body={isBody||undefined}><div className={styles.pageTitle}><h1>{page[1]}</h1></div>{isBody&&<button type="button" onClick={()=>setSettings(true)}>身体设置 <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="M7 3h6l.6 2 1.9 1.1 2 .5v6.8l-2 .5-1.9 1.1-.6 2H7l-.6-2-1.9-1.1-2-.5V6.6l2-.5L6.4 5Z"/><circle cx="10" cy="10" r="3"/></svg></button>}</header>
+  <header className={styles.heading} data-body={isBody||undefined}><div className={styles.pageTitle}><h1>{kind === "nutrition" && isMealLibrary(params) ? "食材库" : page[1]}</h1></div>{isBody&&<button type="button" onClick={()=>setSettings(true)}>身体设置 <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="M7 3h6l.6 2 1.9 1.1 2 .5v6.8l-2 .5-1.9 1.1-.6 2H7l-.6-2-1.9-1.1-2-.5V6.6l2-.5L6.4 5Z"/><circle cx="10" cy="10" r="3"/></svg></button>}</header>
+  {kind==='training'&&<WorkspaceReturnLink assistantOnly/>}
   {kind==='overview'&&<div className={styles.home}><div className={styles.intro}><h2>今天</h2><time dateTime={localToday}>{localToday.replaceAll('-','.')}</time></div><nav aria-label="快捷记录" className={styles.actions}>{[['meals','1','饮食'],['measurements','daytime','测量'],['energy','1','消耗']].map(([route,entry,label])=><LoadingLink key={route} href={`/dashboard/${route}?date=${localToday}&entry=${entry}`}><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>记录{label}</LoadingLink>)}</nav></div>}
   <div ref={content} className={styles.content} data-workspace-content>
    {forward&&<div data-forward-shell><WorkspaceLoading kind={path.endsWith('/meals')?'nutrition':path.endsWith('/energy')?'energy':'body'} destination={forward}/></div>}

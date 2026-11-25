@@ -2,6 +2,7 @@
 import { useDelayedReading } from "@/components/local-loading";
 
 import { useState } from "react";
+import { useWorkspaceReturn } from "@/components/workspace-return";
 import { LoadingLink } from "@/components/loading-link";
 import { localMeasurementDate } from "../measurements/entry-state";
 import type { AssistantTasksState } from "./context";
@@ -14,9 +15,17 @@ export function AssistantTasks({ data, error, loading, retry, dismissItem, mobil
   inlineReview: boolean;
   navigate: () => Promise<boolean>;
 }) {
-  const [supplementsOpen, setSupplementsOpen] = useState(false);
-  const [reviewOpen, setReviewOpen] = useState<boolean>();
-  const [tools, setTools] = useState(false);
+  const restored = useWorkspaceReturn()?.restoring?.tasks;
+  const [supplementsOpen, setSupplementsOpen] = useState(restored?.supplements ?? false);
+  const [reviewOpen, setReviewOpen] = useState(restored?.reviews);
+  const [tools, setTools] = useState(restored?.tools ?? false);
+  const [applied, setApplied] = useState(restored);
+  if (restored && restored !== applied) {
+    setApplied(restored);
+    setSupplementsOpen(restored.supplements);
+    setReviewOpen(restored.reviews);
+    setTools(restored.tools);
+  }
   const [busy, setBusy] = useState("");
   const [failure, setFailure] = useState("");
   const reading = useDelayedReading(!data && loading && !error);
@@ -26,20 +35,20 @@ export function AssistantTasks({ data, error, loading, retry, dismissItem, mobil
       {item.review.detail.split(" · ").map((text,index)=><span key={index}>{text}</span>)}
     </p>}</>:<><div><strong>{item.title}</strong><time dateTime={item.date}>{item.date.replaceAll("-", ".")}</time></div><p>{item.detail}</p></>;
   const items = (rows: AssistantItem[]) => <ul className={styles.items}>{rows.map(item => <li key={item.id} data-assistant-item={item.id}>
-    {item.category==="ai"?(item.action.previewId&&inlineReview?<button className={styles.reviewEntry} type="button" aria-label={item.review?item.review.source+"，"+item.review.title+"，"+item.review.value+"，查看并确认":item.title+"，查看并确认"} onClick={()=>window.dispatchEvent(new CustomEvent("formward-assistant-preview",{detail:{id:item.action.previewId}}))}>{summary(item)}</button>:<LoadingLink className={styles.reviewEntry} prefetch={false} href={item.action.href} beforeNavigate={navigate} aria-label={item.review?item.review.source+"，"+item.review.title+"，"+item.review.value+"，查看并确认":item.title+"，查看并确认"}>{summary(item)}</LoadingLink>):<>{summary(item)}<div className={styles.itemActions}><LoadingLink prefetch={false} href={item.action.href} beforeNavigate={navigate}>{item.action.label}<span aria-hidden="true"> →</span></LoadingLink>
+    {item.category==="ai"?(item.action.previewId&&inlineReview?<button className={styles.reviewEntry} type="button" aria-label={item.review?item.review.source+"，"+item.review.title+"，"+item.review.value+"，查看并确认":item.title+"，查看并确认"} onClick={()=>window.dispatchEvent(new CustomEvent("formward-assistant-preview",{detail:{id:item.action.previewId}}))}>{summary(item)}</button>:<LoadingLink returnScope="assistant" className={styles.reviewEntry} prefetch={false} href={item.action.href} beforeNavigate={navigate} aria-label={item.review?item.review.source+"，"+item.review.title+"，"+item.review.value+"，查看并确认":item.title+"，查看并确认"}>{summary(item)}</LoadingLink>):<>{summary(item)}<div className={styles.itemActions}><LoadingLink returnScope="assistant" prefetch={false} href={item.action.href} beforeNavigate={navigate}>{item.action.label}<span aria-hidden="true"> →</span></LoadingLink>
     {item.dismissible && <button type="button" disabled={busy === item.id} onClick={async () => { setBusy(item.id); setFailure(""); try { setFailure(await dismissItem(item.id)); } catch { setFailure("忽略未保存，请重试。"); } finally { setBusy(""); } }}>{busy === item.id ? "保存中…" : "忽略这一天"}</button>}</div></>}
   </li>)}</ul>;
   const supplements = data ? [...data.pending.filter(item=>item.category!=="ai"&&item.category!=="training"),...data.suggestions] : [];
   const reviews = data?.pending.filter(item=>item.category==="ai") ?? [];
   const training = data?.pending.filter(item=>item.category==="training") ?? [];
-  return <div className={styles.content} onKeyDown={event => {
+  return <div className={styles.content} data-assistant-task-scroll onKeyDown={event => {
     if (event.key !== "Escape" || !tools) return;
     event.preventDefault();
     event.stopPropagation();
     setTools(false);
     event.currentTarget.querySelector<HTMLButtonElement>('[data-assistant-group="tools"]')?.focus();
   }}>
-    <section className={styles.quick} aria-label="快捷记录"><div>{assistantQuickActions(today).map(action=><LoadingLink prefetch={false} key={action.label} href={action.href} beforeNavigate={navigate}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>{mobile?action.label.replace(/^手动/,""):action.label}</span></LoadingLink>)}</div></section>
+    <section className={styles.quick} aria-label="快捷记录"><div>{assistantQuickActions(today).map(action=><LoadingLink returnScope="assistant" prefetch={false} key={action.label} href={action.href} beforeNavigate={navigate}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>{mobile?action.label.replace(/^手动/,""):action.label}</span></LoadingLink>)}</div></section>
     {error&&<div role="alert">{error}<button type="button" onClick={retry}>重新读取</button></div>}
     <TaskGroup kind="supplements" title="按需补记"
       description={<span aria-live="polite">{reading ? "正在读取事项…" : "查看需要补记的记录"}</span>} count={data?supplements.length+" 项":"…"} open={supplementsOpen} onToggle={()=>setSupplementsOpen(value=>!value)}>{supplements.length?items(supplements):data&&<p className={styles.muted}>暂无需要补记的事项</p>}</TaskGroup>
@@ -49,8 +58,8 @@ export function AssistantTasks({ data, error, loading, retry, dismissItem, mobil
     <TaskGroup kind="tools" title="常用功能" description="使用说明、AI 接入等" count={assistantTools.length + 1 + " 个功能"} open={tools} onToggle={() => setTools(value => !value)}>
       <nav className={styles.toolsList} aria-label="常用功能">
         {training.length > 0 && items(training)}
-        <LoadingLink href={"/dashboard/training?date=" + today} beforeNavigate={navigate}>训练计划</LoadingLink>
-        {assistantTools.map(action => <LoadingLink key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}</LoadingLink>)}
+        <LoadingLink returnScope="assistant" href={"/dashboard/training?date=" + today} beforeNavigate={navigate}>训练计划</LoadingLink>
+        {assistantTools.map(action => <LoadingLink returnScope="assistant" key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}</LoadingLink>)}
       </nav>
     </TaskGroup>
     {failure&&<p role="alert">{failure}</p>}

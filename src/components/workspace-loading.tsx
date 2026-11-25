@@ -22,6 +22,8 @@ import {TrendGlyph} from './trend-glyph';
 import {linkedTrend} from './metric-trend-model';
 import {OverviewPlotLoadingGuides,OverviewTrendLayout} from '@/features/dashboard/overview-trend-layout';
 import measurementStyles from '@/features/measurements/measurements-view.module.css';
+import {isMealLibrary} from "@/features/meals/library-location";
+import {FoodLibraryLoading} from "@/features/meals/library-controls";
 import {NutritionSummaryCard} from "@/features/meals/nutrition-summary-card";
 import {EnergyComposition} from '@/features/activities/energy-composition';
 import {EnergyPlotFrame} from '@/features/activities/energy-plot-frame';
@@ -59,6 +61,7 @@ export function WorkspaceLoading({kind,returnShell=false,destination}:{kind:'ove
  const selectedIndex=dates.indexOf(date);
  const dayWidth=dates.length?plotWidth/dates.length:0;
  const selectedX=selectedIndex<0?null:left+(selectedIndex+.5)*dayWidth;
+ if(kind==="nutrition"&&!destination&&isMealLibrary(params))return <FoodLibraryLoading/>;
  const content=<div data-workspace-reading={!returnShell||returningToOverview||undefined} aria-busy={waiting||undefined} aria-label={title}>
  {kind==='overview'?<OverviewLoading date={date} rangeMode={recallOverview()?.mode??undefined} readingStatus={readingStatus} showPlotGuides={waiting&&!entryOpen}/>:<RecordWorkspace title={title}>
  <div data-record-trend>

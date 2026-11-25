@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useTransition, type KeyboardEvent } from "react";
+import { WorkspaceReturnLink } from "@/components/workspace-return";
 import { LoadingLink } from "@/components/loading-link";
 import { LocalLoading } from "@/components/local-loading";
 import { confirmAction } from "@/components/confirmation-state";
@@ -28,7 +29,7 @@ export function AiAccessReading() {
     <details className={styles.disclosure}><summary data-ai-anchor="advanced"><h2 className={styles.sectionTitle}>高级接入 <span className={styles.secondary}>手动令牌与 HTTP</span></h2></summary></details>
   </section>;
 }
-function PageHeading({reading=false}:{reading?:boolean}) { return <header className={styles.pageHeading} data-ai-anchor="heading"><h1 id="ai-title" className={styles.pageTitle}>AI 接入</h1><p>外部 AI 可查询、提交预览，保存由你确认。站内模型在小助手中切换。</p>{reading&&<LocalLoading label="正在读取连接…"/>}</header>; }
+function PageHeading({reading=false}:{reading?:boolean}) { return <header className={styles.pageHeading} data-ai-anchor="heading"><WorkspaceReturnLink/><h1 id="ai-title" className={styles.pageTitle}>AI 接入</h1><p>外部 AI 可查询、提交预览，保存由你确认。站内模型在小助手中切换。</p>{reading&&<LocalLoading label="正在读取连接…"/>}</header>; }
 function Chevron() { return <svg className={styles.chevron} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>; }
 function closeDetails(event: KeyboardEvent<HTMLDetailsElement>) {
   if (event.key !== "Escape" || event.defaultPrevented || (event.target as Element).matches("select") || (event.target as Element).closest("details") !== event.currentTarget) return;
@@ -177,7 +178,7 @@ export function AiAccess({ accountId,canonicalOrigin, overview, overviewPromise,
         <div className={styles.submissionColumns} aria-hidden="true"><span>提交时间</span><span>发起 AI</span><span>内容</span><span>状态</span><span /></div>
         {loading ? <LocalLoading label="正在读取提交记录…" /> : readError ? <p className="ai-error" role="alert">提交记录读取失败，请刷新页面重试。</p> : <><ul className={styles.submissions}>{filtered.map(row => {
           const current = aiSubmissionState(row, now);
-          return <li key={row.id} className={styles.submissionRow}><time className={styles.submittedTime} dateTime={row.createdAt} title={aiAccessDate(row.createdAt)}>{aiAccessDate(row.createdAt).slice(5)}</time><span className={styles.submissionSource}><span className={styles.desktopText}>{row.source.label}</span><span className={styles.mobileText}>{row.source.compactLabel ?? row.source.label}</span></span><span className={styles.submissionSummary}><span className={styles.desktopText}>{row.summary}</span><span className={styles.mobileText}>{row.compactSummary ?? row.summary}</span></span><span className={styles.submissionState} data-state={current}>{current === "pending" && row.status === "partially_confirmed" ? "部分已保存 · 待确认" : aiSubmissionLabels[current] ?? current}</span><LoadingLink prefetch={false} className={styles.viewAction} beforeNavigate={()=>rememberNavigation(row.confirmationPath)} href={row.confirmationPath} aria-label={`查看${row.source.label}提交：${row.summary}，提交于${aiAccessDate(row.createdAt)}`}>查看</LoadingLink></li>;
+          return <li key={row.id} className={styles.submissionRow}><time className={styles.submittedTime} dateTime={row.createdAt} title={aiAccessDate(row.createdAt)}>{aiAccessDate(row.createdAt).slice(5)}</time><span className={styles.submissionSource}><span className={styles.desktopText}>{row.source.label}</span><span className={styles.mobileText}>{row.source.compactLabel ?? row.source.label}</span></span><span className={styles.submissionSummary}><span className={styles.desktopText}>{row.summary}</span><span className={styles.mobileText}>{row.compactSummary ?? row.summary}</span></span><span className={styles.submissionState} data-state={current}>{current === "pending" && row.status === "partially_confirmed" ? "部分已保存 · 待确认" : aiSubmissionLabels[current] ?? current}</span><LoadingLink prefetch={false} className={styles.viewAction} returnScope="workspace" beforeNavigate={()=>rememberNavigation(row.confirmationPath)} href={row.confirmationPath} aria-label={`查看${row.source.label}提交：${row.summary}，提交于${aiAccessDate(row.createdAt)}`}>查看</LoadingLink></li>;
         })}</ul>{!filtered.length && <p className="ai-muted" role="status">{submissions.length ? "没有符合筛选条件的提交。" : "还没有 AI 提交的操作。"}</p>}</>}
       </div>}
     </section>

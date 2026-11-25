@@ -4,20 +4,24 @@ import { useId, useState, type ReactNode } from "react";
 import { displayRecordDate } from "./record-dates";
 import styles from "./record-ui.module.css";
 
+export type HistoryDisplay = { expanded: boolean; opened: boolean; limit: number; selected: string };
+export const initialHistoryDisplay: HistoryDisplay = { expanded: false, opened: false, limit: 50, selected: "" };
+
 export type RecordHistoryData = {
   today: string;
   dates: string[];
   renderRow: (date: string) => ReactNode;
   view: (date: string) => void;
+  display?: { value: HistoryDisplay; change: (value: HistoryDisplay) => void };
 };
 
 /** 查询与历史展开共用一行，收起后保留已经查看的日期和批次。 */
 export function RecordHistory({ data, loading }: { data?: RecordHistoryData; loading: boolean }) {
   const historyId = useId();
-  const [expanded, setExpanded] = useState(false);
-  const [opened, setOpened] = useState(false);
-  const [limit, setLimit] = useState(50);
-  const [selected, setSelected] = useState("");
+  const [local, setLocal] = useState(initialHistoryDisplay);
+  const display = data?.display?.value ?? local;
+  const change = data?.display?.change ?? setLocal;
+  const { expanded, opened, limit, selected } = display;
   const today = data?.today ?? "";
   const canView = !loading && Boolean(today && selected) && selected <= today;
 
@@ -34,8 +38,7 @@ export function RecordHistory({ data, loading }: { data?: RecordHistoryData; loa
         aria-expanded={expanded}
         aria-controls={historyId}
         onClick={() => {
-          setOpened(true);
-          setExpanded(value => !value);
+          change({ ...display, opened: true, expanded: !expanded });
         }}
       >
         <span className={styles.actionFace}>
@@ -51,7 +54,7 @@ export function RecordHistory({ data, loading }: { data?: RecordHistoryData; loa
             max={today}
             required
             value={selected}
-            onChange={event => setSelected(event.target.value)}
+            onChange={event => change({ ...display, selected: event.target.value })}
           />
           <span className={styles.dateDisplay} data-placeholder={!selected || undefined} aria-hidden="true">
             {selected ? displayRecordDate(selected) : "选择日期"}
@@ -71,7 +74,7 @@ export function RecordHistory({ data, loading }: { data?: RecordHistoryData; loa
       {opened && data?.dates.slice(0, limit).map(data.renderRow)}
       {opened && data?.dates.length === 0 && <p className={styles.empty}>没有其他历史记录。</p>}
       {opened && data && limit < data.dates.length && (
-        <button className={styles.historyAction} type="button" onClick={() => setLimit(value => value + 50)}>
+        <button className={styles.historyAction} type="button" onClick={() => change({ ...display, limit: limit + 50 })}>
           <span className={styles.actionFace}>加载更早日期</span>
         </button>
       )}

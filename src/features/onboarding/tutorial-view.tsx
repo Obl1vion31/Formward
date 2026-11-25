@@ -2,6 +2,7 @@
 import {LocalLoading} from "@/components/local-loading";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useWorkspaceReturn, workspaceReturnLabel } from "@/components/workspace-return";
 import "./tutorial.css";
 
 type Player = { render(options:{startText:string;backAction?:string;backText?:string}):string;bind(root:HTMLElement):void;dispose():void };
@@ -19,15 +20,17 @@ function loadScript(src:string) {
 export function prepareTutorial(){
   return (async()=>{if(!window.FORMWARD_TUTORIAL_MEDIA)await loadScript("/tutorials/media-manifest.js");if(!window.FormwardTutorial)await loadScript("/tutorials/player.js");})();
 }
-export function TutorialView({startText="返回总览",backText,onStart,onBack,busy=false}:{startText?:string;backText?:string;onStart?:()=>void;onBack?:()=>void;busy?:boolean}) {
-  const ref=useRef<HTMLDivElement>(null),handlers=useRef({onStart,onBack}),router=useRouter();
+export function TutorialView({startText:customStartText,backText,onStart,onBack,busy=false}:{startText?:string;backText?:string;onStart?:()=>void;onBack?:()=>void;busy?:boolean}) {
+  const returns=useWorkspaceReturn();
+  const startText=customStartText??workspaceReturnLabel(returns?.visit,"/dashboard");
+  const ref=useRef<HTMLDivElement>(null),handlers=useRef({onStart,onBack,back:returns?.back}),router=useRouter();
   const [error,setError]=useState(false),[attempt,setAttempt]=useState(0),[loaded,setLoaded]=useState(false);
-  useEffect(()=>{handlers.current={onStart,onBack};},[onStart,onBack]);
+  useEffect(()=>{handlers.current={onStart,onBack,back:returns?.back};},[onStart,onBack,returns?.back]);
   useEffect(()=>{
     const host=ref.current!;let live=true,mounted:Player|null=null;
     const action=(event:MouseEvent)=>{
       const b=event.target instanceof Element?event.target.closest<HTMLButtonElement>("[data-action]"):null;if(!b||b.disabled)return;
-      if(b.dataset.action==="start"){if(handlers.current.onStart)handlers.current.onStart();else router.push("/dashboard");}
+      if(b.dataset.action==="start"){if(handlers.current.onStart)handlers.current.onStart();else if(handlers.current.back)void handlers.current.back("/dashboard");else router.push("/dashboard");}
       if(b.dataset.action==="back")handlers.current.onBack?.();
     };
     host.addEventListener("click",action);
@@ -56,7 +59,7 @@ export function TutorialView({startText="返回总览",backText,onStart,onBack,b
       </ol></details>
       {error&&<button className="quiet" onClick={()=>{setError(false);setAttempt(n=>n+1);}}>重新加载教程</button>}
       {onBack&&<button className="quiet" disabled={busy} onClick={onBack}>{backText}</button>}
-      <button className="primary" disabled={busy} onClick={()=>onStart?onStart():router.push("/dashboard")}>{startText}</button>
+      <button className="primary" disabled={busy} onClick={()=>onStart?onStart():returns?void returns.back("/dashboard"):router.push("/dashboard")}>{startText}</button>
     </section>}
   </div>;
 }

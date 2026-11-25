@@ -43,10 +43,11 @@ export function MeasurementEntryHeader({date,editing=false,headingRef}:{date:str
  </header>;
 }
 
-export function MeasurementEntry({ date, timezone, records, sources, choices, actions, pending=false,onRetry,readError="", editing = false, initialPeriod = "daytime", onUpdated, onChoose }: {
+export function MeasurementEntry({ date, timezone, records, sources, choices, actions, pending=false,onRetry,readError="", editing = false, initialPeriod = "daytime", onUpdated, onChoose, onSaved }: {
   date: string; timezone: string; records: MeasurementDisplay[]; sources: string[]; choices: Record<string, string>; actions: MeasurementActions;
   pending?:boolean;onRetry?:()=>void;readError?:string; editing?: boolean; initialPeriod?:EntryPeriod; onUpdated: (result: Extract<EntryResult, { ok: true }>) => void;
   onChoose: (date: string, period: EntryPeriod, id: string) => void;
+  onSaved?: () => void;
 }) {
   const visibleMetrics=useBodyMetrics(), draftNoteId=useId();
   const [baseRecords, setBaseRecords] = useState(records);
@@ -110,6 +111,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
         const timezone = systemMeasurementTimezone();
         acknowledgeRecordChanges(ownKeys,measurementVersions(result.records));onUpdated(result); setDefaultTimezone(timezone); setBaseRecords(result.records);if(resetPeriods.length){const fresh=makeDraft(result.records,date,choices,timezone);setDraft(previous=>({...previous,...Object.fromEntries(resetPeriods.map(period=>[period,fresh[period]]))}));setTouchedSources(previous=>new Set([...previous].filter(period=>!resetPeriods.includes(period))));} setMessage(target ? "" : saving && editing ? "已保存修改。" : result.message);
         request.current = { signature: "", id: "" };
+        if (saving && !groups.some(group => !resetPeriods.includes(group.period) && periodDirty(group.period))) onSaved?.();
       } catch (error) {
         setError(error instanceof Error && !(error instanceof TypeError)
           ? error.message

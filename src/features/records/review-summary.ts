@@ -1,6 +1,16 @@
 import { category, type RecordAction, type RecordItem, type RecordRow } from "./model";
 
 const labels = { body: "身体", meals: "摄入", foods: "食材库", energy: "消耗", training: "训练" } as const;
+const recordPaths = {
+  body: "/dashboard/measurements", meals: "/dashboard/meals", foods: "/dashboard/meals?section=foods",
+  energy: "/dashboard/energy", training: "/dashboard/training",
+} as const;
+
+export function reviewReturnPath(rows: RecordRow[]) {
+  const kinds = [...new Set(rows.map(row => category(row.action)))];
+  return kinds.length === 1 ? recordPaths[kinds[0]] : "/dashboard/assistant?view=tasks";
+}
+
 type SummaryItem = Pick<RecordItem, "key" | "action" | "excluded" | "persisted"> & { businessDate?: string | null; skipped?: boolean };
 export function actionDate(action: RecordAction): string | null {
   const value = "date" in action ? action.date : "effectiveFrom" in action ? action.effectiveFrom : "restingFrom" in action ? action.restingFrom : null;
@@ -28,7 +38,7 @@ export function recordReceipt(rows: RecordRow[]) {
     const date = reviewDate(row), kind = category(row.action), key = kind + ":" + (date ?? "");
     const existing = groups.get(key);
     if (existing) { existing.count++; continue; }
-    const path = kind === "body" ? "/dashboard/measurements" : kind === "training" ? "/dashboard/training" : kind === "energy" ? "/dashboard/energy" : "/dashboard/meals";
+    const path = recordPaths[kind];
     groups.set(key, { date, type: labels[kind], count: 1, href: path + (date && kind !== "foods" ? "?date=" + date : "") });
   }
   return [...groups.values()].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));

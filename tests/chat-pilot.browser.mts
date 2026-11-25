@@ -131,6 +131,9 @@ try{
  } else if (process.env.FORMWARD_MOBILE_LAYOUT_STABILITY === "1") {
    const {runMobileLayoutStability} = await import("./mobile-layout-stability.driver.mjs");
    await runMobileLayoutStability(db);
+ } else if (process.env.FORMWARD_WORKSPACE_RETURNS === "1") {
+   const {runWorkspaceReturns} = await import("./workspace-returns.driver.mjs");
+   await runWorkspaceReturns(db);
  } else if (process.env.FORMWARD_DIRECTIONAL_NAVIGATION === "1") {
    const {runDirectionalNavigation} = await import("./directional-navigation.driver.mjs");
    await runDirectionalNavigation(db);

@@ -1,4 +1,5 @@
 "use client";
+import { useSearchParams } from "next/navigation";
 import {ChartPreparation} from "@/components/chart-preparation";
 import {EnergyLegend} from '@/components/chart-legend';
 import {EnergySourceStatus} from "../data-sources/energy-status";
@@ -60,8 +61,11 @@ function dayEditInput(date:string,days:EnergyPresentation["snapshot"]["days"]):E
  return { kind: "save_energy_day", date, ...(current ? { id: current.id, version: current.version, steps:current.steps??null, entryMode: current.entryMode ?? undefined, activityMode: current.activityMode ?? undefined, restingSourceSystem: current.adoption?current.restingSourceSystem??null:current.restingSourceSystem ?? current.sourceSystem, activeSourceSystem: current.adoption?current.activeSourceSystem??null:current.activeSourceSystem ?? current.sourceSystem, restingEstimated: current.restingEstimated ?? false, restingKcal: current.restingKcal, activeKcal: current.activeKcal, activeEstimated: current.activeEstimated ?? false, notes: current.notes ?? null, totalKcal: current.totalKcal, timezone: current.timezone, sourceSystem: current.sourceSystem, sourceRecordId: current.sourceRecordId, sourceOccurredAt: current.sourceOccurredAt } : { entryMode: "components", activityMode: "total", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }) };
 }
 
-export function EnergyView({ presentation, sourceStatus=null, save, removeSource, initialDate = null, initialEntry=false,initialTrend=null,initialIntent='view' }: { presentation: EnergyPresentation; sourceStatus?:ConnectionView|null; save: SaveEnergy; removeSource: (label: string) => Promise<SourceRemovalResult>; initialDate?: string | null;initialEntry?:boolean;initialTrend?:TrendRoute|null;initialIntent?:RecordIntent }) {
+export function EnergyView({ presentation, sourceStatus=null, save, removeSource, initialDate: requestedDate = null, initialEntry: requestedEntry=false,initialTrend=null,initialIntent='view' }: { presentation: EnergyPresentation; sourceStatus?:ConnectionView|null; save: SaveEnergy; removeSource: (label: string) => Promise<SourceRemovalResult>; initialDate?: string | null;initialEntry?:boolean;initialTrend?:TrendRoute|null;initialIntent?:RecordIntent }) {
   const energyPreferences=useContext(EnergyPreferencesContext);
+  const entry = useSearchParams().get("entry");
+  const initialEntry = requestedEntry && entry === "1";
+  const initialDate = requestedEntry && !initialEntry ? null : requestedDate;
   function rememberSavedPreferences(actions:EnergyAction[],saved:EnergyPresentation){
     const action=actions.findLast(action=>action.kind==="save_energy_day"&&(action.restingInputMethod!==undefined||action.calculation!=null));
     if(action?.kind!=="save_energy_day")return;

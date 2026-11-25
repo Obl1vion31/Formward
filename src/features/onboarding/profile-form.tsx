@@ -1,7 +1,7 @@
 "use client";
 import {numericDraftValue} from "@/components/form-draft";
 import { useEffect, useRef, useState } from "react";
-import { LoadingLink } from "@/components/loading-link";
+import { WorkspaceReturnLink } from "@/components/workspace-return";
 import { confirmAction } from "@/components/confirmation-state";
 import {useDraftGuard,pageRefreshApproved} from "@/components/draft-guard";
 import { LocalLoading } from "@/components/local-loading";
@@ -54,7 +54,7 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
     if(await confirmAction({title:"查看最新资料",message:`身高：${p.heightCm??"未填写"}${p.heightCm?"厘米":""}；计算用性别：${p.sexForCalculation==="male"?"男":p.sexForCalculation==="female"?"女":"暂不填写"}；生日：${p.birthDate??"未填写"}。是否采用最新资料？当前未保存的输入将被替换。`,confirmLabel:"采用最新资料"})){setSaved(p);setHeight(p.heightCm??"");setBirth(p.birthDate??"");setSex(p.sexForCalculation??"");setConflict(false);setNotice("");}
   }
   return <section className={styles.personal}>
-    {!onboarding&&!embedded&&<LoadingLink href="/dashboard" className={styles.back}>← 返回总览</LoadingLink>}
+    {!onboarding&&!embedded&&<WorkspaceReturnLink className={styles.back}/>}
     {!embedded&&<h1>{onboarding?"先认识一下你":"个人资料"}</h1>}
     {!onboarding&&<p className={styles.intro}>{editing?"修改后，点保存才会生效。":"不是每天要填的资料，变化时再来修改。"}</p>}
     {editing?<form data-entry-form="profile" aria-busy={busy} noValidate onSubmit={event=>{event.preventDefault();void submit();}}>

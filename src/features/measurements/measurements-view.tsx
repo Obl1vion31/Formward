@@ -1,4 +1,6 @@
 "use client";
+import { useSearchParams } from "next/navigation";
+import { useWorkspaceReturn } from "@/components/workspace-return";
 import {useDraftGuard} from "@/components/draft-guard";
 import type {RecordIntent} from "@/components/record-intent";
 import {useRepeatedRecordTask} from '@/components/record-intent-client';
@@ -44,7 +46,10 @@ const weekday = (date: string) => weekdays[new Date(calendarOrdinal(date) * 86_4
 const unitFor = (metric: MeasurementMetric) => metric === "weightKg" ? "kg" : "%";
 const metricName = (metric: MeasurementMetric) => metric === "weightKg" ? "体重" : "体脂率";
 
-export function MeasurementsView({ records: serverRecords, dates: serverDates, sources: serverSources, accountCreatedAt, actions, initialDate = null, initialPeriod = null,initialTrend=null,initialIntent='view',preferences={showBodyFat:true,version:0,updatedAt:null} }: { preferences?:AccountPreferences; records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; accountCreatedAt: string; actions: MeasurementActions; initialDate?:string|null; initialPeriod?:"daytime"|"evening"|null;initialTrend?:TrendRoute|null;initialIntent?:RecordIntent }) {
+export function MeasurementsView({ records: serverRecords, dates: serverDates, sources: serverSources, accountCreatedAt, actions, initialDate: requestedDate = null, initialPeriod: requestedPeriod = null,initialTrend=null,initialIntent='view',preferences={showBodyFat:true,version:0,updatedAt:null} }: { preferences?:AccountPreferences; records: MeasurementDisplay[]; dates: MeasurementDateDisplay[]; sources: string[]; accountCreatedAt: string; actions: MeasurementActions; initialDate?:string|null; initialPeriod?:"daytime"|"evening"|null;initialTrend?:TrendRoute|null;initialIntent?:RecordIntent }) {
+  const params = useSearchParams();
+  const initialPeriod = requestedPeriod && params.get("entry") === requestedPeriod ? requestedPeriod : null;
+  const initialDate = requestedPeriod && !initialPeriod ? null : requestedDate;
   const mobileMode = useInitialMobileMode();
   const [actionResult, setActionResult] = useState<(Extract<EntryResult, { ok: true }> & { base: MeasurementDisplay[] }) | null>(null);
   // 保存结果即时反馈；新的服务端快照抵达后接管，不能长期保留首次加载数据。
@@ -156,7 +161,8 @@ function MeasurementInspector({ routeEntry=false,view, records, sources, timezon
   onUpdated: (result: Extract<EntryResult, { ok: true }>) => void; choices: Record<string, string>;
   onChoose: (date: string, period: "daytime" | "evening", id: string) => void; onClose: () => void;
 }) {
-  const heading = useRef<HTMLHeadingElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null), savedClose = useRef<() => Promise<void>>(() => Promise.resolve());
+  const shortcut = useWorkspaceReturn()?.visit?.quick;
   const showFat = useContext(BodyFatContext);
   const day = buildMeasurementDays(records.filter(row => row.recordDate === view.date), choices)[0];
   const editing = view.kind === "entry" && view.editing;
@@ -164,7 +170,7 @@ function MeasurementInspector({ routeEntry=false,view, records, sources, timezon
   const entryPeriod = view.period ?? (!day?.daytimeRecord && day?.eveningRecord ? "evening" : "daytime");
   useEffect(() => { heading.current?.focus({preventScroll: true}); }, []);
   return <Inspector routeEntry={routeEntry} fitContent={view.kind === "entry"} title={title+" "+displayDate(view.date)}
-    close={onClose} className={styles.drawer} header={view.kind === "entry"
+    close={onClose} onSavedCloseReady={close=>{savedClose.current=close;}} className={styles.drawer} header={view.kind === "entry"
       ? <MeasurementEntryHeader date={view.date} editing={editing} headingRef={heading}/>
       : <header className={styles.drawerHeader}>
         <div><h2 ref={heading} tabIndex={-1}>{displayDate(view.date)}</h2><p>{weekday(view.date)}</p></div>
@@ -173,7 +179,7 @@ function MeasurementInspector({ routeEntry=false,view, records, sources, timezon
     {view.kind === "entry"
       ? <div className={styles.drawerContent} data-record-intent={editing?"edit":"create"}>
         <MeasurementEntry date={view.date} timezone={timezone} records={records} sources={sources} choices={choices}
-          actions={actions} editing={editing} initialPeriod={entryPeriod} onUpdated={onUpdated} onChoose={onChoose}/>
+          actions={actions} editing={editing} initialPeriod={entryPeriod} onUpdated={onUpdated} onChoose={onChoose} onSaved={routeEntry&&shortcut?()=>void savedClose.current():undefined}/>
       </div>
       : <section className={styles.dayOverview} aria-label="当天晨晚概览" data-record-intent="view">
         {(["daytime", "evening"] as const).map(period => {

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { observeInputViewport, revealFocusedInput } from "@/components/input-viewport";
+import { useWorkspaceReturn } from "@/components/workspace-return";
 import { lockPageScroll } from "@/components/scroll-lock";
 import { useOrderedArrival } from "@/components/use-ordered-arrival";
 import { animateSurface, stopSurfaceMotion } from "@/components/surface-motion";
@@ -47,8 +48,13 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
   const entryId = page?.entryId ?? null, motion = page?.motion;
   const params = new URLSearchParams(page?.query);
   const { backFromPage, completePageMotion, tasks, count } = useAssistant();
-  const chat = useAssistantChat();
+  const chat = useAssistantChat(), restoreTasks = useWorkspaceReturn()?.restoring?.tasks;
   const [selection, setSelection] = useState<{ entryId: string | null; tab: ChatTab } | null>(null);
+  const [appliedTasks, setAppliedTasks] = useState(restoreTasks);
+  if (page && restoreTasks && appliedTasks !== restoreTasks) {
+    setAppliedTasks(restoreTasks);
+    setSelection({ entryId, tab: "tasks" });
+  }
   const selectTab = (tab: ChatTab) => setSelection({ entryId, tab });
   const tab = selection?.entryId === entryId ? selection.tab : (params.get("view") === "tasks" || !chat.enabled ? "tasks" : "chat");
   const history = params.get("history");

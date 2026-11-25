@@ -922,6 +922,10 @@ form[data-entry-form] button:not([type=submit]) {min-height:44px}
 /* Stable page chrome owns padding, title, return and actions; data never duplicates it. */
 [data-workspace-frame] [data-record-workspace][data-record-workspace]{width:100%;max-width:none;margin:0;padding:0}
 [data-workspace-frame] [data-record-workspace]>header{display:none}
+/* 横移画面越过正文边缘时保持手机布局视口宽度，固定栏仍贴合屏幕。 */
+.workspace-shell:has([data-workspace-moving], [data-workspace-scene], [data-meal-moving]) {
+  overflow-x: clip;
+}
 [data-workspace-frame] .mobileHome{padding-top:0}
 .desktop-only{display:block}.mobile-only{display:none}
 [data-workspace-reading] [data-record-slot=date]{min-height:44px}
@@ -1061,3 +1065,14 @@ dialog::backdrop{transition:background-color 210ms cubic-bezier(.2,.8,.2,1)}
   overflow: visible;
   pointer-events: none;
 }
+
+.dashboard-subpage-return {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: .875rem;
+}
+.dashboard-subpage-return:hover { color: var(--warm-white); }
+.dashboard-subpage-return[aria-disabled=true] { opacity: .5; }

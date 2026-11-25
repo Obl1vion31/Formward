@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useId, useState, type ReactNode, type Ref } from "react";
+import { useContext, useId, type ReactNode, type Ref } from "react";
 import { WorkspaceRefreshingContext } from "@/features/dashboard/workspace-cache-context";
 import { formatNutrition, macroComposition, metricLabels, type Totals } from "./model";
 import { NutritionComposition } from "./nutrition-composition";
@@ -9,7 +9,7 @@ import styles from "./nutrition-summary-card.module.css";
 const macros = ["proteinG", "carbsG", "fatG"] as const;
 
 export function NutritionSummaryCard({
-  date, totals, loading = false, readingStatus, openLibrary, libraryRef,
+  date, totals, loading = false, readingStatus, openLibrary, libraryRef, expanded = false, onExpandedChange,
 }: {
   date: string;
   totals?: Totals;
@@ -17,8 +17,9 @@ export function NutritionSummaryCard({
   readingStatus?: ReactNode;
   openLibrary?: () => void;
   libraryRef?: Ref<HTMLButtonElement>;
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const detailsId = useId();
   const refreshing = useContext(WorkspaceRefreshingContext);
   const libraryReady = Boolean(openLibrary) && !loading && !refreshing;
@@ -55,29 +56,33 @@ export function NutritionSummaryCard({
         aria-expanded={expanded}
         aria-controls={detailsId}
         disabled={loading || refreshing}
-        onClick={() => setExpanded(current => !current)}
+        onClick={() => onExpandedChange?.(!expanded)}
       >
         营养详情
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
       </button>
     </div>
-    <dl className={styles.macros} id={detailsId} aria-live="polite">
-      {macros.map(metric => {
-        const value = totals?.values[metric] ?? null;
-        const share = composition.segments.find(segment => segment.metric === metric);
-        const note = value !== null && totals?.incomplete[metric] ? "已知部分" : share ? (share.ratio * 100).toFixed(1) + "%" : null;
-        return <div className={styles.macro} key={metric}>
-          <dt>{metricLabels[metric]}</dt>
-          <dd>
-            <strong>
-              {loading && value === null ? null : formatNutrition(value, metric)}
-              {value !== null && <small>g</small>}
-            </strong>
-            <span className={styles.note}>{note}</span>
-          </dd>
-        </div>;
-      })}
-    </dl>
+    <div id={detailsId} className={styles.macroPanel}>
+      <div className={styles.macroClip}>
+        <dl className={styles.macros} aria-live="polite">
+          {macros.map(metric => {
+            const value = totals?.values[metric] ?? null;
+            const share = composition.segments.find(segment => segment.metric === metric);
+            const note = value !== null && totals?.incomplete[metric] ? "已知部分" : share ? (share.ratio * 100).toFixed(1) + "%" : null;
+            return <div className={styles.macro} key={metric}>
+              <dt>{metricLabels[metric]}</dt>
+              <dd>
+                <strong>
+                  {loading && value === null ? null : formatNutrition(value, metric)}
+                  {value !== null && <small>g</small>}
+                </strong>
+                <span className={styles.note}>{note}</span>
+              </dd>
+            </div>;
+          })}
+        </dl>
+      </div>
+    </div>
     <button
       className={styles.library}
       type="button"

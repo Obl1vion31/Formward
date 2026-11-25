@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { draftIsBusy, draftIsDirty } from "@/components/draft-guard";
+import { useWorkspaceReturn } from "@/components/workspace-return";
 import { confirmationIsOpen } from "@/components/confirmation-state";
 import { dismissAssistantReminderAction } from "@/app/dashboard/assistant-actions";
 import { localMeasurementDate } from "../measurements/entry-state";
@@ -22,6 +23,7 @@ type SurfaceController = { dismiss: () => Promise<boolean>; reopen: () => void }
 
 export function AssistantProvider({ accountId, children, chatEnabled = false, initialEntitlement }: { accountId: string; children: ReactNode; chatEnabled?: boolean; initialEntitlement?:AccountEntitlements }) {
   const pathname = usePathname(), available = assistantAvailable(pathname);
+  const restoration = useWorkspaceReturn()?.restoring;
   const { page, open: openPage, back: backFromPage, complete: completePageMotion } = useAssistantPageNavigation();
   const pageOpen = !!page && page.motion?.direction !== "close";
   const [open, setOpen] = useState(false), [data, setData] = useState<AssistantContext | null>(null), [error, setError] = useState(""), [loading, setLoading] = useState(false), [toast, setToast] = useState(false), [paused, setPaused] = useState(false), [clock, setClock] = useState(0), [local, setLocal] = useState<{date:string;timezone:string}|null>(null);
@@ -91,6 +93,16 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
     return () => { cancelAnimationFrame(initialFrame);clearInterval(timer); window.removeEventListener("formward-assistant-updated", changed); window.removeEventListener("formward-record-saved", changed); window.removeEventListener("formward-record-context-stale", changed); window.removeEventListener("focus", visible); window.removeEventListener("storage", storage); document.removeEventListener("visibilitychange", visible); };
   }, [accountId, refresh]);
   useEffect(() => { const frame=requestAnimationFrame(()=>{if (phase.current !== "closed") void hide(); if (available || pageOpen) void refresh();});return()=>cancelAnimationFrame(frame); }, [pathname, available, pageOpen, hide, refresh]);
+  useEffect(() => {
+    if (restoration?.scope !== "assistant" || matchMedia(MOBILE_MEDIA).matches ||
+        restoration.source !== location.pathname + location.search || !available) return;
+    const frame = requestAnimationFrame(() => {
+      phase.current = "open";
+      surface.current?.reopen();
+      setOpen(true);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [available, pathname, restoration]);
   const linkedTrend=useSearchParams().get("view")==="trend";
   const pending = useMemo(() => {
     if (!data || !local || data.localDate !== local.date || data.timezone !== local.timezone) return [];

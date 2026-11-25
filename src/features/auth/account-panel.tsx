@@ -1,4 +1,5 @@
 "use client";
+import { WorkspaceReturnLink } from "@/components/workspace-return";
 import {LocalLoading} from "@/components/local-loading";
 import { MfaPanel } from "./mfa-panel";
 import {useDraftGuard} from "@/components/draft-guard";
@@ -45,7 +46,7 @@ export function AccountPanel({ initial,embedded=false }: { initial: PersonalAcco
     const result = await task.run("正在撤销访问…", () => revokePersonalAccessAction(accessPassword));
     if (result?.ok) { setAccessPassword(""); signedOut(); }
   }
-  return <div className={styles.settings}><div className={styles.heading}>{!embedded&&<h1>账号设置</h1>}<p className={styles.targetEmail}>{data.email}</p><p className={styles.muted}>{data.emailVerified ? "邮箱已验证" : "邮箱未验证"} · 当前作为登录标识使用</p></div>
+  return <div className={styles.settings}><div className={styles.heading}>{!embedded&&<><WorkspaceReturnLink/><h1>账号设置</h1></>}<p className={styles.targetEmail}>{data.email}</p><p className={styles.muted}>{data.emailVerified ? "邮箱已验证" : "邮箱未验证"} · 当前作为登录标识使用</p></div>
     {task.busy&&<LocalLoading label={task.label}/>}<AccountFeedback error={task.error} />
     <div className={styles.settingsGrid}>
     <div><section className={styles.section}><h2>登录设备</h2><div className={styles.deviceList}>{data.devices.map(device => <article className={styles.device} key={device.id}><div><strong>{deviceName(device.userAgent)}</strong>{device.id === data.currentSessionId && <span className={styles.badge}>当前设备</span>}<small>登录于 {accountDate(device.createdAt)}</small></div><button type="button" disabled={task.busy} onClick={() => void revokeDevice(device.id)}>退出</button></article>)}</div></section>

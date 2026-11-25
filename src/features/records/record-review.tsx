@@ -6,9 +6,9 @@ import {formatRecordNumber,formatUnitNumber} from "@/components/number-format";
 import {mealTypeLabel,duplicateMealNotice} from "../meals/model";
 import {MealDuplicateNotice} from "../meals/meal-duplicate-notice";
 import {unusualNumbers} from "@/components/number-change";
-import { useEffect, useId, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useId, useRef, useState, useTransition } from "react";
 import { LoadingLink } from "@/components/loading-link";
+import { WorkspaceReturnLink } from "@/components/workspace-return";
 
 import { EditorDialog, FoodEditor, MealEditor } from "../meals/meals-view";
 import { Disclosure } from "@/components/disclosure";
@@ -24,7 +24,7 @@ import { EnergyEditor } from "../activities/energy-editor";
 import { EnergyReview } from "./energy-review";
 import { pendingChangesLabel } from "./energy-review-model";
 import { category, isBody, isEnergy, isTraining, type RecordRow, type RecordReviewAction, type RecordReviewView } from "./model";
-import { recordReceipt } from "./review-summary";
+import { recordReceipt, reviewReturnPath } from "./review-summary";
 import styles from "./record-review.module.css";
 
 export type ReviewResult = Promise<Result<RecordReviewView> & { code?: string; status?: number }>;
@@ -129,7 +129,7 @@ export function RecordReviewSummary({ operation, beforeNavigate }: {
       <InlineRecordContent row={row} compact/>
     </article>)}
     {rows.length === 0 && <p>{status}</p>}
-    <LoadingLink className={styles.readOnlyReviewLink} href={operation.confirmationPath} beforeNavigate={beforeNavigate}>
+    <LoadingLink className={styles.readOnlyReviewLink} href={operation.confirmationPath} returnScope={beforeNavigate ? "assistant" : "workspace"} beforeNavigate={beforeNavigate}>
       查看审核 <span aria-hidden="true">›</span>
     </LoadingLink>
   </section>;
@@ -137,14 +137,14 @@ export function RecordReviewSummary({ operation, beforeNavigate }: {
 
 export function RecordReview({ operation: initial, review, load, sources: initialSources, removeSource, energySources: initialEnergySources, removeEnergySource,embedded=false,beforeNavigate }: { beforeNavigate?:()=>Promise<boolean>;embedded?:boolean; operation: RecordReviewView; review: (action: RecordReviewAction) => ReviewResult; load: () => ReviewResult; sources: string[]; removeSource: (label: string) => Promise<SourceRemovalResult>; energySources: string[]; removeEnergySource: (label: string) => Promise<SourceRemovalResult> }) {
   const scope=useId(),rowId=(key:string)=>scope+"-record-"+key;
-  const [local, setLocal] = useState<RecordReviewView | null>(null), [editing, setEditing] = useState<string | null>(null), [error, setError] = useState(""), [savedNow, setSavedNow] = useState(false), [stayOnReceipt, setStayOnReceipt] = useState(embedded);
+  const [local, setLocal] = useState<RecordReviewView | null>(null), [editing, setEditing] = useState<string | null>(null), [error, setError] = useState("");
   const [sources, setSources] = useState(initialSources), [busy, startTransition] = useTransition();
   const [energySources, setEnergySources] = useState(initialEnergySources);
   const [recovery, setRecovery] = useState<{ kind: Recovery; revision: number } | null>(null);
   const [updated, setUpdated] = useState<{ revision: number; changes: string[] } | null>(null);
   const [working, setWorking] = useState<"read" | RecordReviewAction["kind"] | null>(null);
   const op = local && (local.id !== initial.id || local.revision >= initial.revision) ? local : initial;
-  const guard = useRef(false), router = useRouter(), now = useOperationClock();
+  const guard = useRef(false), now = useOperationClock();
   const expired = !!op.expiresAt && now !== undefined && Date.parse(op.expiresAt) <= now, active = op.status === "pending";
   const pending = op.rows.filter(row => !row.excluded && !row.persisted && row.body?.status !== "skipped");
   const issues = pending.filter(row => isTraining(row.action) ? !row.training || row.training.error : isBody(row.action) ? !row.body?.preview.canConfirm : isEnergy(row.action) ? !row.energy || row.energy.error : !row.meal || row.meal.error || row.meal.needsUserInput?.length);
@@ -153,13 +153,6 @@ export function RecordReview({ operation: initial, review, load, sources: initia
   const changedMeals = op.changedMeals ?? [];
   const nextStep = recovery?.kind === "read" ? "read" : changedMeals.length ? "current" : (recovery?.kind === "update" && op.revision <= recovery.revision) || expired || op.needsRefresh ? "update" : "save";
 
-  const returnTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (!savedNow || stayOnReceipt) return;
-    returnTimer.current = setTimeout(() => { startTransition(() => router.replace("/dashboard")); }, 2000);
-    return () => { if (returnTimer.current) clearTimeout(returnTimer.current); };
-  }, [savedNow, stayOnReceipt, router]);
-  function stay() { if (returnTimer.current) clearTimeout(returnTimer.current); setStayOnReceipt(true); }
   function applyResult(result: RecordReviewView) {
     setLocal(current => current?.id === result.id && current.revision > result.revision ? current : result);
     setRecovery(null);
@@ -219,7 +212,6 @@ export function RecordReview({ operation: initial, review, load, sources: initia
             return row.meal?.meal ? ["meal:" + row.meal.meal.id, "mealDay:" + row.meal.meal.date] : row.meal?.food ? ["food:" + row.meal.food.id] : [];
           });
           void fetchRecordStamps().then(stamps => acknowledgeRecordChanges(keys, stamps)).catch(() => {});
-          setSavedNow(true);
         }
       } catch {
         if (action?.kind === "confirm") await readLatest(true);
@@ -233,16 +225,17 @@ export function RecordReview({ operation: initial, review, load, sources: initia
   }
   async function remove(label: string) { const result = await removeSource(label); if (result.ok) setSources(result.sources); return result; }
   async function removeEnergy(label: string) { const result = await removeEnergySource(label); if (result.ok) setEnergySources(result.sources); return result; }
+  const returnPath = reviewReturnPath(op.rows);
   const command = (kind: "check" | "exclude" | "restore", keys: string[]) => perform({ kind, keys, revision: op.revision });
   if(!active&&embedded){
     const persisted=op.rows.filter(row=>row.persisted),label=op.status==="confirmed"?(persisted.length>1?`已保存${persisted.length}项`:"已保存"):op.status==="completed"?"无需保存":op.status==="expired"?"已过期":op.saved?"已取消剩余内容":"已取消";
     return <section className={styles.inlineResult} data-embedded="true" role="status" aria-label="记录结果"><h3>{label}</h3>{persisted.map(row=>{const record=row.meal?.meal,href=recordReceipt([row])[0]?.href;return <article key={row.key} className={styles.inlineSavedRow}><header className={styles.inlineHeading}><h4>{title(row)}{isBody(row.action)&&row.body?.preview.rows[0]?.after?.fasting===true?" · 空腹":""}</h4></header><InlineRecordContent row={row} settled/>{href&&<div className={styles.inlineReceiptLink}><span>{record?record.items.length+"样食物":""}</span><LoadingLink href={href} beforeNavigate={beforeNavigate}>查看记录 →</LoadingLink></div>}</article>;})}{!persisted.length&&<p className={styles.inlineMeta}>{op.status==="completed"?"没有需要写入的新内容。":"本次未保存新内容，已有记录保持。"}</p>}</section>;
   }
-  if(active&&!pending.length)return <section className={styles.emptyReview} aria-label="记录状态"><h3>没有待保存内容</h3>{op.rows.map(row=><div className={styles.emptyReviewRow} key={row.key}><span>{title(row)} · {row.persisted?"已保存":row.excluded?"已取消":"已跳过"}</span>{row.excluded&&!row.persisted&&row.body?.status!=="skipped"&&<button disabled={busy||expired} onClick={()=>command("restore",[row.key])}>恢复本项</button>}</div>)}{error&&<p role="alert">{error}</p>}{!embedded&&<LoadingLink href="/dashboard/ai">返回AI提交记录 →</LoadingLink>}</section>;
+  if(active&&!pending.length)return <section className={styles.emptyReview} aria-label="记录状态"><h3>没有待保存内容</h3>{op.rows.map(row=><div className={styles.emptyReviewRow} key={row.key}><span>{title(row)} · {row.persisted?"已保存":row.excluded?"已取消":"已跳过"}</span>{row.excluded&&!row.persisted&&row.body?.status!=="skipped"&&<button disabled={busy||expired} onClick={()=>command("restore",[row.key])}>恢复本项</button>}</div>)}{error&&<p role="alert">{error}</p>}{!embedded&&<WorkspaceReturnLink fallback={returnPath} disabled={busy}/>}</section>;
   if (!active) return <section className={styles.success} data-embedded={embedded||undefined} role="status"><span className={styles.check} aria-hidden="true">{op.status === "confirmed" ? "✓" : "—"}</span><h1>{op.status === "confirmed" ? "已保存" : op.status === "completed" ? "无需保存" : op.saved ? "已取消剩余内容" : "已取消"}</h1>
-    {op.saved > 0 && <><p>{op.status === "cancelled" ? "此前已保存" : "已保存"} {op.saved} 项{savedNow && !stayOnReceipt ? " · 2 秒后返回主页" : ""}</p>{op.rows.some(row => row.persisted && category(row.action) === "meals") && <p>饮食有修改的日期，请到饮食页重新确认是否已记全。</p>}<ul className={styles.receipt} aria-label="已保存记录">{recordReceipt(op.rows).map(item => <li key={item.type + item.date}><span>{item.date ? item.date + " · " : ""}{item.type}{item.count}项</span><LoadingLink href={item.href} onClick={stay} beforeNavigate={embedded?beforeNavigate:undefined}>查看记录 →</LoadingLink></li>)}</ul></>}
-    {savedNow && !stayOnReceipt && <button className={styles.stay} onClick={stay}>停留查看</button>}{!embedded&&<LoadingLink href="/dashboard">返回主页 →</LoadingLink>}</section>;
-  return <section className={styles.workspace} data-embedded={embedded||undefined} aria-label="统一记录确认" aria-busy={busy}>{!embedded&&<header className={styles.heading}><h1>确认记录</h1><span>{pending.length} 项待保存</span></header>}
+    {op.saved > 0 && <><p>{op.status === "cancelled" ? "此前已保存" : "已保存"} {op.saved} 项</p>{op.rows.some(row => row.persisted && category(row.action) === "meals") && <p>饮食有修改的日期，请到饮食页重新确认是否已记全。</p>}<ul className={styles.receipt} aria-label="已保存记录">{recordReceipt(op.rows).map(item => <li key={item.type + item.date}><span>{item.date ? item.date + " · " : ""}{item.type}{item.count}项</span><LoadingLink href={item.href} beforeNavigate={embedded?beforeNavigate:undefined}>查看记录 →</LoadingLink></li>)}</ul></>}
+    {!embedded&&<WorkspaceReturnLink fallback={returnPath} disabled={busy}/>}</section>;
+  return <section className={styles.workspace} data-embedded={embedded||undefined} aria-label="统一记录确认" aria-busy={busy}>{!embedded&&<><WorkspaceReturnLink fallback={returnPath} disabled={busy}/><header className={styles.heading}><h1>确认记录</h1><span>{pending.length} 项待保存</span></header></>}
     {embedded ? op.rows.filter(row => !(row.body?.status === "skipped" && row.body.preview.message.startsWith("同一时段的内容已合并"))).map(row => {
       const inactive = row.excluded || row.persisted || row.body?.status === "skipped", after = row.body?.preview.rows[0]?.after;
       const issue = op.needsUserInput.find(issue => issue.key === row.key);
