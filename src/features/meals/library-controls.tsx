@@ -10,7 +10,7 @@ import styles from "./meals.module.css";
 const categories = [["all", "全部"], ["meal", "整餐"], ["ingredient", "食材"]] as const;
 
 export function FoodLibraryControls({ back, backRef, category = "all", select, query = "", search, add }: {
-  back: () => void;
+  back?: () => void;
   backRef?: Ref<HTMLButtonElement>;
   category?: string;
   select?: (category: string) => void;
@@ -20,7 +20,7 @@ export function FoodLibraryControls({ back, backRef, category = "all", select, q
 }) {
   return <div className={styles.libraryControls}>
     <div className={styles.libraryNavigation}>
-      <button ref={backRef} type="button" className={recordUI.textAction} onClick={back}>← 饮食</button>
+      {back && <button ref={backRef} type="button" className={recordUI.textAction} onClick={back}>← 饮食</button>}
       <div className={styles.categoryTabs} role="group" aria-label="食材库筛选">
         {categories.map(([value, label]) => <button key={value} type="button" className={recordUI.textAction}
           disabled={!select} aria-pressed={category === value} onClick={() => select?.(value)}>{label}</button>)}

@@ -4,7 +4,7 @@ import { ApiError, type AiIdentity } from "../auth/ai-identity";
 import { localMeasurementDate } from "../measurements/entry-state";
 import { addCalendarDays, calendarOrdinal } from "../measurements/calendar";
 import { validateMeasurementTimezone } from "../measurements/timezone";
-import { decimal, emptyNutrition, metrics, publicMealInputSchema, scaled, type ItemDraft, type MealInput, type Nutrition } from "./model";
+import { decimal, emptyNutrition, metrics, publicMealInputSchema, referenceFoodLinkSchema, scaled, type ItemDraft, type MealInput, type Nutrition } from "./model";
 import { digest, submitMealOperation } from "./records";
 import { invalidAiSchema } from "../records/ai-errors";
 
@@ -18,6 +18,7 @@ export const simpleFoodSchema = z.object({
   unit: text(30).optional(),
   foodId: z.string().uuid().optional(),
   foodVersion: z.number().int().positive().optional(),
+  referenceFood: referenceFoodLinkSchema.optional(),
   nutritionBasis: z.enum(["consumed_total", "per_portion", "per_reference"]).optional().describe("省略为本次总量；per_portion每份，per_reference每referenceQuantity同单位的营养"),
   referenceQuantity: decimal.optional().describe("如每100g填100；单位与实际食用量一致"),
   caloriesKcal: z.string().optional().describe("热量kcal数值字段，不能只写进basis；consumed_total填本次总量，per_portion填每份，per_reference填参考量；后两者由服务器换算。明确不估或无依据可省略"),
@@ -31,17 +32,23 @@ export const simpleFoodSchema = z.object({
   amountDecision: z.enum(["provided", "estimate_accepted", "unknown_accepted"]).optional().describe("只表达食量决策；默认估算营养不等于已接受食量估算，后者须用户明确同意"),
 }).strict();
 // 展示给模型的结构也表达互斥关系，不只依赖长段说明。
-const libraryFood = simpleFoodSchema.pick({ name: true, kind: true, foodId: true, foodVersion: true, quantity: true, unit: true, basis: true, amountDecision: true }).extend({
+const libraryFood = simpleFoodSchema.pick({ name: true, kind: true, foodId: true, foodVersion: true, quantity: true, unit: true, amountDecision: true }).extend({
   foodId: z.string().uuid(), foodVersion: z.number().int().positive(),
+  basis: z.string().trim().max(4000).optional().describe("用户接受食量估算时填写依据。"),
   nutritionBasis: z.literal("consumed_total").optional().describe("兼容旧请求的无效重复标记；引用食材的营养始终由服务器换算，请省略"),
 }).strict();
-const freeFood = simpleFoodSchema.omit({ foodId: true, foodVersion: true }).strict();
+const publicReferenceFood = libraryFood.omit({ foodId: true, foodVersion: true }).extend({
+  referenceFood: referenceFoodLinkSchema,
+}).strict();
+const freeFood = simpleFoodSchema.omit({ foodId: true, foodVersion: true, referenceFood: true }).strict();
 export const aiFoodSchema = z.union([
   libraryFood.extend({ quantity: decimal, unit: text(30), amountDecision: z.enum(["provided", "estimate_accepted"]).optional() }),
+  publicReferenceFood.extend({ quantity: decimal, unit: text(30), amountDecision: z.enum(["provided", "estimate_accepted"]).optional() }),
   freeFood.extend({ quantity: decimal, unit: text(30), amountDecision: z.enum(["provided", "estimate_accepted"]).optional() }),
   libraryFood.omit({ quantity: true }).extend({ unit: text(30), amountDecision: z.literal("unknown_accepted") }),
+  publicReferenceFood.omit({ quantity: true }).extend({ unit: text(30), amountDecision: z.literal("unknown_accepted") }),
   freeFood.omit({ quantity: true }).extend({ amountDecision: z.literal("unknown_accepted"), nutritionBasis: z.literal("consumed_total").optional() }).describe("自由食物也允许用户明确保留食量未知：name及amountDecision=unknown_accepted即可；省略quantity，单位和营养未知也省略，不传null或空字符串。不是只有库食材才可留空。"),
-]).describe("二选一：引用食材库（foodId＋foodVersion＋实际食量＋单位，不传营养或来源）；自由填写（实际食量＋单位，可给营养及估算依据）。库食材和自由食物都支持用户明确接受食量未知：unknown_accepted并省略quantity，不写null或空字符串，不要求补猜数量。");
+]).describe("二选一：引用食材（个人用foodId和foodVersion，公共用referenceFood）或自由填写。引用提供实际食量与单位，由服务端换算。用户明确保留食量未知时，用unknown_accepted并省略quantity。");
 export const mealPreviewSchema = z.object({
   operationId: aiOperationId, date: aiDate, mealType: text(50).describe("按用户指定名称填写；中午写午餐，不能自行换成lunch或snack；修改已有餐保留原餐次"),
   foods: z.array(aiFoodSchema).min(1).max(50),
@@ -75,12 +82,12 @@ export function normalizeSimpleFood(raw: SimpleFoodInput, index = 0): ItemDraft 
   const parsed = aiFoodSchema.safeParse(raw), field = "foods." + index;
   if (!parsed.success) invalidAiSchema(parsed.error, field);
   const input: SimpleFoodInput = parsed.data;
-  const library = input.foodId !== undefined, kind = input.kind ?? "food";
+  const library = input.foodId !== undefined || input.referenceFood !== undefined, kind = input.kind ?? "food";
   const source = input.sourceKind?.trim().toLowerCase();
   const sourceKind = ({ package_label: "label", nutrition_label: "label", "包装标签": "label", "营养标签": "label" } as Record<string, string>)[source ?? ""] ?? source ?? "unknown";
   const hasNutrition = metrics.some(metric => input[metric] !== undefined) || input.caloriesKj !== undefined;
   if (input.foodVersion !== undefined && !library) invalidAiInput(field, "foodVersion须与foodId一起使用。");
-  if (library && input.foodVersion === undefined) invalidAiInput(field + ".foodVersion", "请先搜索并填写食材版本。");
+  if (input.foodId && input.foodVersion === undefined) invalidAiInput(field + ".foodVersion", "请先搜索并填写食材版本。");
   if (library && (hasNutrition || input.sourceKind !== undefined || input.nutritionBasis && input.nutritionBasis !== "consumed_total" || input.referenceQuantity !== undefined || input.evidenceUrl !== undefined)) invalidAiInput(field, "引用食材后由服务器换算，不另填营养、来源或计算口径。");
   if (input.amountDecision === "unknown_accepted") {
     if (input.quantity !== undefined || input.nutritionBasis && input.nutritionBasis !== "consumed_total") invalidAiInput(field, "食量未知时不能按份量换算。");
@@ -90,7 +97,7 @@ export function normalizeSimpleFood(raw: SimpleFoodInput, index = 0): ItemDraft 
   if (input.caloriesKcal !== undefined && input.caloriesKj !== undefined) invalidAiInput(field, "热量只填写kcal或kJ其中一种。");
   const base = {
     kind, name: input.name, quantity: input.quantity ?? null, unit: input.unit,
-    amountDecision: input.amountDecision, foodId: input.foodId, foodVersion: input.foodVersion,
+    amountDecision: input.amountDecision, foodId: input.foodId, foodVersion: input.foodVersion, referenceFood: input.referenceFood,
     sourceKind, basis: input.basis, evidenceUrl: input.evidenceUrl,
   };
   if (library) return base as ItemDraft;

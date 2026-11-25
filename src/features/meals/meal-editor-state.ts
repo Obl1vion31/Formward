@@ -62,7 +62,7 @@ export function updateEditorNutrition(item:EditorItem,metric:Metric,value:string
 }
 
 export function emptyEditorItem(item:EditorItem){
- return !item.foodId&&!item.foodRef&&!item.foodDraft&&!item.originalItemId&&!item.name.trim()
+ return !item.foodId&&!item.foodRef&&!item.foodDraft&&!item.referenceFood&&!item.originalItemId&&!item.name.trim()
  &&numericDraftValue(item.quantity)==="1"&&item.unit==="份"&&item.sourceKind==="estimated"
  &&Object.values(item.nutrition??emptyNutrition()).every(v=>v==null||v==="")
  &&!item.basis&&!item.evidenceUrl&&item.amountDecision!=="unknown_accepted";

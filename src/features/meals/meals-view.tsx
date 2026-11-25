@@ -26,6 +26,8 @@ import { FoodTable } from "./presets";
 import { NutritionSummaryCard } from "./nutrition-summary-card";
 import { isMealLibrary } from "./library-location";
 import { FoodLibraryControls } from "./library-controls";
+import { FoodLibraryTabs, ReferenceBrowser, type FoodLibraryScope } from "./reference-browser";
+import referenceStyles from "./reference-library.module.css";
 import { PhotoFields } from "./photos";
 import { SavedMealList } from "./saved-meal-list";
 import { MealDayControl, MealDayStatus } from "./meal-day-control";
@@ -90,6 +92,7 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
   const [editing,setEditing]=useState<MealAction|null>(null),[foodQuery,setFoodQuery]=useState("");
   useEffect(()=>{if(!initialDate||!initialEntry)return;const timer=setTimeout(()=>setEditing({kind:"save_meal",date:initialDate,mealType:suggestedMealType(new Date().getHours()),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,items:[]}),0);return()=>clearTimeout(timer);},[initialDate,initialEntry]);
   const [foodCategory,setFoodCategory]=useState("all");
+  const [foodScope, setFoodScope] = useState<FoodLibraryScope>("reference");
   const [macroMode,setMacroMode]=useState<MacroMode>("grams");
   const [error,setError]=useState(""),[notice,setNotice]=useState(""),[busy,setBusy]=useState(false);
   const [dayErrors,setDayErrors]=useState<Record<string,string>>({});
@@ -233,7 +236,7 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
     else if(task.intent==='edit')editDay(task.date);
     else viewDay(task.date);
   });
-  function editMeal(m:MealView){setError("");setEditing({kind:"save_meal",id:m.id,version:m.version,date:m.date,mealType:m.mealType,notes:m.notes,timezone:m.timezone,occurredAt:m.occurredAt,imageIds:m.imageIds,items:m.items.map(i=>i.foodId||i.foodSnapshot?{originalItemId:i.id,kind:i.kind,name:i.name,quantity:i.quantity,unit:i.unit,amountDecision:i.quantity?i.amountDecision:"unknown_accepted",foodId:i.foodId,foodVersion:i.foodVersion,sourceKind:i.sourceKind,basis:i.basis,reviewExplanation:i.reviewExplanation}:{originalItemId:i.id,kind:i.kind,name:i.name,quantity:i.quantity,unit:i.unit,amountDecision:i.amountDecision,nutritionBasis:i.nutritionBasis,...(i.nutritionBasis==="per_portion"?{perPortionNutrition:i.perPortionNutrition}:{nutrition:i.nutrition}),sourceKind:i.sourceKind,basis:i.basis,evidenceUrl:i.evidenceUrl,reviewExplanation:i.reviewExplanation})});}
+  function editMeal(m:MealView){setError("");setEditing({kind:"save_meal",id:m.id,version:m.version,date:m.date,mealType:m.mealType,notes:m.notes,timezone:m.timezone,occurredAt:m.occurredAt,imageIds:m.imageIds,items:m.items.map(i=>i.foodId||i.foodSnapshot||i.referenceSnapshot?{originalItemId:i.id,kind:i.kind,name:i.name,quantity:i.quantity,unit:i.unit,amountDecision:i.quantity?i.amountDecision:"unknown_accepted",foodId:i.foodId,foodVersion:i.foodVersion,referenceFood:i.referenceFood,sourceKind:i.sourceKind,basis:i.basis,reviewExplanation:i.reviewExplanation}:{originalItemId:i.id,kind:i.kind,name:i.name,quantity:i.quantity,unit:i.unit,amountDecision:i.amountDecision,nutritionBasis:i.nutritionBasis,...(i.nutritionBasis==="per_portion"?{perPortionNutrition:i.perPortionNutrition}:{nutrition:i.nutrition}),sourceKind:i.sourceKind,basis:i.basis,evidenceUrl:i.evidenceUrl,reviewExplanation:i.reviewExplanation})});}
   async function confirmPurge(purgeTarget:{id:string;version:number;recordType:"meal"|"food";name:string}){
     if(busyRef.current)return false;
     if(!await confirmAction({title:"永久删除这条记录？",message:"永久删除“"+purgeTarget.name+"”？\n"+(purgeTarget.recordType==="food"?"旧餐的营养、用量、历史规格和照片继续保留。":"原始导入和审计记录继续保留。"),confirmLabel:"确认永久删除",danger:true}))return false;if(busyRef.current)return false;busyRef.current=true;setBusy(true);setError("");
@@ -263,12 +266,19 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
     </div>
     <div className={styles.library} ref={libraryPane} hidden={!foods && !scene.moving}
       inert={!foods} aria-hidden={!foods || undefined} data-meal-leaving={!foods && scene.moving || undefined}>
-      <FoodLibraryControls back={closeFoodLibrary} backRef={libraryBack} category={foodCategory} select={setFoodCategory}
-        query={foodQuery} search={setFoodQuery} add={() => {
-          setError("");
-          setEditing({ kind:"save_food", name:"", brand:null, preparation:null, baseQuantity:"1", unit:"份", nutrition:emptyNutrition(), sourceKind:"reference" });
-        }}/>
-      {visibleFoods.length ? <FoodTable foods={visibleFoods} edit={food => { setError(""); setEditing({kind:"save_food",...food}); }}/> : <p className={styles.hint}>还没有匹配的条目，可以添加食材或整餐。</p>}
+      <div className={referenceStyles.scopeBar}>
+        <button ref={libraryBack} type="button" className={recordUI.textAction} onClick={closeFoodLibrary}>← 饮食</button>
+        <FoodLibraryTabs scope={foodScope} change={setFoodScope}/>
+      </div>
+      <div hidden={foodScope !== "reference"}>
+        <ReferenceBrowser key={accountId} query={foodQuery} search={setFoodQuery} enabled={foods && foodScope === "reference"}/>
+      </div>
+      {foodScope === "personal" && <>
+        <FoodLibraryControls category={foodCategory} select={setFoodCategory} query={foodQuery} search={setFoodQuery}
+          add={() => { setError(""); setEditing({kind:"save_food", name:"", brand:null, preparation:null, baseQuantity:"1", unit:"份", nutrition:emptyNutrition(), sourceKind:"reference"}); }}/>
+        {visibleFoods.length ? <FoodTable foods={visibleFoods} edit={food => { setError(""); setEditing({kind:"save_food",...food}); }}/> :
+          <p className={styles.hint}>还没有匹配的个人食材，可以添加食材或整餐。</p>}
+      </>}
     </div>
     </div>
     {(historyOpen||editing)&&<EditorDialog closeLabel={editing||historyOpen&&dayIntent==='edit'?'关闭编辑':'关闭详情'} routeEntry={!!(initialEntry&&editing?.kind==='save_meal'&&editing.date===initialDate)} wide={editing?.kind==='save_meal'} backAction={editing?.kind==='save_meal'&&historyOpen&&dayIntent==='edit'?{label:"返回当天编辑",run:()=>{void confirmDraftDiscard().then(ok=>{if(ok)setEditing(null);});}}:undefined} title={editing?editing.kind==='save_food'?(editing.id?'编辑食材':'添加食材'):editing.id?'编辑餐次':'记录一餐':selectedDate+(dayIntent==='edit'?' · 编辑饮食':' · 饮食记录')} titleParts={!editing?[selectedDate,dayIntent==='edit'?'编辑饮食':'饮食记录']:undefined} stableScroll={!editing&&dayIntent==='view'} busy={busy} onSavedCloseReady={close=>{savedClose.current=close;}} close={()=>{setHistoryOpen(false);setEditing(null);setError('');}}>

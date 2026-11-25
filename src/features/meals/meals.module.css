@@ -321,6 +321,12 @@
   font-weight: 400;
 }
 .foodTable td[data-food-metric] { font-variant-numeric: tabular-nums; }
+.personalThumb { display: none; flex: none; }
+.personalDetail { display: flex; align-items: center; min-width: 0; gap: 10px; }
+.personalDetail > div { min-width: 0; }
+@media (max-width: 700px), (pointer: coarse) {
+  .personalThumb { display: inline-flex; }
+}
 .foodRowActions { display: flex; justify-content: flex-end; gap: 4px; }
 .foodRowActions svg { flex: none; }
 .foodTable [data-food-expanded] > :is(th, td) { border-bottom-color: transparent; }
@@ -348,7 +354,8 @@
   }
   .foodTable :is(th, td) { display: block; min-width: 0; padding: 0; border: 0; text-align: left; }
   .foodTable .rowName { grid-column: 1 / 5; grid-row: 1; contain: inline-size; }
-  .rowTitle { display: flex; align-items: baseline; column-gap: 4px; }
+  .rowTitle { display: flex; align-items: center; column-gap: 5px; }
+  .rowTitle strong { white-space: normal; overflow-wrap: anywhere; }
   .mobileBasis {
     display: block;
     flex: none;

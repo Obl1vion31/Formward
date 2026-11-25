@@ -3,6 +3,7 @@ import {RecordRowAction} from "@/components/daily-records";
 import {Fragment,useId,useState,type DragEventHandler} from "react";
 import { foodSpecification, formatNutrition, metricLabels, metrics, sourceLabels, type FoodDraft, type FoodView } from "./model";
 import { ImageGallery } from "./photos";
+import { FoodArt, personalFoodIllustration } from "./food-art";
 import styles from "./meals.module.css";
 import picker from "./meal-editor.module.css";
 import { MealItemDetails } from "./meal-item-details";
@@ -41,6 +42,7 @@ export function FoodTable({ foods, edit }: { foods: FoodView[]; edit: (food: Foo
             <tr data-food-expanded={open || undefined}>
               <th scope="row" className={styles.rowName}>
                 <div className={styles.rowTitle}>
+                  <span className={styles.personalThumb}><FoodArt illustration={personalFoodIllustration(food)}/></span>
                   <strong>{food.name}</strong>
                   <small className={styles.mobileBasis}>（{basis}）</small>
                 </div>
@@ -84,8 +86,10 @@ function FoodDetails({ food }: { food: FoodDraft }) {
   const { basis, conversion } = foodPortion(food);
   const description = [food.brand, foodSpecification(food.preparation)].filter(Boolean).join(" · ");
   return <section className={styles.foodInformation} aria-label="食材详情">
-    <h3>{food.name}</h3>
-    {description && <p>{description}</p>}
+    <div className={styles.personalDetail}>
+      <FoodArt illustration={personalFoodIllustration(food)} detail/>
+      <div><h3>{food.name}</h3>{description && <p>{description}</p>}</div>
+    </div>
     <p>{[basis, conversion, sourceLabels[food.sourceKind]].filter(Boolean).join(" · ")}</p>
     <MealEntryReadings nutrition={food.nutrition}/>
     {food.basis && <p>{food.basis}</p>}
@@ -116,14 +120,17 @@ export function FoodPickerCard({
     <label className={picker.pickerChoice}>
       <input className={picker.pickerCheck} type="checkbox" disabled={disabled}
         checked={chosen} aria-label={selectionLabel} onChange={replacing ? choose : toggle} />
+      <span className={styles.personalThumb}><FoodArt illustration={personalFoodIllustration(food)}/></span>
       <span className={picker.pickerSummary}>
         <strong>{food.name}</strong>
         <small>{calories === null ? "热量未知" : formatNutrition(calories, "caloriesKcal") + " 千卡"}<span> · {base}</span></small>
       </span>
     </label>
     <MealItemDetails id={id} label={food.name + "规格与营养"} trigger={<MealInfoIcon/>} className={picker.iconButton}>
-      <h3>{food.name}</h3>
-      <p>{base}</p>
+      <div className={styles.personalDetail}>
+        <FoodArt illustration={personalFoodIllustration(food)} detail/>
+        <div><h3>{food.name}</h3><p>{base}</p></div>
+      </div>
       {(food.brand || food.preparation) && <p>{[food.brand, foodSpecification(food.preparation)].filter(Boolean).join(" · ")}</p>}
       <MealEntryReadings nutrition={food.nutrition}/>
     </MealItemDetails>

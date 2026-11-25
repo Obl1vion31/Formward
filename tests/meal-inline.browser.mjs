@@ -432,6 +432,7 @@ export async function runMealInline(db) {
           else await showLibrary();
         }
         await picker.waitFor();
+        await action("button", "我的食材").click();
         await action("button", "整餐").click();
         assert.ok(await picker.getByText("鸡肉蔬菜便当", { exact: true }).isVisible());
         assert.equal(await picker.getByText("原味鸡胸肉", { exact: true }).count(), 0);

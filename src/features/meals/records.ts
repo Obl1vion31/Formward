@@ -15,6 +15,8 @@ import { localMeasurementDate } from "../measurements/entry-state";
 import { emptyNutrition, metrics, portionNutrition, nutritionFor, operationSchema, sumNutrition, missingMealImages, type FoodDraft, type FoodView, type ItemDraft, type ItemView, type MealAction, type MealInput, type MealOperationView, type MealSnapshot, type MealView, type Nutrition, type PreviewRow } from "./model";
 import { foodDescriptionIssues } from "./food-description";
 import { readMealDayViews, invalidateMealDays } from "./day-status";
+import { requireCurrentReferenceFood } from "./reference-catalog";
+import { referenceNutrition, type ReferenceFoodLink } from "./reference-food";
 
 export type MealActor = { userId: string; origin: "manual" | "ai" | "initialization"; identity?: AiIdentity; importId?: string };
 // PostgreSQL jsonb会重排对象字段；请求和保存后的原始快照使用相同的稳定摘要。
@@ -41,7 +43,10 @@ function validateFoodDescriptions(input: MealInput) {
 const norm = (s?: string | null) => (s ?? "").normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
 export const foodIdentity = (f: FoodDraft) => digest([norm(f.name), norm(f.brand), norm(f.preparation), Number(f.baseQuantity), norm(f.unit)]);
 const nutrients = (row: { caloriesKcal: string | null; proteinG: string | null; carbsG: string | null; fatG: string | null }): Nutrition => Object.fromEntries(metrics.map(m => [m, row[m]])) as Nutrition;
-const mealItemView = (i: typeof mealItem.$inferSelect):ItemView => ({ id: i.id, kind: i.kind as ItemDraft["kind"], name: i.name, quantity: i.quantity, nutritionBasis:i.nutritionBasis, ...(i.perPortionNutrition?{perPortionNutrition:i.perPortionNutrition}:{}),amountDecision:(i.amountDecision??undefined) as ItemDraft["amountDecision"], ...(i.reviewExplanation ? { reviewExplanation: i.reviewExplanation } : {}), unit: i.unit, ...(i.foodId ? { foodId: i.foodId, foodVersion: i.foodSnapshot?.version } : {}), ...(i.foodSnapshot ? { foodSnapshot: i.foodSnapshot } : {}), nutrition: nutrients(i), sourceKind: i.sourceKind as ItemDraft["sourceKind"], basis: i.basis, evidenceUrl: i.evidenceUrl });
+const mealItemView = (i: typeof mealItem.$inferSelect):ItemView => ({ id: i.id, kind: i.kind as ItemDraft["kind"], name: i.name, quantity: i.quantity, nutritionBasis:i.nutritionBasis, ...(i.perPortionNutrition?{perPortionNutrition:i.perPortionNutrition}:{}),amountDecision:(i.amountDecision??undefined) as ItemDraft["amountDecision"], ...(i.reviewExplanation ? { reviewExplanation: i.reviewExplanation } : {}), unit: i.unit, ...(i.foodId ? { foodId: i.foodId, foodVersion: i.foodSnapshot?.version } : {}), ...(i.foodSnapshot ? { foodSnapshot: i.foodSnapshot } : {}), ...(i.referenceSnapshot ? {
+  referenceSnapshot: i.referenceSnapshot,
+  referenceFood: { id: i.referenceSnapshot.food.id, version: i.referenceSnapshot.food.version, portionId: i.referenceSnapshot.portionId },
+} : {}), nutrition: nutrients(i), sourceKind: i.sourceKind as ItemDraft["sourceKind"], basis: i.basis, evidenceUrl: i.evidenceUrl });
 export async function readMealSnapshot(db: Pick<Database, "select">, userId: string, dates?: string[], options: { images?: boolean } = {}): Promise<MealSnapshot> {
   const foods = dates ? [] : (await db.select().from(food).where(eq(food.userId, userId)).orderBy(desc(food.updatedAt))).map(row => ({ id: row.id, version: row.version, category: row.category as FoodDraft["category"], foodGroup: row.foodGroup, name: row.name, brand: row.brand, preparation: row.preparation, baseQuantity: row.baseQuantity, unit: row.unit, servingQuantity:row.servingQuantity,servingUnit:row.servingUnit,nutrition: nutrients(row), sourceKind: row.sourceKind as FoodDraft["sourceKind"], basis: row.basis, evidenceUrl: row.evidenceUrl, deletedAt: row.deletedAt?.toISOString() ?? null }));
   const meals = await db.select().from(meal).where(and(eq(meal.userId, userId), dates ? inArray(meal.localDate, dates) : undefined)).orderBy(desc(meal.localDate), desc(meal.createdAt), asc(meal.sourceRow), asc(meal.id));
@@ -78,10 +83,40 @@ function prepareFood(input: FoodDraft, state: MealSnapshot): FoodView {
   const foodGroup = category === "meal" ? null : input.foodGroup === undefined ? old?.foodGroup ?? null : input.foodGroup;
   return { ...input, category, foodGroup, servingQuantity:input.servingQuantity===undefined?(old?.unit===input.unit?old.servingQuantity??null:null):input.servingQuantity,servingUnit:input.servingUnit===undefined?(old?.unit===input.unit?old.servingUnit??null:null):input.servingUnit, imageIds:input.imageIds ?? old?.imageIds ?? [], id: old?.id ?? randomUUID(), version: (old?.version ?? 0) + 1, deletedAt: null };
 }
+function sameReference(item: ItemView | undefined, link: ReferenceFoodLink) {
+  return item?.referenceSnapshot?.food.id === link.id && item.referenceSnapshot.food.version === link.version;
+}
+
+function prepareReferenceItem(input: ItemDraft, link: ReferenceFoodLink, previous?: ItemView): ItemView {
+  if (input.kind !== "food" || input.foodId || input.foodDraft || input.foodVersion || input.nutrition || input.perPortionNutrition ||
+    input.nutritionBasis === "per_portion") {
+    throw new ApiError(400, "invalid_input", "公共参考须作为独立食物引用，营养按参考规格换算。");
+  }
+  const food = sameReference(previous, link) ? previous!.referenceSnapshot!.food : requireCurrentReferenceFood(link);
+  const portion = link.portionId ? food.portions.find(entry => entry.id === link.portionId) : undefined;
+  const unit = portion?.unit ?? "g";
+  if (link.portionId && !portion || input.unit !== unit || !input.quantity && input.amountDecision !== "unknown_accepted") {
+    throw new ApiError(400, "unit_required", "请选择该规格支持的份量及单位；按克须填写可食部重量。");
+  }
+  const { nutrition, edibleGrams } = referenceNutrition(food, input.quantity ?? null, portion?.id);
+  if (Object.values(nutrition).some(value => value !== null && Number(value) > 1000000)) {
+    throw new ApiError(400, "invalid_input", "换算结果超出有效范围。");
+  }
+  const source = food.source;
+  return {
+    ...input, id: previous?.id, name: food.name, nutritionBasis: "consumed_total", nutrition,
+    referenceSnapshot: { food, portionId: portion?.id, edibleGrams },
+    sourceKind: "composition_table",
+    basis: input.amountDecision === "estimate_accepted" ? input.basis : source.dataset + " · " + source.recordId,
+    evidenceUrl: source.url,
+  };
+}
+
 function prepareItem(input: ItemDraft, state: MealSnapshot, previous?: ItemView): ItemView {
   if (input.foodRef) throw new ApiError(400, "invalid_input", "foodRef 仅用于统一记录提交。");
   if(input.amountDecision==="estimate_accepted"&&!input.basis?.trim())throw new ApiError(400,"amount_basis_required","请填写已接受的食用量估算依据。");
   if(input.amountDecision==="unknown_accepted"&&input.quantity)throw new ApiError(400,"invalid_input","明确未知食用量时quantity须为null。");
+  if (input.referenceFood) return prepareReferenceItem(input, input.referenceFood, previous);
   if (input.foodId && input.foodDraft) throw new ApiError(400, "invalid_input", "请选择已有食材或新食材中的一种。");
   if (input.kind !== "food" && (input.foodId || input.foodDraft)) throw new ApiError(400, "invalid_input", "杂和整餐估算直接填写营养，不引用食材库。");
   const archived = previous?.foodSnapshot && !previous.foodId && !input.foodDraft && (!input.foodId || input.foodId === previous.foodSnapshot.id);
@@ -141,7 +176,7 @@ export function prepareMealActions(input: MealInput, state: MealSnapshot, origin
           for(const item of items){
             const prior=old.items.find(candidate=>!used.has(candidate.id??"") && (item.originalItemId?candidate.id===item.originalItemId:candidate.name===item.name&&candidate.foodId===item.foodId));
             if(!prior){added.push(item);continue;}used.add(prior.id??"");
-            const content=(row:ItemView)=>[row.name,row.quantity==null?null:Number(row.quantity),row.unit,row.nutrition,row.sourceKind,row.nutritionBasis??"consumed_total",row.perPortionNutrition??null];
+            const content=(row:ItemView)=>[row.name,row.quantity==null?null:Number(row.quantity),row.unit,row.nutrition,row.sourceKind,row.nutritionBasis??"consumed_total",row.perPortionNutrition??null,row.referenceFood??null];
             if(digest(content(prior))!==digest(content(item)))changed.push({before:prior,after:item});
           }
           row.changes={added,changed,removed:old.items.filter(item=>!used.has(item.id??"")),metadata:[
@@ -318,6 +353,15 @@ export async function decideMealOperation(db: Database, userId: string, id: stri
     void allowMissingImages; // 缺图是提示，文字可直接保存。
 
     const active = op.preview.filter(row => !row.excluded);
+    for (const row of active) {
+      if (row.action.kind !== "save_meal") continue;
+      const original = row.before && "items" in row.before ? row.before.items : [];
+      for (const item of row.action.items) {
+        if (item.referenceFood && !sameReference(original.find(entry => entry.id === item.originalItemId), item.referenceFood)) {
+          requireCurrentReferenceFood(item.referenceFood);
+        }
+      }
+    }
     if (op.origin === "ai") requireAiUpserts(active.map(row => row.action));
     for (let index = 0; index < active.length; index++) {
       const row = active[index];
@@ -336,7 +380,7 @@ export async function decideMealOperation(db: Database, userId: string, id: stri
           const retainedIds = m.items.flatMap(item => item.id ? [item.id] : []);
           await tx.update(mealItem).set({ deletedAt: new Date() }).where(and(eq(mealItem.userId, userId), eq(mealItem.mealId, m.id), isNull(mealItem.deletedAt), retainedIds.length ? notInArray(mealItem.id, retainedIds) : undefined));
           for (const [position, item] of m.items.entries()) {
-            const values = { position, kind: item.kind, name: item.name, quantity: item.quantity ?? null, nutritionBasis: item.nutritionBasis ?? "consumed_total", perPortionNutrition: item.perPortionNutrition ?? null, amountDecision: item.amountDecision ?? null, reviewExplanation: item.reviewExplanation ?? null, unit: item.unit ?? null, foodId: item.foodId ?? null, foodSnapshot: item.foodSnapshot, ...item.nutrition, sourceKind: item.sourceKind, basis: item.basis ?? null, evidenceUrl: item.evidenceUrl ?? null, deletedAt: null };
+            const values = { position, kind: item.kind, name: item.name, quantity: item.quantity ?? null, nutritionBasis: item.nutritionBasis ?? "consumed_total", perPortionNutrition: item.perPortionNutrition ?? null, amountDecision: item.amountDecision ?? null, reviewExplanation: item.reviewExplanation ?? null, unit: item.unit ?? null, foodId: item.foodId ?? null, foodSnapshot: item.foodSnapshot ?? null, referenceSnapshot: item.referenceSnapshot ?? null, ...item.nutrition, sourceKind: item.sourceKind, basis: item.basis ?? null, evidenceUrl: item.evidenceUrl ?? null, deletedAt: null };
             if (item.id) await tx.update(mealItem).set(values).where(and(eq(mealItem.id, item.id), eq(mealItem.userId, userId), eq(mealItem.mealId, m.id)));
             else {
               item.id = randomUUID();

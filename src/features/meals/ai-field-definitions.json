@@ -7,6 +7,7 @@
     "days.*.totals.incomplete": "逐指标是否存在未知或不完整；热量完整且全天记全时，宏量缺失不自动阻止已知热量收支计算。",
     "meals.*.totals": "此餐已保存食物的营养合计，不是全天总量；仍需逐指标检查完整性。",
     "meals.*.items.*.nutrition": "餐项采用的本次总营养；不要再次乘实际数量。",
+    "meals.*.items.*.referenceSnapshot": "已有餐次的公共参考规格、计算用份量与实际保存口径。",
     "meals.*.items.*.nutritionBasis": "说明原营养输入口径；查询的已换算nutrition与原始每份或参考量不能重复相乘。",
     "statistics": "服务器对本页逐日摄入的汇总；recorded含部分摄入，complete只按全天记全状态筛选，仍须查看每个营养的incompleteDates。",
     "statistics.window": "本次汇总实际覆盖页的起止日期；不是样本首末日，也不是尚未读完的全区间。",
@@ -27,12 +28,18 @@
     "foods.*.baseQuantity": "该库项nutrition对应的基准量，单位为该项unit，不是用户实际吃下的量。",
     "foods.*.nutrition": "食材库基准量的营养，不是本次实际摄入；按实际quantity和单位由服务端换算。",
     "foods.*.servingQuantity": "一份可靠包装单位对应的基准数量；缺少规格时不能猜一包重量。",
-    "presets": "兼容旧协议的空列表，不提供基础食材预设采用。"
+    "referenceFoods": "公共参考规格候选。逐条核对部位、生熟、做法与皮骨。",
+    "referenceFoods.*.id": "与同一规格的version一起用于referenceFood引用。",
+    "referenceFoods.*.nutrition": "每100 g可食部的营养，由服务器按用户实际食量换算。",
+    "referenceFoods.*.portions": "可选参考份量。按只、个、杯传对应portionId，按可食克数不传。",
+    "referenceFoods.*.portions.*.edibleGrams": "该规格的一份参考可食重量，不是用户本次称重。",
+    "presets": "兼容旧协议的空列表。 "
   },
   "operation": {
     "**.meal.totals": "本餐投影合计，逐指标区分完整、部分和未知；仅有预览不代表正式保存。",
     "**.meal.date": "该餐业务记录日期，不能凭图片自动当作今天。",
     "**.meal.items.*.quantity": "用户实际食用量，不是包装整份量；未知不默认1。",
+    "**.meal.items.*.referenceSnapshot": "用于本餐换算的公共参考版本及可食克数。",
     "**.meal.items.*.nutrition": "此餐项经服务端换算的本次总营养，不再次乘份数。",
     "**.nutritionBasis": "输入口径：consumed_total本次总量，per_portion每份，per_reference每参考量；不能把每100克或整包当成实际摄入。",
     "**.sourceKind": "营养依据的来源种类，estimated为估算（包括同口径总能量及两项宏量反推唯一缺项），不等于用户确认或真实标签。",

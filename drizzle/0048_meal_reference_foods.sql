@@ -1,0 +1,2 @@
+ALTER TABLE "meal_items" ADD COLUMN "reference_snapshot" jsonb;--> statement-breakpoint
+ALTER TABLE "meal_items" ADD CONSTRAINT "meal_items_reference_valid" CHECK ("meal_items"."reference_snapshot" IS NULL OR ("meal_items"."kind" = 'food' AND "meal_items"."food_id" IS NULL AND "meal_items"."food_snapshot" IS NULL));

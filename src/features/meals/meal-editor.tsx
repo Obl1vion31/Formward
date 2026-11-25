@@ -10,10 +10,12 @@ import { MealDuplicateNotice } from "./meal-duplicate-notice";
 import { useId, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   decimal, defaultFoodQuantity, emptyNutrition, foodGroupLabels, mealContentKey, mealTypeLabel,
-  metricLabels, metrics, nutritionFor, sumNutrition, type FoodView, type ItemDraft, type ItemView,
+  metricLabels, metrics, nutritionFor, sumNutrition, type FoodDraft, type FoodView, type ItemDraft, type ItemView,
   type MealDraft, type MealSnapshot, type MealView,
 } from "./model";
 import { FoodPickerCard } from "./presets";
+import { FoodLibraryTabs, ReferenceBrowser, type FoodLibraryScope } from "./reference-browser";
+import { referenceNutrition, type ReferenceFood } from "./reference-food";
 import { editorItem, freeEditorItem, mealEditorInput, mealDraftSignature, emptyEditorItem, type EditorItem, type EditorMeal } from "./meal-editor-state";
 import { MealEntryReadings, nutrientUnit } from "./meal-entry-readings";
 import { MealEntryRow } from "./meal-entry-row";
@@ -26,6 +28,7 @@ const dragType = "application/x-formward-food";
 const categories = ["all", "meat", "vegetable", "staple", "other", "meal"] as const;
 type Category = (typeof categories)[number];
 const categoryLabels = { all: "全部", meal: "整餐", ...foodGroupLabels };
+const referenceKey = (food: { id: string; version: number }) => food.id + ":" + food.version;
 
 type Props = {
   initial: MealDraft;
@@ -95,12 +98,14 @@ export function MealEditor({
  useLayoutEffect(() => () => exchange.stop(), [exchange]);
  const [draft,setDraft]=useState<EditorMeal>(()=>({...structuredClone(initial),mealType:mealTypeLabel(initial.mealType),items:[...initial.items.map((item,index)=>{
   const saved=item.originalItemId?historicalItems.find(previous=>previous.id===item.originalItemId):historicalItems[index];
-  return editorItem(item,index,saved?.nutrition,!!(item.foodId||item.foodRef||item.foodDraft||saved?.foodSnapshot));
+  return editorItem(item,index,saved?.nutrition,!!(item.foodId||item.foodRef||item.foodDraft||item.referenceFood||saved?.foodSnapshot));
  }),freeEditorItem(initial.items.length)]}));
  const [freeKey, setFreeKey] = useState<number | null>(null);
  const [collapsed, setCollapsed] = useState<number[]>([]);
  const [query, setQuery] = useState("");
  const [category, setCategory] = useState<Category>("all");
+ const [scope, setScope] = useState<FoodLibraryScope>("reference");
+ const [referenceFoods, setReferenceFoods] = useState<Record<string, ReferenceFood>>({});
  const [selected, setSelected] = useState<string[]>([]);
  const [replacing, setReplacing] = useState<number | null>(null);
  const [dragging, setDragging] = useState(false);
@@ -111,8 +116,50 @@ export function MealEditor({
  const [initialSignature] = useState(draftSignature);
   const liveDraft=useRef(draft);useLayoutEffect(()=>{liveDraft.current=draft;},[draft]);
   useDraftGuard(draftSignature!==initialSignature||aiOpen||!!aiBinding,uploading||aiWorking||aiSaving);
- function itemFood(item:ItemDraft){return item.foodRef?foodRefs[item.foodRef]:item.foodId?historicalFoods.find(food=>food.id===item.foodId&&food.version===item.foodVersion)??foods.find(food=>food.id===item.foodId):item.foodDraft??historicalItems.find(previous=>previous.id===item.originalItemId)?.foodSnapshot;}
- function values(item:ItemDraft){const food=itemFood(item);return food?item.quantity&&decimal.safeParse(item.quantity).success&&Number(item.quantity)>0?nutritionFor(food,item.quantity,item.unit??food.unit):emptyNutrition():item.nutrition??emptyNutrition();}
+ function itemReference(item: ItemDraft) {
+   if (!item.referenceFood) return undefined;
+   const key = referenceKey(item.referenceFood);
+   const historical = item.originalItemId ? historicalItems.find(entry => entry.id === item.originalItemId)?.referenceSnapshot?.food : undefined;
+   return historical && referenceKey(historical) === key ? historical : referenceFoods[key];
+ }
+
+ const missingReferences = draft.items.filter(item => item.referenceFood && !itemReference(item)).map(item => referenceKey(item.referenceFood!)).join(",");
+ useEffect(() => {
+   if (!missingReferences) return;
+   const abort = new AbortController();
+   void fetch("/api/meal-reference-foods", { signal: abort.signal })
+     .then(async response => {
+       if (!response.ok) return;
+       const { referenceFoods: entries } = await response.json() as { referenceFoods: ReferenceFood[] };
+       if (!abort.signal.aborted) setReferenceFoods(previous => ({ ...previous, ...Object.fromEntries(entries.map(food => [referenceKey(food), food])) }));
+     }).catch(() => { /* 返回草稿后可以重新选择无法读取的参考规格。 */ });
+   return () => abort.abort();
+ }, [missingReferences]);
+
+ function itemFood(item: ItemDraft): FoodDraft | undefined {
+   if (item.referenceFood) {
+     const reference = itemReference(item);
+     const portion = reference?.portions.find(entry => entry.id === item.referenceFood?.portionId) ?? reference?.portions[0];
+     return {
+       name: reference?.name ?? item.name, baseQuantity: "100", unit: "g", servingUnit: portion?.unit,
+       servingQuantity: portion?.edibleGrams, nutrition: reference?.nutrition ?? emptyNutrition(),
+       sourceKind: reference ? "composition_table" : "unknown", basis: reference?.preparation, evidenceUrl: reference?.source.url,
+     };
+   }
+   return item.foodRef ? foodRefs[item.foodRef] : item.foodId
+     ? historicalFoods.find(food => food.id === item.foodId && food.version === item.foodVersion) ?? foods.find(food => food.id === item.foodId)
+     : item.foodDraft ?? historicalItems.find(previous => previous.id === item.originalItemId)?.foodSnapshot;
+ }
+
+ function values(item: ItemDraft) {
+   const quantity = item.quantity && decimal.safeParse(item.quantity).success && Number(item.quantity) > 0 ? item.quantity : null;
+   if (item.referenceFood) {
+     const reference = itemReference(item);
+     return reference ? referenceNutrition(reference, quantity, item.referenceFood.portionId).nutrition : emptyNutrition();
+   }
+   const food = itemFood(item);
+   return food ? quantity ? nutritionFor(food, quantity, item.unit ?? food.unit) : emptyNutrition() : item.nutrition ?? emptyNutrition();
+ }
  function setItem(index:number,next:EditorItem){setDraft(previous=>{
  const items=previous.items.map((item,n)=>{
  if(n!==index)return item;
@@ -132,7 +179,8 @@ export function MealEditor({
    setReplacing(replace);
    setSelected([]);
    if (editorIsWide()) {
-     search.current?.focus({ preventScroll: true });
+     setLibraryOpen(true);
+     requestAnimationFrame(() => search.current?.focus({ preventScroll: true }));
      return;
    }
    const scroll = root.current?.closest("dialog")?.scrollTop ?? 0;
@@ -145,7 +193,10 @@ export function MealEditor({
    setLibraryOpen(false);
    setSelected([]);
    setReplacing(null);
-   if (editorIsWide()) return;
+   if (editorIsWide()) {
+     requestAnimationFrame(() => libraryTrigger.current?.focus({ preventScroll: true }));
+     return;
+   }
    const scroll = root.current?.closest("dialog")?.scrollTop ?? 0;
    setPaneChange({ direction: "back", scroll, animate: !matchMedia("(prefers-reduced-motion: reduce)").matches });
  }
@@ -175,6 +226,35 @@ export function MealEditor({
    else setReplacing(null);
  }
 
+ function addReference(item: ItemDraft, food: ReferenceFood) {
+   if (!canPick || busy || uploading) return;
+   setReferenceFoods(current => ({ ...current, [referenceKey(food)]: food }));
+   setDraft(previous => {
+     const key = Math.max(...previous.items.map(row => row.editor.key)) + 1;
+     return {
+       ...previous,
+       items: replacing === null
+         ? [...previous.items.slice(0, -1), editorItem(item, key, undefined, true), previous.items.at(-1)!]
+         : previous.items.map((row, index) => index === replacing ? editorItem(item, row.editor.key, undefined, true) : row),
+     };
+   });
+   returnToMeal();
+ }
+
+ function manualFromSearch(name: string) {
+   if (!name || !canPick) return;
+   const key = draft.items[replacing ?? draft.items.length - 1].editor.key;
+   const manual = editorItem({ kind: "food", name, quantity: null, unit: null, sourceKind: "unknown", nutrition: emptyNutrition() }, key);
+   setDraft(previous => ({
+     ...previous,
+     items: replacing === null
+       ? [...previous.items.slice(0, -1), manual, freeEditorItem(key + 1)]
+       : previous.items.map((row, index) => index === replacing ? manual : row),
+   }));
+   setFreeKey(key);
+   returnToMeal();
+ }
+
  function changeSelection(food: FoodView) {
    setSelected(previous => {
      if (previous.includes(food.id)) return previous.filter(id => id !== food.id);
@@ -191,7 +271,7 @@ export function MealEditor({
  });
  const entered=draft.items.filter(item=>!emptyEditorItem(item)),totals=sumNutrition(entered.map(values));
  const input=mealEditorInput(draft);
- const entryIssue=entered.some(item=>!item.name.trim())?"请填写食物名称。":entered.find(item=>item.editor.calorieIssue)?.editor.calorieIssue??mealWebIssue(input,totals.values),blocked=pending||busy||uploading||aiSaving||invalid||!!entryIssue;
+ const entryIssue=missingReferences?"参考规格未读取，请重新选择该食材。":entered.some(item=>!item.name.trim())?"请填写食物名称。":entered.find(item=>item.editor.calorieIssue)?.editor.calorieIssue??mealWebIssue(input,totals.values),blocked=pending||busy||uploading||aiSaving||invalid||!!entryIssue;
  const contentKey=mealContentKey({...input,items:input.items.map((item,index)=>({...item,name:itemFood(entered[index])?.name??item.name,nutrition:values(entered[index])}))});
  const duplicate=!entryIssue&&recentMeals.some(meal=>!meal.deletedAt&&meal.id!==draft.id&&mealContentKey(meal)===contentKey);
  const attachments = useRef<HTMLDetailsElement>(null);
@@ -205,12 +285,14 @@ export function MealEditor({
  }
 
  function restoredDraft(value:MealDraft){
-   const next={...structuredClone(value),items:[...value.items.map((item,index)=>editorItem(item,index,historicalItems.find(old=>old.id===item.originalItemId)?.nutrition,!!(item.foodId||item.foodRef||item.foodDraft))),freeEditorItem(value.items.length)]};
+   const next={...structuredClone(value),items:[...value.items.map((item,index)=>editorItem(item,index,historicalItems.find(old=>old.id===item.originalItemId)?.nutrition,!!(item.foodId||item.foodRef||item.foodDraft||item.referenceFood))),freeEditorItem(value.items.length)]};
    liveDraft.current=next;setDraft(next);aiOpeningSignature.current=mealDraftSignature(next);return next;
  }
  function openAi(){if(!allowAi||!canMealAi||!onAiSaved)return;aiOpeningSignature.current=mealDraftSignature(liveDraft.current);if(!aiDraftKey)setAiDraftKey(crypto.randomUUID());setResumeTaskId(undefined);setAiError("");setAiOpen(true);}
  function applyAi(value:AppliedMeal){
    if(mealDraftSignature(liveDraft.current)!==aiOpeningSignature.current){setAiError("原草稿已变化，识别结果已保留，请重新核对后再添加。");return;}
+   const referenced = value.operation.rows.flatMap(row => row.meal?.meal?.items.flatMap(item => item.referenceSnapshot ? [item.referenceSnapshot.food] : []) ?? []);
+   setReferenceFoods(previous => ({ ...previous, ...Object.fromEntries(referenced.map(food => [referenceKey(food), food])) }));
    restoredDraft(value.draft);setAiBinding({taskId:value.taskId,revision:value.operation.revision});setCollapsed([]);setFreeKey(null);setAiOpen(false);setAiWorking(false);
  }
  useLayoutEffect(()=>{const id=new URL(location.href).searchParams.get("aiTask");if(id&&!resumed.current&&allowAi&&canMealAi&&onAiSaved){resumed.current=true;const frame=requestAnimationFrame(()=>{aiOpeningSignature.current=mealDraftSignature(liveDraft.current);setResumeTaskId(id);setAiOpen(true);});return()=>cancelAnimationFrame(frame);}},[allowAi,canMealAi,onAiSaved]);
@@ -248,10 +330,10 @@ export function MealEditor({
 
  return <div className={styles.editor} ref={root} data-meal-editor data-photo-active={aiOpen || undefined}>
    <form className={common.form + " " + styles.mealForm} hidden={aiOpen}
-     data-entry-form={pending ? "meal-pending" : "meal"} data-library-open={libraryOpen || undefined}
+     data-entry-form={pending ? "meal-pending" : "meal"} data-library-open={libraryOpen || undefined} data-library-scope={scope}
      aria-busy={busy || pending && !error} onSubmit={submit}
      onKeyDown={event => {
-       if (event.key !== "Escape" || !libraryOpen || editorIsWide()) return;
+       if (event.key !== "Escape" || !libraryOpen) return;
        event.preventDefault();
        event.stopPropagation();
        returnToMeal();
@@ -297,7 +379,7 @@ export function MealEditor({
              <h2 id={bubbleId + "-foods"}>本餐食物</h2>
              <button ref={libraryTrigger} type="button" className={styles.libraryLink} aria-label="从食材库添加"
                aria-controls={bubbleId + "-picker"} aria-expanded={libraryOpen} disabled={!canPick} onClick={() => showLibrary()}>
-               食材库 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
+               从食材库添加 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
              </button>
            </div>
            <div className={styles.methods} role="group" aria-label="记录方式">
@@ -319,7 +401,7 @@ export function MealEditor({
              </div>
              <ul className={styles.rowList} ref={rows} aria-label="本餐已添加食物">
                {visibleRows.map(({ item, index }) => <MealEntryRow key={item.editor.key} item={item} index={index}
-                 blank={emptyEditorItem(item)} food={itemFood(item)} nutrition={values(item)} nutritionHint={nutritionHint}
+                 blank={emptyEditorItem(item)} food={itemFood(item)} reference={itemReference(item)} nutrition={values(item)} nutritionHint={nutritionHint}
                  nutritionOpen={!collapsed.includes(item.editor.key)} update={next => setItem(index, next)}
                  toggleNutrition={() => setCollapsed(previous => previous.includes(item.editor.key)
                    ? previous.filter(key => key !== item.editor.key) : [...previous, item.editor.key])}
@@ -370,7 +452,12 @@ export function MealEditor({
              </button>
              <h2 ref={panelTitle} tabIndex={-1}>食材库</h2>
            </div>
-           <label className={styles.librarySearch + " " + styles.compactField}><span className="sr-only">搜索食材</span>
+           <FoodLibraryTabs scope={scope} change={next => { setScope(next); setSelected([]); }}/>
+           {scope === "reference" ? <ReferenceBrowser query={query} search={setQuery} searchRef={search}
+             enabled={!pending} disabled={!canPick || busy}
+             onSelect={() => { if (!libraryOpen && editorIsWide()) showLibrary(replacing); }}
+             onAdd={addReference} onManual={manualFromSearch}/>
+           : <><label className={styles.librarySearch + " " + styles.compactField}><span className="sr-only">搜索食材</span>
              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="m12 12 4 4"/></svg>
              <input aria-label="搜索食材" ref={search} type="search" placeholder="搜索名称、品牌或规格" value={query}
                onChange={event => setQuery(event.target.value)}/>
@@ -393,13 +480,13 @@ export function MealEditor({
                  }}/>)}
                {!pending && !results.length && <p className={common.hint}>{query.trim() ? "没有匹配的食材" : "这个分类还没有食材"}</p>}
              </div>
-           </div>
+           </div></>}
          </section>
 
        </div>
      </fieldset>
 
-     <footer ref={totalsBar} className={styles.footer} data-meal-footer>
+     <footer ref={totalsBar} className={styles.footer} data-meal-footer hidden={libraryOpen && scope === "reference"}>
        <div className={styles.saveRow}>
          {entered.length > 0 ? <div className={styles.totals} aria-label="本餐合计">
            <div className={styles.totalLabel}>本餐合计{metrics.some(metric => totals.incomplete[metric] && totals.values[metric] !== null) && <small>已知部分</small>}</div>

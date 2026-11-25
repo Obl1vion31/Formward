@@ -330,6 +330,13 @@
       "when": 1795162944266,
       "tag": "0047_meal_food_groups",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1795612100017,
+      "tag": "0048_meal_reference_foods",
+      "breakpoints": true
     }
   ]
 }

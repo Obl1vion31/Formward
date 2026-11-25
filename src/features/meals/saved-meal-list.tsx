@@ -4,6 +4,7 @@ import type { KeyboardEvent, ReactNode } from "react";
 import { Disclosure } from "@/components/disclosure";
 import { formatNutrition, metricLabels, sourceLabels, type ItemView, type MealView, type Totals } from "./model";
 import { ItemEvidence } from "./review-details";
+import { referencePortionName } from "./reference-food";
 import { ImageGallery } from "./photos";
 import styles from "./saved-meal-list.module.css";
 
@@ -22,10 +23,12 @@ function MacroValues({ totals, item }: { totals?: Totals; item?: ItemView }) {
 }
 
 function SavedFood({ item }: { item: ItemView }) {
-  const provenance = item.foodSnapshot && !item.foodId ? "历史食材规格" : item.foodId ? "引用食材库" : "自由填写";
+  const provenance = item.referenceSnapshot ? "公共参考" : item.foodSnapshot && !item.foodId ? "历史食材规格" : item.foodId ? "引用食材库" : "自由填写";
+  const amount = item.quantity ? (item.amountDecision === "estimate_accepted" ? "约 " : "") +
+    (item.referenceSnapshot ? referencePortionName(item.quantity, item.unit) : Number(item.quantity) + (item.unit ?? "")) : "份量未知";
   return <Disclosure className={styles.food} summary={<>
-    <span className={styles.foodIdentity}><strong>{item.name}</strong><small>{item.quantity ? (item.amountDecision === "estimate_accepted" ? "约 " : "") + Number(item.quantity) + (item.unit ?? "") : "份量未知"}</small></span>
-    <span className={styles.foodEnergy}>{formatNutrition(item.nutrition.caloriesKcal, "caloriesKcal")}<small className={styles.unit}> kcal</small></span><Chevron />
+    <span className={styles.foodIdentity}><strong>{item.name}</strong><small>{amount}</small></span>
+    <span className={styles.foodEnergy}>{item.referenceSnapshot && item.nutrition.caloriesKcal !== null && "约 "}{formatNutrition(item.nutrition.caloriesKcal, "caloriesKcal")}<small className={styles.unit}> kcal</small></span><Chevron />
   </>}>
     <div className={styles.foodDetails} data-saved-food-details><MacroValues item={item} /><p className={styles.provenance}>{provenance} · {sourceLabels[item.sourceKind]}</p><ItemEvidence item={item} /></div>
   </Disclosure>;

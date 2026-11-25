@@ -1,5 +1,6 @@
 import {formatIntegerNumber,formatNutritionNumber} from "../../components/number-format";
 import { z } from "zod";
+import type { ReferenceSnapshot } from "./reference-food";
 
 export const metrics = ["caloriesKcal", "proteinG", "carbsG", "fatG"] as const;
 export type Metric = typeof metrics[number];
@@ -32,9 +33,15 @@ export const foodDraftSchema = z.object({
   imageIds, expectedImageCount: z.number().int().min(0).max(8).optional(), nutrition: nutritionSchema, sourceKind: source, basis: text(4000).nullable().optional(), evidenceUrl: evidence,
 }).strict();
 export type FoodDraft = z.infer<typeof foodDraftSchema>;
+export const referenceFoodLinkSchema = z.object({
+  id: z.string().regex(/^[a-z0-9-]{1,100}$/).describe("search_foods 返回的公共参考规格 ID"),
+  version: z.number().int().positive(),
+  portionId: z.string().regex(/^[a-z0-9-]{1,100}$/).optional().describe("只、个或杯的参考份量 ID；可食克数用 g 并省略此字段"),
+}).strict();
 export const itemSchema = z.object({
   originalItemId: z.string().uuid().optional(),
   foodRef: z.string().min(1).max(120).optional(),
+  referenceFood: referenceFoodLinkSchema.optional(),
   kind: z.enum(["food", "misc", "whole"]), name: text(200).min(1),
   quantity: decimal.refine(v => Number(v) > 0, "食用量须大于0").nullable().optional(), unit: text(30).nullable().optional(),
   amountDecision: z.enum(["provided", "estimate_accepted", "unknown_accepted"]).optional(), foodId: z.string().uuid().optional(), foodVersion: z.number().int().positive().optional(), foodDraft: foodDraftSchema.optional(),
@@ -58,7 +65,7 @@ export const operationSchema = z.object({ operationId: z.string().regex(/^[a-zA-
 export type MealInput = z.infer<typeof operationSchema>;
 export const publicMealInputSchema = operationSchema.extend({ actions: z.array(z.union(actionSchema.options.filter(schema => !schema.shape.kind.value.startsWith("delete_") && !schema.shape.kind.value.startsWith("restore_")))).min(1).max(100) });
 export type FoodView = FoodDraft & { id: string; version: number; deletedAt: string | null };
-export type ItemView = ItemDraft & { id?: string; nutrition: Nutrition; foodSnapshot?: FoodView; sourceKind: ItemDraft["sourceKind"] };
+export type ItemView = ItemDraft & { id?: string; nutrition: Nutrition; foodSnapshot?: FoodView; referenceSnapshot?: ReferenceSnapshot; sourceKind: ItemDraft["sourceKind"] };
 export type Totals = { values: Nutrition; incomplete: Record<Metric, boolean> };
 export type MealDayStatus = "complete" | "incomplete" | "unconfirmed";
 export type MealDayView = { date: string; status: MealDayStatus; version: number; contentDigest: string; source: string };

@@ -34,9 +34,10 @@ export const previewMealChangesSchema = z.object({ ...common, changes: z.array(s
 // 组合入口仍用完整营养结构，但库引用／同批引用／自由项保持互斥，不再暗示混填。
 const fullFoodBase = itemSchema.pick({ name:true, kind:true, quantity:true, unit:true, amountDecision:true, basis:true, originalItemId:true }).extend({kind:z.enum(["food","misc","whole"]).default("food")});
 const libraryItem = fullFoodBase.extend({foodId:z.string().uuid(),foodVersion:z.number().int().positive()}).strict();
+const publicReferenceItem = fullFoodBase.extend({referenceFood:itemSchema.shape.referenceFood.unwrap()}).strict();
 const batchItem = fullFoodBase.extend({foodRef:key}).strict();
-const freeItem = itemSchema.omit({foodId:true,foodVersion:true,foodRef:true,foodDraft:true}).extend({kind:z.enum(["food","misc","whole"]).default("food")}).strict();
-const v2RecordItems = z.union(publicRecordInputSchema.shape.items.element.options.map(schema => schema.shape.kind.value === "save_meal" ? schema.extend({items:z.array(z.union([libraryItem,batchItem,freeItem])).min(1).max(50)}) : schema));
+const freeItem = itemSchema.omit({foodId:true,foodVersion:true,foodRef:true,foodDraft:true,referenceFood:true}).extend({kind:z.enum(["food","misc","whole"]).default("food")}).strict();
+const v2RecordItems = z.union(publicRecordInputSchema.shape.items.element.options.map(schema => schema.shape.kind.value === "save_meal" ? schema.extend({items:z.array(z.union([libraryItem,publicReferenceItem,batchItem,freeItem])).min(1).max(50)}) : schema));
 export const previewBundleSchema = publicRecordInputSchema.omit({ previewId: true, revision: true }).extend({items:z.array(v2RecordItems).min(1).max(100)});
 export const aiPreviewCreateNames = ["preview_measurements", "preview_meals", "preview_foods", "preview_training", "preview_energy", "preview_meal_changes", "preview_record_bundle"] as const;
 export type AiPreviewCreateName = typeof aiPreviewCreateNames[number];

@@ -90,7 +90,19 @@
 .entry[data-dragging] { outline: 2px solid var(--gold); outline-offset: 6px; border-radius: 8px; }
 .foodHeading, .libraryTitle { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .foodHeading h2, .libraryTitle h2 { margin: 0; font-size: 1rem; font-weight: 600; line-height: 1.4; }
-.mealForm .libraryLink { display: inline-flex; align-items: center; gap: 4px; padding: 0 0 0 8px; color: var(--gold); font-size: .875rem; }
+.mealForm .libraryLink { display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; color: var(--gold); font-size: .875rem; }
+@media (max-width: 700px), (pointer: coarse) {
+  .foodHeading { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; margin-block: 0 6px; }
+  .mealForm .libraryLink {
+    justify-content: space-between;
+    padding: 0 12px;
+    background: var(--action-fill);
+    color: var(--action-ink);
+    border-radius: 8px;
+    font-weight: 600;
+  }
+  .mealForm .libraryLink svg { color: inherit; }
+}
 .methods { display: flex; gap: var(--meal-context-gap); margin: 0 0 12px; }
 .mealForm .methods button { display: grid; align-items: center; min-width: 0; padding: 0; font-size: .875rem; }
 .methods button > span {
@@ -508,9 +520,10 @@
   @container meal-editor (min-width: 960px) {
     .columns { display: grid; grid-template-columns: minmax(0, 34fr) minmax(0, 66fr); gap: 24px; }
     .library { display: block; align-self: start; padding-right: 18px; border-right: 1px solid var(--line-soft); }
-    .mealForm .libraryBack, .mealForm .libraryLink, .mealForm[data-library-open] .libraryFooter { display: none; }
-    .mealForm[data-library-open] :is(.entry, .mealContext) { display: block; }
-    .mealForm[data-library-open] .saveRow { display: grid; }
+    .mealForm:not([data-library-open]) .libraryBack { display: none; }
+    .mealForm[data-library-open] :is(.entry, .mealContext, .saveRow) { display: none; }
+    .mealForm[data-library-open] .columns { display: block; }
+    .mealForm[data-library-open] .library { padding-right: 0; border-right: 0; }
     .libraryBody { display: block; }
     .categories { flex-direction: row; flex-wrap: wrap; gap: 0 6px; border-right: 0; border-bottom: 1px solid var(--line-soft); }
     .mealForm .categories button[aria-pressed="true"] { background: transparent; }

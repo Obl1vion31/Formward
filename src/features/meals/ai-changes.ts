@@ -38,7 +38,7 @@ export function savedMealDraft(meal: MealView): MealAction {
     items: meal.items.map(item => {
       const copy = Object.fromEntries(Object.entries(item).filter(([key]) => key in itemSchema.shape)) as ItemDraft;
       copy.originalItemId = item.id;
-      if (item.foodId || item.foodSnapshot) { delete copy.nutrition; delete copy.perPortionNutrition; }
+      if (item.foodId || item.foodSnapshot || item.referenceSnapshot) { delete copy.nutrition; delete copy.perPortionNutrition; }
       else if (item.nutritionBasis === "per_portion") delete copy.nutrition;
       return copy;
     }),
@@ -74,7 +74,7 @@ export function applyMealChanges(original: MealAction, input: MealChangesInput, 
     if (removed.has(index) || updated.has(index)) return fail("同一食物不能重复修改或同时移除。");
     updated.add(index);
     const old = meal.items[index], view = currentItems?.[index];
-    const library = !!(old.foodId || old.foodRef || old.foodDraft || view?.foodSnapshot);
+    const library = !!(old.foodId || old.foodRef || old.foodDraft || old.referenceFood || view?.foodSnapshot);
     const nutrientsChanged = metrics.some(metric => patch[metric] !== undefined || patch.clearFields?.includes(metric)) || patch.caloriesKj !== undefined;
     if (library) {
       const problems: { path: string; message: string }[] = [];

@@ -5,11 +5,13 @@ import { calendarOrdinal } from "../measurements/trend";
 import { localMeasurementDate } from "../measurements/entry-state";
 import { validateMeasurementTimezone } from "../measurements/timezone";
 import { readMealSnapshot, searchFoods } from "./records";
+import { searchReferenceFoods } from "./reference-catalog";
 import { foodLibraryRules } from "./food-description";
 import { boundedQueryPage } from "../records/ai-query";
 import { mealStatistics } from "../records/ai-statistics";
 export async function queryFoods(db: Database, userId: string, query = "") {
-  return { foods: await searchFoods(db, userId, query), presets: [] as import("./model").FoodDraft[], foodLibraryRules };
+  const { referenceFoods } = searchReferenceFoods(query);
+  return { foods: await searchFoods(db, userId, query), presets: [] as import("./model").FoodDraft[], referenceFoods, foodLibraryRules };
 }
 export async function queryMeals(db: Database, userId: string, params: URLSearchParams) {
   if ([...params.keys()].some(k => !["from", "to", "timezone", "view"].includes(k)) || ["from", "to", "timezone", "view"].some(k => params.getAll(k).length > 1)) throw new ApiError(400, "invalid_input", "查询仅支持from、to日期、timezone和view。");

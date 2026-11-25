@@ -132,7 +132,7 @@ export function applyUnansweredMealFields(name: string, args: Record<string,unkn
     return {...meal,foods:meal.foods.map((food: Record<string,unknown>) => {
       if (typeof food?.name !== "string" || !foods.has(normalized(food.name))) return food;
       const unknown = {...food,amountDecision:"unknown_accepted",sourceKind:"unknown"} as Record<string,unknown>;
-      for (const key of ["quantity","unit","foodId","foodVersion","nutritionBasis","referenceQuantity",
+      for (const key of ["quantity","unit","foodId","foodVersion","referenceFood","nutritionBasis","referenceQuantity",
         "caloriesKcal","caloriesKj","proteinG","carbsG","fatG","basis","evidenceUrl"]) delete unknown[key];
       return unknown;
     })};

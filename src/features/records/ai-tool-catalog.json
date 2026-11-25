@@ -3,7 +3,7 @@
   "get_profile": "查看当前连接账号",
   "query_measurements": "查询实测身体、变化和已计算七日统计",
   "preview_measurements": "仅身体新增或历史修改，可批量；创建待确认预览",
-  "search_foods": "先查食材库，取得引用所需foodId、version及规格",
+  "search_foods": "先查本人食材和公共参考，取得规格ID、版本及可靠的参考份量",
   "import_meal_images": "导入附件；上传成功还不等于关联餐次或保存",
   "search_exercises": "查训练动作库和稳定catalogId",
   "query_training": "查模板、计划及实际完成训练，三者分开",

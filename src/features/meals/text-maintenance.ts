@@ -54,9 +54,9 @@ export function foodAction(record: FoodView): MealAction {
 export function mealAction(record: MealView): MealAction {
   const {id,version,date,mealType,timezone,occurredAt,notes,imageIds}=record;
   return {kind:"save_meal",id,version,date,mealType,timezone,occurredAt,notes,imageIds,items:record.items.map(item=>{
-    const {kind,name,quantity,unit,amountDecision,reviewExplanation,foodId,foodVersion,sourceKind,basis,evidenceUrl,nutrition}=item;
-    const draft={originalItemId:item.id,kind,name,quantity,unit,amountDecision,reviewExplanation,foodId,foodVersion,sourceKind,basis,evidenceUrl};
-    return foodId||item.foodSnapshot?draft:{...draft,nutrition};
+    const {kind,name,quantity,unit,amountDecision,reviewExplanation,foodId,foodVersion,referenceFood,sourceKind,basis,evidenceUrl,nutrition}=item;
+    const draft={originalItemId:item.id,kind,name,quantity,unit,amountDecision,reviewExplanation,foodId,foodVersion,referenceFood,sourceKind,basis,evidenceUrl};
+    return foodId||item.foodSnapshot||item.referenceSnapshot?draft:{...draft,nutrition};
   })};
 }
 export async function applyMealTextCorrection(db: Database, userId: string, raw: unknown, expectedDigest: string) {

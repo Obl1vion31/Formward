@@ -1,6 +1,8 @@
 import { useId, type KeyboardEvent } from "react";
 import { DecimalInput } from "@/components/decimal-input";
 import { MealItemDetails } from "./meal-item-details";
+import { FoodArt } from "./food-art";
+import type { ReferenceFood } from "./reference-food";
 import { editorUnit, MealEntryReadings, MealInfoIcon, MealNutrientValue, nutrientUnit } from "./meal-entry-readings";
 import { editorDecimal, updateEditorNutrition, type EditorItem } from "./meal-editor-state";
 import { emptyNutrition, metricLabels, metrics, scaled, sourceLabels, type FoodDraft, type ItemDraft, type Nutrition } from "./model";
@@ -10,6 +12,7 @@ type Props = {
   item: EditorItem;
   index: number;
   food: FoodDraft | undefined;
+  reference?: ReferenceFood;
   nutrition: Nutrition;
   nutritionHint: string;
   blank: boolean;
@@ -32,7 +35,7 @@ function NutritionTrigger() {
 }
 
 export function MealEntryRow({
-  item, index, food, nutrition, nutritionHint, blank, nutritionOpen, update, toggleNutrition, remove, replace,
+  item, index, food, reference, nutrition, nutritionHint, blank, nutritionOpen, update, toggleNutrition, remove, replace,
 }: Props) {
   const id = useId(), number = index + 1;
   const name = food?.name ?? (item.name.trim() || "第 " + number + " 项食物");
@@ -58,7 +61,11 @@ export function MealEntryRow({
     const amount = item.quantity
       ? next === food.unit ? scaled(item.quantity, food.servingQuantity, "1") : scaled(item.quantity, "1", food.servingQuantity)
       : null;
-    update({ ...item, unit: next, quantity: amount === null ? null : editorDecimal(amount) });
+    const portion = reference?.portions.find(entry => entry.unit === next);
+    update({
+      ...item, unit: next, quantity: amount === null ? null : editorDecimal(amount),
+      ...(item.referenceFood ? { referenceFood: { ...item.referenceFood, portionId: portion?.id } } : {}),
+    });
   }
 
   return <li className={styles.entryRow} data-meal-row data-blank-row={blank || undefined}
@@ -97,6 +104,7 @@ export function MealEntryRow({
     </div>
     {!blank && (food ? <MealItemDetails id={id + "-more"} label={name + "的更多操作"}
       trigger={<><strong className={styles.menuName}>{food.name}</strong><MealInfoIcon/></>} className={styles.rowMenu}>
+      {reference && <FoodArt illustration={reference.illustration} detail/>}
       <h3>{name}</h3>
       <p>每 {Number(food.baseQuantity)} {editorUnit(food.unit)} · {sourceLabels[food.sourceKind]}</p>
       {food.basis && <p>{food.basis}</p>}

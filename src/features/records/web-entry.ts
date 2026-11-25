@@ -9,7 +9,7 @@ export const hasPositiveReading=(values:unknown[])=>values.some(value=>value!=nu
 export function sameMealAmounts(a:MealDraft,b:MealDraft){
  const key=(meal:MealDraft)=>JSON.stringify([meal.date,mealTypeLabel(meal.mealType),meal.items.map(item=>{
   const identified=item as typeof item&{id?:string};
-  return [identified.id??item.originalItemId??null,item.name,item.unit??null,number(item.quantity),item.foodId??null,item.foodVersion??null,item.foodRef??null,item.foodDraft??null,item.nutritionBasis??"consumed_total",metrics.map(k=>number(item.nutrition?.[k])),metrics.map(k=>number(item.perPortionNutrition?.[k]))];
+  return [identified.id??item.originalItemId??null,item.name,item.unit??null,number(item.quantity),item.foodId??null,item.foodVersion??null,item.foodRef??null,item.foodDraft??null,item.referenceFood??null,item.nutritionBasis??"consumed_total",metrics.map(k=>number(item.nutrition?.[k])),metrics.map(k=>number(item.perPortionNutrition?.[k]))];
  })]);
  return key(a)===key(b);
 }
