@@ -11,7 +11,7 @@ import styles from "./reference-library.module.css";
 type Section = (typeof referenceSections)[number];
 type ScrollPoint = { element: HTMLElement | null; top: number };
 type Selection = { food: ReferenceCatalogFood; key: string; visit: number; open: boolean; order: number };
-export type ReferenceBack = { label: string; action: (restoreFocus?: boolean) => void };
+export type ReferenceBack = { label: string; shortLabel: string; action: (restoreFocus?: boolean) => void };
 export type FoodLibraryScope = "reference" | "personal";
 
 export function FoodLibraryTabs({ scope, change }: { scope: FoodLibraryScope; change: (scope: FoodLibraryScope) => void }) {
@@ -175,7 +175,11 @@ export function ReferenceBrowser({ query, search, searchRef, enabled, disabled, 
   }, [close, related, relatedFood, splitMotion]);
 
   useLayoutEffect(() => {
-    onDetailBack?.(enabled && active ? { label: related ? "上个食材" : "食材列表", action: back } : null);
+    onDetailBack?.(enabled && active ? {
+      label: related ? "上个食材" : "食材列表",
+      shortLabel: related ? "食材" : "列表",
+      action: back,
+    } : null);
     return () => onDetailBack?.(null);
   }, [onDetailBack, back, related, enabled, active]);
 

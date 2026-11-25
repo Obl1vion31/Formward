@@ -172,8 +172,8 @@ function MeasurementInspector({ routeEntry=false,view, records, sources, timezon
   return <Inspector routeEntry={routeEntry} fitContent={view.kind === "entry"} title={title+" "+displayDate(view.date)}
     close={onClose} onSavedCloseReady={close=>{savedClose.current=close;}} className={styles.drawer} header={view.kind === "entry"
       ? <MeasurementEntryHeader date={view.date} editing={editing} headingRef={heading}/>
-      : <header className={styles.drawerHeader}>
-        <div><h2 ref={heading} tabIndex={-1}>{displayDate(view.date)}</h2><p>{weekday(view.date)}</p></div>
+      : <header className={styles.drawerHeader} data-inspector-title-row>
+        <div data-inspector-title><h2 ref={heading} tabIndex={-1}>{displayDate(view.date)}</h2><p>{weekday(view.date)}</p></div>
         <InspectorCloseButton label="关闭记录详情"/>
       </header>}>
     {view.kind === "entry"

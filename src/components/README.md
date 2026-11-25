@@ -95,7 +95,7 @@ sliding-selection.ts 测量触屏胶囊当前尺寸，处理拖动、取消和�
 
 record-detail-actions.tsx在已展开的餐次／运动中统一编辑及更多删除；删除保留业务原有确认，Escape先关闭更多并返回焦点，外部点击或焦点离开关闭菜单。Disclosure继续只在展开后挂载完整内容。
 
-Inspector的titleParts仅为只读日期详情按完整文字块换行，stableScroll只在该类详情预留滚动条空间；其他填写窗口沿用原布局和草稿保护。极窄或放大视口中标题与关闭按钮分行，44px关闭操作保持可到达。
+Inspector 的手机表头使用等宽操作槽。常规标题及 titleParts 居中，日期保持为完整文字块，长标题在中间列换行。子层的 backTo 提供完整返回名称，shortBackTo 在可用空间足够时显示。自定义表头通过 data-inspector-title-row 复用同一对齐，单个标题可直接用 h2，带附加内容的标题组使用 data-inspector-title。stableScroll 在手机两侧对称预留滚动空间；粘顶测量同时提供滚动与聚焦避让。桌面标题仍随侧栏排布。
 
 workspace-loading.tsx复用正式卡片、语义色图例与图形槽位，首次未知图形只保留同尺寸框及局部等待；已有真实缩略图先到目标，数据接管不二次入场。WorkspaceFrame在目标正文暂时缺席时接续同页等待外壳，保留真实位置。图形往返仍由既有场景控制。导航不注册全局加载提示，保留8秒重试及保存／认证反馈。surface-motion显式区分sheet／drawer／anchored／center；底部面板直接从底部升起。Inspector的遮罩沿用面板开合时长，退场末态保持透明直到弹框关闭，具体背景由桌面／手机的业务样式决定。滚动和焦点只向打开弹框的同一页面恢复。
 

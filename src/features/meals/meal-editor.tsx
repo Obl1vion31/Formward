@@ -423,6 +423,7 @@ export function MealEditor({
  const hasInspector = useInspectorStep(mobilePicker ? {
    title: recipeEdit || referenceBack ? "食材详情" : "食材库",
    backTo: recipeEdit ? "本餐" : referenceBack?.label ?? "本餐",
+   shortBackTo: recipeEdit ? "本餐" : referenceBack?.shortLabel ?? "本餐",
    back: backFromLibrary,
  } : null);
  const externalBack = mobilePicker && hasInspector;

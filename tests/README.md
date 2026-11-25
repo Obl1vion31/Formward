@@ -10,6 +10,8 @@
 
 `FORMWARD_ESTIMATE_DRAFT_GUARD=1 node --import tsx tests/energy-estimation.browser.mts`使用同一虚构资料和隔离数据库，检查自动静息、记录方式／公式切换、慢读取、活动100与0、备注、活动档位和隐藏方式草稿的退出行为；删除输入恢复空白后应直接退出。`FORMWARD_ESTIMATE_ENGINE`分别运行Chromium／WebKit，双主题覆盖390与1440宽度；`FORMWARD_ESTIMATE_RELEASE`可核对兼容发布产物。语义比较在records/form-draft.test.ts覆盖已有记录、来源、步数、未知与0及原精度。
 
+`mobile-panel-headers.browser.mjs` 复用食材库隔离配置与会话。参数依次为浏览器、视口宽度、主题与动态效果。用真实文字盒核对标题位置、操作槽与粘顶高度，覆盖逐级返回、焦点恢复、日期面板切换和长标题换行。屏幕截图及几何结果写入私有验收目录。
+
 ## 更多信息与完整人物首页
 
 `pnpm test:app-information`读取`FORMWARD_INFORMATION_CONFIG`指向workspace-loading独立fixture的config文件，拒绝非隔离配置。先以`FORMWARD_LOADING_PREVIEW=1`启动`tests/workspace-loading.browser.mts`，使用production build或其支持的正式standalone产物；结束向本人fixture发送SIGTERM。`FORMWARD_INFORMATION_ENGINE=chromium|webkit`选择引擎，`FORMWARD_INFORMATION_ARTIFACTS`指定私有截图，`FORMWARD_HOME_BASELINE`可指向备案前保留运行包进行同视口人物几何比较。

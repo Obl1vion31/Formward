@@ -8,15 +8,17 @@ export const InspectorBusyContext=createContext(false);
 export const DraftCloseContext = createContext<(() => void) | null>(null);
 export const DraftGuardContext = createContext<((state: DraftState) => () => void) | null>(null);
 
-export type InspectorStep = { title: string; backTo: string; back: () => void };
+export type InspectorStep = { title: string; backTo: string; shortBackTo?: string; back: () => void };
 export const InspectorStepContext = createContext<((step: InspectorStep) => () => void) | null>(null);
 
 export function useInspectorStep(step: InspectorStep | null) {
   const register = useContext(InspectorStepContext);
   const back = useRef(step?.back);
   useLayoutEffect(() => { back.current = step?.back; }, [step?.back]);
-  const title = step?.title, backTo = step?.backTo;
-  useLayoutEffect(() => title && backTo ? register?.({ title, backTo, back: () => back.current?.() }) : undefined, [register, title, backTo]);
+  const title = step?.title, backTo = step?.backTo, shortBackTo = step?.shortBackTo;
+  useLayoutEffect(() => title && backTo
+    ? register?.({ title, backTo, shortBackTo, back: () => back.current?.() })
+    : undefined, [register, title, backTo, shortBackTo]);
   return register !== null;
 }
 
