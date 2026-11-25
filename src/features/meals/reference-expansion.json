@@ -72,9 +72,9 @@
   },
   {
     "id": "chicken-breast-grilled",
-    "version": 1,
+    "version": 2,
     "family": "chicken-breast",
-    "name": "去皮无酱炙烤鸡胸肉",
+    "name": "去皮炙烤鸡胸肉",
     "aliases": [
       "鸡胸肉",
       "鸡胸",
@@ -130,7 +130,7 @@
   },
   {
     "id": "chicken-wing-roasted",
-    "version": 1,
+    "version": 2,
     "family": "chicken-wing",
     "name": "烤鸡翅",
     "aliases": [
@@ -152,7 +152,7 @@
       "caloriesKcal": "252",
       "proteinG": "23.6",
       "carbsG": "0",
-      "fatG": "16.739999999999998"
+      "fatG": "16.7400"
     },
     "portions": [
       {
@@ -227,48 +227,21 @@
     "portions": []
   },
   {
-    "id": "beef-sirloin-cooked",
-    "version": 1,
-    "family": "beef-steak",
-    "name": "熟西冷牛排（只吃瘦肉）",
-    "aliases": [
-      "西冷牛排",
-      "沙朗牛排",
-      "牛排",
-      "牛肉"
-    ],
-    "state": "cooked",
-    "method": "熟制",
-    "preparation": "熟制方式未细分 · 只计西冷牛排的瘦肉",
-    "illustration": "beef-cooked",
-    "source": {
-      "dataset": "USDA FNDDS 2021–2023",
-      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
-      "recordId": "21102170",
-      "title": "Beef, steak, sirloin, lean only eaten"
-    },
-    "nutrition": {
-      "caloriesKcal": "216",
-      "proteinG": "28.05",
-      "carbsG": "0",
-      "fatG": "11.32"
-    },
-    "portions": []
-  },
-  {
     "id": "beef-tenderloin-cooked",
-    "version": 1,
+    "version": 2,
     "family": "beef-steak",
-    "name": "熟牛里脊牛排",
+    "name": "菲力牛排",
     "aliases": [
+      "牛里脊牛排",
       "牛里脊",
-      "菲力牛排",
-      "牛排",
-      "牛肉"
+      "菲力",
+      "filet mignon",
+      "tenderloin steak",
+      "牛排"
     ],
     "state": "cooked",
     "method": "熟制",
-    "preparation": "原表为菲力部位的成品牛排 · 做法未细分",
+    "preparation": "牛里脊部位 · 熟重 · 做法未注明",
     "illustration": "beef-cooked",
     "source": {
       "dataset": "USDA FNDDS 2021–2023",
@@ -315,13 +288,13 @@
   },
   {
     "id": "beef-brisket-raw",
-    "version": 1,
+    "version": 2,
     "family": "beef-brisket",
-    "name": "生牛前胸肉（修清）",
+    "name": "生牛前胸肉",
     "aliases": [
       "牛前胸",
       "牛胸肉",
-      "牛肉",
+      "生牛肉",
       "brisket"
     ],
     "state": "raw",
@@ -344,18 +317,17 @@
   },
   {
     "id": "beef-pot-roast",
-    "version": 1,
-    "family": "beef-brisket",
-    "name": "炖牛肉（不含配菜）",
+    "version": 2,
+    "family": "beef-dish",
+    "name": "炖牛肉",
     "aliases": [
-      "炖牛肉",
       "焖牛肉",
       "牛肉",
       "pot roast"
     ],
     "state": "cooked",
     "method": "炖",
-    "preparation": "原表为炖烤牛肉 · 单计肉部",
+    "preparation": "牛肉炖熟 · 部位未注明 · 单计可食肉",
     "illustration": "beef-stew",
     "source": {
       "dataset": "USDA FNDDS 2021–2023",
@@ -373,18 +345,20 @@
   },
   {
     "id": "pork-tenderloin-raw",
-    "version": 1,
+    "version": 2,
     "family": "pork-loin",
-    "name": "生猪小里脊",
+    "name": "生猪里脊肉",
     "aliases": [
-      "猪肉",
+      "生猪小里脊",
+      "生小里脊",
       "猪里脊",
+      "猪里脊肉",
       "小里脊",
       "猪小里肌"
     ],
     "state": "raw",
     "method": "生",
-    "preparation": "猪小里脊 · 生重可食部",
+    "preparation": "小里脊 · 生重可食部",
     "illustration": "pork-loin-raw",
     "source": {
       "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
@@ -402,18 +376,19 @@
   },
   {
     "id": "pork-tenderloin-cooked",
-    "version": 1,
+    "version": 2,
     "family": "pork-loin",
-    "name": "熟猪小里脊",
+    "name": "猪里脊肉",
     "aliases": [
-      "猪肉",
       "猪里脊",
       "小里脊",
+      "熟猪小里脊",
+      "熟猪里脊",
       "pork tenderloin"
     ],
     "state": "cooked",
     "method": "熟制",
-    "preparation": "原表为熟猪小里脊 · 做法未细分",
+    "preparation": "小里脊 · 熟重 · 做法未注明",
     "illustration": "pork-loin-cooked",
     "source": {
       "dataset": "USDA FNDDS 2021–2023",
@@ -607,7 +582,7 @@
   },
   {
     "id": "shrimp-boiled",
-    "version": 1,
+    "version": 2,
     "family": "shrimp",
     "name": "水煮或清蒸虾",
     "aliases": [
@@ -631,8 +606,8 @@
     },
     "nutrition": {
       "caloriesKcal": "90",
-      "proteinG": "17.190000000000001",
-      "carbsG": "1.1499999999999999",
+      "proteinG": "17.1900",
+      "carbsG": "1.1500",
       "fatG": "1.28"
     },
     "portions": [
@@ -682,7 +657,7 @@
   },
   {
     "id": "rice-brown-cooked",
-    "version": 1,
+    "version": 2,
     "family": "rice",
     "name": "熟糙米饭（无加油）",
     "aliases": [
@@ -703,9 +678,9 @@
     },
     "nutrition": {
       "caloriesKcal": "123",
-      "proteinG": "2.4300000000000002",
+      "proteinG": "2.4300",
       "carbsG": "25.76",
-      "fatG": "1.1100000000000001"
+      "fatG": "1.1100"
     },
     "portions": [
       {
@@ -923,7 +898,7 @@
   },
   {
     "id": "oatmeal-cooked",
-    "version": 1,
+    "version": 2,
     "family": "oats",
     "name": "水煮燕麦粥",
     "aliases": [
@@ -946,7 +921,7 @@
       "caloriesKcal": "64",
       "proteinG": "2.21",
       "carbsG": "11.36",
-      "fatG": "1.0900000000000001"
+      "fatG": "1.0900"
     },
     "portions": [
       {
@@ -1399,7 +1374,7 @@
   },
   {
     "id": "milk-reduced",
-    "version": 1,
+    "version": 2,
     "family": "milk",
     "name": "低脂牛奶（2%乳脂）",
     "aliases": [
@@ -1421,14 +1396,14 @@
     "nutrition": {
       "caloriesKcal": "50",
       "proteinG": "3.36",
-      "carbsG": "4.9000000000000004",
+      "carbsG": "4.9000",
       "fatG": "1.9"
     },
     "portions": []
   },
   {
     "id": "yogurt-whole",
-    "version": 1,
+    "version": 2,
     "family": "yogurt",
     "name": "全脂原味酸奶",
     "aliases": [
@@ -1450,7 +1425,7 @@
       "caloriesKcal": "78",
       "proteinG": "3.82",
       "carbsG": "5.57",
-      "fatG": "4.4800000000000004"
+      "fatG": "4.4800"
     },
     "portions": []
   },
@@ -1485,7 +1460,7 @@
   },
   {
     "id": "yogurt-greek",
-    "version": 1,
+    "version": 2,
     "family": "yogurt",
     "name": "全脂希腊酸奶（原味）",
     "aliases": [
@@ -1506,9 +1481,9 @@
     },
     "nutrition": {
       "caloriesKcal": "94",
-      "proteinG": "8.7799999999999994",
+      "proteinG": "8.7800",
       "carbsG": "4.75",
-      "fatG": "4.3899999999999997"
+      "fatG": "4.3900"
     },
     "portions": []
   },
@@ -1629,7 +1604,7 @@
   },
   {
     "id": "soymilk-sweet",
-    "version": 1,
+    "version": 2,
     "family": "soy-milk",
     "name": "含糖豆浆",
     "aliases": [
@@ -1652,13 +1627,13 @@
       "caloriesKcal": "53",
       "proteinG": "3.41",
       "carbsG": "5.22",
-      "fatG": "2.0499999999999998"
+      "fatG": "2.0500"
     },
     "portions": []
   },
   {
     "id": "edamame-cooked",
-    "version": 1,
+    "version": 2,
     "family": "edamame",
     "name": "熟毛豆仁",
     "aliases": [
@@ -1679,7 +1654,7 @@
     "nutrition": {
       "caloriesKcal": "140",
       "proteinG": "11.54",
-      "carbsG": "8.6300000000000008",
+      "carbsG": "8.6300",
       "fatG": "7.58"
     },
     "portions": []
@@ -1741,9 +1716,9 @@
   },
   {
     "id": "bok-choy-raw",
-    "version": 1,
+    "version": 2,
     "family": "bok-choy",
-    "name": "生青梗菜",
+    "name": "生小油菜",
     "aliases": [
       "青江菜",
       "上海青",
@@ -1753,7 +1728,7 @@
     ],
     "state": "raw",
     "method": "生",
-    "preparation": "原表土植青江菜 3 月样品 · 烹调前可食部",
+    "preparation": "小油菜（上海青）· 烹调前可食部",
     "illustration": "leafy-greens",
     "source": {
       "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
@@ -1886,7 +1861,7 @@
   },
   {
     "id": "napa-cooked",
-    "version": 1,
+    "version": 2,
     "family": "cabbage",
     "name": "熟大白菜（无加油）",
     "aliases": [
@@ -1909,7 +1884,7 @@
     "nutrition": {
       "caloriesKcal": "14",
       "proteinG": "1.56",
-      "carbsG": "2.2599999999999998",
+      "carbsG": "2.2600",
       "fatG": "0.21"
     },
     "portions": []
@@ -2188,7 +2163,7 @@
   },
   {
     "id": "banana-fresh",
-    "version": 1,
+    "version": 2,
     "family": "banana",
     "name": "鲜香蕉",
     "aliases": [
@@ -2209,7 +2184,7 @@
       "caloriesKcal": "97",
       "proteinG": "0.74",
       "carbsG": "22.71",
-      "fatG": "0.28000000000000003"
+      "fatG": "0.2800"
     },
     "portions": [
       {
@@ -2228,9 +2203,9 @@
   },
   {
     "id": "orange-fresh",
-    "version": 1,
+    "version": 2,
     "family": "orange",
-    "name": "鲜甜橙",
+    "name": "橙子",
     "aliases": [
       "橙子",
       "甜橙",
@@ -2240,7 +2215,7 @@
     ],
     "state": "ready",
     "method": "即食",
-    "preparation": "鲜甜橙去皮等不可食部分",
+    "preparation": "鲜甜橙 · 去皮可食果肉",
     "illustration": "orange",
     "source": {
       "dataset": "USDA FNDDS 2021–2023",
@@ -2252,7 +2227,7 @@
       "caloriesKcal": "50",
       "proteinG": "0.92",
       "carbsG": "11.78",
-      "fatG": "0.14000000000000001"
+      "fatG": "0.1400"
     },
     "portions": [
       {
@@ -2271,18 +2246,19 @@
   },
   {
     "id": "tangerine-fresh",
-    "version": 1,
+    "version": 2,
     "family": "orange",
-    "name": "茂谷柑",
+    "name": "橘子",
     "aliases": [
       "柑橘",
-      "橘子",
       "桔子",
-      "茂谷柑"
+      "茂谷柑",
+      "mandarin",
+      "tangerine"
     ],
     "state": "ready",
     "method": "即食",
-    "preparation": "源样品茂谷柑 · 按可食果肉",
+    "preparation": "按去皮可食果肉计 · 代表样本茂谷柑",
     "illustration": "orange",
     "source": {
       "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
@@ -2300,19 +2276,17 @@
   },
   {
     "id": "pear-fresh",
-    "version": 1,
+    "version": 2,
     "family": "pear",
-    "name": "新兴梨",
+    "name": "梨",
     "aliases": [
-      "梨",
-      "水梨",
-      "雪梨",
+      "鲜梨",
       "新兴梨",
       "pear"
     ],
     "state": "ready",
     "method": "即食",
-    "preparation": "源样品新兴梨 · 按可食部",
+    "preparation": "按可食果肉计 · 代表样本新兴梨",
     "illustration": "pear",
     "source": {
       "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
@@ -2555,7 +2529,7 @@
   },
   {
     "id": "walnut",
-    "version": 1,
+    "version": 2,
     "family": "walnut",
     "name": "核桃仁",
     "aliases": [
@@ -2576,7 +2550,7 @@
       "caloriesKcal": "730",
       "proteinG": "14.56",
       "carbsG": "10.91",
-      "fatG": "69.739999999999995"
+      "fatG": "69.7400"
     },
     "portions": []
   },
@@ -3084,13 +3058,14 @@
   },
   {
     "id": "cola",
-    "version": 1,
+    "version": 2,
     "family": "cola",
     "name": "含糖可乐",
     "aliases": [
       "普通可乐",
+      "有糖可乐",
       "可乐",
-      "汽水",
+      "苏打汽水",
       "cola"
     ],
     "state": "ready",
@@ -3108,35 +3083,6 @@
       "proteinG": "0",
       "carbsG": "10.36",
       "fatG": "0.25"
-    },
-    "portions": []
-  },
-  {
-    "id": "cola-diet",
-    "version": 1,
-    "family": "cola",
-    "name": "无糖可乐",
-    "aliases": [
-      "零糖可乐",
-      "无糖汽水",
-      "可乐",
-      "diet cola"
-    ],
-    "state": "ready",
-    "method": "即食",
-    "preparation": "原表通用无糖可乐",
-    "illustration": "cola",
-    "source": {
-      "dataset": "USDA FNDDS 2021–2023",
-      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
-      "recordId": "92410320",
-      "title": "Soft drink, cola, diet"
-    },
-    "nutrition": {
-      "caloriesKcal": "2",
-      "proteinG": "0.11",
-      "carbsG": "0.28999999999999998",
-      "fatG": "0.03"
     },
     "portions": []
   },
@@ -3171,7 +3117,7 @@
   },
   {
     "id": "saltine",
-    "version": 1,
+    "version": 2,
     "family": "cracker",
     "name": "苏打饼干",
     "aliases": [
@@ -3192,7 +3138,7 @@
     },
     "nutrition": {
       "caloriesKcal": "418",
-      "proteinG": "9.4600000000000009",
+      "proteinG": "9.4600",
       "carbsG": "74.05",
       "fatG": "8.64"
     },
@@ -3200,7 +3146,7 @@
   },
   {
     "id": "dark-chocolate",
-    "version": 1,
+    "version": 2,
     "family": "chocolate",
     "name": "黑巧克力",
     "aliases": [
@@ -3222,7 +3168,7 @@
       "caloriesKcal": "550",
       "proteinG": "5.09",
       "carbsG": "59.97",
-      "fatG": "32.200000000000003"
+      "fatG": "32.2000"
     },
     "portions": [
       {
@@ -3241,7 +3187,7 @@
   },
   {
     "id": "potato-chips",
-    "version": 1,
+    "version": 2,
     "family": "chips",
     "name": "原味薯片",
     "aliases": [
@@ -3263,7 +3209,7 @@
       "caloriesKcal": "532",
       "proteinG": "6.39",
       "carbsG": "53.83",
-      "fatG": "33.979999999999997"
+      "fatG": "33.9800"
     },
     "portions": []
   },
@@ -3589,7 +3535,7 @@
   },
   {
     "id": "soy-tofu-vegetables",
-    "version": 1,
+    "version": 2,
     "family": "tofu-dish",
     "name": "酱汁蔬菜豆腐",
     "aliases": [
@@ -3609,7 +3555,7 @@
     },
     "nutrition": {
       "caloriesKcal": "92",
-      "proteinG": "4.1100000000000003",
+      "proteinG": "4.1100",
       "carbsG": "4.68",
       "fatG": "6.71"
     },
@@ -3642,5 +3588,1986 @@
       "fatG": "6.96"
     },
     "portions": []
+  },
+  {
+    "id": "beef-ribeye",
+    "version": 1,
+    "family": "beef-steak",
+    "name": "肉眼牛排",
+    "aliases": [
+      "肉眼",
+      "肋眼",
+      "眼肉牛排",
+      "ribeye",
+      "rib eye",
+      "scotch fillet",
+      "牛排"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "肋眼部位 · 熟重 · 可食瘦肉及脂肪",
+    "illustration": "beef-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "21101180",
+      "title": "Beef, steak, ribeye, lean and fat eaten"
+    },
+    "nutrition": {
+      "caloriesKcal": "289",
+      "proteinG": "23.5",
+      "carbsG": "0",
+      "fatG": "21.64"
+    },
+    "portions": []
+  },
+  {
+    "id": "brisket-cooked",
+    "version": 1,
+    "family": "beef-brisket",
+    "name": "熟牛前胸肉",
+    "aliases": [
+      "熟牛前胸",
+      "熟牛胸肉",
+      "熟牛腩肉",
+      "brisket cooked"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "牛前胸部位 · 熟重 · 按可食肉计",
+    "illustration": "beef-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "21417100",
+      "title": "Beef, brisket"
+    },
+    "nutrition": {
+      "caloriesKcal": "231",
+      "proteinG": "29.41",
+      "carbsG": "0",
+      "fatG": "12.04"
+    },
+    "portions": []
+  },
+  {
+    "id": "sg-roast-chicken",
+    "version": 1,
+    "family": "poached-chicken",
+    "name": "烧鸡",
+    "aliases": [
+      "烤鸡",
+      "roast chicken",
+      "烧鸡肉"
+    ],
+    "state": "cooked",
+    "method": "烤",
+    "skin": "吃皮",
+    "preparation": "烤鸡可食部 · 带皮 · 按去骨重量计",
+    "illustration": "chicken-breast-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "24102010",
+      "title": "Chicken, NS as to part, baked, broiled, or roasted, skin eaten"
+    },
+    "nutrition": {
+      "caloriesKcal": "203",
+      "proteinG": "24.7",
+      "carbsG": "0",
+      "fatG": "10.8"
+    },
+    "portions": []
+  },
+  {
+    "id": "baked-potato-wedges",
+    "version": 1,
+    "family": "potato",
+    "name": "烤薯块",
+    "aliases": [
+      "烤土豆",
+      "烤土豆块",
+      "baked potato wedges",
+      "potato wedges"
+    ],
+    "state": "cooked",
+    "method": "烤",
+    "preparation": "鲜土豆切块烤制 · 原表烤制薯块参考 · 已含表中用油",
+    "illustration": "potato",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "71401015",
+      "title": "Potato, french fries, from fresh, baked"
+    },
+    "nutrition": {
+      "caloriesKcal": "166",
+      "proteinG": "2.02",
+      "carbsG": "19.34",
+      "fatG": "9.16"
+    },
+    "portions": []
+  },
+  {
+    "id": "coconut-rice",
+    "version": 1,
+    "family": "rice",
+    "name": "椰香米饭",
+    "aliases": [
+      "椰奶米饭",
+      "coconut rice",
+      "椰浆煮饭"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "preparation": "以椰浆煮熟 · 按饭的重量计",
+    "illustration": "cooked-rice",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "58161200",
+      "title": "Rice, cooked with coconut milk"
+    },
+    "nutrition": {
+      "caloriesKcal": "267",
+      "proteinG": "3.57",
+      "carbsG": "26.55",
+      "fatG": "17.23"
+    },
+    "portions": []
+  },
+  {
+    "id": "cola-wings",
+    "version": 1,
+    "family": "chicken-wing",
+    "name": "可乐鸡翅",
+    "aliases": [
+      "鸡翅",
+      "可乐鸡翅中",
+      "可乐焖鸡翅",
+      "cola chicken wings"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "skin": "吃皮",
+    "illustration": "cola-wings",
+    "preparation": "带皮去骨可食部 · 普通可乐收汁 · 含酱汁",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "cola-wings v1",
+      "title": "中国家常可乐鸡翅",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c7/30/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "244.5417",
+      "proteinG": "19.1725",
+      "carbsG": "3.6588",
+      "fatG": "16.5154"
+    },
+    "recipeIngredients": [
+      {
+        "name": "炖鸡翅可食部",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "24163110",
+          "title": "Chicken wing, stewed"
+        },
+        "edibleGrams": "100"
+      },
+      {
+        "name": "普通可乐收汁",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "92410310",
+          "title": "Soft drink, cola"
+        },
+        "edibleGrams": "12",
+        "nutritionGrams": "40"
+      },
+      {
+        "name": "酱油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "41420300",
+          "title": "Soy sauce"
+        },
+        "edibleGrams": "5"
+      },
+      {
+        "name": "成品保留用油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "82101000",
+          "title": "Vegetable oil, NFS"
+        },
+        "edibleGrams": "3"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "120",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "cola-wings v1",
+          "title": "中国家常可乐鸡翅",
+          "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c7/30/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "air-fryer-wings",
+    "version": 1,
+    "family": "chicken-wing",
+    "name": "空气炸锅鸡翅",
+    "aliases": [
+      "鸡翅",
+      "空气炸鸡翅",
+      "气炸鸡翅",
+      "气炸鸡翅中",
+      "air fryer wings",
+      "air fried chicken wings"
+    ],
+    "state": "cooked",
+    "method": "空气炸",
+    "skin": "吃皮",
+    "illustration": "air-fryer-wings",
+    "preparation": "带皮去骨可食部 · 无裹粉 · 以干热熟鸡翅估算",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "air-fryer-wings v1",
+      "title": "空气炸锅版炸鸡翅",
+      "url": "https://m.izhangchu.com/dishes_view/index.html?dishes_id=16249"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "256.7170",
+      "proteinG": "22.5713",
+      "carbsG": "0.1860",
+      "fatG": "17.7008"
+    },
+    "recipeIngredients": [
+      {
+        "name": "干热熟鸡翅可食部",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "24162130",
+          "title": "Chicken wing, baked, broiled, or roasted, from raw"
+        },
+        "edibleGrams": "100"
+      },
+      {
+        "name": "酱油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "41420300",
+          "title": "Soy sauce"
+        },
+        "edibleGrams": "4"
+      },
+      {
+        "name": "成品保留用油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "82101000",
+          "title": "Vegetable oil, NFS"
+        },
+        "edibleGrams": "2"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "106",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "air-fryer-wings v1",
+          "title": "空气炸锅版炸鸡翅",
+          "url": "https://m.izhangchu.com/dishes_view/index.html?dishes_id=16249"
+        }
+      }
+    ]
+  },
+  {
+    "id": "tomato-beef-brisket",
+    "version": 1,
+    "family": "beef-brisket",
+    "name": "番茄炖牛腩",
+    "aliases": [
+      "西红柿炖牛腩",
+      "番茄牛腩",
+      "茄汁牛腩",
+      "tomato beef brisket",
+      "炖牛腩",
+      "牛腩"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "illustration": "tomato-brisket",
+    "preparation": "牛腩按前胸肉参考 · 含番茄、土豆和炖汁",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "tomato-beef-brisket v1",
+      "title": "番茄牛腩饭中的炖菜",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/1c/recipe-475/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "161.1375",
+      "proteinG": "14.6151",
+      "carbsG": "6.9174",
+      "fatG": "8.2508"
+    },
+    "recipeIngredients": [
+      {
+        "name": "熟牛前胸可食肉",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "21417100",
+          "title": "Beef, brisket"
+        },
+        "edibleGrams": "75"
+      },
+      {
+        "name": "熟番茄",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "99997410",
+          "title": "Tomatoes, cooked, as ingredient"
+        },
+        "edibleGrams": "40"
+      },
+      {
+        "name": "熟土豆",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "71103010",
+          "title": "Potato, boiled, from fresh, peel not eaten, no added fat"
+        },
+        "edibleGrams": "26"
+      },
+      {
+        "name": "番茄酱",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "74401010",
+          "title": "Ketchup"
+        },
+        "edibleGrams": "5"
+      },
+      {
+        "name": "酱油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "41420300",
+          "title": "Soy sauce"
+        },
+        "edibleGrams": "4"
+      },
+      {
+        "name": "成品保留用油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "82101000",
+          "title": "Vegetable oil, NFS"
+        },
+        "edibleGrams": "4"
+      },
+      {
+        "name": "白糖",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "91101010",
+          "title": "Sugar, white, granulated or lump"
+        },
+        "edibleGrams": "2"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "94000100",
+          "title": "Water, tap"
+        },
+        "edibleGrams": "4"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "160",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "tomato-beef-brisket v1",
+          "title": "番茄牛腩饭中的炖菜",
+          "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/1c/recipe-475/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "red-braised-brisket",
+    "version": 1,
+    "family": "beef-brisket",
+    "name": "红烧牛腩",
+    "aliases": [
+      "红焖牛腩",
+      "红烧牛肉",
+      "炖牛腩",
+      "牛腩",
+      "braised beef brisket"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "illustration": "beef-stew",
+    "preparation": "牛腩按前胸肉参考 · 含酱油、洋葱和收汁",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "red-braised-brisket v1",
+      "title": "中国家常红烧牛腩",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/f7/braised-beef-spicy-oyster-sauce/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "191.20",
+      "proteinG": "18.8244",
+      "carbsG": "5.8295",
+      "fatG": "10.0154"
+    },
+    "recipeIngredients": [
+      {
+        "name": "熟牛前胸可食肉",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "21417100",
+          "title": "Beef, brisket"
+        },
+        "edibleGrams": "99"
+      },
+      {
+        "name": "熟洋葱",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "75221011",
+          "title": "Onions, cooked, no added fat"
+        },
+        "edibleGrams": "21"
+      },
+      {
+        "name": "酱油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "41420300",
+          "title": "Soy sauce"
+        },
+        "edibleGrams": "8"
+      },
+      {
+        "name": "蚝油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "28520100",
+          "title": "Oyster sauce"
+        },
+        "edibleGrams": "6"
+      },
+      {
+        "name": "成品保留用油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "82101000",
+          "title": "Vegetable oil, NFS"
+        },
+        "edibleGrams": "4"
+      },
+      {
+        "name": "白糖",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "91101010",
+          "title": "Sugar, white, granulated or lump"
+        },
+        "edibleGrams": "6"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "94000100",
+          "title": "Water, tap"
+        },
+        "edibleGrams": "16"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "160",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "red-braised-brisket v1",
+          "title": "中国家常红烧牛腩",
+          "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/f7/braised-beef-spicy-oyster-sauce/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "tomato-scrambled-eggs",
+    "version": 1,
+    "family": "egg-dish",
+    "name": "番茄炒蛋",
+    "aliases": [
+      "西红柿炒蛋",
+      "西红柿炒鸡蛋",
+      "番茄炒鸡蛋",
+      "tomato scrambled eggs"
+    ],
+    "state": "cooked",
+    "method": "炒",
+    "illustration": "tomato-eggs",
+    "preparation": "番茄、鸡蛋和成品保留用油 · 按整菜称重",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "tomato-scrambled-eggs v1",
+      "title": "番茄炒蛋家常菜谱",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c5/49/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "117.6474",
+      "proteinG": "6.3947",
+      "carbsG": "4.3295",
+      "fatG": "8.5256"
+    },
+    "recipeIngredients": [
+      {
+        "name": "熟番茄",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "99997410",
+          "title": "Tomatoes, cooked, as ingredient"
+        },
+        "edibleGrams": "90"
+      },
+      {
+        "name": "无加油熟全蛋基底",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "31103010",
+          "title": "Egg, whole, boiled or poached"
+        },
+        "edibleGrams": "90"
+      },
+      {
+        "name": "成品保留用油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "82101000",
+          "title": "Vegetable oil, NFS"
+        },
+        "edibleGrams": "7"
+      },
+      {
+        "name": "白糖",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "91101010",
+          "title": "Sugar, white, granulated or lump"
+        },
+        "edibleGrams": "3"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "190",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "tomato-scrambled-eggs v1",
+          "title": "番茄炒蛋家常菜谱",
+          "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c5/49/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "stir-fried-pork-peppers",
+    "version": 1,
+    "family": "pork-dish",
+    "name": "青椒肉丝",
+    "aliases": [
+      "青椒炒肉丝",
+      "青椒猪肉丝",
+      "stir fried pork and peppers"
+    ],
+    "state": "cooked",
+    "method": "炒",
+    "illustration": "pork-pepper",
+    "preparation": "猪里脊、青椒 · 含油和酱油",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "stir-fried-pork-peppers v1",
+      "title": "中国家常青椒肉丝炒法",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-cn/recipe/0/c5/ee/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "124.12",
+      "proteinG": "13.734",
+      "carbsG": "3.4610",
+      "fatG": "5.8747"
+    },
+    "recipeIngredients": [
+      {
+        "name": "熟猪里脊可食肉",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "22210300",
+          "title": "Pork, tenderloin"
+        },
+        "edibleGrams": "80"
+      },
+      {
+        "name": "青椒炒后可食部",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "75122100",
+          "title": "Peppers, sweet, green, raw"
+        },
+        "edibleGrams": "57",
+        "nutritionGrams": "65"
+      },
+      {
+        "name": "酱油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "41420300",
+          "title": "Soy sauce"
+        },
+        "edibleGrams": "5"
+      },
+      {
+        "name": "成品保留用油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "82101000",
+          "title": "Vegetable oil, NFS"
+        },
+        "edibleGrams": "6"
+      },
+      {
+        "name": "勾芡玉米粉",
+        "source": {
+          "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+          "url": "https://data.gov.tw/dataset/8543",
+          "recordId": "A0420101",
+          "title": "玉米粉"
+        },
+        "edibleGrams": "2"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "150",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "stir-fried-pork-peppers v1",
+          "title": "中国家常青椒肉丝炒法",
+          "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-cn/recipe/0/c5/ee/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "red-braised-pork",
+    "version": 1,
+    "family": "pork-dish",
+    "name": "红烧肉",
+    "aliases": [
+      "红烧五花肉",
+      "红烧猪五花",
+      "hong shao rou",
+      "red braised pork"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "illustration": "braised-pork",
+    "preparation": "熟五花肉及收汁 · 肥瘦都计",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "red-braised-pork v1",
+      "title": "中式红烧五花肉制法",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c4/e8/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "319.8133",
+      "proteinG": "20.1720",
+      "carbsG": "4.1812",
+      "fatG": "24.1081"
+    },
+    "recipeIngredients": [
+      {
+        "name": "熟五花肉",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "22708020",
+          "title": "Pork, belly"
+        },
+        "edibleGrams": "112"
+      },
+      {
+        "name": "酱油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "41420300",
+          "title": "Soy sauce"
+        },
+        "edibleGrams": "6"
+      },
+      {
+        "name": "白糖",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "91101010",
+          "title": "Sugar, white, granulated or lump"
+        },
+        "edibleGrams": "6"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "94000100",
+          "title": "Water, tap"
+        },
+        "edibleGrams": "26"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "150",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "red-braised-pork v1",
+          "title": "中式红烧五花肉制法",
+          "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c4/e8/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "mapo-tofu",
+    "version": 1,
+    "family": "tofu-dish",
+    "name": "麻婆豆腐",
+    "aliases": [
+      "麻婆豆腐肉末",
+      "川味麻婆豆腐",
+      "mapo tofu"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "illustration": "mapo-tofu",
+    "preparation": "嫩豆腐、猪肉末 · 含豆瓣酱和油",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "mapo-tofu v1",
+      "title": "中国家常麻婆豆腐",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/36/%E9%BA%BB%E5%A9%86%E8%B1%86%E8%85%90/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "115.95",
+      "proteinG": "7.8301",
+      "carbsG": "1.8074",
+      "fatG": "8.6038"
+    },
+    "recipeIngredients": [
+      {
+        "name": "嫩豆腐",
+        "source": {
+          "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+          "url": "https://data.gov.tw/dataset/8543",
+          "recordId": "R4701201",
+          "title": "嫩豆腐"
+        },
+        "edibleGrams": "106"
+      },
+      {
+        "name": "熟猪肉末",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "22002000",
+          "title": "Pork, ground"
+        },
+        "edibleGrams": "25"
+      },
+      {
+        "name": "辣豆瓣酱",
+        "source": {
+          "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+          "url": "https://data.gov.tw/dataset/8543",
+          "recordId": "P1004201",
+          "title": "辣豆瓣醬"
+        },
+        "edibleGrams": "8"
+      },
+      {
+        "name": "成品保留用油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "82101000",
+          "title": "Vegetable oil, NFS"
+        },
+        "edibleGrams": "5"
+      },
+      {
+        "name": "酱油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "41420300",
+          "title": "Soy sauce"
+        },
+        "edibleGrams": "3"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "94000100",
+          "title": "Water, tap"
+        },
+        "edibleGrams": "13"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "160",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "mapo-tofu v1",
+          "title": "中国家常麻婆豆腐",
+          "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/36/%E9%BA%BB%E5%A9%86%E8%B1%86%E8%85%90/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "yellow-braised-chicken",
+    "version": 1,
+    "family": "chicken-dish",
+    "name": "黄焖鸡",
+    "aliases": [
+      "香菇黄焖鸡",
+      "huang men ji",
+      "yellow braised chicken"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "skin": "吃皮",
+    "illustration": "yellow-chicken",
+    "preparation": "带皮鸡腿肉去骨 · 含香菇、青椒和汤汁",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "yellow-braised-chicken v1",
+      "title": "黄焖鸡香菇青椒组成",
+      "url": "https://www.ymyhmj.com/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "158.3947",
+      "proteinG": "12.6782",
+      "carbsG": "4.4067",
+      "fatG": "10.1706"
+    },
+    "recipeIngredients": [
+      {
+        "name": "熟鸡腿肉可食部",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "24153210",
+          "title": "Chicken thigh, stewed, skin eaten"
+        },
+        "edibleGrams": "99"
+      },
+      {
+        "name": "泡发干香菇",
+        "source": {
+          "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+          "url": "https://data.gov.tw/dataset/8543",
+          "recordId": "G08101",
+          "title": "乾香菇平均值"
+        },
+        "edibleGrams": "27",
+        "nutritionGrams": "6"
+      },
+      {
+        "name": "青椒熟重",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "75122100",
+          "title": "Peppers, sweet, green, raw"
+        },
+        "edibleGrams": "22",
+        "nutritionGrams": "25"
+      },
+      {
+        "name": "酱油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "41420300",
+          "title": "Soy sauce"
+        },
+        "edibleGrams": "6"
+      },
+      {
+        "name": "成品保留用油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "82101000",
+          "title": "Vegetable oil, NFS"
+        },
+        "edibleGrams": "4"
+      },
+      {
+        "name": "白糖",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "91101010",
+          "title": "Sugar, white, granulated or lump"
+        },
+        "edibleGrams": "3"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "94000100",
+          "title": "Water, tap"
+        },
+        "edibleGrams": "29"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "190",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "yellow-braised-chicken v1",
+          "title": "黄焖鸡香菇青椒组成",
+          "url": "https://www.ymyhmj.com/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "poached-chicken",
+    "version": 1,
+    "family": "poached-chicken",
+    "name": "白切鸡",
+    "aliases": [
+      "白斩鸡",
+      "鸡饭白鸡",
+      "poached chicken",
+      "hainanese poached chicken"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "skin": "吃皮",
+    "illustration": "chicken-breast-cooked",
+    "preparation": "水煮带皮鸡肉可食部 · 以湿热成分估算",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "poached-chicken v1",
+      "title": "新加坡鸡饭白鸡的食用口径",
+      "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "196",
+      "proteinG": "23.58",
+      "carbsG": "0",
+      "fatG": "10.86"
+    },
+    "recipeIngredients": [
+      {
+        "name": "湿热熟鸡肉可食部",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "24103010",
+          "title": "Chicken, NS as to part, stewed, skin eaten"
+        },
+        "edibleGrams": "100"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "100",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "poached-chicken v1",
+          "title": "新加坡鸡饭白鸡的食用口径",
+          "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "chicken-oil-rice",
+    "version": 1,
+    "family": "rice",
+    "name": "鸡油饭",
+    "aliases": [
+      "鸡饭的饭",
+      "鸡饭米饭",
+      "香鸡饭",
+      "chicken rice rice"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "illustration": "cooked-rice",
+    "preparation": "熟白米饭和鸡脂的简化配方",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "chicken-oil-rice v1",
+      "title": "新加坡鸡饭常用组成",
+      "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "154.4933",
+      "proteinG": "2.6073",
+      "carbsG": "27.0584",
+      "fatG": "3.5980"
+    },
+    "recipeIngredients": [
+      {
+        "name": "熟白米饭",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "56205008",
+          "title": "Rice, white, cooked, no added fat"
+        },
+        "edibleGrams": "144"
+      },
+      {
+        "name": "鸡油",
+        "source": {
+          "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+          "url": "https://data.gov.tw/dataset/8543",
+          "recordId": "M0300101",
+          "title": "雞油"
+        },
+        "edibleGrams": "5"
+      },
+      {
+        "name": "蒜",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "75111500",
+          "title": "Garlic, raw"
+        },
+        "edibleGrams": "1"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "150",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "chicken-oil-rice v1",
+          "title": "新加坡鸡饭常用组成",
+          "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "chicken-rice-chili",
+    "version": 1,
+    "family": "sauce",
+    "name": "鸡饭辣椒酱",
+    "aliases": [
+      "海南鸡饭辣椒",
+      "鸡饭辣椒",
+      "chicken rice chili"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "illustration": "sauce",
+    "preparation": "鲜辣椒、蒜、青柠汁 · 按蘸食量记",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "chicken-rice-chili v1",
+      "title": "新加坡鸡饭辣椒的常用组成",
+      "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "78.4667",
+      "proteinG": "2.1493",
+      "carbsG": "18.0493",
+      "fatG": "0.3247"
+    },
+    "recipeIngredients": [
+      {
+        "name": "鲜辣椒",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "75121000",
+          "title": "Peppers, hot, raw"
+        },
+        "edibleGrams": "8"
+      },
+      {
+        "name": "生蒜",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "75111500",
+          "title": "Garlic, raw"
+        },
+        "edibleGrams": "3"
+      },
+      {
+        "name": "青柠汁",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "61207010",
+          "title": "Lime juice, 100%, freshly squeezed"
+        },
+        "edibleGrams": "3"
+      },
+      {
+        "name": "白糖",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "91101010",
+          "title": "Sugar, white, granulated or lump"
+        },
+        "edibleGrams": "1"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "15",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "chicken-rice-chili v1",
+          "title": "新加坡鸡饭辣椒的常用组成",
+          "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "fried-anchovies",
+    "version": 1,
+    "family": "fish-side",
+    "name": "炸小鱼干",
+    "aliases": [
+      "炸江鱼仔",
+      "小鱼干",
+      "ikan bilis",
+      "fried anchovies"
+    ],
+    "state": "cooked",
+    "method": "炸",
+    "illustration": "cooked-fish",
+    "preparation": "小鱼干及成品保留用油 · 按可食部计",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "fried-anchovies v1",
+      "title": "新加坡椰浆饭配菜",
+      "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "391.5",
+      "proteinG": "62.280",
+      "carbsG": "0.0",
+      "fatG": "13.960"
+    },
+    "recipeIngredients": [
+      {
+        "name": "小鱼干",
+        "source": {
+          "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+          "url": "https://data.gov.tw/dataset/8543",
+          "recordId": "J0800101",
+          "title": "小魚干"
+        },
+        "edibleGrams": "18"
+      },
+      {
+        "name": "成品保留用油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "82101000",
+          "title": "Vegetable oil, NFS"
+        },
+        "edibleGrams": "2"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "20",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "fried-anchovies v1",
+          "title": "新加坡椰浆饭配菜",
+          "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "sambal",
+    "version": 1,
+    "family": "sauce",
+    "name": "参巴辣酱",
+    "aliases": [
+      "叁巴酱",
+      "参巴酱",
+      "sambal",
+      "sambal chilli"
+    ],
+    "state": "cooked",
+    "method": "炒",
+    "illustration": "sauce",
+    "preparation": "辣椒、虾米和油 · 椰浆饭搭配示例",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "sambal v1",
+      "title": "新加坡小贩菜常用辣酱",
+      "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "228.25",
+      "proteinG": "6.7735",
+      "carbsG": "16.1260",
+      "fatG": "15.5555"
+    },
+    "recipeIngredients": [
+      {
+        "name": "辣椒熟后可食部",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "75121000",
+          "title": "Peppers, hot, raw"
+        },
+        "edibleGrams": "12",
+        "nutritionGrams": "15"
+      },
+      {
+        "name": "虾米",
+        "source": {
+          "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+          "url": "https://data.gov.tw/dataset/8543",
+          "recordId": "J2300201",
+          "title": "蝦米"
+        },
+        "edibleGrams": "2"
+      },
+      {
+        "name": "成品保留用油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "82101000",
+          "title": "Vegetable oil, NFS"
+        },
+        "edibleGrams": "3"
+      },
+      {
+        "name": "白糖",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "91101010",
+          "title": "Sugar, white, granulated or lump"
+        },
+        "edibleGrams": "2"
+      },
+      {
+        "name": "青柠汁",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "61207010",
+          "title": "Lime juice, 100%, freshly squeezed"
+        },
+        "edibleGrams": "1"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "20",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "sambal v1",
+          "title": "新加坡小贩菜常用辣酱",
+          "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "singapore-laksa",
+    "version": 1,
+    "family": "singapore-meal",
+    "name": "叻沙",
+    "aliases": [
+      "新加坡叻沙",
+      "咖喱叻沙",
+      "laksa",
+      "laksa lemak"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "illustration": "laksa",
+    "preparation": "熟米粉、虾、鸡蛋、油豆腐 · 连椰浆汤计",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "singapore-laksa v1",
+      "title": "新加坡椰浆叻沙食谱",
+      "url": "https://www.fairprice.com.sg/recipes/laksa/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "100.0067",
+      "proteinG": "4.4285",
+      "carbsG": "8.8007",
+      "fatG": "5.2992"
+    },
+    "recipeIngredients": [
+      {
+        "name": "熟米粉",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "56117090",
+          "title": "Rice noodles, cooked"
+        },
+        "edibleGrams": "150"
+      },
+      {
+        "name": "熟虾",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "26319130",
+          "title": "Shrimp, steamed or boiled"
+        },
+        "edibleGrams": "40"
+      },
+      {
+        "name": "水煮全蛋",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "31103010",
+          "title": "Egg, whole, boiled or poached"
+        },
+        "edibleGrams": "25"
+      },
+      {
+        "name": "油豆腐",
+        "source": {
+          "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+          "url": "https://data.gov.tw/dataset/8543",
+          "recordId": "R4701101",
+          "title": "小三角油豆腐"
+        },
+        "edibleGrams": "20"
+      },
+      {
+        "name": "烹调用椰浆",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "42401010",
+          "title": "Coconut milk, used in cooking"
+        },
+        "edibleGrams": "45"
+      },
+      {
+        "name": "虾米",
+        "source": {
+          "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+          "url": "https://data.gov.tw/dataset/8543",
+          "recordId": "J2300201",
+          "title": "蝦米"
+        },
+        "edibleGrams": "6"
+      },
+      {
+        "name": "辣椒",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "75121000",
+          "title": "Peppers, hot, raw"
+        },
+        "edibleGrams": "6"
+      },
+      {
+        "name": "成品保留用油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "82101000",
+          "title": "Vegetable oil, NFS"
+        },
+        "edibleGrams": "7"
+      },
+      {
+        "name": "鱼露",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "27150210",
+          "title": "Fish sauce"
+        },
+        "edibleGrams": "4"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "94000100",
+          "title": "Water, tap"
+        },
+        "edibleGrams": "147"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "450",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "singapore-laksa v1",
+          "title": "新加坡椰浆叻沙食谱",
+          "url": "https://www.fairprice.com.sg/recipes/laksa/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "char-kway-teow",
+    "version": 1,
+    "family": "singapore-meal",
+    "name": "炒粿条",
+    "aliases": [
+      "新加坡炒粿条",
+      "炒河粉（新加坡）",
+      "char kway teow",
+      "char kuay teow"
+    ],
+    "state": "cooked",
+    "method": "炒",
+    "illustration": "char-kway-teow",
+    "preparation": "米制粿条、虾、蛋、豆芽 · 新加坡家常配方",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "char-kway-teow v1",
+      "title": "新加坡食品局炒粿条食谱",
+      "url": "https://www.sfa.gov.sg/docs/default-source/from-sg-to-sg-docs/recipe-cards/char-kway-teow.pdf"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "124.64",
+      "proteinG": "5.3269",
+      "carbsG": "15.8780",
+      "fatG": "4.3242"
+    },
+    "recipeIngredients": [
+      {
+        "name": "熟米制粿条",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "56117090",
+          "title": "Rice noodles, cooked"
+        },
+        "edibleGrams": "190"
+      },
+      {
+        "name": "熟虾",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "26319130",
+          "title": "Shrimp, steamed or boiled"
+        },
+        "edibleGrams": "46"
+      },
+      {
+        "name": "熟鸡蛋基底",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "31103010",
+          "title": "Egg, whole, boiled or poached"
+        },
+        "edibleGrams": "40"
+      },
+      {
+        "name": "豆芽炒后可食部",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "75101000",
+          "title": "Bean sprouts, raw"
+        },
+        "edibleGrams": "40",
+        "nutritionGrams": "48"
+      },
+      {
+        "name": "成品保留用油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "82101000",
+          "title": "Vegetable oil, NFS"
+        },
+        "edibleGrams": "10"
+      },
+      {
+        "name": "酱油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "41420300",
+          "title": "Soy sauce"
+        },
+        "edibleGrams": "10"
+      },
+      {
+        "name": "蚝油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "28520100",
+          "title": "Oyster sauce"
+        },
+        "edibleGrams": "9"
+      },
+      {
+        "name": "白糖",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "91101010",
+          "title": "Sugar, white, granulated or lump"
+        },
+        "edibleGrams": "5"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "350",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "char-kway-teow v1",
+          "title": "新加坡食品局炒粿条食谱",
+          "url": "https://www.sfa.gov.sg/docs/default-source/from-sg-to-sg-docs/recipe-cards/char-kway-teow.pdf"
+        }
+      }
+    ]
+  },
+  {
+    "id": "tomato-beef-sauce",
+    "version": 1,
+    "family": "western-sides",
+    "name": "番茄牛肉酱",
+    "aliases": [
+      "番茄肉酱",
+      "牛肉意面酱",
+      "bolognese sauce",
+      "beef tomato sauce"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "illustration": "tomato-brisket",
+    "preparation": "熟牛肉末、番茄和洋葱 · 含油",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "tomato-beef-sauce v1",
+      "title": "新加坡菜单牛肉肉酱意面",
+      "url": "https://www.pastaandco.com.sg/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "172.8154",
+      "proteinG": "13.1288",
+      "carbsG": "3.8468",
+      "fatG": "11.4609"
+    },
+    "recipeIngredients": [
+      {
+        "name": "熟牛肉末",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "21500100",
+          "title": "Beef, ground"
+        },
+        "edibleGrams": "64"
+      },
+      {
+        "name": "熟番茄",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "99997410",
+          "title": "Tomatoes, cooked, as ingredient"
+        },
+        "edibleGrams": "40"
+      },
+      {
+        "name": "熟洋葱",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "75221011",
+          "title": "Onions, cooked, no added fat"
+        },
+        "edibleGrams": "18"
+      },
+      {
+        "name": "番茄酱",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "74401010",
+          "title": "Ketchup"
+        },
+        "edibleGrams": "4"
+      },
+      {
+        "name": "成品保留用油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "82101000",
+          "title": "Vegetable oil, NFS"
+        },
+        "edibleGrams": "4"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "130",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "tomato-beef-sauce v1",
+          "title": "新加坡菜单牛肉肉酱意面",
+          "url": "https://www.pastaandco.com.sg/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "japanese-onion-beef",
+    "version": 1,
+    "family": "beef-dish",
+    "name": "日式洋葱牛肉",
+    "aliases": [
+      "日式肥牛",
+      "日式牛丼牛肉",
+      "gyudon beef"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "illustration": "beef-stew",
+    "preparation": "薄牛肉、洋葱 · 甜咸酱汁",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "japanese-onion-beef v1",
+      "title": "日式牛肉饭的洋葱牛肉配方",
+      "url": "https://www.justonecookbook.com/gyudon/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "160.50",
+      "proteinG": "17.5770",
+      "carbsG": "6.3997",
+      "fatG": "6.9714"
+    },
+    "recipeIngredients": [
+      {
+        "name": "熟牛肉片",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "21417100",
+          "title": "Beef, brisket"
+        },
+        "edibleGrams": "86"
+      },
+      {
+        "name": "熟洋葱",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "75221011",
+          "title": "Onions, cooked, no added fat"
+        },
+        "edibleGrams": "39"
+      },
+      {
+        "name": "酱油",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "41420300",
+          "title": "Soy sauce"
+        },
+        "edibleGrams": "7"
+      },
+      {
+        "name": "白糖",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "91101010",
+          "title": "Sugar, white, granulated or lump"
+        },
+        "edibleGrams": "5"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "94000100",
+          "title": "Water, tap"
+        },
+        "edibleGrams": "13"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "150",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "japanese-onion-beef v1",
+          "title": "日式牛肉饭的洋葱牛肉配方",
+          "url": "https://www.justonecookbook.com/gyudon/"
+        }
+      }
+    ]
+  },
+  {
+    "id": "japanese-chicken-curry",
+    "version": 1,
+    "family": "curry",
+    "name": "日式咖喱鸡",
+    "aliases": [
+      "日式咖喱鸡肉",
+      "日式鸡肉咖喱",
+      "Japanese chicken curry"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "illustration": "curry",
+    "preparation": "熟鸡肉、土豆、胡萝卜和日式咖喱汁",
+    "source": {
+      "dataset": "Formward 标准配方",
+      "recordId": "japanese-chicken-curry v1",
+      "title": "日式咖喱鸡做法",
+      "url": "https://www.justonecookbook.com/simple-chicken-curry/"
+    },
+    "sourceKind": "estimated",
+    "nutrition": {
+      "caloriesKcal": "111.4826",
+      "proteinG": "8.5607",
+      "carbsG": "9.1452",
+      "fatG": "4.5590"
+    },
+    "recipeIngredients": [
+      {
+        "name": "熟去皮鸡腿肉",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "24153220",
+          "title": "Chicken thigh, stewed, skin not eaten"
+        },
+        "edibleGrams": "72"
+      },
+      {
+        "name": "熟土豆",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "71103010",
+          "title": "Potato, boiled, from fresh, peel not eaten, no added fat"
+        },
+        "edibleGrams": "47"
+      },
+      {
+        "name": "熟胡萝卜",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "73102211",
+          "title": "Carrots, fresh, cooked, no added fat"
+        },
+        "edibleGrams": "31"
+      },
+      {
+        "name": "熟洋葱",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "75221011",
+          "title": "Onions, cooked, no added fat"
+        },
+        "edibleGrams": "20"
+      },
+      {
+        "name": "咖喱块",
+        "source": {
+          "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+          "url": "https://data.gov.tw/dataset/8543",
+          "recordId": "P0200501",
+          "title": "咖哩塊"
+        },
+        "edibleGrams": "12"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "94000100",
+          "title": "Water, tap"
+        },
+        "edibleGrams": "48"
+      }
+    ],
+    "portions": [
+      {
+        "id": "recipe-serving",
+        "unit": "份",
+        "edibleGrams": "230",
+        "label": "标准配方可食量",
+        "source": {
+          "dataset": "Formward 标准配方",
+          "recordId": "japanese-chicken-curry v1",
+          "title": "日式咖喱鸡做法",
+          "url": "https://www.justonecookbook.com/simple-chicken-curry/"
+        }
+      }
+    ]
   }
 ]

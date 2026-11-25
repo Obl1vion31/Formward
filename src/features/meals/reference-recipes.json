@@ -1,0 +1,914 @@
+[
+  {
+    "id": "cola-wings",
+    "version": 1,
+    "family": "chicken-wing",
+    "name": "可乐鸡翅",
+    "aliases": [
+      "鸡翅",
+      "可乐鸡翅中",
+      "可乐焖鸡翅",
+      "cola chicken wings"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "skin": "吃皮",
+    "illustration": "cola-wings",
+    "preparation": "带皮去骨可食部 · 普通可乐收汁 · 含酱汁",
+    "source": {
+      "title": "中国家常可乐鸡翅",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c7/30/"
+    },
+    "ingredients": [
+      {
+        "name": "炖鸡翅可食部",
+        "source": "usda:24163110",
+        "edibleGrams": "100"
+      },
+      {
+        "name": "普通可乐收汁",
+        "source": "usda:92410310",
+        "edibleGrams": "12",
+        "nutritionGrams": "40"
+      },
+      {
+        "name": "酱油",
+        "source": "usda:41420300",
+        "edibleGrams": "5"
+      },
+      {
+        "name": "成品保留用油",
+        "source": "usda:82101000",
+        "edibleGrams": "3"
+      }
+    ]
+  },
+  {
+    "id": "air-fryer-wings",
+    "version": 1,
+    "family": "chicken-wing",
+    "name": "空气炸锅鸡翅",
+    "aliases": [
+      "鸡翅",
+      "空气炸鸡翅",
+      "气炸鸡翅",
+      "气炸鸡翅中",
+      "air fryer wings",
+      "air fried chicken wings"
+    ],
+    "state": "cooked",
+    "method": "空气炸",
+    "skin": "吃皮",
+    "illustration": "air-fryer-wings",
+    "preparation": "带皮去骨可食部 · 无裹粉 · 以干热熟鸡翅估算",
+    "source": {
+      "title": "空气炸锅版炸鸡翅",
+      "url": "https://m.izhangchu.com/dishes_view/index.html?dishes_id=16249"
+    },
+    "ingredients": [
+      {
+        "name": "干热熟鸡翅可食部",
+        "source": "usda:24162130",
+        "edibleGrams": "100"
+      },
+      {
+        "name": "酱油",
+        "source": "usda:41420300",
+        "edibleGrams": "4"
+      },
+      {
+        "name": "成品保留用油",
+        "source": "usda:82101000",
+        "edibleGrams": "2"
+      }
+    ]
+  },
+  {
+    "id": "tomato-beef-brisket",
+    "version": 1,
+    "family": "beef-brisket",
+    "name": "番茄炖牛腩",
+    "aliases": [
+      "西红柿炖牛腩",
+      "番茄牛腩",
+      "茄汁牛腩",
+      "tomato beef brisket",
+      "炖牛腩",
+      "牛腩"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "illustration": "tomato-brisket",
+    "preparation": "牛腩按前胸肉参考 · 含番茄、土豆和炖汁",
+    "source": {
+      "title": "番茄牛腩饭中的炖菜",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/1c/recipe-475/"
+    },
+    "ingredients": [
+      {
+        "name": "熟牛前胸可食肉",
+        "source": "usda:21417100",
+        "edibleGrams": "75"
+      },
+      {
+        "name": "熟番茄",
+        "source": "usda:99997410",
+        "edibleGrams": "40"
+      },
+      {
+        "name": "熟土豆",
+        "source": "usda:71103010",
+        "edibleGrams": "26"
+      },
+      {
+        "name": "番茄酱",
+        "source": "usda:74401010",
+        "edibleGrams": "5"
+      },
+      {
+        "name": "酱油",
+        "source": "usda:41420300",
+        "edibleGrams": "4"
+      },
+      {
+        "name": "成品保留用油",
+        "source": "usda:82101000",
+        "edibleGrams": "4"
+      },
+      {
+        "name": "白糖",
+        "source": "usda:91101010",
+        "edibleGrams": "2"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": "usda:94000100",
+        "edibleGrams": "4"
+      }
+    ]
+  },
+  {
+    "id": "red-braised-brisket",
+    "version": 1,
+    "family": "beef-brisket",
+    "name": "红烧牛腩",
+    "aliases": [
+      "红焖牛腩",
+      "红烧牛肉",
+      "炖牛腩",
+      "牛腩",
+      "braised beef brisket"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "illustration": "beef-stew",
+    "preparation": "牛腩按前胸肉参考 · 含酱油、洋葱和收汁",
+    "source": {
+      "title": "中国家常红烧牛腩",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/f7/braised-beef-spicy-oyster-sauce/"
+    },
+    "ingredients": [
+      {
+        "name": "熟牛前胸可食肉",
+        "source": "usda:21417100",
+        "edibleGrams": "99"
+      },
+      {
+        "name": "熟洋葱",
+        "source": "usda:75221011",
+        "edibleGrams": "21"
+      },
+      {
+        "name": "酱油",
+        "source": "usda:41420300",
+        "edibleGrams": "8"
+      },
+      {
+        "name": "蚝油",
+        "source": "usda:28520100",
+        "edibleGrams": "6"
+      },
+      {
+        "name": "成品保留用油",
+        "source": "usda:82101000",
+        "edibleGrams": "4"
+      },
+      {
+        "name": "白糖",
+        "source": "usda:91101010",
+        "edibleGrams": "6"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": "usda:94000100",
+        "edibleGrams": "16"
+      }
+    ]
+  },
+  {
+    "id": "tomato-scrambled-eggs",
+    "version": 1,
+    "family": "egg-dish",
+    "name": "番茄炒蛋",
+    "aliases": [
+      "西红柿炒蛋",
+      "西红柿炒鸡蛋",
+      "番茄炒鸡蛋",
+      "tomato scrambled eggs"
+    ],
+    "state": "cooked",
+    "method": "炒",
+    "illustration": "tomato-eggs",
+    "preparation": "番茄、鸡蛋和成品保留用油 · 按整菜称重",
+    "source": {
+      "title": "番茄炒蛋家常菜谱",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c5/49/"
+    },
+    "ingredients": [
+      {
+        "name": "熟番茄",
+        "source": "usda:99997410",
+        "edibleGrams": "90"
+      },
+      {
+        "name": "无加油熟全蛋基底",
+        "source": "usda:31103010",
+        "edibleGrams": "90"
+      },
+      {
+        "name": "成品保留用油",
+        "source": "usda:82101000",
+        "edibleGrams": "7"
+      },
+      {
+        "name": "白糖",
+        "source": "usda:91101010",
+        "edibleGrams": "3"
+      }
+    ]
+  },
+  {
+    "id": "stir-fried-pork-peppers",
+    "version": 1,
+    "family": "pork-dish",
+    "name": "青椒肉丝",
+    "aliases": [
+      "青椒炒肉丝",
+      "青椒猪肉丝",
+      "stir fried pork and peppers"
+    ],
+    "state": "cooked",
+    "method": "炒",
+    "illustration": "pork-pepper",
+    "preparation": "猪里脊、青椒 · 含油和酱油",
+    "source": {
+      "title": "中国家常青椒肉丝炒法",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-cn/recipe/0/c5/ee/"
+    },
+    "ingredients": [
+      {
+        "name": "熟猪里脊可食肉",
+        "source": "usda:22210300",
+        "edibleGrams": "80"
+      },
+      {
+        "name": "青椒炒后可食部",
+        "source": "usda:75122100",
+        "edibleGrams": "57",
+        "nutritionGrams": "65"
+      },
+      {
+        "name": "酱油",
+        "source": "usda:41420300",
+        "edibleGrams": "5"
+      },
+      {
+        "name": "成品保留用油",
+        "source": "usda:82101000",
+        "edibleGrams": "6"
+      },
+      {
+        "name": "勾芡玉米粉",
+        "source": "tfda:A0420101",
+        "edibleGrams": "2"
+      }
+    ]
+  },
+  {
+    "id": "red-braised-pork",
+    "version": 1,
+    "family": "pork-dish",
+    "name": "红烧肉",
+    "aliases": [
+      "红烧五花肉",
+      "红烧猪五花",
+      "hong shao rou",
+      "red braised pork"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "illustration": "braised-pork",
+    "preparation": "熟五花肉及收汁 · 肥瘦都计",
+    "source": {
+      "title": "中式红烧五花肉制法",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c4/e8/"
+    },
+    "ingredients": [
+      {
+        "name": "熟五花肉",
+        "source": "usda:22708020",
+        "edibleGrams": "112"
+      },
+      {
+        "name": "酱油",
+        "source": "usda:41420300",
+        "edibleGrams": "6"
+      },
+      {
+        "name": "白糖",
+        "source": "usda:91101010",
+        "edibleGrams": "6"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": "usda:94000100",
+        "edibleGrams": "26"
+      }
+    ]
+  },
+  {
+    "id": "mapo-tofu",
+    "version": 1,
+    "family": "tofu-dish",
+    "name": "麻婆豆腐",
+    "aliases": [
+      "麻婆豆腐肉末",
+      "川味麻婆豆腐",
+      "mapo tofu"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "illustration": "mapo-tofu",
+    "preparation": "嫩豆腐、猪肉末 · 含豆瓣酱和油",
+    "source": {
+      "title": "中国家常麻婆豆腐",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/36/%E9%BA%BB%E5%A9%86%E8%B1%86%E8%85%90/"
+    },
+    "ingredients": [
+      {
+        "name": "嫩豆腐",
+        "source": "tfda:R4701201",
+        "edibleGrams": "106"
+      },
+      {
+        "name": "熟猪肉末",
+        "source": "usda:22002000",
+        "edibleGrams": "25"
+      },
+      {
+        "name": "辣豆瓣酱",
+        "source": "tfda:P1004201",
+        "edibleGrams": "8"
+      },
+      {
+        "name": "成品保留用油",
+        "source": "usda:82101000",
+        "edibleGrams": "5"
+      },
+      {
+        "name": "酱油",
+        "source": "usda:41420300",
+        "edibleGrams": "3"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": "usda:94000100",
+        "edibleGrams": "13"
+      }
+    ]
+  },
+  {
+    "id": "yellow-braised-chicken",
+    "version": 1,
+    "family": "chicken-dish",
+    "name": "黄焖鸡",
+    "aliases": [
+      "香菇黄焖鸡",
+      "huang men ji",
+      "yellow braised chicken"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "skin": "吃皮",
+    "illustration": "yellow-chicken",
+    "preparation": "带皮鸡腿肉去骨 · 含香菇、青椒和汤汁",
+    "source": {
+      "title": "黄焖鸡香菇青椒组成",
+      "url": "https://www.ymyhmj.com/"
+    },
+    "ingredients": [
+      {
+        "name": "熟鸡腿肉可食部",
+        "source": "usda:24153210",
+        "edibleGrams": "99"
+      },
+      {
+        "name": "泡发干香菇",
+        "source": "tfda:G08101",
+        "edibleGrams": "27",
+        "nutritionGrams": "6"
+      },
+      {
+        "name": "青椒熟重",
+        "source": "usda:75122100",
+        "edibleGrams": "22",
+        "nutritionGrams": "25"
+      },
+      {
+        "name": "酱油",
+        "source": "usda:41420300",
+        "edibleGrams": "6"
+      },
+      {
+        "name": "成品保留用油",
+        "source": "usda:82101000",
+        "edibleGrams": "4"
+      },
+      {
+        "name": "白糖",
+        "source": "usda:91101010",
+        "edibleGrams": "3"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": "usda:94000100",
+        "edibleGrams": "29"
+      }
+    ]
+  },
+  {
+    "id": "poached-chicken",
+    "version": 1,
+    "family": "poached-chicken",
+    "name": "白切鸡",
+    "aliases": [
+      "白斩鸡",
+      "鸡饭白鸡",
+      "poached chicken",
+      "hainanese poached chicken"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "skin": "吃皮",
+    "illustration": "chicken-breast-cooked",
+    "preparation": "水煮带皮鸡肉可食部 · 以湿热成分估算",
+    "source": {
+      "title": "新加坡鸡饭白鸡的食用口径",
+      "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+    },
+    "ingredients": [
+      {
+        "name": "湿热熟鸡肉可食部",
+        "source": "usda:24103010",
+        "edibleGrams": "100"
+      }
+    ]
+  },
+  {
+    "id": "chicken-oil-rice",
+    "version": 1,
+    "family": "rice",
+    "name": "鸡油饭",
+    "aliases": [
+      "鸡饭的饭",
+      "鸡饭米饭",
+      "香鸡饭",
+      "chicken rice rice"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "illustration": "cooked-rice",
+    "preparation": "熟白米饭和鸡脂的简化配方",
+    "source": {
+      "title": "新加坡鸡饭常用组成",
+      "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+    },
+    "ingredients": [
+      {
+        "name": "熟白米饭",
+        "source": "usda:56205008",
+        "edibleGrams": "144"
+      },
+      {
+        "name": "鸡油",
+        "source": "tfda:M0300101",
+        "edibleGrams": "5"
+      },
+      {
+        "name": "蒜",
+        "source": "usda:75111500",
+        "edibleGrams": "1"
+      }
+    ]
+  },
+  {
+    "id": "chicken-rice-chili",
+    "version": 1,
+    "family": "sauce",
+    "name": "鸡饭辣椒酱",
+    "aliases": [
+      "海南鸡饭辣椒",
+      "鸡饭辣椒",
+      "chicken rice chili"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "illustration": "sauce",
+    "preparation": "鲜辣椒、蒜、青柠汁 · 按蘸食量记",
+    "source": {
+      "title": "新加坡鸡饭辣椒的常用组成",
+      "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+    },
+    "ingredients": [
+      {
+        "name": "鲜辣椒",
+        "source": "usda:75121000",
+        "edibleGrams": "8"
+      },
+      {
+        "name": "生蒜",
+        "source": "usda:75111500",
+        "edibleGrams": "3"
+      },
+      {
+        "name": "青柠汁",
+        "source": "usda:61207010",
+        "edibleGrams": "3"
+      },
+      {
+        "name": "白糖",
+        "source": "usda:91101010",
+        "edibleGrams": "1"
+      }
+    ]
+  },
+  {
+    "id": "fried-anchovies",
+    "version": 1,
+    "family": "fish-side",
+    "name": "炸小鱼干",
+    "aliases": [
+      "炸江鱼仔",
+      "小鱼干",
+      "ikan bilis",
+      "fried anchovies"
+    ],
+    "state": "cooked",
+    "method": "炸",
+    "illustration": "cooked-fish",
+    "preparation": "小鱼干及成品保留用油 · 按可食部计",
+    "source": {
+      "title": "新加坡椰浆饭配菜",
+      "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+    },
+    "ingredients": [
+      {
+        "name": "小鱼干",
+        "source": "tfda:J0800101",
+        "edibleGrams": "18"
+      },
+      {
+        "name": "成品保留用油",
+        "source": "usda:82101000",
+        "edibleGrams": "2"
+      }
+    ]
+  },
+  {
+    "id": "sambal",
+    "version": 1,
+    "family": "sauce",
+    "name": "参巴辣酱",
+    "aliases": [
+      "叁巴酱",
+      "参巴酱",
+      "sambal",
+      "sambal chilli"
+    ],
+    "state": "cooked",
+    "method": "炒",
+    "illustration": "sauce",
+    "preparation": "辣椒、虾米和油 · 椰浆饭搭配示例",
+    "source": {
+      "title": "新加坡小贩菜常用辣酱",
+      "url": "https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/"
+    },
+    "ingredients": [
+      {
+        "name": "辣椒熟后可食部",
+        "source": "usda:75121000",
+        "edibleGrams": "12",
+        "nutritionGrams": "15"
+      },
+      {
+        "name": "虾米",
+        "source": "tfda:J2300201",
+        "edibleGrams": "2"
+      },
+      {
+        "name": "成品保留用油",
+        "source": "usda:82101000",
+        "edibleGrams": "3"
+      },
+      {
+        "name": "白糖",
+        "source": "usda:91101010",
+        "edibleGrams": "2"
+      },
+      {
+        "name": "青柠汁",
+        "source": "usda:61207010",
+        "edibleGrams": "1"
+      }
+    ]
+  },
+  {
+    "id": "singapore-laksa",
+    "version": 1,
+    "family": "singapore-meal",
+    "name": "叻沙",
+    "aliases": [
+      "新加坡叻沙",
+      "咖喱叻沙",
+      "laksa",
+      "laksa lemak"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "illustration": "laksa",
+    "preparation": "熟米粉、虾、鸡蛋、油豆腐 · 连椰浆汤计",
+    "source": {
+      "title": "新加坡椰浆叻沙食谱",
+      "url": "https://www.fairprice.com.sg/recipes/laksa/"
+    },
+    "ingredients": [
+      {
+        "name": "熟米粉",
+        "source": "usda:56117090",
+        "edibleGrams": "150"
+      },
+      {
+        "name": "熟虾",
+        "source": "usda:26319130",
+        "edibleGrams": "40"
+      },
+      {
+        "name": "水煮全蛋",
+        "source": "usda:31103010",
+        "edibleGrams": "25"
+      },
+      {
+        "name": "油豆腐",
+        "source": "tfda:R4701101",
+        "edibleGrams": "20"
+      },
+      {
+        "name": "烹调用椰浆",
+        "source": "usda:42401010",
+        "edibleGrams": "45"
+      },
+      {
+        "name": "虾米",
+        "source": "tfda:J2300201",
+        "edibleGrams": "6"
+      },
+      {
+        "name": "辣椒",
+        "source": "usda:75121000",
+        "edibleGrams": "6"
+      },
+      {
+        "name": "成品保留用油",
+        "source": "usda:82101000",
+        "edibleGrams": "7"
+      },
+      {
+        "name": "鱼露",
+        "source": "usda:27150210",
+        "edibleGrams": "4"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": "usda:94000100",
+        "edibleGrams": "147"
+      }
+    ]
+  },
+  {
+    "id": "char-kway-teow",
+    "version": 1,
+    "family": "singapore-meal",
+    "name": "炒粿条",
+    "aliases": [
+      "新加坡炒粿条",
+      "炒河粉（新加坡）",
+      "char kway teow",
+      "char kuay teow"
+    ],
+    "state": "cooked",
+    "method": "炒",
+    "illustration": "char-kway-teow",
+    "preparation": "米制粿条、虾、蛋、豆芽 · 新加坡家常配方",
+    "source": {
+      "title": "新加坡食品局炒粿条食谱",
+      "url": "https://www.sfa.gov.sg/docs/default-source/from-sg-to-sg-docs/recipe-cards/char-kway-teow.pdf"
+    },
+    "ingredients": [
+      {
+        "name": "熟米制粿条",
+        "source": "usda:56117090",
+        "edibleGrams": "190"
+      },
+      {
+        "name": "熟虾",
+        "source": "usda:26319130",
+        "edibleGrams": "46"
+      },
+      {
+        "name": "熟鸡蛋基底",
+        "source": "usda:31103010",
+        "edibleGrams": "40"
+      },
+      {
+        "name": "豆芽炒后可食部",
+        "source": "usda:75101000",
+        "edibleGrams": "40",
+        "nutritionGrams": "48"
+      },
+      {
+        "name": "成品保留用油",
+        "source": "usda:82101000",
+        "edibleGrams": "10"
+      },
+      {
+        "name": "酱油",
+        "source": "usda:41420300",
+        "edibleGrams": "10"
+      },
+      {
+        "name": "蚝油",
+        "source": "usda:28520100",
+        "edibleGrams": "9"
+      },
+      {
+        "name": "白糖",
+        "source": "usda:91101010",
+        "edibleGrams": "5"
+      }
+    ]
+  },
+  {
+    "id": "tomato-beef-sauce",
+    "version": 1,
+    "family": "western-sides",
+    "name": "番茄牛肉酱",
+    "aliases": [
+      "番茄肉酱",
+      "牛肉意面酱",
+      "bolognese sauce",
+      "beef tomato sauce"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "illustration": "tomato-brisket",
+    "preparation": "熟牛肉末、番茄和洋葱 · 含油",
+    "source": {
+      "title": "新加坡菜单牛肉肉酱意面",
+      "url": "https://www.pastaandco.com.sg/"
+    },
+    "ingredients": [
+      {
+        "name": "熟牛肉末",
+        "source": "usda:21500100",
+        "edibleGrams": "64"
+      },
+      {
+        "name": "熟番茄",
+        "source": "usda:99997410",
+        "edibleGrams": "40"
+      },
+      {
+        "name": "熟洋葱",
+        "source": "usda:75221011",
+        "edibleGrams": "18"
+      },
+      {
+        "name": "番茄酱",
+        "source": "usda:74401010",
+        "edibleGrams": "4"
+      },
+      {
+        "name": "成品保留用油",
+        "source": "usda:82101000",
+        "edibleGrams": "4"
+      }
+    ]
+  },
+  {
+    "id": "japanese-onion-beef",
+    "version": 1,
+    "family": "beef-dish",
+    "name": "日式洋葱牛肉",
+    "aliases": [
+      "日式肥牛",
+      "日式牛丼牛肉",
+      "gyudon beef"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "illustration": "beef-stew",
+    "preparation": "薄牛肉、洋葱 · 甜咸酱汁",
+    "source": {
+      "title": "日式牛肉饭的洋葱牛肉配方",
+      "url": "https://www.justonecookbook.com/gyudon/"
+    },
+    "ingredients": [
+      {
+        "name": "熟牛肉片",
+        "source": "usda:21417100",
+        "edibleGrams": "86"
+      },
+      {
+        "name": "熟洋葱",
+        "source": "usda:75221011",
+        "edibleGrams": "39"
+      },
+      {
+        "name": "酱油",
+        "source": "usda:41420300",
+        "edibleGrams": "7"
+      },
+      {
+        "name": "白糖",
+        "source": "usda:91101010",
+        "edibleGrams": "5"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": "usda:94000100",
+        "edibleGrams": "13"
+      }
+    ]
+  },
+  {
+    "id": "japanese-chicken-curry",
+    "version": 1,
+    "family": "curry",
+    "name": "日式咖喱鸡",
+    "aliases": [
+      "日式咖喱鸡肉",
+      "日式鸡肉咖喱",
+      "Japanese chicken curry"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "illustration": "curry",
+    "preparation": "熟鸡肉、土豆、胡萝卜和日式咖喱汁",
+    "source": {
+      "title": "日式咖喱鸡做法",
+      "url": "https://www.justonecookbook.com/simple-chicken-curry/"
+    },
+    "ingredients": [
+      {
+        "name": "熟去皮鸡腿肉",
+        "source": "usda:24153220",
+        "edibleGrams": "72"
+      },
+      {
+        "name": "熟土豆",
+        "source": "usda:71103010",
+        "edibleGrams": "47"
+      },
+      {
+        "name": "熟胡萝卜",
+        "source": "usda:73102211",
+        "edibleGrams": "31"
+      },
+      {
+        "name": "熟洋葱",
+        "source": "usda:75221011",
+        "edibleGrams": "20"
+      },
+      {
+        "name": "咖喱块",
+        "source": "tfda:P0200501",
+        "edibleGrams": "12"
+      },
+      {
+        "name": "成品汤汁中的水",
+        "source": "usda:94000100",
+        "edibleGrams": "48"
+      }
+    ]
+  }
+]

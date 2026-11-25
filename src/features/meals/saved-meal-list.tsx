@@ -28,7 +28,7 @@ function SavedFood({ item }: { item: ItemView }) {
     (item.referenceSnapshot ? referencePortionName(item.quantity, item.unit) : Number(item.quantity) + (item.unit ?? "")) : "份量未知";
   return <Disclosure className={styles.food} summary={<>
     <span className={styles.foodIdentity}><strong>{item.name}</strong><small>{amount}</small></span>
-    <span className={styles.foodEnergy}>{item.referenceSnapshot && item.nutrition.caloriesKcal !== null && "约 "}{formatNutrition(item.nutrition.caloriesKcal, "caloriesKcal")}<small className={styles.unit}> kcal</small></span><Chevron />
+    <span className={styles.foodEnergy}>{item.referenceSnapshot && item.sourceKind !== "label" && item.nutrition.caloriesKcal !== null && "约 "}{formatNutrition(item.nutrition.caloriesKcal, "caloriesKcal")}<small className={styles.unit}> kcal</small></span><Chevron />
   </>}>
     <div className={styles.foodDetails} data-saved-food-details><MacroValues item={item} /><p className={styles.provenance}>{provenance} · {sourceLabels[item.sourceKind]}</p><ItemEvidence item={item} /></div>
   </Disclosure>;

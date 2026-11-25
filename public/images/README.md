@@ -10,7 +10,7 @@
 
 `src/app/frame-config.ts` 保存这三张图的静态导入与桌面、移动端 scale / x / y，原有对齐值不变。1、13 为 1024×1536，12 为 887×1774。静态导入读取实际尺寸并生成随内容变化的地址。静态端点与视频的校准说明见 `docs/frame-calibration.md`。
 
-`reference-chicken.webp` 和 `reference-staples.webp` 为 3×2 和 3×3 原有图集。`reference-proteins.webp`、`reference-produce.webp`、`reference-pantry.webp`、`reference-dishes.webp` 和 `reference-prepared.webp` 是带透明留白的 4×4 WebP 图集。`reference-art.ts` 记录图集位置，`food-art.tsx` 同格复用于列表、详情与餐次回看。简图辅助辨别形态和做法，规格和营养以原表为准。
+`reference-chicken.webp` 和 `reference-staples.webp` 为 3×2 和 3×3 原有图集。`reference-proteins.webp`、`reference-produce.webp`、`reference-pantry.webp`、`reference-dishes.webp`、`reference-prepared.webp` 和 `reference-regional.webp` 是带透明留白的 4×4 WebP 图集。`reference-art.ts` 记录图集位置，`food-art.tsx` 同格复用于列表、详情与餐次回看。简图辅助辨别形态和做法，规格和营养以原表为准。
 
 ## 维护约定
 

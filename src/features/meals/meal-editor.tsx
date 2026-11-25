@@ -15,7 +15,8 @@ import {
   type MealDraft, type MealSnapshot, type MealView,
 } from "./model";
 import { FoodPickerCard } from "./presets";
-import { FoodLibraryTabs, ReferenceBrowser, type FoodLibraryScope } from "./reference-browser";
+import { FoodLibraryTabs, ReferenceBrowser, type FoodLibraryScope, type ReferenceBack } from "./reference-browser";
+import type { ReferencePick } from "./reference-details";
 import { referenceNutrition, type ReferenceFood } from "./reference-food";
 import { editorItem, freeEditorItem, mealEditorInput, mealDraftSignature, emptyEditorItem, type EditorItem, type EditorMeal } from "./meal-editor-state";
 import { MealEntryReadings, nutrientUnit } from "./meal-entry-readings";
@@ -157,8 +158,8 @@ export function MealEditor({
  const [scope, setScope] = useState<FoodLibraryScope>("reference");
  const [referenceFoods, setReferenceFoods] = useState<Record<string, ReferenceFood>>({});
  const [selected, setSelected] = useState<string[]>([]);
- const [referenceBack, setReferenceBack] = useState<((restoreFocus?: boolean) => void) | null>(null);
- const onDetailBack = useCallback((back: ((restoreFocus?: boolean) => void) | null) => setReferenceBack(() => back), []);
+ const [referenceBack, setReferenceBack] = useState<ReferenceBack | null>(null);
+ const onDetailBack = useCallback((back: ReferenceBack | null) => setReferenceBack(back), []);
  const [replacing, setReplacing] = useState<number | null>(null);
  const [dragging, setDragging] = useState(false);
  const bubbleId = useId(), nutritionHint = bubbleId + "-nutrition";
@@ -175,16 +176,21 @@ export function MealEditor({
    return historical && referenceKey(historical) === key ? historical : referenceFoods[key];
  }
 
- const missingReferences = draft.items.filter(item => item.referenceFood && !itemReference(item)).map(item => referenceKey(item.referenceFood!)).join(",");
+ const missingReferences = [...new Set(draft.items.flatMap(item =>
+   item.referenceFood && !itemReference(item) ? [referenceKey(item.referenceFood)] : []))].join(",");
  useEffect(() => {
    if (!missingReferences) return;
    const abort = new AbortController();
-   void fetch("/api/meal-reference-foods", { signal: abort.signal })
-     .then(async response => {
-       if (!response.ok) return;
-       const { referenceFoods: entries } = await response.json() as { referenceFoods: ReferenceFood[] };
-       if (!abort.signal.aborted) setReferenceFoods(previous => ({ ...previous, ...Object.fromEntries(entries.map(food => [referenceKey(food), food])) }));
-     }).catch(() => { /* 返回草稿后可以重新选择无法读取的参考规格。 */ });
+   void Promise.allSettled(missingReferences.split(",").map(async key => {
+     const id = key.split(":")[0];
+     const response = await fetch("/api/meal-reference-foods?id=" + encodeURIComponent(id), { signal: abort.signal });
+     if (!response.ok) return null;
+     const { referenceFoods: [food] } = await response.json() as { referenceFoods: ReferenceFood[] };
+     return food && referenceKey(food) === key ? [key, food] as const : null;
+   })).then(results => {
+     const entries = results.flatMap(result => result.status === "fulfilled" && result.value ? [result.value] : []);
+     if (entries.length && !abort.signal.aborted) setReferenceFoods(previous => ({ ...previous, ...Object.fromEntries(entries) }));
+   });
    return () => abort.abort();
  }, [missingReferences]);
 
@@ -193,9 +199,9 @@ export function MealEditor({
      const reference = itemReference(item);
      const portion = reference?.portions.find(entry => entry.id === item.referenceFood?.portionId) ?? reference?.portions[0];
      return {
-       name: reference?.name ?? item.name, baseQuantity: "100", unit: "g", servingUnit: portion?.unit,
+       name: reference?.name ?? item.name, baseQuantity: "100", unit: reference?.basisUnit ?? "g", servingUnit: portion?.unit,
        servingQuantity: portion?.edibleGrams, nutrition: reference?.nutrition ?? emptyNutrition(),
-       sourceKind: reference ? "composition_table" : "unknown", basis: reference?.preparation, evidenceUrl: reference?.source.url,
+       sourceKind: reference ? reference.sourceKind ?? "composition_table" : "unknown", basis: reference?.preparation, evidenceUrl: reference?.source.url,
      };
    }
    return item.foodRef ? foodRefs[item.foodRef] : item.foodId
@@ -206,6 +212,10 @@ export function MealEditor({
  function values(item: ItemDraft) {
    const quantity = item.quantity && decimal.safeParse(item.quantity).success && Number(item.quantity) > 0 ? item.quantity : null;
    if (item.referenceFood) {
+     const historical = historicalItems.find(entry => entry.id === item.originalItemId);
+     if (historical?.referenceFood && referenceKey(historical.referenceFood) === referenceKey(item.referenceFood) &&
+       historical.referenceFood.portionId === item.referenceFood.portionId && historical.unit === item.unit &&
+       Number(historical.quantity ?? 0) === Number(quantity ?? 0)) return historical.nutrition;
      const reference = itemReference(item);
      return reference ? referenceNutrition(reference, quantity, item.referenceFood.portionId).nutrition : emptyNutrition();
    }
@@ -229,7 +239,7 @@ export function MealEditor({
    const scroll = root.current?.closest("dialog")?.scrollTop ?? 0;
    priorScroll.current = scroll;
    if (inlineLibrary) {
-     referenceBack?.(false);
+     referenceBack?.action(false);
      requestAnimationFrame(() => {
        search.current?.scrollIntoView({ block: "nearest", behavior: "instant" });
        search.current?.focus({ preventScroll: true });
@@ -246,7 +256,7 @@ export function MealEditor({
    setSelected([]);
    setReplacing(null);
    if (inlineLibrary) {
-     referenceBack?.(false);
+     referenceBack?.action(false);
      requestAnimationFrame(focusMeal);
      return;
    }
@@ -255,7 +265,7 @@ export function MealEditor({
  }
 
  function backFromLibrary() {
-   if (scope === "reference" && referenceBack) referenceBack();
+   if (scope === "reference" && referenceBack) referenceBack.action();
    else returnToMeal();
  }
 
@@ -283,16 +293,17 @@ export function MealEditor({
    if (libraryOpen || inlineLibrary || replacing !== null) returnToMeal();
  }
 
- function addReference(item: ItemDraft, food: ReferenceFood) {
-   if (!canPick || busy || uploading) return;
-   setReferenceFoods(current => ({ ...current, [referenceKey(food)]: food }));
+ function addReference(picks: readonly ReferencePick[]) {
+   if (!picks.length || picks.length > availablePickSlots || busy || uploading) return;
+   setReferenceFoods(current => ({ ...current, ...Object.fromEntries(picks.map(({ food }) => [referenceKey(food), food])) }));
    setDraft(previous => {
-     const key = Math.max(...previous.items.map(row => row.editor.key)) + 1;
+     const index = replacing ?? previous.items.length - 1;
+     const nextKey = Math.max(...previous.items.map(row => row.editor.key)) + 1;
+     const firstKey = replacing === null ? nextKey : previous.items[index].editor.key;
+     const additions = picks.map(({ item }, offset) => editorItem(item, offset === 0 ? firstKey : nextKey + offset, undefined, true));
      return {
        ...previous,
-       items: replacing === null
-         ? [...previous.items.slice(0, -1), editorItem(item, key, undefined, true), previous.items.at(-1)!]
-         : previous.items.map((row, index) => index === replacing ? editorItem(item, row.editor.key, undefined, true) : row),
+       items: [...previous.items.slice(0, index), ...additions, ...previous.items.slice(index + (replacing === null ? 0 : 1))],
      };
    });
    returnToMeal();
@@ -357,11 +368,12 @@ export function MealEditor({
 
  const visibleRows = draft.items.map((item, index) => ({ item, index }))
    .filter(({ item }) => !emptyEditorItem(item) || item.editor.key === freeKey);
- const canPick = entered.length < 50 || replacing !== null;
+ const availablePickSlots = 50 - entered.length + (replacing === null ? 0 : 1);
+ const canPick = availablePickSlots > 0;
  const mobilePicker = mobile === true && libraryOpen && !aiOpen;
  const hasInspector = useInspectorStep(mobilePicker ? {
    title: referenceBack ? "食材详情" : "食材库",
-   backTo: referenceBack ? "食材列表" : "本餐",
+   backTo: referenceBack?.label ?? "本餐",
    back: backFromLibrary,
  } : null);
  const externalBack = mobilePicker && hasInspector;
@@ -512,7 +524,7 @@ export function MealEditor({
          <section ref={libraryPane} className={styles.library} data-meal-pane="library" inert={paneChange?.animate && !libraryOpen}
            id={bubbleId + "-picker"} aria-label="选择食材库" data-reference-scroll={inlineLibrary || undefined}>
            {!externalBack && <div className={styles.libraryTitle}>
-             {!inlineLibrary && <button type="button" className={styles.libraryBack} aria-label={referenceBack ? "返回食材列表" : replacing !== null ? "取消更换" : "返回本餐"} onClick={backFromLibrary}>
+             {!inlineLibrary && <button type="button" className={styles.libraryBack} aria-label={referenceBack ? "返回" + referenceBack.label : replacing !== null ? "取消更换" : "返回本餐"} onClick={backFromLibrary}>
                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg>
              </button>}
              <h2 ref={panelTitle} tabIndex={-1}>{referenceBack ? "食材详情" : "食材库"}</h2>
@@ -523,8 +535,8 @@ export function MealEditor({
            <FoodLibraryTabs scope={scope} change={next => { setScope(next); setSelected([]); }}/>
            <div hidden={scope !== "reference"}><ReferenceBrowser query={query} search={setQuery}
              searchRef={scope === "reference" ? search : undefined}
-             enabled={!pending && scope === "reference" && (inlineLibrary || libraryOpen)} disabled={!canPick || busy}
-             pickerVisit={libraryVisit} onAdd={addReference} onManual={manualFromSearch} onDetailBack={onDetailBack} externalBack={!inlineLibrary}/></div>
+             enabled={!pending && scope === "reference" && (inlineLibrary || libraryOpen)} disabled={!canPick || busy || uploading}
+             maxItems={availablePickSlots} pickerVisit={libraryVisit} onAdd={addReference} onManual={manualFromSearch} onDetailBack={onDetailBack} externalBack={!inlineLibrary}/></div>
            {scope === "personal" && <><label className={styles.librarySearch + " " + styles.compactField}><span className="sr-only">搜索食材</span>
              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="m12 12 4 4"/></svg>
              <input aria-label="搜索食材" ref={search} type="search" placeholder="搜索名称、品牌或规格" value={query}

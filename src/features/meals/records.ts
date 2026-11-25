@@ -94,19 +94,25 @@ function prepareReferenceItem(input: ItemDraft, link: ReferenceFoodLink, previou
   }
   const food = sameReference(previous, link) ? previous!.referenceSnapshot!.food : requireCurrentReferenceFood(link);
   const portion = link.portionId ? food.portions.find(entry => entry.id === link.portionId) : undefined;
-  const unit = portion?.unit ?? "g";
+  const unit = portion?.unit ?? food.basisUnit ?? "g";
   if (link.portionId && !portion || input.unit !== unit || !input.quantity && input.amountDecision !== "unknown_accepted") {
-    throw new ApiError(400, "unit_required", "请选择该规格支持的份量及单位；按克须填写可食部重量。");
+    throw new ApiError(400, "unit_required", "请选择该规格支持的份量及单位。");
   }
-  const { nutrition, edibleGrams } = referenceNutrition(food, input.quantity ?? null, portion?.id);
+  if (previous?.referenceSnapshot && sameReference(previous, link) && previous.unit === input.unit &&
+    previous.referenceSnapshot.portionId === portion?.id && Number(previous.quantity) === Number(input.quantity)) {
+    return { ...input, id: previous.id, name: previous.name, nutritionBasis: "consumed_total",
+      nutrition: previous.nutrition, referenceSnapshot: previous.referenceSnapshot,
+      sourceKind: previous.sourceKind, basis: previous.basis, evidenceUrl: previous.evidenceUrl };
+  }
+  const { nutrition, edibleGrams, volumeMl } = referenceNutrition(food, input.quantity ?? null, portion?.id);
   if (Object.values(nutrition).some(value => value !== null && Number(value) > 1000000)) {
     throw new ApiError(400, "invalid_input", "换算结果超出有效范围。");
   }
   const source = food.source;
   return {
     ...input, id: previous?.id, name: food.name, nutritionBasis: "consumed_total", nutrition,
-    referenceSnapshot: { food, portionId: portion?.id, edibleGrams },
-    sourceKind: "composition_table",
+    referenceSnapshot: { food, portionId: portion?.id, edibleGrams, ...(volumeMl !== undefined ? { volumeMl } : {}) },
+    sourceKind: food.sourceKind ?? "composition_table",
     basis: input.amountDecision === "estimate_accepted" ? input.basis : source.dataset + " · " + source.recordId,
     evidenceUrl: source.url,
   };

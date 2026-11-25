@@ -6,7 +6,7 @@ import io
 import json
 import re
 from collections import defaultdict
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from xml.etree import ElementTree
 from zipfile import ZipFile
@@ -58,6 +58,8 @@ def number(value):
         raise ValueError(f"未识别的数量 {value!r}") from error
     if not parsed.is_finite() or parsed < 0:
         raise ValueError(f"超出可用范围的数量 {value!r}")
+    if parsed.as_tuple().exponent < -4:
+        parsed = parsed.quantize(Decimal(".0001"), rounding=ROUND_HALF_UP)
     return format(parsed, "f")
 
 
@@ -105,6 +107,70 @@ def tfda(source_dir):
     return names, values
 
 
+def audit_nutrition(identity, metrics, mass_basis=True):
+    for key in METRICS:
+        reading = metrics[key]
+        if reading is None:
+            continue
+        value = Decimal(reading)
+        # 留出原表的舍入空间。超界时回查单位与原始数值。
+        limit = 1000 if key == "caloriesKcal" else 100 if mass_basis else 150
+        if not value.is_finite() or value < 0 or value > limit:
+            raise ValueError(f"{identity} 的 {key} 超出每 100 g/mL 合理范围。")
+    macros = [Decimal(metrics[key]) for key in METRICS[1:] if metrics[key] is not None]
+    if mass_basis and sum(macros) > 101:
+        raise ValueError(f"{identity} 的每 100 g 宏量总重超界。")
+
+
+def regional_recipes(usda_names, usda_values, tfda_names, tfda_values):
+    recipes = json.loads((CATALOG / "reference-recipes.json").read_text(encoding="utf-8"))
+    for recipe in recipes:
+        ingredients = []
+        weights = []
+        amounts = {key: [] for key in METRICS}
+        for ingredient in recipe["ingredients"]:
+            dataset, code = ingredient["source"].split(":")
+            if dataset == "usda":
+                source = {**FNDDS, "recordId": code, "title": usda_names[code]}
+                readings = dict(zip(METRICS, map(number, usda_values[code])))
+            elif dataset == "tfda":
+                source = {**TFDA, "recordId": code, "title": tfda_names[code]}
+                readings = {metric: number(tfda_values[code].get(metric, "")) for metric in METRICS}
+            else:
+                raise ValueError(f"未知配方原料来源 {dataset}")
+            edible = Decimal(ingredient["edibleGrams"])
+            nutrition_weight = Decimal(ingredient.get("nutritionGrams", str(edible)))
+            if edible <= 0 or nutrition_weight <= 0:
+                raise ValueError(f"{recipe['id']} 的配方用量须为正数。")
+            audit_nutrition(code, readings)
+            weights.append(edible)
+            for key in METRICS:
+                amount = readings[key]
+                amounts[key].append(None if amount is None else Decimal(amount) * nutrition_weight / 100)
+            ingredients.append({**ingredient, "source": source})
+        yield_grams = sum(weights)
+        if not yield_grams:
+            raise ValueError(f"{recipe['id']} 缺少成品可食重量。")
+        metrics = {key: None if any(reading is None for reading in readings) else
+                   number(str(sum(readings) * 100 / yield_grams)) for key, readings in amounts.items()}
+        audit_nutrition(recipe["id"], metrics)
+        source = {
+            "dataset": "Formward 标准配方",
+            "recordId": recipe["id"] + " v" + str(recipe["version"]),
+            "title": recipe["source"]["title"],
+            "url": recipe["source"]["url"],
+        }
+        yield {
+            **{key: value for key, value in recipe.items() if key not in {"ingredients", "source"}},
+            "source": source, "sourceKind": "estimated", "nutrition": metrics,
+            "recipeIngredients": ingredients,
+            "portions": [{
+                "id": "recipe-serving", "unit": "份", "edibleGrams": str(yield_grams),
+                "label": "标准配方可食量", "source": source,
+            }],
+        }
+
+
 def build(source_dir):
     usda_names, usda_values, usda_measures = fndds(source_dir)
     tfda_names, tfda_values = tfda(source_dir)
@@ -145,6 +211,7 @@ def build(source_dir):
                 raise ValueError(f"未知来源 {reference}")
             if all(value is None for value in metrics.values()):
                 raise ValueError(f"{identity} 无可用营养数据。")
+            audit_nutrition(identity, metrics)
             data.append({
                 "id": identity, "version": version, "family": row["family"], "name": row["name"],
                 "aliases": row["aliases"].split(";"), "state": row["state"], "method": row["method"],
@@ -152,6 +219,9 @@ def build(source_dir):
                 "preparation": row["preparation"], "illustration": row["illustration"],
                 "source": source, "nutrition": metrics, "portions": checked_portions,
             })
+    data.extend(regional_recipes(usda_names, usda_values, tfda_names, tfda_values))
+    if len({row["id"] for row in data}) != len(data):
+        raise ValueError("公共参考规格 ID 重复。")
     return data
 
 

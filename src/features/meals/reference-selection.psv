@@ -1,34 +1,33 @@
 id|family|source|state|method|skin|illustration|name|aliases|preparation|portion|version
 chicken-breast-raw|chicken-breast|tfda:I0402402|raw|生|去皮|chicken-breast-raw|生去皮鸡胸肉|鸡胸肉;鸡胸;生鸡胸|鸡胸部位 · 去皮可食肉||1
 chicken-breast-roasted|chicken-breast|usda:24122131|cooked|烤|去皮|chicken-breast-cooked|去皮烤鸡胸肉|鸡胸肉;鸡胸;烤鸡胸|烤制 · 去皮 · 可食肉|3:块:原表中等熟鸡胸|1
-chicken-breast-grilled|chicken-breast|usda:24123301|cooked|烤|去皮|chicken-breast-cooked|去皮无酱炙烤鸡胸肉|鸡胸肉;鸡胸;炙烤鸡胸|炙烤 · 去皮 · 无酱 · 可食肉||1
+chicken-breast-grilled|chicken-breast|usda:24123301|cooked|烤|去皮|chicken-breast-cooked|去皮炙烤鸡胸肉|鸡胸肉;鸡胸;炙烤鸡胸|炙烤 · 去皮 · 无酱 · 可食肉||2
 chicken-breast-stewed|chicken-breast|usda:24123120|cooked|炖|去皮|chicken-breast-cooked|去皮炖鸡胸肉|鸡胸肉;鸡胸;炖鸡胸|炖制 · 去皮 · 可食肉||1
-chicken-wing-roasted|chicken-wing|usda:24162130|cooked|烤| |chicken-wing-roasted|烤鸡翅|鸡翅;烤翅;chicken wing|烤制 · 按可食部记录|1:只:原表整只熟鸡翅可食部|1
+chicken-wing-roasted|chicken-wing|usda:24162130|cooked|烤| |chicken-wing-roasted|烤鸡翅|鸡翅;烤翅;chicken wing|烤制 · 按可食部记录|1:只:原表整只熟鸡翅可食部|2
 duck-breast-raw|duck|tfda:I0502101|raw|生| |duck-raw|生鸭胸肉片|生鸭胸;鸭胸;鸭胸肉|原表为樱桃鸭胸肉片 · 皮况未注明||1
 duck-roasted|duck|usda:24301010|cooked|烤|吃皮|duck-roasted|带皮烤鸭肉|烤鸭;鸭肉;烧鸭|烤制 · 吃皮 · 可食部去骨||1
-beef-sirloin-cooked|beef-steak|usda:21102170|cooked|熟制| |beef-cooked|熟西冷牛排（只吃瘦肉）|西冷牛排;沙朗牛排;牛排;牛肉|熟制方式未细分 · 只计西冷牛排的瘦肉||1
-beef-tenderloin-cooked|beef-steak|usda:21103180|cooked|熟制| |beef-cooked|熟牛里脊牛排|牛里脊;菲力牛排;牛排;牛肉|原表为菲力部位的成品牛排 · 做法未细分||1
+beef-tenderloin-cooked|beef-steak|usda:21103180|cooked|熟制| |beef-cooked|菲力牛排|牛里脊牛排;牛里脊;菲力;filet mignon;tenderloin steak;牛排|牛里脊部位 · 熟重 · 做法未注明||2
 beef-shank-raw|beef-shank|tfda:I0108302|raw|生| |beef-raw|生牛腱肉|牛腱;牛腱子;腱子肉;牛肉|牛后腿腱子心 · 原表 2022 样品||1
-beef-brisket-raw|beef-brisket|tfda:I0104201|raw|生| |beef-raw|生牛前胸肉（修清）|牛前胸;牛胸肉;牛肉;brisket|去掉外层多余脂肪的生前胸肉||1
-beef-pot-roast|beef-brisket|usda:21407000|cooked|炖| |beef-stew|炖牛肉（不含配菜）|炖牛肉;焖牛肉;牛肉;pot roast|原表为炖烤牛肉 · 单计肉部||1
-pork-tenderloin-raw|pork-loin|tfda:I0306101|raw|生| |pork-loin-raw|生猪小里脊|猪肉;猪里脊;小里脊;猪小里肌|猪小里脊 · 生重可食部||1
-pork-tenderloin-cooked|pork-loin|usda:22210300|cooked|熟制| |pork-loin-cooked|熟猪小里脊|猪肉;猪里脊;小里脊;pork tenderloin|原表为熟猪小里脊 · 做法未细分||1
+beef-brisket-raw|beef-brisket|tfda:I0104201|raw|生| |beef-raw|生牛前胸肉|牛前胸;牛胸肉;生牛肉;brisket|去掉外层多余脂肪的生前胸肉||2
+beef-pot-roast|beef-dish|usda:21407000|cooked|炖| |beef-stew|炖牛肉|焖牛肉;牛肉;pot roast|牛肉炖熟 · 部位未注明 · 单计可食肉||2
+pork-tenderloin-raw|pork-loin|tfda:I0306101|raw|生| |pork-loin-raw|生猪里脊肉|生猪小里脊;生小里脊;猪里脊;猪里脊肉;小里脊;猪小里肌|小里脊 · 生重可食部||2
+pork-tenderloin-cooked|pork-loin|usda:22210300|cooked|熟制| |pork-loin-cooked|猪里脊肉|猪里脊;小里脊;熟猪小里脊;熟猪里脊;pork tenderloin|小里脊 · 熟重 · 做法未注明||2
 pork-belly-raw|pork-belly|tfda:I0308101|raw|生|去皮|pork-belly-raw|生猪五花肉（去皮）|生五花肉;五花肉;猪肉;猪腹胁肉|猪腹胁部位 · 去皮可食肉||1
 lamb-chop-cooked|lamb|usda:23101000|cooked|熟制| |lamb-chop|熟羊排（可食部）|羊排;羊肉;lamb chop|熟制做法未细分 · 可食部计量||1
 salmon-raw|salmon|tfda:J0402402|raw|生|去皮|salmon-raw|生大西洋三文鱼切片|三文鱼;鲑鱼;生三文鱼;salmon|大西洋鲑中段 · 去皮去刺||1
 salmon-grilled|salmon|usda:26137123|cooked|烤| |salmon-cooked|烤三文鱼|三文鱼;烤鲑鱼;鲑鱼;salmon|炙烤 · 按鱼肉可食部记录||1
 salmon-steamed|salmon|usda:26137160|cooked|蒸| |salmon-cooked|清蒸三文鱼|三文鱼;清蒸鲑鱼;鲑鱼;salmon|蒸制 · 按鱼肉可食部记录||1
 shrimp-raw|shrimp|tfda:J2200501|raw|生| |shrimp-raw|生草虾仁|草虾仁;虾仁;生虾仁;虎虾仁;虾|去壳虾仁 · 生重可食部||1
-shrimp-boiled|shrimp|usda:26319130|cooked|蒸煮| |shrimp-cooked|水煮或清蒸虾|水煮虾;白灼虾;清蒸虾;熟虾;虾仁;虾;shrimp|原表为水煮或蒸制虾 · 按去壳可食部|2:只:原表小至中等虾的可食部|1
+shrimp-boiled|shrimp|usda:26319130|cooked|蒸煮| |shrimp-cooked|水煮或清蒸虾|水煮虾;白灼虾;清蒸虾;熟虾;虾仁;虾;shrimp|原表为水煮或蒸制虾 · 按去壳可食部|2:只:原表小至中等虾的可食部|2
 tuna-sashimi|tuna|tfda:J0414601|ready|即食| |raw-fish|金枪鱼刺身|吞拿鱼;鲔鱼刺身;金枪鱼;生鱼片;tuna sashimi|原表为鲔鱼生鱼片 · 刺身可食部||1
-rice-brown-cooked|rice|usda:56205018|cooked|煮| |cooked-rice|熟糙米饭（无加油）|糙米饭;糙米;杂粮饭中的糙米饭;brown rice|熟制 · 无额外油脂|3:杯:原表美制量杯的熟糙米饭|1
+rice-brown-cooked|rice|usda:56205018|cooked|煮| |cooked-rice|熟糙米饭（无加油）|糙米饭;糙米;杂粮饭中的糙米饭;brown rice|熟制 · 无额外油脂|3:杯:原表美制量杯的熟糙米饭|2
 rice-brown-raw|rice|tfda:A0501401|raw|生| |raw-rice|生黑籼糙米|生糙米;糙米;黑籼糙米|黑籼稻谷去壳 · 按烹煮前重量||1
 rice-congee|congee|usda:56205101|cooked|煮| |congee|白米粥|白粥;稀饭;白稀饭;米粥;congee|原表白粥通用规格 · 稠度差异会影响换算|1:杯:原表美制量杯的白粥|1
 noodles-rice-cooked|noodles|usda:56117090|cooked|煮| |rice-noodles|熟米粉（无浇头）|米粉;米线;熟米线;rice noodles|熟制米制面条 · 按沥出后可食部|1:杯:原表美制量杯的熟米粉|1
 noodles-rice-dry|noodles|tfda:R1100301|raw|干| |dry-rice-noodles|干细米粉|细米粉;干米粉;干米线|干制细米粉 · 按泡煮前的干重||1
 vermicelli-dry|noodles|tfda:R4600201|raw|干| |dry-glass-noodles|干粉丝（冬粉）|干粉丝;粉丝;冬粉;玻璃粉|原表冬粉 · 按泡煮前的干重||1
 oats-dry|oats|tfda:A0810101|raw|干| |oats|干燕麦片|燕麦片;燕麦;干燕麦;rolled oats|原表燕麦片 · 按加水前干重||1
-oatmeal-cooked|oats|usda:56203056|cooked|煮| |oats|水煮燕麦粥|燕麦粥;燕麦片;燕麦;oatmeal|用水煮 · 无额外油脂|1:杯:原表美制量杯的熟燕麦粥|1
+oatmeal-cooked|oats|usda:56203056|cooked|煮| |oats|水煮燕麦粥|燕麦粥;燕麦片;燕麦;oatmeal|用水煮 · 无额外油脂|1:杯:原表美制量杯的熟燕麦粥|2
 mantou-steamed|mantou|tfda:R2400201|cooked|蒸| |mantou|白面馒头|馒头;白馒头;蒸馒头;mantou|原表为熟白馒头 · 按蒸熟后重量||1
 bread-white|toast|usda:51101000|ready|即食| |toast|白吐司面包|白吐司;白面包;吐司;面包;white bread|原表白面包 · 常规切片|2:片:原表中等常规切片|1
 bread-whole-wheat|toast|usda:51300110|ready|即食| |toast|全麦吐司面包|全麦吐司;全麦面包;吐司;面包;whole wheat bread|原表全麦面包 · 常规切片|2:片:原表中等常规切片|1
@@ -42,24 +41,24 @@ egg-steamed|egg|tfda:K0150303|cooked|蒸| |steamed-egg|蒸鸡蛋羹|蒸蛋;鸡�
 egg-fried|egg|usda:31105030|cooked|煎| |fried-egg|油煎荷包蛋|煎蛋;荷包蛋;鸡蛋;fried egg|原表油煎全蛋 · 已包含参考用油|1:个:原表完整油煎蛋|1
 egg-scrambled|egg|usda:32130010|cooked|炒| |scrambled-egg|炒鸡蛋（用油）|炒鸡蛋;炒蛋;鸡蛋;scrambled egg|原表用油炒蛋或蛋卷 · 无额外配料||1
 milk-whole|milk|usda:11111000|ready|即食| |milk|全脂纯牛奶|全脂牛奶;纯牛奶;鲜奶;牛奶;whole milk|全脂原味 · 按实际饮用量|1:杯:原表美制量杯的全脂牛奶|1
-milk-reduced|milk|usda:11112110|ready|即食| |milk|低脂牛奶（2%乳脂）|低脂奶;低脂牛奶;牛奶;2% milk|原表乳脂 2% · 按实际饮用量||1
-yogurt-whole|yogurt|usda:11411100|ready|即食| |yogurt|全脂原味酸奶|原味酸奶;酸奶;yogurt|全脂奶制原味酸奶 · 非希腊式||1
+milk-reduced|milk|usda:11112110|ready|即食| |milk|低脂牛奶（2%乳脂）|低脂奶;低脂牛奶;牛奶;2% milk|原表乳脂 2% · 按实际饮用量||2
+yogurt-whole|yogurt|usda:11411100|ready|即食| |yogurt|全脂原味酸奶|原味酸奶;酸奶;yogurt|全脂奶制原味酸奶 · 非希腊式||2
 yogurt-low-fat|yogurt|usda:11411200|ready|即食| |yogurt|低脂原味酸奶|低脂酸奶;原味酸奶;酸奶;low fat yogurt|低脂奶制原味酸奶 · 非希腊式||1
-yogurt-greek|yogurt|usda:11411400|ready|即食| |yogurt|全脂希腊酸奶（原味）|希腊酸奶;希腊式酸奶;酸奶;greek yogurt|全脂奶制原味希腊酸奶||1
+yogurt-greek|yogurt|usda:11411400|ready|即食| |yogurt|全脂希腊酸奶（原味）|希腊酸奶;希腊式酸奶;酸奶;greek yogurt|全脂奶制原味希腊酸奶||2
 cheddar|cheese|usda:14104100|ready|即食| |cheese|切达奶酪|切达芝士;奶酪;芝士;cheddar|原表普通切达奶酪||1
 tofu-firm|tofu|tfda:R4700902|ready|即食| |tofu|传统豆腐|豆腐;北豆腐;老豆腐;firm tofu|源表为 2022 年传统豆腐样品 · 按原样重量||1
 tofu-silken|tofu|tfda:R4701201|ready|即食| |tofu|嫩豆腐|豆腐;软豆腐;silken tofu|按原样嫩豆腐计量 · 油和酱另按实际用量记录||1
 soymilk-unsweet|soy-milk|tfda:H1150201|ready|即食| |soy-milk|无糖豆浆|豆浆;豆奶;无糖豆奶;soy milk|黄豆与水为主的无糖豆浆||1
-soymilk-sweet|soy-milk|usda:11320000|ready|即食| |soy-milk|含糖豆浆|豆浆;甜豆浆;豆奶;sweetened soy milk|原表加糖豆饮||1
-edamame-cooked|edamame|usda:41420020|cooked|熟制| |edamame|熟毛豆仁|毛豆;毛豆仁;edamame|熟毛豆仁 · 豆荚不计入||1
+soymilk-sweet|soy-milk|usda:11320000|ready|即食| |soy-milk|含糖豆浆|豆浆;甜豆浆;豆奶;sweetened soy milk|原表加糖豆饮||2
+edamame-cooked|edamame|usda:41420020|cooked|熟制| |edamame|熟毛豆仁|毛豆;毛豆仁;edamame|熟毛豆仁 · 豆荚不计入||2
 spinach-raw|spinach|tfda:E5000101|raw|生| |leafy-greens|生菠菜|菠菜;spinach|去外部不可食部分 · 烹调前称可食部||1
 spinach-cooked|spinach|usda:72125211|cooked|熟制| |spinach-cooked|熟菠菜（无加油）|熟菠菜;菠菜;spinach|新鲜菠菜熟制 · 无额外油脂||1
-bok-choy-raw|bok-choy|tfda:E3201202|raw|生| |leafy-greens|生青梗菜|青江菜;上海青;小油菜;青梗菜;bok choy|原表土植青江菜 3 月样品 · 烹调前可食部||1
+bok-choy-raw|bok-choy|tfda:E3201202|raw|生| |leafy-greens|生小油菜|青江菜;上海青;小油菜;青梗菜;bok choy|小油菜（上海青）· 烹调前可食部||2
 lettuce-ready|lettuce|usda:75113000|ready|即食| |leafy-greens|生菜|生菜叶;莴苣叶;lettuce|鲜叶可食部 · 未加酱及油||1
 broccoli-raw|broccoli|tfda:E5800402|raw|生| |broccoli|生西兰花|西兰花;绿花菜;青花菜;broccoli|原表青花菜 2021 样品 · 去粗梗||1
 broccoli-cooked|broccoli|usda:72201211|cooked|熟制| |broccoli-cooked|熟西兰花（无加油）|西兰花;熟西兰花;绿花菜;broccoli|新鲜西兰花熟制 · 原表做法未细分 · 无额外油脂||1
 napa-raw|cabbage|tfda:E33001|raw|生| |cabbage|生大白菜|大白菜;结球白菜;白菜;napa cabbage|原表结球白菜平均值 · 按烹调前可食部||1
-napa-cooked|cabbage|usda:75210010|cooked|熟制| |cabbage-cooked|熟大白菜（无加油）|熟白菜;大白菜;结球白菜;白菜;napa cabbage|中国白菜熟制 · 无额外油脂||1
+napa-cooked|cabbage|usda:75210010|cooked|熟制| |cabbage-cooked|熟大白菜（无加油）|熟白菜;大白菜;结球白菜;白菜;napa cabbage|中国白菜熟制 · 无额外油脂||2
 tomato-fresh|tomato|tfda:E7400101|ready|即食| |tomato|鲜番茄|西红柿;番茄;牛番茄;tomato|源样品牛番茄 · 鲜果可食部||1
 cucumber-fresh|cucumber|tfda:E6400201|ready|即食| |cucumber|鲜黄瓜|黄瓜;小黄瓜;青瓜;花胡瓜;cucumber|源样品花胡瓜 · 按可食部计量||1
 carrot-raw|carrot|tfda:E0200101|ready|即食| |carrot|鲜胡萝卜|胡萝卜;红萝卜;生胡萝卜;carrot|可食部原样 · 未加酱和油||1
@@ -69,10 +68,10 @@ mushroom-cooked|mushroom|usda:75219011|cooked|熟制| |mushroom-cooked|熟蘑菇
 pumpkin-raw|pumpkin|tfda:E63001|raw|生| |pumpkin|生南瓜（去皮去籽）|南瓜;生南瓜;pumpkin|原表南瓜平均值 · 去皮去籽||1
 apple-fuji|apple|tfda:D3200501|ready|即食| |apple|富士苹果（带皮）|富士苹果;苹果;apple|带皮去核的鲜苹果||1
 apple-regular|apple|usda:63101000|ready|即食| |apple|鲜苹果（通用）|苹果;鲜苹果;apple|源表通用鲜苹果 · 按可食部|2:个:原表中等大小苹果的可食部|1
-banana-fresh|banana|usda:63107010|ready|即食| |banana|鲜香蕉|香蕉;banana|去皮后可食部|1:条:原表整条香蕉的可食部|1
-orange-fresh|orange|usda:61119010|ready|即食| |orange|鲜甜橙|橙子;甜橙;脐橙;柳橙;orange|鲜甜橙去皮等不可食部分|1:个:原表整只甜橙的可食部|1
-tangerine-fresh|orange|tfda:D3400202|ready|即食| |orange|茂谷柑|柑橘;橘子;桔子;茂谷柑|源样品茂谷柑 · 按可食果肉||1
-pear-fresh|pear|tfda:D3000204|ready|即食| |pear|新兴梨|梨;水梨;雪梨;新兴梨;pear|源样品新兴梨 · 按可食部||1
+banana-fresh|banana|usda:63107010|ready|即食| |banana|鲜香蕉|香蕉;banana|去皮后可食部|1:条:原表整条香蕉的可食部|2
+orange-fresh|orange|usda:61119010|ready|即食| |orange|橙子|橙子;甜橙;脐橙;柳橙;orange|鲜甜橙 · 去皮可食果肉|1:个:原表整只甜橙的可食部|2
+tangerine-fresh|orange|tfda:D3400202|ready|即食| |orange|橘子|柑橘;桔子;茂谷柑;mandarin;tangerine|按去皮可食果肉计 · 代表样本茂谷柑||2
+pear-fresh|pear|tfda:D3000204|ready|即食| |pear|梨|鲜梨;新兴梨;pear|按可食果肉计 · 代表样本新兴梨||2
 grapes-fresh|grape|tfda:D1700201|ready|即食| |grapes|巨峰葡萄|葡萄;鲜葡萄;grapes|源样品巨峰葡萄 · 按可食部||1
 strawberry-fresh|berries|tfda:D1400101|ready|即食| |berries|鲜草莓|草莓;strawberry|鲜果 · 去掉蒂等不可食部分||1
 blueberry-fresh|berries|usda:63203010|ready|即食| |berries|鲜蓝莓|蓝莓;blueberry|原表鲜蓝莓 · 按可食部||1
@@ -81,7 +80,7 @@ peanut-roasted|peanut|usda:42111210|cooked|烤| |nuts|干烤无盐花生仁|花�
 peanut-boiled|peanut|usda:42111030|cooked|煮| |nuts|水煮花生仁|花生;煮花生;花生仁;peanuts|煮制后的花生仁 · 按可食部||1
 almond-unroasted|almond|usda:42101000|ready|即食| |nuts|未烘烤巴旦木|巴旦木;扁桃仁;美国大杏仁;almond|原表未烘烤扁桃仁 · 去壳||1
 cashew-unroasted|cashew|usda:42104050|ready|即食| |nuts|未烘烤腰果|腰果;cashew|原表未烘烤腰果仁 · 去壳||1
-walnut|walnut|usda:42116000|ready|即食| |nuts|核桃仁|核桃;walnut|原表普通核桃仁 · 排除蜂蜜烘烤品||1
+walnut|walnut|usda:42116000|ready|即食| |nuts|核桃仁|核桃;walnut|原表普通核桃仁 · 排除蜂蜜烘烤品||2
 sesame-seeds|sesame|usda:43103000|ready|即食| |seeds|芝麻粒|芝麻;白芝麻;sesame|原表通用芝麻粒 · 颜色未细分||1
 olive-oil|oil|tfda:M2700101|ready|即食| |oil|橄榄油|橄榄油;食用油;olive oil|按实际吃下的橄榄油重量||1
 canola-oil|oil|tfda:M1800101|ready|即食| |oil|菜籽油|菜油;芥花油;食用油;canola oil|源表芥花油 · 按实际吃下的油量||1
@@ -99,12 +98,11 @@ green-tea-iced|tea|usda:92308520|ready|即食| |tea|无糖冰绿茶|冰绿茶;�
 black-tea-iced|tea|usda:92308020|ready|即食| |black-tea|无糖冰红茶|冰红茶;无糖红茶;红茶;无糖茶;茶;black tea|原表冲泡后冰饮 · 无糖||1
 black-coffee|coffee|usda:92101000|ready|即食| |coffee|原味黑咖啡（冲煮）|黑咖啡;咖啡;不加糖咖啡;coffee|原表冲煮黑咖啡 · 奶糖按实际加量另记|2:杯:原表 8 fl oz 美制一杯|1
 orange-juice-fresh|juice|usda:61210010|ready|即食| |juice|鲜榨橙汁|鲜橙汁;橙汁;100%橙汁;orange juice|100%鲜榨橙汁 · 按饮下的液体重量||1
-cola|cola|usda:92410310|ready|即食| |cola|含糖可乐|普通可乐;可乐;汽水;cola|原表通用含糖可乐||1
-cola-diet|cola|usda:92410320|ready|即食| |cola|无糖可乐|零糖可乐;无糖汽水;可乐;diet cola|原表通用无糖可乐||1
+cola|cola|usda:92410310|ready|即食| |cola|含糖可乐|普通可乐;有糖可乐;可乐;苏打汽水;cola|原表通用含糖可乐||2
 still-water|water|usda:94100100|ready|即食| |water|白水|水;饮用水;白开水;water|原表无味瓶装饮用水||1
-saltine|cracker|usda:54325000|ready|即食| |cracker|苏打饼干|苏打饼;饼干;梳打饼;saltine|原表普通苏打薄脆饼干||1
-dark-chocolate|chocolate|usda:91705300|ready|即食| |chocolate|黑巧克力|黑巧;巧克力;dark chocolate|源表普通黑巧克力 · 可可比例未细分|1:块:原表标准单块|1
-potato-chips|chips|usda:71200100|ready|即食| |chips|原味薯片|薯片;土豆片;potato chips|原表普通原味薯片||1
+saltine|cracker|usda:54325000|ready|即食| |cracker|苏打饼干|苏打饼;饼干;梳打饼;saltine|原表普通苏打薄脆饼干||2
+dark-chocolate|chocolate|usda:91705300|ready|即食| |chocolate|黑巧克力|黑巧;巧克力;dark chocolate|源表普通黑巧克力 · 可可比例未细分|1:块:原表标准单块|2
+potato-chips|chips|usda:71200100|ready|即食| |chips|原味薯片|薯片;土豆片;potato chips|原表普通原味薯片||2
 sponge-cake|cake|usda:53118100|ready|即食| |cake|海绵蛋糕|海绵蛋糕;蛋糕;sponge cake|原表为海绵蛋糕 · 装饰夹馅不计||1
 fried-rice-plain|fried-rice|usda:58150310|cooked|炒| |fried-rice|炒饭（配料未细分）|炒饭;fried rice|原表通用炒饭 · 具体肉蛋配料不明|1:杯:原表美制量杯的炒饭|1
 fried-rice-shrimp|fried-rice|usda:58150510|cooked|炒| |fried-rice|虾仁炒饭|虾炒饭;炒饭;shrimp fried rice|原表炒饭含虾 · 当作整菜记录|1:杯:原表美制量杯的虾仁炒饭|1
@@ -114,5 +112,10 @@ dumplings-cabbage|dumplings|tfda:R2201501|cooked|煮| |dumplings|卷心菜水饺
 wonton-soup|wonton|usda:58408010|cooked|煮| |wonton-soup|馄饨汤（连汤）|馄饨;云吞汤;抄手汤;wonton soup|馄饨及汤按原比例一起称量|1:杯:原表美制量杯的馄饨汤|1
 curry-chicken|curry|usda:27146150|cooked|炖| |curry|咖喱鸡（不含饭）|咖哩鸡;咖喱鸡;chicken curry|成菜参考含咖喱汁 · 米饭另记|1:杯:原表美制量杯的咖喱鸡|1
 curry-chicken-rice|curry|usda:27146155|cooked|熟制| |curry|咖喱鸡饭|咖哩鸡饭;咖喱鸡配米饭;咖喱饭;curry chicken rice|咖喱鸡与饭一同计量|1:杯:原表美制量杯的咖喱鸡饭|1
-soy-tofu-vegetables|tofu-dish|usda:41812500|cooked|熟制| |tofu|酱汁蔬菜豆腐|蔬菜豆腐;蔬菜煮豆腐;tofu and vegetables|含豆腐、深色蔬菜和酱汁 · 源表不含土豆||1
+soy-tofu-vegetables|tofu-dish|usda:41812500|cooked|熟制| |tofu|酱汁蔬菜豆腐|蔬菜豆腐;蔬菜煮豆腐;tofu and vegetables|含豆腐、深色蔬菜和酱汁 · 源表不含土豆||2
 beef-potatoes-tomato|beef-dish|usda:27311625|cooked|熟制| |beef-stew|番茄酱汁牛肉土豆|牛肉土豆;番茄汁牛肉;牛肉配土豆|原表含牛肉、土豆、蔬菜及番茄基底酱汁 · 按整菜记录||1
+beef-ribeye|beef-steak|usda:21101180|cooked|熟制||beef-cooked|肉眼牛排|肉眼;肋眼;眼肉牛排;ribeye;rib eye;scotch fillet;牛排|肋眼部位 · 熟重 · 可食瘦肉及脂肪||1
+brisket-cooked|beef-brisket|usda:21417100|cooked|熟制||beef-cooked|熟牛前胸肉|熟牛前胸;熟牛胸肉;熟牛腩肉;brisket cooked|牛前胸部位 · 熟重 · 按可食肉计||1
+sg-roast-chicken|poached-chicken|usda:24102010|cooked|烤|吃皮|chicken-breast-cooked|烧鸡|烤鸡;roast chicken;烧鸡肉|烤鸡可食部 · 带皮 · 按去骨重量计||1
+baked-potato-wedges|potato|usda:71401015|cooked|烤||potato|烤薯块|烤土豆;烤土豆块;baked potato wedges;potato wedges|鲜土豆切块烤制 · 原表烤制薯块参考 · 已含表中用油||1
+coconut-rice|rice|usda:58161200|cooked|煮||cooked-rice|椰香米饭|椰奶米饭;coconut rice;椰浆煮饭|以椰浆煮熟 · 按饭的重量计||1

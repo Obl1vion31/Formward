@@ -29,6 +29,12 @@ const sheets = [
     "steamed-egg", "fried-egg", "cracker", "chocolate",
     "chips", "cake", "corn", "pumpkin",
   ] },
+  { name: "regional", width: 640, height: 640, columns: 4, rows: 4, cells: [
+    "cola-wings", "air-fryer-wings", "tomato-brisket", "tomato-brisket-rice",
+    "tomato-eggs", "mapo-tofu", "pork-pepper", "yellow-chicken",
+    "hainanese-chicken-rice", "nasi-lemak", "laksa", "char-kway-teow",
+    "steak-plate", "beef-bolognese", "gyudon", "japanese-curry-rice",
+  ] },
   { name: "prepared", width: 640, height: 640, columns: 4, rows: 4, cells: [
     "potato-boiled", "sweet-potato-baked", "sweet-potato-boiled", "spinach-cooked",
     "broccoli-cooked", "cabbage-cooked", "carrot-cooked", "mushroom-cooked",

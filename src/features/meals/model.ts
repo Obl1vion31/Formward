@@ -109,16 +109,26 @@ export function foodSpecification(value: string | null | undefined) {
   return value?.replace(/，?不含额外油酱/g, "").replace(/，?不含蛋壳及额外油酱/g, "").replace(/，?外部脂肪修至0/g, "") ?? "";
 }
 
-// 用整数保留四位小数，数量换算仅在最终落库时舍入。
-export function scaled(value: string, quantity: string, base: string) {
-  const integer = (v: string) => BigInt(v.split(".")[0]) * BigInt(10000) + BigInt((v.split(".")[1] ?? "").padEnd(4, "0"));
-  const numerator = integer(value) * integer(quantity), divisor = integer(base);
+function decimalParts(value: string) {
+  const [whole, fraction = ""] = value.split(".");
+  return [BigInt(whole + fraction), BigInt(10) ** BigInt(fraction.length)] as const;
+}
+
+// 保留来源的小数位，乘除结束后统一舍入到存储精度。
+export function scaled(value: string, quantity: string, base: string, perUnit = "1") {
+  const [reading, readingScale] = decimalParts(value);
+  const [count, countScale] = decimalParts(quantity);
+  const [basis, basisScale] = decimalParts(base);
+  const [measure, measureScale] = decimalParts(perUnit);
+  const storageScale = BigInt(10000);
+  const numerator = reading * count * measure * basisScale * storageScale;
+  const divisor = basis * readingScale * countScale * measureScale;
   const units = (numerator + divisor / BigInt(2)) / divisor;
-  return `${units / BigInt(10000)}.${String(units % BigInt(10000)).padStart(4, "0")}`;
+  return `${units / storageScale}.${String(units % storageScale).padStart(4, "0")}`;
 }
 export function nutritionFor(food: FoodDraft, quantity: string, unit=food.unit): Nutrition {
-  const amount=unit===food.servingUnit && food.servingQuantity?scaled(quantity,food.servingQuantity,"1"):quantity;
-  return Object.fromEntries(metrics.map(metric => [metric, food.nutrition[metric] === null ? null : scaled(food.nutrition[metric]!, amount, food.baseQuantity)])) as Nutrition;
+  const perUnit = unit === food.servingUnit ? food.servingQuantity ?? "1" : "1";
+  return Object.fromEntries(metrics.map(metric => [metric, food.nutrition[metric] === null ? null : scaled(food.nutrition[metric]!, quantity, food.baseQuantity, perUnit)])) as Nutrition;
 }
 export function portionNutrition(nutrition: Nutrition, quantity: string): Nutrition {
  return Object.fromEntries(metrics.map(metric=>[metric,nutrition[metric]===null?null:scaled(nutrition[metric]!,quantity,"1")])) as Nutrition;

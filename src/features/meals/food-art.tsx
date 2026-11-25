@@ -47,13 +47,14 @@ export function FoodArt({ illustration = "generic", detail = false }: { illustra
 }
 
 export function ReferenceReading({ snapshot, estimated }: { snapshot: ReferenceSnapshot; estimated: boolean }) {
-  const { food, portionId, edibleGrams } = snapshot;
+  const { food, portionId, edibleGrams, volumeMl } = snapshot;
   const portion = food.portions.find(entry => entry.id === portionId);
   return <div className={styles.savedEvidence} data-reference-evidence>
     <FoodArt illustration={food.illustration} detail/>
     <div className={styles.referenceNotes}>
       <p>{food.preparation}</p>
       {edibleGrams && <p>可食部{portion || estimated ? "约 " : " "}{portion ? Math.round(Number(edibleGrams)) : Number(edibleGrams)} g</p>}
+      {volumeMl && <p>饮用量{estimated ? "约 " : " "}{Number(volumeMl)} mL</p>}
       {portion && <p>参考份量 · {portion.label} · 1{portion.unit}约 {Number(portion.edibleGrams)} g</p>}
       <p>{food.source.dataset} · {food.source.recordId}</p>
       <a href={food.source.url} target="_blank" rel="noreferrer">查看来源</a>

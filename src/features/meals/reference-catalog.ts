@@ -1,7 +1,8 @@
 import expansion from "./reference-expansion.json";
 import { ApiError } from "../auth/ai-identity";
 import type { Nutrition } from "./model";
-import type { FoodIllustration, ReferenceCatalogResult, ReferenceFamily, ReferenceFood, ReferenceFoodLink, ReferencePortion, ReferenceSnapshot, ReferenceSource } from "./reference-food";
+import { buildReferenceMeals, regionalFoods } from "./reference-regional";
+import type { FoodIllustration, ReferenceCatalogFood, ReferenceCatalogResult, ReferenceFamily, ReferenceFood, ReferenceFoodLink, ReferenceMealLink, ReferencePortion, ReferenceSnapshot, ReferenceSource } from "./reference-food";
 
 const fnddsUrl = "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/";
 const tfdaUrl = "https://data.gov.tw/dataset/8543";
@@ -40,7 +41,7 @@ const initialFoods: readonly ReferenceFood[] = [
     illustration: "raw-chicken", source: tfda("I0404501", "去皮去骨雞腿(肉雞)"), nutrition: values("165", "19.8", "0", "8.9"), portions: [],
   },
   {
-    id: "white-rice-cooked", version: 1, family: "rice", name: "熟白米饭", aliases: ["米饭", "白饭", "饭", "white rice", "cooked rice"],
+    id: "white-rice-cooked", version: 2, family: "rice", name: "白米饭", aliases: ["熟白米饭", "米饭", "白饭", "饭", "white rice", "cooked rice"],
     state: "cooked", method: "煮", preparation: "煮熟 · 未加油脂",
     illustration: "cooked-rice", source: riceSource, nutrition: values("129", "2.67", "27.99", "0.28"),
     portions: [portion(riceSource, 1, "杯", "158", "美制量杯，熟饭", "1 cup, cooked")],
@@ -100,8 +101,29 @@ const initialFoods: readonly ReferenceFood[] = [
   },
 ];
 
-const foods = [...initialFoods, ...expansion as ReferenceFood[]];
+const ingredients = [...initialFoods, ...expansion as ReferenceFood[], ...regionalFoods];
+const meals = buildReferenceMeals(ingredients);
+const foods = [...ingredients, ...meals];
 const foodsById = new Map(foods.map(food => [food.id, food]));
+const mealsByIngredient = new Map<string, ReferenceMealLink[]>();
+for (const meal of meals) {
+  const link = { id: meal.id, version: meal.version, name: meal.name };
+  for (const { food } of meal.components ?? []) {
+    const links = mealsByIngredient.get(food.id) ?? [];
+    links.push(link);
+    mealsByIngredient.set(food.id, links);
+  }
+}
+
+function catalogFood(food: ReferenceFood): ReferenceCatalogFood {
+  const relatedMeals = mealsByIngredient.get(food.id);
+  return relatedMeals ? { ...food, relatedMeals } : food;
+}
+
+export function referenceCatalogDetail(id: string): ReferenceCatalogResult | null {
+  const food = foodsById.get(id);
+  return food ? { total: foods.length, matches: 1, referenceFoods: [catalogFood(food)] } : null;
+}
 const retiredVersions = new Map([["drumstick-raw-edible", 1]]);
 const normalize = (value: string) => value.normalize("NFKC").toLowerCase().replace(/[\s·、，,()]+/g, "");
 const indexed = foods.map(food => ({
@@ -125,7 +147,7 @@ export function referenceCatalogOverview(): ReferenceCatalogResult {
 }
 
 const methods: readonly [RegExp, ReferenceFood["method"]][] = [
-  [/裹粉炸|油炸|炸/g, "炸"], [/水煮|白灼|白煮|汆煮|煮/g, "煮"], [/清蒸|蒸/g, "蒸"],
+  [/空气炸锅|空气炸|气炸/g, "空气炸"], [/裹粉炸|油炸|炸/g, "炸"], [/水煮|白灼|白煮|汆煮|煮/g, "煮"], [/清蒸|蒸/g, "蒸"],
   [/油煎|煎/g, "煎"], [/炖/g, "炖"], [/炙烤|烤/g, "烤"], [/油炒|炒/g, "炒"],
 ];
 
@@ -166,7 +188,7 @@ export function searchReferenceFoods(query = "", family?: ReferenceFamily, mode:
   const next = offset + 40;
   return {
     total: foods.length, matches: matches.length,
-    referenceFoods: matches.slice(offset, next).map(entry => entry.food),
+    referenceFoods: matches.slice(offset, next).map(entry => catalogFood(entry.food)),
     ...(next < matches.length ? { nextOffset: next } : {}),
   };
 }

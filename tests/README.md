@@ -31,6 +31,8 @@
 
 `reference-catalog.browser.mjs` 使用隔离版和虚构账号。`FORMWARD_FOOD_REFERENCE_FIXTURE` 为本机夹具配置，`FORMWARD_FOOD_REFERENCE_ARTIFACTS` 为私有证据目录。执行 `node tests/reference-catalog.browser.mjs chromium 1280`，支持 320、390、960、1280、1440 宽度和 Chromium／WebKit，第三个参数 `reduced` 可验证减少动态效果。覆盖目录、选材层级、进出动效、返回焦点、添加替换、保存和来源回看，并保留截图、录屏及实测数据。
 
+在同一隔离环境运行 `node tests/reference-meals.browser.mjs chromium 1280`、`webkit 390` 或 `chromium 320`。验证整份、拆分改量、替换、体积计量、送存刷新、关联返回及慢速重试。支持 `FORMWARD_FOOD_REFERENCE_AUTH_STATE` 使用隔离会话文件，`FORMWARD_FOOD_REFERENCE_RUN` 给虚构餐名追加本次运行标记。输出实页、连续录像及分项区域尺寸。
+
 ## 豆包接入
 
 `pnpm test` 包含 `src/features/doubao/oauth.test.ts`，在隔离 PGlite 中实际执行 OAuth、PKCE、授权码兑换、刷新轮换、绑定冲突、撤销、双协议 MCP、预览幂等与原 GPT 连接兼容；平台身份响应仅在测试中替换。另在 `integrations/doubao` 运行 `pnpm check`、`pnpm test`、两份 YAML 校验及 `pnpm exec dbx build local`。
