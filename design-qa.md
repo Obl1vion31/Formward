@@ -587,3 +587,12 @@ Chromium 320、960、1280、1440 CSS px 和 WebKit 390 CSS px 走通独立库、
 - 手机连续录屏核对可乐鸡翅按整份与拆分、收汁和油分别改量、加入一条整餐及 330 mL 无糖可乐。保存刷新后可展开 296 g 鸡翅配饭，饮品显示 0 kcal。 [手机录屏](<C:/Users/14878/.codex/visualizations/2026/11/25/01a211c0-3f28-7c01-b70b-b87f066a0eff/recipe-detail-acceptance/formward-recipe-mobile.mp4>) · [320 px 截图](<C:/Users/14878/.codex/visualizations/2026/11/25/01a211c0-3f28-7c01-b70b-b87f066a0eff/recipe-detail-acceptance/narrow-split.png>)
 - 目录包含 166 条规格和两套公共整餐。HTTP、MCP、网页采用同一分项换算。测试通过旧整餐快照、无效分项、同重改量、饮品、账号隔离与确认前写入边界。全量测试 865 通过、2 跳过，类型检查和生产构建通过，lint 保留站内聊天文件原有的一条警告。
 - 手机录像为 WebKit 视口模拟。实体手机键盘及真实模型对话留待后续验收。
+
+
+## 公共食材库多人份与单点菜发布验收
+
+运行包 `dual-entry-cc31e177-food-recipes-public-20261126` 已按用户授权上线。同期正式包在隔离 PostgreSQL 验证 1280 × 800、390 × 812、320 × 667。三处普通字号无水平溢出，胶囊触控 44 px，人数框 44 px 命中区、16 px 字号及约 64 × 34 px 可见边界。三人份盖饭同步为约 990 g，从可乐鸡翅的标准量开始只计鸡翅和调料，另加实际米饭再合计。旧餐按快照读回。 [桌面多人份](<C:/Users/14878/.codex/visualizations/2026/11/26/01a211c0-3f28-7c01-b70b-b87f066a0eff/food-recipes-public/desktop-people.png>) · [320 px 多人份](<C:/Users/14878/.codex/visualizations/2026/11/26/01a211c0-3f28-7c01-b70b-b87f066a0eff/food-recipes-public/narrow-people.png>) · [手机加饭](<C:/Users/14878/.codex/visualizations/2026/11/26/01a211c0-3f28-7c01-b70b-b87f066a0eff/food-recipes-public/mobile-wings-split.png>)
+
+生产备份、兼容回退和公网核对见[部署](docs/deployment.md)。885 项测试通过、2 项跳过；lint 仍有站内聊天的既有警告，类型检查及生产构建通过。登录后的完整记录验证在隔离库进行。真机键盘与真实模型对话未纳入本次发布验证。
+
+同期手机面板审查在 320 与 390 px 重现标题受返回槽宽影响。390 px 的食材详情标题中心偏左约 58 px，食材库偏左约 95 px，入口切换发生约 37 px 的横移。统一标题栏提案待批准。 [现状截图](<C:/Users/14878/.codex/visualizations/2026/11/26/01a211c0-3f28-7c01-b70b-b87f066a0eff/food-recipes-public/mobile-sheet-header-audit.png>) · [提案](<C:/Users/14878/.codex/visualizations/2026/11/26/01a211c0-3f28-7c01-b70b-b87f066a0eff/food-recipes-public/mobile-sheet-header-plan.md>)

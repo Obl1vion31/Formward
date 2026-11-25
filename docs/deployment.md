@@ -2,6 +2,16 @@
 
 ## 当前正式版本
 
+网页与聊天 worker 运行 `dual-entry-cc31e177-food-recipes-public-20261126`，源码 `cc31e1772cb44b75010b8c71eac165df4acb25f2`，BUILD_ID `diT4wvbVKwZlq9oTMhFb7`。北京时间 2026-11-26 02:55:59 切换。 [正式食材库](https://formward.top/dashboard/meals?section=foods) · [版本](https://formward.top/api/app-version)
+
+公共食材库上线 165 个规格。半份、一份和多人份使用一致的胶囊，多人份按实际整数人数换算。番茄牛腩盖饭自带米饭，可乐鸡翅按单点菜记录并可选加米饭。准确运行包用隔离 PostgreSQL 通过 Chromium 1280、320 px 和 WebKit 390 px，覆盖人数校验、拆分、加料、保存刷新、慢速重试与账号隔离。HTTP 与 MCP 契约和现有输入兼容。 [设计验收](../design-qa.md)
+
+`0048_meal_reference_foods` 只加可空餐项快照及约束。备份 `formward-primary-20261125T185551959093Z.dump.json` 已做原生校验与异地回读，隔离恢复演练和正式迁移均核对 67 张既有表的原值，迁移账本 47 至 48 项。上一安全版本已在新结构下通过服务身份启动检查，保留兼容回退。
+
+准确包 90,285,529 字节，SHA-256 `e80fc1f8aa537a06f5320118fdd8ea176ab79317ce215209f9120f846da4d1ee`，归档位于 `.codex/backups/regional-releases/food-recipes-public-20261126`。保留 56 项原有 Server Actions 与绑定密钥、2459 项旧静态资源。四个域名及兼容 IP 同版，海外 iad1 网关沿用已有 Ready 绑定，正式素材字节、登录回程及匿名接口已核对。
+
+## 请求边界与依赖修复发布记录
+
 网页与聊天 worker 运行 `dual-entry-740f4581-code-quality-copyright-20261125`，源码 `740f4581a070912cd50c7ae8458562910192b01d`，BUILD_ID `1J64FUdiCqBLejca7HiXu`。北京时间 2026-11-25 23:33:53 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
 
 此次修正流式正文大小限制、取消异常及读取锁释放，更新COS和相关依赖，保留已有界面与业务规则。lint、typecheck、production build及878项业务测试通过，2项原有跳过；实际发布包完成受影响流程的集中验收与Excel回读。 [审查与验证](code-quality.md)
@@ -190,7 +200,7 @@ lint、typecheck、production build和全量测试通过：858项中856通过、
 
 先核对最新main、实际公网和其他未提交任务。运行lint、typecheck、真实测试文件清单、production build及受影响浏览器全过程；不能以最终截图、DOM存在或误展开4个文件代替。隔离PostgreSQL和虚构账号不连接正式库，不自动调用收费模型。
 
-结构仅由版本化Drizzle migration演进，已发布迁移不修改；新迁移先备份、加密异机回读、隔离恢复排演和旧值／重复检查。构建不自动迁移。当前 schema0047 和 47 项迁移账本。0047 只加可空的食材分组字段和约束，旧行保留原值。恢复时先停 worker，再切已经在当前正式结构下通过就绪检查的兼容应用和 worker。
+结构仅由版本化Drizzle migration演进，已发布迁移不修改；新迁移先备份、加密异机回读、隔离恢复排演和旧值／重复检查。构建不自动迁移。当前 schema0048 和 48 项迁移账本。0048 只加可空的餐项参考快照与约束，旧行保留原值。恢复时先停 worker，再切已经在当前正式结构下通过就绪检查的兼容应用和 worker。
 
 先保存本机永久运行包并验摘要，保留原绑定密钥及旧静态资源，当前Server Action使用新门禁，旧动作提示刷新，验收后，先以服务账号核对新目录可进入、文件可读取，并在私有端口启动正式配置完成readiness；顶级目录权限不得因私有umask变为0700。通过后才原子切应用指针；核对readiness、源码／schema／数据库及正式版本、健康和凭据摘要。失败只回切兼容应用，不恢复旧库或删数据。Vercel专用网关沿用下方归档工具与明确别名范围；Git推送不自动发布，不用根Next产物当网关，不以项目级promote接管其他别名。无网关改动时核对既有READY绑定和实际回源即可。
 
