@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useRef} from "react";
+import {RecordRowAction} from "./daily-records";
 import recordUI from "./record-ui.module.css";
 import styles from "./record-detail-actions.module.css";
 
@@ -12,11 +13,11 @@ export function RecordDetailActions({edit,remove,busy,editLabel="编辑",removeL
   return()=>document.removeEventListener("pointerdown",outside);
  },[]);
  return <div className={styles.actions} data-record-detail-actions>
-  <button type="button" className={recordUI.editAction} disabled={busy} onClick={edit}>{editLabel}</button>
+  <RecordRowAction intent="edit" disabled={busy} onClick={edit}>{editLabel}</RecordRowAction>
   <details ref={more} className={styles.more} onKeyDown={event=>{
    if(event.key==="Escape"&&event.currentTarget.open){event.preventDefault();event.stopPropagation();event.currentTarget.open=false;event.currentTarget.querySelector("summary")?.focus({preventScroll:true});}
   }} onBlur={event=>{if(event.relatedTarget instanceof Node&&!event.currentTarget.contains(event.relatedTarget))event.currentTarget.open=false;}}>
-   <summary className={recordUI.secondary} aria-label={recordLabel+"的更多操作"}>更多</summary>
+   <summary className={recordUI.textAction} aria-label={recordLabel+"的更多操作"}>更多</summary>
    <div><button type="button" className={recordUI.secondary} disabled={busy} onClick={()=>{if(more.current)more.current.open=false;remove();}}>{removeLabel}</button></div>
   </details>
  </div>;

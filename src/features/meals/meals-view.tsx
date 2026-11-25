@@ -250,7 +250,7 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
           setError("");
           setEditing({ kind:"save_food", name:"", brand:null, preparation:null, baseQuantity:"1", unit:"份", nutrition:emptyNutrition(), sourceKind:"reference" });
         }}/>
-      {visibleFoods.length ? <FoodTable foods={visibleFoods} actions={f=><button className={recordUI.editAction} data-record-action="edit" onClick={()=>{setError("");setEditing({kind:"save_food",...f});}}>编辑</button>}/> : <p className={styles.hint}>还没有匹配的条目，可以添加食材或整餐。</p>}
+      {visibleFoods.length ? <FoodTable foods={visibleFoods} edit={food => { setError(""); setEditing({kind:"save_food",...food}); }}/> : <p className={styles.hint}>还没有匹配的条目，可以添加食材或整餐。</p>}
     </div>
     </div>
     {(historyOpen||editing)&&<EditorDialog closeLabel={editing||historyOpen&&dayIntent==='edit'?'关闭编辑':'关闭详情'} routeEntry={!!(initialEntry&&editing?.kind==='save_meal'&&editing.date===initialDate)} wide={editing?.kind==='save_meal'} backAction={editing?.kind==='save_meal'&&historyOpen&&dayIntent==='edit'?{label:"返回当天编辑",run:()=>{void confirmDraftDiscard().then(ok=>{if(ok)setEditing(null);});}}:undefined} title={editing?editing.kind==='save_food'?(editing.id?'编辑食材':'添加食材'):editing.id?'编辑餐次':'记录一餐':selectedDate+(dayIntent==='edit'?' · 编辑饮食':' · 饮食记录')} titleParts={!editing?[selectedDate,dayIntent==='edit'?'编辑饮食':'饮食记录']:undefined} stableScroll={!editing&&dayIntent==='view'} busy={busy} onSavedCloseReady={close=>{savedClose.current=close;}} close={()=>{setHistoryOpen(false);setEditing(null);setError('');}}>

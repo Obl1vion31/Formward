@@ -18,20 +18,20 @@ export function FoodLibraryControls({ back, backRef, category = "all", select, q
   search?: (query: string) => void;
   add?: () => void;
 }) {
-  return <>
+  return <div className={styles.libraryControls}>
     <div className={styles.libraryNavigation}>
-      <button ref={backRef} type="button" className={recordUI.secondary} onClick={back}>← 饮食</button>
+      <button ref={backRef} type="button" className={recordUI.textAction} onClick={back}>← 饮食</button>
+      <div className={styles.categoryTabs} role="group" aria-label="食材库筛选">
+        {categories.map(([value, label]) => <button key={value} type="button" className={recordUI.textAction}
+          disabled={!select} aria-pressed={category === value} onClick={() => select?.(value)}>{label}</button>)}
+      </div>
     </div>
-    <div className={styles.categoryTabs}>
-      {categories.map(([value, label]) => <button key={value} type="button" disabled={!select}
-        aria-pressed={category === value} onClick={() => select?.(value)}>{label}</button>)}
-    </div>
-    <div className={styles.toolbar}>
-      <input aria-label="搜索食材" placeholder="搜索名称、品牌或做法" value={query} disabled={!search}
+    <div className={styles.librarySearch}>
+      <input data-entry-input aria-label="搜索食材" placeholder="搜索食材" value={query} disabled={!search}
         onChange={event => search?.(event.target.value)}/>
       <button className={styles.primary} type="button" disabled={!add} onClick={add}>添加食材 ＋</button>
     </div>
-  </>;
+  </div>;
 }
 
 export function FoodLibraryLoading() {

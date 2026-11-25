@@ -188,13 +188,19 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
           <div className={styles.entryFields} data-paired={visibleMetrics.length > 1}>
             <div className={styles.bodyMetricFields}>{visibleMetrics.map(metric=>{
               const cell=group.fields[metric],label=periodName(group.period)+metricName(metric),key=group.period+":"+metric,editable=!group.blocked&&!future;
+              const fieldId = "entry-" + group.period + "-" + metric;
+              const fieldError = errorTarget === key ? error : "";
               return <div className={styles.entryCell} key={metric} data-entry-cell={key} data-kind={cell.kind}>
-                <label htmlFor={"entry-"+group.period+"-"+metric}>{metricName(metric)}</label>
+                <label htmlFor={editable ? fieldId : undefined}>{metricName(metric)}</label>
                 <div className={styles.entryInputRow}>
-                  {editable?<span className={styles.entryNumber}><DecimalInput data-input-appearance="soft-line" id={"entry-"+group.period+"-"+metric} aria-label={label} min={0} placeholder="实测值" value={draft[group.period][metric]} onValue={value=>setField(group.period,metric,value)}/></span>:<span className={styles.entryRecorded}>{formatRecordNumber(cell.value)}</span>}
+                  {editable ? <span className={styles.entryNumber} data-entry-field-surface="compact">
+                    <DecimalInput data-input-appearance="compact" id={fieldId} aria-label={label} min={0} placeholder="实测值"
+                      aria-invalid={!!fieldError || undefined} aria-describedby={fieldError ? fieldId + "-error" : undefined}
+                      value={draft[group.period][metric]} onValue={value => setField(group.period, metric, value)}/>
+                  </span> : <span className={styles.entryRecorded}>{formatRecordNumber(cell.value)}</span>}
                   <small>{metric==="weightKg"?"kg":"%"}</small>
                 </div>
-                {error&&errorTarget===key&&<small className={styles.entryError} role="status">{error}</small>}
+                {fieldError && <small className={styles.entryError} role="status" id={fieldId + "-error"}>{fieldError}</small>}
               </div>;
             })}</div>
             <SourceInput compactLabel="来源" label={periodName(group.period)+"数据来源"} value={draft[group.period].deviceLabel} sources={sources} onChange={value=>setField(group.period,"deviceLabel",value)} removeSource={removeSource} disabled={busy||pending||group.blocked}/>

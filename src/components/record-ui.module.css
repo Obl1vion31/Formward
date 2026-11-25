@@ -12,8 +12,8 @@
 .selectedActions{display:flex;align-items:center;gap:8px;flex-shrink:0;white-space:nowrap}
 .selectedInfo{display:flex;align-items:center;gap:8px;min-width:0}.selectedInfo time{white-space:nowrap}
 
-/* 记录操作保留 44px 触控区，状态底色绘制在文字那一层。 */
-.records button:is(.historyAction, .rowAction) {
+/* 列表与详情共用触控目标，编辑底色只画在文字周围。 */
+:is(button.rowAction[data-record-action], .textAction, .records button.historyAction) {
   appearance: none;
   display: inline-flex;
   align-items: center;
@@ -31,15 +31,21 @@
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.records button:is(.historyAction, .rowAction):active { filter: none; }
-.records button.rowAction[data-record-action="view"] {
+:is(button.rowAction[data-record-action], .textAction, .records button.historyAction):active { filter: none; }
+:is(button.rowAction[data-record-action="view"], .textAction) {
+  gap: 4px;
   padding-inline: 8px;
   color: var(--muted);
 }
-@media (hover: hover) {
-  .records button.rowAction[data-record-action="view"]:enabled:hover { color: var(--warm-white); }
+:is(button.rowAction[data-record-action], .textAction):focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
-.records button.rowAction[data-record-action="view"]:enabled:active { color: var(--warm-white); }
+:is(button.rowAction[data-record-action], .textAction):disabled { opacity: .55; cursor: default; }
+@media (hover: hover) {
+  :is(button.rowAction[data-record-action="view"], .textAction):not(:disabled):hover { color: var(--warm-white); }
+}
+:is(button.rowAction[data-record-action="view"], .textAction):not(:disabled):active { color: var(--warm-white); }
 .records .historyAction:disabled { opacity: 1; cursor: default; }
 .actionFace {
   display: inline-flex;
@@ -53,11 +59,11 @@
   color: var(--warm-white);
 }
 @media (hover: hover) {
-  .records :is(.historyAction, .rowAction):enabled:hover > .actionFace {
+  :is(.historyAction, .rowAction):enabled:hover > .actionFace {
     background-color: color-mix(in srgb, var(--surface-hover) 94%, var(--warm-white));
   }
 }
-.records :is(.historyAction, .rowAction):enabled:active > .actionFace {
+:is(.historyAction, .rowAction):enabled:active > .actionFace {
   background-color: color-mix(in srgb, var(--surface-hover) 88%, var(--warm-white));
 }
 .historyAction:disabled > .actionFace { opacity: .55; }

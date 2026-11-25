@@ -857,7 +857,7 @@ input:focus-visible {
 .login-recovery:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 
 /* 录入共用控件：组件功能决定外观，业务页不得退回透明文字输入。 */
-form[data-entry-form] :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea):where(:not([data-input-appearance=soft-line])) {
+:is(form[data-entry-form] :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea), input[data-entry-input]):where(:not([data-input-appearance=compact])) {
   min-width:0;max-width:100%;min-height:max(44px,calc(1.375em + 22px));
   border:var(--entry-field-border,1px solid var(--control-border));
   border-radius:var(--entry-field-radius,6px);
@@ -865,12 +865,32 @@ form[data-entry-form] :is(input:not([type=checkbox]):not([type=radio]):not([type
   color:var(--warm-white);font-size:1rem;line-height:1.375;
   padding:var(--entry-field-padding,10px 12px);color-scheme:var(--color-scheme);
 }
-form[data-entry-form] :is(input,select,textarea):hover:not(:disabled):not([readonly]) {border-color:var(--gold)}
-form[data-entry-form] :is(input,select,textarea,button):focus-visible {outline:2px solid var(--gold);outline-offset:2px}
-form[data-entry-form] :is(input,select,textarea)::placeholder {color:var(--muted);font-size:inherit;letter-spacing:normal}
+:is(form[data-entry-form] :is(input,select,textarea), input[data-entry-input]):hover:not(:disabled):not([readonly]) {border-color:var(--gold)}
+:is(form[data-entry-form] :is(input,select,textarea,button), input[data-entry-input]):where(:not([data-input-appearance=compact])):focus-visible {outline:2px solid var(--gold);outline-offset:2px}
+:is(form[data-entry-form] :is(input,select,textarea), input[data-entry-input])::placeholder {color:var(--muted);font-size:inherit;letter-spacing:normal}
 form[data-entry-form] :is(input,select,textarea)[aria-invalid=true] {border-color:var(--data-red)}
 form[data-entry-form] :is(input,select,textarea)[readonly] {background:var(--surface);border-style:dashed;color:var(--muted)}
-form[data-entry-form] :is(input,select,textarea):disabled {opacity:.65;cursor:not-allowed}
+:is(form[data-entry-form] :is(input,select,textarea), input[data-entry-input]):disabled {opacity:.65;cursor:not-allowed}
+
+/* 紧凑录入仍以原生输入接收 44px 触控，边界在内部 36px 绘制。 */
+[data-entry-field-surface="compact"] { position: relative; isolation: isolate; }
+[data-entry-field-surface="compact"]::before {
+  position: absolute;
+  inset: 4px 0;
+  z-index: -1;
+  border: var(--entry-field-border, 1px solid var(--control-border));
+  border-radius: var(--entry-field-radius, 6px);
+  background: var(--entry-field-background, var(--surface-raised));
+  pointer-events: none;
+  content: "";
+}
+@media (hover: hover) {
+  [data-entry-field-surface="compact"]:has(input:enabled):hover::before { border-color: var(--gold); }
+}
+[data-entry-field-surface="compact"]:focus-within::before { border: 2px solid var(--gold); }
+[data-entry-field-surface="compact"]:has(input:is([aria-invalid="true"], :user-invalid))::before { border-color: var(--data-red); }
+[data-entry-field-surface="compact"]:has(input:disabled)::before { opacity: .65; }
+
 form[data-entry-form] :is(button[type=submit],button[data-entry-primary-action]) {min-height:44px;flex:none;padding:10px 16px;border:1px solid var(--gold);border-radius:6px;background:var(--gold);color:var(--graphite);font-size:.875rem;line-height:1.5;text-decoration:none}
 form[data-entry-form] :is(button[type=submit],button[data-entry-primary-action]):hover:not(:disabled) {filter:brightness(1.08)}
 form[data-entry-form] :is(button[type=submit],button[data-entry-primary-action]):disabled {background:var(--surface-hover);border-color:var(--control-border);color:var(--muted);cursor:not-allowed;opacity:.7}

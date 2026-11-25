@@ -263,11 +263,6 @@
 .entryPeriodBar{display:none}.entryGroups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;padding-top:18px}
 .entryGroups>fieldset{min-width:0;margin:0;padding:0;border:0}.entryGroups legend{display:flex;width:100%;align-items:center;justify-content:space-between;font-size:0.875rem;padding:0;margin:0 0 4px}
 .entryGroups legend button{background:transparent;border:0;color:var(--gold);font-size:0.875rem;padding:6px 10px;cursor:pointer}
-/* Keep the visible field shorter than its 44px input target. */
-.entryForm {
-  --measurement-input-fill: color-mix(in srgb, var(--warm-white) 8%, var(--surface));
-  --measurement-input-line: var(--control-border);
-}
 .entryFields {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -309,24 +304,9 @@
 }
 .entryInputRow > small { flex: none; }
 .entryNumber {
-  position: relative;
-  isolation: isolate;
   flex: 0 1 4.5rem;
   inline-size: 4.5rem;
   min-inline-size: 0;
-}
-.entryNumber::before {
-  position: absolute;
-  inset: 4px 0;
-  z-index: -1;
-  content: "";
-  border-radius: 7px;
-  border-bottom: 1px solid var(--measurement-input-line);
-  background: var(--measurement-input-fill);
-}
-.entryNumber:focus-within::before {
-  border-color: var(--gold);
-  box-shadow: inset 0 -1px var(--gold);
 }
 .entryForm .entryNumber input[type=number] {
   display: block;
@@ -334,7 +314,7 @@
   height: 44px;
   padding: 0 8px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--entry-field-radius, 6px);
   background: transparent;
   font-size: 1rem;
   font-variant-numeric: tabular-nums;

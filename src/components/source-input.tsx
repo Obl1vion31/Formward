@@ -77,7 +77,7 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
       finally { removing.current = false; }
     });
   }
-  const field = <input ref={input} id={id} data-input-appearance={compactLabel ? "soft-line" : undefined} role="combobox" aria-label={label} autoComplete="off" maxLength={maxLength} placeholder="输入或选择来源" value={value} disabled={disabled || busy}
+  const field = <input ref={input} id={id} data-input-appearance={compactLabel ? "compact" : undefined} role="combobox" aria-label={label} autoComplete="off" maxLength={maxLength} placeholder="输入或选择来源" value={value} disabled={disabled || busy}
       aria-autocomplete="list" aria-haspopup="grid" aria-expanded={visible} aria-controls={`${id}-options`} aria-activedescendant={open && active >= 0 && active < options.length ? `${id}-cell-${active}-${column}` : undefined}
       onFocus={showHistory} onClick={showHistory}
       onChange={event => { onChange(event.target.value); setQuery(event.target.value); setOpen(true); setActive(-1); setColumn(0); setError(""); }}
@@ -113,7 +113,7 @@ export function SourceInput({ label, value, sources, onChange, removeSource, dis
     }
   }}>
     <label htmlFor={id}>{compactLabel || label}</label>
-    {compactLabel ? <div className={styles.compactField}>
+    {compactLabel ? <div className={styles.compactField} data-entry-field-surface="compact">
       {field}
       <span className={styles.compactValue} data-empty={!value} aria-hidden="true">{value || "输入或选择来源"}</span>
       <svg className={styles.compactChevron} width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>

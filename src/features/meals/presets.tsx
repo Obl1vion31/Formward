@@ -1,18 +1,65 @@
 "use client";
-import recordUI from "@/components/record-ui.module.css";
-import {Fragment,useId,useState,type DragEventHandler,type ReactNode} from "react";
+import {RecordRowAction} from "@/components/daily-records";
+import {Fragment,useId,useState,type DragEventHandler} from "react";
 import { foodSpecification, formatNutrition, sourceLabels, type FoodDraft, type FoodView, type Metric } from "./model";
 import { ImageGallery } from "./photos";
 import styles from "./meals.module.css";
 import picker from "./meal-editor.module.css";
 import { MealItemDetails } from "./meal-item-details";
 import { editorUnit, MealEntryReadings, MealInfoIcon } from "./meal-entry-readings";
-const columns: Metric[] = ["proteinG", "carbsG", "fatG", "caloriesKcal"];
-export function FoodTable<T extends FoodDraft&{id?:string}>({ foods, actions }: { foods: T[]; actions: (food: T) => ReactNode }) {
-  const [expanded,setExpanded]=useState<string|number|null>(null),prefix=useId();
-  return <div className={styles.foodTableViewport}><table className={styles.foodTable}><thead><tr><th scope="col">食材／规格</th><th scope="col">营养基准</th><th scope="col">蛋白质（g）</th><th scope="col">碳水（g）</th><th scope="col">脂肪（g）</th><th scope="col">热量（千卡）</th><th scope="col">操作</th></tr></thead><tbody>
-    {foods.map((f,index)=>{const key=f.id??index,open=expanded===key,id=prefix+"-"+index;return <Fragment key={key}><tr><th scope="row" className={styles.rowName}><strong>{f.name}</strong><span>{[f.brand,foodSpecification(f.preparation)].filter(Boolean).join(" · ")}</span></th><td className={styles.rowAmount}>每 {Number(f.baseQuantity)}{f.unit}</td>{columns.map(m=><td key={m} className={m==="caloriesKcal"?styles.rowEnergy:styles.rowMacro} data-label={{proteinG:"蛋白质 g",carbsG:"碳水 g",fatG:"脂肪 g",caloriesKcal:"热量 千卡"}[m]}>{formatNutrition(f.nutrition[m],m)}<small className={styles.mobileUnit}>{m==="caloriesKcal"?" 千卡":"g"}</small></td>)}<td className={styles.rowActions}><div className={styles.actions}><span className={styles.foodInlineActions}>{actions(f)}</span><button type="button" className={recordUI.secondary+" "+styles.foodDetailsToggle} data-record-action="view" aria-label={`${f.name}详情`} aria-expanded={open} aria-controls={id} onClick={()=>setExpanded(open?null:key)}>详情<DetailsChevron open={open}/></button></div></td></tr>{open&&<tr className={styles.foodExpanded} id={id}><td colSpan={7}><FoodDetails food={f} compact/></td></tr>}</Fragment>;})}
-  </tbody></table></div>;
+const columns: { metric: Metric; label: string; unit: string }[] = [
+  { metric: "proteinG", label: "蛋白质", unit: "g" },
+  { metric: "carbsG", label: "碳水", unit: "g" },
+  { metric: "fatG", label: "脂肪", unit: "g" },
+  { metric: "caloriesKcal", label: "热量", unit: "千卡" },
+];
+
+export function FoodTable({ foods, edit }: { foods: FoodView[]; edit: (food: FoodView) => void }) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const prefix = useId();
+  return <div className={styles.foodTableViewport}>
+    <table className={styles.foodTable}>
+      <thead>
+        <tr>
+          <th scope="col">食材／规格</th>
+          <th scope="col">营养基准</th>
+          {columns.map(({ metric, label, unit }) => <th scope="col" key={metric}>{label}（{unit}）</th>)}
+          <th scope="col">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {foods.map(food => {
+          const open = expanded === food.id;
+          const detailsId = prefix + "-" + food.id;
+          const description = [food.brand, foodSpecification(food.preparation)].filter(Boolean).join(" · ");
+          return <Fragment key={food.id}>
+            <tr data-food-expanded={open || undefined}>
+              <th scope="row" className={styles.rowName}>
+                <strong>{food.name}</strong>
+                {description && <span>{description}</span>}
+              </th>
+              <td className={styles.rowAmount}>每 {Number(food.baseQuantity)}{food.unit}</td>
+              {columns.map(({ metric, label, unit }) => <td key={metric}
+                className={metric === "caloriesKcal" ? styles.rowEnergy : styles.rowMacro}
+                data-label={label + " " + unit}>{formatNutrition(food.nutrition[metric], metric)}</td>)}
+              <td className={styles.rowActions}>
+                <div className={styles.foodRowActions}>
+                  <RecordRowAction intent="edit" onClick={() => edit(food)}>编辑</RecordRowAction>
+                  <RecordRowAction intent="view" aria-label={food.name + "详情"} aria-expanded={open}
+                    aria-controls={detailsId} onClick={() => setExpanded(open ? null : food.id)}>
+                    详情<DetailsChevron open={open}/>
+                  </RecordRowAction>
+                </div>
+              </td>
+            </tr>
+            {open && <tr className={styles.foodExpanded} id={detailsId}>
+              <td colSpan={columns.length + 3}><FoodDetails food={food} compact/></td>
+            </tr>}
+          </Fragment>;
+        })}
+      </tbody>
+    </table>
+  </div>;
 }
 export function FoodDetails({ food,compact=false }: { food: FoodDraft;compact?:boolean }) {
   if(compact)return <section className={styles.foodInformation} aria-label={food.name+"的来源与说明"}><p>{sourceLabels[food.sourceKind]}{food.servingQuantity&&food.servingUnit&&<> · 1{food.servingUnit} = {Number(food.servingQuantity)}{food.unit}</>}</p>{food.basis&&<p>{food.basis}</p>}{food.evidenceUrl&&<a href={food.evidenceUrl} target="_blank" rel="noreferrer">查看来源 ↗</a>}<ImageGallery ids={food.imageIds}/></section>;
