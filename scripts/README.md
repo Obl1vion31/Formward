@@ -19,6 +19,7 @@
 
 - `maintain-measurements.mts`：指定内部账号，预览当前晚间条件修正及同日同时段候选；按真实发生时间保留较早一条，其他软删除，可按记录恢复。格式：`node --env-file=.env.local --import tsx scripts/maintain-measurements.mts 账号邮箱 --preview`；核对后用 `--write 预览摘要` 执行已授权操作，用 `--restore 记录ID` 恢复。摘要绑定账号当前记录，数据改变须重新预览；事务保存前后快照、操作者和时间，重复执行幂等。工具不会在导入或页面加载时自动运行。
 
+- `build-food-reference-data.py` 从指定的私有原表目录生成审核后的公共食材数据。需要 FNDDS 2021–2023 食物、营养和份量工作簿及台湾食药署 2026-10-05 压缩表，文件名见脚本。通过 `python3 scripts/build-food-reference-data.py data/imports/food-reference --check` 核对当前目录与原表，去掉 `--check` 可生成 `reference-expansion.json`。更新版本时先复核规格的营养、口径和引用兼容。
 - `prepare-turn-video.sh`：使用 FFmpeg 将 v6 原始一秒转身视频生成 960×1440、逐帧关键帧的播放文件，不覆盖原始视频。
 - `check-structure.sh`：检查所有项目自有目录是否包含非空 README；工具生成并被忽略的 .vercel 项目关联目录与依赖、缓存一起跳过。
 - `backup-database.mts`：在结构迁移前导出 public／drizzle 全表及字段信息；repeatable read 只读事务，私有 JSON 权限 0600、拒绝覆盖。用法：`node --env-file=.env.local --import tsx scripts/backup-database.mts data/exports/私有备份.json`。备份含认证与健康数据，保持 Git 忽略，恢复按对应版本结构及外键顺序进行。

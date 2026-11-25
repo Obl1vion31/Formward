@@ -9,7 +9,7 @@ import { referenceFoodName, referenceNutrition, type ReferenceFood } from "./ref
 import styles from "./reference-library.module.css";
 
 function Preparation({ food }: { food: ReferenceFood }) {
-  const state = food.state === "cooked" ? "熟食" : food.method === "干" ? "干重" : "生重";
+  const state = food.state === "cooked" ? "熟食" : food.state === "ready" ? "食用态" : food.method === "干" ? "干重" : "生重";
   return <p>{state} · {referenceFoodName(food) === food.name ? food.preparation : "按可食部计量"}</p>;
 }
 
@@ -73,7 +73,7 @@ export function ReferenceDetails({ food, back, onAdd, disabled, headingRef, id }
     <div className={styles.referenceNotes}>
       {portion && <p>参考份量 · {portion.label} · 1{portion.unit}约 {Number(portion.edibleGrams)} g</p>}
       <p>{food.source.dataset} · {food.source.recordId}</p>
-      <a href={food.source.url} target="_blank" rel="noreferrer">查看来源</a>
+      <a href={food.source.url} title={food.source.title} target="_blank" rel="noreferrer">查看来源</a>
     </div>
     {onAdd && <button type="button" className={styles.add} onClick={add} disabled={disabled || !validAmount || !withinLimit}>加入本餐</button>}
   </section>;

@@ -31,7 +31,7 @@
     "referenceFoods": "公共参考规格候选。常用鸡腿搜索返回熟食，明确查询生鸡腿才匹配去皮去骨生重规格。逐条核对部位、做法与皮骨。",
     "referenceFoods.*.id": "与同一规格的version一起用于referenceFood引用。",
     "referenceFoods.*.nutrition": "每100 g可食部的营养，由服务器按用户实际食量换算。",
-    "referenceFoods.*.portions": "可选参考份量。按只、个、杯传对应portionId，按可食克数不传。",
+    "referenceFoods.*.portions": "可选参考份量。按候选给出的单位（例如只、个、杯、片）传对应portionId。实称直接给可食克数。",
     "referenceFoods.*.portions.*.edibleGrams": "该规格的一份参考可食重量，不是用户本次称重。",
     "presets": "兼容旧协议的空列表。 "
   },

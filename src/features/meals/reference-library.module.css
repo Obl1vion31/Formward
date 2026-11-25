@@ -34,6 +34,7 @@
   display: block;
   margin: 0 0 8px;
 }
+.search[hidden] { display: none; }
 .search > svg {
   position: absolute;
   inset-inline-start: 12px;
@@ -67,7 +68,7 @@
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
-.detail .back, .message > button {
+.detail .back, .message > button, .browser button.more {
   min-height: 44px;
   border: 0;
   padding: 0 7px;
@@ -82,7 +83,7 @@
 .resultLabel { padding-block: 12px 4px; }
 .sectionRows, .foodRows { margin: 0; padding: 0; list-style: none; }
 .sectionRows > li, .foodRows > li { border-bottom: 1px solid var(--line-soft); }
-.sectionRows > li > button, .foodRows button, .rawToggle {
+.sectionRows > li > button, .familyButton, .foodRows button, .rawToggle {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -97,25 +98,48 @@
   cursor: pointer;
   color: var(--warm-white);
 }
-.sectionRows > li > button:hover, .rawToggle:hover, .foodRows button:hover, .foodRows button[aria-expanded="true"] {
+.sectionRows > li > button:hover, .familyButton:hover, .rawToggle:hover, .foodRows button:hover, .foodRows button[aria-expanded="true"] {
   background: color-mix(in srgb, var(--gold) 9%, var(--surface-raised));
 }
-.sectionRows > li > button > span, .rawToggle > span, .rowName {
+.rawToggle > span, .rowName {
   flex: 1;
   min-width: 0;
   font-weight: 500;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
-.categoryFold { padding-inline-start: 6px; }
-.family { padding-block-start: 4px; }
-.family + .family { margin-block-start: 8px; }
-.familyHeading { margin: 0; padding: 4px 5px; color: var(--muted); font-size: .8125rem; font-weight: 500; }
+.fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition: grid-template-rows 160ms cubic-bezier(.22,1,.36,1), visibility 0s 160ms;
+}
+.fold[data-reference-fold="open"] {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.foldBody { min-block-size: 0; overflow: clip; }
+.categoryFold { padding: 3px 0 5px 6px; }
+.family { min-width: 0; }
+.familyHeading { margin: 0; padding: 8px 5px 2px; color: var(--muted); font-size: .8125rem; font-weight: 500; }
+.familyButton { border-radius: 5px; }
+.familyContent { padding-inline-start: 6px; }
 .rawToggle { color: var(--muted); font-size: .8125rem; }
 .rowReading { flex: none; color: var(--muted); font-size: .75rem; white-space: nowrap; }
 .rowEnd { color: var(--muted); flex: none; }
-.layout { min-width: 0; }
-.layout[data-detail-open] .listing { display: none; }
+.rowEnd[data-reference-chevron] { transition: transform 160ms cubic-bezier(.22,1,.36,1); }
+[aria-expanded="true"] > .rowEnd[data-reference-chevron] { transform: rotate(90deg); }
+.layout { position: relative; min-width: 0; }
+.layout[data-detail-open]:not([data-reference-split], [data-reference-transition]) > .listing { display: none; }
+.layout[data-reference-transition] { overflow-x: clip; }
+.layout[data-reference-transition] > [inert] {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: var(--reference-exit-offset, 0px);
+  pointer-events: none;
+}
+.listing, .detailPane { min-width: 0; }
 .detail { min-width: 0; padding-bottom: 14px; scroll-margin-top: 8px; }
 .detail h3 { margin: 0 0 4px; font-size: 1.125rem; line-height: 1.35; }
 .detail h3:focus { outline: none; }
@@ -204,22 +228,25 @@
 .savedEvidence { display: flex; align-items: center; gap: 9px; }
 .savedEvidence p { margin: 0; }
 
-@media (min-width: 701px) and (pointer: fine) {
-  .layout[data-detail-open] {
-    display: grid;
-    align-items: start;
-    grid-template-columns: minmax(0, 1fr) minmax(230px, 34%);
-    gap: 20px;
-  }
-  .layout[data-detail-open] .listing { display: block; }
-  .detail { border-inline-start: 1px solid var(--line-soft); padding-inline-start: 18px; }
+.layout[data-reference-split][data-detail-open] {
+  display: grid;
+  align-items: start;
+  grid-template-columns: minmax(320px, 1fr) minmax(300px, 34%);
+  gap: 20px;
 }
+.layout[data-reference-split] .detail {
+  border-inline-start: 1px solid var(--line-soft);
+  padding-inline-start: 18px;
+}
+.tabs:has(+ div > .browser[data-reference-single][data-reference-detail]),
+.scopeBar:has(+ div > .browser[data-reference-single][data-reference-detail]) .tabs { display: none; }
 
 @media (max-width: 700px), (pointer: coarse), (pointer: none) {
-  .foodRows .art { --food-art-edge: 32px; }
-  .browser[data-reference-detail] > .search,
-  .tabs:has(+ div > .browser[data-reference-detail]),
-  .scopeBar:has(+ div > .browser[data-reference-detail]) .tabs { display: none; }
+  :is(.foodRows, .familyButton) .art { --food-art-edge: 32px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fold, .rowEnd[data-reference-chevron] { transition: none; }
 }
 
 @media (max-width: 350px) {

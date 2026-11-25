@@ -519,11 +519,19 @@
 
   @container meal-editor (min-width: 960px) {
     .columns { display: grid; grid-template-columns: minmax(0, 34fr) minmax(0, 66fr); gap: 24px; }
-    .library { display: block; align-self: start; padding-right: 18px; border-right: 1px solid var(--line-soft); }
-    .mealForm:not([data-library-open]) .libraryBack { display: none; }
-    .mealForm[data-library-open] :is(.entry, .mealContext, .saveRow) { display: none; }
-    .mealForm[data-library-open] .columns { display: block; }
-    .mealForm[data-library-open] .library { padding-right: 0; border-right: 0; }
+    .library {
+      display: block;
+      align-self: start;
+      max-block-size: max(224px, calc(100dvh - 170px - var(--entry-footer-height, 70px)));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 0 18px 6px 4px;
+      margin-inline-start: -4px;
+      border-right: 1px solid var(--line-soft);
+      scrollbar-gutter: stable;
+    }
+    .library:has([data-reference-detail]) .libraryTitle { display: none; }
+    .mealForm .libraryBack { display: none; }
     .libraryBody { display: block; }
     .categories { flex-direction: row; flex-wrap: wrap; gap: 0 6px; border-right: 0; border-bottom: 1px solid var(--line-soft); }
     .mealForm .categories button[aria-pressed="true"] { background: transparent; }

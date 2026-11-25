@@ -11,7 +11,8 @@ import { queryFoods } from "./ai-api";
 import { mealPreviewOperation, previewMeal } from "./ai-preview";
 import { emptyNutrition, type ItemDraft, type MealAction } from "./model";
 import { decideMealOperation, prepareMealActions, readMealSnapshot, submitMealOperation } from "./records";
-import { requireCurrentReferenceFood, searchReferenceFoods, validatePreparedReferenceFood } from "./reference-catalog";
+import { referenceCatalogOverview, requireCurrentReferenceFood, searchReferenceFoods, validatePreparedReferenceFood } from "./reference-catalog";
+import { foodArtCell } from "./reference-art";
 import { referenceFoodName, referenceNutrition, referenceSections } from "./reference-food";
 
 const leg = requireCurrentReferenceFood({ id: "drumstick-stewed-skinless", version: 1 });
@@ -23,15 +24,32 @@ function saveMeal(items: ItemDraft[], patch: Partial<Extract<MealAction, { kind:
 }
 
 test("公用目录按部位和形态给出有依据的候选", () => {
-  const all = searchReferenceFoods();
-  assert.equal(all.total, 17);
-  assert.equal(new Set(all.referenceFoods.map(food => food.id)).size, 17);
+  const summary = referenceCatalogOverview();
   const families = referenceSections.flatMap(section => section.families.map(family => family.id));
-  assert.deepEqual(families.map(family => searchReferenceFoods("", family).matches), [6, 4, 2, 3, 2]);
+  const all = families.flatMap(family => {
+    const result = searchReferenceFoods("", family);
+    assert.equal(result.matches, summary.families?.[family]?.count);
+    assert.ok(result.matches > 0);
+    return result.referenceFoods;
+  });
+  assert.equal(referenceSections.length, 11);
+  assert.equal(all.length, summary.total);
+  assert.equal(new Set(all.map(food => food.id)).size, summary.total);
+  assert.equal(new Set(all.map(food => food.source.dataset + food.source.recordId)).size, summary.total);
+  for (const food of all) {
+    assert.notDeepEqual(foodArtCell(food.illustration), foodArtCell("generic"));
+    assert.ok(food.source.title && food.source.url.startsWith("https:"));
+    assert.ok(Object.values(food.nutrition).every(value => value === null || Number.isFinite(Number(value)) && Number(value) >= 0));
+    for (const portion of food.portions) {
+      assert.ok(Number(portion.edibleGrams) > 0);
+      assert.ok(portion.source.recordId.startsWith(food.source.recordId + " · "));
+    }
+  }
   const chicken = searchReferenceFoods("鸡腿").referenceFoods;
   assert.deepEqual(chicken.map(food => food.source.recordId), ["24143220", "24143210", "24142501", "24142500", "24147300"]);
   assert.ok(chicken.every(food => food.state === "cooked"));
   assert.deepEqual(searchReferenceFoods("鸡腿 熟").referenceFoods, chicken);
+  assert.deepEqual(searchReferenceFoods("我今天吃了鸡腿").referenceFoods, chicken);
   const raw = requireCurrentReferenceFood({ id: "chicken-leg-raw-skinless", version: 1 });
   assert.equal(referenceFoodName(raw), "生鸡腿肉（去皮去骨）");
   assert.equal(raw.source.recordId, "I0404501");
@@ -47,6 +65,22 @@ test("公用目录按部位和形态给出有依据的候选", () => {
   assert.equal(searchReferenceFoods("香茅焖鸡腿").matches, 0);
   assert.equal(searchReferenceFoods("带骨鸡腿").matches, 0);
   assert.equal(searchReferenceFoods("清蒸罗非鱼").referenceFoods[0].id, "tilapia-steamed");
+});
+
+test("公共检索保留食物原名，按真实状态筛选且支持浏览下一批", () => {
+  assert.equal(searchReferenceFoods("生菜").referenceFoods[0].id, "lettuce-ready");
+  assert.equal(searchReferenceFoods("生抽").referenceFoods[0].id, "soy-sauce-light");
+  assert.equal(searchReferenceFoods("清蒸 虾").referenceFoods[0].id, "shrimp-boiled");
+  assert.equal(searchReferenceFoods("无糖茉莉花茶").referenceFoods[0].nutrition.fatG, null);
+  assert.equal(searchReferenceFoods("无糖茉莉花茶").referenceFoods[0].nutrition.caloriesKcal, "0");
+  assert.deepEqual(searchReferenceFoods("海南鸡饭").referenceFoods, []);
+  const first = searchReferenceFoods("熟");
+  assert.equal(first.referenceFoods.length, 40);
+  assert.equal(first.nextOffset, 40);
+  const second = searchReferenceFoods("熟", undefined, "search", first.nextOffset);
+  assert.ok(second.referenceFoods.length > 0);
+  assert.equal(new Set([...first.referenceFoods, ...second.referenceFoods].map(food => food.id)).size,
+    first.referenceFoods.length + second.referenceFoods.length);
 });
 
 test("已核对的下架规格按原快照确认，新选材提示重新选择", () => {

@@ -1,0 +1,3646 @@
+[
+  {
+    "id": "chicken-breast-raw",
+    "version": 1,
+    "family": "chicken-breast",
+    "name": "生去皮鸡胸肉",
+    "aliases": [
+      "鸡胸肉",
+      "鸡胸",
+      "生鸡胸"
+    ],
+    "state": "raw",
+    "method": "生",
+    "skin": "去皮",
+    "preparation": "鸡胸部位 · 去皮可食肉",
+    "illustration": "chicken-breast-raw",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "I0402402",
+      "title": "去皮清肉(肉雞)"
+    },
+    "nutrition": {
+      "caloriesKcal": "117",
+      "proteinG": "23.3",
+      "carbsG": "0.6",
+      "fatG": "1.9"
+    },
+    "portions": []
+  },
+  {
+    "id": "chicken-breast-roasted",
+    "version": 1,
+    "family": "chicken-breast",
+    "name": "去皮烤鸡胸肉",
+    "aliases": [
+      "鸡胸肉",
+      "鸡胸",
+      "烤鸡胸"
+    ],
+    "state": "cooked",
+    "method": "烤",
+    "skin": "去皮",
+    "preparation": "烤制 · 去皮 · 可食肉",
+    "illustration": "chicken-breast-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "24122131",
+      "title": "Chicken breast, baked, broiled, or roasted, skin not eaten, from raw"
+    },
+    "nutrition": {
+      "caloriesKcal": "161",
+      "proteinG": "30.22",
+      "carbsG": "0",
+      "fatG": "3.52"
+    },
+    "portions": [
+      {
+        "id": "fndds-3",
+        "unit": "块",
+        "edibleGrams": "120",
+        "label": "原表中等熟鸡胸",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "24122131 · 3",
+          "title": "1 medium breast"
+        }
+      }
+    ]
+  },
+  {
+    "id": "chicken-breast-grilled",
+    "version": 1,
+    "family": "chicken-breast",
+    "name": "去皮无酱炙烤鸡胸肉",
+    "aliases": [
+      "鸡胸肉",
+      "鸡胸",
+      "炙烤鸡胸"
+    ],
+    "state": "cooked",
+    "method": "烤",
+    "skin": "去皮",
+    "preparation": "炙烤 · 去皮 · 无酱 · 可食肉",
+    "illustration": "chicken-breast-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "24123301",
+      "title": "Chicken breast, grilled without sauce, skin not eaten"
+    },
+    "nutrition": {
+      "caloriesKcal": "176",
+      "proteinG": "29.62",
+      "carbsG": "0",
+      "fatG": "5.45"
+    },
+    "portions": []
+  },
+  {
+    "id": "chicken-breast-stewed",
+    "version": 1,
+    "family": "chicken-breast",
+    "name": "去皮炖鸡胸肉",
+    "aliases": [
+      "鸡胸肉",
+      "鸡胸",
+      "炖鸡胸"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "skin": "去皮",
+    "preparation": "炖制 · 去皮 · 可食肉",
+    "illustration": "chicken-breast-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "24123120",
+      "title": "Chicken breast, stewed, skin not eaten"
+    },
+    "nutrition": {
+      "caloriesKcal": "149",
+      "proteinG": "27.96",
+      "carbsG": "0",
+      "fatG": "3.26"
+    },
+    "portions": []
+  },
+  {
+    "id": "chicken-wing-roasted",
+    "version": 1,
+    "family": "chicken-wing",
+    "name": "烤鸡翅",
+    "aliases": [
+      "鸡翅",
+      "烤翅",
+      "chicken wing"
+    ],
+    "state": "cooked",
+    "method": "烤",
+    "preparation": "烤制 · 按可食部记录",
+    "illustration": "chicken-wing-roasted",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "24162130",
+      "title": "Chicken wing, baked, broiled, or roasted, from raw"
+    },
+    "nutrition": {
+      "caloriesKcal": "252",
+      "proteinG": "23.6",
+      "carbsG": "0",
+      "fatG": "16.739999999999998"
+    },
+    "portions": [
+      {
+        "id": "fndds-1",
+        "unit": "只",
+        "edibleGrams": "35",
+        "label": "原表整只熟鸡翅可食部",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "24162130 · 1",
+          "title": "1 wing, any size"
+        }
+      }
+    ]
+  },
+  {
+    "id": "duck-breast-raw",
+    "version": 1,
+    "family": "duck",
+    "name": "生鸭胸肉片",
+    "aliases": [
+      "生鸭胸",
+      "鸭胸",
+      "鸭胸肉"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "原表为樱桃鸭胸肉片 · 皮况未注明",
+    "illustration": "duck-raw",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "I0502101",
+      "title": "櫻桃鴨胸肉片"
+    },
+    "nutrition": {
+      "caloriesKcal": "227",
+      "proteinG": "16.7",
+      "carbsG": "4.7",
+      "fatG": "17.2"
+    },
+    "portions": []
+  },
+  {
+    "id": "duck-roasted",
+    "version": 1,
+    "family": "duck",
+    "name": "带皮烤鸭肉",
+    "aliases": [
+      "烤鸭",
+      "鸭肉",
+      "烧鸭"
+    ],
+    "state": "cooked",
+    "method": "烤",
+    "skin": "吃皮",
+    "preparation": "烤制 · 吃皮 · 可食部去骨",
+    "illustration": "duck-roasted",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "24301010",
+      "title": "Duck, roasted, skin eaten"
+    },
+    "nutrition": {
+      "caloriesKcal": "336",
+      "proteinG": "18.91",
+      "carbsG": "0",
+      "fatG": "28.23"
+    },
+    "portions": []
+  },
+  {
+    "id": "beef-sirloin-cooked",
+    "version": 1,
+    "family": "beef-steak",
+    "name": "熟西冷牛排（只吃瘦肉）",
+    "aliases": [
+      "西冷牛排",
+      "沙朗牛排",
+      "牛排",
+      "牛肉"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "熟制方式未细分 · 只计西冷牛排的瘦肉",
+    "illustration": "beef-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "21102170",
+      "title": "Beef, steak, sirloin, lean only eaten"
+    },
+    "nutrition": {
+      "caloriesKcal": "216",
+      "proteinG": "28.05",
+      "carbsG": "0",
+      "fatG": "11.32"
+    },
+    "portions": []
+  },
+  {
+    "id": "beef-tenderloin-cooked",
+    "version": 1,
+    "family": "beef-steak",
+    "name": "熟牛里脊牛排",
+    "aliases": [
+      "牛里脊",
+      "菲力牛排",
+      "牛排",
+      "牛肉"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "原表为菲力部位的成品牛排 · 做法未细分",
+    "illustration": "beef-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "21103180",
+      "title": "Beef, steak, tenderloin"
+    },
+    "nutrition": {
+      "caloriesKcal": "196",
+      "proteinG": "30.46",
+      "carbsG": "0",
+      "fatG": "8.25"
+    },
+    "portions": []
+  },
+  {
+    "id": "beef-shank-raw",
+    "version": 1,
+    "family": "beef-shank",
+    "name": "生牛腱肉",
+    "aliases": [
+      "牛腱",
+      "牛腱子",
+      "腱子肉",
+      "牛肉"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "牛后腿腱子心 · 原表 2022 样品",
+    "illustration": "beef-raw",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "I0108302",
+      "title": "牛後腿腱子心(2022年取樣)"
+    },
+    "nutrition": {
+      "caloriesKcal": "151",
+      "proteinG": "23.7",
+      "carbsG": "4.0",
+      "fatG": "5.5"
+    },
+    "portions": []
+  },
+  {
+    "id": "beef-brisket-raw",
+    "version": 1,
+    "family": "beef-brisket",
+    "name": "生牛前胸肉（修清）",
+    "aliases": [
+      "牛前胸",
+      "牛胸肉",
+      "牛肉",
+      "brisket"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "去掉外层多余脂肪的生前胸肉",
+    "illustration": "beef-raw",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "I0104201",
+      "title": "牛修清前胸肉"
+    },
+    "nutrition": {
+      "caloriesKcal": "120",
+      "proteinG": "22.3",
+      "carbsG": "0.9",
+      "fatG": "2.8"
+    },
+    "portions": []
+  },
+  {
+    "id": "beef-pot-roast",
+    "version": 1,
+    "family": "beef-brisket",
+    "name": "炖牛肉（不含配菜）",
+    "aliases": [
+      "炖牛肉",
+      "焖牛肉",
+      "牛肉",
+      "pot roast"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "preparation": "原表为炖烤牛肉 · 单计肉部",
+    "illustration": "beef-stew",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "21407000",
+      "title": "Beef, pot roast"
+    },
+    "nutrition": {
+      "caloriesKcal": "251",
+      "proteinG": "28.39",
+      "carbsG": "0",
+      "fatG": "15.35"
+    },
+    "portions": []
+  },
+  {
+    "id": "pork-tenderloin-raw",
+    "version": 1,
+    "family": "pork-loin",
+    "name": "生猪小里脊",
+    "aliases": [
+      "猪肉",
+      "猪里脊",
+      "小里脊",
+      "猪小里肌"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "猪小里脊 · 生重可食部",
+    "illustration": "pork-loin-raw",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "I0306101",
+      "title": "豬小里肌"
+    },
+    "nutrition": {
+      "caloriesKcal": "139",
+      "proteinG": "21.1",
+      "carbsG": "0.0",
+      "fatG": "5.4"
+    },
+    "portions": []
+  },
+  {
+    "id": "pork-tenderloin-cooked",
+    "version": 1,
+    "family": "pork-loin",
+    "name": "熟猪小里脊",
+    "aliases": [
+      "猪肉",
+      "猪里脊",
+      "小里脊",
+      "pork tenderloin"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "原表为熟猪小里脊 · 做法未细分",
+    "illustration": "pork-loin-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "22210300",
+      "title": "Pork, tenderloin"
+    },
+    "nutrition": {
+      "caloriesKcal": "134",
+      "proteinG": "24.65",
+      "carbsG": "0.09",
+      "fatG": "3.38"
+    },
+    "portions": []
+  },
+  {
+    "id": "pork-belly-raw",
+    "version": 1,
+    "family": "pork-belly",
+    "name": "生猪五花肉（去皮）",
+    "aliases": [
+      "生五花肉",
+      "五花肉",
+      "猪肉",
+      "猪腹胁肉"
+    ],
+    "state": "raw",
+    "method": "生",
+    "skin": "去皮",
+    "preparation": "猪腹胁部位 · 去皮可食肉",
+    "illustration": "pork-belly-raw",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "I0308101",
+      "title": "豬去皮腹脇肉"
+    },
+    "nutrition": {
+      "caloriesKcal": "360",
+      "proteinG": "14.9",
+      "carbsG": "0.5",
+      "fatG": "32.9"
+    },
+    "portions": []
+  },
+  {
+    "id": "lamb-chop-cooked",
+    "version": 1,
+    "family": "lamb",
+    "name": "熟羊排（可食部）",
+    "aliases": [
+      "羊排",
+      "羊肉",
+      "lamb chop"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "熟制做法未细分 · 可食部计量",
+    "illustration": "lamb-chop",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "23101000",
+      "title": "Lamb, chop"
+    },
+    "nutrition": {
+      "caloriesKcal": "264",
+      "proteinG": "27.36",
+      "carbsG": "0",
+      "fatG": "16.27"
+    },
+    "portions": []
+  },
+  {
+    "id": "salmon-raw",
+    "version": 1,
+    "family": "salmon",
+    "name": "生大西洋三文鱼切片",
+    "aliases": [
+      "三文鱼",
+      "鲑鱼",
+      "生三文鱼",
+      "salmon"
+    ],
+    "state": "raw",
+    "method": "生",
+    "skin": "去皮",
+    "preparation": "大西洋鲑中段 · 去皮去刺",
+    "illustration": "salmon-raw",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "J0402402",
+      "title": "大西洋鮭魚切片(中段)"
+    },
+    "nutrition": {
+      "caloriesKcal": "174",
+      "proteinG": "20.7",
+      "carbsG": "0.0",
+      "fatG": "9.5"
+    },
+    "portions": []
+  },
+  {
+    "id": "salmon-grilled",
+    "version": 1,
+    "family": "salmon",
+    "name": "烤三文鱼",
+    "aliases": [
+      "三文鱼",
+      "烤鲑鱼",
+      "鲑鱼",
+      "salmon"
+    ],
+    "state": "cooked",
+    "method": "烤",
+    "preparation": "炙烤 · 按鱼肉可食部记录",
+    "illustration": "salmon-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "26137123",
+      "title": "Fish, salmon, grilled"
+    },
+    "nutrition": {
+      "caloriesKcal": "259",
+      "proteinG": "25.92",
+      "carbsG": "0",
+      "fatG": "16.48"
+    },
+    "portions": []
+  },
+  {
+    "id": "salmon-steamed",
+    "version": 1,
+    "family": "salmon",
+    "name": "清蒸三文鱼",
+    "aliases": [
+      "三文鱼",
+      "清蒸鲑鱼",
+      "鲑鱼",
+      "salmon"
+    ],
+    "state": "cooked",
+    "method": "蒸",
+    "preparation": "蒸制 · 按鱼肉可食部记录",
+    "illustration": "salmon-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "26137160",
+      "title": "Fish, salmon, steamed"
+    },
+    "nutrition": {
+      "caloriesKcal": "237",
+      "proteinG": "25.82",
+      "carbsG": "0",
+      "fatG": "14.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "shrimp-raw",
+    "version": 1,
+    "family": "shrimp",
+    "name": "生草虾仁",
+    "aliases": [
+      "草虾仁",
+      "虾仁",
+      "生虾仁",
+      "虎虾仁",
+      "虾"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "去壳虾仁 · 生重可食部",
+    "illustration": "shrimp-raw",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "J2200501",
+      "title": "草蝦仁"
+    },
+    "nutrition": {
+      "caloriesKcal": "44",
+      "proteinG": "9.7",
+      "carbsG": "0.9",
+      "fatG": "0.3"
+    },
+    "portions": []
+  },
+  {
+    "id": "shrimp-boiled",
+    "version": 1,
+    "family": "shrimp",
+    "name": "水煮或清蒸虾",
+    "aliases": [
+      "水煮虾",
+      "白灼虾",
+      "清蒸虾",
+      "熟虾",
+      "虾仁",
+      "虾",
+      "shrimp"
+    ],
+    "state": "cooked",
+    "method": "蒸煮",
+    "preparation": "原表为水煮或蒸制虾 · 按去壳可食部",
+    "illustration": "shrimp-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "26319130",
+      "title": "Shrimp, steamed or boiled"
+    },
+    "nutrition": {
+      "caloriesKcal": "90",
+      "proteinG": "17.190000000000001",
+      "carbsG": "1.1499999999999999",
+      "fatG": "1.28"
+    },
+    "portions": [
+      {
+        "id": "fndds-2",
+        "unit": "只",
+        "edibleGrams": "10",
+        "label": "原表小至中等虾的可食部",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "26319130 · 2",
+          "title": "1 small/medium shrimp"
+        }
+      }
+    ]
+  },
+  {
+    "id": "tuna-sashimi",
+    "version": 1,
+    "family": "tuna",
+    "name": "金枪鱼刺身",
+    "aliases": [
+      "吞拿鱼",
+      "鲔鱼刺身",
+      "金枪鱼",
+      "生鱼片",
+      "tuna sashimi"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表为鲔鱼生鱼片 · 刺身可食部",
+    "illustration": "raw-fish",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "J0414601",
+      "title": "鮪魚生魚片"
+    },
+    "nutrition": {
+      "caloriesKcal": "100",
+      "proteinG": "23.3",
+      "carbsG": "0.0",
+      "fatG": "0.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "rice-brown-cooked",
+    "version": 1,
+    "family": "rice",
+    "name": "熟糙米饭（无加油）",
+    "aliases": [
+      "糙米饭",
+      "糙米",
+      "杂粮饭中的糙米饭",
+      "brown rice"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "preparation": "熟制 · 无额外油脂",
+    "illustration": "cooked-rice",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "56205018",
+      "title": "Rice, brown, cooked, no added fat"
+    },
+    "nutrition": {
+      "caloriesKcal": "123",
+      "proteinG": "2.4300000000000002",
+      "carbsG": "25.76",
+      "fatG": "1.1100000000000001"
+    },
+    "portions": [
+      {
+        "id": "fndds-3",
+        "unit": "杯",
+        "edibleGrams": "195",
+        "label": "原表美制量杯的熟糙米饭",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "56205018 · 3",
+          "title": "1 cup, cooked"
+        }
+      }
+    ]
+  },
+  {
+    "id": "rice-brown-raw",
+    "version": 1,
+    "family": "rice",
+    "name": "生黑籼糙米",
+    "aliases": [
+      "生糙米",
+      "糙米",
+      "黑籼糙米"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "黑籼稻谷去壳 · 按烹煮前重量",
+    "illustration": "raw-rice",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "A0501401",
+      "title": "黑秈糙米"
+    },
+    "nutrition": {
+      "caloriesKcal": "363",
+      "proteinG": "7.5",
+      "carbsG": "74.0",
+      "fatG": "3.5"
+    },
+    "portions": []
+  },
+  {
+    "id": "rice-congee",
+    "version": 1,
+    "family": "congee",
+    "name": "白米粥",
+    "aliases": [
+      "白粥",
+      "稀饭",
+      "白稀饭",
+      "米粥",
+      "congee"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "preparation": "原表白粥通用规格 · 稠度差异会影响换算",
+    "illustration": "congee",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "56205101",
+      "title": "Congee"
+    },
+    "nutrition": {
+      "caloriesKcal": "39",
+      "proteinG": "0.8",
+      "carbsG": "8.4",
+      "fatG": "0.08"
+    },
+    "portions": [
+      {
+        "id": "fndds-1",
+        "unit": "杯",
+        "edibleGrams": "255",
+        "label": "原表美制量杯的白粥",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "56205101 · 1",
+          "title": "1 cup"
+        }
+      }
+    ]
+  },
+  {
+    "id": "noodles-rice-cooked",
+    "version": 1,
+    "family": "noodles",
+    "name": "熟米粉（无浇头）",
+    "aliases": [
+      "米粉",
+      "米线",
+      "熟米线",
+      "rice noodles"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "preparation": "熟制米制面条 · 按沥出后可食部",
+    "illustration": "rice-noodles",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "56117090",
+      "title": "Rice noodles, cooked"
+    },
+    "nutrition": {
+      "caloriesKcal": "107",
+      "proteinG": "1.78",
+      "carbsG": "23.87",
+      "fatG": "0.2"
+    },
+    "portions": [
+      {
+        "id": "fndds-1",
+        "unit": "杯",
+        "edibleGrams": "175",
+        "label": "原表美制量杯的熟米粉",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "56117090 · 1",
+          "title": "1 cup, cooked"
+        }
+      }
+    ]
+  },
+  {
+    "id": "noodles-rice-dry",
+    "version": 1,
+    "family": "noodles",
+    "name": "干细米粉",
+    "aliases": [
+      "细米粉",
+      "干米粉",
+      "干米线"
+    ],
+    "state": "raw",
+    "method": "干",
+    "preparation": "干制细米粉 · 按泡煮前的干重",
+    "illustration": "dry-rice-noodles",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "R1100301",
+      "title": "細米粉"
+    },
+    "nutrition": {
+      "caloriesKcal": "355",
+      "proteinG": "0.4",
+      "carbsG": "87.2",
+      "fatG": "0.6"
+    },
+    "portions": []
+  },
+  {
+    "id": "vermicelli-dry",
+    "version": 1,
+    "family": "noodles",
+    "name": "干粉丝（冬粉）",
+    "aliases": [
+      "干粉丝",
+      "粉丝",
+      "冬粉",
+      "玻璃粉"
+    ],
+    "state": "raw",
+    "method": "干",
+    "preparation": "原表冬粉 · 按泡煮前的干重",
+    "illustration": "dry-glass-noodles",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "R4600201",
+      "title": "冬粉"
+    },
+    "nutrition": {
+      "caloriesKcal": "351",
+      "proteinG": "0.1",
+      "carbsG": "87.5",
+      "fatG": "0.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "oats-dry",
+    "version": 1,
+    "family": "oats",
+    "name": "干燕麦片",
+    "aliases": [
+      "燕麦片",
+      "燕麦",
+      "干燕麦",
+      "rolled oats"
+    ],
+    "state": "raw",
+    "method": "干",
+    "preparation": "原表燕麦片 · 按加水前干重",
+    "illustration": "oats",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "A0810101",
+      "title": "燕麥片"
+    },
+    "nutrition": {
+      "caloriesKcal": "393",
+      "proteinG": "12.3",
+      "carbsG": "64.1",
+      "fatG": "9.7"
+    },
+    "portions": []
+  },
+  {
+    "id": "oatmeal-cooked",
+    "version": 1,
+    "family": "oats",
+    "name": "水煮燕麦粥",
+    "aliases": [
+      "燕麦粥",
+      "燕麦片",
+      "燕麦",
+      "oatmeal"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "preparation": "用水煮 · 无额外油脂",
+    "illustration": "oats",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "56203056",
+      "title": "Oatmeal, regular or quick, made with water, no added fat"
+    },
+    "nutrition": {
+      "caloriesKcal": "64",
+      "proteinG": "2.21",
+      "carbsG": "11.36",
+      "fatG": "1.0900000000000001"
+    },
+    "portions": [
+      {
+        "id": "fndds-1",
+        "unit": "杯",
+        "edibleGrams": "240",
+        "label": "原表美制量杯的熟燕麦粥",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "56203056 · 1",
+          "title": "1 cup, cooked"
+        }
+      }
+    ]
+  },
+  {
+    "id": "mantou-steamed",
+    "version": 1,
+    "family": "mantou",
+    "name": "白面馒头",
+    "aliases": [
+      "馒头",
+      "白馒头",
+      "蒸馒头",
+      "mantou"
+    ],
+    "state": "cooked",
+    "method": "蒸",
+    "preparation": "原表为熟白馒头 · 按蒸熟后重量",
+    "illustration": "mantou",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "R2400201",
+      "title": "白饅頭"
+    },
+    "nutrition": {
+      "caloriesKcal": "248",
+      "proteinG": "8.1",
+      "carbsG": "51.3",
+      "fatG": "1.2"
+    },
+    "portions": []
+  },
+  {
+    "id": "bread-white",
+    "version": 1,
+    "family": "toast",
+    "name": "白吐司面包",
+    "aliases": [
+      "白吐司",
+      "白面包",
+      "吐司",
+      "面包",
+      "white bread"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表白面包 · 常规切片",
+    "illustration": "toast",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "51101000",
+      "title": "Bread, white"
+    },
+    "nutrition": {
+      "caloriesKcal": "267",
+      "proteinG": "9.43",
+      "carbsG": "49.2",
+      "fatG": "3.59"
+    },
+    "portions": [
+      {
+        "id": "fndds-2",
+        "unit": "片",
+        "edibleGrams": "28",
+        "label": "原表中等常规切片",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "51101000 · 2",
+          "title": "1 medium or regular slice"
+        }
+      }
+    ]
+  },
+  {
+    "id": "bread-whole-wheat",
+    "version": 1,
+    "family": "toast",
+    "name": "全麦吐司面包",
+    "aliases": [
+      "全麦吐司",
+      "全麦面包",
+      "吐司",
+      "面包",
+      "whole wheat bread"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表全麦面包 · 常规切片",
+    "illustration": "toast",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "51300110",
+      "title": "Bread, whole wheat"
+    },
+    "nutrition": {
+      "caloriesKcal": "254",
+      "proteinG": "12.3",
+      "carbsG": "43.1",
+      "fatG": "3.55"
+    },
+    "portions": [
+      {
+        "id": "fndds-2",
+        "unit": "片",
+        "edibleGrams": "36",
+        "label": "原表中等常规切片",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "51300110 · 2",
+          "title": "1 medium or regular slice"
+        }
+      }
+    ]
+  },
+  {
+    "id": "potato-raw",
+    "version": 1,
+    "family": "potato",
+    "name": "生土豆",
+    "aliases": [
+      "土豆",
+      "马铃薯",
+      "生马铃薯"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "原表 2022 年马铃薯样品 · 按生重可食部",
+    "illustration": "potato",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "B0700202",
+      "title": "馬鈴薯(2022年取樣)"
+    },
+    "nutrition": {
+      "caloriesKcal": "70",
+      "proteinG": "2.3",
+      "carbsG": "14.9",
+      "fatG": "0.0"
+    },
+    "portions": []
+  },
+  {
+    "id": "potato-boiled",
+    "version": 1,
+    "family": "potato",
+    "name": "水煮去皮土豆",
+    "aliases": [
+      "煮土豆",
+      "土豆",
+      "马铃薯",
+      "boiled potato"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "preparation": "水煮 · 去皮 · 无额外油脂",
+    "illustration": "potato-boiled",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "71103010",
+      "title": "Potato, boiled, from fresh, peel not eaten, no added fat"
+    },
+    "nutrition": {
+      "caloriesKcal": "93",
+      "proteinG": "1.95",
+      "carbsG": "21.46",
+      "fatG": "0.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "sweet-potato-raw",
+    "version": 1,
+    "family": "sweet-potato",
+    "name": "生红心红薯（去皮）",
+    "aliases": [
+      "生红薯",
+      "红薯",
+      "地瓜",
+      "甘薯",
+      "番薯"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "红皮红心 · 去皮可食部",
+    "illustration": "sweet-potato",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "B0400401",
+      "title": "紅肉甘藷"
+    },
+    "nutrition": {
+      "caloriesKcal": "114",
+      "proteinG": "1.8",
+      "carbsG": "25.4",
+      "fatG": "0.2"
+    },
+    "portions": []
+  },
+  {
+    "id": "sweet-potato-baked",
+    "version": 1,
+    "family": "sweet-potato",
+    "name": "烤红薯（无加油）",
+    "aliases": [
+      "烤地瓜",
+      "烤红薯",
+      "红薯",
+      "地瓜",
+      "sweet potato"
+    ],
+    "state": "cooked",
+    "method": "烤",
+    "preparation": "烤制 · 无额外油脂",
+    "illustration": "sweet-potato-baked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "73403010",
+      "title": "Sweet potato, baked, no added fat"
+    },
+    "nutrition": {
+      "caloriesKcal": "82",
+      "proteinG": "1.64",
+      "carbsG": "17.98",
+      "fatG": "0.39"
+    },
+    "portions": []
+  },
+  {
+    "id": "sweet-potato-boiled",
+    "version": 1,
+    "family": "sweet-potato",
+    "name": "水煮红薯（无加油）",
+    "aliases": [
+      "煮红薯",
+      "红薯",
+      "地瓜",
+      "sweet potato"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "preparation": "水煮 · 无额外油脂",
+    "illustration": "sweet-potato-boiled",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "73405010",
+      "title": "Sweet potato, boiled, no added fat"
+    },
+    "nutrition": {
+      "caloriesKcal": "82",
+      "proteinG": "1.64",
+      "carbsG": "17.98",
+      "fatG": "0.39"
+    },
+    "portions": []
+  },
+  {
+    "id": "corn-cooked",
+    "version": 1,
+    "family": "corn",
+    "name": "熟甜玉米粒（无加油）",
+    "aliases": [
+      "甜玉米",
+      "玉米粒",
+      "玉米",
+      "corn"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "新鲜玉米熟制 · 无额外油脂 · 玉米芯不计入",
+    "illustration": "corn",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "75216111",
+      "title": "Corn, fresh, cooked, no added fat"
+    },
+    "nutrition": {
+      "caloriesKcal": "86",
+      "proteinG": "3.26",
+      "carbsG": "18.64",
+      "fatG": "1.35"
+    },
+    "portions": []
+  },
+  {
+    "id": "egg-steamed",
+    "version": 1,
+    "family": "egg",
+    "name": "蒸鸡蛋羹",
+    "aliases": [
+      "蒸蛋",
+      "鸡蛋",
+      "鸡蛋羹",
+      "水蒸蛋",
+      "蒸水蛋"
+    ],
+    "state": "cooked",
+    "method": "蒸",
+    "preparation": "电锅蒸制 · 蛋液加等重水",
+    "illustration": "steamed-egg",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "K0150303",
+      "title": "蒸蛋(電鍋)"
+    },
+    "nutrition": {
+      "caloriesKcal": "80",
+      "proteinG": "5.8",
+      "carbsG": "1.3",
+      "fatG": "6.0"
+    },
+    "portions": []
+  },
+  {
+    "id": "egg-fried",
+    "version": 1,
+    "family": "egg",
+    "name": "油煎荷包蛋",
+    "aliases": [
+      "煎蛋",
+      "荷包蛋",
+      "鸡蛋",
+      "fried egg"
+    ],
+    "state": "cooked",
+    "method": "煎",
+    "preparation": "原表油煎全蛋 · 已包含参考用油",
+    "illustration": "fried-egg",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "31105030",
+      "title": "Egg, whole, fried with oil"
+    },
+    "nutrition": {
+      "caloriesKcal": "192",
+      "proteinG": "11.56",
+      "carbsG": "0.9",
+      "fatG": "15.81"
+    },
+    "portions": [
+      {
+        "id": "fndds-1",
+        "unit": "个",
+        "edibleGrams": "55",
+        "label": "原表完整油煎蛋",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "31105030 · 1",
+          "title": "1 egg"
+        }
+      }
+    ]
+  },
+  {
+    "id": "egg-scrambled",
+    "version": 1,
+    "family": "egg",
+    "name": "炒鸡蛋（用油）",
+    "aliases": [
+      "炒鸡蛋",
+      "炒蛋",
+      "鸡蛋",
+      "scrambled egg"
+    ],
+    "state": "cooked",
+    "method": "炒",
+    "preparation": "原表用油炒蛋或蛋卷 · 无额外配料",
+    "illustration": "scrambled-egg",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "32130010",
+      "title": "Egg omelet or scrambled egg, made with oil"
+    },
+    "nutrition": {
+      "caloriesKcal": "192",
+      "proteinG": "11.56",
+      "carbsG": "0.9",
+      "fatG": "15.81"
+    },
+    "portions": []
+  },
+  {
+    "id": "milk-whole",
+    "version": 1,
+    "family": "milk",
+    "name": "全脂纯牛奶",
+    "aliases": [
+      "全脂牛奶",
+      "纯牛奶",
+      "鲜奶",
+      "牛奶",
+      "whole milk"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "全脂原味 · 按实际饮用量",
+    "illustration": "milk",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "11111000",
+      "title": "Milk, whole"
+    },
+    "nutrition": {
+      "caloriesKcal": "61",
+      "proteinG": "3.27",
+      "carbsG": "4.63",
+      "fatG": "3.2"
+    },
+    "portions": [
+      {
+        "id": "fndds-1",
+        "unit": "杯",
+        "edibleGrams": "244",
+        "label": "原表美制量杯的全脂牛奶",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "11111000 · 1",
+          "title": "1 cup"
+        }
+      }
+    ]
+  },
+  {
+    "id": "milk-reduced",
+    "version": 1,
+    "family": "milk",
+    "name": "低脂牛奶（2%乳脂）",
+    "aliases": [
+      "低脂奶",
+      "低脂牛奶",
+      "牛奶",
+      "2% milk"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表乳脂 2% · 按实际饮用量",
+    "illustration": "milk",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "11112110",
+      "title": "Milk, reduced fat (2%)"
+    },
+    "nutrition": {
+      "caloriesKcal": "50",
+      "proteinG": "3.36",
+      "carbsG": "4.9000000000000004",
+      "fatG": "1.9"
+    },
+    "portions": []
+  },
+  {
+    "id": "yogurt-whole",
+    "version": 1,
+    "family": "yogurt",
+    "name": "全脂原味酸奶",
+    "aliases": [
+      "原味酸奶",
+      "酸奶",
+      "yogurt"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "全脂奶制原味酸奶 · 非希腊式",
+    "illustration": "yogurt",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "11411100",
+      "title": "Yogurt, whole milk, plain"
+    },
+    "nutrition": {
+      "caloriesKcal": "78",
+      "proteinG": "3.82",
+      "carbsG": "5.57",
+      "fatG": "4.4800000000000004"
+    },
+    "portions": []
+  },
+  {
+    "id": "yogurt-low-fat",
+    "version": 1,
+    "family": "yogurt",
+    "name": "低脂原味酸奶",
+    "aliases": [
+      "低脂酸奶",
+      "原味酸奶",
+      "酸奶",
+      "low fat yogurt"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "低脂奶制原味酸奶 · 非希腊式",
+    "illustration": "yogurt",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "11411200",
+      "title": "Yogurt, low fat milk, plain"
+    },
+    "nutrition": {
+      "caloriesKcal": "63",
+      "proteinG": "5.25",
+      "carbsG": "7.04",
+      "fatG": "1.55"
+    },
+    "portions": []
+  },
+  {
+    "id": "yogurt-greek",
+    "version": 1,
+    "family": "yogurt",
+    "name": "全脂希腊酸奶（原味）",
+    "aliases": [
+      "希腊酸奶",
+      "希腊式酸奶",
+      "酸奶",
+      "greek yogurt"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "全脂奶制原味希腊酸奶",
+    "illustration": "yogurt",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "11411400",
+      "title": "Yogurt, Greek, whole milk, plain"
+    },
+    "nutrition": {
+      "caloriesKcal": "94",
+      "proteinG": "8.7799999999999994",
+      "carbsG": "4.75",
+      "fatG": "4.3899999999999997"
+    },
+    "portions": []
+  },
+  {
+    "id": "cheddar",
+    "version": 1,
+    "family": "cheese",
+    "name": "切达奶酪",
+    "aliases": [
+      "切达芝士",
+      "奶酪",
+      "芝士",
+      "cheddar"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表普通切达奶酪",
+    "illustration": "cheese",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "14104100",
+      "title": "Cheese, Cheddar"
+    },
+    "nutrition": {
+      "caloriesKcal": "409",
+      "proteinG": "23.3",
+      "carbsG": "2.44",
+      "fatG": "34"
+    },
+    "portions": []
+  },
+  {
+    "id": "tofu-firm",
+    "version": 1,
+    "family": "tofu",
+    "name": "传统豆腐",
+    "aliases": [
+      "豆腐",
+      "北豆腐",
+      "老豆腐",
+      "firm tofu"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "源表为 2022 年传统豆腐样品 · 按原样重量",
+    "illustration": "tofu",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "R4700902",
+      "title": "傳統豆腐(2022年取樣)"
+    },
+    "nutrition": {
+      "caloriesKcal": "96",
+      "proteinG": "9.6",
+      "carbsG": "1.9",
+      "fatG": "5.5"
+    },
+    "portions": []
+  },
+  {
+    "id": "tofu-silken",
+    "version": 1,
+    "family": "tofu",
+    "name": "嫩豆腐",
+    "aliases": [
+      "豆腐",
+      "软豆腐",
+      "silken tofu"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "按原样嫩豆腐计量 · 油和酱另按实际用量记录",
+    "illustration": "tofu",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "R4701201",
+      "title": "嫩豆腐"
+    },
+    "nutrition": {
+      "caloriesKcal": "53",
+      "proteinG": "4.9",
+      "carbsG": "1.6",
+      "fatG": "3.0"
+    },
+    "portions": []
+  },
+  {
+    "id": "soymilk-unsweet",
+    "version": 1,
+    "family": "soy-milk",
+    "name": "无糖豆浆",
+    "aliases": [
+      "豆浆",
+      "豆奶",
+      "无糖豆奶",
+      "soy milk"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "黄豆与水为主的无糖豆浆",
+    "illustration": "soy-milk",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "H1150201",
+      "title": "豆漿(無糖)"
+    },
+    "nutrition": {
+      "caloriesKcal": "35",
+      "proteinG": "3.6",
+      "carbsG": "0.7",
+      "fatG": "1.9"
+    },
+    "portions": []
+  },
+  {
+    "id": "soymilk-sweet",
+    "version": 1,
+    "family": "soy-milk",
+    "name": "含糖豆浆",
+    "aliases": [
+      "豆浆",
+      "甜豆浆",
+      "豆奶",
+      "sweetened soy milk"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表加糖豆饮",
+    "illustration": "soy-milk",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "11320000",
+      "title": "Soy milk, sweetened"
+    },
+    "nutrition": {
+      "caloriesKcal": "53",
+      "proteinG": "3.41",
+      "carbsG": "5.22",
+      "fatG": "2.0499999999999998"
+    },
+    "portions": []
+  },
+  {
+    "id": "edamame-cooked",
+    "version": 1,
+    "family": "edamame",
+    "name": "熟毛豆仁",
+    "aliases": [
+      "毛豆",
+      "毛豆仁",
+      "edamame"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "熟毛豆仁 · 豆荚不计入",
+    "illustration": "edamame",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "41420020",
+      "title": "Edamame, cooked"
+    },
+    "nutrition": {
+      "caloriesKcal": "140",
+      "proteinG": "11.54",
+      "carbsG": "8.6300000000000008",
+      "fatG": "7.58"
+    },
+    "portions": []
+  },
+  {
+    "id": "spinach-raw",
+    "version": 1,
+    "family": "spinach",
+    "name": "生菠菜",
+    "aliases": [
+      "菠菜",
+      "spinach"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "去外部不可食部分 · 烹调前称可食部",
+    "illustration": "leafy-greens",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "E5000101",
+      "title": "菠菜"
+    },
+    "nutrition": {
+      "caloriesKcal": "18",
+      "proteinG": "2.2",
+      "carbsG": "2.4",
+      "fatG": "0.3"
+    },
+    "portions": []
+  },
+  {
+    "id": "spinach-cooked",
+    "version": 1,
+    "family": "spinach",
+    "name": "熟菠菜（无加油）",
+    "aliases": [
+      "熟菠菜",
+      "菠菜",
+      "spinach"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "新鲜菠菜熟制 · 无额外油脂",
+    "illustration": "spinach-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "72125211",
+      "title": "Spinach, fresh, cooked, no added fat"
+    },
+    "nutrition": {
+      "caloriesKcal": "33",
+      "proteinG": "3.41",
+      "carbsG": "3.1",
+      "fatG": "0.7"
+    },
+    "portions": []
+  },
+  {
+    "id": "bok-choy-raw",
+    "version": 1,
+    "family": "bok-choy",
+    "name": "生青梗菜",
+    "aliases": [
+      "青江菜",
+      "上海青",
+      "小油菜",
+      "青梗菜",
+      "bok choy"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "原表土植青江菜 3 月样品 · 烹调前可食部",
+    "illustration": "leafy-greens",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "E3201202",
+      "title": "青江菜(土植)(3月取樣)"
+    },
+    "nutrition": {
+      "caloriesKcal": "13",
+      "proteinG": "1.2",
+      "carbsG": "2.2",
+      "fatG": "0.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "lettuce-ready",
+    "version": 1,
+    "family": "lettuce",
+    "name": "生菜",
+    "aliases": [
+      "生菜叶",
+      "莴苣叶",
+      "lettuce"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "鲜叶可食部 · 未加酱及油",
+    "illustration": "leafy-greens",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "75113000",
+      "title": "Lettuce, raw"
+    },
+    "nutrition": {
+      "caloriesKcal": "20",
+      "proteinG": "0.92",
+      "carbsG": "3.69",
+      "fatG": "0.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "broccoli-raw",
+    "version": 1,
+    "family": "broccoli",
+    "name": "生西兰花",
+    "aliases": [
+      "西兰花",
+      "绿花菜",
+      "青花菜",
+      "broccoli"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "原表青花菜 2021 样品 · 去粗梗",
+    "illustration": "broccoli",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "E5800402",
+      "title": "青花菜(2021年取樣)"
+    },
+    "nutrition": {
+      "caloriesKcal": "38",
+      "proteinG": "3.4",
+      "carbsG": "6.5",
+      "fatG": "0.4"
+    },
+    "portions": []
+  },
+  {
+    "id": "broccoli-cooked",
+    "version": 1,
+    "family": "broccoli",
+    "name": "熟西兰花（无加油）",
+    "aliases": [
+      "西兰花",
+      "熟西兰花",
+      "绿花菜",
+      "broccoli"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "新鲜西兰花熟制 · 原表做法未细分 · 无额外油脂",
+    "illustration": "broccoli-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "72201211",
+      "title": "Broccoli, fresh, cooked, no added fat"
+    },
+    "nutrition": {
+      "caloriesKcal": "41",
+      "proteinG": "2.67",
+      "carbsG": "6.51",
+      "fatG": "0.35"
+    },
+    "portions": []
+  },
+  {
+    "id": "napa-raw",
+    "version": 1,
+    "family": "cabbage",
+    "name": "生大白菜",
+    "aliases": [
+      "大白菜",
+      "结球白菜",
+      "白菜",
+      "napa cabbage"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "原表结球白菜平均值 · 按烹调前可食部",
+    "illustration": "cabbage",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "E33001",
+      "title": "結球白菜平均值"
+    },
+    "nutrition": {
+      "caloriesKcal": "17",
+      "proteinG": "1.2",
+      "carbsG": "2.9",
+      "fatG": "0.3"
+    },
+    "portions": []
+  },
+  {
+    "id": "napa-cooked",
+    "version": 1,
+    "family": "cabbage",
+    "name": "熟大白菜（无加油）",
+    "aliases": [
+      "熟白菜",
+      "大白菜",
+      "结球白菜",
+      "白菜",
+      "napa cabbage"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "中国白菜熟制 · 无额外油脂",
+    "illustration": "cabbage-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "75210010",
+      "title": "Cabbage, Chinese, cooked, no added fat"
+    },
+    "nutrition": {
+      "caloriesKcal": "14",
+      "proteinG": "1.56",
+      "carbsG": "2.2599999999999998",
+      "fatG": "0.21"
+    },
+    "portions": []
+  },
+  {
+    "id": "tomato-fresh",
+    "version": 1,
+    "family": "tomato",
+    "name": "鲜番茄",
+    "aliases": [
+      "西红柿",
+      "番茄",
+      "牛番茄",
+      "tomato"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "源样品牛番茄 · 鲜果可食部",
+    "illustration": "tomato",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "E7400101",
+      "title": "牛番茄"
+    },
+    "nutrition": {
+      "caloriesKcal": "19",
+      "proteinG": "0.7",
+      "carbsG": "4.0",
+      "fatG": "0.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "cucumber-fresh",
+    "version": 1,
+    "family": "cucumber",
+    "name": "鲜黄瓜",
+    "aliases": [
+      "黄瓜",
+      "小黄瓜",
+      "青瓜",
+      "花胡瓜",
+      "cucumber"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "源样品花胡瓜 · 按可食部计量",
+    "illustration": "cucumber",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "E6400201",
+      "title": "花胡瓜(有機)"
+    },
+    "nutrition": {
+      "caloriesKcal": "15",
+      "proteinG": "0.8",
+      "carbsG": "3.1",
+      "fatG": "0.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "carrot-raw",
+    "version": 1,
+    "family": "carrot",
+    "name": "鲜胡萝卜",
+    "aliases": [
+      "胡萝卜",
+      "红萝卜",
+      "生胡萝卜",
+      "carrot"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "可食部原样 · 未加酱和油",
+    "illustration": "carrot",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "E0200101",
+      "title": "胡蘿蔔"
+    },
+    "nutrition": {
+      "caloriesKcal": "37",
+      "proteinG": "1.0",
+      "carbsG": "8.5",
+      "fatG": "0.2"
+    },
+    "portions": []
+  },
+  {
+    "id": "carrot-cooked",
+    "version": 1,
+    "family": "carrot",
+    "name": "熟胡萝卜（无加油）",
+    "aliases": [
+      "胡萝卜",
+      "红萝卜",
+      "熟胡萝卜",
+      "carrot"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "新鲜胡萝卜熟制 · 无额外油脂",
+    "illustration": "carrot-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "73102211",
+      "title": "Carrots, fresh, cooked, no added fat"
+    },
+    "nutrition": {
+      "caloriesKcal": "50",
+      "proteinG": "0.98",
+      "carbsG": "10.67",
+      "fatG": "0.36"
+    },
+    "portions": []
+  },
+  {
+    "id": "shiitake-fresh",
+    "version": 1,
+    "family": "mushroom",
+    "name": "鲜香菇（生重）",
+    "aliases": [
+      "香菇",
+      "鲜香菇",
+      "生香菇",
+      "shiitake"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "源样品小香菇 · 烹调前计量",
+    "illustration": "mushroom",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "G0800102",
+      "title": "香菇(小)"
+    },
+    "nutrition": {
+      "caloriesKcal": "26",
+      "proteinG": "2.4",
+      "carbsG": "4.9",
+      "fatG": "0.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "mushroom-cooked",
+    "version": 1,
+    "family": "mushroom",
+    "name": "熟蘑菇（无加油）",
+    "aliases": [
+      "蘑菇",
+      "熟蘑菇",
+      "口蘑",
+      "mushroom"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "原表新鲜蘑菇熟制 · 无额外油脂",
+    "illustration": "mushroom-cooked",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "75219011",
+      "title": "Mushrooms, fresh, cooked, no added fat"
+    },
+    "nutrition": {
+      "caloriesKcal": "39",
+      "proteinG": "3.61",
+      "carbsG": "5.15",
+      "fatG": "0.43"
+    },
+    "portions": []
+  },
+  {
+    "id": "pumpkin-raw",
+    "version": 1,
+    "family": "pumpkin",
+    "name": "生南瓜（去皮去籽）",
+    "aliases": [
+      "南瓜",
+      "生南瓜",
+      "pumpkin"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "原表南瓜平均值 · 去皮去籽",
+    "illustration": "pumpkin",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "E63001",
+      "title": "南瓜平均值"
+    },
+    "nutrition": {
+      "caloriesKcal": "74",
+      "proteinG": "1.9",
+      "carbsG": "17.3",
+      "fatG": "0.2"
+    },
+    "portions": []
+  },
+  {
+    "id": "apple-fuji",
+    "version": 1,
+    "family": "apple",
+    "name": "富士苹果（带皮）",
+    "aliases": [
+      "富士苹果",
+      "苹果",
+      "apple"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "带皮去核的鲜苹果",
+    "illustration": "apple",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "D3200501",
+      "title": "富士蘋果(帶皮)"
+    },
+    "nutrition": {
+      "caloriesKcal": "45",
+      "proteinG": "0.2",
+      "carbsG": "11.9",
+      "fatG": "0.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "apple-regular",
+    "version": 1,
+    "family": "apple",
+    "name": "鲜苹果（通用）",
+    "aliases": [
+      "苹果",
+      "鲜苹果",
+      "apple"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "源表通用鲜苹果 · 按可食部",
+    "illustration": "apple",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "63101000",
+      "title": "Apple, raw"
+    },
+    "nutrition": {
+      "caloriesKcal": "61",
+      "proteinG": "0.17",
+      "carbsG": "14.8",
+      "fatG": "0.15"
+    },
+    "portions": [
+      {
+        "id": "fndds-2",
+        "unit": "个",
+        "edibleGrams": "200",
+        "label": "原表中等大小苹果的可食部",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "63101000 · 2",
+          "title": "1 medium"
+        }
+      }
+    ]
+  },
+  {
+    "id": "banana-fresh",
+    "version": 1,
+    "family": "banana",
+    "name": "鲜香蕉",
+    "aliases": [
+      "香蕉",
+      "banana"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "去皮后可食部",
+    "illustration": "banana",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "63107010",
+      "title": "Banana, raw"
+    },
+    "nutrition": {
+      "caloriesKcal": "97",
+      "proteinG": "0.74",
+      "carbsG": "22.71",
+      "fatG": "0.28000000000000003"
+    },
+    "portions": [
+      {
+        "id": "fndds-1",
+        "unit": "条",
+        "edibleGrams": "126",
+        "label": "原表整条香蕉的可食部",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "63107010 · 1",
+          "title": "1 banana"
+        }
+      }
+    ]
+  },
+  {
+    "id": "orange-fresh",
+    "version": 1,
+    "family": "orange",
+    "name": "鲜甜橙",
+    "aliases": [
+      "橙子",
+      "甜橙",
+      "脐橙",
+      "柳橙",
+      "orange"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "鲜甜橙去皮等不可食部分",
+    "illustration": "orange",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "61119010",
+      "title": "Orange, raw"
+    },
+    "nutrition": {
+      "caloriesKcal": "50",
+      "proteinG": "0.92",
+      "carbsG": "11.78",
+      "fatG": "0.14000000000000001"
+    },
+    "portions": [
+      {
+        "id": "fndds-1",
+        "unit": "个",
+        "edibleGrams": "154",
+        "label": "原表整只甜橙的可食部",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "61119010 · 1",
+          "title": "1 fruit"
+        }
+      }
+    ]
+  },
+  {
+    "id": "tangerine-fresh",
+    "version": 1,
+    "family": "orange",
+    "name": "茂谷柑",
+    "aliases": [
+      "柑橘",
+      "橘子",
+      "桔子",
+      "茂谷柑"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "源样品茂谷柑 · 按可食果肉",
+    "illustration": "orange",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "D3400202",
+      "title": "茂谷柑"
+    },
+    "nutrition": {
+      "caloriesKcal": "44",
+      "proteinG": "0.6",
+      "carbsG": "11.5",
+      "fatG": "0.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "pear-fresh",
+    "version": 1,
+    "family": "pear",
+    "name": "新兴梨",
+    "aliases": [
+      "梨",
+      "水梨",
+      "雪梨",
+      "新兴梨",
+      "pear"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "源样品新兴梨 · 按可食部",
+    "illustration": "pear",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "D3000204",
+      "title": "新興梨"
+    },
+    "nutrition": {
+      "caloriesKcal": "44",
+      "proteinG": "0.2",
+      "carbsG": "11.9",
+      "fatG": "0.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "grapes-fresh",
+    "version": 1,
+    "family": "grape",
+    "name": "巨峰葡萄",
+    "aliases": [
+      "葡萄",
+      "鲜葡萄",
+      "grapes"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "源样品巨峰葡萄 · 按可食部",
+    "illustration": "grapes",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "D1700201",
+      "title": "巨峰葡萄"
+    },
+    "nutrition": {
+      "caloriesKcal": "64",
+      "proteinG": "0.5",
+      "carbsG": "16.6",
+      "fatG": "0.3"
+    },
+    "portions": []
+  },
+  {
+    "id": "strawberry-fresh",
+    "version": 1,
+    "family": "berries",
+    "name": "鲜草莓",
+    "aliases": [
+      "草莓",
+      "strawberry"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "鲜果 · 去掉蒂等不可食部分",
+    "illustration": "berries",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "D1400101",
+      "title": "草莓"
+    },
+    "nutrition": {
+      "caloriesKcal": "39",
+      "proteinG": "1.0",
+      "carbsG": "9.3",
+      "fatG": "0.2"
+    },
+    "portions": []
+  },
+  {
+    "id": "blueberry-fresh",
+    "version": 1,
+    "family": "berries",
+    "name": "鲜蓝莓",
+    "aliases": [
+      "蓝莓",
+      "blueberry"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表鲜蓝莓 · 按可食部",
+    "illustration": "berries",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "63203010",
+      "title": "Blueberries, raw"
+    },
+    "nutrition": {
+      "caloriesKcal": "64",
+      "proteinG": "0.7",
+      "carbsG": "14.57",
+      "fatG": "0.31"
+    },
+    "portions": []
+  },
+  {
+    "id": "kiwi-fresh",
+    "version": 1,
+    "family": "kiwi",
+    "name": "鲜奇异果",
+    "aliases": [
+      "猕猴桃",
+      "奇异果",
+      "kiwi"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "源样品鲜奇异果 · 按可食部",
+    "illustration": "kiwi",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "D0500201",
+      "title": "奇異果"
+    },
+    "nutrition": {
+      "caloriesKcal": "56",
+      "proteinG": "1.1",
+      "carbsG": "14.0",
+      "fatG": "0.3"
+    },
+    "portions": []
+  },
+  {
+    "id": "peanut-roasted",
+    "version": 1,
+    "family": "peanut",
+    "name": "干烤无盐花生仁",
+    "aliases": [
+      "花生",
+      "花生米",
+      "花生仁",
+      "烤花生",
+      "peanuts"
+    ],
+    "state": "cooked",
+    "method": "烤",
+    "preparation": "干烤 · 无盐 · 去壳",
+    "illustration": "nuts",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "42111210",
+      "title": "Peanuts, dry roasted, unsalted"
+    },
+    "nutrition": {
+      "caloriesKcal": "587",
+      "proteinG": "24.35",
+      "carbsG": "21.26",
+      "fatG": "49.66"
+    },
+    "portions": []
+  },
+  {
+    "id": "peanut-boiled",
+    "version": 1,
+    "family": "peanut",
+    "name": "水煮花生仁",
+    "aliases": [
+      "花生",
+      "煮花生",
+      "花生仁",
+      "peanuts"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "preparation": "煮制后的花生仁 · 按可食部",
+    "illustration": "nuts",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "42111030",
+      "title": "Peanuts, boiled"
+    },
+    "nutrition": {
+      "caloriesKcal": "318",
+      "proteinG": "13.5",
+      "carbsG": "21.26",
+      "fatG": "22.01"
+    },
+    "portions": []
+  },
+  {
+    "id": "almond-unroasted",
+    "version": 1,
+    "family": "almond",
+    "name": "未烘烤巴旦木",
+    "aliases": [
+      "巴旦木",
+      "扁桃仁",
+      "美国大杏仁",
+      "almond"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表未烘烤扁桃仁 · 去壳",
+    "illustration": "nuts",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "42101000",
+      "title": "Almonds, unroasted"
+    },
+    "nutrition": {
+      "caloriesKcal": "626",
+      "proteinG": "21.45",
+      "carbsG": "20.03",
+      "fatG": "51.09"
+    },
+    "portions": []
+  },
+  {
+    "id": "cashew-unroasted",
+    "version": 1,
+    "family": "cashew",
+    "name": "未烘烤腰果",
+    "aliases": [
+      "腰果",
+      "cashew"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表未烘烤腰果仁 · 去壳",
+    "illustration": "nuts",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "42104050",
+      "title": "Cashews, unroasted"
+    },
+    "nutrition": {
+      "caloriesKcal": "574",
+      "proteinG": "15.31",
+      "carbsG": "32.69",
+      "fatG": "46.35"
+    },
+    "portions": []
+  },
+  {
+    "id": "walnut",
+    "version": 1,
+    "family": "walnut",
+    "name": "核桃仁",
+    "aliases": [
+      "核桃",
+      "walnut"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表普通核桃仁 · 排除蜂蜜烘烤品",
+    "illustration": "nuts",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "42116000",
+      "title": "Walnuts, excluding honey roasted"
+    },
+    "nutrition": {
+      "caloriesKcal": "730",
+      "proteinG": "14.56",
+      "carbsG": "10.91",
+      "fatG": "69.739999999999995"
+    },
+    "portions": []
+  },
+  {
+    "id": "sesame-seeds",
+    "version": 1,
+    "family": "sesame",
+    "name": "芝麻粒",
+    "aliases": [
+      "芝麻",
+      "白芝麻",
+      "sesame"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表通用芝麻粒 · 颜色未细分",
+    "illustration": "seeds",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "43103000",
+      "title": "Sesame seeds"
+    },
+    "nutrition": {
+      "caloriesKcal": "631",
+      "proteinG": "20.45",
+      "carbsG": "11.73",
+      "fatG": "61.21"
+    },
+    "portions": []
+  },
+  {
+    "id": "olive-oil",
+    "version": 1,
+    "family": "oil",
+    "name": "橄榄油",
+    "aliases": [
+      "橄榄油",
+      "食用油",
+      "olive oil"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "按实际吃下的橄榄油重量",
+    "illustration": "oil",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "M2700101",
+      "title": "橄欖油"
+    },
+    "nutrition": {
+      "caloriesKcal": "884",
+      "proteinG": "0.0",
+      "carbsG": "0.0",
+      "fatG": "100.0"
+    },
+    "portions": []
+  },
+  {
+    "id": "canola-oil",
+    "version": 1,
+    "family": "oil",
+    "name": "菜籽油",
+    "aliases": [
+      "菜油",
+      "芥花油",
+      "食用油",
+      "canola oil"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "源表芥花油 · 按实际吃下的油量",
+    "illustration": "oil",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "M1800101",
+      "title": "芥花油"
+    },
+    "nutrition": {
+      "caloriesKcal": "883",
+      "proteinG": "0.0",
+      "carbsG": "0.0",
+      "fatG": "99.9"
+    },
+    "portions": []
+  },
+  {
+    "id": "soybean-oil",
+    "version": 1,
+    "family": "oil",
+    "name": "大豆油",
+    "aliases": [
+      "豆油",
+      "食用油",
+      "soybean oil"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "源表普通大豆油 · 按实际吃下的油量",
+    "illustration": "oil",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "M1100101",
+      "title": "大豆油"
+    },
+    "nutrition": {
+      "caloriesKcal": "884",
+      "proteinG": "0.0",
+      "carbsG": "0.0",
+      "fatG": "100.0"
+    },
+    "portions": []
+  },
+  {
+    "id": "peanut-oil",
+    "version": 1,
+    "family": "oil",
+    "name": "花生油",
+    "aliases": [
+      "花生油",
+      "食用油",
+      "peanut oil"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "按实际吃下的花生油重量",
+    "illustration": "oil",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "M1600101",
+      "title": "花生油"
+    },
+    "nutrition": {
+      "caloriesKcal": "883",
+      "proteinG": "0.0",
+      "carbsG": "0.0",
+      "fatG": "99.9"
+    },
+    "portions": []
+  },
+  {
+    "id": "sesame-oil",
+    "version": 1,
+    "family": "oil",
+    "name": "白芝麻油",
+    "aliases": [
+      "芝麻油",
+      "香油",
+      "白麻油",
+      "食用油",
+      "sesame oil"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "源表白芝麻油 · 按实际吃下的油量",
+    "illustration": "oil",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "M1500101",
+      "title": "白芝麻油"
+    },
+    "nutrition": {
+      "caloriesKcal": "884",
+      "proteinG": "0.1",
+      "carbsG": "0.0",
+      "fatG": "100.0"
+    },
+    "portions": []
+  },
+  {
+    "id": "soy-sauce",
+    "version": 1,
+    "family": "sauce",
+    "name": "酱油（通用）",
+    "aliases": [
+      "酱油",
+      "soy sauce"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "源表酱油 · 生抽老抽未细分 · 按实际吃下的量",
+    "illustration": "sauce",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "P0700101",
+      "title": "醬油"
+    },
+    "nutrition": {
+      "caloriesKcal": "90",
+      "proteinG": "7.8",
+      "carbsG": "14.7",
+      "fatG": null
+    },
+    "portions": []
+  },
+  {
+    "id": "soy-sauce-light",
+    "version": 1,
+    "family": "sauce",
+    "name": "淡色酱油",
+    "aliases": [
+      "生抽",
+      "淡色酱油",
+      "浅色酱油",
+      "酱油",
+      "light soy sauce"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表淡色酱油 · 按实际吃下的量",
+    "illustration": "sauce",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "P0700401",
+      "title": "淡色醬油"
+    },
+    "nutrition": {
+      "caloriesKcal": "78",
+      "proteinG": "7.1",
+      "carbsG": "11.5",
+      "fatG": "0.4"
+    },
+    "portions": []
+  },
+  {
+    "id": "soy-sauce-low-sodium",
+    "version": 1,
+    "family": "sauce",
+    "name": "薄盐酱油",
+    "aliases": [
+      "低钠酱油",
+      "减盐酱油",
+      "酱油"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "源表低钠薄盐酱油 · 按实际吃下的量",
+    "illustration": "sauce",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "P0700501",
+      "title": "薄鹽醬油(低鈉)"
+    },
+    "nutrition": {
+      "caloriesKcal": "77",
+      "proteinG": "7.4",
+      "carbsG": "11.9",
+      "fatG": null
+    },
+    "portions": []
+  },
+  {
+    "id": "oyster-sauce",
+    "version": 1,
+    "family": "sauce",
+    "name": "蚝油",
+    "aliases": [
+      "蚝油",
+      "oyster sauce"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "按实际吃下的蚝油重量",
+    "illustration": "sauce",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "P0800301",
+      "title": "蠔油"
+    },
+    "nutrition": {
+      "caloriesKcal": "156",
+      "proteinG": "6.5",
+      "carbsG": "32.2",
+      "fatG": "0.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "granulated-sugar",
+    "version": 1,
+    "family": "sugar",
+    "name": "白砂糖",
+    "aliases": [
+      "白糖",
+      "砂糖",
+      "白砂糖",
+      "granulated sugar"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表普通白砂糖或方糖",
+    "illustration": "sugar",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "91101010",
+      "title": "Sugar, white, granulated or lump"
+    },
+    "nutrition": {
+      "caloriesKcal": "401",
+      "proteinG": "0",
+      "carbsG": "99.6",
+      "fatG": "0.32"
+    },
+    "portions": []
+  },
+  {
+    "id": "rock-sugar",
+    "version": 1,
+    "family": "sugar",
+    "name": "冰糖",
+    "aliases": [
+      "冰糖",
+      "rock sugar"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "独立样品 · 按实际吃下的糖量",
+    "illustration": "sugar",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "N0100201",
+      "title": "冰糖"
+    },
+    "nutrition": {
+      "caloriesKcal": "387",
+      "proteinG": null,
+      "carbsG": "99.9",
+      "fatG": null
+    },
+    "portions": []
+  },
+  {
+    "id": "jasmine-tea",
+    "version": 1,
+    "family": "tea",
+    "name": "无糖茉莉花茶（茶汤）",
+    "aliases": [
+      "茉莉花茶",
+      "花茶",
+      "无糖茶",
+      "茶",
+      "jasmine tea"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "90℃水冲泡 4 分钟后取茶汤",
+    "illustration": "tea",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "O0702401",
+      "title": "茉莉花茶湯"
+    },
+    "nutrition": {
+      "caloriesKcal": "0",
+      "proteinG": "0.1",
+      "carbsG": "0.0",
+      "fatG": null
+    },
+    "portions": []
+  },
+  {
+    "id": "green-tea-iced",
+    "version": 1,
+    "family": "tea",
+    "name": "无糖冰绿茶",
+    "aliases": [
+      "冰绿茶",
+      "无糖绿茶",
+      "绿茶",
+      "无糖茶",
+      "茶",
+      "green tea"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表冲泡后冰饮 · 无糖",
+    "illustration": "tea",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "92308520",
+      "title": "Tea, iced, brewed, green, unsweetened"
+    },
+    "nutrition": {
+      "caloriesKcal": "1",
+      "proteinG": "0.22",
+      "carbsG": "0",
+      "fatG": "0"
+    },
+    "portions": []
+  },
+  {
+    "id": "black-tea-iced",
+    "version": 1,
+    "family": "tea",
+    "name": "无糖冰红茶",
+    "aliases": [
+      "冰红茶",
+      "无糖红茶",
+      "红茶",
+      "无糖茶",
+      "茶",
+      "black tea"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表冲泡后冰饮 · 无糖",
+    "illustration": "black-tea",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "92308020",
+      "title": "Tea, iced, brewed, black, unsweetened"
+    },
+    "nutrition": {
+      "caloriesKcal": "1",
+      "proteinG": "0",
+      "carbsG": "0.3",
+      "fatG": "0"
+    },
+    "portions": []
+  },
+  {
+    "id": "black-coffee",
+    "version": 1,
+    "family": "coffee",
+    "name": "原味黑咖啡（冲煮）",
+    "aliases": [
+      "黑咖啡",
+      "咖啡",
+      "不加糖咖啡",
+      "coffee"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表冲煮黑咖啡 · 奶糖按实际加量另记",
+    "illustration": "coffee",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "92101000",
+      "title": "Coffee, brewed"
+    },
+    "nutrition": {
+      "caloriesKcal": "1",
+      "proteinG": "0.12",
+      "carbsG": "0",
+      "fatG": "0.02"
+    },
+    "portions": [
+      {
+        "id": "fndds-2",
+        "unit": "杯",
+        "edibleGrams": "240",
+        "label": "原表 8 fl oz 美制一杯",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "92101000 · 2",
+          "title": "1 cup (8 fl oz)"
+        }
+      }
+    ]
+  },
+  {
+    "id": "orange-juice-fresh",
+    "version": 1,
+    "family": "juice",
+    "name": "鲜榨橙汁",
+    "aliases": [
+      "鲜橙汁",
+      "橙汁",
+      "100%橙汁",
+      "orange juice"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "100%鲜榨橙汁 · 按饮下的液体重量",
+    "illustration": "juice",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "61210010",
+      "title": "Orange juice, 100%,  freshly squeezed"
+    },
+    "nutrition": {
+      "caloriesKcal": "47",
+      "proteinG": "0.81",
+      "carbsG": "10.01",
+      "fatG": "0.36"
+    },
+    "portions": []
+  },
+  {
+    "id": "cola",
+    "version": 1,
+    "family": "cola",
+    "name": "含糖可乐",
+    "aliases": [
+      "普通可乐",
+      "可乐",
+      "汽水",
+      "cola"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表通用含糖可乐",
+    "illustration": "cola",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "92410310",
+      "title": "Soft drink, cola"
+    },
+    "nutrition": {
+      "caloriesKcal": "42",
+      "proteinG": "0",
+      "carbsG": "10.36",
+      "fatG": "0.25"
+    },
+    "portions": []
+  },
+  {
+    "id": "cola-diet",
+    "version": 1,
+    "family": "cola",
+    "name": "无糖可乐",
+    "aliases": [
+      "零糖可乐",
+      "无糖汽水",
+      "可乐",
+      "diet cola"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表通用无糖可乐",
+    "illustration": "cola",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "92410320",
+      "title": "Soft drink, cola, diet"
+    },
+    "nutrition": {
+      "caloriesKcal": "2",
+      "proteinG": "0.11",
+      "carbsG": "0.28999999999999998",
+      "fatG": "0.03"
+    },
+    "portions": []
+  },
+  {
+    "id": "still-water",
+    "version": 1,
+    "family": "water",
+    "name": "白水",
+    "aliases": [
+      "水",
+      "饮用水",
+      "白开水",
+      "water"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表无味瓶装饮用水",
+    "illustration": "water",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "94100100",
+      "title": "Water, bottled, plain"
+    },
+    "nutrition": {
+      "caloriesKcal": "0",
+      "proteinG": "0",
+      "carbsG": "0",
+      "fatG": "0"
+    },
+    "portions": []
+  },
+  {
+    "id": "saltine",
+    "version": 1,
+    "family": "cracker",
+    "name": "苏打饼干",
+    "aliases": [
+      "苏打饼",
+      "饼干",
+      "梳打饼",
+      "saltine"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表普通苏打薄脆饼干",
+    "illustration": "cracker",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "54325000",
+      "title": "Crackers, saltine"
+    },
+    "nutrition": {
+      "caloriesKcal": "418",
+      "proteinG": "9.4600000000000009",
+      "carbsG": "74.05",
+      "fatG": "8.64"
+    },
+    "portions": []
+  },
+  {
+    "id": "dark-chocolate",
+    "version": 1,
+    "family": "chocolate",
+    "name": "黑巧克力",
+    "aliases": [
+      "黑巧",
+      "巧克力",
+      "dark chocolate"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "源表普通黑巧克力 · 可可比例未细分",
+    "illustration": "chocolate",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "91705300",
+      "title": "Dark chocolate candy"
+    },
+    "nutrition": {
+      "caloriesKcal": "550",
+      "proteinG": "5.09",
+      "carbsG": "59.97",
+      "fatG": "32.200000000000003"
+    },
+    "portions": [
+      {
+        "id": "fndds-1",
+        "unit": "块",
+        "edibleGrams": "8",
+        "label": "原表标准单块",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "91705300 · 1",
+          "title": "1 piece"
+        }
+      }
+    ]
+  },
+  {
+    "id": "potato-chips",
+    "version": 1,
+    "family": "chips",
+    "name": "原味薯片",
+    "aliases": [
+      "薯片",
+      "土豆片",
+      "potato chips"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表普通原味薯片",
+    "illustration": "chips",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "71200100",
+      "title": "Potato chips, plain"
+    },
+    "nutrition": {
+      "caloriesKcal": "532",
+      "proteinG": "6.39",
+      "carbsG": "53.83",
+      "fatG": "33.979999999999997"
+    },
+    "portions": []
+  },
+  {
+    "id": "sponge-cake",
+    "version": 1,
+    "family": "cake",
+    "name": "海绵蛋糕",
+    "aliases": [
+      "海绵蛋糕",
+      "蛋糕",
+      "sponge cake"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "原表为海绵蛋糕 · 装饰夹馅不计",
+    "illustration": "cake",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "53118100",
+      "title": "Cake, sponge"
+    },
+    "nutrition": {
+      "caloriesKcal": "290",
+      "proteinG": "5.4",
+      "carbsG": "61",
+      "fatG": "2.7"
+    },
+    "portions": []
+  },
+  {
+    "id": "fried-rice-plain",
+    "version": 1,
+    "family": "fried-rice",
+    "name": "炒饭（配料未细分）",
+    "aliases": [
+      "炒饭",
+      "fried rice"
+    ],
+    "state": "cooked",
+    "method": "炒",
+    "preparation": "原表通用炒饭 · 具体肉蛋配料不明",
+    "illustration": "fried-rice",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "58150310",
+      "title": "Rice, fried, NFS"
+    },
+    "nutrition": {
+      "caloriesKcal": "174",
+      "proteinG": "3.84",
+      "carbsG": "32.5",
+      "fatG": "3.19"
+    },
+    "portions": [
+      {
+        "id": "fndds-1",
+        "unit": "杯",
+        "edibleGrams": "198",
+        "label": "原表美制量杯的炒饭",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "58150310 · 1",
+          "title": "1 cup"
+        }
+      }
+    ]
+  },
+  {
+    "id": "fried-rice-shrimp",
+    "version": 1,
+    "family": "fried-rice",
+    "name": "虾仁炒饭",
+    "aliases": [
+      "虾炒饭",
+      "炒饭",
+      "shrimp fried rice"
+    ],
+    "state": "cooked",
+    "method": "炒",
+    "preparation": "原表炒饭含虾 · 当作整菜记录",
+    "illustration": "fried-rice",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "58150510",
+      "title": "Rice, fried, with shrimp"
+    },
+    "nutrition": {
+      "caloriesKcal": "166",
+      "proteinG": "6.68",
+      "carbsG": "27.85",
+      "fatG": "2.97"
+    },
+    "portions": [
+      {
+        "id": "fndds-1",
+        "unit": "杯",
+        "edibleGrams": "198",
+        "label": "原表美制量杯的虾仁炒饭",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "58150510 · 1",
+          "title": "1 cup"
+        }
+      }
+    ]
+  },
+  {
+    "id": "fried-rice-chicken",
+    "version": 1,
+    "family": "fried-rice",
+    "name": "鸡肉炒饭",
+    "aliases": [
+      "鸡炒饭",
+      "炒饭",
+      "chicken fried rice"
+    ],
+    "state": "cooked",
+    "method": "炒",
+    "preparation": "原表炒饭含鸡肉 · 当作整菜记录",
+    "illustration": "fried-rice",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "58150320",
+      "title": "Rice, fried, with chicken"
+    },
+    "nutrition": {
+      "caloriesKcal": "173",
+      "proteinG": "7.28",
+      "carbsG": "27.62",
+      "fatG": "3.66"
+    },
+    "portions": []
+  },
+  {
+    "id": "dumplings-pork",
+    "version": 1,
+    "family": "dumplings",
+    "name": "猪肉熟水饺（冷冻熟制）",
+    "aliases": [
+      "猪肉水饺",
+      "水饺",
+      "饺子",
+      "dumplings"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "preparation": "原样品冷冻熟制猪肉水饺 · 拆包装可食部",
+    "illustration": "dumplings",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "R2200801",
+      "title": "冷凍豬肉熟水餃"
+    },
+    "nutrition": {
+      "caloriesKcal": "235",
+      "proteinG": "7.2",
+      "carbsG": "28.9",
+      "fatG": "10.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "dumplings-cabbage",
+    "version": 1,
+    "family": "dumplings",
+    "name": "卷心菜水饺（熟）",
+    "aliases": [
+      "高丽菜水饺",
+      "卷心菜水饺",
+      "水饺",
+      "饺子"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "preparation": "源样品熟高丽菜水饺 · 当作整只饺子",
+    "illustration": "dumplings",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "R2201501",
+      "title": "熟水餃(高麗菜水餃)"
+    },
+    "nutrition": {
+      "caloriesKcal": "199",
+      "proteinG": "7.4",
+      "carbsG": "19.7",
+      "fatG": "10.1"
+    },
+    "portions": []
+  },
+  {
+    "id": "wonton-soup",
+    "version": 1,
+    "family": "wonton",
+    "name": "馄饨汤（连汤）",
+    "aliases": [
+      "馄饨",
+      "云吞汤",
+      "抄手汤",
+      "wonton soup"
+    ],
+    "state": "cooked",
+    "method": "煮",
+    "preparation": "馄饨及汤按原比例一起称量",
+    "illustration": "wonton-soup",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "58408010",
+      "title": "Soup, wonton"
+    },
+    "nutrition": {
+      "caloriesKcal": "33",
+      "proteinG": "2.39",
+      "carbsG": "2.95",
+      "fatG": "1.31"
+    },
+    "portions": [
+      {
+        "id": "fndds-1",
+        "unit": "杯",
+        "edibleGrams": "245",
+        "label": "原表美制量杯的馄饨汤",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "58408010 · 1",
+          "title": "1 cup"
+        }
+      }
+    ]
+  },
+  {
+    "id": "curry-chicken",
+    "version": 1,
+    "family": "curry",
+    "name": "咖喱鸡（不含饭）",
+    "aliases": [
+      "咖哩鸡",
+      "咖喱鸡",
+      "chicken curry"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "preparation": "成菜参考含咖喱汁 · 米饭另记",
+    "illustration": "curry",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "27146150",
+      "title": "Chicken curry"
+    },
+    "nutrition": {
+      "caloriesKcal": "107",
+      "proteinG": "6.48",
+      "carbsG": "6.54",
+      "fatG": "6.48"
+    },
+    "portions": [
+      {
+        "id": "fndds-1",
+        "unit": "杯",
+        "edibleGrams": "240",
+        "label": "原表美制量杯的咖喱鸡",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "27146150 · 1",
+          "title": "1 cup"
+        }
+      }
+    ]
+  },
+  {
+    "id": "curry-chicken-rice",
+    "version": 1,
+    "family": "curry",
+    "name": "咖喱鸡饭",
+    "aliases": [
+      "咖哩鸡饭",
+      "咖喱鸡配米饭",
+      "咖喱饭",
+      "curry chicken rice"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "咖喱鸡与饭一同计量",
+    "illustration": "curry",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "27146155",
+      "title": "Chicken curry with rice"
+    },
+    "nutrition": {
+      "caloriesKcal": "116",
+      "proteinG": "4.96",
+      "carbsG": "15.12",
+      "fatG": "4"
+    },
+    "portions": [
+      {
+        "id": "fndds-1",
+        "unit": "杯",
+        "edibleGrams": "200",
+        "label": "原表美制量杯的咖喱鸡饭",
+        "source": {
+          "dataset": "USDA FNDDS 2021–2023",
+          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+          "recordId": "27146155 · 1",
+          "title": "1 cup"
+        }
+      }
+    ]
+  },
+  {
+    "id": "soy-tofu-vegetables",
+    "version": 1,
+    "family": "tofu-dish",
+    "name": "酱汁蔬菜豆腐",
+    "aliases": [
+      "蔬菜豆腐",
+      "蔬菜煮豆腐",
+      "tofu and vegetables"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "含豆腐、深色蔬菜和酱汁 · 源表不含土豆",
+    "illustration": "tofu",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "41812500",
+      "title": "Tofu and vegetables including carrots, broccoli, and/or dark-green leafy; no potatoes, with soy-based sauce"
+    },
+    "nutrition": {
+      "caloriesKcal": "92",
+      "proteinG": "4.1100000000000003",
+      "carbsG": "4.68",
+      "fatG": "6.71"
+    },
+    "portions": []
+  },
+  {
+    "id": "beef-potatoes-tomato",
+    "version": 1,
+    "family": "beef-dish",
+    "name": "番茄酱汁牛肉土豆",
+    "aliases": [
+      "牛肉土豆",
+      "番茄汁牛肉",
+      "牛肉配土豆"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "原表含牛肉、土豆、蔬菜及番茄基底酱汁 · 按整菜记录",
+    "illustration": "beef-stew",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "27311625",
+      "title": "Beef, potatoes, and vegetables including carrots, broccoli, and/or dark-green leafy; tomato-based sauce"
+    },
+    "nutrition": {
+      "caloriesKcal": "126",
+      "proteinG": "5.33",
+      "carbsG": "11.13",
+      "fatG": "6.96"
+    },
+    "portions": []
+  }
+]

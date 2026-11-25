@@ -1,3 +1,4 @@
+import expansion from "./reference-expansion.json";
 import { ApiError } from "../auth/ai-identity";
 import type { Nutrition } from "./model";
 import type { FoodIllustration, ReferenceCatalogResult, ReferenceFamily, ReferenceFood, ReferenceFoodLink, ReferencePortion, ReferenceSnapshot, ReferenceSource } from "./reference-food";
@@ -27,7 +28,7 @@ const eggSource = fndds("31103010", "Egg, whole, boiled or poached");
 const noodlesSource = fndds("56112000", "Noodles, cooked");
 const pastaSource = fndds("56130000", "Pasta, cooked");
 
-const foods: readonly ReferenceFood[] = [
+const initialFoods: readonly ReferenceFood[] = [
   drumstick("drumstick-stewed-skinless", "去皮炖鸡小腿", "炖", "去皮", "stewed-skinless", fndds("24143220", "Chicken drumstick, stewed, skin not eaten"), values("148", "23.71", "0", "5.9"), "55"),
   drumstick("drumstick-stewed-skin", "带皮炖鸡小腿", "炖", "吃皮", "stewed-skin", fndds("24143210", "Chicken drumstick, stewed, skin eaten"), values("186", "22.54", "0", "10.64"), "65"),
   drumstick("drumstick-grilled-skinless", "去皮烤鸡小腿", "烤", "去皮", "grilled-skinless", fndds("24142501", "Chicken drumstick, grilled without sauce, skin not eaten"), values("169", "23.57", "0", "7.53"), "50"),
@@ -99,35 +100,75 @@ const foods: readonly ReferenceFood[] = [
   },
 ];
 
+const foods = [...initialFoods, ...expansion as ReferenceFood[]];
 const foodsById = new Map(foods.map(food => [food.id, food]));
 const retiredVersions = new Map([["drumstick-raw-edible", 1]]);
 const normalize = (value: string) => value.normalize("NFKC").toLowerCase().replace(/[\s·、，,()]+/g, "");
-const aliases = (food: ReferenceFood) => [food.name, ...food.aliases].map(normalize);
+const indexed = foods.map(food => ({
+  food,
+  name: normalize(food.name),
+  aliases: food.aliases.map(normalize),
+}));
+const ingredientTerms = new Set(indexed.flatMap(({ name, aliases }) => [name, ...aliases]));
+const familySummaries: NonNullable<ReferenceCatalogResult["families"]> = {};
+for (const item of foods) {
+  const entry = familySummaries[item.family];
+  if (entry) entry.count += 1;
+  else familySummaries[item.family] = {
+    count: 1,
+    illustration: foods.find(food => food.family === item.family && food.state !== "raw")?.illustration ?? item.illustration,
+  };
+}
 
-const methods: readonly [string, ReferenceFood["method"]][] = [
-  ["裹粉炸|油炸|炸", "炸"], ["水煮|白煮|汆煮|煮", "煮"], ["清蒸|蒸", "蒸"], ["油煎|煎", "煎"], ["炖", "炖"], ["烤", "烤"],
+export function referenceCatalogOverview(): ReferenceCatalogResult {
+  return { total: foods.length, matches: foods.length, referenceFoods: [], families: familySummaries };
+}
+
+const methods: readonly [RegExp, ReferenceFood["method"]][] = [
+  [/裹粉炸|油炸|炸/g, "炸"], [/水煮|白灼|白煮|汆煮|煮/g, "煮"], [/清蒸|蒸/g, "蒸"],
+  [/油煎|煎/g, "煎"], [/炖/g, "炖"], [/炙烤|烤/g, "烤"], [/油炒|炒/g, "炒"],
 ];
 
-export function searchReferenceFoods(query = "", family?: ReferenceFamily, mode: "browse" | "search" = query.trim() ? "search" : "browse"): ReferenceCatalogResult {
+export function searchReferenceFoods(query = "", family?: ReferenceFamily, mode: "browse" | "search" = query.trim() ? "search" : "browse", offset = 0): ReferenceCatalogResult {
   if (query.length > 200) throw new ApiError(400, "invalid_input", "搜索文字过长。");
-  const q = normalize(query);
+  const q = normalize(query).replace(/^(?:我)?(?:今天|昨天)?(?:刚)?(?:吃了|喝了)/, "");
   const skin = /去皮|不吃皮|无皮/.test(q) ? "去皮" : /带皮|有皮|吃皮/.test(q) ? "吃皮" : undefined;
+  const withBone = /带骨|有骨|未去骨/.test(q);
+  const boneless = /去骨|无骨/.test(q);
   const withoutQualifiers = q.replace(/去皮|不吃皮|无皮|带皮|有皮|吃皮|去骨|无骨/g, "");
-  const state = /^生(?!煎|炒)|生重|生$/.test(withoutQualifiers) ? "raw" : /^熟|熟制|熟重|熟$/.test(withoutQualifiers) ? "cooked" : undefined;
+  const weighedRaw = /生重/.test(withoutQualifiers) || withoutQualifiers.startsWith("生") && ingredientTerms.has(withoutQualifiers.slice(1)) ||
+    withoutQualifiers.endsWith("生") && ingredientTerms.has(withoutQualifiers.slice(0, -1));
+  const state = weighedRaw ? "raw" : /^熟|熟制|熟重|熟$/.test(withoutQualifiers) ? "cooked" : undefined;
   const allowRawChicken = state === "raw" || (!q && mode === "browse");
-  const selectedMethod = methods.find(([pattern]) => new RegExp(pattern).test(q));
+  const selectedMethod = methods.find(([pattern]) => withoutQualifiers.search(pattern) >= 0);
   const method = selectedMethod?.[1];
-  const edible = /去骨|无骨/.test(q);
-  const base = withoutQualifiers.replace(/生重|熟制|熟重|^生(?!煎|炒)|^熟|[生熟]$/g, "");
-  const rest = selectedMethod ? base.replace(new RegExp(selectedMethod[0], "g"), "") : base;
-  const matches = foods.filter(food => {
-    if ((family && food.family !== family) || (skin && food.skin !== skin) || (state && food.state !== state) ||
-      (method && food.method !== method) || (edible && !/去骨/.test(food.preparation)) ||
-      (food.family === "chicken-leg" && food.state === "raw" && !allowRawChicken)) return false;
-    const names = aliases(food);
-    return names.some(name => name.includes(q)) || !rest || names.some(name => name.includes(rest));
-  });
-  return { total: foods.length, matches: matches.length, referenceFoods: matches.slice(0, 40) };
+  const base = state === "raw" ? withoutQualifiers.replace(/生重|^生|生$/g, "") :
+    state === "cooked" ? withoutQualifiers.replace(/熟制|熟重|^熟|熟$/g, "") : withoutQualifiers;
+  const rest = selectedMethod ? base.replace(selectedMethod[0], "") : base;
+  const matches = indexed.flatMap(({ food, name, aliases }) => {
+    if (family && food.family !== family || withBone ||
+      (food.family === "chicken-leg" && food.state === "raw" && !allowRawChicken)) return [];
+    const priority = food.state === "raw" ? 0 : 1;
+    if (!q) return [{ food, score: mode === "browse" ? 0 : priority }];
+    // 完整名称与别名先识别，例如「生菜」和「生抽」中的字是品名的一部分。
+    if (q === name) return [{ food, score: 60 + priority }];
+    if (aliases.includes(q)) return [{ food, score: 50 + priority }];
+
+    const matchesMethod = !method || food.method === method ||
+      (food.method === "蒸煮" && (method === "蒸" || method === "煮"));
+    if (skin && skin !== food.skin || state && state !== food.state || !matchesMethod ||
+      boneless && !/去骨/.test(food.preparation)) return [];
+    const names = [name, ...aliases];
+    if (!rest || names.includes(rest)) return [{ food, score: 30 + priority }];
+    if (names.some(value => value.startsWith(rest))) return [{ food, score: 20 + priority }];
+    return names.some(value => value.includes(rest)) ? [{ food, score: 10 + priority }] : [];
+  }).sort((a, b) => b.score - a.score);
+  const next = offset + 40;
+  return {
+    total: foods.length, matches: matches.length,
+    referenceFoods: matches.slice(offset, next).map(entry => entry.food),
+    ...(next < matches.length ? { nextOffset: next } : {}),
+  };
 }
 
 export function requireCurrentReferenceFood(link: ReferenceFoodLink) {

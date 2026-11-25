@@ -82,9 +82,13 @@ export function MealEditor({
  const mealPane = useRef<HTMLDivElement>(null);
  const libraryPane = useRef<HTMLElement>(null);
  const exchange = useMemo(() => createWorkspaceExchange(), []);
- const [libraryOpen,setLibraryOpen]=useState(false);
+ const [libraryOpen, setLibraryOpen] = useState(false);
+ const [inlineLibrary, setInlineLibrary] = useState(false);
+ const [libraryVisit, setLibraryVisit] = useState(0);
  const [paneChange,setPaneChange]=useState<{ direction: "forward" | "back"; scroll: number; animate: boolean } | null>(null);
+ const currentPaneChange = useRef<typeof paneChange>(null);
  useLayoutEffect(() => {
+   currentPaneChange.current = paneChange;
    if (!paneChange) {
      exchange.stop();
      return;
@@ -95,7 +99,11 @@ export function MealEditor({
    if (scroller) scroller.scrollTop = enteringLibrary ? 0 : priorScroll.current;
    const enter = enteringLibrary ? libraryPane.current : mealPane.current;
    const exit = enteringLibrary ? mealPane.current : libraryPane.current;
-   const finish = () => setPaneChange(current => current === paneChange ? null : current);
+   const finish = () => {
+     if (currentPaneChange.current !== paneChange) return;
+     setPaneChange(null);
+     if (!enteringLibrary) setLibraryVisit(visit => visit + 1);
+   };
 
    if (paneChange.animate && enter && exit) {
      exit.style.setProperty("--meal-pane-exit-offset", ((scroller?.scrollTop ?? 0) - paneChange.scroll) + "px");
@@ -111,6 +119,33 @@ export function MealEditor({
    else focusMeal();
  }, [paneChange, exchange, focusMeal]);
  useLayoutEffect(() => () => exchange.stop(), [exchange]);
+ useLayoutEffect(() => {
+   const editor = root.current;
+   if (!editor) return;
+   const desktop = matchMedia("(min-width: 701px) and (pointer: fine)");
+   let wasInline = false;
+   function measure() {
+     const inline = desktop.matches && (editor?.clientWidth ?? 0) >= 960;
+     if (wasInline && !inline && libraryPane.current?.contains(document.activeElement)) {
+       setLibraryOpen(true);
+     }
+     if (inline && !wasInline) {
+       if (currentPaneChange.current?.direction === "back") setLibraryVisit(visit => visit + 1);
+       setLibraryOpen(false);
+       setPaneChange(null);
+     }
+     wasInline = inline;
+     setInlineLibrary(inline);
+   }
+   const observer = new ResizeObserver(measure);
+   observer.observe(editor);
+   desktop.addEventListener("change", measure);
+   measure();
+   return () => {
+     observer.disconnect();
+     desktop.removeEventListener("change", measure);
+   };
+ }, []);
  const [draft,setDraft]=useState<EditorMeal>(()=>({...structuredClone(initial),mealType:mealTypeLabel(initial.mealType),items:[...initial.items.map((item,index)=>{
   const saved=item.originalItemId?historicalItems.find(previous=>previous.id===item.originalItemId):historicalItems[index];
   return editorItem(item,index,saved?.nutrition,!!(item.foodId||item.foodRef||item.foodDraft||item.referenceFood||saved?.foodSnapshot));
@@ -122,8 +157,8 @@ export function MealEditor({
  const [scope, setScope] = useState<FoodLibraryScope>("reference");
  const [referenceFoods, setReferenceFoods] = useState<Record<string, ReferenceFood>>({});
  const [selected, setSelected] = useState<string[]>([]);
- const [referenceBack, setReferenceBack] = useState<(() => void) | null>(null);
- const onDetailBack = useCallback((back: (() => void) | null) => setReferenceBack(() => back), []);
+ const [referenceBack, setReferenceBack] = useState<((restoreFocus?: boolean) => void) | null>(null);
+ const onDetailBack = useCallback((back: ((restoreFocus?: boolean) => void) | null) => setReferenceBack(() => back), []);
  const [replacing, setReplacing] = useState<number | null>(null);
  const [dragging, setDragging] = useState(false);
  const bubbleId = useId(), nutritionHint = bubbleId + "-nutrition";
@@ -187,22 +222,21 @@ export function MealEditor({
  if(items.at(-1)?.name.trim())items.push(freeEditorItem(Math.max(...items.map(item=>item.editor.key))+1));
  return {...previous,items};
  });}
- function editorIsWide() {
-   return matchMedia("(min-width:701px) and (pointer:fine)").matches
-     && (root.current?.clientWidth ?? 0) >= 960;
- }
-
  function showLibrary(replace: number | null = null) {
    setReplacing(replace);
    setSelected([]);
    returnRow.current = replace === null ? null : draft.items[replace].editor.key;
    const scroll = root.current?.closest("dialog")?.scrollTop ?? 0;
    priorScroll.current = scroll;
-   if (editorIsWide()) {
-     setLibraryOpen(true);
-     requestAnimationFrame(() => search.current?.focus({ preventScroll: true }));
+   if (inlineLibrary) {
+     referenceBack?.(false);
+     requestAnimationFrame(() => {
+       search.current?.scrollIntoView({ block: "nearest", behavior: "instant" });
+       search.current?.focus({ preventScroll: true });
+     });
      return;
    }
+   setLibraryVisit(visit => visit + 1);
    setLibraryOpen(true);
    setPaneChange({ direction: "forward", scroll, animate: !matchMedia("(prefers-reduced-motion: reduce)").matches });
  }
@@ -211,12 +245,9 @@ export function MealEditor({
    setLibraryOpen(false);
    setSelected([]);
    setReplacing(null);
-   if (editorIsWide()) {
-     requestAnimationFrame(() => {
-       const dialog = root.current?.closest("dialog");
-       if (dialog) dialog.scrollTop = priorScroll.current;
-       focusMeal();
-     });
+   if (inlineLibrary) {
+     referenceBack?.(false);
+     requestAnimationFrame(focusMeal);
      return;
    }
    const scroll = root.current?.closest("dialog")?.scrollTop ?? 0;
@@ -249,8 +280,7 @@ export function MealEditor({
          : previous.items.map((item, index) => index === replacing ? makeRow(chosen[0], item.editor.key) : item),
      };
    });
-   if (libraryOpen) returnToMeal();
-   else setReplacing(null);
+   if (libraryOpen || inlineLibrary || replacing !== null) returnToMeal();
  }
 
  function addReference(item: ItemDraft, food: ReferenceFood) {
@@ -368,7 +398,7 @@ export function MealEditor({
      data-entry-form={pending ? "meal-pending" : "meal"} data-library-open={libraryOpen || undefined} data-library-scope={scope}
      aria-busy={busy || pending && !error} onSubmit={submit}
      onKeyDown={event => {
-       if (event.key !== "Escape" || !libraryOpen) return;
+       if (event.key !== "Escape" || !libraryOpen && !referenceBack && replacing === null) return;
        event.preventDefault();
        event.stopPropagation();
        backFromLibrary();
@@ -413,7 +443,7 @@ export function MealEditor({
            <div className={styles.foodHeading}>
              <h2 id={bubbleId + "-foods"}>本餐食物</h2>
              <button ref={libraryTrigger} type="button" className={styles.libraryLink} aria-label="从食材库添加"
-               aria-controls={bubbleId + "-picker"} aria-expanded={libraryOpen} disabled={!canPick} onClick={() => showLibrary()}>
+               aria-controls={bubbleId + "-picker"} aria-expanded={inlineLibrary || libraryOpen} disabled={!canPick} onClick={() => showLibrary()}>
                从食材库添加 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
              </button>
            </div>
@@ -480,27 +510,26 @@ export function MealEditor({
          </section>
        </div>
          <section ref={libraryPane} className={styles.library} data-meal-pane="library" inert={paneChange?.animate && !libraryOpen}
-           id={bubbleId + "-picker"} aria-label="选择食材库">
+           id={bubbleId + "-picker"} aria-label="选择食材库" data-reference-scroll={inlineLibrary || undefined}>
            {!externalBack && <div className={styles.libraryTitle}>
-             <button type="button" className={styles.libraryBack} aria-label="返回本餐" onClick={returnToMeal}>
+             {!inlineLibrary && <button type="button" className={styles.libraryBack} aria-label={referenceBack ? "返回食材列表" : replacing !== null ? "取消更换" : "返回本餐"} onClick={backFromLibrary}>
                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg>
-             </button>
-             <h2 ref={panelTitle} tabIndex={-1}>食材库</h2>
+             </button>}
+             <h2 ref={panelTitle} tabIndex={-1}>{referenceBack ? "食材详情" : "食材库"}</h2>
+           </div>}
+           {replacing !== null && !referenceBack && <div className={styles.replacing} role="status">
+             选择食材以替换当前项{inlineLibrary && <button type="button" onClick={returnToMeal}>取消更换</button>}
            </div>}
            <FoodLibraryTabs scope={scope} change={next => { setScope(next); setSelected([]); }}/>
            <div hidden={scope !== "reference"}><ReferenceBrowser query={query} search={setQuery}
              searchRef={scope === "reference" ? search : undefined}
-             enabled={!pending && scope === "reference" && (!mobile || libraryOpen)} disabled={!canPick || busy}
-             onSelect={() => { if (!libraryOpen && editorIsWide()) showLibrary(replacing); }}
-             onAdd={addReference} onManual={manualFromSearch} onDetailBack={onDetailBack} externalBack={externalBack}/></div>
+             enabled={!pending && scope === "reference" && (inlineLibrary || libraryOpen)} disabled={!canPick || busy}
+             pickerVisit={libraryVisit} onAdd={addReference} onManual={manualFromSearch} onDetailBack={onDetailBack} externalBack={!inlineLibrary}/></div>
            {scope === "personal" && <><label className={styles.librarySearch + " " + styles.compactField}><span className="sr-only">搜索食材</span>
              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="m12 12 4 4"/></svg>
              <input aria-label="搜索食材" ref={search} type="search" placeholder="搜索名称、品牌或规格" value={query}
                onChange={event => setQuery(event.target.value)}/>
            </label>
-           {replacing !== null && <div className={styles.replacing} role="status">
-             选择食材以替换当前项{!externalBack && <button type="button" onClick={returnToMeal}>取消更换</button>}
-           </div>}
            <div className={styles.libraryBody}>
              <div className={styles.categories} role="group" aria-label="食材分类">
                {categories.map(key => <button type="button" key={key} aria-pressed={category === key}
