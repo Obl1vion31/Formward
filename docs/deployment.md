@@ -2,6 +2,18 @@
 
 ## 当前正式版本
 
+网页与聊天 worker 运行 `dual-entry-01cd5888-password-minimum-six-20261126`，源码 `01cd58880ed78e2040cbc7fdf3f1ab36ea6775f0`，BUILD_ID `5X94swxeZUTP2TWTPTcpV`。北京时间 2026-11-26 03:31:52 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+
+新设置、邀请激活、重设、本人修改和内部创建密码统一接受6–128个字符，不强制大小写、数字或特殊符号组合。浏览器输入、提示和服务端共用password-policy.ts；原密码保持，改密后的访问撤销、身份验证、限流和审计规则继续执行。
+
+lint、typecheck、Turbopack生产构建通过；887项单元／集成中885项通过，2项原有条件跳过。准确兼容包在隔离PostgreSQL中通过Chromium 1440px与WebKit 390px的双主题4组、12条表单流程：六位纯数字激活、纯字母重设、纯符号改密及新密码登录；五位由浏览器和服务端拒绝，旧会话按原规则撤销。页面持续标记虚构测试环境，未实测实体手机键盘。
+
+数据库维持0048、48项迁移和67张表，没有新增迁移。备份`formward-primary-20261125T193148700400Z.dump.json`通过原生校验和加密异地回读；切换窗口67张表与正式配置摘要保持，网页与worker同版。56项原表单操作编号和绑定密钥保留，补留2465项旧静态资源；四域名、兼容IP、账号页登录返回、公开JWKS、MCP资源及匿名拒绝均通过。国际网关保持现行iad1版本，未重发。
+
+准确包90,329,928字节，SHA-256 `f18b14dc804aae157a27a852296132280ba0124ae474dc516dce849a120eda86`，本机与服务器一致，永久归档于`.codex/backups/regional-releases/password-minimum-six-20261126`。兼容回退为`food-recipes-public-20261126`；只切应用和worker，不回退数据库、健康记录、密码或费用。
+
+## 公共食材库发布记录
+
 网页与聊天 worker 运行 `dual-entry-cc31e177-food-recipes-public-20261126`，源码 `cc31e1772cb44b75010b8c71eac165df4acb25f2`，BUILD_ID `diT4wvbVKwZlq9oTMhFb7`。北京时间 2026-11-26 02:55:59 切换。 [正式食材库](https://formward.top/dashboard/meals?section=foods) · [版本](https://formward.top/api/app-version)
 
 公共食材库上线 165 个规格。半份、一份和多人份使用一致的胶囊，多人份按实际整数人数换算。番茄牛腩盖饭自带米饭，可乐鸡翅按单点菜记录并可选加米饭。准确运行包用隔离 PostgreSQL 通过 Chromium 1280、320 px 和 WebKit 390 px，覆盖人数校验、拆分、加料、保存刷新、慢速重试与账号隔离。HTTP 与 MCP 契约和现有输入兼容。 [设计验收](../design-qa.md)
