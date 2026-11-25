@@ -340,14 +340,14 @@
   .foodTable thead { display: none; }
   .foodTable tbody > tr {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) max-content;
+    grid-template-columns: repeat(4, minmax(0, auto)) max-content;
     align-items: center;
     column-gap: 4px;
     border-bottom: 1px solid var(--rule);
     padding: 4px 0;
   }
   .foodTable :is(th, td) { display: block; min-width: 0; padding: 0; border: 0; text-align: left; }
-  .foodTable .rowName { grid-column: 1 / 5; grid-row: 1; }
+  .foodTable .rowName { grid-column: 1 / 5; grid-row: 1; contain: inline-size; }
   .rowTitle { display: flex; align-items: baseline; column-gap: 4px; }
   .mobileBasis {
     display: block;
