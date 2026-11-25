@@ -16,8 +16,10 @@ import {
 } from "./model";
 import { FoodPickerCard } from "./presets";
 import { FoodLibraryTabs, ReferenceBrowser, type FoodLibraryScope, type ReferenceBack } from "./reference-browser";
-import type { ReferencePick } from "./reference-details";
+import { ReferenceDetails, type ReferencePick } from "./reference-details";
+import type { RecipeEdit } from "./reference-recipe-details";
 import { referenceNutrition, type ReferenceFood } from "./reference-food";
+import { recipePart, recipeTotals, sameRecipeParts, wholeRecipeParts } from "./reference-recipe";
 import { editorItem, freeEditorItem, mealEditorInput, mealDraftSignature, emptyEditorItem, type EditorItem, type EditorMeal } from "./meal-editor-state";
 import { MealEntryReadings, nutrientUnit } from "./meal-entry-readings";
 import { MealEntryRow } from "./meal-entry-row";
@@ -67,6 +69,8 @@ export function MealEditor({
  const search = useRef<HTMLInputElement>(null);
  const libraryTrigger = useRef<HTMLButtonElement>(null);
  const panelTitle = useRef<HTMLHeadingElement>(null);
+ const recipeHeading = useRef<HTMLHeadingElement>(null);
+ const [recipeEdit, setRecipeEdit] = useState<RecipeEdit | null>(null);
  const rows = useRef<HTMLUListElement>(null);
  const root = useRef<HTMLDivElement>(null);
  const priorScroll = useRef(0);
@@ -103,7 +107,10 @@ export function MealEditor({
    const finish = () => {
      if (currentPaneChange.current !== paneChange) return;
      setPaneChange(null);
-     if (!enteringLibrary) setLibraryVisit(visit => visit + 1);
+     if (!enteringLibrary) {
+       setLibraryVisit(visit => visit + 1);
+       setRecipeEdit(null);
+     }
    };
 
    if (paneChange.animate && enter && exit) {
@@ -114,7 +121,7 @@ export function MealEditor({
    }
 
    if (enteringLibrary) requestAnimationFrame(() => {
-     const heading = scroller?.querySelector<HTMLElement>("[data-inspector-step-title]") ?? panelTitle.current;
+     const heading = recipeHeading.current ?? scroller?.querySelector<HTMLElement>("[data-inspector-step-title]") ?? panelTitle.current;
      heading?.focus({ preventScroll: true });
    });
    else focusMeal();
@@ -176,8 +183,33 @@ export function MealEditor({
    return historical && referenceKey(historical) === key ? historical : referenceFoods[key];
  }
 
- const missingReferences = [...new Set(draft.items.flatMap(item =>
-   item.referenceFood && !itemReference(item) ? [referenceKey(item.referenceFood)] : []))].join(",");
+ function recipePartFood(item: ItemDraft, recipe: ReferenceFood | undefined, part: { id: string; version: number }) {
+   const key = referenceKey(part);
+   const saved = historicalItems.find(entry => entry.id === item.originalItemId)?.referenceSnapshot?.recipeParts;
+   return saved?.find(entry => referenceKey(entry.food) === key)?.food ??
+     recipe?.components?.find(entry => referenceKey(entry.food) === key)?.food ??
+     recipe?.recipe?.suggestedFoods.find(entry => referenceKey(entry) === key) ??
+     referenceFoods[key];
+ }
+
+ function itemRecipeParts(item: ItemDraft, recipe = itemReference(item)) {
+   if (!recipe?.recipe || !item.referenceFood) return [];
+   if (item.referenceFood.parts) return item.referenceFood.parts.flatMap(part => {
+     const food = recipePartFood(item, recipe, part);
+     return food ? [recipePart(recipe, food, part)] : [];
+   });
+   const amount = item.quantity;
+   return amount && decimal.safeParse(amount).success && Number(amount) > 0
+     ? wholeRecipeParts(recipe, amount, item.referenceFood.portionId) : [];
+ }
+
+ const missingReferences = [...new Set(draft.items.flatMap(item => {
+   const link = item.referenceFood;
+   if (!link) return [];
+   const food = itemReference(item);
+   if (!food) return [referenceKey(link)];
+   return (link.parts ?? []).filter(part => !recipePartFood(item, food, part)).map(referenceKey);
+ }))].join(",");
  useEffect(() => {
    if (!missingReferences) return;
    const abort = new AbortController();
@@ -215,8 +247,13 @@ export function MealEditor({
      const historical = historicalItems.find(entry => entry.id === item.originalItemId);
      if (historical?.referenceFood && referenceKey(historical.referenceFood) === referenceKey(item.referenceFood) &&
        historical.referenceFood.portionId === item.referenceFood.portionId && historical.unit === item.unit &&
-       Number(historical.quantity ?? 0) === Number(quantity ?? 0)) return historical.nutrition;
+       Number(historical.quantity ?? 0) === Number(quantity ?? 0) &&
+       sameRecipeParts(historical.referenceFood.parts, item.referenceFood.parts)) return historical.nutrition;
      const reference = itemReference(item);
+     if (reference?.recipe) {
+       const parts = itemRecipeParts(item, reference);
+       return item.referenceFood.parts && parts.length !== item.referenceFood.parts.length ? emptyNutrition() : recipeTotals(parts).nutrition;
+     }
      return reference ? referenceNutrition(reference, quantity, item.referenceFood.portionId).nutrition : emptyNutrition();
    }
    const food = itemFood(item);
@@ -232,7 +269,12 @@ export function MealEditor({
  if(items.at(-1)?.name.trim())items.push(freeEditorItem(Math.max(...items.map(item=>item.editor.key))+1));
  return {...previous,items};
  });}
- function showLibrary(replace: number | null = null) {
+ function showLibrary(replace: number | null = null, adjust = false) {
+   const item = adjust && replace !== null ? draft.items[replace] : undefined;
+   const food = item && itemReference(item);
+   const edit = item && food?.recipe ? { item, food, parts: itemRecipeParts(item, food) } : null;
+   setRecipeEdit(edit);
+   if (edit) setScope("reference");
    setReplacing(replace);
    setSelected([]);
    returnRow.current = replace === null ? null : draft.items[replace].editor.key;
@@ -241,8 +283,9 @@ export function MealEditor({
    if (inlineLibrary) {
      referenceBack?.action(false);
      requestAnimationFrame(() => {
-       search.current?.scrollIntoView({ block: "nearest", behavior: "instant" });
-       search.current?.focus({ preventScroll: true });
+       const target = edit ? recipeHeading.current : search.current;
+       target?.scrollIntoView({ block: "nearest", behavior: "instant" });
+       target?.focus({ preventScroll: true });
      });
      return;
    }
@@ -255,8 +298,10 @@ export function MealEditor({
    setLibraryOpen(false);
    setSelected([]);
    setReplacing(null);
+   setInvalid(Boolean(mealPane.current?.querySelector(":invalid")));
    if (inlineLibrary) {
      referenceBack?.action(false);
+     setRecipeEdit(null);
      requestAnimationFrame(focusMeal);
      return;
    }
@@ -265,7 +310,7 @@ export function MealEditor({
  }
 
  function backFromLibrary() {
-   if (scope === "reference" && referenceBack) referenceBack.action();
+   if (!recipeEdit && scope === "reference" && referenceBack) referenceBack.action();
    else returnToMeal();
  }
 
@@ -295,12 +340,16 @@ export function MealEditor({
 
  function addReference(picks: readonly ReferencePick[]) {
    if (!picks.length || picks.length > availablePickSlots || busy || uploading) return;
-   setReferenceFoods(current => ({ ...current, ...Object.fromEntries(picks.map(({ food }) => [referenceKey(food), food])) }));
+   setReferenceFoods(current => ({ ...current, ...Object.fromEntries(picks.flatMap(({ food, parts }) =>
+     [food, ...(parts ?? []).map(part => part.food)].map(entry => [referenceKey(entry), entry]))) }));
    setDraft(previous => {
      const index = replacing ?? previous.items.length - 1;
      const nextKey = Math.max(...previous.items.map(row => row.editor.key)) + 1;
      const firstKey = replacing === null ? nextKey : previous.items[index].editor.key;
-     const additions = picks.map(({ item }, offset) => editorItem(item, offset === 0 ? firstKey : nextKey + offset, undefined, true));
+     const additions = picks.map(({ item }, offset) => editorItem(
+       recipeEdit ? { ...item, originalItemId: previous.items[index].originalItemId } : item,
+       offset === 0 ? firstKey : nextKey + offset, undefined, true,
+     ));
      return {
        ...previous,
        items: [...previous.items.slice(0, index), ...additions, ...previous.items.slice(index + (replacing === null ? 0 : 1))],
@@ -372,8 +421,8 @@ export function MealEditor({
  const canPick = availablePickSlots > 0;
  const mobilePicker = mobile === true && libraryOpen && !aiOpen;
  const hasInspector = useInspectorStep(mobilePicker ? {
-   title: referenceBack ? "食材详情" : "食材库",
-   backTo: referenceBack?.label ?? "本餐",
+   title: recipeEdit || referenceBack ? "食材详情" : "食材库",
+   backTo: recipeEdit ? "本餐" : referenceBack?.label ?? "本餐",
    back: backFromLibrary,
  } : null);
  const externalBack = mobilePicker && hasInspector;
@@ -479,6 +528,7 @@ export function MealEditor({
              <ul className={styles.rowList} ref={rows} aria-label="本餐已添加食物">
                {visibleRows.map(({ item, index }) => <MealEntryRow key={item.editor.key} item={item} index={index}
                  blank={emptyEditorItem(item)} food={itemFood(item)} reference={itemReference(item)} nutrition={values(item)} nutritionHint={nutritionHint}
+                 recipeParts={itemRecipeParts(item)} adjustRecipe={() => showLibrary(index, true)}
                  nutritionOpen={!collapsed.includes(item.editor.key)} update={next => setItem(index, next)}
                  toggleNutrition={() => setCollapsed(previous => previous.includes(item.editor.key)
                    ? previous.filter(key => key !== item.editor.key) : [...previous, item.editor.key])}
@@ -524,18 +574,22 @@ export function MealEditor({
          <section ref={libraryPane} className={styles.library} data-meal-pane="library" inert={paneChange?.animate && !libraryOpen}
            id={bubbleId + "-picker"} aria-label="选择食材库" data-reference-scroll={inlineLibrary || undefined}>
            {!externalBack && <div className={styles.libraryTitle}>
-             {!inlineLibrary && <button type="button" className={styles.libraryBack} aria-label={referenceBack ? "返回" + referenceBack.label : replacing !== null ? "取消更换" : "返回本餐"} onClick={backFromLibrary}>
+             {!inlineLibrary && <button type="button" className={styles.libraryBack} aria-label={recipeEdit ? "返回本餐" : referenceBack ? "返回" + referenceBack.label : replacing !== null ? "取消更换" : "返回本餐"} onClick={backFromLibrary}>
                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg>
              </button>}
-             <h2 ref={panelTitle} tabIndex={-1}>{referenceBack ? "食材详情" : "食材库"}</h2>
+             <h2 ref={panelTitle} tabIndex={-1}>{recipeEdit || referenceBack ? "食材详情" : "食材库"}</h2>
            </div>}
+           {recipeEdit ? <ReferenceDetails food={recipeEdit.food} id={bubbleId + "-recipe-edit"} headingRef={recipeHeading}
+             edit={recipeEdit} onAdd={addReference} disabled={!canPick || busy || uploading}
+             maxItems={availablePickSlots} back={inlineLibrary ? { label: "← 返回本餐", action: returnToMeal } : undefined}/> : null}
+           <div hidden={!!recipeEdit}>
            {replacing !== null && !referenceBack && <div className={styles.replacing} role="status">
              选择食材以替换当前项{inlineLibrary && <button type="button" onClick={returnToMeal}>取消更换</button>}
            </div>}
            <FoodLibraryTabs scope={scope} change={next => { setScope(next); setSelected([]); }}/>
            <div hidden={scope !== "reference"}><ReferenceBrowser query={query} search={setQuery}
              searchRef={scope === "reference" ? search : undefined}
-             enabled={!pending && scope === "reference" && (inlineLibrary || libraryOpen)} disabled={!canPick || busy || uploading}
+             enabled={!recipeEdit && !pending && scope === "reference" && (inlineLibrary || libraryOpen)} disabled={!canPick || busy || uploading}
              maxItems={availablePickSlots} pickerVisit={libraryVisit} onAdd={addReference} onManual={manualFromSearch} onDetailBack={onDetailBack} externalBack={!inlineLibrary}/></div>
            {scope === "personal" && <><label className={styles.librarySearch + " " + styles.compactField}><span className="sr-only">搜索食材</span>
              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="m12 12 4 4"/></svg>
@@ -558,6 +612,7 @@ export function MealEditor({
                {!pending && !results.length && <p className={common.hint}>{query.trim() ? "没有匹配的食材" : "这个分类还没有食材"}</p>}
              </div>
            </div></>}
+           </div>
          </section>
 
        </div>

@@ -69,9 +69,9 @@ pumpkin-raw|pumpkin|tfda:E63001|raw|生| |pumpkin|生南瓜（去皮去籽）|�
 apple-fuji|apple|tfda:D3200501|ready|即食| |apple|富士苹果（带皮）|富士苹果;苹果;apple|带皮去核的鲜苹果||1
 apple-regular|apple|usda:63101000|ready|即食| |apple|鲜苹果（通用）|苹果;鲜苹果;apple|源表通用鲜苹果 · 按可食部|2:个:原表中等大小苹果的可食部|1
 banana-fresh|banana|usda:63107010|ready|即食| |banana|鲜香蕉|香蕉;banana|去皮后可食部|1:条:原表整条香蕉的可食部|2
-orange-fresh|orange|usda:61119010|ready|即食| |orange|橙子|橙子;甜橙;脐橙;柳橙;orange|鲜甜橙 · 去皮可食果肉|1:个:原表整只甜橙的可食部|2
-tangerine-fresh|orange|tfda:D3400202|ready|即食| |orange|橘子|柑橘;桔子;茂谷柑;mandarin;tangerine|按去皮可食果肉计 · 代表样本茂谷柑||2
-pear-fresh|pear|tfda:D3000204|ready|即食| |pear|梨|鲜梨;新兴梨;pear|按可食果肉计 · 代表样本新兴梨||2
+orange-fresh|orange|usda:61119010|ready|即食||orange|鲜橙|橙子;甜橙;脐橙;柳橙;orange|鲜橙 · 去皮可食果肉|1:个:原表鲜橙的可食部|3
+tangerine-fresh|orange|usda:61125010|ready|即食||orange|橘子|柑橘;桔子;蜜橘;mandarin;tangerine|鲜橘子 · 去皮可食果肉||3
+pear-fresh|pear|usda:63137050|ready|即食||pear|梨|鲜梨;亚洲梨;pear|鲜梨 · 去核可食果肉||3
 grapes-fresh|grape|tfda:D1700201|ready|即食| |grapes|巨峰葡萄|葡萄;鲜葡萄;grapes|源样品巨峰葡萄 · 按可食部||1
 strawberry-fresh|berries|tfda:D1400101|ready|即食| |berries|鲜草莓|草莓;strawberry|鲜果 · 去掉蒂等不可食部分||1
 blueberry-fresh|berries|usda:63203010|ready|即食| |berries|鲜蓝莓|蓝莓;blueberry|原表鲜蓝莓 · 按可食部||1
@@ -111,7 +111,6 @@ dumplings-pork|dumplings|tfda:R2200801|cooked|煮| |dumplings|猪肉熟水饺（
 dumplings-cabbage|dumplings|tfda:R2201501|cooked|煮| |dumplings|卷心菜水饺（熟）|高丽菜水饺;卷心菜水饺;水饺;饺子|源样品熟高丽菜水饺 · 当作整只饺子||1
 wonton-soup|wonton|usda:58408010|cooked|煮| |wonton-soup|馄饨汤（连汤）|馄饨;云吞汤;抄手汤;wonton soup|馄饨及汤按原比例一起称量|1:杯:原表美制量杯的馄饨汤|1
 curry-chicken|curry|usda:27146150|cooked|炖| |curry|咖喱鸡（不含饭）|咖哩鸡;咖喱鸡;chicken curry|成菜参考含咖喱汁 · 米饭另记|1:杯:原表美制量杯的咖喱鸡|1
-curry-chicken-rice|curry|usda:27146155|cooked|熟制| |curry|咖喱鸡饭|咖哩鸡饭;咖喱鸡配米饭;咖喱饭;curry chicken rice|咖喱鸡与饭一同计量|1:杯:原表美制量杯的咖喱鸡饭|1
 soy-tofu-vegetables|tofu-dish|usda:41812500|cooked|熟制| |tofu|酱汁蔬菜豆腐|蔬菜豆腐;蔬菜煮豆腐;tofu and vegetables|含豆腐、深色蔬菜和酱汁 · 源表不含土豆||2
 beef-potatoes-tomato|beef-dish|usda:27311625|cooked|熟制| |beef-stew|番茄酱汁牛肉土豆|牛肉土豆;番茄汁牛肉;牛肉配土豆|原表含牛肉、土豆、蔬菜及番茄基底酱汁 · 按整菜记录||1
 beef-ribeye|beef-steak|usda:21101180|cooked|熟制||beef-cooked|肉眼牛排|肉眼;肋眼;眼肉牛排;ribeye;rib eye;scotch fillet;牛排|肋眼部位 · 熟重 · 可食瘦肉及脂肪||1
@@ -119,3 +118,8 @@ brisket-cooked|beef-brisket|usda:21417100|cooked|熟制||beef-cooked|熟牛前�
 sg-roast-chicken|poached-chicken|usda:24102010|cooked|烤|吃皮|chicken-breast-cooked|烧鸡|烤鸡;roast chicken;烧鸡肉|烤鸡可食部 · 带皮 · 按去骨重量计||1
 baked-potato-wedges|potato|usda:71401015|cooked|烤||potato|烤薯块|烤土豆;烤土豆块;baked potato wedges;potato wedges|鲜土豆切块烤制 · 原表烤制薯块参考 · 已含表中用油||1
 coconut-rice|rice|usda:58161200|cooked|煮||cooked-rice|椰香米饭|椰奶米饭;coconut rice;椰浆煮饭|以椰浆煮熟 · 按饭的重量计||1
+tomato-cooked|tomato|usda:99997410|cooked|熟制||tomato|熟番茄|炖番茄;煮番茄;cooked tomato|熟番茄作原料 · 按成品可食部||1
+chicken-wing-stewed|chicken-wing|usda:24163110|cooked|炖|吃皮|chicken-wing-roasted|炖鸡翅|炖鸡翼;炖鸡翅中;stewed chicken wings|熟重 · 带皮去骨可食部 · 酱汁或额外用油另外计||1
+vegetable-oil|oil|usda:82101000|ready|即食||oil|食用油|油;植物油;炒菜油;vegetable oil|通用植物油 · 计实际吃下的重量||1
+tomato-ketchup|sauce|usda:74401010|ready|即食||sauce|番茄沙司|番茄酱;甜味番茄酱;ketchup|甜味番茄酱 · 计实际吃下的重量||1
+ginger-raw|seasoning|tfda:E1900103|raw|生||sauce|姜|生姜;老姜;ginger|原表老姜样品 · 生重口径||1

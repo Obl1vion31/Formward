@@ -4,34 +4,33 @@ import { useState, type ReactNode, type Ref } from "react";
 import { DecimalInput } from "@/components/decimal-input";
 import { FoodArt } from "./food-art";
 import { MealEntryReadings } from "./meal-entry-readings";
-import { decimal, formatNutrition, sumNutrition, type ItemDraft } from "./model";
-import { referenceFoodName, referenceNutrition, type ReferenceCatalogFood, type ReferenceFood, type ReferenceMealLink, type ReferencePortion } from "./reference-food";
+import { decimal, formatNutrition, type ItemDraft } from "./model";
+import { referenceFoodName, referenceNutrition, type ReferenceCatalogFood, type RecipePart, type ReferenceFood, type ReferenceMealLink, type ReferencePortion } from "./reference-food";
+import { ReferenceRecipeDetails, type RecipeEdit } from "./reference-recipe-details";
 import styles from "./reference-library.module.css";
 
-export type ReferencePick = { item: ItemDraft; food: ReferenceFood };
+export type ReferencePick = { item: ItemDraft; food: ReferenceFood; parts?: readonly RecipePart[] };
 
 function Preparation({ food }: { food: ReferenceFood }) {
   const state = food.state === "cooked" ? "熟食" : food.state === "ready" ? "食用态" : food.method === "干" ? "干重" : "生重";
-  if (food.components) return <p>整餐 · {food.sourceKind === "estimated" ? "配方估算" : "成品实测样本"}</p>;
   return <p>{state} · {referenceFoodName(food) === food.name ? food.preparation : "按可食部计量"}</p>;
 }
 
-function makePick(food: ReferenceFood, quantity: string, portion?: ReferencePortion, estimate?: string): ReferencePick {
+function makePick(food: ReferenceFood, quantity: string, portion?: ReferencePortion): ReferencePick {
   return { food, item: {
     name: food.name,
     kind: "food",
     referenceFood: { id: food.id, version: food.version, portionId: portion?.id },
     unit: portion?.unit ?? food.basisUnit ?? "g",
     quantity,
-    amountDecision: estimate ? "estimate_accepted" : "provided",
+    amountDecision: "provided",
     sourceKind: food.sourceKind ?? "composition_table",
-    ...(estimate ? { basis: estimate } : {}),
   } };
 }
 
 const valid = (value: string) => decimal.safeParse(value).success && Number(value) > 0;
 
-export function ReferenceDetails({ food, back, onAdd, openMeal, relatedStatus, maxItems = 50, disabled, headingRef, id }: {
+type DetailProps = {
   food: ReferenceCatalogFood;
   back?: { label: string; action: () => void };
   onAdd?: (picks: readonly ReferencePick[]) => void;
@@ -41,37 +40,31 @@ export function ReferenceDetails({ food, back, onAdd, openMeal, relatedStatus, m
   disabled?: boolean;
   headingRef: Ref<HTMLHeadingElement>;
   id: string;
-}) {
+  edit?: RecipeEdit;
+};
+
+export function ReferenceDetails(props: DetailProps) {
+  const { food } = props;
+  return food.recipe
+    ? <ReferenceRecipeDetails {...props} food={{ ...food, recipe: food.recipe }}/>
+    : <SingleReferenceDetails {...props}/>;
+}
+
+function SingleReferenceDetails({ food, back, onAdd, openMeal, relatedStatus, maxItems = 50, disabled, headingRef, id }: DetailProps) {
   const portion = food.portions[0];
-  const components = food.components ?? [];
-  const isMeal = components.length > 0;
   const volume = food.basisUnit === "mL";
-  const [split, setSplit] = useState(false);
-  const [choice, choose] = useState<"half" | "one" | "custom" | null>(isMeal ? "one" : portion ? null : "custom");
+  const [choice, choose] = useState<"half" | "one" | "custom" | null>(portion ? null : "custom");
   const [measured, setMeasured] = useState("");
-  const [partEdits, setPartEdits] = useState<Record<number, { grams?: string; enabled?: boolean }>>({});
   const quantity = choice === "half" ? "0.5" : choice === "one" ? "1" : choice === "custom" ? measured : "";
   const byPortion = choice === "half" || choice === "one" ? portion : undefined;
   const validAmount = valid(quantity);
   const total = referenceNutrition(food, validAmount ? quantity : null, byPortion?.id);
   const withinLimit = Object.values(total.nutrition).every(value => value === null || Number(value) <= 1000000);
-  const parts = components.map(({ grams }, index) => {
-    const edit = partEdits[index];
-    const suggested = choice === "half" ? String(Number(grams) / 2) : choice === "custom" && validAmount ? "" : grams;
-    return { enabled: edit?.enabled ?? true, grams: edit?.grams ?? suggested, measured: edit?.grams !== undefined };
-  });
-  const selectedParts = parts.flatMap((part, index) => part.enabled ? [{ ...part, component: components[index] }] : []);
-  const validSplit = selectedParts.length > 0 && selectedParts.every(part => valid(part.grams));
-  const splitTotals = validSplit ? sumNutrition(selectedParts.map(part => referenceNutrition(part.component.food, part.grams).nutrition)) : null;
-  const splitTooLarge = splitTotals && Object.values(splitTotals.values).some(value => value !== null && Number(value) > 1000000);
-  const count = split ? selectedParts.length : 1;
-  const validPick = (split ? validSplit && !splitTooLarge : validAmount && withinLimit) && count <= maxItems;
+  const validPick = validAmount && withinLimit && maxItems > 0;
 
   function add() {
     if (!validPick || disabled) return;
-    onAdd?.(split ? selectedParts.map(({ component, grams, measured }) =>
-      makePick(component.food, grams, undefined, measured ? undefined : food.name + " · 标准搭配约 " + grams + " g")) :
-      [makePick(food, quantity, byPortion)]);
+    onAdd?.([makePick(food, quantity, byPortion)]);
   }
 
   const action = onAdd && <button type="button" className={styles.add} onClick={add} disabled={disabled || !validPick}>加入本餐</button>;
@@ -91,12 +84,7 @@ export function ReferenceDetails({ food, back, onAdd, openMeal, relatedStatus, m
     <div className={styles.detailsReadings}><MealEntryReadings nutrition={food.nutrition}/></div>
     {onAdd && <section className={styles.amount} aria-label="本次食用量">
       <h4>实际吃了多少</h4>
-      {isMeal && <div className={styles.amountChoices} role="group" aria-label="整餐记录方式">
-        <button type="button" aria-pressed={!split} onClick={() => setSplit(false)}>按整份记</button>
-        <button type="button" aria-pressed={split} onClick={() => setSplit(true)}>拆开记</button>
-      </div>}
-      {!split && <>
-        {portion && <div className={styles.amountChoices} data-meal-portion={isMeal || undefined} role="group" aria-label="选择份量">
+        {portion && <div className={styles.amountChoices} role="group" aria-label="选择份量">
           <button type="button" aria-pressed={choice === "half"} onClick={() => choose("half")}>半{portion.unit}</button>
           <button type="button" aria-pressed={choice === "one"} onClick={() => choose("one")}>一{portion.unit}</button>
           <button type="button" aria-pressed={choice === "custom"} onClick={() => choose("custom")}>克</button>
@@ -110,46 +98,10 @@ export function ReferenceDetails({ food, back, onAdd, openMeal, relatedStatus, m
             Math.round(Number(total.edibleGrams)) : " " + Number(total.edibleGrams)) + " g"}</span>
           <strong>{calorieText(total.nutrition.caloriesKcal, food.sourceKind !== "label")}</strong>
         </p>}
-      </>}
-      {(!split && validAmount && !withinLimit || split && splitTooLarge) && <p role="alert">换算结果过大，请检查食量。</p>}
-      {count > maxItems && <p role="alert">本餐还可加入 {maxItems} 项，请减少所选分项。</p>}
+      {validAmount && !withinLimit && <p role="alert">换算结果过大，请检查食量。</p>}
     </section>}
-    {isMeal && <section className={styles.components} aria-label="整餐组成">
-      <h4>{split ? "分项食用量" : "整餐组成"}</h4>
-      {food.sourceKind === "composition_table" &&
-        <p>整份采用实测样本，分项按下面的搭配估算。</p>}
-      <ul>
-        {components.map(({ food: component, grams, role }, index) => <li key={component.id}>
-          {split ? <>
-            <label className={styles.componentChoice}>
-              <input type="checkbox" checked={parts[index].enabled}
-                onChange={event => {
-                  const enabled = event.currentTarget.checked;
-                  setPartEdits(previous => ({ ...previous, [index]: { ...previous[index], enabled } }));
-                }}/>
-              <span>{component.name}<small>{role}{!parts[index].measured ? " · 约" : ""}</small></span>
-            </label>
-            <div className={styles.componentAmount}>
-              <DecimalInput aria-label={component.name + "可食克数"} value={parts[index].grams}
-                disabled={!parts[index].enabled} min={0} max={1000000} precision={2} trimTrailingZeros
-                onValue={value => setPartEdits(previous => ({ ...previous, [index]: { ...previous[index], grams: value } }))}/>
-              <span>g</span>
-            </div>
-          </> : <>
-            <span>{component.name}<small>{role}</small></span>
-            <span className={styles.componentReading}>约 {Number(grams)} g</span>
-          </>}
-        </li>)}
-      </ul>
-      {split && splitTotals && !splitTooLarge && <p className={styles.amountValues} aria-live="polite">
-        <span>分项合计 · {selectedParts.reduce((sum, part) => sum + Math.round(Number(part.grams) * 100), 0) / 100} g</span>
-        <strong>{calorieText(splitTotals.values.caloriesKcal)}{splitTotals.incomplete.caloriesKcal && splitTotals.values.caloriesKcal !== null ? " · 已知部分" : ""}</strong>
-      </p>}
-    </section>}
-    {isMeal && action}
-    <div className={styles.referenceNotes} data-after-meal-add={isMeal && !!onAdd || undefined}>
-      {isMeal && <p>{food.preparation}</p>}
-      {portion && !split && <p>参考份量 · {portion.label} · 1{portion.unit}约 {Number(portion.edibleGrams)} g</p>}
+    <div className={styles.referenceNotes}>
+      {portion && <p>参考份量 · {portion.label} · 1{portion.unit}约 {Number(portion.edibleGrams)} g</p>}
       <p>{food.sourceKind === "estimated" ? "配方估算 · " : ""}{food.source.dataset} · {food.source.recordId}</p>
       <a href={food.source.url} title={food.source.title} target="_blank" rel="noreferrer">查看来源</a>
       {!!food.recipeIngredients?.length && <details className={styles.recipe}>
@@ -161,7 +113,7 @@ export function ReferenceDetails({ food, back, onAdd, openMeal, relatedStatus, m
         </li>)}</ul>
       </details>}
     </div>
-    {!isMeal && action}
+    {action}
     {!!food.relatedMeals?.length && openMeal && <section className={styles.related} aria-label="相关整餐">
       <h4>相关整餐</h4>
       <ul>{food.relatedMeals.map(meal => <li key={meal.id}>

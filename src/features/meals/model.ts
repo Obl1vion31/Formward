@@ -33,10 +33,21 @@ export const foodDraftSchema = z.object({
   imageIds, expectedImageCount: z.number().int().min(0).max(8).optional(), nutrition: nutritionSchema, sourceKind: source, basis: text(4000).nullable().optional(), evidenceUrl: evidence,
 }).strict();
 export type FoodDraft = z.infer<typeof foodDraftSchema>;
+const referenceFoodId = z.string().regex(/^[a-z0-9-]{1,100}$/);
+const recipePartSchema = z.object({
+  id: referenceFoodId,
+  version: z.number().int().positive(),
+  grams: decimal.refine(value => Number(value) > 0, "分项克数须大于0"),
+  estimated: z.boolean().optional().describe("用户接受的参考或估算重量"),
+}).strict();
+
 export const referenceFoodLinkSchema = z.object({
-  id: z.string().regex(/^[a-z0-9-]{1,100}$/).describe("search_foods 返回的公共参考规格 ID"),
+  id: referenceFoodId.describe("search_foods 返回的公共参考规格 ID"),
   version: z.number().int().positive(),
   portionId: z.string().regex(/^[a-z0-9-]{1,100}$/).optional().describe("只、个或杯的参考份量 ID；可食克数用 g 并省略此字段"),
+  parts: z.array(recipePartSchema).min(1).max(30)
+    .refine(parts => new Set(parts.map(part => part.id)).size === parts.length, "同一食材只提交一个分项")
+    .optional().describe("拆开记仍作为一条餐项。各分项使用与规格一致的可食克数，餐项quantity填分项合计、unit填g，省略portionId。"),
 }).strict();
 export const itemSchema = z.object({
   originalItemId: z.string().uuid().optional(),

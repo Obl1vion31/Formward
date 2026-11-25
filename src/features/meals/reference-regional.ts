@@ -1,13 +1,6 @@
-import { metrics, scaled, sumNutrition, type Nutrition } from "./model";
-import { referenceNutrition, type ReferenceComponent, type ReferenceFood, type ReferenceSource } from "./reference-food";
-
-const chineseBeef = "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/1c/recipe-475/";
-const chineseEgg = "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c5/49/";
-const chineseWing = "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c7/30/";
-const sgStudy = "https://www.mdpi.com/2304-8158/10/7/1659";
-const steakMenu = "https://astonsprime.com.sg/";
-const pastaMenu = "https://www.pastaandco.com.sg/";
-const japaneseMenu = "https://www.sukiya.com.sg/menu";
+import { metrics, scaled, type Nutrition } from "./model";
+import type { ReferenceComponent, ReferenceFood, ReferenceSource } from "./reference-food";
+import { recipeTotals } from "./reference-recipe";
 
 const readings = (caloriesKcal: string, proteinG: string, carbsG: string, fatG: string): Nutrition => ({ caloriesKcal, proteinG, carbsG, fatG });
 
@@ -34,115 +27,118 @@ export const regionalFoods: readonly ReferenceFood[] = [
       url: "https://fdc.nal.usda.gov/food-details/170239/nutrients",
     },
   },
+  {
+    id: "table-salt", version: 1, family: "seasoning", name: "盐", aliases: ["食盐", "精盐", "table salt"],
+    state: "ready", method: "即食", preparation: "普通食盐 · 计实际吃下的重量",
+    illustration: "sugar", nutrition: readings("0", "0", "0", "0"), portions: [],
+    source: {
+      dataset: "USDA FoodData Central · SR Legacy", recordId: "173468", title: "Salt, table",
+      url: "https://fdc.nal.usda.gov/food-details/173468/nutrients",
+    },
+  },
 ];
 
-type MealComponentSpec = readonly [id: string, role: ReferenceComponent["role"], grams: string];
-type StudiedMeal = { kilojoules: string; protein: string; carbs: string; fat: string; grams: string; title: string; table: string };
+export function colaGlaze(cola: ReferenceFood): ReferenceFood {
+  return {
+    id: "cola-glaze", version: 1, family: "sauce", name: "普通可乐收汁", aliases: ["可乐收汁", "可乐汁", "cola glaze"],
+    state: "cooked", method: "熟制", preparation: "参考配方假设 40 g 普通可乐收汁至 12 g，按成品汁重量计",
+    illustration: "sauce", sourceKind: "estimated", portions: [],
+    source: { ...cola.source, dataset: "Formward 收汁估算 · " + cola.source.dataset,
+      recordId: cola.source.recordId + " · 40 g → 12 g", title: "通用含糖可乐 · 标准配方收汁假设" },
+    nutrition: Object.fromEntries(metrics.map(key => [key, cola.nutrition[key] === null ? null :
+      scaled(cola.nutrition[key], "40", "12")])) as Nutrition,
+  };
+}
+
 type MealSpec = {
   id: string;
-  family: "chinese-meal" | "singapore-meal" | "western-meal" | "japanese-meal";
   name: string;
   aliases: readonly string[];
   illustration: ReferenceFood["illustration"];
-  menu: string;
-  components: readonly MealComponentSpec[];
-  sample?: StudiedMeal;
+  relatedDishes: readonly string[];
+  components: readonly (readonly [id: string, role: ReferenceComponent["role"], grams: string, label?: string, amountBasis?: string])[];
+  sourceAmounts: Readonly<Record<string, string>>;
+  links: NonNullable<ReferenceFood["recipe"]>["links"];
+  note: string;
 };
 
 const mealSpecs: readonly MealSpec[] = [
   {
-    id: "tomato-brisket-rice", family: "chinese-meal", name: "番茄牛腩盖饭",
-    aliases: ["番茄牛腩饭", "西红柿牛腩饭", "番茄炖牛腩配饭", "tomato beef brisket rice"], illustration: "tomato-brisket-rice", menu: chineseBeef,
-    components: [["tomato-beef-brisket", "主菜", "160"], ["white-rice-cooked", "主食", "150"], ["napa-cooked", "配菜", "60"]],
+    id: "tomato-brisket-rice", name: "番茄牛腩盖饭",
+    aliases: ["番茄牛腩饭", "西红柿牛腩饭", "番茄炖牛腩配饭", "tomato beef brisket rice"],
+    illustration: "tomato-brisket", relatedDishes: ["tomato-beef-brisket"],
+    components: [
+      ["brisket-cooked", "主菜", "90", "牛腩", "熟重 · 牛前胸可食肉"],
+      ["tomato-cooked", "主菜", "70", "番茄", "熟重 · 可食部"],
+      ["white-rice-cooked", "主食", "150", "白米饭", "熟重"],
+      ["vegetable-oil", "酱料", "5", "食用油", "成品保留量"],
+      ["soy-sauce-light", "酱料", "4", "生抽", "即食 · 淡色酱油"],
+      ["table-salt", "酱料", "1", "盐", "成品保留量"],
+      ["tomato-ketchup", "酱料", "8", "番茄沙司", "即食 · 甜味番茄酱"],
+      ["ginger-raw", "酱料", "2", "姜", "生重原料基准"],
+    ],
+    sourceAmounts: { "brisket-cooked": "300 g 生重", "tomato-cooked": "500 g 生重", "potato-boiled": "300 g 生重",
+      "vegetable-oil": "用量未注明", "soy-sauce-light": "15 mL", "tomato-ketchup": "30 mL",
+      "table-salt": "适量", "ginger-raw": "约 15 g", "white-rice-cooked": "用量未注明" },
+    links: [
+      { name: "番茄炖牛肉菜谱", url: "https://china-kitchen.lkk.com.cn/kitchen/zh-cn/recipe/0/c7/05/" },
+      { name: "番茄牛腩饭（含土豆的做法）", url: "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/1c/recipe-475/" },
+    ],
+    note: "投料参考含土豆盖饭的原菜谱。本份按估算的成品可食量计算，牛腩用熟牛前胸肉近似，土豆按实际吃到的量选加。炖煮的出成率未知。",
   },
   {
-    id: "tomato-egg-rice", family: "chinese-meal", name: "番茄炒蛋饭",
-    aliases: ["番茄炒蛋盖饭", "西红柿鸡蛋盖饭", "番茄炒蛋配米饭"], illustration: "tomato-eggs", menu: chineseEgg,
-    components: [["tomato-scrambled-eggs", "主菜", "160"], ["white-rice-cooked", "主食", "150"]],
-  },
-  {
-    id: "yellow-chicken-rice", family: "chinese-meal", name: "黄焖鸡米饭",
-    aliases: ["黄焖鸡饭", "黄焖鸡配饭", "yellow braised chicken rice"], illustration: "yellow-chicken", menu: "https://www.ymyhmj.com/",
-    components: [["yellow-braised-chicken", "主菜", "190"], ["white-rice-cooked", "主食", "150"]],
-  },
-  {
-    id: "cola-wings-rice", family: "chinese-meal", name: "可乐鸡翅配饭",
-    aliases: ["可乐鸡翅饭", "可乐鸡翅盖饭", "cola chicken wings with rice"], illustration: "cola-wings", menu: chineseWing,
-    components: [["cola-wings", "主菜", "120"], ["white-rice-cooked", "主食", "150"], ["napa-cooked", "配菜", "60"]],
-  },
-  {
-    id: "hainanese-chicken-rice", family: "singapore-meal", name: "海南鸡饭",
-    aliases: ["白鸡饭", "白切鸡饭", "新加坡鸡饭", "hainanese chicken rice", "steamed chicken rice", "chicken rice"], illustration: "hainanese-chicken-rice", menu: sgStudy,
-    components: [["poached-chicken", "主菜", "105"], ["chicken-oil-rice", "主食", "180"], ["cucumber-fresh", "配菜", "25"], ["chicken-rice-chili", "酱料", "15"]],
-    sample: { title: "Steamed Chicken Rice", table: "Table 1", kilojoules: "789", grams: "412", protein: "9.3", carbs: "21.2", fat: "7.4" },
-  },
-  {
-    id: "sg-roast-chicken-rice", family: "singapore-meal", name: "烧鸡饭",
-    aliases: ["新加坡烧鸡饭", "烤鸡饭", "roasted chicken rice", "chicken rice"], illustration: "hainanese-chicken-rice", menu: sgStudy,
-    components: [["sg-roast-chicken", "主菜", "90"], ["chicken-oil-rice", "主食", "160"], ["cucumber-fresh", "配菜", "25"], ["chicken-rice-chili", "酱料", "10"]],
-    sample: { title: "Roasted Chicken Rice", table: "Table 1", kilojoules: "768", grams: "285", protein: "8.3", carbs: "23.4", fat: "6.3" },
-  },
-  {
-    id: "nasi-lemak", family: "singapore-meal", name: "椰浆饭",
-    aliases: ["新加坡椰浆饭", "椰浆饭套餐", "nasi lemak"], illustration: "nasi-lemak", menu: sgStudy,
-    components: [["coconut-rice", "主食", "170"], ["egg-boiled", "配菜", "50"], ["fried-anchovies", "配菜", "20"], ["peanut-roasted", "配菜", "15"], ["cucumber-fresh", "配菜", "25"], ["sambal", "酱料", "20"]],
-    sample: { title: "Nasi Lemak", table: "Table 2", kilojoules: "785", grams: "395", protein: "9.2", carbs: "17.7", fat: "9.0" },
-  },
-  {
-    id: "ribeye-plate", family: "western-meal", name: "肉眼牛排配薯块",
-    aliases: ["肉眼牛排套餐", "ribeye with potato wedges", "ribeye steak plate"], illustration: "steak-plate", menu: steakMenu,
-    components: [["beef-ribeye", "主菜", "150"], ["baked-potato-wedges", "配菜", "95"], ["broccoli-cooked", "配菜", "60"]],
-  },
-  {
-    id: "striploin-plate", family: "western-meal", name: "西冷牛排配薯块",
-    aliases: ["西冷牛排套餐", "striploin with potato wedges", "striploin steak plate"], illustration: "steak-plate", menu: steakMenu,
-    components: [["beef-striploin-grilled", "主菜", "150"], ["baked-potato-wedges", "配菜", "95"], ["broccoli-cooked", "配菜", "60"]],
-  },
-  {
-    id: "beef-bolognese-pasta", family: "western-meal", name: "番茄牛肉酱意面",
-    aliases: ["牛肉酱意面", "肉酱意大利面", "牛肉肉酱意面", "牛肉番茄意面", "beef bolognese", "spaghetti bolognese"], illustration: "beef-bolognese", menu: pastaMenu,
-    components: [["pasta-cooked", "主食", "175"], ["tomato-beef-sauce", "主菜", "130"]],
-  },
-  {
-    id: "gyudon", family: "japanese-meal", name: "日式牛肉饭",
-    aliases: ["牛丼", "日式牛丼", "牛肉盖饭", "gyudon", "japanese beef bowl"], illustration: "gyudon", menu: japaneseMenu,
-    components: [["japanese-onion-beef", "主菜", "150"], ["white-rice-cooked", "主食", "170"]],
-  },
-  {
-    id: "japanese-chicken-curry-rice", family: "japanese-meal", name: "日式鸡肉咖喱饭",
-    aliases: ["日式咖喱饭", "日式咖喱鸡饭", "日式鸡肉咖哩饭", "japanese chicken curry rice"], illustration: "japanese-curry-rice", menu: japaneseMenu,
-    components: [["japanese-chicken-curry", "主菜", "230"], ["white-rice-cooked", "主食", "170"]],
+    id: "cola-wings-rice", name: "可乐鸡翅配饭",
+    aliases: ["可乐鸡翅饭", "可乐鸡翅盖饭", "cola chicken wings with rice"],
+    illustration: "cola-wings", relatedDishes: ["cola-wings"],
+    components: [
+      ["chicken-wing-stewed", "主菜", "100", "鸡翅", "熟重 · 带皮去骨可食部"],
+      ["white-rice-cooked", "主食", "150", "白米饭", "熟重"],
+      ["cola-glaze", "酱料", "12", "普通可乐收汁", "成品量 · 收汁估算"],
+      ["vegetable-oil", "酱料", "4", "食用油", "成品保留量"],
+      ["soy-sauce-light", "酱料", "4", "生抽", "即食 · 淡色酱油"],
+      ["ginger-raw", "酱料", "2", "姜", "生重原料基准"],
+      ["table-salt", "酱料", "1", "盐", "成品保留量"],
+    ],
+    sourceAmounts: { "chicken-wing-stewed": "750 g 带骨生重", "cola-glaze": "500 mL 普通可乐",
+      "vegetable-oil": "25 mL 花生油", "soy-sauce-light": "5 mL 酱油", "ginger-raw": "5 g 生重",
+      "table-salt": "4 g" },
+    links: [
+      { name: "中国家常可乐鸡翅菜谱", url: "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c7/30/" },
+      { name: "苏泊尔可乐鸡翅与收汁做法", url: "https://www.supor.com.cn/other/dishesinfo/1461/4584.html" },
+    ],
+    note: "投料参考家常鸡翅的原菜谱。配方假设 40 g 普通可乐收汁后约 12 g，按原可乐的营养保留估算。锅中投油量与吃下的油量分开计。",
   },
 ];
 
+export function recipeRelatedDishIds(id: string) {
+  return mealSpecs.find(spec => spec.id === id)?.relatedDishes ?? [];
+}
+
 export function buildReferenceMeals(foods: readonly ReferenceFood[]): ReferenceFood[] {
   const byId = new Map(foods.map(food => [food.id, food]));
+  function ingredient(id: string) {
+    const food = byId.get(id);
+    if (!food || food.basisUnit || food.components) throw Error("Invalid reference meal component: " + id);
+    return food;
+  }
   return mealSpecs.map(spec => {
-    const components = spec.components.map(([id, role, grams]) => {
-      const food = byId.get(id);
-      if (!food || food.basisUnit || food.components) throw Error("Invalid reference meal component: " + id);
-      return { food, role, grams };
-    });
-    const grams = components.reduce((total, item) => total + Number(item.grams), 0).toString();
-    const sample = spec.sample;
+    const components = spec.components.map(([id, role, grams, label, amountBasis]) => ({
+      food: ingredient(id), role, grams, label, amountBasis,
+    }));
+    const totals = recipeTotals(components.map(part => ({ ...part, estimated: true })));
+    const nutrition = Object.fromEntries(metrics.map(key => [key, totals.nutrition[key] === null ? null :
+      scaled(totals.nutrition[key], "100", totals.grams)])) as Nutrition;
     const source: ReferenceSource = {
-      dataset: sample ? "新加坡本地餐食成品实测（Yeo 等，2021，CC BY 4.0）" : "Formward 标准配方",
-      recordId: sample ? sample.table + " · " + sample.title : spec.id + " v1",
-      title: sample ? "Energy Content and Nutrient Profiles of Frequently Consumed Meals in Singapore" : spec.name + " · 菜目与搭配参考",
-      url: spec.menu,
+      dataset: "Formward 标准配方", recordId: spec.id + " v2",
+      title: spec.name + " · 家常配方参考", url: spec.links[0].url,
     };
-    const totals = sumNutrition(components.map(({ food, grams }) => referenceNutrition(food, grams).nutrition));
-    const nutrition = sample
-      ? readings(scaled(sample.kilojoules, "1", "4.184"), sample.protein, sample.carbs, sample.fat)
-      : Object.fromEntries(metrics.map(key => [key, totals.incomplete[key] || totals.values[key] === null ? null :
-        scaled(totals.values[key], "100", grams)])) as Nutrition;
     return {
-      id: spec.id, name: spec.name, family: spec.family, aliases: spec.aliases, illustration: spec.illustration,
-      version: 1, state: "cooked", method: "熟制", source, sourceKind: sample ? "composition_table" : "estimated",
-      nutrition, components,
-      preparation: sample ? "整份为新加坡实测样本 · 资料能量由 kJ 换算" : "分项可食量合计 · 含搭配所列内容",
-      portions: [{ id: "meal-serving", unit: "份", edibleGrams: sample?.grams ?? grams,
-        label: sample ? "研究样本整份可食量" : "标准搭配整份可食量", source }],
+      id: spec.id, name: spec.name, family: "chinese-meal", aliases: spec.aliases, illustration: spec.illustration,
+      version: 2, state: "cooked", method: "熟制", source, sourceKind: "estimated", nutrition, components,
+      recipe: { note: spec.note, links: spec.links, sourceAmounts: spec.sourceAmounts,
+        suggestedFoods: ["potato-boiled", "broccoli-cooked", "tofu-firm"].map(ingredient) },
+      preparation: "整餐 · 家常参考配方",
+      portions: [{ id: "meal-serving", unit: "份", edibleGrams: totals.grams, label: "标准搭配整份可食量", source }],
     };
   });
 }

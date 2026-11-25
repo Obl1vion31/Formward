@@ -4,7 +4,9 @@ import Image from "next/image";
 import { useState } from "react";
 import type { FoodDraft } from "./model";
 import { foodArtCell, type FoodIllustration } from "./reference-art";
-import type { ReferenceSnapshot } from "./reference-food";
+import type { RecipePart, ReferenceFood, ReferenceSnapshot } from "./reference-food";
+import { recipeAmountBasis } from "./reference-recipe";
+import recipeStyles from "./reference-recipe.module.css";
 import styles from "./reference-library.module.css";
 
 export function personalFoodIllustration(food: FoodDraft): FoodIllustration {
@@ -46,9 +48,38 @@ export function FoodArt({ illustration = "generic", detail = false }: { illustra
   </span>;
 }
 
+export function RecipeArt({ food }: { food: ReferenceFood }) {
+  return <div className={recipeStyles.art}>
+    <FoodArt illustration={food.illustration} detail/>
+    <FoodArt illustration="cooked-rice" detail/>
+  </div>;
+}
+
+export function SavedRecipeParts({ parts }: { parts: readonly RecipePart[] }) {
+  return <ul className={recipeStyles.savedParts}>
+    {parts.map(part => <li key={part.food.id}>
+      <span><strong>{(part.label ?? part.food.name)}</strong><small>{recipeAmountBasis(part)}</small></span>
+      <span>{part.estimated ? "约 " : ""}{Number(part.grams)} g</span>
+      <a href={part.food.source.url} target="_blank" rel="noreferrer" title={part.food.source.title}
+        aria-label={(part.label ?? part.food.name) + "的来源"}>来源</a>
+    </li>)}
+  </ul>;
+}
+
 export function ReferenceReading({ snapshot, estimated }: { snapshot: ReferenceSnapshot; estimated: boolean }) {
-  const { food, portionId, edibleGrams, volumeMl } = snapshot;
+  const { food, portionId, edibleGrams, volumeMl, recipeMode, recipeParts } = snapshot;
   const portion = food.portions.find(entry => entry.id === portionId);
+  if (recipeParts) return <div className={styles.referenceNotes} data-reference-evidence>
+    <div className={recipeStyles.savedHeading}>
+      <div>
+        <p>{recipeMode === "split" ? "拆开记" : "按整份记"} · 配方估算</p>
+        {edibleGrams && <p>可食部{portion || estimated || recipeParts.some(part => part.estimated) ? "约 " : " "}{Number(edibleGrams)} g</p>}
+      </div>
+      <RecipeArt food={food}/>
+    </div>
+    <details className={styles.recipe}><summary>查看整餐组成</summary><SavedRecipeParts parts={recipeParts}/></details>
+    <a href={food.source.url} target="_blank" rel="noreferrer">查看菜谱来源</a>
+  </div>;
   return <div className={styles.savedEvidence} data-reference-evidence>
     <FoodArt illustration={food.illustration} detail/>
     <div className={styles.referenceNotes}>

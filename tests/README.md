@@ -31,7 +31,7 @@
 
 `reference-catalog.browser.mjs` 使用隔离版和虚构账号。`FORMWARD_FOOD_REFERENCE_FIXTURE` 为本机夹具配置，`FORMWARD_FOOD_REFERENCE_ARTIFACTS` 为私有证据目录。执行 `node tests/reference-catalog.browser.mjs chromium 1280`，支持 320、390、960、1280、1440 宽度和 Chromium／WebKit，第三个参数 `reduced` 可验证减少动态效果。覆盖目录、选材层级、进出动效、返回焦点、添加替换、保存和来源回看，并保留截图、录屏及实测数据。
 
-在同一隔离环境运行 `node tests/reference-meals.browser.mjs chromium 1280`、`webkit 390` 或 `chromium 320`。验证整份、拆分改量、替换、体积计量、送存刷新、关联返回及慢速重试。支持 `FORMWARD_FOOD_REFERENCE_AUTH_STATE` 使用隔离会话文件，`FORMWARD_FOOD_REFERENCE_RUN` 给虚构餐名追加本次运行标记。输出实页、连续录像及分项区域尺寸。
+在同一隔离环境运行 `node tests/reference-meals.browser.mjs chromium 1280`、`webkit 390` 或 `chromium 320`。验证整份、半份、按克、拆开加料、保留单条餐项、改量重算、体积计量、送存刷新、关联返回及慢速重试。设置 `FORMWARD_RECORD_RECIPE=1` 录制同一条实际用户路径，默认无录像运行并补查独立食材库及账号隔离。支持 `FORMWARD_FOOD_REFERENCE_AUTH_STATE` 使用隔离会话文件，`FORMWARD_FOOD_REFERENCE_RUN` 给虚构餐名追加本次运行标记。输出实页、连续录像及分项区域尺寸。
 
 ## 豆包接入
 

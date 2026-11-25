@@ -568,3 +568,14 @@ Chromium 320、960、1280、1440 CSS px 和 WebKit 390 CSS px 走通独立库、
 - Lint 为 0 错误，有一条小助手组件的既有警告。类型检查、生产构建、数据生成校对、HTTP／MCP 契约与 865 项默认测试通过。默认跳过的 2 项原生 PostgreSQL 测试另在专用回环库运行，两项通过。实体手机和真实模型对话留待人工核看。
 
 `final result: passed`
+
+## 公共整餐详情本机验收
+
+本机候选 `local-recipe-detail-review` 使用隔离 PostgreSQL 与虚构账号，入口为 [饮食页](http://127.0.0.1:3817/dashboard/meals) 和 [独立食材库](http://127.0.0.1:3817/dashboard/meals?section=foods)。
+
+- 用同一深色主题、相同视口与食物对照 [已确认的 HTML](<C:/Users/14878/.codex/visualizations/2026/11/25/01a211c0-3f28-7c01-b70b-b87f066a0eff/recipe-detail-review/formward-recipe-review.html>)。1280 px 实页复刻 245 g 拆分状态，390 px 实页复刻 277.35 g 按克状态。桌面沿用左侧选材与右侧本餐，手机使用同一面板。 [实页总览](<C:/Users/14878/.codex/visualizations/2026/11/25/01a211c0-3f28-7c01-b70b-b87f066a0eff/recipe-detail-acceptance/formward-recipe-live.png>)
+- Chromium 1280 × 800、320 × 667 和 WebKit 390 × 812 实页通过。记录方式可点击高度 44 CSS px，克数输入 16 CSS px、单层边框、输入外框 46 CSS px；勾选框与相邻名称中心偏差小于 0.01 CSS px，详情无横向溢出。独立库从详情返回保留原查询，餐内关联整餐的慢读取、失败重试及 Escape 返回焦点通过。
+- 电脑连续录屏核对半份 165 g、按克、小计同重量重算、加土豆和西兰花、原位改油、以一道菜保存，刷新后按 409 g 展开读回。 [电脑录屏](<C:/Users/14878/.codex/visualizations/2026/11/25/01a211c0-3f28-7c01-b70b-b87f066a0eff/recipe-detail-acceptance/formward-recipe-desktop.mp4>)
+- 手机连续录屏核对可乐鸡翅按整份与拆分、收汁和油分别改量、加入一条整餐及 330 mL 无糖可乐。保存刷新后可展开 296 g 鸡翅配饭，饮品显示 0 kcal。 [手机录屏](<C:/Users/14878/.codex/visualizations/2026/11/25/01a211c0-3f28-7c01-b70b-b87f066a0eff/recipe-detail-acceptance/formward-recipe-mobile.mp4>) · [320 px 截图](<C:/Users/14878/.codex/visualizations/2026/11/25/01a211c0-3f28-7c01-b70b-b87f066a0eff/recipe-detail-acceptance/narrow-split.png>)
+- 目录包含 166 条规格和两套公共整餐。HTTP、MCP、网页采用同一分项换算。测试通过旧整餐快照、无效分项、同重改量、饮品、账号隔离与确认前写入边界。全量测试 865 通过、2 跳过，类型检查和生产构建通过，lint 保留站内聊天文件原有的一条警告。
+- 手机录像为 WebKit 视口模拟。实体手机键盘及真实模型对话留待后续验收。

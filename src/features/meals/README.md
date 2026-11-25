@@ -4,7 +4,7 @@
 
 记录一餐支持公共参考、个人食材、手填和拍照。四种入口共同编辑当前草稿。公共规格由 `reference-catalog.ts` 管理，筛选和排序同时服务网页、HTTP 与 MCP。`reference-selection.psv` 逐条记录追加规格的来源和展示口径，`reference-expansion.json` 从原表和审核后的标准配方生成。`reference-browser.tsx` 与 `reference-details.tsx` 用在独立食材库和餐内选择器，`reference-food.ts` 共用分组和换算，`reference-art.ts` 关联图集。营养和份量来源见[饮食记录](../../../docs/meals.md#公共参考目录)。
 
-公共规格以 g 或 mL 为计量基准，来源区分成分表、标签和配方估算。整餐用 `reference-regional.ts` 关联已版本化的分项，支持一份和按组成实际食量加入草稿。分项整批新增或替换，历史快照保存原数据口径。
+公共规格以 g 或 mL 为计量基准，来源区分成分表、标签和配方估算。整餐用 `reference-regional.ts` 关联已版本化的分项，通过 `reference-recipe.ts` 共用整份缩放、拆分合计及重量口径。两种记录方式均写一条餐项，扩展的参考快照保存分项和各自的来源。旧餐继续读取原快照。
 
 AI共用规则先确定本次实际食量，再估算营养。仅有食物名称时先追问，不自行设定常见克数或创建预览；克数、毫升、个数与份数已明确时不重复追问。食材规格和历史食量不代表本次食量，估算声明不等于用户接受。规则维护在ai-nutrition-guidance.json，MCP／HTTP直接引用，豆包Skill与Manifest由scripts/sync-ai-nutrition.mjs同步；不新增模型核验或改变保存流程。
 

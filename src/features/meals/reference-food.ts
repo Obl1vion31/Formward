@@ -44,7 +44,7 @@ export const referenceSections = [
     family("walnut", "核桃"), family("sesame", "芝麻"),
   ] },
   { id: "seasoning", label: "油脂调味", families: [
-    family("oil", "食用油"), family("sauce", "酱油和蚝油"), family("sugar", "糖"),
+    family("oil", "食用油"), family("sauce", "酱汁与酱油"), family("sugar", "糖"), family("seasoning", "盐与香辛料"),
   ] },
   { id: "drink", label: "饮品", families: [
     family("tea", "茶"), family("coffee", "咖啡"), family("juice", "果汁"), family("cola", "可乐"), family("water", "水"),
@@ -58,8 +58,7 @@ export const referenceSections = [
     family("egg-dish", "鸡蛋菜", "常见单菜"), family("pork-dish", "猪肉菜", "常见单菜"),
     family("chicken-dish", "鸡肉菜", "常见单菜"), family("curry", "咖喱鸡", "常见单菜"),
     family("western-sides", "西式酱料", "常见单菜"),
-    family("chinese-meal", "中式盖饭与搭配", "整餐"), family("singapore-meal", "新加坡小贩餐食", "整餐"),
-    family("western-meal", "西式整餐", "整餐"), family("japanese-meal", "日式盖饭与咖喱饭", "整餐"),
+    family("singapore-meal", "新加坡面食", "米面餐食"), family("chinese-meal", "中式盖饭与搭配", "整餐"),
   ] },
 ] as const;
 
@@ -97,21 +96,33 @@ export type ReferenceFood = {
   sourceKind?: "composition_table" | "label" | "estimated";
   recipeIngredients?: readonly ReferenceRecipeIngredient[];
   components?: readonly ReferenceComponent[];
+  recipe?: {
+    note: string;
+    links: readonly { name: string; url: string }[];
+    suggestedFoods: readonly ReferenceFood[];
+    sourceAmounts: Readonly<Record<string, string>>;
+  };
 };
 export type ReferenceComponent = {
   food: ReferenceFood;
   role: "主菜" | "主食" | "配菜" | "酱料";
+  label?: string;
+  amountBasis?: string;
   grams: string;
 };
 export type ReferenceMealLink = Pick<ReferenceFood, "id" | "version" | "name">;
 export type ReferenceCatalogFood = ReferenceFood & { relatedMeals?: readonly ReferenceMealLink[] };
 
-export type ReferenceFoodLink = { id: string; version: number; portionId?: string };
+export type RecipePartInput = { id: string; version: number; grams: string; estimated?: boolean };
+export type ReferenceFoodLink = { id: string; version: number; portionId?: string; parts?: RecipePartInput[] };
+export type RecipePart = Pick<ReferenceComponent, "food" | "label" | "amountBasis" | "grams"> & { estimated: boolean };
 export type ReferenceSnapshot = {
   food: ReferenceFood;
   portionId?: string;
   edibleGrams: string | null;
   volumeMl?: string | null;
+  recipeMode?: "whole" | "split";
+  recipeParts?: readonly RecipePart[];
 };
 
 export type ReferenceFamilySummary = { count: number; illustration: FoodIllustration };

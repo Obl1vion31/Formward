@@ -12,7 +12,13 @@ export const mealSchemas = {
   FoodDraft: { type: "object", additionalProperties: false, required: ["name", "baseQuantity", "unit", "nutrition", "sourceKind"], properties: foodProperties },
   MealItemDraft: { type: "object", additionalProperties: false, required: ["kind", "name"], properties: { referenceFood: {
     type: "object", additionalProperties: false, required: ["id", "version"],
-    properties: { id: { type: "string" }, version: { type: "integer", minimum: 1 }, portionId: { type: "string" } },
+    properties: { id: { type: "string" }, version: { type: "integer", minimum: 1 }, portionId: { type: "string" },
+      parts: { type: "array", minItems: 1, maxItems: 30, items: { type: "object", additionalProperties: false,
+        required: ["id", "version", "grams"], properties: {
+          id: { type: "string" }, version: { type: "integer", minimum: 1 }, grams: { type: "string" },
+          estimated: { type: "boolean" },
+        } }, description: "整餐拆开记，各项按规格可食克数，餐项quantity为合计，unit为g，省略portionId。" },
+    },
     description: "公共参考查询返回的id及version。按只／个／杯／份带portionId；实称用g，basisUnit=mL的饮品用mL，两者都省略portionId。"
   }, nutritionBasis:{enum:["consumed_total","per_portion"],description:"旧nutrition是本次总量；新每份输入显式用per_portion"},perPortionNutrition:ref("MealNutrition"), foodRef:{type:"string",description:"仅统一记录接口支持：引用同批 save_food 项目的 key，不再传 foodId、foodDraft 或 nutrition"},originalItemId:{type:"string",format:"uuid",description:"编辑已有餐项时使用查询返回的 item.id；已永久删除食材的历史餐项仅通过此 ID 采用原快照，不传 foodId 或 nutrition"},reviewExplanation,amountDecision:{enum:["provided","estimate_accepted","unknown_accepted"]},kind: { enum: ["food", "misc", "whole"] }, name: { type: "string" }, quantity: { type: ["string", "null"] }, unit: { type: ["string", "null"] }, foodId: { type: "string", format: "uuid" }, foodVersion: { type: "integer" }, foodDraft: ref("FoodDraft"), nutrition: ref("MealNutrition"), sourceKind: source, basis: { type: ["string", "null"] }, evidenceUrl: { type: ["string", "null"] } }, description: "food可引用本人食材foodId+foodVersion或公共规格referenceFood，提交实际quantity和unit，由服务器换算；也可提交foodDraft新食材。misc仅估剩余食物。whole须为整餐唯一项。" },
   MealSave: { type: "object", additionalProperties: false, required: ["kind", "date", "mealType", "items"], properties: { imageIds,expectedImageCount:{type:"integer",minimum:0,maximum:8,description:"本餐期望照片数；缺图只提示，不阻止保存文字"},photoReview,kind: { const: "save_meal" }, id: { type: "string", format: "uuid" }, version: { type: "integer" }, date: { type: "string", format: "date" }, mealType: { type: "string" }, timezone: { type: ["string", "null"] }, occurredAt: { type: ["string", "null"], format: "date-time" }, notes: { type: ["string", "null"] }, allowDuplicate: { type: "boolean", description: "兼容旧客户端；相同餐次只提示，不阻止保存" }, items: { type: "array", minItems: 1, maxItems: 50, items: ref("MealItemDraft") } } },

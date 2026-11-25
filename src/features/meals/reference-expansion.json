@@ -2203,9 +2203,9 @@
   },
   {
     "id": "orange-fresh",
-    "version": 2,
+    "version": 3,
     "family": "orange",
-    "name": "橙子",
+    "name": "鲜橙",
     "aliases": [
       "橙子",
       "甜橙",
@@ -2215,7 +2215,7 @@
     ],
     "state": "ready",
     "method": "即食",
-    "preparation": "鲜甜橙 · 去皮可食果肉",
+    "preparation": "鲜橙 · 去皮可食果肉",
     "illustration": "orange",
     "source": {
       "dataset": "USDA FNDDS 2021–2023",
@@ -2234,7 +2234,7 @@
         "id": "fndds-1",
         "unit": "个",
         "edibleGrams": "154",
-        "label": "原表整只甜橙的可食部",
+        "label": "原表鲜橙的可食部",
         "source": {
           "dataset": "USDA FNDDS 2021–2023",
           "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
@@ -2246,59 +2246,59 @@
   },
   {
     "id": "tangerine-fresh",
-    "version": 2,
+    "version": 3,
     "family": "orange",
     "name": "橘子",
     "aliases": [
       "柑橘",
       "桔子",
-      "茂谷柑",
+      "蜜橘",
       "mandarin",
       "tangerine"
     ],
     "state": "ready",
     "method": "即食",
-    "preparation": "按去皮可食果肉计 · 代表样本茂谷柑",
+    "preparation": "鲜橘子 · 去皮可食果肉",
     "illustration": "orange",
     "source": {
-      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
-      "url": "https://data.gov.tw/dataset/8543",
-      "recordId": "D3400202",
-      "title": "茂谷柑"
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "61125010",
+      "title": "Tangerine, raw"
     },
     "nutrition": {
-      "caloriesKcal": "44",
-      "proteinG": "0.6",
-      "carbsG": "11.5",
-      "fatG": "0.1"
+      "caloriesKcal": "53",
+      "proteinG": "0.81",
+      "carbsG": "13.34",
+      "fatG": "0.31"
     },
     "portions": []
   },
   {
     "id": "pear-fresh",
-    "version": 2,
+    "version": 3,
     "family": "pear",
     "name": "梨",
     "aliases": [
       "鲜梨",
-      "新兴梨",
+      "亚洲梨",
       "pear"
     ],
     "state": "ready",
     "method": "即食",
-    "preparation": "按可食果肉计 · 代表样本新兴梨",
+    "preparation": "鲜梨 · 去核可食果肉",
     "illustration": "pear",
     "source": {
-      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
-      "url": "https://data.gov.tw/dataset/8543",
-      "recordId": "D3000204",
-      "title": "新興梨"
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "63137050",
+      "title": "Pear, Asian, raw"
     },
     "nutrition": {
-      "caloriesKcal": "44",
-      "proteinG": "0.2",
-      "carbsG": "11.9",
-      "fatG": "0.1"
+      "caloriesKcal": "42",
+      "proteinG": "0.5",
+      "carbsG": "10.65",
+      "fatG": "0.23"
     },
     "portions": []
   },
@@ -3492,48 +3492,6 @@
     ]
   },
   {
-    "id": "curry-chicken-rice",
-    "version": 1,
-    "family": "curry",
-    "name": "咖喱鸡饭",
-    "aliases": [
-      "咖哩鸡饭",
-      "咖喱鸡配米饭",
-      "咖喱饭",
-      "curry chicken rice"
-    ],
-    "state": "cooked",
-    "method": "熟制",
-    "preparation": "咖喱鸡与饭一同计量",
-    "illustration": "curry",
-    "source": {
-      "dataset": "USDA FNDDS 2021–2023",
-      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
-      "recordId": "27146155",
-      "title": "Chicken curry with rice"
-    },
-    "nutrition": {
-      "caloriesKcal": "116",
-      "proteinG": "4.96",
-      "carbsG": "15.12",
-      "fatG": "4"
-    },
-    "portions": [
-      {
-        "id": "fndds-1",
-        "unit": "杯",
-        "edibleGrams": "200",
-        "label": "原表美制量杯的咖喱鸡饭",
-        "source": {
-          "dataset": "USDA FNDDS 2021–2023",
-          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
-          "recordId": "27146155 · 1",
-          "title": "1 cup"
-        }
-      }
-    ]
-  },
-  {
     "id": "soy-tofu-vegetables",
     "version": 2,
     "family": "tofu-dish",
@@ -3737,6 +3695,148 @@
     "portions": []
   },
   {
+    "id": "tomato-cooked",
+    "version": 1,
+    "family": "tomato",
+    "name": "熟番茄",
+    "aliases": [
+      "炖番茄",
+      "煮番茄",
+      "cooked tomato"
+    ],
+    "state": "cooked",
+    "method": "熟制",
+    "preparation": "熟番茄作原料 · 按成品可食部",
+    "illustration": "tomato",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "99997410",
+      "title": "Tomatoes, cooked, as ingredient"
+    },
+    "nutrition": {
+      "caloriesKcal": "22",
+      "proteinG": "1.1000",
+      "carbsG": "4.8600",
+      "fatG": "0.25"
+    },
+    "portions": []
+  },
+  {
+    "id": "chicken-wing-stewed",
+    "version": 1,
+    "family": "chicken-wing",
+    "name": "炖鸡翅",
+    "aliases": [
+      "炖鸡翼",
+      "炖鸡翅中",
+      "stewed chicken wings"
+    ],
+    "state": "cooked",
+    "method": "炖",
+    "skin": "吃皮",
+    "preparation": "熟重 · 带皮去骨可食部 · 酱汁或额外用油另外计",
+    "illustration": "chicken-wing-roasted",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "24163110",
+      "title": "Chicken wing, stewed"
+    },
+    "nutrition": {
+      "caloriesKcal": "247",
+      "proteinG": "22.6",
+      "carbsG": "0",
+      "fatG": "16.6900"
+    },
+    "portions": []
+  },
+  {
+    "id": "vegetable-oil",
+    "version": 1,
+    "family": "oil",
+    "name": "食用油",
+    "aliases": [
+      "油",
+      "植物油",
+      "炒菜油",
+      "vegetable oil"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "通用植物油 · 计实际吃下的重量",
+    "illustration": "oil",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "82101000",
+      "title": "Vegetable oil, NFS"
+    },
+    "nutrition": {
+      "caloriesKcal": "900",
+      "proteinG": "0",
+      "carbsG": "0",
+      "fatG": "100"
+    },
+    "portions": []
+  },
+  {
+    "id": "tomato-ketchup",
+    "version": 1,
+    "family": "sauce",
+    "name": "番茄沙司",
+    "aliases": [
+      "番茄酱",
+      "甜味番茄酱",
+      "ketchup"
+    ],
+    "state": "ready",
+    "method": "即食",
+    "preparation": "甜味番茄酱 · 计实际吃下的重量",
+    "illustration": "sauce",
+    "source": {
+      "dataset": "USDA FNDDS 2021–2023",
+      "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
+      "recordId": "74401010",
+      "title": "Ketchup"
+    },
+    "nutrition": {
+      "caloriesKcal": "109",
+      "proteinG": "1.08",
+      "carbsG": "27.1",
+      "fatG": "0.32"
+    },
+    "portions": []
+  },
+  {
+    "id": "ginger-raw",
+    "version": 1,
+    "family": "seasoning",
+    "name": "姜",
+    "aliases": [
+      "生姜",
+      "老姜",
+      "ginger"
+    ],
+    "state": "raw",
+    "method": "生",
+    "preparation": "原表老姜样品 · 生重口径",
+    "illustration": "sauce",
+    "source": {
+      "dataset": "台湾食药署食品营养成分资料集 · 2026-10-05",
+      "url": "https://data.gov.tw/dataset/8543",
+      "recordId": "E1900103",
+      "title": "老薑"
+    },
+    "nutrition": {
+      "caloriesKcal": "53",
+      "proteinG": "1.1",
+      "carbsG": "11.7",
+      "fatG": "0.5"
+    },
+    "portions": []
+  },
+  {
     "id": "cola-wings",
     "version": 1,
     "family": "chicken-wing",
@@ -3903,7 +4003,7 @@
   },
   {
     "id": "tomato-beef-brisket",
-    "version": 1,
+    "version": 2,
     "family": "beef-brisket",
     "name": "番茄炖牛腩",
     "aliases": [
@@ -3917,19 +4017,19 @@
     "state": "cooked",
     "method": "炖",
     "illustration": "tomato-brisket",
-    "preparation": "牛腩按前胸肉参考 · 含番茄、土豆和炖汁",
+    "preparation": "牛腩按前胸肉参考 · 含番茄和炖汁",
     "source": {
       "dataset": "Formward 标准配方",
-      "recordId": "tomato-beef-brisket v1",
-      "title": "番茄牛腩饭中的炖菜",
-      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/1c/recipe-475/"
+      "recordId": "tomato-beef-brisket v2",
+      "title": "家常番茄炖牛肉",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-cn/recipe/0/c7/05/"
     },
     "sourceKind": "estimated",
     "nutrition": {
-      "caloriesKcal": "161.1375",
-      "proteinG": "14.6151",
-      "carbsG": "6.9174",
-      "fatG": "8.2508"
+      "caloriesKcal": "174.3582",
+      "proteinG": "17.0725",
+      "carbsG": "4.0957",
+      "fatG": "9.8322"
     },
     "recipeIngredients": [
       {
@@ -3951,16 +4051,6 @@
           "title": "Tomatoes, cooked, as ingredient"
         },
         "edibleGrams": "40"
-      },
-      {
-        "name": "熟土豆",
-        "source": {
-          "dataset": "USDA FNDDS 2021–2023",
-          "url": "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/",
-          "recordId": "71103010",
-          "title": "Potato, boiled, from fresh, peel not eaten, no added fat"
-        },
-        "edibleGrams": "26"
       },
       {
         "name": "番茄酱",
@@ -4017,13 +4107,13 @@
       {
         "id": "recipe-serving",
         "unit": "份",
-        "edibleGrams": "160",
+        "edibleGrams": "134",
         "label": "标准配方可食量",
         "source": {
           "dataset": "Formward 标准配方",
-          "recordId": "tomato-beef-brisket v1",
-          "title": "番茄牛腩饭中的炖菜",
-          "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/1c/recipe-475/"
+          "recordId": "tomato-beef-brisket v2",
+          "title": "家常番茄炖牛肉",
+          "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-cn/recipe/0/c7/05/"
         }
       }
     ]
@@ -4767,7 +4857,6 @@
     "family": "sauce",
     "name": "鸡饭辣椒酱",
     "aliases": [
-      "海南鸡饭辣椒",
       "鸡饭辣椒",
       "chicken rice chili"
     ],
@@ -5379,8 +5468,7 @@
     "name": "日式洋葱牛肉",
     "aliases": [
       "日式肥牛",
-      "日式牛丼牛肉",
-      "gyudon beef"
+      "Japanese onion beef"
     ],
     "state": "cooked",
     "method": "煮",

@@ -17,6 +17,7 @@ import { foodDescriptionIssues } from "./food-description";
 import { readMealDayViews, invalidateMealDays } from "./day-status";
 import { requireCurrentReferenceFood, validatePreparedReferenceFood } from "./reference-catalog";
 import { referenceNutrition, type ReferenceFoodLink } from "./reference-food";
+import { recipePart, recipeTotals, sameRecipeParts, savedRecipePartInputs, wholeRecipeParts } from "./reference-recipe";
 
 export type MealActor = { userId: string; origin: "manual" | "ai" | "initialization"; identity?: AiIdentity; importId?: string };
 // PostgreSQL jsonb会重排对象字段；请求和保存后的原始快照使用相同的稳定摘要。
@@ -45,7 +46,10 @@ export const foodIdentity = (f: FoodDraft) => digest([norm(f.name), norm(f.brand
 const nutrients = (row: { caloriesKcal: string | null; proteinG: string | null; carbsG: string | null; fatG: string | null }): Nutrition => Object.fromEntries(metrics.map(m => [m, row[m]])) as Nutrition;
 const mealItemView = (i: typeof mealItem.$inferSelect):ItemView => ({ id: i.id, kind: i.kind as ItemDraft["kind"], name: i.name, quantity: i.quantity, nutritionBasis:i.nutritionBasis, ...(i.perPortionNutrition?{perPortionNutrition:i.perPortionNutrition}:{}),amountDecision:(i.amountDecision??undefined) as ItemDraft["amountDecision"], ...(i.reviewExplanation ? { reviewExplanation: i.reviewExplanation } : {}), unit: i.unit, ...(i.foodId ? { foodId: i.foodId, foodVersion: i.foodSnapshot?.version } : {}), ...(i.foodSnapshot ? { foodSnapshot: i.foodSnapshot } : {}), ...(i.referenceSnapshot ? {
   referenceSnapshot: i.referenceSnapshot,
-  referenceFood: { id: i.referenceSnapshot.food.id, version: i.referenceSnapshot.food.version, portionId: i.referenceSnapshot.portionId },
+  referenceFood: {
+    id: i.referenceSnapshot.food.id, version: i.referenceSnapshot.food.version,
+    portionId: i.referenceSnapshot.portionId, parts: savedRecipePartInputs(i.referenceSnapshot),
+  },
 } : {}), nutrition: nutrients(i), sourceKind: i.sourceKind as ItemDraft["sourceKind"], basis: i.basis, evidenceUrl: i.evidenceUrl });
 export async function readMealSnapshot(db: Pick<Database, "select">, userId: string, dates?: string[], options: { images?: boolean } = {}): Promise<MealSnapshot> {
   const foods = dates ? [] : (await db.select().from(food).where(eq(food.userId, userId)).orderBy(desc(food.updatedAt))).map(row => ({ id: row.id, version: row.version, category: row.category as FoodDraft["category"], foodGroup: row.foodGroup, name: row.name, brand: row.brand, preparation: row.preparation, baseQuantity: row.baseQuantity, unit: row.unit, servingQuantity:row.servingQuantity,servingUnit:row.servingUnit,nutrition: nutrients(row), sourceKind: row.sourceKind as FoodDraft["sourceKind"], basis: row.basis, evidenceUrl: row.evidenceUrl, deletedAt: row.deletedAt?.toISOString() ?? null }));
@@ -92,26 +96,44 @@ function prepareReferenceItem(input: ItemDraft, link: ReferenceFoodLink, previou
     input.nutritionBasis === "per_portion") {
     throw new ApiError(400, "invalid_input", "公共参考须作为独立食物引用，营养按参考规格换算。");
   }
-  const food = sameReference(previous, link) ? previous!.referenceSnapshot!.food : requireCurrentReferenceFood(link);
+  const historical = sameReference(previous, link) ? previous?.referenceSnapshot : undefined;
+  const food = historical?.food ?? requireCurrentReferenceFood(link);
   const portion = link.portionId ? food.portions.find(entry => entry.id === link.portionId) : undefined;
   const unit = portion?.unit ?? food.basisUnit ?? "g";
+  if (link.parts && (!food.recipe || link.portionId || !input.quantity)) {
+    throw new ApiError(400, "invalid_input", "请在整餐的拆开记录中填写分项克数，单位用 g。");
+  }
   if (link.portionId && !portion || input.unit !== unit || !input.quantity && input.amountDecision !== "unknown_accepted") {
     throw new ApiError(400, "unit_required", "请选择该规格支持的份量及单位。");
   }
-  if (previous?.referenceSnapshot && sameReference(previous, link) && previous.unit === input.unit &&
-    previous.referenceSnapshot.portionId === portion?.id && Number(previous.quantity) === Number(input.quantity)) {
+  if (previous && historical && previous.unit === input.unit &&
+    historical.portionId === portion?.id && Number(previous.quantity) === Number(input.quantity) &&
+    sameRecipeParts(savedRecipePartInputs(historical), link.parts)) {
     return { ...input, id: previous.id, name: previous.name, nutritionBasis: "consumed_total",
       nutrition: previous.nutrition, referenceSnapshot: previous.referenceSnapshot,
       sourceKind: previous.sourceKind, basis: previous.basis, evidenceUrl: previous.evidenceUrl };
   }
-  const { nutrition, edibleGrams, volumeMl } = referenceNutrition(food, input.quantity ?? null, portion?.id);
+  const recipeParts = link.parts ? link.parts.map(part => {
+    const original = historical?.recipeParts?.find(entry => entry.food.id === part.id && entry.food.version === part.version);
+    const component = original?.food ?? requireCurrentReferenceFood(part);
+    if (component.basisUnit || component.components) throw new ApiError(400, "invalid_input", "分项须引用按克记录的单项公共食材。");
+    return recipePart(food, component, part);
+  }) : food.recipe && input.quantity ? wholeRecipeParts(food, input.quantity, portion?.id) : undefined;
+  const recipeTotal = recipeParts && recipeTotals(recipeParts);
+  if (link.parts && Number(recipeTotal?.grams) !== Number(input.quantity)) {
+    throw new ApiError(400, "invalid_input", "餐项克数应与分项合计相同。");
+  }
+  const { nutrition, edibleGrams, volumeMl } = recipeTotal
+    ? { nutrition: recipeTotal.nutrition, edibleGrams: recipeTotal.grams, volumeMl: undefined }
+    : referenceNutrition(food, input.quantity ?? null, portion?.id);
   if (Object.values(nutrition).some(value => value !== null && Number(value) > 1000000)) {
     throw new ApiError(400, "invalid_input", "换算结果超出有效范围。");
   }
   const source = food.source;
   return {
     ...input, id: previous?.id, name: food.name, nutritionBasis: "consumed_total", nutrition,
-    referenceSnapshot: { food, portionId: portion?.id, edibleGrams, ...(volumeMl !== undefined ? { volumeMl } : {}) },
+    referenceSnapshot: { food, edibleGrams, ...(portion ? { portionId: portion.id } : {}), ...(volumeMl !== undefined ? { volumeMl } : {}),
+      ...(recipeParts ? { recipeMode: link.parts ? "split" : "whole", recipeParts } : {}) },
     sourceKind: food.sourceKind ?? "composition_table",
     basis: input.amountDecision === "estimate_accepted" ? input.basis : source.dataset + " · " + source.recordId,
     evidenceUrl: source.url,

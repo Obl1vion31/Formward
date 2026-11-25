@@ -9,11 +9,13 @@ import * as schema from "../../db/schema";
 import { authenticateAi, createAiToken } from "../auth/ai-tokens";
 import { queryFoods } from "./ai-api";
 import { mealPreviewOperation, previewMeal } from "./ai-preview";
-import { emptyNutrition, scaled, sumNutrition, type ItemDraft, type MealAction } from "./model";
+import { emptyNutrition, scaled, itemSchema, type ItemDraft, type MealAction } from "./model";
 import { decideMealOperation, prepareMealActions, readMealSnapshot, submitMealOperation } from "./records";
 import { referenceCatalogDetail, referenceCatalogOverview, requireCurrentReferenceFood, searchReferenceFoods, validatePreparedReferenceFood } from "./reference-catalog";
 import { foodArtCell } from "./reference-art";
 import { referenceFoodName, referenceNutrition, referenceSections } from "./reference-food";
+import { recipeGrams, recipePartInputs, recipeTotals, wholeRecipeParts } from "./reference-recipe";
+import { applyMealChanges, savedMealDraft } from "./ai-changes";
 
 const leg = requireCurrentReferenceFood({ id: "drumstick-stewed-skinless", version: 1 });
 const [medium] = leg.portions;
@@ -82,16 +84,17 @@ test("公共检索处理日常名称、真实状态和分页", () => {
   assert.equal(searchReferenceFoods("无糖茉莉花茶").referenceFoods[0].nutrition.fatG, null);
   assert.equal(searchReferenceFoods("无糖茉莉花茶").referenceFoods[0].nutrition.caloriesKcal, "0");
   for (const [query, id] of Object.entries({
-    "海南鸡饭": "hainanese-chicken-rice", "空气炸鸡翅": "air-fryer-wings", "可乐鸡翅": "cola-wings",
+    "空气炸鸡翅": "air-fryer-wings", "可乐鸡翅": "cola-wings",
     "肉眼": "beef-ribeye", Ribeye: "beef-ribeye", Striploin: "beef-striploin-grilled",
     "番茄炖牛腩": "tomato-beef-brisket", "红烧牛腩": "red-braised-brisket",
-    "炒粿条": "char-kway-teow", "叻沙": "singapore-laksa", "牛丼": "gyudon", "日式咖喱饭": "japanese-chicken-curry-rice",
+    "炒粿条": "char-kway-teow", "叻沙": "singapore-laksa",
   })) {
     assert.equal(searchReferenceFoods(query).referenceFoods[0]?.id, id, query);
   }
-  for (const [query, name] of Object.entries({ "茂谷柑": "橘子", "新兴梨": "梨", "熟猪小里脊": "猪里脊肉" })) {
+  for (const [query, name] of Object.entries({ "橘子": "橘子", "橙子": "鲜橙", "梨": "梨", "熟猪小里脊": "猪里脊肉" })) {
     assert.equal(searchReferenceFoods(query).referenceFoods[0]?.name, name, query);
   }
+  for (const query of ["茂谷柑", "新兴梨", "海南鸡饭", "牛丼", "咖喱鸡饭"]) assert.equal(searchReferenceFoods(query).matches, 0, query);
   assert.deepEqual(searchReferenceFoods("空气炸鸡翅").referenceFoods.map(food => food.id), ["air-fryer-wings"]);
   assert.ok(searchReferenceFoods("牛排").referenceFoods.some(food => food.id === "beef-tenderloin-cooked"));
   const first = searchReferenceFoods("熟");
@@ -119,24 +122,43 @@ test("长小数保留真实小数位，毫升标签的零和未知独立保留",
   assert.throws(() => requireCurrentReferenceFood({ id: "cola-diet", version: 1 }), /重新搜索选择/);
 });
 
-test("同一整餐从主菜、主食、配菜及酱料关联，整份和拆分依据各自可核查", () => {
-  const [meal] = referenceCatalogDetail("tomato-brisket-rice")!.referenceFoods;
-  assert.deepEqual(meal.components?.map(({ role, grams }) => [role, grams]),
-    [["主菜", "160"], ["主食", "150"], ["配菜", "60"]]);
-  for (const { food } of meal.components!) {
-    const ingredient = referenceCatalogDetail(food.id)!.referenceFoods[0];
-    assert.deepEqual(ingredient.relatedMeals?.find(link => link.id === meal.id),
-      { id: meal.id, name: meal.name, version: meal.version });
+test("两个公共整餐的默认分项、精确缩放和配方依据", () => {
+  const meals = searchReferenceFoods("", "chinese-meal").referenceFoods;
+  assert.deepEqual(meals.map(food => food.id), ["tomato-brisket-rice", "cola-wings-rice"]);
+  const [tomato, wings] = meals;
+  assert.deepEqual(tomato.components?.map(part => [part.food.id, Number(part.grams)]), [
+    ["brisket-cooked", 90], ["tomato-cooked", 70], ["white-rice-cooked", 150], ["vegetable-oil", 5],
+    ["soy-sauce-light", 4], ["table-salt", 1], ["tomato-ketchup", 8], ["ginger-raw", 2],
+  ]);
+  assert.deepEqual(wings.components?.map(part => part.food.id),
+    ["chicken-wing-stewed", "white-rice-cooked", "cola-glaze", "vegetable-oil", "soy-sauce-light", "ginger-raw", "table-salt"]);
+  for (const meal of meals) {
+    assert.ok(meal.recipe?.note && meal.version === 2);
+    assert.ok(!meal.components?.some(part => part.food.id === "napa-cooked" || part.food.id === "potato-boiled"));
+    for (const { food } of meal.components ?? []) {
+      const ingredient = referenceCatalogDetail(food.id)!.referenceFoods[0];
+      assert.deepEqual(ingredient.relatedMeals?.find(link => link.id === meal.id), { id: meal.id, name: meal.name, version: meal.version });
+    }
+    const full = wholeRecipeParts(meal, "1", "meal-serving");
+    const half = wholeRecipeParts(meal, "0.5", "meal-serving");
+    assert.equal(recipeGrams(full), meal.portions[0].edibleGrams);
+    assert.ok(half.every((part, index) => Number(part.grams) * 2 === Number(full[index].grams)));
+    const custom = wholeRecipeParts(meal, "277.35");
+    assert.equal(recipeTotals(custom).grams, "277.3500");
+    assert.equal(recipeGrams(wholeRecipeParts(meal, "0.0001")), "0.0001");
+    const estimate = referenceNutrition(meal, "1", "meal-serving");
+    assert.ok(Math.abs(Number(recipeTotals(full).nutrition.caloriesKcal) - Number(estimate.nutrition.caloriesKcal)) < 0.001);
   }
-  const split = sumNutrition(meal.components!.map(({ food, grams }) => referenceNutrition(food, grams).nutrition));
-  const whole = referenceNutrition(meal, "1", meal.portions[0].id);
-  assert.equal(whole.edibleGrams, "370.0000");
-  assert.ok(Math.abs(Number(split.values.caloriesKcal) - Number(whole.nutrition.caloriesKcal)) < 0.001);
-  const [singapore] = searchReferenceFoods("海南鸡饭").referenceFoods;
-  assert.equal(singapore.nutrition.caloriesKcal, "188.5755");
-  assert.equal(singapore.portions[0].edibleGrams, "412");
-  const sauce = singapore.components?.find(({ role }) => role === "酱料")!.food;
-  assert.ok(sauce && referenceCatalogDetail(sauce.id)?.referenceFoods[0].relatedMeals?.some(meal => meal.id === singapore.id));
+  const defaultParts = wholeRecipeParts(tomato, "1", "meal-serving");
+  const first = defaultParts[0];
+  assert.equal(recipeTotals([{ ...first, food: { ...first.food, nutrition: { ...first.food.nutrition, fatG: null } } },
+    ...defaultParts.slice(1)]).nutrition.fatG, null);
+  assert.equal(Number(tomato.portions[0].edibleGrams), 330);
+  assert.equal(Number(wings.portions[0].edibleGrams), 273);
+  assert.equal(tomato.recipe?.sourceAmounts["vegetable-oil"], "用量未注明");
+  assert.match(wings.recipe!.note, /40 g.*12 g/);
+  assert.ok(referenceCatalogDetail("tomato-beef-brisket")?.referenceFoods[0].relatedMeals?.some(link => link.id === tomato.id));
+  assert.ok(referenceCatalogDetail("cola-wings")?.referenceFoods[0].relatedMeals?.some(link => link.id === wings.id));
 });
 
 test("已核对的下架规格按原快照确认，新选材提示重新选择", () => {
@@ -253,6 +275,62 @@ test("网页与 AI 共用份量校验，确认后只保存服务端来源及可�
       operationId: randomUUID(), actions: [saveMeal([{ ...volumeItem, unit: "g" }])],
     }, initial, "manual");
     assert.ok(wrongUnit.error);
+
+    const recipe = requireCurrentReferenceFood({ id: "tomato-brisket-rice", version: 2 });
+    const parts = recipePartInputs(wholeRecipeParts(recipe, "1", "meal-serving"));
+    const grouped = { kind: "food", name: recipe.name, quantity: "330", unit: "g", sourceKind: "estimated",
+      referenceFood: { id: recipe.id, version: recipe.version, parts } } satisfies ItemDraft;
+    const invalidParts = [parts[0], parts[0]];
+    assert.equal(itemSchema.safeParse({ ...grouped, referenceFood: { ...grouped.referenceFood, parts: invalidParts } }).success, false);
+    const splitDraft = await previewMeal(db, identity, { operationId: randomUUID(), date: "2026-11-25",
+      mealType: "整餐测试", foods: [{ name: grouped.name, quantity: "330", unit: "g", referenceFood: grouped.referenceFood }] });
+    assert.equal(splitDraft.canConfirm, true);
+    const [manual] = prepareMealActions({ operationId: randomUUID(), actions: [saveMeal([grouped])] }, initial, "manual");
+    assert.deepEqual(splitDraft.rows[0].meal?.items[0].referenceSnapshot, manual.meal?.items[0].referenceSnapshot);
+    await decideMealOperation(db, userId, splitDraft.id, splitDraft.revision, "confirm");
+    const groupedMeal = (await readMealSnapshot(db, userId)).meals.find(meal => meal.mealType === "整餐测试")!;
+    assert.equal(groupedMeal.items.length, 1);
+    const groupedItem = groupedMeal.items[0];
+    assert.equal(groupedItem.referenceSnapshot?.recipeMode, "split");
+    assert.equal(groupedItem.referenceSnapshot?.edibleGrams, "330.0000");
+    assert.equal(groupedItem.referenceFood?.parts?.length, 8);
+    const adjustedParts = parts.map(part => part.id === "vegetable-oil" ? { ...part, grams: "8", estimated: false } :
+      part.id === "white-rice-cooked" ? { ...part, grams: "147", estimated: false } : part);
+    assert.equal(recipeGrams(adjustedParts), recipeGrams(parts));
+    const adjustedAction = applyMealChanges(savedMealDraft(groupedMeal), { operationId: randomUUID(),
+      updateFoods: [{ itemId: groupedItem.id, recipeParts: adjustedParts }] });
+    const [sameWeight] = prepareMealActions({ operationId: randomUUID(), actions: [adjustedAction] }, await readMealSnapshot(db, userId), "manual");
+    assert.ok(!sameWeight.error);
+    assert.equal(sameWeight.meal?.items[0].referenceSnapshot?.edibleGrams, "330.0000");
+    assert.notEqual(groupedItem.nutrition.caloriesKcal, sameWeight.meal?.items[0].nutrition.caloriesKcal);
+    assert.equal(sameWeight.meal?.items[0].referenceSnapshot?.recipeParts?.find(part => part.food.id === "vegetable-oil")?.grams, "8");
+    for (const item of [
+      { ...grouped, quantity: "329" },
+      { ...grouped, referenceFood: { ...grouped.referenceFood, parts: [{ id: cola.id, version: cola.version, grams: "330" }] } },
+      { ...grouped, referenceFood: { ...grouped.referenceFood, parts: [{ id: recipe.id, version: recipe.version, grams: "330" }] } },
+      { ...grouped, referenceFood: { ...grouped.referenceFood, parts: [{ id: parts[0].id, version: 99, grams: "330" }] } },
+    ]) {
+      assert.ok(prepareMealActions({ operationId: randomUUID(), actions: [saveMeal([item])] }, initial, "manual")[0].error);
+    }
+
+    const cabbage = requireCurrentReferenceFood({ id: "napa-cooked", version: 2 });
+    const legacyFood = { ...recipe, version: 1, recipe: undefined,
+      components: [{ food: cabbage, role: "配菜" as const, grams: "60" }],
+      portions: [{ ...recipe.portions[0], edibleGrams: "370" }],
+    };
+    await db.update(schema.mealItem).set({
+      referenceSnapshot: { food: legacyFood, portionId: "meal-serving", edibleGrams: "370.0000" },
+      quantity: "1", unit: "份", caloriesKcal: "459.0000",
+    }).where(eq(schema.mealItem.id, groupedItem.id!));
+    const beforeLegacyEdit = await readMealSnapshot(db, userId);
+    const legacy = beforeLegacyEdit.meals.find(meal => meal.id === groupedMeal.id)!;
+    const legacyAction = savedMealDraft(legacy);
+    const [legacyRow] = prepareMealActions({ operationId: randomUUID(),
+      actions: [{ ...legacyAction, notes: "调整备注" }] }, beforeLegacyEdit, "manual");
+    assert.equal(legacyRow.meal?.items[0].nutrition.caloriesKcal, "459.0000");
+    assert.equal(legacyRow.meal?.items[0].referenceSnapshot?.food.version, 1);
+    assert.equal(legacyRow.meal?.items[0].referenceSnapshot?.food.components?.[0].food.id, cabbage.id);
+    assert.equal(legacyRow.meal?.items[0].referenceSnapshot?.edibleGrams, "370.0000");
 
     const unknown = mealPreviewOperation({
       operationId: randomUUID(), date: "2026-11-25", mealType: "晚餐",

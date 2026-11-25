@@ -36,29 +36,31 @@
 
 ### 公共参考目录
 
-本地验收目录共有 170 个可选规格。分类原位打开，可按食物、部位、做法或常用别名查找。整餐和单菜从同一个食材库进入，列表、详情和回看共用对应简图。
+本地验收目录共有 166 个可选规格。分类原位打开，可按食物、部位、做法或常用别名查找。整餐和单菜从同一个食材库进入，列表、详情和回看共用对应简图。
 
 | 分类 | 规格数 | 代表食物 |
 | --- | ---: | --- |
-| 肉禽 | 29 | 鸡腿、烤鸡翅、可乐鸡翅、空气炸锅鸡翅、肉眼、西冷、菲力、牛腩、猪里脊 |
+| 肉禽 | 30 | 鸡腿、烤鸡翅、可乐鸡翅、空气炸锅鸡翅、肉眼、西冷、菲力、牛腩、猪里脊 |
 | 水产 | 11 | 鲷鱼、三文鱼、虾、金枪鱼刺身、炸小鱼干 |
 | 米面主食 | 25 | 白米饭、鸡油饭、椰香米饭、米粉、烤薯块 |
 | 蛋奶豆 | 16 | 鸡蛋、牛奶、酸奶、奶酪、豆腐、豆浆 |
-| 蔬菜菌菇 | 15 | 菠菜、西兰花、大白菜、番茄、黄瓜 |
-| 水果 | 10 | 苹果、香蕉、橙子、橘子、梨、葡萄 |
+| 蔬菜菌菇 | 16 | 菠菜、西兰花、大白菜、番茄、黄瓜 |
+| 水果 | 10 | 苹果、香蕉、鲜橙、橘子、梨、葡萄 |
 | 坚果种子 | 6 | 花生、巴旦木、腰果、核桃、芝麻 |
-| 油脂调味 | 13 | 食用油、酱油、参巴辣酱、鸡饭辣椒酱 |
+| 油脂调味 | 18 | 食用油、盐、生抽、番茄沙司、参巴辣酱、鸡饭辣椒酱 |
 | 饮品 | 8 | 茶、咖啡、含糖可乐、无糖可乐、白水 |
 | 零食甜点 | 4 | 苏打饼干、黑巧克力、原味薯片、海绵蛋糕 |
-| 家常菜与外食 | 33 | 番茄炒蛋、青椒肉丝、麻婆豆腐、盖饭、海南鸡饭、椰浆饭、叻沙、炒粿条、肉酱意面、日式牛肉饭 |
+| 家常菜与外食 | 22 | 番茄牛腩盖饭、可乐鸡翅配饭、番茄炒蛋、青椒肉丝、麻婆豆腐、叻沙、炒粿条 |
 
-家庭菜名与做法按大陆菜谱和常见搭配核对。新加坡小贩餐食和日常西餐、日料使用当地菜单、食谱及实测资料确定身份。厂商、菜单和菜谱列作溯源。常见名称作为显示名，精确样品放在详情。例如「茂谷柑」搜到「橘子」，「新兴梨」搜到「梨」，「熟猪小里脊」搜到「猪里脊肉」，并可核对小里脊、熟重和做法未注明。牛排按肉眼 Ribeye、西冷 Striploin 和菲力区分。 [中国家常菜谱](https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/1c/recipe-475/) · [新加坡旅游局](https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/) · [新加坡牛肉部位对照](https://harmonyif.sg/pricelist.html) · [新加坡日式菜单](https://www.sukiya.com.sg/menu)
+家庭菜名与做法按大陆菜谱和常见搭配核对。新加坡小贩餐食和日常西餐、日料使用当地菜单、食谱及实测资料确定身份。厂商、菜单和菜谱列作溯源。鲜果以橘子、鲜橙、梨等日常名称和通用规格显示。「熟猪小里脊」作为「猪里脊肉」的检索别名，详情可核对部位和熟重口径。牛排按肉眼 Ribeye、西冷 Striploin 和菲力区分。 [中国家常菜谱](https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/1c/recipe-475/) · [新加坡旅游局](https://www.visitsingapore.com/things-to-do/dining/local-food-and-drinks/) · [新加坡牛肉部位对照](https://harmonyif.sg/pricelist.html) · [新加坡日式菜单](https://www.sukiya.com.sg/menu)
 
 - `reference-selection.psv` 逐项维护 FNDDS 和台湾食药署的记录 ID 和份量选取；`reference-recipes.json` 写明标准可食配方、参考菜谱、纳入营养的各原料及成品可食重量。以原料数据按重量加总，再除以成品可食重量。处理收汁或泡发时，原料计营养重量可与成品可食重量不同。配方及油酱保留量是具体的估算条件，可按实际称量录入。 [FNDDS 2021–2023](https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/) · [台湾食药署开放资料](https://data.gov.tw/dataset/8543) · [授权条款](https://data.gov.tw/license)
 - `reference-regional.ts` 维护有独立来源的本地标签和整餐组成。无糖可乐采用 FairPrice 在售瓶装样本的 100 mL 标签，热量和三项宏量均为 0。西冷采用 USDA FDC 170239 的 striploin 烤制瘦肉和可食脂肪数据。 [瓶装标签](https://www.fairprice.com.sg/product/coca-cola-bottle-drink-zero-sugar-500ml-11788366) · [FDC 170239](https://fdc.nal.usda.gov/food-details/170239/nutrients)
-- 海南鸡饭、烧鸡饭与椰浆饭的整份采用 Yeo、Bi、Yeo 与 Henry 的新加坡食品研究 Table 1／2，能量从 kJ 除以 4.184 转成 kcal。这三种餐的拆分量按列出的搭配估算。成品实测数值按 CC BY 4.0 转录和换算，保留原作者和表行。叻沙与炒粿条按当地食谱生成参考，按菜品计量。 [Yeo 等，Foods 2021](https://www.mdpi.com/2304-8158/10/7/1659) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) · [叻沙食谱](https://www.fairprice.com.sg/recipes/laksa/) · [新加坡食品局炒粿条](https://www.sfa.gov.sg/docs/default-source/from-sg-to-sg-docs/recipe-cards/char-kway-teow.pdf)
+- 叻沙与炒粿条按当地食谱生成参考，按单菜计量。此前保存的整餐按原快照回看，包括新加坡成品实测样本的能量换算和研究来源。 [Yeo 等，Foods 2021](https://www.mdpi.com/2304-8158/10/7/1659) · [叻沙食谱](https://www.fairprice.com.sg/recipes/laksa/) · [新加坡食品局炒粿条](https://www.sfa.gov.sg/docs/default-source/from-sg-to-sg-docs/recipe-cards/char-kway-teow.pdf)
 
-公共目录有 12 组可拆分的整餐。组成中每项引用稳定食材规格，标注主菜、主食、配菜或酱料。从任一组成的详情可打开关联的整餐，返回时恢复之前的详情和触发控件。在餐次中确认一份、半份或实际克数可加入整餐项。也可逐项修改可食重量和勾选要记的食物；提交拆分时整批加入，替换现有整餐则原位替换。额外油和酱按实际摄入量另记。日后待补的是不同摊位、带骨和特殊份量的直接测量，以及缺少成品实测的标准配方。来源空值保留未知。
+公共整餐有番茄牛腩盖饭与可乐鸡翅配饭两套标准配方。每项引用稳定的食材规格，在详情标明生重、熟重或成品保留量。牛腩盖饭以牛腩、番茄、白米饭、油、生抽、盐、番茄沙司和姜计，土豆可选。鸡翅配饭将带皮去骨可食部、白米饭、可乐收汁、油、生抽、姜和盐分别计量。收汁用 40 g 普通可乐约得 12 g 成品作配方估算。原菜谱投料、标准配方和本次食用量各自可查。 [家常可乐鸡翅](https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c7/30/) · [FAO 食谱换算方法](https://www.fao.org/4/y4705e/y4705e23.htm)
+
+在餐内选半份、一份或实际克数，本次总览和各分项用同一食用量。拆开后逐项填量和勾选，也可加实际吃下的配菜、油和调料，重复规格直接改原行。两种方式在草稿和保存后都作为一道菜显示。展开可核对分项、重量口径及来源，也可在草稿或网页编辑中调整整餐。关联整餐可以从相关单菜或默认分项进入，返回时恢复详情及触发控件。
 
 检索优先识别品名和别名，按明确的生熟、做法和皮骨筛选。普通「鸡腿」返回 5 个熟食。「生鸡腿」「生鸡小腿」「生重鸡腿」均指向去皮去骨 I0404501。半只去皮炖鸡小腿使用 FNDDS 24143220 的中等参考份量，计算为 27.5 g 和 40.7 kcal。计件的参考重量由原表独立份量行支持。配方和整餐可按标准一份切换，实称使用可食克数；体积基准饮品使用实际 mL。
 
@@ -68,9 +70,9 @@
 
 `GET /api/v1/foods` 和 MCP `search_foods` 继续返回最多 40 个公共候选 `referenceFoods`，同时保留个人 `foods` 和 `presets: []`。与网页共用版本、做法、状态和来源。新增字段 `basisUnit` 标记 mL，缺省为 g。`sourceKind` 区分成分表、标签和配方估算。`components` 是整餐分项及各自规格，`relatedMeals` 可再按名称搜索。
 
-草稿使用 `referenceFood: { id, version, portionId? }` 和实际食量。按件或按份传候选的 portionId。实称用 g 或 mL，与该条目的基准对应。整份与拆分只采用其一，分项采用该项规格和实际食量。只说吃了牛排时先确认部位和食量。明确接受份量未知时使用 `unknown_accepted`，保留本条规格单位。服务端按候选计算并写快照，真实对话仍经网页确认。
+整份草稿使用 `referenceFood: { id, version, portionId? }` 和实际食量。按件或按份传候选的 portionId。实称用 g 或 mL，与条目基准对应。整餐拆开记使用同一个 `referenceFood`，其中 `parts` 提交各食材的 `id`、`version` 和可食 `grams`，用户接受的估算加 `estimated: true`。外层 `quantity` 为分项合计，`unit=g`，省略 `portionId`。修改已保存的分项时 `preview_meal_changes.updateFoods[].recipeParts` 提交全部保留的分项。只说吃了牛排时先确认部位和食量。明确接受份量未知时使用 `unknown_accepted`，保留本条规格单位。服务端按候选计算并写快照，真实对话仍经网页确认。
 
-试用时可以说「晚饭吃了一份番茄牛腩盖饭，拆开记，牛腩 125 克、饭 150 克、菜没吃」或「喝了 330 毫升无糖可乐」。另外核对「今天吃了牛排」是否先询问部位和食量。
+试用时可以说「晚饭有番茄牛腩盖饭，拆开记，牛腩 125 克、番茄 70 克、饭 150 克、油 5 克，其他调料按标准配方估算」或「喝了 330 毫升无糖可乐」。另外核对「今天吃了牛排」是否先询问部位和食量。
 
 ## 图片上传与恢复
 

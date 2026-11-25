@@ -36,7 +36,7 @@
     "presets": "兼容旧协议的空列表。 ",
     "referenceFoods.*.basisUnit": "mL表示按饮用体积记录，缺省为可食部g。保留供应单位，不把毫升与克互换。",
     "referenceFoods.*.sourceKind": "成分表／标签／配方估算。用候选的来源与版本记录；未知为null。",
-    "referenceFoods.*.components": "整餐的分项、各自的食材规格和标准可食克数。用户要拆开记时只记录吃下的分项和实际量。",
+    "referenceFoods.*.components": "整餐的分项、各自的食材规格和标准可食克数。用户要拆开记时，用referenceFood.parts在一条餐项内提交吃下的分项与实际量。",
     "referenceFoods.*.relatedMeals": "包含此食材或配菜的整餐链接；按名称另查整餐详情。"
   },
   "operation": {

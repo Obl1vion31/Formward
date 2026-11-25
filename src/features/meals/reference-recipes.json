@@ -85,7 +85,7 @@
   },
   {
     "id": "tomato-beef-brisket",
-    "version": 1,
+    "version": 2,
     "family": "beef-brisket",
     "name": "番茄炖牛腩",
     "aliases": [
@@ -99,10 +99,10 @@
     "state": "cooked",
     "method": "炖",
     "illustration": "tomato-brisket",
-    "preparation": "牛腩按前胸肉参考 · 含番茄、土豆和炖汁",
+    "preparation": "牛腩按前胸肉参考 · 含番茄和炖汁",
     "source": {
-      "title": "番茄牛腩饭中的炖菜",
-      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/1c/recipe-475/"
+      "title": "家常番茄炖牛肉",
+      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-cn/recipe/0/c7/05/"
     },
     "ingredients": [
       {
@@ -114,11 +114,6 @@
         "name": "熟番茄",
         "source": "usda:99997410",
         "edibleGrams": "40"
-      },
-      {
-        "name": "熟土豆",
-        "source": "usda:71103010",
-        "edibleGrams": "26"
       },
       {
         "name": "番茄酱",
@@ -517,7 +512,6 @@
     "family": "sauce",
     "name": "鸡饭辣椒酱",
     "aliases": [
-      "海南鸡饭辣椒",
       "鸡饭辣椒",
       "chicken rice chili"
     ],
@@ -821,8 +815,7 @@
     "name": "日式洋葱牛肉",
     "aliases": [
       "日式肥牛",
-      "日式牛丼牛肉",
-      "gyudon beef"
+      "Japanese onion beef"
     ],
     "state": "cooked",
     "method": "煮",

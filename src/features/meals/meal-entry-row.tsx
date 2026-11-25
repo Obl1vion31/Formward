@@ -1,8 +1,8 @@
 import { useId, type KeyboardEvent } from "react";
 import { DecimalInput } from "@/components/decimal-input";
 import { MealItemDetails } from "./meal-item-details";
-import { FoodArt } from "./food-art";
-import type { ReferenceFood } from "./reference-food";
+import { FoodArt, RecipeArt, SavedRecipeParts } from "./food-art";
+import type { RecipePart, ReferenceFood } from "./reference-food";
 import { editorUnit, MealEntryReadings, MealInfoIcon, MealNutrientValue, nutrientUnit } from "./meal-entry-readings";
 import { editorDecimal, updateEditorNutrition, type EditorItem } from "./meal-editor-state";
 import { emptyNutrition, metricLabels, metrics, scaled, sourceLabels, type FoodDraft, type ItemDraft, type Nutrition } from "./model";
@@ -13,6 +13,8 @@ type Props = {
   index: number;
   food: FoodDraft | undefined;
   reference?: ReferenceFood;
+  recipeParts: readonly RecipePart[];
+  adjustRecipe: () => void;
   nutrition: Nutrition;
   nutritionHint: string;
   blank: boolean;
@@ -35,12 +37,13 @@ function NutritionTrigger() {
 }
 
 export function MealEntryRow({
-  item, index, food, reference, nutrition, nutritionHint, blank, nutritionOpen, update, toggleNutrition, remove, replace,
+  item, index, food, reference, recipeParts, adjustRecipe, nutrition, nutritionHint, blank, nutritionOpen, update, toggleNutrition, remove, replace,
 }: Props) {
   const id = useId(), number = index + 1;
   const name = food?.name ?? (item.name.trim() || "第 " + number + " 项食物");
   const unit = item.unit ?? food?.unit ?? "";
-  const packageUnits = food?.servingQuantity && food.servingUnit ? [food.servingUnit, food.unit] : [];
+  const isRecipe = Boolean(reference?.recipe);
+  const packageUnits = !isRecipe && food?.servingQuantity && food.servingUnit ? [food.servingUnit, food.unit] : [];
   const raw = item.nutrition ?? emptyNutrition();
   const chosenSource = ["label", "composition_table"].includes(item.sourceKind) ? "reference" : item.sourceKind;
   const choices: [ItemDraft["sourceKind"], string][] = [["reference", sourceLabels.reference], ["estimated", "直接预估"]];
@@ -76,10 +79,10 @@ export function MealEntryRow({
         onKeyDown={finishField} onChange={event => update({ ...item, name: event.target.value })}/>}
       {!blank && !item.name.trim() && <small role="status" className={styles.fieldIssue}>请填写食物名称</small>}
     </div>
-    <div className={styles.quantity + " " + styles.compactField}>
-      <DecimalInput value={item.quantity ?? ""} aria-label={"数量 " + number} aria-describedby={!food ? nutritionHint : undefined}
+    <div className={styles.quantity + (isRecipe ? "" : " " + styles.compactField)}>
+      {isRecipe ? <span>{item.quantity ? Number(item.quantity) : "—"}</span> : <DecimalInput value={item.quantity ?? ""} aria-label={"数量 " + number} aria-describedby={!food ? nutritionHint : undefined}
         min={0} max={1000000} precision={2} trimTrailingZeros placeholder="数量" title={item.quantity ?? undefined} onKeyDown={finishField}
-        onValue={quantity => update({ ...item, quantity: quantity || null, amountDecision: quantity ? "provided" : undefined })}/>
+        onValue={quantity => update({ ...item, quantity: quantity || null, amountDecision: quantity ? "provided" : undefined })}/>}
     </div>
     <div className={food && !packageUnits.length ? styles.unit : styles.unit + " " + styles.compactField}>
       {food
@@ -104,15 +107,21 @@ export function MealEntryRow({
     </div>
     {!blank && (food ? <MealItemDetails id={id + "-more"} label={name + "的更多操作"}
       trigger={<><strong className={styles.menuName}>{food.name}</strong><MealInfoIcon/></>} className={styles.rowMenu}>
-      {reference && <FoodArt illustration={reference.illustration} detail/>}
+      {reference && (isRecipe ? <RecipeArt food={reference}/> : <FoodArt illustration={reference.illustration} detail/>)}
       <h3>{name}</h3>
-      <p>每 {Number(food.baseQuantity)} {editorUnit(food.unit)} · {sourceLabels[food.sourceKind]}</p>
+      {isRecipe ? <p>{item.referenceFood?.parts ? "拆开记" : "按整份记"} · 配方估算</p>
+        : <p>每 {Number(food.baseQuantity)} {editorUnit(food.unit)} · {sourceLabels[food.sourceKind]}</p>}
+      {isRecipe && recipeParts.length > 0 && <details><summary>查看整餐组成</summary><SavedRecipeParts parts={recipeParts}/></details>}
       {food.basis && <p>{food.basis}</p>}
       {!item.quantity && <label className={styles.unknownAmount}>
         <input type="checkbox" checked={item.amountDecision === "unknown_accepted"}
           onChange={event => update({ ...item, amountDecision: event.target.checked ? "unknown_accepted" : undefined })}/>保留未知数量
       </label>}
       <div className={styles.sourceActions}>
+        {isRecipe && <button type="button" onClick={event => {
+          event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover();
+          adjustRecipe();
+        }}>调整整餐</button>}
         <button type="button" onClick={event => {
           event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover();
           replace();
