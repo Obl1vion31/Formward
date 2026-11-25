@@ -39,9 +39,9 @@ export function FoodTable({ foods, edit }: { foods: FoodView[]; edit: (food: Foo
                 {description && <span>{description}</span>}
               </th>
               <td className={styles.rowAmount}>每 {Number(food.baseQuantity)}{food.unit}</td>
-              {columns.map(({ metric, label, unit }) => <td key={metric}
-                className={metric === "caloriesKcal" ? styles.rowEnergy : styles.rowMacro}
-                data-label={label + " " + unit}>{formatNutrition(food.nutrition[metric], metric)}</td>)}
+              {columns.map(({ metric, label, unit }) => <td key={metric} data-label={label + " " + unit}>
+                {formatNutrition(food.nutrition[metric], metric)}
+              </td>)}
               <td className={styles.rowActions}>
                 <div className={styles.foodRowActions}>
                   <RecordRowAction intent="edit" onClick={() => edit(food)}>编辑</RecordRowAction>

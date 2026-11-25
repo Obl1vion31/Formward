@@ -323,8 +323,7 @@
   line-height: 1.5;
   color: var(--muted);
 }
-.rowAmount, .rowEnergy, .rowMacro { white-space: nowrap; }
-.rowEnergy { font-size: 18px; font-weight: 500; }
+.rowAmount, .foodTable td[data-label] { white-space: nowrap; }
 .foodRowActions { display: flex; justify-content: flex-end; gap: 4px; }
 .foodRowActions svg { flex: none; }
 .foodTable [data-food-expanded] > :is(th, td) { border-bottom-color: transparent; }
@@ -351,7 +350,7 @@
   .foodTable .rowName { grid-column: 1 / 4; grid-row: 1; }
   .rowName > span { max-width: none; white-space: normal; font-size: .8125rem; }
   .rowAmount { grid-column: 1 / 4; grid-row: 2; font-size: .8125rem; color: var(--muted); white-space: normal; }
-  .foodTable :is(.rowMacro, .rowEnergy) { grid-row: 3; align-self: start; font-size: 1rem; }
+  .foodTable td[data-label] { grid-row: 3; align-self: start; line-height: 20px; }
   .foodTable [data-label]::before {
     content: attr(data-label);
     display: block;
@@ -359,6 +358,7 @@
     color: var(--muted);
     font-size: .75rem;
     font-weight: 400;
+    line-height: 16px;
   }
   .foodTable .rowActions, .foodRowActions { display: contents; }
   .foodRowActions [data-record-action] { grid-column: 4; justify-self: end; }
@@ -371,5 +371,5 @@
   .foodTable tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .foodTable :is(.rowName, .rowAmount) { grid-column: 1; }
   .foodRowActions [data-record-action] { grid-column: 2; }
-  .foodTable :is(.rowMacro, .rowEnergy) { grid-row: auto; }
+  .foodTable td[data-label] { grid-row: auto; }
 }
