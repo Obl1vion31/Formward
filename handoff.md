@@ -1,10 +1,10 @@
 # Formward 项目交接
 
-网页与聊天 worker 运行 `dual-entry-01cd5888-password-minimum-six-20261126`，源码 `01cd58880ed78e2040cbc7fdf3f1ab36ea6775f0`，BUILD_ID `5X94swxeZUTP2TWTPTcpV`。北京时间 2026-11-26 03:31:52 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+网页与聊天 worker 运行 `dual-entry-d6a81040-mobile-panel-titles-r3-20261126`，源码 `d6a81040d4f885c7c29fc770a618de62226b0f84`，BUILD_ID `Ufmu6P0Hxlq1hnxu82OMQ`。北京时间 2026-11-26 03:36:49 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+
+手机底部面板使用等宽操作槽，返回与关闭围绕居中的标题。食材库、饮食、消耗、身体详情、训练动作选择、设备来源和更多信息已走实页。320／390 CSS px 与桌面通过标题、层级往返、草稿保护和读取失败重试验收。 [视觉验收](design-qa.md#已发布验收--手机面板标题)
 
 新设置、邀请激活、重设、本人修改和内部创建密码统一接受6–128个字符，不强制大小写、数字或特殊符号组合。浏览器输入、提示和服务端共用password-policy.ts；原密码保持，改密后的访问撤销、身份验证、限流和审计规则继续执行。
-
-lint、typecheck、Turbopack生产构建通过；887项单元／集成中885项通过，2项原有条件跳过。准确兼容包在隔离PostgreSQL中通过Chromium 1440px与WebKit 390px的双主题4组、12条表单流程：六位纯数字激活、纯字母重设、纯符号改密及新密码登录；五位由浏览器和服务端拒绝，旧会话按原规则撤销。页面持续标记虚构测试环境，未实测实体手机键盘。
 
 发布与兼容回退见[部署](docs/deployment.md#当前正式版本)。
 

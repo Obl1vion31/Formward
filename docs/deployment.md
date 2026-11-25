@@ -2,6 +2,14 @@
 
 ## 当前正式版本
 
+网页与聊天 worker 运行 `dual-entry-d6a81040-mobile-panel-titles-r3-20261126`，源码 `d6a81040d4f885c7c29fc770a618de62226b0f84`，BUILD_ID `Ufmu6P0Hxlq1hnxu82OMQ`，北京时间 2026-11-26 03:36:49 切换。手机面板使用等宽操作槽与独立标题列，窄屏保留完整返回语义。准确运行包通过 320／390 CSS px 手机与 1280 CSS px 桌面验收。 [正式站](https://formward.top) · [实页验收](../design-qa.md#已发布验收--手机面板标题)
+
+数据库沿用 `0048_meal_reference_foods`，48 项迁移与 67 张表。切换前的原生与加密异地备份通过核对，配置和停写前后数据摘要一致。四个公网入口及兼容 IP 返回同版，新旧 CSS 和 JS、登录回程、接口权限及海外 iad1 入口通过核对。
+
+运行包 90,479,006 字节，SHA-256 `eaf223aa75c4f9bcc348eb1e3df669c20e582660d2f6ae1fab37b1d2500364a1`，与浏览器验收所用的准确包一致。保留 56 项 Server Action 与绑定密钥及 2477 项旧静态资源。运行包及证据保存在 `.codex/backups/regional-releases/mobile-panel-titles-r3-20261126`，可用兼容回退为 `password-minimum-six-20261126`。
+
+## 六字符密码发布记录
+
 网页与聊天 worker 运行 `dual-entry-01cd5888-password-minimum-six-20261126`，源码 `01cd58880ed78e2040cbc7fdf3f1ab36ea6775f0`，BUILD_ID `5X94swxeZUTP2TWTPTcpV`。北京时间 2026-11-26 03:31:52 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
 
 新设置、邀请激活、重设、本人修改和内部创建密码统一接受6–128个字符，不强制大小写、数字或特殊符号组合。浏览器输入、提示和服务端共用password-policy.ts；原密码保持，改密后的访问撤销、身份验证、限流和审计规则继续执行。
