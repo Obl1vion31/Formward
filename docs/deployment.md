@@ -2,7 +2,17 @@
 
 ## 当前正式版本
 
-网页与聊天 worker 运行 `dual-entry-b4c92294-food-library-compact-20261125`，源码 `b4c92294dd00d10fe596c94dd5ffb75becd13918`，BUILD_ID `jU-k7DJJqoSW3yaC8Ac3y`。北京时间 2026-11-25 15:56:32 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+网页与聊天 worker 运行 `dual-entry-740f4581-code-quality-copyright-20261125`，源码 `740f4581a070912cd50c7ae8458562910192b01d`，BUILD_ID `1J64FUdiCqBLejca7HiXu`。北京时间 2026-11-25 23:33:53 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+
+此次修正流式正文大小限制、取消异常及读取锁释放，更新COS和相关依赖，保留已有界面与业务规则。lint、typecheck、production build及878项业务测试通过，2项原有跳过；实际发布包完成受影响流程的集中验收与Excel回读。 [审查与验证](code-quality.md)
+
+四个公网域名和兼容IP返回同版，登录回程、公开协议、6个匿名拒绝入口及12次新旧CSS／JS读取核对通过。国际网关同步发布为`dpl_FzyJrgwj8bfPdfyPZSHrYEhX8p3E`，实际区域iad1，只切换原有两个国际别名，项目旧目标域名保持。候选临时域名被主机白名单以421拒绝，未放宽白名单。正式包保留56项Server Action及绑定密钥和2444项旧静态资源。
+
+数据库保持`0047_meal_food_groups`、47项迁移及67张表。备份`formward-primary-20261125T153349299968Z.dump.json`通过原生校验及加密异地回读；正式配置和切换前后数据摘要一致。兼容运行包88,909,616字节，SHA-256 `f9e8ba2f0833eaf2b30e0fefbb1a8a8e1f437fec7f5b5a58be05616f45dd3aee`，归档在`.codex/backups/regional-releases/code-quality-copyright-20261125`。兼容回退为`food-library-compact-20261125`，网关回退归档为`dpl_CgwJFnf4xJjpqVced4Lj74CJ48sC`。
+
+## 食材库与录入控件发布记录
+
+此前版本为`dual-entry-b4c92294-food-library-compact-20261125`，源码`b4c92294dd00d10fe596c94dd5ffb75becd13918`，BUILD_ID `jU-k7DJJqoSW3yaC8Ac3y`，北京时间2026-11-25 15:56:32切换。
 
 独立食材库手机列表用两行展示名称、营养基准和编辑，以及热量、三项宏量和详情。电脑表格热量优先。展开显示全名、描述、营养及原有来源。食材编辑保存刷新后能返回原饮食日期、历史和滚动位置。Chromium 和 WebKit 使用与正式归档摘要相同的运行包，完成 20 组版式、4 组保存流程和 12 组来源返回及历史操作。实体 iPhone Safari 未测。 [实页验收](../design-qa.md)
 

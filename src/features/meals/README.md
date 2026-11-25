@@ -2,6 +2,8 @@
 
 照片原图在选取时读取一次，客户端和服务端共用image-format.ts识别实际PNG／JPEG／WebP文件头。上传类型、摘要与大小均对应这份原始字节，不依赖系统选择器上报的MIME或文件扩展名；排队和重试继续复用内存原图，重试与备用上传保留当前选定通道，只有明确切换通道才改变region。服务端仍核对字节、摘要、归属与票据。
 
+国内服务端存储使用COS SDK 3.0.0，保留私有桶和既有上传、签名读取、列表与删除调用。`cos-transport.test.ts`通过本机HTTP服务验证签名、中文对象键、原始字节及列表响应，不连接正式存储；网页直传策略和原图校验保持。
+
 记录一餐支持公共参考、个人食材、手填和拍照。四种入口共同编辑当前草稿。公共规格由 `reference-catalog.ts` 管理，筛选和排序同时服务网页、HTTP 与 MCP。`reference-selection.psv` 逐条记录追加规格的来源和展示口径，`reference-expansion.json` 从原表和审核后的标准配方生成。`reference-browser.tsx` 与 `reference-details.tsx` 用在独立食材库和餐内选择器，`reference-food.ts` 共用分组和换算，`reference-art.ts` 关联图集。营养和份量来源见[饮食记录](../../../docs/meals.md#公共参考目录)。
 
 公共规格以 g 或 mL 为计量基准，来源区分成分表、标签和配方估算。整餐用 `reference-regional.ts` 关联已版本化的分项，通过 `reference-recipe.ts` 共用整份缩放、拆分合计及重量口径。两种记录方式均写一条餐项，扩展的参考快照保存分项和各自的来源。旧餐继续读取原快照。

@@ -21,7 +21,7 @@
 
 - `build-food-reference-data.py` 从指定的私有原表目录和审核后的 `reference-recipes.json` 生成公共食材数据。导入校验单位、可食量和营养范围，并保留已知零与缺失值。需要 FNDDS 2021–2023 食物、营养和份量工作簿及台湾食药署 2026-10-05 压缩表，文件名见脚本。通过 `python3 scripts/build-food-reference-data.py data/imports/food-reference --check` 核对当前目录与原表，去掉 `--check` 可生成 `reference-expansion.json`。更新版本时先复核规格的营养、口径和引用兼容。
 - `prepare-turn-video.sh`：使用 FFmpeg 将 v6 原始一秒转身视频生成 960×1440、逐帧关键帧的播放文件，不覆盖原始视频。
-- `check-structure.sh`：检查所有项目自有目录是否包含非空 README；工具生成并被忽略的 .vercel 项目关联目录与依赖、缓存一起跳过。
+- `check-structure.sh`：检查所有项目自有目录是否包含非空 README；工具生成的 .vercel、.impeccable 验收资料和 Python __pycache__ 与依赖、缓存一起跳过，不把运行检查生成的目录当作源码目录。
 - `backup-database.mts`：在结构迁移前导出 public／drizzle 全表及字段信息；repeatable read 只读事务，私有 JSON 权限 0600、拒绝覆盖。用法：`node --env-file=.env.local --import tsx scripts/backup-database.mts data/exports/私有备份.json`。备份含认证与健康数据，保持 Git 忽略，恢复按对应版本结构及外键顺序进行。
 - `rehearse-database.mts`：使用原生 `pg_dump` 归档并恢复到独立空库，验证 PostgreSQL 跨机器迁移。源端始终只读；目标必须是回环地址或 SSH 隧道，库名限定 `formward_rehearsal` 或其下划线后缀。源目标同名、目标非空、归档位于私有目录外或输出已存在均拒绝。执行方法和验证范围见下文。
 - `fill-measurement-sources.mts`：仅用于已授权的账号未知实测来源补齐。私有请求 JSON 为 `{ userId, deviceLabel }`；用法：`node --env-file=.env.local --import tsx scripts/fill-measurement-sources.mts data/exports/私有请求.json --preview|--write`。写入前保存目标实测私有快照，只改未知来源及修改时间，审计保存前后内容；估计、已知来源、测量时间、数值和删除状态保持。
