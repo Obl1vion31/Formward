@@ -175,12 +175,13 @@ export async function runWorkspaceReturns(db) {
             const editor = dialog(page);
             const calories = editor.getByLabel("热量", { exact: true });
             const updated = await calories.inputValue() === "381" ? "380" : "381";
+            const savedCalories = oats.getByLabel(`热量 ${updated} 千卡`, { exact: true });
             await calories.fill(updated);
             await editor.getByRole("button", { name: "保存食材", exact: true }).click();
             await editor.waitFor({ state: "hidden" });
-            await oats.getByText(updated, { exact: true }).waitFor();
+            await savedCalories.waitFor();
             await page.reload();
-            await oats.getByText(updated, { exact: true }).waitFor();
+            await savedCalories.waitFor();
           }
           await page.evaluate(() => history.back());
           await waitForFocus(tag);
