@@ -1,18 +1,23 @@
 "use client";
 import {RecordRowAction} from "@/components/daily-records";
 import {Fragment,useId,useState,type DragEventHandler} from "react";
-import { foodSpecification, formatNutrition, sourceLabels, type FoodDraft, type FoodView, type Metric } from "./model";
+import { foodSpecification, formatNutrition, metricLabels, metrics, sourceLabels, type FoodDraft, type FoodView } from "./model";
 import { ImageGallery } from "./photos";
 import styles from "./meals.module.css";
 import picker from "./meal-editor.module.css";
 import { MealItemDetails } from "./meal-item-details";
-import { editorUnit, MealEntryReadings, MealInfoIcon } from "./meal-entry-readings";
-const columns: { metric: Metric; label: string; unit: string }[] = [
-  { metric: "proteinG", label: "蛋白质", unit: "g" },
-  { metric: "carbsG", label: "碳水", unit: "g" },
-  { metric: "fatG", label: "脂肪", unit: "g" },
-  { metric: "caloriesKcal", label: "热量", unit: "千卡" },
-];
+import { editorUnit, MealEntryReadings, MealInfoIcon, nutrientUnit } from "./meal-entry-readings";
+
+function foodPortion(food: FoodDraft) {
+  const unit = editorUnit(food.unit);
+  const reference = `${Number(food.baseQuantity)} ${unit}`;
+  const serving = food.servingQuantity && food.servingUnit ? `1 ${editorUnit(food.servingUnit)}` : null;
+  const usesServing = serving !== null && Number(food.servingQuantity) === Number(food.baseQuantity);
+  return {
+    basis: usesServing ? `每 ${serving}，${reference}` : `每 ${reference}`,
+    conversion: serving && !usesServing ? `${serving} = ${Number(food.servingQuantity)} ${unit}` : null,
+  };
+}
 
 export function FoodTable({ foods, edit }: { foods: FoodView[]; edit: (food: FoodView) => void }) {
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -21,27 +26,40 @@ export function FoodTable({ foods, edit }: { foods: FoodView[]; edit: (food: Foo
     <table className={styles.foodTable}>
       <thead>
         <tr>
-          <th scope="col">食材／规格</th>
-          <th scope="col">营养基准</th>
-          {columns.map(({ metric, label, unit }) => <th scope="col" key={metric}>{label}（{unit}）</th>)}
-          <th scope="col">操作</th>
+          <th scope="col">食材</th>
+          <th scope="col" className={styles.amountHeading}>营养基准</th>
+          {metrics.map(metric => <th scope="col" key={metric}>{metricLabels[metric]}（{nutrientUnit(metric)}）</th>)}
+          <th scope="col" className={styles.actionHeading}>操作</th>
         </tr>
       </thead>
       <tbody>
         {foods.map(food => {
           const open = expanded === food.id;
           const detailsId = prefix + "-" + food.id;
-          const description = [food.brand, foodSpecification(food.preparation)].filter(Boolean).join(" · ");
+          const { basis } = foodPortion(food);
           return <Fragment key={food.id}>
             <tr data-food-expanded={open || undefined}>
               <th scope="row" className={styles.rowName}>
-                <strong>{food.name}</strong>
-                {description && <span>{description}</span>}
+                <div className={styles.rowTitle}>
+                  <strong>{food.name}</strong>
+                  <small className={styles.mobileBasis}>（{basis}）</small>
+                </div>
               </th>
-              <td className={styles.rowAmount}>每 {Number(food.baseQuantity)}{food.unit}</td>
-              {columns.map(({ metric, label, unit }) => <td key={metric} data-label={label + " " + unit}>
-                {formatNutrition(food.nutrition[metric], metric)}
-              </td>)}
+              <td className={styles.rowAmount}>{basis}</td>
+              {metrics.map(metric => {
+                const value = food.nutrition[metric];
+                const reading = formatNutrition(value, metric);
+                const unit = nutrientUnit(metric);
+                const isEnergy = metric === "caloriesKcal";
+                return <td key={metric} data-food-metric={metric}
+                  aria-label={`${metricLabels[metric]} ${value === null ? "未知" : reading + " " + unit}`}>
+                  {!isEnergy && <small className={styles.rowMetricLabel}>
+                    {metric === "proteinG" ? "蛋白" : metricLabels[metric]}{" "}
+                  </small>}
+                  {reading}
+                  {value !== null && <small className={styles.rowMetricUnit}>{isEnergy && " "}{unit}</small>}
+                </td>;
+              })}
               <td className={styles.rowActions}>
                 <div className={styles.foodRowActions}>
                   <RecordRowAction intent="edit" onClick={() => edit(food)}>编辑</RecordRowAction>
@@ -53,7 +71,7 @@ export function FoodTable({ foods, edit }: { foods: FoodView[]; edit: (food: Foo
               </td>
             </tr>
             {open && <tr className={styles.foodExpanded} id={detailsId}>
-              <td colSpan={columns.length + 3}><FoodDetails food={food} compact/></td>
+              <td colSpan={metrics.length + 3}><FoodDetails food={food}/></td>
             </tr>}
           </Fragment>;
         })}
@@ -61,9 +79,19 @@ export function FoodTable({ foods, edit }: { foods: FoodView[]; edit: (food: Foo
     </table>
   </div>;
 }
-export function FoodDetails({ food,compact=false }: { food: FoodDraft;compact?:boolean }) {
-  if(compact)return <section className={styles.foodInformation} aria-label={food.name+"的来源与说明"}><p>{sourceLabels[food.sourceKind]}{food.servingQuantity&&food.servingUnit&&<> · 1{food.servingUnit} = {Number(food.servingQuantity)}{food.unit}</>}</p>{food.basis&&<p>{food.basis}</p>}{food.evidenceUrl&&<a href={food.evidenceUrl} target="_blank" rel="noreferrer">查看来源 ↗</a>}<ImageGallery ids={food.imageIds}/></section>;
-  return <section className={styles.foodDetails}><h3>{food.name}</h3><p className={styles.notes}>{[food.brand,foodSpecification(food.preparation)].filter(Boolean).join(" · ")}</p><p>每 {Number(food.baseQuantity)}{food.unit} · {sourceLabels[food.sourceKind]}{food.servingQuantity&&food.servingUnit&&<> · 1{food.servingUnit} = {Number(food.servingQuantity)}{food.unit}</>}</p><dl className={styles.foodNutrients}>{(["caloriesKcal","proteinG","carbsG","fatG"] as const).map(metric=><div key={metric}><dt>{{caloriesKcal:"热量",proteinG:"蛋白质",carbsG:"碳水",fatG:"脂肪"}[metric]}</dt><dd>{formatNutrition(food.nutrition[metric],metric)}<small>{metric==="caloriesKcal"?"kcal":"g"}</small></dd></div>)}</dl>{food.basis&&<div className={styles.foodAnalysis}><h4>{food.sourceKind==="estimated"?"估算分析":"数据来源"}</h4><p className={styles.notes}>{food.basis}</p></div>}{food.evidenceUrl&&<a href={food.evidenceUrl} target="_blank" rel="noreferrer">查看来源 ↗</a>}<ImageGallery ids={food.imageIds}/></section>;
+
+function FoodDetails({ food }: { food: FoodDraft }) {
+  const { basis, conversion } = foodPortion(food);
+  const description = [food.brand, foodSpecification(food.preparation)].filter(Boolean).join(" · ");
+  return <section className={styles.foodInformation} aria-label="食材详情">
+    <h3>{food.name}</h3>
+    {description && <p>{description}</p>}
+    <p>{[basis, conversion, sourceLabels[food.sourceKind]].filter(Boolean).join(" · ")}</p>
+    <MealEntryReadings nutrition={food.nutrition}/>
+    {food.basis && <p>{food.basis}</p>}
+    {food.evidenceUrl && <a href={food.evidenceUrl} target="_blank" rel="noreferrer">查看来源 ↗</a>}
+    <ImageGallery ids={food.imageIds}/>
+  </section>;
 }
 
 function DetailsChevron({open=false}:{open?:boolean}){return <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style={{transform:open?"rotate(180deg)":undefined}}><path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>;}

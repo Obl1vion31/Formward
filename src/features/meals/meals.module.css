@@ -137,10 +137,7 @@
 .chart { height:auto; max-height:260px; overflow:hidden; }
 .itemEvidence strong { color:var(--ink); font-weight:500; }
 .itemEvidence p { margin:8px 0; overflow-wrap:anywhere; }
-.itemEvidence a, .foodDetails a { color:var(--gold); }
-.foodDetails h3 { font-size:18px; font-weight:500; }
-.foodAnalysis { padding:18px 0; border-top:1px solid var(--rule); margin-top:20px; }
-.foodAnalysis h4 { font-size:13px; font-weight:500; margin:0 0 12px; }
+.itemEvidence a { color:var(--gold); }
 @media(max-width:700px) {
   .chartReadout { align-items:flex-start; gap:10px; }
   .chartMacros { gap:16px; flex-wrap:wrap; justify-content:flex-end; }
@@ -231,8 +228,6 @@
 /* 独立食材编辑沿用餐次控件语言；不以“未知”作为主读数。 */
 .form[data-entry-form=food]>fieldset{display:grid;gap:12px}.form[data-entry-form=food] label{font-size:14px;gap:6px;margin:0}.form[data-entry-form=food] .formColumns{grid-template-columns:repeat(auto-fit,minmax(min(100%,7.5em),1fr));gap:12px}.fieldCaption{display:flex;align-items:baseline;justify-content:space-between;gap:4px;flex-wrap:wrap}.fieldCaption small{font-size:12px;white-space:nowrap}.form[data-entry-form=food] .nutritionFields{gap:8px}.form[data-entry-form=food] .nutritionFields label{display:grid;grid-template-columns:1fr auto;gap:6px}.form[data-entry-form=food] .nutritionFields input{grid-column:1/-1;width:100%;margin:0;padding-inline:6px;letter-spacing:normal;appearance:textfield}.form[data-entry-form=food] .nutritionFields small{font-size:12px;margin:0}.form[data-entry-form=food] .sourceFields{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin:0}.form[data-entry-form=food] .sourceChoices{flex:1 0 auto;gap:8px}.form[data-entry-form=food] .sourceChoices legend{margin-bottom:0}.form[data-entry-form=food] .sourceChoices label{gap:6px}.form[data-entry-form=food] .evidence{margin:0;flex:0 0 auto}.form[data-entry-form=food] .evidence[open]{flex-basis:100%}.form[data-entry-form=food] .evidence summary{gap:4px}.form[data-entry-form=food] .photoFields{margin:0}.foodBasis{display:flex;flex-wrap:wrap;gap:4px 12px;margin:0;color:var(--muted);font-size:12px;line-height:18px}.foodBasis>span{white-space:nowrap}
 .form[data-entry-form=food] .save{margin-top:0;justify-self:end}
-.foodNutrients{display:flex;flex-wrap:wrap;gap:18px 28px;margin:20px 0}.foodNutrients>div{flex:1 1 100px;min-width:max-content;max-width:100%}
-.foodNutrients dt{font-size:13px;color:var(--muted)}.foodNutrients dd{margin:6px 0 0;font-size:24px;white-space:nowrap;font-variant-numeric:tabular-nums}.foodNutrients dd small{font-size:13px;color:var(--muted);margin-left:4px}
 
 .form[data-entry-form=food] .nutritionFields input::-webkit-inner-spin-button,.form[data-entry-form=food] .nutritionFields input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 
@@ -300,76 +295,79 @@
 }
 
 .foodTableViewport { max-width: 100%; container-type: inline-size; }
-.foodTable { width: 100%; border-collapse: collapse; text-align: right; font-size: 14px; }
+.foodTable { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: right; font-size: 14px; }
 .foodTable :is(th, td) {
   padding: 8px;
   border-bottom: 1px solid var(--rule);
   vertical-align: middle;
   font-weight: 400;
 }
-.foodTable thead th { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.foodTable thead th { color: var(--muted); font-size: 12px; text-wrap: balance; }
 .foodTable th:first-child { text-align: left; padding-inline-start: 0; }
 .foodTable :is(th, td):last-child { padding-inline-end: 0; }
-.rowName { overflow-wrap: anywhere; }
-.rowName strong { display: block; font-size: 15px; font-weight: 500; line-height: 1.6; }
-.rowName > span {
-  display: block;
-  margin-top: 2px;
-  max-width: 32ch;
+.foodTable .amountHeading { width: 16%; }
+.foodTable .actionHeading { width: 128px; }
+.rowTitle strong, .mobileBasis, .rowAmount, .foodTable td[data-food-metric] {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--muted);
 }
-.rowAmount, .foodTable td[data-label] { white-space: nowrap; }
+.rowTitle strong { display: block; font-size: 15px; font-weight: 500; line-height: 1.6; }
+.mobileBasis, .rowMetricLabel, .rowMetricUnit {
+  display: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.foodTable td[data-food-metric] { font-variant-numeric: tabular-nums; }
 .foodRowActions { display: flex; justify-content: flex-end; gap: 4px; }
 .foodRowActions svg { flex: none; }
 .foodTable [data-food-expanded] > :is(th, td) { border-bottom-color: transparent; }
 .foodTable .foodExpanded > td { text-align: left; padding: 0 0 12px; }
 .foodInformation { min-width: 0; font-size: .875rem; line-height: 1.6; overflow-wrap: anywhere; }
+.foodInformation h3 { margin: 0 0 6px; font-size: 15px; font-weight: 500; }
 .foodInformation p { margin: 0 0 8px; color: var(--muted); }
+.foodInformation dl { margin: 8px 0; }
+.foodInformation dd > span { font-size: inherit; font-weight: 400; }
 .foodInformation a { color: var(--gold); }
 
 @container (width > 700px) {
-  .foodTable th:first-child { width: 32%; }
+  .foodTable thead th:first-child { width: 30%; }
 }
 @container (max-width: 700px) {
   .foodTable, .foodTable tbody { display: block; }
   .foodTable thead { display: none; }
-  .foodTable tr {
+  .foodTable tbody > tr {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr)) max-content;
     align-items: center;
-    gap: 4px 6px;
+    column-gap: 4px;
     border-bottom: 1px solid var(--rule);
-    padding: 10px 0;
+    padding: 4px 0;
   }
   .foodTable :is(th, td) { display: block; min-width: 0; padding: 0; border: 0; text-align: left; }
-  .foodTable .rowName { grid-column: 1 / 4; grid-row: 1; }
-  .rowName > span { max-width: none; white-space: normal; font-size: .8125rem; }
-  .rowAmount { grid-column: 1 / 4; grid-row: 2; font-size: .8125rem; color: var(--muted); white-space: normal; }
-  .foodTable td[data-label] { grid-row: 3; align-self: start; line-height: 20px; }
-  .foodTable [data-label]::before {
-    content: attr(data-label);
+  .foodTable .rowName { grid-column: 1 / 5; grid-row: 1; }
+  .rowTitle { display: flex; align-items: baseline; column-gap: 4px; }
+  .mobileBasis {
     display: block;
-    margin-bottom: 2px;
-    color: var(--muted);
-    font-size: .75rem;
-    font-weight: 400;
-    line-height: 16px;
+    flex: none;
+    max-width: min(54%, 10rem);
+    line-height: 1.5;
   }
+  .foodTable .rowAmount { display: none; }
+  .foodTable td[data-food-metric] { grid-row: 2; line-height: 20px; }
+  .rowMetricLabel, .rowMetricUnit { display: inline; }
   .foodTable .rowActions, .foodRowActions { display: contents; }
-  .foodRowActions [data-record-action] { grid-column: 4; justify-self: end; }
-  .foodRowActions [data-record-action="edit"] { grid-row: 1; align-self: start; }
-  .foodRowActions [data-record-action="view"] { grid-row: 2; }
+  .foodRowActions [data-record-action] { grid-column: 5; justify-self: end; }
+  .foodRowActions [data-record-action="edit"] { grid-row: 1; }
+  .foodTable .foodRowActions button[data-record-action="view"] {
+    grid-row: 2;
+    gap: 2px;
+    padding-inline: 2px;
+    font-size: 12px;
+  }
+  .foodRowActions [data-record-action="view"] svg { width: 12px; height: 12px; }
   .foodTable tr[data-food-expanded] { border-bottom: 0; }
   .foodTable tr.foodExpanded { display: block; padding: 0; }
-}
-@container (max-width: 240px) {
-  .foodTable tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .foodTable :is(.rowName, .rowAmount) { grid-column: 1; }
-  .foodRowActions [data-record-action] { grid-column: 2; }
-  .foodTable td[data-label] { grid-row: auto; }
 }
