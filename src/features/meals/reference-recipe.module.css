@@ -62,10 +62,40 @@
 .mode > button[aria-pressed="true"], .portions > button[aria-pressed="true"] { color: var(--warm-white); font-weight: 600; }
 .mode > button:hover, .portions > button:hover, .quiet:hover { color: var(--warm-white); }
 .portions { display: flex; flex-wrap: wrap; gap: 4px; }
-.portions > button { border-radius: 7px; }
-.portions > button[aria-pressed="true"] { background: color-mix(in srgb, var(--gold) 15%, var(--surface-raised)); }
+.portions > button { position: relative; isolation: isolate; border-radius: 99px; padding-inline: 9px; }
+.portions > button::before {
+  content: "";
+  position: absolute;
+  inset: 4px 0;
+  z-index: -1;
+  border: 1px solid var(--recipe-line);
+  border-radius: inherit;
+}
+.portions > button:hover::before { background: var(--surface-raised); }
+.portions > button[aria-pressed="true"]::before { background: color-mix(in srgb, var(--gold) 15%, var(--surface-raised)); }
 .whole { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-block-start: 8px; }
-.whole .quantity { width: 106px; }
+.whole .quantity { width: 103px; }
+.whole .peopleQuantity {
+  position: relative;
+  isolation: isolate;
+  width: 64px;
+  border: 0;
+  background: transparent;
+}
+.peopleQuantity::before {
+  content: "";
+  position: absolute;
+  inset: 5px 0;
+  z-index: -1;
+  border: 1px solid var(--control-border);
+  border-radius: 7px;
+  background: var(--surface-raised);
+}
+.peopleQuantity:focus-within::before { border-color: var(--gold); }
+.peopleQuantity:has(input[aria-invalid="true"])::before { border-color: var(--data-red); }
+.whole .weigh { padding-inline: 5px; margin-inline-start: auto; }
+.weigh[aria-pressed="true"] { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.quantity:has(input[aria-invalid="true"]) { border-color: var(--data-red); }
 .quantity {
   display: flex;
   align-items: center;

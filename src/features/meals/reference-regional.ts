@@ -50,23 +50,27 @@ export function colaGlaze(cola: ReferenceFood): ReferenceFood {
   };
 }
 
-type MealSpec = {
+type RecipeSpec = {
   id: string;
+  version: number;
+  family: ReferenceFood["family"];
+  kind: "dish" | "meal";
   name: string;
   aliases: readonly string[];
   illustration: ReferenceFood["illustration"];
   relatedDishes: readonly string[];
+  quickAddId: string;
   components: readonly (readonly [id: string, role: ReferenceComponent["role"], grams: string, label?: string, amountBasis?: string])[];
   sourceAmounts: Readonly<Record<string, string>>;
   links: NonNullable<ReferenceFood["recipe"]>["links"];
   note: string;
 };
 
-const mealSpecs: readonly MealSpec[] = [
+const recipeSpecs: readonly RecipeSpec[] = [
   {
-    id: "tomato-brisket-rice", name: "番茄牛腩盖饭",
+    id: "tomato-brisket-rice", version: 3, family: "chinese-meal", kind: "meal", name: "番茄牛腩盖饭",
     aliases: ["番茄牛腩饭", "西红柿牛腩饭", "番茄炖牛腩配饭", "tomato beef brisket rice"],
-    illustration: "tomato-brisket", relatedDishes: ["tomato-beef-brisket"],
+    illustration: "tomato-brisket", relatedDishes: ["tomato-beef-brisket"], quickAddId: "potato-boiled",
     components: [
       ["brisket-cooked", "主菜", "90", "牛腩", "熟重 · 牛前胸可食肉"],
       ["tomato-cooked", "主菜", "70", "番茄", "熟重 · 可食部"],
@@ -87,12 +91,11 @@ const mealSpecs: readonly MealSpec[] = [
     note: "投料参考含土豆盖饭的原菜谱。本份按估算的成品可食量计算，牛腩用熟牛前胸肉近似，土豆按实际吃到的量选加。炖煮的出成率未知。",
   },
   {
-    id: "cola-wings-rice", name: "可乐鸡翅配饭",
-    aliases: ["可乐鸡翅饭", "可乐鸡翅盖饭", "cola chicken wings with rice"],
-    illustration: "cola-wings", relatedDishes: ["cola-wings"],
+    id: "cola-wings", version: 2, family: "chicken-wing", kind: "dish", name: "可乐鸡翅",
+    aliases: ["鸡翅", "可乐鸡翅中", "可乐焖鸡翅", "cola chicken wings"],
+    illustration: "cola-wings", relatedDishes: [], quickAddId: "white-rice-cooked",
     components: [
       ["chicken-wing-stewed", "主菜", "100", "鸡翅", "熟重 · 带皮去骨可食部"],
-      ["white-rice-cooked", "主食", "150", "白米饭", "熟重"],
       ["cola-glaze", "酱料", "12", "普通可乐收汁", "成品量 · 收汁估算"],
       ["vegetable-oil", "酱料", "4", "食用油", "成品保留量"],
       ["soy-sauce-light", "酱料", "4", "生抽", "即食 · 淡色酱油"],
@@ -106,22 +109,22 @@ const mealSpecs: readonly MealSpec[] = [
       { name: "中国家常可乐鸡翅菜谱", url: "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c7/30/" },
       { name: "苏泊尔可乐鸡翅与收汁做法", url: "https://www.supor.com.cn/other/dishesinfo/1461/4584.html" },
     ],
-    note: "投料参考家常鸡翅的原菜谱。配方假设 40 g 普通可乐收汁后约 12 g，按原可乐的营养保留估算。锅中投油量与吃下的油量分开计。",
+    note: "投料参考家常鸡翅的原菜谱。配方假设 40 g 普通可乐收汁后约 12 g，按原可乐的营养保留估算。锅中投油量与吃下的油量分开计。本条只计鸡翅和调料，米饭可按实际食量选加。",
   },
 ];
 
 export function recipeRelatedDishIds(id: string) {
-  return mealSpecs.find(spec => spec.id === id)?.relatedDishes ?? [];
+  return recipeSpecs.find(spec => spec.id === id)?.relatedDishes ?? [];
 }
 
-export function buildReferenceMeals(foods: readonly ReferenceFood[]): ReferenceFood[] {
+export function buildReferenceRecipes(foods: readonly ReferenceFood[]): ReferenceFood[] {
   const byId = new Map(foods.map(food => [food.id, food]));
   function ingredient(id: string) {
     const food = byId.get(id);
     if (!food || food.basisUnit || food.components) throw Error("Invalid reference meal component: " + id);
     return food;
   }
-  return mealSpecs.map(spec => {
+  return recipeSpecs.map(spec => {
     const components = spec.components.map(([id, role, grams, label, amountBasis]) => ({
       food: ingredient(id), role, grams, label, amountBasis,
     }));
@@ -129,16 +132,21 @@ export function buildReferenceMeals(foods: readonly ReferenceFood[]): ReferenceF
     const nutrition = Object.fromEntries(metrics.map(key => [key, totals.nutrition[key] === null ? null :
       scaled(totals.nutrition[key], "100", totals.grams)])) as Nutrition;
     const source: ReferenceSource = {
-      dataset: "Formward 标准配方", recordId: spec.id + " v2",
+      dataset: "Formward 标准配方", recordId: spec.id + " v" + spec.version,
       title: spec.name + " · 家常配方参考", url: spec.links[0].url,
     };
     return {
-      id: spec.id, name: spec.name, family: "chinese-meal", aliases: spec.aliases, illustration: spec.illustration,
-      version: 2, state: "cooked", method: "熟制", source, sourceKind: "estimated", nutrition, components,
-      recipe: { note: spec.note, links: spec.links, sourceAmounts: spec.sourceAmounts,
-        suggestedFoods: ["potato-boiled", "broccoli-cooked", "tofu-firm"].map(ingredient) },
-      preparation: "整餐 · 家常参考配方",
-      portions: [{ id: "meal-serving", unit: "份", edibleGrams: totals.grams, label: "标准搭配整份可食量", source }],
+      id: spec.id, name: spec.name, family: spec.family, aliases: spec.aliases, illustration: spec.illustration,
+      version: spec.version, state: "cooked", method: spec.kind === "dish" ? "炖" : "熟制",
+      ...(spec.kind === "dish" ? { skin: "吃皮" as const } : {}),
+      source, sourceKind: "estimated", nutrition, components,
+      recipe: { kind: spec.kind, quickAddId: spec.quickAddId, note: spec.note, links: spec.links, sourceAmounts: spec.sourceAmounts,
+        suggestedFoods: [spec.quickAddId, "broccoli-cooked", "tofu-firm"].map(ingredient) },
+      preparation: spec.kind === "dish" ? "单点菜 · 带皮去骨可食部" : "盖饭 · 家常参考配方",
+      portions: [
+        { id: "meal-serving", unit: "份", edibleGrams: totals.grams, label: "一人参考可食量", source },
+        { id: "meal-servings", unit: "人份", edibleGrams: totals.grams, label: "每人参考可食量", source },
+      ],
     };
   });
 }

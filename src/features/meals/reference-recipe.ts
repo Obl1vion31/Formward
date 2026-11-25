@@ -1,8 +1,13 @@
-import { metrics, scaled, sumNutrition, type Nutrition } from "./model";
+import { decimal, metrics, scaled, sumNutrition, type Nutrition } from "./model";
 import { referenceNutrition, type RecipePart, type RecipePartInput, type ReferenceFood, type ReferenceSnapshot } from "./reference-food";
 
 const units = (grams: string) => Math.round(Number(grams) * 10000);
 const gramsFromUnits = (value: number) => (value / 10000).toFixed(4);
+
+export function validRecipePeople(value: string) {
+  const count = Number(value);
+  return decimal.safeParse(value).success && Number.isInteger(count) && count >= 2;
+}
 
 /** Allocate rounding remainders once so the breakdown always weighs exactly what was entered. */
 export function wholeRecipeParts(food: ReferenceFood, quantity: string, portionId?: string): RecipePart[] {

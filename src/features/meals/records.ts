@@ -17,7 +17,7 @@ import { foodDescriptionIssues } from "./food-description";
 import { readMealDayViews, invalidateMealDays } from "./day-status";
 import { requireCurrentReferenceFood, validatePreparedReferenceFood } from "./reference-catalog";
 import { referenceNutrition, type ReferenceFoodLink } from "./reference-food";
-import { recipePart, recipeTotals, sameRecipeParts, savedRecipePartInputs, wholeRecipeParts } from "./reference-recipe";
+import { recipePart, recipeTotals, sameRecipeParts, savedRecipePartInputs, validRecipePeople, wholeRecipeParts } from "./reference-recipe";
 
 export type MealActor = { userId: string; origin: "manual" | "ai" | "initialization"; identity?: AiIdentity; importId?: string };
 // PostgreSQL jsonb会重排对象字段；请求和保存后的原始快照使用相同的稳定摘要。
@@ -105,6 +105,9 @@ function prepareReferenceItem(input: ItemDraft, link: ReferenceFoodLink, previou
   }
   if (link.portionId && !portion || input.unit !== unit || !input.quantity && input.amountDecision !== "unknown_accepted") {
     throw new ApiError(400, "unit_required", "请选择该规格支持的份量及单位。");
+  }
+  if (portion?.unit === "人份" && input.quantity && !validRecipePeople(input.quantity)) {
+    throw new ApiError(400, "invalid_input", "多人份请填写 2 以上的整数人数。");
   }
   if (previous && historical && previous.unit === input.unit &&
     historical.portionId === portion?.id && Number(previous.quantity) === Number(input.quantity) &&

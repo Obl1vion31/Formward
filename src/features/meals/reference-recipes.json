@@ -1,49 +1,5 @@
 [
   {
-    "id": "cola-wings",
-    "version": 1,
-    "family": "chicken-wing",
-    "name": "可乐鸡翅",
-    "aliases": [
-      "鸡翅",
-      "可乐鸡翅中",
-      "可乐焖鸡翅",
-      "cola chicken wings"
-    ],
-    "state": "cooked",
-    "method": "炖",
-    "skin": "吃皮",
-    "illustration": "cola-wings",
-    "preparation": "带皮去骨可食部 · 普通可乐收汁 · 含酱汁",
-    "source": {
-      "title": "中国家常可乐鸡翅",
-      "url": "https://china-kitchen.lkk.com.cn/kitchen/zh-CN/recipe/0/c7/30/"
-    },
-    "ingredients": [
-      {
-        "name": "炖鸡翅可食部",
-        "source": "usda:24163110",
-        "edibleGrams": "100"
-      },
-      {
-        "name": "普通可乐收汁",
-        "source": "usda:92410310",
-        "edibleGrams": "12",
-        "nutritionGrams": "40"
-      },
-      {
-        "name": "酱油",
-        "source": "usda:41420300",
-        "edibleGrams": "5"
-      },
-      {
-        "name": "成品保留用油",
-        "source": "usda:82101000",
-        "edibleGrams": "3"
-      }
-    ]
-  },
-  {
     "id": "air-fryer-wings",
     "version": 1,
     "family": "chicken-wing",

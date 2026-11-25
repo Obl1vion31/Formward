@@ -5,7 +5,7 @@ import { DecimalInput } from "@/components/decimal-input";
 import { RecipeArt, SavedRecipeParts } from "./food-art";
 import { MealEntryReadings, MealNutrientValue } from "./meal-entry-readings";
 import { decimal, emptyNutrition, metricLabels, type ItemDraft } from "./model";
-import { recipeAmountBasis, recipePart, recipePartInputs, recipeTotals, wholeRecipeParts } from "./reference-recipe";
+import { recipeAmountBasis, recipePart, recipePartInputs, recipeTotals, validRecipePeople, wholeRecipeParts } from "./reference-recipe";
 import { useReferenceRequest } from "./reference-request";
 import type { RecipePart, ReferenceFood } from "./reference-food";
 import type { ReferencePick } from "./reference-details";
@@ -14,7 +14,7 @@ import styles from "./reference-recipe.module.css";
 
 type Recipe = ReferenceFood & { recipe: NonNullable<ReferenceFood["recipe"]> };
 export type RecipeEdit = { food: ReferenceFood; item: ItemDraft; parts: readonly RecipePart[] };
-type Choice = "half" | "one" | "grams" | "servings";
+type Choice = "half" | "one" | "people" | "grams" | "legacy";
 type ComponentEdit = { grams?: string; enabled?: boolean };
 const validGrams = (value: string) => decimal.safeParse(value).success && Number(value) > 0;
 const normalized = (value: string) => value.replace(/^\./, "0.").replace(/\.$/, "");
@@ -45,7 +45,7 @@ function RecipeSources({ food, parts }: { food: Recipe; parts: readonly RecipePa
       <div className={styles.sourceLinks}>{recipe.links.map(link =>
         <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.name} ↗</a>)}</div>
       {parts.length > 0 && <details className={styles.partSources}>
-        <summary>本份分项与营养来源<Chevron/></summary>
+        <summary>分项与营养来源<Chevron/></summary>
         <SavedRecipeParts parts={parts}/>
       </details>}
     </div>
@@ -55,8 +55,9 @@ function RecipeSources({ food, parts }: { food: Recipe; parts: readonly RecipePa
 function initialChoice(edit: RecipeEdit | undefined): Choice {
   if (!edit || edit.item.referenceFood?.parts) return "one";
   if (!edit.item.referenceFood?.portionId) return "grams";
+  if (edit.item.unit === "人份") return "people";
   if (Number(edit.item.quantity) === 0.5) return "half";
-  return Number(edit.item.quantity) === 1 ? "one" : "servings";
+  return Number(edit.item.quantity) === 1 ? "one" : "legacy";
 }
 
 export function ReferenceRecipeDetails({ food, back, onAdd, maxItems, disabled, headingRef, id, edit }: {
@@ -72,6 +73,8 @@ export function ReferenceRecipeDetails({ food, back, onAdd, maxItems, disabled, 
   const [split, setSplit] = useState(!!edit?.item.referenceFood?.parts);
   const [choice, choose] = useState<Choice>(() => initialChoice(edit));
   const [measured, setMeasured] = useState(() => edit?.item.quantity ?? "");
+  const [people, setPeople] = useState(() => edit?.item.unit === "人份" ? edit.item.quantity ?? "" : "");
+  const peopleField = useRef<HTMLInputElement>(null);
   const [edits, setEdits] = useState<Record<string, ComponentEdit>>(() => {
     if (!edit?.item.referenceFood?.parts) return {};
     return Object.fromEntries((food.components ?? []).map(part => {
@@ -88,11 +91,14 @@ export function ReferenceRecipeDetails({ food, back, onAdd, maxItems, disabled, 
   const extraSearch = useRef<HTMLInputElement>(null);
   const inputs = useRef(new Map<string, HTMLDivElement>());
   const unitChoice = choice !== "grams";
-  const portion = food.portions[0];
-  const quantity = choice === "half" ? "0.5" : choice === "one" ? "1" : normalized(measured);
+  const serving = food.portions[0];
+  const peoplePortion = food.portions.find(part => part.unit === "人份");
+  const portion = choice === "people" ? peoplePortion ?? serving : serving;
+  const quantity = choice === "half" ? "0.5" : choice === "one" ? "1" : normalized(choice === "people" ? people : measured);
   const portionId = unitChoice ? portion.id : undefined;
-  const whole = validGrams(quantity) ? wholeRecipeParts(food, quantity, portionId) : [];
-  const defaults = split && !whole.length ? wholeRecipeParts(food, "1", portion.id) : whole;
+  const validAmount = choice === "people" ? validRecipePeople(quantity) : validGrams(quantity);
+  const whole = validAmount ? wholeRecipeParts(food, quantity, portionId) : [];
+  const defaults = split && !whole.length ? wholeRecipeParts(food, "1", serving.id) : whole;
   const defaultRows = food.components ?? [];
   const rows = [...defaultRows, ...(split ? extraFoods : []).map(extra => ({
     food: extra, role: "配菜" as const, grams: "", label: undefined, amountBasis: undefined,
@@ -121,7 +127,10 @@ export function ReferenceRecipeDetails({ food, back, onAdd, maxItems, disabled, 
   const extraQuery = search.trim();
   const request = useReferenceRequest(split && showPicker && extraQuery ? "q=" + encodeURIComponent(extraQuery) : null, 120);
   const candidates = extraQuery ? (request.data?.referenceFoods ?? []).filter(eligible) : options;
-  const potato = food.id === "tomato-brisket-rice" && food.recipe.suggestedFoods.find(entry => entry.id === "potato-boiled");
+  const quickAdd = food.recipe.suggestedFoods.find(entry => entry.id === food.recipe.quickAddId ||
+    !food.recipe.quickAddId && food.id === "tomato-brisket-rice" && entry.id === "potato-boiled");
+  const quickAddPart = quickAdd && recipePart(food, quickAdd, { grams: "" });
+  const isDish = food.recipe.kind === "dish";
 
   function update(ingredientId: string, change: ComponentEdit) {
     setEdits(previous => ({ ...previous, [ingredientId]: { ...previous[ingredientId], ...change } }));
@@ -170,7 +179,7 @@ export function ReferenceRecipeDetails({ food, back, onAdd, maxItems, disabled, 
     <div className={styles.heading}>
       <div>
         <h3 tabIndex={-1} ref={headingRef}>{food.name}</h3>
-        <p>{onAdd ? "配方估算 · 示例用量" : "配方估算 · 标准一份"}</p>
+        <p>{isDish && "单点菜 · "}{onAdd ? "配方估算 · 示例用量" : "配方估算 · 标准一份"}</p>
       </div>
       <RecipeArt food={food}/>
     </div>
@@ -183,16 +192,26 @@ export function ReferenceRecipeDetails({ food, back, onAdd, maxItems, disabled, 
         <div className={styles.portions} role="group" aria-label="整餐份量">
           <button type="button" aria-pressed={choice === "half"} onClick={() => choose("half")}>半份</button>
           <button type="button" aria-pressed={choice === "one"} onClick={() => choose("one")}>一份</button>
-          <button type="button" aria-pressed={choice === "grams"} onClick={() => {
-            if (choice !== "grams") setMeasured(total ? String(Number(total.grams)) : "");
-            choose("grams");
-          }}>按克</button>
+          <button type="button" aria-pressed={choice === "people"} onClick={() => {
+            choose("people");
+            requestAnimationFrame(() => peopleField.current?.focus({ preventScroll: true }));
+          }}>多人份</button>
         </div>
-        {(choice === "grams" || choice === "servings") && <div className={styles.quantity}>
-          <DecimalInput data-input-appearance="compact" aria-label={choice === "grams" ? "整餐可食克数" : "食用份数"} value={measured}
-            min={0} max={1000000} onValue={setMeasured} precision={2} trimTrailingZeros placeholder="可食克数"/>
+        {choice === "people" && <div className={styles.quantity + " " + styles.peopleQuantity}>
+          <input ref={peopleField} type="number" inputMode="numeric" step={1} min={2} max={1000000}
+            data-input-appearance="compact" aria-label="食用人数" placeholder="人数" value={people}
+            aria-invalid={!!people && !validAmount} onChange={event => setPeople(event.target.value)}/>
+          <span>人</span>
+        </div>}
+        {(choice === "grams" || choice === "legacy") && <div className={styles.quantity}>
+          <DecimalInput data-input-appearance="compact" aria-label={choice === "grams" ? "整份可食克数" : "原食用份数"} value={measured}
+            min={0} max={1000000} onValue={setMeasured} precision={2} trimTrailingZeros placeholder={choice === "grams" ? "可食克数" : "份数"}/>
           <span>{choice === "grams" ? "克" : "份"}</span>
         </div>}
+        <button type="button" className={styles.quiet + " " + styles.weigh} aria-pressed={choice === "grams"} onClick={() => {
+          if (choice !== "grams") setMeasured(total ? String(Number(total.grams)) : "");
+          choose("grams");
+        }}>按克</button>
       </div>}
     </>}
     <details className={styles.overview} data-recipe-overview>
@@ -202,7 +221,8 @@ export function ReferenceRecipeDetails({ food, back, onAdd, maxItems, disabled, 
           {total && !tooLarge ? <>
             <span>可食部{approximate ? "约 " : " "}{Number(total.grams)} g</span>
             <strong>{total.nutrition.caloriesKcal === null ? "热量未知" : <>约 <MealNutrientValue value={total.nutrition.caloriesKcal} metric="caloriesKcal"/></>}</strong>
-          </> : <span>{tooLarge ? "食用量超出范围" : selected.length ? "待填写克数" : "请选择食材"}</span>}
+          </> : <span>{tooLarge ? "食用量超出范围" : !split && choice === "people" ?
+            people ? "请输入至少 2 人" : "待填写人数" : selected.length ? "待填写克数" : "请选择食材"}</span>}
         </span>
         <Chevron/>
       </summary>
@@ -213,7 +233,7 @@ export function ReferenceRecipeDetails({ food, back, onAdd, maxItems, disabled, 
     </details>
     <section aria-labelledby={id + "-composition"} className={styles.composition}>
       <div className={styles.compositionHead}>
-        <h4 id={id + "-composition"}>整餐组成</h4>
+        <h4 id={id + "-composition"}>{isDish ? "菜品组成" : "整餐组成"}</h4>
         {split && <button type="button" className={styles.quiet} ref={extraTrigger}
           aria-expanded={showPicker} aria-controls={pickerId} onClick={() => {
             if (showPicker) closePicker();
@@ -264,9 +284,11 @@ export function ReferenceRecipeDetails({ food, back, onAdd, maxItems, disabled, 
               <span>g</span>
             </div> : <span className={styles.grams}>{part.grams ? "约 " + Number(part.grams) + " g" : "—"}</span>}
           </li>)}
-          {!seasoning && split && potato && !extraFoods.some(entry => entry.id === potato.id) &&
-            <li className={styles.optional}><span><strong>土豆</strong><small>可选 · 熟重</small></span>
-              <button type="button" className={styles.quiet} onClick={() => pickExtra(potato)} disabled={rows.length >= 30}>＋ 加土豆</button>
+          {!seasoning && split && quickAdd && quickAddPart && !extraFoods.some(entry => entry.id === quickAdd.id) &&
+            <li className={styles.optional}><span><strong>{labelOf(quickAddPart)}</strong><small>可选 · 熟重</small></span>
+              <button type="button" className={styles.quiet} onClick={() => pickExtra(quickAdd)} disabled={rows.length >= 30}>
+                ＋ 加{labelOf(quickAddPart)}
+              </button>
             </li>}
         </ul>
       </div>)}

@@ -26,7 +26,7 @@ description: 查询用户主动授权的 Formward 饮食、实测身体指标、
 
 - 检索先核对名称、部位、生熟、做法和皮骨。用户说吃了鸡腿时用熟食候选，缺少实际量或关键做法时集中追问。明确按生重记录才查生鸡腿，唯一生重参考为去皮去骨鸡腿肉，只按可食克数记录。带骨或带皮秤重时先核对去皮去骨的可食量。采用匹配的公共referenceFoods时，传referenceFood.id、version及实际quantity与unit，按候选给出的只、个、杯或其他份量单位另带该规格的portionId，让服务端换算。克数只指可食部，带骨秤重不能当作可食克数。只有一只鸡腿但型号不同会明显影响结果时集中追问。参考份量是换算依据，不能当作用户称过的克重。
 
-- 公共参考按候选基准提交referenceFood的id/version及实际食量。basisUnit=mL的饮品用单位mL，实称食物用可食部g，按只或份提交候选portionId。只说吃了牛排时确认部位和食量。整餐保留一道菜名；按克或按份沿用公共规格，拆开记将每个实际吃下的可食分项的id、version、grams放入referenceFood.parts，并省略portionId，quantity填各项合计、unit=g。可用同一目录里按g记录的配菜和调料；同规格合并重量。参考克数只有用户接受后才用于估算，估算分项标estimated=true。修改已有拆分组合时，preview_meal_changes的updateFoods用recipeParts提交全部保留分项；其他分项使用原量。
+- 公共参考按候选基准提交referenceFood的id/version及实际食量。basisUnit=mL的饮品用单位mL，实称食物用可食部g，按只或份提交候选portionId。只说吃了牛排时确认部位和食量。复合盖饭保留一道菜名；按克或按份沿用公共规格。使用多人份时选meal-servings、unit=人份并填写2以上整数。可乐鸡翅按单点菜，白米饭按实际份量另加或作为明确分项。拆开记将每个实际吃下的可食分项的id、version、grams放入referenceFood.parts，并省略portionId，quantity填各项合计、unit=g。可用同一目录里按g记录的配菜和调料；同规格合并重量。参考克数只有用户接受后才用于估算，估算分项标estimated=true。修改已有拆分组合时，preview_meal_changes的updateFoods用recipeParts提交全部保留分项；其他分项使用原量。
 
 - 实际食量明确后，默认补充热量、蛋白质、碳水、脂肪的合理估算，不先问“是否需要估算营养”，也不因为用户没报营养就只记名称。仅用户明确不估算、只记录食物，或确实缺乏合理估算依据时保留未知。
 

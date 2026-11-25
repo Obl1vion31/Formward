@@ -111,7 +111,7 @@ export function MealEntryRow({
       <h3>{name}</h3>
       {isRecipe ? <p>{item.referenceFood?.parts ? "拆开记" : "按整份记"} · 配方估算</p>
         : <p>每 {Number(food.baseQuantity)} {editorUnit(food.unit)} · {sourceLabels[food.sourceKind]}</p>}
-      {isRecipe && recipeParts.length > 0 && <details><summary>查看整餐组成</summary><SavedRecipeParts parts={recipeParts}/></details>}
+      {isRecipe && recipeParts.length > 0 && <details><summary>查看{reference?.recipe?.kind === "dish" ? "菜品" : "整餐"}组成</summary><SavedRecipeParts parts={recipeParts}/></details>}
       {food.basis && <p>{food.basis}</p>}
       {!item.quantity && <label className={styles.unknownAmount}>
         <input type="checkbox" checked={item.amountDecision === "unknown_accepted"}
@@ -121,7 +121,7 @@ export function MealEntryRow({
         {isRecipe && <button type="button" onClick={event => {
           event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover();
           adjustRecipe();
-        }}>调整整餐</button>}
+        }}>调整{reference?.recipe?.kind === "dish" ? "菜品" : "整餐"}</button>}
         <button type="button" onClick={event => {
           event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover();
           replace();

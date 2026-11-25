@@ -49,6 +49,7 @@ export function FoodArt({ illustration = "generic", detail = false }: { illustra
 }
 
 export function RecipeArt({ food }: { food: ReferenceFood }) {
+  if (food.recipe?.kind === "dish") return <FoodArt illustration={food.illustration} detail/>;
   return <div className={recipeStyles.art}>
     <FoodArt illustration={food.illustration} detail/>
     <FoodArt illustration="cooked-rice" detail/>
@@ -77,7 +78,7 @@ export function ReferenceReading({ snapshot, estimated }: { snapshot: ReferenceS
       </div>
       <RecipeArt food={food}/>
     </div>
-    <details className={styles.recipe}><summary>查看整餐组成</summary><SavedRecipeParts parts={recipeParts}/></details>
+    <details className={styles.recipe}><summary>查看{food.recipe?.kind === "dish" ? "菜品" : "整餐"}组成</summary><SavedRecipeParts parts={recipeParts}/></details>
     <a href={food.source.url} target="_blank" rel="noreferrer">查看菜谱来源</a>
   </div>;
   return <div className={styles.savedEvidence} data-reference-evidence>

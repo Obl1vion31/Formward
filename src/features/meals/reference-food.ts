@@ -67,7 +67,7 @@ export type ReferenceFamily = (typeof referenceSections)[number]["families"][num
 export type ReferenceSource = { dataset: string; recordId: string; title: string; url: string };
 export type ReferencePortion = {
   id: string;
-  unit: "只" | "个" | "杯" | "块" | "片" | "条" | "份";
+  unit: "只" | "个" | "杯" | "块" | "片" | "条" | "份" | "人份";
   edibleGrams: string;
   label: string;
   source: ReferenceSource;
@@ -97,6 +97,8 @@ export type ReferenceFood = {
   recipeIngredients?: readonly ReferenceRecipeIngredient[];
   components?: readonly ReferenceComponent[];
   recipe?: {
+    kind?: "dish" | "meal";
+    quickAddId?: string;
     note: string;
     links: readonly { name: string; url: string }[];
     suggestedFoods: readonly ReferenceFood[];

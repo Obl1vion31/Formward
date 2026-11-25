@@ -2,7 +2,7 @@ import expansion from "./reference-expansion.json";
 import { ApiError } from "../auth/ai-identity";
 import type { Nutrition } from "./model";
 import { sameRecipeParts, savedRecipePartInputs } from "./reference-recipe";
-import { buildReferenceMeals, colaGlaze, recipeRelatedDishIds, regionalFoods } from "./reference-regional";
+import { buildReferenceRecipes, colaGlaze, recipeRelatedDishIds, regionalFoods } from "./reference-regional";
 import type { FoodIllustration, ReferenceCatalogFood, ReferenceCatalogResult, ReferenceFamily, ReferenceFood, ReferenceFoodLink, ReferenceMealLink, ReferencePortion, ReferenceSnapshot, ReferenceSource } from "./reference-food";
 
 const fnddsUrl = "https://www.ars.usda.gov/northeast-area/beltsville-md-bhnrc/beltsville-human-nutrition-research-center/food-surveys-research-group/docs/fndds-download-databases/";
@@ -106,11 +106,12 @@ const baseFoods = [...initialFoods, ...expansion as ReferenceFood[], ...regional
 const cola = baseFoods.find(food => food.id === "cola");
 if (!cola) throw Error("Missing cola reference");
 const ingredients = [...baseFoods, colaGlaze(cola)];
-const meals = buildReferenceMeals(ingredients);
-const foods = [...ingredients, ...meals];
+const recipes = buildReferenceRecipes(ingredients);
+const foods = [...ingredients, ...recipes];
 const foodsById = new Map(foods.map(food => [food.id, food]));
 const mealsByIngredient = new Map<string, ReferenceMealLink[]>();
-for (const meal of meals) {
+for (const meal of recipes) {
+  if (meal.recipe?.kind === "dish") continue;
   const link = { id: meal.id, version: meal.version, name: meal.name };
   const ids = [...(meal.components ?? []).map(part => part.food.id), ...recipeRelatedDishIds(meal.id)];
   for (const id of ids) {
@@ -129,13 +130,14 @@ export function referenceCatalogDetail(id: string): ReferenceCatalogResult | nul
   const food = foodsById.get(id);
   return food ? { total: foods.length, matches: 1, referenceFoods: [catalogFood(food)] } : null;
 }
-const retiredVersions = new Map([
-  ["drumstick-raw-edible", 1], ["curry-chicken-rice", 1],
-  ["tomato-brisket-rice", 1], ["cola-wings-rice", 1], ["tomato-beef-brisket", 1],
-  ["tomato-egg-rice", 1], ["yellow-chicken-rice", 1], ["hainanese-chicken-rice", 1],
-  ["sg-roast-chicken-rice", 1], ["nasi-lemak", 1], ["ribeye-plate", 1], ["striploin-plate", 1],
-  ["beef-bolognese-pasta", 1], ["gyudon", 1], ["japanese-chicken-curry-rice", 1],
-  ["orange-fresh", 2], ["tangerine-fresh", 2], ["pear-fresh", 2],
+const retiredVersions = new Set([
+  "drumstick-raw-edible:1", "curry-chicken-rice:1", "tomato-brisket-rice:1",
+  "cola-wings-rice:1", "tomato-beef-brisket:1", "tomato-egg-rice:1",
+  "yellow-chicken-rice:1", "hainanese-chicken-rice:1", "sg-roast-chicken-rice:1",
+  "nasi-lemak:1", "ribeye-plate:1", "striploin-plate:1",
+  "beef-bolognese-pasta:1", "gyudon:1", "japanese-chicken-curry-rice:1",
+  "orange-fresh:2", "tangerine-fresh:2", "pear-fresh:2",
+  "tomato-brisket-rice:2", "cola-wings-rice:2", "cola-wings:1",
 ]);
 const normalize = (value: string) => value.normalize("NFKC").toLowerCase().replace(/[\s·、，,()]+/g, "");
 const indexed = foods.map(food => ({
@@ -216,7 +218,7 @@ export function validatePreparedReferenceFood(link: ReferenceFoodLink, snapshot?
   if (link.parts && !sameRecipeParts(link.parts, savedRecipePartInputs(snapshot))) {
     throw new ApiError(409, "version_conflict", "整餐分项已变更，请重新核对预览。");
   }
-  if (retiredVersions.get(link.id) === link.version && snapshot?.food.id === link.id &&
+  if (retiredVersions.has(link.id + ":" + link.version) && snapshot?.food.id === link.id &&
     snapshot.food.version === link.version && snapshot.portionId === link.portionId) return;
   requireCurrentReferenceFood(link);
 }
