@@ -169,6 +169,19 @@ export async function runWorkspaceReturns(db) {
           await page.getByRole("heading", { name: "食材库", exact: true }).waitFor();
           await page.getByLabel("搜索食材", { exact: true }).fill("燕麦");
           await still("library");
+          if (full) {
+            const oats = page.getByRole("row").filter({ hasText: "燕麦片" });
+            await oats.getByRole("button", { name: "编辑", exact: true }).click();
+            const editor = dialog(page);
+            const calories = editor.getByLabel("热量", { exact: true });
+            const updated = await calories.inputValue() === "381" ? "380" : "381";
+            await calories.fill(updated);
+            await editor.getByRole("button", { name: "保存食材", exact: true }).click();
+            await editor.waitFor({ state: "hidden" });
+            await oats.getByText(updated, { exact: true }).waitFor();
+            await page.reload();
+            await oats.getByText(updated, { exact: true }).waitFor();
+          }
           await page.evaluate(() => history.back());
           await waitForFocus(tag);
           near(await page.evaluate(() => scrollY), start, "饮食滚动");
@@ -179,6 +192,7 @@ export async function runWorkspaceReturns(db) {
           await page.reload();
           await page.getByRole("button", { name: "← 饮食", exact: true }).click();
           await waitForFocus(tag);
+          near(await page.evaluate(() => scrollY), start, "刷新后按按钮返回饮食");
           assert.equal(await page.getByLabel("查看日期", { exact: true }).inputValue(), observed);
           assert.equal(await card.getAttribute("data-selected-date"), observed);
           if (mobile) assert.equal(await card.getByRole("button", { name: "营养详情" }).getAttribute("aria-expanded"), "true");

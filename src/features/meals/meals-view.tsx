@@ -75,6 +75,7 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
   const libraryPane = useRef<HTMLDivElement>(null);
   const recordsScroll = useRef(0);
   const libraryScroll = useRef(0);
+  const libraryReturn = useRef<MealsDisplay | null>(null);
   const leaving = useRef(false);
   const exchange = useMemo(() => createWorkspaceExchange(), []);
   const [scene, setScene] = useState({ foods, moving: false });
@@ -119,6 +120,22 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
     });
     return () => cancelAnimationFrame(frame);
   }, [accountId]);
+  useLayoutEffect(() => {
+    if (!foods || location.pathname !== "/dashboard/meals" || !isMealLibrary(new URLSearchParams(location.search))) {
+      libraryReturn.current = null;
+      return;
+    }
+    const entry = window.history.state;
+    const display = entry?.formwardMealsDisplay as MealsDisplay | undefined;
+    if (entry?.formwardMealLibrary === accountId && display?.accountId === accountId) {
+      libraryReturn.current = display;
+      return;
+    }
+    const origin = libraryReturn.current;
+    if (origin?.accountId !== accountId) return;
+    // 保存后的 Next.js 路由提交可能重建当前历史项。补回本次食材库的来源。
+    window.history.replaceState({ ...entry, formwardMealLibrary: accountId, formwardMealsDisplay: origin }, "");
+  }, [accountId, foods, state]);
   const restorableDate = dates.includes(restoreDate) ? restoreDate : "";
   useLayoutEffect(() => {
     if (!restorableDate) return;
@@ -152,6 +169,7 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
       accountId, scroll: recordsScroll.current, date: summaryDate, range,
       customFrom, customTo, nutrition, history,
     };
+    libraryReturn.current = display;
     window.history.replaceState({ ...window.history.state, formwardMealsDisplay: display }, "");
     url.searchParams.set("section", "foods");
     window.history.pushState({ formwardMealLibrary: accountId, formwardMealsDisplay: display }, "", url);
