@@ -1,6 +1,6 @@
 # Formward 项目交接
 
-正式站运行 `dual-entry-3b854bbd-return-motion-20261125`，源码 `3b854bbdadfad2d398f8e0d6fe2cdf21cf4e3396`，BUILD_ID `VBmcctCSZYUeB6jXqaeCm`。北京时间 2026-11-25 13:56:27 切换。食材库在营养卡右缘，展开营养时分隔线接齐挂签底边。饮食及餐内选材分别回到原页面或草稿，共用录入和确认回执按来源返回。 [部署与公网核对](docs/deployment.md#当前正式版本) · [视觉验收](design-qa.md)
+正式站运行 `dual-entry-b4c92294-food-library-compact-20261125`，源码 `b4c92294dd00d10fe596c94dd5ffb75becd13918`，BUILD_ID `jU-k7DJJqoSW3yaC8Ac3y`。北京时间 2026-11-25 15:56:32 切换。独立食材库的手机列表收成两行，热量在营养行首。详情展示全名和描述，保存刷新后恢复原饮食日期、历史、滚动与入口焦点。 [部署与公网核对](docs/deployment.md#当前正式版本) · [视觉验收](design-qa.md)
 
 ## 当前能力
 
