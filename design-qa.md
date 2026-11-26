@@ -1,5 +1,13 @@
 # 当前视觉验收
 
+## 已发布验收 · 使用说明与录入高光
+
+正式运行包 `dual-entry-ce58e248-direct-guide-candidate-r2-20261127` 在 Chromium 与 WebKit 的浅深主题及触屏和桌面视口通过 24 组实页复验。图册收录 154 张实页截图、24 段原速录屏和局部参考。视口覆盖 320／390／430 CSS px 手机和 1440 CSS px 桌面，在可见目标间切步时固定槽位最大偏移 0 CSS px。 [实页截图和原速录屏](<C:/Users/14878/.codex/visualizations/2026/11/26/01a216d2-c229-7911-8e29-0b33ec108fbc/formward-direct-guide/index.html>)
+
+- 使用说明的八个主题提供十六段手机与电脑操作视频，常见问题在页尾。两端实测播放、文字说明和展开问题。
+- 点「使用指引」即开始高光。实测整餐录入、选材、手填、体重时段和保存、消耗估算、拍照追问和核对、设备设置、补记、外部审核，以及退出与重新进入。现用控件和提示按实际步骤更新。
+- 手机使用浏览器触屏视口，助手及设备使用虚构数据和隔离回放。lint 零错误，保留一条已有 Hook 告警。类型检查、生产构建、889 项默认测试和 2 项原生 PostgreSQL 专项通过。 [正式部署记录](docs/deployment.md#当前正式版本)
+
 ## 本轮实页验收 · 入口、加载与首次指引
 
 候选运行包 `dual-entry-985442bd-guidance-visual-corrections-20261126-r6`，源码 `985442bd9bafe0204cd7cd8db9e0a4d95672599b`。同一包在 Chromium 与 WebKit 的手机及电脑视口验收，覆盖浅深主题、320／390／430 CSS px 手机和 840／1100／1440 CSS px 电脑。图册收录本轮修改与直接去向的 167 张实页截图、32 段原速操作录屏、局部对照参考、原图和提示词。 [本轮实页和录屏](<C:/Users/14878/.codex/visualizations/2026/11/26/01a216d2-c229-7911-8e29-0b33ec108fbc/formward-guidance-corrections/index.html>)

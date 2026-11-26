@@ -2,6 +2,14 @@
 
 ## 当前正式版本
 
+网页与小助手后台运行 `dual-entry-ce58e248-direct-guide-candidate-r2-20261127`。源码 `ce58e2485b94c737beb5d351c420e89317be4fd1`，BUILD_ID `8B8KhwC8rZc2Gm5hGP0oh`。北京时间 2026-11-27 00:37:34 切换。已确认的候选版源码快进合入 `main`，原应用文件逐字节保留，补入旧页面依赖的静态资源后使用正式运行包重新通过 24 组实页验收。 [正式站](https://formward.top) · [版本](https://formward.top/api/app-version) · [使用说明与录入高光验收](../design-qa.md#已发布验收--使用说明与录入高光)
+
+网页和小助手后台从同一目录启动。切换前确认在途生成结束，配置与 67 张表的摘要保持一致，数据库仍为 `0048_meal_reference_foods`、48 项迁移。备份 `formward-primary-20261126T163730154312Z.dump.json` 已完成原生校验及加密异地回读。四个公网域名和兼容 IP 版本一致，登录回程、34 项静态资源、教程影片分段读取、5 项匿名权限及海外 MCP 元数据已核对。海外网关沿用原绑定。
+
+正式运行包共 96,184,753 字节，SHA-256 `82a18b8f56603c3905ce0c256815a7948e701bf6235b099d39250299b9d7aa39`，保留 56 项 Server Action、原绑定密钥和 2583 项旧静态资源。运行包与核对结果归档在 `.codex/backups/regional-releases/direct-guide-candidate-r2-20261127`。兼容回退为 `guidance-visual-corrections-20261126-r6`。回退时先等在途工作结束，再成套切换网页和小助手后台。
+
+## 入口、加载与首次指引发布记录
+
 网页与聊天 worker 运行 `dual-entry-985442bd-guidance-visual-corrections-20261126-r6`，源码 `985442bd9bafe0204cd7cd8db9e0a4d95672599b`，BUILD_ID `pyeSDTjAe9MwsISZIN2G2`。北京时间 2026-11-26 20:54:55 切换。使用通过 167 张实页截图和 32 段操作录屏验收的同一运行包。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version) · [本轮实页验收](../design-qa.md#本轮实页验收--入口加载与首次指引)
 
 切换前确认生成任务已结束，切换后检查网页和 worker 都从新运行包启动。数据库维持 `0048_meal_reference_foods`、48 项迁移和 67 张表。切换前后数据库摘要和运行配置一致，原生备份 `formward-primary-20261126T125450921324Z.dump.json` 通过校验及加密异地回读。四个公网入口与兼容 IP 返回同一版本，核对 22 项新旧静态资源、登录回程、5 项匿名接口限制和海外 MCP 元数据。

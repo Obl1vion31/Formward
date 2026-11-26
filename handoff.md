@@ -1,6 +1,8 @@
 # Formward 项目交接
 
-网页与聊天 worker 运行 `dual-entry-8d768d3b-recipe-portion-entry-r3-20261126`，源码 `8d768d3ba9c5e419d6962fef6b4fa9253b0bb1ea`，BUILD_ID `EMVPsTpGV7G9GxQLbzWqG`。北京时间 2026-11-26 15:40:24 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+网页与小助手后台运行 `dual-entry-ce58e248-direct-guide-candidate-r2-20261127`，源码 `ce58e2485b94c737beb5d351c420e89317be4fd1`，BUILD_ID `8B8KhwC8rZc2Gm5hGP0oh`。北京时间 2026-11-27 00:37:34 切换，`main` 已包含正式运行源码。兼容回退为 `guidance-visual-corrections-20261126-r6`。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+
+「使用指引」一键开始高光。记录一餐、体重、消耗和拍照核对随实际操作推进。操作视频集中在使用说明，常见问题位于页尾。相同正式运行包通过 24 组手机与桌面浏览器复验。 [截图与录屏](design-qa.md#已发布验收--使用说明与录入高光)
 
 整份录入通过 5% 步进比例或实填可食克数录入，输入切换保留各自食量。拆分从当前用量开始，允许有食材规格依据的计件。保存后保持一条餐项，历史保留原快照。320／390 CSS px 手机与 1280 CSS px 桌面通过录入、保存刷新及旧餐复查。 [视觉验收](design-qa.md#已发布验收--整份录入按比例或重量)
 
@@ -58,6 +60,6 @@ schema0045、45项迁移和67张业务／认证表保持，无新增迁移。停
 
 ## 工作入口
 
-日常入口仍为`/home/obl1vion/projects/Formward`。原入口24项API／prompt未提交现场及锁定的`main-current`继续保留；不得强行切换、清理或顺带提交。本轮界面工作树在证据保全、合入发布后由Git移除。实时目录与进程以带核对时间的`.codex/workspace.md`为准。
+日常入口为 `/home/obl1vion/projects/Formward` 的 `main`。运行包与验收资料按[发布归档和留存规则](docs/deployment.md#正式运行包归档与旧部署清理)维护。进行中的开发工作树、草稿与服务以本机 `.codex/workspace.md` 和实际 Git、进程状态为准。
 
 继续阅读AGENTS、README、目标README及[设计与视觉验收](docs/design-reference.md)，沿用已认可方向和Mobile Design／Impeccable／既定Unslop；不因技能重新探索风格。正式发布和迁移边界遵循当前授权。
