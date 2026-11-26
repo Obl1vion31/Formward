@@ -65,7 +65,7 @@
 .note { display: block; min-height: 18px; }
 
 .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:8px; }
-.actions button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:6px 16px; border:1px solid var(--line-strong); border-radius:10px; background:transparent; color:var(--warm-white); font-size:14px; cursor:pointer; }
+.actions.actions button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:6px 16px; border:1px solid var(--line-strong); border-radius:10px; background:transparent; color:var(--warm-white); font-size:14px; cursor:pointer; }
 .actions button:first-child { border-color:var(--gold); background:var(--gold); color:var(--graphite); }
 .actions button:disabled { opacity:.6; cursor:default; }
 .actions button:focus-visible, .details:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }

@@ -30,10 +30,10 @@ export function MetricCardRail({ cards, preview, accountId }: { accountId?:strin
       event.preventDefault();void transition.navigate(card.href,card.trend,element,rail.current,card.readings);
     }}>
       <span className={styles.title}>{card.title}</span><svg className={styles.arrow} width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" strokeWidth="1.3" fill="none" aria-hidden="true"><path d="M4 12 12 4M5 4h7v7"/></svg>
-      <strong><span className={styles.readingValue} data-metric-value>{card.value}<small>{card.unit==="kcal"?"千卡":card.unit}</small></span></strong>
+      <strong><span className={styles.readingValue} data-metric-value>{card.value}{card.value!=="—"&&<small>{card.unit==="kcal"?"千卡":card.unit}</small>}</span></strong>
       <div className={styles.glyph}><TrendGlyph model={card.trend}/></div>
       <p><time dateTime={card.date}>{card.date?shortRecordDate(card.date):"暂无记录"}</time>{card.fact&&<> · {card.fact}</>}</p>
-      <span className={styles.range}>{card.trend.points.length?recordDateRange(card.trend.points[0].date,card.trend.points.at(-1)!.date):""}</span>
+      <span className={styles.range}>{card.trend.points.some(point=>point.value!==null)?recordDateRange(card.trend.points[0].date,card.trend.points.at(-1)!.date):""}</span>
     </LoadingLink>)}
   </div>;
 }
