@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspaceReturn, workspaceReturnLabel } from "@/components/workspace-return";
 import { LoadingLink } from "@/components/loading-link";
-import { useMobileMode } from "@/components/use-mobile-mode";
 import "./tutorial.css";
 
 type Player = { render(options:{startText:string;backAction?:string;backText?:string}):string;bind(root:HTMLElement):void;dispose():void };
@@ -21,14 +20,6 @@ function loadScript(src:string) {
 }
 export function prepareTutorial(){
   return (async()=>{if(!window.FORMWARD_TUTORIAL_MEDIA)await loadScript("/tutorials/media-manifest.js");if(!window.FormwardTutorial)await loadScript("/tutorials/player.js");})();
-}
-function GuideFilm({topic,label}:{topic:"energy"|"photo"|"food-library";label:string}){
-  const mobile=useMobileMode(),[open,setOpen]=useState(false);
-  return <details className="tutorial-clip" onToggle={event=>setOpen(event.currentTarget.open)}>
-    <summary>观看操作演示</summary>
-    {open&&<video controls muted playsInline preload="metadata" aria-label={label} data-guide-film={topic}
-      src={"/tutorials/guidance-"+topic+"-"+(mobile?"mobile":"desktop")+".mp4"}/>}
-  </details>;
 }
 export function TutorialView({startText:customStartText,backText,onStart,onBack,busy=false}:{startText?:string;backText?:string;onStart?:()=>void;onBack?:()=>void;busy?:boolean}) {
   const returns=useWorkspaceReturn();
@@ -57,26 +48,28 @@ export function TutorialView({startText:customStartText,backText,onStart,onBack,
   },[startText,backText,attempt,router]);
   useEffect(()=>{ref.current?.querySelectorAll<HTMLButtonElement>("[data-action]").forEach(button=>{button.disabled=busy;button.setAttribute("aria-busy",String(busy));});},[busy,loaded]);
   return <div className="onboarding-tutorial">
-    <section className="tutorial-faq" aria-labelledby="tutorial-questions">
-      <h2 id="tutorial-questions">常见问题</h2>
-      <details><summary>怎么估算全天消耗？</summary><p>在总览或消耗页点「估算今天的消耗」，选当天活动量，核对预计全天消耗并保存。估算依据会注明使用的实测和公式。</p><LoadingLink returnScope="workspace" href="/dashboard/energy">打开消耗页</LoadingLink><GuideFilm topic="energy" label="估算全天消耗演示"/></details>
-      <details><summary>为什么今天还没收支？</summary><p>有已知热量的饮食、当天餐次已勾「已记全」，且保存了全天消耗后，总览才显示当天收支。设备的「今日累计」会随当天活动变化。</p><LoadingLink returnScope="workspace" href="/dashboard/meals">打开饮食页</LoadingLink></details>
-      <details><summary>AI 草稿怎么保存？</summary><p>饮食拍照后点「发给助手」，在新对话里补充信息、核对餐次，再确认保存。用外部 AI 提交时，从原审核链接核对和保存。</p><LoadingLink returnScope="workspace" href="/dashboard/meals">打开饮食页</LoadingLink><GuideFilm topic="photo" label="拍照并保存餐次演示"/></details>
-      <details><summary>怎么从食材库记一餐？</summary><p>先点「记一餐」，再选「从食材库添加」。核对规格，填实际份量，点「加入本餐」后和其他食物一起保存。</p><LoadingLink returnScope="workspace" href="/dashboard/meals">打开饮食页</LoadingLink><GuideFilm topic="food-library" label="选食材规格和份量演示"/></details>
-    </section>
     <div ref={ref}/>
     {!loaded&&<section className="tutorial-fallback"><h1>使用说明</h1>
       {error?<p role="alert">视频入口暂时未能加载，可以看文字说明或重试。</p>:<LocalLoading label="正在准备视频…"/>}
       <details open={error||undefined}><summary>文字版</summary><ol>
+        <li>点「使用指引」直接高亮当前区域或下一步操作。在记录一餐、身体录入和小助手核对中都可以打开。</li>
         <li>饮食：点「记一餐」，从食材库选规格和份量，或自己填写。当天餐次核对后，在列表末尾勾「已记全」。</li>
         <li>身体：先选晨间或晚间，晨间必须空腹；体重、体脂只填知道的部分，点击“保存录入”。缺测保持空白，只记录实测值。</li>
-        <li>消耗：填写静息和活动，或只填全天总数。已包含在合计中的运动不再额外增加。</li>
+        <li>消耗：选活动量估算全天消耗，或手动填写。已采用稳定的设备来源时，查看今日累计与同步结果。</li>
         <li>补录：最近日期直接点“补录”；更早从“查看全部”选择日期并点“查看”，保存前核对日期。保存后展开餐次查看食物，点食物查看营养和依据。</li>
-        <li>AI录入：先从“助手 → 常用功能 → AI接入”连接外部AI，打开确认链接，检查修改后点“确认保存”。站内聊天按账号开放，站内预览可在对话里确认。</li>
+        <li>拍照：从记餐面板选图并点「发给助手」，在新对话核对后确认保存。外部 AI 从提交返回的审核链接确认。</li>
       </ol></details>
       {error&&<button className="quiet" onClick={()=>{setError(false);setAttempt(n=>n+1);}}>重新加载教程</button>}
       {onBack&&<button className="quiet" disabled={busy} onClick={onBack}>{backText}</button>}
       <button className="primary" disabled={busy} onClick={()=>onStart?onStart():returns?void returns.back("/dashboard"):router.push("/dashboard")}>{startText}</button>
     </section>}
+    <section className="tutorial-faq" aria-labelledby="tutorial-questions">
+      <h2 id="tutorial-questions">常见问题</h2>
+      <details><summary>怎么打开高光指引？</summary><p>在总览、趋势页或录入面板点「使用指引」。页面导览可切换前后步骤。填表时按金框指的控件操作，指引会随进度前进。</p><LoadingLink returnScope="workspace" href="/dashboard">打开总览</LoadingLink></details>
+      <details><summary>怎么从食材库记一餐？</summary><p>点「记一餐」，选「从食材库添加」。打开对应规格后填写实际份量，点「加入本餐」。日期和食物核对完再保存。</p><LoadingLink returnScope="workspace" href="/dashboard/meals">打开饮食页</LoadingLink></details>
+      <details><summary>拍照或 AI 草稿怎么保存？</summary><p>选图后核对餐别和日期，点「发给助手」。在小助手的新对话中补充份量，核对餐次，再点「确认保存」。外部 AI 提交的草稿从原审核链接确认。</p><LoadingLink returnScope="workspace" href="/dashboard/meals">打开饮食页</LoadingLink></details>
+      <details><summary>什么时候要估算当天消耗？</summary><p>没有采用稳定的设备日消耗时，可点「估算今天的消耗」，选活动量并保存。缺资料就先补实测或个人资料。已采用设备时，在消耗页查看当日累计或同步状态。</p><LoadingLink returnScope="workspace" href="/dashboard/energy">打开消耗页</LoadingLink></details>
+      <details><summary>为什么今天还没收支？</summary><p>总览需要已知摄入、当天餐次勾选「已记全」和完整的全天消耗。设备显示「今日累计」时，全天结果还在等待同步。</p><LoadingLink returnScope="workspace" href="/dashboard/meals">核对饮食记录</LoadingLink></details>
+    </section>
   </div>;
 }

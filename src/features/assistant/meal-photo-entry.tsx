@@ -74,7 +74,7 @@ export function MealPhotoEntry({initial,draftKey,resumeTaskId,onRestore,onApply,
  async function back(){if((photos.photos.length||text.trim())&&!await confirmAction({title:"返回餐次填写？",message:"手工草稿保留。本次输入的照片和说明将离开输入区，已生成的预览仍可在 AI 确认中查看。",confirmLabel:"返回填写",cancelLabel:"继续识别"}))return;if(running||data?.activeRunId)await stop();onBack();}
  async function addFiles(files:File[]){const retained=Math.max(initial.expectedImageCount??0,initial.imageIds?.length??0);if(retained+photos.photos.length+files.length>8)throw Error("本餐原有及新增照片合计最多8张，请减少选择或返回填写调整。");await photos.add(files);}
  const answer=data?.messages.filter(message=>message.role==="assistant").at(-1),busy=running||!!data?.activeRunId;
- return <section className={styles.entry} data-meal-mode-content data-meal-photo-entry data-photo-entry-active={visible||undefined} data-shared-header={sharedHeader||undefined} aria-label="AI 拍照录入"><header><button type="button" disabled={handingOff&&running} onClick={()=>void back()}>← 返回填写</button><p className={styles.context}>{initial.date} · {initial.mealType}</p>{handingOff&&<TaskGuide task="meal" video="photo" steps={[
+ return <section className={styles.entry} data-meal-mode-content data-meal-photo-entry data-photo-entry-active={visible||undefined} data-shared-header={sharedHeader||undefined} aria-label="AI 拍照录入"><header><button type="button" disabled={handingOff&&running} onClick={()=>void back()}>← 返回填写</button><p className={styles.context}>{initial.date} · {initial.mealType}</p>{handingOff&&<TaskGuide task="meal" steps={[
     {target:"meal-send-photo",text:"核对日期和餐别，点「发给助手」后到新对话核对本餐。"},
     ...(!photos.photos.length?[{target:"meal-pick-photo",text:"先选择这餐的照片。份量或做法可填写在下方。"}]:[]),
   ]}/>}</header>

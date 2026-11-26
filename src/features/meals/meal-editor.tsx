@@ -495,7 +495,7 @@ export function MealEditor({
        backFromLibrary();
      }}
      onChange={event => setInvalid(Boolean(event.currentTarget.querySelector(":invalid")))}>
-     <div className={styles.entryGuide}>{!pending&&<TaskGuide task="meal" video="food-library" steps={guideSteps} auto={!initial.id&&!initial.items.length&&!busy}/>}</div>
+     <div className={styles.entryGuide}>{!pending&&<TaskGuide task="meal" steps={guideSteps} auto={!initial.id&&!initial.items.length&&!busy}/>}</div>
      <fieldset disabled={busy || uploading || pending || aiSaving || aiWorking}>
        <div className={styles.columns + " " + motion.stage} data-meal-pane-transition={paneChange?.animate ? paneChange.direction : undefined}>
        <div ref={mealPane} className={motion.mealPane} data-meal-pane="meal" inert={paneChange?.animate && libraryOpen}>

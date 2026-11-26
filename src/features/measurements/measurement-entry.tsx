@@ -168,7 +168,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
   }
   function selectPeriod(period:EntryPeriod){setSelected(period);setPeriodTouched(true);}
   const periodSlide = useSlidingSelection(entryPeriods.indexOf(selected), index => selectPeriod(entryPeriods[index]));
-  const guide = !pending && !future && mobile!==null && <TaskGuide task="body" video="body" auto={!editing&&!busy} steps={[
+  const guide = !pending && !future && mobile!==null && <TaskGuide task="body" auto={!editing&&!busy} steps={[
     {target:"body-save",text:"核对时段和值，点「"+(editing?"保存修改":"保存录入")+"」。"},
     ...(mobile&&!periodTouched?[{target:"body-period",text:"按称重时段选。晨间填空腹实测，晚间可记非空腹值。"}]:[]),
     {target:"body-weight-input",text:mobile?"填实际称得的体重。体脂率没测可以留空。":"在对应时段填实测值。晨间填空腹值，晚间可记非空腹值。"},

@@ -3,10 +3,10 @@
   border:0; background:none; color:var(--muted); font:500 13px/1.4 system-ui,sans-serif;
   min-block-size:44px; padding:0 7px; white-space:nowrap; cursor:pointer;
 }
-.trigger[aria-expanded=true],.trigger:hover,.close:hover { color:var(--warm-white); }
+.trigger[aria-pressed=true],.trigger:hover,.close:hover { color:var(--warm-white); }
 .trigger:focus-visible,.close:focus-visible { outline:2px solid var(--gold); outline-offset:-2px; }
 
-.hint,.menu {
+.hint {
   position:fixed; inset:auto; margin:0; box-sizing:border-box;
   border:1px solid color-mix(in srgb,var(--gold) 49%,var(--line-strong));
   border-radius:12px; background:var(--surface); color:var(--warm-white);
@@ -28,17 +28,10 @@
 .hint[data-point-side=right]::after { right:-6px; top:calc(var(--pointer-top) - 5px); border-width:1px 1px 0 0; }
 .hint[data-point-side=left]::after { left:-6px; top:calc(var(--pointer-top) - 5px); border-width:0 0 1px 1px; }
 
-.menu { padding:4px; }
-.menu button,.tourNav button {
+.tourNav button {
   border:1px solid transparent; color:inherit; min-block-size:44px; font:inherit; cursor:pointer;
 }
-.menu button {
-  display:flex; align-items:center; gap:8px; width:100%; padding:0 10px; border-radius:8px;
-  background:transparent; text-align:start;
-}
-.menu button + button { border-top-color:var(--line-soft); }
-.menu button:hover,.menu button:focus-visible { background:color-mix(in srgb,var(--gold) 10%,transparent); }
-.menu button:active,.tourNav button:active { filter:brightness(.9); }
+.tourNav button:active { filter:brightness(.9); }
 .tour {
   --tour-shade:rgb(0 0 0 / .63);
   --tour-line:#d7b77e;
@@ -47,7 +40,7 @@
   position:fixed; inset:0; box-sizing:border-box; width:100%; height:100%;
   max-width:none; max-height:none; padding:0; margin:0; border:0;
   overflow:hidden; background:transparent; pointer-events:none;
-  color:var(--warm-white); font:400 13px/1.45 system-ui,sans-serif;
+  color:var(--warm-white); font:400 13px/1.45 system-ui,sans-serif; white-space:normal;
 }
 :global(html[data-theme=light]) .tour {
   --tour-shade:rgb(0 0 0 / .51);
@@ -78,6 +71,8 @@
   position:absolute; inset-block-start:3px; inset-inline-end:3px; color:var(--tour-line);
 }
 .tourText { margin:0; padding:12px 49px 0 12px; overflow-wrap:anywhere; }
+.tour[data-operation] .tourText { box-sizing:border-box; min-block-size:50px; padding-block:12px; }
+.tour[data-operation] .tourSurface { pointer-events:none; }
 .tour[data-guide-phase=ready] .tourTip[data-point-side]:not([data-point-side=""])::after {
   content:""; position:absolute; inline-size:9px; block-size:9px;
   background:var(--surface); border:solid color-mix(in srgb,var(--gold) 52%,var(--line-strong));
@@ -97,7 +92,5 @@
 .tourNav button[data-next] { background:var(--tour-forward); color:#251b0f; }
 :global(html[data-theme=light]) .tourNav button[data-next] { color:#fffaf0; }
 .tourNav button:disabled { opacity:.5; cursor:default; }
-.menu button:focus-visible,.tourNav button:focus-visible { outline:2px solid var(--gold); outline-offset:-2px; }
-.hint::backdrop,.menu::backdrop { background:transparent; pointer-events:none; }
-.video { min-inline-size:0; }
-.video video { display:block; max-inline-size:100%; max-block-size:calc(100svh - 132px); margin:auto; border-radius:10px; background:#171714; }
+.tourNav button:focus-visible { outline:2px solid var(--gold); outline-offset:-2px; }
+.hint::backdrop { background:transparent; pointer-events:none; }

@@ -35,7 +35,7 @@ export function TodayActions({ date, day, readingStatus }: {
         {action.label}
       </LoadingLink>
     )}</nav>}
-    {day && <div className={styles.todayGuide}><TaskGuide task="overview" mode="tour" video="overview" steps={[
+    {day && <div className={styles.todayGuide}><TaskGuide task="overview" mode="tour" steps={[
       {target:"overview-today",text:"从这里记录今天的饮食、消耗和体重。快捷入口随当天记录和设备来源变化。"},
       {target:"overview-intake",text:"今日摄入显示当天的热量和餐数。点卡片进入饮食趋势。"},
       {target:"overview-morning-weight",text:"这里显示最近一次有效晨重和实际日期。点卡片查看身体记录。"},

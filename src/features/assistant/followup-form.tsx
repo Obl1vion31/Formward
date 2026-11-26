@@ -74,7 +74,7 @@ export function FollowupForm({task,busy,submit,mealGuide=false}: {
       <div className={styles.followupNavigation}>
         {index ? <button type="button" onClick={() => showQuestion(index - 1)}>‹ 上一题</button> : <span>补充信息</span>}
         {questions.length > 1 && <span>{index + 1} / {questions.length}</span>}
-        {mealGuide&&<TaskGuide task="meal" video="photo" auto={!busy} steps={[
+        {mealGuide&&<TaskGuide task="meal" auto={!busy} steps={[
           {target:"meal-submit-answer",text:last?"点「继续」，助手会用补充的信息更新本餐。":"点「下一题」继续补充本餐。"},
           {target:"meal-answer",text:"补充这道问题。想不起来可以选「不知道」或跳过。"},
         ]}/>}

@@ -1,11 +1,14 @@
 (() => {
 'use strict';
 const topics=[
- {id:'meals',name:'饮食',title:'记录一餐',summary:'记录餐次和营养',short:['找日期','填本餐','保存记全'],steps:[['找到日期','当天点“录入”，已有餐次时点“添加一餐”。'],['填写本餐','选餐次，填食物和本次总营养；不知道的留空。'],['保存与记全','先核对保存日期；一天都记完后再勾“已记全”。']],note:'自由填写的是本次吃下的总营养，数量不会再乘一次。食材库项目按已选规格换算。'},
- {id:'body',name:'身体',title:'记录体重与体脂',summary:'晨晚体重与体脂',short:['选时段','填实测','保存查看'],steps:[['日期与时段','找到称重日期，点“录入”或“编辑”；手机先选晨间或晚间，切换保留两侧输入。'],['只填实测值','晨间必须空腹；体重、体脂只填知道的部分，不知道的留空。'],['保存后查看','核对日期、公斤和百分比，点“保存录入”一次保存晨晚修改，再回到那一天查看。']],note:'不知道的数不填0。每日体重、体脂在身体页记录，不用去个人资料重复填写。'},
- {id:'energy',name:'消耗',title:'记录当天消耗',summary:'静息、活动与总数',short:['找日期','填消耗','核对保存'],steps:[['找到当天','在对应日期点“录入”或“补录”。'],['选择填写方式','填静息和活动，或只填全天总数；运动明细按需添加。'],['核对后保存','某项运动已在活动合计中时选“已包含”，避免重复增加，再核对总数。']],note:'示例：静息1800＋活动400＝2200千卡。400里已有的320快走只留明细，不再多加一次。来源可以留空。'},
- {id:'backfill',name:'补录',title:'补到正确那一天',summary:'昨天和更早日期',short:['补昨天','选更早','核对日期'],steps:[['先补昨天','在昨天那行点“补录”，核对窗口和保存按钮都是昨天的日期。'],['找更早日期','点“查看全部”，在“查看日期”选好那一天并点“查看”，再补录。'],['核对日期与结果','保存前再看日期，保存后从对应日期找到记录，避免误存到今天。']],note:'最近7天只是快捷入口。已有餐次仍可追加一餐；补录或修改饮食后，重新确认那天是否“已记全”。'},
- {id:'ai',name:'AI录入',title:'AI提交与确认',summary:'外部AI提交，网页确认',short:['AI提交','检查修改','确认保存'],steps:[['连接并提交','从助手的常用功能进入AI接入；连接后说清日期、餐次和食物，打开待确认链接。'],['检查并修改','核对日期、本餐总量和食物；“应用修改”还没有正式保存。'],['确认保存','最后点“确认保存”，再从“查看记录”找到这餐。']],note:'这一段演示外部 AI 的提交与审核。饮食拍照可以在小助手对话里的餐次卡确认。'}
+ {id:'meals',name:'饮食',title:'从食材库记一餐',summary:'选食材、填份量、保存',short:['打开指引','选食材','保存'],steps:[['打开记录一餐','从总览或饮食页点「记一餐」。想跟着做，就点「使用指引」。'],['添加食材','从食材库打开实际吃的食物，核对规格和数量，再点「加入本餐」。也可以手填或拍照。'],['核对并保存','核对日期、餐别和食物，再点「保存餐次」。当天全部记完后，在饮食列表末尾勾「已记全」。']],note:'手填的是本次吃下的总营养。食材库项目按规格和份量自动换算。'},
+ {id:'overview',name:'总览',title:'看懂总览与趋势',summary:'日期、状态卡与日收支',short:['打开指引','看状态卡','看趋势'],steps:[['打开页面导览','点总览的「使用指引」，金框标出今天的日期和可用记录入口。'],['查看状态卡','点「下一步」看今日摄入、最近晨重和今日消耗。点亮起的卡片可进入对应趋势。'],['查看选中日期','图表显示所选日收支和次晨实测变化。点「查看记录」打开同一天。']],note:'饮食、消耗和身体趋势页也可直接打开高光导览。'},
+ {id:'body',name:'身体',title:'记录实测体重',summary:'选晨晚、填实测、保存',short:['打开录入','填实测','保存'],steps:[['打开身体录入','点「记录体重」后可点「使用指引」。在手机按实际称重时段选择晨间或晚间。'],['填写实测','晨间填空腹实测，晚间可以记非空腹值。体脂率没测可留空。'],['核对保存','核对日期、时段和值，再点「保存录入」。可在身体页查看原记录。']],note:'切换时段会保留已填内容。缺测按事实留空。'},
+ {id:'energy',name:'消耗',title:'估算并保存当天消耗',summary:'活动量、估算依据与保存',short:['打开估算','选活动量','保存'],steps:[['打开当天估算','没有采用稳定设备来源时，点「估算今天的消耗」。需要的话点「使用指引」。'],['选择活动量','选与实际最接近的一项。提示缺资料时可补实测或个人资料，返回继续同一天的估算。'],['查看依据并保存','核对预计全天消耗。可展开「估算依据」查看公式与实测日期，然后点「保存」。']],note:'手动填写仍可用。活动合计已包含的运动保留明细，避免重复增加。'},
+ {id:'photo',name:'拍照',title:'拍照后在助手里核对',summary:'选图、补充、确认保存',short:['发送照片','补充核对','保存'],steps:[['选择照片并发送','在记录一餐里选「拍照录入」，加照片和必要说明，核对日期和餐别后点「发给助手」。'],['在同一对话补充','如果助手追问，在对应问题卡填写实际吃下的份量。核对卡可以修改食物，也可以改用手填。'],['确认本餐','检查餐别、日期和食物后点「确认保存」。保存后从回执打开饮食记录。']],note:'拍照发送只是提交识别。本餐以你最后确认保存的内容为准。'},
+ {id:'device',name:'设备',title:'查看设备消耗和同步状态',summary:'今日累计和已导入记录',short:['打开消耗','看累计','看同步'],steps:[['查看当天消耗','已采用稳定的设备日消耗时，总览和消耗页展示设备来源或同步状态。'],['读懂今日累计','今日累计会随设备同步更新，全天数据完整后可查看当天结果。'],['查看来源和状态','点设备状态前往「设备与数据来源」。在那里查看最近导入，或处理连接、暂停与失败。']],note:'仅同步步数或运动的设备不会接管全天消耗。'},
+ {id:'backfill',name:'补录',title:'补到正确的日期',summary:'选历史日期并查看记录',short:['打开记录','选日期','核对保存'],steps:[['查找日期','从饮食趋势选择日期，或在「查看记录」里查找要补的那一天。'],['补记当天','在相应日期点「补记这天」或进入编辑，核对面板上的日期与餐别。'],['保存并重新核对','保存后从同一天查看餐次与食物。补记或修改后，再确认那天是否「已记全」。']],note:'昨天待确认时也可从总览的「核对」直接打开昨天。'},
+ {id:'ai',name:'外部 AI',title:'核对外部 AI 提交的草稿',summary:'连接、核对与确认保存',short:['连接提交','检查修改','确认保存'],steps:[['连接并提交','从小助手的「常用功能」打开「AI 接入」，连接并授权所需权限。提交时说清日期、餐别和食物。'],['回网页核对','打开提交返回的审核链接。对照原内容和份量，需要时点「修改」。'],['确认保存','最后点「确认保存」，再从回执查看对应记录。']],note:'草稿可以多次修改。正式记录以确认保存后的内容为准。'}
 ];
 const device=matchMedia('(max-width:700px), (hover:none) and (pointer:coarse)');
 const reduced=matchMedia('(prefers-reduced-motion:reduce)');
@@ -24,9 +27,10 @@ function render(options){
  selected='meals';
  const back=options.backAction?'<button class="quiet" type="button" data-action="'+options.backAction+'">'+esc(options.backText)+'</button>':'<span></span>';
  return [
- '<main class="journey tutorial-journey" data-tutorial-guide data-mode="'+(device.matches?'mobile':'desktop')+'">',
- '<div class="guide-heading"><h1>使用说明</h1><span class="guide-reference">演示使用虚构数据</span></div>',
- '<section class="guide-directory" aria-label="教程目录与预览"><nav class="directory-topics" aria-label="五项教程">',
+ '<section class="journey tutorial-journey" aria-labelledby="manual-title" data-tutorial-guide data-mode="'+(device.matches?'mobile':'desktop')+'">',
+ '<div class="guide-heading"><h1 id="manual-title">使用说明</h1><span class="guide-reference">演示使用虚构数据</span></div>',
+ '<p class="guide-intro">在页面或录入面板点「使用指引」，跟着金框操作。</p><h2 class="guide-video-title" id="operation-videos">操作视频</h2>',
+ '<section class="guide-directory" aria-label="教程目录与预览"><nav class="directory-topics" aria-label="操作视频主题">',
  topics.map(t=>'<button type="button" class="directory-topic" data-directory-topic="'+t.id+'" aria-label="'+t.name+'：'+t.summary+'，选择教程"><span class="directory-copy"><span class="directory-name">'+t.name+'</span><span class="directory-summary">'+t.summary+'</span></span><span class="directory-arrow" aria-hidden="true">›</span></button>').join(''),
  '</nav><div class="directory-preview" data-preview-topic="'+selected+'"><div class="preview-heading"><h2 data-preview-title>'+topicFor(selected).title+'</h2><button type="button" class="preview-toggle" data-preview-toggle aria-label="自动播放短预览" aria-pressed="'+!reduced.matches+'">'+(reduced.matches?'播放预览':'暂停预览')+'</button></div>',
  '<div class="preview-picture"><img alt="" loading="lazy"><video muted loop playsinline preload="none" aria-hidden="true" data-directory-preview></video></div><button type="button" class="preview-open" data-open-preview>'+playIcon+'<span>观看完整教程</span></button></div></section>',
@@ -34,7 +38,7 @@ function render(options){
  topics.map(t=>'<button class="tutorial-topic" type="button" role="tab" id="topic-'+t.id+'" aria-controls="mobile-lesson" aria-selected="'+(t.id===selected)+'" tabindex="'+(t.id===selected?'0':'-1')+'" data-topic="'+t.id+'">'+t.name+'</button>').join(''),
  '</div><div id="mobile-lesson" role="tabpanel" aria-labelledby="topic-'+selected+'"></div></section>',
  '<dialog class="tutorial-modal" aria-labelledby="tutorial-modal-title"><header class="modal-head"><h2 id="tutorial-modal-title"></h2><div class="modal-head-actions"><button type="button" class="text-switch" data-view-switch aria-pressed="false">文字版</button><button type="button" class="modal-close" data-close-lesson aria-label="关闭教程">×</button></div></header><div class="modal-body"></div></dialog>',
- '<div class="tutorial-actions"><div class="tutorial-action-inner">'+back+'<button type="button" class="primary" data-action="start">'+esc(options.startText)+'</button></div></div></main>'
+ '<div class="tutorial-actions"><div class="tutorial-action-inner">'+back+'<button type="button" class="primary" data-action="start">'+esc(options.startText)+'</button></div></div></section>'
  ].join('');
 }
 function bind(container){
@@ -107,7 +111,7 @@ function bind(container){
    '<output class="lesson-time">0:00/'+clock(a?.duration||30)+'</output><button type="button" data-control="fullscreen" aria-label="全屏观看">'+fullIcon+'</button></div>',
    '<ol class="lesson-steps">'+topic.steps.map((s,i)=>'<li><button type="button" class="lesson-step" data-step="'+i+'" aria-label="重看：'+s[0]+'"><span class="step-number">'+String(i+1).padStart(2,'0')+'</span><span class="step-label">'+topic.short[i]+'</span></button></li>').join('')+'</ol></div></div>',
    '<div class="lesson-text" hidden><ol class="text-steps">'+topic.steps.map(s=>'<li><h3>'+s[0]+'</h3><p>'+s[1]+'</p></li>').join('')+'</ol><p class="lesson-note">'+topic.note+'</p>',
-   topic.id==='ai'?'<p class="ai-connection"><strong>第一次连接AI</strong><br>助手 → 常用功能 → AI接入 → 按页面指引连接外部AI并授权。连接后再提交，最后回网页确认保存。</p>':'',
+   topic.id==='ai'?'<p class="ai-connection"><strong>第一次连接AI</strong><br>在小助手的「常用功能」打开「AI 接入」，按需开启读取和提交草稿权限。</p>':'',
    '</div><p class="guide-sr-only lesson-status" role="status" aria-live="polite"></p>'
   ].join('');
   const video=node.querySelector('video'),stage=node.querySelector('.lesson-stage'),frame=node.querySelector('.lesson-frame');

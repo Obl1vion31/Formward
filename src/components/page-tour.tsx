@@ -1,9 +1,10 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { MOBILE_MEDIA } from "./use-mobile-mode";
-import { guidePageBounds, guidePresent, guideScope, guideTarget, intersectGuideBox, openGuide, placeGuideCard, type GuideBox, type GuideStep } from "./guide-position";
+import { readPopoverBounds } from "./anchored-popover";
+import { guidePageBounds, guidePresent, guideScope, guideTarget, intersectGuideBox, openGuide, operationObstacles, placeGuideCard, type GuideBox, type GuideStep } from "./guide-position";
 import { readVisibleViewport } from "./input-viewport";
 import styles from "./task-guide.module.css";
 
@@ -29,10 +30,10 @@ function revealTourTarget(anchor: HTMLElement) {
   if (Math.abs(top) > 1) window.scrollBy({ top, behavior: "instant" });
 }
 
-function tourBox(anchor: HTMLElement): GuideBox | null {
+function targetBox(anchor: HTMLElement, owner?: HTMLElement): GuideBox | null {
   const rect = anchor.getBoundingClientRect();
   const rail = anchor.closest('[data-metric-layout="rail"]')?.getBoundingClientRect();
-  const viewport = guidePageBounds(3);
+  const viewport = owner ? readPopoverBounds(owner, 3, true) : guidePageBounds(3);
   const bounds = rail ? intersectGuideBox(viewport, rail) : viewport;
   return bounds && intersectGuideBox({ left: rect.left - 2, top: rect.top - 2, right: rect.right + 2, bottom: rect.bottom + 2 }, bounds);
 }
@@ -59,76 +60,124 @@ async function motion(element: HTMLElement, from: Keyframe, to: Keyframe, durati
 
 type Props = {
   ownerId: string;
-  origin: RefObject<HTMLButtonElement | null>;
+  origin: HTMLButtonElement;
   configuration: string;
+  operation?: boolean;
   onClose: (restoreFocus: boolean) => void;
 };
 
-export function PageTour({ ownerId, origin, configuration, onClose }: Props) {
+export function PageTour({ ownerId, origin, configuration, operation = false, onClose }: Props) {
   const layerRef = useRef<HTMLDivElement>(null), frameRef = useRef<HTMLDivElement>(null), fillRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null), surfaceRef = useRef<HTMLDivElement>(null), forwardRef = useRef<HTMLButtonElement>(null);
-  const control = useRef<{ step: (direction: number) => void; close: () => void }>(null);
-  const [index, setIndex] = useState(0);
-  const steps = JSON.parse(configuration) as GuideStep[];
-  const currentStep = steps[index] ?? steps[0];
+  const control = useRef<{ step: (direction: number) => void; close: () => void; configure: (steps: GuideStep[]) => void }>(null);
+  const [{ index, count, text: copy }, setStep] = useState({ index: 0, count: 0, text: "" });
+  const portal = operation ? origin.closest<HTMLDialogElement>("dialog") ?? document.body : document.body;
+  const noteId = ownerId + "-guide-note";
 
   useLayoutEffect(() => {
     const layer = layerRef.current, frame = frameRef.current, fill = fillRef.current, tip = tipRef.current, surface = surfaceRef.current;
-    const opener = origin.current, list = JSON.parse(configuration) as GuideStep[];
-    if (!layer || !frame || !fill || !tip || !surface || !opener || !list.length) return;
+    const opener = origin;
+    if (!layer || !frame || !fill || !tip || !surface) return;
     const mask = layer, outline = frame, apertureFill = fill, card = tip, cardSurface = surface;
     const controller = new AbortController();
     const { signal } = controller;
     const scope = guideScope(opener);
+    const container = operation ? opener.closest<HTMLElement>("dialog,[data-assistant-page]") ?? document.body : undefined;
     const reduced = matchMedia(reduce);
-    let current = 0, active: HTMLElement | undefined, rect: GuideBox | null = null;
+    let list: GuideStep[] = [];
+    let current = 0, active: HTMLElement | undefined, text = "", rect: GuideBox | null = null;
     let busy = false, pendingFrame = 0;
 
     function phase(value: string) { mask.dataset.guidePhase = value; }
+    function clearAnchor() {
+      if (!active) return;
+      active.removeAttribute("data-guide-highlight");
+      if (operation) {
+        const ids = active.getAttribute("aria-describedby")?.split(/\s+/).filter(id => id !== noteId);
+        if (ids?.length) active.setAttribute("aria-describedby", ids.join(" "));
+        else active.removeAttribute("aria-describedby");
+      }
+      observer.unobserve(active);
+      active = undefined;
+    }
+    function hide() {
+      clearAnchor();
+      rect = null;
+      if (mask.matches(":popover-open")) mask.hidePopover();
+      if (document.documentElement.dataset.guideTour === ownerId) delete document.documentElement.dataset.guideTour;
+    }
     function dismiss(focus: boolean) {
       controller.abort();
-      if (mask.matches(":popover-open")) mask.hidePopover();
+      hide();
       onClose(focus);
     }
     function setAnchor(target: HTMLElement) {
       if (active === target) return;
-      if (active) {
-        active.removeAttribute("data-guide-highlight");
-        observer.unobserve(active);
-      }
+      clearAnchor();
       active = target;
       target.setAttribute("data-guide-highlight", "tour");
+      if (operation) target.setAttribute("aria-describedby", [target.getAttribute("aria-describedby"), noteId].filter(Boolean).join(" "));
       observer.observe(target);
     }
-    function layoutCard(box: GuideBox) {
-      return placeGuideCard(card, box, guidePageBounds(16), {
-        width: 310, sides: matchMedia(MOBILE_MEDIA).matches ? ["top", "bottom", "left", "right"] : ["left", "right", "top", "bottom"], dock: true,
+    function layoutCard(box: GuideBox, target: HTMLElement) {
+      const placement = placeGuideCard(card, box, container ? readPopoverBounds(container, 12, true) : guidePageBounds(16), {
+        width: operation ? 270 : 310,
+        sides: matchMedia(MOBILE_MEDIA).matches ? ["top", "bottom", "left", "right"] : ["left", "right", "top", "bottom"],
+        dock: !operation,
+        avoid: operation ? operationObstacles(scope, target) : undefined,
       });
+      card.style.visibility = placement ? "visible" : "hidden";
+      return operation ? box : placement;
     }
-    function position(target: HTMLElement, box: GuideBox) {
-      const placement = layoutCard(box);
-      if (!placement) return false;
-      rect = placement;
-      Object.assign(outline.style, paint(rect, getComputedStyle(target).borderTopLeftRadius));
-      return true;
+    function nextOperation() {
+      for (const [index, step] of list.entries()) {
+        const target = guideTarget(opener, step.target);
+        if (target) return { index, step, target };
+      }
     }
     function refresh() {
       pendingFrame = 0;
       if (busy || signal.aborted) return;
-      if (!guidePresent(opener) || !guidePresent(active ?? null) || !active) return dismiss(true);
-      const box = tourBox(active);
-      if (!box || !position(active, box)) dismiss(true);
+      if (!guidePresent(opener) || opener.closest('[data-surface-phase="opening"],[data-surface-phase="closing"]')) {
+        if (operation) hide(); else dismiss(true);
+        return;
+      }
+      if (operation) {
+        const next = nextOperation();
+        if (!next) return hide();
+        if (next.target !== active || next.step.text !== text) {
+          void go(next.index, next.target);
+          return;
+        }
+      } else if (!active) {
+        const target = list[0] && guideTarget(opener, list[0].target);
+        if (target) void go(0, target); else dismiss(true);
+        return;
+      }
+      if (!active || !guidePresent(active)) return dismiss(true);
+      const box = targetBox(active, container);
+      const placement = box && layoutCard(box, active);
+      if (!placement) {
+        if (operation) hide(); else dismiss(true);
+        return;
+      }
+      rect = placement;
+      Object.assign(outline.style, paint(rect, getComputedStyle(active).borderTopLeftRadius));
     }
     function schedule() {
       if (!pendingFrame && !signal.aborted) pendingFrame = requestAnimationFrame(refresh);
     }
-    async function go(to: number, initial = false) {
-      if (busy || signal.aborted || to < 0 || to >= list.length) return;
-      const target = guideTarget(opener!, list[to].target);
-      if (!target) return dismiss(true);
+    async function go(to: number, target: HTMLElement) {
+      if (busy || signal.aborted || !list[to]) return;
       busy = true;
       const animated = !reduced.matches;
-      const oldRect = rect;
+      const oldRect = rect, initial = !mask.matches(":popover-open");
+      const selected = list[to];
+      if (initial) {
+        document.documentElement.dataset.guideTour = ownerId;
+        phase("initial");
+        openGuide(mask);
+      }
       if (animated && !initial && oldRect) {
         phase("covering");
         await Promise.all([
@@ -141,15 +190,20 @@ export function PageTour({ ownerId, origin, configuration, onClose }: Props) {
       }
       if (signal.aborted) return;
       if (animated) phase("moving");
-      revealTourTarget(target);
-      // Measure the new copy after React lays it out. Its height can change on a narrow screen.
-      if (!initial) flushSync(() => setIndex(to));
+      if (operation) {
+        if (!targetBox(target, container)) target.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
+      } else revealTourTarget(target);
+      // Measure the current copy after wrapping it at the actual width.
+      flushSync(() => setStep({ index: to, count: list.length, text: selected.text }));
       if (signal.aborted) return;
-      const destination = tourBox(target);
-      if (!destination) return dismiss(true);
+      const destination = targetBox(target, container);
+      const layout = destination && layoutCard(destination, target);
+      if (!layout) {
+        busy = false;
+        if (operation) hide(); else dismiss(true);
+        return;
+      }
       const oldRadius = outline.style.borderRadius;
-      const layout = layoutCard(destination);
-      if (!layout) return dismiss(true);
       rect = layout;
       const final = paint(rect, getComputedStyle(target).borderTopLeftRadius);
       if (animated && oldRect && !initial) {
@@ -157,7 +211,8 @@ export function PageTour({ ownerId, origin, configuration, onClose }: Props) {
       } else Object.assign(outline.style, final);
       if (signal.aborted) return;
       current = to;
-      setAnchor(target);
+      text = selected.text;
+      if (target.isConnected) setAnchor(target);
       if (animated) {
         phase("revealing");
         await Promise.all([
@@ -171,7 +226,8 @@ export function PageTour({ ownerId, origin, configuration, onClose }: Props) {
       if (signal.aborted) return;
       phase("ready");
       busy = false;
-      if (initial || !card.contains(document.activeElement)) forwardRef.current?.focus({ preventScroll: true });
+      if (!operation && (initial || !card.contains(document.activeElement))) forwardRef.current?.focus({ preventScroll: true });
+      if (operation) schedule();
     }
 
     function intercept(event: Event) {
@@ -185,11 +241,12 @@ export function PageTour({ ownerId, origin, configuration, onClose }: Props) {
       event.stopPropagation();
     }
     function onKey(event: KeyboardEvent) {
+      if (!mask.matches(":popover-open")) return;
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
-        dismiss(true);
-      } else if (event.key === "Tab") {
+        dismiss(!operation || card.contains(document.activeElement));
+      } else if (!operation && event.key === "Tab") {
         const inCard = [...card.querySelectorAll<HTMLElement>("button")].filter(button => !busy || button.matches("[data-guide-close]"));
         const targets = busy || !active ? [] : [active, ...active.querySelectorAll<HTMLElement>(actions)].filter(element =>
           element.matches(actions) && element.tabIndex >= 0 && guidePresent(element) &&
@@ -205,34 +262,36 @@ export function PageTour({ ownerId, origin, configuration, onClose }: Props) {
     const observer = new ResizeObserver(schedule);
     const mutations = new MutationObserver(schedule);
     observer.observe(card);
-    mutations.observe(scope, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "inert", "data-return-prepared"] });
+    mutations.observe(container ?? scope, { childList: true, subtree: true, attributes: true,
+      attributeFilter: ["open", "disabled", "hidden", "inert", "data-guide-target", "data-return-prepared", "data-surface-phase", "aria-disabled"] });
     control.current = {
       step(direction) {
         if (busy || signal.aborted) return;
-        if (current + direction === list.length) dismiss(true);
-        else void go(current + direction);
+        const next = current + direction;
+        if (next === list.length) dismiss(true);
+        else if (list[next]) {
+          const target = guideTarget(opener, list[next].target);
+          if (target) void go(next, target); else dismiss(true);
+        }
       },
       close() { dismiss(true); },
+      configure(steps) { list = steps; schedule(); },
     };
-    document.documentElement.dataset.guideTour = ownerId;
-    phase("initial");
-    openGuide(mask);
     window.addEventListener("scroll", schedule, true);
     window.addEventListener("resize", schedule);
     window.visualViewport?.addEventListener("resize", schedule);
     window.visualViewport?.addEventListener("scroll", schedule);
     document.addEventListener("keydown", onKey, true);
-    document.addEventListener("pointerdown", intercept, true);
-    document.addEventListener("click", intercept, true);
-    void go(0, true);
+    if (!operation) {
+      document.addEventListener("pointerdown", intercept, true);
+      document.addEventListener("click", intercept, true);
+    }
     return () => {
       controller.abort();
       cancelAnimationFrame(pendingFrame);
+      hide();
       observer.disconnect();
       mutations.disconnect();
-      active?.removeAttribute("data-guide-highlight");
-      if (mask.matches(":popover-open")) mask.hidePopover();
-      if (document.documentElement.dataset.guideTour === ownerId) delete document.documentElement.dataset.guideTour;
       control.current = null;
       window.removeEventListener("scroll", schedule, true);
       window.removeEventListener("resize", schedule);
@@ -242,24 +301,26 @@ export function PageTour({ ownerId, origin, configuration, onClose }: Props) {
       document.removeEventListener("pointerdown", intercept, true);
       document.removeEventListener("click", intercept, true);
     };
-  }, [configuration, onClose, origin, ownerId]);
+  }, [noteId, onClose, operation, origin, ownerId]);
 
-  if (!currentStep || typeof document === "undefined") return null;
+  useLayoutEffect(() => {
+    control.current?.configure(JSON.parse(configuration) as GuideStep[]);
+  }, [configuration, onClose, operation, origin]);
   return createPortal(<div ref={layerRef} className={styles.tour} popover="manual" data-guide-layer data-guide-owner={ownerId}
-    data-guide-float="tour" role="group" aria-label="页面导览">
+    data-guide-float="tour" data-operation={operation || undefined} role="group" aria-label={operation ? "操作引导" : "页面导览"}>
     <div ref={frameRef} className={styles.tourFrame} data-guide-frame aria-hidden="true"><div ref={fillRef} className={styles.apertureFill}/></div>
     <div ref={tipRef} className={styles.tourTip} data-guide-tip>
       <div ref={surfaceRef} className={styles.tourSurface}>
-        <p className={styles.tourText} aria-live="polite">{currentStep.text}</p>
-        <div className={styles.tourNav}>
-          <span aria-live="polite">{index + 1} / {steps.length}</span>
+        <p className={styles.tourText} id={noteId} aria-live="polite">{copy}</p>
+        {!operation && <div className={styles.tourNav}>
+          <span aria-live="polite">{index + 1} / {count}</span>
           <button type="button" disabled={index === 0} onClick={() => control.current?.step(-1)}>上一步</button>
-          <button ref={forwardRef} type="button" data-next onClick={() => control.current?.step(1)}>{index === steps.length - 1 ? "完成" : "下一步"}</button>
-        </div>
+          <button ref={forwardRef} type="button" data-next onClick={() => control.current?.step(1)}>{index === count - 1 ? "完成" : "下一步"}</button>
+        </div>}
       </div>
       <button type="button" data-guide-close className={styles.close} aria-label="关闭使用指引" onClick={() => control.current?.close()}>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg>
       </button>
     </div>
-  </div>, document.body);
+  </div>, portal);
 }
