@@ -2,11 +2,11 @@
 
 ## 当前正式版本
 
-网页与小助手后台运行`dual-entry-017a58ff-numbered-guides-batch1-r2-20261127`，源码`017a58ff4c0a0644fe2a624eee30b54255dd5127`，BUILD_ID`2DDT6GRIH-IqvwfIgVzCE`。北京时间2026-11-27 01:37:31切换。第一批移除无编号录入高亮，保留主动打开的编号页面讲解。 [正式站](https://formward.top) · [版本](https://formward.top/api/app-version) · [实际页面验收](../design-qa.md)
+网页与小助手后台运行`dual-entry-5ab3d6fc-numbered-guides-batch2-r5-20261127`，源码`5ab3d6fc1054a367df75dc40e6c3bb086e90da83`，BUILD_ID`dSwu2bcXVRTqtE4kkrp_N`。北京时间2026-11-27 03:18:25切换。编号页面讲解首帧可打开，等待与真实内容接管保留同一步，手机晨重卡等待滚动吸附稳定后定位；消耗卡分项归于右侧小横条下方，底部操作通栏。 [正式站](https://formward.top) · [版本](https://formward.top/api/app-version) · [实际页面验收](../design-qa.md)
 
-两项服务已核对同目录启动。数据库保持`0048_meal_reference_foods`、48项迁移、67张表；配置及切换前后数据库摘要保持。备份`formward-primary-20261126T173727796389Z.dump.json`已完成原生校验及加密异地回读。四个域名及兼容IP同版，14项新旧资源哈希、登录回程、5项匿名接口限制及海外MCP元数据通过，海外网关保持原绑定。
+两项服务已核对同目录启动。数据库保持`0048_meal_reference_foods`、48项迁移、67张表；配置及切换前后数据库摘要保持。备份`formward-primary-20261126T191821524914Z.dump.json`已完成原生校验及加密异地回读。四个域名及兼容IP同版，14项新旧资源哈希、登录回程、5项匿名接口限制及海外MCP元数据通过，海外网关保持原绑定。
 
-准确兼容包96,503,424字节，SHA-256`79daeb47e63957980ea6ef8a4e3f40db2307a24895f3d9aeab00d90c743c1bf4`，保留56项Server Action、原绑定密钥及2608项旧静态资源。归档`.codex/backups/regional-releases/numbered-guides-batch1-r2-20261127`，兼容回退`direct-guide-candidate-r2-20261127`。回退前等待在途任务结束，成套切换网页与worker，不回退正式数据或费用账本。
+准确兼容包96,740,611字节，SHA-256`0b86a0bb5ff7e7103eef63e0ff00b81baa7ee5fc70179a6a80f50734f21a552e`，保留56项Server Action、原绑定密钥及2629项旧静态资源。归档`.codex/backups/regional-releases/numbered-guides-batch2-r5-20261127`，兼容回退`numbered-guides-batch1-r2-20261127`。回退前等待在途任务结束，成套切换网页与worker，不回退正式数据或费用账本。
 
 ## 入口、加载与首次指引发布记录
 
