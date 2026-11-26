@@ -247,7 +247,7 @@ export function ReferenceRecipeDetails({ food, back, onAdd, maxItems, disabled, 
                 onChange={event => setEntry({ ...entry, percent: Number(event.target.value) })}/>
               <div className={styles.ticks} aria-hidden="true"><span>0%</span><span>50%</span><span>100%</span></div>
             </div> : <div className={styles.quantity + " " + styles.weight} ref={weightField}>
-              <DecimalInput data-input-appearance="compact" aria-label="本次吃下的可食克数"
+              <DecimalInput data-guide-target="meal-library-portion" data-input-appearance="compact" aria-label="本次吃下的可食克数"
                 value={entry.weight?.value ?? ""} min={0} max={1000000} precision={2} trimTrailingZeros placeholder="可食克数"
                 aria-invalid={!!quantity && !validGrams(quantity)}
                 onValue={value => setEntry({ ...entry, weight: { value } })}/>
@@ -356,7 +356,7 @@ export function ReferenceRecipeDetails({ food, back, onAdd, maxItems, disabled, 
     </section>
     <RecipeSources food={food} parts={total ? parts : []}/>
     {onAdd && <div className={styles.footer}>
-      <button type="button" className={library.add} onClick={add} disabled={disabled || !total || Boolean(tooLarge) || maxItems === 0}>
+      <button type="button" className={library.add} data-guide-target="meal-library-add" onClick={add} disabled={disabled || !total || Boolean(tooLarge) || maxItems === 0}>
         {edit ? "更新本餐" : "加入本餐"}
       </button>
     </div>}

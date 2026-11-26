@@ -12,6 +12,7 @@ type Position = {
   preferAbove?: boolean;
   preferLeft?: boolean;
   onUnavailable?: () => void;
+  onPosition?: (box: DOMRect) => void;
 };
 
 /** The visual viewport and the actual surface both constrain lifted controls. */
@@ -107,6 +108,7 @@ export function trackPopoverPosition(panel: HTMLElement, trigger: HTMLElement, o
     panel.style.left = Math.max(left, Math.min(intendedLeft, right - width)) + "px";
     panel.style.top = Math.max(top, Math.min(intendedTop, bottom - height)) + "px";
     panel.style.removeProperty("visibility");
+    options.onPosition?.(panel.getBoundingClientRect());
   }
   const stop = followPopoverAnchor(panel, trigger, owner, place);
   return () => {

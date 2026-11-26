@@ -13,7 +13,7 @@ import { revokeAccountAccess } from "../auth/account-security";
 import { bindPersonalSource, configureConnection, configurePolicy } from "./mutations";
 import { adoptSourceDays, resolveSourceConflict } from "./adoption";
 import { synchronizeConnectedSources, synchronizeSource } from "./sync";
-import { loadSources, loadSourceSettings } from "./state";
+import { loadEnergyDeviceCoverage, loadSources, loadSourceSettings } from "./state";
 import { normalizeGarmin } from "./garmin-adapter";
 import { credentialRegion, decryptCredential, encryptCredential } from "./credentials";
 import { sourceMetrics, sourceAccessEnabled } from "./model";
@@ -183,6 +183,27 @@ test("首次同步仅保存来源事实，正式记录须经七日对照明确�
   assert.equal(Number(resolved.totalKcal), 2300); assert.equal(resolved.restingKcal, "2000"); assert.equal(resolved.activeKcal, "300"); assert.equal(resolved.steps, 6500); assert.equal(resolved.record?.adoption?.mode, "source");
   assert.equal(snapshot.days[0].entryMode, "total"); assert.equal(snapshot.days[0].totalKcal, "2300.0000"); // 旧应用回退仍读到正确总数。
 });
+test("当天消耗入口沿用已采用的设备，暂停、撤销采用或仅同步步数才恢复手填", async () => {
+  const userId = await owner();
+  assert.equal(await loadEnergyDeviceCoverage(db, userId, now), null);
+  await sync(userId);
+  assert.equal(await loadEnergyDeviceCoverage(db, userId, now), null, "读取过事实也需要先采用");
+  await adopt(userId);
+  const later = new Date(+now + 12 * 86400000);
+  assert.deepEqual(await loadEnergyDeviceCoverage(db, userId, later), { label: "Garmin Personal", status: "waiting" });
+  const [connection] = (await loadSources(db, userId, now)).connections;
+  await db.update(schema.dataConnection).set({ lastError: "虚构同步失败" }).where(eq(schema.dataConnection.id, connection.id));
+  assert.equal((await loadEnergyDeviceCoverage(db, userId, later))?.status, "failed");
+  await configureConnection(db, userId, connection.id, { version: connection.version, active: false, metrics: connection.metrics });
+  assert.equal(await loadEnergyDeviceCoverage(db, userId, later), null);
+  await configureConnection(db, userId, connection.id, { version: connection.version + 1, active: true, metrics: ["steps"] });
+  assert.equal(await loadEnergyDeviceCoverage(db, userId, later), null);
+  await configureConnection(db, userId, connection.id, { version: connection.version + 2, active: true, metrics: connection.metrics });
+  const { policy } = await loadSources(db, userId, now);
+  await configurePolicy(db, userId, { strategy: "total", version: policy.version, sources: { ...policy.sources, total: null } });
+  assert.equal(await loadEnergyDeviceCoverage(db, userId, later), null);
+});
+
 test("来源运动不会再加到日总数，gross 与 BMR 事实保留但不猜纯活动", async () => {
   const userId = await owner(); await sync(userId, sample(2300, 6500, [activity()])); await adopt(userId);
   const snapshot = await readEnergySnapshot(db, userId), day = energyDays(snapshot, [], [today])[0];

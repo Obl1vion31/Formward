@@ -359,7 +359,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
                     {remainingPhotos ? `继续读取剩余 ${remainingPhotos} 张` : "重试汇总"}
                   </button>
                 </div> : undefined}>
-              {followup && <FollowupForm key={followup.messageId} task={followup} busy={chat.busy||(meal?.followup?modelBlocked:blocked)}
+              {followup && <FollowupForm key={followup.messageId} task={followup} mealGuide={!!meal} busy={chat.busy||(meal?.followup?modelBlocked:blocked)}
                 submit={value=>chat.send("send",undefined,value)}/>}
             </ChatMessageBody>
           </ArrivingMessage>;

@@ -24,7 +24,7 @@ import {RecordDetailActions} from "@/components/record-detail-actions";
 import { useLocalToday } from "@/components/use-local-today";
 import { FoodTable } from "./presets";
 import { MealPageActions, NutritionSummaryCard } from "./nutrition-summary-card";
-import { TaskGuide } from "@/components/task-guide";
+import { TrendGuide, useGuideWorkflow } from "@/components/task-guide";
 import { isMealLibrary } from "./library-location";
 import { FoodLibraryControls } from "./library-controls";
 import { FoodLibraryTabs, ReferenceBrowser, type FoodLibraryScope } from "./reference-browser";
@@ -210,6 +210,7 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
       </footer>}
     </>;
   };
+  const { finish: finishGuide } = useGuideWorkflow();
   async function perform(action:MealAction, allowMissingImages = false){
     if(busyRef.current)return false;busyRef.current=true;setBusy(true);setError("");setNotice("");
     try{if(action.id&&(action.kind==="save_meal"||action.kind==="save_food")){const key=(action.kind==="save_meal"?"meal:":"food:")+action.id;const latest=await verifyRecordVersions([{key,version:String(action.version)}]);action={...action,version:Number(latest.get(key)!.version)};}}catch(e){setError(e instanceof Error?e.message:"请重试");busyRef.current=false;setBusy(false);return false;}
@@ -255,7 +256,7 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
         estimated={chosen?.meals.some(meal=>meal.items.some(item=>item.nutrition.caloriesKcal!==null&&(item.sourceKind==="estimated"||item.amountDecision==="estimate_accepted")))}
         expanded={nutrition} onExpandedChange={setNutrition}
         actions={<MealPageActions record={()=>addMeal(summaryDate)} openLibrary={openFoodLibrary} libraryRef={libraryEntry} historical={summaryDate!==today}/>}/>}
-       guidance={<TaskGuide task="meal-page-entry" text={summaryDate===today?"点「记一餐」，选食材、手填或拍照。":"点「补记这天」，记录会归到当前选中的日期。"} auto={summaryDate===today&&!editing&&!historyOpen&&!foods}/>}
+       guidance={<TrendGuide kind="nutrition"/>}
        range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft({from:customFrom||from,to:customTo});setCustomOpen(true);}else{prepareRange(key);setRange(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="饮食" value={customDraft} change={setCustomDraft} apply={()=>{setCustomFrom(customDraft.from);setCustomTo(customDraft.to);setRange("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
        date={summaryDate}
@@ -292,7 +293,7 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
           <FoodEditor initial={editing} error={error} busy={busy} save={async(f,allowMissingImages)=>{if(await perform({kind:'save_food',...f},allowMissingImages))void savedClose.current();}}/>
           {editing.id&&<details className={recordUI.editMaintenance}><summary>更多操作</summary><button type="button" disabled={busy} onClick={async()=>{if(await confirmDraftDiscard()&&await confirmPurge({id:editing.id!,version:editing.version!,recordType:'food',name:editing.name}))void savedClose.current();}}>永久删除食材</button></details>}
         </>:editing?.kind==='save_meal'?<>
-          <MealEditor allowAi={!initialEntry||!manual} onPhotoSent={async id=>{await savedClose.current();openMealTask(id);}} onAiSaved={snapshot=>{acknowledgeRecordChanges(snapshot.meals.filter(meal=>meal.date===editing.date).flatMap(meal=>["meal:"+meal.id,"mealDay:"+meal.date]),mealVersions(snapshot));setLocal(snapshot);setNotice("餐次已保存");if(historyOpen&&dayIntent==='edit')setEditing(null);else void savedClose.current();}} recentMeals={state.meals} historicalItems={state.meals.find(m=>m.id===editing.id)?.items??[]} historicalFoods={state.meals.find(m=>m.id===editing.id)?.items.flatMap(i=>i.foodSnapshot?[i.foodSnapshot]:[])??[]} initial={editing} foods={state.foods} error={error} busy={busy} save={async(m,allowMissingImages)=>{if(await perform({kind:'save_meal',...m},allowMissingImages)){if(historyOpen&&dayIntent==='edit')setEditing(null);else void savedClose.current();}}}/>
+          <MealEditor allowAi={!initialEntry||!manual} onPhotoSent={async id=>{await savedClose.current();openMealTask(id);}} onAiSaved={snapshot=>{acknowledgeRecordChanges(snapshot.meals.filter(meal=>meal.date===editing.date).flatMap(meal=>["meal:"+meal.id,"mealDay:"+meal.date]),mealVersions(snapshot));setLocal(snapshot);setNotice("餐次已保存");finishGuide("meal");if(historyOpen&&dayIntent==='edit')setEditing(null);else void savedClose.current();}} recentMeals={state.meals} historicalItems={state.meals.find(m=>m.id===editing.id)?.items??[]} historicalFoods={state.meals.find(m=>m.id===editing.id)?.items.flatMap(i=>i.foodSnapshot?[i.foodSnapshot]:[])??[]} initial={editing} foods={state.foods} error={error} busy={busy} save={async(m,allowMissingImages)=>{if(await perform({kind:'save_meal',...m},allowMissingImages)){finishGuide("meal");if(historyOpen&&dayIntent==='edit')setEditing(null);else void savedClose.current();}}}/>
         </>:<>{error&&<p role="alert" className={styles.error}>{error}</p>}{dayDetails(selectedDate)}</>}
       </div>
     </EditorDialog>}

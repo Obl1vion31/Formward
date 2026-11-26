@@ -328,3 +328,10 @@ form.energyEntry[data-entry-form=energy] .manualReading>input[type=number]{font-
     border-color: transparent;
   }
 }
+.dayActions button { white-space:nowrap; }
+.deviceWaiting { display:inline-flex; align-items:center; min-height:44px; gap:7px; color:var(--muted); text-decoration:none; }
+.deviceWaiting:hover,.deviceWaiting:focus-visible { color:var(--warm-white); }
+@media (max-width:700px),(hover:none) and (pointer:coarse) {
+  .dayActions.dayActions { display:flex; flex-wrap:wrap; }
+  .dayActions button { flex:1 1 max-content; }
+}

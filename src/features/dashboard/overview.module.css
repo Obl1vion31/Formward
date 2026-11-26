@@ -13,8 +13,8 @@
 .todayActions a[data-guide-target] { border-radius:14px; white-space:nowrap; }
 .todayGuide { position:absolute; inset-inline-end:0; inset-block-start:-45px; }
 @media (max-width:700px),(hover:none) and (pointer:coarse) {
-  .today { display:grid; grid-template-columns:minmax(0,1fr); align-content:start; gap:8px; min-block-size:98px; padding:0; background:none; }
-  .todayHeading { display:grid; gap:2px; }
+  .today { display:grid; grid-template-columns:minmax(0,1fr); align-content:start; gap:8px; min-block-size:76px; padding:0; background:none; }
+  .todayHeading { display:flex; gap:4px 10px; }
   .todayActions a[data-guide-target] { flex:1 1 auto; min-inline-size:max-content; font-size:13px; padding-inline:6px; }
   .todayGuide { inset-block-start:-7px; }
 }

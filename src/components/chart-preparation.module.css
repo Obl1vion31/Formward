@@ -1,28 +1,28 @@
-.guides {
-  position: absolute;
-  overflow: hidden;
-  pointer-events: none;
-  background: var(--skeleton-fill);
-  mask:
-    linear-gradient(#000, #000) top / 100% 1px no-repeat,
-    linear-gradient(#000, #000) center / 100% 1px no-repeat,
-    linear-gradient(#000, #000) bottom / 100% 1px no-repeat;
-}
-
-.guides::after {
-  content: "";
+.skeleton {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent 38%, var(--skeleton-sheen) 50%, transparent 62%);
-  opacity: .7;
-  transform: translateX(-65%);
-  animation: sweep 1.6s var(--plot-wait-delay) linear infinite;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--skeleton-fill) 66%, var(--surface));
+  box-shadow: inset 0 0 0 1px var(--line-soft);
 }
 
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -65%;
+  inline-size: 65%;
+  background: linear-gradient(110deg, transparent 12%, var(--skeleton-sheen) 52%, transparent 88%);
+  opacity: .48;
+  animation: sweep 1.8s ease-in-out infinite;
+}
+
+.skeleton[data-still]::after { content: none; }
 @media (prefers-reduced-motion: reduce) {
-  .guides::after { content: none; }
+  .skeleton::after { content: none; }
 }
 
 @keyframes sweep {
-  to { transform: translateX(65%); }
+  to { transform: translateX(260%); }
 }

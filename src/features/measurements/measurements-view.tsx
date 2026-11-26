@@ -6,7 +6,7 @@ import type {RecordIntent} from "@/components/record-intent";
 import {useRepeatedRecordTask} from '@/components/record-intent-client';
 import {measurementVersions} from "@/components/record-change-client";
 import {RecordWorkspace,RecordTrendPanel,CustomRecordRange,type RecordMetric} from "@/components/record-trend-panel";
-import {TaskGuide} from "@/components/task-guide";
+import {TrendGuide} from "@/components/task-guide";
 import {formatRecordNumber} from "@/components/number-format";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
@@ -139,7 +139,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
 
     <section data-record-trend data-chart-selection={selection.regionId} data-selected-date={activeDate} data-selection-origin={selection.origin} {...selection.regionProps} aria-label="身体指标趋势" data-range={mode}>
       <RecordTrendPanel presentation="body"
-       guidance={activeDate===today&&!hasTodayWeight?<TaskGuide task="body-weight" text="点「记录体重」，填写今天的实测体重和时段。" auto={!drawer}/>:<TaskGuide task="body-record" target="selected-day-details" text="点「查看记录」，查看选中日期的实测值、时段和来源。" auto={false}/>}
+       guidance={<TrendGuide kind="body"/>}
        range={<ChartRanges value={mode} items={[...ranges.map(item=>[item.value,item.label]),["custom","自定义"]]} change={value=>{if(value==="custom"){setDraftRange(range);setCalendarOpen(true);}else selectRange(value as MeasurementRange);}}/>}
        custom={calendarOpen&&<CustomRecordRange label="身体" value={{from:draftRange.start,to:draftRange.end}} change={next=>setDraftRange({start:next.from,end:next.to})} apply={()=>{setCustomRange(draftRange);selectRange("custom",draftRange);}} cancel={()=>setCalendarOpen(false)}/>}
        date={activeDate} view={()=>{const target={date:activeDate,period:selection.active?chartPeriod:undefined};setDrawer({kind:"day",...target});selection.releasePreview();}} readoutLabel="选中日身体记录"

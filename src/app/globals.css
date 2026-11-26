@@ -1049,7 +1049,7 @@ dialog::backdrop{transition:background-color 210ms cubic-bezier(.2,.8,.2,1)}
 }
 
 
-.chart-preparation{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
+[data-guide-highlight]{outline:2px solid var(--gold)!important;outline-offset:2px!important}
 .pending-axis{fill:var(--muted);font:inherit}
 .pending-grid{stroke:var(--line-soft)}
 [data-compose-waiting] svg,[data-compose-waiting] .energy-share-track{visibility:hidden}

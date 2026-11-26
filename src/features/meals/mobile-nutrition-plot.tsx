@@ -21,7 +21,7 @@ export function MobileNutritionPlot({dates,groups,mode,selection,linked=false,co
   const slot=plotWidth/dates.length,x=(index:number)=>left+(index+.5)*slot;
   const drag=useChartDrag(dates,width,left,right,selection.choose), selected=dates.indexOf(selection.selected);
   return <div className={styles.barViewport+(linked?" linked-trend-plot":compact?" detail-trend-plot":"")} ref={viewport} data-chart-density={dates.length<=7?"short":"full"} data-chart-arrival data-linked-plot={linked||undefined}>
-    <ChartPreparation active={!measured} guideInsets={linked?undefined:{top,right,bottom:32,left}}/>
+    <ChartPreparation active={!measured}/>
     <svg {...drag} className={styles.chart} style={{height:"auto",maxHeight:"none",touchAction:"pan-y",visibility:measured?undefined:"hidden"}} viewBox={`0 0 ${width} ${height}`} role="group" aria-label="每日摄入，kcal；P、C、F 组成">
       <TrendAxes kind="intake" dates={dates} model={model} width={width} left={left} right={right} top={top} bottom={bottom} fontSize={fontSize} axisClass={styles.axis} gridClass={styles.grid}/>
       <ChartSelectionColumn x={x(selected)} date={selection.selected} column={{left:x(selected)-slot/2,right:x(selected)+slot/2}} plot={{left,right:width-right,top,bottom}} resetKey={`${width}:${dates.join("|")}`} direct={selection.direct} baselineTick/>

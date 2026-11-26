@@ -1,15 +1,13 @@
 "use client";
 import {LocalLoading} from "./local-loading";
-import {ChartSelectionColumn} from "./chart-selection-marker";
-import {TrendAxes} from "./trend-axes";
-import {addCalendarDays,linkedDate} from "@/features/measurements/calendar";
+import {PlotSkeleton} from "./chart-preparation";
+import {linkedDate} from "@/features/measurements/calendar";
 import bodyStyles from "@/features/measurements/measurements-view.module.css";
 import {useContext,useLayoutEffect,useRef,useState} from 'react';
 import {useSearchParams,useRouter} from 'next/navigation';
 import {RecordWorkspace,RecordTrendPanel,InlineChartControls,type RecordMetric} from './record-trend-panel';
 import {useChartTransition} from './chart-transition-state';
 import {ChartRanges} from './chart-ranges';
-import {useChartViewport} from './use-chart-viewport';
 import {useMobileMode} from './use-mobile-mode';
 import {WorkspacePending} from "@/features/dashboard/workspace-cache";
 import {DailyRecords} from './daily-records';
@@ -17,7 +15,6 @@ import {WorkspaceSourceContext,WorkspaceTodayContext} from './workspace-frame-st
 import {EnergySourceStatusSkeleton} from '@/features/data-sources/energy-status';
 import {NutritionLegend,EnergyLegend} from './chart-legend';
 import {MetricCardRailPending} from './metric-card-rail';
-import {TrendGlyph} from './trend-glyph';
 import {linkedTrend} from './metric-trend-model';
 import {OverviewTrendLayout} from '@/features/dashboard/overview-trend-layout';
 import measurementStyles from '@/features/measurements/measurements-view.module.css';
@@ -39,7 +36,6 @@ export function WorkspaceLoading({kind,returnShell=false,destination,failure}:{k
  const model=preview&&((kind==='nutrition'&&preview.kind==='intake')||(kind==='body'&&preview.kind==='morning-weight')||(kind==='energy'&&preview.kind==='energy'))?preview:null;
  const linkedRange=linkedTrend(Object.fromEntries(params)),linked=!!linkedRange,shared=kind!=="overview",adaptive=mobile||shared;
  const tickLabels=kind==='body'?(model?.ticks??[]).map(value=>value.toFixed(1)):model?.ticks??[];
- const {width:measured,left,height:measuredHeight,fontSize}=useChartViewport(ref,tickLabels,kind==='body'?48:50),width=measured||280,right=kind==='body'?16:10,top=kind==='body'?14:20,plotWidth=width-left-right;
  const waiting=(!returnShell||returningToOverview)&&!(destination&&sceneLeaving);
  const entryOpen=params.has('entry');
  const retry=()=>{setAttempt(value=>value+1);if(kind==='overview'&&returningToOverview)router.push('/dashboard',{scroll:false});else router.refresh();};
@@ -57,15 +53,9 @@ export function WorkspaceLoading({kind,returnShell=false,destination,failure}:{k
  const detailStatus=firstPending?null:readingStatus;
  const primaryStatus=firstPending?readingStatus:null;
  const mobileMetrics=body?[metrics[0],{label:'较前一日',value:'',pending:true,unit:'kg',inlineUnit:true},metrics[2]]:undefined;
- const svgHeight=measuredHeight>0?measuredHeight:kind==='nutrition'?(adaptive?top+(width-50-right)/2+32:194):kind==='energy'?(adaptive?top+plotWidth/2+32:width<650?198:254):shared?top+(width-(kind==='body'?48:50)-right)/2+32:mobile?180:252;
- const dates=model?.points.map(point=>point.date)??(linkedRange?Array.from({length:Math.round((Date.parse(linkedRange.to)-Date.parse(linkedRange.from))/86400000)+1},(_,index)=>addCalendarDays(linkedRange.from,index)):[]);
- const plotKind=kind==='body'?'morning-weight':kind==='energy'?'energy':'intake';
- const selectedIndex=dates.indexOf(date);
- const dayWidth=dates.length?plotWidth/dates.length:0;
- const selectedX=selectedIndex<0?null:left+(selectedIndex+.5)*dayWidth;
  if(kind==="nutrition"&&!destination&&isMealLibrary(params))return failure??<FoodLibraryLoading/>;
  const content=<div data-workspace-reading={!returnShell||returningToOverview||undefined} aria-busy={waiting||undefined} aria-label={title}>
- {kind==='overview'?<OverviewLoading date={date} rangeMode={recallOverview()?.mode??undefined} readingStatus={readingStatus}/>:<RecordWorkspace title={title}>
+ {kind==='overview'?<OverviewLoading date={date} rangeMode={recallOverview()?.mode??undefined} readingStatus={readingStatus} failed={!!failure}/>:<RecordWorkspace title={title}>
  <div data-record-trend>
  <RecordTrendPanel chartSummary={body?<span aria-hidden="true"> </span>:undefined} date={date} view={()=>{}} presentation={kind} loading
   metrics={metrics} mobileMetrics={mobileMetrics} readingStatus={primaryStatus}
@@ -75,12 +65,8 @@ export function WorkspaceLoading({kind,returnShell=false,destination,failure}:{k
   options={kind==='nutrition'?<InlineChartControls><div role="group" aria-label="营养占比口径"><button type="button" disabled aria-pressed>克数占比</button><button type="button" disabled aria-pressed={false}>能量占比</button></div></InlineChartControls>:body?<PendingEvening linked={linked}/>:undefined}
   legend={kind==='nutrition'?<NutritionLegend/>:body?<><span><i style={{background:'var(--data-weight)',borderRadius:'50%'}}/>晨间空腹</span>{params.get('view')!=='trend'&&<span><i style={{background:'var(--data-deficit)',borderRadius:'50%'}}/>晚间</span>}</>:<EnergyLegend/>}
   graphic={kind==="energy"?<EnergyComposition resting={readings?.kind==="energy"?readings.restingKcal:null} active={readings?.kind==="energy"?readings.activeKcal:null} loading={readings?.kind!=="energy"||readings.restingKcal==null||readings.activeKcal==null}/>:undefined}>
- <PendingPlotFrame kind={kind} frameRef={ref} shared={shared} linked={linked} adaptive={mobile===null&&!shared?'auto':adaptive} short={model?model.points.length<=7:linkedRange?(Date.parse(linkedRange.to)-Date.parse(linkedRange.from))/86400000<7:range==="7"} axisLeft={"max("+(kind==="body"?48:50)+"px, calc("+Math.max(...tickLabels.map(value=>String(value).length))+"ch + 12px))"}>
-  <svg preserveAspectRatio="none" viewBox={'0 0 '+width+' '+svgHeight} aria-hidden="true">
-   {dates.length>0&&<TrendAxes kind={plotKind} dates={dates} model={model} width={width} left={left} right={right} top={top} bottom={svgHeight-32} fontSize={fontSize} axisClass="pending-axis" gridClass="pending-grid"/>}
-   {model&&!body&&selectedX!==null&&<ChartSelectionColumn x={selectedX} date={date} column={{left:selectedX-dayWidth/2,right:selectedX+dayWidth/2}} plot={{left,right:width-right,top,bottom:svgHeight-32}} resetKey={date} direct baselineTick/>}
-   {model&&<TrendGlyph detail target={measured>0} skeleton model={model} x={left} y={top} width={plotWidth} height={svgHeight-top-32}/>}
-  </svg>
+ <PendingPlotFrame kind={kind} frameRef={ref} shared={shared} linked={linked} adaptive={mobile===null&&!shared?'auto':adaptive} short={model?model.points.length<=7:linkedRange?(Date.parse(linkedRange.to)-Date.parse(linkedRange.from))/86400000<7:range==="7"} axisLeft={"max("+(kind==="body"?48:50)+"px, calc("+Math.max(0,...tickLabels.map(value=>String(value).length))+"ch + 12px))"}>
+  <PlotSkeleton still={!!failure}/>
  </PendingPlotFrame>{body&&<output className={measurementStyles.plotHint} aria-hidden="true"> </output>}
  </RecordTrendPanel></div>
  <DailyRecords loading readingStatus={detailStatus} kind={body?"body":undefined}/>
@@ -95,13 +81,13 @@ export function WorkspaceLoading({kind,returnShell=false,destination,failure}:{k
   ?returningToOverview||!sceneLeaving?<WorkspacePending path="/dashboard" query="">{content}</WorkspacePending>:content
   :<WorkspacePending>{content}</WorkspacePending>;
 }
-function OverviewLoading({date,rangeMode,readingStatus}:{date:string;rangeMode?:string;readingStatus?:React.ReactNode}){
+function OverviewLoading({date,rangeMode,readingStatus,failed}:{date:string;rangeMode?:string;readingStatus?:React.ReactNode;failed:boolean}){
  const today=useContext(WorkspaceTodayContext);
  return <RecordWorkspace title="总览 · 今天该做什么" className={overview.workspace}>
  <TodayActions date={today} readingStatus={readingStatus}/>
  <MetricCardRailPending/>
  <OverviewTrendLayout date={date} range={rangeMode??"7"} changeRange={()=>{}}>
-  <div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle}/>
+  <div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle}><PlotSkeleton still={failed}/></div>
  </OverviewTrendLayout>
  </RecordWorkspace>;}
 function PendingPlotFrame({children,kind,frameRef,shared,linked,adaptive,axisLeft,short}:{children:React.ReactNode;kind:string;frameRef:React.RefObject<HTMLDivElement|null>;shared:boolean;linked:boolean;adaptive:boolean|'auto';axisLeft:string;short:boolean}){

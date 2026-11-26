@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import type { Database } from "../../db/client";
 import { dataConnection, dataSourceConflict, dataSourceFact, dataSourcePolicy, energyDayAdoption } from "../../db/schema";
 import { readEnergySnapshot } from "../activities/records";
@@ -7,6 +7,7 @@ import { energyDays, energyModes } from "../activities/model";
 import { credentialRegion } from "./credentials";
 import { sevenDays } from "../garmin/client";
 import { emptySources, metricLabels, sourceAccessEnabled, type AdoptionMetadata, type ConnectionView, type DailyFact, type ComparisonDay, type SourcePolicy, type SourcesView } from "./model";
+import { energyDeviceCoverage, energySourceMetrics } from "./energy-coverage";
 export const fingerprint = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 export type Connection = typeof dataConnection.$inferSelect;
 export type Fact = typeof dataSourceFact.$inferSelect;
@@ -23,6 +24,25 @@ export async function loadEnergyConnection(db: Pick<Database, "select">, userId:
   if (!sourceAccessEnabled(userId)) return null;
   const [c] = await db.select({ credential:dataConnection.credential,id:dataConnection.id,label:dataConnection.label,provider:dataConnection.provider,status:dataConnection.status,metrics:dataConnection.metrics,timezone:dataConnection.timezone,version:dataConnection.version,adoptedAt:dataConnection.adoptedAt,syncStartedAt:dataConnection.syncStartedAt,lastAttemptAt:dataConnection.lastAttemptAt,lastSuccessAt:dataConnection.lastSuccessAt,lastError:dataConnection.lastError }).from(dataConnection).where(and(eq(dataConnection.userId,userId),eq(dataConnection.provider,"garmin-personal")));
   return c ? { id:c.id,label:c.label,provider:c.provider,region:credentialRegion(c.credential),status:c.status,metrics:c.metrics,timezone:c.timezone,version:c.version,adopted:!!c.adoptedAt,syncing:!!c.syncStartedAt&&Date.now()-+c.syncStartedAt<90000,lastAttemptAt:c.lastAttemptAt?.toISOString()??null,lastSuccessAt:c.lastSuccessAt?.toISOString()??null,error:c.lastError } : null;
+}
+
+/** 快捷入口只读取被采用连接的日事实，不触发同步或读取凭据。 */
+export async function loadEnergyDeviceCoverage(db: Pick<Database, "select">, userId: string, now = new Date()) {
+  if (!sourceAccessEnabled(userId)) return null;
+  const [policy] = await db.select({ strategy: dataSourcePolicy.strategy, sources: dataSourcePolicy.sources }).from(dataSourcePolicy).where(eq(dataSourcePolicy.userId, userId));
+  if (!policy) return null;
+  const chosen = energySourceMetrics(policy).map(metric => policy.sources[metric]);
+  if (chosen.some(id => !id)) return null;
+  const ids = [...new Set(chosen.filter((id): id is string => !!id))];
+  const connections = await db.select({ id: dataConnection.id, label: dataConnection.label,
+    status: dataConnection.status, metrics: dataConnection.metrics, timezone: dataConnection.timezone,
+    adoptedAt: dataConnection.adoptedAt, lastError: dataConnection.lastError, syncStartedAt: dataConnection.syncStartedAt,
+  }).from(dataConnection).where(and(eq(dataConnection.userId, userId), eq(dataConnection.status, "active"), inArray(dataConnection.id, ids)));
+  if (connections.length !== ids.length || connections.some(connection => !connection.adoptedAt)) return null;
+  const facts = await db.select({ connectionId: dataSourceFact.connectionId, date: dataSourceFact.date, payload: dataSourceFact.payload })
+    .from(dataSourceFact).where(and(eq(dataSourceFact.userId, userId), eq(dataSourceFact.kind, "day"), inArray(dataSourceFact.connectionId, ids)));
+  return energyDeviceCoverage(policy, connections,
+    facts.flatMap(row => row.payload.kind === "day" ? [{ ...row, payload: row.payload }] : []), now);
 }
 
 export async function readSourceState(db: Pick<Database, "select">, userId: string, now = new Date()) {

@@ -1,4 +1,5 @@
 "use client";
+import {TaskGuide,useGuideWorkflow} from "@/components/task-guide";
 import {LocalLoading} from "@/components/local-loading";
 import {InspectorCloseButton} from "@/components/inspector";
 import {displayRecordDate} from "@/components/record-dates";
@@ -50,6 +51,8 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
   onSaved?: () => void;
 }) {
   const visibleMetrics=useBodyMetrics(), draftNoteId=useId();
+  const {finish:finishGuide}=useGuideWorkflow();
+  const [periodTouched,setPeriodTouched]=useState(false);
   const [baseRecords, setBaseRecords] = useState(records);
   const [lastRecords, setLastRecords] = useState(records);
   const [defaultTimezone, setDefaultTimezone] = useState(systemMeasurementTimezone);
@@ -111,7 +114,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
         const timezone = systemMeasurementTimezone();
         acknowledgeRecordChanges(ownKeys,measurementVersions(result.records));onUpdated(result); setDefaultTimezone(timezone); setBaseRecords(result.records);if(resetPeriods.length){const fresh=makeDraft(result.records,date,choices,timezone);setDraft(previous=>({...previous,...Object.fromEntries(resetPeriods.map(period=>[period,fresh[period]]))}));setTouchedSources(previous=>new Set([...previous].filter(period=>!resetPeriods.includes(period))));} setMessage(target ? "" : saving && editing ? "已保存修改。" : result.message);
         request.current = { signature: "", id: "" };
-        if (saving && !groups.some(group => !resetPeriods.includes(group.period) && periodDirty(group.period))) onSaved?.();
+        if (saving && !groups.some(group => !resetPeriods.includes(group.period) && periodDirty(group.period))) {finishGuide("body");onSaved?.();}
       } catch (error) {
         setError(error instanceof Error && !(error instanceof TypeError)
           ? error.message
@@ -161,11 +164,12 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
     }
     return result;
   }
-  const periodSlide = useSlidingSelection(entryPeriods.indexOf(selected), index => setSelected(entryPeriods[index]));
+  function selectPeriod(period:EntryPeriod){setSelected(period);setPeriodTouched(true);}
+  const periodSlide = useSlidingSelection(entryPeriods.indexOf(selected), index => selectPeriod(entryPeriods[index]));
   return <form data-editing={editing} data-entry-form="body" data-selected-period={selected} className={styles.entryForm} aria-label="当天身体录入" onSubmit={event=>{if(pending)event.preventDefault();else void save(event);}} aria-busy={busy||pending&&!readError}>
 
     <div className={styles.entryPeriodBar}>
-      <div {...periodSlide} className={styles.entrySegments + " " + glass.track} role="group" aria-label="选择录入时段">
+      <div {...periodSlide} className={styles.entrySegments + " " + glass.track} role="group" aria-label="选择录入时段" data-guide-target="body-period">
         <span className={glass.selection} data-capsule-indicator aria-hidden="true"/>
         {entryPeriods.map((period, index) => {
         const group = groups.find(item => item.period === period)!;
@@ -173,13 +177,19 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
         const note = group.pending ? "待选择" : group.blocked ? "待确认" : period === "daytime" ? "空腹" : "";
         const label = periodName(period)+(note ? "（"+note+"）" : "");
         return <button type="button" key={period} aria-label={label} aria-describedby={unsaved ? draftNoteId+"-"+period : undefined}
-          data-capsule-choice={index} aria-pressed={selected===period} disabled={pending} onClick={()=>setSelected(period)}>
+          data-capsule-choice={index} aria-pressed={selected===period} disabled={pending} onClick={()=>selectPeriod(period)}>
           <span>{periodName(period)}</span>{note && <small>{note}</small>}
           {unsaved && <><i className={styles.entryDraftDot} aria-hidden="true"/><span className="sr-only" id={draftNoteId+"-"+period}>有未保存修改</span></>}
         </button>;
       })}</div>
       <button type="button" className={styles.entrySettings} aria-expanded={advanced.has(selected)} disabled={pending}
         onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(selected))next.delete(selected);else next.add(selected);return next;})}>更多设置</button>
+      {!pending&&!future&&<TaskGuide task="body" video="body" auto={!editing&&!busy} steps={[
+        {target:"body-save",text:"核对时段和值，点「"+(editing?"保存修改":"保存录入")+"」。"},
+        ...(!periodTouched?[{target:"body-period",text:"按称重时段选。晨间填空腹实测，晚间可记非空腹值。"}]:[]),
+        {target:"body-weight-input",text:"填实际称得的体重。体脂率没测可以留空。"},
+        {target:"body-period",text:"选择要查看或记录的称重时段。"},
+      ]}/>}
     </div>
     <div className={styles.entryGroups}>
       {groups.map(group=><fieldset key={group.period} data-period={group.period} data-selected={selected===group.period} disabled={busy||pending||group.blocked}>
@@ -194,7 +204,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
                 <label htmlFor={editable ? fieldId : undefined}>{metricName(metric)}</label>
                 <div className={styles.entryInputRow}>
                   {editable ? <span className={styles.entryNumber} data-entry-field-surface="compact">
-                    <DecimalInput data-input-appearance="compact" id={fieldId} aria-label={label} min={0} placeholder="实测值"
+                    <DecimalInput data-guide-target={metric==="weightKg"&&selected===group.period?"body-weight-input":undefined} data-input-appearance="compact" id={fieldId} aria-label={label} min={0} placeholder="实测值"
                       aria-invalid={!!fieldError || undefined} aria-describedby={fieldError ? fieldId + "-error" : undefined}
                       value={draft[group.period][metric]} onValue={value => setField(group.period, metric, value)}/>
                   </span> : <span className={styles.entryRecorded}>{formatRecordNumber(cell.value)}</span>}
@@ -211,7 +221,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       </fieldset>)}
     </div>
     {future&&<p role="alert" className={styles.entryError}>不能录入未来日期的身体记录。</p>}
-    <div className={styles.entryFooter} data-entry-footer><div>{(error||readError)&&<p role="alert" className={styles.entryError}>{error||readError}</p>}{pending&&!readError?<LocalLoading/>:message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-entry-primary-action data-saving={busy && busyLabel === savingLabel || undefined} type={onRetry?"button":"submit"} onClick={onRetry} className={styles.saveEntry} disabled={onRetry?false:busy||pending||!dirty||future}>
+    <div className={styles.entryFooter} data-entry-footer><div>{(error||readError)&&<p role="alert" className={styles.entryError}>{error||readError}</p>}{pending&&!readError?<LocalLoading/>:message&&<p role="status" className={styles.entryHint}>{message}</p>}</div><button data-entry-primary-action data-guide-target={onRetry?undefined:"body-save"} data-saving={busy && busyLabel === savingLabel || undefined} type={onRetry?"button":"submit"} onClick={onRetry} className={styles.saveEntry} disabled={onRetry?false:busy||pending||!dirty||future}>
       <span className={styles.saveRipple} ref={rippleRef} aria-hidden="true"/>
       <span>{onRetry?"重新读取":busy?busyLabel:editing?"保存修改":"保存录入"}</span>
     </button></div>

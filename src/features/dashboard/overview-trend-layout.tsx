@@ -81,9 +81,9 @@ export function OverviewTrendLayout({ date, day, range, mobile, changeRange, vie
     </div>
     <div className={styles.overviewToolbar} data-overview-toolbar>
       <div className={styles.overviewLegend} data-overview-legend><OverviewLegend/><span>千卡</span></div>
-      <button type="button" disabled={pending || !date} onClick={view}>查看记录 →</button>
+      <button type="button" data-guide-target="overview-record" disabled={pending || !date} onClick={view}>查看记录 →</button>
     </div>
-    <div data-overview-plot>{children}</div>
+    <div data-overview-plot data-guide-target="overview-trend">{children}</div>
     {!pending&&<div className={styles.phoneReadout}>
       <button type="button" disabled={pending||!date} onClick={view} aria-label={date?"查看 "+date+" 当日记录":"查看当日记录"}>
         <strong>{date?shortDate(date):"—"}</strong>

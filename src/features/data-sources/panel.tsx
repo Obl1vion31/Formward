@@ -45,7 +45,7 @@ function SourceContent({ data, embedded, pending = false, busy = false, task = n
         </div>}
         {!pending && !data && error ? <button type="button" onClick={retry}>重新读取连接</button> : <>
           {data&&<TaskGuide task={connection?"sources-change-key":"sources-connect"} target="sources-connect"
-            text={connection?"点「更换个人密钥」可以更新站点或密钥。":"点「连接 Garmin」，选择你的站点并填写个人密钥。"} auto={!connection&&!busy}/>}
+            text={connection?"点「更换个人密钥」可以更新站点或密钥。":"点「连接 Garmin」，选择你的站点并填写个人密钥。"} />}
           <details className={styles.settings}>
             <summary data-guide-target="sources-connect">{connection ? "更换个人密钥" : "连接 Garmin"}</summary>
             <form onSubmit={bind}>

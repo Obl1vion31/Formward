@@ -28,7 +28,7 @@ export function NutritionSummaryCard({
   const calories = totals?.values.caloriesKcal ?? null;
   const composition = macroComposition(totals);
 
-  return <section
+  return <section data-guide-target="trend-nutrition-metrics"
     className={styles.card}
     data-record-slot="metrics"
     data-selected-date={date}

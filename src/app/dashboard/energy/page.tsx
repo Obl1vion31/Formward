@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { currentPageUser } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { readEnergySnapshot } from "@/features/activities/records";
-import {loadEnergyConnection} from "@/features/data-sources/state";
+import {loadEnergyConnection,loadEnergyDeviceCoverage} from "@/features/data-sources/state";
 import { EnergyView } from "@/features/activities/energy-view";
 import { energyPresentation } from "@/features/activities/presentation";
 import { localMeasurementDate } from "@/features/measurements/entry-state";
@@ -22,8 +22,9 @@ export default async function EnergyPage({ searchParams }: { searchParams: Promi
   const params=await searchParams,entry=params.entry==='1'&&(params.date===undefined||linkedDate(params.date)!==null),trend=params.entry?null:linkedTrend(params);return <Content cacheQuery={workspaceQuery(params)} user={user} date={linkedDate(params.date)} entry={entry} estimate={entry&&params.mode==="estimate"} trend={trend} intent={recordOpenIntent(params,entry,!!trend)}/>;
 }
 async function Content({cacheQuery, user, date, entry, estimate,trend,intent }: {cacheQuery:string; user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>>; date: string | null;entry:boolean;estimate:boolean;trend:TrendRoute|null;intent:RecordIntent }) {
-  const db = getDatabase(), snapshot = await readEnergySnapshot(db, user.id);
+  const db = getDatabase();
+  const [snapshot, sourceStatus, deviceCoverage, sources] = await Promise.all([readEnergySnapshot(db, user.id),
+    loadEnergyConnection(db,user.id), loadEnergyDeviceCoverage(db,user.id), listEnergySources(db,user.id)]);
   const today = localMeasurementDate(new Date(), systemMeasurementTimezone(new Date(), process.env.FORMWARD_TIMEZONE));
-  const sourceStatus=await loadEnergyConnection(db,user.id);
-  return <WorkspaceSnapshot path="/dashboard/energy" query={cacheQuery}><EnergyView sourceStatus={sourceStatus} key={`${date}:${intent}:${estimate}:${trend?.from}:${trend?.to}`} initialIntent={intent} presentation={energyPresentation(snapshot, [], today, await listEnergySources(db, user.id),user.id)} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date??(entry?today:null)} initialEntry={entry} initialEstimate={estimate} initialTrend={trend} /></WorkspaceSnapshot>;
+  return <WorkspaceSnapshot path="/dashboard/energy" query={cacheQuery}><EnergyView sourceStatus={sourceStatus} deviceCoverage={deviceCoverage} key={`${date}:${intent}:${estimate}:${trend?.from}:${trend?.to}`} initialIntent={intent} presentation={energyPresentation(snapshot, [], today, sources,user.id)} save={saveEnergyAction} removeSource={removeEnergySourceAction} initialDate={date??(entry?today:null)} initialEntry={entry} initialEstimate={estimate} initialTrend={trend} /></WorkspaceSnapshot>;
 }

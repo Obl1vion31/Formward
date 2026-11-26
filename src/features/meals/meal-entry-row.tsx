@@ -18,6 +18,7 @@ type Props = {
   nutrition: Nutrition;
   nutritionHint: string;
   blank: boolean;
+  guided?: boolean;
   nutritionOpen: boolean;
   update: (next: EditorItem) => void;
   toggleNutrition: () => void;
@@ -37,7 +38,7 @@ function NutritionTrigger() {
 }
 
 export function MealEntryRow({
-  item, index, food, reference, recipeParts, adjustRecipe, nutrition, nutritionHint, blank, nutritionOpen, update, toggleNutrition, remove, replace,
+  item, index, food, reference, recipeParts, adjustRecipe, nutrition, nutritionHint, blank, guided, nutritionOpen, update, toggleNutrition, remove, replace,
 }: Props) {
   const id = useId(), number = index + 1;
   const name = food?.name ?? (item.name.trim() || "第 " + number + " 项食物");
@@ -74,13 +75,13 @@ export function MealEntryRow({
   return <li className={styles.entryRow} data-meal-row data-meal-row-key={item.editor.key} data-blank-row={blank || undefined}
     data-nutrition-basis={food ? "food_library" : "consumed_total"} data-nutrition-collapsed={!nutritionOpen || undefined}>
     <div className={food ? styles.rowName : styles.rowName + " " + styles.compactField}>
-      {food ? <strong>{food.name}</strong> : <input data-meal-name value={item.name}
+      {food ? <strong>{food.name}</strong> : <input data-meal-name data-guide-target={guided?"meal-manual-name":undefined} value={item.name}
         aria-label={blank ? "自由填写食物名称" : "食物名称 " + number} placeholder="食物名称" maxLength={200}
         onKeyDown={finishField} onChange={event => update({ ...item, name: event.target.value })}/>}
       {!blank && !item.name.trim() && <small role="status" className={styles.fieldIssue}>请填写食物名称</small>}
     </div>
     <div className={styles.quantity + (isRecipe ? "" : " " + styles.compactField)}>
-      {isRecipe ? <span>{item.quantity ? Number(item.quantity) : "—"}</span> : <DecimalInput value={item.quantity ?? ""} aria-label={"数量 " + number} aria-describedby={!food ? nutritionHint : undefined}
+      {isRecipe ? <span>{item.quantity ? Number(item.quantity) : "—"}</span> : <DecimalInput data-guide-target={guided?"meal-manual-amount":undefined} value={item.quantity ?? ""} aria-label={"数量 " + number} aria-describedby={!food ? nutritionHint : undefined}
         min={0} max={1000000} precision={2} trimTrailingZeros placeholder="数量" title={item.quantity ?? undefined} onKeyDown={finishField}
         onValue={quantity => update({ ...item, quantity: quantity || null, amountDecision: quantity ? "provided" : undefined })}/>}
     </div>

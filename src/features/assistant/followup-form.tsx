@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import { TaskGuide } from "@/components/task-guide";
 import { useOrderedArrival } from "@/components/use-ordered-arrival";
 import type { Followup } from "./chat-model";
 import { followupQuestions, resolveSupplement, type FollowupSubmission } from "./followup";
@@ -8,8 +9,8 @@ import styles from "./chat.module.css";
 type Answer = FollowupSubmission["answers"][number];
 const hasAnswer = (answer?: Answer) => !!(answer?.outcome || answer?.optionIds?.length || answer?.text?.trim());
 
-export function FollowupForm({task,busy,submit}: {
-  task: Followup; busy: boolean; submit: (value: FollowupSubmission) => Promise<void | boolean>;
+export function FollowupForm({task,busy,submit,mealGuide=false}: {
+  task: Followup; busy: boolean; mealGuide?:boolean; submit: (value: FollowupSubmission) => Promise<void | boolean>;
 }) {
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -67,14 +68,18 @@ export function FollowupForm({task,busy,submit}: {
   const twoColumns = options.length > 1 && options.every(option => [...option.label].length <= 10);
   const canSkipAll = !last && questions.slice(index).filter(item => !hasAnswer(answers[item.id])).length +
     (hasAnswer(answer) ? 1 : 0) > 1;
-  return <form className={styles.followup} aria-label={"补充"+task.subject}
+  return <form className={styles.followup} data-guide-scope aria-label={"补充"+task.subject}
     onSubmit={event => {event.preventDefault(); void advance();}}>
     <fieldset disabled={busy || submitting}>
       <div className={styles.followupNavigation}>
         {index ? <button type="button" onClick={() => showQuestion(index - 1)}>‹ 上一题</button> : <span>补充信息</span>}
         {questions.length > 1 && <span>{index + 1} / {questions.length}</span>}
+        {mealGuide&&<TaskGuide task="meal" video="photo" auto={!busy} steps={[
+          {target:"meal-submit-answer",text:last?"点「继续」，助手会用补充的信息更新本餐。":"点「下一题」继续补充本餐。"},
+          {target:"meal-answer",text:"补充这道问题。想不起来可以选「不知道」或跳过。"},
+        ]}/>}
       </div>
-      <fieldset ref={questionScene}>
+      <fieldset ref={questionScene} data-guide-target="meal-answer">
         <legend ref={heading} tabIndex={-1}>{question.prompt}</legend>
         {options.length > 0 && <div className={styles.followupOptions} data-paired={twoColumns || undefined}>
           {options.map(option => {
@@ -107,7 +112,7 @@ export function FollowupForm({task,busy,submit}: {
       {failure && <p role="alert">{failure}</p>}
       <div className={styles.followupActions}>
         {canSkipAll && <button type="button" onClick={() => void advance(undefined,true)}>跳过全部</button>}
-        <button type="submit" disabled={!hasAnswer(answer)}>
+        <button type="submit" data-guide-target="meal-submit-answer" disabled={!hasAnswer(answer)}>
           {submitting ? "正在提交…" : last ? "继续" : "下一题"}
           {!submitting && <span aria-hidden="true"> →</span>}
         </button>

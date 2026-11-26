@@ -13,8 +13,17 @@
 .inlineMeta,.inlineMacros{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 0 0;font-size:.8125rem;color:var(--muted);overflow-wrap:anywhere}
 .inlineSecondary{font-size:.875rem;line-height:1.5;margin:8px 0 0;overflow-wrap:anywhere}
 .inlineName{font-size:1.125rem;font-weight:600;line-height:1.5;margin:12px 0 0;overflow-wrap:anywhere}
-.inlineOperations{display:flex;flex-wrap:wrap;gap:8px;margin-top:0;max-width:100%}
-.inlineOperations button{font-size:.875rem!important;padding:0 8px!important;min-height:44px!important}
+.inlineOperations{display:flex;flex-wrap:wrap;gap:8px;margin-block:8px 4px;max-width:100%}
+.workspace[data-embedded] .inlineOperations button {
+  min-height:44px;
+  padding:0 12px;
+  border:1px solid var(--control-border);
+  border-radius:9px;
+  background:var(--surface-raised);
+  font-size:.875rem;
+}
+.workspace[data-embedded] .inlineOperations button[data-review-exclude] { background:transparent; }
+.workspace[data-embedded] .inlineOperations button:active:not(:disabled) { background:var(--surface-hover); }
 .inlineDetails{font-size:.875rem;color:var(--muted)}
 .inlineDetails>summary{min-height:44px;align-content:center;width:fit-content;cursor:pointer;font-size:.875rem}
 .inlineDetails[open]{padding-bottom:8px}.inlineDetails>summary~*{clear:both}

@@ -11,7 +11,6 @@ import { BodyFatContext } from "../measurements/visibility";
 import { trackPopoverPosition } from "@/components/anchored-popover";
 import { confirmAction } from "@/components/confirmation-state";
 import { LocalLoading } from "@/components/local-loading";
-import { TaskGuide } from "@/components/task-guide";
 import { calculateEnergy, activityLevels, formulaLabel, type CalculationContext, type CalculationMethod, type CalculationSnapshot, type RestingMethod } from "./calculation-model";
 import glass from "@/components/glass-controls.module.css";
 import { useSlidingSelection } from "@/components/sliding-selection";
@@ -76,8 +75,8 @@ export function ActivityEnergyHelp(){
  const id=useId();
  return <><button type="button" className={styles.calculationInfo} popoverTarget={id} aria-label="活动热量说明"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 2-2.5 4M12 16v1"/></svg></button><div id={id} popover="auto" className={styles.fieldHelp} role="dialog" aria-label="活动热量说明"><h4>活动热量</h4><p>填写当天已知的活动热量；不知道可以留空，明确没有活动才填0。</p><p>另记运动明细时，需核对是否已包含在活动合计中，避免重复相加。</p></div></>;
 }
-export function ActivityLevelControl({value,change,dateLabel="今天的活动量",guidance=false}:{value:string|null;change:(value:typeof activityLevels[number]["id"])=>void;dateLabel?:string;guidance?:boolean}) {
- return <section className={styles.activityLevels}><div className={styles.activityHeading}><h3>{dateLabel}</h3>{guidance&&<TaskGuide task="energy-activity" text="选最接近实际的一项，在底部核对预计全天消耗。" auto={!value}/>}</div><div role="radiogroup" aria-label="全天活动量">{activityLevels.map((level,index)=><label key={level.id} className={styles.activityLevel} data-guide-target={index===0?"energy-activity":undefined}><input type="radio" name="energy-activity-level" value={level.id} checked={value===level.id} onChange={()=>change(level.id)}/><span><strong>{level.label}</strong><small>{level.example}</small></span></label>)}</div><p className={styles.hint}>全天消耗包含日常活动和训练。</p></section>;
+export function ActivityLevelControl({value,change,dateLabel="今天的活动量"}:{value:string|null;change:(value:typeof activityLevels[number]["id"])=>void;dateLabel?:string}) {
+ return <section className={styles.activityLevels}><div className={styles.activityHeading}><h3>{dateLabel}</h3></div><div role="radiogroup" aria-label="全天活动量" data-guide-target="energy-activity">{activityLevels.map(level=><label key={level.id} className={styles.activityLevel}><input type="radio" name="energy-activity-level" value={level.id} checked={value===level.id} onChange={()=>change(level.id)}/><span><strong>{level.label}</strong><small>{level.example}</small></span></label>)}</div><p className={styles.hint}>全天消耗包含日常活动和训练。</p></section>;
 }
 function CalculationBasis({snapshot}:{snapshot:CalculationSnapshot|null}) {
  const reference=(label:string,ref:CalculationSnapshot["weight"],unit:string)=><p>{label} {Number(ref.value)} {unit}<small>{ref.date} · {ref.period==="daytime"?"晨间":"晚间"} · {ref.source??"来源未填写"}</small></p>;

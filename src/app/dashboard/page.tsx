@@ -9,6 +9,7 @@ import { localMeasurementDate } from "@/features/measurements/entry-state";
 import { systemMeasurementTimezone } from "@/features/measurements/timezone";
 import { readMealSnapshot } from "@/features/meals/records";
 import { readEnergySnapshot } from "@/features/activities/records";
+import { loadEnergyDeviceCoverage } from "@/features/data-sources/state";
 import { overviewPresentation } from "@/features/dashboard/presentation";
 import { OverviewView } from "@/features/dashboard/overview-view";
 export const metadata = { title: "Formward · 总览" };
@@ -17,7 +18,9 @@ export default async function DashboardPage() {
  return <Content user={user}/>;
 }
 async function Content({ user }: { user: NonNullable<Awaited<ReturnType<typeof currentPageUser>>> }) {
- const db=getDatabase(), records=await listMeasurements(db,user.id), snapshot=await readMealSnapshot(db,user.id),energy=await readEnergySnapshot(db,user.id);
+ const db=getDatabase();
+ const [records,snapshot,energy,device]=await Promise.all([listMeasurements(db,user.id),readMealSnapshot(db,user.id),
+   readEnergySnapshot(db,user.id),loadEnergyDeviceCoverage(db,user.id)]);
  const today=localMeasurementDate(new Date(),systemMeasurementTimezone(new Date(),process.env.FORMWARD_TIMEZONE));
- return <WorkspaceSnapshot path="/dashboard"><OverviewView accountId={user.id} presentation={overviewPresentation(snapshot.meals, records.map(measurementDisplay), energy, today)}/></WorkspaceSnapshot>;
+ return <WorkspaceSnapshot path="/dashboard"><OverviewView accountId={user.id} presentation={overviewPresentation(snapshot.meals, records.map(measurementDisplay), energy, today,device)}/></WorkspaceSnapshot>;
 }

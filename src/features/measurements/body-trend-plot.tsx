@@ -59,7 +59,7 @@ export function BodyTrendPlot({ records, metric, showEvening, interval, selected
 
   return <>
     <div className={styles.plotViewport+(linked?" linked-trend-plot":compact?" detail-trend-plot":"")} ref={viewport} data-chart-density={span<7?"short":"full"} data-chart-arrival data-body-plot data-adaptive={linked||span<31?"true":mobile===null?"auto":String(mobile)} data-linked-plot={linked||undefined}>
-      <ChartPreparation active={!viewportWidth} guideInsets={linked?undefined:{top,right,bottom:32,left}}/>
+      <ChartPreparation active={!viewportWidth}/>
       <svg {...drag} className={styles.plot} style={{touchAction:"pan-y", height:compact?"auto":undefined, maxHeight:"none", visibility: viewportWidth > 0 ? undefined : "hidden"}} width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={`${metricName(metric)}趋势，数值越高位置越高`}>
         <title>{`${metricName(metric)}趋势`}</title>
         <TrendAxes kind="morning-weight" dates={dates} model={model} width={width} left={left} right={right} top={top} bottom={plotBottom} fontSize={fontSize} axisClass={styles.axis} gridClass={styles.grid}/>

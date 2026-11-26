@@ -21,7 +21,7 @@ export function MobileEnergyPlot({days,selected,selection,linked=false,compact=f
   const dates=days.map(day=>day.date),slot=plotWidth/days.length,x=(i:number)=>left+(i+.5)*slot;
   const drag=useChartDrag(dates,width,left,right,selection.choose),index=dates.indexOf(selected);
   return <EnergyPlotFrame frameRef={viewport} compact={days.length<=7} adaptive className={linked ? "linked-trend-plot" : compact ? "detail-trend-plot" : ""}>
-    <ChartPreparation active={!measured} guideInsets={linked?undefined:{top,right,bottom:32,left}}/>
+    <ChartPreparation active={!measured}/>
     <svg {...drag} style={{touchAction:'pan-y',visibility:measured?undefined:'hidden'}} viewBox={`0 0 ${width} ${bottom+32}`} role="group" aria-label="每日消耗柱状图">
       <TrendAxes kind="energy" dates={dates} model={model} width={width} left={left} right={right} top={top} bottom={bottom} fontSize={fontSize} axisClass={styles.axis} gridClass={styles.grid}/>
       <ChartSelectionColumn x={index<0?null:x(index)} date={selected} column={index<0?null:{left:x(index)-slot/2,right:x(index)+slot/2}} plot={{left,right:width-right,top,bottom}} resetKey={`${width}:${dates.join('|')}`} direct={selection.direct} baselineTick/>
