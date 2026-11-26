@@ -3,7 +3,7 @@ import { localMeasurementDate } from "../measurements/entry-state";
 import type { ReminderCatalog } from "../dashboard/daily-reminders";
 
 export type AssistantAction = { label: string; href: string; previewId?:string };
-export type AssistantItem = { id: string; category: "meals" | "energy" | "body" | "ai" | "training"; date: string; title: string; detail: string; action: AssistantAction; dismissible?: boolean; expiresAt?: string; review?: {source:string; title:string; value:string; detail:string; kind?:"meal"} };
+export type AssistantItem = { id: string; category: "meals" | "energy" | "body" | "ai" | "training"; date: string; title: string; detail: string; action: AssistantAction; dismissible?: boolean; expiresAt?: string; mealStatus?: "unconfirmed" | "incomplete"; review?: {source:string; title:string; value:string; detail:string; kind?:"meal"} };
 export type AssistantContext = { generatedAt: string; localDate: string; timezone: string; pending: AssistantItem[]; suggestions: AssistantItem[] };
 export const assistantPath = "/dashboard/assistant";
 export const assistantRoutes = ["/dashboard", "/dashboard/meals", "/dashboard/training", "/dashboard/energy", "/dashboard/measurements", "/dashboard/ai", "/dashboard/export", "/dashboard/sources"];
@@ -20,6 +20,7 @@ export function assistantContext(catalog: ReminderCatalog, now: Date, timezone: 
     const meal = catalog.meals.find(day => day.date === yesterday);
     if (!meal?.complete) pending.push({
       id: `meals:${yesterday}`, category: "meals", date: yesterday, title: "昨天的饮食是不是还没记全？",
+      ...(meal ? { mealStatus: meal.status === "incomplete" ? "incomplete" as const : "unconfirmed" as const } : {}),
       detail: !meal ? "还没有饮食记录，可以补记，也可以忽略这一天。" : meal.source === "record_change" ? "餐次有修改，尚未重新确认是否记全。" : meal.status === "incomplete" ? "这一天标记为未记全。" : "已有餐次，尚未确认是否记全。",
       action: { label: meal ? "查看并确认" : "补记饮食", href: `/dashboard/meals?date=${yesterday}&${meal ? "intent=edit" : "entry=1"}` }, dismissible: true,
     });

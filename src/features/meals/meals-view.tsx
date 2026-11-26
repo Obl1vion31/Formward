@@ -23,7 +23,7 @@ import { useNestedChartRange } from "@/components/use-nested-chart-range";
 import {RecordDetailActions} from "@/components/record-detail-actions";
 import { useLocalToday } from "@/components/use-local-today";
 import { FoodTable } from "./presets";
-import { NutritionSummaryCard } from "./nutrition-summary-card";
+import { MealPageActions, NutritionSummaryCard } from "./nutrition-summary-card";
 import { isMealLibrary } from "./library-location";
 import { FoodLibraryControls } from "./library-controls";
 import { FoodLibraryTabs, ReferenceBrowser, type FoodLibraryScope } from "./reference-browser";
@@ -31,7 +31,7 @@ import referenceStyles from "./reference-library.module.css";
 import { PhotoFields } from "./photos";
 import { SavedMealList } from "./saved-meal-list";
 import { MealDayControl, MealDayStatus } from "./meal-day-control";
-import type { MealDayInput } from "./model";
+import type { MealDayInput, MealDraft } from "./model";
 import {DayNutritionSummary} from "./nutrition-composition";
 import { NutritionChart } from "./nutrition-chart";
 import { useDraftGuard, confirmDraftDiscard } from "@/components/draft-guard";
@@ -61,12 +61,12 @@ type MealsDisplay = {
   history: HistoryDisplay;
 };
 
-export function MealsView({ accountId, snapshot, today: initialToday, operations, save, saveDay, purge, initialDate: requestedDate = null,initialEntry: requestedEntry=false, initialTrend=null,initialIntent='view' }: { accountId: string; snapshot: MealSnapshot; today: string; operations: MealOperationView[]; save: SaveMeals; saveDay?: (input: MealDayInput) => ReturnType<SaveMeals>; purge: (input: import("./recently-deleted").PermanentDeletion) => ReturnType<SaveMeals>; initialDate?: string|null;initialEntry?:boolean;initialTrend?:TrendRoute|null;initialIntent?:RecordIntent }) {
+export function MealsView({ accountId, snapshot, today: initialToday, operations, save, saveDay, purge, initialDate: requestedDate = null,initialEntry: requestedEntry=false,manual, initialTrend=null,initialIntent='view' }: { accountId: string; snapshot: MealSnapshot; today: string; operations: MealOperationView[]; save: SaveMeals; saveDay?: (input: MealDayInput) => ReturnType<SaveMeals>; purge: (input: import("./recently-deleted").PermanentDeletion) => ReturnType<SaveMeals>; initialDate?: string|null;initialEntry?:boolean;manual?:{id:string;draft:MealDraft};initialTrend?:TrendRoute|null;initialIntent?:RecordIntent }) {
   const today=useLocalToday(initialToday), now=useOperationClock();
   const [local,setLocal]=useState<MealSnapshot|null>(null),[base,setBase]=useState(snapshot);
   if(snapshot!==base){setBase(snapshot);setLocal(null);}
   const state = local ?? snapshot, mobile = useInitialMobileMode();
-  const params = useSearchParams(), { source } = useAssistant();
+  const params = useSearchParams(), { source,openMealTask } = useAssistant();
   const query = source?.path === "/dashboard/meals" ? new URLSearchParams(source.query) : params;
   const foods = isMealLibrary(query);
   const initialEntry = requestedEntry && query.get("entry") === "1";
@@ -90,7 +90,7 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
   const range=rangeChoice??rangeContaining(initialDate??dailyTotals(state.meals).find(day=>day.date<=today)?.date??today,today,mobile?"7":"30"),[customFrom,setCustomFrom]=useState(initialTrend?.from??""),[customTo,setCustomTo]=useState(initialTrend?.to??today);
   const [customOpen,setCustomOpen]=useState(false),[customDraft,setCustomDraft]=useState({from:today,to:today});
   const [editing,setEditing]=useState<MealAction|null>(null),[foodQuery,setFoodQuery]=useState("");
-  useEffect(()=>{if(!initialDate||!initialEntry)return;const timer=setTimeout(()=>setEditing({kind:"save_meal",date:initialDate,mealType:suggestedMealType(new Date().getHours()),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,items:[]}),0);return()=>clearTimeout(timer);},[initialDate,initialEntry]);
+  useEffect(()=>{if(!initialDate||!initialEntry)return;const timer=setTimeout(()=>setEditing(manual?{...manual.draft,kind:"save_meal"}:{kind:"save_meal",date:initialDate,mealType:suggestedMealType(new Date().getHours()),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,items:[]}),0);return()=>clearTimeout(timer);},[initialDate,initialEntry,manual]);
   const [foodCategory,setFoodCategory]=useState("all");
   const [foodScope, setFoodScope] = useState<FoodLibraryScope>("reference");
   const [macroMode,setMacroMode]=useState<MacroMode>("grams");
@@ -204,7 +204,7 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
       {group&&!editable&&<MealDayStatus day={group.day}/>}
       <SavedMealList meals={group?.meals??[]} renderActions={editable?m=><RecordDetailActions busy={busy} edit={()=>editMeal(m)} remove={()=>void confirmPurge({id:m.id,version:m.version,recordType:"meal",name:m.date+" · "+m.mealType})} recordLabel={m.mealType}/>:undefined}/>
       {editable&&<footer className={styles.dayFooter} data-meal-day-actions>
-        <button data-meal-add type="button" className={recordUI.editAction} onClick={()=>addMeal(date)}><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M9 3v12M3 9h12"/></svg>添加一餐</button>
+        <button data-meal-add type="button" className={recordUI.editAction} onClick={()=>addMeal(date)}><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M9 3v12M3 9h12"/></svg>{group?"再记一餐":"添加一餐"}</button>
         {group&&saveDay&&<MealDayControl day={group.day} busy={busy} error={dayErrors[date]} save={performDay}/>}
       </footer>}
     </>;
@@ -212,7 +212,7 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
   async function perform(action:MealAction, allowMissingImages = false){
     if(busyRef.current)return false;busyRef.current=true;setBusy(true);setError("");setNotice("");
     try{if(action.id&&(action.kind==="save_meal"||action.kind==="save_food")){const key=(action.kind==="save_meal"?"meal:":"food:")+action.id;const latest=await verifyRecordVersions([{key,version:String(action.version)}]);action={...action,version:Number(latest.get(key)!.version)};}}catch(e){setError(e instanceof Error?e.message:"请重试");busyRef.current=false;setBusy(false);return false;}
-    const data=JSON.stringify(action);if(request.current?.data!==data)request.current={data,id:crypto.randomUUID()};
+    const data=JSON.stringify(action);if(request.current?.data!==data)request.current={data,id:action.kind==="save_meal"&&initialEntry&&manual?manual.id:crypto.randomUUID()};
     try{const result=await save({operationId:request.current.id,actions:[action]},allowMissingImages);if(!result.ok){setError(result.error);return false;}acknowledgeRecordChanges(action.kind==="save_meal"?[("meal:"+(action.id??result.data.snapshot.meals.find(m=>!state.meals.some(old=>old.id===m.id))?.id)),"mealDay:"+action.date,...(action.id?["mealDay:"+state.meals.find(m=>m.id===action.id)?.date]:[])]:["food:"+(action.id??result.data.snapshot.foods.find(f=>!state.foods.some(old=>old.id===f.id))?.id)],mealVersions(result.data.snapshot));setLocal(result.data.snapshot);setNotice(result.data.message);request.current=null;return true;}
     catch{setError("保存未完成，请重试，当前输入已保留。");return false;}finally{busyRef.current=false;setBusy(false);}
   }
@@ -250,7 +250,10 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
       data-meal-leaving={foods && scene.moving || undefined}>
 
       <div data-record-trend data-chart-selection={chart.regionId} data-selected-date={chart.selected} data-selection-origin={chart.origin} {...chart.regionProps}>
-      <RecordTrendPanel presentation="nutrition" readings={<NutritionSummaryCard date={summaryDate} totals={chosen?.totals} openLibrary={openFoodLibrary} libraryRef={libraryEntry} expanded={nutrition} onExpandedChange={setNutrition}/>}
+      <RecordTrendPanel presentation="nutrition" readings={<NutritionSummaryCard date={summaryDate} totals={chosen?.totals} mealCount={chosen?.meals.length}
+        estimated={chosen?.meals.some(meal=>meal.items.some(item=>item.nutrition.caloriesKcal!==null&&(item.sourceKind==="estimated"||item.amountDecision==="estimate_accepted")))}
+        expanded={nutrition} onExpandedChange={setNutrition}/>}
+       supplementary={<MealPageActions record={()=>addMeal(today)} openLibrary={openFoodLibrary} libraryRef={libraryEntry}/>}
        range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft({from:customFrom||from,to:customTo});setCustomOpen(true);}else{prepareRange(key);setRange(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="饮食" value={customDraft} change={setCustomDraft} apply={()=>{setCustomFrom(customDraft.from);setCustomTo(customDraft.to);setRange("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
        date={summaryDate}
@@ -287,7 +290,7 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
           <FoodEditor initial={editing} error={error} busy={busy} save={async(f,allowMissingImages)=>{if(await perform({kind:'save_food',...f},allowMissingImages))void savedClose.current();}}/>
           {editing.id&&<details className={recordUI.editMaintenance}><summary>更多操作</summary><button type="button" disabled={busy} onClick={async()=>{if(await confirmDraftDiscard()&&await confirmPurge({id:editing.id!,version:editing.version!,recordType:'food',name:editing.name}))void savedClose.current();}}>永久删除食材</button></details>}
         </>:editing?.kind==='save_meal'?<>
-          <MealEditor onAiSaved={snapshot=>{acknowledgeRecordChanges(snapshot.meals.filter(meal=>meal.date===editing.date).flatMap(meal=>["meal:"+meal.id,"mealDay:"+meal.date]),mealVersions(snapshot));setLocal(snapshot);setNotice("餐次已保存");if(historyOpen&&dayIntent==='edit')setEditing(null);else void savedClose.current();}} recentMeals={state.meals} historicalItems={state.meals.find(m=>m.id===editing.id)?.items??[]} historicalFoods={state.meals.find(m=>m.id===editing.id)?.items.flatMap(i=>i.foodSnapshot?[i.foodSnapshot]:[])??[]} initial={editing} foods={state.foods} error={error} busy={busy} save={async(m,allowMissingImages)=>{if(await perform({kind:'save_meal',...m},allowMissingImages)){if(historyOpen&&dayIntent==='edit')setEditing(null);else void savedClose.current();}}}/>
+          <MealEditor allowAi={!initialEntry||!manual} onPhotoSent={async id=>{await savedClose.current();openMealTask(id);}} onAiSaved={snapshot=>{acknowledgeRecordChanges(snapshot.meals.filter(meal=>meal.date===editing.date).flatMap(meal=>["meal:"+meal.id,"mealDay:"+meal.date]),mealVersions(snapshot));setLocal(snapshot);setNotice("餐次已保存");if(historyOpen&&dayIntent==='edit')setEditing(null);else void savedClose.current();}} recentMeals={state.meals} historicalItems={state.meals.find(m=>m.id===editing.id)?.items??[]} historicalFoods={state.meals.find(m=>m.id===editing.id)?.items.flatMap(i=>i.foodSnapshot?[i.foodSnapshot]:[])??[]} initial={editing} foods={state.foods} error={error} busy={busy} save={async(m,allowMissingImages)=>{if(await perform({kind:'save_meal',...m},allowMissingImages)){if(historyOpen&&dayIntent==='edit')setEditing(null);else void savedClose.current();}}}/>
         </>:<>{error&&<p role="alert" className={styles.error}>{error}</p>}{dayDetails(selectedDate)}</>}
       </div>
     </EditorDialog>}

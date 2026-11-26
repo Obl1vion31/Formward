@@ -11,6 +11,7 @@ export type ArrivalViewport = {height:number; offsetTop:number};
 type SendBody = {
   action:"send"|"retry"|"continue"; requestId:string; conversationId:string; provider:ChatProvider;
   timezone:string; text?:string; replyToId?:string; messageId?:string; imageIds?:string[]; imageSubset?:string[]; followup?:FollowupSubmission;
+  mealTask?: true;
 };
 export type OutgoingMessage = {
   message:ChatMessage; body:SendBody; photos:DraftPhoto[]; quote:ChatMessage|null; viewport?:ArrivalViewport;
@@ -81,11 +82,12 @@ type ChatClient = {
   releaseSentPreview: (id:string,imageId:string) => void;
   control: (action: Exclude<ChatControlAction, "stop"> | "remove_conversation", provider?: ChatProvider, conversationId?: string, sourceMessageId?: string) => Promise<boolean>;
   addPhotos: (files: File[]) => Promise<void>;
+  openPhotoHistory: (id:string)=>Promise<void>;
 };
 const Context = createContext<ChatClient | null>(null);
 export function useOptionalAssistantChat(){return useContext(Context);}
 export function useAssistantChat() { const value = useContext(Context); if (!value) throw Error("ChatProvider missing"); return value; }
-export function AssistantChatProvider({ enabled, initialEntitlement, open, accountId, children }: { enabled: boolean; initialEntitlement?:AccountEntitlements; open: boolean; accountId: string; children: ReactNode }) {
+export function AssistantChatProvider({ enabled, initialEntitlement, open, accountId, photoTask, children }: { enabled: boolean; initialEntitlement?:AccountEntitlements; open: boolean; accountId: string; photoTask?:string|null;children: ReactNode }) {
   const [access,setAccess]=useState(initialEntitlement);
   // 同账号的迟到读取不能把已观察到的新档位覆盖回旧版本。
   const accessRef=useRef(initialEntitlement);
@@ -98,6 +100,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   const request = useRef<Delivery | null>(null), current = useRef<ChatSnapshot | null>(null), generation = useRef(0), alive = useRef(true);
   const reading = useRef<{ controller: AbortController; manual: boolean } | null>(null);
   const snapshots = useRef(0);
+  const selectedPhotoTask=useRef<string|null>(null);
   const scroll = useRef({ top: 0, stick: true });
   const savedDrafts=useRef(new Map<string,{draft:string;quote:ChatMessage|null;photos:DraftPhoto[];scroll:{top:number;stick:boolean}; older:ChatMessage[]}>());
   const pendingResumeSource = useRef<string | null>(null);
@@ -239,7 +242,8 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     } else setError("");
     const query = new URLSearchParams();
     if (before) query.set("before", String(before));
-    if (manual && current.current?.conversationId) query.set("conversationId", current.current.conversationId);
+    const target=selectedPhotoTask.current??(manual?current.current?.conversationId:null);
+    if(target)query.set("conversationId",target);
     const isCurrent = () => !controller.signal.aborted && alive.current && ticket === generation.current;
     try {
       const response = await fetch(chatEndpoint + (query.size ? "?" + query : ""), {
@@ -270,6 +274,22 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     }
   }, [apply]);
   const refresh = useCallback(() => read(undefined, true), [read]);
+  async function openPhotoHistory(id:string) {
+    const previous=current.current?.conversationId;
+    if(previous&&previous!==id){
+      savedDrafts.current.set(previous,{draft,quote,photos:[...photoState.current],scroll:{...scroll.current},older:messages});
+      pendingResumeSource.current=previous;
+    }
+    selectedPhotoTask.current=id;
+    await read(undefined,true);
+  }
+  useEffect(()=>{
+    if(!photoTask||!open)return;
+    const frame=requestAnimationFrame(()=>void openPhotoHistory(photoTask));
+    return()=>cancelAnimationFrame(frame);
+    // Only a new explicit handoff switches the active client scene.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[photoTask]);
   useEffect(()=>{
     const controller=new AbortController();let currentRequest=false;
     const sync=async()=>{if(document.hidden||currentRequest||controller.signal.aborted)return;currentRequest=true;try{const response=await fetch("/api/account/entitlements",{cache:"no-store",signal:AbortSignal.any([controller.signal,AbortSignal.timeout(10000)])});if(!response.ok)return;const value=await response.json();if(!controller.signal.aborted&&alive.current){const previous=accessRef.current?.version;const accepted=updateAccess(value.entitlement);if(accepted&&previous!==value.entitlement.version)void read();}}catch{/* 已知权限和草稿保持，后续请求仍由服务端复核。 */}finally{currentRequest=false;}};
@@ -299,8 +319,21 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
       releasePhotoResources();
     };
   }, [accountId, releasePhotoResources]);
-  useEffect(() => { if (!open) return; const frame = requestAnimationFrame(() => void read()); const focus = () => { if(document.hidden || request.current)return;void read(); }; window.addEventListener("focus", focus); window.addEventListener("pageshow",focus); window.addEventListener("online",focus); document.addEventListener("visibilitychange", focus); window.addEventListener("formward-record-saved", focus); return () => { cancelAnimationFrame(frame); window.removeEventListener("focus", focus); window.removeEventListener("pageshow",focus); window.removeEventListener("online",focus); document.removeEventListener("visibilitychange", focus); window.removeEventListener("formward-record-saved", focus); }; }, [enabled, open, read]);
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => void read());
+    const refreshVisible = () => { if (!document.hidden && !request.current) void read(); };
+    const events=["focus","pageshow","online","formward-record-saved","formward-assistant-updated"];
+    for(const event of events)window.addEventListener(event,refreshVisible);
+    document.addEventListener("visibilitychange",refreshVisible);
+    return () => {
+      cancelAnimationFrame(frame);
+      for(const event of events)window.removeEventListener(event,refreshVisible);
+      document.removeEventListener("visibilitychange",refreshVisible);
+    };
+  }, [enabled, open, read]);
   const resumeRunId = data?.runTiming?.runId;
+  const resumeMealTask=data?.photoHandoff&&messages.some(message=>message.mealTask&&message.id===data.runTiming?.messageId)?data.photoHandoff.taskId:null;
   useEffect(() => {
     if (!open || !resumeRunId || running || refreshing) return;
     let closed = false, timer: ReturnType<typeof setTimeout> | undefined;
@@ -310,7 +343,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
       subscription.current = controller;
       let done = false;
       try {
-        const response = await fetch(chatEndpoint + "?runId=" + resumeRunId, {
+        const response = await fetch(chatEndpoint + "?runId=" + resumeRunId+(resumeMealTask?"&taskId="+resumeMealTask:""), {
           cache: "no-store", headers: streamHeaders, signal: controller.signal,
         });
         if (response.ok) done = await consumeChatEvents(response, event => !controller.signal.aborted && applyEvent(event));
@@ -330,7 +363,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
       controller.abort();
       if (subscription.current === controller) subscription.current = null;
     };
-  },[open,resumeRunId,running,refreshing,applyEvent,read]);
+  },[open,resumeRunId,resumeMealTask,running,refreshing,applyEvent,read]);
   const legacyRun = !data?.runTiming ? data?.activeRunId : null;
   useEffect(() => {
     if (!open || !legacyRun || running) return;
@@ -369,10 +402,12 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     if (action === "stop") setStopping(true);
     try {
       setError("");
-      const requestControl = () => fetch("/api/assistant-chat/control", {
+      const mealStop=action==="stop"&&current.current?.photoHandoff&&(
+        !canChat||current.current.messages.some(message=>message.mealTask&&message.runId===runId));
+      const requestControl = () => fetch(mealStop?"/api/assistant-meal":"/api/assistant-chat/control", {
         method:"POST", headers:{"Content-Type":"application/json"},
         signal: action === "stop" ? AbortSignal.timeout(15000) : undefined,
-        body:JSON.stringify({action, ...(conversationId ? {conversationId} : {}), ...(sourceMessageId ? {sourceMessageId} : {}),
+        body:JSON.stringify(mealStop?{action:"stop",taskId:conversationId}:{action, ...(conversationId ? {conversationId} : {}), ...(sourceMessageId ? {sourceMessageId} : {}),
           ...(provider ? {provider} : {}), ...(runId ? {runId} : {})}),
       });
       const response = await requestControl().catch(error => {
@@ -390,6 +425,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
         restoreConversationDraft(payload.conversationId);
         generation.current++;
       }
+      if(switching||action==="remove_conversation")selectedPhotoTask.current=null;
       if (action === "remove_conversation" && current.current?.conversationId !== payload.conversationId) {
         setQuote(null);
         scroll.current = { top: 0, stick: true };
@@ -451,7 +487,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   }
 
   async function transmit(body:SendBody, local?:OutgoingMessage) {
-    if (request.current || mutating.current || !canChat || current.current?.activeRunId) return false;
+    if (request.current || mutating.current || (!canChat&&!body.mealTask) || current.current?.activeRunId) return false;
     const controller = new AbortController();
     const delivery: Delivery = { controller, conversationId: body.conversationId, requestId: body.requestId, flushStop };
     request.current = delivery;
@@ -470,8 +506,11 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     if (local) updateOutgoing(body.requestId,() => ({...local,phase:"sending",error:undefined}));
     let accepted = false, failure = "";
     try {
-      const response = await fetch(chatEndpoint, {
-        method:"POST",headers:{"Content-Type":"application/json", ...streamHeaders},signal:controller.signal,body:JSON.stringify(body),
+      const {mealTask,...ordinaryBody}=body;
+      const scopedBody={taskId:body.conversationId,requestId:body.requestId,provider:body.provider,timezone:body.timezone,
+        ...(body.followup?{action:"run",text:"",imageIds:[],followup:body.followup}:{action:"retry",messageId:body.messageId})};
+      const response = await fetch(mealTask?"/api/assistant-meal":chatEndpoint, {
+        method:"POST",headers:{"Content-Type":"application/json", ...streamHeaders},signal:controller.signal,body:JSON.stringify(mealTask?scopedBody:ordinaryBody),
       });
       if (!response.ok) {
         const value = await response.json();
@@ -520,7 +559,10 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   async function send(action: "send" | "retry" | "continue" = "send", messageId?: string,followup?:FollowupSubmission,
     options?:{imageSubset?:string[];viewport?:ArrivalViewport}) {
     const snapshot = current.current;
-    if (!snapshot || request.current || mutating.current || snapshot.activeRunId || !canChat) return false;
+    if (!snapshot || request.current || mutating.current || snapshot.activeRunId) return false;
+    const handoff=snapshot.photoHandoff;
+    const scoped=!!handoff&&!handoff.cancelled&&(followup?handoff.followup:!!messageId&&messages.some(message=>message.id===messageId&&message.mealTask));
+    if(((!canChat||handoff?.restricted)&&!scoped)||(handoff?.followup&&!scoped))return false;
     const ordinary = action === "send" && !followup;
     const contextQuote = ordinary ? snapshot.pendingContextQuote : undefined;
     if (contextQuote?.text === null) return false;
@@ -539,7 +581,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
     const signature = JSON.stringify(payload);
     if (pendingRequest.current?.signature !== signature || ordinary && outbox.current.has(pendingRequest.current.id))
       pendingRequest.current = {signature,id:crypto.randomUUID()};
-    const body:SendBody = {...payload,requestId:pendingRequest.current!.id};
+    const body:SendBody = {...payload,requestId:pendingRequest.current!.id,...(scoped?{mealTask:true}:{})};
     scroll.current.stick = true;
     if (!ordinary) return transmit(body);
     const local:OutgoingMessage = {
@@ -594,7 +636,7 @@ export function AssistantChatProvider({ enabled, initialEntitlement, open, accou
   return <Context.Provider value={{accountId,scrollState,recordScroll,enabled:canChat,entitlement:access,data,
     messages:localMessages.length?[...messages,...localMessages].sort((a,b)=>a.seq-b.seq || a.createdAt.localeCompare(b.createdAt)):messages,newRequests,claimArrival,draft,setDraft,quote,setQuote,
     photos,removePhoto,retryPhoto,error,loading,delayed,busy:running||!!data?.activeRunId,managing,uploading,
-    refreshing,refresh,stopping,stop,canStop:submitting || !!activeConversationRun(data),more:async()=>{if(messages[0])await read(messages[0].seq);},send,control,addPhotos,
+    refreshing,refresh,stopping,stop,canStop:submitting || !!activeConversationRun(data),more:async()=>{if(messages[0])await read(messages[0].seq);},send,control,addPhotos,openPhotoHistory,
     outgoing,retryOutgoing,restoreOutgoing,releaseSentPreview,
   }}>{children}</Context.Provider>;
 }

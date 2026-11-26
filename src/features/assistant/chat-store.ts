@@ -16,6 +16,8 @@ import { prepareRecognition, recognitionUsage, reserveRecognition, refundUnfinis
 import { assertChatAllowed, chatProviders, providerAvailable, currentProvider, providerConfigured, providerId, type ChatRates } from "./chat-config";
 import { budgetDate, CHAT_PHOTOS_PER_BATCH, chatContextLimitNotice, chatPhotoProgress, chatProviderIds, isMealTaskContext, nextBudgetReset, pendingContextQuoteId, usagePercent, type ChatContextQuote, type ChatControlAction, type ChatMessage, type ChatPhotoLimit, type ChatProvider, type ChatRunTiming, type ChatSnapshot, type ChatUsage } from "./chat-model";
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
+const handedOffMeal = sql`${conversation.context}->'photoHandoff' IS NOT NULL`;
+const mealTaskConversation = or(eq(conversation.purpose,"meal_entry"),handedOffMeal);
 export type StoredRun = typeof run.$inferSelect;
 export type StoredMessage = typeof message.$inferSelect;
 export type ChatSend = { action: "send" | "retry" | "continue"; requestId: string; provider: ChatProvider; conversationId: string; text?: string; replyToId?: string; imageIds?: string[]; imageSubset?: string[]; messageId?: string; timezone: string; followup?: FollowupSubmission; mealTask?:boolean };
@@ -35,8 +37,8 @@ export async function currentConversation(db: Database, userId: string, readOnly
 }
 export async function listChatConversations(db:Database,userId:string,before?:{at:string;id:string}){
   await requireActiveAccount(db,userId);
-  const rows=await db.select({id:conversation.id,updatedAt:conversation.updatedAt,active:conversation.active,sequence:conversation.sequence,firstText:sql<string|null>`(select m.text from assistant_messages m where m.user_id=${userId} and m.conversation_id=${sql.raw('assistant_conversations.id')} and m.role='user' order by m.seq limit 1)`}).from(conversation).where(and(eq(conversation.userId,userId),eq(conversation.purpose,"chat"),isNull(conversation.removedAt),before?or(lt(conversation.updatedAt,new Date(before.at)),and(eq(conversation.updatedAt,new Date(before.at)),lt(conversation.id,before.id))):undefined)).orderBy(desc(conversation.updatedAt),desc(conversation.id)).limit(21);
-  const items=rows.slice(0,20).map(row=>({id:row.id,title:row.firstText?.trim().slice(0,40)||(row.sequence?"图片对话":"新对话"),updatedAt:row.updatedAt.toISOString(),active:row.active}));
+  const rows=await db.select({id:conversation.id,purpose:conversation.purpose,updatedAt:conversation.updatedAt,active:conversation.active,sequence:conversation.sequence,firstText:sql<string|null>`(select m.text from assistant_messages m where m.user_id=${userId} and m.conversation_id=${sql.raw('assistant_conversations.id')} and m.role='user' order by m.seq limit 1)`}).from(conversation).where(and(eq(conversation.userId,userId),or(eq(conversation.purpose,"chat"),handedOffMeal),isNull(conversation.removedAt),before?or(lt(conversation.updatedAt,new Date(before.at)),and(eq(conversation.updatedAt,new Date(before.at)),lt(conversation.id,before.id))):undefined)).orderBy(desc(conversation.updatedAt),desc(conversation.id)).limit(21);
+  const items=rows.slice(0,20).map(row=>({id:row.id,title:row.firstText?.trim().slice(0,40)||(row.sequence?"图片对话":"新对话"),updatedAt:row.updatedAt.toISOString(),active:row.active,mealTask:row.purpose==="meal_entry"}));
   const last=rows[19];return {items,next:rows.length>20?{at:last.updatedAt.toISOString(),id:last.id}:null};
 }
 
@@ -88,10 +90,11 @@ export async function reserveChatUsage(db: Database, ownerId: string, activeRun:
     await lockGlobalBudget(tx, day);
     const [task] = await tx.select({ purpose: conversation.purpose }).from(conversation).where(and(eq(conversation.id, activeRun.conversationId), eq(conversation.userId, ownerId)));
     if (!task) throw new ApiError(404, "not_found", "当前任务不可用。");
-    const owner = await lockChatAccount(tx, ownerId, task.purpose === "meal_entry" ? "meal_entry" : "chat");
+    const mealRecognition=task.purpose==="meal_entry"||!!activeRun.executionInput?.mealTask;
+    const owner = await lockChatAccount(tx, ownerId, mealRecognition ? "meal_entry" : "chat");
     const [live] = await tx.select().from(run).where(and(eq(run.id, activeRun.id), eq(run.userId, ownerId), eq(run.state, "running")));
     if (!live) throw new ApiError(409, "stopped", "生成已停止。");
-    if (task.purpose === "meal_entry") await reserveRecognition(tx, activeRun);
+    if (mealRecognition) await reserveRecognition(tx, activeRun);
     const budget = await chatUsage(tx, ownerId);
     if (accountEntitlements(owner).amountLimited && budget.available + 1e-9 < amount) throw new ApiError(429, "daily_budget", "今日可用额度不足以开始这次请求。待结算用量也会暂占额度；提醒和手工记录仍可使用。");
     const global = await globalBudget(tx, day);
@@ -201,11 +204,11 @@ function unusedBatchPhotos(original: Pick<StoredRun,"userMessageId"|"assistantMe
   return limit.imageIds.filter(id => !used.has(id));
 }
 
-export async function activeChatSubscription(db: Database, userId: string, id: string) {
-  await requireChatAccount(db,userId);
+export async function activeChatSubscription(db: Database, userId: string, id: string, taskId?: string) {
+  await requireChatAccount(db,userId,taskId?"meal_entry":"chat");
   const [row] = await db.select({id:run.id,conversationId:run.conversationId,assistantMessageId:run.assistantMessageId})
     .from(run).innerJoin(conversation,and(eq(conversation.id,run.conversationId),eq(conversation.userId,userId)))
-    .where(and(eq(run.userId,userId),eq(run.id,id),eq(conversation.purpose,"chat"),eq(conversation.active,true)));
+    .where(and(eq(run.userId,userId),eq(run.id,id),isNull(conversation.removedAt),taskId?and(eq(conversation.id,taskId),handedOffMeal,sql`${run.executionInput}->>'mealTask'='true'`):and(eq(conversation.purpose,"chat"),eq(conversation.active,true))));
   if (!row) throw new ApiError(404,"not_found","这条回复已不可用。");
   return row;
 }
@@ -216,10 +219,12 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
   // 回复与运行会一起结束。让刷新看到同一刻的状态，包括读取照片的检查点。
   const readState = () => db.transaction(async tx => {
     const [current] = await tx.select().from(conversation).where(and(
-      eq(conversation.userId,userId), eq(conversation.purpose,taskId ? "meal_entry" : "chat"),
-      taskId ? undefined : isNull(conversation.removedAt),
-      requestedId ? eq(conversation.id,requestedId) : eq(conversation.active,true),
-    ));
+      eq(conversation.userId,userId),isNull(conversation.removedAt),
+      taskId ? mealTaskConversation : conversationId ? or(eq(conversation.purpose,"chat"),handedOffMeal)
+        : entitlement.chat ? and(eq(conversation.purpose,"chat"),eq(conversation.active,true))
+          : or(and(eq(conversation.purpose,"meal_entry"),handedOffMeal),and(eq(conversation.purpose,"chat"),eq(conversation.active,true))),
+      requestedId ? eq(conversation.id,requestedId) : undefined,
+    )).orderBy(desc(sql`${conversation.purpose}='meal_entry' AND ${handedOffMeal}`),desc(conversation.updatedAt)).limit(1);
     if (!current) return null;
     const recent = await tx.select().from(message).where(and(eq(message.userId,userId),eq(message.conversationId,current.id)))
       .orderBy(desc(message.seq)).limit(50);
@@ -230,7 +235,7 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
     }).from(run).where(and(eq(run.userId,userId),eq(run.conversationId,current.id),
       or(inArray(run.assistantMessageId,messageIds),inArray(run.userMessageId,messageIds)))).orderBy(desc(run.createdAt)) : [];
     const [active] = await tx.select({id:run.id,assistantMessageId:run.assistantMessageId,conversationId:run.conversationId,claimedAt:run.claimedAt})
-      .from(run).where(and(eq(run.userId,userId),taskId ? eq(run.conversationId,current.id) : undefined,eq(run.state,"running")));
+      .from(run).where(and(eq(run.userId,userId),taskId || current.purpose==="meal_entry" ? eq(run.conversationId,current.id) : undefined,eq(run.state,"running")));
     return {current,recent,runs,active};
   }, {isolationLevel:"repeatable read",accessMode:"read only"});
 
@@ -242,7 +247,11 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
   if (!state) throw new ApiError(404,"not_found","此任务不存在或不属于当前账号。");
   const {current,recent,runs,active} = state;
   const older = before === undefined ? recent : recent.filter(row => row.seq < before), rows = older.slice(0, 5).reverse();
-  const grantPurpose = taskId && !entitlement.chat ? "meal_entry" : "chat";
+  const grantPurpose = (taskId||current.purpose==="meal_entry")&&!entitlement.chat ? "meal_entry" : "chat";
+  const handoff=isMealTaskContext(current.context)&&current.context.photoHandoff?current.context:null;
+  const [handoffReview]=handoff?.previewId?await db.select({status:recordOperation.status}).from(recordOperation)
+    .where(and(eq(recordOperation.userId,userId),eq(recordOperation.id,handoff.previewId))).limit(1):[];
+  const mealFollowup=!!current.followup&&runs.some(item=>item.userMessageId===current.followup?.messageId&&item.executionInput?.mealTask);
   const grants = await db.select({ provider: connection.provider, enabled: connection.enabled, expiresAt: aiToken.expiresAt, revokedAt: aiToken.revokedAt }).from(connection).innerJoin(aiToken, and(eq(aiToken.id, connection.tokenId), eq(aiToken.userId, userId))).where(and(eq(connection.userId, userId),eq(connection.purpose, grantPurpose))).orderBy(desc(connection.createdAt));
   const quoteId = !taskId ? pendingContextQuoteId(current.context) : undefined;
   const contextQuotes = new Map<string, ChatContextQuote>();
@@ -260,6 +269,7 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
     const quote = row.replyToId && contextQuotes.get(row.replyToId);
     if (quote) value.replyTo = { id: quote.id, text: quote.text ?? "原消息已不可用。", contextQuote: true };
     if (row.role === "assistant") {
+      if(handoff&&rowRun?.executionInput?.mealTask)value.mealTask=true;
       const progress = chatPhotoProgress(rowRun?.executionInput);
       if (progress) value.photoProgress = progress;
       if (rowRun?.executionInput?.resume) value.resumingTask = true;
@@ -289,6 +299,7 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
   }).map(present);
   return { capabilities:chatCapabilities(),entitlement,conversationId: current.id, provider: currentProvider(providerId(current.provider)),
     followup: current.followup, messages: rows.map(present),
+    ...(handoff?{photoHandoff:{taskId:current.id,date:handoff.draft.date,mealType:handoff.draft.mealType,followup:mealFollowup,cancelled:!!handoff.cancelled,saved:handoffReview?.status==="confirmed",restricted:current.purpose==="meal_entry"}}:{}),
     ...(!taskId && before === undefined ? {contextBaseEstimate:chatContextBaseEstimate(recent,
       [current.followup, quoteId && contextQuotes.get(quoteId)?.text])} : {}), ...(quoteId ? { pendingContextQuote: contextQuotes.get(quoteId) } : {}), ...(photoUpdates.length ? { photoUpdates } : {}),
     hasMore: older.length > 5, before: rows[0]?.seq ?? null, activeRunId: active?.id ?? null,
@@ -327,8 +338,12 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
     if (active) throw new ApiError(409, "chat_busy", "已有回答正在生成，请等待或先停止。");
     const recentRequests = await tx.select({ id: run.id }).from(run).where(and(eq(run.userId, userId), gt(run.createdAt, new Date(Date.now() - 60000)))).limit(20);
     if (recentRequests.length >= 20) throw new ApiError(429, "chat_rate_limit", "发送得有些频繁，请一分钟后重试。当前输入保留。");
-    const [current] = await tx.select().from(conversation).where(and(eq(conversation.id,input.conversationId),eq(conversation.userId,userId),eq(conversation.purpose,input.mealTask?"meal_entry":"chat"),eq(conversation.active,!input.mealTask)));
-    if (!current || (isMealTaskContext(current.context) && current.context.cancelled)) throw new ApiError(404, "not_found", "当前会话已变化，请重新读取。");
+    const [current] = await tx.select().from(conversation).where(and(eq(conversation.id,input.conversationId),eq(conversation.userId,userId),isNull(conversation.removedAt),input.mealTask?mealTaskConversation:and(eq(conversation.purpose,"chat"),eq(conversation.active,true))));
+    if (!current || (input.mealTask&&(!isMealTaskContext(current.context)||current.context.cancelled))) throw new ApiError(404, "not_found", "当前会话已变化，请重新读取。");
+    if(!input.mealTask&&isMealTaskContext(current.context)&&current.context.photoHandoff&&current.followup){
+      const [mealRun]=await tx.select({id:run.id}).from(run).where(and(eq(run.userId,userId),eq(run.conversationId,current.id),eq(run.userMessageId,current.followup.messageId),sql`${run.executionInput}->>'mealTask'='true'`)).limit(1);
+      if(mealRun)throw new ApiError(409,"meal_followup_pending","请先处理本餐需要补充的信息。");
+    }
     if (!providerConfigured(input.provider)) throw new ApiError(503, "model_unavailable", "此模型暂不可用，请选择其他模型。");
     const pendingQuoteId = pendingContextQuoteId(current.context);
     let useContextQuote = false;
@@ -362,12 +377,15 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
           retainedAttachments = {attachmentSourceId,attachmentImageIds,photoBatchOf,photoBatch};
         }
       }
-      [question] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "user", text: input.followup ? followupText(current.followup,input.followup) : input.text?.trim() ?? "", supplementalAnswer, replyToId: input.replyToId, imageIds: ids }).returning();
+      const rawPhotoDescription=input.mealTask&&isMealTaskContext(current.context)&&current.context.photoHandoff;
+      const text=input.followup?followupText(current.followup,input.followup):rawPhotoDescription?input.text??"":input.text?.trim()??"";
+      [question] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "user", text, supplementalAnswer, replyToId: input.replyToId, imageIds: ids }).returning();
       [answer] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "assistant", state: "working", provider: input.provider }).returning();
     } else {
       const [original] = await tx.select().from(message).where(and(eq(message.id, input.messageId ?? ""), eq(message.userId, userId), eq(message.conversationId, current.id), eq(message.role, "assistant")));
       if (!original || !["error", "stopped", "truncated"].includes(original.state)) throw new ApiError(409, "retry_unavailable", "这条消息当前不需要重试。");
       const [previous] = await tx.select().from(run).where(and(eq(run.userId, userId), eq(run.assistantMessageId, original.id))).orderBy(desc(run.createdAt)).limit(1);
+      if(!!previous?.executionInput?.mealTask!==!!input.mealTask)throw new ApiError(409,"task_changed","请从对应的任务重试这条消息。");
       [question] = await tx.select().from(message).where(and(eq(message.userId,userId),eq(message.conversationId,current.id),eq(message.id,previous?.userMessageId??"")));
       if (!question) throw new ApiError(404,"not_found","原始问题已不可用。");
       useContextQuote = previous?.executionInput?.contextQuote === true;
@@ -396,7 +414,7 @@ export async function startChatRun(db: Database, userId: string, input: ChatSend
       } else [answer] = await tx.insert(message).values({ id: randomUUID(), userId, conversationId: current.id, seq: ++seq, role: "assistant", state: "working", provider: input.provider }).returning();
     }
     await tx.update(conversation).set({ sequence: seq, provider: input.provider, updatedAt: new Date(), ...(pendingQuoteId && input.action === "send" ? { context: null } : {}) }).where(eq(conversation.id, current.id));
-    const recognitionId = input.mealTask ? await prepareRecognition(tx, current, digestChat({ text: input.text ?? "", images: input.imageIds ?? [] }), !!input.followup) : null;
+    const recognitionId = input.mealTask ? await prepareRecognition(tx, current, digestChat({ text: question.text, images: question.imageIds }), !!input.followup) : null;
     const attachments = retainedAttachments ?? await chatAttachmentBinding(tx as unknown as Database, userId, question,
       input.followup ? current.followup?.messageId : undefined);
     const photoBatch = !input.mealTask && !retainedAttachments?.photoBatchOf && attachments.attachmentImageIds.length > CHAT_PHOTOS_PER_BATCH
@@ -475,7 +493,7 @@ export async function resumeChatInNewConversation(db: Database, userId: string, 
 export async function removeChatConversation(db: Database, userId: string, id: string) {
   await db.transaction(async tx => {
     await lockActiveAccount(tx, userId);
-    const owned = and(eq(conversation.id, id), eq(conversation.userId, userId), eq(conversation.purpose, "chat"));
+    const owned = and(eq(conversation.id, id), eq(conversation.userId, userId), or(eq(conversation.purpose, "chat"),handedOffMeal));
     const [target] = await tx.select().from(conversation).where(owned);
     if (!target) throw new ApiError(404, "not_found", "找不到这段对话。");
     if (target.removedAt) return;
@@ -499,18 +517,18 @@ export async function controlChat(db: Database, userId: string, input: { action:
   let stoppedRunId: string | undefined;
   await db.transaction(async tx => {
     const owner = await lockActiveAccount(tx, userId); if (input.action !== "stop") assertChatAllowed(owner, purpose);
-    const [current] = await tx.select().from(conversation).where(and(eq(conversation.userId,userId), input.mealTaskId ? and(eq(conversation.id, input.mealTaskId), eq(conversation.purpose, "meal_entry")) : and(eq(conversation.purpose,"chat"),eq(conversation.active,true))));
+    const [current] = await tx.select().from(conversation).where(and(eq(conversation.userId,userId),isNull(conversation.removedAt),input.mealTaskId ? and(eq(conversation.id, input.mealTaskId),mealTaskConversation) : and(eq(conversation.purpose,"chat"),eq(conversation.active,true))));
     if (!current) throw new ApiError(409,"conversation_changed","当前会话已变化，请重新读取。");
     const [busy] = await tx.select().from(run).where(and(eq(run.userId, userId), eq(run.state, "running")));
     if (input.action === "stop") {
       if (!busy || busy.id !== input.runId || busy.conversationId !== current.id ||
           input.conversationId && input.conversationId !== current.id) return;
       await tx.update(run).set({ state: "stopped" }).where(eq(run.id, busy.id));
-      await tx.update(message).set({ state: "stopped" }).where(and(eq(message.id, busy.assistantMessageId), eq(message.userId, userId))); stoppedRunId = busy.id; return;
+      await tx.update(message).set({ state: "stopped" }).where(and(eq(message.id, busy.assistantMessageId), eq(message.userId, userId))); await refundUnfinishedRecognition(tx as unknown as Database,userId,busy);stoppedRunId = busy.id; return;
     }
     if (busy && input.action === "revoke" && input.provider === busy.provider) {
       await tx.update(run).set({state:"stopped"}).where(eq(run.id,busy.id));
-      await tx.update(message).set({state:"stopped"}).where(and(eq(message.id,busy.assistantMessageId),eq(message.userId,userId)));stoppedRunId=busy.id;
+      await tx.update(message).set({state:"stopped"}).where(and(eq(message.id,busy.assistantMessageId),eq(message.userId,userId)));await refundUnfinishedRecognition(tx as unknown as Database,userId,busy);stoppedRunId=busy.id;
     } else if (busy) throw new ApiError(409, "chat_busy", "请先停止当前回答，再进行此操作。");
     if(input.action==="select_conversation"){
       const [target]=await tx.select().from(conversation).where(and(eq(conversation.id,input.conversationId??""),eq(conversation.userId,userId),eq(conversation.purpose,"chat"),isNull(conversation.removedAt)));

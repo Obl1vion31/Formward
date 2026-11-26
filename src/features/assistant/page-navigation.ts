@@ -61,11 +61,11 @@ export function useAssistantPageNavigation() {
     return () => window.removeEventListener("popstate", sync);
   }, [sync]);
 
-  const open = useCallback((view?: "tasks") => {
+  const open = useCallback((view?: "tasks", mealTask?: string) => {
     if (location.pathname === assistantPath) return;
     const source = { path: location.pathname, query: location.search };
     const entryId = crypto.randomUUID();
-    const query = view === "tasks" ? "view=tasks" : "";
+    const query = mealTask ? "mealTask="+encodeURIComponent(mealTask) : view === "tasks" ? "view=tasks" : "";
     const url = assistantPath + (query ? "?" + query : "");
     try {
       window.history.pushState({ formwardAssistantEntry: entryId }, "", url);

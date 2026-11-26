@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { usePathname, useSearchParams } from "next/navigation";
 import { draftIsBusy, draftIsDirty } from "@/components/draft-guard";
 import { useWorkspaceReturn } from "@/components/workspace-return";
+import { LoadingLink } from "@/components/loading-link";
 import { confirmationIsOpen } from "@/components/confirmation-state";
 import { dismissAssistantReminderAction } from "@/app/dashboard/assistant-actions";
 import { localMeasurementDate } from "../measurements/entry-state";
@@ -26,6 +27,7 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
   const restoration = useWorkspaceReturn()?.restoring;
   const { page, open: openPage, back: backFromPage, complete: completePageMotion } = useAssistantPageNavigation();
   const pageOpen = !!page && page.motion?.direction !== "close";
+  const [mealTask,setMealTask]=useState<string|null>(null);
   const [open, setOpen] = useState(false), [data, setData] = useState<AssistantContext | null>(null), [error, setError] = useState(""), [loading, setLoading] = useState(false), [toast, setToast] = useState(false), [paused, setPaused] = useState(false), [clock, setClock] = useState(0), [local, setLocal] = useState<{date:string;timezone:string}|null>(null);
   const dataRef = useRef<AssistantContext | null>(null), request = useRef<AbortController | null>(null), revision = useRef(0), lastRead = useRef(0), activeRoute = useRef(pathname), generation = useRef(0), phase = useRef<"open" | "closing" | "closed">("closed"), surface = useRef<SurfaceController | null>(null), ignored = useRef(new Set<string>()), latestRefresh = useRef<(force?:boolean)=>Promise<void>>(async()=>undefined);
   useEffect(()=>{activeRoute.current=pathname;},[pathname]);
@@ -62,17 +64,30 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
     if (surface.current) { if (await surface.current.dismiss()) finishHide(); }
     else finishHide();
   }, [finishHide]);
-  const show = useCallback((view?: "tasks") => {
+  const show = useCallback((view?: "tasks", task?: string) => {
     if (!assistantAvailable(location.pathname) || occupied()) return;
     setToast(false); setPaused(false); markAssistantShown(preferenceStore(), accountId, deviceTime().date);
     if (matchMedia(MOBILE_MEDIA).matches) {
-      openPage(view);
+      openPage(view,task);
       return;
     }
     phase.current = "open";
+    if(task)setMealTask(task);
     if (open) surface.current?.reopen(); else setOpen(true);
     void refresh(true);
   }, [accountId, open, openPage, refresh]);
+  const openMealTask=useCallback((id:string)=>{
+    // EntrySurface closes and restores the underlying workspace before the assistant takes focus.
+    const start=performance.now();
+    function openAfterEntry(){
+      if(occupied()||new URLSearchParams(location.search).has("entry")){
+        if(performance.now()-start<3000)requestAnimationFrame(openAfterEntry);
+        return;
+      }
+      show(undefined,id);
+    }
+    requestAnimationFrame(openAfterEntry);
+  },[show]);
   const toggle = useCallback(() => { if (phase.current === "open") void hide(); else show(); }, [hide, show]);
   const controllerReady = useCallback((next: SurfaceController | null) => { surface.current = next; }, []);
   const dismissItem = useCallback(async (id: string) => {
@@ -104,6 +119,7 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
     return () => cancelAnimationFrame(frame);
   }, [available, pathname, restoration]);
   const linkedTrend=useSearchParams().get("view")==="trend";
+  const pageTask=page?new URLSearchParams(page.query).get("mealTask"):null;
   const pending = useMemo(() => {
     if (!data || !local || data.localDate !== local.date || data.timezone !== local.timezone) return [];
     return data.pending.filter(item => !item.expiresAt || Date.parse(item.expiresAt) > clock);
@@ -122,10 +138,13 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
   useEffect(() => { if (!toast || paused) return; const timer = setTimeout(() => setToast(false), 5000); return () => clearTimeout(timer); }, [toast, paused]);
   useEffect(() => () => { generation.current++; request.current?.abort(); }, []);
   const tasks = useMemo(() => ({ data: data ? { ...data, pending } : null, error, loading, retry: () => { void refresh(true); }, dismissItem }), [data, pending, error, loading, refresh, dismissItem]);
-  const value = useMemo(() => ({ open: open && available, count: pending.length, toggle, hide, source: page?.source ?? null, page, backFromPage, completePageMotion, tasks }), [open, available, pending.length, toggle, hide, page, backFromPage, completePageMotion, tasks]);
-  return <AssistantChatProvider accountId={accountId} enabled={chatEnabled} initialEntitlement={initialEntitlement} open={pageOpen || (open && available)}><AssistantStateContext.Provider value={value}>{children}
+  const yesterday = pathname === "/dashboard" ? pending.find(item => item.mealStatus) : undefined;
+  const value = useMemo(() => ({ open: open && available, count: pending.length, toggle, hide, openMealTask, source: page?.source ?? null, page, backFromPage, completePageMotion, tasks }), [open, available, pending.length, toggle, hide, openMealTask, page, backFromPage, completePageMotion, tasks]);
+  return <AssistantChatProvider accountId={accountId} enabled={chatEnabled} initialEntitlement={initialEntitlement} open={pageOpen || (open && available)} photoTask={pageTask??mealTask}><AssistantStateContext.Provider value={value}>{children}
     {toast && !linkedTrend && available && !open && pending.length > 0 && <aside className={styles.toast} role="status" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false); }}>
-      <span>{pending.length === 1 ? pending[0].title : `有 ${pending.length} 项待查看`}</span><button type="button" onClick={() => show("tasks")}>查看</button><button type="button" aria-label="关闭提醒" onClick={() => setToast(false)}>×</button>
+      {yesterday ? <><span>昨天 · {yesterday.mealStatus === "incomplete" ? "饮食未记全" : "饮食未确认"}</span><LoadingLink returnScope="workspace" href={yesterday.action.href} onClick={()=>setToast(false)}>核对</LoadingLink></> :
+        <><span>{pending.length === 1 ? pending[0].title : `有 ${pending.length} 项待查看`}</span><button type="button" onClick={() => show("tasks")}>查看</button></>}
+      <button type="button" aria-label="关闭提醒" onClick={() => setToast(false)}>×</button>
     </aside>}
     {open && available && <AssistantSurface {...tasks} close={finishHide} requestClose={hide} controllerReady={controllerReady}/>}
   </AssistantStateContext.Provider></AssistantChatProvider>;

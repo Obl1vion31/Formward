@@ -322,3 +322,7 @@ form.energyEntry[data-entry-form=energy] .manualReading>input[type=number]{font-
     border-color: transparent;
   }
 }
+.todayAction{display:flex;align-items:center;min-height:44px;margin-top:6px}
+.todayAction :is(a,button){display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border:0;border-radius:12px;background:color-mix(in srgb,var(--gold) 12%,transparent);color:var(--warm-white);font:inherit;font-size:.875rem;text-decoration:none}
+.todayAction button:disabled{color:var(--muted)}
+.todayAction a:hover,.todayAction a:active{background:color-mix(in srgb,var(--gold) 20%,transparent)}

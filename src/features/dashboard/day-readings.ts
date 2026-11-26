@@ -15,6 +15,16 @@ export function balanceLabel(balance: number | null) {
   return balance < 0 ? "缺口" : "盈余";
 }
 
+export function missingBalanceReason(day: OverviewDay): string | undefined {
+  if (day.energyBalance !== null) return;
+  if (!day.meals.length) return "没有饮食记录";
+  if (day.mealDayStatus === "incomplete") return "饮食未记全";
+  if (day.mealDayStatus !== "complete") return "饮食未确认";
+  if (day.nutrition?.values.caloriesKcal == null) return "摄入热量未知";
+  if (day.energy.cumulative) return "消耗仍在累计";
+  return "缺全天消耗";
+}
+
 export const shortDate = (date: string) => date.slice(5).replace("-", ".");
 
 export function morningChangeReading(day: OverviewDay) {

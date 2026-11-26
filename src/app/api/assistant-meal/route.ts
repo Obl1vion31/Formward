@@ -8,7 +8,7 @@ import { assertChatAllowed } from "@/features/assistant/chat-config";
 import { readChatJson } from "@/features/assistant/chat-request";
 import { chatRunStream } from "@/features/assistant/chat-stream";
 import { abortChatRun } from "@/features/assistant/chat-runtime";
-import { mealTaskInputSchema, createMealTask, controlMealTask, mealTaskSnapshot, startMealTaskRun, applyMealTask, saveMealTask, changeMealModelGrant } from "@/features/assistant/meal-task";
+import { mealTaskInputSchema, createMealTask, controlMealTask, mealTaskSnapshot, startMealTaskRun, applyMealTask, saveMealTask, changeMealModelGrant, startPhotoHandoff, continueMealByHand } from "@/features/assistant/meal-task";
 import { assistantTimezone } from "@/features/assistant/model";
 
 export const runtime="nodejs";
@@ -28,9 +28,11 @@ export async function POST(request:Request){
   if(!parsed.success)return Response.json({error:"饮食任务格式无效，请核对填写内容。"},{status:400,headers});
   const input=parsed.data,db=getDatabase();
   if(input.action==="create"){const id=await createMealTask(db,owner.id,input.draftKey,input.draft);return Response.json(await mealTaskSnapshot(db,owner.id,id),{headers});}
-  if(input.action==="run"){
+  if(input.action==="handoff")return Response.json(await startPhotoHandoff(db,owner.id,{...input,timezone:assistantTimezone(input.timezone)}),{headers});
+  if(input.action==="manual")return Response.json(await continueMealByHand(db,owner.id,input.taskId),{headers});
+  if(input.action==="run"||input.action==="retry"){
    const {input:prepared,started}=await startMealTaskRun(db,owner.id,{...input,timezone:assistantTimezone(input.timezone)});
-   return new Response(chatRunStream(db,owner.id,prepared,request,started),{headers:{...headers,"Content-Type":"text/event-stream; charset=utf-8","X-Accel-Buffering":"no"}});
+   return new Response(chatRunStream(db,owner.id,prepared,request,started,{acceptedRequestId:input.requestId}),{headers:{...headers,"Content-Type":"text/event-stream; charset=utf-8","X-Accel-Buffering":"no"}});
   }
   if(input.action==="enable_model"||input.action==="revoke_model")return Response.json(await changeMealModelGrant(db,owner.id,input.taskId,input.provider,input.action==="enable_model"),{headers});
   if(input.action==="save"){const result=await saveMealTask(db,owner.id,input.taskId,input.revision,input.draft);revalidatePath("/dashboard","layout");return Response.json(result,{headers});}

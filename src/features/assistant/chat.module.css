@@ -687,3 +687,8 @@
   overflow-wrap: anywhere;
   white-space: pre-line;
 }
+.mealContext{margin:0 0 8px;color:var(--muted);font-size:.8125rem;text-align:center}
+.mealReturn,.examples{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mealReturn{padding:0 12px}
+.mealReturn a,.mealReturn button,.examples button{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;border:0;border-radius:10px;color:var(--warm-white);background:color-mix(in srgb,var(--warm-white) 6%,transparent);font:inherit;font-size:.8125rem;text-decoration:none;cursor:pointer}
+.mealReturn a:hover,.mealReturn button:hover,.examples button:hover{background:color-mix(in srgb,var(--warm-white) 11%,transparent)}

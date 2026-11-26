@@ -16,6 +16,7 @@ type AssistantState = {
   count: number;
   toggle: () => void;
   hide: () => Promise<void>;
+  openMealTask: (id: string) => void;
   source: AssistantSource | null;
   page: AssistantPageState | null;
   backFromPage: () => void;
@@ -23,6 +24,6 @@ type AssistantState = {
   tasks: AssistantTasksState | null;
 };
 export const AssistantStateContext = createContext<AssistantState>({
-  open: false, count: 0, toggle() {}, async hide() {}, source: null, page: null, backFromPage() {}, completePageMotion() {}, tasks: null,
+  open: false, count: 0, toggle() {}, async hide() {}, openMealTask() {}, source: null, page: null, backFromPage() {}, completePageMotion() {}, tasks: null,
 });
 export const useAssistant = () => useContext(AssistantStateContext);

@@ -8,6 +8,7 @@ import { useLocalToday } from "@/components/use-local-today";
 import { MetricCardRail } from "@/components/metric-card-rail";
 import { summaryCards } from "./summary-cards";
 import { OverviewTrend } from "./overview-trend";
+import { TodayActions } from "./today-actions";
 import type { OverviewPresentation } from "./presentation";
 import styles from "./overview.module.css";
 export function OverviewView({ presentation,accountId }: { accountId?:string; presentation: OverviewPresentation }) {
@@ -22,6 +23,7 @@ const OverviewContent=memo(function OverviewContent({presentation,accountId}:{ac
   const router=useRouter(),refreshAtMidnight=useCallback(()=>router.refresh(),[router]);
   const localToday = useLocalToday(today,refreshAtMidnight);
   return <RecordWorkspace title="总览" className={styles.workspace}>
+    <TodayActions date={localToday} day={presentation.todayOptions.find(day=>day.date===localToday)}/>
     <MetricCardRail accountId={accountId} cards={summaryCards(presentation,localToday)}/>
     <OverviewTrend data={presentation} />
   </RecordWorkspace>;

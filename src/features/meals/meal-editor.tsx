@@ -49,11 +49,12 @@ type Props = {
   onRetry?: () => void;
   allowAi?: boolean;
   onAiSaved?: (snapshot: MealSnapshot) => void;
+  onPhotoSent?: (id:string)=>void|Promise<void>;
 };
 
 export function MealEditor({
   initial, foods, historicalFoods = [], historicalItems = [], foodRefs = {}, recentMeals = [],
-  submitLabel = "保存餐次", error, busy, save, pending = false, onRetry, allowAi = true, onAiSaved,
+  submitLabel = "保存餐次", error, busy, save, pending = false, onRetry, allowAi = true, onAiSaved, onPhotoSent,
 }: Props) {
  const [aiOpen,setAiOpen]=useState(false),[aiWorking,setAiWorking]=useState(false),[aiSaving,setAiSaving]=useState(false),[aiError,setAiError]=useState("");
  const [aiBinding,setAiBinding]=useState<{taskId:string;revision:number}|null>(null),[resumeTaskId,setResumeTaskId]=useState<string|undefined>();
@@ -654,7 +655,7 @@ export function MealEditor({
    </form>
    {(aiDraftKey || resumeTaskId) && <div hidden={!aiOpen} className={styles.photoMode}>
      <MealPhotoEntry sharedHeader visible={aiOpen} initial={mealEditorInput(draft)}
-       draftKey={aiDraftKey ?? "00000000-0000-4000-8000-000000000000"} resumeTaskId={resumeTaskId}
+       draftKey={aiDraftKey ?? "00000000-0000-4000-8000-000000000000"} resumeTaskId={resumeTaskId} onHandoff={onPhotoSent}
        onRestore={restoredDraft} onApply={applyAi} onBack={() => {
          setAiOpen(false);
          setAiWorking(false);

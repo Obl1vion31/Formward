@@ -30,7 +30,6 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const [restored]=useState(recallOverview);
   const preferred = preferredRecordedDate(data.days, today, day => day.energyBalance !== null, day => data.recordDates.includes(day.date));
   const [mode, setMode] = useState<string | null>(restored?.mode??null), [custom, setCustom] = useState(restored?.custom??{ from: addCalendarDays(today, -29), to: today }), [opened, setOpened] = useState<string | null>(null);
-  useLayoutEffect(()=>{rememberOverview({mode,custom});},[mode,custom,rememberOverview]);
   const [customOpen, setCustomOpen] = useState(false), [customDraft, setCustomDraft] = useState(custom);
   const [rangeRevision, setRangeRevision] = useState(0);
   const [nestedChange, setNestedChange] = useState(false);
@@ -44,7 +43,9 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   try { const length = calendarOrdinal(to) - calendarOrdinal(from) + 1; if (length > 0 && length <= 3661) dates = Array.from({ length }, (_, index) => addCalendarDays(from, index)); } catch {}
   const days = dates.map(date => byDate.get(date) ?? blankDay(date));
   const fallback = preferredRecordedDate(days, today, day => day.energyBalance !== null, day => data.recordDates.includes(day.date));
-  const selection=useChartDateSelection(dates,preferred,fallback,customOpen),selected=selection.selected,day=days.find(day=>day.date===selected),dialogDay=opened?byDate.get(opened)??blankDay(opened):null;
+  const selection=useChartDateSelection(dates,preferred,fallback,customOpen,"",true,restored?.selectedDate),selected=selection.selected,day=days.find(day=>day.date===selected),dialogDay=opened?byDate.get(opened)??blankDay(opened):null;
+  const selectedDate=selection.locked||selection.direct?selected:undefined;
+  useLayoutEffect(()=>{rememberOverview({mode,custom,selectedDate});},[mode,custom,selectedDate,rememberOverview]);
   function changeRange(key: string) {
     selection.leave();
     if (key === "custom") {
@@ -99,6 +100,8 @@ function OverviewDayDetails({day}:{day:OverviewDay}){
   </div>
   <section className={styles.detailNutrition}>{day.nutrition&&day.mealDayStatus!=="complete"&&<span className={styles.mealDayStatus}>{day.mealDayStatus==='incomplete'?'饮食未记全':'饮食待确认'}</span>}<DayNutritionSummary totals={day.nutrition} partial={day.mealDayStatus!=="complete"}/></section>
   <SavedMealList meals={day.meals} initialLimit={3}/>
-  <LoadingLink href={"/dashboard/meals?date="+day.date}>查看饮食记录 →</LoadingLink>
+  <LoadingLink returnScope="workspace" href={"/dashboard/meals?date="+day.date+(day.meals.length&&day.mealDayStatus!=="complete"?"&intent=edit":"")}>
+   {day.meals.length&&day.mealDayStatus!=="complete"?"核对当天饮食 →":"查看饮食记录 →"}
+  </LoadingLink>
  </div>;
 }

@@ -11,6 +11,7 @@ import {chatDisplayText,chatTranscript} from "./chat-presentation";
 /* eslint-disable @next/next/no-img-element -- 会话原图须按账号鉴权，不能进入公开图片优化缓存。 */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useId, type ReactNode } from "react";
 import { LoadingLink } from "../../components/loading-link";
+import { confirmAction } from "@/components/confirmation-state";
 import { useAssistantChat, useOptionalAssistantChat, type ArrivalViewport } from "./chat-client";
 import { CHAT_INPUT_LIMIT, CHAT_PHOTOS_PER_BATCH, chatContextLimitNotice, nextChatInputEstimate, type ChatMessage, type ChatPhotoLimit } from "./chat-model";
 import glass from "@/components/glass-controls.module.css";
@@ -73,7 +74,7 @@ const chatTabs: readonly ChatTab[] = ["chat", "tasks"];
 
 export function ChatNavigation({tab,onTab,pendingCount}:{tab:ChatTab;onTab:(value:ChatTab)=>void;pendingCount:number}) {
   const chat = useOptionalAssistantChat();
-  const locked = Boolean(chat?.entitlement && !chat.entitlement.chat);
+  const locked = Boolean(chat?.entitlement && !chat.entitlement.chat&&!chat.data?.photoHandoff);
   const slide = useSlidingSelection(chatTabs.indexOf(tab), index => onTab(chatTabs[index]));
   return <div className={styles.navigation}>
     <div {...slide} className={styles.navTabs + " " + glass.track} role="tablist" aria-label="小助手内容"
@@ -112,6 +113,9 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
   const draftMeasurement = useRef<{ field: HTMLTextAreaElement; value: string; scrollEnd: number } | null>(null);
   const transcript = chatTranscript(chat.messages);
   const task = chat.data?.followup, pendingQuote = chat.data?.pendingContextQuote;
+  const meal=chat.data?.photoHandoff;
+  const ordinaryChat=chat.enabled&&!meal?.restricted;
+  const showComposer=ordinaryChat&&!meal?.followup;
   const baseEstimate = chat.data?.contextBaseEstimate;
   const draftForEstimate = chat.draft + (chat.quote ? (chat.quote.question?.text ?? "") + chat.quote.text : "");
   const nearContextLimit = chat.enabled && !chat.busy && baseEstimate !== undefined &&
@@ -145,7 +149,9 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
     </div>}
   </>;
   const draftPhotos = chat.photos.length > 0 && <div className={styles.composerMedia}><DraftPhotos/></div>;
-  const selected = chat.data?.catalog.find(model => model.id === chat.data?.provider), blocked = !chat.enabled || !chat.data || chat.managing || !selected?.configured || !selected.enabled || chat.data.usage.available <= 0;
+  const selected = chat.data?.catalog.find(model => model.id === chat.data?.provider);
+  const modelBlocked=!chat.data||chat.managing||!selected?.configured||!selected.enabled||chat.data.usage.available<=0&&(!meal||!chat.data.usage.recognition);
+  const blocked = !showComposer||modelBlocked;
   useLayoutEffect(() => { const node = feed.current; if (!node || tab !== "chat") return;
     const conversationId = chat.data?.conversationId;
     if (!conversationId) return;
@@ -269,18 +275,20 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
         {chat.data?.hasMore && chat.messages.length < 50 && <button className={styles.loadMore} disabled={chat.loading} onClick={() => { if (feed.current) moreAnchor.current = { top:feed.current.scrollTop,height:feed.current.scrollHeight }; void chat.more(); }}>{chat.loading ? "正在读取…" : "查看更早消息"}</button>}
         {chat.messages.length >= 50 && <p className={styles.historyHint}>当前显示最近50条消息</p>}
         {!chat.data&&chat.enabled&&!chat.error&&<div className={styles.historyLoading}><LocalLoading/></div>}
-        {chat.data&&!chat.messages.length && <div className={styles.welcome}><h3>今天想聊点什么？</h3><p>可以拍照记饮食、记录体重或查询记录。</p></div>}
+        {meal&&<p className={styles.mealContext} data-meal-handoff-context>{meal.date} · {meal.mealType} · 饮食拍照</p>}
+        {ordinaryChat&&chat.data&&!chat.messages.length && <div className={styles.welcome}><h3>今天想聊点什么？</h3><div className={styles.examples}>{["查看昨天的饮食","记录今天的晨重"].map(example=>
+          <button type="button" key={example} onClick={()=>{chat.setDraft(example);input.current?.focus();}}>{example}</button>)}</div></div>}
         {transcript.visible.map(message => {
           const requestId = message.requestId, local = requestId ? chat.outgoing.get(requestId) : undefined;
           const followup = message.id===taskAnchor && message.state==="complete" ? task : null;
           const timing = chat.data?.runTiming?.messageId===message.id ? chat.data.runTiming : undefined;
           const continuation = transcript.continuations.has(message.id);
-          const canCite = chat.enabled && message.state === "complete";
+          const canCite = showComposer && message.state === "complete";
           const contextInterrupted = message.state === "error" && message.contextLimited && !message.photoLimit;
           const failed = ["stopped","truncated","error"].includes(message.state);
           const photoResume = failed && !contextInterrupted ? message.photoProgress : undefined;
           const remainingPhotos = photoResume ? photoResume.total - photoResume.read : 0;
-          const canRetry = failed && !message.photoLimit && !message.contextLimited && !photoResume;
+          const canRetry = failed && !message.photoLimit && !message.contextLimited && !photoResume && (!message.mealTask||!!meal&&!meal.cancelled&&!meal.saved);
           const canContinue = message.state !== "error" && !!message.text.trim();
           const actions = !contextInterrupted && message.role === "assistant" && message.state !== "working" && (canCite || message.text || canRetry)
             ? <div className={styles.actions}>
@@ -290,14 +298,14 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
                 {message.text && <button type="button" className={styles.messageAction} aria-label="复制" title="复制" onClick={() => void copy(message)}>
                   <Glyph name="copy"/><span>复制</span>
                 </button>}
-                {canRetry && <button type="button" disabled={chat.busy || blocked} onClick={() => void chat.send(canContinue ? "continue" : "retry",message.id)}>
+                {canRetry && <button type="button" disabled={chat.busy || (message.mealTask?modelBlocked:blocked)} onClick={() => void chat.send(canContinue&&!message.mealTask ? "continue" : "retry",message.id)}>
                   {canContinue ? "继续回答" : "重试这条消息"}
                 </button>}
               </div> : undefined;
           return <ArrivingMessage key={message.role==="user"&&requestId?"user-"+requestId:message.id}
             message={message} eligible={message.role==="user"&&!!requestId&&chat.newRequests.has(requestId)} viewport={local?.viewport}
             className={`${styles.message} ${message.role === "user" ? styles.user : styles.assistant}${continuation ? " " + styles.continuation : ""}`}>
-            <ChatMessageBody message={message} inlinePreviews={chat.data?.capabilities?.inlinePreviews===true} navigate={navigate} jump={jump}
+            <ChatMessageBody message={message} inlinePreviews={message.mealTask===true||chat.data?.capabilities?.inlinePreviews===true} navigate={navigate} jump={jump}
               followup={followup} timing={timing} answers={transcript.answers.get(message.id)} previews={local}
               continuation={continuation} actions={actions}
               onPhotoHandoff={id=>{if(requestId) chat.releaseSentPreview(requestId,id);}}
@@ -323,7 +331,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
                     {remainingPhotos ? `继续读取剩余 ${remainingPhotos} 张` : "重试汇总"}
                   </button>
                 </div> : undefined}>
-              {followup && <FollowupForm key={followup.messageId} task={followup} busy={chat.busy||blocked}
+              {followup && <FollowupForm key={followup.messageId} task={followup} busy={chat.busy||(meal?.followup?modelBlocked:blocked)}
                 submit={value=>chat.send("send",undefined,value)}/>}
             </ChatMessageBody>
           </ArrivingMessage>;
@@ -333,8 +341,22 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
 
       {pinnedPreview&&<section className={styles.pinnedPreview} aria-label="待确认提交"><header><span>待确认提交</span><button type="button" ref={previewBack} onClick={closePreview}>{page?"返回待办":"返回聊天"}</button></header><ChatPreviewCard id={pinnedPreview} navigate={navigate}/></section>}
       <div ref={composer} className={styles.composerArea} inert={panel === "connections"||!!pinnedPreview}>
-        {(!page || !chat.enabled) && <div className={styles.composerExtras} data-chat-composer-notices>{composerNotices}</div>}
-        {chat.enabled?<div className={styles.composer} data-chat-composer-frame>
+        {(!page || !showComposer) && <div className={styles.composerExtras} data-chat-composer-notices>{composerNotices}</div>}
+        {meal&&!meal.saved&&<div className={styles.mealReturn}>
+          <LoadingLink returnScope="assistant" href={"/dashboard/meals?date="+meal.date+"&entry=1&manualTask="+meal.taskId} beforeNavigate={async()=>{
+            if(!meal.cancelled){
+              if(!await confirmAction({title:"改用手填？",message:"结束本次识别，带回发给助手前的原草稿。",confirmLabel:"返回手填"}))return false;
+              try{
+                const response=await fetch("/api/assistant-meal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"manual",taskId:meal.taskId})});
+                if(!response.ok)throw Error((await response.json()).error??"暂时无法恢复草稿。");
+                window.dispatchEvent(new Event("formward-assistant-updated"));
+              }catch(error){setNotice(error instanceof Error?error.message:"暂时无法恢复草稿，请重试。");return false;}
+            }
+            return navigate();
+          }}>{meal.cancelled?"返回原草稿":"改用手填"}</LoadingLink>
+          {!showComposer&&chat.canStop&&<button type="button" disabled={chat.stopping} onClick={chat.stop}>停止识别</button>}
+        </div>}
+        {showComposer?<div className={styles.composer} data-chat-composer-frame>
           {page ? <div className={styles.composerExtras} data-chat-composer-extras>
             {composerNotices}
             {draftPhotos}
@@ -373,7 +395,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
                     if (page && document.activeElement === input.current) event.preventDefault();
                   }} onClick={submit}><Glyph name="send"/></button>}
           </div>
-        </div>:<div className={styles.chatLocked}><strong>{"当前档位未开放聊天"}</strong><p>{chat.entitlement?.mealRecognition?"你仍可拍照录入饮食，或手动记录。":"已有消息和输入保留，可继续手动记录。"}</p>{chat.entitlement?.mealRecognition&&<LoadingLink href="/dashboard/meals" beforeNavigate={navigate}>去饮食页拍照录入</LoadingLink>}</div>}
+        </div>:!meal&&<div className={styles.chatLocked}><strong>{"当前档位未开放聊天"}</strong><p>{chat.entitlement?.mealRecognition?"你仍可拍照录入饮食，或手动记录。":"已有消息和输入保留，可继续手动记录。"}</p>{chat.entitlement?.mealRecognition&&<LoadingLink href="/dashboard/meals" beforeNavigate={navigate}>去饮食页拍照录入</LoadingLink>}</div>}
 
         {page ? <div className={styles.composerBottomGap} data-chat-composer-bottom-gap aria-hidden="true"/> : quotaNotice}
       </div>

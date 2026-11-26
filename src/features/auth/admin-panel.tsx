@@ -69,8 +69,8 @@ export function AdminPanel({email,initial,embedded=false,initialTab="accounts",i
     const messages: Record<AccountCommand, string> = {
       suspend: "停用后，此账号将退出全部设备，AI 授权和未使用的重设链接会失效。健康记录保留。",
       restore: "恢复后可重新登录。旧会话、旧链接和旧 AI 授权保持失效。",
-      revoke_access: "此账号将退出全部设备，并断开 AI 授权及作废未使用的重设链接。",
-      reset_password: "请先通过原联系渠道核实本人。链接有效 15 分钟，成功重设后将退出全部设备并断开 AI 授权。",
+      revoke_access: "此账号将退出全部设备，AI 授权和未使用的重设链接失效。历史记录保留。",
+      reset_password: "请先核实本人。链接有效 15 分钟。成功重设后全部设备退出登录，AI 授权失效，历史记录保留。",
     };
     if (command === "suspend" && !reason.trim()) { task.setError("请填写停用原因。"); return; }
     if (!await confirmAction({ title: command === "reset_password" ? "生成密码重设链接" : actionNames[command], message: `${subject.email}：${messages[command]}`, danger: command === "suspend" || command === "revoke_access", confirmLabel: "确认" })) return;

@@ -56,7 +56,7 @@ function AssistantPage({ page }: { page: AssistantPageState | null }) {
     setSelection({ entryId, tab: "tasks" });
   }
   const selectTab = (tab: ChatTab) => setSelection({ entryId, tab });
-  const tab = selection?.entryId === entryId ? selection.tab : (params.get("view") === "tasks" || !chat.enabled ? "tasks" : "chat");
+  const tab = selection?.entryId === entryId ? selection.tab : (params.get("view") === "tasks" || !chat.enabled&&!params.has("mealTask")&&!chat.data?.photoHandoff ? "tasks" : "chat");
   const history = params.get("history");
   const conversation = history && validConversation.test(history) ? history : null;
   const closing = motion?.direction === "close";

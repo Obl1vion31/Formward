@@ -10,7 +10,7 @@ import { profileAge, validateProfile, type PersonalProfile } from "./model";
 import { BirthDateInput } from "./birth-date-input";
 import styles from "./profile.module.css";
 
-export function ProfileForm({initial,today,onboarding=false,test=false,onContinue,embedded=false,initialEditing=false,onSaved}:{onSaved?:(profile:PersonalProfile)=>void;initialEditing?:boolean;embedded?:boolean;initial:PersonalProfile;today:string;onboarding?:boolean;test?:boolean;onContinue?:(profile:PersonalProfile)=>void}) {
+export function ProfileForm({initial,today,onboarding=false,test=false,onContinue,onboardingLabel="保存并进入总览",embedded=false,initialEditing=false,onSaved}:{onSaved?:(profile:PersonalProfile)=>void;initialEditing?:boolean;embedded?:boolean;initial:PersonalProfile;today:string;onboarding?:boolean;test?:boolean;onContinue?:(profile:PersonalProfile)=>void;onboardingLabel?:string}) {
   const [saved,setSaved]=useState(initial),[height,setHeight]=useState(initial.heightCm??""),[birth,setBirth]=useState(initial.birthDate??"");
   const [sex,setSex]=useState(initial.sexForCalculation??"");
   const [editing,setEditing]=useState(onboarding||initialEditing),[busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[failed,setFailed]=useState(false),[conflict,setConflict]=useState(false);
@@ -24,10 +24,10 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
     setNotice("");setFailed(false);setConflict(false);
     try {
       if(!skip&&birth&&!/^\d{4}-\d{2}-\d{2}$/.test(birth))throw new Error("请选择完整的出生日期，或清空三项。");
-      const value=skip?null:validateProfile({expectedVersion:saved.version,heightCm:height,birthDate:birth,sexForCalculation:sex||null,continueOnboarding:onboarding},today);
-      if(test) { onContinue?.({...saved,heightCm:value?.heightCm??null,birthDate:value?.birthDate??null,sexForCalculation:value?.sexForCalculation??null,onboardingStep:"tutorial"});return; }
+      const value=skip?null:validateProfile({expectedVersion:saved.version,heightCm:height,birthDate:birth,sexForCalculation:sex||null,...(onboarding?{completeOnboarding:true}:{})},today);
+      if(test) { onContinue?.({...saved,heightCm:value?.heightCm??saved.heightCm,birthDate:value?.birthDate??saved.birthDate,sexForCalculation:value?.sexForCalculation??saved.sexForCalculation,onboardingStep:"complete"});return; }
       submitting.current=true;setPending(skip?"skip":"save");setBusy(true);
-      const result=skip?await advanceOnboardingAction({expectedVersion:saved.version,step:"tutorial"}):await saveProfileAction(value);
+      const result=skip?await advanceOnboardingAction({expectedVersion:saved.version,step:"complete",skipProfile:true}):await saveProfileAction(value);
       if(!result.ok){setFailed(true);setConflict(result.code==="version_conflict");setNotice(result.error);return;}
       setSaved(result.data);setHeight(result.data.heightCm??"");setBirth(result.data.birthDate??"");setSex(result.data.sexForCalculation??"");onSaved?.(result.data);
       if(onboarding){onContinue?.(result.data);}else{setEditing(false);setNotice("资料已保存。");}
@@ -55,8 +55,8 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
   }
   return <section className={styles.personal}>
     {!onboarding&&!embedded&&<WorkspaceReturnLink className={styles.back}/>}
-    {!embedded&&<h1>{onboarding?"先认识一下你":"个人资料"}</h1>}
-    {!onboarding&&<p className={styles.intro}>{editing?"修改后，点保存才会生效。":"不是每天要填的资料，变化时再来修改。"}</p>}
+    {!embedded&&<h1>个人资料</h1>}
+    {!embedded&&<p className={styles.intro}>身高、出生日期和计算用性别用于估算全天消耗。可在计算时再补填。</p>}
     {editing?<form data-entry-form="profile" aria-busy={busy} noValidate onSubmit={event=>{event.preventDefault();void submit();}}>
       <div className={styles.fields}>
         <label><span className={styles.label}>身高 <small>选填</small></span><span className={styles.input}><input aria-label="身高" inputMode="decimal" placeholder="例如172" value={height} onChange={e=>setHeight(e.target.value)} disabled={busy}/><span>cm</span></span></label>
@@ -65,7 +65,7 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
       </div>
       {notice&&<p className={styles.notice} role={failed?"alert":"status"}>{notice}</p>}
       {conflict&&<button className={styles.quiet} type="button" onClick={()=>void latest()}>查看最新资料</button>}
-      <div className={styles.actions}><button className={styles.quiet} type="button" disabled={busy} onClick={()=>void(onboarding?submit(true):cancel())}>{onboarding?"暂时跳过":"取消"}<span className={styles.pendingIcon}><LocalLoading active={busy&&pending==="skip"} iconOnly label="正在继续…"/></span></button><button className={styles.primary} disabled={busy} type="submit">{onboarding?"保存并继续":"保存资料"}<span className={styles.pendingIcon}><LocalLoading active={busy&&pending==="save"} iconOnly label="正在保存资料…"/></span></button></div>
+      <div className={styles.actions}><button className={styles.quiet} type="button" disabled={busy} onClick={()=>void(onboarding?submit(true):cancel())}>{onboarding?"暂时跳过":"取消"}<span className={styles.pendingIcon}><LocalLoading active={busy&&pending==="skip"} iconOnly label="正在继续…"/></span></button><button className={styles.primary} disabled={busy} type="submit">{onboarding?onboardingLabel:"保存资料"}<span className={styles.pendingIcon}><LocalLoading active={busy&&pending==="save"} iconOnly label="正在保存资料…"/></span></button></div>
     </form>:<>
       <dl className={styles.readings}><div><dt>身高</dt><dd>{saved.heightCm??"—"}{saved.heightCm&&<small>cm</small>}</dd></div><div><dt>计算用性别</dt><dd className={styles.birth}>{saved.sexForCalculation==="male"?"男":saved.sexForCalculation==="female"?"女":"暂不填写"}</dd></div><div className={styles.birthRow}><dt>出生日期</dt><dd className={styles.birth}>{saved.birthDate?.replaceAll("-",".")??"—"}</dd><p>{saved.birthDate?`${profileAge(saved.birthDate,today)}岁 · 年龄自动更新`:"暂未填写"}</p></div></dl>
       <p className={styles.dataNote}>体重和体脂在“身体”页按日期记录。</p>

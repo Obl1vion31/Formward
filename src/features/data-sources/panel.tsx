@@ -28,16 +28,22 @@ function SourceContent({ data, embedded, pending = false, busy = false, task = n
   const connection = data?.connections[0], disabled = pending || busy;
   const regionChanged = !!connection && region !== connection.region, credentialDirty = !!apiKey || regionChanged;
   const prefix = connection ? regionLabels[connection.region] + " · " : "";
-  const status = error || notice || (connection?.status === "paused" ? prefix + "已暂停同步" : connection?.error || (connection?.lastSuccessAt ? prefix + "上次读取 " + time(connection.lastSuccessAt) : connection ? prefix + "已连接" : "尚未连接"));
+  const status = connection?.status === "paused" ? prefix + "已连接 · 同步已暂停" : connection ? prefix + "已连接" : "尚未连接";
+  const syncIssue = error || (!notice && connection?.error) || "";
+  const result = syncIssue || notice || (connection?.lastSuccessAt ? "上次同步 " + time(connection.lastSuccessAt) : "");
   return <div className={styles.panel} aria-busy={pending || busy} data-source-access={data?.enabled === false ? "unavailable" : "available"}>
     {!embedded && <div className={styles.heading}><h1>连接设备与数据来源</h1><WorkspaceReturnLink fallback="/dashboard/energy"/></div>}
     {data?.enabled === false ? <section className={styles.empty}><h2>暂未开放</h2><p>当前账号可以继续手动记录消耗、运动和身体数据。</p><LoadingLink href="/dashboard/energy">查看消耗记录 →</LoadingLink></section> :
       <section className={styles.connection} aria-label="Garmin Personal 连接">
-        <div className={styles.sectionHeading}><h2>Garmin Personal</h2><button type="button" disabled={disabled || !connection || !active || !metrics.length || dirty || credentialDirty} onClick={sync}>{task === "sync" ? "正在同步…" : "立即同步"}</button></div>
-        <div className={styles.status} role={error || !notice && connection?.error ? "alert" : "status"}>{pending ? <LocalLoading label="正在读取连接…"/> : status}</div>
+        <div className={styles.sectionHeading}><h2>Garmin Personal</h2>{connection&&<button type="button" disabled={disabled || !active || !metrics.length || dirty || credentialDirty} onClick={sync}>{task === "sync" ? "正在同步…" : "立即同步"}</button>}</div>
+        <div className={styles.status} role="status">{status}</div>
+        {!connection&&data&&<p className={styles.keyHelp}>可同步 {sourceMetrics.map(metric=>metricLabels[metric]).join("、")}。</p>}
+        {result&&<div className={styles.syncResult} role={syncIssue?"alert":"status"}><span>{result}</span>
+          {connection&&(syncIssue?active&&!dirty&&!credentialDirty&&<button type="button" disabled={disabled} onClick={sync}>重试同步</button>:<LoadingLink returnScope="workspace" href="/dashboard/energy">查看消耗记录</LoadingLink>)}
+        </div>}
         {!pending && !data && error ? <button type="button" onClick={retry}>重新读取连接</button> : <>
           <details className={styles.settings}>
-            <summary>{pending ? "个人密钥" : connection ? "更换个人密钥" : "输入个人密钥"}</summary>
+            <summary>{connection ? "更换个人密钥" : "连接 Garmin"}</summary>
             <form onSubmit={bind}>
               <div className={styles.keyFields}>
                 <label className={styles.field}>Garmin 站点<select name="garminRegion" value={region} onChange={event => setRegion?.(event.target.value as Region)} disabled={disabled || dirty}><option value="global">国际站</option><option value="china">中国站</option></select></label>
@@ -47,14 +53,14 @@ function SourceContent({ data, embedded, pending = false, busy = false, task = n
               <button type="submit" disabled={disabled || dirty || apiKey.trim().length < 10}>{task === "bind" ? "正在连接并同步…" : connection ? "更换并同步" : "连接并同步"}</button>
             </form>
           </details>
-          <form onSubmit={save} className={styles.contentForm}>
+          {connection&&<><form onSubmit={save} className={styles.contentForm}>
             <fieldset disabled={disabled || !connection || credentialDirty}><legend>同步内容与连接</legend>
               <div className={styles.checks}>{sourceMetrics.map(metric => <label key={metric} className={styles.check}><span className={styles.checkbox}><input type="checkbox" checked={metrics.includes(metric)} onChange={event => setMetrics?.(event.target.checked ? [...metrics, metric] : metrics.filter(m => m !== metric))}/></span>{metricLabels[metric]}</label>)}</div>
               <label className={styles.check}><span className={styles.checkbox}><input type="checkbox" checked={active} onChange={event => setActive?.(event.target.checked)}/></span>开启自动同步</label>
               <button type="submit" disabled={disabled || !connection || !dirty || credentialDirty}>{task === "save" ? "正在保存并同步…" : "保存并同步"}</button>
             </fieldset>
           </form>
-          <details className={styles.settings}><summary>补齐历史</summary><form onSubmit={history}><label className={styles.field}>起始日期<input type="date" value={historyFrom} max={data?.today || undefined} required onChange={event => setHistoryFrom?.(event.target.value)} disabled={disabled}/></label><button type="submit" disabled={disabled || !connection || !active || !metrics.length || dirty || credentialDirty}>同步至今天</button></form></details>
+          <details className={styles.settings}><summary>补齐历史</summary><form onSubmit={history}><label className={styles.field}>起始日期<input type="date" value={historyFrom} max={data?.today || undefined} required onChange={event => setHistoryFrom?.(event.target.value)} disabled={disabled}/></label><button type="submit" disabled={disabled || !active || !metrics.length || dirty || credentialDirty}>同步至今天</button></form></details></>}
         </>}
       </section>}
   </div>;

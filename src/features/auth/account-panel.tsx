@@ -26,12 +26,13 @@ export function AccountPanel({ initial,embedded=false }: { initial: PersonalAcco
   async function changePassword(event: FormEvent) {
     event.preventDefault();
     if (newPassword !== confirmation) { task.setError("两次新密码不一致。"); return; }
-    if (!await confirmAction({ title: "修改密码", message: "修改成功后会退出全部登录设备、断开 AI 授权并暂停设备同步，需要重新登录和连接。", confirmLabel: "修改并退出" })) return;
+    if (!await confirmAction({ title: "修改 " + data.email + " 的密码", message: "全部设备将退出登录，AI 授权失效，设备同步暂停。历史记录保留。", confirmLabel: "修改并退出" })) return;
     const result = await task.run("正在修改密码…", () => changePersonalPasswordAction(oldPassword, newPassword));
     if (result?.ok) { setOldPassword(""); setNewPassword(""); setConfirmation(""); signedOut(); }
   }
   async function revokeDevice(id: string) {
-    if (!await confirmAction({ title: "退出登录设备", message: id === data.currentSessionId ? "将退出当前设备。" : "将退出所选设备，其余设备保持登录。", confirmLabel: "退出设备" })) return;
+    const device=data.devices.find(item=>item.id===id);
+    if (!device||!await confirmAction({ title: "退出 " + deviceName(device.userAgent), message: data.email + " 将在该设备上退出登录。历史记录和 AI 授权保留。", confirmLabel: "退出设备" })) return;
     await task.run("正在退出设备…", async () => {
       const result = await revokePersonalSessionAction(id);
       if (!result.ok) return result;
@@ -42,7 +43,7 @@ export function AccountPanel({ initial,embedded=false }: { initial: PersonalAcco
   }
   async function revokeAll(event: FormEvent) {
     event.preventDefault();
-    if (!await confirmAction({ title: "撤销全部访问", message: "将退出全部登录设备、断开全部 AI 授权，暂停设备数据同步，并使未使用的密码重设链接失效。", danger: true, confirmLabel: "撤销并退出" })) return;
+    if (!await confirmAction({ title: "撤销 " + data.email + " 的全部访问", message: "全部设备将退出登录，AI 授权和未使用的重设链接失效，设备同步暂停。历史记录保留。", danger: true, confirmLabel: "撤销并退出" })) return;
     const result = await task.run("正在撤销访问…", () => revokePersonalAccessAction(accessPassword));
     if (result?.ok) { setAccessPassword(""); signedOut(); }
   }

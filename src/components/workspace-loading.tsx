@@ -14,7 +14,7 @@ import {useChartViewport} from './use-chart-viewport';
 import {useMobileMode} from './use-mobile-mode';
 import {WorkspacePending} from "@/features/dashboard/workspace-cache";
 import {DailyRecords} from './daily-records';
-import {WorkspaceSourceContext} from './workspace-frame-state';
+import {WorkspaceSourceContext,WorkspaceTodayContext} from './workspace-frame-state';
 import {EnergySourceStatusSkeleton} from '@/features/data-sources/energy-status';
 import {NutritionLegend,EnergyLegend} from './chart-legend';
 import {MetricCardRailPending} from './metric-card-rail';
@@ -24,13 +24,15 @@ import {OverviewPlotLoadingGuides,OverviewTrendLayout} from '@/features/dashboar
 import measurementStyles from '@/features/measurements/measurements-view.module.css';
 import {isMealLibrary} from "@/features/meals/library-location";
 import {FoodLibraryLoading} from "@/features/meals/library-controls";
-import {NutritionSummaryCard} from "@/features/meals/nutrition-summary-card";
+import {MealPageActions,NutritionSummaryCard} from "@/features/meals/nutrition-summary-card";
+import {EstimateTodayAction} from "@/features/activities/energy-view";
 import {EnergyComposition} from '@/features/activities/energy-composition';
 import {EnergyPlotFrame} from '@/features/activities/energy-plot-frame';
 import {relationshipFrameStyle} from "@/features/dashboard/relationship-frame";
 import {formatRecordNumber} from "./number-format";
 import {formatNutrition} from "@/features/meals/model";
 import overview from '@/features/dashboard/overview.module.css';
+import {TodayActions} from '@/features/dashboard/today-actions';
 export function WorkspaceLoading({kind,returnShell=false,destination}:{kind:'overview'|'nutrition'|'energy'|'body';returnShell?:boolean;destination?:string}){
  const sourcePilot=useContext(WorkspaceSourceContext);
  const {preview,previewReadings,returningToOverview,sceneLeaving,recallOverview}=useChartTransition(),ref=useRef<HTMLDivElement>(null),router=useRouter(),[attempt,setAttempt]=useState(0),routeParams=useSearchParams(),mobile=useMobileMode(),params=destination?new URL(destination,'https://formward.invalid').searchParams:routeParams;
@@ -68,6 +70,7 @@ export function WorkspaceLoading({kind,returnShell=false,destination}:{kind:'ove
  <RecordTrendPanel chartSummary={body?<span aria-hidden="true"> </span>:undefined} date={date} view={()=>{}} presentation={kind} loading
   metrics={metrics} mobileMetrics={mobileMetrics} readingStatus={primaryStatus}
   readings={kind==="nutrition"?<NutritionSummaryCard date={date} totals={nutritionTotals} loading readingStatus={primaryStatus}/>:undefined}
+  supplementary={kind==="nutrition"?<MealPageActions/>:kind==="energy"?<EstimateTodayAction today="" pending/>:undefined}
   title={kind==='nutrition'?'每日摄入':body?'体重 · kg':'每日消耗'} unit={body?undefined:'千卡'} range={<ChartRanges value={range} change={()=>{}} loading/>}
   options={kind==='nutrition'?<InlineChartControls><div role="group" aria-label="营养占比口径"><button type="button" disabled aria-pressed>克数占比</button><button type="button" disabled aria-pressed={false}>能量占比</button></div></InlineChartControls>:body?<PendingEvening linked={linked}/>:undefined}
   legend={kind==='nutrition'?<NutritionLegend/>:body?<><span><i style={{background:'var(--data-weight)',borderRadius:'50%'}}/>晨间空腹</span>{params.get('view')!=='trend'&&<span><i style={{background:'var(--data-deficit)',borderRadius:'50%'}}/>晚间</span>}</>:<EnergyLegend/>}
@@ -93,7 +96,10 @@ export function WorkspaceLoading({kind,returnShell=false,destination}:{kind:'ove
   ?returningToOverview||!sceneLeaving?<WorkspacePending path="/dashboard" query="">{content}</WorkspacePending>:content
   :<WorkspacePending>{content}</WorkspacePending>;
 }
-function OverviewLoading({date,rangeMode,readingStatus,showPlotGuides}:{date:string;rangeMode?:string;readingStatus?:React.ReactNode;showPlotGuides:boolean}){return <RecordWorkspace title="总览" className={overview.workspace}>
+function OverviewLoading({date,rangeMode,readingStatus,showPlotGuides}:{date:string;rangeMode?:string;readingStatus?:React.ReactNode;showPlotGuides:boolean}){
+ const today=useContext(WorkspaceTodayContext);
+ return <RecordWorkspace title="总览" className={overview.workspace}>
+ <TodayActions date={today}/>
  <MetricCardRailPending readingStatus={readingStatus}/>
  <OverviewTrendLayout date={date} range={rangeMode??"30"} mobileRange={rangeMode??"7"} changeRange={()=>{}}>
   <div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle}>

@@ -1,8 +1,8 @@
-import {markRecognitionUsed} from "./recognition-quota";
+import {markRecognitionUsed,reserveRecognition} from "./recognition-quota";
 import {accountEntitlements} from "../auth/entitlements";
 import { chatCapabilities, currentProvider, providerId } from "./chat-config";
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Database } from "../../db/client";
 import { assistantConversation, assistantRun, mealImage } from "../../db/schema";
@@ -16,21 +16,25 @@ import { loadRecordReview, submitRecordOperation, extendAiRecordPreview } from "
 import { withAiFieldDefinitions } from "../records/ai-field-definitions";
 import { recordAiResponse } from "../records/ai-response";
 import { reviewWebRecord } from "../records/web-review";
-import { chatSnapshot, digestChat, requireChatAccount, startChatRun, controlChat, type ChatSend } from "./chat-store";
+import { chatIdentity, chatSnapshot, chatUsage, digestChat, requireChatAccount, startChatRun, controlChat, type ChatSend } from "./chat-store";
 import { chatProviderIds, isMealTaskContext, type ChatProvider, type MealTaskContext } from "./chat-model";
 import { followupSubmissionSchema } from "./followup";
+import { globalBudget } from "./global-budget";
 
 export const mealTaskDraftSchema=mealDraftSchema.extend({items:z.array(itemSchema).max(50)});
 export const mealTaskInputSchema=z.discriminatedUnion("action",[
  z.object({action:z.literal("create"),draftKey:z.string().uuid(),draft:mealTaskDraftSchema}).strict(),
+ z.object({action:z.literal("handoff"),requestId:z.string().uuid(),draftKey:z.string().uuid(),draft:mealTaskDraftSchema,imageIds:z.array(z.string().uuid()).min(1).max(8),text:z.string().max(6000),timezone:z.string().max(100),provider:z.enum(chatProviderIds).optional()}).strict(),
+ z.object({action:z.literal("retry"),taskId:z.string().uuid(),requestId:z.string().uuid(),messageId:z.string().uuid(),provider:z.enum(chatProviderIds),timezone:z.string().max(100)}).strict(),
  z.object({action:z.literal("run"),taskId:z.string().uuid(),requestId:z.string().uuid(),provider:z.enum(chatProviderIds),imageIds:z.array(z.string().uuid()).max(8),text:z.string().max(6000),timezone:z.string().max(100),followup:followupSubmissionSchema.optional()}).strict(),
- z.object({action:z.enum(["stop","cancel","apply"]),taskId:z.string().uuid()}).strict(),
+ z.object({action:z.enum(["stop","cancel","apply","manual"]),taskId:z.string().uuid()}).strict(),
  z.object({action:z.enum(["enable_model","revoke_model"]),taskId:z.string().uuid(),provider:z.enum(chatProviderIds)}).strict(),
  z.object({action:z.literal("save"),taskId:z.string().uuid(),revision:z.number().int().positive(),draft:mealDraftSchema}).strict(),
 ]);
 export async function getMealTask(db:Database,userId:string,id:string){
  await requireChatAccount(db,userId,"meal_entry");if(!chatCapabilities().mealEntry)throw new ApiError(403,"meal_ai_disabled","饮食 AI 录入暂未开放，已有提交可在原审核页面查看。");
- const [task]=await db.select().from(assistantConversation).where(and(eq(assistantConversation.id,id),eq(assistantConversation.userId,userId),eq(assistantConversation.purpose,"meal_entry")));
+ const [task]=await db.select().from(assistantConversation).where(and(eq(assistantConversation.id,id),eq(assistantConversation.userId,userId),isNull(assistantConversation.removedAt),
+  or(eq(assistantConversation.purpose,"meal_entry"),sql`${assistantConversation.context}->'photoHandoff' IS NOT NULL`)));
  if(!task || !isMealTaskContext(task.context))throw new ApiError(404,"task_unavailable","此饮食任务不存在或不属于当前账号。");
  return task as typeof task&{context:MealTaskContext};
 }
@@ -39,6 +43,46 @@ async function ownedImages(db:Database,userId:string,ids:string[]){
  if(!ids.length)return;
  const rows=await db.select({id:mealImage.id}).from(mealImage).where(and(eq(mealImage.userId,userId),inArray(mealImage.id,ids)));
  if(rows.length!==ids.length)throw new ApiError(404,"image_unavailable","照片不存在或不属于当前账号。");
+}
+
+/** Commit the exact attachment set, original form and first message as one task. */
+export async function startPhotoHandoff(db:Database,userId:string,input:Extract<z.infer<typeof mealTaskInputSchema>,{action:"handoff"}>){
+ const signature=digestChat(input);
+ return db.transaction(async tx=>{
+  await lockOwner(tx,userId);
+  const connection=tx as unknown as Database,owner=await requireChatAccount(connection,userId,"meal_entry");
+  if(!chatCapabilities().mealEntry)throw new ApiError(403,"meal_ai_disabled","饮食 AI 录入暂未开放。");
+  const [duplicate]=await tx.select().from(assistantRun).where(and(eq(assistantRun.userId,userId),eq(assistantRun.requestId,input.requestId)));
+  if(duplicate){
+   const task=await getMealTask(connection,userId,duplicate.conversationId);
+   if(task.context.photoHandoff?.signature!==signature)throw new ApiError(409,"request_conflict","请求内容已变化，当前草稿保留。");
+   return {taskId:task.id};
+  }
+  const {draft,imageIds}=input,originalImages=draft.imageIds??[];
+  await ownedImages(connection,userId,imageIds);
+  await ownedImages(connection,userId,originalImages);
+  if(Math.max(draft.expectedImageCount??0,originalImages.length)+imageIds.filter(id=>!originalImages.includes(id)).length>8)
+   throw new ApiError(400,"too_many_images","本餐原有及新增照片合计最多8张，请调整后再发送。");
+  if(draft.id){
+   const snapshot=await readMealSnapshot(connection,userId);
+   if(!snapshot.meals.some(meal=>meal.id===draft.id&&!meal.deletedAt&&meal.version===draft.version))
+    throw new ApiError(409,"record_changed","原餐次已变化，请检查最新记录，当前草稿保留。");
+  }
+  const [previous]=await tx.select({provider:assistantConversation.provider}).from(assistantConversation)
+   .where(and(eq(assistantConversation.userId,userId),isNull(assistantConversation.removedAt))).orderBy(desc(assistantConversation.updatedAt)).limit(1);
+  const provider=input.provider??currentProvider(providerId(previous?.provider??"qwen")),access=accountEntitlements(owner);
+  const usage=await chatUsage(connection,userId),global=await globalBudget(connection);
+  if(global.available<=0||access.amountLimited&&usage.available<=0)
+   throw new ApiError(429,"daily_budget","今天的识图额度暂不可用，照片与说明保留。");
+  await chatIdentity(connection,userId,provider,true,"meal_entry");
+  if(access.chat)await tx.update(assistantConversation).set({active:false}).where(and(eq(assistantConversation.userId,userId),eq(assistantConversation.active,true)));
+  const taskId=randomUUID();
+  await tx.insert(assistantConversation).values({id:taskId,userId,purpose:access.chat?"chat":"meal_entry",active:access.chat,provider,
+   context:{draftKey:input.draftKey,draft,originalDraft:draft,signature:digestChat(draft),imageIds,photoHandoff:{requestId:input.requestId,signature}}});
+  const {row}=await startChatRun(connection,userId,{action:"send",requestId:input.requestId,provider,conversationId:taskId,mealTask:true,timezone:input.timezone,text:input.text,imageIds});
+  await reserveRecognition(tx,row);
+  return {taskId};
+ });
 }
 export async function createMealTask(db:Database,userId:string,draftKey:string,draft:MealDraft){
  await requireChatAccount(db,userId,"meal_entry");if(!chatCapabilities().mealEntry)throw new ApiError(403,"meal_ai_disabled","饮食 AI 录入暂未开放。");const [previous]=await db.select({provider:assistantConversation.provider}).from(assistantConversation).where(eq(assistantConversation.userId,userId)).orderBy(desc(assistantConversation.updatedAt)).limit(1);
@@ -66,6 +110,10 @@ export async function prepareMealTaskRun(db:Database,userId:string,input:Extract
  if(task.context.cancelled)throw new ApiError(409,"task_closed","本次识别已取消。");
  if(task.context.previewId){const preview=await loadRecordReview(db,userId,task.context.previewId);if(preview.status!=="pending")throw new ApiError(409,"task_closed","本餐审核已结束，请返回饮食页查看或重新录入。");}
  if(task.context.previewProvider&&task.context.previewProvider!==input.provider)throw new ApiError(409,"preview_model","本餐已有待核对结果，请先保存或放弃，再更换模型识别。");
+ if(task.context.photoHandoff){
+  if(!input.followup||input.imageIds.length||input.text)throw new ApiError(409,"meal_followup_required","请通过本餐的问题补充信息，或重试原消息。");
+  return {action:"send",requestId:input.requestId,provider:task.provider as ChatProvider,conversationId:task.id,mealTask:true,timezone:input.timezone,followup:input.followup};
+ }
  if(!input.followup&&!input.imageIds.length&&!input.text.trim())throw new ApiError(400,"empty_message","请添加照片或填写食物说明。");
  await ownedImages(db,userId,input.imageIds);
  const imageIds=input.imageIds.length?input.imageIds:task.context.imageIds;
@@ -130,14 +178,19 @@ export async function saveMealTask(db:Database,userId:string,id:string,revision:
  await requireChatAccount(db,userId,"meal_entry");
  return db.transaction(async tx=>{await lockOwner(tx,userId);const [running]=await tx.select({id:assistantRun.id}).from(assistantRun).where(and(eq(assistantRun.userId,userId),eq(assistantRun.conversationId,id),eq(assistantRun.state,"running")));if(running)throw new ApiError(409,"chat_busy","请先完成或停止本餐识别。");return saveMealTaskLocked(tx as unknown as Database,userId,id,revision,draft);});
 }
-export async function startMealTaskRun(db:Database,userId:string,input:Extract<z.infer<typeof mealTaskInputSchema>,{action:"run"}>){
+export async function startMealTaskRun(db:Database,userId:string,input:Extract<z.infer<typeof mealTaskInputSchema>,{action:"run"|"retry"}>){
  await requireChatAccount(db,userId,"meal_entry");
  return db.transaction(async tx=>{await lockOwner(tx,userId);const connection=tx as unknown as Database;
  const [duplicate]=await tx.select().from(assistantRun).where(and(eq(assistantRun.userId,userId),eq(assistantRun.requestId,input.requestId)));
  if(duplicate){const original=await getMealTask(connection,userId,input.taskId);if(duplicate.conversationId!==original.id)throw new ApiError(409,"request_conflict","请求编号已用于其他任务。");}
  const [busy]=await tx.select({id:assistantRun.id}).from(assistantRun).where(and(eq(assistantRun.userId,userId),eq(assistantRun.state,"running")));
  if(busy&&!duplicate)throw new ApiError(409,"chat_busy","已有回答或识别正在生成，请先完成或停止。");
- const prepared=await prepareMealTaskRun(connection,userId,input);return {input:prepared,started:await startChatRun(connection,userId,prepared)};});
+ const task=await getMealTask(connection,userId,input.taskId);
+ if(input.action==="retry"&&(!task.context.photoHandoff||task.context.cancelled))throw new ApiError(409,"retry_unavailable","本餐已结束，请查看当前结果。");
+ const prepared:ChatSend=input.action==="retry"
+  ? {action:"retry",requestId:input.requestId,provider:task.provider as ChatProvider,conversationId:task.id,mealTask:true,timezone:input.timezone,messageId:input.messageId}
+  : await prepareMealTaskRun(connection,userId,input);
+ return {input:prepared,started:await startChatRun(connection,userId,prepared)};});
 }
 
 async function controlMealTaskLocked(db:Database,userId:string,id:string,cancel=false){
@@ -160,6 +213,24 @@ export async function createMealTaskPreview(db:Database,identity:AiIdentity,task
 }
 export async function controlMealTask(db:Database,userId:string,id:string,cancel=false){
  await requireChatAccount(db,userId,"meal_entry");return db.transaction(async tx=>{await lockOwner(tx,userId);return controlMealTaskLocked(tx as unknown as Database,userId,id,cancel);});
+}
+
+export async function continueMealByHand(db:Database,userId:string,id:string){
+ return db.transaction(async tx=>{
+  await lockOwner(tx,userId);
+  const connection=tx as unknown as Database,task=await getMealTask(connection,userId,id),context=task.context;
+  if(!context.photoHandoff)throw new ApiError(409,"task_changed","请从原录入入口处理旧任务。");
+  const operation=context.previewId?await loadRecordReview(connection,userId,context.previewId):null;
+  if(operation?.status==="confirmed")throw new ApiError(409,"already_saved","本餐已保存，请打开饮食记录查看。");
+  if(!context.cancelled){
+   const [run]=await tx.select({id:assistantRun.id}).from(assistantRun).where(and(eq(assistantRun.userId,userId),eq(assistantRun.conversationId,id),eq(assistantRun.state,"running"),sql`${assistantRun.executionInput}->>'mealTask'='true'`)).limit(1);
+   if(run)await controlChat(connection,userId,{action:"stop",runId:run.id,mealTaskId:id});
+   if(operation?.status==="pending")await reviewWebRecord(connection,userId,operation.id,{kind:"cancel",revision:operation.revision});
+   const [mealFollowup]=task.followup?await tx.select({id:assistantRun.id}).from(assistantRun).where(and(eq(assistantRun.userId,userId),eq(assistantRun.conversationId,id),eq(assistantRun.userMessageId,task.followup.messageId),sql`${assistantRun.executionInput}->>'mealTask'='true'`)).limit(1):[];
+   await tx.update(assistantConversation).set({context:{...context,cancelled:true},...(mealFollowup?{followup:null}:{})}).where(and(eq(assistantConversation.id,id),eq(assistantConversation.userId,userId)));
+  }
+  return {draft:context.originalDraft??context.draft};
+ });
 }
 
 export async function changeMealModelGrant(db:Database,userId:string,taskId:string,provider:ChatProvider,enable:boolean){

@@ -23,7 +23,7 @@ export function chartDestinationMatches(origin:{destination:string; destinationS
   const url=new URL(href,"https://formward.invalid");
   return origin.destination===url.pathname&&(origin.destinationSearch===undefined||origin.destinationSearch===chartDestinationSearch(url.search));
 }
-export type OverviewViewState={mode:string|null;custom:{from:string;to:string}};
+export type OverviewViewState={mode:string|null;custom:{from:string;to:string};selectedDate?:string};
 export type ChartTransitionState = {
   claimChartEntry: (key:string,container?:HTMLElement|null)=>boolean;
   preview: MetricTrendModel | null;

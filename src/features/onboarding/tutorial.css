@@ -131,3 +131,9 @@ html:has(.onboarding-tutorial .lesson-stage:fullscreen),html:has(.onboarding-tut
 .onboarding-tutorial [data-action][aria-busy=true]::after{content:"";position:absolute;left:8px;top:calc(50% - 7px);width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:onboarding-wait 800ms linear infinite,onboarding-wait-show 0s 200ms both}
 @keyframes onboarding-wait{to{transform:rotate(360deg)}}@keyframes onboarding-wait-show{from{visibility:hidden}to{visibility:visible}}
 @media(prefers-reduced-motion:reduce){.onboarding-tutorial [data-action][aria-busy=true]::after{animation:onboarding-wait-show 0s 200ms both}}
+.tutorial-faq{width:min(1050px,100%);box-sizing:border-box;margin:0 auto 20px;padding:14px 20px;border:1px solid color-mix(in srgb,var(--warm-white) 12%,transparent);border-radius:16px;color:var(--warm-white)}
+.tutorial-faq h2{font-size:1rem;margin:0 0 4px}
+.tutorial-faq details+details{border-top:1px solid color-mix(in srgb,var(--warm-white) 10%,transparent)}
+.tutorial-faq summary{cursor:pointer;min-height:44px;line-height:44px;font-size:.875rem}
+.tutorial-faq p{margin:0;color:var(--muted);font-size:.875rem;line-height:1.6}
+.tutorial-faq a{display:inline-flex;align-items:center;min-height:44px;color:var(--gold);font-size:.875rem}

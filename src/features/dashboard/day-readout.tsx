@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { formatIntegerNumber } from "@/components/number-format";
 import type { OverviewDay } from "./model";
-import { balanceLabel, hasExpenditureRecord, morningChangeReading, shortDate } from "./day-readings";
+import { balanceLabel, hasExpenditureRecord, missingBalanceReason, morningChangeReading, shortDate } from "./day-readings";
 import styles from "./overview.module.css";
 
 export function BalanceReading({ balance }: { balance: number | null }) {
@@ -21,7 +21,7 @@ export function DayReadout({ day, id, style }: { day: OverviewDay; id: string; s
   return <div id={id} role="tooltip" data-overview-day-readout={day.date} className={styles.dayReadoutCard} style={style}>
     <header>
       <time dateTime={day.date}>{shortDate(day.date)}</time>
-      <span><BalanceReading balance={day.energyBalance} /></span>
+      <span>{missingBalanceReason(day) ?? <BalanceReading balance={day.energyBalance}/>}</span>
     </header>
     <dl className={styles.dayDetailEnergy}>
       <div className={styles.dayDetailIntake}>

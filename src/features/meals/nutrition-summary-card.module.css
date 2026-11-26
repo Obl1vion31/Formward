@@ -1,7 +1,7 @@
 .card {
   container: nutrition-card / inline-size;
   display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(0, 3fr) 44px;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 3fr);
   align-items: center;
   min-height: 136px;
   border-radius: 20px;
@@ -22,7 +22,7 @@
 .total { min-width: 0; }
 .caption, .macros dt { color: var(--muted); font-size: .875rem; line-height: 20px; }
 .caption small { margin-inline-start: 8px; font-size: .75rem; white-space: nowrap; }
-.mobileCaption, .mobileUnit, .details { display: none; }
+.details { display: none; }
 
 .calories {
   display: flex;
@@ -38,6 +38,7 @@
 }
 
 .calories small { color: var(--muted); font: 400 .875rem/1.4 system-ui, sans-serif; white-space: nowrap; }
+.calories .estimate { font-size:.75rem; }
 .calories > [data-reading-status] { align-self: center; }
 .ring { width: 84px; }
 .ring figure { display: block; margin: 0; }
@@ -63,36 +64,18 @@
 .macro strong small, .note { color: var(--muted); font: 400 .8125rem/18px system-ui, sans-serif; }
 .note { display: block; min-height: 18px; }
 
-.card .library {
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 4px;
-  align-self: stretch;
-  min-height: 72px;
-  padding: 4px;
-  border: 0;
-  border-inline-start: 1px solid color-mix(in srgb, var(--gold) 26%, transparent);
-  border-radius: 0;
-  background: color-mix(in srgb, var(--gold) 9%, transparent);
-  color: var(--gold);
-  font: inherit;
-  font-size: .875rem;
-  line-height: 1.15;
-  cursor: pointer;
-}
-
-.libraryLabel { display: grid; gap: 2px; }
-.card .library:disabled, .hero .details:disabled { cursor: default; opacity: 1; }
-.card .library:enabled:hover, .card .library:enabled:active { background: color-mix(in srgb, var(--gold) 17%, transparent); }
-.library:focus-visible, .details:focus-visible { outline: 2px solid var(--gold); outline-offset: -3px; }
+.actions { display:flex; justify-content:flex-end; gap:8px; margin-top:8px; }
+.actions button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:6px 16px; border:1px solid var(--line-strong); border-radius:10px; background:transparent; color:var(--warm-white); font-size:14px; cursor:pointer; }
+.actions button:first-child { border-color:var(--gold); background:var(--gold); color:var(--graphite); }
+.actions button:disabled { opacity:.6; cursor:default; }
+.actions button:focus-visible, .details:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 @media (max-width: 700px), (hover: none) and (pointer: coarse) {
-  .card { grid-template-columns: minmax(0, 1fr) 44px; min-height: 0; }
+  .card { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .actions { justify-content:flex-start; }
+  .actions button:first-child { flex:1; }
   .hero { grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; padding: 14px 12px 14px 16px; }
   .calories { font-weight: 600; }
-  .desktopCaption { display: none; }
-  .mobileCaption, .mobileUnit { display: inline; }
   .ring { width: 36px; }
   .ring figure svg text { display: none; }
   .hero .details {
@@ -114,7 +97,6 @@
 
   .details svg { transition: transform 180ms ease; }
   .details[aria-expanded="true"] svg { transform: rotate(180deg); }
-  .library { grid-column: 2; grid-row: 1; }
   .macroPanel {
     display: grid;
     grid-column: 1 / -1;

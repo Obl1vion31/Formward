@@ -16,9 +16,11 @@ export function updateChartDateChoice(current:Choice|null,action:SelectionAction
   return active?.date===action.date&&active.origin===origin?active:{date:action.date,origin,range};
 }
 /** 日期选择属于整个趋势面板；点击／触屏保持，键盘选择随焦点，悬停离开才恢复默认。 */
-export function useChartDateSelection(dates: string[], initial: string, fallback = initial, previewPaused = false, contextKey = "", retainExplicitDate = false) {
+export function useChartDateSelection(dates: string[], initial: string, fallback = initial, previewPaused = false, contextKey = "", retainExplicitDate = false, restoredDate?: string) {
   const regionId=useId(), range=dates.join("|")+":"+contextKey;
-  const [choice,setChoice]=useState<Choice|null>(()=>initial!==fallback?({date:initial,origin:"initial",range}):null);
+  const [choice,setChoice]=useState<Choice|null>(()=>restoredDate&&dates.includes(restoredDate)
+    ? {date:restoredDate,origin:"click",range}
+    : initial!==fallback?{date:initial,origin:"initial",range}:null);
   const [previous,setPrevious]=useState({range,contextKey});
   if(previous.range!==range){
     setPrevious({range,contextKey});

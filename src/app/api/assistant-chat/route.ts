@@ -23,9 +23,10 @@ export async function GET(request: Request) {
     const params=new URL(request.url).searchParams;
     if (params.has("runId")) {
       const runId = z.string().uuid().safeParse(params.get("runId"));
-      if (!runId.success) return Response.json({error:"回复编号无效。"},{status:400,headers});
-      const db = getDatabase(), row = await activeChatSubscription(db,owner.id,runId.data);
-      return new Response(chatRunStream(db,owner.id,{conversationId:row.conversationId},request,{row}),{
+      const taskId = params.get("taskId")??undefined;
+      if (!runId.success || taskId&&!z.string().uuid().safeParse(taskId).success) return Response.json({error:"回复编号无效。"},{status:400,headers});
+      const db = getDatabase(), row = await activeChatSubscription(db,owner.id,runId.data,taskId);
+      return new Response(chatRunStream(db,owner.id,{conversationId:row.conversationId,mealTask:!!taskId},request,{row}),{
         headers:streamHeaders,
       });
     }

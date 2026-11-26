@@ -52,3 +52,6 @@
 .notes > summary::after { content: "+"; margin-inline-start: auto; color: var(--gold); }
 .notes[open] > summary::after { content: "−"; }
 .notes small { font-size: .75rem; color: var(--muted); }
+.entry .handoffFooter{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.handoffFooter p{margin:0;font-size:.8125rem;color:var(--muted);line-height:1.5}
+.handoffFooter button{flex:none;white-space:nowrap}

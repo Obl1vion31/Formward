@@ -348,6 +348,7 @@
 
 .toast { position: fixed; right: 24px; bottom: 88px; z-index: 25; display: flex; align-items: center; gap: 12px; max-width: min(430px, calc(100vw - 32px)); box-sizing: border-box; padding: 8px 12px 8px 16px; border-radius: 16px; background: var(--nav-solid); color: var(--warm-white); box-shadow: 0 6px 24px var(--nav-shadow); font-size: .875rem; }
 .toast > span { line-height: 1.5; }
+.toast > a { display:inline-grid; place-items:center; min-width:44px; min-height:44px; flex:none; color:var(--gold); text-decoration:none; }
 .toast button { flex: none; min-width: 44px; min-height: 44px; border: 0; background: none; color: var(--warm-white); font: inherit; cursor: pointer; }
 @media (max-width:700px), (hover:none) and (pointer:coarse) {
   .toast { right: 16px; left: 16px; bottom: calc(var(--workspace-dock-inset, 88px) + 12px); max-width: none; }

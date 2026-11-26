@@ -22,7 +22,7 @@ export async function savePersonalProfile(db: Database, proof: SessionProof, inp
   return db.transaction(async tx => {
     await lockActiveAccount(tx, proof.userId); await requireSessionProof(tx, proof);
     const current=display((await tx.select().from(personalProfile).where(eq(personalProfile.userId, proof.userId)).for("update"))[0]);
-    const step=value.continueOnboarding && current.onboardingStep!=="complete" ? "tutorial" : current.onboardingStep;
+    const step=value.completeOnboarding?"complete":value.continueOnboarding&&current.onboardingStep!=="complete"?"tutorial":current.onboardingStep;
     const sexForCalculation=value.sexForCalculation===undefined?current.sexForCalculation??null:value.sexForCalculation;
     if (current.heightCm===value.heightCm && current.birthDate===value.birthDate && current.sexForCalculation===sexForCalculation && current.onboardingStep===step && current.version>0) return current;
     if (current.version!==value.expectedVersion) throw new ApiError(409,"version_conflict","资料已在其他页面修改。当前输入已保留，请查看最新资料后再保存。");
@@ -32,13 +32,13 @@ export async function savePersonalProfile(db: Database, proof: SessionProof, inp
   });
 }
 export async function advanceOnboarding(db: Database, proof: SessionProof, input: unknown) {
-  const value=z.object({ expectedVersion:z.number().int().min(0), step:z.enum(["profile","tutorial","complete"]) }).strict().parse(input);
+  const value=z.object({ expectedVersion:z.number().int().min(0), step:z.enum(["profile","tutorial","complete"]), skipProfile:z.literal(true).optional() }).strict().parse(input);
   return db.transaction(async tx => {
     await lockActiveAccount(tx,proof.userId); await requireSessionProof(tx,proof);
     const row=(await tx.select().from(personalProfile).where(eq(personalProfile.userId,proof.userId)).for("update"))[0],current=display(row);
     if (current.onboardingStep===value.step || current.onboardingStep==="complete") return current;
     if (current.version!==value.expectedVersion) throw new ApiError(409,"version_conflict","引导进度已改变，请刷新查看最新步骤。");
-    if (current.onboardingStep==="profile" && value.step==="complete") throw new ApiError(400,"invalid_input","请先继续到使用说明。");
+    if (current.onboardingStep==="profile" && value.step==="complete"&&!value.skipProfile) throw new ApiError(400,"invalid_input","请填写资料或选择暂时跳过。");
     return display((await tx.update(personalProfile).set({ onboardingStep:value.step,version:current.version+1,updatedAt:new Date() }).where(eq(personalProfile.userId,proof.userId)).returning())[0]);
   });
 }

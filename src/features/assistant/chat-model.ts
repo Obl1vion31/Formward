@@ -65,6 +65,7 @@ export type ChatMessage = {
   contextLimited?: boolean;
   resumingTask?: boolean;
   detailLimit?: number;
+  mealTask?: boolean;
 };
 export type ChatUsage = {
   date: string; limit: number; spent: number; reserved: number; uncertain: number; available: number;
@@ -80,6 +81,7 @@ export type ChatSnapshot = {
   photoUpdates?: ChatMessage[];
   pendingContextQuote?: ChatContextQuote;
   contextBaseEstimate?: number;
+  photoHandoff?: { taskId: string; date: string; mealType: string; followup: boolean; cancelled: boolean; saved: boolean; restricted: boolean };
   hasMore: boolean; before: number | null; activeRunId: string | null; runTiming?: ChatRunTiming | null; catalog: ChatCatalogItem[]; usage: ChatUsage;
 };
 export type ChatEvent =
@@ -102,7 +104,7 @@ export function chatBalance({ available, limit, resetAt }: Pick<ChatUsage,"avail
 export function budgetDate(now = new Date()) { return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(now); }
 export function nextBudgetReset(date: string) { return new Date(Date.parse(date + "T00:00:00+08:00") + 86400000).toISOString(); }
 
-export type MealTaskContext={draftKey:string;draft:import("../meals/model").MealDraft;originalDraft?:import("../meals/model").MealDraft;signature:string;imageIds:string[];previewId?:string;previewProvider?:ChatProvider;appliedSignature?:string;savedSignature?:string;cancelled?:boolean};
+export type MealTaskContext={draftKey:string;draft:import("../meals/model").MealDraft;originalDraft?:import("../meals/model").MealDraft;signature:string;imageIds:string[];previewId?:string;previewProvider?:ChatProvider;appliedSignature?:string;savedSignature?:string;cancelled?:boolean;photoHandoff?:{requestId:string;signature:string}};
 
 export type ChatStoredContext = MealTaskContext | { contextQuoteId: string };
 export function isMealTaskContext(context: ChatStoredContext | null): context is MealTaskContext {

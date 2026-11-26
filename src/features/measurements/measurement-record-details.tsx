@@ -26,6 +26,12 @@ export function MeasurementReading({row, period, showFat}: {
   </div>;
 }
 
+export function measurementSourceLabel(row: MeasurementDisplay) {
+  return row.deviceLabel || row.sourceSystem || (row.entryChannel === "development_backend" ? "维护录入"
+    : row.entryChannel === "manual" || row.sourceType === "manual" ? "手动录入"
+    : row.entryChannel === "api" ? "外部录入" : row.sourceType === "import" ? "导入 · 来源系统未提供" : row.sourceType);
+}
+
 export function MeasurementFacts({row, showFat, labeled = false}: {row: MeasurementDisplay; showFat: boolean; labeled?: boolean}) {
   const preciseTime = row.timePrecision === "second" ? row.sourceLocalTime : "";
   const [localDate, clock] = preciseTime.split(/[ T]/);
@@ -33,9 +39,7 @@ export function MeasurementFacts({row, showFat, labeled = false}: {row: Measurem
   const zone = (row.timezone
     ? row.timezoneLabel ?? timezoneLabel(row.timezone, row.recordDate, row.utcOffsetMinutes)
     : row.utcOffsetMinutes != null ? gmtOffsetLabel(row.utcOffsetMinutes) : "").replace(/（[^）]+）/g, "");
-  const source = row.deviceLabel || row.sourceSystem || (row.entryChannel === "development_backend" ? "维护录入"
-    : row.entryChannel === "manual" || row.sourceType === "manual" ? "手动录入"
-    : row.entryChannel === "api" ? "外部录入" : row.sourceType === "import" ? "导入 · 来源系统未提供" : row.sourceType);
+  const source = measurementSourceLabel(row);
 
   return <dl className={styles.measurementFacts} data-fact-period={row.period} aria-label={row.period === "evening" ? "晚间测量信息" : row.fasting ? "晨间测量信息" : "白天测量信息"}>
     <div><dt>来源</dt><dd data-measurement-source>{source}</dd></div>

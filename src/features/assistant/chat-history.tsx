@@ -13,7 +13,7 @@ import styles from "./surface.module.css";
 import chatStyles from "./chat.module.css";
 
 type Cursor = { at: string; id: string };
-type ConversationList = { items: { id: string; title: string; updatedAt: string; active: boolean }[]; next: Cursor | null };
+type ConversationList = { items: { id: string; title: string; updatedAt: string; active: boolean; mealTask?:boolean }[]; next: Cursor | null };
 type Read = { kind: "list"; cursor?: Cursor } | { kind: "detail"; id: string; before?: number };
 type Failure = { request: Read; message: string };
 const shortDate = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "numeric", day: "numeric" });
@@ -179,7 +179,8 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
     if (!view || selecting) return;
     setSelecting(true);
     try {
-      if (await chat.control("select_conversation", undefined, view.conversationId)) onContinue();
+      if (view.photoHandoff?.restricted||view.photoHandoff&&!chat.enabled){await chat.openPhotoHistory(view.conversationId);onContinue();}
+      else if (await chat.control("select_conversation", undefined, view.conversationId)) onContinue();
     } finally {
       setSelecting(false);
     }
@@ -237,7 +238,7 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
             {view && transcript.visible.map(message => <article key={message.id} data-chat-message={message.id} data-role={message.role} tabIndex={-1}
               className={chatStyles.message + " " + (message.role === "user" ? chatStyles.user : chatStyles.assistant)
                 + (transcript.continuations.has(message.id) ? " " + chatStyles.continuation : "")}>
-              <ChatMessageBody message={message} inlinePreviews={view.capabilities?.inlinePreviews === true} historical jump={jump} navigate={navigate} answers={transcript.answers.get(message.id)}
+                <ChatMessageBody message={message} inlinePreviews={message.mealTask===true||view.capabilities?.inlinePreviews === true} historical jump={jump} navigate={navigate} answers={transcript.answers.get(message.id)}
                 continuation={transcript.continuations.has(message.id)}/>
             </article>)}
           </div>
@@ -247,9 +248,9 @@ export function ChatHistory({ conversationId, onInspect, back, onContinue, navig
     {view && <footer className={styles.historyFooter}>
       {chat.busy && <p>当前回答生成中，完成后可继续这段对话。</p>}
       {chat.uploading && <p>照片上传中，就绪后可切换。</p>}
-      {!chat.enabled && <p>当前档位支持查看历史，继续对话需要聊天权限。</p>}
+      {!chat.enabled && !view.photoHandoff&&<p>当前档位支持查看历史，继续对话需要聊天权限。</p>}
       {chat.error && <p role="alert">{chat.error}</p>}
-      <button type="button" disabled={!chat.enabled || chat.busy || chat.managing || !!chat.uploading || selecting} onClick={() => void resume()}>{selecting ? "正在返回…" : "回到这段对话"}</button>
+      <button type="button" disabled={(!chat.enabled&&!view.photoHandoff) || chat.busy || chat.managing || !!chat.uploading || selecting} onClick={() => void resume()}>{selecting ? "正在返回…" : "回到这段对话"}</button>
     </footer>}
   </section>;
 }

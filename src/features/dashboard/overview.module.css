@@ -4,6 +4,24 @@
 .heading time,.caption { color:var(--muted); font-size:12px; line-height:1.8; }
 .workspace small { font-size:12px; color:var(--muted); margin-left:5px; }
 .workspace a:focus-visible,.workspace button:focus-visible { outline:1px solid var(--gold); outline-offset:4px; }
+.today { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px 20px; margin:0 0 16px; padding:8px 12px; border-radius:16px; background:color-mix(in srgb,var(--surface) 62%,transparent); }
+.todayHeading { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; }
+.todayHeading h2 { font-size:16px; font-weight:500; line-height:24px; margin:0; }
+.todayHeading time::before { content:" · "; }
+.todayHeading p { min-height:20px; margin:0; color:var(--muted); font-size:13px; line-height:20px; }
+.todayActions { display:flex; flex-wrap:wrap; gap:8px; }
+.todayActions :is(a,button) { display:inline-flex; align-items:center; justify-content:center; gap:5px; min-height:44px; padding:6px 12px; border:0; border-radius:16px; background:var(--card-material); color:var(--warm-white); font:inherit; font-size:14px; font-weight:500; text-decoration:none; white-space:nowrap; }
+.todayActions a[data-primary] { color:var(--graphite); background:var(--gold); }
+.todayActions button:disabled { color:var(--muted); }
+.todayActions svg { flex:none; }
+@media (max-width:700px),(hover:none) and (pointer:coarse) {
+  .today { display:grid; gap:8px; padding:0; background:none; }
+  .todayHeading { display:grid; gap:2px; }
+  .todayActions :is(a,button) { font-size:13px; padding-inline:8px; }
+}
+@media (max-width:360px) {
+  .todayActions svg { display:none; }
+}
 .trends { padding-top:18px; }
 .trendToolbar { display:flex; gap:4px 20px; align-items:center; flex-wrap:wrap; }
 .trendTitle { display:flex; flex:1; align-items:baseline; flex-wrap:wrap; gap:5px 16px; min-width:200px; }

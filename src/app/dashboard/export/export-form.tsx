@@ -24,7 +24,7 @@ export function ExportForm({ready=true}:{ready?:boolean}){
   finally{setBusy(false);lock.current=false;}
  }}>
  <div className={styles.range}><label>开始日期<DateField name="from" value={from} onChange={e=>{setFrom(e.target.value);setError("");}} disabled={!ready||busy}/></label><label>结束日期<DateField name="to" value={to} onChange={e=>{setTo(e.target.value);setError("");}} disabled={!ready||busy}/></label></div>
- <p className={styles.hint}>留空下载全部有效记录；食材库和公式资料始终完整导出。</p>{!ready&&<LocalLoading/>}
+ <p className={styles.hint} aria-live="polite">{from&&to?from+" 至 "+to:from?"自 "+from+" 起":to?"截至 "+to:"全部日期"} · 饮食、身体、消耗及活动<br/>附食材库和公式资料。未知值留空，来源栏保留 AI 标识。</p>{!ready&&<LocalLoading/>}
  {(issue||error)&&<p role="alert">{issue||error}</p>}{expired&&<a href="/" target="_blank" rel="noreferrer">重新登录后返回此页重试</a>}
  <button type="submit" disabled={!ready||busy||!!issue}>{busy?"正在导出…":error?"重试下载 Excel":"下载 Excel · .xlsx"}</button>
  </form>;

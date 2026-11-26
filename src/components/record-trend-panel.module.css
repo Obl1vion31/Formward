@@ -128,3 +128,5 @@
   .metrics[data-presentation=body][data-record-columns="3"] { column-gap: 14px; }
   .metrics[data-presentation=body] .metric:first-child { padding-inline-start: 20px; }
 }
+.mobileSource{display:block;color:var(--muted);font-size:.75rem;line-height:1.5;overflow-wrap:anywhere}
+.metrics[data-presentation=body] .metricNote:not(:empty){display:block;overflow-wrap:anywhere}

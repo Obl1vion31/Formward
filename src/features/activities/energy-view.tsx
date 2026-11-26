@@ -44,9 +44,15 @@ import type {TrendRoute} from '@/components/metric-trend-model';
 import {EnergyPlotFrame} from "./energy-plot-frame";
 import {MobileEnergyPlot} from './mobile-energy-plot';
 import {EnergyPreferencesContext} from './energy-preferences';
+import { LoadingLink } from "@/components/loading-link";
 
 
 export type SaveEnergy = (input: EnergyInput) => Promise<Result<{ presentation: EnergyPresentation; message: string;changedKeys?:string[] }>>;
+export function EstimateTodayAction({today,day,pending=false}:{today:string;day?:EnergyDay;pending?:boolean}){
+  const text=day?.totalKcal!=null&&!day.cumulative?"查看今天的消耗":"估算今天的消耗";
+  return <div className={styles.todayAction}>{pending||!today?<button type="button" disabled>{text}</button>:
+    <LoadingLink returnScope="workspace" href={"/dashboard/energy?entry=1&date="+today+"&mode=estimate"}>{text}</LoadingLink>}</div>;
+}
 export function EnergySources({ day }: { day: EnergyDay }) {
   const rest = day.record?.restingSourceSystem ?? day.record?.sourceSystem;
   const active = day.activeSource === "activities" ? [...new Set(day.activities.map(row => row.sourceSystem).filter(Boolean))].join("、") : day.record?.activeSourceSystem ?? day.record?.sourceSystem;
@@ -61,7 +67,7 @@ function dayEditInput(date:string,days:EnergyPresentation["snapshot"]["days"]):E
  return { kind: "save_energy_day", date, ...(current ? { id: current.id, version: current.version, steps:current.steps??null, entryMode: current.entryMode ?? undefined, activityMode: current.activityMode ?? undefined, restingSourceSystem: current.adoption?current.restingSourceSystem??null:current.restingSourceSystem ?? current.sourceSystem, activeSourceSystem: current.adoption?current.activeSourceSystem??null:current.activeSourceSystem ?? current.sourceSystem, restingEstimated: current.restingEstimated ?? false, restingKcal: current.restingKcal, activeKcal: current.activeKcal, activeEstimated: current.activeEstimated ?? false, notes: current.notes ?? null, totalKcal: current.totalKcal, timezone: current.timezone, sourceSystem: current.sourceSystem, sourceRecordId: current.sourceRecordId, sourceOccurredAt: current.sourceOccurredAt } : { entryMode: "components", activityMode: "total", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }) };
 }
 
-export function EnergyView({ presentation, sourceStatus=null, save, removeSource, initialDate: requestedDate = null, initialEntry: requestedEntry=false,initialTrend=null,initialIntent='view' }: { presentation: EnergyPresentation; sourceStatus?:ConnectionView|null; save: SaveEnergy; removeSource: (label: string) => Promise<SourceRemovalResult>; initialDate?: string | null;initialEntry?:boolean;initialTrend?:TrendRoute|null;initialIntent?:RecordIntent }) {
+export function EnergyView({ presentation, sourceStatus=null, save, removeSource, initialDate: requestedDate = null, initialEntry: requestedEntry=false,initialEstimate=false,initialTrend=null,initialIntent='view' }: { presentation: EnergyPresentation; sourceStatus?:ConnectionView|null; save: SaveEnergy; removeSource: (label: string) => Promise<SourceRemovalResult>; initialDate?: string | null;initialEntry?:boolean;initialEstimate?:boolean;initialTrend?:TrendRoute|null;initialIntent?:RecordIntent }) {
   const energyPreferences=useContext(EnergyPreferencesContext);
   const entry = useSearchParams().get("entry");
   const initialEntry = requestedEntry && entry === "1";
@@ -83,8 +89,8 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
   const sources = sourceResult?.base === data.sources ? sourceResult.sources : data.sources;
   async function remove(label: string) { const result = await removeSource(label); if (result.ok) setSourceResult({ base: data.sources, sources: result.sources }); return result; }
   const byDate = new Map(data.days.map(day => [day.date, day]));
-  const [addActivity,setAddActivity]=useState(false);
   const [viewing,setViewing]=useState<string|null>(null);
+  const [quickEstimate,setQuickEstimate]=useState(false);
   const latest = preferredRecordedDate(data.days, today, day => day.totalKcal !== null, day => !!day.record || day.activities.length > 0);
   const [editing, setEditing] = useState<EnergyAction | null>(null), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [busy, startTransition] = useTransition(), guard = useRef(false), request = useRef<{ content: string; actions:EnergyAction[]; id: string } | null>(null);
@@ -101,14 +107,17 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
   useEffect(()=>{const latest=()=>{setEditing(null);setViewing(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
   const historyDates=[...new Set([...recentRecordDates(today),...state.days.filter(d=>!d.deletedAt).map(d=>d.date),...state.activities.filter(a=>!a.deletedAt).map(a=>a.date)])].sort().reverse();
 
-  function edit(action: EnergyAction) { setViewing(null); setAddActivity(false); setError(""); setNotice(""); setEditing(action); }
-  function editDay(date: string, add = false) {
-    edit(dayEditInput(date,state.days));
-    setAddActivity(add);
+  function editDay(date: string, estimate = false) {
+    const day=byDate.get(date);
+    setError(""); setNotice("");
+    if(estimate&&day?.totalKcal!=null&&!day.cumulative){setViewing(date);setEditing(null);setQuickEstimate(false);return;}
+    const input=dayEditInput(date,state.days);
+    setViewing(null);setQuickEstimate(estimate);
+    setEditing(estimate&&input.kind==="save_energy_day"?{...input,entryMode:"total",activityMode:"total",restingInputMethod:"estimate",totalKcal:null,calculation:{kind:"daily",method:energyPreferences.value.formula}}:input);
   }
   useRepeatedRecordTask('/dashboard/energy',task=>{
     if(task.intent==='view'){setEditing(null);setViewing(task.date);}
-    else editDay(task.date);
+    else editDay(task.date,initialEstimate);
   });
   const openedIntent=useRef("");
   useEffect(()=>{
@@ -116,11 +125,13 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
     if(!initialDate||initialTrend||openedIntent.current===key)return;
     const timer=setTimeout(()=>{
       openedIntent.current=key;
-      if(initialEntry||initialIntent==='edit'){setViewing(null);setEditing(dayEditInput(initialDate,state.days));}
+      if(initialEntry||initialIntent==='edit')editDay(initialDate,initialEstimate);
       else{setEditing(null);setViewing(initialDate);}
     },0);
     return()=>clearTimeout(timer);
-  },[initialDate,initialEntry,initialIntent,initialTrend,state.days]);
+  // 新地址打开一次；数据刷新后保留表单中的活动量和日期。
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[initialDate,initialEntry,initialIntent,initialEstimate,initialTrend]);
   const savedClose=useRef<()=>Promise<void>>(()=>Promise.resolve());
   function execute(input: EnergyAction | EnergyAction[]) {
     const actions = Array.isArray(input) ? input : [input];
@@ -143,7 +154,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
   const summary=(date:string)=>{const day=byDate.get(date);return day?<>{energyValue(day.totalKcal)} 千卡 · 静息 {energyValue(day.restingKcal)} · 活动 {energyValue(day.activeKcal)}</>:"尚无记录";};
   const recentDates=[today];
   const renderDay=(date:string)=>{const day=byDate.get(date);return <DailyRecordRow key={date} date={date} today={today} value={summary(date)}><RecordRowAction intent="edit" disabled={busy} onClick={()=>editDay(date)}>{day?.record||day?.activities.length?"编辑":date<today?"补录":"录入"}</RecordRowAction><RecordRowAction intent="view" onClick={()=>setViewing(date)}>查看</RecordRowAction></DailyRecordRow>;};
-  const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <div className={styles.dayDetails} data-energy-day-detail><div className={styles.summary}>{([[day.cumulative?"今日已消耗":"总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>千卡</small></strong></div>)}</div><EnergySources day={day}/>{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=>{
+  const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <div className={styles.dayDetails} data-energy-day-detail><div className={styles.summary}>{([[day.cumulative?"今日累计":"总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>千卡</small></strong></div>)}</div><EnergySources day={day}/>{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=>{
  const reading=activitySummary(activity,day.record);
  return <Disclosure key={activity.id} className={styles.activityDetail} summary={<div className={styles.activityOverview} data-exercise-summary>
   <div className={styles.activityHeading}><span>{activity.name}</span><strong>{energyValue(reading.totalKcal)}<small>千卡</small></strong></div>
@@ -166,21 +177,22 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
        custom={customOpen&&<CustomRecordRange label="消耗" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
        date={inspected} view={()=>{const target=inspected;setViewing(target);selection.releasePreview();}} readoutLabel="选中日消耗"
        metrics={[
-        {label:chosen?.cumulative?"今日已消耗":"总消耗",value:energyValue(chosen?.totalKcal),unit:"kcal"},
+        {label:chosen?.cumulative?"今日累计":"总消耗",value:energyValue(chosen?.totalKcal),unit:"kcal",note:chosen?.totalKcal!=null?(chosen.record?.calculationSnapshot?"系统估算":energySourceLabel(chosen.record?.sourceSystem)??"手动录入"):undefined},
         {label:"静息",value:energyValue(chosen?.restingKcal),unit:"kcal",tone:"blue"},
         {label:"活动",value:energyValue(chosen?.activeKcal),unit:"kcal",tone:"red"}
        ]}
        metricVariants={chartDays.map(day=>[energyValue(day.totalKcal),energyValue(day.restingKcal),energyValue(day.activeKcal)])}
        title="每日消耗" unit="千卡"
        legend={<EnergyLegend/>}
+       supplementary={<EstimateTodayAction today={today} day={byDate.get(today)}/>}
       >{dates.length?<div data-nested-chart ref={bindPlot}>{mobile||linkedPlot||dates.length<=31?<MobileEnergyPlot days={chartDays} selected={inspected} selection={selection} compact={dates.length<=31} linked={linkedPlot}/>:<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>}</div>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     </section>
     <DailyRecords history={{today,dates:historyDates.filter(date=>!recentDates.includes(date)),renderRow:renderDay,view:setViewing}}>{recentDates.map(renderDay)}</DailyRecords>
     {data.sourcePilot&&<EnergySourceStatus initial={sourceStatus} steps={(!initialTrend&&mobile?recordDay:chosen)?.steps??null} protectedDay={(!initialTrend&&mobile?recordDay:chosen)?.record?.adoption?.mode==="manual"}/>}
-    {(viewing||editing)&&<EditorDialog closeLabel={editing?'关闭编辑':'关闭详情'} routeEntry={!!(initialEntry&&editing?.kind==='save_energy_day'&&editing.date===initialDate)} title={editing?editing.kind==='save_energy_profile'?'公式资料':editing.kind==='save_activity'?'活动记录':'每日消耗':viewing+' · 消耗记录'} titleParts={!editing&&viewing?[viewing,'消耗记录']:undefined} stableScroll={!editing} busy={busy} onSavedCloseReady={close=>{savedClose.current=close;}} close={()=>{setViewing(null);setEditing(null);setError('');}}>
+    {(viewing||editing)&&<EditorDialog closeLabel={editing?'关闭编辑':'关闭详情'} routeEntry={!!(initialEntry&&(editing&&"date" in editing?editing.date:viewing)===initialDate)} title={editing?quickEstimate?'估算全天消耗':'每日消耗':viewing+' · 消耗记录'} titleParts={!editing&&viewing?[viewing,'消耗记录']:undefined} stableScroll={!editing} busy={busy} onSavedCloseReady={close=>{savedClose.current=close;}} close={()=>{setViewing(null);setEditing(null);setError('');}}>
       <div data-record-intent={editing?editing.id?'edit':'create':'view'}>
         {editing?<>
-          <EnergyEditor refreshDevice={async()=>{const result=await loadEnergyStateAction();if(!result.ok)throw new Error(result.error);return {presentation:result.data,apply:()=>setLocal(result.data)};}} stepsEnabled={data.sourcePilot} addActivity={addActivity} dayRecords={state.days} initial={editing} error={error} busy={busy} save={execute} saveBatch={execute} sources={sources} removeSource={remove} activities={state.activities} management={editing.kind==='save_energy_day'&&state.days.some(day=>day.id===editing.id&&!day.deletedAt)&&<details className={styles.management}><summary>更多操作</summary><button type="button" disabled={busy} onClick={async()=>{if(await confirmDraftDiscard())await removeRecord({kind:'delete_energy_day',id:editing.id!,version:editing.version!},editing.date+' 消耗记录');}}>永久删除日记录</button></details>}/>
+          <EnergyEditor refreshDevice={async()=>{const result=await loadEnergyStateAction();if(!result.ok)throw new Error(result.error);return {presentation:result.data,apply:()=>setLocal(result.data)};}} quickStart={quickEstimate} stepsEnabled={data.sourcePilot} dayRecords={state.days} initial={editing} error={error} busy={busy} save={execute} saveBatch={execute} sources={sources} removeSource={remove} activities={state.activities} management={editing.kind==='save_energy_day'&&state.days.some(day=>day.id===editing.id&&!day.deletedAt)&&<details className={styles.management}><summary>更多操作</summary><button type="button" disabled={busy} onClick={async()=>{if(await confirmDraftDiscard())await removeRecord({kind:'delete_energy_day',id:editing.id!,version:editing.version!},editing.date+' 消耗记录');}}>永久删除日记录</button></details>}/>
         </>:<>{error&&<p role="alert" className={styles.error}>{error}</p>}{viewing&&details(viewing)}</>}
       </div>
     </EditorDialog>}

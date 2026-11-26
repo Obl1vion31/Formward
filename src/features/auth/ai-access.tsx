@@ -126,6 +126,14 @@ export function AiAccess({ accountId,canonicalOrigin, overview, overviewPromise,
       <div className={styles.manageActions}><button className="ai-button ai-secondary" type="button" disabled={busy || current === "revoked"} onClick={() => void disconnect(connection)}>{busyTokenId === connection.id ? "正在撤销…" : "撤销连接"}</button></div>{feedbackFor(area)}
     </div>;
   }
+  function queryExample(connection:AiAccessConnection){
+    const domain=aiRecordDomains.find(([,key])=>connection.scopes.includes(key+":read"))?.[1];
+    if(!domain)return null;
+    const examples:Record<string,string>={measurements:"查询我最近 7 天的实测体重。",meals:"查询我昨天的餐次和已记录的摄入。",energy:"查询我最近 7 天已保存的全天消耗。",training:"查看我最近 7 天已完成的训练。"};
+    const example=examples[domain],area="example:"+connection.id;
+    if(!example)return null;
+    return <div className={styles.instructions}><p className="ai-muted">{example}</p><button type="button" className="ai-button ai-secondary" onClick={()=>void copy(example,area)}>复制查询示例</button>{feedbackFor(area)}</div>;
+  }
   function providerSection(provider: AiProvider, name: string) {
     const related = connections.filter(connection => connection.provider === provider);
     const active = related.filter(connection => state(connection) === "connected"), history = related.filter(connection => state(connection) !== "connected");
@@ -154,7 +162,7 @@ export function AiAccess({ accountId,canonicalOrigin, overview, overviewPromise,
       <div className={styles.connectionHeading}><h3 className={historical ? styles.historyName : styles.connectionName}>{connection.name}</h3><span className={styles.connectionState} data-state={state(connection)}>{aiConnectionLabels[state(connection)]}</span></div>{connectionDetails(connection)}
     </article>);
     return <AiAccessPanel title={`${panel.name} · ${panel.kind === "permissions" ? "数据权限" : panel.kind === "history" ? "历史连接" : panel.kind === "connect" ? "接入说明" : "连接详情"}`} anchor={panel.anchor} close={() => setPanel(null)}>
-      {panel.kind === "permissions" ? <div className={styles.permissionGroups}>{active.length ? active.map(connection => <section key={connection.id} data-connection-id={connection.id}><h3 className={styles.connectionName}>{connection.name}{active.length > 1 && <span className={styles.secondary}> · {aiAccessDate(connection.authorizedAt)}</span>}</h3><Permissions name={connection.name} scopes={connection.scopes} />{aiAccessSummary(connection.scopes) === "只读" && <p className={styles.panelNote}>只读 · 可查询已授权数据</p>}</section>) : <><p className={styles.panelNote}>可申请权限，接入时由你逐项确认。</p><Permissions name={panel.name} scopes={[]} available /></>}</div> : panel.kind === "connect" ? <>{instructions(panel.provider, area)}{feedbackFor(area)}{!!history.length && <details className={styles.mobileHistory} onKeyDown={closeDetails}><summary>历史连接（{history.length}）</summary>{managed(history, true)}</details>}</> : panel.kind === "history" ? managed(history, true) : <>
+      {panel.kind === "permissions" ? <div className={styles.permissionGroups}>{active.length ? active.map(connection => <section key={connection.id} data-connection-id={connection.id}><h3 className={styles.connectionName}>{connection.name}{active.length > 1 && <span className={styles.secondary}> · {aiAccessDate(connection.authorizedAt)}</span>}</h3><Permissions name={connection.name} scopes={connection.scopes} />{queryExample(connection)}</section>) : <><p className={styles.panelNote}>可申请权限，接入时由你逐项确认。</p><Permissions name={panel.name} scopes={[]} available /></>}</div> : panel.kind === "connect" ? <>{instructions(panel.provider, area)}{feedbackFor(area)}{!!history.length && <details className={styles.mobileHistory} onKeyDown={closeDetails}><summary>历史连接（{history.length}）</summary>{managed(history, true)}</details>}</> : panel.kind === "history" ? managed(history, true) : <>
         {managedActive.length ? managed(managedActive) : <><p className={styles.panelNote}>当前没有有效连接。</p>{instructions(panel.provider, area)}{feedbackFor(area)}</>}
         {!!history.length && <details className={styles.mobileHistory} onKeyDown={closeDetails}><summary>历史连接（{history.length}）</summary>{managed(history, true)}</details>}
       </>}

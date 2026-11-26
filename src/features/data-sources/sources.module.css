@@ -12,3 +12,6 @@
 .keyFields{display:grid;grid-template-columns:clamp(96px,22%,160px) minmax(0,1fr);gap:12px;align-items:start}.field select{color-scheme:inherit}
 
 @media(max-width:700px){.heading{position:static;margin:0 0 8px}.heading a{font-size:.875rem}.sectionHeading{flex-wrap:wrap}.sectionHeading h2{font-size:1rem;flex:1 1 auto}.connection{padding:16px}}
+.syncResult{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;font-size:.875rem;color:var(--muted)}
+.syncResult[role=alert]{color:var(--danger)}
+.syncResult a{display:inline-flex;align-items:center;min-height:44px;color:var(--gold)}

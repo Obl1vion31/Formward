@@ -25,7 +25,7 @@ import { calendarOrdinal, measurementRange, normalScale, type MeasurementInterva
 import styles from "./measurements-view.module.css";
 import { localMeasurementDate, type EntryResult, type MeasurementActions, type MeasurementDateDisplay, type MeasurementDisplay } from "./entry-state";
 import { MeasurementEntry, MeasurementEntryHeader } from "./measurement-entry";
-import {BodyRecordRow, MeasurementFacts, MeasurementReading} from "./measurement-record-details";
+import {BodyRecordRow, MeasurementFacts, MeasurementReading, measurementSourceLabel} from "./measurement-record-details";
 import { useInitialMobileMode } from "@/components/use-mobile-mode";
 import type { TrendRoute } from "@/components/metric-trend-model";
 import {useChartTransitionActions} from '@/components/chart-transition-state';
@@ -98,10 +98,13 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const selectedPeriod=selection.active?chartPeriod:undefined;
   const {bindPlot, prepare: prepareRange} = useNestedChartRange({mode, from: range.start, to: range.end, series: activeMetric+":"+showEvening});
   const weight=measurementSummaryAt(records,'weightKg',activeDate,choices),fat=measurementSummaryAt(records,'bodyFatPercent',activeDate,choices);
+  const hasTodayWeight=daysByDate.get(today)?.records.some(record=>record.weightKg!==null)??false;
+  const morning=daysByDate.get(activeDate)?.daytimeRecord;
+  const morningSource=weight.value!==null&&morning?.fasting&&morning.weightKg!==null?measurementSourceLabel(morning):undefined;
   const selectedSummary=activeMetric==='weightKg'?weight:fat,deltaUnit=activeMetric==='weightKg'?'kg':'百分点';
   const chooseMetric=(metric:MeasurementMetric)=>{if(metric!==activeMetric){selection.choose(activeDate);transition.invalidate();setSelectedMetric(metric);}};
   const readings:RecordMetric[]=[
-   {label:'晨间体重',value:formatRecordNumber(weight.value),unit:'kg',inlineUnit:true,select:()=>chooseMetric('weightKg'),selected:activeMetric==='weightKg',graphic:<BodySpark records={records} date={activeDate} metric="weightKg" choices={choices}/>,action:<button type="button" onClick={()=>window.dispatchEvent(new Event('formward-open-body-settings'))}>身体设置</button>},
+   {label:'晨间体重',value:formatRecordNumber(weight.value),unit:'kg',note:morningSource,inlineUnit:true,select:()=>chooseMetric('weightKg'),selected:activeMetric==='weightKg',graphic:<BodySpark records={records} date={activeDate} metric="weightKg" choices={choices}/>,action:today&&activeDate===today&&!hasTodayWeight?<button type="button" onClick={()=>setDrawer({kind:"entry",date:today,period:"daytime"})}>记录体重</button>:<button type="button" onClick={()=>window.dispatchEvent(new Event('formward-open-body-settings'))}>身体设置</button>},
    preference.showBodyFat?{label:'晨间体脂率',value:formatRecordNumber(fat.value),unit:'%',inlineUnit:true,select:()=>chooseMetric('bodyFatPercent'),selected:activeMetric==='bodyFatPercent',graphic:<BodySpark records={records} date={activeDate} metric="bodyFatPercent" choices={choices}/>}:{label:'较前一日',value:formatDifference(weight.previousChange,'weightKg',false)??'—',unit:'kg',inlineUnit:true},
    {label:'7日平均体重',value:formatRecordNumber(weight.average),unit:'kg',inlineUnit:true}
   ];

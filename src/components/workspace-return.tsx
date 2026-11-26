@@ -145,6 +145,8 @@ export function WorkspaceReturnProvider({ children }: { children: ReactNode }) {
     url.searchParams.delete("entry");
     url.searchParams.delete("date");
     url.searchParams.delete("intent");
+    if (path === "/dashboard/meals") url.searchParams.delete("manualTask");
+    if (path === "/dashboard/energy") url.searchParams.delete("mode");
     const record = active.current;
     if (!record?.quick || record.target !== currentLocation()) {
       router.replace(visitLocation(url), { scroll: false });
@@ -170,7 +172,9 @@ export function WorkspaceReturnProvider({ children }: { children: ReactNode }) {
           (!restoring.linkName || linkName(element) === restoring.linkName) && see(element));
       const taskList = Array.from(document.querySelectorAll<HTMLElement>("[data-assistant-task-scroll]")).find(see);
       if (taskList && restoring.tasks) taskList.scrollTop = restoring.tasks.scroll;
-      const target = restoring.scope === "account" ? document.querySelector<HTMLElement>('summary[aria-label="账号菜单"]') : link;
+      const todayAction = restoring.source === "/dashboard" && restoring.quick
+        ? document.querySelector<HTMLElement>("[data-overview-today]:not(:has(button:disabled)) [data-overview-today-heading]") : null;
+      const target = restoring.scope === "account" ? document.querySelector<HTMLElement>('summary[aria-label="账号菜单"]') : link ?? todayAction;
       if (see(target)) {
         target.focus({ preventScroll: true });
         setRestoring(null);

@@ -74,8 +74,8 @@ export function ActivityEnergyHelp(){
  const id=useId();
  return <><button type="button" className={styles.calculationInfo} popoverTarget={id} aria-label="活动热量说明"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 2-2.5 4M12 16v1"/></svg></button><div id={id} popover="auto" className={styles.fieldHelp} role="dialog" aria-label="活动热量说明"><h4>活动热量</h4><p>填写当天已知的活动热量；不知道可以留空，明确没有活动才填0。</p><p>另记运动明细时，需核对是否已包含在活动合计中，避免重复相加。</p></div></>;
 }
-export function ActivityLevelControl({value,change}:{value:string|null;change:(value:typeof activityLevels[number]["id"])=>void}) {
- return <section className={styles.activityLevels}><h3>今天的活动量</h3><div role="radiogroup" aria-label="全天活动量">{activityLevels.map(level=><label key={level.id} className={styles.activityLevel}><input type="radio" name="energy-activity-level" value={level.id} checked={value===level.id} onChange={()=>change(level.id)}/><span><strong>{level.label}</strong><small>{level.example}</small></span><b>×{level.factor.toFixed(1)}</b></label>)}</div><p className={styles.hint}>粗略估算全天消耗，已包含日常活动和训练，不再叠加运动明细。</p></section>;
+export function ActivityLevelControl({value,change,dateLabel="今天的活动量"}:{value:string|null;change:(value:typeof activityLevels[number]["id"])=>void;dateLabel?:string}) {
+ return <section className={styles.activityLevels}><h3>{dateLabel}</h3><div role="radiogroup" aria-label="全天活动量">{activityLevels.map(level=><label key={level.id} className={styles.activityLevel}><input type="radio" name="energy-activity-level" value={level.id} checked={value===level.id} onChange={()=>change(level.id)}/><span><strong>{level.label}</strong><small>{level.example}</small></span><b>×{level.factor.toFixed(1)}</b></label>)}</div><p className={styles.hint}>全天消耗包含日常活动和训练。</p></section>;
 }
 export function CalculationDetails({snapshot}:{snapshot:CalculationSnapshot|null}) {
  const id=useId(),anchor=useRef<HTMLButtonElement>(null),bubble=useRef<HTMLDivElement>(null);

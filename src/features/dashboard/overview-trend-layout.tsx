@@ -5,7 +5,7 @@ import { OverviewLegend } from "@/components/chart-legend";
 import { signedRecordNumber } from "@/components/number-format";
 import { addCalendarDays } from "../measurements/calendar";
 import { BalanceReading } from "./day-readout";
-import { morningChangeReading, shortDate } from "./day-readings";
+import { missingBalanceReason, morningChangeReading, shortDate } from "./day-readings";
 import type { OverviewDay, OverviewWeek } from "./model";
 import { relationshipFrame } from "./relationship-frame";
 import styles from "./overview.module.css";
@@ -113,7 +113,7 @@ function OverviewComparison({ date, day, pending, mobile }: { date: string; day?
       <div className={styles.comparisonPeriod}>
         <span>当日</span><time className={styles.comparisonDates} dateTime={date || undefined} title={date || undefined}>{date ? shortDate(date) : "—"}</time>
       </div>
-      <div data-overview-day-energy><ComparisonBalance balance={day?.energyBalance ?? null} pending={pending}/></div>
+      <div data-overview-day-energy><ComparisonBalance balance={day?.energyBalance ?? null} pending={pending} reason={day && missingBalanceReason(day)}/></div>
       <div data-overview-day-weight>
         <ComparisonWeight label="次晨" value={day?.weightChangeKg ?? null} status={day ? morningChangeReading(day) : "无晨重记录"} pending={pending}/>
       </div>
@@ -170,9 +170,9 @@ function WeekCoverage({ week, children }: { week: OverviewWeek; children: ReactN
   </div>;
 }
 
-function ComparisonBalance({ balance, pending }: { balance: number | null; pending: boolean }) {
+function ComparisonBalance({ balance, pending, reason }: { balance: number | null; pending: boolean; reason?: string }) {
   return <div className={styles.comparisonValue} data-tone={balance === null || balance === 0 ? undefined : balance < 0 ? "deficit" : "surplus"}>
-    {pending ? <>收支 <span>—</span></> : <BalanceReading balance={balance}/>}
+    {pending ? <>收支 <span>—</span></> : reason ?? <BalanceReading balance={balance}/>}
   </div>;
 }
 
