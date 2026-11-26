@@ -2,6 +2,14 @@
 
 ## 当前正式版本
 
+网页与聊天 worker 运行 `dual-entry-985442bd-guidance-visual-corrections-20261126-r6`，源码 `985442bd9bafe0204cd7cd8db9e0a4d95672599b`，BUILD_ID `pyeSDTjAe9MwsISZIN2G2`。北京时间 2026-11-26 20:54:55 切换。使用通过 167 张实页截图和 32 段操作录屏验收的同一运行包。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version) · [本轮实页验收](../design-qa.md#本轮实页验收--入口加载与首次指引)
+
+切换前确认生成任务已结束，切换后检查网页和 worker 都从新运行包启动。数据库维持 `0048_meal_reference_foods`、48 项迁移和 67 张表。切换前后数据库摘要和运行配置一致，原生备份 `formward-primary-20261126T125450921324Z.dump.json` 通过校验及加密异地回读。四个公网入口与兼容 IP 返回同一版本，核对 22 项新旧静态资源、登录回程、5 项匿名接口限制和海外 MCP 元数据。
+
+运行包 92,846,356 字节，SHA-256 `98675916a5e7fd50f9c4805b41a5f131284456fdf58e7dba98a4156f49956189`。保留 56 项 Server Action、绑定密钥和 2554 项旧静态资源。准确包、验收与公网结果归档于 `.codex/backups/regional-releases/guidance-visual-corrections-20261126-r6`。兼容回退为 `guidance-candidate-20261126-r12`。手动回退前先停止接收新请求并等在途识别与确认保存结束，再成套切换网页与 worker。
+
+## 全站操作引导与精修发布记录
+
 网页与聊天 worker 运行 `dual-entry-3e2a0118-guidance-candidate-20261126-r12`，源码 `3e2a01180a4ee5d1773de55d4ed7ca01be993757`，BUILD_ID `zBJIzSAJh_pM5q9VLto8-`。北京时间 2026-11-26 19:08:22 切换。全站引导随任务状态出现，拍照从饮食直接进入小助手的新对话。实际截图和完整录屏均在发布前用最终准确运行包验收。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version) · [实页验收](../design-qa.md#已发布验收--全站操作引导与精修)
 
 切换前确认正在运行的生成任务已结束，网页与 worker 成套切换后均已就绪。数据库维持 `0048_meal_reference_foods`、48 项迁移和 67 张表。切换前后表与配置摘要一致，原生备份 `formward-primary-20261126T110818180913Z.dump.json` 通过校验及加密异地回读。四个公网入口和兼容 IP 返回同一版本，22 项新旧静态资源与本地包一致，含 6 段新教程影片。登录回程、匿名接口限制和海外 MCP 元数据通过。
