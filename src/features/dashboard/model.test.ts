@@ -17,12 +17,13 @@ const makeMeal = (date: string, caloriesKcal: string): MealView => prepareMealAc
 const meal = (date:string,caloriesKcal:string):MealView => ({...makeMeal(date,caloriesKcal),day:{date,status:"complete",version:1,contentDigest:"fictional",source:"user"}});
 const expenditure = (date: string, totalKcal: string) => ({ id: date, version: 1, deletedAt: null, date, restingKcal: null, activeKcal: null, totalKcal, timezone: "Asia/Shanghai", sourceSystem: null, sourceRecordId: null, sourceOccurredAt: null, sourceUnit: "kcal" as const, syncStatus: "confirmed" as const });
 
-test("状态卡的小图保留零、未知与各自记录日期，进入专页使用同一段日历日",()=>{
+test("状态卡锚定今日摄入、最近晨重和今日消耗，小图保留零与未知",()=>{
   const presentation=overviewPresentation([meal("2024-08-02","0")],[observed("2024-08-01")],{...emptyEnergy(),days:[expenditure("2024-07-31","2400")]},"2024-08-03");
   const cards=summaryCards(presentation,"2024-08-03");
-  assert.deepEqual(cards.map(card=>card.date),["2024-08-02","2024-08-01","2024-07-31"]);
-  assert.equal(cards[0].title,"最近摄入");assert.equal(cards[0].value,"0");
-  assert.equal(cards[0].trend.points.at(-1)?.value,0);assert.equal(cards[0].trend.points[0].value,null);
+  assert.deepEqual(cards.map(card=>card.date),["2024-08-03","2024-08-01","2024-08-03"]);
+  assert.equal(cards[0].title,"今日摄入");assert.equal(cards[0].value,"—");
+  assert.equal(cards[0].trend.points.at(-2)?.value,0);assert.equal(cards[0].trend.points.at(-1)?.value,null);
+  assert.equal(cards[2].fact,"缺全天消耗");
   for(const card of cards){
     const url=new URL(card.href,"https://example.test"),query=Object.fromEntries(url.searchParams);
     const linked=linkedTrend(query);assert.equal(linked?.date,card.date);

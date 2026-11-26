@@ -11,7 +11,9 @@ export async function requireCompletedOnboarding() {
   const request=await headers(),{proof}=await currentSessionIdentity(request);
   const profile=await loadPersonalProfile(getDatabase(),proof);
   if (profile.onboardingStep!=="complete") {
-    const target=loginDestination(request.get("x-formward-web-path"));
+    const route=new URL(loginDestination(request.get("x-formward-web-path")),"https://formward.invalid");
+    route.searchParams.delete("_rsc");
+    const target=route.pathname+route.search;
     redirect(target==="/dashboard"?"/onboarding":"/onboarding?next="+encodeURIComponent(target));
   }
 }

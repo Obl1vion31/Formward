@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspaceReturn, workspaceReturnLabel } from "@/components/workspace-return";
 import { LoadingLink } from "@/components/loading-link";
+import { useMobileMode } from "@/components/use-mobile-mode";
 import "./tutorial.css";
 
 type Player = { render(options:{startText:string;backAction?:string;backText?:string}):string;bind(root:HTMLElement):void;dispose():void };
@@ -20,6 +21,14 @@ function loadScript(src:string) {
 }
 export function prepareTutorial(){
   return (async()=>{if(!window.FORMWARD_TUTORIAL_MEDIA)await loadScript("/tutorials/media-manifest.js");if(!window.FormwardTutorial)await loadScript("/tutorials/player.js");})();
+}
+function GuideFilm({topic,label}:{topic:"energy"|"photo"|"food-library";label:string}){
+  const mobile=useMobileMode(),[open,setOpen]=useState(false);
+  return <details className="tutorial-clip" onToggle={event=>setOpen(event.currentTarget.open)}>
+    <summary>观看操作演示</summary>
+    {open&&<video controls muted playsInline preload="metadata" aria-label={label} data-guide-film={topic}
+      src={"/tutorials/guidance-"+topic+"-"+(mobile?"mobile":"desktop")+".mp4"}/>}
+  </details>;
 }
 export function TutorialView({startText:customStartText,backText,onStart,onBack,busy=false}:{startText?:string;backText?:string;onStart?:()=>void;onBack?:()=>void;busy?:boolean}) {
   const returns=useWorkspaceReturn();
@@ -50,9 +59,10 @@ export function TutorialView({startText:customStartText,backText,onStart,onBack,
   return <div className="onboarding-tutorial">
     <section className="tutorial-faq" aria-labelledby="tutorial-questions">
       <h2 id="tutorial-questions">常见问题</h2>
-      <details><summary>怎么估算全天消耗？</summary><p>在总览或消耗页点「估算今天的消耗」，选当天活动量，核对预计全天消耗并保存。估算依据会注明使用的实测和公式。</p><LoadingLink returnScope="workspace" href="/dashboard/energy">打开消耗页</LoadingLink></details>
+      <details><summary>怎么估算全天消耗？</summary><p>在总览或消耗页点「估算今天的消耗」，选当天活动量，核对预计全天消耗并保存。估算依据会注明使用的实测和公式。</p><LoadingLink returnScope="workspace" href="/dashboard/energy">打开消耗页</LoadingLink><GuideFilm topic="energy" label="估算全天消耗演示"/></details>
       <details><summary>为什么今天还没收支？</summary><p>有已知热量的饮食、当天餐次已勾「已记全」，且保存了全天消耗后，总览才显示当天收支。设备的「今日累计」会随当天活动变化。</p><LoadingLink returnScope="workspace" href="/dashboard/meals">打开饮食页</LoadingLink></details>
-      <details><summary>AI 草稿怎么保存？</summary><p>饮食拍照后点「发给助手」，在新对话里补充信息、核对餐次，再确认保存。用外部 AI 提交时，从原审核链接核对和保存。</p><LoadingLink returnScope="workspace" href="/dashboard/meals">打开饮食页</LoadingLink></details>
+      <details><summary>AI 草稿怎么保存？</summary><p>饮食拍照后点「发给助手」，在新对话里补充信息、核对餐次，再确认保存。用外部 AI 提交时，从原审核链接核对和保存。</p><LoadingLink returnScope="workspace" href="/dashboard/meals">打开饮食页</LoadingLink><GuideFilm topic="photo" label="拍照并保存餐次演示"/></details>
+      <details><summary>怎么从食材库记一餐？</summary><p>先点「记一餐」，再选「从食材库添加」。核对规格，填实际份量，点「加入本餐」后和其他食物一起保存。</p><LoadingLink returnScope="workspace" href="/dashboard/meals">打开饮食页</LoadingLink><GuideFilm topic="food-library" label="选食材规格和份量演示"/></details>
     </section>
     <div ref={ref}/>
     {!loaded&&<section className="tutorial-fallback"><h1>使用说明</h1>
