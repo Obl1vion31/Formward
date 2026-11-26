@@ -15,7 +15,7 @@ const filmTitles: Record<Film, string> = {
 };
 type GuideState = { account: string; workflow: string | null; setWorkflow: Dispatch<SetStateAction<string | null>> };
 const GuideContext = createContext<GuideState>({ account: "", workflow: null, setWorkflow: () => {} });
-const hidden = "[inert],[hidden],[data-return-prepared]";
+const hidden = "[inert],[hidden],fieldset[disabled],[data-return-prepared]";
 const guideUI = "[data-guide-float]:popover-open";
 const storageKey = (account: string, task: string) => "formward:guide-v2:" + account + ":" + task;
 
@@ -119,10 +119,12 @@ export function TaskGuide({ task, target=task, text, steps, mode="operation", au
     const list=JSON.parse(configured) as Step[];
     const available=mode==="tour"?list.slice(tour??0,(tour??0)+1):list;
     let frame=0,active:HTMLElement|undefined,attempted:HTMLElement|undefined,unavailable:HTMLElement|undefined,release=()=>{};
+    let spaceFor:HTMLElement|undefined, spacer:HTMLElement|undefined;
     const originalScope=origin.closest("dialog,[data-guide-scope],[data-record-workspace],[data-assistant-page]")??document.body;
-    function hide(){
+    function hide(keepSpace=false){
       release();release=()=>{};active=undefined;
       if(node?.matches(":popover-open"))node.hidePopover();
+      if(!keepSpace){spacer?.remove();spacer=undefined;spaceFor=undefined;}
     }
     const inspect=()=>{
       frame=0;
@@ -135,10 +137,10 @@ export function TaskGuide({ task, target=task, text, steps, mode="operation", au
           attempted=anchor;anchor.scrollIntoView({block:"center",inline:"center",behavior:"instant"});
           schedule();
         }
-        return hide();
+        return hide(spaceFor===anchor);
       }
       if(active===anchor||unavailable===anchor)return;
-      hide();active=anchor;attempted=anchor;
+      hide(spaceFor===anchor);active=anchor;attempted=anchor;
       if(!running){
         try { localStorage.setItem(key,"started"); } catch {}
         setWorkflow(task);
@@ -151,14 +153,18 @@ export function TaskGuide({ task, target=task, text, steps, mode="operation", au
       const lane=footer??anchor.closest<HTMLElement>("[data-guide-flow]");
       const placement=lane??anchor;
       // 操作区空间不足时给提示留出位置，读数、输入和保存区仍能完整看到。
-      const spacer=lane&&document.createElement(lane.tagName==="LI"?"li":"div");
-      if(spacer&&lane){
+      if(lane&&!spacer){
+        spacer=document.createElement(lane.tagName==="LI"?"li":"div");
+        spaceFor=anchor;
         spacer.className=styles.spacer;
         spacer.setAttribute("aria-hidden","true");
         spacer.style.blockSize=(mode==="tour"?118:60)+"px";
         lane.insertAdjacentElement(footer?"beforebegin":"afterend",spacer);
         const bounds=spacer.getBoundingClientRect();
         if(mode==="tour"&&bounds.bottom>innerHeight-80)spacer.scrollIntoView({block:"end",behavior:"instant"});
+        // 对话的滚动视窗在插入提示空间后仍须露出当前确认按钮。
+        if(footer?.hasAttribute("data-review-footer")&&!canPointAt(anchor))
+          anchor.scrollIntoView({block:"nearest",behavior:"instant"});
       }
       const old=anchor.getAttribute("aria-describedby");
       anchor.setAttribute("aria-describedby",[old,id+"-text"].filter(Boolean).join(" "));
@@ -176,10 +182,10 @@ export function TaskGuide({ task, target=task, text, steps, mode="operation", au
           node.style.setProperty("--pointer-left",Math.max(14,Math.min(box.width-14,targetBox.left+targetBox.width/2-box.left))+"px");
           node.style.setProperty("--pointer-top",Math.max(14,Math.min(box.height-14,targetBox.top+targetBox.height/2-box.top))+"px");
         },
-        onUnavailable:()=>{unavailable=anchor;hide();},
+        onUnavailable:()=>{unavailable=anchor;hide(true);},
       });
       release=()=>{
-        stop();spacer?.remove();anchor.removeAttribute("data-guide-highlight");
+        stop();anchor.removeAttribute("data-guide-highlight");
         const remaining=anchor.getAttribute("aria-describedby")?.split(/\s+/).filter(token=>token!==id+"-text").join(" ");
         if(remaining)anchor.setAttribute("aria-describedby",remaining);else anchor.removeAttribute("aria-describedby");
       };
