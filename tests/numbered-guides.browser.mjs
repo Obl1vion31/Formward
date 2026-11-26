@@ -45,8 +45,7 @@ async function counter(index, total) { await layer().getByText(index + " / " + t
 async function ready(target) {
   await page.waitForFunction(name => document.querySelector('[data-guide-layer]:popover-open')?.dataset.guidePhase === "ready" &&
     [...document.querySelectorAll('[data-guide-highlight="tour"]')].some(node => node.dataset.guideTarget === name), target);
-  await page.waitForTimeout(120);
-  const measured = await page.evaluate(name => {
+  const measure = () => page.evaluate(name => {
     const target = [...document.querySelectorAll('[data-guide-highlight="tour"]')].find(node => node.dataset.guideTarget === name);
     const frame = document.querySelector('[data-guide-layer]:popover-open [data-guide-frame]');
     if (!target || !frame) return null;
@@ -59,8 +58,20 @@ async function ready(target) {
     return { expected, actual, delta: Math.max(...Object.keys(actual).map(key => Math.abs(actual[key] - expected[key]))),
       hiddenCache: !!target.closest('[inert],[hidden],[data-return-prepared]'), railLeft: target.closest('[data-metric-rail]')?.scrollLeft ?? null };
   }, target);
+  // 以目标与实框共同稳定为准，不能把任意120ms当成WebKit已经送达resize/吸附事件。
+  let measured, stable = 0, previous = "";
+  const started = Date.now();
+  while (Date.now() - started < 4000) {
+    measured = await measure();
+    const geometry = measured && JSON.stringify([measured.expected, measured.actual]);
+    stable = measured && measured.delta <= 1 && geometry === previous ? stable + 1 : 0;
+    previous = geometry;
+    if (stable >= 2) break;
+    await page.waitForTimeout(20);
+  }
   assert.ok(measured && !measured.hiddenCache && measured.delta <= 1, JSON.stringify({ target, measured }));
-  findings.push({ target, ...measured });
+  assert.ok(stable >= 2, "目标与金框需要共同停稳");
+  findings.push({ target, ...measured, settledAfterMs: Date.now() - started });
 }
 async function closed() {
   await layer().waitFor({ state: "hidden" });

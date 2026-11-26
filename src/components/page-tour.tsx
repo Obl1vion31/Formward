@@ -137,6 +137,13 @@ export function PageTour({ ownerId, getOrigin, configuration, onClose, onRetry }
       if (busy) return;
       if (!pendingFrame) pendingFrame = requestAnimationFrame(refresh);
     }
+    function geometryChanged() {
+      if (signal.aborted) return;
+      if (pendingFrame) cancelAnimationFrame(pendingFrame);
+      pendingFrame = 0;
+      // resize/ResizeObserver已经给出最新布局，立即量框，不再等WebKit可能合并的下一帧。
+      refresh(); schedule();
+    }
     // WebKit的横向吸附或视口接管有时迟于resize通知。只在手动导览存续时观察实际几何，
     // 坐标不变则不写DOM；退出同步取消，不能留下常驻轮询。
     function watchGeometry() {
@@ -173,7 +180,7 @@ export function PageTour({ ownerId, getOrigin, configuration, onClose, onRetry }
         order[(at + (event.shiftKey ? -1 : 1) + order.length) % order.length]?.focus({ preventScroll: true });
       }
     }
-    const observer = new ResizeObserver(schedule), mutations = new MutationObserver(schedule);
+    const observer = new ResizeObserver(geometryChanged), mutations = new MutationObserver(schedule);
     observer.observe(tip);
     mutations.observe(document.body, { childList: true, subtree: true, attributes: true,
       attributeFilter: ["open", "disabled", "hidden", "inert", "data-guide-target", "data-return-prepared", "data-guide-failed"] });
@@ -191,11 +198,11 @@ export function PageTour({ ownerId, getOrigin, configuration, onClose, onRetry }
     document.documentElement.dataset.guideTour = ownerId; layer.dataset.guidePhase = "waiting"; openGuide(layer);
     pending("waiting"); schedule();
     watchFrame = requestAnimationFrame(watchGeometry);
-    window.addEventListener("scroll", schedule, { capture: true, signal });
-    window.addEventListener("resize", schedule, { signal });
+    window.addEventListener("scroll", geometryChanged, { capture: true, signal });
+    window.addEventListener("resize", geometryChanged, { signal });
     window.addEventListener("formward-guide-targets", schedule, { signal });
-    window.visualViewport?.addEventListener("resize", schedule, { signal });
-    window.visualViewport?.addEventListener("scroll", schedule, { signal });
+    window.visualViewport?.addEventListener("resize", geometryChanged, { signal });
+    window.visualViewport?.addEventListener("scroll", geometryChanged, { signal });
     document.addEventListener("pointerdown", intercept, { capture: true, signal });
     document.addEventListener("click", intercept, { capture: true, signal });
     document.addEventListener("keydown", onKey, { capture: true, signal });
