@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { flushSync } from "react-dom";
 import { MOBILE_MEDIA } from "./use-mobile-mode";
 import { guidePageBounds, guidePresent, guideScope, guideTarget, intersectGuideBox, openGuide, placeGuideCard, type GuideBox, type GuideStep } from "./guide-position";
 import { readVisibleViewport } from "./input-viewport";
@@ -121,9 +122,6 @@ export function PageTour({ ownerId, origin, configuration, onClose }: Props) {
     function schedule() {
       if (!pendingFrame && !signal.aborted) pendingFrame = requestAnimationFrame(refresh);
     }
-    // The card can rewrap on the next step. Read its new dimensions before opening the aperture.
-    const nextPaint = () => new Promise<void>(done => requestAnimationFrame(() => done()));
-
     async function go(to: number, initial = false) {
       if (busy || signal.aborted || to < 0 || to >= list.length) return;
       const target = guideTarget(opener!, list[to].target);
@@ -144,10 +142,8 @@ export function PageTour({ ownerId, origin, configuration, onClose }: Props) {
       if (signal.aborted) return;
       if (animated) phase("moving");
       revealTourTarget(target);
-      if (!initial) {
-        setIndex(to);
-        await nextPaint();
-      }
+      // Measure the new copy after React lays it out. Its height can change on a narrow screen.
+      if (!initial) flushSync(() => setIndex(to));
       if (signal.aborted) return;
       const destination = tourBox(target);
       if (!destination) return dismiss(true);
