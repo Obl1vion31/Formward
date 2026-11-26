@@ -52,7 +52,7 @@ export function TutorialView({startText:customStartText,backText,onStart,onBack,
     {!loaded&&<section className="tutorial-fallback"><h1>使用说明</h1>
       {error?<p role="alert">视频入口暂时未能加载，可以看文字说明或重试。</p>:<LocalLoading label="正在准备视频…"/>}
       <details open={error||undefined}><summary>文字版</summary><ol>
-        <li>点「使用指引」直接高亮当前区域或下一步操作。在记录一餐、身体录入和小助手核对中都可以打开。</li>
+        <li>总览和趋势页的「使用指引」带编号及前后步骤按钮，只在主动点击后打开。录入和核对按正常表单操作。</li>
         <li>饮食：点「记一餐」，从食材库选规格和份量，或自己填写。当天餐次核对后，在列表末尾勾「已记全」。</li>
         <li>身体：先选晨间或晚间，晨间必须空腹；体重、体脂只填知道的部分，点击“保存录入”。缺测保持空白，只记录实测值。</li>
         <li>消耗：选活动量估算全天消耗，或手动填写。已采用稳定的设备来源时，查看今日累计与同步结果。</li>
@@ -65,7 +65,7 @@ export function TutorialView({startText:customStartText,backText,onStart,onBack,
     </section>}
     <section className="tutorial-faq" aria-labelledby="tutorial-questions">
       <h2 id="tutorial-questions">常见问题</h2>
-      <details><summary>怎么打开高光指引？</summary><p>在总览、趋势页或录入面板点「使用指引」。页面导览可切换前后步骤。填表时按金框指的控件操作，指引会随进度前进。</p><LoadingLink returnScope="workspace" href="/dashboard">打开总览</LoadingLink></details>
+      <details><summary>怎么打开高光指引？</summary><p>在总览或趋势页点「使用指引」，按编号切换前后步骤。录入、选材和核对不再弹出高亮提示。</p><LoadingLink returnScope="workspace" href="/dashboard">打开总览</LoadingLink></details>
       <details><summary>怎么从食材库记一餐？</summary><p>点「记一餐」，选「从食材库添加」。打开对应规格后填写实际份量，点「加入本餐」。日期和食物核对完再保存。</p><LoadingLink returnScope="workspace" href="/dashboard/meals">打开饮食页</LoadingLink></details>
       <details><summary>拍照或 AI 草稿怎么保存？</summary><p>选图后核对餐别和日期，点「发给助手」。在小助手的新对话中补充份量，核对餐次，再点「确认保存」。外部 AI 提交的草稿从原审核链接确认。</p><LoadingLink returnScope="workspace" href="/dashboard/meals">打开饮食页</LoadingLink></details>
       <details><summary>什么时候要估算当天消耗？</summary><p>没有采用稳定的设备日消耗时，可点「估算今天的消耗」，选活动量并保存。缺资料就先补实测或个人资料。已采用设备时，在消耗页查看当日累计或同步状态。</p><LoadingLink returnScope="workspace" href="/dashboard/energy">打开消耗页</LoadingLink></details>

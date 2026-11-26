@@ -1,6 +1,5 @@
 "use client";
 import {LocalLoading} from "@/components/local-loading";
-import {TaskGuide,useGuideWorkflow} from "@/components/task-guide";
 import { TrainingPlanReview, TrainingPlanReviewEditor } from '../training/plan-review';
 import {acknowledgeRecordChanges,fetchRecordStamps} from "@/components/record-change-client";
 import {formatRecordNumber,formatUnitNumber} from "@/components/number-format";
@@ -137,8 +136,8 @@ export function RecordReviewSummary({ operation, beforeNavigate }: {
 }
 
 export function RecordReview({ operation: initial, review, load, sources: initialSources, removeSource, energySources: initialEnergySources, removeEnergySource,embedded=false,beforeNavigate,mealActions }: { beforeNavigate?:()=>Promise<boolean>;embedded?:boolean;mealActions?:ReactNode; operation: RecordReviewView; review: (action: RecordReviewAction) => ReviewResult; load: () => ReviewResult; sources: string[]; removeSource: (label: string) => Promise<SourceRemovalResult>; energySources: string[]; removeEnergySource: (label: string) => Promise<SourceRemovalResult> }) {
-  const {finish:finishGuide}=useGuideWorkflow();
-  const guideTask=mealActions?"meal":"review";
+
+
   const scope=useId(),rowId=(key:string)=>scope+"-record-"+key;
   const [local, setLocal] = useState<RecordReviewView | null>(null), [editing, setEditing] = useState<string | null>(null), [error, setError] = useState("");
   const [sources, setSources] = useState(initialSources), [busy, startTransition] = useTransition();
@@ -159,7 +158,7 @@ export function RecordReview({ operation: initial, review, load, sources: initia
   function applyResult(result: RecordReviewView) {
     setLocal(current => current?.id === result.id && current.revision > result.revision ? current : result);
     setRecovery(null);
-    if(result.status!=="pending")finishGuide(guideTask);
+
   }
 
   async function readLatest(uncertainSave = false) {
@@ -245,7 +244,7 @@ export function RecordReview({ operation: initial, review, load, sources: initia
       const issue = op.needsUserInput.find(issue => issue.key === row.key);
       const heading = isTraining(row.action) ? row.action.kind === "schedule_training" ? "训练计划" : "训练模板" : title(row);
       return <article key={row.key} id={rowId(row.key)} className={styles.inlineRow} data-review-key={row.key} data-excluded={row.excluded||undefined}>
-        <header className={styles.inlineHeading}><h3>{heading}{isBody(row.action) && after?.fasting === true ? " · 空腹" : ""}</h3><span>{row.persisted ? "已保存" : row.excluded ? "已取消" : row.body?.preview.rows[0]?.before || row.meal?.before || row.energy?.before || row.training?.before ? "修改" : "新增"}</span>{row===pending[0]&&nextStep==="save"&&!issues.length&&!editing&&<div className={styles.mealGuide}><TaskGuide task={guideTask} target="review-save" text={row.meal?"核对食物和份量，再点「确认保存」。":"核对待保存的项目，再点「确认保存」。"} auto={!!mealActions}/></div>}</header>
+        <header className={styles.inlineHeading}><h3>{heading}{isBody(row.action) && after?.fasting === true ? " · 空腹" : ""}</h3><span>{row.persisted ? "已保存" : row.excluded ? "已取消" : row.body?.preview.rows[0]?.before || row.meal?.before || row.energy?.before || row.training?.before ? "修改" : "新增"}</span></header>
         {!row.excluded&&<InlineRecordContent row={row}/>}
         {op.rows.length>1&&!row.persisted&&<div className={styles.inlineOperations}>{row.excluded ? <button disabled={busy} onClick={()=>command("restore",[row.key])}>恢复本项</button> : <><button disabled={busy||inactive} onClick={()=>{setError("");setEditing(row.key);}}>修改</button>{op.rows.length>1&&<button data-review-exclude disabled={busy||inactive} onClick={()=>command("exclude",[row.key])}>本项不保存</button>}</>}</div>}
         {!row.excluded&&row.meal&&<div className={styles.inlineDetails}><MealContent row={row} compact/></div>}

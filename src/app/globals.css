@@ -1049,7 +1049,6 @@ dialog::backdrop{transition:background-color 210ms cubic-bezier(.2,.8,.2,1)}
 }
 
 
-[data-guide-highlight]:not([data-guide-highlight="tour"]){outline:1.5px solid var(--gold)!important;outline-offset:2px!important}
 .pending-axis{fill:var(--muted);font:inherit}
 .pending-grid{stroke:var(--line-soft)}
 [data-compose-waiting] svg,[data-compose-waiting] .energy-share-track{visibility:hidden}

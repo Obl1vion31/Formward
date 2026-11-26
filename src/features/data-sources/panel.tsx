@@ -4,7 +4,6 @@ import { useDraftGuard } from "@/components/draft-guard";
 import { LoadingLink } from "@/components/loading-link";
 import { WorkspaceReturnLink } from "@/components/workspace-return";
 import {LocalLoading} from '@/components/local-loading';
-import {TaskGuide} from "@/components/task-guide";
 import { acknowledgeRecordChanges } from "@/components/record-change-client";
 import { backfillSourceHistoryAction, bindPersonalSourceAction, configureConnectionAction, loadSourcesAction, synchronizeSourceAction } from "@/app/dashboard/sources/actions";
 import { metricLabels, regionLabels, sourceMetrics, type SourceMetric, type SourceSettingsView, type SourceRecordChange } from "./model";
@@ -44,10 +43,9 @@ function SourceContent({ data, embedded, pending = false, busy = false, task = n
           {connection&&(syncIssue?active&&!dirty&&!credentialDirty&&<button type="button" disabled={disabled} onClick={sync}>重试同步</button>:<LoadingLink returnScope="workspace" href="/dashboard/energy">查看消耗记录</LoadingLink>)}
         </div>}
         {!pending && !data && error ? <button type="button" onClick={retry}>重新读取连接</button> : <>
-          {data&&<TaskGuide task={connection?"sources-change-key":"sources-connect"} target="sources-connect"
-            text={connection?"点「更换个人密钥」可以更新站点或密钥。":"点「连接 Garmin」，选择你的站点并填写个人密钥。"} />}
+
           <details className={styles.settings}>
-            <summary data-guide-target="sources-connect">{connection ? "更换个人密钥" : "连接 Garmin"}</summary>
+            <summary >{connection ? "更换个人密钥" : "连接 Garmin"}</summary>
             <form onSubmit={bind}>
               <div className={styles.keyFields}>
                 <label className={styles.field}>Garmin 站点<select name="garminRegion" value={region} onChange={event => setRegion?.(event.target.value as Region)} disabled={disabled || dirty}><option value="global">国际站</option><option value="china">中国站</option></select></label>

@@ -1,6 +1,4 @@
 "use client";
-import {TaskGuide,useGuideWorkflow} from "@/components/task-guide";
-import {useMobileMode} from "@/components/use-mobile-mode";
 import {LocalLoading} from "@/components/local-loading";
 import {InspectorCloseButton} from "@/components/inspector";
 import {displayRecordDate} from "@/components/record-dates";
@@ -52,9 +50,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
   onSaved?: () => void;
 }) {
   const visibleMetrics=useBodyMetrics(), draftNoteId=useId();
-  const {finish:finishGuide}=useGuideWorkflow();
-  const mobile=useMobileMode();
-  const [periodTouched,setPeriodTouched]=useState(false);
+
   const [baseRecords, setBaseRecords] = useState(records);
   const [lastRecords, setLastRecords] = useState(records);
   const [defaultTimezone, setDefaultTimezone] = useState(systemMeasurementTimezone);
@@ -116,7 +112,7 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
         const timezone = systemMeasurementTimezone();
         acknowledgeRecordChanges(ownKeys,measurementVersions(result.records));onUpdated(result); setDefaultTimezone(timezone); setBaseRecords(result.records);if(resetPeriods.length){const fresh=makeDraft(result.records,date,choices,timezone);setDraft(previous=>({...previous,...Object.fromEntries(resetPeriods.map(period=>[period,fresh[period]]))}));setTouchedSources(previous=>new Set([...previous].filter(period=>!resetPeriods.includes(period))));} setMessage(target ? "" : saving && editing ? "已保存修改。" : result.message);
         request.current = { signature: "", id: "" };
-        if (saving && !groups.some(group => !resetPeriods.includes(group.period) && periodDirty(group.period))) {finishGuide("body");onSaved?.();}
+        if (saving && !groups.some(group => !resetPeriods.includes(group.period) && periodDirty(group.period))) {onSaved?.();}
       } catch (error) {
         setError(error instanceof Error && !(error instanceof TypeError)
           ? error.message
@@ -166,18 +162,13 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
     }
     return result;
   }
-  function selectPeriod(period:EntryPeriod){setSelected(period);setPeriodTouched(true);}
+  function selectPeriod(period:EntryPeriod){setSelected(period);}
   const periodSlide = useSlidingSelection(entryPeriods.indexOf(selected), index => selectPeriod(entryPeriods[index]));
-  const guide = !pending && !future && mobile!==null && <TaskGuide task="body" auto={!editing&&!busy} steps={[
-    {target:"body-save",text:"核对时段和值，点「"+(editing?"保存修改":"保存录入")+"」。"},
-    ...(mobile&&!periodTouched?[{target:"body-period",text:"按称重时段选。晨间填空腹实测，晚间可记非空腹值。"}]:[]),
-    {target:"body-weight-input",text:mobile?"填实际称得的体重。体脂率没测可以留空。":"在对应时段填实测值。晨间填空腹值，晚间可记非空腹值。"},
-    {target:"body-period",text:"选择要查看或记录的称重时段。"},
-  ]}/>;
+
   return <form data-editing={editing} data-entry-form="body" data-selected-period={selected} className={styles.entryForm} aria-label="当天身体录入" onSubmit={event=>{if(pending)event.preventDefault();else void save(event);}} aria-busy={busy||pending&&!readError}>
 
-    <div className={styles.entryPeriodBar} data-guide-flow>
-      <div {...periodSlide} className={styles.entrySegments + " " + glass.track} role="group" aria-label="选择录入时段" data-guide-target="body-period">
+    <div className={styles.entryPeriodBar}>
+      <div {...periodSlide} className={styles.entrySegments + " " + glass.track} role="group" aria-label="选择录入时段" >
         <span className={glass.selection} data-capsule-indicator aria-hidden="true"/>
         {entryPeriods.map((period, index) => {
         const group = groups.find(item => item.period === period)!;
@@ -192,14 +183,14 @@ export function MeasurementEntry({ date, timezone, records, sources, choices, ac
       })}</div>
       <button type="button" className={styles.entrySettings} aria-expanded={advanced.has(selected)} disabled={pending}
         onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(selected))next.delete(selected);else next.add(selected);return next;})}>更多设置</button>
-      {mobile&&guide}
+
     </div>
-    {mobile===false&&<div className={styles.desktopEntryGuide}>{guide}</div>}
+
     <div className={styles.entryGroups}>
       {groups.map(group=><fieldset key={group.period} data-period={group.period} data-selected={selected===group.period} disabled={busy||pending||group.blocked}>
         <legend><span>{periodName(group.period)} · {group.blocked?"空腹条件未确认":group.period==="daytime"?"空腹":"非空腹"}</span><button type="button" aria-expanded={advanced.has(group.period)} onClick={()=>setAdvanced(previous=>{const next=new Set(previous);if(next.has(group.period))next.delete(group.period);else next.add(group.period);return next;})}>更多设置</button></legend>
         {group.pending?<label>选择已有实测<select aria-label={"录入"+periodName(group.period)+"候选记录"} value="" onChange={event=>onChoose(date,group.period,event.target.value)}><option value="">选择已有记录</option>{group.candidates.map(row=><option value={row.id} key={row.id}>{row.sourceLocalTime}</option>)}</select></label>:<>
-          <div className={styles.entryFields} data-guide-flow data-paired={visibleMetrics.length > 1}>
+          <div className={styles.entryFields} data-paired={visibleMetrics.length > 1}>
             <div className={styles.bodyMetricFields}>{visibleMetrics.map(metric=>{
               const cell=group.fields[metric],label=periodName(group.period)+metricName(metric),key=group.period+":"+metric,editable=!group.blocked&&!future;
               const fieldId = "entry-" + group.period + "-" + metric;

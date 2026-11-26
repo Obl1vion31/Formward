@@ -44,7 +44,7 @@ import type {TrendRoute} from '@/components/metric-trend-model';
 import {EnergyPlotFrame} from "./energy-plot-frame";
 import {MobileEnergyPlot} from './mobile-energy-plot';
 import {EnergyPreferencesContext} from './energy-preferences';
-import { TrendGuide, useGuideWorkflow } from "@/components/task-guide";
+import { TrendGuide } from "@/components/task-guide";
 import { LoadingLink } from "@/components/loading-link";
 import { energyDeviceStatusLabel, hasDeviceEnergyForDate, type EnergyDeviceCoverage } from "../data-sources/energy-coverage";
 import quick from "@/components/quick-actions.module.css";
@@ -135,7 +135,7 @@ export function EnergyView({ presentation, sourceStatus=null, deviceCoverage=nul
     <LoadingLink returnScope="workspace" href="/dashboard/sources" className={styles.deviceWaiting} data-energy-device-status>
       {deviceLabel(inspected)} <span aria-hidden="true">›</span>
     </LoadingLink> : <div className={quick.stack+" "+styles.dayActions} role="group" aria-label="消耗操作">
-      <button className={quick.action} type="button" data-primary={canEstimate||undefined} data-guide-target="energy-summary" disabled={!inspected}
+      <button className={quick.action} type="button" data-primary={canEstimate||undefined}  disabled={!inspected}
         onClick={()=>{selection.releasePreview();editDay(inspected,true);}}>{energyActionLabel}</button>
       {canEstimate&&<button className={quick.action} type="button" disabled={!inspected}
         onClick={()=>{selection.releasePreview();editDay(inspected,false,true);}}>手动填写</button>}
@@ -157,7 +157,7 @@ export function EnergyView({ presentation, sourceStatus=null, deviceCoverage=nul
   // 新地址打开一次；数据刷新后保留表单中的活动量和日期。
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[initialDate,initialEntry,initialIntent,initialEstimate,initialTrend]);
-  const {finish:finishGuide}=useGuideWorkflow();
+
   const savedClose=useRef<()=>Promise<void>>(()=>Promise.resolve());
   function execute(input: EnergyAction | EnergyAction[]) {
     const actions = Array.isArray(input) ? input : [input];
@@ -171,7 +171,7 @@ export function EnergyView({ presentation, sourceStatus=null, deviceCoverage=nul
           const latest=await verifyRecordVersions(energySaveExpectations(actions,state));
           request.current={content,actions:applyEnergyVersions(actions,state,latest),id:crypto.randomUUID()};
         }
-        const result = await save({ operationId:request.current.id, actions:request.current.actions }); if (!result.ok) { request.current=null;setError(result.error); return; } acknowledgeRecordChanges(result.data.changedKeys??actions.map(action=>action.kind.includes("energy_day")?"energyDay:"+("date" in action?action.date:state.days.find(d=>d.id===action.id)?.date):"activity:"+(action.id??result.data.presentation.snapshot.activities.find(a=>!state.activities.some(old=>old.id===a.id)&&"name" in action&&a.name===action.name)?.id)),energyVersions(result.data.presentation.snapshot));rememberSavedPreferences(actions,result.data.presentation);setLocal(result.data.presentation); const changed = actions.find(action => "date" in action); if (changed && "date" in changed) selection.choose(changed.date); setNotice(result.data.message); if(actions.some(action=>action.kind==="save_energy_day"))finishGuide("energy"); void savedClose.current(); request.current = null; }
+        const result = await save({ operationId:request.current.id, actions:request.current.actions }); if (!result.ok) { request.current=null;setError(result.error); return; } acknowledgeRecordChanges(result.data.changedKeys??actions.map(action=>action.kind.includes("energy_day")?"energyDay:"+("date" in action?action.date:state.days.find(d=>d.id===action.id)?.date):"activity:"+(action.id??result.data.presentation.snapshot.activities.find(a=>!state.activities.some(old=>old.id===a.id)&&"name" in action&&a.name===action.name)?.id)),energyVersions(result.data.presentation.snapshot));rememberSavedPreferences(actions,result.data.presentation);setLocal(result.data.presentation); const changed = actions.find(action => "date" in action); if (changed && "date" in changed) selection.choose(changed.date); setNotice(result.data.message);  void savedClose.current(); request.current = null; }
       catch (error) { setError(error instanceof RecordVersionError||error instanceof EnergySaveError?error.message:"保存未完成，当前输入已保留，请重试。"); }
       finally { guard.current = false; }
     });

@@ -28,7 +28,7 @@ export function NutritionSummaryCard({
   const calories = totals?.values.caloriesKcal ?? null;
   const composition = macroComposition(totals);
 
-  return <section data-guide-target="trend-nutrition-metrics" data-guide-flow
+  return <section data-guide-target="trend-nutrition-metrics"
     className={styles.card}
     data-record-slot="metrics"
     data-selected-date={date}
@@ -99,7 +99,7 @@ export function MealPageActions({ record, openLibrary, libraryRef, historical }:
 }) {
   const refreshing = useContext(WorkspaceRefreshingContext);
   return <div className={quick.stack} role="group" aria-label="饮食操作">
-    <button className={quick.action} type="button" data-primary data-meal-record-entry data-guide-target="meal-page-entry" disabled={refreshing} onClick={record}>
+    <button className={quick.action} type="button" data-primary data-meal-record-entry  disabled={refreshing} onClick={record}>
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
       {historical ? "补记这天" : "记一餐"}
     </button>

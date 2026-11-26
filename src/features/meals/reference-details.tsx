@@ -67,7 +67,7 @@ function SingleReferenceDetails({ food, back, onAdd, openMeal, relatedStatus, ma
     onAdd?.([makePick(food, quantity, byPortion)]);
   }
 
-  const action = onAdd && <button type="button" className={styles.add} data-guide-target="meal-library-add" onClick={add} disabled={disabled || !validPick}>加入本餐</button>;
+  const action = onAdd && <button type="button" className={styles.add}  onClick={add} disabled={disabled || !validPick}>加入本餐</button>;
   const calorieText = (value: string | null, approximate = true) => value === null ? "热量未知" :
     (approximate ? "约 " : "") + formatNutrition(value, "caloriesKcal") + " 千卡";
 
@@ -82,7 +82,7 @@ function SingleReferenceDetails({ food, back, onAdd, openMeal, relatedStatus, ma
     </div>
     <p className={styles.basis}>{volume ? "每 100 mL" : "每 100 g 可食部"}</p>
     <div className={styles.detailsReadings} data-guide-reading><MealEntryReadings nutrition={food.nutrition}/></div>
-    {onAdd && <section className={styles.amount} data-guide-flow aria-label="本次食用量">
+    {onAdd && <section className={styles.amount} aria-label="本次食用量">
       <h4>实际吃了多少</h4>
         {portion && <div className={styles.amountChoices} role="group" aria-label="选择份量" data-guide-target={choice!=="custom"?"meal-library-portion":undefined}>
           <button type="button" aria-pressed={choice === "half"} onClick={() => choose("half")}>半{portion.unit}</button>
@@ -90,7 +90,7 @@ function SingleReferenceDetails({ food, back, onAdd, openMeal, relatedStatus, ma
           <button type="button" aria-pressed={choice === "custom"} onClick={() => choose("custom")}>克</button>
         </div>}
         {choice === "custom" && <label className={styles.amountInput}>{volume ? "饮用毫升数" : "可食克数"}
-          <DecimalInput data-guide-target="meal-library-portion" aria-label={volume ? "饮用毫升数" : "可食克数"} value={measured} onValue={setMeasured}
+          <DecimalInput  aria-label={volume ? "饮用毫升数" : "可食克数"} value={measured} onValue={setMeasured}
             min={0} max={1000000} precision={2} trimTrailingZeros placeholder={volume ? "mL" : "g"}/>
         </label>}
         {validAmount && withinLimit && <p className={styles.amountValues} aria-live="polite">

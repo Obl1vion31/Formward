@@ -1,10 +1,10 @@
 (() => {
 'use strict';
 const topics=[
- {id:'meals',name:'饮食',title:'从食材库记一餐',summary:'选食材、填份量、保存',short:['打开指引','选食材','保存'],steps:[['打开记录一餐','从总览或饮食页点「记一餐」。想跟着做，就点「使用指引」。'],['添加食材','从食材库打开实际吃的食物，核对规格和数量，再点「加入本餐」。也可以手填或拍照。'],['核对并保存','核对日期、餐别和食物，再点「保存餐次」。当天全部记完后，在饮食列表末尾勾「已记全」。']],note:'手填的是本次吃下的总营养。食材库项目按规格和份量自动换算。'},
+ {id:'meals',name:'饮食',title:'从食材库记一餐',summary:'选食材、填份量、保存',short:['打开记餐','选食材','保存'],steps:[['打开记录一餐','从总览或饮食页点「记一餐」。核对日期和餐别后开始填写。'],['添加食材','从食材库打开实际吃的食物，核对规格和数量，再点「加入本餐」。也可以手填或拍照。'],['核对并保存','核对日期、餐别和食物，再点「保存餐次」。当天全部记完后，在饮食列表末尾勾「已记全」。']],note:'手填的是本次吃下的总营养。食材库项目按规格和份量自动换算。'},
  {id:'overview',name:'总览',title:'看懂总览与趋势',summary:'日期、状态卡与日收支',short:['打开指引','看状态卡','看趋势'],steps:[['打开页面导览','点总览的「使用指引」，金框标出今天的日期和可用记录入口。'],['查看状态卡','点「下一步」看今日摄入、最近晨重和今日消耗。点亮起的卡片可进入对应趋势。'],['查看选中日期','图表显示所选日收支和次晨实测变化。点「查看记录」打开同一天。']],note:'饮食、消耗和身体趋势页也可直接打开高光导览。'},
- {id:'body',name:'身体',title:'记录实测体重',summary:'选晨晚、填实测、保存',short:['打开录入','填实测','保存'],steps:[['打开身体录入','点「记录体重」后可点「使用指引」。在手机按实际称重时段选择晨间或晚间。'],['填写实测','晨间填空腹实测，晚间可以记非空腹值。体脂率没测可留空。'],['核对保存','核对日期、时段和值，再点「保存录入」。可在身体页查看原记录。']],note:'切换时段会保留已填内容。缺测按事实留空。'},
- {id:'energy',name:'消耗',title:'估算并保存当天消耗',summary:'活动量、估算依据与保存',short:['打开估算','选活动量','保存'],steps:[['打开当天估算','没有采用稳定设备来源时，点「估算今天的消耗」。需要的话点「使用指引」。'],['选择活动量','选与实际最接近的一项。提示缺资料时可补实测或个人资料，返回继续同一天的估算。'],['查看依据并保存','核对预计全天消耗。可展开「估算依据」查看公式与实测日期，然后点「保存」。']],note:'手动填写仍可用。活动合计已包含的运动保留明细，避免重复增加。'},
+ {id:'body',name:'身体',title:'记录实测体重',summary:'选晨晚、填实测、保存',short:['打开录入','填实测','保存'],steps:[['打开身体录入','点「记录体重」。在手机按实际称重时段选择晨间或晚间。'],['填写实测','晨间填空腹实测，晚间可以记非空腹值。体脂率没测可留空。'],['核对保存','核对日期、时段和值，再点「保存录入」。可在身体页查看原记录。']],note:'切换时段会保留已填内容。缺测按事实留空。'},
+ {id:'energy',name:'消耗',title:'估算并保存当天消耗',summary:'活动量、估算依据与保存',short:['打开估算','选活动量','保存'],steps:[['打开当天估算','没有采用稳定设备来源时，点「估算今天的消耗」。'],['选择活动量','选与实际最接近的一项。提示缺资料时可补实测或个人资料，返回继续同一天的估算。'],['查看依据并保存','核对预计全天消耗。可展开「估算依据」查看公式与实测日期，然后点「保存」。']],note:'手动填写仍可用。活动合计已包含的运动保留明细，避免重复增加。'},
  {id:'photo',name:'拍照',title:'拍照后在助手里核对',summary:'选图、补充、确认保存',short:['发送照片','补充核对','保存'],steps:[['选择照片并发送','在记录一餐里选「拍照录入」，加照片和必要说明，核对日期和餐别后点「发给助手」。'],['在同一对话补充','如果助手追问，在对应问题卡填写实际吃下的份量。核对卡可以修改食物，也可以改用手填。'],['确认本餐','检查餐别、日期和食物后点「确认保存」。保存后从回执打开饮食记录。']],note:'拍照发送只是提交识别。本餐以你最后确认保存的内容为准。'},
  {id:'device',name:'设备',title:'查看设备消耗和同步状态',summary:'今日累计和已导入记录',short:['打开消耗','看累计','看同步'],steps:[['查看当天消耗','已采用稳定的设备日消耗时，总览和消耗页展示设备来源或同步状态。'],['读懂今日累计','今日累计会随设备同步更新，全天数据完整后可查看当天结果。'],['查看来源和状态','点设备状态前往「设备与数据来源」。在那里查看最近导入，或处理连接、暂停与失败。']],note:'仅同步步数或运动的设备不会接管全天消耗。'},
  {id:'backfill',name:'补录',title:'补到正确的日期',summary:'选历史日期并查看记录',short:['打开记录','选日期','核对保存'],steps:[['查找日期','从饮食趋势选择日期，或在「查看记录」里查找要补的那一天。'],['补记当天','在相应日期点「补记这天」或进入编辑，核对面板上的日期与餐别。'],['保存并重新核对','保存后从同一天查看餐次与食物。补记或修改后，再确认那天是否「已记全」。']],note:'昨天待确认时也可从总览的「核对」直接打开昨天。'},
@@ -29,7 +29,7 @@ function render(options){
  return [
  '<section class="journey tutorial-journey" aria-labelledby="manual-title" data-tutorial-guide data-mode="'+(device.matches?'mobile':'desktop')+'">',
  '<div class="guide-heading"><h1 id="manual-title">使用说明</h1><span class="guide-reference">演示使用虚构数据</span></div>',
- '<p class="guide-intro">在页面或录入面板点「使用指引」，跟着金框操作。</p><h2 class="guide-video-title" id="operation-videos">操作视频</h2>',
+ '<p class="guide-intro">总览和趋势页可主动打开带编号的「使用指引」。录入步骤见各主题文字说明。</p><h2 class="guide-video-title" id="operation-videos">操作说明</h2>',
  '<section class="guide-directory" aria-label="教程目录与预览"><nav class="directory-topics" aria-label="操作视频主题">',
  topics.map(t=>'<button type="button" class="directory-topic" data-directory-topic="'+t.id+'" aria-label="'+t.name+'：'+t.summary+'，选择教程"><span class="directory-copy"><span class="directory-name">'+t.name+'</span><span class="directory-summary">'+t.summary+'</span></span><span class="directory-arrow" aria-hidden="true">›</span></button>').join(''),
  '</nav><div class="directory-preview" data-preview-topic="'+selected+'"><div class="preview-heading"><h2 data-preview-title>'+topicFor(selected).title+'</h2><button type="button" class="preview-toggle" data-preview-toggle aria-label="自动播放短预览" aria-pressed="'+!reduced.matches+'">'+(reduced.matches?'播放预览':'暂停预览')+'</button></div>',
@@ -60,7 +60,11 @@ function bind(container){
  function syncPreview(){
   reflectPreview();
   if(dead||device.matches){pausePreview();return;}
-  const a=assetFor(previewTopic,false);if(!a)return;
+  const a=assetFor(previewTopic,false);
+  preview.querySelector('.preview-picture').hidden=!a;
+  root.querySelector('[data-preview-toggle]').hidden=!a;
+  root.querySelector('[data-open-preview]').innerHTML=a?playIcon+'<span>观看完整教程</span>':'<span>查看操作步骤</span>';
+  if(!a){pausePreview();previewVideo.removeAttribute('src');previewVideo.load();previewPoster.removeAttribute('src');return;}
   if(previewPoster.getAttribute('src')!==a.poster)previewPoster.src=a.poster;
   const allowed=previewEnabled&&previewVisible&&!modalOpen&&!document.hidden;
   if(!allowed){pausePreview();return;}
@@ -97,6 +101,12 @@ function bind(container){
  }
  function createLesson(topic,mobile){
   const a=assetFor(topic.id,mobile);
+  if(!a){
+   const node=document.createElement('section');node.className='lesson';node.dataset.lesson=topic.id;node.dataset.view='text';
+   node.innerHTML='<div class="lesson-text"><h2>'+esc(topic.title)+'</h2><ol class="text-steps">'+topic.steps.map(s=>'<li><h3>'+esc(s[0])+'</h3><p>'+esc(s[1])+'</p></li>').join('')+'</ol><p class="lesson-note">'+esc(topic.note)+'</p></div>';
+   root.querySelectorAll('[data-view-switch]').forEach(b=>{b.hidden=true;});
+   return {node,layout(){},play(){},pause(){},toggleText(){},snapshot(){return{topic:topic.id,view:'text'};},restore(){},dispose(){root.querySelectorAll('[data-view-switch]').forEach(b=>{b.hidden=false;});}};
+  }
   const cues=a?.cues?.length?a.cues:[{id:'entry',step:0,start:0,end:30,text:topic.steps[0][1]}];
   const node=document.createElement('section');node.className='lesson';node.dataset.lesson=topic.id;node.dataset.view='video';node.dataset.started='false';
   node.innerHTML=[

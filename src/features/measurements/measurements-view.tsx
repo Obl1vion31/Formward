@@ -6,7 +6,7 @@ import type {RecordIntent} from "@/components/record-intent";
 import {useRepeatedRecordTask} from '@/components/record-intent-client';
 import {measurementVersions} from "@/components/record-change-client";
 import {RecordWorkspace,RecordTrendPanel,CustomRecordRange,type RecordMetric} from "@/components/record-trend-panel";
-import {TrendGuide} from "@/components/task-guide";
+import { TrendGuide } from "@/components/task-guide";
 import {formatRecordNumber} from "@/components/number-format";
 import { ChartRanges } from "@/components/chart-ranges";
 import { useChartDateSelection } from "@/components/use-chart-date-selection";
@@ -103,7 +103,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
   const selectedSummary=activeMetric==='weightKg'?weight:fat,deltaUnit=activeMetric==='weightKg'?'kg':'百分点';
   const chooseMetric=(metric:MeasurementMetric)=>{if(metric!==activeMetric){selection.choose(activeDate);transition.invalidate();setSelectedMetric(metric);}};
   const readings:RecordMetric[]=[
-   {label:'晨间体重',value:formatRecordNumber(weight.value),unit:'kg',inlineUnit:true,select:()=>chooseMetric('weightKg'),selected:activeMetric==='weightKg',graphic:<BodySpark records={records} date={activeDate} metric="weightKg" choices={choices}/>,action:today&&activeDate===today&&!hasTodayWeight?<button type="button" data-body-entry data-guide-target="body-weight" onClick={()=>setDrawer({kind:"entry",date:today,period:"daytime"})}>记录体重</button>:<button type="button" onClick={()=>window.dispatchEvent(new Event('formward-open-body-settings'))}>身体设置</button>},
+   {label:'晨间体重',value:formatRecordNumber(weight.value),unit:'kg',inlineUnit:true,select:()=>chooseMetric('weightKg'),selected:activeMetric==='weightKg',graphic:<BodySpark records={records} date={activeDate} metric="weightKg" choices={choices}/>,action:today&&activeDate===today&&!hasTodayWeight?<button type="button" data-body-entry  onClick={()=>setDrawer({kind:"entry",date:today,period:"daytime"})}>记录体重</button>:<button type="button" onClick={()=>window.dispatchEvent(new Event('formward-open-body-settings'))}>身体设置</button>},
    preference.showBodyFat?{label:'晨间体脂率',value:formatRecordNumber(fat.value),unit:'%',inlineUnit:true,select:()=>chooseMetric('bodyFatPercent'),selected:activeMetric==='bodyFatPercent',graphic:<BodySpark records={records} date={activeDate} metric="bodyFatPercent" choices={choices}/>}:{label:'较前一日',value:formatDifference(weight.previousChange,'weightKg',false)??'—',unit:'kg',inlineUnit:true},
    {label:'7日平均体重',value:formatRecordNumber(weight.average),unit:'kg',inlineUnit:true}
   ];

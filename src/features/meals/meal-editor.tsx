@@ -3,7 +3,6 @@ import {DateField} from "@/components/date-field";
 import { MealPhotoEntry, type AppliedMeal } from "../assistant/meal-photo-entry";
 import { useOptionalAssistantChat } from "../assistant/chat-client";
 import {LocalLoading} from "@/components/local-loading";
-import {TaskGuide} from "@/components/task-guide";
 import {mealWebIssue} from "../records/web-entry";
 import { useDraftGuard, useInspectorStep } from "@/components/draft-guard";
 import { useMobileMode } from "@/components/use-mobile-mode";
@@ -91,7 +90,6 @@ export function MealEditor({
  const exchange = useMemo(() => createWorkspaceExchange(), []);
  const [libraryOpen, setLibraryOpen] = useState(false);
  const [inlineLibrary, setInlineLibrary] = useState(false);
- const [guideBrowsing, setGuideBrowsing] = useState(false);
  const [libraryVisit, setLibraryVisit] = useState(0);
  const [paneChange,setPaneChange]=useState<{ direction: "forward" | "back"; scroll: number; animate: boolean } | null>(null);
  const currentPaneChange = useRef<typeof paneChange>(null);
@@ -287,7 +285,7 @@ export function MealEditor({
    const food = item && itemReference(item);
    const edit = item && food?.recipe ? { item, food, parts: itemRecipeParts(item, food) } : null;
    setRecipeEdit(edit);
-   setGuideBrowsing(true);
+
    if (edit) setScope("reference");
    setReplacing(replace);
    setSelected([]);
@@ -309,7 +307,7 @@ export function MealEditor({
  }
 
  function returnToMeal() {
-   setGuideBrowsing(false);
+
    setLibraryOpen(false);
    setSelected([]);
    setReplacing(null);
@@ -413,7 +411,7 @@ export function MealEditor({
    if (entered.length >= 50) return;
    const key = draft.items.at(-1)!.editor.key;
    setCollapsed(current => current.filter(value => value !== key));
-   setGuideBrowsing(false);
+
    setFreeKey(key);
    requestAnimationFrame(() => rows.current?.querySelector<HTMLInputElement>('[data-blank-row] input')?.focus());
  }
@@ -443,19 +441,7 @@ export function MealEditor({
    back: backFromLibrary,
  } : null);
  const externalBack = mobilePicker && hasInspector;
- const picking = libraryOpen || inlineLibrary && (guideBrowsing || !!referenceBack || !!recipeEdit);
- const manualItem = draft.items.find(item => item.editor.key === freeKey);
- const guideSteps = picking ? [
-   { target:"meal-library-add", text:"核对实际吃的份量，点高光按钮加入本餐。" },
-   { target:"meal-library-portion", text:"按实际吃下的量选择规格或填写份量。" },
-   { target:"meal-library-search", text:"搜索并打开与你实际吃的食物最接近的规格。" },
- ] : [
-   ...(manualItem&&!manualItem.name.trim()?[{ target:"meal-manual-name", text:"先填写食物名称。" }]:[]),
-   ...(manualItem?.name.trim()&&!manualItem.quantity&&manualItem.amountDecision!=="unknown_accepted"?
-     [{ target:"meal-manual-amount", text:"在这里填数量，旁边可选单位。记不清时可选择保留未知份量。" }]:[]),
-   { target:"meal-save", text:"核对食物与日期，点「"+submitLabel+"」。" },
-   { target:"meal-editor-food", text:"用「从食材库添加」按份量换算。也可以选手动填写"+(allowAi&&canMealAi&&onAiSaved?"或拍照录入":"")+"。" },
- ];
+
 
  async function submit(event: FormEvent<HTMLFormElement>) {
    event.preventDefault();
@@ -495,7 +481,6 @@ export function MealEditor({
        backFromLibrary();
      }}
      onChange={event => setInvalid(Boolean(event.currentTarget.querySelector(":invalid")))}>
-     <div className={styles.entryGuide}>{!pending&&<TaskGuide task="meal" steps={guideSteps} auto={!initial.id&&!initial.items.length&&!busy}/>}</div>
      <fieldset disabled={busy || uploading || pending || aiSaving || aiWorking}>
        <div className={styles.columns + " " + motion.stage} data-meal-pane-transition={paneChange?.animate ? paneChange.direction : undefined}>
        <div ref={mealPane} className={motion.mealPane} data-meal-pane="meal" inert={paneChange?.animate && libraryOpen}>
@@ -532,9 +517,9 @@ export function MealEditor({
                if (match) addFoods([match]);
              } catch { /* Only the library's drag format is accepted. */ }
            }}>
-           <div className={styles.foodHeading} data-guide-flow>
+           <div className={styles.foodHeading}>
              <h2 id={bubbleId + "-foods"}>本餐食物</h2>
-             <button ref={libraryTrigger} type="button" className={styles.libraryLink} aria-label="从食材库添加" data-guide-target="meal-editor-food"
+             <button ref={libraryTrigger} type="button" className={styles.libraryLink} aria-label="从食材库添加"
                aria-controls={bubbleId + "-picker"} aria-expanded={inlineLibrary || libraryOpen} disabled={!canPick} onClick={() => showLibrary()}>
                从食材库添加 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
              </button>
@@ -622,9 +607,9 @@ export function MealEditor({
              searchRef={scope === "reference" ? search : undefined}
              enabled={!recipeEdit && !pending && scope === "reference" && (inlineLibrary || libraryOpen)} disabled={!canPick || busy || uploading}
              maxItems={availablePickSlots} pickerVisit={libraryVisit} onAdd={addReference} onManual={manualFromSearch} onDetailBack={onDetailBack} externalBack={!inlineLibrary}/></div>
-           {scope === "personal" && <><label className={styles.librarySearch + " " + styles.compactField} data-guide-flow><span className="sr-only">搜索食材</span>
+           {scope === "personal" && <><label className={styles.librarySearch + " " + styles.compactField}><span className="sr-only">搜索食材</span>
              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="m12 12 4 4"/></svg>
-             <input data-guide-target="meal-library-search" aria-label="搜索食材" ref={search} type="search" placeholder="搜索名称、品牌或规格" value={query}
+             <input  aria-label="搜索食材" ref={search} type="search" placeholder="搜索名称、品牌或规格" value={query}
                onChange={event => setQuery(event.target.value)}/>
            </label>
            <div className={styles.libraryBody}>
@@ -665,7 +650,7 @@ export function MealEditor({
        </div>
        <div className={styles.libraryFooter}>
          <span aria-live="polite">{selected.length > 0 ? "已选 " + selected.length + " 项" : "选择要加入的食材"}</span>
-         <button type="button" data-guide-target="meal-library-add" className={styles.saveButton} disabled={!selected.length || busy} onClick={() => {
+         <button type="button"  className={styles.saveButton} disabled={!selected.length || busy} onClick={() => {
            const byId = new Map(availableFoods.map(food => [food.id, food]));
            addFoods(selected.flatMap(id => byId.get(id) ?? []));
          }}>加入本餐</button>
