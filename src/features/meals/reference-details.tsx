@@ -81,7 +81,7 @@ function SingleReferenceDetails({ food, back, onAdd, openMeal, relatedStatus, ma
       </div>
     </div>
     <p className={styles.basis}>{volume ? "每 100 mL" : "每 100 g 可食部"}</p>
-    <div className={styles.detailsReadings}><MealEntryReadings nutrition={food.nutrition}/></div>
+    <div className={styles.detailsReadings} data-guide-reading><MealEntryReadings nutrition={food.nutrition}/></div>
     {onAdd && <section className={styles.amount} data-guide-flow aria-label="本次食用量">
       <h4>实际吃了多少</h4>
         {portion && <div className={styles.amountChoices} role="group" aria-label="选择份量" data-guide-target={choice!=="custom"?"meal-library-portion":undefined}>
@@ -100,7 +100,7 @@ function SingleReferenceDetails({ food, back, onAdd, openMeal, relatedStatus, ma
         </p>}
       {validAmount && !withinLimit && <p role="alert">换算结果过大，请检查食量。</p>}
     </section>}
-    <div className={styles.referenceNotes}>
+    <div className={styles.referenceNotes} data-guide-reading>
       {portion && <p>参考份量 · {portion.label} · 1{portion.unit}约 {Number(portion.edibleGrams)} g</p>}
       <p>{food.sourceKind === "estimated" ? "配方估算 · " : ""}{food.source.dataset} · {food.source.recordId}</p>
       <a href={food.source.url} title={food.source.title} target="_blank" rel="noreferrer">查看来源</a>

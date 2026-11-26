@@ -109,7 +109,7 @@ export function placeGuideCard(panel: HTMLElement, anchor: GuideBox, bounds: Gui
 
 export function operationObstacles(scope: HTMLElement, anchor: HTMLElement) {
   const controls = scope.querySelectorAll<HTMLElement>(
-    "input,textarea,select,button,a[href],summary,[role=button],[contenteditable=true],[data-record-slot=metrics],[data-entry-footer],[data-meal-footer],[data-review-footer]",
+    "input,textarea,select,button,a[href],summary,[role=button],[contenteditable=true],[data-record-slot=metrics],[data-guide-reading],[data-entry-footer],[data-meal-footer],[data-review-footer]",
   );
   const obstacles = Array.from(controls).filter(control => guidePresent(control) && !anchor.contains(control) && !control.closest("[data-guide-float]"));
   const guideGroup = anchor.closest<HTMLElement>("[data-guide-flow]");
