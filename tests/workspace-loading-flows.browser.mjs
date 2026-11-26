@@ -29,18 +29,22 @@ export async function checkLoadingFlows({config,folder,createContext,control,sho
    await control(0);await page.goto(config.baseURL+'/dashboard/training');await page.waitForLoadState('networkidle');
    // 次级页可以直接展示真实外壳；等待出现时仍须位于所属正文，不强制闪现通用读取行。
    for(const [name,path]of [['AI 接入','/dashboard/ai'],['导出 Excel','/dashboard/export']]){
-    await control(500);await page.locator('[data-assistant-trigger]:visible').click();const panel=page.locator('[data-assistant-page=true],dialog[data-assistant-surface][open]').filter({visible:true});await panel.waitFor();const todo=panel.getByRole('tab',{name:/^待办/});if(await todo.isVisible())await todo.click();const tools=panel.locator('[data-assistant-group=tools]');if(await tools.getAttribute('aria-expanded')!=='true')await tools.click();await panel.locator('a[href="'+path+'"]').click();await page.waitForURL(config.baseURL+path);
+    await control(500);const panel=page.locator('[data-assistant-page=true],dialog[data-assistant-surface][open]:not([data-surface-phase=closing])').filter({visible:true});if(!await panel.isVisible())await page.locator('[data-assistant-trigger]:visible').click();await panel.waitFor();const todo=panel.getByRole('tab',{name:/^待办/});if(await todo.isVisible())await todo.click();const tools=panel.locator('[data-assistant-group=tools]');if(await tools.getAttribute('aria-expanded')!=='true')await tools.click();await panel.locator('a[href="'+path+'"]').click();await page.waitForURL(config.baseURL+path);
     const wait=page.locator('main.dashboard-page [data-local-loading][data-visible]:visible').first();
     if(await wait.isVisible()){const position=await wait.evaluate(node=>{const r=node.getBoundingClientRect(),main=node.closest('main').getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,mainX:main.x,mainRight:main.right};});assert.ok(position.x>=position.mainX&&position.x>8&&position.x+position.width<=position.mainRight+1,name+'等待位于所属正文容器');}
-    if(path.endsWith('/ai'))await page.locator('[data-ai-access-ready]').waitFor();else{await page.locator('main input[type=date][name=from]').waitFor();assert.ok((await page.locator('main label:has(input[name=from])').innerText()).startsWith('开始日期'));}await shot(page,prefix+'-'+name+'-content');await control(0);await page.waitForLoadState('networkidle');assert.equal(await page.getByText('正在更新',{exact:true}).count(),0);checks.push(prefix+' '+name+'真实外壳／局部等待对齐，无错误更新提示');await page.goBack();
-    if(new URL(page.url()).pathname==='/dashboard/assistant')await page.getByRole('button',{name:'返回工作区',exact:true}).click();
-    await page.waitForURL(config.baseURL+'/dashboard/training');await page.waitForLoadState('networkidle');
+    if(path.endsWith('/ai'))await page.locator('[data-ai-access-ready]').waitFor();else{await page.locator('main input[type=date][name=from]').waitFor();assert.ok((await page.locator('main label:has(input[name=from])').innerText()).startsWith('开始日期'));}await shot(page,prefix+'-'+name+'-content');await control(0);await page.waitForLoadState('networkidle');assert.equal(await page.getByText('正在更新',{exact:true}).count(),0);checks.push(prefix+' '+name+'真实外壳／局部等待对齐，无错误更新提示');await page.getByRole('link',{name:/返回待办|返回小助手/}).click();
+    await panel.waitFor();
+    await page.waitForFunction(path=>document.activeElement?.getAttribute('href')===path,path);
+    await panel.getByRole('button',{name:mobile?'返回工作区':'收起小助手',exact:true}).click();
+    await panel.waitFor({state:'hidden'});
+    await page.waitForURL(config.baseURL+'/dashboard/training');
+    await page.waitForLoadState('networkidle');
    }
    for(const[name,ready]of [['个人资料',()=>page.getByRole('button',{name:'修改资料',exact:true}).waitFor()],['账号与安全',()=>page.locator('input[name="currentPassword"]').waitFor()],['设备与数据来源',()=>page.getByText('连接 Garmin',{exact:true}).waitFor()]]){
     transport='slow';await openAccount(name);await page.locator('[data-local-loading][data-visible]').first().waitFor();
     assert.equal(await page.locator('.account-sheet-skeleton').count(),0);assert.equal(await page.locator('.page-loading-dialog[open],.workspace-loading').count(),0);
     await shot(page,prefix+'-'+name+'-reading');await ready();await page.waitForLoadState('networkidle');await page.waitForTimeout(550);await shot(page,prefix+'-'+name+'-ready');
-    assert.equal(await page.locator('[data-local-loading][data-visible]').count(),0);
+    await page.locator('[data-local-loading][data-visible]').first().waitFor({state:'hidden',timeout:8000});
     await localEvidence(name);transport='normal';if(mobile)await closeAccount();else{await page.goto(config.baseURL+'/dashboard/training');await page.waitForLoadState('networkidle');}
    }
    if(mobile){
