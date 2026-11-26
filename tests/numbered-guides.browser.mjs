@@ -94,6 +94,8 @@ async function tours() {
   await page.goBack(); await visible('[data-task-guide="overview"]').waitFor(); await closed();
   await open("overview"); await ready(overview[0]); await button("下一步").click(); await button("跳过全部").click(); await closed();
   await open("overview"); await ready(overview[0]); await button("下一步").click(); await button("关闭使用指引").click(); await closed();
+  await open("overview"); await ready(overview[0]); await page.keyboard.press("Tab"); await page.keyboard.press("Escape"); await closed();
+  await page.keyboard.press("Tab"); assert.equal(await page.evaluate(() => !!document.activeElement?.closest('[data-guide-layer]')), false);
   await open("overview"); await ready(overview[0]);
   await visible('nav[aria-label="主导航"] a[href="/dashboard/energy"]').first().click(); await closed(); await page.waitForURL(url => url.pathname === "/dashboard/energy");
   await open("energy-page"); await ready("trend-energy-metrics"); await visible(".dashboard-logo").click(); await closed(); await page.waitForURL(url => url.pathname === "/dashboard");
@@ -125,6 +127,11 @@ async function loading() {
   await counter(3, 6); await shot("failure-step-three");
   await database(0); await button("重试").click(); await ready(overview[2]); await counter(3, 6); await shot("retry-keeps-step-three");
   expectingFailure = false; await button("返回页面").count(); await button("跳过全部").click(); await closed();
+  expectingFailure = true; await database(0, true); await visit("/dashboard/energy", true); await open("energy-page");
+  await layer().getByText("此区域读取失败，可以重试或返回页面。", { exact: true }).waitFor();
+  await button("返回页面").click(); await closed(); await database(0);
+  await page.getByRole("button", { name: "重新读取", exact: true }).filter({ visible: true }).first().click();
+  await visible('[data-workspace-reading=true]').waitFor({ state: "hidden" }); await closed(); expectingFailure = false;
   findings.push({ loading: ["四个入口首帧可见", "数据未就绪可打开", "同一步接管", "固定入口槽位≤1px", "真实读取失败", "失败原位重试保留编号"] });
 }
 async function energy() {
@@ -153,6 +160,22 @@ async function energy() {
   await action.click();
   await visible("dialog[open]").last().waitFor(); await shot("energy-actual-detail");
   assert.equal(await visible("dialog[open]").getByRole("button", { name: "使用指引" }).count(), 0);
+  for (const name of ["unknown", "zero", "only-total"]) {
+    await login(fixture.devices.find(account => account.name === name)); await visit("/dashboard/energy");
+    await open("energy-page"); await ready("trend-energy-metrics"); await button("关闭使用指引").click(); await closed();
+    const values = await visible('[data-guide-target="trend-energy-metrics"]').first().evaluate(node => ({
+      main: node.querySelector('[data-metric-number]')?.textContent?.replace(/\s/g, ''),
+      parts: [...node.querySelectorAll('.energy-share-value')].map(part => part.textContent),
+      composition: node.querySelector('.energy-composition')?.textContent,
+      shares: node.querySelectorAll('.energy-share-track>span').length,
+      overflow: node.scrollWidth > node.clientWidth + 1,
+    }));
+    assert.ok(!values.overflow); assert.equal(values.shares, 0); assert.ok(!values.composition?.includes('%'));
+    if (name === "zero") { assert.match(values.main, /^0/); if (mobile) assert.deepEqual(values.parts, ["0", "0"]); }
+    else if (name === "only-total") { assert.match(values.main, /^1234/); if (mobile) assert.deepEqual(values.parts, ["—", "—"]); }
+    else assert.ok(!values.main || values.main.startsWith("—"));
+    await shot("energy-" + name); findings.push({ name, values });
+  }
 }
 let failure;
 try {

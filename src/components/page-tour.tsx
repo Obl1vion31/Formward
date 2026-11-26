@@ -64,7 +64,9 @@ export function PageTour({ ownerId, getOrigin, configuration, onClose, onRetry }
     const layer = layerRef.current!, frame = frameRef.current!, tip = tipRef.current!;
     const list = JSON.parse(configuration) as GuideStep[];
     const controller = new AbortController(), { signal } = controller;
-    let current = 0, active: HTMLElement | undefined, busy = false, pendingFrame = 0, focused = false;
+    let current = 0, active: HTMLElement | undefined, busy = false, pendingFrame = 0, watchFrame = 0, focused = false;
+    let lastGeometry = "";
+    let lastTarget: HTMLElement | undefined;
     let status: Status = "waiting";
     const resolveTarget = () => { const origin = getOrigin(); return origin ? guideTarget(origin, list[current].target) : undefined; };
 
@@ -135,6 +137,15 @@ export function PageTour({ ownerId, getOrigin, configuration, onClose, onRetry }
       if (busy) return;
       if (!pendingFrame) pendingFrame = requestAnimationFrame(refresh);
     }
+    // WebKit的横向吸附或视口接管有时迟于resize通知。只在手动导览存续时观察实际几何，
+    // 坐标不变则不写DOM；退出同步取消，不能留下常驻轮询。
+    function watchGeometry() {
+      if (signal.aborted) return;
+      const target = resolveTarget(), bounds = guidePageBounds(3), rect = target?.getBoundingClientRect();
+      const geometry = [rect?.left, rect?.top, rect?.width, rect?.height, bounds.left, bounds.right, bounds.top, bounds.bottom].join(":");
+      if (geometry !== lastGeometry || target !== lastTarget) { lastGeometry = geometry; lastTarget = target; schedule(); }
+      watchFrame = requestAnimationFrame(watchGeometry);
+    }
     function dismiss(restoreFocus: boolean) {
       controller.abort(); clearAnchor();
       if (layer.matches(":popover-open")) layer.hidePopover();
@@ -179,6 +190,7 @@ export function PageTour({ ownerId, getOrigin, configuration, onClose, onRetry }
     };
     document.documentElement.dataset.guideTour = ownerId; layer.dataset.guidePhase = "waiting"; openGuide(layer);
     pending("waiting"); schedule();
+    watchFrame = requestAnimationFrame(watchGeometry);
     window.addEventListener("scroll", schedule, { capture: true, signal });
     window.addEventListener("resize", schedule, { signal });
     window.addEventListener("formward-guide-targets", schedule, { signal });
@@ -190,7 +202,7 @@ export function PageTour({ ownerId, getOrigin, configuration, onClose, onRetry }
     const leave = () => dismiss(false);
     window.addEventListener("popstate", leave, { signal }); window.addEventListener("pagehide", leave, { signal });
     return () => {
-      controller.abort(); cancelAnimationFrame(pendingFrame); clearAnchor(); observer.disconnect(); mutations.disconnect(); control.current = null;
+      controller.abort(); cancelAnimationFrame(pendingFrame); cancelAnimationFrame(watchFrame); clearAnchor(); observer.disconnect(); mutations.disconnect(); control.current = null;
       if (layer.matches(":popover-open")) layer.hidePopover();
       if (document.documentElement.dataset.guideTour === ownerId) delete document.documentElement.dataset.guideTour;
     };

@@ -50,7 +50,7 @@ export function TutorialView({startText:customStartText,backText,onStart,onBack,
   return <div className="onboarding-tutorial">
     <div ref={ref}/>
     {!loaded&&<section className="tutorial-fallback"><h1>使用说明</h1>
-      {error?<p role="alert">视频入口暂时未能加载，可以看文字说明或重试。</p>:<LocalLoading label="正在准备视频…"/>}
+      {error?<p role="alert">使用说明暂时未能加载，可以看下面的文字步骤或重试。</p>:<LocalLoading label="正在准备使用说明…"/>}
       <details open={error||undefined}><summary>文字版</summary><ol>
         <li>总览和趋势页的「使用指引」带编号及前后步骤按钮，只在主动点击后打开。录入和核对按正常表单操作。</li>
         <li>饮食：点「记一餐」，从食材库选规格和份量，或自己填写。当天餐次核对后，在列表末尾勾「已记全」。</li>

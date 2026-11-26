@@ -33,7 +33,7 @@ function render(options){
  '<section class="guide-directory" aria-label="教程目录与预览"><nav class="directory-topics" aria-label="操作视频主题">',
  topics.map(t=>'<button type="button" class="directory-topic" data-directory-topic="'+t.id+'" aria-label="'+t.name+'：'+t.summary+'，选择教程"><span class="directory-copy"><span class="directory-name">'+t.name+'</span><span class="directory-summary">'+t.summary+'</span></span><span class="directory-arrow" aria-hidden="true">›</span></button>').join(''),
  '</nav><div class="directory-preview" data-preview-topic="'+selected+'"><div class="preview-heading"><h2 data-preview-title>'+topicFor(selected).title+'</h2><button type="button" class="preview-toggle" data-preview-toggle aria-label="自动播放短预览" aria-pressed="'+!reduced.matches+'">'+(reduced.matches?'播放预览':'暂停预览')+'</button></div>',
- '<div class="preview-picture"><img alt="" loading="lazy"><video muted loop playsinline preload="none" aria-hidden="true" data-directory-preview></video></div><button type="button" class="preview-open" data-open-preview>'+playIcon+'<span>观看完整教程</span></button></div></section>',
+ '<div class="preview-picture"><img alt="" loading="lazy"><video muted loop playsinline preload="none" aria-hidden="true" data-directory-preview></video></div><div class="lesson-text" data-preview-text hidden></div><button type="button" class="preview-open" data-open-preview>'+playIcon+'<span>观看完整教程</span></button></div></section>',
  '<section class="mobile-guide" aria-label="手机操作教程"><div class="tutorial-topics" role="tablist" aria-label="操作教程">',
  topics.map(t=>'<button class="tutorial-topic" type="button" role="tab" id="topic-'+t.id+'" aria-controls="mobile-lesson" aria-selected="'+(t.id===selected)+'" tabindex="'+(t.id===selected?'0':'-1')+'" data-topic="'+t.id+'">'+t.name+'</button>').join(''),
  '</div><div id="mobile-lesson" role="tabpanel" aria-labelledby="topic-'+selected+'"></div></section>',
@@ -62,9 +62,15 @@ function bind(container){
   if(dead||device.matches){pausePreview();return;}
   const a=assetFor(previewTopic,false);
   preview.querySelector('.preview-picture').hidden=!a;
+  const instructions=preview.querySelector('[data-preview-text]');
+  instructions.hidden=!!a;preview.dataset.previewHasVideo=String(!!a);
   root.querySelector('[data-preview-toggle]').hidden=!a;
+  root.querySelector('[data-open-preview]').hidden=!a;
   root.querySelector('[data-open-preview]').innerHTML=a?playIcon+'<span>观看完整教程</span>':'<span>查看操作步骤</span>';
-  if(!a){pausePreview();previewVideo.removeAttribute('src');previewVideo.load();previewPoster.removeAttribute('src');return;}
+  if(!a){
+   if(instructions.dataset.topic!==previewTopic){const topic=topicFor(previewTopic);instructions.innerHTML='<ol class="text-steps">'+topic.steps.map(s=>'<li><h3>'+esc(s[0])+'</h3><p>'+esc(s[1])+'</p></li>').join('')+'</ol><p class="lesson-note">'+esc(topic.note)+'</p>';instructions.dataset.topic=previewTopic;}
+   pausePreview();previewVideo.removeAttribute('src');previewVideo.load();previewPoster.removeAttribute('src');return;
+  }
   if(previewPoster.getAttribute('src')!==a.poster)previewPoster.src=a.poster;
   const allowed=previewEnabled&&previewVisible&&!modalOpen&&!document.hidden;
   if(!allowed){pausePreview();return;}
