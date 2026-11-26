@@ -39,7 +39,7 @@ export function TaskGuide({ task, target = task, text, auto = true }: {
     const node = panel.current;
     if (!node?.isConnected || node.matches(":popover-open")) return;
     const owner = anchor.closest<HTMLElement>("dialog, [data-assistant-page]") ?? document.body;
-    const region = anchor.closest<HTMLElement>("[data-guide-region]");
+    const region = anchor.closest<HTMLElement>("[data-guide-region], [data-entry-footer]");
     node.showPopover();
     const oldDescription = anchor.getAttribute("aria-describedby");
     anchor.setAttribute("aria-describedby", [oldDescription, id + "-text"].filter(Boolean).join(" "));
@@ -62,31 +62,37 @@ export function TaskGuide({ task, target = task, text, auto = true }: {
   useEffect(() => {
     if (!account || !auto || refreshing || shown.current.has(key)) return;
     try { if (localStorage.getItem(key)) return; } catch {}
-    let observer: IntersectionObserver | undefined, observed: HTMLElement | undefined, frame = 0;
+    let frame = 0;
     const boundary = trigger.current?.closest("dialog, [data-record-workspace]") ?? document.body;
     const inspect = () => {
       frame = 0;
       const anchor = guideTarget(trigger.current, target);
-      if (!anchor||anchor===observed) return;
-      observer?.disconnect();
-      observed=anchor;
-      observer = new IntersectionObserver(([entry]) => {
-        if (!entry?.isIntersecting || document.hidden || !guideTarget(trigger.current, target)) return;
-        const dialog = Array.from(document.querySelectorAll("dialog[open]")).at(-1);
-        if (dialog && !dialog.contains(anchor)) return;
-        observer?.disconnect();
-        availability.disconnect();
-        window.removeEventListener("resize", schedule);
-        show(anchor);
-      }, { threshold: .5 });
-      observer.observe(anchor);
+      if (!anchor || document.hidden || anchor.closest('[data-surface-phase="opening"], [data-surface-phase="closing"]')) return;
+      const rect = anchor.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      if (!anchor.contains(hit)) return;
+      show(anchor);
+      stop();
     };
-    const schedule=()=>{if(!frame)frame=requestAnimationFrame(inspect);};
-    const availability=new MutationObserver(schedule);
-    availability.observe(boundary,{subtree:true,childList:true,attributes:true,attributeFilter:["open","disabled","hidden","inert","data-guide-target","data-return-prepared","aria-disabled"]});
-    window.addEventListener("resize",schedule);
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(inspect); };
+    const availability = new MutationObserver(schedule);
+    const stop = () => {
+      cancelAnimationFrame(frame);
+      availability.disconnect();
+      document.removeEventListener("visibilitychange", schedule);
+      document.removeEventListener("toggle", schedule, true);
+      window.removeEventListener("scroll", schedule, true);
+      window.removeEventListener("resize", schedule);
+    };
+    availability.observe(boundary, { subtree: true, childList: true, attributes: true,
+      attributeFilter: ["open", "disabled", "hidden", "inert", "data-guide-target", "data-return-prepared",
+        "data-surface-phase", "data-workspace-moving", "data-meal-pane-transition", "aria-disabled"] });
+    document.addEventListener("visibilitychange", schedule);
+    document.addEventListener("toggle", schedule, true);
+    window.addEventListener("scroll", schedule, true);
+    window.addEventListener("resize", schedule);
     schedule();
-    return () => { cancelAnimationFrame(frame); observer?.disconnect();availability.disconnect();window.removeEventListener("resize",schedule); };
+    return stop;
   }, [account, auto, key, refreshing, show, target]);
 
   useEffect(() => {
