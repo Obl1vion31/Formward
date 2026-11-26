@@ -1,13 +1,14 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { trackPopoverPosition } from "./anchored-popover";
+import { followPopoverAnchor, readPopoverBounds, trackPopoverPosition } from "./anchored-popover";
+import { guidePresent, guideScope, guideTarget, openGuide, operationObstacles, placeGuideCard, type GuideStep } from "./guide-position";
+import { PageTour } from "./page-tour";
 import { Inspector } from "./inspector";
 import { useMobileMode } from "./use-mobile-mode";
 import { WorkspaceRefreshingContext } from "@/features/dashboard/workspace-cache-context";
 import styles from "./task-guide.module.css";
 
-type Step = { target: string; text: string };
 type Film = "overview" | "food-library" | "photo" | "energy" | "body" | "device";
 const filmTitles: Record<Film, string> = {
   overview: "使用总览查看趋势", "food-library": "从食材库记一餐", photo: "拍照和核对保存",
@@ -15,8 +16,6 @@ const filmTitles: Record<Film, string> = {
 };
 type GuideState = { account: string; workflow: string | null; setWorkflow: Dispatch<SetStateAction<string | null>> };
 const GuideContext = createContext<GuideState>({ account: "", workflow: null, setWorkflow: () => {} });
-const hidden = "[inert],[hidden],fieldset[disabled],[data-return-prepared]";
-const guideUI = "[data-guide-float]:popover-open";
 const storageKey = (account: string, task: string) => "formward:guide-v2:" + account + ":" + task;
 
 export function TaskGuideProvider({ accountId, children }: { accountId: string; children: ReactNode }) {
@@ -40,51 +39,29 @@ export function useGuideWorkflow() {
   };
 }
 
-function present(element: HTMLElement | null): element is HTMLElement {
-  return !!element?.getClientRects().length && !element.closest(hidden) &&
-    !element.matches(":disabled,[aria-disabled=true]") &&
-    getComputedStyle(element).visibility === "visible";
-}
-
-function findTarget(trigger: HTMLElement, name: string) {
-  const scope=trigger.closest("[data-guide-scope],dialog,[data-assistant-page],[data-record-workspace]")??document;
-  return Array.from(scope.querySelectorAll<HTMLElement>("[data-guide-target]")).find(node=>
-    node.dataset.guideTarget===name && present(node));
-}
-
 function canPointAt(anchor:HTMLElement) {
   if (document.hidden || anchor.closest('[data-surface-phase="opening"],[data-surface-phase="closing"]')) return false;
   const box=anchor.getBoundingClientRect();
-  const hit=document.elementFromPoint(box.left+box.width/2,box.top+box.height/2);
-  return anchor.contains(hit);
+  return anchor.contains(document.elementFromPoint(box.left+box.width/2,box.top+box.height/2));
 }
 
-function openGuide(node:HTMLElement | null) {
-  if (!node?.isConnected) return;
-  window.dispatchEvent(new CustomEvent("formward-guide-open",{detail:node}));
-  for (const other of document.querySelectorAll<HTMLElement>(guideUI)) if(other!==node)other.hidePopover();
-  if(!node.matches(":popover-open"))node.showPopover();
-}
-
-type GuideProps = { task:string; target?:string; text?:string; steps?:Step[]; mode?:"tour"|"operation"; auto?:boolean; video?:Film };
+type GuideProps = { task:string; target?:string; text?:string; steps?:GuideStep[]; mode?:"tour"|"operation"; auto?:boolean; video?:Film };
 
 export function TaskGuide({ task, target=task, text, steps, mode="operation", auto=false, video }: GuideProps) {
   const {account,workflow,setWorkflow}=useContext(GuideContext);
   const refreshing=useContext(WorkspaceRefreshingContext);
   const id=useId(),trigger=useRef<HTMLButtonElement>(null),menu=useRef<HTMLDivElement>(null),hint=useRef<HTMLDivElement>(null);
-  const [menuOpen,setMenuOpen]=useState(false),[tour,setTour]=useState<number|null>(null),[film,setFilm]=useState(false);
+  const [menuOpen,setMenuOpen]=useState(false),[tour,setTour]=useState(false),[film,setFilm]=useState(false);
   const [message,setMessage]=useState("");
   const configured=JSON.stringify(steps??(text?[{target,text}]:[]));
   const count=steps?.length??(text?1:0);
-  const running=mode==="tour"?tour!==null:workflow===task;
+  const running=workflow===task;
   const menuLabel=mode==="tour"?"页面导览":"操作引导";
-  const initiated=useRef(false);
   const [hintOpen,setHintOpen]=useState(false);
   const key=storageKey(account,task);
 
   const close=useCallback(() => {
     if(hint.current?.matches(":popover-open"))hint.current.hidePopover();
-    setTour(null);
     if(workflow===task){
       try { localStorage.setItem(key,"dismissed"); } catch {}
       setWorkflow(null);
@@ -93,14 +70,19 @@ export function TaskGuide({ task, target=task, text, steps, mode="operation", au
       trigger.current?.focus({preventScroll:true});
   },[key,setWorkflow,task,workflow]);
 
+  const closeTour=useCallback((restoreFocus:boolean)=>{
+    setTour(false);
+    if(restoreFocus&&guidePresent(trigger.current))trigger.current.focus({preventScroll:true});
+  },[]);
+
   useEffect(()=>{
     function opened(event:Event){
       const selected=(event as CustomEvent<HTMLElement>).detail;
-      if(selected!==menu.current&&selected!==hint.current)setTour(null);
+      if(selected?.dataset.guideOwner!==id)setTour(false);
     }
     window.addEventListener("formward-guide-open",opened);
     return ()=>window.removeEventListener("formward-guide-open",opened);
-  },[]);
+  },[id]);
 
   useEffect(()=>{
     if(!menuOpen||!menu.current||!trigger.current)return;
@@ -109,38 +91,28 @@ export function TaskGuide({ task, target=task, text, steps, mode="operation", au
   },[menuOpen]);
 
   useEffect(()=>{
-    if(!account||!count||refreshing||film||menuOpen||mode==="tour"&&tour===null||!running&&!auto)return;
+    if(mode!=="operation"||!account||!count||refreshing||film||menuOpen||!running&&!auto)return;
     if(!running){
-      if(workflow&&Array.from(document.querySelectorAll<HTMLElement>("[data-task-guide]")).some(other=>other.dataset.taskGuide===workflow&&present(other)))return;
+      if(workflow&&Array.from(document.querySelectorAll<HTMLElement>("[data-task-guide]")).some(other=>other.dataset.taskGuide===workflow&&guidePresent(other)))return;
       try{if(localStorage.getItem(key))return;}catch{}
     }
     const origin=trigger.current,node=hint.current;
     if(!origin||!node)return;
-    const list=JSON.parse(configured) as Step[];
-    const available=mode==="tour"?list.slice(tour??0,(tour??0)+1):list;
-    let frame=0,active:HTMLElement|undefined,attempted:HTMLElement|undefined,unavailable:HTMLElement|undefined,release=()=>{};
-    let spaceFor:HTMLElement|undefined, spacer:HTMLElement|undefined;
-    const originalScope=origin.closest("dialog,[data-guide-scope],[data-record-workspace],[data-assistant-page]")??document.body;
-    function hide(keepSpace=false){
-      release();release=()=>{};active=undefined;
+    const steps=JSON.parse(configured) as GuideStep[];
+    const scope=guideScope(origin);
+    let frame=0,active:HTMLElement|undefined,reposition:(()=>void)|undefined,release=()=>{};
+    function hide(){
+      release();release=()=>{};active=undefined;reposition=undefined;
       if(node?.matches(":popover-open"))node.hidePopover();
-      if(!keepSpace){spacer?.remove();spacer=undefined;spaceFor=undefined;}
     }
-    const inspect=()=>{
+    function inspect(){
       frame=0;
-      if(!present(origin)||!node?.isConnected)return hide();
-      const pair=available.map(step=>({step,anchor:findTarget(origin,step.target)})).find(choice=>choice.anchor);
-      if(!pair?.anchor)return hide();
+      if(!guidePresent(origin)||!node?.isConnected||document.documentElement.dataset.guideTour)return hide();
+      const pair=steps.map(step=>({step,anchor:guideTarget(origin,step.target)})).find(choice=>choice.anchor);
+      if(!pair?.anchor||!canPointAt(pair.anchor))return hide();
       const {step,anchor}=pair;
-      if(!canPointAt(anchor)){
-        if(attempted!==anchor&&(mode==="tour"||initiated.current)&&!anchor.closest('[data-surface-phase="opening"]')){
-          attempted=anchor;anchor.scrollIntoView({block:"center",inline:"center",behavior:"instant"});
-          schedule();
-        }
-        return hide(spaceFor===anchor);
-      }
-      if(active===anchor||unavailable===anchor)return;
-      hide(spaceFor===anchor);active=anchor;attempted=anchor;
+      if(active===anchor){reposition?.();return;}
+      hide();active=anchor;
       if(!running){
         try { localStorage.setItem(key,"started"); } catch {}
         setWorkflow(task);
@@ -148,93 +120,71 @@ export function TaskGuide({ task, target=task, text, steps, mode="operation", au
       }
       setMessage(step.text);
       const owner=anchor.closest<HTMLElement>("dialog,[data-assistant-page]")??document.body;
-      const footer=anchor.closest<HTMLElement>("[data-entry-footer],[data-meal-footer],[data-review-footer]");
-      // 操作目标始终是控件本身。底部表单的提示放在整个保存区外，避免遮住缺项和其他操作。
-      const lane=footer??anchor.closest<HTMLElement>("[data-guide-flow]");
-      const placement=lane??anchor;
-      // 操作区空间不足时给提示留出位置，读数、输入和保存区仍能完整看到。
-      if(lane&&!spacer){
-        spacer=document.createElement(lane.tagName==="LI"?"li":"div");
-        spaceFor=anchor;
-        spacer.className=styles.spacer;
-        spacer.setAttribute("aria-hidden","true");
-        spacer.style.blockSize=(mode==="tour"?118:60)+"px";
-        lane.insertAdjacentElement(footer?"beforebegin":"afterend",spacer);
-        const bounds=spacer.getBoundingClientRect();
-        if(mode==="tour"&&bounds.bottom>innerHeight-80)spacer.scrollIntoView({block:"end",behavior:"instant"});
-        // 对话的滚动视窗在插入提示空间后仍须露出当前确认按钮。
-        if(footer?.hasAttribute("data-review-footer")&&!canPointAt(anchor))
-          anchor.scrollIntoView({block:"nearest",behavior:"instant"});
-      }
       const old=anchor.getAttribute("aria-describedby");
       anchor.setAttribute("aria-describedby",[old,id+"-text"].filter(Boolean).join(" "));
       anchor.setAttribute("data-guide-highlight","");
       openGuide(node);
-      const stop=trackPopoverPosition(node,placement,{
-        owner,width:mode==="tour"?310:238,maxHeight:164,minHeight:40,gap:9,margin:16,
-        horizontalAnchor:anchor,
-        preferLeft:mode==="operation"&&!lane,preferAbove:!!footer||!lane&&mode==="operation",
-        align:footer?.hasAttribute("data-entry-footer")?"start":"end",
-        onPosition:box=>{
-          const targetBox=anchor.getBoundingClientRect();
-          const side=box.right<=targetBox.left?"right":box.bottom<=targetBox.top?"bottom":"top";
-          node.dataset.pointSide=side;
-          node.style.setProperty("--pointer-left",Math.max(14,Math.min(box.width-14,targetBox.left+targetBox.width/2-box.left))+"px");
-          node.style.setProperty("--pointer-top",Math.max(14,Math.min(box.height-14,targetBox.top+targetBox.height/2-box.top))+"px");
-        },
-        onUnavailable:()=>{unavailable=anchor;hide(true);},
-      });
+      const position = () => {
+        if(!node.matches(":popover-open"))return;
+        const box=anchor.getBoundingClientRect(), bounds=readPopoverBounds(owner,12,true);
+        const placement=placeGuideCard(node,box,bounds,{
+          width:238, sides:["left","right","bottom","top"], avoid:operationObstacles(scope,anchor),
+        });
+        node.style.visibility=placement?"visible":"hidden";
+      };
+      reposition=position;
+      const stop=followPopoverAnchor(node,anchor,owner,position);
+      owner.addEventListener("focusin",position);
       release=()=>{
-        stop();anchor.removeAttribute("data-guide-highlight");
+        stop();owner.removeEventListener("focusin",position);
+        node.style.removeProperty("visibility");
+        anchor.removeAttribute("data-guide-highlight");
         const remaining=anchor.getAttribute("aria-describedby")?.split(/\s+/).filter(token=>token!==id+"-text").join(" ");
         if(remaining)anchor.setAttribute("aria-describedby",remaining);else anchor.removeAttribute("aria-describedby");
       };
-    };
+    }
     const schedule=()=>{if(!frame)frame=requestAnimationFrame(inspect);};
-    const reposition=()=>{unavailable=undefined;schedule();};
     const escape=(event:KeyboardEvent)=>{
       if(event.key!=="Escape"||!node.matches(":popover-open"))return;
       event.preventDefault();event.stopPropagation();close();
     };
     const observer=new MutationObserver(schedule);
-    observer.observe(originalScope,{subtree:true,childList:true,attributes:true,
+    observer.observe(scope,{subtree:true,childList:true,attributes:true,
       attributeFilter:["open","disabled","hidden","inert","data-guide-target","data-return-prepared","data-surface-phase","data-meal-pane-transition","aria-disabled"]});
-    window.addEventListener("scroll",reposition,true);
-    window.addEventListener("resize",reposition);
-    window.visualViewport?.addEventListener("resize",reposition);
+    window.addEventListener("scroll",schedule,true);
+    window.addEventListener("resize",schedule);
+    window.visualViewport?.addEventListener("resize",schedule);
     document.addEventListener("toggle",schedule,true);
     document.addEventListener("visibilitychange",schedule);
     document.addEventListener("keydown",escape,true);
     schedule();
     return ()=>{
       cancelAnimationFrame(frame);observer.disconnect();hide();
-      window.removeEventListener("scroll",reposition,true);window.removeEventListener("resize",reposition);
-      window.visualViewport?.removeEventListener("resize",reposition);
+      window.removeEventListener("scroll",schedule,true);window.removeEventListener("resize",schedule);
+      window.visualViewport?.removeEventListener("resize",schedule);
       document.removeEventListener("toggle",schedule,true);document.removeEventListener("visibilitychange",schedule);
       document.removeEventListener("keydown",escape,true);
     };
-  },[account,auto,close,configured,count,film,id,key,menuOpen,mode,refreshing,running,setWorkflow,task,tour,workflow]);
-
+  },[account,auto,close,configured,count,film,id,key,menuOpen,mode,refreshing,running,setWorkflow,task,workflow]);
   if(!account||!count)return null;
   return <div className={styles.guide} data-task-guide={task}>
     <button type="button" className={styles.trigger} ref={trigger} title={video?menuLabel+"与操作视频":menuLabel} aria-expanded={menuOpen} aria-controls={id+"-menu"} onClick={()=>{
       if(menu.current?.matches(":popover-open")){menu.current.hidePopover();return;}
-      if(mode==="tour")setTour(null);
+      if(mode==="tour")setTour(false);
       if(workflow)setWorkflow(null);
       openGuide(menu.current);
     }}>使用指引</button>
-    <div ref={menu} id={id+"-menu"} className={styles.menu} popover="auto" data-guide-float="menu" role="group" aria-label="使用指引选项"
+    <div ref={menu} id={id+"-menu"} className={styles.menu} popover="auto" data-guide-float="menu" data-guide-owner={id} role="group" aria-label="使用指引选项"
       onToggle={event=>setMenuOpen(event.newState==="open")}>
       <button type="button" onClick={()=>{
         menu.current?.hidePopover();
-        initiated.current=true;
-        if(mode==="tour")setTour(0);else setWorkflow(task);
+        if(mode==="tour")setTour(true);else setWorkflow(task);
       }}><GuideIcon type="steps"/>{menuLabel}</button>
       {video&&<button type="button" onClick={()=>{menu.current?.hidePopover();setFilm(true);}}>
         <GuideIcon type="play"/>观看操作视频
       </button>}
     </div>
-    <div ref={hint} className={styles.hint} popover="manual" data-guide-float="hint" data-guide-hint
+    {mode==="operation"&&<div ref={hint} className={styles.hint} popover="manual" data-guide-float="hint" data-guide-owner={id} data-guide-hint
       aria-label={menuLabel} onToggle={event=>setHintOpen(event.newState==="open")}
       onKeyDown={event=>{if(event.key==="Escape"){event.stopPropagation();close();}}}>
       <div className={styles.hintText}>
@@ -243,13 +193,9 @@ export function TaskGuide({ task, target=task, text, steps, mode="operation", au
         )}</span>
         <button className={styles.close} type="button" aria-label="关闭使用指引" onClick={close}><GuideIcon type="close"/></button>
       </div>
-      {mode==="tour"&&tour!==null&&<div className={styles.tourNav}>
-        <span aria-live="polite">{tour+1} / {count}</span>
-        <button type="button" disabled={tour===0} onClick={()=>setTour(tour-1)}>上一步</button>
-        <button type="button" data-next onClick={()=>tour+1<count?setTour(tour+1):close()}>{tour+1<count?"下一步":"完成"}</button>
-      </div>}
       {hintOpen&&<span className="sr-only" role="status">{message}</span>}
-    </div>
+    </div>}
+    {mode==="tour"&&tour&&!refreshing&&<PageTour ownerId={id} origin={trigger} configuration={configured} onClose={closeTour}/>}
     {film&&video&&<GuideVideo topic={video} close={()=>setFilm(false)}/>}
   </div>;
 }

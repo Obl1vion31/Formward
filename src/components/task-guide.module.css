@@ -1,5 +1,4 @@
 .guide { display:inline-flex; vertical-align:middle; }
-.spacer { display:block; flex:none; margin:0; padding:0; list-style:none; scroll-margin-block-end:92px; }
 .trigger.trigger,.close.close {
   border:0; background:none; color:var(--muted); font:500 13px/1.4 system-ui,sans-serif;
   min-block-size:44px; padding:0 7px; white-space:nowrap; cursor:pointer;
@@ -27,6 +26,7 @@
 .hint[data-point-side=top]::after { top:-6px; left:calc(var(--pointer-left) - 5px); border-width:1px 0 0 1px; }
 .hint[data-point-side=bottom]::after { bottom:-6px; left:calc(var(--pointer-left) - 5px); border-width:0 1px 1px 0; }
 .hint[data-point-side=right]::after { right:-6px; top:calc(var(--pointer-top) - 5px); border-width:1px 1px 0 0; }
+.hint[data-point-side=left]::after { left:-6px; top:calc(var(--pointer-top) - 5px); border-width:0 0 1px 1px; }
 
 .menu { padding:4px; }
 .menu button,.tourNav button {
@@ -39,13 +39,63 @@
 .menu button + button { border-top-color:var(--line-soft); }
 .menu button:hover,.menu button:focus-visible { background:color-mix(in srgb,var(--gold) 10%,transparent); }
 .menu button:active,.tourNav button:active { filter:brightness(.9); }
-.tourNav { display:flex; align-items:center; gap:6px; padding:0 8px 8px; }
+.tour {
+  --tour-shade:rgb(0 0 0 / .63);
+  --tour-line:#d7b77e;
+  --tour-back:#b59a73;
+  --tour-forward:#e0c08b;
+  position:fixed; inset:0; box-sizing:border-box; width:100%; height:100%;
+  max-width:none; max-height:none; padding:0; margin:0; border:0;
+  overflow:hidden; background:transparent; pointer-events:none;
+  color:var(--warm-white); font:400 13px/1.45 system-ui,sans-serif;
+}
+:global(html[data-theme=light]) .tour {
+  --tour-shade:rgb(0 0 0 / .51);
+  --tour-line:#a87a36;
+  --tour-back:#e6d1ab;
+  --tour-forward:#815e27;
+}
+.tour::backdrop { background:transparent; pointer-events:none; }
+.tour[data-guide-phase=initial] { background:var(--tour-shade); }
+.tourFrame {
+  position:absolute; top:0; left:0; width:0; height:0; pointer-events:none;
+  box-shadow:0 0 0 200vmax var(--tour-shade);
+  outline:1.5px solid var(--tour-line);
+}
+.tour[data-guide-phase=initial] .tourFrame { visibility:hidden; }
+.apertureFill {
+  position:absolute; inset:0; border-radius:inherit; background:var(--tour-shade); opacity:1;
+}
+.tourTip { position:absolute; width:min(310px,calc(100% - 32px)); top:16px; right:16px; pointer-events:none; }
+.tourSurface {
+  border:1px solid color-mix(in srgb,var(--gold) 52%,var(--line-strong));
+  border-radius:12px; background:var(--surface);
+  box-shadow:0 7px 22px var(--shadow);
+  opacity:0;
+}
+.tour[data-guide-phase=ready] .tourSurface { pointer-events:auto; }
+.tourTip > .close {
+  position:absolute; inset-block-start:3px; inset-inline-end:3px; color:var(--tour-line);
+}
+.tourText { margin:0; padding:12px 49px 0 12px; overflow-wrap:anywhere; }
+.tour[data-guide-phase=ready] .tourTip[data-point-side]:not([data-point-side=""])::after {
+  content:""; position:absolute; inline-size:9px; block-size:9px;
+  background:var(--surface); border:solid color-mix(in srgb,var(--gold) 52%,var(--line-strong));
+  transform:rotate(45deg); pointer-events:none;
+}
+.tourTip[data-point-side=top]::after { top:-4px; left:calc(var(--pointer-left) - 4px); border-width:1px 0 0 1px; }
+.tourTip[data-point-side=bottom]::after { bottom:-4px; left:calc(var(--pointer-left) - 4px); border-width:0 1px 1px 0; }
+.tourTip[data-point-side=left]::after { left:-4px; top:calc(var(--pointer-top) - 4px); border-width:0 0 1px 1px; }
+.tourTip[data-point-side=right]::after { right:-4px; top:calc(var(--pointer-top) - 4px); border-width:1px 1px 0 0; }
+
+.tourNav { display:flex; align-items:center; gap:8px; padding:8px 12px 12px; }
 .tourNav>span { margin-inline-end:auto; color:var(--muted); font-variant-numeric:tabular-nums; }
 .tourNav button {
-  padding:0 10px; border-radius:8px; border-color:var(--line-strong);
-  background:transparent; pointer-events:auto;
+  padding:0 12px; border-radius:8px; border-color:transparent; white-space:nowrap;
+  background:var(--tour-back); color:#251b0f;
 }
-.tourNav button[data-next] { background:var(--gold); color:var(--graphite); border-color:var(--gold); }
+.tourNav button[data-next] { background:var(--tour-forward); color:#251b0f; }
+:global(html[data-theme=light]) .tourNav button[data-next] { color:#fffaf0; }
 .tourNav button:disabled { opacity:.5; cursor:default; }
 .menu button:focus-visible,.tourNav button:focus-visible { outline:2px solid var(--gold); outline-offset:-2px; }
 .hint::backdrop,.menu::backdrop { background:transparent; pointer-events:none; }
