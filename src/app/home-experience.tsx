@@ -4,8 +4,7 @@
 // 从 JSX 的 .home-stage 结构开始读，再沿 requestDirection → renderProgress 理解转身。
 import {LocalLoading} from "@/components/local-loading";
 import { approvePageRefresh } from "@/components/draft-guard";
-import { useCallback, useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { signIn } from "@/features/auth/client";
 import { loginDestination } from "@/features/auth/login-return";
 import { BodySequence } from "./body-sequence";
@@ -28,7 +27,6 @@ type Phase = "INTRO" | "FORWARD_ANIMATING" | "LOGIN_READY" | "REVERSE_ANIMATING"
 
 export default function HomeExperience() {
   const mobileMode = useMobileMode();
-  const router = useRouter();
   const loginAbortRef = useRef<AbortController | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   // DOM ref 找到实际元素；控制器 ref 保存独立时钟，避免在每次 React 渲染时重新创建。
@@ -64,7 +62,6 @@ export default function HomeExperience() {
   const [imagesReady, setImagesReady] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [staticTurn, setStaticTurn] = useState(false);
-  const [navigating, startNavigation] = useTransition();
   useHomeClearance(stageRef, mobileMode, phase);
   // 装饰素材使用下方局部状态，保留首帧品牌、备案链接和独立导航。
 
@@ -364,17 +361,22 @@ export default function HomeExperience() {
       return;
     }
     if (result.redirectUrl) { approvePageRefresh(); window.location.assign(result.redirectUrl); return; }
-    if (imageErrorRef.current) {
-      changePhase("FINAL");
-      startNavigation(() => router.replace(loginDestination(new URLSearchParams(window.location.search).get("next"))));
-    } else changePhase("FINAL_TRANSITION");
+    if (imageErrorRef.current) openWorkspace();
+    else changePhase("FINAL_TRANSITION");
+  }
+
+  function openWorkspace() {
+    const target = loginDestination(new URLSearchParams(window.location.search).get("next"));
+    changePhase("FINAL");
+    // 会话刚由登录请求写入，重新请求页面以免沿用匿名路由的重定向。
+    approvePageRefresh();
+    window.location.replace(target);
   }
 
   function finishTransition(event: React.AnimationEvent<HTMLDivElement>) {
     // 使用实际 CSS 动画完成事件，不把网络时长或 React 提交延迟算作动画播放。
     if (event.animationName !== "final-presence" || phaseRef.current !== "FINAL_TRANSITION") return;
-    changePhase("FINAL");
-    startNavigation(() => router.replace(loginDestination(new URLSearchParams(window.location.search).get("next"))));
+    openWorkspace();
   }
 
   function revealLogin() {
@@ -396,6 +398,7 @@ export default function HomeExperience() {
   }
 
   const accessible = ["LOGIN_READY", "AUTHENTICATING", "FINAL_TRANSITION", "FINAL"].includes(phase);
+  const navigating = phase === "FINAL";
 
   return (
     <main className={`home-page ${heroDisplay.variable} ${heroMono.variable} ${imageError ? fallbackStyles.plainLogin : ""}`} data-image-fallback={imageError} data-phase={phase} data-mobile={mobileMode === true} data-reduced-motion={reducedMotion} data-images-ready={imagesReady} data-turn-mode={staticTurn ? "static" : "video"}
