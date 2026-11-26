@@ -46,7 +46,8 @@ export function TaskGuide({ task, target = task, text, auto = true }: {
     anchor.addEventListener("click", hide);
     const stop = trackPopoverPosition(node, region ?? anchor, {
       owner, width: () => region?.dataset.guideRegion==="today" && innerWidth<700 ? Math.min(208,innerWidth*.56) : 260,
-      minHeight: 44, gap: 6, margin: 16, preferAbove: !region, align: "end",
+      minHeight: 44, gap: 6, margin: 16, preferAbove: !region,
+      align: region?.hasAttribute("data-entry-footer") ? "start" : "end",
     });
     detach.current = () => {
       stop();

@@ -295,7 +295,8 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
  const missingFacts=calculated&&!calculated.ok?calculated.missing:[];
  const supplementKind=missingFacts.includes("profile")?"profile":missingFacts.includes("weight")||missingFacts.includes("bodyFat")?"body":null;
  const supplementLabel=supplementKind==="profile"?"补填个人资料":"补填身体记录";
- const activityControl=<ActivityLevelControl guidance={fast&&!pending&&!supplementKind} dateLabel={targetDate===today?"今天的活动量":"所选日的活动量"} value={calculationSnapshot?.activityLevel??(requested?.activityLevel as ActivityLevel)??null} change={activityLevel=>{setMethodTouched(true);estimate({kind:"daily",method:formula,activityLevel});setAggregateEpoch(epoch=>epoch+1);}}/>;
+ const activityLevel=calculationSnapshot?.activityLevel??(requested?.activityLevel as ActivityLevel)??null;
+ const activityControl=<ActivityLevelControl guidance={fast&&!pending&&(!activityLevel||!supplementKind)} dateLabel={targetDate===today?"今天的活动量":"所选日的活动量"} value={activityLevel} change={activityLevel=>{setMethodTouched(true);estimate({kind:"daily",method:formula,activityLevel});setAggregateEpoch(epoch=>epoch+1);}}/>;
  const formulaControls=<RestingEstimate disabled={busy||pending||retired||confirmingAggregate} value={formula} change={method=>{
   setMethodTouched(true);
   estimate({kind:quick?"daily":"resting",method,...(quick?{activityLevel:requested?.activityLevel??calculationSnapshot?.activityLevel??undefined}:{})});
@@ -360,7 +361,7 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
     {!pending&&entryIssue&&<small role="status">{entryIssue}</small>}
     {!pending&&fast&&supplementKind&&<div className={styles.footerRecovery}>
       <button type="button" data-guide-target="energy-supplement" disabled={busy} onClick={()=>setSupplement(supplementKind)}>{supplementLabel}</button>
-      <TaskGuide task={"energy-supplement-"+supplementKind} target="energy-supplement" text={"点「"+supplementLabel+"」，完成后会回到本次估算。"} auto={!supplement}/>
+      <TaskGuide task={"energy-supplement-"+supplementKind} target="energy-supplement" text={"点「"+supplementLabel+"」，完成后会回到本次估算。"} auto={!!activityLevel&&!supplement}/>
     </div>}
     {!pending&&fast&&contextError&&<div className={styles.footerRecovery}><button type="button" onClick={()=>void recalculate()}>重试读取</button></div>}
     {!pending&&!entryIssue&&(unresolvedCount>0||total==null)&&<small>{unresolvedCount?unresolvedCount+"项运动待核对":missing+"，可保存已有部分"}</small>}
