@@ -11,20 +11,20 @@ import { OverviewTrend } from "./overview-trend";
 import { TodayActions } from "./today-actions";
 import type { OverviewPresentation } from "./presentation";
 import styles from "./overview.module.css";
-export function OverviewView({ presentation,accountId }: { accountId?:string; presentation: OverviewPresentation }) {
+export function OverviewView({ presentation }: { presentation: OverviewPresentation }) {
   const refreshing=useContext(WorkspaceRefreshingContext);
   const path=usePathname(),{returningToOverview,overviewReady}=useChartTransition();
   useLayoutEffect(()=>{if(returningToOverview&&path==='/dashboard'&&!refreshing)overviewReady?.();},[returningToOverview,overviewReady,path,refreshing]);
-  return <OverviewContent presentation={presentation} accountId={accountId}/>;
+  return <OverviewContent presentation={presentation}/>;
 }
 // 转场状态更新只改变外壳的接管判断，不重复计算未变化的双层趋势与读数。
-const OverviewContent=memo(function OverviewContent({presentation,accountId}:{accountId?:string;presentation:OverviewPresentation}){
+const OverviewContent=memo(function OverviewContent({presentation}:{presentation:OverviewPresentation}){
   const {today}=presentation;
   const router=useRouter(),refreshAtMidnight=useCallback(()=>router.refresh(),[router]);
   const localToday = useLocalToday(today,refreshAtMidnight);
   return <RecordWorkspace title="总览 · 今天该做什么" className={styles.workspace}>
     <TodayActions date={localToday} day={presentation.todayOptions.find(day=>day.date===localToday)}/>
-    <MetricCardRail accountId={accountId} cards={summaryCards(presentation,localToday)}/>
+    <MetricCardRail cards={summaryCards(presentation,localToday)}/>
     <OverviewTrend data={presentation} />
   </RecordWorkspace>;
 });

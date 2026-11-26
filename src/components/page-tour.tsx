@@ -107,7 +107,7 @@ export function PageTour({ ownerId, origin, configuration, onClose }: Props) {
     function position(target: HTMLElement, box: GuideBox) {
       const placement = layoutCard(box);
       if (!placement) return false;
-      rect = placement.aperture;
+      rect = placement;
       Object.assign(outline.style, paint(rect, getComputedStyle(target).borderTopLeftRadius));
       return true;
     }
@@ -154,7 +154,7 @@ export function PageTour({ ownerId, origin, configuration, onClose }: Props) {
       const oldRadius = outline.style.borderRadius;
       const layout = layoutCard(destination);
       if (!layout) return dismiss(true);
-      rect = layout.aperture;
+      rect = layout;
       const final = paint(rect, getComputedStyle(target).borderTopLeftRadius);
       if (animated && oldRect && !initial) {
         await motion(outline, paint(oldRect, oldRadius), final, 160, signal, "cubic-bezier(.22,.75,.28,1)");

@@ -1,6 +1,6 @@
 "use client";
 import type {ReactNode} from "react";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { LoadingLink } from "./loading-link";
 import { useChartTransition, type ChartReadingsSnapshot } from "./chart-transition-state";
 import { TrendGlyph } from "./trend-glyph";
@@ -10,10 +10,9 @@ import {shortRecordDate,recordDateRange} from "./record-dates";
 import styles from "./metric-card-rail.module.css";
 
 export type MetricCard = { title: string; value: string; unit: string; date: string; fact?: string; href: string; trend: MetricTrendModel; readings?:ChartReadingsSnapshot };
-export function MetricCardRail({ cards, preview, accountId }: { accountId?:string; cards: MetricCard[]; preview?: (card:MetricCard)=>void }) {
+export function MetricCardRail({ cards, preview }: { cards: MetricCard[]; preview?: (card:MetricCard)=>void }) {
   const rail=useRef<HTMLDivElement>(null), transition=useChartTransition(), mobile=useMobileMode(),restore=transition.restore;
   const pointer=useRef<{x:number;y:number;left:number;moved:boolean}|null>(null), suppressed=useRef(false);
-  useEffect(()=>{const node=rail.current;if(!mobile||!node||preview||!accountId||matchMedia('(prefers-reduced-motion: reduce)').matches)return;const key='formward:rail-hint:'+accountId;try{if(localStorage.getItem(key))return;}catch{return;}let animation:Animation|undefined;const stop=()=>{clearTimeout(timer);animation?.cancel();};const timer=setTimeout(()=>{if(node.scrollLeft>1||document.hidden||document.documentElement.dataset.guideTour||node.closest('[data-return-prepared]')||document.documentElement.dataset.chartTravel)return;const card=node.querySelector<HTMLElement>('[data-metric-card="morning-weight"]');if(!card||!card.getClientRects().length)return;try{localStorage.setItem(key,'seen');}catch{}animation=card.animate([{transform:'translateX(0)'},{transform:'translateX(-8px)',offset:.24},{transform:'translateX(0)',offset:.48},{transform:'translateX(-8px)',offset:.74},{transform:'translateX(0)'}],{duration:1050,easing:'ease-in-out'});},650);node.addEventListener('pointerdown',stop,{passive:true});node.addEventListener('scroll',stop,{passive:true});node.addEventListener('focusin',stop);window.addEventListener('formward-guide-open',stop);return()=>{stop();window.removeEventListener('formward-guide-open',stop);node.removeEventListener('pointerdown',stop);node.removeEventListener('scroll',stop);node.removeEventListener('focusin',stop);};},[accountId,preview,mobile]);
   useLayoutEffect(()=>{const node=rail.current;if(!node)return;const measure=()=>{const decisions=[...node.querySelectorAll<HTMLElement>('[data-metric-card]')].flatMap(card=>{const value=card.querySelector<HTMLElement>('[data-metric-value]'),width=card.clientWidth;if(!value||width<=0)return[];const available=width-32-Math.max(80,(width-32-12)*.3)-12;return[{card,stack:String(value.getBoundingClientRect().width>available)}];});for(const {card,stack}of decisions)if(card.dataset.stack!==stack)card.dataset.stack=stack;};measure();const observer=new ResizeObserver(measure);observer.observe(node);if(document.fonts.status==="loading")void document.fonts.ready.then(measure);return()=>observer.disconnect();},[cards,restore]);
   // Activity隐藏时宽度为0，不能登记为窄卡；返回先完成本帧真实排版，再测量图形落点。
   useLayoutEffect(()=>{if(rail.current&&!preview)restore(rail.current);},[restore,preview]);

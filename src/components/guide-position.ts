@@ -50,7 +50,7 @@ export function guidePageBounds(margin: number) {
 /** Positions the whole card, including its controls, inside the usable viewport. */
 export function placeGuideCard(panel: HTMLElement, anchor: GuideBox, bounds: GuideBox, options: {
   width: number; sides: Side[]; avoid?: GuideBox[]; dock?: boolean;
-}): { aperture: GuideBox; placement: Placement } | null {
+}): GuideBox | null {
   const width = Math.min(options.width, bounds.right - bounds.left);
   const room = bounds.bottom - bounds.top;
   if (width < 96 || room < 44) return null;
@@ -91,14 +91,14 @@ export function placeGuideCard(panel: HTMLElement, anchor: GuideBox, bounds: Gui
   panel.dataset.pointSide = placement.side ?? "";
   panel.style.setProperty("--pointer-left", clamp(center - placement.left, 13, width - 13) + "px");
   panel.style.setProperty("--pointer-top", clamp(middle - placement.top, 13, height - 13) + "px");
-  return { aperture, placement };
+  return aperture;
 }
 
 export function operationObstacles(scope: HTMLElement, anchor: HTMLElement) {
   const controls = scope.querySelectorAll<HTMLElement>(
-    "input,textarea,select,[contenteditable=true],[data-record-slot=metrics],[data-entry-footer],[data-meal-footer],[data-review-footer]",
+    "input,textarea,select,button,a[href],summary,[role=button],[contenteditable=true],[data-record-slot=metrics],[data-entry-footer],[data-meal-footer],[data-review-footer]",
   );
-  const obstacles = Array.from(controls).filter(control => guidePresent(control) && !anchor.contains(control));
+  const obstacles = Array.from(controls).filter(control => guidePresent(control) && !anchor.contains(control) && !control.closest("[data-guide-float]"));
   const guideGroup = anchor.closest<HTMLElement>("[data-guide-flow]");
   if (guideGroup && guideGroup !== anchor) obstacles.push(guideGroup);
   return obstacles.map(element => element.getBoundingClientRect());

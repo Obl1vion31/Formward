@@ -22,5 +22,5 @@ async function Content({ user }: { user: NonNullable<Awaited<ReturnType<typeof c
  const [records,snapshot,energy,device]=await Promise.all([listMeasurements(db,user.id),readMealSnapshot(db,user.id),
    readEnergySnapshot(db,user.id),loadEnergyDeviceCoverage(db,user.id)]);
  const today=localMeasurementDate(new Date(),systemMeasurementTimezone(new Date(),process.env.FORMWARD_TIMEZONE));
- return <WorkspaceSnapshot path="/dashboard"><OverviewView accountId={user.id} presentation={overviewPresentation(snapshot.meals, records.map(measurementDisplay), energy, today,device)}/></WorkspaceSnapshot>;
+ return <WorkspaceSnapshot path="/dashboard"><OverviewView presentation={overviewPresentation(snapshot.meals, records.map(measurementDisplay), energy, today,device)}/></WorkspaceSnapshot>;
 }
