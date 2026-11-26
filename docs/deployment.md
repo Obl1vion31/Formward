@@ -2,6 +2,14 @@
 
 ## 当前正式版本
 
+网页与聊天 worker 运行 `dual-entry-8d768d3b-recipe-portion-entry-r3-20261126`，源码 `8d768d3ba9c5e419d6962fef6b4fa9253b0bb1ea`，BUILD_ID `EMVPsTpGV7G9GxQLbzWqG`。北京时间 2026-11-26 15:40:24 切换。整份录入采用 5% 步进比例或实际可食克数，拆分计件按同规格的可食重量换算并保存原单位、数量及依据。 [正式饮食页](https://formward.top/dashboard/meals) · [实页验收](../design-qa.md#已发布验收--整份录入按比例或重量)
+
+数据库沿用 `0048_meal_reference_foods`，48 项迁移与 67 张表。切换前备份 `formward-primary-20261126T074019791721Z.dump.json` 的原生校验和异地回读通过，配置和停写前后数据摘要一致。四个公网入口和兼容 IP 返回同一版本，已核对新旧 CSS／JS、登录回程、匿名接口限制与海外 MCP 元数据。
+
+运行包 90,612,233 字节，SHA-256 `5722e3f264c5a9465dd3b13e7fcd74080304a69ec9f935eb32ba352d90dd9bc7`，与浏览器验收一致。保留 56 项 Server Action、绑定密钥与 2485 项旧静态资源。运行包及证据保存在 `.codex/backups/regional-releases/recipe-portion-entry-r3-20261126`，兼容回退为 `mobile-panel-titles-r3-20261126`，只切换网页与 worker。
+
+## 手机面板标题发布记录
+
 网页与聊天 worker 运行 `dual-entry-d6a81040-mobile-panel-titles-r3-20261126`，源码 `d6a81040d4f885c7c29fc770a618de62226b0f84`，BUILD_ID `Ufmu6P0Hxlq1hnxu82OMQ`，北京时间 2026-11-26 03:36:49 切换。手机面板使用等宽操作槽与独立标题列，窄屏保留完整返回语义。准确运行包通过 320／390 CSS px 手机与 1280 CSS px 桌面验收。 [正式站](https://formward.top) · [实页验收](../design-qa.md#已发布验收--手机面板标题)
 
 数据库沿用 `0048_meal_reference_foods`，48 项迁移与 67 张表。切换前的原生与加密异地备份通过核对，配置和停写前后数据摘要一致。四个公网入口及兼容 IP 返回同版，新旧 CSS 和 JS、登录回程、接口权限及海外 iad1 入口通过核对。

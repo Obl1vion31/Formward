@@ -1,5 +1,13 @@
 # 当前视觉验收
 
+## 已发布验收 · 整份录入按比例或重量
+
+正式准确运行包使用隔离原生 PostgreSQL 与虚构账号。在 Chromium 与 WebKit 分别覆盖 1280×900 桌面、390×844 和 320×667 手机，交叉测试深浅主题。按已确认的参考检查两端操作区、轻量滑条、左侧重量输入、单位与总览，比例和重量来回切换的总览槽位偏差为 0 CSS px。操作区均至少 44 CSS px，手机标题与返回操作未重叠。 [实页与参考对照](<C:/Users/14878/.codex/visualizations/2026/11/26/01a211c0-3f28-7c01-b70b-b87f066a0eff/portion-percentage-release/index.html>) · [桌面录屏](<C:/Users/14878/.codex/visualizations/2026/11/26/01a211c0-3f28-7c01-b70b-b87f066a0eff/portion-percentage-release/Formward-桌面实页.mp4>) · [手机录屏](<C:/Users/14878/.codex/visualizations/2026/11/26/01a211c0-3f28-7c01-b70b-b87f066a0eff/portion-percentage-release/Formward-手机实页.mp4>)
+
+拖动、键盘步进、0% 禁用、按克回填聚焦和返回草稿均通过。番茄牛腩盖饭 55% 为 181.5 克、60% 为 198 克，整餐组成同步。实填 220 克按可食重量独立保存，拆开后从 220 克开始，水煮鸡蛋 1.5 个按参考 75 克计入。保存刷新后仍为一条菜名，展开可读实际计量与来源。可乐鸡翅的翅中按可食克数。旧半份、旧多人份及不在刻度上的旧小数份按原快照回看，只改备注保留食量、营养和来源。
+
+另查慢响应、失败重试、跨账号、无依据计件及用量矛盾的服务端校验。lint、类型检查和生产构建通过。885 项单元与集成测试通过，2 项按配置跳过。两项现有认证相关测试在并行全量中各出现一次失败，均在另一轮全量及单独复跑中通过。手机使用浏览器视口，实体手机及真实 AI 对话未实测。 [正式发布](docs/deployment.md#当前正式版本)
+
 ## 已发布验收 · 手机面板标题
 
 同视口对照使用食材详情的原始截图、局部 ImageGen 参考和准确运行包实页。手机食材库、餐次、消耗、身体详情、训练动作选择、总览日期、设备来源及更多信息共享标题中线。320 CSS px 返回显示箭头，390 CSS px 有余量时显示「本餐」「列表」或「食材」，完整可访问名称仍可读。面板主标题最大实测偏差 0.01 CSS px，测得操作区均至少 44 CSS px，长标题换行时粘顶高度随之更新。 [实页对照](<C:/Users/14878/.codex/visualizations/2026/11/26/01a211c0-3f28-7c01-b70b-b87f066a0eff/mobile-panel-titles/mobile-panel-title-comparison.png>) · [实页录屏](<C:/Users/14878/.codex/visualizations/2026/11/26/01a211c0-3f28-7c01-b70b-b87f066a0eff/mobile-panel-titles/mobile-panel-390.webm>)

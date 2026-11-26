@@ -1,6 +1,8 @@
 # Formward 项目交接
 
-网页与聊天 worker 运行 `dual-entry-d6a81040-mobile-panel-titles-r3-20261126`，源码 `d6a81040d4f885c7c29fc770a618de62226b0f84`，BUILD_ID `Ufmu6P0Hxlq1hnxu82OMQ`。北京时间 2026-11-26 03:36:49 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+网页与聊天 worker 运行 `dual-entry-8d768d3b-recipe-portion-entry-r3-20261126`，源码 `8d768d3ba9c5e419d6962fef6b4fa9253b0bb1ea`，BUILD_ID `EMVPsTpGV7G9GxQLbzWqG`。北京时间 2026-11-26 15:40:24 切换。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+
+整份录入通过 5% 步进比例或实填可食克数录入，输入切换保留各自食量。拆分从当前用量开始，允许有食材规格依据的计件。保存后保持一条餐项，历史保留原快照。320／390 CSS px 手机与 1280 CSS px 桌面通过录入、保存刷新及旧餐复查。 [视觉验收](design-qa.md#已发布验收--整份录入按比例或重量)
 
 手机底部面板使用等宽操作槽，返回与关闭围绕居中的标题。食材库、饮食、消耗、身体详情、训练动作选择、设备来源和更多信息已走实页。320／390 CSS px 与桌面通过标题、层级往返、草稿保护和读取失败重试验收。 [视觉验收](design-qa.md#已发布验收--手机面板标题)
 
