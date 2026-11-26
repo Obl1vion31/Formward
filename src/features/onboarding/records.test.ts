@@ -92,12 +92,23 @@ test("owner演练权限与普通用户区分，不要求后台再次验密",asyn
   await assert.rejects(requireOnboardingOwner(db,person),/仅供管理员/);
   assert.equal((await loadPersonalProfile(db,owner)).version,0);
 });
-test("未看说明不能直接完成；非法进度和无效日期不写入",async()=>{
+test("旧客户端保留合法步骤校验，无效日期与进度不写入",async()=>{
   const p=await identity();
   await assert.rejects(advanceOnboarding(db,p,{expectedVersion:1,step:"complete"}),/先继续/);
   for(const birthDate of ["2000-02-30","2027-01-01","01/01/2000"]){await assert.rejects(savePersonalProfile(db,p,{expectedVersion:1,heightCm:null,birthDate}));}
   await assert.rejects(advanceOnboarding(db,p,{expectedVersion:1,step:"unknown"}));
   assert.equal((await loadPersonalProfile(db,p)).version,1);
+});
+test("首次资料一次保存并完成，跳过只改变进度",async()=>{
+  const saving=await identity(),skipping=await identity();
+  const result=await savePersonalProfile(db,saving,{expectedVersion:1,heightCm:"173",birthDate:"1993-07-12",completeOnboarding:true});
+  assert.equal(result.onboardingStep,"complete");
+  assert.equal(result.heightCm,"173");
+  assert.equal(result.version,2);
+  await savePersonalProfile(db,skipping,{expectedVersion:1,heightCm:"166",birthDate:null});
+  const skipped=await advanceOnboarding(db,skipping,{expectedVersion:2,step:"complete",skipProfile:true});
+  assert.equal(skipped.heightCm,"166");
+  assert.equal(skipped.onboardingStep,"complete");
 });
 test("生日按年月日算年龄；上海跨零点与闰年",()=>{
   assert.equal(profileAge("2004-06-03","2026-06-02"),21);

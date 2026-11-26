@@ -38,7 +38,7 @@ export async function advanceOnboarding(db: Database, proof: SessionProof, input
     const row=(await tx.select().from(personalProfile).where(eq(personalProfile.userId,proof.userId)).for("update"))[0],current=display(row);
     if (current.onboardingStep===value.step || current.onboardingStep==="complete") return current;
     if (current.version!==value.expectedVersion) throw new ApiError(409,"version_conflict","引导进度已改变，请刷新查看最新步骤。");
-    if (current.onboardingStep==="profile" && value.step==="complete"&&!value.skipProfile) throw new ApiError(400,"invalid_input","请填写资料或选择暂时跳过。");
+    if (current.onboardingStep==="profile" && value.step==="complete"&&!value.skipProfile) throw new ApiError(400,"invalid_input","请先继续到使用说明。");
     return display((await tx.update(personalProfile).set({ onboardingStep:value.step,version:current.version+1,updatedAt:new Date() }).where(eq(personalProfile.userId,proof.userId)).returning())[0]);
   });
 }

@@ -49,7 +49,7 @@
   min-height:44px;
  }
  .surfaceHeading [data-inspector-paired-actions]{--inspector-action-width:88px}
- [data-inspector-title-row] > :is(h2,[data-inspector-title]){
+ .surfaceHeading [data-inspector-title-row] > :is(h2,[data-inspector-title]){
   grid-area:1 / 2;
   min-width:0;
   text-align:center;
@@ -57,7 +57,7 @@
  }
  .heading .titleParts{justify-content:center;align-items:baseline}
  .heading .titleParts > span:not(:first-child){white-space:normal}
- [data-inspector-title-row] > :is(.headingActions,button:last-child){grid-area:1 / 3;justify-self:end}
+ .surfaceHeading [data-inspector-title-row] > :is(.headingActions,button:last-child){grid-area:1 / 3;justify-self:end}
  .heading > :is(.headingBack,.stepBack,.sheetHandle){grid-area:1 / 1;justify-self:start}
  .heading .sheetHandle{display:inline-grid;color:var(--muted)}
  .heading .stepBack{justify-content:center}
