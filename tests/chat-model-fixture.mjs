@@ -1,7 +1,8 @@
 // 仅隔离浏览器进程通过node --import使用；正式运行包不引用本文件。
 import {readFile} from 'node:fs/promises';
 const fixture=JSON.parse(await readFile(process.env.FORMWARD_CHAT_BROWSER_FIXTURE,'utf8'));
-const images = new Map(await Promise.all((fixture.samples??[]).map(async sample=>[sample.pathname,await readFile(sample.file)])));
+const fixtureImages=[...(fixture.samples??[]),...(fixture.freeSample?[fixture.freeSample]:[])];
+const images = new Map(await Promise.all(fixtureImages.map(async sample=>[sample.pathname,await readFile(sample.file)])));
 const live = process.env.FORMWARD_CHAT_LIVE_KEY_FILE
   ? await (await import("./assistant-context-qwen.mjs")).budgetedQwen(fixture,globalThis.fetch)
   : null;

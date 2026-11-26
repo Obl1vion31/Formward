@@ -10,17 +10,18 @@ import { intakeTrendPoint } from "../meals/trend-preview";
 import { energyTrendPoint } from '../activities/trend-preview';
 
 export function summaryCards(data: OverviewPresentation, today: string): MetricCard[] {
-  const intake=data.latestIntake, body=data.body, energy=data.latestEnergy;
+  const body=data.body;
   const byDate=new Map(data.days.map(day=>[day.date,day]));
+  const day=byDate.get(today),intake=day?.nutrition,energy=day?.energy;
   const points=(date:string, value:(day:OverviewPresentation["days"][number]|undefined)=>number|null)=>Array.from({length:7},(_,index)=>{
     const key=addCalendarDays(date,index-6),day=byDate.get(key);return {date:key,value:value(day),partial:day?.nutrition?day.mealDayStatus!=="complete"||day.nutrition.incomplete.caloriesKcal:false};
   });
-  const intakeDate=intake?.date??today, weightDate=body?.recordDate??today, energyDate=energy?.date??today;
+  const weightDate=body?.recordDate??today;
   const weight=points(weightDate,day=>day?.morning?.weightKg!=null?Number(day.morning.weightKg):null).map(({date,value})=>({date,value}));
   const destination=(path:string,date:string)=>`${path}?view=trend&date=${date}&from=${addCalendarDays(date,-6)}&to=${date}`;
   return [
-    {title:intakeDate===today?"今日摄入":"最近摄入",value:formatNutrition(intake?.totals.values.caloriesKcal??null,"caloriesKcal"),unit:"kcal",date:intake?.date??"",readings:intake?{kind:"intake",date:intake.date,totals:intake.totals}:undefined,fact:intake?`${intake.meals.length}餐`:undefined,href:destination("/dashboard/meals",intakeDate),trend:metricTrendModel("intake",points(intakeDate,()=>null).map(point=>{const day=byDate.get(point.date);return intakeTrendPoint(point.date,day?.nutrition,day?.mealDayStatus);}))},
+    {title:"今日摄入",value:formatNutrition(intake?.values.caloriesKcal??null,"caloriesKcal"),unit:"kcal",date:today,readings:intake?{kind:"intake",date:today,totals:intake}:undefined,fact:day?.meals.length?`${day.meals.length}餐`:"尚无餐次",href:destination("/dashboard/meals",today),trend:metricTrendModel("intake",points(today,()=>null).map(point=>{const day=byDate.get(point.date);return intakeTrendPoint(point.date,day?.nutrition,day?.mealDayStatus);}))},
     {title:weightDate===today?"今晨体重":"最近晨重",value:formatRecordNumber(body?.weightKg),unit:"kg",date:body?.recordDate??"",readings:body?{kind:"morning-weight",date:body.recordDate,weightKg:body.weightKg}:undefined,href:destination("/dashboard/measurements",weightDate),trend:metricTrendModel("morning-weight",weight,normalScale(weight.flatMap(point=>point.value===null?[]:[point.value])))},
-    {title:energyDate===today?"今日消耗":"最近消耗",value:energyValue(energy?.totalKcal),unit:"kcal",date:energy?.date??"",readings:energy?{kind:"energy",date:energy.date,totalKcal:energy.totalKcal,restingKcal:energy.record?.adoption?.mode==="source"&&energy.record.adoption.metadata?.compositionKnown===false?null:energy.restingKcal,activeKcal:energy.activeKcal}:undefined,fact:energy?.cumulative?"今日累计":energy?.record?.calculationSnapshot?"系统估算":energy?.record?.sourceSystem??undefined,href:destination('/dashboard/energy',energyDate),trend:metricTrendModel("energy",points(energyDate,()=>null).map(point=>energyTrendPoint(point.date,byDate.get(point.date)?.energy)))},
+    {title:"今日消耗",value:energyValue(energy?.totalKcal),unit:"kcal",date:today,readings:energy?{kind:"energy",date:today,totalKcal:energy.totalKcal,restingKcal:energy.record?.adoption?.mode==="source"&&energy.record.adoption.metadata?.compositionKnown===false?null:energy.restingKcal,activeKcal:energy.activeKcal}:undefined,fact:energy?.cumulative?"今日累计":energy?.totalKcal==null?"缺全天消耗":energy.record?.calculationSnapshot?"系统估算":energy.record?.sourceSystem??undefined,href:destination('/dashboard/energy',today),trend:metricTrendModel("energy",points(today,()=>null).map(point=>energyTrendPoint(point.date,energy?.totalKcal==null?undefined:byDate.get(point.date)?.energy)))},
   ];
 }

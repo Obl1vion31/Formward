@@ -98,10 +98,10 @@ export function WorkspaceLoading({kind,returnShell=false,destination}:{kind:'ove
 }
 function OverviewLoading({date,rangeMode,readingStatus,showPlotGuides}:{date:string;rangeMode?:string;readingStatus?:React.ReactNode;showPlotGuides:boolean}){
  const today=useContext(WorkspaceTodayContext);
- return <RecordWorkspace title="总览" className={overview.workspace}>
+ return <RecordWorkspace title="总览 · 今天该做什么" className={overview.workspace}>
  <TodayActions date={today}/>
  <MetricCardRailPending readingStatus={readingStatus}/>
- <OverviewTrendLayout date={date} range={rangeMode??"30"} mobileRange={rangeMode??"7"} changeRange={()=>{}}>
+ <OverviewTrendLayout date={date} range={rangeMode??"7"} changeRange={()=>{}}>
   <div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle}>
    {showPlotGuides&&<OverviewPlotLoadingGuides/>}
   </div>

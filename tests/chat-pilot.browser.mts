@@ -19,6 +19,7 @@ import {seedAssistantFixture} from "./assistant-fixture.mjs";
 import {createDatabase} from "../src/db/client";
 import {migrate as migrateNative} from "drizzle-orm/postgres-js/migrator";
 import {localMeasurementDate} from "../src/features/measurements/entry-state";
+import {provisionAccount} from "../src/features/auth/provision";
 const realCosPath=process.env.FORMWARD_REAL_PHOTO_CONFIG;
 const realCosEnv:Record<string,string>={};
 if(realCosPath){assert.equal((await stat(realCosPath)).mode&0o777,0o600);const settings=parseEnv(await readFile(realCosPath,"utf8"));assert.equal(settings.FORMWARD_COS_BUCKET,"formward-images-1520483841");assert.equal(settings.FORMWARD_COS_REGION,"ap-shanghai");for(const key of ["FORMWARD_COS_BUCKET","FORMWARD_COS_REGION","FORMWARD_COS_SECRET_ID","FORMWARD_COS_SECRET_KEY"]){assert.ok(settings[key]);realCosEnv[key]=settings[key];}for(const key of ["FORMWARD_IMAGE_SECRET","FORMWARD_GATEWAY_SECRET","FORMWARD_IMAGE_WORKER_URL","FORMWARD_BLOB_LOCATION"]){if(settings[key])realCosEnv[key]=settings[key];}}
@@ -65,6 +66,7 @@ const imageId=randomUUID(),imageBytes=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAA
 await db.insert(schema.mealImage).values({id:imageId,userId:fixture.userId,pathname:"meal-formal-v2/"+fixture.userId+"/fixture.png",fileName:"虚构照片.png",mimeType:"image/png",byteSize:imageBytes.length,sha256:createHash("sha256").update(imageBytes).digest("hex"),source:"manual",createdBy:fixture.userId,storageProvider:"cos",storageLocation:"chat-fixture-123@ap-shanghai"});
 const experiencePhoto = process.env.FORMWARD_CHAT_FIXTURE_PHOTO;
 const samples: {id:string;pathname:string;file:string;index:number}[] = [];
+let freeSample:typeof samples[number]|undefined;
 if (experiencePhoto) {
   assert.ok(!realCosPath,"隔离样例只能使用虚构照片通道");
   const original = await readFile(experiencePhoto);
@@ -91,6 +93,21 @@ if (experiencePhoto) {
       storageProvider:"cos",storageLocation:"chat-fixture-123@ap-shanghai"});
     samples.push({id,pathname,file,index});
   }
+  if(process.env.FORMWARD_HANDOFF_BROWSER_FIXTURE==="1"){
+    const id=randomUUID(),pathname="meal-formal-v2/"+fixture.other.id+"/"+id;
+    await db.insert(schema.mealImage).values({id,userId:fixture.other.id,pathname,fileName:"虚构午餐.png",mimeType:"image/png",
+      byteSize:original.length,sha256:createHash("sha256").update(original).digest("hex"),source:"manual",createdBy:fixture.other.id,
+      storageProvider:"cos",storageLocation:"chat-fixture-123@ap-shanghai"});
+    freeSample={id,pathname,file:samples[0].file,index:1};
+  }
+}
+const freshAccounts = [];
+if(process.env.FORMWARD_HANDOFF_BROWSER_FIXTURE==="1"){
+  for(const action of ["save","skip"]){
+    const account={email:"formward-first-"+action+"@example.test",password:"formward-fictional-first-use"};
+    await provisionAccount(db as unknown as import("../src/db/client").Database,{...account,name:"虚构首次使用"});
+    freshAccounts.push(account);
+  }
 }
 const socket=pg?new PGLiteSocketServer({db:pg,host:"127.0.0.1",port:0,maxConnections:10}):undefined;await socket?.start();const probe=createServer();probe.listen(process.env.FORMWARD_CHAT_PREVIEW_PORT?Number(process.env.FORMWARD_CHAT_PREVIEW_PORT):realCosPath?3300:0,"127.0.0.1");await once(probe,"listening");const port=(probe.address()as{port:number}).port;await new Promise<void>(resolve=>probe.close(()=>resolve()));
 const previewMarker=process.env.FORMWARD_LOCAL_PREVIEW==="1";
@@ -99,7 +116,7 @@ const delay=previewMarker?await delayedTrainingDatabase(native?new URL(nativeUrl
 const databaseUrl=delay?new URL(nativeUrl||`postgresql://postgres:postgres@${socket!.getServerConn()}/postgres?max=1`):null;
 if(databaseUrl)databaseUrl.host=delay!.connection;
 const baseURL=process.env.FORMWARD_CHAT_PREVIEW_ORIGIN??`http://127.0.0.1:${port}`,folder=await mkdtemp(join(tmpdir(),"formward-chat-pilot-")),config=join(folder,"fixture.json"),artifacts=resolve(process.env.FORMWARD_CHAT_ARTIFACTS??".codex/assistant-chat-pilot/visual");
-await mkdir(artifacts,{recursive:true});await writeFile(config,JSON.stringify({...fixture,baseURL,samples,imageId,imageBytes:imageBytes.toString("base64"),delayControlURL:delay?.controlURL,isolatedFixture:native?"native-postgres":"pglite"}),{mode:0o600});
+await mkdir(artifacts,{recursive:true});await writeFile(config,JSON.stringify({...fixture,baseURL,samples,freeSample,freshAccounts,imageId,imageBytes:imageBytes.toString("base64"),delayControlURL:delay?.controlURL,isolatedFixture:native?"native-postgres":"pglite"}),{mode:0o600});
 if(process.env.FORMWARD_CHAT_PREVIEW_CONFIG)await writeFile(process.env.FORMWARD_CHAT_PREVIEW_CONFIG,await readFile(config),{mode:0o600});
 const release=process.env.FORMWARD_TEST_RELEASE?resolve(process.env.FORMWARD_TEST_RELEASE):null;
 if(release)assert.ok(release.startsWith(resolve(".codex/regional-releases")+"/")&&release.endsWith("/standalone"),"仅验收本工作区私有候选包");

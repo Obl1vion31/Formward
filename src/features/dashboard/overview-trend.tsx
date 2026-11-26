@@ -33,7 +33,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
   const [customOpen, setCustomOpen] = useState(false), [customDraft, setCustomDraft] = useState(custom);
   const [rangeRevision, setRangeRevision] = useState(0);
   const [nestedChange, setNestedChange] = useState(false);
-  const range = mode ?? rangeContaining(preferred, today, mobile ? "7" : "30");
+  const range = mode ?? rangeContaining(preferred, today, "7");
   const available = data.days;
   const byDate = new Map(available.map(day => [day.date, day]));
   const earliest = available.map(day => day.date).filter(date => date <= today).sort()[0] ?? today;
@@ -83,8 +83,7 @@ export function OverviewTrend({ data }: { data: OverviewPresentation }) {
 
 
   return <section aria-label="热量与晨重趋势" data-chart-selection={selection.regionId} data-selected-date={selected} data-selection-origin={selection.origin} {...selection.regionProps}>
-    <OverviewTrendLayout date={selected} day={day} range={range} mobile={mobile} changeRange={changeRange} view={viewSelectedDay} custom={customControls}
-      mobileRange={mobile === null && mode === null ? rangeContaining(preferred, today, "7") : undefined}>
+    <OverviewTrendLayout date={selected} day={day} range={range} mobile={mobile} changeRange={changeRange} view={viewSelectedDay} custom={customControls}>
       {dates.length ? <RelationshipPlot days={days} selected={selected} selection={selection} compactMode={mobile ?? undefined} {...plotOptions} suspended={detailSuspended}/>
         : <p className={styles.caption}>请选择有效日期范围，最长10年。</p>}
     </OverviewTrendLayout>

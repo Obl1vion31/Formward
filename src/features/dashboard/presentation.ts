@@ -9,7 +9,7 @@ import { adoptedMeasurements } from "../measurements/days";
 /** 服务端生成两种晨重显示口径；切换估计不重算能量，也不写入记录。 */
 export function overviewPresentation(meals: MealView[], records: MeasurementDisplay[], snapshot: EnergySnapshot, today: string) {
   const recordDates = [...new Set([...meals.filter(row => !row.deletedAt).map(row => row.date), ...records.map(row => row.recordDate), ...snapshot.days.filter(row => !row.deletedAt).map(row => row.date), ...snapshot.activities.filter(row => !row.deletedAt).map(row => row.date)])].filter(date => date <= today).sort();
-  const knownDates = [...new Set([today, ...recordDates, ...records.filter(row => row.recordDate <= today).flatMap(row => [row.recordDate, addCalendarDays(row.recordDate, -1)])])].sort();
+  const knownDates = [...new Set([today, addCalendarDays(today,1), ...recordDates, ...records.filter(row => row.recordDate <= today).flatMap(row => [row.recordDate, addCalendarDays(row.recordDate, -1)])])].sort();
   const first = knownDates[0] < addCalendarDays(today, -3660) ? addCalendarDays(today, -3660) : knownDates[0];
   const dates = [...new Set([...knownDates, ...Array.from({ length: calendarOrdinal(today) - calendarOrdinal(first) + 1 }, (_, i) => addCalendarDays(first, i))])].sort();
   const intake = dailyTotals(meals);

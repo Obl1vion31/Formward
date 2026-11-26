@@ -22,7 +22,7 @@ const OverviewContent=memo(function OverviewContent({presentation,accountId}:{ac
   const {today}=presentation;
   const router=useRouter(),refreshAtMidnight=useCallback(()=>router.refresh(),[router]);
   const localToday = useLocalToday(today,refreshAtMidnight);
-  return <RecordWorkspace title="总览" className={styles.workspace}>
+  return <RecordWorkspace title="总览 · 今天该做什么" className={styles.workspace}>
     <TodayActions date={localToday} day={presentation.todayOptions.find(day=>day.date===localToday)}/>
     <MetricCardRail accountId={accountId} cards={summaryCards(presentation,localToday)}/>
     <OverviewTrend data={presentation} />

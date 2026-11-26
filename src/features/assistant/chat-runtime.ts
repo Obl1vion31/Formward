@@ -38,12 +38,15 @@ function operationReference(name: string, result: Record<string, unknown>): Chat
   if (typeof result.confirmationUrl === "string") {
     try { const link = new URL(result.confirmationUrl); if (link.pathname.startsWith("/dashboard/")) return { title: "查看提交", href: link.pathname + link.search, kind: "preview", ...(typeof result.id === "string" ? { operationId: result.id } : {}) }; } catch {}
   }
+  if(typeof result.id==="string"&&result.confirmationPath==="/dashboard/ai/operations/"+result.id){
+    return {title:"核对餐次",href:result.confirmationPath,kind:"preview",operationId:result.id};
+  }
   const pages: Record<string, string> = { query_meals: "meals", query_measurements: "measurements", query_energy: "energy", query_training: "training", search_foods: "meals" };
   return pages[name] ? { title: "查看" + ({ meals: "饮食记录", measurements: "实测记录", energy: "消耗记录", training: "训练记录" }[pages[name]]), href: "/dashboard/" + pages[name], kind: "record" } : null;
 }
 function toolSummary(name: string, result: Record<string, unknown>) {
   if (result.error) return "本步未成功，不能作为无记录或已保存。";
-  if (typeof result.confirmationUrl === "string") return "已生成待确认预览，正式记录尚未保存。";
+  if (operationReference(name,result)?.kind==="preview") return "已生成待确认预览，正式记录尚未保存。";
   const range = result.range as {from?:string;to?:string}|undefined;
   const prefix = range?.from && range.to ? `${range.from}—${range.to}：` : "";
   if (name === "query_measurements" && Array.isArray(result.days)) {
