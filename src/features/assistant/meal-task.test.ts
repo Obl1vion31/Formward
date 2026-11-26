@@ -14,7 +14,7 @@ import { createMealTask, getMealTask, createMealTaskPreview, applyMealTask, save
 import { chatIdentity, chatSnapshot, currentConversation, startChatRun, controlChat } from "./chat-store";
 import { budgetDate } from "./chat-model";
 import { revokeAiToken } from "../auth/ai-tokens";
-import { readMealSnapshot } from "../meals/records";
+import { confirmedManualMealDate, decideMealOperation, readMealSnapshot, submitMealOperation } from "../meals/records";
 import { reviewWebRecord } from "../records/web-review";
 import type { MealDraft } from "../meals/model";
 
@@ -96,6 +96,18 @@ await t.test("拍照提交在同事务绑定原草稿、照片和首条消息，
  const restored=await continueMealByHand(db,owner,result.taskId);
  assert.deepEqual(restored.draft,packet.draft);
  assert.equal((await chatSnapshot(db,owner)).photoHandoff?.cancelled,true);
+ const originalCount=(await readMealSnapshot(db,owner)).meals.length;
+ const input={operationId:result.taskId,actions:[{...restored.draft,kind:"save_meal" as const}]};
+ const manual=await submitMealOperation(db,{userId:owner,origin:"manual"},input);
+ assert.equal(await confirmedManualMealDate(db,owner,result.taskId),null);
+ await decideMealOperation(db,owner,manual.id,manual.revision,"confirm");
+ assert.equal(await confirmedManualMealDate(db,other,result.taskId),null);
+ const settled=(await chatSnapshot(db,owner)).photoHandoff;
+ assert.equal(settled?.saved,true);
+ assert.equal(settled?.manualSavedDate,restored.draft.date);
+ assert.equal((await submitMealOperation(db,{userId:owner,origin:"manual"},input)).status,"confirmed");
+ assert.equal((await readMealSnapshot(db,owner)).meals.length,originalCount+1);
+ await assert.rejects(()=>continueMealByHand(db,owner,result.taskId),/本餐已保存/);
 });
 await t.test("仅有识图权限的对话能回看，普通发送被拒绝，额度不足不创建会话",async()=>{
  const imageId=randomUUID();

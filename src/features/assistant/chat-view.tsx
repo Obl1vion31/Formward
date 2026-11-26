@@ -270,6 +270,12 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
     window.addEventListener("formward-native-dismiss", dismiss);
     return () => window.removeEventListener("formward-native-dismiss", dismiss);
   });
+  const mealReceipt = meal?.manualSavedDate ? <div className={styles.previewCard} data-manual-meal-receipt>
+    <div className={styles.mealReturn}>
+      <span role="status">已保存</span>
+      <LoadingLink returnScope="assistant" href={"/dashboard/meals?date="+meal.manualSavedDate} beforeNavigate={navigate}>查看饮食 →</LoadingLink>
+    </div>
+  </div> : null;
   const mealReturn = meal && !meal.saved && <span className={styles.mealReturn} data-meal-task-actions>
     <LoadingLink returnScope="assistant" href={"/dashboard/meals?date="+meal.date+"&entry=1&manualTask="+meal.taskId} beforeNavigate={async()=>{
       if (!meal.cancelled && !await confirmAction({title:"改用手填？",message:"结束本次识别，带回发给助手前的原草稿。",confirmLabel:"返回手填"})) return false;
@@ -298,7 +304,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
         {meal&&<p className={styles.mealContext} data-meal-handoff-context>{meal.date} · {meal.mealType} · 饮食拍照</p>}
         {ordinaryChat&&chat.data&&!chat.messages.length && <div className={styles.welcome}><h3>今天想聊点什么？</h3><div className={styles.examples}>{["查看昨天的饮食","记录今天的晨重"].map(example=>
           <button type="button" key={example} onClick={()=>{chat.setDraft(example);input.current?.focus();}}>{example}</button>)}</div></div>}
-        {!mealAnchor&&mealReturn}
+        {!mealAnchor&&(mealReceipt??mealReturn)}
         {transcript.visible.map(message => {
           const requestId = message.requestId, local = requestId ? chat.outgoing.get(requestId) : undefined;
           const followup = message.id===taskAnchor && message.state==="complete" ? task : null;
@@ -329,6 +335,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
             <ChatMessageBody message={message} inlinePreviews={message.mealTask===true||chat.data?.capabilities?.inlinePreviews===true} navigate={navigate} jump={jump}
               followup={followup} timing={timing} answers={transcript.answers.get(message.id)} previews={local}
               continuation={continuation} actions={actions} mealActions={message.id===mealAnchor?.id?mealReturn:undefined}
+              mealReceipt={message.id===mealAnchor?.id?mealReceipt:undefined}
               onPhotoHandoff={id=>{if(requestId) chat.releaseSentPreview(requestId,id);}}
               sendStatus={local?.phase==="sending" ? <p className={styles.sendPending} role="status">发送中</p> :
                 local?.phase==="error" && requestId ? <div className={styles.sendError}>

@@ -263,6 +263,14 @@ export async function getMealOperation(db: Pick<Database, "select">, userId: str
   if (!row) throw new ApiError(404, "not_found", "饮食审核不存在。");
   return row;
 }
+export async function confirmedManualMealDate(db: Pick<Database, "select">, userId: string, operationId: string) {
+  const [row] = await db.select({ draft: mealOperation.draft }).from(mealOperation).where(and(
+    eq(mealOperation.userId, userId), eq(mealOperation.operationId, operationId),
+    eq(mealOperation.origin, "manual"), eq(mealOperation.status, "confirmed"),
+  ));
+  const actions = row?.draft.actions;
+  return actions?.length === 1 && actions[0].kind === "save_meal" ? actions[0].date : null;
+}
 export async function listMealOperations(db: Database, userId: string) {
   return (await db.select().from(mealOperation).where(and(eq(mealOperation.userId, userId), ne(mealOperation.origin, "manual"))).orderBy(desc(mealOperation.createdAt)).limit(30)).map(displayMealOperation);
 }

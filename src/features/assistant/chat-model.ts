@@ -81,7 +81,7 @@ export type ChatSnapshot = {
   photoUpdates?: ChatMessage[];
   pendingContextQuote?: ChatContextQuote;
   contextBaseEstimate?: number;
-  photoHandoff?: { taskId: string; date: string; mealType: string; followup: boolean; cancelled: boolean; saved: boolean; restricted: boolean };
+  photoHandoff?: { taskId: string; date: string; mealType: string; followup: boolean; cancelled: boolean; saved: boolean; manualSavedDate?: string; restricted: boolean };
   hasMore: boolean; before: number | null; activeRunId: string | null; runTiming?: ChatRunTiming | null; catalog: ChatCatalogItem[]; usage: ChatUsage;
 };
 export type ChatEvent =

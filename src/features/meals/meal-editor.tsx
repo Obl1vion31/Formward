@@ -516,7 +516,7 @@ export function MealEditor({
            }}>
            <div className={styles.foodHeading}>
              <h2 id={bubbleId + "-foods"}>本餐食物</h2>
-             {canPick&&!pending&&<TaskGuide task="meal-editor-food" text="点「从食材库添加」，选好食材后填实际吃的份量。" auto={!entered.length&&!libraryOpen&&!inlineLibrary}/>}
+             {canPick&&!pending&&<TaskGuide task="meal-editor-food" text="点「从食材库添加」，选好食材后填实际吃的份量。" auto={!entered.length&&!libraryOpen}/>}
              <button ref={libraryTrigger} type="button" className={styles.libraryLink} aria-label="从食材库添加" data-guide-target="meal-editor-food"
                aria-controls={bubbleId + "-picker"} aria-expanded={inlineLibrary || libraryOpen} disabled={!canPick} onClick={() => showLibrary()}>
                从食材库添加 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>

@@ -12,6 +12,7 @@ import { ApiError } from "../auth/ai-identity";
 import { lockActiveAccount, requireActiveAccount } from "../auth/account-security";
 import { requireActiveAiToken } from "../auth/ai-tokens";
 import { accountEntitlements } from "../auth/entitlements";
+import { confirmedManualMealDate } from "../meals/records";
 import { prepareRecognition, recognitionUsage, reserveRecognition, refundUnfinishedRecognition } from "./recognition-quota";
 import { assertChatAllowed, chatProviders, providerAvailable, currentProvider, providerConfigured, providerId, type ChatRates } from "./chat-config";
 import { budgetDate, CHAT_PHOTOS_PER_BATCH, chatContextLimitNotice, chatPhotoProgress, chatProviderIds, isMealTaskContext, nextBudgetReset, pendingContextQuoteId, usagePercent, type ChatContextQuote, type ChatControlAction, type ChatMessage, type ChatPhotoLimit, type ChatProvider, type ChatRunTiming, type ChatSnapshot, type ChatUsage } from "./chat-model";
@@ -251,6 +252,7 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
   const handoff=isMealTaskContext(current.context)&&current.context.photoHandoff?current.context:null;
   const [handoffReview]=handoff?.previewId?await db.select({status:recordOperation.status}).from(recordOperation)
     .where(and(eq(recordOperation.userId,userId),eq(recordOperation.id,handoff.previewId))).limit(1):[];
+  const manualSavedDate=handoff?.cancelled?await confirmedManualMealDate(db,userId,current.id):null;
   const mealFollowup=!!current.followup&&runs.some(item=>item.userMessageId===current.followup?.messageId&&item.executionInput?.mealTask);
   const grants = await db.select({ provider: connection.provider, enabled: connection.enabled, expiresAt: aiToken.expiresAt, revokedAt: aiToken.revokedAt }).from(connection).innerJoin(aiToken, and(eq(aiToken.id, connection.tokenId), eq(aiToken.userId, userId))).where(and(eq(connection.userId, userId),eq(connection.purpose, grantPurpose))).orderBy(desc(connection.createdAt));
   const quoteId = !taskId ? pendingContextQuoteId(current.context) : undefined;
@@ -299,7 +301,7 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
   }).map(present);
   return { capabilities:chatCapabilities(),entitlement,conversationId: current.id, provider: currentProvider(providerId(current.provider)),
     followup: current.followup, messages: rows.map(present),
-    ...(handoff?{photoHandoff:{taskId:current.id,date:handoff.draft.date,mealType:handoff.draft.mealType,followup:mealFollowup,cancelled:!!handoff.cancelled||handoffReview?.status==="cancelled",saved:handoffReview?.status==="confirmed",restricted:current.purpose==="meal_entry"}}:{}),
+    ...(handoff?{photoHandoff:{taskId:current.id,date:handoff.draft.date,mealType:handoff.draft.mealType,followup:mealFollowup,cancelled:!!handoff.cancelled||handoffReview?.status==="cancelled",saved:handoffReview?.status==="confirmed"||!!manualSavedDate,manualSavedDate:manualSavedDate??undefined,restricted:current.purpose==="meal_entry"}}:{}),
     ...(!taskId && before === undefined ? {contextBaseEstimate:chatContextBaseEstimate(recent,
       [current.followup, quoteId && contextQuotes.get(quoteId)?.text])} : {}), ...(quoteId ? { pendingContextQuote: contextQuotes.get(quoteId) } : {}), ...(photoUpdates.length ? { photoUpdates } : {}),
     hasMore: older.length > 5, before: rows[0]?.seq ?? null, activeRunId: active?.id ?? null,

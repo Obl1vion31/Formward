@@ -10,7 +10,7 @@ import { ApiError, type AiIdentity } from "../auth/ai-identity";
 import { lockOwner } from "../auth/owner-lock";
 import { itemSchema, mealDraftSchema, type MealDraft } from "../meals/model";
 import { mealPreviewOperation } from "../meals/ai-preview";
-import { readMealSnapshot } from "../meals/records";
+import { confirmedManualMealDate, readMealSnapshot } from "../meals/records";
 import { previewMealsSchema } from "../records/ai-previews";
 import { loadRecordReview, submitRecordOperation, extendAiRecordPreview } from "../records/operations";
 import { withAiFieldDefinitions } from "../records/ai-field-definitions";
@@ -221,7 +221,8 @@ export async function continueMealByHand(db:Database,userId:string,id:string){
   const connection=tx as unknown as Database,task=await getMealTask(connection,userId,id),context=task.context;
   if(!context.photoHandoff)throw new ApiError(409,"task_changed","请从原录入入口处理旧任务。");
   const operation=context.previewId?await loadRecordReview(connection,userId,context.previewId):null;
-  if(operation?.status==="confirmed")throw new ApiError(409,"already_saved","本餐已保存，请打开饮食记录查看。");
+  if(operation?.status==="confirmed"||context.cancelled&&await confirmedManualMealDate(connection,userId,id))
+   throw new ApiError(409,"already_saved","本餐已保存，请打开饮食记录查看。");
   if(!context.cancelled){
    const [run]=await tx.select({id:assistantRun.id}).from(assistantRun).where(and(eq(assistantRun.userId,userId),eq(assistantRun.conversationId,id),eq(assistantRun.state,"running"),sql`${assistantRun.executionInput}->>'mealTask'='true'`)).limit(1);
    if(run)await controlChat(connection,userId,{action:"stop",runId:run.id,mealTaskId:id});
