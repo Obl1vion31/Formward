@@ -1,7 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { flushSync } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { MOBILE_MEDIA } from "./use-mobile-mode";
 import { guidePageBounds, guidePresent, guideScope, guideTarget, intersectGuideBox, openGuide, placeGuideCard, type GuideBox, type GuideStep } from "./guide-position";
 import { readVisibleViewport } from "./input-viewport";
@@ -244,8 +244,8 @@ export function PageTour({ ownerId, origin, configuration, onClose }: Props) {
     };
   }, [configuration, onClose, origin, ownerId]);
 
-  if (!currentStep) return null;
-  return <div ref={layerRef} className={styles.tour} popover="manual" data-guide-layer data-guide-owner={ownerId}
+  if (!currentStep || typeof document === "undefined") return null;
+  return createPortal(<div ref={layerRef} className={styles.tour} popover="manual" data-guide-layer data-guide-owner={ownerId}
     data-guide-float="tour" role="group" aria-label="页面导览">
     <div ref={frameRef} className={styles.tourFrame} data-guide-frame aria-hidden="true"><div ref={fillRef} className={styles.apertureFill}/></div>
     <div ref={tipRef} className={styles.tourTip} data-guide-tip>
@@ -261,5 +261,5 @@ export function PageTour({ ownerId, origin, configuration, onClose }: Props) {
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg>
       </button>
     </div>
-  </div>;
+  </div>, document.body);
 }
