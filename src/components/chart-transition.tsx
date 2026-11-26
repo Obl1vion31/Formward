@@ -135,6 +135,7 @@ export function ChartTransitionProvider({children}: {children: React.ReactNode})
     const {pathname: destination, search} = new URL(href, location.origin);
     origin.current = {kind: model.kind, destination, scroll: scrollY, rail: rail?.scrollLeft ?? 0};
     focusAfterLoad.current = null;
+    returnReady.current = false;
     returnCancelled.current = false;
     flushSync(() => {
       stopScene();
@@ -224,7 +225,8 @@ export function ChartTransitionProvider({children}: {children: React.ReactNode})
     } else if (target.current) acceptTarget(target.current);
     if (previous === pathname) return;
     if (returnCancelled.current && pathname !== overviewPath) setReturn(false);
-    if (pathname === overviewPath && origin.current && !returning.current) beginReturn(previous, false);
+    // 返回时子级的layout effect可能已报告就绪；父级不能再把同一次接管重置成等待。
+    if (pathname === overviewPath && origin.current && !returning.current && !returnReady.current) beginReturn(previous, false);
     if (pathname !== overviewPath && pathname !== origin.current?.destination) {
       origin.current = null;
       focusAfterLoad.current = null;

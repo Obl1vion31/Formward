@@ -106,9 +106,7 @@ async function tours() {
   await card.click({ position: { x: 25, y: 20 } }); await closed(); await page.waitForURL(url => url.pathname === "/dashboard/measurements");
   await database(1800); await page.goBack(); await visible('[data-task-guide="overview"]').waitFor();
   const retained = visible('[data-task-guide="overview"]').getByRole("button", { name: "使用指引" });
-  assert.ok(await retained.evaluate(node => !!node.closest("fieldset[disabled]")), "缓存校验不禁用静态帮助");
   await closed(); await retained.focus(); await page.keyboard.press("Enter"); await layer().waitFor(); await counter(1, 6);
-  assert.equal(await page.locator('[data-guide-layer][data-guide-phase=ready]:popover-open').count(), 0, "缓存不能充当最新业务目标");
   await button("跳过全部").click(); await closed(); await retained.focus(); await page.keyboard.press("Space"); await layer().waitFor();
   await database(0); await ready(overview[0]); await button("关闭使用指引").click(); await closed();
   await open("overview"); await ready(overview[0]); await button("下一步").click(); await button("跳过全部").click(); await closed();
@@ -158,8 +156,12 @@ async function loading() {
   expectingFailure = true; await database(0, true);
   await visible('nav[aria-label="主导航"] a[href="/dashboard"]').first().click();
   await visible('[data-workspace-cached][data-guide-failed=true]').waitFor();
-  await open("overview"); await counter(1, 6);
+  const help = visible('[data-task-guide="overview"]').getByRole("button", { name: "使用指引" });
+  assert.ok(await help.evaluate(node => !!node.closest("fieldset[disabled]")), "缓存校验不禁用静态帮助");
+  await help.focus(); await page.keyboard.press("Enter"); await layer().waitFor(); await counter(1, 6);
   await layer().getByText("此区域读取失败，可以重试或返回页面。", { exact: true }).waitFor();
+  assert.equal(await page.locator('[data-guide-layer][data-guide-phase=ready]:popover-open').count(), 0, "缓存不能充当最新业务目标");
+  await button("关闭使用指引").click(); await closed(); await help.focus(); await page.keyboard.press("Space"); await layer().waitFor();
   await shot("cached-failure-help-available"); await database(0); await button("重试").click();
   await ready(overview[0]); await button("关闭使用指引").click(); await closed(); expectingFailure = false;
   findings.push({ loading: ["四个入口首帧可见", "数据未就绪可打开", "同一步接管", "固定入口槽位≤1px", "真实读取失败", "失败原位重试保留编号", "缓存失败可打开帮助并实际重读"] });

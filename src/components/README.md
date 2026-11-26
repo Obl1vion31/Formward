@@ -16,7 +16,7 @@ record-intent-client.ts将同地址再次点击交给当前已挂载业务，沿
 
 metric-card-rail.tsx在手机提供横滑及拖后点击抑制，电脑提供自适应网格；真实卡片与MetricCardRailPending共用外壳。trend-glyph.tsx复用2:1数据平面，metric-trend-model.ts只管绘图尺度和内部趋势链接校验。三类卡片两端共用已知日期、区间和真实趋势；7D与不超过7天的对应自定义区间图区最大宽640px、居中，30D／90D铺满，布局不依赖是否有转场来源；更长桌面区间保留完整图幅。nutrition-chart.tsx将设备分支放在绘图外壳，尺寸测量只随实际挂载节点运行，切换设备宽度后重新绑定。关联趋势页通过主导航、Logo或浏览器返回总览。
 
-chart-transition.tsx管理三类趋势入口的真实目标地址、已知读数和返回意图。WorkspaceFrame用同一条约200ms的时间轴协调前后正文，workspace-motion.ts集中管理位移、透明度和取消。只在当前转场保留短暂的旧正文画面，退出后释放。顶栏和导航随可见页面更新。
+chart-transition.tsx管理三类趋势入口的真实目标地址、已知读数和返回意图。WorkspaceFrame用同一条约200ms的时间轴协调前后正文，workspace-motion.ts集中管理位移、透明度和取消。只在当前转场保留短暂的旧正文画面，退出后释放。顶栏和导航随可见页面更新。每次前进重置返回就绪标记；快速浏览器返回时，子级已完成的接管不能被父级重复开始覆盖，避免真实内容长期藏在只读快照后。
 
 Inspector在手机提供底部面板：只读stableScroll详情默认半屏，录入默认近全屏，把手可拖动及点击切换。所有关闭路径仍经过同一个草稿/忙碌保护；正文自行滚动，桌面侧栏和compact确认框保持各自用途。工作区的读取反馈由 WorkspaceLoading 和 LocalLoading 在实际内容区域呈现。登录和独立动作在对应表单内显示反馈。
 
