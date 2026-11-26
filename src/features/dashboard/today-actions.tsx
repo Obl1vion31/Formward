@@ -35,7 +35,7 @@ export function TodayActions({ date, day, readingStatus }: {
         ? `已记 ${day.mealCount} 餐${day.intake === null ? "" : " · " + formatIntegerNumber(day.intake) + " 千卡"}`
         : "记下第一餐，查看今天的摄入") : readingStatus}</p>
     </div>
-    {day && <nav className={styles.todayActions} aria-label="快捷记录">{actions.map(action =>
+    {day && <nav className={styles.todayActions} data-guide-region="today" aria-label="快捷记录">{actions.map(action =>
       <LoadingLink className={quick.action} key={action.id} href={action.href} data-primary={action === primary || undefined}
         data-guide-target={"today-" + action.id}>
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{action.icon}</svg>

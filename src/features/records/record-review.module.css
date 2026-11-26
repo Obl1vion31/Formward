@@ -163,6 +163,7 @@
 
 .footer .reviewStatus { flex:1 1 12rem; min-width:0; }
 .workspace[data-embedded] .footer[data-meal-actions] { justify-content:flex-start; gap:6px; flex-wrap:wrap; }
+.workspace[data-embedded] .footer[data-meal-actions]>button:not(.save) { margin-inline:0; }
 .footer[data-meal-actions] .reviewStatus:empty { display:none; }
 .footer[data-meal-actions] .reviewStatus:not(:empty) { flex-basis:100%; }
 .footer[data-meal-actions] .save,.mealGuide { margin-inline-start:auto; }

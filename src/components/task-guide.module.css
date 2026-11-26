@@ -28,5 +28,6 @@
   pointer-events:none;
 }
 .hint:popover-open { display: flex; }
+.hint > span { flex:1; min-inline-size:0; white-space:normal; overflow-wrap:anywhere; }
 .hint::backdrop { background: transparent; pointer-events: none; }
 .close { display:grid;place-items:center;flex:0 0 44px;min-inline-size:44px;pointer-events:auto; }

@@ -299,7 +299,7 @@ export async function chatSnapshot(db: Database, userId: string, before?: number
   }).map(present);
   return { capabilities:chatCapabilities(),entitlement,conversationId: current.id, provider: currentProvider(providerId(current.provider)),
     followup: current.followup, messages: rows.map(present),
-    ...(handoff?{photoHandoff:{taskId:current.id,date:handoff.draft.date,mealType:handoff.draft.mealType,followup:mealFollowup,cancelled:!!handoff.cancelled,saved:handoffReview?.status==="confirmed",restricted:current.purpose==="meal_entry"}}:{}),
+    ...(handoff?{photoHandoff:{taskId:current.id,date:handoff.draft.date,mealType:handoff.draft.mealType,followup:mealFollowup,cancelled:!!handoff.cancelled||handoffReview?.status==="cancelled",saved:handoffReview?.status==="confirmed",restricted:current.purpose==="meal_entry"}}:{}),
     ...(!taskId && before === undefined ? {contextBaseEstimate:chatContextBaseEstimate(recent,
       [current.followup, quoteId && contextQuotes.get(quoteId)?.text])} : {}), ...(quoteId ? { pendingContextQuote: contextQuotes.get(quoteId) } : {}), ...(photoUpdates.length ? { photoUpdates } : {}),
     hasMore: older.length > 5, before: rows[0]?.seq ?? null, activeRunId: active?.id ?? null,

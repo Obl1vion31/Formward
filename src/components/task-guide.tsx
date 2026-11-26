@@ -45,7 +45,8 @@ export function TaskGuide({ task, target = task, text, auto = true }: {
     anchor.setAttribute("aria-describedby", [oldDescription, id + "-text"].filter(Boolean).join(" "));
     anchor.addEventListener("click", hide);
     const stop = trackPopoverPosition(node, region ?? anchor, {
-      owner, width: 260, minHeight: 44, gap: 6, margin: 16, preferAbove: !region, align: "end",
+      owner, width: () => region?.dataset.guideRegion==="today" && innerWidth<700 ? Math.min(208,innerWidth*.56) : 260,
+      minHeight: 44, gap: 6, margin: 16, preferAbove: !region, align: "end",
     });
     detach.current = () => {
       stop();
@@ -61,20 +62,31 @@ export function TaskGuide({ task, target = task, text, auto = true }: {
   useEffect(() => {
     if (!account || !auto || refreshing || shown.current.has(key)) return;
     try { if (localStorage.getItem(key)) return; } catch {}
-    let observer: IntersectionObserver | undefined;
-    const frame = requestAnimationFrame(() => {
+    let observer: IntersectionObserver | undefined, observed: HTMLElement | undefined, frame = 0;
+    const boundary = trigger.current?.closest("dialog, [data-record-workspace]") ?? document.body;
+    const inspect = () => {
+      frame = 0;
       const anchor = guideTarget(trigger.current, target);
-      if (!anchor) return;
+      if (!anchor||anchor===observed) return;
+      observer?.disconnect();
+      observed=anchor;
       observer = new IntersectionObserver(([entry]) => {
         if (!entry?.isIntersecting || document.hidden || !guideTarget(trigger.current, target)) return;
         const dialog = Array.from(document.querySelectorAll("dialog[open]")).at(-1);
         if (dialog && !dialog.contains(anchor)) return;
         observer?.disconnect();
+        availability.disconnect();
+        window.removeEventListener("resize", schedule);
         show(anchor);
       }, { threshold: .5 });
       observer.observe(anchor);
-    });
-    return () => { cancelAnimationFrame(frame); observer?.disconnect(); };
+    };
+    const schedule=()=>{if(!frame)frame=requestAnimationFrame(inspect);};
+    const availability=new MutationObserver(schedule);
+    availability.observe(boundary,{subtree:true,childList:true,attributes:true,attributeFilter:["open","disabled","hidden","inert","data-guide-target","data-return-prepared","aria-disabled"]});
+    window.addEventListener("resize",schedule);
+    schedule();
+    return () => { cancelAnimationFrame(frame); observer?.disconnect();availability.disconnect();window.removeEventListener("resize",schedule); };
   }, [account, auto, key, refreshing, show, target]);
 
   useEffect(() => {

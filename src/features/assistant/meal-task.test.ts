@@ -15,6 +15,7 @@ import { chatIdentity, chatSnapshot, currentConversation, startChatRun, controlC
 import { budgetDate } from "./chat-model";
 import { revokeAiToken } from "../auth/ai-tokens";
 import { readMealSnapshot } from "../meals/records";
+import { reviewWebRecord } from "../records/web-review";
 import type { MealDraft } from "../meals/model";
 
 const client=new PGlite(),connection=drizzle(client,{schema}),db=connection as unknown as Database,owner=randomUUID(),other=randomUUID(),env=new Map<string,string|undefined>();
@@ -87,6 +88,11 @@ await t.test("拍照提交在同事务绑定原草稿、照片和首条消息，
  const next=await startChatRun(db,owner,{action:"send",requestId:randomUUID(),provider:"qwen",conversationId:result.taskId,text:"查看体重",timezone:"Asia/Shanghai"});
  assert.equal(next.row.conversationId,result.taskId);
  await controlChat(db,owner,{action:"stop",runId:next.row.id});
+ const identity=await chatIdentity(db,owner,"qwen",true,"meal_entry");
+ await createMealTaskPreview(db,identity,result.taskId,proposal());
+ const {operation}=await applyMealTask(db,owner,result.taskId);
+ await reviewWebRecord(db,owner,operation.id,{kind:"cancel",revision:operation.revision});
+ assert.equal((await chatSnapshot(db,owner)).photoHandoff?.cancelled,true);
  const restored=await continueMealByHand(db,owner,result.taskId);
  assert.deepEqual(restored.draft,packet.draft);
  assert.equal((await chatSnapshot(db,owner)).photoHandoff?.cancelled,true);

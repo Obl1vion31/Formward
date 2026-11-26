@@ -270,25 +270,23 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
     window.addEventListener("formward-native-dismiss", dismiss);
     return () => window.removeEventListener("formward-native-dismiss", dismiss);
   });
-  const mealReturn = meal && !meal.saved && <div className={styles.mealReturn} data-meal-task-actions>
+  const mealReturn = meal && !meal.saved && <span className={styles.mealReturn} data-meal-task-actions>
     <LoadingLink returnScope="assistant" href={"/dashboard/meals?date="+meal.date+"&entry=1&manualTask="+meal.taskId} beforeNavigate={async()=>{
-      if (!meal.cancelled) {
-        if (!await confirmAction({title:"改用手填？",message:"结束本次识别，带回发给助手前的原草稿。",confirmLabel:"返回手填"})) return false;
-        setManualError(null);
-        try {
-          const response=await fetch("/api/assistant-meal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"manual",taskId:meal.taskId})});
-          if (!response.ok) throw Error((await response.json()).error??"暂时无法恢复草稿。");
-          window.dispatchEvent(new Event("formward-assistant-updated"));
-        } catch (error) {
-          setManualError({task:meal.taskId,message:error instanceof TypeError?"连接未完成，请再试一次。":error instanceof Error?error.message:"暂时无法恢复草稿，请重试。"});
-          return false;
-        }
+      if (!meal.cancelled && !await confirmAction({title:"改用手填？",message:"结束本次识别，带回发给助手前的原草稿。",confirmLabel:"返回手填"})) return false;
+      setManualError(null);
+      try {
+        const response=await fetch("/api/assistant-meal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"manual",taskId:meal.taskId})});
+        if (!response.ok) throw Error((await response.json()).error??"暂时无法恢复草稿。");
+        window.dispatchEvent(new Event("formward-assistant-updated"));
+      } catch (error) {
+        setManualError({task:meal.taskId,message:error instanceof TypeError?"连接未完成，请再试一次。":error instanceof Error?error.message:"暂时无法恢复草稿，请重试。"});
+        return false;
       }
       return navigate();
     }}>{meal.cancelled?"返回原草稿":"改用手填"}</LoadingLink>
     {!showComposer&&chat.canStop&&<button type="button" disabled={chat.stopping} onClick={chat.stop}>停止识别</button>}
     {manualError?.task===meal.taskId&&<span role="alert">{manualError.message}</span>}
-  </div>;
+  </span>;
   return <div className={styles.workspace} data-tab={tab} data-page={page||undefined} onKeyDown={event => { if(event.key==="Escape"&&pinnedPreview){event.preventDefault();event.stopPropagation();closePreview();return;} if (event.key === "Escape" && panel) { event.preventDefault(); event.stopPropagation(); closePanel(); } }}>
     <aside className={styles.sidebar} aria-label="待办与快捷记录" inert={page && tab !== "tasks"}>{sidebar}</aside>
     <section className={styles.conversation} aria-label="AI聊天" inert={page && tab !== "chat"}>
