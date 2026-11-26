@@ -428,6 +428,12 @@ Formward 的 AI 教练应：
 - [MacroFactor Food Logger](https://help.macrofactorapp.com/en/articles/215-how-to-log-food-in-macrofactor)
 - [MacroFactor Check-In 与 Coaching Modules](https://help.macrofactorapp.com/en/articles/247-introduction-to-check-ins-and-coaching-modules)
 
+### 页面导览与操作引导
+
+总览、饮食、消耗和身体以「使用指引」打开页面导览或实际操作视频。逐项高光落在当前区域，说明事实、日期及点击去向，可前后浏览、关闭和重开。录入与核对根据实际控件出现指引，记餐跨食材、手填、拍照与核对沿用同一任务。高光使用细金边，触控、输入与读数保持可见。
+
+当天摘要在读数卡集中展示，日期行只承载当天和快捷入口。设备已采用的日消耗决定当天入口，历史日以实际值为准。趋势加载整块保留绘图区，由左向右扫光，坐标和数据同帧就位。验收保留截图与录屏，量测固定槽位，包含冷读、已有快照和原位重试。
+
 ### 双端连续交接与指标偏好
 
 - 手机总览一张宽卡为主，下一卡露出约24px；按账号／设备仅一次的晨重8px双次引导在触摸、滚动、导航或减少动态效果时停止。

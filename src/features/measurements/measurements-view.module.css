@@ -260,6 +260,7 @@
 
 /* 身体录入：以当前填写为中心；详情仍保留原概览。 */
 .entryForm{padding:0;margin:0}
+.desktopEntryGuide{display:flex;justify-content:flex-end;min-height:44px}
 .entryPeriodBar{display:none}.entryGroups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;padding-top:18px}
 .entryGroups>fieldset{min-width:0;margin:0;padding:0;border:0}.entryGroups legend{display:flex;width:100%;align-items:center;justify-content:space-between;font-size:0.875rem;padding:0;margin:0 0 4px}
 .entryGroups legend button{background:transparent;border:0;color:var(--gold);font-size:0.875rem;padding:6px 10px;cursor:pointer}

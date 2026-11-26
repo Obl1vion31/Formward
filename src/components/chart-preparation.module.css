@@ -18,9 +18,9 @@
   animation: sweep 1.8s ease-in-out infinite;
 }
 
-.skeleton[data-still]::after { content: none; }
+.skeleton[data-still]::after { content: none; animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  .skeleton::after { content: none; }
+  .skeleton::after { content: none; animation: none; }
 }
 
 @keyframes sweep {

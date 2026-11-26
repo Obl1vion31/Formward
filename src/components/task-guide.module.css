@@ -17,6 +17,7 @@
 .hint { overflow:visible; pointer-events:none; }
 .hintText { display:flex; align-items:center; gap:2px; padding:2px 3px 2px 12px; min-inline-size:0; }
 .hintText>span { flex:1; min-inline-size:0; overflow-wrap:anywhere; }
+.hintText strong { font-weight:500; white-space:nowrap; }
 .close { display:grid; place-items:center; flex:0 0 44px; min-inline-size:44px; pointer-events:auto; }
 .hint::after {
   content:""; position:absolute; inline-size:10px; block-size:10px;

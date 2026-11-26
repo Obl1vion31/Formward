@@ -194,6 +194,8 @@ FORMWARD_MEASUREMENTS_DEV=1 PLAYWRIGHT_MODULE=/tmp/formward-browser-check/node_m
 
 身体记录浏览器启动保留原生滚动条，移除 Chromium headless 默认的 `--hide-scrollbars` 参数。Inspector 布局回归在 1440×700、1100×700 视口确认存在占位滚动条，连续从实测点、估计点、日期及完整历史打开／关闭详情，逐帧检查页头、摘要、图表、表格的横向位置与宽度、SVG 实例及点坐标；另覆盖已有非零页面内边距的恢复。手机与横屏检查图表不横移、不因滚动锁定增加留白。
 
+`guide-device-fixture.ts` 仅由隔离浏览器验收启动，覆盖设备当天累计、待同步、历史成功后延迟、暂停、仅步数及未连接。通过正常采用规则写入虚构设备事实。
+
 `estimate-explanation.test.ts` 验证用户说明从已保存依据读取、不修改快照、配对日数与参考列表行数独立、负差值和舍入、插值日期比例、趋势备用与边界推算、体脂百分点、旧版与缺失依据兼容；完整算式继续供内部报告使用。
 
 需要只验收新增录入流程时可设置 `FORMWARD_MEASUREMENTS_ENTRY_ONLY=1`；完整回归应保持该变量未设置。

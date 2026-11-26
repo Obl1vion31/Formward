@@ -198,10 +198,13 @@ globalThis.fetch=async function(input,init){
  if(text.includes('慢速测试'))return result('〔正文〕'+'这是隔离浏览器的慢速流式回答。这里只检查真实界面的停止、继续和固定槽位，不访问收费模型。'.repeat(text.includes('停止与重读验收')?9:3),null,true);
  if(text.includes("多餐操作验收")){
    if(!body.tools.some(tool=>tool.function.name==="preview_meals"))return call("load_tools",{names:["preview_meals"]});
-   if(body.messages.at(-1).role==="tool")return result("两餐已整理，核对后保存。");
+   const sawPreview=body.messages.slice(body.messages.lastIndexOf(lastUser)+1).some(message=>
+     message.tool_calls?.some(entry=>entry.function.name==="preview_meals"));
+   if(sawPreview)return result("两餐已整理，核对后保存。");
    const meals = [{mealType:"午餐", quantity:"0.5",caloriesKcal:"445"},{mealType:"晚餐",quantity:"1",caloriesKcal:"890"}].map(
      ({mealType,quantity,caloriesKcal})=>({date:"today",mealType,foods:[{name:"虚构香菇鸡肉饭",quantity,unit:"份",
-       caloriesKcal,sourceKind:"estimated",amountDecision:"provided",basis:"按所填份量估算。"}]}));
+       caloriesKcal,proteinG:quantity==="1"?"42":"21",carbsG:quantity==="1"?"118":"59",fatG:quantity==="1"?"28":"14",
+       sourceKind:"estimated",amountDecision:"provided",basis:"按所填份量估算。"}]}));
    return call("preview_meals",{meals});
  }
  if(text.includes('100克')||text.includes('创建预览')){

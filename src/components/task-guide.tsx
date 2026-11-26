@@ -180,7 +180,8 @@ export function TaskGuide({ task, target=task, text, steps, mode="operation", au
       });
       release=()=>{
         stop();spacer?.remove();anchor.removeAttribute("data-guide-highlight");
-        if(old)anchor.setAttribute("aria-describedby",old);else anchor.removeAttribute("aria-describedby");
+        const remaining=anchor.getAttribute("aria-describedby")?.split(/\s+/).filter(token=>token!==id+"-text").join(" ");
+        if(remaining)anchor.setAttribute("aria-describedby",remaining);else anchor.removeAttribute("aria-describedby");
       };
     };
     const schedule=()=>{if(!frame)frame=requestAnimationFrame(inspect);};
@@ -210,7 +211,7 @@ export function TaskGuide({ task, target=task, text, steps, mode="operation", au
 
   if(!account||!count)return null;
   return <div className={styles.guide} data-task-guide={task}>
-    <button type="button" className={styles.trigger} ref={trigger} title={menuLabel+"与操作视频"} aria-expanded={menuOpen} aria-controls={id+"-menu"} onClick={()=>{
+    <button type="button" className={styles.trigger} ref={trigger} title={video?menuLabel+"与操作视频":menuLabel} aria-expanded={menuOpen} aria-controls={id+"-menu"} onClick={()=>{
       if(menu.current?.matches(":popover-open")){menu.current.hidePopover();return;}
       if(mode==="tour")setTour(null);
       if(workflow)setWorkflow(null);
@@ -231,7 +232,9 @@ export function TaskGuide({ task, target=task, text, steps, mode="operation", au
       aria-label={menuLabel} onToggle={event=>setHintOpen(event.newState==="open")}
       onKeyDown={event=>{if(event.key==="Escape"){event.stopPropagation();close();}}}>
       <div className={styles.hintText}>
-        <span id={id+"-text"}>{message}</span>
+        <span id={id+"-text"}>{message.split(/(「[^」]+」)/).map((part,index)=>
+          part.startsWith("「")?<strong key={index}>{part}</strong>:part
+        )}</span>
         <button className={styles.close} type="button" aria-label="关闭使用指引" onClick={close}><GuideIcon type="close"/></button>
       </div>
       {mode==="tour"&&tour!==null&&<div className={styles.tourNav}>

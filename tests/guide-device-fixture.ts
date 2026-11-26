@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { writeFile } from "node:fs/promises";
+import { createAuth } from "../src/features/auth/auth";
 import { eq } from "drizzle-orm";
 import type { Database } from "../src/db/client";
 import { dataConnection, personalProfile } from "../src/db/schema";
@@ -7,6 +10,29 @@ import { configureConnection, bindPersonalSource } from "../src/features/data-so
 import { synchronizeSource } from "../src/features/data-sources/sync";
 import { addCalendarDays } from "../src/features/measurements/calendar";
 import { sevenDays } from "../src/features/garmin/client";
+
+type GuideAccount = { email:string; password:string };
+
+export async function seedGuideBrowserSessions(db:Database, baseURL:string, secret:string, configPath:string, accounts:GuideAccount[]) {
+  const base = new URL(baseURL);
+  assert.equal(base.hostname,"127.0.0.1");
+  const auth = createAuth(db,{secret,baseURL,rateLimit:false});
+  for(const account of accounts){
+    const response=await auth.handler(new Request(baseURL+"/api/auth/sign-in/email",{
+      method:"POST",headers:{"Content-Type":"application/json",Origin:baseURL},body:JSON.stringify(account),
+    }));
+    assert.equal(response.status,200);
+    const cookies=response.headers.getSetCookie().map(header=>{
+      const [pair]=header.split(";");
+      const separator=pair.indexOf("=");
+      return {name:pair.slice(0,separator),value:pair.slice(separator+1),domain:base.hostname,path:"/",expires:-1,
+        httpOnly:true,secure:false,sameSite:"Lax"};
+    });
+    assert.ok(cookies.length);
+    const cacheKey=createHash("sha256").update(account.email).digest("hex").slice(0,12);
+    await writeFile(configPath+"-session-"+cacheKey+".json",JSON.stringify({cookies,origins:[]}),{mode:0o600});
+  }
+}
 
 const scenarios = [
   { name: "cumulative", age: 0 },

@@ -113,8 +113,8 @@ const socket=pg?new PGLiteSocketServer({db:pg,host:"127.0.0.1",port:0,maxConnect
 const previewMarker=process.env.FORMWARD_LOCAL_PREVIEW==="1";
 const guideDevices=process.env.FORMWARD_GUIDE_DEVICE_FIXTURE==="1";
 assert.ok(!guideDevices||previewMarker&&!realCosPath&&!process.env.FORMWARD_CHAT_LIVE_KEY_FILE,"设备样本仅用于隔离预览");
-const devices=guideDevices?await (await import("./guide-device-fixture")).seedGuideDevices(
-  db as unknown as import("../src/db/client").Database,fixture.today):[];
+const guideSeed=guideDevices?await import("./guide-device-fixture"):null;
+const devices=await guideSeed?.seedGuideDevices(db as unknown as import("../src/db/client").Database,fixture.today)??[];
 const delayTables=experiencePhoto?/\bfrom\s+"foods"(?=\s|$)/i:/\b(training_sessions|training_templates|training_plans|meal_items|energy_days|activities|measurements|account_preferences|oauth_connections|ai_tokens|model_usage_events|account_security_events|source_connections|assistant_chat_messages)\b/i;
 const delay=previewMarker?await delayedTrainingDatabase(native?new URL(nativeUrl).host:socket!.getServerConn(),delayTables):undefined;
 const databaseUrl=delay?new URL(nativeUrl||`postgresql://postgres:postgres@${socket!.getServerConn()}/postgres?max=1`):null;
@@ -131,6 +131,8 @@ const harmonyPreview=process.env.FORMWARD_HARMONY_PREVIEW==="1";
 if(harmonyPreview){assert.ok(previewMarker&&process.env.FORMWARD_CHAT_PREVIEW==="1"&&!realCosPath&&!process.env.FORMWARD_CHAT_LIVE_KEY_FILE);childEnv.FORMWARD_HARMONY_PREVIEW="1";}
 const modelFixture=resolve(harmonyPreview?"tests/harmonyos-model-fixture.mjs":"tests/chat-model-fixture.mjs");
 if(guideDevices)Object.assign(childEnv,{FORMWARD_DATA_SOURCE_ACCESS:"personal",FORMWARD_DATA_SOURCE_ENCRYPTION_KEY:"c".repeat(64),FORMWARD_GARMIN_FIXTURE:"1"});
+if(guideSeed&&process.env.FORMWARD_CHAT_PREVIEW_CONFIG)await guideSeed.seedGuideBrowserSessions(db as unknown as import("../src/db/client").Database,
+  baseURL,childEnv.BETTER_AUTH_SECRET!,process.env.FORMWARD_CHAT_PREVIEW_CONFIG,[fixture.account,fixture.other,...devices]);
 const sourceFixture=guideDevices?["--import",resolve("tests/garmin-personal-fixture.mjs")]:[];
 const child=spawn(process.execPath,[...sourceFixture,"--import",modelFixture,...serverArgs],{cwd:release??process.cwd(),env:childEnv,stdio:["ignore","pipe","pipe"]});
 const liveKeyFile = process.env.FORMWARD_CHAT_LIVE_KEY_FILE;
