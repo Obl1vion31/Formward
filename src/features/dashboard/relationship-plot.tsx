@@ -15,7 +15,6 @@ import { balanceLabel, hasEnergyRecord, shortDate } from "./day-readings";
 import type { OverviewDay } from "./model";
 import styles from "./overview.module.css";
 import { relationshipFrame, relationshipFrameStyle } from "./relationship-frame";
-import { OverviewPlotLoadingGuides } from "./overview-trend-layout";
 
 type ReadoutMode = "hover" | "focus" | "pinned";
 type ReadoutChoice = { scope: string; mode: ReadoutMode };
@@ -192,7 +191,6 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
     <div ref={plot} className={styles.plot} aria-busy={!ready}
       onPointerLeave={event => { if (event.pointerType === "mouse" && mode === "hover") setReadout(null); }}
       onBlur={event => { if (mode === "focus" && !event.currentTarget.contains(event.relatedTarget)) setReadout(null); }}>
-      {!ready && <OverviewPlotLoadingGuides left={desktopLeft}/>}
       <ChartPreparation active={!ready}/>
       <svg viewBox={["0", "0", w, height].join(" ")} style={{ visibility: ready ? undefined : "hidden" }}
         role="group" aria-label="双层日期关联图" aria-describedby={id + "-help"} {...drag}

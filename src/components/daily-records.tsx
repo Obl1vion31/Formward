@@ -5,7 +5,7 @@ import {displayRecordDate,recordDateLabel} from "./record-dates";
 import styles from "./record-ui.module.css";
 export function SelectedDateHeading({date,view,status,pending=false,actions}:{date:string;view:()=>void;status?:ReactNode;pending?:boolean;actions?:ReactNode}){
  const selectedDate=date?<time dateTime={date}>{displayRecordDate(date)}</time>:<span aria-label="正在读取记录日期">—</span>;
- const viewButton=<button type="button" disabled={pending||!date} onClick={view}>查看记录 →</button>;
+ const viewButton=<button type="button" data-guide-target="selected-day-details" disabled={pending||!date} onClick={view}>查看记录 →</button>;
  return <div className={styles.selected} data-selected-date={date}>
   {status!==undefined?<span className={styles.selectedInfo}>{selectedDate}{status}</span>:selectedDate}
   {actions ? <div className={styles.selectedActions}>{actions}{viewButton}</div> : viewButton}

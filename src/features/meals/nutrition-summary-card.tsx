@@ -5,11 +5,12 @@ import { WorkspaceRefreshingContext } from "@/features/dashboard/workspace-cache
 import { formatNutrition, macroComposition, metricLabels, type Totals } from "./model";
 import { NutritionComposition } from "./nutrition-composition";
 import styles from "./nutrition-summary-card.module.css";
+import quick from "@/components/quick-actions.module.css";
 
 const macros = ["proteinG", "carbsG", "fatG"] as const;
 
 export function NutritionSummaryCard({
-  date, totals, mealCount, estimated, loading = false, readingStatus, expanded = false, onExpandedChange,
+  date, totals, mealCount, estimated, loading = false, readingStatus, expanded = false, onExpandedChange, actions,
 }: {
   date: string;
   totals?: Totals;
@@ -19,6 +20,7 @@ export function NutritionSummaryCard({
   estimated?: boolean;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
+  actions?: ReactNode;
 }) {
   const detailsId = useId();
   const refreshing = useContext(WorkspaceRefreshingContext);
@@ -31,6 +33,8 @@ export function NutritionSummaryCard({
     data-record-slot="metrics"
     data-selected-date={date}
     data-expanded={expanded || undefined}
+    data-action-slot={actions !== undefined || undefined}
+    data-pending={waitingForTotal || undefined}
     aria-label="选中日营养"
     aria-busy={loading || refreshing || undefined}
   >
@@ -82,22 +86,24 @@ export function NutritionSummaryCard({
         </dl>
       </div>
     </div>
+    {actions !== undefined && <div className={styles.actions}>{actions}</div>}
   </section>;
 }
 
-export function MealPageActions({ record, openLibrary, libraryRef }: {
-  record?: () => void;
-  openLibrary?: () => void;
+export function MealPageActions({ record, openLibrary, libraryRef, historical }: {
+  record: () => void;
+  openLibrary: () => void;
   libraryRef?: Ref<HTMLButtonElement>;
+  historical: boolean;
 }) {
   const refreshing = useContext(WorkspaceRefreshingContext);
-  return <div className={styles.actions}>
-    <button type="button" data-meal-record-entry disabled={!record || refreshing} onClick={record}>
+  return <div className={quick.stack} role="group" aria-label="饮食操作">
+    <button className={quick.action} type="button" data-primary data-meal-record-entry data-guide-target="meal-page-entry" disabled={refreshing} onClick={record}>
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
-      记一餐
+      {historical ? "补记这天" : "记一餐"}
     </button>
-    <button type="button" ref={libraryRef} disabled={!openLibrary || refreshing} onClick={openLibrary}
-      data-meal-library-entry={!openLibrary || refreshing ? "pending" : "ready"}>
+    <button className={quick.action} type="button" ref={libraryRef} disabled={refreshing} onClick={openLibrary}
+      data-meal-library-entry={refreshing ? "pending" : "ready"}>
       食材库
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m6 4 4 4-4 4"/></svg>
     </button>

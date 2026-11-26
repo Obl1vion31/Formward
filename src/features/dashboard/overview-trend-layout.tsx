@@ -1,22 +1,12 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ChartRanges } from "@/components/chart-ranges";
-import { PlotLoadingGuides } from "@/components/chart-preparation";
 import { OverviewLegend } from "@/components/chart-legend";
 import { signedRecordNumber } from "@/components/number-format";
 import { addCalendarDays } from "../measurements/calendar";
 import { BalanceReading } from "./day-readout";
 import { missingBalanceReason, morningChangeReading, shortDate } from "./day-readings";
 import type { OverviewDay } from "./model";
-import { relationshipFrame } from "./relationship-frame";
 import styles from "./overview.module.css";
-
-export function OverviewPlotLoadingGuides({ left = 52 }: { left?: number }) {
-  const { top, energyBottom, weightTop, weightBottom, height } = relationshipFrame(false);
-  return <>
-    <PlotLoadingGuides desktopOnly top={top} bottom={height - energyBottom} left={left} right={13}/>
-    <PlotLoadingGuides desktopOnly top={weightTop} bottom={height - weightBottom} left={left} right={13}/>
-  </>;
-}
 
 function positionStatistics(button: HTMLButtonElement, panel: HTMLDivElement) {
   const edge = 12;
@@ -94,18 +84,19 @@ export function OverviewTrendLayout({ date, day, range, mobile, changeRange, vie
       <button type="button" disabled={pending || !date} onClick={view}>查看记录 →</button>
     </div>
     <div data-overview-plot>{children}</div>
-    <div className={styles.phoneReadout}>
+    {!pending&&<div className={styles.phoneReadout}>
       <button type="button" disabled={pending||!date} onClick={view} aria-label={date?"查看 "+date+" 当日记录":"查看当日记录"}>
         <strong>{date?shortDate(date):"—"}</strong>
         <span><span>当天收支 <ComparisonBalance balance={day?.energyBalance??null} pending={pending} reason={day&&missingBalanceReason(day)}/></span>
           <span><ComparisonWeight label="次晨" value={day?.weightChangeKg??null} status={day?morningChangeReading(day):"无晨重记录"} pending={pending}/></span></span>
         <span aria-hidden="true">›</span>
       </button>
-    </div>
+    </div>}
   </>;
 }
 
 function SelectedDayRow({date,day,pending}:{date:string;day?:OverviewDay;pending:boolean}){
+  if (pending && !date) return <div className={styles.comparisonRow} data-overview-day aria-busy="true"/>;
   return <div className={styles.comparisonRow} data-overview-day>
     <div className={styles.comparisonPeriod}><span>选中</span><time className={styles.comparisonDates} dateTime={date||undefined} title={date||undefined}>{date?shortDate(date):"—"}</time></div>
     <div data-overview-day-energy><ComparisonBalance balance={day?.energyBalance??null} pending={pending} reason={day&&missingBalanceReason(day)}/></div>

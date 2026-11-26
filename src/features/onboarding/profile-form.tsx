@@ -5,6 +5,7 @@ import { WorkspaceReturnLink } from "@/components/workspace-return";
 import { confirmAction } from "@/components/confirmation-state";
 import {useDraftGuard,pageRefreshApproved} from "@/components/draft-guard";
 import { LocalLoading } from "@/components/local-loading";
+import { TaskGuide } from "@/components/task-guide";
 import { saveProfileAction, advanceOnboardingAction, loadProfileAction } from "@/app/onboarding/actions";
 import { profileAge, validateProfile, type PersonalProfile } from "./model";
 import { BirthDateInput } from "./birth-date-input";
@@ -65,12 +66,12 @@ export function ProfileForm({initial,today,onboarding=false,test=false,onContinu
       </div>
       {notice&&<p className={styles.notice} role={failed?"alert":"status"}>{notice}</p>}
       {conflict&&<button className={styles.quiet} type="button" onClick={()=>void latest()}>查看最新资料</button>}
-      <div className={styles.actions}><button className={styles.quiet} type="button" disabled={busy} onClick={()=>void(onboarding?submit(true):cancel())}>{onboarding?"暂时跳过":"取消"}<span className={styles.pendingIcon}><LocalLoading active={busy&&pending==="skip"} iconOnly label="正在继续…"/></span></button><button className={styles.primary} disabled={busy} type="submit">{onboarding?onboardingLabel:"保存资料"}<span className={styles.pendingIcon}><LocalLoading active={busy&&pending==="save"} iconOnly label="正在保存资料…"/></span></button></div>
+      <div className={styles.actions}><TaskGuide task="profile-save" text={onboarding?"填写后点「保存并进入总览」。也可暂时跳过。":"填好资料后点「保存资料」，供估算消耗时使用。"} auto={onboarding}/><button className={styles.quiet} type="button" disabled={busy} onClick={()=>void(onboarding?submit(true):cancel())}>{onboarding?"暂时跳过":"取消"}<span className={styles.pendingIcon}><LocalLoading active={busy&&pending==="skip"} iconOnly label="正在继续…"/></span></button><button className={styles.primary} data-guide-target="profile-save" disabled={busy} type="submit">{onboarding?onboardingLabel:"保存资料"}<span className={styles.pendingIcon}><LocalLoading active={busy&&pending==="save"} iconOnly label="正在保存资料…"/></span></button></div>
     </form>:<>
       <dl className={styles.readings}><div><dt>身高</dt><dd>{saved.heightCm??"—"}{saved.heightCm&&<small>cm</small>}</dd></div><div><dt>计算用性别</dt><dd className={styles.birth}>{saved.sexForCalculation==="male"?"男":saved.sexForCalculation==="female"?"女":"暂不填写"}</dd></div><div className={styles.birthRow}><dt>出生日期</dt><dd className={styles.birth}>{saved.birthDate?.replaceAll("-",".")??"—"}</dd><p>{saved.birthDate?`${profileAge(saved.birthDate,today)}岁 · 年龄自动更新`:"暂未填写"}</p></div></dl>
       <p className={styles.dataNote}>体重和体脂在“身体”页按日期记录。</p>
       {notice&&<p className={styles.notice} role={failed?"alert":"status"}>{notice}</p>}
-      <div className={styles.actions}><button className={styles.quiet} disabled={busy||!saved.heightCm&&!saved.birthDate&&!saved.sexForCalculation} onClick={()=>void clear()}>清空资料<span className={styles.pendingIcon}><LocalLoading active={busy&&pending==="clear"} iconOnly label="正在清空资料…"/></span></button><button className={styles.primary} onClick={()=>{setEditing(true);setNotice("");}}>修改资料</button></div>
+      <div className={styles.actions}><TaskGuide task="profile-edit" text="点「修改资料」，补填身高、生日或计算用性别。"/><button className={styles.quiet} disabled={busy||!saved.heightCm&&!saved.birthDate&&!saved.sexForCalculation} onClick={()=>void clear()}>清空资料<span className={styles.pendingIcon}><LocalLoading active={busy&&pending==="clear"} iconOnly label="正在清空资料…"/></span></button><button className={styles.primary} data-guide-target="profile-edit" onClick={()=>{setEditing(true);setNotice("");}}>修改资料</button></div>
     </>}
     {onboarding&&<p className={styles.footnote}>以后可在账号菜单的“个人资料”中修改。</p>}
   </section>;

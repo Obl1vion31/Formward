@@ -1,12 +1,13 @@
 "use client";
 import {LocalLoading} from "@/components/local-loading";
+import {TaskGuide} from "@/components/task-guide";
 import { TrainingPlanReview, TrainingPlanReviewEditor } from '../training/plan-review';
 import {acknowledgeRecordChanges,fetchRecordStamps} from "@/components/record-change-client";
 import {formatRecordNumber,formatUnitNumber} from "@/components/number-format";
 import {mealTypeLabel,duplicateMealNotice} from "../meals/model";
 import {MealDuplicateNotice} from "../meals/meal-duplicate-notice";
 import {unusualNumbers} from "@/components/number-change";
-import { useId, useRef, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition, type ReactNode } from "react";
 import { LoadingLink } from "@/components/loading-link";
 import { WorkspaceReturnLink } from "@/components/workspace-return";
 
@@ -135,7 +136,7 @@ export function RecordReviewSummary({ operation, beforeNavigate }: {
   </section>;
 }
 
-export function RecordReview({ operation: initial, review, load, sources: initialSources, removeSource, energySources: initialEnergySources, removeEnergySource,embedded=false,beforeNavigate }: { beforeNavigate?:()=>Promise<boolean>;embedded?:boolean; operation: RecordReviewView; review: (action: RecordReviewAction) => ReviewResult; load: () => ReviewResult; sources: string[]; removeSource: (label: string) => Promise<SourceRemovalResult>; energySources: string[]; removeEnergySource: (label: string) => Promise<SourceRemovalResult> }) {
+export function RecordReview({ operation: initial, review, load, sources: initialSources, removeSource, energySources: initialEnergySources, removeEnergySource,embedded=false,beforeNavigate,mealActions }: { beforeNavigate?:()=>Promise<boolean>;embedded?:boolean;mealActions?:ReactNode; operation: RecordReviewView; review: (action: RecordReviewAction) => ReviewResult; load: () => ReviewResult; sources: string[]; removeSource: (label: string) => Promise<SourceRemovalResult>; energySources: string[]; removeEnergySource: (label: string) => Promise<SourceRemovalResult> }) {
   const scope=useId(),rowId=(key:string)=>scope+"-record-"+key;
   const [local, setLocal] = useState<RecordReviewView | null>(null), [editing, setEditing] = useState<string | null>(null), [error, setError] = useState("");
   const [sources, setSources] = useState(initialSources), [busy, startTransition] = useTransition();
@@ -229,7 +230,7 @@ export function RecordReview({ operation: initial, review, load, sources: initia
   const command = (kind: "check" | "exclude" | "restore", keys: string[]) => perform({ kind, keys, revision: op.revision });
   if(!active&&embedded){
     const persisted=op.rows.filter(row=>row.persisted),label=op.status==="confirmed"?(persisted.length>1?`已保存${persisted.length}项`:"已保存"):op.status==="completed"?"无需保存":op.status==="expired"?"已过期":op.saved?"已取消剩余内容":"已取消";
-    return <section className={styles.inlineResult} data-embedded="true" role="status" aria-label="记录结果"><h3>{label}</h3>{persisted.map(row=>{const record=row.meal?.meal,href=recordReceipt([row])[0]?.href;return <article key={row.key} className={styles.inlineSavedRow}><header className={styles.inlineHeading}><h4>{title(row)}{isBody(row.action)&&row.body?.preview.rows[0]?.after?.fasting===true?" · 空腹":""}</h4></header><InlineRecordContent row={row} settled/>{href&&<div className={styles.inlineReceiptLink}><span>{record?record.items.length+"样食物":""}</span><LoadingLink href={href} returnScope={beforeNavigate?"assistant":"workspace"} beforeNavigate={beforeNavigate}>{record?"查看饮食 →":"查看记录 →"}</LoadingLink></div>}</article>;})}{!persisted.length&&<p className={styles.inlineMeta}>{op.status==="completed"?"没有需要写入的新内容。":"本次未保存新内容，已有记录保持。"}</p>}</section>;
+    return <section className={styles.inlineResult} data-embedded="true" role="status" aria-label="记录结果"><h3>{label}</h3>{persisted.map(row=>{const record=row.meal?.meal,href=recordReceipt([row])[0]?.href;return <article key={row.key} className={styles.inlineSavedRow}><header className={styles.inlineHeading}><h4>{title(row)}{isBody(row.action)&&row.body?.preview.rows[0]?.after?.fasting===true?" · 空腹":""}</h4></header><InlineRecordContent row={row} settled/>{href&&<div className={styles.inlineReceiptLink}><span>{record?record.items.length+"样食物":""}</span><LoadingLink href={href} returnScope={beforeNavigate?"assistant":"workspace"} beforeNavigate={beforeNavigate}>{record?"查看饮食 →":"查看记录 →"}</LoadingLink></div>}</article>;})}{!persisted.length&&<><p className={styles.inlineMeta}>{op.status==="completed"?"没有需要写入的新内容。":"本次未保存新内容，已有记录保持。"}</p>{mealActions}</>}</section>;
   }
   if(active&&!pending.length)return <section className={styles.emptyReview} aria-label="记录状态"><h3>没有待保存内容</h3>{op.rows.map(row=><div className={styles.emptyReviewRow} key={row.key}><span>{title(row)} · {row.persisted?"已保存":row.excluded?"已取消":"已跳过"}</span>{row.excluded&&!row.persisted&&row.body?.status!=="skipped"&&<button disabled={busy||expired} onClick={()=>command("restore",[row.key])}>恢复本项</button>}</div>)}{error&&<p role="alert">{error}</p>}{!embedded&&<WorkspaceReturnLink fallback={returnPath} disabled={busy}/>}</section>;
   if (!active) return <section className={styles.success} data-embedded={embedded||undefined} role="status"><span className={styles.check} aria-hidden="true">{op.status === "confirmed" ? "✓" : "—"}</span><h1>{op.status === "confirmed" ? "已保存" : op.status === "completed" ? "无需保存" : op.saved ? "已取消剩余内容" : "已取消"}</h1>
@@ -283,13 +284,15 @@ export function RecordReview({ operation: initial, review, load, sources: initia
       </div>
       {embedded && op.rows.length === 1 && pending[0] && <button disabled={busy || nextStep !== "save"} onClick={() => { setError(""); setEditing(pending[0].key); }}>修改</button>}
       <button disabled={busy || nextStep === "read"} onClick={() => perform({ kind: "cancel", revision: op.revision })}>本次不保存</button>
+      {mealActions}
       {nextStep === "current" ? changedMeals.map(meal => meal.id && <LoadingLink key={meal.key} className={styles.save} href={`/dashboard/meals?date=${meal.date}`} beforeNavigate={embedded ? beforeNavigate : undefined}>查看当前记录</LoadingLink>) :
-        <button className={styles.save} disabled={busy || !!editing || nextStep === "save" && (!pending.length || !!issues.length)} onClick={() => {
+        <button className={styles.save} data-guide-target={mealActions&&nextStep==="save"?"photo-review-save":undefined} disabled={busy || !!editing || nextStep === "save" && (!pending.length || !!issues.length)} onClick={() => {
           if (nextStep === "read") perform();
           else if (nextStep === "update") perform({ kind: "refresh", revision: op.revision });
           else perform({ kind: "confirm", revision: op.revision, allowMissingImageKeys: [] });
         }}>{working === "refresh" ? "正在更新…" : working === "read" ? "正在读取…" : working === "confirm" ? "正在保存…" : nextStep === "update" ? "更新内容" : nextStep === "read" ? "重新读取" : "确认保存"}</button>}
     </footer>
+    {mealActions&&nextStep==="save"&&!issues.length&&!editing&&<TaskGuide task="photo-review-save" text="核对这餐的食物和份量，点「确认保存」写入饮食。"/>}
     {editRow && <EditorDialog wide={editRow.action.kind === "save_meal"} title="修改待保存内容" busy={busy} close={() => { if (!busy) { setEditing(null); setError(""); } }}>
       {error && <p className={styles.error} role="alert">{error}</p>}
       {nextStep === "read" && <button disabled={busy} onClick={() => perform()}>重新读取</button>}

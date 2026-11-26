@@ -17,12 +17,14 @@
 .card[data-stack=true] strong{grid-column:1/-1}.card[data-stack=true] .glyph{grid-row:3}.card[data-stack=true] p,.card[data-stack=true] .range{grid-row:4}
 @media(hover:hover){a.card:hover{background:var(--surface-hover)}}
 @media(max-width:700px),(hover:none) and (pointer:coarse){
- .rail{display:flex;overflow-x:auto;scroll-snap-type:x proximity;scroll-padding-inline:16px;margin-inline:-16px;padding:4px 16px 16px;overscroll-behavior-x:contain;scrollbar-width:none;touch-action:pan-x pan-y}
+ .rail{display:flex;overflow-x:auto;scroll-snap-type:x proximity;padding:4px 0 16px;overscroll-behavior-x:contain;scrollbar-width:none;touch-action:pan-x pan-y}
  .card{flex:none;width:calc(100% - 24px);scroll-snap-align:start}
 }
 
 
 .numberLoading{display:inline-block;position:relative;min-width:4ch}
 .numberMeasure{visibility:hidden}
+.rail[data-metric-rail-pending] .card { background:color-mix(in srgb,var(--card-surface) 34%,transparent); box-shadow:none; }
+.rail[data-metric-rail-pending] .card::before { content:none; }
 
 .readingStatus{position:absolute;inset-inline-start:0;top:50%;transform:translateY(-50%);display:flex}

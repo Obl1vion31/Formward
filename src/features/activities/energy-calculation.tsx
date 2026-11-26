@@ -11,6 +11,7 @@ import { BodyFatContext } from "../measurements/visibility";
 import { trackPopoverPosition } from "@/components/anchored-popover";
 import { confirmAction } from "@/components/confirmation-state";
 import { LocalLoading } from "@/components/local-loading";
+import { TaskGuide } from "@/components/task-guide";
 import { calculateEnergy, activityLevels, formulaLabel, type CalculationContext, type CalculationMethod, type CalculationSnapshot, type RestingMethod } from "./calculation-model";
 import glass from "@/components/glass-controls.module.css";
 import { useSlidingSelection } from "@/components/sliding-selection";
@@ -43,12 +44,13 @@ export function ActivityMethodControl({ quick, change }: { quick: boolean; chang
   </div>;
 }
 
-export function RestingEstimate({value,change,snapshot,recalculate,loading,message,missing,supplement,label="静息消耗",disabled=false}:{value:CalculationMethod;change:(value:CalculationMethod)=>void;snapshot:CalculationSnapshot|null;recalculate:()=>void;loading:boolean;message:string;missing:readonly string[];supplement:(kind:"profile"|"body")=>void;label?:string;disabled?:boolean}) {
+export function RestingEstimate({value,change,snapshot,recalculate,loading,message,missing,supplement,label="静息消耗",disabled=false,inlineBasis=false}:{value:CalculationMethod;change:(value:CalculationMethod)=>void;snapshot:CalculationSnapshot|null;recalculate:()=>void;loading:boolean;message:string;missing:readonly string[];supplement:(kind:"profile"|"body")=>void;label?:string;disabled?:boolean;inlineBasis?:boolean}) {
  const [settings,setSettings]=useState(false),settingsId=useId();
  const controls=<div className={styles.calculationControls}><label className={styles.formulaLabel} htmlFor={settingsId+"-formula"}>静息计算公式</label><div className={styles.formulaRow}><label><span className="sr-only">静息计算公式</span><select id={settingsId+"-formula"} aria-label="静息计算公式" value={value} onChange={event=>change(event.target.value as CalculationMethod)}><option value="auto">自动选择</option><option value="cunningham">体脂公式</option><option value="mifflin-st-jeor">常规公式</option></select></label><button type="button" className={styles.recalculate} disabled={loading} onClick={recalculate}><span className={styles.calculationLoading}><LocalLoading active={loading} iconOnly label="正在读取计算依据…"/></span>重新计算</button></div></div>;
  return <section className={styles.restingEstimate} aria-label="静息计算结果">
-  <div className={styles.estimateHeading}><span>{label}<CalculationDetails snapshot={snapshot}/></span><CalculationPopover label="计算设置" title="计算设置" open={settings} changeOpen={setSettings} disabled={disabled}>{controls}</CalculationPopover></div>
+  <div className={styles.estimateHeading}><span>{label}{!inlineBasis&&<CalculationDetails snapshot={snapshot}/>}</span><CalculationPopover label="计算设置" title="计算设置" open={settings} changeOpen={setSettings} disabled={disabled}>{controls}</CalculationPopover></div>
   <div className={styles.estimateReading} data-resting-result><strong>{energyValue(snapshot?.restingKcal)}</strong><span>千卡</span></div>
+  {inlineBasis&&<div className={styles.inlineBasis}><CalculationBasis snapshot={snapshot}/></div>}
   {message&&<div className={styles.calculationStatus}><p role="status">{message}</p>
    {missing.includes("profile")&&<button type="button" onClick={()=>supplement("profile")}>补填个人资料</button>}{(missing.includes("weight")||missing.includes("bodyFat"))&&<button type="button" onClick={()=>supplement("body")}>补填身体记录</button>}
   </div>}
@@ -74,8 +76,20 @@ export function ActivityEnergyHelp(){
  const id=useId();
  return <><button type="button" className={styles.calculationInfo} popoverTarget={id} aria-label="活动热量说明"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 2-2.5 4M12 16v1"/></svg></button><div id={id} popover="auto" className={styles.fieldHelp} role="dialog" aria-label="活动热量说明"><h4>活动热量</h4><p>填写当天已知的活动热量；不知道可以留空，明确没有活动才填0。</p><p>另记运动明细时，需核对是否已包含在活动合计中，避免重复相加。</p></div></>;
 }
-export function ActivityLevelControl({value,change,dateLabel="今天的活动量"}:{value:string|null;change:(value:typeof activityLevels[number]["id"])=>void;dateLabel?:string}) {
- return <section className={styles.activityLevels}><h3>{dateLabel}</h3><div role="radiogroup" aria-label="全天活动量">{activityLevels.map(level=><label key={level.id} className={styles.activityLevel}><input type="radio" name="energy-activity-level" value={level.id} checked={value===level.id} onChange={()=>change(level.id)}/><span><strong>{level.label}</strong><small>{level.example}</small></span><b>×{level.factor.toFixed(1)}</b></label>)}</div><p className={styles.hint}>全天消耗包含日常活动和训练。</p></section>;
+export function ActivityLevelControl({value,change,dateLabel="今天的活动量",guidance=false}:{value:string|null;change:(value:typeof activityLevels[number]["id"])=>void;dateLabel?:string;guidance?:boolean}) {
+ return <section className={styles.activityLevels}><div className={styles.activityHeading}><h3>{dateLabel}</h3>{guidance&&<TaskGuide task="energy-activity" text="选最接近实际的一项，在底部核对预计全天消耗。" auto={!value}/>}</div><div role="radiogroup" aria-label="全天活动量">{activityLevels.map((level,index)=><label key={level.id} className={styles.activityLevel} data-guide-target={index===0?"energy-activity":undefined}><input type="radio" name="energy-activity-level" value={level.id} checked={value===level.id} onChange={()=>change(level.id)}/><span><strong>{level.label}</strong><small>{level.example}</small></span></label>)}</div><p className={styles.hint}>全天消耗包含日常活动和训练。</p></section>;
+}
+function CalculationBasis({snapshot}:{snapshot:CalculationSnapshot|null}) {
+ const reference=(label:string,ref:CalculationSnapshot["weight"],unit:string)=><p>{label} {Number(ref.value)} {unit}<small>{ref.date} · {ref.period==="daytime"?"晨间":"晚间"} · {ref.source??"来源未填写"}</small></p>;
+ if(!snapshot)return <p>自动选择优先用体脂公式。没有近期体脂时，使用身高、年龄与计算用性别。实测取所选日期及此前 30 天。</p>;
+ const level=activityLevels.find(item=>item.id===snapshot.activityLevel);
+ return <>
+  <p className={styles.formulaText}>{snapshot.method==="cunningham"?"500 + 22 × 体重 × (1 − 体脂率 ÷ 100)":"10 × 体重 + 6.25 × 身高 − 5 × 年龄 + 性别项"}</p>
+  {reference("体重",snapshot.weight,"kg")}{snapshot.bodyFat&&reference("体脂率",snapshot.bodyFat,"%")}
+  {snapshot.profile&&<p>身高 {Number(snapshot.profile.heightCm)} cm · {snapshot.profile.age} 岁 · {snapshot.profile.sexForCalculation==="male"?"男性项 +5":"女性项 −161"}<small>个人资料版本 {snapshot.profile.version} · 年龄按 {snapshot.date} 计算</small></p>}
+  {snapshot.factor&&<p>全天 = 系统静息 × {snapshot.factor}<small>{level?.label} · 包含日常活动和训练</small></p>}
+  <p>保存后结果固定，资料变化需主动重新计算。</p>
+ </>;
 }
 export function CalculationDetails({snapshot}:{snapshot:CalculationSnapshot|null}) {
  const id=useId(),anchor=useRef<HTMLButtonElement>(null),bubble=useRef<HTMLDivElement>(null);
@@ -93,8 +107,7 @@ export function CalculationDetails({snapshot}:{snapshot:CalculationSnapshot|null
   document.addEventListener("keydown",escape,true);
   return()=>{stopPositioning();document.removeEventListener("pointerdown",outside,true);document.removeEventListener("keydown",escape,true);};
  },[open,host]);
- const reference=(label:string,ref:CalculationSnapshot["weight"],unit:string)=><p>{label} {Number(ref.value)} {unit}<small>{ref.date} · {ref.period==="daytime"?"晨间":"晚间"} · {ref.source??"来源未填写"}</small></p>;
- return <><button ref={anchor} type="button" className={styles.calculationInfo} popoverTarget={id} aria-label="查看计算说明" aria-expanded={open}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6.5v7M12 16v1"/></svg></button>{host&&createPortal(<div id={id} ref={bubble} className={styles.calculationBubble} popover="auto" role="dialog" aria-label="计算说明" onToggle={event=>setOpen(event.newState==="open")}><h4>{snapshot?formulaLabel(snapshot.method):"静息估算逻辑"}</h4>{snapshot?<><p className={styles.formulaText}>{snapshot.method==="cunningham"?"500 + 22 × 体重 × (1 − 体脂率 ÷ 100)":"10 × 体重 + 6.25 × 身高 − 5 × 年龄 + 性别项"}</p>{reference("体重",snapshot.weight,"kg")}{snapshot.bodyFat&&reference("体脂率",snapshot.bodyFat,"%")}{snapshot.profile&&<p>身高 {Number(snapshot.profile.heightCm)} cm · {snapshot.profile.age} 岁 · {snapshot.profile.sexForCalculation==="male"?"男性项 +5":"女性项 −161"}<small>个人资料版本 {snapshot.profile.version} · 年龄按 {snapshot.date} 计算</small></p>}{snapshot.factor&&<p>全天 = 系统静息 × {snapshot.factor}<small>{activityLevels.find(level=>level.id===snapshot.activityLevel)?.label}，不拆分虚假的活动消耗。</small></p>}<p>保存后结果固定，资料变化需主动重新计算。</p></>:<p>自动选择优先用体脂公式；没有近期体脂时，在资料齐全后用常规公式。实测窗口为目标日期及此前30天，各项独立取最近实测，同日晨间优先。</p>}<p>公式和活动系数用于粗略估算，不能替代个体测量。</p></div>,host)}</>;
+ return <><button ref={anchor} type="button" className={styles.calculationInfo} popoverTarget={id} aria-label="查看计算说明" aria-expanded={open}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6.5v7M12 16v1"/></svg></button>{host&&createPortal(<div id={id} ref={bubble} className={styles.calculationBubble} popover="auto" role="dialog" aria-label="计算说明" onToggle={event=>setOpen(event.newState==="open")}><h4>{snapshot?formulaLabel(snapshot.method):"静息估算逻辑"}</h4><CalculationBasis snapshot={snapshot}/><p>公式和活动系数用于粗略估算。</p></div>,host)}</>;
 }
 export function EnergySupplement({kind,date,today,close}:{kind:"profile"|"body";date:string;today:string;close:()=>void}) {
  const [profile,setProfile]=useState<PersonalProfile|null>(null),[body,setBody]=useState<Extract<Awaited<ReturnType<typeof loadEnergySupplementAction>>,{ok:true}>["data"]|null>(null),[error,setError]=useState("");

@@ -73,7 +73,7 @@ function AnswerSummary({answers,inline}: {answers:ChatAnswer[];inline?:boolean})
 }
 
 export function ChatMessageBody({message,inlinePreviews,historical=false,followup,jump,navigate,children,timing,answers,
-  previews,onPhotoHandoff,sendStatus,photoActions,contextActions,continuation=false,actions}: {
+  previews,onPhotoHandoff,sendStatus,photoActions,contextActions,continuation=false,actions,mealActions}: {
   message:ChatMessage;
   inlinePreviews:boolean;
   historical?:boolean;
@@ -90,6 +90,7 @@ export function ChatMessageBody({message,inlinePreviews,historical=false,followu
   contextActions?:ReactNode;
   continuation?:boolean;
   actions?:ReactNode;
+  mealActions?:ReactNode;
 }) {
   const user = message.role === "user";
   const ids = inlinePreviews && !user && message.state !== "working"
@@ -117,9 +118,10 @@ export function ChatMessageBody({message,inlinePreviews,historical=false,followu
     {sendStatus}
     {answers?.length ? <AnswerSummary answers={answers} inline/> : null}
     {children}
-    {ids.length>0 && <ChatPreviewCards ids={ids} navigate={navigate} readOnly={historical}/>}
+    {ids.length ? <ChatPreviewCards ids={ids} navigate={navigate} readOnly={historical} mealActions={mealActions}/> : null}
     {message.detailLimit && <p className={styles.detailCoverage}>本次查询中，较长的明细列表只核对了前 {message.detailLimit} 项。</p>}
     {photoActions ?? contextActions ?? (message.error && <p className={styles.failure} role={historical?undefined:"alert"}>{message.error}</p>)}
+    {!ids.length && mealActions}
     {(references.length > 0 || actions) && <footer className={styles.messageFooter} data-has-references={references.length > 0 || undefined}>
       {references.length > 0 && <div className={styles.references}>{references.map(reference =>
         <LoadingLink key={reference.href} href={reference.href} prefetch={false} beforeNavigate={navigate}>

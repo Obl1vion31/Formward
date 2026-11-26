@@ -44,15 +44,11 @@ import type {TrendRoute} from '@/components/metric-trend-model';
 import {EnergyPlotFrame} from "./energy-plot-frame";
 import {MobileEnergyPlot} from './mobile-energy-plot';
 import {EnergyPreferencesContext} from './energy-preferences';
-import { LoadingLink } from "@/components/loading-link";
+import { TaskGuide } from "@/components/task-guide";
+import quick from "@/components/quick-actions.module.css";
 
 
 export type SaveEnergy = (input: EnergyInput) => Promise<Result<{ presentation: EnergyPresentation; message: string;changedKeys?:string[] }>>;
-export function EstimateTodayAction({today,day,pending=false}:{today:string;day?:EnergyDay;pending?:boolean}){
-  const text=day?.totalKcal!=null&&!day.cumulative?"查看今天的消耗":"估算今天的消耗";
-  return <div className={styles.todayAction}>{pending||!today?<button type="button" disabled>{text}</button>:
-    <LoadingLink returnScope="workspace" href={"/dashboard/energy?entry=1&date="+today+"&mode=estimate"}>{text}</LoadingLink>}</div>;
-}
 export function EnergySources({ day, compact }: { day: EnergyDay; compact?: boolean }) {
   const rest = day.record?.restingSourceSystem ?? day.record?.sourceSystem;
   const active = day.activeSource === "activities" ? [...new Set(day.activities.map(row => row.sourceSystem).filter(Boolean))].join("、") : day.record?.activeSourceSystem ?? day.record?.sourceSystem;
@@ -111,14 +107,28 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
   useEffect(()=>{const latest=()=>{setEditing(null);setViewing(null);};window.addEventListener("formward-load-latest",latest);return()=>window.removeEventListener("formward-load-latest",latest);},[]);
   const historyDates=[...new Set([...recentRecordDates(today),...state.days.filter(d=>!d.deletedAt).map(d=>d.date),...state.activities.filter(a=>!a.deletedAt).map(a=>a.date)])].sort().reverse();
 
-  function editDay(date: string, estimate = false) {
+  function editDay(date: string, estimate = false, manual = false) {
     const day=byDate.get(date);
     setError(""); setNotice("");
     if(estimate&&day?.totalKcal!=null&&!day.cumulative){setViewing(date);setEditing(null);setQuickEstimate(false);return;}
     const input=dayEditInput(date,state.days);
     setViewing(null);setQuickEstimate(estimate);
-    setEditing(estimate&&input.kind==="save_energy_day"?{...input,entryMode:"total",activityMode:"total",restingInputMethod:"estimate",totalKcal:null,calculation:{kind:"daily",method:energyPreferences.value.formula}}:input);
+    if (input.kind !== "save_energy_day") { setEditing(input); return; }
+    if (estimate) {
+      setEditing({...input,entryMode:"total",activityMode:"total",restingInputMethod:"estimate",totalKcal:null,calculation:{kind:"daily",method:energyPreferences.value.formula}});
+    } else {
+      setEditing(manual ? {...input,restingInputMethod:"manual"} : input);
+    }
   }
+  const hasFullTotal = chosen?.totalKcal != null && !chosen.cumulative;
+  const energyAction = hasFullTotal ? "查看" : "估算";
+  const energyActionLabel = energyAction + (inspected === today ? "今天" : "这天") + "的消耗";
+  const energyActions = <div className={quick.stack} role="group" aria-label="消耗操作">
+    <button className={quick.action} type="button" data-primary={!hasFullTotal||undefined} data-guide-target="energy-summary" disabled={!inspected}
+      onClick={()=>{selection.releasePreview();editDay(inspected,true);}}>{energyActionLabel}</button>
+    {!hasFullTotal&&<button className={quick.action} type="button" disabled={!inspected}
+      onClick={()=>{selection.releasePreview();editDay(inspected,false,true);}}>手动填写</button>}
+  </div>;
   useRepeatedRecordTask('/dashboard/energy',task=>{
     if(task.intent==='view'){setEditing(null);setViewing(task.date);}
     else editDay(task.date,initialEstimate);
@@ -188,7 +198,10 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
        metricVariants={chartDays.map(day=>[energyValue(day.totalKcal),energyValue(day.restingKcal),energyValue(day.activeKcal)])}
        title="每日消耗" unit="千卡"
        legend={<EnergyLegend/>}
-       supplementary={<EstimateTodayAction today={today} day={byDate.get(today)}/>}
+       cardActions={energyActions}
+       guidance={<TaskGuide task={hasFullTotal?"energy-details":"energy-summary"} target="energy-summary"
+         text={hasFullTotal?"点「"+energyActionLabel+"」，查看完整数值和记录来源。":"点「"+energyActionLabel+"」，选择当天活动量。"}
+         auto={!hasFullTotal&&!editing&&!viewing}/>}
       >{dates.length?<div data-nested-chart ref={bindPlot}>{mobile||linkedPlot||dates.length<=31?<MobileEnergyPlot days={chartDays} selected={inspected} selection={selection} compact={dates.length<=31} linked={linkedPlot}/>:<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>}</div>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     </section>
     <DailyRecords history={{today,dates:historyDates.filter(date=>!recentDates.includes(date)),renderRow:renderDay,view:setViewing}}>{recentDates.map(renderDay)}</DailyRecords>

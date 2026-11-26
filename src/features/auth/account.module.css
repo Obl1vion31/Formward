@@ -17,6 +17,9 @@
 .field select { appearance:none;color-scheme:dark;padding-right:36px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23a8a195' stroke-width='1.4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:12px; }
 .muted { color:var(--muted);font-size:13px;line-height:1.8;margin:12px 0 20px; }.error,.notice { font-size:13px;line-height:1.8;padding:12px 14px;border-left:2px solid var(--danger);background:color-mix(in srgb,var(--danger) 3.529%,transparent);overflow-wrap:anywhere; }.error { color:var(--danger); }.notice { color:var(--warm-white);border-color:var(--gold);background:color-mix(in srgb,var(--gold) 3.137%,transparent); }
 .unlock { max-width:480px;padding:28px 0; }.unlock h2,.claim h2 { margin:12px 0;font-size:23px;font-weight:500;line-height:1.5; }.unlock form { margin-top:28px; }
+.claimIdentity { display:grid; gap:5px; }
+.claim .claimIdentity p,.claimReading { margin:0; }
+.claimIdentity p:last-child,.claimReading { color:var(--muted);font-size:13px;line-height:1.8; }
 .tabs { display:flex;gap:28px;border-bottom:1px solid color-mix(in srgb,var(--warm-white) 13.333%,transparent);margin-top:28px; }.tabs button { border:0;border-radius:0;border-bottom:2px solid transparent;padding:12px 0;color:var(--muted); }.tabs button[aria-current=page] { color:var(--gold);border-bottom-color:var(--gold); }
 .inviteForm { display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:0 14px;padding:26px 0 10px;max-width:760px; }.inviteForm .field { margin:0; }.inviteForm p { grid-column:1/-1;margin:12px 0 0; }
 .filters { display:flex;align-items:center;gap:12px;padding:26px 0 20px; }.filters .field { margin:0;flex:1; }.filters .field:has(select) { flex:0 0 130px; }.filters input,.filters select { min-height:44px;font-size:14px; }

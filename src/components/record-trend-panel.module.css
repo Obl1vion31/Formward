@@ -110,6 +110,42 @@
 
 .readingStatus{position:absolute;inset-inline-start:0;top:50%;transform:translateY(-50%);display:flex;align-items:center;min-height:22px}
 
+@media (min-width: 701px) and (hover: hover) {
+  .metrics[data-presentation=energy] .metric:first-child[data-with-card-actions] {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(60px,84px) minmax(0,auto);
+    grid-template-rows:auto auto auto;
+    align-content:center;
+    column-gap:12px;
+    padding-inline:16px;
+  }
+  .metric[data-with-card-actions] .metricLabel,
+  .metric[data-with-card-actions] strong,
+  .metric[data-with-card-actions] .metricNote { grid-column:1; }
+  .metrics[data-presentation=energy] .metric[data-with-card-actions] .metricGraphic {
+    grid-area:1 / 2 / 4; place-self:center stretch;
+    position:static; transform:none; width:auto; margin:0;
+  }
+  .metric[data-with-card-actions] .cardActions {
+    grid-area:1 / 3 / 4; align-self:center;
+    min-inline-size:9rem;
+    border-inline-start:1px solid var(--line-soft);
+    padding-inline-start:10px;
+  }
+}
+@media (max-width: 1100px) and (min-width: 701px) and (hover: hover) {
+  .metrics[data-presentation=energy] .metric:first-child[data-with-card-actions] {
+    grid-template-columns:minmax(0,1fr) minmax(74px,100px);
+    grid-template-rows:auto auto auto auto;
+  }
+  .metric[data-with-card-actions] .cardActions {
+    grid-area:4 / 1 / 5 / -1; min-block-size:44px;
+    padding:0; border:0; margin-block-start:6px;
+  }
+  .metric[data-with-card-actions] .cardActions > div { grid-auto-flow:column;grid-auto-columns:minmax(0,1fr); }
+}
+.mobileReading .cardActions { min-block-size:44px; margin-block-start:10px; }
+
 
 @media (max-width: 700px), (hover: none) and (pointer: coarse) {
   .mobileBody .mobileHero {

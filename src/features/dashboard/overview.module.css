@@ -4,22 +4,21 @@
 .heading time,.caption { color:var(--muted); font-size:12px; line-height:1.8; }
 .workspace small { font-size:12px; color:var(--muted); margin-left:5px; }
 .workspace a:focus-visible,.workspace button:focus-visible { outline:1px solid var(--gold); outline-offset:4px; }
-.today { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px 20px; margin:0 0 16px; padding:8px 12px; border-radius:16px; background:color-mix(in srgb,var(--surface) 62%,transparent); }
+.today { position:relative; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px 20px; min-block-size:60px; margin:0 0 16px; padding:8px 12px; border-radius:16px; background:color-mix(in srgb,var(--surface) 62%,transparent); }
 .todayHeading { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; }
 .todayHeading h2 { font-size:16px; font-weight:500; line-height:24px; margin:0; }
 .todayHeading time::before { content:" · "; }
 .todayHeading p { min-height:20px; margin:0; color:var(--muted); font-size:13px; line-height:20px; }
-.todayActions { display:flex; flex-wrap:wrap; gap:8px; }
-.todayActions :is(a,button) { display:inline-flex; align-items:center; justify-content:center; gap:5px; min-height:44px; padding:6px 12px; border:0; border-radius:16px; background:var(--card-material); color:var(--warm-white); font:inherit; font-size:14px; font-weight:500; text-decoration:none; white-space:nowrap; }
-.todayActions a[data-primary] { color:var(--graphite); background:var(--gold); }
-.todayActions button:disabled { color:var(--muted); }
-.todayActions svg { flex:none; }
+.todayActions { display:flex; flex-wrap:wrap; min-inline-size:0; gap:6px; }
+.todayActions a { border-radius:14px; white-space:nowrap; }
+.todayGuide { position:absolute; inset-inline-end:0; inset-block-start:-45px; }
 @media (max-width:700px),(hover:none) and (pointer:coarse) {
-  .today { display:grid; gap:8px; padding:0; background:none; }
+  .today { display:grid; grid-template-columns:minmax(0,1fr); align-content:start; gap:8px; min-block-size:98px; padding:0; background:none; }
   .todayHeading { display:grid; gap:2px; }
-  .todayActions :is(a,button) { font-size:13px; padding-inline:8px; }
+  .todayActions a { flex:1 1 auto; min-inline-size:max-content; font-size:13px; padding-inline:6px; }
+  .todayGuide { inset-block-start:-7px; }
 }
-@media (max-width:360px) {
+@media (max-width:380px) {
   .todayActions svg { display:none; }
 }
 .trends { padding-top:18px; }

@@ -114,6 +114,9 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
   const transcript = chatTranscript(chat.messages);
   const task = chat.data?.followup, pendingQuote = chat.data?.pendingContextQuote;
   const meal=chat.data?.photoHandoff;
+  const [manualError,setManualError]=useState<{task:string;message:string}|null>(null);
+  const mealAnchor = meal && (transcript.visible.findLast(row=>row.mealTask&&row.role==="assistant") ??
+    transcript.visible.find(row=>row.role==="user"&&row.imageIds.length>0));
   const ordinaryChat=chat.enabled&&!meal?.restricted;
   const showComposer=ordinaryChat&&!meal?.followup;
   const baseEstimate = chat.data?.contextBaseEstimate;
@@ -267,6 +270,25 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
     window.addEventListener("formward-native-dismiss", dismiss);
     return () => window.removeEventListener("formward-native-dismiss", dismiss);
   });
+  const mealReturn = meal && !meal.saved && <div className={styles.mealReturn} data-meal-task-actions>
+    <LoadingLink returnScope="assistant" href={"/dashboard/meals?date="+meal.date+"&entry=1&manualTask="+meal.taskId} beforeNavigate={async()=>{
+      if (!meal.cancelled) {
+        if (!await confirmAction({title:"改用手填？",message:"结束本次识别，带回发给助手前的原草稿。",confirmLabel:"返回手填"})) return false;
+        setManualError(null);
+        try {
+          const response=await fetch("/api/assistant-meal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"manual",taskId:meal.taskId})});
+          if (!response.ok) throw Error((await response.json()).error??"暂时无法恢复草稿。");
+          window.dispatchEvent(new Event("formward-assistant-updated"));
+        } catch (error) {
+          setManualError({task:meal.taskId,message:error instanceof TypeError?"连接未完成，请再试一次。":error instanceof Error?error.message:"暂时无法恢复草稿，请重试。"});
+          return false;
+        }
+      }
+      return navigate();
+    }}>{meal.cancelled?"返回原草稿":"改用手填"}</LoadingLink>
+    {!showComposer&&chat.canStop&&<button type="button" disabled={chat.stopping} onClick={chat.stop}>停止识别</button>}
+    {manualError?.task===meal.taskId&&<span role="alert">{manualError.message}</span>}
+  </div>;
   return <div className={styles.workspace} data-tab={tab} data-page={page||undefined} onKeyDown={event => { if(event.key==="Escape"&&pinnedPreview){event.preventDefault();event.stopPropagation();closePreview();return;} if (event.key === "Escape" && panel) { event.preventDefault(); event.stopPropagation(); closePanel(); } }}>
     <aside className={styles.sidebar} aria-label="待办与快捷记录" inert={page && tab !== "tasks"}>{sidebar}</aside>
     <section className={styles.conversation} aria-label="AI聊天" inert={page && tab !== "chat"}>
@@ -278,6 +300,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
         {meal&&<p className={styles.mealContext} data-meal-handoff-context>{meal.date} · {meal.mealType} · 饮食拍照</p>}
         {ordinaryChat&&chat.data&&!chat.messages.length && <div className={styles.welcome}><h3>今天想聊点什么？</h3><div className={styles.examples}>{["查看昨天的饮食","记录今天的晨重"].map(example=>
           <button type="button" key={example} onClick={()=>{chat.setDraft(example);input.current?.focus();}}>{example}</button>)}</div></div>}
+        {!mealAnchor&&mealReturn}
         {transcript.visible.map(message => {
           const requestId = message.requestId, local = requestId ? chat.outgoing.get(requestId) : undefined;
           const followup = message.id===taskAnchor && message.state==="complete" ? task : null;
@@ -307,7 +330,7 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
             className={`${styles.message} ${message.role === "user" ? styles.user : styles.assistant}${continuation ? " " + styles.continuation : ""}`}>
             <ChatMessageBody message={message} inlinePreviews={message.mealTask===true||chat.data?.capabilities?.inlinePreviews===true} navigate={navigate} jump={jump}
               followup={followup} timing={timing} answers={transcript.answers.get(message.id)} previews={local}
-              continuation={continuation} actions={actions}
+              continuation={continuation} actions={actions} mealActions={message.id===mealAnchor?.id?mealReturn:undefined}
               onPhotoHandoff={id=>{if(requestId) chat.releaseSentPreview(requestId,id);}}
               sendStatus={local?.phase==="sending" ? <p className={styles.sendPending} role="status">发送中</p> :
                 local?.phase==="error" && requestId ? <div className={styles.sendError}>
@@ -339,23 +362,9 @@ export function AssistantChatView({ sidebar, navigate, tab, page = false, onPrev
         </div>
       </div>
 
-      {pinnedPreview&&<section className={styles.pinnedPreview} aria-label="待确认提交"><header><span>待确认提交</span><button type="button" ref={previewBack} onClick={closePreview}>{page?"返回待办":"返回聊天"}</button></header><ChatPreviewCard id={pinnedPreview} navigate={navigate}/></section>}
+      {pinnedPreview&&<section className={styles.pinnedPreview} aria-label="待确认提交"><header><span>待确认提交</span><button type="button" ref={previewBack} onClick={closePreview}>{page?"返回待办":"返回聊天"}</button></header><ChatPreviewCard id={pinnedPreview} navigate={navigate} mealActions={mealAnchor?.references.some(ref=>ref.operationId===pinnedPreview)?mealReturn:undefined}/></section>}
       <div ref={composer} className={styles.composerArea} inert={panel === "connections"||!!pinnedPreview}>
         {(!page || !showComposer) && <div className={styles.composerExtras} data-chat-composer-notices>{composerNotices}</div>}
-        {meal&&!meal.saved&&<div className={styles.mealReturn}>
-          <LoadingLink returnScope="assistant" href={"/dashboard/meals?date="+meal.date+"&entry=1&manualTask="+meal.taskId} beforeNavigate={async()=>{
-            if(!meal.cancelled){
-              if(!await confirmAction({title:"改用手填？",message:"结束本次识别，带回发给助手前的原草稿。",confirmLabel:"返回手填"}))return false;
-              try{
-                const response=await fetch("/api/assistant-meal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"manual",taskId:meal.taskId})});
-                if(!response.ok)throw Error((await response.json()).error??"暂时无法恢复草稿。");
-                window.dispatchEvent(new Event("formward-assistant-updated"));
-              }catch(error){setNotice(error instanceof Error?error.message:"暂时无法恢复草稿，请重试。");return false;}
-            }
-            return navigate();
-          }}>{meal.cancelled?"返回原草稿":"改用手填"}</LoadingLink>
-          {!showComposer&&chat.canStop&&<button type="button" disabled={chat.stopping} onClick={chat.stop}>停止识别</button>}
-        </div>}
         {showComposer?<div className={styles.composer} data-chat-composer-frame>
           {page ? <div className={styles.composerExtras} data-chat-composer-extras>
             {composerNotices}

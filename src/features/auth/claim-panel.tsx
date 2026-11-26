@@ -1,5 +1,4 @@
 "use client";
-import {LocalLoading} from "@/components/local-loading";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, PASSWORD_LENGTH_LABEL } from "./password-policy";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { LoadingLink } from "@/components/loading-link";
@@ -43,9 +42,26 @@ export function ClaimPanel({ signedInEmail, loginHref }: { signedInEmail: string
     }
   }
   return <AccountFrame title={complete ? "密码已设置" : info?.purpose === "reset_password" ? "重新设置密码" : "激活你的账号"} intro={complete ? "请使用设置好的密码登录 Formward。" : "由你设置密码，开始使用自己的健康记录空间。"}>
-    <div className={styles.claim}>
-      {task.busy&&<LocalLoading label={task.label}/>}<AccountFeedback error={task.error} />
-      {signedInEmail ? <><h2>请先退出当前账号</h2><p className={styles.targetEmail}>{signedInEmail}</p><p className={styles.muted}>为避免使用错误账号，请退出后继续打开此链接。</p><button type="button" className={styles.primary} disabled={task.busy} onClick={() => void task.run("正在退出账号…", async () => { await signOut(); window.location.reload(); return { ok: true, data: null }; })}>退出并继续</button></> : complete ? <LoadingLink className={styles.primaryLink} href={loginHref}>前往登录 →</LoadingLink> : checking ? <p role="status" className={styles.muted}>正在检查链接…</p> : info ? <><p className={styles.accountIdentity}>{info.email}</p><p className={styles.muted}>有效至 {accountDate(info.expiresAt)}（北京时间）</p>{info.purpose === "reset_password" && <p className={styles.notice}>保存后会退出全部登录设备，并断开原有 AI 授权。</p>}<form onSubmit={submit}><label className={styles.field}>设置密码<input name="password" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_LENGTH} required disabled={task.busy} /></label><label className={styles.field}>确认密码<input name="confirmation" type="password" value={confirmation} onChange={event => setConfirmation(event.target.value)} autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_LENGTH} required disabled={task.busy} /></label><p className={styles.muted}>使用 {PASSWORD_LENGTH_LABEL}，支持从密码管理器粘贴。</p><button type="submit" className={styles.primary} disabled={task.busy}>{task.busy ? "正在保存…" : info.purpose === "invite" ? "激活账号" : "保存新密码"}</button></form></> : <p className={styles.muted}>请联系邀请人获取新的链接。</p>}
+    <div className={styles.claim} aria-busy={checking || task.busy || undefined}>
+      {signedInEmail ? <>
+        <h2>请先退出当前账号</h2>
+        <p className={styles.targetEmail}>{signedInEmail}</p>
+        <p className={styles.muted}>为避免使用错误账号，请退出后继续打开此链接。</p>
+        <AccountFeedback error={task.error}/>
+        <button type="button" className={styles.primary} disabled={task.busy} onClick={() => void task.run("正在退出账号…", async () => { await signOut(); window.location.reload(); return { ok: true, data: null }; })}>{task.busy ? task.label : "退出并继续"}</button>
+      </> : complete ? <LoadingLink className={styles.primaryLink} href={loginHref}>前往登录 →</LoadingLink>
+        : checking ? <p role="status" className={styles.claimReading}>正在检查链接…</p>
+        : info ? <>
+          <div className={styles.claimIdentity}><p className={styles.accountIdentity}>{info.email}</p><p>有效至 {accountDate(info.expiresAt)}（北京时间）</p></div>
+          {info.purpose === "reset_password" && <p className={styles.notice}>保存后会退出全部登录设备，并断开原有 AI 授权。</p>}
+          <form onSubmit={submit}>
+            <label className={styles.field}>设置密码<input name="password" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_LENGTH} required disabled={task.busy}/></label>
+            <label className={styles.field}>确认密码<input name="confirmation" type="password" value={confirmation} onChange={event => setConfirmation(event.target.value)} autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_LENGTH} required disabled={task.busy}/></label>
+            <p className={styles.muted}>使用 {PASSWORD_LENGTH_LABEL}，支持从密码管理器粘贴。</p>
+            <AccountFeedback error={task.error}/>
+            <button type="submit" className={styles.primary} disabled={task.busy}>{task.busy ? "正在保存…" : info.purpose === "invite" ? "激活账号" : "保存新密码"}</button>
+          </form>
+        </> : <><AccountFeedback error={task.error}/><p className={styles.muted}>请联系邀请人获取新的链接。</p></>}
     </div>
   </AccountFrame>;
 }

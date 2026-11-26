@@ -19,6 +19,6 @@ export function ChartPreparation({active, guideInsets}: {active: boolean; guideI
   if (!active) return null;
   return <>
     {guideInsets && <PlotLoadingGuides {...guideInsets}/>}
-    <div className="chart-preparation"><LocalLoading/></div>
+    <div className="chart-preparation"><LocalLoading label="正在读取图表…" immediate/></div>
   </>;
 }

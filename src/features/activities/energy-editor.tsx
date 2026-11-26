@@ -8,6 +8,7 @@ import {confirmAction} from "@/components/confirmation-state";
 import {confirmNumbers} from "@/components/number-change";
 import {DecimalInput} from "@/components/decimal-input";
 import {useDraftGuard} from "@/components/draft-guard";
+import {TaskGuide} from "@/components/task-guide";
 import {WorkspaceTodayContext} from "@/components/workspace-frame-state";
 import {useLocalToday} from "@/components/use-local-today";
 import {RecordDateContext} from "@/components/record-date-context";
@@ -291,13 +292,16 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
  const missing= modes.entryMode==="total"&&projected?.totalKcal==null?"还没填当天总数":modes.entryMode==="components"&&projected?.restingKcal==null?"还没填当天静息":modes.activityMode==="total"&&projected?.activeKcal==null?"还没填活动合计":"有运动热量未知";
  const saveLabel=busy?submitLabel==="应用修改"?"正在应用…":"正在保存…":submitLabel;
  const fast=quickStart&&quick;
- const activityControl=<ActivityLevelControl dateLabel={targetDate===today?"今天的活动量":"所选日的活动量"} value={calculationSnapshot?.activityLevel??(requested?.activityLevel as ActivityLevel)??null} change={activityLevel=>{setMethodTouched(true);estimate({kind:"daily",method:formula,activityLevel});setAggregateEpoch(epoch=>epoch+1);}}/>;
  const missingFacts=calculated&&!calculated.ok?calculated.missing:[];
+ const supplementKind=missingFacts.includes("profile")?"profile":missingFacts.includes("weight")||missingFacts.includes("bodyFat")?"body":null;
+ const supplementLabel=supplementKind==="profile"?"补填个人资料":"补填身体记录";
+ const activityControl=<ActivityLevelControl guidance={fast&&!pending&&!supplementKind} dateLabel={targetDate===today?"今天的活动量":"所选日的活动量"} value={calculationSnapshot?.activityLevel??(requested?.activityLevel as ActivityLevel)??null} change={activityLevel=>{setMethodTouched(true);estimate({kind:"daily",method:formula,activityLevel});setAggregateEpoch(epoch=>epoch+1);}}/>;
  const formulaControls=<RestingEstimate disabled={busy||pending||retired||confirmingAggregate} value={formula} change={method=>{
   setMethodTouched(true);
   estimate({kind:quick?"daily":"resting",method,...(quick?{activityLevel:requested?.activityLevel??calculationSnapshot?.activityLevel??undefined}:{})});
   setAggregateEpoch(epoch=>epoch+1);
- }} snapshot={restingSnapshot} recalculate={()=>void recalculate()} loading={contextLoading} message={contextError||(missingFacts.length&&calculated&&!calculated.ok?calculated.message:"")} missing={missingFacts} supplement={setSupplement}/>;
+ }} snapshot={fast?(calculationSnapshot??restingSnapshot):restingSnapshot} inlineBasis={fast} recalculate={()=>void recalculate()} loading={contextLoading}
+  message={fast?"":contextError||(missingFacts.length&&calculated&&!calculated.ok?calculated.message:"")} missing={missingFacts} supplement={setSupplement}/>;
  function addItem(){if(!daily)return;if(!quick&&modes.activityMode==="total"&&draft.activeKcal==null){setDraft(current=>({...current,activityMode:"activities"}));setAggregateEpoch(epoch=>epoch+1);}const key=crypto.randomUUID();setItems(rows=>[...rows,{key,kind:"save_activity",date:draft.date,name:"",calorieMode:"total",completed:true,timezone:draft.timezone}]);setExpanded(values=>new Set([...values,key]));}
  return <><form hidden={!!supplement} ref={form} data-entry-form={pending?"energy-pending":"energy"} data-energy-entry-layout={daily?"daily":"activity"} className={styles.form+" "+styles.energyEntry} aria-busy={busy||pending&&!error} onSubmit={event=>{event.preventDefault();void submit();}}>
 
@@ -306,7 +310,7 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
    {retired?<p role="alert">日常默认值和静息公式资料已停用，请取消这一项。</p>:daily||single?<>
    <section className={styles.entrySection}>{!daily&&<h3>{modes.entryMode==="total"?"总消耗":"静息与活动"}</h3>}
     {daily?<>
-     {fast&&activityControl}
+     {fast&&<>{activityControl}<details className={styles.energyDetails}><summary>估算依据</summary>{formulaControls}</details></>}
      {fast?<details className={styles.energyDetails}><summary>其他填写方式</summary><RestingMethodControl value={recordMode} change={changeMethod}/><ActivityMethodControl quick={quick} change={value=>value?enterQuick():leaveQuick()}/></details>:<RestingMethodControl value={recordMode} change={changeMethod}/>}
      {recordMode==="manual"&&<>
       <div className={styles.manualEntryHeading}><span>{manualFormat==="total"?"全天总数":"静息与活动"}</span><button type="button" onClick={()=>changeManualFormat(manualFormat==="total"?"components":"total")}>{manualFormat==="total"?"分开填写":"只有总数？"}</button></div>
@@ -314,7 +318,7 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
 
      </>}
      {restingMethod==="device"&&<>{deviceUsable&&<p className={styles.deviceFactStatus}>{dayPreview?.cumulative?"设备当前累计":"已采用的设备热量"}</p>}<div className={styles.deviceReadings} role="group" aria-label="设备热量">{(deviceUsable&&(deviceMetadata?.restingKcal!=null||deviceMetadata?.activeKcal!=null)?[["resting",deviceMetadata.restingKcal,"静息消耗"],["active",deviceMetadata.activeKcal,"活动消耗"]]:[["total",deviceUsable?draft.totalKcal:null,"总消耗"]]).map(([key,value,label])=><div key={key} data-device-reading={key}><span>{label}</span><strong><span data-energy-value>{energyValue(value)}</span> <small>千卡</small></strong></div>)}</div></>}
-     {recordMode==="estimate"&&restingMethod==="estimate"&&(fast&&!contextError&&!missingFacts.length?<details className={styles.energyDetails}><summary>估算依据</summary>{formulaControls}</details>:formulaControls)}
+     {recordMode==="estimate"&&restingMethod==="estimate"&&!fast&&formulaControls}
      {recordMode==="estimate"&&!fast&&<ActivityMethodControl quick={quick} change={value=>value?enterQuick():leaveQuick()}/>}
      {quick&&!fast&&activityControl}
      {quick&&activities.some(row=>!row.deletedAt&&row.date===sourceDate)&&<p className={styles.hint}>已保存运动明细保留，本次估算不另加。选择“运动明细”可查看和编辑。</p>}
@@ -349,7 +353,21 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
    {submitLabel!=="保存"&&<p className={styles.hint}>应用修改后返回确认页面，确认保存后才正式记录。</p>}
   </fieldset>
   {management}
-  <div className={styles.stickyTotal} data-entry-footer><div role="group" aria-label="当天总消耗"><span>{daily?quick?"全天估算":"合计":"当天总消耗"}</span>{pending?(!error&&<LocalLoading/>):<strong>{energyValue(total)} <small>千卡</small></strong>}{!pending&&entryIssue&&<small role="status">{entryIssue}</small>}{!pending&&!entryIssue&&(unresolvedCount>0||total==null)&&<small>{unresolvedCount?unresolvedCount+"项运动待核对":missing+"，可保存已有部分"}</small>}{error&&<p role="alert" className={styles.error}>{error}</p>}</div><button data-entry-primary-action className={styles.headerSave} type={onRetry?"button":"submit"} onClick={onRetry} aria-label={targetDate?`${onRetry?"重新读取":submitLabel} ${targetDate} 消耗记录`:onRetry?"重新读取":submitLabel} disabled={onRetry?false:blocked}>{onRetry?"重新读取":saveLabel}</button></div>
+  <div className={styles.stickyTotal} data-entry-footer>
+   <div role="group" aria-label="当天总消耗">
+    <span>{daily?quick?"预计全天消耗":"合计":"当天总消耗"}</span>
+    {pending?(!error&&<LocalLoading/>):(!fast||total!=null)&&<strong>{energyValue(total)} <small>千卡</small></strong>}
+    {!pending&&entryIssue&&<small role="status">{entryIssue}</small>}
+    {!pending&&fast&&supplementKind&&<div className={styles.footerRecovery}>
+      <button type="button" data-guide-target="energy-supplement" disabled={busy} onClick={()=>setSupplement(supplementKind)}>{supplementLabel}</button>
+      <TaskGuide task={"energy-supplement-"+supplementKind} target="energy-supplement" text={"点「"+supplementLabel+"」，完成后会回到本次估算。"} auto={!supplement}/>
+    </div>}
+    {!pending&&fast&&contextError&&<div className={styles.footerRecovery}><button type="button" onClick={()=>void recalculate()}>重试读取</button></div>}
+    {!pending&&!entryIssue&&(unresolvedCount>0||total==null)&&<small>{unresolvedCount?unresolvedCount+"项运动待核对":missing+"，可保存已有部分"}</small>}
+    {error&&<p role="alert" className={styles.error}>{error}</p>}
+   </div>
+   <button data-entry-primary-action className={styles.headerSave} type={onRetry?"button":"submit"} onClick={onRetry} aria-label={targetDate?`${onRetry?"重新读取":submitLabel} ${targetDate} 消耗记录`:onRetry?"重新读取":submitLabel} disabled={onRetry?false:blocked}>{onRetry?"重新读取":saveLabel}</button>
+  </div>
  </form>{supplement&&targetDate&&<EnergySupplement kind={supplement} date={targetDate} today={today} close={()=>{setSupplement(null);setContextEpoch(epoch=>epoch+1);if(resumeEstimator){setResumeEstimator(false);setContextLoading(true);setEstimatorOpen(true);}}}/>}</>;
 }
 type ExerciseInput={calorieMode?:"total"|"components";completed?:boolean;caloriesKcal?:string|null;exerciseRestingKcal?:string|null;exerciseActiveKcal?:string|null};

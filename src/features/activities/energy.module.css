@@ -247,10 +247,16 @@ form.energyEntry[data-entry-form=energy] .primaryReadings>label>input[type=numbe
 .activityLevel>span{flex:1;min-width:0}
 .activityLevel strong{display:block;font-size:14px;font-weight:500}
 .activityLevel small{display:block;font-size:12px;line-height:1.7;color:var(--muted);margin-top:3px}
-.activityLevel b{font-size:14px;font-weight:400;color:var(--gold);font-variant-numeric:tabular-nums;white-space:nowrap}
-.activityLevel:has(:checked){color:var(--warm-white)}
+.activityHeading{display:flex;align-items:center;justify-content:space-between;min-block-size:36px}
+.activityHeading h3{margin:0}
+.activityLevel:has(:checked){color:var(--warm-white);background:color-mix(in srgb,var(--gold) 11%,transparent);border-radius:10px}
 .activityLevel:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:-2px}
 .activityLevels .hint{margin-top:14px}
+.inlineBasis{display:grid;gap:6px;margin-block:8px 12px;color:var(--muted);font-size:13px;line-height:1.65}
+.inlineBasis p{margin:0}
+.inlineBasis p small{display:block}
+.footerRecovery{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:0 8px}
+.footerRecovery>button{padding:0 3px;border:0;background:none;color:var(--gold);font:inherit;font-size:13px;text-decoration:underline;text-underline-offset:3px;min-block-size:44px;cursor:pointer}
 .energySupplement{padding-block:4px 24px;min-width:0}
 .energySupplement>h3{font-size:18px;margin:12px 0 16px}
 .energySupplement>section{padding-top:0;margin-inline:0}
@@ -322,7 +328,3 @@ form.energyEntry[data-entry-form=energy] .manualReading>input[type=number]{font-
     border-color: transparent;
   }
 }
-.todayAction{display:flex;align-items:center;min-height:44px;margin-top:6px}
-.todayAction :is(a,button){display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border:0;border-radius:12px;background:color-mix(in srgb,var(--gold) 12%,transparent);color:var(--warm-white);font:inherit;font-size:.875rem;text-decoration:none}
-.todayAction button:disabled{color:var(--muted)}
-.todayAction a:hover,.todayAction a:active{background:color-mix(in srgb,var(--gold) 20%,transparent)}

@@ -24,6 +24,7 @@ import {RecordDetailActions} from "@/components/record-detail-actions";
 import { useLocalToday } from "@/components/use-local-today";
 import { FoodTable } from "./presets";
 import { MealPageActions, NutritionSummaryCard } from "./nutrition-summary-card";
+import { TaskGuide } from "@/components/task-guide";
 import { isMealLibrary } from "./library-location";
 import { FoodLibraryControls } from "./library-controls";
 import { FoodLibraryTabs, ReferenceBrowser, type FoodLibraryScope } from "./reference-browser";
@@ -252,8 +253,9 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
       <div data-record-trend data-chart-selection={chart.regionId} data-selected-date={chart.selected} data-selection-origin={chart.origin} {...chart.regionProps}>
       <RecordTrendPanel presentation="nutrition" readings={<NutritionSummaryCard date={summaryDate} totals={chosen?.totals} mealCount={chosen?.meals.length}
         estimated={chosen?.meals.some(meal=>meal.items.some(item=>item.nutrition.caloriesKcal!==null&&(item.sourceKind==="estimated"||item.amountDecision==="estimate_accepted")))}
-        expanded={nutrition} onExpandedChange={setNutrition}/>}
-       supplementary={<MealPageActions record={()=>addMeal(today)} openLibrary={openFoodLibrary} libraryRef={libraryEntry}/>}
+        expanded={nutrition} onExpandedChange={setNutrition}
+        actions={<MealPageActions record={()=>addMeal(summaryDate)} openLibrary={openFoodLibrary} libraryRef={libraryEntry} historical={summaryDate!==today}/>}/>}
+       guidance={<TaskGuide task="meal-page-entry" text={summaryDate===today?"点「记一餐」，选食材、手填或拍照。":"点「补记这天」，记录会归到当前选中的日期。"} auto={summaryDate===today&&!editing&&!historyOpen&&!foods}/>}
        range={<ChartRanges value={range} change={key=>{if(key==="custom"){setCustomDraft({from:customFrom||from,to:customTo});setCustomOpen(true);}else{prepareRange(key);setRange(key);setCustomOpen(false);}}}/>}
        custom={customOpen&&<CustomRecordRange label="饮食" value={customDraft} change={setCustomDraft} apply={()=>{setCustomFrom(customDraft.from);setCustomTo(customDraft.to);setRange("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
        date={summaryDate}

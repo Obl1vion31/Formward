@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useTransition, type KeyboardEvent } from "
 import { WorkspaceReturnLink } from "@/components/workspace-return";
 import { LoadingLink } from "@/components/loading-link";
 import { LocalLoading } from "@/components/local-loading";
+import { TaskGuide } from "@/components/task-guide";
 import { confirmAction } from "@/components/confirmation-state";
 import type { createAiToken } from "./ai-tokens";
 import { aiInstructions } from "../measurements/ai-instructions";
@@ -29,7 +30,7 @@ export function AiAccessReading() {
     <details className={styles.disclosure}><summary data-ai-anchor="advanced"><h2 className={styles.sectionTitle}>高级接入 <span className={styles.secondary}>手动令牌与 HTTP</span></h2></summary></details>
   </section>;
 }
-function PageHeading({reading=false}:{reading?:boolean}) { return <header className={styles.pageHeading} data-ai-anchor="heading"><WorkspaceReturnLink/><h1 id="ai-title" className={styles.pageTitle}>AI 接入</h1><p>外部 AI 可查询、提交预览，保存由你确认。站内模型在小助手中切换。</p>{reading&&<LocalLoading label="正在读取连接…"/>}</header>; }
+function PageHeading({reading=false}:{reading?:boolean}) { return <header className={styles.pageHeading} data-ai-anchor="heading"><WorkspaceReturnLink/><h1 id="ai-title" className={styles.pageTitle}>AI 接入</h1><p>外部 AI 可查询、提交预览，保存由你确认。站内模型在小助手中切换。</p>{reading?<LocalLoading label="正在读取连接…"/>:<TaskGuide task="ai-permissions" text="点 ChatGPT 的权限，查看各类数据可查询或提交预览的范围。"/>}</header>; }
 function Chevron() { return <svg className={styles.chevron} width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>; }
 function closeDetails(event: KeyboardEvent<HTMLDetailsElement>) {
   if (event.key !== "Escape" || event.defaultPrevented || (event.target as Element).matches("select") || (event.target as Element).closest("details") !== event.currentTarget) return;
@@ -144,7 +145,7 @@ export function AiAccess({ accountId,canonicalOrigin, overview, overviewPromise,
     return <div key={provider} className={styles.provider} data-ai-provider={provider}>
       <div className={styles.providerLine} data-ai-anchor={provider}>
         <div className={styles.identity}><h2 className={styles.aiName}>{name}</h2><span className={styles.connectionState} data-state={current ?? "unconnected"}>{current === "unauthorized" ? "待授权" : current ? aiConnectionLabels[current] : "未接入"}</span>{provider === "doubao" && <span className={styles.beta}>内测</span>}</div>
-        <button type="button" className={styles.textAction + " " + styles.permissionAction} aria-label={`${name}权限：${summary}`} aria-haspopup="dialog" aria-expanded={panel?.provider === provider && panel.kind === "permissions"} onClick={event => openPanel("permissions", event.currentTarget)}><span className={styles.desktopText}>{summary}</span><span className={styles.mobileText}>权限</span><Chevron /></button>
+        <button type="button" className={styles.textAction + " " + styles.permissionAction} data-guide-target={provider==="chatgpt"&&!loading?"ai-permissions":undefined} aria-label={`${name}权限：${summary}`} aria-haspopup="dialog" aria-expanded={panel?.provider === provider && panel.kind === "permissions"} onClick={event => openPanel("permissions", event.currentTarget)}><span className={styles.desktopText}>{summary}</span><span className={styles.mobileText}>权限</span><Chevron /></button>
         <div className={styles.providerActions}>
           {!active.length && <button type="button" data-ai-connect className={`ai-button ${styles.connectAction}`} onClick={event => openPanel("connect", event.currentTarget)}>{history.length ? "重新接入" : "接入"}</button>}
           <button type="button" className={styles.textAction} aria-label={`${name}连接详情`} aria-haspopup="dialog" aria-expanded={panel?.provider === provider && panel.kind === "details"} onClick={event => openPanel("details", event.currentTarget)}><span className={styles.desktopText}>连接详情</span><span className={styles.mobileText}>详情</span></button>

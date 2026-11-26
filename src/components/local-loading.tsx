@@ -19,15 +19,17 @@ export function useDelayedReading(active: boolean, delay = READING_DELAY_MS) {
   return active && visible;
 }
 
-export function LocalLoading({active = true, label = "正在读取…", iconOnly = false, onRetry}: {
+export function LocalLoading({active = true, label = "正在读取…", iconOnly = false, immediate = false, onRetry}: {
   active?: boolean;
   label?: string;
   iconOnly?: boolean;
+  immediate?: boolean;
   onRetry?: () => void;
 }) {
-  const visible = useDelayedReading(active);
+  const delayed = useDelayedReading(active && !immediate);
+  const visible = active && (immediate || delayed);
   const slow = useDelayedReading(active && !!onRetry, SLOW_READING_MS);
-  return <span className={styles.slot} data-reading-status data-local-loading data-visible={visible || undefined} data-icon-only={iconOnly || undefined}>
+  return <span className={styles.slot} data-reading-status data-local-loading data-visible={visible || undefined} data-immediate={immediate || undefined} data-icon-only={iconOnly || undefined}>
     <span role="status" aria-atomic="true">
       {visible && (iconOnly ? <><span aria-hidden="true">…</span><span className="sr-only">{label}</span></> : slow ? "读取较慢" : label)}
     </span>

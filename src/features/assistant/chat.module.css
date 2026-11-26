@@ -689,6 +689,8 @@
 }
 .mealContext{margin:0 0 8px;color:var(--muted);font-size:.8125rem;text-align:center}
 .mealReturn,.examples{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.mealReturn{padding:0 12px}
-.mealReturn a,.mealReturn button,.examples button{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;border:0;border-radius:10px;color:var(--warm-white);background:color-mix(in srgb,var(--warm-white) 6%,transparent);font:inherit;font-size:.8125rem;text-decoration:none;cursor:pointer}
-.mealReturn a:hover,.mealReturn button:hover,.examples button:hover{background:color-mix(in srgb,var(--warm-white) 11%,transparent)}
+.mealReturn a,.mealReturn button,.examples button{display:inline-flex;align-items:center;min-height:44px;padding:0 8px;border:0;border-radius:8px;color:var(--warm-white);background:color-mix(in srgb,var(--warm-white) 6%,transparent);font:inherit;font-size:.8125rem;text-decoration:none;cursor:pointer}
+.mealReturn a,.mealReturn button{background:none;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+.mealReturn a:hover,.mealReturn button:hover{color:var(--warm-white)}
+.mealReturn [role=alert]{flex-basis:100%;color:var(--danger);font-size:13px}
+.examples button:hover{background:color-mix(in srgb,var(--warm-white) 11%,transparent)}

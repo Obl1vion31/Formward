@@ -1,6 +1,6 @@
 "use client";
 import {LocalLoading} from "@/components/local-loading";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { LoadingLink } from "../../components/loading-link";
 import { RecordReview, RecordReviewSummary, type ReviewResult } from "../records/record-review";
 import type { RecordReviewAction, RecordReviewView } from "../records/model";
@@ -16,7 +16,7 @@ async function readPreview(id: string, signal?: AbortSignal): Promise<CardData> 
   if (!value.operation || !Array.isArray(value.operation.rows)) throw Error("提交摘要暂时无法读取。");
   return value;
 }
-export function ChatPreviewCard({id,navigate,initialData,initialError,readOnly=false}:{id:string;navigate?:()=>Promise<boolean>;initialData?:CardData;initialError?:string;readOnly?:boolean}){
+export function ChatPreviewCard({id,navigate,initialData,initialError,readOnly=false,mealActions}:{id:string;navigate?:()=>Promise<boolean>;initialData?:CardData;initialError?:string;readOnly?:boolean;mealActions?:ReactNode}){
   const [data,setData]=useState<CardData|null>(initialData??null),[error,setError]=useState(initialError??""),[attempt,setAttempt]=useState(0);
   const load = useCallback(async (signal?: AbortSignal): ReviewResult => {
     try {
@@ -81,21 +81,22 @@ export function ChatPreviewCard({id,navigate,initialData,initialError,readOnly=f
   return <div className={styles.previewCard} data-chat-preview={id}>{currentData
     ? readOnly
       ? <RecordReviewSummary operation={currentData.operation} beforeNavigate={navigate}/>
-      : <RecordReview embedded beforeNavigate={navigate} operation={currentData.operation} review={review} load={async () => { const latest = await load(); if (latest.ok && latest.data.status !== "pending") window.dispatchEvent(new CustomEvent("formward-assistant-updated", { detail: { previewId: id } })); return latest; }} sources={currentData.sources} energySources={currentData.energySources} removeSource={label=>remove("body",label)} removeEnergySource={label=>remove("energy",label)}/>
-    : error ? <div role="alert">{error}<button type="button" onClick={()=>setAttempt(value=>value+1)}>重新读取</button><LoadingLink href={"/dashboard/ai/operations/"+id} beforeNavigate={navigate}>打开原审核页面</LoadingLink></div>
-    : <LocalLoading label="正在读取记录摘要…"/>}</div>;
+      : <RecordReview embedded beforeNavigate={navigate} operation={currentData.operation} review={review} load={async () => { const latest = await load(); if (latest.ok && latest.data.status !== "pending") window.dispatchEvent(new CustomEvent("formward-assistant-updated", { detail: { previewId: id } })); return latest; }} sources={currentData.sources} energySources={currentData.energySources} removeSource={label=>remove("body",label)} removeEnergySource={label=>remove("energy",label)} mealActions={mealActions}/>
+    : <>{error ? <div role="alert">{error}<button type="button" onClick={()=>setAttempt(value=>value+1)}>重新读取</button><LoadingLink href={"/dashboard/ai/operations/"+id} beforeNavigate={navigate}>打开原审核页面</LoadingLink></div>
+      : <LocalLoading label="正在读取记录摘要…"/>}{mealActions}</>}</div>;
 }
 
 /** 旧回答可能同时引用读取过的原提交及本次修改；并行读取后统一消除同对象的重复回执。 */
-export function ChatPreviewCards({ids,navigate,readOnly=false}:{ids:string[];navigate?:()=>Promise<boolean>;readOnly?:boolean}){
+export function ChatPreviewCards({ids,navigate,readOnly=false,mealActions}:{ids:string[];navigate?:()=>Promise<boolean>;readOnly?:boolean;mealActions?:ReactNode}){
   const key=[...new Set(ids)].join(","),[entries,setEntries]=useState<{key:string;data:Map<string,CardData>;errors:Map<string,string>}|null>(null);
   useEffect(()=>{if(!key.includes(","))return;const controller=new AbortController();
     const load=async()=>{const rows=await Promise.all(key.split(",").map(async id=>{try{return {id,data:await readPreview(id,controller.signal)};}catch(failure){return {id,error:failure instanceof Error?failure.message:"读取未完成。"};}}));if(!controller.signal.aborted)setEntries({key,data:new Map(rows.filter(row=>row.data).map(row=>[row.id,row.data!])),errors:new Map(rows.filter(row=>row.error).map(row=>[row.id,row.error!]))});};
     void load();const refresh=(event:Event)=>{const id=(event as CustomEvent<{previewId?:string}>).detail?.previewId;if(!id||key.split(",").includes(id))void load();};window.addEventListener("formward-assistant-updated",refresh);return()=>{controller.abort();window.removeEventListener("formward-assistant-updated",refresh);};
   },[key]);
   if(!key)return null;
-  if(!key.includes(","))return <ChatPreviewCard id={key} navigate={navigate} readOnly={readOnly}/>;
-  if(entries?.key!==key)return <div className={styles.previewCard}><LocalLoading/></div>;
+  if(!key.includes(","))return <ChatPreviewCard id={key} navigate={navigate} readOnly={readOnly} mealActions={mealActions}/>;
+  if(entries?.key!==key)return <div className={styles.previewCard}><LocalLoading/>{mealActions}</div>;
   const hidden=redundantSavedPreviews([...entries.data.values()].map(row=>row.operation));
-  return <>{key.split(",").filter(id=>!hidden.has(id)).map(id=><ChatPreviewCard key={id} id={id} navigate={navigate} readOnly={readOnly} initialData={entries.data.get(id)} initialError={entries.errors.get(id)}/>)}</>;
+  const visible=key.split(",").filter(id=>!hidden.has(id));
+  return <>{visible.map(id=><ChatPreviewCard key={id} id={id} navigate={navigate} readOnly={readOnly} initialData={entries.data.get(id)} initialError={entries.errors.get(id)} mealActions={id===visible.at(-1)?mealActions:undefined}/>)}</>;
 }
