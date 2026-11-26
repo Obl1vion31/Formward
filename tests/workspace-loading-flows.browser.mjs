@@ -29,6 +29,9 @@ export async function checkLoadingFlows({config,folder,createContext,control,sho
    await control(0);await page.goto(config.baseURL+'/dashboard/training');await page.waitForLoadState('networkidle');
    // 次级页可以直接展示真实外壳；等待出现时仍须位于所属正文，不强制闪现通用读取行。
    for(const [name,path]of [['AI 接入','/dashboard/ai'],['导出 Excel','/dashboard/export']]){
+    await control(0);
+    await page.goto(config.baseURL+'/dashboard/training');
+    await page.waitForLoadState('networkidle');
     await control(500);const panel=page.locator('[data-assistant-page=true],dialog[data-assistant-surface][open]:not([data-surface-phase=closing])').filter({visible:true});if(!await panel.isVisible())await page.locator('[data-assistant-trigger]:visible').click();await panel.waitFor();const todo=panel.getByRole('tab',{name:/^待办/});if(await todo.isVisible())await todo.click();const tools=panel.locator('[data-assistant-group=tools]');if(await tools.getAttribute('aria-expanded')!=='true')await tools.click();await panel.locator('a[href="'+path+'"]').click();await page.waitForURL(config.baseURL+path);
     const wait=page.locator('main.dashboard-page [data-local-loading][data-visible]:visible').first();
     if(await wait.isVisible()){const position=await wait.evaluate(node=>{const r=node.getBoundingClientRect(),main=node.closest('main').getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,mainX:main.x,mainRight:main.right};});assert.ok(position.x>=position.mainX&&position.x>8&&position.x+position.width<=position.mainRight+1,name+'等待位于所属正文容器');}
