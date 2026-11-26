@@ -28,7 +28,8 @@ function SourceContent({ data, embedded, pending = false, busy = false, task = n
   const connection = data?.connections[0], disabled = pending || busy;
   const regionChanged = !!connection && region !== connection.region, credentialDirty = !!apiKey || regionChanged;
   const prefix = connection ? regionLabels[connection.region] + " · " : "";
-  const status = connection?.status === "paused" ? prefix + "已连接 · 同步已暂停" : connection ? prefix + "已连接" : "尚未连接";
+  const status = connection?.status === "paused" ? prefix + "同步已暂停" : connection
+    ? prefix + (connection.lastSuccessAt && !connection.error ? "已连接" : "连接设置已保存") : "尚未连接";
   const syncIssue = error || (!notice && connection?.error) || "";
   const result = syncIssue || notice || (connection?.lastSuccessAt ? "上次同步 " + time(connection.lastSuccessAt) : "");
   return <div className={styles.panel} aria-busy={pending || busy} data-source-access={data?.enabled === false ? "unavailable" : "available"}>
