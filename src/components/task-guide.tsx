@@ -39,12 +39,13 @@ export function TaskGuide({ task, target = task, text, auto = true }: {
     const node = panel.current;
     if (!node?.isConnected || node.matches(":popover-open")) return;
     const owner = anchor.closest<HTMLElement>("dialog, [data-assistant-page]") ?? document.body;
+    const region = anchor.closest<HTMLElement>("[data-guide-region]");
     node.showPopover();
     const oldDescription = anchor.getAttribute("aria-describedby");
     anchor.setAttribute("aria-describedby", [oldDescription, id + "-text"].filter(Boolean).join(" "));
     anchor.addEventListener("click", hide);
-    const stop = trackPopoverPosition(node, anchor, {
-      owner, width: 280, minHeight: 44, gap: 6, margin: 16, preferAbove: true, align: "end",
+    const stop = trackPopoverPosition(node, region ?? anchor, {
+      owner, width: 260, minHeight: 44, gap: 6, margin: 16, preferAbove: !region, align: "end",
     });
     detach.current = () => {
       stop();

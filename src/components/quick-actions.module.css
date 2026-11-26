@@ -1,4 +1,4 @@
-.action {
+.action.action {
   --action-fill: var(--card-material, var(--surface));
   display: inline-flex;
   align-items: center;
@@ -18,7 +18,7 @@
 }
 
 .action svg { flex: none; }
-.action[data-primary] {
+.action.action[data-primary] {
   --action-fill: linear-gradient(165deg, color-mix(in srgb, var(--gold) 88%, var(--warm-white)), var(--gold) 68%);
   border-color: var(--gold);
   color: var(--graphite);

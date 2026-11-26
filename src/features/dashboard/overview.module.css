@@ -10,12 +10,12 @@
 .todayHeading time::before { content:" · "; }
 .todayHeading p { min-height:20px; margin:0; color:var(--muted); font-size:13px; line-height:20px; }
 .todayActions { display:flex; flex-wrap:wrap; min-inline-size:0; gap:6px; }
-.todayActions a { border-radius:14px; white-space:nowrap; }
+.todayActions a[data-guide-target] { border-radius:14px; white-space:nowrap; }
 .todayGuide { position:absolute; inset-inline-end:0; inset-block-start:-45px; }
 @media (max-width:700px),(hover:none) and (pointer:coarse) {
   .today { display:grid; grid-template-columns:minmax(0,1fr); align-content:start; gap:8px; min-block-size:98px; padding:0; background:none; }
   .todayHeading { display:grid; gap:2px; }
-  .todayActions a { flex:1 1 auto; min-inline-size:max-content; font-size:13px; padding-inline:6px; }
+  .todayActions a[data-guide-target] { flex:1 1 auto; min-inline-size:max-content; font-size:13px; padding-inline:6px; }
   .todayGuide { inset-block-start:-7px; }
 }
 @media (max-width:380px) {
@@ -271,7 +271,7 @@
 .relationship>.plot{position:relative;height:100%}.relationship>.plot svg{height:100%}
 .relationship[data-compact=true]{min-height:0;height:var(--relationship-compact-height,268px)}
 .relationship[data-compact=true]>.plot{height:100%}.relationship[data-compact=true]>.plot svg{height:100%}
-.waitingPlot{position:relative}
+.waitingPlot{position:relative;border-radius:12px;box-shadow:inset 0 0 0 1px var(--line-soft);background:color-mix(in srgb,var(--surface) 26%,transparent)}
 @media(max-width:700px),(hover:none) and (pointer:coarse){.relationship:not([data-compact=false]){min-height:0;height:var(--relationship-compact-height,268px)}.relationship>.plot,.relationship>.plot svg{height:100%}}
 @media(max-height:600px){.relationship[data-compact=true]{height:var(--relationship-short-height,228px)}}
 @media(max-height:600px) and (max-width:700px),(max-height:600px) and (hover:none) and (pointer:coarse){.relationship:not([data-compact=false]){height:var(--relationship-short-height,228px)}}

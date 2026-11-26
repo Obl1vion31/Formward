@@ -61,7 +61,7 @@ export function RecordTrendPanel({range,custom,date,view,metrics=[],readings,tit
  },[readingKey,variantKey,labelKey,noteKey,metricLayoutKey,metrics.length,mobile,presentation]);
  const columns=Math.min(columnLimit,metrics.length);
  const statusVariants=[...new Set([...flagVariants,flags].filter((value):value is string=>Boolean(value)))];
- return <div className={styles.panel} data-panel-presentation={presentation} data-record-trend data-status-in-date={statusInDate||undefined}>
+ return <div className={styles.panel} data-panel-presentation={presentation} data-record-trend data-status-in-date={statusInDate||undefined} data-trend-pending={loading||undefined}>
   <div className={styles.date} data-record-slot="date"><SelectedDateHeading date={date} view={view} pending={loading} actions={guidance} status={statusInDate?<span className={styles.dateStatus} role="status" title={flags||undefined}>{flags??""}</span>:undefined}/></div>
   <div className={statistics?styles.readingArea:undefined}>
   {readings??<><div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-presentation={presentation} data-loading={loading||undefined} aria-busy={loading||undefined} data-metric-count={metrics.length} data-record-columns={columns} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":columns===3&&(presentation==='energy'||presentation==='body')?"1.5fr repeat(2,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map((metric,index)=>{

@@ -242,7 +242,7 @@ export function RecordReview({ operation: initial, review, load, sources: initia
       const issue = op.needsUserInput.find(issue => issue.key === row.key);
       const heading = isTraining(row.action) ? row.action.kind === "schedule_training" ? "训练计划" : "训练模板" : title(row);
       return <article key={row.key} id={rowId(row.key)} className={styles.inlineRow} data-review-key={row.key} data-excluded={row.excluded||undefined}>
-        <header className={styles.inlineHeading}><h3>{heading}{isBody(row.action) && after?.fasting === true ? " · 空腹" : ""}</h3><span>{row.persisted ? "已保存" : row.excluded ? "已取消" : row.body?.preview.rows[0]?.before || row.meal?.before || row.energy?.before || row.training?.before ? "修改" : "新增"}</span></header>
+        <header className={styles.inlineHeading}><h3>{heading}{isBody(row.action) && after?.fasting === true ? " · 空腹" : ""}</h3><span>{row.persisted ? "已保存" : row.excluded ? "已取消" : row.body?.preview.rows[0]?.before || row.meal?.before || row.energy?.before || row.training?.before ? "修改" : "新增"}</span>{mealActions&&row===pending[0]&&nextStep==="save"&&!issues.length&&!editing&&<div className={styles.mealGuide}><TaskGuide task="photo-review-save" text="核对食物和份量，然后点「确认保存」。"/></div>}</header>
         {!row.excluded&&<InlineRecordContent row={row}/>}
         {op.rows.length>1&&!row.persisted&&<div className={styles.inlineOperations}>{row.excluded ? <button disabled={busy} onClick={()=>command("restore",[row.key])}>恢复本项</button> : <><button disabled={busy||inactive} onClick={()=>{setError("");setEditing(row.key);}}>修改</button>{op.rows.length>1&&<button disabled={busy||inactive} onClick={()=>command("exclude",[row.key])}>本项不保存</button>}</>}</div>}
         {!row.excluded&&(!isBody(row.action)||!!row.body?.preview.rows[0]?.before)&&<details className={styles.inlineDetails} open={row.inclusionReview||undefined}><summary>{row.inclusionReview ? "需要核对运动包含关系" : "更多信息"}</summary>
@@ -268,7 +268,7 @@ export function RecordReview({ operation: initial, review, load, sources: initia
           </article>;
         })}</section>;
     })}
-    <footer className={styles.footer}>
+    <footer className={styles.footer} data-meal-actions={mealActions ? true : undefined}>
       <div className={styles.reviewStatus}>
         {working && <LocalLoading label={working === "refresh" ? "正在更新…" : working === "read" ? "正在重新读取…" : working === "confirm" ? "正在保存…" : "正在处理…"} />}
         {!working && nextStep === "current" && <p role="status">{changedMeals.every(meal => !meal.id) ? "原餐次已删除，无法保存这次修改。" : "原餐次已在别处修改。请查看当前记录。"}</p>}
@@ -292,7 +292,6 @@ export function RecordReview({ operation: initial, review, load, sources: initia
           else perform({ kind: "confirm", revision: op.revision, allowMissingImageKeys: [] });
         }}>{working === "refresh" ? "正在更新…" : working === "read" ? "正在读取…" : working === "confirm" ? "正在保存…" : nextStep === "update" ? "更新内容" : nextStep === "read" ? "重新读取" : "确认保存"}</button>}
     </footer>
-    {mealActions&&nextStep==="save"&&!issues.length&&!editing&&<TaskGuide task="photo-review-save" text="核对这餐的食物和份量，点「确认保存」写入饮食。"/>}
     {editRow && <EditorDialog wide={editRow.action.kind === "save_meal"} title="修改待保存内容" busy={busy} close={() => { if (!busy) { setEditing(null); setError(""); } }}>
       {error && <p className={styles.error} role="alert">{error}</p>}
       {nextStep === "read" && <button disabled={busy} onClick={() => perform()}>重新读取</button>}

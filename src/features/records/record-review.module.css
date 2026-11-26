@@ -162,6 +162,10 @@
 .readOnlyReviewLink:hover { text-decoration: underline; text-underline-offset: .2em; }
 
 .footer .reviewStatus { flex:1 1 12rem; min-width:0; }
+.workspace[data-embedded] .footer[data-meal-actions] { justify-content:flex-start; gap:6px; flex-wrap:wrap; }
+.footer[data-meal-actions] .reviewStatus:empty { display:none; }
+.footer[data-meal-actions] .reviewStatus:not(:empty) { flex-basis:100%; }
+.footer[data-meal-actions] .save,.mealGuide { margin-inline-start:auto; }
 .reviewStatus p { margin:0; line-height:1.5; }
 .footer a.save { display:inline-flex; align-items:center; min-height:44px; text-decoration:none; }
 @media(max-width:700px),(hover:none) and (pointer:coarse) {

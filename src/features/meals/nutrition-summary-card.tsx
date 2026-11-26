@@ -33,6 +33,7 @@ export function NutritionSummaryCard({
     data-record-slot="metrics"
     data-selected-date={date}
     data-expanded={expanded || undefined}
+    data-guide-region=""
     data-action-slot={actions !== undefined || undefined}
     data-pending={waitingForTotal || undefined}
     aria-label="选中日营养"

@@ -1,5 +1,5 @@
 .guide { display: inline-flex; vertical-align: middle; }
-.trigger, .close {
+.trigger.trigger, .close.close {
   border: 0;
   background: none;
   color: var(--muted);
@@ -25,7 +25,8 @@
   box-shadow: 0 6px 20px var(--shadow);
   color: var(--warm-white);
   font: 400 13px/1.5 system-ui, sans-serif;
+  pointer-events:none;
 }
 .hint:popover-open { display: flex; }
 .hint::backdrop { background: transparent; pointer-events: none; }
-.close { display: grid; place-items: center; flex: 0 0 44px; min-inline-size: 44px; }
+.close { display:grid;place-items:center;flex:0 0 44px;min-inline-size:44px;pointer-events:auto; }
