@@ -2,6 +2,14 @@
 
 ## 当前正式版本
 
+网页与聊天 worker 运行 `dual-entry-3e2a0118-guidance-candidate-20261126-r12`，源码 `3e2a01180a4ee5d1773de55d4ed7ca01be993757`，BUILD_ID `zBJIzSAJh_pM5q9VLto8-`。北京时间 2026-11-26 19:08:22 切换。全站引导随任务状态出现，拍照从饮食直接进入小助手的新对话。实际截图和完整录屏均在发布前用最终准确运行包验收。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version) · [实页验收](../design-qa.md#已发布验收--全站操作引导与精修)
+
+切换前确认正在运行的生成任务已结束，网页与 worker 成套切换后均已就绪。数据库维持 `0048_meal_reference_foods`、48 项迁移和 67 张表。切换前后表与配置摘要一致，原生备份 `formward-primary-20261126T110818180913Z.dump.json` 通过校验及加密异地回读。四个公网入口和兼容 IP 返回同一版本，22 项新旧静态资源与本地包一致，含 6 段新教程影片。登录回程、匿名接口限制和海外 MCP 元数据通过。
+
+运行包 92,360,623 字节，SHA-256 `10827ae4349c824ae14be304b1bcdbcebf4a9b9415663234a049b985e9a63b13`。保留 56 项 Server Action、绑定密钥和 2517 项旧静态资源。准确包、验收和公网结果归档于 `.codex/backups/regional-releases/guidance-candidate-20261126-r12`。兼容回退为 `recipe-portion-entry-r3-20261126`。手动回退前先停止接收新请求并让新版仍在执行的拍照识别及确认保存结束，再成套切换网页与 worker。
+
+## 整份录入按比例或重量发布记录
+
 网页与聊天 worker 运行 `dual-entry-8d768d3b-recipe-portion-entry-r3-20261126`，源码 `8d768d3ba9c5e419d6962fef6b4fa9253b0bb1ea`，BUILD_ID `EMVPsTpGV7G9GxQLbzWqG`。北京时间 2026-11-26 15:40:24 切换。整份录入采用 5% 步进比例或实际可食克数，拆分计件按同规格的可食重量换算并保存原单位、数量及依据。 [正式饮食页](https://formward.top/dashboard/meals) · [实页验收](../design-qa.md#已发布验收--整份录入按比例或重量)
 
 数据库沿用 `0048_meal_reference_foods`，48 项迁移与 67 张表。切换前备份 `formward-primary-20261126T074019791721Z.dump.json` 的原生校验和异地回读通过，配置和停写前后数据摘要一致。四个公网入口和兼容 IP 返回同一版本，已核对新旧 CSS／JS、登录回程、匿名接口限制与海外 MCP 元数据。
