@@ -9,6 +9,7 @@ type Position = {
   margin?: number;
   gap?: number;
   align?: "start" | "end";
+  horizontalAnchor?: HTMLElement;
   preferAbove?: boolean;
   preferLeft?: boolean;
   onUnavailable?: () => void;
@@ -103,7 +104,8 @@ export function trackPopoverPosition(panel: HTMLElement, trigger: HTMLElement, o
     const room = Math.min(maxHeight, beside ? bottom - top : opensBelow ? below : above);
     panel.style.maxBlockSize = room + "px";
     const height = panel.getBoundingClientRect().height;
-    const intendedLeft = beside ? anchor.left - width - gap : options.align === "end" ? anchor.right - width : anchor.left;
+    const horizontal = options.horizontalAnchor?.getBoundingClientRect() ?? anchor;
+    const intendedLeft = beside ? horizontal.left - width - gap : options.align === "end" ? horizontal.right - width : horizontal.left;
     const intendedTop = beside ? anchor.top : opensBelow ? anchor.bottom + gap : anchor.top - gap - height;
     panel.style.left = Math.max(left, Math.min(intendedLeft, right - width)) + "px";
     panel.style.top = Math.max(top, Math.min(intendedTop, bottom - height)) + "px";

@@ -196,6 +196,14 @@ globalThis.fetch=async function(input,init){
  if(text.includes('排版验收'))return result('## 本餐汇总\n\n这是一条隔离回放，**不会保存正式数据**。\n\n| 食物 | 份量 | 热量 千卡 | 蛋白质 g | 碳水 g | 脂肪 g |\n| --- | --- | --- | --- | --- | --- |\n| 鸡肉饭 | 1份 | 630 | 28 | 56 | 30 |\n| 秋葵 | 半份 | 55 | 3 | 5 | 3.5 |\n\n- 合计约685千卡。\n- 份量按用户提供的实际食量。\n\n> 这是估算，油脂用量会影响结果。\n\n`caloriesKcal` 是接口字段。\n\n[真实引用](https://example.com/nutrition)\n\n<script>alert(1)</script>');
  if(text.includes('断网测试'))throw new TypeError('fixture network unavailable');
  if(text.includes('慢速测试'))return result('〔正文〕'+'这是隔离浏览器的慢速流式回答。这里只检查真实界面的停止、继续和固定槽位，不访问收费模型。'.repeat(text.includes('停止与重读验收')?9:3),null,true);
+ if(text.includes("多餐操作验收")){
+   if(!body.tools.some(tool=>tool.function.name==="preview_meals"))return call("load_tools",{names:["preview_meals"]});
+   if(body.messages.at(-1).role==="tool")return result("两餐已整理，核对后保存。");
+   const meals = [{mealType:"午餐", quantity:"0.5",caloriesKcal:"445"},{mealType:"晚餐",quantity:"1",caloriesKcal:"890"}].map(
+     ({mealType,quantity,caloriesKcal})=>({date:"today",mealType,foods:[{name:"虚构香菇鸡肉饭",quantity,unit:"份",
+       caloriesKcal,sourceKind:"estimated",amountDecision:"provided",basis:"按所填份量估算。"}]}));
+   return call("preview_meals",{meals});
+ }
  if(text.includes('100克')||text.includes('创建预览')){
   if(!body.tools.some(tool=>tool.function.name==='preview_meals'))return call('load_tools',{names:['preview_meals']});
   const last=body.messages.at(-1);if(last.role==='tool'&&String(last.content).includes('confirmationUrl'))return result('已生成今天午餐的待确认预览：米饭150克、鸡胸肉100克。请打开提交检查，确认后才会保存。');

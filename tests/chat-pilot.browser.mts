@@ -111,12 +111,16 @@ if(process.env.FORMWARD_HANDOFF_BROWSER_FIXTURE==="1"){
 }
 const socket=pg?new PGLiteSocketServer({db:pg,host:"127.0.0.1",port:0,maxConnections:10}):undefined;await socket?.start();const probe=createServer();probe.listen(process.env.FORMWARD_CHAT_PREVIEW_PORT?Number(process.env.FORMWARD_CHAT_PREVIEW_PORT):realCosPath?3300:0,"127.0.0.1");await once(probe,"listening");const port=(probe.address()as{port:number}).port;await new Promise<void>(resolve=>probe.close(()=>resolve()));
 const previewMarker=process.env.FORMWARD_LOCAL_PREVIEW==="1";
+const guideDevices=process.env.FORMWARD_GUIDE_DEVICE_FIXTURE==="1";
+assert.ok(!guideDevices||previewMarker&&!realCosPath&&!process.env.FORMWARD_CHAT_LIVE_KEY_FILE,"设备样本仅用于隔离预览");
+const devices=guideDevices?await (await import("./guide-device-fixture")).seedGuideDevices(
+  db as unknown as import("../src/db/client").Database,fixture.today):[];
 const delayTables=experiencePhoto?/\bfrom\s+"foods"(?=\s|$)/i:/\b(training_sessions|training_templates|training_plans|meal_items|energy_days|activities|measurements|account_preferences|oauth_connections|ai_tokens|model_usage_events|account_security_events|source_connections|assistant_chat_messages)\b/i;
 const delay=previewMarker?await delayedTrainingDatabase(native?new URL(nativeUrl).host:socket!.getServerConn(),delayTables):undefined;
 const databaseUrl=delay?new URL(nativeUrl||`postgresql://postgres:postgres@${socket!.getServerConn()}/postgres?max=1`):null;
 if(databaseUrl)databaseUrl.host=delay!.connection;
 const baseURL=process.env.FORMWARD_CHAT_PREVIEW_ORIGIN??`http://127.0.0.1:${port}`,folder=await mkdtemp(join(tmpdir(),"formward-chat-pilot-")),config=join(folder,"fixture.json"),artifacts=resolve(process.env.FORMWARD_CHAT_ARTIFACTS??".codex/assistant-chat-pilot/visual");
-await mkdir(artifacts,{recursive:true});await writeFile(config,JSON.stringify({...fixture,baseURL,samples,freeSample,freshAccounts,imageId,imageBytes:imageBytes.toString("base64"),delayControlURL:delay?.controlURL,isolatedFixture:native?"native-postgres":"pglite"}),{mode:0o600});
+await mkdir(artifacts,{recursive:true});await writeFile(config,JSON.stringify({...fixture,baseURL,samples,freeSample,freshAccounts,devices,imageId,imageBytes:imageBytes.toString("base64"),delayControlURL:delay?.controlURL,isolatedFixture:native?"native-postgres":"pglite"}),{mode:0o600});
 if(process.env.FORMWARD_CHAT_PREVIEW_CONFIG)await writeFile(process.env.FORMWARD_CHAT_PREVIEW_CONFIG,await readFile(config),{mode:0o600});
 const release=process.env.FORMWARD_TEST_RELEASE?resolve(process.env.FORMWARD_TEST_RELEASE):null;
 if(release)assert.ok(release.startsWith(resolve(".codex/regional-releases")+"/")&&release.endsWith("/standalone"),"仅验收本工作区私有候选包");
@@ -126,7 +130,9 @@ if(process.env.FORMWARD_MEMBERSHIP_SMOKE==="1")Object.assign(childEnv,{FORMWARD_
 const harmonyPreview=process.env.FORMWARD_HARMONY_PREVIEW==="1";
 if(harmonyPreview){assert.ok(previewMarker&&process.env.FORMWARD_CHAT_PREVIEW==="1"&&!realCosPath&&!process.env.FORMWARD_CHAT_LIVE_KEY_FILE);childEnv.FORMWARD_HARMONY_PREVIEW="1";}
 const modelFixture=resolve(harmonyPreview?"tests/harmonyos-model-fixture.mjs":"tests/chat-model-fixture.mjs");
-const child=spawn(process.execPath,["--import",modelFixture,...serverArgs],{cwd:release??process.cwd(),env:childEnv,stdio:["ignore","pipe","pipe"]});
+if(guideDevices)Object.assign(childEnv,{FORMWARD_DATA_SOURCE_ACCESS:"personal",FORMWARD_DATA_SOURCE_ENCRYPTION_KEY:"c".repeat(64),FORMWARD_GARMIN_FIXTURE:"1"});
+const sourceFixture=guideDevices?["--import",resolve("tests/garmin-personal-fixture.mjs")]:[];
+const child=spawn(process.execPath,[...sourceFixture,"--import",modelFixture,...serverArgs],{cwd:release??process.cwd(),env:childEnv,stdio:["ignore","pipe","pipe"]});
 const liveKeyFile = process.env.FORMWARD_CHAT_LIVE_KEY_FILE;
 if (liveKeyFile) {
   assert.ok(process.env.FORMWARD_CHAT_CONTEXT_RECOVERY==="1" && process.env.FORMWARD_CONTEXT_CASE==="live" && previewMarker && !realCosPath,

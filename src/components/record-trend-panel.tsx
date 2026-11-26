@@ -62,9 +62,9 @@ export function RecordTrendPanel({range,custom,date,view,metrics=[],readings,tit
  const columns=Math.min(columnLimit,metrics.length);
  const statusVariants=[...new Set([...flagVariants,flags].filter((value):value is string=>Boolean(value)))];
  return <div className={styles.panel} data-panel-presentation={presentation} data-record-trend data-status-in-date={statusInDate||undefined} data-trend-pending={loading||undefined}>
-  <div className={styles.date} data-record-slot="date"><SelectedDateHeading date={date} view={view} pending={loading} actions={guidance} status={statusInDate?<span className={styles.dateStatus} role="status" title={flags||undefined}>{flags??""}</span>:undefined}/></div>
+  <div className={styles.date} data-record-slot="date" data-guide-flow><SelectedDateHeading date={date} view={view} pending={loading} actions={guidance} status={statusInDate?<span className={styles.dateStatus} role="status" title={flags||undefined}>{flags??""}</span>:undefined}/></div>
   <div className={statistics?styles.readingArea:undefined}>
-  {readings??<><div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-guide-target={"trend-"+presentation+"-metrics"} data-presentation={presentation} data-loading={loading||undefined} aria-busy={loading||undefined} data-metric-count={metrics.length} data-record-columns={columns} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":columns===3&&(presentation==='energy'||presentation==='body')?"1.5fr repeat(2,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map((metric,index)=>{
+  {readings??<><div ref={metricRef} role="group" aria-label={readoutLabel} data-selected-date={date} aria-live="polite" aria-atomic="true" className={styles.metrics} data-record-slot="metrics" data-guide-flow data-guide-target={"trend-"+presentation+"-metrics"} data-presentation={presentation} data-loading={loading||undefined} aria-busy={loading||undefined} data-metric-count={metrics.length} data-record-columns={columns} style={{"--record-layout":columns===4?"1.5fr repeat(3,minmax(0,1fr))":columns===3&&(presentation==='energy'||presentation==='body')?"1.5fr repeat(2,minmax(0,1fr))":"repeat("+columns+",minmax(0,1fr))"} as CSSProperties}>{metrics.map((metric,index)=>{
    const labels=[...new Set([metric.label,...labelVariants.map(row=>row[index]).filter(Boolean)])];
    const notes=[...new Set([metric.note,...noteVariants.map(row=>row[index])].filter((value):value is string=>Boolean(value)))];
    const pending=metric.pending??loading;
@@ -84,10 +84,10 @@ export function RecordTrendPanel({range,custom,date,view,metrics=[],readings,tit
   {statistics}</div>
   {supplementary}
   {!statusInDate&&statusVariants.length>0&&<div className={styles.flags} data-record-slot="status">{statusVariants.map(value=><span key={value} aria-hidden="true" className={styles.flagMeasure}>{value}</span>)}<span role="status">{flags??""}</span></div>}
-  <div className={styles.range} data-record-slot="range" data-guide-target="trend-range">{range}</div>{custom}
+  <div className={styles.range} data-record-slot="range" data-guide-target="trend-range" data-guide-flow>{range}</div>{custom}
   <div className={styles.plotHeading} data-record-slot="title"><h2>{title}{unit&&<small>{unit==="kcal"?"千卡":unit}</small>}</h2><div className={styles.legend} data-record-slot="legend">{legend}</div>{options&&<div className={styles.plotOptions}>{options}</div>}</div>
   {chartSummary&&<div className={styles.chartSummary} data-record-slot="summary">{chartSummary}</div>}
-  <div className={styles.plot} data-record-slot="plot" data-guide-target="trend-chart">{children}</div>
+  <div className={styles.plot} data-record-slot="plot" data-guide-target="trend-chart" data-guide-flow>{children}</div>
  </div>;
 }
 export function InlineChartControls({children}:{children:ReactNode}){
@@ -109,7 +109,7 @@ function MobileRecordReadings({metrics,presentation,graphic,loading,date,label,r
  const number=(metric:RecordMetric,primary=false)=>{const pending=metric.pending??loading;return <strong className={(primary?styles.mobilePrimary:styles.mobileStatValue)+" "+(metric.tone?styles[metric.tone]:"")} data-metric-number><span>{pending?<PendingNumber status={primary?readingStatus:undefined}/>:metric.value}</span><small className={pending?styles.metricMeasure:undefined} aria-hidden={pending||undefined}>{metric.unit==="kcal"?"千卡":metric.unit}</small></strong>;};
  const caption=<span className={styles.mobileCaption}>{first.label}</span>;
  const mark=first.graphic??graphic;
- return <div className={styles.mobileReading+" "+(presentation==="body"?styles.mobileBody:styles.mobileEnergy)} data-record-slot="metrics" data-guide-target={"trend-"+presentation+"-metrics"} data-presentation={presentation} data-selected-date={date} role="group" aria-label={label} aria-busy={loading||undefined}>
+ return <div className={styles.mobileReading+" "+(presentation==="body"?styles.mobileBody:styles.mobileEnergy)} data-record-slot="metrics" data-guide-flow data-guide-target={"trend-"+presentation+"-metrics"} data-presentation={presentation} data-selected-date={date} role="group" aria-label={label} aria-busy={loading||undefined}>
    <div className={styles.mobileHero}>{caption}{first.action&&<div className={styles.mobileAction}>{first.action}</div>}{number(first,true)}{presentation==="body"&&mark&&<div className={styles.mobileSpark}>{mark}</div>}</div>
    {presentation==="energy"?graphic:<div className={styles.mobileStats}>{metrics.slice(1).map(metric=><div key={metric.id??metric.label}><span>{metric.label.replace("7日平均体重","7日均")}</span>{number(metric)}</div>)}</div>}
    {cardActions !== undefined && <div className={styles.cardActions}>{cardActions}</div>}

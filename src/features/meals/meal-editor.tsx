@@ -532,7 +532,7 @@ export function MealEditor({
                if (match) addFoods([match]);
              } catch { /* Only the library's drag format is accepted. */ }
            }}>
-           <div className={styles.foodHeading}>
+           <div className={styles.foodHeading} data-guide-flow>
              <h2 id={bubbleId + "-foods"}>本餐食物</h2>
              <button ref={libraryTrigger} type="button" className={styles.libraryLink} aria-label="从食材库添加" data-guide-target="meal-editor-food"
                aria-controls={bubbleId + "-picker"} aria-expanded={inlineLibrary || libraryOpen} disabled={!canPick} onClick={() => showLibrary()}>
@@ -622,7 +622,7 @@ export function MealEditor({
              searchRef={scope === "reference" ? search : undefined}
              enabled={!recipeEdit && !pending && scope === "reference" && (inlineLibrary || libraryOpen)} disabled={!canPick || busy || uploading}
              maxItems={availablePickSlots} pickerVisit={libraryVisit} onAdd={addReference} onManual={manualFromSearch} onDetailBack={onDetailBack} externalBack={!inlineLibrary}/></div>
-           {scope === "personal" && <><label className={styles.librarySearch + " " + styles.compactField}><span className="sr-only">搜索食材</span>
+           {scope === "personal" && <><label className={styles.librarySearch + " " + styles.compactField} data-guide-flow><span className="sr-only">搜索食材</span>
              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="m12 12 4 4"/></svg>
              <input data-guide-target="meal-library-search" aria-label="搜索食材" ref={search} type="search" placeholder="搜索名称、品牌或规格" value={query}
                onChange={event => setQuery(event.target.value)}/>

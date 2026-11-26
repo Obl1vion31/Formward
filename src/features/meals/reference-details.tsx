@@ -82,7 +82,7 @@ function SingleReferenceDetails({ food, back, onAdd, openMeal, relatedStatus, ma
     </div>
     <p className={styles.basis}>{volume ? "每 100 mL" : "每 100 g 可食部"}</p>
     <div className={styles.detailsReadings}><MealEntryReadings nutrition={food.nutrition}/></div>
-    {onAdd && <section className={styles.amount} aria-label="本次食用量">
+    {onAdd && <section className={styles.amount} data-guide-flow aria-label="本次食用量">
       <h4>实际吃了多少</h4>
         {portion && <div className={styles.amountChoices} role="group" aria-label="选择份量" data-guide-target={choice!=="custom"?"meal-library-portion":undefined}>
           <button type="button" aria-pressed={choice === "half"} onClick={() => choose("half")}>半{portion.unit}</button>

@@ -23,7 +23,7 @@ export function TodayActions({ date, day, readingStatus }: {
   const time = date.split("-").map(Number);
   const heading = useId();
   const primary = !recorded ? meal : day?.canEstimate ? energy : null;
-  return <section className={styles.today} aria-labelledby={heading} data-overview-today data-guide-target="overview-today" data-pending={!day || undefined}>
+  return <section className={styles.today} aria-labelledby={heading} data-overview-today data-guide-target="overview-today" data-guide-flow data-pending={!day || undefined}>
     <div className={styles.todayHeading}>
       <h2 id={heading} tabIndex={-1} data-overview-today-heading>今天 {date && <time dateTime={date}>{time[1]}月{time[2]}日</time>}</h2>
       {!day && readingStatus && <p>{readingStatus}</p>}

@@ -111,7 +111,7 @@ export function TaskGuide({ task, target=task, text, steps, mode="operation", au
   useEffect(()=>{
     if(!account||!count||refreshing||film||menuOpen||mode==="tour"&&tour===null||!running&&!auto)return;
     if(!running){
-      if(workflow)return;
+      if(workflow&&Array.from(document.querySelectorAll<HTMLElement>("[data-task-guide]")).some(other=>other.dataset.taskGuide===workflow&&present(other)))return;
       try{if(localStorage.getItem(key))return;}catch{}
     }
     const origin=trigger.current,node=hint.current;
@@ -148,14 +148,26 @@ export function TaskGuide({ task, target=task, text, steps, mode="operation", au
       const owner=anchor.closest<HTMLElement>("dialog,[data-assistant-page]")??document.body;
       const footer=anchor.closest<HTMLElement>("[data-entry-footer],[data-meal-footer],[data-review-footer]");
       // 操作目标始终是控件本身。底部表单的提示放在整个保存区外，避免遮住缺项和其他操作。
-      const placement=footer??anchor;
+      const lane=footer??anchor.closest<HTMLElement>("[data-guide-flow]");
+      const placement=lane??anchor;
+      // 操作区空间不足时给提示留出位置，读数、输入和保存区仍能完整看到。
+      const spacer=lane&&document.createElement(lane.tagName==="LI"?"li":"div");
+      if(spacer&&lane){
+        spacer.className=styles.spacer;
+        spacer.setAttribute("aria-hidden","true");
+        spacer.style.blockSize=(mode==="tour"?118:60)+"px";
+        lane.insertAdjacentElement(footer?"beforebegin":"afterend",spacer);
+        const bounds=spacer.getBoundingClientRect();
+        if(mode==="tour"&&bounds.bottom>innerHeight-80)spacer.scrollIntoView({block:"end",behavior:"instant"});
+      }
       const old=anchor.getAttribute("aria-describedby");
       anchor.setAttribute("aria-describedby",[old,id+"-text"].filter(Boolean).join(" "));
       anchor.setAttribute("data-guide-highlight","");
       openGuide(node);
       const stop=trackPopoverPosition(node,placement,{
         owner,width:mode==="tour"?310:238,maxHeight:164,minHeight:40,gap:9,margin:16,
-        preferLeft:mode==="operation"&&!footer,preferAbove:!!footer||mode==="operation",
+        horizontalAnchor:anchor,
+        preferLeft:mode==="operation"&&!lane,preferAbove:!!footer||!lane&&mode==="operation",
         align:footer?.hasAttribute("data-entry-footer")?"start":"end",
         onPosition:box=>{
           const targetBox=anchor.getBoundingClientRect();
@@ -167,7 +179,7 @@ export function TaskGuide({ task, target=task, text, steps, mode="operation", au
         onUnavailable:()=>{unavailable=anchor;hide();},
       });
       release=()=>{
-        stop();anchor.removeAttribute("data-guide-highlight");
+        stop();spacer?.remove();anchor.removeAttribute("data-guide-highlight");
         if(old)anchor.setAttribute("aria-describedby",old);else anchor.removeAttribute("aria-describedby");
       };
     };

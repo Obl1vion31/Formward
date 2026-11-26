@@ -79,7 +79,7 @@ export function FollowupForm({task,busy,submit,mealGuide=false}: {
           {target:"meal-answer",text:"补充这道问题。想不起来可以选「不知道」或跳过。"},
         ]}/>}
       </div>
-      <fieldset ref={questionScene} data-guide-target="meal-answer">
+      <fieldset ref={questionScene} data-guide-target="meal-answer" data-guide-flow>
         <legend ref={heading} tabIndex={-1}>{question.prompt}</legend>
         {options.length > 0 && <div className={styles.followupOptions} data-paired={twoColumns || undefined}>
           {options.map(option => {
@@ -110,7 +110,7 @@ export function FollowupForm({task,busy,submit,mealGuide=false}: {
         {answer?.outcome === "skipped" && <p className={styles.followupSkipped}>本题已跳过</p>}
       </fieldset>
       {failure && <p role="alert">{failure}</p>}
-      <div className={styles.followupActions}>
+      <div className={styles.followupActions} data-entry-footer>
         {canSkipAll && <button type="button" onClick={() => void advance(undefined,true)}>跳过全部</button>}
         <button type="submit" data-guide-target="meal-submit-answer" disabled={!hasAnswer(answer)}>
           {submitting ? "正在提交…" : last ? "继续" : "下一题"}

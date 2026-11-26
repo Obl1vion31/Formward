@@ -282,7 +282,7 @@ export function ReferenceBrowser({ query, search, searchRef, enabled, disabled, 
       event.preventDefault();
       back();
     }}>
-    <div className={styles.search} hidden={!!active && !split}>
+    <div className={styles.search} data-guide-flow hidden={!!active && !split}>
       <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5"/><path d="m12 12 4 4"/></svg>
       <input ref={input} data-entry-input data-guide-target="meal-library-search" aria-label="搜索食材" type="search" maxLength={200}
         placeholder="搜食物、做法或别名" value={query}

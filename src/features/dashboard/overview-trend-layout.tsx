@@ -79,11 +79,11 @@ export function OverviewTrendLayout({ date, day, range, mobile, changeRange, vie
       <OverviewComparison date={date} day={day} pending={pending} mobile={!!mobile}/>
       {coverage !== undefined && coverage < 7 && <p className={styles.statisticsBasis}>已计 {coverage}/7 天</p>}
     </div>
-    <div className={styles.overviewToolbar} data-overview-toolbar>
+    <div className={styles.overviewToolbar} data-overview-toolbar data-guide-flow>
       <div className={styles.overviewLegend} data-overview-legend><OverviewLegend/><span>千卡</span></div>
       <button type="button" data-guide-target="overview-record" disabled={pending || !date} onClick={view}>查看记录 →</button>
     </div>
-    <div data-overview-plot data-guide-target="overview-trend">{children}</div>
+    <div data-overview-plot data-guide-target="overview-trend" data-guide-flow>{children}</div>
     {!pending&&<div className={styles.phoneReadout}>
       <button type="button" disabled={pending||!date} onClick={view} aria-label={date?"查看 "+date+" 当日记录":"查看当日记录"}>
         <strong>{date?shortDate(date):"—"}</strong>

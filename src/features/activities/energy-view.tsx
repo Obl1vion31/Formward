@@ -93,6 +93,8 @@ export function EnergyView({ presentation, sourceStatus=null, deviceCoverage=nul
   const byDate = new Map(data.days.map(day => [day.date, day]));
   const [viewing,setViewing]=useState<string|null>(null);
   const [quickEstimate,setQuickEstimate]=useState(false);
+  const [syncProgress,setSyncProgress]=useState<EnergyDeviceCoverage|null>(null);
+  const device=syncProgress?.label===deviceCoverage?.label&&syncProgress?syncProgress:deviceCoverage;
   const latest = preferredRecordedDate(data.days, today, day => day.totalKcal !== null, day => !!day.record || day.activities.length > 0);
   const [editing, setEditing] = useState<EnergyAction | null>(null), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [busy, startTransition] = useTransition(), guard = useRef(false), request = useRef<{ content: string; actions:EnergyAction[]; id: string } | null>(null);
@@ -123,12 +125,12 @@ export function EnergyView({ presentation, sourceStatus=null, deviceCoverage=nul
     }
   }
   const hasFullTotal = chosen?.totalKcal != null && !chosen.cumulative;
-  const deviceDay = deviceCoverage && hasDeviceEnergyForDate(deviceCoverage,inspected,today) ? deviceCoverage : null;
+  const deviceDay = device && hasDeviceEnergyForDate(device,inspected,today) ? device : null;
   const canEstimate = !deviceDay && !hasFullTotal;
   const energyActionLabel = canEstimate ? (inspected===today?"估算今天的消耗":"估算这天的消耗")
     : chosen?.cumulative ? "查看今日累计" : inspected===today ? "查看今天的消耗" : "查看这天的消耗";
-  const deviceLabel=(date:string) => deviceCoverage && hasDeviceEnergyForDate(deviceCoverage,date,today)
-    ? energyDeviceStatusLabel(deviceCoverage) : null;
+  const deviceLabel=(date:string) => device && hasDeviceEnergyForDate(device,date,today)
+    ? energyDeviceStatusLabel(device) : null;
   const energyActions = deviceDay && chosen?.totalKcal == null ?
     <LoadingLink returnScope="workspace" href="/dashboard/sources" className={styles.deviceWaiting} data-energy-device-status>
       {deviceLabel(inspected)} <span aria-hidden="true">›</span>
@@ -213,7 +215,7 @@ export function EnergyView({ presentation, sourceStatus=null, deviceCoverage=nul
       >{dates.length?<div data-nested-chart ref={bindPlot}>{mobile||linkedPlot||dates.length<=31?<MobileEnergyPlot days={chartDays} selected={inspected} selection={selection} compact={dates.length<=31} linked={linkedPlot}/>:<EnergyPlot days={chartDays} selected={inspected} selection={selection}/>}</div>:<p className={styles.empty}>请选择有效日期范围，最长10年。</p>}</RecordTrendPanel>
     </section>
     <DailyRecords history={{today,dates:historyDates.filter(date=>!recentDates.includes(date)),renderRow:renderDay,view:setViewing}}>{recentDates.map(renderDay)}</DailyRecords>
-    {data.sourcePilot&&<EnergySourceStatus initial={sourceStatus} steps={(!initialTrend&&mobile?recordDay:chosen)?.steps??null} protectedDay={(!initialTrend&&mobile?recordDay:chosen)?.record?.adoption?.mode==="manual"}/>}
+    {data.sourcePilot&&<EnergySourceStatus initial={sourceStatus} onStatus={setSyncProgress} steps={(!initialTrend&&mobile?recordDay:chosen)?.steps??null} protectedDay={(!initialTrend&&mobile?recordDay:chosen)?.record?.adoption?.mode==="manual"}/>}
     {(viewing||editing)&&<EditorDialog closeLabel={editing?'关闭编辑':'关闭详情'} routeEntry={!!(initialEntry&&(editing&&"date" in editing?editing.date:viewing)===initialDate)} title={editing?quickEstimate?'估算全天消耗':'每日消耗':viewing+' · 消耗记录'} titleParts={!editing&&viewing?[viewing,'消耗记录']:undefined} stableScroll={!editing} busy={busy} onSavedCloseReady={close=>{savedClose.current=close;}} close={()=>{setViewing(null);setEditing(null);setError('');}}>
       <div data-record-intent={editing?editing.id?'edit':'create':'view'}>
         {editing?<>
