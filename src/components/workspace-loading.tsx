@@ -1,4 +1,5 @@
 "use client";
+import {TrendGuide} from "./task-guide";
 import {LocalLoading} from "./local-loading";
 import {PlotSkeleton} from "./chart-preparation";
 import {linkedDate} from "@/features/measurements/calendar";
@@ -29,7 +30,7 @@ import {formatNutrition} from "@/features/meals/model";
 import overview from '@/features/dashboard/overview.module.css';
 import {TodayActions} from '@/features/dashboard/today-actions';
 export type WorkspaceReadingKind = "overview" | "nutrition" | "energy" | "body";
-export function WorkspaceLoading({kind,returnShell=false,destination,failure}:{kind:WorkspaceReadingKind;returnShell?:boolean;destination?:string;failure?:React.ReactNode}){
+export function WorkspaceLoading({kind,returnShell=false,destination,failure,retry:retryRead}:{kind:WorkspaceReadingKind;returnShell?:boolean;destination?:string;failure?:React.ReactNode;retry?:()=>void}){
  const sourcePilot=useContext(WorkspaceSourceContext);
  const today=useContext(WorkspaceTodayContext);
  const {preview,previewReadings,returningToOverview,sceneLeaving,recallOverview}=useChartTransition(),ref=useRef<HTMLDivElement>(null),router=useRouter(),[attempt,setAttempt]=useState(0),routeParams=useSearchParams(),mobile=useMobileMode(),params=destination?new URL(destination,'https://formward.invalid').searchParams:routeParams;
@@ -38,7 +39,7 @@ export function WorkspaceLoading({kind,returnShell=false,destination,failure}:{k
  const tickLabels=kind==='body'?(model?.ticks??[]).map(value=>value.toFixed(1)):model?.ticks??[];
  const waiting=(!returnShell||returningToOverview)&&!(destination&&sceneLeaving);
  const entryOpen=params.has('entry');
- const retry=()=>{setAttempt(value=>value+1);if(kind==='overview'&&returningToOverview)router.push('/dashboard',{scroll:false});else router.refresh();};
+ const retry=()=>{setAttempt(value=>value+1);if(retryRead)retryRead();else if(kind==='overview'&&returningToOverview)router.push('/dashboard',{scroll:false});else router.refresh();};
  const readingStatus=failure??(waiting&&!entryOpen?<LocalLoading key={attempt} onRetry={retry} immediate={!model} label={!model?"正在加载…":"正在读取…"}/>:null);
  const body=kind==='body',title={overview:'总览',nutrition:'饮食',energy:'消耗',body:'身体'}[kind];
  const labels=body?['晨间体重','晨间体脂率','7日平均体重']:kind==='energy'?['总消耗','静息','活动']:[];
@@ -54,10 +55,10 @@ export function WorkspaceLoading({kind,returnShell=false,destination,failure}:{k
  const primaryStatus=firstPending?readingStatus:null;
  const mobileMetrics=body?[metrics[0],{label:'较前一日',value:'',pending:true,unit:'kg',inlineUnit:true},metrics[2]]:undefined;
  if(kind==="nutrition"&&!destination&&isMealLibrary(params))return failure??<FoodLibraryLoading/>;
- const content=<div data-workspace-reading={!returnShell||returningToOverview||undefined} aria-busy={waiting||undefined} aria-label={title}>
- {kind==='overview'?<OverviewLoading date={date} rangeMode={recallOverview()?.mode??undefined} readingStatus={readingStatus} failed={!!failure}/>:<RecordWorkspace title={title}>
+ const content=<div data-guide-failed={!!failure||undefined} data-workspace-reading={!returnShell||returningToOverview||undefined} aria-busy={waiting||undefined} aria-label={title}>
+ {kind==='overview'?<OverviewLoading date={date} rangeMode={recallOverview()?.mode??undefined} readingStatus={readingStatus} failed={!!failure} onGuideRetry={retry}/>:<RecordWorkspace title={title}>
  <div data-record-trend>
- <RecordTrendPanel chartSummary={body?<span aria-hidden="true"> </span>:undefined} date={date} view={()=>{}} presentation={kind} loading
+ <RecordTrendPanel chartSummary={body?<span aria-hidden="true"> </span>:undefined} date={date} view={()=>{}} presentation={kind} guidance={<TrendGuide kind={kind} onRetry={retry}/>} loading
   metrics={metrics} mobileMetrics={mobileMetrics} readingStatus={primaryStatus}
   readings={kind==="nutrition"?<NutritionSummaryCard date={date} totals={nutritionTotals} loading readingStatus={primaryStatus} actions={null}/>:undefined}
   cardActions={kind==="energy"?null:undefined}
@@ -81,10 +82,10 @@ export function WorkspaceLoading({kind,returnShell=false,destination,failure}:{k
   ?returningToOverview||!sceneLeaving?<WorkspacePending path="/dashboard" query="">{content}</WorkspacePending>:content
   :<WorkspacePending>{content}</WorkspacePending>;
 }
-function OverviewLoading({date,rangeMode,readingStatus,failed}:{date:string;rangeMode?:string;readingStatus?:React.ReactNode;failed:boolean}){
+function OverviewLoading({date,rangeMode,readingStatus,failed,onGuideRetry}:{date:string;rangeMode?:string;readingStatus?:React.ReactNode;failed:boolean;onGuideRetry:()=>void}){
  const today=useContext(WorkspaceTodayContext);
  return <RecordWorkspace title="总览 · 今天该做什么" className={overview.workspace}>
- <TodayActions date={today} readingStatus={readingStatus}/>
+ <TodayActions date={today} readingStatus={readingStatus} onGuideRetry={onGuideRetry}/>
  <MetricCardRailPending/>
  <OverviewTrendLayout date={date} range={rangeMode??"7"} changeRange={()=>{}}>
   <div className={overview.relationship+" "+overview.waitingPlot} style={relationshipFrameStyle}><PlotSkeleton still={failed}/></div>

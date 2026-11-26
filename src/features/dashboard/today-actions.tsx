@@ -7,10 +7,11 @@ import type { OverviewPresentation } from "./presentation";
 import styles from "./overview.module.css";
 import quick from "@/components/quick-actions.module.css";
 
-export function TodayActions({ date, day, readingStatus }: {
+export function TodayActions({ date, day, readingStatus, onGuideRetry }: {
   date: string;
   day?: OverviewPresentation["todayOptions"][number];
   readingStatus?: ReactNode;
+  onGuideRetry?: () => void;
 }) {
   const recorded = !!day?.mealCount;
   const meal = { id: "meal", label: recorded ? "再记一餐" : "记一餐", href: `/dashboard/meals?date=${date}&entry=1`, icon: <path d="M8 3v10M3 8h10"/> };
@@ -35,13 +36,13 @@ export function TodayActions({ date, day, readingStatus }: {
         {action.label}
       </LoadingLink>
     )}</nav>}
-    {day && <div className={styles.todayGuide}><TaskGuide task="overview"  steps={[
+    <div className={styles.todayGuide}><TaskGuide task="overview" onRetry={onGuideRetry} steps={[
       {target:"overview-today",text:"从这里记录今天的饮食、消耗和体重。快捷入口随当天记录和设备来源变化。"},
       {target:"overview-intake",text:"今日摄入显示当天的热量和餐数。点卡片进入饮食趋势。"},
       {target:"overview-morning-weight",text:"这里显示最近一次有效晨重和实际日期。点卡片查看身体记录。"},
       {target:"overview-energy",text:"这里显示当天的消耗和来源。设备的「今日累计」会继续更新。"},
       {target:"overview-trend",text:"上图显示当天收支，下图显示当天晨重到次日晨重的实测变化。点日期可一起查看。"},
       {target:"overview-record",text:"「查看记录」打开图表选中的那一天，可核对饮食、消耗和实测来源。"},
-    ]}/></div>}
+    ]}/></div>
   </section>;
 }

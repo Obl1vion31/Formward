@@ -28,30 +28,26 @@
   --tour-forward:#815e27;
 }
 .tour::backdrop { background:transparent; pointer-events:none; }
-.tour[data-guide-phase=initial] { background:var(--tour-shade); }
+.tour[data-guide-phase=waiting] { background:var(--tour-shade); }
 .tourFrame {
   position:absolute; top:0; left:0; width:0; height:0; pointer-events:none;
   box-shadow:0 0 0 200vmax var(--tour-shade);
   outline:1.5px solid var(--tour-line);
 }
-.tour[data-guide-phase=initial] .tourFrame { visibility:hidden; }
-.apertureFill {
-  position:absolute; inset:0; border-radius:inherit; background:var(--tour-shade); opacity:1;
-}
+.tour[data-guide-phase=waiting] .tourFrame { visibility:hidden; }
+
 .tourTip { position:absolute; width:min(310px,calc(100% - 32px)); top:16px; right:16px; pointer-events:none; }
 .tourSurface {
   border:1px solid color-mix(in srgb,var(--gold) 52%,var(--line-strong));
   border-radius:12px; background:var(--surface);
   box-shadow:0 7px 22px var(--shadow);
-  opacity:0;
+  opacity:1; pointer-events:auto;
 }
 .tour[data-guide-phase=ready] .tourSurface { pointer-events:auto; }
 .tourTip > .close {
   position:absolute; inset-block-start:3px; inset-inline-end:3px; color:var(--tour-line);
 }
 .tourText { margin:0; padding:12px 49px 0 12px; overflow-wrap:anywhere; }
-.tour[data-operation] .tourText { box-sizing:border-box; min-block-size:50px; padding-block:12px; }
-.tour[data-operation] .tourSurface { pointer-events:none; }
 .tour[data-guide-phase=ready] .tourTip[data-point-side]:not([data-point-side=""])::after {
   content:""; position:absolute; inline-size:9px; block-size:9px;
   background:var(--surface); border:solid color-mix(in srgb,var(--gold) 52%,var(--line-strong));
@@ -62,7 +58,7 @@
 .tourTip[data-point-side=left]::after { left:-4px; top:calc(var(--pointer-top) - 4px); border-width:0 0 1px 1px; }
 .tourTip[data-point-side=right]::after { right:-4px; top:calc(var(--pointer-top) - 4px); border-width:1px 1px 0 0; }
 
-.tourNav { display:flex; align-items:center; gap:8px; padding:8px 12px 12px; }
+.tourNav { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:4px 8px; padding:8px 12px 12px; }
 .tourNav>span { margin-inline-end:auto; color:var(--muted); font-variant-numeric:tabular-nums; }
 .tourNav button {
   padding:0 12px; border-radius:8px; border-color:transparent; white-space:nowrap;
@@ -72,3 +68,9 @@
 :global(html[data-theme=light]) .tourNav button[data-next] { color:#fffaf0; }
 .tourNav button:disabled { opacity:.5; cursor:default; }
 .tourNav button:focus-visible { outline:2px solid var(--gold); outline-offset:-2px; }
+
+.tourNav button.skip { grid-column:1/-1; justify-self:start; padding:0; border:0; background:none; color:var(--muted); }
+.tourStatus { padding:6px 12px 0; color:var(--muted); font-size:12px; }
+.tourStatus p { margin:0; }
+.tourStatus>div { display:flex; flex-wrap:wrap; gap:4px 12px; }
+.tourStatus button { border:0; background:none; color:var(--gold); min-block-size:44px; padding:0; cursor:pointer; font:inherit; }

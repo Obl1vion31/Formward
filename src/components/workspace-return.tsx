@@ -211,6 +211,6 @@ export function WorkspaceReturnLink({ fallback = "/dashboard", className, assist
   if (assistantOnly && state?.visit?.scope !== "assistant") return null;
   const label = workspaceReturnLabel(state?.visit, fallback);
   if (disabled) return <span className={className ?? "dashboard-subpage-return"} aria-disabled="true">← {label}</span>;
-  return <Link href={state?.visit?.source ?? fallback} prefetch={false} className={className ?? "dashboard-subpage-return"}
+  return <Link data-guide-exit href={state?.visit?.source ?? fallback} prefetch={false} className={className ?? "dashboard-subpage-return"}
     onNavigate={state ? event => { event.preventDefault(); void state.back(fallback); } : undefined}>← {label}</Link>;
 }

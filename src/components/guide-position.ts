@@ -23,7 +23,7 @@ export function guideScope(trigger: HTMLElement) {
 
 export function guideTarget(trigger: HTMLElement, name: string) {
   return Array.from(guideScope(trigger).querySelectorAll<HTMLElement>("[data-guide-target]"))
-    .find(node => node.dataset.guideTarget === name && guidePresent(node));
+    .find(node => node.dataset.guideTarget === name && guidePresent(node) && !node.closest('[data-workspace-reading="true"]'));
 }
 
 export function openGuide(node: HTMLElement | null) {
@@ -52,7 +52,7 @@ export function guidePageBounds(margin: number) {
 
 /** Positions the whole card, including its controls, inside the usable viewport. */
 export function placeGuideCard(panel: HTMLElement, anchor: GuideBox, bounds: GuideBox, options: {
-  width: number; sides: Side[]; avoid?: GuideBox[]; dock?: boolean; nearest?: boolean;
+  width: number; sides: Side[]; dock?: boolean;
 }): GuideBox | null {
   const width = Math.min(options.width, bounds.right - bounds.left);
   const room = bounds.bottom - bounds.top;
@@ -74,23 +74,9 @@ export function placeGuideCard(panel: HTMLElement, anchor: GuideBox, bounds: Gui
   };
   function free(placement: Placement) {
     const box = { left: placement.left, top: placement.top, right: placement.left + width, bottom: placement.top + height };
-    return box.left >= bounds.left && box.right <= bounds.right && box.top >= bounds.top && box.bottom <= bounds.bottom &&
-      !options.avoid?.some(obstacle => !!intersectGuideBox(box, obstacle));
+    return box.left >= bounds.left && box.right <= bounds.right && box.top >= bounds.top && box.bottom <= bounds.bottom;
   }
   let placement = options.sides.map(side => candidates[side]).find(free);
-  if (!placement && options.nearest) {
-    // In short forms, look for the closest clear space on the same surface.
-    const rows = [bounds.top, bounds.bottom - height, candidates.top.top, candidates.bottom.top,
-      ...(options.avoid ?? []).flatMap(box => [box.top - height - 4, box.bottom + 4])];
-    const detours = rows.flatMap(top => {
-      const below = top - anchor.bottom, above = anchor.top - top - height;
-      const distance = Math.max(above, below);
-      if (distance < gap || distance > 140) return [];
-      const side: Side = below >= gap ? "top" : "bottom";
-      return [x, bounds.left, bounds.right - width].map(left => ({ left, top, side, distance }));
-    });
-    placement = detours.filter(free).sort((a, b) => a.distance - b.distance || Math.abs(a.left - x) - Math.abs(b.left - x))[0];
-  }
   let aperture = anchor;
   if (!placement && options.dock) {
     const atTop = middle > (bounds.top + bounds.bottom) / 2;
@@ -108,14 +94,4 @@ export function placeGuideCard(panel: HTMLElement, anchor: GuideBox, bounds: Gui
   panel.style.setProperty("--pointer-left", clamp(center - placement.left, 13, width - 13) + "px");
   panel.style.setProperty("--pointer-top", clamp(middle - placement.top, 13, height - 13) + "px");
   return aperture;
-}
-
-export function operationObstacles(scope: HTMLElement, anchor: HTMLElement) {
-  const controls = scope.querySelectorAll<HTMLElement>(
-    "input,textarea,select,button,a[href],summary,[role=button],[contenteditable=true],[data-record-slot=metrics],[data-guide-reading],[data-entry-footer],[data-meal-footer],[data-review-footer]",
-  );
-  const obstacles = Array.from(controls).filter(control => guideVisible(control) && !anchor.contains(control) && !control.closest("[data-guide-float]"));
-  const guideGroup = anchor.closest<HTMLElement>("[data-guide-flow]");
-  if (guideGroup && guideGroup !== anchor) obstacles.push(guideGroup);
-  return obstacles.map(element => element.getBoundingClientRect());
 }
