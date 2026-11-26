@@ -2,11 +2,11 @@
 
 ## 当前正式版本
 
-网页与小助手后台运行 `dual-entry-ce58e248-direct-guide-candidate-r2-20261127`。源码 `ce58e2485b94c737beb5d351c420e89317be4fd1`，BUILD_ID `8B8KhwC8rZc2Gm5hGP0oh`。北京时间 2026-11-27 00:37:34 切换。已确认的候选版源码快进合入 `main`，原应用文件逐字节保留，补入旧页面依赖的静态资源后使用正式运行包重新通过 24 组实页验收。 [正式站](https://formward.top) · [版本](https://formward.top/api/app-version) · [使用说明与录入高光验收](../design-qa.md#已发布验收--使用说明与录入高光)
+网页与小助手后台运行`dual-entry-017a58ff-numbered-guides-batch1-r2-20261127`，源码`017a58ff4c0a0644fe2a624eee30b54255dd5127`，BUILD_ID`2DDT6GRIH-IqvwfIgVzCE`。北京时间2026-11-27 01:37:31切换。第一批移除无编号录入高亮，保留主动打开的编号页面讲解。 [正式站](https://formward.top) · [版本](https://formward.top/api/app-version) · [实际页面验收](../design-qa.md)
 
-网页和小助手后台从同一目录启动。切换前确认在途生成结束，配置与 67 张表的摘要保持一致，数据库仍为 `0048_meal_reference_foods`、48 项迁移。备份 `formward-primary-20261126T163730154312Z.dump.json` 已完成原生校验及加密异地回读。四个公网域名和兼容 IP 版本一致，登录回程、34 项静态资源、教程影片分段读取、5 项匿名权限及海外 MCP 元数据已核对。海外网关沿用原绑定。
+两项服务已核对同目录启动。数据库保持`0048_meal_reference_foods`、48项迁移、67张表；配置及切换前后数据库摘要保持。备份`formward-primary-20261126T173727796389Z.dump.json`已完成原生校验及加密异地回读。四个域名及兼容IP同版，14项新旧资源哈希、登录回程、5项匿名接口限制及海外MCP元数据通过，海外网关保持原绑定。
 
-正式运行包共 96,184,753 字节，SHA-256 `82a18b8f56603c3905ce0c256815a7948e701bf6235b099d39250299b9d7aa39`，保留 56 项 Server Action、原绑定密钥和 2583 项旧静态资源。运行包与核对结果归档在 `.codex/backups/regional-releases/direct-guide-candidate-r2-20261127`。兼容回退为 `guidance-visual-corrections-20261126-r6`。回退时先等在途工作结束，再成套切换网页和小助手后台。
+准确兼容包96,503,424字节，SHA-256`79daeb47e63957980ea6ef8a4e3f40db2307a24895f3d9aeab00d90c743c1bf4`，保留56项Server Action、原绑定密钥及2608项旧静态资源。归档`.codex/backups/regional-releases/numbered-guides-batch1-r2-20261127`，兼容回退`direct-guide-candidate-r2-20261127`。回退前等待在途任务结束，成套切换网页与worker，不回退正式数据或费用账本。
 
 ## 入口、加载与首次指引发布记录
 
