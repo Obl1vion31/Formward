@@ -9,9 +9,12 @@ const hidden = "[inert],[hidden],fieldset[disabled],[data-return-prepared]";
 const guideUI = "[data-guide-float]:popover-open";
 const gap = 10;
 
+function guideVisible(element: HTMLElement | null): element is HTMLElement {
+  return !!element?.getClientRects().length && !element.closest(hidden) && getComputedStyle(element).visibility === "visible";
+}
+
 export function guidePresent(element: HTMLElement | null): element is HTMLElement {
-  return !!element?.getClientRects().length && !element.closest(hidden) &&
-    !element.matches(":disabled,[aria-disabled=true]") && getComputedStyle(element).visibility === "visible";
+  return guideVisible(element) && !element.matches(":disabled,[aria-disabled=true]");
 }
 
 export function guideScope(trigger: HTMLElement) {
@@ -111,7 +114,7 @@ export function operationObstacles(scope: HTMLElement, anchor: HTMLElement) {
   const controls = scope.querySelectorAll<HTMLElement>(
     "input,textarea,select,button,a[href],summary,[role=button],[contenteditable=true],[data-record-slot=metrics],[data-guide-reading],[data-entry-footer],[data-meal-footer],[data-review-footer]",
   );
-  const obstacles = Array.from(controls).filter(control => guidePresent(control) && !anchor.contains(control) && !control.closest("[data-guide-float]"));
+  const obstacles = Array.from(controls).filter(control => guideVisible(control) && !anchor.contains(control) && !control.closest("[data-guide-float]"));
   const guideGroup = anchor.closest<HTMLElement>("[data-guide-flow]");
   if (guideGroup && guideGroup !== anchor) obstacles.push(guideGroup);
   return obstacles.map(element => element.getBoundingClientRect());
