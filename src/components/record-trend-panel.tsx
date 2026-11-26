@@ -107,7 +107,7 @@ function MobileRecordReadings({metrics,presentation,graphic,loading,date,label,r
  const caption=<span className={styles.mobileCaption}>{first.label}</span>;
  const mark=first.graphic??graphic;
  return <div className={styles.mobileReading+" "+(presentation==="body"?styles.mobileBody:styles.mobileEnergy)} data-record-slot="metrics" data-presentation={presentation} data-selected-date={date} role="group" aria-label={label} aria-busy={loading||undefined}>
-   <div className={styles.mobileHero}>{caption}{first.action&&<div className={styles.mobileAction}>{first.action}</div>}{number(first,true)}{first.note&&<small className={styles.mobileSource}>{first.note}</small>}{presentation==="body"&&mark&&<div className={styles.mobileSpark}>{mark}</div>}</div>
+   <div className={styles.mobileHero}>{caption}{first.action&&<div className={styles.mobileAction}>{first.action}</div>}{number(first,true)}{presentation==="body"&&mark&&<div className={styles.mobileSpark}>{mark}</div>}</div>
    {presentation==="energy"?graphic:<div className={styles.mobileStats}>{metrics.slice(1).map(metric=><div key={metric.id??metric.label}><span>{metric.label.replace("7日平均体重","7日均")}</span>{number(metric)}</div>)}</div>}
  </div>;
 }

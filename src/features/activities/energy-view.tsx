@@ -53,12 +53,16 @@ export function EstimateTodayAction({today,day,pending=false}:{today:string;day?
   return <div className={styles.todayAction}>{pending||!today?<button type="button" disabled>{text}</button>:
     <LoadingLink returnScope="workspace" href={"/dashboard/energy?entry=1&date="+today+"&mode=estimate"}>{text}</LoadingLink>}</div>;
 }
-export function EnergySources({ day }: { day: EnergyDay }) {
+export function EnergySources({ day, compact }: { day: EnergyDay; compact?: boolean }) {
   const rest = day.record?.restingSourceSystem ?? day.record?.sourceSystem;
   const active = day.activeSource === "activities" ? [...new Set(day.activities.map(row => row.sourceSystem).filter(Boolean))].join("、") : day.record?.activeSourceSystem ?? day.record?.sourceSystem;
   const sources = day.record?.calculationSnapshot ? day.record.calculationSnapshot.kind==="daily"?[]:[["活动",active]] : day.totalSource === "override" ? [["总消耗", day.record?.sourceSystem]] : [["静息", rest], ["活动", active]];
   const known=sources.filter(([,source])=>source),unique=[...new Set(known.map(([,source])=>energySourceLabel(source)))];
   const calculation=day.record?.calculationSnapshot;
+  if(compact){
+    const labels=[calculation?"系统估算":null,...unique].filter(Boolean);
+    return labels.length?<div className={styles.sourceLine}>{labels.join(" · ")}</div>:null;
+  }
   const labels=[calculation?"系统估算 · "+(calculation.method==="cunningham"?"体脂公式":"常规公式")+(calculation.factor?" ×"+calculation.factor:""):null,day.steps!=null?energyValue(day.steps)+" 步":null,...(unique.length===1?unique:known.map(([label,source])=>label+" · "+energySourceLabel(source))),day.record?.adoption?.mode==="manual"?"手动保留":null,day.additionalKcal!=null&&Number(day.additionalKcal)>0?"额外运动 "+energyValue(day.additionalKcal)+" 千卡":null].filter(Boolean);
   return labels.length?<div className={styles.sourceLine}>{labels.join(" · ")}</div>:null;
 }
@@ -151,7 +155,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
     });
   }
   async function removeRecord(action:EnergyAction,label:string){if(await confirmAction({title:"删除这条消耗记录？",message:"永久删除"+label+"？此操作无法恢复，其他记录保留。",confirmLabel:"确认删除",danger:true}))execute(action);}
-  const summary=(date:string)=>{const day=byDate.get(date);return day?<>{energyValue(day.totalKcal)} 千卡 · 静息 {energyValue(day.restingKcal)} · 活动 {energyValue(day.activeKcal)}</>:"尚无记录";};
+  const summary=(date:string)=>{const day=byDate.get(date);return day?<>{day.cumulative?"今日累计 ":""}{energyValue(day.totalKcal)} 千卡 · 静息 {energyValue(day.restingKcal)} · 活动 {energyValue(day.activeKcal)}<EnergySources day={day} compact/></>:"尚无记录";};
   const recentDates=[today];
   const renderDay=(date:string)=>{const day=byDate.get(date);return <DailyRecordRow key={date} date={date} today={today} value={summary(date)}><RecordRowAction intent="edit" disabled={busy} onClick={()=>editDay(date)}>{day?.record||day?.activities.length?"编辑":date<today?"补录":"录入"}</RecordRowAction><RecordRowAction intent="view" onClick={()=>setViewing(date)}>查看</RecordRowAction></DailyRecordRow>;};
   const details=(date:string)=>{const day=byDate.get(date)??blankEnergyDay(date);return <div className={styles.dayDetails} data-energy-day-detail><div className={styles.summary}>{([[day.cumulative?"今日累计":"总消耗",day.totalKcal],["静息",day.restingKcal],["活动",day.activeKcal]] as const).map(([label,value])=><div key={label}><span>{label}</span><strong>{energyValue(value)}<small>千卡</small></strong></div>)}</div><EnergySources day={day}/>{state.activities.filter(activity=>activity.date===date&&!activity.deletedAt).map(activity=>{
@@ -177,7 +181,7 @@ export function EnergyView({ presentation, sourceStatus=null, save, removeSource
        custom={customOpen&&<CustomRecordRange label="消耗" value={customDraft} change={setCustomDraft} apply={()=>{setCustom(customDraft);setMode("custom");setCustomOpen(false);}} cancel={()=>setCustomOpen(false)}/>}
        date={inspected} view={()=>{const target=inspected;setViewing(target);selection.releasePreview();}} readoutLabel="选中日消耗"
        metrics={[
-        {label:chosen?.cumulative?"今日累计":"总消耗",value:energyValue(chosen?.totalKcal),unit:"kcal",note:chosen?.totalKcal!=null?(chosen.record?.calculationSnapshot?"系统估算":energySourceLabel(chosen.record?.sourceSystem)??"手动录入"):undefined},
+        {label:chosen?.cumulative?"今日累计":"总消耗",value:energyValue(chosen?.totalKcal),unit:"kcal"},
         {label:"静息",value:energyValue(chosen?.restingKcal),unit:"kcal",tone:"blue"},
         {label:"活动",value:energyValue(chosen?.activeKcal),unit:"kcal",tone:"red"}
        ]}

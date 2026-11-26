@@ -8,8 +8,8 @@ import {measurementDayAction, type EntryPeriod, type MeasurementDisplay} from ".
 import {gmtOffsetLabel, timezoneLabel} from "./timezone";
 import styles from "./measurements-view.module.css";
 
-export function MeasurementReading({row, period, showFat}: {
-  row: MeasurementDisplay | null; period: EntryPeriod; showFat: boolean;
+export function MeasurementReading({row, period, showFat, showSource}: {
+  row: MeasurementDisplay | null; period: EntryPeriod; showFat: boolean; showSource?: boolean;
 }) {
   const value = row?.weightKg != null
     ? {number: row.weightKg, unit: "kg", label: "体重"}
@@ -23,6 +23,7 @@ export function MeasurementReading({row, period, showFat}: {
         {formatRecordNumber(value.number)} <small>{value.unit}</small>
       </strong>
       : <span>{row ? "已记录" : "未记录"}</span>}
+    {showSource && row && value && <small className={styles.recordSource}>{measurementSourceLabel(row)}</small>}
   </div>;
 }
 
@@ -135,8 +136,8 @@ export function BodyRecordRow({date, today, records, morning, evening, showFat, 
   const action = measurementDayAction(records, date, today);
   const infoId = useId();
   return <DailyRecordRow layout="body" date={date} today={today} value={<>
-    <MeasurementReading row={morning} period="daytime" showFat={showFat}/>
-    <MeasurementReading row={evening} period="evening" showFat={showFat}/>
+    <MeasurementReading row={morning} period="daytime" showFat={showFat} showSource/>
+    <MeasurementReading row={evening} period="evening" showFat={showFat} showSource/>
   </>}>
     {(morning || evening) && <MeasurementInfo id={infoId} date={date} morning={morning} evening={evening} showFat={showFat}/>}
     <RecordRowAction intent="edit" aria-label={action + " " + date}
