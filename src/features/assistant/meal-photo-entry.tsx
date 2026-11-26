@@ -13,7 +13,7 @@ import styles from "./meal-photo-entry.module.css";
 
 type Snapshot=ChatSnapshot&{taskId:string;draft:MealDraft;operation:RecordReviewView|null};
 export type AppliedMeal={taskId:string;draft:MealDraft;operation:RecordReviewView};
-async function post(body:unknown,signal?:AbortSignal){const response=await fetch("/api/assistant-meal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal});if(!response.ok){const value=await response.json();throw Error(value.error??"本次识别未完成，请重试。");}return response;}
+async function post(body:unknown,signal?:AbortSignal){const response=await fetch("/api/assistant-meal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal});if(!response.ok){const value=await response.json().catch(()=>null);throw Error(value?.error??"本次识别未完成，请重试。");}return response;}
 export function MealPhotoEntry({initial,draftKey,resumeTaskId,onRestore,onApply,onBack,onBusy,onHandoff,sharedHeader=false,visible=true}:{visible?:boolean;sharedHeader?:boolean;initial:MealDraft;draftKey:string;resumeTaskId?:string;onRestore:(draft:MealDraft)=>void;onApply:(value:AppliedMeal)=>void;onBack:()=>void;onBusy:(busy:boolean)=>void;onHandoff?:(id:string)=>void|Promise<void>}){
  const handingOff=!!onHandoff&&!resumeTaskId;
  const [data,setData]=useState<Snapshot|null>(null),[provider,setProvider]=useState<ChatProvider>("qwen"),[text,setText]=useState(""),[error,setError]=useState(""),[running,setRunning]=useState(false),[reset,setReset]=useState(false),[attempt,setAttempt]=useState(0);
@@ -61,7 +61,12 @@ export function MealPhotoEntry({initial,draftKey,resumeTaskId,onRestore,onApply,
   try{
    const response=await post({...input,requestId:identity.current.id},controller.signal),result=await response.json();
    if(active.current)await onHandoff(result.taskId);
-  }catch(failure){if(active.current&&!controller.signal.aborted)setError(failure instanceof Error?failure.message:"发送未完成。照片和说明已保留，请重试。");}
+  }catch(failure){
+   if(active.current&&!controller.signal.aborted){
+    const disconnected=failure instanceof TypeError||failure instanceof SyntaxError;
+    setError(!disconnected&&failure instanceof Error?failure.message:"发送未完成。照片和说明已保留，请再点「发给助手」重试。");
+   }
+  }
   finally{if(active.current)setRunning(false);request.current=null;}
  }
  async function stop(){request.current?.abort();if(data){try{await post({action:"stop",taskId:data.taskId});await refresh();}catch(failure){setError(failure instanceof Error?failure.message:"停止未完成。");}}}
