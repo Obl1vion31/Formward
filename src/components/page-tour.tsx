@@ -124,6 +124,7 @@ export function PageTour({ ownerId, origin, configuration, operation = false, on
         width: operation ? 270 : 310,
         sides: matchMedia(MOBILE_MEDIA).matches ? ["top", "bottom", "left", "right"] : ["left", "right", "top", "bottom"],
         dock: !operation,
+        nearest: operation || undefined,
         avoid: operation ? operationObstacles(scope, target) : undefined,
       });
       card.style.visibility = placement ? "visible" : "hidden";

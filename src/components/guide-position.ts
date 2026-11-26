@@ -49,7 +49,7 @@ export function guidePageBounds(margin: number) {
 
 /** Positions the whole card, including its controls, inside the usable viewport. */
 export function placeGuideCard(panel: HTMLElement, anchor: GuideBox, bounds: GuideBox, options: {
-  width: number; sides: Side[]; avoid?: GuideBox[]; dock?: boolean;
+  width: number; sides: Side[]; avoid?: GuideBox[]; dock?: boolean; nearest?: boolean;
 }): GuideBox | null {
   const width = Math.min(options.width, bounds.right - bounds.left);
   const room = bounds.bottom - bounds.top;
@@ -75,6 +75,19 @@ export function placeGuideCard(panel: HTMLElement, anchor: GuideBox, bounds: Gui
       !options.avoid?.some(obstacle => !!intersectGuideBox(box, obstacle));
   }
   let placement = options.sides.map(side => candidates[side]).find(free);
+  if (!placement && options.nearest) {
+    // In short forms, look for the closest clear space on the same surface.
+    const rows = [bounds.top, bounds.bottom - height, candidates.top.top, candidates.bottom.top,
+      ...(options.avoid ?? []).flatMap(box => [box.top - height - 4, box.bottom + 4])];
+    const detours = rows.flatMap(top => {
+      const below = top - anchor.bottom, above = anchor.top - top - height;
+      const distance = Math.max(above, below);
+      if (distance < gap || distance > 140) return [];
+      const side: Side = below >= gap ? "top" : "bottom";
+      return [x, bounds.left, bounds.right - width].map(left => ({ left, top, side, distance }));
+    });
+    placement = detours.filter(free).sort((a, b) => a.distance - b.distance || Math.abs(a.left - x) - Math.abs(b.left - x))[0];
+  }
   let aperture = anchor;
   if (!placement && options.dock) {
     const atTop = middle > (bounds.top + bounds.bottom) / 2;

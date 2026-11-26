@@ -301,7 +301,7 @@ function bind(container){
  });
  root.querySelectorAll('[data-topic]').forEach(b=>listen(b,'keydown',e=>{
   if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();
-  const list=[...root.querySelectorAll('[data-topic]')],i=list.indexOf(b),next=e.key==='Home'?0:e.key==='End'?4:(i+(e.key==='ArrowRight'?1:-1)+5)%5;
+  const list=[...root.querySelectorAll('[data-topic]')],i=list.indexOf(b),next=e.key==='Home'?0:e.key==='End'?list.length-1:(i+(e.key==='ArrowRight'?1:-1)+list.length)%list.length;
   list.forEach((b,i)=>b.tabIndex=i===next?0:-1);list[next].focus();
  }));
  const adapt=()=>{
