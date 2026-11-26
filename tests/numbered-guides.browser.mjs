@@ -5,12 +5,12 @@ import { resolve, join } from "node:path";
 const { chromium, webkit } = await import(process.env.FORMWARD_PLAYWRIGHT_MODULE ?? "/home/obl1vion/.local/formward-webkit-165/node_modules/playwright/index.mjs");
 
 const [config, engine = "chromium", theme = "dark", size = "390", scenario = "tours"] = process.argv.slice(2);
-const fixture = JSON.parse(await readFile(config, "utf8")), base = fixture.baseURL, width = Number(size), mobile = width < 700;
+const fixture = JSON.parse(await readFile(config, "utf8")), base = fixture.baseURL, width = Number(size), mobile = width < 700 || process.env.FORMWARD_GUIDE_TOUCH === "1";
 assert.equal(new URL(base).hostname, "127.0.0.1");
 assert.equal(fixture.isolatedFixture, "native-postgres");
 const { version } = await fetch(base + "/api/app-version").then(response => response.json());
 if (process.env.FORMWARD_GUIDE_EXPECTED_VERSION) assert.equal(version, process.env.FORMWARD_GUIDE_EXPECTED_VERSION);
-const viewport = { width, height: mobile ? 844 : 900 };
+const viewport = { width, height: Number(process.env.FORMWARD_GUIDE_HEIGHT) || (mobile ? 844 : 900) };
 const folder = resolve(process.env.FORMWARD_GUIDE_ARTIFACTS ?? ".codex/numbered-guides-20261127/browser", engine + "-" + theme + "-" + size + "-" + scenario);
 await mkdir(folder, { recursive: true });
 const browser = await ({ chromium, webkit }[engine]).launch(engine === "chromium" ? { executablePath: "/home/obl1vion/.cache/ms-playwright/chromium_headless_shell-1255/chrome-headless-shell-linux64/chrome-headless-shell" } : {});
@@ -44,6 +44,18 @@ async function open(task) {
   await visible('[data-task-guide="' + task + '"]').getByRole("button", { name: "使用指引" }).click(); await layer().waitFor();
 }
 async function counter(index, total) { await layer().getByText(index + " / " + total, { exact: true }).waitFor(); }
+async function entryBox(task) {
+  // 读取外壳会被流式替换；在同一帧查找并量取可见实例，避免跨两次调用拿到已卸载节点。
+  const handle = await page.waitForFunction(name => {
+    for (const node of document.querySelectorAll('[data-task-guide]')) {
+      if (node.dataset.taskGuide !== name || node.closest('[inert],[hidden],[data-return-prepared],[aria-hidden="true"]')) continue;
+      const box = node.getBoundingClientRect();
+      if (box.width > 0 && box.height > 0 && getComputedStyle(node).visibility === "visible") return { x: box.x, y: box.y, width: box.width, height: box.height };
+    }
+    return false;
+  }, task);
+  const box = await handle.jsonValue(); await handle.dispose(); return box;
+}
 async function ready(target) {
   await page.waitForFunction(name => document.querySelector('[data-guide-layer]:popover-open')?.dataset.guidePhase === "ready" &&
     [...document.querySelectorAll('[data-guide-highlight="tour"]')].some(node => node.dataset.guideTarget === name), target);
@@ -129,12 +141,12 @@ async function loading() {
     await database(1800); await visit("/dashboard" + path, true);
     const entry = visible('[data-task-guide="' + task + '"]'); await entry.waitFor();
     assert.ok(await visible("[data-workspace-reading=true]").count(), "真实数据返回前入口可见");
-    const before = await entry.boundingBox(); await open(task);
+    const before = await entryBox(task); await open(task);
     for (let n = 1; n < index; n++) { await button("下一步").click(); await counter(n + 1, total); }
     await counter(index, total); await shot(task + "-pending");
     assert.equal(await page.locator('[data-guide-layer][data-guide-phase=ready]:popover-open').count(), 0);
     await database(0); await ready(target); await counter(index, total);
-    const after = await visible('[data-task-guide="' + task + '"]').boundingBox();
+    const after = await entryBox(task);
     assert.ok(before && after && Math.abs(before.x - after.x) <= 1 && Math.abs(before.y - after.y) <= 1, JSON.stringify({ task, before, after }));
     findings.push({ entry: task, before, after, entryDelta: Math.max(Math.abs(before.x - after.x), Math.abs(before.y - after.y)) });
     await shot(task + "-same-step-ready"); await button("关闭使用指引").click(); await closed();
@@ -211,12 +223,31 @@ async function energy() {
     await shot("energy-" + name); findings.push({ name, values });
   }
 }
+async function responsive() {
+  async function controls() {
+    const result = await layer().evaluate(node => {
+      const header = document.querySelector('.dashboard-header')?.getBoundingClientRect(), dock = document.querySelector('[data-workspace-dock]')?.getBoundingClientRect();
+      const top = header?.height ? header.bottom : 0, bottom = dock?.height ? dock.top : innerHeight;
+      return [...node.querySelectorAll('button')].map(button => { const b = button.getBoundingClientRect(); return { text: button.textContent || button.getAttribute('aria-label'), good: b.top >= top && b.bottom <= bottom + 1 && b.left >= 0 && b.right <= innerWidth && b.height >= 44 }; });
+    });
+    assert.ok(result.length && result.every(item => item.good), JSON.stringify({ viewport, result }));
+  }
+  await visit('/dashboard'); await open('overview');
+  for (let index = 0; index < overview.length; index++) {
+    await ready(overview[index]); await controls();
+    if (index === 2 || index === 4) await shot('responsive-overview-' + (index + 1));
+    if (index < 5) await next(); else { await button('完成').click(); await closed(); }
+  }
+  await database(1800); await visit('/dashboard', true); await open('overview'); await controls(); await shot('responsive-pending');
+  await button('跳过全部').click(); await closed(); await database(0);
+  await energy(); findings.push({ responsive: viewport, touch: mobile, controls: 'ready and loading controls remain reachable above navigation' });
+}
 let failure;
 try {
   await login();
-  if (scenario === "loading") await loading(); else if (scenario === "energy") await energy(); else await tours();
+  if (scenario === "loading") await loading(); else if (scenario === "energy") await energy(); else if (scenario === "responsive") await responsive(); else await tours();
   assert.deepEqual(errors, []);
 } catch (error) { failure = String(error.stack || error); await shot("failure").catch(() => {}); console.error(failure); }
-finally { if (scenario === "loading") await database(0).catch(() => {}); await context.close(); await browser.close(); }
-await writeFile(join(folder, "result.json"), JSON.stringify({ passed: !failure, version, engine, theme, width, scenario, findings, errors, expectedErrors, warnings, failure }, null, 2));
+finally { if (scenario === "loading" || scenario === "responsive") await database(0).catch(() => {}); await context.close(); await browser.close(); }
+await writeFile(join(folder, "result.json"), JSON.stringify({ passed: !failure, version, engine, theme, width, height: viewport.height, touch: mobile, scenario, findings, errors, expectedErrors, warnings, failure }, null, 2));
 if (failure) process.exitCode = 1;

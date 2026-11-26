@@ -1,6 +1,6 @@
 # Tests
 
-`numbered-guides.browser.mjs <fixture.json> <chromium|webkit> <light|dark> <宽度> <tours|loading|energy>`仅接受回环地址的native-postgres虚构夹具。tours逐步核对真实目标与金框≤1px、快切、退出、导航及缓存返回；loading检查首帧入口、同一步接管、失败与重试；energy检查分项归组及通栏操作。截图、原速录屏与测量报告保存在私有目录，可由`FORMWARD_GUIDE_ARTIFACTS`指定。WebKit触屏不替代实体iPhone键盘验收。`training-delayed-db.ts`的隔离控制口可延迟健康查询或仅断开匹配查询连接，制造真实读取失败；不修改数据库表或生产配置。
+`numbered-guides.browser.mjs <fixture.json> <chromium|webkit> <light|dark> <宽度> <tours|loading|energy|responsive>`仅接受回环地址的native-postgres虚构夹具。tours逐步核对真实目标与金框≤1px、快切、退出、导航及缓存返回；loading检查首帧入口、同一步接管、失败与重试；energy检查分项归组及通栏操作。responsive检查编号步骤和读取中的所有操作是否处于顶栏与底部导航之间，并检查消耗的真实状态。`FORMWARD_GUIDE_HEIGHT`指定高度，`FORMWARD_GUIDE_TOUCH=1`明确使用触屏上下文以覆盖横屏。截图、原速录屏与测量报告保存在私有目录，可由`FORMWARD_GUIDE_ARTIFACTS`指定。WebKit触屏不替代实体iPhone键盘验收。`training-delayed-db.ts`的隔离控制口可延迟健康查询或仅断开匹配查询连接，制造真实读取失败；不修改数据库表或生产配置。
 
 鸿蒙隔离预览的`harmonyos-model-fixture.mjs`只允许回环测试库、虚构模型密钥和固定虚构COS桶。存储回放在该虚构主机的HTTP边界进行，兼容Turbopack内联SDK；文件只保存在进程内存，不连接真实COS。其他HTTPS请求继续使用原实现，不改变证书校验。浏览器原图上传、取消与人工备用通道须在准确兼容运行包上实际操作；模型及存储回放与真实服务、兼容真机结果分开记录。
 
