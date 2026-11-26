@@ -5,7 +5,7 @@ export type GuideBox = { left: number; top: number; right: number; bottom: numbe
 type Side = "top" | "bottom" | "left" | "right";
 type Placement = { left: number; top: number; side?: Side };
 
-const hidden = "[inert],[hidden],fieldset[disabled],[data-return-prepared]";
+const hidden = "[inert],[hidden],[data-return-prepared]";
 const guideUI = "[data-guide-float]:popover-open";
 const gap = 10;
 
@@ -13,8 +13,9 @@ function guideVisible(element: HTMLElement | null): element is HTMLElement {
   return !!element?.getClientRects().length && !element.closest(hidden) && getComputedStyle(element).visibility === "visible";
 }
 
-export function guidePresent(element: HTMLElement | null): element is HTMLElement {
-  return guideVisible(element) && !element.matches(":disabled,[aria-disabled=true]");
+export function guidePresent(element: HTMLElement | null, retainedHelp = false): element is HTMLElement {
+  // 缓存校验中的静态帮助入口仍可使用，旧业务目标与控件继续排除。
+  return guideVisible(element) && (retainedHelp || !element.closest("fieldset[disabled]")) && !element.matches(":disabled,[aria-disabled=true]");
 }
 
 export function guideScope(trigger: HTMLElement) {

@@ -5,6 +5,7 @@
 }
 .trigger[aria-pressed=true],.trigger:hover,.close:hover { color:var(--warm-white); }
 .trigger:focus-visible,.close:focus-visible { outline:2px solid var(--gold); outline-offset:-2px; }
+.trigger { display:inline-flex; align-items:center; justify-content:center; }
 .close { display:grid; place-items:center; min-inline-size:44px; pointer-events:auto; z-index:1; }
 
 .tourNav button {

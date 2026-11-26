@@ -4,11 +4,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { guidePresent, type GuideStep } from "./guide-position";
 import { PageTour } from "./page-tour";
 import styles from "./task-guide.module.css";
+import { WorkspaceRetryContext } from "@/features/dashboard/workspace-cache-context";
 
 type Run = { task: string; configuration: string; path: string };
 type GuideSession = {
   account: string; task: string | null;
-  register: (task: string, previous: HTMLButtonElement | null, node: HTMLButtonElement | null, retry?: () => void) => void;
+  register: (task: string, previous: HTMLElement | null, node: HTMLElement | null, retry?: () => void) => void;
   open: (task: string, steps: GuideStep[]) => void;
   close: (restoreFocus: boolean) => void;
 };
@@ -21,8 +22,8 @@ export function TaskGuideProvider({ accountId, children }: { accountId: string; 
 // 导览属于当前页面会话。读取外壳被真实内容替换时，编号与说明继续保留。
 function GuideSession({ account, children }: { account: string; children: ReactNode }) {
   const ownerId = useId(), pathname = usePathname(), router = useRouter();
-  const triggers = useRef(new Map<string, Set<HTMLButtonElement>>());
-  const retries = useRef(new Map<HTMLButtonElement, () => void>());
+  const triggers = useRef(new Map<string, Set<HTMLElement>>());
+  const retries = useRef(new Map<HTMLElement, () => void>());
   const [run, setRun] = useState<Run | null>(null);
   const active = run?.path === pathname ? run : null;
   useEffect(() => {
@@ -32,18 +33,18 @@ function GuideSession({ account, children }: { account: string; children: ReactN
       setRun(null);
     }
   }, [pathname, run]);
-  const register = useCallback((task: string, previous: HTMLButtonElement | null, node: HTMLButtonElement | null, retry?: () => void) => {
-    const nodes = triggers.current.get(task) ?? new Set<HTMLButtonElement>();
+  const register = useCallback((task: string, previous: HTMLElement | null, node: HTMLElement | null, retry?: () => void) => {
+    const nodes = triggers.current.get(task) ?? new Set<HTMLElement>();
     if (previous) { nodes.delete(previous); retries.current.delete(previous); }
     if (node) { nodes.add(node); if (retry) retries.current.set(node, retry); }
     if (nodes.size) triggers.current.set(task, nodes); else triggers.current.delete(task);
     window.dispatchEvent(new Event("formward-guide-targets"));
   }, []);
-  const getOrigin = useCallback(() => run ? [...(triggers.current.get(run.task) ?? [])].reverse().find(node => guidePresent(node)) ?? null : null, [run]);
+  const getOrigin = useCallback(() => run ? [...(triggers.current.get(run.task) ?? [])].reverse().find(node => guidePresent(node, true)) ?? null : null, [run]);
   const close = useCallback((restoreFocus: boolean) => {
     const opener = getOrigin();
     setRun(current => current === run ? null : current);
-    if (restoreFocus && guidePresent(opener)) opener.focus({ preventScroll: true });
+    if (restoreFocus && guidePresent(opener, true)) opener.focus({ preventScroll: true });
   }, [getOrigin, run]);
   const open = useCallback((task: string, steps: GuideStep[]) => {
     setRun({ task, configuration: JSON.stringify(steps), path: window.location.pathname });
@@ -59,17 +60,21 @@ function GuideSession({ account, children }: { account: string; children: ReactN
 
 /** 已知入口不依赖健康数据；只有主动点击才创建页面讲解。 */
 export function TaskGuide({ task, steps, onRetry }: { task: string; steps: GuideStep[]; onRetry?: () => void }) {
-  const session = useContext(GuideContext), origin = useRef<HTMLButtonElement | null>(null);
+  const session = useContext(GuideContext), origin = useRef<HTMLElement | null>(null);
+  const cachedRetry = useContext(WorkspaceRetryContext), retry = onRetry ?? cachedRetry;
   const register = session?.register;
-  const bind = useCallback((node: HTMLButtonElement | null) => {
-    register?.(task, origin.current, node, onRetry);
+  const bind = useCallback((node: HTMLElement | null) => {
+    register?.(task, origin.current, node, retry);
     origin.current = node;
-  }, [register, task, onRetry]);
+  }, [register, task, retry]);
   if (!session?.account || !steps.length) return null;
   const selected = session.task === task;
   return <div className={styles.guide} data-task-guide={task}>
-    <button type="button" className={styles.trigger} ref={bind} aria-pressed={selected}
-      onClick={() => selected ? session.close(true) : session.open(task, steps)}>使用指引</button>
+    {/* 静态帮助不属于录入控件；缓存区fieldset禁用期间仍支持点击和键盘。 */}
+    <span role="button" tabIndex={0} className={styles.trigger} ref={bind} aria-pressed={selected}
+      onKeyDown={event => { if (event.key === " ") event.preventDefault(); if (event.key === "Enter" && !event.repeat) { event.preventDefault(); event.currentTarget.click(); } }}
+      onKeyUp={event => { if (event.key === " ") { event.preventDefault(); event.currentTarget.click(); } }}
+      onClick={() => selected ? session.close(true) : session.open(task, steps)}>使用指引</span>
   </div>;
 }
 

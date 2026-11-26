@@ -8,7 +8,7 @@ local-loading.tsx在一次读取超过350ms后显示一处局部提示，位置�
 
 总览和记录趋势整块未知时，workspace-loading.tsx 在同一位置首帧显示一个加载提示。带真实快照的局部读取保留延迟策略。task-guide.tsx在账号工作区维持主动打开的编号页面讲解，读取外壳与真实内容替换后保留当前步骤。page-tour.tsx只在当前可见页面实例查找目标，等待横滑吸附稳定后量框；滚动、尺寸与页面接管后重测。关闭、跳过和导航先结束导览，清除拦截与观察器；录入与保存不参与。
 
-workspace-error.tsx使用当前Next.js的retry重新请求并渲染失败页面；reset只清除错误，不能用于服务端读取重试。快捷录入把同一个retry交给EntrySurface，失败时不再追加一次router.refresh；普通慢读取仍可单独刷新。
+workspace-error.tsx使用当前Next.js的retry重新请求并渲染失败页面；reset只清除错误，不能用于服务端读取重试。快捷录入把同一个retry交给EntrySurface，失败时不再追加一次router.refresh；普通慢读取仍可单独刷新。缓存校验期间仅静态使用指引保持可点击和键盘操作，旧业务控件继续只读，旧内容不能作为最新高亮目标；缓存失败通过同一个retry重读并保留编号。
 
 Inspector标题两端均直接排列在面板底色上，不增加独立圆角、内高光、模糊或负边距。电脑保留原侧栏尺寸和滚动，隐藏把手且不占位；手机通过ResizeObserver读取实际头高设置--inspector-sticky-offset，饮食与消耗的粘性区域复用该偏移，长表单滚动不盖住把手。手机把手区与面板底色连续，键盘焦点仅围绕小把手；关闭按钮保持44px。record-intent.ts集中校验网页view／edit／create打开意图，record-ui统一列表编辑实底与查看次级样式，业务组件决定各任务可用内容。
 

@@ -2,7 +2,7 @@
 import {useCallback,useContext,useEffect,useLayoutEffect,useMemo,useState,type ReactNode} from "react";
 import {usePathname,useSearchParams} from "next/navigation";
 import {WorkspaceCache,workspaceCacheKey} from "./workspace-cache-state";
-import {WorkspaceCacheContext,WorkspaceRefreshingContext} from "./workspace-cache-context";
+import {WorkspaceCacheContext,WorkspaceRefreshingContext,WorkspaceRetryContext} from "./workspace-cache-context";
 const day=()=>new Date().toLocaleDateString("en-CA");
 export function WorkspaceCacheProvider({accountId,children}:{accountId:string;children:ReactNode}) {
  const cache=useMemo(()=>new WorkspaceCache<ReactNode>(accountId),[accountId]);
@@ -18,8 +18,8 @@ export function WorkspaceSnapshot({path,query="",children}:{path:string;query?:s
  useLayoutEffect(()=>{remember?.(key,children);},[remember,key,children]);
  return children;
 }
-export function WorkspacePending({children,failed=false,path:targetPath,query:targetQuery,fallback=children}:{children:ReactNode;failed?:boolean;path?:string;query?:string;fallback?:ReactNode}) {
+export function WorkspacePending({children,failed=false,path:targetPath,query:targetQuery,fallback=children,retry}:{children:ReactNode;failed?:boolean;path?:string;query?:string;fallback?:ReactNode;retry?:()=>void}) {
  const cache=useContext(WorkspaceCacheContext),path=usePathname(),query=useSearchParams().toString();
  const content=cache?.read(workspaceCacheKey(targetPath??path,targetQuery??query));
- return content?<WorkspaceRefreshingContext value><div className="workspace-refresh" aria-busy={!failed} data-workspace-cached>{failed&&children}<fieldset disabled className="workspace-retained">{content}</fieldset></div></WorkspaceRefreshingContext>:fallback;
+ return content?<WorkspaceRetryContext value={retry}><WorkspaceRefreshingContext value><div className="workspace-refresh" aria-busy={!failed} data-guide-failed={failed||undefined} data-workspace-cached>{failed&&children}<fieldset disabled className="workspace-retained">{content}</fieldset></div></WorkspaceRefreshingContext></WorkspaceRetryContext>:fallback;
 }

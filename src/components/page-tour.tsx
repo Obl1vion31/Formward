@@ -9,7 +9,7 @@ import styles from "./task-guide.module.css";
 const actions = "a[href],button,input,select,textarea,[role=button],[role=tab],[tabindex]";
 const navigation = ".dashboard-header a,nav[aria-label=主导航] a,[data-workspace-dock] a,[data-workspace-dock] button,.dashboard-subpage-return,[data-guide-exit]";
 type Status = "waiting" | "positioning" | "ready" | "failed" | "outside";
-type Props = { ownerId: string; getOrigin: () => HTMLButtonElement | null; configuration: string; onClose: (restoreFocus: boolean) => void; onRetry: () => void };
+type Props = { ownerId: string; getOrigin: () => HTMLElement | null; configuration: string; onClose: (restoreFocus: boolean) => void; onRetry: () => void };
 
 function revealTourTarget(anchor: HTMLElement) {
   const rail = anchor.closest<HTMLElement>('[data-metric-layout="rail"]');
