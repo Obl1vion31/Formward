@@ -1,7 +1,7 @@
 import expansion from "./reference-expansion.json";
 import { ApiError } from "../auth/ai-identity";
 import type { Nutrition } from "./model";
-import { sameRecipeParts, savedRecipePartInputs } from "./reference-recipe";
+import { resolveRecipePart, sameRecipeParts, savedRecipePartInputs } from "./reference-recipe";
 import { buildReferenceRecipes, colaGlaze, recipeRelatedDishIds, regionalFoods } from "./reference-regional";
 import type { FoodIllustration, ReferenceCatalogFood, ReferenceCatalogResult, ReferenceFamily, ReferenceFood, ReferenceFoodLink, ReferenceMealLink, ReferencePortion, ReferenceSnapshot, ReferenceSource } from "./reference-food";
 
@@ -211,6 +211,18 @@ export function requireCurrentReferenceFood(link: ReferenceFoodLink) {
   const food = foodsById.get(link.id);
   if (!food || food.version !== link.version) throw new ApiError(409, "version_conflict", "参考食材规格已更新，请重新搜索选择。");
   return food;
+}
+
+export function resolveReferenceRecipeParts(recipe: ReferenceFood, parts: NonNullable<ReferenceFoodLink["parts"]>, snapshot?: ReferenceSnapshot) {
+  if (!recipe.recipe) throw new ApiError(400, "invalid_input", "这项没有可拆开的公共配方。");
+  return parts.map(part => {
+    const original = snapshot?.recipeParts?.find(entry => entry.food.id === part.id && entry.food.version === part.version);
+    const food = original?.food ?? requireCurrentReferenceFood(part);
+    if (food.basisUnit || food.components) throw new ApiError(400, "invalid_input", "分项须引用按可食重量换算的单项公共食材。");
+    const resolved = resolveRecipePart(recipe, food, part);
+    if (!resolved) throw new ApiError(400, "invalid_input", "计件份量须与分项规格一致，换算克数须在有效范围内。");
+    return resolved;
+  });
 }
 
 export function validatePreparedReferenceFood(link: ReferenceFoodLink, snapshot?: ReferenceSnapshot) {

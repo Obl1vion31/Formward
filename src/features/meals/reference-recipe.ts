@@ -1,5 +1,5 @@
 import { decimal, metrics, scaled, sumNutrition, type Nutrition } from "./model";
-import { referenceNutrition, type RecipePart, type RecipePartInput, type ReferenceFood, type ReferenceSnapshot } from "./reference-food";
+import { referenceNutrition, type RecipePart, type RecipePartAmount, type RecipePartInput, type ReferenceFood, type ReferenceSnapshot } from "./reference-food";
 
 const units = (grams: string) => Math.round(Number(grams) * 10000);
 const gramsFromUnits = (value: number) => (value / 10000).toFixed(4);
@@ -45,26 +45,47 @@ export function recipeTotals(parts: readonly RecipePart[]) {
   return { grams, nutrition };
 }
 
-export function recipePart(recipe: ReferenceFood, food: ReferenceFood, input: Pick<RecipePartInput, "grams" | "estimated">): RecipePart {
+export function recipeCountPortions(food: ReferenceFood) {
+  if (food.basisUnit || food.components) return [];
+  return food.portions.filter(portion => ["只", "个", "块", "片", "条"].includes(portion.unit) &&
+    decimal.safeParse(portion.edibleGrams).success && Number(portion.edibleGrams) > 0);
+}
+
+export function recipePart(recipe: ReferenceFood, food: ReferenceFood, input: { grams: string; estimated?: boolean; count?: RecipePart["count"] }): RecipePart {
   const component = recipe.components?.find(entry => entry.food.id === food.id);
   const suggested = recipe.recipe?.suggestedFoods.some(entry => entry.id === food.id);
   const label = component?.label ?? (suggested && food.id === "potato-boiled" ? "土豆" :
     suggested && food.id === "broccoli-cooked" ? "西兰花" : undefined);
   return { food, ...(label ? { label } : {}), ...(component?.amountBasis ? { amountBasis: component.amountBasis } : {}),
-    grams: input.grams, estimated: Boolean(input.estimated) };
+    grams: input.grams, estimated: Boolean(input.estimated), ...(input.count ? { count: input.count } : {}) };
+}
+
+export function resolveRecipePart(recipe: ReferenceFood, food: ReferenceFood, amount: RecipePartAmount): RecipePart | null {
+  if ("grams" in amount) return recipePart(recipe, food, amount);
+  const portion = recipeCountPortions(food).find(entry => entry.id === amount.portionId);
+  if (!portion || !decimal.safeParse(amount.quantity).success || Number(amount.quantity) <= 0) return null;
+  const grams = scaled(amount.quantity, portion.edibleGrams, "1");
+  if (!decimal.safeParse(grams).success || Number(grams) <= 0) return null;
+  return recipePart(recipe, food, { grams, estimated: true, count: { quantity: amount.quantity, portion } });
+}
+
+export function recipePartAmount({ grams, estimated, count }: RecipePart): RecipePartAmount {
+  return count ? { portionId: count.portion.id, quantity: count.quantity } : { grams, ...(estimated ? { estimated: true } : {}) };
 }
 
 export function recipePartInputs(parts: readonly RecipePart[]): RecipePartInput[] {
-  return parts.map(({ food, grams, estimated }) => ({
-    id: food.id, version: food.version, grams, ...(estimated ? { estimated: true } : {}),
-  }));
+  return parts.map(part => ({ id: part.food.id, version: part.food.version, ...recipePartAmount(part) }));
 }
 
 export function sameRecipeParts(a?: readonly RecipePartInput[], b?: readonly RecipePartInput[]) {
   if (!a || !b) return a === b;
-  return a.length === b.length && a.every((part, index) => part.id === b[index].id &&
-    part.version === b[index].version && Number(part.grams) === Number(b[index].grams) &&
-    Boolean(part.estimated) === Boolean(b[index].estimated));
+  return a.length === b.length && a.every((part, index) => {
+    const other = b[index];
+    if (part.id !== other.id || part.version !== other.version) return false;
+    if ("grams" in part) return "grams" in other && Number(part.grams) === Number(other.grams) &&
+      Boolean(part.estimated) === Boolean(other.estimated);
+    return "portionId" in other && part.portionId === other.portionId && Number(part.quantity) === Number(other.quantity);
+  });
 }
 
 export function savedRecipePartInputs(snapshot: ReferenceSnapshot | undefined) {

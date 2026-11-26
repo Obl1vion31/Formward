@@ -19,9 +19,9 @@ const action = (input = lunch) => {
 
 test("正式食物契约包含互斥分支，豆包发现平铺兼容但执行校验保持", () => {
   const schema = z.toJSONSchema(mealPreviewSchema), previous = z.toJSONSchema(publicMealInputSchema);
-  const encoded = JSON.stringify(schema);
-  assert.ok(encoded.includes("anyOf"));
-  assert.ok(Buffer.byteLength(encoded) < Buffer.byteLength(JSON.stringify(previous)));
+  const discovery = doubaoInputSchema(schema);
+  assert.ok(JSON.stringify(schema).includes("anyOf"));
+  assert.ok(Buffer.byteLength(JSON.stringify(discovery)) < Buffer.byteLength(JSON.stringify(previous)));
   const inspect = (value: unknown) => {
     if (!value || typeof value !== "object") return;
     for (const [key, child] of Object.entries(value)) {
@@ -29,8 +29,15 @@ test("正式食物契约包含互斥分支，豆包发现平铺兼容但执行�
       inspect(child);
     }
   };
-  inspect(doubaoInputSchema(schema));
+  inspect(discovery);
   assert.deepEqual(schema.required, ["operationId", "date", "mealType", "foods"]);
+  const egg = { id: "egg-hard-boiled", version: 1, portionId: "piece-egg", quantity: "1.5" };
+  const recipe = (part: typeof egg & { grams?: string }) => ({
+    ...lunch, foods: [{ name: "番茄牛腩盖饭", quantity: "75", unit: "g",
+      referenceFood: { id: "tomato-brisket-rice", version: 2, parts: [part] } }],
+  });
+  assert.deepEqual(action(recipe(egg)).items[0].referenceFood?.parts, [egg]);
+  assert.throws(() => action(recipe({ ...egg, grams: "75" })), ApiError);
 });
 
 test("豆包整数边界转换保持相同含义，不修改原schema和服务器校验", () => {

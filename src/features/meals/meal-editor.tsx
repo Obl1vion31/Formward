@@ -19,7 +19,7 @@ import { FoodLibraryTabs, ReferenceBrowser, type FoodLibraryScope, type Referenc
 import { ReferenceDetails, type ReferencePick } from "./reference-details";
 import type { RecipeEdit } from "./reference-recipe-details";
 import { referenceNutrition, type ReferenceFood } from "./reference-food";
-import { recipePart, recipeTotals, sameRecipeParts, wholeRecipeParts } from "./reference-recipe";
+import { recipeTotals, resolveRecipePart, sameRecipeParts, wholeRecipeParts } from "./reference-recipe";
 import { editorItem, freeEditorItem, mealEditorInput, mealDraftSignature, emptyEditorItem, type EditorItem, type EditorMeal } from "./meal-editor-state";
 import { MealEntryReadings, nutrientUnit } from "./meal-entry-readings";
 import { MealEntryRow } from "./meal-entry-row";
@@ -192,11 +192,24 @@ export function MealEditor({
      referenceFoods[key];
  }
 
+ function unchangedReferenceItem(item: ItemDraft) {
+   const link = item.referenceFood;
+   if (!link || !item.originalItemId) return undefined;
+   const historical = historicalItems.find(entry => entry.id === item.originalItemId);
+   const previous = historical?.referenceFood;
+   if (previous && referenceKey(previous) === referenceKey(link) && previous.portionId === link.portionId &&
+     historical.unit === item.unit && Number(historical.quantity ?? 0) === Number(item.quantity ?? 0) &&
+     sameRecipeParts(previous.parts, link.parts)) return historical;
+ }
+
  function itemRecipeParts(item: ItemDraft, recipe = itemReference(item)) {
    if (!recipe?.recipe || !item.referenceFood) return [];
+   const savedParts = unchangedReferenceItem(item)?.referenceSnapshot?.recipeParts;
+   if (savedParts) return savedParts;
    if (item.referenceFood.parts) return item.referenceFood.parts.flatMap(part => {
      const food = recipePartFood(item, recipe, part);
-     return food ? [recipePart(recipe, food, part)] : [];
+     const resolved = food && resolveRecipePart(recipe, food, part);
+     return resolved ? [resolved] : [];
    });
    const amount = item.quantity;
    return amount && decimal.safeParse(amount).success && Number(amount) > 0
@@ -244,11 +257,8 @@ export function MealEditor({
  function values(item: ItemDraft) {
    const quantity = item.quantity && decimal.safeParse(item.quantity).success && Number(item.quantity) > 0 ? item.quantity : null;
    if (item.referenceFood) {
-     const historical = historicalItems.find(entry => entry.id === item.originalItemId);
-     if (historical?.referenceFood && referenceKey(historical.referenceFood) === referenceKey(item.referenceFood) &&
-       historical.referenceFood.portionId === item.referenceFood.portionId && historical.unit === item.unit &&
-       Number(historical.quantity ?? 0) === Number(quantity ?? 0) &&
-       sameRecipeParts(historical.referenceFood.parts, item.referenceFood.parts)) return historical.nutrition;
+     const historical = unchangedReferenceItem(item);
+     if (historical) return historical.nutrition;
      const reference = itemReference(item);
      if (reference?.recipe) {
        const parts = itemRecipeParts(item, reference);

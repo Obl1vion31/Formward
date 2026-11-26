@@ -58,12 +58,24 @@ export function RecipeArt({ food }: { food: ReferenceFood }) {
 
 export function SavedRecipeParts({ parts }: { parts: readonly RecipePart[] }) {
   return <ul className={recipeStyles.savedParts}>
-    {parts.map(part => <li key={part.food.id}>
-      <span><strong>{(part.label ?? part.food.name)}</strong><small>{recipeAmountBasis(part)}</small></span>
-      <span>{part.estimated ? "约 " : ""}{Number(part.grams)} g</span>
-      <a href={part.food.source.url} target="_blank" rel="noreferrer" title={part.food.source.title}
-        aria-label={(part.label ?? part.food.name) + "的来源"}>来源</a>
-    </li>)}
+    {parts.map(part => {
+      const name = part.label ?? part.food.name;
+      const portion = part.count?.portion;
+      return <li key={part.food.id}>
+        <span><strong>{name}</strong><small>{recipeAmountBasis(part)}</small></span>
+        <span className={recipeStyles.savedAmount}>
+          {part.count && <strong>{Number(part.count.quantity)} {part.count.portion.unit}</strong>}
+          {part.estimated ? "约 " : ""}{Number(part.grams)} g
+        </span>
+        <span className={recipeStyles.savedPartSources}>
+          <a href={part.food.source.url} target="_blank" rel="noreferrer" title={part.food.source.title}
+            aria-label={name + "的来源"}>来源</a>
+          {portion && <a href={portion.source.url} target="_blank" rel="noreferrer"
+            title={portion.source.title + " · 1 " + portion.unit + "约 " + Number(portion.edibleGrams) + " g"}
+            aria-label={name + "的份量依据"}>份量依据</a>}
+        </span>
+      </li>;
+    })}
   </ul>;
 }
 
@@ -74,7 +86,7 @@ export function ReferenceReading({ snapshot, estimated }: { snapshot: ReferenceS
     <div className={recipeStyles.savedHeading}>
       <div>
         <p>{recipeMode === "split" ? "拆开记" : "按整份记"} · 配方估算</p>
-        {edibleGrams && <p>可食部{portion || estimated || recipeParts.some(part => part.estimated) ? "约 " : " "}{Number(edibleGrams)} g</p>}
+        {edibleGrams && <p>可食部{portion || estimated || (recipeMode === "split" && recipeParts.some(part => part.estimated)) ? "约 " : " "}{Number(edibleGrams)} g</p>}
       </div>
       <RecipeArt food={food}/>
     </div>

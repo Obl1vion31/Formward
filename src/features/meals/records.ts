@@ -15,9 +15,9 @@ import { localMeasurementDate } from "../measurements/entry-state";
 import { emptyNutrition, metrics, portionNutrition, nutritionFor, operationSchema, sumNutrition, missingMealImages, type FoodDraft, type FoodView, type ItemDraft, type ItemView, type MealAction, type MealInput, type MealOperationView, type MealSnapshot, type MealView, type Nutrition, type PreviewRow } from "./model";
 import { foodDescriptionIssues } from "./food-description";
 import { readMealDayViews, invalidateMealDays } from "./day-status";
-import { requireCurrentReferenceFood, validatePreparedReferenceFood } from "./reference-catalog";
+import { requireCurrentReferenceFood, resolveReferenceRecipeParts, validatePreparedReferenceFood } from "./reference-catalog";
 import { referenceNutrition, type ReferenceFoodLink } from "./reference-food";
-import { recipePart, recipeTotals, sameRecipeParts, savedRecipePartInputs, validRecipePeople, wholeRecipeParts } from "./reference-recipe";
+import { recipeTotals, sameRecipeParts, savedRecipePartInputs, validRecipePeople, wholeRecipeParts } from "./reference-recipe";
 
 export type MealActor = { userId: string; origin: "manual" | "ai" | "initialization"; identity?: AiIdentity; importId?: string };
 // PostgreSQL jsonb会重排对象字段；请求和保存后的原始快照使用相同的稳定摘要。
@@ -116,12 +116,8 @@ function prepareReferenceItem(input: ItemDraft, link: ReferenceFoodLink, previou
       nutrition: previous.nutrition, referenceSnapshot: previous.referenceSnapshot,
       sourceKind: previous.sourceKind, basis: previous.basis, evidenceUrl: previous.evidenceUrl };
   }
-  const recipeParts = link.parts ? link.parts.map(part => {
-    const original = historical?.recipeParts?.find(entry => entry.food.id === part.id && entry.food.version === part.version);
-    const component = original?.food ?? requireCurrentReferenceFood(part);
-    if (component.basisUnit || component.components) throw new ApiError(400, "invalid_input", "分项须引用按克记录的单项公共食材。");
-    return recipePart(food, component, part);
-  }) : food.recipe && input.quantity ? wholeRecipeParts(food, input.quantity, portion?.id) : undefined;
+  const recipeParts = link.parts ? resolveReferenceRecipeParts(food, link.parts, historical)
+    : food.recipe && input.quantity ? wholeRecipeParts(food, input.quantity, portion?.id) : undefined;
   const recipeTotal = recipeParts && recipeTotals(recipeParts);
   if (link.parts && Number(recipeTotal?.grams) !== Number(input.quantity)) {
     throw new ApiError(400, "invalid_input", "餐项克数应与分项合计相同。");

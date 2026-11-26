@@ -9,13 +9,14 @@ import { loadRecordReview, reviewRecordOperation } from "../records/operations";
 import { aiDate, aiOperationId, normalizeSimpleFood, resolveAiDate, simpleFoodSchema, aiFoodSchema } from "./ai-preview";
 import { emptyNutrition, itemSchema, metrics, publicMealInputSchema, referenceFoodLinkSchema, scaled, type ItemDraft, type ItemView, type MealView, type Nutrition } from "./model";
 import { recipeGrams } from "./reference-recipe";
+import { requireCurrentReferenceFood, resolveReferenceRecipeParts } from "./reference-catalog";
 import { digest, getMealOperation, readMealSnapshot, submitMealOperation } from "./records";
 
 const reference = { itemId: z.string().uuid().optional(), index: z.number().int().min(0).max(49).optional() };
 const updateFood = simpleFoodSchema.pick({ name: true, quantity: true, unit: true, caloriesKcal: true, caloriesKj: true, proteinG: true, carbsG: true, fatG: true, sourceKind: true, basis: true, evidenceUrl: true }).partial().extend({
   ...reference,
   quantityEffect: z.enum(["keep_total", "scale_total"]).optional().describe("手填总营养改变数量时明确keep_total或scale_total；库项依原快照自动换算，可省略或重复说明scale_total，不接受keep_total"),
-  recipeParts: referenceFoodLinkSchema.shape.parts.describe("修改已引用整餐的拆分组成。提交全部保留分项与各自实际克数，服务端汇总。"),
+  recipeParts: referenceFoodLinkSchema.shape.parts.describe("修改已引用整餐的拆分组成。提交全部保留分项的实食克数或同规格计件份量，服务端汇总。"),
   clearFields: z.array(z.enum(["caloriesKcal", "proteinG", "carbsG", "fatG", "basis", "evidenceUrl"])).max(6).optional(),
 }).strict();
 export const mealChangesSchema = z.object({
@@ -79,7 +80,7 @@ export function applyMealChanges(original: MealAction, input: MealChangesInput, 
     const library = !!(old.foodId || old.foodRef || old.foodDraft || old.referenceFood || view?.foodSnapshot);
     if (patch.recipeParts && !old.referenceFood) return fail("这项没有公共整餐引用。");
     if (old.referenceFood?.parts && patch.quantity !== undefined && !patch.recipeParts && Number(patch.quantity) !== Number(old.quantity)) {
-      return fail("拆开记的整餐须提供各分项的新克数，请用recipeParts修改。", "needs_input");
+      return fail("拆开记的整餐须提供各分项的新用量，请用recipeParts修改。", "needs_input");
     }
     const nutrientsChanged = metrics.some(metric => patch[metric] !== undefined || patch.clearFields?.includes(metric)) || patch.caloriesKj !== undefined;
     if (library) {
@@ -95,7 +96,8 @@ export function applyMealChanges(original: MealAction, input: MealChangesInput, 
     const next = { ...old };
     for (const field of ["name", "quantity", "unit", "sourceKind", "basis", "evidenceUrl"] as const) if (patch[field] !== undefined) Object.assign(next, { [field]: patch[field] });
     if (patch.recipeParts && old.referenceFood) {
-      const grams = recipeGrams(patch.recipeParts);
+      const recipe = view?.referenceSnapshot?.food ?? requireCurrentReferenceFood(old.referenceFood);
+      const grams = recipeGrams(resolveReferenceRecipeParts(recipe, patch.recipeParts, view?.referenceSnapshot));
       if (patch.quantity !== undefined && Number(patch.quantity) !== Number(grams)) return fail("餐项克数应与分项合计相同。");
       next.referenceFood = { id: old.referenceFood.id, version: old.referenceFood.version, parts: patch.recipeParts };
       next.quantity = grams;

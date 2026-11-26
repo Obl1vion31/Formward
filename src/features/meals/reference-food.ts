@@ -115,9 +115,13 @@ export type ReferenceComponent = {
 export type ReferenceMealLink = Pick<ReferenceFood, "id" | "version" | "name">;
 export type ReferenceCatalogFood = ReferenceFood & { relatedMeals?: readonly ReferenceMealLink[] };
 
-export type RecipePartInput = { id: string; version: number; grams: string; estimated?: boolean };
+export type RecipePartAmount = ({ grams: string } | { portionId: string; quantity: string }) & { estimated?: boolean };
+export type RecipePartInput = { id: string; version: number } & RecipePartAmount;
 export type ReferenceFoodLink = { id: string; version: number; portionId?: string; parts?: RecipePartInput[] };
-export type RecipePart = Pick<ReferenceComponent, "food" | "label" | "amountBasis" | "grams"> & { estimated: boolean };
+export type RecipePart = Pick<ReferenceComponent, "food" | "label" | "amountBasis" | "grams"> & {
+  estimated: boolean;
+  count?: { quantity: string; portion: ReferencePortion };
+};
 export type ReferenceSnapshot = {
   food: ReferenceFood;
   portionId?: string;
