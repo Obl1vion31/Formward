@@ -124,13 +124,6 @@
 
 .content { overflow: auto; overscroll-behavior: contain; padding: 12px; min-height: 0; background: var(--surface); scrollbar-color: var(--control-border) transparent; }
 .assistantPage .content { padding: 12px 16px max(20px, var(--workspace-safe-bottom)); }
-.quick { padding: 8px 0 16px; }
-.quick > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
-.quick a { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 11px; border: 1px solid var(--control-border); border-radius: 12px; color: var(--warm-white); font-size: .875rem; text-decoration: none; }
-.assistantPage .quick { padding-top: 0; }
-.assistantPage .quick > div { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.assistantPage .quick a { min-width: 0; gap: 4px; padding-inline: 4px; text-align: center; }
-.assistantPage .quick svg { flex: none; }
 .items { padding: 0; margin: 0; list-style: none; }
 .items li { padding: 10px 0; border-top: 1px solid var(--line-soft); }
 .items li > div:first-child { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; }
@@ -369,16 +362,21 @@
 .dailyTaskIcon svg { width:16px; height:16px; }
 .dailyTaskCopy { flex:1 0 min(106px,100%); min-width:0; padding-block:3px; }
 .dailyTaskCopy strong { color:var(--warm-white); font-size:.9375rem; font-weight:590; line-height:1.4; }
-.dailyTaskTitle, .dailyTaskDetail { display:flex; flex-wrap:wrap; align-items:center; column-gap:6px; }
+.dailyTaskDetail { display:flex; flex-wrap:wrap; align-items:center; column-gap:6px; }
 .dailyTaskDetail { color:var(--muted); font-size:.8125rem; }
 .dailyTaskDetail:empty { display:none; }
 .dailyTaskDetail a { display:inline-flex; align-items:center; min-height:44px; color:var(--warm-white); text-underline-offset:3px; }
-.dailyTaskMore { position:relative; }
-.dailyTaskMore summary { display:grid; place-items:center; min-width:44px; min-height:44px; list-style:none; cursor:pointer; }
-.dailyTaskMore summary::-webkit-details-marker { display:none; }
-.dailyTaskMore button { position:absolute; z-index:2; left:0; min-height:44px; padding:0 10px; border:1px solid var(--control-border); border-radius:9px; background:var(--surface); color:var(--warm-white); white-space:nowrap; cursor:pointer; }
+.dailyTaskControls { display:flex; gap:2px; align-items:center; margin-inline-start:auto; }
+.dailyTaskDismiss {
+ display:inline-grid; place-items:center; min-width:44px; min-height:44px; padding:0 4px; flex:none;
+ border:0; border-radius:8px; background:transparent; color:var(--muted); font:inherit; font-size:.8125rem;
+ cursor:pointer;
+}
+.dailyTaskDismiss:hover:not(:disabled), .dailyTaskDismiss:focus-visible { color:var(--warm-white); }
+.dailyTaskDismiss:active:not(:disabled) { color:var(--gold); }
+.dailyTaskDismiss:disabled { opacity:.65; cursor:wait; }
 .dailyTasks :is(.dailyTaskAction,.dailyTaskPrimary) {
- display:inline-flex; align-items:center; justify-content:center; gap:5px; flex:none; min-height:44px; margin-inline-start:auto;
+ display:inline-flex; align-items:center; justify-content:center; gap:5px; flex:none; min-height:44px;
  padding:0 10px; border:1px solid var(--control-border); border-radius:14px; background:transparent;
  color:var(--warm-white); font:inherit; font-size:.8125rem; text-decoration:none; white-space:nowrap; cursor:pointer;
 }

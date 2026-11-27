@@ -8,7 +8,7 @@ import * as schema from "../../db/schema";
 import { assistantContext, assistantTimezone, assistantAvailable } from "./model";
 import { assistantAlreadyShown, assistantAutoEnabled, markAssistantShown, assistantAutoKey } from "./preferences";
 import type { ReminderCatalog } from "../dashboard/daily-reminders";
-import { dismissAssistantMealReminder, readAssistantContext, reviewSummary } from "./server";
+import { dismissAssistantReminder, readAssistantContext, reviewSummary } from "./server";
 import { readMealSnapshot, submitMealOperation, decideMealOperation } from "../meals/records";
 import { readEnergySnapshot, submitEnergyOperation, decideEnergyOperation } from "../activities/records";
 
@@ -19,8 +19,8 @@ const context = (catalog = blank, date = now, createdAt = created, timezone = "A
 test("日常待办按本地日期出现，新账号不追讨昨日", () => {
   const result = context();
   assert.deepEqual(result.pending.map(item => item.category), ["body", "meals", "energy"]);
-  assert.ok(result.pending.find(item => item.category === "meals")?.dismissible);
-  assert.deepEqual(result.suggestions.map(item => item.id), ["body:2024-08-02:evening"]);
+  assert.ok(result.pending.every(item => item.dismissible));
+  assert.equal(context(blank, new Date("2024-08-02T14:00:00Z")).pending.length, 3);
   assert.deepEqual(context(blank, now, now.toISOString()).pending.map(item => item.category), ["body"]);
 });
 test("饮食未确认和未记全区分，带餐数和原确认版本", () => {
@@ -44,7 +44,7 @@ test("昨日仅缺完整消耗才进待办，采用稳定设备时查看同步",
   assert.equal(device?.detail,"Garmin Personal 同步未完成");
   assert.ok(!context({ ...blank, energy: [{ date: "2024-08-01", hasTotal: true }] }).pending.some(item => item.category === "energy"));
 });
-test("只有已记录的当日空腹体重完成晨间事项，晚间仍按需记录", () => {
+test("只有已记录的当日空腹体重完成晨间事项", () => {
   const at = (clock: string) => new Date(`2024-08-02T${clock}+08:00`);
   for (const [clock, expected] of [["05:59:59", false], ["06:00:00", true], ["17:59:59", true], ["18:00:00", true]] as const) {
     assert.equal(context(blank, at(clock)).pending.some(item => item.category==="body"), expected);
@@ -97,22 +97,48 @@ test("有界读取复用业务口径，重复读取无写入且不泄露其他�
 });
 
 
-test("忽略只影响本人昨日提醒，幂等保存、跨读取生效，不改变健康事实或追讨旧日期", async()=>{
-  const owner={id:randomUUID(),createdAt:new Date(created)},other={id:randomUUID(),createdAt:new Date(created)};
-  for(const row of [owner,other])await db.insert(schema.user).values({...row,name:"虚构提醒账号",email:row.id+"@example.test"});
-  const meals=await db.select().from(schema.meal),days=await db.select().from(schema.mealDay),events=await db.select().from(schema.mealEvent);
-  assert.equal((await readAssistantContext(db,owner,"Asia/Shanghai",now)).pending.length,3);
-  await dismissAssistantMealReminder(db,owner,"meals:2024-08-01","Asia/Shanghai",now);
-  await dismissAssistantMealReminder(db,owner,"meals:2024-08-01","Asia/Shanghai",now);
-  assert.equal((await readAssistantContext(db,owner,"Asia/Shanghai",now)).pending.length,2);
-  assert.equal((await readAssistantContext(db,other,"Asia/Shanghai",now)).pending.length,3);
-  const rows=(await db.select().from(schema.assistantReminderDismissal)).filter(row=>row.userId===owner.id);assert.equal(rows.length,1);
-  const next=await readAssistantContext(db,owner,"Asia/Shanghai",new Date("2024-08-03T12:00:00Z"));
-  assert.deepEqual(next.pending.filter(item=>item.category==="meals").map(item=>item.date),["2024-08-02"]);
-  await assert.rejects(()=>dismissAssistantMealReminder(db,owner,"meals:2024-07-31","Asia/Shanghai",now));
-  await assert.rejects(()=>dismissAssistantMealReminder(db,owner,"ai:invalid","Asia/Shanghai",now));
-  await assert.rejects(()=>dismissAssistantMealReminder(db,{id:randomUUID(),createdAt:new Date(created)},"meals:2024-08-01","Asia/Shanghai",now));
-  assert.deepEqual(await db.select().from(schema.meal),meals);assert.deepEqual(await db.select().from(schema.mealDay),days);assert.deepEqual(await db.select().from(schema.mealEvent),events);
+test("逐条忽略按本人日期和类型隔离，可重试且不改健康事实或排期", async () => {
+  const owner = { id: randomUUID(), createdAt: new Date(created) };
+  const other = { id: randomUUID(), createdAt: new Date(created) };
+  for (const row of [owner, other]) {
+    await db.insert(schema.user).values({ ...row, name: "虚构提醒账号", email: row.id + "@example.test" });
+  }
+  const templateId = randomUUID();
+  const training = { userId: owner.id, createdBy: owner.id, content: { name: "虚构训练", exercises: [] } };
+  await db.insert(schema.trainingTemplate).values({ ...training, id: templateId });
+  await db.insert(schema.trainingPlan).values({ ...training, id: randomUUID(), templateId, date: "2024-08-02" });
+  const facts = () => Promise.all([
+    db.select().from(schema.meal), db.select().from(schema.mealDay), db.select().from(schema.mealEvent),
+    db.select().from(schema.measurement), db.select().from(schema.energyDay), db.select().from(schema.trainingPlan),
+  ]);
+  const before = await facts();
+  const zone = "Asia/Shanghai";
+  const ids = async (account: typeof owner, at = now) => (await readAssistantContext(db, account, zone, at)).pending.map(row => row.id);
+  const body = "body:2024-08-02:daytime", meal = "meals:2024-08-01", energy = "energy:2024-08-01", plan = "training:2024-08-02";
+  const dismiss = (id: string) => dismissAssistantReminder(db, owner, id, zone, now);
+  assert.deepEqual(await ids(owner), [body, meal, energy, plan]);
+  await dismiss(body);
+  await dismiss(body);
+  assert.deepEqual(await ids(owner), [meal, energy, plan]);
+  await dismiss(energy);
+  assert.deepEqual(await ids(owner), [meal, plan]);
+  assert.equal((await db.select().from(schema.assistantReminderDismissal)).filter(row => row.userId === owner.id).length, 0);
+  await dismiss(plan);
+  assert.deepEqual(await ids(owner), [meal]);
+  await dismiss(meal);
+  await dismiss(meal);
+  assert.deepEqual(await ids(owner), []);
+  assert.deepEqual(await ids(other), [body, meal, energy]);
+  assert.equal((await db.select().from(schema.assistantDailyReminderDismissal)).filter(row => row.userId === owner.id).length, 3);
+  assert.equal((await db.select().from(schema.assistantReminderDismissal)).filter(row => row.userId === owner.id).length, 1);
+  assert.deepEqual(await ids(owner, new Date("2024-08-03T12:00:00Z")), [
+    "body:2024-08-03:daytime", "meals:2024-08-02", "energy:2024-08-02",
+  ]);
+  for (const invalid of ["body:2024-08-02:evening", "energy:2024-07-31", "training:2024-08-03", "ai:invalid"]) {
+    await assert.rejects(() => dismiss(invalid), { code: "invalid_reminder" });
+  }
+  await assert.rejects(() => dismissAssistantReminder(db, { id: randomUUID(), createdAt: new Date(created) }, body, zone, now));
+  assert.deepEqual(await facts(), before);
 });
 
 test("只有今日尚未开始的真实计划进入角标，开始或跳过后移除",async()=>{

@@ -11,13 +11,14 @@ export async function checkAssistantEdges({createContext,config,connection,ready
   const handle=surface(page).getByRole("button",{name:"展开小助手，可拖动",exact:true});
   await handle.click();await page.waitForTimeout(300);assert.equal(await surface(page).getAttribute("data-expanded"),"true");await shot(page,"expanded");
   await surface(page).getByRole("button",{name:"收起小助手到半屏，可拖动",exact:true}).click();await page.waitForTimeout(250);
+  const dismissMeal=surface(page).locator('[data-assistant-item^="meals:"]').getByRole("button",{name:/^忽略.*提醒$/});
   setFault(true);
   await page.route("**/dashboard**",route=>route.request().method()==="POST"?route.fulfill({status:500,body:"fictional reminder failure"}):route.continue());
-  await surface(page).getByRole("button",{name:"忽略这一天",exact:true}).click();
-  await surface(page).getByRole("alert").waitFor();assert.ok(await surface(page).getByRole("button",{name:"忽略这一天",exact:true}).isVisible(),"失败保留未处理事项");
+  await dismissMeal.click();
+  await surface(page).getByRole("alert").waitFor();assert.ok(await dismissMeal.isVisible(),"失败保留未处理事项");
   await page.unroute("**/dashboard**");setFault(false);
-  await surface(page).getByRole("button",{name:"忽略这一天",exact:true}).click();
-  await surface(page).getByRole("button",{name:"忽略这一天",exact:true}).waitFor({state:"detached"});
+  await dismissMeal.click();
+  await dismissMeal.waitFor({state:"detached"});
   const cloud=await(await second.request.get(config.baseURL+"/api/assistant-context?timezone=Asia%2FShanghai")).json();assert.equal(cloud.pending.filter(item=>item.category==="meals").length,0);
   await otherPage.evaluate(()=>window.dispatchEvent(new Event("focus")));await open(otherPage);await surface(otherPage).getByText("暂无待确认或待办事项",{exact:true}).waitFor();
   await close(otherPage);

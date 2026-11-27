@@ -477,17 +477,18 @@ export async function runMobileLayoutStability(db) {
           });
           try {
             await page.goto(assistantPath + "?view=tasks", { waitUntil: "load" });
-            const heading = shell.locator('[data-assistant-group="supplements"]');
-            await heading.waitFor();
-            const before = await heading.boundingBox();
-            await heading.getByText("正在读取事项…", { exact: true }).waitFor();
-            const waiting = await heading.boundingBox();
-            near(waiting.y, before.y, "待办提示出现时标题位置");
-            near(waiting.height, before.height, "待办提示出现时标题行高度");
+            const taskPane = shell.locator("[data-assistant-task-scroll]");
+            const tab = shell.getByText("待办", { exact: true });
+            await tab.waitFor();
+            const before = await tab.boundingBox();
+            const waiting = taskPane.getByText("正在读取事项…", { exact: true });
+            await waiting.waitFor();
+            near((await tab.boundingBox()).y, before.y, "待办读取中顶栏位置");
             pendingTasks.resolve();
-            await heading.getByText("查看需要补记的记录", { exact: true }).waitFor();
-            near((await heading.boundingBox()).y, before.y, "待办数据就绪后的分组位置");
-            report.checks.push("待办冷读在说明行呈现，快捷记录与分组位置稳定");
+            await waiting.waitFor({ state: "hidden" });
+            near((await tab.boundingBox()).y, before.y, "待办数据就绪后的顶栏位置");
+            assert.equal(await taskPane.getByText("按需补记", { exact: true }).count(), 0);
+            report.checks.push("待办冷读在内容区呈现，顶栏位置稳定");
           } finally {
             pendingTasks.resolve();
             await context.unroute(contextRoute);

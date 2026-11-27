@@ -610,6 +610,17 @@ export const assistantReminderDismissal = pgTable("assistant_reminder_dismissals
   ignoredAt: timestamp("ignored_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => [uniqueIndex("assistant_reminder_dismissals_owner_date_idx").on(t.userId, t.date)]);
 
+// 保留独立饮食表供旧版本读取，新提醒按账号、业务日期和类型隔离。
+export const assistantDailyReminderDismissal = pgTable("assistant_daily_reminder_dismissals", {
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  date: date("local_date").notNull(),
+  kind: text("kind").$type<Exclude<import("../features/assistant/model").DailyReminderKind, "meals">>().notNull(),
+  ignoredAt: timestamp("ignored_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  uniqueIndex("assistant_daily_reminder_dismissals_owner_date_kind_idx").on(t.userId, t.date, t.kind),
+  check("assistant_daily_reminder_dismissals_kind_valid", sql`${t.kind} IN ('body', 'energy', 'training')`),
+]);
+
 // 训练事实、可复用模板与排期独立保存，不参与消耗累计。
 export const trainingTemplate = pgTable("training_templates", {
   id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => user.id),

@@ -7,7 +7,7 @@ import { confirmDraftDiscard } from "./draft-guard";
 import { workspacePages } from "./workspace-pages";
 
 export type ReturnScope = "workspace" | "account" | "assistant";
-type TaskDisplay = { tools: boolean; supplements: boolean; reviews?: boolean; scroll: number };
+type TaskDisplay = { tools: boolean; reviews?: boolean; scroll: number };
 type Visit = {
   id: string;
   source: string;
@@ -43,7 +43,7 @@ function taskDisplay(taskList: HTMLElement): TaskDisplay {
     const value = taskList.querySelector('[data-assistant-group="' + group + '"]')?.getAttribute("aria-expanded");
     return value == null ? undefined : value === "true";
   };
-  return { tools: !!open("tools"), supplements: !!open("supplements"), reviews: open("reviews"), scroll: taskList.scrollTop };
+  return { tools: !!open("tools"), reviews: open("reviews"), scroll: taskList.scrollTop };
 }
 
 function see(element: HTMLElement | undefined | null): element is HTMLElement {

@@ -77,7 +77,7 @@ try{
    if(process.env.FORMWARD_UI_SKIP_CHAT!=='1'){
    await openChat(page);mark('新聊天');await newChat(page);await screenshot(page,profile,'chat-welcome',['P09','X15']);
    await tasks(page,width);await screenshot(page,profile,'tasks',['A10','B07']);
-   if(!baseline){const actions=page.locator('[data-assistant-surface] [aria-label="快捷记录"] a');assert.equal(await actions.count(),3);assert.equal(await actions.first().locator('svg').count(),1);}
+   if(!baseline)assert.equal(await page.locator('[data-assistant-task-scroll] [aria-label="快捷记录"]').count(),0);
    await chatTab(page,width);mark('发送真实消息气泡');await message(page,'排版验收');await screenshot(page,profile,'chat-markdown',['A01','A02','A03']);
    assert.equal(await page.getByRole('region',{name:'回答中的表格'}).count(),1);assert.ok(await page.locator('[data-chat-message] ul li').count()>0);
    if(!baseline){const markers=await page.locator('[data-chat-message] ul li').evaluateAll(nodes=>nodes.map(node=>({type:getComputedStyle(node).listStyleType,display:getComputedStyle(node).display})));assert.ok(markers.every(marker=>marker.type==='disc'&&marker.display==='list-item'),'回答列表必须显示实际项目符号，不能只验证li节点存在');}
@@ -119,7 +119,8 @@ try{
    const detail=page.getByRole('button',{name:/纯牛奶.*详情/});await detail.click();await screenshot(page,profile,'food-library-detail',['D10','X09']);
    if(!baseline)assert.equal(await page.getByRole('dialog').count(),0,'简单详情原位展开');
    if(baseline&&await page.getByRole('button',{name:'关闭详情',exact:true}).count())await page.getByRole('button',{name:'关闭详情',exact:true}).click();
-   await openChat(page);await tasks(page,width);await page.getByRole('link',{name:width<701?'记录饮食':'手动记录饮食',exact:true}).click();
+   if(baseline){await openChat(page);await tasks(page,width);await page.getByRole('link',{name:width<701?'记录饮食':'手动记录饮食',exact:true}).click();}
+   else await page.getByRole('button',{name:'记一餐',exact:true}).click();
    const meal=page.locator('[data-meal-editor]');await meal.waitFor();await screenshot(page,profile,'meal-loading',['P04']);await page.waitForFunction(()=>{const input=document.querySelector('[aria-label="自由填写食物名称"]');return input&&!input.matches(':disabled');});await screenshot(page,profile,'meal-manual',['C01','C02','C03','C04','C09','X08']);
    await page.getByLabel('自由填写食物名称',{exact:true}).fill('原手填草稿');if(baseline||await page.getByRole('button',{name:'从食材库添加',exact:true}).isVisible())await page.getByRole('button',{name:'从食材库添加',exact:true}).click();await screenshot(page,profile,'meal-picker',['C05','C06','C07']);
     if(!baseline&&width>=1100&&textScale===1){const geometry=await meal.evaluate(node=>{const picker=node.querySelector('[aria-label="选择食材库"]'),entry=node.querySelector('[aria-label="本餐录入"]'),row=picker.querySelector('[draggable]'),summary=row.firstElementChild.firstElementChild,rect=n=>{const r=n.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};};return{picker:rect(picker),entry:rect(entry),row:rect(row),name:rect(summary.querySelector('strong')),energy:rect(summary.querySelector('p'))};});assert.ok(geometry.picker.width/(geometry.picker.width+geometry.entry.width)>=.4,'食材选择占两栏可用宽度至少40%');assert.ok(Math.abs(geometry.name.y-geometry.energy.y)<=6,'名称与热量横排');assert.ok(geometry.row.height<=66,'默认候选行紧凑');}

@@ -1,16 +1,18 @@
 "use server";
 import { headers } from "next/headers";
 import { withCurrentSession } from "@/features/auth/server";
+import { ApiError } from "@/features/auth/ai-identity";
 import { getDatabase } from "@/db/client";
-import { dismissAssistantMealReminder } from "@/features/assistant/server";
+import { dismissAssistantReminder } from "@/features/assistant/server";
 
 export async function dismissAssistantReminderAction(input: { id: string; timezone: string }) {
   try {
     return await withCurrentSession(await headers(), async user => {
-      await dismissAssistantMealReminder(getDatabase(), user, input.id, input.timezone);
+      await dismissAssistantReminder(getDatabase(), user, input.id, input.timezone);
       return { ok: true as const, id: input.id };
     });
-  } catch {
-    return { ok: false as const, error: "忽略未保存，请重试。" };
+  } catch (error) {
+    const message = error instanceof ApiError && error.code === "invalid_reminder" ? error.message : "忽略未保存，请重试。";
+    return { ok: false as const, error: message };
   }
 }

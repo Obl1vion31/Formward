@@ -798,7 +798,7 @@ account_preferences由0030_account_preferences创建，不回填或修改旧健�
 
 ## 助手提醒忽略记录
 
-assistant_reminder_dismissals保存账号级昨日饮食提醒的忽略状态。user_id关联users，local_date为被忽略的业务日期，ignored_at为确认忽略时间；user_id与local_date唯一，重复请求不新增行。表中不保存餐次、营养、训练或AI预览，不影响饮食记全及正式统计。公开HTTP／MCP没有忽略接口，网页通过带会话证明的私有Server Action操作。
+assistant_reminder_dismissals 保存账号级昨日饮食提醒的忽略状态。assistant_daily_reminder_dismissals 保存空腹体重、全天消耗和训练三类提醒的忽略状态，kind 分别为 body、energy 和 training。两表通过 user_id 关联 users，local_date 是被忽略的业务日期，ignored_at 是忽略时间。重复请求只留一条。独立的饮食忽略表兼容旧版，跨时区读取仍按实际业务日期判断。网页由本人会话写入，健康记录、记全状态和训练排期继续由各自业务入口维护。
 
 ## 站内聊天
 

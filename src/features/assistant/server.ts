@@ -7,7 +7,7 @@ import {chatAllowed,chatCapabilities} from "./chat-config";
 import { assistantConversation,assistantMessage } from "../../db/schema";
 import { and, desc, eq, gt, inArray, notExists } from "drizzle-orm";
 import type { Database } from "../../db/client";
-import { assistantReminderDismissal, mealDay, measurementOperation, mealOperation, energyOperation, recordOperation, trainingPlan, trainingSession } from "../../db/schema";
+import { assistantDailyReminderDismissal, assistantReminderDismissal, mealDay, measurementOperation, mealOperation, energyOperation, recordOperation, trainingPlan, trainingSession } from "../../db/schema";
 import { readMealSnapshot } from "../meals/records";
 import { readEnergySnapshot } from "../activities/records";
 import { listMeasurements } from "../measurements/records";
@@ -22,7 +22,7 @@ import { listRecordOperations } from "../records/operations";
 import { requireActiveAiToken } from "../auth/ai-tokens";
 import { lockOwner } from "../auth/owner-lock";
 import { ApiError } from "../auth/ai-identity";
-import { assistantContext, assistantTimezone, type AssistantItem } from "./model";
+import { assistantContext, assistantReminderId, assistantTimezone, type AssistantItem } from "./model";
 
 export function reviewSummary(actions:RecordAction[],rows:PreviewRow[]=[],energyRows:EnergyPreview[]=[]){
   const meal=rows.find(row=>!row.excluded&&row.meal)?.meal;
@@ -117,9 +117,17 @@ export async function readAssistantContext(db: Database, user: { id: string; cre
   const catalog = reminderCatalog(meals.meals, records.map(measurementDisplay), energy);
   const device = !catalog.energy.some(day=>day.date===yesterday&&day.hasTotal) ? await loadEnergyDeviceCoverage(db,user.id,now) : null;
   const context = assistantContext(catalog, now, zone, user.createdAt.toISOString(), device);
-  const ignored = await db.select().from(assistantReminderDismissal).where(and(eq(assistantReminderDismissal.userId, user.id), eq(assistantReminderDismissal.date, yesterday)));
-  const day = await db.select().from(mealDay).where(and(eq(mealDay.userId, user.id), eq(mealDay.date, yesterday)));
-  if (ignored.length || day[0]?.status === "complete") context.pending = context.pending.filter(item => item.category !== "meals");
+  const [mealIgnored, ignored, [day]] = await Promise.all([
+    db.select({ date: assistantReminderDismissal.date }).from(assistantReminderDismissal)
+      .where(and(eq(assistantReminderDismissal.userId, user.id), eq(assistantReminderDismissal.date, yesterday))),
+    db.select({ date: assistantDailyReminderDismissal.date, kind: assistantDailyReminderDismissal.kind })
+      .from(assistantDailyReminderDismissal)
+      .where(and(eq(assistantDailyReminderDismissal.userId, user.id), inArray(assistantDailyReminderDismissal.date, dates))),
+    db.select({ status: mealDay.status }).from(mealDay)
+      .where(and(eq(mealDay.userId, user.id), eq(mealDay.date, yesterday))),
+  ]);
+  const hidden = new Set(ignored.map(row => assistantReminderId(row.kind, row.date)));
+  if (mealIgnored.length || day?.status === "complete") hidden.add(assistantReminderId("meals", yesterday));
   const plans = await db.select({ id: trainingPlan.id, content: trainingPlan.content }).from(trainingPlan).where(and(eq(trainingPlan.userId, user.id), eq(trainingPlan.date, today), eq(trainingPlan.status, "planned")));
   const started = plans.length ? await db.select({ planId: trainingSession.planId }).from(trainingSession).where(and(eq(trainingSession.userId, user.id), inArray(trainingSession.planId, plans.map(row => row.id)), inArray(trainingSession.status, ["active", "paused", "completed"]))) : [];
   const upcoming = plans.filter(plan => !started.some(session => session.planId === plan.id));
@@ -134,15 +142,36 @@ export async function readAssistantContext(db: Database, user: { id: string; cre
     else if(chatPreviews.has(id)&&chatAllowed(user)&&chatCapabilities().inlinePreviews)item.action={...item.action,previewId:id};
   }
   context.pending.unshift(...reviews);
-  if (upcoming.length) context.pending.push({ id: "training:" + today, category: "training", date: today, title: "有训练计划待开始", detail: upcoming.map(plan => plan.content.name).join("、"), action: { label: "查看计划", href: "/dashboard/training?date=" + today } });
+  if (upcoming.length) context.pending.push({
+    id: assistantReminderId("training", today), category: "training", date: today, dismissible: true,
+    title: "有训练计划待开始", detail: upcoming.map(plan => plan.content.name).join("、"),
+    action: { label: "查看计划", href: "/dashboard/training?date=" + today },
+  });
+  context.pending = context.pending.filter(item => !hidden.has(item.id));
   return context;
 }
 
-export async function dismissAssistantMealReminder(db: Database, user: { id: string; createdAt: Date }, id: unknown, timezone: string, now = new Date()) {
-  const zone = assistantTimezone(timezone), yesterday = addCalendarDays(localMeasurementDate(now, zone), -1);
-  if (typeof id !== "string" || id !== "meals:" + yesterday || yesterday < localMeasurementDate(user.createdAt, zone)) throw new ApiError(400, "invalid_reminder", "这条提醒已不属于昨天，请重新查看。");
-  return db.transaction(async tx => {
+export async function dismissAssistantReminder(db: Database, user: { id: string; createdAt: Date }, id: unknown, timezone: string, now = new Date()) {
+  const zone = assistantTimezone(timezone);
+  const today = localMeasurementDate(now, zone);
+  const yesterday = addCalendarDays(today, -1);
+  const options = [
+    { kind: "body", date: today },
+    { kind: "training", date: today },
+    { kind: "meals", date: yesterday },
+    { kind: "energy", date: yesterday },
+  ] as const;
+  const reminder = options.find(({ kind, date }) => id === assistantReminderId(kind, date));
+  if (!reminder || reminder.date < localMeasurementDate(user.createdAt, zone)) {
+    throw new ApiError(400, "invalid_reminder", "这条提醒已过期，请重新打开待办。");
+  }
+  await db.transaction(async tx => {
     await lockOwner(tx, user.id);
-    await tx.insert(assistantReminderDismissal).values({ userId: user.id, date: yesterday, ignoredAt: now }).onConflictDoNothing();
+    const values = { userId: user.id, date: reminder.date, ignoredAt: now };
+    if (reminder.kind === "meals") {
+      await tx.insert(assistantReminderDismissal).values(values).onConflictDoNothing();
+    } else {
+      await tx.insert(assistantDailyReminderDismissal).values({ ...values, kind: reminder.kind }).onConflictDoNothing();
+    }
   });
 }

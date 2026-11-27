@@ -8,7 +8,7 @@ import { useWorkspaceReturn } from "@/components/workspace-return";
 import { addCalendarDays } from "../measurements/calendar";
 import { localMeasurementDate } from "../measurements/entry-state";
 import type { AssistantTasksState } from "./context";
-import { assistantQuickActions, assistantTools, type AssistantItem } from "./model";
+import { assistantTools, type AssistantItem } from "./model";
 import { TaskGroup } from "./task-group";
 import styles from "./surface.module.css";
 
@@ -24,34 +24,32 @@ export function AssistantTasks({ data, error, loading, retry, dismissItem, compl
   navigate: () => Promise<boolean>;
 }) {
   const restored = useWorkspaceReturn()?.restoring?.tasks;
-  const [supplementsOpen, setSupplementsOpen] = useState(restored?.supplements ?? false);
   const [reviewOpen, setReviewOpen] = useState(restored?.reviews);
   const [tools, setTools] = useState(restored?.tools ?? false);
   const [applied, setApplied] = useState(restored);
   if (restored && restored !== applied) {
     setApplied(restored);
-    setSupplementsOpen(restored.supplements);
     setReviewOpen(restored.reviews);
     setTools(restored.tools);
   }
-  const [busy, setBusy] = useState("");
+  const [busy, setBusy] = useState<{ id: string; action: "confirm" | "dismiss" } | null>(null);
   const [failure, setFailure] = useState<{ id: string; message: string } | null>(null);
   const attempts = useRef(new Map<string, string>());
   const mutationRunning = useRef(false);
   const reading = useDelayedReading(!data && loading && !error);
-  const heading = useRef<HTMLHeadingElement>(null);
+  const content = useRef<HTMLDivElement>(null);
   const today = data?.localDate ?? localMeasurementDate(new Date());
   const yesterday = addCalendarDays(today, -1);
   const daily = data?.pending.filter(item => item.category !== "ai") ?? [];
   const reviews = data?.pending.filter(item => item.category === "ai") ?? [];
-  const supplements = data?.suggestions ?? [];
 
-  async function run(item: AssistantItem, confirm: boolean) {
+  async function run(item: AssistantItem, action: "confirm" | "dismiss") {
     if (mutationRunning.current) return;
+    const confirm = action === "confirm";
     const confirmation = item.mealConfirmation;
-    if (confirm && !confirmation) return;
+    if (confirm ? !confirmation : !item.dismissible) return;
     mutationRunning.current = true;
-    setBusy(item.id);
+    setBusy({ id: item.id, action });
     setFailure(null);
     const signature = confirmation && item.id + ":" + confirmation.version + ":" + confirmation.contentDigest;
     try {
@@ -65,39 +63,42 @@ export function AssistantTasks({ data, error, loading, retry, dismissItem, compl
       else {
         if (signature) attempts.current.delete(signature);
         requestAnimationFrame(() => {
-          if (document.activeElement === document.body) heading.current?.focus({ preventScroll: true });
+          if (document.activeElement === document.body) {
+            content.current?.querySelector<HTMLElement>("h3, [data-assistant-group]")?.focus({ preventScroll: true });
+          }
         });
       }
     } catch {
       setFailure({ id: item.id, message: confirm ? "确认暂未完成，请重试。" : "忽略未保存，请重试。" });
     } finally {
       mutationRunning.current = false;
-      setBusy("");
+      setBusy(null);
     }
   }
 
   const items = (rows: AssistantItem[]) => <ul className={styles.dailyTasks}>{rows.map(item => {
     if (item.category === "ai") return null;
+    const confirming = busy?.id === item.id && busy.action === "confirm";
+    const dismissing = busy?.id === item.id && busy.action === "dismiss";
     return <li key={item.id} data-assistant-item={item.id}>
       <span className={styles.dailyTaskIcon}><NavigationIcon index={dailyIcons[item.category]}/></span>
       <div className={styles.dailyTaskCopy}>
-        <div className={styles.dailyTaskTitle}>
-          <strong>{item.title}</strong>
-          {item.dismissible && <details className={styles.dailyTaskMore}>
-            <summary aria-label="更多饮食提醒操作">···</summary>
-            <button type="button" disabled={!!busy} onClick={()=>void run(item, false)}>忽略这一天</button>
-          </details>}
-        </div>
+        <strong>{item.title}</strong>
         <div className={styles.dailyTaskDetail}>{item.detail && <span>{item.detail}</span>}{item.mealConfirmation &&
           <LoadingLink returnScope="assistant" prefetch={false} href={item.action.href} beforeNavigate={navigate}>查看餐次</LoadingLink>}
         </div>
       </div>
-      {item.mealConfirmation
-        ? <button className={styles.dailyTaskPrimary} type="button" disabled={!!busy} aria-busy={busy===item.id||undefined}
-          onClick={()=>void run(item, true)}>{busy===item.id ? "正在确认…" : "标为已记全"}</button>
-        : <LoadingLink returnScope="assistant" className={styles.dailyTaskAction} prefetch={false} href={item.action.href} beforeNavigate={navigate}>
-          {item.action.label}<span aria-hidden="true">›</span>
-        </LoadingLink>}
+      <div className={styles.dailyTaskControls}>
+        {item.dismissible && <button className={styles.dailyTaskDismiss} type="button" disabled={!!busy}
+          aria-busy={dismissing || undefined} aria-label={"忽略" + item.title + "提醒"}
+          onClick={() => void run(item, "dismiss")}>忽略</button>}
+        {item.mealConfirmation
+          ? <button className={styles.dailyTaskPrimary} type="button" disabled={!!busy} aria-busy={confirming || undefined}
+            onClick={() => void run(item, "confirm")}>{confirming ? "正在确认…" : "标为已记全"}</button>
+          : <LoadingLink returnScope="assistant" className={styles.dailyTaskAction} prefetch={false} href={item.action.href} beforeNavigate={navigate}>
+            {item.action.label}<span aria-hidden="true">›</span>
+          </LoadingLink>}
+      </div>
       {failure?.id===item.id && <p role="alert" className={styles.dailyTaskError}>{failure.message}</p>}
     </li>;
   })}</ul>;
@@ -119,37 +120,31 @@ export function AssistantTasks({ data, error, loading, retry, dismissItem, compl
     </li>;
   })}</ul>;
 
-  return <div className={styles.content+" "+styles.taskContent} data-assistant-task-scroll onKeyDown={event => {
+  return <div ref={content} className={styles.content+" "+styles.taskContent} data-assistant-task-scroll onKeyDown={event => {
     if (event.key !== "Escape" || !tools) return;
     event.preventDefault();
     event.stopPropagation();
     setTools(false);
     event.currentTarget.querySelector<HTMLButtonElement>('[data-assistant-group="tools"]')?.focus();
   }}>
-    {!mobile&&<h3 ref={heading} tabIndex={-1} className={styles.taskHeading}>待办{data&&data.pending.length>0&&<span>{data.pending.length}</span>}</h3>}
+    {!mobile&&<h3 tabIndex={-1} className={styles.taskHeading}>待办{data&&data.pending.length>0&&<span>{data.pending.length}</span>}</h3>}
     {error&&<div role="alert">{error}<button type="button" onClick={retry}>重新读取</button></div>}
     {!data&&reading&&<p role="status" className={styles.muted}>正在读取事项…</p>}
     {[{date:today,label:"今天"},{date:yesterday,label:"昨天"}].map(({date,label})=>{
       const rows=daily.filter(item=>item.date===date);
       return rows.length>0&&<section key={date} className={styles.dailyTaskGroup}>
-        <h3 tabIndex={-1} ref={mobile&&date===today?heading:undefined}>{label} <time dateTime={date}>{shortDate(date)}</time></h3>
+        <h3 tabIndex={-1}>{label} <time dateTime={date}>{shortDate(date)}</time></h3>
         {items(rows)}
       </section>;
     })}
     {data&&data.pending.length===0&&<p className={styles.muted}>暂无待办</p>}
     {reviews.length>0&&<TaskGroup kind="reviews" title="AI 确认" description="核对待保存的提交"
       count={reviews.length+" 项"} open={reviewOpen??true} onToggle={()=>setReviewOpen(value=>!(value??true))}>{reviewItems}</TaskGroup>}
-    {supplements.length>0&&<TaskGroup kind="supplements" title="按需补记" description="测量过再记录"
-      count={supplements.length+" 项"} open={supplementsOpen} onToggle={()=>setSupplementsOpen(value=>!value)}>{items(supplements)}</TaskGroup>}
     <TaskGroup kind="tools" title="常用功能" description="使用说明、AI 接入等" count={assistantTools.length + 1 + " 个功能"} open={tools} onToggle={() => setTools(value => !value)}>
       <nav className={styles.toolsList} aria-label="常用功能">
         <LoadingLink returnScope="assistant" href={"/dashboard/training?date=" + today} beforeNavigate={navigate}>训练计划</LoadingLink>
         {assistantTools.map(action => <LoadingLink returnScope="assistant" key={action.label} href={action.href} beforeNavigate={navigate}>{action.label}</LoadingLink>)}
       </nav>
     </TaskGroup>
-    <section className={styles.quick} aria-label="快捷记录"><div>{assistantQuickActions(today).map(action=><LoadingLink returnScope="assistant" prefetch={false} key={action.label} href={action.href} beforeNavigate={navigate}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-      <span>{mobile?action.label.replace(/^手动/,""):action.label}</span>
-    </LoadingLink>)}</div></section>
   </div>;
 }
