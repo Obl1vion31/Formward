@@ -22,9 +22,11 @@ const restingMethods = [["estimate", "帮我估算"], ["manual", "手动输入"]
 const activityMethods = [[true, "活动估算"], [false, "运动明细"]] as const;
 
 export function RestingMethodControl({ value, change }: { value: RestingMethod; change: (value: RestingMethod) => void }) {
+  const id = useId();
   const slide = useSlidingSelection(restingMethods.findIndex(([method]) => method === value), index => change(restingMethods[index][0]));
-  return <div className={styles.recordMethod}><span>记录方式</span>
-    <div {...slide} className={styles.recordMethodButtons + " " + glass.track} role="group" aria-label="记录方式">
+  return <div className={styles.recordMethod}>
+    <h3 className={styles.entryGroupTitle} id={id}>记录方式</h3>
+    <div {...slide} className={styles.recordMethodButtons + " " + glass.track} role="group" aria-labelledby={id}>
       <span className={glass.selection} data-capsule-indicator aria-hidden="true"/>
       {restingMethods.map(([method, label], index) =>
         <button key={method} type="button" data-capsule-choice={index} aria-pressed={value === method} onClick={() => change(method)}>{label}</button>
@@ -75,51 +77,89 @@ export function ActivityEnergyHelp(){
  const id=useId();
  return <><button type="button" className={styles.calculationInfo} popoverTarget={id} aria-label="活动热量说明"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 2-2.5 4M12 16v1"/></svg></button><div id={id} popover="auto" className={styles.fieldHelp} role="dialog" aria-label="活动热量说明"><h4>活动热量</h4><p>填写当天已知的活动热量；不知道可以留空，明确没有活动才填0。</p><p>另记运动明细时，需核对是否已包含在活动合计中，避免重复相加。</p></div></>;
 }
+function paintActivityWheel(node: HTMLDivElement) {
+ const row = node.firstElementChild as HTMLLabelElement | null;
+ if (!row?.offsetHeight) return;
+ const center = node.scrollTop / row.offsetHeight;
+ Array.from(node.children).forEach((option, position) => {
+  const proximity = Math.max(0, 1 - Math.abs(position - center));
+  (option as HTMLLabelElement).style.setProperty("--activity-focus", proximity.toFixed(3));
+ });
+}
+
 export function ActivityLevelControl({ value, change, dateLabel = "今天的活动量", basis }: {
  value:ActivityLevel|null; change:(level:ActivityLevel)=>void; dateLabel?:string; basis:React.ReactNode;
 }) {
- const id=useId(), track=useRef<HTMLDivElement>(null), timer=useRef<number>(0), scrolling=useRef(false);
+ const id=useId(), track=useRef<HTMLDivElement>(null), timer=useRef<number>(0);
+ const gestureStart = useRef<number | null>(null), touching = useRef(false), animateChoice = useRef(false);
  const index=activityLevels.findIndex(level=>level.id===value);
  const examples=["大部分时间坐着，偶尔走动","通勤、散步或做家务","较长时间走路，或做了中等强度训练","体力工作，或长时间高强度训练"];
 
- function choose(next:number) {
-  const level=activityLevels[next];
-  if(!level)return;
-  scrolling.current=false;
+ function choose(next: number) {
+  const level = activityLevels[next];
+  if (!level) return;
+  gestureStart.current = null;
   window.clearTimeout(timer.current);
-  if(level.id!==value)change(level.id);
+  if (level.id === value) return;
+  animateChoice.current = true;
+  change(level.id);
  }
- useLayoutEffect(()=>{
-  const node=track.current;
-  const row=node?.firstElementChild as HTMLElement|undefined;
-  if(node&&row)node.scrollTo({top:row.offsetHeight*(index<0?1:index),behavior:"instant"});
- },[index]);
- useEffect(()=>()=>window.clearTimeout(timer.current),[]);
 
- function finishScroll() {
-  const node=track.current, row=node?.firstElementChild as HTMLElement|undefined;
-  if(!scrolling.current||!node||!row||row.offsetHeight===0)return;
-  choose(Math.min(activityLevels.length-1,Math.max(0,Math.round(node.scrollTop/row.offsetHeight))));
- }
- function onScroll() {
-  if(!scrolling.current)return;
+ useLayoutEffect(() => {
+  const node = track.current;
+  const row = node?.firstElementChild as HTMLLabelElement | null;
+  if (!node || !row) return;
+  const animate = animateChoice.current && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  animateChoice.current = false;
+  gestureStart.current = null;
   window.clearTimeout(timer.current);
-  timer.current=window.setTimeout(finishScroll,140);
+  node.scrollTo({ top: row.offsetHeight * (index < 0 ? 1 : index), behavior: animate ? "smooth" : "instant" });
+  paintActivityWheel(node);
+ }, [index]);
+ useEffect(() => () => window.clearTimeout(timer.current), []);
+
+ function settleAfterScroll() {
+  window.clearTimeout(timer.current);
+  if (touching.current || gestureStart.current === null) return;
+  timer.current = window.setTimeout(() => {
+   const node = track.current, row = node?.firstElementChild as HTMLLabelElement | null;
+   const start = gestureStart.current;
+   gestureStart.current = null;
+   if (!node || !row?.offsetHeight || start === null || node.querySelector("input:disabled")) return;
+   if (Math.abs(node.scrollTop - start) < 1) return;
+   const next = Math.round(node.scrollTop / row.offsetHeight);
+   choose(Math.min(activityLevels.length - 1, Math.max(0, next)));
+  }, 140);
+ }
+
+ function startScroll() {
+  gestureStart.current ??= track.current?.scrollTop ?? null;
+  settleAfterScroll();
+ }
+
+ function endTouch() {
+  touching.current = false;
+  settleAfterScroll();
  }
 
  return <section className={styles.activityLevels} data-activity-wheel>
   <details className={styles.activityBasis}>
    <summary>估算依据 <span aria-hidden="true">›</span></summary><div>{basis}</div>
   </details>
-  <h3 id={id}>{dateLabel}</h3>
+  <h3 className={styles.entryGroupTitle} id={id}>{dateLabel}</h3>
   <div className={styles.activityWheel}>
-   <div ref={track} className={styles.activityWheelTrack} role="radiogroup" aria-labelledby={id}
-    onScroll={onScroll} onTouchStart={()=>{scrolling.current=true;}} onWheel={()=>{scrolling.current=true;}}>
-    {activityLevels.map((level,position)=><label key={level.id} className={styles.activityLevel} data-selected={value===level.id||undefined}>
-      <input type="radio" name={id} value={level.id} aria-label={level.label} aria-describedby={id+"-"+position}
-       checked={value===level.id} onChange={()=>choose(position)}/>
-      <span><strong>{level.label}</strong><small id={id+"-"+position}>{examples[position]}</small></span>
-    </label>)}
+   <div className={styles.activityWheelWindow}>
+    <div ref={track} className={styles.activityWheelTrack} role="radiogroup" aria-labelledby={id}
+     onScroll={event => { paintActivityWheel(event.currentTarget); settleAfterScroll(); }}
+     onTouchStart={() => { touching.current = true; startScroll(); }}
+     onTouchEnd={endTouch} onTouchCancel={endTouch}
+     onWheel={event => { if (!event.ctrlKey) startScroll(); }}>
+     {activityLevels.map((level,position)=><label key={level.id} className={styles.activityLevel} data-selected={value===level.id||undefined}>
+       <input type="radio" name={id} value={level.id} aria-label={level.label} aria-describedby={id+"-"+position}
+        checked={value===level.id} onChange={()=>choose(position)}/>
+       <span><strong>{level.label}</strong><small id={id+"-"+position}>{examples[position]}</small></span>
+     </label>)}
+    </div>
    </div>
    <div className={styles.activityWheelArrows}>
     <button type="button" aria-label="上一档" disabled={index===0} onClick={()=>choose(index<0?0:index-1)}>
