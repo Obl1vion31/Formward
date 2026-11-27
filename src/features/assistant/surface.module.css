@@ -347,14 +347,15 @@
   .toast { right: 16px; left: 16px; bottom: calc(var(--workspace-dock-inset, 88px) + 12px); max-width: none; }
 }
 
-.taskContent { padding-bottom:16px; }
+.taskContent { --task-removal-time: 220ms; padding-bottom:16px; }
+.assistantPage .taskContent { padding-top:20px; }
 .taskHeading { display:flex; gap:7px; align-items:center; margin:0 0 10px; font-size:1rem; font-weight:620; }
 .taskHeading span { min-width:16px; text-align:center; padding:1px 4px; border-radius:10px; background:var(--gold); color:var(--surface); font-size:11px; line-height:16px; }
-.dailyTaskGroup { margin:0 0 15px; }
-.dailyTaskGroup h3 { display:flex; gap:7px; align-items:baseline; margin:8px 0 4px; font-size:1rem; font-weight:620; }
+.dailyTaskGroup { padding-bottom:15px; }
+.dailyTaskGroup h3 { display:flex; gap:7px; align-items:baseline; margin:0 0 4px; font-size:1rem; font-weight:620; }
 .dailyTaskGroup time { color:var(--muted); font-size:.8125rem; font-weight:450; }
 .dailyTasks { display:grid; margin:0; padding:0; list-style:none; }
-.dailyTasks li {
+.dailyTaskRow {
  display:flex; align-items:center; flex-wrap:wrap; gap:2px 8px;
  border-top:1px solid var(--line-soft); min-height:63px; padding:8px 0;
 }
@@ -384,7 +385,36 @@
 .dailyTasks .dailyTaskPrimary:disabled { opacity:.6; cursor:wait; }
 .dailyTasks .dailyTaskAction:hover { background:var(--surface-hover); }
 .dailyTaskError { width:100%; color:var(--data-red); margin:5px 0 0; font-size:.8125rem; }
+
+.dailyTaskPresence { display:grid; grid-template-rows:1fr; }
+.dailyTaskClip { display:flow-root; min-height:0; }
+.taskContent:has([data-task-motion="exit"]) { overflow-anchor:none; }
+.dailyTaskPresence[data-task-motion="exit"] {
+  animation: task-contract var(--task-removal-time) cubic-bezier(.2,.6,.28,1) both;
+}
+.dailyTaskPresence[data-task-motion="enter"] {
+  animation: task-expand var(--task-removal-time) cubic-bezier(.2,.6,.28,1) both;
+}
+.dailyTaskPresence[data-task-motion] > .dailyTaskClip { overflow:hidden; }
+.dailyTaskPresence[data-task-motion="exit"] > .dailyTaskClip { animation:task-fade-out 154ms ease-out both; }
+.dailyTaskPresence[data-task-motion="enter"] > .dailyTaskClip { animation:task-fade-in 142ms ease-out 62ms both; }
+
+@keyframes task-contract {
+  0%, 16% { grid-template-rows:1fr; }
+  to { grid-template-rows:0fr; }
+}
+@keyframes task-expand {
+  0%, 16% { grid-template-rows:0fr; }
+  to { grid-template-rows:1fr; }
+}
+@keyframes task-fade-out { to { opacity:0; } }
+@keyframes task-fade-in { from { opacity:0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .dailyTaskPresence[data-task-motion], .dailyTaskPresence[data-task-motion] > .dailyTaskClip { animation:none; }
+  .dailyTaskPresence[data-task-motion="exit"] { grid-template-rows:0fr; }
+}
 @media (max-width:700px), (hover:none) and (pointer:coarse) {
  .taskContent { padding-inline:16px; }
- .dailyTasks li { column-gap:9px; }
+ .dailyTaskRow { column-gap:9px; }
 }

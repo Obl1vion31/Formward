@@ -8,8 +8,8 @@ export type AssistantTasksState = {
   error: string;
   loading: boolean;
   retry: () => void;
-  dismissItem: (id: string) => Promise<string>;
-  completeMealDay: (item: AssistantItem, operationId: string) => Promise<string>;
+  dismissItem: (id: string, willRemove: () => void) => Promise<string>;
+  completeMealDay: (item: AssistantItem, operationId: string, willRemove: () => void) => Promise<string>;
 };
 type AssistantSource = { path: string; query: string };
 type AssistantState = {

@@ -93,15 +93,21 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
   },[show]);
   const toggle = useCallback(() => { if (phase.current === "open") void hide(); else show(); }, [hide, show]);
   const controllerReady = useCallback((next: SurfaceController | null) => { surface.current = next; }, []);
-  const dismissItem = useCallback(async (id: string) => {
+  const removePendingItem = useCallback((id: string, willRemove: () => void) => {
+    const current = dataRef.current;
+    if (!current?.pending.some(item => item.id === id)) return;
+    willRemove();
+    apply({ ...current, pending: current.pending.filter(item => item.id !== id) });
+  }, [apply]);
+  const dismissItem = useCallback(async (id: string, willRemove: () => void) => {
     const result = await dismissAssistantReminderAction({ id, timezone: deviceTime().timezone });
     if (!result.ok) return result.error;
     ignored.current.add(id); revision.current++;
-    if (dataRef.current) apply({ ...dataRef.current, pending: dataRef.current.pending.filter(item => item.id !== id) });
+    removePendingItem(id, willRemove);
     try { preferenceStore()?.setItem("formward:assistant:changed:" + accountId, String(Date.now())); } catch {}
     return "";
-  }, [accountId, apply]);
-  const completeMealDay = useCallback(async (item: AssistantItem, operationId: string) => {
+  }, [accountId, removePendingItem]);
+  const completeMealDay = useCallback(async (item: AssistantItem, operationId: string, willRemove: () => void) => {
     if (!item.mealConfirmation) return "请查看当天餐次。";
     const result = await completeAssistantMealDayAction({ ...item.mealConfirmation, date: item.date, operationId });
     if (!result.ok) {
@@ -115,12 +121,12 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
       return "餐次已有变化，请重新核对。";
     }
     revision.current++;
-    if (dataRef.current) apply({ ...dataRef.current, pending: dataRef.current.pending.filter(row => row.id !== item.id) });
+    removePendingItem(item.id, willRemove);
     const key = "mealDay:" + item.date;
     acknowledgeRecordChanges([key], result.data.version === null ? [] : [{ key, version: String(result.data.version), summary: "已记全" }]);
     try { preferenceStore()?.setItem("formward:assistant:changed:" + accountId, String(Date.now())); } catch {}
     return "";
-  }, [accountId, apply, refresh]);
+  }, [accountId, refresh, removePendingItem]);
   useEffect(() => {
     const initialFrame=requestAnimationFrame(()=>{setLocal(deviceTime());setClock(Date.now());void refresh();});
     const changed = () => { revision.current++; void refresh(true); };
