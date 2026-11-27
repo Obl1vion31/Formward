@@ -17,7 +17,11 @@ export async function checkMealDayCompletion({baseURL,context,page,token,today})
   await graphDay().focus();await page.keyboard.press("Enter");
   const readout=page.locator('[data-overview-day][data-selected-date="'+date+'"] [data-overview-day-energy]');await readout.waitFor();
   assert.match(await readout.textContent(),/饮食未确认|饮食未记全/);
-  assert.match(await readout.textContent(),/已记摄入 800/);
+  await page.locator("[data-overview-day]").getByRole("button",{name:"查看记录",exact:true}).click();
+  const details=page.getByRole("dialog");
+  assert.match(await details.locator("[data-nutrition-columns]>div:first-child strong").innerText(),/800\s*(千卡|kcal)/);
+  await page.keyboard.press("Escape");
+  await details.waitFor({state:"hidden"});
  };
 
  assert.equal(await graphDay().getAttribute("data-balance"),null);

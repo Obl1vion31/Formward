@@ -151,108 +151,13 @@
 
 }
 
-.overviewComparison { margin:3px 0 0; font-variant-numeric:tabular-nums; }
-.comparisonRow {
-  display:grid;
-  grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) minmax(0,1fr);
-  align-items:center;
-  column-gap:clamp(8px,2vw,26px);
-  min-block-size:44px;
-}
-.comparisonRow + .comparisonRow { border-top:1px solid var(--line-soft); }
-.comparisonPeriod,.comparisonInfo {
-  display:flex;
-  flex-wrap:wrap;
-  align-items:baseline;
-  gap:0 8px;
-  font-size:14px;
-  font-weight:520;
-}
-.comparisonDates { color:var(--muted); font-size:12px; font-weight:400; white-space:nowrap; }
-.comparisonInfo {
-  appearance:none;
-  border:0;
-  background:transparent;
-  color:inherit;
-  padding:0;
-  min-block-size:44px;
-  align-content:center;
-  text-align:start;
-  cursor:pointer;
-}
-.comparisonInfoLabel { display:inline-flex; align-items:center; gap:5px; }
-.comparisonInfo svg { color:var(--muted); }
-.comparisonInfo:is(:hover,:focus-visible) svg { color:var(--gold); }
-.comparisonValue { color:var(--muted); font-size:13px; line-height:1.35; overflow-wrap:anywhere; }
-.comparisonValue b { color:var(--warm-white); font-size:18px; font-weight:620; }
-.comparisonValue[data-tone="deficit"] b { color:var(--data-blue); }
-.comparisonValue[data-tone="surplus"] b { color:var(--data-surplus); }
-.comparisonValue small { margin:0; font-size:11px; white-space:nowrap; }
-.coveragePopover {
-  position:fixed;
-  inset:auto;
-  box-sizing:border-box;
-  margin:0;
-  max-width:calc(100vw - 32px);
-  padding:9px 12px;
-  border:1px solid var(--line-soft);
-  border-radius:9px;
-  background:var(--surface-raised);
-  color:var(--warm-white);
-  font-size:13px;
-  line-height:1.5;
-  box-shadow:0 5px 16px rgb(0 0 0 / .11);
-}
-.coveragePopover p { margin:3px 0 0; color:var(--muted); font-size:12px; }
-.overviewToolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; min-block-size:44px; }
-.overviewToolbar button {
-  appearance:none;
-  background:transparent;
-  border:0;
-  padding:0;
-  min-block-size:44px;
-  font:inherit;
-  font-size:13px;
-  color:var(--muted);
-  white-space:nowrap;
-  cursor:pointer;
-}
-.overviewToolbar button:disabled { cursor:default; }
+.overviewToolbar { display:flex; align-items:center; min-block-size:36px; }
 .overviewLegend { display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; color:var(--muted); font-size:12px; }
 .overviewLegend span { display:flex; gap:5px; align-items:center; }
-.overviewRanges { display:flex; justify-content:space-between; align-items:center; gap:4px; }
-
-  .statisticsButton {
-    display:inline-flex; flex:none; align-items:center; justify-content:center; gap:3px;
-    min-inline-size:44px; min-block-size:44px; padding:0 3px; border:0;
-    background:transparent; color:var(--muted); font:inherit; font-size:13px; cursor:pointer;
-  }
-  .statisticsButton[aria-expanded=true] { color:var(--warm-white); }
-  .statisticsButton[aria-expanded=true] svg { transform:rotate(180deg); }
-  .statisticsPanel:not(:popover-open) { display:none; }
-  .statisticsPanel:popover-open {
-    position:fixed; inset:auto; box-sizing:border-box; margin:0; padding:4px 12px;
-    width:var(--statistics-width); max-height:var(--statistics-max-height);
-    left:var(--statistics-left); top:var(--statistics-top); bottom:var(--statistics-bottom);
-    overflow:auto; overscroll-behavior:contain; border:1px solid var(--line-soft);
-    border-radius:12px; background:var(--surface-raised); color:var(--warm-white);
-    box-shadow:0 8px 24px rgb(0 0 0 / .13);
-  }
-  .statisticsPanel .overviewComparison { margin:0; }
-  .statisticsPanel .comparisonRow {
-    grid-template-columns:minmax(68px,.8fr) minmax(0,1fr) minmax(0,1.05fr);
-    column-gap:6px;
-  }
-  .statisticsPanel .comparisonAmount { white-space:nowrap; }
-  .statisticsBasis { margin:0; padding:7px 0 4px; border-top:1px solid var(--line-soft); color:var(--muted); font-size:12px; }
+.overviewRanges { display:flex; align-items:center; }
 @media(max-width:700px),(hover:none) and (pointer:coarse) {
   .overviewRanges .overviewRangeButtons.overviewRangeButtons { gap:0; flex-wrap:nowrap; }
   .overviewRanges .overviewRangeButtons.overviewRangeButtons button { padding-inline:2px; }
-
-  .comparisonPeriod,.comparisonInfo { display:grid; justify-items:start; gap:1px; font-size:13px; line-height:1.25; }
-  .comparisonDates { font-size:11px; }
-  .comparisonValue { font-size:12px; }
-  .comparisonValue b { font-size:16px; }
 }
 
 .detailNutrition .mealDayStatus{display:block;min-height:0;margin-bottom:8px;font-size:13px}.detailNutrition{padding-bottom:0;border-bottom:0}
@@ -279,35 +184,39 @@
 .relationship .plot [data-overview-date]:focus-visible .plotHit { stroke:none; }
 .relationship [data-overview-date-label] { cursor:pointer; }
 
+.chartReadings {
+  margin-block-start:4px; border-block-start:1px solid var(--line-soft);
+  font-variant-numeric:tabular-nums;
+}
 .selectedDay {
-  display:grid; grid-template-columns:minmax(86px,.55fr) minmax(0,1.2fr) minmax(0,1fr) auto;
-  align-items:center; gap:6px 16px; padding:10px 16px; margin:10px 0 4px;
-  border-radius:16px; background:var(--card-material);
+  display:grid; grid-template-columns:max-content minmax(0,max-content) minmax(0,max-content) minmax(44px,1fr);
+  align-items:center; gap:4px clamp(8px,1.5vw,20px); min-block-size:44px;
+  font-size:14px; color:var(--warm-white);
 }
-.selectedDate { color:var(--warm-white); font-size:15px; font-weight:600; white-space:nowrap; }
-.selectedMetric { display:grid; gap:2px; align-content:center; min-width:0; min-height:69px; }
-.selectedMetric + .selectedMetric { border-inline-start:1px solid var(--line-soft); padding-inline-start:16px; }
-.metricLabel,.metricDetail { color:var(--muted); font-size:12px; line-height:1.4; }
-.metricDetail { min-height:1.4em; display:flex; flex-wrap:wrap; column-gap:.58em; }
-.metricDetail>span { white-space:nowrap; }
-.selectedDay .comparisonValue { font-size:14px; font-weight:550; }
-.selectedDay .comparisonValue b { font-size:21px; font-weight:650; white-space:nowrap; }
+.selectedDay time { white-space:nowrap; }
+.comparisonValue { color:var(--muted); line-height:1.4; overflow-wrap:anywhere; }
+.comparisonValue b { color:var(--warm-white); font-size:1.1em; font-weight:620; }
+.comparisonValue[data-tone="deficit"] b { color:var(--data-blue); }
+.comparisonValue[data-tone="surplus"] b { color:var(--data-surplus); }
+.comparisonValue small { font-size:.88em; white-space:nowrap; }
 .selectedRecord {
-  justify-self:end; min-height:44px; padding:0 2px 0 8px; border:0; background:transparent;
-  color:var(--warm-white); font:inherit; font-size:13px; white-space:nowrap; cursor:pointer;
+  justify-self:end; min-block-size:44px; min-inline-size:44px; padding-inline:4px 0;
+  border:0; background:transparent; color:var(--warm-white);
+  font:inherit; font-size:13px; white-space:nowrap; cursor:pointer;
 }
-.selectedRecord span { color:var(--muted); padding-inline-start:3px; }
+.selectedRecord span[aria-hidden] { color:var(--muted); }
 .selectedRecord:not(:disabled):is(:hover,:focus-visible) { color:var(--gold); }
 .selectedRecord:disabled { color:var(--muted); cursor:default; }
-@media (max-width:700px), (hover:none) and (pointer:coarse) {
-  .selectedDay {
-    grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 10px;
-    padding:0 12px 9px; margin-top:8px;
-  }
-  .selectedDate { grid-row:1; grid-column:1; }
-  .selectedRecord { grid-row:1; grid-column:2; }
-  .selectedMetric { grid-row:2; min-height:74px; align-content:start; }
-  .selectedMetric + .selectedMetric { padding-inline-start:10px; }
-  .selectedDay .comparisonValue b { font-size:18px; }
-  .metricDetail { min-height:2.8em; font-size:11px; }
+.weekReading {
+  display:flex; align-items:baseline; align-content:center; flex-wrap:wrap;
+  gap:2px clamp(8px,1.5vw,20px); min-block-size:38px; padding-block:6px;
+  border-block-start:1px solid var(--line-soft); color:var(--muted); font-size:12px; line-height:1.5;
+}
+.weekPeriod,.weekEnergy { display:inline-flex; flex-wrap:wrap; align-items:baseline; gap:0 6px; }
+.weekPeriod>span:first-child { color:var(--warm-white); font-weight:540; }
+.weekDates { white-space:nowrap; }
+.weekCoverage { font-size:11px; white-space:nowrap; }
+@media(max-width:700px),(hover:none) and (pointer:coarse) {
+  .selectedDay { font-size:13px; column-gap:6px; }
+  .selectedRecord .recordLongLabel { display:none; }
 }

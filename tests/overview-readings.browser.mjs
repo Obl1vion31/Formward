@@ -55,22 +55,14 @@ try{
   await page.keyboard.press("Enter");
   await page.waitForFunction(expected=>document.querySelector("[data-chart-selection]")?.getAttribute("data-selected-date")===expected,date);
  };
- const statisticsButton=page.getByRole("button",{name:"统计",exact:true});
- const statistics=page.locator("[data-overview-statistics]");
- const selectedReading=page.getByRole("region",{name:"选中日读数",exact:true});
+ const readings=page.locator("[data-overview-plot] + [data-overview-readings]");
+ const selectedReading=readings.getByRole("region",{name:"选中日读数",exact:true});
+ const weekly=readings.locator("[data-overview-week]");
  const geometry=()=>page.locator('section[aria-label="热量与晨重趋势"]').evaluate(root=>["range","toolbar","plot"].map(slot=>root.querySelector("[data-overview-"+slot+"]").getBoundingClientRect().top+scrollY));
- const closeStatistics=async()=>{
-  if(!await statisticsButton.isVisible())return;
-  await page.keyboard.press("Escape");
-  await statistics.waitFor({state:"hidden"});
-  await page.waitForFunction(()=>document.querySelector("[data-overview-statistics-trigger]")?.getAttribute("aria-expanded")==="false");
- };
- const openStatistics=async()=>{
-  if(!await statisticsButton.isVisible())return;
-  assert.equal(await statistics.isVisible(),false,"手机统计默认收起");
-  await statisticsButton.click();
-  await statistics.waitFor();
-  await page.waitForFunction(()=>document.querySelector("[data-overview-statistics-trigger]")?.getAttribute("aria-expanded")==="true");
+ const checkReadings=async date=>{
+  assert.equal(await selectedReading.getAttribute("data-selected-date"),date);
+  assert.equal(await weekly.getAttribute("data-selected-date"),date);
+  assert.deepEqual(await weekly.locator("time").evaluateAll(nodes=>nodes.map(node=>node.dateTime)),[addCalendarDays(date,-6),date]);
  };
 
  for(const [w,h]of[[320,560],[390,720],[430,780],[390,560],[844,390],[1100,900],[1440,900],[1920,1080]]){
@@ -78,38 +70,29 @@ try{
   for(const theme of["dark","light"]){
    await go("/dashboard");await page.evaluate(value=>{localStorage.setItem("formward-theme",value);document.documentElement.dataset.theme=value;window.dispatchEvent(new Event("formward-theme-change"));},theme);await choose(yesterday);
    await page.locator(".local-preview-label").waitFor();
-   const mobile=await statisticsButton.isVisible();
-   await page.keyboard.press("Escape");
    const initial=await geometry();
+   await checkReadings(yesterday);
+   assert.equal(await page.getByRole("button",{name:"统计",exact:true}).count(),0);
+   const plot=await page.locator("[data-overview-plot]").boundingBox();
+   const footer=await readings.boundingBox();
+   assert.ok(footer.y>=plot.y+plot.height-1,"读数在双图绘图区下方");
+   const control=await selectedReading.getByRole("button",{name:"查看记录",exact:true}).boundingBox();
+   assert.ok(control.width>=44&&control.height>=44,"查看记录触控区不缩水");
    await shot(theme+"-overview-"+w+"x"+h);
-   await openStatistics();
-   if(mobile){
-    const control=await statisticsButton.boundingBox(),preset=await page.getByRole("button",{name:"自定义",exact:true}).boundingBox();
-    assert.ok(control.width>=44&&control.height>=44&&Math.abs(control.y-preset.y)<=1,"统计和区间同排，触控不缩水");
-    const panel=await statistics.boundingBox();
-    assert.ok(panel.x>=0&&panel.y>=0&&panel.x+panel.width<=w&&panel.y+panel.height<=h,"统计浮层完整显示");
-    assert.deepEqual(await geometry(),initial,"浮层打开不推动图表");
-    await shot(theme+"-statistics-"+w+"x"+h);
-   }
-   assert.equal(await selectedReading.getAttribute("data-selected-date"),yesterday);
-   const energy=await selectedReading.locator("[data-overview-day-energy]").boundingBox();
-   const weight=await selectedReading.locator("[data-overview-day-weight]").boundingBox();
-   assert.ok(energy.x+energy.width<=weight.x+1,"当日热量和次晨体重并排");
-   if(mobile)assert.equal(await statistics.locator("[data-overview-week]").count(),1);
+   await readings.scrollIntoViewIfNeeded();
+   await shot(theme+"-readings-"+w+"x"+h);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,"no page overflow");
-   await closeStatistics();
    for(const offset of[-2,-4,-6]){
     await choose(addCalendarDays(today,offset));
     const next=await geometry();
     assert.ok(next.every((n,i)=>Math.abs(n-initial[i])<=1),"selection geometry stable "+JSON.stringify({w,theme,initial,next}));
+    await checkReadings(addCalendarDays(today,offset));
     if(offset===-2||offset===-4){
-     await openStatistics();
      assert.match(await selectedReading.locator("[data-overview-day-energy]").innerText(),offset===-2?/饮食未确认/:/持平/);
      if(w===390&&offset===-2)await shot(theme+"-pending-meal-390");
-     await closeStatistics();
     }
    }
-   if(w===390){await openStatistics();await shot(theme+"-missing-morning-390");await closeStatistics();}
+   if(w===390)await shot(theme+"-missing-morning-390");
    checks.push(theme+"-overview-"+w+"x"+h);
   }
  }
@@ -169,16 +152,13 @@ try{
   }
  }
  await page.setViewportSize({width:390,height:780});await go("/dashboard");await choose(yesterday);
- await openStatistics();
- const firstSelection=await statistics.locator("[data-overview-comparison]").getAttribute("data-selected-date");
- await statisticsButton.click();await statistics.waitFor({state:"hidden"});
- const other=page.locator('[data-overview-date="'+addCalendarDays(today,-4)+'"] rect');
- await other.click();
- await openStatistics();
- assert.notEqual(await statistics.locator("[data-overview-comparison]").getAttribute("data-selected-date"),firstSelection);
+ await checkReadings(yesterday);
+ const otherDate=addCalendarDays(today,-4);
+ await page.locator('[data-overview-date="'+otherDate+'"] rect').click();
+ await checkReadings(otherDate);
  await page.getByRole("button",{name:"30D",exact:true}).click();
- await statistics.waitFor({state:"hidden"});
- checks.push("statistics-toggle-selected-date-outside");
+ assert.equal(await readings.count(),1);
+ checks.push("day-and-week-readings-follow-selection");
  await page.emulateMedia({reducedMotion:"no-preference"});
  for(const range of ["7D","30D","90D"])await page.getByRole("button",{name:range,exact:true}).click();
  await page.locator("[data-overview-guide-date]").last().waitFor({state:"attached"});
@@ -202,11 +182,11 @@ try{
  assert.equal(await page.locator("[data-chart-selection]").getAttribute("data-selected-date"),stressDate);
  assert.deepEqual(await geometry(),longGeometry,"long secondary readouts reserve width for the whole interval");
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
- await openStatistics();
+ await checkReadings(stressDate);
+ await readings.scrollIntoViewIfNeeded();
  await shot("long-readings-320");
- await closeStatistics();
  checks.push("long-interval-readings-stable");
- const touch=await browser.newContext({viewport:{width:844,height:390},isMobile:true,hasTouch:true,locale:"zh-CN",timezoneId:"Asia/Shanghai",reducedMotion:"reduce"});await touch.addCookies(await context.cookies());const tp=await touch.newPage();tp.on("pageerror",e=>errors.push(e.message));await tp.goto(base+"/dashboard");await tp.waitForLoadState("networkidle");const touchStatistics=tp.locator("[data-overview-statistics]");assert.equal(await touchStatistics.isVisible(),false);await tp.getByRole("button",{name:"统计",exact:true}).tap();await touchStatistics.waitFor();assert.equal(await touchStatistics.locator("[data-overview-week]").count(),1);await tp.screenshot({path:resolve(art,"touch-landscape.png")});await touch.close();checks.push("real-coarse-pointer-landscape");
+ const touch=await browser.newContext({viewport:{width:844,height:390},isMobile:true,hasTouch:true,locale:"zh-CN",timezoneId:"Asia/Shanghai",reducedMotion:"reduce"});await touch.addCookies(await context.cookies());const tp=await touch.newPage();tp.on("pageerror",e=>errors.push(e.message));await tp.goto(base+"/dashboard");await tp.waitForLoadState("networkidle");await tp.locator('[data-overview-date="'+yesterday+'"] rect').tap();const touchWeek=tp.locator("[data-overview-plot] + [data-overview-readings] [data-overview-week]");assert.equal(await touchWeek.getAttribute("data-selected-date"),yesterday);await touchWeek.scrollIntoViewIfNeeded();await tp.screenshot({path:resolve(art,"touch-landscape.png")});await touch.close();checks.push("real-coarse-pointer-landscape");
  await go("/dashboard");await page.getByRole("button",{name:"自定义",exact:true}).click();await page.getByLabel("总览开始日期").fill(addCalendarDays(today,-6));await page.getByLabel("总览结束日期").fill(yesterday);await page.getByRole("button",{name:"应用",exact:true}).click();await choose(yesterday);checks.push("custom-range-and-keyboard");
  const plain=await page.locator('[data-overview-week]').innerText();assert.equal(await page.getByLabel("显示体重估计",{exact:true}).count(),0);assert.equal(await page.locator('[data-overview-week]').innerText(),plain);checks.push("no-body-estimation-control");
  assert.deepEqual(errors,[]);assert.deepEqual(networkErrors,[]);

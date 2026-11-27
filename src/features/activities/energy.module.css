@@ -240,19 +240,20 @@ form.energyEntry[data-entry-form=energy] .primaryReadings>label>input[type=numbe
 .calculationBubble small{display:block;font-size:12px;color:var(--muted)}
 .formulaText{font-variant-numeric:tabular-nums}
 
-.activityLevels { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:2px 8px; margin:8px 0 0; }
-.activityLevels h3 { grid-column:1; grid-row:1; align-self:center; font-size:1rem; font-weight:590; margin:0; }
+.activityLevels { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:2px 8px; margin:4px 0 0; }
+.energyEntry .activityLevels h3 { grid-column:1; grid-row:1; align-self:center; font-size:1rem; font-weight:620; margin:0; }
 .activityBasis { display:contents; }
 .energyEntry .activityBasis summary {
   grid-column:2; grid-row:1; display:flex; align-items:center; gap:6px; min-height:44px;
-  color:var(--gold); font-size:.8125rem; list-style:none; cursor:pointer;
+  color:var(--muted); font-size:.8125rem; list-style:none; cursor:pointer;
 }
+.energyEntry .activityBasis summary:is(:hover,:focus-visible) { color:var(--gold); }
 .activityBasis summary::-webkit-details-marker { display:none; }
 .activityBasis[open] summary span { transform:rotate(90deg); }
 .activityBasis>div { grid-column:1/-1; grid-row:3; padding:10px 12px; background:var(--surface-raised); border-radius:12px; }
 .activityWheel {
   grid-column:1/-1; grid-row:2; display:grid; grid-template-columns:minmax(0,1fr) 44px; align-items:center;
-  gap:7px; padding:0 5px 0 8px; border:1px solid var(--line-soft); border-radius:16px; background:var(--surface-raised);
+  column-gap:6px;
 }
 .activityWheelTrack {
   --activity-row:68px;
@@ -263,33 +264,43 @@ form.energyEntry[data-entry-form=energy] .primaryReadings>label>input[type=numbe
 .activityWheelTrack::-webkit-scrollbar { display:none; }
 .activityWheel .activityLevel {
   display:grid; position:relative; box-sizing:border-box; align-items:center; width:100%;
-  height:var(--activity-row); min-height:44px; padding:4px 9px; border-radius:12px;
-  border:1px solid transparent; color:var(--warm-white); scroll-snap-align:center; cursor:pointer;
+  height:var(--activity-row); min-height:44px; padding:4px 8px; border-radius:10px;
+  color:var(--warm-white); scroll-snap-align:center; cursor:pointer;
 }
 .activityWheel .activityLevel[data-selected] {
-  background:color-mix(in srgb,var(--gold) 13%,var(--surface));
-  border-color:color-mix(in srgb,var(--gold) 37%,transparent);
+  background:color-mix(in srgb,var(--gold) 12%,var(--surface));
 }
 .activityWheel .activityLevel input {
   position:absolute; width:1px; height:1px; min-height:0; opacity:0; margin:0; padding:0;
 }
 .activityWheel .activityLevel:has(:focus-visible) { outline:2px solid var(--gold); outline-offset:-2px; }
-.activityLevel>span { display:grid; gap:3px; transform:scale(.94); transform-origin:left center; transition:transform 150ms ease-out; }
-.activityLevel[data-selected]>span { transform:scale(1); }
-.activityLevel strong { font-size:1.0625rem; font-weight:620; line-height:1.2; }
-.activityLevel small { font-size:.8125rem; line-height:1.25; color:var(--muted); }
-.activityWheelArrows {
-  display:grid; overflow:hidden; border:1px solid var(--line-soft); border-radius:22px; background:var(--surface);
+.activityLevel>span { display:grid; gap:3px; }
+.activityLevel strong { font-size:.9375rem; font-weight:560; line-height:1.2; }
+.activityLevel[data-selected] strong { font-size:1.25rem; font-weight:650; }
+.activityLevel[data-selected] strong::after {
+  content:""; display:inline-block; inline-size:5px; block-size:9px; margin-inline-start:9px;
+  border:solid var(--gold); border-width:0 2px 2px 0; transform:translateY(-.12em) rotate(45deg);
 }
+.activityLevel small { font-size:.8125rem; line-height:1.25; color:var(--muted); }
+.activityWheelArrows { display:grid; }
 .activityWheelArrows button {
   display:grid; min-width:44px; min-height:44px; place-items:center; padding:0; cursor:pointer;
   background:transparent; color:var(--gold); border:0;
 }
-.activityWheelArrows button+button { border-top:1px solid var(--line-soft); }
+.activityWheelArrows button:is(:hover,:focus-visible):not(:disabled) { background:var(--surface-hover); border-radius:8px; }
 .activityWheelArrows button:disabled { color:var(--muted); opacity:.55; cursor:default; }
-.estimateMethods { display:flex; justify-content:flex-end; margin:2px 0; }
-.estimateMethods button { min-height:44px; border:0; background:transparent; color:var(--muted); cursor:pointer; }
-@media(prefers-reduced-motion:reduce) { .activityLevel>span { transition:none; } }
+.estimateMethods { display:flex; justify-content:flex-end; }
+.estimateMethods button { min-height:44px; padding-inline:0; border:0; background:transparent; color:var(--muted); font-size:.8125rem; cursor:pointer; }
+.estimateMethods button:is(:hover,:focus-visible) { color:var(--gold); }
+
+.energyEntry[data-energy-estimate] .energyDetails { margin-block-start:0; }
+.energyEntry[data-energy-estimate] .energyDetails>summary,
+.energyEntry[data-energy-estimate] .stepsRow>span { color:var(--muted); font-size:.8125rem; }
+.energyEntry[data-energy-estimate] .stepsSection { padding-block:4px 8px; }
+.energyEntry[data-energy-estimate] .stickyTotal>div { display:grid; gap:3px; }
+.energyEntry[data-energy-estimate] .stickyTotal>div>span { color:var(--muted); font-size:.8125rem; }
+.energyEntry[data-energy-estimate] .stickyTotal strong { font-size:1.875rem; font-variant-numeric:tabular-nums; }
+.energyEntry[data-energy-estimate] .stickyTotal strong[data-estimate-unavailable] { color:var(--muted); }
 
 .inlineBasis{display:grid;gap:6px;margin-block:8px 12px;color:var(--muted);font-size:13px;line-height:1.65}
 .inlineBasis p{margin:0}

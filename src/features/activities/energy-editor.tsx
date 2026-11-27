@@ -301,7 +301,7 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
   message={quick?"":contextError||(missingFacts.length&&calculated&&!calculated.ok?calculated.message:"")} missing={missingFacts} supplement={setSupplement}/>;
  const activityControl=<ActivityLevelControl dateLabel={targetDate===today?"今天的活动量":"所选日的活动量"} value={activityLevel} basis={formulaControls} change={activityLevel=>{setMethodTouched(true);estimate({kind:"daily",method:formula,activityLevel});setAggregateEpoch(epoch=>epoch+1);}}/>;
  function addItem(){if(!daily)return;if(!quick&&modes.activityMode==="total"&&draft.activeKcal==null){setDraft(current=>({...current,activityMode:"activities"}));setAggregateEpoch(epoch=>epoch+1);}const key=crypto.randomUUID();setItems(rows=>[...rows,{key,kind:"save_activity",date:draft.date,name:"",calorieMode:"total",completed:true,timezone:draft.timezone}]);setExpanded(values=>new Set([...values,key]));}
- return <><form hidden={!!supplement} ref={form} data-entry-form={pending?"energy-pending":"energy"} data-energy-entry-layout={daily?"daily":"activity"} className={styles.form+" "+styles.energyEntry} aria-busy={busy||pending&&!error} onSubmit={event=>{event.preventDefault();void submit();}}>
+ return <><form hidden={!!supplement} ref={form} data-entry-form={pending?"energy-pending":"energy"} data-energy-entry-layout={daily?"daily":"activity"} data-energy-estimate={quick||undefined} className={styles.form+" "+styles.energyEntry} aria-busy={busy||pending&&!error} onSubmit={event=>{event.preventDefault();void submit();}}>
 
   <fieldset disabled={busy||pending||retired||confirmingAggregate}>
    {(daily||single)&&<div className={styles.entryDate}><label>{daily?<span className="sr-only">日期</span>:"日期"}<DateField aria-label="日期" displayLabel={daily?draft.date.replaceAll("-",".")+(draft.date===today?" · 今天":draft.date<today?" · 补录":""):undefined} required value={draft.date} onChange={event=>{setMethodTouched(true);set("date",event.target.value);}}/></label>{targetDate&&(!daily?<RecordDateContext statusOnly date={targetDate} openedOn={openedOn}/>:today!==openedOn?<p className={styles.dateNotice} role="status">已跨零点，这份记录仍保存到 {targetDate}</p>:null)}</div>}
@@ -353,7 +353,7 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
   <div className={styles.stickyTotal} data-entry-footer>
    <div role="group" aria-label="当天总消耗">
     <span>{daily?quick?"预计全天消耗":"合计":"当天总消耗"}</span>
-    {pending?(!error&&<LocalLoading/>):(!quick||total!=null)&&<strong>{energyValue(total)} <small>千卡</small></strong>}
+    {pending?(!error&&<LocalLoading/>):<strong data-estimate-unavailable={quick&&total==null||undefined}>{energyValue(total)} <small>千卡</small></strong>}
     {!pending&&entryIssue&&<small role="status">{entryIssue}</small>}
     {!pending&&quick&&supplementKind&&<div className={styles.footerRecovery}>
       <button type="button"  disabled={busy} onClick={()=>setSupplement(supplementKind)}>{supplementLabel}</button>

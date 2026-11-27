@@ -41,7 +41,7 @@ export function TodayActions({ date, day, readingStatus, onGuideRetry }: {
       {target:"overview-intake",text:"今日摄入显示当天的热量和餐数。点卡片进入饮食趋势。"},
       {target:"overview-morning-weight",text:"这里显示最近一次有效晨重和实际日期。点卡片查看身体记录。"},
       {target:"overview-energy",text:"这里显示当天的消耗和来源。设备的「今日累计」会继续更新。"},
-      {target:"overview-trend",text:"上图显示当天收支，下图显示当天晨重到次日晨重的实测变化。点日期可一起查看。"},
+      {target:"overview-trend",text:"上图显示当天收支，下图显示次晨实测变化。点日期后在图下看选中日及对应的近 7 天。"},
       {target:"overview-record",text:"「查看记录」打开图表选中的那一天，可核对饮食、消耗和实测来源。"},
     ]}/></div>
   </section>;

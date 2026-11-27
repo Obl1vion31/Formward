@@ -73,13 +73,10 @@ try{
    for(const[name,path]of paths){
     await go(p,path);await p.evaluate(()=>scrollTo(0,0));
     if(name==="overview"){
-     const statistics=p.getByRole("button",{name:"统计",exact:true});
-     const mobile=await statistics.isVisible();
-     if(mobile)await statistics.click();
-     assert.equal(await p.locator("[data-overview-comparison] > div").count(),2);
-     assert.ok((await p.locator("[data-overview-week]").boundingBox()).height<=48,"weekly row compact");
-     assert.equal(Number(await p.locator("[data-overview-week-energy] b").innerText()),Math.abs(expectedWeek));
-     if(mobile)await p.keyboard.press("Escape");
+     const readings=p.locator("[data-overview-plot] + [data-overview-readings]");
+     assert.equal(await readings.locator("section").count(),2);
+     assert.ok((await readings.locator("[data-overview-week]").boundingBox()).height<=48,"weekly row compact");
+     assert.equal(Number((await readings.locator("[data-overview-week-energy] b").innerText()).replaceAll(",", "")),Math.abs(expectedWeek));
     }else{
      const recent=p.getByRole("region",{name:"最近记录",exact:true});const buttons=recent.locator('[data-record-date="'+today+'"] [data-record-actions] button');
      const first=buttons.first();await first.waitFor();if(w>=1100){const offset=await first.evaluate(n=>{const row=n.closest("[data-record-date]");return n.getBoundingClientRect().y-row.getBoundingClientRect().y-parseFloat(getComputedStyle(row).paddingTop);});assert.ok(Math.abs(offset)<=2,"record controls align to row top");}signatures[name]=await first.evaluate(n=>{const s=getComputedStyle(n);if(matchMedia("(prefers-reduced-motion:reduce)").matches&&s.transitionDuration!=="0s")throw Error("record controls must respect reduced motion");return[s.fontFamily,s.fontSize,s.lineHeight,s.color,s.borderTopWidth,s.borderTopColor,s.borderRadius,s.padding,s.minHeight].join("|")});
@@ -101,11 +98,10 @@ try{
  }
  assert.equal(hoverStyles.meals,hoverStyles.energy);assert.equal(hoverStyles.energy,hoverStyles.body);checks.push("shared-record-controls-normal-hover-focus-and-history");
  await p.setViewportSize({width:390,height:720});await go(p,"/dashboard");
- const info=p.getByRole("button",{name:"统计",exact:true});
- const note=p.locator("[data-overview-statistics]");
- assert.equal(await note.isVisible(),false);
- await info.press("Enter");await note.waitFor();await shot(p,"phone-week-basis");
- await p.keyboard.press("Escape");await note.waitFor({state:"hidden"});checks.push("mobile-week-basis");
+ const note=p.locator("[data-overview-plot] + [data-overview-readings] [data-overview-week]");
+ assert.equal(await p.getByRole("button",{name:"统计",exact:true}).count(),0);
+ await note.scrollIntoViewIfNeeded();await shot(p,"phone-week-reading");
+ checks.push("mobile-week-reading");
 
  for(const[w,h]of[[1440,900],[390,720],[320,560]]){
   await p.setViewportSize({width:w,height:h});

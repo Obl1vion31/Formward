@@ -85,18 +85,22 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
     await page.setViewportSize({ width, height: 844 });
     for (const days of [7, 30, 90]) {
       await page.getByRole("button", { name: `${days}D`, exact: true }).click();
-      const chart = page.getByRole("group", { name: "热量收支与次晨体重变化", exact: true });
+      const chart = page.getByRole("group", { name: "双层日期关联图", exact: true });
       const day = chart.locator('[data-overview-date="'+date+'"]');
       const balance = await day.getAttribute("data-balance");
       assert.notEqual(balance, null);
       assert.equal(await chart.locator('[data-plot-date="'+date+'"][data-series="balance"]').getAttribute("data-overview-value"), balance);
       await day.focus(); await page.keyboard.press("Enter");
-      const readout = page.locator('[data-overview-day][data-selected-date="'+date+'"] [data-overview-day-energy]');
-      await readout.waitFor();
-      const values = await readout.locator("span").filter({ hasText: /^(摄入|消耗) [\d,]+$/ }).allTextContents();
-      const [intake, expended] = values.filter(text=>/^(摄入|消耗) [\d,]+$/.test(text)).map(text=>Number(text.split(" ")[1].replaceAll(",", "")));
+      const readout = page.locator('[data-overview-day][data-selected-date="'+date+'"]');
+      await readout.getByRole("button",{name:"查看记录",exact:true}).click();
+      const details = page.getByRole("dialog");
+      const value = async locator => Number((await locator.innerText()).replace(/[^\d.]/g,""));
+      const intake = await value(details.locator("[data-nutrition-columns]>div:first-child strong"));
+      const expended = await value(details.locator("section").filter({has:details.getByRole("heading",{name:"消耗",exact:true})}).locator("strong").first());
       assert.equal(expended, 2800);
       assert.equal(intake, Math.round(Number(balance) + expended));
+      await page.keyboard.press("Escape");
+      await details.waitFor({state:"hidden"});
       assert.equal(await chart.locator("[data-overview-panel]").count(), 2);
 
     }
