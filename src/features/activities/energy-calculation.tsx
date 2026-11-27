@@ -91,14 +91,15 @@ export function ActivityLevelControl({ value, change, dateLabel = "今天的活�
  value:ActivityLevel|null; change:(level:ActivityLevel)=>void; dateLabel?:string; basis:React.ReactNode;
 }) {
  const id=useId(), track=useRef<HTMLDivElement>(null), timer=useRef<number>(0);
- const gestureStart = useRef<number | null>(null), touching = useRef(false), animateChoice = useRef(false);
+ const scrollPicking = useRef(false), touching = useRef(false), animateChoice = useRef(false);
  const index=activityLevels.findIndex(level=>level.id===value);
+ const centeredIndex = index < 0 ? 1 : index;
  const examples=["大部分时间坐着，偶尔走动","通勤、散步或做家务","较长时间走路，或做了中等强度训练","体力工作，或长时间高强度训练"];
 
  function choose(next: number) {
   const level = activityLevels[next];
   if (!level) return;
-  gestureStart.current = null;
+  scrollPicking.current = false;
   window.clearTimeout(timer.current);
   if (level.id === value) return;
   animateChoice.current = true;
@@ -111,29 +112,27 @@ export function ActivityLevelControl({ value, change, dateLabel = "今天的活�
   if (!node || !row) return;
   const animate = animateChoice.current && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   animateChoice.current = false;
-  gestureStart.current = null;
+  scrollPicking.current = false;
   window.clearTimeout(timer.current);
-  node.scrollTo({ top: row.offsetHeight * (index < 0 ? 1 : index), behavior: animate ? "smooth" : "instant" });
+  node.scrollTo({ top: row.offsetHeight * centeredIndex, behavior: animate ? "smooth" : "instant" });
   paintActivityWheel(node);
- }, [index]);
+ }, [centeredIndex, value]);
  useEffect(() => () => window.clearTimeout(timer.current), []);
 
  function settleAfterScroll() {
   window.clearTimeout(timer.current);
-  if (touching.current || gestureStart.current === null) return;
+  if (touching.current || !scrollPicking.current) return;
   timer.current = window.setTimeout(() => {
    const node = track.current, row = node?.firstElementChild as HTMLLabelElement | null;
-   const start = gestureStart.current;
-   gestureStart.current = null;
-   if (!node || !row?.offsetHeight || start === null || node.querySelector("input:disabled")) return;
-   if (Math.abs(node.scrollTop - start) < 1) return;
-   const next = Math.round(node.scrollTop / row.offsetHeight);
-   choose(Math.min(activityLevels.length - 1, Math.max(0, next)));
+   scrollPicking.current = false;
+   if (!node || !row?.offsetHeight || node.querySelector("input:disabled")) return;
+   const next = Math.min(activityLevels.length - 1, Math.max(0, Math.round(node.scrollTop / row.offsetHeight)));
+   if (next !== centeredIndex) choose(next);
   }, 140);
  }
 
  function startScroll() {
-  gestureStart.current ??= track.current?.scrollTop ?? null;
+  scrollPicking.current = true;
   settleAfterScroll();
  }
 
