@@ -2,7 +2,17 @@
 
 ## 当前正式版本
 
-网页与小助手后台运行`dual-entry-5ab3d6fc-numbered-guides-batch2-r5-20261127`，源码`5ab3d6fc1054a367df75dc40e6c3bb086e90da83`，BUILD_ID`dSwu2bcXVRTqtE4kkrp_N`。北京时间2026-11-27 03:18:25切换。编号页面讲解首帧可打开，等待与真实内容接管保留同一步，手机晨重卡等待滚动吸附稳定后定位；消耗卡分项归于右侧小横条下方，底部操作通栏。 [正式站](https://formward.top) · [版本](https://formward.top/api/app-version) · [实际页面验收](../design-qa.md)
+网页与小助手后台运行 `dual-entry-17a1788b-daily-workspace-candidate-r11-20261127`，源码 `17a1788bc3c5e43eb74a5d6850c477bcf462853a`，BUILD_ID `aIFXOtEqp4KbOYOPpLuqi`。北京时间 2026-11-27 17:15:17 切换。编号导览切步和页面切换已修正，总览双图下方显示选中日和近 7 天读数。估算保留三种记录方式，活动量使用带居中吸附的滚轮。小助手待办支持标为已记全和同步角标。 [正式站](https://formward.top) · [版本](https://formward.top/api/app-version) · [实际页面验收](../design-qa.md)
+
+网页与 worker 已核对从同一运行包启动。数据库维持 `0048_meal_reference_foods`、48 项迁移、67 张表。切换前后数据摘要和配置一致，备份 `formward-primary-20261127T091513520055Z.dump.json` 通过原生校验和加密异地回读。四个域名及兼容 IP 同版，20 项新旧静态资源、登录回程、5 项匿名接口限制和海外 MCP 元数据通过。海外网关保持原域名绑定。
+
+同一运行包通过 lint、类型检查、生产构建及 890 项单元与集成测试。lint 保留一条既有的聊天 Hook 告警。最后一轮活动滚轮核对 9 组浏览器场景、47 张实页截图和 9 段原速录屏。手机验收使用浏览器触屏视口。
+
+准确兼容包 97,097,036 字节，SHA-256 `f263613c2e81622db78c4b99f996a9952dda5785757187f903bf36a94d829baf`。保留 57 项 Server Action、原绑定密钥及 2652 项旧静态资源。运行包及核对记录在 `.codex/backups/regional-releases/daily-workspace-candidate-r11-20261127`，兼容回退为 `numbered-guides-batch2-r5-20261127`。回退前等待在途任务结束，再一起切换网页与 worker，正式数据及费用账本按原规则保留。
+
+## 编号页面讲解与手机消耗卡发布记录
+
+该次网页与小助手后台运行 `dual-entry-5ab3d6fc-numbered-guides-batch2-r5-20261127`，源码`5ab3d6fc1054a367df75dc40e6c3bb086e90da83`，BUILD_ID`dSwu2bcXVRTqtE4kkrp_N`。北京时间2026-11-27 03:18:25切换。编号页面讲解首帧可打开，等待与真实内容接管保留同一步，手机晨重卡等待滚动吸附稳定后定位；消耗卡分项归于右侧小横条下方，底部操作通栏。 [正式站](https://formward.top) · [版本](https://formward.top/api/app-version) · [实际页面验收](../design-qa.md)
 
 两项服务已核对同目录启动。数据库保持`0048_meal_reference_foods`、48项迁移、67张表；配置及切换前后数据库摘要保持。备份`formward-primary-20261126T191821524914Z.dump.json`已完成原生校验及加密异地回读。四个域名及兼容IP同版，14项新旧资源哈希、登录回程、5项匿名接口限制及海外MCP元数据通过，海外网关保持原绑定。
 
