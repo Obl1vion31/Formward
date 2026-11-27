@@ -15,8 +15,9 @@ export async function checkMealDayCompletion({baseURL,context,page,token,today})
  const checkPartialIntake=async()=>{
   assert.equal(await page.locator('[data-plot-date="'+date+'"][data-series="balance"]').count(),0);
   await graphDay().focus();await page.keyboard.press("Enter");
-  const readout=page.locator('[data-overview-day-readout="'+date+'"]');await readout.waitFor();
-  assert.match((await readout.innerText()).replace(/\s+/g," "),/收支未计算 已记摄入 800 千卡/);
+  const readout=page.locator('[data-overview-day][data-selected-date="'+date+'"] [data-overview-day-energy]');await readout.waitFor();
+  assert.match(await readout.textContent(),/饮食未确认|饮食未记全/);
+  assert.match(await readout.textContent(),/已记摄入 800/);
  };
 
  assert.equal(await graphDay().getAttribute("data-balance"),null);

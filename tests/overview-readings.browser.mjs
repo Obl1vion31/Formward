@@ -57,6 +57,7 @@ try{
  };
  const statisticsButton=page.getByRole("button",{name:"统计",exact:true});
  const statistics=page.locator("[data-overview-statistics]");
+ const selectedReading=page.getByRole("region",{name:"选中日读数",exact:true});
  const geometry=()=>page.locator('section[aria-label="热量与晨重趋势"]').evaluate(root=>["range","toolbar","plot"].map(slot=>root.querySelector("[data-overview-"+slot+"]").getBoundingClientRect().top+scrollY));
  const closeStatistics=async()=>{
   if(!await statisticsButton.isVisible())return;
@@ -90,13 +91,11 @@ try{
     assert.deepEqual(await geometry(),initial,"浮层打开不推动图表");
     await shot(theme+"-statistics-"+w+"x"+h);
    }
-   assert.equal(await page.locator("[data-overview-comparison] > div").count(),2);
-   assert.equal(await page.locator("[data-overview-week-basis]:visible").count(),0);
-   for(const metric of ["energy","weight"]){
-    const day=await page.locator("[data-overview-day-"+metric+"]").boundingBox();
-    const week=await page.locator("[data-overview-week-"+metric+"]").boundingBox();
-    assert.ok(Math.abs(day.x-week.x)<=1,"当日和近7天同列对齐");
-   }
+   assert.equal(await selectedReading.getAttribute("data-selected-date"),yesterday);
+   const energy=await selectedReading.locator("[data-overview-day-energy]").boundingBox();
+   const weight=await selectedReading.locator("[data-overview-day-weight]").boundingBox();
+   assert.ok(energy.x+energy.width<=weight.x+1,"当日热量和次晨体重并排");
+   if(mobile)assert.equal(await statistics.locator("[data-overview-week]").count(),1);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,"no page overflow");
    await closeStatistics();
    for(const offset of[-2,-4,-6]){
@@ -105,7 +104,7 @@ try{
     assert.ok(next.every((n,i)=>Math.abs(n-initial[i])<=1),"selection geometry stable "+JSON.stringify({w,theme,initial,next}));
     if(offset===-2||offset===-4){
      await openStatistics();
-     assert.match(await page.locator("[data-overview-day-energy]").innerText(),offset===-2?/未计算/:/持平/);
+     assert.match(await selectedReading.locator("[data-overview-day-energy]").innerText(),offset===-2?/饮食未确认/:/持平/);
      if(w===390&&offset===-2)await shot(theme+"-pending-meal-390");
      await closeStatistics();
     }
@@ -187,7 +186,7 @@ try{
  assert.equal(await page.locator("[data-overview-guide-date]").count(),5);
  await page.emulateMedia({reducedMotion:"reduce"});
  checks.push("rapid-range-motion");
- await page.setViewportSize({width:390,height:720});await go("/dashboard");await choose(yesterday);await page.getByRole("button",{name:"查看记录 →",exact:true}).click();await page.getByRole("dialog").waitFor();assert.match(await page.getByRole("dialog").innerText(),/晨间体重/);await page.keyboard.press("Escape");checks.push("day-details-kept");
+ await page.setViewportSize({width:390,height:720});await go("/dashboard");await choose(yesterday);await selectedReading.getByRole("button",{name:"查看记录",exact:true}).click();await page.getByRole("dialog").waitFor();assert.match(await page.getByRole("dialog").innerText(),/晨间体重/);await page.keyboard.press("Escape");checks.push("day-details-kept");
  for(const path of["/dashboard/meals","/dashboard/energy","/dashboard/measurements"]){await go(path);assert.equal(await page.locator('[data-record-slot="date"] [role="status"]').count(),0);await shot("unchanged-"+path.split("/").at(-1)+"-390");}checks.push("other-pages-status-placement-kept");
  await checkChartRangeMotion({browser,base,today,art,context,checks,errors});
  const stressDate=addCalendarDays(today,-17),oldMeal=(await readMealSnapshot(db,owner.id)).meals.find(m=>m.date===stressDate);
@@ -207,7 +206,7 @@ try{
  await shot("long-readings-320");
  await closeStatistics();
  checks.push("long-interval-readings-stable");
- const touch=await browser.newContext({viewport:{width:844,height:390},isMobile:true,hasTouch:true,locale:"zh-CN",timezoneId:"Asia/Shanghai",reducedMotion:"reduce"});await touch.addCookies(await context.cookies());const tp=await touch.newPage();tp.on("pageerror",e=>errors.push(e.message));await tp.goto(base+"/dashboard");await tp.waitForLoadState("networkidle");const touchStatistics=tp.locator("[data-overview-statistics]");assert.equal(await touchStatistics.isVisible(),false);await tp.getByRole("button",{name:"统计",exact:true}).tap();await touchStatistics.waitFor();assert.equal(await tp.locator("[data-overview-comparison] > div").count(),2);await tp.screenshot({path:resolve(art,"touch-landscape.png")});await touch.close();checks.push("real-coarse-pointer-landscape");
+ const touch=await browser.newContext({viewport:{width:844,height:390},isMobile:true,hasTouch:true,locale:"zh-CN",timezoneId:"Asia/Shanghai",reducedMotion:"reduce"});await touch.addCookies(await context.cookies());const tp=await touch.newPage();tp.on("pageerror",e=>errors.push(e.message));await tp.goto(base+"/dashboard");await tp.waitForLoadState("networkidle");const touchStatistics=tp.locator("[data-overview-statistics]");assert.equal(await touchStatistics.isVisible(),false);await tp.getByRole("button",{name:"统计",exact:true}).tap();await touchStatistics.waitFor();assert.equal(await touchStatistics.locator("[data-overview-week]").count(),1);await tp.screenshot({path:resolve(art,"touch-landscape.png")});await touch.close();checks.push("real-coarse-pointer-landscape");
  await go("/dashboard");await page.getByRole("button",{name:"自定义",exact:true}).click();await page.getByLabel("总览开始日期").fill(addCalendarDays(today,-6));await page.getByLabel("总览结束日期").fill(yesterday);await page.getByRole("button",{name:"应用",exact:true}).click();await choose(yesterday);checks.push("custom-range-and-keyboard");
  const plain=await page.locator('[data-overview-week]').innerText();assert.equal(await page.getByLabel("显示体重估计",{exact:true}).count(),0);assert.equal(await page.locator('[data-overview-week]').innerText(),plain);checks.push("no-body-estimation-control");
  assert.deepEqual(errors,[]);assert.deepEqual(networkErrors,[]);

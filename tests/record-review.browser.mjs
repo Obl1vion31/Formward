@@ -91,9 +91,10 @@ export async function checkUnifiedReview({ baseURL, context, page, token, date, 
       assert.notEqual(balance, null);
       assert.equal(await chart.locator('[data-plot-date="'+date+'"][data-series="balance"]').getAttribute("data-overview-value"), balance);
       await day.focus(); await page.keyboard.press("Enter");
-      const readout = chart.locator('[data-overview-day-readout="'+date+'"]');
+      const readout = page.locator('[data-overview-day][data-selected-date="'+date+'"] [data-overview-day-energy]');
       await readout.waitFor();
-      const [intake, expended] = (await readout.locator("dd strong").allTextContents()).map(Number);
+      const values = await readout.locator("span").filter({ hasText: /^(摄入|消耗) [\d,]+$/ }).allTextContents();
+      const [intake, expended] = values.filter(text=>/^(摄入|消耗) [\d,]+$/.test(text)).map(text=>Number(text.split(" ")[1].replaceAll(",", "")));
       assert.equal(expended, 2800);
       assert.equal(intake, Math.round(Number(balance) + expended));
       assert.equal(await chart.locator("[data-overview-panel]").count(), 2);
