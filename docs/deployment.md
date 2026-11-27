@@ -2,6 +2,14 @@
 
 ## 当前正式版本
 
+网页和小助手后台运行 `dual-entry-67e82f80-daily-workspace-record-feedback-r3-20261127`，源码 `67e82f80a03a16cac187b2e3508b7207bf65d95c`，BUILD_ID `6uqSyopElO2h_nIKslV1d`。北京时间 2026-11-27 21:23:02 切换。本次局部动效适用于食材增删、助手核对、保存后回看和历史展开，长期规则已写入 `AGENTS.md`。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version) · [实际网页验收](../design-qa.md#已发布验收--记录交互轻动效)
+
+数据库维持 `0049_assistant_daily_reminder_dismissals`、49 项迁移和 68 张应用表。切换前备份 `formward-primary-20261127T132258748801Z.dump.json` 完成原生校验和加密异地回读。四个域名和兼容 IP 同版，16 项新旧资源哈希、登录回程、6 项匿名接口限制及海外 MCP 发现通过。海外两个入口复核时发生回源超时。使用 `iad1` 的同一网关包重新部署，逐项核对 217 个文件，公开回源和 MCP 发现恢复。当前网关为 `dpl_3KVS8pKcSCCuKu1PzER1kaBgdTUs`，先前网关 `dpl_FzyJrgwj8bfPdfyPZSHrYEhX8p3E` 已归档。
+
+同一运行包通过 8 组双端实页、890 项测试、lint、类型检查和生产构建。准确包 97,596,472 字节，SHA-256 `67af5f8be13922d9c8855a8f18391737642935f60da84bd66695bfba67e85ab2`，保留 57 项 Server Action、原绑定密钥及 2683 项旧静态资源。归档于 `.codex/backups/regional-releases/daily-workspace-record-feedback-r3-20261127`。兼容回退为 `daily-workspace-reminder-motion-r2-20261127`，网页和 worker 成套切换。
+
+## 小助手待办收起动效发布记录
+
 网页和小助手后台运行 `dual-entry-72a72d23-daily-workspace-reminder-motion-r2-20261127`，源码 `72a72d23269a6381d2287a6b859cdfbd1fdb70c9`，BUILD_ID `iQPgkldLBOMhSuJaG-MN-`。北京时间 2026-11-27 20:04:49 切换。日常待办标为已记全或忽略成功后，当前行淡出收拢，下方顺势补位，角标同时更新。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version) · [实际网页验收](../design-qa.md#已发布验收--小助手待办收起动效)
 
 正式库维持 `0049_assistant_daily_reminder_dismissals`、49 项迁移及 68 张应用表。切换前备份 `formward-primary-20261127T120445428028Z.dump.json` 完成原生校验与加密异地回读。网页和 worker 从同一目录启动。四个域名和兼容 IP 同版，16 项新旧资源哈希、登录回程、6 项匿名接口限制及海外 MCP 元数据通过。

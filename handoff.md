@@ -1,6 +1,8 @@
 # Formward 项目交接
 
-网页与小助手后台运行 `dual-entry-72a72d23-daily-workspace-reminder-motion-r2-20261127`，源码 `72a72d23269a6381d2287a6b859cdfbd1fdb70c9`，BUILD_ID `iQPgkldLBOMhSuJaG-MN-`。北京时间 2026-11-27 20:04:49 切换，`main` 包含正式运行源码。兼容回退为 `daily-workspace-reminders-20261127`。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+网页与小助手后台运行 `dual-entry-67e82f80-daily-workspace-record-feedback-r3-20261127`，源码 `67e82f80a03a16cac187b2e3508b7207bf65d95c`，BUILD_ID `6uqSyopElO2h_nIKslV1d`。北京时间 2026-11-27 21:23:02 切换，`main` 包含正式运行源码。兼容回退为 `daily-workspace-reminder-motion-r2-20261127`。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+
+日常记录使用局部动效交代食材增删、助手核对、保存反馈与历史开合。实际截图和连续过程可在视觉验收中查看。 [记录交互验收](design-qa.md#已发布验收--记录交互轻动效)
 
 总览与趋势页从「使用指引」打开编号讲解。导览切步保持遮罩与金框连续。总览双图下方显示选中日与近 7 天，体脂关闭时录入从首帧只显示体重。消耗估算保留三个同排方式，活动档位居中吸附，预计值和保存留在同一栏。小助手显示今天和昨天的日常待办，确认昨日饮食后同步更新角标和总览。 [截图与录屏](design-qa.md#已发布验收--全天消耗滚轮与分组层级)
 
